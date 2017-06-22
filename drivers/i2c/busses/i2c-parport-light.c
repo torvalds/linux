@@ -38,11 +38,11 @@
 static struct platform_device *pdev;
 
 static u16 base;
-module_param(base, ushort, 0);
+module_param_hw(base, ushort, ioport, 0);
 MODULE_PARM_DESC(base, "Base I/O address");
 
 static int irq;
-module_param(irq, int, 0);
+module_param_hw(irq, int, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ (optional)");
 
 /* ----- Low-level parallel port access ----------------------------------- */

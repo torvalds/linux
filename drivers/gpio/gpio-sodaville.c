@@ -135,7 +135,8 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 	struct irq_chip_type *ct;
 	int ret;
 
-	sd->irq_base = irq_alloc_descs(-1, 0, SDV_NUM_PUB_GPIOS, -1);
+	sd->irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0,
+					    SDV_NUM_PUB_GPIOS, -1);
 	if (sd->irq_base < 0)
 		return sd->irq_base;
 
@@ -143,10 +144,11 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 	writel(0, sd->gpio_pub_base + GPIO_INT);
 	writel((1 << 11) - 1, sd->gpio_pub_base + GPSTR);
 
-	ret = request_irq(pdev->irq, sdv_gpio_pub_irq_handler, IRQF_SHARED,
-			"sdv_gpio", sd);
+	ret = devm_request_irq(&pdev->dev, pdev->irq,
+			       sdv_gpio_pub_irq_handler, IRQF_SHARED,
+			       "sdv_gpio", sd);
 	if (ret)
-		goto out_free_desc;
+		return ret;
 
 	/*
 	 * This gpio irq controller latches level irqs. Testing shows that if
@@ -155,10 +157,8 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 	 */
 	sd->gc = irq_alloc_generic_chip("sdv-gpio", 1, sd->irq_base,
 			sd->gpio_pub_base, handle_fasteoi_irq);
-	if (!sd->gc) {
-		ret = -ENOMEM;
-		goto out_free_irq;
-	}
+	if (!sd->gc)
+		return -ENOMEM;
 
 	sd->gc->private = sd;
 	ct = sd->gc->chip_types;
@@ -176,16 +176,10 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 
 	sd->id = irq_domain_add_legacy(pdev->dev.of_node, SDV_NUM_PUB_GPIOS,
 				sd->irq_base, 0, &irq_domain_sdv_ops, sd);
-	if (!sd->id) {
-		ret = -ENODEV;
-		goto out_free_irq;
-	}
+	if (!sd->id)
+		return -ENODEV;
+
 	return 0;
-out_free_irq:
-	free_irq(pdev->irq, sd);
-out_free_desc:
-	irq_free_descs(sd->irq_base, SDV_NUM_PUB_GPIOS);
-	return ret;
 }
 
 static int sdv_gpio_probe(struct pci_dev *pdev,

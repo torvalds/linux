@@ -231,6 +231,18 @@ static struct lpass_variant apq8016_data = {
 	.wrdma_channels		= 2,
 	.dai_driver		= apq8016_lpass_cpu_dai_driver,
 	.num_dai		= ARRAY_SIZE(apq8016_lpass_cpu_dai_driver),
+	.dai_osr_clk_names	= (const char *[]) {
+				"mi2s-osr-clk0",
+				"mi2s-osr-clk1",
+				"mi2s-osr-clk2",
+				"mi2s-osr-clk3",
+				},
+	.dai_bit_clk_names	= (const char *[]) {
+				"mi2s-bit-clk0",
+				"mi2s-bit-clk1",
+				"mi2s-bit-clk2",
+				"mi2s-bit-clk3",
+				},
 	.init			= apq8016_lpass_init,
 	.exit			= apq8016_lpass_exit,
 	.alloc_dma_channel	= apq8016_lpass_alloc_dma_channel,

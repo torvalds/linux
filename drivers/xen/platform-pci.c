@@ -90,8 +90,10 @@ static int xen_allocate_irq(struct pci_dev *pdev)
 static int platform_pci_resume(struct pci_dev *pdev)
 {
 	int err;
-	if (!xen_pv_domain())
+
+	if (xen_have_vector_callback)
 		return 0;
+
 	err = xen_set_callback_via(callback_via);
 	if (err) {
 		dev_err(&pdev->dev, "platform_pci_resume failure!\n");
@@ -137,15 +139,7 @@ static int platform_pci_probe(struct pci_dev *pdev,
 
 	platform_mmio = mmio_addr;
 	platform_mmiolen = mmio_len;
-
-	/* 
-	 * Xen HVM guests always use the vector callback mechanism.
-	 * L1 Dom0 in a nested Xen environment is a PV guest inside in an
-	 * HVM environment. It needs the platform-pci driver to get
-	 * notifications from L0 Xen, but it cannot use the vector callback
-	 * as it is not exported by L1 Xen.
-	 */
-	if (xen_pv_domain()) {
+	if (!xen_have_vector_callback) {
 		ret = xen_allocate_irq(pdev);
 		if (ret) {
 			dev_warn(&pdev->dev, "request_irq failed err=%d\n", ret);

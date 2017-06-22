@@ -201,11 +201,10 @@ static int tcp_write_timeout(struct sock *sk)
 		if (retransmits_timed_out(sk, net->ipv4.sysctl_tcp_retries1, 0, 0)) {
 			/* Some middle-boxes may black-hole Fast Open _after_
 			 * the handshake. Therefore we conservatively disable
-			 * Fast Open on this path on recurring timeouts with
-			 * few or zero bytes acked after Fast Open.
+			 * Fast Open on this path on recurring timeouts after
+			 * successful Fast Open.
 			 */
-			if (tp->syn_data_acked &&
-			    tp->bytes_acked <= tp->rx_opt.mss_clamp) {
+			if (tp->syn_data_acked) {
 				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
 				if (icsk->icsk_retransmits == net->ipv4.sysctl_tcp_retries1)
 					NET_INC_STATS(sock_net(sk),
@@ -249,7 +248,8 @@ void tcp_delack_timer_handler(struct sock *sk)
 
 	sk_mem_reclaim_partial(sk);
 
-	if (sk->sk_state == TCP_CLOSE || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
+	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
+	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
 
 	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
@@ -552,7 +552,8 @@ void tcp_write_timer_handler(struct sock *sk)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	int event;
 
-	if (sk->sk_state == TCP_CLOSE || !icsk->icsk_pending)
+	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
+	    !icsk->icsk_pending)
 		goto out;
 
 	if (time_after(icsk->icsk_timeout, jiffies)) {

@@ -787,8 +787,6 @@ static void vmbus_shutdown(struct device *child_device)
 
 	if (drv->shutdown)
 		drv->shutdown(dev);
-
-	return;
 }
 
 
@@ -855,7 +853,7 @@ void vmbus_on_msg_dpc(unsigned long data)
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
 	struct vmbus_channel_message_header *hdr;
-	struct vmbus_channel_message_table_entry *entry;
+	const struct vmbus_channel_message_table_entry *entry;
 	struct onmessage_work_context *ctx;
 	u32 message_type = msg->header.message_type;
 
@@ -939,8 +937,10 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 		if (relid == 0)
 			continue;
 
+		rcu_read_lock();
+
 		/* Find channel based on relid */
-		list_for_each_entry(channel, &hv_cpu->chan_list, percpu_list) {
+		list_for_each_entry_rcu(channel, &hv_cpu->chan_list, percpu_list) {
 			if (channel->offermsg.child_relid != relid)
 				continue;
 
@@ -956,6 +956,8 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 				tasklet_schedule(&channel->callback_event);
 			}
 		}
+
+		rcu_read_unlock();
 	}
 }
 

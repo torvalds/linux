@@ -639,11 +639,6 @@ int lock_device_hotplug_sysfs(void)
 	return restart_syscall();
 }
 
-void assert_held_device_hotplug(void)
-{
-	lockdep_assert_held(&device_hotplug_lock);
-}
-
 #ifdef CONFIG_BLOCK
 static inline int device_is_not_partition(struct device *dev)
 {
@@ -1612,7 +1607,7 @@ int device_private_init(struct device *dev)
  */
 int device_add(struct device *dev)
 {
-	struct device *parent = NULL;
+	struct device *parent;
 	struct kobject *kobj;
 	struct class_interface *class_intf;
 	int error = -EINVAL;

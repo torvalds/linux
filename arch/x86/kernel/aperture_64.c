@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <linux/suspend.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/io.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -306,13 +306,13 @@ void __init early_gart_iommu_check(void)
 		fix = 1;
 
 	if (gart_fix_e820 && !fix && aper_enabled) {
-		if (e820_any_mapped(aper_base, aper_base + aper_size,
-				    E820_RAM)) {
+		if (e820__mapped_any(aper_base, aper_base + aper_size,
+				    E820_TYPE_RAM)) {
 			/* reserve it, so we can reuse it in second kernel */
 			pr_info("e820: reserve [mem %#010Lx-%#010Lx] for GART\n",
 				aper_base, aper_base + aper_size - 1);
-			e820_add_region(aper_base, aper_size, E820_RESERVED);
-			update_e820();
+			e820__range_add(aper_base, aper_size, E820_TYPE_RESERVED);
+			e820__update_table_print();
 		}
 	}
 

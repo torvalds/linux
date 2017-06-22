@@ -431,6 +431,7 @@ static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.verify_access = &virtio_gpu_verify_access,
 	.io_mem_reserve = &virtio_gpu_ttm_io_mem_reserve,
 	.io_mem_free = &virtio_gpu_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 	.move_notify = &virtio_gpu_bo_move_notify,
 	.swap_notify = &virtio_gpu_bo_swap_notify,
 };

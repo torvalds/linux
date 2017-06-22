@@ -11,6 +11,8 @@
 
 #include "dibusb.h"
 
+MODULE_LICENSE("GPL");
+
 /* 3000MC/P stuff */
 // Config Adjacent channels  Perf -cal22
 static struct dibx000_agc_config dib3000p_mt2060_agc_config = {

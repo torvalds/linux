@@ -39,13 +39,13 @@ struct dma_buf_attachment;
 
 /**
  * struct dma_buf_ops - operations possible on struct dma_buf
- * @kmap_atomic: maps a page from the buffer into kernel address
- * 		 space, users may not block until the subsequent unmap call.
- * 		 This callback must not sleep.
- * @kunmap_atomic: [optional] unmaps a atomically mapped page from the buffer.
- * 		   This Callback must not sleep.
- * @kmap: maps a page from the buffer into kernel address space.
- * @kunmap: [optional] unmaps a page from the buffer.
+ * @map_atomic: maps a page from the buffer into kernel address
+ *		space, users may not block until the subsequent unmap call.
+ *		This callback must not sleep.
+ * @unmap_atomic: [optional] unmaps a atomically mapped page from the buffer.
+ *		  This Callback must not sleep.
+ * @map: maps a page from the buffer into kernel address space.
+ * @unmap: [optional] unmaps a page from the buffer.
  * @vmap: [optional] creates a virtual mapping for the buffer into kernel
  *	  address space. Same restrictions as for vmap and friends apply.
  * @vunmap: [optional] unmaps a vmap from the buffer
@@ -206,10 +206,10 @@ struct dma_buf_ops {
 	 * to be restarted.
 	 */
 	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
-	void *(*kmap_atomic)(struct dma_buf *, unsigned long);
-	void (*kunmap_atomic)(struct dma_buf *, unsigned long, void *);
-	void *(*kmap)(struct dma_buf *, unsigned long);
-	void (*kunmap)(struct dma_buf *, unsigned long, void *);
+	void *(*map_atomic)(struct dma_buf *, unsigned long);
+	void (*unmap_atomic)(struct dma_buf *, unsigned long, void *);
+	void *(*map)(struct dma_buf *, unsigned long);
+	void (*unmap)(struct dma_buf *, unsigned long, void *);
 
 	/**
 	 * @mmap:

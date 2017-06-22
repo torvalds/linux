@@ -307,6 +307,7 @@ config IPV6_SEG6_LWTUNNEL
 	bool "IPv6: Segment Routing Header encapsulation support"
 	depends on IPV6
 	select LWTUNNEL
+	select DST_CACHE
 	---help---
 	  Support for encapsulation of packets within an outer IPv6
 	  header and a Segment Routing Header using the lightweight

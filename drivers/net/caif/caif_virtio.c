@@ -617,7 +617,7 @@ static void cfv_netdev_setup(struct net_device *netdev)
 	netdev->tx_queue_len = 100;
 	netdev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	netdev->mtu = CFV_DEF_MTU_SIZE;
-	netdev->destructor = free_netdev;
+	netdev->needs_free_netdev = true;
 }
 
 /* Create debugfs counters for the device */
@@ -679,8 +679,7 @@ static int cfv_probe(struct virtio_device *vdev)
 		goto err;
 
 	/* Get the TX virtio ring. This is a "guest side vring". */
-	err = vdev->config->find_vqs(vdev, 1, &cfv->vq_tx, &vq_cbs, &names,
-			NULL);
+	err = virtio_find_vqs(vdev, 1, &cfv->vq_tx, &vq_cbs, &names, NULL);
 	if (err)
 		goto err;
 

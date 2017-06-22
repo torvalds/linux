@@ -183,7 +183,7 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 		    "query_type = %#x, buf size = %#x\n",
 		    oid, query_type, le16_to_cpu(smib->buf_size));
 	if (query_type == HostCmd_ACT_GEN_GET) {
-		ul_temp = le16_to_cpu(*((__le16 *) (smib->value)));
+		ul_temp = get_unaligned_le16(smib->value);
 		if (data_buf)
 			*data_buf = ul_temp;
 		switch (oid) {
@@ -741,7 +741,7 @@ mwifiex_ret_p2p_mode_cfg(struct mwifiex_private *priv,
 	struct host_cmd_ds_p2p_mode_cfg *mode_cfg = &resp->params.mode_cfg;
 
 	if (data_buf)
-		*((u16 *)data_buf) = le16_to_cpu(mode_cfg->mode);
+		put_unaligned_le16(le16_to_cpu(mode_cfg->mode), data_buf);
 
 	return 0;
 }
@@ -1201,7 +1201,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
-		cfg80211_sched_scan_results(priv->wdev.wiphy);
+		cfg80211_sched_scan_results(priv->wdev.wiphy, 0);
 		mwifiex_dbg(adapter, CMD,
 			    "info: CMD_RESP: BG_SCAN result is ready!\n");
 		break;

@@ -43,8 +43,6 @@
 /dts-v1/;
 #include "sun6i-a31s.dtsi"
 
-#include <dt-bindings/pinctrl/sun4i-a10.h>
-
 / {
 	model = "CSQ CS908 top set box";
 	compatible = "csq,cs908", "allwinner,sun6i-a31s";

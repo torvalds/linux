@@ -538,7 +538,7 @@ static int scpi_send_message(u8 idx, void *tx_buf, unsigned int tx_len,
 	msg->tx_len = tx_len;
 	msg->rx_buf = rx_buf;
 	msg->rx_len = rx_len;
-	init_completion(&msg->done);
+	reinit_completion(&msg->done);
 
 	ret = mbox_send_message(scpi_chan->chan, msg);
 	if (ret < 0 || !rx_buf)
@@ -872,8 +872,11 @@ static int scpi_alloc_xfer_list(struct device *dev, struct scpi_chan *ch)
 		return -ENOMEM;
 
 	ch->xfers = xfers;
-	for (i = 0; i < MAX_SCPI_XFERS; i++, xfers++)
+	for (i = 0; i < MAX_SCPI_XFERS; i++, xfers++) {
+		init_completion(&xfers->done);
 		list_add_tail(&xfers->node, &ch->xfers_list);
+	}
+
 	return 0;
 }
 

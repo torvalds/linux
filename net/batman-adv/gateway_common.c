@@ -253,6 +253,11 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
  */
 void batadv_gw_init(struct batadv_priv *bat_priv)
 {
+	if (bat_priv->algo_ops->gw.init_sel_class)
+		bat_priv->algo_ops->gw.init_sel_class(bat_priv);
+	else
+		atomic_set(&bat_priv->gw.sel_class, 1);
+
 	batadv_tvlv_handler_register(bat_priv, batadv_gw_tvlv_ogm_handler_v1,
 				     NULL, BATADV_TVLV_GW, 1,
 				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);

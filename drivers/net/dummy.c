@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <linux/rtnetlink.h>
+#include <linux/net_tstamp.h>
 #include <net/rtnetlink.h>
 #include <linux/u64_stats_sync.h>
 
@@ -125,6 +126,7 @@ static netdev_tx_t dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 	dstats->tx_bytes += skb->len;
 	u64_stats_update_end(&dstats->syncp);
 
+	skb_tx_timestamp(skb);
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
@@ -304,8 +306,21 @@ static void dummy_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
+static int dummy_get_ts_info(struct net_device *dev,
+			      struct ethtool_ts_info *ts_info)
+{
+	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+				   SOF_TIMESTAMPING_RX_SOFTWARE |
+				   SOF_TIMESTAMPING_SOFTWARE;
+
+	ts_info->phc_index = -1;
+
+	return 0;
+};
+
 static const struct ethtool_ops dummy_ethtool_ops = {
 	.get_drvinfo            = dummy_get_drvinfo,
+	.get_ts_info		= dummy_get_ts_info,
 };
 
 static void dummy_free_netdev(struct net_device *dev)
@@ -313,7 +328,6 @@ static void dummy_free_netdev(struct net_device *dev)
 	struct dummy_priv *priv = netdev_priv(dev);
 
 	kfree(priv->vfinfo);
-	free_netdev(dev);
 }
 
 static void dummy_setup(struct net_device *dev)
@@ -323,7 +337,8 @@ static void dummy_setup(struct net_device *dev)
 	/* Initialize the device structure. */
 	dev->netdev_ops = &dummy_netdev_ops;
 	dev->ethtool_ops = &dummy_ethtool_ops;
-	dev->destructor = dummy_free_netdev;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = dummy_free_netdev;
 
 	/* Fill in device structure with ethernet-generic values. */
 	dev->flags |= IFF_NOARP;

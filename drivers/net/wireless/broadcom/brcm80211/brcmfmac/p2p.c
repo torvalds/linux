@@ -2141,12 +2141,11 @@ fail:
  * @name: name of the new interface.
  * @name_assign_type: origin of the interface name
  * @type: nl80211 interface type.
- * @flags: not used.
  * @params: contains mac address for P2P device.
  */
 struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 				       unsigned char name_assign_type,
-				       enum nl80211_iftype type, u32 *flags,
+				       enum nl80211_iftype type,
 				       struct vif_params *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
@@ -2238,14 +2237,16 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
 	struct brcmf_cfg80211_vif *vif;
+	enum nl80211_iftype iftype;
 	bool wait_for_disable = false;
 	int err;
 
 	brcmf_dbg(TRACE, "delete P2P vif\n");
 	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
 
+	iftype = vif->wdev.iftype;
 	brcmf_cfg80211_arm_vif_event(cfg, vif);
-	switch (vif->wdev.iftype) {
+	switch (iftype) {
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (test_bit(BRCMF_VIF_STATUS_DISCONNECTING, &vif->sme_state))
 			wait_for_disable = true;
@@ -2275,7 +2276,7 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 					    BRCMF_P2P_DISABLE_TIMEOUT);
 
 	err = 0;
-	if (vif->wdev.iftype != NL80211_IFTYPE_P2P_DEVICE) {
+	if (iftype != NL80211_IFTYPE_P2P_DEVICE) {
 		brcmf_vif_clear_mgmt_ies(vif);
 		err = brcmf_p2p_release_p2p_if(vif);
 	}
@@ -2291,7 +2292,7 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	brcmf_remove_interface(vif->ifp, true);
 
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
-	if (vif->wdev.iftype != NL80211_IFTYPE_P2P_DEVICE)
+	if (iftype != NL80211_IFTYPE_P2P_DEVICE)
 		p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = NULL;
 
 	return err;

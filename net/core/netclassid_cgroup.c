@@ -71,27 +71,17 @@ static int update_classid_sock(const void *v, struct file *file, unsigned n)
 	return 0;
 }
 
-static void update_classid(struct cgroup_subsys_state *css, void *v)
-{
-	struct css_task_iter it;
-	struct task_struct *p;
-
-	css_task_iter_start(css, &it);
-	while ((p = css_task_iter_next(&it))) {
-		task_lock(p);
-		iterate_fd(p->files, 0, update_classid_sock, v);
-		task_unlock(p);
-	}
-	css_task_iter_end(&it);
-}
-
 static void cgrp_attach(struct cgroup_taskset *tset)
 {
 	struct cgroup_subsys_state *css;
+	struct task_struct *p;
 
-	cgroup_taskset_first(tset, &css);
-	update_classid(css,
-		       (void *)(unsigned long)css_cls_state(css)->classid);
+	cgroup_taskset_for_each(p, css, tset) {
+		task_lock(p);
+		iterate_fd(p->files, 0, update_classid_sock,
+			   (void *)(unsigned long)css_cls_state(css)->classid);
+		task_unlock(p);
+	}
 }
 
 static u64 read_classid(struct cgroup_subsys_state *css, struct cftype *cft)
@@ -103,12 +93,22 @@ static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
 			 u64 value)
 {
 	struct cgroup_cls_state *cs = css_cls_state(css);
+	struct css_task_iter it;
+	struct task_struct *p;
 
 	cgroup_sk_alloc_disable();
 
 	cs->classid = (u32)value;
 
-	update_classid(css, (void *)(unsigned long)cs->classid);
+	css_task_iter_start(css, &it);
+	while ((p = css_task_iter_next(&it))) {
+		task_lock(p);
+		iterate_fd(p->files, 0, update_classid_sock,
+			   (void *)(unsigned long)cs->classid);
+		task_unlock(p);
+	}
+	css_task_iter_end(&it);
+
 	return 0;
 }
 

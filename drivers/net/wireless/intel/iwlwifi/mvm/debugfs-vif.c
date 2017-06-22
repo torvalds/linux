@@ -280,7 +280,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 				 mvmvif->queue_params[i].uapsd);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    ap_sta_id != IWL_MVM_STATION_COUNT) {
+	    ap_sta_id != IWL_MVM_INVALID_STA) {
 		struct iwl_mvm_sta *mvm_sta;
 
 		mvm_sta = iwl_mvm_sta_from_staid_protected(mvm, ap_sta_id);

@@ -489,6 +489,38 @@ console_initcall(altera_uart_console_init);
 
 #define	ALTERA_UART_CONSOLE	(&altera_uart_console)
 
+static void altera_uart_earlycon_write(struct console *co, const char *s,
+				       unsigned int count)
+{
+	struct earlycon_device *dev = co->data;
+
+	uart_console_write(&dev->port, s, count, altera_uart_console_putc);
+}
+
+static int __init altera_uart_earlycon_setup(struct earlycon_device *dev,
+					     const char *options)
+{
+	struct uart_port *port = &dev->port;
+
+	if (!port->membase)
+		return -ENODEV;
+
+	/* Enable RX interrupts now */
+	writel(ALTERA_UART_CONTROL_RRDY_MSK,
+	       port->membase + ALTERA_UART_CONTROL_REG);
+
+	if (dev->baud) {
+		unsigned int baudclk = port->uartclk / dev->baud;
+
+		writel(baudclk, port->membase + ALTERA_UART_DIVISOR_REG);
+	}
+
+	dev->con->write = altera_uart_earlycon_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(uart, "altr,uart-1.0", altera_uart_earlycon_setup);
+
 #else
 
 #define	ALTERA_UART_CONSOLE	NULL
@@ -583,6 +615,7 @@ static int altera_uart_remove(struct platform_device *pdev)
 	if (port) {
 		uart_remove_one_port(&altera_uart_driver, port);
 		port->mapbase = 0;
+		iounmap(port->membase);
 	}
 
 	return 0;

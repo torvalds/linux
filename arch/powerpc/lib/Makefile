@@ -14,12 +14,13 @@ obj-y += string.o alloc.o crtsavres.o code-patching.o \
 
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
 
-obj64-y	+= copypage_64.o copyuser_64.o usercopy_64.o mem_64.o hweight_64.o \
+obj64-y	+= copypage_64.o copyuser_64.o mem_64.o hweight_64.o \
 	   copyuser_power7.o string_64.o copypage_power7.o memcpy_power7.o \
 	   memcpy_64.o memcmp_64.o
 
 obj64-$(CONFIG_SMP)	+= locks.o
 obj64-$(CONFIG_ALTIVEC)	+= vmx-helper.o
+obj64-$(CONFIG_KPROBES_SANITY_TEST) += test_emulate_step.o
 
 obj-y			+= checksum_$(BITS).o checksum_wrappers.o
 

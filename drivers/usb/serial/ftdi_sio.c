@@ -809,10 +809,10 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_PROPOX_ISPCABLEIII_PID) },
 	{ USB_DEVICE(FTDI_VID, CYBER_CORTEX_AV_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
-	{ USB_DEVICE(OLIMEX_VID, OLIMEX_ARM_USB_OCD_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
-	{ USB_DEVICE(OLIMEX_VID, OLIMEX_ARM_USB_OCD_H_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE_INTERFACE_NUMBER(OLIMEX_VID, OLIMEX_ARM_USB_OCD_PID, 1) },
+	{ USB_DEVICE_INTERFACE_NUMBER(OLIMEX_VID, OLIMEX_ARM_USB_OCD_H_PID, 1) },
+	{ USB_DEVICE_INTERFACE_NUMBER(OLIMEX_VID, OLIMEX_ARM_USB_TINY_PID, 1) },
+	{ USB_DEVICE_INTERFACE_NUMBER(OLIMEX_VID, OLIMEX_ARM_USB_TINY_H_PID, 1) },
 	{ USB_DEVICE(FIC_VID, FIC_NEO1973_DEBUG_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_OOCDLINK_PID),
@@ -873,6 +873,7 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(MICROCHIP_VID, MICROCHIP_USB_BOARD_PID,
 					USB_CLASS_VENDOR_SPEC,
 					USB_SUBCLASS_VENDOR_SPEC, 0x00) },
+	{ USB_DEVICE_INTERFACE_NUMBER(ACTEL_VID, MICROSEMI_ARROW_SF2PLUS_BOARD_PID, 2) },
 	{ USB_DEVICE(JETI_VID, JETI_SPC1201_PID) },
 	{ USB_DEVICE(MARVELL_VID, MARVELL_SHEEVAPLUG_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
@@ -1406,6 +1407,9 @@ static int write_latency_timer(struct usb_serial_port *port)
 	int rv;
 	int l = priv->latency;
 
+	if (priv->chip_type == SIO || priv->chip_type == FT8U232AM)
+		return -EINVAL;
+
 	if (priv->flags & ASYNC_LOW_LATENCY)
 		l = 1;
 
@@ -1422,7 +1426,7 @@ static int write_latency_timer(struct usb_serial_port *port)
 	return rv;
 }
 
-static int read_latency_timer(struct usb_serial_port *port)
+static int _read_latency_timer(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
@@ -1440,16 +1444,34 @@ static int read_latency_timer(struct usb_serial_port *port)
 			     0, priv->interface,
 			     buf, 1, WDR_TIMEOUT);
 	if (rv < 1) {
-		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
 		if (rv >= 0)
 			rv = -EIO;
 	} else {
-		priv->latency = buf[0];
+		rv = buf[0];
 	}
 
 	kfree(buf);
 
 	return rv;
+}
+
+static int read_latency_timer(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	int rv;
+
+	if (priv->chip_type == SIO || priv->chip_type == FT8U232AM)
+		return -EINVAL;
+
+	rv = _read_latency_timer(port);
+	if (rv < 0) {
+		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
+		return rv;
+	}
+
+	priv->latency = rv;
+
+	return 0;
 }
 
 static int get_serial_info(struct usb_serial_port *port,
@@ -1505,9 +1527,9 @@ static int set_serial_info(struct tty_struct *tty,
 					(new_serial.flags & ASYNC_FLAGS));
 	priv->custom_divisor = new_serial.custom_divisor;
 
+check_and_exit:
 	write_latency_timer(port);
 
-check_and_exit:
 	if ((old_priv.flags & ASYNC_SPD_MASK) !=
 	     (priv->flags & ASYNC_SPD_MASK)) {
 		if ((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
@@ -1603,9 +1625,19 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		priv->baud_base = 12000000 / 16;
 	} else if (version < 0x400) {
 		/* Assume it's an FT8U232AM (or FT8U245AM) */
-		/* (It might be a BM because of the iSerialNumber bug,
-		 * but it will still work as an AM device.) */
 		priv->chip_type = FT8U232AM;
+		/*
+		 * It might be a BM type because of the iSerialNumber bug.
+		 * If iSerialNumber==0 and the latency timer is readable,
+		 * assume it is BM type.
+		 */
+		if (udev->descriptor.iSerialNumber == 0 &&
+				_read_latency_timer(port) >= 0) {
+			dev_dbg(&port->dev,
+				"%s: has latency timer so not an AM type\n",
+				__func__);
+			priv->chip_type = FT232BM;
+		}
 	} else if (version < 0x600) {
 		/* Assume it's an FT232BM (or FT245BM) */
 		priv->chip_type = FT232BM;
@@ -1685,8 +1717,11 @@ static ssize_t latency_timer_store(struct device *dev,
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	int v = simple_strtoul(valbuf, NULL, 10);
+	u8 v;
 	int rv;
+
+	if (kstrtou8(valbuf, 10, &v))
+		return -EINVAL;
 
 	priv->latency = v;
 	rv = write_latency_timer(port);
@@ -1704,10 +1739,13 @@ static ssize_t store_event_char(struct device *dev,
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_device *udev = port->serial->dev;
-	int v = simple_strtoul(valbuf, NULL, 10);
+	unsigned int v;
 	int rv;
 
-	dev_dbg(&port->dev, "%s: setting event char = %i\n", __func__, v);
+	if (kstrtouint(valbuf, 0, &v) || v >= 0x200)
+		return -EINVAL;
+
+	dev_dbg(&port->dev, "%s: setting event char = 0x%03x\n", __func__, v);
 
 	rv = usb_control_msg(udev,
 			     usb_sndctrlpipe(udev, 0),

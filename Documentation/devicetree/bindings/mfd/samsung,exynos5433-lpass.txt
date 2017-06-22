@@ -5,7 +5,10 @@ Required properties:
  - compatible		: "samsung,exynos5433-lpass"
  - reg			: should contain the LPASS top SFR region location
 			  and size
- - samsung,pmu-syscon	: the phandle to the Power Management Unit node
+ - clock-names		: should contain following required clocks: "sfr0_ctrl"
+ - clocks		: should contain clock specifiers of all clocks, which
+			  input names have been specified in clock-names
+			  property, in same order.
  - #address-cells	: should be 1
  - #size-cells		: should be 1
  - ranges		: must be present
@@ -25,7 +28,8 @@ Example:
 audio-subsystem {
 	compatible = "samsung,exynos5433-lpass";
 	reg = <0x11400000 0x100>, <0x11500000 0x08>;
-	samsung,pmu-syscon = <&pmu_system_controller>;
+	clocks = <&cmu_aud CLK_PCLK_SFR0_CTRL>;
+	clock-names = "sfr0_ctrl";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges;

@@ -76,8 +76,8 @@ struct comedi_file {
 #define COMEDI_NUM_SUBDEVICE_MINORS	\
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
 
-static int comedi_num_legacy_minors;
-module_param(comedi_num_legacy_minors, int, 0444);
+static unsigned short comedi_num_legacy_minors;
+module_param(comedi_num_legacy_minors, ushort, 0444);
 MODULE_PARM_DESC(comedi_num_legacy_minors,
 		 "number of comedi minor devices to reserve for non-auto-configured devices (default 0)"
 		);
@@ -2165,9 +2165,24 @@ static void comedi_vm_close(struct vm_area_struct *area)
 	comedi_buf_map_put(bm);
 }
 
+static int comedi_vm_access(struct vm_area_struct *vma, unsigned long addr,
+			    void *buf, int len, int write)
+{
+	struct comedi_buf_map *bm = vma->vm_private_data;
+	unsigned long offset =
+	    addr - vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT);
+
+	if (len < 0)
+		return -EINVAL;
+	if (len > vma->vm_end - addr)
+		len = vma->vm_end - addr;
+	return comedi_buf_map_access(bm, offset, buf, len, write);
+}
+
 static const struct vm_operations_struct comedi_vm_ops = {
 	.open = comedi_vm_open,
 	.close = comedi_vm_close,
+	.access = comedi_vm_access,
 };
 
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
@@ -2857,8 +2872,7 @@ static int __init comedi_init(void)
 
 	pr_info("version " COMEDI_RELEASE " - http://www.comedi.org\n");
 
-	if (comedi_num_legacy_minors < 0 ||
-	    comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
+	if (comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
 		pr_err("invalid value for module parameter \"comedi_num_legacy_minors\".  Valid values are 0 through %i.\n",
 		       COMEDI_NUM_BOARD_MINORS);
 		return -EINVAL;

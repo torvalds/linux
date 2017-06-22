@@ -102,7 +102,7 @@
 
 	m25_eeprom: m25p80@0 {
 		compatible = "atmel,at25";
-		spi-max-frequency = <20000000>;
+		spi-max-frequency = <10000000>;
 		size = <0x8000>;
 		pagesize = <64>;
 		reg = <0>;
@@ -182,20 +182,6 @@
 				interrupt-controller;
 				interrupt-parent = <&gpio2>;
 				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-
-				P06 {
-					gpio-hog;
-					gpios = <6 0>;
-					output-low;
-					line-name = "PCA9539-P06";
-				};
-
-				P07 {
-					gpio-hog;
-					gpios = <7 0>;
-					output-low;
-					line-name = "PCA9539-P07";
-				};
 
 				P10 {
 					gpio-hog;

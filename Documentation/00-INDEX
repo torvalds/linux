@@ -412,6 +412,8 @@ sysctl/
 	- directory with info on the /proc/sys/* files.
 target/
 	- directory with info on generating TCM v4 fabric .ko modules
+tee.txt
+	- info on the TEE subsystem and drivers
 this_cpu_ops.txt
 	- List rationale behind and the way to use this_cpu operations.
 thermal/

@@ -30,6 +30,7 @@
 #include <linux/pid_namespace.h>
 #include <net/genetlink.h>
 #include <linux/atomic.h>
+#include <linux/sched/cputime.h>
 
 /*
  * Maximum length of a cpumask that can be specified in
@@ -210,6 +211,8 @@ static int fill_stats_for_tgid(pid_t tgid, struct taskstats *stats)
 	struct task_struct *tsk, *first;
 	unsigned long flags;
 	int rc = -ESRCH;
+	u64 delta, utime, stime;
+	u64 start_time;
 
 	/*
 	 * Add additional stats from live tasks except zombie thread group
@@ -227,6 +230,7 @@ static int fill_stats_for_tgid(pid_t tgid, struct taskstats *stats)
 		memset(stats, 0, sizeof(*stats));
 
 	tsk = first;
+	start_time = ktime_get_ns();
 	do {
 		if (tsk->exit_state)
 			continue;
@@ -237,6 +241,16 @@ static int fill_stats_for_tgid(pid_t tgid, struct taskstats *stats)
 		 *	per-task-foo(stats, tsk);
 		 */
 		delayacct_add_tsk(stats, tsk);
+
+		/* calculate task elapsed time in nsec */
+		delta = start_time - tsk->start_time;
+		/* Convert to micro seconds */
+		do_div(delta, NSEC_PER_USEC);
+		stats->ac_etime += delta;
+
+		task_cputime(tsk, &utime, &stime);
+		stats->ac_utime += div_u64(utime, NSEC_PER_USEC);
+		stats->ac_stime += div_u64(stime, NSEC_PER_USEC);
 
 		stats->nvcsw += tsk->nvcsw;
 		stats->nivcsw += tsk->nivcsw;

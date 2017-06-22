@@ -485,15 +485,17 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 
 	if (paddr < uv_hub_info->lowmem_remap_top)
 		paddr |= uv_hub_info->lowmem_remap_base;
-	paddr |= uv_hub_info->gnode_upper;
-	if (m_val)
+
+	if (m_val) {
+		paddr |= uv_hub_info->gnode_upper;
 		paddr = ((paddr << uv_hub_info->m_shift)
 						>> uv_hub_info->m_shift) |
 			((paddr >> uv_hub_info->m_val)
 						<< uv_hub_info->n_lshift);
-	else
+	} else {
 		paddr |= uv_soc_phys_ram_to_nasid(paddr)
 						<< uv_hub_info->gpa_shift;
+	}
 	return paddr;
 }
 

@@ -823,6 +823,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 	spinlock_t *io_lock;
 	u64 cmd_trace;
 	unsigned long start_time;
+	unsigned long io_duration_time;
 
 	/* Decode the cmpl description to get the io_req id */
 	fcpio_header_dec(&desc->hdr, &type, &hdr_status, &tag);
@@ -876,32 +877,28 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 
 	/*
 	 *  if SCSI-ML has already issued abort on this command,
-	 * ignore completion of the IO. The abts path will clean it up
+	 *  set completion of the IO. The abts path will clean it up
 	 */
 	if (CMD_STATE(sc) == FNIC_IOREQ_ABTS_PENDING) {
-		spin_unlock_irqrestore(io_lock, flags);
+
+		/*
+		 * set the FNIC_IO_DONE so that this doesn't get
+		 * flagged as 'out of order' if it was not aborted
+		 */
+		CMD_FLAGS(sc) |= FNIC_IO_DONE;
 		CMD_FLAGS(sc) |= FNIC_IO_ABTS_PENDING;
-		switch (hdr_status) {
-		case FCPIO_SUCCESS:
-			CMD_FLAGS(sc) |= FNIC_IO_DONE;
-			FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
-				  "icmnd_cmpl ABTS pending hdr status = %s "
-				  "sc  0x%p scsi_status %x  residual %d\n",
-				  fnic_fcpio_status_to_str(hdr_status), sc,
-				  icmnd_cmpl->scsi_status,
-				  icmnd_cmpl->residual);
-			break;
-		case FCPIO_ABORTED:
+		spin_unlock_irqrestore(io_lock, flags);
+		if(FCPIO_ABORTED == hdr_status)
 			CMD_FLAGS(sc) |= FNIC_IO_ABORTED;
-			break;
-		default:
-			FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
-					  "icmnd_cmpl abts pending "
-					  "hdr status = %s tag = 0x%x sc = 0x%p\n",
-					  fnic_fcpio_status_to_str(hdr_status),
-					  id, sc);
-			break;
-		}
+
+		FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
+			"icmnd_cmpl abts pending "
+			  "hdr status = %s tag = 0x%x sc = 0x%p"
+			  "scsi_status = %x residual = %d\n",
+			  fnic_fcpio_status_to_str(hdr_status),
+			  id, sc,
+			  icmnd_cmpl->scsi_status,
+			  icmnd_cmpl->residual);
 		return;
 	}
 
@@ -918,6 +915,9 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 
 		if (icmnd_cmpl->flags & FCPIO_ICMND_CMPL_RESID_UNDER)
 			xfer_len -= icmnd_cmpl->residual;
+
+		if (icmnd_cmpl->scsi_status == SAM_STAT_CHECK_CONDITION)
+			atomic64_inc(&fnic_stats->misc_stats.check_condition);
 
 		if (icmnd_cmpl->scsi_status == SAM_STAT_TASK_SET_FULL)
 			atomic64_inc(&fnic_stats->misc_stats.queue_fulls);
@@ -1016,6 +1016,28 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 		atomic64_dec(&fnic->io_cmpl_skip);
 	else
 		atomic64_inc(&fnic_stats->io_stats.io_completions);
+
+
+	io_duration_time = jiffies_to_msecs(jiffies) - jiffies_to_msecs(io_req->start_time);
+
+	if(io_duration_time <= 10)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_0_to_10_msec);
+	else if(io_duration_time <= 100)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_10_to_100_msec);
+	else if(io_duration_time <= 500)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_100_to_500_msec);
+	else if(io_duration_time <= 5000)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_500_to_5000_msec);
+	else if(io_duration_time <= 10000)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_5000_to_10000_msec);
+	else if(io_duration_time <= 30000)
+		atomic64_inc(&fnic_stats->io_stats.io_btw_10000_to_30000_msec);
+	else {
+		atomic64_inc(&fnic_stats->io_stats.io_greater_than_30000_msec);
+
+		if(io_duration_time > atomic64_read(&fnic_stats->io_stats.current_max_io_time))
+			atomic64_set(&fnic_stats->io_stats.current_max_io_time, io_duration_time);
+	}
 
 	/* Call SCSI completion function to complete the IO */
 	if (sc->scsi_done)
@@ -1128,18 +1150,11 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 		}
 
 		CMD_FLAGS(sc) |= FNIC_IO_ABT_TERM_DONE;
+		CMD_ABTS_STATUS(sc) = hdr_status;
 
 		/* If the status is IO not found consider it as success */
 		if (hdr_status == FCPIO_IO_NOT_FOUND)
 			CMD_ABTS_STATUS(sc) = FCPIO_SUCCESS;
-		else
-			CMD_ABTS_STATUS(sc) = hdr_status;
-
-		atomic64_dec(&fnic_stats->io_stats.active_ios);
-		if (atomic64_read(&fnic->io_cmpl_skip))
-			atomic64_dec(&fnic->io_cmpl_skip);
-		else
-			atomic64_inc(&fnic_stats->io_stats.io_completions);
 
 		if (!(CMD_FLAGS(sc) & (FNIC_IO_ABORTED | FNIC_IO_DONE)))
 			atomic64_inc(&misc_stats->no_icmnd_itmf_cmpls);
@@ -1181,6 +1196,11 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 					(((u64)CMD_FLAGS(sc) << 32) |
 					CMD_STATE(sc)));
 				sc->scsi_done(sc);
+				atomic64_dec(&fnic_stats->io_stats.active_ios);
+				if (atomic64_read(&fnic->io_cmpl_skip))
+					atomic64_dec(&fnic->io_cmpl_skip);
+				else
+					atomic64_inc(&fnic_stats->io_stats.io_completions);
 			}
 		}
 
@@ -1793,6 +1813,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	struct terminate_stats *term_stats;
 	enum fnic_ioreq_state old_ioreq_state;
 	int tag;
+	unsigned long abt_issued_time;
 	DECLARE_COMPLETION_ONSTACK(tm_done);
 
 	/* Wait for rport to unblock */
@@ -1846,6 +1867,25 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 		spin_unlock_irqrestore(io_lock, flags);
 		goto wait_pending;
 	}
+
+	abt_issued_time = jiffies_to_msecs(jiffies) - jiffies_to_msecs(io_req->start_time);
+	if (abt_issued_time <= 6000)
+		atomic64_inc(&abts_stats->abort_issued_btw_0_to_6_sec);
+	else if (abt_issued_time > 6000 && abt_issued_time <= 20000)
+		atomic64_inc(&abts_stats->abort_issued_btw_6_to_20_sec);
+	else if (abt_issued_time > 20000 && abt_issued_time <= 30000)
+		atomic64_inc(&abts_stats->abort_issued_btw_20_to_30_sec);
+	else if (abt_issued_time > 30000 && abt_issued_time <= 40000)
+		atomic64_inc(&abts_stats->abort_issued_btw_30_to_40_sec);
+	else if (abt_issued_time > 40000 && abt_issued_time <= 50000)
+		atomic64_inc(&abts_stats->abort_issued_btw_40_to_50_sec);
+	else if (abt_issued_time > 50000 && abt_issued_time <= 60000)
+		atomic64_inc(&abts_stats->abort_issued_btw_50_to_60_sec);
+	else
+		atomic64_inc(&abts_stats->abort_issued_greater_than_60_sec);
+
+	FNIC_SCSI_DBG(KERN_INFO, fnic->lport->host,
+		"CBD Opcode: %02x Abort issued time: %lu msec\n", sc->cmnd[0], abt_issued_time);
 	/*
 	 * Command is still pending, need to abort it
 	 * If the firmware completes the command after this point,
@@ -1970,6 +2010,11 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	/* Call SCSI completion function to complete the IO */
 		sc->result = (DID_ABORT << 16);
 		sc->scsi_done(sc);
+		atomic64_dec(&fnic_stats->io_stats.active_ios);
+		if (atomic64_read(&fnic->io_cmpl_skip))
+			atomic64_dec(&fnic->io_cmpl_skip);
+		else
+			atomic64_inc(&fnic_stats->io_stats.io_completions);
 	}
 
 fnic_abort_cmd_end:

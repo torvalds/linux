@@ -46,7 +46,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Lamobo R1";
@@ -167,7 +166,7 @@
 					reg = <8>;
 					label = "cpu";
 					ethernet = <&gmac>;
-					phy-mode = "rgmii";
+					phy-mode = "rgmii-txid";
 					fixed-link {
 						speed = <1000>;
 						full-duplex;

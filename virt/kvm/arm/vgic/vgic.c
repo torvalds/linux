@@ -21,7 +21,7 @@
 #include "vgic.h"
 
 #define CREATE_TRACE_POINTS
-#include "../trace.h"
+#include "trace.h"
 
 #ifdef CONFIG_DEBUG_SPINLOCK
 #define DEBUG_SPINLOCK_BUG_ON(p) BUG_ON(p)
@@ -29,7 +29,9 @@
 #define DEBUG_SPINLOCK_BUG_ON(p)
 #endif
 
-struct vgic_global __section(.hyp.text) kvm_vgic_global_state = {.gicv3_cpuif = STATIC_KEY_FALSE_INIT,};
+struct vgic_global kvm_vgic_global_state __ro_after_init = {
+	.gicv3_cpuif = STATIC_KEY_FALSE_INIT,
+};
 
 /*
  * Locking order is always:
@@ -527,14 +529,6 @@ retry:
 	spin_unlock(&vgic_cpu->ap_list_lock);
 }
 
-static inline void vgic_process_maintenance_interrupt(struct kvm_vcpu *vcpu)
-{
-	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_process_maintenance(vcpu);
-	else
-		vgic_v3_process_maintenance(vcpu);
-}
-
 static inline void vgic_fold_lr_state(struct kvm_vcpu *vcpu)
 {
 	if (kvm_vgic_global_state.type == VGIC_V2)
@@ -601,10 +595,8 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 
 	DEBUG_SPINLOCK_BUG_ON(!spin_is_locked(&vgic_cpu->ap_list_lock));
 
-	if (compute_ap_list_depth(vcpu) > kvm_vgic_global_state.nr_lr) {
-		vgic_set_underflow(vcpu);
+	if (compute_ap_list_depth(vcpu) > kvm_vgic_global_state.nr_lr)
 		vgic_sort_ap_list(vcpu);
-	}
 
 	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
 		spin_lock(&irq->irq_lock);
@@ -623,8 +615,12 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 next:
 		spin_unlock(&irq->irq_lock);
 
-		if (count == kvm_vgic_global_state.nr_lr)
+		if (count == kvm_vgic_global_state.nr_lr) {
+			if (!list_is_last(&irq->ap_list,
+					  &vgic_cpu->ap_list_head))
+				vgic_set_underflow(vcpu);
 			break;
+		}
 	}
 
 	vcpu->arch.vgic_cpu.used_lrs = count;
@@ -637,23 +633,57 @@ next:
 /* Sync back the hardware VGIC state into our emulation after a guest's run. */
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
-	if (unlikely(!vgic_initialized(vcpu->kvm)))
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+
+	/* An empty ap_list_head implies used_lrs == 0 */
+	if (list_empty(&vcpu->arch.vgic_cpu.ap_list_head))
 		return;
 
-	vgic_process_maintenance_interrupt(vcpu);
-	vgic_fold_lr_state(vcpu);
+	if (vgic_cpu->used_lrs)
+		vgic_fold_lr_state(vcpu);
 	vgic_prune_ap_list(vcpu);
 }
 
 /* Flush our emulation state into the GIC hardware before entering the guest. */
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 {
-	if (unlikely(!vgic_initialized(vcpu->kvm)))
+	/*
+	 * If there are no virtual interrupts active or pending for this
+	 * VCPU, then there is no work to do and we can bail out without
+	 * taking any lock.  There is a potential race with someone injecting
+	 * interrupts to the VCPU, but it is a benign race as the VCPU will
+	 * either observe the new interrupt before or after doing this check,
+	 * and introducing additional synchronization mechanism doesn't change
+	 * this.
+	 */
+	if (list_empty(&vcpu->arch.vgic_cpu.ap_list_head))
 		return;
 
 	spin_lock(&vcpu->arch.vgic_cpu.ap_list_lock);
 	vgic_flush_lr_state(vcpu);
 	spin_unlock(&vcpu->arch.vgic_cpu.ap_list_lock);
+}
+
+void kvm_vgic_load(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(!vgic_initialized(vcpu->kvm)))
+		return;
+
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_load(vcpu);
+	else
+		vgic_v3_load(vcpu);
+}
+
+void kvm_vgic_put(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(!vgic_initialized(vcpu->kvm)))
+		return;
+
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_put(vcpu);
+	else
+		vgic_v3_put(vcpu);
 }
 
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)

@@ -8,6 +8,8 @@ From RK3368 SoCs, the GRF is divided into two sections,
 - SGRF, used for general secure system,
 - PMUGRF, used for always on system
 
+On RK3328 SoCs, the GRF adds a section for USB2PHYGRF,
+
 Required Properties:
 
 - compatible: GRF should be one of the following:
@@ -16,6 +18,7 @@ Required Properties:
    - "rockchip,rk3188-grf", "syscon": for rk3188
    - "rockchip,rk3228-grf", "syscon": for rk3228
    - "rockchip,rk3288-grf", "syscon": for rk3288
+   - "rockchip,rk3328-grf", "syscon": for rk3328
    - "rockchip,rk3368-grf", "syscon": for rk3368
    - "rockchip,rk3399-grf", "syscon": for rk3399
 - compatible: PMUGRF should be one of the following:
@@ -23,6 +26,8 @@ Required Properties:
    - "rockchip,rk3399-pmugrf", "syscon": for rk3399
 - compatible: SGRF should be one of the following
    - "rockchip,rk3288-sgrf", "syscon": for rk3288
+- compatible: USB2PHYGRF should be one of the followings
+   - "rockchip,rk3328-usb2phy-grf", "syscon": for rk3328
 - reg: physical base address of the controller and length of memory mapped
   region.
 

@@ -99,7 +99,8 @@ static void qedf_fcoe_process_vlan_resp(struct qedf_ctx *qedf,
 		qedf_set_vlan_id(qedf, vid);
 
 		/* Inform waiter that it's ok to call fcoe_ctlr_link up() */
-		complete(&qedf->fipvlan_compl);
+		if (!completion_done(&qedf->fipvlan_compl))
+			complete(&qedf->fipvlan_compl);
 	}
 }
 
@@ -203,7 +204,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 			case FIP_DT_MAC:
 				mp = (struct fip_mac_desc *)desc;
 				QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_LL2,
-				    "fd_mac=%pM.\n", __func__, mp->fd_mac);
+				    "fd_mac=%pM\n", mp->fd_mac);
 				ether_addr_copy(cvl_mac, mp->fd_mac);
 				break;
 			case FIP_DT_NAME:

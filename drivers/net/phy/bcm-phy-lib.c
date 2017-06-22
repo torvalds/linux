@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Broadcom Corporation
+ * Copyright (C) 2015-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -201,8 +201,7 @@ int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 	int val;
 
 	/* Enable EEE at PHY level */
-	val = phy_read_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
-				    MDIO_MMD_AN);
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, BRCM_CL45VEN_EEE_CONTROL);
 	if (val < 0)
 		return val;
 
@@ -211,22 +210,19 @@ int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 	else
 		val &= ~(LPI_FEATURE_EN | LPI_FEATURE_EN_DIG1000X);
 
-	phy_write_mmd_indirect(phydev, BRCM_CL45VEN_EEE_CONTROL,
-			       MDIO_MMD_AN, (u32)val);
+	phy_write_mmd(phydev, MDIO_MMD_AN, BRCM_CL45VEN_EEE_CONTROL, (u32)val);
 
 	/* Advertise EEE */
-	val = phy_read_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
-				    MDIO_MMD_AN);
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, BCM_CL45VEN_EEE_ADV);
 	if (val < 0)
 		return val;
 
 	if (enable)
-		val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+		val |= (MDIO_EEE_100TX | MDIO_EEE_1000T);
 	else
-		val &= ~(MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+		val &= ~(MDIO_EEE_100TX | MDIO_EEE_1000T);
 
-	phy_write_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
-			       MDIO_MMD_AN, (u32)val);
+	phy_write_mmd(phydev, MDIO_MMD_AN, BCM_CL45VEN_EEE_ADV, (u32)val);
 
 	return 0;
 }

@@ -846,10 +846,10 @@ struct luda_type {
 #endif
 
 struct lu_dirpage {
-	__u64	    ldp_hash_start;
-	__u64	    ldp_hash_end;
-	__u32	    ldp_flags;
-	__u32	    ldp_pad0;
+	__le64	    ldp_hash_start;
+	__le64	    ldp_hash_end;
+	__le32	    ldp_flags;
+	__le32	    ldp_pad0;
 	struct lu_dirent ldp_entries[0];
 };
 

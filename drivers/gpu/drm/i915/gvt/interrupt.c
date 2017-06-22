@@ -580,7 +580,7 @@ static void gen8_init_irq(
 
 		SET_BIT_INFO(irq, 4, PRIMARY_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
 		SET_BIT_INFO(irq, 5, SPRITE_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
-	} else if (IS_SKYLAKE(gvt->dev_priv)) {
+	} else if (IS_SKYLAKE(gvt->dev_priv) || IS_KABYLAKE(gvt->dev_priv)) {
 		SET_BIT_INFO(irq, 25, AUX_CHANNEL_B, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 26, AUX_CHANNEL_C, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 27, AUX_CHANNEL_D, INTEL_GVT_IRQ_INFO_DE_PORT);
@@ -690,7 +690,8 @@ int intel_gvt_init_irq(struct intel_gvt *gvt)
 
 	gvt_dbg_core("init irq framework\n");
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
+	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
+		|| IS_KABYLAKE(gvt->dev_priv)) {
 		irq->ops = &gen8_irq_ops;
 		irq->irq_map = gen8_irq_map;
 	} else {

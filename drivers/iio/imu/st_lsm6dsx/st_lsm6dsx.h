@@ -15,11 +15,16 @@
 #include <linux/device.h>
 
 #define ST_LSM6DS3_DEV_NAME	"lsm6ds3"
+#define ST_LSM6DS3H_DEV_NAME	"lsm6ds3h"
+#define ST_LSM6DSL_DEV_NAME	"lsm6dsl"
 #define ST_LSM6DSM_DEV_NAME	"lsm6dsm"
 
 enum st_lsm6dsx_hw_id {
 	ST_LSM6DS3_ID,
+	ST_LSM6DS3H_ID,
+	ST_LSM6DSL_ID,
 	ST_LSM6DSM_ID,
+	ST_LSM6DSX_MAX_ID,
 };
 
 #define ST_LSM6DSX_CHAN_SIZE		2
@@ -50,7 +55,7 @@ struct st_lsm6dsx_reg {
 struct st_lsm6dsx_settings {
 	u8 wai;
 	u16 max_fifo_size;
-	enum st_lsm6dsx_hw_id id;
+	enum st_lsm6dsx_hw_id id[ST_LSM6DSX_MAX_ID];
 };
 
 enum st_lsm6dsx_sensor_id {
@@ -66,6 +71,7 @@ enum st_lsm6dsx_fifo_mode {
 
 /**
  * struct st_lsm6dsx_sensor - ST IMU sensor instance
+ * @name: Sensor name.
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  * @gain: Configured sensor sensitivity.
@@ -78,6 +84,7 @@ enum st_lsm6dsx_fifo_mode {
  * @ts: Latest timestamp from the interrupt handler.
  */
 struct st_lsm6dsx_sensor {
+	char name[32];
 	enum st_lsm6dsx_sensor_id id;
 	struct st_lsm6dsx_hw *hw;
 
@@ -128,7 +135,7 @@ struct st_lsm6dsx_hw {
 #endif /* CONFIG_SPI_MASTER */
 };
 
-int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
+int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 		     const struct st_lsm6dsx_transfer_function *tf_ops);
 int st_lsm6dsx_sensor_enable(struct st_lsm6dsx_sensor *sensor);
 int st_lsm6dsx_sensor_disable(struct st_lsm6dsx_sensor *sensor);

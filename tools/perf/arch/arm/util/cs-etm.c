@@ -33,6 +33,7 @@
 #include "../../util/cs-etm.h"
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #define ENABLE_SINK_MAX	128
 #define CS_BUS_DEVICE_PATH "/bus/coresight/devices/"

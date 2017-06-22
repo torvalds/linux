@@ -21,12 +21,7 @@
  * included with this package.                                     *
  ********************************************************************/
 
-#define LPFC_NVME_MIN_SEGS		16
-#define LPFC_NVME_DEFAULT_SEGS		66	/* 256K IOs - 64 + 2 */
-#define LPFC_NVME_MAX_SEGS		510
-#define LPFC_NVMET_MIN_POSTBUF		16
-#define LPFC_NVMET_DEFAULT_POSTBUF	1024
-#define LPFC_NVMET_MAX_POSTBUF		4096
+#define LPFC_NVME_DEFAULT_SEGS		(64 + 1)	/* 256K IOs */
 #define LPFC_NVME_WQSIZE		256
 
 #define LPFC_NVME_ERSP_LEN		0x20
@@ -57,6 +52,7 @@ struct lpfc_nvme_buf {
 	struct list_head list;
 	struct nvmefc_fcp_req *nvmeCmd;
 	struct lpfc_nvme_rport *nrport;
+	struct lpfc_nodelist *ndlp;
 
 	uint32_t timeout;
 
@@ -100,4 +96,8 @@ struct lpfc_nvme_buf {
 	uint64_t ts_isr_cmpl;
 	uint64_t ts_data_nvme;
 #endif
+};
+
+struct lpfc_nvme_fcpreq_priv {
+	struct lpfc_nvme_buf *nvme_buf;
 };

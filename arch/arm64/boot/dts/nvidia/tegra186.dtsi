@@ -2,6 +2,7 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/tegra186-hsp.h>
+#include <dt-bindings/power/tegra186-powergate.h>
 #include <dt-bindings/reset/tegra186-reset.h>
 
 / {
@@ -25,6 +26,37 @@
 		interrupt-controller;
 		#gpio-cells = <2>;
 		gpio-controller;
+	};
+
+	ethernet@2490000 {
+		compatible = "nvidia,tegra186-eqos",
+			     "snps,dwc-qos-ethernet-4.10";
+		reg = <0x0 0x02490000 0x0 0x10000>;
+		interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>, /* common */
+			     <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>, /* power */
+			     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>, /* rx0 */
+			     <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>, /* tx0 */
+			     <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>, /* rx1 */
+			     <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>, /* tx1 */
+			     <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>, /* rx2 */
+			     <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>, /* tx2 */
+			     <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>, /* rx3 */
+			     <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>; /* tx3 */
+		clocks = <&bpmp TEGRA186_CLK_AXI_CBB>,
+			 <&bpmp TEGRA186_CLK_EQOS_AXI>,
+			 <&bpmp TEGRA186_CLK_EQOS_RX>,
+			 <&bpmp TEGRA186_CLK_EQOS_TX>,
+			 <&bpmp TEGRA186_CLK_EQOS_PTP_REF>;
+		clock-names = "master_bus", "slave_bus", "rx", "tx", "ptp_ref";
+		resets = <&bpmp TEGRA186_RESET_EQOS>;
+		reset-names = "eqos";
+		status = "disabled";
+
+		snps,write-requests = <1>;
+		snps,read-requests = <3>;
+		snps,burst-map = <0x7>;
+		snps,txpbl = <32>;
+		snps,rxpbl = <8>;
 	};
 
 	uarta: serial@3100000 {
@@ -305,6 +337,33 @@
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+	};
+
+	pmc@c360000 {
+		compatible = "nvidia,tegra186-pmc";
+		reg = <0 0x0c360000 0 0x10000>,
+		      <0 0x0c370000 0 0x10000>,
+		      <0 0x0c380000 0 0x10000>,
+		      <0 0x0c390000 0 0x10000>;
+		reg-names = "pmc", "wake", "aotag", "scratch";
+	};
+
+	gpu@17000000 {
+		compatible = "nvidia,gp10b";
+		reg = <0x0 0x17000000 0x0 0x1000000>,
+		      <0x0 0x18000000 0x0 0x1000000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "stall", "nonstall";
+
+		clocks = <&bpmp TEGRA186_CLK_GPCCLK>,
+			 <&bpmp TEGRA186_CLK_GPU>;
+		clock-names = "gpu", "pwr";
+		resets = <&bpmp TEGRA186_RESET_GPU>;
+		reset-names = "gpu";
+		status = "disabled";
+
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_GPU>;
 	};
 
 	sysram@30000000 {

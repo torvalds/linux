@@ -97,12 +97,16 @@ static inline void
 xfs_buf_ioacct_inc(
 	struct xfs_buf	*bp)
 {
-	if (bp->b_flags & (XBF_NO_IOACCT|_XBF_IN_FLIGHT))
+	if (bp->b_flags & XBF_NO_IOACCT)
 		return;
 
 	ASSERT(bp->b_flags & XBF_ASYNC);
-	bp->b_flags |= _XBF_IN_FLIGHT;
-	percpu_counter_inc(&bp->b_target->bt_io_count);
+	spin_lock(&bp->b_lock);
+	if (!(bp->b_state & XFS_BSTATE_IN_FLIGHT)) {
+		bp->b_state |= XFS_BSTATE_IN_FLIGHT;
+		percpu_counter_inc(&bp->b_target->bt_io_count);
+	}
+	spin_unlock(&bp->b_lock);
 }
 
 /*
@@ -110,14 +114,24 @@ xfs_buf_ioacct_inc(
  * freed and unaccount from the buftarg.
  */
 static inline void
+__xfs_buf_ioacct_dec(
+	struct xfs_buf	*bp)
+{
+	lockdep_assert_held(&bp->b_lock);
+
+	if (bp->b_state & XFS_BSTATE_IN_FLIGHT) {
+		bp->b_state &= ~XFS_BSTATE_IN_FLIGHT;
+		percpu_counter_dec(&bp->b_target->bt_io_count);
+	}
+}
+
+static inline void
 xfs_buf_ioacct_dec(
 	struct xfs_buf	*bp)
 {
-	if (!(bp->b_flags & _XBF_IN_FLIGHT))
-		return;
-
-	bp->b_flags &= ~_XBF_IN_FLIGHT;
-	percpu_counter_dec(&bp->b_target->bt_io_count);
+	spin_lock(&bp->b_lock);
+	__xfs_buf_ioacct_dec(bp);
+	spin_unlock(&bp->b_lock);
 }
 
 /*
@@ -149,9 +163,9 @@ xfs_buf_stale(
 	 * unaccounted (released to LRU) before that occurs. Drop in-flight
 	 * status now to preserve accounting consistency.
 	 */
-	xfs_buf_ioacct_dec(bp);
-
 	spin_lock(&bp->b_lock);
+	__xfs_buf_ioacct_dec(bp);
+
 	atomic_set(&bp->b_lru_ref, 0);
 	if (!(bp->b_state & XFS_BSTATE_DISPOSE) &&
 	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
@@ -443,17 +457,17 @@ _xfs_buf_map_pages(
 		bp->b_addr = NULL;
 	} else {
 		int retried = 0;
-		unsigned noio_flag;
+		unsigned nofs_flag;
 
 		/*
 		 * vm_map_ram() will allocate auxillary structures (e.g.
 		 * pagetables) with GFP_KERNEL, yet we are likely to be under
 		 * GFP_NOFS context here. Hence we need to tell memory reclaim
-		 * that we are in such a context via PF_MEMALLOC_NOIO to prevent
+		 * that we are in such a context via PF_MEMALLOC_NOFS to prevent
 		 * memory reclaim re-entering the filesystem here and
 		 * potentially deadlocking.
 		 */
-		noio_flag = memalloc_noio_save();
+		nofs_flag = memalloc_nofs_save();
 		do {
 			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
 						-1, PAGE_KERNEL);
@@ -461,7 +475,7 @@ _xfs_buf_map_pages(
 				break;
 			vm_unmap_aliases();
 		} while (retried++ <= 1);
-		memalloc_noio_restore(noio_flag);
+		memalloc_nofs_restore(nofs_flag);
 
 		if (!bp->b_addr)
 			return -ENOMEM;
@@ -979,12 +993,12 @@ xfs_buf_rele(
 		 * ensures the decrement occurs only once per-buf.
 		 */
 		if ((atomic_read(&bp->b_hold) == 1) && !list_empty(&bp->b_lru))
-			xfs_buf_ioacct_dec(bp);
+			__xfs_buf_ioacct_dec(bp);
 		goto out_unlock;
 	}
 
 	/* the last reference has been dropped ... */
-	xfs_buf_ioacct_dec(bp);
+	__xfs_buf_ioacct_dec(bp);
 	if (!(bp->b_flags & XBF_STALE) && atomic_read(&bp->b_lru_ref)) {
 		/*
 		 * If the buffer is added to the LRU take a new reference to the
@@ -1079,6 +1093,8 @@ void
 xfs_buf_unlock(
 	struct xfs_buf		*bp)
 {
+	ASSERT(xfs_buf_islocked(bp));
+
 	XB_CLEAR_OWNER(bp);
 	up(&bp->b_sema);
 
@@ -1812,6 +1828,28 @@ xfs_alloc_buftarg(
 error:
 	kmem_free(btp);
 	return NULL;
+}
+
+/*
+ * Cancel a delayed write list.
+ *
+ * Remove each buffer from the list, clear the delwri queue flag and drop the
+ * associated buffer reference.
+ */
+void
+xfs_buf_delwri_cancel(
+	struct list_head	*list)
+{
+	struct xfs_buf		*bp;
+
+	while (!list_empty(list)) {
+		bp = list_first_entry(list, struct xfs_buf, b_list);
+
+		xfs_buf_lock(bp);
+		bp->b_flags &= ~_XBF_DELWRI_Q;
+		list_del_init(&bp->b_list);
+		xfs_buf_relse(bp);
+	}
 }
 
 /*

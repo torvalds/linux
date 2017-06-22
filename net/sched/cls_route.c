@@ -140,8 +140,6 @@ static int route4_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		goto failure;
 
 	id = dst->tclassid;
-	if (head == NULL)
-		goto old_method;
 
 	iif = inet_iif(skb);
 
@@ -194,15 +192,6 @@ restart:
 		route4_set_fastmap(head, id, iif, ROUTE4_FAILURE);
 failure:
 	return -1;
-
-old_method:
-	if (id && (TC_H_MAJ(id) == 0 ||
-		   !(TC_H_MAJ(id^tp->q->handle)))) {
-		res->classid = id;
-		res->class = 0;
-		return 0;
-	}
-	return -1;
 }
 
 static inline u32 to_hash(u32 id)
@@ -233,9 +222,6 @@ static unsigned long route4_get(struct tcf_proto *tp, u32 handle)
 	struct route4_bucket *b;
 	struct route4_filter *f;
 	unsigned int h1, h2;
-
-	if (!head)
-		return 0;
 
 	h1 = to_hash(handle);
 	if (h1 > 256)
@@ -276,20 +262,13 @@ static void route4_delete_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static bool route4_destroy(struct tcf_proto *tp, bool force)
+static void route4_destroy(struct tcf_proto *tp)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	int h1, h2;
 
 	if (head == NULL)
-		return true;
-
-	if (!force) {
-		for (h1 = 0; h1 <= 256; h1++) {
-			if (rcu_access_pointer(head->table[h1]))
-				return false;
-		}
-	}
+		return;
 
 	for (h1 = 0; h1 <= 256; h1++) {
 		struct route4_bucket *b;
@@ -312,12 +291,10 @@ static bool route4_destroy(struct tcf_proto *tp, bool force)
 			kfree_rcu(b, rcu);
 		}
 	}
-	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
-	return true;
 }
 
-static int route4_delete(struct tcf_proto *tp, unsigned long arg)
+static int route4_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	struct route4_filter *f = (struct route4_filter *)arg;
@@ -325,7 +302,7 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 	struct route4_filter *nf;
 	struct route4_bucket *b;
 	unsigned int h = 0;
-	int i;
+	int i, h1;
 
 	if (!head || !f)
 		return -EINVAL;
@@ -356,16 +333,25 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 
 				rt = rtnl_dereference(b->ht[i]);
 				if (rt)
-					return 0;
+					goto out;
 			}
 
 			/* OK, session has no flows */
 			RCU_INIT_POINTER(head->table[to_hash(h)], NULL);
 			kfree_rcu(b, rcu);
-
-			return 0;
+			break;
 		}
 	}
+
+out:
+	*last = true;
+	for (h1 = 0; h1 <= 256; h1++) {
+		if (rcu_access_pointer(head->table[h1])) {
+			*last = false;
+			break;
+		}
+	}
+
 	return 0;
 }
 
@@ -489,7 +475,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, route4_policy);
+	err = nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, route4_policy, NULL);
 	if (err < 0)
 		return err;
 

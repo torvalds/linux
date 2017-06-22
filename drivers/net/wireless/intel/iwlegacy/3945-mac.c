@@ -3592,6 +3592,8 @@ il3945_setup_mac(struct il_priv *il)
 
 	il_leds_init(il);
 
+	wiphy_ext_feature_set(il->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {
 		IL_ERR("Failed to register hw (error %d)\n", ret);

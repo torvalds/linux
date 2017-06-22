@@ -99,7 +99,8 @@ static int nft_quota_do_init(const struct nlattr * const tb[],
 	return 0;
 }
 
-static int nft_quota_obj_init(const struct nlattr * const tb[],
+static int nft_quota_obj_init(const struct nft_ctx *ctx,
+			      const struct nlattr * const tb[],
 			      struct nft_object *obj)
 {
 	struct nft_quota *priv = nft_obj_data(obj);

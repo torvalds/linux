@@ -84,10 +84,9 @@ void afs_put_writeback(struct afs_writeback *wb)
  * partly or wholly fill a page that's under preparation for writing
  */
 static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
-			 loff_t pos, struct page *page)
+			 loff_t pos, unsigned int len, struct page *page)
 {
 	struct afs_read *req;
-	loff_t i_size;
 	int ret;
 
 	_enter(",,%llu", (unsigned long long)pos);
@@ -99,14 +98,10 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 
 	atomic_set(&req->usage, 1);
 	req->pos = pos;
+	req->len = len;
 	req->nr_pages = 1;
 	req->pages[0] = page;
-
-	i_size = i_size_read(&vnode->vfs_inode);
-	if (pos + PAGE_SIZE > i_size)
-		req->len = i_size - pos;
-	else
-		req->len = PAGE_SIZE;
+	get_page(page);
 
 	ret = afs_vnode_fetch_data(vnode, key, req);
 	afs_put_read(req);
@@ -159,18 +154,21 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 		kfree(candidate);
 		return -ENOMEM;
 	}
-	*pagep = page;
-	/* page won't leak in error case: it eventually gets cleaned off LRU */
 
 	if (!PageUptodate(page) && len != PAGE_SIZE) {
-		ret = afs_fill_page(vnode, key, index << PAGE_SHIFT, page);
+		ret = afs_fill_page(vnode, key, pos & PAGE_MASK, PAGE_SIZE, page);
 		if (ret < 0) {
+			unlock_page(page);
+			put_page(page);
 			kfree(candidate);
 			_leave(" = %d [prep]", ret);
 			return ret;
 		}
 		SetPageUptodate(page);
 	}
+
+	/* page won't leak in error case: it eventually gets cleaned off LRU */
+	*pagep = page;
 
 try_again:
 	spin_lock(&vnode->writeback_lock);
@@ -233,7 +231,7 @@ flush_conflicting_wb:
 	if (wb->state == AFS_WBACK_PENDING)
 		wb->state = AFS_WBACK_CONFLICTING;
 	spin_unlock(&vnode->writeback_lock);
-	if (PageDirty(page)) {
+	if (clear_page_dirty_for_io(page)) {
 		ret = afs_write_back_from_locked_page(wb, page);
 		if (ret < 0) {
 			afs_put_writeback(candidate);
@@ -257,7 +255,9 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 		  struct page *page, void *fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
+	struct key *key = file->private_data;
 	loff_t i_size, maybe_i_size;
+	int ret;
 
 	_enter("{%x:%u},{%lx}",
 	       vnode->fid.vid, vnode->fid.vnode, page->index);
@@ -271,6 +271,20 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 		if (maybe_i_size > i_size)
 			i_size_write(&vnode->vfs_inode, maybe_i_size);
 		spin_unlock(&vnode->writeback_lock);
+	}
+
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			/* Try and load any missing data from the server.  The
+			 * unmarshalling routine will take care of clearing any
+			 * bits that are beyond the EOF.
+			 */
+			ret = afs_fill_page(vnode, key, pos + copied,
+					    len - copied, page);
+			if (ret < 0)
+				return ret;
+		}
+		SetPageUptodate(page);
 	}
 
 	set_page_dirty(page);
@@ -307,10 +321,14 @@ static void afs_kill_pages(struct afs_vnode *vnode, bool error,
 		ASSERTCMP(pv.nr, ==, count);
 
 		for (loop = 0; loop < count; loop++) {
-			ClearPageUptodate(pv.pages[loop]);
+			struct page *page = pv.pages[loop];
+			ClearPageUptodate(page);
 			if (error)
-				SetPageError(pv.pages[loop]);
-			end_page_writeback(pv.pages[loop]);
+				SetPageError(page);
+			if (PageWriteback(page))
+				end_page_writeback(page);
+			if (page->index >= first)
+				first = page->index + 1;
 		}
 
 		__pagevec_release(&pv);
@@ -335,8 +353,6 @@ static int afs_write_back_from_locked_page(struct afs_writeback *wb,
 	_enter(",%lx", primary_page->index);
 
 	count = 1;
-	if (!clear_page_dirty_for_io(primary_page))
-		BUG();
 	if (test_set_page_writeback(primary_page))
 		BUG();
 
@@ -502,17 +518,17 @@ static int afs_writepages_region(struct address_space *mapping,
 		 */
 		lock_page(page);
 
-		if (page->mapping != mapping) {
+		if (page->mapping != mapping || !PageDirty(page)) {
 			unlock_page(page);
 			put_page(page);
 			continue;
 		}
 
-		if (wbc->sync_mode != WB_SYNC_NONE)
-			wait_on_page_writeback(page);
-
-		if (PageWriteback(page) || !PageDirty(page)) {
+		if (PageWriteback(page)) {
 			unlock_page(page);
+			if (wbc->sync_mode != WB_SYNC_NONE)
+				wait_on_page_writeback(page);
+			put_page(page);
 			continue;
 		}
 
@@ -523,6 +539,8 @@ static int afs_writepages_region(struct address_space *mapping,
 		wb->state = AFS_WBACK_WRITING;
 		spin_unlock(&wb->vnode->writeback_lock);
 
+		if (!clear_page_dirty_for_io(page))
+			BUG();
 		ret = afs_write_back_from_locked_page(wb, page);
 		unlock_page(page);
 		put_page(page);
@@ -743,6 +761,20 @@ int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 out:
 	inode_unlock(inode);
 	return ret;
+}
+
+/*
+ * Flush out all outstanding writes on a file opened for writing when it is
+ * closed.
+ */
+int afs_flush(struct file *file, fl_owner_t id)
+{
+	_enter("");
+
+	if ((file->f_mode & FMODE_WRITE) == 0)
+		return 0;
+
+	return vfs_fsync(file, 0);
 }
 
 /*

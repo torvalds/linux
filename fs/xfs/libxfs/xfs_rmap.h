@@ -162,6 +162,8 @@ typedef int (*xfs_rmap_query_range_fn)(
 int xfs_rmap_query_range(struct xfs_btree_cur *cur,
 		struct xfs_rmap_irec *low_rec, struct xfs_rmap_irec *high_rec,
 		xfs_rmap_query_range_fn fn, void *priv);
+int xfs_rmap_query_all(struct xfs_btree_cur *cur, xfs_rmap_query_range_fn fn,
+		void *priv);
 
 enum xfs_rmap_intent_type {
 	XFS_RMAP_MAP,
@@ -212,5 +214,7 @@ int xfs_rmap_find_left_neighbor(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 int xfs_rmap_lookup_le_range(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		uint64_t owner, uint64_t offset, unsigned int flags,
 		struct xfs_rmap_irec *irec, int	*stat);
+int xfs_rmap_compare(const struct xfs_rmap_irec *a,
+		const struct xfs_rmap_irec *b);
 
 #endif	/* __XFS_RMAP_H__ */

@@ -474,8 +474,11 @@ static int ctr_paes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 			ret = blkcipher_walk_done(desc, walk, nbytes - n);
 		}
 		if (k < n) {
-			if (__ctr_paes_set_key(ctx) != 0)
+			if (__ctr_paes_set_key(ctx) != 0) {
+				if (locked)
+					spin_unlock(&ctrblk_lock);
 				return blkcipher_walk_done(desc, walk, -EIO);
+			}
 		}
 	}
 	if (locked)
@@ -613,7 +616,7 @@ out_err:
 module_init(paes_s390_init);
 module_exit(paes_s390_fini);
 
-MODULE_ALIAS_CRYPTO("aes-all");
+MODULE_ALIAS_CRYPTO("paes");
 
 MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm with protected keys");
 MODULE_LICENSE("GPL");

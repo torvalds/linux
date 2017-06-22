@@ -183,7 +183,7 @@ static int ttymajor = MXSERMAJOR;
 
 MODULE_AUTHOR("Casper Yang");
 MODULE_DESCRIPTION("MOXA Smartio/Industio Family Multiport Board Device Driver");
-module_param_array(ioaddr, ulong, NULL, 0);
+module_param_hw_array(ioaddr, ulong, ioport, NULL, 0);
 MODULE_PARM_DESC(ioaddr, "ISA io addresses to look for a moxa board");
 module_param(ttymajor, int, 0);
 MODULE_LICENSE("GPL");

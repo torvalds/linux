@@ -761,7 +761,7 @@ static int nwl_pcie_parse_dt(struct nwl_pcie *pcie,
 	pcie->phys_pcie_reg_base = res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
-	pcie->ecam_base = devm_ioremap_resource(dev, res);
+	pcie->ecam_base = devm_pci_remap_cfg_resource(dev, res);
 	if (IS_ERR(pcie->ecam_base))
 		return PTR_ERR(pcie->ecam_base);
 	pcie->phys_ecam_base = res->start;

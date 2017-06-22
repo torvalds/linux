@@ -165,7 +165,7 @@ static int __init pit_timer_init(struct device_node *np)
 
 	timer_base = of_iomap(np, 0);
 	if (!timer_base) {
-		pr_err("Failed to iomap");
+		pr_err("Failed to iomap\n");
 		return -ENXIO;
 	}
 

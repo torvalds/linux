@@ -60,6 +60,7 @@ static struct platform_driver gen_pci_driver = {
 	.driver = {
 		.name = "pci-host-generic",
 		.of_match_table = gen_pci_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = gen_pci_probe,
 };

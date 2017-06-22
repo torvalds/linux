@@ -1042,11 +1042,9 @@ static int r100_cp_init_microcode(struct radeon_device *rdev)
 
 	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
 	if (err) {
-		printk(KERN_ERR "radeon_cp: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("radeon_cp: Failed to load firmware \"%s\"\n", fw_name);
 	} else if (rdev->me_fw->size % 8) {
-		printk(KERN_ERR
-		       "radeon_cp: Bogus length %zu in firmware \"%s\"\n",
+		pr_err("radeon_cp: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->me_fw->size, fw_name);
 		err = -EINVAL;
 		release_firmware(rdev->me_fw);
@@ -1087,8 +1085,7 @@ static void r100_cp_load_microcode(struct radeon_device *rdev)
 	int i, size;
 
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
 
 	if (rdev->me_fw) {
@@ -1246,8 +1243,7 @@ void r100_cp_disable(struct radeon_device *rdev)
 	WREG32(RADEON_CP_CSQ_CNTL, 0);
 	WREG32(R_000770_SCRATCH_UMSK, 0);
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
 }
 
@@ -1881,8 +1877,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		track->tex_dirty = true;
 		break;
 	default:
-		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
-		       reg, idx);
+		pr_err("Forbidden register 0x%04X in cs at %d\n", reg, idx);
 		return -EINVAL;
 	}
 	return 0;
@@ -2486,8 +2481,7 @@ int r100_gui_wait_for_idle(struct radeon_device *rdev)
 	uint32_t tmp;
 
 	if (r100_rbbm_fifo_wait_for_entry(rdev, 64)) {
-		printk(KERN_WARNING "radeon: wait for empty RBBM fifo failed !"
-		       " Bad things might happen.\n");
+		pr_warn("radeon: wait for empty RBBM fifo failed! Bad things might happen.\n");
 	}
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(RADEON_RBBM_STATUS);
@@ -3301,7 +3295,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		mem_trp = ((temp >> 8) & 0x7) + 1;
 		mem_tras = ((temp >> 11) & 0xf) + 4;
 	} else if (rdev->family == CHIP_RV350 ||
-		   rdev->family <= CHIP_RV380) {
+		   rdev->family == CHIP_RV380) {
 		/* rv3x0 */
 		mem_trcd = (temp & 0x7) + 3;
 		mem_trp = ((temp >> 8) & 0x7) + 3;

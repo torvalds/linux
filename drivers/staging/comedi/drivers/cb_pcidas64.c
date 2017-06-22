@@ -1417,9 +1417,7 @@ static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
 	if (retval < 0)
 		return retval;
 
-	num_samples = retval * fifo->num_segments * fifo->sample_packing_ratio;
-
-	return num_samples;
+	return retval * fifo->num_segments * fifo->sample_packing_ratio;
 }
 
 /* query length of fifo */
@@ -2007,7 +2005,7 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_UP:
-		divisor = (ns + TIMER_BASE - 1) / TIMER_BASE;
+		divisor = DIV_ROUND_UP(ns, TIMER_BASE);
 		break;
 	case CMDF_ROUND_DOWN:
 		divisor = ns / TIMER_BASE;

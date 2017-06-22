@@ -48,32 +48,26 @@
 
 const char *nfp_hwinfo_lookup(struct nfp_cpp *cpp, const char *lookup);
 
-/* Implemented in nfp_nsp.c */
+/* Implemented in nfp_nsp.c, low level functions */
 
 struct nfp_nsp;
-struct firmware;
 
-struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp);
-void nfp_nsp_close(struct nfp_nsp *state);
-u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state);
-u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
-int nfp_nsp_wait(struct nfp_nsp *state);
-int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
-int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
+struct nfp_cpp *nfp_nsp_cpp(struct nfp_nsp *state);
+bool nfp_nsp_config_modified(struct nfp_nsp *state);
+void nfp_nsp_config_set_modified(struct nfp_nsp *state, bool modified);
+void *nfp_nsp_config_entries(struct nfp_nsp *state);
+unsigned int nfp_nsp_config_idx(struct nfp_nsp *state);
+void nfp_nsp_config_set_state(struct nfp_nsp *state, void *entries,
+			      unsigned int idx);
+void nfp_nsp_config_clear_state(struct nfp_nsp *state);
 int nfp_nsp_read_eth_table(struct nfp_nsp *state, void *buf, unsigned int size);
 int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 			    const void *buf, unsigned int size);
+int nfp_nsp_read_identify(struct nfp_nsp *state, void *buf, unsigned int size);
 
 /* Implemented in nfp_resource.c */
 
-#define NFP_RESOURCE_TBL_TARGET		NFP_CPP_TARGET_MU
-#define NFP_RESOURCE_TBL_BASE		0x8100000000ULL
-
-/* NFP Resource Table self-identifier */
-#define NFP_RESOURCE_TBL_NAME		"nfp.res"
-#define NFP_RESOURCE_TBL_KEY		0x00000000 /* Special key for entry 0 */
-
-/* All other keys are CRC32-POSIX of the 8-byte identification string */
+/* All keys are CRC32-POSIX of the 8-byte identification string */
 
 /* ARM/PCI vNIC Interfaces 0..3 */
 #define NFP_RESOURCE_VNIC_PCI_0		"vnic.p0"

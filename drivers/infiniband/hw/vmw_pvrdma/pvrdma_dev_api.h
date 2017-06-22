@@ -132,7 +132,7 @@ enum pvrdma_pci_resource {
 
 enum pvrdma_device_ctl {
 	PVRDMA_DEVICE_CTL_ACTIVATE,	/* Activate device. */
-	PVRDMA_DEVICE_CTL_QUIESCE,	/* Quiesce device. */
+	PVRDMA_DEVICE_CTL_UNQUIESCE,	/* Unquiesce device. */
 	PVRDMA_DEVICE_CTL_RESET,	/* Reset device. */
 };
 

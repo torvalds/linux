@@ -198,7 +198,11 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		return -EINVAL;
 
 	mutex_lock(&adap->lock);
-	if (!adap->is_configured)
+	if (adap->log_addrs.num_log_addrs == 0)
+		err = -EPERM;
+	else if (adap->is_configuring)
+		err = -ENONET;
+	else if (!adap->is_configured && msg.msg[0] != 0xf0)
 		err = -ENONET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;
@@ -267,16 +271,10 @@ static long cec_receive(struct cec_adapter *adap, struct cec_fh *fh,
 			bool block, struct cec_msg __user *parg)
 {
 	struct cec_msg msg = {};
-	long err = 0;
+	long err;
 
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
-	mutex_lock(&adap->lock);
-	if (!adap->is_configured && fh->mode_follower < CEC_MODE_MONITOR)
-		err = -ENONET;
-	mutex_unlock(&adap->lock);
-	if (err)
-		return err;
 
 	err = cec_receive_msg(fh, &msg, block);
 	if (err)
@@ -515,9 +513,18 @@ static int cec_open(struct inode *inode, struct file *filp)
 		return err;
 	}
 
+	mutex_lock(&devnode->lock);
+	if (list_empty(&devnode->fhs) &&
+	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
+		err = adap->ops->adap_enable(adap, true);
+		if (err) {
+			mutex_unlock(&devnode->lock);
+			kfree(fh);
+			return err;
+		}
+	}
 	filp->private_data = fh;
 
-	mutex_lock(&devnode->lock);
 	/* Queue up initial state events */
 	ev_state.state_change.phys_addr = adap->phys_addr;
 	ev_state.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
@@ -551,6 +558,10 @@ static int cec_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&devnode->lock);
 	list_del(&fh->list);
+	if (list_empty(&devnode->fhs) &&
+	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
+		WARN_ON(adap->ops->adap_enable(adap, false));
+	}
 	mutex_unlock(&devnode->lock);
 
 	/* Unhook pending transmits from this filehandle. */

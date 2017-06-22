@@ -146,6 +146,12 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 	case CCP_SHA_TYPE_256:
 		rctx->cmd.u.sha.ctx_len = SHA256_DIGEST_SIZE;
 		break;
+	case CCP_SHA_TYPE_384:
+		rctx->cmd.u.sha.ctx_len = SHA384_DIGEST_SIZE;
+		break;
+	case CCP_SHA_TYPE_512:
+		rctx->cmd.u.sha.ctx_len = SHA512_DIGEST_SIZE;
+		break;
 	default:
 		/* Should never get here */
 		break;
@@ -392,6 +398,22 @@ static struct ccp_sha_def sha_algs[] = {
 		.type		= CCP_SHA_TYPE_256,
 		.digest_size	= SHA256_DIGEST_SIZE,
 		.block_size	= SHA256_BLOCK_SIZE,
+	},
+	{
+		.version	= CCP_VERSION(5, 0),
+		.name		= "sha384",
+		.drv_name	= "sha384-ccp",
+		.type		= CCP_SHA_TYPE_384,
+		.digest_size	= SHA384_DIGEST_SIZE,
+		.block_size	= SHA384_BLOCK_SIZE,
+	},
+	{
+		.version	= CCP_VERSION(5, 0),
+		.name		= "sha512",
+		.drv_name	= "sha512-ccp",
+		.type		= CCP_SHA_TYPE_512,
+		.digest_size	= SHA512_DIGEST_SIZE,
+		.block_size	= SHA512_BLOCK_SIZE,
 	},
 };
 

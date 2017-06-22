@@ -871,7 +871,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 				   msecs_to_jiffies(TS_POLL_PERIOD));
 	}
 
-	if (ts->pendown) {
+	if (ts->pendown && !ts->stopped) {
 		struct input_dev *input = ts->input;
 
 		input_report_key(input, BTN_TOUCH, 0);

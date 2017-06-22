@@ -162,7 +162,7 @@ void __init kasan_init(void)
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
 
 	vmemmap_populate(kimg_shadow_start, kimg_shadow_end,
-			 pfn_to_nid(virt_to_pfn(_text)));
+			 pfn_to_nid(virt_to_pfn(lm_alias(_text))));
 
 	/*
 	 * vmemmap_populate() has populated the shadow region that covers the

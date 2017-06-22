@@ -81,9 +81,9 @@
 	#define REG_ADP_BC_ACA_PIN_GND			BIT(25)
 	#define REG_ADP_BC_ACA_PIN_FLOAT		BIT(26)
 
-#define REG_DBG_UART					0x14
+#define REG_DBG_UART					0x10
 
-#define REG_TEST					0x18
+#define REG_TEST					0x14
 	#define REG_TEST_DATA_IN_MASK			GENMASK(3, 0)
 	#define REG_TEST_EN_MASK			GENMASK(7, 4)
 	#define REG_TEST_ADDR_MASK			GENMASK(11, 8)
@@ -93,7 +93,7 @@
 	#define REG_TEST_DATA_OUT_MASK			GENMASK(19, 16)
 	#define REG_TEST_DISABLE_ID_PULLUP		BIT(20)
 
-#define REG_TUNE					0x1c
+#define REG_TUNE					0x18
 	#define REG_TUNE_TX_RES_TUNE_MASK		GENMASK(1, 0)
 	#define REG_TUNE_TX_HSXV_TUNE_MASK		GENMASK(3, 2)
 	#define REG_TUNE_TX_VREF_TUNE_MASK		GENMASK(7, 4)

@@ -417,20 +417,13 @@ struct mlx5e_stats {
 };
 
 static const struct counter_desc mlx5e_pme_status_desc[] = {
-	{ "module_plug", 0 },
 	{ "module_unplug", 8 },
 };
 
 static const struct counter_desc mlx5e_pme_error_desc[] = {
-	{ "module_pwr_budget_exd", 0 },  /* power budget exceed */
-	{ "module_long_range", 8 },      /* long range for non MLNX cable */
-	{ "module_bus_stuck", 16 },      /* bus stuck (I2C or data shorted) */
-	{ "module_no_eeprom", 24 },      /* no eeprom/retry time out */
-	{ "module_enforce_part", 32 },   /* enforce part number list */
-	{ "module_unknown_id", 40 },     /* unknown identifier */
-	{ "module_high_temp", 48 },      /* high temperature */
+	{ "module_bus_stuck", 16 },       /* bus stuck (I2C or data shorted) */
+	{ "module_high_temp", 48 },       /* high temperature */
 	{ "module_bad_shorted", 56 },    /* bad or shorted cable/module */
-	{ "module_unknown_status", 64 },
 };
 
 #endif /* __MLX5_EN_STATS_H__ */

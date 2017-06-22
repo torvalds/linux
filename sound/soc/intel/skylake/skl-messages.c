@@ -58,7 +58,7 @@ static int skl_free_dma_buf(struct device *dev, struct snd_dma_buffer *dmab)
 #define NOTIFICATION_MASK 0xf
 
 /* disable notfication for underruns/overruns from firmware module */
-static void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable)
+void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable)
 {
 	struct notification_mask mask;
 	struct skl_ipc_large_config_msg	msg = {0};
@@ -209,7 +209,7 @@ static const struct skl_dsp_ops dsp_ops[] = {
 	{
 		.id = 0x9d71,
 		.loader_ops = skl_get_loader_ops,
-		.init = skl_sst_dsp_init,
+		.init = kbl_sst_dsp_init,
 		.init_fw = skl_sst_init_fw,
 		.cleanup = skl_sst_dsp_cleanup
 	},
@@ -274,6 +274,7 @@ int skl_init_dsp(struct skl *skl)
 	if (ret < 0)
 		return ret;
 
+	skl->skl_sst->dsp_ops = ops;
 	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 
 	return ret;
@@ -284,16 +285,11 @@ int skl_free_dsp(struct skl *skl)
 	struct hdac_ext_bus *ebus = &skl->ebus;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl_sst *ctx = skl->skl_sst;
-	const struct skl_dsp_ops *ops;
 
 	/* disable  ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, false);
 
-	ops = skl_get_dsp_ops(skl->pci->device);
-	if (!ops)
-		return -EIO;
-
-	ops->cleanup(bus->dev, ctx);
+	ctx->dsp_ops->cleanup(bus->dev, ctx);
 
 	if (ctx->dsp->addr.lpe)
 		iounmap(ctx->dsp->addr.lpe);
@@ -866,7 +862,7 @@ static void skl_clear_module_state(struct skl_module_pin *mpin, int max,
 	}
 
 	if (!found)
-		mcfg->m_state = SKL_MODULE_UNINIT;
+		mcfg->m_state = SKL_MODULE_INIT_DONE;
 	return;
 }
 
@@ -1098,7 +1094,7 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 	dev_dbg(ctx->dev, "%s: pipe = %d\n", __func__, pipe->ppl_id);
 
 	/* If pipe is started, do stop the pipe in FW. */
-	if (pipe->state > SKL_PIPE_STARTED) {
+	if (pipe->state >= SKL_PIPE_STARTED) {
 		ret = skl_set_pipe_state(ctx, pipe, PPL_PAUSED);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Failed to stop pipeline\n");

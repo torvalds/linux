@@ -94,7 +94,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_DEF_MAX, nla, simple_policy);
+	err = nla_parse_nested(tb, TCA_DEF_MAX, nla, simple_policy, NULL);
 	if (err < 0)
 		return err;
 

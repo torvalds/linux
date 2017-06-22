@@ -556,9 +556,6 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
 #define D	r22
 #define F	r28
 
-#define memset_arg0	r32
-#define memset_arg2	r33
-
 #define saved_retval	loc0
 #define saved_rtlink	loc1
 #define saved_pfs_stack	loc2
@@ -622,7 +619,7 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
  * 	(faulting_addr - orig_dst)	-> len to faulting st address
  * B =	(cur_dst - orig_dst)		-> len copied so far
  * C =	A - B				-> len need to be copied
- * D =	orig_len - A			-> len need to be zeroed
+ * D =	orig_len - A			-> len need to be left along
  */
 (p6)	sub	A = F, saved_in0
 (p7)	sub	A = F, saved_in1
@@ -638,9 +635,6 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
 	sub	D = saved_in2, A
 	;;
 	cmp.gt	p8,p0=C,r0		// more than 1 byte?
-	add	memset_arg0=saved_in0, A
-(p6)	mov	memset_arg2=0		// copy_to_user should not call memset
-(p7)	mov	memset_arg2=D		// copy_from_user need to have kbuf zeroed
 	mov	r8=0
 	mov	saved_retval = D
 	mov	saved_rtlink = b0
@@ -652,11 +646,6 @@ EK(.ex_handler,  (p17)	st8	[dst1]=r39,8);						\
 	;;
 
 	add	saved_retval=saved_retval,r8	// above might return non-zero value
-	cmp.gt	p8,p0=memset_arg2,r0	// more than 1 byte?
-	mov	out0=memset_arg0	// *s
-	mov	out1=r0			// c
-	mov	out2=memset_arg2	// n
-(p8)	br.call.sptk.few b0=memset
 	;;
 
 	mov	retval=saved_retval

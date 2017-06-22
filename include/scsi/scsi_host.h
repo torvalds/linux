@@ -452,11 +452,6 @@ struct scsi_host_template {
 	unsigned no_write_same:1;
 
 	/*
-	 * True if asynchronous aborts are not supported
-	 */
-	unsigned no_async_abort:1;
-
-	/*
 	 * Countdown for host blocking with no commands outstanding.
 	 */
 	unsigned int max_host_blocked;

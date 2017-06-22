@@ -41,8 +41,10 @@ void acpi_gpe_apply_masked_gpes(void);
 void acpi_container_init(void);
 void acpi_memory_hotplug_init(void);
 #ifdef	CONFIG_ACPI_HOTPLUG_IOAPIC
+void pci_ioapic_remove(struct acpi_pci_root *root);
 int acpi_ioapic_remove(struct acpi_pci_root *root);
 #else
+static inline void pci_ioapic_remove(struct acpi_pci_root *root) { return; }
 static inline int acpi_ioapic_remove(struct acpi_pci_root *root) { return 0; }
 #endif
 #ifdef CONFIG_ACPI_DOCK
@@ -62,8 +64,6 @@ void acpi_cmos_rtc_init(void);
 static inline void acpi_cmos_rtc_init(void) {}
 #endif
 int acpi_rev_override_setup(char *str);
-
-extern bool acpi_force_hot_remove;
 
 void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
 				    const char *name);

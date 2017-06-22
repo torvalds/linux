@@ -6,6 +6,7 @@ generic-y += delay.h
 generic-y += device.h
 generic-y += emergency-restart.h
 generic-y += exec.h
+generic-y += extable.h
 generic-y += ftrace.h
 generic-y += futex.h
 generic-y += hardirq.h

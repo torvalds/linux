@@ -45,6 +45,7 @@ For more details see the file COPYING in the source distribution of Linux.
 	meye
 	omap3isp
 	omap4_camera
+	philips
 	pvrusb2
 	pxa_camera
 	radiotrack

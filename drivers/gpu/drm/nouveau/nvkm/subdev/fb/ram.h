@@ -19,13 +19,38 @@ int  nv50_ram_get(struct nvkm_ram *, u64, u32, u32, u32, struct nvkm_mem **);
 void nv50_ram_put(struct nvkm_ram *, struct nvkm_mem **);
 void __nv50_ram_put(struct nvkm_ram *, struct nvkm_mem *);
 
+int gf100_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
+		   struct nvkm_ram **);
 int  gf100_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
-		    u32, struct nvkm_ram *);
+		    struct nvkm_ram *);
+u32  gf100_ram_probe_fbp(const struct nvkm_ram_func *,
+			 struct nvkm_device *, int, int *);
+u32  gf100_ram_probe_fbp_amount(const struct nvkm_ram_func *, u32,
+				struct nvkm_device *, int, int *);
+u32  gf100_ram_probe_fbpa_amount(struct nvkm_device *, int);
 int  gf100_ram_get(struct nvkm_ram *, u64, u32, u32, u32, struct nvkm_mem **);
 void gf100_ram_put(struct nvkm_ram *, struct nvkm_mem **);
+int gf100_ram_init(struct nvkm_ram *);
+int gf100_ram_calc(struct nvkm_ram *, u32);
+int gf100_ram_prog(struct nvkm_ram *);
+void gf100_ram_tidy(struct nvkm_ram *);
 
-int  gk104_ram_ctor(struct nvkm_fb *, struct nvkm_ram **, u32);
-int  gk104_ram_init(struct nvkm_ram *ram);
+u32 gf108_ram_probe_fbp_amount(const struct nvkm_ram_func *, u32,
+			       struct nvkm_device *, int, int *);
+
+int gk104_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
+		   struct nvkm_ram **);
+void *gk104_ram_dtor(struct nvkm_ram *);
+int gk104_ram_init(struct nvkm_ram *);
+int gk104_ram_calc(struct nvkm_ram *, u32);
+int gk104_ram_prog(struct nvkm_ram *);
+void gk104_ram_tidy(struct nvkm_ram *);
+
+u32 gm107_ram_probe_fbp(const struct nvkm_ram_func *,
+			struct nvkm_device *, int, int *);
+
+u32 gm200_ram_probe_fbp_amount(const struct nvkm_ram_func *, u32,
+			       struct nvkm_device *, int, int *);
 
 /* RAM type-specific MR calculation routines */
 int nvkm_sddr2_calc(struct nvkm_ram *);
@@ -46,7 +71,9 @@ int nv50_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gt215_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int mcp77_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gf100_ram_new(struct nvkm_fb *, struct nvkm_ram **);
+int gf108_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gk104_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gm107_ram_new(struct nvkm_fb *, struct nvkm_ram **);
+int gm200_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 int gp100_ram_new(struct nvkm_fb *, struct nvkm_ram **);
 #endif

@@ -282,7 +282,7 @@ struct l2cap_conn_rsp {
 #define L2CAP_CR_BAD_KEY_SIZE	0x0007
 #define L2CAP_CR_ENCRYPTION	0x0008
 #define L2CAP_CR_INVALID_SCID	0x0009
-#define L2CAP_CR_SCID_IN_USE	0x0010
+#define L2CAP_CR_SCID_IN_USE	0x000A
 
 /* connect/create channel status */
 #define L2CAP_CS_NO_INFO	0x0000

@@ -865,12 +865,63 @@ static void nfs3_proc_commit_setup(struct nfs_commit_data *data, struct rpc_mess
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_COMMIT];
 }
 
+static void nfs3_nlm_alloc_call(void *data)
+{
+	struct nfs_lock_context *l_ctx = data;
+	if (l_ctx && test_bit(NFS_CONTEXT_UNLOCK, &l_ctx->open_context->flags)) {
+		get_nfs_open_context(l_ctx->open_context);
+		nfs_get_lock_context(l_ctx->open_context);
+	}
+}
+
+static bool nfs3_nlm_unlock_prepare(struct rpc_task *task, void *data)
+{
+	struct nfs_lock_context *l_ctx = data;
+	if (l_ctx && test_bit(NFS_CONTEXT_UNLOCK, &l_ctx->open_context->flags))
+		return nfs_async_iocounter_wait(task, l_ctx);
+	return false;
+
+}
+
+static void nfs3_nlm_release_call(void *data)
+{
+	struct nfs_lock_context *l_ctx = data;
+	struct nfs_open_context *ctx;
+	if (l_ctx && test_bit(NFS_CONTEXT_UNLOCK, &l_ctx->open_context->flags)) {
+		ctx = l_ctx->open_context;
+		nfs_put_lock_context(l_ctx);
+		put_nfs_open_context(ctx);
+	}
+}
+
+const struct nlmclnt_operations nlmclnt_fl_close_lock_ops = {
+	.nlmclnt_alloc_call = nfs3_nlm_alloc_call,
+	.nlmclnt_unlock_prepare = nfs3_nlm_unlock_prepare,
+	.nlmclnt_release_call = nfs3_nlm_release_call,
+};
+
 static int
 nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = file_inode(filp);
+	struct nfs_lock_context *l_ctx = NULL;
+	struct nfs_open_context *ctx = nfs_file_open_context(filp);
+	int status;
 
-	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl);
+	if (fl->fl_flags & FL_CLOSE) {
+		l_ctx = nfs_get_lock_context(ctx);
+		if (IS_ERR(l_ctx))
+			l_ctx = NULL;
+		else
+			set_bit(NFS_CONTEXT_UNLOCK, &ctx->flags);
+	}
+
+	status = nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl, l_ctx);
+
+	if (l_ctx)
+		nfs_put_lock_context(l_ctx);
+
+	return status;
 }
 
 static int nfs3_have_delegation(struct inode *inode, fmode_t flags)
@@ -921,6 +972,7 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.dir_inode_ops	= &nfs3_dir_inode_operations,
 	.file_inode_ops	= &nfs3_file_inode_operations,
 	.file_ops	= &nfs_file_operations,
+	.nlmclnt_ops	= &nlmclnt_fl_close_lock_ops,
 	.getroot	= nfs3_proc_get_root,
 	.submount	= nfs_submount,
 	.try_mount	= nfs_try_mount,

@@ -19,7 +19,6 @@
 #include <linux/module.h>
 
 #include "w1.h"
-#include "w1_log.h"
 
 static int w1_delay_parm = 1;
 module_param_named(delay_coef, w1_delay_parm, int, 0);

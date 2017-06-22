@@ -168,8 +168,7 @@ union page_table_entry {
 		unsigned long z  : 1; /* Zero Bit */
 		unsigned long i  : 1; /* Page-Invalid Bit */
 		unsigned long p  : 1; /* DAT-Protection Bit */
-		unsigned long co : 1; /* Change-Recording Override */
-		unsigned long	 : 8;
+		unsigned long	 : 9;
 	};
 };
 
@@ -262,7 +261,7 @@ struct aste {
 
 int ipte_lock_held(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.sie_block->eca & 1) {
+	if (vcpu->arch.sie_block->eca & ECA_SII) {
 		int rc;
 
 		read_lock(&vcpu->kvm->arch.sca_lock);
@@ -361,7 +360,7 @@ static void ipte_unlock_siif(struct kvm_vcpu *vcpu)
 
 void ipte_lock(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.sie_block->eca & 1)
+	if (vcpu->arch.sie_block->eca & ECA_SII)
 		ipte_lock_siif(vcpu);
 	else
 		ipte_lock_simple(vcpu);
@@ -369,7 +368,7 @@ void ipte_lock(struct kvm_vcpu *vcpu)
 
 void ipte_unlock(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.sie_block->eca & 1)
+	if (vcpu->arch.sie_block->eca & ECA_SII)
 		ipte_unlock_siif(vcpu);
 	else
 		ipte_unlock_simple(vcpu);
@@ -744,8 +743,6 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 	if (pte.i)
 		return PGM_PAGE_TRANSLATION;
 	if (pte.z)
-		return PGM_TRANSLATION_SPEC;
-	if (pte.co && !edat1)
 		return PGM_TRANSLATION_SPEC;
 	dat_protection |= pte.p;
 	raddr.pfra = pte.pfra;
@@ -1182,7 +1179,7 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 		rc = gmap_read_table(sg->parent, pgt + vaddr.px * 8, &pte.val);
 	if (!rc && pte.i)
 		rc = PGM_PAGE_TRANSLATION;
-	if (!rc && (pte.z || (pte.co && sg->edat_level < 1)))
+	if (!rc && pte.z)
 		rc = PGM_TRANSLATION_SPEC;
 shadow_page:
 	pte.p |= dat_protection;

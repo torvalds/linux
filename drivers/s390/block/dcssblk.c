@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pfn_t.h>
+#include <linux/dax.h>
 #include <asm/extmem.h>
 #include <asm/io.h>
 
@@ -30,8 +31,8 @@ static int dcssblk_open(struct block_device *bdev, fmode_t mode);
 static void dcssblk_release(struct gendisk *disk, fmode_t mode);
 static blk_qc_t dcssblk_make_request(struct request_queue *q,
 						struct bio *bio);
-static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-			 void **kaddr, pfn_t *pfn, long size);
+static long dcssblk_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn);
 
 static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 
@@ -40,7 +41,10 @@ static const struct block_device_operations dcssblk_devops = {
 	.owner   	= THIS_MODULE,
 	.open    	= dcssblk_open,
 	.release 	= dcssblk_release,
-	.direct_access 	= dcssblk_direct_access,
+};
+
+static const struct dax_operations dcssblk_dax_ops = {
+	.direct_access = dcssblk_dax_direct_access,
 };
 
 struct dcssblk_dev_info {
@@ -57,6 +61,7 @@ struct dcssblk_dev_info {
 	struct request_queue *dcssblk_queue;
 	int num_of_segments;
 	struct list_head seg_list;
+	struct dax_device *dax_dev;
 };
 
 struct segment_info {
@@ -389,6 +394,8 @@ removeseg:
 	}
 	list_del(&dev_info->lh);
 
+	kill_dax(dev_info->dax_dev);
+	put_dax(dev_info->dax_dev);
 	del_gendisk(dev_info->gd);
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
@@ -654,6 +661,13 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	if (rc)
 		goto put_dev;
 
+	dev_info->dax_dev = alloc_dax(dev_info, dev_info->gd->disk_name,
+			&dcssblk_dax_ops);
+	if (!dev_info->dax_dev) {
+		rc = -ENOMEM;
+		goto put_dev;
+	}
+
 	get_device(&dev_info->dev);
 	device_add_disk(&dev_info->dev, dev_info->gd);
 
@@ -752,6 +766,8 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	}
 
 	list_del(&dev_info->lh);
+	kill_dax(dev_info->dax_dev);
+	put_dax(dev_info->dax_dev);
 	del_gendisk(dev_info->gd);
 	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
@@ -883,21 +899,26 @@ fail:
 }
 
 static long
-dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
-			void **kaddr, pfn_t *pfn, long size)
+__dcssblk_direct_access(struct dcssblk_dev_info *dev_info, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
 {
-	struct dcssblk_dev_info *dev_info;
-	unsigned long offset, dev_sz;
+	resource_size_t offset = pgoff * PAGE_SIZE;
+	unsigned long dev_sz;
 
-	dev_info = bdev->bd_disk->private_data;
-	if (!dev_info)
-		return -ENODEV;
 	dev_sz = dev_info->end - dev_info->start + 1;
-	offset = secnum * 512;
 	*kaddr = (void *) dev_info->start + offset;
 	*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset), PFN_DEV);
 
-	return dev_sz - offset;
+	return (dev_sz - offset) / PAGE_SIZE;
+}
+
+static long
+dcssblk_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
+{
+	struct dcssblk_dev_info *dev_info = dax_get_private(dax_dev);
+
+	return __dcssblk_direct_access(dev_info, pgoff, nr_pages, kaddr, pfn);
 }
 
 static void

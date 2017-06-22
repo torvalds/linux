@@ -1207,13 +1207,14 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 
 			dimm->nr_pages = size_mb << 8;
 			dimm->grain = 8;
-			dimm->dtype = MTR_DRAM_WIDTH(mtr) ? DEV_X8 : DEV_X4;
+			dimm->dtype = MTR_DRAM_WIDTH(mtr) == 8 ?
+				      DEV_X8 : DEV_X4;
 			dimm->mtype = MEM_FB_DDR2;
 			/*
 			 * The eccc mechanism is SDDC (aka SECC), with
 			 * is similar to Chipkill.
 			 */
-			dimm->edac_mode = MTR_DRAM_WIDTH(mtr) ?
+			dimm->edac_mode = MTR_DRAM_WIDTH(mtr) == 8 ?
 					  EDAC_S8ECD8ED : EDAC_S4ECD4ED;
 			ndimms++;
 		}

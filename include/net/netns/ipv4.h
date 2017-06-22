@@ -33,7 +33,6 @@ struct inet_timewait_death_row {
 	atomic_t		tw_count;
 
 	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
-	int			sysctl_tw_recycle;
 	int			sysctl_max_tw_buckets;
 };
 
@@ -96,6 +95,8 @@ struct netns_ipv4 {
 	/* Shall we try to damage output packets if routing dev changes? */
 	int sysctl_ip_dynaddr;
 	int sysctl_ip_early_demux;
+	int sysctl_tcp_early_demux;
+	int sysctl_udp_early_demux;
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
@@ -152,6 +153,7 @@ struct netns_ipv4 {
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int sysctl_fib_multipath_use_neigh;
+	int sysctl_fib_multipath_hash_policy;
 #endif
 
 	unsigned int	fib_seq;	/* protected by rtnl_mutex */

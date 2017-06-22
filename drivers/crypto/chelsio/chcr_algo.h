@@ -218,6 +218,10 @@
 
 #define MAX_NK 8
 #define CRYPTO_MAX_IMM_TX_PKT_LEN 256
+#define MAX_WR_SIZE			512
+#define MIN_AUTH_SG			2 /*IV + AAD*/
+#define MIN_GCM_SG			2 /* IV + AAD*/
+#define MIN_CCM_SG			3 /*IV+AAD+B0*/
 
 struct algo_param {
 	unsigned int auth_mode;

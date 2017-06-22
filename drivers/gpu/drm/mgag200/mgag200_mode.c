@@ -195,7 +195,7 @@ static int mga_g200se_set_plls(struct mga_device *mdev, long clock)
 	}
 
 	if (delta > permitteddelta) {
-		printk(KERN_WARNING "PLL delta too large\n");
+		pr_warn("PLL delta too large\n");
 		return 1;
 	}
 
@@ -1173,7 +1173,10 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 
 	if (IS_G200_SE(mdev)) {
-		if (mdev->unique_rev_id >= 0x02) {
+		if  (mdev->unique_rev_id >= 0x04) {
+			WREG8(MGAREG_CRTCEXT_INDEX, 0x06);
+			WREG8(MGAREG_CRTCEXT_DATA, 0);
+		} else if (mdev->unique_rev_id >= 0x02) {
 			u8 hi_pri_lvl;
 			u32 bpp;
 			u32 mb;
@@ -1393,7 +1396,8 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
  * but it's a requirement that we provide the function
  */
 static int mga_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, uint32_t size)
+			      u16 *blue, uint32_t size,
+			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
 	int i;
@@ -1637,6 +1641,10 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 				return MODE_VIRTUAL_Y;
 			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
 				> (30100 * 1024))
+				return MODE_BANDWIDTH;
+		} else {
+			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
+				> (55000 * 1024))
 				return MODE_BANDWIDTH;
 		}
 	} else if (mdev->type == G200_WB) {

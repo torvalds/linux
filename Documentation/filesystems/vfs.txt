@@ -382,8 +382,7 @@ struct inode_operations {
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
-	int (*getattr) (const struct path *, struct dentry *, struct kstat *,
-			u32, unsigned int);
+	int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
@@ -695,8 +694,7 @@ struct address_space_operations {
 
   write_end: After a successful write_begin, and data copy, write_end must
         be called. len is the original len passed to write_begin, and copied
-        is the amount that was able to be copied (copied == len is always true
-	if write_begin was called with the AOP_FLAG_UNINTERRUPTIBLE flag).
+        is the amount that was able to be copied.
 
         The filesystem must take care of unlocking the page and releasing it
         refcount, and updating i_size.

@@ -263,7 +263,7 @@
 			};
 
 			matrix: matrix@ffffee00 {
-				compatible = "atmel,at91sam9260-bus-matrix", "syscon";
+				compatible = "atmel,at91sam9261-matrix", "syscon";
 				reg = <0xffffee00 0x200>;
 			};
 

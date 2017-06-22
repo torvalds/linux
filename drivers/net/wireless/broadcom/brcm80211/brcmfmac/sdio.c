@@ -44,6 +44,7 @@
 #include "firmware.h"
 #include "core.h"
 #include "common.h"
+#include "bcdc.h"
 
 #define DCMD_RESP_TIMEOUT	msecs_to_jiffies(2500)
 #define CTL_DONE_TIMEOUT	msecs_to_jiffies(2500)
@@ -539,7 +540,11 @@ static int qcount[NUMPRIO];
 /* Limit on rounding up frames */
 static const uint max_roundup = 512;
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+#define ALIGNMENT  8
+#else
 #define ALIGNMENT  4
+#endif
 
 enum brcmf_sdio_frmtype {
 	BRCMF_SDIO_FT_NORMAL,
@@ -2265,7 +2270,8 @@ done:
 		bus->tx_seq = (bus->tx_seq + pktq->qlen) % SDPCM_SEQ_WRAP;
 	skb_queue_walk_safe(pktq, pkt_next, tmp) {
 		__skb_unlink(pkt_next, pktq);
-		brcmf_txcomplete(bus->sdiodev->dev, pkt_next, ret == 0);
+		brcmf_proto_bcdc_txcomplete(bus->sdiodev->dev, pkt_next,
+					    ret == 0);
 	}
 	return ret;
 }
@@ -2328,7 +2334,7 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	if ((bus->sdiodev->state == BRCMF_SDIOD_DATA) &&
 	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
 		bus->txoff = false;
-		brcmf_txflowblock(bus->sdiodev->dev, false);
+		brcmf_proto_bcdc_txflowblock(bus->sdiodev->dev, false);
 	}
 
 	return cnt;
@@ -2753,7 +2759,7 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 
 	if (pktq_len(&bus->txq) >= TXHI) {
 		bus->txoff = true;
-		brcmf_txflowblock(dev, true);
+		brcmf_proto_bcdc_txflowblock(dev, true);
 	}
 	spin_unlock_bh(&bus->txq_lock);
 
@@ -3416,7 +3422,7 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 		/* otherwise, set txglomalign */
 		value = sdiodev->settings->bus.sdio.sd_sgentry_align;
 		/* SDIO ADMA requires at least 32 bit alignment */
-		value = max_t(u32, value, 4);
+		value = max_t(u32, value, ALIGNMENT);
 		err = brcmf_iovar_data_set(dev, "bus:txglomalign", &value,
 					   sizeof(u32));
 	}
@@ -3976,20 +3982,25 @@ static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.get_memdump = brcmf_sdio_bus_get_memdump,
 };
 
-static void brcmf_sdio_firmware_callback(struct device *dev,
+static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					 const struct firmware *code,
 					 void *nvram, u32 nvram_len)
 {
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
-	struct brcmf_sdio *bus = sdiodev->bus;
-	int err = 0;
+	struct brcmf_bus *bus_if;
+	struct brcmf_sdio_dev *sdiodev;
+	struct brcmf_sdio *bus;
 	u8 saveclk;
 
-	brcmf_dbg(TRACE, "Enter: dev=%s\n", dev_name(dev));
+	brcmf_dbg(TRACE, "Enter: dev=%s, err=%d\n", dev_name(dev), err);
+	bus_if = dev_get_drvdata(dev);
+	sdiodev = bus_if->bus_priv.sdio;
+	if (err)
+		goto fail;
 
 	if (!bus_if->drvr)
 		return;
+
+	bus = sdiodev->bus;
 
 	/* try to download image and nvram to the dongle */
 	bus->alp_only = true;
@@ -4077,6 +4088,7 @@ release:
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s, err=%d\n", dev_name(dev), err);
 	device_release_driver(dev);
+	device_release_driver(&sdiodev->func[2]->dev);
 }
 
 struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)

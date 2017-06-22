@@ -1,7 +1,7 @@
 Device-Tree bindings for Atmel's HLCDC (High LCD Controller) DRM driver
 
 The Atmel HLCDC Display Controller is subdevice of the HLCDC MFD device.
-See ../mfd/atmel-hlcdc.txt for more details.
+See ../../mfd/atmel-hlcdc.txt for more details.
 
 Required properties:
  - compatible: value should be "atmel,hlcdc-display-controller"

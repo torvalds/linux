@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Socionext Inc.
+ * Copyright (C) 2016-2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 
@@ -390,22 +390,22 @@ static const struct pinctrl_pin_desc uniphier_ld11_pins[] = {
 	UNIPHIER_PINCTRL_PIN(140, "AO1D0", 140,
 			     140, UNIPHIER_PIN_DRV_1BIT,
 			     140, UNIPHIER_PIN_PULL_DOWN),
-	UNIPHIER_PINCTRL_PIN(141, "TCON0", 141,
+	UNIPHIER_PINCTRL_PIN(141, "AO1D1", 141,
 			     141, UNIPHIER_PIN_DRV_1BIT,
 			     141, UNIPHIER_PIN_PULL_DOWN),
-	UNIPHIER_PINCTRL_PIN(142, "TCON1", 142,
+	UNIPHIER_PINCTRL_PIN(142, "AO1D2", 142,
 			     142, UNIPHIER_PIN_DRV_1BIT,
 			     142, UNIPHIER_PIN_PULL_DOWN),
-	UNIPHIER_PINCTRL_PIN(143, "TCON2", 143,
+	UNIPHIER_PINCTRL_PIN(143, "XIRQ9", 143,
 			     143, UNIPHIER_PIN_DRV_1BIT,
 			     143, UNIPHIER_PIN_PULL_DOWN),
-	UNIPHIER_PINCTRL_PIN(144, "TCON3", 144,
+	UNIPHIER_PINCTRL_PIN(144, "XIRQ10", 144,
 			     144, UNIPHIER_PIN_DRV_1BIT,
 			     144, UNIPHIER_PIN_PULL_DOWN),
-	UNIPHIER_PINCTRL_PIN(145, "TCON4", 145,
+	UNIPHIER_PINCTRL_PIN(145, "XIRQ11", 145,
 			     145, UNIPHIER_PIN_DRV_1BIT,
 			     145, UNIPHIER_PIN_PULL_DOWN),
-	UNIPHIER_PINCTRL_PIN(146, "TCON5", 146,
+	UNIPHIER_PINCTRL_PIN(146, "XIRQ13", 146,
 			     146, UNIPHIER_PIN_DRV_1BIT,
 			     146, UNIPHIER_PIN_PULL_DOWN),
 	UNIPHIER_PINCTRL_PIN(147, "PWMA", 147,
@@ -936,7 +936,6 @@ static const struct of_device_id uniphier_ld11_pinctrl_match[] = {
 	{ .compatible = "socionext,uniphier-ld11-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, uniphier_ld11_pinctrl_match);
 
 static struct platform_driver uniphier_ld11_pinctrl_driver = {
 	.probe = uniphier_ld11_pinctrl_probe,
@@ -945,8 +944,4 @@ static struct platform_driver uniphier_ld11_pinctrl_driver = {
 		.of_match_table = uniphier_ld11_pinctrl_match,
 	},
 };
-module_platform_driver(uniphier_ld11_pinctrl_driver);
-
-MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
-MODULE_DESCRIPTION("UniPhier PH1-LD11 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(uniphier_ld11_pinctrl_driver);

@@ -84,7 +84,7 @@ static void mq_attach(struct Qdisc *sch)
 			qdisc_destroy(old);
 #ifdef CONFIG_NET_SCHED
 		if (ntx < dev->real_num_tx_queues)
-			qdisc_hash_add(qdisc);
+			qdisc_hash_add(qdisc, false);
 #endif
 
 	}

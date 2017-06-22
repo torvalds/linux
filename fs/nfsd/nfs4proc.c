@@ -1259,7 +1259,8 @@ nfsd4_layout_verify(struct svc_export *exp, unsigned int layout_type)
 		return NULL;
 	}
 
-	if (!(exp->ex_layout_types & (1 << layout_type))) {
+	if (layout_type >= LAYOUT_TYPE_MAX ||
+	    !(exp->ex_layout_types & (1 << layout_type))) {
 		dprintk("%s: layout type %d not supported\n",
 			__func__, layout_type);
 		return NULL;
@@ -1768,6 +1769,12 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			opdesc->op_get_currentstateid(cstate, &op->u);
 		op->status = opdesc->op_func(rqstp, cstate, &op->u);
 
+		/* Only from SEQUENCE */
+		if (cstate->status == nfserr_replay_cache) {
+			dprintk("%s NFS4.1 replay from cache\n", __func__);
+			status = op->status;
+			goto out;
+		}
 		if (!op->status) {
 			if (opdesc->op_set_currentstateid)
 				opdesc->op_set_currentstateid(cstate, &op->u);
@@ -1778,14 +1785,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			if (need_wrongsec_check(rqstp))
 				op->status = check_nfsd_access(current_fh->fh_export, rqstp);
 		}
-
 encode_op:
-		/* Only from SEQUENCE */
-		if (cstate->status == nfserr_replay_cache) {
-			dprintk("%s NFS4.1 replay from cache\n", __func__);
-			status = op->status;
-			goto out;
-		}
 		if (op->status == nfserr_replay_me) {
 			op->replay = &cstate->replay_owner->so_replay;
 			nfsd4_encode_replay(&resp->xdr, op);
@@ -2489,7 +2489,7 @@ bool nfsd4_spo_must_allow(struct svc_rqst *rqstp)
 
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
-	if (op->opnum == OP_ILLEGAL)
+	if (op->opnum == OP_ILLEGAL || op->status == nfserr_notsupp)
 		return op_encode_hdr_size * sizeof(__be32);
 
 	BUG_ON(OPDESC(op)->op_rsize_bop == NULL);

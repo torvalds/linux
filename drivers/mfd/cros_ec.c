@@ -166,6 +166,8 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 	dev_info(dev, "Chrome EC device registered\n");
 
+	cros_ec_acpi_install_gpe_handler(dev);
+
 	return 0;
 
 fail_mfd:
@@ -179,6 +181,8 @@ int cros_ec_remove(struct cros_ec_device *ec_dev)
 {
 	mfd_remove_devices(ec_dev->dev);
 
+	cros_ec_acpi_remove_gpe_handler();
+
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_remove);
@@ -190,9 +194,14 @@ int cros_ec_suspend(struct cros_ec_device *ec_dev)
 	int ret;
 	u8 sleep_event;
 
-	sleep_event = (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) ?
-		      HOST_SLEEP_EVENT_S3_RESUME :
-		      HOST_SLEEP_EVENT_S0IX_RESUME;
+	if (!IS_ENABLED(CONFIG_ACPI) || pm_suspend_via_firmware()) {
+		sleep_event = HOST_SLEEP_EVENT_S3_SUSPEND;
+	} else {
+		sleep_event = HOST_SLEEP_EVENT_S0IX_SUSPEND;
+
+		/* Clearing the GPE status for any pending event */
+		cros_ec_acpi_clear_gpe();
+	}
 
 	ret = cros_ec_sleep_event(ec_dev, sleep_event);
 	if (ret < 0)

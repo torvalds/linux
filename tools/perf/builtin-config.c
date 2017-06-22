@@ -154,11 +154,12 @@ static int parse_config_arg(char *arg, char **var, char **value)
 	return 0;
 }
 
-int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_config(int argc, const char **argv)
 {
 	int i, ret = 0;
 	struct perf_config_set *set;
 	char *user_config = mkpath("%s/.perfconfig", getenv("HOME"));
+	const char *config_filename;
 
 	argc = parse_options(argc, argv, config_options, config_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -174,6 +175,11 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 		config_exclusive_filename = perf_etc_perfconfig();
 	else if (use_user_config)
 		config_exclusive_filename = user_config;
+
+	if (!config_exclusive_filename)
+		config_filename = user_config;
+	else
+		config_filename = config_exclusive_filename;
 
 	/*
 	 * At only 'config' sub-command, individually use the config set
@@ -192,13 +198,9 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 			parse_options_usage(config_usage, config_options, "l", 1);
 		} else {
 			ret = show_config(set);
-			if (ret < 0) {
-				const char * config_filename = config_exclusive_filename;
-				if (!config_exclusive_filename)
-					config_filename = user_config;
+			if (ret < 0)
 				pr_err("Nothing configured, "
 				       "please check your %s \n", config_filename);
-			}
 		}
 		break;
 	default:
@@ -221,13 +223,8 @@ int cmd_config(int argc, const char **argv, const char *prefix __maybe_unused)
 
 				if (value == NULL)
 					ret = show_spec_config(set, var);
-				else {
-					const char *config_filename = config_exclusive_filename;
-
-					if (!config_exclusive_filename)
-						config_filename = user_config;
+				else
 					ret = set_config(set, config_filename, var, value);
-				}
 				free(arg);
 			}
 		} else

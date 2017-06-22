@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/module.h>
@@ -105,10 +106,7 @@ static inline void get_mbigen_type_reg(irq_hw_number_t hwirq,
 static inline void get_mbigen_clear_reg(irq_hw_number_t hwirq,
 					u32 *mask, u32 *addr)
 {
-	unsigned int ofst;
-
-	hwirq -= RESERVED_IRQ_PER_MBIGEN_CHIP;
-	ofst = hwirq / 32 * 4;
+	unsigned int ofst = (hwirq / 32) * 4;
 
 	*mask = 1 << (hwirq % 32);
 	*addr = ofst + REG_MBIGEN_CLEAR_OFFSET;
@@ -180,7 +178,7 @@ static int mbigen_domain_translate(struct irq_domain *d,
 				    unsigned long *hwirq,
 				    unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_node(fwspec->fwnode) || is_acpi_device_node(fwspec->fwnode)) {
 		if (fwspec->param_count != 2)
 			return -EINVAL;
 
@@ -236,26 +234,14 @@ static struct irq_domain_ops mbigen_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int mbigen_device_probe(struct platform_device *pdev)
+static int mbigen_of_create_domain(struct platform_device *pdev,
+				   struct mbigen_device *mgn_chip)
 {
-	struct mbigen_device *mgn_chip;
+	struct device *parent;
 	struct platform_device *child;
 	struct irq_domain *domain;
 	struct device_node *np;
-	struct device *parent;
-	struct resource *res;
 	u32 num_pins;
-
-	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
-	if (!mgn_chip)
-		return -ENOMEM;
-
-	mgn_chip->pdev = pdev;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mgn_chip->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(mgn_chip->base))
-		return PTR_ERR(mgn_chip->base);
 
 	for_each_child_of_node(pdev->dev.of_node, np) {
 		if (!of_property_read_bool(np, "interrupt-controller"))
@@ -280,6 +266,97 @@ static int mbigen_device_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	}
 
+	return 0;
+}
+
+#ifdef CONFIG_ACPI
+static int mbigen_acpi_create_domain(struct platform_device *pdev,
+				     struct mbigen_device *mgn_chip)
+{
+	struct irq_domain *domain;
+	u32 num_pins = 0;
+	int ret;
+
+	/*
+	 * "num-pins" is the total number of interrupt pins implemented in
+	 * this mbigen instance, and mbigen is an interrupt controller
+	 * connected to ITS  converting wired interrupts into MSI, so we
+	 * use "num-pins" to alloc MSI vectors which are needed by client
+	 * devices connected to it.
+	 *
+	 * Here is the DSDT device node used for mbigen in firmware:
+	 *	Device(MBI0) {
+	 *		Name(_HID, "HISI0152")
+	 *		Name(_UID, Zero)
+	 *		Name(_CRS, ResourceTemplate() {
+	 *			Memory32Fixed(ReadWrite, 0xa0080000, 0x10000)
+	 *		})
+	 *
+	 *		Name(_DSD, Package () {
+	 *			ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+	 *			Package () {
+	 *				Package () {"num-pins", 378}
+	 *			}
+	 *		})
+	 *	}
+	 */
+	ret = device_property_read_u32(&pdev->dev, "num-pins", &num_pins);
+	if (ret || num_pins == 0)
+		return -EINVAL;
+
+	domain = platform_msi_create_device_domain(&pdev->dev, num_pins,
+						   mbigen_write_msg,
+						   &mbigen_domain_ops,
+						   mgn_chip);
+	if (!domain)
+		return -ENOMEM;
+
+	return 0;
+}
+#else
+static inline int mbigen_acpi_create_domain(struct platform_device *pdev,
+					    struct mbigen_device *mgn_chip)
+{
+	return -ENODEV;
+}
+#endif
+
+static int mbigen_device_probe(struct platform_device *pdev)
+{
+	struct mbigen_device *mgn_chip;
+	struct resource *res;
+	int err;
+
+	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
+	if (!mgn_chip)
+		return -ENOMEM;
+
+	mgn_chip->pdev = pdev;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+
+	mgn_chip->base = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
+	if (!mgn_chip->base) {
+		dev_err(&pdev->dev, "failed to ioremap %pR\n", res);
+		return -ENOMEM;
+	}
+
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
+		err = mbigen_of_create_domain(pdev, mgn_chip);
+	else if (ACPI_COMPANION(&pdev->dev))
+		err = mbigen_acpi_create_domain(pdev, mgn_chip);
+	else
+		err = -EINVAL;
+
+	if (err) {
+		dev_err(&pdev->dev, "Failed to create mbi-gen@%p irqdomain",
+			mgn_chip->base);
+		return err;
+	}
+
 	platform_set_drvdata(pdev, mgn_chip);
 	return 0;
 }
@@ -290,11 +367,17 @@ static const struct of_device_id mbigen_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mbigen_of_match);
 
+static const struct acpi_device_id mbigen_acpi_match[] = {
+	{ "HISI0152", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, mbigen_acpi_match);
+
 static struct platform_driver mbigen_platform_driver = {
 	.driver = {
 		.name		= "Hisilicon MBIGEN-V2",
-		.owner		= THIS_MODULE,
 		.of_match_table	= mbigen_of_match,
+		.acpi_match_table = ACPI_PTR(mbigen_acpi_match),
 	},
 	.probe			= mbigen_device_probe,
 };

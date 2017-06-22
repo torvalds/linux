@@ -972,7 +972,6 @@ struct ubifs_debug_info;
  * struct ubifs_info - UBIFS file-system description data structure
  * (per-superblock).
  * @vfs_sb: VFS @struct super_block object
- * @bdi: backing device info object to make VFS happy and disable read-ahead
  *
  * @highest_inum: highest used inode number
  * @max_sqnum: current global sequence number
@@ -1220,7 +1219,6 @@ struct ubifs_debug_info;
  */
 struct ubifs_info {
 	struct super_block *vfs_sb;
-	struct backing_dev_info bdi;
 
 	ino_t highest_inum;
 	unsigned long long max_sqnum;
@@ -1461,7 +1459,6 @@ extern const struct inode_operations ubifs_file_inode_operations;
 extern const struct file_operations ubifs_dir_operations;
 extern const struct inode_operations ubifs_dir_inode_operations;
 extern const struct inode_operations ubifs_symlink_inode_operations;
-extern struct backing_dev_info ubifs_backing_dev_info;
 extern struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 
 /* io.c */
@@ -1756,12 +1753,22 @@ int ubifs_check_dir_empty(struct inode *dir);
 /* xattr.c */
 extern const struct xattr_handler *ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
-int ubifs_init_security(struct inode *dentry, struct inode *inode,
-			const struct qstr *qstr);
 int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 		    size_t size, int flags);
 ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 			size_t size);
+
+#ifdef CONFIG_UBIFS_FS_SECURITY
+extern int ubifs_init_security(struct inode *dentry, struct inode *inode,
+			const struct qstr *qstr);
+#else
+static inline int ubifs_init_security(struct inode *dentry,
+			struct inode *inode, const struct qstr *qstr)
+{
+	return 0;
+}
+#endif
+
 
 /* super.c */
 struct inode *ubifs_iget(struct super_block *sb, unsigned long inum);

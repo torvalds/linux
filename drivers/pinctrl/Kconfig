@@ -41,6 +41,17 @@ config PINCTRL_ADI2
 	  future processors. This option is selected automatically when specific
 	  machine and arch are selected to build.
 
+config PINCTRL_ARTPEC6
+        bool "Axis ARTPEC-6 pin controller driver"
+        depends on MACH_ARTPEC6
+        select PINMUX
+        select GENERIC_PINCONF
+        help
+          This is the driver for the Axis ARTPEC-6 pin controller. This driver
+          supports pin function multiplexing as well as pin bias and drive
+          strength configuration. Device tree integration instructions can be
+          found in Documentation/devicetree/bindings/pinctrl/axis,artpec6-pinctrl.txt
+
 config PINCTRL_AS3722
 	tristate "Pinctrl and GPIO driver for ams AS3722 PMIC"
 	depends on MFD_AS3722 && GPIOLIB

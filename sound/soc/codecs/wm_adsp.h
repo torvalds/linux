@@ -23,6 +23,23 @@
 #define WM_ADSP_COMPR_OK                 0
 #define WM_ADSP_COMPR_VOICE_TRIGGER      1
 
+#define WM_ADSP2_REGION_0 BIT(0)
+#define WM_ADSP2_REGION_1 BIT(1)
+#define WM_ADSP2_REGION_2 BIT(2)
+#define WM_ADSP2_REGION_3 BIT(3)
+#define WM_ADSP2_REGION_4 BIT(4)
+#define WM_ADSP2_REGION_5 BIT(5)
+#define WM_ADSP2_REGION_6 BIT(6)
+#define WM_ADSP2_REGION_7 BIT(7)
+#define WM_ADSP2_REGION_8 BIT(8)
+#define WM_ADSP2_REGION_9 BIT(9)
+#define WM_ADSP2_REGION_1_9 (WM_ADSP2_REGION_1 | \
+		WM_ADSP2_REGION_2 | WM_ADSP2_REGION_3 | \
+		WM_ADSP2_REGION_4 | WM_ADSP2_REGION_5 | \
+		WM_ADSP2_REGION_6 | WM_ADSP2_REGION_7 | \
+		WM_ADSP2_REGION_8 | WM_ADSP2_REGION_9)
+#define WM_ADSP2_REGION_ALL (WM_ADSP2_REGION_0 | WM_ADSP2_REGION_1_9)
+
 struct wm_adsp_region {
 	int type;
 	unsigned int base;
@@ -40,6 +57,7 @@ struct wm_adsp_compr_buf;
 
 struct wm_adsp {
 	const char *part;
+	int rev;
 	int num;
 	int type;
 	struct device *dev;
@@ -74,6 +92,8 @@ struct wm_adsp {
 	struct wm_adsp_compr_buf *buffer;
 
 	struct mutex pwr_lock;
+
+	unsigned int lock_regions;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
@@ -113,6 +133,10 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event,
 			 unsigned int freq);
+
+int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int regions);
+irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
+
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 

@@ -124,8 +124,9 @@ struct clk *ti_clk_register_composite(struct ti_clk *setup)
 	struct clk_hw *mux;
 	struct clk_hw *div;
 	int num_parents = 1;
-	const char **parent_names = NULL;
+	const char * const *parent_names = NULL;
 	struct clk *clk;
+	int ret;
 
 	comp = setup->data;
 
@@ -150,6 +151,12 @@ struct clk *ti_clk_register_composite(struct ti_clk *setup)
 				     &ti_composite_divider_ops, gate,
 				     &ti_composite_gate_ops, 0);
 
+	ret = ti_clk_add_alias(NULL, clk, setup->name);
+	if (ret) {
+		clk_unregister(clk);
+		return ERR_PTR(ret);
+	}
+
 	return clk;
 }
 #endif
@@ -163,6 +170,7 @@ static void __init _register_composite(struct clk_hw *hw,
 	int num_parents = 0;
 	const char **parent_names = NULL;
 	int i;
+	int ret;
 
 	/* Check for presence of each component clock */
 	for (i = 0; i < CLK_COMPONENT_TYPE_MAX; i++) {
@@ -217,8 +225,14 @@ static void __init _register_composite(struct clk_hw *hw,
 				     _get_hw(cclk, CLK_COMPONENT_TYPE_GATE),
 				     &ti_composite_gate_ops, 0);
 
-	if (!IS_ERR(clk))
+	if (!IS_ERR(clk)) {
+		ret = ti_clk_add_alias(NULL, clk, node->name);
+		if (ret) {
+			clk_unregister(clk);
+			goto cleanup;
+		}
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	}
 
 cleanup:
 	/* Free component clock list entries */

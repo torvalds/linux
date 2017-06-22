@@ -1880,6 +1880,7 @@ sub get_grub_index {
 sub wait_for_input
 {
     my ($fp, $time) = @_;
+    my $start_time;
     my $rin;
     my $rout;
     my $nr;
@@ -1895,17 +1896,22 @@ sub wait_for_input
     vec($rin, fileno($fp), 1) = 1;
     vec($rin, fileno(\*STDIN), 1) = 1;
 
+    $start_time = time;
+
     while (1) {
 	$nr = select($rout=$rin, undef, undef, $time);
 
-	if ($nr <= 0) {
-	    return undef;
-	}
+	last if ($nr <= 0);
 
 	# copy data from stdin to the console
 	if (vec($rout, fileno(\*STDIN), 1) == 1) {
-	    sysread(\*STDIN, $buf, 1000);
-	    syswrite($fp, $buf, 1000);
+	    $nr = sysread(\*STDIN, $buf, 1000);
+	    syswrite($fp, $buf, $nr) if ($nr > 0);
+	}
+
+	# The timeout is based on time waiting for the fp data
+	if (vec($rout, fileno($fp), 1) != 1) {
+	    last if (defined($time) && (time - $start_time > $time));
 	    next;
 	}
 
@@ -1917,12 +1923,11 @@ sub wait_for_input
 	    last if ($ch eq "\n");
 	}
 
-	if (!length($line)) {
-	    return undef;
-	}
+	last if (!length($line));
 
 	return $line;
     }
+    return undef;
 }
 
 sub reboot_to {

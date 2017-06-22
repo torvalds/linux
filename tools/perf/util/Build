@@ -1,4 +1,3 @@
-libperf-y += alias.o
 libperf-y += annotate.o
 libperf-y += block-range.o
 libperf-y += build-id.o
@@ -14,9 +13,11 @@ libperf-y += find_bit.o
 libperf-y += kallsyms.o
 libperf-y += levenshtein.o
 libperf-y += llvm-utils.o
+libperf-y += memswap.o
 libperf-y += parse-events.o
 libperf-y += perf_regs.o
 libperf-y += path.o
+libperf-y += print_binary.o
 libperf-y += rbtree.o
 libperf-y += libstring.o
 libperf-y += bitmap.o
@@ -42,6 +43,7 @@ libperf-y += pstack.o
 libperf-y += session.o
 libperf-$(CONFIG_AUDIT) += syscalltbl.o
 libperf-y += ordered-events.o
+libperf-y += namespaces.o
 libperf-y += comm.o
 libperf-y += thread.o
 libperf-y += thread_map.o
@@ -81,13 +83,16 @@ libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/
 libperf-$(CONFIG_AUXTRACE) += intel-pt.o
 libperf-$(CONFIG_AUXTRACE) += intel-bts.o
 libperf-y += parse-branch-options.o
+libperf-y += dump-insn.o
 libperf-y += parse-regs-options.o
 libperf-y += term.o
 libperf-y += help-unknown-cmd.o
 libperf-y += mem-events.o
 libperf-y += vsprintf.o
 libperf-y += drv_configs.o
+libperf-y += units.o
 libperf-y += time-utils.o
+libperf-y += expr-bison.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
@@ -140,6 +145,10 @@ $(OUTPUT)util/parse-events-bison.c: util/parse-events.y
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,bison)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $@ -p parse_events_
 
+$(OUTPUT)util/expr-bison.c: util/expr.y
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,bison)$(BISON) -v util/expr.y -d $(PARSER_DEBUG_BISON) -o $@ -p expr__
+
 $(OUTPUT)util/pmu-flex.c: util/pmu.l $(OUTPUT)util/pmu-bison.c
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/pmu-flex.h util/pmu.l
@@ -152,6 +161,7 @@ CFLAGS_parse-events-flex.o  += -w
 CFLAGS_pmu-flex.o           += -w
 CFLAGS_parse-events-bison.o += -DYYENABLE_NLS=0 -w
 CFLAGS_pmu-bison.o          += -DYYENABLE_NLS=0 -DYYLTYPE_IS_TRIVIAL=0 -w
+CFLAGS_expr-bison.o         += -DYYENABLE_NLS=0 -DYYLTYPE_IS_TRIVIAL=0 -w
 
 $(OUTPUT)util/parse-events.o: $(OUTPUT)util/parse-events-flex.c $(OUTPUT)util/parse-events-bison.c
 $(OUTPUT)util/pmu.o: $(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-bison.c

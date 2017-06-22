@@ -115,6 +115,7 @@ endif # SND
 menuconfig SOUND_PRIME
 	tristate "Open Sound System (DEPRECATED)"
 	select SOUND_OSS_CORE
+	depends on BROKEN
 	help
 	  Say 'Y' or 'M' to enable Open Sound System drivers.
 

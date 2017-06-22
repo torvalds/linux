@@ -163,8 +163,7 @@ extern void audit_log_task_info(struct audit_buffer *ab,
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
-extern int audit_rule_change(int type, __u32 portid, int seq,
-				void *data, size_t datasz);
+extern int audit_rule_change(int type, int seq, void *data, size_t datasz);
 extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);
 
 extern u32 audit_enabled;
@@ -332,7 +331,7 @@ static inline void audit_ptrace(struct task_struct *t)
 				/* Private API (for audit.c only) */
 extern unsigned int audit_serial(void);
 extern int auditsc_get_stamp(struct audit_context *ctx,
-			      struct timespec *t, unsigned int *serial);
+			      struct timespec64 *t, unsigned int *serial);
 extern int audit_set_loginuid(kuid_t loginuid);
 
 static inline kuid_t audit_get_loginuid(struct task_struct *tsk)
@@ -511,7 +510,7 @@ static inline void __audit_seccomp(unsigned long syscall, long signr, int code)
 static inline void audit_seccomp(unsigned long syscall, long signr, int code)
 { }
 static inline int auditsc_get_stamp(struct audit_context *ctx,
-			      struct timespec *t, unsigned int *serial)
+			      struct timespec64 *t, unsigned int *serial)
 {
 	return 0;
 }

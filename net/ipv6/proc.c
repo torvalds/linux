@@ -219,7 +219,7 @@ static void snmp6_seq_show_item64(struct seq_file *seq, void __percpu *mib,
 	u64 buff64[SNMP_MIB_MAX];
 	int i;
 
-	memset(buff64, 0, sizeof(unsigned long) * SNMP_MIB_MAX);
+	memset(buff64, 0, sizeof(u64) * SNMP_MIB_MAX);
 
 	snmp_get_cpu_field64_batch(buff64, itemlist, mib, syncpoff);
 	for (i = 0; itemlist[i].name; i++)

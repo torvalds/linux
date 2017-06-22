@@ -116,7 +116,7 @@ ipvs_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct == NULL || nf_ct_is_untracked(ct)) {
+		if (ct == NULL) {
 			match = false;
 			goto out_put_cp;
 		}

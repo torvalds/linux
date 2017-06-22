@@ -140,48 +140,6 @@ err_release_region:
 	return 1;
 }
 
-static inline void *
-cnnic_numa_alloc_aligned_dma(u32 size,
-			     u32 *alloc_size,
-			     size_t *orig_ptr,
-			     int numa_node)
-{
-	int retries = 0;
-	void *ptr = NULL;
-
-#define OCTEON_MAX_ALLOC_RETRIES     1
-	do {
-		struct page *page = NULL;
-
-		page = alloc_pages_node(numa_node,
-					GFP_KERNEL,
-					get_order(size));
-		if (!page)
-			page = alloc_pages(GFP_KERNEL,
-					   get_order(size));
-		ptr = (void *)page_address(page);
-		if ((unsigned long)ptr & 0x07) {
-			__free_pages(page, get_order(size));
-			ptr = NULL;
-			/* Increment the size required if the first
-			 * attempt failed.
-			 */
-			if (!retries)
-				size += 7;
-		}
-		retries++;
-	} while ((retries <= OCTEON_MAX_ALLOC_RETRIES) && !ptr);
-
-	*alloc_size = size;
-	*orig_ptr = (unsigned long)ptr;
-	if ((unsigned long)ptr & 0x07)
-		ptr = (void *)(((unsigned long)ptr + 7) & ~(7UL));
-	return ptr;
-}
-
-#define cnnic_free_aligned_dma(pci_dev, ptr, size, orig_ptr, dma_addr) \
-		free_pages(orig_ptr, get_order(size))
-
 static inline int
 sleep_cond(wait_queue_head_t *wait_queue, int *condition)
 {

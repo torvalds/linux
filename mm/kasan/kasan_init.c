@@ -30,6 +30,9 @@
  */
 unsigned char kasan_zero_page[PAGE_SIZE] __page_aligned_bss;
 
+#if CONFIG_PGTABLE_LEVELS > 4
+p4d_t kasan_zero_p4d[PTRS_PER_P4D] __page_aligned_bss;
+#endif
 #if CONFIG_PGTABLE_LEVELS > 3
 pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
 #endif
@@ -82,10 +85,10 @@ static void __init zero_pmd_populate(pud_t *pud, unsigned long addr,
 	} while (pmd++, addr = next, addr != end);
 }
 
-static void __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
+static void __init zero_pud_populate(p4d_t *p4d, unsigned long addr,
 				unsigned long end)
 {
-	pud_t *pud = pud_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
 	unsigned long next;
 
 	do {
@@ -107,6 +110,23 @@ static void __init zero_pud_populate(pgd_t *pgd, unsigned long addr,
 	} while (pud++, addr = next, addr != end);
 }
 
+static void __init zero_p4d_populate(pgd_t *pgd, unsigned long addr,
+				unsigned long end)
+{
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	unsigned long next;
+
+	do {
+		next = p4d_addr_end(addr, end);
+
+		if (p4d_none(*p4d)) {
+			p4d_populate(&init_mm, p4d,
+				early_alloc(PAGE_SIZE, NUMA_NO_NODE));
+		}
+		zero_pud_populate(p4d, addr, next);
+	} while (p4d++, addr = next, addr != end);
+}
+
 /**
  * kasan_populate_zero_shadow - populate shadow memory region with
  *                               kasan_zero_page
@@ -125,6 +145,7 @@ void __init kasan_populate_zero_shadow(const void *shadow_start,
 		next = pgd_addr_end(addr, end);
 
 		if (IS_ALIGNED(addr, PGDIR_SIZE) && end - addr >= PGDIR_SIZE) {
+			p4d_t *p4d;
 			pud_t *pud;
 			pmd_t *pmd;
 
@@ -135,9 +156,22 @@ void __init kasan_populate_zero_shadow(const void *shadow_start,
 			 * 3,2 - level page tables where we don't have
 			 * puds,pmds, so pgd_populate(), pud_populate()
 			 * is noops.
+			 *
+			 * The ifndef is required to avoid build breakage.
+			 *
+			 * With 5level-fixup.h, pgd_populate() is not nop and
+			 * we reference kasan_zero_p4d. It's not defined
+			 * unless 5-level paging enabled.
+			 *
+			 * The ifndef can be dropped once all KASAN-enabled
+			 * architectures will switch to pgtable-nop4d.h.
 			 */
-			pgd_populate(&init_mm, pgd, lm_alias(kasan_zero_pud));
-			pud = pud_offset(pgd, addr);
+#ifndef __ARCH_HAS_5LEVEL_HACK
+			pgd_populate(&init_mm, pgd, lm_alias(kasan_zero_p4d));
+#endif
+			p4d = p4d_offset(pgd, addr);
+			p4d_populate(&init_mm, p4d, lm_alias(kasan_zero_pud));
+			pud = pud_offset(p4d, addr);
 			pud_populate(&init_mm, pud, lm_alias(kasan_zero_pmd));
 			pmd = pmd_offset(pud, addr);
 			pmd_populate_kernel(&init_mm, pmd, lm_alias(kasan_zero_pte));
@@ -148,6 +182,6 @@ void __init kasan_populate_zero_shadow(const void *shadow_start,
 			pgd_populate(&init_mm, pgd,
 				early_alloc(PAGE_SIZE, NUMA_NO_NODE));
 		}
-		zero_pud_populate(pgd, addr, next);
+		zero_p4d_populate(pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }

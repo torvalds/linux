@@ -3717,7 +3717,7 @@ static void hauppauge_eeprom(struct bttv *btv)
 {
 	struct tveeprom tv;
 
-	tveeprom_hauppauge_analog(&btv->i2c_client, &tv, eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 	btv->tuner_type = tv.tuner_type;
 	btv->has_radio  = tv.has_radio;
 

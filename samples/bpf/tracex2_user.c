@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <linux/bpf.h>
 #include <string.h>
+#include <sys/resource.h>
 
 #include "libbpf.h"
 #include "bpf_load.h"
@@ -112,6 +113,7 @@ static void int_exit(int sig)
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {1024*1024, RLIM_INFINITY};
 	char filename[256];
 	long key, next_key, value;
 	FILE *f;
@@ -119,7 +121,13 @@ int main(int ac, char **argv)
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
+	}
+
 	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
 	/* start 'ping' in the background to have some kfree_skb events */
 	f = popen("ping -c5 localhost", "r");

@@ -98,6 +98,9 @@
 #define RST_BUS_UART1		50
 #define RST_BUS_UART2		51
 #define RST_BUS_UART3		52
-#define RST_BUS_SCR		53
+#define RST_BUS_SCR0		53
+
+/* New resets imported in H5 */
+#define RST_BUS_SCR1		54
 
 #endif /* _DT_BINDINGS_RST_SUN8I_H3_H_ */

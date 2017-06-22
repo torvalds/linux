@@ -1781,7 +1781,7 @@ static int pcs_probe(struct platform_device *pdev)
 	dev_info(pcs->dev, "%i pins at pa %p size %u\n",
 		 pcs->desc.npins, pcs->base, pcs->size);
 
-	return 0;
+	return pinctrl_enable(pcs->pctl);
 
 free:
 	pcs_free_resources(pcs);

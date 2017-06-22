@@ -44,13 +44,19 @@ Hip05 Example (note that Hip06 is the same except compatible):
 	};
 
 HiSilicon Hip06/Hip07 PCIe host bridge DT (almost-ECAM) description.
+
+Some BIOSes place the host controller in a mode where it is ECAM
+compliant for all devices other than the root complex. In such cases,
+the host controller should be described as below.
+
 The properties and their meanings are identical to those described in
 host-generic-pci.txt except as listed below.
 
 Properties of the host controller node that differ from
 host-generic-pci.txt:
 
-- compatible     : Must be "hisilicon,pcie-almost-ecam"
+- compatible     : Must be "hisilicon,hip06-pcie-ecam", or
+		   "hisilicon,hip07-pcie-ecam"
 
 - reg            : Two entries: First the ECAM configuration space for any
 		   other bus underneath the root bus. Second, the base
@@ -59,7 +65,7 @@ host-generic-pci.txt:
 
 Example:
 	pcie0: pcie@a0090000 {
-		compatible = "hisilicon,pcie-almost-ecam";
+		compatible = "hisilicon,hip06-pcie-ecam";
 		reg = <0 0xb0000000 0 0x2000000>,  /*  ECAM configuration space */
 		      <0 0xa0090000 0 0x10000>; /* host bridge registers */
 		bus-range = <0  31>;

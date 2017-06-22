@@ -86,6 +86,15 @@ int smum_early_init(struct pp_instance *handle)
 			return -EINVAL;
 		}
 		break;
+	case AMDGPU_FAMILY_AI:
+		switch (smumgr->chip_id) {
+		case CHIP_VEGA10:
+			smumgr->smumgr_funcs = &vega10_smu_funcs;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	default:
 		kfree(smumgr);
 		return -EINVAL;
@@ -373,4 +382,14 @@ bool smum_is_dpm_running(struct pp_hwmgr *hwmgr)
 		return hwmgr->smumgr->smumgr_funcs->is_dpm_running(hwmgr);
 
 	return true;
+}
+
+int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request)
+{
+	if (hwmgr->smumgr->smumgr_funcs->populate_requested_graphic_levels)
+		return hwmgr->smumgr->smumgr_funcs->populate_requested_graphic_levels(
+				hwmgr, request);
+
+	return 0;
 }

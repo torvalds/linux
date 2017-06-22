@@ -106,7 +106,7 @@ void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
 
 /* Update the connection delivery information and generate a rate sample. */
 void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
-		  struct skb_mstamp *now, struct rate_sample *rs)
+		  struct rate_sample *rs)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 snd_us, ack_us;
@@ -120,7 +120,7 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 	 * to carry current time, flags, stats like "tcp_sacktag_state".
 	 */
 	if (delivered)
-		tp->delivered_mstamp = *now;
+		tp->delivered_mstamp = tp->tcp_mstamp;
 
 	rs->acked_sacked = delivered;	/* freshly ACKed or SACKed */
 	rs->losses = lost;		/* freshly marked lost */
@@ -138,7 +138,8 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 	 * longer phase.
 	 */
 	snd_us = rs->interval_us;				/* send phase */
-	ack_us = skb_mstamp_us_delta(now, &rs->prior_mstamp);	/* ack phase */
+	ack_us = skb_mstamp_us_delta(&tp->tcp_mstamp,
+				     &rs->prior_mstamp); /* ack phase */
 	rs->interval_us = max(snd_us, ack_us);
 
 	/* Normally we expect interval_us >= min-rtt.

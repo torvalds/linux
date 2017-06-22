@@ -374,7 +374,6 @@ config CRYPTO_XTS
 	tristate "XTS support"
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
-	select CRYPTO_GF128MUL
 	select CRYPTO_ECB
 	help
 	  XTS: IEEE1619/D16 narrow block cipher use with aes-xts-plain,
@@ -512,6 +511,23 @@ config CRYPTO_CRCT10DIF_PCLMUL
 	  accelerated PCLMULQDQ instruction. This option will create
 	  'crct10dif-plcmul' module, which is faster when computing the
 	  crct10dif checksum as compared with the generic table implementation.
+
+config CRYPTO_CRCT10DIF_VPMSUM
+	tristate "CRC32T10DIF powerpc64 hardware acceleration"
+	depends on PPC64 && ALTIVEC && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  CRC10T10DIF algorithm implemented using vector polynomial
+	  multiply-sum (vpmsum) instructions, introduced in POWER8. Enable on
+	  POWER8 and newer processors for improved performance.
+
+config CRYPTO_VPMSUM_TESTER
+	tristate "Powerpc64 vpmsum hardware acceleration tester"
+	depends on CRYPTO_CRCT10DIF_VPMSUM && CRYPTO_CRC32C_VPMSUM
+	help
+	  Stress test for CRC32c and CRC-T10DIF algorithms implemented with
+	  POWER8 vpmsum instructions.
+	  Unless you are testing these algorithms, you don't need this.
 
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"

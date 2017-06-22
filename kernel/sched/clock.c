@@ -96,10 +96,10 @@ static DEFINE_STATIC_KEY_FALSE(__sched_clock_stable);
 static int __sched_clock_stable_early = 1;
 
 /*
- * We want: ktime_get_ns() + gtod_offset == sched_clock() + raw_offset
+ * We want: ktime_get_ns() + __gtod_offset == sched_clock() + __sched_clock_offset
  */
-static __read_mostly u64 raw_offset;
-static __read_mostly u64 gtod_offset;
+__read_mostly u64 __sched_clock_offset;
+static __read_mostly u64 __gtod_offset;
 
 struct sched_clock_data {
 	u64			tick_raw;
@@ -131,17 +131,24 @@ static void __set_sched_clock_stable(void)
 	/*
 	 * Attempt to make the (initial) unstable->stable transition continuous.
 	 */
-	raw_offset = (scd->tick_gtod + gtod_offset) - (scd->tick_raw);
+	__sched_clock_offset = (scd->tick_gtod + __gtod_offset) - (scd->tick_raw);
 
 	printk(KERN_INFO "sched_clock: Marking stable (%lld, %lld)->(%lld, %lld)\n",
-			scd->tick_gtod, gtod_offset,
-			scd->tick_raw,  raw_offset);
+			scd->tick_gtod, __gtod_offset,
+			scd->tick_raw,  __sched_clock_offset);
 
 	static_branch_enable(&__sched_clock_stable);
 	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
-static void __clear_sched_clock_stable(struct work_struct *work)
+static void __sched_clock_work(struct work_struct *work)
+{
+	static_branch_disable(&__sched_clock_stable);
+}
+
+static DECLARE_WORK(sched_clock_work, __sched_clock_work);
+
+static void __clear_sched_clock_stable(void)
 {
 	struct sched_clock_data *scd = this_scd();
 
@@ -154,17 +161,17 @@ static void __clear_sched_clock_stable(struct work_struct *work)
 	 *
 	 * Still do what we can.
 	 */
-	gtod_offset = (scd->tick_raw + raw_offset) - (scd->tick_gtod);
+	__gtod_offset = (scd->tick_raw + __sched_clock_offset) - (scd->tick_gtod);
 
 	printk(KERN_INFO "sched_clock: Marking unstable (%lld, %lld)<-(%lld, %lld)\n",
-			scd->tick_gtod, gtod_offset,
-			scd->tick_raw,  raw_offset);
+			scd->tick_gtod, __gtod_offset,
+			scd->tick_raw,  __sched_clock_offset);
 
-	static_branch_disable(&__sched_clock_stable);
 	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
-}
 
-static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);
+	if (sched_clock_stable())
+		schedule_work(&sched_clock_work);
+}
 
 void clear_sched_clock_stable(void)
 {
@@ -173,7 +180,7 @@ void clear_sched_clock_stable(void)
 	smp_mb(); /* matches sched_clock_init_late() */
 
 	if (sched_clock_running == 2)
-		schedule_work(&sched_clock_work);
+		__clear_sched_clock_stable();
 }
 
 void sched_clock_init_late(void)
@@ -214,7 +221,7 @@ static inline u64 wrap_max(u64 x, u64 y)
  */
 static u64 sched_clock_local(struct sched_clock_data *scd)
 {
-	u64 now, clock, old_clock, min_clock, max_clock;
+	u64 now, clock, old_clock, min_clock, max_clock, gtod;
 	s64 delta;
 
 again:
@@ -231,9 +238,10 @@ again:
 	 *		      scd->tick_gtod + TICK_NSEC);
 	 */
 
-	clock = scd->tick_gtod + gtod_offset + delta;
-	min_clock = wrap_max(scd->tick_gtod, old_clock);
-	max_clock = wrap_max(old_clock, scd->tick_gtod + TICK_NSEC);
+	gtod = scd->tick_gtod + __gtod_offset;
+	clock = gtod + delta;
+	min_clock = wrap_max(gtod, old_clock);
+	max_clock = wrap_max(old_clock, gtod + TICK_NSEC);
 
 	clock = wrap_max(clock, min_clock);
 	clock = wrap_min(clock, max_clock);
@@ -317,7 +325,7 @@ u64 sched_clock_cpu(int cpu)
 	u64 clock;
 
 	if (sched_clock_stable())
-		return sched_clock() + raw_offset;
+		return sched_clock() + __sched_clock_offset;
 
 	if (unlikely(!sched_clock_running))
 		return 0ull;

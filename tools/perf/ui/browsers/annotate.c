@@ -9,7 +9,10 @@
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
 #include "../../util/config.h"
+#include <inttypes.h>
 #include <pthread.h>
+#include <linux/kernel.h>
+#include <sys/ttydefaults.h>
 
 struct disasm_line_samples {
 	double		percent;

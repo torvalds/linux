@@ -31,6 +31,8 @@
 #include "vsp1_bru.h"
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
+#include "vsp1_hgo.h"
+#include "vsp1_hgt.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_uds.h"
@@ -103,7 +105,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	unsigned int height = pix->height;
 	unsigned int i;
 
-	/* Backward compatibility: replace deprecated RGB formats by their XRGB
+	/*
+	 * Backward compatibility: replace deprecated RGB formats by their XRGB
 	 * equivalent. This selects the format older userspace applications want
 	 * while still exposing the new format.
 	 */
@@ -114,7 +117,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 		}
 	}
 
-	/* Retrieve format information and select the default format if the
+	/*
+	 * Retrieve format information and select the default format if the
 	 * requested format isn't supported.
 	 */
 	info = vsp1_get_format_info(video->vsp1, pix->pixelformat);
@@ -140,7 +144,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	pix->height = clamp(height, VSP1_VIDEO_MIN_HEIGHT,
 			    VSP1_VIDEO_MAX_HEIGHT);
 
-	/* Compute and clamp the stride and image size. While not documented in
+	/*
+	 * Compute and clamp the stride and image size. While not documented in
 	 * the datasheet, strides not aligned to a multiple of 128 bytes result
 	 * in image corruption.
 	 */
@@ -184,9 +189,13 @@ static void vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	struct vsp1_entity *entity;
 	unsigned int div_size;
 
+	/*
+	 * Partitions are computed on the size before rotation, use the format
+	 * at the WPF sink.
+	 */
 	format = vsp1_entity_get_pad_format(&pipe->output->entity,
 					    pipe->output->entity.config,
-					    RWPF_PAD_SOURCE);
+					    RWPF_PAD_SINK);
 	div_size = format->width;
 
 	/* Gen2 hardware doesn't require image partitioning. */
@@ -226,9 +235,13 @@ static struct v4l2_rect vsp1_video_partition(struct vsp1_pipeline *pipe,
 	struct v4l2_rect partition;
 	unsigned int modulus;
 
+	/*
+	 * Partitions are computed on the size before rotation, use the format
+	 * at the WPF sink.
+	 */
 	format = vsp1_entity_get_pad_format(&pipe->output->entity,
 					    pipe->output->entity.config,
-					    RWPF_PAD_SOURCE);
+					    RWPF_PAD_SINK);
 
 	/* A single partition simply processes the output size in full. */
 	if (pipe->partitions <= 1) {
@@ -449,7 +462,8 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
 	state = pipe->state;
 	pipe->state = VSP1_PIPELINE_STOPPED;
 
-	/* If a stop has been requested, mark the pipeline as stopped and
+	/*
+	 * If a stop has been requested, mark the pipeline as stopped and
 	 * return. Otherwise restart the pipeline if ready.
 	 */
 	if (state == VSP1_PIPELINE_STOPPING)
@@ -474,7 +488,12 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 	if (ret < 0)
 		return ret;
 
-	pad = media_entity_remote_pad(&input->entity.pads[RWPF_PAD_SOURCE]);
+	/*
+	 * The main data path doesn't include the HGO or HGT, use
+	 * vsp1_entity_remote_pad() to traverse the graph.
+	 */
+
+	pad = vsp1_entity_remote_pad(&input->entity.pads[RWPF_PAD_SOURCE]);
 
 	while (1) {
 		if (pad == NULL) {
@@ -491,7 +510,8 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 		entity = to_vsp1_entity(
 			media_entity_to_v4l2_subdev(pad->entity));
 
-		/* A BRU is present in the pipeline, store the BRU input pad
+		/*
+		 * A BRU is present in the pipeline, store the BRU input pad
 		 * number in the input RPF for use when configuring the RPF.
 		 */
 		if (entity->type == VSP1_ENTITY_BRU) {
@@ -526,13 +546,9 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 					: &input->entity;
 		}
 
-		/* Follow the source link. The link setup operations ensure
-		 * that the output fan-out can't be more than one, there is thus
-		 * no need to verify here that only a single source link is
-		 * activated.
-		 */
+		/* Follow the source link, ignoring any HGO or HGT. */
 		pad = &entity->pads[entity->source_pad];
-		pad = media_entity_remote_pad(pad);
+		pad = vsp1_entity_remote_pad(pad);
 	}
 
 	/* The last entity must be the output WPF. */
@@ -587,6 +603,16 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 			pipe->lif = e;
 		} else if (e->type == VSP1_ENTITY_BRU) {
 			pipe->bru = e;
+		} else if (e->type == VSP1_ENTITY_HGO) {
+			struct vsp1_hgo *hgo = to_hgo(subdev);
+
+			pipe->hgo = e;
+			hgo->histo.pipe = pipe;
+		} else if (e->type == VSP1_ENTITY_HGT) {
+			struct vsp1_hgt *hgt = to_hgt(subdev);
+
+			pipe->hgt = e;
+			hgt->histo.pipe = pipe;
 		}
 	}
 
@@ -596,7 +622,8 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 	if (pipe->num_inputs == 0 || !pipe->output)
 		return -EPIPE;
 
-	/* Follow links downstream for each input and make sure the graph
+	/*
+	 * Follow links downstream for each input and make sure the graph
 	 * contains no loop and that all branches end at the output WPF.
 	 */
 	for (i = 0; i < video->vsp1->info->rpf_count; ++i) {
@@ -627,7 +654,8 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	struct vsp1_pipeline *pipe;
 	int ret;
 
-	/* Get a pipeline object for the video node. If a pipeline has already
+	/*
+	 * Get a pipeline object for the video node. If a pipeline has already
 	 * been allocated just increment its reference count and return it.
 	 * Otherwise allocate a new pipeline and initialize it, it will be freed
 	 * when the last reference is released.
@@ -767,7 +795,8 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	if (pipe->uds) {
 		struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
 
-		/* If a BRU is present in the pipeline before the UDS, the alpha
+		/*
+		 * If a BRU is present in the pipeline before the UDS, the alpha
 		 * component doesn't need to be scaled as the BRU output alpha
 		 * value is fixed to 255. Otherwise we need to scale the alpha
 		 * component only when available at the input RPF.
@@ -783,7 +812,7 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	}
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		vsp1_entity_route_setup(entity, pipe->dl);
+		vsp1_entity_route_setup(entity, pipe, pipe->dl);
 
 		if (entity->ops->configure)
 			entity->ops->configure(entity, pipe, pipe->dl,
@@ -797,6 +826,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	struct vsp1_pipeline *pipe = video->rwpf->pipe;
+	bool start_pipeline = false;
 	unsigned long flags;
 	int ret;
 
@@ -807,10 +837,22 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 			mutex_unlock(&pipe->lock);
 			return ret;
 		}
+
+		start_pipeline = true;
 	}
 
 	pipe->stream_count++;
 	mutex_unlock(&pipe->lock);
+
+	/*
+	 * vsp1_pipeline_ready() is not sufficient to establish that all streams
+	 * are prepared and the pipeline is configured, as multiple streams
+	 * can race through streamon with buffers already queued; Therefore we
+	 * don't even attempt to start the pipeline until the last stream has
+	 * called through here.
+	 */
+	if (!start_pipeline)
+		return 0;
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 	if (vsp1_pipeline_ready(pipe))
@@ -968,7 +1010,8 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (video->queue.owner && video->queue.owner != file->private_data)
 		return -EBUSY;
 
-	/* Get a pipeline for the video node and start streaming on it. No link
+	/*
+	 * Get a pipeline for the video node and start streaming on it. No link
 	 * touching an entity in the pipeline can be activated or deactivated
 	 * once streaming is started.
 	 */
@@ -988,7 +1031,8 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	mutex_unlock(&mdev->graph_mutex);
 
-	/* Verify that the configured format matches the output of the connected
+	/*
+	 * Verify that the configured format matches the output of the connected
 	 * subdev.
 	 */
 	ret = vsp1_video_verify_format(video);
@@ -1050,6 +1094,7 @@ static int vsp1_video_open(struct file *file)
 	ret = vsp1_device_get(video->vsp1);
 	if (ret < 0) {
 		v4l2_fh_del(vfh);
+		v4l2_fh_exit(vfh);
 		kfree(vfh);
 	}
 

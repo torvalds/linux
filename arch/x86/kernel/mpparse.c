@@ -26,7 +26,7 @@
 #include <asm/io_apic.h>
 #include <asm/proto.h>
 #include <asm/bios_ebda.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 
@@ -826,10 +826,10 @@ static int __init parse_alloc_mptable_opt(char *p)
 }
 early_param("alloc_mptable", parse_alloc_mptable_opt);
 
-void __init early_reserve_e820_mpc_new(void)
+void __init e820__memblock_alloc_reserved_mpc_new(void)
 {
 	if (enable_update_mptable && alloc_mptable)
-		mpc_new_phys = early_reserve_e820(mpc_new_length, 4);
+		mpc_new_phys = e820__memblock_alloc_reserved(mpc_new_length, 4);
 }
 
 static int __init update_mp_table(void)

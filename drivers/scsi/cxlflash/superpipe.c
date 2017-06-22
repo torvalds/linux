@@ -78,17 +78,18 @@ void cxlflash_free_errpage(void)
  * memory freed. This is accomplished by putting the contexts in error
  * state which will notify the user and let them 'drive' the tear down.
  * Meanwhile, this routine camps until all user contexts have been removed.
+ *
+ * Note that the main loop in this routine will always execute at least once
+ * to flush the reset_waitq.
  */
 void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg)
 {
 	struct device *dev = &cfg->dev->dev;
-	int i, found;
+	int i, found = true;
 
 	cxlflash_mark_contexts_error(cfg);
 
 	while (true) {
-		found = false;
-
 		for (i = 0; i < MAX_CONTEXT; i++)
 			if (cfg->ctx_tbl[i]) {
 				found = true;
@@ -102,6 +103,7 @@ void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg)
 			__func__);
 		wake_up_all(&cfg->reset_waitq);
 		ssleep(1);
+		found = false;
 	}
 }
 
@@ -252,6 +254,7 @@ static int afu_attach(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 	struct afu *afu = cfg->afu;
 	struct sisl_ctrl_map __iomem *ctrl_map = ctxi->ctrl_map;
 	int rc = 0;
+	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
 	u64 val;
 
 	/* Unlock cap and restrict user to read/write cmds in translated mode */
@@ -268,7 +271,7 @@ static int afu_attach(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 
 	/* Set up MMIO registers pointing to the RHT */
 	writeq_be((u64)ctxi->rht_start, &ctrl_map->rht_start);
-	val = SISL_RHT_CNT_ID((u64)MAX_RHT_PER_CONTEXT, (u64)(afu->ctx_hndl));
+	val = SISL_RHT_CNT_ID((u64)MAX_RHT_PER_CONTEXT, (u64)(hwq->ctx_hndl));
 	writeq_be(val, &ctrl_map->rht_cnt_id);
 out:
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
@@ -1624,6 +1627,7 @@ static int cxlflash_afu_recover(struct scsi_device *sdev,
 	struct afu *afu = cfg->afu;
 	struct ctx_info *ctxi = NULL;
 	struct mutex *mutex = &cfg->ctx_recovery_mutex;
+	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
 	u64 flags;
 	u64 ctxid = DECODE_CTXID(recover->context_id),
 	    rctxid = recover->context_id;
@@ -1694,7 +1698,7 @@ retry_recover:
 	}
 
 	/* Test if in error state */
-	reg = readq_be(&afu->ctrl_map->mbox_r);
+	reg = readq_be(&hwq->ctrl_map->mbox_r);
 	if (reg == -1) {
 		dev_dbg(dev, "%s: MMIO fail, wait for recovery.\n", __func__);
 
@@ -1933,7 +1937,7 @@ static int cxlflash_disk_direct_open(struct scsi_device *sdev, void *arg)
 	u64 lun_size = 0;
 	u64 last_lba = 0;
 	u64 rsrc_handle = -1;
-	u32 port = CHAN2PORT(sdev->channel);
+	u32 port = CHAN2PORTMASK(sdev->channel);
 
 	int rc = 0;
 

@@ -577,6 +577,8 @@ static int __init nf_conntrack_ftp_init(void)
 {
 	int i, ret = 0;
 
+	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_ftp_master));
+
 	ftp_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!ftp_buffer)
 		return -ENOMEM;
@@ -589,12 +591,10 @@ static int __init nf_conntrack_ftp_init(void)
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&ftp[2 * i], AF_INET, IPPROTO_TCP, "ftp",
 				  FTP_PORT, ports[i], ports[i], &ftp_exp_policy,
-				  0, sizeof(struct nf_ct_ftp_master), help,
-				  nf_ct_ftp_from_nlattr, THIS_MODULE);
+				  0, help, nf_ct_ftp_from_nlattr, THIS_MODULE);
 		nf_ct_helper_init(&ftp[2 * i + 1], AF_INET6, IPPROTO_TCP, "ftp",
 				  FTP_PORT, ports[i], ports[i], &ftp_exp_policy,
-				  0, sizeof(struct nf_ct_ftp_master), help,
-				  nf_ct_ftp_from_nlattr, THIS_MODULE);
+				  0, help, nf_ct_ftp_from_nlattr, THIS_MODULE);
 	}
 
 	ret = nf_conntrack_helpers_register(ftp, ports_c * 2);

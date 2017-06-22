@@ -197,7 +197,8 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 
 	/* Check parameters */
 	if ((addr & ~PAGE_MASK) || (len & ~PAGE_MASK) ||
-	    addr >= TASK_SIZE || len >= TASK_SIZE || addr + len > TASK_SIZE)
+	    addr >= mm->task_size || len >= mm->task_size ||
+	    addr + len > mm->task_size)
 		return -EINVAL;
 
 	if (is_hugepage_only_range(mm, addr, len))

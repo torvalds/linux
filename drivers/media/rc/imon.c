@@ -2412,9 +2412,8 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 	mutex_lock(&ictx->lock);
 
 	if (ictx->display_type == IMON_DISPLAY_TYPE_VGA) {
-		init_timer(&ictx->ttimer);
-		ictx->ttimer.data = (unsigned long)ictx;
-		ictx->ttimer.function = imon_touch_display_timeout;
+		setup_timer(&ictx->ttimer, imon_touch_display_timeout,
+			    (unsigned long)ictx);
 	}
 
 	ictx->usbdev_intf1 = usb_get_dev(interface_to_usbdev(intf));

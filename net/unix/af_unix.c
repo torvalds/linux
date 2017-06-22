@@ -636,7 +636,7 @@ static int unix_bind(struct socket *, struct sockaddr *, int);
 static int unix_stream_connect(struct socket *, struct sockaddr *,
 			       int addr_len, int flags);
 static int unix_socketpair(struct socket *, struct socket *);
-static int unix_accept(struct socket *, struct socket *, int);
+static int unix_accept(struct socket *, struct socket *, int, bool);
 static int unix_getname(struct socket *, struct sockaddr *, int *, int);
 static unsigned int unix_poll(struct file *, struct socket *, poll_table *);
 static unsigned int unix_dgram_poll(struct file *, struct socket *,
@@ -996,10 +996,11 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	unsigned int hash;
 	struct unix_address *addr;
 	struct hlist_head *list;
-	struct path path = { NULL, NULL };
+	struct path path = { };
 
 	err = -EINVAL;
-	if (sunaddr->sun_family != AF_UNIX)
+	if (addr_len < offsetofend(struct sockaddr_un, sun_family) ||
+	    sunaddr->sun_family != AF_UNIX)
 		goto out;
 
 	if (addr_len == sizeof(short)) {
@@ -1109,6 +1110,10 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 	struct sock *other;
 	unsigned int hash;
 	int err;
+
+	err = -EINVAL;
+	if (alen < offsetofend(struct sockaddr, sa_family))
+		goto out;
 
 	if (addr->sa_family != AF_UNSPEC) {
 		err = unix_mkname(sunaddr, alen, &hash);
@@ -1402,7 +1407,8 @@ static void unix_sock_inherit_flags(const struct socket *old,
 		set_bit(SOCK_PASSSEC, &new->flags);
 }
 
-static int unix_accept(struct socket *sock, struct socket *newsock, int flags)
+static int unix_accept(struct socket *sock, struct socket *newsock, int flags,
+		       bool kern)
 {
 	struct sock *sk = sock->sk;
 	struct sock *tsk;

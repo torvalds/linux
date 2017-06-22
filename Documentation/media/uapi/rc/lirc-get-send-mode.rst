@@ -34,9 +34,12 @@ Arguments
 Description
 ===========
 
-Get/set supported transmit mode.
+Get/set current transmit mode.
 
-Only :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>` is supported by for IR send.
+Only :ref:`LIRC_MODE_PULSE <lirc-mode-pulse>` and
+:ref:`LIRC_MODE_LIRCCODE <lirc-mode-lirccode>` is supported by for IR send,
+depending on the driver. Use :ref:`lirc_get_features` to find out which
+modes the driver supports.
 
 Return Value
 ============

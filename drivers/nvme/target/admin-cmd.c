@@ -100,7 +100,7 @@ static u16 nvmet_get_smart_log(struct nvmet_req *req,
 	u16 status;
 
 	WARN_ON(req == NULL || slog == NULL);
-	if (req->cmd->get_log_page.nsid == 0xFFFFFFFF)
+	if (req->cmd->get_log_page.nsid == cpu_to_le32(0xFFFFFFFF))
 		status = nvmet_get_smart_log_all(req, slog);
 	else
 		status = nvmet_get_smart_log_nsid(req, slog);
@@ -121,7 +121,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 	}
 
 	switch (req->cmd->get_log_page.lid) {
-	case 0x01:
+	case NVME_LOG_ERROR:
 		/*
 		 * We currently never set the More bit in the status field,
 		 * so all error log entries are invalid and can be zeroed out.
@@ -129,7 +129,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		 * mandatory log page.
 		 */
 		break;
-	case 0x02:
+	case NVME_LOG_SMART:
 		/*
 		 * XXX: fill out actual smart log
 		 *
@@ -149,7 +149,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 			goto err;
 		}
 		break;
-	case 0x03:
+	case NVME_LOG_FW_SLOT:
 		/*
 		 * We only support a single firmware slot which always is
 		 * active, so we can zero out the whole firmware slot log and
@@ -480,31 +480,25 @@ static void nvmet_execute_keep_alive(struct nvmet_req *req)
 	nvmet_req_complete(req, 0);
 }
 
-int nvmet_parse_admin_cmd(struct nvmet_req *req)
+u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
+	u16 ret;
 
 	req->ns = NULL;
 
-	if (unlikely(!(req->sq->ctrl->cc & NVME_CC_ENABLE))) {
-		pr_err("nvmet: got admin cmd %d while CC.EN == 0\n",
-				cmd->common.opcode);
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
-	}
-	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
-		pr_err("nvmet: got admin cmd %d while CSTS.RDY == 0\n",
-				cmd->common.opcode);
-		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
-	}
+	ret = nvmet_check_ctrl_status(req, cmd);
+	if (unlikely(ret))
+		return ret;
 
 	switch (cmd->common.opcode) {
 	case nvme_admin_get_log_page:
 		req->data_len = nvmet_get_log_page_len(cmd);
 
 		switch (cmd->get_log_page.lid) {
-		case 0x01:
-		case 0x02:
-		case 0x03:
+		case NVME_LOG_ERROR:
+		case NVME_LOG_SMART:
+		case NVME_LOG_FW_SLOT:
 			req->execute = nvmet_execute_get_log_page;
 			return 0;
 		}
@@ -545,6 +539,7 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 		return 0;
 	}
 
-	pr_err("nvmet: unhandled cmd %d\n", cmd->common.opcode);
+	pr_err("unhandled cmd %d on qid %d\n", cmd->common.opcode,
+	       req->sq->qid);
 	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 }

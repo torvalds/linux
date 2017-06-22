@@ -1856,6 +1856,15 @@ static int omap_nand_probe(struct platform_device *pdev)
 	nand_chip->ecc.priv	= NULL;
 	nand_set_flash_node(nand_chip, dev->of_node);
 
+	if (!mtd->name) {
+		mtd->name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					   "omap2-nand.%d", info->gpmc_cs);
+		if (!mtd->name) {
+			dev_err(&pdev->dev, "Failed to set MTD name\n");
+			return -ENOMEM;
+		}
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	nand_chip->IO_ADDR_R = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(nand_chip->IO_ADDR_R))

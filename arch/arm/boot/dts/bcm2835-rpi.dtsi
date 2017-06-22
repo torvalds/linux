@@ -69,6 +69,12 @@
 	bus-width = <4>;
 };
 
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	bus-width = <4>;
+};
+
 &pwm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm0_gpio40 &pwm1_gpio45>;
@@ -91,4 +97,12 @@
 &vec {
 	power-domains = <&power RPI_POWER_DOMAIN_VEC>;
 	status = "okay";
+};
+
+&dsi0 {
+	power-domains = <&power RPI_POWER_DOMAIN_DSI0>;
+};
+
+&dsi1 {
+	power-domains = <&power RPI_POWER_DOMAIN_DSI1>;
 };

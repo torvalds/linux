@@ -782,24 +782,26 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 
 static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
 {
-	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
-	int dimm, size0, size1;
+	int dimm, size0, size1, cs0, cs1;
 
 	edac_printk(KERN_DEBUG, EDAC_MC, "UMC%d chip selects:\n", ctrl);
 
 	for (dimm = 0; dimm < 4; dimm++) {
 		size0 = 0;
+		cs0 = dimm * 2;
 
-		if (dcsb[dimm*2] & DCSB_CS_ENABLE)
-			size0 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, dimm);
+		if (csrow_enabled(cs0, ctrl, pvt))
+			size0 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs0);
 
 		size1 = 0;
-		if (dcsb[dimm*2 + 1] & DCSB_CS_ENABLE)
-			size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, dimm);
+		cs1 = dimm * 2 + 1;
+
+		if (csrow_enabled(cs1, ctrl, pvt))
+			size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs1);
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
-				dimm * 2,     size0,
-				dimm * 2 + 1, size1);
+				cs0,	size0,
+				cs1,	size1);
 	}
 }
 
@@ -2756,26 +2758,22 @@ skip:
  *	encompasses
  *
  */
-static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
+static u32 get_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr_orig)
 {
-	u32 cs_mode, nr_pages;
 	u32 dbam = dct ? pvt->dbam1 : pvt->dbam0;
+	int csrow_nr = csrow_nr_orig;
+	u32 cs_mode, nr_pages;
 
+	if (!pvt->umc)
+		csrow_nr >>= 1;
 
-	/*
-	 * The math on this doesn't look right on the surface because x/2*4 can
-	 * be simplified to x*2 but this expression makes use of the fact that
-	 * it is integral math where 1/2=0. This intermediate value becomes the
-	 * number of bits to shift the DBAM register to extract the proper CSROW
-	 * field.
-	 */
-	cs_mode = DBAM_DIMM(csrow_nr / 2, dbam);
+	cs_mode = DBAM_DIMM(csrow_nr, dbam);
 
-	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, (csrow_nr / 2))
-							   << (20 - PAGE_SHIFT);
+	nr_pages   = pvt->ops->dbam_to_cs(pvt, dct, cs_mode, csrow_nr);
+	nr_pages <<= 20 - PAGE_SHIFT;
 
 	edac_dbg(0, "csrow: %d, channel: %d, DBAM idx: %d\n",
-		    csrow_nr, dct,  cs_mode);
+		    csrow_nr_orig, dct,  cs_mode);
 	edac_dbg(0, "nr_pages/channel: %u\n", nr_pages);
 
 	return nr_pages;

@@ -869,9 +869,9 @@ static int txholdbufs[MAX_TOTAL_DEVICES];
 	
 module_param(break_on_load, bool, 0);
 module_param(ttymajor, int, 0);
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
-module_param_array(dma, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
+module_param_hw_array(dma, int, dma, NULL, 0);
 module_param(debug_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
 module_param_array(txdmabufs, int, NULL, 0);

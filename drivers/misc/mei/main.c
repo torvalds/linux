@@ -103,10 +103,7 @@ static int mei_release(struct inode *inode, struct file *file)
 	dev = cl->dev;
 
 	mutex_lock(&dev->device_lock);
-	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_release(dev, file);
-		goto out;
-	}
+
 	rets = mei_cl_disconnect(cl);
 
 	mei_cl_flush_queues(cl, file);
@@ -117,7 +114,7 @@ static int mei_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 
 	kfree(cl);
-out:
+
 	mutex_unlock(&dev->device_lock);
 	return rets;
 }
@@ -182,8 +179,6 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-
-again:
 	mutex_unlock(&dev->device_lock);
 	if (wait_event_interruptible(cl->rx_wait,
 				     !list_empty(&cl->rd_completed) ||
@@ -201,14 +196,6 @@ again:
 
 	cb = mei_cl_read_cb(cl, file);
 	if (!cb) {
-		/*
-		 * For amthif all the waiters are woken up,
-		 * but only fp with matching cb->fp get the cb,
-		 * the others have to return to wait on read.
-		 */
-		if (cl == &dev->iamthif_cl)
-			goto again;
-
 		rets = 0;
 		goto out;
 	}
@@ -319,13 +306,6 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		rets = mei_amthif_write(cl, cb);
-		if (!rets)
-			rets = length;
-		goto out;
-	}
-
 	rets = mei_cl_write(cl, cb);
 out:
 	mutex_unlock(&dev->device_lock);
@@ -387,30 +367,6 @@ static int mei_ioctl_connect_client(struct file *file,
 			me_cl->props.protocol_version);
 	dev_dbg(dev->dev, "FW Client - Max Msg Len = %d\n",
 			me_cl->props.max_msg_length);
-
-	/* if we're connecting to amthif client then we will use the
-	 * existing connection
-	 */
-	if (uuid_le_cmp(data->in_client_uuid, mei_amthif_guid) == 0) {
-		dev_dbg(dev->dev, "FW Client is amthi\n");
-		if (!mei_cl_is_connected(&dev->iamthif_cl)) {
-			rets = -ENODEV;
-			goto end;
-		}
-		mei_cl_unlink(cl);
-
-		kfree(cl);
-		cl = NULL;
-		dev->iamthif_open_count++;
-		file->private_data = &dev->iamthif_cl;
-
-		client = &data->out_client_properties;
-		client->max_msg_length = me_cl->props.max_msg_length;
-		client->protocol_version = me_cl->props.protocol_version;
-		rets = dev->iamthif_cl.status;
-
-		goto end;
-	}
 
 	/* prepare the output buffer */
 	client = &data->out_client_properties;
@@ -615,11 +571,6 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 			mask |= POLLPRI;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		mask |= mei_amthif_poll(file, wait);
-		goto out;
-	}
-
 	if (req_events & (POLLIN | POLLRDNORM)) {
 		poll_wait(file, &cl->rx_wait, wait);
 
@@ -632,6 +583,77 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 out:
 	mutex_unlock(&dev->device_lock);
 	return mask;
+}
+
+/**
+ * mei_cl_is_write_queued - check if the client has pending writes.
+ *
+ * @cl: writing host client
+ *
+ * Return: true if client is writing, false otherwise.
+ */
+static bool mei_cl_is_write_queued(struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+	struct mei_cl_cb *cb;
+
+	list_for_each_entry(cb, &dev->write_list, list)
+		if (cb->cl == cl)
+			return true;
+	list_for_each_entry(cb, &dev->write_waiting_list, list)
+		if (cb->cl == cl)
+			return true;
+	return false;
+}
+
+/**
+ * mei_fsync - the fsync handler
+ *
+ * @fp:       pointer to file structure
+ * @start:    unused
+ * @end:      unused
+ * @datasync: unused
+ *
+ * Return: 0 on success, -ENODEV if client is not connected
+ */
+static int mei_fsync(struct file *fp, loff_t start, loff_t end, int datasync)
+{
+	struct mei_cl *cl = fp->private_data;
+	struct mei_device *dev;
+	int rets;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	mutex_lock(&dev->device_lock);
+
+	if (dev->dev_state != MEI_DEV_ENABLED || !mei_cl_is_connected(cl)) {
+		rets = -ENODEV;
+		goto out;
+	}
+
+	while (mei_cl_is_write_queued(cl)) {
+		mutex_unlock(&dev->device_lock);
+		rets = wait_event_interruptible(cl->tx_wait,
+				cl->writing_state == MEI_WRITE_COMPLETE ||
+				!mei_cl_is_connected(cl));
+		mutex_lock(&dev->device_lock);
+		if (rets) {
+			if (signal_pending(current))
+				rets = -EINTR;
+			goto out;
+		}
+		if (!mei_cl_is_connected(cl)) {
+			rets = -ENODEV;
+			goto out;
+		}
+	}
+	rets = 0;
+out:
+	mutex_unlock(&dev->device_lock);
+	return rets;
 }
 
 /**
@@ -749,6 +771,7 @@ static const struct file_operations mei_fops = {
 	.release = mei_release,
 	.write = mei_write,
 	.poll = mei_poll,
+	.fsync = mei_fsync,
 	.fasync = mei_fasync,
 	.llseek = no_llseek
 };

@@ -157,7 +157,6 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	return 0;
  err_fb_setup:
-	drm_fb_helper_release_fbi(fbh);
 	drm_fb_helper_fini(fbh);
  err_fb_helper:
 	priv->fbdev = NULL;
@@ -179,7 +178,6 @@ void armada_fbdev_fini(struct drm_device *dev)
 
 	if (fbh) {
 		drm_fb_helper_unregister_fbi(fbh);
-		drm_fb_helper_release_fbi(fbh);
 
 		drm_fb_helper_fini(fbh);
 

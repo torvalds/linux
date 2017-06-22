@@ -37,6 +37,13 @@
 };
 
 &omap3_pmx_core {
+	gpmc_pins: pinmux_gpmc_pins {
+		pinctrl-single,pins = <
+			/* OneNAND seems to require PIN_INPUT on clock. */
+                        OMAP3_CORE1_IOPAD(0x20be, PIN_INPUT | MUX_MODE0)        /* gpmc_clk.gpmc_clk */
+		>;
+	};
+
 	uart1_pins: pinmux_uart1_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | MUX_MODE0)	/* uart1_rx.uart1_rx */
@@ -98,6 +105,9 @@
 };
 
 &gpmc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpmc_pins>;
+
 	nand@0,0 {
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
@@ -126,6 +136,48 @@
 
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		status = "okay";
+	};
+
+	onenand@0,0 {
+		compatible = "ti,omap2-onenand";
+		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
+
+		gpmc,sync-read;
+		gpmc,sync-write;
+		gpmc,burst-length = <16>;
+		gpmc,burst-read;
+		gpmc,burst-wrap;
+		gpmc,burst-write;
+		gpmc,device-width = <2>; /* GPMC_DEVWIDTH_16BIT */
+		gpmc,mux-add-data = <2>; /* GPMC_MUX_AD */
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <87>;
+		gpmc,cs-wr-off-ns = <87>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <10>;
+		gpmc,adv-wr-off-ns = <10>;
+		gpmc,oe-on-ns = <15>;
+		gpmc,oe-off-ns = <87>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <87>;
+		gpmc,rd-cycle-ns = <112>;
+		gpmc,wr-cycle-ns = <112>;
+		gpmc,access-ns = <81>;
+		gpmc,page-burst-access-ns = <15>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <5>;
+		gpmc,wr-data-mux-bus-ns = <30>;
+		gpmc,wr-access-ns = <81>;
+		gpmc,sync-clk-ps = <15000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		status = "disabled";
 	};
 };
 

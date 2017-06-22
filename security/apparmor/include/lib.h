@@ -57,24 +57,13 @@
 	pr_err_ratelimited("AppArmor: " fmt, ##args)
 
 /* Flag indicating whether initialization completed */
-extern int apparmor_initialized __initdata;
+extern int apparmor_initialized;
 
 /* fn's in lib */
 char *aa_split_fqname(char *args, char **ns_name);
 const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 			     size_t *ns_len);
 void aa_info_message(const char *str);
-void *__aa_kvmalloc(size_t size, gfp_t flags);
-
-static inline void *kvmalloc(size_t size)
-{
-	return __aa_kvmalloc(size, 0);
-}
-
-static inline void *kvzalloc(size_t size)
-{
-	return __aa_kvmalloc(size, __GFP_ZERO);
-}
 
 /**
  * aa_strneq - compare null terminated @str to a non null terminated substring

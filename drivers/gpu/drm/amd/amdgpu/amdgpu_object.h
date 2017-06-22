@@ -175,6 +175,7 @@ int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct amdgpu_bo *bo,
 			       struct reservation_object *resv,
 			       struct dma_fence **fence, bool direct);
+int amdgpu_bo_validate(struct amdgpu_bo *bo);
 int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_bo *bo,

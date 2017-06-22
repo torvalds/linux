@@ -113,7 +113,7 @@ struct btrfs_ordered_extent {
 	int compress_type;
 
 	/* reference count */
-	atomic_t refs;
+	refcount_t refs;
 
 	/* the inode we belong to */
 	struct inode *inode;

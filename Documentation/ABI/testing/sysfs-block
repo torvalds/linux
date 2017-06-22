@@ -213,14 +213,8 @@ What:		/sys/block/<disk>/queue/discard_zeroes_data
 Date:		May 2011
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
 Description:
-		Devices that support discard functionality may return
-		stale or random data when a previously discarded block
-		is read back. This can cause problems if the filesystem
-		expects discarded blocks to be explicitly cleared. If a
-		device reports that it deterministically returns zeroes
-		when a discarded area is read the discard_zeroes_data
-		parameter will be set to one. Otherwise it will be 0 and
-		the result of reading a discarded area is undefined.
+		Will always return 0.  Don't rely on any specific behavior
+		for discards, and don't read this file.
 
 What:		/sys/block/<disk>/queue/write_same_max_bytes
 Date:		January 2012

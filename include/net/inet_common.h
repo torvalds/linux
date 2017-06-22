@@ -20,7 +20,8 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 			  int addr_len, int flags, int is_sendmsg);
 int inet_dgram_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags);
-int inet_accept(struct socket *sock, struct socket *newsock, int flags);
+int inet_accept(struct socket *sock, struct socket *newsock, int flags,
+		bool kern);
 int inet_sendmsg(struct socket *sock, struct msghdr *msg, size_t size);
 ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
 		      size_t size, int flags);

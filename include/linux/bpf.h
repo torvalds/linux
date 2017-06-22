@@ -35,6 +35,7 @@ struct bpf_map_ops {
 	void *(*map_fd_get_ptr)(struct bpf_map *map, struct file *map_file,
 				int fd);
 	void (*map_fd_put_ptr)(void *ptr);
+	u32 (*map_gen_lookup)(struct bpf_map *map, struct bpf_insn *insn_buf);
 };
 
 struct bpf_map {
@@ -49,12 +50,7 @@ struct bpf_map {
 	const struct bpf_map_ops *ops;
 	struct work_struct work;
 	atomic_t usercnt;
-};
-
-struct bpf_map_type_list {
-	struct list_head list_node;
-	const struct bpf_map_ops *ops;
-	enum bpf_map_type type;
+	struct bpf_map *inner_map_meta;
 };
 
 /* function argument constraints */
@@ -167,12 +163,8 @@ struct bpf_verifier_ops {
 				  const struct bpf_insn *src,
 				  struct bpf_insn *dst,
 				  struct bpf_prog *prog);
-};
-
-struct bpf_prog_type_list {
-	struct list_head list_node;
-	const struct bpf_verifier_ops *ops;
-	enum bpf_prog_type type;
+	int (*test_run)(struct bpf_prog *prog, const union bpf_attr *kattr,
+			union bpf_attr __user *uattr);
 };
 
 struct bpf_prog_aux {
@@ -231,11 +223,21 @@ typedef unsigned long (*bpf_ctx_copy_t)(void *dst, const void *src,
 u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 		     void *ctx, u64 ctx_size, bpf_ctx_copy_t ctx_copy);
 
+int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
+			  union bpf_attr __user *uattr);
+int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
+			  union bpf_attr __user *uattr);
+
 #ifdef CONFIG_BPF_SYSCALL
 DECLARE_PER_CPU(int, bpf_prog_active);
 
-void bpf_register_prog_type(struct bpf_prog_type_list *tl);
-void bpf_register_map_type(struct bpf_map_type_list *tl);
+#define BPF_PROG_TYPE(_id, _ops) \
+	extern const struct bpf_verifier_ops _ops;
+#define BPF_MAP_TYPE(_id, _ops) \
+	extern const struct bpf_map_ops _ops;
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+#undef BPF_MAP_TYPE
 
 struct bpf_prog *bpf_prog_get(u32 ufd);
 struct bpf_prog *bpf_prog_get_type(u32 ufd, enum bpf_prog_type type);
@@ -275,6 +277,8 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value);
 int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 				 void *key, void *value, u64 map_flags);
 void bpf_fd_array_map_clear(struct bpf_map *map);
+int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
+				void *key, void *value, u64 map_flags);
 
 /* memcpy that is used with 8-byte aligned pointers, power-of-8 size and
  * forced to use 'long' read/writes to try to atomically copy long counters.
@@ -295,10 +299,6 @@ static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
 #else
-static inline void bpf_register_prog_type(struct bpf_prog_type_list *tl)
-{
-}
-
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 {
 	return ERR_PTR(-EOPNOTSUPP);

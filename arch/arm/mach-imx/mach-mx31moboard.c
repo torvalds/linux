@@ -296,14 +296,14 @@ static struct spi_board_info moboard_spi_board_info[] __initdata = {
 		/* irq number is run-time assigned */
 		.max_speed_hz = 300000,
 		.bus_num = 1,
-		.chip_select = 0,
+		.chip_select = 1,
 		.platform_data = &moboard_pmic,
 		.mode = SPI_CS_HIGH,
 	},
 };
 
 static int moboard_spi2_cs[] = {
-	MXC_SPI_CS(1),
+	MXC_SPI_CS(0), MXC_SPI_CS(1),
 };
 
 static const struct spi_imx_master moboard_spi2_pdata __initconst = {

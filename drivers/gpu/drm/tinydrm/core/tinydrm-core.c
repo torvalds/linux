@@ -122,21 +122,6 @@ void tinydrm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 }
 EXPORT_SYMBOL_GPL(tinydrm_gem_cma_free_object);
 
-const struct file_operations tinydrm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= drm_compat_ioctl,
-#endif
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap		= drm_gem_cma_mmap,
-};
-EXPORT_SYMBOL(tinydrm_fops);
-
 static struct drm_framebuffer *
 tinydrm_fb_create(struct drm_device *drm, struct drm_file *file_priv,
 		  const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -251,7 +236,7 @@ static void tinydrm_unregister(struct tinydrm_device *tdev)
 {
 	struct drm_fbdev_cma *fbdev_cma = tdev->fbdev_cma;
 
-	drm_crtc_force_disable_all(tdev->drm);
+	drm_atomic_helper_shutdown(tdev->drm);
 	/* don't restore fbdev in lastclose, keep pipeline disabled */
 	tdev->fbdev_cma = NULL;
 	drm_dev_unregister(tdev->drm);
@@ -302,7 +287,7 @@ EXPORT_SYMBOL(devm_tinydrm_register);
  */
 void tinydrm_shutdown(struct tinydrm_device *tdev)
 {
-	drm_crtc_force_disable_all(tdev->drm);
+	drm_atomic_helper_shutdown(tdev->drm);
 }
 EXPORT_SYMBOL(tinydrm_shutdown);
 

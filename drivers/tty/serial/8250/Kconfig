@@ -128,9 +128,13 @@ config SERIAL_8250_PCI
 	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
 
 config SERIAL_8250_EXAR
-        tristate "8250/16550 PCI device support"
-        depends on SERIAL_8250_PCI
+	tristate "8250/16550 Exar/Commtech PCI/PCIe device support"
+	depends on SERIAL_8250_PCI
 	default SERIAL_8250
+	help
+	  This builds support for XR17C1xx, XR17V3xx and some Commtech
+	  422x PCIe serial cards that are not covered by the more generic
+	  SERIAL_8250_PCI option.
 
 config SERIAL_8250_HP300
 	tristate

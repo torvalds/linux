@@ -13,6 +13,17 @@ menuconfig NVMEM
 
 if NVMEM
 
+config NVMEM_IMX_IIM
+	tristate "i.MX IC Identification Module support"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  This is a driver for the IC Identification Module (IIM) available on
+	  i.MX SoCs, providing access to 4 Kbits of programmable
+	  eFuses.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-imx-iim.
+
 config NVMEM_IMX_OCOTP
 	tristate "i.MX6 On-Chip OTP Controller support"
 	depends on SOC_IMX6 || COMPILE_TEST

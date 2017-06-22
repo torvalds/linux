@@ -28,8 +28,11 @@
 
 static const __initconst struct hypervisor_x86 * const hypervisors[] =
 {
-#ifdef CONFIG_XEN
-	&x86_hyper_xen,
+#ifdef CONFIG_XEN_PV
+	&x86_hyper_xen_pv,
+#endif
+#ifdef CONFIG_XEN_PVHVM
+	&x86_hyper_xen_hvm,
 #endif
 	&x86_hyper_vmware,
 	&x86_hyper_ms_hyperv,
@@ -60,12 +63,6 @@ detect_hypervisor_vendor(void)
 		pr_info("Hypervisor detected: %s\n", x86_hyper->name);
 }
 
-void init_hypervisor(struct cpuinfo_x86 *c)
-{
-	if (x86_hyper && x86_hyper->set_cpu_features)
-		x86_hyper->set_cpu_features(c);
-}
-
 void __init init_hypervisor_platform(void)
 {
 
@@ -73,8 +70,6 @@ void __init init_hypervisor_platform(void)
 
 	if (!x86_hyper)
 		return;
-
-	init_hypervisor(&boot_cpu_data);
 
 	if (x86_hyper->init_platform)
 		x86_hyper->init_platform();

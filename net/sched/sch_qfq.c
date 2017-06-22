@@ -418,7 +418,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS], qfq_policy);
+	err = nla_parse_nested(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS], qfq_policy,
+			       NULL);
 	if (err < 0)
 		return err;
 
@@ -494,6 +495,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			goto destroy_class;
 	}
 
+	if (cl->qdisc != &noop_qdisc)
+		qdisc_hash_add(cl->qdisc, true);
 	sch_tree_lock(sch);
 	qdisc_class_hash_insert(&q->clhash, &cl->common);
 	sch_tree_unlock(sch);

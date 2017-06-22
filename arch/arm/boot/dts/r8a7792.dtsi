@@ -46,7 +46,7 @@
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 			clock-frequency = <1000000000>;
-			clocks = <&cpg_clocks R8A7792_CLK_Z>;
+			clocks = <&z_clk>;
 			power-domains = <&sysc R8A7792_PD_CA15_CPU0>;
 			next-level-cache = <&L2_CA15>;
 		};
@@ -60,9 +60,8 @@
 			next-level-cache = <&L2_CA15>;
 		};
 
-		L2_CA15: cache-controller@0 {
+		L2_CA15: cache-controller-0 {
 			compatible = "cache";
-			reg = <0>;
 			cache-unified;
 			cache-level = <2>;
 			power-domains = <&sysc R8A7792_PD_CA15_SCU>;
@@ -93,6 +92,9 @@
 			      <0 0xf1006000 0 0x2000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) |
 				      IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&mstp4_clks R8A7792_CLK_INTC_SYS>;
+			clock-names = "clk";
+			power-domains = <&sysc R8A7792_PD_ALWAYS_ON>;
 		};
 
 		irqc: interrupt-controller@e61c0000 {
@@ -764,7 +766,7 @@
 			clocks = <&extal_clk>;
 			#clock-cells = <1>;
 			clock-output-names = "main", "pll0", "pll1", "pll3",
-					     "lb", "qspi", "z";
+					     "lb", "qspi";
 			#power-domain-cells = <0>;
 		};
 
@@ -774,6 +776,13 @@
 			clocks = <&cpg_clocks R8A7792_CLK_PLL1>;
 			#clock-cells = <0>;
 			clock-div = <2>;
+			clock-mult = <1>;
+		};
+		z_clk: z {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7792_CLK_PLL0>;
+			#clock-cells = <0>;
+			clock-div = <1>;
 			clock-mult = <1>;
 		};
 		zx_clk: zx {
@@ -896,10 +905,12 @@
 			compatible = "renesas,r8a7792-mstp-clocks",
 				     "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150140 0 4>, <0 0xe615004c 0 4>;
-			clocks = <&cp_clk>;
+			clocks = <&cp_clk>, <&zs_clk>;
 			#clock-cells = <1>;
-			clock-indices = <R8A7792_CLK_IRQC>;
-			clock-output-names = "irqc";
+			clock-indices = <
+				R8A7792_CLK_IRQC R8A7792_CLK_INTC_SYS
+			>;
+			clock-output-names = "irqc", "intc-sys";
 		};
 		mstp7_clks: mstp7_clks@e615014c {
 			compatible = "renesas,r8a7792-mstp-clocks",

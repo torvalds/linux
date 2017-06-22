@@ -77,7 +77,11 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
 	return val;
 }
 
-#define xchg(ptr, with) \
-	((typeof(*(ptr)))__xchg((unsigned long)(with), (ptr), sizeof(*(ptr))))
+#define xchg(ptr, with) 						\
+	({								\
+		(__typeof__(*(ptr))) __xchg((unsigned long)(with),	\
+					    (ptr),			\
+					    sizeof(*(ptr)));		\
+	})
 
 #endif /* __ASM_OPENRISC_CMPXCHG_H */

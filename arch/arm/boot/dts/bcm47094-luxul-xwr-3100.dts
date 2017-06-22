@@ -34,37 +34,31 @@
 		lan3	{
 			label = "bcm53xx:green:lan3";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		lan4	{
 			label = "bcm53xx:green:lan4";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan	{
 			label = "bcm53xx:green:wan";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		lan1	{
 			label = "bcm53xx:green:lan1";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		lan2	{
 			label = "bcm53xx:green:lan2";
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		usb3	{
 			label = "bcm53xx:green:usb3";
 			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		status	{
@@ -76,13 +70,11 @@
 		2ghz {
 			label = "bcm53xx:green:2ghz";
 			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		5ghz {
 			label = "bcm53xx:green:5ghz";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 	};
 

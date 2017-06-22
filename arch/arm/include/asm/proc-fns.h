@@ -43,7 +43,7 @@ extern struct processor {
 	/*
 	 * Special stuff for a reset
 	 */
-	void (*reset)(unsigned long addr) __attribute__((noreturn));
+	void (*reset)(unsigned long addr, bool hvc) __attribute__((noreturn));
 	/*
 	 * Idle the processor
 	 */
@@ -88,7 +88,7 @@ extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte);
 #else
 extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext);
 #endif
-extern void cpu_reset(unsigned long addr) __attribute__((noreturn));
+extern void cpu_reset(unsigned long addr, bool hvc) __attribute__((noreturn));
 
 /* These three are private to arch/arm/kernel/suspend.c */
 extern void cpu_do_suspend(void *);

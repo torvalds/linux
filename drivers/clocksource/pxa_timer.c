@@ -166,14 +166,14 @@ static int __init pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
 
 	ret = setup_irq(irq, &pxa_ost0_irq);
 	if (ret) {
-		pr_err("Failed to setup irq");
+		pr_err("Failed to setup irq\n");
 		return ret;
 	}
 
 	ret = clocksource_mmio_init(timer_base + OSCR, "oscr0", clock_tick_rate, 200,
 				    32, clocksource_mmio_readl_up);
 	if (ret) {
-		pr_err("Failed to init clocksource");
+		pr_err("Failed to init clocksource\n");
 		return ret;
 	}
 
@@ -203,7 +203,7 @@ static int __init pxa_timer_dt_init(struct device_node *np)
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		pr_crit("Failed to prepare clock");
+		pr_crit("Failed to prepare clock\n");
 		return ret;
 	}
 

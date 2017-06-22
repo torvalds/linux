@@ -166,11 +166,9 @@ int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 	spin_lock_irqsave(&desc->lock, flags);
 
 	/*
-	 * most handlers of type NMI_UNKNOWN never return because
-	 * they just assume the NMI is theirs.  Just a sanity check
-	 * to manage expectations
+	 * Indicate if there are multiple registrations on the
+	 * internal NMI handler call chains (SERR and IO_CHECK).
 	 */
-	WARN_ON_ONCE(type == NMI_UNKNOWN && !list_empty(&desc->head));
 	WARN_ON_ONCE(type == NMI_SERR && !list_empty(&desc->head));
 	WARN_ON_ONCE(type == NMI_IO_CHECK && !list_empty(&desc->head));
 
@@ -223,17 +221,6 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 
 	pr_emerg("NMI: PCI system error (SERR) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
-
-	/*
-	 * On some machines, PCI SERR line is used to report memory
-	 * errors. EDAC makes use of it.
-	 */
-#if defined(CONFIG_EDAC)
-	if (edac_handler_set()) {
-		edac_atomic_assert_error();
-		return;
-	}
-#endif
 
 	if (panic_on_unrecovered_nmi)
 		nmi_panic(regs, "NMI: Not continuing");

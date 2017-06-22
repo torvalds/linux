@@ -421,10 +421,8 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE(ut_walk_aml_resources);
 
-	/*
-	 * The absolute minimum resource template is one end_tag descriptor.
-	 * However, we will treat a lone end_tag as just a simple buffer.
-	 */
+	/* The absolute minimum resource template is one end_tag descriptor */
+
 	if (aml_length < sizeof(struct aml_resource_end_tag)) {
 		return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 	}
@@ -456,8 +454,9 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 		/* Invoke the user function */
 
 		if (user_function) {
-			status = user_function(aml, length, offset,
-					       resource_index, context);
+			status =
+			    user_function(aml, length, offset, resource_index,
+					  context);
 			if (ACPI_FAILURE(status)) {
 				return_ACPI_STATUS(status);
 			}
@@ -479,12 +478,6 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 
 			if (!user_function) {
 				*context = aml;
-			}
-
-			/* Check if buffer is defined to be longer than the resource length */
-
-			if (aml_length > (offset + length)) {
-				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 			}
 
 			/* Normal exit */

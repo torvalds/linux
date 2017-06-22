@@ -473,7 +473,7 @@ static int airstar_atsc1_attach(struct flexcop_device *fc,
 
 /* AirStar ATSC 2nd generation */
 #if FE_SUPPORTED(NXT200X) && FE_SUPPORTED(PLL)
-static struct nxt200x_config samsung_tbmv_config = {
+static const struct nxt200x_config samsung_tbmv_config = {
 	.demod_address = 0x0a,
 };
 

@@ -519,4 +519,5 @@ const struct pp_smumgr_func fiji_smu_funcs = {
 	.get_mac_definition = fiji_get_mac_definition,
 	.initialize_mc_reg_table = fiji_initialize_mc_reg_table,
 	.is_dpm_running = fiji_is_dpm_running,
+	.populate_requested_graphic_levels = fiji_populate_requested_graphic_levels,
 };

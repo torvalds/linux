@@ -71,7 +71,6 @@
 
 		stmpe_touchscreen {
 			compatible = "st,stmpe-ts";
-			reg = <0>;
 			ts,sample-time = <4>;
 			ts,mod-12b = <1>;
 			ts,ref-sel = <0>;

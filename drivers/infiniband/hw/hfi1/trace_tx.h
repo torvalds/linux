@@ -633,6 +633,83 @@ DEFINE_EVENT(hfi1_bct_template, bct_get,
 	     TP_PROTO(struct hfi1_devdata *dd, struct buffer_control *bc),
 	     TP_ARGS(dd, bc));
 
+TRACE_EVENT(
+	hfi1_qp_send_completion,
+	TP_PROTO(struct rvt_qp *qp, struct rvt_swqe *wqe, u32 idx),
+	TP_ARGS(qp, wqe, idx),
+	TP_STRUCT__entry(
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(struct rvt_swqe *, wqe)
+		__field(u64, wr_id)
+		__field(u32, qpn)
+		__field(u32, qpt)
+		__field(u32, length)
+		__field(u32, idx)
+		__field(u32, ssn)
+		__field(enum ib_wr_opcode, opcode)
+		__field(int, send_flags)
+	),
+	TP_fast_assign(
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		__entry->wqe = wqe;
+		__entry->wr_id = wqe->wr.wr_id;
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->qpt = qp->ibqp.qp_type;
+		__entry->length = wqe->length;
+		__entry->idx = idx;
+		__entry->ssn = wqe->ssn;
+		__entry->opcode = wqe->wr.opcode;
+		__entry->send_flags = wqe->wr.send_flags;
+	),
+	TP_printk(
+		"[%s] qpn 0x%x qpt %u wqe %p idx %u wr_id %llx length %u ssn %u opcode %x send_flags %x",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->qpt,
+		__entry->wqe,
+		__entry->idx,
+		__entry->wr_id,
+		__entry->length,
+		__entry->ssn,
+		__entry->opcode,
+		__entry->send_flags
+	)
+);
+
+DECLARE_EVENT_CLASS(
+	hfi1_do_send_template,
+	TP_PROTO(struct rvt_qp *qp, bool flag),
+	TP_ARGS(qp, flag),
+	TP_STRUCT__entry(
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(bool, flag)
+	),
+	TP_fast_assign(
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->flag = flag;
+	),
+	TP_printk(
+		"[%s] qpn %x flag %d",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->flag
+	)
+);
+
+DEFINE_EVENT(
+	hfi1_do_send_template, hfi1_rc_do_send,
+	TP_PROTO(struct rvt_qp *qp, bool flag),
+	TP_ARGS(qp, flag)
+);
+
+DEFINE_EVENT(
+	hfi1_do_send_template, hfi1_rc_expired_time_slice,
+	TP_PROTO(struct rvt_qp *qp, bool flag),
+	TP_ARGS(qp, flag)
+);
+
 #endif /* __HFI1_TRACE_TX_H */
 
 #undef TRACE_INCLUDE_PATH

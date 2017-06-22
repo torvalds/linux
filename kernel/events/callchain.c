@@ -229,12 +229,18 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 		}
 
 		if (regs) {
+			mm_segment_t fs;
+
 			if (crosstask)
 				goto exit_put;
 
 			if (add_mark)
 				perf_callchain_store_context(&ctx, PERF_CONTEXT_USER);
+
+			fs = get_fs();
+			set_fs(USER_DS);
 			perf_callchain_user(&ctx, regs);
+			set_fs(fs);
 		}
 	}
 

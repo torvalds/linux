@@ -47,6 +47,7 @@
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acdispat.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psargs")
@@ -186,7 +187,7 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
 		end += 1 + (2 * ACPI_NAME_SIZE);
 		break;
 
-	case AML_MULTI_NAME_PREFIX_OP:
+	case AML_MULTI_NAME_PREFIX:
 
 		/* Multiple name segments, 4 chars each, count in next byte */
 
@@ -339,7 +340,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		/* 2) not_found during a cond_ref_of(x) is ok by definition */
 
 		else if (walk_state->op->common.aml_opcode ==
-			 AML_COND_REF_OF_OP) {
+			 AML_CONDITIONAL_REF_OF_OP) {
 			status = AE_OK;
 		}
 
@@ -352,7 +353,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 			 ((arg->common.parent->common.aml_opcode ==
 			   AML_PACKAGE_OP)
 			  || (arg->common.parent->common.aml_opcode ==
-			      AML_VAR_PACKAGE_OP))) {
+			      AML_VARIABLE_PACKAGE_OP))) {
 			status = AE_OK;
 		}
 	}
@@ -502,6 +503,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 	ACPI_FUNCTION_TRACE(ps_get_next_field);
 
+	ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
 	aml = parser_state->aml;
 
 	/* Determine field type */
@@ -546,6 +548,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 	/* Decode the field type */
 
+	ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
 	switch (opcode) {
 	case AML_INT_NAMEDFIELD_OP:
 
@@ -554,6 +557,22 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		ACPI_MOVE_32_TO_32(&name, parser_state->aml);
 		acpi_ps_set_name(field, name);
 		parser_state->aml += ACPI_NAME_SIZE;
+
+		ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
+
+#ifdef ACPI_ASL_COMPILER
+		/*
+		 * Because the package length isn't represented as a parse tree object,
+		 * take comments surrounding this and add to the previously created
+		 * parse node.
+		 */
+		if (field->common.inline_comment) {
+			field->common.name_comment =
+			    field->common.inline_comment;
+		}
+		field->common.inline_comment = acpi_gbl_current_inline_comment;
+		acpi_gbl_current_inline_comment = NULL;
+#endif
 
 		/* Get the length which is encoded as a package length */
 
@@ -609,11 +628,13 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		if (ACPI_GET8(parser_state->aml) == AML_BUFFER_OP) {
 			parser_state->aml++;
 
+			ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
 			pkg_end = parser_state->aml;
 			pkg_length =
 			    acpi_ps_get_next_package_length(parser_state);
 			pkg_end += pkg_length;
 
+			ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
 			if (parser_state->aml < pkg_end) {
 
 				/* Non-empty list */
@@ -630,6 +651,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 				opcode = ACPI_GET8(parser_state->aml);
 				parser_state->aml++;
 
+				ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
 				switch (opcode) {
 				case AML_BYTE_OP:	/* AML_BYTEDATA_ARG */
 
@@ -660,6 +682,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 				/* Fill in bytelist data */
 
+				ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
 				arg->named.value.size = buffer_length;
 				arg->named.data = parser_state->aml;
 			}

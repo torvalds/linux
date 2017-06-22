@@ -868,7 +868,7 @@ EXPORT_SYMBOL_GPL(vb2_core_create_bufs);
 
 void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no)
 {
-	if (plane_no > vb->num_planes || !vb->planes[plane_no].mem_priv)
+	if (plane_no >= vb->num_planes || !vb->planes[plane_no].mem_priv)
 		return NULL;
 
 	return call_ptr_memop(vb, vaddr, vb->planes[plane_no].mem_priv);
@@ -984,11 +984,12 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const void *pb)
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
-	if (pb)
+	if (pb) {
 		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
 				 vb, pb, planes);
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		/* Skip the plane if already verified */
@@ -1101,11 +1102,12 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const void *pb)
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
 	/* Copy relevant information provided by the userspace */
-	if (pb)
+	if (pb) {
 		ret = call_bufop(vb->vb2_queue, fill_vb2_buffer,
 				 vb, pb, planes);
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		struct dma_buf *dbuf = dma_buf_get(planes[plane].m.fd);

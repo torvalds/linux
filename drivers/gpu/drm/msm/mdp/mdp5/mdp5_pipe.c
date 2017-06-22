@@ -135,7 +135,5 @@ struct mdp5_hw_pipe *mdp5_pipe_init(enum mdp5_pipe pipe,
 	hwpipe->caps = caps;
 	hwpipe->flush_mask = mdp_ctl_flush_mask_pipe(pipe);
 
-	spin_lock_init(&hwpipe->pipe_lock);
-
 	return hwpipe;
 }

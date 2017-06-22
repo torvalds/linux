@@ -193,28 +193,6 @@ ip_vs_create_timeout_table(int *table, int size)
 }
 
 
-/*
- *	Set timeout value for state specified by name
- */
-int
-ip_vs_set_state_timeout(int *table, int num, const char *const *names,
-			const char *name, int to)
-{
-	int i;
-
-	if (!table || !name || !to)
-		return -EINVAL;
-
-	for (i = 0; i < num; i++) {
-		if (strcmp(names[i], name))
-			continue;
-		table[i] = to * HZ;
-		return 0;
-	}
-	return -ENOENT;
-}
-
-
 const char * ip_vs_state_name(__u16 proto, int state)
 {
 	struct ip_vs_protocol *pp = ip_vs_proto_get(proto);

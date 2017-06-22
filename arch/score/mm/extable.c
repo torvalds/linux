@@ -24,6 +24,8 @@
  */
 
 #include <linux/extable.h>
+#include <linux/ptrace.h>
+#include <asm/extable.h>
 
 int fixup_exception(struct pt_regs *regs)
 {

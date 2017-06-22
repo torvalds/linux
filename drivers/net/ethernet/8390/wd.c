@@ -503,10 +503,10 @@ static int irq[MAX_WD_CARDS];
 static int mem[MAX_WD_CARDS];
 static int mem_end[MAX_WD_CARDS];	/* for non std. mem size */
 
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
-module_param_array(mem, int, NULL, 0);
-module_param_array(mem_end, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
+module_param_hw_array(mem, int, iomem, NULL, 0);
+module_param_hw_array(mem_end, int, iomem, NULL, 0);
 module_param_named(msg_enable, wd_msg_enable, uint, (S_IRUSR|S_IRGRP|S_IROTH));
 MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (ignored for PureData boards)");

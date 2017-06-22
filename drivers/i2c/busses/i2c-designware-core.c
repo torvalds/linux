@@ -177,13 +177,13 @@ static u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 {
 	u32 value;
 
-	if (dev->accessor_flags & ACCESS_16BIT)
+	if (dev->flags & ACCESS_16BIT)
 		value = readw_relaxed(dev->base + offset) |
 			(readw_relaxed(dev->base + offset + 2) << 16);
 	else
 		value = readl_relaxed(dev->base + offset);
 
-	if (dev->accessor_flags & ACCESS_SWAP)
+	if (dev->flags & ACCESS_SWAP)
 		return swab32(value);
 	else
 		return value;
@@ -191,10 +191,10 @@ static u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 
 static void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 {
-	if (dev->accessor_flags & ACCESS_SWAP)
+	if (dev->flags & ACCESS_SWAP)
 		b = swab32(b);
 
-	if (dev->accessor_flags & ACCESS_16BIT) {
+	if (dev->flags & ACCESS_16BIT) {
 		writew_relaxed((u16)b, dev->base + offset);
 		writew_relaxed((u16)(b >> 16), dev->base + offset + 2);
 	} else {
@@ -339,10 +339,10 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	reg = dw_readl(dev, DW_IC_COMP_TYPE);
 	if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
 		/* Configure register endianess access */
-		dev->accessor_flags |= ACCESS_SWAP;
+		dev->flags |= ACCESS_SWAP;
 	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
 		/* Configure register access mode 16bit */
-		dev->accessor_flags |= ACCESS_16BIT;
+		dev->flags |= ACCESS_16BIT;
 	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
 		dev_err(dev->dev, "Unknown Synopsys component type: "
 			"0x%08x\n", reg);
@@ -924,7 +924,7 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 tx_aborted:
 	if ((stat & (DW_IC_INTR_TX_ABRT | DW_IC_INTR_STOP_DET)) || dev->msg_err)
 		complete(&dev->cmd_complete);
-	else if (unlikely(dev->accessor_flags & ACCESS_INTR_MASK)) {
+	else if (unlikely(dev->flags & ACCESS_INTR_MASK)) {
 		/* workaround to trigger pending interrupt */
 		stat = dw_readl(dev, DW_IC_INTR_MASK);
 		i2c_dw_disable_int(dev);
@@ -960,6 +960,7 @@ EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
 int i2c_dw_probe(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
+	unsigned long irq_flags;
 	int r;
 
 	init_completion(&dev->cmd_complete);
@@ -975,9 +976,15 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	adap->dev.parent = dev->dev;
 	i2c_set_adapdata(adap, dev);
 
+	if (dev->pm_disabled) {
+		dev_pm_syscore_device(dev->dev, true);
+		irq_flags = IRQF_NO_SUSPEND;
+	} else {
+		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
+	}
+
 	i2c_dw_disable_int(dev);
-	r = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr,
-			     IRQF_SHARED | IRQF_COND_SUSPEND,
+	r = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr, irq_flags,
 			     dev_name(dev->dev), dev);
 	if (r) {
 		dev_err(dev->dev, "failure requesting irq %i: %d\n",

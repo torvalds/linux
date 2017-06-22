@@ -28,6 +28,23 @@
 #ifndef _DRM_AUTH_H_
 #define _DRM_AUTH_H_
 
+/*
+ * Legacy DRI1 locking data structure. Only here instead of in drm_legacy.h for
+ * include ordering reasons.
+ *
+ * DO NOT USE.
+ */
+struct drm_lock_data {
+	struct drm_hw_lock *hw_lock;
+	struct drm_file *file_priv;
+	wait_queue_head_t lock_queue;
+	unsigned long lock_time;
+	spinlock_t spinlock;
+	uint32_t kernel_waiters;
+	uint32_t user_waiters;
+	int idle_has_lock;
+};
+
 /**
  * struct drm_master - drm master structure
  *

@@ -7,6 +7,22 @@
  * published by the Free Software Foundation.
  */
 
+/**
+ * DOC: Broadcom VC4 Graphics Driver
+ *
+ * The Broadcom VideoCore 4 (present in the Raspberry Pi) contains a
+ * OpenGL ES 2.0-compatible 3D engine called V3D, and a highly
+ * configurable display output pipeline that supports HDMI, DSI, DPI,
+ * and Composite TV output.
+ *
+ * The 3D engine also has an interface for submitting arbitrary
+ * compute shader-style jobs using the same shader processor as is
+ * used for vertex and fragment shaders in GLES 2.0.  However, given
+ * that the hardware isn't able to expose any standard interfaces like
+ * OpenGL compute shaders or OpenCL, it isn't supported by this
+ * driver.
+ */
+
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/device.h>
@@ -137,9 +153,6 @@ static struct drm_driver vc4_drm_driver = {
 	.irq_postinstall = vc4_irq_postinstall,
 	.irq_uninstall = vc4_irq_uninstall,
 
-	.enable_vblank = vc4_enable_vblank,
-	.disable_vblank = vc4_disable_vblank,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.get_scanout_position = vc4_crtc_get_scanoutpos,
 	.get_vblank_timestamp = vc4_crtc_get_vblank_timestamp,
 
@@ -336,26 +349,20 @@ static struct platform_driver vc4_platform_driver = {
 
 static int __init vc4_drm_register(void)
 {
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(component_drivers); i++) {
-		ret = platform_driver_register(component_drivers[i]);
-		if (ret) {
-			while (--i >= 0)
-				platform_driver_unregister(component_drivers[i]);
-			return ret;
-		}
-	}
+	ret = platform_register_drivers(component_drivers,
+					ARRAY_SIZE(component_drivers));
+	if (ret)
+		return ret;
+
 	return platform_driver_register(&vc4_platform_driver);
 }
 
 static void __exit vc4_drm_unregister(void)
 {
-	int i;
-
-	for (i = ARRAY_SIZE(component_drivers) - 1; i >= 0; i--)
-		platform_driver_unregister(component_drivers[i]);
-
+	platform_unregister_drivers(component_drivers,
+				    ARRAY_SIZE(component_drivers));
 	platform_driver_unregister(&vc4_platform_driver);
 }
 

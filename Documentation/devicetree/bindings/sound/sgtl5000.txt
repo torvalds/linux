@@ -26,6 +26,15 @@ Optional properties:
 	If this node is not mentioned or the value is unknown, then
 	the value is set to 1.25V.
 
+- lrclk-strength: the LRCLK pad strength. Possible values are:
+0, 1, 2 and 3 as per the table below:
+
+VDDIO		1.8V		2.5V		3.3V
+0 = 		Disable
+1 =		1.66 mA		2.87 mA		4.02  mA
+2 =		3.33 mA		5.74 mA		8.03  mA
+3 =		4.99 mA		8.61 mA		12.05 mA
+
 Example:
 
 codec: sgtl5000@0a {

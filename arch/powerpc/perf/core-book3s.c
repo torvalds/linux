@@ -188,6 +188,8 @@ static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
 			sdsync = POWER7P_MMCRA_SDAR_VALID;
 		else if (ppmu->flags & PPMU_ALT_SIPR)
 			sdsync = POWER6_MMCRA_SDSYNC;
+		else if (ppmu->flags & PPMU_NO_SIAR)
+			sdsync = MMCRA_SAMPLE_ENABLE;
 		else
 			sdsync = MMCRA_SDSYNC;
 
@@ -2046,6 +2048,14 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 			power_pmu_bhrb_read(cpuhw);
 			data.br_stack = &cpuhw->bhrb_stack;
 		}
+
+		if (event->attr.sample_type & PERF_SAMPLE_DATA_SRC &&
+						ppmu->get_mem_data_src)
+			ppmu->get_mem_data_src(&data.data_src, ppmu->flags, regs);
+
+		if (event->attr.sample_type & PERF_SAMPLE_WEIGHT &&
+						ppmu->get_mem_weight)
+			ppmu->get_mem_weight(&data.weight);
 
 		if (perf_event_overflow(event, &data, regs))
 			power_pmu_stop(event, 0);

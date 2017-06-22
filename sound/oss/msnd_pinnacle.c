@@ -1727,22 +1727,22 @@ static int
 calibrate_signal __initdata =		CONFIG_MSND_CALSIGNAL;
 #endif /* MODULE */
 
-module_param				(io, int, 0);
-module_param				(irq, int, 0);
-module_param				(mem, int, 0);
+module_param_hw				(io, int, ioport, 0);
+module_param_hw				(irq, int, irq, 0);
+module_param_hw				(mem, int, iomem, 0);
 module_param				(write_ndelay, int, 0);
 module_param				(fifosize, int, 0);
 module_param				(calibrate_signal, int, 0);
 #ifndef MSND_CLASSIC
 module_param				(digital, bool, 0);
-module_param				(cfg, int, 0);
+module_param_hw				(cfg, int, ioport, 0);
 module_param				(reset, int, 0);
-module_param				(mpu_io, int, 0);
-module_param				(mpu_irq, int, 0);
-module_param				(ide_io0, int, 0);
-module_param				(ide_io1, int, 0);
-module_param				(ide_irq, int, 0);
-module_param				(joystick_io, int, 0);
+module_param_hw				(mpu_io, int, ioport, 0);
+module_param_hw				(mpu_irq, int, irq, 0);
+module_param_hw				(ide_io0, int, ioport, 0);
+module_param_hw				(ide_io1, int, ioport, 0);
+module_param_hw				(ide_irq, int, irq, 0);
+module_param_hw				(joystick_io, int, ioport, 0);
 #endif
 
 static int __init msnd_init(void)

@@ -301,7 +301,7 @@ done:
 }
 
 static int l2cap_sock_accept(struct socket *sock, struct socket *newsock,
-			     int flags)
+			     int flags, bool kern)
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct sock *sk = sock->sk, *nsk;

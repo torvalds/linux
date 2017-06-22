@@ -871,6 +871,11 @@ PAGE_SIZE multiple when read back.
 
 		Amount of memory used in network transmission buffers
 
+	  shmem
+
+		Amount of cached filesystem data that is swap-backed,
+		such as tmpfs, shm segments, shared anonymous mmap()s
+
 	  file_mapped
 
 		Amount of cached filesystem data mapped with mmap()
@@ -912,6 +917,18 @@ PAGE_SIZE multiple when read back.
 	  pgmajfault
 
 		Number of major page faults incurred
+
+	  workingset_refault
+
+		Number of refaults of previously evicted pages
+
+	  workingset_activate
+
+		Number of refaulted pages that were immediately activated
+
+	  workingset_nodereclaim
+
+		Number of times a shadow node has been reclaimed
 
   memory.swap.current
 
@@ -1142,16 +1159,17 @@ used by the kernel.
 
   pids.max
 
- A read-write single value file which exists on non-root cgroups.  The
- default is "max".
+	A read-write single value file which exists on non-root
+	cgroups.  The default is "max".
 
- Hard limit of number of processes.
+	Hard limit of number of processes.
 
   pids.current
 
- A read-only single value file which exists on all cgroups.
+	A read-only single value file which exists on all cgroups.
 
- The number of processes currently in the cgroup and its descendants.
+	The number of processes currently in the cgroup and its
+	descendants.
 
 Organisational operations are not blocked by cgroup policies, so it is
 possible to have pids.current > pids.max.  This can be done by either

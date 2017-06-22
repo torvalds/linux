@@ -130,14 +130,13 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
  * -bus/c running buffer. */
 static int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 {
-	int loop = 1;
 	int ret;
 	u32 timeout;
 	wait_queue_head_t *q = NULL;
 	u8 tmp[512];
 	dprintk(DBGLVL_CMD, "%s()\n", __func__);
 
-	while (loop) {
+	while (true) {
 
 		struct tmComResInfo tRsp = { 0, 0, 0, 0, 0, 0 };
 		ret = saa7164_bus_get(dev, &tRsp, NULL, 1);
@@ -178,8 +177,6 @@ static int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 		wake_up(q);
 		return SAA_OK;
 	}
-
-	return SAA_OK;
 }
 
 static int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,

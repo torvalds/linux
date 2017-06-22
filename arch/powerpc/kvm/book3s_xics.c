@@ -19,10 +19,9 @@
 #include <asm/kvm_ppc.h>
 #include <asm/hvcall.h>
 #include <asm/xics.h>
-#include <asm/debug.h>
+#include <asm/debugfs.h>
 #include <asm/time.h>
 
-#include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
 #include "book3s_xics.h"
@@ -1084,7 +1083,7 @@ static struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
 	return xics->ics[icsid];
 }
 
-int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server_num)
+static int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server_num)
 {
 	struct kvmppc_icp *icp;
 
@@ -1307,22 +1306,14 @@ static int xics_set_source(struct kvmppc_xics *xics, long irq, u64 addr)
 	return 0;
 }
 
-int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
-		bool line_status)
+int kvmppc_xics_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
+			bool line_status)
 {
 	struct kvmppc_xics *xics = kvm->arch.xics;
 
 	if (!xics)
 		return -ENODEV;
 	return ics_deliver_irq(xics, irq, level);
-}
-
-int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *irq_entry,
-			      struct kvm *kvm, int irq_source_id,
-			      int level, bool line_status)
-{
-	return kvm_set_irq(kvm, irq_source_id, irq_entry->gsi,
-			   level, line_status);
 }
 
 static int xics_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
@@ -1456,29 +1447,6 @@ void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu)
 	kfree(vcpu->arch.icp);
 	vcpu->arch.icp = NULL;
 	vcpu->arch.irq_type = KVMPPC_IRQ_DEFAULT;
-}
-
-static int xics_set_irq(struct kvm_kernel_irq_routing_entry *e,
-			struct kvm *kvm, int irq_source_id, int level,
-			bool line_status)
-{
-	return kvm_set_irq(kvm, irq_source_id, e->gsi, level, line_status);
-}
-
-int kvm_irq_map_gsi(struct kvm *kvm,
-		    struct kvm_kernel_irq_routing_entry *entries, int gsi)
-{
-	entries->gsi = gsi;
-	entries->type = KVM_IRQ_ROUTING_IRQCHIP;
-	entries->set = xics_set_irq;
-	entries->irqchip.irqchip = 0;
-	entries->irqchip.pin = gsi;
-	return 1;
-}
-
-int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin)
-{
-	return pin;
 }
 
 void kvmppc_xics_set_mapped(struct kvm *kvm, unsigned long irq,

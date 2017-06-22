@@ -32,11 +32,16 @@
 
 void *module_alloc(unsigned long size)
 {
+	gfp_t gfp_mask = GFP_KERNEL;
 	void *p;
+
+	/* Silence the initial allocation */
+	if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS))
+		gfp_mask |= __GFP_NOWARN;
 
 	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
 				module_alloc_base + MODULES_VSIZE,
-				GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
+				gfp_mask, PAGE_KERNEL_EXEC, 0,
 				NUMA_NO_NODE, __builtin_return_address(0));
 
 	if (!p && IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
@@ -380,7 +385,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 
 			if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
 			    ovf == -ERANGE) {
-				val = module_emit_plt_entry(me, &rel[i], sym);
+				val = module_emit_plt_entry(me, loc, &rel[i], sym);
 				ovf = reloc_insn_imm(RELOC_OP_PREL, loc, val, 2,
 						     26, AARCH64_INSN_IMM_26);
 			}

@@ -9,6 +9,7 @@
  *
  */
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -22,6 +23,21 @@
 #include "sort.h"
 #include "machine.h"
 #include "callchain.h"
+
+#define CALLCHAIN_PARAM_DEFAULT			\
+	.mode		= CHAIN_GRAPH_ABS,	\
+	.min_percent	= 0.5,			\
+	.order		= ORDER_CALLEE,		\
+	.key		= CCKEY_FUNCTION,	\
+	.value		= CCVAL_PERCENT,	\
+
+struct callchain_param callchain_param = {
+	CALLCHAIN_PARAM_DEFAULT
+};
+
+struct callchain_param callchain_param_default = {
+	CALLCHAIN_PARAM_DEFAULT
+};
 
 __thread struct callchain_cursor callchain_cursor;
 
@@ -80,6 +96,10 @@ static int parse_callchain_sort_key(const char *value)
 		callchain_param.key = CCKEY_ADDRESS;
 		return 0;
 	}
+	if (!strncmp(value, "srcline", strlen(value))) {
+		callchain_param.key = CCKEY_SRCLINE;
+		return 0;
+	}
 	if (!strncmp(value, "branch", strlen(value))) {
 		callchain_param.branch_callstack = 1;
 		return 0;
@@ -108,11 +128,37 @@ static int parse_callchain_value(const char *value)
 	return -1;
 }
 
+static int get_stack_size(const char *str, unsigned long *_size)
+{
+	char *endptr;
+	unsigned long size;
+	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
+
+	size = strtoul(str, &endptr, 0);
+
+	do {
+		if (*endptr)
+			break;
+
+		size = round_up(size, sizeof(u64));
+		if (!size || size > max_size)
+			break;
+
+		*_size = size;
+		return 0;
+
+	} while (0);
+
+	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
+	       max_size, str);
+	return -1;
+}
+
 static int
 __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 {
 	char *tok;
-	char *endptr;
+	char *endptr, *saveptr = NULL;
 	bool minpcnt_set = false;
 	bool record_opt_set = false;
 	bool try_stack_size = false;
@@ -123,7 +169,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 	if (!arg)
 		return 0;
 
-	while ((tok = strtok((char *)arg, ",")) != NULL) {
+	while ((tok = strtok_r((char *)arg, ",", &saveptr)) != NULL) {
 		if (!strncmp(tok, "none", strlen(tok))) {
 			callchain_param.mode = CHAIN_NONE;
 			callchain_param.enabled = false;
@@ -189,6 +235,68 @@ int parse_callchain_report_opt(const char *arg)
 int parse_callchain_top_opt(const char *arg)
 {
 	return __parse_callchain_report_opt(arg, true);
+}
+
+int parse_callchain_record(const char *arg, struct callchain_param *param)
+{
+	char *tok, *name, *saveptr = NULL;
+	char *buf;
+	int ret = -1;
+
+	/* We need buffer that we know we can write to. */
+	buf = malloc(strlen(arg) + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	strcpy(buf, arg);
+
+	tok = strtok_r((char *)buf, ",", &saveptr);
+	name = tok ? : (char *)buf;
+
+	do {
+		/* Framepointer style */
+		if (!strncmp(name, "fp", sizeof("fp"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				param->record_mode = CALLCHAIN_FP;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+				       "needed for --call-graph fp\n");
+			break;
+
+		/* Dwarf style */
+		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			const unsigned long default_stack_dump_size = 8192;
+
+			ret = 0;
+			param->record_mode = CALLCHAIN_DWARF;
+			param->dump_size = default_stack_dump_size;
+
+			tok = strtok_r(NULL, ",", &saveptr);
+			if (tok) {
+				unsigned long size = 0;
+
+				ret = get_stack_size(tok, &size);
+				param->dump_size = size;
+			}
+		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				param->record_mode = CALLCHAIN_LBR;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+					"needed for --call-graph lbr\n");
+			break;
+		} else {
+			pr_err("callchain: Unknown --call-graph option "
+			       "value: %s\n", arg);
+			break;
+		}
+
+	} while (0);
+
+	free(buf);
+	return ret;
 }
 
 int perf_callchain_config(const char *var, const char *value)
@@ -510,14 +618,56 @@ enum match_result {
 	MATCH_GT,
 };
 
+static enum match_result match_chain_srcline(struct callchain_cursor_node *node,
+					     struct callchain_list *cnode)
+{
+	char *left = NULL;
+	char *right = NULL;
+	enum match_result ret = MATCH_EQ;
+	int cmp;
+
+	if (cnode->ms.map)
+		left = get_srcline(cnode->ms.map->dso,
+				 map__rip_2objdump(cnode->ms.map, cnode->ip),
+				 cnode->ms.sym, true, false);
+	if (node->map)
+		right = get_srcline(node->map->dso,
+				  map__rip_2objdump(node->map, node->ip),
+				  node->sym, true, false);
+
+	if (left && right)
+		cmp = strcmp(left, right);
+	else if (!left && right)
+		cmp = 1;
+	else if (left && !right)
+		cmp = -1;
+	else if (cnode->ip == node->ip)
+		cmp = 0;
+	else
+		cmp = (cnode->ip < node->ip) ? -1 : 1;
+
+	if (cmp != 0)
+		ret = cmp < 0 ? MATCH_LT : MATCH_GT;
+
+	free_srcline(left);
+	free_srcline(right);
+	return ret;
+}
+
 static enum match_result match_chain(struct callchain_cursor_node *node,
 				     struct callchain_list *cnode)
 {
 	struct symbol *sym = node->sym;
 	u64 left, right;
 
-	if (cnode->ms.sym && sym &&
-	    callchain_param.key == CCKEY_FUNCTION) {
+	if (callchain_param.key == CCKEY_SRCLINE) {
+		enum match_result match = match_chain_srcline(node, cnode);
+
+		if (match != MATCH_ERROR)
+			return match;
+	}
+
+	if (cnode->ms.sym && sym && callchain_param.key == CCKEY_FUNCTION) {
 		left = cnode->ms.sym->start;
 		right = sym->start;
 	} else {
@@ -911,15 +1061,16 @@ out:
 char *callchain_list__sym_name(struct callchain_list *cl,
 			       char *bf, size_t bfsize, bool show_dso)
 {
+	bool show_addr = callchain_param.key == CCKEY_ADDRESS;
+	bool show_srcline = show_addr || callchain_param.key == CCKEY_SRCLINE;
 	int printed;
 
 	if (cl->ms.sym) {
-		if (callchain_param.key == CCKEY_ADDRESS &&
-		    cl->ms.map && !cl->srcline)
+		if (show_srcline && cl->ms.map && !cl->srcline)
 			cl->srcline = get_srcline(cl->ms.map->dso,
 						  map__rip_2objdump(cl->ms.map,
 								    cl->ip),
-						  cl->ms.sym, false);
+						  cl->ms.sym, false, show_addr);
 		if (cl->srcline)
 			printed = scnprintf(bf, bfsize, "%s %s",
 					cl->ms.sym->name, cl->srcline);
@@ -1063,63 +1214,100 @@ int callchain_branch_counts(struct callchain_root *root,
 						  cycles_count);
 }
 
+static int counts_str_build(char *bf, int bfsize,
+			     u64 branch_count, u64 predicted_count,
+			     u64 abort_count, u64 cycles_count,
+			     u64 iter_count, u64 samples_count)
+{
+	double predicted_percent = 0.0;
+	const char *null_str = "";
+	char iter_str[32];
+	char cycle_str[32];
+	char *istr, *cstr;
+	u64 cycles;
+
+	if (branch_count == 0)
+		return scnprintf(bf, bfsize, " (calltrace)");
+
+	cycles = cycles_count / branch_count;
+
+	if (iter_count && samples_count) {
+		if (cycles > 0)
+			scnprintf(iter_str, sizeof(iter_str),
+				 " iterations:%" PRId64 "",
+				 iter_count / samples_count);
+		else
+			scnprintf(iter_str, sizeof(iter_str),
+				 "iterations:%" PRId64 "",
+				 iter_count / samples_count);
+		istr = iter_str;
+	} else
+		istr = (char *)null_str;
+
+	if (cycles > 0) {
+		scnprintf(cycle_str, sizeof(cycle_str),
+			  "cycles:%" PRId64 "", cycles);
+		cstr = cycle_str;
+	} else
+		cstr = (char *)null_str;
+
+	predicted_percent = predicted_count * 100.0 / branch_count;
+
+	if ((predicted_count == branch_count) && (abort_count == 0)) {
+		if ((cycles > 0) || (istr != (char *)null_str))
+			return scnprintf(bf, bfsize, " (%s%s)", cstr, istr);
+		else
+			return scnprintf(bf, bfsize, "%s", (char *)null_str);
+	}
+
+	if ((predicted_count < branch_count) && (abort_count == 0)) {
+		if ((cycles > 0) || (istr != (char *)null_str))
+			return scnprintf(bf, bfsize,
+				" (predicted:%.1f%% %s%s)",
+				predicted_percent, cstr, istr);
+		else {
+			return scnprintf(bf, bfsize,
+				" (predicted:%.1f%%)",
+				predicted_percent);
+		}
+	}
+
+	if ((predicted_count == branch_count) && (abort_count > 0)) {
+		if ((cycles > 0) || (istr != (char *)null_str))
+			return scnprintf(bf, bfsize,
+				" (abort:%" PRId64 " %s%s)",
+				abort_count, cstr, istr);
+		else
+			return scnprintf(bf, bfsize,
+				" (abort:%" PRId64 ")",
+				abort_count);
+	}
+
+	if ((cycles > 0) || (istr != (char *)null_str))
+		return scnprintf(bf, bfsize,
+			" (predicted:%.1f%% abort:%" PRId64 " %s%s)",
+			predicted_percent, abort_count, cstr, istr);
+
+	return scnprintf(bf, bfsize,
+			" (predicted:%.1f%% abort:%" PRId64 ")",
+			predicted_percent, abort_count);
+}
+
 static int callchain_counts_printf(FILE *fp, char *bf, int bfsize,
 				   u64 branch_count, u64 predicted_count,
 				   u64 abort_count, u64 cycles_count,
 				   u64 iter_count, u64 samples_count)
 {
-	double predicted_percent = 0.0;
-	const char *null_str = "";
-	char iter_str[32];
-	char *str;
-	u64 cycles = 0;
+	char str[128];
 
-	if (branch_count == 0) {
-		if (fp)
-			return fprintf(fp, " (calltrace)");
-
-		return scnprintf(bf, bfsize, " (calltrace)");
-	}
-
-	if (iter_count && samples_count) {
-		scnprintf(iter_str, sizeof(iter_str),
-			 ", iterations:%" PRId64 "",
-			 iter_count / samples_count);
-		str = iter_str;
-	} else
-		str = (char *)null_str;
-
-	predicted_percent = predicted_count * 100.0 / branch_count;
-	cycles = cycles_count / branch_count;
-
-	if ((predicted_percent >= 100.0) && (abort_count == 0)) {
-		if (fp)
-			return fprintf(fp, " (cycles:%" PRId64 "%s)",
-				       cycles, str);
-
-		return scnprintf(bf, bfsize, " (cycles:%" PRId64 "%s)",
-				 cycles, str);
-	}
-
-	if ((predicted_percent < 100.0) && (abort_count == 0)) {
-		if (fp)
-			return fprintf(fp,
-				" (predicted:%.1f%%, cycles:%" PRId64 "%s)",
-				predicted_percent, cycles, str);
-
-		return scnprintf(bf, bfsize,
-			" (predicted:%.1f%%, cycles:%" PRId64 "%s)",
-			predicted_percent, cycles, str);
-	}
+	counts_str_build(str, sizeof(str), branch_count,
+			 predicted_count, abort_count, cycles_count,
+			 iter_count, samples_count);
 
 	if (fp)
-		return fprintf(fp,
-		" (predicted:%.1f%%, abort:%" PRId64 ", cycles:%" PRId64 "%s)",
-			predicted_percent, abort_count, cycles, str);
+		return fprintf(fp, "%s", str);
 
-	return scnprintf(bf, bfsize,
-		" (predicted:%.1f%%, abort:%" PRId64 ", cycles:%" PRId64 "%s)",
-		predicted_percent, abort_count, cycles, str);
+	return scnprintf(bf, bfsize, "%s", str);
 }
 
 int callchain_list_counts__printf_value(struct callchain_node *node,

@@ -1105,8 +1105,8 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 	char *bufptr;
 	struct urb *urb;
 
-	pr_info("/dev/fb%d FB_BLANK mode %d --> %d\n",
-		info->node, dev->blank_mode, blank_mode);
+	pr_debug("/dev/fb%d FB_BLANK mode %d --> %d\n",
+		 info->node, dev->blank_mode, blank_mode);
 
 	if ((dev->blank_mode == FB_BLANK_POWERDOWN) &&
 	    (blank_mode != FB_BLANK_POWERDOWN)) {
@@ -1487,15 +1487,25 @@ static struct device_attribute fb_device_attrs[] = {
 static int dlfb_select_std_channel(struct dlfb_data *dev)
 {
 	int ret;
-	u8 set_def_chn[] = {	   0x57, 0xCD, 0xDC, 0xA7,
+	void *buf;
+	static const u8 set_def_chn[] = {
+				0x57, 0xCD, 0xDC, 0xA7,
 				0x1C, 0x88, 0x5E, 0x15,
 				0x60, 0xFE, 0xC6, 0x97,
 				0x16, 0x3D, 0x47, 0xF2  };
 
+	buf = kmemdup(set_def_chn, sizeof(set_def_chn), GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
 	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
 			NR_USB_REQUEST_CHANNEL,
 			(USB_DIR_OUT | USB_TYPE_VENDOR), 0, 0,
-			set_def_chn, sizeof(set_def_chn), USB_CTRL_SET_TIMEOUT);
+			buf, sizeof(set_def_chn), USB_CTRL_SET_TIMEOUT);
+
+	kfree(buf);
+
 	return ret;
 }
 
@@ -1603,8 +1613,9 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	pr_info("%s %s - serial #%s\n",
 		usbdev->manufacturer, usbdev->product, usbdev->serial);
 	pr_info("vid_%04x&pid_%04x&rev_%04x driver's dlfb_data struct at %p\n",
-		usbdev->descriptor.idVendor, usbdev->descriptor.idProduct,
-		usbdev->descriptor.bcdDevice, dev);
+		le16_to_cpu(usbdev->descriptor.idVendor),
+		le16_to_cpu(usbdev->descriptor.idProduct),
+		le16_to_cpu(usbdev->descriptor.bcdDevice), dev);
 	pr_info("console enable=%d\n", console);
 	pr_info("fb_defio enable=%d\n", fb_defio);
 	pr_info("shadow enable=%d\n", shadow);

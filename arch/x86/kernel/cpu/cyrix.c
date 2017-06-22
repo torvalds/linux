@@ -185,7 +185,6 @@ static void early_init_cyrix(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
 		break;
 	}
-	clear_sched_clock_stable();
 }
 
 static void init_cyrix(struct cpuinfo_x86 *c)
@@ -256,6 +255,7 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 		break;
 
 	case 4: /* MediaGX/GXm or Geode GXM/GXLV/GX1 */
+	case 11: /* GX1 with inverted Device ID */
 #ifdef CONFIG_PCI
 	{
 		u32 vendor, device;

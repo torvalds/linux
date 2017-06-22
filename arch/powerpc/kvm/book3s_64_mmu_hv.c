@@ -601,7 +601,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 							 hva, NULL, NULL);
 			if (ptep) {
 				pte = kvmppc_read_update_linux_pte(ptep, 1);
-				if (pte_write(pte))
+				if (__pte_write(pte))
 					write_ok = 1;
 			}
 			local_irq_restore(flags);
@@ -1487,6 +1487,10 @@ long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
 	/* start new resize */
 
 	resize = kzalloc(sizeof(*resize), GFP_KERNEL);
+	if (!resize) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	resize->order = shift;
 	resize->kvm = kvm;
 	INIT_WORK(&resize->work, resize_hpt_prepare_work);

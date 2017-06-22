@@ -278,7 +278,7 @@ static void vop_del_vqs(struct virtio_device *dev)
 static struct virtqueue *vop_find_vq(struct virtio_device *dev,
 				     unsigned index,
 				     void (*callback)(struct virtqueue *vq),
-				     const char *name)
+				     const char *name, bool ctx)
 {
 	struct _vop_vdev *vdev = to_vopvdev(dev);
 	struct vop_device *vpdev = vdev->vpdev;
@@ -314,6 +314,7 @@ static struct virtqueue *vop_find_vq(struct virtio_device *dev,
 				le16_to_cpu(config.num), MIC_VIRTIO_RING_ALIGN,
 				dev,
 				false,
+				ctx,
 				(void __force *)va, vop_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
@@ -374,7 +375,8 @@ unmap:
 static int vop_find_vqs(struct virtio_device *dev, unsigned nvqs,
 			struct virtqueue *vqs[],
 			vq_callback_t *callbacks[],
-			const char * const names[], struct irq_affinity *desc)
+			const char * const names[], const bool *ctx,
+			struct irq_affinity *desc)
 {
 	struct _vop_vdev *vdev = to_vopvdev(dev);
 	struct vop_device *vpdev = vdev->vpdev;
@@ -388,7 +390,8 @@ static int vop_find_vqs(struct virtio_device *dev, unsigned nvqs,
 	for (i = 0; i < nvqs; ++i) {
 		dev_dbg(_vop_dev(vdev), "%s: %d: %s\n",
 			__func__, i, names[i]);
-		vqs[i] = vop_find_vq(dev, i, callbacks[i], names[i]);
+		vqs[i] = vop_find_vq(dev, i, callbacks[i], names[i],
+				     ctx ? ctx[i] : false);
 		if (IS_ERR(vqs[i])) {
 			err = PTR_ERR(vqs[i]);
 			goto error;

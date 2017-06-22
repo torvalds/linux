@@ -40,6 +40,7 @@ Required properties:
                  w25x80
                  w25x32
                  w25q32
+                 w25q64
                  w25q32dw
                  w25q80bl
                  w25q128

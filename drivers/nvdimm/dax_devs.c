@@ -124,7 +124,7 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
 	dev_dbg(dev, "%s: dax: %s\n", __func__,
 			rc == 0 ? dev_name(dax_dev) : "<none>");
 	if (rc < 0) {
-		__nd_detach_ndns(dax_dev, &nd_pfn->ndns);
+		nd_detach_ndns(dax_dev, &nd_pfn->ndns);
 		put_device(dax_dev);
 	} else
 		__nd_device_register(dax_dev);

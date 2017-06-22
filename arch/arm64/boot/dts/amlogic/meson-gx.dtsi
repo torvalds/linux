@@ -71,6 +71,14 @@
 			reg = <0x0 0x10000000 0x0 0x200000>;
 			no-map;
 		};
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0xbc00000>;
+			alignment = <0x0 0x400000>;
+			linux,cma-default;
+		};
 	};
 
 	cpus {
@@ -233,7 +241,7 @@
 			};
 
 			i2c_A: i2c@8500 {
-				compatible = "amlogic,meson-gxbb-i2c";
+				compatible = "amlogic,meson-gx-i2c", "amlogic,meson-gxbb-i2c";
 				reg = <0x0 0x08500 0x0 0x20>;
 				interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
@@ -279,7 +287,7 @@
 			};
 
 			i2c_B: i2c@87c0 {
-				compatible = "amlogic,meson-gxbb-i2c";
+				compatible = "amlogic,meson-gx-i2c", "amlogic,meson-gxbb-i2c";
 				reg = <0x0 0x087c0 0x0 0x20>;
 				interrupts = <GIC_SPI 214 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
@@ -288,9 +296,17 @@
 			};
 
 			i2c_C: i2c@87e0 {
-				compatible = "amlogic,meson-gxbb-i2c";
+				compatible = "amlogic,meson-gx-i2c", "amlogic,meson-gxbb-i2c";
 				reg = <0x0 0x087e0 0x0 0x20>;
 				interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			spifc: spi@8c80 {
+				compatible = "amlogic,meson-gx-spifc", "amlogic,meson-gxbb-spifc";
+				reg = <0x0 0x08c80 0x0 0x80>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -317,7 +333,7 @@
 		};
 
 		sram: sram@c8000000 {
-			compatible = "amlogic,meson-gxbb-sram", "mmio-sram";
+			compatible = "amlogic,meson-gx-sram", "amlogic,meson-gxbb-sram", "mmio-sram";
 			reg = <0x0 0xc8000000 0x0 0x14000>;
 
 			#address-cells = <1>;
@@ -325,12 +341,12 @@
 			ranges = <0 0x0 0xc8000000 0x14000>;
 
 			cpu_scp_lpri: scp-shmem@0 {
-				compatible = "amlogic,meson-gxbb-scp-shmem";
+				compatible = "amlogic,meson-gx-scp-shmem", "amlogic,meson-gxbb-scp-shmem";
 				reg = <0x13000 0x400>;
 			};
 
 			cpu_scp_hpri: scp-shmem@200 {
-				compatible = "amlogic,meson-gxbb-scp-shmem";
+				compatible = "amlogic,meson-gx-scp-shmem", "amlogic,meson-gxbb-scp-shmem";
 				reg = <0x13400 0x400>;
 			};
 		};
@@ -341,6 +357,13 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xc8100000 0x0 0x100000>;
+
+			clkc_AO: clock-controller@040 {
+				compatible = "amlogic,gx-aoclkc", "amlogic,gxbb-aoclkc";
+				reg = <0x0 0x00040 0x0 0x4>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
+			};
 
 			uart_AO: serial@4c0 {
 				compatible = "amlogic,meson-uart";
@@ -358,6 +381,15 @@
 				status = "disabled";
 			};
 
+			i2c_AO: i2c@500 {
+				compatible = "amlogic,meson-gx-i2c", "amlogic,meson-gxbb-i2c";
+				reg = <0x0 0x500 0x0 0x20>;
+				interrupts = <GIC_SPI 195 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			pwm_AO_ab: pwm@550 {
 				compatible = "amlogic,meson-gx-pwm", "amlogic,meson-gxbb-pwm";
 				reg = <0x0 0x00550 0x0 0x10>;
@@ -366,7 +398,7 @@
 			};
 
 			ir: ir@580 {
-				compatible = "amlogic,meson-gxbb-ir";
+				compatible = "amlogic,meson-gx-ir", "amlogic,meson-gxbb-ir";
 				reg = <0x0 0x00580 0x0 0x40>;
 				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
@@ -380,12 +412,11 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xc8834000 0x0 0x2000>;
 
-			rng {
+			hwrng: rng {
 				compatible = "amlogic,meson-rng";
 				reg = <0x0 0x0 0x0 0x4>;
 			};
 		};
-
 
 		hiubus: hiubus@c883c000 {
 			compatible = "simple-bus";
@@ -410,7 +441,6 @@
 			       0x0 0xc8834540 0x0 0x4>;
 			interrupts = <0 8 1>;
 			interrupt-names = "macirq";
-			phy-mode = "rgmii";
 			status = "disabled";
 		};
 
@@ -456,6 +486,38 @@
 			/* CVBS VDAC output port */
 			cvbs_vdac_port: port@0 {
 				reg = <0>;
+			};
+
+			/* HDMI-TX output port */
+			hdmi_tx_port: port@1 {
+				reg = <1>;
+
+				hdmi_tx_out: endpoint {
+					remote-endpoint = <&hdmi_tx_in>;
+				};
+			};
+		};
+
+		hdmi_tx: hdmi-tx@c883a000 {
+			compatible = "amlogic,meson-gx-dw-hdmi";
+			reg = <0x0 0xc883a000 0x0 0x1c>;
+			interrupts = <GIC_SPI 57 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			/* VPU VENC Input */
+			hdmi_tx_venc_port: port@0 {
+				reg = <0>;
+
+				hdmi_tx_in: endpoint {
+					remote-endpoint = <&hdmi_tx_out>;
+				};
+			};
+
+			/* TMDS Output */
+			hdmi_tx_tmds_port: port@1 {
+				reg = <1>;
 			};
 		};
 	};

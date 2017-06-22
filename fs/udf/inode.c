@@ -276,14 +276,14 @@ int udf_expand_file_adinicb(struct inode *inode)
 		return -ENOMEM;
 
 	if (!PageUptodate(page)) {
-		kaddr = kmap(page);
+		kaddr = kmap_atomic(page);
 		memset(kaddr + iinfo->i_lenAlloc, 0x00,
 		       PAGE_SIZE - iinfo->i_lenAlloc);
 		memcpy(kaddr, iinfo->i_ext.i_data + iinfo->i_lenEAttr,
 			iinfo->i_lenAlloc);
 		flush_dcache_page(page);
 		SetPageUptodate(page);
-		kunmap(page);
+		kunmap_atomic(kaddr);
 	}
 	down_write(&iinfo->i_data_sem);
 	memset(iinfo->i_ext.i_data + iinfo->i_lenEAttr, 0x00,
@@ -300,11 +300,11 @@ int udf_expand_file_adinicb(struct inode *inode)
 	if (err) {
 		/* Restore everything back so that we don't lose data... */
 		lock_page(page);
-		kaddr = kmap(page);
 		down_write(&iinfo->i_data_sem);
+		kaddr = kmap_atomic(page);
 		memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr,
 		       inode->i_size);
-		kunmap(page);
+		kunmap_atomic(kaddr);
 		unlock_page(page);
 		iinfo->i_alloc_type = ICBTAG_FLAG_AD_IN_ICB;
 		inode->i_data.a_ops = &udf_adinicb_aops;
@@ -1535,7 +1535,7 @@ reread:
 		inode->i_data.a_ops = &udf_symlink_aops;
 		inode->i_op = &udf_symlink_inode_operations;
 		inode_nohighmem(inode);
-		inode->i_mode = S_IFLNK | S_IRWXUGO;
+		inode->i_mode = S_IFLNK | 0777;
 		break;
 	case ICBTAG_FILE_TYPE_MAIN:
 		udf_debug("METADATA FILE-----\n");
@@ -1591,9 +1591,9 @@ static umode_t udf_convert_permissions(struct fileEntry *fe)
 	permissions = le32_to_cpu(fe->permissions);
 	flags = le16_to_cpu(fe->icbTag.flags);
 
-	mode =	((permissions) & S_IRWXO) |
-		((permissions >> 2) & S_IRWXG) |
-		((permissions >> 4) & S_IRWXU) |
+	mode =	((permissions) & 0007) |
+		((permissions >> 2) & 0070) |
+		((permissions >> 4) & 0700) |
 		((flags & ICBTAG_FLAG_SETUID) ? S_ISUID : 0) |
 		((flags & ICBTAG_FLAG_SETGID) ? S_ISGID : 0) |
 		((flags & ICBTAG_FLAG_STICKY) ? S_ISVTX : 0);
@@ -1669,9 +1669,9 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	else
 		fe->gid = cpu_to_le32(i_gid_read(inode));
 
-	udfperms = ((inode->i_mode & S_IRWXO)) |
-		   ((inode->i_mode & S_IRWXG) << 2) |
-		   ((inode->i_mode & S_IRWXU) << 4);
+	udfperms = ((inode->i_mode & 0007)) |
+		   ((inode->i_mode & 0070) << 2) |
+		   ((inode->i_mode & 0700) << 4);
 
 	udfperms |= (le32_to_cpu(fe->permissions) &
 		    (FE_PERM_O_DELETE | FE_PERM_O_CHATTR |

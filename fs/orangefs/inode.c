@@ -161,7 +161,7 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 		     iattr->ia_size);
 
 	/* Ensure that we have a up to date size, so we know if it changed. */
-	ret = orangefs_inode_getattr(inode, 0, 1);
+	ret = orangefs_inode_getattr(inode, 0, 1, STATX_SIZE);
 	if (ret == -ESTALE)
 		ret = -EIO;
 	if (ret) {
@@ -218,8 +218,7 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (ret)
 		goto out;
 
-	if ((iattr->ia_valid & ATTR_SIZE) &&
-	    iattr->ia_size != i_size_read(inode)) {
+	if (iattr->ia_valid & ATTR_SIZE) {
 		ret = orangefs_setattr_size(inode, iattr);
 		if (ret)
 			goto out;
@@ -256,13 +255,19 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 		     "orangefs_getattr: called on %pd\n",
 		     path->dentry);
 
-	ret = orangefs_inode_getattr(inode, 0, 0);
+	ret = orangefs_inode_getattr(inode, 0, 0, request_mask);
 	if (ret == 0) {
 		generic_fillattr(inode, stat);
 
 		/* override block size reported to stat */
 		orangefs_inode = ORANGEFS_I(inode);
 		stat->blksize = orangefs_inode->blksize;
+
+		if (request_mask & STATX_SIZE)
+			stat->result_mask = STATX_BASIC_STATS;
+		else
+			stat->result_mask = STATX_BASIC_STATS &
+			    ~STATX_SIZE;
 	}
 	return ret;
 }
@@ -277,7 +282,7 @@ int orangefs_permission(struct inode *inode, int mask)
 	gossip_debug(GOSSIP_INODE_DEBUG, "%s: refreshing\n", __func__);
 
 	/* Make sure the permission (and other common attrs) are up to date. */
-	ret = orangefs_inode_getattr(inode, 0, 0);
+	ret = orangefs_inode_getattr(inode, 0, 0, STATX_MODE);
 	if (ret < 0)
 		return ret;
 
@@ -375,7 +380,7 @@ struct inode *orangefs_iget(struct super_block *sb, struct orangefs_object_kref 
 	if (!inode || !(inode->i_state & I_NEW))
 		return inode;
 
-	error = orangefs_inode_getattr(inode, 1, 1);
+	error = orangefs_inode_getattr(inode, 1, 1, STATX_ALL);
 	if (error) {
 		iget_failed(inode);
 		return ERR_PTR(error);
@@ -420,7 +425,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	orangefs_set_inode(inode, ref);
 	inode->i_ino = hash;	/* needed for stat etc */
 
-	error = orangefs_inode_getattr(inode, 1, 1);
+	error = orangefs_inode_getattr(inode, 1, 1, STATX_ALL);
 	if (error)
 		goto out_iput;
 

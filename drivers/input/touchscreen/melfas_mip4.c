@@ -253,9 +253,20 @@ static int mip4_get_fw_version(struct mip4_ts *ts)
  */
 static int mip4_query_device(struct mip4_ts *ts)
 {
+	union i2c_smbus_data dummy;
 	int error;
 	u8 cmd[2];
 	u8 buf[14];
+
+	/*
+	 * Make sure there is something at this address as we do not
+	 * consider subsequent failures as fatal.
+	 */
+	if (i2c_smbus_xfer(ts->client->adapter, ts->client->addr,
+			   0, I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
+		dev_err(&ts->client->dev, "nothing at this address\n");
+		return -ENXIO;
+	}
 
 	/* Product name */
 	cmd[0] = MIP4_R0_INFO;

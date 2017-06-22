@@ -909,8 +909,10 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 	return 0;
 }
 
-u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc)
+static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
 {
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
 	if (dc->syncpt)
 		return host1x_syncpt_read(dc->syncpt);
 
@@ -918,8 +920,9 @@ u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc)
 	return drm_crtc_vblank_count(&dc->base);
 }
 
-void tegra_dc_enable_vblank(struct tegra_dc *dc)
+static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
 {
+	struct tegra_dc *dc = to_tegra_dc(crtc);
 	unsigned long value, flags;
 
 	spin_lock_irqsave(&dc->lock, flags);
@@ -929,10 +932,13 @@ void tegra_dc_enable_vblank(struct tegra_dc *dc)
 	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 
 	spin_unlock_irqrestore(&dc->lock, flags);
+
+	return 0;
 }
 
-void tegra_dc_disable_vblank(struct tegra_dc *dc)
+static void tegra_dc_disable_vblank(struct drm_crtc *crtc)
 {
+	struct tegra_dc *dc = to_tegra_dc(crtc);
 	unsigned long value, flags;
 
 	spin_lock_irqsave(&dc->lock, flags);
@@ -1036,6 +1042,9 @@ static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.reset = tegra_crtc_reset,
 	.atomic_duplicate_state = tegra_crtc_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_crtc_atomic_destroy_state,
+	.get_vblank_counter = tegra_dc_get_vblank_counter,
+	.enable_vblank = tegra_dc_enable_vblank,
+	.disable_vblank = tegra_dc_disable_vblank,
 };
 
 static int tegra_dc_set_timings(struct tegra_dc *dc,
@@ -1373,7 +1382,7 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 	struct tegra_dc *dc = node->info_ent->data;
 	int err = 0;
 
-	drm_modeset_lock_crtc(&dc->base, NULL);
+	drm_modeset_lock(&dc->base.mutex, NULL);
 
 	if (!dc->base.state->active) {
 		err = -EBUSY;
@@ -1600,7 +1609,7 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 #undef DUMP_REG
 
 unlock:
-	drm_modeset_unlock_crtc(&dc->base);
+	drm_modeset_unlock(&dc->base.mutex);
 	return err;
 }
 
@@ -1611,7 +1620,7 @@ static int tegra_dc_show_crc(struct seq_file *s, void *data)
 	int err = 0;
 	u32 value;
 
-	drm_modeset_lock_crtc(&dc->base, NULL);
+	drm_modeset_lock(&dc->base.mutex, NULL);
 
 	if (!dc->base.state->active) {
 		err = -EBUSY;
@@ -1631,7 +1640,7 @@ static int tegra_dc_show_crc(struct seq_file *s, void *data)
 	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
 
 unlock:
-	drm_modeset_unlock_crtc(&dc->base);
+	drm_modeset_unlock(&dc->base.mutex);
 	return err;
 }
 

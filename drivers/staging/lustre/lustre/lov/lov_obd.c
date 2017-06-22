@@ -68,7 +68,6 @@ static void lov_getref(struct obd_device *obd)
 	mutex_lock(&lov->lov_lock);
 	atomic_inc(&lov->lov_refcount);
 	mutex_unlock(&lov->lov_lock);
-	return;
 }
 
 static void __lov_del_obd(struct obd_device *obd, struct lov_tgt_desc *tgt);

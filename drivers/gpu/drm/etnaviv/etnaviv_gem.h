@@ -20,6 +20,7 @@
 #include <linux/reservation.h>
 #include "etnaviv_drv.h"
 
+struct dma_fence;
 struct etnaviv_gem_ops;
 struct etnaviv_gem_object;
 
@@ -104,9 +105,10 @@ struct etnaviv_gem_submit {
 	struct drm_device *dev;
 	struct etnaviv_gpu *gpu;
 	struct ww_acquire_ctx ticket;
-	u32 fence;
+	struct dma_fence *fence;
 	unsigned int nr_bos;
 	struct etnaviv_gem_submit_bo bos[0];
+	u32 flags;
 };
 
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,

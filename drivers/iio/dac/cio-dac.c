@@ -39,7 +39,7 @@
 
 static unsigned int base[max_num_isa_dev(CIO_DAC_EXTENT)];
 static unsigned int num_cio_dac;
-module_param_array(base, uint, &num_cio_dac, 0);
+module_param_hw_array(base, uint, ioport, &num_cio_dac, 0);
 MODULE_PARM_DESC(base, "Measurement Computing CIO-DAC base addresses");
 
 /**
@@ -119,6 +119,7 @@ static int cio_dac_probe(struct device *dev, unsigned int id)
 	indio_dev->channels = cio_dac_channels;
 	indio_dev->num_channels = CIO_DAC_NUM_CHAN;
 	indio_dev->name = dev_name(dev);
+	indio_dev->dev.parent = dev;
 
 	priv = iio_priv(indio_dev);
 	priv->base = base[id];

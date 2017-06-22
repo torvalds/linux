@@ -372,11 +372,10 @@ static const struct file_operations fops_peer_debug_trigger = {
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
-	debugfs_create_file("aggr_mode", S_IRUGO | S_IWUSR, dir, sta,
-			    &fops_aggr_mode);
-	debugfs_create_file("addba", S_IWUSR, dir, sta, &fops_addba);
-	debugfs_create_file("addba_resp", S_IWUSR, dir, sta, &fops_addba_resp);
-	debugfs_create_file("delba", S_IWUSR, dir, sta, &fops_delba);
+	debugfs_create_file("aggr_mode", 0644, dir, sta, &fops_aggr_mode);
+	debugfs_create_file("addba", 0200, dir, sta, &fops_addba);
+	debugfs_create_file("addba_resp", 0200, dir, sta, &fops_addba_resp);
+	debugfs_create_file("delba", 0200, dir, sta, &fops_delba);
 	debugfs_create_file("peer_debug_trigger", 0600, dir, sta,
 			    &fops_peer_debug_trigger);
 }

@@ -51,7 +51,7 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (mcnt || remaining > 16)
 				cmd |= 4; /* MOT */
 
-			ret = aux->func->xfer(aux, true, cmd, msg->addr, ptr, cnt);
+			ret = aux->func->xfer(aux, true, cmd, msg->addr, ptr, &cnt);
 			if (ret < 0) {
 				nvkm_i2c_aux_release(aux);
 				return ret;
@@ -115,7 +115,7 @@ nvkm_i2c_aux_acquire(struct nvkm_i2c_aux *aux)
 
 int
 nvkm_i2c_aux_xfer(struct nvkm_i2c_aux *aux, bool retry, u8 type,
-		  u32 addr, u8 *data, u8 size)
+		  u32 addr, u8 *data, u8 *size)
 {
 	return aux->func->xfer(aux, retry, type, addr, data, size);
 }

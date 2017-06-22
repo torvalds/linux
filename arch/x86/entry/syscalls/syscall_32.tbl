@@ -226,7 +226,7 @@
 217	i386	pivot_root		sys_pivot_root
 218	i386	mincore			sys_mincore
 219	i386	madvise			sys_madvise
-220	i386	getdents64		sys_getdents64			compat_sys_getdents64
+220	i386	getdents64		sys_getdents64
 221	i386	fcntl64			sys_fcntl64			compat_sys_fcntl64
 # 222 is unused
 # 223 is unused
@@ -390,3 +390,4 @@
 381	i386	pkey_alloc		sys_pkey_alloc
 382	i386	pkey_free		sys_pkey_free
 383	i386	statx			sys_statx
+384	i386	arch_prctl		sys_arch_prctl			compat_sys_arch_prctl

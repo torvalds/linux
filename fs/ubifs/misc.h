@@ -225,16 +225,6 @@ static inline void *ubifs_idx_key(const struct ubifs_info *c,
 }
 
 /**
- * ubifs_current_time - round current time to time granularity.
- * @inode: inode
- */
-static inline struct timespec ubifs_current_time(struct inode *inode)
-{
-	return (inode->i_sb->s_time_gran < NSEC_PER_SEC) ?
-		current_fs_time(inode->i_sb) : CURRENT_TIME_SEC;
-}
-
-/**
  * ubifs_tnc_lookup - look up a file-system node.
  * @c: UBIFS file-system description object
  * @key: node key to lookup

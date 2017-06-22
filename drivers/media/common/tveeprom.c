@@ -420,8 +420,8 @@ static int hasRadioTuner(int tunerType)
 	return 0;
 }
 
-void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
-				unsigned char *eeprom_data)
+void tveeprom_hauppauge_analog(struct tveeprom *tvee,
+			       unsigned char *eeprom_data)
 {
 	/* ----------------------------------------------
 	** The hauppauge eeprom format is tagged

@@ -24,11 +24,13 @@
 #define DS2760_DATA_SIZE		0x40
 
 #define DS2760_PROTECTION_REG		0x00
+
 #define DS2760_STATUS_REG		0x01
-	#define DS2760_STATUS_IE	(1 << 2)
-	#define DS2760_STATUS_SWEN	(1 << 3)
-	#define DS2760_STATUS_RNAOP	(1 << 4)
-	#define DS2760_STATUS_PMOD	(1 << 5)
+#define DS2760_STATUS_IE		(1 << 2)
+#define DS2760_STATUS_SWEN		(1 << 3)
+#define DS2760_STATUS_RNAOP		(1 << 4)
+#define DS2760_STATUS_PMOD		(1 << 5)
+
 #define DS2760_EEPROM_REG		0x07
 #define DS2760_SPECIAL_FEATURE_REG	0x08
 #define DS2760_VOLTAGE_MSB		0x0c

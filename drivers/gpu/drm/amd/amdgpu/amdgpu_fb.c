@@ -112,7 +112,7 @@ static void amdgpufb_destroy_pinned_object(struct drm_gem_object *gobj)
 	struct amdgpu_bo *abo = gem_to_amdgpu_bo(gobj);
 	int ret;
 
-	ret = amdgpu_bo_reserve(abo, false);
+	ret = amdgpu_bo_reserve(abo, true);
 	if (likely(ret == 0)) {
 		amdgpu_bo_kunmap(abo);
 		amdgpu_bo_unpin(abo);
@@ -147,11 +147,11 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	ret = amdgpu_gem_object_create(adev, aligned_size, 0,
 				       AMDGPU_GEM_DOMAIN_VRAM,
 				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
+				       AMDGPU_GEM_CREATE_VRAM_CLEARED,
 				       true, &gobj);
 	if (ret) {
-		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",
-		       aligned_size);
+		pr_err("failed to allocate framebuffer (%d)\n", aligned_size);
 		return -ENOMEM;
 	}
 	abo = gem_to_amdgpu_bo(gobj);
@@ -224,7 +224,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
-		goto out_unref;
+		goto out;
 	}
 
 	info->par = rfbdev;
@@ -233,15 +233,13 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	ret = amdgpu_framebuffer_init(adev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
 	if (ret) {
 		DRM_ERROR("failed to initialize framebuffer %d\n", ret);
-		goto out_destroy_fbi;
+		goto out;
 	}
 
 	fb = &rfbdev->rfb.base;
 
 	/* setup helper */
 	rfbdev->helper.fb = fb;
-
-	memset_io(abo->kptr, 0x0, amdgpu_bo_size(abo));
 
 	strcpy(info->fix.id, "amdgpudrmfb");
 
@@ -266,7 +264,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	if (info->screen_base == NULL) {
 		ret = -ENOSPC;
-		goto out_destroy_fbi;
+		goto out;
 	}
 
 	DRM_INFO("fb mappable at 0x%lX\n",  info->fix.smem_start);
@@ -278,9 +276,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	vga_switcheroo_client_fb_set(adev->ddev->pdev, info);
 	return 0;
 
-out_destroy_fbi:
-	drm_fb_helper_release_fbi(helper);
-out_unref:
+out:
 	if (abo) {
 
 	}
@@ -304,7 +300,6 @@ static int amdgpu_fbdev_destroy(struct drm_device *dev, struct amdgpu_fbdev *rfb
 	struct amdgpu_framebuffer *rfb = &rfbdev->rfb;
 
 	drm_fb_helper_unregister_fbi(&rfbdev->helper);
-	drm_fb_helper_release_fbi(&rfbdev->helper);
 
 	if (rfb->obj) {
 		amdgpufb_destroy_pinned_object(rfb->obj);
@@ -430,9 +425,14 @@ bool amdgpu_fbdev_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj)
 
 void amdgpu_fbdev_restore_mode(struct amdgpu_device *adev)
 {
-	struct amdgpu_fbdev *afbdev = adev->mode_info.rfbdev;
+	struct amdgpu_fbdev *afbdev;
 	struct drm_fb_helper *fb_helper;
 	int ret;
+
+	if (!adev)
+		return;
+
+	afbdev = adev->mode_info.rfbdev;
 
 	if (!afbdev)
 		return;

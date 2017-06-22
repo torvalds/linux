@@ -11,6 +11,7 @@
 
 #include <linux/bcma/bcma.h>
 #include <linux/etherdevice.h>
+#include <linux/interrupt.h>
 #include <linux/bcm47xx_nvram.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
@@ -1480,6 +1481,7 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 
 	net_dev->irq = bgmac->irq;
 	SET_NETDEV_DEV(net_dev, bgmac->dev);
+	dev_set_drvdata(bgmac->dev, bgmac);
 
 	if (!is_valid_ether_addr(net_dev->dev_addr)) {
 		dev_err(bgmac->dev, "Invalid MAC addr: %pM\n",
@@ -1551,6 +1553,56 @@ void bgmac_enet_remove(struct bgmac *bgmac)
 	free_netdev(bgmac->net_dev);
 }
 EXPORT_SYMBOL_GPL(bgmac_enet_remove);
+
+int bgmac_enet_suspend(struct bgmac *bgmac)
+{
+	if (!netif_running(bgmac->net_dev))
+		return 0;
+
+	phy_stop(bgmac->net_dev->phydev);
+
+	netif_stop_queue(bgmac->net_dev);
+
+	napi_disable(&bgmac->napi);
+
+	netif_tx_lock(bgmac->net_dev);
+	netif_device_detach(bgmac->net_dev);
+	netif_tx_unlock(bgmac->net_dev);
+
+	bgmac_chip_intrs_off(bgmac);
+	bgmac_chip_reset(bgmac);
+	bgmac_dma_cleanup(bgmac);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bgmac_enet_suspend);
+
+int bgmac_enet_resume(struct bgmac *bgmac)
+{
+	int rc;
+
+	if (!netif_running(bgmac->net_dev))
+		return 0;
+
+	rc = bgmac_dma_init(bgmac);
+	if (rc)
+		return rc;
+
+	bgmac_chip_init(bgmac);
+
+	napi_enable(&bgmac->napi);
+
+	netif_tx_lock(bgmac->net_dev);
+	netif_device_attach(bgmac->net_dev);
+	netif_tx_unlock(bgmac->net_dev);
+
+	netif_start_queue(bgmac->net_dev);
+
+	phy_start(bgmac->net_dev->phydev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bgmac_enet_resume);
 
 MODULE_AUTHOR("Rafał Miłecki");
 MODULE_LICENSE("GPL");

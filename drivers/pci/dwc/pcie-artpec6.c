@@ -78,6 +78,11 @@ static void artpec6_pcie_writel(struct artpec6_pcie *artpec6_pcie, u32 offset, u
 	regmap_write(artpec6_pcie->regmap, offset, val);
 }
 
+static u64 artpec6_pcie_cpu_addr_fixup(u64 pci_addr)
+{
+	return pci_addr & ARTPEC6_CPU_TO_BUS_ADDR;
+}
+
 static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 {
 	struct dw_pcie *pci = artpec6_pcie->pci;
@@ -141,11 +146,6 @@ static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 	 * driver changes the class code. That register needs DBI write enable.
 	 */
 	dw_pcie_writel_dbi(pci, MISC_CONTROL_1_OFF, DBI_RO_WR_EN);
-
-	pp->io_base &= ARTPEC6_CPU_TO_BUS_ADDR;
-	pp->mem_base &= ARTPEC6_CPU_TO_BUS_ADDR;
-	pp->cfg0_base &= ARTPEC6_CPU_TO_BUS_ADDR;
-	pp->cfg1_base &= ARTPEC6_CPU_TO_BUS_ADDR;
 
 	/* setup root complex */
 	dw_pcie_setup_rc(pp);
@@ -234,6 +234,10 @@ static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
 	return 0;
 }
 
+static const struct dw_pcie_ops dw_pcie_ops = {
+	.cpu_addr_fixup = artpec6_pcie_cpu_addr_fixup,
+};
+
 static int artpec6_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -252,6 +256,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pci->dev = dev;
+	pci->ops = &dw_pcie_ops;
 
 	artpec6_pcie->pci = pci;
 
@@ -290,6 +295,7 @@ static struct platform_driver artpec6_pcie_driver = {
 	.driver = {
 		.name	= "artpec6-pcie",
 		.of_match_table = artpec6_pcie_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 builtin_platform_driver(artpec6_pcie_driver);

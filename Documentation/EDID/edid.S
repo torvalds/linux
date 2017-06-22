@@ -59,9 +59,9 @@
 /* Fixed header pattern */
 header:		.byte	0x00,0xff,0xff,0xff,0xff,0xff,0xff,0x00
 
-mfg_id:		.word	swap16(mfgname2id(MFG_LNX1, MFG_LNX2, MFG_LNX3))
+mfg_id:		.hword	swap16(mfgname2id(MFG_LNX1, MFG_LNX2, MFG_LNX3))
 
-prod_code:	.word	0
+prod_code:	.hword	0
 
 /* Serial number. 32 bits, little endian. */
 serial_number:	.long	SERIAL
@@ -177,7 +177,7 @@ std_vres:	.byte	(XY_RATIO<<6)+VFREQ-60
 
 descriptor1:
 /* Pixel clock in 10 kHz units. (0.-655.35 MHz, little-endian) */
-clock:		.word	CLOCK/10
+clock:		.hword	CLOCK/10
 
 /* Horizontal active pixels 8 lsbits (0-4095) */
 x_act_lsb:	.byte	XPIX&0xff

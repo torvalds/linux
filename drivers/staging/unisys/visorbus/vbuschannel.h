@@ -28,8 +28,8 @@
 
 /* {193b331b-c58f-11da-95a9-00e08161165f} */
 #define SPAR_VBUS_CHANNEL_PROTOCOL_UUID \
-		UUID_LE(0x193b331b, 0xc58f, 0x11da, \
-				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+	UUID_LE(0x193b331b, 0xc58f, 0x11da, \
+		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vbus_channel_protocol_uuid =
 	SPAR_VBUS_CHANNEL_PROTOCOL_UUID;
 
@@ -43,16 +43,6 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
  */
 #define SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define SPAR_VBUS_CHANNEL_OK_CLIENT(ch)       \
-	spar_check_channel_client(ch,				\
-				   spar_vbus_channel_protocol_uuid,	\
-				   "vbus",				\
-				   sizeof(struct spar_vbus_channel_protocol),\
-				   SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
-				   SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)
-
-#pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
-
 /*
  * An array of this struct is present in the channel area for each vbus.
  * (See vbuschannel.h.)
@@ -64,42 +54,7 @@ struct ultra_vbus_deviceinfo {
 	u8 drvname[16];		/* driver .sys file name */
 	u8 infostrs[96];	/* kernel version */
 	u8 reserved[128];	/* pad size to 256 bytes */
-};
-
-/**
- * vbuschannel_print_devinfo() - format a struct ultra_vbus_deviceinfo
- *                               and write it to a seq_file
- * @devinfo: the struct ultra_vbus_deviceinfo to format
- * @seq: seq_file to write to
- * @devix: the device index to be included in the output data, or -1 if no
- *         device index is to be included
- *
- * Reads @devInfo, and writes it in human-readable notation to @seq.
- */
-static inline void
-vbuschannel_print_devinfo(struct ultra_vbus_deviceinfo *devinfo,
-			  struct seq_file *seq, int devix)
-{
-	if (!isprint(devinfo->devtype[0]))
-		return; /* uninitialized vbus device entry */
-
-	if (devix >= 0)
-		seq_printf(seq, "[%d]", devix);
-	else
-		/* vbus device entry is for bus or chipset */
-		seq_puts(seq, "   ");
-
-	/*
-	 * Note: because the s-Par back-end is free to scribble in this area,
-	 * we never assume '\0'-termination.
-	 */
-	seq_printf(seq, "%-*.*s ", (int)sizeof(devinfo->devtype),
-		   (int)sizeof(devinfo->devtype), devinfo->devtype);
-	seq_printf(seq, "%-*.*s ", (int)sizeof(devinfo->drvname),
-		   (int)sizeof(devinfo->drvname), devinfo->drvname);
-	seq_printf(seq, "%.*s\n", (int)sizeof(devinfo->infostrs),
-		   devinfo->infostrs);
-}
+} __packed;
 
 struct spar_vbus_headerinfo {
 	u32 struct_bytes;	/* size of this struct in bytes */
@@ -113,7 +68,7 @@ struct spar_vbus_headerinfo {
 	u32 dev_info_offset;	/* byte offset from beginning of this struct */
 	/* to the DevInfo array (below) */
 	u8 reserved[104];
-};
+} __packed;
 
 struct spar_vbus_channel_protocol {
 	struct channel_header channel_header;	/* initialized by server */
@@ -125,8 +80,6 @@ struct spar_vbus_channel_protocol {
 	/* describes client bus device and driver */
 	struct ultra_vbus_deviceinfo dev_info[0];
 	/* describes client device and driver for each device on the bus */
-};
-
-#pragma pack(pop)
+} __packed;
 
 #endif

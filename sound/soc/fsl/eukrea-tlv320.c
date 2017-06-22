@@ -64,7 +64,7 @@ static int eukrea_tlv320_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops eukrea_tlv320_snd_ops = {
+static const struct snd_soc_ops eukrea_tlv320_snd_ops = {
 	.hw_params	= eukrea_tlv320_hw_params,
 };
 

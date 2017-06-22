@@ -41,14 +41,22 @@ void
 nvkm_falcon_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 		      u32 size, u8 port)
 {
+	mutex_lock(&falcon->dmem_mutex);
+
 	falcon->func->load_dmem(falcon, data, start, size, port);
+
+	mutex_unlock(&falcon->dmem_mutex);
 }
 
 void
 nvkm_falcon_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size, u8 port,
 		      void *data)
 {
+	mutex_lock(&falcon->dmem_mutex);
+
 	falcon->func->read_dmem(falcon, start, size, port, data);
+
+	mutex_unlock(&falcon->dmem_mutex);
 }
 
 void
@@ -129,6 +137,9 @@ nvkm_falcon_clear_interrupt(struct nvkm_falcon *falcon, u32 mask)
 void
 nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 {
+	if (unlikely(!falcon))
+		return;
+
 	mutex_lock(&falcon->mutex);
 	if (falcon->user == user) {
 		nvkm_debug(falcon->user, "released %s falcon\n", falcon->name);
@@ -159,6 +170,7 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 		 struct nvkm_subdev *subdev, const char *name, u32 addr,
 		 struct nvkm_falcon *falcon)
 {
+	u32 debug_reg;
 	u32 reg;
 
 	falcon->func = func;
@@ -166,6 +178,7 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	falcon->name = name;
 	falcon->addr = addr;
 	mutex_init(&falcon->mutex);
+	mutex_init(&falcon->dmem_mutex);
 
 	reg = nvkm_falcon_rd32(falcon, 0x12c);
 	falcon->version = reg & 0xf;
@@ -177,8 +190,31 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	falcon->code.limit = (reg & 0x1ff) << 8;
 	falcon->data.limit = (reg & 0x3fe00) >> 1;
 
-	reg = nvkm_falcon_rd32(falcon, 0xc08);
-	falcon->debug = (reg >> 20) & 0x1;
+	switch (subdev->index) {
+	case NVKM_ENGINE_GR:
+		debug_reg = 0x0;
+		break;
+	case NVKM_SUBDEV_PMU:
+		debug_reg = 0xc08;
+		break;
+	case NVKM_ENGINE_NVDEC:
+		debug_reg = 0xd00;
+		break;
+	case NVKM_ENGINE_SEC2:
+		debug_reg = 0x408;
+		falcon->has_emem = true;
+		break;
+	default:
+		nvkm_warn(subdev, "unsupported falcon %s!\n",
+			  nvkm_subdev_name[subdev->index]);
+		debug_reg = 0;
+		break;
+	}
+
+	if (debug_reg) {
+		u32 val = nvkm_falcon_rd32(falcon, debug_reg);
+		falcon->debug = (val >> 20) & 0x1;
+	}
 }
 
 void

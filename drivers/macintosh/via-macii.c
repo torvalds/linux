@@ -12,7 +12,7 @@
  * 1999-08-02 (jmt) - Initial rewrite for Unified ADB.
  * 2000-03-29 Tony Mantler <tonym@mac.linux-m68k.org>
  * 				- Big overhaul, should actually work now.
- * 2006-12-31 Finn Thain <fthain@telegraphics.com.au> - Another overhaul.
+ * 2006-12-31 Finn Thain - Another overhaul.
  *
  * Suggested reading:
  *   Inside Macintosh, ch. 5 ADB Manager

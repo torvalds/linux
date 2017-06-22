@@ -115,6 +115,8 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_PR_SUPPORTED	113
 #define SCTP_DEFAULT_PRINFO	114
 #define SCTP_PR_ASSOC_STATUS	115
+#define SCTP_PR_STREAM_STATUS	116
+#define SCTP_RECONFIG_SUPPORTED	117
 #define SCTP_ENABLE_STREAM_RESET	118
 #define SCTP_RESET_STREAMS	119
 #define SCTP_RESET_ASSOC	120
@@ -502,6 +504,28 @@ struct sctp_stream_reset_event {
 	__u16 strreset_stream_list[];
 };
 
+#define SCTP_ASSOC_RESET_DENIED		0x0004
+#define SCTP_ASSOC_RESET_FAILED		0x0008
+struct sctp_assoc_reset_event {
+	__u16 assocreset_type;
+	__u16 assocreset_flags;
+	__u32 assocreset_length;
+	sctp_assoc_t assocreset_assoc_id;
+	__u32 assocreset_local_tsn;
+	__u32 assocreset_remote_tsn;
+};
+
+#define SCTP_ASSOC_CHANGE_DENIED	0x0004
+#define SCTP_ASSOC_CHANGE_FAILED	0x0008
+struct sctp_stream_change_event {
+	__u16 strchange_type;
+	__u16 strchange_flags;
+	__u32 strchange_length;
+	sctp_assoc_t strchange_assoc_id;
+	__u16 strchange_instrms;
+	__u16 strchange_outstrms;
+};
+
 /*
  * Described in Section 7.3
  *   Ancillary Data and Notification Interest Options
@@ -518,6 +542,8 @@ struct sctp_event_subscribe {
 	__u8 sctp_authentication_event;
 	__u8 sctp_sender_dry_event;
 	__u8 sctp_stream_reset_event;
+	__u8 sctp_assoc_reset_event;
+	__u8 sctp_stream_change_event;
 };
 
 /*
@@ -543,6 +569,8 @@ union sctp_notification {
 	struct sctp_authkey_event sn_authkey_event;
 	struct sctp_sender_dry_event sn_sender_dry_event;
 	struct sctp_stream_reset_event sn_strreset_event;
+	struct sctp_assoc_reset_event sn_assocreset_event;
+	struct sctp_stream_change_event sn_strchange_event;
 };
 
 /* Section 5.3.1
@@ -572,6 +600,10 @@ enum sctp_sn_type {
 #define SCTP_SENDER_DRY_EVENT		SCTP_SENDER_DRY_EVENT
 	SCTP_STREAM_RESET_EVENT,
 #define SCTP_STREAM_RESET_EVENT		SCTP_STREAM_RESET_EVENT
+	SCTP_ASSOC_RESET_EVENT,
+#define SCTP_ASSOC_RESET_EVENT		SCTP_ASSOC_RESET_EVENT
+	SCTP_STREAM_CHANGE_EVENT,
+#define SCTP_STREAM_CHANGE_EVENT	SCTP_STREAM_CHANGE_EVENT
 };
 
 /* Notification error codes used to fill up the error fields in some

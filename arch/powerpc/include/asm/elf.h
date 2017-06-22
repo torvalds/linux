@@ -144,8 +144,8 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 #define ARCH_DLINFO_CACHE_GEOMETRY					\
 	NEW_AUX_ENT(AT_L1I_CACHESIZE, ppc64_caches.l1i.size);		\
 	NEW_AUX_ENT(AT_L1I_CACHEGEOMETRY, get_cache_geometry(l1i));	\
-	NEW_AUX_ENT(AT_L1D_CACHESIZE, ppc64_caches.l1i.size);		\
-	NEW_AUX_ENT(AT_L1D_CACHEGEOMETRY, get_cache_geometry(l1i));	\
+	NEW_AUX_ENT(AT_L1D_CACHESIZE, ppc64_caches.l1d.size);		\
+	NEW_AUX_ENT(AT_L1D_CACHEGEOMETRY, get_cache_geometry(l1d));	\
 	NEW_AUX_ENT(AT_L2_CACHESIZE, ppc64_caches.l2.size);		\
 	NEW_AUX_ENT(AT_L2_CACHEGEOMETRY, get_cache_geometry(l2));	\
 	NEW_AUX_ENT(AT_L3_CACHESIZE, ppc64_caches.l3.size);		\

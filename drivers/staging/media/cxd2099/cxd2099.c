@@ -131,7 +131,6 @@ static int read_reg(struct cxd *ci, u8 reg, u8 *val)
 	return read_block(ci, reg, val, 1);
 }
 
-
 static int read_pccard(struct cxd *ci, u16 address, u8 *data, u8 n)
 {
 	int status;
@@ -152,8 +151,8 @@ static int write_pccard(struct cxd *ci, u16 address, u8 *data, u8 n)
 	if (!status) {
 		u8 buf[256] = {3};
 
-		memcpy(buf+1, data, n);
-		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n+1);
+		memcpy(buf + 1, data, n);
+		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n + 1);
 	}
 	return status;
 }
@@ -180,34 +179,6 @@ static int write_io(struct cxd *ci, u16 address, u8 val)
 		status = i2c_write(ci->i2c, ci->cfg.adr, buf, 2);
 	return status;
 }
-
-#if 0
-static int read_io_data(struct cxd *ci, u8 *data, u8 n)
-{
-	int status;
-	u8 addr[3] = { 2, 0, 0 };
-
-	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
-	if (!status)
-		status = i2c_read(ci->i2c, ci->cfg.adr, 3, data, n);
-	return 0;
-}
-
-static int write_io_data(struct cxd *ci, u8 *data, u8 n)
-{
-	int status;
-	u8 addr[3] = {2, 0, 0};
-
-	status = i2c_write(ci->i2c, ci->cfg.adr, addr, 3);
-	if (!status) {
-		u8 buf[256] = {3};
-
-		memcpy(buf+1, data, n);
-		status = i2c_write(ci->i2c, ci->cfg.adr, buf, n + 1);
-	}
-	return 0;
-}
-#endif
 
 static int write_regm(struct cxd *ci, u8 reg, u8 val, u8 mask)
 {
@@ -292,8 +263,6 @@ static void cam_mode(struct cxd *ci, int mode)
 	ci->cammode = mode;
 }
 
-
-
 static int init(struct cxd *ci)
 {
 	int status;
@@ -329,12 +298,6 @@ static int init(struct cxd *ci)
 		if (status < 0)
 			break;
 
-#if 0
-		/* Input Mode C, BYPass Serial, TIVAL = low, MSB */
-		status = write_reg(ci, 0x09, 0x4D);
-		if (status < 0)
-			break;
-#endif
 		/* TOSTRT = 8, Mode B (gated clock), falling Edge,
 		 * Serial, POL=HIGH, MSB
 		 */
@@ -432,23 +395,6 @@ static int read_attribute_mem(struct dvb_ca_en50221 *ca,
 			      int slot, int address)
 {
 	struct cxd *ci = ca->data;
-#if 0
-	if (ci->amem_read) {
-		if (address <= 0 || address > 1024)
-			return -EIO;
-		return ci->amem[address];
-	}
-
-	mutex_lock(&ci->lock);
-	write_regm(ci, 0x06, 0x00, 0x05);
-	read_pccard(ci, 0, &ci->amem[0], 128);
-	read_pccard(ci, 128, &ci->amem[0], 128);
-	read_pccard(ci, 256, &ci->amem[0], 128);
-	read_pccard(ci, 384, &ci->amem[0], 128);
-	write_regm(ci, 0x06, 0x05, 0x05);
-	mutex_unlock(&ci->lock);
-	return ci->amem[address];
-#else
 	u8 val;
 
 	mutex_lock(&ci->lock);
@@ -457,7 +403,6 @@ static int read_attribute_mem(struct dvb_ca_en50221 *ca,
 	mutex_unlock(&ci->lock);
 	/* printk(KERN_INFO "%02x:%02x\n", address,val); */
 	return val;
-#endif
 }
 
 static int write_attribute_mem(struct dvb_ca_en50221 *ca, int slot,
@@ -502,15 +447,6 @@ static int slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	struct cxd *ci = ca->data;
 
 	mutex_lock(&ci->lock);
-#if 0
-	write_reg(ci, 0x00, 0x21);
-	write_reg(ci, 0x06, 0x1F);
-	write_reg(ci, 0x00, 0x31);
-#else
-#if 0
-	write_reg(ci, 0x06, 0x1F);
-	write_reg(ci, 0x06, 0x2F);
-#else
 	cam_mode(ci, 0);
 	write_reg(ci, 0x00, 0x21);
 	write_reg(ci, 0x06, 0x1F);
@@ -518,25 +454,14 @@ static int slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	write_regm(ci, 0x20, 0x80, 0x80);
 	write_reg(ci, 0x03, 0x02);
 	ci->ready = 0;
-#endif
-#endif
 	ci->mode = -1;
 	{
 		int i;
-#if 0
-		u8 val;
-#endif
+
 		for (i = 0; i < 100; i++) {
 			usleep_range(10000, 11000);
-#if 0
-			read_reg(ci, 0x06, &val);
-			dev_info(&ci->i2c->dev, "%d:%02x\n", i, val);
-			if (!(val&0x10))
-				break;
-#else
 			if (ci->ready)
 				break;
-#endif
 		}
 	}
 	mutex_unlock(&ci->lock);
@@ -572,7 +497,6 @@ static int slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 	return 0;
 }
 
-
 static int campoll(struct cxd *ci)
 {
 	u8 istat;
@@ -582,18 +506,18 @@ static int campoll(struct cxd *ci)
 		return 0;
 	write_reg(ci, 0x05, istat);
 
-	if (istat&0x40) {
+	if (istat & 0x40) {
 		ci->dr = 1;
 		dev_info(&ci->i2c->dev, "DR\n");
 	}
-	if (istat&0x20)
+	if (istat & 0x20)
 		dev_info(&ci->i2c->dev, "WC\n");
 
-	if (istat&2) {
+	if (istat & 2) {
 		u8 slotstat;
 
 		read_reg(ci, 0x01, &slotstat);
-		if (!(2&slotstat)) {
+		if (!(2 & slotstat)) {
 			if (!ci->slot_stat) {
 				ci->slot_stat = DVB_CA_EN50221_POLL_CAM_PRESENT;
 				write_regm(ci, 0x03, 0x08, 0x08);
@@ -607,7 +531,7 @@ static int campoll(struct cxd *ci)
 				ci->ready = 0;
 			}
 		}
-		if (istat&8 &&
+		if (istat & 8 &&
 		    ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT) {
 			ci->ready = 1;
 			ci->slot_stat |= DVB_CA_EN50221_POLL_CAM_READY;
@@ -615,7 +539,6 @@ static int campoll(struct cxd *ci)
 	}
 	return 0;
 }
-
 
 static int poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open)
 {
@@ -648,7 +571,7 @@ static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 	mutex_lock(&ci->lock);
 	read_reg(ci, 0x0f, &msb);
 	read_reg(ci, 0x10, &lsb);
-	len = (msb<<8)|lsb;
+	len = (msb << 8) | lsb;
 	read_block(ci, 0x12, ebuf, len);
 	ci->dr = 0;
 	mutex_unlock(&ci->lock);
@@ -662,8 +585,8 @@ static int write_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 
 	mutex_lock(&ci->lock);
 	dev_info(&ci->i2c->dev, "write_data %d\n", ecount);
-	write_reg(ci, 0x0d, ecount>>8);
-	write_reg(ci, 0x0e, ecount&0xff);
+	write_reg(ci, 0x0d, ecount >> 8);
+	write_reg(ci, 0x0e, ecount & 0xff);
 	write_block(ci, 0x11, ebuf, ecount);
 	mutex_unlock(&ci->lock);
 	return ecount;
@@ -698,7 +621,7 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 		return NULL;
 	}
 
-	ci = kzalloc(sizeof(struct cxd), GFP_KERNEL);
+	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)
 		return NULL;
 

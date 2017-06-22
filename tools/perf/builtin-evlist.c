@@ -46,7 +46,7 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 	return 0;
 }
 
-int cmd_evlist(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_evlist(int argc, const char **argv)
 {
 	struct perf_attr_details details = { .verbose = false, };
 	const struct option options[] = {

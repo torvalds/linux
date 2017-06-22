@@ -495,7 +495,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 	u8			element_id;
 	u8			*pcmd_buff;
 
-	/* 0. Check inpt arguments. If is is a command queue message or
+	/* 0. Check inpt arguments. It is a command queue message or
 	 * pointer is null.
 	 */
 	if (pstats == NULL)

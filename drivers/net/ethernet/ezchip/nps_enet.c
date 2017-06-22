@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/etherdevice.h>
+#include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_net.h>
@@ -189,10 +190,8 @@ static int nps_enet_poll(struct napi_struct *napi, int budget)
 
 	nps_enet_tx_handler(ndev);
 	work_done = nps_enet_rx_handler(ndev);
-	if (work_done < budget) {
+	if ((work_done < budget) && napi_complete_done(napi, work_done)) {
 		u32 buf_int_enable_value = 0;
-
-		napi_complete_done(napi, work_done);
 
 		/* set tx_done and rx_rdy bits */
 		buf_int_enable_value |= NPS_ENET_ENABLE << RX_RDY_SHIFT;

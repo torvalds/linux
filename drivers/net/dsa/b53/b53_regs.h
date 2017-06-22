@@ -104,6 +104,10 @@
 #define  B53_UC_FWD_EN			BIT(6)
 #define  B53_MC_FWD_EN			BIT(7)
 
+/* Switch control (8 bit) */
+#define B53_SWITCH_CTRL			0x22
+#define  B53_MII_DUMB_FWDG_EN		BIT(6)
+
 /* (16 bit) */
 #define B53_UC_FLOOD_MASK		0x32
 #define B53_MC_FLOOD_MASK		0x34
@@ -139,6 +143,7 @@
 /* Software reset register (8 bit) */
 #define B53_SOFTRESET			0x79
 #define   SW_RST			BIT(7)
+#define   EN_CH_RST			BIT(6)
 #define   EN_SW_RST			BIT(4)
 
 /* Fast Aging Control register (8 bit) */

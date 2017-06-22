@@ -50,3 +50,49 @@ names are "Notes" with information for dangerous or tricky corner cases,
 and "FIXME" where the interface could be cleaned up.
 
 Also read the :ref:`guidelines for the kernel documentation at large <doc_guide>`.
+
+Getting Started
+===============
+
+Developers interested in helping out with the DRM subsystem are very welcome.
+Often people will resort to sending in patches for various issues reported by
+checkpatch or sparse. We welcome such contributions.
+
+Anyone looking to kick it up a notch can find a list of janitorial tasks on
+the :ref:`TODO list <todo>`.
+
+Contribution Process
+====================
+
+Mostly the DRM subsystem works like any other kernel subsystem, see :ref:`the
+main process guidelines and documentation <process_index>` for how things work.
+Here we just document some of the specialities of the GPU subsystem.
+
+Feature Merge Deadlines
+-----------------------
+
+All feature work must be in the linux-next tree by the -rc6 release of the
+current release cycle, otherwise they must be postponed and can't reach the next
+merge window. All patches must have landed in the drm-next tree by latest -rc7,
+but if your branch is not in linux-next then this must have happened by -rc6
+already.
+
+After that point only bugfixes (like after the upstream merge window has closed
+with the -rc1 release) are allowed. No new platform enabling or new drivers are
+allowed.
+
+This means that there's a blackout-period of about one month where feature work
+can't be merged. The recommended way to deal with that is having a -next tree
+that's always open, but making sure to not feed it into linux-next during the
+blackout period. As an example, drm-misc works like that.
+
+Code of Conduct
+---------------
+
+As a freedesktop.org project, dri-devel, and the DRM community, follows the
+Contributor Covenant, found at: https://www.freedesktop.org/wiki/CodeOfConduct
+
+Please conduct yourself in a respectful and civilised manner when
+interacting with community members on mailing lists, IRC, or bug
+trackers. The community represents the project as a whole, and abusive
+or bullying behaviour is not tolerated by the project.

@@ -1,4 +1,8 @@
+#include <errno.h>
+#include <inttypes.h>
 #include "util.h"
+#include "string2.h"
+#include <sys/param.h>
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>
@@ -7,11 +11,15 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 #include "evlist.h"
 #include "evsel.h"
 #include "header.h"
+#include "memswap.h"
 #include "../perf.h"
 #include "trace-event.h"
 #include "session.h"
@@ -25,6 +33,8 @@
 #include "data.h"
 #include <api/fs/fs.h>
 #include "asm/bug.h"
+
+#include "sane_ctype.h"
 
 /*
  * magic2 = "PERFILE2"
@@ -370,15 +380,11 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 			 struct perf_evlist *evlist __maybe_unused)
 {
 	char buf[MAXPATHLEN];
-	char proc[32];
 	u32 n;
 	int i, ret;
 
-	/*
-	 * actual atual path to perf binary
-	 */
-	sprintf(proc, "/proc/%d/exe", getpid());
-	ret = readlink(proc, buf, sizeof(buf));
+	/* actual path to perf binary */
+	ret = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
 	if (ret <= 0)
 		return -1;
 
@@ -835,7 +841,7 @@ static int write_group_desc(int fd, struct perf_header *h __maybe_unused,
 
 /*
  * default get_cpuid(): nothing gets recorded
- * actual implementation must be in arch/$(ARCH)/util/header.c
+ * actual implementation must be in arch/$(SRCARCH)/util/header.c
  */
 int __weak get_cpuid(char *buffer __maybe_unused, size_t sz __maybe_unused)
 {
@@ -1463,8 +1469,16 @@ static int __event_process_build_id(struct build_id_event *bev,
 
 		dso__set_build_id(dso, &bev->build_id);
 
-		if (!is_kernel_module(filename, cpumode))
-			dso->kernel = dso_type;
+		if (dso_type != DSO_TYPE_USER) {
+			struct kmod_path m = { .name = NULL, };
+
+			if (!kmod_path__parse_name(&m, filename) && m.kmod)
+				dso__set_module_info(dso, &m, machine);
+			else
+				dso->kernel = dso_type;
+
+			free(m.name);
+		}
 
 		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
 				  sbuild_id);
@@ -2273,6 +2287,9 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
+
+	if (session->file->is_pipe)
+		return 0;
 
 	fprintf(fp, "# missing features: ");
 	for_each_clear_bit(bit, header->adds_features, HEADER_LAST_FEATURE) {

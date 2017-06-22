@@ -321,9 +321,16 @@ static const struct i2c_device_id mpl3115_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mpl3115_id);
 
+static const struct of_device_id mpl3115_of_match[] = {
+	{ .compatible = "fsl,mpl3115" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, mpl3115_of_match);
+
 static struct i2c_driver mpl3115_driver = {
 	.driver = {
 		.name	= "mpl3115",
+		.of_match_table = mpl3115_of_match,
 		.pm	= MPL3115_PM_OPS,
 	},
 	.probe = mpl3115_probe,

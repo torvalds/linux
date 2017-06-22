@@ -49,11 +49,13 @@
 #define REG_PHYBIST			0x08
 #define REG_PHYTUNE			0x0c
 #define REG_PHYCTL_A33			0x10
-#define REG_PHY_UNK_H3			0x20
+#define REG_PHY_OTGCTL			0x20
 
 #define REG_PMU_UNK1			0x10
 
 #define PHYCTL_DATA			BIT(7)
+
+#define OTGCTL_ROUTE_MUSB		BIT(0)
 
 #define SUNXI_AHB_ICHR8_EN		BIT(10)
 #define SUNXI_AHB_INCR4_BURST_EN	BIT(9)
@@ -110,6 +112,7 @@ struct sun4i_usb_phy_cfg {
 	u8 phyctl_offset;
 	bool dedicated_clocks;
 	bool enable_pmu_unk1;
+	bool phy0_dual_route;
 };
 
 struct sun4i_usb_phy_data {
@@ -188,10 +191,8 @@ static void sun4i_usb_phy_write(struct sun4i_usb_phy *phy, u32 addr, u32 data,
 
 	spin_lock_irqsave(&phy_data->reg_lock, flags);
 
-	if (phy_data->cfg->type == sun8i_a33_phy ||
-	    phy_data->cfg->type == sun50i_a64_phy ||
-	    phy_data->cfg->type == sun8i_v3s_phy) {
-		/* A33 or A64 needs us to set phyctl to 0 explicitly */
+	if (phy_data->cfg->phyctl_offset == REG_PHYCTL_A33) {
+		/* SoCs newer than A33 need us to set phyctl to 0 explicitly */
 		writel(0, phyctl);
 	}
 
@@ -271,23 +272,16 @@ static int sun4i_usb_phy_init(struct phy *_phy)
 		writel(val & ~2, phy->pmu + REG_PMU_UNK1);
 	}
 
-	if (data->cfg->type == sun8i_h3_phy) {
-		if (phy->index == 0) {
-			val = readl(data->base + REG_PHY_UNK_H3);
-			writel(val & ~1, data->base + REG_PHY_UNK_H3);
-		}
-	} else {
-		/* Enable USB 45 Ohm resistor calibration */
-		if (phy->index == 0)
-			sun4i_usb_phy_write(phy, PHY_RES45_CAL_EN, 0x01, 1);
+	/* Enable USB 45 Ohm resistor calibration */
+	if (phy->index == 0)
+		sun4i_usb_phy_write(phy, PHY_RES45_CAL_EN, 0x01, 1);
 
-		/* Adjust PHY's magnitude and rate */
-		sun4i_usb_phy_write(phy, PHY_TX_AMPLITUDE_TUNE, 0x14, 5);
+	/* Adjust PHY's magnitude and rate */
+	sun4i_usb_phy_write(phy, PHY_TX_AMPLITUDE_TUNE, 0x14, 5);
 
-		/* Disconnect threshold adjustment */
-		sun4i_usb_phy_write(phy, PHY_DISCON_TH_SEL,
-				    data->cfg->disc_thresh, 2);
-	}
+	/* Disconnect threshold adjustment */
+	sun4i_usb_phy_write(phy, PHY_DISCON_TH_SEL,
+			    data->cfg->disc_thresh, 2);
 
 	sun4i_usb_phy_passby(phy, 1);
 
@@ -486,6 +480,21 @@ static const struct phy_ops sun4i_usb_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static void sun4i_usb_phy0_reroute(struct sun4i_usb_phy_data *data, int id_det)
+{
+	u32 regval;
+
+	regval = readl(data->base + REG_PHY_OTGCTL);
+	if (id_det == 0) {
+		/* Host mode. Route phy0 to EHCI/OHCI */
+		regval &= ~OTGCTL_ROUTE_MUSB;
+	} else {
+		/* Peripheral mode. Route phy0 to MUSB */
+		regval |= OTGCTL_ROUTE_MUSB;
+	}
+	writel(regval, data->base + REG_PHY_OTGCTL);
+}
+
 static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 {
 	struct sun4i_usb_phy_data *data =
@@ -546,6 +555,10 @@ static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 			sun4i_usb_phy0_set_vbus_detect(phy0, 1);
 			mutex_unlock(&phy0->mutex);
 		}
+
+		/* Re-route PHY0 if necessary */
+		if (data->cfg->phy0_dual_route)
+			sun4i_usb_phy0_reroute(data, id_det);
 	}
 
 	if (vbus_notify)
@@ -700,7 +713,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 			return PTR_ERR(phy->reset);
 		}
 
-		if (i) { /* No pmu for usbc0 */
+		if (i || data->cfg->phy0_dual_route) { /* No pmu for musb */
 			snprintf(name, sizeof(name), "pmu%d", i);
 			res = platform_get_resource_byname(pdev,
 							IORESOURCE_MEM, name);
@@ -823,8 +836,10 @@ static const struct sun4i_usb_phy_cfg sun8i_h3_cfg = {
 	.num_phys = 4,
 	.type = sun8i_h3_phy,
 	.disc_thresh = 3,
+	.phyctl_offset = REG_PHYCTL_A33,
 	.dedicated_clocks = true,
 	.enable_pmu_unk1 = true,
+	.phy0_dual_route = true,
 };
 
 static const struct sun4i_usb_phy_cfg sun8i_v3s_cfg = {
@@ -843,6 +858,7 @@ static const struct sun4i_usb_phy_cfg sun50i_a64_cfg = {
 	.phyctl_offset = REG_PHYCTL_A33,
 	.dedicated_clocks = true,
 	.enable_pmu_unk1 = true,
+	.phy0_dual_route = true,
 };
 
 static const struct of_device_id sun4i_usb_phy_of_match[] = {

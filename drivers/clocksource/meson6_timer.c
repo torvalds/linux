@@ -133,13 +133,13 @@ static int __init meson6_timer_init(struct device_node *node)
 
 	timer_base = of_io_request_and_map(node, 0, "meson6-timer");
 	if (IS_ERR(timer_base)) {
-		pr_err("Can't map registers");
+		pr_err("Can't map registers\n");
 		return -ENXIO;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		return -EINVAL;
 	}
 

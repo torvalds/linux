@@ -38,6 +38,24 @@ Required properties:
 - #gpio-cells: Should be two. The first cell is the pin number. The
   second cell is reserved for flags, unused at the moment.
 
+Optional properties:
+
+In order to use the GPIO lines in PWM mode, some additional optional
+properties are required. Only Armada 370 and XP support these properties.
+
+- compatible: Must contain "marvell,armada-370-xp-gpio"
+
+- reg: an additional register set is needed, for the GPIO Blink
+  Counter on/off registers.
+
+- reg-names: Must contain an entry "pwm" corresponding to the
+  additional register range needed for PWM operation.
+
+- #pwm-cells: Should be two. The first cell is the GPIO line number. The
+  second cell is the period in nanoseconds.
+
+- clocks: Must be a phandle to the clock for the GPIO controller.
+
 Example:
 
 		gpio0: gpio@d0018100 {
@@ -50,4 +68,18 @@ Example:
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <16>, <17>, <18>, <19>;
+		};
+
+		gpio1: gpio@18140 {
+			compatible = "marvell,armada-370-xp-gpio";
+			reg = <0x18140 0x40>, <0x181c8 0x08>;
+			reg-names = "gpio", "pwm";
+			ngpios = <17>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			#pwm-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <87>, <88>, <89>;
+			clocks = <&coreclk 0>;
 		};

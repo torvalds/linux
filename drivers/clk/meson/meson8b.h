@@ -42,6 +42,21 @@
 #define HHI_VID_PLL_CNTL		0x320 /* 0xc8 offset in data sheet */
 
 /*
+ * MPLL register offeset taken from the S905 datasheet. Vendor kernel source
+ * confirm these are the same for the S805.
+ */
+#define HHI_MPLL_CNTL			0x280 /* 0xa0 offset in data sheet */
+#define HHI_MPLL_CNTL2			0x284 /* 0xa1 offset in data sheet */
+#define HHI_MPLL_CNTL3			0x288 /* 0xa2 offset in data sheet */
+#define HHI_MPLL_CNTL4			0x28C /* 0xa3 offset in data sheet */
+#define HHI_MPLL_CNTL5			0x290 /* 0xa4 offset in data sheet */
+#define HHI_MPLL_CNTL6			0x294 /* 0xa5 offset in data sheet */
+#define HHI_MPLL_CNTL7			0x298 /* 0xa6 offset in data sheet */
+#define HHI_MPLL_CNTL8			0x29C /* 0xa7 offset in data sheet */
+#define HHI_MPLL_CNTL9			0x2A0 /* 0xa8 offset in data sheet */
+#define HHI_MPLL_CNTL10			0x2A4 /* 0xa9 offset in data sheet */
+
+/*
  * CLKID index values
  *
  * These indices are entirely contrived and do not map onto the hardware.
@@ -142,8 +157,11 @@
 #define CLKID_AO_AHB_SRAM	90
 #define CLKID_AO_AHB_BUS	91
 #define CLKID_AO_IFACE		92
+#define CLKID_MPLL0		93
+#define CLKID_MPLL1		94
+#define CLKID_MPLL2		95
 
-#define CLK_NR_CLKS		93
+#define CLK_NR_CLKS		96
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/meson8b-clkc.h>

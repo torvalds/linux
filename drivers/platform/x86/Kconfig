@@ -141,6 +141,14 @@ config DELL_WMI_AIO
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi-aio.
 
+config DELL_WMI_LED
+	tristate "External LED on Dell Business Netbooks"
+	depends on LEDS_CLASS
+	depends on ACPI_WMI
+	help
+	  This adds support for the Latitude 2100 and similar
+	  notebooks that have an external LED.
+
 config DELL_SMO8800
 	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
 	depends on ACPI
@@ -174,7 +182,8 @@ config FUJITSU_LAPTOP
 	depends on INPUT
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
-	depends on LEDS_CLASS || LEDS_CLASS=n
+	select INPUT_SPARSEKMAP
+	select LEDS_CLASS
 	---help---
 	  This is a driver for laptops built by Fujitsu:
 
@@ -772,6 +781,19 @@ config ACPI_CMPC
 	  keys as input device, backlight device, tablet and accelerometer
 	  devices.
 
+config INTEL_CHT_INT33FE
+	tristate "Intel Cherry Trail ACPI INT33FE Driver"
+	depends on X86 && ACPI && I2C
+	---help---
+	  This driver add support for the INT33FE ACPI device found on
+	  some Intel Cherry Trail devices.
+
+	  The INT33FE ACPI device has a CRS table with I2cSerialBusV2
+	  resources for 3 devices: Maxim MAX17047 Fuel Gauge Controller,
+	  FUSB302 USB Type-C Controller and PI3USB30532 USB switch.
+	  This driver instantiates i2c-clients for these, so that standard
+	  i2c drivers for these chips can bind to the them.
+
 config INTEL_HID_EVENT
 	tristate "INTEL HID Event"
 	depends on ACPI
@@ -1011,7 +1033,7 @@ config INTEL_PMC_IPC
 config INTEL_BXTWC_PMIC_TMU
 	tristate "Intel BXT Whiskey Cove TMU Driver"
 	depends on REGMAP
-	depends on INTEL_SOC_PMIC && INTEL_PMC_IPC
+	depends on INTEL_SOC_PMIC_BXTWC && INTEL_PMC_IPC
 	---help---
 	  Select this driver to use Intel BXT Whiskey Cove PMIC TMU feature.
 	  This driver enables the alarm wakeup functionality in the TMU unit
@@ -1079,7 +1101,7 @@ config INTEL_TURBO_MAX_3
 
 config SILEAD_DMI
 	bool "Tablets with Silead touchscreens"
-	depends on ACPI && DMI && I2C=y && INPUT
+	depends on ACPI && DMI && I2C=y && TOUCHSCREEN_SILEAD
 	---help---
 	  Certain ACPI based tablets with Silead touchscreens do not have
 	  enough data in ACPI tables for the touchscreen driver to handle

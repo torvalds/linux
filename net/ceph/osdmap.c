@@ -317,6 +317,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		u32 yes;
 		struct crush_rule *r;
 
+		err = -EINVAL;
 		ceph_decode_32_safe(p, end, yes, bad);
 		if (!yes) {
 			dout("crush_decode NO rule %d off %x %p to %p\n",
@@ -390,9 +391,8 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	dout("crush decode tunable chooseleaf_stable = %d\n",
 	     c->chooseleaf_stable);
 
-	crush_finalize(c);
-
 done:
+	crush_finalize(c);
 	dout("crush_decode success\n");
 	return c;
 
@@ -1380,7 +1380,6 @@ static int decode_new_up_state_weight(void **p, void *end,
 		if ((map->osd_state[osd] & CEPH_OSD_EXISTS) &&
 		    (xorstate & CEPH_OSD_EXISTS)) {
 			pr_info("osd%d does not exist\n", osd);
-			map->osd_weight[osd] = CEPH_OSD_IN;
 			ret = set_primary_affinity(map, osd,
 						   CEPH_OSD_DEFAULT_PRIMARY_AFFINITY);
 			if (ret)

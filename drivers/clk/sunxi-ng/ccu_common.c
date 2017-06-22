@@ -14,11 +14,13 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/iopoll.h>
 #include <linux/slab.h>
 
 #include "ccu_common.h"
+#include "ccu_gate.h"
 #include "ccu_reset.h"
 
 static DEFINE_SPINLOCK(ccu_lock);
@@ -37,6 +39,53 @@ void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock)
 		addr = common->base + common->reg;
 
 	WARN_ON(readl_relaxed_poll_timeout(addr, reg, reg & lock, 100, 70000));
+}
+
+/*
+ * This clock notifier is called when the frequency of a PLL clock is
+ * changed. In common PLL designs, changes to the dividers take effect
+ * almost immediately, while changes to the multipliers (implemented
+ * as dividers in the feedback loop) take a few cycles to work into
+ * the feedback loop for the PLL to stablize.
+ *
+ * Sometimes when the PLL clock rate is changed, the decrease in the
+ * divider is too much for the decrease in the multiplier to catch up.
+ * The PLL clock rate will spike, and in some cases, might lock up
+ * completely.
+ *
+ * This notifier callback will gate and then ungate the clock,
+ * effectively resetting it, so it proceeds to work. Care must be
+ * taken to reparent consumers to other temporary clocks during the
+ * rate change, and that this notifier callback must be the first
+ * to be registered.
+ */
+static int ccu_pll_notifier_cb(struct notifier_block *nb,
+			       unsigned long event, void *data)
+{
+	struct ccu_pll_nb *pll = to_ccu_pll_nb(nb);
+	int ret = 0;
+
+	if (event != POST_RATE_CHANGE)
+		goto out;
+
+	ccu_gate_helper_disable(pll->common, pll->enable);
+
+	ret = ccu_gate_helper_enable(pll->common, pll->enable);
+	if (ret)
+		goto out;
+
+	ccu_helper_wait_for_lock(pll->common, pll->lock);
+
+out:
+	return notifier_from_errno(ret);
+}
+
+int ccu_pll_notifier_register(struct ccu_pll_nb *pll_nb)
+{
+	pll_nb->clk_nb.notifier_call = ccu_pll_notifier_cb;
+
+	return clk_notifier_register(pll_nb->common->hw.clk,
+				     &pll_nb->clk_nb);
 }
 
 int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
@@ -63,8 +112,8 @@ int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
 
 		ret = clk_hw_register(NULL, hw);
 		if (ret) {
-			pr_err("Couldn't register clock %s\n",
-			       clk_hw_get_name(hw));
+			pr_err("Couldn't register clock %d - %s\n",
+			       i, clk_hw_get_name(hw));
 			goto err_clk_unreg;
 		}
 	}

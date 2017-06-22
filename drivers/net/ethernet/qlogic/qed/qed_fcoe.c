@@ -191,7 +191,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	p_data->q_params.cq_sb_pi = fcoe_pf_params->gl_rq_pi;
 	p_data->q_params.cmdq_sb_pi = fcoe_pf_params->gl_cmd_pi;
 
-	p_data->q_params.bdq_resource_id = FCOE_BDQ_ID(p_hwfn->port_id);
+	p_data->q_params.bdq_resource_id = (u8)RESC_START(p_hwfn, QED_BDQ);
 
 	DMA_REGPAIR_LE(p_data->q_params.bdq_pbl_base_address[BDQ_ID_RQ],
 		       fcoe_pf_params->bdq_pbl_base_addr[BDQ_ID_RQ]);
@@ -241,7 +241,7 @@ qed_sp_fcoe_conn_offload(struct qed_hwfn *p_hwfn,
 	struct fcoe_conn_offload_ramrod_data *p_data;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	u16 pq_id = 0, tmp;
+	u16 physical_q0, tmp;
 	int rc;
 
 	/* Get SPQ entry */
@@ -261,9 +261,9 @@ qed_sp_fcoe_conn_offload(struct qed_hwfn *p_hwfn,
 	p_data = &p_ramrod->offload_ramrod_data;
 
 	/* Transmission PQ is the first of the PF */
-	pq_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_FCOE, NULL);
-	p_conn->physical_q0 = cpu_to_le16(pq_id);
-	p_data->physical_q0 = cpu_to_le16(pq_id);
+	physical_q0 = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
+	p_conn->physical_q0 = cpu_to_le16(physical_q0);
+	p_data->physical_q0 = cpu_to_le16(physical_q0);
 
 	p_data->conn_id = cpu_to_le16(p_conn->conn_id);
 	DMA_REGPAIR_LE(p_data->sq_pbl_addr, p_conn->sq_pbl_addr);
@@ -340,10 +340,10 @@ qed_sp_fcoe_conn_destroy(struct qed_hwfn *p_hwfn,
 
 static int
 qed_sp_fcoe_func_stop(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt,
 		      enum spq_mode comp_mode,
 		      struct qed_spq_comp_cb *p_comp_addr)
 {
-	struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	u32 active_segs = 0;
@@ -512,19 +512,31 @@ static void __iomem *qed_fcoe_get_db_addr(struct qed_hwfn *p_hwfn, u32 cid)
 static void __iomem *qed_fcoe_get_primary_bdq_prod(struct qed_hwfn *p_hwfn,
 						   u8 bdq_id)
 {
-	u8 bdq_function_id = FCOE_BDQ_ID(p_hwfn->port_id);
-
-	return (u8 __iomem *)p_hwfn->regview + GTT_BAR0_MAP_REG_MSDM_RAM +
-	       MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(bdq_function_id, bdq_id);
+	if (RESC_NUM(p_hwfn, QED_BDQ)) {
+		return (u8 __iomem *)p_hwfn->regview +
+		       GTT_BAR0_MAP_REG_MSDM_RAM +
+		       MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
+								  QED_BDQ),
+						       bdq_id);
+	} else {
+		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		return NULL;
+	}
 }
 
 static void __iomem *qed_fcoe_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 						     u8 bdq_id)
 {
-	u8 bdq_function_id = FCOE_BDQ_ID(p_hwfn->port_id);
-
-	return (u8 __iomem *)p_hwfn->regview + GTT_BAR0_MAP_REG_TSDM_RAM +
-	       TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(bdq_function_id, bdq_id);
+	if (RESC_NUM(p_hwfn, QED_BDQ)) {
+		return (u8 __iomem *)p_hwfn->regview +
+		       GTT_BAR0_MAP_REG_TSDM_RAM +
+		       TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
+								  QED_BDQ),
+						       bdq_id);
+	} else {
+		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		return NULL;
+	}
 }
 
 struct qed_fcoe_info *qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
@@ -753,6 +765,7 @@ static struct qed_hash_fcoe_con *qed_fcoe_get_hash(struct qed_dev *cdev,
 
 static int qed_fcoe_stop(struct qed_dev *cdev)
 {
+	struct qed_ptt *p_ptt;
 	int rc;
 
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED)) {
@@ -766,10 +779,15 @@ static int qed_fcoe_stop(struct qed_dev *cdev)
 		return -EINVAL;
 	}
 
+	p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+	if (!p_ptt)
+		return -EAGAIN;
+
 	/* Stop the fcoe */
-	rc = qed_sp_fcoe_func_stop(QED_LEADING_HWFN(cdev),
+	rc = qed_sp_fcoe_func_stop(QED_LEADING_HWFN(cdev), p_ptt,
 				   QED_SPQ_MODE_EBLOCK, NULL);
 	cdev->flags &= ~QED_FLAG_STORAGE_STARTED;
+	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
 
 	return rc;
 }

@@ -4,6 +4,7 @@
 #include <asm/uaccess_mm.h>
 #endif
 
+#include <asm/extable.h>
 #ifdef CONFIG_CPU_HAS_NO_UNALIGNED
 #include <asm-generic/uaccess-unaligned.h>
 #else

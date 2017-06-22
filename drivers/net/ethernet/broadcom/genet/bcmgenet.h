@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Broadcom Corporation
+ * Copyright (c) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -214,7 +214,9 @@ struct bcmgenet_mib_counters {
 #define  MDIO_REG_SHIFT			16
 #define  MDIO_REG_MASK			0x1F
 
-#define UMAC_RBUF_OVFL_CNT		0x61C
+#define UMAC_RBUF_OVFL_CNT_V1		0x61C
+#define RBUF_OVFL_CNT_V2		0x80
+#define RBUF_OVFL_CNT_V3PLUS		0x94
 
 #define UMAC_MPD_CTRL			0x620
 #define  MPD_EN				(1 << 0)
@@ -224,7 +226,9 @@ struct bcmgenet_mib_counters {
 
 #define UMAC_MPD_PW_MS			0x624
 #define UMAC_MPD_PW_LS			0x628
-#define UMAC_RBUF_ERR_CNT		0x634
+#define UMAC_RBUF_ERR_CNT_V1		0x634
+#define RBUF_ERR_CNT_V2			0x84
+#define RBUF_ERR_CNT_V3PLUS		0x98
 #define UMAC_MDF_ERR_CNT		0x638
 #define UMAC_MDF_CTRL			0x650
 #define UMAC_MDF_ADDR			0x654
@@ -351,8 +355,14 @@ struct bcmgenet_mib_counters {
 #define  EXT_PWR_DN_EN_LD		(1 << 3)
 #define  EXT_ENERGY_DET			(1 << 4)
 #define  EXT_IDDQ_FROM_PHY		(1 << 5)
+#define  EXT_IDDQ_GLBL_PWR		(1 << 7)
 #define  EXT_PHY_RESET			(1 << 8)
 #define  EXT_ENERGY_DET_MASK		(1 << 12)
+#define  EXT_PWR_DOWN_PHY_TX		(1 << 16)
+#define  EXT_PWR_DOWN_PHY_RX		(1 << 17)
+#define  EXT_PWR_DOWN_PHY_SD		(1 << 18)
+#define  EXT_PWR_DOWN_PHY_RD		(1 << 19)
+#define  EXT_PWR_DOWN_PHY_EN		(1 << 20)
 
 #define EXT_RGMII_OOB_CTRL		0x0C
 #define  RGMII_LINK			(1 << 4)
@@ -495,13 +505,15 @@ enum bcmgenet_version {
 	GENET_V1 = 1,
 	GENET_V2,
 	GENET_V3,
-	GENET_V4
+	GENET_V4,
+	GENET_V5
 };
 
 #define GENET_IS_V1(p)	((p)->version == GENET_V1)
 #define GENET_IS_V2(p)	((p)->version == GENET_V2)
 #define GENET_IS_V3(p)	((p)->version == GENET_V3)
 #define GENET_IS_V4(p)	((p)->version == GENET_V4)
+#define GENET_IS_V5(p)	((p)->version == GENET_V5)
 
 /* Hardware flags */
 #define GENET_HAS_40BITS	(1 << 0)
@@ -540,6 +552,8 @@ struct bcmgenet_skb_cb {
 struct bcmgenet_tx_ring {
 	spinlock_t	lock;		/* ring lock */
 	struct napi_struct napi;	/* NAPI per tx queue */
+	unsigned long	packets;
+	unsigned long	bytes;
 	unsigned int	index;		/* ring index */
 	unsigned int	queue;		/* queue index */
 	struct enet_cb	*cbs;		/* tx ring buffer control block*/
@@ -558,6 +572,10 @@ struct bcmgenet_tx_ring {
 
 struct bcmgenet_rx_ring {
 	struct napi_struct napi;	/* Rx NAPI struct */
+	unsigned long	bytes;
+	unsigned long	packets;
+	unsigned long	errors;
+	unsigned long	dropped;
 	unsigned int	index;		/* Rx ring index */
 	struct enet_cb	*cbs;		/* Rx ring buffer control block */
 	unsigned int	size;		/* Rx ring size */
@@ -619,10 +637,12 @@ struct bcmgenet_priv {
 	struct work_struct bcmgenet_irq_work;
 	int irq0;
 	int irq1;
-	unsigned int irq0_stat;
-	unsigned int irq1_stat;
 	int wol_irq;
 	bool wol_irq_disabled;
+
+	/* shared status */
+	spinlock_t lock;
+	unsigned int irq0_stat;
 
 	/* HW descriptors/checksum variables */
 	bool desc_64b_en;

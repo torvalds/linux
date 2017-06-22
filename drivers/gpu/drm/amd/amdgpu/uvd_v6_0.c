@@ -54,7 +54,7 @@ static void uvd_v6_0_enable_mgcg(struct amdgpu_device *adev,
  *
  * Returns the current hardware read pointer
  */
-static uint32_t uvd_v6_0_ring_get_rptr(struct amdgpu_ring *ring)
+static uint64_t uvd_v6_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -68,7 +68,7 @@ static uint32_t uvd_v6_0_ring_get_rptr(struct amdgpu_ring *ring)
  *
  * Returns the current hardware write pointer
  */
-static uint32_t uvd_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
+static uint64_t uvd_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -86,7 +86,7 @@ static void uvd_v6_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	WREG32(mmUVD_RBC_RB_WPTR, ring->wptr);
+	WREG32(mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 }
 
 static int uvd_v6_0_early_init(void *handle)
@@ -106,7 +106,7 @@ static int uvd_v6_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* UVD TRAP */
-	r = amdgpu_irq_add_id(adev, 124, &adev->uvd.irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 124, &adev->uvd.irq);
 	if (r)
 		return r;
 
@@ -134,11 +134,7 @@ static int uvd_v6_0_sw_fini(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_sw_fini(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_sw_fini(adev);
 }
 
 /**
@@ -230,11 +226,8 @@ static int uvd_v6_0_suspend(void *handle)
 		return r;
 
 	/* Skip this for APU for now */
-	if (!(adev->flags & AMD_IS_APU)) {
+	if (!(adev->flags & AMD_IS_APU))
 		r = amdgpu_uvd_suspend(adev);
-		if (r)
-			return r;
-	}
 
 	return r;
 }
@@ -250,11 +243,7 @@ static int uvd_v6_0_resume(void *handle)
 		if (r)
 			return r;
 	}
-	r = uvd_v6_0_hw_init(adev);
-	if (r)
-		return r;
-
-	return r;
+	return uvd_v6_0_hw_init(adev);
 }
 
 /**
@@ -521,7 +510,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	WREG32(mmUVD_RBC_RB_RPTR, 0);
 
 	ring->wptr = RREG32(mmUVD_RBC_RB_RPTR);
-	WREG32(mmUVD_RBC_RB_WPTR, ring->wptr);
+	WREG32(mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 
 	WREG32_FIELD(UVD_RBC_RB_CNTL, RB_NO_FETCH, 0);
 
@@ -1068,8 +1057,12 @@ static void uvd_v6_0_get_clockgating_state(void *handle, u32 *flags)
 
 	mutex_lock(&adev->pm.mutex);
 
-	if (RREG32_SMC(ixCURRENT_PG_STATUS) &
-				CURRENT_PG_STATUS__UVD_PG_STATUS_MASK) {
+	if (adev->flags & AMD_IS_APU)
+		data = RREG32_SMC(ixCURRENT_PG_STATUS_APU);
+	else
+		data = RREG32_SMC(ixCURRENT_PG_STATUS);
+
+	if (data & CURRENT_PG_STATUS__UVD_PG_STATUS_MASK) {
 		DRM_INFO("Cannot get clockgating state when UVD is powergated.\n");
 		goto out;
 	}
@@ -1108,6 +1101,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
 	.nop = PACKET0(mmUVD_NO_OP, 0),
+	.support_64bit_ptrs = false,
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
@@ -1134,6 +1128,7 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
 	.nop = PACKET0(mmUVD_NO_OP, 0),
+	.support_64bit_ptrs = false,
 	.get_rptr = uvd_v6_0_ring_get_rptr,
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,

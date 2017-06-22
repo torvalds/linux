@@ -14,6 +14,7 @@ config BLK_DEV_XPRAM
 
 config DCSSBLK
 	def_tristate m
+	select DAX
 	prompt "DCSSBLK support"
 	depends on S390 && BLOCK
 	help

@@ -336,7 +336,7 @@ cleanup:
 	return ret;
 }
 
-static int __exit ad5820_remove(struct i2c_client *client)
+static int ad5820_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct ad5820_device *coil = to_ad5820_device(subdev);
@@ -362,7 +362,7 @@ static struct i2c_driver ad5820_i2c_driver = {
 		.pm	= &ad5820_pm,
 	},
 	.probe		= ad5820_probe,
-	.remove		= __exit_p(ad5820_remove),
+	.remove		= ad5820_remove,
 	.id_table	= ad5820_id_table,
 };
 

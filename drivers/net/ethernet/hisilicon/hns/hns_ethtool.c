@@ -146,7 +146,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 
 	/* When there is no phy, autoneg is off. */
 	cmd->base.autoneg = false;
-	cmd->base.cmd = speed;
+	cmd->base.speed = speed;
 	cmd->base.duplex = duplex;
 
 	if (net_dev->phydev)
@@ -288,9 +288,15 @@ static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 
 		/* Force 1000M Link, Default is 0x0200 */
 		phy_write(phy_dev, 7, 0x20C);
-		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
 
-		/* Enable PHY loop-back */
+		/* Powerup Fiber */
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 1);
+		val = phy_read(phy_dev, COPPER_CONTROL_REG);
+		val &= ~PHY_POWER_DOWN;
+		phy_write(phy_dev, COPPER_CONTROL_REG, val);
+
+		/* Enable Phy Loopback */
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
 		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val |= PHY_LOOP_BACK;
 		val &= ~PHY_POWER_DOWN;
@@ -299,6 +305,12 @@ static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0xFA);
 		phy_write(phy_dev, 1, 0x400);
 		phy_write(phy_dev, 7, 0x200);
+
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 1);
+		val = phy_read(phy_dev, COPPER_CONTROL_REG);
+		val |= PHY_POWER_DOWN;
+		phy_write(phy_dev, COPPER_CONTROL_REG, val);
+
 		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
 		phy_write(phy_dev, 9, 0xF00);
 
@@ -764,14 +776,14 @@ static int hns_get_coalesce(struct net_device *net_dev,
 	ec->use_adaptive_tx_coalesce = 1;
 
 	if ((!ops->get_coalesce_usecs) ||
-	    (!ops->get_rx_max_coalesced_frames))
+	    (!ops->get_max_coalesced_frames))
 		return -ESRCH;
 
 	ops->get_coalesce_usecs(priv->ae_handle,
 					&ec->tx_coalesce_usecs,
 					&ec->rx_coalesce_usecs);
 
-	ops->get_rx_max_coalesced_frames(
+	ops->get_max_coalesced_frames(
 		priv->ae_handle,
 		&ec->tx_max_coalesced_frames,
 		&ec->rx_max_coalesced_frames);
@@ -801,30 +813,28 @@ static int hns_set_coalesce(struct net_device *net_dev,
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
-	int ret;
+	int rc1, rc2;
 
 	ops = priv->ae_handle->dev->ops;
 
 	if (ec->tx_coalesce_usecs != ec->rx_coalesce_usecs)
 		return -EINVAL;
 
-	if (ec->rx_max_coalesced_frames != ec->tx_max_coalesced_frames)
-		return -EINVAL;
-
 	if ((!ops->set_coalesce_usecs) ||
 	    (!ops->set_coalesce_frames))
 		return -ESRCH;
 
-	ret = ops->set_coalesce_usecs(priv->ae_handle,
+	rc1 = ops->set_coalesce_usecs(priv->ae_handle,
 				      ec->rx_coalesce_usecs);
-	if (ret)
-		return ret;
 
-	ret = ops->set_coalesce_frames(
-		priv->ae_handle,
-		ec->rx_max_coalesced_frames);
+	rc2 = ops->set_coalesce_frames(priv->ae_handle,
+				       ec->tx_max_coalesced_frames,
+				       ec->rx_max_coalesced_frames);
 
-	return ret;
+	if (rc1 || rc2)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
@@ -1253,12 +1263,10 @@ hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
 
 	ops = priv->ae_handle->dev->ops;
 
-	/* currently hfunc can only be Toeplitz hash */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP) {
+		netdev_err(netdev, "Invalid hfunc!\n");
 		return -EOPNOTSUPP;
-	if (!indir)
-		return 0;
+	}
 
 	return ops->set_rss(priv->ae_handle, indir, key, hfunc);
 }

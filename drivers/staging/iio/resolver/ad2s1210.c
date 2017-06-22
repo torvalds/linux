@@ -490,8 +490,8 @@ static int ad2s1210_read_raw(struct iio_dev *indio_dev,
 		ad2s1210_set_mode(MOD_VEL, st);
 		break;
 	default:
-	       ret = -EINVAL;
-	       break;
+		ret = -EINVAL;
+		break;
 	}
 	if (ret < 0)
 		goto error_ret;
@@ -531,36 +531,36 @@ error_ret:
 	return ret;
 }
 
-static IIO_DEVICE_ATTR(fclkin, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(fclkin, 0644,
 		       ad2s1210_show_fclkin, ad2s1210_store_fclkin, 0);
-static IIO_DEVICE_ATTR(fexcit, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(fexcit, 0644,
 		       ad2s1210_show_fexcit,	ad2s1210_store_fexcit, 0);
-static IIO_DEVICE_ATTR(control, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(control, 0644,
 		       ad2s1210_show_control, ad2s1210_store_control, 0);
-static IIO_DEVICE_ATTR(bits, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(bits, 0644,
 		       ad2s1210_show_resolution, ad2s1210_store_resolution, 0);
-static IIO_DEVICE_ATTR(fault, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(fault, 0644,
 		       ad2s1210_show_fault, ad2s1210_clear_fault, 0);
 
-static IIO_DEVICE_ATTR(los_thrd, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(los_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_LOS_THRD);
-static IIO_DEVICE_ATTR(dos_ovr_thrd, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(dos_ovr_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_DOS_OVR_THRD);
-static IIO_DEVICE_ATTR(dos_mis_thrd, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(dos_mis_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_DOS_MIS_THRD);
-static IIO_DEVICE_ATTR(dos_rst_max_thrd, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(dos_rst_max_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_DOS_RST_MAX_THRD);
-static IIO_DEVICE_ATTR(dos_rst_min_thrd, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(dos_rst_min_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_DOS_RST_MIN_THRD);
-static IIO_DEVICE_ATTR(lot_high_thrd, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(lot_high_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_LOT_HIGH_THRD);
-static IIO_DEVICE_ATTR(lot_low_thrd, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(lot_low_thrd, 0644,
 		       ad2s1210_show_reg, ad2s1210_store_reg,
 		       AD2S1210_REG_LOT_LOW_THRD);
 

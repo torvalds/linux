@@ -42,8 +42,8 @@ Video capture devices shall support :ref:`audio input <audio>`,
 :ref:`tuner`, :ref:`controls <control>`,
 :ref:`cropping and scaling <crop>` and
 :ref:`streaming parameter <streaming-par>` ioctls as needed. The
-:ref:`video input <video>` and :ref:`video standard <standard>`
-ioctls must be supported by all video capture devices.
+:ref:`video input <video>` ioctls must be supported by all video
+capture devices.
 
 
 Image Format Negotiation

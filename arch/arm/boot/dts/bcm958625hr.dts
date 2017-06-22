@@ -55,6 +55,7 @@
 	gpio-restart {
 		compatible = "gpio-restart";
 		gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;
+		open-source;
 		priority = <200>;
 	};
 };
@@ -68,6 +69,10 @@
 };
 
 &amac2 {
+	status = "okay";
+};
+
+&ehci0 {
 	status = "okay";
 };
 
@@ -107,6 +112,10 @@
 			reg = <0x04000000 0x3c000000>;
 		};
 	};
+};
+
+&ohci0 {
+	status = "okay";
 };
 
 &pcie0 {

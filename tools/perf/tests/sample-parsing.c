@@ -1,4 +1,6 @@
 #include <stdbool.h>
+#include <inttypes.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 
 #include "util.h"

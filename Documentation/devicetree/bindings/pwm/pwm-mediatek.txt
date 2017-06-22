@@ -1,0 +1,34 @@
+MediaTek PWM controller
+
+Required properties:
+ - compatible: should be "mediatek,<name>-pwm":
+   - "mediatek,mt7623-pwm": found on mt7623 SoC.
+ - reg: physical base address and length of the controller's registers.
+ - #pwm-cells: must be 2. See pwm.txt in this directory for a description of
+   the cell format.
+ - clocks: phandle and clock specifier of the PWM reference clock.
+ - clock-names: must contain the following:
+   - "top": the top clock generator
+   - "main": clock used by the PWM core
+   - "pwm1-5": the five per PWM clocks
+ - pinctrl-names: Must contain a "default" entry.
+ - pinctrl-0: One property must exist for each entry in pinctrl-names.
+   See pinctrl/pinctrl-bindings.txt for details of the property values.
+
+Example:
+	pwm0: pwm@11006000 {
+		compatible = "mediatek,mt7623-pwm";
+		reg = <0 0x11006000 0 0x1000>;
+		#pwm-cells = <2>;
+		clocks = <&topckgen CLK_TOP_PWM_SEL>,
+			 <&pericfg CLK_PERI_PWM>,
+			 <&pericfg CLK_PERI_PWM1>,
+			 <&pericfg CLK_PERI_PWM2>,
+			 <&pericfg CLK_PERI_PWM3>,
+			 <&pericfg CLK_PERI_PWM4>,
+			 <&pericfg CLK_PERI_PWM5>;
+		clock-names = "top", "main", "pwm1", "pwm2",
+			      "pwm3", "pwm4", "pwm5";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm0_pins>;
+	};

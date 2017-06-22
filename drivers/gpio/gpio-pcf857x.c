@@ -46,7 +46,6 @@ static const struct i2c_device_id pcf857x_id[] = {
 	{ "pca9675", 16 },
 	{ "max7328", 8 },
 	{ "max7329", 8 },
-	{ "tca9554", 8 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf857x_id);
@@ -66,7 +65,6 @@ static const struct of_device_id pcf857x_of_table[] = {
 	{ .compatible = "nxp,pca9675" },
 	{ .compatible = "maxim,max7328" },
 	{ .compatible = "maxim,max7329" },
-	{ .compatible = "ti,tca9554" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcf857x_of_table);

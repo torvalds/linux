@@ -1,0 +1,18 @@
+* Add a DPAA2 MAC kernel driver in order to allow PHY management; currently
+  the DPMAC objects and their link to DPNIs are handled by MC internally
+  and all PHYs are seen as fixed-link
+* add more debug support: decide how to expose detailed debug statistics,
+  add ingress error queue support
+* MC firmware uprev; the DPAA2 objects used by the Ethernet driver need to
+  be kept in sync with binary interface changes in MC
+* refine README file
+* cleanup
+
+NOTE: None of the above is must-have before getting the DPAA2 Ethernet driver
+out of staging. The main requirement for that is to have the drivers it
+depends on, fsl-mc bus and DPIO driver, moved to drivers/bus and drivers/soc
+respectively.
+
+ Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ ruxandra.radulescu@nxp.com, devel@driverdev.osuosl.org,
+ linux-kernel@vger.kernel.org

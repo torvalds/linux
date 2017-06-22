@@ -61,7 +61,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		ret = st->core.read_ec_sensors_data(indio_dev, 1 << idx, &data);
 		if (ret < 0)
 			break;
-
+		ret = IIO_VAL_INT;
 		*val = data;
 		break;
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -76,7 +76,7 @@ static int cros_ec_sensors_read(struct iio_dev *indio_dev,
 		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
 			st->core.calib[i] =
 				st->core.resp->sensor_offset.offset[i];
-
+		ret = IIO_VAL_INT;
 		*val = st->core.calib[idx];
 		break;
 	case IIO_CHAN_INFO_SCALE:
@@ -267,31 +267,12 @@ static int cros_ec_sensors_probe(struct platform_device *pdev)
 	else
 		state->core.read_ec_sensors_data = cros_ec_sensors_read_cmd;
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 cros_ec_sensors_capture, NULL);
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+			cros_ec_sensors_capture, NULL);
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_uninit_buffer;
-
-	return 0;
-
-error_uninit_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return ret;
-}
-
-static int cros_ec_sensors_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct platform_device_id cros_ec_sensors_ids[] = {
@@ -313,7 +294,6 @@ static struct platform_driver cros_ec_sensors_platform_driver = {
 		.name	= "cros-ec-sensors",
 	},
 	.probe		= cros_ec_sensors_probe,
-	.remove		= cros_ec_sensors_remove,
 	.id_table	= cros_ec_sensors_ids,
 };
 module_platform_driver(cros_ec_sensors_platform_driver);

@@ -143,15 +143,6 @@ struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
 						struct fwnode_handle *child,
 						enum gpiod_flags flags,
 						const char *label);
-/* FIXME: delete this helper when users are switched over */
-static inline struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
-			  const char *con_id, struct fwnode_handle *child)
-{
-	return devm_fwnode_get_index_gpiod_from_child(dev, con_id,
-						      0, child,
-						      GPIOD_ASIS,
-						      "?");
-}
 
 #else /* CONFIG_GPIOLIB */
 
@@ -179,14 +170,14 @@ static inline struct gpio_desc *__must_check
 gpiod_get_optional(struct device *dev, const char *con_id,
 		   enum gpiod_flags flags)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline struct gpio_desc *__must_check
 gpiod_get_index_optional(struct device *dev, const char *con_id,
 			 unsigned int index, enum gpiod_flags flags)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline struct gpio_descs *__must_check
@@ -200,7 +191,7 @@ static inline struct gpio_descs *__must_check
 gpiod_get_array_optional(struct device *dev, const char *con_id,
 			 enum gpiod_flags flags)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline void gpiod_put(struct gpio_desc *desc)
@@ -240,14 +231,14 @@ static inline struct gpio_desc *__must_check
 devm_gpiod_get_optional(struct device *dev, const char *con_id,
 			  enum gpiod_flags flags)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline struct gpio_desc *__must_check
 devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
 				unsigned int index, enum gpiod_flags flags)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline struct gpio_descs *__must_check
@@ -261,7 +252,7 @@ static inline struct gpio_descs *__must_check
 devm_gpiod_get_array_optional(struct device *dev, const char *con_id,
 			      enum gpiod_flags flags)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
@@ -440,13 +431,6 @@ struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
 						struct fwnode_handle *child,
 						enum gpiod_flags flags,
 						const char *label)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-/* FIXME: delete this when all users are switched over */
-static inline struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
-			  const char *con_id, struct fwnode_handle *child)
 {
 	return ERR_PTR(-ENOSYS);
 }

@@ -229,7 +229,7 @@ static int xgene_xfi_mdio_write(struct mii_bus *bus, int phy_id,
 
 	val = SET_VAL(HSTPHYADX, phy_id) | SET_VAL(HSTREGADX, reg) |
 	      SET_VAL(HSTMIIMWRDAT, data);
-	xgene_enet_wr_mdio_csr(addr, MIIM_FIELD_ADDR, data);
+	xgene_enet_wr_mdio_csr(addr, MIIM_FIELD_ADDR, val);
 
 	val = HSTLDCMD | SET_VAL(HSTMIIMCMD, MIIM_CMD_LEGACY_WRITE);
 	xgene_enet_wr_mdio_csr(addr, MIIM_COMMAND_ADDR, val);

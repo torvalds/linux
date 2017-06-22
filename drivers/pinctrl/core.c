@@ -525,7 +525,7 @@ pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_find_gpio_range_from_pin);
 
 /**
- * pinctrl_remove_gpio_range() - remove a range of GPIOs fro a pin controller
+ * pinctrl_remove_gpio_range() - remove a range of GPIOs from a pin controller
  * @pctldev: pin controller device to remove the range from
  * @range: the GPIO range to remove
  */
@@ -680,30 +680,16 @@ EXPORT_SYMBOL_GPL(pinctrl_generic_remove_group);
  * pinctrl_generic_free_groups() - removes all pin groups
  * @pctldev: pin controller device
  *
- * Note that the caller must take care of locking.
+ * Note that the caller must take care of locking. The pinctrl groups
+ * are allocated with devm_kzalloc() so no need to free them here.
  */
 static void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
 {
 	struct radix_tree_iter iter;
-	struct group_desc *group;
-	unsigned long *indices;
 	void **slot;
-	int i = 0;
-
-	indices = devm_kzalloc(pctldev->dev, sizeof(*indices) *
-			       pctldev->num_groups, GFP_KERNEL);
-	if (!indices)
-		return;
 
 	radix_tree_for_each_slot(slot, &pctldev->pin_group_tree, &iter, 0)
-		indices[i++] = iter.index;
-
-	for (i = 0; i < pctldev->num_groups; i++) {
-		group = radix_tree_lookup(&pctldev->pin_group_tree,
-					  indices[i]);
-		radix_tree_delete(&pctldev->pin_group_tree, indices[i]);
-		devm_kfree(pctldev->dev, group);
-	}
+		radix_tree_delete(&pctldev->pin_group_tree, iter.index);
 
 	pctldev->num_groups = 0;
 }
@@ -1062,7 +1048,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	mutex_unlock(&pinctrl_maps_mutex);
 
 	if (ret < 0) {
-		/* If some other error than deferral occured, return here */
+		/* If some other error than deferral occurred, return here */
 		pinctrl_free(p, false);
 		return ERR_PTR(ret);
 	}
@@ -1939,9 +1925,9 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
  * @dev: parent device for this pin controller
  * @driver_data: private pin controller data for this pin controller
  */
-struct pinctrl_dev *pinctrl_init_controller(struct pinctrl_desc *pctldesc,
-					    struct device *dev,
-					    void *driver_data)
+static struct pinctrl_dev *
+pinctrl_init_controller(struct pinctrl_desc *pctldesc, struct device *dev,
+			void *driver_data)
 {
 	struct pinctrl_dev *pctldev;
 	int ret;
@@ -2010,29 +1996,57 @@ out_err:
 	return ERR_PTR(ret);
 }
 
-static int pinctrl_create_and_start(struct pinctrl_dev *pctldev)
+static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
 {
 	pctldev->p = create_pinctrl(pctldev->dev, pctldev);
-	if (!IS_ERR(pctldev->p)) {
-		kref_get(&pctldev->p->users);
-		pctldev->hog_default =
-			pinctrl_lookup_state(pctldev->p, PINCTRL_STATE_DEFAULT);
-		if (IS_ERR(pctldev->hog_default)) {
-			dev_dbg(pctldev->dev,
-				"failed to lookup the default state\n");
-		} else {
-			if (pinctrl_select_state(pctldev->p,
-						pctldev->hog_default))
-				dev_err(pctldev->dev,
-					"failed to select default state\n");
-		}
+	if (PTR_ERR(pctldev->p) == -ENODEV) {
+		dev_dbg(pctldev->dev, "no hogs found\n");
 
-		pctldev->hog_sleep =
-			pinctrl_lookup_state(pctldev->p,
-						    PINCTRL_STATE_SLEEP);
-		if (IS_ERR(pctldev->hog_sleep))
-			dev_dbg(pctldev->dev,
-				"failed to lookup the sleep state\n");
+		return 0;
+	}
+
+	if (IS_ERR(pctldev->p)) {
+		dev_err(pctldev->dev, "error claiming hogs: %li\n",
+			PTR_ERR(pctldev->p));
+
+		return PTR_ERR(pctldev->p);
+	}
+
+	kref_get(&pctldev->p->users);
+	pctldev->hog_default =
+		pinctrl_lookup_state(pctldev->p, PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(pctldev->hog_default)) {
+		dev_dbg(pctldev->dev,
+			"failed to lookup the default state\n");
+	} else {
+		if (pinctrl_select_state(pctldev->p,
+					 pctldev->hog_default))
+			dev_err(pctldev->dev,
+				"failed to select default state\n");
+	}
+
+	pctldev->hog_sleep =
+		pinctrl_lookup_state(pctldev->p,
+				     PINCTRL_STATE_SLEEP);
+	if (IS_ERR(pctldev->hog_sleep))
+		dev_dbg(pctldev->dev,
+			"failed to lookup the sleep state\n");
+
+	return 0;
+}
+
+int pinctrl_enable(struct pinctrl_dev *pctldev)
+{
+	int error;
+
+	error = pinctrl_claim_hogs(pctldev);
+	if (error) {
+		dev_err(pctldev->dev, "could not claim hogs: %i\n",
+			error);
+		mutex_destroy(&pctldev->mutex);
+		kfree(pctldev);
+
+		return error;
 	}
 
 	mutex_lock(&pinctrldev_list_mutex);
@@ -2043,6 +2057,7 @@ static int pinctrl_create_and_start(struct pinctrl_dev *pctldev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pinctrl_enable);
 
 /**
  * pinctrl_register() - register a pin controller device
@@ -2065,25 +2080,30 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	if (IS_ERR(pctldev))
 		return pctldev;
 
-	error = pinctrl_create_and_start(pctldev);
-	if (error) {
-		mutex_destroy(&pctldev->mutex);
-		kfree(pctldev);
-
+	error = pinctrl_enable(pctldev);
+	if (error)
 		return ERR_PTR(error);
-	}
 
 	return pctldev;
 
 }
 EXPORT_SYMBOL_GPL(pinctrl_register);
 
+/**
+ * pinctrl_register_and_init() - register and init pin controller device
+ * @pctldesc: descriptor for this pin controller
+ * @dev: parent device for this pin controller
+ * @driver_data: private pin controller data for this pin controller
+ * @pctldev: pin controller device
+ *
+ * Note that pinctrl_enable() still needs to be manually called after
+ * this once the driver is ready.
+ */
 int pinctrl_register_and_init(struct pinctrl_desc *pctldesc,
 			      struct device *dev, void *driver_data,
 			      struct pinctrl_dev **pctldev)
 {
 	struct pinctrl_dev *p;
-	int error;
 
 	p = pinctrl_init_controller(pctldesc, dev, driver_data);
 	if (IS_ERR(p))
@@ -2096,15 +2116,6 @@ int pinctrl_register_and_init(struct pinctrl_desc *pctldesc,
 	 * pin controller driver before we do anything.
 	 */
 	*pctldev = p;
-
-	error = pinctrl_create_and_start(p);
-	if (error) {
-		mutex_destroy(&p->mutex);
-		kfree(p);
-		*pctldev = NULL;
-
-		return error;
-	}
 
 	return 0;
 }

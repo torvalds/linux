@@ -306,9 +306,17 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size)
 		}
 	}
 
-	usb_fill_bulk_urb(ctx->urb, card->udev,
-			  usb_rcvbulkpipe(card->udev, ctx->ep), ctx->skb->data,
-			  size, mwifiex_usb_rx_complete, (void *)ctx);
+	if (card->rx_cmd_ep == ctx->ep &&
+	    card->rx_cmd_ep_type == USB_ENDPOINT_XFER_INT)
+		usb_fill_int_urb(ctx->urb, card->udev,
+				 usb_rcvintpipe(card->udev, ctx->ep),
+				 ctx->skb->data, size, mwifiex_usb_rx_complete,
+				 (void *)ctx, card->rx_cmd_interval);
+	else
+		usb_fill_bulk_urb(ctx->urb, card->udev,
+				  usb_rcvbulkpipe(card->udev, ctx->ep),
+				  ctx->skb->data, size, mwifiex_usb_rx_complete,
+				  (void *)ctx);
 
 	if (card->rx_cmd_ep == ctx->ep)
 		atomic_inc(&card->rx_cmd_urb_pending);
@@ -424,10 +432,13 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		epd = &iface_desc->endpoint[i].desc;
 		if (usb_endpoint_dir_in(epd) &&
 		    usb_endpoint_num(epd) == MWIFIEX_USB_EP_CMD_EVENT &&
-		    usb_endpoint_xfer_bulk(epd)) {
-			pr_debug("info: bulk IN: max pkt size: %d, addr: %d\n",
+		    (usb_endpoint_xfer_bulk(epd) ||
+		     usb_endpoint_xfer_int(epd))) {
+			card->rx_cmd_ep_type = usb_endpoint_type(epd);
+			card->rx_cmd_interval = epd->bInterval;
+			pr_debug("info: Rx CMD/EVT:: max pkt size: %d, addr: %d, ep_type: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
-				 epd->bEndpointAddress);
+				 epd->bEndpointAddress, card->rx_cmd_ep_type);
 			card->rx_cmd_ep = usb_endpoint_num(epd);
 			atomic_set(&card->rx_cmd_urb_pending, 0);
 		}
@@ -461,10 +472,16 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		}
 		if (usb_endpoint_dir_out(epd) &&
 		    usb_endpoint_num(epd) == MWIFIEX_USB_EP_CMD_EVENT &&
-		    usb_endpoint_xfer_bulk(epd)) {
+		    (usb_endpoint_xfer_bulk(epd) ||
+		     usb_endpoint_xfer_int(epd))) {
+			card->tx_cmd_ep_type = usb_endpoint_type(epd);
+			card->tx_cmd_interval = epd->bInterval;
 			pr_debug("info: bulk OUT: max pkt size: %d, addr: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress);
+			pr_debug("info: Tx CMD:: max pkt size: %d, addr: %d, ep_type: %d\n",
+				 le16_to_cpu(epd->wMaxPacketSize),
+				 epd->bEndpointAddress, card->tx_cmd_ep_type);
 			card->tx_cmd_ep = usb_endpoint_num(epd);
 			atomic_set(&card->tx_cmd_urb_pending, 0);
 			card->bulk_out_maxpktsize =
@@ -884,9 +901,17 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	context->skb = skb;
 	tx_urb = context->urb;
 
-	usb_fill_bulk_urb(tx_urb, card->udev, usb_sndbulkpipe(card->udev, ep),
-			  data, skb->len, mwifiex_usb_tx_complete,
-			  (void *)context);
+	if (ep == card->tx_cmd_ep &&
+	    card->tx_cmd_ep_type == USB_ENDPOINT_XFER_INT)
+		usb_fill_int_urb(tx_urb, card->udev,
+				 usb_sndintpipe(card->udev, ep), data,
+				 skb->len, mwifiex_usb_tx_complete,
+				 (void *)context, card->tx_cmd_interval);
+	else
+		usb_fill_bulk_urb(tx_urb, card->udev,
+				  usb_sndbulkpipe(card->udev, ep), data,
+				  skb->len, mwifiex_usb_tx_complete,
+				  (void *)context);
 
 	tx_urb->transfer_flags |= URB_ZERO_PACKET;
 

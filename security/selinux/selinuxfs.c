@@ -1456,10 +1456,10 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 {
 	struct avc_cache_stats *st = v;
 
-	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "lookups hits misses allocations reclaims "
-			   "frees\n");
-	else {
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq,
+			 "lookups hits misses allocations reclaims frees\n");
+	} else {
 		unsigned int lookups = st->lookups;
 		unsigned int misses = st->misses;
 		unsigned int hits = lookups - misses;
@@ -1496,7 +1496,7 @@ static const struct file_operations sel_avc_cache_stats_ops = {
 static int sel_make_avc_files(struct dentry *dir)
 {
 	int i;
-	static struct tree_descr files[] = {
+	static const struct tree_descr files[] = {
 		{ "cache_threshold",
 		  &sel_avc_cache_threshold_ops, S_IRUGO|S_IWUSR },
 		{ "hash_stats", &sel_avc_hash_stats_ops, S_IRUGO },
@@ -1805,7 +1805,7 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode;
 	struct inode_security_struct *isec;
 
-	static struct tree_descr selinux_files[] = {
+	static const struct tree_descr selinux_files[] = {
 		[SEL_LOAD] = {"load", &sel_load_ops, S_IRUSR|S_IWUSR},
 		[SEL_ENFORCE] = {"enforce", &sel_enforce_ops, S_IRUGO|S_IWUSR},
 		[SEL_CONTEXT] = {"context", &transaction_ops, S_IRUGO|S_IWUGO},

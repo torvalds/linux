@@ -520,27 +520,15 @@ static int acpi_pcc_init_input(struct pcc_acpi *pcc)
 	if (error) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unable to register input device\n"));
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 
 	pcc->input_dev = input_dev;
 	return 0;
 
- err_free_keymap:
-	sparse_keymap_free(input_dev);
  err_free_dev:
 	input_free_device(input_dev);
 	return error;
-}
-
-static void acpi_pcc_destroy_input(struct pcc_acpi *pcc)
-{
-	sparse_keymap_free(pcc->input_dev);
-	input_unregister_device(pcc->input_dev);
-	/*
-	 * No need to input_free_device() since core input API refcounts
-	 * and free()s the device.
-	 */
 }
 
 /* kernel module interface */
@@ -640,7 +628,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 out_backlight:
 	backlight_device_unregister(pcc->backlight);
 out_input:
-	acpi_pcc_destroy_input(pcc);
+	input_unregister_device(pcc->input_dev);
 out_sinf:
 	kfree(pcc->sinf);
 out_hotkey:
@@ -660,7 +648,7 @@ static int acpi_pcc_hotkey_remove(struct acpi_device *device)
 
 	backlight_device_unregister(pcc->backlight);
 
-	acpi_pcc_destroy_input(pcc);
+	input_unregister_device(pcc->input_dev);
 
 	kfree(pcc->sinf);
 	kfree(pcc);

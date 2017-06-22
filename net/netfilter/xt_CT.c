@@ -26,11 +26,12 @@ static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
-	/* special case the untracked ct : we want the percpu object */
-	if (!ct)
-		ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
-	nf_ct_set(skb, ct, IP_CT_NEW);
+	if (ct) {
+		atomic_inc(&ct->ct_general.use);
+		nf_ct_set(skb, ct, IP_CT_NEW);
+	} else {
+		nf_ct_set(skb, ct, IP_CT_UNTRACKED);
+	}
 
 	return XT_CONTINUE;
 }
@@ -95,7 +96,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 
 	help = nf_ct_helper_ext_add(ct, helper, GFP_KERNEL);
 	if (help == NULL) {
-		module_put(helper->me);
+		nf_conntrack_helper_put(helper);
 		return -ENOMEM;
 	}
 
@@ -167,8 +168,10 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 		goto err_put_timeout;
 	}
 	timeout_ext = nf_ct_timeout_ext_add(ct, timeout, GFP_ATOMIC);
-	if (timeout_ext == NULL)
+	if (!timeout_ext) {
 		ret = -ENOMEM;
+		goto err_put_timeout;
+	}
 
 	rcu_read_unlock();
 	return ret;
@@ -200,6 +203,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 			  struct xt_ct_target_info_v1 *info)
 {
 	struct nf_conntrack_zone zone;
+	struct nf_conn_help *help;
 	struct nf_conn *ct;
 	int ret = -EOPNOTSUPP;
 
@@ -248,7 +252,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 	if (info->timeout[0]) {
 		ret = xt_ct_set_timeout(ct, par, info->timeout);
 		if (ret < 0)
-			goto err3;
+			goto err4;
 	}
 	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
 	nf_conntrack_get(&ct->ct_general);
@@ -256,6 +260,10 @@ out:
 	info->ct = ct;
 	return 0;
 
+err4:
+	help = nfct_help(ct);
+	if (help)
+		nf_conntrack_helper_put(help->helper);
 err3:
 	nf_ct_tmpl_free(ct);
 err2:
@@ -335,10 +343,10 @@ static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par,
 	struct nf_conn *ct = info->ct;
 	struct nf_conn_help *help;
 
-	if (ct && !nf_ct_is_untracked(ct)) {
+	if (ct) {
 		help = nfct_help(ct);
 		if (help)
-			module_put(help->helper->me);
+			nf_conntrack_helper_put(help->helper);
 
 		nf_ct_netns_put(par->net, par->family);
 
@@ -412,8 +420,7 @@ notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
-	nf_ct_set(skb, nf_ct_untracked_get(), IP_CT_NEW);
-	nf_conntrack_get(skb_nfct(skb));
+	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 
 	return XT_CONTINUE;
 }

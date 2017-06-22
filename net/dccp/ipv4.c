@@ -289,7 +289,8 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 
 	switch (type) {
 	case ICMP_REDIRECT:
-		dccp_do_redirect(skb, sk);
+		if (!sock_owned_by_user(sk))
+			dccp_do_redirect(skb, sk);
 		goto out;
 	case ICMP_SOURCE_QUENCH:
 		/* Just silently ignore these. */
@@ -950,7 +951,7 @@ static struct proto dccp_v4_prot = {
 	.orphan_count		= &dccp_orphan_count,
 	.max_header		= MAX_DCCP_HEADER,
 	.obj_size		= sizeof(struct dccp_sock),
-	.slab_flags		= SLAB_DESTROY_BY_RCU,
+	.slab_flags		= SLAB_TYPESAFE_BY_RCU,
 	.rsk_prot		= &dccp_request_sock_ops,
 	.twsk_prot		= &dccp_timewait_sock_ops,
 	.h.hashinfo		= &dccp_hashinfo,

@@ -350,16 +350,11 @@ static inline void *ubh_get_data_ptr(struct ufs_sb_private_info *uspi,
 #define ubh_blkmap(ubh,begin,bit) \
 	((*ubh_get_addr(ubh, (begin) + ((bit) >> 3)) >> ((bit) & 7)) & (0xff >> (UFS_MAXFRAG - uspi->s_fpb)))
 
-/*
- * Determine the number of available frags given a
- * percentage to hold in reserve.
- */
 static inline u64
-ufs_freespace(struct ufs_sb_private_info *uspi, int percentreserved)
+ufs_freefrags(struct ufs_sb_private_info *uspi)
 {
 	return ufs_blkstofrags(uspi->cs_total.cs_nbfree) +
-		uspi->cs_total.cs_nffree -
-		(uspi->s_dsize * (percentreserved) / 100);
+		uspi->cs_total.cs_nffree;
 }
 
 /*
@@ -473,15 +468,19 @@ static inline unsigned _ubh_find_last_zero_bit_(
 static inline int _ubh_isblockset_(struct ufs_sb_private_info * uspi,
 	struct ufs_buffer_head * ubh, unsigned begin, unsigned block)
 {
+	u8 mask;
 	switch (uspi->s_fpb) {
 	case 8:
 	    	return (*ubh_get_addr (ubh, begin + block) == 0xff);
 	case 4:
-		return (*ubh_get_addr (ubh, begin + (block >> 1)) == (0x0f << ((block & 0x01) << 2)));
+		mask = 0x0f << ((block & 0x01) << 2);
+		return (*ubh_get_addr (ubh, begin + (block >> 1)) & mask) == mask;
 	case 2:
-		return (*ubh_get_addr (ubh, begin + (block >> 2)) == (0x03 << ((block & 0x03) << 1)));
+		mask = 0x03 << ((block & 0x03) << 1);
+		return (*ubh_get_addr (ubh, begin + (block >> 2)) & mask) == mask;
 	case 1:
-		return (*ubh_get_addr (ubh, begin + (block >> 3)) == (0x01 << (block & 0x07)));
+		mask = 0x01 << (block & 0x07);
+		return (*ubh_get_addr (ubh, begin + (block >> 3)) & mask) == mask;
 	}
 	return 0;	
 }

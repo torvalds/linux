@@ -333,11 +333,19 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 		rds_conn_path_reset(cp);
 
 		if (!rds_conn_path_transition(cp, RDS_CONN_DISCONNECTING,
+					      RDS_CONN_DOWN) &&
+		    !rds_conn_path_transition(cp, RDS_CONN_ERROR,
 					      RDS_CONN_DOWN)) {
 			/* This can happen - eg when we're in the middle of tearing
 			 * down the connection, and someone unloads the rds module.
-			 * Quite reproduceable with loopback connections.
+			 * Quite reproducible with loopback connections.
 			 * Mostly harmless.
+			 *
+			 * Note that this also happens with rds-tcp because
+			 * we could have triggered rds_conn_path_drop in irq
+			 * mode from rds_tcp_state change on the receipt of
+			 * a FIN, thus we need to recheck for RDS_CONN_ERROR
+			 * here.
 			 */
 			rds_conn_path_error(cp, "%s: failed to transition "
 					    "to state DOWN, current state "
@@ -429,6 +437,7 @@ void rds_conn_destroy(struct rds_connection *conn)
 	 */
 	rds_cong_remove_conn(conn);
 
+	put_net(conn->c_net);
 	kmem_cache_free(rds_conn_slab, conn);
 
 	spin_lock_irqsave(&rds_conn_lock, flags);

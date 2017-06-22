@@ -411,10 +411,9 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			ptent = pte_mkold(ptent);
 			ptent = pte_mkclean(ptent);
 			set_pte_at(mm, addr, pte, ptent);
-			if (PageActive(page))
-				deactivate_page(page);
 			tlb_remove_tlb_entry(tlb, pte, addr);
 		}
+		mark_page_lazyfree(page);
 	}
 out:
 	if (nr_swap) {
@@ -513,7 +512,43 @@ static long madvise_dontneed(struct vm_area_struct *vma,
 	if (!can_madv_dontneed_vma(vma))
 		return -EINVAL;
 
-	userfaultfd_remove(vma, prev, start, end);
+	if (!userfaultfd_remove(vma, start, end)) {
+		*prev = NULL; /* mmap_sem has been dropped, prev is stale */
+
+		down_read(&current->mm->mmap_sem);
+		vma = find_vma(current->mm, start);
+		if (!vma)
+			return -ENOMEM;
+		if (start < vma->vm_start) {
+			/*
+			 * This "vma" under revalidation is the one
+			 * with the lowest vma->vm_start where start
+			 * is also < vma->vm_end. If start <
+			 * vma->vm_start it means an hole materialized
+			 * in the user address space within the
+			 * virtual range passed to MADV_DONTNEED.
+			 */
+			return -ENOMEM;
+		}
+		if (!can_madv_dontneed_vma(vma))
+			return -EINVAL;
+		if (end > vma->vm_end) {
+			/*
+			 * Don't fail if end > vma->vm_end. If the old
+			 * vma was splitted while the mmap_sem was
+			 * released the effect of the concurrent
+			 * operation may not cause MADV_DONTNEED to
+			 * have an undefined result. There may be an
+			 * adjacent next vma that we'll walk
+			 * next. userfaultfd_remove() will generate an
+			 * UFFD_EVENT_REMOVE repetition on the
+			 * end-vma->vm_end range, but the manager can
+			 * handle a repetition fine.
+			 */
+			end = vma->vm_end;
+		}
+		VM_WARN_ON(start >= end);
+	}
 	zap_page_range(vma, start, end - start);
 	return 0;
 }
@@ -554,8 +589,10 @@ static long madvise_remove(struct vm_area_struct *vma,
 	 * mmap_sem.
 	 */
 	get_file(f);
-	userfaultfd_remove(vma, prev, start, end);
-	up_read(&current->mm->mmap_sem);
+	if (userfaultfd_remove(vma, start, end)) {
+		/* mmap_sem was not released by userfaultfd_remove() */
+		up_read(&current->mm->mmap_sem);
+	}
 	error = vfs_fallocate(f,
 				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				offset, end - start);
@@ -568,34 +605,40 @@ static long madvise_remove(struct vm_area_struct *vma,
 /*
  * Error injection support for memory error handling.
  */
-static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
+static int madvise_inject_error(int behavior,
+		unsigned long start, unsigned long end)
 {
-	struct page *p;
+	struct page *page;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
 	for (; start < end; start += PAGE_SIZE <<
-				compound_order(compound_head(p))) {
+				compound_order(compound_head(page))) {
 		int ret;
 
-		ret = get_user_pages_fast(start, 1, 0, &p);
+		ret = get_user_pages_fast(start, 1, 0, &page);
 		if (ret != 1)
 			return ret;
 
-		if (PageHWPoison(p)) {
-			put_page(p);
+		if (PageHWPoison(page)) {
+			put_page(page);
 			continue;
 		}
-		if (bhv == MADV_SOFT_OFFLINE) {
-			pr_info("Soft offlining page %#lx at %#lx\n",
-				page_to_pfn(p), start);
-			ret = soft_offline_page(p, MF_COUNT_INCREASED);
+
+		if (behavior == MADV_SOFT_OFFLINE) {
+			pr_info("Soft offlining pfn %#lx at process virtual address %#lx\n",
+						page_to_pfn(page), start);
+
+			ret = soft_offline_page(page, MF_COUNT_INCREASED);
 			if (ret)
 				return ret;
 			continue;
 		}
-		pr_info("Injecting memory failure for page %#lx at %#lx\n",
-		       page_to_pfn(p), start);
-		ret = memory_failure(page_to_pfn(p), 0, MF_COUNT_INCREASED);
+		pr_info("Injecting memory failure for pfn %#lx at process virtual address %#lx\n",
+						page_to_pfn(page), start);
+
+		ret = memory_failure(page_to_pfn(page), 0, MF_COUNT_INCREASED);
 		if (ret)
 			return ret;
 	}
@@ -613,13 +656,7 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
 	case MADV_WILLNEED:
 		return madvise_willneed(vma, prev, start, end);
 	case MADV_FREE:
-		/*
-		 * XXX: In this implementation, MADV_FREE works like
-		 * MADV_DONTNEED on swapless system or full swap.
-		 */
-		if (get_nr_swap_pages() > 0)
-			return madvise_free(vma, prev, start, end);
-		/* passthrough */
+		return madvise_free(vma, prev, start, end);
 	case MADV_DONTNEED:
 		return madvise_dontneed(vma, prev, start, end);
 	default:
@@ -650,6 +687,10 @@ madvise_behavior_valid(int behavior)
 #endif
 	case MADV_DONTDUMP:
 	case MADV_DODUMP:
+#ifdef CONFIG_MEMORY_FAILURE
+	case MADV_SOFT_OFFLINE:
+	case MADV_HWPOISON:
+#endif
 		return true;
 
 	default:
@@ -723,10 +764,6 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 	size_t len;
 	struct blk_plug plug;
 
-#ifdef CONFIG_MEMORY_FAILURE
-	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-		return madvise_hwpoison(behavior, start, start+len_in);
-#endif
 	if (!madvise_behavior_valid(behavior))
 		return error;
 
@@ -745,6 +782,11 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 	error = 0;
 	if (end == start)
 		return error;
+
+#ifdef CONFIG_MEMORY_FAILURE
+	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+		return madvise_inject_error(behavior, start, start + len_in);
+#endif
 
 	write = madvise_need_mmap_write(behavior);
 	if (write) {

@@ -29,7 +29,7 @@ connlabel_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	bool invert = info->options & XT_CONNLABEL_OP_INVERT;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct == NULL || nf_ct_is_untracked(ct))
+	if (ct == NULL)
 		return invert;
 
 	labels = nf_ct_labels_find(ct);

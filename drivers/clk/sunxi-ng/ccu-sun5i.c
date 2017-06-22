@@ -243,7 +243,7 @@ static SUNXI_CCU_GATE(ahb_ss_clk,	"ahb-ss",	"ahb",
 static SUNXI_CCU_GATE(ahb_dma_clk,	"ahb-dma",	"ahb",
 		      0x060, BIT(6), 0);
 static SUNXI_CCU_GATE(ahb_bist_clk,	"ahb-bist",	"ahb",
-		      0x060, BIT(6), 0);
+		      0x060, BIT(7), 0);
 static SUNXI_CCU_GATE(ahb_mmc0_clk,	"ahb-mmc0",	"ahb",
 		      0x060, BIT(8), 0);
 static SUNXI_CCU_GATE(ahb_mmc1_clk,	"ahb-mmc1",	"ahb",
@@ -469,7 +469,7 @@ static const char * const csi_parents[] = { "hosc", "pll-video0", "pll-video1",
 static const u8 csi_table[] = { 0, 1, 2, 5, 6 };
 static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(csi_clk, "csi",
 				       csi_parents, csi_table,
-				       0x134, 0, 5, 24, 2, BIT(31), 0);
+				       0x134, 0, 5, 24, 3, BIT(31), 0);
 
 static SUNXI_CCU_GATE(ve_clk,		"ve",		"pll-ve",
 		      0x13c, BIT(31), CLK_SET_RATE_PARENT);

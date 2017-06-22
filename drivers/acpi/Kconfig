@@ -256,7 +256,7 @@ config ACPI_PROCESSOR
 
 config ACPI_IPMI
 	tristate "IPMI"
-	depends on IPMI_SI
+	depends on IPMI_HANDLER
 	default n
 	help
 	  This driver enables the ACPI to access the BMC controller. And it
@@ -440,7 +440,7 @@ config ACPI_CUSTOM_METHOD
 
 config ACPI_BGRT
 	bool "Boottime Graphics Resource Table support"
-	depends on EFI && X86
+	depends on EFI && (X86 || ARM64)
         help
 	  This driver adds support for exposing the ACPI Boottime Graphics
 	  Resource Table, which allows the operating system to obtain
@@ -469,9 +469,8 @@ config ACPI_WATCHDOG
 
 config ACPI_EXTLOG
 	tristate "Extended Error Log support"
-	depends on X86_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC && EDAC
 	select UEFI_CPER
-	select RAS
 	default n
 	help
 	  Certain usages such as Predictive Failure Analysis (PFA) require
@@ -506,15 +505,21 @@ config CRC_PMIC_OPREGION
 
 config XPOWER_PMIC_OPREGION
 	bool "ACPI operation region support for XPower AXP288 PMIC"
-	depends on AXP288_ADC = y
+	depends on MFD_AXP20X_I2C
 	help
 	  This config adds ACPI operation region support for XPower AXP288 PMIC.
 
 config BXT_WC_PMIC_OPREGION
 	bool "ACPI operation region support for BXT WhiskeyCove PMIC"
-	depends on INTEL_SOC_PMIC
+	depends on INTEL_SOC_PMIC_BXTWC
 	help
 	  This config adds ACPI operation region support for BXT WhiskeyCove PMIC.
+
+config CHT_WC_PMIC_OPREGION
+	bool "ACPI operation region support for CHT Whiskey Cove PMIC"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  This config adds ACPI operation region support for CHT Whiskey Cove PMIC.
 
 endif
 

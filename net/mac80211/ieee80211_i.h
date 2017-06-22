@@ -839,6 +839,8 @@ struct txq_info {
 struct ieee80211_if_mntr {
 	u32 flags;
 	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
+
+	struct list_head list;
 };
 
 /**
@@ -999,21 +1001,6 @@ sdata_assert_lock(struct ieee80211_sub_if_data *sdata)
 	lockdep_assert_held(&sdata->wdev.mtx);
 }
 
-static inline enum nl80211_band
-ieee80211_get_sdata_band(struct ieee80211_sub_if_data *sdata)
-{
-	enum nl80211_band band = NL80211_BAND_2GHZ;
-	struct ieee80211_chanctx_conf *chanctx_conf;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-	if (!WARN_ON(!chanctx_conf))
-		band = chanctx_conf->def.chan->band;
-	rcu_read_unlock();
-
-	return band;
-}
-
 static inline int
 ieee80211_chandef_get_shift(struct cfg80211_chan_def *chandef)
 {
@@ -1049,8 +1036,6 @@ struct ieee80211_rx_agg {
 
 enum sdata_queue_type {
 	IEEE80211_SDATA_QUEUE_TYPE_FRAME	= 0,
-	IEEE80211_SDATA_QUEUE_AGG_START		= 1,
-	IEEE80211_SDATA_QUEUE_AGG_STOP		= 2,
 	IEEE80211_SDATA_QUEUE_RX_AGG_START	= 3,
 	IEEE80211_SDATA_QUEUE_RX_AGG_STOP	= 4,
 };
@@ -1259,6 +1244,7 @@ struct ieee80211_local {
 
 	/* see iface.c */
 	struct list_head interfaces;
+	struct list_head mon_list; /* only that are IFF_UP && !cooked */
 	struct mutex iflist_mtx;
 
 	/*
@@ -1418,11 +1404,26 @@ IEEE80211_WDEV_TO_SUB_IF(struct wireless_dev *wdev)
 	return container_of(wdev, struct ieee80211_sub_if_data, wdev);
 }
 
-/* this struct represents 802.11n's RA/TID combination */
-struct ieee80211_ra_tid {
-	u8 ra[ETH_ALEN];
-	u16 tid;
-};
+static inline struct ieee80211_supported_band *
+ieee80211_get_sband(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum nl80211_band band;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	band = chanctx_conf->def.chan->band;
+	rcu_read_unlock();
+
+	return local->hw.wiphy->bands[band];
+}
 
 /* this struct holds the value parsing from channel switch IE  */
 struct ieee80211_csa_ie {
@@ -1474,6 +1475,7 @@ struct ieee802_11_elems {
 	const u8 *opmode_notif;
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	const struct ieee80211_mesh_chansw_params_ie *mesh_chansw_params_ie;
+	const struct ieee80211_bss_max_idle_period_ie *max_idle_period_ie;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1527,9 +1529,9 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 		     status->flag & RX_FLAG_MACTIME_END);
 	if (status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END))
 		return true;
-	/* can't handle HT/VHT preamble yet */
+	/* can't handle non-legacy preamble yet */
 	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
-	    !(status->flag & (RX_FLAG_HT | RX_FLAG_VHT)))
+	    status->encoding == RX_ENC_LEGACY)
 		return true;
 	return false;
 }
@@ -1784,8 +1786,10 @@ int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				   enum ieee80211_agg_stop_reason reason);
 int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				    enum ieee80211_agg_stop_reason reason);
-void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
-void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
+void ieee80211_start_tx_ba_cb(struct sta_info *sta, int tid,
+			      struct tid_ampdu_tx *tid_tx);
+void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
+			     struct tid_ampdu_tx *tid_tx);
 void ieee80211_ba_session_work(struct work_struct *work);
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid);
 void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid);

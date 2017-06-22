@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
 #define LOGIBM_IRQ		5
 
 static int logibm_irq = LOGIBM_IRQ;
-module_param_named(irq, logibm_irq, uint, 0);
+module_param_hw_named(irq, logibm_irq, uint, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ number (5=default)");
 
 static struct input_dev *logibm_dev;

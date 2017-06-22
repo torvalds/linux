@@ -368,6 +368,7 @@ int main(int argc, char **argv)
 	iteration_test(0, 10 + 90 * long_run);
 	iteration_test(7, 10 + 90 * long_run);
 	single_thread_tests(long_run);
+	ida_thread_tests();
 
 	/* Free any remaining preallocated nodes */
 	radix_tree_cpu_dead(0);

@@ -7319,7 +7319,7 @@ static void hauppauge_eeprom(struct saa7134_dev *dev, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	tveeprom_hauppauge_analog(&dev->i2c_client, &tv, eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 
 	/* Make sure we support the board model */
 	switch (tv.model) {

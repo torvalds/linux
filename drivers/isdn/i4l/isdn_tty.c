@@ -1812,9 +1812,8 @@ isdn_tty_modem_init(void)
 		info->isdn_channel = -1;
 		info->drv_index = -1;
 		info->xmit_size = ISDN_SERIAL_XMIT_SIZE;
-		init_timer(&info->nc_timer);
-		info->nc_timer.function = isdn_tty_modem_do_ncarrier;
-		info->nc_timer.data = (unsigned long) info;
+		setup_timer(&info->nc_timer, isdn_tty_modem_do_ncarrier,
+			    (unsigned long)info);
 		skb_queue_head_init(&info->xmit_queue);
 #ifdef CONFIG_ISDN_AUDIO
 		skb_queue_head_init(&info->dtmf_queue);

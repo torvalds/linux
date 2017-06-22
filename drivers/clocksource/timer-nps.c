@@ -55,7 +55,7 @@ static int __init nps_get_timer_clk(struct device_node *node,
 	*clk = of_clk_get(node, 0);
 	ret = PTR_ERR_OR_ZERO(*clk);
 	if (ret) {
-		pr_err("timer missing clk");
+		pr_err("timer missing clk\n");
 		return ret;
 	}
 
@@ -247,7 +247,7 @@ static int __init nps_setup_clockevent(struct device_node *node)
 
 	nps_timer0_irq = irq_of_parse_and_map(node, 0);
 	if (nps_timer0_irq <= 0) {
-		pr_err("clockevent: missing irq");
+		pr_err("clockevent: missing irq\n");
 		return -EINVAL;
 	}
 
@@ -270,7 +270,7 @@ static int __init nps_setup_clockevent(struct device_node *node)
 				nps_timer_starting_cpu,
 				nps_timer_dying_cpu);
 	if (ret) {
-		pr_err("Failed to setup hotplug state");
+		pr_err("Failed to setup hotplug state\n");
 		clk_disable_unprepare(clk);
 		free_percpu_irq(nps_timer0_irq, &nps_clockevent_device);
 		return ret;

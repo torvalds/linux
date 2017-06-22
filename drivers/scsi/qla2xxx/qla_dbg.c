@@ -1131,7 +1131,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, dmp_reg++)
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
 		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
@@ -2090,7 +2090,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	/* Mailbox registers. */
 	mbx_reg = &reg->mailbox0;
-	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, dmp_reg++)
+	for (cnt = 0; cnt < sizeof(fw->mailbox_reg) / 2; cnt++, mbx_reg++)
 		fw->mailbox_reg[cnt] = htons(RD_REG_WORD(mbx_reg));
 
 	/* Transfer sequence registers. */
@@ -2707,13 +2707,9 @@ ql_dump_buffer(uint32_t level, scsi_qla_host_t *vha, int32_t id,
 	    "%-+5d  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n", size);
 	ql_dbg(level, vha, id,
 	    "----- -----------------------------------------------\n");
-	for (cnt = 0; cnt < size; cnt++, buf++) {
-		if (cnt % 16 == 0)
-			ql_dbg(level, vha, id, "%04x:", cnt & ~0xFU);
-		printk(" %02x", *buf);
-		if (cnt % 16 == 15)
-			printk("\n");
+	for (cnt = 0; cnt < size; cnt += 16) {
+		ql_dbg(level, vha, id, "%04x: ", cnt);
+		print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 1,
+			       buf + cnt, min(16U, size - cnt), false);
 	}
-	if (cnt % 16 != 0)
-		printk("\n");
 }

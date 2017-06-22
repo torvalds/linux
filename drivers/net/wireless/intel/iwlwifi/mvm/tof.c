@@ -80,7 +80,7 @@ void iwl_mvm_tof_init(struct iwl_mvm *mvm)
 	if (IWL_MVM_TOF_IS_RESPONDER) {
 		tof_data->responder_cfg.sub_grp_cmd_id =
 			cpu_to_le32(TOF_RESPONDER_CONFIG_CMD);
-		tof_data->responder_cfg.sta_id = IWL_MVM_STATION_COUNT;
+		tof_data->responder_cfg.sta_id = IWL_MVM_INVALID_STA;
 	}
 #endif
 

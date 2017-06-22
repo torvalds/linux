@@ -179,6 +179,25 @@ static void coda_kfifo_sync_to_device_write(struct coda_ctx *ctx)
 	coda_write(dev, wr_ptr, CODA_REG_BIT_WR_PTR(ctx->reg_idx));
 }
 
+static int coda_bitstream_pad(struct coda_ctx *ctx, u32 size)
+{
+	unsigned char *buf;
+	u32 n;
+
+	if (size < 6)
+		size = 6;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	coda_h264_filler_nal(size, buf);
+	n = kfifo_in(&ctx->bitstream_fifo, buf, size);
+	kfree(buf);
+
+	return (n < size) ? -ENOSPC : 0;
+}
+
 static int coda_bitstream_queue(struct coda_ctx *ctx,
 				struct vb2_v4l2_buffer *src_buf)
 {
@@ -198,10 +217,10 @@ static int coda_bitstream_queue(struct coda_ctx *ctx,
 static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 				     struct vb2_v4l2_buffer *src_buf)
 {
+	unsigned long payload = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
 	int ret;
 
-	if (coda_get_bitstream_payload(ctx) +
-	    vb2_get_plane_payload(&src_buf->vb2_buf, 0) + 512 >=
+	if (coda_get_bitstream_payload(ctx) + payload + 512 >=
 	    ctx->bitstream.size)
 		return false;
 
@@ -209,6 +228,11 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 		v4l2_err(&ctx->dev->v4l2_dev, "trying to queue empty buffer\n");
 		return true;
 	}
+
+	/* Add zero padding before the first H.264 buffer, if it is too small */
+	if (ctx->qsequence == 0 && payload < 512 &&
+	    ctx->codec->src_fourcc == V4L2_PIX_FMT_H264)
+		coda_bitstream_pad(ctx, 512 - payload);
 
 	ret = coda_bitstream_queue(ctx, src_buf);
 	if (ret < 0) {
@@ -224,7 +248,7 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 	return true;
 }
 
-void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
+void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 {
 	struct vb2_v4l2_buffer *src_buf;
 	struct coda_buffer_meta *meta;
@@ -252,9 +276,16 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 				 "dropping invalid JPEG frame %d\n",
 				 ctx->qsequence);
 			src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
-			v4l2_m2m_buf_done(src_buf, streaming ?
-					  VB2_BUF_STATE_ERROR :
-					  VB2_BUF_STATE_QUEUED);
+			if (buffer_list) {
+				struct v4l2_m2m_buffer *m2m_buf;
+
+				m2m_buf = container_of(src_buf,
+						       struct v4l2_m2m_buffer,
+						       vb);
+				list_add_tail(&m2m_buf->list, buffer_list);
+			} else {
+				v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
+			}
 			continue;
 		}
 
@@ -295,7 +326,16 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 				trace_coda_bit_queue(ctx, src_buf, meta);
 			}
 
-			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+			if (buffer_list) {
+				struct v4l2_m2m_buffer *m2m_buf;
+
+				m2m_buf = container_of(src_buf,
+						       struct v4l2_m2m_buffer,
+						       vb);
+				list_add_tail(&m2m_buf->list, buffer_list);
+			} else {
+				v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+			}
 		} else {
 			break;
 		}
@@ -1508,6 +1548,47 @@ static int coda_decoder_reqbufs(struct coda_ctx *ctx,
 	return 0;
 }
 
+static bool coda_reorder_enable(struct coda_ctx *ctx)
+{
+	const char * const *profile_names;
+	const char * const *level_names;
+	struct coda_dev *dev = ctx->dev;
+	int profile, level;
+
+	if (dev->devtype->product != CODA_7541 &&
+	    dev->devtype->product != CODA_960)
+		return false;
+
+	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG)
+		return false;
+
+	if (ctx->codec->src_fourcc != V4L2_PIX_FMT_H264)
+		return true;
+
+	profile = coda_h264_profile(ctx->params.h264_profile_idc);
+	if (profile < 0) {
+		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Profile: %d\n",
+			 ctx->params.h264_profile_idc);
+		return false;
+	}
+
+	level = coda_h264_level(ctx->params.h264_level_idc);
+	if (level < 0) {
+		v4l2_warn(&dev->v4l2_dev, "Invalid H264 Level: %d\n",
+			 ctx->params.h264_level_idc);
+		return false;
+	}
+
+	profile_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_PROFILE);
+	level_names = v4l2_ctrl_get_menu(V4L2_CID_MPEG_VIDEO_H264_LEVEL);
+
+	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "H264 Profile/Level: %s L%s\n",
+		 profile_names[profile], level_names[level]);
+
+	/* Baseline profile does not support reordering */
+	return profile > V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
+}
+
 static int __coda_start_decoding(struct coda_ctx *ctx)
 {
 	struct coda_q_data *q_data_src, *q_data_dst;
@@ -1554,8 +1635,7 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	coda_write(dev, bitstream_buf, CODA_CMD_DEC_SEQ_BB_START);
 	coda_write(dev, bitstream_size / 1024, CODA_CMD_DEC_SEQ_BB_SIZE);
 	val = 0;
-	if ((dev->devtype->product == CODA_7541) ||
-	    (dev->devtype->product == CODA_960))
+	if (coda_reorder_enable(ctx))
 		val |= CODA_REORDER_ENABLE;
 	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG)
 		val |= CODA_NO_INT_ENABLE;
@@ -1747,7 +1827,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 
 	/* Try to copy source buffer contents into the bitstream ringbuffer */
 	mutex_lock(&ctx->bitstream_mutex);
-	coda_fill_bitstream(ctx, true);
+	coda_fill_bitstream(ctx, NULL);
 	mutex_unlock(&ctx->bitstream_mutex);
 
 	if (coda_get_bitstream_payload(ctx) < 512 &&

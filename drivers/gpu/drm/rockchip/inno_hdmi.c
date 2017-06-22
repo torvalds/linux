@@ -923,7 +923,7 @@ static const struct of_device_id inno_hdmi_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, inno_hdmi_dt_ids);
 
-static struct platform_driver inno_hdmi_driver = {
+struct platform_driver inno_hdmi_driver = {
 	.probe  = inno_hdmi_probe,
 	.remove = inno_hdmi_remove,
 	.driver = {
@@ -931,11 +931,3 @@ static struct platform_driver inno_hdmi_driver = {
 		.of_match_table = inno_hdmi_dt_ids,
 	},
 };
-
-module_platform_driver(inno_hdmi_driver);
-
-MODULE_AUTHOR("Zheng Yang <zhengyang@rock-chips.com>");
-MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip Specific INNO-HDMI Driver");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:innohdmi-rockchip");

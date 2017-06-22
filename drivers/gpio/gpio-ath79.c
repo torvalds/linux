@@ -32,7 +32,7 @@
 struct ath79_gpio_ctrl {
 	struct gpio_chip gc;
 	void __iomem *base;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	unsigned long both_edges;
 };
 
@@ -74,9 +74,9 @@ static void ath79_gpio_irq_unmask(struct irq_data *data)
 	u32 mask = BIT(irqd_to_hwirq(data));
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	raw_spin_lock_irqsave(&ctrl->lock, flags);
 	ath79_gpio_update_bits(ctrl, AR71XX_GPIO_REG_INT_MASK, mask, mask);
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 }
 
 static void ath79_gpio_irq_mask(struct irq_data *data)
@@ -85,9 +85,9 @@ static void ath79_gpio_irq_mask(struct irq_data *data)
 	u32 mask = BIT(irqd_to_hwirq(data));
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	raw_spin_lock_irqsave(&ctrl->lock, flags);
 	ath79_gpio_update_bits(ctrl, AR71XX_GPIO_REG_INT_MASK, mask, 0);
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 }
 
 static void ath79_gpio_irq_enable(struct irq_data *data)
@@ -96,10 +96,10 @@ static void ath79_gpio_irq_enable(struct irq_data *data)
 	u32 mask = BIT(irqd_to_hwirq(data));
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	raw_spin_lock_irqsave(&ctrl->lock, flags);
 	ath79_gpio_update_bits(ctrl, AR71XX_GPIO_REG_INT_ENABLE, mask, mask);
 	ath79_gpio_update_bits(ctrl, AR71XX_GPIO_REG_INT_MASK, mask, mask);
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 }
 
 static void ath79_gpio_irq_disable(struct irq_data *data)
@@ -108,10 +108,10 @@ static void ath79_gpio_irq_disable(struct irq_data *data)
 	u32 mask = BIT(irqd_to_hwirq(data));
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	raw_spin_lock_irqsave(&ctrl->lock, flags);
 	ath79_gpio_update_bits(ctrl, AR71XX_GPIO_REG_INT_MASK, mask, 0);
 	ath79_gpio_update_bits(ctrl, AR71XX_GPIO_REG_INT_ENABLE, mask, 0);
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 }
 
 static int ath79_gpio_irq_set_type(struct irq_data *data,
@@ -140,7 +140,7 @@ static int ath79_gpio_irq_set_type(struct irq_data *data,
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	raw_spin_lock_irqsave(&ctrl->lock, flags);
 
 	if (flow_type == IRQ_TYPE_EDGE_BOTH) {
 		ctrl->both_edges |= mask;
@@ -165,7 +165,7 @@ static int ath79_gpio_irq_set_type(struct irq_data *data,
 		ath79_gpio_update_bits(
 			ctrl, AR71XX_GPIO_REG_INT_ENABLE, mask, mask);
 
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 
 	return 0;
 }
@@ -191,7 +191,7 @@ static void ath79_gpio_irq_handler(struct irq_desc *desc)
 
 	chained_irq_enter(irqchip, desc);
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	raw_spin_lock_irqsave(&ctrl->lock, flags);
 
 	pending = ath79_gpio_read(ctrl, AR71XX_GPIO_REG_INT_PENDING);
 
@@ -203,7 +203,7 @@ static void ath79_gpio_irq_handler(struct irq_desc *desc)
 				both_edges, ~state);
 	}
 
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 
 	if (pending) {
 		for_each_set_bit(irq, &pending, gc->ngpio)
@@ -262,7 +262,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	if (!ctrl->base)
 		return -ENOMEM;
 
-	spin_lock_init(&ctrl->lock);
+	raw_spin_lock_init(&ctrl->lock);
 	err = bgpio_init(&ctrl->gc, &pdev->dev, 4,
 			ctrl->base + AR71XX_GPIO_REG_IN,
 			ctrl->base + AR71XX_GPIO_REG_SET,

@@ -223,6 +223,22 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "P4S800"),
 		},
 	},
+	{	/* Handle problems with rebooting on ASUS EeeBook X205TA */
+		.callback = set_acpi_reboot,
+		.ident = "ASUS EeeBook X205TA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X205TA"),
+		},
+	},
+	{	/* Handle problems with rebooting on ASUS EeeBook X205TAW */
+		.callback = set_acpi_reboot,
+		.ident = "ASUS EeeBook X205TAW",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X205TAW"),
+		},
+	},
 
 	/* Certec */
 	{       /* Handle problems with rebooting on Certec BPC600 */
@@ -749,10 +765,11 @@ void machine_crash_shutdown(struct pt_regs *regs)
 #endif
 
 
+/* This is the CPU performing the emergency shutdown work. */
+int crashing_cpu = -1;
+
 #if defined(CONFIG_SMP)
 
-/* This keeps a track of which one is crashing cpu. */
-static int crashing_cpu;
 static nmi_shootdown_cb shootdown_callback;
 
 static atomic_t waiting_for_crash_ipi;

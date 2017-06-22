@@ -30,7 +30,7 @@ static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
 		return true;
 
 	if (!memcmp(h->oem_table_id, "QDF2400 ", ACPI_OEM_TABLE_ID_SIZE) &&
-			h->oem_revision == 0)
+			h->oem_revision == 1)
 		return true;
 
 	return false;

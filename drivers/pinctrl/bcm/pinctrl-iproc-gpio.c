@@ -99,7 +99,7 @@ struct iproc_gpio {
 	void __iomem *base;
 	void __iomem *io_ctrl;
 
-	spinlock_t lock;
+	raw_spinlock_t lock;
 
 	struct gpio_chip gc;
 	unsigned num_banks;
@@ -221,9 +221,9 @@ static void iproc_gpio_irq_mask(struct irq_data *d)
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	iproc_gpio_irq_set_mask(d, false);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static void iproc_gpio_irq_unmask(struct irq_data *d)
@@ -232,9 +232,9 @@ static void iproc_gpio_irq_unmask(struct irq_data *d)
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	iproc_gpio_irq_set_mask(d, true);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int iproc_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -274,13 +274,13 @@ static int iproc_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	iproc_set_bit(chip, IPROC_GPIO_INT_TYPE_OFFSET, gpio,
 		       level_triggered);
 	iproc_set_bit(chip, IPROC_GPIO_INT_DE_OFFSET, gpio, dual_edge);
 	iproc_set_bit(chip, IPROC_GPIO_INT_EDGE_OFFSET, gpio,
 		       rising_or_high);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev,
 		"gpio:%u level_triggered:%d dual_edge:%d rising_or_high:%d\n",
@@ -328,9 +328,9 @@ static int iproc_gpio_direction_input(struct gpio_chip *gc, unsigned gpio)
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	iproc_set_bit(chip, IPROC_GPIO_OUT_EN_OFFSET, gpio, false);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set input\n", gpio);
 
@@ -343,10 +343,10 @@ static int iproc_gpio_direction_output(struct gpio_chip *gc, unsigned gpio,
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	iproc_set_bit(chip, IPROC_GPIO_OUT_EN_OFFSET, gpio, true);
 	iproc_set_bit(chip, IPROC_GPIO_DATA_OUT_OFFSET, gpio, !!(val));
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set output, value:%d\n", gpio, val);
 
@@ -358,9 +358,9 @@ static void iproc_gpio_set(struct gpio_chip *gc, unsigned gpio, int val)
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	iproc_set_bit(chip, IPROC_GPIO_DATA_OUT_OFFSET, gpio, !!(val));
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set, value:%d\n", gpio, val);
 }
@@ -461,7 +461,7 @@ static int iproc_gpio_set_pull(struct iproc_gpio *chip, unsigned gpio,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 
 	if (disable) {
 		iproc_set_bit(chip, IPROC_GPIO_RES_EN_OFFSET, gpio, false);
@@ -471,7 +471,7 @@ static int iproc_gpio_set_pull(struct iproc_gpio *chip, unsigned gpio,
 		iproc_set_bit(chip, IPROC_GPIO_RES_EN_OFFSET, gpio, true);
 	}
 
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u set pullup:%d\n", gpio, pull_up);
 
@@ -483,10 +483,10 @@ static void iproc_gpio_get_pull(struct iproc_gpio *chip, unsigned gpio,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	*disable = !iproc_get_bit(chip, IPROC_GPIO_RES_EN_OFFSET, gpio);
 	*pull_up = iproc_get_bit(chip, IPROC_GPIO_PAD_RES_OFFSET, gpio);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int iproc_gpio_set_strength(struct iproc_gpio *chip, unsigned gpio,
@@ -515,7 +515,7 @@ static int iproc_gpio_set_strength(struct iproc_gpio *chip, unsigned gpio,
 	dev_dbg(chip->dev, "gpio:%u set drive strength:%d mA\n", gpio,
 		strength);
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	strength = (strength / 2) - 1;
 	for (i = 0; i < GPIO_DRV_STRENGTH_BITS; i++) {
 		val = readl(base + offset);
@@ -524,7 +524,7 @@ static int iproc_gpio_set_strength(struct iproc_gpio *chip, unsigned gpio,
 		writel(val, base + offset);
 		offset += 4;
 	}
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -548,7 +548,7 @@ static int iproc_gpio_get_strength(struct iproc_gpio *chip, unsigned gpio,
 
 	shift = IPROC_GPIO_SHIFT(gpio);
 
-	spin_lock_irqsave(&chip->lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 	*strength = 0;
 	for (i = 0; i < GPIO_DRV_STRENGTH_BITS; i++) {
 		val = readl(base + offset) & BIT(shift);
@@ -559,7 +559,7 @@ static int iproc_gpio_get_strength(struct iproc_gpio *chip, unsigned gpio,
 
 	/* convert to mA */
 	*strength = (*strength + 1) * 2;
-	spin_unlock_irqrestore(&chip->lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -769,7 +769,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	spin_lock_init(&chip->lock);
+	raw_spin_lock_init(&chip->lock);
 
 	gc = &chip->gc;
 	gc->base = -1;

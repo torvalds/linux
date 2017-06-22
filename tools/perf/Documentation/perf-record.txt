@@ -225,7 +225,7 @@ OPTIONS
 	the libunwind or libdw library) should be used instead.
 	Using the "lbr" method doesn't require any compiler options. It
 	will produce call graphs from the hardware LBR registers. The
-	main limition is that it is only available on new Intel
+	main limitation is that it is only available on new Intel
 	platforms, such as Haswell. It can only get user call chain. It
 	doesn't work with branch stack sampling at the same time.
 
@@ -346,6 +346,9 @@ Note that this feature may not be available on all processors.
 Enable weightened sampling. An additional weight is recorded per sample and can be
 displayed with the weight and local_weight sort keys.  This currently works for TSX
 abort events and some memory events in precise mode on modern Intel CPUs.
+
+--namespaces::
+Record events of type PERF_RECORD_NAMESPACES.
 
 --transaction::
 Record transaction flags for transaction related events.

@@ -832,6 +832,7 @@ void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
+
 		if (IS_STA_VALID(pstat)) {
 			if (ODM_RAStateCheck(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level)) {
 				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
@@ -896,6 +897,7 @@ void odm_DynamicTxPowerInit(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 	struct dm_priv	*pdmpriv = &Adapter->HalData->dmpriv;
+
 	pdmpriv->bDynamicTxPowerEnable = false;
 	pdmpriv->LastDTPLvl = TxHighPwrLevel_Normal;
 	pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
@@ -1052,6 +1054,7 @@ void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm)
 void ODM_EdcaTurboInit(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
+
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;

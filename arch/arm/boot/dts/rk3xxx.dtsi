@@ -132,14 +132,14 @@
 	global_timer: global-timer@1013c200 {
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0x1013c200 0x20>;
-		interrupts = <GIC_PPI 11 0x304>;
+		interrupts = <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&cru CORE_PERI>;
 	};
 
 	local_timer: local-timer@1013c600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x1013c600 0x20>;
-		interrupts = <GIC_PPI 13 0x304>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&cru CORE_PERI>;
 	};
 
@@ -223,7 +223,11 @@
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
 		clock-names = "biu", "ciu";
+		dmas = <&dmac2 1>;
+		dma-names = "rx-tx";
 		fifo-depth = <256>;
+		resets = <&cru SRST_SDMMC>;
+		reset-names = "reset";
 		status = "disabled";
 	};
 
@@ -233,7 +237,11 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>;
 		clock-names = "biu", "ciu";
+		dmas = <&dmac2 3>;
+		dma-names = "rx-tx";
 		fifo-depth = <256>;
+		resets = <&cru SRST_SDIO>;
+		reset-names = "reset";
 		status = "disabled";
 	};
 
@@ -243,7 +251,11 @@
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
 		clock-names = "biu", "ciu";
+		dmas = <&dmac2 4>;
+		dma-names = "rx-tx";
 		fifo-depth = <256>;
+		resets = <&cru SRST_EMMC>;
+		reset-names = "reset";
 		status = "disabled";
 	};
 

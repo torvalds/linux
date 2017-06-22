@@ -817,7 +817,8 @@ struct rtl8169_private {
 	} csi_ops;
 
 	int (*set_speed)(struct net_device *, u8 aneg, u16 sp, u8 dpx, u32 adv);
-	int (*get_settings)(struct net_device *, struct ethtool_cmd *);
+	int (*get_link_ksettings)(struct net_device *,
+				  struct ethtool_link_ksettings *);
 	void (*phy_reset_enable)(struct rtl8169_private *tp);
 	void (*hw_start)(struct net_device *);
 	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
@@ -2115,41 +2116,49 @@ static void rtl8169_rx_vlan_tag(struct RxDesc *desc, struct sk_buff *skb)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), swab16(opts2 & 0xffff));
 }
 
-static int rtl8169_gset_tbi(struct net_device *dev, struct ethtool_cmd *cmd)
+static int rtl8169_get_link_ksettings_tbi(struct net_device *dev,
+					  struct ethtool_link_ksettings *cmd)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	u32 status;
+	u32 supported, advertising;
 
-	cmd->supported =
+	supported =
 		SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_FIBRE;
-	cmd->port = PORT_FIBRE;
-	cmd->transceiver = XCVR_INTERNAL;
+	cmd->base.port = PORT_FIBRE;
 
 	status = RTL_R32(TBICSR);
-	cmd->advertising = (status & TBINwEnable) ?  ADVERTISED_Autoneg : 0;
-	cmd->autoneg = !!(status & TBINwEnable);
+	advertising = (status & TBINwEnable) ?  ADVERTISED_Autoneg : 0;
+	cmd->base.autoneg = !!(status & TBINwEnable);
 
-	ethtool_cmd_speed_set(cmd, SPEED_1000);
-	cmd->duplex = DUPLEX_FULL; /* Always set */
+	cmd->base.speed = SPEED_1000;
+	cmd->base.duplex = DUPLEX_FULL; /* Always set */
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
-static int rtl8169_gset_xmii(struct net_device *dev, struct ethtool_cmd *cmd)
+static int rtl8169_get_link_ksettings_xmii(struct net_device *dev,
+					   struct ethtool_link_ksettings *cmd)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_gset(&tp->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&tp->mii, cmd);
 }
 
-static int rtl8169_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int rtl8169_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	int rc;
 
 	rtl_lock_work(tp);
-	rc = tp->get_settings(dev, cmd);
+	rc = tp->get_link_ksettings(dev, cmd);
 	rtl_unlock_work(tp);
 
 	return rc;
@@ -2356,7 +2365,6 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_drvinfo		= rtl8169_get_drvinfo,
 	.get_regs_len		= rtl8169_get_regs_len,
 	.get_link		= ethtool_op_get_link,
-	.get_settings		= rtl8169_get_settings,
 	.set_settings		= rtl8169_set_settings,
 	.get_msglevel		= rtl8169_get_msglevel,
 	.set_msglevel		= rtl8169_set_msglevel,
@@ -2368,6 +2376,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.nway_reset		= rtl8169_nway_reset,
+	.get_link_ksettings	= rtl8169_get_link_ksettings,
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
@@ -8351,14 +8360,14 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (rtl_tbi_enabled(tp)) {
 		tp->set_speed = rtl8169_set_speed_tbi;
-		tp->get_settings = rtl8169_gset_tbi;
+		tp->get_link_ksettings = rtl8169_get_link_ksettings_tbi;
 		tp->phy_reset_enable = rtl8169_tbi_reset_enable;
 		tp->phy_reset_pending = rtl8169_tbi_reset_pending;
 		tp->link_ok = rtl8169_tbi_link_ok;
 		tp->do_ioctl = rtl_tbi_ioctl;
 	} else {
 		tp->set_speed = rtl8169_set_speed_xmii;
-		tp->get_settings = rtl8169_gset_xmii;
+		tp->get_link_ksettings = rtl8169_get_link_ksettings_xmii;
 		tp->phy_reset_enable = rtl8169_xmii_reset_enable;
 		tp->phy_reset_pending = rtl8169_xmii_reset_pending;
 		tp->link_ok = rtl8169_xmii_link_ok;
@@ -8444,9 +8453,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->opts1_mask = (tp->mac_version != RTL_GIGA_MAC_VER_01) ?
 		~(RxBOVF | RxFOVF) : ~0;
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long) dev;
-	tp->timer.function = rtl8169_phy_timer;
+	setup_timer(&tp->timer, rtl8169_phy_timer, (unsigned long)dev);
 
 	tp->rtl_fw = RTL_FIRMWARE_UNKNOWN;
 

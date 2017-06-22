@@ -236,6 +236,7 @@ struct ttm_bo_driver cirrus_bo_driver = {
 	.verify_access = cirrus_bo_verify_access,
 	.io_mem_reserve = &cirrus_ttm_io_mem_reserve,
 	.io_mem_free = &cirrus_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int cirrus_mm_init(struct cirrus_device *cirrus)
