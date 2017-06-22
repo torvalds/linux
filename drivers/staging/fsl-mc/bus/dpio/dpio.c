@@ -32,7 +32,6 @@
  */
 #include <linux/kernel.h>
 #include "../../include/mc.h"
-#include "../../include/mc-cmd.h"
 
 #include "dpio.h"
 #include "dpio-cmd.h"

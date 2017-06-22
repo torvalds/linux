@@ -31,7 +31,6 @@
  */
 #include <linux/kernel.h>
 #include "../include/mc.h"
-#include "../include/mc-cmd.h"
 #include "../include/dpcon.h"
 
 #include "dpcon-cmd.h"
