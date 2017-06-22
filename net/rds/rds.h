@@ -137,7 +137,8 @@ struct rds_connection {
 	__be32			c_faddr;
 	unsigned int		c_loopback:1,
 				c_ping_triggered:1,
-				c_pad_to_32:30;
+				c_destroy_in_prog:1,
+				c_pad_to_32:29;
 	int			c_npaths;
 	struct rds_connection	*c_passive;
 	struct rds_transport	*c_trans;
@@ -827,6 +828,7 @@ void rds_send_drop_acked(struct rds_connection *conn, u64 ack,
 			 is_acked_func is_acked);
 void rds_send_path_drop_acked(struct rds_conn_path *cp, u64 ack,
 			      is_acked_func is_acked);
+void rds_send_ping(struct rds_connection *conn, int cp_index);
 int rds_send_pong(struct rds_conn_path *cp, __be16 dport);
 
 /* rdma.c */

@@ -112,7 +112,7 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 	return NULL;
 }
 
-static void rds_tcp_set_linger(struct socket *sock)
+void rds_tcp_set_linger(struct socket *sock)
 {
 	struct linger no_linger = {
 		.l_onoff = 1,
@@ -192,6 +192,8 @@ int rds_tcp_accept_one(struct socket *sock)
 	}
 	new_sock = NULL;
 	ret = 0;
+	if (conn->c_npaths == 0)
+		rds_send_ping(cp->cp_conn, cp->cp_index);
 	goto out;
 rst_nsk:
 	/* reset the newly returned accept sock and bail.
