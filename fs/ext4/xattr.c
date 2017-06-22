@@ -108,6 +108,10 @@ const struct xattr_handler *ext4_xattr_handlers[] = {
 #define EA_BLOCK_CACHE(inode)	(((struct ext4_sb_info *) \
 				inode->i_sb->s_fs_info)->s_ea_block_cache)
 
+static int
+ext4_expand_inode_array(struct ext4_xattr_inode_array **ea_inode_array,
+			struct inode *inode);
+
 #ifdef CONFIG_LOCKDEP
 void ext4_xattr_inode_set_class(struct inode *ea_inode)
 {
@@ -649,6 +653,128 @@ static void ext4_xattr_update_super_block(handle_t *handle,
 	if (ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh) == 0) {
 		ext4_set_feature_xattr(sb);
 		ext4_handle_dirty_super(handle, sb);
+	}
+}
+
+static int ext4_xattr_ensure_credits(handle_t *handle, struct inode *inode,
+				     int credits, struct buffer_head *bh,
+				     bool dirty, bool block_csum)
+{
+	int error;
+
+	if (!ext4_handle_valid(handle))
+		return 0;
+
+	if (handle->h_buffer_credits >= credits)
+		return 0;
+
+	error = ext4_journal_extend(handle, credits - handle->h_buffer_credits);
+	if (!error)
+		return 0;
+	if (error < 0) {
+		ext4_warning(inode->i_sb, "Extend journal (error %d)", error);
+		return error;
+	}
+
+	if (bh && dirty) {
+		if (block_csum)
+			ext4_xattr_block_csum_set(inode, bh);
+		error = ext4_handle_dirty_metadata(handle, NULL, bh);
+		if (error) {
+			ext4_warning(inode->i_sb, "Handle metadata (error %d)",
+				     error);
+			return error;
+		}
+	}
+
+	error = ext4_journal_restart(handle, credits);
+	if (error) {
+		ext4_warning(inode->i_sb, "Restart journal (error %d)", error);
+		return error;
+	}
+
+	if (bh) {
+		error = ext4_journal_get_write_access(handle, bh);
+		if (error) {
+			ext4_warning(inode->i_sb,
+				     "Get write access failed (error %d)",
+				     error);
+			return error;
+		}
+	}
+	return 0;
+}
+
+static void
+ext4_xattr_inode_remove_all(handle_t *handle, struct inode *parent,
+			    struct buffer_head *bh,
+			    struct ext4_xattr_entry *first, bool block_csum,
+			    struct ext4_xattr_inode_array **ea_inode_array,
+			    int extra_credits)
+{
+	struct inode *ea_inode;
+	struct ext4_xattr_entry *entry;
+	bool dirty = false;
+	unsigned int ea_ino;
+	int err;
+	int credits;
+
+	/* One credit for dec ref on ea_inode, one for orphan list addition, */
+	credits = 2 + extra_credits;
+
+	for (entry = first; !IS_LAST_ENTRY(entry);
+	     entry = EXT4_XATTR_NEXT(entry)) {
+		if (!entry->e_value_inum)
+			continue;
+		ea_ino = le32_to_cpu(entry->e_value_inum);
+		err = ext4_xattr_inode_iget(parent, ea_ino, &ea_inode);
+		if (err)
+			continue;
+
+		err = ext4_expand_inode_array(ea_inode_array, ea_inode);
+		if (err) {
+			ext4_warning_inode(ea_inode,
+					   "Expand inode array err=%d", err);
+			iput(ea_inode);
+			continue;
+		}
+
+		err = ext4_xattr_ensure_credits(handle, parent, credits, bh,
+						dirty, block_csum);
+		if (err) {
+			ext4_warning_inode(ea_inode, "Ensure credits err=%d",
+					   err);
+			continue;
+		}
+
+		inode_lock(ea_inode);
+		clear_nlink(ea_inode);
+		ext4_orphan_add(handle, ea_inode);
+		inode_unlock(ea_inode);
+
+		/*
+		 * Forget about ea_inode within the same transaction that
+		 * decrements the ref count. This avoids duplicate decrements in
+		 * case the rest of the work spills over to subsequent
+		 * transactions.
+		 */
+		entry->e_value_inum = 0;
+		entry->e_value_size = 0;
+
+		dirty = true;
+	}
+
+	if (dirty) {
+		/*
+		 * Note that we are deliberately skipping csum calculation for
+		 * the final update because we do not expect any journal
+		 * restarts until xattr block is freed.
+		 */
+
+		err = ext4_handle_dirty_metadata(handle, NULL, bh);
+		if (err)
+			ext4_warning_inode(parent,
+					   "handle dirty metadata err=%d", err);
 	}
 }
 
@@ -1982,42 +2108,6 @@ ext4_expand_inode_array(struct ext4_xattr_inode_array **ea_inode_array,
 	return 0;
 }
 
-/**
- * Add xattr inode to orphan list
- */
-static int
-ext4_xattr_inode_orphan_add(handle_t *handle, struct inode *inode, int credits,
-			    struct ext4_xattr_inode_array *ea_inode_array)
-{
-	int idx = 0, error = 0;
-	struct inode *ea_inode;
-
-	if (ea_inode_array == NULL)
-		return 0;
-
-	for (; idx < ea_inode_array->count; ++idx) {
-		if (!ext4_handle_has_enough_credits(handle, credits)) {
-			error = ext4_journal_extend(handle, credits);
-			if (error > 0)
-				error = ext4_journal_restart(handle, credits);
-
-			if (error != 0) {
-				ext4_warning(inode->i_sb,
-					"couldn't extend journal "
-					"(err %d)", error);
-				return error;
-			}
-		}
-		ea_inode = ea_inode_array->inodes[idx];
-		inode_lock(ea_inode);
-		ext4_orphan_add(handle, ea_inode);
-		inode_unlock(ea_inode);
-		/* the inode's i_count will be released by caller */
-	}
-
-	return 0;
-}
-
 /*
  * ext4_xattr_delete_inode()
  *
@@ -2030,16 +2120,23 @@ ext4_xattr_inode_orphan_add(handle_t *handle, struct inode *inode, int credits,
  */
 int
 ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
-			struct ext4_xattr_inode_array **ea_inode_array)
+			struct ext4_xattr_inode_array **ea_inode_array,
+			int extra_credits)
 {
 	struct buffer_head *bh = NULL;
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_inode *raw_inode;
-	struct ext4_iloc iloc;
-	struct ext4_xattr_entry *entry;
-	struct inode *ea_inode;
-	unsigned int ea_ino;
-	int credits = 3, error = 0;
+	struct ext4_iloc iloc = { .bh = NULL };
+	int error;
+
+	error = ext4_xattr_ensure_credits(handle, inode, extra_credits,
+					  NULL /* bh */,
+					  false /* dirty */,
+					  false /* block_csum */);
+	if (error) {
+		EXT4_ERROR_INODE(inode, "ensure credits (error %d)", error);
+		goto cleanup;
+	}
 
 	if (!ext4_test_inode_state(inode, EXT4_STATE_XATTR))
 		goto delete_external_ea;
@@ -2047,31 +2144,20 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 	error = ext4_get_inode_loc(inode, &iloc);
 	if (error)
 		goto cleanup;
+
+	error = ext4_journal_get_write_access(handle, iloc.bh);
+	if (error)
+		goto cleanup;
+
 	raw_inode = ext4_raw_inode(&iloc);
 	header = IHDR(inode, raw_inode);
-	for (entry = IFIRST(header); !IS_LAST_ENTRY(entry);
-	     entry = EXT4_XATTR_NEXT(entry)) {
-		if (!entry->e_value_inum)
-			continue;
-		ea_ino = le32_to_cpu(entry->e_value_inum);
-		error = ext4_xattr_inode_iget(inode, ea_ino, &ea_inode);
-		if (error)
-			continue;
-		error = ext4_expand_inode_array(ea_inode_array, ea_inode);
-		if (error) {
-			iput(ea_inode);
-			brelse(iloc.bh);
-			goto cleanup;
-		}
-		entry->e_value_inum = 0;
-	}
-	brelse(iloc.bh);
+	ext4_xattr_inode_remove_all(handle, inode, iloc.bh, IFIRST(header),
+				    false /* block_csum */, ea_inode_array,
+				    extra_credits);
 
 delete_external_ea:
 	if (!EXT4_I(inode)->i_file_acl) {
-		/* add xattr inode to orphan list */
-		error = ext4_xattr_inode_orphan_add(handle, inode, credits,
-						    *ea_inode_array);
+		error = 0;
 		goto cleanup;
 	}
 	bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
@@ -2089,46 +2175,32 @@ delete_external_ea:
 		goto cleanup;
 	}
 
-	for (entry = BFIRST(bh); !IS_LAST_ENTRY(entry);
-	     entry = EXT4_XATTR_NEXT(entry)) {
-		if (!entry->e_value_inum)
-			continue;
-		ea_ino = le32_to_cpu(entry->e_value_inum);
-		error = ext4_xattr_inode_iget(inode, ea_ino, &ea_inode);
-		if (error)
-			continue;
-		error = ext4_expand_inode_array(ea_inode_array, ea_inode);
-		if (error)
-			goto cleanup;
-		entry->e_value_inum = 0;
-	}
-
-	/* add xattr inode to orphan list */
-	error = ext4_xattr_inode_orphan_add(handle, inode, credits,
-					*ea_inode_array);
-	if (error)
-		goto cleanup;
-
-	if (!IS_NOQUOTA(inode))
-		credits += 2 * EXT4_QUOTA_DEL_BLOCKS(inode->i_sb);
-
-	if (!ext4_handle_has_enough_credits(handle, credits)) {
-		error = ext4_journal_extend(handle, credits);
-		if (error > 0)
-			error = ext4_journal_restart(handle, credits);
+	if (ext4_has_feature_ea_inode(inode->i_sb)) {
+		error = ext4_journal_get_write_access(handle, bh);
 		if (error) {
-			ext4_warning(inode->i_sb,
-				"couldn't extend journal (err %d)", error);
+			EXT4_ERROR_INODE(inode, "write access %llu",
+					 EXT4_I(inode)->i_file_acl);
 			goto cleanup;
 		}
+		ext4_xattr_inode_remove_all(handle, inode, bh,
+					    BFIRST(bh),
+					    true /* block_csum */,
+					    ea_inode_array,
+					    extra_credits);
 	}
 
 	ext4_xattr_release_block(handle, inode, bh);
+	/* Update i_file_acl within the same transaction that releases block. */
 	EXT4_I(inode)->i_file_acl = 0;
-
+	error = ext4_mark_inode_dirty(handle, inode);
+	if (error) {
+		EXT4_ERROR_INODE(inode, "mark inode dirty (error %d)",
+				 error);
+		goto cleanup;
+	}
 cleanup:
+	brelse(iloc.bh);
 	brelse(bh);
-
 	return error;
 }
 
