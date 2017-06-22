@@ -178,13 +178,20 @@ static inline struct afu_cmd *sc_to_afuc(struct scsi_cmnd *sc)
 	return PTR_ALIGN(scsi_cmd_priv(sc), __alignof__(struct afu_cmd));
 }
 
+static inline struct afu_cmd *sc_to_afuci(struct scsi_cmnd *sc)
+{
+	struct afu_cmd *afuc = sc_to_afuc(sc);
+
+	INIT_LIST_HEAD(&afuc->queue);
+	return afuc;
+}
+
 static inline struct afu_cmd *sc_to_afucz(struct scsi_cmnd *sc)
 {
 	struct afu_cmd *afuc = sc_to_afuc(sc);
 
 	memset(afuc, 0, sizeof(*afuc));
-	INIT_LIST_HEAD(&afuc->queue);
-	return afuc;
+	return sc_to_afuci(sc);
 }
 
 struct hwq {

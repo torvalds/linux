@@ -543,7 +543,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct cxlflash_cfg *cfg = shost_priv(host);
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	struct afu_cmd *cmd = sc_to_afucz(scp);
+	struct afu_cmd *cmd = sc_to_afuci(scp);
 	struct scatterlist *sg = scsi_sglist(scp);
 	int hwq_index = cmd_to_target_hwq(host, scp, afu);
 	struct hwq *hwq = get_hwq(afu, hwq_index);
