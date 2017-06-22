@@ -21,14 +21,17 @@
 
 #define FSL_MC_DPRC_DRIVER_NAME    "fsl_mc_dprc"
 
-#define FSL_MC_DEVICE_MATCH(_mc_dev, _obj_desc) \
-	(strcmp((_mc_dev)->obj_desc.type, (_obj_desc)->type) == 0 && \
-	 (_mc_dev)->obj_desc.id == (_obj_desc)->id)
-
 struct dprc_child_objs {
 	int child_count;
 	struct dprc_obj_desc *child_array;
 };
+
+static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
+				struct dprc_obj_desc *obj_desc)
+{
+	return !strcmp(mc_dev->obj_desc.type, obj_desc->type) &&
+		mc_dev->obj_desc.id == obj_desc->id;
+}
 
 static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
 {
@@ -45,7 +48,7 @@ static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
 		struct dprc_obj_desc *obj_desc = &objs->child_array[i];
 
 		if (strlen(obj_desc->type) != 0 &&
-		    FSL_MC_DEVICE_MATCH(mc_dev, obj_desc))
+		    fsl_mc_device_match(mc_dev, obj_desc))
 			break;
 	}
 
@@ -105,7 +108,7 @@ static int __fsl_mc_device_match(struct device *dev, void *data)
 	struct dprc_obj_desc *obj_desc = data;
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 
-	return FSL_MC_DEVICE_MATCH(mc_dev, obj_desc);
+	return fsl_mc_device_match(mc_dev, obj_desc);
 }
 
 static struct fsl_mc_device *fsl_mc_device_lookup(struct dprc_obj_desc
