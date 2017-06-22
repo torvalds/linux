@@ -1964,8 +1964,8 @@ static void gfx_v9_0_enable_gfx_pipeline_powergating(struct amdgpu_device *adev,
 		data = RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_RENDER_CONTROL));
 }
 
-void gfx_v9_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
-						bool enable)
+static void gfx_v9_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
+						       bool enable)
 {
 	uint32_t data, default_data;
 
@@ -1978,7 +1978,7 @@ void gfx_v9_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
 }
 
-void gfx_v9_0_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
+static void gfx_v9_0_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
 						bool enable)
 {
 	uint32_t data, default_data;
