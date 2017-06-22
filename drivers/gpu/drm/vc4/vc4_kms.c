@@ -241,6 +241,9 @@ int vc4_kms_load(struct drm_device *dev)
 
 	sema_init(&vc4->async_modeset, 1);
 
+	/* Set support for vblank irq fast disable, before drm_vblank_init() */
+	dev->vblank_disable_immediate = true;
+
 	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize vblank\n");
