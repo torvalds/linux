@@ -10,7 +10,7 @@ enabled for child devices connected to the bus (either on-SoC or externally)
 to function.
 
 While "simple-pm-bus" follows the "simple-bus" set of properties, as specified
-in ePAPR, it is not an extension of "simple-bus".
+in the Devicetree Specification, it is not an extension of "simple-bus".
 
 
 Required properties:

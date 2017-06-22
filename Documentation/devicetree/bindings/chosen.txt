@@ -10,7 +10,8 @@ stdout-path property
 --------------------
 
 Device trees may specify the device to be used for boot console output
-with a stdout-path property under /chosen, as described in ePAPR, e.g.
+with a stdout-path property under /chosen, as described in the Devicetree
+Specification, e.g.
 
 / {
 	chosen {
