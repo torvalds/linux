@@ -878,6 +878,7 @@ static void eb_release_vmas(const struct i915_execbuffer *eb)
 
 		GEM_BUG_ON(vma->exec_entry != entry);
 		vma->exec_entry = NULL;
+		__exec_to_vma(entry) = 0;
 
 		if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 			__eb_unreserve_vma(vma, entry);
