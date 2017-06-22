@@ -1961,7 +1961,9 @@ ext4_xattr_inode_orphan_add(handle_t *handle, struct inode *inode,
 				lea_ino_array->xia_inodes[idx], &error);
 		if (error)
 			continue;
+		inode_lock(ea_inode);
 		ext4_orphan_add(handle, ea_inode);
+		inode_unlock(ea_inode);
 		/* the inode's i_count will be released by caller */
 	}
 
