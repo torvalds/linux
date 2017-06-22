@@ -1,5 +1,5 @@
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/stat.h>
 #include <asm/host_ops.h>
 #include <asm/cpu.h>
 #include <asm/thread_info.h>
