@@ -830,7 +830,8 @@ static struct inode *ext4_xattr_inode_create(handle_t *handle,
 	 * in the same group, or nearby one.
 	 */
 	ea_inode = ext4_new_inode(handle, inode->i_sb->s_root->d_inode,
-				  S_IFREG | 0600, NULL, inode->i_ino + 1, NULL);
+				  S_IFREG | 0600, NULL, inode->i_ino + 1, NULL,
+				  EXT4_EA_INODE_FL);
 	if (!IS_ERR(ea_inode)) {
 		ea_inode->i_op = &ext4_file_inode_operations;
 		ea_inode->i_fop = &ext4_file_operations;

@@ -475,7 +475,7 @@ int ext4_ext_migrate(struct inode *inode)
 	owner[0] = i_uid_read(inode);
 	owner[1] = i_gid_read(inode);
 	tmp_inode = ext4_new_inode(handle, d_inode(inode->i_sb->s_root),
-				   S_IFREG, NULL, goal, owner);
+				   S_IFREG, NULL, goal, owner, 0);
 	if (IS_ERR(tmp_inode)) {
 		retval = PTR_ERR(tmp_inode);
 		ext4_journal_stop(handle);
