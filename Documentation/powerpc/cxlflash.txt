@@ -413,3 +413,17 @@ HT_CXLFLASH_LUN_PROVISION
 
     With this information, the number of available LUNs and capacity can be
     can be calculated.
+
+HT_CXLFLASH_AFU_DEBUG
+---------------------
+    This ioctl is used to debug AFUs by supporting a command pass-through
+    interface. It is only valid when used with AFUs that support the AFU
+    debug capability.
+
+    With exception of buffer management, AFU debug commands are opaque to
+    cxlflash and treated as pass-through. For debug commands that do require
+    data transfer, the user supplies an adequately sized data buffer and must
+    specify the data transfer direction with respect to the host. There is a
+    maximum transfer size of 256K imposed. Note that partial read completions
+    are not supported - when errors are experienced with a host read data
+    transfer, the data buffer is not copied back to the user.

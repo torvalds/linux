@@ -74,6 +74,7 @@ struct sisl_ioarcb {
 	u8 cdb[16];		/* must be in big endian */
 #define SISL_AFU_CMD_SYNC		0xC0	/* AFU sync command */
 #define SISL_AFU_CMD_LUN_PROVISION	0xD0	/* AFU LUN provision command */
+#define SISL_AFU_CMD_DEBUG		0xE0	/* AFU debug command */
 
 #define SISL_AFU_LUN_PROVISION_CREATE	0x00	/* LUN provision create type */
 #define SISL_AFU_LUN_PROVISION_DELETE	0x01	/* LUN provision delete type */
@@ -412,6 +413,7 @@ struct sisl_global_regs {
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_A	0x200000000000ULL
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_B	0x100000000000ULL
 #define SISL_INTVER_CAP_LUN_PROVISION		0x080000000000ULL
+#define SISL_INTVER_CAP_AFU_DEBUG		0x040000000000ULL
 };
 
 #define CXLFLASH_NUM_FC_PORTS_PER_BANK	2	/* fixed # of ports per bank */

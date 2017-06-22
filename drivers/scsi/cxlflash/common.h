@@ -262,6 +262,11 @@ static inline bool afu_has_cap(struct afu *afu, u64 cap)
 	return afu_cap & cap;
 }
 
+static inline bool afu_is_afu_debug(struct afu *afu)
+{
+	return afu_has_cap(afu, SISL_INTVER_CAP_AFU_DEBUG);
+}
+
 static inline bool afu_is_lun_provision(struct afu *afu)
 {
 	return afu_has_cap(afu, SISL_INTVER_CAP_LUN_PROVISION);

@@ -3326,6 +3326,99 @@ out:
 }
 
 /**
+ * cxlflash_afu_debug() - host AFU debug handler
+ * @cfg:	Internal structure associated with the host.
+ * @arg:	Kernel copy of userspace ioctl data structure.
+ *
+ * For debug requests requiring a data buffer, always provide an aligned
+ * (cache line) buffer to the AFU to appease any alignment requirements.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
+			      struct ht_cxlflash_afu_debug *afu_dbg)
+{
+	struct afu *afu = cfg->afu;
+	struct device *dev = &cfg->dev->dev;
+	struct sisl_ioarcb rcb;
+	struct sisl_ioasa asa;
+	char *buf = NULL;
+	char *kbuf = NULL;
+	void __user *ubuf = (__force void __user *)afu_dbg->data_ea;
+	u16 req_flags = SISL_REQ_FLAGS_AFU_CMD;
+	u32 ulen = afu_dbg->data_len;
+	bool is_write = afu_dbg->hdr.flags & HT_CXLFLASH_HOST_WRITE;
+	int rc = 0;
+
+	if (!afu_is_afu_debug(afu)) {
+		rc = -ENOTSUPP;
+		goto out;
+	}
+
+	if (ulen) {
+		req_flags |= SISL_REQ_FLAGS_SUP_UNDERRUN;
+
+		if (ulen > HT_CXLFLASH_AFU_DEBUG_MAX_DATA_LEN) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		if (unlikely(!access_ok(is_write ? VERIFY_READ : VERIFY_WRITE,
+					ubuf, ulen))) {
+			rc = -EFAULT;
+			goto out;
+		}
+
+		buf = kmalloc(ulen + cache_line_size() - 1, GFP_KERNEL);
+		if (unlikely(!buf)) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		kbuf = PTR_ALIGN(buf, cache_line_size());
+
+		if (is_write) {
+			req_flags |= SISL_REQ_FLAGS_HOST_WRITE;
+
+			rc = copy_from_user(kbuf, ubuf, ulen);
+			if (unlikely(rc))
+				goto out;
+		}
+	}
+
+	memset(&rcb, 0, sizeof(rcb));
+	memset(&asa, 0, sizeof(asa));
+
+	rcb.req_flags = req_flags;
+	rcb.msi = SISL_MSI_RRQ_UPDATED;
+	rcb.timeout = MC_AFU_DEBUG_TIMEOUT;
+	rcb.ioasa = &asa;
+
+	if (ulen) {
+		rcb.data_len = ulen;
+		rcb.data_ea = (uintptr_t)kbuf;
+	}
+
+	rcb.cdb[0] = SISL_AFU_CMD_DEBUG;
+	memcpy(&rcb.cdb[4], afu_dbg->afu_subcmd,
+	       HT_CXLFLASH_AFU_DEBUG_SUBCMD_LEN);
+
+	rc = send_afu_cmd(afu, &rcb);
+	if (rc) {
+		dev_err(dev, "%s: send_afu_cmd failed rc=%d asc=%08x afux=%x\n",
+			__func__, rc, asa.ioasc, asa.afu_extra);
+		goto out;
+	}
+
+	if (ulen && !is_write)
+		rc = copy_to_user(ubuf, kbuf, ulen);
+out:
+	kfree(buf);
+	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
+	return rc;
+}
+
+/**
  * cxlflash_chr_ioctl() - character device IOCTL handler
  * @file:	File pointer for this device.
  * @cmd:	IOCTL command.
@@ -3363,6 +3456,8 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 	} ioctl_tbl[] = {	/* NOTE: order matters here */
 	{ sizeof(struct ht_cxlflash_lun_provision),
 		(hioctl)cxlflash_lun_provision },
+	{ sizeof(struct ht_cxlflash_afu_debug),
+		(hioctl)cxlflash_afu_debug },
 	};
 
 	/* Hold read semaphore so we can drain if needed */
@@ -3373,6 +3468,7 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case HT_CXLFLASH_LUN_PROVISION:
+	case HT_CXLFLASH_AFU_DEBUG:
 		known_ioctl = true;
 		idx = _IOC_NR(HT_CXLFLASH_LUN_PROVISION) - _IOC_NR(cmd);
 		size = ioctl_tbl[idx].size;

@@ -68,6 +68,7 @@
 /* AFU command timeout values */
 #define MC_AFU_SYNC_TIMEOUT	5	/* 5 secs */
 #define MC_LUN_PROV_TIMEOUT	5	/* 5 secs */
+#define MC_AFU_DEBUG_TIMEOUT	5	/* 5 secs */
 
 /* AFU command room retry limit */
 #define MC_ROOM_RETRY_CNT	10
