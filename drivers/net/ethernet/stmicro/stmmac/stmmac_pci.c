@@ -38,17 +38,17 @@ struct stmmac_pci_dmi_data {
 };
 
 struct stmmac_pci_info {
-	struct pci_dev *pdev;
-	int (*setup)(struct plat_stmmacenet_data *plat,
-		     struct stmmac_pci_info *info);
+	int (*setup)(struct pci_dev *pdev, struct plat_stmmacenet_data *plat,
+		     const struct stmmac_pci_info *info);
 	struct stmmac_pci_dmi_data *dmi;
 };
 
-static int stmmac_pci_find_phy_addr(struct stmmac_pci_info *info)
+static int stmmac_pci_find_phy_addr(struct pci_dev *pdev,
+				    const struct stmmac_pci_info *info)
 {
 	const char *name = dmi_get_system_info(DMI_BOARD_NAME);
 	const char *asset_tag = dmi_get_system_info(DMI_BOARD_ASSET_TAG);
-	unsigned int func = PCI_FUNC(info->pdev->devfn);
+	unsigned int func = PCI_FUNC(pdev->devfn);
 	struct stmmac_pci_dmi_data *dmi;
 
 	/*
@@ -114,10 +114,10 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 	/* TODO: AXI */
 }
 
-static int quark_default_data(struct plat_stmmacenet_data *plat,
-			      struct stmmac_pci_info *info)
+static int quark_default_data(struct pci_dev *pdev,
+			      struct plat_stmmacenet_data *plat,
+			      const struct stmmac_pci_info *info)
 {
-	struct pci_dev *pdev = info->pdev;
 	int ret;
 
 	/* Set common default data first */
@@ -127,7 +127,7 @@ static int quark_default_data(struct plat_stmmacenet_data *plat,
 	 * Refuse to load the driver and register net device if MAC controller
 	 * does not connect to any PHY interface.
 	 */
-	ret = stmmac_pci_find_phy_addr(info);
+	ret = stmmac_pci_find_phy_addr(pdev, info);
 	if (ret < 0)
 		return ret;
 
@@ -175,7 +175,7 @@ static struct stmmac_pci_dmi_data quark_pci_dmi_data[] = {
 	{}
 };
 
-static struct stmmac_pci_info quark_pci_info = {
+static const struct stmmac_pci_info quark_pci_info = {
 	.setup = quark_default_data,
 	.dmi = quark_pci_dmi_data,
 };
@@ -237,9 +237,8 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	if (info) {
-		info->pdev = pdev;
 		if (info->setup) {
-			ret = info->setup(plat, info);
+			ret = info->setup(pdev, plat, info);
 			if (ret)
 				return ret;
 		}
