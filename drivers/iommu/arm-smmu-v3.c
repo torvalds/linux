@@ -603,6 +603,7 @@ struct arm_smmu_device {
 	u32				features;
 
 #define ARM_SMMU_OPT_SKIP_PREFETCH	(1 << 0)
+#define ARM_SMMU_OPT_PAGE0_REGS_ONLY	(1 << 1)
 	u32				options;
 
 	struct arm_smmu_cmdq		cmdq;
@@ -668,8 +669,19 @@ struct arm_smmu_option_prop {
 
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SKIP_PREFETCH, "hisilicon,broken-prefetch-cmd" },
+	{ ARM_SMMU_OPT_PAGE0_REGS_ONLY, "cavium,cn9900-broken-page1-regspace"},
 	{ 0, NULL},
 };
+
+static inline void __iomem *arm_smmu_page1_fixup(unsigned long offset,
+						 struct arm_smmu_device *smmu)
+{
+	if ((offset > SZ_64K) &&
+	    (smmu->options & ARM_SMMU_OPT_PAGE0_REGS_ONLY))
+		offset -= SZ_64K;
+
+	return smmu->base + offset;
+}
 
 static struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 {
@@ -1956,8 +1968,8 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 		return -ENOMEM;
 	}
 
-	q->prod_reg	= smmu->base + prod_off;
-	q->cons_reg	= smmu->base + cons_off;
+	q->prod_reg	= arm_smmu_page1_fixup(prod_off, smmu);
+	q->cons_reg	= arm_smmu_page1_fixup(cons_off, smmu);
 	q->ent_dwords	= dwords;
 
 	q->q_base  = Q_BASE_RWA;
@@ -2358,8 +2370,10 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 
 	/* Event queue */
 	writeq_relaxed(smmu->evtq.q.q_base, smmu->base + ARM_SMMU_EVTQ_BASE);
-	writel_relaxed(smmu->evtq.q.prod, smmu->base + ARM_SMMU_EVTQ_PROD);
-	writel_relaxed(smmu->evtq.q.cons, smmu->base + ARM_SMMU_EVTQ_CONS);
+	writel_relaxed(smmu->evtq.q.prod,
+		       arm_smmu_page1_fixup(ARM_SMMU_EVTQ_PROD, smmu));
+	writel_relaxed(smmu->evtq.q.cons,
+		       arm_smmu_page1_fixup(ARM_SMMU_EVTQ_CONS, smmu));
 
 	enables |= CR0_EVTQEN;
 	ret = arm_smmu_write_reg_sync(smmu, enables, ARM_SMMU_CR0,
@@ -2374,9 +2388,9 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 		writeq_relaxed(smmu->priq.q.q_base,
 			       smmu->base + ARM_SMMU_PRIQ_BASE);
 		writel_relaxed(smmu->priq.q.prod,
-			       smmu->base + ARM_SMMU_PRIQ_PROD);
+			       arm_smmu_page1_fixup(ARM_SMMU_PRIQ_PROD, smmu));
 		writel_relaxed(smmu->priq.q.cons,
-			       smmu->base + ARM_SMMU_PRIQ_CONS);
+			       arm_smmu_page1_fixup(ARM_SMMU_PRIQ_CONS, smmu));
 
 		enables |= CR0_PRIQEN;
 		ret = arm_smmu_write_reg_sync(smmu, enables, ARM_SMMU_CR0,
@@ -2600,6 +2614,14 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 }
 
 #ifdef CONFIG_ACPI
+static void acpi_smmu_get_options(u32 model, struct arm_smmu_device *smmu)
+{
+	if (model == ACPI_IORT_SMMU_V3_CAVIUM_CN99XX)
+		smmu->options |= ARM_SMMU_OPT_PAGE0_REGS_ONLY;
+
+	dev_notice(smmu->dev, "option mask 0x%x\n", smmu->options);
+}
+
 static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 				      struct arm_smmu_device *smmu)
 {
@@ -2611,6 +2633,8 @@ static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 
 	/* Retrieve SMMUv3 specific data */
 	iort_smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+
+	acpi_smmu_get_options(iort_smmu->model, smmu);
 
 	if (iort_smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE)
 		smmu->features |= ARM_SMMU_FEAT_COHERENCY;
@@ -2647,6 +2671,14 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 	return ret;
 }
 
+static unsigned long arm_smmu_resource_size(struct arm_smmu_device *smmu)
+{
+	if (smmu->options & ARM_SMMU_OPT_PAGE0_REGS_ONLY)
+		return SZ_64K;
+	else
+		return SZ_128K;
+}
+
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	int irq, ret;
@@ -2663,9 +2695,20 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 	smmu->dev = dev;
 
+	if (dev->of_node) {
+		ret = arm_smmu_device_dt_probe(pdev, smmu);
+	} else {
+		ret = arm_smmu_device_acpi_probe(pdev, smmu);
+		if (ret == -ENODEV)
+			return ret;
+	}
+
+	/* Set bypass mode according to firmware probing result */
+	bypass = !!ret;
+
 	/* Base address */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (resource_size(res) + 1 < SZ_128K) {
+	if (resource_size(res) + 1 < arm_smmu_resource_size(smmu)) {
 		dev_err(dev, "MMIO region too small (%pr)\n", res);
 		return -EINVAL;
 	}
@@ -2691,17 +2734,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, "gerror");
 	if (irq > 0)
 		smmu->gerr_irq = irq;
-
-	if (dev->of_node) {
-		ret = arm_smmu_device_dt_probe(pdev, smmu);
-	} else {
-		ret = arm_smmu_device_acpi_probe(pdev, smmu);
-		if (ret == -ENODEV)
-			return ret;
-	}
-
-	/* Set bypass mode according to firmware probing result */
-	bypass = !!ret;
 
 	/* Probe the h/w */
 	ret = arm_smmu_device_hw_probe(smmu);

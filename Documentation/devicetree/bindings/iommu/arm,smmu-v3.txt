@@ -49,6 +49,12 @@ the PCIe specification.
 - hisilicon,broken-prefetch-cmd
                     : Avoid sending CMD_PREFETCH_* commands to the SMMU.
 
+- cavium,cn9900-broken-page1-regspace
+                    : Replaces all page 1 offsets used for EVTQ_PROD/CONS,
+		      PRIQ_PROD/CONS register access with page 0 offsets.
+		      Set for Cavium ThunderX2 silicon that doesn't support
+		      SMMU page1 register space.
+
 ** Example
 
         smmu@2b400000 {
