@@ -1364,8 +1364,8 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		if (i + cluster > ra_index) {
 			ra_index = max(i, ra_index);
 			if (ra)
-				btrfs_force_ra(inode->i_mapping, ra, file,
-						ra_index, cluster);
+				page_cache_sync_readahead(inode->i_mapping, ra,
+						file, ra_index, cluster);
 			ra_index += cluster;
 		}
 

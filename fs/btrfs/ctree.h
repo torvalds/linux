@@ -3136,14 +3136,6 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
 			      u64 *ram_bytes);
 
-/* This forces readahead on a given range of bytes in an inode */
-static inline void btrfs_force_ra(struct address_space *mapping,
-				  struct file_ra_state *ra, struct file *file,
-				  pgoff_t offset, unsigned long req_size)
-{
-	page_cache_sync_readahead(mapping, ra, file, offset, req_size);
-}
-
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
 int btrfs_set_inode_index(struct btrfs_inode *dir, u64 *index);
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,

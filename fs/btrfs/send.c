@@ -4733,7 +4733,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	/* initial readahead */
 	memset(&sctx->ra, 0, sizeof(struct file_ra_state));
 	file_ra_state_init(&sctx->ra, inode->i_mapping);
-	btrfs_force_ra(inode->i_mapping, &sctx->ra, NULL, index,
+	page_cache_sync_readahead(inode->i_mapping, &sctx->ra, NULL, index,
 		       last_index - index + 1);
 
 	while (index <= last_index) {
