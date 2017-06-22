@@ -1911,14 +1911,20 @@ static void queue_add(struct dma_ops_domain *dom,
 	spin_lock_irqsave(&queue->lock, flags);
 
 	/*
+	 * First remove the enries from the ring-buffer that are already
+	 * flushed to make the below queue_ring_full() check less likely
+	 */
+	queue_ring_free_flushed(dom, queue);
+
+	/*
 	 * When ring-queue is full, flush the entries from the IOTLB so
 	 * that we can free all entries with queue_ring_free_flushed()
 	 * below.
 	 */
-	if (queue_ring_full(queue))
+	if (queue_ring_full(queue)) {
 		dma_ops_domain_flush_tlb(dom);
-
-	queue_ring_free_flushed(dom, queue);
+		queue_ring_free_flushed(dom, queue);
+	}
 
 	idx = queue_ring_add(queue);
 
