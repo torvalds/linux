@@ -2267,7 +2267,7 @@ static int io_interception(struct vcpu_svm *svm)
 {
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	u32 io_info = svm->vmcb->control.exit_info_1; /* address size bug? */
-	int size, in, string;
+	int size, in, string, ret;
 	unsigned port;
 
 	++svm->vcpu.stat.io_exits;
@@ -2279,10 +2279,16 @@ static int io_interception(struct vcpu_svm *svm)
 	port = io_info >> 16;
 	size = (io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT;
 	svm->next_rip = svm->vmcb->control.exit_info_2;
-	skip_emulated_instruction(&svm->vcpu);
+	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 
-	return in ? kvm_fast_pio_in(vcpu, size, port)
-		  : kvm_fast_pio_out(vcpu, size, port);
+	/*
+	 * TODO: we might be squashing a KVM_GUESTDBG_SINGLESTEP-triggered
+	 * KVM_EXIT_DEBUG here.
+	 */
+	if (in)
+		return kvm_fast_pio_in(vcpu, size, port) && ret;
+	else
+		return kvm_fast_pio_out(vcpu, size, port) && ret;
 }
 
 static int nmi_interception(struct vcpu_svm *svm)
@@ -3055,6 +3061,7 @@ static int vmload_interception(struct vcpu_svm *svm)
 {
 	struct vmcb *nested_vmcb;
 	struct page *page;
+	int ret;
 
 	if (nested_svm_check_permissions(svm))
 		return 1;
@@ -3064,18 +3071,19 @@ static int vmload_interception(struct vcpu_svm *svm)
 		return 1;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-	skip_emulated_instruction(&svm->vcpu);
+	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 
 	nested_svm_vmloadsave(nested_vmcb, svm->vmcb);
 	nested_svm_unmap(page);
 
-	return 1;
+	return ret;
 }
 
 static int vmsave_interception(struct vcpu_svm *svm)
 {
 	struct vmcb *nested_vmcb;
 	struct page *page;
+	int ret;
 
 	if (nested_svm_check_permissions(svm))
 		return 1;
@@ -3085,12 +3093,12 @@ static int vmsave_interception(struct vcpu_svm *svm)
 		return 1;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-	skip_emulated_instruction(&svm->vcpu);
+	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 
 	nested_svm_vmloadsave(svm->vmcb, nested_vmcb);
 	nested_svm_unmap(page);
 
-	return 1;
+	return ret;
 }
 
 static int vmrun_interception(struct vcpu_svm *svm)
@@ -3123,25 +3131,29 @@ failed:
 
 static int stgi_interception(struct vcpu_svm *svm)
 {
+	int ret;
+
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-	skip_emulated_instruction(&svm->vcpu);
+	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 
 	enable_gif(svm);
 
-	return 1;
+	return ret;
 }
 
 static int clgi_interception(struct vcpu_svm *svm)
 {
+	int ret;
+
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-	skip_emulated_instruction(&svm->vcpu);
+	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 
 	disable_gif(svm);
 
@@ -3152,7 +3164,7 @@ static int clgi_interception(struct vcpu_svm *svm)
 		mark_dirty(svm->vmcb, VMCB_INTR);
 	}
 
-	return 1;
+	return ret;
 }
 
 static int invlpga_interception(struct vcpu_svm *svm)
@@ -3166,8 +3178,7 @@ static int invlpga_interception(struct vcpu_svm *svm)
 	kvm_mmu_invlpg(vcpu, kvm_register_read(&svm->vcpu, VCPU_REGS_RAX));
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-	skip_emulated_instruction(&svm->vcpu);
-	return 1;
+	return kvm_skip_emulated_instruction(&svm->vcpu);
 }
 
 static int skinit_interception(struct vcpu_svm *svm)
@@ -3190,7 +3201,7 @@ static int xsetbv_interception(struct vcpu_svm *svm)
 
 	if (kvm_set_xcr(&svm->vcpu, index, new_bv) == 0) {
 		svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
-		skip_emulated_instruction(&svm->vcpu);
+		return kvm_skip_emulated_instruction(&svm->vcpu);
 	}
 
 	return 1;
@@ -3286,8 +3297,7 @@ static int invlpg_interception(struct vcpu_svm *svm)
 		return emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
 
 	kvm_mmu_invlpg(&svm->vcpu, svm->vmcb->control.exit_info_1);
-	skip_emulated_instruction(&svm->vcpu);
-	return 1;
+	return kvm_skip_emulated_instruction(&svm->vcpu);
 }
 
 static int emulate_on_interception(struct vcpu_svm *svm)
@@ -3437,9 +3447,7 @@ static int dr_interception(struct vcpu_svm *svm)
 		kvm_register_write(&svm->vcpu, reg, val);
 	}
 
-	skip_emulated_instruction(&svm->vcpu);
-
-	return 1;
+	return kvm_skip_emulated_instruction(&svm->vcpu);
 }
 
 static int cr8_write_interception(struct vcpu_svm *svm)
@@ -3562,6 +3570,7 @@ static int rdmsr_interception(struct vcpu_svm *svm)
 	if (svm_get_msr(&svm->vcpu, &msr_info)) {
 		trace_kvm_msr_read_ex(ecx);
 		kvm_inject_gp(&svm->vcpu, 0);
+		return 1;
 	} else {
 		trace_kvm_msr_read(ecx, msr_info.data);
 
@@ -3570,9 +3579,8 @@ static int rdmsr_interception(struct vcpu_svm *svm)
 		kvm_register_write(&svm->vcpu, VCPU_REGS_RDX,
 				   msr_info.data >> 32);
 		svm->next_rip = kvm_rip_read(&svm->vcpu) + 2;
-		skip_emulated_instruction(&svm->vcpu);
+		return kvm_skip_emulated_instruction(&svm->vcpu);
 	}
-	return 1;
 }
 
 static int svm_set_vm_cr(struct kvm_vcpu *vcpu, u64 data)
@@ -3698,11 +3706,11 @@ static int wrmsr_interception(struct vcpu_svm *svm)
 	if (kvm_set_msr(&svm->vcpu, &msr)) {
 		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(&svm->vcpu, 0);
+		return 1;
 	} else {
 		trace_kvm_msr_write(ecx, data);
-		skip_emulated_instruction(&svm->vcpu);
+		return kvm_skip_emulated_instruction(&svm->vcpu);
 	}
-	return 1;
 }
 
 static int msr_interception(struct vcpu_svm *svm)
@@ -3731,8 +3739,7 @@ static int pause_interception(struct vcpu_svm *svm)
 
 static int nop_interception(struct vcpu_svm *svm)
 {
-	skip_emulated_instruction(&(svm->vcpu));
-	return 1;
+	return kvm_skip_emulated_instruction(&(svm->vcpu));
 }
 
 static int monitor_interception(struct vcpu_svm *svm)
