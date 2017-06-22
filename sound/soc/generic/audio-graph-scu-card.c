@@ -183,6 +183,8 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	struct device_node *cpu_ep;
 	struct device_node *codec_ep;
 	struct device_node *rcpu_ep;
+	struct device_node *codec_port;
+	struct device_node *codec_port_old;
 	unsigned int daifmt = 0;
 	int dai_idx, ret;
 	int rc, codec;
@@ -235,6 +237,7 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	}
 
 	dai_idx = 0;
+	codec_port_old = NULL;
 	for (codec = 0; codec < 2; codec++) {
 		/*
 		 * To listup valid sounds continuously,
@@ -245,14 +248,21 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 			cpu_port = it.node;
 			cpu_ep   = of_get_next_child(cpu_port, NULL);
 			codec_ep = of_graph_get_remote_endpoint(cpu_ep);
+			codec_port = of_graph_get_port_parent(codec_ep);
 
 			of_node_put(cpu_port);
 			of_node_put(cpu_ep);
 			of_node_put(codec_ep);
+			of_node_put(codec_port);
 
 			if (codec) {
-				if (!codec_ep)
+				if (!codec_port)
 					continue;
+
+				if (codec_port_old == codec_port)
+					continue;
+
+				codec_port_old = codec_port;
 
 				/* Back-End (= Codec) */
 				ret = asoc_graph_card_dai_link_of(codec_ep, priv, daifmt, dai_idx++, 0);
@@ -284,22 +294,34 @@ static int asoc_graph_get_dais_count(struct device *dev)
 	struct device_node *cpu_port;
 	struct device_node *cpu_ep;
 	struct device_node *codec_ep;
+	struct device_node *codec_port;
+	struct device_node *codec_port_old;
 	int count = 0;
 	int rc;
 
+	codec_port_old = NULL;
 	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
 		cpu_port = it.node;
 		cpu_ep   = of_get_next_child(cpu_port, NULL);
 		codec_ep = of_graph_get_remote_endpoint(cpu_ep);
+		codec_port = of_graph_get_port_parent(codec_ep);
 
 		of_node_put(cpu_port);
 		of_node_put(cpu_ep);
 		of_node_put(codec_ep);
+		of_node_put(codec_port);
 
 		if (cpu_ep)
 			count++;
-		if (codec_ep)
-			count++;
+
+		if (!codec_port)
+			continue;
+
+		if (codec_port_old == codec_port)
+			continue;
+
+		count++;
+		codec_port_old = codec_port;
 	}
 
 	return count;
