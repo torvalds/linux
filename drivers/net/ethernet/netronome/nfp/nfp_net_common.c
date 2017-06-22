@@ -3311,16 +3311,23 @@ nfp_net_xdp_setup_drv(struct nfp_net *nn, struct bpf_prog *prog,
 }
 
 static int
-nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog,
+nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog, u32 flags,
 		  struct netlink_ext_ack *extack)
 {
+	struct bpf_prog *offload_prog;
 	int err;
+
+	if (nn->dp.xdp_prog && (flags ^ nn->xdp_flags) & XDP_FLAGS_MODES)
+		return -EBUSY;
+
+	offload_prog = flags & XDP_FLAGS_DRV_MODE ? NULL : prog;
 
 	err = nfp_net_xdp_setup_drv(nn, prog, extack);
 	if (err)
 		return err;
 
-	nfp_app_xdp_offload(nn->app, nn, nn->dp.xdp_prog);
+	nfp_app_xdp_offload(nn->app, nn, offload_prog);
+	nn->xdp_flags = flags;
 
 	return 0;
 }
@@ -3331,7 +3338,8 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_xdp *xdp)
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
-		return nfp_net_xdp_setup(nn, xdp->prog, xdp->extack);
+		return nfp_net_xdp_setup(nn, xdp->prog, xdp->flags,
+					 xdp->extack);
 	case XDP_QUERY_PROG:
 		xdp->prog_attached = !!nn->dp.xdp_prog;
 		xdp->prog_id = nn->dp.xdp_prog ? nn->dp.xdp_prog->aux->id : 0;
