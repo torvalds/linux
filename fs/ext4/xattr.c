@@ -824,6 +824,7 @@ static struct inode *ext4_xattr_inode_create(handle_t *handle,
 					     struct inode *inode)
 {
 	struct inode *ea_inode = NULL;
+	int err;
 
 	/*
 	 * Let the next inode be the goal, so we try and allocate the EA inode
@@ -846,6 +847,11 @@ static struct inode *ext4_xattr_inode_create(handle_t *handle,
 		 */
 		EXT4_XATTR_INODE_SET_PARENT(ea_inode, inode->i_ino);
 		unlock_new_inode(ea_inode);
+		err = ext4_inode_attach_jinode(ea_inode);
+		if (err) {
+			iput(ea_inode);
+			return ERR_PTR(err);
+		}
 	}
 
 	return ea_inode;
