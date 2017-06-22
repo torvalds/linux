@@ -1772,7 +1772,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 				 sizeof(void *));
 		int txq_size = 0;
 
-		if (local->ops->wake_tx_queue)
+		if (local->ops->wake_tx_queue &&
+		    type != NL80211_IFTYPE_AP_VLAN &&
+		    type != NL80211_IFTYPE_MONITOR)
 			txq_size += sizeof(struct txq_info) +
 				    local->hw.txq_data_size;
 
