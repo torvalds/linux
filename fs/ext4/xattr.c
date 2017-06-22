@@ -1995,6 +1995,7 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 	struct ext4_inode *raw_inode;
 	struct ext4_iloc iloc;
 	struct ext4_xattr_entry *entry;
+	unsigned int ea_ino;
 	int credits = 3, error = 0;
 
 	if (!ext4_test_inode_state(inode, EXT4_STATE_XATTR))
@@ -2009,8 +2010,8 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 	     entry = EXT4_XATTR_NEXT(entry)) {
 		if (!entry->e_value_inum)
 			continue;
-		if (ext4_expand_ino_array(lea_ino_array,
-					  entry->e_value_inum) != 0) {
+		ea_ino = le32_to_cpu(entry->e_value_inum);
+		if (ext4_expand_ino_array(lea_ino_array, ea_ino) != 0) {
 			brelse(iloc.bh);
 			goto cleanup;
 		}
@@ -2042,8 +2043,8 @@ delete_external_ea:
 	     entry = EXT4_XATTR_NEXT(entry)) {
 		if (!entry->e_value_inum)
 			continue;
-		if (ext4_expand_ino_array(lea_ino_array,
-					  entry->e_value_inum) != 0)
+		ea_ino = le32_to_cpu(entry->e_value_inum);
+		if (ext4_expand_ino_array(lea_ino_array, ea_ino) != 0)
 			goto cleanup;
 		entry->e_value_inum = 0;
 	}
