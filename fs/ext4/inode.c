@@ -188,7 +188,7 @@ void ext4_evict_inode(struct inode *inode)
 	handle_t *handle;
 	int err;
 	int extra_credits = 3;
-	struct ext4_xattr_ino_array *lea_ino_array = NULL;
+	struct ext4_xattr_inode_array *ea_inode_array = NULL;
 
 	trace_ext4_evict_inode(inode);
 
@@ -257,7 +257,7 @@ void ext4_evict_inode(struct inode *inode)
 	/*
 	 * Delete xattr inode before deleting the main inode.
 	 */
-	err = ext4_xattr_delete_inode(handle, inode, &lea_ino_array);
+	err = ext4_xattr_delete_inode(handle, inode, &ea_inode_array);
 	if (err) {
 		ext4_warning(inode->i_sb,
 			     "couldn't delete inode's xattr (err %d)", err);
@@ -345,9 +345,7 @@ void ext4_evict_inode(struct inode *inode)
 
 	ext4_journal_stop(handle);
 	sb_end_intwrite(inode->i_sb);
-
-	if (lea_ino_array != NULL)
-		ext4_xattr_inode_array_free(inode, lea_ino_array);
+	ext4_xattr_inode_array_free(ea_inode_array);
 	return;
 no_delete:
 	ext4_clear_inode(inode);	/* We must guarantee clearing of inode... */

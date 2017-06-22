@@ -2243,9 +2243,9 @@ struct mmpd_data {
 # define ATTRIB_NORET	__attribute__((noreturn))
 # define NORET_AND	noreturn,
 
-struct ext4_xattr_ino_array {
-	unsigned int xia_count;		/* # of used item in the array */
-	unsigned int xia_inodes[0];
+struct ext4_xattr_inode_array {
+	unsigned int count;		/* # of used items in the array */
+	struct inode *inodes[0];
 };
 /* bitmap.c */
 extern unsigned int ext4_count_free(char *bitmap, unsigned numchars);

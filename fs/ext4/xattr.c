@@ -1940,44 +1940,44 @@ cleanup:
 
 #define EIA_INCR 16 /* must be 2^n */
 #define EIA_MASK (EIA_INCR - 1)
-/* Add the large xattr @ino into @lea_ino_array for later deletion.
- * If @lea_ino_array is new or full it will be grown and the old
+/* Add the large xattr @inode into @ea_inode_array for later deletion.
+ * If @ea_inode_array is new or full it will be grown and the old
  * contents copied over.
  */
 static int
-ext4_expand_ino_array(struct ext4_xattr_ino_array **lea_ino_array, __u32 ino)
+ext4_expand_inode_array(struct ext4_xattr_inode_array **ea_inode_array,
+			struct inode *inode)
 {
-	if (*lea_ino_array == NULL) {
+	if (*ea_inode_array == NULL) {
 		/*
 		 * Start with 15 inodes, so it fits into a power-of-two size.
-		 * If *lea_ino_array is NULL, this is essentially offsetof()
+		 * If *ea_inode_array is NULL, this is essentially offsetof()
 		 */
-		(*lea_ino_array) =
-			kmalloc(offsetof(struct ext4_xattr_ino_array,
-					 xia_inodes[EIA_MASK]),
+		(*ea_inode_array) =
+			kmalloc(offsetof(struct ext4_xattr_inode_array,
+					 inodes[EIA_MASK]),
 				GFP_NOFS);
-		if (*lea_ino_array == NULL)
+		if (*ea_inode_array == NULL)
 			return -ENOMEM;
-		(*lea_ino_array)->xia_count = 0;
-	} else if (((*lea_ino_array)->xia_count & EIA_MASK) == EIA_MASK) {
+		(*ea_inode_array)->count = 0;
+	} else if (((*ea_inode_array)->count & EIA_MASK) == EIA_MASK) {
 		/* expand the array once all 15 + n * 16 slots are full */
-		struct ext4_xattr_ino_array *new_array = NULL;
-		int count = (*lea_ino_array)->xia_count;
+		struct ext4_xattr_inode_array *new_array = NULL;
+		int count = (*ea_inode_array)->count;
 
 		/* if new_array is NULL, this is essentially offsetof() */
 		new_array = kmalloc(
-				offsetof(struct ext4_xattr_ino_array,
-					 xia_inodes[count + EIA_INCR]),
+				offsetof(struct ext4_xattr_inode_array,
+					 inodes[count + EIA_INCR]),
 				GFP_NOFS);
 		if (new_array == NULL)
 			return -ENOMEM;
-		memcpy(new_array, *lea_ino_array,
-		       offsetof(struct ext4_xattr_ino_array,
-				xia_inodes[count]));
-		kfree(*lea_ino_array);
-		*lea_ino_array = new_array;
+		memcpy(new_array, *ea_inode_array,
+		       offsetof(struct ext4_xattr_inode_array, inodes[count]));
+		kfree(*ea_inode_array);
+		*ea_inode_array = new_array;
 	}
-	(*lea_ino_array)->xia_inodes[(*lea_ino_array)->xia_count++] = ino;
+	(*ea_inode_array)->inodes[(*ea_inode_array)->count++] = inode;
 	return 0;
 }
 
@@ -1985,16 +1985,16 @@ ext4_expand_ino_array(struct ext4_xattr_ino_array **lea_ino_array, __u32 ino)
  * Add xattr inode to orphan list
  */
 static int
-ext4_xattr_inode_orphan_add(handle_t *handle, struct inode *inode,
-			int credits, struct ext4_xattr_ino_array *lea_ino_array)
+ext4_xattr_inode_orphan_add(handle_t *handle, struct inode *inode, int credits,
+			    struct ext4_xattr_inode_array *ea_inode_array)
 {
-	struct inode *ea_inode;
 	int idx = 0, error = 0;
+	struct inode *ea_inode;
 
-	if (lea_ino_array == NULL)
+	if (ea_inode_array == NULL)
 		return 0;
 
-	for (; idx < lea_ino_array->xia_count; ++idx) {
+	for (; idx < ea_inode_array->count; ++idx) {
 		if (!ext4_handle_has_enough_credits(handle, credits)) {
 			error = ext4_journal_extend(handle, credits);
 			if (error > 0)
@@ -2007,10 +2007,7 @@ ext4_xattr_inode_orphan_add(handle_t *handle, struct inode *inode,
 				return error;
 			}
 		}
-		error = ext4_xattr_inode_iget(inode,
-				lea_ino_array->xia_inodes[idx], &ea_inode);
-		if (error)
-			continue;
+		ea_inode = ea_inode_array->inodes[idx];
 		inode_lock(ea_inode);
 		ext4_orphan_add(handle, ea_inode);
 		inode_unlock(ea_inode);
@@ -2032,13 +2029,14 @@ ext4_xattr_inode_orphan_add(handle_t *handle, struct inode *inode,
  */
 int
 ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
-			struct ext4_xattr_ino_array **lea_ino_array)
+			struct ext4_xattr_inode_array **ea_inode_array)
 {
 	struct buffer_head *bh = NULL;
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_inode *raw_inode;
 	struct ext4_iloc iloc;
 	struct ext4_xattr_entry *entry;
+	struct inode *ea_inode;
 	unsigned int ea_ino;
 	int credits = 3, error = 0;
 
@@ -2055,8 +2053,12 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 		if (!entry->e_value_inum)
 			continue;
 		ea_ino = le32_to_cpu(entry->e_value_inum);
-		error = ext4_expand_ino_array(lea_ino_array, ea_ino);
+		error = ext4_xattr_inode_iget(inode, ea_ino, &ea_inode);
+		if (error)
+			continue;
+		error = ext4_expand_inode_array(ea_inode_array, ea_inode);
 		if (error) {
+			iput(ea_inode);
 			brelse(iloc.bh);
 			goto cleanup;
 		}
@@ -2068,7 +2070,7 @@ delete_external_ea:
 	if (!EXT4_I(inode)->i_file_acl) {
 		/* add xattr inode to orphan list */
 		error = ext4_xattr_inode_orphan_add(handle, inode, credits,
-						    *lea_ino_array);
+						    *ea_inode_array);
 		goto cleanup;
 	}
 	bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
@@ -2091,7 +2093,10 @@ delete_external_ea:
 		if (!entry->e_value_inum)
 			continue;
 		ea_ino = le32_to_cpu(entry->e_value_inum);
-		error = ext4_expand_ino_array(lea_ino_array, ea_ino);
+		error = ext4_xattr_inode_iget(inode, ea_ino, &ea_inode);
+		if (error)
+			continue;
+		error = ext4_expand_inode_array(ea_inode_array, ea_inode);
 		if (error)
 			goto cleanup;
 		entry->e_value_inum = 0;
@@ -2099,7 +2104,7 @@ delete_external_ea:
 
 	/* add xattr inode to orphan list */
 	error = ext4_xattr_inode_orphan_add(handle, inode, credits,
-					*lea_ino_array);
+					*ea_inode_array);
 	if (error)
 		goto cleanup;
 
@@ -2126,28 +2131,20 @@ cleanup:
 	return error;
 }
 
-void
-ext4_xattr_inode_array_free(struct inode *inode,
-			    struct ext4_xattr_ino_array *lea_ino_array)
+void ext4_xattr_inode_array_free(struct ext4_xattr_inode_array *ea_inode_array)
 {
 	struct inode	*ea_inode;
 	int		idx = 0;
-	int		err;
 
-	if (lea_ino_array == NULL)
+	if (ea_inode_array == NULL)
 		return;
 
-	for (; idx < lea_ino_array->xia_count; ++idx) {
-		err = ext4_xattr_inode_iget(inode,
-				lea_ino_array->xia_inodes[idx], &ea_inode);
-		if (err)
-			continue;
-		/* for inode's i_count get from ext4_xattr_delete_inode */
-		iput(ea_inode);
+	for (; idx < ea_inode_array->count; ++idx) {
+		ea_inode = ea_inode_array->inodes[idx];
 		clear_nlink(ea_inode);
 		iput(ea_inode);
 	}
-	kfree(lea_ino_array);
+	kfree(ea_inode_array);
 }
 
 /*
