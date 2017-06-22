@@ -857,7 +857,7 @@ static int stm32_spi_transfer_one_setup(struct stm32_spi *spi,
 	}
 
 	if (spi->cur_speed != transfer->speed_hz) {
-		u32 mbr;
+		int mbr;
 
 		/* Update spi->cur_speed with real clock speed */
 		mbr = stm32_spi_prepare_mbr(spi, transfer->speed_hz);
@@ -869,7 +869,7 @@ static int stm32_spi_transfer_one_setup(struct stm32_spi *spi,
 		transfer->speed_hz = spi->cur_speed;
 
 		cfg1_clrb |= SPI_CFG1_MBR;
-		cfg1_setb |= (mbr << SPI_CFG1_MBR_SHIFT) & SPI_CFG1_MBR;
+		cfg1_setb |= ((u32)mbr << SPI_CFG1_MBR_SHIFT) & SPI_CFG1_MBR;
 	}
 
 	if (cfg1_clrb || cfg1_setb)
