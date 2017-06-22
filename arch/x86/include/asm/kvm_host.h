@@ -462,6 +462,7 @@ struct kvm_vcpu_hv_synic {
 	DECLARE_BITMAP(auto_eoi_bitmap, 256);
 	DECLARE_BITMAP(vec_bitmap, 256);
 	bool active;
+	bool dont_zero_synic_pages;
 };
 
 /* Hyper-V per vcpu emulation context */
