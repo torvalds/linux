@@ -193,7 +193,7 @@ struct hwq {
 	u32 index;		/* Index of this hwq */
 
 	atomic_t hsq_credits;
-	spinlock_t hsq_slock;
+	spinlock_t hsq_slock;	/* Hardware send queue lock */
 	struct sisl_ioarcb *hsq_start;
 	struct sisl_ioarcb *hsq_end;
 	struct sisl_ioarcb *hsq_curr;
@@ -204,7 +204,6 @@ struct hwq {
 	bool toggle;
 
 	s64 room;
-	spinlock_t rrin_slock; /* Lock to rrin queuing and cmd_room updates */
 
 	struct irq_poll irqpoll;
 } __aligned(cache_line_size());

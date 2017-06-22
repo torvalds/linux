@@ -261,7 +261,7 @@ static int send_cmd_ioarrin(struct afu *afu, struct afu_cmd *cmd)
 	 * To avoid the performance penalty of MMIO, spread the update of
 	 * 'room' over multiple commands.
 	 */
-	spin_lock_irqsave(&hwq->rrin_slock, lock_flags);
+	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
 	if (--hwq->room < 0) {
 		room = readq_be(&hwq->host_map->cmd_room);
 		if (room <= 0) {
@@ -277,7 +277,7 @@ static int send_cmd_ioarrin(struct afu *afu, struct afu_cmd *cmd)
 
 	writeq_be((u64)&cmd->rcb, &hwq->host_map->ioarrin);
 out:
-	spin_unlock_irqrestore(&hwq->rrin_slock, lock_flags);
+	spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
 	dev_dbg(dev, "%s: cmd=%p len=%u ea=%016llx rc=%d\n", __func__,
 		cmd, cmd->rcb.data_len, cmd->rcb.data_ea, rc);
 	return rc;
@@ -1722,7 +1722,10 @@ static int start_afu(struct cxlflash_cfg *cfg)
 		hwq->hrrq_end = &hwq->rrq_entry[NUM_RRQ_ENTRY - 1];
 		hwq->hrrq_curr = hwq->hrrq_start;
 		hwq->toggle = 1;
+
+		/* Initialize spin locks */
 		spin_lock_init(&hwq->hrrq_slock);
+		spin_lock_init(&hwq->hsq_slock);
 
 		/* Initialize SQ */
 		if (afu_is_sq_cmd_mode(afu)) {
@@ -1731,7 +1734,6 @@ static int start_afu(struct cxlflash_cfg *cfg)
 			hwq->hsq_end = &hwq->sq[NUM_SQ_ENTRY - 1];
 			hwq->hsq_curr = hwq->hsq_start;
 
-			spin_lock_init(&hwq->hsq_slock);
 			atomic_set(&hwq->hsq_credits, NUM_SQ_ENTRY - 1);
 		}
 
@@ -1984,7 +1986,6 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	for (i = 0; i < afu->num_hwqs; i++) {
 		hwq = get_hwq(afu, i);
 
-		spin_lock_init(&hwq->rrin_slock);
 		hwq->room = readq_be(&hwq->host_map->cmd_room);
 	}
 
