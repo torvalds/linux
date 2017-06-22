@@ -843,7 +843,7 @@ static int af9013_init(struct dvb_frontend *fe)
 	int ret, i, len;
 	unsigned int utmp;
 	u8 buf[3];
-	const struct af9013_reg_bit *init;
+	const struct af9013_reg_mask_val *tab;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -898,72 +898,66 @@ static int af9013_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	/* load OFSM settings */
-	dev_dbg(&client->dev, "load ofsm settings\n");
-	len = ARRAY_SIZE(ofsm_init);
-	init = ofsm_init;
+	/* Demod core settings */
+	dev_dbg(&client->dev, "load demod core settings\n");
+	len = ARRAY_SIZE(demod_init_tab);
+	tab = demod_init_tab;
 	for (i = 0; i < len; i++) {
-		u16 reg = init[i].addr;
-		u8 mask = GENMASK(init[i].pos + init[i].len - 1, init[i].pos);
-		u8 val = init[i].val << init[i].pos;
-
-		ret = regmap_update_bits(state->regmap, reg, mask, val);
+		ret = regmap_update_bits(state->regmap, tab[i].reg, tab[i].mask,
+					 tab[i].val);
 		if (ret)
 			goto err;
 	}
 
-	/* load tuner specific settings */
+	/* Demod tuner specific settings */
 	dev_dbg(&client->dev, "load tuner specific settings\n");
 	switch (state->tuner) {
 	case AF9013_TUNER_MXL5003D:
-		len = ARRAY_SIZE(tuner_init_mxl5003d);
-		init = tuner_init_mxl5003d;
+		len = ARRAY_SIZE(tuner_init_tab_mxl5003d);
+		tab = tuner_init_tab_mxl5003d;
 		break;
 	case AF9013_TUNER_MXL5005D:
 	case AF9013_TUNER_MXL5005R:
 	case AF9013_TUNER_MXL5007T:
-		len = ARRAY_SIZE(tuner_init_mxl5005);
-		init = tuner_init_mxl5005;
+		len = ARRAY_SIZE(tuner_init_tab_mxl5005);
+		tab = tuner_init_tab_mxl5005;
 		break;
 	case AF9013_TUNER_ENV77H11D5:
-		len = ARRAY_SIZE(tuner_init_env77h11d5);
-		init = tuner_init_env77h11d5;
+		len = ARRAY_SIZE(tuner_init_tab_env77h11d5);
+		tab = tuner_init_tab_env77h11d5;
 		break;
 	case AF9013_TUNER_MT2060:
-		len = ARRAY_SIZE(tuner_init_mt2060);
-		init = tuner_init_mt2060;
+		len = ARRAY_SIZE(tuner_init_tab_mt2060);
+		tab = tuner_init_tab_mt2060;
 		break;
 	case AF9013_TUNER_MC44S803:
-		len = ARRAY_SIZE(tuner_init_mc44s803);
-		init = tuner_init_mc44s803;
+		len = ARRAY_SIZE(tuner_init_tab_mc44s803);
+		tab = tuner_init_tab_mc44s803;
 		break;
 	case AF9013_TUNER_QT1010:
 	case AF9013_TUNER_QT1010A:
-		len = ARRAY_SIZE(tuner_init_qt1010);
-		init = tuner_init_qt1010;
+		len = ARRAY_SIZE(tuner_init_tab_qt1010);
+		tab = tuner_init_tab_qt1010;
 		break;
 	case AF9013_TUNER_MT2060_2:
-		len = ARRAY_SIZE(tuner_init_mt2060_2);
-		init = tuner_init_mt2060_2;
+		len = ARRAY_SIZE(tuner_init_tab_mt2060_2);
+		tab = tuner_init_tab_mt2060_2;
 		break;
 	case AF9013_TUNER_TDA18271:
 	case AF9013_TUNER_TDA18218:
-		len = ARRAY_SIZE(tuner_init_tda18271);
-		init = tuner_init_tda18271;
+		len = ARRAY_SIZE(tuner_init_tab_tda18271);
+		tab = tuner_init_tab_tda18271;
 		break;
 	case AF9013_TUNER_UNKNOWN:
 	default:
-		len = ARRAY_SIZE(tuner_init_unknown);
-		init = tuner_init_unknown;
+		len = ARRAY_SIZE(tuner_init_tab_unknown);
+		tab = tuner_init_tab_unknown;
 		break;
 	}
 
 	for (i = 0; i < len; i++) {
-		u16 reg = init[i].addr;
-		u8 mask = GENMASK(init[i].pos + init[i].len - 1, init[i].pos);
-		u8 val = init[i].val << init[i].pos;
-
-		ret = regmap_update_bits(state->regmap, reg, mask, val);
+		ret = regmap_update_bits(state->regmap, tab[i].reg, tab[i].mask,
+					 tab[i].val);
 		if (ret)
 			goto err;
 	}
