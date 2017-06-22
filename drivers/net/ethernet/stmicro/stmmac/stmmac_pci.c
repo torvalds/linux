@@ -100,7 +100,9 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 	plat->rx_queues_cfg[0].pkt_route = 0x0;
 }
 
-static void stmmac_default_data(struct plat_stmmacenet_data *plat)
+static int stmmac_default_data(struct pci_dev *pdev,
+			       struct plat_stmmacenet_data *plat,
+			       const struct stmmac_pci_info *info)
 {
 	/* Set common default data first */
 	common_default_data(plat);
@@ -112,7 +114,13 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 	plat->dma_cfg->pbl = 32;
 	plat->dma_cfg->pblx8 = true;
 	/* TODO: AXI */
+
+	return 0;
 }
+
+static const struct stmmac_pci_info stmmac_pci_info = {
+	.setup = stmmac_default_data,
+};
 
 static int quark_default_data(struct pci_dev *pdev,
 			      struct plat_stmmacenet_data *plat,
@@ -236,14 +244,9 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	if (info) {
-		if (info->setup) {
-			ret = info->setup(pdev, plat, info);
-			if (ret)
-				return ret;
-		}
-	} else
-		stmmac_default_data(plat);
+	ret = info->setup(pdev, plat, info);
+	if (ret)
+		return ret;
 
 	pci_enable_msi(pdev);
 
@@ -269,14 +272,21 @@ static void stmmac_pci_remove(struct pci_dev *pdev)
 
 static SIMPLE_DEV_PM_OPS(stmmac_pm_ops, stmmac_suspend, stmmac_resume);
 
-#define STMMAC_VENDOR_ID 0x700
+/* synthetic ID, no official vendor */
+#define PCI_VENDOR_ID_STMMAC 0x700
+
 #define STMMAC_QUARK_ID  0x0937
 #define STMMAC_DEVICE_ID 0x1108
 
+#define STMMAC_DEVICE(vendor_id, dev_id, info)	{	\
+	PCI_VDEVICE(vendor_id, dev_id),			\
+	.driver_data = (kernel_ulong_t)&info		\
+	}
+
 static const struct pci_device_id stmmac_id_table[] = {
-	{PCI_DEVICE(STMMAC_VENDOR_ID, STMMAC_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_MAC)},
-	{PCI_VDEVICE(INTEL, STMMAC_QUARK_ID), (kernel_ulong_t)&quark_pci_info},
+	STMMAC_DEVICE(STMMAC, STMMAC_DEVICE_ID, stmmac_pci_info),
+	STMMAC_DEVICE(STMICRO, PCI_DEVICE_ID_STMICRO_MAC, stmmac_pci_info),
+	STMMAC_DEVICE(INTEL, STMMAC_QUARK_ID, quark_pci_info),
 	{}
 };
 
