@@ -34,6 +34,10 @@ MODULE_AUTHOR("Manoj N. Kumar <manoj@linux.vnet.ibm.com>");
 MODULE_AUTHOR("Matthew R. Ochs <mrochs@linux.vnet.ibm.com>");
 MODULE_LICENSE("GPL");
 
+static struct class *cxlflash_class;
+static u32 cxlflash_major;
+static DECLARE_BITMAP(cxlflash_minor, CXLFLASH_MAX_ADAPTERS);
+
 /**
  * process_cmd_err() - command error handler
  * @cmd:	AFU command that experienced the error.
@@ -863,6 +867,47 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 }
 
 /**
+ * cxlflash_get_minor() - gets the first available minor number
+ *
+ * Return: Unique minor number that can be used to create the character device.
+ */
+static int cxlflash_get_minor(void)
+{
+	int minor;
+	long bit;
+
+	bit = find_first_zero_bit(cxlflash_minor, CXLFLASH_MAX_ADAPTERS);
+	if (bit >= CXLFLASH_MAX_ADAPTERS)
+		return -1;
+
+	minor = bit & MINORMASK;
+	set_bit(minor, cxlflash_minor);
+	return minor;
+}
+
+/**
+ * cxlflash_put_minor() - releases the minor number
+ * @minor:	Minor number that is no longer needed.
+ */
+static void cxlflash_put_minor(int minor)
+{
+	clear_bit(minor, cxlflash_minor);
+}
+
+/**
+ * cxlflash_release_chrdev() - release the character device for the host
+ * @cfg:	Internal structure associated with the host.
+ */
+static void cxlflash_release_chrdev(struct cxlflash_cfg *cfg)
+{
+	put_device(cfg->chardev);
+	device_unregister(cfg->chardev);
+	cfg->chardev = NULL;
+	cdev_del(&cfg->cdev);
+	cxlflash_put_minor(MINOR(cfg->cdev.dev));
+}
+
+/**
  * cxlflash_remove() - PCI entry point to tear down host
  * @pdev:	PCI device associated with the host.
  *
@@ -897,6 +942,8 @@ static void cxlflash_remove(struct pci_dev *pdev)
 	cxlflash_stop_term_user_contexts(cfg);
 
 	switch (cfg->init_state) {
+	case INIT_STATE_CDEV:
+		cxlflash_release_chrdev(cfg);
 	case INIT_STATE_SCSI:
 		cxlflash_term_local_luns(cfg);
 		scsi_remove_host(cfg->host);
@@ -3120,6 +3167,86 @@ static void cxlflash_worker_thread(struct work_struct *work)
 }
 
 /**
+ * cxlflash_chr_open() - character device open handler
+ * @inode:	Device inode associated with this character device.
+ * @file:	File pointer for this device.
+ *
+ * Only users with admin privileges are allowed to open the character device.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int cxlflash_chr_open(struct inode *inode, struct file *file)
+{
+	struct cxlflash_cfg *cfg;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	cfg = container_of(inode->i_cdev, struct cxlflash_cfg, cdev);
+	file->private_data = cfg;
+
+	return 0;
+}
+
+/*
+ * Character device file operations
+ */
+static const struct file_operations cxlflash_chr_fops = {
+	.owner          = THIS_MODULE,
+	.open           = cxlflash_chr_open,
+};
+
+/**
+ * init_chrdev() - initialize the character device for the host
+ * @cfg:	Internal structure associated with the host.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int init_chrdev(struct cxlflash_cfg *cfg)
+{
+	struct device *dev = &cfg->dev->dev;
+	struct device *char_dev;
+	dev_t devno;
+	int minor;
+	int rc = 0;
+
+	minor = cxlflash_get_minor();
+	if (unlikely(minor < 0)) {
+		dev_err(dev, "%s: Exhausted allowed adapters\n", __func__);
+		rc = -ENOSPC;
+		goto out;
+	}
+
+	devno = MKDEV(cxlflash_major, minor);
+	cdev_init(&cfg->cdev, &cxlflash_chr_fops);
+
+	rc = cdev_add(&cfg->cdev, devno, 1);
+	if (rc) {
+		dev_err(dev, "%s: cdev_add failed rc=%d\n", __func__, rc);
+		goto err1;
+	}
+
+	char_dev = device_create(cxlflash_class, NULL, devno,
+				 NULL, "cxlflash%d", minor);
+	if (IS_ERR(char_dev)) {
+		rc = PTR_ERR(char_dev);
+		dev_err(dev, "%s: device_create failed rc=%d\n",
+			__func__, rc);
+		goto err2;
+	}
+
+	cfg->chardev = char_dev;
+out:
+	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
+	return rc;
+err2:
+	cdev_del(&cfg->cdev);
+err1:
+	cxlflash_put_minor(minor);
+	goto out;
+}
+
+/**
  * cxlflash_probe() - PCI entry point to add host
  * @pdev:	PCI device associated with the host.
  * @dev_id:	PCI device id associated with device.
@@ -3229,6 +3356,13 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	}
 	cfg->init_state = INIT_STATE_SCSI;
 
+	rc = init_chrdev(cfg);
+	if (rc) {
+		dev_err(dev, "%s: init_chrdev failed rc=%d\n", __func__, rc);
+		goto out_remove;
+	}
+	cfg->init_state = INIT_STATE_CDEV;
+
 	if (wq_has_sleeper(&cfg->reset_waitq)) {
 		cfg->state = STATE_PROBED;
 		wake_up_all(&cfg->reset_waitq);
@@ -3331,6 +3465,63 @@ static void cxlflash_pci_resume(struct pci_dev *pdev)
 	scsi_unblock_requests(cfg->host);
 }
 
+/**
+ * cxlflash_devnode() - provides devtmpfs for devices in the cxlflash class
+ * @dev:	Character device.
+ * @mode:	Mode that can be used to verify access.
+ *
+ * Return: Allocated string describing the devtmpfs structure.
+ */
+static char *cxlflash_devnode(struct device *dev, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "cxlflash/%s", dev_name(dev));
+}
+
+/**
+ * cxlflash_class_init() - create character device class
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int cxlflash_class_init(void)
+{
+	dev_t devno;
+	int rc = 0;
+
+	rc = alloc_chrdev_region(&devno, 0, CXLFLASH_MAX_ADAPTERS, "cxlflash");
+	if (unlikely(rc)) {
+		pr_err("%s: alloc_chrdev_region failed rc=%d\n", __func__, rc);
+		goto out;
+	}
+
+	cxlflash_major = MAJOR(devno);
+
+	cxlflash_class = class_create(THIS_MODULE, "cxlflash");
+	if (IS_ERR(cxlflash_class)) {
+		rc = PTR_ERR(cxlflash_class);
+		pr_err("%s: class_create failed rc=%d\n", __func__, rc);
+		goto err;
+	}
+
+	cxlflash_class->devnode = cxlflash_devnode;
+out:
+	pr_debug("%s: returning rc=%d\n", __func__, rc);
+	return rc;
+err:
+	unregister_chrdev_region(devno, CXLFLASH_MAX_ADAPTERS);
+	goto out;
+}
+
+/**
+ * cxlflash_class_exit() - destroy character device class
+ */
+static void cxlflash_class_exit(void)
+{
+	dev_t devno = MKDEV(cxlflash_major, 0);
+
+	class_destroy(cxlflash_class);
+	unregister_chrdev_region(devno, CXLFLASH_MAX_ADAPTERS);
+}
+
 static const struct pci_error_handlers cxlflash_err_handler = {
 	.error_detected = cxlflash_pci_error_detected,
 	.slot_reset = cxlflash_pci_slot_reset,
@@ -3356,10 +3547,23 @@ static struct pci_driver cxlflash_driver = {
  */
 static int __init init_cxlflash(void)
 {
+	int rc;
+
 	check_sizes();
 	cxlflash_list_init();
+	rc = cxlflash_class_init();
+	if (unlikely(rc))
+		goto out;
 
-	return pci_register_driver(&cxlflash_driver);
+	rc = pci_register_driver(&cxlflash_driver);
+	if (unlikely(rc))
+		goto err;
+out:
+	pr_debug("%s: returning rc=%d\n", __func__, rc);
+	return rc;
+err:
+	cxlflash_class_exit();
+	goto out;
 }
 
 /**
@@ -3371,6 +3575,7 @@ static void __exit exit_cxlflash(void)
 	cxlflash_free_errpage();
 
 	pci_unregister_driver(&cxlflash_driver);
+	cxlflash_class_exit();
 }
 
 module_init(init_cxlflash);

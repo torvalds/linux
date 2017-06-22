@@ -16,6 +16,7 @@
 #define _CXLFLASH_COMMON_H
 
 #include <linux/async.h>
+#include <linux/cdev.h>
 #include <linux/irq_poll.h>
 #include <linux/list.h>
 #include <linux/rwsem.h>
@@ -86,7 +87,8 @@ enum cxlflash_init_state {
 	INIT_STATE_NONE,
 	INIT_STATE_PCI,
 	INIT_STATE_AFU,
-	INIT_STATE_SCSI
+	INIT_STATE_SCSI,
+	INIT_STATE_CDEV
 };
 
 enum cxlflash_state {
@@ -116,6 +118,8 @@ struct cxlflash_cfg {
 	struct pci_device_id *dev_id;
 	struct Scsi_Host *host;
 	int num_fc_ports;
+	struct cdev cdev;
+	struct device *chardev;
 
 	ulong cxlflash_regs_pci;
 
