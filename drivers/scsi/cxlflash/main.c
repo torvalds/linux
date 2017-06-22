@@ -2212,28 +2212,22 @@ static void cxlflash_schedule_async_reset(struct cxlflash_cfg *cfg)
 }
 
 /**
- * cxlflash_afu_sync() - builds and sends an AFU sync command
+ * send_afu_cmd() - builds and sends an internal AFU command
  * @afu:	AFU associated with the host.
- * @ctx_hndl_u:	Identifies context requesting sync.
- * @res_hndl_u:	Identifies resource requesting sync.
- * @mode:	Type of sync to issue (lightweight, heavyweight, global).
+ * @rcb:	Pre-populated IOARCB describing command to send.
  *
- * The AFU can only take 1 sync command at a time. This routine enforces this
- * limitation by using a mutex to provide exclusive access to the AFU during
- * the sync. This design point requires calling threads to not be on interrupt
- * context due to the possibility of sleeping during concurrent sync operations.
+ * The AFU can only take one internal AFU command at a time. This limitation is
+ * enforced by using a mutex to provide exclusive access to the AFU during the
+ * operation. This design point requires calling threads to not be on interrupt
+ * context due to the possibility of sleeping during concurrent AFU operations.
  *
- * AFU sync operations are only necessary and allowed when the device is
- * operating normally. When not operating normally, sync requests can occur as
- * part of cleaning up resources associated with an adapter prior to removal.
- * In this scenario, these requests are simply ignored (safe due to the AFU
- * going away).
+ * The command status is optionally passed back to the caller when the caller
+ * populates the IOASA field of the IOARCB with a pointer to an IOASA structure.
  *
  * Return:
  *	0 on success, -errno on failure
  */
-int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
-		      res_hndl_t res_hndl_u, u8 mode)
+static int send_afu_cmd(struct afu *afu, struct sisl_ioarcb *rcb)
 {
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
@@ -2263,25 +2257,15 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 
 retry:
 	memset(cmd, 0, sizeof(*cmd));
+	memcpy(&cmd->rcb, rcb, sizeof(*rcb));
 	INIT_LIST_HEAD(&cmd->queue);
 	init_completion(&cmd->cevent);
 	cmd->parent = afu;
 	cmd->hwq_index = hwq->index;
-
-	dev_dbg(dev, "%s: afu=%p cmd=%p ctx=%d nretry=%d\n",
-		__func__, afu, cmd, ctx_hndl_u, nretry);
-
-	cmd->rcb.req_flags = SISL_REQ_FLAGS_AFU_CMD;
 	cmd->rcb.ctx_id = hwq->ctx_hndl;
-	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
-	cmd->rcb.timeout = MC_AFU_SYNC_TIMEOUT;
 
-	cmd->rcb.cdb[0] = 0xC0;	/* AFU Sync */
-	cmd->rcb.cdb[1] = mode;
-
-	/* The cdb is aligned, no unaligned accessors required */
-	*((__be16 *)&cmd->rcb.cdb[2]) = cpu_to_be16(ctx_hndl_u);
-	*((__be32 *)&cmd->rcb.cdb[4]) = cpu_to_be32(res_hndl_u);
+	dev_dbg(dev, "%s: afu=%p cmd=%p type=%02x nretry=%d\n",
+		__func__, afu, cmd, cmd->rcb.cdb[0], nretry);
 
 	rc = afu->send_cmd(afu, cmd);
 	if (unlikely(rc)) {
@@ -2306,12 +2290,51 @@ retry:
 		break;
 	}
 
+	if (rcb->ioasa)
+		*rcb->ioasa = cmd->sa;
 out:
 	atomic_dec(&afu->cmds_active);
 	mutex_unlock(&sync_active);
 	kfree(buf);
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
 	return rc;
+}
+
+/**
+ * cxlflash_afu_sync() - builds and sends an AFU sync command
+ * @afu:	AFU associated with the host.
+ * @ctx:	Identifies context requesting sync.
+ * @res:	Identifies resource requesting sync.
+ * @mode:	Type of sync to issue (lightweight, heavyweight, global).
+ *
+ * AFU sync operations are only necessary and allowed when the device is
+ * operating normally. When not operating normally, sync requests can occur as
+ * part of cleaning up resources associated with an adapter prior to removal.
+ * In this scenario, these requests are simply ignored (safe due to the AFU
+ * going away).
+ *
+ * Return:
+ *	0 on success, -errno on failure
+ */
+int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx, res_hndl_t res, u8 mode)
+{
+	struct cxlflash_cfg *cfg = afu->parent;
+	struct device *dev = &cfg->dev->dev;
+	struct sisl_ioarcb rcb = { 0 };
+
+	dev_dbg(dev, "%s: afu=%p ctx=%u res=%u mode=%u\n",
+		__func__, afu, ctx, res, mode);
+
+	rcb.req_flags = SISL_REQ_FLAGS_AFU_CMD;
+	rcb.msi = SISL_MSI_RRQ_UPDATED;
+	rcb.timeout = MC_AFU_SYNC_TIMEOUT;
+
+	rcb.cdb[0] = SISL_AFU_CMD_SYNC;
+	rcb.cdb[1] = mode;
+	put_unaligned_be16(ctx, &rcb.cdb[2]);
+	put_unaligned_be32(res, &rcb.cdb[4]);
+
+	return send_afu_cmd(afu, &rcb);
 }
 
 /**

@@ -72,6 +72,8 @@ struct sisl_ioarcb {
 	u16 timeout;		/* in units specified by req_flags */
 	u32 rsvd1;
 	u8 cdb[16];		/* must be in big endian */
+#define SISL_AFU_CMD_SYNC		0xC0	/* AFU sync command */
+
 	union {
 		u64 reserved;			/* Reserved for IOARRIN mode */
 		struct sisl_ioasa *ioasa;	/* IOASA EA for SQ Mode */
