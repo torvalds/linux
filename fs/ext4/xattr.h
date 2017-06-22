@@ -117,6 +117,11 @@ struct ext4_xattr_ibody_find {
 	struct ext4_iloc iloc;
 };
 
+struct ext4_xattr_inode_array {
+	unsigned int count;		/* # of used items in the array */
+	struct inode *inodes[0];
+};
+
 extern const struct xattr_handler ext4_xattr_user_handler;
 extern const struct xattr_handler ext4_xattr_trusted_handler;
 extern const struct xattr_handler ext4_xattr_security_handler;
