@@ -1273,14 +1273,14 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 		extent_thresh = SZ_256K;
 
 	/*
-	 * if we were not given a file, allocate a readahead
-	 * context
+	 * If we were not given a file, allocate a readahead context. As
+	 * readahead is just an optimization, defrag will work without it so
+	 * we don't error out.
 	 */
 	if (!file) {
 		ra = kzalloc(sizeof(*ra), GFP_KERNEL);
-		if (!ra)
-			return -ENOMEM;
-		file_ra_state_init(ra, inode->i_mapping);
+		if (ra)
+			file_ra_state_init(ra, inode->i_mapping);
 	} else {
 		ra = &file->f_ra;
 	}
@@ -1363,8 +1363,9 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 		if (i + cluster > ra_index) {
 			ra_index = max(i, ra_index);
-			btrfs_force_ra(inode->i_mapping, ra, file, ra_index,
-				       cluster);
+			if (ra)
+				btrfs_force_ra(inode->i_mapping, ra, file,
+						ra_index, cluster);
 			ra_index += cluster;
 		}
 
