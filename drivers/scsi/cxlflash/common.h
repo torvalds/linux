@@ -158,6 +158,7 @@ struct afu_cmd {
 	u32 hwq_index;
 
 	u8 cmd_tmf:1;
+	struct list_head list;	/* Pending commands link */
 
 	/* As per the SISLITE spec the IOARCB EA has to be 16-byte aligned.
 	 * However for performance reasons the IOARCB/IOASA should be
@@ -193,6 +194,7 @@ struct hwq {
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
 	u32 index;		/* Index of this hwq */
+	struct list_head pending_cmds;	/* Commands pending completion */
 
 	atomic_t hsq_credits;
 	spinlock_t hsq_slock;	/* Hardware send queue lock */

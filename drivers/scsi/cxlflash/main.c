@@ -162,7 +162,12 @@ static void cmd_complete(struct afu_cmd *cmd)
 	struct afu *afu = cmd->parent;
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
+	struct hwq *hwq = get_hwq(afu, cmd->hwq_index);
 	bool cmd_is_tmf;
+
+	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
+	list_del(&cmd->list);
+	spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
 
 	if (cmd->scp) {
 		scp = cmd->scp;
@@ -279,6 +284,7 @@ static int send_cmd_ioarrin(struct afu *afu, struct afu_cmd *cmd)
 		hwq->room = room - 1;
 	}
 
+	list_add(&cmd->list, &hwq->pending_cmds);
 	writeq_be((u64)&cmd->rcb, &hwq->host_map->ioarrin);
 out:
 	spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
@@ -319,6 +325,8 @@ static int send_cmd_sq(struct afu *afu, struct afu_cmd *cmd)
 		hwq->hsq_curr++;
 	else
 		hwq->hsq_curr = hwq->hsq_start;
+
+	list_add(&cmd->list, &hwq->pending_cmds);
 	writeq_be((u64)hwq->hsq_curr, &hwq->host_map->sq_tail);
 
 	spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
@@ -1840,6 +1848,7 @@ static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 
 	hwq->afu = cfg->afu;
 	hwq->index = index;
+	INIT_LIST_HEAD(&hwq->pending_cmds);
 
 	if (index == PRIMARY_HWQ)
 		ctx = cxl_get_context(cfg->dev);
