@@ -228,6 +228,10 @@ static void flush_pending_cmds(struct hwq *hwq)
  * @hwq:	Hardware queue owning the context to be reset.
  * @reset_reg:	MMIO register to perform reset.
  *
+ * When the reset is successful, the SISLite specification guarantees that
+ * the AFU has aborted all currently pending I/O. Accordingly, these commands
+ * must be flushed.
+ *
  * Return: 0 on success, -errno on failure
  */
 static int context_reset(struct hwq *hwq, __be64 __iomem *reset_reg)
@@ -237,8 +241,11 @@ static int context_reset(struct hwq *hwq, __be64 __iomem *reset_reg)
 	int rc = -ETIMEDOUT;
 	int nretry = 0;
 	u64 val = 0x1;
+	ulong lock_flags;
 
 	dev_dbg(dev, "%s: hwq=%p\n", __func__, hwq);
+
+	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
 
 	writeq_be(val, reset_reg);
 	do {
@@ -251,6 +258,11 @@ static int context_reset(struct hwq *hwq, __be64 __iomem *reset_reg)
 		/* Double delay each time */
 		udelay(1 << nretry);
 	} while (nretry++ < MC_ROOM_RETRY_CNT);
+
+	if (!rc)
+		flush_pending_cmds(hwq);
+
+	spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
 
 	dev_dbg(dev, "%s: returning rc=%d, val=%016llx nretry=%d\n",
 		__func__, rc, val, nretry);
@@ -2256,6 +2268,54 @@ out:
 }
 
 /**
+ * cxlflash_eh_abort_handler() - abort a SCSI command
+ * @scp:	SCSI command to abort.
+ *
+ * CXL Flash devices do not support a single command abort. Reset the context
+ * as per SISLite specification. Flush any pending commands in the hardware
+ * queue before the reset.
+ *
+ * Return: SUCCESS/FAILED as defined in scsi/scsi.h
+ */
+static int cxlflash_eh_abort_handler(struct scsi_cmnd *scp)
+{
+	int rc = FAILED;
+	struct Scsi_Host *host = scp->device->host;
+	struct cxlflash_cfg *cfg = shost_priv(host);
+	struct afu_cmd *cmd = sc_to_afuc(scp);
+	struct device *dev = &cfg->dev->dev;
+	struct afu *afu = cfg->afu;
+	struct hwq *hwq = get_hwq(afu, cmd->hwq_index);
+
+	dev_dbg(dev, "%s: (scp=%p) %d/%d/%d/%llu "
+		"cdb=(%08x-%08x-%08x-%08x)\n", __func__, scp, host->host_no,
+		scp->device->channel, scp->device->id, scp->device->lun,
+		get_unaligned_be32(&((u32 *)scp->cmnd)[0]),
+		get_unaligned_be32(&((u32 *)scp->cmnd)[1]),
+		get_unaligned_be32(&((u32 *)scp->cmnd)[2]),
+		get_unaligned_be32(&((u32 *)scp->cmnd)[3]));
+
+	/* When the state is not normal, another reset/reload is in progress.
+	 * Return failed and the mid-layer will invoke host reset handler.
+	 */
+	if (cfg->state != STATE_NORMAL) {
+		dev_dbg(dev, "%s: Invalid state for abort, state=%d\n",
+			__func__, cfg->state);
+		goto out;
+	}
+
+	rc = afu->context_reset(hwq);
+	if (unlikely(rc))
+		goto out;
+
+	rc = SUCCESS;
+
+out:
+	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
+	return rc;
+}
+
+/**
  * cxlflash_eh_device_reset_handler() - reset a single LUN
  * @scp:	SCSI command to send.
  *
@@ -2969,6 +3029,7 @@ static struct scsi_host_template driver_template = {
 	.ioctl = cxlflash_ioctl,
 	.proc_name = CXLFLASH_NAME,
 	.queuecommand = cxlflash_queuecommand,
+	.eh_abort_handler = cxlflash_eh_abort_handler,
 	.eh_device_reset_handler = cxlflash_eh_device_reset_handler,
 	.eh_host_reset_handler = cxlflash_eh_host_reset_handler,
 	.change_queue_depth = cxlflash_change_queue_depth,
