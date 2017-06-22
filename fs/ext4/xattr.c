@@ -278,37 +278,28 @@ ext4_xattr_find_entry(struct ext4_xattr_entry **pentry, int name_index,
 /*
  * Read the EA value from an inode.
  */
-static int
-ext4_xattr_inode_read(struct inode *ea_inode, void *buf, size_t *size)
+static int ext4_xattr_inode_read(struct inode *ea_inode, void *buf, size_t size)
 {
 	unsigned long block = 0;
 	struct buffer_head *bh = NULL;
-	int blocksize;
-	size_t csize, ret_size = 0;
+	int blocksize = ea_inode->i_sb->s_blocksize;
+	size_t csize, copied = 0;
 
-	if (*size == 0)
-		return 0;
-
-	blocksize = ea_inode->i_sb->s_blocksize;
-
-	while (ret_size < *size) {
-		csize = (*size - ret_size) > blocksize ? blocksize :
-							*size - ret_size;
+	while (copied < size) {
+		csize = (size - copied) > blocksize ? blocksize : size - copied;
 		bh = ext4_bread(NULL, ea_inode, block, 0);
-		if (IS_ERR(bh)) {
-			*size = ret_size;
+		if (IS_ERR(bh))
 			return PTR_ERR(bh);
-		}
+		if (!bh)
+			return -EFSCORRUPTED;
+
 		memcpy(buf, bh->b_data, csize);
 		brelse(bh);
 
 		buf += csize;
 		block += 1;
-		ret_size += csize;
+		copied += csize;
 	}
-
-	*size = ret_size;
-
 	return 0;
 }
 
@@ -360,7 +351,7 @@ error:
  */
 static int
 ext4_xattr_inode_get(struct inode *inode, unsigned long ea_ino, void *buffer,
-		     size_t *size)
+		     size_t size)
 {
 	struct inode *ea_inode;
 	int ret;
@@ -417,7 +408,7 @@ ext4_xattr_block_get(struct inode *inode, int name_index, const char *name,
 		if (entry->e_value_inum) {
 			error = ext4_xattr_inode_get(inode,
 					     le32_to_cpu(entry->e_value_inum),
-					     buffer, &size);
+					     buffer, size);
 			if (error)
 				goto cleanup;
 		} else {
@@ -467,7 +458,7 @@ ext4_xattr_ibody_get(struct inode *inode, int name_index, const char *name,
 		if (entry->e_value_inum) {
 			error = ext4_xattr_inode_get(inode,
 					     le32_to_cpu(entry->e_value_inum),
-					     buffer, &size);
+					     buffer, size);
 			if (error)
 				goto cleanup;
 		} else {
