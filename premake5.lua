@@ -4,6 +4,6 @@ workspace "kernel"
 project "kernel"
 	kind "ConsoleApp"
 	language "C"
-	files { "**.h", "**.c", "**.S" }
+	files { "**.*" }
 	includedirs { "." }
 	defines {"__KERNEL__"}
