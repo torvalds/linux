@@ -3302,19 +3302,25 @@ static int
 nfp_net_xdp_setup(struct nfp_net *nn, struct bpf_prog *prog, u32 flags,
 		  struct netlink_ext_ack *extack)
 {
-	struct bpf_prog *offload_prog;
+	struct bpf_prog *drv_prog, *offload_prog;
 	int err;
 
 	if (nn->xdp_prog && (flags ^ nn->xdp_flags) & XDP_FLAGS_MODES)
 		return -EBUSY;
 
+	/* Load both when no flags set to allow easy activation of driver path
+	 * when program is replaced by one which can't be offloaded.
+	 */
+	drv_prog     = flags & XDP_FLAGS_HW_MODE  ? NULL : prog;
 	offload_prog = flags & XDP_FLAGS_DRV_MODE ? NULL : prog;
 
-	err = nfp_net_xdp_setup_drv(nn, prog, extack);
+	err = nfp_net_xdp_setup_drv(nn, drv_prog, extack);
 	if (err)
 		return err;
 
-	nfp_app_xdp_offload(nn->app, nn, offload_prog);
+	err = nfp_app_xdp_offload(nn->app, nn, offload_prog);
+	if (err && flags & XDP_FLAGS_HW_MODE)
+		return err;
 
 	if (nn->xdp_prog)
 		bpf_prog_put(nn->xdp_prog);
@@ -3330,6 +3336,7 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_xdp *xdp)
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
+	case XDP_SETUP_PROG_HW:
 		return nfp_net_xdp_setup(nn, xdp->prog, xdp->flags,
 					 xdp->extack);
 	case XDP_QUERY_PROG:
