@@ -909,11 +909,6 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 	int in_inode = i->in_inode;
 	int rc;
 
-	if (ext4_has_feature_ea_inode(inode->i_sb) &&
-	    (EXT4_XATTR_SIZE(i->value_len) >
-	     EXT4_XATTR_MIN_LARGE_EA_SIZE(inode->i_sb->s_blocksize)))
-		in_inode = 1;
-
 	/* Compute min_offs and last. */
 	last = s->first;
 	for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
@@ -1095,7 +1090,8 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 {
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *new_bh = NULL;
-	struct ext4_xattr_search *s = &bs->s;
+	struct ext4_xattr_search s_copy = bs->s;
+	struct ext4_xattr_search *s = &s_copy;
 	struct mb_cache_entry *ce = NULL;
 	int error = 0;
 	struct mb_cache *ext4_mb_cache = EXT4_GET_MB_CACHE(inode);
@@ -1517,6 +1513,11 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 		if (!bs.s.not_found && ext4_xattr_value_same(&bs.s, &i))
 			goto cleanup;
 
+		if (ext4_has_feature_ea_inode(inode->i_sb) &&
+		    (EXT4_XATTR_SIZE(i.value_len) >
+			EXT4_XATTR_MIN_LARGE_EA_SIZE(inode->i_sb->s_blocksize)))
+			i.in_inode = 1;
+retry_inode:
 		error = ext4_xattr_ibody_set(handle, inode, &i, &is);
 		if (!error && !bs.s.not_found) {
 			i.value = NULL;
@@ -1528,20 +1529,20 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 					goto cleanup;
 			}
 			error = ext4_xattr_block_set(handle, inode, &i, &bs);
-			if (ext4_has_feature_ea_inode(inode->i_sb) &&
-			    error == -ENOSPC) {
-				/* xattr not fit to block, store at external
-				 * inode */
-				i.in_inode = 1;
-				error = ext4_xattr_ibody_set(handle, inode,
-							     &i, &is);
-			}
-			if (error)
-				goto cleanup;
-			if (!is.s.not_found) {
+			if (!error && !is.s.not_found) {
 				i.value = NULL;
 				error = ext4_xattr_ibody_set(handle, inode, &i,
 							     &is);
+			} else if (error == -ENOSPC) {
+				/*
+				 * Xattr does not fit in the block, store at
+				 * external inode if possible.
+				 */
+				if (ext4_has_feature_ea_inode(inode->i_sb) &&
+				    !i.in_inode) {
+					i.in_inode = 1;
+					goto retry_inode;
+				}
 			}
 		}
 	}
