@@ -155,9 +155,10 @@ static void process_cmd_err(struct afu_cmd *cmd, struct scsi_cmnd *scp)
  * cmd_complete() - command completion handler
  * @cmd:	AFU command that has completed.
  *
- * Prepares and submits command that has either completed or timed out to
- * the SCSI stack. Checks AFU command back into command pool for non-internal
- * (cmd->scp populated) commands.
+ * For SCSI commands this routine prepares and submits commands that have
+ * either completed or timed out to the SCSI stack. For internal commands
+ * (TMF or AFU), this routine simply notifies the originator that the
+ * command has completed.
  */
 static void cmd_complete(struct afu_cmd *cmd)
 {
@@ -167,7 +168,6 @@ static void cmd_complete(struct afu_cmd *cmd)
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
 	struct hwq *hwq = get_hwq(afu, cmd->hwq_index);
-	bool cmd_is_tmf;
 
 	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
 	list_del(&cmd->list);
@@ -180,19 +180,14 @@ static void cmd_complete(struct afu_cmd *cmd)
 		else
 			scp->result = (DID_OK << 16);
 
-		cmd_is_tmf = cmd->cmd_tmf;
-
 		dev_dbg_ratelimited(dev, "%s:scp=%p result=%08x ioasc=%08x\n",
 				    __func__, scp, scp->result, cmd->sa.ioasc);
-
 		scp->scsi_done(scp);
-
-		if (cmd_is_tmf) {
-			spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
-			cfg->tmf_active = false;
-			wake_up_all_locked(&cfg->tmf_waitq);
-			spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
-		}
+	} else if (cmd->cmd_tmf) {
+		spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
+		cfg->tmf_active = false;
+		wake_up_all_locked(&cfg->tmf_waitq);
+		spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
 	} else
 		complete(&cmd->cevent);
 }
@@ -206,8 +201,10 @@ static void cmd_complete(struct afu_cmd *cmd)
  */
 static void flush_pending_cmds(struct hwq *hwq)
 {
+	struct cxlflash_cfg *cfg = hwq->afu->parent;
 	struct afu_cmd *cmd, *tmp;
 	struct scsi_cmnd *scp;
+	ulong lock_flags;
 
 	list_for_each_entry_safe(cmd, tmp, &hwq->pending_cmds, list) {
 		/* Bypass command when on a doneq, cmd_complete() will handle */
@@ -222,7 +219,15 @@ static void flush_pending_cmds(struct hwq *hwq)
 			scp->scsi_done(scp);
 		} else {
 			cmd->cmd_aborted = true;
-			complete(&cmd->cevent);
+
+			if (cmd->cmd_tmf) {
+				spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
+				cfg->tmf_active = false;
+				wake_up_all_locked(&cfg->tmf_waitq);
+				spin_unlock_irqrestore(&cfg->tmf_slock,
+						       lock_flags);
+			} else
+				complete(&cmd->cevent);
 		}
 	}
 }
@@ -455,23 +460,34 @@ static u32 cmd_to_target_hwq(struct Scsi_Host *host, struct scsi_cmnd *scp,
 /**
  * send_tmf() - sends a Task Management Function (TMF)
  * @afu:	AFU to checkout from.
- * @scp:	SCSI command from stack.
+ * @scp:	SCSI command from stack describing target.
  * @tmfcmd:	TMF command to send.
  *
  * Return:
- *	0 on success, SCSI_MLQUEUE_HOST_BUSY on failure
+ *	0 on success, SCSI_MLQUEUE_HOST_BUSY or -errno on failure
  */
 static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 {
 	struct Scsi_Host *host = scp->device->host;
 	struct cxlflash_cfg *cfg = shost_priv(host);
-	struct afu_cmd *cmd = sc_to_afucz(scp);
+	struct afu_cmd *cmd = NULL;
 	struct device *dev = &cfg->dev->dev;
 	int hwq_index = cmd_to_target_hwq(host, scp, afu);
 	struct hwq *hwq = get_hwq(afu, hwq_index);
+	char *buf = NULL;
 	ulong lock_flags;
 	int rc = 0;
 	ulong to;
+
+	buf = kzalloc(sizeof(*cmd) + __alignof__(*cmd) - 1, GFP_KERNEL);
+	if (unlikely(!buf)) {
+		dev_err(dev, "%s: no memory for command\n", __func__);
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	cmd = (struct afu_cmd *)PTR_ALIGN(buf, __alignof__(*cmd));
+	INIT_LIST_HEAD(&cmd->queue);
 
 	/* When Task Management Function is active do not send another */
 	spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
@@ -482,7 +498,6 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 	cfg->tmf_active = true;
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
 
-	cmd->scp = scp;
 	cmd->parent = afu;
 	cmd->cmd_tmf = true;
 	cmd->hwq_index = hwq_index;
@@ -511,12 +526,20 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 						       cfg->tmf_slock,
 						       to);
 	if (!to) {
-		cfg->tmf_active = false;
 		dev_err(dev, "%s: TMF timed out\n", __func__);
-		rc = -1;
+		rc = -ETIMEDOUT;
+	} else if (cmd->cmd_aborted) {
+		dev_err(dev, "%s: TMF aborted\n", __func__);
+		rc = -EAGAIN;
+	} else if (cmd->sa.ioasc) {
+		dev_err(dev, "%s: TMF failed ioasc=%08x\n",
+			__func__, cmd->sa.ioasc);
+		rc = -EIO;
 	}
+	cfg->tmf_active = false;
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
 out:
+	kfree(buf);
 	return rc;
 }
 
