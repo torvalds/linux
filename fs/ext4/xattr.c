@@ -678,7 +678,7 @@ ext4_xattr_release_block(handle_t *handle, struct inode *inode,
 		 * This must happen under buffer lock for
 		 * ext4_xattr_block_set() to reliably detect freed block
 		 */
-		mb_cache_entry_delete_block(ext4_mb_cache, hash, bh->b_blocknr);
+		mb_cache_entry_delete(ext4_mb_cache, hash, bh->b_blocknr);
 		get_bh(bh);
 		unlock_buffer(bh);
 		ext4_free_blocks(handle, inode, bh, 0, 1,
@@ -1113,8 +1113,8 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 			 * ext4_xattr_block_set() to reliably detect modified
 			 * block
 			 */
-			mb_cache_entry_delete_block(ext4_mb_cache, hash,
-						    bs->bh->b_blocknr);
+			mb_cache_entry_delete(ext4_mb_cache, hash,
+					      bs->bh->b_blocknr);
 			ea_bdebug(bs->bh, "modifying in-place");
 			error = ext4_xattr_set_entry(i, s, handle, inode);
 			if (!error) {
@@ -2236,10 +2236,10 @@ ext4_xattr_cache_find(struct inode *inode, struct ext4_xattr_header *header,
 	while (ce) {
 		struct buffer_head *bh;
 
-		bh = sb_bread(inode->i_sb, ce->e_block);
+		bh = sb_bread(inode->i_sb, ce->e_value);
 		if (!bh) {
 			EXT4_ERROR_INODE(inode, "block %lu read error",
-					 (unsigned long) ce->e_block);
+					 (unsigned long)ce->e_value);
 		} else if (ext4_xattr_cmp(header, BHDR(bh)) == 0) {
 			*pce = ce;
 			return bh;
