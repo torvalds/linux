@@ -479,7 +479,7 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 
 /* bpf+kprobe programs can access fields of 'struct pt_regs' */
 static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
-					enum bpf_reg_type *reg_type, int *ctx_field_size)
+					struct bpf_insn_access_aux *info)
 {
 	if (off < 0 || off >= sizeof(struct pt_regs))
 		return false;
@@ -562,7 +562,7 @@ static const struct bpf_func_proto *tp_prog_func_proto(enum bpf_func_id func_id)
 }
 
 static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type,
-				    enum bpf_reg_type *reg_type, int *ctx_field_size)
+				    struct bpf_insn_access_aux *info)
 {
 	if (off < sizeof(void *) || off >= PERF_MAX_TRACE_SIZE)
 		return false;
@@ -581,7 +581,7 @@ const struct bpf_verifier_ops tracepoint_prog_ops = {
 };
 
 static bool pe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
-				    enum bpf_reg_type *reg_type, int *ctx_field_size)
+				    struct bpf_insn_access_aux *info)
 {
 	int sample_period_off;
 
@@ -595,12 +595,17 @@ static bool pe_prog_is_valid_access(int off, int size, enum bpf_access_type type
 	/* permit 1, 2, 4 byte narrower and 8 normal read access to sample_period */
 	sample_period_off = offsetof(struct bpf_perf_event_data, sample_period);
 	if (off >= sample_period_off && off < sample_period_off + sizeof(__u64)) {
-		*ctx_field_size = 8;
+		int allowed;
+
 #ifdef __LITTLE_ENDIAN
-		return (off & 0x7) == 0 && size <= 8 && (size & (size - 1)) == 0;
+		allowed = (off & 0x7) == 0 && size <= 8 && (size & (size - 1)) == 0;
 #else
-		return ((off & 0x7) + size) == 8 && size <= 8 && (size & (size - 1)) == 0;
+		allowed = ((off & 0x7) + size) == 8 && size <= 8 && (size & (size - 1)) == 0;
 #endif
+		if (!allowed)
+			return false;
+		info->ctx_field_size = 8;
+		info->converted_op_size = 8;
 	} else {
 		if (size != sizeof(long))
 			return false;
