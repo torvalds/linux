@@ -1656,17 +1656,15 @@ static int ext4_xattr_move_to_block(handle_t *handle, struct inode *inode,
 	struct ext4_xattr_ibody_find *is = NULL;
 	struct ext4_xattr_block_find *bs = NULL;
 	char *buffer = NULL, *b_entry_name = NULL;
-	size_t value_offs, value_size;
+	size_t value_size = le32_to_cpu(entry->e_value_size);
 	struct ext4_xattr_info i = {
 		.value = NULL,
 		.value_len = 0,
 		.name_index = entry->e_name_index,
+		.in_inode = !!entry->e_value_inum,
 	};
 	struct ext4_xattr_ibody_header *header = IHDR(inode, raw_inode);
 	int error;
-
-	value_offs = le16_to_cpu(entry->e_value_offs);
-	value_size = le32_to_cpu(entry->e_value_size);
 
 	is = kzalloc(sizeof(struct ext4_xattr_ibody_find), GFP_NOFS);
 	bs = kzalloc(sizeof(struct ext4_xattr_block_find), GFP_NOFS);
@@ -1683,7 +1681,17 @@ static int ext4_xattr_move_to_block(handle_t *handle, struct inode *inode,
 	bs->bh = NULL;
 
 	/* Save the entry name and the entry value */
-	memcpy(buffer, (void *)IFIRST(header) + value_offs, value_size);
+	if (entry->e_value_inum) {
+		error = ext4_xattr_inode_get(inode,
+					     le32_to_cpu(entry->e_value_inum),
+					     buffer, value_size);
+		if (error)
+			goto out;
+	} else {
+		size_t value_offs = le16_to_cpu(entry->e_value_offs);
+		memcpy(buffer, (void *)IFIRST(header) + value_offs, value_size);
+	}
+
 	memcpy(b_entry_name, entry->e_name, entry->e_name_len);
 	b_entry_name[entry->e_name_len] = '\0';
 	i.name = b_entry_name;
@@ -1701,7 +1709,6 @@ static int ext4_xattr_move_to_block(handle_t *handle, struct inode *inode,
 	if (error)
 		goto out;
 
-	i.name = b_entry_name;
 	i.value = buffer;
 	i.value_len = value_size;
 	error = ext4_xattr_block_find(inode, &i, bs);
