@@ -338,7 +338,7 @@ DTC="${DTC} ${dtc_flags} -O dts -qq -f ${dtc_sort} -o -"
 
 if (( ${cmd_diff} )) ; then
 
-	diff ${diff_flags} \
+	diff ${diff_flags} --label "${dtx_file_1}" --label "${dtx_file_2}" \
 		<(compile_to_dts "${dtx_file_1}") \
 		<(compile_to_dts "${dtx_file_2}")
 
