@@ -786,7 +786,7 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 
 	device = dasd_device_from_cdev(cdev);
 	if (IS_ERR(device))
-		return PTR_ERR(device);
+		return count;
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	val = val || test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
