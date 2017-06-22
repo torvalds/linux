@@ -23,6 +23,7 @@ struct msi_domain_info;
 
 struct fsl_mc_device;
 struct fsl_mc_io;
+struct mc_command;
 
 /**
  * struct fsl_mc_driver - MC object device driver object
@@ -200,6 +201,58 @@ struct fsl_mc_device {
 
 #define to_fsl_mc_device(_dev) \
 	container_of(_dev, struct fsl_mc_device, dev)
+
+/**
+ * Bit masks for a MC I/O object (struct fsl_mc_io) flags
+ */
+#define FSL_MC_IO_ATOMIC_CONTEXT_PORTAL	0x0001
+
+/**
+ * struct fsl_mc_io - MC I/O object to be passed-in to mc_send_command()
+ * @dev: device associated with this Mc I/O object
+ * @flags: flags for mc_send_command()
+ * @portal_size: MC command portal size in bytes
+ * @portal_phys_addr: MC command portal physical address
+ * @portal_virt_addr: MC command portal virtual address
+ * @dpmcp_dev: pointer to the DPMCP device associated with the MC portal.
+ *
+ * Fields are only meaningful if the FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is not
+ * set:
+ * @mutex: Mutex to serialize mc_send_command() calls that use the same MC
+ * portal, if the fsl_mc_io object was created with the
+ * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag off. mc_send_command() calls for this
+ * fsl_mc_io object must be made only from non-atomic context.
+ *
+ * Fields are only meaningful if the FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is
+ * set:
+ * @spinlock: Spinlock to serialize mc_send_command() calls that use the same MC
+ * portal, if the fsl_mc_io object was created with the
+ * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag on. mc_send_command() calls for this
+ * fsl_mc_io object can be made from atomic or non-atomic context.
+ */
+struct fsl_mc_io {
+	struct device *dev;
+	u16 flags;
+	u16 portal_size;
+	phys_addr_t portal_phys_addr;
+	void __iomem *portal_virt_addr;
+	struct fsl_mc_device *dpmcp_dev;
+	union {
+		/*
+		 * This field is only meaningful if the
+		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is not set
+		 */
+		struct mutex mutex; /* serializes mc_send_command() */
+
+		/*
+		 * This field is only meaningful if the
+		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is set
+		 */
+		spinlock_t spinlock;	/* serializes mc_send_command() */
+	};
+};
+
+int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd);
 
 #ifdef CONFIG_FSL_MC_BUS
 #define dev_is_fsl_mc(_dev) ((_dev)->bus == &fsl_mc_bus_type)
