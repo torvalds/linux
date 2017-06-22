@@ -1612,7 +1612,6 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 		snd_soc_dapm_sync(dapm);
 		break;
 	case 2:
-	case 3:
 		dev_dbg(nau8825->dev, "CTIA (micgnd2) mic connected\n");
 		type = SND_JACK_HEADSET;
 
@@ -1631,6 +1630,11 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 		snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
 		snd_soc_dapm_force_enable_pin(dapm, "SAR");
 		snd_soc_dapm_sync(dapm);
+		break;
+	case 3:
+		/* detect error case */
+		dev_err(nau8825->dev, "detection error; disable mic function\n");
+		type = SND_JACK_HEADPHONE;
 		break;
 	}
 
@@ -2328,6 +2332,13 @@ static int nau8825_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
+		/* Reset the configuration of jack type for detection */
+		/* Detach 2kOhm Resistors from MICBIAS to MICGND1/2 */
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_MIC_BIAS,
+			NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2, 0);
+		/* ground HPL/HPR, MICGRND1/2 */
+		regmap_update_bits(nau8825->regmap,
+			NAU8825_REG_HSD_CTRL, 0xf, 0xf);
 		/* Cancel and reset cross talk detection funciton */
 		nau8825_xtalk_cancel(nau8825);
 		/* Turn off all interruptions before system shutdown. Keep the
@@ -2351,6 +2362,10 @@ static int __maybe_unused nau8825_suspend(struct snd_soc_codec *codec)
 
 	disable_irq(nau8825->irq);
 	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
+	/* Power down codec power; don't suppoet button wakeup */
+	snd_soc_dapm_disable_pin(nau8825->dapm, "SAR");
+	snd_soc_dapm_disable_pin(nau8825->dapm, "MICBIAS");
+	snd_soc_dapm_sync(nau8825->dapm);
 	regcache_cache_only(nau8825->regmap, true);
 	regcache_mark_dirty(nau8825->regmap);
 
