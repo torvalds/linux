@@ -92,7 +92,8 @@
 #define ARM_V7S_PTE_TYPE_CONT_PAGE	0x1
 
 #define ARM_V7S_PTE_IS_VALID(pte)	(((pte) & 0x3) != 0)
-#define ARM_V7S_PTE_IS_TABLE(pte, lvl)	(lvl == 1 && ((pte) & ARM_V7S_PTE_TYPE_TABLE))
+#define ARM_V7S_PTE_IS_TABLE(pte, lvl) \
+	((lvl) == 1 && (((pte) & 0x3) == ARM_V7S_PTE_TYPE_TABLE))
 
 /* Page table bits */
 #define ARM_V7S_ATTR_XN(lvl)		BIT(4 * (2 - (lvl)))
