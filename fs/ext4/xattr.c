@@ -1588,8 +1588,7 @@ ext4_xattr_set(struct inode *inode, int name_index, const char *name,
 	if (error)
 		return error;
 
-	if ((value_len >= EXT4_XATTR_MIN_LARGE_EA_SIZE(sb->s_blocksize)) &&
-	    ext4_has_feature_ea_inode(sb)) {
+	if (ext4_has_feature_ea_inode(sb)) {
 		int nrblocks = (value_len + sb->s_blocksize - 1) >>
 					sb->s_blocksize_bits;
 
