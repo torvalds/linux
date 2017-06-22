@@ -680,6 +680,7 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 	block_t total_count, user_block_count, start_count, ovp_count;
+	u64 avail_node_count;
 
 	total_count = le64_to_cpu(sbi->raw_super->block_count);
 	user_block_count = sbi->user_block_count;
@@ -692,9 +693,16 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = user_block_count - valid_user_blocks(sbi) + ovp_count;
 	buf->f_bavail = user_block_count - valid_user_blocks(sbi);
 
-	buf->f_files = sbi->total_node_count - F2FS_RESERVED_NODE_NUM;
-	buf->f_ffree = min(buf->f_files - valid_node_count(sbi),
-							buf->f_bavail);
+	avail_node_count = sbi->total_node_count - F2FS_RESERVED_NODE_NUM;
+
+	if (avail_node_count > user_block_count) {
+		buf->f_files = user_block_count;
+		buf->f_ffree = buf->f_bavail;
+	} else {
+		buf->f_files = avail_node_count;
+		buf->f_ffree = min(avail_node_count - valid_node_count(sbi),
+					buf->f_bavail);
+	}
 
 	buf->f_namelen = F2FS_NAME_LEN;
 	buf->f_fsid.val[0] = (u32)id;
