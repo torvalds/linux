@@ -340,31 +340,41 @@ static inline const char *kretprobed(const char *name)
 static void
 seq_print_sym_short(struct trace_seq *s, const char *fmt, unsigned long address)
 {
-#ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
+#ifdef CONFIG_KALLSYMS
 	const char *name;
 
 	kallsyms_lookup(address, NULL, NULL, NULL, str);
 
 	name = kretprobed(str);
 
-	trace_seq_printf(s, fmt, name);
+	if (name && strlen(name)) {
+		trace_seq_printf(s, fmt, name);
+		return;
+	}
 #endif
+	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
+	trace_seq_printf(s, fmt, str);
 }
 
 static void
 seq_print_sym_offset(struct trace_seq *s, const char *fmt,
 		     unsigned long address)
 {
-#ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
+#ifdef CONFIG_KALLSYMS
 	const char *name;
 
 	sprint_symbol(str, address);
 	name = kretprobed(str);
 
-	trace_seq_printf(s, fmt, name);
+	if (name && strlen(name)) {
+		trace_seq_printf(s, fmt, name);
+		return;
+	}
 #endif
+	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
+	trace_seq_printf(s, fmt, str);
 }
 
 #ifndef CONFIG_64BIT
