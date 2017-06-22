@@ -70,11 +70,6 @@ struct fsl_mc_bus {
 #define to_fsl_mc_bus(_mc_dev) \
 	container_of(_mc_dev, struct fsl_mc_bus, mc_dev)
 
-int dprc_scan_container(struct fsl_mc_device *mc_bus_dev);
-
-int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
-		      unsigned int *total_irq_count);
-
 struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 						struct msi_domain_info *info,
 						struct irq_domain *parent);
@@ -90,9 +85,6 @@ void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus);
 void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
 
 void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
-
-void fsl_mc_get_root_dprc(struct device *dev,
-			  struct device **root_dprc_dev);
 
 bool fsl_mc_is_root_dprc(struct device *dev);
 
