@@ -196,3 +196,9 @@ static inline int ext4_init_security(handle_t *handle, struct inode *inode,
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_LOCKDEP
+extern void ext4_xattr_inode_set_class(struct inode *ea_inode);
+#else
+static inline void ext4_xattr_inode_set_class(struct inode *ea_inode) { }
+#endif

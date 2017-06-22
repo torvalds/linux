@@ -107,6 +107,13 @@ const struct xattr_handler *ext4_xattr_handlers[] = {
 #define EXT4_GET_MB_CACHE(inode)	(((struct ext4_sb_info *) \
 				inode->i_sb->s_fs_info)->s_mb_cache)
 
+#ifdef CONFIG_LOCKDEP
+void ext4_xattr_inode_set_class(struct inode *ea_inode)
+{
+	lockdep_set_subclass(&ea_inode->i_rwsem, 1);
+}
+#endif
+
 static __le32 ext4_xattr_block_csum(struct inode *inode,
 				    sector_t block_nr,
 				    struct ext4_xattr_header *hdr)
@@ -828,6 +835,7 @@ static struct inode *ext4_xattr_inode_create(handle_t *handle,
 		ea_inode->i_op = &ext4_file_inode_operations;
 		ea_inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(ea_inode);
+		ext4_xattr_inode_set_class(ea_inode);
 		ea_inode->i_generation = inode->i_generation;
 		EXT4_I(ea_inode)->i_flags |= EXT4_EA_INODE_FL;
 
