@@ -3136,13 +3136,6 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
 			      u64 *ram_bytes);
 
-/* RHEL and EL kernels have a patch that renames PG_checked to FsMisc */
-#if defined(ClearPageFsMisc) && !defined(ClearPageChecked)
-#define ClearPageChecked ClearPageFsMisc
-#define SetPageChecked SetPageFsMisc
-#define PageChecked PageFsMisc
-#endif
-
 /* This forces readahead on a given range of bytes in an inode */
 static inline void btrfs_force_ra(struct address_space *mapping,
 				  struct file_ra_state *ra, struct file *file,
