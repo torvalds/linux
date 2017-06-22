@@ -2024,7 +2024,8 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 		if (!entry->e_value_inum)
 			continue;
 		ea_ino = le32_to_cpu(entry->e_value_inum);
-		if (ext4_expand_ino_array(lea_ino_array, ea_ino) != 0) {
+		error = ext4_expand_ino_array(lea_ino_array, ea_ino);
+		if (error) {
 			brelse(iloc.bh);
 			goto cleanup;
 		}
@@ -2035,20 +2036,22 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
 delete_external_ea:
 	if (!EXT4_I(inode)->i_file_acl) {
 		/* add xattr inode to orphan list */
-		ext4_xattr_inode_orphan_add(handle, inode, credits,
-						*lea_ino_array);
+		error = ext4_xattr_inode_orphan_add(handle, inode, credits,
+						    *lea_ino_array);
 		goto cleanup;
 	}
 	bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
 	if (!bh) {
 		EXT4_ERROR_INODE(inode, "block %llu read error",
 				 EXT4_I(inode)->i_file_acl);
+		error = -EIO;
 		goto cleanup;
 	}
 	if (BHDR(bh)->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC) ||
 	    BHDR(bh)->h_blocks != cpu_to_le32(1)) {
 		EXT4_ERROR_INODE(inode, "bad block %llu",
 				 EXT4_I(inode)->i_file_acl);
+		error = -EFSCORRUPTED;
 		goto cleanup;
 	}
 
@@ -2057,7 +2060,8 @@ delete_external_ea:
 		if (!entry->e_value_inum)
 			continue;
 		ea_ino = le32_to_cpu(entry->e_value_inum);
-		if (ext4_expand_ino_array(lea_ino_array, ea_ino) != 0)
+		error = ext4_expand_ino_array(lea_ino_array, ea_ino);
+		if (error)
 			goto cleanup;
 		entry->e_value_inum = 0;
 	}
@@ -2065,7 +2069,7 @@ delete_external_ea:
 	/* add xattr inode to orphan list */
 	error = ext4_xattr_inode_orphan_add(handle, inode, credits,
 					*lea_ino_array);
-	if (error != 0)
+	if (error)
 		goto cleanup;
 
 	if (!IS_NOQUOTA(inode))
@@ -2075,7 +2079,7 @@ delete_external_ea:
 		error = ext4_journal_extend(handle, credits);
 		if (error > 0)
 			error = ext4_journal_restart(handle, credits);
-		if (error != 0) {
+		if (error) {
 			ext4_warning(inode->i_sb,
 				"couldn't extend journal (err %d)", error);
 			goto cleanup;
