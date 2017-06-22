@@ -40,7 +40,7 @@
 
 /dts-v1/;
 
-#include "rk322x.dtsi"
+#include "rk3229.dtsi"
 
 / {
 	model = "Rockchip RK3229 Evaluation board";
