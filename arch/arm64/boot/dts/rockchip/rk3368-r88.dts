@@ -100,6 +100,20 @@
 		regulator-name = "vcc_host";
 		regulator-always-on;
 	};
+
+	vcc_phy: vcc-phy-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_phy";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	clkin_gmac: external-gmac-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "clkin_gmac";
+		#clock-cells = <0>;
+	};
 };
 
 &emmc {
@@ -130,12 +144,14 @@
 };
 
 &gmac {
-	//phy-supply = <&vcc_lan>;
+	phy-supply = <&vcc_phy>;
 	phy-mode = "rmii";
 	clock_in_out = "output";
 	snps,reset-gpio = <&gpio3 12 0>;
 	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 1000000>;
+	snps,reset-delays-us = <0 10000 50000>;
+	//assigned-clocks = <&cru SCLK_RMII_SRC>;
+	//assigned-clock-parents = <&clkin_gmac>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rmii_pins>;
 	tx_delay = <0x30>;
