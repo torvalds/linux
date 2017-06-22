@@ -157,7 +157,9 @@ struct afu_cmd {
 	struct list_head queue;
 	u32 hwq_index;
 
-	u8 cmd_tmf:1;
+	u8 cmd_tmf:1,
+	   cmd_aborted:1;
+
 	struct list_head list;	/* Pending commands link */
 
 	/* As per the SISLITE spec the IOARCB EA has to be 16-byte aligned.
@@ -176,6 +178,7 @@ static inline struct afu_cmd *sc_to_afucz(struct scsi_cmnd *sc)
 	struct afu_cmd *afuc = sc_to_afuc(sc);
 
 	memset(afuc, 0, sizeof(*afuc));
+	INIT_LIST_HEAD(&afuc->queue);
 	return afuc;
 }
 

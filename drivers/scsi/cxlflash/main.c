@@ -194,6 +194,36 @@ static void cmd_complete(struct afu_cmd *cmd)
 }
 
 /**
+ * flush_pending_cmds() - flush all pending commands on this hardware queue
+ * @hwq:	Hardware queue to flush.
+ *
+ * The hardware send queue lock associated with this hardware queue must be
+ * held when calling this routine.
+ */
+static void flush_pending_cmds(struct hwq *hwq)
+{
+	struct afu_cmd *cmd, *tmp;
+	struct scsi_cmnd *scp;
+
+	list_for_each_entry_safe(cmd, tmp, &hwq->pending_cmds, list) {
+		/* Bypass command when on a doneq, cmd_complete() will handle */
+		if (!list_empty(&cmd->queue))
+			continue;
+
+		list_del(&cmd->list);
+
+		if (cmd->scp) {
+			scp = cmd->scp;
+			scp->result = (DID_IMM_RETRY << 16);
+			scp->scsi_done(scp);
+		} else {
+			cmd->cmd_aborted = true;
+			complete(&cmd->cevent);
+		}
+	}
+}
+
+/**
  * context_reset() - reset context via specified register
  * @hwq:	Hardware queue owning the context to be reset.
  * @reset_reg:	MMIO register to perform reset.
@@ -356,6 +386,9 @@ static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
 	timeout = wait_for_completion_timeout(&cmd->cevent, timeout);
 	if (!timeout)
 		rc = -ETIMEDOUT;
+
+	if (cmd->cmd_aborted)
+		rc = -EAGAIN;
 
 	if (unlikely(cmd->sa.ioasc != 0)) {
 		dev_err(dev, "%s: cmd %02x failed, ioasc=%08x\n",
@@ -702,6 +735,7 @@ static void term_mc(struct cxlflash_cfg *cfg, u32 index)
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct hwq *hwq;
+	ulong lock_flags;
 
 	if (!afu) {
 		dev_err(dev, "%s: returning with NULL afu\n", __func__);
@@ -719,6 +753,10 @@ static void term_mc(struct cxlflash_cfg *cfg, u32 index)
 	if (index != PRIMARY_HWQ)
 		WARN_ON(cxl_release_context(hwq->ctx));
 	hwq->ctx = NULL;
+
+	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
+	flush_pending_cmds(hwq);
+	spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
 }
 
 /**
@@ -2155,7 +2193,7 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 
 	mutex_lock(&sync_active);
 	atomic_inc(&afu->cmds_active);
-	buf = kzalloc(sizeof(*cmd) + __alignof__(*cmd) - 1, GFP_KERNEL);
+	buf = kmalloc(sizeof(*cmd) + __alignof__(*cmd) - 1, GFP_KERNEL);
 	if (unlikely(!buf)) {
 		dev_err(dev, "%s: no memory for command\n", __func__);
 		rc = -ENOMEM;
@@ -2165,6 +2203,8 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	cmd = (struct afu_cmd *)PTR_ALIGN(buf, __alignof__(*cmd));
 
 retry:
+	memset(cmd, 0, sizeof(*cmd));
+	INIT_LIST_HEAD(&cmd->queue);
 	init_completion(&cmd->cevent);
 	cmd->parent = afu;
 	cmd->hwq_index = hwq->index;
@@ -2191,11 +2231,20 @@ retry:
 	}
 
 	rc = wait_resp(afu, cmd);
-	if (rc == -ETIMEDOUT) {
+	switch (rc) {
+	case -ETIMEDOUT:
 		rc = afu->context_reset(hwq);
-		if (!rc && ++nretry < 2)
+		if (rc) {
+			cxlflash_schedule_async_reset(cfg);
+			break;
+		}
+		/* fall through to retry */
+	case -EAGAIN:
+		if (++nretry < 2)
 			goto retry;
-		cxlflash_schedule_async_reset(cfg);
+		/* fall through to exit */
+	default:
+		break;
 	}
 
 out:
