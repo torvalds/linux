@@ -12,7 +12,7 @@
 
 #include "../include/mc.h"
 
-int __must_check fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
+int __must_check fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 				   struct fsl_mc_io *mc_io,
 				   struct device *parent_dev,
 				   struct fsl_mc_device **new_mc_dev);
