@@ -137,6 +137,64 @@ struct crush_bucket {
 
 };
 
+/** @ingroup API
+ *
+ * Replacement weights for each item in a bucket. The size of the
+ * array must be exactly the size of the straw2 bucket, just as the
+ * item_weights array.
+ *
+ */
+struct crush_weight_set {
+	__u32 *weights; /*!< 16.16 fixed point weights
+                             in the same order as items */
+	__u32 size;     /*!< size of the __weights__ array */
+};
+
+/** @ingroup API
+ *
+ * Replacement weights and ids for a given straw2 bucket, for
+ * placement purposes.
+ *
+ * When crush_do_rule() chooses the Nth item from a straw2 bucket, the
+ * replacement weights found at __weight_set[N]__ are used instead of
+ * the weights from __item_weights__. If __N__ is greater than
+ * __weight_set_size__, the weights found at __weight_set_size-1__ are
+ * used instead. For instance if __weight_set__ is:
+ *
+ *    [ [ 0x10000, 0x20000 ],   // position 0
+ *      [ 0x20000, 0x40000 ] ]  // position 1
+ *
+ * choosing the 0th item will use position 0 weights [ 0x10000, 0x20000 ]
+ * choosing the 1th item will use position 1 weights [ 0x20000, 0x40000 ]
+ * choosing the 2th item will use position 1 weights [ 0x20000, 0x40000 ]
+ * etc.
+ *
+ */
+struct crush_choose_arg {
+	__s32 *ids;            /*!< values to use instead of items */
+	__u32 ids_size;        /*!< size of the __ids__ array */
+	struct crush_weight_set *weight_set; /*!< weight replacements for
+                                                  a given position */
+	__u32 weight_set_size; /*!< size of the __weight_set__ array */
+};
+
+/** @ingroup API
+ *
+ * Replacement weights and ids for each bucket in the crushmap. The
+ * __size__ of the __args__ array must be exactly the same as the
+ * __map->max_buckets__.
+ *
+ * The __crush_choose_arg__ at index N will be used when choosing
+ * an item from the bucket __map->buckets[N]__ bucket, provided it
+ * is a straw2 bucket.
+ *
+ */
+struct crush_choose_arg_map {
+	struct crush_choose_arg *args; /*!< replacement for each bucket
+                                            in the crushmap */
+	__u32 size;                    /*!< size of the __args__ array */
+};
+
 struct crush_bucket_uniform {
 	struct crush_bucket h;
 	__u32 item_weight;  /* 16-bit fixed point; all items equally weighted */

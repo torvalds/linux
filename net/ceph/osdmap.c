@@ -2111,7 +2111,7 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 
 	mutex_lock(&map->crush_workspace_mutex);
 	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
-			  weight, weight_max, map->crush_workspace);
+			  weight, weight_max, map->crush_workspace, NULL);
 	mutex_unlock(&map->crush_workspace_mutex);
 
 	return r;
