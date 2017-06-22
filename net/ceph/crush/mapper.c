@@ -1004,11 +1004,6 @@ int crush_do_rule(const struct crush_map *map,
 
 			for (i = 0; i < wsize; i++) {
 				int bno;
-				/*
-				 * see CRUSH_N, CRUSH_N_MINUS macros.
-				 * basically, numrep <= 0 means relative to
-				 * the provided result_max
-				 */
 				numrep = curstep->arg1;
 				if (numrep <= 0) {
 					numrep += result_max;
