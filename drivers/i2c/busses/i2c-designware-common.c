@@ -56,6 +56,12 @@ static char *abort_sources[] = {
 		"trying to use disabled adapter",
 	[ARB_LOST] =
 		"lost arbitration",
+	[ABRT_SLAVE_FLUSH_TXFIFO] =
+		"read command so flush old data in the TX FIFO",
+	[ABRT_SLAVE_ARBLOST] =
+		"slave lost the bus while transmitting data to a remote master",
+	[ABRT_SLAVE_RD_INTX] =
+		"incorrect slave-transmitter mode configuration",
 };
 
 u32 dw_readl(struct dw_i2c_dev *dev, int offset)
