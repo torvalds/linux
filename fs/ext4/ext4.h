@@ -2232,12 +2232,6 @@ struct mmpd_data {
 #define EXT4_MMP_MAX_CHECK_INTERVAL	300UL
 
 /*
- * Maximum size of xattr attributes for FEATURE_INCOMPAT_EA_INODE 1Mb
- * This limit is arbitrary, but is reasonable for the xattr API.
- */
-#define EXT4_XATTR_MAX_LARGE_EA_SIZE    (1024 * 1024)
-
-/*
  * Function prototypes
  */
 
