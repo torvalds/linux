@@ -1459,6 +1459,12 @@ static int ext4_xattr_inode_lookup_create(handle_t *handle, struct inode *inode,
 	return 0;
 }
 
+/*
+ * Reserve min(block_size/8, 1024) bytes for xattr entries/names if ea_inode
+ * feature is enabled.
+ */
+#define EXT4_XATTR_BLOCK_RESERVE(inode)	min(i_blocksize(inode)/8, 1024U)
+
 static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 				struct ext4_xattr_search *s,
 				handle_t *handle, struct inode *inode)
@@ -1515,6 +1521,20 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 			free += EXT4_XATTR_LEN(name_len) + old_size;
 
 		if (free < EXT4_XATTR_LEN(name_len) + new_size) {
+			ret = -ENOSPC;
+			goto out;
+		}
+
+		/*
+		 * If storing the value in an external inode is an option,
+		 * reserve space for xattr entries/names in the external
+		 * attribute block so that a long value does not occupy the
+		 * whole space and prevent futher entries being added.
+		 */
+		if (ext4_has_feature_ea_inode(inode->i_sb) && new_size &&
+		    (s->end - s->base) == i_blocksize(inode) &&
+		    (min_offs + old_size - new_size) <
+					EXT4_XATTR_BLOCK_RESERVE(inode)) {
 			ret = -ENOSPC;
 			goto out;
 		}
