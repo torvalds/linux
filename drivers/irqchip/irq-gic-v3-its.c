@@ -691,9 +691,11 @@ static struct irq_chip its_irq_chip = {
  */
 #define IRQS_PER_CHUNK_SHIFT	5
 #define IRQS_PER_CHUNK		(1 << IRQS_PER_CHUNK_SHIFT)
+#define ITS_MAX_LPI_NRBITS	16 /* 64K LPIs */
 
 static unsigned long *lpi_bitmap;
 static u32 lpi_chunks;
+static u32 lpi_id_bits;
 static DEFINE_SPINLOCK(lpi_lock);
 
 static int its_lpi_to_chunk(int lpi)
@@ -789,17 +791,13 @@ static void its_lpi_free(struct event_lpi_map *map)
 }
 
 /*
- * We allocate 64kB for PROPBASE. That gives us at most 64K LPIs to
+ * We allocate memory for PROPBASE to cover 2 ^ lpi_id_bits LPIs to
  * deal with (one configuration byte per interrupt). PENDBASE has to
  * be 64kB aligned (one bit per LPI, plus 8192 bits for SPI/PPI/SGI).
  */
-#define LPI_PROPBASE_SZ		SZ_64K
-#define LPI_PENDBASE_SZ		(LPI_PROPBASE_SZ / 8 + SZ_1K)
-
-/*
- * This is how many bits of ID we need, including the useless ones.
- */
-#define LPI_NRBITS		ilog2(LPI_PROPBASE_SZ + SZ_8K)
+#define LPI_NRBITS		lpi_id_bits
+#define LPI_PROPBASE_SZ		ALIGN(BIT(LPI_NRBITS), SZ_64K)
+#define LPI_PENDBASE_SZ		ALIGN(BIT(LPI_NRBITS) / 8, SZ_64K)
 
 #define LPI_PROP_DEFAULT_PRIO	0xa0
 
@@ -807,6 +805,7 @@ static int __init its_alloc_lpi_tables(void)
 {
 	phys_addr_t paddr;
 
+	lpi_id_bits = min_t(u32, gic_rdists->id_bits, ITS_MAX_LPI_NRBITS);
 	gic_rdists->prop_page = alloc_pages(GFP_NOWAIT,
 					   get_order(LPI_PROPBASE_SZ));
 	if (!gic_rdists->prop_page) {
@@ -825,7 +824,7 @@ static int __init its_alloc_lpi_tables(void)
 	/* Make sure the GIC will observe the written configuration */
 	gic_flush_dcache_to_poc(page_address(gic_rdists->prop_page), LPI_PROPBASE_SZ);
 
-	return 0;
+	return its_lpi_init(lpi_id_bits);
 }
 
 static const char *its_base_type_string[] = {
@@ -1100,7 +1099,7 @@ static void its_cpu_init_lpis(void)
 		 * hence the 'max(LPI_PENDBASE_SZ, SZ_64K)' below.
 		 */
 		pend_page = alloc_pages(GFP_NOWAIT | __GFP_ZERO,
-					get_order(max(LPI_PENDBASE_SZ, SZ_64K)));
+					get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
 		if (!pend_page) {
 			pr_err("Failed to allocate PENDBASE for CPU%d\n",
 			       smp_processor_id());
@@ -1975,8 +1974,5 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	}
 
 	gic_rdists = rdists;
-	its_alloc_lpi_tables();
-	its_lpi_init(rdists->id_bits);
-
-	return 0;
+	return its_alloc_lpi_tables();
 }
