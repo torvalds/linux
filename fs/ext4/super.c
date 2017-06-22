@@ -927,9 +927,9 @@ static void ext4_put_super(struct super_block *sb)
 		invalidate_bdev(sbi->journal_bdev);
 		ext4_blkdev_remove(sbi);
 	}
-	if (sbi->s_mb_cache) {
-		ext4_xattr_destroy_cache(sbi->s_mb_cache);
-		sbi->s_mb_cache = NULL;
+	if (sbi->s_ea_block_cache) {
+		ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
+		sbi->s_ea_block_cache = NULL;
 	}
 	if (sbi->s_mmp_tsk)
 		kthread_stop(sbi->s_mmp_tsk);
@@ -4061,9 +4061,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_journal->j_commit_callback = ext4_journal_commit_callback;
 
 no_journal:
-	sbi->s_mb_cache = ext4_xattr_create_cache();
-	if (!sbi->s_mb_cache) {
-		ext4_msg(sb, KERN_ERR, "Failed to create an mb_cache");
+	sbi->s_ea_block_cache = ext4_xattr_create_cache();
+	if (!sbi->s_ea_block_cache) {
+		ext4_msg(sb, KERN_ERR, "Failed to create ea_block_cache");
 		goto failed_mount_wq;
 	}
 
@@ -4296,9 +4296,9 @@ failed_mount4:
 	if (EXT4_SB(sb)->rsv_conversion_wq)
 		destroy_workqueue(EXT4_SB(sb)->rsv_conversion_wq);
 failed_mount_wq:
-	if (sbi->s_mb_cache) {
-		ext4_xattr_destroy_cache(sbi->s_mb_cache);
-		sbi->s_mb_cache = NULL;
+	if (sbi->s_ea_block_cache) {
+		ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
+		sbi->s_ea_block_cache = NULL;
 	}
 	if (sbi->s_journal) {
 		jbd2_journal_destroy(sbi->s_journal);
