@@ -462,7 +462,7 @@ config DVB_TDA10048
 
 config DVB_AF9013
 	tristate "Afatech AF9013 demodulator"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && I2C_MUX
 	select REGMAP
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help

@@ -84,6 +84,7 @@ struct af9013_platform_data {
 	u8 gpio[4];
 
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
+	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
 
 /* private: For legacy media attach wrapper. Do not set value. */
 	bool attach_in_use;

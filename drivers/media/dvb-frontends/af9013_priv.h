@@ -25,6 +25,7 @@
 #include <media/dvb_math.h>
 #include "af9013.h"
 #include <linux/firmware.h>
+#include <linux/i2c-mux.h>
 #include <linux/math64.h>
 #include <linux/regmap.h>
 
