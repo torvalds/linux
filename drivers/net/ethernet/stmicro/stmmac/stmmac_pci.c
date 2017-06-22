@@ -38,13 +38,11 @@ struct stmmac_pci_dmi_data {
 };
 
 struct stmmac_pci_info {
-	int (*setup)(struct pci_dev *pdev, struct plat_stmmacenet_data *plat,
-		     const struct stmmac_pci_info *info);
-	struct stmmac_pci_dmi_data *dmi;
+	int (*setup)(struct pci_dev *pdev, struct plat_stmmacenet_data *plat);
 };
 
 static int stmmac_pci_find_phy_addr(struct pci_dev *pdev,
-				    const struct stmmac_pci_info *info)
+				    struct stmmac_pci_dmi_data *dmi_data)
 {
 	const char *name = dmi_get_system_info(DMI_BOARD_NAME);
 	const char *asset_tag = dmi_get_system_info(DMI_BOARD_ASSET_TAG);
@@ -54,7 +52,7 @@ static int stmmac_pci_find_phy_addr(struct pci_dev *pdev,
 	if (!name)
 		return -ENODEV;
 
-	for (dmi = info->dmi; dmi->name && *dmi->name; dmi++) {
+	for (dmi = dmi_data; dmi->name && *dmi->name; dmi++) {
 		if (!strcmp(dmi->name, name) && dmi->func == func) {
 			/* If asset tag is provided, match on it as well. */
 			if (dmi->asset_tag && strcmp(dmi->asset_tag, asset_tag))
@@ -97,8 +95,7 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 }
 
 static int stmmac_default_data(struct pci_dev *pdev,
-			       struct plat_stmmacenet_data *plat,
-			       const struct stmmac_pci_info *info)
+			       struct plat_stmmacenet_data *plat)
 {
 	/* Set common default data first */
 	common_default_data(plat);
@@ -117,45 +114,6 @@ static int stmmac_default_data(struct pci_dev *pdev,
 static const struct stmmac_pci_info stmmac_pci_info = {
 	.setup = stmmac_default_data,
 };
-
-static int quark_default_data(struct pci_dev *pdev,
-			      struct plat_stmmacenet_data *plat,
-			      const struct stmmac_pci_info *info)
-{
-	int ret;
-
-	/* Set common default data first */
-	common_default_data(plat);
-
-	/*
-	 * Refuse to load the driver and register net device if MAC controller
-	 * does not connect to any PHY interface.
-	 */
-	ret = stmmac_pci_find_phy_addr(pdev, info);
-	if (ret < 0) {
-		/* Return error to the caller on DMI enabled boards. */
-		if (dmi_get_system_info(DMI_BOARD_NAME))
-			return ret;
-
-		/*
-		 * Galileo boards with old firmware don't support DMI. We always
-		 * use 1 here as PHY address, so at least the first found MAC
-		 * controller would be probed.
-		 */
-		ret = 1;
-	}
-
-	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
-	plat->phy_addr = ret;
-	plat->interface = PHY_INTERFACE_MODE_RMII;
-
-	plat->dma_cfg->pbl = 16;
-	plat->dma_cfg->pblx8 = true;
-	plat->dma_cfg->fixed_burst = 1;
-	/* AXI (TODO) */
-
-	return 0;
-}
 
 static struct stmmac_pci_dmi_data quark_pci_dmi_data[] = {
 	{
@@ -189,9 +147,46 @@ static struct stmmac_pci_dmi_data quark_pci_dmi_data[] = {
 	{}
 };
 
+static int quark_default_data(struct pci_dev *pdev,
+			      struct plat_stmmacenet_data *plat)
+{
+	int ret;
+
+	/* Set common default data first */
+	common_default_data(plat);
+
+	/*
+	 * Refuse to load the driver and register net device if MAC controller
+	 * does not connect to any PHY interface.
+	 */
+	ret = stmmac_pci_find_phy_addr(pdev, quark_pci_dmi_data);
+	if (ret < 0) {
+		/* Return error to the caller on DMI enabled boards. */
+		if (dmi_get_system_info(DMI_BOARD_NAME))
+			return ret;
+
+		/*
+		 * Galileo boards with old firmware don't support DMI. We always
+		 * use 1 here as PHY address, so at least the first found MAC
+		 * controller would be probed.
+		 */
+		ret = 1;
+	}
+
+	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
+	plat->phy_addr = ret;
+	plat->interface = PHY_INTERFACE_MODE_RMII;
+
+	plat->dma_cfg->pbl = 16;
+	plat->dma_cfg->pblx8 = true;
+	plat->dma_cfg->fixed_burst = 1;
+	/* AXI (TODO) */
+
+	return 0;
+}
+
 static const struct stmmac_pci_info quark_pci_info = {
 	.setup = quark_default_data,
-	.dmi = quark_pci_dmi_data,
 };
 
 /**
@@ -250,7 +245,7 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	ret = info->setup(pdev, plat, info);
+	ret = info->setup(pdev, plat);
 	if (ret)
 		return ret;
 
