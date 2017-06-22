@@ -563,7 +563,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 		irq_domain_add_linear(node, nr_irqs,
 				&armada_370_xp_mpic_irq_ops, NULL);
 	BUG_ON(!armada_370_xp_mpic_domain);
-	armada_370_xp_mpic_domain->bus_token = DOMAIN_BUS_WIRED;
+	irq_domain_update_bus_token(armada_370_xp_mpic_domain, DOMAIN_BUS_WIRED);
 
 	/* Setup for the boot CPU */
 	armada_xp_mpic_perf_init();

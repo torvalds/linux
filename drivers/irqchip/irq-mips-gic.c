@@ -960,7 +960,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 		panic("Failed to add GIC IPI domain");
 
 	gic_ipi_domain->name = "mips-gic-ipi";
-	gic_ipi_domain->bus_token = DOMAIN_BUS_IPI;
+	irq_domain_update_bus_token(gic_ipi_domain, DOMAIN_BUS_IPI);
 
 	if (node &&
 	    !of_property_read_u32_array(node, "mti,reserved-ipi-vectors", v, 2)) {

@@ -1463,7 +1463,7 @@ struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 	if (!domain)
 		return NULL;
 
-	domain->bus_token = DOMAIN_BUS_PCI_MSI;
+	irq_domain_update_bus_token(domain, DOMAIN_BUS_PCI_MSI);
 	return domain;
 }
 EXPORT_SYMBOL_GPL(pci_msi_create_irq_domain);
