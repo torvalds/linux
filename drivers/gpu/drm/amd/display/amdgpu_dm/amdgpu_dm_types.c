@@ -1356,45 +1356,82 @@ const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs = {
 
 static void dm_drm_plane_reset(struct drm_plane *plane)
 {
-	struct amdgpu_drm_plane_state *amdgpu_state;
+	struct dm_plane_state *amdgpu_state = NULL;
+	struct amdgpu_device *adev = plane->dev->dev_private;
 
-	if (plane->state) {
-		amdgpu_state = to_amdgpu_plane_state(plane->state);
-		if (amdgpu_state->base.fb)
-			drm_framebuffer_unreference(amdgpu_state->base.fb);
-		kfree(amdgpu_state);
-		plane->state = NULL;
-	}
+	if (plane->state)
+		plane->funcs->atomic_destroy_state(plane, plane->state);
 
 	amdgpu_state = kzalloc(sizeof(*amdgpu_state), GFP_KERNEL);
+
 	if (amdgpu_state) {
 		plane->state = &amdgpu_state->base;
 		plane->state->plane = plane;
+		plane->state->rotation = DRM_MODE_ROTATE_0;
+
+		amdgpu_state->dc_surface = dc_create_surface(adev->dm.dc);
+		WARN_ON(!amdgpu_state->dc_surface);
 	}
+	else
+		WARN_ON(1);
 }
 
 static struct drm_plane_state *
 dm_drm_plane_duplicate_state(struct drm_plane *plane)
 {
-	struct amdgpu_drm_plane_state *amdgpu_state;
-	struct amdgpu_drm_plane_state *copy;
+	struct dm_plane_state *dm_plane_state, *old_dm_plane_state;
+	struct amdgpu_device *adev = plane->dev->dev_private;
 
-	amdgpu_state = to_amdgpu_plane_state(plane->state);
-	copy = kzalloc(sizeof(*amdgpu_state), GFP_KERNEL);
-	if (!copy)
+	old_dm_plane_state = to_dm_plane_state(plane->state);
+	dm_plane_state = kzalloc(sizeof(*dm_plane_state), GFP_KERNEL);
+	if (!dm_plane_state)
 		return NULL;
 
-	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
-	return &copy->base;
+	if (old_dm_plane_state->dc_surface) {
+		struct dc_surface *dc_surface = dc_create_surface(adev->dm.dc);
+		if (WARN_ON(!dc_surface))
+			return NULL;
+
+		__drm_atomic_helper_plane_duplicate_state(plane, &dm_plane_state->base);
+
+		memcpy(dc_surface, old_dm_plane_state->dc_surface, sizeof(*dc_surface));
+
+		if (old_dm_plane_state->dc_surface->gamma_correction)
+			dc_gamma_retain(dc_surface->gamma_correction);
+
+		if (old_dm_plane_state->dc_surface->in_transfer_func)
+			dc_transfer_func_retain(dc_surface->in_transfer_func);
+
+		dm_plane_state->dc_surface = dc_surface;
+
+		/*TODO Check for inferred values to be reset */
+	}
+	else {
+		WARN_ON(1);
+		return NULL;
+	}
+
+	return &dm_plane_state->base;
 }
 
-static void dm_drm_plane_destroy_state(struct drm_plane *plane,
-					   struct drm_plane_state *old_state)
+void dm_drm_plane_destroy_state(struct drm_plane *plane,
+					   struct drm_plane_state *state)
 {
-	struct amdgpu_drm_plane_state *old_amdgpu_state =
-					to_amdgpu_plane_state(old_state);
-	__drm_atomic_helper_plane_destroy_state(old_state);
-	kfree(old_amdgpu_state);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(state);
+
+	if (dm_plane_state->dc_surface) {
+		struct dc_surface *dc_surface = dm_plane_state->dc_surface;
+
+		if (dc_surface->gamma_correction)
+			dc_gamma_release(&dc_surface->gamma_correction);
+
+		if (dc_surface->in_transfer_func)
+			dc_transfer_func_release(dc_surface->in_transfer_func);
+
+		dc_surface_release(dc_surface);
+	}
+
+	drm_atomic_helper_plane_destroy_state(plane, state);
 }
 
 static const struct drm_plane_funcs dm_plane_funcs = {

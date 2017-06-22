@@ -59,6 +59,8 @@ struct amdgpu_hpd;
 #define to_amdgpu_framebuffer(x) container_of(x, struct amdgpu_framebuffer, base)
 #define to_amdgpu_plane(x)	container_of(x, struct amdgpu_plane, base)
 
+#define to_dm_plane_state(x)	container_of(x, struct dm_plane_state, base);
+
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
 #define AMDGPU_MAX_PLANES 6
@@ -440,16 +442,18 @@ struct amdgpu_crtc {
 	struct drm_pending_vblank_event *event;
 };
 
-struct amdgpu_drm_plane_state {
+/* TODO rename to dc_plane_state */
+struct  dc_surface;
+
+struct dm_plane_state {
 	struct drm_plane_state base;
-	unsigned int h_ratio;
-	unsigned int v_ratio;
+	struct  dc_surface* dc_surface;
 };
 
-static inline struct amdgpu_drm_plane_state *
+static inline struct dm_plane_state *
 to_amdgpu_plane_state(struct drm_plane_state *state)
 {
-	return container_of(state, struct amdgpu_drm_plane_state, base);
+	return container_of(state, struct dm_plane_state, base);
 }
 
 struct amdgpu_plane {
