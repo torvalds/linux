@@ -2429,6 +2429,7 @@ static void nau8825_print_device_properties(struct nau8825 *nau8825)
 
 static int nau8825_read_device_properties(struct device *dev,
 	struct nau8825 *nau8825) {
+	int ret;
 
 	nau8825->jkdet_enable = device_property_read_bool(dev,
 		"nuvoton,jkdet-enable");
@@ -2436,30 +2437,58 @@ static int nau8825_read_device_properties(struct device *dev,
 		"nuvoton,jkdet-pull-enable");
 	nau8825->jkdet_pull_up = device_property_read_bool(dev,
 		"nuvoton,jkdet-pull-up");
-	device_property_read_u32(dev, "nuvoton,jkdet-polarity",
+	ret = device_property_read_u32(dev, "nuvoton,jkdet-polarity",
 		&nau8825->jkdet_polarity);
-	device_property_read_u32(dev, "nuvoton,micbias-voltage",
+	if (ret)
+		nau8825->jkdet_polarity = 1;
+	ret = device_property_read_u32(dev, "nuvoton,micbias-voltage",
 		&nau8825->micbias_voltage);
-	device_property_read_u32(dev, "nuvoton,vref-impedance",
+	if (ret)
+		nau8825->micbias_voltage = 6;
+	ret = device_property_read_u32(dev, "nuvoton,vref-impedance",
 		&nau8825->vref_impedance);
-	device_property_read_u32(dev, "nuvoton,sar-threshold-num",
+	if (ret)
+		nau8825->vref_impedance = 2;
+	ret = device_property_read_u32(dev, "nuvoton,sar-threshold-num",
 		&nau8825->sar_threshold_num);
-	device_property_read_u32_array(dev, "nuvoton,sar-threshold",
+	if (ret)
+		nau8825->sar_threshold_num = 4;
+	ret = device_property_read_u32_array(dev, "nuvoton,sar-threshold",
 		nau8825->sar_threshold, nau8825->sar_threshold_num);
-	device_property_read_u32(dev, "nuvoton,sar-hysteresis",
+	if (ret) {
+		nau8825->sar_threshold[0] = 0x08;
+		nau8825->sar_threshold[1] = 0x12;
+		nau8825->sar_threshold[2] = 0x26;
+		nau8825->sar_threshold[3] = 0x73;
+	}
+	ret = device_property_read_u32(dev, "nuvoton,sar-hysteresis",
 		&nau8825->sar_hysteresis);
-	device_property_read_u32(dev, "nuvoton,sar-voltage",
+	if (ret)
+		nau8825->sar_hysteresis = 0;
+	ret = device_property_read_u32(dev, "nuvoton,sar-voltage",
 		&nau8825->sar_voltage);
-	device_property_read_u32(dev, "nuvoton,sar-compare-time",
+	if (ret)
+		nau8825->sar_voltage = 6;
+	ret = device_property_read_u32(dev, "nuvoton,sar-compare-time",
 		&nau8825->sar_compare_time);
-	device_property_read_u32(dev, "nuvoton,sar-sampling-time",
+	if (ret)
+		nau8825->sar_compare_time = 1;
+	ret = device_property_read_u32(dev, "nuvoton,sar-sampling-time",
 		&nau8825->sar_sampling_time);
-	device_property_read_u32(dev, "nuvoton,short-key-debounce",
+	if (ret)
+		nau8825->sar_sampling_time = 1;
+	ret = device_property_read_u32(dev, "nuvoton,short-key-debounce",
 		&nau8825->key_debounce);
-	device_property_read_u32(dev, "nuvoton,jack-insert-debounce",
+	if (ret)
+		nau8825->key_debounce = 3;
+	ret = device_property_read_u32(dev, "nuvoton,jack-insert-debounce",
 		&nau8825->jack_insert_debounce);
-	device_property_read_u32(dev, "nuvoton,jack-eject-debounce",
+	if (ret)
+		nau8825->jack_insert_debounce = 7;
+	ret = device_property_read_u32(dev, "nuvoton,jack-eject-debounce",
 		&nau8825->jack_eject_debounce);
+	if (ret)
+		nau8825->jack_eject_debounce = 0;
 
 	nau8825->mclk = devm_clk_get(dev, "mclk");
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
