@@ -1402,8 +1402,9 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		}
 	}
 
-	if (fio->need_lock == LOCK_REQ)
-		f2fs_lock_op(fio->sbi);
+	/* Deadlock due to between page->lock and f2fs_lock_op */
+	if (fio->need_lock == LOCK_REQ && !f2fs_trylock_op(fio->sbi))
+		return -EAGAIN;
 
 	err = get_dnode_of_data(&dn, page->index, LOOKUP_NODE);
 	if (err)
@@ -1665,7 +1666,7 @@ retry:
 			}
 
 			done_index = page->index;
-
+retry_write:
 			lock_page(page);
 
 			if (unlikely(page->mapping != mapping)) {
@@ -1700,6 +1701,15 @@ continue_unlock:
 				if (ret == AOP_WRITEPAGE_ACTIVATE) {
 					unlock_page(page);
 					ret = 0;
+					continue;
+				} else if (ret == -EAGAIN) {
+					ret = 0;
+					if (wbc->sync_mode == WB_SYNC_ALL) {
+						cond_resched();
+						congestion_wait(BLK_RW_ASYNC,
+									HZ/50);
+						goto retry_write;
+					}
 					continue;
 				}
 				done_index = page->index + 1;
