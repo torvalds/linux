@@ -2096,8 +2096,7 @@ ext4_xattr_inode_array_free(struct inode *inode,
 		if (err)
 			continue;
 		/* for inode's i_count get from ext4_xattr_delete_inode */
-		if (!list_empty(&EXT4_I(ea_inode)->i_orphan))
-			iput(ea_inode);
+		iput(ea_inode);
 		clear_nlink(ea_inode);
 		iput(ea_inode);
 	}
