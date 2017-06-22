@@ -29,7 +29,7 @@ enum _dsm_rst_type {
 	HNS_ROCE_RESET_FUNC     = 0x7,
 };
 
-const guid_t hns_dsaf_acpi_dsm_guid =
+static const guid_t hns_dsaf_acpi_dsm_guid =
 	GUID_INIT(0x1A85AA1A, 0xE293, 0x415E,
 		  0x8E, 0x28, 0x8D, 0x69, 0x0A, 0x0F, 0x82, 0x0A);
 
