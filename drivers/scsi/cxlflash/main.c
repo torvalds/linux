@@ -1812,6 +1812,18 @@ static int init_global(struct cxlflash_cfg *cfg)
 			SISL_CTX_CAP_AFU_CMD | SISL_CTX_CAP_GSCSI_CMD),
 			&hwq->ctrl_map->ctx_cap);
 	}
+
+	/*
+	 * Determine write-same unmap support for host by evaluating the unmap
+	 * sector support bit of the context control register associated with
+	 * the primary hardware queue. Note that while this status is reflected
+	 * in a context register, the outcome can be assumed to be host-wide.
+	 */
+	hwq = get_hwq(afu, PRIMARY_HWQ);
+	reg = readq_be(&hwq->host_map->ctx_ctrl);
+	if (reg & SISL_CTX_CTRL_UNMAP_SECTOR)
+		cfg->ws_unmap = true;
+
 	/* Initialize heartbeat */
 	afu->hb = readq_be(&afu->afu_map->global.regs.afu_hb);
 out:

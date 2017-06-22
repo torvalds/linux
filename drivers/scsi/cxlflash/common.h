@@ -147,6 +147,7 @@ struct cxlflash_cfg {
 	wait_queue_head_t tmf_waitq;
 	spinlock_t tmf_slock;
 	bool tmf_active;
+	bool ws_unmap;		/* Write-same unmap supported */
 	wait_queue_head_t reset_waitq;
 	enum cxlflash_state state;
 	async_cookie_t async_reset_cookie;

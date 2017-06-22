@@ -446,6 +446,7 @@ static int write_same16(struct scsi_device *sdev,
 	while (left > 0) {
 
 		scsi_cmd[0] = WRITE_SAME_16;
+		scsi_cmd[1] = cfg->ws_unmap ? 0x8 : 0;
 		put_unaligned_be64(offset, &scsi_cmd[2]);
 		put_unaligned_be32(ws_limit < left ? ws_limit : left,
 				   &scsi_cmd[10]);
