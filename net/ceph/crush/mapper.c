@@ -858,7 +858,7 @@ void crush_init_workspace(const struct crush_map *map, void *v)
 	 * set the pointer first and then reserve the space for it to
 	 * point to by incrementing the point.
 	 */
-	v += sizeof(struct crush_work *);
+	v += sizeof(struct crush_work);
 	w->work = v;
 	v += map->max_buckets * sizeof(struct crush_work_bucket *);
 	for (b = 0; b < map->max_buckets; ++b) {
