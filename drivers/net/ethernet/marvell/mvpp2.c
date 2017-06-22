@@ -3953,14 +3953,6 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 	put_cpu();
 }
 
-/* Refill BM pool */
-static void mvpp2_pool_refill(struct mvpp2_port *port, int pool,
-			      dma_addr_t dma_addr,
-			      phys_addr_t phys_addr)
-{
-	mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
-}
-
 /* Allocate buffers for the pool */
 static int mvpp2_bm_bufs_add(struct mvpp2_port *port,
 			     struct mvpp2_bm_pool *bm_pool, int buf_num)
@@ -5015,7 +5007,7 @@ static void mvpp2_rxq_drop_pkts(struct mvpp2_port *port,
 		pool = (status & MVPP2_RXD_BM_POOL_ID_MASK) >>
 			MVPP2_RXD_BM_POOL_ID_OFFS;
 
-		mvpp2_pool_refill(port, pool,
+		mvpp2_bm_pool_put(port, pool,
 				  mvpp2_rxdesc_dma_addr_get(port, rx_desc),
 				  mvpp2_rxdesc_cookie_get(port, rx_desc));
 	}
@@ -5469,7 +5461,7 @@ static int mvpp2_rx_refill(struct mvpp2_port *port,
 	if (!buf)
 		return -ENOMEM;
 
-	mvpp2_pool_refill(port, pool, dma_addr, phys_addr);
+	mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 
 	return 0;
 }
@@ -5553,7 +5545,7 @@ err_drop_frame:
 			dev->stats.rx_errors++;
 			mvpp2_rx_error(port, rx_desc);
 			/* Return the buffer to the pool */
-			mvpp2_pool_refill(port, pool, dma_addr, phys_addr);
+			mvpp2_bm_pool_put(port, pool, dma_addr, phys_addr);
 			continue;
 		}
 
