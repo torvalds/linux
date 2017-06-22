@@ -110,13 +110,9 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			break;
 
 		if (!data->count && geq_margin(ev.duration, SANYO_REPEAT_SPACE, SANYO_UNIT / 2)) {
-			if (!dev->keypressed) {
-				IR_dprintk(1, "SANYO discarding last key repeat: event after key up\n");
-			} else {
-				rc_repeat(dev);
-				IR_dprintk(1, "SANYO repeat last key\n");
-				data->state = STATE_INACTIVE;
-			}
+			rc_repeat(dev);
+			IR_dprintk(1, "SANYO repeat last key\n");
+			data->state = STATE_INACTIVE;
 			return 0;
 		}
 

@@ -616,11 +616,11 @@ void rc_repeat(struct rc_dev *dev)
 
 	spin_lock_irqsave(&dev->keylock, flags);
 
-	input_event(dev->input_dev, EV_MSC, MSC_SCAN, dev->last_scancode);
-	input_sync(dev->input_dev);
-
 	if (!dev->keypressed)
 		goto out;
+
+	input_event(dev->input_dev, EV_MSC, MSC_SCAN, dev->last_scancode);
+	input_sync(dev->input_dev);
 
 	dev->keyup_jiffies = jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT);
 	mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
