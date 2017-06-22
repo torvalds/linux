@@ -594,7 +594,9 @@ static int grow_lxt(struct afu *afu,
 	rhte->lxt_cnt = my_new_size;
 	dma_wmb(); /* Make RHT entry's LXT table size update visible */
 
-	cxlflash_afu_sync(afu, ctxid, rhndl, AFU_LW_SYNC);
+	rc = cxlflash_afu_sync(afu, ctxid, rhndl, AFU_LW_SYNC);
+	if (unlikely(rc))
+		rc = -EAGAIN;
 
 	/* free old lxt if reallocated */
 	if (lxt != lxt_old)
@@ -673,8 +675,11 @@ static int shrink_lxt(struct afu *afu,
 	rhte->lxt_start = lxt;
 	dma_wmb(); /* Make RHT entry's LXT table update visible */
 
-	if (needs_sync)
-		cxlflash_afu_sync(afu, ctxid, rhndl, AFU_HW_SYNC);
+	if (needs_sync) {
+		rc = cxlflash_afu_sync(afu, ctxid, rhndl, AFU_HW_SYNC);
+		if (unlikely(rc))
+			rc = -EAGAIN;
+	}
 
 	if (needs_ws) {
 		/*
@@ -792,6 +797,21 @@ int _cxlflash_vlun_resize(struct scsi_device *sdev,
 		rc = grow_lxt(afu, sdev, ctxid, rhndl, rhte, &new_size);
 	else if (new_size < rhte->lxt_cnt)
 		rc = shrink_lxt(afu, sdev, rhndl, rhte, ctxi, &new_size);
+	else {
+		/*
+		 * Rare case where there is already sufficient space, just
+		 * need to perform a translation sync with the AFU. This
+		 * scenario likely follows a previous sync failure during
+		 * a resize operation. Accordingly, perform the heavyweight
+		 * form of translation sync as it is unknown which type of
+		 * resize failed previously.
+		 */
+		rc = cxlflash_afu_sync(afu, ctxid, rhndl, AFU_HW_SYNC);
+		if (unlikely(rc)) {
+			rc = -EAGAIN;
+			goto out;
+		}
+	}
 
 	resize->hdr.return_flags = 0;
 	resize->last_lba = (new_size * MC_CHUNK_SIZE * gli->blk_len);
@@ -1084,10 +1104,13 @@ static int clone_lxt(struct afu *afu,
 {
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
-	struct sisl_lxt_entry *lxt;
+	struct sisl_lxt_entry *lxt = NULL;
+	bool locked = false;
 	u32 ngrps;
 	u64 aun;		/* chunk# allocated by block allocator */
-	int i, j;
+	int j;
+	int i = 0;
+	int rc = 0;
 
 	ngrps = LXT_NUM_GROUPS(rhte_src->lxt_cnt);
 
@@ -1095,33 +1118,29 @@ static int clone_lxt(struct afu *afu,
 		/* allocate new LXTs for clone */
 		lxt = kzalloc((sizeof(*lxt) * LXT_GROUP_SIZE * ngrps),
 				GFP_KERNEL);
-		if (unlikely(!lxt))
-			return -ENOMEM;
+		if (unlikely(!lxt)) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
 		/* copy over */
 		memcpy(lxt, rhte_src->lxt_start,
 		       (sizeof(*lxt) * rhte_src->lxt_cnt));
 
-		/* clone the LBAs in block allocator via ref_cnt */
+		/* clone the LBAs in block allocator via ref_cnt, note that the
+		 * block allocator mutex must be held until it is established
+		 * that this routine will complete without the need for a
+		 * cleanup.
+		 */
 		mutex_lock(&blka->mutex);
+		locked = true;
 		for (i = 0; i < rhte_src->lxt_cnt; i++) {
 			aun = (lxt[i].rlba_base >> MC_CHUNK_SHIFT);
 			if (ba_clone(&blka->ba_lun, aun) == -1ULL) {
-				/* free the clones already made */
-				for (j = 0; j < i; j++) {
-					aun = (lxt[j].rlba_base >>
-					       MC_CHUNK_SHIFT);
-					ba_free(&blka->ba_lun, aun);
-				}
-
-				mutex_unlock(&blka->mutex);
-				kfree(lxt);
-				return -EIO;
+				rc = -EIO;
+				goto err;
 			}
 		}
-		mutex_unlock(&blka->mutex);
-	} else {
-		lxt = NULL;
 	}
 
 	/*
@@ -1136,10 +1155,31 @@ static int clone_lxt(struct afu *afu,
 	rhte->lxt_cnt = rhte_src->lxt_cnt;
 	dma_wmb(); /* Make RHT entry's LXT table size update visible */
 
-	cxlflash_afu_sync(afu, ctxid, rhndl, AFU_LW_SYNC);
+	rc = cxlflash_afu_sync(afu, ctxid, rhndl, AFU_LW_SYNC);
+	if (unlikely(rc)) {
+		rc = -EAGAIN;
+		goto err2;
+	}
 
-	dev_dbg(dev, "%s: returning\n", __func__);
-	return 0;
+out:
+	if (locked)
+		mutex_unlock(&blka->mutex);
+	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
+	return rc;
+err2:
+	/* Reset the RHTE */
+	rhte->lxt_cnt = 0;
+	dma_wmb();
+	rhte->lxt_start = NULL;
+	dma_wmb();
+err:
+	/* free the clones already made */
+	for (j = 0; j < i; j++) {
+		aun = (lxt[j].rlba_base >> MC_CHUNK_SHIFT);
+		ba_free(&blka->ba_lun, aun);
+	}
+	kfree(lxt);
+	goto out;
 }
 
 /**

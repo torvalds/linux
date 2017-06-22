@@ -257,6 +257,12 @@ DK_CXLFLASH_VLUN_RESIZE
     operating in the virtual mode and used to program a LUN translation
     table that the AFU references when provided with a resource handle.
 
+    This ioctl can return -EAGAIN if an AFU sync operation takes too long.
+    In addition to returning a failure to user, cxlflash will also schedule
+    an asynchronous AFU reset. Should the user choose to retry the operation,
+    it is expected to succeed. If this ioctl fails with -EAGAIN, the user
+    can either retry the operation or treat it as a failure.
+
 DK_CXLFLASH_RELEASE
 -------------------
     This ioctl is responsible for releasing a previously obtained
@@ -308,6 +314,12 @@ DK_CXLFLASH_VLUN_CLONE
     context (still resident/accessible in the parent process) following the
     clone. This is to avoid a stale entry in the file descriptor table of the
     child process.
+
+    This ioctl can return -EAGAIN if an AFU sync operation takes too long.
+    In addition to returning a failure to user, cxlflash will also schedule
+    an asynchronous AFU reset. Should the user choose to retry the operation,
+    it is expected to succeed. If this ioctl fails with -EAGAIN, the user
+    can either retry the operation or treat it as a failure.
 
 DK_CXLFLASH_VERIFY
 ------------------
