@@ -20,6 +20,7 @@
 
 #define pr_fmt(fmt)	"arm-lpae io-pgtable: " fmt
 
+#include <linux/atomic.h>
 #include <linux/iommu.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
@@ -99,6 +100,8 @@
 #define ARM_LPAE_PTE_ATTR_HI_MASK	(((arm_lpae_iopte)6) << 52)
 #define ARM_LPAE_PTE_ATTR_MASK		(ARM_LPAE_PTE_ATTR_LO_MASK |	\
 					 ARM_LPAE_PTE_ATTR_HI_MASK)
+/* Software bit for solving coherency races */
+#define ARM_LPAE_PTE_SW_SYNC		(((arm_lpae_iopte)1) << 55)
 
 /* Stage-1 PTE */
 #define ARM_LPAE_PTE_AP_UNPRIV		(((arm_lpae_iopte)1) << 6)
@@ -249,15 +252,20 @@ static void __arm_lpae_free_pages(void *pages, size_t size,
 	free_pages_exact(pages, size);
 }
 
+static void __arm_lpae_sync_pte(arm_lpae_iopte *ptep,
+				struct io_pgtable_cfg *cfg)
+{
+	dma_sync_single_for_device(cfg->iommu_dev, __arm_lpae_dma_addr(ptep),
+				   sizeof(*ptep), DMA_TO_DEVICE);
+}
+
 static void __arm_lpae_set_pte(arm_lpae_iopte *ptep, arm_lpae_iopte pte,
 			       struct io_pgtable_cfg *cfg)
 {
 	*ptep = pte;
 
 	if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA))
-		dma_sync_single_for_device(cfg->iommu_dev,
-					   __arm_lpae_dma_addr(ptep),
-					   sizeof(pte), DMA_TO_DEVICE);
+		__arm_lpae_sync_pte(ptep, cfg);
 }
 
 static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
@@ -314,16 +322,30 @@ static int arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 
 static arm_lpae_iopte arm_lpae_install_table(arm_lpae_iopte *table,
 					     arm_lpae_iopte *ptep,
+					     arm_lpae_iopte curr,
 					     struct io_pgtable_cfg *cfg)
 {
-	arm_lpae_iopte new;
+	arm_lpae_iopte old, new;
 
 	new = __pa(table) | ARM_LPAE_PTE_TYPE_TABLE;
 	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
 		new |= ARM_LPAE_PTE_NSTABLE;
 
-	__arm_lpae_set_pte(ptep, new, cfg);
-	return new;
+	/* Ensure the table itself is visible before its PTE can be */
+	wmb();
+
+	old = cmpxchg64_relaxed(ptep, curr, new);
+
+	if ((cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA) ||
+	    (old & ARM_LPAE_PTE_SW_SYNC))
+		return old;
+
+	/* Even if it's not ours, there's no point waiting; just kick it */
+	__arm_lpae_sync_pte(ptep, cfg);
+	if (old == curr)
+		WRITE_ONCE(*ptep, new | ARM_LPAE_PTE_SW_SYNC);
+
+	return old;
 }
 
 static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
@@ -332,6 +354,7 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 {
 	arm_lpae_iopte *cptep, pte;
 	size_t block_size = ARM_LPAE_BLOCK_SIZE(lvl, data);
+	size_t tblsz = ARM_LPAE_GRANULE(data);
 	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 
 	/* Find our entry at the current level */
@@ -346,17 +369,23 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 		return -EINVAL;
 
 	/* Grab a pointer to the next level */
-	pte = *ptep;
+	pte = READ_ONCE(*ptep);
 	if (!pte) {
-		cptep = __arm_lpae_alloc_pages(ARM_LPAE_GRANULE(data),
-					       GFP_ATOMIC, cfg);
+		cptep = __arm_lpae_alloc_pages(tblsz, GFP_ATOMIC, cfg);
 		if (!cptep)
 			return -ENOMEM;
 
-		arm_lpae_install_table(cptep, ptep, cfg);
-	} else if (!iopte_leaf(pte, lvl)) {
+		pte = arm_lpae_install_table(cptep, ptep, 0, cfg);
+		if (pte)
+			__arm_lpae_free_pages(cptep, tblsz, cfg);
+	} else if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA) &&
+		   !(pte & ARM_LPAE_PTE_SW_SYNC)) {
+		__arm_lpae_sync_pte(ptep, cfg);
+	}
+
+	if (pte && !iopte_leaf(pte, lvl)) {
 		cptep = iopte_deref(pte, data);
-	} else {
+	} else if (pte) {
 		/* We require an unmap first */
 		WARN_ON(!selftest_running);
 		return -EEXIST;
@@ -502,7 +531,19 @@ static int arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 		__arm_lpae_init_pte(data, blk_paddr, pte, lvl, &tablep[i]);
 	}
 
-	arm_lpae_install_table(tablep, ptep, cfg);
+	pte = arm_lpae_install_table(tablep, ptep, blk_pte, cfg);
+	if (pte != blk_pte) {
+		__arm_lpae_free_pages(tablep, tablesz, cfg);
+		/*
+		 * We may race against someone unmapping another part of this
+		 * block, but anything else is invalid. We can't misinterpret
+		 * a page entry here since we're never at the last level.
+		 */
+		if (iopte_type(pte, lvl - 1) != ARM_LPAE_PTE_TYPE_TABLE)
+			return 0;
+
+		tablep = iopte_deref(pte, data);
+	}
 
 	if (unmap_idx < 0)
 		return __arm_lpae_unmap(data, iova, size, lvl, tablep);
@@ -523,7 +564,7 @@ static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 		return 0;
 
 	ptep += ARM_LPAE_LVL_IDX(iova, lvl, data);
-	pte = *ptep;
+	pte = READ_ONCE(*ptep);
 	if (WARN_ON(!pte))
 		return 0;
 
@@ -585,7 +626,8 @@ static phys_addr_t arm_lpae_iova_to_phys(struct io_pgtable_ops *ops,
 			return 0;
 
 		/* Grab the IOPTE we're interested in */
-		pte = *(ptep + ARM_LPAE_LVL_IDX(iova, lvl, data));
+		ptep += ARM_LPAE_LVL_IDX(iova, lvl, data);
+		pte = READ_ONCE(*ptep);
 
 		/* Valid entry? */
 		if (!pte)
