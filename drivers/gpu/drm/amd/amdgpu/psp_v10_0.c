@@ -96,8 +96,8 @@ int psp_v10_0_prep_cmd_buf(struct amdgpu_firmware_info *ucode, struct psp_gfx_cm
 	header = (struct common_firmware_header *)ucode->fw;
 
 	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
-	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = (uint32_t)fw_mem_mc_addr;
-	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = (uint32_t)((uint64_t)fw_mem_mc_addr >> 32);
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(fw_mem_mc_addr);
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(fw_mem_mc_addr);
 	cmd->cmd.cmd_load_ip_fw.fw_size = le32_to_cpu(header->ucode_size_bytes);
 
 	ret = psp_v10_0_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
@@ -172,10 +172,10 @@ int psp_v10_0_cmd_submit(struct psp_context *psp,
 		write_frame = ring->ring_mem + (psp_write_ptr_reg / (sizeof(struct psp_gfx_rb_frame) / 4));
 
 	/* Update KM RB frame */
-	write_frame->cmd_buf_addr_hi = (unsigned int)(cmd_buf_mc_addr >> 32);
-	write_frame->cmd_buf_addr_lo = (unsigned int)(cmd_buf_mc_addr);
-	write_frame->fence_addr_hi = (unsigned int)(fence_mc_addr >> 32);
-	write_frame->fence_addr_lo = (unsigned int)(fence_mc_addr);
+	write_frame->cmd_buf_addr_hi = upper_32_bits(cmd_buf_mc_addr);
+	write_frame->cmd_buf_addr_lo = lower_32_bits(cmd_buf_mc_addr);
+	write_frame->fence_addr_hi = upper_32_bits(fence_mc_addr);
+	write_frame->fence_addr_lo = lower_32_bits(fence_mc_addr);
 	write_frame->fence_value = index;
 
 	/* Update the write Pointer in DWORDs */

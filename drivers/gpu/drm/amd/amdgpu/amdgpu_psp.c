@@ -152,8 +152,8 @@ static void psp_prep_tmr_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				 uint64_t tmr_mc, uint32_t size)
 {
 	cmd->cmd_id = GFX_CMD_ID_SETUP_TMR;
-	cmd->cmd.cmd_setup_tmr.buf_phy_addr_lo = (uint32_t)tmr_mc;
-	cmd->cmd.cmd_setup_tmr.buf_phy_addr_hi = (uint32_t)(tmr_mc >> 32);
+	cmd->cmd.cmd_setup_tmr.buf_phy_addr_lo = lower_32_bits(tmr_mc);
+	cmd->cmd.cmd_setup_tmr.buf_phy_addr_hi = upper_32_bits(tmr_mc);
 	cmd->cmd.cmd_setup_tmr.buf_size = size;
 }
 
