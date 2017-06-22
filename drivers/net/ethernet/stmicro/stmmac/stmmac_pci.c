@@ -51,12 +51,8 @@ static int stmmac_pci_find_phy_addr(struct pci_dev *pdev,
 	unsigned int func = PCI_FUNC(pdev->devfn);
 	struct stmmac_pci_dmi_data *dmi;
 
-	/*
-	 * Galileo boards with old firmware don't support DMI. We always return
-	 * 1 here, so at least first found MAC controller would be probed.
-	 */
 	if (!name)
-		return 1;
+		return -ENODEV;
 
 	for (dmi = info->dmi; dmi->name && *dmi->name; dmi++) {
 		if (!strcmp(dmi->name, name) && dmi->func == func) {
@@ -136,8 +132,18 @@ static int quark_default_data(struct pci_dev *pdev,
 	 * does not connect to any PHY interface.
 	 */
 	ret = stmmac_pci_find_phy_addr(pdev, info);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		/* Return error to the caller on DMI enabled boards. */
+		if (dmi_get_system_info(DMI_BOARD_NAME))
+			return ret;
+
+		/*
+		 * Galileo boards with old firmware don't support DMI. We always
+		 * use 1 here as PHY address, so at least the first found MAC
+		 * controller would be probed.
+		 */
+		ret = 1;
+	}
 
 	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
 	plat->phy_addr = ret;
