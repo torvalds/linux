@@ -2776,7 +2776,7 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id arm_smmu_of_match[] = {
+static const struct of_device_id arm_smmu_of_match[] = {
 	{ .compatible = "arm,smmu-v3", },
 	{ },
 };
