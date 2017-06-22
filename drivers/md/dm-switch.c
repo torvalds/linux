@@ -251,7 +251,7 @@ static void switch_dtr(struct dm_target *ti)
  */
 static int switch_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{1, (KMALLOC_MAX_SIZE - sizeof(struct switch_ctx)) / sizeof(struct switch_path), "Invalid number of paths"},
 		{1, UINT_MAX, "Invalid region size"},
 		{0, 0, "Invalid number of optional args"},

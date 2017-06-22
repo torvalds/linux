@@ -702,7 +702,7 @@ static int parse_path_selector(struct dm_arg_set *as, struct priority_group *pg,
 	struct path_selector_type *pst;
 	unsigned ps_argc;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "invalid number of path selector args"},
 	};
 
@@ -826,7 +826,7 @@ retain:
 static struct priority_group *parse_priority_group(struct dm_arg_set *as,
 						   struct multipath *m)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{1, 1024, "invalid number of paths"},
 		{0, 1024, "invalid number of selector args"}
 	};
@@ -902,7 +902,7 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 	int ret;
 	struct dm_target *ti = m->ti;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "invalid number of hardware handler args"},
 	};
 
@@ -954,7 +954,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 	struct dm_target *ti = m->ti;
 	const char *arg_name;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 8, "invalid number of feature args"},
 		{1, 50, "pg_init_retries must be between 1 and 50"},
 		{0, 60000, "pg_init_delay_msecs must be between 0 and 60000"},
@@ -1023,7 +1023,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
 	/* target arguments */
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 1024, "invalid number of priority groups"},
 		{0, 1024, "invalid initial priority group number"},
 	};

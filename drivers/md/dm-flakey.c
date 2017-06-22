@@ -51,7 +51,7 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 	unsigned argc;
 	const char *arg_name;
 
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 6, "Invalid number of feature args"},
 		{1, UINT_MAX, "Invalid corrupt bio byte"},
 		{0, 255, "Invalid corrupt value to write into bio byte (0-255)"},
@@ -178,7 +178,7 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
  */
 static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, UINT_MAX, "Invalid up interval"},
 		{0, UINT_MAX, "Invalid down interval"},
 	};

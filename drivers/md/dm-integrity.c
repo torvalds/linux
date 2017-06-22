@@ -2780,7 +2780,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	int r;
 	unsigned extra_args;
 	struct dm_arg_set as;
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 9, "Invalid number of feature args"},
 	};
 	unsigned journal_sectors, interleave_sectors, buffer_sectors, journal_watermark, sync_msec;
