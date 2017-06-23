@@ -48,7 +48,6 @@ struct af9013_state {
 	u32 dvbv3_ber;
 	u32 dvbv3_ucblocks;
 	bool first_tune;
-	bool i2c_gate_state;
 };
 
 static int af9013_set_gpio(struct af9013_state *state, u8 gpio, u8 gpioval)
@@ -1031,45 +1030,6 @@ err:
 	return ret;
 }
 
-static int af9013_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
-{
-	int ret;
-	struct af9013_state *state = fe->demodulator_priv;
-	struct i2c_client *client = state->client;
-
-	dev_dbg(&client->dev, "enable %d\n", enable);
-
-	/* gate already open or close */
-	if (state->i2c_gate_state == enable)
-		return 0;
-
-	if (state->ts_mode == AF9013_TS_MODE_USB)
-		ret = regmap_update_bits(state->regmap, 0xd417, 0x08,
-					 enable << 3);
-	else
-		ret = regmap_update_bits(state->regmap, 0xd607, 0x04,
-					 enable << 2);
-	if (ret)
-		goto err;
-
-	state->i2c_gate_state = enable;
-
-	return 0;
-err:
-	dev_dbg(&client->dev, "failed %d\n", ret);
-	return ret;
-}
-
-static void af9013_release(struct dvb_frontend *fe)
-{
-	struct af9013_state *state = fe->demodulator_priv;
-	struct i2c_client *client = state->client;
-
-	dev_dbg(&client->dev, "\n");
-
-	i2c_unregister_device(client);
-}
-
 static const struct dvb_frontend_ops af9013_ops;
 
 static int af9013_download_firmware(struct af9013_state *state)
@@ -1172,40 +1132,6 @@ err:
 	return ret;
 }
 
-/*
- * XXX: That is wrapper to af9013_probe() via driver core in order to provide
- * proper I2C client for legacy media attach binding.
- * New users must use I2C client binding directly!
- */
-struct dvb_frontend *af9013_attach(const struct af9013_config *config,
-				   struct i2c_adapter *i2c)
-{
-	struct i2c_client *client;
-	struct i2c_board_info board_info;
-	struct af9013_platform_data pdata;
-
-	pdata.clk = config->clock;
-	pdata.tuner = config->tuner;
-	pdata.if_frequency = config->if_frequency;
-	pdata.ts_mode = config->ts_mode;
-	pdata.ts_output_pin = 7;
-	pdata.spec_inv = config->spec_inv;
-	memcpy(&pdata.api_version, config->api_version, sizeof(pdata.api_version));
-	memcpy(&pdata.gpio, config->gpio, sizeof(pdata.gpio));
-	pdata.attach_in_use = true;
-
-	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "af9013", sizeof(board_info.type));
-	board_info.addr = config->i2c_addr;
-	board_info.platform_data = &pdata;
-	client = i2c_new_device(i2c, &board_info);
-	if (!client || !client->dev.driver)
-		return NULL;
-
-	return pdata.get_dvb_frontend(client);
-}
-EXPORT_SYMBOL(af9013_attach);
-
 static const struct dvb_frontend_ops af9013_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
@@ -1231,8 +1157,6 @@ static const struct dvb_frontend_ops af9013_ops = {
 			FE_CAN_MUTE_TS
 	},
 
-	.release = af9013_release,
-
 	.init = af9013_init,
 	.sleep = af9013_sleep,
 
@@ -1245,8 +1169,6 @@ static const struct dvb_frontend_ops af9013_ops = {
 	.read_signal_strength = af9013_read_signal_strength,
 	.read_ber = af9013_read_ber,
 	.read_ucblocks = af9013_read_ucblocks,
-
-	.i2c_gate_ctrl = af9013_i2c_gate_ctrl,
 };
 
 static struct dvb_frontend *af9013_get_dvb_frontend(struct i2c_client *client)
@@ -1546,8 +1468,6 @@ static int af9013_probe(struct i2c_client *client,
 
 	/* Create dvb frontend */
 	memcpy(&state->fe.ops, &af9013_ops, sizeof(state->fe.ops));
-	if (!pdata->attach_in_use)
-		state->fe.ops.release = NULL;
 	state->fe.demodulator_priv = state;
 
 	/* Setup callbacks */
