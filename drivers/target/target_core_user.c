@@ -1593,11 +1593,9 @@ static void tcmu_destroy_device(struct se_device *dev)
 
 	tcmu_blocks_release(udev);
 
-	if (tcmu_dev_configured(udev)) {
-		tcmu_netlink_event(udev, TCMU_CMD_REMOVED_DEVICE, 0, NULL);
+	tcmu_netlink_event(udev, TCMU_CMD_REMOVED_DEVICE, 0, NULL);
 
-		uio_unregister_device(&udev->uio_info);
-	}
+	uio_unregister_device(&udev->uio_info);
 }
 
 enum {
