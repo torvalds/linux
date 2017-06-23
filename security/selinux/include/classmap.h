@@ -1,7 +1,7 @@
 #include <linux/capability.h>
 
 #define COMMON_FILE_SOCK_PERMS "ioctl", "read", "write", "create", \
-    "getattr", "setattr", "lock", "relabelfrom", "relabelto", "append"
+    "getattr", "setattr", "lock", "relabelfrom", "relabelto", "append", "map"
 
 #define COMMON_FILE_PERMS COMMON_FILE_SOCK_PERMS, "unlink", "link", \
     "rename", "execute", "quotaon", "mounton", "audit_access", \
@@ -231,6 +231,10 @@ struct security_class_mapping secclass_map[] = {
 	  { COMMON_SOCK_PERMS, NULL } },
 	{ "smc_socket",
 	  { COMMON_SOCK_PERMS, NULL } },
+	{ "infiniband_pkey",
+	  { "access", NULL } },
+	{ "infiniband_endport",
+	  { "manage_subnet", NULL } },
 	{ NULL }
   };
 
