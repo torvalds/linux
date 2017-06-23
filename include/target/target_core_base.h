@@ -219,7 +219,6 @@ enum tcm_tmrsp_table {
  */
 typedef enum {
 	SCSI_INST_INDEX,
-	SCSI_DEVICE_INDEX,
 	SCSI_AUTH_INTR_INDEX,
 	SCSI_INDEX_TYPE_MAX
 } scsi_index_t;

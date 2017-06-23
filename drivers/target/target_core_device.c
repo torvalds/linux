@@ -51,6 +51,7 @@
 
 DEFINE_MUTEX(g_device_mutex);
 LIST_HEAD(g_device_list);
+static DEFINE_IDR(devices_idr);
 
 static struct se_hba *lun0_hba;
 /* not static, needed by tpg.c */
@@ -882,7 +883,7 @@ EXPORT_SYMBOL(target_to_linux_sector);
 int target_configure_device(struct se_device *dev)
 {
 	struct se_hba *hba = dev->se_hba;
-	int ret;
+	int ret, id;
 
 	if (dev->dev_flags & DF_CONFIGURED) {
 		pr_err("se_dev->se_dev_ptr already set for storage"
@@ -890,9 +891,26 @@ int target_configure_device(struct se_device *dev)
 		return -EEXIST;
 	}
 
+	/*
+	 * Add early so modules like tcmu can use during its
+	 * configuration.
+	 */
+	mutex_lock(&g_device_mutex);
+	/*
+	 * Use cyclic to try and avoid collisions with devices
+	 * that were recently removed.
+	 */
+	id = idr_alloc_cyclic(&devices_idr, dev, 0, INT_MAX, GFP_KERNEL);
+	mutex_unlock(&g_device_mutex);
+	if (id < 0) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	dev->dev_index = id;
+
 	ret = dev->transport->configure_device(dev);
 	if (ret)
-		goto out;
+		goto out_free_index;
 	/*
 	 * XXX: there is not much point to have two different values here..
 	 */
@@ -907,12 +925,11 @@ int target_configure_device(struct se_device *dev)
 					 dev->dev_attrib.hw_block_size);
 	dev->dev_attrib.optimal_sectors = dev->dev_attrib.hw_max_sectors;
 
-	dev->dev_index = scsi_get_new_index(SCSI_DEVICE_INDEX);
 	dev->creation_time = get_jiffies_64();
 
 	ret = core_setup_alua(dev);
 	if (ret)
-		goto out;
+		goto out_free_index;
 
 	/*
 	 * Startup the struct se_device processing thread
@@ -960,6 +977,10 @@ int target_configure_device(struct se_device *dev)
 
 out_free_alua:
 	core_alua_free_lu_gp_mem(dev);
+out_free_index:
+	mutex_lock(&g_device_mutex);
+	idr_remove(&devices_idr, dev->dev_index);
+	mutex_unlock(&g_device_mutex);
 out:
 	se_release_vpd_for_dev(dev);
 	return ret;
@@ -977,6 +998,7 @@ void target_free_device(struct se_device *dev)
 		dev->transport->destroy_device(dev);
 
 		mutex_lock(&g_device_mutex);
+		idr_remove(&devices_idr, dev->dev_index);
 		list_del(&dev->g_dev_node);
 		mutex_unlock(&g_device_mutex);
 
