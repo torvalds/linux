@@ -119,13 +119,13 @@ void topology_normalize_cpu_scale(void)
 	mutex_unlock(&cpu_scale_mutex);
 }
 
-int __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
+bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 {
-	int ret = 1;
+	int ret;
 	u32 cpu_capacity;
 
 	if (cap_parsing_failed)
-		return !ret;
+		return false;
 
 	ret = of_property_read_u32(cpu_node, "capacity-dmips-mhz",
 				   &cpu_capacity);
@@ -137,7 +137,7 @@ int __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 			if (!raw_capacity) {
 				pr_err("cpu_capacity: failed to allocate memory for raw capacities\n");
 				cap_parsing_failed = true;
-				return 0;
+				return false;
 			}
 		}
 		capacity_scale = max(cpu_capacity, capacity_scale);
