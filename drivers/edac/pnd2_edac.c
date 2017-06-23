@@ -131,7 +131,7 @@ static struct mem_ctl_info *pnd2_mci;
 
 #ifdef CONFIG_X86_INTEL_SBI_APL
 #include "linux/platform_data/sbi_apl.h"
-int sbi_send(int port, int off, int op, u32 *data)
+static int sbi_send(int port, int off, int op, u32 *data)
 {
 	struct sbi_apl_message sbi_arg;
 	int ret, read = 0;
@@ -160,7 +160,7 @@ int sbi_send(int port, int off, int op, u32 *data)
 	return ret;
 }
 #else
-int sbi_send(int port, int off, int op, u32 *data)
+static int sbi_send(int port, int off, int op, u32 *data)
 {
 	return -EUNATCH;
 }
