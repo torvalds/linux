@@ -205,7 +205,7 @@ EXPORT_SYMBOL_GPL(bio_alloc_mddev);
 
 static struct bio *md_bio_alloc_sync(struct mddev *mddev)
 {
-	if (!mddev->sync_set)
+	if (!mddev || !mddev->sync_set)
 		return bio_alloc(GFP_NOIO, 1);
 
 	return bio_alloc_bioset(GFP_NOIO, 1, mddev->sync_set);
