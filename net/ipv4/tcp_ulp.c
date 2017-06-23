@@ -88,6 +88,7 @@ void tcp_get_available_ulp(char *buf, size_t maxlen)
 	struct tcp_ulp_ops *ulp_ops;
 	size_t offs = 0;
 
+	*buf = '\0';
 	rcu_read_lock();
 	list_for_each_entry_rcu(ulp_ops, &tcp_ulp_list, list) {
 		offs += snprintf(buf + offs, maxlen - offs,
