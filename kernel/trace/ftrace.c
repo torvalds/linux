@@ -3112,6 +3112,7 @@ ftrace_allocate_pages(unsigned long num_to_init)
 struct ftrace_iterator {
 	loff_t				pos;
 	loff_t				func_pos;
+	loff_t				mod_pos;
 	struct ftrace_page		*pg;
 	struct dyn_ftrace		*func;
 	struct ftrace_func_probe	*probe;
@@ -3119,6 +3120,8 @@ struct ftrace_iterator {
 	struct trace_parser		parser;
 	struct ftrace_hash		*hash;
 	struct ftrace_ops		*ops;
+	struct trace_array		*tr;
+	struct list_head		*mod_list;
 	int				pidx;
 	int				idx;
 	unsigned			flags;
@@ -3203,13 +3206,13 @@ static void *t_probe_start(struct seq_file *m, loff_t *pos)
 	if (!(iter->flags & FTRACE_ITER_DO_PROBES))
 		return NULL;
 
-	if (iter->func_pos > *pos)
+	if (iter->mod_pos > *pos)
 		return NULL;
 
 	iter->probe = NULL;
 	iter->probe_entry = NULL;
 	iter->pidx = 0;
-	for (l = 0; l <= (*pos - iter->func_pos); ) {
+	for (l = 0; l <= (*pos - iter->mod_pos); ) {
 		p = t_probe_next(m, &l);
 		if (!p)
 			break;
@@ -3243,6 +3246,82 @@ t_probe_show(struct seq_file *m, struct ftrace_iterator *iter)
 
 	seq_printf(m, "%ps:%ps\n", (void *)probe_entry->ip,
 		   (void *)probe_ops->func);
+
+	return 0;
+}
+
+static void *
+t_mod_next(struct seq_file *m, loff_t *pos)
+{
+	struct ftrace_iterator *iter = m->private;
+	struct trace_array *tr = iter->tr;
+
+	(*pos)++;
+	iter->pos = *pos;
+
+	iter->mod_list = iter->mod_list->next;
+
+	if (iter->mod_list == &tr->mod_trace ||
+	    iter->mod_list == &tr->mod_notrace) {
+		iter->flags &= ~FTRACE_ITER_MOD;
+		return NULL;
+	}
+
+	iter->mod_pos = *pos;
+
+	return iter;
+}
+
+static void *t_mod_start(struct seq_file *m, loff_t *pos)
+{
+	struct ftrace_iterator *iter = m->private;
+	void *p = NULL;
+	loff_t l;
+
+	if (iter->func_pos > *pos)
+		return NULL;
+
+	iter->mod_pos = iter->func_pos;
+
+	/* probes are only available if tr is set */
+	if (!iter->tr)
+		return NULL;
+
+	for (l = 0; l <= (*pos - iter->func_pos); ) {
+		p = t_mod_next(m, &l);
+		if (!p)
+			break;
+	}
+	if (!p) {
+		iter->flags &= ~FTRACE_ITER_MOD;
+		return t_probe_start(m, pos);
+	}
+
+	/* Only set this if we have an item */
+	iter->flags |= FTRACE_ITER_MOD;
+
+	return iter;
+}
+
+static int
+t_mod_show(struct seq_file *m, struct ftrace_iterator *iter)
+{
+	struct ftrace_mod_load *ftrace_mod;
+	struct trace_array *tr = iter->tr;
+
+	if (WARN_ON_ONCE(!iter->mod_list) ||
+			 iter->mod_list == &tr->mod_trace ||
+			 iter->mod_list == &tr->mod_notrace)
+		return -EIO;
+
+	ftrace_mod = list_entry(iter->mod_list, struct ftrace_mod_load, list);
+
+	if (ftrace_mod->func)
+		seq_printf(m, "%s", ftrace_mod->func);
+	else
+		seq_putc(m, '*');
+
+	seq_printf(m, ":mod:%s\n", ftrace_mod->module);
 
 	return 0;
 }
@@ -3288,7 +3367,7 @@ static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	loff_t l = *pos; /* t_hash_start() must use original pos */
+	loff_t l = *pos; /* t_probe_start() must use original pos */
 	void *ret;
 
 	if (unlikely(ftrace_disabled))
@@ -3297,16 +3376,19 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	if (iter->flags & FTRACE_ITER_PROBE)
 		return t_probe_next(m, pos);
 
+	if (iter->flags & FTRACE_ITER_MOD)
+		return t_mod_next(m, pos);
+
 	if (iter->flags & FTRACE_ITER_PRINTALL) {
 		/* next must increment pos, and t_probe_start does not */
 		(*pos)++;
-		return t_probe_start(m, &l);
+		return t_mod_start(m, &l);
 	}
 
 	ret = t_func_next(m, pos);
 
 	if (!ret)
-		return t_probe_start(m, &l);
+		return t_mod_start(m, &l);
 
 	return ret;
 }
@@ -3315,7 +3397,7 @@ static void reset_iter_read(struct ftrace_iterator *iter)
 {
 	iter->pos = 0;
 	iter->func_pos = 0;
-	iter->flags &= ~(FTRACE_ITER_PRINTALL | FTRACE_ITER_PROBE);
+	iter->flags &= ~(FTRACE_ITER_PRINTALL | FTRACE_ITER_PROBE | FTRACE_ITER_MOD);
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
@@ -3344,15 +3426,15 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	    ftrace_hash_empty(iter->hash)) {
 		iter->func_pos = 1; /* Account for the message */
 		if (*pos > 0)
-			return t_probe_start(m, pos);
+			return t_mod_start(m, pos);
 		iter->flags |= FTRACE_ITER_PRINTALL;
 		/* reset in case of seek/pread */
 		iter->flags &= ~FTRACE_ITER_PROBE;
 		return iter;
 	}
 
-	if (iter->flags & FTRACE_ITER_PROBE)
-		return t_probe_start(m, pos);
+	if (iter->flags & FTRACE_ITER_MOD)
+		return t_mod_start(m, pos);
 
 	/*
 	 * Unfortunately, we need to restart at ftrace_pages_start
@@ -3368,7 +3450,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	}
 
 	if (!p)
-		return t_probe_start(m, pos);
+		return t_mod_start(m, pos);
 
 	return iter;
 }
@@ -3401,6 +3483,9 @@ static int t_show(struct seq_file *m, void *v)
 
 	if (iter->flags & FTRACE_ITER_PROBE)
 		return t_probe_show(m, iter);
+
+	if (iter->flags & FTRACE_ITER_MOD)
+		return t_mod_show(m, iter);
 
 	if (iter->flags & FTRACE_ITER_PRINTALL) {
 		if (iter->flags & FTRACE_ITER_NOTRACE)
@@ -3528,16 +3613,19 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 
 	iter->ops = ops;
 	iter->flags = flag;
+	iter->tr = tr;
 
 	mutex_lock(&ops->func_hash->regex_lock);
 
 	if (flag & FTRACE_ITER_NOTRACE) {
 		hash = ops->func_hash->notrace_hash;
-		mod_head = tr ? &tr->mod_trace : NULL;
+		mod_head = tr ? &tr->mod_notrace : NULL;
 	} else {
 		hash = ops->func_hash->filter_hash;
-		mod_head = tr ? &tr->mod_notrace : NULL;
+		mod_head = tr ? &tr->mod_trace : NULL;
 	}
+
+	iter->mod_list = mod_head;
 
 	if (file->f_mode & FMODE_WRITE) {
 		const int size_bits = FTRACE_HASH_DEFAULT_BITS;

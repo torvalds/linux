@@ -446,7 +446,8 @@ enum {
 	FTRACE_ITER_PRINTALL	= (1 << 2),
 	FTRACE_ITER_DO_PROBES	= (1 << 3),
 	FTRACE_ITER_PROBE	= (1 << 4),
-	FTRACE_ITER_ENABLED	= (1 << 5),
+	FTRACE_ITER_MOD		= (1 << 5),
+	FTRACE_ITER_ENABLED	= (1 << 6),
 };
 
 void arch_ftrace_update_code(int command);
