@@ -69,7 +69,7 @@ int nfp_app_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn,
 	if (err)
 		return err < 0 ? err : 0;
 
-	nfp_net_get_mac_addr(app->pf, nn, id);
+	nfp_net_get_mac_addr(app->pf, nn->port, id);
 
 	return 0;
 }

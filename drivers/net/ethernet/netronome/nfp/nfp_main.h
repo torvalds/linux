@@ -58,6 +58,7 @@ struct nfp_hwinfo;
 struct nfp_mip;
 struct nfp_net;
 struct nfp_nsp_identify;
+struct nfp_port;
 struct nfp_rtsym_table;
 
 /**
@@ -147,7 +148,7 @@ void nfp_hwmon_unregister(struct nfp_pf *pf);
 struct nfp_eth_table_port *
 nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id);
 void
-nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id);
+nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_port *port, unsigned int id);
 
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
