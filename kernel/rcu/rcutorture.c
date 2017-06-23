@@ -199,7 +199,8 @@ MODULE_PARM_DESC(torture_runnable, "Start rcutorture at boot");
 static u64 notrace rcu_trace_clock_local(void)
 {
 	u64 ts = trace_clock_local();
-	unsigned long __maybe_unused ts_rem = do_div(ts, NSEC_PER_USEC);
+
+	(void)do_div(ts, NSEC_PER_USEC);
 	return ts;
 }
 #else /* #ifdef CONFIG_RCU_TRACE */
