@@ -908,8 +908,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 * capabilities of this particular device */
 	newxprt->sc_max_sge = min((size_t)dev->attrs.max_sge,
 				  (size_t)RPCSVC_MAXPAGES);
-	newxprt->sc_max_sge_rd = min_t(size_t, dev->attrs.max_sge_rd,
-				       RPCSVC_MAXPAGES);
 	newxprt->sc_max_req_size = svcrdma_max_req_size;
 	newxprt->sc_max_requests = min_t(u32, dev->attrs.max_qp_wr,
 					 svcrdma_max_requests);
@@ -998,12 +996,10 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 * NB:	iWARP requires remote write access for the data sink
 	 *	of an RDMA_READ. IB does not.
 	 */
-	newxprt->sc_reader = rdma_read_chunk_lcl;
 	if (dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
 		newxprt->sc_frmr_pg_list_len =
 			dev->attrs.max_fast_reg_page_list_len;
 		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
-		newxprt->sc_reader = rdma_read_chunk_frmr;
 	} else
 		newxprt->sc_snd_w_inv = false;
 
@@ -1056,7 +1052,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
 	dprintk("    remote address  : %pIS:%u\n", sap, rpc_get_port(sap));
 	dprintk("    max_sge         : %d\n", newxprt->sc_max_sge);
-	dprintk("    max_sge_rd      : %d\n", newxprt->sc_max_sge_rd);
 	dprintk("    sq_depth        : %d\n", newxprt->sc_sq_depth);
 	dprintk("    max_requests    : %d\n", newxprt->sc_max_requests);
 	dprintk("    ord             : %d\n", newxprt->sc_ord);
@@ -1117,12 +1112,6 @@ static void __svc_rdma_free(struct work_struct *work)
 		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
 		       kref_read(&xprt->xpt_ref));
 
-	/*
-	 * Destroy queued, but not processed read completions. Note
-	 * that this cleanup has to be done before destroying the
-	 * cm_id because the device ptr is needed to unmap the dma in
-	 * svc_rdma_put_context.
-	 */
 	while (!list_empty(&rdma->sc_read_complete_q)) {
 		struct svc_rdma_op_ctxt *ctxt;
 		ctxt = list_first_entry(&rdma->sc_read_complete_q,
@@ -1130,8 +1119,6 @@ static void __svc_rdma_free(struct work_struct *work)
 		list_del(&ctxt->list);
 		svc_rdma_put_context(ctxt, 1);
 	}
-
-	/* Destroy queued, but not processed recv completions */
 	while (!list_empty(&rdma->sc_rq_dto_q)) {
 		struct svc_rdma_op_ctxt *ctxt;
 		ctxt = list_first_entry(&rdma->sc_rq_dto_q,

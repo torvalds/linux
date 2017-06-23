@@ -82,10 +82,7 @@ struct svc_rdma_op_ctxt {
 	int hdr_count;
 	struct xdr_buf arg;
 	struct ib_cqe cqe;
-	struct ib_cqe reg_cqe;
-	struct ib_cqe inv_cqe;
 	u32 byte_len;
-	u32 position;
 	struct svcxprt_rdma *xprt;
 	unsigned long flags;
 	enum dma_data_direction direction;
@@ -116,7 +113,6 @@ struct svcxprt_rdma {
 	struct list_head     sc_accept_q;	/* Conn. waiting accept */
 	int		     sc_ord;		/* RDMA read limit */
 	int                  sc_max_sge;
-	int                  sc_max_sge_rd;	/* max sge for read target */
 	bool		     sc_snd_w_inv;	/* OK to use Send With Invalidate */
 
 	atomic_t             sc_sq_avail;	/* SQEs ready to be consumed */
@@ -141,10 +137,6 @@ struct svcxprt_rdma {
 	struct ib_qp         *sc_qp;
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
-	int		     (*sc_reader)(struct svcxprt_rdma *,
-					  struct svc_rqst *,
-					  struct svc_rdma_op_ctxt *,
-					  int *, u32 *, u32, u32, u64, bool);
 	u32		     sc_dev_caps;	/* distilled device caps */
 	unsigned int	     sc_frmr_pg_list_len;
 	struct list_head     sc_frmr_q;
@@ -187,12 +179,6 @@ extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
 
 /* svc_rdma_recvfrom.c */
 extern int svc_rdma_recvfrom(struct svc_rqst *);
-extern int rdma_read_chunk_lcl(struct svcxprt_rdma *, struct svc_rqst *,
-			       struct svc_rdma_op_ctxt *, int *, u32 *,
-			       u32, u32, u64, bool);
-extern int rdma_read_chunk_frmr(struct svcxprt_rdma *, struct svc_rqst *,
-				struct svc_rdma_op_ctxt *, int *, u32 *,
-				u32, u32, u64, bool);
 
 /* svc_rdma_rw.c */
 extern void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma);
