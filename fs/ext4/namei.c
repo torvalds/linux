@@ -1442,11 +1442,11 @@ restart:
 			goto next;
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
-			/* read error, skip block & hope for the best */
 			EXT4_ERROR_INODE(dir, "reading directory lblock %lu",
 					 (unsigned long) block);
 			brelse(bh);
-			goto next;
+			ret = ERR_PTR(-EIO);
+			goto cleanup_and_exit;
 		}
 		if (!buffer_verified(bh) &&
 		    !is_dx_internal_node(dir, block,
