@@ -286,6 +286,7 @@ static int process_ver_info(struct vio_driver_state *vio,
 			ver.minor = vap->minor;
 		pkt->minor = ver.minor;
 		pkt->tag.stype = VIO_SUBTYPE_ACK;
+		pkt->dev_class = vio->dev_class;
 		viodbg(HS, "SEND VERSION ACK maj[%u] min[%u]\n",
 		       pkt->major, pkt->minor);
 		err = send_ctrl(vio, &pkt->tag, sizeof(*pkt));
