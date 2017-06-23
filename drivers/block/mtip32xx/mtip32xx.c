@@ -1063,23 +1063,10 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	/* insert request and run queue */
 	blk_execute_rq(rq->q, NULL, rq, true);
 
-	rv = int_cmd->status;
-	if (rv < 0) {
-		if (rv == -ERESTARTSYS) { /* interrupted */
-			dev_err(&dd->pdev->dev,
-				"Internal command [%02X] was interrupted after %u ms\n",
-				fis->command,
-				jiffies_to_msecs(jiffies - start));
-			rv = -EINTR;
-			goto exec_ic_exit;
-		} else if (rv == 0) /* timeout */
-			dev_err(&dd->pdev->dev,
-				"Internal command did not complete [%02X] within timeout of  %lu ms\n",
-				fis->command, timeout);
-		else
-			dev_err(&dd->pdev->dev,
-				"Internal command [%02X] wait returned code [%d] after %lu ms - unhandled\n",
-				fis->command, rv, timeout);
+	if (int_cmd->status) {
+		dev_err(&dd->pdev->dev, "Internal command [%02X] failed %d\n",
+				fis->command, int_cmd->status);
+		rv = -EIO;
 
 		if (mtip_check_surprise_removal(dd->pdev) ||
 			test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
