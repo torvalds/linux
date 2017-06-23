@@ -28,7 +28,7 @@
 /* description */
 #define UDC_MOD_DESCRIPTION     "Synopsys UDC platform driver"
 
-void start_udc(struct udc *udc)
+static void start_udc(struct udc *udc)
 {
 	if (udc->driver) {
 		dev_info(udc->dev, "Connecting...\n");
@@ -38,7 +38,7 @@ void start_udc(struct udc *udc)
 	}
 }
 
-void stop_udc(struct udc *udc)
+static void stop_udc(struct udc *udc)
 {
 	int tmp;
 	u32 reg;
@@ -76,7 +76,7 @@ void stop_udc(struct udc *udc)
 	dev_info(udc->dev, "Device disconnected\n");
 }
 
-void udc_drd_work(struct work_struct *work)
+static void udc_drd_work(struct work_struct *work)
 {
 	struct udc *udc;
 
