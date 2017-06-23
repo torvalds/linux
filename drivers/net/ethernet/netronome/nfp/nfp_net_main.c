@@ -235,10 +235,8 @@ nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		 nfp_cppcore_pcie_unit(pf->cpp));
 
 	sym = nfp_rtsym_lookup(pf->rtbl, pf_symbol);
-	if (!sym) {
-		nfp_err(pf->cpp, "Failed to find PF symbol %s\n", pf_symbol);
+	if (!sym)
 		return (u8 __iomem *)ERR_PTR(-ENOENT);
-	}
 
 	if (sym->size < min_size) {
 		nfp_err(pf->cpp, "PF symbol %s too small\n", pf_symbol);
@@ -486,6 +484,7 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 					NFP_PF_CSR_SLICE_SIZE,
 					&pf->ctrl_vnic_bar);
 	if (IS_ERR(ctrl_bar)) {
+		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
 		err = PTR_ERR(ctrl_bar);
 		goto err_free;
 	}
@@ -570,6 +569,80 @@ static void nfp_net_pf_app_stop(struct nfp_pf *pf)
 	nfp_net_pf_app_stop_ctrl(pf);
 }
 
+static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
+{
+	if (pf->vf_cfg_bar)
+		nfp_cpp_area_release_free(pf->vf_cfg_bar);
+	if (pf->mac_stats_bar)
+		nfp_cpp_area_release_free(pf->mac_stats_bar);
+	nfp_cpp_area_release_free(pf->qc_area);
+	nfp_cpp_area_release_free(pf->data_vnic_bar);
+}
+
+static int nfp_net_pci_map_mem(struct nfp_pf *pf)
+{
+	u32 ctrl_bar_sz;
+	u8 __iomem *mem;
+	int err;
+
+	ctrl_bar_sz = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
+	mem = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%d_net_bar0",
+				   ctrl_bar_sz, &pf->data_vnic_bar);
+	if (IS_ERR(mem)) {
+		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
+		err = PTR_ERR(mem);
+		if (!pf->fw_loaded && err == -ENOENT)
+			err = -EPROBE_DEFER;
+		return err;
+	}
+
+	pf->mac_stats_mem = nfp_net_pf_map_rtsym(pf, "net.macstats",
+						 "_mac_stats",
+						 NFP_MAC_STATS_SIZE *
+						 (pf->eth_tbl->max_index + 1),
+						 &pf->mac_stats_bar);
+	if (IS_ERR(pf->mac_stats_mem)) {
+		if (PTR_ERR(pf->mac_stats_mem) != -ENOENT) {
+			err = PTR_ERR(pf->mac_stats_mem);
+			goto err_unmap_ctrl;
+		}
+		pf->mac_stats_mem = NULL;
+	}
+
+	pf->vf_cfg_mem = nfp_net_pf_map_rtsym(pf, "net.vfcfg",
+					      "_pf%d_net_vf_bar",
+					      NFP_NET_CFG_BAR_SZ *
+					      pf->limit_vfs, &pf->vf_cfg_bar);
+	if (IS_ERR(pf->vf_cfg_mem)) {
+		if (PTR_ERR(pf->vf_cfg_mem) != -ENOENT) {
+			err = PTR_ERR(pf->vf_cfg_mem);
+			goto err_unmap_mac_stats;
+		}
+		pf->vf_cfg_mem = NULL;
+	}
+
+	mem = nfp_net_map_area(pf->cpp, "net.qc", 0, 0,
+			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
+			       &pf->qc_area);
+	if (IS_ERR(mem)) {
+		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
+		err = PTR_ERR(mem);
+		goto err_unmap_vf_cfg;
+	}
+
+	return 0;
+
+err_unmap_vf_cfg:
+	if (pf->vf_cfg_bar)
+		nfp_cpp_area_release_free(pf->vf_cfg_bar);
+err_unmap_mac_stats:
+	if (pf->mac_stats_bar)
+		nfp_cpp_area_release_free(pf->mac_stats_bar);
+err_unmap_ctrl:
+	nfp_cpp_area_release_free(pf->data_vnic_bar);
+	return err;
+}
+
 static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 {
 	nfp_net_pf_app_stop(pf);
@@ -577,11 +650,8 @@ static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 
 	nfp_net_pf_free_irqs(pf);
-
 	nfp_net_pf_app_clean(pf);
-
-	nfp_cpp_area_release_free(pf->qc_area);
-	nfp_cpp_area_release_free(pf->data_vnic_bar);
+	nfp_net_pci_unmap_mem(pf);
 }
 
 static int
@@ -706,7 +776,6 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 {
 	struct nfp_net_fw_version fw_ver;
 	u8 __iomem *ctrl_bar, *qc_bar;
-	u32 ctrl_bar_sz;
 	int stride;
 	int err;
 
@@ -725,14 +794,15 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		goto err_unlock;
 	}
 
-	ctrl_bar_sz = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
-	ctrl_bar = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%d_net_bar0",
-					ctrl_bar_sz, &pf->data_vnic_bar);
-	if (IS_ERR(ctrl_bar)) {
-		err = PTR_ERR(ctrl_bar);
-		if (!pf->fw_loaded && err == -ENOENT)
-			err = -EPROBE_DEFER;
+	err = nfp_net_pci_map_mem(pf);
+	if (err)
 		goto err_unlock;
+
+	ctrl_bar = nfp_cpp_area_iomem(pf->data_vnic_bar);
+	qc_bar = nfp_cpp_area_iomem(pf->qc_area);
+	if (!ctrl_bar || !qc_bar) {
+		err = -EIO;
+		goto err_unmap;
 	}
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
@@ -740,7 +810,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		nfp_err(pf->cpp, "Unknown Firmware ABI %d.%d.%d.%d\n",
 			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.minor);
 		err = -EINVAL;
-		goto err_ctrl_unmap;
+		goto err_unmap;
 	}
 
 	/* Determine stride */
@@ -757,23 +827,13 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 				fw_ver.resv, fw_ver.class,
 				fw_ver.major, fw_ver.minor);
 			err = -EINVAL;
-			goto err_ctrl_unmap;
+			goto err_unmap;
 		}
-	}
-
-	/* Map queues */
-	qc_bar = nfp_net_map_area(pf->cpp, "net.qc", 0, 0,
-				  NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
-				  &pf->qc_area);
-	if (IS_ERR(qc_bar)) {
-		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
-		err = PTR_ERR(qc_bar);
-		goto err_ctrl_unmap;
 	}
 
 	err = nfp_net_pf_app_init(pf, qc_bar, stride);
 	if (err)
-		goto err_unmap_qc;
+		goto err_unmap;
 
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
@@ -807,10 +867,8 @@ err_free_vnics:
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 	nfp_net_pf_app_clean(pf);
-err_unmap_qc:
-	nfp_cpp_area_release_free(pf->qc_area);
-err_ctrl_unmap:
-	nfp_cpp_area_release_free(pf->data_vnic_bar);
+err_unmap:
+	nfp_net_pci_unmap_mem(pf);
 err_unlock:
 	mutex_unlock(&pf->lock);
 	cancel_work_sync(&pf->port_refresh_work);
