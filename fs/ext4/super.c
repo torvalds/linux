@@ -1152,6 +1152,15 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 	handle_t *handle = fs_data;
 	int res, res2, credits, retries = 0;
 
+	/*
+	 * Encrypting the root directory is not allowed because e2fsck expects
+	 * lost+found to exist and be unencrypted, and encrypting the root
+	 * directory would imply encrypting the lost+found directory as well as
+	 * the filename "lost+found" itself.
+	 */
+	if (inode->i_ino == EXT4_ROOT_INO)
+		return -EPERM;
+
 	res = ext4_convert_inline_data(inode);
 	if (res)
 		return res;
