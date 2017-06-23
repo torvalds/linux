@@ -773,7 +773,6 @@ static int safexcel_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct safexcel_crypto_priv *priv;
-	u64 dma_mask;
 	int i, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -802,9 +801,7 @@ static int safexcel_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 	}
 
-	if (of_property_read_u64(dev->of_node, "dma-mask", &dma_mask))
-		dma_mask = DMA_BIT_MASK(64);
-	ret = dma_set_mask_and_coherent(dev, dma_mask);
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret)
 		goto err_clk;
 
