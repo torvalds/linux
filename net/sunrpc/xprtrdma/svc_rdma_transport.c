@@ -346,36 +346,6 @@ out:
 	svc_xprt_put(&xprt->sc_xprt);
 }
 
-static void svc_rdma_send_wc_common(struct svcxprt_rdma *xprt,
-				    struct ib_wc *wc,
-				    const char *opname)
-{
-	if (wc->status != IB_WC_SUCCESS)
-		goto err;
-
-out:
-	atomic_inc(&xprt->sc_sq_avail);
-	wake_up(&xprt->sc_send_wait);
-	return;
-
-err:
-	set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_err("svcrdma: %s: %s (%u/0x%x)\n",
-		       opname, ib_wc_status_msg(wc->status),
-		       wc->status, wc->vendor_err);
-	goto out;
-}
-
-static void svc_rdma_send_wc_common_put(struct ib_cq *cq, struct ib_wc *wc,
-					const char *opname)
-{
-	struct svcxprt_rdma *xprt = cq->cq_context;
-
-	svc_rdma_send_wc_common(xprt, wc, opname);
-	svc_xprt_put(&xprt->sc_xprt);
-}
-
 /**
  * svc_rdma_wc_send - Invoked by RDMA provider for each polled Send WC
  * @cq:        completion queue
@@ -384,71 +354,26 @@ static void svc_rdma_send_wc_common_put(struct ib_cq *cq, struct ib_wc *wc,
  */
 void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct ib_cqe *cqe = wc->wr_cqe;
-	struct svc_rdma_op_ctxt *ctxt;
-
-	svc_rdma_send_wc_common_put(cq, wc, "send");
-
-	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
-	svc_rdma_unmap_dma(ctxt);
-	svc_rdma_put_context(ctxt, 1);
-}
-
-/**
- * svc_rdma_wc_reg - Invoked by RDMA provider for each polled FASTREG WC
- * @cq:        completion queue
- * @wc:        completed WR
- *
- */
-void svc_rdma_wc_reg(struct ib_cq *cq, struct ib_wc *wc)
-{
-	svc_rdma_send_wc_common_put(cq, wc, "fastreg");
-}
-
-/**
- * svc_rdma_wc_read - Invoked by RDMA provider for each polled Read WC
- * @cq:        completion queue
- * @wc:        completed WR
- *
- */
-void svc_rdma_wc_read(struct ib_cq *cq, struct ib_wc *wc)
-{
 	struct svcxprt_rdma *xprt = cq->cq_context;
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_op_ctxt *ctxt;
 
-	svc_rdma_send_wc_common(xprt, wc, "read");
+	atomic_inc(&xprt->sc_sq_avail);
+	wake_up(&xprt->sc_send_wait);
 
 	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
 	svc_rdma_unmap_dma(ctxt);
-	svc_rdma_put_frmr(xprt, ctxt->frmr);
+	svc_rdma_put_context(ctxt, 1);
 
-	if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
-		struct svc_rdma_op_ctxt *read_hdr;
-
-		read_hdr = ctxt->read_hdr;
-		spin_lock(&xprt->sc_rq_dto_lock);
-		list_add_tail(&read_hdr->list,
-			      &xprt->sc_read_complete_q);
-		spin_unlock(&xprt->sc_rq_dto_lock);
-
-		set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
-		svc_xprt_enqueue(&xprt->sc_xprt);
+	if (unlikely(wc->status != IB_WC_SUCCESS)) {
+		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+		if (wc->status != IB_WC_WR_FLUSH_ERR)
+			pr_err("svcrdma: Send: %s (%u/0x%x)\n",
+			       ib_wc_status_msg(wc->status),
+			       wc->status, wc->vendor_err);
 	}
 
-	svc_rdma_put_context(ctxt, 0);
 	svc_xprt_put(&xprt->sc_xprt);
-}
-
-/**
- * svc_rdma_wc_inv - Invoked by RDMA provider for each polled LOCAL_INV WC
- * @cq:        completion queue
- * @wc:        completed WR
- *
- */
-void svc_rdma_wc_inv(struct ib_cq *cq, struct ib_wc *wc)
-{
-	svc_rdma_send_wc_common_put(cq, wc, "localInv");
 }
 
 static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,

@@ -77,17 +77,15 @@ extern atomic_t rdma_stat_sq_prod;
  */
 struct svc_rdma_op_ctxt {
 	struct list_head list;
-	struct svc_rdma_op_ctxt *read_hdr;
 	struct svc_rdma_fastreg_mr *frmr;
-	int hdr_count;
 	struct xdr_buf arg;
 	struct ib_cqe cqe;
 	u32 byte_len;
 	struct svcxprt_rdma *xprt;
-	unsigned long flags;
 	enum dma_data_direction direction;
 	int count;
 	unsigned int mapped_sges;
+	int hdr_count;
 	struct ib_send_wr send_wr;
 	struct ib_sge sge[1 + RPCRDMA_MAX_INLINE_THRESH / PAGE_SIZE];
 	struct page *pages[RPCSVC_MAXPAGES];
