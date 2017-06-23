@@ -96,7 +96,16 @@ struct mlxfw_dev {
 	u16 psid_size;
 };
 
+#if IS_ENABLED(CONFIG_MLXFW)
 int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 			 const struct firmware *firmware);
+#else
+static inline
+int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
+			 const struct firmware *firmware)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 #endif

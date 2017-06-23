@@ -72,6 +72,8 @@
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
 
 #define MLX5_RX_HEADROOM NET_SKB_PAD
+#define MLX5_SKB_FRAG_SZ(len)	(SKB_DATA_ALIGN(len) +	\
+				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(mdev) \
 	(6 + MLX5_CAP_GEN(mdev, cache_line_128byte)) /* HW restriction */
@@ -215,6 +217,7 @@ struct mlx5e_cq_moder {
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
+	u16 rq_headroom;
 	u8  mpwqe_log_stride_sz;
 	u8  mpwqe_log_num_strides;
 	u8  log_rq_size;
@@ -445,6 +448,11 @@ struct mlx5e_dma_info {
 	dma_addr_t	addr;
 };
 
+struct mlx5e_wqe_frag_info {
+	struct mlx5e_dma_info di;
+	u32 offset;
+};
+
 struct mlx5e_umr_dma_info {
 	__be64                *mtt;
 	dma_addr_t             mtt_addr;
@@ -506,7 +514,12 @@ struct mlx5e_rq {
 	struct mlx5_wq_ll      wq;
 
 	union {
-		struct mlx5e_dma_info *dma_info;
+		struct {
+			struct mlx5e_wqe_frag_info *frag_info;
+			u32 frag_sz;	/* max possible skb frag_sz */
+			bool page_reuse;
+			bool xdp_xmit;
+		} wqe;
 		struct {
 			struct mlx5e_mpw_info *info;
 			void                  *mtt_no_align;
@@ -1047,6 +1060,8 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal);
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 			      struct ethtool_ts_info *info);
+int mlx5e_ethtool_flash_device(struct mlx5e_priv *priv,
+			       struct ethtool_flash *flash);
 
 /* mlx5e generic netdev management API */
 struct net_device*

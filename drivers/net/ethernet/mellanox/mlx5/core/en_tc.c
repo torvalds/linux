@@ -888,6 +888,34 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			*min_inline = MLX5_INLINE_MODE_IP;
 	}
 
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_IP,
+						  f->key);
+		struct flow_dissector_key_ip *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_IP,
+						  f->mask);
+
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_ecn, mask->tos & 0x3);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_ecn, key->tos & 0x3);
+
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp, mask->tos >> 2);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp, key->tos  >> 2);
+
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ttl_hoplimit, mask->ttl);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ttl_hoplimit, key->ttl);
+
+		if (mask->ttl &&
+		    !MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
+						ft_field_support.outer_ipv4_ttl))
+			return -EOPNOTSUPP;
+
+		if (mask->tos || mask->ttl)
+			*min_inline = MLX5_INLINE_MODE_IP;
+	}
+
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_dissector_key_ports *key =
 			skb_flow_dissector_target(f->dissector,
@@ -929,29 +957,6 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 
 		if (mask->src || mask->dst)
 			*min_inline = MLX5_INLINE_MODE_TCP_UDP;
-	}
-
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_IP)) {
-		struct flow_dissector_key_ip *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IP,
-						  f->key);
-		struct flow_dissector_key_ip *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IP,
-						  f->mask);
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_ecn, mask->tos & 0x3);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_ecn, key->tos & 0x3);
-
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ip_dscp, mask->tos >> 2);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_dscp, key->tos  >> 2);
-
-		if (mask->tos)
-			*min_inline = MLX5_INLINE_MODE_IP;
-
-		if (mask->ttl) /* currently not supported */
-			return -EOPNOTSUPP;
 	}
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_TCP)) {
@@ -1053,32 +1058,37 @@ struct mlx5_fields {
 	u32 offset;
 };
 
+#define OFFLOAD(fw_field, size, field, off) \
+		{MLX5_ACTION_IN_FIELD_OUT_ ## fw_field, size, offsetof(struct pedit_headers, field) + (off)}
+
 static struct mlx5_fields fields[] = {
-	{MLX5_ACTION_IN_FIELD_OUT_DMAC_47_16, 4, offsetof(struct pedit_headers, eth.h_dest[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_DMAC_15_0,  2, offsetof(struct pedit_headers, eth.h_dest[4])},
-	{MLX5_ACTION_IN_FIELD_OUT_SMAC_47_16, 4, offsetof(struct pedit_headers, eth.h_source[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_SMAC_15_0,  2, offsetof(struct pedit_headers, eth.h_source[4])},
-	{MLX5_ACTION_IN_FIELD_OUT_ETHERTYPE,  2, offsetof(struct pedit_headers, eth.h_proto)},
+	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0),
+	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0),
+	OFFLOAD(DMAC_15_0,  2, eth.h_dest[4], 0),
+	OFFLOAD(SMAC_47_16, 4, eth.h_source[0], 0),
+	OFFLOAD(SMAC_15_0,  2, eth.h_source[4], 0),
+	OFFLOAD(ETHERTYPE,  2, eth.h_proto, 0),
 
-	{MLX5_ACTION_IN_FIELD_OUT_IP_TTL,  1, offsetof(struct pedit_headers, ip4.ttl)},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV4,   4, offsetof(struct pedit_headers, ip4.saddr)},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV4,   4, offsetof(struct pedit_headers, ip4.daddr)},
+	OFFLOAD(IP_TTL, 1, ip4.ttl,   0),
+	OFFLOAD(SIPV4,  4, ip4.saddr, 0),
+	OFFLOAD(DIPV4,  4, ip4.daddr, 0),
 
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_127_96, 4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_95_64,  4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[1])},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_63_32,  4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[2])},
-	{MLX5_ACTION_IN_FIELD_OUT_SIPV6_31_0,   4, offsetof(struct pedit_headers, ip6.saddr.s6_addr32[3])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_127_96, 4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[0])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_95_64,  4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[1])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_63_32,  4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[2])},
-	{MLX5_ACTION_IN_FIELD_OUT_DIPV6_31_0,   4, offsetof(struct pedit_headers, ip6.daddr.s6_addr32[3])},
+	OFFLOAD(SIPV6_127_96, 4, ip6.saddr.s6_addr32[0], 0),
+	OFFLOAD(SIPV6_95_64,  4, ip6.saddr.s6_addr32[1], 0),
+	OFFLOAD(SIPV6_63_32,  4, ip6.saddr.s6_addr32[2], 0),
+	OFFLOAD(SIPV6_31_0,   4, ip6.saddr.s6_addr32[3], 0),
+	OFFLOAD(DIPV6_127_96, 4, ip6.daddr.s6_addr32[0], 0),
+	OFFLOAD(DIPV6_95_64,  4, ip6.daddr.s6_addr32[1], 0),
+	OFFLOAD(DIPV6_63_32,  4, ip6.daddr.s6_addr32[2], 0),
+	OFFLOAD(DIPV6_31_0,   4, ip6.daddr.s6_addr32[3], 0),
+	OFFLOAD(IPV6_HOPLIMIT, 1, ip6.hop_limit, 0),
 
-	{MLX5_ACTION_IN_FIELD_OUT_TCP_SPORT, 2, offsetof(struct pedit_headers, tcp.source)},
-	{MLX5_ACTION_IN_FIELD_OUT_TCP_DPORT, 2, offsetof(struct pedit_headers, tcp.dest)},
-	{MLX5_ACTION_IN_FIELD_OUT_TCP_FLAGS, 1, offsetof(struct pedit_headers, tcp.ack_seq) + 5},
+	OFFLOAD(TCP_SPORT, 2, tcp.source,  0),
+	OFFLOAD(TCP_DPORT, 2, tcp.dest,    0),
+	OFFLOAD(TCP_FLAGS, 1, tcp.ack_seq, 5),
 
-	{MLX5_ACTION_IN_FIELD_OUT_UDP_SPORT, 2, offsetof(struct pedit_headers, udp.source)},
-	{MLX5_ACTION_IN_FIELD_OUT_UDP_DPORT, 2, offsetof(struct pedit_headers, udp.dest)},
+	OFFLOAD(UDP_SPORT, 2, udp.source, 0),
+	OFFLOAD(UDP_DPORT, 2, udp.dest,   0),
 };
 
 /* On input attr->num_mod_hdr_actions tells how many HW actions can be parsed at

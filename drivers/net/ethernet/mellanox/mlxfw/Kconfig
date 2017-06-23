@@ -3,5 +3,11 @@
 #
 
 config MLXFW
-        tristate "mlxfw" if COMPILE_TEST
+	tristate "Mellanox Technologies firmware flash module"
+	---help---
+	  This driver supports Mellanox Technologies Firmware
+	  flashing common logic.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mlxfw.
 	select XZ_DEC
