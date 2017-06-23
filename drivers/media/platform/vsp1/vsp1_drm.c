@@ -487,6 +487,7 @@ void vsp1_du_atomic_flush(struct device *dev)
 
 		vsp1->bru->inputs[i].rpf = rpf;
 		rpf->bru_input = i;
+		rpf->entity.sink = &vsp1->bru->entity;
 		rpf->entity.sink_pad = i;
 
 		dev_dbg(vsp1->dev, "%s: connecting RPF.%u to BRU:%u\n",
@@ -564,53 +565,6 @@ EXPORT_SYMBOL_GPL(vsp1_du_unmap_sg);
  * Initialization
  */
 
-int vsp1_drm_create_links(struct vsp1_device *vsp1)
-{
-	const u32 flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
-	unsigned int i;
-	int ret;
-
-	/*
-	 * VSPD instances require a BRU to perform composition and a LIF to
-	 * output to the DU.
-	 */
-	if (!vsp1->bru || !vsp1->lif)
-		return -ENXIO;
-
-	for (i = 0; i < vsp1->info->rpf_count; ++i) {
-		struct vsp1_rwpf *rpf = vsp1->rpf[i];
-
-		ret = media_create_pad_link(&rpf->entity.subdev.entity,
-					    RWPF_PAD_SOURCE,
-					    &vsp1->bru->entity.subdev.entity,
-					    i, flags);
-		if (ret < 0)
-			return ret;
-
-		rpf->entity.sink = &vsp1->bru->entity;
-		rpf->entity.sink_pad = i;
-	}
-
-	ret = media_create_pad_link(&vsp1->bru->entity.subdev.entity,
-				    vsp1->bru->entity.source_pad,
-				    &vsp1->wpf[0]->entity.subdev.entity,
-				    RWPF_PAD_SINK, flags);
-	if (ret < 0)
-		return ret;
-
-	vsp1->bru->entity.sink = &vsp1->wpf[0]->entity;
-	vsp1->bru->entity.sink_pad = RWPF_PAD_SINK;
-
-	ret = media_create_pad_link(&vsp1->wpf[0]->entity.subdev.entity,
-				    RWPF_PAD_SOURCE,
-				    &vsp1->lif->entity.subdev.entity,
-				    LIF_PAD_SINK, flags);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 int vsp1_drm_init(struct vsp1_device *vsp1)
 {
 	struct vsp1_pipeline *pipe;
@@ -630,6 +584,11 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 
 		list_add_tail(&input->entity.list_pipe, &pipe->entities);
 	}
+
+	vsp1->bru->entity.sink = &vsp1->wpf[0]->entity;
+	vsp1->bru->entity.sink_pad = 0;
+	vsp1->wpf[0]->entity.sink = &vsp1->lif->entity;
+	vsp1->wpf[0]->entity.sink_pad = 0;
 
 	list_add_tail(&vsp1->bru->entity.list_pipe, &pipe->entities);
 	list_add_tail(&vsp1->wpf[0]->entity.list_pipe, &pipe->entities);

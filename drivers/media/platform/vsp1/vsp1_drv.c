@@ -423,19 +423,15 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 			goto done;
 	}
 
-	/* Create links. */
-	if (vsp1->info->uapi)
-		ret = vsp1_uapi_create_links(vsp1);
-	else
-		ret = vsp1_drm_create_links(vsp1);
-	if (ret < 0)
-		goto done;
-
 	/*
-	 * Register subdev nodes if the userspace API is enabled or initialize
-	 * the DRM pipeline otherwise.
+	 * Create links and register subdev nodes if the userspace API is
+	 * enabled or initialize the DRM pipeline otherwise.
 	 */
 	if (vsp1->info->uapi) {
+		ret = vsp1_uapi_create_links(vsp1);
+		if (ret < 0)
+			goto done;
+
 		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
 		if (ret < 0)
 			goto done;
