@@ -1381,6 +1381,14 @@ static void tcmu_blocks_release(struct tcmu_dev *udev)
 static void tcmu_free_device(struct se_device *dev)
 {
 	struct tcmu_dev *udev = TCMU_DEV(dev);
+
+	/* release ref from init */
+	kref_put(&udev->kref, tcmu_dev_kref_release);
+}
+
+static void tcmu_destroy_device(struct se_device *dev)
+{
+	struct tcmu_dev *udev = TCMU_DEV(dev);
 	struct tcmu_cmd *cmd;
 	bool all_expired = true;
 	int i;
@@ -1411,9 +1419,6 @@ static void tcmu_free_device(struct se_device *dev)
 
 		uio_unregister_device(&udev->uio_info);
 	}
-
-	/* release ref from init */
-	kref_put(&udev->kref, tcmu_dev_kref_release);
 }
 
 enum {
@@ -1705,6 +1710,7 @@ static struct target_backend_ops tcmu_ops = {
 	.detach_hba		= tcmu_detach_hba,
 	.alloc_device		= tcmu_alloc_device,
 	.configure_device	= tcmu_configure_device,
+	.destroy_device		= tcmu_destroy_device,
 	.free_device		= tcmu_free_device,
 	.parse_cdb		= tcmu_parse_cdb,
 	.set_configfs_dev_params = tcmu_set_configfs_dev_params,

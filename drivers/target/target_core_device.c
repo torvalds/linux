@@ -974,6 +974,8 @@ void target_free_device(struct se_device *dev)
 	if (dev->dev_flags & DF_CONFIGURED) {
 		destroy_workqueue(dev->tmr_wq);
 
+		dev->transport->destroy_device(dev);
+
 		mutex_lock(&g_device_mutex);
 		list_del(&dev->g_dev_node);
 		mutex_unlock(&g_device_mutex);

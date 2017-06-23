@@ -30,6 +30,7 @@ struct target_backend_ops {
 
 	struct se_device *(*alloc_device)(struct se_hba *, const char *);
 	int (*configure_device)(struct se_device *);
+	void (*destroy_device)(struct se_device *);
 	void (*free_device)(struct se_device *device);
 
 	ssize_t (*set_configfs_dev_params)(struct se_device *,

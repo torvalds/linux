@@ -564,6 +564,11 @@ static void pscsi_dev_call_rcu(struct rcu_head *p)
 
 static void pscsi_free_device(struct se_device *dev)
 {
+	call_rcu(&dev->rcu_head, pscsi_dev_call_rcu);
+}
+
+static void pscsi_destroy_device(struct se_device *dev)
+{
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
 	struct pscsi_hba_virt *phv = dev->se_hba->hba_ptr;
 	struct scsi_device *sd = pdv->pdv_sd;
@@ -592,7 +597,6 @@ static void pscsi_free_device(struct se_device *dev)
 
 		pdv->pdv_sd = NULL;
 	}
-	call_rcu(&dev->rcu_head, pscsi_dev_call_rcu);
 }
 
 static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
@@ -1084,6 +1088,7 @@ static const struct target_backend_ops pscsi_ops = {
 	.pmode_enable_hba	= pscsi_pmode_enable_hba,
 	.alloc_device		= pscsi_alloc_device,
 	.configure_device	= pscsi_configure_device,
+	.destroy_device		= pscsi_destroy_device,
 	.free_device		= pscsi_free_device,
 	.transport_complete	= pscsi_transport_complete,
 	.parse_cdb		= pscsi_parse_cdb,

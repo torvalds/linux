@@ -190,14 +190,17 @@ static void iblock_dev_call_rcu(struct rcu_head *p)
 
 static void iblock_free_device(struct se_device *dev)
 {
+	call_rcu(&dev->rcu_head, iblock_dev_call_rcu);
+}
+
+static void iblock_destroy_device(struct se_device *dev)
+{
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
 	if (ib_dev->ibd_bd != NULL)
 		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 	if (ib_dev->ibd_bio_set != NULL)
 		bioset_free(ib_dev->ibd_bio_set);
-
-	call_rcu(&dev->rcu_head, iblock_dev_call_rcu);
 }
 
 static unsigned long long iblock_emulate_read_cap_with_block_size(
@@ -858,6 +861,7 @@ static const struct target_backend_ops iblock_ops = {
 	.detach_hba		= iblock_detach_hba,
 	.alloc_device		= iblock_alloc_device,
 	.configure_device	= iblock_configure_device,
+	.destroy_device		= iblock_destroy_device,
 	.free_device		= iblock_free_device,
 	.parse_cdb		= iblock_parse_cdb,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
