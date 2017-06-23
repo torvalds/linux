@@ -34,6 +34,8 @@
 #ifndef _NFP_APP_H
 #define _NFP_APP_H 1
 
+#include <net/devlink.h>
+
 struct bpf_prog;
 struct net_device;
 struct pci_dev;
@@ -70,6 +72,7 @@ extern const struct nfp_app_type app_bpf;
  * @setup_tc:	setup TC ndo
  * @tc_busy:	TC HW offload busy (rules loaded)
  * @xdp_offload:    offload an XDP program
+ * @eswitch_mode_get:    get SR-IOV eswitch mode
  */
 struct nfp_app_type {
 	enum nfp_app_id id;
@@ -95,6 +98,8 @@ struct nfp_app_type {
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
 			   struct bpf_prog *prog);
+
+	enum devlink_eswitch_mode (*eswitch_mode_get)(struct nfp_app *app);
 };
 
 /**
@@ -214,6 +219,16 @@ static inline bool nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
 static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 {
 	app->type->ctrl_msg_rx(app, skb);
+}
+
+static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
+{
+	if (!app->type->eswitch_mode_get)
+		return -EOPNOTSUPP;
+
+	*mode = app->type->eswitch_mode_get(app);
+
+	return 0;
 }
 
 const char *nfp_app_mip_name(struct nfp_app *app);
