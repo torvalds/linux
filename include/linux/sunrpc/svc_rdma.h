@@ -90,9 +90,6 @@ struct svc_rdma_op_ctxt {
 	struct page *pages[RPCSVC_MAXPAGES];
 };
 
-#define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */
-#define	SVCRDMA_DEVCAP_READ_W_INV	2	/* read w/ invalidate */
-
 struct svcxprt_rdma {
 	struct svc_xprt      sc_xprt;		/* SVC transport structure */
 	struct rdma_cm_id    *sc_cm_id;		/* RDMA connection id */
@@ -123,7 +120,6 @@ struct svcxprt_rdma {
 	struct ib_qp         *sc_qp;
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
-	u32		     sc_dev_caps;	/* distilled device caps */
 
 	spinlock_t	     sc_lock;		/* transport lock */
 
