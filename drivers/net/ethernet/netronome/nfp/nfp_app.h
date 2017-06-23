@@ -75,6 +75,8 @@ extern const struct nfp_app_type app_bpf;
  * @tc_busy:	TC HW offload busy (rules loaded)
  * @xdp_offload:    offload an XDP program
  * @eswitch_mode_get:    get SR-IOV eswitch mode
+ * @sriov_enable: app-specific sriov initialisation
+ * @sriov_disable: app-specific sriov clean-up
  * @repr_get:	get representor netdev
  */
 struct nfp_app_type {
@@ -101,6 +103,9 @@ struct nfp_app_type {
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
 			   struct bpf_prog *prog);
+
+	int (*sriov_enable)(struct nfp_app *app, int num_vfs);
+	void (*sriov_disable)(struct nfp_app *app);
 
 	enum devlink_eswitch_mode (*eswitch_mode_get)(struct nfp_app *app);
 	struct net_device *(*repr_get)(struct nfp_app *app, u32 id);
@@ -235,6 +240,19 @@ static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
 	*mode = app->type->eswitch_mode_get(app);
 
 	return 0;
+}
+
+static inline int nfp_app_sriov_enable(struct nfp_app *app, int num_vfs)
+{
+	if (!app || !app->type->sriov_enable)
+		return -EOPNOTSUPP;
+	return app->type->sriov_enable(app, num_vfs);
+}
+
+static inline void nfp_app_sriov_disable(struct nfp_app *app)
+{
+	if (app && app->type->sriov_disable)
+		app->type->sriov_disable(app);
 }
 
 static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)

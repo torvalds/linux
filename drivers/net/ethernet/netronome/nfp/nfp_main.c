@@ -54,6 +54,7 @@
 
 #include "nfpcore/nfp6000_pcie.h"
 
+#include "nfp_app.h"
 #include "nfp_main.h"
 #include "nfp_net.h"
 
@@ -97,28 +98,45 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
 	int err;
 
+	mutex_lock(&pf->lock);
+
 	if (num_vfs > pf->limit_vfs) {
 		nfp_info(pf->cpp, "Firmware limits number of VFs to %u\n",
 			 pf->limit_vfs);
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_unlock;
+	}
+
+	err = nfp_app_sriov_enable(pf->app, num_vfs);
+	if (err) {
+		dev_warn(&pdev->dev, "App specific PCI sriov configuration failed: %d\n",
+			 err);
+		goto err_unlock;
 	}
 
 	err = pci_enable_sriov(pdev, num_vfs);
 	if (err) {
 		dev_warn(&pdev->dev, "Failed to enable PCI sriov: %d\n", err);
-		return err;
+		goto err_app_sriov_disable;
 	}
 
 	pf->num_vfs = num_vfs;
 
 	dev_dbg(&pdev->dev, "Created %d VFs.\n", pf->num_vfs);
 
+	mutex_unlock(&pf->lock);
 	return num_vfs;
+
+err_app_sriov_disable:
+	nfp_app_sriov_disable(pf->app);
+err_unlock:
+	mutex_unlock(&pf->lock);
+	return err;
 #endif
 	return 0;
 }
 
-static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
+static int __nfp_pcie_sriov_disable(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PCI_IOV
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
@@ -132,12 +150,26 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 		return -EPERM;
 	}
 
+	nfp_app_sriov_disable(pf->app);
+
 	pf->num_vfs = 0;
 
 	pci_disable_sriov(pdev);
 	dev_dbg(&pdev->dev, "Removed VFs.\n");
 #endif
 	return 0;
+}
+
+static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
+{
+	struct nfp_pf *pf = pci_get_drvdata(pdev);
+	int err;
+
+	mutex_lock(&pf->lock);
+	err = __nfp_pcie_sriov_disable(pdev);
+	mutex_unlock(&pf->lock);
+
+	return err;
 }
 
 static int nfp_pcie_sriov_configure(struct pci_dev *pdev, int num_vfs)
@@ -431,10 +463,10 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 
 	devlink = priv_to_devlink(pf);
 
-	nfp_net_pci_remove(pf);
-
 	nfp_pcie_sriov_disable(pdev);
 	pci_sriov_set_totalvfs(pf->pdev, 0);
+
+	nfp_net_pci_remove(pf);
 
 	devlink_unregister(devlink);
 
