@@ -334,6 +334,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 		memset(vdev->compat, 0, sizeof(vdev->compat));
 	vdev->compat_len = clen;
 
+	vdev->port_id = ~0UL;
 	vdev->tx_irq = 0;
 	vdev->rx_irq = 0;
 
@@ -349,6 +350,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 		dev_set_name(&vdev->dev, "%s-%llu-%llu", type,
 			     *cfg_handle, *id);
 		vdev->dev_no = *cfg_handle;
+		vdev->port_id = *id;
 	}
 
 	vdev->dev.parent = parent;

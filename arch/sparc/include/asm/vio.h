@@ -330,6 +330,7 @@ struct vio_dev {
 
 	u64			dev_no;
 
+	unsigned long		port_id;
 	unsigned long		channel_id;
 
 	unsigned int		tx_irq;
