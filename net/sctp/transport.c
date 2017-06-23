@@ -406,11 +406,10 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		asoc->fast_recovery = 0;
 
 	/* The appropriate cwnd increase algorithm is performed if, and only
-	 * if the cumulative TSN whould advanced and the congestion window is
-	 * being fully utilized.
+	 * if the congestion window is being fully utilized.
+	 * Note that RFC4960 Errata 3.22 removed the other condition.
 	 */
-	if (TSN_lte(sack_ctsn, transport->asoc->ctsn_ack_point) ||
-	    (flight_size < cwnd))
+	if (flight_size < cwnd)
 		return;
 
 	ssthresh = transport->ssthresh;
@@ -446,11 +445,11 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			 flight_size, pba);
 	} else {
 		/* RFC 2960 7.2.2 Whenever cwnd is greater than ssthresh,
-		 * upon each SACK arrival that advances the Cumulative TSN Ack
-		 * Point, increase partial_bytes_acked by the total number of
-		 * bytes of all new chunks acknowledged in that SACK including
-		 * chunks acknowledged by the new Cumulative TSN Ack and by
-		 * Gap Ack Blocks.
+		 * upon each SACK arrival, increase partial_bytes_acked
+		 * by the total number of bytes of all new chunks
+		 * acknowledged in that SACK including chunks
+		 * acknowledged by the new Cumulative TSN Ack and by Gap
+		 * Ack Blocks. (updated by RFC4960 Errata 3.22)
 		 *
 		 * When partial_bytes_acked is equal to or greater than
 		 * cwnd and before the arrival of the SACK the sender
