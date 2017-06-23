@@ -64,6 +64,7 @@
 /* Interface Mode definitions */
 typedef enum {
 	PHY_INTERFACE_MODE_NA,
+	PHY_INTERFACE_MODE_INTERNAL,
 	PHY_INTERFACE_MODE_MII,
 	PHY_INTERFACE_MODE_GMII,
 	PHY_INTERFACE_MODE_SGMII,
@@ -114,6 +115,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 	switch (interface) {
 	case PHY_INTERFACE_MODE_NA:
 		return "";
+	case PHY_INTERFACE_MODE_INTERNAL:
+		return "internal";
 	case PHY_INTERFACE_MODE_MII:
 		return "mii";
 	case PHY_INTERFACE_MODE_GMII:

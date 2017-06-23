@@ -11,6 +11,7 @@ The following properties are common to the Ethernet controllers:
   the maximum frame size (there's contradiction in ePAPR).
 - phy-mode: string, operation mode of the PHY interface. This is now a de-facto
   standard property; supported values are:
+  * "internal"
   * "mii"
   * "gmii"
   * "sgmii"
