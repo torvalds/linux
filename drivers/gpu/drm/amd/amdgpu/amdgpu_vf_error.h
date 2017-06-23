@@ -18,40 +18,45 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ *
  */
 
-#ifndef __MXGPU_VI_H__
-#define __MXGPU_VI_H__
+#ifndef __VF_ERROR_H__
+#define __VF_ERROR_H__
 
-#define VI_MAILBOX_TIMEDOUT	5000
-#define VI_MAILBOX_RESET_TIME	12
+#define AMDGIM_ERROR_CODE_FLAGS_TO_MAILBOX(c,f)    (((c & 0xFFFF) << 16) | (f & 0xFFFF))
+#define AMDGIM_ERROR_CODE(t,c)       (((t&0xF)<<12)|(c&0xFFF))
 
-/* VI mailbox messages request */
-enum idh_request {
-	IDH_REQ_GPU_INIT_ACCESS	= 1,
-	IDH_REL_GPU_INIT_ACCESS,
-	IDH_REQ_GPU_FINI_ACCESS,
-	IDH_REL_GPU_FINI_ACCESS,
-	IDH_REQ_GPU_RESET_ACCESS,
+/* Please keep enum same as AMD GIM driver */
+enum AMDGIM_ERROR_VF {
+	AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL = 0,
+	AMDGIM_ERROR_VF_NO_VBIOS,
+	AMDGIM_ERROR_VF_GPU_POST_ERROR,
+	AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL,
+	AMDGIM_ERROR_VF_FENCE_INIT_FAIL,
 
-	IDH_LOG_VF_ERROR       = 200,
+	AMDGIM_ERROR_VF_AMDGPU_INIT_FAIL,
+	AMDGIM_ERROR_VF_IB_INIT_FAIL,
+	AMDGIM_ERROR_VF_AMDGPU_LATE_INIT_FAIL,
+	AMDGIM_ERROR_VF_ASIC_RESUME_FAIL,
+	AMDGIM_ERROR_VF_GPU_RESET_FAIL,
+
+	AMDGIM_ERROR_VF_TEST,
+	AMDGIM_ERROR_VF_MAX
 };
 
-/* VI mailbox messages data */
-enum idh_event {
-	IDH_CLR_MSG_BUF = 0,
-	IDH_READY_TO_ACCESS_GPU,
-	IDH_FLR_NOTIFICATION,
-	IDH_FLR_NOTIFICATION_CMPL,
-	IDH_EVENT_MAX
+enum AMDGIM_ERROR_CATEGORY {
+	AMDGIM_ERROR_CATEGORY_NON_USED = 0,
+	AMDGIM_ERROR_CATEGORY_GIM,
+	AMDGIM_ERROR_CATEGORY_PF,
+	AMDGIM_ERROR_CATEGORY_VF,
+	AMDGIM_ERROR_CATEGORY_VBIOS,
+	AMDGIM_ERROR_CATEGORY_MONITOR,
+
+	AMDGIM_ERROR_CATEGORY_MAX
 };
 
-extern const struct amdgpu_virt_ops xgpu_vi_virt_ops;
+void amdgpu_vf_error_put(uint16_t sub_error_code, uint16_t error_flags, uint64_t error_data);
+void amdgpu_vf_error_trans_all (struct amdgpu_device *adev);
 
-void xgpu_vi_init_golden_registers(struct amdgpu_device *adev);
-void xgpu_vi_mailbox_set_irq_funcs(struct amdgpu_device *adev);
-int xgpu_vi_mailbox_add_irq_id(struct amdgpu_device *adev);
-int xgpu_vi_mailbox_get_irq(struct amdgpu_device *adev);
-void xgpu_vi_mailbox_put_irq(struct amdgpu_device *adev);
-
-#endif
+#endif /* __VF_ERROR_H__ */

@@ -53,6 +53,7 @@
 #include "bif/bif_4_1_d.h"
 #include <linux/pci.h>
 #include <linux/firmware.h>
+#include "amdgpu_vf_error.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
@@ -2134,6 +2135,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_atombios_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
+		amdgpu_vf_error_put(AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
 		goto failed;
 	}
 
@@ -2144,6 +2146,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (amdgpu_vpost_needed(adev)) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "no vBIOS found\n");
+			amdgpu_vf_error_put(AMDGIM_ERROR_VF_NO_VBIOS, 0, 0);
 			r = -EINVAL;
 			goto failed;
 		}
@@ -2151,6 +2154,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
 		if (r) {
 			dev_err(adev->dev, "gpu post error!\n");
+			amdgpu_vf_error_put(AMDGIM_ERROR_VF_GPU_POST_ERROR, 0, 0);
 			goto failed;
 		}
 	} else {
@@ -2162,7 +2166,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		r = amdgpu_atombios_get_clock_info(adev);
 		if (r) {
 			dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
-			return r;
+			amdgpu_vf_error_put(AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
+			goto failed;
 		}
 		/* init i2c buses */
 		amdgpu_atombios_i2c_init(adev);
@@ -2172,6 +2177,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_fence_driver_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_fence_driver_init failed\n");
+		amdgpu_vf_error_put(AMDGIM_ERROR_VF_FENCE_INIT_FAIL, 0, 0);
 		goto failed;
 	}
 
@@ -2181,6 +2187,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_init failed\n");
+		amdgpu_vf_error_put(AMDGIM_ERROR_VF_AMDGPU_INIT_FAIL, 0, 0);
 		amdgpu_fini(adev);
 		goto failed;
 	}
@@ -2200,6 +2207,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_ib_pool_init(adev);
 	if (r) {
 		dev_err(adev->dev, "IB initialization failed (%d).\n", r);
+		amdgpu_vf_error_put(AMDGIM_ERROR_VF_IB_INIT_FAIL, 0, r);
 		goto failed;
 	}
 
@@ -2244,12 +2252,14 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_late_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_late_init failed\n");
+		amdgpu_vf_error_put(AMDGIM_ERROR_VF_AMDGPU_LATE_INIT_FAIL, 0, r);
 		goto failed;
 	}
 
 	return 0;
 
 failed:
+	amdgpu_vf_error_trans_all(adev);
 	if (runtime)
 		vga_switcheroo_fini_domain_pm_ops(adev->dev);
 	return r;
@@ -2937,6 +2947,7 @@ out:
 		}
 	} else {
 		dev_err(adev->dev, "asic resume failed (%d).\n", r);
+		amdgpu_vf_error_put(AMDGIM_ERROR_VF_ASIC_RESUME_FAIL, 0, r);
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			if (adev->rings[i] && adev->rings[i]->sched.thread) {
 				kthread_unpark(adev->rings[i]->sched.thread);
@@ -2947,12 +2958,16 @@ out:
 	drm_helper_resume_force_mode(adev->ddev);
 
 	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
-	if (r)
+	if (r) {
 		/* bad news, how to tell it to userspace ? */
 		dev_info(adev->dev, "GPU reset failed\n");
-	else
+		amdgpu_vf_error_put(AMDGIM_ERROR_VF_GPU_RESET_FAIL, 0, r);
+	}
+	else {
 		dev_info(adev->dev, "GPU reset successed!\n");
+	}
 
+	amdgpu_vf_error_trans_all(adev);
 	return r;
 }
 
