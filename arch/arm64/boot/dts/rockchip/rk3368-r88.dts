@@ -114,6 +114,47 @@
 		clock-output-names = "clkin_gmac";
 		#clock-cells = <0>;
 	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk808 1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio3 4 GPIO_ACTIVE_LOW>;
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "rtl8189es";
+		sdio_vref = <1800>;
+		WIFI,host_wake_irq = <&gpio3 6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clocks = <&rk808 1>;
+		clock-names = "ext_clock";
+		/* wifi-bt-power-toggle; */
+		uart_rts_gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_gpios>;
+		/* BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; */
+		BT,reset_gpio    = <&gpio3 5 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio3 2 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 7 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &emmc {
@@ -448,13 +489,15 @@
 		};
 	};
 
-	sdio {
-		wifi_reg_on: wifi-reg-on {
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <3 4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+	};
 
-		bt_rst: bt-rst {
-			rockchip,pins = <3 5 RK_FUNC_GPIO &pcfg_pull_none>;
+	wireless-bluetooth {
+		uart0_gpios: uart0-gpios {
+			rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
