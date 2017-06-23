@@ -53,7 +53,7 @@
 
 #define I2C_TIMEOUT			msecs_to_jiffies(1000)
 
-#define DEV(i2c)			(&i2c->adap.dev)
+#define DEV(i2c)			((i2c)->adap.dev.parent)
 
 struct zx2967_i2c {
 	struct i2c_adapter	adap;
