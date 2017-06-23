@@ -944,9 +944,14 @@ bool dc_commit_streams(
 			dc_enable_stereo(dc, context, streams, stream_count);
 		}
 
-		CONN_MSG_MODE(sink->link, "{%dx%d, %dx%d@%dKhz}",
+		CONN_MSG_MODE(sink->link, "{%ux%u, %ux%u@%u, %ux%u@%uKhz}",
+				context->streams[i]->public.src.width,
+				context->streams[i]->public.src.height,
 				context->streams[i]->public.timing.h_addressable,
 				context->streams[i]->public.timing.v_addressable,
+				context->streams[i]->public.timing.pix_clk_khz * 1000 /
+					context->streams[i]->public.timing.h_total /
+					context->streams[i]->public.timing.v_total, // Refresh rate
 				context->streams[i]->public.timing.h_total,
 				context->streams[i]->public.timing.v_total,
 				context->streams[i]->public.timing.pix_clk_khz);

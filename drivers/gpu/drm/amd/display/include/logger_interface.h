@@ -70,6 +70,11 @@ void dc_conn_log(struct dc_context *ctx,
 		const char *msg,
 		...);
 
+void dc_raw_log(struct dc_context *ctx,
+		enum dc_log_type event,
+		const char *msg,
+		...);
+
 void logger_write(struct dal_logger *logger,
 		enum dc_log_type log_type,
 		const char *msg,

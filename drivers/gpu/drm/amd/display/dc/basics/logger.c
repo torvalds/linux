@@ -59,7 +59,8 @@ static const struct dc_log_type_info log_type_info_tbl[] = {
 		{LOG_EVENT_LINK_TRAINING,   "LKTN"},
 		{LOG_EVENT_LINK_LOSS,       "LinkLoss"},
 		{LOG_EVENT_UNDERFLOW,       "Underflow"},
-		{LOG_IF_TRACE,				"InterfaceTrace"}
+		{LOG_IF_TRACE,              "InterfaceTrace"},
+		{LOG_DTN,                   "DTN"}
 };
 
 
@@ -84,7 +85,8 @@ static const struct dc_log_type_info log_type_info_tbl[] = {
 		(1 << LOG_DETECTION_DP_CAPS) | \
 		(1 << LOG_BACKLIGHT)) | \
 		(1 << LOG_I2C_AUX) | \
-		(1 << LOG_IF_TRACE) /* | \
+		(1 << LOG_IF_TRACE) | \
+		(1 << LOG_DTN) /* | \
 		(1 << LOG_DEBUG) | \
 		(1 << LOG_BIOS) | \
 		(1 << LOG_SURFACE) | \
