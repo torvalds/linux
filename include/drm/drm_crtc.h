@@ -189,6 +189,9 @@ struct drm_hdmi_info {
 
 	/* Colorimerty info from EDID */
 	u32 colorimetry;
+
+	/* HDR metdata */
+	struct hdr_static_metadata hdr_panel_metadata;
 };
 
 #define DRM_COLOR_FORMAT_RGB444		(1<<0)
@@ -990,9 +993,6 @@ struct drm_connector {
 	uint8_t tile_h_loc, tile_v_loc;
 	uint16_t tile_h_size, tile_v_size;
 
-	/* HDR metdata */
-	struct hdr_static_metadata *hdr_panel_metadata;
-	struct hdr_static_metadata *hdr_source_metadata;
 };
 
 /**
