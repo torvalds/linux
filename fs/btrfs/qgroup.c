@@ -2405,7 +2405,7 @@ retry:
 				ret = btrfs_start_delalloc_inodes(root, 0);
 				if (ret)
 					return ret;
-				btrfs_wait_ordered_extents(root, -1, 0, (u64)-1);
+				btrfs_wait_ordered_extents(root, U64_MAX, 0, (u64)-1);
 				trans = btrfs_join_transaction(root);
 				if (IS_ERR(trans))
 					return PTR_ERR(trans);

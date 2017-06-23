@@ -4288,7 +4288,7 @@ commit_trans:
 
 			if (need_commit > 0) {
 				btrfs_start_delalloc_roots(fs_info, 0, -1);
-				btrfs_wait_ordered_roots(fs_info, -1, 0,
+				btrfs_wait_ordered_roots(fs_info, U64_MAX, 0,
 							 (u64)-1);
 			}
 
@@ -4748,14 +4748,14 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_fs_info *fs_info,
 	}
 }
 
-static inline int calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
+static inline u64 calc_reclaim_items_nr(struct btrfs_fs_info *fs_info,
 					u64 to_reclaim)
 {
 	u64 bytes;
-	int nr;
+	u64 nr;
 
 	bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
-	nr = (int)div64_u64(to_reclaim, bytes);
+	nr = div64_u64(to_reclaim, bytes);
 	if (!nr)
 		nr = 1;
 	return nr;
@@ -4774,15 +4774,15 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info, u64 to_reclaim,
 	struct btrfs_trans_handle *trans;
 	u64 delalloc_bytes;
 	u64 max_reclaim;
+	u64 items;
 	long time_left;
 	unsigned long nr_pages;
 	int loops;
-	int items;
 	enum btrfs_reserve_flush_enum flush;
 
 	/* Calc the number of the pages we need flush for space reservation */
 	items = calc_reclaim_items_nr(fs_info, to_reclaim);
-	to_reclaim = (u64)items * EXTENT_SIZE_PER_ITEM;
+	to_reclaim = items * EXTENT_SIZE_PER_ITEM;
 
 	trans = (struct btrfs_trans_handle *)current->journal_info;
 	block_rsv = &fs_info->delalloc_block_rsv;

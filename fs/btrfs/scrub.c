@@ -3836,7 +3836,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			 */
 			btrfs_wait_block_group_reservations(cache);
 			btrfs_wait_nocow_writers(cache);
-			ret = btrfs_wait_ordered_roots(fs_info, -1,
+			ret = btrfs_wait_ordered_roots(fs_info, U64_MAX,
 						       cache->key.objectid,
 						       cache->key.offset);
 			if (ret > 0) {
