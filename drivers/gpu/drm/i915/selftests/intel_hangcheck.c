@@ -597,12 +597,12 @@ static int igt_render_engine_reset_fallback(void *arg)
 
 	err = hang_init(&h, i915);
 	if (err)
-		goto unlock;
+		goto err_unlock;
 
 	rq = hang_create_request(&h, engine, i915->kernel_context);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
-		goto fini;
+		goto err_fini;
 	}
 
 	i915_gem_request_get(rq);
@@ -614,7 +614,7 @@ static int igt_render_engine_reset_fallback(void *arg)
 	if (!wait_for_hang(&h, rq)) {
 		pr_err("Failed to start request %x\n", rq->fence.seqno);
 		err = -EIO;
-		goto out_rq;
+		goto err_request;
 	}
 
 	reset_engine_count = i915_reset_engine_count(&i915->gpu_error, engine);
@@ -646,13 +646,14 @@ static int igt_render_engine_reset_fallback(void *arg)
 	 */
 	if (i915_terminally_wedged(&i915->gpu_error)) {
 		set_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
-		mutex_lock(&i915->drm.struct_mutex);
 		rq->fence.error = 0;
 
+		mutex_lock(&i915->drm.struct_mutex);
 		set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
 		i915_reset(i915);
 		GEM_BUG_ON(test_bit(I915_RESET_HANDOFF,
 				    &i915->gpu_error.flags));
+		mutex_unlock(&i915->drm.struct_mutex);
 
 		if (i915_reset_count(&i915->gpu_error) == reset_count) {
 			pr_err("No full GPU reset recorded!\n");
@@ -663,10 +664,8 @@ static int igt_render_engine_reset_fallback(void *arg)
 
 out_rq:
 	i915_gem_request_put(rq);
-fini:
 	hang_fini(&h);
-unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
+out_backoff:
 	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
 	wake_up_all(&i915->gpu_error.reset_queue);
 
@@ -674,6 +673,14 @@ unlock:
 		return -EIO;
 
 	return err;
+
+err_request:
+	i915_gem_request_put(rq);
+err_fini:
+	hang_fini(&h);
+err_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	goto out_backoff;
 }
 
 int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
