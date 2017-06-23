@@ -443,7 +443,7 @@ static const struct dc_debug debug_defaults_drv = {
 		.disable_pplib_wm_range = false,
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		.use_dml_wm = false,
-		.disable_pipe_split = false
+		.disable_pipe_split = true
 #endif
 };
 
