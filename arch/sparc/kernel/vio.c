@@ -181,6 +181,24 @@ static struct device_node *cdev_node;
 static struct vio_dev *root_vdev;
 static u64 cdev_cfg_handle;
 
+static const u64 *vio_cfg_handle(struct mdesc_handle *hp, u64 node)
+{
+	const u64 *cfg_handle = NULL;
+	u64 a;
+
+	mdesc_for_each_arc(a, hp, node, MDESC_ARC_TYPE_BACK) {
+		u64 target;
+
+		target = mdesc_arc_target(hp, a);
+		cfg_handle = mdesc_get_property(hp, target,
+						"cfg-handle", NULL);
+		if (cfg_handle)
+			break;
+	}
+
+	return cfg_handle;
+}
+
 static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 				  struct vio_dev *vdev)
 {
@@ -227,7 +245,6 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	struct vio_dev *vdev;
 	int err, tlen, clen;
 	const u64 *id, *cfg_handle;
-	u64 a;
 
 	type = mdesc_get_property(hp, mp, "device-type", &tlen);
 	if (!type) {
@@ -245,16 +262,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	id = mdesc_get_property(hp, mp, "id", NULL);
 
-	cfg_handle = NULL;
-	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_BACK) {
-		u64 target;
-
-		target = mdesc_arc_target(hp, a);
-		cfg_handle = mdesc_get_property(hp, target,
-						"cfg-handle", NULL);
-		if (cfg_handle)
-			break;
-	}
+	cfg_handle = vio_cfg_handle(hp, mp);
 
 	bus_id_name = type;
 	if (!strcmp(type, "domain-services-port"))
