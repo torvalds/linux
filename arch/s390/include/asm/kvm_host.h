@@ -228,6 +228,7 @@ struct kvm_s390_sie_block {
 	__u8    epdx;			/* 0x0069 */
 	__u8    reserved6a[2];		/* 0x006a */
 	__u32	todpr;			/* 0x006c */
+#define GISA_FORMAT1 0x00000001
 	__u32	gd;			/* 0x0070 */
 	__u8	reserved74[12];		/* 0x0074 */
 	__u64	mso;			/* 0x0080 */
@@ -719,15 +720,38 @@ struct kvm_s390_crypto_cb {
 };
 
 struct kvm_s390_gisa {
-	u32 next_alert;
-	u8 ipm;
-	u8 reserved01;
-	u8 : 6;
-	u8 g : 1;
-	u8 c : 1;
-	u8 iam;
-	u8 reserved02[4];
-	u32 airq_count;
+	union {
+		struct { /* common to all formats */
+			u32 next_alert;
+			u8  ipm;
+			u8  reserved01[2];
+			u8  iam;
+		};
+		struct { /* format 0 */
+			u32 next_alert;
+			u8  ipm;
+			u8  reserved01;
+			u8  : 6;
+			u8  g : 1;
+			u8  c : 1;
+			u8  iam;
+			u8  reserved02[4];
+			u32 airq_count;
+		} g0;
+		struct { /* format 1 */
+			u32 next_alert;
+			u8  ipm;
+			u8  simm;
+			u8  nimm;
+			u8  iam;
+			u8  aism[8];
+			u8  : 6;
+			u8  g : 1;
+			u8  c : 1;
+			u8  reserved03[11];
+			u32 airq_count;
+		} g1;
+	};
 };
 
 /*
@@ -738,7 +762,7 @@ struct sie_page2 {
 	__u64 fac_list[S390_ARCH_FAC_LIST_SIZE_U64];	/* 0x0000 */
 	struct kvm_s390_crypto_cb crycb;		/* 0x0800 */
 	struct kvm_s390_gisa gisa;			/* 0x0900 */
-	u8 reserved910[0x1000 - 0x910];			/* 0x0910 */
+	u8 reserved920[0x1000 - 0x920];			/* 0x0920 */
 };
 
 struct kvm_s390_vsie {
