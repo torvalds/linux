@@ -167,10 +167,11 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	clk = of_clk_get(node, 0);
 	if (!IS_ERR(clk)) {
-		if (clk_prepare_enable(clk) < 0) {
+		ret = clk_prepare_enable(clk);
+		if (ret < 0) {
 			pr_err("GIC failed to enable clock\n");
 			clk_put(clk);
-			return PTR_ERR(clk);
+			return ret;
 		}
 
 		gic_frequency = clk_get_rate(clk);
