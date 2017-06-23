@@ -1683,11 +1683,22 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->params.h264_deblk_enabled = (ctrl->val ==
 				V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED);
 		break;
+	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
+		/* TODO: switch between baseline and constrained baseline */
+		ctx->params.h264_profile_idc = 66;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
+		/* nothing to do, this is set by the encoder */
+		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP:
 		ctx->params.mpeg4_intra_qp = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP:
 		ctx->params.mpeg4_inter_qp = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
+	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
+		/* nothing to do, these are fixed */
 		break;
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:
 		ctx->params.slice_mode = ctrl->val;
@@ -1756,10 +1767,46 @@ static void coda_encode_ctrls(struct coda_ctx *ctx)
 		V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE,
 		V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED, 0x0,
 		V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED);
+	v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+		V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE, 0x0,
+		V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
+	if (ctx->dev->devtype->product == CODA_7541) {
+		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+			V4L2_MPEG_VIDEO_H264_LEVEL_3_1,
+			~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1)),
+			V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
+	}
+	if (ctx->dev->devtype->product == CODA_960) {
+		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+			V4L2_MPEG_VIDEO_H264_LEVEL_4_0,
+			~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_0)),
+			V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
+	}
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP, 1, 31, 1, 2);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP, 1, 31, 1, 2);
+	v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE,
+		V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE, 0x0,
+		V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE);
+	if (ctx->dev->devtype->product == CODA_7541 ||
+	    ctx->dev->devtype->product == CODA_960) {
+		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL,
+			V4L2_MPEG_VIDEO_MPEG4_LEVEL_5,
+			~(1 << V4L2_MPEG_VIDEO_MPEG4_LEVEL_5),
+			V4L2_MPEG_VIDEO_MPEG4_LEVEL_5);
+	}
 	v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE,
 		V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES, 0x0,
