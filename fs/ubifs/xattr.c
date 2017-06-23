@@ -280,7 +280,7 @@ static struct inode *iget_xattr(struct ubifs_info *c, ino_t inum)
 }
 
 int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
-		    size_t size, int flags)
+		    size_t size, int flags, bool check_lock)
 {
 	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
@@ -289,12 +289,7 @@ int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
 	union ubifs_key key;
 	int err;
 
-	/*
-	 * Creating an encryption context is done unlocked since we
-	 * operate on a new inode which is not visible to other users
-	 * at this point.
-	 */
-	if (strcmp(name, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT) != 0)
+	if (check_lock)
 		ubifs_assert(inode_is_locked(host));
 
 	if (size > UBIFS_MAX_INO_DATA)
@@ -598,8 +593,12 @@ static int init_xattrs(struct inode *inode, const struct xattr *xattr_array,
 		}
 		strcpy(name, XATTR_SECURITY_PREFIX);
 		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
+		/*
+		 * creating a new inode without holding the inode rwsem,
+		 * no need to check whether inode is locked.
+		 */
 		err = ubifs_xattr_set(inode, name, xattr->value,
-				      xattr->value_len, 0);
+				      xattr->value_len, 0, false);
 		kfree(name);
 		if (err < 0)
 			break;
@@ -646,7 +645,7 @@ static int xattr_set(const struct xattr_handler *handler,
 	name = xattr_full_name(handler, name);
 
 	if (value)
-		return ubifs_xattr_set(inode, name, value, size, flags);
+		return ubifs_xattr_set(inode, name, value, size, flags, true);
 	else
 		return ubifs_xattr_remove(inode, name);
 }

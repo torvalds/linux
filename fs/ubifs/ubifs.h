@@ -1755,7 +1755,7 @@ int ubifs_check_dir_empty(struct inode *dir);
 extern const struct xattr_handler *ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
-		    size_t size, int flags);
+		    size_t size, int flags, bool check_lock);
 ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 			size_t size);
 void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum);
