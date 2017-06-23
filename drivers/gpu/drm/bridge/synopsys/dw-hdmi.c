@@ -2188,6 +2188,7 @@ static const struct dw_hdmi_phy_data dw_hdmi_phys[] = {
 		.name = "DWC HDMI 2.0 TX PHY",
 		.gen = 2,
 		.has_svsret = true,
+		.configure = hdmi_phy_configure_dwc_hdmi_3d_tx,
 	}, {
 		.type = DW_HDMI_PHY_VENDOR_PHY,
 		.name = "Vendor PHY",
