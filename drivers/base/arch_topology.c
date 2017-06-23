@@ -174,26 +174,29 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 	if (cap_parsing_failed || cap_parsing_done)
 		return 0;
 
-	switch (val) {
-	case CPUFREQ_NOTIFY:
-		pr_debug("cpu_capacity: init cpu capacity for CPUs [%*pbl] (to_visit=%*pbl)\n",
-				cpumask_pr_args(policy->related_cpus),
-				cpumask_pr_args(cpus_to_visit));
-		cpumask_andnot(cpus_to_visit, cpus_to_visit,
-			       policy->related_cpus);
-		for_each_cpu(cpu, policy->related_cpus) {
-			raw_capacity[cpu] = topology_get_cpu_scale(NULL, cpu) *
-					    policy->cpuinfo.max_freq / 1000UL;
-			capacity_scale = max(raw_capacity[cpu], capacity_scale);
-		}
-		if (cpumask_empty(cpus_to_visit)) {
-			topology_normalize_cpu_scale();
-			kfree(raw_capacity);
-			pr_debug("cpu_capacity: parsing done\n");
-			cap_parsing_done = true;
-			schedule_work(&parsing_done_work);
-		}
+	if (val != CPUFREQ_NOTIFY)
+		return 0;
+
+	pr_debug("cpu_capacity: init cpu capacity for CPUs [%*pbl] (to_visit=%*pbl)\n",
+		 cpumask_pr_args(policy->related_cpus),
+		 cpumask_pr_args(cpus_to_visit));
+
+	cpumask_andnot(cpus_to_visit, cpus_to_visit, policy->related_cpus);
+
+	for_each_cpu(cpu, policy->related_cpus) {
+		raw_capacity[cpu] = topology_get_cpu_scale(NULL, cpu) *
+				    policy->cpuinfo.max_freq / 1000UL;
+		capacity_scale = max(raw_capacity[cpu], capacity_scale);
 	}
+
+	if (cpumask_empty(cpus_to_visit)) {
+		topology_normalize_cpu_scale();
+		kfree(raw_capacity);
+		pr_debug("cpu_capacity: parsing done\n");
+		cap_parsing_done = true;
+		schedule_work(&parsing_done_work);
+	}
+
 	return 0;
 }
 
