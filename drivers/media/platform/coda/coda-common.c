@@ -714,9 +714,10 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 		ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 		break;
 	case V4L2_PIX_FMT_NV12:
-		ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
-		if (!disable_tiling)
+		if (!disable_tiling) {
+			ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 			break;
+		}
 		/* else fall through */
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
