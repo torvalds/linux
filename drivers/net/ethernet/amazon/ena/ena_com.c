@@ -494,7 +494,7 @@ static int ena_com_comp_status_to_errno(u8 comp_status)
 	case ENA_ADMIN_RESOURCE_ALLOCATION_FAILURE:
 		return -ENOMEM;
 	case ENA_ADMIN_UNSUPPORTED_OPCODE:
-		return -EPERM;
+		return -EOPNOTSUPP;
 	case ENA_ADMIN_BAD_OPCODE:
 	case ENA_ADMIN_MALFORMED_REQUEST:
 	case ENA_ADMIN_ILLEGAL_PARAMETER:
@@ -786,7 +786,7 @@ static int ena_com_get_feature_ex(struct ena_com_dev *ena_dev,
 
 	if (!ena_com_check_supported_feature_id(ena_dev, feature_id)) {
 		pr_debug("Feature %d isn't supported\n", feature_id);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	memset(&get_cmd, 0x0, sizeof(get_cmd));
@@ -1324,7 +1324,7 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 	if ((get_resp.u.aenq.supported_groups & groups_flag) != groups_flag) {
 		pr_warn("Trying to set unsupported aenq events. supported flag: %x asked flag: %x\n",
 			get_resp.u.aenq.supported_groups, groups_flag);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -1909,7 +1909,7 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 
 	if (!ena_com_check_supported_feature_id(ena_dev, ENA_ADMIN_MTU)) {
 		pr_debug("Feature %d isn't supported\n", ENA_ADMIN_MTU);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -1963,7 +1963,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 						ENA_ADMIN_RSS_HASH_FUNCTION)) {
 		pr_debug("Feature %d isn't supported\n",
 			 ENA_ADMIN_RSS_HASH_FUNCTION);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	/* Validate hash function is supported */
@@ -1975,7 +1975,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 	if (get_resp.u.flow_hash_func.supported_func & (1 << rss->hash_func)) {
 		pr_err("Func hash %d isn't supported by device, abort\n",
 		       rss->hash_func);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -2034,7 +2034,7 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 
 	if (!((1 << func) & get_resp.u.flow_hash_func.supported_func)) {
 		pr_err("Flow hash function %d isn't supported\n", func);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	switch (func) {
@@ -2127,7 +2127,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev)
 						ENA_ADMIN_RSS_HASH_INPUT)) {
 		pr_debug("Feature %d isn't supported\n",
 			 ENA_ADMIN_RSS_HASH_INPUT);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -2208,7 +2208,7 @@ int ena_com_set_default_hash_ctrl(struct ena_com_dev *ena_dev)
 			pr_err("hash control doesn't support all the desire configuration. proto %x supported %x selected %x\n",
 			       i, hash_ctrl->supported_fields[i].fields,
 			       hash_ctrl->selected_fields[i].fields);
-			return -EPERM;
+			return -EOPNOTSUPP;
 		}
 	}
 
@@ -2286,7 +2286,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 		    ena_dev, ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG)) {
 		pr_debug("Feature %d isn't supported\n",
 			 ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG);
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	ret = ena_com_ind_tbl_convert_to_device(ena_dev);
@@ -2553,7 +2553,7 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 				 ENA_ADMIN_INTERRUPT_MODERATION);
 
 	if (rc) {
-		if (rc == -EPERM) {
+		if (rc == -EOPNOTSUPP) {
 			pr_debug("Feature %d isn't supported\n",
 				 ENA_ADMIN_INTERRUPT_MODERATION);
 			rc = 0;

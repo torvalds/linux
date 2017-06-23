@@ -1446,7 +1446,7 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 	/* In case the RSS table wasn't initialized by probe */
 	if (!ena_dev->rss.tbl_log_size) {
 		rc = ena_rss_init_default(adapter);
-		if (rc && (rc != -EPERM)) {
+		if (rc && (rc != -EOPNOTSUPP)) {
 			netif_err(adapter, ifup, adapter->netdev,
 				  "Failed to init RSS rc: %d\n", rc);
 			return rc;
@@ -1455,17 +1455,17 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 
 	/* Set indirect table */
 	rc = ena_com_indirect_table_set(ena_dev);
-	if (unlikely(rc && rc != -EPERM))
+	if (unlikely(rc && rc != -EOPNOTSUPP))
 		return rc;
 
 	/* Configure hash function (if supported) */
 	rc = ena_com_set_hash_function(ena_dev);
-	if (unlikely(rc && (rc != -EPERM)))
+	if (unlikely(rc && (rc != -EOPNOTSUPP)))
 		return rc;
 
 	/* Configure hash inputs (if supported) */
 	rc = ena_com_set_hash_ctrl(ena_dev);
-	if (unlikely(rc && (rc != -EPERM)))
+	if (unlikely(rc && (rc != -EOPNOTSUPP)))
 		return rc;
 
 	return 0;
@@ -2144,7 +2144,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev)
 
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (rc) {
-		if (rc == -EPERM)
+		if (rc == -EOPNOTSUPP)
 			pr_warn("Cannot set host attributes\n");
 		else
 			pr_err("Cannot set host attributes\n");
@@ -2181,7 +2181,7 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 
 	rc = ena_com_set_host_attributes(adapter->ena_dev);
 	if (rc) {
-		if (rc == -EPERM)
+		if (rc == -EOPNOTSUPP)
 			netif_warn(adapter, drv, adapter->netdev,
 				   "Cannot set host attributes\n");
 		else
@@ -2886,7 +2886,7 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 		val = ethtool_rxfh_indir_default(i, adapter->num_queues);
 		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
 						       ENA_IO_RXQ_IDX(val));
-		if (unlikely(rc && (rc != -EPERM))) {
+		if (unlikely(rc && (rc != -EOPNOTSUPP))) {
 			dev_err(dev, "Cannot fill indirect table\n");
 			goto err_fill_indir;
 		}
@@ -2894,13 +2894,13 @@ static int ena_rss_init_default(struct ena_adapter *adapter)
 
 	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
 					ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
-	if (unlikely(rc && (rc != -EPERM))) {
+	if (unlikely(rc && (rc != -EOPNOTSUPP))) {
 		dev_err(dev, "Cannot fill hash function\n");
 		goto err_fill_indir;
 	}
 
 	rc = ena_com_set_default_hash_ctrl(ena_dev);
-	if (unlikely(rc && (rc != -EPERM))) {
+	if (unlikely(rc && (rc != -EOPNOTSUPP))) {
 		dev_err(dev, "Cannot fill hash control\n");
 		goto err_fill_indir;
 	}
@@ -3114,7 +3114,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_worker_destroy;
 	}
 	rc = ena_rss_init_default(adapter);
-	if (rc && (rc != -EPERM)) {
+	if (rc && (rc != -EOPNOTSUPP)) {
 		dev_err(&pdev->dev, "Cannot init RSS rc: %d\n", rc);
 		goto err_free_msix;
 	}
