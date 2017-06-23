@@ -118,7 +118,6 @@ defkeymap.c
 devlist.h*
 devicetable-offsets.h
 dnotify_test
-docproc
 dslm
 dtc
 elf2ecoff
