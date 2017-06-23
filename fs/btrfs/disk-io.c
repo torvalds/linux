@@ -220,7 +220,7 @@ void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb,
  * extents on the btree inode are pretty simple, there's one extent
  * that covers the entire device
  */
-static struct extent_map *btree_get_extent(struct btrfs_inode *inode,
+struct extent_map *btree_get_extent(struct btrfs_inode *inode,
 		struct page *page, size_t pg_offset, u64 start, u64 len,
 		int create)
 {
@@ -455,7 +455,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_fs_info *fs_info,
 	io_tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	while (1) {
 		ret = read_extent_buffer_pages(io_tree, eb, WAIT_COMPLETE,
-					       btree_get_extent, mirror_num);
+					       mirror_num);
 		if (!ret) {
 			if (!verify_parent_transid(io_tree, eb,
 						   parent_transid, 0))
@@ -1012,7 +1012,7 @@ void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr)
 	if (IS_ERR(buf))
 		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
-				 buf, WAIT_NONE, btree_get_extent, 0);
+				 buf, WAIT_NONE, 0);
 	free_extent_buffer(buf);
 }
 
@@ -1031,7 +1031,7 @@ int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
 	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
 
 	ret = read_extent_buffer_pages(io_tree, buf, WAIT_PAGE_LOCK,
-				       btree_get_extent, mirror_num);
+				       mirror_num);
 	if (ret) {
 		free_extent_buffer(buf);
 		return ret;

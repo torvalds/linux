@@ -21,6 +21,7 @@
 #include "locking.h"
 #include "rcu-string.h"
 #include "backref.h"
+#include "disk-io.h"
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
@@ -5248,8 +5249,7 @@ int extent_buffer_uptodate(struct extent_buffer *eb)
 }
 
 int read_extent_buffer_pages(struct extent_io_tree *tree,
-			     struct extent_buffer *eb, int wait,
-			     get_extent_t *get_extent, int mirror_num)
+			     struct extent_buffer *eb, int wait, int mirror_num)
 {
 	unsigned long i;
 	struct page *page;
@@ -5309,7 +5309,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 
 			ClearPageError(page);
 			err = __extent_read_full_page(tree, page,
-						      get_extent, &bio,
+						      btree_get_extent, &bio,
 						      mirror_num, &bio_flags,
 						      REQ_META);
 			if (err) {
