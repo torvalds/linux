@@ -574,6 +574,7 @@ u64 mdesc_get_node(struct mdesc_handle *hp, const char *node_name,
 
 	return hp_node;
 }
+EXPORT_SYMBOL(mdesc_get_node);
 
 int mdesc_get_node_info(struct mdesc_handle *hp, u64 node,
 			const char *node_name, union md_node_info *node_info)
@@ -603,6 +604,7 @@ int mdesc_get_node_info(struct mdesc_handle *hp, u64 node,
 
 	return 0;
 }
+EXPORT_SYMBOL(mdesc_get_node_info);
 
 static struct mdesc_elem *node_block(struct mdesc_hdr *mdesc)
 {

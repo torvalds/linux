@@ -329,7 +329,6 @@ struct vio_dev {
 	int			compat_len;
 
 	u64			dev_no;
-	u64			id;
 
 	unsigned long		channel_id;
 
@@ -340,6 +339,9 @@ struct vio_dev {
 
 	/* Handle to the root of "channel-devices" sub-tree in MDESC */
 	u64			cdev_handle;
+
+	/* MD specific data used to identify the vdev in MD */
+	union md_node_info	md_node_info;
 
 	struct device		dev;
 };
@@ -497,5 +499,6 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 
 void vio_port_up(struct vio_driver_state *vio);
 int vio_set_intr(unsigned long dev_ino, int state);
+u64 vio_vdev_node(struct mdesc_handle *hp, struct vio_dev *vdev);
 
 #endif /* _SPARC64_VIO_H */
