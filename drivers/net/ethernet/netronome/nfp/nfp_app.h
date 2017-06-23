@@ -268,7 +268,8 @@ nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 		  struct nfp_reprs *reprs);
 
 const char *nfp_app_mip_name(struct nfp_app *app);
-struct sk_buff *nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size);
+struct sk_buff *
+nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size, gfp_t priority);
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id);
 void nfp_app_free(struct nfp_app *app);

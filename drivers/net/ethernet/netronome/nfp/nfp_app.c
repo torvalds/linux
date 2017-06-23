@@ -52,14 +52,15 @@ const char *nfp_app_mip_name(struct nfp_app *app)
 	return nfp_mip_name(app->pf->mip);
 }
 
-struct sk_buff *nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size)
+struct sk_buff *
+nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size, gfp_t priority)
 {
 	struct sk_buff *skb;
 
 	if (nfp_app_ctrl_has_meta(app))
 		size += 8;
 
-	skb = alloc_skb(size, GFP_ATOMIC);
+	skb = alloc_skb(size, priority);
 	if (!skb)
 		return NULL;
 
