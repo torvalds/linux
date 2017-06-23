@@ -205,12 +205,10 @@ static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
 	handle_size = (sizeof(struct mdesc_handle) -
 		       sizeof(struct mdesc_hdr) +
 		       mdesc_size);
+	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_REPEAT);
+	if (!base)
+		return NULL;
 
-	/*
-	 * Allocation has to succeed because mdesc update would be missed
-	 * and such events are not retransmitted.
-	 */
-	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_NOFAIL);
 	addr = (unsigned long)base;
 	addr = (addr + 15UL) & ~15UL;
 	hp = (struct mdesc_handle *) addr;
