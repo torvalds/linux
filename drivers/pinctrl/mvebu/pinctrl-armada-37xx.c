@@ -170,8 +170,8 @@ static struct armada_37xx_pin_group armada_37xx_nb_groups[] = {
 static struct armada_37xx_pin_group armada_37xx_sb_groups[] = {
 	PIN_GRP_GPIO("usb32_drvvbus0", 0, 1, BIT(0), "drvbus"),
 	PIN_GRP_GPIO("usb2_drvvbus1", 1, 1, BIT(1), "drvbus"),
-	PIN_GRP_GPIO("sdio_sb", 24, 5, BIT(2), "sdio"),
-	PIN_GRP_EXTRA("rgmii", 6, 14, BIT(3), 0, BIT(3), 23, 1, "mii", "gpio"),
+	PIN_GRP_GPIO("sdio_sb", 24, 6, BIT(2), "sdio"),
+	PIN_GRP_EXTRA("rgmii", 6, 12, BIT(3), 0, BIT(3), 23, 1, "mii", "gpio"),
 	PIN_GRP_GPIO("pcie1", 3, 2, BIT(4), "pcie"),
 	PIN_GRP_GPIO("ptp", 20, 3, BIT(5), "ptp"),
 	PIN_GRP("ptp_clk", 21, 1, BIT(6), "ptp", "mii"),
