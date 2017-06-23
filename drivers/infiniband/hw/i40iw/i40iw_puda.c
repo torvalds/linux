@@ -408,6 +408,9 @@ enum i40iw_status_code i40iw_puda_send(struct i40iw_sc_qp *qp,
 	set_64bit_val(wqe, 0, info->paddr);
 	set_64bit_val(wqe, 8, LS_64(info->len, I40IWQPSQ_FRAG_LEN));
 	set_64bit_val(wqe, 16, header[0]);
+
+	/* Ensure all data is written before writing valid bit */
+	wmb();
 	set_64bit_val(wqe, 24, header[1]);
 
 	i40iw_debug_buf(qp->dev, I40IW_DEBUG_PUDA, "PUDA SEND WQE", wqe, 32);
