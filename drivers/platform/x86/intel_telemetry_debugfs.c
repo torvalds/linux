@@ -710,6 +710,24 @@ static const struct file_operations telem_socstate_ops = {
 	.release	= single_release,
 };
 
+static int telem_s0ix_res_get(void *data, u64 *val)
+{
+	u64 s0ix_total_res;
+	int ret;
+
+	ret = intel_pmc_s0ix_counter_read(&s0ix_total_res);
+	if (ret) {
+		pr_err("Failed to read S0ix residency");
+		return ret;
+	}
+
+	*val = s0ix_total_res;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(telem_s0ix_fops, telem_s0ix_res_get, NULL, "%llu\n");
+
 static int telem_pss_trc_verb_show(struct seq_file *s, void *unused)
 {
 	u32 verbosity;
@@ -984,6 +1002,14 @@ static int __init telemetry_debugfs_init(void)
 				NULL, &telem_socstate_ops);
 	if (!f) {
 		pr_err("ioss_sample_info debugfs register failed\n");
+		goto out;
+	}
+
+	f = debugfs_create_file("s0ix_residency_usec", S_IFREG | S_IRUGO,
+				debugfs_conf->telemetry_dbg_dir,
+				NULL, &telem_s0ix_fops);
+	if (!f) {
+		pr_err("s0ix_residency_usec debugfs register failed\n");
 		goto out;
 	}
 
