@@ -650,18 +650,108 @@ static const struct platform_suspend_ops acpi_suspend_ops_old = {
 	.recover = acpi_pm_finish,
 };
 
+static bool s2idle_in_progress;
 static bool s2idle_wakeup;
+
+/*
+ * On platforms supporting the Low Power S0 Idle interface there is an ACPI
+ * device object with the PNP0D80 compatible device ID (System Power Management
+ * Controller) and a specific _DSM method under it.  That method, if present,
+ * can be used to indicate to the platform that the OS is transitioning into a
+ * low-power state in which certain types of activity are not desirable or that
+ * it is leaving such a state, which allows the platform to adjust its operation
+ * mode accordingly.
+ */
+static const struct acpi_device_id lps0_device_ids[] = {
+	{"PNP0D80", },
+	{"", },
+};
+
+#define ACPI_LPS0_DSM_UUID	"c4eb40a0-6cd2-11e2-bcfd-0800200c9a66"
+
+#define ACPI_LPS0_SCREEN_OFF	3
+#define ACPI_LPS0_SCREEN_ON	4
+#define ACPI_LPS0_ENTRY		5
+#define ACPI_LPS0_EXIT		6
+
+#define ACPI_S2IDLE_FUNC_MASK	((1 << ACPI_LPS0_ENTRY) | (1 << ACPI_LPS0_EXIT))
+
+static acpi_handle lps0_device_handle;
+static guid_t lps0_dsm_guid;
+static char lps0_dsm_func_mask;
+
+static void acpi_sleep_run_lps0_dsm(unsigned int func)
+{
+	union acpi_object *out_obj;
+
+	if (!(lps0_dsm_func_mask & (1 << func)))
+		return;
+
+	out_obj = acpi_evaluate_dsm(lps0_device_handle, &lps0_dsm_guid, 1, func, NULL);
+	ACPI_FREE(out_obj);
+
+	acpi_handle_debug(lps0_device_handle, "_DSM function %u evaluation %s\n",
+			  func, out_obj ? "successful" : "failed");
+}
+
+static int lps0_device_attach(struct acpi_device *adev,
+			      const struct acpi_device_id *not_used)
+{
+	union acpi_object *out_obj;
+
+	if (lps0_device_handle)
+		return 0;
+
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
+		return 0;
+
+	guid_parse(ACPI_LPS0_DSM_UUID, &lps0_dsm_guid);
+	/* Check if the _DSM is present and as expected. */
+	out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 1, 0, NULL);
+	if (out_obj && out_obj->type == ACPI_TYPE_BUFFER) {
+		char bitmask = *(char *)out_obj->buffer.pointer;
+
+		if ((bitmask & ACPI_S2IDLE_FUNC_MASK) == ACPI_S2IDLE_FUNC_MASK) {
+			lps0_dsm_func_mask = bitmask;
+			lps0_device_handle = adev->handle;
+		}
+
+		acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
+				  bitmask);
+	} else {
+		acpi_handle_debug(adev->handle,
+				  "_DSM function 0 evaluation failed\n");
+	}
+	ACPI_FREE(out_obj);
+	return 0;
+}
+
+static struct acpi_scan_handler lps0_handler = {
+	.ids = lps0_device_ids,
+	.attach = lps0_device_attach,
+};
 
 static int acpi_freeze_begin(void)
 {
 	acpi_scan_lock_acquire();
+	s2idle_in_progress = true;
 	return 0;
 }
 
 static int acpi_freeze_prepare(void)
 {
-	acpi_enable_all_wakeup_gpes();
-	acpi_os_wait_events_complete();
+	if (lps0_device_handle) {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
+	} else {
+		/*
+		 * The configuration of GPEs is changed here to avoid spurious
+		 * wakeups, but that should not be necessary if this is a
+		 * "low-power S0" platform and the low-power S0 _DSM is present.
+		 */
+		acpi_enable_all_wakeup_gpes();
+		acpi_os_wait_events_complete();
+	}
 	if (acpi_sci_irq_valid())
 		enable_irq_wake(acpi_sci_irq);
 
@@ -700,11 +790,17 @@ static void acpi_freeze_restore(void)
 	if (acpi_sci_irq_valid())
 		disable_irq_wake(acpi_sci_irq);
 
-	acpi_enable_all_runtime_gpes();
+	if (lps0_device_handle) {
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
+	} else {
+		acpi_enable_all_runtime_gpes();
+	}
 }
 
 static void acpi_freeze_end(void)
 {
+	s2idle_in_progress = false;
 	acpi_scan_lock_release();
 }
 
@@ -727,17 +823,26 @@ static void acpi_sleep_suspend_setup(void)
 
 	suspend_set_ops(old_suspend_ordering ?
 		&acpi_suspend_ops_old : &acpi_suspend_ops);
+
+	acpi_scan_add_handler(&lps0_handler);
 	freeze_set_ops(&acpi_freeze_ops);
 }
 
 #else /* !CONFIG_SUSPEND */
-#define s2idle_wakeup	(false)
+#define s2idle_in_progress	(false)
+#define s2idle_wakeup		(false)
+#define lps0_device_handle	(NULL)
 static inline void acpi_sleep_suspend_setup(void) {}
 #endif /* !CONFIG_SUSPEND */
 
 bool acpi_s2idle_wakeup(void)
 {
 	return s2idle_wakeup;
+}
+
+bool acpi_sleep_no_ec_events(void)
+{
+	return !s2idle_in_progress || !lps0_device_handle;
 }
 
 #ifdef CONFIG_PM_SLEEP
