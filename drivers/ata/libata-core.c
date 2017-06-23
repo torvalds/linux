@@ -2661,7 +2661,7 @@ int ata_dev_configure(struct ata_device *dev)
 		ata_dev_config_sense_reporting(dev);
 		ata_dev_config_zac(dev);
 		ata_dev_config_trusted(dev);
-		dev->cdb_len = 16;
+		dev->cdb_len = 32;
 	}
 
 	/* ATAPI-specific feature tests */
