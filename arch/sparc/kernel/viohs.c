@@ -776,7 +776,11 @@ void vio_port_up(struct vio_driver_state *vio)
 	}
 
 	if (!err) {
-		err = ldc_connect(vio->lp);
+		if (ldc_mode(vio->lp) == LDC_MODE_RAW)
+			ldc_set_state(vio->lp, LDC_STATE_CONNECTED);
+		else
+			err = ldc_connect(vio->lp);
+
 		if (err)
 			printk(KERN_WARNING "%s: Port %lu connect failed, "
 			       "err=%d\n",
