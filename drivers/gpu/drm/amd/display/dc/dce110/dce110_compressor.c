@@ -94,199 +94,8 @@ enum fbc_idle_force {
 	FBC_IDLE_FORCE_CG_STATIC_SCREEN_IS_INACTIVE = 0x20000000,
 };
 
-static uint32_t lpt_size_alignment(struct dce110_compressor *cp110)
-{
-	/*LPT_ALIGNMENT (in bytes) = ROW_SIZE * #BANKS * # DRAM CHANNELS. */
-	return cp110->base.raw_size * cp110->base.banks_num *
-		cp110->base.dram_channels_num;
-}
 
-static uint32_t lpt_memory_control_config(struct dce110_compressor *cp110,
-	uint32_t lpt_control)
-{
-	/*LPT MC Config */
-	if (cp110->base.options.bits.LPT_MC_CONFIG == 1) {
-		/* POSSIBLE VALUES for LPT NUM_PIPES (DRAM CHANNELS):
-		 * 00 - 1 CHANNEL
-		 * 01 - 2 CHANNELS
-		 * 02 - 4 OR 6 CHANNELS
-		 * (Only for discrete GPU, N/A for CZ)
-		 * 03 - 8 OR 12 CHANNELS
-		 * (Only for discrete GPU, N/A for CZ) */
-		switch (cp110->base.dram_channels_num) {
-		case 2:
-			set_reg_field_value(
-				lpt_control,
-				1,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_NUM_PIPES);
-			break;
-		case 1:
-			set_reg_field_value(
-				lpt_control,
-				0,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_NUM_PIPES);
-			break;
-		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
-				"%s: Invalid LPT NUM_PIPES!!!",
-				__func__);
-			break;
-		}
-
-		/* The mapping for LPT NUM_BANKS is in
-		 * GRPH_CONTROL.GRPH_NUM_BANKS register field
-		 * Specifies the number of memory banks for tiling
-		 * purposes. Only applies to 2D and 3D tiling modes.
-		 * POSSIBLE VALUES:
-		 * 00 - DCP_GRPH_NUM_BANKS_2BANK: ADDR_SURF_2_BANK
-		 * 01 - DCP_GRPH_NUM_BANKS_4BANK: ADDR_SURF_4_BANK
-		 * 02 - DCP_GRPH_NUM_BANKS_8BANK: ADDR_SURF_8_BANK
-		 * 03 - DCP_GRPH_NUM_BANKS_16BANK: ADDR_SURF_16_BANK */
-		switch (cp110->base.banks_num) {
-		case 16:
-			set_reg_field_value(
-				lpt_control,
-				3,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_NUM_BANKS);
-			break;
-		case 8:
-			set_reg_field_value(
-				lpt_control,
-				2,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_NUM_BANKS);
-			break;
-		case 4:
-			set_reg_field_value(
-				lpt_control,
-				1,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_NUM_BANKS);
-			break;
-		case 2:
-			set_reg_field_value(
-				lpt_control,
-				0,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_NUM_BANKS);
-			break;
-		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
-				"%s: Invalid LPT NUM_BANKS!!!",
-				__func__);
-			break;
-		}
-
-		/* The mapping is in DMIF_ADDR_CALC.
-		 * ADDR_CONFIG_PIPE_INTERLEAVE_SIZE register field for
-		 * Carrizo specifies the memory interleave per pipe.
-		 * It effectively specifies the location of pipe bits in
-		 * the memory address.
-		 * POSSIBLE VALUES:
-		 * 00 - ADDR_CONFIG_PIPE_INTERLEAVE_256B: 256 byte
-		 * interleave
-		 * 01 - ADDR_CONFIG_PIPE_INTERLEAVE_512B: 512 byte
-		 * interleave
-		 */
-		switch (cp110->base.channel_interleave_size) {
-		case 256: /*256B */
-			set_reg_field_value(
-				lpt_control,
-				0,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_PIPE_INTERLEAVE_SIZE);
-			break;
-		case 512: /*512B */
-			set_reg_field_value(
-				lpt_control,
-				1,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_PIPE_INTERLEAVE_SIZE);
-			break;
-		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
-				"%s: Invalid LPT INTERLEAVE_SIZE!!!",
-				__func__);
-			break;
-		}
-
-		/* The mapping for LOW_POWER_TILING_ROW_SIZE is in
-		 * DMIF_ADDR_CALC.ADDR_CONFIG_ROW_SIZE register field
-		 * for Carrizo. Specifies the size of dram row in bytes.
-		 * This should match up with NOOFCOLS field in
-		 * MC_ARB_RAMCFG (ROW_SIZE = 4 * 2 ^^ columns).
-		 * This register DMIF_ADDR_CALC is not used by the
-		 * hardware as it is only used for addrlib assertions.
-		 * POSSIBLE VALUES:
-		 * 00 - ADDR_CONFIG_1KB_ROW: Treat 1KB as DRAM row
-		 * boundary
-		 * 01 - ADDR_CONFIG_2KB_ROW: Treat 2KB as DRAM row
-		 * boundary
-		 * 02 - ADDR_CONFIG_4KB_ROW: Treat 4KB as DRAM row
-		 * boundary */
-		switch (cp110->base.raw_size) {
-		case 4096: /*4 KB */
-			set_reg_field_value(
-				lpt_control,
-				2,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_ROW_SIZE);
-			break;
-		case 2048:
-			set_reg_field_value(
-				lpt_control,
-				1,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_ROW_SIZE);
-			break;
-		case 1024:
-			set_reg_field_value(
-				lpt_control,
-				0,
-				LOW_POWER_TILING_CONTROL,
-				LOW_POWER_TILING_ROW_SIZE);
-			break;
-		default:
-			dm_logger_write(
-				cp110->base.ctx->logger, LOG_WARNING,
-				"%s: Invalid LPT ROW_SIZE!!!",
-				__func__);
-			break;
-		}
-	} else {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_WARNING,
-			"%s: LPT MC Configuration is not provided",
-			__func__);
-	}
-
-	return lpt_control;
-}
-
-static bool is_source_bigger_than_epanel_size(
-	struct dce110_compressor *cp110,
-	uint32_t source_view_width,
-	uint32_t source_view_height)
-{
-	if (cp110->base.embedded_panel_h_size != 0 &&
-		cp110->base.embedded_panel_v_size != 0 &&
-		((source_view_width * source_view_height) >
-		(cp110->base.embedded_panel_h_size *
-			cp110->base.embedded_panel_v_size)))
-		return true;
-
-	return false;
-}
-
-static uint32_t align_to_chunks_number_per_line(
-	struct dce110_compressor *cp110,
-	uint32_t pixels)
+static uint32_t align_to_chunks_number_per_line(uint32_t pixels)
 {
 	return 256 * ((pixels + 255) / 256);
 }
@@ -372,25 +181,11 @@ void dce110_compressor_enable_fbc(
 	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
 
 	if (compressor->options.bits.FBC_SUPPORT &&
-		(compressor->options.bits.DUMMY_BACKEND == 0) &&
-		(!dce110_compressor_is_fbc_enabled_in_hw(compressor, NULL)) &&
-		(!is_source_bigger_than_epanel_size(
-			cp110,
-			params->source_view_width,
-			params->source_view_height))) {
+		(!dce110_compressor_is_fbc_enabled_in_hw(compressor, NULL))) {
 
 		uint32_t addr;
 		uint32_t value;
 
-		/* Before enabling FBC first need to enable LPT if applicable
-		 * LPT state should always be changed (enable/disable) while FBC
-		 * is disabled */
-		if (compressor->options.bits.LPT_SUPPORT && (paths_num < 2) &&
-			(params->source_view_width *
-				params->source_view_height <=
-				dce11_one_lpt_channel_max_resolution)) {
-			dce110_compressor_enable_lpt(compressor);
-		}
 
 		addr = mmFBC_CNTL;
 		value = dm_read_reg(compressor->ctx, addr);
@@ -432,11 +227,6 @@ void dce110_compressor_disable_fbc(struct compressor *compressor)
 		compressor->attached_inst = 0;
 		compressor->is_enabled = false;
 
-		/* Whenever disabling FBC make sure LPT is disabled if LPT
-		 * supported */
-		if (compressor->options.bits.LPT_SUPPORT)
-			dce110_compressor_disable_lpt(compressor);
-
 		wait_for_fbc_state_changed(cp110, false);
 	}
 }
@@ -469,17 +259,6 @@ bool dce110_compressor_is_fbc_enabled_in_hw(
 	return false;
 }
 
-bool dce110_compressor_is_lpt_enabled_in_hw(struct compressor *compressor)
-{
-	/* Check the hardware register */
-	uint32_t value = dm_read_reg(compressor->ctx,
-		mmLOW_POWER_TILING_CONTROL);
-
-	return get_reg_field_value(
-		value,
-		LOW_POWER_TILING_CONTROL,
-		LOW_POWER_TILING_ENABLE);
-}
 
 void dce110_compressor_program_compressed_surface_address_and_pitch(
 	struct compressor *compressor,
@@ -499,17 +278,6 @@ void dce110_compressor_program_compressed_surface_address_and_pitch(
 	dm_write_reg(compressor->ctx,
 		DCP_REG(mmGRPH_COMPRESS_SURFACE_ADDRESS), 0);
 
-	if (compressor->options.bits.LPT_SUPPORT) {
-		uint32_t lpt_alignment = lpt_size_alignment(cp110);
-
-		if (lpt_alignment != 0) {
-			compressed_surf_address_low_part =
-				((compressed_surf_address_low_part
-					+ (lpt_alignment - 1)) / lpt_alignment)
-					* lpt_alignment;
-		}
-	}
-
 	/* Write address, HIGH has to be first. */
 	dm_write_reg(compressor->ctx,
 		DCP_REG(mmGRPH_COMPRESS_SURFACE_ADDRESS_HIGH),
@@ -518,9 +286,7 @@ void dce110_compressor_program_compressed_surface_address_and_pitch(
 		DCP_REG(mmGRPH_COMPRESS_SURFACE_ADDRESS),
 		compressed_surf_address_low_part);
 
-	fbc_pitch = align_to_chunks_number_per_line(
-		cp110,
-		params->source_view_width);
+	fbc_pitch = align_to_chunks_number_per_line(params->source_view_width);
 
 	if (compressor->min_compress_ratio == FBC_COMPRESS_RATIO_1TO1)
 		fbc_pitch = fbc_pitch / 8;
@@ -542,197 +308,6 @@ void dce110_compressor_program_compressed_surface_address_and_pitch(
 	dm_write_reg(compressor->ctx, DCP_REG(mmGRPH_COMPRESS_PITCH), value);
 
 }
-
-void dce110_compressor_disable_lpt(struct compressor *compressor)
-{
-	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
-	uint32_t value;
-	uint32_t addr;
-	uint32_t inx;
-
-	/* Disable all pipes LPT Stutter */
-	for (inx = 0; inx < 3; inx++) {
-		value =
-			dm_read_reg(
-				compressor->ctx,
-				DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH));
-		set_reg_field_value(
-			value,
-			0,
-			DPG_PIPE_STUTTER_CONTROL_NONLPTCH,
-			STUTTER_ENABLE_NONLPTCH);
-		dm_write_reg(
-			compressor->ctx,
-			DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH),
-			value);
-	}
-	/* Disable Underlay pipe LPT Stutter */
-	addr = mmDPGV0_PIPE_STUTTER_CONTROL_NONLPTCH;
-	value = dm_read_reg(compressor->ctx, addr);
-	set_reg_field_value(
-		value,
-		0,
-		DPGV0_PIPE_STUTTER_CONTROL_NONLPTCH,
-		STUTTER_ENABLE_NONLPTCH);
-	dm_write_reg(compressor->ctx, addr, value);
-
-	/* Disable LPT */
-	addr = mmLOW_POWER_TILING_CONTROL;
-	value = dm_read_reg(compressor->ctx, addr);
-	set_reg_field_value(
-		value,
-		0,
-		LOW_POWER_TILING_CONTROL,
-		LOW_POWER_TILING_ENABLE);
-	dm_write_reg(compressor->ctx, addr, value);
-
-	/* Clear selection of Channel(s) containing Compressed Surface */
-	addr = mmGMCON_LPT_TARGET;
-	value = dm_read_reg(compressor->ctx, addr);
-	set_reg_field_value(
-		value,
-		0xFFFFFFFF,
-		GMCON_LPT_TARGET,
-		STCTRL_LPT_TARGET);
-	dm_write_reg(compressor->ctx, mmGMCON_LPT_TARGET, value);
-}
-
-void dce110_compressor_enable_lpt(struct compressor *compressor)
-{
-	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
-	uint32_t value;
-	uint32_t addr;
-	uint32_t value_control;
-	uint32_t channels;
-
-	/* Enable LPT Stutter from Display pipe */
-	value = dm_read_reg(compressor->ctx,
-		DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH));
-	set_reg_field_value(
-		value,
-		1,
-		DPG_PIPE_STUTTER_CONTROL_NONLPTCH,
-		STUTTER_ENABLE_NONLPTCH);
-	dm_write_reg(compressor->ctx,
-		DMIF_REG(mmDPG_PIPE_STUTTER_CONTROL_NONLPTCH), value);
-
-	/* Enable Underlay pipe LPT Stutter */
-	addr = mmDPGV0_PIPE_STUTTER_CONTROL_NONLPTCH;
-	value = dm_read_reg(compressor->ctx, addr);
-	set_reg_field_value(
-		value,
-		1,
-		DPGV0_PIPE_STUTTER_CONTROL_NONLPTCH,
-		STUTTER_ENABLE_NONLPTCH);
-	dm_write_reg(compressor->ctx, addr, value);
-
-	/* Selection of Channel(s) containing Compressed Surface: 0xfffffff
-	 * will disable LPT.
-	 * STCTRL_LPT_TARGETn corresponds to channel n. */
-	addr = mmLOW_POWER_TILING_CONTROL;
-	value_control = dm_read_reg(compressor->ctx, addr);
-	channels = get_reg_field_value(value_control,
-			LOW_POWER_TILING_CONTROL,
-			LOW_POWER_TILING_MODE);
-
-	addr = mmGMCON_LPT_TARGET;
-	value = dm_read_reg(compressor->ctx, addr);
-	set_reg_field_value(
-		value,
-		channels + 1, /* not mentioned in programming guide,
-				but follow DCE8.1 */
-		GMCON_LPT_TARGET,
-		STCTRL_LPT_TARGET);
-	dm_write_reg(compressor->ctx, addr, value);
-
-	/* Enable LPT */
-	addr = mmLOW_POWER_TILING_CONTROL;
-	value = dm_read_reg(compressor->ctx, addr);
-	set_reg_field_value(
-		value,
-		1,
-		LOW_POWER_TILING_CONTROL,
-		LOW_POWER_TILING_ENABLE);
-	dm_write_reg(compressor->ctx, addr, value);
-}
-
-void dce110_compressor_program_lpt_control(
-	struct compressor *compressor,
-	struct compr_addr_and_pitch_params *params)
-{
-	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
-	uint32_t rows_per_channel;
-	uint32_t lpt_alignment;
-	uint32_t source_view_width;
-	uint32_t source_view_height;
-	uint32_t lpt_control = 0;
-
-	if (!compressor->options.bits.LPT_SUPPORT)
-		return;
-
-	lpt_control = dm_read_reg(compressor->ctx,
-		mmLOW_POWER_TILING_CONTROL);
-
-	/* POSSIBLE VALUES for Low Power Tiling Mode:
-	 * 00 - Use channel 0
-	 * 01 - Use Channel 0 and 1
-	 * 02 - Use Channel 0,1,2,3
-	 * 03 - reserved */
-	switch (compressor->lpt_channels_num) {
-	/* case 2:
-	 * Use Channel 0 & 1 / Not used for DCE 11 */
-	case 1:
-		/*Use Channel 0 for LPT for DCE 11 */
-		set_reg_field_value(
-			lpt_control,
-			0,
-			LOW_POWER_TILING_CONTROL,
-			LOW_POWER_TILING_MODE);
-		break;
-	default:
-		dm_logger_write(
-			compressor->ctx->logger, LOG_WARNING,
-			"%s: Invalid selected DRAM channels for LPT!!!",
-			__func__);
-		break;
-	}
-
-	lpt_control = lpt_memory_control_config(cp110, lpt_control);
-
-	/* Program LOW_POWER_TILING_ROWS_PER_CHAN field which depends on
-	 * FBC compressed surface pitch.
-	 * LOW_POWER_TILING_ROWS_PER_CHAN = Roundup ((Surface Height *
-	 * Surface Pitch) / (Row Size * Number of Channels *
-	 * Number of Banks)). */
-	rows_per_channel = 0;
-	lpt_alignment = lpt_size_alignment(cp110);
-	source_view_width =
-		align_to_chunks_number_per_line(
-			cp110,
-			params->source_view_width);
-	source_view_height = (params->source_view_height + 1) & (~0x1);
-
-	if (lpt_alignment != 0) {
-		rows_per_channel = source_view_width * source_view_height * 4;
-		rows_per_channel =
-			(rows_per_channel % lpt_alignment) ?
-				(rows_per_channel / lpt_alignment + 1) :
-				rows_per_channel / lpt_alignment;
-	}
-
-	set_reg_field_value(
-		lpt_control,
-		rows_per_channel,
-		LOW_POWER_TILING_CONTROL,
-		LOW_POWER_TILING_ROWS_PER_CHAN);
-
-	dm_write_reg(compressor->ctx,
-		mmLOW_POWER_TILING_CONTROL, lpt_control);
-}
-
-/*
- * DCE 11 Frame Buffer Compression Implementation
- */
 
 void dce110_compressor_set_fbc_invalidation_triggers(
 	struct compressor *compressor,
@@ -792,21 +367,20 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 }
 
 bool dce110_compressor_construct(struct dce110_compressor *compressor,
-	struct dc_context *ctx)
+				 struct dc_context *ctx)
 {
-	struct dc_bios *bp = ctx->dc_bios;
-	struct embedded_panel_info panel_info;
 
 	compressor->base.options.bits.FBC_SUPPORT = true;
-	compressor->base.options.bits.LPT_SUPPORT = true;
-	 /* For DCE 11 always use one DRAM channel for LPT */
+
+	 /* for dce 11 always use one dram channel for lpt */
 	compressor->base.lpt_channels_num = 1;
 	compressor->base.options.bits.DUMMY_BACKEND = false;
 
-	/* Check if this system has more than 1 DRAM channel; if only 1 then LPT
-	 * should not be supported */
-	if (compressor->base.memory_bus_width == 64)
-		compressor->base.options.bits.LPT_SUPPORT = false;
+	/*
+	 * check if this system has more than 1 dram channel; if only 1 then lpt
+	 * should not be supported
+	 */
+
 
 	compressor->base.options.bits.CLK_GATING_DISABLED = false;
 
@@ -826,13 +400,6 @@ bool dce110_compressor_construct(struct dce110_compressor *compressor,
 	compressor->base.attached_inst = 0;
 	compressor->base.is_enabled = false;
 
-	if (BP_RESULT_OK ==
-			bp->funcs->get_embedded_panel_info(bp, &panel_info)) {
-		compressor->base.embedded_panel_h_size =
-			panel_info.lcd_timing.horizontal_addressable;
-		compressor->base.embedded_panel_v_size =
-			panel_info.lcd_timing.vertical_addressable;
-	}
 	return true;
 }
 
@@ -857,3 +424,82 @@ void dce110_compressor_destroy(struct compressor **compressor)
 	dm_free(TO_DCE110_COMPRESSOR(*compressor));
 	*compressor = NULL;
 }
+
+bool dce110_get_required_compressed_surfacesize(struct fbc_input_info fbc_input_info,
+						struct fbc_requested_compressed_size size)
+{
+	bool result = false;
+
+	unsigned int max_x = FBC_MAX_X, max_y = FBC_MAX_Y;
+
+	get_max_support_fbc_buffersize(&max_x, &max_y);
+
+	if (fbc_input_info.dynamic_fbc_buffer_alloc == 0) {
+		/*
+		 * For DCE11 here use Max HW supported size:  HW Support up to 3840x2400 resolution
+		 * or 18000 chunks.
+		 */
+		size.preferred_size = size.min_size = align_to_chunks_number_per_line(max_x) * max_y * 4;  /* (For FBC when LPT not supported). */
+		size.preferred_size_alignment = size.min_size_alignment = 0x100;       /* For FBC when LPT not supported */
+		size.bits.preferred_must_be_framebuffer_pool = 1;
+		size.bits.min_must_be_framebuffer_pool = 1;
+
+		result = true;
+	}
+	/*
+	 * Maybe to add registry key support with optional size here to override above
+	 * for debugging purposes
+	 */
+
+	return result;
+}
+
+
+void get_max_support_fbc_buffersize(unsigned int *max_x, unsigned int *max_y)
+{
+	*max_x = FBC_MAX_X;
+	*max_y = FBC_MAX_Y;
+
+	/* if (m_smallLocalFrameBufferMemory == 1)
+	 * {
+	 *	*max_x = FBC_MAX_X_SG;
+	 *	*max_y = FBC_MAX_Y_SG;
+	 * }
+	 */
+}
+
+
+unsigned int controller_id_to_index(enum controller_id controller_id)
+{
+	unsigned int index = 0;
+
+	switch (controller_id) {
+	case CONTROLLER_ID_D0:
+		index = 0;
+		break;
+	case CONTROLLER_ID_D1:
+		index = 1;
+		break;
+	case CONTROLLER_ID_D2:
+		index = 2;
+		break;
+	case CONTROLLER_ID_D3:
+		index = 3;
+		break;
+	default:
+		break;
+	}
+	return index;
+}
+
+
+static const struct compressor_funcs dce110_compressor_funcs = {
+	.power_up_fbc = dce110_compressor_power_up_fbc,
+	.enable_fbc = dce110_compressor_enable_fbc,
+	.disable_fbc = dce110_compressor_disable_fbc,
+	.set_fbc_invalidation_triggers = dce110_compressor_set_fbc_invalidation_triggers,
+	.surface_address_and_pitch = dce110_compressor_program_compressed_surface_address_and_pitch,
+	.is_fbc_enabled_in_hw = dce110_compressor_is_fbc_enabled_in_hw
+};
+
+

@@ -45,6 +45,7 @@ union fbc_physical_address {
 };
 
 struct compr_addr_and_pitch_params {
+	enum controller_id controller_id;
 	uint32_t inst;
 	uint32_t source_view_width;
 	uint32_t source_view_height;
@@ -52,14 +53,32 @@ struct compr_addr_and_pitch_params {
 
 enum fbc_hw_max_resolution_supported {
 	FBC_MAX_X = 3840,
-	FBC_MAX_Y = 2400
+	FBC_MAX_Y = 2400,
+	FBC_MAX_X_SG = 1920,
+	FBC_MAX_Y_SG = 1080,
 };
 
+struct compressor;
+
+struct compressor_funcs {
+
+	void (*power_up_fbc)(struct compressor *cp);
+	void (*enable_fbc)(struct compressor *cp, uint32_t paths_num,
+		struct compr_addr_and_pitch_params *params);
+	void (*disable_fbc)(struct compressor *cp);
+	void (*set_fbc_invalidation_triggers)(struct compressor *cp,
+		uint32_t fbc_trigger);
+	void (*surface_address_and_pitch)(
+		struct compressor *cp,
+		struct compr_addr_and_pitch_params *params);
+	bool (*is_fbc_enabled_in_hw)(struct compressor *cp,
+		uint32_t *fbc_mapped_crtc_id);
+};
 struct compressor {
 	struct dc_context *ctx;
 	uint32_t attached_inst;
 	bool is_enabled;
-
+	const struct compressor_funcs funcs;
 	union {
 		uint32_t raw;
 		struct {
@@ -90,4 +109,27 @@ struct compressor {
 	enum fbc_compress_ratio min_compress_ratio;
 };
 
+struct fbc_input_info {
+	bool           dynamic_fbc_buffer_alloc;
+	unsigned int   source_view_width;
+	unsigned int   source_view_height;
+	unsigned int   num_of_active_targets;
+};
+
+
+struct fbc_requested_compressed_size {
+	unsigned int   preferred_size;
+	unsigned int   preferred_size_alignment;
+	unsigned int   min_size;
+	unsigned int   min_size_alignment;
+	union {
+		struct {
+			/* Above preferedSize must be allocated in FB pool */
+			unsigned int preferred_must_be_framebuffer_pool : 1;
+			/* Above minSize must be allocated in FB pool */
+			unsigned int min_must_be_framebuffer_pool : 1;
+		} bits;
+		unsigned int flags;
+	};
+};
 #endif
