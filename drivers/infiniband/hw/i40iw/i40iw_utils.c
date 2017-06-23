@@ -546,8 +546,12 @@ void i40iw_rem_ref(struct ib_qp *ibqp)
 	cqp_info->in.u.qp_destroy.scratch = (uintptr_t)cqp_request;
 	cqp_info->in.u.qp_destroy.remove_hash_idx = true;
 	status = i40iw_handle_cqp_op(iwdev, cqp_request);
-	if (status)
-		i40iw_pr_err("CQP-OP Destroy QP fail");
+	if (!status)
+		return;
+
+	i40iw_rem_pdusecount(iwqp->iwpd, iwdev);
+	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
+	i40iw_rem_devusecount(iwdev);
 }
 
 /**
