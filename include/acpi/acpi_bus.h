@@ -602,6 +602,7 @@ void acpi_pm_wakeup_event(struct device *dev);
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 			void (*func)(struct acpi_device_wakeup_context *context));
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
+bool acpi_pm_device_can_wakeup(struct device *dev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 int acpi_pm_set_device_wakeup(struct device *dev, bool enable);
 #else
@@ -617,6 +618,10 @@ static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
 static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 {
 	return AE_SUPPORT;
+}
+static inline bool acpi_pm_device_can_wakeup(struct device *dev)
+{
+	return false;
 }
 static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 {

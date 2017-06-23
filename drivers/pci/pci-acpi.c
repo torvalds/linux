@@ -569,67 +569,29 @@ static pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
 	return state_conv[state];
 }
 
-static bool acpi_pci_can_wakeup(struct pci_dev *dev)
-{
-	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
-	return adev ? acpi_device_can_wakeup(adev) : false;
-}
-
-static void acpi_pci_propagate_wakeup_enable(struct pci_bus *bus, bool enable)
+static int acpi_pci_propagate_wakeup(struct pci_bus *bus, bool enable)
 {
 	while (bus->parent) {
-		if (!acpi_pm_set_device_wakeup(&bus->self->dev, enable))
-			return;
+		if (acpi_pm_device_can_wakeup(&bus->self->dev))
+			return acpi_pm_set_device_wakeup(&bus->self->dev, enable);
+
 		bus = bus->parent;
 	}
 
 	/* We have reached the root bus. */
-	if (bus->bridge)
-		acpi_pm_set_device_wakeup(bus->bridge, enable);
+	if (bus->bridge) {
+		if (acpi_pm_device_can_wakeup(bus->bridge))
+			return acpi_pm_set_device_wakeup(bus->bridge, enable);
+	}
+	return 0;
 }
 
-static int acpi_pci_sleep_wake(struct pci_dev *dev, bool enable)
+static int acpi_pci_wakeup(struct pci_dev *dev, bool enable)
 {
-	if (acpi_pci_can_wakeup(dev))
+	if (acpi_pm_device_can_wakeup(&dev->dev))
 		return acpi_pm_set_device_wakeup(&dev->dev, enable);
 
-	acpi_pci_propagate_wakeup_enable(dev->bus, enable);
-	return 0;
-}
-
-static void acpi_pci_propagate_run_wake(struct pci_bus *bus, bool enable)
-{
-	while (bus->parent) {
-		struct pci_dev *bridge = bus->self;
-
-		if (bridge->pme_interrupt)
-			return;
-		if (!acpi_pm_set_device_wakeup(&bridge->dev, enable))
-			return;
-		bus = bus->parent;
-	}
-
-	/* We have reached the root bus. */
-	if (bus->bridge)
-		acpi_pm_set_device_wakeup(bus->bridge, enable);
-}
-
-static int acpi_pci_run_wake(struct pci_dev *dev, bool enable)
-{
-	/*
-	 * Per PCI Express Base Specification Revision 2.0 section
-	 * 5.3.3.2 Link Wakeup, platform support is needed for D3cold
-	 * waking up to power on the main link even if there is PME
-	 * support for D3cold
-	 */
-	if (dev->pme_interrupt && !dev->runtime_d3cold)
-		return 0;
-
-	if (!acpi_pm_set_device_wakeup(&dev->dev, enable))
-		return 0;
-
-	acpi_pci_propagate_run_wake(dev->bus, enable);
-	return 0;
+	return acpi_pci_propagate_wakeup(dev->bus, enable);
 }
 
 static bool acpi_pci_need_resume(struct pci_dev *dev)
@@ -653,8 +615,8 @@ static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.set_state = acpi_pci_set_power_state,
 	.get_state = acpi_pci_get_power_state,
 	.choose_state = acpi_pci_choose_state,
-	.sleep_wake = acpi_pci_sleep_wake,
-	.run_wake = acpi_pci_run_wake,
+	.sleep_wake = acpi_pci_wakeup,
+	.run_wake = acpi_pci_wakeup,
 	.need_resume = acpi_pci_need_resume,
 };
 
@@ -778,7 +740,7 @@ static void pci_acpi_setup(struct device *dev)
 
 	device_set_wakeup_capable(dev, true);
 	device_set_run_wake(dev, true);
-	acpi_pci_sleep_wake(pci_dev, false);
+	acpi_pci_wakeup(pci_dev, false);
 }
 
 static void pci_acpi_cleanup(struct device *dev)

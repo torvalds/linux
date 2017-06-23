@@ -496,6 +496,13 @@ bool acpi_bus_can_wakeup(acpi_handle handle)
 }
 EXPORT_SYMBOL(acpi_bus_can_wakeup);
 
+bool acpi_pm_device_can_wakeup(struct device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	return adev ? acpi_device_can_wakeup(adev) : false;
+}
+
 /**
  * acpi_dev_pm_get_state - Get preferred power state of ACPI device.
  * @dev: Device whose preferred target power state to return.
@@ -737,8 +744,7 @@ int acpi_pm_set_device_wakeup(struct device *dev, bool enable)
 
 	error = acpi_device_wakeup(adev, acpi_target_system_state(), enable);
 	if (!error)
-		dev_dbg(dev, "Wakeup %s by ACPI\n",
-			enable ? "enabled" : "disabled");
+		dev_dbg(dev, "Wakeup %s by ACPI\n", enable ? "enabled" : "disabled");
 
 	return error;
 }
