@@ -70,15 +70,26 @@ static int vio_device_probe(struct device *dev)
 	struct vio_dev *vdev = to_vio_dev(dev);
 	struct vio_driver *drv = to_vio_driver(dev->driver);
 	const struct vio_device_id *id;
-	int error = -ENODEV;
 
-	if (drv->probe) {
-		id = vio_match_device(drv->id_table, vdev);
-		if (id)
-			error = drv->probe(vdev, id);
+	if (!drv->probe)
+		return -ENODEV;
+
+	id = vio_match_device(drv->id_table, vdev);
+	if (!id)
+		return -ENODEV;
+
+	/* alloc irqs (unless the driver specified not to) */
+	if (!drv->no_irq) {
+		if (vdev->tx_irq == 0 && vdev->tx_ino != ~0UL)
+			vdev->tx_irq = sun4v_build_virq(vdev->cdev_handle,
+							vdev->tx_ino);
+
+		if (vdev->rx_irq == 0 && vdev->rx_ino != ~0UL)
+			vdev->rx_irq = sun4v_build_virq(vdev->cdev_handle,
+							vdev->rx_ino);
 	}
 
-	return error;
+	return drv->probe(vdev, id);
 }
 
 static int vio_device_remove(struct device *dev)
@@ -86,8 +97,15 @@ static int vio_device_remove(struct device *dev)
 	struct vio_dev *vdev = to_vio_dev(dev);
 	struct vio_driver *drv = to_vio_driver(dev->driver);
 
-	if (drv->remove)
+	if (drv->remove) {
+		/*
+		 * Ideally, we would remove/deallocate tx/rx virqs
+		 * here - however, there are currently no support
+		 * routines to do so at the moment. TBD
+		 */
+
 		return drv->remove(vdev);
+	}
 
 	return 1;
 }
@@ -204,6 +222,9 @@ static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 {
 	u64 a;
 
+	vdev->tx_ino = ~0UL;
+	vdev->rx_ino = ~0UL;
+	vdev->channel_id = ~0UL;
 	mdesc_for_each_arc(a, hp, mp, MDESC_ARC_TYPE_FWD) {
 		const u64 *chan_id;
 		const u64 *irq;
@@ -213,18 +234,18 @@ static void vio_fill_channel_info(struct mdesc_handle *hp, u64 mp,
 
 		irq = mdesc_get_property(hp, target, "tx-ino", NULL);
 		if (irq)
-			vdev->tx_irq = sun4v_build_virq(cdev_cfg_handle, *irq);
+			vdev->tx_ino = *irq;
 
 		irq = mdesc_get_property(hp, target, "rx-ino", NULL);
-		if (irq) {
-			vdev->rx_irq = sun4v_build_virq(cdev_cfg_handle, *irq);
+		if (irq)
 			vdev->rx_ino = *irq;
-		}
 
 		chan_id = mdesc_get_property(hp, target, "id", NULL);
 		if (chan_id)
 			vdev->channel_id = *chan_id;
 	}
+
+	vdev->cdev_handle = cdev_cfg_handle;
 }
 
 int vio_set_intr(unsigned long dev_ino, int state)
@@ -287,9 +308,8 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 		memset(vdev->compat, 0, sizeof(vdev->compat));
 	vdev->compat_len = clen;
 
-	vdev->channel_id = ~0UL;
-	vdev->tx_irq = ~0;
-	vdev->rx_irq = ~0;
+	vdev->tx_irq = 0;
+	vdev->rx_irq = 0;
 
 	vio_fill_channel_info(hp, mp, vdev);
 
@@ -327,12 +347,13 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	}
 	vdev->dp = dp;
 
-	printk(KERN_INFO "VIO: Adding device %s\n", dev_name(&vdev->dev));
-
 	/* node_name is NULL for the parent/channel-devices node */
 	if (node_name != NULL)
 		(void) snprintf(vdev->node_name, VIO_MAX_NAME_LEN, "%s",
 				node_name);
+
+	pr_info("VIO: Adding device %s (tx_ino = %llx, rx_ino = %llx)\n",
+		dev_name(&vdev->dev), vdev->tx_ino, vdev->rx_ino);
 
 	err = device_register(&vdev->dev);
 	if (err) {

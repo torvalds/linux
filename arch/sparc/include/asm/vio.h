@@ -336,6 +336,10 @@ struct vio_dev {
 	unsigned int		tx_irq;
 	unsigned int		rx_irq;
 	u64			rx_ino;
+	u64			tx_ino;
+
+	/* Handle to the root of "channel-devices" sub-tree in MDESC */
+	u64			cdev_handle;
 
 	struct device		dev;
 };
@@ -349,6 +353,7 @@ struct vio_driver {
 	void (*shutdown)(struct vio_dev *dev);
 	unsigned long			driver_data;
 	struct device_driver		driver;
+	bool				no_irq;
 };
 
 struct vio_version {
