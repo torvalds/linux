@@ -276,8 +276,6 @@ int mtk_ecc_enable(struct mtk_ecc *ecc, struct mtk_ecc_config *config)
 	if (ret)
 		return ret;
 
-	writew(ECC_OP_ENABLE, ecc->regs + ECC_CTL_REG(op));
-
 	init_completion(&ecc->done);
 	reg_val = ECC_IRQ_EN;
 	/*
@@ -288,6 +286,8 @@ int mtk_ecc_enable(struct mtk_ecc *ecc, struct mtk_ecc_config *config)
 	if ((ecc->caps->pg_irq_sel) && (config->mode == ECC_NFI_MODE))
 		reg_val |= ECC_PG_IRQ_SEL;
 	writew(reg_val, ecc->regs + ECC_IRQ_REG(op));
+
+	writew(ECC_OP_ENABLE, ecc->regs + ECC_CTL_REG(op));
 
 	return 0;
 }
