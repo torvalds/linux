@@ -304,6 +304,24 @@ static void ena_free_all_io_tx_resources(struct ena_adapter *adapter)
 		ena_free_tx_resources(adapter, i);
 }
 
+static inline int validate_rx_req_id(struct ena_ring *rx_ring, u16 req_id)
+{
+	if (likely(req_id < rx_ring->ring_size))
+		return 0;
+
+	netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
+		  "Invalid rx req_id: %hu\n", req_id);
+
+	u64_stats_update_begin(&rx_ring->syncp);
+	rx_ring->rx_stats.bad_req_id++;
+	u64_stats_update_end(&rx_ring->syncp);
+
+	/* Trigger device reset */
+	rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+	set_bit(ENA_FLAG_TRIGGER_RESET, &rx_ring->adapter->flags);
+	return -EFAULT;
+}
+
 /* ena_setup_rx_resources - allocate I/O Rx resources (Descriptors)
  * @adapter: network interface device structure
  * @qid: queue index
@@ -315,7 +333,7 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 {
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
 	struct ena_irq *ena_irq = &adapter->irq_tbl[ENA_IO_IRQ_IDX(qid)];
-	int size, node;
+	int size, node, i;
 
 	if (rx_ring->rx_buffer_info) {
 		netif_err(adapter, ifup, adapter->netdev,
@@ -335,6 +353,20 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 		if (!rx_ring->rx_buffer_info)
 			return -ENOMEM;
 	}
+
+	size = sizeof(u16) * rx_ring->ring_size;
+	rx_ring->free_rx_ids = vzalloc_node(size, node);
+	if (!rx_ring->free_rx_ids) {
+		rx_ring->free_rx_ids = vzalloc(size);
+		if (!rx_ring->free_rx_ids) {
+			vfree(rx_ring->rx_buffer_info);
+			return -ENOMEM;
+		}
+	}
+
+	/* Req id ring for receiving RX pkts out of order */
+	for (i = 0; i < rx_ring->ring_size; i++)
+		rx_ring->free_rx_ids[i] = i;
 
 	/* Reset rx statistics */
 	memset(&rx_ring->rx_stats, 0x0, sizeof(rx_ring->rx_stats));
@@ -359,6 +391,9 @@ static void ena_free_rx_resources(struct ena_adapter *adapter,
 
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
+
+	vfree(rx_ring->free_rx_ids);
+	rx_ring->free_rx_ids = NULL;
 }
 
 /* ena_setup_all_rx_resources - allocate I/O Rx queues resources for all queues
@@ -464,15 +499,22 @@ static void ena_free_rx_page(struct ena_ring *rx_ring,
 
 static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 {
-	u16 next_to_use;
+	u16 next_to_use, req_id;
 	u32 i;
 	int rc;
 
 	next_to_use = rx_ring->next_to_use;
 
 	for (i = 0; i < num; i++) {
-		struct ena_rx_buffer *rx_info =
-			&rx_ring->rx_buffer_info[next_to_use];
+		struct ena_rx_buffer *rx_info;
+
+		req_id = rx_ring->free_rx_ids[next_to_use];
+		rc = validate_rx_req_id(rx_ring, req_id);
+		if (unlikely(rc < 0))
+			break;
+
+		rx_info = &rx_ring->rx_buffer_info[req_id];
+
 
 		rc = ena_alloc_rx_page(rx_ring, rx_info,
 				       __GFP_COLD | GFP_ATOMIC | __GFP_COMP);
@@ -484,7 +526,7 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 		}
 		rc = ena_com_add_single_rx_desc(rx_ring->ena_com_io_sq,
 						&rx_info->ena_buf,
-						next_to_use);
+						req_id);
 		if (unlikely(rc)) {
 			netif_warn(rx_ring->adapter, rx_status, rx_ring->netdev,
 				   "failed to add buffer for rx queue %d\n",
@@ -789,13 +831,14 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 				  u16 *next_to_clean)
 {
 	struct sk_buff *skb;
-	struct ena_rx_buffer *rx_info =
-		&rx_ring->rx_buffer_info[*next_to_clean];
-	u32 len;
-	u32 buf = 0;
+	struct ena_rx_buffer *rx_info;
+	u16 len, req_id, buf = 0;
 	void *va;
 
-	len = ena_bufs[0].len;
+	len = ena_bufs[buf].len;
+	req_id = ena_bufs[buf].req_id;
+	rx_info = &rx_ring->rx_buffer_info[req_id];
+
 	if (unlikely(!rx_info->page)) {
 		netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
 			  "Page is NULL\n");
@@ -867,13 +910,18 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 			  skb->len, skb->data_len);
 
 		rx_info->page = NULL;
+
+		rx_ring->free_rx_ids[*next_to_clean] = req_id;
 		*next_to_clean =
 			ENA_RX_RING_IDX_NEXT(*next_to_clean,
 					     rx_ring->ring_size);
 		if (likely(--descs == 0))
 			break;
-		rx_info = &rx_ring->rx_buffer_info[*next_to_clean];
-		len = ena_bufs[++buf].len;
+
+		buf++;
+		len = ena_bufs[buf].len;
+		req_id = ena_bufs[buf].req_id;
+		rx_info = &rx_ring->rx_buffer_info[req_id];
 	} while (1);
 
 	return skb;
@@ -974,6 +1022,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	int rc = 0;
 	int total_len = 0;
 	int rx_copybreak_pkt = 0;
+	int i;
 
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 		  "%s qid %d\n", __func__, rx_ring->qid);
@@ -1003,9 +1052,13 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 		/* exit if we failed to retrieve a buffer */
 		if (unlikely(!skb)) {
-			next_to_clean = ENA_RX_RING_IDX_ADD(next_to_clean,
-							    ena_rx_ctx.descs,
-							    rx_ring->ring_size);
+			for (i = 0; i < ena_rx_ctx.descs; i++) {
+				rx_ring->free_tx_ids[next_to_clean] =
+					rx_ring->ena_bufs[i].req_id;
+				next_to_clean =
+					ENA_RX_RING_IDX_NEXT(next_to_clean,
+							     rx_ring->ring_size);
+			}
 			break;
 		}
 

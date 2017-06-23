@@ -194,12 +194,19 @@ struct ena_stats_rx {
 	u64 dma_mapping_err;
 	u64 bad_desc_num;
 	u64 rx_copybreak_pkt;
+	u64 bad_req_id;
 	u64 empty_rx_ring;
 };
 
 struct ena_ring {
-	/* Holds the empty requests for TX out of order completions */
-	u16 *free_tx_ids;
+	union {
+		/* Holds the empty requests for TX/RX
+		 * out of order completions
+		 */
+		u16 *free_tx_ids;
+		u16 *free_rx_ids;
+	};
+
 	union {
 		struct ena_tx_buffer *tx_buffer_info;
 		struct ena_rx_buffer *rx_buffer_info;
