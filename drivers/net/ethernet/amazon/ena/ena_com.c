@@ -1825,7 +1825,8 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	writel((u32)aenq->head, dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
 }
 
-int ena_com_dev_reset(struct ena_com_dev *ena_dev)
+int ena_com_dev_reset(struct ena_com_dev *ena_dev,
+		      enum ena_regs_reset_reason_types reset_reason)
 {
 	u32 stat, timeout, cap, reset_val;
 	int rc;
@@ -1853,6 +1854,8 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev)
 
 	/* start reset */
 	reset_val = ENA_REGS_DEV_CTL_DEV_RESET_MASK;
+	reset_val |= (reset_reason << ENA_REGS_DEV_CTL_RESET_REASON_SHIFT) &
+		     ENA_REGS_DEV_CTL_RESET_REASON_MASK;
 	writel(reset_val, ena_dev->reg_bar + ENA_REGS_DEV_CTL_OFF);
 
 	/* Write again the MMIO read request address */

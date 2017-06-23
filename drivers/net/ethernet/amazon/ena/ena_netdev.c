@@ -87,6 +87,7 @@ static void ena_tx_timeout(struct net_device *dev)
 	if (test_and_set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
 		return;
 
+	adapter->reset_reason = ENA_REGS_RESET_OS_NETDEV_WD;
 	u64_stats_update_begin(&adapter->syncp);
 	adapter->dev_stats.tx_timeout++;
 	u64_stats_update_end(&adapter->syncp);
@@ -670,6 +671,7 @@ static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
 	u64_stats_update_end(&tx_ring->syncp);
 
 	/* Trigger device reset */
+	tx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
 	set_bit(ENA_FLAG_TRIGGER_RESET, &tx_ring->adapter->flags);
 	return -EFAULT;
 }
@@ -1055,6 +1057,7 @@ error:
 	u64_stats_update_end(&rx_ring->syncp);
 
 	/* Too many desc from the device. Trigger reset */
+	adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 
 	return 0;
@@ -1720,7 +1723,7 @@ static void ena_down(struct ena_adapter *adapter)
 	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags)) {
 		int rc;
 
-		rc = ena_com_dev_reset(adapter->ena_dev);
+		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
 		if (rc)
 			dev_err(&adapter->pdev->dev, "Device reset failed\n");
 	}
@@ -2353,7 +2356,7 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 	readless_supported = !(pdev->revision & ENA_MMIO_DISABLE_REG_READ);
 	ena_com_set_mmio_read_mode(ena_dev, readless_supported);
 
-	rc = ena_com_dev_reset(ena_dev);
+	rc = ena_com_dev_reset(ena_dev, ENA_REGS_RESET_NORMAL);
 	if (rc) {
 		dev_err(dev, "Can not reset device\n");
 		goto err_mmio_read_less;
@@ -2512,6 +2515,7 @@ static void ena_fw_reset_device(struct work_struct *work)
 
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
+	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
 	clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 
 	/* Finish with the destroy part. Start the init part */
@@ -2591,6 +2595,8 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 					  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
 					  missed_tx,
 					  adapter->missing_tx_completion_threshold);
+				adapter->reset_reason =
+					ENA_REGS_RESET_MISS_TX_CMPL;
 				set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 				return -EIO;
 			}
@@ -2705,6 +2711,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 		u64_stats_update_begin(&adapter->syncp);
 		adapter->dev_stats.wd_expired++;
 		u64_stats_update_end(&adapter->syncp);
+		adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
 		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	}
 }
@@ -2717,6 +2724,7 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 		u64_stats_update_begin(&adapter->syncp);
 		adapter->dev_stats.admin_q_pause++;
 		u64_stats_update_end(&adapter->syncp);
+		adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
 		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	}
 }
@@ -3121,6 +3129,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ena_set_conf_feat_params(adapter, &get_feat_ctx);
 
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
 
 	adapter->tx_ring_size = queue_size;
 	adapter->rx_ring_size = queue_size;
@@ -3205,7 +3214,7 @@ err_rss:
 	ena_com_delete_debug_area(ena_dev);
 	ena_com_rss_destroy(ena_dev);
 err_free_msix:
-	ena_com_dev_reset(ena_dev);
+	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_INIT_ERR);
 	ena_free_mgmnt_irq(adapter);
 	pci_free_irq_vectors(adapter->pdev);
 err_worker_destroy:
@@ -3288,7 +3297,7 @@ static void ena_remove(struct pci_dev *pdev)
 
 	/* Reset the device only if the device is running. */
 	if (test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
-		ena_com_dev_reset(ena_dev);
+		ena_com_dev_reset(ena_dev, adapter->reset_reason);
 
 	ena_free_mgmnt_irq(adapter);
 

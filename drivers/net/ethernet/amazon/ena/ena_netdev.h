@@ -327,6 +327,8 @@ struct ena_adapter {
 
 	/* last queue index that was checked for uncompleted tx packets */
 	u32 last_monitored_tx_qid;
+
+	enum ena_regs_reset_reason_types reset_reason;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
