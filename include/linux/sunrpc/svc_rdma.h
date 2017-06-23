@@ -185,9 +185,6 @@ extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
 				    __be32 *rdma_resp,
 				    struct xdr_buf *rcvbuf);
 
-/* svc_rdma_marshal.c */
-extern int svc_rdma_xdr_decode_req(struct xdr_buf *);
-
 /* svc_rdma_recvfrom.c */
 extern int svc_rdma_recvfrom(struct svc_rqst *);
 extern int rdma_read_chunk_lcl(struct svcxprt_rdma *, struct svc_rqst *,
