@@ -22,6 +22,7 @@ nfp-objs := \
 	    nfp_net_common.o \
 	    nfp_net_ethtool.o \
 	    nfp_net_main.o \
+	    nfp_net_repr.o \
 	    nfp_netvf_main.o \
 	    nfp_port.o \
 	    bpf/main.o \
