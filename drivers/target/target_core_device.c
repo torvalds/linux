@@ -904,6 +904,51 @@ struct se_device *target_find_device(int id, bool do_depend)
 }
 EXPORT_SYMBOL(target_find_device);
 
+struct devices_idr_iter {
+	int (*fn)(struct se_device *dev, void *data);
+	void *data;
+};
+
+static int target_devices_idr_iter(int id, void *p, void *data)
+{
+	struct devices_idr_iter *iter = data;
+	struct se_device *dev = p;
+
+	/*
+	 * We add the device early to the idr, so it can be used
+	 * by backend modules during configuration. We do not want
+	 * to allow other callers to access partially setup devices,
+	 * so we skip them here.
+	 */
+	if (!(dev->dev_flags & DF_CONFIGURED))
+		return 0;
+
+	return iter->fn(dev, iter->data);
+}
+
+/**
+ * target_for_each_device - iterate over configured devices
+ * @fn: iterator function
+ * @data: pointer to data that will be passed to fn
+ *
+ * fn must return 0 to continue looping over devices. non-zero will break
+ * from the loop and return that value to the caller.
+ */
+int target_for_each_device(int (*fn)(struct se_device *dev, void *data),
+			   void *data)
+{
+	struct devices_idr_iter iter;
+	int ret;
+
+	iter.fn = fn;
+	iter.data = data;
+
+	mutex_lock(&g_device_mutex);
+	ret = idr_for_each(&devices_idr, target_devices_idr_iter, &iter);
+	mutex_unlock(&g_device_mutex);
+	return ret;
+}
+
 int target_configure_device(struct se_device *dev)
 {
 	struct se_hba *hba = dev->se_hba;

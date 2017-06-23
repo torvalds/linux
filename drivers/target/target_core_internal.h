@@ -87,6 +87,8 @@ void	core_dev_release_virtual_lun0(void);
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name);
 int	target_configure_device(struct se_device *dev);
 void	target_free_device(struct se_device *);
+int	target_for_each_device(int (*fn)(struct se_device *dev, void *data),
+			       void *data);
 
 /* target_core_configfs.c */
 void	target_setup_backend_cits(struct target_backend *);
