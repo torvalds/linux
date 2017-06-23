@@ -104,6 +104,9 @@ nfp_port_alloc(struct nfp_app *app, enum nfp_port_type type,
 	       struct net_device *netdev);
 void nfp_port_free(struct nfp_port *port);
 
+int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
+			   struct nfp_port *port, unsigned int id);
+
 int nfp_net_refresh_eth_port(struct nfp_port *port);
 void nfp_net_refresh_port_table(struct nfp_port *port);
 int nfp_net_refresh_port_table_sync(struct nfp_pf *pf);
