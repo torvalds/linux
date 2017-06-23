@@ -1474,6 +1474,9 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev, bool reset)
 			unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
 		}
 		/* fallthrough */
+	case PBLE_CHUNK_MEM:
+		i40iw_destroy_pble_pool(dev, iwdev->pble_rsrc);
+		/* fallthrough */
 	case CEQ_CREATED:
 		i40iw_dele_ceqs(iwdev, reset);
 		/* fallthrough */
@@ -1488,9 +1491,6 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev, bool reset)
 		/* fallthrough */
 	case CCQ_CREATED:
 		i40iw_destroy_ccq(iwdev, reset);
-		/* fallthrough */
-	case PBLE_CHUNK_MEM:
-		i40iw_destroy_pble_pool(dev, iwdev->pble_rsrc);
 		/* fallthrough */
 	case HMC_OBJS_CREATED:
 		i40iw_del_hmc_objects(dev, dev->hmc_info, true, reset);
@@ -1670,6 +1670,7 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 		status = i40iw_hmc_init_pble(&iwdev->sc_dev, iwdev->pble_rsrc);
 		if (status)
 			break;
+		iwdev->init_state = PBLE_CHUNK_MEM;
 		iwdev->virtchnl_wq = alloc_ordered_workqueue("iwvch", WQ_MEM_RECLAIM);
 		i40iw_register_notifiers();
 		iwdev->init_state = INET_NOTIFIER;
