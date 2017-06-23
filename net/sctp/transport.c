@@ -405,13 +405,6 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 	    TSN_lte(asoc->fast_recovery_exit, sack_ctsn))
 		asoc->fast_recovery = 0;
 
-	/* The appropriate cwnd increase algorithm is performed if, and only
-	 * if the congestion window is being fully utilized.
-	 * Note that RFC4960 Errata 3.22 removed the other condition.
-	 */
-	if (flight_size < cwnd)
-		return;
-
 	ssthresh = transport->ssthresh;
 	pba = transport->partial_bytes_acked;
 	pmtu = transport->asoc->pathmtu;
@@ -434,6 +427,14 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		if (asoc->fast_recovery)
 			return;
 
+		/* The appropriate cwnd increase algorithm is performed
+		 * if, and only if the congestion window is being fully
+		 * utilized.  Note that RFC4960 Errata 3.22 removed the
+		 * other condition on ctsn moving.
+		 */
+		if (flight_size < cwnd)
+			return;
+
 		if (bytes_acked > pmtu)
 			cwnd += pmtu;
 		else
@@ -451,6 +452,13 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		 * acknowledged by the new Cumulative TSN Ack and by Gap
 		 * Ack Blocks. (updated by RFC4960 Errata 3.22)
 		 *
+		 * When partial_bytes_acked is greater than cwnd and
+		 * before the arrival of the SACK the sender had less
+		 * bytes of data outstanding than cwnd (i.e., before
+		 * arrival of the SACK, flightsize was less than cwnd),
+		 * reset partial_bytes_acked to cwnd. (RFC 4960 Errata
+		 * 3.26)
+		 *
 		 * When partial_bytes_acked is equal to or greater than
 		 * cwnd and before the arrival of the SACK the sender
 		 * had cwnd or more bytes of data outstanding (i.e.,
@@ -460,7 +468,9 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		 * increased by MTU. (RFC 4960 Errata 3.12)
 		 */
 		pba += bytes_acked;
-		if (pba >= cwnd) {
+		if (pba > cwnd && flight_size < cwnd)
+			pba = cwnd;
+		if (pba >= cwnd && flight_size >= cwnd) {
 			pba = pba - cwnd;
 			cwnd += pmtu;
 		}
