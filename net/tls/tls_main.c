@@ -273,7 +273,8 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 	}
 
 	if (len == sizeof(crypto_info)) {
-		rc = copy_to_user(optval, crypto_info, sizeof(*crypto_info));
+		if (copy_to_user(optval, crypto_info, sizeof(*crypto_info)))
+			rc = -EFAULT;
 		goto out;
 	}
 
@@ -293,9 +294,10 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 		memcpy(crypto_info_aes_gcm_128->iv, ctx->iv,
 		       TLS_CIPHER_AES_GCM_128_IV_SIZE);
 		release_sock(sk);
-		rc = copy_to_user(optval,
-				  crypto_info_aes_gcm_128,
-				  sizeof(*crypto_info_aes_gcm_128));
+		if (copy_to_user(optval,
+				 crypto_info_aes_gcm_128,
+				 sizeof(*crypto_info_aes_gcm_128)))
+			rc = -EFAULT;
 		break;
 	}
 	default:
