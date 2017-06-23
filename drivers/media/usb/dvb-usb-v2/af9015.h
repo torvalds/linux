@@ -125,7 +125,9 @@ struct af9015_state {
 	u16 firmware_size;
 	u16 firmware_checksum;
 	u32 eeprom_sum;
-	struct af9013_config af9013_config[2];
+	struct af9013_platform_data af9013_pdata[2];
+	struct i2c_client *demod_i2c_client[2];
+	u8 af9013_i2c_addr[2];
 
 	/* for demod callback override */
 	int (*set_frontend[2]) (struct dvb_frontend *fe);
