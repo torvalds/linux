@@ -615,8 +615,7 @@ static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.set_state = acpi_pci_set_power_state,
 	.get_state = acpi_pci_get_power_state,
 	.choose_state = acpi_pci_choose_state,
-	.sleep_wake = acpi_pci_wakeup,
-	.run_wake = acpi_pci_wakeup,
+	.set_wakeup = acpi_pci_wakeup,
 	.need_resume = acpi_pci_need_resume,
 };
 

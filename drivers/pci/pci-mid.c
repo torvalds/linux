@@ -39,12 +39,7 @@ static pci_power_t mid_pci_choose_state(struct pci_dev *pdev)
 	return PCI_D3hot;
 }
 
-static int mid_pci_sleep_wake(struct pci_dev *dev, bool enable)
-{
-	return 0;
-}
-
-static int mid_pci_run_wake(struct pci_dev *dev, bool enable)
+static int mid_pci_wakeup(struct pci_dev *dev, bool enable)
 {
 	return 0;
 }
@@ -59,8 +54,7 @@ static const struct pci_platform_pm_ops mid_pci_platform_pm = {
 	.set_state	= mid_pci_set_power_state,
 	.get_state	= mid_pci_get_power_state,
 	.choose_state	= mid_pci_choose_state,
-	.sleep_wake	= mid_pci_sleep_wake,
-	.run_wake	= mid_pci_run_wake,
+	.set_wakeup	= mid_pci_wakeup,
 	.need_resume	= mid_pci_need_resume,
 };
 
