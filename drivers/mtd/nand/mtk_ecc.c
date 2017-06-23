@@ -276,16 +276,18 @@ int mtk_ecc_enable(struct mtk_ecc *ecc, struct mtk_ecc_config *config)
 	if (ret)
 		return ret;
 
-	init_completion(&ecc->done);
-	reg_val = ECC_IRQ_EN;
-	/*
-	 * For ECC_NFI_MODE, if ecc->caps->pg_irq_sel is 1, then it
-	 * means this chip can only generate one ecc irq during page
-	 * read / write. If is 0, generate one ecc irq each ecc step.
-	 */
-	if ((ecc->caps->pg_irq_sel) && (config->mode == ECC_NFI_MODE))
-		reg_val |= ECC_PG_IRQ_SEL;
-	writew(reg_val, ecc->regs + ECC_IRQ_REG(op));
+	if (config->mode != ECC_NFI_MODE || op != ECC_ENCODE) {
+		init_completion(&ecc->done);
+		reg_val = ECC_IRQ_EN;
+		/*
+		 * For ECC_NFI_MODE, if ecc->caps->pg_irq_sel is 1, then it
+		 * means this chip can only generate one ecc irq during page
+		 * read / write. If is 0, generate one ecc irq each ecc step.
+		 */
+		if (ecc->caps->pg_irq_sel && config->mode == ECC_NFI_MODE)
+			reg_val |= ECC_PG_IRQ_SEL;
+		writew(reg_val, ecc->regs + ECC_IRQ_REG(op));
+	}
 
 	writew(ECC_OP_ENABLE, ecc->regs + ECC_CTL_REG(op));
 
