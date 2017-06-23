@@ -26,6 +26,7 @@ unsigned long secondary_release = -1;
 struct thread_info *secondary_thread_info;
 
 enum ipi_msg_type {
+	IPI_WAKEUP,
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
 	IPI_CALL_FUNC_SINGLE,
@@ -42,6 +43,7 @@ static void boot_secondary(unsigned int cpu, struct task_struct *idle)
 	spin_lock(&boot_lock);
 
 	secondary_release = cpu;
+	smp_cross_call(cpumask_of(cpu), IPI_WAKEUP);
 
 	/*
 	 * now the secondary core is starting up let it run its
@@ -140,6 +142,9 @@ void handle_IPI(unsigned int ipi_msg)
 	unsigned int cpu = smp_processor_id();
 
 	switch (ipi_msg) {
+	case IPI_WAKEUP:
+		break;
+
 	case IPI_RESCHEDULE:
 		scheduler_ipi();
 		break;

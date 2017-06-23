@@ -712,9 +712,45 @@ _flush_tlb:
 
 #ifdef CONFIG_SMP
 secondary_wait:
+	/* Doze the cpu until we are asked to run */
+	/* If we dont have power management skip doze */
+	l.mfspr r25,r0,SPR_UPR
+	l.andi  r25,r25,SPR_UPR_PMP
+	l.sfeq  r25,r0
+	l.bf	secondary_check_release
+	 l.nop
+
+	/* Setup special secondary exception handler */
+	LOAD_SYMBOL_2_GPR(r3, _secondary_evbar)
+	tophys(r25,r3)
+	l.mtspr	r0,r25,SPR_EVBAR
+
+	/* Enable Interrupts */
+	l.mfspr	r25,r0,SPR_SR
+	l.ori	r25,r25,SPR_SR_IEE
+	l.mtspr	r0,r25,SPR_SR
+
+	/* Unmask interrupts interrupts */
+	l.mfspr r25,r0,SPR_PICMR
+	l.ori   r25,r25,0xffff
+	l.mtspr	r0,r25,SPR_PICMR
+
+	/* Doze */
+	l.mfspr r25,r0,SPR_PMR
+	LOAD_SYMBOL_2_GPR(r3, SPR_PMR_DME)
+	l.or    r25,r25,r3
+	l.mtspr r0,r25,SPR_PMR
+
+	/* Wakeup - Restore exception handler */
+	l.mtspr	r0,r0,SPR_EVBAR
+
+secondary_check_release:
+	/*
+	 * Check if we actually got the release signal, if not go-back to
+	 * sleep.
+	 */
 	l.mfspr	r25,r0,SPR_COREID
-	l.movhi	r3,hi(secondary_release)
-	l.ori	r3,r3,lo(secondary_release)
+	LOAD_SYMBOL_2_GPR(r3, secondary_release)
 	tophys(r4, r3)
 	l.lwz	r3,0(r4)
 	l.sfeq	r25,r3
@@ -1662,6 +1698,17 @@ ENTRY(_early_uart_init)
 
 	l.jr	r9
 	l.nop
+
+	.align	0x1000
+	.global _secondary_evbar
+_secondary_evbar:
+
+	.space 0x800
+	/* Just disable interrupts and Return */
+	l.ori	r3,r0,SPR_SR_SM
+	l.mtspr	r0,r3,SPR_ESR_BASE
+	l.rfe
+
 
 	.section .rodata
 _string_unhandled_exception:
