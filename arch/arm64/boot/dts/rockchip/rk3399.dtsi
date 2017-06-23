@@ -117,8 +117,8 @@
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKL>;
-			dynamic-power-coefficient = <100>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -128,6 +128,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -137,6 +138,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -146,6 +148,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_b0: cpu@100 {
@@ -155,8 +158,8 @@
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKB>;
-			dynamic-power-coefficient = <436>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		cpu_b1: cpu@101 {
@@ -166,6 +169,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			dynamic-power-coefficient = <100>;
 		};
 
 		idle-states {
