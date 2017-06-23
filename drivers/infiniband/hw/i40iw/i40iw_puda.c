@@ -1414,10 +1414,10 @@ static void i40iw_ieq_handle_exception(struct i40iw_puda_rsrc *ieq,
 
 	if (!list_empty(rxlist)) {
 		tmpbuf = (struct i40iw_puda_buf *)rxlist->next;
-		plist = &tmpbuf->list;
 		while ((struct list_head *)tmpbuf != rxlist) {
 			if ((int)(buf->seqnum - tmpbuf->seqnum) < 0)
 				break;
+			plist = &tmpbuf->list;
 			tmpbuf = (struct i40iw_puda_buf *)plist->next;
 		}
 		/* Insert buf before tmpbuf */
