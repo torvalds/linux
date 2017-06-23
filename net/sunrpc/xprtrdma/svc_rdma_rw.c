@@ -116,22 +116,20 @@ struct svc_rdma_chunk_ctxt {
 	struct svcxprt_rdma	*cc_rdma;
 	struct list_head	cc_rwctxts;
 	int			cc_sqecount;
-	enum dma_data_direction cc_dir;
 };
 
 static void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
-			     struct svc_rdma_chunk_ctxt *cc,
-			     enum dma_data_direction dir)
+			     struct svc_rdma_chunk_ctxt *cc)
 {
 	cc->cc_rdma = rdma;
 	svc_xprt_get(&rdma->sc_xprt);
 
 	INIT_LIST_HEAD(&cc->cc_rwctxts);
 	cc->cc_sqecount = 0;
-	cc->cc_dir = dir;
 }
 
-static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc)
+static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
+				enum dma_data_direction dir)
 {
 	struct svcxprt_rdma *rdma = cc->cc_rdma;
 	struct svc_rdma_rw_ctxt *ctxt;
@@ -141,7 +139,7 @@ static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc)
 
 		rdma_rw_ctx_destroy(&ctxt->rw_ctx, rdma->sc_qp,
 				    rdma->sc_port_num, ctxt->rw_sg_table.sgl,
-				    ctxt->rw_nents, cc->cc_dir);
+				    ctxt->rw_nents, dir);
 		svc_rdma_put_rw_ctxt(rdma, ctxt);
 	}
 	svc_xprt_put(&rdma->sc_xprt);
@@ -179,14 +177,14 @@ svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma, __be32 *chunk)
 	info->wi_seg_no = 0;
 	info->wi_nsegs = be32_to_cpup(++chunk);
 	info->wi_segs = ++chunk;
-	svc_rdma_cc_init(rdma, &info->wi_cc, DMA_TO_DEVICE);
+	svc_rdma_cc_init(rdma, &info->wi_cc);
 	info->wi_cc.cc_cqe.done = svc_rdma_write_done;
 	return info;
 }
 
 static void svc_rdma_write_info_free(struct svc_rdma_write_info *info)
 {
-	svc_rdma_cc_release(&info->wi_cc);
+	svc_rdma_cc_release(&info->wi_cc, DMA_TO_DEVICE);
 	kfree(info);
 }
 
@@ -241,14 +239,14 @@ svc_rdma_read_info_alloc(struct svcxprt_rdma *rdma)
 	if (!info)
 		return info;
 
-	svc_rdma_cc_init(rdma, &info->ri_cc, DMA_FROM_DEVICE);
+	svc_rdma_cc_init(rdma, &info->ri_cc);
 	info->ri_cc.cc_cqe.done = svc_rdma_wc_read_done;
 	return info;
 }
 
 static void svc_rdma_read_info_free(struct svc_rdma_read_info *info)
 {
-	svc_rdma_cc_release(&info->ri_cc);
+	svc_rdma_cc_release(&info->ri_cc, DMA_FROM_DEVICE);
 	kfree(info);
 }
 
