@@ -833,6 +833,24 @@ static int __init arm_smmu_v3_count_resources(struct acpi_iort_node *node)
 	return num_res;
 }
 
+static bool arm_smmu_v3_is_combined_irq(struct acpi_iort_smmu_v3 *smmu)
+{
+	/*
+	 * Cavium ThunderX2 implementation doesn't not support unique
+	 * irq line. Use single irq line for all the SMMUv3 interrupts.
+	 */
+	if (smmu->model != ACPI_IORT_SMMU_V3_CAVIUM_CN99XX)
+		return false;
+
+	/*
+	 * ThunderX2 doesn't support MSIs from the SMMU, so we're checking
+	 * SPI numbers here.
+	 */
+	return smmu->event_gsiv == smmu->pri_gsiv &&
+	       smmu->event_gsiv == smmu->gerr_gsiv &&
+	       smmu->event_gsiv == smmu->sync_gsiv;
+}
+
 static unsigned long arm_smmu_v3_resource_size(struct acpi_iort_smmu_v3 *smmu)
 {
 	/*
@@ -860,26 +878,33 @@ static void __init arm_smmu_v3_init_resources(struct resource *res,
 	res[num_res].flags = IORESOURCE_MEM;
 
 	num_res++;
+	if (arm_smmu_v3_is_combined_irq(smmu)) {
+		if (smmu->event_gsiv)
+			acpi_iort_register_irq(smmu->event_gsiv, "combined",
+					       ACPI_EDGE_SENSITIVE,
+					       &res[num_res++]);
+	} else {
 
-	if (smmu->event_gsiv)
-		acpi_iort_register_irq(smmu->event_gsiv, "eventq",
-				       ACPI_EDGE_SENSITIVE,
-				       &res[num_res++]);
+		if (smmu->event_gsiv)
+			acpi_iort_register_irq(smmu->event_gsiv, "eventq",
+					       ACPI_EDGE_SENSITIVE,
+					       &res[num_res++]);
 
-	if (smmu->pri_gsiv)
-		acpi_iort_register_irq(smmu->pri_gsiv, "priq",
-				       ACPI_EDGE_SENSITIVE,
-				       &res[num_res++]);
+		if (smmu->pri_gsiv)
+			acpi_iort_register_irq(smmu->pri_gsiv, "priq",
+					       ACPI_EDGE_SENSITIVE,
+					       &res[num_res++]);
 
-	if (smmu->gerr_gsiv)
-		acpi_iort_register_irq(smmu->gerr_gsiv, "gerror",
-				       ACPI_EDGE_SENSITIVE,
-				       &res[num_res++]);
+		if (smmu->gerr_gsiv)
+			acpi_iort_register_irq(smmu->gerr_gsiv, "gerror",
+					       ACPI_EDGE_SENSITIVE,
+					       &res[num_res++]);
 
-	if (smmu->sync_gsiv)
-		acpi_iort_register_irq(smmu->sync_gsiv, "cmdq-sync",
-				       ACPI_EDGE_SENSITIVE,
-				       &res[num_res++]);
+		if (smmu->sync_gsiv)
+			acpi_iort_register_irq(smmu->sync_gsiv, "cmdq-sync",
+					       ACPI_EDGE_SENSITIVE,
+					       &res[num_res++]);
+	}
 }
 
 static bool __init arm_smmu_v3_is_coherent(struct acpi_iort_node *node)

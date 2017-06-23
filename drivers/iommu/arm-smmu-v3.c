@@ -615,6 +615,7 @@ struct arm_smmu_device {
 	struct arm_smmu_priq		priq;
 
 	int				gerr_irq;
+	int				combined_irq;
 
 	unsigned long			ias; /* IPA */
 	unsigned long			oas; /* PA */
@@ -1328,6 +1329,24 @@ static irqreturn_t arm_smmu_gerror_handler(int irq, void *dev)
 
 	writel(gerror, smmu->base + ARM_SMMU_GERRORN);
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t arm_smmu_combined_irq_thread(int irq, void *dev)
+{
+	struct arm_smmu_device *smmu = dev;
+
+	arm_smmu_evtq_thread(irq, dev);
+	if (smmu->features & ARM_SMMU_FEAT_PRI)
+		arm_smmu_priq_thread(irq, dev);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t arm_smmu_combined_irq_handler(int irq, void *dev)
+{
+	arm_smmu_gerror_handler(irq, dev);
+	arm_smmu_cmdq_sync_handler(irq, dev);
+	return IRQ_WAKE_THREAD;
 }
 
 /* IO_PGTABLE API */
@@ -2229,18 +2248,9 @@ static void arm_smmu_setup_msis(struct arm_smmu_device *smmu)
 	devm_add_action(dev, arm_smmu_free_msis, dev);
 }
 
-static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
+static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 {
-	int ret, irq;
-	u32 irqen_flags = IRQ_CTRL_EVTQ_IRQEN | IRQ_CTRL_GERROR_IRQEN;
-
-	/* Disable IRQs first */
-	ret = arm_smmu_write_reg_sync(smmu, 0, ARM_SMMU_IRQ_CTRL,
-				      ARM_SMMU_IRQ_CTRLACK);
-	if (ret) {
-		dev_err(smmu->dev, "failed to disable irqs\n");
-		return ret;
-	}
+	int irq, ret;
 
 	arm_smmu_setup_msis(smmu);
 
@@ -2283,10 +2293,41 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 			if (ret < 0)
 				dev_warn(smmu->dev,
 					 "failed to enable priq irq\n");
-			else
-				irqen_flags |= IRQ_CTRL_PRIQ_IRQEN;
 		}
 	}
+}
+
+static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
+{
+	int ret, irq;
+	u32 irqen_flags = IRQ_CTRL_EVTQ_IRQEN | IRQ_CTRL_GERROR_IRQEN;
+
+	/* Disable IRQs first */
+	ret = arm_smmu_write_reg_sync(smmu, 0, ARM_SMMU_IRQ_CTRL,
+				      ARM_SMMU_IRQ_CTRLACK);
+	if (ret) {
+		dev_err(smmu->dev, "failed to disable irqs\n");
+		return ret;
+	}
+
+	irq = smmu->combined_irq;
+	if (irq) {
+		/*
+		 * Cavium ThunderX2 implementation doesn't not support unique
+		 * irq lines. Use single irq line for all the SMMUv3 interrupts.
+		 */
+		ret = devm_request_threaded_irq(smmu->dev, irq,
+					arm_smmu_combined_irq_handler,
+					arm_smmu_combined_irq_thread,
+					IRQF_ONESHOT,
+					"arm-smmu-v3-combined-irq", smmu);
+		if (ret < 0)
+			dev_warn(smmu->dev, "failed to enable combined irq\n");
+	} else
+		arm_smmu_setup_unique_irqs(smmu);
+
+	if (smmu->features & ARM_SMMU_FEAT_PRI)
+		irqen_flags |= IRQ_CTRL_PRIQ_IRQEN;
 
 	/* Enable interrupt generation on the SMMU */
 	ret = arm_smmu_write_reg_sync(smmu, irqen_flags,
@@ -2729,22 +2770,27 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return PTR_ERR(smmu->base);
 
 	/* Interrupt lines */
-	irq = platform_get_irq_byname(pdev, "eventq");
-	if (irq > 0)
-		smmu->evtq.q.irq = irq;
 
-	irq = platform_get_irq_byname(pdev, "priq");
+	irq = platform_get_irq_byname(pdev, "combined");
 	if (irq > 0)
-		smmu->priq.q.irq = irq;
+		smmu->combined_irq = irq;
+	else {
+		irq = platform_get_irq_byname(pdev, "eventq");
+		if (irq > 0)
+			smmu->evtq.q.irq = irq;
 
-	irq = platform_get_irq_byname(pdev, "cmdq-sync");
-	if (irq > 0)
-		smmu->cmdq.q.irq = irq;
+		irq = platform_get_irq_byname(pdev, "priq");
+		if (irq > 0)
+			smmu->priq.q.irq = irq;
 
-	irq = platform_get_irq_byname(pdev, "gerror");
-	if (irq > 0)
-		smmu->gerr_irq = irq;
+		irq = platform_get_irq_byname(pdev, "cmdq-sync");
+		if (irq > 0)
+			smmu->cmdq.q.irq = irq;
 
+		irq = platform_get_irq_byname(pdev, "gerror");
+		if (irq > 0)
+			smmu->gerr_irq = irq;
+	}
 	/* Probe the h/w */
 	ret = arm_smmu_device_hw_probe(smmu);
 	if (ret)
