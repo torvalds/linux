@@ -848,7 +848,7 @@ static int svc_rdma_build_pz_read_chunk(struct svc_rqst *rqstp,
 	head->arg.len += info->ri_chunklen;
 	head->arg.buflen += info->ri_chunklen;
 
-	if (head->arg.len <= head->sge[0].length) {
+	if (head->arg.buflen <= head->sge[0].length) {
 		/* Transport header and RPC message fit entirely
 		 * in page where head iovec resides.
 		 */

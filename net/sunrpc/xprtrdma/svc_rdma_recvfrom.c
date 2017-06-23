@@ -143,7 +143,6 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 		put_page(rqstp->rq_pages[sge_no]);
 		rqstp->rq_pages[sge_no] = page;
 		bc -= min_t(u32, bc, ctxt->sge[sge_no].length);
-		rqstp->rq_arg.buflen += ctxt->sge[sge_no].length;
 		sge_no++;
 	}
 	rqstp->rq_respages = &rqstp->rq_pages[sge_no];
@@ -338,6 +337,7 @@ static int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg)
 	rq_arg->head[0].iov_base = p;
 	hdr_len = (unsigned long)p - (unsigned long)rdma_argp;
 	rq_arg->head[0].iov_len -= hdr_len;
+	rq_arg->len -= hdr_len;
 	dprintk("svcrdma: received %s request for XID 0x%08x, hdr_len=%u\n",
 		proc, be32_to_cpup(rdma_argp), hdr_len);
 	return hdr_len;
@@ -564,18 +564,12 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		goto out_readchunk;
 
 complete:
-	ret = rqstp->rq_arg.head[0].iov_len
-		+ rqstp->rq_arg.page_len
-		+ rqstp->rq_arg.tail[0].iov_len;
 	svc_rdma_put_context(ctxt, 0);
-	dprintk("svcrdma: ret=%d, rq_arg.len=%u, "
-		"rq_arg.head[0].iov_base=%p, rq_arg.head[0].iov_len=%zd\n",
-		ret, rqstp->rq_arg.len,
-		rqstp->rq_arg.head[0].iov_base,
-		rqstp->rq_arg.head[0].iov_len);
+	dprintk("svcrdma: recvfrom: xprt=%p, rqstp=%p, rq_arg.len=%u\n",
+		rdma_xprt, rqstp, rqstp->rq_arg.len);
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
-	return ret;
+	return rqstp->rq_arg.len;
 
 out_readchunk:
 	ret = svc_rdma_recv_read_chunk(rdma_xprt, rqstp, ctxt, p);
