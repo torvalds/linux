@@ -683,8 +683,6 @@ static int emac_probe(struct platform_device *pdev)
 		goto err_undo_mdiobus;
 	}
 
-	emac_mac_reset(adpt);
-
 	/* set hw features */
 	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 			NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_CTAG_RX |
