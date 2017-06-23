@@ -991,8 +991,10 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case VIRTCHNL_OP_DISABLE_QUEUES:
 		i40evf_free_all_tx_resources(adapter);
 		i40evf_free_all_rx_resources(adapter);
-		if (adapter->state == __I40EVF_DOWN_PENDING)
+		if (adapter->state == __I40EVF_DOWN_PENDING) {
 			adapter->state = __I40EVF_DOWN;
+			wake_up(&adapter->down_waitqueue);
+		}
 		break;
 	case VIRTCHNL_OP_VERSION:
 	case VIRTCHNL_OP_CONFIG_IRQ_MAP:

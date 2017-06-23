@@ -43,6 +43,7 @@
 #include <linux/bitops.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/skbuff.h>
@@ -194,6 +195,7 @@ struct i40evf_adapter {
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
 	struct delayed_work init_task;
+	wait_queue_head_t down_waitqueue;
 	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
