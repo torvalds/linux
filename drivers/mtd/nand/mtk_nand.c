@@ -1490,8 +1490,6 @@ static int mtk_nfc_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	mtk_nfc_hw_init(nfc);
-
 	/* reset NAND chip if VCC was powered off */
 	list_for_each_entry(chip, &nfc->chips, node) {
 		nand = &chip->nand;
