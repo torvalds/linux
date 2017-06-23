@@ -275,19 +275,38 @@ struct irq_timings {
 
 DECLARE_PER_CPU(struct irq_timings, irq_timings);
 
+extern void irq_timings_free(int irq);
+extern int irq_timings_alloc(int irq);
+
 static inline void irq_remove_timings(struct irq_desc *desc)
 {
 	desc->istate &= ~IRQS_TIMINGS;
+
+	irq_timings_free(irq_desc_get_irq(desc));
 }
 
 static inline void irq_setup_timings(struct irq_desc *desc, struct irqaction *act)
 {
+	int irq = irq_desc_get_irq(desc);
+	int ret;
+
 	/*
 	 * We don't need the measurement because the idle code already
 	 * knows the next expiry event.
 	 */
 	if (act->flags & __IRQF_TIMER)
 		return;
+
+	/*
+	 * In case the timing allocation fails, we just want to warn,
+	 * not fail, so letting the system boot anyway.
+	 */
+	ret = irq_timings_alloc(irq);
+	if (ret) {
+		pr_warn("Failed to allocate irq timing stats for irq%d (%d)",
+			irq, ret);
+		return;
+	}
 
 	desc->istate |= IRQS_TIMINGS;
 }
