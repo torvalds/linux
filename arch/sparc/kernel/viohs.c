@@ -223,6 +223,9 @@ static int send_rdx(struct vio_driver_state *vio)
 
 static int send_attr(struct vio_driver_state *vio)
 {
+	if (!vio->ops)
+		return -EINVAL;
+
 	return vio->ops->send_attr(vio);
 }
 
@@ -374,6 +377,9 @@ static int process_attr(struct vio_driver_state *vio, void *pkt)
 	if (!(vio->hs_state & VIO_HS_GOTVERS))
 		return handshake_failure(vio);
 
+	if (!vio->ops)
+		return 0;
+
 	err = vio->ops->handle_attr(vio, pkt);
 	if (err < 0) {
 		return handshake_failure(vio);
@@ -388,6 +394,7 @@ static int process_attr(struct vio_driver_state *vio, void *pkt)
 			vio->hs_state |= VIO_HS_SENT_DREG;
 		}
 	}
+
 	return 0;
 }
 
@@ -647,10 +654,13 @@ int vio_control_pkt_engine(struct vio_driver_state *vio, void *pkt)
 		err = process_unknown(vio, pkt);
 		break;
 	}
+
 	if (!err &&
 	    vio->hs_state != prev_state &&
-	    (vio->hs_state & VIO_HS_COMPLETE))
-		vio->ops->handshake_complete(vio);
+	    (vio->hs_state & VIO_HS_COMPLETE)) {
+		if (vio->ops)
+			vio->ops->handshake_complete(vio);
+	}
 
 	return err;
 }
@@ -805,8 +815,7 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 		return -EINVAL;
 	}
 
-	if (!ops->send_attr ||
-	    !ops->handle_attr ||
+	if (!ops || !ops->send_attr || !ops->handle_attr ||
 	    !ops->handshake_complete)
 		return -EINVAL;
 
