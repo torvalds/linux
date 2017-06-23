@@ -2577,7 +2577,7 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 		tx_buf = &tx_ring->tx_buffer_info[i];
 		last_jiffies = tx_buf->last_jiffies;
 		if (unlikely(last_jiffies &&
-			     time_is_before_jiffies(last_jiffies + TX_TIMEOUT))) {
+			     time_is_before_jiffies(last_jiffies + adapter->missing_tx_completion_to))) {
 			if (!tx_buf->print_once)
 				netif_notice(adapter, tx_err, adapter->netdev,
 					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
@@ -2586,10 +2586,11 @@ static int check_missing_comp_in_queue(struct ena_adapter *adapter,
 			tx_buf->print_once = 1;
 			missed_tx++;
 
-			if (unlikely(missed_tx > MAX_NUM_OF_TIMEOUTED_PACKETS)) {
+			if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
 				netif_err(adapter, tx_err, adapter->netdev,
 					  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
-					  missed_tx, MAX_NUM_OF_TIMEOUTED_PACKETS);
+					  missed_tx,
+					  adapter->missing_tx_completion_threshold);
 				set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 				return -EIO;
 			}
@@ -2611,6 +2612,9 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 		return;
 
 	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
+		return;
+
+	if (adapter->missing_tx_completion_to == ENA_HW_HINTS_NO_TIMEOUT)
 		return;
 
 	budget = ENA_MONITORED_TX_QUEUES;
@@ -2690,8 +2694,11 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 	if (!adapter->wd_state)
 		return;
 
-	keep_alive_expired = round_jiffies(adapter->last_keep_alive_jiffies
-					   + ENA_DEVICE_KALIVE_TIMEOUT);
+	if (adapter->keep_alive_timeout == ENA_HW_HINTS_NO_TIMEOUT)
+		return;
+
+	keep_alive_expired = round_jiffies(adapter->last_keep_alive_jiffies +
+					   adapter->keep_alive_timeout);
 	if (unlikely(time_is_before_jiffies(keep_alive_expired))) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Keep alive watchdog timeout.\n");
@@ -2711,6 +2718,44 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 		adapter->dev_stats.admin_q_pause++;
 		u64_stats_update_end(&adapter->syncp);
 		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+	}
+}
+
+static void ena_update_hints(struct ena_adapter *adapter,
+			     struct ena_admin_ena_hw_hints *hints)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	if (hints->admin_completion_tx_timeout)
+		adapter->ena_dev->admin_queue.completion_timeout =
+			hints->admin_completion_tx_timeout * 1000;
+
+	if (hints->mmio_read_timeout)
+		/* convert to usec */
+		adapter->ena_dev->mmio_read.reg_read_to =
+			hints->mmio_read_timeout * 1000;
+
+	if (hints->missed_tx_completion_count_threshold_to_reset)
+		adapter->missing_tx_completion_threshold =
+			hints->missed_tx_completion_count_threshold_to_reset;
+
+	if (hints->missing_tx_completion_timeout) {
+		if (hints->missing_tx_completion_timeout == ENA_HW_HINTS_NO_TIMEOUT)
+			adapter->missing_tx_completion_to = ENA_HW_HINTS_NO_TIMEOUT;
+		else
+			adapter->missing_tx_completion_to =
+				msecs_to_jiffies(hints->missing_tx_completion_timeout);
+	}
+
+	if (hints->netdev_wd_timeout)
+		netdev->watchdog_timeo = msecs_to_jiffies(hints->netdev_wd_timeout);
+
+	if (hints->driver_watchdog_timeout) {
+		if (hints->driver_watchdog_timeout == ENA_HW_HINTS_NO_TIMEOUT)
+			adapter->keep_alive_timeout = ENA_HW_HINTS_NO_TIMEOUT;
+		else
+			adapter->keep_alive_timeout =
+				msecs_to_jiffies(hints->driver_watchdog_timeout);
 	}
 }
 
@@ -3136,6 +3181,11 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
 
 	adapter->last_keep_alive_jiffies = jiffies;
+	adapter->keep_alive_timeout = ENA_DEVICE_KALIVE_TIMEOUT;
+	adapter->missing_tx_completion_to = TX_TIMEOUT;
+	adapter->missing_tx_completion_threshold = MAX_NUM_OF_TIMEOUTED_PACKETS;
+
+	ena_update_hints(adapter, &get_feat_ctx.hw_hints);
 
 	setup_timer(&adapter->timer_service, ena_timer_service,
 		    (unsigned long)adapter);
@@ -3337,6 +3387,7 @@ static void ena_notification(void *adapter_data,
 			     struct ena_admin_aenq_entry *aenq_e)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
+	struct ena_admin_ena_hw_hints *hints;
 
 	WARN(aenq_e->aenq_common_desc.group != ENA_ADMIN_NOTIFICATION,
 	     "Invalid group(%x) expected %x\n",
@@ -3353,6 +3404,11 @@ static void ena_notification(void *adapter_data,
 		break;
 	case ENA_ADMIN_RESUME:
 		queue_work(ena_wq, &adapter->resume_io_task);
+		break;
+	case ENA_ADMIN_UPDATE_HINTS:
+		hints = (struct ena_admin_ena_hw_hints *)
+			(&aenq_e->inline_data_w4);
+		ena_update_hints(adapter, hints);
 		break;
 	default:
 		netif_err(adapter, drv, adapter->netdev,

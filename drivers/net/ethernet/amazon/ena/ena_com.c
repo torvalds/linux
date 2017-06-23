@@ -511,7 +511,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 	unsigned long flags, timeout;
 	int ret;
 
-	timeout = jiffies + ADMIN_CMD_TIMEOUT_US;
+	timeout = jiffies + usecs_to_jiffies(admin_queue->completion_timeout);
 
 	while (1) {
 		spin_lock_irqsave(&admin_queue->q_lock, flags);
@@ -561,7 +561,8 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 	int ret;
 
 	wait_for_completion_timeout(&comp_ctx->wait_event,
-				    usecs_to_jiffies(ADMIN_CMD_TIMEOUT_US));
+				    usecs_to_jiffies(
+					    admin_queue->completion_timeout));
 
 	/* In case the command wasn't completed find out the root cause.
 	 * There might be 2 kinds of errors
@@ -601,11 +602,14 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	struct ena_com_mmio_read *mmio_read = &ena_dev->mmio_read;
 	volatile struct ena_admin_ena_mmio_req_read_less_resp *read_resp =
 		mmio_read->read_resp;
-	u32 mmio_read_reg, ret;
+	u32 mmio_read_reg, ret, i;
 	unsigned long flags;
-	int i;
+	u32 timeout = mmio_read->reg_read_to;
 
 	might_sleep();
+
+	if (timeout == 0)
+		timeout = ENA_REG_READ_TIMEOUT;
 
 	/* If readless is disabled, perform regular read */
 	if (!mmio_read->readless_supported)
@@ -627,14 +631,14 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 
 	writel(mmio_read_reg, ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
 
-	for (i = 0; i < ENA_REG_READ_TIMEOUT; i++) {
+	for (i = 0; i < timeout; i++) {
 		if (read_resp->req_id == mmio_read->seq_num)
 			break;
 
 		udelay(1);
 	}
 
-	if (unlikely(i == ENA_REG_READ_TIMEOUT)) {
+	if (unlikely(i == timeout)) {
 		pr_err("reading reg failed for timeout. expected: req id[%hu] offset[%hu] actual: req id[%hu] offset[%hu]\n",
 		       mmio_read->seq_num, offset, read_resp->req_id,
 		       read_resp->reg_off);
@@ -1730,6 +1734,20 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 	memcpy(&get_feat_ctx->offload, &get_resp.u.offload,
 	       sizeof(get_resp.u.offload));
 
+	/* Driver hints isn't mandatory admin command. So in case the
+	 * command isn't supported set driver hints to 0
+	 */
+	rc = ena_com_get_feature(ena_dev, &get_resp, ENA_ADMIN_HW_HINTS);
+
+	if (!rc)
+		memcpy(&get_feat_ctx->hw_hints, &get_resp.u.hw_hints,
+		       sizeof(get_resp.u.hw_hints));
+	else if (rc == -EOPNOTSUPP)
+		memset(&get_feat_ctx->hw_hints, 0x0,
+		       sizeof(get_feat_ctx->hw_hints));
+	else
+		return rc;
+
 	return 0;
 }
 
@@ -1854,6 +1872,14 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev)
 		pr_err("Reset indication didn't turn off\n");
 		return rc;
 	}
+
+	timeout = (cap & ENA_REGS_CAPS_ADMIN_CMD_TO_MASK) >>
+		ENA_REGS_CAPS_ADMIN_CMD_TO_SHIFT;
+	if (timeout)
+		/* the resolution of timeout reg is 100ms */
+		ena_dev->admin_queue.completion_timeout = timeout * 100000;
+	else
+		ena_dev->admin_queue.completion_timeout = ADMIN_CMD_TIMEOUT_US;
 
 	return 0;
 }

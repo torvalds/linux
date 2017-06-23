@@ -280,6 +280,8 @@ struct ena_adapter {
 
 	int msix_vecs;
 
+	u32 missing_tx_completion_threshold;
+
 	u32 tx_usecs, rx_usecs; /* interrupt moderation */
 	u32 tx_frames, rx_frames; /* interrupt moderation */
 
@@ -292,6 +294,9 @@ struct ena_adapter {
 	u16 max_rx_sgl_size;
 
 	u8 mac_addr[ETH_ALEN];
+
+	unsigned long keep_alive_timeout;
+	unsigned long missing_tx_completion_to;
 
 	char name[ENA_NAME_MAX_LEN];
 
