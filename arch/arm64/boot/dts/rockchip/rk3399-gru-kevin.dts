@@ -264,6 +264,26 @@ ap_i2c_dig: &i2c2 {
 	};
 };
 
+&ppvar_bigcpu {
+	regulator-min-microvolt = <798674>;
+	regulator-max-microvolt = <1302172>;
+};
+
+&ppvar_litcpu {
+	regulator-min-microvolt = <799065>;
+	regulator-max-microvolt = <1303738>;
+};
+
+&ppvar_gpu {
+	regulator-min-microvolt = <785782>;
+	regulator-max-microvolt = <1217729>;
+};
+
+&ppvar_centerlogic {
+	regulator-min-microvolt = <800069>;
+	regulator-max-microvolt = <1049692>;
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&pp1800_ap_io>;

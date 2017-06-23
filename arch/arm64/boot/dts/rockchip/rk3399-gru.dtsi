@@ -181,8 +181,8 @@
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <798674>;
-		regulator-max-microvolt = <1302172>;
+		regulator-min-microvolt = <800107>;
+		regulator-max-microvolt = <1302232>;
 	};
 
 	ppvar_litcpu: ppvar-litcpu {
@@ -202,8 +202,8 @@
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <799065>;
-		regulator-max-microvolt = <1303738>;
+		regulator-min-microvolt = <797743>;
+		regulator-max-microvolt = <1307837>;
 	};
 
 	ppvar_gpu: ppvar-gpu {
@@ -223,8 +223,8 @@
 		/* EC turns on w/ ap_core_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <785782>;
-		regulator-max-microvolt = <1217729>;
+		regulator-min-microvolt = <786384>;
+		regulator-max-microvolt = <1217747>;
 	};
 
 	ppvar_centerlogic: ppvar-centerlogic {
@@ -244,8 +244,8 @@
 		/* EC turns on w/ ppvar_centerlogic_en; always on for AP */
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <800069>;
-		regulator-max-microvolt = <1049692>;
+		regulator-min-microvolt = <799434>;
+		regulator-max-microvolt = <1049925>;
 	};
 
 	/* Schematics call this PPVAR even though it's fixed */
