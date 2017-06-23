@@ -4069,23 +4069,26 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	u64 changed_flags;
+	u64 orig_flags, new_flags, changed_flags;
 	u32 i, j;
 
-	changed_flags = pf->flags;
+	orig_flags = READ_ONCE(pf->flags);
+	new_flags = orig_flags;
 
 	for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
 		const struct i40e_priv_flags *priv_flags;
 
 		priv_flags = &i40e_gstrings_priv_flags[i];
 
-		if (priv_flags->read_only)
-			continue;
-
 		if (flags & BIT(i))
-			pf->flags |= priv_flags->flag;
+			new_flags |= priv_flags->flag;
 		else
-			pf->flags &= ~(priv_flags->flag);
+			new_flags &= ~(priv_flags->flag);
+
+		/* If this is a read-only flag, it can't be changed */
+		if (priv_flags->read_only &&
+		    ((orig_flags ^ new_flags) & ~BIT(i)))
+			return -EOPNOTSUPP;
 	}
 
 	if (pf->hw.pf_id != 0)
@@ -4096,18 +4099,40 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 
 		priv_flags = &i40e_gl_gstrings_priv_flags[j];
 
-		if (priv_flags->read_only)
-			continue;
-
 		if (flags & BIT(i + j))
-			pf->flags |= priv_flags->flag;
+			new_flags |= priv_flags->flag;
 		else
-			pf->flags &= ~(priv_flags->flag);
+			new_flags &= ~(priv_flags->flag);
+
+		/* If this is a read-only flag, it can't be changed */
+		if (priv_flags->read_only &&
+		    ((orig_flags ^ new_flags) & ~BIT(i)))
+			return -EOPNOTSUPP;
 	}
 
 flags_complete:
-	/* check for flags that changed */
-	changed_flags ^= pf->flags;
+	/* Before we finalize any flag changes, we need to perform some
+	 * checks to ensure that the changes are supported and safe.
+	 */
+
+	/* ATR eviction is not supported on all devices */
+	if ((new_flags & I40E_FLAG_HW_ATR_EVICT_ENABLED) &&
+	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
+		return -EOPNOTSUPP;
+
+	/* Compare and exchange the new flags into place. If we failed, that
+	 * is if cmpxchg64 returns anything but the old value, this means that
+	 * something else has modified the flags variable since we copied it
+	 * originally. We'll just punt with an error and log something in the
+	 * message buffer.
+	 */
+	if (cmpxchg64(&pf->flags, orig_flags, new_flags) != orig_flags) {
+		dev_warn(&pf->pdev->dev,
+			 "Unable to update pf->flags as it was modified by another thread...\n");
+		return -EAGAIN;
+	}
+
+	changed_flags = orig_flags ^ new_flags;
 
 	/* Process any additional changes needed as a result of flag changes.
 	 * The changed_flags value reflects the list of bits that were
@@ -4120,10 +4145,6 @@ flags_complete:
 		pf->flags |= I40E_FLAG_FD_ATR_AUTO_DISABLED;
 		set_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 	}
-
-	/* Only allow ATR evict on hardware that is capable of handling it */
-	if (!(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
-		pf->flags &= ~I40E_FLAG_HW_ATR_EVICT_ENABLED;
 
 	if (changed_flags & I40E_FLAG_TRUE_PROMISC_SUPPORT) {
 		u16 sw_flags = 0, valid_flags = 0;
