@@ -263,7 +263,10 @@ struct trace_array {
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
 #ifdef CONFIG_DYNAMIC_FTRACE
+	/* All of these are protected by the ftrace_lock */
 	struct list_head	func_probes;
+	struct list_head	mod_trace;
+	struct list_head	mod_notrace;
 #endif
 	/* function tracing enabled */
 	int			function_enabled;
@@ -760,6 +763,15 @@ void trace_printk_seq(struct trace_seq *s);
 enum print_line_t print_trace_line(struct trace_iterator *iter);
 
 extern char trace_find_mark(unsigned long long duration);
+
+struct ftrace_hash;
+
+struct ftrace_mod_load {
+	struct list_head	list;
+	char			*func;
+	char			*module;
+	int			 enable;
+};
 
 struct ftrace_hash {
 	unsigned long		size_bits;

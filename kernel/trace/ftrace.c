@@ -1293,6 +1293,28 @@ static void ftrace_hash_clear(struct ftrace_hash *hash)
 	FTRACE_WARN_ON(hash->count);
 }
 
+static void free_ftrace_mod(struct ftrace_mod_load *ftrace_mod)
+{
+	list_del(&ftrace_mod->list);
+	kfree(ftrace_mod->module);
+	kfree(ftrace_mod->func);
+	kfree(ftrace_mod);
+}
+
+static void clear_ftrace_mod_list(struct list_head *head)
+{
+	struct ftrace_mod_load *p, *n;
+
+	/* stack tracer isn't supported yet */
+	if (!head)
+		return;
+
+	mutex_lock(&ftrace_lock);
+	list_for_each_entry_safe(p, n, head, list)
+		free_ftrace_mod(p);
+	mutex_unlock(&ftrace_lock);
+}
+
 static void free_ftrace_hash(struct ftrace_hash *hash)
 {
 	if (!hash || hash == EMPTY_HASH)
@@ -1344,6 +1366,35 @@ static struct ftrace_hash *alloc_ftrace_hash(int size_bits)
 	hash->size_bits = size_bits;
 
 	return hash;
+}
+
+
+static int ftrace_add_mod(struct trace_array *tr,
+			  const char *func, const char *module,
+			  int enable)
+{
+	struct ftrace_mod_load *ftrace_mod;
+	struct list_head *mod_head = enable ? &tr->mod_trace : &tr->mod_notrace;
+
+	ftrace_mod = kzalloc(sizeof(*ftrace_mod), GFP_KERNEL);
+	if (!ftrace_mod)
+		return -ENOMEM;
+
+	ftrace_mod->func = kstrdup(func, GFP_KERNEL);
+	ftrace_mod->module = kstrdup(module, GFP_KERNEL);
+	ftrace_mod->enable = enable;
+
+	if (!ftrace_mod->func || !ftrace_mod->module)
+		goto out_free;
+
+	list_add(&ftrace_mod->list, mod_head);
+
+	return 0;
+
+ out_free:
+	free_ftrace_mod(ftrace_mod);
+
+	return -ENOMEM;
 }
 
 static struct ftrace_hash *
@@ -3457,6 +3508,8 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 {
 	struct ftrace_iterator *iter;
 	struct ftrace_hash *hash;
+	struct list_head *mod_head;
+	struct trace_array *tr = ops->private;
 	int ret = 0;
 
 	ftrace_ops_init(ops);
@@ -3478,18 +3531,23 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 
 	mutex_lock(&ops->func_hash->regex_lock);
 
-	if (flag & FTRACE_ITER_NOTRACE)
+	if (flag & FTRACE_ITER_NOTRACE) {
 		hash = ops->func_hash->notrace_hash;
-	else
+		mod_head = tr ? &tr->mod_trace : NULL;
+	} else {
 		hash = ops->func_hash->filter_hash;
+		mod_head = tr ? &tr->mod_notrace : NULL;
+	}
 
 	if (file->f_mode & FMODE_WRITE) {
 		const int size_bits = FTRACE_HASH_DEFAULT_BITS;
 
-		if (file->f_flags & O_TRUNC)
+		if (file->f_flags & O_TRUNC) {
 			iter->hash = alloc_ftrace_hash(size_bits);
-		else
+			clear_ftrace_mod_list(mod_head);
+	        } else {
 			iter->hash = alloc_and_copy_ftrace_hash(size_bits, hash);
+		}
 
 		if (!iter->hash) {
 			trace_parser_put(&iter->parser);
@@ -3761,6 +3819,68 @@ static int ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
 	return ret;
 }
 
+static bool module_exists(const char *module)
+{
+	/* All modules have the symbol __this_module */
+	const char this_mod[] = "__this_module";
+	const int modname_size = MAX_PARAM_PREFIX_LEN + sizeof(this_mod) + 1;
+	char modname[modname_size + 1];
+	unsigned long val;
+	int n;
+
+	n = snprintf(modname, modname_size + 1, "%s:%s", module, this_mod);
+
+	if (n > modname_size)
+		return false;
+
+	val = module_kallsyms_lookup_name(modname);
+	return val != 0;
+}
+
+static int cache_mod(struct trace_array *tr,
+		     const char *func, char *module, int enable)
+{
+	struct ftrace_mod_load *ftrace_mod, *n;
+	struct list_head *head = enable ? &tr->mod_trace : &tr->mod_notrace;
+	int ret;
+
+	mutex_lock(&ftrace_lock);
+
+	/* We do not cache inverse filters */
+	if (func[0] == '!') {
+		func++;
+		ret = -EINVAL;
+
+		/* Look to remove this hash */
+		list_for_each_entry_safe(ftrace_mod, n, head, list) {
+			if (strcmp(ftrace_mod->module, module) != 0)
+				continue;
+
+			/* no func matches all */
+			if (!func || strcmp(func, "*") == 0 ||
+			    (ftrace_mod->func &&
+			     strcmp(ftrace_mod->func, func) == 0)) {
+				ret = 0;
+				free_ftrace_mod(ftrace_mod);
+				continue;
+			}
+		}
+		goto out;
+	}
+
+	ret = -EINVAL;
+	/* We only care about modules that have not been loaded yet */
+	if (module_exists(module))
+		goto out;
+
+	/* Save this string off, and execute it when the module is loaded */
+	ret = ftrace_add_mod(tr, func, module, enable);
+ out:
+	mutex_unlock(&ftrace_lock);
+
+	return ret;
+}
+
 /*
  * We register the module command as a template to show others how
  * to register the a command as well.
@@ -3768,9 +3888,15 @@ static int ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
 
 static int
 ftrace_mod_callback(struct trace_array *tr, struct ftrace_hash *hash,
-		    char *func, char *cmd, char *module, int enable)
+		    char *func_orig, char *cmd, char *module, int enable)
 {
+	char *func;
 	int ret;
+
+	/* match_records() modifies func, and we need the original */
+	func = kstrdup(func_orig, GFP_KERNEL);
+	if (!func)
+		return -ENOMEM;
 
 	/*
 	 * cmd == 'mod' because we only registered this func
@@ -3780,8 +3906,10 @@ ftrace_mod_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	 * parameter.
 	 */
 	ret = match_records(hash, func, strlen(func), module);
+	kfree(func);
+
 	if (!ret)
-		return -EINVAL;
+		return cache_mod(tr, func_orig, module, enable);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -5570,6 +5698,8 @@ static void ftrace_update_trampoline(struct ftrace_ops *ops)
 void ftrace_init_trace_array(struct trace_array *tr)
 {
 	INIT_LIST_HEAD(&tr->func_probes);
+	INIT_LIST_HEAD(&tr->mod_trace);
+	INIT_LIST_HEAD(&tr->mod_notrace);
 }
 #else
 
