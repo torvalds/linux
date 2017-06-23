@@ -1770,6 +1770,9 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qpair = sp->qpair;
 
+	/* Acquire qpair specific lock */
+	spin_lock_irqsave(&qpair->qp_lock, flags);
+
 	/* Setup qpair pointers */
 	rsp = qpair->rsp;
 	req = qpair->req;
@@ -1779,14 +1782,13 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
-		    QLA_SUCCESS)
+		if (__qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		    QLA_SUCCESS) {
+			spin_unlock_irqrestore(&qpair->qp_lock, flags);
 			return QLA_FUNCTION_FAILED;
+		}
 		vha->marker_needed = 0;
 	}
-
-	/* Acquire qpair specific lock */
-	spin_lock_irqsave(&qpair->qp_lock, flags);
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
@@ -1942,6 +1944,8 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 			return qla2xxx_start_scsi_mq(sp);
 	}
 
+	spin_lock_irqsave(&qpair->qp_lock, flags);
+
 	/* Setup qpair pointers */
 	rsp = qpair->rsp;
 	req = qpair->req;
@@ -1951,14 +1955,13 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
-		    QLA_SUCCESS)
+		if (__qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		    QLA_SUCCESS) {
+			spin_unlock_irqrestore(&qpair->qp_lock, flags);
 			return QLA_FUNCTION_FAILED;
+		}
 		vha->marker_needed = 0;
 	}
-
-	/* Acquire ring specific lock */
-	spin_lock_irqsave(&qpair->qp_lock, flags);
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
