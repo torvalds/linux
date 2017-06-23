@@ -777,9 +777,8 @@ static void pci_acpi_setup(struct device *dev)
 		return;
 
 	device_set_wakeup_capable(dev, true);
+	device_set_run_wake(dev, true);
 	acpi_pci_sleep_wake(pci_dev, false);
-	if (adev->wakeup.flags.run_wake)
-		device_set_run_wake(dev, true);
 }
 
 static void pci_acpi_cleanup(struct device *dev)

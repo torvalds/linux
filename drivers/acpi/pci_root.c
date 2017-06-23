@@ -608,7 +608,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		pcie_no_aspm();
 
 	pci_acpi_add_bus_pm_notifier(device);
-	if (device->wakeup.flags.run_wake)
+	if (device->wakeup.flags.valid)
 		device_set_run_wake(root->bus->bridge, true);
 
 	if (hotadd) {
