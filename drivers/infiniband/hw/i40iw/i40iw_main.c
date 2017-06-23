@@ -243,6 +243,8 @@ static void i40iw_destroy_cqp(struct i40iw_device *iwdev, bool free_hwcqp)
 	if (free_hwcqp)
 		dev->cqp_ops->cqp_destroy(dev->cqp);
 
+	i40iw_cleanup_pending_cqp_op(iwdev);
+
 	i40iw_free_dma_mem(dev->hw, &cqp->sq);
 	kfree(cqp->scratch_array);
 	iwdev->cqp.scratch_array = NULL;
