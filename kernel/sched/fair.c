@@ -5420,6 +5420,13 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 	this_load = target_load(this_cpu, idx);
 
 	/*
+	 * Common case: CPUs are in the same socket, and select_idle_sibling()
+	 * will do its thing regardless of what we return:
+	 */
+	if (cpus_share_cache(prev_cpu, this_cpu))
+		return true;
+
+	/*
 	 * If sync wakeup then subtract the (maximum possible)
 	 * effect of the currently running task from the load
 	 * of the current CPU:
@@ -6007,11 +6014,15 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 
 	if (affine_sd) {
 		sd = NULL; /* Prefer wake_affine over balance flags */
-		if (cpu != prev_cpu && wake_affine(affine_sd, p, prev_cpu, sync))
+		if (cpu == prev_cpu)
+			goto pick_cpu;
+
+		if (wake_affine(affine_sd, p, prev_cpu, sync))
 			new_cpu = cpu;
 	}
 
 	if (!sd) {
+ pick_cpu:
 		if (sd_flag & SD_BALANCE_WAKE) /* XXX always ? */
 			new_cpu = select_idle_sibling(p, prev_cpu, new_cpu);
 
