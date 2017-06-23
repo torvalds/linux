@@ -49,17 +49,37 @@ struct nfp_reprs {
 };
 
 /**
+ * struct nfp_repr_pcpu_stats
+ * @rx_packets:	Received packets
+ * @rx_bytes:	Received bytes
+ * @tx_packets:	Transmitted packets
+ * @tx_bytes:	Transmitted dropped
+ * @tx_drops:	Packets dropped on transmit
+ * @syncp:	Reference count
+ */
+struct nfp_repr_pcpu_stats {
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_drops;
+	struct u64_stats_sync syncp;
+};
+
+/**
  * struct nfp_repr - priv data for representor netdevs
  * @netdev:	Back pointer to netdev
  * @dst:	Destination for packet TX
  * @port:	Port of representor
  * @app:	APP handle
+ * @stats:	Statistic of packets hitting CPU
  */
 struct nfp_repr {
 	struct net_device *netdev;
 	struct metadata_dst *dst;
 	struct nfp_port *port;
 	struct nfp_app *app;
+	struct nfp_repr_pcpu_stats __percpu *stats;
 };
 
 /**
@@ -77,6 +97,14 @@ enum nfp_repr_type {
 };
 #define NFP_REPR_TYPE_MAX (__NFP_REPR_TYPE_MAX - 1)
 
+void nfp_repr_inc_rx_stats(struct net_device *netdev, unsigned int len);
+void
+nfp_repr_get_stats64(const struct nfp_app *app, enum nfp_repr_type type,
+		     u8 port, struct rtnl_link_stats64 *stats);
+bool nfp_repr_has_offload_stats(const struct net_device *dev, int attr_id);
+int nfp_repr_get_offload_stats(int attr_id, const struct net_device *dev,
+			       void *stats);
+netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev);
 int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 		  const struct net_device_ops *netdev_ops,
 		  u32 cmsg_port_id, struct nfp_port *port,
