@@ -874,7 +874,7 @@ int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	}
 }
 
-static struct irq_domain_ops gic_ipi_domain_ops = {
+static const struct irq_domain_ops gic_ipi_domain_ops = {
 	.xlate = gic_ipi_domain_xlate,
 	.alloc = gic_ipi_domain_alloc,
 	.free = gic_ipi_domain_free,
