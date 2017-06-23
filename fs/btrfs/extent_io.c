@@ -138,7 +138,8 @@ static void add_extent_changeset(struct extent_state *state, unsigned bits,
 	BUG_ON(ret < 0);
 }
 
-static noinline void flush_write_bio(void *data);
+static void flush_write_bio(void *data);
+
 static inline struct btrfs_fs_info *
 tree_fs_info(struct extent_io_tree *tree)
 {
@@ -4039,8 +4040,10 @@ retry:
 	return ret;
 }
 
-static void flush_epd_write_bio(struct extent_page_data *epd)
+static void flush_write_bio(void *data)
 {
+	struct extent_page_data *epd = data;
+
 	if (epd->bio) {
 		int ret;
 
@@ -4048,12 +4051,6 @@ static void flush_epd_write_bio(struct extent_page_data *epd)
 		BUG_ON(ret < 0); /* -ENOMEM */
 		epd->bio = NULL;
 	}
-}
-
-static noinline void flush_write_bio(void *data)
-{
-	struct extent_page_data *epd = data;
-	flush_epd_write_bio(epd);
 }
 
 int extent_write_full_page(struct page *page, struct writeback_control *wbc)
@@ -4068,7 +4065,7 @@ int extent_write_full_page(struct page *page, struct writeback_control *wbc)
 
 	ret = __extent_writepage(page, wbc, &epd);
 
-	flush_epd_write_bio(&epd);
+	flush_write_bio(&epd);
 	return ret;
 }
 
@@ -4110,7 +4107,7 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 		start += PAGE_SIZE;
 	}
 
-	flush_epd_write_bio(&epd);
+	flush_write_bio(&epd);
 	return ret;
 }
 
@@ -4128,7 +4125,7 @@ int extent_writepages(struct extent_io_tree *tree,
 
 	ret = extent_write_cache_pages(mapping, wbc, __extent_writepage, &epd,
 				       flush_write_bio);
-	flush_epd_write_bio(&epd);
+	flush_write_bio(&epd);
 	return ret;
 }
 
