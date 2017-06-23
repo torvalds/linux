@@ -1456,7 +1456,8 @@ restart:
 			EXT4_ERROR_INODE(dir, "checksumming directory "
 					 "block %lu", (unsigned long)block);
 			brelse(bh);
-			goto next;
+			ret = ERR_PTR(-EFSBADCRC);
+			goto cleanup_and_exit;
 		}
 		set_buffer_verified(bh);
 		i = search_dirblock(bh, dir, &fname,
