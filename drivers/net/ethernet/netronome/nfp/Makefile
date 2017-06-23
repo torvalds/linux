@@ -28,6 +28,7 @@ nfp-objs := \
 	    bpf/main.o \
 	    bpf/offload.o \
 	    flower/cmsg.o \
+	    flower/main.o \
 	    nic/main.o
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)

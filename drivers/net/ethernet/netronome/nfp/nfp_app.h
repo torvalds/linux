@@ -52,10 +52,12 @@ struct nfp_net;
 enum nfp_app_id {
 	NFP_APP_CORE_NIC	= 0x1,
 	NFP_APP_BPF_NIC		= 0x2,
+	NFP_APP_FLOWER_NIC	= 0x3,
 };
 
 extern const struct nfp_app_type app_nic;
 extern const struct nfp_app_type app_bpf;
+extern const struct nfp_app_type app_flower;
 
 /**
  * struct nfp_app_type - application definition
@@ -119,6 +121,7 @@ struct nfp_app_type {
  * @ctrl:	pointer to ctrl vNIC struct
  * @reprs:	array of pointers to representors
  * @type:	pointer to const application ops and info
+ * @priv:	app-specific priv data
  */
 struct nfp_app {
 	struct pci_dev *pdev;
@@ -129,6 +132,7 @@ struct nfp_app {
 	struct nfp_reprs __rcu *reprs[NFP_REPR_TYPE_MAX + 1];
 
 	const struct nfp_app_type *type;
+	void *priv;
 };
 
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
