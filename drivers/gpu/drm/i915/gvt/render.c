@@ -209,7 +209,6 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 	for (i = 0; i < 64; i++) {
 		gen9_render_mocs[ring_id][i] = I915_READ(offset);
 		I915_WRITE(offset, vgpu_vreg(vgpu, offset));
-		POSTING_READ(offset);
 		offset.reg += 4;
 	}
 
@@ -218,7 +217,6 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 		for (i = 0; i < 32; i++) {
 			gen9_render_mocs_L3[i] = I915_READ(l3_offset);
 			I915_WRITE(l3_offset, vgpu_vreg(vgpu, l3_offset));
-			POSTING_READ(l3_offset);
 			l3_offset.reg += 4;
 		}
 	}
@@ -244,7 +242,6 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 	for (i = 0; i < 64; i++) {
 		vgpu_vreg(vgpu, offset) = I915_READ(offset);
 		I915_WRITE(offset, gen9_render_mocs[ring_id][i]);
-		POSTING_READ(offset);
 		offset.reg += 4;
 	}
 
@@ -253,7 +250,6 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 		for (i = 0; i < 32; i++) {
 			vgpu_vreg(vgpu, l3_offset) = I915_READ(l3_offset);
 			I915_WRITE(l3_offset, gen9_render_mocs_L3[i]);
-			POSTING_READ(l3_offset);
 			l3_offset.reg += 4;
 		}
 	}
@@ -272,6 +268,7 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 	u32 ctx_ctrl = reg_state[CTX_CONTEXT_CONTROL_VAL];
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+	i915_reg_t last_reg = _MMIO(0);
 
 	if (IS_SKYLAKE(vgpu->gvt->dev_priv)
 		|| IS_KABYLAKE(vgpu->gvt->dev_priv)) {
@@ -305,12 +302,17 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 			v = vgpu_vreg(vgpu, mmio->reg);
 
 		I915_WRITE(mmio->reg, v);
-		POSTING_READ(mmio->reg);
+		last_reg = mmio->reg;
 
 		trace_render_mmio(vgpu->id, "load",
 				  i915_mmio_reg_offset(mmio->reg),
 				  mmio->value, v);
 	}
+
+	/* Make sure the swiched MMIOs has taken effect. */
+	if (likely(INTEL_GVT_MMIO_OFFSET(last_reg)))
+		POSTING_READ(last_reg);
+
 	handle_tlb_pending_event(vgpu, ring_id);
 }
 
@@ -319,6 +321,7 @@ static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct render_mmio *mmio;
+	i915_reg_t last_reg = _MMIO(0);
 	u32 v;
 	int i, array_size;
 
@@ -347,12 +350,16 @@ static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 			continue;
 
 		I915_WRITE(mmio->reg, v);
-		POSTING_READ(mmio->reg);
+		last_reg = mmio->reg;
 
 		trace_render_mmio(vgpu->id, "restore",
 				  i915_mmio_reg_offset(mmio->reg),
 				  mmio->value, v);
 	}
+
+	/* Make sure the swiched MMIOs has taken effect. */
+	if (likely(INTEL_GVT_MMIO_OFFSET(last_reg)))
+		POSTING_READ(last_reg);
 }
 
 /**
