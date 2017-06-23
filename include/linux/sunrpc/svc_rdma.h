@@ -77,7 +77,6 @@ extern atomic_t rdma_stat_sq_prod;
  */
 struct svc_rdma_op_ctxt {
 	struct list_head list;
-	struct svc_rdma_fastreg_mr *frmr;
 	struct xdr_buf arg;
 	struct ib_cqe cqe;
 	u32 byte_len;
@@ -90,17 +89,6 @@ struct svc_rdma_op_ctxt {
 	struct ib_sge sge[1 + RPCRDMA_MAX_INLINE_THRESH / PAGE_SIZE];
 	struct page *pages[RPCSVC_MAXPAGES];
 };
-
-struct svc_rdma_fastreg_mr {
-	struct ib_mr *mr;
-	struct scatterlist *sg;
-	int sg_nents;
-	unsigned long access_flags;
-	enum dma_data_direction direction;
-	struct list_head frmr_list;
-};
-
-#define RDMACTXT_F_LAST_CTXT	2
 
 #define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */
 #define	SVCRDMA_DEVCAP_READ_W_INV	2	/* read w/ invalidate */
@@ -136,9 +124,6 @@ struct svcxprt_rdma {
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
 	u32		     sc_dev_caps;	/* distilled device caps */
-	unsigned int	     sc_frmr_pg_list_len;
-	struct list_head     sc_frmr_q;
-	spinlock_t	     sc_frmr_q_lock;
 
 	spinlock_t	     sc_lock;		/* transport lock */
 
@@ -210,9 +195,6 @@ extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
 extern void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt);
-extern struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *);
-extern void svc_rdma_put_frmr(struct svcxprt_rdma *,
-			      struct svc_rdma_fastreg_mr *);
 extern void svc_sq_reap(struct svcxprt_rdma *);
 extern void svc_rq_reap(struct svcxprt_rdma *);
 extern void svc_rdma_prep_reply_hdr(struct svc_rqst *);

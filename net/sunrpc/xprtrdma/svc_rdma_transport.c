@@ -202,7 +202,6 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 out:
 	ctxt->count = 0;
 	ctxt->mapped_sges = 0;
-	ctxt->frmr = NULL;
 	return ctxt;
 
 out_empty:
@@ -387,14 +386,12 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 	INIT_LIST_HEAD(&cma_xprt->sc_accept_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_rq_dto_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_read_complete_q);
-	INIT_LIST_HEAD(&cma_xprt->sc_frmr_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_ctxts);
 	INIT_LIST_HEAD(&cma_xprt->sc_rw_ctxts);
 	init_waitqueue_head(&cma_xprt->sc_send_wait);
 
 	spin_lock_init(&cma_xprt->sc_lock);
 	spin_lock_init(&cma_xprt->sc_rq_dto_lock);
-	spin_lock_init(&cma_xprt->sc_frmr_q_lock);
 	spin_lock_init(&cma_xprt->sc_ctxt_lock);
 	spin_lock_init(&cma_xprt->sc_rw_ctxt_lock);
 
@@ -705,86 +702,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	return ERR_PTR(ret);
 }
 
-static struct svc_rdma_fastreg_mr *rdma_alloc_frmr(struct svcxprt_rdma *xprt)
-{
-	struct ib_mr *mr;
-	struct scatterlist *sg;
-	struct svc_rdma_fastreg_mr *frmr;
-	u32 num_sg;
-
-	frmr = kmalloc(sizeof(*frmr), GFP_KERNEL);
-	if (!frmr)
-		goto err;
-
-	num_sg = min_t(u32, RPCSVC_MAXPAGES, xprt->sc_frmr_pg_list_len);
-	mr = ib_alloc_mr(xprt->sc_pd, IB_MR_TYPE_MEM_REG, num_sg);
-	if (IS_ERR(mr))
-		goto err_free_frmr;
-
-	sg = kcalloc(RPCSVC_MAXPAGES, sizeof(*sg), GFP_KERNEL);
-	if (!sg)
-		goto err_free_mr;
-
-	sg_init_table(sg, RPCSVC_MAXPAGES);
-
-	frmr->mr = mr;
-	frmr->sg = sg;
-	INIT_LIST_HEAD(&frmr->frmr_list);
-	return frmr;
-
- err_free_mr:
-	ib_dereg_mr(mr);
- err_free_frmr:
-	kfree(frmr);
- err:
-	return ERR_PTR(-ENOMEM);
-}
-
-static void rdma_dealloc_frmr_q(struct svcxprt_rdma *xprt)
-{
-	struct svc_rdma_fastreg_mr *frmr;
-
-	while (!list_empty(&xprt->sc_frmr_q)) {
-		frmr = list_entry(xprt->sc_frmr_q.next,
-				  struct svc_rdma_fastreg_mr, frmr_list);
-		list_del_init(&frmr->frmr_list);
-		kfree(frmr->sg);
-		ib_dereg_mr(frmr->mr);
-		kfree(frmr);
-	}
-}
-
-struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *rdma)
-{
-	struct svc_rdma_fastreg_mr *frmr = NULL;
-
-	spin_lock(&rdma->sc_frmr_q_lock);
-	if (!list_empty(&rdma->sc_frmr_q)) {
-		frmr = list_entry(rdma->sc_frmr_q.next,
-				  struct svc_rdma_fastreg_mr, frmr_list);
-		list_del_init(&frmr->frmr_list);
-		frmr->sg_nents = 0;
-	}
-	spin_unlock(&rdma->sc_frmr_q_lock);
-	if (frmr)
-		return frmr;
-
-	return rdma_alloc_frmr(rdma);
-}
-
-void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
-		       struct svc_rdma_fastreg_mr *frmr)
-{
-	if (frmr) {
-		ib_dma_unmap_sg(rdma->sc_cm_id->device,
-				frmr->sg, frmr->sg_nents, frmr->direction);
-		spin_lock(&rdma->sc_frmr_q_lock);
-		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
-		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);
-		spin_unlock(&rdma->sc_frmr_q_lock);
-	}
-}
-
 /*
  * This is the xpo_recvfrom function for listening endpoints. Its
  * purpose is to accept incoming connections. The CMA callback handler
@@ -922,8 +839,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 *	of an RDMA_READ. IB does not.
 	 */
 	if (dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
-		newxprt->sc_frmr_pg_list_len =
-			dev->attrs.max_fast_reg_page_list_len;
 		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
 	} else
 		newxprt->sc_snd_w_inv = false;
@@ -1063,7 +978,6 @@ static void __svc_rdma_free(struct work_struct *work)
 		xprt->xpt_bc_xprt = NULL;
 	}
 
-	rdma_dealloc_frmr_q(rdma);
 	svc_rdma_destroy_rw_ctxts(rdma);
 	svc_rdma_destroy_ctxts(rdma);
 
