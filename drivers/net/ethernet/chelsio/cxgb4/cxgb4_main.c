@@ -843,8 +843,8 @@ static int setup_sge_queues(struct adapter *adap)
 					       adap->msi_idx, &q->fl,
 					       t4_ethrx_handler,
 					       NULL,
-					       t4_get_mps_bg_map(adap,
-								 pi->tx_chan));
+					       t4_get_tp_ch_map(adap,
+								pi->tx_chan));
 			if (err)
 				goto freeout;
 			q->rspq.idx = j;

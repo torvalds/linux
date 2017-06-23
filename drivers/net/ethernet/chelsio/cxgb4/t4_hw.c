@@ -5442,28 +5442,89 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 /**
  *	t4_get_mps_bg_map - return the buffer groups associated with a port
  *	@adap: the adapter
- *	@idx: the port index
+ *	@pidx: the port index
  *
  *	Returns a bitmap indicating which MPS buffer groups are associated
  *	with the given port.  Bit i is set if buffer group i is used by the
  *	port.
  */
-unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
+unsigned int t4_get_mps_bg_map(struct adapter *adap, int pidx)
 {
-	u32 n = NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
+	unsigned int nports = 1 << NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
 
-	if (n == 0)
-		return idx == 0 ? 0xf : 0;
-	/* In T6 (which is a 2 port card),
-	 * port 0 is mapped to channel 0 and port 1 is mapped to channel 1.
-	 * For 2 port T4/T5 adapter,
-	 * port 0 is mapped to channel 0 and 1,
-	 * port 1 is mapped to channel 2 and 3.
-	 */
-	if ((n == 1) &&
-	    (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5))
-		return idx < 2 ? (3 << (2 * idx)) : 0;
-	return 1 << idx;
+	if (pidx >= nports) {
+		dev_warn(adap->pdev_dev, "MPS Port Index %d >= Nports %d\n",
+			 pidx, nports);
+		return 0;
+	}
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+	case CHELSIO_T5:
+		switch (nports) {
+		case 1: return 0xf;
+		case 2: return 3 << (2 * pidx);
+		case 4: return 1 << pidx;
+		}
+		break;
+
+	case CHELSIO_T6:
+		switch (nports) {
+		case 2: return 1 << (2 * pidx);
+		}
+		break;
+	}
+
+	dev_err(adap->pdev_dev, "Need MPS Buffer Group Map for Chip %0x, Nports %d\n",
+		chip_version, nports);
+	return 0;
+}
+
+/**
+ *	t4_get_tp_ch_map - return TP ingress channels associated with a port
+ *	@adapter: the adapter
+ *	@pidx: the port index
+ *
+ *	Returns a bitmap indicating which TP Ingress Channels are associated
+ *	with a given Port.  Bit i is set if TP Ingress Channel i is used by
+ *	the Port.
+ */
+unsigned int t4_get_tp_ch_map(struct adapter *adap, int pidx)
+{
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
+	unsigned int nports = 1 << NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
+
+	if (pidx >= nports) {
+		dev_warn(adap->pdev_dev, "TP Port Index %d >= Nports %d\n",
+			 pidx, nports);
+		return 0;
+	}
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+	case CHELSIO_T5:
+		/* Note that this happens to be the same values as the MPS
+		 * Buffer Group Map for these Chips.  But we replicate the code
+		 * here because they're really separate concepts.
+		 */
+		switch (nports) {
+		case 1: return 0xf;
+		case 2: return 3 << (2 * pidx);
+		case 4: return 1 << pidx;
+		}
+		break;
+
+	case CHELSIO_T6:
+		switch (nports) {
+		case 2: return 1 << pidx;
+		}
+		break;
+	}
+
+	dev_err(adap->pdev_dev, "Need TP Channel Map for Chip %0x, Nports %d\n",
+		chip_version, nports);
+	return 0;
 }
 
 /**
