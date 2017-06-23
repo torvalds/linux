@@ -949,6 +949,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			&((struct aac_native_hba *)srbfib->hw_fib_va)->resp.err;
 		struct aac_srb_reply reply;
 
+		memset(&reply, 0, sizeof(reply));
 		reply.status = ST_OK;
 		if (srbfib->flags & FIB_CONTEXT_FLAG_FASTRESP) {
 			/* fast response */
@@ -1020,6 +1021,7 @@ static int aac_get_hba_info(struct aac_dev *dev, void __user *arg)
 {
 	struct aac_hba_info hbainfo;
 
+	memset(&hbainfo, 0, sizeof(hbainfo));
 	hbainfo.adapter_number		= (u8) dev->id;
 	hbainfo.system_io_bus_number	= dev->pdev->bus->number;
 	hbainfo.device_number		= (dev->pdev->devfn >> 3);
