@@ -331,8 +331,12 @@ static arm_lpae_iopte arm_lpae_install_table(arm_lpae_iopte *table,
 	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
 		new |= ARM_LPAE_PTE_NSTABLE;
 
-	/* Ensure the table itself is visible before its PTE can be */
-	wmb();
+	/*
+	 * Ensure the table itself is visible before its PTE can be.
+	 * Whilst we could get away with cmpxchg64_release below, this
+	 * doesn't have any ordering semantics when !CONFIG_SMP.
+	 */
+	dma_wmb();
 
 	old = cmpxchg64_relaxed(ptep, curr, new);
 

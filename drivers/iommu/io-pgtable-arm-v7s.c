@@ -408,8 +408,12 @@ static arm_v7s_iopte arm_v7s_install_table(arm_v7s_iopte *table,
 	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
 		new |= ARM_V7S_ATTR_NS_TABLE;
 
-	/* Ensure the table itself is visible before its PTE can be */
-	wmb();
+	/*
+	 * Ensure the table itself is visible before its PTE can be.
+	 * Whilst we could get away with cmpxchg64_release below, this
+	 * doesn't have any ordering semantics when !CONFIG_SMP.
+	 */
+	dma_wmb();
 
 	old = cmpxchg_relaxed(ptep, curr, new);
 	__arm_v7s_pte_sync(ptep, 1, cfg);
