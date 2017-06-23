@@ -1242,7 +1242,7 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 		tx_ring->dev = &adapter->pdev->dev;
 		tx_ring->count = adapter->tx_desc_count;
 		tx_ring->tx_itr_setting = (I40E_ITR_DYNAMIC | I40E_ITR_TX_DEF);
-		if (adapter->flags & I40E_FLAG_WB_ON_ITR_CAPABLE)
+		if (adapter->flags & I40EVF_FLAG_WB_ON_ITR_CAPABLE)
 			tx_ring->flags |= I40E_TXR_FLAGS_WB_ON_ITR;
 
 		rx_ring = &adapter->rx_rings[i];

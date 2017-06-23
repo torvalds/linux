@@ -238,8 +238,6 @@ struct i40evf_adapter {
 /* duplicates for common code */
 #define I40E_FLAG_DCB_ENABLED			0
 #define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
-#define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
-#define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
 #define I40E_FLAG_LEGACY_RX			I40EVF_FLAG_LEGACY_RX
 	/* flags for admin queue service task */
 	u32 aq_required;
