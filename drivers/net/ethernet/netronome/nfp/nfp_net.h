@@ -318,6 +318,7 @@ struct nfp_meta_parsed {
 	u8 csum_type;
 	u32 hash;
 	u32 mark;
+	u32 portid;
 	__wsum csum;
 };
 
