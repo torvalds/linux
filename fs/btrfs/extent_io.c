@@ -3121,7 +3121,7 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 
 static void __extent_readpages(struct extent_io_tree *tree,
 			       struct page *pages[],
-			       int nr_pages, get_extent_t *get_extent,
+			       int nr_pages,
 			       struct extent_map **em_cached,
 			       struct bio **bio, unsigned long *bio_flags,
 			       u64 *prev_em_start)
@@ -3143,7 +3143,8 @@ static void __extent_readpages(struct extent_io_tree *tree,
 		} else {
 			__do_contiguous_readpages(tree, &pages[first_index],
 						  index - first_index, start,
-						  end, get_extent, em_cached,
+						  end, btrfs_get_extent,
+						  em_cached,
 						  bio, bio_flags,
 						  prev_em_start);
 			start = page_start;
@@ -3155,7 +3156,7 @@ static void __extent_readpages(struct extent_io_tree *tree,
 	if (end)
 		__do_contiguous_readpages(tree, &pages[first_index],
 					  index - first_index, start,
-					  end, get_extent, em_cached, bio,
+					  end, btrfs_get_extent, em_cached, bio,
 					  bio_flags, prev_em_start);
 }
 
@@ -4159,13 +4160,13 @@ int extent_readpages(struct extent_io_tree *tree,
 		pagepool[nr++] = page;
 		if (nr < ARRAY_SIZE(pagepool))
 			continue;
-		__extent_readpages(tree, pagepool, nr, btrfs_get_extent,
-				&em_cached, &bio, &bio_flags, &prev_em_start);
+		__extent_readpages(tree, pagepool, nr, &em_cached, &bio,
+				&bio_flags, &prev_em_start);
 		nr = 0;
 	}
 	if (nr)
-		__extent_readpages(tree, pagepool, nr, btrfs_get_extent,
-				&em_cached, &bio, &bio_flags, &prev_em_start);
+		__extent_readpages(tree, pagepool, nr, &em_cached, &bio,
+				&bio_flags, &prev_em_start);
 
 	if (em_cached)
 		free_extent_map(em_cached);
