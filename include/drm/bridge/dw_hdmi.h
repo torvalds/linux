@@ -137,6 +137,24 @@ struct dw_hdmi_phy_ops {
 	enum drm_connector_status (*read_hpd)(struct dw_hdmi *hdmi, void *data);
 };
 
+struct dw_hdmi_property_ops {
+	void (*attatch_properties)(struct drm_connector *connector,
+				   int version,
+				   void *data);
+	void (*destroy_properties)(struct drm_connector *connector,
+				   void *data);
+	int (*set_property)(struct drm_connector *connector,
+			    struct drm_connector_state *state,
+			    struct drm_property *property,
+			    u64 val,
+			    void *data);
+	int (*get_property)(struct drm_connector *connector,
+			    const struct drm_connector_state *state,
+			    struct drm_property *property,
+			    u64 *val,
+			    void *data);
+};
+
 struct dw_hdmi_plat_data {
 	enum dw_hdmi_devtype dev_type;
 	const struct dw_hdmi_audio_tmds_n *tmds_n_table;
@@ -162,6 +180,9 @@ struct dw_hdmi_plat_data {
 	unsigned long (*get_output_bus_format)(void *data);
 	unsigned long (*get_enc_in_encoding)(void *data);
 	unsigned long (*get_enc_out_encoding)(void *data);
+
+	/* Vendor Property support */
+	const struct dw_hdmi_property_ops *property_ops;
 };
 
 void dw_hdmi_unbind(struct device *dev, struct device *master, void *data);
