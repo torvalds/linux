@@ -4441,7 +4441,7 @@ static int emit_last_fiemap_cache(struct btrfs_fs_info *fs_info,
 }
 
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
-		__u64 start, __u64 len, get_extent_t *get_extent)
+		__u64 start, __u64 len)
 {
 	int ret = 0;
 	u64 off = start;
@@ -4524,7 +4524,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			 &cached_state);
 
 	em = get_extent_skip_holes(inode, start, last_for_get_extent,
-				   get_extent);
+				   btrfs_get_extent_fiemap);
 	if (!em)
 		goto out;
 	if (IS_ERR(em)) {
@@ -4613,7 +4613,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 		/* now scan forward to see if this is really the last extent. */
 		em = get_extent_skip_holes(inode, off, last_for_get_extent,
-					   get_extent);
+					   btrfs_get_extent_fiemap);
 		if (IS_ERR(em)) {
 			ret = PTR_ERR(em);
 			goto out;

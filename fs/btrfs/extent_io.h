@@ -417,7 +417,7 @@ int extent_readpages(struct extent_io_tree *tree,
 		     struct list_head *pages, unsigned nr_pages,
 		     get_extent_t get_extent);
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
-		__u64 start, __u64 len, get_extent_t *get_extent);
+		__u64 start, __u64 len);
 void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
