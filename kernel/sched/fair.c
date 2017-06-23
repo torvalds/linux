@@ -6688,6 +6688,10 @@ static int migrate_degrades_locality(struct task_struct *p, struct lb_env *env)
 	if (dst_nid == p->numa_preferred_nid)
 		return 0;
 
+	/* Leaving a core idle is often worse than degrading locality. */
+	if (env->idle != CPU_NOT_IDLE)
+		return -1;
+
 	if (numa_group) {
 		src_faults = group_faults(p, src_nid);
 		dst_faults = group_faults(p, dst_nid);
