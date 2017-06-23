@@ -452,17 +452,18 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		 * chunks acknowledged by the new Cumulative TSN Ack and by
 		 * Gap Ack Blocks.
 		 *
-		 * When partial_bytes_acked is equal to or greater than cwnd
-		 * and before the arrival of the SACK the sender had cwnd or
-		 * more bytes of data outstanding (i.e., before arrival of the
-		 * SACK, flightsize was greater than or equal to cwnd),
-		 * increase cwnd by MTU, and reset partial_bytes_acked to
-		 * (partial_bytes_acked - cwnd).
+		 * When partial_bytes_acked is equal to or greater than
+		 * cwnd and before the arrival of the SACK the sender
+		 * had cwnd or more bytes of data outstanding (i.e.,
+		 * before arrival of the SACK, flightsize was greater
+		 * than or equal to cwnd), partial_bytes_acked is reset
+		 * to (partial_bytes_acked - cwnd). Next, cwnd is
+		 * increased by MTU. (RFC 4960 Errata 3.12)
 		 */
 		pba += bytes_acked;
 		if (pba >= cwnd) {
+			pba = pba - cwnd;
 			cwnd += pmtu;
-			pba = ((cwnd < pba) ? (pba - cwnd) : 0);
 		}
 
 		pr_debug("%s: congestion avoidance: transport:%p, "
