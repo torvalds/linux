@@ -880,6 +880,30 @@ sector_t target_to_linux_sector(struct se_device *dev, sector_t lb)
 }
 EXPORT_SYMBOL(target_to_linux_sector);
 
+/**
+ * target_find_device - find a se_device by its dev_index
+ * @id: dev_index
+ * @do_depend: true if caller needs target_depend_item to be done
+ *
+ * If do_depend is true, the caller must do a target_undepend_item
+ * when finished using the device.
+ *
+ * If do_depend is false, the caller must be called in a configfs
+ * callback or during removal.
+ */
+struct se_device *target_find_device(int id, bool do_depend)
+{
+	struct se_device *dev;
+
+	mutex_lock(&g_device_mutex);
+	dev = idr_find(&devices_idr, id);
+	if (dev && do_depend && target_depend_item(&dev->dev_group.cg_item))
+		dev = NULL;
+	mutex_unlock(&g_device_mutex);
+	return dev;
+}
+EXPORT_SYMBOL(target_find_device);
+
 int target_configure_device(struct se_device *dev)
 {
 	struct se_hba *hba = dev->se_hba;
