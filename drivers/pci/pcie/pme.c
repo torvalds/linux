@@ -300,7 +300,7 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
  */
 static int pcie_pme_can_wakeup(struct pci_dev *dev, void *ign)
 {
-	device_set_run_wake(&dev->dev, true);
+	device_set_wakeup_capable(&dev->dev, true);
 	return 0;
 }
 

@@ -738,7 +738,6 @@ static void pci_acpi_setup(struct device *dev)
 		return;
 
 	device_set_wakeup_capable(dev, true);
-	device_set_run_wake(dev, true);
 	acpi_pci_wakeup(pci_dev, false);
 }
 
@@ -750,10 +749,8 @@ static void pci_acpi_cleanup(struct device *dev)
 		return;
 
 	pci_acpi_remove_pm_notifier(adev);
-	if (adev->wakeup.flags.valid) {
+	if (adev->wakeup.flags.valid)
 		device_set_wakeup_capable(dev, false);
-		device_set_run_wake(dev, false);
-	}
 }
 
 static bool pci_acpi_bus_match(struct device *dev)
