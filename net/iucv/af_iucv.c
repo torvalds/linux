@@ -362,7 +362,7 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 		else
 			skb_trim(skb, skb->dev->mtu);
 	}
-	skb->protocol = ETH_P_AF_IUCV;
+	skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
 	nskb = skb_clone(skb, GFP_ATOMIC);
 	if (!nskb)
 		return -ENOMEM;
