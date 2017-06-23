@@ -411,7 +411,6 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 			      int mode);
 int extent_writepages(struct extent_io_tree *tree,
 		      struct address_space *mapping,
-		      get_extent_t *get_extent,
 		      struct writeback_control *wbc);
 int btree_write_cache_pages(struct address_space *mapping,
 			    struct writeback_control *wbc);

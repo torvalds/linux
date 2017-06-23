@@ -4121,14 +4121,13 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 
 int extent_writepages(struct extent_io_tree *tree,
 		      struct address_space *mapping,
-		      get_extent_t *get_extent,
 		      struct writeback_control *wbc)
 {
 	int ret = 0;
 	struct extent_page_data epd = {
 		.bio = NULL,
 		.tree = tree,
-		.get_extent = get_extent,
+		.get_extent = btrfs_get_extent,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
