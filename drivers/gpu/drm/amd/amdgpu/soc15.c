@@ -62,8 +62,6 @@
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
 
-MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
-
 #define mmFabricConfigAccessControl                                                                    0x0410
 #define mmFabricConfigAccessControl_BASE_IDX                                                           0
 #define mmFabricConfigAccessControl_DEFAULT                                      0x00000000

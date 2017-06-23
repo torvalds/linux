@@ -719,7 +719,13 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				strcpy(fw_name, "amdgpu/polaris12_smc.bin");
 				break;
 			case CHIP_VEGA10:
-				strcpy(fw_name, "amdgpu/vega10_smc.bin");
+				if ((adev->pdev->device == 0x687f) &&
+					((adev->pdev->revision == 0xc0) ||
+					(adev->pdev->revision == 0xc1) ||
+					(adev->pdev->revision == 0xc3)))
+					strcpy(fw_name, "amdgpu/vega10_acg_smc.bin");
+				else
+					strcpy(fw_name, "amdgpu/vega10_smc.bin");
 				break;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
