@@ -268,7 +268,7 @@
 			#power-domain-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
+			status = "okay";
 
 			pd_hevc@RK3328_PD_HEVC {
 				reg = <RK3328_PD_HEVC>;
@@ -634,6 +634,7 @@
 		rockchip,grf = <&grf>;
 		iommus = <&vpu_mmu>;
 		allocator = <1>;
+		power-domains = <&power RK3328_PD_VPU>;
 		status = "disabled";
 	};
 
@@ -644,6 +645,7 @@
 		interrupt-names = "vpu_mmu";
 		clock-names = "aclk", "hclk";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		power-domains = <&power RK3328_PD_VPU>;
 		#iommu-cells = <0>;
 	};
 
@@ -664,6 +666,7 @@
 		rockchip,grf = <&grf>;
 		iommus = <&rkvdec_mmu>;
 		allocator = <1>;
+		power-domains = <&power RK3328_PD_VIDEO>;
 		status = "disabled";
 	};
 
@@ -674,6 +677,7 @@
 		interrupt-names = "rkvdec_mmu";
 		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
+		power-domains = <&power RK3328_PD_VIDEO>;
 		#iommu-cells = <0>;
 	};
 
