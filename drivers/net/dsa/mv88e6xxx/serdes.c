@@ -192,7 +192,7 @@ int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
 
 	err = mv88e6xxx_port_get_cmode(chip, port, &cmode);
 	if (err)
-		return cmode;
+		return err;
 
 	switch (port) {
 	case 2:
