@@ -362,6 +362,11 @@ struct adapter_params {
 	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 	bool fr_nsmr_tpte_wr_support;	  /* FW support for FR_NSMR_TPTE_WR */
+
+	/* MPS Buffer Group Map[per Port].  Bit i is set if buffer group i is
+	 * used by the Port
+	 */
+	u8 mps_bg_map[MAX_NPORTS];	/* MPS Buffer Group Map */
 };
 
 /* State needed to monitor the forward progress of SGE Ingress DMA activities
@@ -1495,9 +1500,12 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val);
+int t4_query_params_ns(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val);
 int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		       unsigned int vf, unsigned int nparams, const u32 *params,
-		       u32 *val, int rw);
+		       u32 *val, int rw, bool sleep_ok);
 int t4_set_params_timeout(struct adapter *adap, unsigned int mbox,
 			  unsigned int pf, unsigned int vf,
 			  unsigned int nparams, const u32 *params,

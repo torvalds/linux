@@ -3540,7 +3540,7 @@ int t4_load_phy_fw(struct adapter *adap,
 		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD));
 	val = phy_fw_size;
 	ret = t4_query_params_rw(adap, adap->mbox, adap->pf, 0, 1,
-				 &param, &val, 1);
+				 &param, &val, 1, true);
 	if (ret < 0)
 		return ret;
 	mtype = val >> 8;
@@ -5440,24 +5440,21 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 }
 
 /**
- *	t4_get_mps_bg_map - return the buffer groups associated with a port
+ *	compute_mps_bg_map - compute the MPS Buffer Group Map for a Port
  *	@adap: the adapter
  *	@pidx: the port index
  *
- *	Returns a bitmap indicating which MPS buffer groups are associated
- *	with the given port.  Bit i is set if buffer group i is used by the
- *	port.
+ *	Computes and returns a bitmap indicating which MPS buffer groups are
+ *	associated with the given Port.  Bit i is set if buffer group i is
+ *	used by the Port.
  */
-unsigned int t4_get_mps_bg_map(struct adapter *adap, int pidx)
+static inline unsigned int compute_mps_bg_map(struct adapter *adapter,
+					      int pidx)
 {
-	unsigned int nports = 1 << NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
-	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
+	unsigned int chip_version, nports;
 
-	if (pidx >= nports) {
-		dev_warn(adap->pdev_dev, "MPS Port Index %d >= Nports %d\n",
-			 pidx, nports);
-		return 0;
-	}
+	chip_version = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
 
 	switch (chip_version) {
 	case CHELSIO_T4:
@@ -5476,9 +5473,76 @@ unsigned int t4_get_mps_bg_map(struct adapter *adap, int pidx)
 		break;
 	}
 
-	dev_err(adap->pdev_dev, "Need MPS Buffer Group Map for Chip %0x, Nports %d\n",
+	dev_err(adapter->pdev_dev, "Need MPS Buffer Group Map for Chip %0x, Nports %d\n",
 		chip_version, nports);
+
 	return 0;
+}
+
+/**
+ *	t4_get_mps_bg_map - return the buffer groups associated with a port
+ *	@adapter: the adapter
+ *	@pidx: the port index
+ *
+ *	Returns a bitmap indicating which MPS buffer groups are associated
+ *	with the given Port.  Bit i is set if buffer group i is used by the
+ *	Port.
+ */
+unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx)
+{
+	u8 *mps_bg_map;
+	unsigned int nports;
+
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
+	if (pidx >= nports) {
+		CH_WARN(adapter, "MPS Port Index %d >= Nports %d\n",
+			pidx, nports);
+		return 0;
+	}
+
+	/* If we've already retrieved/computed this, just return the result.
+	 */
+	mps_bg_map = adapter->params.mps_bg_map;
+	if (mps_bg_map[pidx])
+		return mps_bg_map[pidx];
+
+	/* Newer Firmware can tell us what the MPS Buffer Group Map is.
+	 * If we're talking to such Firmware, let it tell us.  If the new
+	 * API isn't supported, revert back to old hardcoded way.  The value
+	 * obtained from Firmware is encoded in below format:
+	 *
+	 * val = (( MPSBGMAP[Port 3] << 24 ) |
+	 *        ( MPSBGMAP[Port 2] << 16 ) |
+	 *        ( MPSBGMAP[Port 1] <<  8 ) |
+	 *        ( MPSBGMAP[Port 0] <<  0 ))
+	 */
+	if (adapter->flags & FW_OK) {
+		u32 param, val;
+		int ret;
+
+		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_MPSBGMAP));
+		ret = t4_query_params_ns(adapter, adapter->mbox, adapter->pf,
+					 0, 1, &param, &val);
+		if (!ret) {
+			int p;
+
+			/* Store the BG Map for all of the Ports in order to
+			 * avoid more calls to the Firmware in the future.
+			 */
+			for (p = 0; p < MAX_NPORTS; p++, val >>= 8)
+				mps_bg_map[p] = val & 0xff;
+
+			return mps_bg_map[pidx];
+		}
+	}
+
+	/* Either we're not talking to the Firmware or we're dealing with
+	 * older Firmware which doesn't support the new API to get the MPS
+	 * Buffer Group Map.  Fall back to computing it ourselves.
+	 */
+	mps_bg_map[pidx] = compute_mps_bg_map(adapter, pidx);
+	return mps_bg_map[pidx];
 }
 
 /**
@@ -6639,13 +6703,14 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
  *	@params: the parameter names
  *	@val: the parameter values
  *	@rw: Write and read flag
+ *	@sleep_ok: if true, we may sleep awaiting mbox cmd completion
  *
  *	Reads the value of FW or device parameters.  Up to 7 parameters can be
  *	queried at once.
  */
 int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		       unsigned int vf, unsigned int nparams, const u32 *params,
-		       u32 *val, int rw)
+		       u32 *val, int rw, bool sleep_ok)
 {
 	int i, ret;
 	struct fw_params_cmd c;
@@ -6668,7 +6733,7 @@ int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		p++;
 	}
 
-	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
 	if (ret == 0)
 		for (i = 0, p = &c.param[0].val; i < nparams; i++, p += 2)
 			*val++ = be32_to_cpu(*p);
@@ -6679,7 +6744,16 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val)
 {
-	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0);
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0,
+				  true);
+}
+
+int t4_query_params_ns(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val)
+{
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0,
+				  false);
 }
 
 /**
