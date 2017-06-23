@@ -507,8 +507,6 @@ static int mtk_ecc_resume(struct device *dev)
 		return ret;
 	}
 
-	mtk_ecc_hw_init(ecc);
-
 	return 0;
 }
 
