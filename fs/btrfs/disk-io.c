@@ -124,8 +124,8 @@ struct async_submit_bio {
 	void *private_data;
 	struct btrfs_fs_info *fs_info;
 	struct bio *bio;
-	extent_submit_bio_hook_t *submit_bio_start;
-	extent_submit_bio_hook_t *submit_bio_done;
+	extent_submit_bio_start_t *submit_bio_start;
+	extent_submit_bio_done_t *submit_bio_done;
 	int mirror_num;
 	unsigned long bio_flags;
 	/*
@@ -751,8 +751,8 @@ static void run_one_async_free(struct btrfs_work *work)
 blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags,
 				 u64 bio_offset, void *private_data,
-				 extent_submit_bio_hook_t *submit_bio_start,
-				 extent_submit_bio_hook_t *submit_bio_done)
+				 extent_submit_bio_start_t *submit_bio_start,
+				 extent_submit_bio_done_t *submit_bio_done)
 {
 	struct async_submit_bio *async;
 
