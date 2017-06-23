@@ -374,11 +374,15 @@ struct rx_tpa_end_cmp_ext {
 
 	__le32 rx_tpa_end_cmp_errors_v2;
 	#define RX_TPA_END_CMP_V2				(0x1 << 0)
-	#define RX_TPA_END_CMP_ERRORS				(0x7fff << 1)
+	#define RX_TPA_END_CMP_ERRORS				(0x3 << 1)
 	#define RX_TPA_END_CMPL_ERRORS_SHIFT			 1
 
 	u32 rx_tpa_end_cmp_start_opaque;
 };
+
+#define TPA_END_ERRORS(rx_tpa_end_ext)					\
+	((rx_tpa_end_ext)->rx_tpa_end_cmp_errors_v2 &			\
+	 cpu_to_le32(RX_TPA_END_CMP_ERRORS))
 
 #define DB_IDX_MASK						0xffffff
 #define DB_IDX_VALID						(0x1 << 26)
