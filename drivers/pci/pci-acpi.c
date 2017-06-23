@@ -578,20 +578,20 @@ static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 static void acpi_pci_propagate_wakeup_enable(struct pci_bus *bus, bool enable)
 {
 	while (bus->parent) {
-		if (!acpi_pm_device_sleep_wake(&bus->self->dev, enable))
+		if (!acpi_pm_set_device_wakeup(&bus->self->dev, enable))
 			return;
 		bus = bus->parent;
 	}
 
 	/* We have reached the root bus. */
 	if (bus->bridge)
-		acpi_pm_device_sleep_wake(bus->bridge, enable);
+		acpi_pm_set_device_wakeup(bus->bridge, enable);
 }
 
 static int acpi_pci_sleep_wake(struct pci_dev *dev, bool enable)
 {
 	if (acpi_pci_can_wakeup(dev))
-		return acpi_pm_device_sleep_wake(&dev->dev, enable);
+		return acpi_pm_set_device_wakeup(&dev->dev, enable);
 
 	acpi_pci_propagate_wakeup_enable(dev->bus, enable);
 	return 0;
@@ -604,14 +604,14 @@ static void acpi_pci_propagate_run_wake(struct pci_bus *bus, bool enable)
 
 		if (bridge->pme_interrupt)
 			return;
-		if (!acpi_pm_device_run_wake(&bridge->dev, enable))
+		if (!acpi_pm_set_device_wakeup(&bridge->dev, enable))
 			return;
 		bus = bus->parent;
 	}
 
 	/* We have reached the root bus. */
 	if (bus->bridge)
-		acpi_pm_device_run_wake(bus->bridge, enable);
+		acpi_pm_set_device_wakeup(bus->bridge, enable);
 }
 
 static int acpi_pci_run_wake(struct pci_dev *dev, bool enable)
@@ -625,7 +625,7 @@ static int acpi_pci_run_wake(struct pci_dev *dev, bool enable)
 	if (dev->pme_interrupt && !dev->runtime_d3cold)
 		return 0;
 
-	if (!acpi_pm_device_run_wake(&dev->dev, enable))
+	if (!acpi_pm_set_device_wakeup(&dev->dev, enable))
 		return 0;
 
 	acpi_pci_propagate_run_wake(dev->bus, enable);

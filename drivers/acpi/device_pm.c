@@ -717,40 +717,14 @@ static int acpi_device_wakeup(struct acpi_device *adev, u32 target_state,
 }
 
 /**
- * acpi_pm_device_run_wake - Enable/disable remote wakeup for given device.
- * @dev: Device to enable/disable the platform to wake up.
+ * acpi_pm_set_device_wakeup - Enable/disable remote wakeup for given device.
+ * @dev: Device to enable/disable to generate wakeup events.
  * @enable: Whether to enable or disable the wakeup functionality.
  */
-int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
-{
-	struct acpi_device *adev;
-
-	if (!device_run_wake(phys_dev))
-		return -EINVAL;
-
-	adev = ACPI_COMPANION(phys_dev);
-	if (!adev) {
-		dev_dbg(phys_dev, "ACPI companion missing in %s!\n", __func__);
-		return -ENODEV;
-	}
-
-	return acpi_device_wakeup(adev, ACPI_STATE_S0, enable);
-}
-EXPORT_SYMBOL(acpi_pm_device_run_wake);
-
-#ifdef CONFIG_PM_SLEEP
-/**
- * acpi_pm_device_sleep_wake - Enable or disable device to wake up the system.
- * @dev: Device to enable/desible to wake up the system from sleep states.
- * @enable: Whether to enable or disable @dev to wake up the system.
- */
-int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
+int acpi_pm_set_device_wakeup(struct device *dev, bool enable)
 {
 	struct acpi_device *adev;
 	int error;
-
-	if (!device_can_wakeup(dev))
-		return -EINVAL;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev) {
@@ -758,14 +732,17 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 		return -ENODEV;
 	}
 
+	if (!acpi_device_can_wakeup(adev))
+		return -EINVAL;
+
 	error = acpi_device_wakeup(adev, acpi_target_system_state(), enable);
 	if (!error)
-		dev_dbg(dev, "System wakeup %s by ACPI\n",
+		dev_dbg(dev, "Wakeup %s by ACPI\n",
 			enable ? "enabled" : "disabled");
 
 	return error;
 }
-#endif /* CONFIG_PM_SLEEP */
+EXPORT_SYMBOL(acpi_pm_set_device_wakeup);
 
 /**
  * acpi_dev_pm_low_power - Put ACPI device into a low-power state.
