@@ -82,6 +82,9 @@ static ssize_t iwl_dbgfs_ctdp_budget_read(struct file *file,
 	char buf[16];
 	int pos, budget;
 
+	if (!iwl_mvm_is_ctdp_supported(mvm))
+		return -EOPNOTSUPP;
+
 	if (!iwl_mvm_firmware_running(mvm) ||
 	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
 		return -EIO;
@@ -102,6 +105,9 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 					 size_t count, loff_t *ppos)
 {
 	int ret;
+
+	if (!iwl_mvm_is_ctdp_supported(mvm))
+		return -EOPNOTSUPP;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
 	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
