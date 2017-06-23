@@ -2586,6 +2586,60 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
 		}
 	}
 }
+
+/*
+ * Can a task be moved from prev_cpu to this_cpu without causing a load
+ * imbalance that would trigger the load balancer?
+ */
+static inline bool numa_wake_affine(struct sched_domain *sd,
+				    struct task_struct *p, int this_cpu,
+				    int prev_cpu, int sync)
+{
+	struct numa_stats prev_load, this_load;
+	s64 this_eff_load, prev_eff_load;
+
+	update_numa_stats(&prev_load, cpu_to_node(prev_cpu));
+	update_numa_stats(&this_load, cpu_to_node(this_cpu));
+
+	/*
+	 * If sync wakeup then subtract the (maximum possible)
+	 * effect of the currently running task from the load
+	 * of the current CPU:
+	 */
+	if (sync) {
+		unsigned long current_load = task_h_load(current);
+
+		if (this_load.load > current_load)
+			this_load.load -= current_load;
+		else
+			this_load.load = 0;
+	}
+
+	/*
+	 * In low-load situations, where this_cpu's node is idle due to the
+	 * sync cause above having dropped this_load.load to 0, move the task.
+	 * Moving to an idle socket will not create a bad imbalance.
+	 *
+	 * Otherwise check if the nodes are near enough in load to allow this
+	 * task to be woken on this_cpu's node.
+	 */
+	if (this_load.load > 0) {
+		unsigned long task_load = task_h_load(p);
+
+		this_eff_load = 100;
+		this_eff_load *= prev_load.compute_capacity;
+
+		prev_eff_load = 100 + (sd->imbalance_pct - 100) / 2;
+		prev_eff_load *= this_load.compute_capacity;
+
+		this_eff_load *= this_load.load + task_load;
+		prev_eff_load *= prev_load.load - task_load;
+
+		return this_eff_load <= prev_eff_load;
+	}
+
+	return true;
+}
 #else
 static void task_tick_numa(struct rq *rq, struct task_struct *curr)
 {
@@ -2597,6 +2651,13 @@ static inline void account_numa_enqueue(struct rq *rq, struct task_struct *p)
 
 static inline void account_numa_dequeue(struct rq *rq, struct task_struct *p)
 {
+}
+
+static inline bool numa_wake_affine(struct sched_domain *sd,
+				    struct task_struct *p, int this_cpu,
+				    int prev_cpu, int sync)
+{
+	return true;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
@@ -5407,74 +5468,25 @@ static int wake_wide(struct task_struct *p)
 static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 		       int prev_cpu, int sync)
 {
-	s64 this_load, load;
-	s64 this_eff_load, prev_eff_load;
-	int idx, this_cpu;
-	struct task_group *tg;
-	unsigned long weight;
-	int balanced;
-
-	idx	  = sd->wake_idx;
-	this_cpu  = smp_processor_id();
-	load	  = source_load(prev_cpu, idx);
-	this_load = target_load(this_cpu, idx);
+	int this_cpu = smp_processor_id();
+	bool affine = false;
 
 	/*
 	 * Common case: CPUs are in the same socket, and select_idle_sibling()
 	 * will do its thing regardless of what we return:
 	 */
 	if (cpus_share_cache(prev_cpu, this_cpu))
-		return true;
-
-	/*
-	 * If sync wakeup then subtract the (maximum possible)
-	 * effect of the currently running task from the load
-	 * of the current CPU:
-	 */
-	if (sync) {
-		tg = task_group(current);
-		weight = current->se.avg.load_avg;
-
-		this_load += effective_load(tg, this_cpu, -weight, -weight);
-		load += effective_load(tg, prev_cpu, 0, -weight);
-	}
-
-	tg = task_group(p);
-	weight = p->se.avg.load_avg;
-
-	/*
-	 * In low-load situations, where prev_cpu is idle and this_cpu is idle
-	 * due to the sync cause above having dropped this_load to 0, we'll
-	 * always have an imbalance, but there's really nothing you can do
-	 * about that, so that's good too.
-	 *
-	 * Otherwise check if either cpus are near enough in load to allow this
-	 * task to be woken on this_cpu.
-	 */
-	this_eff_load = 100;
-	this_eff_load *= capacity_of(prev_cpu);
-
-	prev_eff_load = 100 + (sd->imbalance_pct - 100) / 2;
-	prev_eff_load *= capacity_of(this_cpu);
-
-	if (this_load > 0) {
-		this_eff_load *= this_load +
-			effective_load(tg, this_cpu, weight, weight);
-
-		prev_eff_load *= load + effective_load(tg, prev_cpu, 0, weight);
-	}
-
-	balanced = this_eff_load <= prev_eff_load;
+		affine = true;
+	else
+		affine = numa_wake_affine(sd, p, this_cpu, prev_cpu, sync);
 
 	schedstat_inc(p->se.statistics.nr_wakeups_affine_attempts);
+	if (affine) {
+		schedstat_inc(sd->ttwu_move_affine);
+		schedstat_inc(p->se.statistics.nr_wakeups_affine);
+	}
 
-	if (!balanced)
-		return 0;
-
-	schedstat_inc(sd->ttwu_move_affine);
-	schedstat_inc(p->se.statistics.nr_wakeups_affine);
-
-	return 1;
+	return affine;
 }
 
 static inline int task_util(struct task_struct *p);
