@@ -39,7 +39,7 @@ static const char *parser_trx_data_part_name(struct mtd_info *master,
 	err  = mtd_read(master, offset, sizeof(buf), &bytes_read,
 			(uint8_t *)&buf);
 	if (err && !mtd_is_bitflip(err)) {
-		pr_err("mtd_read error while parsing (offset: 0x%X): %d\n",
+		pr_err("mtd_read error while parsing (offset: 0x%zX): %d\n",
 			offset, err);
 		goto out_default;
 	}
