@@ -55,48 +55,60 @@ static int target_xcopy_gen_naa_ieee(struct se_device *dev, unsigned char *buf)
 	return 0;
 }
 
-static int target_xcopy_locate_se_dev_e4(const unsigned char *dev_wwn,
-					struct se_device **found_dev)
+struct xcopy_dev_search_info {
+	const unsigned char *dev_wwn;
+	struct se_device *found_dev;
+};
+
+static int target_xcopy_locate_se_dev_e4_iter(struct se_device *se_dev,
+					      void *data)
 {
-	struct se_device *se_dev;
+	struct xcopy_dev_search_info *info = data;
 	unsigned char tmp_dev_wwn[XCOPY_NAA_IEEE_REGEX_LEN];
 	int rc;
 
-	mutex_lock(&g_device_mutex);
-	list_for_each_entry(se_dev, &g_device_list, g_dev_node) {
-
-		if (!se_dev->dev_attrib.emulate_3pc)
-			continue;
-
-		memset(&tmp_dev_wwn[0], 0, XCOPY_NAA_IEEE_REGEX_LEN);
-		target_xcopy_gen_naa_ieee(se_dev, &tmp_dev_wwn[0]);
-
-		rc = memcmp(&tmp_dev_wwn[0], dev_wwn, XCOPY_NAA_IEEE_REGEX_LEN);
-		if (rc != 0)
-			continue;
-
-		*found_dev = se_dev;
-		pr_debug("XCOPY 0xe4: located se_dev: %p\n", se_dev);
-
-		rc = target_depend_item(&se_dev->dev_group.cg_item);
-		if (rc != 0) {
-			pr_err("configfs_depend_item attempt failed:"
-				" %d for se_dev: %p\n", rc, se_dev);
-			mutex_unlock(&g_device_mutex);
-			return rc;
-		}
-
-		pr_debug("Called configfs_depend_item for se_dev: %p"
-			" se_dev->se_dev_group: %p\n", se_dev,
-			&se_dev->dev_group);
-
-		mutex_unlock(&g_device_mutex);
+	if (!se_dev->dev_attrib.emulate_3pc)
 		return 0;
-	}
-	mutex_unlock(&g_device_mutex);
 
-	pr_debug_ratelimited("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
-	return -EINVAL;
+	memset(&tmp_dev_wwn[0], 0, XCOPY_NAA_IEEE_REGEX_LEN);
+	target_xcopy_gen_naa_ieee(se_dev, &tmp_dev_wwn[0]);
+
+	rc = memcmp(&tmp_dev_wwn[0], info->dev_wwn, XCOPY_NAA_IEEE_REGEX_LEN);
+	if (rc != 0)
+		return 0;
+
+	info->found_dev = se_dev;
+	pr_debug("XCOPY 0xe4: located se_dev: %p\n", se_dev);
+
+	rc = target_depend_item(&se_dev->dev_group.cg_item);
+	if (rc != 0) {
+		pr_err("configfs_depend_item attempt failed: %d for se_dev: %p\n",
+		       rc, se_dev);
+		return rc;
+	}
+
+	pr_debug("Called configfs_depend_item for se_dev: %p se_dev->se_dev_group: %p\n",
+		 se_dev, &se_dev->dev_group);
+	return 1;
+}
+
+static int target_xcopy_locate_se_dev_e4(const unsigned char *dev_wwn,
+					struct se_device **found_dev)
+{
+	struct xcopy_dev_search_info info;
+	int ret;
+
+	memset(&info, 0, sizeof(info));
+	info.dev_wwn = dev_wwn;
+
+	ret = target_for_each_device(target_xcopy_locate_se_dev_e4_iter, &info);
+	if (ret == 1) {
+		*found_dev = info.found_dev;
+		return 0;
+	} else {
+		pr_debug_ratelimited("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
+		return -EINVAL;
+	}
 }
 
 static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op *xop,
