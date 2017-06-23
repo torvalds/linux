@@ -44,21 +44,24 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 7
+#define DRV_MODULE_VER_MINOR	2
+#define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
 #define DRV_MODULE_VERSION \
 	__stringify(DRV_MODULE_VER_MAJOR) "."	\
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
-	__stringify(DRV_MODULE_VER_SUBMINOR)
+	__stringify(DRV_MODULE_VER_SUBMINOR) "k"
 #endif
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
 /* 1 for AENQ + ADMIN */
-#define ENA_MAX_MSIX_VEC(io_queues)	(1 + (io_queues))
+#define ENA_ADMIN_MSIX_VEC		1
+#define ENA_MAX_MSIX_VEC(io_queues)	(ENA_ADMIN_MSIX_VEC + (io_queues))
+
+#define ENA_MIN_MSIX_VEC		2
 
 #define ENA_REG_BAR			0
 #define ENA_MEM_BAR			2
@@ -194,12 +197,19 @@ struct ena_stats_rx {
 	u64 dma_mapping_err;
 	u64 bad_desc_num;
 	u64 rx_copybreak_pkt;
+	u64 bad_req_id;
 	u64 empty_rx_ring;
 };
 
 struct ena_ring {
-	/* Holds the empty requests for TX out of order completions */
-	u16 *free_tx_ids;
+	union {
+		/* Holds the empty requests for TX/RX
+		 * out of order completions
+		 */
+		u16 *free_tx_ids;
+		u16 *free_rx_ids;
+	};
+
 	union {
 		struct ena_tx_buffer *tx_buffer_info;
 		struct ena_rx_buffer *rx_buffer_info;
@@ -260,6 +270,7 @@ enum ena_flags_t {
 	ENA_FLAG_DEVICE_RUNNING,
 	ENA_FLAG_DEV_UP,
 	ENA_FLAG_LINK_UP,
+	ENA_FLAG_MSIX_ENABLED,
 	ENA_FLAG_TRIGGER_RESET
 };
 
@@ -280,6 +291,8 @@ struct ena_adapter {
 
 	int msix_vecs;
 
+	u32 missing_tx_completion_threshold;
+
 	u32 tx_usecs, rx_usecs; /* interrupt moderation */
 	u32 tx_frames, rx_frames; /* interrupt moderation */
 
@@ -292,6 +305,9 @@ struct ena_adapter {
 	u16 max_rx_sgl_size;
 
 	u8 mac_addr[ETH_ALEN];
+
+	unsigned long keep_alive_timeout;
+	unsigned long missing_tx_completion_to;
 
 	char name[ENA_NAME_MAX_LEN];
 
@@ -322,6 +338,8 @@ struct ena_adapter {
 
 	/* last queue index that was checked for uncompleted tx packets */
 	u32 last_monitored_tx_qid;
+
+	enum ena_regs_reset_reason_types reset_reason;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
