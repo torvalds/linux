@@ -63,9 +63,10 @@ u64 mdesc_arc_target(struct mdesc_handle *hp, u64 arc);
 void mdesc_update(void);
 
 struct mdesc_notifier_client {
-	void (*add)(struct mdesc_handle *handle, u64 node);
-	void (*remove)(struct mdesc_handle *handle, u64 node);
-
+	void (*add)(struct mdesc_handle *handle, u64 node,
+		    const char *node_name);
+	void (*remove)(struct mdesc_handle *handle, u64 node,
+		       const char *node_name);
 	const char			*node_name;
 	struct mdesc_notifier_client	*next;
 };

@@ -316,12 +316,14 @@ static inline u32 vio_dring_prev(struct vio_dring_state *dr, u32 index)
 }
 
 #define VIO_MAX_TYPE_LEN	32
+#define VIO_MAX_NAME_LEN	32
 #define VIO_MAX_COMPAT_LEN	64
 
 struct vio_dev {
 	u64			mp;
 	struct device_node	*dp;
 
+	char			node_name[VIO_MAX_NAME_LEN];
 	char			type[VIO_MAX_TYPE_LEN];
 	char			compat[VIO_MAX_COMPAT_LEN];
 	int			compat_len;

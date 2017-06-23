@@ -291,7 +291,7 @@ void mdesc_register_notifier(struct mdesc_notifier_client *client)
 	client_list = client;
 
 	mdesc_for_each_node_by_name(cur_mdesc, node, client->node_name)
-		client->add(cur_mdesc, node);
+		client->add(cur_mdesc, node, client->node_name);
 
 	mutex_unlock(&mdesc_mutex);
 }
@@ -399,55 +399,61 @@ static bool ds_port_node_match(union md_node_info *a_node_info,
 static void invoke_on_missing(const char *name,
 			      struct mdesc_handle *a,
 			      struct mdesc_handle *b,
-			      void (*func)(struct mdesc_handle *, u64))
+			      void (*func)(struct mdesc_handle *, u64,
+					   const char *node_name))
 {
-	u64 node;
+	mdesc_node_info_get_f get_info_func;
+	mdesc_node_info_rel_f rel_info_func;
+	mdesc_node_match_f node_match_func;
+	union md_node_info a_node_info;
+	union md_node_info b_node_info;
+	bool found;
+	u64 a_node;
+	u64 b_node;
+	int rv;
 
-	mdesc_for_each_node_by_name(a, node, name) {
-		int found = 0, is_vdc_port = 0;
-		const char *name_prop;
-		const u64 *id;
-		u64 fnode;
+	/*
+	 * Find the get_info, rel_info and node_match ops for the given
+	 * node name
+	 */
+	mdesc_get_node_ops(name, &get_info_func, &rel_info_func,
+			   &node_match_func);
 
-		name_prop = mdesc_get_property(a, node, "name", NULL);
-		if (name_prop && !strcmp(name_prop, "vdc-port")) {
-			is_vdc_port = 1;
-			id = parent_cfg_handle(a, node);
-		} else
-			id = mdesc_get_property(a, node, "id", NULL);
+	/* If we didn't find a match, the node type is not supported */
+	if (!get_info_func || !rel_info_func || !node_match_func) {
+		pr_err("MD: %s node type is not supported\n", name);
+		return;
+	}
 
-		if (!id) {
-			printk(KERN_ERR "MD: Cannot find ID for %s node.\n",
-			       (name_prop ? name_prop : name));
+	mdesc_for_each_node_by_name(a, a_node, name) {
+		found = false;
+
+		rv = get_info_func(a, a_node, &a_node_info);
+		if (rv != 0) {
+			pr_err("MD: Cannot find 1 or more required match properties for %s node.\n",
+			       name);
 			continue;
 		}
 
-		mdesc_for_each_node_by_name(b, fnode, name) {
-			const u64 *fid;
+		/* Check each node in B for node matching a_node */
+		mdesc_for_each_node_by_name(b, b_node, name) {
+			rv = get_info_func(b, b_node, &b_node_info);
+			if (rv != 0)
+				continue;
 
-			if (is_vdc_port) {
-				name_prop = mdesc_get_property(b, fnode,
-							       "name", NULL);
-				if (!name_prop ||
-				    strcmp(name_prop, "vdc-port"))
-					continue;
-				fid = parent_cfg_handle(b, fnode);
-				if (!fid) {
-					printk(KERN_ERR "MD: Cannot find ID "
-					       "for vdc-port node.\n");
-					continue;
-				}
-			} else
-				fid = mdesc_get_property(b, fnode,
-							 "id", NULL);
-
-			if (*id == *fid) {
-				found = 1;
+			if (node_match_func(&a_node_info, &b_node_info)) {
+				found = true;
+				rel_info_func(&b_node_info);
 				break;
 			}
+
+			rel_info_func(&b_node_info);
 		}
+
+		rel_info_func(&a_node_info);
+
 		if (!found)
-			func(a, node);
+			func(a, a_node, name);
 	}
 }
 

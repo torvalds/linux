@@ -219,6 +219,7 @@ int vio_set_intr(unsigned long dev_ino, int state)
 EXPORT_SYMBOL(vio_set_intr);
 
 static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
+				      const char *node_name,
 				      struct device *parent)
 {
 	const char *type, *compat, *bus_id_name;
@@ -236,7 +237,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 			tlen = strlen(type) + 1;
 		}
 	}
-	if (tlen > VIO_MAX_TYPE_LEN) {
+	if (tlen > VIO_MAX_TYPE_LEN || strlen(type) >= VIO_MAX_TYPE_LEN) {
 		printk(KERN_ERR "VIO: Type string [%s] is too long.\n",
 		       type);
 		return NULL;
@@ -335,6 +336,11 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 
 	printk(KERN_INFO "VIO: Adding device %s\n", dev_name(&vdev->dev));
 
+	/* node_name is NULL for the parent/channel-devices node */
+	if (node_name != NULL)
+		(void) snprintf(vdev->node_name, VIO_MAX_NAME_LEN, "%s",
+				node_name);
+
 	err = device_register(&vdev->dev);
 	if (err) {
 		printk(KERN_ERR "VIO: Could not register device %s, err=%d\n",
@@ -349,9 +355,10 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	return vdev;
 }
 
-static void vio_add(struct mdesc_handle *hp, u64 node)
+static void vio_add(struct mdesc_handle *hp, u64 node,
+		    const char *node_name)
 {
-	(void) vio_create_one(hp, node, &root_vdev->dev);
+	(void) vio_create_one(hp, node, node_name, &root_vdev->dev);
 }
 
 struct vio_md_node_query {
@@ -375,7 +382,7 @@ static int vio_md_node_match(struct device *dev, void *arg)
 	return 1;
 }
 
-static void vio_remove(struct mdesc_handle *hp, u64 node)
+static void vio_remove(struct mdesc_handle *hp, u64 node, const char *node_name)
 {
 	const char *type;
 	const u64 *id, *cfg_handle;
@@ -446,7 +453,8 @@ static struct mdesc_notifier_client vio_device_notifier = {
  * under "openboot" that we should not mess with as aparently that is
  * reserved exclusively for OBP use.
  */
-static void vio_add_ds(struct mdesc_handle *hp, u64 node)
+static void vio_add_ds(struct mdesc_handle *hp, u64 node,
+		       const char *node_name)
 {
 	int found;
 	u64 a;
@@ -463,7 +471,7 @@ static void vio_add_ds(struct mdesc_handle *hp, u64 node)
 	}
 
 	if (found)
-		(void) vio_create_one(hp, node, &root_vdev->dev);
+		(void) vio_create_one(hp, node, node_name, &root_vdev->dev);
 }
 
 static struct mdesc_notifier_client vio_ds_notifier = {
@@ -530,7 +538,7 @@ static int __init vio_init(void)
 
 	cdev_cfg_handle = *cfg_handle;
 
-	root_vdev = vio_create_one(hp, root, NULL);
+	root_vdev = vio_create_one(hp, root, NULL, NULL);
 	err = -ENODEV;
 	if (!root_vdev) {
 		printk(KERN_ERR "VIO: Could not create root device.\n");
