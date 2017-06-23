@@ -1348,6 +1348,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
+	irq_setup_timings(desc, new);
+
 	/*
 	 * Strictly no need to wake it up, but hung_task complains
 	 * when no hard interrupt wakes the thread up.
@@ -1474,6 +1476,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 		irq_settings_clr_disable_unlazy(desc);
 		irq_shutdown(desc);
 		irq_release_resources(desc);
+		irq_remove_timings(desc);
 	}
 
 #ifdef CONFIG_SMP

@@ -8,6 +8,7 @@
 #include <linux/irqdesc.h>
 #include <linux/kernel_stat.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched/clock.h>
 
 #ifdef CONFIG_SPARSE_IRQ
 # define IRQ_BITMAP_BITS	(NR_IRQS + 8196)
@@ -57,6 +58,7 @@ enum {
 	IRQS_WAITING		= 0x00000080,
 	IRQS_PENDING		= 0x00000200,
 	IRQS_SUSPENDED		= 0x00000800,
+	IRQS_TIMINGS		= 0x00001000,
 };
 
 #include "debug.h"
@@ -254,6 +256,94 @@ irq_pm_install_action(struct irq_desc *desc, struct irqaction *action) { }
 static inline void
 irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action) { }
 #endif
+
+#ifdef CONFIG_IRQ_TIMINGS
+
+#define IRQ_TIMINGS_SHIFT	5
+#define IRQ_TIMINGS_SIZE	(1 << IRQ_TIMINGS_SHIFT)
+#define IRQ_TIMINGS_MASK	(IRQ_TIMINGS_SIZE - 1)
+
+/**
+ * struct irq_timings - irq timings storing structure
+ * @values: a circular buffer of u64 encoded <timestamp,irq> values
+ * @count: the number of elements in the array
+ */
+struct irq_timings {
+	u64	values[IRQ_TIMINGS_SIZE];
+	int	count;
+};
+
+DECLARE_PER_CPU(struct irq_timings, irq_timings);
+
+static inline void irq_remove_timings(struct irq_desc *desc)
+{
+	desc->istate &= ~IRQS_TIMINGS;
+}
+
+static inline void irq_setup_timings(struct irq_desc *desc, struct irqaction *act)
+{
+	/*
+	 * We don't need the measurement because the idle code already
+	 * knows the next expiry event.
+	 */
+	if (act->flags & __IRQF_TIMER)
+		return;
+
+	desc->istate |= IRQS_TIMINGS;
+}
+
+extern void irq_timings_enable(void);
+extern void irq_timings_disable(void);
+
+DECLARE_STATIC_KEY_FALSE(irq_timing_enabled);
+
+/*
+ * The interrupt number and the timestamp are encoded into a single
+ * u64 variable to optimize the size.
+ * 48 bit time stamp and 16 bit IRQ number is way sufficient.
+ *  Who cares an IRQ after 78 hours of idle time?
+ */
+static inline u64 irq_timing_encode(u64 timestamp, int irq)
+{
+	return (timestamp << 16) | irq;
+}
+
+static inline int irq_timing_decode(u64 value, u64 *timestamp)
+{
+	*timestamp = value >> 16;
+	return value & U16_MAX;
+}
+
+/*
+ * The function record_irq_time is only called in one place in the
+ * interrupts handler. We want this function always inline so the code
+ * inside is embedded in the function and the static key branching
+ * code can act at the higher level. Without the explicit
+ * __always_inline we can end up with a function call and a small
+ * overhead in the hotpath for nothing.
+ */
+static __always_inline void record_irq_time(struct irq_desc *desc)
+{
+	if (!static_branch_likely(&irq_timing_enabled))
+		return;
+
+	if (desc->istate & IRQS_TIMINGS) {
+		struct irq_timings *timings = this_cpu_ptr(&irq_timings);
+
+		timings->values[timings->count & IRQ_TIMINGS_MASK] =
+			irq_timing_encode(local_clock(),
+					  irq_desc_get_irq(desc));
+
+		timings->count++;
+	}
+}
+#else
+static inline void irq_remove_timings(struct irq_desc *desc) {}
+static inline void irq_setup_timings(struct irq_desc *desc,
+				     struct irqaction *act) {};
+static inline void record_irq_time(struct irq_desc *desc) {}
+#endif /* CONFIG_IRQ_TIMINGS */
+
 
 #ifdef CONFIG_GENERIC_IRQ_CHIP
 void irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
