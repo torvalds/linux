@@ -118,7 +118,6 @@ static inline struct scatterlist *esp_req_sg(struct crypto_aead *aead,
 
 static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
 {
-	__be32 *seqhi;
 	struct crypto_aead *aead = x->data;
 	int seqhilen = 0;
 	u8 *iv;
@@ -128,7 +127,6 @@ static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
 	if (x->props.flags & XFRM_STATE_ESN)
 		seqhilen += sizeof(__be32);
 
-	seqhi = esp_tmp_seqhi(tmp);
 	iv = esp_tmp_iv(aead, tmp, seqhilen);
 	req = esp_tmp_req(aead, iv);
 
@@ -224,11 +222,8 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 	u8 *vaddr;
 	int nfrags;
 	struct page *page;
-	struct ip_esp_hdr *esph;
 	struct sk_buff *trailer;
 	int tailen = esp->tailen;
-
-	esph = ip_esp_hdr(skb);
 
 	if (!skb_cloned(skb)) {
 		if (tailen <= skb_availroom(skb)) {

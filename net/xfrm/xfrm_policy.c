@@ -3279,11 +3279,6 @@ static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate)
 		return -EINVAL;
 
 	for (i = 0; i < num_migrate; i++) {
-		if (xfrm_addr_equal(&m[i].old_daddr, &m[i].new_daddr,
-				    m[i].old_family) &&
-		    xfrm_addr_equal(&m[i].old_saddr, &m[i].new_saddr,
-				    m[i].old_family))
-			return -EINVAL;
 		if (xfrm_addr_any(&m[i].new_daddr, m[i].new_family) ||
 		    xfrm_addr_any(&m[i].new_saddr, m[i].new_family))
 			return -EINVAL;
@@ -3307,7 +3302,8 @@ static int xfrm_migrate_check(const struct xfrm_migrate *m, int num_migrate)
 
 int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 		 struct xfrm_migrate *m, int num_migrate,
-		 struct xfrm_kmaddress *k, struct net *net)
+		 struct xfrm_kmaddress *k, struct net *net,
+		 struct xfrm_encap_tmpl *encap)
 {
 	int i, err, nx_cur = 0, nx_new = 0;
 	struct xfrm_policy *pol = NULL;
@@ -3330,7 +3326,8 @@ int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 		if ((x = xfrm_migrate_state_find(mp, net))) {
 			x_cur[nx_cur] = x;
 			nx_cur++;
-			if ((xc = xfrm_state_migrate(x, mp))) {
+			xc = xfrm_state_migrate(x, mp, encap);
+			if (xc) {
 				x_new[nx_new] = xc;
 				nx_new++;
 			} else {
@@ -3351,7 +3348,7 @@ int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 	}
 
 	/* Stage 5 - announce */
-	km_migrate(sel, dir, type, m, num_migrate, k);
+	km_migrate(sel, dir, type, m, num_migrate, k, encap);
 
 	xfrm_pol_put(pol);
 
