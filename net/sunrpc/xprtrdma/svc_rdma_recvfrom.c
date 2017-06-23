@@ -117,6 +117,11 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 	rqstp->rq_arg.tail[0].iov_len = 0;
 }
 
+/* This accommodates the largest possible Write chunk,
+ * in one segment.
+ */
+#define MAX_BYTES_WRITE_SEG	((u32)(RPCSVC_MAXPAGES << PAGE_SHIFT))
+
 /* This accommodates the largest possible Position-Zero
  * Read chunk or Reply chunk, in one segment.
  */
@@ -162,15 +167,52 @@ static __be32 *xdr_check_read_list(__be32 *p, const __be32 *end)
 	return p;
 }
 
-static __be32 *xdr_check_write_list(__be32 *p, __be32 *end)
+/* The segment count is limited to how many segments can
+ * fit in the transport header without overflowing the
+ * buffer. That's about 60 Write segments for a 1KB inline
+ * threshold.
+ */
+static __be32 *xdr_check_write_chunk(__be32 *p, const __be32 *end,
+				     u32 maxlen)
 {
-	__be32 *next;
+	u32 i, segcount;
 
-	while (*p++ != xdr_zero) {
-		next = p + 1 + be32_to_cpup(p) * rpcrdma_segment_maxsz;
-		if (next > end)
+	segcount = be32_to_cpup(p++);
+	for (i = 0; i < segcount; i++) {
+		p++;	/* handle */
+		if (be32_to_cpup(p++) > maxlen)
 			return NULL;
-		p = next;
+		p += 2;	/* offset */
+
+		if (p > end)
+			return NULL;
+	}
+
+	return p;
+}
+
+/* Sanity check the Write list.
+ *
+ * Implementation limits:
+ * - This implementation supports only one Write chunk.
+ *
+ * Sanity checks:
+ * - Write list does not overflow buffer.
+ * - Segment size limited by largest NFS data payload.
+ *
+ * Returns pointer to the following Reply chunk.
+ */
+static __be32 *xdr_check_write_list(__be32 *p, const __be32 *end)
+{
+	u32 chcount;
+
+	chcount = 0;
+	while (*p++ != xdr_zero) {
+		p = xdr_check_write_chunk(p, end, MAX_BYTES_WRITE_SEG);
+		if (!p)
+			return NULL;
+		if (chcount++ > 1)
+			return NULL;
 	}
 	return p;
 }
