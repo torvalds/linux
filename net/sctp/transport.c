@@ -569,6 +569,8 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 		 */
 		transport->cwnd = max(transport->cwnd/2,
 					 4*asoc->pathmtu);
+		/* RFC 4960 Errata 3.27.2: also adjust sshthresh */
+		transport->ssthresh = transport->cwnd;
 		break;
 	}
 
