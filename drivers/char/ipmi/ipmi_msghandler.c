@@ -2397,7 +2397,7 @@ static umode_t bmc_dev_attr_is_visible(struct kobject *kobj,
 	return mode;
 }
 
-static struct attribute_group bmc_dev_attr_group = {
+static const struct attribute_group bmc_dev_attr_group = {
 	.attrs		= bmc_dev_attrs,
 	.is_visible	= bmc_dev_attr_is_visible,
 };
@@ -2407,7 +2407,7 @@ static const struct attribute_group *bmc_dev_attr_groups[] = {
 	NULL
 };
 
-static struct device_type bmc_device_type = {
+static const struct device_type bmc_device_type = {
 	.groups		= bmc_dev_attr_groups,
 };
 
