@@ -57,6 +57,7 @@
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
+		gpio0 = &ap_gpio;
 	};
 
 	psci {
@@ -146,6 +147,13 @@
 				marvell,spi-base = <128>, <136>, <144>, <152>;
 			};
 
+			gicp: gicp@3f0040 {
+				compatible = "marvell,ap806-gicp";
+				reg = <0x3f0040 0x10>;
+				marvell,spi-ranges = <64 64>, <288 64>;
+				msi-controller;
+			};
+
 			pic: interrupt-controller@3f0100 {
 				compatible = "marvell,armada-8k-pic";
 				reg = <0x3f0100 0x10>;
@@ -159,7 +167,7 @@
 				reg = <0x400000 0x1000>,
 				      <0x410000 0x1000>;
 				msi-parent = <&gic_v2m0>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -168,7 +176,7 @@
 				reg = <0x420000 0x1000>,
 				      <0x430000 0x1000>;
 				msi-parent = <&gic_v2m0>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -177,7 +185,7 @@
 				reg = <0x440000 0x1000>,
 				      <0x450000 0x1000>;
 				msi-parent = <&gic_v2m0>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -186,7 +194,7 @@
 				reg = <0x460000 0x1000>,
 				      <0x470000 0x1000>;
 				msi-parent = <&gic_v2m0>;
-				clocks = <&ap_syscon 3>;
+				clocks = <&ap_clk 3>;
 				dma-coherent;
 			};
 
@@ -251,6 +259,19 @@
 				ap_clk: clock {
 					compatible = "marvell,ap806-clock";
 					#clock-cells = <1>;
+				};
+
+				ap_pinctrl: pinctrl {
+					compatible = "marvell,ap806-pinctrl";
+				};
+
+				ap_gpio: gpio {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x1040>;
+					ngpios = <19>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&ap_pinctrl 0 0 19>;
 				};
 			};
 		};

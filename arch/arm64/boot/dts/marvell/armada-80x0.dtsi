@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Copyright (C) 2017 Marvell Technology Group Ltd.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPLv2 or the X11 license, at your option. Note that this dual
@@ -41,25 +41,36 @@
  */
 
 /*
- * Device Tree file for the Armada 8020 SoC, made of an AP806 Dual and
- * two CP110.
+ * Device Tree file for the Armada 80x0 SoC family
  */
 
-#include "armada-ap806-dual.dtsi"
-#include "armada-80x0.dtsi"
+#include "armada-cp110-master.dtsi"
+#include "armada-cp110-slave.dtsi"
 
 / {
-	model = "Marvell Armada 8020";
-	compatible = "marvell,armada8020", "marvell,armada-ap806-dual",
-		     "marvell,armada-ap806";
+	aliases {
+		gpio1 = &cps_gpio1;
+		gpio2 = &cpm_gpio2;
+	};
 };
 
-/* The RTC requires external oscillator. But on Aramda 80x0, the RTC clock
- * in CP master is not connected (by package) to the oscillator. So
- * disable it. However, the RTC clock in CP slave is connected to the
- * oscillator so this one is let enabled.
- */
+/* The 80x0 has two CP blocks, but uses only one block from each. */
+&cps_gpio1 {
+	status = "okay";
+};
 
-&cpm_rtc {
-	status = "disabled";
+&cpm_gpio2 {
+	status = "okay";
+};
+
+&cpm_syscon0 {
+	cpm_pinctrl: pinctrl {
+		compatible = "marvell,armada-8k-cpm-pinctrl";
+	};
+};
+
+&cps_syscon0 {
+	cps_pinctrl: pinctrl {
+		compatible = "marvell,armada-8k-cps-pinctrl";
+	};
 };
