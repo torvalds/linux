@@ -49,8 +49,8 @@
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
-DEFINE_MUTEX(g_device_mutex);
-LIST_HEAD(g_device_list);
+DEFINE_MUTEX(device_mutex);
+LIST_HEAD(device_list);
 static DEFINE_IDR(devices_idr);
 
 static struct se_hba *lun0_hba;
@@ -773,7 +773,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
-	INIT_LIST_HEAD(&dev->g_dev_node);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
 	spin_lock_init(&dev->dev_reservation_lock);
@@ -895,11 +894,11 @@ struct se_device *target_find_device(int id, bool do_depend)
 {
 	struct se_device *dev;
 
-	mutex_lock(&g_device_mutex);
+	mutex_lock(&device_mutex);
 	dev = idr_find(&devices_idr, id);
 	if (dev && do_depend && target_depend_item(&dev->dev_group.cg_item))
 		dev = NULL;
-	mutex_unlock(&g_device_mutex);
+	mutex_unlock(&device_mutex);
 	return dev;
 }
 EXPORT_SYMBOL(target_find_device);
@@ -943,9 +942,9 @@ int target_for_each_device(int (*fn)(struct se_device *dev, void *data),
 	iter.fn = fn;
 	iter.data = data;
 
-	mutex_lock(&g_device_mutex);
+	mutex_lock(&device_mutex);
 	ret = idr_for_each(&devices_idr, target_devices_idr_iter, &iter);
-	mutex_unlock(&g_device_mutex);
+	mutex_unlock(&device_mutex);
 	return ret;
 }
 
@@ -964,13 +963,13 @@ int target_configure_device(struct se_device *dev)
 	 * Add early so modules like tcmu can use during its
 	 * configuration.
 	 */
-	mutex_lock(&g_device_mutex);
+	mutex_lock(&device_mutex);
 	/*
 	 * Use cyclic to try and avoid collisions with devices
 	 * that were recently removed.
 	 */
 	id = idr_alloc_cyclic(&devices_idr, dev, 0, INT_MAX, GFP_KERNEL);
-	mutex_unlock(&g_device_mutex);
+	mutex_unlock(&device_mutex);
 	if (id < 0) {
 		ret = -ENOMEM;
 		goto out;
@@ -1036,10 +1035,6 @@ int target_configure_device(struct se_device *dev)
 	hba->dev_count++;
 	spin_unlock(&hba->device_lock);
 
-	mutex_lock(&g_device_mutex);
-	list_add_tail(&dev->g_dev_node, &g_device_list);
-	mutex_unlock(&g_device_mutex);
-
 	dev->dev_flags |= DF_CONFIGURED;
 
 	return 0;
@@ -1047,9 +1042,9 @@ int target_configure_device(struct se_device *dev)
 out_free_alua:
 	core_alua_free_lu_gp_mem(dev);
 out_free_index:
-	mutex_lock(&g_device_mutex);
+	mutex_lock(&device_mutex);
 	idr_remove(&devices_idr, dev->dev_index);
-	mutex_unlock(&g_device_mutex);
+	mutex_unlock(&device_mutex);
 out:
 	se_release_vpd_for_dev(dev);
 	return ret;
@@ -1066,10 +1061,9 @@ void target_free_device(struct se_device *dev)
 
 		dev->transport->destroy_device(dev);
 
-		mutex_lock(&g_device_mutex);
+		mutex_lock(&device_mutex);
 		idr_remove(&devices_idr, dev->dev_index);
-		list_del(&dev->g_dev_node);
-		mutex_unlock(&g_device_mutex);
+		mutex_unlock(&device_mutex);
 
 		spin_lock(&hba->device_lock);
 		hba->dev_count--;
