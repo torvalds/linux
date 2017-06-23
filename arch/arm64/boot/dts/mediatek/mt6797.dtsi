@@ -12,7 +12,6 @@
  */
 
 #include <dt-bindings/clock/mt6797-clk.h>
-#include <dt-bindings/power/mt6797-power.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
