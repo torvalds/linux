@@ -217,15 +217,20 @@ static __be32 *xdr_check_write_list(__be32 *p, const __be32 *end)
 	return p;
 }
 
-static __be32 *xdr_check_reply_chunk(__be32 *p, __be32 *end)
+/* Sanity check the Reply chunk.
+ *
+ * Sanity checks:
+ * - Reply chunk does not overflow buffer.
+ * - Segment size limited by largest NFS data payload.
+ *
+ * Returns pointer to the following RPC header.
+ */
+static __be32 *xdr_check_reply_chunk(__be32 *p, const __be32 *end)
 {
-	__be32 *next;
-
 	if (*p++ != xdr_zero) {
-		next = p + 1 + be32_to_cpup(p) * rpcrdma_segment_maxsz;
-		if (next > end)
+		p = xdr_check_write_chunk(p, end, MAX_BYTES_SPECIAL_SEG);
+		if (!p)
 			return NULL;
-		p = next;
 	}
 	return p;
 }
