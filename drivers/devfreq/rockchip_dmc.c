@@ -86,6 +86,8 @@ struct share_params {
 	 /* if need, add parameter after */
 };
 
+static struct share_params *ddr_psci_param;
+
 char *rk3288_dts_timing[] = {
 	"ddr3_speed_bin",
 	"pd_idle",
@@ -631,12 +633,23 @@ static int rk_drm_get_lcdc_type(void)
 	return lcdc_type;
 }
 
-static int rk3288_dmc_init(struct platform_device *pdev)
+static int rockchip_ddr_set_auto_self_refresh(uint32_t en)
+{
+	struct arm_smccc_res res;
+
+	ddr_psci_param->sr_idle_en = en;
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_SET_AT_SR);
+
+	return res.a0;
+}
+
+static int rk3288_dmc_init(struct platform_device *pdev,
+			   struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = &pdev->dev;
 	struct clk *pclk_phy, *pclk_upctl, *dmc_clk;
 	struct arm_smccc_res res;
-	struct share_params *init_param;
 	struct drm_device *drm = drm_device_get_by_name("rockchip");
 	int ret;
 
@@ -706,12 +719,12 @@ static int rk3288_dmc_init(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	init_param = (struct share_params *)res.a1;
+	ddr_psci_param = (struct share_params *)res.a1;
 	of_get_rk3288_timings(&pdev->dev, pdev->dev.of_node,
-			      (uint32_t *)init_param);
+			      (uint32_t *)ddr_psci_param);
 
-	init_param->hz = 0;
-	init_param->lcdc_type = rk_drm_get_lcdc_type();
+	ddr_psci_param->hz = 0;
+	ddr_psci_param->lcdc_type = rk_drm_get_lcdc_type();
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
 
@@ -720,6 +733,8 @@ static int rk3288_dmc_init(struct platform_device *pdev)
 			res.a0);
 		return -ENOMEM;
 	}
+
+	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
 
 	return 0;
 }
