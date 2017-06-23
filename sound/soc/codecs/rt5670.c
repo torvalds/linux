@@ -2849,6 +2849,10 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Tablet B"),
 		},
 	},
+	{}
+};
+
+static const struct dmi_system_id dmi_platform_intel_bytcht_jdmode2[] = {
 	{
 		.ident = "Lenovo Thinkpad Tablet 10",
 		.matches = {
@@ -2883,6 +2887,11 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
 		rt5670->pdata.dev_gpio = true;
 		rt5670->pdata.jd_mode = 1;
+	} else if (dmi_check_system(dmi_platform_intel_bytcht_jdmode2)) {
+		rt5670->pdata.dmic_en = true;
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		rt5670->pdata.dev_gpio = true;
+		rt5670->pdata.jd_mode = 2;
 	}
 
 	rt5670->regmap = devm_regmap_init_i2c(i2c, &rt5670_regmap);
