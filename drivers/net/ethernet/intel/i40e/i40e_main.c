@@ -2595,8 +2595,19 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, u16 vid)
 {
 	int err;
 
-	if (!vid || vsi->info.pvid)
+	if (vsi->info.pvid)
 		return -EINVAL;
+
+	/* The network stack will attempt to add VID=0, with the intention to
+	 * receive priority tagged packets with a VLAN of 0. Our HW receives
+	 * these packets by default when configured to receive untagged
+	 * packets, so we don't need to add a filter for this case.
+	 * Additionally, HW interprets adding a VID=0 filter as meaning to
+	 * receive *only* tagged traffic and stops receiving untagged traffic.
+	 * Thus, we do not want to actually add a filter for VID=0
+	 */
+	if (!vid)
+		return 0;
 
 	/* Locked once because all functions invoked below iterates list*/
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
@@ -2674,15 +2685,7 @@ static int i40e_vlan_rx_add_vid(struct net_device *netdev,
 	if (vid >= VLAN_N_VID)
 		return -EINVAL;
 
-	/* If the network stack called us with vid = 0 then
-	 * it is asking to receive priority tagged packets with
-	 * vlan id 0.  Our HW receives them by default when configured
-	 * to receive untagged packets so there is no need to add an
-	 * extra filter for vlan 0 tagged packets.
-	 */
-	if (vid)
-		ret = i40e_vsi_add_vlan(vsi, vid);
-
+	ret = i40e_vsi_add_vlan(vsi, vid);
 	if (!ret)
 		set_bit(vid, vsi->active_vlans);
 
