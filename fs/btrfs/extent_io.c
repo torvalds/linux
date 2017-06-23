@@ -4058,14 +4058,13 @@ static noinline void flush_write_bio(void *data)
 }
 
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
-			  get_extent_t *get_extent,
 			  struct writeback_control *wbc)
 {
 	int ret;
 	struct extent_page_data epd = {
 		.bio = NULL,
 		.tree = tree,
-		.get_extent = get_extent,
+		.get_extent = btrfs_get_extent,
 		.extent_locked = 0,
 		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};

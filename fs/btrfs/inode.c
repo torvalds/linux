@@ -8891,7 +8891,7 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 		return AOP_WRITEPAGE_ACTIVATE;
 	}
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	ret = extent_write_full_page(tree, page, btrfs_get_extent, wbc);
+	ret = extent_write_full_page(tree, page, wbc);
 	btrfs_add_delayed_iput(inode);
 	return ret;
 }
