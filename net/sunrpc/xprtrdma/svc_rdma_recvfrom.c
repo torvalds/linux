@@ -117,15 +117,47 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 	rqstp->rq_arg.tail[0].iov_len = 0;
 }
 
-static __be32 *xdr_check_read_list(__be32 *p, __be32 *end)
-{
-	__be32 *next;
+/* This accommodates the largest possible Position-Zero
+ * Read chunk or Reply chunk, in one segment.
+ */
+#define MAX_BYTES_SPECIAL_SEG	((u32)((RPCSVC_MAXPAGES + 2) << PAGE_SHIFT))
 
+/* Sanity check the Read list.
+ *
+ * Implementation limits:
+ * - This implementation supports only one Read chunk.
+ *
+ * Sanity checks:
+ * - Read list does not overflow buffer.
+ * - Segment size limited by largest NFS data payload.
+ *
+ * The segment count is limited to how many segments can
+ * fit in the transport header without overflowing the
+ * buffer. That's about 40 Read segments for a 1KB inline
+ * threshold.
+ *
+ * Returns pointer to the following Write list.
+ */
+static __be32 *xdr_check_read_list(__be32 *p, const __be32 *end)
+{
+	u32 position;
+	bool first;
+
+	first = true;
 	while (*p++ != xdr_zero) {
-		next = p + rpcrdma_readchunk_maxsz - 1;
-		if (next > end)
+		if (first) {
+			position = be32_to_cpup(p++);
+			first = false;
+		} else if (be32_to_cpup(p++) != position) {
 			return NULL;
-		p = next;
+		}
+		p++;	/* handle */
+		if (be32_to_cpup(p++) > MAX_BYTES_SPECIAL_SEG)
+			return NULL;
+		p += 2;	/* offset */
+
+		if (p > end)
+			return NULL;
 	}
 	return p;
 }
@@ -478,16 +510,6 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	return ret;
 }
 
-static unsigned int
-rdma_rcl_chunk_count(struct rpcrdma_read_chunk *ch)
-{
-	unsigned int count;
-
-	for (count = 0; ch->rc_discrim != xdr_zero; ch++)
-		count++;
-	return count;
-}
-
 /* If there was additional inline content, append it to the end of arg.pages.
  * Tail copy has to be done after the reader function has determined how many
  * pages are needed for RDMA READ.
@@ -566,9 +588,6 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 	ch = svc_rdma_get_read_chunk(rmsgp);
 	if (!ch)
 		return 0;
-
-	if (rdma_rcl_chunk_count(ch) > RPCSVC_MAXPAGES)
-		return -EINVAL;
 
 	/* The request is completed when the RDMA_READs complete. The
 	 * head context keeps all the pages that comprise the
