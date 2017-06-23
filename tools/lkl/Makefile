@@ -73,7 +73,7 @@ else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
   EXESUF   := .exe
   SOSUF    := .dll
   export CONFIG_AUTO_LKL_NT_HOST=y
-  CFLAGS += -DCONFIG_AUTO_LKL_NT_HOST
+  CFLAGS += -DCONFIG_AUTO_LKL_NT_HOST -Iinclude/mingw32
   ifneq (,$(filter $(OUTPUT_FORMAT),pe-x86-64))
       CFLAGS += -Wl,--enable-auto-image-base -Wl,--image-base -Wl,0x10000000 -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols -Wl,--enable-auto-import
 	  LDFLAGS +=-Wl,--image-base -Wl,0x10000000 -Wl,--enable-auto-image-base -Wl,--out-implib=$(OUTPUT)liblkl.dll.a -Wl,--export-all-symbols -Wl,--enable-auto-import
