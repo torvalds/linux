@@ -240,7 +240,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 				      const char *node_name,
 				      struct device *parent)
 {
-	const char *type, *compat, *bus_id_name;
+	const char *type, *compat;
 	struct device_node *dp;
 	struct vio_dev *vdev;
 	int err, tlen, clen;
@@ -263,21 +263,6 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	id = mdesc_get_property(hp, mp, "id", NULL);
 
 	cfg_handle = vio_cfg_handle(hp, mp);
-
-	bus_id_name = type;
-	if (!strcmp(type, "domain-services-port"))
-		bus_id_name = "ds";
-
-	/*
-	 * 20 char is the old driver-core name size limit, which is no more.
-	 * This check can probably be removed after review and possible
-	 * adaption of the vio users name length handling.
-	 */
-	if (strlen(bus_id_name) >= 20 - 4) {
-		printk(KERN_ERR "VIO: bus_id_name [%s] is too long.\n",
-		       bus_id_name);
-		return NULL;
-	}
 
 	compat = mdesc_get_property(hp, mp, "device-type", &clen);
 	if (!compat) {
@@ -309,15 +294,15 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	vio_fill_channel_info(hp, mp, vdev);
 
 	if (!id) {
-		dev_set_name(&vdev->dev, "%s", bus_id_name);
+		dev_set_name(&vdev->dev, "%s", type);
 		vdev->dev_no = ~(u64)0;
 		vdev->id = ~(u64)0;
 	} else if (!cfg_handle) {
-		dev_set_name(&vdev->dev, "%s-%llu", bus_id_name, *id);
+		dev_set_name(&vdev->dev, "%s-%llu", type, *id);
 		vdev->dev_no = *id;
 		vdev->id = ~(u64)0;
 	} else {
-		dev_set_name(&vdev->dev, "%s-%llu-%llu", bus_id_name,
+		dev_set_name(&vdev->dev, "%s-%llu-%llu", type,
 			     *cfg_handle, *id);
 		vdev->dev_no = *cfg_handle;
 		vdev->id = *id;
