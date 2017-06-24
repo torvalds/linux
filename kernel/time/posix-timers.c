@@ -1213,26 +1213,24 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		struct timespec __user *, rmtp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 t64;
-	struct timespec t;
+	struct timespec64 t;
 
 	if (!kc)
 		return -EINVAL;
 	if (!kc->nsleep)
 		return -ENANOSLEEP_NOTSUP;
 
-	if (copy_from_user(&t, rqtp, sizeof (struct timespec)))
+	if (get_timespec64(&t, rqtp))
 		return -EFAULT;
 
-	t64 = timespec_to_timespec64(t);
-	if (!timespec64_valid(&t64))
+	if (!timespec64_valid(&t))
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
 	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
 	current->restart_block.nanosleep.rmtp = rmtp;
 
-	return kc->nsleep(which_clock, flags, &t64);
+	return kc->nsleep(which_clock, flags, &t);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1241,26 +1239,24 @@ COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
 		       struct compat_timespec __user *, rmtp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 t64;
-	struct timespec t;
+	struct timespec64 t;
 
 	if (!kc)
 		return -EINVAL;
 	if (!kc->nsleep)
 		return -ENANOSLEEP_NOTSUP;
 
-	if (compat_get_timespec(&t, rqtp))
+	if (compat_get_timespec64(&t, rqtp))
 		return -EFAULT;
 
-	t64 = timespec_to_timespec64(t);
-	if (!timespec64_valid(&t64))
+	if (!timespec64_valid(&t))
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
 	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
 	current->restart_block.nanosleep.compat_rmtp = rmtp;
 
-	return kc->nsleep(which_clock, flags, &t64);
+	return kc->nsleep(which_clock, flags, &t);
 }
 #endif
 
