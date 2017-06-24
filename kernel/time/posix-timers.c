@@ -1049,34 +1049,30 @@ SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		const struct timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 new_tp64;
-	struct timespec new_tp;
+	struct timespec64 new_tp;
 
 	if (!kc || !kc->clock_set)
 		return -EINVAL;
 
-	if (copy_from_user(&new_tp, tp, sizeof (*tp)))
+	if (get_timespec64(&new_tp, tp))
 		return -EFAULT;
-	new_tp64 = timespec_to_timespec64(new_tp);
 
-	return kc->clock_set(which_clock, &new_tp64);
+	return kc->clock_set(which_clock, &new_tp);
 }
 
 SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 		struct timespec __user *,tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 kernel_tp64;
-	struct timespec kernel_tp;
+	struct timespec64 kernel_tp;
 	int error;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_get(which_clock, &kernel_tp64);
-	kernel_tp = timespec64_to_timespec(kernel_tp64);
+	error = kc->clock_get(which_clock, &kernel_tp);
 
-	if (!error && copy_to_user(tp, &kernel_tp, sizeof (kernel_tp)))
+	if (!error && put_timespec64(&kernel_tp, tp))
 		error = -EFAULT;
 
 	return error;
@@ -1109,17 +1105,15 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock,
 		struct timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 rtn_tp64;
-	struct timespec rtn_tp;
+	struct timespec64 rtn_tp;
 	int error;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_getres(which_clock, &rtn_tp64);
-	rtn_tp = timespec64_to_timespec(rtn_tp64);
+	error = kc->clock_getres(which_clock, &rtn_tp);
 
-	if (!error && tp && copy_to_user(tp, &rtn_tp, sizeof (rtn_tp)))
+	if (!error && tp && put_timespec64(&rtn_tp, tp))
 		error = -EFAULT;
 
 	return error;
@@ -1131,38 +1125,33 @@ COMPAT_SYSCALL_DEFINE2(clock_settime, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 new_tp64;
-	struct timespec new_tp;
+	struct timespec64 ts;
 
 	if (!kc || !kc->clock_set)
 		return -EINVAL;
 
-	if (compat_get_timespec(&new_tp, tp))
+	if (compat_get_timespec64(&ts, tp))
 		return -EFAULT;
 
-	new_tp64 = timespec_to_timespec64(new_tp);
-
-	return kc->clock_set(which_clock, &new_tp64);
+	return kc->clock_set(which_clock, &ts);
 }
 
 COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 kernel_tp64;
-	struct timespec kernel_tp;
-	int error;
+	struct timespec64 ts;
+	int err;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_get(which_clock, &kernel_tp64);
-	kernel_tp = timespec64_to_timespec(kernel_tp64);
+	err = kc->clock_get(which_clock, &ts);
 
-	if (!error && compat_put_timespec(&kernel_tp, tp))
-		error = -EFAULT;
+	if (!err && compat_put_timespec64(&ts, tp))
+		err = -EFAULT;
 
-	return error;
+	return err;
 }
 
 COMPAT_SYSCALL_DEFINE2(clock_adjtime, clockid_t, which_clock,
@@ -1193,21 +1182,19 @@ COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 rtn_tp64;
-	struct timespec rtn_tp;
-	int error;
+	struct timespec64 ts;
+	int err;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_getres(which_clock, &rtn_tp64);
-	rtn_tp = timespec64_to_timespec(rtn_tp64);
+	err = kc->clock_getres(which_clock, &ts);
+	if (!err && tp && compat_put_timespec64(&ts, tp))
+		return -EFAULT;
 
-	if (!error && tp && compat_put_timespec(&rtn_tp, tp))
-		error = -EFAULT;
-
-	return error;
+	return err;
 }
+
 #endif
 
 /*
