@@ -2208,6 +2208,7 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 	err = brcmf_net_attach(ifp, true);
 	if (err) {
 		brcmf_err("Registering netdevice failed\n");
+		free_netdev(ifp->ndev);
 		goto fail;
 	}
 
