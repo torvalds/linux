@@ -4152,7 +4152,7 @@ xlog_recover_commit_trans(
 
 	#define XLOG_RECOVER_COMMIT_QUEUE_MAX 100
 
-	hlist_del(&trans->r_list);
+	hlist_del_init(&trans->r_list);
 
 	error = xlog_recover_reorder_trans(log, trans, pass);
 	if (error)
@@ -4353,6 +4353,8 @@ xlog_recover_free_trans(
 {
 	xlog_recover_item_t	*item, *n;
 	int			i;
+
+	hlist_del_init(&trans->r_list);
 
 	list_for_each_entry_safe(item, n, &trans->r_itemq, ri_list) {
 		/* Free the regions in the item. */
@@ -5224,11 +5226,15 @@ xlog_do_recovery_pass(
 	int			error2 = 0;
 	int			bblks, split_bblks;
 	int			hblks, split_hblks, wrapped_hblks;
+	int			i;
 	struct hlist_head	rhash[XLOG_RHASH_SIZE];
 	LIST_HEAD		(buffer_list);
 
 	ASSERT(head_blk != tail_blk);
 	rhead_blk = 0;
+
+	for (i = 0; i < XLOG_RHASH_SIZE; i++)
+		INIT_HLIST_HEAD(&rhash[i]);
 
 	/*
 	 * Read the header of the tail block and get the iclog buffer size from
@@ -5465,6 +5471,19 @@ xlog_do_recovery_pass(
 
 	if (error && first_bad)
 		*first_bad = rhead_blk;
+
+	/*
+	 * Transactions are freed at commit time but transactions without commit
+	 * records on disk are never committed. Free any that may be left in the
+	 * hash table.
+	 */
+	for (i = 0; i < XLOG_RHASH_SIZE; i++) {
+		struct hlist_node	*tmp;
+		struct xlog_recover	*trans;
+
+		hlist_for_each_entry_safe(trans, tmp, &rhash[i], r_list)
+			xlog_recover_free_trans(trans);
+	}
 
 	return error ? error : error2;
 }
