@@ -8,6 +8,11 @@
 
 extern struct timezone sys_tz;
 
+int get_timespec64(struct timespec64 *ts,
+		const struct timespec __user *uts);
+int put_timespec64(const struct timespec64 *ts,
+		struct timespec __user *uts);
+
 #define TIME_T_MAX	(time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
 
 static inline int timespec_equal(const struct timespec *a,
