@@ -333,7 +333,7 @@ static void qedi_get_rq_bdq_buf(struct qedi_ctx *qedi,
 
 	/* Obtain buffer address from rqe_opaque */
 	idx = cqe->rqe_opaque.lo;
-	if ((idx < 0) || (idx > (QEDI_BDQ_NUM - 1))) {
+	if (idx > (QEDI_BDQ_NUM - 1)) {
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
 			  "wrong idx %d returned by FW, dropping the unsolicited pkt\n",
 			  idx);
@@ -370,7 +370,7 @@ static void qedi_put_rq_bdq_buf(struct qedi_ctx *qedi,
 
 	/* Obtain buffer address from rqe_opaque */
 	idx = cqe->rqe_opaque.lo;
-	if ((idx < 0) || (idx > (QEDI_BDQ_NUM - 1))) {
+	if (idx > (QEDI_BDQ_NUM - 1)) {
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
 			  "wrong idx %d returned by FW, dropping the unsolicited pkt\n",
 			  idx);
