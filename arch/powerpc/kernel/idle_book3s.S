@@ -436,6 +436,13 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
  */
 pnv_restore_hyp_resource_arch300:
 	/*
+	 * Workaround for POWER9, if we lost resources, the ERAT
+	 * might have been mixed up and needs flushing.
+	 */
+	blt	cr3,1f
+	PPC_INVALIDATE_ERAT
+1:
+	/*
 	 * POWER ISA 3. Use PSSCR to determine if we
 	 * are waking up from deep idle state
 	 */
