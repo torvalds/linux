@@ -918,3 +918,33 @@ int put_timespec64(const struct timespec64 *ts,
 	return copy_to_user(uts, &kts, sizeof(kts)) ? -EFAULT : 0;
 }
 EXPORT_SYMBOL_GPL(put_timespec64);
+
+int get_itimerspec64(struct itimerspec64 *it,
+			const struct itimerspec __user *uit)
+{
+	int ret;
+
+	ret = get_timespec64(&it->it_interval, &uit->it_interval);
+	if (ret)
+		return ret;
+
+	ret = get_timespec64(&it->it_value, &uit->it_value);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(get_itimerspec64);
+
+int put_itimerspec64(const struct itimerspec64 *it,
+			struct itimerspec __user *uit)
+{
+	int ret;
+
+	ret = put_timespec64(&it->it_interval, &uit->it_interval);
+	if (ret)
+		return ret;
+
+	ret = put_timespec64(&it->it_value, &uit->it_value);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(put_itimerspec64);
