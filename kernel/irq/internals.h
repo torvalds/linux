@@ -318,8 +318,13 @@ static inline bool irq_fixup_move_pending(struct irq_desc *desc, bool fclear)
 #endif /* !CONFIG_GENERIC_PENDING_IRQ */
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+#include <linux/debugfs.h>
+
 void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc);
-void irq_remove_debugfs_entry(struct irq_desc *desc);
+static inline void irq_remove_debugfs_entry(struct irq_desc *desc)
+{
+	debugfs_remove(desc->debugfs_file);
+}
 # ifdef CONFIG_IRQ_DOMAIN
 void irq_domain_debugfs_init(struct dentry *root);
 # else

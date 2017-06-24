@@ -3,7 +3,6 @@
  *
  * This file is licensed under the GPL V2.
  */
-#include <linux/debugfs.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 
@@ -189,12 +188,6 @@ void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc)
 	sprintf(name, "%d", irq);
 	desc->debugfs_file = debugfs_create_file(name, 0444, irq_dir, desc,
 						 &dfs_irq_ops);
-}
-
-void irq_remove_debugfs_entry(struct irq_desc *desc)
-{
-	if (desc->debugfs_file)
-		debugfs_remove(desc->debugfs_file);
 }
 
 static int __init irq_debugfs_init(void)
