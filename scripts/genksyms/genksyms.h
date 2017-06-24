@@ -75,7 +75,7 @@ struct string_list *copy_list_range(struct string_list *start,
 int yylex(void);
 int yyparse(void);
 
-void error_with_pos(const char *, ...);
+void error_with_pos(const char *, ...) __attribute__ ((format(printf, 1, 2)));
 
 /*----------------------------------------------------------------------*/
 #define xmalloc(size) ({ void *__ptr = malloc(size);		\
