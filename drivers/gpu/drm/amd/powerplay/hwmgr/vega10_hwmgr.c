@@ -321,8 +321,7 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			FEATURE_LED_DISPLAY_BIT;
 	data->smu_features[GNLD_FAN_CONTROL].smu_feature_id =
 			FEATURE_FAN_CONTROL_BIT;
-	data->smu_features[GNLD_VOLTAGE_CONTROLLER].smu_feature_id =
-			FEATURE_VOLTAGE_CONTROLLER_BIT;
+	data->smu_features[GNLD_ACG].smu_feature_id = FEATURE_ACG_BIT;
 
 	if (!data->registry_data.prefetcher_dpm_key_disabled)
 		data->smu_features[GNLD_DPM_PREFETCHER].supported = true;
@@ -385,6 +384,12 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 	if (data->registry_data.vr0hot_enabled)
 		data->smu_features[GNLD_VR0HOT].supported = true;
+
+	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetSmuVersion);
+	vega10_read_arg_from_smc(hwmgr->smumgr, &(data->smu_version));
+		/* ACG firmware has major version 5 */
+	if ((data->smu_version & 0xff000000) == 0x5000000)
+		data->smu_features[GNLD_ACG].supported = true;
 
 }
 
@@ -2228,8 +2233,72 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m2_shift = 12;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].b_shift = 12;
+
+			pp_table->AcgBtcGbVdroopTable.a0       = avfs_params.ulAcgGbVdroopTableA0;
+			pp_table->AcgBtcGbVdroopTable.a0_shift = 20;
+			pp_table->AcgBtcGbVdroopTable.a1       = avfs_params.ulAcgGbVdroopTableA1;
+			pp_table->AcgBtcGbVdroopTable.a1_shift = 20;
+			pp_table->AcgBtcGbVdroopTable.a2       = avfs_params.ulAcgGbVdroopTableA2;
+			pp_table->AcgBtcGbVdroopTable.a2_shift = 20;
+
+			pp_table->AcgAvfsGb.m1                   = avfs_params.ulAcgGbFuseTableM1;
+			pp_table->AcgAvfsGb.m2                   = avfs_params.ulAcgGbFuseTableM2;
+			pp_table->AcgAvfsGb.b                    = avfs_params.ulAcgGbFuseTableB;
+			pp_table->AcgAvfsGb.m1_shift             = 0;
+			pp_table->AcgAvfsGb.m2_shift             = 0;
+			pp_table->AcgAvfsGb.b_shift              = 0;
+
 		} else {
 			data->smu_features[GNLD_AVFS].supported = false;
+		}
+	}
+
+	return 0;
+}
+
+static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t agc_btc_response;
+
+	if (data->smu_features[GNLD_ACG].supported) {
+		if (0 == vega10_enable_smc_features(hwmgr->smumgr, true,
+					data->smu_features[GNLD_DPM_PREFETCHER].smu_feature_bitmap))
+			data->smu_features[GNLD_DPM_PREFETCHER].enabled = true;
+
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_InitializeAcg);
+
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgBtc);
+		vega10_read_arg_from_smc(hwmgr->smumgr, &agc_btc_response);;
+
+		if (1 == agc_btc_response) {
+			if (1 == data->acg_loop_state)
+				smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgInClosedLoop);
+			else if (2 == data->acg_loop_state)
+				smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgInOpenLoop);
+			if (0 == vega10_enable_smc_features(hwmgr->smumgr, true,
+				data->smu_features[GNLD_ACG].smu_feature_bitmap))
+					data->smu_features[GNLD_ACG].enabled = true;
+		} else {
+			pr_info("[ACG_Enable] ACG BTC Returned Failed Status!\n");
+			data->smu_features[GNLD_ACG].enabled = false;
+		}
+	}
+
+	return 0;
+}
+
+static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
+{
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+
+	if (data->smu_features[GNLD_ACG].supported) {
+		if (data->smu_features[GNLD_ACG].enabled) {
+		if (0 == vega10_enable_smc_features(hwmgr->smumgr, false,
+				data->smu_features[GNLD_ACG].smu_feature_bitmap))
+			data->smu_features[GNLD_ACG].enabled = false;
 		}
 	}
 
@@ -2506,7 +2575,7 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = vega10_avfs_enable(hwmgr, true);
 	PP_ASSERT_WITH_CODE(!result, "Attempt to enable AVFS feature Failed!",
 					return result);
-
+	vega10_acg_enable(hwmgr);
 	vega10_save_default_power_profile(hwmgr);
 
 	return 0;
@@ -4683,6 +4752,9 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to disable ulv!", result = tmp_result);
 
+	tmp_result =  vega10_acg_disable(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable acg!", result = tmp_result);
 	return result;
 }
 

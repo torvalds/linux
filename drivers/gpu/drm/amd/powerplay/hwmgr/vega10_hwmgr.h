@@ -64,7 +64,9 @@ enum {
 	GNLD_FW_CTF,
 	GNLD_LED_DISPLAY,
 	GNLD_FAN_CONTROL,
-	GNLD_VOLTAGE_CONTROLLER,
+	GNLD_FEATURE_FAST_PPT_BIT,
+	GNLD_DIDT,
+	GNLD_ACG,
 	GNLD_FEATURES_MAX
 };
 
@@ -381,6 +383,8 @@ struct vega10_hwmgr {
 	struct vega10_smc_state_table  smc_state_table;
 
 	uint32_t                       config_telemetry;
+	uint32_t                       smu_version;
+	uint32_t                       acg_loop_state;
 };
 
 #define VEGA10_DPM2_NEAR_TDP_DEC                      10
