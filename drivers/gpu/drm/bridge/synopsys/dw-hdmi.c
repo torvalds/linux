@@ -258,6 +258,7 @@ struct dw_hdmi {
 
 	spinlock_t audio_lock;
 	struct mutex audio_mutex;
+	struct dentry *debugfs_dir;
 	unsigned int sample_rate;
 	unsigned int audio_cts;
 	unsigned int audio_n;
@@ -3516,18 +3517,16 @@ static const struct file_operations dw_hdmi_phy_fops = {
 
 static void dw_hdmi_register_debugfs(struct device *dev, struct dw_hdmi *hdmi)
 {
-	struct dentry *debugfs_dir;
-
-	debugfs_dir = debugfs_create_dir("dw-hdmi", NULL);
-	if (IS_ERR(debugfs_dir)) {
+	hdmi->debugfs_dir = debugfs_create_dir("dw-hdmi", NULL);
+	if (IS_ERR(hdmi->debugfs_dir)) {
 		dev_err(dev, "failed to create debugfs dir!\n");
 		return;
 	}
-	debugfs_create_file("status", 0400, debugfs_dir,
+	debugfs_create_file("status", 0400, hdmi->debugfs_dir,
 			    hdmi, &dw_hdmi_status_fops);
-	debugfs_create_file("ctrl", 0400, debugfs_dir,
+	debugfs_create_file("ctrl", 0400, hdmi->debugfs_dir,
 			    hdmi, &dw_hdmi_ctrl_fops);
-	debugfs_create_file("phy", 0400, debugfs_dir,
+	debugfs_create_file("phy", 0400, hdmi->debugfs_dir,
 			    hdmi, &dw_hdmi_phy_fops);
 }
 
@@ -3885,6 +3884,8 @@ static void __dw_hdmi_remove(struct dw_hdmi *hdmi)
 	cancel_delayed_work(&hdmi->work);
 	flush_workqueue(hdmi->workqueue);
 	destroy_workqueue(hdmi->workqueue);
+
+	debugfs_remove_recursive(hdmi->debugfs_dir);
 
 	if (hdmi->audio && !IS_ERR(hdmi->audio))
 		platform_device_unregister(hdmi->audio);
