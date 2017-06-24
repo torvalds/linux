@@ -2044,9 +2044,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		 */
 		intel_pstate_clear_update_util_hook(policy->cpu);
 		intel_pstate_max_within_limits(cpu);
+	} else {
+		intel_pstate_set_update_util_hook(policy->cpu);
 	}
-
-	intel_pstate_set_update_util_hook(policy->cpu);
 
 	if (hwp_active)
 		intel_pstate_hwp_set(policy->cpu);
