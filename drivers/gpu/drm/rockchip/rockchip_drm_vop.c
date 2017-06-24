@@ -1733,6 +1733,10 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		VOP_CTRL_SET(vop, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop, mipi_dclk_pol, 1);
+		if (s->output_flags & ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL)
+			VOP_CTRL_SET(vop, mipi_dual_channel_en, 1);
+		else
+			VOP_CTRL_SET(vop, mipi_dual_channel_en, 0);
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		VOP_CTRL_SET(vop, dp_dclk_pol, 0);

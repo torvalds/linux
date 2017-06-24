@@ -196,6 +196,7 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.hdmi_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 13),
 	.edp_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 14),
 	.mipi_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 15),
+	.mipi_dual_channel_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 3),
 	.dclk_pol = VOP_REG_VER(RK3288_DSP_CTRL0, 0x1, 7, 3, 0, 1),
 	.pin_pol = VOP_REG_VER(RK3288_DSP_CTRL0, 0x7, 4, 3, 0, 1),
 	.dp_dclk_pol = VOP_REG_VER(RK3368_DSP_CTRL0, 0x1, 19, 3, 0, 1),
