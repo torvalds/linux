@@ -1736,16 +1736,6 @@ static void intel_pstate_adjust_pstate(struct cpudata *cpu, int target_pstate)
 		fp_toint(cpu->iowait_boost * 100));
 }
 
-static void intel_pstate_update_util_hwp(struct update_util_data *data,
-					 u64 time, unsigned int flags)
-{
-	struct cpudata *cpu = container_of(data, struct cpudata, update_util);
-	u64 delta_ns = time - cpu->sample.time;
-
-	if ((s64)delta_ns >= INTEL_PSTATE_HWP_SAMPLING_INTERVAL)
-		intel_pstate_sample(cpu, time);
-}
-
 static void intel_pstate_update_util_pid(struct update_util_data *data,
 					 u64 time, unsigned int flags)
 {
@@ -1936,6 +1926,9 @@ static unsigned int intel_pstate_get(unsigned int cpu_num)
 static void intel_pstate_set_update_util_hook(unsigned int cpu_num)
 {
 	struct cpudata *cpu = all_cpu_data[cpu_num];
+
+	if (hwp_active)
+		return;
 
 	if (cpu->update_util_set)
 		return;
@@ -2570,7 +2563,6 @@ static int __init intel_pstate_init(void)
 		} else {
 			hwp_active++;
 			intel_pstate.attr = hwp_cpufreq_attrs;
-			pstate_funcs.update_util = intel_pstate_update_util_hwp;
 			goto hwp_cpu_matched;
 		}
 	} else {
