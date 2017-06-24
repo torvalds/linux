@@ -41,12 +41,6 @@ SYS_NI(setitimer);
 #ifdef __ARCH_WANT_SYS_ALARM
 SYS_NI(alarm);
 #endif
-COMPAT_SYS_NI(timer_create);
-COMPAT_SYS_NI(clock_adjtime);
-COMPAT_SYS_NI(timer_settime);
-COMPAT_SYS_NI(timer_gettime);
-COMPAT_SYS_NI(getitimer);
-COMPAT_SYS_NI(setitimer);
 
 /*
  * We preserve minimal support for CLOCK_REALTIME and CLOCK_MONOTONIC
@@ -138,6 +132,13 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 }
 
 #ifdef CONFIG_COMPAT
+COMPAT_SYS_NI(timer_create);
+COMPAT_SYS_NI(clock_adjtime);
+COMPAT_SYS_NI(timer_settime);
+COMPAT_SYS_NI(timer_gettime);
+COMPAT_SYS_NI(getitimer);
+COMPAT_SYS_NI(setitimer);
+
 COMPAT_SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
