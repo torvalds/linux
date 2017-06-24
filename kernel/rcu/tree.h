@@ -219,8 +219,6 @@ struct rcu_data {
 					/* qlen at last check for QS forcing */
 	unsigned long	n_cbs_invoked;	/* count of RCU cbs invoked. */
 	unsigned long	n_nocbs_invoked; /* count of no-CBs RCU cbs invoked. */
-	unsigned long   n_cbs_orphaned; /* RCU cbs orphaned by dying CPU */
-	unsigned long   n_cbs_adopted;  /* RCU cbs adopted from dying CPU */
 	unsigned long	n_force_qs_snap;
 					/* did other CPU force QS recently? */
 	long		blimit;		/* Upper limit on a processed batch */

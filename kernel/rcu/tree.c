@@ -3871,7 +3871,6 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
 	 * cannot be running now.  Thus no memory barrier is required.
 	 */
-	rdp->n_cbs_orphaned += rcu_segcblist_n_cbs(&rdp->cblist);
 	rcu_segcblist_extract_count(&rdp->cblist, &rsp->orphan_done);
 
 	/*
@@ -3910,7 +3909,6 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 		return;
 
 	/* Do the accounting first. */
-	rdp->n_cbs_adopted += rsp->orphan_done.len;
 	if (rsp->orphan_done.len_lazy != rsp->orphan_done.len)
 		rcu_idle_count_callbacks_posted();
 	rcu_segcblist_insert_count(&rdp->cblist, &rsp->orphan_done);
