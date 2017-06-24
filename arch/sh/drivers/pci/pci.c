@@ -155,14 +155,6 @@ static int __init pcibios_init(void)
 subsys_initcall(pcibios_init);
 
 /*
- *  Called after each bus is probed, but before its children
- *  are examined.
- */
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-}
-
-/*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the
  * addresses to be allocated in the 0x000-0x0ff region

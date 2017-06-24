@@ -810,12 +810,6 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 	}
 }
 
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-	/* nothing to do */
-}
-EXPORT_SYMBOL(pcibios_fixup_bus);
-
 /*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the

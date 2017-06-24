@@ -16,7 +16,3 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 {
 	return res->start;
 }
-
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-}

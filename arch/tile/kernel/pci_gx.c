@@ -1038,11 +1038,6 @@ alloc_mem_map_failed:
 }
 subsys_initcall(pcibios_init);
 
-/* No bus fixups needed. */
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-}
-
 /* Process any "pci=" kernel boot arguments. */
 char *__init pcibios_setup(char *str)
 {

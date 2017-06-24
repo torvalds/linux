@@ -2288,6 +2288,15 @@ void pcie_bus_configure_settings(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcie_bus_configure_settings);
 
+/*
+ * Called after each bus is probed, but before its children are examined.  This
+ * is marked as __weak because multiple architectures define it.
+ */
+void __weak pcibios_fixup_bus(struct pci_bus *bus)
+{
+       /* nothing to do, expected to be removed in the future */
+}
+
 unsigned int pci_scan_child_bus(struct pci_bus *bus)
 {
 	unsigned int devfn, pass, max = bus->busn_res.start;

@@ -369,14 +369,6 @@ int __init pcibios_init(void)
 }
 subsys_initcall(pcibios_init);
 
-/*
- * No bus fixups needed.
- */
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-	/* Nothing needs to be done. */
-}
-
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling. */
