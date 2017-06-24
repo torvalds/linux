@@ -1605,6 +1605,9 @@ static void set_avi_info_frame(
 	union hdmi_info_packet *hdmi_info = &info_frame.avi_info_packet.info_packet_hdmi;
 
 	color_space = pipe_ctx->stream->public.output_color_space;
+	if (color_space == COLOR_SPACE_UNKNOWN)
+		color_space = (stream->public.timing.pixel_encoding == PIXEL_ENCODING_RGB)?
+			COLOR_SPACE_SRGB:COLOR_SPACE_YCBCR709;
 
 	/* Initialize header */
 	hdmi_info->bits.header.info_frame_type = HDMI_INFOFRAME_TYPE_AVI;
