@@ -739,13 +739,11 @@ static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 		struct itimerspec __user *, setting)
 {
-	struct itimerspec64 cur_setting64;
+	struct itimerspec64 cur_setting;
 
-	int ret = do_timer_gettime(timer_id, &cur_setting64);
+	int ret = do_timer_gettime(timer_id, &cur_setting);
 	if (!ret) {
-		struct itimerspec cur_setting;
-		cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
-		if (copy_to_user(setting, &cur_setting, sizeof (cur_setting)))
+		if (put_itimerspec64(&cur_setting, setting))
 			ret = -EFAULT;
 	}
 	return ret;
@@ -755,13 +753,11 @@ SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 COMPAT_SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 		       struct compat_itimerspec __user *, setting)
 {
-	struct itimerspec64 cur_setting64;
+	struct itimerspec64 cur_setting;
 
-	int ret = do_timer_gettime(timer_id, &cur_setting64);
+	int ret = do_timer_gettime(timer_id, &cur_setting);
 	if (!ret) {
-		struct itimerspec cur_setting;
-		cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
-		if (put_compat_itimerspec(setting, &cur_setting))
+		if (put_compat_itimerspec64(&cur_setting, setting))
 			ret = -EFAULT;
 	}
 	return ret;
@@ -907,23 +903,19 @@ SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 		const struct itimerspec __user *, new_setting,
 		struct itimerspec __user *, old_setting)
 {
-	struct itimerspec64 new_spec64, old_spec64;
-	struct itimerspec64 *rtn = old_setting ? &old_spec64 : NULL;
-	struct itimerspec new_spec;
+	struct itimerspec64 new_spec, old_spec;
+	struct itimerspec64 *rtn = old_setting ? &old_spec : NULL;
 	int error = 0;
 
 	if (!new_setting)
 		return -EINVAL;
 
-	if (copy_from_user(&new_spec, new_setting, sizeof (new_spec)))
+	if (get_itimerspec64(&new_spec, new_setting))
 		return -EFAULT;
-	new_spec64 = itimerspec_to_itimerspec64(&new_spec);
 
-	error = do_timer_settime(timer_id, flags, &new_spec64, rtn);
+	error = do_timer_settime(timer_id, flags, &new_spec, rtn);
 	if (!error && old_setting) {
-		struct itimerspec old_spec;
-		old_spec = itimerspec64_to_itimerspec(&old_spec64);
-		if (copy_to_user(old_setting, &old_spec, sizeof (old_spec)))
+		if (put_itimerspec64(&old_spec, old_setting))
 			error = -EFAULT;
 	}
 	return error;
@@ -934,22 +926,18 @@ COMPAT_SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 		       struct compat_itimerspec __user *, new,
 		       struct compat_itimerspec __user *, old)
 {
-	struct itimerspec64 new_spec64, old_spec64;
-	struct itimerspec64 *rtn = old ? &old_spec64 : NULL;
-	struct itimerspec new_spec;
+	struct itimerspec64 new_spec, old_spec;
+	struct itimerspec64 *rtn = old ? &old_spec : NULL;
 	int error = 0;
 
 	if (!new)
 		return -EINVAL;
-	if (get_compat_itimerspec(&new_spec, new))
+	if (get_compat_itimerspec64(&new_spec, new))
 		return -EFAULT;
 
-	new_spec64 = itimerspec_to_itimerspec64(&new_spec);
-	error = do_timer_settime(timer_id, flags, &new_spec64, rtn);
+	error = do_timer_settime(timer_id, flags, &new_spec, rtn);
 	if (!error && old) {
-		struct itimerspec old_spec;
-		old_spec = itimerspec64_to_itimerspec(&old_spec64);
-		if (put_compat_itimerspec(old, &old_spec))
+		if (put_compat_itimerspec64(&old_spec, old))
 			error = -EFAULT;
 	}
 	return error;
