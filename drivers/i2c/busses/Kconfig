@@ -1272,7 +1272,7 @@ config I2C_OPAL
 
 config I2C_ZX2967
 	tristate "ZTE ZX2967 I2C support"
-	depends on ARCH_ZX || COMPILE_TEST
+	depends on ARCH_ZX
 	default y
 	help
 	  Selecting this option will add ZX2967 I2C driver.
