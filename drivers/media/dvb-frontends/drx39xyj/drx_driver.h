@@ -307,7 +307,7 @@ int drxbsp_tuner_default_i2c_write_read(struct tuner_instance *tuner,
 * \def DRX_UNKNOWN
 * \brief Generic UNKNOWN value for DRX enumerated types.
 *
-* Used to indicate that the parameter value is unknown or not yet initalized.
+* Used to indicate that the parameter value is unknown or not yet initialized.
 */
 #ifndef DRX_UNKNOWN
 #define DRX_UNKNOWN (254)
