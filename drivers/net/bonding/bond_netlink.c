@@ -132,7 +132,8 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[],
 
 static int bond_slave_changelink(struct net_device *bond_dev,
 				 struct net_device *slave_dev,
-				 struct nlattr *tb[], struct nlattr *data[])
+				 struct nlattr *tb[], struct nlattr *data[],
+				 struct netlink_ext_ack *extack)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct bond_opt_value newval;

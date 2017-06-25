@@ -897,7 +897,8 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[],
 static int br_port_slave_changelink(struct net_device *brdev,
 				    struct net_device *dev,
 				    struct nlattr *tb[],
-				    struct nlattr *data[])
+				    struct nlattr *data[],
+				    struct netlink_ext_ack *extack)
 {
 	struct net_bridge *br = netdev_priv(brdev);
 	int ret;
