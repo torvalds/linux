@@ -1195,7 +1195,7 @@ class Tui(object):
                                'This might limit the shown data to the trace '
                                'statistics.')
             self.screen.addstr(5, 0, msg)
-            self.print_all_gnames()
+            self.print_all_gnames(7)
             curses.echo()
             self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
             gname = self.screen.getstr()
