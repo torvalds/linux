@@ -286,7 +286,7 @@ EXPORT_SYMBOL(lirc_unregister_driver);
 int lirc_dev_fop_open(struct inode *inode, struct file *file)
 {
 	struct irctl *ir;
-	int retval = 0;
+	int retval;
 
 	if (iminor(inode) >= MAX_IRCTL_DEVICES) {
 		pr_err("open result for %d is -ENODEV\n", iminor(inode));
@@ -327,9 +327,11 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 
 	ir->open++;
 
-error:
 	nonseekable_open(inode, file);
 
+	return 0;
+
+error:
 	return retval;
 }
 EXPORT_SYMBOL(lirc_dev_fop_open);
