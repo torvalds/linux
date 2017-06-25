@@ -39,6 +39,8 @@
 #define XCBC_MAC_K2_OFFSET 16
 #define XCBC_MAC_K3_OFFSET 32
 
+#define CC_EXPORT_MAGIC 0xC2EE1070U
+
 // this struct was taken from drivers/crypto/nx/nx-aes-xcbc.c and it is used for xcbc/cmac statesize
 struct aeshash_state {
 	u8 state[AES_BLOCK_SIZE];
