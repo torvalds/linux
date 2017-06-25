@@ -1877,8 +1877,8 @@ static int ssi_ahash_setkey(struct crypto_ahash *ahash,
 struct ssi_hash_template {
 	char name[CRYPTO_MAX_ALG_NAME];
 	char driver_name[CRYPTO_MAX_ALG_NAME];
-	char hmac_name[CRYPTO_MAX_ALG_NAME];
-	char hmac_driver_name[CRYPTO_MAX_ALG_NAME];
+	char mac_name[CRYPTO_MAX_ALG_NAME];
+	char mac_driver_name[CRYPTO_MAX_ALG_NAME];
 	unsigned int blocksize;
 	bool synchronize;
 	struct ahash_alg template_ahash;
@@ -1897,8 +1897,8 @@ static struct ssi_hash_template driver_hash[] = {
 	{
 		.name = "sha1",
 		.driver_name = "sha1-dx",
-		.hmac_name = "hmac(sha1)",
-		.hmac_driver_name = "hmac-sha1-dx",
+		.mac_name = "hmac(sha1)",
+		.mac_driver_name = "hmac-sha1-dx",
 		.blocksize = SHA1_BLOCK_SIZE,
 		.synchronize = false,
 		.template_ahash = {
@@ -1922,8 +1922,8 @@ static struct ssi_hash_template driver_hash[] = {
 	{
 		.name = "sha256",
 		.driver_name = "sha256-dx",
-		.hmac_name = "hmac(sha256)",
-		.hmac_driver_name = "hmac-sha256-dx",
+		.mac_name = "hmac(sha256)",
+		.mac_driver_name = "hmac-sha256-dx",
 		.blocksize = SHA256_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ssi_ahash_init,
@@ -1946,8 +1946,8 @@ static struct ssi_hash_template driver_hash[] = {
 	{
 		.name = "sha224",
 		.driver_name = "sha224-dx",
-		.hmac_name = "hmac(sha224)",
-		.hmac_driver_name = "hmac-sha224-dx",
+		.mac_name = "hmac(sha224)",
+		.mac_driver_name = "hmac-sha224-dx",
 		.blocksize = SHA224_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ssi_ahash_init,
@@ -1971,8 +1971,8 @@ static struct ssi_hash_template driver_hash[] = {
 	{
 		.name = "sha384",
 		.driver_name = "sha384-dx",
-		.hmac_name = "hmac(sha384)",
-		.hmac_driver_name = "hmac-sha384-dx",
+		.mac_name = "hmac(sha384)",
+		.mac_driver_name = "hmac-sha384-dx",
 		.blocksize = SHA384_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ssi_ahash_init,
@@ -1995,8 +1995,8 @@ static struct ssi_hash_template driver_hash[] = {
 	{
 		.name = "sha512",
 		.driver_name = "sha512-dx",
-		.hmac_name = "hmac(sha512)",
-		.hmac_driver_name = "hmac-sha512-dx",
+		.mac_name = "hmac(sha512)",
+		.mac_driver_name = "hmac-sha512-dx",
 		.blocksize = SHA512_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ssi_ahash_init,
@@ -2020,8 +2020,8 @@ static struct ssi_hash_template driver_hash[] = {
 	{
 		.name = "md5",
 		.driver_name = "md5-dx",
-		.hmac_name = "hmac(md5)",
-		.hmac_driver_name = "hmac-md5-dx",
+		.mac_name = "hmac(md5)",
+		.mac_driver_name = "hmac-md5-dx",
 		.blocksize = MD5_HMAC_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ssi_ahash_init,
@@ -2042,8 +2042,8 @@ static struct ssi_hash_template driver_hash[] = {
 		.inter_digestsize = MD5_DIGEST_SIZE,
 	},
 	{
-		.name = "xcbc(aes)",
-		.driver_name = "xcbc-aes-dx",
+		.mac_name = "xcbc(aes)",
+		.mac_driver_name = "xcbc-aes-dx",
 		.blocksize = AES_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ssi_ahash_init,
@@ -2065,8 +2065,8 @@ static struct ssi_hash_template driver_hash[] = {
 	},
 #if SSI_CC_HAS_CMAC
 	{
-		.name = "cmac(aes)",
-		.driver_name = "cmac-aes-dx",
+		.mac_name = "cmac(aes)",
+		.mac_driver_name = "cmac-aes-dx",
 		.blocksize = AES_BLOCK_SIZE,
 		.template_ahash = {
 			.init = ssi_ahash_init,
@@ -2109,9 +2109,9 @@ ssi_hash_create_alg(struct ssi_hash_template *template, bool keyed)
 
 	if (keyed) {
 		snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s",
-			 template->hmac_name);
+			 template->mac_name);
 		snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-			 template->hmac_driver_name);
+			 template->mac_driver_name);
 	} else {
 		halg->setkey = NULL;
 		snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s",
@@ -2300,31 +2300,32 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 	/* ahash registration */
 	for (alg = 0; alg < ARRAY_SIZE(driver_hash); alg++) {
 		struct ssi_hash_alg *t_alg;
+		int hw_mode = driver_hash[alg].hw_mode;
 
 		/* register hmac version */
-
-		if ((((struct ssi_hash_template *)&driver_hash[alg])->hw_mode != DRV_CIPHER_XCBC_MAC) &&
-		    (((struct ssi_hash_template *)&driver_hash[alg])->hw_mode != DRV_CIPHER_CMAC)) {
-			t_alg = ssi_hash_create_alg(&driver_hash[alg], true);
-			if (IS_ERR(t_alg)) {
-				rc = PTR_ERR(t_alg);
-				SSI_LOG_ERR("%s alg allocation failed\n",
-					 driver_hash[alg].driver_name);
-				goto fail;
-			}
-			t_alg->drvdata = drvdata;
-
-			rc = crypto_register_ahash(&t_alg->ahash_alg);
-			if (unlikely(rc)) {
-				SSI_LOG_ERR("%s alg registration failed\n",
-					    driver_hash[alg].driver_name);
-				kfree(t_alg);
-				goto fail;
-			} else {
-				list_add_tail(&t_alg->entry,
-					      &hash_handle->hash_list);
-			}
+		t_alg = ssi_hash_create_alg(&driver_hash[alg], true);
+		if (IS_ERR(t_alg)) {
+			rc = PTR_ERR(t_alg);
+			SSI_LOG_ERR("%s alg allocation failed\n",
+				    driver_hash[alg].driver_name);
+			goto fail;
 		}
+		t_alg->drvdata = drvdata;
+
+		rc = crypto_register_ahash(&t_alg->ahash_alg);
+		if (unlikely(rc)) {
+			SSI_LOG_ERR("%s alg registration failed\n",
+				    driver_hash[alg].driver_name);
+			kfree(t_alg);
+			goto fail;
+		} else {
+			list_add_tail(&t_alg->entry,
+				      &hash_handle->hash_list);
+		}
+
+		if ((hw_mode == DRV_CIPHER_XCBC_MAC) ||
+		    (hw_mode == DRV_CIPHER_CMAC))
+			continue;
 
 		/* register hash version */
 		t_alg = ssi_hash_create_alg(&driver_hash[alg], false);
