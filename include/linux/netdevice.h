@@ -1114,12 +1114,6 @@ struct xfrmdev_ops {
  *	by 'ndo_dfwd_add_station'. 'pdev' is the net device backing
  *	the station and priv is the structure returned by the add
  *	operation.
- * netdev_tx_t (*ndo_dfwd_start_xmit)(struct sk_buff *skb,
- *				      struct net_device *dev,
- *				      void *priv);
- *	Callback to use for xmit over the accelerated station. This
- *	is used in place of ndo_start_xmit on accelerated net
- *	devices.
  * int (*ndo_set_tx_maxrate)(struct net_device *dev,
  *			     int queue_index, u32 maxrate);
  *	Called when a user wants to set a max-rate limitation of specific
@@ -1316,9 +1310,6 @@ struct net_device_ops {
 	void			(*ndo_dfwd_del_station)(struct net_device *pdev,
 							void *priv);
 
-	netdev_tx_t		(*ndo_dfwd_start_xmit) (struct sk_buff *skb,
-							struct net_device *dev,
-							void *priv);
 	int			(*ndo_get_lock_subclass)(struct net_device *dev);
 	int			(*ndo_set_tx_maxrate)(struct net_device *dev,
 						      int queue_index,
