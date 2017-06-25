@@ -3014,8 +3014,10 @@ static void stv0367ddb_read_snr(struct dvb_frontend *fe)
 		regval = stv0367cab_snr_readreg(fe, 0);
 
 		/* prevent division by zero */
-		if (!regval)
+		if (!regval) {
 			snrval = 0;
+			break;
+		}
 
 		tmpval = (cab_pwr * 320) / regval;
 		snrval = ((tmpval != 0) ? (intlog2(tmpval) / 5581) : 0);
