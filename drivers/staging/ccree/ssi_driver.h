@@ -36,6 +36,7 @@
 #include <crypto/authenc.h>
 #include <crypto/hash.h>
 #include <linux/version.h>
+#include <linux/clk.h>
 
 /* Registers definitions from shared/hw/ree_include */
 #include "dx_reg_base_host.h"
@@ -148,7 +149,7 @@ struct ssi_drvdata {
 	void *ivgen_handle;
 	void *sram_mgr_handle;
 	u32 inflight_counter;
-
+	struct clk *clk;
 };
 
 struct ssi_crypto_alg {
@@ -193,6 +194,8 @@ void dump_byte_array(const char *name, const u8 *the_array, unsigned long size);
 
 int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe);
 void fini_cc_regs(struct ssi_drvdata *drvdata);
+int cc_clk_on(struct ssi_drvdata *drvdata);
+void cc_clk_off(struct ssi_drvdata *drvdata);
 
 #endif /*__SSI_DRIVER_H__*/
 

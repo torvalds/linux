@@ -57,6 +57,7 @@
 #include <linux/sched.h>
 #include <linux/random.h>
 #include <linux/of.h>
+#include <linux/clk.h>
 
 #include "ssi_config.h"
 #include "ssi_driver.h"
@@ -219,6 +220,8 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	void __iomem *cc_base = NULL;
 	bool irq_registered = false;
 	struct ssi_drvdata *new_drvdata = kzalloc(sizeof(struct ssi_drvdata), GFP_KERNEL);
+	struct device *dev = &plat_dev->dev;
+	struct device_node *np = dev->of_node;
 	u32 signature_val;
 	int rc = 0;
 
@@ -227,6 +230,8 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		rc = -ENOMEM;
 		goto init_cc_res_err;
 	}
+
+	new_drvdata->clk = of_clk_get(np, 0);
 
 	/*Initialize inflight counter used in dx_ablkcipher_secure_complete used for count of BYSPASS blocks operations*/
 	new_drvdata->inflight_counter = 0;
@@ -285,6 +290,10 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		(unsigned long long)new_drvdata->res_irq->start);
 
 	new_drvdata->plat_dev = plat_dev;
+
+	rc = cc_clk_on(new_drvdata);
+	if (rc)
+		goto init_cc_res_err;
 
 	if(new_drvdata->plat_dev->dev.dma_mask == NULL)
 	{
@@ -450,13 +459,10 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	ssi_sysfs_fini();
 #endif
 
-	/* Mask all interrupts */
-	WRITE_REGISTER(drvdata->cc_base + CC_REG_OFFSET(HOST_RGF, HOST_IMR),
-		0xFFFFFFFF);
+	fini_cc_regs(drvdata);
+	cc_clk_off(drvdata);
 	free_irq(drvdata->res_irq->start, drvdata);
 	drvdata->res_irq = NULL;
-
-	fini_cc_regs(drvdata);
 
 	if (drvdata->cc_base != NULL) {
 		iounmap(drvdata->cc_base);
@@ -468,6 +474,33 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 
 	kfree(drvdata);
 	dev_set_drvdata(&plat_dev->dev, NULL);
+}
+
+int cc_clk_on(struct ssi_drvdata *drvdata)
+{
+	struct clk *clk = drvdata->clk;
+	int rc;
+
+	if (IS_ERR(clk))
+		/* Not all devices have a clock associated with CCREE  */
+		return 0;
+
+	rc = clk_prepare_enable(clk);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+void cc_clk_off(struct ssi_drvdata *drvdata)
+{
+	struct clk *clk = drvdata->clk;
+
+	if (IS_ERR(clk))
+		/* Not all devices have a clock associated with CCREE */
+		return;
+
+	clk_disable_unprepare(clk);
 }
 
 static int cc7x_probe(struct platform_device *plat_dev)
