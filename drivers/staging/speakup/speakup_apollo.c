@@ -105,6 +105,7 @@ static struct spk_synth synth_apollo = {
 	.trigger = 50,
 	.jiffies = 50,
 	.full = 40000,
+	.dev_name = SYNTH_DEFAULT_DEV,
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
@@ -199,9 +200,11 @@ static void do_catch_up(struct spk_synth *synth)
 }
 
 module_param_named(ser, synth_apollo.ser, int, 0444);
+module_param_named(dev, synth_apollo.dev_name, charp, S_IRUGO);
 module_param_named(start, synth_apollo.startup, short, 0444);
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
+MODULE_PARM_DESC(dev, "Set the device e.g. ttyUSB0, for the synthesizer.");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
 module_spk_synth(synth_apollo);

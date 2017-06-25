@@ -147,11 +147,12 @@ static inline void get_termios(struct tty_struct *tty, struct ktermios *out_term
 	up_read(&tty->termios_rwsem);
 }
 
-static int spk_ttyio_initialise_ldisc(int ser)
+static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 {
 	int ret = 0;
 	struct tty_struct *tty;
 	struct ktermios tmp_termios;
+	dev_t dev;
 
 	ret = tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops);
 	if (ret) {
@@ -159,13 +160,11 @@ static int spk_ttyio_initialise_ldisc(int ser)
 		return ret;
 	}
 
-	if (ser < 0 || ser > (255 - 64)) {
-		pr_err("speakup: Invalid ser param. Must be between 0 and 191 inclusive.\n");
-		return -EINVAL;
-	}
+	ret = get_dev_to_use(synth, &dev);
+	if (ret)
+		return ret;
 
-	/* TODO: support more than ttyS* */
-	tty = tty_open_by_driver(MKDEV(4, (ser +  64)), NULL, NULL);
+	tty = tty_open_by_driver(dev, NULL, NULL);
 	if (IS_ERR(tty))
 		return PTR_ERR(tty);
 
@@ -277,7 +276,7 @@ static void spk_ttyio_flush_buffer(void)
 
 int spk_ttyio_synth_probe(struct spk_synth *synth)
 {
-	int rv = spk_ttyio_initialise_ldisc(synth->ser);
+	int rv = spk_ttyio_initialise_ldisc(synth);
 
 	if (rv)
 		return rv;
