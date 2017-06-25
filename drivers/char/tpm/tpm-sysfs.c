@@ -284,6 +284,13 @@ static const struct attribute_group tpm_dev_group = {
 int tpm_sysfs_add_device(struct tpm_chip *chip)
 {
 	int err;
+
+	/* XXX: If you wish to remove this restriction, you must first update
+	 * tpm_sysfs to explicitly lock chip->ops.
+	 */
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return 0;
+
 	err = sysfs_create_group(&chip->dev.parent->kobj,
 				 &tpm_dev_group);
 

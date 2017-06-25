@@ -124,6 +124,41 @@ static void tpm_dev_release(struct device *dev)
 	kfree(chip);
 }
 
+
+/**
+ * tpm_class_shutdown() - prepare the TPM device for loss of power.
+ * @dev: device to which the chip is associated.
+ *
+ * Issues a TPM2_Shutdown command prior to loss of power, as required by the
+ * TPM 2.0 spec.
+ * Then, calls bus- and device- specific shutdown code.
+ *
+ * XXX: This codepath relies on the fact that sysfs is not enabled for
+ * TPM2: sysfs uses an implicit lock on chip->ops, so this could race if TPM2
+ * has sysfs support enabled before TPM sysfs's implicit locking is fixed.
+ */
+static int tpm_class_shutdown(struct device *dev)
+{
+	struct tpm_chip *chip = container_of(dev, struct tpm_chip, dev);
+
+	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+		down_write(&chip->ops_sem);
+		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+		chip->ops = NULL;
+		up_write(&chip->ops_sem);
+	}
+	/* Allow bus- and device-specific code to run. Note: since chip->ops
+	 * is NULL, more-specific shutdown code will not be able to issue TPM
+	 * commands.
+	 */
+	if (dev->bus && dev->bus->shutdown)
+		dev->bus->shutdown(dev);
+	else if (dev->driver && dev->driver->shutdown)
+		dev->driver->shutdown(dev);
+	return 0;
+}
+
+
 /**
  * tpmm_chip_alloc() - allocate a new struct tpm_chip instance
  * @dev: device to which the chip is associated
@@ -166,6 +201,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	dev_set_drvdata(dev, chip);
 
 	chip->dev.class = tpm_class;
+	chip->dev.class->shutdown = tpm_class_shutdown;
 	chip->dev.release = tpm_dev_release;
 	chip->dev.parent = dev;
 #ifdef CONFIG_ACPI
