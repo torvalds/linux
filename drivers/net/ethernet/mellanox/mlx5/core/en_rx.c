@@ -374,18 +374,15 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 }
 
 static int mlx5e_alloc_rx_umr_mpwqe(struct mlx5e_rq *rq,
-				    struct mlx5e_rx_wqe *wqe,
 				    u16 ix)
 {
 	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
-	u64 dma_offset = (u64)mlx5e_get_wqe_mtt_offset(rq, ix) << PAGE_SHIFT;
 	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
+	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
 	int err;
 	int i;
 
-	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-		struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[i];
-
+	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
 		err = mlx5e_page_alloc_mapped(rq, dma_info);
 		if (unlikely(err))
 			goto err_unmap;
@@ -395,14 +392,12 @@ static int mlx5e_alloc_rx_umr_mpwqe(struct mlx5e_rq *rq,
 
 	memset(wi->skbs_frags, 0, sizeof(*wi->skbs_frags) * MLX5_MPWRQ_PAGES_PER_WQE);
 	wi->consumed_strides = 0;
-	wqe->data.addr = cpu_to_be64(dma_offset);
 
 	return 0;
 
 err_unmap:
 	while (--i >= 0) {
-		struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[i];
-
+		dma_info--;
 		page_ref_sub(dma_info->page, pg_strides);
 		mlx5e_page_release(rq, dma_info, true);
 	}
@@ -413,11 +408,10 @@ err_unmap:
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
 {
 	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
+	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
 	int i;
 
-	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-		struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[i];
-
+	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
 		page_ref_sub(dma_info->page, pg_strides - wi->skbs_frags[i]);
 		mlx5e_page_release(rq, dma_info, true);
 	}
@@ -447,7 +441,7 @@ int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
 {
 	int err;
 
-	err = mlx5e_alloc_rx_umr_mpwqe(rq, wqe, ix);
+	err = mlx5e_alloc_rx_umr_mpwqe(rq, ix);
 	if (unlikely(err))
 		return err;
 	set_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);

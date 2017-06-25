@@ -674,6 +674,12 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	for (i = 0; i < wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
 
+		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
+			u64 dma_offset = (u64)mlx5e_get_wqe_mtt_offset(rq, i) << PAGE_SHIFT;
+
+			wqe->data.addr = cpu_to_be64(dma_offset);
+		}
+
 		wqe->data.byte_count = cpu_to_be32(byte_count);
 		wqe->data.lkey = rq->mkey_be;
 	}
