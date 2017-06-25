@@ -681,12 +681,14 @@ class TracepointProvider(Provider):
 class DebugfsProvider(Provider):
     """Provides data from the files that KVM creates in the kvm debugfs
     folder."""
-    def __init__(self, pid, fields_filter):
+    def __init__(self, pid, fields_filter, include_past):
         self.update_fields(fields_filter)
         self._baseline = {}
         self.do_read = True
         self.paths = []
         self.pid = pid
+        if include_past:
+            self.restore()
 
     def get_available_fields(self):
         """"Returns a list of available fields.
@@ -730,7 +732,14 @@ class DebugfsProvider(Provider):
         self.reset()
 
     def read(self, reset=0):
-        """Returns a dict with format:'file name / field -> current value'."""
+        """Returns a dict with format:'file name / field -> current value'.
+
+        Parameter 'reset':
+          0   plain read
+          1   reset field counts to 0
+          2   restore the original field counts
+
+        """
         results = {}
 
         # If no debugfs filtering support is available, then don't read.
@@ -747,8 +756,10 @@ class DebugfsProvider(Provider):
             for field in self._fields:
                 value = self.read_field(field, path)
                 key = path + field
-                if reset:
+                if reset == 1:
                     self._baseline[key] = value
+                if reset == 2:
+                    self._baseline[key] = 0
                 if self._baseline.get(key, -1) == -1:
                     self._baseline[key] = value
                 results[field] = (results.get(field, 0) + value -
@@ -771,6 +782,11 @@ class DebugfsProvider(Provider):
         self._baseline = {}
         self.read(1)
 
+    def restore(self):
+        """Reset field counters"""
+        self._baseline = {}
+        self.read(2)
+
 
 class Stats(object):
     """Manages the data providers and the data they provide.
@@ -791,7 +807,8 @@ class Stats(object):
         providers = []
 
         if options.debugfs:
-            providers.append(DebugfsProvider(options.pid, options.fields))
+            providers.append(DebugfsProvider(options.pid, options.fields,
+                                             options.dbgfs_include_past))
         if options.tracepoints or not providers:
             providers.append(TracepointProvider(options.pid, options.fields))
 
@@ -1270,6 +1287,8 @@ class Tui(object):
                     sleeptime = self._delay_initial
                 if char == 'x':
                     self.update_drilldown()
+                    # prevents display of current values on next refresh
+                    self.stats.get()
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -1380,6 +1399,13 @@ Press any other key to refresh statistics immediately.
                          default=False,
                          dest='once',
                          help='run in batch mode for one second',
+                         )
+    optparser.add_option('-i', '--debugfs-include-past',
+                         action='store_true',
+                         default=False,
+                         dest='dbgfs_include_past',
+                         help='include all available data on past events for '
+                              'debugfs',
                          )
     optparser.add_option('-l', '--log',
                          action='store_true',

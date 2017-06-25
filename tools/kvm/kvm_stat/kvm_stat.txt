@@ -70,6 +70,10 @@ OPTIONS
 --debugfs::
 	retrieve statistics from debugfs
 
+-i::
+--debugfs-include-past::
+	include all available data on past events for debugfs
+
 -p<pid>::
 --pid=<pid>::
 	limit statistics to one virtual machine (pid)
