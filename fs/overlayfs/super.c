@@ -1141,6 +1141,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry->d_fsdata = oe;
 
+	/* Root is always merge -> can have whiteouts */
+	ovl_set_flag(OVL_WHITEOUTS, d_inode(root_dentry));
 	ovl_inode_init(d_inode(root_dentry), upperpath.dentry,
 		       ovl_dentry_lower(root_dentry));
 

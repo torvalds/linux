@@ -661,6 +661,16 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
 	if (upperdentry && ovl_is_impuredir(upperdentry))
 		ovl_set_flag(OVL_IMPURE, inode);
 
+	/* Check for non-merge dir that may have whiteouts */
+	if (S_ISDIR(realinode->i_mode)) {
+		struct ovl_entry *oe = dentry->d_fsdata;
+
+		if (((upperdentry && lowerdentry) || oe->numlower > 1) ||
+		    ovl_check_origin_xattr(upperdentry ?: lowerdentry)) {
+			ovl_set_flag(OVL_WHITEOUTS, inode);
+		}
+	}
+
 	if (inode->i_state & I_NEW)
 		unlock_new_inode(inode);
 out:

@@ -329,6 +329,19 @@ void ovl_copy_up_end(struct dentry *dentry)
 	mutex_unlock(&OVL_I(d_inode(dentry))->lock);
 }
 
+bool ovl_check_origin_xattr(struct dentry *dentry)
+{
+	int res;
+
+	res = vfs_getxattr(dentry, OVL_XATTR_ORIGIN, NULL, 0);
+
+	/* Zero size value means "copied up but origin unknown" */
+	if (res >= 0)
+		return true;
+
+	return false;
+}
+
 bool ovl_check_dir_xattr(struct dentry *dentry, const char *name)
 {
 	int res;
