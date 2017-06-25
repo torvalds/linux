@@ -1090,7 +1090,7 @@ static int visorhba_probe(struct visor_device *dev)
 		goto err_scsi_remove_host;
 	}
 	devdata->debugfs_info =
-		debugfs_create_file("info", S_IRUSR | S_IRGRP,
+		debugfs_create_file("info", 0440,
 				    devdata->debugfs_dir, devdata,
 				    &info_debugfs_fops);
 	if (!devdata->debugfs_info) {
