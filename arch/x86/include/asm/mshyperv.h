@@ -173,7 +173,12 @@ void hyperv_init(void);
 void hyperv_report_panic(struct pt_regs *regs);
 bool hv_is_hypercall_page_setup(void);
 void hyperv_cleanup(void);
-#endif
+#else /* CONFIG_HYPERV */
+static inline void hyperv_init(void) {}
+static inline bool hv_is_hypercall_page_setup(void) { return false; }
+static inline hyperv_cleanup(void) {}
+#endif /* CONFIG_HYPERV */
+
 #ifdef CONFIG_HYPERV_TSCPAGE
 struct ms_hyperv_tsc_page *hv_get_tsc_page(void);
 static inline u64 hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)
