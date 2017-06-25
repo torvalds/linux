@@ -461,13 +461,6 @@ static struct bus_type rpmsg_bus = {
 	.remove		= rpmsg_dev_remove,
 };
 
-static void rpmsg_release_device(struct device *dev)
-{
-	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
-
-	kfree(rpdev);
-}
-
 int rpmsg_register_device(struct rpmsg_device *rpdev)
 {
 	struct device *dev = &rpdev->dev;
@@ -477,7 +470,6 @@ int rpmsg_register_device(struct rpmsg_device *rpdev)
 		     rpdev->id.name, rpdev->src, rpdev->dst);
 
 	rpdev->dev.bus = &rpmsg_bus;
-	rpdev->dev.release = rpmsg_release_device;
 
 	ret = device_register(&rpdev->dev);
 	if (ret) {
