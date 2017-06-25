@@ -1553,7 +1553,7 @@ static int ath10k_sdio_hif_diag_read(struct ath10k *ar, u32 address, void *buf,
 	/* read the data */
 	ret = ath10k_sdio_read(ar, MBOX_WINDOW_DATA_ADDRESS, buf, buf_len);
 	if (ret) {
-		ath10k_warn(ar, "failed to read from mbox window data addrress: %d\n",
+		ath10k_warn(ar, "failed to read from mbox window data address: %d\n",
 			    ret);
 		return ret;
 	}
@@ -1592,7 +1592,7 @@ static int ath10k_sdio_hif_diag_write_mem(struct ath10k *ar, u32 address,
 	ret = ath10k_sdio_write(ar, MBOX_WINDOW_DATA_ADDRESS, data, nbytes);
 	if (ret) {
 		ath10k_warn(ar,
-			    "failed to write 0x%p to mbox window data addrress: %d\n",
+			    "failed to write 0x%p to mbox window data address: %d\n",
 			    data, ret);
 		return ret;
 	}
