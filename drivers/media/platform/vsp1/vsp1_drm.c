@@ -587,7 +587,7 @@ int vsp1_drm_create_links(struct vsp1_device *vsp1)
 		if (ret < 0)
 			return ret;
 
-		rpf->entity.sink = &vsp1->bru->entity.subdev.entity;
+		rpf->entity.sink = &vsp1->bru->entity;
 		rpf->entity.sink_pad = i;
 	}
 
@@ -598,7 +598,7 @@ int vsp1_drm_create_links(struct vsp1_device *vsp1)
 	if (ret < 0)
 		return ret;
 
-	vsp1->bru->entity.sink = &vsp1->wpf[0]->entity.subdev.entity;
+	vsp1->bru->entity.sink = &vsp1->wpf[0]->entity;
 	vsp1->bru->entity.sink_pad = RWPF_PAD_SINK;
 
 	ret = media_create_pad_link(&vsp1->wpf[0]->entity.subdev.entity,

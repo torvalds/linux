@@ -24,18 +24,11 @@
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 
-static inline struct vsp1_entity *
-media_entity_to_vsp1_entity(struct media_entity *entity)
-{
-	return container_of(entity, struct vsp1_entity, subdev.entity);
-}
-
 void vsp1_entity_route_setup(struct vsp1_entity *entity,
 			     struct vsp1_pipeline *pipe,
 			     struct vsp1_dl_list *dl)
 {
 	struct vsp1_entity *source;
-	struct vsp1_entity *sink;
 
 	if (entity->type == VSP1_ENTITY_HGO) {
 		u32 smppt;
@@ -44,7 +37,7 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 		 * The HGO is a special case, its routing is configured on the
 		 * sink pad.
 		 */
-		source = media_entity_to_vsp1_entity(entity->sources[0]);
+		source = entity->sources[0];
 		smppt = (pipe->output->entity.index << VI6_DPR_SMPPT_TGW_SHIFT)
 		      | (source->route->output << VI6_DPR_SMPPT_PT_SHIFT);
 
@@ -57,7 +50,7 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 		 * The HGT is a special case, its routing is configured on the
 		 * sink pad.
 		 */
-		source = media_entity_to_vsp1_entity(entity->sources[0]);
+		source = entity->sources[0];
 		smppt = (pipe->output->entity.index << VI6_DPR_SMPPT_TGW_SHIFT)
 		      | (source->route->output << VI6_DPR_SMPPT_PT_SHIFT);
 
@@ -69,9 +62,8 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 	if (source->route->reg == 0)
 		return;
 
-	sink = media_entity_to_vsp1_entity(source->sink);
 	vsp1_dl_list_write(dl, source->route->reg,
-			   sink->route->inputs[source->sink_pad]);
+			   source->sink->route->inputs[source->sink_pad]);
 }
 
 /* -----------------------------------------------------------------------------
@@ -316,6 +308,12 @@ done:
  * Media Operations
  */
 
+static inline struct vsp1_entity *
+media_entity_to_vsp1_entity(struct media_entity *entity)
+{
+	return container_of(entity, struct vsp1_entity, subdev.entity);
+}
+
 static int vsp1_entity_link_setup_source(const struct media_pad *source_pad,
 					 const struct media_pad *sink_pad,
 					 u32 flags)
@@ -339,7 +337,7 @@ static int vsp1_entity_link_setup_source(const struct media_pad *source_pad,
 		    sink->type != VSP1_ENTITY_HGT) {
 			if (source->sink)
 				return -EBUSY;
-			source->sink = sink_pad->entity;
+			source->sink = sink;
 			source->sink_pad = sink_pad->index;
 		}
 	} else {
@@ -355,15 +353,17 @@ static int vsp1_entity_link_setup_sink(const struct media_pad *source_pad,
 				       u32 flags)
 {
 	struct vsp1_entity *sink;
+	struct vsp1_entity *source;
 
 	sink = media_entity_to_vsp1_entity(sink_pad->entity);
+	source = media_entity_to_vsp1_entity(source_pad->entity);
 
 	if (flags & MEDIA_LNK_FL_ENABLED) {
 		/* Fan-in is limited to one. */
 		if (sink->sources[sink_pad->index])
 			return -EBUSY;
 
-		sink->sources[sink_pad->index] = source_pad->entity;
+		sink->sources[sink_pad->index] = source;
 	} else {
 		sink->sources[sink_pad->index] = NULL;
 	}

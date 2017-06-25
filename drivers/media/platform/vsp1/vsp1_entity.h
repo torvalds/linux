@@ -104,8 +104,8 @@ struct vsp1_entity {
 	struct media_pad *pads;
 	unsigned int source_pad;
 
-	struct media_entity **sources;
-	struct media_entity *sink;
+	struct vsp1_entity **sources;
+	struct vsp1_entity *sink;
 	unsigned int sink_pad;
 
 	struct v4l2_subdev subdev;

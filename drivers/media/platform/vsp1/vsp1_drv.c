@@ -121,7 +121,7 @@ static int vsp1_create_sink_links(struct vsp1_device *vsp1,
 				return ret;
 
 			if (flags & MEDIA_LNK_FL_ENABLED)
-				source->sink = entity;
+				source->sink = sink;
 		}
 	}
 
