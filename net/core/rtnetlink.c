@@ -2601,7 +2601,8 @@ replay:
 				slave_data = slave_attr;
 			}
 			if (m_ops->slave_validate) {
-				err = m_ops->slave_validate(tb, slave_data);
+				err = m_ops->slave_validate(tb, slave_data,
+							    extack);
 				if (err < 0)
 					return err;
 			}
