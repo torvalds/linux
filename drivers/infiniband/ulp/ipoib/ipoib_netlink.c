@@ -93,7 +93,8 @@ out_err:
 }
 
 static int ipoib_new_child_link(struct net *src_net, struct net_device *dev,
-			       struct nlattr *tb[], struct nlattr *data[])
+				struct nlattr *tb[], struct nlattr *data[],
+				struct netlink_ext_ack *extack)
 {
 	struct net_device *pdev;
 	struct ipoib_dev_priv *ppriv;

@@ -1181,7 +1181,8 @@ static void init_tnl_info(struct ip_tunnel_info *info, __u16 dst_port)
 }
 
 static int geneve_newlink(struct net *net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	bool use_udp6_rx_checksums = false;
 	struct ip_tunnel_info info;

@@ -1342,7 +1342,8 @@ static bool ip6gre_netlink_encap_parms(struct nlattr *data[],
 }
 
 static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
-	struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct ip6_tnl *nt;
 	struct net *net = dev_net(dev);

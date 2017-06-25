@@ -347,7 +347,8 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[])
 static struct rtnl_link_ops veth_link_ops;
 
 static int veth_newlink(struct net *src_net, struct net_device *dev,
-			 struct nlattr *tb[], struct nlattr *data[])
+			struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	int err;
 	struct net_device *peer;

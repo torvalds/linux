@@ -1213,7 +1213,8 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 }
 
 static int br_dev_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	int err;
