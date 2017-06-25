@@ -122,7 +122,7 @@ static inline u32 safe_ddbreadl(struct ddb *dev, u32 adr)
 
 	/* (ddb)readl returns (uint)-1 (all bits set) on failure, catch that */
 	if (val == ~0) {
-		printk(KERN_ERR "ddbreadl failure, adr=%08x\n", adr);
+		dev_err(&dev->pdev->dev, "ddbreadl failure, adr=%08x\n", adr);
 		return 0;
 	}
 
