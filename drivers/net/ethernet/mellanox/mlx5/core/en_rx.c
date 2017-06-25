@@ -391,9 +391,9 @@ static int mlx5e_alloc_rx_umr_mpwqe(struct mlx5e_rq *rq,
 			goto err_unmap;
 		wi->umr.mtt[i] = cpu_to_be64(dma_info->addr | MLX5_EN_WR);
 		page_ref_add(dma_info->page, pg_strides);
-		wi->skbs_frags[i] = 0;
 	}
 
+	memset(wi->skbs_frags, 0, sizeof(*wi->skbs_frags) * MLX5_MPWRQ_PAGES_PER_WQE);
 	wi->consumed_strides = 0;
 	wqe->data.addr = cpu_to_be64(dma_offset);
 
