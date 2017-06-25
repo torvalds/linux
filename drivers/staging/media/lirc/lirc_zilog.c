@@ -1348,8 +1348,6 @@ static const struct file_operations lirc_fops = {
 static struct lirc_driver lirc_template = {
 	.name		= "lirc_zilog",
 	.code_length	= 13,
-	.buffer_size	= BUFLEN / 2,
-	.chunk_size	= 2,
 	.fops		= &lirc_fops,
 	.owner		= THIS_MODULE,
 };
@@ -1456,8 +1454,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->l.dev  = &adap->dev;
 		/* This will be returned by lirc_get_pdata() */
 		ir->l.data = ir;
-		ret = lirc_buffer_init(ir->l.rbuf,
-				       ir->l.chunk_size, ir->l.buffer_size);
+		ret = lirc_buffer_init(ir->l.rbuf, 2, BUFLEN / 2);
 		if (ret)
 			goto out_put_ir;
 	}

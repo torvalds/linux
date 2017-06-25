@@ -121,13 +121,14 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *
  * @code_length:	length of the remote control key code expressed in bits.
  *
- * @buffer_size:	Number of FIFO buffers with @chunk_size size. If zero,
- *			creates a buffer with BUFLEN size (16 bytes).
- *
  * @features:		lirc compatible hardware features, like LIRC_MODE_RAW,
  *			LIRC_CAN\_\*, as defined at include/media/lirc.h.
  *
+ * @buffer_size:	Number of FIFO buffers with @chunk_size size.
+ *			Only used if @rbuf is NULL.
+ *
  * @chunk_size:		Size of each FIFO buffer.
+ *			Only used if @rbuf is NULL.
  *
  * @data:		it may point to any driver data and this pointer will
  *			be passed to all callback functions.
@@ -162,9 +163,9 @@ struct lirc_driver {
 	char name[40];
 	unsigned int minor;
 	__u32 code_length;
-	unsigned int buffer_size; /* in chunks holding one code each */
 	__u32 features;
 
+	unsigned int buffer_size; /* in chunks holding one code each */
 	unsigned int chunk_size;
 
 	void *data;

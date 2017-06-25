@@ -41,7 +41,6 @@ struct irctl {
 	struct mutex irctl_lock;
 	struct lirc_buffer *buf;
 	bool buf_internal;
-	unsigned int chunk_size;
 
 	struct device dev;
 	struct cdev cdev;
@@ -74,15 +73,7 @@ static void lirc_release(struct device *ld)
 static int lirc_allocate_buffer(struct irctl *ir)
 {
 	int err = 0;
-	int bytes_in_key;
-	unsigned int chunk_size;
-	unsigned int buffer_size;
 	struct lirc_driver *d = &ir->d;
-
-	bytes_in_key = BITS_TO_LONGS(d->code_length) +
-						(d->code_length % 8 ? 1 : 0);
-	buffer_size = d->buffer_size ? d->buffer_size : BUFLEN / bytes_in_key;
-	chunk_size  = d->chunk_size  ? d->chunk_size  : bytes_in_key;
 
 	if (d->rbuf) {
 		ir->buf = d->rbuf;
@@ -94,7 +85,7 @@ static int lirc_allocate_buffer(struct irctl *ir)
 			goto out;
 		}
 
-		err = lirc_buffer_init(ir->buf, chunk_size, buffer_size);
+		err = lirc_buffer_init(ir->buf, d->chunk_size, d->buffer_size);
 		if (err) {
 			kfree(ir->buf);
 			ir->buf = NULL;
@@ -104,7 +95,6 @@ static int lirc_allocate_buffer(struct irctl *ir)
 		ir->buf_internal = true;
 		d->rbuf = ir->buf;
 	}
-	ir->chunk_size = ir->buf->chunk_size;
 
 out:
 	return err;
@@ -128,6 +118,16 @@ int lirc_register_driver(struct lirc_driver *d)
 
 	if (!d->fops) {
 		pr_err("fops pointer not filled in!\n");
+		return -EINVAL;
+	}
+
+	if (!d->rbuf && d->chunk_size < 1) {
+		pr_err("chunk_size must be set!\n");
+		return -EINVAL;
+	}
+
+	if (!d->rbuf && d->buffer_size < 1) {
+		pr_err("buffer_size must be set!\n");
 		return -EINVAL;
 	}
 
@@ -407,7 +407,7 @@ ssize_t lirc_dev_fop_read(struct file *file,
 
 	dev_dbg(ir->d.dev, LOGHEAD "read called\n", ir->d.name, ir->d.minor);
 
-	buf = kzalloc(ir->chunk_size, GFP_KERNEL);
+	buf = kzalloc(ir->buf->chunk_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -420,7 +420,7 @@ ssize_t lirc_dev_fop_read(struct file *file,
 		goto out_locked;
 	}
 
-	if (length % ir->chunk_size) {
+	if (length % ir->buf->chunk_size) {
 		ret = -EINVAL;
 		goto out_locked;
 	}
