@@ -33,7 +33,8 @@
 
 #include "cxd2099.h"
 
-/* #define BUFFER_MODE 1 */
+/* comment this line to deactivate the cxd2099ar buffer mode */
+#define BUFFER_MODE 1
 
 static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount);
 
