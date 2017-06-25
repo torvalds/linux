@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -72,7 +72,7 @@ struct mvm_statistics_dbg {
 	__le32 burst_check;
 	__le32 burst_count;
 	__le32 wait_for_silence_timeout_cnt;
-	__le32 reserved[3];
+	u8 reserved[12];
 } __packed; /* STATISTICS_DEBUG_API_S_VER_2 */
 
 struct mvm_statistics_div {
@@ -323,9 +323,30 @@ struct iwl_notif_statistics_cdb {
 	struct mvm_statistics_load_cdb load_stats;
 } __packed; /* STATISTICS_NTFY_API_S_VER_12 */
 
-#define IWL_STATISTICS_FLG_CLEAR		0x1
-#define IWL_STATISTICS_FLG_DISABLE_NOTIF	0x2
+/**
+ * enum iwl_statistics_notif_flags - flags used in statistics notification
+ * @IWL_STATISTICS_REPLY_FLG_CLEAR: statistics were cleared after this report
+ */
+enum iwl_statistics_notif_flags {
+	IWL_STATISTICS_REPLY_FLG_CLEAR		= 0x1,
+};
 
+/**
+ * enum iwl_statistics_cmd_flags - flags used in statistics command
+ * @IWL_STATISTICS_FLG_CLEAR: request to clear statistics after the report
+ *	that's sent after this command
+ * @IWL_STATISTICS_FLG_DISABLE_NOTIF: disable unilateral statistics
+ *	notifications
+ */
+enum iwl_statistics_cmd_flags {
+	IWL_STATISTICS_FLG_CLEAR		= 0x1,
+	IWL_STATISTICS_FLG_DISABLE_NOTIF	= 0x2,
+};
+
+/**
+ * struct iwl_statistics_cmd - statistics config command
+ * @flags: flags from &enum iwl_statistics_cmd_flags
+ */
 struct iwl_statistics_cmd {
 	__le32 flags;
 } __packed; /* STATISTICS_CMD_API_S_VER_1 */

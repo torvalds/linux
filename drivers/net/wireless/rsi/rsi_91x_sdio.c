@@ -139,6 +139,8 @@ static void rsi_handle_interrupt(struct sdio_func *function)
 {
 	struct rsi_hw *adapter = sdio_get_drvdata(function);
 
+	if (adapter->priv->fsm_state == FSM_FW_NOT_LOADED)
+		return;
 	sdio_release_host(function);
 	rsi_interrupt_handler(adapter);
 	sdio_claim_host(function);
@@ -908,10 +910,19 @@ static int rsi_probe(struct sdio_func *pfunction,
 			__func__);
 		goto fail;
 	}
+	sdio_claim_host(pfunction);
+	if (sdio_claim_irq(pfunction, rsi_handle_interrupt)) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to request IRQ\n", __func__);
+		sdio_release_host(pfunction);
+		goto fail;
+	}
+	sdio_release_host(pfunction);
+	rsi_dbg(INIT_ZONE, "%s: Registered Interrupt handler\n", __func__);
 
 	if (rsi_hal_device_init(adapter)) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in device init\n", __func__);
 		sdio_claim_host(pfunction);
+		sdio_release_irq(pfunction);
 		sdio_disable_func(pfunction);
 		sdio_release_host(pfunction);
 		goto fail;
@@ -922,16 +933,6 @@ static int rsi_probe(struct sdio_func *pfunction,
 		rsi_dbg(ERR_ZONE, "%s: Unable to set ms word reg\n", __func__);
 		return -EIO;
 	}
-
-	sdio_claim_host(pfunction);
-	if (sdio_claim_irq(pfunction, rsi_handle_interrupt)) {
-		rsi_dbg(ERR_ZONE, "%s: Failed to request IRQ\n", __func__);
-		sdio_release_host(pfunction);
-		goto fail;
-	}
-
-	sdio_release_host(pfunction);
-	rsi_dbg(INIT_ZONE, "%s: Registered Interrupt handler\n", __func__);
 
 	return 0;
 fail:

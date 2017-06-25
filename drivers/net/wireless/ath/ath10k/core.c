@@ -72,6 +72,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -93,6 +95,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -113,6 +117,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -133,6 +139,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -153,6 +161,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -176,6 +186,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -202,6 +214,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -229,6 +243,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+
+		/* Can do only 2x2 VHT160 or 80+80. 1560Mbps is 4x4 80Mhz
+		 * or 2x2 160Mhz, long-guard-interval.
+		 */
+		.vht160_mcs_rx_highest = 1560,
+		.vht160_mcs_tx_highest = 1560,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -255,6 +275,12 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 12,
+
+		/* Can do only 1x1 VHT160 or 80+80. 780Mbps is 2x2 80Mhz or
+		 * 1x1 160Mhz, long-guard-interval.
+		 */
+		.vht160_mcs_rx_highest = 780,
+		.vht160_mcs_tx_highest = 780,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -275,6 +301,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca988x_ops,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -297,6 +325,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,
 		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -324,6 +354,8 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.hw_ops = &qca99x0_ops,
 		.decap_align_bytes = 1,
 		.spectral_bin_discard = 4,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
 	},
 };
 
@@ -691,7 +723,7 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 {
 	u32 result, address;
 	u8 board_id, chip_id;
-	int ret;
+	int ret, bmi_board_id_param;
 
 	address = ar->hw_params.patch_load_addr;
 
@@ -715,8 +747,13 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 		return ret;
 	}
 
-	ret = ath10k_bmi_execute(ar, address, BMI_PARAM_GET_EEPROM_BOARD_ID,
-				 &result);
+	if (ar->cal_mode == ATH10K_PRE_CAL_MODE_DT ||
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE)
+		bmi_board_id_param = BMI_PARAM_GET_FLASH_BOARD_ID;
+	else
+		bmi_board_id_param = BMI_PARAM_GET_EEPROM_BOARD_ID;
+
+	ret = ath10k_bmi_execute(ar, address, bmi_board_id_param, &result);
 	if (ret) {
 		ath10k_err(ar, "could not execute otp for board id check: %d\n",
 			   ret);
@@ -844,6 +881,11 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 		ath10k_err(ar, "could not write otp (%d)\n", ret);
 		return ret;
 	}
+
+	/* As of now pre-cal is valid for 10_4 variants */
+	if (ar->cal_mode == ATH10K_PRE_CAL_MODE_DT ||
+	    ar->cal_mode == ATH10K_PRE_CAL_MODE_FILE)
+		bmi_otp_exe_param = BMI_PARAM_FLASH_SECTION_ALL;
 
 	ret = ath10k_bmi_execute(ar, address, bmi_otp_exe_param, &result);
 	if (ret) {
@@ -2449,24 +2491,29 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	case ATH10K_HW_QCA988X:
 	case ATH10K_HW_QCA9887:
 		ar->regs = &qca988x_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca988x_values;
 		break;
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		ar->regs = &qca6174_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca6174_values;
 		break;
 	case ATH10K_HW_QCA99X0:
 	case ATH10K_HW_QCA9984:
 		ar->regs = &qca99x0_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca99x0_values;
 		break;
 	case ATH10K_HW_QCA9888:
 		ar->regs = &qca99x0_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca9888_values;
 		break;
 	case ATH10K_HW_QCA4019:
 		ar->regs = &qca4019_regs;
+		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca4019_values;
 		break;
 	default:

@@ -914,7 +914,8 @@ void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 				   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	u32 ant_isolation = le32_to_cpup((void *)pkt->data);
+	struct iwl_mvm_antenna_coupling_notif *notif = (void *)pkt->data;
+	u32 ant_isolation = le32_to_cpu(notif->isolation);
 	struct iwl_bt_coex_corun_lut_update_cmd cmd = {};
 	u8 __maybe_unused lower_bound, upper_bound;
 	u8 lut;

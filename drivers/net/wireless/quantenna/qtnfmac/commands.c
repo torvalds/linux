@@ -1298,12 +1298,6 @@ int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 	int ret = 0;
 	u8 qband;
 
-	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
-					    QLINK_CMD_CHANS_INFO_GET,
-					    sizeof(*cmd));
-	if (!cmd_skb)
-		return -ENOMEM;
-
 	switch (band->band) {
 	case NL80211_BAND_2GHZ:
 		qband = QLINK_BAND_2GHZ;
@@ -1317,6 +1311,12 @@ int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 	default:
 		return -EINVAL;
 	}
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
+					    QLINK_CMD_CHANS_INFO_GET,
+					    sizeof(*cmd));
+	if (!cmd_skb)
+		return -ENOMEM;
 
 	cmd = (struct qlink_cmd_chans_info_get *)cmd_skb->data;
 	cmd->band = qband;

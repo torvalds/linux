@@ -88,6 +88,8 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_6150,
 	IWL_DEVICE_FAMILY_7000,
 	IWL_DEVICE_FAMILY_8000,
+	IWL_DEVICE_FAMILY_9000,
+	IWL_DEVICE_FAMILY_A000,
 };
 
 /*
@@ -275,6 +277,8 @@ struct iwl_pwr_tx_backoff {
  *	filename is constructed as fw_name_pre<api>.ucode.
  * @fw_name_pre_next_step: same as @fw_name_pre, only for next step
  *	(if supported)
+ * @fw_name_pre_rf_next_step: same as @fw_name_pre_next_step, only for rf next
+ *	step. Supported only in integrated solutions.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section
@@ -315,6 +319,7 @@ struct iwl_pwr_tx_backoff {
  * @integrated: discrete or integrated
  * @gen2: a000 and on transport operation
  * @cdb: CDB support
+ * @ext_nvm: extended NVM format
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -325,13 +330,13 @@ struct iwl_cfg {
 	const char *name;
 	const char *fw_name_pre;
 	const char *fw_name_pre_next_step;
+	const char *fw_name_pre_rf_next_step;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_eeprom_params *eeprom_params;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
-	const char *default_nvm_file_B_step;
 	const char *default_nvm_file_C_step;
 	const struct iwl_tt_params *thermal_params;
 	enum iwl_device_family device_family;
@@ -362,7 +367,9 @@ struct iwl_cfg {
 	    integrated:1,
 	    use_tfh:1,
 	    gen2:1,
-	    cdb:1;
+	    cdb:1,
+	    ext_nvm:1,
+	    dbgc_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;

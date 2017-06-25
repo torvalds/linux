@@ -1154,8 +1154,8 @@ static int mwifiex_ret_chan_region_cfg(struct mwifiex_private *priv,
 	return 0;
 }
 
-int mwifiex_ret_pkt_aggr_ctrl(struct mwifiex_private *priv,
-			      struct host_cmd_ds_command *resp)
+static int mwifiex_ret_pkt_aggr_ctrl(struct mwifiex_private *priv,
+				     struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_pkt_aggr_ctrl *pkt_aggr_ctrl =
 					&resp->params.pkt_aggr_ctrl;

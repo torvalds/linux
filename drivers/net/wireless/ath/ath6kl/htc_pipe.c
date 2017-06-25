@@ -382,7 +382,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 			list_for_each_entry_safe(packet, tmp_pkt,
 						 txq, list) {
 				ath6kl_dbg(ATH6KL_DBG_HTC,
-					   "%s: Indicat overflowed TX pkts: %p\n",
+					   "%s: Indicate overflowed TX pkts: %p\n",
 					   __func__, packet);
 				action = ep->ep_cb.tx_full(ep->target, packet);
 				if (action == HTC_SEND_FULL_DROP) {

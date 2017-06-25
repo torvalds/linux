@@ -82,6 +82,8 @@
  * @LTR_CFG_FLAG_SW_SET_SHORT: fixed static short LTR register
  * @LTR_CFG_FLAG_SW_SET_LONG: fixed static short LONG register
  * @LTR_CFG_FLAG_DENIE_C10_ON_PD: allow going into C10 on PD
+ * @LTR_CFG_FLAG_UPDATE_VALUES: update config values and short
+ *	idle timeout
  */
 enum iwl_ltr_config_flags {
 	LTR_CFG_FLAG_FEATURE_ENABLE = BIT(0),
@@ -91,11 +93,14 @@ enum iwl_ltr_config_flags {
 	LTR_CFG_FLAG_SW_SET_SHORT = BIT(4),
 	LTR_CFG_FLAG_SW_SET_LONG = BIT(5),
 	LTR_CFG_FLAG_DENIE_C10_ON_PD = BIT(6),
+	LTR_CFG_FLAG_UPDATE_VALUES = BIT(7),
 };
 
 /**
  * struct iwl_ltr_config_cmd_v1 - configures the LTR
- * @flags: See %enum iwl_ltr_config_flags
+ * @flags: See &enum iwl_ltr_config_flags
+ * @static_long: static LTR Long register value.
+ * @static_short: static LTR Short register value.
  */
 struct iwl_ltr_config_cmd_v1 {
 	__le32 flags;
@@ -107,11 +112,14 @@ struct iwl_ltr_config_cmd_v1 {
 
 /**
  * struct iwl_ltr_config_cmd - configures the LTR
- * @flags: See %enum iwl_ltr_config_flags
- * @static_long:
- * @static_short:
- * @ltr_cfg_values:
- * @ltr_short_idle_timeout:
+ * @flags: See &enum iwl_ltr_config_flags
+ * @static_long: static LTR Long register value.
+ * @static_short: static LTR Short register value.
+ * @ltr_cfg_values: LTR parameters table values (in usec) in folowing order:
+ *	TX, RX, Short Idle, Long Idle. Used only if %LTR_CFG_FLAG_UPDATE_VALUES
+ *	is set.
+ * @ltr_short_idle_timeout: LTR Short Idle timeout (in usec). Used only if
+ *	%LTR_CFG_FLAG_UPDATE_VALUES is set.
  */
 struct iwl_ltr_config_cmd {
 	__le32 flags;
@@ -140,7 +148,7 @@ struct iwl_ltr_config_cmd {
  *		PBW Snoozing enabled
  * @POWER_FLAGS_ADVANCE_PM_ENA_MSK: Advanced PM (uAPSD) enable mask
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
- * @POWER_FLAGS_AP_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
+ * @POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
  *		detection enablement
 */
 enum iwl_power_flags {
@@ -166,6 +174,7 @@ enum iwl_power_flags {
  *			Minimum allowed:- 3 * DTIM. Keep alive period must be
  *			set regardless of power scheme or current power state.
  *			FW use this value also when PM is disabled.
+ * @debug_flags:	debug flags
  * @rx_data_timeout:    Minimum time (usec) from last Rx packet for AM to
  *			PSM transition - legacy PM
  * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to
@@ -191,7 +200,8 @@ struct iwl_powertable_cmd {
 
 /**
  * enum iwl_device_power_flags - masks for device power command flags
- * @DEVIC_POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
+ * @DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK:
+ *	'1' Allow to save power by turning off
  *	receiver and transmitter. '0' - does not allow.
 */
 enum iwl_device_power_flags {
@@ -202,7 +212,8 @@ enum iwl_device_power_flags {
  * struct iwl_device_power_cmd - device wide power command.
  * DEVICE_POWER_CMD = 0x77 (command, has simple generic response)
  *
- * @flags:	Power table command flags from DEVICE_POWER_FLAGS_*
+ * @flags:	Power table command flags from &enum iwl_device_power_flags
+ * @reserved: reserved (padding)
  */
 struct iwl_device_power_cmd {
 	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
@@ -213,7 +224,7 @@ struct iwl_device_power_cmd {
 /**
  * struct iwl_mac_power_cmd - New power command containing uAPSD support
  * MAC_PM_POWER_TABLE = 0xA9 (command, has simple generic response)
- * @id_and_color:	MAC contex identifier
+ * @id_and_color:	MAC contex identifier, &enum iwl_mvm_id_and_color
  * @flags:		Power table command flags from POWER_FLAGS_*
  * @keep_alive_seconds:	Keep alive period in seconds. Default - 25 sec.
  *			Minimum allowed:- 3 * DTIM. Keep alive period must be
@@ -223,7 +234,6 @@ struct iwl_device_power_cmd {
  *			PSM transition - legacy PM
  * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to
  *			PSM transition - legacy PM
- * @sleep_interval:	not in use
  * @skip_dtim_periods:	Number of DTIM periods to skip if Skip over DTIM flag
  *			is set. For example, if it is required to skip over
  *			one DTIM, this value need to be set to 2 (DTIM periods).
@@ -233,7 +243,6 @@ struct iwl_device_power_cmd {
  *			PSM transition - uAPSD
  * @lprx_rssi_threshold: Signal strength up to which LP RX can be enabled.
  *			Default: 80dbm
- * @num_skip_dtim:	Number of DTIMs to skip if Skip over DTIM flag is set
  * @snooze_interval:	Maximum time between attempts to retrieve buffered data
  *			from the AP [msec]
  * @snooze_window:	A window of time in which PBW snoozing insures that all
@@ -251,8 +260,9 @@ struct iwl_device_power_cmd {
  * @heavy_rx_thld_packets:	RX threshold measured in number of packets
  * @heavy_tx_thld_percentage:	TX threshold measured in load's percentage
  * @heavy_rx_thld_percentage:	RX threshold measured in load's percentage
- * @limited_ps_threshold:
-*/
+ * @limited_ps_threshold: (unused)
+ * @reserved: reserved (padding)
+ */
 struct iwl_mac_power_cmd {
 	/* CONTEXT_DESC_API_T_VER_1 */
 	__le32 id_and_color;
@@ -343,6 +353,7 @@ struct iwl_dev_tx_power_cmd_v3 {
  * @v3: version 3 of the command, embedded here for easier software handling
  * @enable_ack_reduction: enable or disable close range ack TX power
  *	reduction.
+ * @reserved: reserved (padding)
  */
 struct iwl_dev_tx_power_cmd {
 	/* v4 is just an extension of v3 - keep this here */
@@ -393,7 +404,6 @@ struct iwl_geo_tx_power_profiles_cmd {
 /**
  * struct iwl_beacon_filter_cmd
  * REPLY_BEACON_FILTERING_CMD = 0xd2 (command)
- * @id_and_color: MAC contex identifier
  * @bf_energy_delta: Used for RSSI filtering, if in 'normal' state. Send beacon
  *      to driver if delta in Energy values calculated for this and last
  *      passed beacon is greater than this threshold. Zero value means that
@@ -411,7 +421,7 @@ struct iwl_geo_tx_power_profiles_cmd {
  *      Threshold. Typical energy threshold is -72dBm.
  * @bf_temp_threshold: This threshold determines the type of temperature
  *	filtering (Slow or Fast) that is selected (Units are in Celsuis):
- *      If the current temperature is above this threshold - Fast filter
+ *	If the current temperature is above this threshold - Fast filter
  *	will be used, If the current temperature is below this threshold -
  *	Slow filter will be used.
  * @bf_temp_fast_filter: Send Beacon to driver if delta in temperature values
@@ -425,7 +435,8 @@ struct iwl_geo_tx_power_profiles_cmd {
  *      beacon filtering; beacons will not be forced to be sent to driver
  *      regardless of whether its temerature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
- * @bf_filter_escape_timer: Send beacons to to driver if no beacons were passed
+ * @bf_debug_flag: beacon filtering debug configuration
+ * @bf_escape_timer: Send beacons to to driver if no beacons were passed
  *      for a specific period of time. Units: Beacons.
  * @ba_escape_timer: Fully receive and parse beacon if no beacons were passed
  *      for a longer period of time then this escape-timeout. Units: Beacons.

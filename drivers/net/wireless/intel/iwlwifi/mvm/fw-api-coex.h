@@ -99,8 +99,8 @@ enum iwl_bt_coex_enabled_modules {
 
 /**
  * struct iwl_bt_coex_cmd - bt coex configuration command
- * @mode: enum %iwl_bt_coex_mode
- * @enabled_modules: enum %iwl_bt_coex_enabled_modules
+ * @mode: &enum iwl_bt_coex_mode
+ * @enabled_modules: &enum iwl_bt_coex_enabled_modules
  *
  * The structure is used for the BT_COEX command.
  */
@@ -234,9 +234,9 @@ enum iwl_bt_ci_compliance {
  * @mbox_msg: message from BT to WiFi
  * @msg_idx: the index of the message
  * @bt_ci_compliance: enum %iwl_bt_ci_compliance
- * @primary_ch_lut: LUT used for primary channel enum %iwl_bt_coex_lut_type
- * @secondary_ch_lut: LUT used for secondary channel enume %iwl_bt_coex_lut_type
- * @bt_activity_grading: the activity of BT enum %iwl_bt_activity_grading
+ * @primary_ch_lut: LUT used for primary channel &enum iwl_bt_coex_lut_type
+ * @secondary_ch_lut: LUT used for secondary channel &enum iwl_bt_coex_lut_type
+ * @bt_activity_grading: the activity of BT &enum iwl_bt_activity_grading
  * @ttc_rrc_status: is TTC or RRC enabled - one bit per PHY
  */
 struct iwl_bt_coex_profile_notif {

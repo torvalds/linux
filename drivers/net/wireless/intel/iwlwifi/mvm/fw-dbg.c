@@ -640,18 +640,21 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		}
 
 		/* Make room for PRPH registers */
-		for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr_comm); i++) {
-			/* The range includes both boundaries */
-			int num_bytes_in_chunk =
-				iwl_prph_dump_addr_comm[i].end -
-				iwl_prph_dump_addr_comm[i].start + 4;
+		if (!mvm->trans->cfg->gen2) {
+			for (i = 0; i < ARRAY_SIZE(iwl_prph_dump_addr_comm);
+			     i++) {
+				/* The range includes both boundaries */
+				int num_bytes_in_chunk =
+					iwl_prph_dump_addr_comm[i].end -
+					iwl_prph_dump_addr_comm[i].start + 4;
 
-			prph_len += sizeof(*dump_data) +
-				sizeof(struct iwl_fw_error_dump_prph) +
-				num_bytes_in_chunk;
+				prph_len += sizeof(*dump_data) +
+					sizeof(struct iwl_fw_error_dump_prph) +
+					num_bytes_in_chunk;
+			}
 		}
 
-		if (mvm->cfg->mq_rx_supported) {
+		if (!mvm->trans->cfg->gen2 && mvm->cfg->mq_rx_supported) {
 			for (i = 0; i <
 				ARRAY_SIZE(iwl_prph_dump_addr_9000); i++) {
 				/* The range includes both boundaries */
@@ -691,7 +694,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	}
 
 	/* Make room for fw's virtual image pages, if it exists */
-	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
+	if (!mvm->trans->cfg->gen2 &&
+	    mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
 	    mvm->fw_paging_db[0].fw_paging_block)
 		file_len += mvm->num_of_paging_blk *
 			(sizeof(*dump_data) +
@@ -703,14 +707,6 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		file_len = sizeof(*dump_file) + sizeof(*dump_data) +
 			   sizeof(*dump_info);
 	}
-
-	/*
-	 * In 8000 HW family B-step include the ICCM (which resides separately)
-	 */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_B_STEP)
-		file_len += sizeof(*dump_data) + sizeof(*dump_mem) +
-			    IWL8260_ICCM_LEN;
 
 	if (mvm->fw_dump_desc)
 		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
@@ -836,21 +832,9 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_B_STEP) {
-		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-		dump_data->len = cpu_to_le32(IWL8260_ICCM_LEN +
-					     sizeof(*dump_mem));
-		dump_mem = (void *)dump_data->data;
-		dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_SRAM);
-		dump_mem->offset = cpu_to_le32(IWL8260_ICCM_OFFSET);
-		iwl_trans_read_mem_bytes(mvm->trans, IWL8260_ICCM_OFFSET,
-					 dump_mem->data, IWL8260_ICCM_LEN);
-		dump_data = iwl_fw_error_next_data(dump_data);
-	}
-
 	/* Dump fw's virtual image */
-	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
+	if (!mvm->trans->cfg->gen2 &&
+	    mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
 	    mvm->fw_paging_db[0].fw_paging_block) {
 		for (i = 1; i < mvm->num_of_paging_blk + 1; i++) {
 			struct iwl_fw_error_dump_paging *paging;
@@ -943,7 +927,7 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 	mvm->fw_dump_desc = desc;
 	mvm->fw_dump_trig = trigger;
 
-	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
+	schedule_delayed_work(&mvm->fw_dump_wk, delay);
 
 	return 0;
 }

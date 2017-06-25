@@ -480,8 +480,14 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
 		u16 offload_assist = iwl_mvm_tx_csum(mvm, skb, hdr, info);
 
+		if (ieee80211_is_data_qos(hdr->frame_control)) {
+			u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+			if (*qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT)
+				offload_assist |= BIT(TX_CMD_OFFLD_AMSDU);
+		}
+
 		/* padding is inserted later in transport */
-		/* FIXME - check for AMSDU may need to be removed */
 		if (ieee80211_hdrlen(hdr->frame_control) % 4 &&
 		    !(offload_assist & BIT(TX_CMD_OFFLD_AMSDU)))
 			offload_assist |= BIT(TX_CMD_OFFLD_PAD);
@@ -1860,7 +1866,7 @@ out:
 
 	IWL_DEBUG_TX_REPLY(mvm,
 			   "BA_NOTIFICATION Received from %pM, sta_id = %d\n",
-			   (u8 *)&ba_notif->sta_addr_lo32, ba_notif->sta_id);
+			   ba_notif->sta_addr, ba_notif->sta_id);
 
 	IWL_DEBUG_TX_REPLY(mvm,
 			   "TID = %d, SeqCtl = %d, bitmap = 0x%llx, scd_flow = %d, scd_ssn = %d sent:%d, acked:%d\n",
@@ -1893,4 +1899,21 @@ int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags)
 	if (ret)
 		IWL_ERR(mvm, "Failed to send flush command (%d)\n", ret);
 	return ret;
+}
+
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool int_sta, u32 flags)
+{
+	u32 mask;
+
+	if (int_sta) {
+		struct iwl_mvm_int_sta *int_sta = sta;
+
+		mask = int_sta->tfd_queue_msk;
+	} else {
+		struct iwl_mvm_sta *mvm_sta = sta;
+
+		mask = mvm_sta->tfd_queue_msk;
+	}
+
+	return iwl_mvm_flush_tx_path(mvm, mask, flags);
 }

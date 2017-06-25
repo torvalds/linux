@@ -55,7 +55,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL_A000_UCODE_API_MAX	30
+#define IWL_A000_UCODE_API_MAX	31
 
 /* Lowest firmware API version supported */
 #define IWL_A000_UCODE_API_MIN	24
@@ -103,7 +103,7 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 #define IWL_DEVICE_A000							\
 	.ucode_api_max = IWL_A000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_A000_UCODE_API_MIN,			\
-	.device_family = IWL_DEVICE_FAMILY_8000,			\
+	.device_family = IWL_DEVICE_FAMILY_A000,			\
 	.max_inst_size = IWL60_RTC_INST_SIZE,				\
 	.max_data_size = IWL60_RTC_DATA_SIZE,				\
 	.base_params = &iwl_a000_base_params,				\
@@ -123,7 +123,9 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 	.mac_addr_from_csr = true,					\
 	.use_tfh = true,						\
 	.rf_id = true,							\
-	.gen2 = true
+	.gen2 = true,							\
+	.ext_nvm = true,						\
+	.dbgc_supported = true
 
 const struct iwl_cfg iwla000_2ac_cfg_hr = {
 		.name = "Intel(R) Dual Band Wireless AC a000",

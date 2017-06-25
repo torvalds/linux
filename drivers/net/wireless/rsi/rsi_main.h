@@ -31,13 +31,17 @@
 #define FSM_ZONE                        BIT(7)  /* For State Machine Msgs     */
 #define ISR_ZONE                        BIT(8)  /* For Interrupt Msgs         */
 
-#define FSM_CARD_NOT_READY              0
-#define FSM_BOOT_PARAMS_SENT            1
-#define FSM_EEPROM_READ_MAC_ADDR        2
-#define FSM_RESET_MAC_SENT              3
-#define FSM_RADIO_CAPS_SENT             4
-#define FSM_BB_RF_PROG_SENT             5
-#define FSM_MAC_INIT_DONE               6
+enum RSI_FSM_STATES {
+	FSM_FW_NOT_LOADED,
+	FSM_CARD_NOT_READY,
+	FSM_COMMON_DEV_PARAMS_SENT,
+	FSM_BOOT_PARAMS_SENT,
+	FSM_EEPROM_READ_MAC_ADDR,
+	FSM_RESET_MAC_SENT,
+	FSM_RADIO_CAPS_SENT,
+	FSM_BB_RF_PROG_SENT,
+	FSM_MAC_INIT_DONE
+};
 
 extern u32 rsi_zone_enabled;
 extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
@@ -60,6 +64,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define MAX_CONTINUOUS_VI_PKTS          4
 
 /* Queue information */
+#define RSI_COEX_Q			0x0
 #define RSI_WIFI_MGMT_Q                 0x4
 #define RSI_WIFI_DATA_Q                 0x5
 #define IEEE80211_MGMT_FRAME            0x00
@@ -206,8 +211,14 @@ struct rsi_common {
 	struct cqm_info cqm_info;
 
 	bool hw_data_qs_blocked;
+	u8 driver_mode;
 	u8 coex_mode;
-	
+	u16 oper_mode;
+	u8 lp_ps_handshake_mode;
+	u8 ulp_ps_handshake_mode;
+	u8 rf_power_val;
+	u8 wlan_rf_power_mode;
+	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
 };
@@ -230,6 +241,7 @@ struct rsi_hw {
 
 	enum host_intf rsi_host_intf;
 	u16 block_size;
+	u32 usb_buffer_status_reg;
 #ifdef CONFIG_RSI_DEBUGFS
 	struct rsi_debugfs *dfsentry;
 	u8 num_debugfs_entries;

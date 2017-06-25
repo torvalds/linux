@@ -197,7 +197,15 @@ enum iwl_sta_modify_flag {
 	STA_MODIFY_QUEUES			= BIT(7),
 };
 
-#define STA_MODE_MODIFY	1
+/**
+ * enum iwl_sta_mode - station command mode
+ * @STA_MODE_ADD: add new station
+ * @STA_MODE_MODIFY: modify the station
+ */
+enum iwl_sta_mode {
+	STA_MODE_ADD	= 0,
+	STA_MODE_MODIFY	= 1,
+};
 
 /**
  * enum iwl_sta_sleep_flag - type of sleep of the station
@@ -223,7 +231,7 @@ enum iwl_sta_sleep_flag {
 
 /**
  * struct iwl_mvm_keyinfo - key information
- * @key_flags: type %iwl_sta_key_flag
+ * @key_flags: type &enum iwl_sta_key_flag
  * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
  * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
  * @key_offset: key offset in the fw's key table
@@ -253,17 +261,19 @@ struct iwl_mvm_keyinfo {
 /**
  * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
- * @add_modify: 1: modify existing, 0: add new station
+ * @add_modify: see &enum iwl_sta_mode
  * @awake_acs:
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
  *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
- * @mac_id_n_color: the Mac context this station belongs to
- * @addr[ETH_ALEN]: station's MAC address
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_mvm_id_and_color
+ * @addr: station's MAC address
  * @sta_id: index of station in uCode's station table
  * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
  *	alone. 1 - modify, 0 - don't change.
- * @station_flags: look at %iwl_sta_flags
- * @station_flags_msk: what of %station_flags have changed
+ * @station_flags: look at &enum iwl_sta_flags
+ * @station_flags_msk: what of %station_flags have changed,
+ *	also &enum iwl_sta_flags
  * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
  *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
  *	add_immediate_ba_ssn.
@@ -274,7 +284,7 @@ struct iwl_mvm_keyinfo {
  * @sleep_tx_count: number of packets to transmit to station even though it is
  *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
  *	keeps track of STA sleep state.
- * @sleep_state_flags: Look at %iwl_sta_sleep_flag.
+ * @sleep_state_flags: Look at &enum iwl_sta_sleep_flag.
  * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
  *	mac-addr.
  * @beamform_flags: beam forming controls
@@ -330,17 +340,19 @@ enum iwl_sta_type {
 /**
  * struct iwl_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
- * @add_modify: 1: modify existing, 0: add new station
+ * @add_modify: see &enum iwl_sta_mode
  * @awake_acs:
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
  *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
- * @mac_id_n_color: the Mac context this station belongs to
- * @addr[ETH_ALEN]: station's MAC address
+ * @mac_id_n_color: the Mac context this station belongs to,
+ *	see &enum iwl_mvm_id_and_color
+ * @addr: station's MAC address
  * @sta_id: index of station in uCode's station table
  * @modify_mask: STA_MODIFY_*, selects which parameters to modify vs. leave
  *	alone. 1 - modify, 0 - don't change.
- * @station_flags: look at %iwl_sta_flags
- * @station_flags_msk: what of %station_flags have changed
+ * @station_flags: look at &enum iwl_sta_flags
+ * @station_flags_msk: what of %station_flags have changed,
+ *	also &enum iwl_sta_flags
  * @add_immediate_ba_tid: tid for which to add block-ack support (Rx)
  *	Set %STA_MODIFY_ADD_BA_TID to use this field, and also set
  *	add_immediate_ba_ssn.
@@ -352,7 +364,7 @@ enum iwl_sta_type {
  *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
  *	keeps track of STA sleep state.
  * @station_type: type of this station. See &enum iwl_sta_type.
- * @sleep_state_flags: Look at %iwl_sta_sleep_flag.
+ * @sleep_state_flags: Look at &enum iwl_sta_sleep_flag.
  * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
  *	mac-addr.
  * @beamform_flags: beam forming controls
@@ -401,7 +413,7 @@ struct iwl_mvm_add_sta_cmd {
  * ( REPLY_ADD_STA_KEY = 0x17 )
  * @sta_id: index of station in uCode's station table
  * @key_offset: key offset in key storage
- * @key_flags: type %iwl_sta_key_flag
+ * @key_flags: type &enum iwl_sta_key_flag
  * @key: key material data
  * @rx_secur_seq_cnt: RX security sequence counter for the key
  */
@@ -468,7 +480,7 @@ struct iwl_mvm_rm_sta_cmd {
 /**
  * struct iwl_mvm_mgmt_mcast_key_cmd_v1
  * ( MGMT_MCAST_KEY = 0x1f )
- * @ctrl_flags: %iwl_sta_key_flag
+ * @ctrl_flags: &enum iwl_sta_key_flag
  * @igtk:
  * @k1: unused
  * @k2: unused
@@ -489,7 +501,7 @@ struct iwl_mvm_mgmt_mcast_key_cmd_v1 {
 /**
  * struct iwl_mvm_mgmt_mcast_key_cmd
  * ( MGMT_MCAST_KEY = 0x1f )
- * @ctrl_flags: %iwl_sta_key_flag
+ * @ctrl_flags: &enum iwl_sta_key_flag
  * @igtk: IGTK master key
  * @sta_id: station ID that support IGTK
  * @key_id:

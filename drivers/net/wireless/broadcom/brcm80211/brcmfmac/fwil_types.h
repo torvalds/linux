@@ -806,6 +806,17 @@ struct brcmf_pno_macaddr_le {
 };
 
 /**
+ * struct brcmf_pno_bssid_le - bssid configuration for PNO scan.
+ *
+ * @bssid: BSS network identifier.
+ * @flags: flags for this BSSID.
+ */
+struct brcmf_pno_bssid_le {
+	u8 bssid[ETH_ALEN];
+	__le16 flags;
+};
+
+/**
  * struct brcmf_pktcnt_le - packet counters.
  *
  * @rx_good_pkt: packets (MSDUs & MMPDUs) received from this station
@@ -835,15 +846,18 @@ struct brcmf_gtk_keyinfo_le {
 	u8 replay_counter[BRCMF_RSN_REPLAY_LEN];
 };
 
+#define BRCMF_PNO_REPORT_NO_BATCH	BIT(2)
+
 /**
  * struct brcmf_gscan_bucket_config - configuration data for channel bucket.
  *
- * @bucket_end_index: !unknown!
- * @bucket_freq_multiple: !unknown!
- * @flag: !unknown!
- * @reserved: !unknown!
- * @repeat: !unknown!
- * @max_freq_multiple: !unknown!
+ * @bucket_end_index: last channel index in @channel_list in
+ *	@struct brcmf_pno_config_le.
+ * @bucket_freq_multiple: scan interval expressed in N * @scan_freq.
+ * @flag: channel bucket report flags.
+ * @reserved: for future use.
+ * @repeat: number of scan at interval for exponential scan.
+ * @max_freq_multiple: maximum scan interval for exponential scan.
  */
 struct brcmf_gscan_bucket_config {
 	u8 bucket_end_index;
@@ -855,16 +869,19 @@ struct brcmf_gscan_bucket_config {
 };
 
 /* version supported which must match firmware */
-#define BRCMF_GSCAN_CFG_VERSION                     1
+#define BRCMF_GSCAN_CFG_VERSION                     2
 
 /**
  * enum brcmf_gscan_cfg_flags - bit values for gscan flags.
  *
  * @BRCMF_GSCAN_CFG_FLAGS_ALL_RESULTS: send probe responses/beacons to host.
+ * @BRCMF_GSCAN_CFG_ALL_BUCKETS_IN_1ST_SCAN: all buckets will be included in
+ *	first scan cycle.
  * @BRCMF_GSCAN_CFG_FLAGS_CHANGE_ONLY: indicated only flags member is changed.
  */
 enum brcmf_gscan_cfg_flags {
 	BRCMF_GSCAN_CFG_FLAGS_ALL_RESULTS = BIT(0),
+	BRCMF_GSCAN_CFG_ALL_BUCKETS_IN_1ST_SCAN = BIT(3),
 	BRCMF_GSCAN_CFG_FLAGS_CHANGE_ONLY = BIT(7),
 };
 
@@ -884,12 +901,12 @@ enum brcmf_gscan_cfg_flags {
  */
 struct brcmf_gscan_config {
 	__le16 version;
-	u8  flags;
-	u8   buffer_threshold;
-	u8   swc_nbssid_threshold;
-	u8  swc_rssi_window_size;
-	u8  count_of_channel_buckets;
-	u8  retry_threshold;
+	u8 flags;
+	u8 buffer_threshold;
+	u8 swc_nbssid_threshold;
+	u8 swc_rssi_window_size;
+	u8 count_of_channel_buckets;
+	u8 retry_threshold;
 	__le16  lost_ap_window;
 	struct brcmf_gscan_bucket_config bucket[1];
 };

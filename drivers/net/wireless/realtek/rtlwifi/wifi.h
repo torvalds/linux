@@ -1886,6 +1886,13 @@ struct rtl_efuse {
 	u8 channel_plan;
 };
 
+struct rtl_tx_report {
+	atomic_t sn;
+	u16 last_sent_sn;
+	unsigned long last_sent_time;
+	u16 last_recv_sn;
+};
+
 struct rtl_ps_ctl {
 	bool pwrdomain_protect;
 	bool in_powersavemode;
@@ -2074,6 +2081,8 @@ struct rtl_tcb_desc {
 	u8 use_shortpreamble:1;
 	u8 use_driver_rate:1;
 	u8 disable_ratefallback:1;
+
+	u8 use_spe_rpt:1;
 
 	u8 ratr_index;
 	u8 mac_id;
@@ -2534,6 +2543,7 @@ struct bt_coexist_info {
 struct rtl_btc_ops {
 	void (*btc_init_variables) (struct rtl_priv *rtlpriv);
 	void (*btc_init_hal_vars) (struct rtl_priv *rtlpriv);
+	void (*btc_power_on_setting)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config) (struct rtl_priv *rtlpriv);
 	void (*btc_ips_notify) (struct rtl_priv *rtlpriv, u8 type);
 	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
@@ -2550,6 +2560,13 @@ struct rtl_btc_ops {
 	bool (*btc_is_bt_disabled) (struct rtl_priv *rtlpriv);
 	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
+	void (*btc_record_pwr_mode)(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
+	u8   (*btc_get_lps_val)(struct rtl_priv *rtlpriv);
+	u8   (*btc_get_rpwm_val)(struct rtl_priv *rtlpriv);
+	bool (*btc_is_bt_ctrl_lps)(struct rtl_priv *rtlpriv);
+	void (*btc_get_ampdu_cfg)(struct rtl_priv *rtlpriv, u8 *reject_agg,
+				  u8 *ctrl_agg_size, u8 *agg_size);
+	bool (*btc_is_bt_lps_on)(struct rtl_priv *rtlpriv);
 };
 
 struct proxim {
@@ -2588,6 +2605,7 @@ struct rtl_priv {
 	struct rtl_security sec;
 	struct rtl_efuse efuse;
 	struct rtl_led_ctl ledctl;
+	struct rtl_tx_report tx_report;
 
 	struct rtl_ps_ctl psc;
 	struct rate_adaptive ra;

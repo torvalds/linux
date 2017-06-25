@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,7 +147,8 @@ enum iwl_csum_rx_assist_info {
 
 /**
  * struct iwl_rx_mpdu_res_start - phy info
- * @assist: see CSUM_RX_ASSIST_ above
+ * @byte_count: byte count of the frame
+ * @assist: see &enum iwl_csum_rx_assist_info
  */
 struct iwl_rx_mpdu_res_start {
 	__le16 byte_count;
@@ -348,35 +349,106 @@ enum iwl_rx_mpdu_mac_info {
 	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
 };
 
+/**
+ * struct iwl_rx_mpdu_desc - RX MPDU descriptor
+ */
 struct iwl_rx_mpdu_desc {
 	/* DW2 */
+	/**
+	 * @mpdu_len: MPDU length
+	 */
 	__le16 mpdu_len;
+	/**
+	 * @mac_flags1: &enum iwl_rx_mpdu_mac_flags1
+	 */
 	u8 mac_flags1;
+	/**
+	 * @mac_flags2: &enum iwl_rx_mpdu_mac_flags2
+	 */
 	u8 mac_flags2;
 	/* DW3 */
+	/**
+	 * @amsdu_info: &enum iwl_rx_mpdu_amsdu_info
+	 */
 	u8 amsdu_info;
+	/**
+	 * @phy_info: &enum iwl_rx_mpdu_phy_info
+	 */
 	__le16 phy_info;
+	/**
+	 * @mac_phy_idx: MAC/PHY index
+	 */
 	u8 mac_phy_idx;
 	/* DW4 - carries csum data only when rpa_en == 1 */
-	__le16 raw_csum; /* alledgedly unreliable */
+	/**
+	 * @raw_csum: raw checksum (alledgedly unreliable)
+	 */
+	__le16 raw_csum;
+	/**
+	 * @l3l4_flags: &enum iwl_rx_l3l4_flags
+	 */
 	__le16 l3l4_flags;
 	/* DW5 */
+	/**
+	 * @status: &enum iwl_rx_mpdu_status
+	 */
 	__le16 status;
+	/**
+	 * @hash_filter: hash filter value
+	 */
 	u8 hash_filter;
+	/**
+	 * @sta_id_flags: &enum iwl_rx_mpdu_sta_id_flags
+	 */
 	u8 sta_id_flags;
 	/* DW6 */
+	/**
+	 * @reorder_data: &enum iwl_rx_mpdu_reorder_data
+	 */
 	__le32 reorder_data;
 	/* DW7 - carries rss_hash only when rpa_en == 1 */
+	/**
+	 * @rss_hash: RSS hash value
+	 */
 	__le32 rss_hash;
 	/* DW8 - carries filter_match only when rpa_en == 1 */
+	/**
+	 * @filter_match: filter match value
+	 */
 	__le32 filter_match;
 	/* DW9 */
+	/**
+	 * @rate_n_flags: RX rate/flags encoding
+	 */
 	__le32 rate_n_flags;
 	/* DW10 */
-	u8 energy_a, energy_b, channel, mac_context;
+	/**
+	 * @energy_a: energy chain A
+	 */
+	u8 energy_a;
+	/**
+	 * @energy_b: energy chain B
+	 */
+	u8 energy_b;
+	/**
+	 * @channel: channel number
+	 */
+	u8 channel;
+	/**
+	 * @mac_context: MAC context mask
+	 */
+	u8 mac_context;
 	/* DW11 */
+	/**
+	 * @gp2_on_air_rise: GP2 timer value on air rise (INA)
+	 */
 	__le32 gp2_on_air_rise;
-	/* DW12 & DW13 - carries TSF only TSF_OVERLOAD bit == 0 */
+	/* DW12 & DW13 */
+	/**
+	 * @tsf_on_air_rise:
+	 * TSF value on air rise (INA), only valid if
+	 * %IWL_RX_MPDU_PHY_TSF_OVERLOAD isn't set
+	 */
 	__le64 tsf_on_air_rise;
 } __packed;
 
@@ -447,7 +519,7 @@ struct iwl_rxq_sync_notification {
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
- * Internal message identifier
+ * enum iwl_mvm_rxq_notif_type - Internal message identifier
  *
  * @IWL_MVM_RXQ_EMPTY: empty sync notification
  * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
@@ -491,7 +563,7 @@ enum iwl_mvm_pm_event {
 /**
  * struct iwl_mvm_pm_state_notification - station PM state notification
  * @sta_id: station ID of the station changing state
- * @type: the new powersave state, see IWL_MVM_PM_EVENT_ above
+ * @type: the new powersave state, see &enum iwl_mvm_pm_event
  */
 struct iwl_mvm_pm_state_notification {
 	u8 sta_id;

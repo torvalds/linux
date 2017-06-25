@@ -316,6 +316,11 @@
 #define CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
 #define CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
 
+/* HW RFID */
+#define CSR_HW_RFID_FLAVOR(_val)       (((_val) & 0x000000F) >> 0)
+#define CSR_HW_RFID_DASH(_val)         (((_val) & 0x00000F0) >> 4)
+#define CSR_HW_RFID_STEP(_val)         (((_val) & 0x0000F00) >> 8)
+#define CSR_HW_RFID_TYPE(_val)         (((_val) & 0x0FFF000) >> 12)
 
 /**
  *  hw_rev values
@@ -348,7 +353,8 @@ enum {
 
 /* RF_ID value */
 #define CSR_HW_RF_ID_TYPE_JF		(0x00105000)
-#define CSR_HW_RF_ID_TYPE_HR		(0x00109000)
+#define CSR_HW_RF_ID_TYPE_HR		(0x0010A000)
+#define CSR_HW_RF_ID_TYPE_HRCDB		(0x00109000)
 
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)

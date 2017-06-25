@@ -719,6 +719,8 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 {
 	struct brcmf_scan_params_le params_le;
 	struct cfg80211_scan_request *scan_request;
+	u64 reqid;
+	u32 bucket;
 	s32 err = 0;
 
 	brcmf_dbg(SCAN, "Enter\n");
@@ -749,7 +751,7 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCAN,
 					     &params_le, sizeof(params_le));
 		if (err)
-			brcmf_err("Scan abort  failed\n");
+			brcmf_err("Scan abort failed\n");
 	}
 
 	brcmf_scan_config_mpc(ifp, 1);
@@ -758,11 +760,21 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 	 * e-scan can be initiated internally
 	 * which takes precedence.
 	 */
-	if (cfg->internal_escan) {
-		brcmf_dbg(SCAN, "scheduled scan completed\n");
-		cfg->internal_escan = false;
-		if (!aborted)
-			cfg80211_sched_scan_results(cfg_to_wiphy(cfg), 0);
+	if (cfg->int_escan_map) {
+		brcmf_dbg(SCAN, "scheduled scan completed (%x)\n",
+			  cfg->int_escan_map);
+		while (cfg->int_escan_map) {
+			bucket = __ffs(cfg->int_escan_map);
+			cfg->int_escan_map &= ~BIT(bucket);
+			reqid = brcmf_pno_find_reqid_by_bucket(cfg->pno,
+							       bucket);
+			if (!aborted) {
+				brcmf_dbg(SCAN, "report results: reqid=%llu\n",
+					  reqid);
+				cfg80211_sched_scan_results(cfg_to_wiphy(cfg),
+							    reqid);
+			}
+		}
 	} else if (scan_request) {
 		struct cfg80211_scan_info info = {
 			.aborted = aborted,
@@ -1011,7 +1023,7 @@ static void brcmf_escan_prep(struct brcmf_cfg80211_info *cfg,
 			if (!ssid_le.SSID_len)
 				brcmf_dbg(SCAN, "%d: Broadcast scan\n", i);
 			else
-				brcmf_dbg(SCAN, "%d: scan for  %s size =%d\n",
+				brcmf_dbg(SCAN, "%d: scan for  %.32s size=%d\n",
 					  i, ssid_le.SSID, ssid_le.SSID_len);
 			memcpy(ptr, &ssid_le, sizeof(ssid_le));
 			ptr += sizeof(ssid_le);
@@ -3011,7 +3023,7 @@ void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg)
 	struct escan_info *escan = &cfg->escan_info;
 
 	set_bit(BRCMF_SCAN_STATUS_ABORT, &cfg->scan_status);
-	if (cfg->internal_escan || cfg->scan_request) {
+	if (cfg->int_escan_map || cfg->scan_request) {
 		escan->escan_state = WL_ESCAN_STATE_IDLE;
 		brcmf_notify_escan_complete(cfg, escan->ifp, true, true);
 	}
@@ -3034,7 +3046,7 @@ static void brcmf_escan_timeout(unsigned long data)
 	struct brcmf_cfg80211_info *cfg =
 			(struct brcmf_cfg80211_info *)data;
 
-	if (cfg->internal_escan || cfg->scan_request) {
+	if (cfg->int_escan_map || cfg->scan_request) {
 		brcmf_err("timer expired\n");
 		schedule_work(&cfg->escan_timeout_work);
 	}
@@ -3120,7 +3132,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 		if (brcmf_p2p_scan_finding_common_channel(cfg, bss_info_le))
 			goto exit;
 
-		if (!cfg->internal_escan && !cfg->scan_request) {
+		if (!cfg->int_escan_map && !cfg->scan_request) {
 			brcmf_dbg(SCAN, "result without cfg80211 request\n");
 			goto exit;
 		}
@@ -3166,7 +3178,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 		cfg->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
 		if (brcmf_p2p_scan_finding_common_channel(cfg, NULL))
 			goto exit;
-		if (cfg->internal_escan || cfg->scan_request) {
+		if (cfg->int_escan_map || cfg->scan_request) {
 			brcmf_inform_bss(cfg);
 			aborted = status != BRCMF_E_STATUS_SUCCESS;
 			brcmf_notify_escan_complete(cfg, ifp, aborted, false);
@@ -3248,17 +3260,21 @@ static int brcmf_internal_escan_add_info(struct cfg80211_scan_request *req,
 	return 0;
 }
 
-static int brcmf_start_internal_escan(struct brcmf_if *ifp,
+static int brcmf_start_internal_escan(struct brcmf_if *ifp, u32 fwmap,
 				      struct cfg80211_scan_request *request)
 {
 	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	int err;
 
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
+		if (cfg->int_escan_map)
+			brcmf_dbg(SCAN, "aborting internal scan: map=%u\n",
+				  cfg->int_escan_map);
 		/* Abort any on-going scan */
 		brcmf_abort_scanning(cfg);
 	}
 
+	brcmf_dbg(SCAN, "start internal scan: map=%u\n", fwmap);
 	set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 	cfg->escan_info.run = brcmf_run_escan;
 	err = brcmf_do_escan(ifp, request);
@@ -3266,7 +3282,7 @@ static int brcmf_start_internal_escan(struct brcmf_if *ifp,
 		clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 		return err;
 	}
-	cfg->internal_escan = true;
+	cfg->int_escan_map = fwmap;
 	return 0;
 }
 
@@ -3308,6 +3324,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 	struct wiphy *wiphy = cfg_to_wiphy(cfg);
 	int i, err = 0;
 	struct brcmf_pno_scanresults_le *pfn_result;
+	u32 bucket_map;
 	u32 result_count;
 	u32 status;
 	u32 datalen;
@@ -3352,6 +3369,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 		goto out_err;
 	}
 
+	bucket_map = 0;
 	for (i = 0; i < result_count; i++) {
 		netinfo = &netinfo_start[i];
 
@@ -3359,6 +3377,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 			netinfo->SSID_len = IEEE80211_MAX_SSID_LEN;
 		brcmf_dbg(SCAN, "SSID:%.32s Channel:%d\n",
 			  netinfo->SSID, netinfo->channel);
+		bucket_map |= brcmf_pno_get_bucket_map(cfg->pno, netinfo);
 		err = brcmf_internal_escan_add_info(request,
 						    netinfo->SSID,
 						    netinfo->SSID_len,
@@ -3367,7 +3386,10 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 			goto out_err;
 	}
 
-	err = brcmf_start_internal_escan(ifp, request);
+	if (!bucket_map)
+		goto free_req;
+
+	err = brcmf_start_internal_escan(ifp, bucket_map, request);
 	if (!err)
 		goto free_req;
 
@@ -3386,11 +3408,11 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
 
-	brcmf_dbg(SCAN, "Enter n_match_sets:%d n_ssids:%d\n",
+	brcmf_dbg(SCAN, "Enter: n_match_sets=%d n_ssids=%d\n",
 		  req->n_match_sets, req->n_ssids);
 
 	if (test_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status)) {
-		brcmf_err("Scanning suppressed: status (%lu)\n",
+		brcmf_err("Scanning suppressed: status=%lu\n",
 			  cfg->scan_status);
 		return -EAGAIN;
 	}
@@ -3411,8 +3433,8 @@ static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 	struct brcmf_if *ifp = netdev_priv(ndev);
 
 	brcmf_dbg(SCAN, "enter\n");
-	brcmf_pno_clean(ifp);
-	if (cfg->internal_escan)
+	brcmf_pno_stop_sched_scan(ifp, reqid);
+	if (cfg->int_escan_map)
 		brcmf_notify_escan_complete(cfg, ifp, true, true);
 	return 0;
 }
@@ -6755,7 +6777,7 @@ static void brcmf_cfg80211_reg_notifier(struct wiphy *wiphy,
 	/* ignore non-ISO3166 country codes */
 	for (i = 0; i < sizeof(req->alpha2); i++)
 		if (req->alpha2[i] < 'A' || req->alpha2[i] > 'Z') {
-			brcmf_err("not a ISO3166 code (0x%02x 0x%02x)\n",
+			brcmf_err("not an ISO3166 code (0x%02x 0x%02x)\n",
 				  req->alpha2[0], req->alpha2[1]);
 			return;
 		}
@@ -6940,6 +6962,13 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_p2p_detach(&cfg->p2p);
 		goto wiphy_unreg_out;
 	}
+	err = brcmf_pno_attach(cfg);
+	if (err) {
+		brcmf_err("PNO initialisation failed (%d)\n", err);
+		brcmf_btcoex_detach(cfg);
+		brcmf_p2p_detach(&cfg->p2p);
+		goto wiphy_unreg_out;
+	}
 
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_TDLS)) {
 		err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);
@@ -6972,6 +7001,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	return cfg;
 
 detach:
+	brcmf_pno_detach(cfg);
 	brcmf_btcoex_detach(cfg);
 	brcmf_p2p_detach(&cfg->p2p);
 wiphy_unreg_out:
@@ -6991,6 +7021,7 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	if (!cfg)
 		return;
 
+	brcmf_pno_detach(cfg);
 	brcmf_btcoex_detach(cfg);
 	wiphy_unregister(cfg->wiphy);
 	kfree(cfg->ops);

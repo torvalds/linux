@@ -273,7 +273,7 @@ struct brcmf_cfg80211_wowl {
  * @pub: common driver information.
  * @channel: current channel.
  * @active_scan: current scan mode.
- * @internal_escan: indicates internally initiated e-scan is running.
+ * @int_escan_map: bucket map for which internal e-scan is done.
  * @ibss_starter: indicates this sta is ibss starter.
  * @pwr_save: indicate whether dongle to support power save mode.
  * @dongle_up: indicate whether dongle up or not.
@@ -289,6 +289,7 @@ struct brcmf_cfg80211_wowl {
  * @vif_cnt: number of vif instances.
  * @vif_event: vif event signalling.
  * @wowl: wowl related information.
+ * @pno: information of pno module.
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
@@ -305,7 +306,7 @@ struct brcmf_cfg80211_info {
 	struct brcmf_pub *pub;
 	u32 channel;
 	bool active_scan;
-	bool internal_escan;
+	u32 int_escan_map;
 	bool ibss_starter;
 	bool pwr_save;
 	bool dongle_up;
@@ -322,6 +323,7 @@ struct brcmf_cfg80211_info {
 	struct brcmu_d11inf d11inf;
 	struct brcmf_assoclist_le assoclist;
 	struct brcmf_cfg80211_wowl wowl;
+	struct brcmf_pno_info *pno;
 };
 
 /**

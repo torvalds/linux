@@ -718,7 +718,8 @@ int rsi_hal_device_init(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
 
-	common->coex_mode = 1;
+	common->coex_mode = RSI_DEV_COEX_MODE_WIFI_ALONE;
+	common->oper_mode = RSI_DEV_OPMODE_WIFI_ALONE;
 	adapter->device_model = RSI_DEV_9113;
 
 	switch (adapter->device_model) {
@@ -733,6 +734,7 @@ int rsi_hal_device_init(struct rsi_hw *adapter)
 	default:
 		return -EINVAL;
 	}
+	common->fsm_state = FSM_CARD_NOT_READY;
 
 	return 0;
 }

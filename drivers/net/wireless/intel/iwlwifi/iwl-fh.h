@@ -77,6 +77,8 @@
  */
 #define FH_MEM_LOWER_BOUND                   (0x1000)
 #define FH_MEM_UPPER_BOUND                   (0x2000)
+#define FH_MEM_LOWER_BOUND_GEN2              (0xa06000)
+#define FH_MEM_UPPER_BOUND_GEN2              (0xa08000)
 
 /**
  * Keep-Warm (KW) buffer base address.
