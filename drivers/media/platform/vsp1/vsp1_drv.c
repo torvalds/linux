@@ -412,7 +412,6 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 			}
 
 			list_add_tail(&video->list, &vsp1->videos);
-			wpf->entity.sink = &video->video.entity;
 		}
 	}
 
