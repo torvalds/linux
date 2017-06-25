@@ -627,6 +627,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	unsigned int hw_iv_size = areq_ctx->hw_iv_size;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	struct ssi_drvdata *drvdata = dev_get_drvdata(dev);
 	u32 dummy;
 	bool chained;
 	u32 size_to_unmap = 0;
@@ -700,8 +701,8 @@ void ssi_buffer_mgr_unmap_aead_request(
 		dma_unmap_sg(dev, req->dst, ssi_buffer_mgr_get_sgl_nents(req->dst,size_to_unmap,&dummy,&chained),
 			DMA_BIDIRECTIONAL);
 	}
-#if DX_HAS_ACP
-	if ((areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
+	if (drvdata->coherent &&
+	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
 	    likely(req->src == req->dst))
 	{
 		u32 size_to_skip = req->assoclen;
@@ -716,7 +717,6 @@ void ssi_buffer_mgr_unmap_aead_request(
 			size_to_skip+ req->cryptlen - areq_ctx->req_authsize,
 			size_to_skip+ req->cryptlen, SSI_SG_FROM_BUF);
 	}
-#endif
 }
 
 static inline int ssi_buffer_mgr_get_aead_icv_nents(
@@ -981,20 +981,24 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 			 * MAC verification upon request completion
 			 */
 			if (direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
-#if !DX_HAS_ACP
-				/* In ACP platform we already copying ICV
-				 * for any INPLACE-DECRYPT operation, hence
+				if (!drvdata->coherent) {
+				/* In coherent platforms (e.g. ACP)
+				 * already copying ICV for any
+				 * INPLACE-DECRYPT operation, hence
 				 * we must neglect this code.
 				 */
-				u32 size_to_skip = req->assoclen;
-				if (areq_ctx->is_gcm4543) {
-					size_to_skip += crypto_aead_ivsize(tfm);
+					u32 skip = req->assoclen;
+
+					if (areq_ctx->is_gcm4543)
+						skip += crypto_aead_ivsize(tfm);
+
+					ssi_buffer_mgr_copy_scatterlist_portion(
+						areq_ctx->backup_mac, req->src,
+						(skip + req->cryptlen -
+						 areq_ctx->req_authsize),
+						skip + req->cryptlen,
+						SSI_SG_TO_BUF);
 				}
-				ssi_buffer_mgr_copy_scatterlist_portion(
-					areq_ctx->backup_mac, req->src,
-					size_to_skip+ req->cryptlen - areq_ctx->req_authsize,
-					size_to_skip+ req->cryptlen, SSI_SG_TO_BUF);
-#endif
 				areq_ctx->icv_virt_addr = areq_ctx->backup_mac;
 			} else {
 				areq_ctx->icv_virt_addr = areq_ctx->mac_buf;
@@ -1281,8 +1285,8 @@ int ssi_buffer_mgr_map_aead_request(
 	mlli_params->curr_pool = NULL;
 	sg_data.num_of_buffers = 0;
 
-#if DX_HAS_ACP
-	if ((areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
+	if (drvdata->coherent &&
+	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
 	    likely(req->src == req->dst))
 	{
 		u32 size_to_skip = req->assoclen;
@@ -1297,7 +1301,6 @@ int ssi_buffer_mgr_map_aead_request(
 			size_to_skip+ req->cryptlen - areq_ctx->req_authsize,
 			size_to_skip+ req->cryptlen, SSI_SG_TO_BUF);
 	}
-#endif
 
 	/* cacluate the size for cipher remove ICV in decrypt*/
 	areq_ctx->cryptlen = (areq_ctx->gen_ctx.op_type ==

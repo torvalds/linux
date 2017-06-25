@@ -55,6 +55,8 @@
 #define DRV_MODULE_VERSION "3.0"
 
 #define SSI_DEV_NAME_STR "cc715ree"
+#define CC_COHERENT_CACHE_PARAMS 0xEEE
+
 #define SSI_CC_HAS_AES_CCM 1
 #define SSI_CC_HAS_AES_GCM 1
 #define SSI_CC_HAS_AES_XTS 1
@@ -150,6 +152,7 @@ struct ssi_drvdata {
 	void *sram_mgr_handle;
 	u32 inflight_counter;
 	struct clk *clk;
+	bool coherent;
 };
 
 struct ssi_crypto_alg {
