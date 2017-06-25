@@ -325,6 +325,56 @@ static struct tty_driver *get_tty_driver(dev_t device, int *index)
 	return NULL;
 }
 
+/**
+ *	tty_dev_name_to_number	-	return dev_t for device name
+ *	@name: user space name of device under /dev
+ *	@number: pointer to dev_t that this function will populate
+ *
+ *	This function converts device names like ttyS0 or ttyUSB1 into dev_t
+ *	like (4, 64) or (188, 1). If no corresponding driver is registered then
+ *	the function returns -ENODEV.
+ *
+ *	Locking: this acquires tty_mutex to protect the tty_drivers list from
+ *		being modified while we are traversing it, and makes sure to
+ *		release it before exiting.
+ */
+int tty_dev_name_to_number(const char *name, dev_t *number)
+{
+	struct tty_driver *p;
+	int ret;
+	int index, prefix_length = 0;
+	const char *str;
+
+	for (str = name; *str && !isdigit(*str); str++)
+		;
+
+	if (!*str)
+		return -EINVAL;
+
+	ret = kstrtoint(str, 10, &index);
+	if (ret)
+		return ret;
+
+	prefix_length = str - name;
+	mutex_lock(&tty_mutex);
+
+	list_for_each_entry(p, &tty_drivers, tty_drivers)
+		if (prefix_length == strlen(p->name) && strncmp(name,
+					p->name, prefix_length) == 0) {
+			if (index < p->num) {
+				*number = MKDEV(p->major, p->minor_start + index);
+				goto out;
+			}
+		}
+
+	/* if here then driver wasn't found */
+	ret = -ENODEV;
+out:
+	mutex_unlock(&tty_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tty_dev_name_to_number);
+
 #ifdef CONFIG_CONSOLE_POLL
 
 /**
