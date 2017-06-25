@@ -9,7 +9,6 @@
 #ifndef _LINUX_LIRC_DEV_H
 #define _LINUX_LIRC_DEV_H
 
-#define MAX_IRCTL_DEVICES 8
 #define BUFLEN            16
 
 #include <linux/slab.h>
