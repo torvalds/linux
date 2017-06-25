@@ -29,6 +29,8 @@ meaning of events.
 INTERACTIVE COMMANDS
 --------------------
 [horizontal]
+*b*::	toggle events by guests (debugfs only, honors filters)
+
 *c*::	clear filter
 
 *f*::	filter by regular expression

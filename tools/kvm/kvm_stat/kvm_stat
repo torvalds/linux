@@ -662,7 +662,7 @@ class TracepointProvider(Provider):
         self.setup_traces()
         self.fields = self._fields
 
-    def read(self):
+    def read(self, by_guest=0):
         """Returns 'event name: current value' for all enabled events."""
         ret = defaultdict(int)
         for group in self.group_leaders:
@@ -731,7 +731,7 @@ class DebugfsProvider(Provider):
             self.do_read = True
         self.reset()
 
-    def read(self, reset=0):
+    def read(self, reset=0, by_guest=0):
         """Returns a dict with format:'file name / field -> current value'.
 
         Parameter 'reset':
@@ -762,8 +762,16 @@ class DebugfsProvider(Provider):
                     self._baseline[key] = 0
                 if self._baseline.get(key, -1) == -1:
                     self._baseline[key] = value
-                results[field] = (results.get(field, 0) + value -
-                                  self._baseline.get(key, 0))
+                increment = (results.get(field, 0) + value -
+                             self._baseline.get(key, 0))
+                if by_guest:
+                    pid = key.split('-')[0]
+                    if pid in results:
+                        results[pid] += increment
+                    else:
+                        results[pid] = increment
+                else:
+                    results[field] = increment
 
         return results
 
@@ -849,17 +857,43 @@ class Stats(object):
             for provider in self.providers:
                 provider.pid = self._pid_filter
 
-    def get(self):
+    def get(self, by_guest=0):
         """Returns a dict with field -> (value, delta to last value) of all
         provider data."""
         for provider in self.providers:
-            new = provider.read()
-            for key in provider.fields:
+            new = provider.read(by_guest=by_guest)
+            for key in new if by_guest else provider.fields:
                 oldval = self.values.get(key, (0, 0))[0]
                 newval = new.get(key, 0)
                 newdelta = newval - oldval
                 self.values[key] = (newval, newdelta)
         return self.values
+
+    def toggle_display_guests(self, to_pid):
+        """Toggle between collection of stats by individual event and by
+        guest pid
+
+        Events reported by DebugfsProvider change when switching to/from
+        reading by guest values. Hence we have to remove the excess event
+        names from self.values.
+
+        """
+        if any(isinstance(ins, TracepointProvider) for ins in self.providers):
+            return 1
+        if to_pid:
+            for provider in self.providers:
+                if isinstance(provider, DebugfsProvider):
+                    for key in provider.fields:
+                        if key in self.values.keys():
+                            del self.values[key]
+        else:
+            oldvals = self.values.copy()
+            for key in oldvals:
+                if key.isdigit():
+                    del self.values[key]
+        # Update oldval (see get())
+        self.get(to_pid)
+        return 0
 
 DELAY_DEFAULT = 3.0
 MAX_GUEST_NAME_LEN = 48
@@ -876,6 +910,7 @@ class Tui(object):
         self._delay_initial = 0.25
         self._delay_regular = DELAY_DEFAULT
         self._sorting = SORT_DEFAULT
+        self._display_guests = 0
 
     def __enter__(self):
         """Initialises curses for later use.  Based on curses.wrapper
@@ -1024,8 +1059,12 @@ class Tui(object):
             if len(regex) > MAX_REGEX_LEN:
                 regex = regex[:MAX_REGEX_LEN] + '...'
             self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
+        if self._display_guests:
+            col_name = 'Guest Name'
+        else:
+            col_name = 'Event'
         self.screen.addstr(2, 1, '%-40s %10s%7s %8s' %
-                           ('Event', 'Total', '%Total', 'CurAvg/s'),
+                           (col_name, 'Total', '%Total', 'CurAvg/s'),
                            curses.A_STANDOUT)
         self.screen.addstr(4, 1, 'Collecting data...')
         self.screen.refresh()
@@ -1034,7 +1073,7 @@ class Tui(object):
         row = 3
         self.screen.move(row, 0)
         self.screen.clrtobot()
-        stats = self.stats.get()
+        stats = self.stats.get(self._display_guests)
 
         def sortCurAvg(x):
             # sort by current events if available
@@ -1062,6 +1101,8 @@ class Tui(object):
                 break
             if values[0] is not None:
                 cur = int(round(values[1] / sleeptime)) if values[1] else ''
+                if self._display_guests:
+                    key = self.get_gname_from_pid(key)
                 self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
                                    (key, values[0], values[0] * 100 / total,
                                     cur))
@@ -1070,9 +1111,26 @@ class Tui(object):
             self.screen.addstr(4, 1, 'No matching events reported yet')
         self.screen.refresh()
 
+    def show_msg(self, text):
+        """Display message centered text and exit on key press"""
+        hint = 'Press any key to continue'
+        curses.cbreak()
+        self.screen.erase()
+        (x, term_width) = self.screen.getmaxyx()
+        row = 2
+        for line in text:
+            start = (term_width - len(line)) / 2
+            self.screen.addstr(row, start, line)
+            row += 1
+        self.screen.addstr(row + 1, (term_width - len(hint)) / 2, hint,
+                           curses.A_STANDOUT)
+        self.screen.getkey()
+
     def show_help_interactive(self):
         """Display help with list of interactive commands"""
-        msg = ('   c     clear filter',
+        msg = ('   b     toggle events by guests (debugfs only, honors'
+               ' filters)',
+               '   c     clear filter',
                '   f     filter by regular expression',
                '   g     filter by guest name',
                '   h     display interactive commands reference',
@@ -1253,6 +1311,14 @@ class Tui(object):
             sleeptime = self._delay_regular
             try:
                 char = self.screen.getkey()
+                if char == 'b':
+                    self._display_guests = not self._display_guests
+                    if self.stats.toggle_display_guests(self._display_guests):
+                        self.show_msg(['Command not available with tracepoints'
+                                       ' enabled', 'Restart with debugfs only '
+                                       '(see option \'-d\') and try again!'])
+                        self._display_guests = not self._display_guests
+                    self.refresh_header()
                 if char == 'c':
                     self.stats.fields_filter = DEFAULT_REGEX
                     self.refresh_header(0)
@@ -1356,6 +1422,7 @@ Requirements:
   the large number of files that are possibly opened.
 
 Interactive Commands:
+   b     toggle events by guests (debugfs only, honors filters)
    c     clear filter
    f     filter by regular expression
    g     filter by guest name
