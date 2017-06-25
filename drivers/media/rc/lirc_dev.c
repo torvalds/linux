@@ -35,7 +35,7 @@ static dev_t lirc_base_dev;
 
 struct irctl {
 	struct lirc_driver d;
-	int attached;
+	bool attached;
 	int open;
 
 	struct mutex irctl_lock;
@@ -193,7 +193,7 @@ int lirc_register_driver(struct lirc_driver *d)
 
 	cdev_init(&ir->cdev, d->fops);
 	ir->cdev.owner = ir->d.owner;
-	ir->attached = 1;
+	ir->attached = true;
 
 	err = cdev_device_add(&ir->cdev, &ir->dev);
 	if (err)
@@ -231,7 +231,7 @@ void lirc_unregister_driver(struct lirc_driver *d)
 	dev_dbg(ir->d.dev, "lirc_dev: driver %s unregistered from minor = %d\n",
 		d->name, d->minor);
 
-	ir->attached = 0;
+	ir->attached = false;
 	if (ir->open) {
 		dev_dbg(ir->d.dev, LOGHEAD "releasing opened driver\n",
 			d->name, d->minor);
