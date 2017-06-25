@@ -247,36 +247,18 @@ EXPORT_SYMBOL(lirc_unregister_driver);
 
 int lirc_dev_fop_open(struct inode *inode, struct file *file)
 {
-	struct irctl *ir;
+	struct irctl *ir = container_of(inode->i_cdev, struct irctl, cdev);
 	int retval;
-
-	if (iminor(inode) >= MAX_IRCTL_DEVICES) {
-		pr_err("open result for %d is -ENODEV\n", iminor(inode));
-		return -ENODEV;
-	}
-
-	if (mutex_lock_interruptible(&lirc_dev_lock))
-		return -ERESTARTSYS;
-
-	ir = irctls[iminor(inode)];
-	mutex_unlock(&lirc_dev_lock);
-
-	if (!ir) {
-		retval = -ENODEV;
-		goto error;
-	}
 
 	dev_dbg(ir->d.dev, LOGHEAD "open called\n", ir->d.name, ir->d.minor);
 
-	if (ir->open) {
-		retval = -EBUSY;
-		goto error;
-	}
+	if (ir->open)
+		return -EBUSY;
 
 	if (ir->d.rdev) {
 		retval = rc_open(ir->d.rdev);
 		if (retval)
-			goto error;
+			return retval;
 	}
 
 	if (ir->buf)
@@ -284,24 +266,17 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 
 	ir->open++;
 
+	lirc_init_pdata(inode, file);
 	nonseekable_open(inode, file);
 
 	return 0;
-
-error:
-	return retval;
 }
 EXPORT_SYMBOL(lirc_dev_fop_open);
 
 int lirc_dev_fop_close(struct inode *inode, struct file *file)
 {
-	struct irctl *ir = irctls[iminor(inode)];
+	struct irctl *ir = file->private_data;
 	int ret;
-
-	if (!ir) {
-		pr_err("called with invalid irctl\n");
-		return -EINVAL;
-	}
 
 	ret = mutex_lock_killable(&lirc_dev_lock);
 	WARN_ON(ret);
@@ -318,13 +293,8 @@ EXPORT_SYMBOL(lirc_dev_fop_close);
 
 unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 {
-	struct irctl *ir = irctls[iminor(file_inode(file))];
+	struct irctl *ir = file->private_data;
 	unsigned int ret;
-
-	if (!ir) {
-		pr_err("called with invalid irctl\n");
-		return POLLERR;
-	}
 
 	if (!ir->attached)
 		return POLLHUP | POLLERR;
@@ -348,14 +318,9 @@ EXPORT_SYMBOL(lirc_dev_fop_poll);
 
 long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct irctl *ir = file->private_data;
 	__u32 mode;
 	int result = 0;
-	struct irctl *ir = irctls[iminor(file_inode(file))];
-
-	if (!ir) {
-		pr_err("no irctl found!\n");
-		return -ENODEV;
-	}
 
 	dev_dbg(ir->d.dev, LOGHEAD "ioctl called (0x%x)\n",
 		ir->d.name, ir->d.minor, cmd);
@@ -432,15 +397,10 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			  size_t length,
 			  loff_t *ppos)
 {
-	struct irctl *ir = irctls[iminor(file_inode(file))];
+	struct irctl *ir = file->private_data;
 	unsigned char *buf;
 	int ret = 0, written = 0;
 	DECLARE_WAITQUEUE(wait, current);
-
-	if (!ir) {
-		pr_err("called with invalid irctl\n");
-		return -ENODEV;
-	}
 
 	if (!LIRC_CAN_REC(ir->d.features))
 		return -EINVAL;
@@ -532,9 +492,19 @@ out_unlocked:
 }
 EXPORT_SYMBOL(lirc_dev_fop_read);
 
+void lirc_init_pdata(struct inode *inode, struct file *file)
+{
+	struct irctl *ir = container_of(inode->i_cdev, struct irctl, cdev);
+
+	file->private_data = ir;
+}
+EXPORT_SYMBOL(lirc_init_pdata);
+
 void *lirc_get_pdata(struct file *file)
 {
-	return irctls[iminor(file_inode(file))]->d.data;
+	struct irctl *ir = file->private_data;
+
+	return ir->d.data;
 }
 EXPORT_SYMBOL(lirc_get_pdata);
 

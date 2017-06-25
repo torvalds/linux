@@ -879,7 +879,7 @@ out:
 static ssize_t read(struct file *filep, char __user *outbuf, size_t n,
 		    loff_t *ppos)
 {
-	struct IR *ir = filep->private_data;
+	struct IR *ir = lirc_get_pdata(filep);
 	struct IR_rx *rx;
 	struct lirc_buffer *rbuf = ir->l.rbuf;
 	int ret = 0, written = 0, retries = 0;
@@ -1089,7 +1089,7 @@ static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 static ssize_t write(struct file *filep, const char __user *buf, size_t n,
 		     loff_t *ppos)
 {
-	struct IR *ir = filep->private_data;
+	struct IR *ir = lirc_get_pdata(filep);
 	struct IR_tx *tx;
 	size_t i;
 	int failures = 0;
@@ -1197,7 +1197,7 @@ static ssize_t write(struct file *filep, const char __user *buf, size_t n,
 /* copied from lirc_dev */
 static unsigned int poll(struct file *filep, poll_table *wait)
 {
-	struct IR *ir = filep->private_data;
+	struct IR *ir = lirc_get_pdata(filep);
 	struct IR_rx *rx;
 	struct lirc_buffer *rbuf = ir->l.rbuf;
 	unsigned int ret;
@@ -1230,7 +1230,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 
 static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
-	struct IR *ir = filep->private_data;
+	struct IR *ir = lirc_get_pdata(filep);
 	unsigned long __user *uptr = (unsigned long __user *)arg;
 	int result;
 	unsigned long mode, features;
@@ -1280,45 +1280,17 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	return result;
 }
 
-static struct IR *get_ir_device_by_minor(unsigned int minor)
-{
-	struct IR *ir;
-	struct IR *ret = NULL;
-
-	mutex_lock(&ir_devices_lock);
-
-	if (!list_empty(&ir_devices_list)) {
-		list_for_each_entry(ir, &ir_devices_list, list) {
-			if (ir->l.minor == minor) {
-				ret = get_ir_device(ir, true);
-				break;
-			}
-		}
-	}
-
-	mutex_unlock(&ir_devices_lock);
-	return ret;
-}
-
 /*
- * Open the IR device.  Get hold of our IR structure and
- * stash it in private_data for the file
+ * Open the IR device.
  */
 static int open(struct inode *node, struct file *filep)
 {
 	struct IR *ir;
-	unsigned int minor = MINOR(node->i_rdev);
 
-	/* find our IR struct */
-	ir = get_ir_device_by_minor(minor);
-
-	if (!ir)
-		return -ENODEV;
+	lirc_init_pdata(node, filep);
+	ir = lirc_get_pdata(filep);
 
 	atomic_inc(&ir->open_count);
-
-	/* stash our IR struct */
-	filep->private_data = ir;
 
 	nonseekable_open(node, filep);
 	return 0;
@@ -1327,14 +1299,7 @@ static int open(struct inode *node, struct file *filep)
 /* Close the IR device */
 static int close(struct inode *node, struct file *filep)
 {
-	/* find our IR struct */
-	struct IR *ir = filep->private_data;
-
-	if (!ir) {
-		pr_err("ir: %s: no private_data attached to the file!\n",
-		       __func__);
-		return -ENODEV;
-	}
+	struct IR *ir = lirc_get_pdata(filep);
 
 	atomic_dec(&ir->open_count);
 
@@ -1489,6 +1454,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 */
 		ir->l.rbuf = &ir->rbuf;
 		ir->l.dev  = &adap->dev;
+		/* This will be returned by lirc_get_pdata() */
+		ir->l.data = ir;
 		ret = lirc_buffer_init(ir->l.rbuf,
 				       ir->l.chunk_size, ir->l.buffer_size);
 		if (ret)
