@@ -42,9 +42,8 @@ $(obj)/vdso.o: $(obj)/vdso.so
 
 # link rule for the .so file, .lds has to be first
 SYSCFLAGS_vdso.so.dbg = $(c_flags)
-$(obj)/vdso.so.dbg: $(src)/vdso.lds $(obj-vdso)
+$(obj)/vdso.so.dbg: $(src)/vdso.lds $(obj-vdso) FORCE
 	$(call if_changed,vdsold)
-
 
 # We also create a special relocatable object that should mirror the symbol
 # table and layout of the linked DSO.  With ld -R we can then refer to
@@ -96,17 +95,17 @@ KBUILD_CFLAGS_32 := $(filter-out -m64,$(KBUILD_CFLAGS))
 KBUILD_CFLAGS_32 += -m32 -fPIC -shared
 
 obj-vdso32 = $(patsubst %, v%32.o, $(vdso-syms))
-obj-vdso32 := $(addprefix $(obj)/, $(obj-vdso32))
 
 targets += $(obj-vdso32) vdso32.so vdso32.so.dbg
+obj-vdso32 := $(addprefix $(obj)/, $(obj-vdso32))
 
 $(obj-vdso32:%=%): KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)
 $(obj-vdso32:%=%): KBUILD_CFLAGS = $(KBUILD_CFLAGS_32)
 
-$(obj)/vgettimeofday32.o: $(obj)/vgettimeofday.c
+$(obj)/vgettimeofday32.o: $(obj)/vgettimeofday.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
-$(obj)/vrt_sigreturn32.o: $(obj)/vrt_sigreturn.S
+$(obj)/vrt_sigreturn32.o: $(obj)/vrt_sigreturn.S FORCE
 	$(call if_changed,as_o_S)
 
 # Force dependency
@@ -114,5 +113,5 @@ $(obj)/vdso32.o: $(obj)/vdso32.so
 
 SYSCFLAGS_vdso32.so.dbg = -m32 -shared -s -Wl,-soname=linux-vdso32.so.1 \
 			    $(call cc-ldoption, -Wl$(comma)--hash-style=both)
-$(obj)/vdso32.so.dbg: $(src)/vdso.lds $(obj-vdso32)
+$(obj)/vdso32.so.dbg: $(src)/vdso.lds $(obj-vdso32) FORCE
 	$(call if_changed,vdsold)
