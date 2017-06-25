@@ -2363,27 +2363,12 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 					 struct cgroup *dst_cgrp,
 					 struct kernfs_open_file *of)
 {
-	int ret = 0;
+	struct super_block *sb = of->file->f_path.dentry->d_sb;
+	struct cgroup *src_cgrp, *com_cgrp;
+	struct inode *inode;
+	int ret;
 
-	if (cgroup_on_dfl(dst_cgrp)) {
-		struct super_block *sb = of->file->f_path.dentry->d_sb;
-		struct cgroup *cgrp;
-		struct inode *inode;
-
-		spin_lock_irq(&css_set_lock);
-		cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
-		spin_unlock_irq(&css_set_lock);
-
-		while (!cgroup_is_descendant(dst_cgrp, cgrp))
-			cgrp = cgroup_parent(cgrp);
-
-		ret = -ENOMEM;
-		inode = kernfs_get_inode(sb, cgrp->procs_file.kn);
-		if (inode) {
-			ret = inode_permission(inode, MAY_WRITE);
-			iput(inode);
-		}
-	} else {
+	if (!cgroup_on_dfl(dst_cgrp)) {
 		const struct cred *cred = current_cred();
 		const struct cred *tcred = get_task_cred(task);
 
@@ -2391,14 +2376,38 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 		 * even if we're attaching all tasks in the thread group,
 		 * we only need to check permissions on one of them.
 		 */
-		if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
-		    !uid_eq(cred->euid, tcred->uid) &&
-		    !uid_eq(cred->euid, tcred->suid))
+		if (uid_eq(cred->euid, GLOBAL_ROOT_UID) ||
+		    uid_eq(cred->euid, tcred->uid) ||
+		    uid_eq(cred->euid, tcred->suid))
+			ret = 0;
+		else
 			ret = -EACCES;
+
 		put_cred(tcred);
+		return ret;
 	}
 
-	return ret;
+	/* find the source cgroup */
+	spin_lock_irq(&css_set_lock);
+	src_cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
+	spin_unlock_irq(&css_set_lock);
+
+	/* and the common ancestor */
+	com_cgrp = src_cgrp;
+	while (!cgroup_is_descendant(dst_cgrp, com_cgrp))
+		com_cgrp = cgroup_parent(com_cgrp);
+
+	/* %current should be authorized to migrate to the common ancestor */
+	inode = kernfs_get_inode(sb, com_cgrp->procs_file.kn);
+	if (!inode)
+		return -ENOMEM;
+
+	ret = inode_permission(inode, MAY_WRITE);
+	iput(inode);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 /*
