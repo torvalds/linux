@@ -309,10 +309,11 @@ file.
 2-5-1. Model of Delegation
 
 A cgroup can be delegated to a less privileged user by granting write
-access of the directory and its "cgroup.procs" file to the user.  Note
-that resource control interface files in a given directory control the
-distribution of the parent's resources and thus must not be delegated
-along with the directory.
+access of the directory and its "cgroup.procs" and
+"cgroup.subtree_control" files to the user.  Note that resource
+control interface files in a given directory control the distribution
+of the parent's resources and thus must not be delegated along with
+the directory.
 
 Once delegated, the user can build sub-hierarchy under the directory,
 organize processes as it sees fit and further distribute the resources
