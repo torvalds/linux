@@ -805,7 +805,7 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 		goto drop;
 	}
 
-	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
+	if (info->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
 	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status) &&
 	    !test_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
 		goto drop;
