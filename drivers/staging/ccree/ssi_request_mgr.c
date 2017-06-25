@@ -382,7 +382,8 @@ int send_request(
 		/* Wait upon sequence completion.
 		 *  Return "0" -Operation done successfully.
 		 */
-		return wait_for_completion_interruptible(&ssi_req->seq_compl);
+		wait_for_completion(&ssi_req->seq_compl);
+		return 0;
 	} else {
 		/* Operation still in process */
 		return -EINPROGRESS;
