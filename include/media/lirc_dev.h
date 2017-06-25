@@ -125,10 +125,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  * @chunk_size:		Size of each FIFO buffer.
  *			Only used if @rbuf is NULL.
  * @data:		private per-driver data
- * @min_timeout:	Minimum timeout for record. Valid only if
- *			LIRC_CAN_SET_REC_TIMEOUT is defined.
- * @max_timeout:	Maximum timeout for record. Valid only if
- *			LIRC_CAN_SET_REC_TIMEOUT is defined.
  * @buf:		if %NULL, lirc_dev will allocate and manage the buffer,
  *			otherwise allocated by the caller which will
  *			have to write to the buffer by other means, like irq's
@@ -155,8 +151,6 @@ struct lirc_dev {
 	bool buf_internal;
 
 	void *data;
-	int min_timeout;
-	int max_timeout;
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
 	struct module *owner;

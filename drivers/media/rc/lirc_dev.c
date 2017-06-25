@@ -346,24 +346,6 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LIRC_GET_LENGTH:
 		result = put_user(d->code_length, (__u32 __user *)arg);
 		break;
-	case LIRC_GET_MIN_TIMEOUT:
-		if (!(d->features & LIRC_CAN_SET_REC_TIMEOUT) ||
-		    d->min_timeout == 0) {
-			result = -ENOTTY;
-			break;
-		}
-
-		result = put_user(d->min_timeout, (__u32 __user *)arg);
-		break;
-	case LIRC_GET_MAX_TIMEOUT:
-		if (!(d->features & LIRC_CAN_SET_REC_TIMEOUT) ||
-		    d->max_timeout == 0) {
-			result = -ENOTTY;
-			break;
-		}
-
-		result = put_user(d->max_timeout, (__u32 __user *)arg);
-		break;
 	default:
 		result = -ENOTTY;
 	}
