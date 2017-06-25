@@ -568,14 +568,10 @@ static int campoll(struct cxd *ci)
 		return 0;
 	write_reg(ci, 0x05, istat);
 
-	if (istat & 0x40) {
+	if (istat & 0x40)
 		ci->dr = 1;
-		dev_info(&ci->i2c->dev, "DR\n");
-	}
-	if (istat & 0x20) {
+	if (istat & 0x20)
 		ci->write_busy = 0;
-		dev_info(&ci->i2c->dev, "WC\n");
-	}
 
 	if (istat & 2) {
 		u8 slotstat;
@@ -628,7 +624,6 @@ static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount)
 	campoll(ci);
 	mutex_unlock(&ci->lock);
 
-	dev_info(&ci->i2c->dev, "%s\n", __func__);
 	if (!ci->dr)
 		return 0;
 
