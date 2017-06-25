@@ -125,7 +125,6 @@ struct hv_ring_buffer_info {
 
 	u32 ring_datasize;		/* < ring_size */
 	u32 priv_read_index;
-	u32 cached_read_index;
 };
 
 /*
@@ -178,19 +177,6 @@ static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
 	return write;
 }
 
-static inline u32 hv_get_cached_bytes_to_write(
-	const struct hv_ring_buffer_info *rbi)
-{
-	u32 read_loc, write_loc, dsize, write;
-
-	dsize = rbi->ring_datasize;
-	read_loc = rbi->cached_read_index;
-	write_loc = rbi->ring_buffer->write_index;
-
-	write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
-		read_loc - write_loc;
-	return write;
-}
 /*
  * VMBUS version is 32 bit entity broken up into
  * two 16 bit quantities: major_number. minor_number.

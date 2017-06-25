@@ -358,9 +358,6 @@ struct vmpacket_descriptor *hv_pkt_iter_first(struct vmbus_channel *channel)
 {
 	struct hv_ring_buffer_info *rbi = &channel->inbound;
 
-	/* set state for later hv_pkt_iter_close */
-	rbi->cached_read_index = rbi->ring_buffer->read_index;
-
 	if (hv_pkt_iter_avail(rbi) < sizeof(struct vmpacket_descriptor))
 		return NULL;
 
@@ -388,10 +385,7 @@ __hv_pkt_iter_next(struct vmbus_channel *channel,
 		rbi->priv_read_index -= dsize;
 
 	/* more data? */
-	if (hv_pkt_iter_avail(rbi) < sizeof(struct vmpacket_descriptor))
-		return NULL;
-	else
-		return hv_get_ring_buffer(rbi) + rbi->priv_read_index;
+	return hv_pkt_iter_first(channel);
 }
 EXPORT_SYMBOL_GPL(__hv_pkt_iter_next);
 
@@ -401,7 +395,7 @@ EXPORT_SYMBOL_GPL(__hv_pkt_iter_next);
 void hv_pkt_iter_close(struct vmbus_channel *channel)
 {
 	struct hv_ring_buffer_info *rbi = &channel->inbound;
-	u32 cur_write_sz, cached_write_sz;
+	u32 orig_write_sz = hv_get_bytes_to_write(rbi);
 	u32 pending_sz;
 
 	/*
@@ -430,13 +424,10 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	if (pending_sz == 0)
 		return;
 
-	cur_write_sz = hv_get_bytes_to_write(rbi);
-
-	if (cur_write_sz < pending_sz)
+	if (hv_get_bytes_to_write(rbi) < pending_sz)
 		return;
 
-	cached_write_sz = hv_get_cached_bytes_to_write(rbi);
-	if (cached_write_sz < pending_sz)
+	if (orig_write_sz < pending_sz)
 		vmbus_setevent(channel);
 }
 EXPORT_SYMBOL_GPL(hv_pkt_iter_close);
