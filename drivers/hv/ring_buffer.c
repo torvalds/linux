@@ -396,7 +396,6 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 {
 	struct hv_ring_buffer_info *rbi = &channel->inbound;
 	u32 orig_write_sz = hv_get_bytes_to_write(rbi);
-	u32 pending_sz;
 
 	/*
 	 * Make sure all reads are done before we update the read index since
@@ -419,15 +418,27 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	 */
 	virt_mb();
 
-	pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
-	/* If the other end is not blocked on write don't bother. */
-	if (pending_sz == 0)
+	/* If host has disabled notifications then skip */
+	if (rbi->ring_buffer->interrupt_mask)
 		return;
 
-	if (hv_get_bytes_to_write(rbi) < pending_sz)
-		return;
+	if (rbi->ring_buffer->feature_bits.feat_pending_send_sz) {
+		u32 pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
 
-	if (orig_write_sz < pending_sz)
-		vmbus_setevent(channel);
+		/*
+		 * If there was space before we began iteration,
+		 * then host was not blocked. Also handles case where
+		 * pending_sz is zero then host has nothing pending
+		 * and does not need to be signaled.
+		 */
+		if (orig_write_sz > pending_sz)
+			return;
+
+		/* If pending write will not fit, don't give false hope. */
+		if (hv_get_bytes_to_write(rbi) < pending_sz)
+			return;
+	}
+
+	vmbus_setevent(channel);
 }
 EXPORT_SYMBOL_GPL(hv_pkt_iter_close);
