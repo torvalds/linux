@@ -40,6 +40,8 @@
 
 #define KT_SPKUP 15
 #define SPK_SYNTH_TIMEOUT 100000 /* in micro-seconds */
+#define SYNTH_DEFAULT_DEV "ttyS0"
+#define SYNTH_DEFAULT_SER 0
 
 const struct old_serial_port *spk_serial_init(int index);
 void spk_stop_serial_interrupt(void);

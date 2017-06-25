@@ -169,6 +169,7 @@ struct spk_synth {
 	int jiffies;
 	int full;
 	int ser;
+	char *dev_name;
 	short flags;
 	short startup;
 	const int checkval; /* for validating a proper synth module */
