@@ -226,18 +226,6 @@ static inline void set_queue_last_ind(struct cc_hw_desc *pdesc)
 }
 
 /*
- * Signs the end of HW descriptors flow by asking for completion ack,
- * and release the HW engines
- *
- * @pdesc: pointer HW descriptor struct
- */
-static inline void set_ack_last(struct cc_hw_desc *pdesc)
-{
-	pdesc->word[3] |= FIELD_PREP(WORD3_QUEUE_LAST_IND, 1);
-	pdesc->word[4] |= FIELD_PREP(WORD4_ACK_NEEDED, 1);
-}
-
-/*
  * Set the DIN field of a HW descriptors
  *
  * @pdesc: pointer HW descriptor struct
