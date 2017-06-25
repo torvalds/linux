@@ -175,8 +175,8 @@ static unsigned long cpuid_to_freq(phandle node, int cpuid)
 	if (prom_getproperty(node, "device_type", type, sizeof(type)) != -1)
 		is_cpu_node = (strcmp(type, "cpu") == 0);
 
-	/* try upa-portis then cpuid to get cpuid, see prom_64.c */
-	if (is_cpu_node && (prom_getint(node, "upa-portis") == cpuid ||
+	/* try upa-portid then cpuid to get cpuid, see prom_64.c */
+	if (is_cpu_node && (prom_getint(node, "upa-portid") == cpuid ||
 			    prom_getint(node, "cpuid") == cpuid))
 		freq = prom_getintdefault(node, "clock-frequency", 0);
 	if (!freq)
