@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
+#include "dvb_math.h"
+
 #include "stv0367.h"
 #include "stv0367_defs.h"
 #include "stv0367_regs.h"
@@ -2996,6 +2998,37 @@ static int stv0367ddb_set_frontend(struct dvb_frontend *fe)
 	return -EINVAL;
 }
 
+static void stv0367ddb_read_snr(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	int cab_pwr;
+	u32 regval, tmpval, snrval = 0;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		snrval = stv0367ter_snr_readreg(fe);
+		break;
+	case demod_cab:
+		cab_pwr = stv0367cab_snr_power(fe);
+		regval = stv0367cab_snr_readreg(fe, 0);
+
+		/* prevent division by zero */
+		if (!regval)
+			snrval = 0;
+
+		tmpval = (cab_pwr * 320) / regval;
+		snrval = ((tmpval != 0) ? (intlog2(tmpval) / 5581) : 0);
+		break;
+	default:
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	p->cnr.stat[0].uvalue = snrval;
+}
+
 static void stv0367ddb_read_ucblocks(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
@@ -3039,6 +3072,12 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 	/* stop and report on *_read_status failure */
 	if (ret)
 		return ret;
+
+	/* read carrier/noise when a carrier is detected */
+	if (*status & FE_HAS_CARRIER)
+		stv0367ddb_read_snr(fe);
+	else
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	/* stop if demod isn't locked */
 	if (!(*status & FE_HAS_LOCK)) {
