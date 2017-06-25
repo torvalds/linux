@@ -698,7 +698,8 @@ static const struct nla_policy gtp_policy[IFLA_GTP_MAX + 1] = {
 	[IFLA_GTP_ROLE]			= { .type = NLA_U32 },
 };
 
-static int gtp_validate(struct nlattr *tb[], struct nlattr *data[])
+static int gtp_validate(struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	if (!data)
 		return -EINVAL;

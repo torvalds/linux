@@ -375,7 +375,8 @@ static int ipip_tunnel_init(struct net_device *dev)
 	return ip_tunnel_init(dev);
 }
 
-static int ipip_tunnel_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ipip_tunnel_validate(struct nlattr *tb[], struct nlattr *data[],
+				struct netlink_ext_ack *extack)
 {
 	u8 proto;
 

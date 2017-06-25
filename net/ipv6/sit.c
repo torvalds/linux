@@ -1406,7 +1406,8 @@ static void __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
 }
 
-static int ipip6_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ipip6_validate(struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	u8 proto;
 
