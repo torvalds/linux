@@ -42,6 +42,8 @@ static int
 nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 			       struct nfp_net *nn, unsigned int id)
 {
+	int err;
+
 	if (!pf->eth_tbl)
 		return 0;
 
@@ -49,26 +51,13 @@ nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 	if (IS_ERR(nn->port))
 		return PTR_ERR(nn->port);
 
-	nn->port->eth_id = id;
-	nn->port->eth_port = nfp_net_find_port(pf->eth_tbl, id);
-
-	/* Check if vNIC has external port associated and cfg is OK */
-	if (!nn->port->eth_port) {
-		nfp_err(app->cpp,
-			"NSP port entries don't match vNICs (no entry for port #%d)\n",
-			id);
+	err = nfp_port_init_phy_port(pf, app, nn->port, id);
+	if (err) {
 		nfp_port_free(nn->port);
-		return -EINVAL;
-	}
-	if (nn->port->eth_port->override_changed) {
-		nfp_warn(app->cpp,
-			 "Config changed for port #%d, reboot required before port will be operational\n",
-			 id);
-		nn->port->type = NFP_PORT_INVALID;
-		return 1;
+		return err;
 	}
 
-	return 0;
+	return nn->port->type == NFP_PORT_INVALID;
 }
 
 int nfp_app_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn,
@@ -80,7 +69,7 @@ int nfp_app_nic_vnic_init(struct nfp_app *app, struct nfp_net *nn,
 	if (err)
 		return err < 0 ? err : 0;
 
-	nfp_net_get_mac_addr(app->pf, nn, id);
+	nfp_net_get_mac_addr(app->pf, nn->port, id);
 
 	return 0;
 }

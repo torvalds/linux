@@ -34,6 +34,10 @@
 #ifndef _NFP_APP_H
 #define _NFP_APP_H 1
 
+#include <net/devlink.h>
+
+#include "nfp_net_repr.h"
+
 struct bpf_prog;
 struct net_device;
 struct pci_dev;
@@ -48,10 +52,12 @@ struct nfp_net;
 enum nfp_app_id {
 	NFP_APP_CORE_NIC	= 0x1,
 	NFP_APP_BPF_NIC		= 0x2,
+	NFP_APP_FLOWER_NIC	= 0x3,
 };
 
 extern const struct nfp_app_type app_nic;
 extern const struct nfp_app_type app_bpf;
+extern const struct nfp_app_type app_flower;
 
 /**
  * struct nfp_app_type - application definition
@@ -70,6 +76,10 @@ extern const struct nfp_app_type app_bpf;
  * @setup_tc:	setup TC ndo
  * @tc_busy:	TC HW offload busy (rules loaded)
  * @xdp_offload:    offload an XDP program
+ * @eswitch_mode_get:    get SR-IOV eswitch mode
+ * @sriov_enable: app-specific sriov initialisation
+ * @sriov_disable: app-specific sriov clean-up
+ * @repr_get:	get representor netdev
  */
 struct nfp_app_type {
 	enum nfp_app_id id;
@@ -95,6 +105,12 @@ struct nfp_app_type {
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
 			   struct bpf_prog *prog);
+
+	int (*sriov_enable)(struct nfp_app *app, int num_vfs);
+	void (*sriov_disable)(struct nfp_app *app);
+
+	enum devlink_eswitch_mode (*eswitch_mode_get)(struct nfp_app *app);
+	struct net_device *(*repr_get)(struct nfp_app *app, u32 id);
 };
 
 /**
@@ -103,7 +119,9 @@ struct nfp_app_type {
  * @pf:		backpointer to NFP PF structure
  * @cpp:	pointer to the CPP handle
  * @ctrl:	pointer to ctrl vNIC struct
+ * @reprs:	array of pointers to representors
  * @type:	pointer to const application ops and info
+ * @priv:	app-specific priv data
  */
 struct nfp_app {
 	struct pci_dev *pdev;
@@ -111,8 +129,10 @@ struct nfp_app {
 	struct nfp_cpp *cpp;
 
 	struct nfp_net *ctrl;
+	struct nfp_reprs __rcu *reprs[NFP_REPR_TYPE_MAX + 1];
 
 	const struct nfp_app_type *type;
+	void *priv;
 };
 
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
@@ -216,8 +236,44 @@ static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 	app->type->ctrl_msg_rx(app, skb);
 }
 
+static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
+{
+	if (!app->type->eswitch_mode_get)
+		return -EOPNOTSUPP;
+
+	*mode = app->type->eswitch_mode_get(app);
+
+	return 0;
+}
+
+static inline int nfp_app_sriov_enable(struct nfp_app *app, int num_vfs)
+{
+	if (!app || !app->type->sriov_enable)
+		return -EOPNOTSUPP;
+	return app->type->sriov_enable(app, num_vfs);
+}
+
+static inline void nfp_app_sriov_disable(struct nfp_app *app)
+{
+	if (app && app->type->sriov_disable)
+		app->type->sriov_disable(app);
+}
+
+static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)
+{
+	if (unlikely(!app || !app->type->repr_get))
+		return NULL;
+
+	return app->type->repr_get(app, id);
+}
+
+struct nfp_reprs *
+nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
+		  struct nfp_reprs *reprs);
+
 const char *nfp_app_mip_name(struct nfp_app *app);
-struct sk_buff *nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size);
+struct sk_buff *
+nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size, gfp_t priority);
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id);
 void nfp_app_free(struct nfp_app *app);

@@ -190,7 +190,9 @@ nfp_eth_calc_port_geometry(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 {
 	unsigned int i, j;
 
-	for (i = 0; i < table->count; i++)
+	for (i = 0; i < table->count; i++) {
+		table->max_index = max(table->max_index, table->ports[i].index);
+
 		for (j = 0; j < table->count; j++) {
 			if (table->ports[i].label_port !=
 			    table->ports[j].label_port)
@@ -208,6 +210,7 @@ nfp_eth_calc_port_geometry(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 
 			table->ports[i].is_split = true;
 		}
+	}
 }
 
 static void

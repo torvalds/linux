@@ -76,6 +76,7 @@ enum nfp_eth_aneg {
 /**
  * struct nfp_eth_table - ETH table information
  * @count:	number of table entries
+ * @max_index:	max of @index fields of all @ports
  * @ports:	table of ports
  *
  * @eth_index:	port index according to legacy ethX numbering
@@ -101,6 +102,7 @@ enum nfp_eth_aneg {
  */
 struct nfp_eth_table {
 	unsigned int count;
+	unsigned int max_index;
 	struct nfp_eth_table_port {
 		unsigned int eth_index;
 		unsigned int index;
