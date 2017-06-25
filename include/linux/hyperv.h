@@ -1472,55 +1472,6 @@ hv_get_ring_buffer(const struct hv_ring_buffer_info *ring_info)
 }
 
 /*
- * To optimize the flow management on the send-side,
- * when the sender is blocked because of lack of
- * sufficient space in the ring buffer, potential the
- * consumer of the ring buffer can signal the producer.
- * This is controlled by the following parameters:
- *
- * 1. pending_send_sz: This is the size in bytes that the
- *    producer is trying to send.
- * 2. The feature bit feat_pending_send_sz set to indicate if
- *    the consumer of the ring will signal when the ring
- *    state transitions from being full to a state where
- *    there is room for the producer to send the pending packet.
- */
-
-static inline  void hv_signal_on_read(struct vmbus_channel *channel)
-{
-	u32 cur_write_sz, cached_write_sz;
-	u32 pending_sz;
-	struct hv_ring_buffer_info *rbi = &channel->inbound;
-
-	/*
-	 * Issue a full memory barrier before making the signaling decision.
-	 * Here is the reason for having this barrier:
-	 * If the reading of the pend_sz (in this function)
-	 * were to be reordered and read before we commit the new read
-	 * index (in the calling function)  we could
-	 * have a problem. If the host were to set the pending_sz after we
-	 * have sampled pending_sz and go to sleep before we commit the
-	 * read index, we could miss sending the interrupt. Issue a full
-	 * memory barrier to address this.
-	 */
-	virt_mb();
-
-	pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
-	/* If the other end is not blocked on write don't bother. */
-	if (pending_sz == 0)
-		return;
-
-	cur_write_sz = hv_get_bytes_to_write(rbi);
-
-	if (cur_write_sz < pending_sz)
-		return;
-
-	cached_write_sz = hv_get_cached_bytes_to_write(rbi);
-	if (cached_write_sz < pending_sz)
-		vmbus_setevent(channel);
-}
-
-/*
  * Mask off host interrupt callback notifications
  */
 static inline void hv_begin_read(struct hv_ring_buffer_info *rbi)

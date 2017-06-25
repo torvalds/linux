@@ -29,6 +29,7 @@
 #include <linux/uio.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 
 #include "hyperv_vmbus.h"
 
@@ -357,7 +358,7 @@ struct vmpacket_descriptor *hv_pkt_iter_first(struct vmbus_channel *channel)
 {
 	struct hv_ring_buffer_info *rbi = &channel->inbound;
 
-	/* set state for later hv_signal_on_read() */
+	/* set state for later hv_pkt_iter_close */
 	rbi->cached_read_index = rbi->ring_buffer->read_index;
 
 	if (hv_pkt_iter_avail(rbi) < sizeof(struct vmpacket_descriptor))
@@ -400,6 +401,8 @@ EXPORT_SYMBOL_GPL(__hv_pkt_iter_next);
 void hv_pkt_iter_close(struct vmbus_channel *channel)
 {
 	struct hv_ring_buffer_info *rbi = &channel->inbound;
+	u32 cur_write_sz, cached_write_sz;
+	u32 pending_sz;
 
 	/*
 	 * Make sure all reads are done before we update the read index since
@@ -409,6 +412,31 @@ void hv_pkt_iter_close(struct vmbus_channel *channel)
 	virt_rmb();
 	rbi->ring_buffer->read_index = rbi->priv_read_index;
 
-	hv_signal_on_read(channel);
+	/*
+	 * Issue a full memory barrier before making the signaling decision.
+	 * Here is the reason for having this barrier:
+	 * If the reading of the pend_sz (in this function)
+	 * were to be reordered and read before we commit the new read
+	 * index (in the calling function)  we could
+	 * have a problem. If the host were to set the pending_sz after we
+	 * have sampled pending_sz and go to sleep before we commit the
+	 * read index, we could miss sending the interrupt. Issue a full
+	 * memory barrier to address this.
+	 */
+	virt_mb();
+
+	pending_sz = READ_ONCE(rbi->ring_buffer->pending_send_sz);
+	/* If the other end is not blocked on write don't bother. */
+	if (pending_sz == 0)
+		return;
+
+	cur_write_sz = hv_get_bytes_to_write(rbi);
+
+	if (cur_write_sz < pending_sz)
+		return;
+
+	cached_write_sz = hv_get_cached_bytes_to_write(rbi);
+	if (cached_write_sz < pending_sz)
+		vmbus_setevent(channel);
 }
 EXPORT_SYMBOL_GPL(hv_pkt_iter_close);
