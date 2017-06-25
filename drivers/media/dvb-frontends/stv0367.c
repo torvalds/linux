@@ -2998,6 +2998,25 @@ static int stv0367ddb_set_frontend(struct dvb_frontend *fe)
 	return -EINVAL;
 }
 
+static void stv0367ddb_read_signal_strength(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	s32 signalstrength;
+
+	switch (state->activedemod) {
+	case demod_cab:
+		signalstrength = stv0367cab_get_rf_lvl(state) * 1000;
+		break;
+	default:
+		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
+	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	p->strength.stat[0].uvalue = signalstrength;
+}
+
 static void stv0367ddb_read_snr(struct dvb_frontend *fe)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
@@ -3074,6 +3093,8 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 	/* stop and report on *_read_status failure */
 	if (ret)
 		return ret;
+
+	stv0367ddb_read_signal_strength(fe);
 
 	/* read carrier/noise when a carrier is detected */
 	if (*status & FE_HAS_CARRIER)
