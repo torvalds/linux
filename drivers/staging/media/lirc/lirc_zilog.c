@@ -184,10 +184,8 @@ static void release_ir_device(struct kref *ref)
 	 * ir->open_count ==  0 - happens on final close()
 	 * ir_lock, tx_ref_lock, rx_ref_lock, all released
 	 */
-	if (ir->l) {
+	if (ir->l)
 		lirc_unregister_device(ir->l);
-		lirc_free_device(ir->l);
-	}
 
 	if (kfifo_initialized(&ir->rbuf.fifo))
 		lirc_buffer_free(&ir->rbuf);
@@ -318,7 +316,7 @@ static int add_to_buf(struct IR *ir)
 	int ret;
 	int failures = 0;
 	unsigned char sendbuf[1] = { 0 };
-	struct lirc_buffer *rbuf = ir->l->rbuf;
+	struct lirc_buffer *rbuf = ir->l->buf;
 	struct IR_rx *rx;
 	struct IR_tx *tx;
 
@@ -464,7 +462,7 @@ static int add_to_buf(struct IR *ir)
 static int lirc_thread(void *arg)
 {
 	struct IR *ir = arg;
-	struct lirc_buffer *rbuf = ir->l->rbuf;
+	struct lirc_buffer *rbuf = ir->l->buf;
 
 	dev_dbg(ir->dev, "poll thread started\n");
 
@@ -885,7 +883,7 @@ static ssize_t read(struct file *filep, char __user *outbuf, size_t n,
 {
 	struct IR *ir = lirc_get_pdata(filep);
 	struct IR_rx *rx;
-	struct lirc_buffer *rbuf = ir->l->rbuf;
+	struct lirc_buffer *rbuf = ir->l->buf;
 	int ret = 0, written = 0, retries = 0;
 	unsigned int m;
 	DECLARE_WAITQUEUE(wait, current);
@@ -1203,7 +1201,7 @@ static unsigned int poll(struct file *filep, poll_table *wait)
 {
 	struct IR *ir = lirc_get_pdata(filep);
 	struct IR_rx *rx;
-	struct lirc_buffer *rbuf = ir->l->rbuf;
+	struct lirc_buffer *rbuf = ir->l->buf;
 	unsigned int ret;
 
 	dev_dbg(ir->dev, "%s called\n", __func__);
@@ -1449,6 +1447,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->l->code_length = 13;
 		ir->l->fops = &lirc_fops;
 		ir->l->owner = THIS_MODULE;
+		ir->l->dev.parent = &adap->dev;
 
 		/*
 		 * FIXME this is a pointer reference to us, but no refcount.
@@ -1456,13 +1455,12 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 * This OK for now, since lirc_dev currently won't touch this
 		 * buffer as we provide our own lirc_fops.
 		 *
-		 * Currently our own lirc_fops rely on this ir->l->rbuf pointer
+		 * Currently our own lirc_fops rely on this ir->l->buf pointer
 		 */
-		ir->l->rbuf = &ir->rbuf;
-		ir->l->dev  = &adap->dev;
+		ir->l->buf = &ir->rbuf;
 		/* This will be returned by lirc_get_pdata() */
 		ir->l->data = ir;
-		ret = lirc_buffer_init(ir->l->rbuf, 2, BUFLEN / 2);
+		ret = lirc_buffer_init(ir->l->buf, 2, BUFLEN / 2);
 		if (ret) {
 			lirc_free_device(ir->l);
 			ir->l = NULL;

@@ -17,6 +17,8 @@
 #include <linux/poll.h>
 #include <linux/kfifo.h>
 #include <media/lirc.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
 
 struct lirc_buffer {
 	wait_queue_head_t wait_poll;
@@ -127,14 +129,19 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *			LIRC_CAN_SET_REC_TIMEOUT is defined.
  * @max_timeout:	Maximum timeout for record. Valid only if
  *			LIRC_CAN_SET_REC_TIMEOUT is defined.
- * @rbuf:		if not NULL, it will be used as a read buffer, you will
+ * @buf:		if %NULL, lirc_dev will allocate and manage the buffer,
+ *			otherwise allocated by the caller which will
  *			have to write to the buffer by other means, like irq's
  *			(see also lirc_serial.c).
+ * @buf_internal:	whether lirc_dev has allocated the read buffer or not
  * @rdev:		&struct rc_dev associated with the device
  * @fops:		&struct file_operations for the device
- * @dev:		&struct device assigned to the device
  * @owner:		the module owning this struct
- * @irctl:		&struct irctl assigned to the device
+ * @attached:		if the device is still live
+ * @open:		open count for the device's chardev
+ * @mutex:		serialises file_operations calls
+ * @dev:		&struct device assigned to the device
+ * @cdev:		&struct cdev assigned to the device
  */
 struct lirc_dev {
 	char name[40];
@@ -144,16 +151,23 @@ struct lirc_dev {
 
 	unsigned int buffer_size; /* in chunks holding one code each */
 	unsigned int chunk_size;
+	struct lirc_buffer *buf;
+	bool buf_internal;
 
 	void *data;
 	int min_timeout;
 	int max_timeout;
-	struct lirc_buffer *rbuf;
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
-	struct device *dev;
 	struct module *owner;
-	struct irctl *irctl;
+
+	bool attached;
+	int open;
+
+	struct mutex mutex; /* protect from simultaneous accesses */
+
+	struct device dev;
+	struct cdev cdev;
 };
 
 struct lirc_dev *lirc_allocate_device(void);

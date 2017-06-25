@@ -35,7 +35,7 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct lirc_codec *lirc = &dev->raw->lirc;
 	int sample;
 
-	if (!dev->raw->lirc.ldev || !dev->raw->lirc.ldev->rbuf)
+	if (!dev->raw->lirc.ldev || !dev->raw->lirc.ldev->buf)
 		return -EINVAL;
 
 	/* Packet start */
@@ -84,7 +84,7 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 							(u64)LIRC_VALUE_MASK);
 
 			gap_sample = LIRC_SPACE(lirc->gap_duration);
-			lirc_buffer_write(dev->raw->lirc.ldev->rbuf,
+			lirc_buffer_write(dev->raw->lirc.ldev->buf,
 					  (unsigned char *)&gap_sample);
 			lirc->gap = false;
 		}
@@ -95,9 +95,9 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			   TO_US(ev.duration), TO_STR(ev.pulse));
 	}
 
-	lirc_buffer_write(dev->raw->lirc.ldev->rbuf,
+	lirc_buffer_write(dev->raw->lirc.ldev->buf,
 			  (unsigned char *) &sample);
-	wake_up(&dev->raw->lirc.ldev->rbuf->wait_poll);
+	wake_up(&dev->raw->lirc.ldev->buf->wait_poll);
 
 	return 0;
 }
@@ -384,12 +384,12 @@ static int ir_lirc_register(struct rc_dev *dev)
 		 dev->driver_name);
 	ldev->features = features;
 	ldev->data = &dev->raw->lirc;
-	ldev->rbuf = NULL;
+	ldev->buf = NULL;
 	ldev->code_length = sizeof(struct ir_raw_event) * 8;
 	ldev->chunk_size = sizeof(int);
 	ldev->buffer_size = LIRCBUF_SIZE;
 	ldev->fops = &lirc_fops;
-	ldev->dev = &dev->dev;
+	ldev->dev.parent = &dev->dev;
 	ldev->rdev = dev;
 	ldev->owner = THIS_MODULE;
 
@@ -402,7 +402,7 @@ static int ir_lirc_register(struct rc_dev *dev)
 	return 0;
 
 out:
-	kfree(ldev);
+	lirc_free_device(ldev);
 	return rc;
 }
 
@@ -411,7 +411,6 @@ static int ir_lirc_unregister(struct rc_dev *dev)
 	struct lirc_codec *lirc = &dev->raw->lirc;
 
 	lirc_unregister_device(lirc->ldev);
-	kfree(lirc->ldev);
 	lirc->ldev = NULL;
 
 	return 0;
