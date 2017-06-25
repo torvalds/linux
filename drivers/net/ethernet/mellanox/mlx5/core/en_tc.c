@@ -56,12 +56,14 @@ struct mlx5_nic_flow_attr {
 	u32 action;
 	u32 flow_tag;
 	u32 mod_hdr_id;
+	u32 hairpin_tirn;
 };
 
 enum {
 	MLX5E_TC_FLOW_ESWITCH	= BIT(0),
 	MLX5E_TC_FLOW_NIC	= BIT(1),
 	MLX5E_TC_FLOW_OFFLOADED	= BIT(2),
+	MLX5E_TC_FLOW_HAIRPIN	= BIT(3),
 };
 
 struct mlx5e_tc_flow {
@@ -71,6 +73,7 @@ struct mlx5e_tc_flow {
 	struct mlx5_flow_handle *rule;
 	struct list_head	encap;   /* flows sharing the same encap ID */
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
+	struct list_head	hairpin; /* flows sharing the same hairpin */
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
@@ -79,6 +82,7 @@ struct mlx5e_tc_flow {
 
 struct mlx5e_tc_flow_parse_attr {
 	struct mlx5_flow_spec spec;
+	int peer_ifindex;
 	int num_mod_hdr_actions;
 	void *mod_hdr_actions;
 };
@@ -115,6 +119,18 @@ int mlx5_hairpin_set(struct mlx5_core_dev *func_mdev,
 
 void mlx5_hairpin_unset(struct mlx5_hairpin_ctx *func_ctx,
 			struct mlx5_hairpin_ctx *peer_ctx);
+
+struct mlx5e_hairpin_entry {
+	/* a node of a hash table which keeps all the  hairpin entries */
+	struct hlist_node hairpin_hlist;
+
+	/* flows sharing the same hairpin */
+	struct list_head flows;
+
+	int peer_ifindex;
+	struct mlx5_hairpin_ctx *ctx;
+	struct mlx5e_priv *peer_priv;
+};
 
 struct mod_hdr_key {
 	int num_actions;
@@ -245,6 +261,125 @@ static void mlx5e_detach_mod_hdr(struct mlx5e_priv *priv,
 	}
 }
 
+static struct mlx5e_hairpin_entry *mlx5e_hairpin_get(struct mlx5e_priv *priv,
+						     int peer_ifindex)
+{
+	struct mlx5e_hairpin_entry *hp;
+
+	hash_for_each_possible(priv->fs.tc.hairpin_tbl, hp,
+			       hairpin_hlist, peer_ifindex) {
+		if (hp->peer_ifindex == peer_ifindex)
+			return hp;
+	}
+
+	return NULL;
+}
+
+static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
+				  struct mlx5e_tc_flow *flow,
+				  struct mlx5e_tc_flow_parse_attr *parse_attr)
+{
+	int peer_ifindex = parse_attr->peer_ifindex;
+	int func_ifindex = priv->netdev->ifindex;
+	struct mlx5e_hairpin_entry *hp, *php;
+	struct mlx5_hairpin_params params;
+	struct mlx5e_priv *peer_priv;
+	struct net_device *peer_dev;
+	int err;
+
+	if (!MLX5_CAP_GEN(priv->mdev, hairpin)) {
+		printk(KERN_ERR "%s hairpin cap not supported\n", __func__);
+		return -EOPNOTSUPP;
+	} else {
+		printk(KERN_ERR "%s hairpin cap supported vhca_id %d log_max_hairpin wq_data_sz %d num_packets %d queues %d\n",
+			__func__,  MLX5_CAP_GEN(priv->mdev, vhca_id), MLX5_CAP_GEN(priv->mdev,log_max_hairpin_wq_data_sz),
+			MLX5_CAP_GEN(priv->mdev,log_max_hairpin_num_packets), MLX5_CAP_GEN(priv->mdev,log_max_hairpin_queues));
+	}
+
+	hp = mlx5e_hairpin_get(priv, peer_ifindex);
+	if (hp)
+		goto attach_flow;
+
+	hp = kzalloc(sizeof(*hp), GFP_KERNEL);
+	php = kzalloc(sizeof(*php), GFP_KERNEL);
+	if (!hp || !php) {
+		err = -ENOMEM;
+		goto out_err;
+	}
+
+	peer_dev = __dev_get_by_index(dev_net(priv->netdev), peer_ifindex);
+	peer_priv = netdev_priv(peer_dev);
+
+	INIT_LIST_HEAD(&hp->flows);
+	hp->peer_ifindex = peer_ifindex;
+	hp->peer_priv = peer_priv;
+
+	INIT_LIST_HEAD(&php->flows);
+	php->peer_ifindex = func_ifindex;
+	php->peer_priv = priv;
+
+	params.num_channels = 1; /* no RSS */
+	params.log_num_packets = 7; /* 128 packets */
+	params.log_data_size = ilog2(roundup_pow_of_two(MLX5E_SW2HW_MTU(priv, priv->netdev->mtu)))
+			       + params.log_num_packets;
+
+	err = mlx5_hairpin_set(priv->mdev, peer_priv->mdev, &params, &hp->ctx, &php->ctx);
+	if (err)
+		goto out_err;
+
+	hash_add(priv->fs.tc.hairpin_tbl, &hp->hairpin_hlist, peer_ifindex);
+
+	/* for self hairpin, there's no peer hairpin entry, free it */
+	if (func_ifindex != peer_ifindex)
+		hash_add(peer_priv->fs.tc.hairpin_tbl, &php->hairpin_hlist, func_ifindex);
+	else
+		kfree(php);
+
+attach_flow:
+	flow->nic_attr->hairpin_tirn = hp->ctx->tirn;
+	list_add(&flow->hairpin, &hp->flows);
+
+	return 0;
+
+out_err:
+	kfree(hp);
+	kfree(php);
+	return err;
+}
+
+static void mlx5e_hairpin_flow_rem(struct mlx5e_priv *priv,
+				   struct mlx5e_tc_flow *flow)
+{
+	struct list_head *next = flow->hairpin.next;
+
+	list_del(&flow->hairpin);
+
+	/* no more hairpin flows for us, attemp to release the hairpin pair */
+	if (list_empty(next)) {
+		struct mlx5e_hairpin_entry *hp, *php;
+
+		hp = list_entry(next, struct mlx5e_hairpin_entry, flows);
+		php = mlx5e_hairpin_get(hp->peer_priv, priv->netdev->ifindex);
+
+		/* peer still has flows, cleanup will take place later,
+		 * this logic holds also for self hairpin.
+		 */
+		if (!list_empty(&php->flows))
+			return;
+
+		mlx5_hairpin_unset(hp->ctx, php->ctx);
+
+		hash_del(&hp->hairpin_hlist);
+		kfree(hp);
+
+		/* avoid double free on self hairpin */
+		if (hp != php) {
+			hash_del(&php->hairpin_hlist);
+			kfree(php);
+		}
+	}
+}
+
 static struct mlx5_flow_handle *
 mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow_parse_attr *parse_attr,
@@ -252,7 +387,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 {
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	struct mlx5_core_dev *dev = priv->mdev;
-	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {
 		.action = attr->action,
 		.flow_tag = attr->flow_tag,
@@ -261,18 +396,32 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5_fc *counter = NULL;
 	struct mlx5_flow_handle *rule;
 	bool table_created = false;
-	int err;
+	int err, dest_ix = 0;
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-		dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-		dest.ft = priv->fs.vlan.ft.t;
-	} else if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		if (flow->flags & MLX5E_TC_FLOW_HAIRPIN) {
+			err = mlx5e_hairpin_flow_add(priv, flow, parse_attr);
+			if (err) {
+				rule = ERR_PTR(err);
+				goto err_add_hairpin_flow;
+			}
+			dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+			dest[dest_ix].tir_num = attr->hairpin_tirn;
+		} else {
+			dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+			dest[dest_ix].ft = priv->fs.vlan.ft.t;
+		}
+		dest_ix++;
+	}
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		counter = mlx5_fc_create(dev, true);
 		if (IS_ERR(counter))
 			return ERR_CAST(counter);
 
-		dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		dest.counter = counter;
+		dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+		dest[dest_ix].counter = counter;
+		dest_ix++;
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
@@ -315,7 +464,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 
 	parse_attr->spec.match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	rule = mlx5_add_flow_rules(priv->fs.tc.t, &parse_attr->spec,
-				   &flow_act, &dest, 1);
+				   &flow_act, dest, dest_ix);
 
 	if (IS_ERR(rule))
 		goto err_add_rule;
@@ -331,8 +480,10 @@ err_create_ft:
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
 err_create_mod_hdr_id:
+	if (flow->flags & MLX5E_TC_FLOW_HAIRPIN)
+		mlx5e_hairpin_flow_rem(priv, flow);
+err_add_hairpin_flow:
 	mlx5_fc_destroy(dev, counter);
-
 	return rule;
 }
 
@@ -353,6 +504,9 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
+
+	if (flow->flags & MLX5E_TC_FLOW_HAIRPIN)
+		mlx5e_hairpin_flow_rem(priv, flow);
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
@@ -1458,6 +1612,25 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			return -EOPNOTSUPP;
 		}
 
+		if (is_tcf_mirred_egress_redirect(a)) {
+			int ifindex = tcf_mirred_ifindex(a);
+			struct net_device *peer_dev;
+
+			peer_dev = __dev_get_by_index(dev_net(priv->netdev), ifindex);
+
+			if (priv->netdev->netdev_ops == peer_dev->netdev_ops) { /* FIXME this isn't enough */
+				attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+					MLX5_FLOW_CONTEXT_ACTION_COUNT;
+				parse_attr->peer_ifindex = ifindex;
+				flow->flags |= MLX5E_TC_FLOW_HAIRPIN;
+			} else {
+				pr_err("devices %s %s not on same NIC, can't offload forwarding\n",
+				       priv->netdev->name, peer_dev->name);
+				return -EINVAL;
+			}
+			continue;
+		}
+
 		if (is_tcf_skbedit_mark(a)) {
 			u32 mark = tcf_skbedit_mark(a);
 
@@ -2190,6 +2363,7 @@ int mlx5e_tc_init(struct mlx5e_priv *priv)
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
 
 	hash_init(tc->mod_hdr_tbl);
+	hash_init(tc->hairpin_tbl);
 
 	tc->ht_params = mlx5e_tc_flow_ht_params;
 	return rhashtable_init(&tc->ht, &tc->ht_params);
