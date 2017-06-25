@@ -1409,7 +1409,8 @@ void macvlan_dellink(struct net_device *dev, struct list_head *head)
 EXPORT_SYMBOL_GPL(macvlan_dellink);
 
 static int macvlan_changelink(struct net_device *dev,
-		struct nlattr *tb[], struct nlattr *data[])
+			      struct nlattr *tb[], struct nlattr *data[],
+			      struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	enum macvlan_mode mode;

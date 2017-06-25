@@ -455,7 +455,8 @@ static const struct ethtool_ops ipvlan_ethtool_ops = {
 };
 
 static int ipvlan_nl_changelink(struct net_device *dev,
-				struct nlattr *tb[], struct nlattr *data[])
+				struct nlattr *tb[], struct nlattr *data[],
+				struct netlink_ext_ack *extack)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port = ipvlan_port_get_rtnl(ipvlan->phy_dev);

@@ -1404,7 +1404,8 @@ out:
 }
 
 static int ip6gre_changelink(struct net_device *dev, struct nlattr *tb[],
-			    struct nlattr *data[])
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
 {
 	struct ip6_tnl *t, *nt = netdev_priv(dev);
 	struct net *net = nt->net;

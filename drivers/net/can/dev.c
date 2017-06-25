@@ -880,8 +880,9 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int can_changelink(struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+static int can_changelink(struct net_device *dev, struct nlattr *tb[],
+			  struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct can_priv *priv = netdev_priv(dev);
 	int err;
