@@ -3081,13 +3081,11 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 	else
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
-	/* stop if demod isn't locked */
-	if (!(*status & FE_HAS_LOCK)) {
+	/* read uncorrected blocks on FE_HAS_LOCK */
+	if (*status & FE_HAS_LOCK)
+		stv0367ddb_read_ucblocks(fe);
+	else
 		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		return ret;
-	}
-
-	stv0367ddb_read_ucblocks(fe);
 
 	return 0;
 }
