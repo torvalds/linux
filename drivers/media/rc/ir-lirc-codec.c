@@ -347,7 +347,7 @@ static int ir_lirc_register(struct rc_dev *dev)
 	int rc = -ENOMEM;
 	unsigned long features = 0;
 
-	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
+	ldev = lirc_allocate_device();
 	if (!ldev)
 		return rc;
 

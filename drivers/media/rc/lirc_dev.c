@@ -103,6 +103,19 @@ out:
 	return err;
 }
 
+struct lirc_dev *
+lirc_allocate_device(void)
+{
+	return kzalloc(sizeof(struct lirc_dev), GFP_KERNEL);
+}
+EXPORT_SYMBOL(lirc_allocate_device);
+
+void lirc_free_device(struct lirc_dev *d)
+{
+	kfree(d);
+}
+EXPORT_SYMBOL(lirc_free_device);
+
 int lirc_register_device(struct lirc_dev *d)
 {
 	struct irctl *ir;

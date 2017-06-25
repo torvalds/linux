@@ -156,11 +156,10 @@ struct lirc_dev {
 	struct irctl *irctl;
 };
 
-/* following functions can be called ONLY from user context
- *
- * returns negative value on error or zero
- * contents of the structure pointed by p is copied
- */
+struct lirc_dev *lirc_allocate_device(void);
+
+void lirc_free_device(struct lirc_dev *d);
+
 int lirc_register_device(struct lirc_dev *d);
 
 void lirc_unregister_device(struct lirc_dev *d);
