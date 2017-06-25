@@ -1509,7 +1509,8 @@ static int stv0367ter_read_status(struct dvb_frontend *fe,
 	*status = 0;
 
 	if (stv0367_readbits(state, F367TER_LK)) {
-		*status |= FE_HAS_LOCK;
+		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI
+			  | FE_HAS_SYNC | FE_HAS_LOCK;
 		dprintk("%s: stv0367 has locked\n", __func__);
 	}
 
@@ -2156,6 +2157,18 @@ static int stv0367cab_read_status(struct dvb_frontend *fe,
 	dprintk("%s:\n", __func__);
 
 	*status = 0;
+
+	if (state->cab_state->state > FE_CAB_NOSIGNAL)
+		*status |= FE_HAS_SIGNAL;
+
+	if (state->cab_state->state > FE_CAB_NOCARRIER)
+		*status |= FE_HAS_CARRIER;
+
+	if (state->cab_state->state >= FE_CAB_DEMODOK)
+		*status |= FE_HAS_VITERBI;
+
+	if (state->cab_state->state >= FE_CAB_DATAOK)
+		*status |= FE_HAS_SYNC;
 
 	if (stv0367_readbits(state, (state->cab_state->qamfec_status_reg ?
 		state->cab_state->qamfec_status_reg : F367CAB_QAMFEC_LOCK))) {
