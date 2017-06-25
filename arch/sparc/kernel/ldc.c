@@ -1347,6 +1347,14 @@ int ldc_bind(struct ldc_channel *lp)
 	lp->hs_state = LDC_HS_OPEN;
 	ldc_set_state(lp, LDC_STATE_BOUND);
 
+	if (lp->cfg.mode == LDC_MODE_RAW) {
+		/*
+		 * There is no handshake in RAW mode, so handshake
+		 * is completed.
+		 */
+		lp->hs_state = LDC_HS_COMPLETE;
+	}
+
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	return 0;
@@ -1460,11 +1468,13 @@ void ldc_set_state(struct ldc_channel *lp, u8 state)
 
 	lp->state = state;
 }
+EXPORT_SYMBOL(ldc_set_state);
 
 int ldc_mode(struct ldc_channel *lp)
 {
 	return lp->cfg.mode;
 }
+EXPORT_SYMBOL(ldc_mode);
 
 int ldc_rx_reset(struct ldc_channel *lp)
 {
