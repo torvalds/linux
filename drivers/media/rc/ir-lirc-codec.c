@@ -382,7 +382,6 @@ static int ir_lirc_register(struct rc_dev *dev)
 
 	snprintf(drv->name, sizeof(drv->name), "ir-lirc-codec (%s)",
 		 dev->driver_name);
-	drv->minor = -1;
 	drv->features = features;
 	drv->data = &dev->raw->lirc;
 	drv->rbuf = NULL;
@@ -394,11 +393,9 @@ static int ir_lirc_register(struct rc_dev *dev)
 	drv->rdev = dev;
 	drv->owner = THIS_MODULE;
 
-	drv->minor = lirc_register_driver(drv);
-	if (drv->minor < 0) {
-		rc = -ENODEV;
+	rc = lirc_register_driver(drv);
+	if (rc < 0)
 		goto out;
-	}
 
 	dev->raw->lirc.drv = drv;
 	dev->raw->lirc.dev = dev;
@@ -413,7 +410,7 @@ static int ir_lirc_unregister(struct rc_dev *dev)
 {
 	struct lirc_codec *lirc = &dev->raw->lirc;
 
-	lirc_unregister_driver(lirc->drv->minor);
+	lirc_unregister_driver(lirc->drv);
 	kfree(lirc->drv);
 	lirc->drv = NULL;
 

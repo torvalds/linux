@@ -183,10 +183,7 @@ static void release_ir_device(struct kref *ref)
 	 * ir->open_count ==  0 - happens on final close()
 	 * ir_lock, tx_ref_lock, rx_ref_lock, all released
 	 */
-	if (ir->l.minor >= 0) {
-		lirc_unregister_driver(ir->l.minor);
-		ir->l.minor = -1;
-	}
+	lirc_unregister_driver(&ir->l);
 
 	if (kfifo_initialized(&ir->rbuf.fifo))
 		lirc_buffer_free(&ir->rbuf);
@@ -1385,7 +1382,6 @@ static const struct file_operations lirc_fops = {
 
 static struct lirc_driver lirc_template = {
 	.name		= "lirc_zilog",
-	.minor		= -1,
 	.code_length	= 13,
 	.buffer_size	= BUFLEN / 2,
 	.chunk_size	= 2,
@@ -1599,14 +1595,14 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	/* register with lirc */
-	ir->l.minor = lirc_register_driver(&ir->l);
-	if (ir->l.minor < 0) {
+	ret = lirc_register_driver(&ir->l);
+	if (ret < 0) {
 		dev_err(tx->ir->l.dev,
 			"%s: lirc_register_driver() failed: %i\n",
-			__func__, ir->l.minor);
-		ret = -EBADRQC;
+			__func__, ret);
 		goto out_put_xx;
 	}
+
 	dev_info(ir->l.dev,
 		 "IR unit on %s (i2c-%d) registered as lirc%d and ready\n",
 		 adap->name, adap->nr, ir->l.minor);

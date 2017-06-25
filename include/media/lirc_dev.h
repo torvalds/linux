@@ -116,10 +116,8 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *
  * @name:		this string will be used for logs
  *
- * @minor:		indicates minor device (/dev/lirc) number for
- *			registered driver if caller fills it with negative
- *			value, then the first free minor number will be used
- *			(if available).
+ * @minor:		the minor device (/dev/lircX) number for a registered
+ *			driver.
  *
  * @code_length:	length of the remote control key code expressed in bits.
  *
@@ -157,10 +155,12 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *			device.
  *
  * @owner:		the module owning this struct
+ *
+ * @irctl:		the struct irctl for this LIRC device.
  */
 struct lirc_driver {
 	char name[40];
-	int minor;
+	unsigned int minor;
 	__u32 code_length;
 	unsigned int buffer_size; /* in chunks holding one code each */
 	__u32 features;
@@ -175,19 +175,17 @@ struct lirc_driver {
 	const struct file_operations *fops;
 	struct device *dev;
 	struct module *owner;
+	struct irctl *irctl;
 };
 
 /* following functions can be called ONLY from user context
  *
- * returns negative value on error or minor number
- * of the registered device if success
+ * returns negative value on error or zero
  * contents of the structure pointed by p is copied
  */
-extern int lirc_register_driver(struct lirc_driver *d);
+int lirc_register_driver(struct lirc_driver *d);
 
-/* returns negative value on error or 0 if success
-*/
-extern int lirc_unregister_driver(int minor);
+void lirc_unregister_driver(struct lirc_driver *d);
 
 /* Returns the private data stored in the lirc_driver
  * associated with the given device file pointer.

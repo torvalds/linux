@@ -29,7 +29,6 @@
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
-#define NOPLUG		-1
 #define LOGHEAD		"lirc_dev (%s[%d]): "
 
 static dev_t lirc_base_dev;
@@ -114,7 +113,7 @@ out:
 int lirc_register_driver(struct lirc_driver *d)
 {
 	struct irctl *ir;
-	int minor;
+	unsigned int minor;
 	int err;
 
 	if (!d) {
@@ -132,12 +131,6 @@ int lirc_register_driver(struct lirc_driver *d)
 		return -EINVAL;
 	}
 
-	if (d->minor >= MAX_IRCTL_DEVICES) {
-		dev_err(d->dev, "minor must be between 0 and %d!\n",
-						MAX_IRCTL_DEVICES - 1);
-		return -EBADRQC;
-	}
-
 	if (d->code_length < 1 || d->code_length > (BUFLEN * 8)) {
 		dev_err(d->dev, "code length must be less than %d bits\n",
 								BUFLEN * 8);
@@ -152,21 +145,14 @@ int lirc_register_driver(struct lirc_driver *d)
 
 	mutex_lock(&lirc_dev_lock);
 
-	minor = d->minor;
+	/* find first free slot for driver */
+	for (minor = 0; minor < MAX_IRCTL_DEVICES; minor++)
+		if (!irctls[minor])
+			break;
 
-	if (minor < 0) {
-		/* find first free slot for driver */
-		for (minor = 0; minor < MAX_IRCTL_DEVICES; minor++)
-			if (!irctls[minor])
-				break;
-		if (minor == MAX_IRCTL_DEVICES) {
-			dev_err(d->dev, "no free slots for drivers!\n");
-			err = -ENOMEM;
-			goto out_lock;
-		}
-	} else if (irctls[minor]) {
-		dev_err(d->dev, "minor (%d) just registered!\n", minor);
-		err = -EBUSY;
+	if (minor == MAX_IRCTL_DEVICES) {
+		dev_err(d->dev, "no free slots for drivers!\n");
+		err = -ENOMEM;
 		goto out_lock;
 	}
 
@@ -178,6 +164,7 @@ int lirc_register_driver(struct lirc_driver *d)
 
 	mutex_init(&ir->irctl_lock);
 	irctls[minor] = ir;
+	d->irctl = ir;
 	d->minor = minor;
 
 	/* some safety check 8-) */
@@ -225,7 +212,7 @@ int lirc_register_driver(struct lirc_driver *d)
 	dev_info(ir->d.dev, "lirc_dev: driver %s registered at minor = %d\n",
 		 ir->d.name, ir->d.minor);
 
-	return minor;
+	return 0;
 
 out_cdev:
 	cdev_del(&ir->cdev);
@@ -238,38 +225,24 @@ out_lock:
 }
 EXPORT_SYMBOL(lirc_register_driver);
 
-int lirc_unregister_driver(int minor)
+void lirc_unregister_driver(struct lirc_driver *d)
 {
 	struct irctl *ir;
 
-	if (minor < 0 || minor >= MAX_IRCTL_DEVICES) {
-		pr_err("minor (%d) must be between 0 and %d!\n",
-					minor, MAX_IRCTL_DEVICES - 1);
-		return -EBADRQC;
-	}
+	if (!d || !d->irctl)
+		return;
 
-	ir = irctls[minor];
-	if (!ir) {
-		pr_err("failed to get irctl\n");
-		return -ENOENT;
-	}
+	ir = d->irctl;
 
 	mutex_lock(&lirc_dev_lock);
 
-	if (ir->d.minor != minor) {
-		dev_err(ir->d.dev, "lirc_dev: minor %d device not registered\n",
-									minor);
-		mutex_unlock(&lirc_dev_lock);
-		return -ENOENT;
-	}
-
 	dev_dbg(ir->d.dev, "lirc_dev: driver %s unregistered from minor = %d\n",
-		ir->d.name, ir->d.minor);
+		d->name, d->minor);
 
 	ir->attached = 0;
 	if (ir->open) {
 		dev_dbg(ir->d.dev, LOGHEAD "releasing opened driver\n",
-			ir->d.name, ir->d.minor);
+			d->name, d->minor);
 		wake_up_interruptible(&ir->buf->wait_poll);
 	}
 
@@ -278,8 +251,6 @@ int lirc_unregister_driver(int minor)
 	device_del(&ir->dev);
 	cdev_del(&ir->cdev);
 	put_device(&ir->dev);
-
-	return 0;
 }
 EXPORT_SYMBOL(lirc_unregister_driver);
 
@@ -305,11 +276,6 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 	}
 
 	dev_dbg(ir->d.dev, LOGHEAD "open called\n", ir->d.name, ir->d.minor);
-
-	if (ir->d.minor == NOPLUG) {
-		retval = -ENODEV;
-		goto error;
-	}
 
 	if (ir->open) {
 		retval = -EBUSY;
@@ -403,7 +369,7 @@ long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	dev_dbg(ir->d.dev, LOGHEAD "ioctl called (0x%x)\n",
 		ir->d.name, ir->d.minor, cmd);
 
-	if (ir->d.minor == NOPLUG || !ir->attached) {
+	if (!ir->attached) {
 		dev_err(ir->d.dev, LOGHEAD "ioctl result = -ENODEV\n",
 			ir->d.name, ir->d.minor);
 		return -ENODEV;
