@@ -234,11 +234,23 @@ static int snd_dw_hdmi_probe(struct platform_device *pdev)
 	pdevinfo.size_data	= sizeof(pdata);
 	pdevinfo.dma_mask	= DMA_BIT_MASK(32);
 
-	return IS_ERR_OR_NULL(platform_device_register_full(&pdevinfo));
+	audio->pdev = platform_device_register_full(&pdevinfo);
+	return IS_ERR_OR_NULL(audio->pdev);
+}
+
+static int snd_dw_hdmi_remove(struct platform_device *pdev)
+{
+	struct dw_hdmi_i2s_audio_data *audio = pdev->dev.platform_data;
+
+	if (!IS_ERR_OR_NULL(audio->pdev))
+		platform_device_unregister(audio->pdev);
+
+	return 0;
 }
 
 static struct platform_driver snd_dw_hdmi_driver = {
 	.probe	= snd_dw_hdmi_probe,
+	.remove = snd_dw_hdmi_remove,
 	.driver	= {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
