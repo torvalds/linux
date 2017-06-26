@@ -513,6 +513,7 @@ struct pblk {
 	atomic_long_t sync_writes;	/* Sectors synced to media */
 	atomic_long_t compl_writes;	/* Sectors completed in write bio */
 	atomic_long_t inflight_reads;	/* Inflight sector read requests */
+	atomic_long_t cache_reads;	/* Read requests that hit the cache */
 	atomic_long_t sync_reads;	/* Completed sector read requests */
 	atomic_long_t recov_writes;	/* Sectors submitted from recovery */
 	atomic_long_t recov_gc_writes;	/* Sectors submitted from write GC */

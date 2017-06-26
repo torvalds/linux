@@ -76,6 +76,9 @@ retry:
 			}
 			WARN_ON(test_and_set_bit(i, read_bitmap));
 			advanced_bio = 1;
+#ifdef CONFIG_NVM_DEBUG
+			atomic_long_inc(&pblk->cache_reads);
+#endif
 		} else {
 			/* Read from media non-cached sectors */
 			rqd->ppa_list[j++] = p;
@@ -280,6 +283,9 @@ retry:
 			goto retry;
 		}
 		WARN_ON(test_and_set_bit(0, read_bitmap));
+#ifdef CONFIG_NVM_DEBUG
+			atomic_long_inc(&pblk->cache_reads);
+#endif
 	} else {
 		rqd->ppa_addr = ppa;
 	}

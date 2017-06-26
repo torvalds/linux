@@ -294,7 +294,7 @@ static ssize_t pblk_sysfs_lines_info(struct pblk *pblk, char *page)
 static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
-		"%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\n",
+		"%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\n",
 			atomic_long_read(&pblk->inflight_writes),
 			atomic_long_read(&pblk->inflight_reads),
 			atomic_long_read(&pblk->req_writes),
@@ -307,6 +307,7 @@ static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 			atomic_long_read(&pblk->recov_writes),
 			atomic_long_read(&pblk->recov_gc_writes),
 			atomic_long_read(&pblk->recov_gc_reads),
+			atomic_long_read(&pblk->cache_reads),
 			atomic_long_read(&pblk->sync_reads));
 }
 #endif

@@ -839,6 +839,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 	atomic_long_set(&pblk->sync_writes, 0);
 	atomic_long_set(&pblk->compl_writes, 0);
 	atomic_long_set(&pblk->inflight_reads, 0);
+	atomic_long_set(&pblk->cache_reads, 0);
 	atomic_long_set(&pblk->sync_reads, 0);
 	atomic_long_set(&pblk->recov_writes, 0);
 	atomic_long_set(&pblk->recov_writes, 0);
