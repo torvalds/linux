@@ -1410,6 +1410,9 @@ alloc_and_copy_ftrace_hash(int size_bits, struct ftrace_hash *hash)
 	if (!new_hash)
 		return NULL;
 
+	if (hash)
+		new_hash->flags = hash->flags;
+
 	/* Empty hash? */
 	if (ftrace_hash_empty(hash))
 		return new_hash;
@@ -1454,7 +1457,7 @@ __ftrace_hash_move(struct ftrace_hash *src)
 	/*
 	 * If the new source is empty, just return the empty_hash.
 	 */
-	if (!src->count)
+	if (ftrace_hash_empty(src))
 		return EMPTY_HASH;
 
 	/*
@@ -1470,6 +1473,8 @@ __ftrace_hash_move(struct ftrace_hash *src)
 	new_hash = alloc_ftrace_hash(bits);
 	if (!new_hash)
 		return NULL;
+
+	new_hash->flags = src->flags;
 
 	size = 1 << src->size_bits;
 	for (i = 0; i < size; i++) {
@@ -1701,7 +1706,7 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 	struct dyn_ftrace *rec;
 	bool update = false;
 	int count = 0;
-	int all = 0;
+	int all = false;
 
 	/* Only update if the ops has been registered */
 	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
@@ -1722,7 +1727,7 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 		hash = ops->func_hash->filter_hash;
 		other_hash = ops->func_hash->notrace_hash;
 		if (ftrace_hash_empty(hash))
-			all = 1;
+			all = true;
 	} else {
 		inc = !inc;
 		hash = ops->func_hash->notrace_hash;
@@ -4028,6 +4033,9 @@ static void process_mod_list(struct list_head *head, struct ftrace_ops *ops,
 		free_ftrace_mod(ftrace_mod);
 	}
 
+	if (enable && list_empty(head))
+		new_hash->flags &= ~FTRACE_HASH_FL_MOD;
+
 	mutex_lock(&ftrace_lock);
 
 	ret = ftrace_hash_move_and_update_ops(ops, orig_hash,
@@ -5035,9 +5043,11 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_WRITE) {
 		filter_hash = !!(iter->flags & FTRACE_ITER_FILTER);
 
-		if (filter_hash)
+		if (filter_hash) {
 			orig_hash = &iter->ops->func_hash->filter_hash;
-		else
+			if (!list_empty(&iter->tr->mod_trace))
+				iter->hash->flags |= FTRACE_HASH_FL_MOD;
+		} else
 			orig_hash = &iter->ops->func_hash->notrace_hash;
 
 		mutex_lock(&ftrace_lock);

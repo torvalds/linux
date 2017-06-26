@@ -773,10 +773,15 @@ struct ftrace_mod_load {
 	int			 enable;
 };
 
+enum {
+	FTRACE_HASH_FL_MOD	= (1 << 0),
+};
+
 struct ftrace_hash {
 	unsigned long		size_bits;
 	struct hlist_head	*buckets;
 	unsigned long		count;
+	unsigned long		flags;
 	struct rcu_head		rcu;
 };
 
@@ -785,7 +790,7 @@ ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip);
 
 static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 {
-	return !hash || !hash->count;
+	return !hash || !(hash->count || (hash->flags & FTRACE_HASH_FL_MOD));
 }
 
 /* Standard output formatting function used for function return traces */

@@ -120,6 +120,7 @@ ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
  *            this ops will fail to register or set_filter_ip.
  * PID     - Is affected by set_ftrace_pid (allows filtering on those pids)
  * RCU     - Set when the ops can only be called when RCU is watching.
+ * TRACE_ARRAY - The ops->private points to a trace_array descriptor.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -138,6 +139,7 @@ enum {
 	FTRACE_OPS_FL_IPMODIFY			= 1 << 13,
 	FTRACE_OPS_FL_PID			= 1 << 14,
 	FTRACE_OPS_FL_RCU			= 1 << 15,
+	FTRACE_OPS_FL_TRACE_ARRAY		= 1 << 16,
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
