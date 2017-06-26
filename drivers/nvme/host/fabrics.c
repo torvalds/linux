@@ -126,16 +126,6 @@ int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 EXPORT_SYMBOL_GPL(nvmf_get_address);
 
 /**
- * nvmf_get_subsysnqn() - Get subsystem NQN
- * @ctrl:	Host NVMe controller instance which we got the NQN
- */
-const char *nvmf_get_subsysnqn(struct nvme_ctrl *ctrl)
-{
-	return ctrl->opts->subsysnqn;
-}
-EXPORT_SYMBOL_GPL(nvmf_get_subsysnqn);
-
-/**
  * nvmf_reg_read32() -  NVMe Fabrics "Property Get" API function.
  * @ctrl:	Host NVMe controller instance maintaining the admin
  *		queue used to submit the property read command to

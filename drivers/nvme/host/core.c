@@ -1705,6 +1705,31 @@ static bool quirk_matches(const struct nvme_id_ctrl *id,
 		string_matches(id->fr, q->fr, sizeof(id->fr));
 }
 
+static void nvme_init_subnqn(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
+{
+	size_t nqnlen;
+	int off;
+
+	nqnlen = strnlen(id->subnqn, NVMF_NQN_SIZE);
+	if (nqnlen > 0 && nqnlen < NVMF_NQN_SIZE) {
+		strcpy(ctrl->subnqn, id->subnqn);
+		return;
+	}
+
+	if (ctrl->vs >= NVME_VS(1, 2, 1))
+		dev_warn(ctrl->device, "missing or invalid SUBNQN field.\n");
+
+	/* Generate a "fake" NQN per Figure 254 in NVMe 1.3 + ECN 001 */
+	off = snprintf(ctrl->subnqn, NVMF_NQN_SIZE,
+			"nqn.2014.08.org.nvmexpress:%4x%4x",
+			le16_to_cpu(id->vid), le16_to_cpu(id->ssvid));
+	memcpy(ctrl->subnqn + off, id->sn, sizeof(id->sn));
+	off += sizeof(id->sn);
+	memcpy(ctrl->subnqn + off, id->mn, sizeof(id->mn));
+	off += sizeof(id->mn);
+	memset(ctrl->subnqn + off, 0, sizeof(ctrl->subnqn) - off);
+}
+
 /*
  * Initialize the cached copies of the Identify data and various controller
  * register in our nvme_ctrl structure.  This should be called as soon as
@@ -1739,6 +1764,8 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		dev_err(ctrl->device, "Identify Controller failed (%d)\n", ret);
 		return -EIO;
 	}
+
+	nvme_init_subnqn(ctrl, id);
 
 	if (!ctrl->identified) {
 		/*
@@ -2135,8 +2162,7 @@ static ssize_t nvme_sysfs_show_subsysnqn(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			ctrl->ops->get_subsysnqn(ctrl));
+	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl->subnqn);
 }
 static DEVICE_ATTR(subsysnqn, S_IRUGO, nvme_sysfs_show_subsysnqn, NULL);
 
@@ -2181,7 +2207,6 @@ static umode_t nvme_dev_attrs_are_visible(struct kobject *kobj,
 			return 0;
 	}
 
-	CHECK_ATTR(ctrl, a, subsysnqn);
 	CHECK_ATTR(ctrl, a, address);
 
 	return a->mode;

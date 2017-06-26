@@ -540,7 +540,6 @@ static const struct nvme_ctrl_ops nvme_loop_ctrl_ops = {
 	.free_ctrl		= nvme_loop_free_ctrl,
 	.submit_async_event	= nvme_loop_submit_async_event,
 	.delete_ctrl		= nvme_loop_del_ctrl,
-	.get_subsysnqn		= nvmf_get_subsysnqn,
 };
 
 static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)

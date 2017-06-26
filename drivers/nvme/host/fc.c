@@ -2631,7 +2631,6 @@ static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.free_ctrl		= nvme_fc_nvme_ctrl_freed,
 	.submit_async_event	= nvme_fc_submit_async_event,
 	.delete_ctrl		= nvme_fc_del_nvme_ctrl,
-	.get_subsysnqn		= nvmf_get_subsysnqn,
 	.get_address		= nvmf_get_address,
 };
 
