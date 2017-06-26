@@ -20,6 +20,13 @@
  */
 #define FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS	256
 
+#ifdef CONFIG_FSL_MC_BUS
+#define dev_is_fsl_mc(_dev) ((_dev)->bus == &fsl_mc_bus_type)
+#else
+/* If fsl-mc bus is not present device cannot belong to fsl-mc bus */
+#define dev_is_fsl_mc(_dev) (0)
+#endif
+
 /**
  * struct fsl_mc_resource_pool - Pool of MC resources of a given
  * type
@@ -73,5 +80,7 @@ void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
 void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
 
 bool fsl_mc_is_root_dprc(struct device *dev);
+
+extern struct bus_type fsl_mc_bus_type;
 
 #endif /* _FSL_MC_MCBUS_H_ */
