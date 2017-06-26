@@ -134,8 +134,6 @@ module_param(lapic_timer_advance_ns, uint, S_IRUGO | S_IWUSR);
 static bool __read_mostly vector_hashing = true;
 module_param(vector_hashing, bool, S_IRUGO);
 
-static bool __read_mostly backwards_tsc_observed = false;
-
 #define KVM_NR_SHARED_MSRS 16
 
 struct kvm_shared_msrs_global {
@@ -1719,7 +1717,7 @@ static void pvclock_update_vm_gtod_copy(struct kvm *kvm)
 					&ka->master_cycle_now);
 
 	ka->use_master_clock = host_tsc_clocksource && vcpus_matched
-				&& !backwards_tsc_observed
+				&& !ka->backwards_tsc_observed
 				&& !ka->boot_vcpu_runs_old_kvmclock;
 
 	if (ka->use_master_clock)
@@ -7835,8 +7833,8 @@ int kvm_arch_hardware_enable(void)
 	 */
 	if (backwards_tsc) {
 		u64 delta_cyc = max_tsc - local_tsc;
-		backwards_tsc_observed = true;
 		list_for_each_entry(kvm, &vm_list, vm_list) {
+			kvm->arch.backwards_tsc_observed = true;
 			kvm_for_each_vcpu(i, vcpu, kvm) {
 				vcpu->arch.tsc_offset_adjustment += delta_cyc;
 				vcpu->arch.last_host_tsc = local_tsc;

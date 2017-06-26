@@ -803,6 +803,7 @@ struct kvm_arch {
 	int audit_point;
 	#endif
 
+	bool backwards_tsc_observed;
 	bool boot_vcpu_runs_old_kvmclock;
 	u32 bsp_vcpu_id;
 
