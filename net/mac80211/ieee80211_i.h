@@ -1531,7 +1531,7 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 		return true;
 	/* can't handle non-legacy preamble yet */
 	if (status->flag & RX_FLAG_MACTIME_PLCP_START &&
-	    status->encoding != RX_ENC_LEGACY)
+	    status->encoding == RX_ENC_LEGACY)
 		return true;
 	return false;
 }

@@ -3811,6 +3811,13 @@
 			expediting.  Set to zero to disable automatic
 			expediting.
 
+	stack_guard_gap=	[MM]
+			override the default stack gap protection. The value
+			is in page units and it defines how many pages prior
+			to (for stacks growing down) resp. after (for stacks
+			growing up) the main stack are reserved for no other
+			mapping. Default value is 256 pages.
+
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.
 

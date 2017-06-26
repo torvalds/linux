@@ -223,7 +223,7 @@ static void i2c_wr8(struct v4l2_subdev *sd, u16 reg, u8 val)
 static void i2c_wr8_and_or(struct v4l2_subdev *sd, u16 reg,
 		u8 mask, u8 val)
 {
-	i2c_wrreg(sd, reg, (i2c_rdreg(sd, reg, 2) & mask) | val, 2);
+	i2c_wrreg(sd, reg, (i2c_rdreg(sd, reg, 1) & mask) | val, 1);
 }
 
 static u16 i2c_rd16(struct v4l2_subdev *sd, u16 reg)

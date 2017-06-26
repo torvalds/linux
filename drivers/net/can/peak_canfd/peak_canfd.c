@@ -489,7 +489,7 @@ int peak_canfd_handle_msgs_list(struct peak_canfd_priv *priv,
 				struct pucan_rx_msg *msg_list, int msg_count)
 {
 	void *msg_ptr = msg_list;
-	int i, msg_size;
+	int i, msg_size = 0;
 
 	for (i = 0; i < msg_count; i++) {
 		msg_size = peak_canfd_handle_msg(priv, msg_ptr);
