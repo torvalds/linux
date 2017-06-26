@@ -34,6 +34,7 @@
 #include <linux/hugetlb.h>
 
 #include <asm/bug.h>
+#include <asm/cmpxchg.h>
 #include <asm/cpufeature.h>
 #include <asm/exception.h>
 #include <asm/debug-monitors.h>
@@ -197,8 +198,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 			  unsigned long address, pte_t *ptep,
 			  pte_t entry, int dirty)
 {
-	pteval_t old_pteval;
-	unsigned int tmp;
+	pteval_t old_pteval, pteval;
 
 	if (pte_same(*ptep, entry))
 		return 0;
@@ -208,7 +208,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 
 	/* set PTE_RDONLY if actual read-only or clean PTE */
 	if (!pte_write(entry) || !pte_sw_dirty(entry))
-		pte_val(entry) |= PTE_RDONLY;
+		entry = pte_set_rdonly(entry);
 
 	/*
 	 * Setting the flags must be done atomically to avoid racing with the
@@ -217,16 +217,14 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 	 * (calculated as: a & b == ~(~a | ~b)).
 	 */
 	pte_val(entry) ^= PTE_RDONLY;
-	asm volatile("//	ptep_set_access_flags\n"
-	"	prfm	pstl1strm, %2\n"
-	"1:	ldxr	%0, %2\n"
-	"	eor	%0, %0, %3		// negate PTE_RDONLY in *ptep\n"
-	"	orr	%0, %0, %4		// set flags\n"
-	"	eor	%0, %0, %3		// negate final PTE_RDONLY\n"
-	"	stxr	%w1, %0, %2\n"
-	"	cbnz	%w1, 1b\n"
-	: "=&r" (old_pteval), "=&r" (tmp), "+Q" (pte_val(*ptep))
-	: "L" (PTE_RDONLY), "r" (pte_val(entry)));
+	pteval = READ_ONCE(pte_val(*ptep));
+	do {
+		old_pteval = pteval;
+		pteval ^= PTE_RDONLY;
+		pteval |= pte_val(entry);
+		pteval ^= PTE_RDONLY;
+		pteval = cmpxchg_relaxed(&pte_val(*ptep), old_pteval, pteval);
+	} while (pteval != old_pteval);
 
 	flush_tlb_fix_spurious_fault(vma, address);
 	return 1;
