@@ -79,6 +79,5 @@
 };
 
 &du {
-	compatible = "renesas,du-r8a7795";
 	vsps = <&vspd0 &vspd1 &vspd2 &vspd3>;
 };
