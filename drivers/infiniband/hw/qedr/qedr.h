@@ -162,6 +162,8 @@ struct qedr_dev {
 	struct qedr_qp		*gsi_qp;
 
 	unsigned long enet_state;
+
+	u8 user_dpm_enabled;
 };
 
 #define QEDR_MAX_SQ_PBL			(0x8000)

@@ -376,6 +376,7 @@ struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *ibdev,
 
 	memset(&uresp, 0, sizeof(uresp));
 
+	uresp.dpm_enabled = dev->user_dpm_enabled;
 	uresp.db_pa = ctx->dpi_phys_addr;
 	uresp.db_size = ctx->dpi_size;
 	uresp.max_send_wr = dev->attr.max_sqe;

@@ -49,6 +49,7 @@ struct qedr_alloc_ucontext_resp {
 	__u32 sges_per_recv_wr;
 	__u32 sges_per_srq_wr;
 	__u32 max_cqes;
+	__u8 dpm_enabled;
 };
 
 struct qedr_alloc_pd_ureq {

@@ -777,6 +777,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 	if (rc)
 		goto init_err;
 
+	dev->user_dpm_enabled = dev_info.user_dpm_enabled;
 	dev->num_hwfns = dev_info.common.num_hwfns;
 	dev->rdma_ctx = dev->ops->rdma_get_rdma_ctx(cdev);
 
