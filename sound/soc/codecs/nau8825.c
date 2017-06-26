@@ -2440,6 +2440,8 @@ static void nau8825_print_device_properties(struct nau8825 *nau8825)
 			nau8825->jack_insert_debounce);
 	dev_dbg(dev, "jack-eject-debounce:  %d\n",
 			nau8825->jack_eject_debounce);
+	dev_dbg(dev, "crosstalk-bypass:     %d\n",
+			nau8825->xtalk_bypass);
 }
 
 static int nau8825_read_device_properties(struct device *dev,
