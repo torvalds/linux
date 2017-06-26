@@ -3062,6 +3062,11 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		if (get_user(len, optlen))
 			return -EFAULT;
 		len = min_t(unsigned int, len, TCP_ULP_NAME_MAX);
+		if (!icsk->icsk_ulp_ops) {
+			if (put_user(0, optlen))
+				return -EFAULT;
+			return 0;
+		}
 		if (put_user(len, optlen))
 			return -EFAULT;
 		if (copy_to_user(optval, icsk->icsk_ulp_ops->name, len))
