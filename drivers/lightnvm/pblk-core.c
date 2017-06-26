@@ -295,6 +295,8 @@ struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line)
 	struct list_head *move_list = NULL;
 	int vsc = le32_to_cpu(*line->vsc);
 
+	lockdep_assert_held(&line->lock);
+
 	if (!vsc) {
 		if (line->gc_group != PBLK_LINEGC_FULL) {
 			line->gc_group = PBLK_LINEGC_FULL;
@@ -501,6 +503,8 @@ u64 __pblk_alloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs)
 {
 	u64 addr;
 	int i;
+
+	lockdep_assert_held(&line->lock);
 
 	/* logic error: ppa out-of-bounds. Prevent generating bad address */
 	if (line->cur_sec + nr_secs > pblk->lm.sec_per_line) {
