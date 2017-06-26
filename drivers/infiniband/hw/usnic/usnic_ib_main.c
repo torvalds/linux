@@ -721,7 +721,6 @@ static void __exit usnic_ib_destroy(void)
 MODULE_DESCRIPTION("Cisco VIC (usNIC) Verbs Driver");
 MODULE_AUTHOR("Upinder Malhi <umalhi@cisco.com>");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 module_param(usnic_log_lvl, uint, S_IRUGO | S_IWUSR);
 module_param(usnic_ib_share_vf, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(usnic_log_lvl, " Off=0, Err=1, Info=2, Debug=3");

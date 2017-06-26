@@ -1053,4 +1053,3 @@ module_exit(opa_vnic_deinit);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel OPA Virtual Network driver");
-MODULE_VERSION(DRV_VERSION);

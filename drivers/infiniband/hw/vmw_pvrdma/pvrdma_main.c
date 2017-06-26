@@ -1119,5 +1119,4 @@ module_exit(pvrdma_cleanup);
 
 MODULE_AUTHOR("VMware, Inc");
 MODULE_DESCRIPTION("VMware Paravirtual RDMA driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("Dual BSD/GPL");

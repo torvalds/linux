@@ -41,7 +41,6 @@
 #include <linux/qed/roce_common.h>
 #include "qedr_hsi_rdma.h"
 
-#define QEDR_MODULE_VERSION	"8.10.10.0"
 #define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"
 #define DP_NAME(dev) ((dev)->ibdev.name)
 

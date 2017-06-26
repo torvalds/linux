@@ -70,7 +70,6 @@ static char version[] =
 MODULE_AUTHOR("Eddie Wai <eddie.wai@broadcom.com>");
 MODULE_DESCRIPTION(BNXT_RE_DESC " Driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(ROCE_DRV_MODULE_VERSION);
 
 /* globals */
 static struct list_head bnxt_re_dev_list = LIST_HEAD_INIT(bnxt_re_dev_list);
