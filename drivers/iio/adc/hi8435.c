@@ -410,11 +410,11 @@ static const struct iio_chan_spec hi8435_channels[] = {
 static const struct iio_info hi8435_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = hi8435_read_raw,
-	.read_event_config = &hi8435_read_event_config,
+	.read_event_config = hi8435_read_event_config,
 	.write_event_config = hi8435_write_event_config,
-	.read_event_value = &hi8435_read_event_value,
-	.write_event_value = &hi8435_write_event_value,
-	.debugfs_reg_access = &hi8435_debugfs_reg_access,
+	.read_event_value = hi8435_read_event_value,
+	.write_event_value = hi8435_write_event_value,
+	.debugfs_reg_access = hi8435_debugfs_reg_access,
 };
 
 static void hi8435_iio_push_event(struct iio_dev *idev, unsigned int val)
@@ -476,15 +476,13 @@ static int hi8435_probe(struct spi_device *spi)
 	priv->spi = spi;
 
 	reset_gpio = devm_gpiod_get(&spi->dev, NULL, GPIOD_OUT_LOW);
-	if (!IS_ERR(reset_gpio)) {
-		/* need >=100ns low pulse to reset chip */
-		gpiod_set_raw_value_cansleep(reset_gpio, 0);
-		udelay(1);
-		gpiod_set_raw_value_cansleep(reset_gpio, 1);
-	} else {
-		/* s/w reset chip if h/w reset is not available */
+	if (IS_ERR(reset_gpio)) {
+		/* chip s/w reset if h/w reset failed */
 		hi8435_writeb(priv, HI8435_CTRL_REG, HI8435_CTRL_SRST);
 		hi8435_writeb(priv, HI8435_CTRL_REG, 0);
+	} else {
+		udelay(5);
+		gpiod_set_value(reset_gpio, 1);
 	}
 
 	spi_set_drvdata(spi, idev);

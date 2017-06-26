@@ -1,4 +1,4 @@
-* Renesas RCar GyroADC device driver
+* Renesas R-Car GyroADC device driver
 
 The GyroADC block is a reduced SPI block with up to 8 chipselect lines,
 which supports the SPI protocol of a selected few SPI ADCs. The SPI ADCs
