@@ -553,7 +553,6 @@ next_rq:
 		if (ret)
 			pr_err("pblk: OOB read failed (err:%d)\n", ret);
 
-		line->left_ssecs = line->left_msecs;
 		left_ppas = 0;
 	}
 
@@ -659,7 +658,6 @@ next_rq:
 		/* Roll back failed sectors */
 		line->cur_sec -= nr_error_bits;
 		line->left_msecs += nr_error_bits;
-		line->left_ssecs = line->left_msecs;
 		bitmap_clear(line->map_bitmap, line->cur_sec, nr_error_bits);
 
 		left_ppas = 0;

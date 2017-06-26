@@ -395,7 +395,6 @@ struct pblk_line {
 	atomic_t left_seblks;		/* Blocks left for sync erasing */
 
 	int left_msecs;			/* Sectors left for mapping */
-	int left_ssecs;			/* Sectors left to sync */
 	unsigned int cur_sec;		/* Sector map pointer */
 	unsigned int nr_valid_lbas;	/* Number of valid lbas in line */
 
@@ -555,7 +554,6 @@ struct pblk {
 	atomic_long_t req_writes;	/* Sectors stored on write buffer */
 	atomic_long_t sub_writes;	/* Sectors submitted from buffer */
 	atomic_long_t sync_writes;	/* Sectors synced to media */
-	atomic_long_t compl_writes;	/* Sectors completed in write bio */
 	atomic_long_t inflight_reads;	/* Inflight sector read requests */
 	atomic_long_t cache_reads;	/* Read requests that hit the cache */
 	atomic_long_t sync_reads;	/* Completed sector read requests */
@@ -706,11 +704,11 @@ void pblk_end_bio_sync(struct bio *bio);
 void pblk_end_io_sync(struct nvm_rq *rqd);
 int pblk_bio_add_pages(struct pblk *pblk, struct bio *bio, gfp_t flags,
 		       int nr_pages);
-void pblk_map_pad_invalidate(struct pblk *pblk, struct pblk_line *line,
-			     u64 paddr);
 void pblk_bio_free_pages(struct pblk *pblk, struct bio *bio, int off,
 			 int nr_pages);
 void pblk_map_invalidate(struct pblk *pblk, struct ppa_addr ppa);
+void __pblk_map_invalidate(struct pblk *pblk, struct pblk_line *line,
+			   u64 paddr);
 void pblk_update_map(struct pblk *pblk, sector_t lba, struct ppa_addr ppa);
 void pblk_update_map_cache(struct pblk *pblk, sector_t lba,
 			   struct ppa_addr ppa);

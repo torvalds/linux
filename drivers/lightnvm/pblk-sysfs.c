@@ -154,7 +154,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	int d_line_cnt = 0, l_line_cnt = 0;
 	int gc_full = 0, gc_high = 0, gc_mid = 0, gc_low = 0, gc_empty = 0;
 	int bad = 0, cor = 0;
-	int msecs = 0, ssecs = 0, cur_sec = 0, vsc = 0, sec_in_line = 0;
+	int msecs = 0, cur_sec = 0, vsc = 0, sec_in_line = 0;
 	int map_weight = 0, meta_weight = 0;
 
 	spin_lock(&l_mg->free_lock);
@@ -227,7 +227,6 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	if (l_mg->data_line) {
 		cur_sec = l_mg->data_line->cur_sec;
 		msecs = l_mg->data_line->left_msecs;
-		ssecs = l_mg->data_line->left_ssecs;
 		vsc = le32_to_cpu(*l_mg->data_line->vsc);
 		sec_in_line = l_mg->data_line->sec_in_line;
 		meta_weight = bitmap_weight(&l_mg->meta_bitmap,
@@ -259,8 +258,8 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 			atomic_read(&pblk->gc.inflight_gc));
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"data (%d) cur:%d, left:%d/%d, vsc:%d, s:%d, map:%d/%d (%d)\n",
-			cur_data, cur_sec, msecs, ssecs, vsc, sec_in_line,
+		"data (%d) cur:%d, left:%d, vsc:%d, s:%d, map:%d/%d (%d)\n",
+			cur_data, cur_sec, msecs, vsc, sec_in_line,
 			map_weight, lm->sec_per_line, meta_weight);
 
 	return sz;
@@ -303,7 +302,7 @@ static ssize_t pblk_sysfs_get_sec_per_write(struct pblk *pblk, char *page)
 static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
-		"%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\n",
+		"%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\n",
 			atomic_long_read(&pblk->inflight_writes),
 			atomic_long_read(&pblk->inflight_reads),
 			atomic_long_read(&pblk->req_writes),
@@ -312,7 +311,6 @@ static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 			atomic_long_read(&pblk->padded_wb),
 			atomic_long_read(&pblk->sub_writes),
 			atomic_long_read(&pblk->sync_writes),
-			atomic_long_read(&pblk->compl_writes),
 			atomic_long_read(&pblk->recov_writes),
 			atomic_long_read(&pblk->recov_gc_writes),
 			atomic_long_read(&pblk->recov_gc_reads),

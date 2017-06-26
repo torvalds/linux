@@ -65,8 +65,8 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
 	mempool_free(rqd, pblk->g_rq_pool);
 }
 
-static void __pblk_map_invalidate(struct pblk *pblk, struct pblk_line *line,
-				  u64 paddr)
+void __pblk_map_invalidate(struct pblk *pblk, struct pblk_line *line,
+			   u64 paddr)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct list_head *move_list = NULL;
@@ -127,18 +127,6 @@ void pblk_map_invalidate(struct pblk *pblk, struct ppa_addr ppa)
 	paddr = pblk_dev_ppa_to_line_addr(pblk, ppa);
 
 	__pblk_map_invalidate(pblk, line, paddr);
-}
-
-void pblk_map_pad_invalidate(struct pblk *pblk, struct pblk_line *line,
-			     u64 paddr)
-{
-	__pblk_map_invalidate(pblk, line, paddr);
-
-	pblk_rb_sync_init(&pblk->rwb, NULL);
-	line->left_ssecs--;
-	if (!line->left_ssecs)
-		pblk_line_run_ws(pblk, line, NULL, pblk_line_close_ws);
-	pblk_rb_sync_end(&pblk->rwb, NULL);
 }
 
 static void pblk_invalidate_range(struct pblk *pblk, sector_t slba,
@@ -1057,7 +1045,7 @@ retry_smeta:
 	line->sec_in_line -= lm->emeta_sec[0];
 	line->emeta_ssec = off;
 	line->nr_valid_lbas = 0;
-	line->left_ssecs = line->left_msecs = line->sec_in_line;
+	line->left_msecs = line->sec_in_line;
 	*line->vsc = cpu_to_le32(line->sec_in_line);
 
 	if (lm->sec_per_line - line->sec_in_line !=

@@ -17,16 +17,6 @@
 
 #include "pblk.h"
 
-static void pblk_sync_line(struct pblk *pblk, struct pblk_line *line)
-{
-#ifdef CONFIG_NVM_DEBUG
-	atomic_long_inc(&pblk->sync_writes);
-#endif
-
-	/* Counter protected by rb sync lock */
-	line->left_ssecs--;
-}
-
 static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 				    struct pblk_c_ctx *c_ctx)
 {
@@ -44,14 +34,13 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 
 		p = rqd->ppa_list[i];
 		line = &pblk->lines[pblk_dev_ppa_to_line(p)];
-		pblk_sync_line(pblk, line);
 
 		while ((original_bio = bio_list_pop(&w_ctx->bios)))
 			bio_endio(original_bio);
 	}
 
 #ifdef CONFIG_NVM_DEBUG
-	atomic_long_add(c_ctx->nr_valid, &pblk->compl_writes);
+	atomic_long_add(c_ctx->nr_valid, &pblk->sync_writes);
 #endif
 
 	ret = pblk_rb_sync_advance(&pblk->rwb, c_ctx->nr_valid);
