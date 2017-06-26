@@ -197,6 +197,17 @@ config RTC_DRV_AC100
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ac100.
 
+config RTC_DRV_BRCMSTB
+	tristate "Broadcom STB wake-timer"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
+	default ARCH_BRCMSTB || BMIPS_GENERIC
+	help
+	  If you say yes here you get support for the wake-timer found on
+	  Broadcom STB SoCs (BCM7xxx).
+
+	  This driver can also be built as a module. If so, the module will
+	  be called rtc-brcmstb-waketimer.
+
 config RTC_DRV_AS3722
 	tristate "ams AS3722 RTC driver"
 	depends on MFD_AS3722
