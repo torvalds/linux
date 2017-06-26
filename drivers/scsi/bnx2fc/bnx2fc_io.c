@@ -1167,16 +1167,11 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
 				"not on active_q\n", io_req->xid);
 		/*
-		 * This condition can happen only due to the FW bug,
-		 * where we do not receive cleanup response from
-		 * the FW. Handle this case gracefully by erroring
-		 * back the IO request to SCSI-ml
+		 * The IO is still with the FW.
+		 * Return failure and let SCSI-ml retry eh_abort.
 		 */
-		bnx2fc_scsi_done(io_req, DID_ABORT);
-
-		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
-		return SUCCESS;
+		return FAILED;
 	}
 
 	/*
