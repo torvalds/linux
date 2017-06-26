@@ -350,52 +350,47 @@ static int af9015_identify_state(struct dvb_usb_device *d, const char **name)
 }
 
 static int af9015_download_firmware(struct dvb_usb_device *d,
-	const struct firmware *fw)
+				    const struct firmware *firmware)
 {
 	struct af9015_state *state = d_to_priv(d);
 	struct usb_interface *intf = d->intf;
-	int i, len, remaining, ret;
+	int ret, i, rem;
 	struct req_t req = {DOWNLOAD_FIRMWARE, 0, 0, 0, 0, 0, NULL};
-	u16 checksum = 0;
+	u16 checksum;
 
 	dev_dbg(&intf->dev, "\n");
 
-	/* calc checksum */
-	for (i = 0; i < fw->size; i++)
-		checksum += fw->data[i];
+	/* Calc checksum, we need it when copy firmware to slave demod */
+	for (i = 0, checksum = 0; i < firmware->size; i++)
+		checksum += firmware->data[i];
 
-	state->firmware_size = fw->size;
+	state->firmware_size = firmware->size;
 	state->firmware_checksum = checksum;
 
-	#define FW_ADDR 0x5100 /* firmware start address */
-	#define LEN_MAX 55 /* max packet size */
-	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
-		len = remaining;
-		if (len > LEN_MAX)
-			len = LEN_MAX;
-
-		req.data_len = len;
-		req.data = (u8 *) &fw->data[fw->size - remaining];
-		req.addr = FW_ADDR + fw->size - remaining;
-
+	#define LEN_MAX (BUF_LEN - REQ_HDR_LEN) /* Max payload size */
+	for (rem = firmware->size; rem > 0; rem -= LEN_MAX) {
+		req.data_len = min(LEN_MAX, rem);
+		req.data = (u8 *) &firmware->data[firmware->size - rem];
+		req.addr = 0x5100 + firmware->size - rem;
 		ret = af9015_ctrl_msg(d, &req);
 		if (ret) {
 			dev_err(&intf->dev, "firmware download failed %d\n",
 				ret);
-			goto error;
+			goto err;
 		}
 	}
 
-	/* firmware loaded, request boot */
 	req.cmd = BOOT;
 	req.data_len = 0;
 	ret = af9015_ctrl_msg(d, &req);
 	if (ret) {
 		dev_err(&intf->dev, "firmware boot failed %d\n", ret);
-		goto error;
+		goto err;
 	}
 
-error:
+	return 0;
+err:
+	dev_dbg(&intf->dev, "failed %d\n", ret);
 	return ret;
 }
 
