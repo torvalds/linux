@@ -1494,6 +1494,8 @@ static int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn,
 	tmf_hdr = (struct iscsi_tm *)mtask->hdr;
 	qedi_cmd = (struct qedi_cmd *)mtask->dd_data;
 	ep = qedi_conn->ep;
+	if (!ep)
+		return -ENODEV;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)

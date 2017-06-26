@@ -1208,3 +1208,86 @@ int drm_dp_stop_crc(struct drm_dp_aux *aux)
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_stop_crc);
+
+struct dpcd_quirk {
+	u8 oui[3];
+	bool is_branch;
+	u32 quirks;
+};
+
+#define OUI(first, second, third) { (first), (second), (third) }
+
+static const struct dpcd_quirk dpcd_quirk_list[] = {
+	/* Analogix 7737 needs reduced M and N at HBR2 link rates */
+	{ OUI(0x00, 0x22, 0xb9), true, BIT(DP_DPCD_QUIRK_LIMITED_M_N) },
+};
+
+#undef OUI
+
+/*
+ * Get a bit mask of DPCD quirks for the sink/branch device identified by
+ * ident. The quirk data is shared but it's up to the drivers to act on the
+ * data.
+ *
+ * For now, only the OUI (first three bytes) is used, but this may be extended
+ * to device identification string and hardware/firmware revisions later.
+ */
+static u32
+drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
+{
+	const struct dpcd_quirk *quirk;
+	u32 quirks = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dpcd_quirk_list); i++) {
+		quirk = &dpcd_quirk_list[i];
+
+		if (quirk->is_branch != is_branch)
+			continue;
+
+		if (memcmp(quirk->oui, ident->oui, sizeof(ident->oui)) != 0)
+			continue;
+
+		quirks |= quirk->quirks;
+	}
+
+	return quirks;
+}
+
+/**
+ * drm_dp_read_desc - read sink/branch descriptor from DPCD
+ * @aux: DisplayPort AUX channel
+ * @desc: Device decriptor to fill from DPCD
+ * @is_branch: true for branch devices, false for sink devices
+ *
+ * Read DPCD 0x400 (sink) or 0x500 (branch) into @desc. Also debug log the
+ * identification.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
+		     bool is_branch)
+{
+	struct drm_dp_dpcd_ident *ident = &desc->ident;
+	unsigned int offset = is_branch ? DP_BRANCH_OUI : DP_SINK_OUI;
+	int ret, dev_id_len;
+
+	ret = drm_dp_dpcd_read(aux, offset, ident, sizeof(*ident));
+	if (ret < 0)
+		return ret;
+
+	desc->quirks = drm_dp_get_quirks(ident, is_branch);
+
+	dev_id_len = strnlen(ident->device_id, sizeof(ident->device_id));
+
+	DRM_DEBUG_KMS("DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
+		      is_branch ? "branch" : "sink",
+		      (int)sizeof(ident->oui), ident->oui,
+		      dev_id_len, ident->device_id,
+		      ident->hw_rev >> 4, ident->hw_rev & 0xf,
+		      ident->sw_major_rev, ident->sw_minor_rev,
+		      desc->quirks);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_desc);

@@ -233,7 +233,7 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	return err;
 }
 
-static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_be *uuid)
+static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_t *uuid)
 {
 	struct ovl_fh *fh;
 	int fh_type, fh_len, dwords;
@@ -284,7 +284,6 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 			  struct dentry *upper)
 {
 	struct super_block *sb = lower->d_sb;
-	uuid_be *uuid = (uuid_be *) &sb->s_uuid;
 	const struct ovl_fh *fh = NULL;
 	int err;
 
@@ -294,13 +293,17 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 	 * up and a pure upper inode.
 	 */
 	if (sb->s_export_op && sb->s_export_op->fh_to_dentry &&
-	    uuid_be_cmp(*uuid, NULL_UUID_BE)) {
-		fh = ovl_encode_fh(lower, uuid);
+	    !uuid_is_null(&sb->s_uuid)) {
+		fh = ovl_encode_fh(lower, &sb->s_uuid);
 		if (IS_ERR(fh))
 			return PTR_ERR(fh);
 	}
 
-	err = ovl_do_setxattr(upper, OVL_XATTR_ORIGIN, fh, fh ? fh->len : 0, 0);
+	/*
+	 * Do not fail when upper doesn't support xattrs.
+	 */
+	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_ORIGIN, fh,
+				 fh ? fh->len : 0, 0);
 	kfree(fh);
 
 	return err;
@@ -342,13 +345,14 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (tmpfile)
 		temp = ovl_do_tmpfile(upperdir, stat->mode);
 	else
-		temp = ovl_lookup_temp(workdir, dentry);
-	err = PTR_ERR(temp);
-	if (IS_ERR(temp))
-		goto out1;
-
+		temp = ovl_lookup_temp(workdir);
 	err = 0;
-	if (!tmpfile)
+	if (IS_ERR(temp)) {
+		err = PTR_ERR(temp);
+		temp = NULL;
+	}
+
+	if (!err && !tmpfile)
 		err = ovl_create_real(wdir, temp, &cattr, NULL, true);
 
 	if (new_creds) {
@@ -453,6 +457,11 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 
 	ovl_path_upper(parent, &parentpath);
 	upperdir = parentpath.dentry;
+
+	/* Mark parent "impure" because it may now contain non-pure upper */
+	err = ovl_set_impure(parent, upperdir);
+	if (err)
+		return err;
 
 	err = vfs_getattr(&parentpath, &pstat,
 			  STATX_ATIME | STATX_MTIME, AT_STATX_SYNC_AS_STAT);

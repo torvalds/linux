@@ -135,7 +135,7 @@ static struct dentry *ovl_get_origin(struct dentry *dentry,
 	 * Make sure that the stored uuid matches the uuid of the lower
 	 * layer where file handle will be decoded.
 	 */
-	if (uuid_be_cmp(fh->uuid, *(uuid_be *) &mnt->mnt_sb->s_uuid))
+	if (!uuid_equal(&fh->uuid, &mnt->mnt_sb->s_uuid))
 		goto out;
 
 	origin = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
@@ -169,17 +169,7 @@ invalid:
 
 static bool ovl_is_opaquedir(struct dentry *dentry)
 {
-	int res;
-	char val;
-
-	if (!d_is_dir(dentry))
-		return false;
-
-	res = vfs_getxattr(dentry, OVL_XATTR_OPAQUE, &val, 1);
-	if (res == 1 && val == 'y')
-		return true;
-
-	return false;
+	return ovl_check_dir_xattr(dentry, OVL_XATTR_OPAQUE);
 }
 
 static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
@@ -351,6 +341,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	unsigned int ctr = 0;
 	struct inode *inode = NULL;
 	bool upperopaque = false;
+	bool upperimpure = false;
 	char *upperredirect = NULL;
 	struct dentry *this;
 	unsigned int i;
@@ -395,6 +386,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 				poe = roe;
 		}
 		upperopaque = d.opaque;
+		if (upperdentry && d.is_dir)
+			upperimpure = ovl_is_impuredir(upperdentry);
 	}
 
 	if (!d.stop && poe->numlower) {
@@ -463,6 +456,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	revert_creds(old_cred);
 	oe->opaque = upperopaque;
+	oe->impure = upperimpure;
 	oe->redirect = upperredirect;
 	oe->__upperdentry = upperdentry;
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);

@@ -59,9 +59,6 @@ static void i915_gem_shrinker_unlock(struct drm_device *dev, bool unlock)
 		return;
 
 	mutex_unlock(&dev->struct_mutex);
-
-	/* expedite the RCU grace period to free some request slabs */
-	synchronize_rcu_expedited();
 }
 
 static bool any_vma_pinned(struct drm_i915_gem_object *obj)
@@ -273,8 +270,6 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 				I915_SHRINK_UNBOUND |
 				I915_SHRINK_ACTIVE);
 	intel_runtime_pm_put(dev_priv);
-
-	synchronize_rcu(); /* wait for our earlier RCU delayed slab frees */
 
 	return freed;
 }
