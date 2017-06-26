@@ -114,6 +114,10 @@
 	status = "disabled";
 };
 
+&power_key {
+	gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -264,6 +268,12 @@
 };
 
 &pinctrl {
+	keys {
+		pwr_key: pwr-key {
+			rockchip,pins = <1 18 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins = <1 12 RK_FUNC_GPIO &pcfg_pull_up>; /* gpio1_b4 */
@@ -281,7 +291,6 @@
 			rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-
 };
 
 &sdio {
@@ -289,6 +298,10 @@
 	mmc-pwrseq = <&sdio_pwrseq>;
 	assigned-clocks = <&cru SCLK_SDIO_SRC>;
 	assigned-clock-parents = <&xin24m>;
+};
+
+&sdmmc {
+	status = "disabled";
 };
 
 &u2phy0_host {

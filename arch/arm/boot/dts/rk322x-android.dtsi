@@ -72,7 +72,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key>;
 
-		power {
+		power_key: power-key {
 			label = "GPIO Key Power";
 			gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
 			linux,code = <116>;
