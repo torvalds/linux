@@ -2085,7 +2085,7 @@ xlog_print_trans(
 			xfs_warn(mp, "    type	= 0x%x", vec->i_type);
 			xfs_warn(mp, "    len	= %d", vec->i_len);
 			xfs_warn(mp, "    first %d bytes of iovec[%d]:", dumplen, i);
-			xfs_hex_dump(vec->i_addr, dumplen);;
+			xfs_hex_dump(vec->i_addr, dumplen);
 
 			vec++;
 		}
