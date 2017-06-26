@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/kernel.h>
-#include "../../include/mc.h"
+#include "../../include/mc-sys.h"
 #include "../../include/mc-cmd.h"
 
 #include "dpio.h"

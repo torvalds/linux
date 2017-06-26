@@ -20,6 +20,7 @@
 #include <linux/bitops.h>
 #include <linux/msi.h>
 #include <linux/dma-mapping.h>
+#include "../include/mc-sys.h"
 #include "../include/mc-cmd.h"
 
 #include "fsl-mc-private.h"
