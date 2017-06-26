@@ -3319,23 +3319,29 @@ static void print_event_info(struct trace_buffer *buf, struct seq_file *m)
 	seq_puts(m, "#\n");
 }
 
-static void print_func_help_header(struct trace_buffer *buf, struct seq_file *m)
+static void print_func_help_header(struct trace_buffer *buf, struct seq_file *m,
+				   unsigned int flags)
 {
+	bool tgid = flags & TRACE_ITER_RECORD_TGID;
+
 	print_event_info(buf, m);
-	seq_puts(m, "#           TASK-PID   CPU#      TIMESTAMP  FUNCTION\n"
-		    "#              | |       |          |         |\n");
+
+	seq_printf(m, "#           TASK-PID   CPU#   %s  TIMESTAMP  FUNCTION\n", tgid ? "TGID     " : "");
+	seq_printf(m, "#              | |       |    %s     |         |\n",	 tgid ? "  |      " : "");
 }
 
-static void print_func_help_header_irq(struct trace_buffer *buf, struct seq_file *m)
+static void print_func_help_header_irq(struct trace_buffer *buf, struct seq_file *m,
+				       unsigned int flags)
 {
-	print_event_info(buf, m);
-	seq_puts(m, "#                              _-----=> irqs-off\n"
-		    "#                             / _----=> need-resched\n"
-		    "#                            | / _---=> hardirq/softirq\n"
-		    "#                            || / _--=> preempt-depth\n"
-		    "#                            ||| /     delay\n"
-		    "#           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION\n"
-		    "#              | |       |   ||||       |         |\n");
+	bool tgid = flags & TRACE_ITER_RECORD_TGID;
+
+	seq_printf(m, "#                          %s  _-----=> irqs-off\n",	    tgid ? "          " : "");
+	seq_printf(m, "#                          %s / _----=> need-resched\n",	    tgid ? "          " : "");
+	seq_printf(m, "#                          %s| / _---=> hardirq/softirq\n",  tgid ? "          " : "");
+	seq_printf(m, "#                          %s|| / _--=> preempt-depth\n",    tgid ? "          " : "");
+	seq_printf(m, "#                          %s||| /     delay\n",		    tgid ? "          " : "");
+	seq_printf(m, "#           TASK-PID   CPU#%s||||    TIMESTAMP  FUNCTION\n", tgid ? "   TGID   " : "");
+	seq_printf(m, "#              | |       | %s||||       |         |\n",	    tgid ? "     |    " : "");
 }
 
 void
@@ -3651,9 +3657,11 @@ void trace_default_header(struct seq_file *m)
 	} else {
 		if (!(trace_flags & TRACE_ITER_VERBOSE)) {
 			if (trace_flags & TRACE_ITER_IRQ_INFO)
-				print_func_help_header_irq(iter->trace_buffer, m);
+				print_func_help_header_irq(iter->trace_buffer,
+							   m, trace_flags);
 			else
-				print_func_help_header(iter->trace_buffer, m);
+				print_func_help_header(iter->trace_buffer, m,
+						       trace_flags);
 		}
 	}
 }

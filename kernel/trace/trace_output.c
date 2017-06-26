@@ -597,6 +597,15 @@ int trace_print_context(struct trace_iterator *iter)
 	trace_seq_printf(s, "%16s-%-5d [%03d] ",
 			       comm, entry->pid, iter->cpu);
 
+	if (tr->trace_flags & TRACE_ITER_RECORD_TGID) {
+		unsigned int tgid = trace_find_tgid(entry->pid);
+
+		if (!tgid)
+			trace_seq_printf(s, "(-----) ");
+		else
+			trace_seq_printf(s, "(%5d) ", tgid);
+	}
+
 	if (tr->trace_flags & TRACE_ITER_IRQ_INFO)
 		trace_print_lat_fmt(s, entry);
 
