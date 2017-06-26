@@ -640,6 +640,7 @@ EXPORT_SYMBOL(nvm_max_phys_sects);
 int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
+	int ret;
 
 	if (!dev->ops->submit_io)
 		return -ENODEV;
@@ -647,7 +648,12 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	nvm_rq_tgt_to_dev(tgt_dev, rqd);
 
 	rqd->dev = tgt_dev;
-	return dev->ops->submit_io(dev, rqd);
+
+	/* In case of error, fail with right address format */
+	ret = dev->ops->submit_io(dev, rqd);
+	if (ret)
+		nvm_rq_dev_to_tgt(tgt_dev, rqd);
+	return ret;
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
