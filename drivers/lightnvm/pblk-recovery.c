@@ -390,12 +390,12 @@ next_pad_rq:
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, w_ptr++) {
 			struct ppa_addr dev_ppa;
+			u64 addr_empty = cpu_to_le64(ADDR_EMPTY);
 
 			dev_ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
 
 			pblk_map_invalidate(pblk, dev_ppa);
-			meta_list[i].lba = cpu_to_le64(ADDR_EMPTY);
-			lba_list[w_ptr] = cpu_to_le64(ADDR_EMPTY);
+			lba_list[w_ptr] = meta_list[i].lba = addr_empty;
 			rqd->ppa_list[i] = dev_ppa;
 		}
 	}
