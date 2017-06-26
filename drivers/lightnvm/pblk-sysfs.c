@@ -150,7 +150,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	ssize_t sz = 0;
 	int nr_free_lines;
 	int cur_data, cur_log;
-	int free_line_cnt = 0, closed_line_cnt = 0;
+	int free_line_cnt = 0, closed_line_cnt = 0, emeta_line_cnt = 0;
 	int d_line_cnt = 0, l_line_cnt = 0;
 	int gc_full = 0, gc_high = 0, gc_mid = 0, gc_low = 0, gc_empty = 0;
 	int free = 0, bad = 0, cor = 0;
@@ -165,6 +165,11 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	list_for_each_entry(line, &l_mg->free_list, list)
 		free_line_cnt++;
 	spin_unlock(&l_mg->free_lock);
+
+	spin_lock(&l_mg->close_lock);
+	list_for_each_entry(line, &l_mg->emeta_list, list)
+		emeta_line_cnt++;
+	spin_unlock(&l_mg->close_lock);
 
 	spin_lock(&l_mg->gc_lock);
 	list_for_each_entry(line, &l_mg->gc_full_list, list) {
@@ -225,7 +230,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		cur_sec = l_mg->data_line->cur_sec;
 		msecs = l_mg->data_line->left_msecs;
 		ssecs = l_mg->data_line->left_ssecs;
-		vsc = l_mg->data_line->vsc;
+		vsc = le32_to_cpu(*l_mg->data_line->vsc);
 		sec_in_line = l_mg->data_line->sec_in_line;
 		meta_weight = bitmap_weight(&l_mg->meta_bitmap,
 							PBLK_DATA_LINES);
@@ -242,10 +247,11 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		geo->nr_luns, lm->blk_per_line, lm->sec_per_line);
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"lines:d:%d,l:%d-f:%d(%d),b:%d,co:%d,c:%d(d:%d,l:%d)t:%d\n",
+		"lines:d:%d,l:%d-f:%d(%d),m:%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
 					cur_data, cur_log,
-					free, nr_free_lines, bad, cor,
+					free, nr_free_lines, emeta_line_cnt,
 					closed_line_cnt,
+					bad, cor,
 					d_line_cnt, l_line_cnt,
 					l_mg->nr_lines);
 
@@ -274,7 +280,7 @@ static ssize_t pblk_sysfs_lines_info(struct pblk *pblk, char *page)
 					lm->smeta_len, lm->smeta_sec);
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 				"emeta - len:%d, sec:%d, bb_start:%d\n",
-					lm->emeta_len, lm->emeta_sec,
+					lm->emeta_len[0], lm->emeta_sec[0],
 					lm->emeta_bb);
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 				"bitmap lengths: sec:%d, blk:%d, lun:%d\n",

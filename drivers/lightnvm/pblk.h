@@ -258,8 +258,6 @@ struct pblk_rl {
 	atomic_t free_blocks;
 };
 
-#define PBLK_LINE_NR_LUN_BITMAP 2
-#define PBLK_LINE_NR_SEC_BITMAP 2
 #define PBLK_LINE_EMPTY (~0U)
 
 enum {
@@ -310,16 +308,19 @@ struct line_smeta {
 	__le32 window_wr_lun;	/* Number of parallel LUNs to write */
 
 	__le32 rsvd[2];
+
+	__le64 lun_bitmap[];
 };
 
 /*
- * Metadata Layout:
- *	1. struct pblk_emeta
- *	2. nr_lbas u64 forming lba list
- *	3. nr_lines (all) u32 valid sector count (vsc) (~0U: non-alloc line)
- *	4. nr_luns bits (u64 format) forming line bad block bitmap
- *
- *	3. and 4. will be part of FTL log
+ * Metadata layout in media:
+ *	First sector:
+ *		1. struct line_emeta
+ *		2. bad block bitmap (u64 * window_wr_lun)
+ *	Mid sectors (start at lbas_sector):
+ *		3. nr_lbas (u64) forming lba list
+ *	Last sectors (start at vsc_sector):
+ *		4. u32 valid sector count (vsc) for all lines (~0U: free line)
  */
 struct line_emeta {
 	struct line_header header;
@@ -339,6 +340,23 @@ struct line_emeta {
 	__le32 next_id;		/* Line id for next line */
 	__le64 nr_lbas;		/* Number of lbas mapped in line */
 	__le64 nr_valid_lbas;	/* Number of valid lbas mapped in line */
+	__le64 bb_bitmap[];	/* Updated bad block bitmap for line */
+};
+
+struct pblk_emeta {
+	struct line_emeta *buf;		/* emeta buffer in media format */
+	int mem;			/* Write offset - points to next
+					 * writable entry in memory
+					 */
+	atomic_t sync;			/* Synced - backpointer that signals the
+					 * last entry that has been successfully
+					 * persisted to media
+					 */
+	unsigned int nr_entries;	/* Number of emeta entries */
+};
+
+struct pblk_smeta {
+	struct line_smeta *buf;		/* smeta buffer in persistent format */
 };
 
 struct pblk_line {
@@ -355,9 +373,12 @@ struct pblk_line {
 
 	unsigned long *lun_bitmap;	/* Bitmap for LUNs mapped in line */
 
-	struct line_smeta *smeta;	/* Start metadata */
-	struct line_emeta *emeta;	/* End metadata */
+	struct pblk_smeta *smeta;	/* Start metadata */
+	struct pblk_emeta *emeta;	/* End medatada */
+
 	int meta_line;			/* Metadata line id */
+	int meta_distance;		/* Distance between data and metadata */
+
 	u64 smeta_ssec;			/* Sector where smeta starts */
 	u64 emeta_ssec;			/* Sector where emeta starts */
 
@@ -376,7 +397,9 @@ struct pblk_line {
 	int left_msecs;			/* Sectors left for mapping */
 	int left_ssecs;			/* Sectors left to sync */
 	unsigned int cur_sec;		/* Sector map pointer */
-	unsigned int vsc;		/* Valid sector count in line */
+	unsigned int nr_valid_lbas;	/* Number of valid lbas in line */
+
+	__le32 *vsc;			/* Valid sector count in line */
 
 	struct kref ref;		/* Write buffer L2P references */
 
@@ -385,13 +408,15 @@ struct pblk_line {
 
 #define PBLK_DATA_LINES 4
 
-enum{
+enum {
 	PBLK_KMALLOC_META = 1,
 	PBLK_VMALLOC_META = 2,
 };
 
-struct pblk_line_metadata {
-	void *meta;
+enum {
+	PBLK_EMETA_TYPE_HEADER = 1,	/* struct line_emeta first sector */
+	PBLK_EMETA_TYPE_LLBA = 2,	/* lba list - type: __le64 */
+	PBLK_EMETA_TYPE_VSC = 3,	/* vsc list - type: __le32 */
 };
 
 struct pblk_line_mgmt {
@@ -417,13 +442,17 @@ struct pblk_line_mgmt {
 	struct pblk_line *log_next;	/* Next FTL log line */
 	struct pblk_line *data_next;	/* Next data line */
 
+	struct list_head emeta_list;	/* Lines queued to schedule emeta */
+
+	__le32 *vsc_list;		/* Valid sector counts for all lines */
+
 	/* Metadata allocation type: VMALLOC | KMALLOC */
 	int smeta_alloc_type;
 	int emeta_alloc_type;
 
 	/* Pre-allocated metadata for data lines */
-	struct pblk_line_metadata sline_meta[PBLK_DATA_LINES];
-	struct pblk_line_metadata eline_meta[PBLK_DATA_LINES];
+	struct pblk_smeta *sline_meta[PBLK_DATA_LINES];
+	struct pblk_emeta *eline_meta[PBLK_DATA_LINES];
 	unsigned long meta_bitmap;
 
 	/* Helpers for fast bitmap calculations */
@@ -434,25 +463,40 @@ struct pblk_line_mgmt {
 	unsigned long l_seq_nr;		/* Log line unique sequence number */
 
 	spinlock_t free_lock;
+	spinlock_t close_lock;
 	spinlock_t gc_lock;
 };
 
 struct pblk_line_meta {
 	unsigned int smeta_len;		/* Total length for smeta */
-	unsigned int smeta_sec;		/* Sectors needed for smeta*/
-	unsigned int emeta_len;		/* Total length for emeta */
-	unsigned int emeta_sec;		/* Sectors needed for emeta*/
+	unsigned int smeta_sec;		/* Sectors needed for smeta */
+
+	unsigned int emeta_len[4];	/* Lengths for emeta:
+					 *  [0]: Total length
+					 *  [1]: struct line_emeta length
+					 *  [2]: L2P portion length
+					 *  [3]: vsc list length
+					 */
+	unsigned int emeta_sec[4];	/* Sectors needed for emeta. Same layout
+					 * as emeta_len
+					 */
+
 	unsigned int emeta_bb;		/* Boundary for bb that affects emeta */
+
+	unsigned int vsc_list_len;	/* Length for vsc list */
 	unsigned int sec_bitmap_len;	/* Length for sector bitmap in line */
 	unsigned int blk_bitmap_len;	/* Length for block bitmap in line */
 	unsigned int lun_bitmap_len;	/* Length for lun bitmap in line */
 
 	unsigned int blk_per_line;	/* Number of blocks in a full line */
 	unsigned int sec_per_line;	/* Number of sectors in a line */
+	unsigned int dsec_per_line;	/* Number of data sectors in a line */
 	unsigned int min_blk_line;	/* Min. number of good blocks in line */
 
 	unsigned int mid_thrs;		/* Threshold for GC mid list */
 	unsigned int high_thrs;		/* Threshold for GC high list */
+
+	unsigned int meta_distance;	/* Distance between data and metadata */
 };
 
 struct pblk_addr_format {
@@ -621,6 +665,7 @@ void pblk_discard(struct pblk *pblk, struct bio *bio);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
+int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line);
 struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 			      unsigned int nr_secs, unsigned int len,
 			      gfp_t gfp_mask);
@@ -634,18 +679,23 @@ struct pblk_line *pblk_line_get_erase(struct pblk *pblk);
 int pblk_line_erase(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_is_full(struct pblk_line *line);
 void pblk_line_free(struct pblk *pblk, struct pblk_line *line);
-void pblk_line_close_ws(struct work_struct *work);
+void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_close(struct pblk *pblk, struct pblk_line *line);
+void pblk_line_close_ws(struct work_struct *work);
 void pblk_line_mark_bb(struct work_struct *work);
 void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 		      void (*work)(struct work_struct *));
 u64 pblk_line_smeta_start(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_read_smeta(struct pblk *pblk, struct pblk_line *line);
-int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line);
+int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line,
+			 void *emeta_buf);
 int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr erase_ppa);
 void pblk_line_put(struct kref *ref);
 struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line);
+u64 pblk_lookup_page(struct pblk *pblk, struct pblk_line *line);
+void pblk_dealloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);
 u64 pblk_alloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);
+u64 __pblk_alloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);
 int pblk_calc_secs(struct pblk *pblk, unsigned long secs_avail,
 		   unsigned long secs_to_flush);
 void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
@@ -775,9 +825,19 @@ static inline struct nvm_rq *nvm_rq_from_c_ctx(void *c_ctx)
 	return c_ctx - sizeof(struct nvm_rq);
 }
 
-static inline void *pblk_line_emeta_to_lbas(struct line_emeta *emeta)
+static inline void *emeta_to_bb(struct line_emeta *emeta)
 {
-	return (emeta) + 1;
+	return emeta->bb_bitmap;
+}
+
+static inline void *emeta_to_lbas(struct pblk *pblk, struct line_emeta *emeta)
+{
+	return ((void *)emeta + pblk->lm.emeta_len[1]);
+}
+
+static inline void *emeta_to_vsc(struct pblk *pblk, struct line_emeta *emeta)
+{
+	return (emeta_to_lbas(pblk, emeta) + pblk->lm.emeta_len[2]);
 }
 
 #define NVM_MEM_PAGE_WRITE (8)
@@ -965,11 +1025,11 @@ static inline struct ppa_addr addr_to_pblk_ppa(struct pblk *pblk, u64 paddr,
 }
 
 static inline u32 pblk_calc_meta_header_crc(struct pblk *pblk,
-					    struct line_smeta *smeta)
+					    struct line_header *header)
 {
 	u32 crc = ~(u32)0;
 
-	crc = crc32_le(crc, (unsigned char *)smeta + sizeof(crc),
+	crc = crc32_le(crc, (unsigned char *)header + sizeof(crc),
 				sizeof(struct line_header) - sizeof(crc));
 
 	return crc;
@@ -997,7 +1057,7 @@ static inline u32 pblk_calc_emeta_crc(struct pblk *pblk,
 
 	crc = crc32_le(crc, (unsigned char *)emeta +
 				sizeof(struct line_header) + sizeof(crc),
-				lm->emeta_len -
+				lm->emeta_len[0] -
 				sizeof(struct line_header) - sizeof(crc));
 
 	return crc;

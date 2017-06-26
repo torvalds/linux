@@ -25,8 +25,6 @@ static void pblk_sync_line(struct pblk *pblk, struct pblk_line *line)
 
 	/* Counter protected by rb sync lock */
 	line->left_ssecs--;
-	if (!line->left_ssecs)
-		pblk_line_run_ws(pblk, line, NULL, pblk_line_close_ws);
 }
 
 static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
@@ -192,8 +190,40 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 	pblk_complete_write(pblk, rqd, c_ctx);
 }
 
+static void pblk_end_io_write_meta(struct nvm_rq *rqd)
+{
+	struct pblk *pblk = rqd->private;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_g_ctx *m_ctx = nvm_rq_to_pdu(rqd);
+	struct pblk_line *line = m_ctx->private;
+	struct pblk_emeta *emeta = line->emeta;
+	int pos = pblk_ppa_to_pos(geo, rqd->ppa_list[0]);
+	struct pblk_lun *rlun = &pblk->luns[pos];
+	int sync;
+
+	up(&rlun->wr_sem);
+
+	if (rqd->error) {
+		pblk_log_write_err(pblk, rqd);
+		pr_err("pblk: metadata I/O failed\n");
+	}
+#ifdef CONFIG_NVM_DEBUG
+	else
+		WARN_ONCE(rqd->bio->bi_status, "pblk: corrupted write error\n");
+#endif
+
+	sync = atomic_add_return(rqd->nr_ppas, &emeta->sync);
+	if (sync == emeta->nr_entries)
+		pblk_line_run_ws(pblk, line, NULL, pblk_line_close_ws);
+
+	bio_put(rqd->bio);
+	pblk_free_rqd(pblk, rqd, READ);
+}
+
 static int pblk_alloc_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
-			   unsigned int nr_secs)
+			   unsigned int nr_secs,
+			   nvm_end_io_fn(*end_io))
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 
@@ -202,7 +232,7 @@ static int pblk_alloc_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	rqd->nr_ppas = nr_secs;
 	rqd->flags = pblk_set_progr_mode(pblk, WRITE);
 	rqd->private = pblk;
-	rqd->end_io = pblk_end_io_write;
+	rqd->end_io = end_io;
 
 	rqd->meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
 							&rqd->dma_meta_list);
@@ -234,7 +264,7 @@ static int pblk_setup_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		return -ENOMEM;
 	c_ctx->lun_bitmap = lun_bitmap;
 
-	ret = pblk_alloc_w_rq(pblk, rqd, nr_secs);
+	ret = pblk_alloc_w_rq(pblk, rqd, nr_secs, pblk_end_io_write);
 	if (ret) {
 		kfree(lun_bitmap);
 		return ret;
@@ -262,7 +292,7 @@ int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 
 	c_ctx->lun_bitmap = lun_bitmap;
 
-	ret = pblk_alloc_w_rq(pblk, rqd, rqd->nr_ppas);
+	ret = pblk_alloc_w_rq(pblk, rqd, rqd->nr_ppas, pblk_end_io_write);
 	if (ret)
 		return ret;
 
@@ -293,6 +323,166 @@ static int pblk_calc_secs_to_sync(struct pblk *pblk, unsigned int secs_avail,
 	return secs_to_sync;
 }
 
+static inline int pblk_valid_meta_ppa(struct pblk *pblk,
+				      struct pblk_line *meta_line,
+				      struct ppa_addr *ppa_list, int nr_ppas)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line *data_line;
+	struct ppa_addr ppa, ppa_opt;
+	u64 paddr;
+	int i;
+
+	data_line = &pblk->lines[pblk_dev_ppa_to_line(ppa_list[0])];
+	paddr = pblk_lookup_page(pblk, meta_line);
+	ppa = addr_to_gen_ppa(pblk, paddr, 0);
+
+	if (test_bit(pblk_ppa_to_pos(geo, ppa), data_line->blk_bitmap))
+		return 1;
+
+	/* Schedule a metadata I/O that is half the distance from the data I/O
+	 * with regards to the number of LUNs forming the pblk instance. This
+	 * balances LUN conflicts across every I/O.
+	 *
+	 * When the LUN configuration changes (e.g., due to GC), this distance
+	 * can align, which would result on a LUN deadlock. In this case, modify
+	 * the distance to not be optimal, but allow metadata I/Os to succeed.
+	 */
+	ppa_opt = addr_to_gen_ppa(pblk, paddr + data_line->meta_distance, 0);
+	if (unlikely(ppa_opt.ppa == ppa.ppa)) {
+		data_line->meta_distance--;
+		return 0;
+	}
+
+	for (i = 0; i < nr_ppas; i += pblk->min_write_pgs)
+		if (ppa_list[i].g.ch == ppa_opt.g.ch &&
+					ppa_list[i].g.lun == ppa_opt.g.lun)
+			return 1;
+
+	if (test_bit(pblk_ppa_to_pos(geo, ppa_opt), data_line->blk_bitmap)) {
+		for (i = 0; i < nr_ppas; i += pblk->min_write_pgs)
+			if (ppa_list[i].g.ch == ppa.g.ch &&
+						ppa_list[i].g.lun == ppa.g.lun)
+				return 0;
+
+		return 1;
+	}
+
+	return 0;
+}
+
+int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_line_meta *lm = &pblk->lm;
+	struct pblk_emeta *emeta = meta_line->emeta;
+	struct pblk_g_ctx *m_ctx;
+	struct pblk_lun *rlun;
+	struct bio *bio;
+	struct nvm_rq *rqd;
+	void *data;
+	u64 paddr;
+	int rq_ppas = pblk->min_write_pgs;
+	int id = meta_line->id;
+	int rq_len;
+	int i, j;
+	int ret;
+
+	rqd = pblk_alloc_rqd(pblk, READ);
+	if (IS_ERR(rqd)) {
+		pr_err("pblk: cannot allocate write req.\n");
+		return PTR_ERR(rqd);
+	}
+	m_ctx = nvm_rq_to_pdu(rqd);
+	m_ctx->private = meta_line;
+
+	rq_len = rq_ppas * geo->sec_size;
+	data = ((void *)emeta->buf) + emeta->mem;
+
+	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len, GFP_KERNEL);
+	if (IS_ERR(bio)) {
+		ret = PTR_ERR(bio);
+		goto fail_free_rqd;
+	}
+	bio->bi_iter.bi_sector = 0; /* internal bio */
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+	rqd->bio = bio;
+
+	ret = pblk_alloc_w_rq(pblk, rqd, rq_ppas, pblk_end_io_write_meta);
+	if (ret)
+		goto fail_free_bio;
+
+	for (i = 0; i < rqd->nr_ppas; ) {
+		spin_lock(&meta_line->lock);
+		paddr = __pblk_alloc_page(pblk, meta_line, rq_ppas);
+		spin_unlock(&meta_line->lock);
+		for (j = 0; j < rq_ppas; j++, i++, paddr++)
+			rqd->ppa_list[i] = addr_to_gen_ppa(pblk, paddr, id);
+	}
+
+	rlun = &pblk->luns[pblk_ppa_to_pos(geo, rqd->ppa_list[0])];
+	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(5000));
+	if (ret) {
+		pr_err("pblk: lun semaphore timed out (%d)\n", ret);
+		goto fail_free_bio;
+	}
+
+	emeta->mem += rq_len;
+	if (emeta->mem >= lm->emeta_len[0]) {
+		spin_lock(&l_mg->close_lock);
+		list_del(&meta_line->list);
+		WARN(!bitmap_full(meta_line->map_bitmap, lm->sec_per_line),
+				"pblk: corrupt meta line %d\n", meta_line->id);
+		spin_unlock(&l_mg->close_lock);
+	}
+
+	ret = pblk_submit_io(pblk, rqd);
+	if (ret) {
+		pr_err("pblk: emeta I/O submission failed: %d\n", ret);
+		goto fail_rollback;
+	}
+
+	return NVM_IO_OK;
+
+fail_rollback:
+	spin_lock(&l_mg->close_lock);
+	pblk_dealloc_page(pblk, meta_line, rq_ppas);
+	list_add(&meta_line->list, &meta_line->list);
+	spin_unlock(&l_mg->close_lock);
+fail_free_bio:
+	bio_put(bio);
+fail_free_rqd:
+	pblk_free_rqd(pblk, rqd, READ);
+	return ret;
+}
+
+static int pblk_sched_meta_io(struct pblk *pblk, struct ppa_addr *prev_list,
+			       int prev_n)
+{
+	struct pblk_line_meta *lm = &pblk->lm;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+	struct pblk_line *meta_line;
+
+	spin_lock(&l_mg->close_lock);
+retry:
+	if (list_empty(&l_mg->emeta_list)) {
+		spin_unlock(&l_mg->close_lock);
+		return 0;
+	}
+	meta_line = list_first_entry(&l_mg->emeta_list, struct pblk_line, list);
+	if (bitmap_full(meta_line->map_bitmap, lm->sec_per_line))
+		goto retry;
+	spin_unlock(&l_mg->close_lock);
+
+	if (!pblk_valid_meta_ppa(pblk, meta_line, prev_list, prev_n))
+		return 0;
+
+	return pblk_submit_meta_io(pblk, meta_line);
+}
+
 static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
@@ -308,24 +498,39 @@ static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
 		return NVM_IO_ERR;
 	}
 
-	/* Submit write for current data line */
-	err = pblk_submit_io(pblk, rqd);
-	if (err) {
-		pr_err("pblk: I/O submission failed: %d\n", err);
-		return NVM_IO_ERR;
-	}
+	if (likely(ppa_empty(erase_ppa))) {
+		/* Submit metadata write for previous data line */
+		err = pblk_sched_meta_io(pblk, rqd->ppa_list, rqd->nr_ppas);
+		if (err) {
+			pr_err("pblk: metadata I/O submission failed: %d", err);
+			return NVM_IO_ERR;
+		}
 
-	/* Submit available erase for next data line */
-	if (unlikely(!ppa_empty(erase_ppa)) &&
-				pblk_blk_erase_async(pblk, erase_ppa)) {
-		struct pblk_line *e_line = pblk_line_get_erase(pblk);
-		struct nvm_tgt_dev *dev = pblk->dev;
-		struct nvm_geo *geo = &dev->geo;
-		int bit;
+		/* Submit data write for current data line */
+		err = pblk_submit_io(pblk, rqd);
+		if (err) {
+			pr_err("pblk: data I/O submission failed: %d\n", err);
+			return NVM_IO_ERR;
+		}
+	} else {
+		/* Submit data write for current data line */
+		err = pblk_submit_io(pblk, rqd);
+		if (err) {
+			pr_err("pblk: data I/O submission failed: %d\n", err);
+			return NVM_IO_ERR;
+		}
 
-		atomic_inc(&e_line->left_eblks);
-		bit = erase_ppa.g.lun * geo->nr_chnls + erase_ppa.g.ch;
-		WARN_ON(!test_and_clear_bit(bit, e_line->erase_bitmap));
+		/* Submit available erase for next data line */
+		if (pblk_blk_erase_async(pblk, erase_ppa)) {
+			struct pblk_line *e_line = pblk_line_get_erase(pblk);
+			struct nvm_tgt_dev *dev = pblk->dev;
+			struct nvm_geo *geo = &dev->geo;
+			int bit;
+
+			atomic_inc(&e_line->left_eblks);
+			bit = pblk_ppa_to_pos(geo, erase_ppa);
+			WARN_ON(!test_and_clear_bit(bit, e_line->erase_bitmap));
+		}
 	}
 
 	return NVM_IO_OK;

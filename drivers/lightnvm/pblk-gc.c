@@ -156,7 +156,8 @@ static void pblk_gc_line_ws(struct work_struct *work)
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line *line = line_ws->line;
 	struct pblk_line_meta *lm = &pblk->lm;
-	__le64 *lba_list = line_ws->priv;
+	struct line_emeta *emeta_buf = line_ws->priv;
+	__le64 *lba_list;
 	u64 *gc_list;
 	int sec_left;
 	int nr_ppas, bit;
@@ -164,8 +165,18 @@ static void pblk_gc_line_ws(struct work_struct *work)
 
 	pr_debug("pblk: line '%d' being reclaimed for GC\n", line->id);
 
+	/* If this read fails, it means that emeta is corrupted. For now, leave
+	 * the line untouched. TODO: Implement a recovery routine that scans and
+	 * moves all sectors on the line.
+	 */
+	lba_list = pblk_recov_get_lba_list(pblk, emeta_buf);
+	if (!lba_list) {
+		pr_err("pblk: could not interpret emeta (line %d)\n", line->id);
+		goto out;
+	}
+
 	spin_lock(&line->lock);
-	sec_left = line->vsc;
+	sec_left = le32_to_cpu(*line->vsc);
 	if (!sec_left) {
 		/* Lines are erased before being used (l_mg->data_/log_next) */
 		spin_unlock(&line->lock);
@@ -206,7 +217,7 @@ next_rq:
 
 	if (pblk_gc_move_valid_secs(pblk, line, gc_list, nr_ppas)) {
 		pr_err("pblk: could not GC all sectors: line:%d (%d/%d/%d)\n",
-						line->id, line->vsc,
+						line->id, *line->vsc,
 						nr_ppas, nr_ppas);
 		put_line = 0;
 		pblk_put_line_back(pblk, line);
@@ -218,7 +229,7 @@ next_rq:
 		goto next_rq;
 
 out:
-	pblk_mfree(line->emeta, l_mg->emeta_alloc_type);
+	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
 	mempool_free(line_ws, pblk->line_ws_pool);
 	atomic_dec(&pblk->gc.inflight_gc);
 	if (put_line)
@@ -229,37 +240,27 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
+	struct line_emeta *emeta_buf;
 	struct pblk_line_ws *line_ws;
-	__le64 *lba_list;
 	int ret;
 
 	line_ws = mempool_alloc(pblk->line_ws_pool, GFP_KERNEL);
-	line->emeta = pblk_malloc(lm->emeta_len, l_mg->emeta_alloc_type,
+	emeta_buf = pblk_malloc(lm->emeta_len[0], l_mg->emeta_alloc_type,
 								GFP_KERNEL);
-	if (!line->emeta) {
+	if (!emeta_buf) {
 		pr_err("pblk: cannot use GC emeta\n");
 		goto fail_free_ws;
 	}
 
-	ret = pblk_line_read_emeta(pblk, line);
+	ret = pblk_line_read_emeta(pblk, line, emeta_buf);
 	if (ret) {
 		pr_err("pblk: line %d read emeta failed (%d)\n", line->id, ret);
 		goto fail_free_emeta;
 	}
 
-	/* If this read fails, it means that emeta is corrupted. For now, leave
-	 * the line untouched. TODO: Implement a recovery routine that scans and
-	 * moves all sectors on the line.
-	 */
-	lba_list = pblk_recov_get_lba_list(pblk, line->emeta);
-	if (!lba_list) {
-		pr_err("pblk: could not interpret emeta (line %d)\n", line->id);
-		goto fail_free_emeta;
-	}
-
 	line_ws->pblk = pblk;
 	line_ws->line = line;
-	line_ws->priv = lba_list;
+	line_ws->priv = emeta_buf;
 
 	INIT_WORK(&line_ws->ws, pblk_gc_line_ws);
 	queue_work(pblk->gc.gc_reader_wq, &line_ws->ws);
@@ -267,7 +268,7 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 	return 0;
 
 fail_free_emeta:
-	pblk_mfree(line->emeta, l_mg->emeta_alloc_type);
+	pblk_mfree(emeta_buf, l_mg->emeta_alloc_type);
 fail_free_ws:
 	mempool_free(line_ws, pblk->line_ws_pool);
 	pblk_put_line_back(pblk, line);
