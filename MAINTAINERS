@@ -2964,7 +2964,7 @@ F:	sound/pci/oxygen/
 
 C6X ARCHITECTURE
 M:	Mark Salter <msalter@redhat.com>
-M:	Aurelien Jacquiot <a-jacquiot@ti.com>
+M:	Aurelien Jacquiot <jacquiot.aurelien@gmail.com>
 L:	linux-c6x-dev@linux-c6x.org
 W:	http://www.linux-c6x.org/wiki/index.php/Main_Page
 S:	Maintained
