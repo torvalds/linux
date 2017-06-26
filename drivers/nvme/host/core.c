@@ -2191,23 +2191,16 @@ static struct attribute *nvme_dev_attrs[] = {
 	NULL
 };
 
-#define CHECK_ATTR(ctrl, a, name)		\
-	if ((a) == &dev_attr_##name.attr &&	\
-	    !(ctrl)->ops->get_##name)		\
-		return 0
-
 static umode_t nvme_dev_attrs_are_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	if (a == &dev_attr_delete_controller.attr) {
-		if (!ctrl->ops->delete_ctrl)
-			return 0;
-	}
-
-	CHECK_ATTR(ctrl, a, address);
+	if (a == &dev_attr_delete_controller.attr && !ctrl->ops->delete_ctrl)
+		return 0;
+	if (a == &dev_attr_address.attr && !ctrl->ops->get_address)
+		return 0;
 
 	return a->mode;
 }
