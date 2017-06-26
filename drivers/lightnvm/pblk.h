@@ -40,6 +40,12 @@
 #define PBLK_MAX_REQ_ADDRS (64)
 #define PBLK_MAX_REQ_ADDRS_PW (6)
 
+#define PBLK_WS_POOL_SIZE (128)
+#define PBLK_META_POOL_SIZE (128)
+#define PBLK_READ_REQ_POOL_SIZE (1024)
+
+#define PBLK_NR_CLOSE_JOBS (4)
+
 #define PBLK_CACHE_NAME_LEN (DISK_NAME_LEN + 16)
 
 #define PBLK_COMMAND_TIMEOUT_MS 30000
@@ -599,7 +605,9 @@ struct pblk {
 	mempool_t *w_rq_pool;
 	mempool_t *line_meta_pool;
 
-	struct workqueue_struct *kw_wq;
+	struct workqueue_struct *close_wq;
+	struct workqueue_struct *bb_wq;
+
 	struct timer_list wtimer;
 
 	struct pblk_gc gc;
@@ -692,7 +700,8 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_close_ws(struct work_struct *work);
 void pblk_line_mark_bb(struct work_struct *work);
 void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
-		      void (*work)(struct work_struct *));
+		      void (*work)(struct work_struct *),
+		      struct workqueue_struct *wq);
 u64 pblk_line_smeta_start(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_read_smeta(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_read_emeta(struct pblk *pblk, struct pblk_line *line,

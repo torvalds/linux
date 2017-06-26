@@ -150,7 +150,7 @@ static void pblk_end_w_fail(struct pblk *pblk, struct nvm_rq *rqd)
 	}
 
 	INIT_WORK(&recovery->ws_rec, pblk_submit_rec);
-	queue_work(pblk->kw_wq, &recovery->ws_rec);
+	queue_work(pblk->close_wq, &recovery->ws_rec);
 
 out:
 	pblk_complete_write(pblk, rqd, c_ctx);
@@ -198,7 +198,8 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 
 	sync = atomic_add_return(rqd->nr_ppas, &emeta->sync);
 	if (sync == emeta->nr_entries)
-		pblk_line_run_ws(pblk, line, NULL, pblk_line_close_ws);
+		pblk_line_run_ws(pblk, line, NULL, pblk_line_close_ws,
+								pblk->close_wq);
 
 	bio_put(rqd->bio);
 	pblk_free_rqd(pblk, rqd, READ);

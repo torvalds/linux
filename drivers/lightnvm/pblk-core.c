@@ -33,7 +33,7 @@ static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
 		pr_err("pblk: attempted to erase bb: line:%d, pos:%d\n",
 							line->id, pos);
 
-	pblk_line_run_ws(pblk, NULL, ppa, pblk_line_mark_bb);
+	pblk_line_run_ws(pblk, NULL, ppa, pblk_line_mark_bb, pblk->bb_wq);
 }
 
 static void __pblk_end_io_erase(struct pblk *pblk, struct nvm_rq *rqd)
@@ -1528,7 +1528,8 @@ void pblk_line_mark_bb(struct work_struct *work)
 }
 
 void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
-		      void (*work)(struct work_struct *))
+		      void (*work)(struct work_struct *),
+		      struct workqueue_struct *wq)
 {
 	struct pblk_line_ws *line_ws;
 
@@ -1541,7 +1542,7 @@ void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 	line_ws->priv = priv;
 
 	INIT_WORK(&line_ws->ws, work);
-	queue_work(pblk->kw_wq, &line_ws->ws);
+	queue_work(wq, &line_ws->ws);
 }
 
 void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,

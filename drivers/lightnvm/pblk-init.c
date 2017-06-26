@@ -251,7 +251,7 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->page_pool)
 		return -ENOMEM;
 
-	pblk->line_ws_pool = mempool_create_slab_pool(geo->nr_luns,
+	pblk->line_ws_pool = mempool_create_slab_pool(PBLK_WS_POOL_SIZE,
 							pblk_blk_ws_cache);
 	if (!pblk->line_ws_pool)
 		goto free_page_pool;
@@ -260,35 +260,45 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->rec_pool)
 		goto free_blk_ws_pool;
 
-	pblk->g_rq_pool = mempool_create_slab_pool(64, pblk_g_rq_cache);
+	pblk->g_rq_pool = mempool_create_slab_pool(PBLK_READ_REQ_POOL_SIZE,
+							pblk_g_rq_cache);
 	if (!pblk->g_rq_pool)
 		goto free_rec_pool;
 
-	pblk->w_rq_pool = mempool_create_slab_pool(64, pblk_w_rq_cache);
+	pblk->w_rq_pool = mempool_create_slab_pool(geo->nr_luns * 2,
+							pblk_w_rq_cache);
 	if (!pblk->w_rq_pool)
 		goto free_g_rq_pool;
 
 	pblk->line_meta_pool =
-			mempool_create_slab_pool(16, pblk_line_meta_cache);
+			mempool_create_slab_pool(PBLK_META_POOL_SIZE,
+							pblk_line_meta_cache);
 	if (!pblk->line_meta_pool)
 		goto free_w_rq_pool;
 
-	pblk->kw_wq = alloc_workqueue("pblk-aux-wq",
-					WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
-	if (!pblk->kw_wq)
+	pblk->close_wq = alloc_workqueue("pblk-close-wq",
+			WQ_MEM_RECLAIM | WQ_UNBOUND, PBLK_NR_CLOSE_JOBS);
+	if (!pblk->close_wq)
 		goto free_line_meta_pool;
 
+	pblk->bb_wq = alloc_workqueue("pblk-bb-wq",
+			WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
+	if (!pblk->bb_wq)
+		goto free_close_wq;
+
 	if (pblk_set_ppaf(pblk))
-		goto free_kw_wq;
+		goto free_bb_wq;
 
 	if (pblk_rwb_init(pblk))
-		goto free_kw_wq;
+		goto free_bb_wq;
 
 	INIT_LIST_HEAD(&pblk->compl_list);
 	return 0;
 
-free_kw_wq:
-	destroy_workqueue(pblk->kw_wq);
+free_bb_wq:
+	destroy_workqueue(pblk->bb_wq);
+free_close_wq:
+	destroy_workqueue(pblk->close_wq);
 free_line_meta_pool:
 	mempool_destroy(pblk->line_meta_pool);
 free_w_rq_pool:
@@ -306,8 +316,11 @@ free_page_pool:
 
 static void pblk_core_free(struct pblk *pblk)
 {
-	if (pblk->kw_wq)
-		destroy_workqueue(pblk->kw_wq);
+	if (pblk->close_wq)
+		destroy_workqueue(pblk->close_wq);
+
+	if (pblk->bb_wq)
+		destroy_workqueue(pblk->bb_wq);
 
 	mempool_destroy(pblk->page_pool);
 	mempool_destroy(pblk->line_ws_pool);
