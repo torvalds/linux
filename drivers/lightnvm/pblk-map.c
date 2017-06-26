@@ -92,8 +92,9 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct pblk_line *e_line = pblk_line_get_data_next(pblk);
+	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	struct pblk_line *e_line, *d_line;
 	unsigned int map_secs;
 	int min = pblk->min_write_pgs;
 	int i, erase_lun;
@@ -106,32 +107,49 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		erase_lun = rqd->ppa_list[i].g.lun * geo->nr_chnls +
 							rqd->ppa_list[i].g.ch;
 
+		/* line can change after page map */
+		e_line = pblk_line_get_erase(pblk);
+		spin_lock(&e_line->lock);
 		if (!test_bit(erase_lun, e_line->erase_bitmap)) {
-			if (down_trylock(&pblk->erase_sem))
-				continue;
-
 			set_bit(erase_lun, e_line->erase_bitmap);
 			atomic_dec(&e_line->left_eblks);
+
 			*erase_ppa = rqd->ppa_list[i];
 			erase_ppa->g.blk = e_line->id;
+
+			spin_unlock(&e_line->lock);
 
 			/* Avoid evaluating e_line->left_eblks */
 			return pblk_map_rq(pblk, rqd, sentry, lun_bitmap,
 							valid_secs, i + min);
 		}
+		spin_unlock(&e_line->lock);
 	}
 
-	/* Erase blocks that are bad in this line but might not be in next */
-	if (unlikely(ppa_empty(*erase_ppa))) {
-		struct pblk_line_meta *lm = &pblk->lm;
+	e_line = pblk_line_get_erase(pblk);
+	d_line = pblk_line_get_data(pblk);
 
-		i = find_first_zero_bit(e_line->erase_bitmap, lm->blk_per_line);
-		if (i == lm->blk_per_line)
+	/* Erase blocks that are bad in this line but might not be in next */
+	if (unlikely(ppa_empty(*erase_ppa)) &&
+			bitmap_weight(d_line->blk_bitmap, lm->blk_per_line)) {
+		int bit = -1;
+
+retry:
+		bit = find_next_bit(d_line->blk_bitmap,
+						lm->blk_per_line, bit + 1);
+		if (bit >= lm->blk_per_line)
 			return;
 
-		set_bit(i, e_line->erase_bitmap);
+		spin_lock(&e_line->lock);
+		if (test_bit(bit, e_line->erase_bitmap)) {
+			spin_unlock(&e_line->lock);
+			goto retry;
+		}
+		spin_unlock(&e_line->lock);
+
+		set_bit(bit, e_line->erase_bitmap);
 		atomic_dec(&e_line->left_eblks);
-		*erase_ppa = pblk->luns[i].bppa; /* set ch and lun */
+		*erase_ppa = pblk->luns[bit].bppa; /* set ch and lun */
 		erase_ppa->g.blk = e_line->id;
 	}
 }

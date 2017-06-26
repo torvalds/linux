@@ -219,11 +219,10 @@ static int pblk_alloc_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 }
 
 static int pblk_setup_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
-			   struct pblk_c_ctx *c_ctx)
+			   struct pblk_c_ctx *c_ctx, struct ppa_addr *erase_ppa)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
-	struct pblk_line *e_line = pblk_line_get_data_next(pblk);
-	struct ppa_addr erase_ppa;
+	struct pblk_line *e_line = pblk_line_get_erase(pblk);
 	unsigned int valid = c_ctx->nr_valid;
 	unsigned int padded = c_ctx->nr_padded;
 	unsigned int nr_secs = valid + padded;
@@ -231,40 +230,23 @@ static int pblk_setup_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	int ret = 0;
 
 	lun_bitmap = kzalloc(lm->lun_bitmap_len, GFP_KERNEL);
-	if (!lun_bitmap) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!lun_bitmap)
+		return -ENOMEM;
 	c_ctx->lun_bitmap = lun_bitmap;
 
 	ret = pblk_alloc_w_rq(pblk, rqd, nr_secs);
 	if (ret) {
 		kfree(lun_bitmap);
-		goto out;
+		return ret;
 	}
 
-	ppa_set_empty(&erase_ppa);
-	if (likely(!e_line || !atomic_read(&e_line->left_eblks)))
+	if (likely(!atomic_read(&e_line->left_eblks) || !e_line))
 		pblk_map_rq(pblk, rqd, c_ctx->sentry, lun_bitmap, valid, 0);
 	else
 		pblk_map_erase_rq(pblk, rqd, c_ctx->sentry, lun_bitmap,
-							valid, &erase_ppa);
+							valid, erase_ppa);
 
-out:
-	if (unlikely(e_line && !ppa_empty(erase_ppa))) {
-		if (pblk_blk_erase_async(pblk, erase_ppa)) {
-			struct nvm_tgt_dev *dev = pblk->dev;
-			struct nvm_geo *geo = &dev->geo;
-			int bit;
-
-			atomic_inc(&e_line->left_eblks);
-			bit = erase_ppa.g.lun * geo->nr_chnls + erase_ppa.g.ch;
-			WARN_ON(!test_and_clear_bit(bit, e_line->erase_bitmap));
-			up(&pblk->erase_sem);
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
@@ -311,16 +293,60 @@ static int pblk_calc_secs_to_sync(struct pblk *pblk, unsigned int secs_avail,
 	return secs_to_sync;
 }
 
+static int pblk_submit_io_set(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
+	struct ppa_addr erase_ppa;
+	int err;
+
+	ppa_set_empty(&erase_ppa);
+
+	/* Assign lbas to ppas and populate request structure */
+	err = pblk_setup_w_rq(pblk, rqd, c_ctx, &erase_ppa);
+	if (err) {
+		pr_err("pblk: could not setup write request: %d\n", err);
+		return NVM_IO_ERR;
+	}
+
+	/* Submit write for current data line */
+	err = pblk_submit_io(pblk, rqd);
+	if (err) {
+		pr_err("pblk: I/O submission failed: %d\n", err);
+		return NVM_IO_ERR;
+	}
+
+	/* Submit available erase for next data line */
+	if (unlikely(!ppa_empty(erase_ppa)) &&
+				pblk_blk_erase_async(pblk, erase_ppa)) {
+		struct pblk_line *e_line = pblk_line_get_erase(pblk);
+		struct nvm_tgt_dev *dev = pblk->dev;
+		struct nvm_geo *geo = &dev->geo;
+		int bit;
+
+		atomic_inc(&e_line->left_eblks);
+		bit = erase_ppa.g.lun * geo->nr_chnls + erase_ppa.g.ch;
+		WARN_ON(!test_and_clear_bit(bit, e_line->erase_bitmap));
+	}
+
+	return NVM_IO_OK;
+}
+
+static void pblk_free_write_rqd(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
+	struct bio *bio = rqd->bio;
+
+	if (c_ctx->nr_padded)
+		pblk_bio_free_pages(pblk, bio, rqd->nr_ppas, c_ctx->nr_padded);
+}
+
 static int pblk_submit_write(struct pblk *pblk)
 {
 	struct bio *bio;
 	struct nvm_rq *rqd;
-	struct pblk_c_ctx *c_ctx;
-	unsigned int pgs_read;
 	unsigned int secs_avail, secs_to_sync, secs_to_com;
 	unsigned int secs_to_flush;
 	unsigned long pos;
-	int err;
 
 	/* If there are no sectors in the cache, flushes (bios without data)
 	 * will be cleared on the cache threads
@@ -338,7 +364,6 @@ static int pblk_submit_write(struct pblk *pblk)
 		pr_err("pblk: cannot allocate write req.\n");
 		return 1;
 	}
-	c_ctx = nvm_rq_to_pdu(rqd);
 
 	bio = bio_alloc(GFP_KERNEL, pblk->max_write_pgs);
 	if (!bio) {
@@ -358,29 +383,14 @@ static int pblk_submit_write(struct pblk *pblk)
 	secs_to_com = (secs_to_sync > secs_avail) ? secs_avail : secs_to_sync;
 	pos = pblk_rb_read_commit(&pblk->rwb, secs_to_com);
 
-	pgs_read = pblk_rb_read_to_bio(&pblk->rwb, bio, c_ctx, pos,
-						secs_to_sync, secs_avail);
-	if (!pgs_read) {
+	if (pblk_rb_read_to_bio(&pblk->rwb, rqd, bio, pos, secs_to_sync,
+								secs_avail)) {
 		pr_err("pblk: corrupted write bio\n");
 		goto fail_put_bio;
 	}
 
-	if (c_ctx->nr_padded)
-		if (pblk_bio_add_pages(pblk, bio, GFP_KERNEL, c_ctx->nr_padded))
-			goto fail_put_bio;
-
-	/* Assign lbas to ppas and populate request structure */
-	err = pblk_setup_w_rq(pblk, rqd, c_ctx);
-	if (err) {
-		pr_err("pblk: could not setup write request\n");
+	if (pblk_submit_io_set(pblk, rqd))
 		goto fail_free_bio;
-	}
-
-	err = pblk_submit_io(pblk, rqd);
-	if (err) {
-		pr_err("pblk: I/O submission failed: %d\n", err);
-		goto fail_free_bio;
-	}
 
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(secs_to_sync, &pblk->sub_writes);
@@ -389,8 +399,7 @@ static int pblk_submit_write(struct pblk *pblk)
 	return 0;
 
 fail_free_bio:
-	if (c_ctx->nr_padded)
-		pblk_bio_free_pages(pblk, bio, secs_to_sync, c_ctx->nr_padded);
+	pblk_free_write_rqd(pblk, rqd);
 fail_put_bio:
 	bio_put(bio);
 fail_free_rqd:

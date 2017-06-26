@@ -61,7 +61,6 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
 {
 	struct pblk *pblk = rqd->private;
 
-	up(&pblk->erase_sem);
 	__pblk_end_io_erase(pblk, rqd);
 	mempool_free(rqd, pblk->r_rq_pool);
 }
@@ -1373,7 +1372,8 @@ struct pblk_line *pblk_line_get_data(struct pblk *pblk)
 	return pblk->l_mg.data_line;
 }
 
-struct pblk_line *pblk_line_get_data_next(struct pblk *pblk)
+/* For now, always erase next line */
+struct pblk_line *pblk_line_get_erase(struct pblk *pblk)
 {
 	return pblk->l_mg.data_next;
 }

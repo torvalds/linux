@@ -500,7 +500,6 @@ struct pblk {
 	struct pblk_rl rl;
 
 	int sec_per_write;
-	struct semaphore erase_sem;
 
 	unsigned char instance_uuid[16];
 #ifdef CONFIG_NVM_DEBUG
@@ -583,11 +582,9 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 struct pblk_w_ctx *pblk_rb_w_ctx(struct pblk_rb *rb, unsigned int pos);
 
 void pblk_rb_sync_l2p(struct pblk_rb *rb);
-unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct bio *bio,
-				 struct pblk_c_ctx *c_ctx,
-				 unsigned int pos,
-				 unsigned int nr_entries,
-				 unsigned int count);
+unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
+				 struct bio *bio, unsigned int pos,
+				 unsigned int nr_entries, unsigned int count);
 unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
 				      struct list_head *list,
 				      unsigned int max);
@@ -633,7 +630,7 @@ struct pblk_line *pblk_line_replace_data(struct pblk *pblk);
 int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line);
 struct pblk_line *pblk_line_get_data(struct pblk *pblk);
-struct pblk_line *pblk_line_get_data_next(struct pblk *pblk);
+struct pblk_line *pblk_line_get_erase(struct pblk *pblk);
 int pblk_line_erase(struct pblk *pblk, struct pblk_line *line);
 int pblk_line_is_full(struct pblk_line *line);
 void pblk_line_free(struct pblk *pblk, struct pblk_line *line);

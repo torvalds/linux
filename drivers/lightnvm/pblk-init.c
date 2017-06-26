@@ -545,7 +545,7 @@ static int pblk_lines_init(struct pblk *pblk)
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_line *line;
 	unsigned int smeta_len, emeta_len;
-	long nr_bad_blks, nr_meta_blks, nr_free_blks;
+	long nr_bad_blks, nr_free_blks;
 	int bb_distance;
 	int i;
 	int ret;
@@ -591,9 +591,8 @@ add_emeta_page:
 	}
 	lm->emeta_bb = geo->nr_luns - i;
 
-	nr_meta_blks = (lm->smeta_sec + lm->emeta_sec +
-				(geo->sec_per_blk / 2)) / geo->sec_per_blk;
-	lm->min_blk_line = nr_meta_blks + 1;
+	lm->min_blk_line = 1 + DIV_ROUND_UP(lm->smeta_sec + lm->emeta_sec,
+							geo->sec_per_blk);
 
 	l_mg->nr_lines = geo->blks_per_lun;
 	l_mg->log_line = l_mg->data_line = NULL;
@@ -715,8 +714,6 @@ add_emeta_page:
 	}
 
 	pblk_set_provision(pblk, nr_free_blks);
-
-	sema_init(&pblk->erase_sem, 1);
 
 	/* Cleanup per-LUN bad block lists - managed within lines on run-time */
 	for (i = 0; i < geo->nr_luns; i++)

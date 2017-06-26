@@ -521,20 +521,19 @@ out:
  * This function is used by the write thread to form the write bio that will
  * persist data on the write buffer to the media.
  */
-unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct bio *bio,
-				 struct pblk_c_ctx *c_ctx,
-				 unsigned int pos,
-				 unsigned int nr_entries,
-				 unsigned int count)
+unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
+				 struct bio *bio, unsigned int pos,
+				 unsigned int nr_entries, unsigned int count)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
+	struct request_queue *q = pblk->dev->q;
+	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
 	struct pblk_rb_entry *entry;
 	struct page *page;
-	unsigned int pad = 0, read = 0, to_read = nr_entries;
+	unsigned int pad = 0, to_read = nr_entries;
 	unsigned int user_io = 0, gc_io = 0;
 	unsigned int i;
 	int flags;
-	int ret;
 
 	if (count < nr_entries) {
 		pad = nr_entries - count;
@@ -570,17 +569,17 @@ try:
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
 			smp_store_release(&entry->w_ctx.flags, flags);
-			goto out;
+			return NVM_IO_ERR;
 		}
 
-		ret = bio_add_page(bio, page, rb->seg_size, 0);
-		if (ret != rb->seg_size) {
+		if (bio_add_pc_page(q, bio, page, rb->seg_size, 0) !=
+								rb->seg_size) {
 			pr_err("pblk: could not add page to write bio\n");
 			flags &= ~PBLK_WRITTEN_DATA;
 			flags |= PBLK_SUBMITTED_ENTRY;
 			/* Release flags on context. Protect from writes */
 			smp_store_release(&entry->w_ctx.flags, flags);
-			goto out;
+			return NVM_IO_ERR;
 		}
 
 		if (flags & PBLK_FLUSH_ENTRY) {
@@ -607,14 +606,20 @@ try:
 		pos = (pos + 1) & (rb->nr_entries - 1);
 	}
 
-	read = to_read;
+	if (pad) {
+		if (pblk_bio_add_pages(pblk, bio, GFP_KERNEL, pad)) {
+			pr_err("pblk: could not pad page in write bio\n");
+			return NVM_IO_ERR;
+		}
+	}
+
 	pblk_rl_out(&pblk->rl, user_io, gc_io);
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(pad, &((struct pblk *)
 			(container_of(rb, struct pblk, rwb)))->padded_writes);
 #endif
-out:
-	return read;
+
+	return NVM_IO_OK;
 }
 
 /*
