@@ -1033,6 +1033,8 @@ struct f2fs_sb_info {
 	block_t total_valid_block_count;	/* # of valid blocks */
 	block_t discard_blks;			/* discard command candidats */
 	block_t last_valid_block_count;		/* for recovery */
+	block_t reserved_blocks;		/* configurable reserved blocks */
+
 	u32 s_next_generation;			/* for NFS support */
 
 	/* # of pages, see count_type */
@@ -1443,6 +1445,7 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 				 struct inode *inode, blkcnt_t *count)
 {
 	blkcnt_t diff;
+	block_t avail_user_block_count;
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (time_to_inject(sbi, FAULT_BLOCK)) {
@@ -1458,10 +1461,11 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 
 	spin_lock(&sbi->stat_lock);
 	sbi->total_valid_block_count += (block_t)(*count);
-	if (unlikely(sbi->total_valid_block_count > sbi->user_block_count)) {
-		diff = sbi->total_valid_block_count - sbi->user_block_count;
+	avail_user_block_count = sbi->user_block_count - sbi->reserved_blocks;
+	if (unlikely(sbi->total_valid_block_count > avail_user_block_count)) {
+		diff = sbi->total_valid_block_count - avail_user_block_count;
 		*count -= diff;
-		sbi->total_valid_block_count = sbi->user_block_count;
+		sbi->total_valid_block_count = avail_user_block_count;
 		if (!*count) {
 			spin_unlock(&sbi->stat_lock);
 			percpu_counter_sub(&sbi->alloc_valid_block_count, diff);
@@ -1623,7 +1627,8 @@ static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
 	spin_lock(&sbi->stat_lock);
 
 	valid_block_count = sbi->total_valid_block_count + 1;
-	if (unlikely(valid_block_count > sbi->user_block_count)) {
+	if (unlikely(valid_block_count + sbi->reserved_blocks >
+						sbi->user_block_count)) {
 		spin_unlock(&sbi->stat_lock);
 		return false;
 	}
