@@ -265,6 +265,13 @@
 		status = "disabled";
 	};
 
+	fuse@3820000 {
+		compatible = "nvidia,tegra186-efuse";
+		reg = <0x0 0x03820000 0x0 0x10000>;
+		clocks = <&bpmp TEGRA186_CLK_FUSE>;
+		clock-names = "fuse";
+	};
+
 	gic: interrupt-controller@3881000 {
 		compatible = "arm,gic-400";
 		#interrupt-cells = <3>;
