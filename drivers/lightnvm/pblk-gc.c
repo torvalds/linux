@@ -287,6 +287,20 @@ static void pblk_gc_lines(struct pblk *pblk, struct list_head *gc_list)
 	}
 }
 
+static struct pblk_line *pblk_gc_get_victim_line(struct pblk *pblk,
+						 struct list_head *group_list)
+{
+	struct pblk_line *line, *victim;
+
+	victim = list_first_entry(group_list, struct pblk_line, list);
+	list_for_each_entry(line, group_list, list) {
+		if (*line->vsc < *victim->vsc)
+			victim = line;
+	}
+
+	return victim;
+}
+
 /*
  * Lines with no valid sectors will be returned to the free list immediately. If
  * GC is activated - either because the free block count is under the determined
@@ -332,7 +346,7 @@ next_gc_group:
 			return;
 		}
 
-		line = list_first_entry(group_list, struct pblk_line, list);
+		line = pblk_gc_get_victim_line(pblk, group_list);
 		nr_blocks_free += atomic_read(&line->blk_in_line);
 
 		spin_lock(&line->lock);
