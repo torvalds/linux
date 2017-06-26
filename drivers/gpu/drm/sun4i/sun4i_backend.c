@@ -328,6 +328,8 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	struct drm_atomic_state *state = crtc_state->state;
 	struct drm_device *drm = state->dev;
 	struct drm_plane *plane;
+	unsigned int num_planes = 0;
+	unsigned int num_alpha_planes = 0;
 	unsigned int num_frontend_planes = 0;
 
 	DRM_DEBUG_DRIVER("Starting checking our planes\n");
@@ -340,6 +342,8 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 			drm_atomic_get_plane_state(state, plane);
 		struct sun4i_layer_state *layer_state =
 			state_to_sun4i_layer_state(plane_state);
+		struct drm_framebuffer *fb = plane_state->fb;
+		struct drm_format_name_buf format_name;
 
 		if (sun4i_backend_plane_uses_frontend(plane_state)) {
 			DRM_DEBUG_DRIVER("Using the frontend for plane %d\n",
@@ -350,12 +354,59 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		} else {
 			layer_state->uses_frontend = false;
 		}
+
+		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
+				 drm_get_format_name(fb->format->format,
+						     &format_name));
+		if (fb->format->has_alpha)
+			num_alpha_planes++;
+
+		num_planes++;
+	}
+
+	/*
+	 * The hardware is a bit unusual here.
+	 *
+	 * Even though it supports 4 layers, it does the composition
+	 * in two separate steps.
+	 *
+	 * The first one is assigning a layer to one of its two
+	 * pipes. If more that 1 layer is assigned to the same pipe,
+	 * and if pixels overlaps, the pipe will take the pixel from
+	 * the layer with the highest priority.
+	 *
+	 * The second step is the actual alpha blending, that takes
+	 * the two pipes as input, and uses the eventual alpha
+	 * component to do the transparency between the two.
+	 *
+	 * This two steps scenario makes us unable to guarantee a
+	 * robust alpha blending between the 4 layers in all
+	 * situations, since this means that we need to have one layer
+	 * with alpha at the lowest position of our two pipes.
+	 *
+	 * However, we cannot even do that, since the hardware has a
+	 * bug where the lowest plane of the lowest pipe (pipe 0,
+	 * priority 0), if it has any alpha, will discard the pixel
+	 * entirely and just display the pixels in the background
+	 * color (black by default).
+	 *
+	 * This means that we effectively have only three valid
+	 * configurations with alpha, all of them with the alpha being
+	 * on pipe1 with the lowest position, which can be 1, 2 or 3
+	 * depending on the number of planes and their zpos.
+	 */
+	if (num_alpha_planes > SUN4I_BACKEND_NUM_ALPHA_LAYERS) {
+		DRM_DEBUG_DRIVER("Too many planes with alpha, rejecting...\n");
+		return -EINVAL;
 	}
 
 	if (num_frontend_planes > SUN4I_BACKEND_NUM_FRONTEND_LAYERS) {
 		DRM_DEBUG_DRIVER("Too many planes going through the frontend, rejecting\n");
 		return -EINVAL;
 	}
+
+	DRM_DEBUG_DRIVER("State valid with %u planes, %u alpha, %u video\n",
+			 num_planes, num_alpha_planes, num_frontend_planes);
 
 	return 0;
 }

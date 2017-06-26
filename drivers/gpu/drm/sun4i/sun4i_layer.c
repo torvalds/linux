@@ -201,32 +201,12 @@ struct drm_plane **sun4i_layers_init(struct drm_device *drm,
 	struct sun4i_backend *backend = engine_to_sun4i_backend(engine);
 	int i;
 
-	planes = devm_kcalloc(drm->dev, ARRAY_SIZE(sun4i_backend_planes) + 1,
+	/* We need to have a sentinel at the need, hence the overallocation */
+	planes = devm_kcalloc(drm->dev, SUN4I_BACKEND_NUM_LAYERS + 1,
 			      sizeof(*planes), GFP_KERNEL);
 	if (!planes)
 		return ERR_PTR(-ENOMEM);
 
-	/*
-	 * The hardware is a bit unusual here.
-	 *
-	 * Even though it supports 4 layers, it does the composition
-	 * in two separate steps.
-	 *
-	 * The first one is assigning a layer to one of its two
-	 * pipes. If more that 1 layer is assigned to the same pipe,
-	 * and if pixels overlaps, the pipe will take the pixel from
-	 * the layer with the highest priority.
-	 *
-	 * The second step is the actual alpha blending, that takes
-	 * the two pipes as input, and uses the eventual alpha
-	 * component to do the transparency between the two.
-	 *
-	 * This two steps scenario makes us unable to guarantee a
-	 * robust alpha blending between the 4 layers in all
-	 * situations. So we just expose two layers, one per pipe. On
-	 * SoCs that support it, sprites could fill the need for more
-	 * layers.
-	 */
 	for (i = 0; i < ARRAY_SIZE(sun4i_backend_planes); i++) {
 		const struct sun4i_plane_desc *plane = &sun4i_backend_planes[i];
 		struct sun4i_layer *layer;
