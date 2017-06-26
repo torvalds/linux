@@ -16,7 +16,17 @@ struct dma_coherent_mem {
 	int		flags;
 	unsigned long	*bitmap;
 	spinlock_t	spinlock;
+	bool		use_dev_dma_pfn_offset;
 };
+
+static inline dma_addr_t dma_get_device_base(struct device *dev,
+					     struct dma_coherent_mem * mem)
+{
+	if (mem->use_dev_dma_pfn_offset)
+		return (mem->pfn_base - dev->dma_pfn_offset) << PAGE_SHIFT;
+	else
+		return mem->device_base;
+}
 
 static bool dma_init_coherent_memory(
 	phys_addr_t phys_addr, dma_addr_t device_addr, size_t size, int flags,
@@ -133,7 +143,7 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 		return ERR_PTR(-EINVAL);
 
 	spin_lock_irqsave(&mem->spinlock, flags);
-	pos = (device_addr - mem->device_base) >> PAGE_SHIFT;
+	pos = PFN_DOWN(device_addr - dma_get_device_base(dev, mem));
 	err = bitmap_allocate_region(mem->bitmap, pos, get_order(size));
 	spin_unlock_irqrestore(&mem->spinlock, flags);
 
@@ -186,7 +196,7 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 	/*
 	 * Memory was found in the per-device area.
 	 */
-	*dma_handle = mem->device_base + (pageno << PAGE_SHIFT);
+	*dma_handle = dma_get_device_base(dev, mem) + (pageno << PAGE_SHIFT);
 	*ret = mem->virt_base + (pageno << PAGE_SHIFT);
 	dma_memory_map = (mem->flags & DMA_MEMORY_MAP);
 	spin_unlock_irqrestore(&mem->spinlock, flags);
@@ -299,6 +309,7 @@ static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 			&rmem->base, (unsigned long)rmem->size / SZ_1M);
 		return -ENODEV;
 	}
+	mem->use_dev_dma_pfn_offset = true;
 	rmem->priv = mem;
 	dma_assign_coherent_memory(dev, mem);
 	return 0;
