@@ -226,6 +226,11 @@ typedef struct siginfo {
 #define NSIGTRAP	4
 
 /*
+ * There are an additional set of SIGTRAP si_codes used by ptrace
+ * that of the form: ((PTRACE_EVENT_XXX << 8) | SIGTRAP)
+ */
+
+/*
  * SIGCHLD si_codes
  */
 #define CLD_EXITED	1	/* child has exited */
