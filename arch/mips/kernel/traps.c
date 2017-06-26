@@ -735,7 +735,7 @@ void force_fcr31_sig(unsigned long fcr31, void __user *fault_addr,
 	else if (fcr31 & FPU_CSR_INE_X)
 		si.si_code = FPE_FLTRES;
 	else
-		si.si_code = __SI_FAULT;
+		si.si_code = FPE_FIXME;
 	force_sig_info(SIGFPE, &si, tsk);
 }
 
