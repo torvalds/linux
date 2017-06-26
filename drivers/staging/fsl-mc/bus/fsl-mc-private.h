@@ -11,7 +11,6 @@
 #define _FSL_MC_PRIVATE_H_
 
 #include "../include/mc.h"
-#include "dprc.h"
 #include <linux/mutex.h>
 
 /**
