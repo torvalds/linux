@@ -38,6 +38,9 @@
  * @api_version: Firmware API version.
  * @gpio: GPIOs.
  * @get_dvb_frontend: Get DVB frontend callback.
+ * @get_i2c_adapter: Get I2C adapter.
+ * @pid_filter_ctrl: Control PID filter.
+ * @pid_filter: Set PID to PID filter.
  */
 struct af9013_platform_data {
 	/*
@@ -78,6 +81,8 @@ struct af9013_platform_data {
 
 	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
 	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
+	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
+	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
 };
 
 /*

@@ -1171,6 +1171,56 @@ static const struct dvb_frontend_ops af9013_ops = {
 	.read_ucblocks = af9013_read_ucblocks,
 };
 
+static int af9013_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+{
+	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
+	int ret;
+
+	dev_dbg(&client->dev, "onoff %d\n", onoff);
+
+	ret = regmap_update_bits(state->regmap, 0xd503, 0x01, onoff);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
+static int af9013_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
+			     int onoff)
+{
+	struct af9013_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
+	int ret;
+	u8 buf[2];
+
+	dev_dbg(&client->dev, "index %d, pid %04x, onoff %d\n",
+		index, pid, onoff);
+
+	if (pid > 0x1fff) {
+		/* 0x2000 is kernel virtual pid for whole ts (all pids) */
+		ret = 0;
+		goto err;
+	}
+
+	buf[0] = (pid >> 0) & 0xff;
+	buf[1] = (pid >> 8) & 0xff;
+	ret = regmap_bulk_write(state->regmap, 0xd505, buf, 2);
+	if (ret)
+		goto err;
+	ret = regmap_write(state->regmap, 0xd504, onoff << 5 | index << 0);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed %d\n", ret);
+	return ret;
+}
+
 static struct dvb_frontend *af9013_get_dvb_frontend(struct i2c_client *client)
 {
 	struct af9013_state *state = i2c_get_clientdata(client);
@@ -1473,6 +1523,8 @@ static int af9013_probe(struct i2c_client *client,
 	/* Setup callbacks */
 	pdata->get_dvb_frontend = af9013_get_dvb_frontend;
 	pdata->get_i2c_adapter = af9013_get_i2c_adapter;
+	pdata->pid_filter = af9013_pid_filter;
+	pdata->pid_filter_ctrl = af9013_pid_filter_ctrl;
 
 	/* Init stats to indicate which stats are supported */
 	c = &state->fe.dtv_property_cache;
