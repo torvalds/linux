@@ -3127,7 +3127,7 @@ static void hpsa_debug_map_buff(struct ctlr_info *h, int rc,
 			le16_to_cpu(map_buff->layout_map_count));
 	dev_info(&h->pdev->dev, "flags = 0x%x\n",
 			le16_to_cpu(map_buff->flags));
-	dev_info(&h->pdev->dev, "encrypytion = %s\n",
+	dev_info(&h->pdev->dev, "encryption = %s\n",
 			le16_to_cpu(map_buff->flags) &
 			RAID_MAP_FLAG_ENCRYPT_ON ?  "ON" : "OFF");
 	dev_info(&h->pdev->dev, "dekindex = %u\n",
