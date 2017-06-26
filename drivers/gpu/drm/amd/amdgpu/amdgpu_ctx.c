@@ -230,6 +230,8 @@ static enum amd_sched_priority amdgpu_to_sched_priority(int amdgpu_priority)
 	case AMDGPU_CTX_PRIORITY_LOW_SW:
 	case AMDGPU_CTX_PRIORITY_LOW_HW:
 		return AMD_SCHED_PRIORITY_LOW;
+	case AMDGPU_CTX_PRIORITY_UNSET:
+		return AMD_SCHED_PRIORITY_UNSET;
 	default:
 		WARN(1, "Invalid context priority %d\n", amdgpu_priority);
 		return AMD_SCHED_PRIORITY_INVALID;
