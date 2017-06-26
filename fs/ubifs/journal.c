@@ -985,6 +985,7 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	dent1->nlen = cpu_to_le16(fname_len(snd_nm));
 	memcpy(dent1->name, fname_name(snd_nm), fname_len(snd_nm));
 	dent1->name[fname_len(snd_nm)] = '\0';
+	set_dent_cookie(c, dent1);
 	zero_dent_node_unused(dent1);
 	ubifs_prep_grp_node(c, dent1, dlen1, 0);
 
@@ -997,6 +998,7 @@ int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
 	dent2->nlen = cpu_to_le16(fname_len(fst_nm));
 	memcpy(dent2->name, fname_name(fst_nm), fname_len(fst_nm));
 	dent2->name[fname_len(fst_nm)] = '\0';
+	set_dent_cookie(c, dent2);
 	zero_dent_node_unused(dent2);
 	ubifs_prep_grp_node(c, dent2, dlen2, 0);
 
