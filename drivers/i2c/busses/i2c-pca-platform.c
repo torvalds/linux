@@ -143,35 +143,23 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	int ret = 0;
 	int irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	/* If irq is 0, we do polling. */
 	if (irq < 0)
 		irq = 0;
 
-	if (res == NULL) {
-		ret = -ENODEV;
-		goto e_print;
-	}
+	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
+	if (!i2c)
+		return -ENOMEM;
 
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		ret = -ENOMEM;
-		goto e_print;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	i2c->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(i2c->reg_base))
+		return PTR_ERR(i2c->reg_base);
 
-	i2c = kzalloc(sizeof(struct i2c_pca_pf_data), GFP_KERNEL);
-	if (!i2c) {
-		ret = -ENOMEM;
-		goto e_alloc;
-	}
 
 	init_waitqueue_head(&i2c->wait);
 
-	i2c->reg_base = ioremap(res->start, resource_size(res));
-	if (!i2c->reg_base) {
-		ret = -ENOMEM;
-		goto e_remap;
-	}
 	i2c->io_base = res->start;
 	i2c->io_size = resource_size(res);
 	i2c->irq = irq;
@@ -205,10 +193,8 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	} else if (np) {
 		i2c->adap.timeout = HZ;
 		i2c->gpio = devm_gpiod_get_optional(&pdev->dev, "reset-gpios", GPIOD_OUT_LOW);
-		if (IS_ERR(i2c->gpio)) {
-			ret = PTR_ERR(i2c->gpio);
-			goto e_reqirq;
-		}
+		if (IS_ERR(i2c->gpio))
+			return PTR_ERR(i2c->gpio);
 		of_property_read_u32_index(np, "clock-frequency", 0,
 					   &i2c->algo_data.i2c_clock);
 	} else {
@@ -238,15 +224,14 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	}
 
 	if (irq) {
-		ret = request_irq(irq, i2c_pca_pf_handler,
+		ret = devm_request_irq(&pdev->dev, irq, i2c_pca_pf_handler,
 			IRQF_TRIGGER_FALLING, pdev->name, i2c);
 		if (ret)
-			goto e_reqirq;
+			return ret;
 	}
 
 	if (i2c_pca_add_numbered_bus(&i2c->adap) < 0) {
-		ret = -ENODEV;
-		goto e_adapt;
+		return -ENODEV;
 	}
 
 	platform_set_drvdata(pdev, i2c);
@@ -254,19 +239,6 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	printk(KERN_INFO "%s registered.\n", i2c->adap.name);
 
 	return 0;
-
-e_adapt:
-	if (irq)
-		free_irq(irq, i2c);
-e_reqirq:
-	iounmap(i2c->reg_base);
-e_remap:
-	kfree(i2c);
-e_alloc:
-	release_mem_region(res->start, resource_size(res));
-e_print:
-	printk(KERN_ERR "Registering PCA9564/PCA9665 FAILED! (%d)\n", ret);
-	return ret;
 }
 
 static int i2c_pca_pf_remove(struct platform_device *pdev)
@@ -274,13 +246,6 @@ static int i2c_pca_pf_remove(struct platform_device *pdev)
 	struct i2c_pca_pf_data *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
-
-	if (i2c->irq)
-		free_irq(i2c->irq, i2c);
-
-	iounmap(i2c->reg_base);
-	release_mem_region(i2c->io_base, i2c->io_size);
-	kfree(i2c);
 
 	return 0;
 }
