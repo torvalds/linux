@@ -731,7 +731,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->index = index;
 
 	if (rcar_du_has(rcdu, RCAR_DU_FEATURE_VSP1_SOURCE))
-		primary = &rcrtc->vsp->planes[0].plane;
+		primary = &rcrtc->vsp->planes[rcrtc->vsp_pipe].plane;
 	else
 		primary = &rgrp->planes[index % 2].plane;
 

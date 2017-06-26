@@ -35,6 +35,8 @@ struct rcar_du_vsp;
  * @flip_wait: wait queue used to signal page flip completion
  * @outputs: bitmask of the outputs (enum rcar_du_output) driven by this CRTC
  * @group: CRTC group this CRTC belongs to
+ * @vsp: VSP feeding video to this CRTC
+ * @vsp_pipe: index of the VSP pipeline feeding video to this CRTC
  */
 struct rcar_du_crtc {
 	struct drm_crtc crtc;
@@ -52,6 +54,7 @@ struct rcar_du_crtc {
 
 	struct rcar_du_group *group;
 	struct rcar_du_vsp *vsp;
+	unsigned int vsp_pipe;
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)

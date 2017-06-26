@@ -19,6 +19,7 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 
+#include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_platform.h>
 #include <linux/scatterlist.h>
@@ -82,22 +83,22 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 	 */
 	crtc->group->need_restart = true;
 
-	vsp1_du_setup_lif(crtc->vsp->vsp, 0, &cfg);
+	vsp1_du_setup_lif(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }
 
 void rcar_du_vsp_disable(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_setup_lif(crtc->vsp->vsp, 0, NULL);
+	vsp1_du_setup_lif(crtc->vsp->vsp, crtc->vsp_pipe, NULL);
 }
 
 void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_atomic_begin(crtc->vsp->vsp, 0);
+	vsp1_du_atomic_begin(crtc->vsp->vsp, crtc->vsp_pipe);
 }
 
 void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_atomic_flush(crtc->vsp->vsp, 0);
+	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe);
 }
 
 /* Keep the two tables in sync. */
@@ -163,6 +164,7 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 {
 	struct rcar_du_vsp_plane_state *state =
 		to_rcar_vsp_plane_state(plane->plane.state);
+	struct rcar_du_crtc *crtc = to_rcar_crtc(state->state.crtc);
 	struct drm_framebuffer *fb = plane->plane.state->fb;
 	struct vsp1_du_atomic_config cfg = {
 		.pixelformat = 0,
@@ -193,7 +195,8 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 		}
 	}
 
-	vsp1_du_atomic_update(plane->vsp->vsp, 0, plane->index, &cfg);
+	vsp1_du_atomic_update(plane->vsp->vsp, crtc->vsp_pipe,
+			      plane->index, &cfg);
 }
 
 static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
@@ -289,11 +292,13 @@ static void rcar_du_vsp_plane_atomic_update(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
 	struct rcar_du_vsp_plane *rplane = to_rcar_vsp_plane(plane);
+	struct rcar_du_crtc *crtc = to_rcar_crtc(old_state->crtc);
 
 	if (plane->state->crtc)
 		rcar_du_vsp_plane_setup(rplane);
 	else
-		vsp1_du_atomic_update(rplane->vsp->vsp, 0, rplane->index, NULL);
+		vsp1_du_atomic_update(rplane->vsp->vsp, crtc->vsp_pipe,
+				      rplane->index, NULL);
 }
 
 static const struct drm_plane_helper_funcs rcar_du_vsp_plane_helper_funcs = {
@@ -392,23 +397,17 @@ static const struct drm_plane_funcs rcar_du_vsp_plane_funcs = {
 	.atomic_get_property = rcar_du_vsp_plane_atomic_get_property,
 };
 
-int rcar_du_vsp_init(struct rcar_du_vsp *vsp)
+int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
+		     unsigned int crtcs)
 {
 	struct rcar_du_device *rcdu = vsp->dev;
 	struct platform_device *pdev;
-	struct device_node *np;
+	unsigned int num_crtcs = hweight32(crtcs);
 	unsigned int i;
 	int ret;
 
 	/* Find the VSP device and initialize it. */
-	np = of_parse_phandle(rcdu->dev->of_node, "vsps", vsp->index);
-	if (!np) {
-		dev_err(rcdu->dev, "vsps node not found\n");
-		return -ENXIO;
-	}
-
 	pdev = of_find_device_by_node(np);
-	of_node_put(np);
 	if (!pdev)
 		return -ENXIO;
 
@@ -430,15 +429,15 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp)
 		return -ENOMEM;
 
 	for (i = 0; i < vsp->num_planes; ++i) {
-		enum drm_plane_type type = i ? DRM_PLANE_TYPE_OVERLAY
-					 : DRM_PLANE_TYPE_PRIMARY;
+		enum drm_plane_type type = i < num_crtcs
+					 ? DRM_PLANE_TYPE_PRIMARY
+					 : DRM_PLANE_TYPE_OVERLAY;
 		struct rcar_du_vsp_plane *plane = &vsp->planes[i];
 
 		plane->vsp = vsp;
 		plane->index = i;
 
-		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane,
-					       1 << vsp->index,
+		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
 					       &rcar_du_vsp_plane_funcs,
 					       formats_kms,
 					       ARRAY_SIZE(formats_kms), type,
