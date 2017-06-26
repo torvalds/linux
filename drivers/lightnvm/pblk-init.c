@@ -328,6 +328,12 @@ static void pblk_luns_free(struct pblk *pblk)
 	kfree(pblk->luns);
 }
 
+static void pblk_free_line_bitmaps(struct pblk_line *line)
+{
+	kfree(line->blk_bitmap);
+	kfree(line->erase_bitmap);
+}
+
 static void pblk_lines_free(struct pblk *pblk)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
@@ -339,8 +345,7 @@ static void pblk_lines_free(struct pblk *pblk)
 		line = &pblk->lines[i];
 
 		pblk_line_free(pblk, line);
-		kfree(line->blk_bitmap);
-		kfree(line->erase_bitmap);
+		pblk_free_line_bitmaps(line);
 	}
 	spin_unlock(&l_mg->free_lock);
 }
@@ -397,13 +402,30 @@ out:
 	return ret;
 }
 
-static int pblk_bb_line(struct pblk *pblk, struct nvm_geo *geo,
-			struct pblk_line *line)
+static int pblk_bb_line(struct pblk *pblk, struct pblk_line *line,
+			int blk_per_line)
 {
-	struct pblk_line_meta *lm = &pblk->lm;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
 	struct pblk_lun *rlun;
 	int bb_cnt = 0;
 	int i;
+
+	for (i = 0; i < blk_per_line; i++) {
+		rlun = &pblk->luns[i];
+		if (rlun->bb_list[line->id] == NVM_BLK_T_FREE)
+			continue;
+
+		set_bit(pblk_ppa_to_pos(geo, rlun->bppa), line->blk_bitmap);
+		bb_cnt++;
+	}
+
+	return bb_cnt;
+}
+
+static int pblk_alloc_line_bitmaps(struct pblk *pblk, struct pblk_line *line)
+{
+	struct pblk_line_meta *lm = &pblk->lm;
 
 	line->blk_bitmap = kzalloc(lm->blk_bitmap_len, GFP_KERNEL);
 	if (!line->blk_bitmap)
@@ -415,16 +437,7 @@ static int pblk_bb_line(struct pblk *pblk, struct nvm_geo *geo,
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < lm->blk_per_line; i++) {
-		rlun = &pblk->luns[i];
-		if (rlun->bb_list[line->id] == NVM_BLK_T_FREE)
-			continue;
-
-		set_bit(pblk_ppa_to_pos(geo, rlun->bppa), line->blk_bitmap);
-		bb_cnt++;
-	}
-
-	return bb_cnt;
+	return 0;
 }
 
 static int pblk_luns_init(struct pblk *pblk, struct ppa_addr *luns)
@@ -749,8 +762,13 @@ add_emeta_page:
 		line->vsc = &l_mg->vsc_list[i];
 		spin_lock_init(&line->lock);
 
-		nr_bad_blks = pblk_bb_line(pblk, geo, line);
+		ret = pblk_alloc_line_bitmaps(pblk, line);
+		if (ret)
+			goto fail_free_lines;
+
+		nr_bad_blks = pblk_bb_line(pblk, line, lm->blk_per_line);
 		if (nr_bad_blks < 0 || nr_bad_blks > lm->blk_per_line) {
+			pblk_free_line_bitmaps(line);
 			ret = -EINVAL;
 			goto fail_free_lines;
 		}
@@ -777,6 +795,9 @@ add_emeta_page:
 
 	return 0;
 fail_free_lines:
+	while (--i >= 0)
+		pblk_free_line_bitmaps(&pblk->lines[i]);
+
 	kfree(pblk->lines);
 fail_free_bb_aux:
 	kfree(l_mg->bb_aux);
