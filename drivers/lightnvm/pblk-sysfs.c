@@ -290,6 +290,11 @@ static ssize_t pblk_sysfs_lines_info(struct pblk *pblk, char *page)
 	return sz;
 }
 
+static ssize_t pblk_sysfs_get_sec_per_write(struct pblk *pblk, char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%d\n", pblk->sec_per_write);
+}
+
 #ifdef CONFIG_NVM_DEBUG
 static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 {
@@ -354,6 +359,29 @@ static ssize_t pblk_sysfs_gc_force(struct pblk *pblk, const char *page,
 	return len;
 }
 
+static ssize_t pblk_sysfs_set_sec_per_write(struct pblk *pblk,
+					     const char *page, size_t len)
+{
+	size_t c_len;
+	int sec_per_write;
+
+	c_len = strcspn(page, "\n");
+	if (c_len >= len)
+		return -EINVAL;
+
+	if (kstrtouint(page, 0, &sec_per_write))
+		return -EINVAL;
+
+	if (sec_per_write < pblk->min_write_pgs
+				|| sec_per_write > pblk->max_write_pgs
+				|| sec_per_write % pblk->min_write_pgs != 0)
+		return -EINVAL;
+
+	pblk_set_sec_per_write(pblk, sec_per_write);
+
+	return len;
+}
+
 static struct attribute sys_write_luns = {
 	.name = "write_luns",
 	.mode = 0444,
@@ -399,6 +427,11 @@ static struct attribute sys_gc_force = {
 	.mode = 0200,
 };
 
+static struct attribute sys_max_sec_per_write = {
+	.name = "max_sec_per_write",
+	.mode = 0644,
+};
+
 static struct attribute sys_gc_rl_max = {
 	.name = "gc_rl_max",
 	.mode = 0200,
@@ -417,6 +450,7 @@ static struct attribute *pblk_attrs[] = {
 	&sys_errors_attr,
 	&sys_gc_state,
 	&sys_gc_force,
+	&sys_max_sec_per_write,
 	&sys_gc_rl_max,
 	&sys_rb_attr,
 	&sys_stats_ppaf_attr,
@@ -449,6 +483,8 @@ static ssize_t pblk_sysfs_show(struct kobject *kobj, struct attribute *attr,
 		return pblk_sysfs_lines(pblk, buf);
 	else if (strcmp(attr->name, "lines_info") == 0)
 		return pblk_sysfs_lines_info(pblk, buf);
+	else if (strcmp(attr->name, "max_sec_per_write") == 0)
+		return pblk_sysfs_get_sec_per_write(pblk, buf);
 #ifdef CONFIG_NVM_DEBUG
 	else if (strcmp(attr->name, "stats") == 0)
 		return pblk_sysfs_stats_debug(pblk, buf);
@@ -465,6 +501,8 @@ static ssize_t pblk_sysfs_store(struct kobject *kobj, struct attribute *attr,
 		return pblk_sysfs_rate_store(pblk, buf, len);
 	else if (strcmp(attr->name, "gc_force") == 0)
 		return pblk_sysfs_gc_force(pblk, buf, len);
+	else if (strcmp(attr->name, "max_sec_per_write") == 0)
+		return pblk_sysfs_set_sec_per_write(pblk, buf, len);
 
 	return 0;
 }

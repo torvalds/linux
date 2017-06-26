@@ -250,6 +250,8 @@ static int pblk_core_init(struct pblk *pblk)
 	pblk->pgs_in_buffer = NVM_MEM_PAGE_WRITE * geo->sec_per_pg *
 						geo->nr_planes * geo->nr_luns;
 
+	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
+
 	if (pblk->max_write_pgs > PBLK_MAX_REQ_ADDRS) {
 		pr_err("pblk: cannot support device max_phys_sect\n");
 		return -EINVAL;

@@ -397,6 +397,11 @@ void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd)
 #endif
 }
 
+void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write)
+{
+	pblk->sec_per_write = sec_per_write;
+}
+
 int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
@@ -478,7 +483,7 @@ out:
 int pblk_calc_secs(struct pblk *pblk, unsigned long secs_avail,
 		   unsigned long secs_to_flush)
 {
-	int max = pblk->max_write_pgs;
+	int max = pblk->sec_per_write;
 	int min = pblk->min_write_pgs;
 	int secs_to_sync = 0;
 
