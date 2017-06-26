@@ -3926,6 +3926,7 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	struct rcu_data *my_rdp;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
+	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
 
 	if (rcu_is_nocb_cpu(cpu) || rcu_segcblist_empty(&rdp->cblist))
 		return;  /* No callbacks to migrate. */
@@ -3936,7 +3937,11 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 		local_irq_restore(flags);
 		return;
 	}
-	raw_spin_lock(&rsp->orphan_lock); /* irqs already disabled. */
+	raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
+	rcu_advance_cbs(rsp, rnp_root, rdp); /* Leverage recent GPs. */
+	raw_spin_unlock_rcu_node(rnp_root);
+
+	raw_spin_lock(&rsp->orphan_lock);
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
 	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);
