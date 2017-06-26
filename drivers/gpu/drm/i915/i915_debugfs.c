@@ -3083,7 +3083,7 @@ static void intel_connector_info(struct seq_file *m,
 			   connector->display_info.cea_rev);
 	}
 
-	if (!intel_encoder || intel_encoder->type == INTEL_OUTPUT_DP_MST)
+	if (!intel_encoder)
 		return;
 
 	switch (connector->connector_type) {
