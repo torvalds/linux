@@ -66,7 +66,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"2.10.3"
+#define BNX2FC_VERSION		"2.11.8"
 
 #define PFX			"bnx2fc: "
 
