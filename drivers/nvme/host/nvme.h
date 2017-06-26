@@ -182,9 +182,6 @@ struct nvme_ctrl {
 	struct nvmf_ctrl_options *opts;
 };
 
-/*
- * An NVM Express namespace is equivalent to a SCSI LUN
- */
 struct nvme_ns {
 	struct list_head list;
 
