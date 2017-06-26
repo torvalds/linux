@@ -167,6 +167,7 @@ struct nvme_ctrl {
 
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
+	bool apst_enabled;
 
 	u32 hmpre;
 	u32 hmmin;
