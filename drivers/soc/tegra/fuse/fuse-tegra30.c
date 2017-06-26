@@ -50,6 +50,9 @@
     defined(CONFIG_ARCH_TEGRA_186_SOC)
 static u32 tegra30_fuse_read_early(struct tegra_fuse *fuse, unsigned int offset)
 {
+	if (WARN_ON(!fuse->base))
+		return 0;
+
 	return readl_relaxed(fuse->base + FUSE_BEGIN + offset);
 }
 
