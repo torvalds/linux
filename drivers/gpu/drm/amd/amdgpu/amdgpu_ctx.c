@@ -25,6 +25,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_auth.h>
 #include "amdgpu.h"
+#include "amdgpu_sched.h"
 
 static int amdgpu_ctx_priority_permit(struct drm_file *filp,
 				      enum amd_sched_priority priority)
@@ -218,26 +219,6 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 
 	mutex_unlock(&mgr->lock);
 	return 0;
-}
-
-static enum amd_sched_priority amdgpu_to_sched_priority(int amdgpu_priority)
-{
-	switch (amdgpu_priority) {
-	case AMDGPU_CTX_PRIORITY_HIGH_HW:
-		return AMD_SCHED_PRIORITY_HIGH_HW;
-	case AMDGPU_CTX_PRIORITY_HIGH_SW:
-		return AMD_SCHED_PRIORITY_HIGH_SW;
-	case AMDGPU_CTX_PRIORITY_NORMAL:
-		return AMD_SCHED_PRIORITY_NORMAL;
-	case AMDGPU_CTX_PRIORITY_LOW_SW:
-	case AMDGPU_CTX_PRIORITY_LOW_HW:
-		return AMD_SCHED_PRIORITY_LOW;
-	case AMDGPU_CTX_PRIORITY_UNSET:
-		return AMD_SCHED_PRIORITY_UNSET;
-	default:
-		WARN(1, "Invalid context priority %d\n", amdgpu_priority);
-		return AMD_SCHED_PRIORITY_INVALID;
-	}
 }
 
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
