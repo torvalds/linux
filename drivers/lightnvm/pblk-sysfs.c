@@ -49,30 +49,26 @@ static ssize_t pblk_sysfs_luns_show(struct pblk *pblk, char *page)
 
 static ssize_t pblk_sysfs_rate_limiter(struct pblk *pblk, char *page)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	int free_blocks, total_blocks;
 	int rb_user_max, rb_user_cnt;
-	int rb_gc_max, rb_gc_rsv, rb_gc_cnt, rb_budget, rb_state;
+	int rb_gc_max, rb_gc_cnt, rb_budget, rb_state;
 
 	free_blocks = atomic_read(&pblk->rl.free_blocks);
 	rb_user_max = pblk->rl.rb_user_max;
 	rb_user_cnt = atomic_read(&pblk->rl.rb_user_cnt);
 	rb_gc_max = pblk->rl.rb_gc_max;
-	rb_gc_rsv = pblk->rl.rb_gc_rsv;
 	rb_gc_cnt = atomic_read(&pblk->rl.rb_gc_cnt);
 	rb_budget = pblk->rl.rb_budget;
 	rb_state = pblk->rl.rb_state;
 
-	total_blocks = geo->blks_per_lun * geo->nr_luns;
+	total_blocks = pblk->rl.total_blocks;
 
 	return snprintf(page, PAGE_SIZE,
-		"u:%u/%u,gc:%u/%u/%u(%u/%u)(stop:<%u,full:>%u,free:%d/%d)-%d\n",
+		"u:%u/%u,gc:%u/%u(%u/%u)(stop:<%u,full:>%u,free:%d/%d)-%d\n",
 				rb_user_cnt,
 				rb_user_max,
 				rb_gc_cnt,
 				rb_gc_max,
-				rb_gc_rsv,
 				rb_state,
 				rb_budget,
 				pblk->rl.low,
@@ -237,7 +233,8 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	spin_unlock(&l_mg->free_lock);
 
 	if (nr_free_lines != free_line_cnt)
-		pr_err("pblk: corrupted free line list\n");
+		pr_err("pblk: corrupted free line list:%d/%d\n",
+						nr_free_lines, free_line_cnt);
 
 	sz = snprintf(page, PAGE_SIZE - sz,
 		"line: nluns:%d, nblks:%d, nsecs:%d\n",
@@ -319,32 +316,11 @@ static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 }
 #endif
 
-static ssize_t pblk_sysfs_rate_store(struct pblk *pblk, const char *page,
-				     size_t len)
-{
-	struct pblk_gc *gc = &pblk->gc;
-	size_t c_len;
-	int value;
-
-	c_len = strcspn(page, "\n");
-	if (c_len >= len)
-		return -EINVAL;
-
-	if (kstrtouint(page, 0, &value))
-		return -EINVAL;
-
-	spin_lock(&gc->lock);
-	pblk_rl_set_gc_rsc(&pblk->rl, value);
-	spin_unlock(&gc->lock);
-
-	return len;
-}
-
 static ssize_t pblk_sysfs_gc_force(struct pblk *pblk, const char *page,
 				   size_t len)
 {
 	size_t c_len;
-	int force;
+	int ret, force;
 
 	c_len = strcspn(page, "\n");
 	if (c_len >= len)
@@ -353,10 +329,7 @@ static ssize_t pblk_sysfs_gc_force(struct pblk *pblk, const char *page,
 	if (kstrtouint(page, 0, &force))
 		return -EINVAL;
 
-	if (force < 0 || force > 1)
-		return -EINVAL;
-
-	pblk_gc_sysfs_force(pblk, force);
+	ret = pblk_gc_sysfs_force(pblk, force);
 
 	return len;
 }
@@ -434,11 +407,6 @@ static struct attribute sys_max_sec_per_write = {
 	.mode = 0644,
 };
 
-static struct attribute sys_gc_rl_max = {
-	.name = "gc_rl_max",
-	.mode = 0200,
-};
-
 #ifdef CONFIG_NVM_DEBUG
 static struct attribute sys_stats_debug_attr = {
 	.name = "stats",
@@ -453,7 +421,6 @@ static struct attribute *pblk_attrs[] = {
 	&sys_gc_state,
 	&sys_gc_force,
 	&sys_max_sec_per_write,
-	&sys_gc_rl_max,
 	&sys_rb_attr,
 	&sys_stats_ppaf_attr,
 	&sys_lines_attr,
@@ -499,9 +466,7 @@ static ssize_t pblk_sysfs_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct pblk *pblk = container_of(kobj, struct pblk, kobj);
 
-	if (strcmp(attr->name, "gc_rl_max") == 0)
-		return pblk_sysfs_rate_store(pblk, buf, len);
-	else if (strcmp(attr->name, "gc_force") == 0)
+	if (strcmp(attr->name, "gc_force") == 0)
 		return pblk_sysfs_gc_force(pblk, buf, len);
 	else if (strcmp(attr->name, "max_sec_per_write") == 0)
 		return pblk_sysfs_set_sec_per_write(pblk, buf, len);

@@ -199,11 +199,21 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int *l2p_upd,
 	struct pblk_line *line;
 	struct pblk_rb_entry *entry;
 	struct pblk_w_ctx *w_ctx;
+	unsigned int user_io = 0, gc_io = 0;
 	unsigned int i;
+	int flags;
 
 	for (i = 0; i < to_update; i++) {
 		entry = &rb->entries[*l2p_upd];
 		w_ctx = &entry->w_ctx;
+
+		flags = READ_ONCE(entry->w_ctx.flags);
+		if (flags & PBLK_IOTYPE_USER)
+			user_io++;
+		else if (flags & PBLK_IOTYPE_GC)
+			gc_io++;
+		else
+			WARN(1, "pblk: unknown IO type\n");
 
 		pblk_update_map_dev(pblk, w_ctx->lba, w_ctx->ppa,
 							entry->cacheline);
@@ -213,6 +223,8 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int *l2p_upd,
 		clean_wctx(w_ctx);
 		*l2p_upd = (*l2p_upd + 1) & (rb->nr_entries - 1);
 	}
+
+	pblk_rl_out(&pblk->rl, user_io, gc_io);
 
 	return 0;
 }
@@ -531,7 +543,6 @@ unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
 	struct pblk_rb_entry *entry;
 	struct page *page;
 	unsigned int pad = 0, to_read = nr_entries;
-	unsigned int user_io = 0, gc_io = 0;
 	unsigned int i;
 	int flags;
 
@@ -554,13 +565,6 @@ try:
 		flags = READ_ONCE(entry->w_ctx.flags);
 		if (!(flags & PBLK_WRITTEN_DATA))
 			goto try;
-
-		if (flags & PBLK_IOTYPE_USER)
-			user_io++;
-		else if (flags & PBLK_IOTYPE_GC)
-			gc_io++;
-		else
-			WARN(1, "pblk: unknown IO type\n");
 
 		page = virt_to_page(entry->data);
 		if (!page) {
@@ -613,7 +617,6 @@ try:
 		}
 	}
 
-	pblk_rl_out(&pblk->rl, user_io, gc_io);
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(pad, &((struct pblk *)
 			(container_of(rb, struct pblk, rwb)))->padded_writes);

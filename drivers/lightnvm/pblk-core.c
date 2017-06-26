@@ -302,12 +302,12 @@ struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line)
 			line->gc_group = PBLK_LINEGC_FULL;
 			move_list = &l_mg->gc_full_list;
 		}
-	} else if (vsc < lm->mid_thrs) {
+	} else if (vsc < lm->high_thrs) {
 		if (line->gc_group != PBLK_LINEGC_HIGH) {
 			line->gc_group = PBLK_LINEGC_HIGH;
 			move_list = &l_mg->gc_high_list;
 		}
-	} else if (vsc < lm->high_thrs) {
+	} else if (vsc < lm->mid_thrs) {
 		if (line->gc_group != PBLK_LINEGC_MID) {
 			line->gc_group = PBLK_LINEGC_MID;
 			move_list = &l_mg->gc_mid_list;
@@ -1199,6 +1199,7 @@ retry_get:
 	if (pblk_line_prepare(pblk, line)) {
 		pr_err("pblk: failed to prepare line %d\n", line->id);
 		list_add(&line->list, &l_mg->free_list);
+		l_mg->nr_free_lines++;
 		return NULL;
 	}
 
@@ -1465,6 +1466,8 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 
 	spin_unlock(&line->lock);
 	spin_unlock(&l_mg->gc_lock);
+
+	pblk_gc_should_kick(pblk);
 }
 
 void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line)

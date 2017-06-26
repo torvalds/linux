@@ -72,21 +72,20 @@ enum {
 	PBLK_BLK_ST_CLOSED =	0x2,
 };
 
+struct pblk_sec_meta {
+	u64 reserved;
+	__le64 lba;
+};
+
 /* The number of GC lists and the rate-limiter states go together. This way the
  * rate-limiter can dictate how much GC is needed based on resource utilization.
  */
-#define PBLK_NR_GC_LISTS 3
-#define PBLK_MAX_GC_JOBS 32
+#define PBLK_GC_NR_LISTS 3
 
 enum {
 	PBLK_RL_HIGH = 1,
 	PBLK_RL_MID = 2,
 	PBLK_RL_LOW = 3,
-};
-
-struct pblk_sec_meta {
-	u64 reserved;
-	__le64 lba;
 };
 
 #define pblk_dma_meta_size (sizeof(struct pblk_sec_meta) * PBLK_MAX_REQ_ADDRS)
@@ -195,29 +194,39 @@ struct pblk_lun {
 struct pblk_gc_rq {
 	struct pblk_line *line;
 	void *data;
-	u64 *lba_list;
+	u64 lba_list[PBLK_MAX_REQ_ADDRS];
 	int nr_secs;
 	int secs_to_gc;
 	struct list_head list;
 };
 
 struct pblk_gc {
+	/* These states are not protected by a lock since (i) they are in the
+	 * fast path, and (ii) they are not critical.
+	 */
 	int gc_active;
 	int gc_enabled;
 	int gc_forced;
-	int gc_jobs_active;
-	atomic_t inflight_gc;
 
 	struct task_struct *gc_ts;
 	struct task_struct *gc_writer_ts;
+	struct task_struct *gc_reader_ts;
+
+	struct workqueue_struct *gc_line_reader_wq;
 	struct workqueue_struct *gc_reader_wq;
+
 	struct timer_list gc_timer;
 
+	struct semaphore gc_sem;
+	atomic_t inflight_gc;
 	int w_entries;
+
 	struct list_head w_list;
+	struct list_head r_list;
 
 	spinlock_t lock;
 	spinlock_t w_lock;
+	spinlock_t r_lock;
 };
 
 struct pblk_rl {
@@ -229,10 +238,8 @@ struct pblk_rl {
 				 */
 	unsigned int high_pw;	/* High rounded up as a power of 2 */
 
-#define PBLK_USER_HIGH_THRS 2	/* Begin write limit at 50 percent
-				 * available blks
-				 */
-#define PBLK_USER_LOW_THRS 20	/* Aggressive GC at 5% available blocks */
+#define PBLK_USER_HIGH_THRS 8	/* Begin write limit at 12% available blks */
+#define PBLK_USER_LOW_THRS 10	/* Aggressive GC at 10% available blocks */
 
 	int rb_windows_pw;	/* Number of rate windows in the write buffer
 				 * given as a power-of-2. This guarantees that
@@ -250,7 +257,11 @@ struct pblk_rl {
 	int rb_state;		/* Rate-limiter current state */
 	atomic_t rb_gc_cnt;	/* GC I/O buffer counter */
 
+	int rsv_blocks;		/* Reserved blocks for GC */
+
 	int rb_user_active;
+	int rb_gc_active;
+
 	struct timer_list u_timer;
 
 	unsigned long long nr_secs;
@@ -428,7 +439,7 @@ struct pblk_line_mgmt {
 	struct list_head bad_list;	/* Full lines bad */
 
 	/* GC lists - use gc_lock */
-	struct list_head *gc_lists[PBLK_NR_GC_LISTS];
+	struct list_head *gc_lists[PBLK_GC_NR_LISTS];
 	struct list_head gc_high_list;	/* Full lines ready to GC, high isc */
 	struct list_head gc_mid_list;	/* Full lines ready to GC, mid isc */
 	struct list_head gc_low_list;	/* Full lines ready to GC, low isc */
@@ -768,30 +779,34 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 /*
  * pblk gc
  */
-#define PBLK_GC_TRIES 3
+#define PBLK_GC_MAX_READERS 8	/* Max number of outstanding GC reader jobs */
+#define PBLK_GC_W_QD 1024	/* Queue depth for inflight GC write I/Os */
+#define PBLK_GC_L_QD 4		/* Queue depth for inflight GC lines */
+#define PBLK_GC_RSV_LINE 1	/* Reserved lines for GC */
 
 int pblk_gc_init(struct pblk *pblk);
 void pblk_gc_exit(struct pblk *pblk);
 void pblk_gc_should_start(struct pblk *pblk);
 void pblk_gc_should_stop(struct pblk *pblk);
-int pblk_gc_status(struct pblk *pblk);
+void pblk_gc_should_kick(struct pblk *pblk);
+void pblk_gc_kick(struct pblk *pblk);
 void pblk_gc_sysfs_state_show(struct pblk *pblk, int *gc_enabled,
 			      int *gc_active);
-void pblk_gc_sysfs_force(struct pblk *pblk, int force);
+int pblk_gc_sysfs_force(struct pblk *pblk, int force);
 
 /*
  * pblk rate limiter
  */
 void pblk_rl_init(struct pblk_rl *rl, int budget);
 void pblk_rl_free(struct pblk_rl *rl);
-int pblk_rl_gc_thrs(struct pblk_rl *rl);
+int pblk_rl_high_thrs(struct pblk_rl *rl);
+int pblk_rl_low_thrs(struct pblk_rl *rl);
 unsigned long pblk_rl_nr_free_blks(struct pblk_rl *rl);
 int pblk_rl_user_may_insert(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_user_in(struct pblk_rl *rl, int nr_entries);
 int pblk_rl_gc_may_insert(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_gc_in(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_out(struct pblk_rl *rl, int nr_user, int nr_gc);
-void pblk_rl_set_gc_rsc(struct pblk_rl *rl, int rsv);
 int pblk_rl_sysfs_rate_show(struct pblk_rl *rl);
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line);
 void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line);
@@ -835,6 +850,17 @@ static inline void *emeta_to_lbas(struct pblk *pblk, struct line_emeta *emeta)
 static inline void *emeta_to_vsc(struct pblk *pblk, struct line_emeta *emeta)
 {
 	return (emeta_to_lbas(pblk, emeta) + pblk->lm.emeta_len[2]);
+}
+
+static inline int pblk_line_vsc(struct pblk_line *line)
+{
+	int vsc;
+
+	spin_lock(&line->lock);
+	vsc = le32_to_cpu(*line->vsc);
+	spin_unlock(&line->lock);
+
+	return vsc;
 }
 
 #define NVM_MEM_PAGE_WRITE (8)
