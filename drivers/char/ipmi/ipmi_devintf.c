@@ -704,62 +704,41 @@ struct compat_ipmi_req_settime {
 /*
  * Define some helper functions for copying IPMI data
  */
-static long get_compat_ipmi_msg(struct ipmi_msg *p64,
-				struct compat_ipmi_msg __user *p32)
+static void get_compat_ipmi_msg(struct ipmi_msg *p64,
+				struct compat_ipmi_msg *p32)
 {
-	compat_uptr_t tmp;
-
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			__get_user(p64->netfn, &p32->netfn) ||
-			__get_user(p64->cmd, &p32->cmd) ||
-			__get_user(p64->data_len, &p32->data_len) ||
-			__get_user(tmp, &p32->data))
-		return -EFAULT;
-	p64->data = compat_ptr(tmp);
-	return 0;
+	p64->netfn = p32->netfn;
+	p64->cmd = p32->cmd;
+	p64->data_len = p32->data_len;
+	p64->data = compat_ptr(p32->data);
 }
 
-static long get_compat_ipmi_req(struct ipmi_req *p64,
-				struct compat_ipmi_req __user *p32)
+static void get_compat_ipmi_req(struct ipmi_req *p64,
+				struct compat_ipmi_req *p32)
 {
-
-	compat_uptr_t	tmp;
-
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			__get_user(tmp, &p32->addr) ||
-			__get_user(p64->addr_len, &p32->addr_len) ||
-			__get_user(p64->msgid, &p32->msgid) ||
-			get_compat_ipmi_msg(&p64->msg, &p32->msg))
-		return -EFAULT;
-	p64->addr = compat_ptr(tmp);
-	return 0;
+	p64->addr = compat_ptr(p32->addr);
+	p64->addr_len = p32->addr_len;
+	p64->msgid = p32->msgid;
+	get_compat_ipmi_msg(&p64->msg, &p32->msg);
 }
 
-static long get_compat_ipmi_req_settime(struct ipmi_req_settime *p64,
-		struct compat_ipmi_req_settime __user *p32)
+static void get_compat_ipmi_req_settime(struct ipmi_req_settime *p64,
+		struct compat_ipmi_req_settime *p32)
 {
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			get_compat_ipmi_req(&p64->req, &p32->req) ||
-			__get_user(p64->retries, &p32->retries) ||
-			__get_user(p64->retry_time_ms, &p32->retry_time_ms))
-		return -EFAULT;
-	return 0;
+	get_compat_ipmi_req(&p64->req, &p32->req);
+	p64->retries = p32->retries;
+	p64->retry_time_ms = p32->retry_time_ms;
 }
 
-static long get_compat_ipmi_recv(struct ipmi_recv *p64,
-				 struct compat_ipmi_recv __user *p32)
+static void get_compat_ipmi_recv(struct ipmi_recv *p64,
+				 struct compat_ipmi_recv *p32)
 {
-	compat_uptr_t tmp;
-
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			__get_user(p64->recv_type, &p32->recv_type) ||
-			__get_user(tmp, &p32->addr) ||
-			__get_user(p64->addr_len, &p32->addr_len) ||
-			__get_user(p64->msgid, &p32->msgid) ||
-			get_compat_ipmi_msg(&p64->msg, &p32->msg))
-		return -EFAULT;
-	p64->addr = compat_ptr(tmp);
-	return 0;
+	memset(p64, 0, sizeof(struct ipmi_recv));
+	p64->recv_type = p32->recv_type;
+	p64->addr = compat_ptr(p32->addr);
+	p64->addr_len = p32->addr_len;
+	p64->msgid = p32->msgid;
+	get_compat_ipmi_msg(&p64->msg, &p32->msg);
 }
 
 static int copyout_recv32(struct ipmi_recv *p64, void __user *to)
@@ -789,9 +768,12 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 	case COMPAT_IPMICTL_SEND_COMMAND:
 	{
 		struct ipmi_req	rp;
+		struct compat_ipmi_req r32;
 
-		if (get_compat_ipmi_req(&rp, compat_ptr(arg)))
+		if (copy_from_user(&r32, compat_ptr(arg), sizeof(r32)))
 			return -EFAULT;
+
+		get_compat_ipmi_req(&rp, &r32);
 
 		return handle_send_req(priv->user, &rp,
 				priv->default_retries,
@@ -800,9 +782,12 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 	case COMPAT_IPMICTL_SEND_COMMAND_SETTIME:
 	{
 		struct ipmi_req_settime	sp;
+		struct compat_ipmi_req_settime sp32;
 
-		if (get_compat_ipmi_req_settime(&sp, compat_ptr(arg)))
+		if (copy_from_user(&sp32, compat_ptr(arg), sizeof(sp32)))
 			return -EFAULT;
+
+		get_compat_ipmi_req_settime(&sp, &sp32);
 
 		return handle_send_req(priv->user, &sp.req,
 				sp.retries, sp.retry_time_ms);
@@ -811,10 +796,12 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 	case COMPAT_IPMICTL_RECEIVE_MSG_TRUNC:
 	{
 		struct ipmi_recv   recv64;
+		struct compat_ipmi_recv recv32;
 
-		memset(&recv64, 0, sizeof(recv64));
-		if (get_compat_ipmi_recv(&recv64, compat_ptr(arg)))
+		if (copy_from_user(&recv32, compat_ptr(arg), sizeof(recv32)))
 			return -EFAULT;
+
+		get_compat_ipmi_recv(&recv64, &recv32);
 
 		return handle_recv(priv,
 				 cmd == COMPAT_IPMICTL_RECEIVE_MSG_TRUNC,
