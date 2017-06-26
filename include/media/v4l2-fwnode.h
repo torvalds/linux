@@ -26,6 +26,8 @@
 
 struct fwnode_handle;
 
+#define MAX_DATA_LANES	4
+
 /**
  * struct v4l2_fwnode_bus_mipi_csi2 - MIPI CSI-2 bus data structure
  * @flags: media bus (V4L2_MBUS_*) flags
@@ -37,10 +39,10 @@ struct fwnode_handle;
  */
 struct v4l2_fwnode_bus_mipi_csi2 {
 	unsigned int flags;
-	unsigned char data_lanes[4];
+	unsigned char data_lanes[MAX_DATA_LANES];
 	unsigned char clock_lane;
 	unsigned short num_data_lanes;
-	bool lane_polarities[5];
+	bool lane_polarities[MAX_DATA_LANES + 1];
 };
 
 /**

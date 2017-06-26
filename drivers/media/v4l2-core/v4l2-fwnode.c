@@ -48,10 +48,9 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
 	if (rval > 0) {
-		u32 array[ARRAY_SIZE(bus->data_lanes)];
+		u32 array[MAX_DATA_LANES + 1];
 
-		bus->num_data_lanes =
-			min_t(int, ARRAY_SIZE(bus->data_lanes), rval);
+		bus->num_data_lanes = min_t(int, MAX_DATA_LANES, rval);
 
 		fwnode_property_read_u32_array(fwnode, "data-lanes", array,
 					       bus->num_data_lanes);
@@ -64,24 +63,21 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 			bus->data_lanes[i] = array[i];
 		}
-	}
 
-	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
-					      0);
-	if (rval > 0) {
-		u32 array[ARRAY_SIZE(bus->lane_polarities)];
+		rval = fwnode_property_read_u32_array(fwnode,
+						      "lane-polarities", array,
+						      1 + bus->num_data_lanes);
+		if (rval > 0) {
+			if (rval != 1 + bus->num_data_lanes /* clock + data */) {
+				pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
+					1 + bus->num_data_lanes, rval);
+				return -EINVAL;
+			}
 
-		if (rval < 1 + bus->num_data_lanes /* clock + data */) {
-			pr_warn("too few lane-polarities entries (need %u, got %u)\n",
-				1 + bus->num_data_lanes, rval);
-			return -EINVAL;
+
+			for (i = 0; i < 1 + bus->num_data_lanes; i++)
+				bus->lane_polarities[i] = array[i];
 		}
-
-		fwnode_property_read_u32_array(fwnode, "lane-polarities", array,
-					       1 + bus->num_data_lanes);
-
-		for (i = 0; i < 1 + bus->num_data_lanes; i++)
-			bus->lane_polarities[i] = array[i];
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
