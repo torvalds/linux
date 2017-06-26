@@ -1188,22 +1188,25 @@ rarok:
 	goto out;
 }
 
-static int inet_gifconf(struct net_device *dev, char __user *buf, int len)
+static int inet_gifconf(struct net_device *dev, char __user *buf, int len, int size)
 {
 	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 	struct in_ifaddr *ifa;
 	struct ifreq ifr;
 	int done = 0;
 
+	if (WARN_ON(size > sizeof(struct ifreq)))
+		goto out;
+
 	if (!in_dev)
 		goto out;
 
 	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
 		if (!buf) {
-			done += sizeof(ifr);
+			done += size;
 			continue;
 		}
-		if (len < (int) sizeof(ifr))
+		if (len < size)
 			break;
 		memset(&ifr, 0, sizeof(struct ifreq));
 		strcpy(ifr.ifr_name, ifa->ifa_label);
@@ -1212,13 +1215,12 @@ static int inet_gifconf(struct net_device *dev, char __user *buf, int len)
 		(*(struct sockaddr_in *)&ifr.ifr_addr).sin_addr.s_addr =
 								ifa->ifa_local;
 
-		if (copy_to_user(buf, &ifr, sizeof(struct ifreq))) {
+		if (copy_to_user(buf + done, &ifr, size)) {
 			done = -EFAULT;
 			break;
 		}
-		buf  += sizeof(struct ifreq);
-		len  -= sizeof(struct ifreq);
-		done += sizeof(struct ifreq);
+		len  -= size;
+		done += size;
 	}
 out:
 	return done;
