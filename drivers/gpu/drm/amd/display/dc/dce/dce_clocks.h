@@ -31,55 +31,30 @@
 
 #define CLK_COMMON_REG_LIST_DCE_BASE() \
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
-	.DENTIST_DISPCLK_CNTL = mmDENTIST_DISPCLK_CNTL, \
-	.MASTER_COMM_DATA_REG1 = mmMASTER_COMM_DATA_REG1, \
-	.MASTER_COMM_CMD_REG = mmMASTER_COMM_CMD_REG, \
-	.MASTER_COMM_CNTL_REG = mmMASTER_COMM_CNTL_REG
+	.DENTIST_DISPCLK_CNTL = mmDENTIST_DISPCLK_CNTL
 
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(mask_sh) \
 	CLK_SF(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, mask_sh), \
-	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, mask_sh), \
-	CLK_SF(MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, mask_sh), \
-	CLK_SF(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, mask_sh)
-
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-#define CLK_DCN10_REG_LIST()\
-	SR(DPREFCLK_CNTL), \
-	SR(DENTIST_DISPCLK_CNTL), \
-	SR(MASTER_COMM_DATA_REG1), \
-	SR(MASTER_COMM_CMD_REG), \
-	SR(MASTER_COMM_CNTL_REG)
-#endif
-
-#define CLK_COMMON_MASK_SH_LIST_SOC_BASE(mask_sh) \
-	CLK_SF(DCCG_DFS_DPREFCLK_CNTL, DPREFCLK_SRC_SEL, mask_sh), \
-	CLK_SF(DCCG_DFS_DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, mask_sh), \
-	CLK_SF(DCCG_DFS_MASTER_COMM_CMD_REG, MASTER_COMM_CMD_REG_BYTE0, mask_sh), \
-	CLK_SF(DCCG_DFS_MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, mask_sh)
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, mask_sh)
 
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
-	type DENTIST_DPREFCLK_WDIVIDER; \
-	type MASTER_COMM_CMD_REG_BYTE0; \
-	type MASTER_COMM_INTERRUPT
+	type DENTIST_DPREFCLK_WDIVIDER;
 
 struct dce_disp_clk_shift {
-	CLK_REG_FIELD_LIST(uint8_t);
+	CLK_REG_FIELD_LIST(uint8_t)
 };
 
 struct dce_disp_clk_mask {
-	CLK_REG_FIELD_LIST(uint32_t);
+	CLK_REG_FIELD_LIST(uint32_t)
 };
 
 struct dce_disp_clk_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
-	uint32_t MASTER_COMM_DATA_REG1;
-	uint32_t MASTER_COMM_CMD_REG;
-	uint32_t MASTER_COMM_CNTL_REG;
 };
 
 /* Array identifiers and count for the divider ranges.*/
@@ -155,11 +130,7 @@ struct display_clock *dce112_disp_clk_create(
 	const struct dce_disp_clk_shift *clk_shift,
 	const struct dce_disp_clk_mask *clk_mask);
 
-struct display_clock *dce120_disp_clk_create(
-	struct dc_context *ctx,
-	const struct dce_disp_clk_registers *regs,
-	const struct dce_disp_clk_shift *clk_shift,
-	const struct dce_disp_clk_mask *clk_mask);
+struct display_clock *dce120_disp_clk_create(struct dc_context *ctx);
 
 void dce_disp_clk_destroy(struct display_clock **disp_clk);
 

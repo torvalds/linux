@@ -137,18 +137,6 @@ static const struct dce110_timing_generator_offsets dce120_tg_offsets[] = {
  * end *********************/
 
 
-static const struct dce_disp_clk_registers disp_clk_regs = {
-		CLK_COMMON_REG_LIST_DCE_BASE()
-};
-
-static const struct dce_disp_clk_shift disp_clk_shift = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
-};
-
-static const struct dce_disp_clk_mask disp_clk_mask = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
-};
-
 static const struct dce_dmcu_registers dmcu_regs = {
 		DMCU_DCE110_COMMON_REG_LIST()
 };
@@ -904,10 +892,7 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce120_disp_clk_create(ctx,
-			&disp_clk_regs,
-			&disp_clk_shift,
-			&disp_clk_mask);
+	pool->base.display_clock = dce120_disp_clk_create(ctx);
 	if (pool->base.display_clock == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();

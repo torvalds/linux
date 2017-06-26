@@ -42,6 +42,7 @@ struct resource_caps {
 	int num_audio;
 	int num_stream_encoder;
 	int num_pll;
+	int num_dwb;
 };
 
 struct resource_straps {

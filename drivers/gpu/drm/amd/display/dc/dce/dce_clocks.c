@@ -781,11 +781,7 @@ struct display_clock *dce112_disp_clk_create(
 	return &clk_dce->base;
 }
 
-struct display_clock *dce120_disp_clk_create(
-		struct dc_context *ctx,
-		const struct dce_disp_clk_registers *regs,
-		const struct dce_disp_clk_shift *clk_shift,
-		const struct dce_disp_clk_mask *clk_mask)
+struct display_clock *dce120_disp_clk_create(struct dc_context *ctx)
 {
 	struct dce_disp_clk *clk_dce = dm_alloc(sizeof(*clk_dce));
 	struct dm_pp_clock_levels_with_voltage clk_level_info = {0};
@@ -800,7 +796,7 @@ struct display_clock *dce120_disp_clk_create(
 		sizeof(dce120_max_clks_by_state));
 
 	dce_disp_clk_construct(
-		clk_dce, ctx, regs, clk_shift, clk_mask);
+		clk_dce, ctx, NULL, NULL, NULL);
 
 	clk_dce->base.funcs = &dce120_funcs;
 

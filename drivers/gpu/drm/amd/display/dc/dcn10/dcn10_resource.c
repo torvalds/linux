@@ -136,17 +136,6 @@ enum dcn10_clk_src_array_id {
 /* macros to expend register list macro defined in HW object header file
  * end *********************/
 
-static const struct dce_disp_clk_registers disp_clk_regs = {
-		CLK_DCN10_REG_LIST()
-};
-
-static const struct dce_disp_clk_shift disp_clk_shift = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
-};
-
-static const struct dce_disp_clk_mask disp_clk_mask = {
-		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
-};
 
 static const struct dce_dmcu_registers dmcu_regs = {
 		DMCU_DCN10_REG_LIST()
@@ -317,7 +306,7 @@ static const struct dcn10_opp_mask opp_mask = {
 
 #define tf_regs(id)\
 [id] = {\
-	TF_REG_LIST_DCN(id),\
+	TF_REG_LIST_DCN10(id),\
 }
 
 static const struct dcn_transform_registers tf_regs[] = {
@@ -328,11 +317,11 @@ static const struct dcn_transform_registers tf_regs[] = {
 };
 
 static const struct dcn_transform_shift tf_shift = {
-		TF_REG_LIST_SH_MASK_DCN(__SHIFT)
+	TF_REG_LIST_SH_MASK_DCN10(__SHIFT)
 };
 
 static const struct dcn_transform_mask tf_mask = {
-		TF_REG_LIST_SH_MASK_DCN(_MASK),
+	TF_REG_LIST_SH_MASK_DCN10(_MASK),
 };
 
 
@@ -1338,10 +1327,7 @@ static bool construct(
 	}
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		pool->base.display_clock = dce120_disp_clk_create(ctx,
-				&disp_clk_regs,
-				&disp_clk_shift,
-				&disp_clk_mask);
+		pool->base.display_clock = dce120_disp_clk_create(ctx);
 		if (pool->base.display_clock == NULL) {
 			dm_error("DC: failed to create display clock!\n");
 			BREAK_TO_DEBUGGER();
