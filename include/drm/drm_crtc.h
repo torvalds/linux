@@ -684,6 +684,7 @@ struct drm_connector_state {
 	 */
 	struct drm_property_blob *hdr_source_metadata_blob_ptr;
 	bool hdr_metadata_changed : 1;
+	uint64_t blob_id;
 };
 
 /**

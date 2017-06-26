@@ -1010,6 +1010,8 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 				-1,
 				&replaced);
 		state->hdr_metadata_changed |= replaced;
+		if (replaced)
+			state->blob_id = val;
 		return ret;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
