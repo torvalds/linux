@@ -673,7 +673,6 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
 	bool error_seen = false;
 	struct mce m;
-	int severity;
 	int i;
 
 	this_cpu_inc(mce_poll_count);
@@ -710,11 +709,7 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		mce_read_aux(&m, i);
 
-		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
-
-		if (severity == MCE_DEFERRED_SEVERITY && mce_is_memory_error(&m))
-			if (m.status & MCI_STATUS_ADDRV)
-				m.severity = severity;
+		m.severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
 		/*
 		 * Don't get the IP here because it's unlikely to
