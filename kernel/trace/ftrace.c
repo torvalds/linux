@@ -3969,6 +3969,97 @@ static int cache_mod(struct trace_array *tr,
 	return ret;
 }
 
+static int
+ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
+		 int reset, int enable);
+
+static void process_mod_list(struct list_head *head, struct ftrace_ops *ops,
+			     char *mod, bool enable)
+{
+	struct ftrace_mod_load *ftrace_mod, *n;
+	struct ftrace_hash **orig_hash, *new_hash;
+	LIST_HEAD(process_mods);
+	char *func;
+	int ret;
+
+	mutex_lock(&ops->func_hash->regex_lock);
+
+	if (enable)
+		orig_hash = &ops->func_hash->filter_hash;
+	else
+		orig_hash = &ops->func_hash->notrace_hash;
+
+	new_hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS,
+					      *orig_hash);
+	if (!new_hash)
+		return; /* Warn? */
+
+	mutex_lock(&ftrace_lock);
+
+	list_for_each_entry_safe(ftrace_mod, n, head, list) {
+
+		if (strcmp(ftrace_mod->module, mod) != 0)
+			continue;
+
+		if (ftrace_mod->func)
+			func = kstrdup(ftrace_mod->func, GFP_KERNEL);
+		else
+			func = kstrdup("*", GFP_KERNEL);
+
+		if (!func) /* warn? */
+			continue;
+
+		list_del(&ftrace_mod->list);
+		list_add(&ftrace_mod->list, &process_mods);
+
+		/* Use the newly allocated func, as it may be "*" */
+		kfree(ftrace_mod->func);
+		ftrace_mod->func = func;
+	}
+
+	mutex_unlock(&ftrace_lock);
+
+	list_for_each_entry_safe(ftrace_mod, n, &process_mods, list) {
+
+		func = ftrace_mod->func;
+
+		/* Grabs ftrace_lock, which is why we have this extra step */
+		match_records(new_hash, func, strlen(func), mod);
+		free_ftrace_mod(ftrace_mod);
+	}
+
+	mutex_lock(&ftrace_lock);
+
+	ret = ftrace_hash_move_and_update_ops(ops, orig_hash,
+					      new_hash, enable);
+	mutex_unlock(&ftrace_lock);
+
+	mutex_unlock(&ops->func_hash->regex_lock);
+
+	free_ftrace_hash(new_hash);
+}
+
+static void process_cached_mods(const char *mod_name)
+{
+	struct trace_array *tr;
+	char *mod;
+
+	mod = kstrdup(mod_name, GFP_KERNEL);
+	if (!mod)
+		return;
+
+	mutex_lock(&trace_types_lock);
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (!list_empty(&tr->mod_trace))
+			process_mod_list(&tr->mod_trace, tr->ops, mod, true);
+		if (!list_empty(&tr->mod_notrace))
+			process_mod_list(&tr->mod_notrace, tr->ops, mod, false);
+	}
+	mutex_unlock(&trace_types_lock);
+
+	kfree(mod);
+}
+
 /*
  * We register the module command as a template to show others how
  * to register the a command as well.
@@ -5682,6 +5773,8 @@ void ftrace_module_enable(struct module *mod)
 
  out_unlock:
 	mutex_unlock(&ftrace_lock);
+
+	process_cached_mods(mod->name);
 }
 
 void ftrace_module_init(struct module *mod)
