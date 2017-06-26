@@ -31,6 +31,7 @@
  */
 #include <linux/kernel.h>
 #include "../include/mc.h"
+#include "../include/mc-cmd.h"
 #include "../include/dprc.h"
 
 #include "dprc-cmd.h"

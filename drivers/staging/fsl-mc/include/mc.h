@@ -23,6 +23,7 @@ struct msi_domain_info;
 
 struct fsl_mc_device;
 struct fsl_mc_io;
+struct mc_command;
 
 /**
  * struct fsl_mc_driver - MC object device driver object
@@ -200,100 +201,6 @@ struct fsl_mc_device {
 
 #define to_fsl_mc_device(_dev) \
 	container_of(_dev, struct fsl_mc_device, dev)
-
-#define MC_CMD_NUM_OF_PARAMS	7
-
-struct mc_cmd_header {
-	u8 src_id;
-	u8 flags_hw;
-	u8 status;
-	u8 flags_sw;
-	__le16 token;
-	__le16 cmd_id;
-};
-
-struct mc_command {
-	u64 header;
-	u64 params[MC_CMD_NUM_OF_PARAMS];
-};
-
-enum mc_cmd_status {
-	MC_CMD_STATUS_OK = 0x0, /* Completed successfully */
-	MC_CMD_STATUS_READY = 0x1, /* Ready to be processed */
-	MC_CMD_STATUS_AUTH_ERR = 0x3, /* Authentication error */
-	MC_CMD_STATUS_NO_PRIVILEGE = 0x4, /* No privilege */
-	MC_CMD_STATUS_DMA_ERR = 0x5, /* DMA or I/O error */
-	MC_CMD_STATUS_CONFIG_ERR = 0x6, /* Configuration error */
-	MC_CMD_STATUS_TIMEOUT = 0x7, /* Operation timed out */
-	MC_CMD_STATUS_NO_RESOURCE = 0x8, /* No resources */
-	MC_CMD_STATUS_NO_MEMORY = 0x9, /* No memory available */
-	MC_CMD_STATUS_BUSY = 0xA, /* Device is busy */
-	MC_CMD_STATUS_UNSUPPORTED_OP = 0xB, /* Unsupported operation */
-	MC_CMD_STATUS_INVALID_STATE = 0xC /* Invalid state */
-};
-
-/*
- * MC command flags
- */
-
-/* High priority flag */
-#define MC_CMD_FLAG_PRI		0x80
-/* Command completion flag */
-#define MC_CMD_FLAG_INTR_DIS	0x01
-
-static inline u64 mc_encode_cmd_header(u16 cmd_id,
-				       u32 cmd_flags,
-				       u16 token)
-{
-	u64 header = 0;
-	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&header;
-
-	hdr->cmd_id = cpu_to_le16(cmd_id);
-	hdr->token  = cpu_to_le16(token);
-	hdr->status = MC_CMD_STATUS_READY;
-	if (cmd_flags & MC_CMD_FLAG_PRI)
-		hdr->flags_hw = MC_CMD_FLAG_PRI;
-	if (cmd_flags & MC_CMD_FLAG_INTR_DIS)
-		hdr->flags_sw = MC_CMD_FLAG_INTR_DIS;
-
-	return header;
-}
-
-static inline u16 mc_cmd_hdr_read_token(struct mc_command *cmd)
-{
-	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
-	u16 token = le16_to_cpu(hdr->token);
-
-	return token;
-}
-
-struct mc_rsp_create {
-	__le32 object_id;
-};
-
-struct mc_rsp_api_ver {
-	__le16 major_ver;
-	__le16 minor_ver;
-};
-
-static inline u32 mc_cmd_read_object_id(struct mc_command *cmd)
-{
-	struct mc_rsp_create *rsp_params;
-
-	rsp_params = (struct mc_rsp_create *)cmd->params;
-	return le32_to_cpu(rsp_params->object_id);
-}
-
-static inline void mc_cmd_read_api_version(struct mc_command *cmd,
-					   u16 *major_ver,
-					   u16 *minor_ver)
-{
-	struct mc_rsp_api_ver *rsp_params;
-
-	rsp_params = (struct mc_rsp_api_ver *)cmd->params;
-	*major_ver = le16_to_cpu(rsp_params->major_ver);
-	*minor_ver = le16_to_cpu(rsp_params->minor_ver);
-}
 
 /**
  * Bit masks for a MC I/O object (struct fsl_mc_io) flags
