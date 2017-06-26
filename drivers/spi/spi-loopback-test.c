@@ -894,7 +894,7 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 		test->elapsed_time = ktime_to_ns(ktime_sub(ktime_get(), start));
 		if (ret == -ETIMEDOUT) {
 			dev_info(&spi->dev,
-				 "spi-message timed out - reruning...\n");
+				 "spi-message timed out - rerunning...\n");
 			/* rerun after a few explicit schedules */
 			for (i = 0; i < 16; i++)
 				schedule();
