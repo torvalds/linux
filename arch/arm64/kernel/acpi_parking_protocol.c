@@ -125,7 +125,7 @@ static void acpi_parking_protocol_cpu_postboot(void)
 	struct parking_protocol_mailbox __iomem *mailbox = cpu_entry->mailbox;
 	__le64 entry_point;
 
-	entry_point = readl_relaxed(&mailbox->entry_point);
+	entry_point = readq_relaxed(&mailbox->entry_point);
 	/*
 	 * Check if firmware has cleared the entry_point as expected
 	 * by the protocol specification.
