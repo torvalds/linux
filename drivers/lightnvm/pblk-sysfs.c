@@ -153,7 +153,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	int free_line_cnt = 0, closed_line_cnt = 0, emeta_line_cnt = 0;
 	int d_line_cnt = 0, l_line_cnt = 0;
 	int gc_full = 0, gc_high = 0, gc_mid = 0, gc_low = 0, gc_empty = 0;
-	int free = 0, bad = 0, cor = 0;
+	int bad = 0, cor = 0;
 	int msecs = 0, ssecs = 0, cur_sec = 0, vsc = 0, sec_in_line = 0;
 	int map_weight = 0, meta_weight = 0;
 
@@ -217,8 +217,6 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		gc_empty++;
 	}
 
-	list_for_each_entry(line, &l_mg->free_list, list)
-		free++;
 	list_for_each_entry(line, &l_mg->bad_list, list)
 		bad++;
 	list_for_each_entry(line, &l_mg->corrupt_list, list)
@@ -247,9 +245,9 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		geo->nr_luns, lm->blk_per_line, lm->sec_per_line);
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"lines:d:%d,l:%d-f:%d(%d),m:%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
+		"lines:d:%d,l:%d-f:%d,m:%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
 					cur_data, cur_log,
-					free, nr_free_lines, emeta_line_cnt,
+					nr_free_lines, emeta_line_cnt,
 					closed_line_cnt,
 					bad, cor,
 					d_line_cnt, l_line_cnt,
