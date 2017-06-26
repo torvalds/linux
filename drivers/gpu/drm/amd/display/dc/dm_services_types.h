@@ -271,4 +271,10 @@ struct dm_pp_static_clock_info {
 	enum dm_pp_clocks_state max_clocks_state;
 };
 
+struct dtn_min_clk_info {
+	uint32_t disp_clk_khz;
+	uint32_t min_engine_clock_khz;
+	uint32_t min_memory_clock_khz;
+};
+
 #endif
