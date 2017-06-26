@@ -11206,10 +11206,6 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
 	if (!info->attrs[NL80211_ATTR_NAN_FUNC])
 		return -EINVAL;
 
-	if (wdev->owner_nlportid &&
-	    wdev->owner_nlportid != info->snd_portid)
-		return -ENOTCONN;
-
 	err = nla_parse_nested(tb, NL80211_NAN_FUNC_ATTR_MAX,
 			       info->attrs[NL80211_ATTR_NAN_FUNC],
 			       nl80211_nan_func_policy, info->extack);
@@ -11440,10 +11436,6 @@ static int nl80211_nan_del_func(struct sk_buff *skb,
 
 	if (!info->attrs[NL80211_ATTR_COOKIE])
 		return -EINVAL;
-
-	if (wdev->owner_nlportid &&
-	    wdev->owner_nlportid != info->snd_portid)
-		return -ENOTCONN;
 
 	cookie = nla_get_u64(info->attrs[NL80211_ATTR_COOKIE]);
 
