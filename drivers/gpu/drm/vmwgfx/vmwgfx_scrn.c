@@ -746,15 +746,6 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	return 0;
 }
 
-int vmw_kms_sou_close_display(struct vmw_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	drm_vblank_cleanup(dev);
-
-	return 0;
-}
-
 static int do_dmabuf_define_gmrfb(struct vmw_private *dev_priv,
 				  struct vmw_framebuffer *framebuffer)
 {
