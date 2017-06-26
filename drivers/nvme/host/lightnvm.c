@@ -509,7 +509,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	rq = nvme_alloc_request(q, (struct nvme_command *)cmd, 0, NVME_QID_ANY);
 	if (IS_ERR(rq)) {
 		kfree(cmd);
-		return -ENOMEM;
+		return PTR_ERR(rq);
 	}
 	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
