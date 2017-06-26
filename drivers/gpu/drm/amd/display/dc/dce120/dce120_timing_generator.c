@@ -441,13 +441,26 @@ void dce120_timing_generator_program_blanking(
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
 	CRTC_REG_UPDATE(
-			CRTC0_CRTC_H_TOTAL,
-			CRTC_H_TOTAL,
-			timing->h_total - 1);
+		CRTC0_CRTC_H_TOTAL,
+		CRTC_H_TOTAL,
+		timing->h_total - 1);
 
 	CRTC_REG_UPDATE(
 		CRTC0_CRTC_V_TOTAL,
 		CRTC_V_TOTAL,
+		timing->v_total - 1);
+
+	/* In case of V_TOTAL_CONTROL is on, make sure V_TOTAL_MAX and
+	 * V_TOTAL_MIN are equal to V_TOTAL.
+	 */
+	CRTC_REG_UPDATE(
+		CRTC0_CRTC_V_TOTAL_MAX,
+		CRTC_V_TOTAL_MAX,
+		timing->v_total - 1);
+
+	CRTC_REG_UPDATE(
+		CRTC0_CRTC_V_TOTAL_MIN,
+		CRTC_V_TOTAL_MIN,
 		timing->v_total - 1);
 
 	tmp1 = timing->h_total -

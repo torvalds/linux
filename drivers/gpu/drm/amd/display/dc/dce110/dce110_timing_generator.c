@@ -629,6 +629,27 @@ void dce110_timing_generator_program_blanking(
 		CRTC_V_TOTAL);
 	dm_write_reg(ctx, addr, value);
 
+	/* In case of V_TOTAL_CONTROL is on, make sure V_TOTAL_MAX and
+	 * V_TOTAL_MIN are equal to V_TOTAL.
+	 */
+	addr = CRTC_REG(mmCRTC_V_TOTAL_MAX);
+	value = dm_read_reg(ctx, addr);
+	set_reg_field_value(
+		value,
+		timing->v_total - 1,
+		CRTC_V_TOTAL_MAX,
+		CRTC_V_TOTAL_MAX);
+	dm_write_reg(ctx, addr, value);
+
+	addr = CRTC_REG(mmCRTC_V_TOTAL_MIN);
+	value = dm_read_reg(ctx, addr);
+	set_reg_field_value(
+		value,
+		timing->v_total - 1,
+		CRTC_V_TOTAL_MIN,
+		CRTC_V_TOTAL_MIN);
+	dm_write_reg(ctx, addr, value);
+
 	addr = CRTC_REG(mmCRTC_H_BLANK_START_END);
 	value = dm_read_reg(ctx, addr);
 

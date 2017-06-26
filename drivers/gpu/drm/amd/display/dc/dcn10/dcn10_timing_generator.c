@@ -177,6 +177,14 @@ static void tgn10_program_timing(
 	REG_SET(OTG_V_TOTAL, 0,
 			OTG_V_TOTAL, v_total);
 
+	/* In case of V_TOTAL_CONTROL is on, make sure OTG_V_TOTAL_MAX and
+	 * OTG_V_TOTAL_MIN are equal to V_TOTAL.
+	 */
+	REG_SET(OTG_V_TOTAL_MAX, 0,
+		OTG_V_TOTAL_MAX, v_total);
+	REG_SET(OTG_V_TOTAL_MIN, 0,
+		OTG_V_TOTAL_MIN, v_total);
+
 	/* v_sync_start = 0, v_sync_end = v_sync_width */
 	v_sync_end = patched_crtc_timing.v_sync_width * interlace_factor;
 
