@@ -69,6 +69,7 @@ _GLOBAL_TOC(kvmppc_hv_entry_trampoline)
 	std	r0, PPC_LR_STKOFF(r1)
 	stdu	r1, -112(r1)
 	mfmsr	r10
+	std	r10, HSTATE_HOST_MSR(r13)
 	LOAD_REG_ADDR(r5, kvmppc_call_hv_entry)
 	li	r0,MSR_RI
 	andc	r0,r10,r0
@@ -165,6 +166,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	addi	r1, r1, 112
 	ld	r7, HSTATE_HOST_MSR(r13)
 
+	/* Return the trap number on this thread as the return value */
+	mr	r3, r12
+
 	/*
 	 * If we came back from the guest via a relocation-on interrupt,
 	 * we will be in virtual mode at this point, which makes it a
@@ -174,58 +178,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	andi.	r0, r0, MSR_IR		/* in real mode? */
 	bne	.Lvirt_return
 
-	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	beq	11f
-	cmpwi	r12, BOOK3S_INTERRUPT_H_DOORBELL
-	beq 	15f	/* Invoke the H_DOORBELL handler */
-	cmpwi	cr2, r12, BOOK3S_INTERRUPT_HMI
-	beq	cr2, 14f			/* HMI check */
-
-	/* RFI into the highmem handler, or branch to interrupt handler */
+	/* RFI into the highmem handler */
 	mfmsr	r6
 	li	r0, MSR_RI
 	andc	r6, r6, r0
 	mtmsrd	r6, 1			/* Clear RI in MSR */
 	mtsrr0	r8
 	mtsrr1	r7
-	/*
-	 * BOOK3S_INTERRUPT_MACHINE_CHECK is handled at the
-	 * time of guest exit
-	 */
 	RFI
 
-	/* On POWER7, we have external interrupts set to use HSRR0/1 */
-11:	mtspr	SPRN_HSRR0, r8
-	mtspr	SPRN_HSRR1, r7
-	ba	0x500
-
-14:	mtspr	SPRN_HSRR0, r8
-	mtspr	SPRN_HSRR1, r7
-	b	hmi_exception_after_realmode
-
-15:	mtspr SPRN_HSRR0, r8
-	mtspr SPRN_HSRR1, r7
-	ba    0xe80
-
-	/* Virtual-mode return - can't get here for HMI or machine check */
+	/* Virtual-mode return */
 .Lvirt_return:
-	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	beq	16f
-	cmpwi	r12, BOOK3S_INTERRUPT_H_DOORBELL
-	beq	17f
-	andi.	r0, r7, MSR_EE		/* were interrupts hard-enabled? */
-	beq	18f
-	mtmsrd	r7, 1			/* if so then re-enable them */
-18:	mtlr	r8
+	mtlr	r8
 	blr
-
-16:	mtspr	SPRN_HSRR0, r8		/* jump to reloc-on external vector */
-	mtspr	SPRN_HSRR1, r7
-	b	exc_virt_0x4500_hardware_interrupt
-
-17:	mtspr	SPRN_HSRR0, r8
-	mtspr	SPRN_HSRR1, r7
-	b	exc_virt_0x4e80_h_doorbell
 
 kvmppc_primary_no_guest:
 	/* We handle this much like a ceded vcpu */
@@ -1257,6 +1222,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	std	r4, VCPU_LR(r9)
 
 	stw	r12,VCPU_TRAP(r9)
+
+	/*
+	 * Now that we have saved away SRR0/1 and HSRR0/1,
+	 * interrupts are recoverable in principle, so set MSR_RI.
+	 * This becomes important for relocation-on interrupts from
+	 * the guest, which we can get in radix mode on POWER9.
+	 */
+	li	r0, MSR_RI
+	mtmsrd	r0, 1
 
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	addi	r3, r9, VCPU_TB_RMINTR

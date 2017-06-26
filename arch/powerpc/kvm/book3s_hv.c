@@ -647,6 +647,7 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	unsigned long stolen;
 	unsigned long core_stolen;
 	u64 now;
+	unsigned long flags;
 
 	dt = vcpu->arch.dtl_ptr;
 	vpa = vcpu->arch.vpa.pinned_addr;
@@ -654,10 +655,10 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	core_stolen = vcore_stolen_time(vc, now);
 	stolen = core_stolen - vcpu->arch.stolen_logged;
 	vcpu->arch.stolen_logged = core_stolen;
-	spin_lock_irq(&vcpu->arch.tbacct_lock);
+	spin_lock_irqsave(&vcpu->arch.tbacct_lock, flags);
 	stolen += vcpu->arch.busy_stolen;
 	vcpu->arch.busy_stolen = 0;
-	spin_unlock_irq(&vcpu->arch.tbacct_lock);
+	spin_unlock_irqrestore(&vcpu->arch.tbacct_lock, flags);
 	if (!dt || !vpa)
 		return;
 	memset(dt, 0, sizeof(struct dtl_entry));
@@ -2085,7 +2086,7 @@ static void kvmppc_end_cede(struct kvm_vcpu *vcpu)
 	}
 }
 
-extern void __kvmppc_vcore_entry(void);
+extern int __kvmppc_vcore_entry(void);
 
 static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 				   struct kvm_vcpu *vcpu)
@@ -2167,6 +2168,31 @@ static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
 			smp_call_function_single(cpu + i, do_nothing, NULL, 1);
 }
 
+static void kvmppc_prepare_radix_vcpu(struct kvm_vcpu *vcpu, int pcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	/*
+	 * With radix, the guest can do TLB invalidations itself,
+	 * and it could choose to use the local form (tlbiel) if
+	 * it is invalidating a translation that has only ever been
+	 * used on one vcpu.  However, that doesn't mean it has
+	 * only ever been used on one physical cpu, since vcpus
+	 * can move around between pcpus.  To cope with this, when
+	 * a vcpu moves from one pcpu to another, we need to tell
+	 * any vcpus running on the same core as this vcpu previously
+	 * ran to flush the TLB.  The TLB is shared between threads,
+	 * so we use a single bit in .need_tlb_flush for all 4 threads.
+	 */
+	if (vcpu->arch.prev_cpu != pcpu) {
+		if (vcpu->arch.prev_cpu >= 0 &&
+		    cpu_first_thread_sibling(vcpu->arch.prev_cpu) !=
+		    cpu_first_thread_sibling(pcpu))
+			radix_flush_cpu(kvm, vcpu->arch.prev_cpu, vcpu);
+		vcpu->arch.prev_cpu = pcpu;
+	}
+}
+
 static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 {
 	int cpu;
@@ -2182,26 +2208,6 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 		cpu += vcpu->arch.ptid;
 		vcpu->cpu = vc->pcpu;
 		vcpu->arch.thread_cpu = cpu;
-
-		/*
-		 * With radix, the guest can do TLB invalidations itself,
-		 * and it could choose to use the local form (tlbiel) if
-		 * it is invalidating a translation that has only ever been
-		 * used on one vcpu.  However, that doesn't mean it has
-		 * only ever been used on one physical cpu, since vcpus
-		 * can move around between pcpus.  To cope with this, when
-		 * a vcpu moves from one pcpu to another, we need to tell
-		 * any vcpus running on the same core as this vcpu previously
-		 * ran to flush the TLB.  The TLB is shared between threads,
-		 * so we use a single bit in .need_tlb_flush for all 4 threads.
-		 */
-		if (kvm_is_radix(kvm) && vcpu->arch.prev_cpu != cpu) {
-			if (vcpu->arch.prev_cpu >= 0 &&
-			    cpu_first_thread_sibling(vcpu->arch.prev_cpu) !=
-			    cpu_first_thread_sibling(cpu))
-				radix_flush_cpu(kvm, vcpu->arch.prev_cpu, vcpu);
-			vcpu->arch.prev_cpu = cpu;
-		}
 		cpumask_set_cpu(cpu, &kvm->arch.cpu_in_guest);
 	}
 	tpaca = &paca[cpu];
@@ -2470,6 +2476,18 @@ static void collect_piggybacks(struct core_info *cip, int target_threads)
 	spin_unlock(&lp->lock);
 }
 
+static bool recheck_signals(struct core_info *cip)
+{
+	int sub, i;
+	struct kvm_vcpu *vcpu;
+
+	for (sub = 0; sub < cip->n_subcores; ++sub)
+		for_each_runnable_thread(i, vcpu, cip->vc[sub])
+			if (signal_pending(vcpu->arch.run_task))
+				return true;
+	return false;
+}
+
 static void post_guest_process(struct kvmppc_vcore *vc, bool is_master)
 {
 	int still_running = 0, i;
@@ -2568,6 +2586,21 @@ static inline int kvmppc_set_host_core(unsigned int cpu)
 	return 0;
 }
 
+static void set_irq_happened(int trap)
+{
+	switch (trap) {
+	case BOOK3S_INTERRUPT_EXTERNAL:
+		local_paca->irq_happened |= PACA_IRQ_EE;
+		break;
+	case BOOK3S_INTERRUPT_H_DOORBELL:
+		local_paca->irq_happened |= PACA_IRQ_DBELL;
+		break;
+	case BOOK3S_INTERRUPT_HMI:
+		local_paca->irq_happened |= PACA_IRQ_HMI;
+		break;
+	}
+}
+
 /*
  * Run a set of guest threads on a physical core.
  * Called with vc->lock held.
@@ -2587,6 +2620,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	int pcpu, thr;
 	int target_threads;
 	int controlled_threads;
+	int trap;
 
 	/*
 	 * Remove from the list any threads that have a signal pending
@@ -2638,6 +2672,43 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	if (vc->num_threads < target_threads)
 		collect_piggybacks(&core_info, target_threads);
 
+	/*
+	 * On radix, arrange for TLB flushing if necessary.
+	 * This has to be done before disabling interrupts since
+	 * it uses smp_call_function().
+	 */
+	pcpu = smp_processor_id();
+	if (kvm_is_radix(vc->kvm)) {
+		for (sub = 0; sub < core_info.n_subcores; ++sub)
+			for_each_runnable_thread(i, vcpu, core_info.vc[sub])
+				kvmppc_prepare_radix_vcpu(vcpu, pcpu);
+	}
+
+	/*
+	 * Hard-disable interrupts, and check resched flag and signals.
+	 * If we need to reschedule or deliver a signal, clean up
+	 * and return without going into the guest(s).
+	 */
+	local_irq_disable();
+	hard_irq_disable();
+	if (lazy_irq_pending() || need_resched() ||
+	    recheck_signals(&core_info)) {
+		local_irq_enable();
+		vc->vcore_state = VCORE_INACTIVE;
+		/* Unlock all except the primary vcore */
+		for (sub = 1; sub < core_info.n_subcores; ++sub) {
+			pvc = core_info.vc[sub];
+			/* Put back on to the preempted vcores list */
+			kvmppc_vcore_preempt(pvc);
+			spin_unlock(&pvc->lock);
+		}
+		for (i = 0; i < controlled_threads; ++i)
+			kvmppc_release_hwthread(pcpu + i);
+		return;
+	}
+
+	kvmppc_clear_host_core(pcpu);
+
 	/* Decide on micro-threading (split-core) mode */
 	subcore_size = threads_per_subcore;
 	cmd_bit = stat_bit = 0;
@@ -2665,7 +2736,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		/* order writes to split_info before kvm_split_mode pointer */
 		smp_wmb();
 	}
-	pcpu = smp_processor_id();
 	for (thr = 0; thr < controlled_threads; ++thr)
 		paca[pcpu + thr].kvm_hstate.kvm_split_mode = sip;
 
@@ -2684,8 +2754,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 			cpu_relax();
 		}
 	}
-
-	kvmppc_clear_host_core(pcpu);
 
 	/* Start all the threads */
 	active = 0;
@@ -2738,13 +2806,24 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	for (sub = 0; sub < core_info.n_subcores; ++sub)
 		spin_unlock(&core_info.vc[sub]->lock);
 
+	/*
+	 * Interrupts will be enabled once we get into the guest,
+	 * so tell lockdep that we're about to enable interrupts.
+	 */
+	trace_hardirqs_on();
+
 	guest_enter();
 
 	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
-	__kvmppc_vcore_entry();
+	trap = __kvmppc_vcore_entry();
 
 	srcu_read_unlock(&vc->kvm->srcu, srcu_idx);
+
+	guest_exit();
+
+	trace_hardirqs_off();
+	set_irq_happened(trap);
 
 	spin_lock(&vc->lock);
 	/* prevent other vcpu threads from doing kvmppc_start_thread() now */
@@ -2773,6 +2852,10 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		split_info.do_nap = 0;
 	}
 
+	kvmppc_set_host_core(pcpu);
+
+	local_irq_enable();
+
 	/* Let secondaries go back to the offline loop */
 	for (i = 0; i < controlled_threads; ++i) {
 		kvmppc_release_hwthread(pcpu + i);
@@ -2781,13 +2864,10 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		cpumask_clear_cpu(pcpu + i, &vc->kvm->arch.cpu_in_guest);
 	}
 
-	kvmppc_set_host_core(pcpu);
-
 	spin_unlock(&vc->lock);
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
-	guest_exit();
 
 	for (sub = 0; sub < core_info.n_subcores; ++sub) {
 		pvc = core_info.vc[sub];
