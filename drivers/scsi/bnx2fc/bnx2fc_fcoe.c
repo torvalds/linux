@@ -522,10 +522,12 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
 	struct fc_lport *vn_port;
-	struct fcoe_port *port;
+	struct fcoe_port *port, *phys_port;
 	u8 *mac = NULL;
 	u8 *dest_mac = NULL;
 	struct fcoe_hdr *hp;
+	struct bnx2fc_interface *interface;
+	struct fcoe_ctlr *ctlr;
 
 	fr = fcoe_dev_from_skb(skb);
 	lport = fr->fr_dev;
@@ -561,13 +563,32 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 		return;
 	}
 
+	phys_port = lport_priv(lport);
+	interface = phys_port->priv;
+	ctlr = bnx2fc_to_ctlr(interface);
+
 	fh = fc_frame_header_get(fp);
+
+	if (ntoh24(&dest_mac[3]) != ntoh24(fh->fh_d_id)) {
+		BNX2FC_HBA_DBG(lport, "FC frame d_id mismatch with MAC %pM.\n",
+		    dest_mac);
+		kfree_skb(skb);
+		return;
+	}
 
 	vn_port = fc_vport_id_lookup(lport, ntoh24(fh->fh_d_id));
 	if (vn_port) {
 		port = lport_priv(vn_port);
 		if (!ether_addr_equal(port->data_src_addr, dest_mac)) {
 			BNX2FC_HBA_DBG(lport, "fpma mismatch\n");
+			kfree_skb(skb);
+			return;
+		}
+	}
+	if (ctlr->state) {
+		if (!ether_addr_equal(mac, ctlr->dest_addr)) {
+			BNX2FC_HBA_DBG(lport, "Wrong source address: mac:%pM dest_addr:%pM.\n",
+			    mac, ctlr->dest_addr);
 			kfree_skb(skb);
 			return;
 		}
@@ -593,6 +614,18 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 
 	if (fh->fh_r_ctl == FC_RCTL_BA_ABTS) {
 		/* Drop incoming ABTS */
+		kfree_skb(skb);
+		return;
+	}
+
+	/*
+	 * If the destination ID from the frame header does not match what we
+	 * have on record for lport and the search for a NPIV port came up
+	 * empty then this is not addressed to our port so simply drop it.
+	 */
+	if (lport->port_id != ntoh24(fh->fh_d_id) && !vn_port) {
+		BNX2FC_HBA_DBG(lport, "Dropping frame due to destination mismatch: lport->port_id=%x fh->d_id=%x.\n",
+		    lport->port_id, ntoh24(fh->fh_d_id));
 		kfree_skb(skb);
 		return;
 	}
