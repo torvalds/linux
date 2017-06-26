@@ -85,7 +85,7 @@ typedef struct siginfo {
 			__ARCH_SI_CLOCK_T _stime;
 		} _sigchld;
 
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
+		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGTRAP, SIGEMT */
 		struct {
 			void __user *_addr; /* faulting insn/memory ref. */
 #ifdef __ARCH_SI_TRAPNO
