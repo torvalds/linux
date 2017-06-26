@@ -3899,11 +3899,6 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 
 	lockdep_assert_held(&rsp->orphan_lock);
 
-	/* No-CBs CPUs are handled specially. */
-	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
-	    rcu_nocb_adopt_orphan_cbs(rsp, rdp, flags))
-		return;
-
 	/* Do the accounting first. */
 	if (rsp->orphan_done.len_lazy != rsp->orphan_done.len)
 		rcu_idle_count_callbacks_posted();
@@ -3928,13 +3923,20 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
+	struct rcu_data *my_rdp;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
 	if (rcu_is_nocb_cpu(cpu) || rcu_segcblist_empty(&rdp->cblist))
 		return;  /* No callbacks to migrate. */
 
-	raw_spin_lock_irqsave(&rsp->orphan_lock, flags);
+	local_irq_save(flags);
+	my_rdp = this_cpu_ptr(rsp->rda);
+	if (rcu_nocb_adopt_orphan_cbs(my_rdp, rdp, flags)) {
+		local_irq_restore(flags);
+		return;
+	}
+	raw_spin_lock(&rsp->orphan_lock); /* irqs already disabled. */
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
 	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);

@@ -493,7 +493,7 @@ static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
 static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 			    bool lazy, unsigned long flags);
-static bool rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
+static bool rcu_nocb_adopt_orphan_cbs(struct rcu_data *my_rdp,
 				      struct rcu_data *rdp,
 				      unsigned long flags);
 static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);

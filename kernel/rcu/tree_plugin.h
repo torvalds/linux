@@ -1961,30 +1961,19 @@ static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
  * Adopt orphaned callbacks on a no-CBs CPU, or return 0 if this is
  * not a no-CBs CPU.
  */
-static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
+static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_data *my_rdp,
 						     struct rcu_data *rdp,
 						     unsigned long flags)
 {
-	long ql = rsp->orphan_done.len;
-	long qll = rsp->orphan_done.len_lazy;
-
-	/* If this is not a no-CBs CPU, tell the caller to do it the old way. */
+	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_nocb_adopt_orphan_cbs() invoked with irqs enabled!!!");
 	if (!rcu_is_nocb_cpu(smp_processor_id()))
-		return false;
-
-	/* First, enqueue the donelist, if any.  This preserves CB ordering. */
-	if (rsp->orphan_done.head) {
-		__call_rcu_nocb_enqueue(rdp, rcu_cblist_head(&rsp->orphan_done),
-					rcu_cblist_tail(&rsp->orphan_done),
-					ql, qll, flags);
-	}
-	if (rsp->orphan_pend.head) {
-		__call_rcu_nocb_enqueue(rdp, rcu_cblist_head(&rsp->orphan_pend),
-					rcu_cblist_tail(&rsp->orphan_pend),
-					ql, qll, flags);
-	}
-	rcu_cblist_init(&rsp->orphan_done);
-	rcu_cblist_init(&rsp->orphan_pend);
+		return false; /* Not NOCBs CPU, caller must migrate CBs. */
+	__call_rcu_nocb_enqueue(my_rdp, rcu_segcblist_head(&rdp->cblist),
+				rcu_segcblist_tail(&rdp->cblist),
+				rcu_segcblist_n_cbs(&rdp->cblist),
+				rcu_segcblist_n_lazy_cbs(&rdp->cblist), flags);
+	rcu_segcblist_init(&rdp->cblist);
+	rcu_segcblist_disable(&rdp->cblist);
 	return true;
 }
 
@@ -2459,7 +2448,7 @@ static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 	return false;
 }
 
-static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
+static bool __maybe_unused rcu_nocb_adopt_orphan_cbs(struct rcu_data *my_rdp,
 						     struct rcu_data *rdp,
 						     unsigned long flags)
 {
