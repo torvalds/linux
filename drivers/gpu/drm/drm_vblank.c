@@ -394,19 +394,6 @@ static void vblank_disable_fn(unsigned long arg)
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 
-/**
- * drm_vblank_cleanup - cleanup vblank support
- * @dev: DRM device
- *
- * This function cleans up any resources allocated in drm_vblank_init(). It is
- * called by the DRM core when @dev is finalized.
- *
- * Drivers can call drm_vblank_cleanup() if they need to quiescent the vblank
- * interrupt in their unload code. But in general this should be handled by
- * disabling all active &drm_crtc through e.g. drm_atomic_helper_shutdown, which
- * should end up calling drm_crtc_vblank_off().
- *
- */
 void drm_vblank_cleanup(struct drm_device *dev)
 {
 	unsigned int pipe;
@@ -428,7 +415,6 @@ void drm_vblank_cleanup(struct drm_device *dev)
 
 	dev->num_crtcs = 0;
 }
-EXPORT_SYMBOL(drm_vblank_cleanup);
 
 /**
  * drm_vblank_init - initialize vblank support
@@ -436,9 +422,8 @@ EXPORT_SYMBOL(drm_vblank_cleanup);
  * @num_crtcs: number of CRTCs supported by @dev
  *
  * This function initializes vblank support for @num_crtcs display pipelines.
- * Drivers do not need to call drm_vblank_cleanup(), cleanup is already handled
- * by the DRM core, or through calling drm_dev_fini() for drivers with a
- * &drm_driver.release callback.
+ * Cleanup is handled by the DRM core, or through calling drm_dev_fini() for
+ * drivers with a &drm_driver.release callback.
  *
  * Returns:
  * Zero on success or a negative error code on failure.

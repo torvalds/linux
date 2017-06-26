@@ -168,7 +168,6 @@ void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
 void drm_crtc_vblank_off(struct drm_crtc *crtc);
 void drm_crtc_vblank_reset(struct drm_crtc *crtc);
 void drm_crtc_vblank_on(struct drm_crtc *crtc);
-void drm_vblank_cleanup(struct drm_device *dev);
 u32 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc);
 
 bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
