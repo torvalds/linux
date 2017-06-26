@@ -17,7 +17,6 @@
  */
 
 #include "pblk.h"
-#include <linux/time.h>
 
 static void pblk_mark_bb(struct pblk *pblk, struct pblk_line *line,
 			 struct ppa_addr *ppa)

@@ -27,14 +27,8 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 
 	for (i = 0; i < c_ctx->nr_valid; i++) {
 		struct pblk_w_ctx *w_ctx;
-		struct ppa_addr p;
-		struct pblk_line *line;
 
 		w_ctx = pblk_rb_w_ctx(&pblk->rwb, c_ctx->sentry + i);
-
-		p = rqd->ppa_list[i];
-		line = &pblk->lines[pblk_dev_ppa_to_line(p)];
-
 		while ((original_bio = bio_list_pop(&w_ctx->bios)))
 			bio_endio(original_bio);
 	}
