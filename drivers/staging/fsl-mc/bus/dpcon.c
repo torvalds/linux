@@ -29,7 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <linux/kernel.h>
 #include "../include/mc-sys.h"
 #include "../include/mc-cmd.h"
 #include "../include/dpcon.h"
