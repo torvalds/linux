@@ -564,7 +564,6 @@ static int pblk_line_submit_emeta_io(struct pblk *pblk, struct pblk_line *line,
 	int id = line->id;
 	int rq_ppas, rq_len;
 	int cmd_op, bio_op;
-	int flags;
 	int i, j;
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(wait);
@@ -572,11 +571,9 @@ static int pblk_line_submit_emeta_io(struct pblk *pblk, struct pblk_line *line,
 	if (dir == WRITE) {
 		bio_op = REQ_OP_WRITE;
 		cmd_op = NVM_OP_PWRITE;
-		flags = pblk_set_progr_mode(pblk, WRITE);
 	} else if (dir == READ) {
 		bio_op = REQ_OP_READ;
 		cmd_op = NVM_OP_PREAD;
-		flags = pblk_set_read_mode(pblk);
 	} else
 		return -EINVAL;
 
@@ -601,7 +598,6 @@ next_rq:
 
 	rqd.bio = bio;
 	rqd.opcode = cmd_op;
-	rqd.flags = flags;
 	rqd.nr_ppas = rq_ppas;
 	rqd.ppa_list = ppa_list;
 	rqd.dma_ppa_list = dma_ppa_list;
@@ -609,6 +605,7 @@ next_rq:
 	rqd.private = &wait;
 
 	if (dir == WRITE) {
+		rqd.flags = pblk_set_progr_mode(pblk, WRITE);
 		for (i = 0; i < rqd.nr_ppas; ) {
 			spin_lock(&line->lock);
 			paddr = __pblk_alloc_page(pblk, line, min);
@@ -621,6 +618,11 @@ next_rq:
 		for (i = 0; i < rqd.nr_ppas; ) {
 			struct ppa_addr ppa = addr_to_gen_ppa(pblk, paddr, id);
 			int pos = pblk_dev_ppa_to_pos(geo, ppa);
+			int read_type = PBLK_READ_RANDOM;
+
+			if (pblk_io_aligned(pblk, rq_ppas))
+				read_type = PBLK_READ_SEQUENTIAL;
+			rqd.flags = pblk_set_read_mode(pblk, read_type);
 
 			while (test_bit(pos, line->blk_bitmap)) {
 				paddr += min;
@@ -717,7 +719,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	} else if (dir == READ) {
 		bio_op = REQ_OP_READ;
 		cmd_op = NVM_OP_PREAD;
-		flags = pblk_set_read_mode(pblk);
+		flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
 	} else
 		return -EINVAL;
 

@@ -88,6 +88,11 @@ retry:
 			bio_advance(bio, PBLK_EXPOSED_PAGE_SIZE);
 	}
 
+	if (pblk_io_aligned(pblk, nr_secs))
+		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
+	else
+		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
+
 #ifdef CONFIG_NVM_DEBUG
 	atomic_long_add(nr_secs, &pblk->inflight_reads);
 #endif
@@ -96,8 +101,6 @@ retry:
 static int pblk_submit_read_io(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	int err;
-
-	rqd->flags = pblk_set_read_mode(pblk);
 
 	err = pblk_submit_io(pblk, rqd);
 	if (err)
@@ -177,6 +180,7 @@ static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
 
 	rqd->bio = new_bio;
 	rqd->nr_ppas = nr_holes;
+	rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 	rqd->end_io = NULL;
 
 	if (unlikely(nr_secs > 1 && nr_holes == 1)) {
@@ -290,6 +294,8 @@ retry:
 	} else {
 		rqd->ppa_addr = ppa;
 	}
+
+	rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 }
 
 int pblk_submit_read(struct pblk *pblk, struct bio *bio)
@@ -497,6 +503,7 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 	rqd.end_io = pblk_end_io_sync;
 	rqd.private = &wait;
 	rqd.nr_ppas = *secs_to_gc;
+	rqd.flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 	rqd.bio = bio;
 
 	ret = pblk_submit_read_io(pblk, &rqd);

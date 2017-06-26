@@ -1075,9 +1075,27 @@ static inline int pblk_set_progr_mode(struct pblk *pblk, int type)
 	return flags;
 }
 
-static inline int pblk_set_read_mode(struct pblk *pblk)
+enum {
+	PBLK_READ_RANDOM	= 0,
+	PBLK_READ_SEQUENTIAL	= 1,
+};
+
+static inline int pblk_set_read_mode(struct pblk *pblk, int type)
 {
-	return NVM_IO_SNGL_ACCESS | NVM_IO_SUSPEND | NVM_IO_SCRAMBLE_ENABLE;
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	int flags;
+
+	flags = NVM_IO_SUSPEND | NVM_IO_SCRAMBLE_ENABLE;
+	if (type == PBLK_READ_SEQUENTIAL)
+		flags |= geo->plane_mode >> 1;
+
+	return flags;
+}
+
+static inline int pblk_io_aligned(struct pblk *pblk, int nr_secs)
+{
+	return !(nr_secs % pblk->min_write_pgs);
 }
 
 #ifdef CONFIG_NVM_DEBUG
