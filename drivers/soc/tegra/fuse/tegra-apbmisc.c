@@ -39,16 +39,16 @@ static bool long_ram_code;
 
 u32 tegra_read_chipid(void)
 {
-	return readl_relaxed(apbmisc_base + 4);
-}
-
-u8 tegra_get_chip_id(void)
-{
 	if (!apbmisc_base) {
 		WARN(1, "Tegra Chip ID not yet available\n");
 		return 0;
 	}
 
+	return readl_relaxed(apbmisc_base + 4);
+}
+
+u8 tegra_get_chip_id(void)
+{
 	return (tegra_read_chipid() >> 8) & 0xff;
 }
 
