@@ -108,7 +108,11 @@ static inline ktime_t timeval_to_ktime(struct timeval tv)
  */
 static inline int ktime_compare(const ktime_t cmp1, const ktime_t cmp2)
 {
-	return ktime_sub(cmp1, cmp2);
+	if (cmp1 < cmp2)
+		return -1;
+	if (cmp1 > cmp2)
+		return 1;
+	return 0;
 }
 
 /**
