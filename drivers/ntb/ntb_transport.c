@@ -1059,7 +1059,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	int node;
 	int rc, i;
 
-	mw_count = ntb_mw_count(ndev, PIDX);
+	mw_count = ntb_peer_mw_count(ndev);
 
 	if (!ndev->ops->mw_set_trans) {
 		dev_err(&ndev->dev, "Inbound MW based NTB API is required\n");
