@@ -257,11 +257,13 @@ struct pblk_rl {
 				 */
 	int rb_budget;		/* Total number of entries available for I/O */
 	int rb_user_max;	/* Max buffer entries available for user I/O */
-	atomic_t rb_user_cnt;	/* User I/O buffer counter */
 	int rb_gc_max;		/* Max buffer entries available for GC I/O */
 	int rb_gc_rsv;		/* Reserved buffer entries for GC I/O */
 	int rb_state;		/* Rate-limiter current state */
+
+	atomic_t rb_user_cnt;	/* User I/O buffer counter */
 	atomic_t rb_gc_cnt;	/* GC I/O buffer counter */
+	atomic_t rb_space;	/* Space limit in case of reaching capacity */
 
 	int rsv_blocks;		/* Reserved blocks for GC */
 
@@ -529,6 +531,13 @@ struct pblk_addr_format {
 	u8	sec_offset;
 };
 
+enum {
+	PBLK_STATE_RUNNING = 0,
+	PBLK_STATE_STOPPING = 1,
+	PBLK_STATE_RECOVERING = 2,
+	PBLK_STATE_STOPPED = 3,
+};
+
 struct pblk {
 	struct nvm_tgt_dev *dev;
 	struct gendisk *disk;
@@ -545,6 +554,8 @@ struct pblk {
 	struct pblk_addr_format ppaf;
 
 	struct pblk_rb rwb;
+
+	int state;			/* pblk line state */
 
 	int min_write_pgs; /* Minimum amount of pages required by controller */
 	int max_write_pgs; /* Maximum amount of pages supported by controller */
@@ -586,6 +597,8 @@ struct pblk {
 	atomic_long_t read_failed_gc;
 	atomic_long_t write_failed;
 	atomic_long_t erase_failed;
+
+	atomic_t inflight_io;		/* General inflight I/O counter */
 
 	struct task_struct *writer_ts;
 
@@ -640,6 +653,7 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 			    struct pblk_w_ctx w_ctx, struct pblk_line *gc_line,
 			    unsigned int pos);
 struct pblk_w_ctx *pblk_rb_w_ctx(struct pblk_rb *rb, unsigned int pos);
+void pblk_rb_flush(struct pblk_rb *rb);
 
 void pblk_rb_sync_l2p(struct pblk_rb *rb);
 unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
@@ -675,7 +689,7 @@ void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write);
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct pblk_c_ctx *c_ctx);
 void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int rw);
-void pblk_flush_writer(struct pblk *pblk);
+void pblk_wait_for_meta(struct pblk *pblk);
 struct ppa_addr pblk_get_lba_map(struct pblk *pblk, sector_t lba);
 void pblk_discard(struct pblk *pblk, struct bio *bio);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
@@ -687,7 +701,7 @@ struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 			      gfp_t gfp_mask);
 struct pblk_line *pblk_line_get(struct pblk *pblk);
 struct pblk_line *pblk_line_get_first_data(struct pblk *pblk);
-struct pblk_line *pblk_line_replace_data(struct pblk *pblk);
+void pblk_line_replace_data(struct pblk *pblk);
 int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line);
 struct pblk_line *pblk_line_get_data(struct pblk *pblk);
@@ -697,7 +711,9 @@ int pblk_line_is_full(struct pblk_line *line);
 void pblk_line_free(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_close_meta(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_close(struct pblk *pblk, struct pblk_line *line);
+void pblk_line_close_meta_sync(struct pblk *pblk);
 void pblk_line_close_ws(struct work_struct *work);
+void pblk_pipeline_stop(struct pblk *pblk);
 void pblk_line_mark_bb(struct work_struct *work);
 void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 		      void (*work)(struct work_struct *),
@@ -779,7 +795,7 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
  */
 void pblk_submit_rec(struct work_struct *work);
 struct pblk_line *pblk_recov_l2p(struct pblk *pblk);
-void pblk_recov_pad(struct pblk *pblk);
+int pblk_recov_pad(struct pblk *pblk);
 __le64 *pblk_recov_get_lba_list(struct pblk *pblk, struct line_emeta *emeta);
 int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
 			struct pblk_rec_ctx *recovery, u64 *comp_bits,
@@ -812,6 +828,7 @@ int pblk_rl_high_thrs(struct pblk_rl *rl);
 int pblk_rl_low_thrs(struct pblk_rl *rl);
 unsigned long pblk_rl_nr_free_blks(struct pblk_rl *rl);
 int pblk_rl_user_may_insert(struct pblk_rl *rl, int nr_entries);
+void pblk_rl_inserted(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_user_in(struct pblk_rl *rl, int nr_entries);
 int pblk_rl_gc_may_insert(struct pblk_rl *rl, int nr_entries);
 void pblk_rl_gc_in(struct pblk_rl *rl, int nr_entries);
@@ -819,6 +836,8 @@ void pblk_rl_out(struct pblk_rl *rl, int nr_user, int nr_gc);
 int pblk_rl_sysfs_rate_show(struct pblk_rl *rl);
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line);
 void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line);
+void pblk_rl_set_space_limit(struct pblk_rl *rl, int entries_left);
+int pblk_rl_is_limit(struct pblk_rl *rl);
 
 /*
  * pblk sysfs

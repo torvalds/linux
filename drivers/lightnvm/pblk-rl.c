@@ -23,11 +23,35 @@ static void pblk_rl_kick_u_timer(struct pblk_rl *rl)
 	mod_timer(&rl->u_timer, jiffies + msecs_to_jiffies(5000));
 }
 
+int pblk_rl_is_limit(struct pblk_rl *rl)
+{
+	int rb_space;
+
+	rb_space = atomic_read(&rl->rb_space);
+
+	return (rb_space == 0);
+}
+
 int pblk_rl_user_may_insert(struct pblk_rl *rl, int nr_entries)
 {
 	int rb_user_cnt = atomic_read(&rl->rb_user_cnt);
+	int rb_space = atomic_read(&rl->rb_space);
 
-	return (!(rb_user_cnt >= rl->rb_user_max));
+	if (unlikely(rb_space >= 0) && (rb_space - nr_entries < 0))
+		return NVM_IO_ERR;
+
+	if (rb_user_cnt >= rl->rb_user_max)
+		return NVM_IO_REQUEUE;
+
+	return NVM_IO_OK;
+}
+
+void pblk_rl_inserted(struct pblk_rl *rl, int nr_entries)
+{
+	int rb_space = atomic_read(&rl->rb_space);
+
+	if (unlikely(rb_space >= 0))
+		atomic_sub(nr_entries, &rl->rb_space);
 }
 
 int pblk_rl_gc_may_insert(struct pblk_rl *rl, int nr_entries)
@@ -190,10 +214,12 @@ void pblk_rl_init(struct pblk_rl *rl, int budget)
 	/* To start with, all buffer is available to user I/O writers */
 	rl->rb_budget = budget;
 	rl->rb_user_max = budget;
-	atomic_set(&rl->rb_user_cnt, 0);
 	rl->rb_gc_max = 0;
 	rl->rb_state = PBLK_RL_HIGH;
+
+	atomic_set(&rl->rb_user_cnt, 0);
 	atomic_set(&rl->rb_gc_cnt, 0);
+	atomic_set(&rl->rb_space, -1);
 
 	setup_timer(&rl->u_timer, pblk_rl_u_timer, (unsigned long)rl);
 

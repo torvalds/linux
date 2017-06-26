@@ -372,11 +372,13 @@ static void pblk_line_meta_free(struct pblk *pblk)
 	kfree(l_mg->bb_aux);
 	kfree(l_mg->vsc_list);
 
+	spin_lock(&l_mg->free_lock);
 	for (i = 0; i < PBLK_DATA_LINES; i++) {
 		kfree(l_mg->sline_meta[i]);
 		pblk_mfree(l_mg->eline_meta[i]->buf, l_mg->emeta_alloc_type);
 		kfree(l_mg->eline_meta[i]);
 	}
+	spin_unlock(&l_mg->free_lock);
 
 	kfree(pblk->lines);
 }
@@ -859,10 +861,9 @@ static void pblk_free(struct pblk *pblk)
 
 static void pblk_tear_down(struct pblk *pblk)
 {
-	pblk_flush_writer(pblk);
+	pblk_pipeline_stop(pblk);
 	pblk_writer_stop(pblk);
 	pblk_rb_sync_l2p(&pblk->rwb);
-	pblk_recov_pad(pblk);
 	pblk_rwb_free(pblk);
 	pblk_rl_free(&pblk->rl);
 
@@ -908,6 +909,7 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 
 	pblk->dev = dev;
 	pblk->disk = tdisk;
+	pblk->state = PBLK_STATE_RUNNING;
 
 	spin_lock_init(&pblk->trans_lock);
 	spin_lock_init(&pblk->lock);

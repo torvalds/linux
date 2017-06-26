@@ -369,6 +369,9 @@ static int pblk_rb_sync_point_set(struct pblk_rb *rb, struct bio *bio,
 	/* Protect syncs */
 	smp_store_release(&rb->sync_point, sync_point);
 
+	if (!bio)
+		return 0;
+
 	spin_lock_irq(&rb->s_lock);
 	bio_list_add(&entry->w_ctx.bios, bio);
 	spin_unlock_irq(&rb->s_lock);
@@ -407,6 +410,17 @@ static int pblk_rb_may_write(struct pblk_rb *rb, unsigned int nr_entries,
 	return 1;
 }
 
+void pblk_rb_flush(struct pblk_rb *rb)
+{
+	struct pblk *pblk = container_of(rb, struct pblk, rwb);
+	unsigned int mem = READ_ONCE(rb->mem);
+
+	if (pblk_rb_sync_point_set(rb, NULL, mem))
+		return;
+
+	pblk_write_should_kick(pblk);
+}
+
 static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 				   unsigned int *pos, struct bio *bio,
 				   int *io_ret)
@@ -443,15 +457,16 @@ int pblk_rb_may_write_user(struct pblk_rb *rb, struct bio *bio,
 			   unsigned int nr_entries, unsigned int *pos)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
-	int flush_done;
+	int io_ret;
 
 	spin_lock(&rb->w_lock);
-	if (!pblk_rl_user_may_insert(&pblk->rl, nr_entries)) {
+	io_ret = pblk_rl_user_may_insert(&pblk->rl, nr_entries);
+	if (io_ret) {
 		spin_unlock(&rb->w_lock);
-		return NVM_IO_REQUEUE;
+		return io_ret;
 	}
 
-	if (!pblk_rb_may_write_flush(rb, nr_entries, pos, bio, &flush_done)) {
+	if (!pblk_rb_may_write_flush(rb, nr_entries, pos, bio, &io_ret)) {
 		spin_unlock(&rb->w_lock);
 		return NVM_IO_REQUEUE;
 	}
@@ -459,7 +474,7 @@ int pblk_rb_may_write_user(struct pblk_rb *rb, struct bio *bio,
 	pblk_rl_user_in(&pblk->rl, nr_entries);
 	spin_unlock(&rb->w_lock);
 
-	return flush_done;
+	return io_ret;
 }
 
 /*

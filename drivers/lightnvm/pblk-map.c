@@ -62,9 +62,8 @@ static void pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 
 	if (pblk_line_is_full(line)) {
 		struct pblk_line *prev_line = line;
-		line = pblk_line_replace_data(pblk);
-		if (!line)
-			return;
+
+		pblk_line_replace_data(pblk);
 		pblk_line_close_meta(pblk, prev_line);
 	}
 
@@ -106,9 +105,15 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		pblk_map_page_data(pblk, sentry + i, &rqd->ppa_list[i],
 					lun_bitmap, &meta_list[i], map_secs);
 
-		/* line can change after page map */
-		e_line = pblk_line_get_erase(pblk);
 		erase_lun = pblk_ppa_to_pos(geo, rqd->ppa_list[i]);
+
+		/* line can change after page map. We might also be writing the
+		 * last line.
+		 */
+		e_line = pblk_line_get_erase(pblk);
+		if (!e_line)
+			return pblk_map_rq(pblk, rqd, sentry, lun_bitmap,
+							valid_secs, i + min);
 
 		spin_lock(&e_line->lock);
 		if (!test_bit(erase_lun, e_line->erase_bitmap)) {
@@ -127,8 +132,14 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		spin_unlock(&e_line->lock);
 	}
 
-	e_line = pblk_line_get_erase(pblk);
 	d_line = pblk_line_get_data(pblk);
+
+	/* line can change after page map. We might also be writing the
+	 * last line.
+	 */
+	e_line = pblk_line_get_erase(pblk);
+	if (!e_line)
+		return;
 
 	/* Erase blocks that are bad in this line but might not be in next */
 	if (unlikely(ppa_empty(*erase_ppa)) &&

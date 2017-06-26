@@ -300,7 +300,7 @@ next_read_rq:
 		pr_err("pblk: L2P recovery read timed out\n");
 		return -EINTR;
 	}
-
+	atomic_dec(&pblk->inflight_io);
 	reinit_completion(&wait);
 
 	/* At this point, the read should not fail. If it does, it is a problem
@@ -415,6 +415,7 @@ next_pad_rq:
 				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
 		pr_err("pblk: L2P recovery write timed out\n");
 	}
+	atomic_dec(&pblk->inflight_io);
 	reinit_completion(&wait);
 
 	left_line_ppas -= rq_ppas;
@@ -519,6 +520,7 @@ next_rq:
 				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
 		pr_err("pblk: L2P recovery read timed out\n");
 	}
+	atomic_dec(&pblk->inflight_io);
 	reinit_completion(&wait);
 
 	/* This should not happen since the read failed during normal recovery,
@@ -658,6 +660,7 @@ next_rq:
 				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
 		pr_err("pblk: L2P recovery read timed out\n");
 	}
+	atomic_dec(&pblk->inflight_io);
 	reinit_completion(&wait);
 
 	/* Reached the end of the written line */
@@ -954,9 +957,9 @@ out:
 }
 
 /*
- * Pad until smeta can be read on current data line
+ * Pad current line
  */
-void pblk_recov_pad(struct pblk *pblk)
+int pblk_recov_pad(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
@@ -967,26 +970,33 @@ void pblk_recov_pad(struct pblk *pblk)
 	struct ppa_addr *ppa_list;
 	struct pblk_sec_meta *meta_list;
 	void *data;
+	int left_msecs;
+	int ret = 0;
 	dma_addr_t dma_ppa_list, dma_meta_list;
 
 	spin_lock(&l_mg->free_lock);
 	line = l_mg->data_line;
+	left_msecs = line->left_msecs;
 	spin_unlock(&l_mg->free_lock);
 
 	rqd = pblk_alloc_rqd(pblk, READ);
 	if (IS_ERR(rqd))
-		return;
+		return PTR_ERR(rqd);
 
 	meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL, &dma_meta_list);
-	if (!meta_list)
+	if (!meta_list) {
+		ret = -ENOMEM;
 		goto free_rqd;
+	}
 
 	ppa_list = (void *)(meta_list) + pblk_dma_meta_size;
 	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
 
 	data = kcalloc(pblk->max_write_pgs, geo->sec_size, GFP_KERNEL);
-	if (!data)
+	if (!data) {
+		ret = -ENOMEM;
 		goto free_meta_list;
+	}
 
 	p.ppa_list = ppa_list;
 	p.meta_list = meta_list;
@@ -995,12 +1005,13 @@ void pblk_recov_pad(struct pblk *pblk)
 	p.dma_ppa_list = dma_ppa_list;
 	p.dma_meta_list = dma_meta_list;
 
-	if (pblk_recov_pad_oob(pblk, line, p, line->left_msecs)) {
-		pr_err("pblk: Tear down padding failed\n");
+	ret = pblk_recov_pad_oob(pblk, line, p, left_msecs);
+	if (ret) {
+		pr_err("pblk: Tear down padding failed (%d)\n", ret);
 		goto free_data;
 	}
 
-	pblk_line_close(pblk, line);
+	pblk_line_close_meta(pblk, line);
 
 free_data:
 	kfree(data);
@@ -1008,4 +1019,6 @@ free_meta_list:
 	nvm_dev_dma_free(dev->parent, meta_list, dma_meta_list);
 free_rqd:
 	pblk_free_rqd(pblk, rqd, READ);
+
+	return ret;
 }

@@ -171,6 +171,7 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 #endif
 
 	pblk_complete_write(pblk, rqd, c_ctx);
+	atomic_dec(&pblk->inflight_io);
 }
 
 static void pblk_end_io_write_meta(struct nvm_rq *rqd)
@@ -203,6 +204,8 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 
 	bio_put(rqd->bio);
 	pblk_free_rqd(pblk, rqd, READ);
+
+	atomic_dec(&pblk->inflight_io);
 }
 
 static int pblk_alloc_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
@@ -254,7 +257,7 @@ static int pblk_setup_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		return ret;
 	}
 
-	if (likely(!atomic_read(&e_line->left_eblks) || !e_line))
+	if (likely(!e_line || !atomic_read(&e_line->left_eblks)))
 		pblk_map_rq(pblk, rqd, c_ctx->sentry, lun_bitmap, valid, 0);
 	else
 		pblk_map_erase_rq(pblk, rqd, c_ctx->sentry, lun_bitmap,

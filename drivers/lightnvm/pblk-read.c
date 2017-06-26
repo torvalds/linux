@@ -142,6 +142,7 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 #endif
 
 	pblk_free_rqd(pblk, rqd, READ);
+	atomic_dec(&pblk->inflight_io);
 }
 
 static int pblk_fill_partial_read_bio(struct pblk *pblk, struct nvm_rq *rqd,
@@ -347,6 +348,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	bio_get(bio);
 	if (bitmap_full(&read_bitmap, nr_secs)) {
 		bio_endio(bio);
+		atomic_inc(&pblk->inflight_io);
 		pblk_end_io_read(rqd);
 		return NVM_IO_OK;
 	}
@@ -516,6 +518,7 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
 		pr_err("pblk: GC read I/O timed out\n");
 	}
+	atomic_dec(&pblk->inflight_io);
 
 	if (rqd.error) {
 		atomic_long_inc(&pblk->read_failed_gc);

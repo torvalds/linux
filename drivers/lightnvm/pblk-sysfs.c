@@ -241,9 +241,10 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		geo->nr_luns, lm->blk_per_line, lm->sec_per_line);
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"lines:d:%d,l:%d-f:%d,m:%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
+		"lines:d:%d,l:%d-f:%d,m:%d/%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
 					cur_data, cur_log,
-					nr_free_lines, emeta_line_cnt,
+					nr_free_lines,
+					emeta_line_cnt, meta_weight,
 					closed_line_cnt,
 					bad, cor,
 					d_line_cnt, l_line_cnt,
@@ -257,7 +258,8 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 		"data (%d) cur:%d, left:%d, vsc:%d, s:%d, map:%d/%d (%d)\n",
 			cur_data, cur_sec, msecs, vsc, sec_in_line,
-			map_weight, lm->sec_per_line, meta_weight);
+			map_weight, lm->sec_per_line,
+			atomic_read(&pblk->inflight_io));
 
 	return sz;
 }
