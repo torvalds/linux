@@ -442,7 +442,8 @@ fail_rollback:
 	list_add(&meta_line->list, &meta_line->list);
 	spin_unlock(&l_mg->close_lock);
 fail_free_bio:
-	bio_put(bio);
+	if (likely(l_mg->emeta_alloc_type == PBLK_VMALLOC_META))
+		bio_put(bio);
 fail_free_rqd:
 	pblk_free_rqd(pblk, rqd, READ);
 	return ret;

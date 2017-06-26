@@ -446,7 +446,6 @@ struct pblk_line_mgmt {
 	__le32 *vsc_list;		/* Valid sector counts for all lines */
 
 	/* Metadata allocation type: VMALLOC | KMALLOC */
-	int smeta_alloc_type;
 	int emeta_alloc_type;
 
 	/* Pre-allocated metadata for data lines */

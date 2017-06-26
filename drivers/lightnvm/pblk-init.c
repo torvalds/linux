@@ -355,9 +355,9 @@ static void pblk_line_meta_free(struct pblk *pblk)
 	kfree(l_mg->vsc_list);
 
 	for (i = 0; i < PBLK_DATA_LINES; i++) {
-		pblk_mfree(&l_mg->sline_meta[i], l_mg->smeta_alloc_type);
+		kfree(l_mg->sline_meta[i]);
 		pblk_mfree(l_mg->eline_meta[i]->buf, l_mg->emeta_alloc_type);
-		kfree(&l_mg->eline_meta[i]);
+		kfree(l_mg->eline_meta[i]);
 	}
 
 	kfree(pblk->lines);
@@ -550,7 +550,6 @@ static int pblk_lines_alloc_metadata(struct pblk *pblk)
 	/* smeta is always small enough to fit on a kmalloc memory allocation,
 	 * emeta depends on the number of LUNs allocated to the pblk instance
 	 */
-	l_mg->smeta_alloc_type = PBLK_KMALLOC_META;
 	for (i = 0; i < PBLK_DATA_LINES; i++) {
 		l_mg->sline_meta[i] = kmalloc(lm->smeta_len, GFP_KERNEL);
 		if (!l_mg->sline_meta[i])
@@ -604,12 +603,12 @@ static int pblk_lines_alloc_metadata(struct pblk *pblk)
 fail_free_emeta:
 	while (--i >= 0) {
 		vfree(l_mg->eline_meta[i]->buf);
-		kfree(&l_mg->eline_meta[i]);
+		kfree(l_mg->eline_meta[i]);
 	}
 
 fail_free_smeta:
 	for (i = 0; i < PBLK_DATA_LINES; i++)
-		pblk_mfree(&l_mg->sline_meta[i], l_mg->smeta_alloc_type);
+		kfree(l_mg->sline_meta[i]);
 
 	return -ENOMEM;
 }

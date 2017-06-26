@@ -665,7 +665,8 @@ next_rq:
 	}
 	reinit_completion(&wait);
 
-	bio_put(bio);
+	if (likely(pblk->l_mg.emeta_alloc_type == PBLK_VMALLOC_META))
+		bio_put(bio);
 
 	if (rqd.error) {
 		if (dir == WRITE)
