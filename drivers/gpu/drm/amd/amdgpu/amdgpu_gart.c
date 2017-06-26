@@ -55,6 +55,26 @@
 /*
  * Common GART table functions.
  */
+
+/**
+ * amdgpu_gart_set_defaults - set the default gtt_size
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Set the default gtt_size based on parameters and available VRAM.
+ */
+void amdgpu_gart_set_defaults(struct amdgpu_device *adev)
+{
+	/* unless the user had overridden it, set the gart
+	 * size equal to the 1024 or vram, whichever is larger.
+	 */
+	if (amdgpu_gart_size == -1)
+		adev->mc.gtt_size = max((AMDGPU_DEFAULT_GTT_SIZE_MB << 20),
+					adev->mc.mc_vram_size);
+	else
+		adev->mc.gtt_size = (uint64_t)amdgpu_gart_size << 20;
+}
+
 /**
  * amdgpu_gart_table_ram_alloc - allocate system ram for gart page table
  *
