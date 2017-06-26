@@ -110,7 +110,7 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 {
 	struct pblk *pblk = rqd->private;
 	struct nvm_tgt_dev *dev = pblk->dev;
-	struct pblk_r_ctx *r_ctx = nvm_rq_to_pdu(rqd);
+	struct pblk_g_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 	struct bio *bio = rqd->bio;
 
 	if (rqd->error)
@@ -124,13 +124,14 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 		nvm_dev_dma_free(dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 
 	bio_put(bio);
-	if (r_ctx->orig_bio) {
+	if (r_ctx->private) {
+		struct bio *orig_bio = r_ctx->private;
+
 #ifdef CONFIG_NVM_DEBUG
-		WARN_ONCE(r_ctx->orig_bio->bi_status,
-						"pblk: corrupted read bio\n");
+		WARN_ONCE(orig_bio->bi_status, "pblk: corrupted read bio\n");
 #endif
-		bio_endio(r_ctx->orig_bio);
-		bio_put(r_ctx->orig_bio);
+		bio_endio(orig_bio);
+		bio_put(orig_bio);
 	}
 
 #ifdef CONFIG_NVM_DEBUG
@@ -345,7 +346,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	/* All sectors are to be read from the device */
 	if (bitmap_empty(&read_bitmap, rqd->nr_ppas)) {
 		struct bio *int_bio = NULL;
-		struct pblk_r_ctx *r_ctx = nvm_rq_to_pdu(rqd);
+		struct pblk_g_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 
 		/* Clone read bio to deal with read errors internally */
 		int_bio = bio_clone_fast(bio, GFP_KERNEL, pblk_bio_set);
@@ -355,7 +356,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 		}
 
 		rqd->bio = int_bio;
-		r_ctx->orig_bio = bio;
+		r_ctx->private = bio;
 
 		ret = pblk_submit_read_io(pblk, rqd);
 		if (ret) {

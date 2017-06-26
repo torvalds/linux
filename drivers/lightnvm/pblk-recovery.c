@@ -240,7 +240,7 @@ static int pblk_recov_read_oob(struct pblk *pblk, struct pblk_line *line,
 	r_ptr_int = r_ptr;
 
 next_read_rq:
-	memset(rqd, 0, pblk_r_rq_size);
+	memset(rqd, 0, pblk_g_rq_size);
 
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	if (!rq_ppas)
@@ -361,7 +361,7 @@ next_pad_rq:
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
-	memset(rqd, 0, pblk_r_rq_size);
+	memset(rqd, 0, pblk_g_rq_size);
 
 	rqd->bio = bio;
 	rqd->opcode = NVM_OP_PWRITE;
@@ -456,7 +456,7 @@ static int pblk_recov_scan_all_oob(struct pblk *pblk, struct pblk_line *line,
 	rec_round = 0;
 
 next_rq:
-	memset(rqd, 0, pblk_r_rq_size);
+	memset(rqd, 0, pblk_g_rq_size);
 
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	if (!rq_ppas)
@@ -591,7 +591,7 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 	*done = 1;
 
 next_rq:
-	memset(rqd, 0, pblk_r_rq_size);
+	memset(rqd, 0, pblk_g_rq_size);
 
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	if (!rq_ppas)

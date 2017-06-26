@@ -20,8 +20,8 @@
 
 #include "pblk.h"
 
-static struct kmem_cache *pblk_blk_ws_cache, *pblk_rec_cache, *pblk_r_rq_cache,
-					*pblk_w_rq_cache, *pblk_line_meta_cache;
+static struct kmem_cache *pblk_blk_ws_cache, *pblk_rec_cache, *pblk_g_rq_cache,
+				*pblk_w_rq_cache, *pblk_line_meta_cache;
 static DECLARE_RWSEM(pblk_lock);
 struct bio_set *pblk_bio_set;
 
@@ -200,9 +200,9 @@ static int pblk_init_global_caches(struct pblk *pblk)
 		return -ENOMEM;
 	}
 
-	pblk_r_rq_cache = kmem_cache_create("pblk_r_rq", pblk_r_rq_size,
+	pblk_g_rq_cache = kmem_cache_create("pblk_g_rq", pblk_g_rq_size,
 				0, 0, NULL);
-	if (!pblk_r_rq_cache) {
+	if (!pblk_g_rq_cache) {
 		kmem_cache_destroy(pblk_blk_ws_cache);
 		kmem_cache_destroy(pblk_rec_cache);
 		up_write(&pblk_lock);
@@ -214,7 +214,7 @@ static int pblk_init_global_caches(struct pblk *pblk)
 	if (!pblk_w_rq_cache) {
 		kmem_cache_destroy(pblk_blk_ws_cache);
 		kmem_cache_destroy(pblk_rec_cache);
-		kmem_cache_destroy(pblk_r_rq_cache);
+		kmem_cache_destroy(pblk_g_rq_cache);
 		up_write(&pblk_lock);
 		return -ENOMEM;
 	}
@@ -226,7 +226,7 @@ static int pblk_init_global_caches(struct pblk *pblk)
 	if (!pblk_line_meta_cache) {
 		kmem_cache_destroy(pblk_blk_ws_cache);
 		kmem_cache_destroy(pblk_rec_cache);
-		kmem_cache_destroy(pblk_r_rq_cache);
+		kmem_cache_destroy(pblk_g_rq_cache);
 		kmem_cache_destroy(pblk_w_rq_cache);
 		up_write(&pblk_lock);
 		return -ENOMEM;
@@ -279,13 +279,13 @@ static int pblk_core_init(struct pblk *pblk)
 	if (!pblk->rec_pool)
 		goto free_blk_ws_pool;
 
-	pblk->r_rq_pool = mempool_create_slab_pool(64, pblk_r_rq_cache);
-	if (!pblk->r_rq_pool)
+	pblk->g_rq_pool = mempool_create_slab_pool(64, pblk_g_rq_cache);
+	if (!pblk->g_rq_pool)
 		goto free_rec_pool;
 
 	pblk->w_rq_pool = mempool_create_slab_pool(64, pblk_w_rq_cache);
 	if (!pblk->w_rq_pool)
-		goto free_r_rq_pool;
+		goto free_g_rq_pool;
 
 	pblk->line_meta_pool =
 			mempool_create_slab_pool(16, pblk_line_meta_cache);
@@ -312,8 +312,8 @@ free_line_meta_pool:
 	mempool_destroy(pblk->line_meta_pool);
 free_w_rq_pool:
 	mempool_destroy(pblk->w_rq_pool);
-free_r_rq_pool:
-	mempool_destroy(pblk->r_rq_pool);
+free_g_rq_pool:
+	mempool_destroy(pblk->g_rq_pool);
 free_rec_pool:
 	mempool_destroy(pblk->rec_pool);
 free_blk_ws_pool:
@@ -331,13 +331,13 @@ static void pblk_core_free(struct pblk *pblk)
 	mempool_destroy(pblk->page_pool);
 	mempool_destroy(pblk->line_ws_pool);
 	mempool_destroy(pblk->rec_pool);
-	mempool_destroy(pblk->r_rq_pool);
+	mempool_destroy(pblk->g_rq_pool);
 	mempool_destroy(pblk->w_rq_pool);
 	mempool_destroy(pblk->line_meta_pool);
 
 	kmem_cache_destroy(pblk_blk_ws_cache);
 	kmem_cache_destroy(pblk_rec_cache);
-	kmem_cache_destroy(pblk_r_rq_cache);
+	kmem_cache_destroy(pblk_g_rq_cache);
 	kmem_cache_destroy(pblk_w_rq_cache);
 	kmem_cache_destroy(pblk_line_meta_cache);
 }

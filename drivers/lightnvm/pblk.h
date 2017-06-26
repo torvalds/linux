@@ -91,7 +91,7 @@ struct pblk_sec_meta {
 
 #define pblk_dma_meta_size (sizeof(struct pblk_sec_meta) * PBLK_MAX_REQ_ADDRS)
 
-/* write completion context */
+/* write buffer completion context */
 struct pblk_c_ctx {
 	struct list_head list;		/* Head for out-of-order completion */
 
@@ -101,9 +101,9 @@ struct pblk_c_ctx {
 	unsigned int nr_padded;
 };
 
-/* Read context */
-struct pblk_r_ctx {
-	struct bio *orig_bio;
+/* generic context */
+struct pblk_g_ctx {
+	void *private;
 };
 
 /* Recovery context */
@@ -543,7 +543,7 @@ struct pblk {
 	mempool_t *page_pool;
 	mempool_t *line_ws_pool;
 	mempool_t *rec_pool;
-	mempool_t *r_rq_pool;
+	mempool_t *g_rq_pool;
 	mempool_t *w_rq_pool;
 	mempool_t *line_meta_pool;
 
@@ -560,7 +560,7 @@ struct pblk_line_ws {
 	struct work_struct ws;
 };
 
-#define pblk_r_rq_size (sizeof(struct nvm_rq) + sizeof(struct pblk_r_ctx))
+#define pblk_g_rq_size (sizeof(struct nvm_rq) + sizeof(struct pblk_g_ctx))
 #define pblk_w_rq_size (sizeof(struct nvm_rq) + sizeof(struct pblk_c_ctx))
 
 /*
