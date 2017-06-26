@@ -3862,10 +3862,6 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 {
 	lockdep_assert_held(&rsp->orphan_lock);
 
-	/* No-CBs CPUs do not have orphanable callbacks. */
-	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) || rcu_is_nocb_cpu(rdp->cpu))
-		return;
-
 	/*
 	 * Orphan the callbacks.  First adjust the counts.  This is safe
 	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
@@ -3934,6 +3930,9 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	unsigned long flags;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
+
+	if (rcu_is_nocb_cpu(cpu) || rcu_segcblist_empty(&rdp->cblist))
+		return;  /* No callbacks to migrate. */
 
 	raw_spin_lock_irqsave(&rsp->orphan_lock, flags);
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
