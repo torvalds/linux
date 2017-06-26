@@ -714,9 +714,9 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	mutex_init(&sctx->wr_lock);
 	sctx->wr_curr_bio = NULL;
 	if (is_dev_replace) {
-		WARN_ON(!dev->bdev);
+		WARN_ON(!fs_info->dev_replace.tgtdev);
 		sctx->pages_per_wr_bio = SCRUB_PAGES_PER_WR_BIO;
-		sctx->wr_tgtdev = dev;
+		sctx->wr_tgtdev = fs_info->dev_replace.tgtdev;
 		atomic_set(&sctx->flush_all_writes, 0);
 	}
 
