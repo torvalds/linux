@@ -555,10 +555,10 @@ static int pblk_line_submit_emeta_io(struct pblk *pblk, struct pblk_line *line,
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_meta *lm = &pblk->lm;
+	void *ppa_list, *meta_list;
 	struct bio *bio;
 	struct nvm_rq rqd;
-	struct ppa_addr *ppa_list;
-	dma_addr_t dma_ppa_list;
+	dma_addr_t dma_ppa_list, dma_meta_list;
 	int min = pblk->min_write_pgs;
 	int left_ppas = lm->emeta_sec[0];
 	int id = line->id;
@@ -577,9 +577,13 @@ static int pblk_line_submit_emeta_io(struct pblk *pblk, struct pblk_line *line,
 	} else
 		return -EINVAL;
 
-	ppa_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL, &dma_ppa_list);
-	if (!ppa_list)
+	meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
+							&dma_meta_list);
+	if (!meta_list)
 		return -ENOMEM;
+
+	ppa_list = meta_list + pblk_dma_meta_size;
+	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
 
 next_rq:
 	memset(&rqd, 0, sizeof(struct nvm_rq));
@@ -597,22 +601,28 @@ next_rq:
 	bio_set_op_attrs(bio, bio_op, 0);
 
 	rqd.bio = bio;
+	rqd.meta_list = meta_list;
+	rqd.ppa_list = ppa_list;
+	rqd.dma_meta_list = dma_meta_list;
+	rqd.dma_ppa_list = dma_ppa_list;
 	rqd.opcode = cmd_op;
 	rqd.nr_ppas = rq_ppas;
-	rqd.ppa_list = ppa_list;
-	rqd.dma_ppa_list = dma_ppa_list;
 	rqd.end_io = pblk_end_io_sync;
 	rqd.private = &wait;
 
 	if (dir == WRITE) {
+		struct pblk_sec_meta *meta_list = rqd.meta_list;
+
 		rqd.flags = pblk_set_progr_mode(pblk, WRITE);
 		for (i = 0; i < rqd.nr_ppas; ) {
 			spin_lock(&line->lock);
 			paddr = __pblk_alloc_page(pblk, line, min);
 			spin_unlock(&line->lock);
-			for (j = 0; j < min; j++, i++, paddr++)
+			for (j = 0; j < min; j++, i++, paddr++) {
+				meta_list[i].lba = cpu_to_le64(ADDR_EMPTY);
 				rqd.ppa_list[i] =
 					addr_to_gen_ppa(pblk, paddr, id);
+			}
 		}
 	} else {
 		for (i = 0; i < rqd.nr_ppas; ) {
@@ -680,7 +690,7 @@ next_rq:
 	if (left_ppas)
 		goto next_rq;
 free_rqd_dma:
-	nvm_dev_dma_free(dev->parent, ppa_list, dma_ppa_list);
+	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
 	return ret;
 }
 
@@ -726,10 +736,13 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	rqd.ppa_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
-							&rqd.dma_ppa_list);
-	if (!rqd.ppa_list)
+	rqd.meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
+							&rqd.dma_meta_list);
+	if (!rqd.meta_list)
 		return -ENOMEM;
+
+	rqd.ppa_list = rqd.meta_list + pblk_dma_meta_size;
+	rqd.dma_ppa_list = rqd.dma_meta_list + pblk_dma_meta_size;
 
 	bio = bio_map_kern(dev->q, line->smeta, lm->smeta_len, GFP_KERNEL);
 	if (IS_ERR(bio)) {
@@ -748,9 +761,15 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	rqd.private = &wait;
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++) {
+		struct pblk_sec_meta *meta_list = rqd.meta_list;
+
 		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
-		if (dir == WRITE)
-			lba_list[paddr] = cpu_to_le64(ADDR_EMPTY);
+
+		if (dir == WRITE) {
+			u64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+
+			meta_list[i].lba = lba_list[paddr] = addr_empty;
+		}
 	}
 
 	/*
@@ -778,7 +797,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	}
 
 free_ppa_list:
-	nvm_dev_dma_free(dev->parent, rqd.ppa_list, rqd.dma_ppa_list);
+	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
 
 	return ret;
 }

@@ -123,8 +123,7 @@ static void pblk_end_io_read(struct nvm_rq *rqd)
 		WARN_ONCE(bio->bi_status, "pblk: corrupted read error\n");
 #endif
 
-	if (rqd->nr_ppas > 1)
-		nvm_dev_dma_free(dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
+	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 
 	bio_put(bio);
 	if (r_ctx->private) {
@@ -329,13 +328,16 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	 */
 	bio_init_idx = pblk_get_bi_idx(bio);
 
+	rqd->meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
+							&rqd->dma_meta_list);
+	if (!rqd->meta_list) {
+		pr_err("pblk: not able to allocate ppa list\n");
+		goto fail_rqd_free;
+	}
+
 	if (nr_secs > 1) {
-		rqd->ppa_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
-						&rqd->dma_ppa_list);
-		if (!rqd->ppa_list) {
-			pr_err("pblk: not able to allocate ppa list\n");
-			goto fail_rqd_free;
-		}
+		rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size;
+		rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size;
 
 		pblk_read_ppalist_rq(pblk, rqd, &read_bitmap);
 	} else {
@@ -466,22 +468,19 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
+	rqd.meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
+							&rqd.dma_meta_list);
+	if (!rqd.meta_list)
+		return NVM_IO_ERR;
+
 	if (nr_secs > 1) {
-		rqd.ppa_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
-							&rqd.dma_ppa_list);
-		if (!rqd.ppa_list)
-			return NVM_IO_ERR;
+		rqd.ppa_list = rqd.meta_list + pblk_dma_meta_size;
+		rqd.dma_ppa_list = rqd.dma_meta_list + pblk_dma_meta_size;
 
 		*secs_to_gc = read_ppalist_rq_gc(pblk, &rqd, line, lba_list,
 								nr_secs);
-		if (*secs_to_gc == 1) {
-			struct ppa_addr ppa;
-
-			ppa = rqd.ppa_list[0];
-			nvm_dev_dma_free(dev->parent, rqd.ppa_list,
-							rqd.dma_ppa_list);
-			rqd.ppa_addr = ppa;
-		}
+		if (*secs_to_gc == 1)
+			rqd.ppa_addr = rqd.ppa_list[0];
 	} else {
 		*secs_to_gc = read_rq_gc(pblk, &rqd, line, lba_list[0]);
 	}
@@ -532,12 +531,10 @@ int pblk_submit_read_gc(struct pblk *pblk, u64 *lba_list, void *data,
 #endif
 
 out:
-	if (rqd.nr_ppas > 1)
-		nvm_dev_dma_free(dev->parent, rqd.ppa_list, rqd.dma_ppa_list);
+	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
 	return NVM_IO_OK;
 
 err_free_dma:
-	if (rqd.nr_ppas > 1)
-		nvm_dev_dma_free(dev->parent, rqd.ppa_list, rqd.dma_ppa_list);
+	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
 	return NVM_IO_ERR;
 }
