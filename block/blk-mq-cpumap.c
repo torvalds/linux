@@ -35,7 +35,6 @@ int blk_mq_map_queues(struct blk_mq_tag_set *set)
 {
 	unsigned int *map = set->mq_map;
 	unsigned int nr_queues = set->nr_hw_queues;
-	const struct cpumask *online_mask = cpu_online_mask;
 	unsigned int i, nr_cpus, nr_uniq_cpus, queue, first_sibling;
 	cpumask_var_t cpus;
 
@@ -44,7 +43,7 @@ int blk_mq_map_queues(struct blk_mq_tag_set *set)
 
 	cpumask_clear(cpus);
 	nr_cpus = nr_uniq_cpus = 0;
-	for_each_cpu(i, online_mask) {
+	for_each_present_cpu(i) {
 		nr_cpus++;
 		first_sibling = get_first_sibling(i);
 		if (!cpumask_test_cpu(first_sibling, cpus))
@@ -54,7 +53,7 @@ int blk_mq_map_queues(struct blk_mq_tag_set *set)
 
 	queue = 0;
 	for_each_possible_cpu(i) {
-		if (!cpumask_test_cpu(i, online_mask)) {
+		if (!cpumask_test_cpu(i, cpu_present_mask)) {
 			map[i] = 0;
 			continue;
 		}
