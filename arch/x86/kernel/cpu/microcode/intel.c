@@ -42,7 +42,7 @@
 static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
 /* Current microcode patch used in early patching on the APs. */
-struct microcode_intel *intel_ucode_patch;
+static struct microcode_intel *intel_ucode_patch;
 
 static inline bool cpu_signatures_match(unsigned int s1, unsigned int p1,
 					unsigned int s2, unsigned int p2)
