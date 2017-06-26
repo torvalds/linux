@@ -24,6 +24,8 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/irq.h>
 
@@ -137,12 +139,15 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct i2c_pca9564_pf_platform_data *platform_data =
 				dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 	int irq;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	/* If irq is 0, we do polling. */
+	if (irq < 0)
+		irq = 0;
 
 	if (res == NULL) {
 		ret = -ENODEV;
@@ -178,6 +183,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 		 (unsigned long) res->start);
 	i2c->adap.algo_data = &i2c->algo_data;
 	i2c->adap.dev.parent = &pdev->dev;
+	i2c->adap.dev.of_node = np;
 
 	if (platform_data) {
 		i2c->adap.timeout = platform_data->timeout;
@@ -196,6 +202,15 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 				i2c->gpio = NULL;
 			}
 		}
+	} else if (np) {
+		i2c->adap.timeout = HZ;
+		i2c->gpio = devm_gpiod_get_optional(&pdev->dev, "reset-gpios", GPIOD_OUT_LOW);
+		if (IS_ERR(i2c->gpio)) {
+			ret = PTR_ERR(i2c->gpio);
+			goto e_reqirq;
+		}
+		of_property_read_u32_index(np, "clock-frequency", 0,
+					   &i2c->algo_data.i2c_clock);
 	} else {
 		i2c->adap.timeout = HZ;
 		i2c->algo_data.i2c_clock = 59000;
@@ -270,11 +285,21 @@ static int i2c_pca_pf_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id i2c_pca_of_match_table[] = {
+	{ .compatible = "nxp,pca9564" },
+	{ .compatible = "nxp,pca9665" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, i2c_pca_of_match_table);
+#endif
+
 static struct platform_driver i2c_pca_pf_driver = {
 	.probe = i2c_pca_pf_probe,
 	.remove = i2c_pca_pf_remove,
 	.driver = {
 		.name = "i2c-pca-platform",
+		.of_match_table = of_match_ptr(i2c_pca_of_match_table),
 	},
 };
 
