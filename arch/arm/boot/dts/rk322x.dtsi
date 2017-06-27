@@ -622,6 +622,7 @@
 	vop: vop@20050000 {
 		compatible = "rockchip,rk322x-vop";
 		reg = <0x20050000 0x1ffc>, <0x20052000 0x1000>;
+		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
