@@ -6737,33 +6737,18 @@ static const struct file_operations tracing_stats_fops = {
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-int __weak ftrace_arch_read_dyn_info(char *buf, int size)
-{
-	return 0;
-}
-
 static ssize_t
 tracing_read_dyn_info(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
 {
-	static char ftrace_dyn_info_buffer[1024];
-	static DEFINE_MUTEX(dyn_info_mutex);
 	unsigned long *p = filp->private_data;
-	char *buf = ftrace_dyn_info_buffer;
-	int size = ARRAY_SIZE(ftrace_dyn_info_buffer);
+	char buf[64]; /* Not too big for a shallow stack */
 	int r;
 
-	mutex_lock(&dyn_info_mutex);
-	r = sprintf(buf, "%ld ", *p);
-
-	r += ftrace_arch_read_dyn_info(buf+r, (size-1)-r);
+	r = scnprintf(buf, 63, "%ld", *p);
 	buf[r++] = '\n';
 
-	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
-
-	mutex_unlock(&dyn_info_mutex);
-
-	return r;
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static const struct file_operations tracing_dyn_info_fops = {
