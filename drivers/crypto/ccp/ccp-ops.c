@@ -1756,7 +1756,7 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 	op.sb_key = cmd_q->ccp->vdata->perform->sballoc(cmd_q, sb_count);
 
 	if (!op.sb_key)
@@ -1992,7 +1992,7 @@ static int ccp_run_passthru_nomap_cmd(struct ccp_cmd_queue *cmd_q,
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
-	op.jobid = ccp_gen_jobid(cmd_q->ccp);
+	op.jobid = CCP_NEW_JOBID(cmd_q->ccp);
 
 	if (pt->bit_mod != CCP_PASSTHRU_BITWISE_NOOP) {
 		/* Load the mask */
