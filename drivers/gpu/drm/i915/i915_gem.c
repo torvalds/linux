@@ -4597,8 +4597,6 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	while (flush_delayed_work(&dev_priv->gt.idle_work))
 		;
 
-	i915_gem_drain_freed_objects(dev_priv);
-
 	/* Assert that we sucessfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
 	 */
