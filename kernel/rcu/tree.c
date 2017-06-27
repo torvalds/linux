@@ -3935,6 +3935,7 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	rcu_advance_cbs(rsp, rnp_root, rdp); /* Leverage recent GPs. */
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
+	rcu_advance_cbs(rsp, rnp_root, my_rdp); /* Assign GP to pending CBs. */
 	raw_spin_unlock_irqrestore_rcu_node(rnp_root, flags);
 	WARN_ONCE(rcu_segcblist_n_cbs(&rdp->cblist) != 0 ||
 		  !rcu_segcblist_empty(&rdp->cblist),
