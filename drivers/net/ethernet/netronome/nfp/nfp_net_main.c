@@ -414,7 +414,7 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 	if (IS_ERR(ctrl_bar)) {
 		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
 		err = PTR_ERR(ctrl_bar);
-		goto err_free;
+		goto err_app_clean;
 	}
 
 	pf->ctrl_vnic =	nfp_net_pf_alloc_vnic(pf, false, ctrl_bar, qc_bar,
@@ -428,8 +428,11 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 
 err_unmap:
 	nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
+err_app_clean:
+	nfp_app_clean(pf->app);
 err_free:
 	nfp_app_free(pf->app);
+	pf->app = NULL;
 	return err;
 }
 
@@ -439,6 +442,7 @@ static void nfp_net_pf_app_clean(struct nfp_pf *pf)
 		nfp_net_pf_free_vnic(pf, pf->ctrl_vnic);
 		nfp_cpp_area_release_free(pf->ctrl_vnic_bar);
 	}
+	nfp_app_clean(pf->app);
 	nfp_app_free(pf->app);
 	pf->app = NULL;
 }

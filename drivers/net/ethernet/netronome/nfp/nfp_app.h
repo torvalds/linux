@@ -66,7 +66,8 @@ extern const struct nfp_app_type app_flower;
  * @ctrl_has_meta:  control messages have prepend of type:5/port:CTRL
  *
  * Callbacks
- * @init:	perform basic app checks
+ * @init:	perform basic app checks and init
+ * @clean:	clean app state
  * @extra_cap:	extra capabilities string
  * @vnic_init:	init vNICs (assign port types, etc.)
  * @vnic_clean:	clean up app's vNIC state
@@ -88,6 +89,7 @@ struct nfp_app_type {
 	bool ctrl_has_meta;
 
 	int (*init)(struct nfp_app *app);
+	void (*clean)(struct nfp_app *app);
 
 	const char *(*extra_cap)(struct nfp_app *app, struct nfp_net *nn);
 
@@ -142,6 +144,12 @@ static inline int nfp_app_init(struct nfp_app *app)
 	if (!app->type->init)
 		return 0;
 	return app->type->init(app);
+}
+
+static inline void nfp_app_clean(struct nfp_app *app)
+{
+	if (app->type->clean)
+		app->type->clean(app);
 }
 
 static inline int nfp_app_vnic_init(struct nfp_app *app, struct nfp_net *nn,

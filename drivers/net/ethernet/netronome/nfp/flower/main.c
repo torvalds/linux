@@ -296,26 +296,16 @@ static int nfp_flower_start(struct nfp_app *app)
 					   NFP_REPR_TYPE_PF, 1);
 }
 
-static void nfp_flower_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
-{
-	kfree(app->priv);
-	app->priv = NULL;
-}
-
 static int nfp_flower_vnic_init(struct nfp_app *app, struct nfp_net *nn,
 				unsigned int id)
 {
-	struct nfp_flower_priv *priv;
+	struct nfp_flower_priv *priv = app->priv;
 
 	if (id > 0) {
 		nfp_warn(app->cpp, "FlowerNIC doesn't support more than one data vNIC\n");
 		goto err_invalid_port;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-	app->priv = priv;
 	priv->nn = nn;
 
 	eth_hw_addr_random(nn->dp.netdev);
@@ -347,7 +337,17 @@ static int nfp_flower_init(struct nfp_app *app)
 		return -EINVAL;
 	}
 
+	app->priv = kzalloc(sizeof(struct nfp_flower_priv), GFP_KERNEL);
+	if (!app->priv)
+		return -ENOMEM;
+
 	return 0;
+}
+
+static void nfp_flower_clean(struct nfp_app *app)
+{
+	kfree(app->priv);
+	app->priv = NULL;
 }
 
 const struct nfp_app_type app_flower = {
@@ -358,9 +358,9 @@ const struct nfp_app_type app_flower = {
 	.extra_cap	= nfp_flower_extra_cap,
 
 	.init		= nfp_flower_init,
+	.clean		= nfp_flower_clean,
 
 	.vnic_init	= nfp_flower_vnic_init,
-	.vnic_clean	= nfp_flower_vnic_clean,
 
 	.start		= nfp_flower_start,
 	.stop		= nfp_flower_stop,
