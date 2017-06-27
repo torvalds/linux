@@ -24,6 +24,14 @@ verify()
 	return 0
 }
 
+exit_test()
+{
+	if [ ! -z ${old_strict} ]; then
+		echo ${old_strict} > ${WRITES_STRICT}
+	fi
+	exit $rc
+}
+
 trap 'set_orig; rm -f "${TEST_FILE}"' EXIT
 
 rc=0
@@ -61,6 +69,20 @@ if verify "${TARGET}"; then
 	exit 1
 else
 	echo "ok"
+fi
+
+echo -n "Checking write strict setting ... "
+WRITES_STRICT="${SYSCTL}/kernel/sysctl_writes_strict"
+if [ ! -e ${WRITES_STRICT} ]; then
+	echo "FAIL, but skip in case of old kernel" >&2
+else
+	old_strict=$(cat ${WRITES_STRICT})
+	if [ "$old_strict" = "1" ]; then
+		echo "ok"
+	else
+		echo "FAIL, strict value is 0 but force to 1 to continue" >&2
+		echo "1" > ${WRITES_STRICT}
+	fi
 fi
 
 # Now that we've validated the sanity of "set_test" and "set_orig",

@@ -74,4 +74,4 @@ else
 	echo "ok"
 fi
 
-exit $rc
+exit_test
