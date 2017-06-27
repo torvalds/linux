@@ -326,6 +326,11 @@
 					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					contribution = <4096>;
 				};
+				map1 {
+					trip = <&target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <4096>;
+				};
 			};
 		};
 
@@ -597,6 +602,7 @@
 				  "Mali_PP1_MMU_IRQ";
 		clocks = <&cru ACLK_GPU>;
 		clock-names = "clk_mali";
+		#cooling-cells = <2>; /* min followed by max */
 		operating-points-v2 = <&gpu_opp_table>;
 		status = "disabled";
 
