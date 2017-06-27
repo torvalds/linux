@@ -66,7 +66,7 @@ static struct stat_name stat_name_db[MAX_STAT_OP_TYPES] =
 		.stat_phase_name[STAT_PHASE_5] = "Sequence completion",
 		.stat_phase_name[STAT_PHASE_6] = "HW cycles",
 	},
-	{ 	.op_type_name = "Setkey",
+	{	.op_type_name = "Setkey",
 		.stat_phase_name[STAT_PHASE_0] = "Init and sanity checks",
 		.stat_phase_name[STAT_PHASE_1] = "Copy key to ctx",
 		.stat_phase_name[STAT_PHASE_2] = "Create sequence",
@@ -114,8 +114,8 @@ static void init_db(struct stat_item item[MAX_STAT_OP_TYPES][MAX_STAT_PHASES])
 	unsigned int i, j;
 
 	/* Clear db */
-	for (i=0; i<MAX_STAT_OP_TYPES; i++) {
-		for (j=0; j<MAX_STAT_PHASES; j++) {
+	for (i = 0; i < MAX_STAT_OP_TYPES; i++) {
+		for (j = 0; j < MAX_STAT_PHASES; j++) {
 			item[i][j].min = 0xFFFFFFFF;
 			item[i][j].max = 0;
 			item[i][j].sum = 0;
@@ -130,7 +130,7 @@ static void update_db(struct stat_item *item, unsigned int result)
 	item->sum += result;
 	if (result < item->min)
 		item->min = result;
-	if (result > item->max )
+	if (result > item->max)
 		item->max = result;
 }
 
@@ -139,8 +139,8 @@ static void display_db(struct stat_item item[MAX_STAT_OP_TYPES][MAX_STAT_PHASES]
 	unsigned int i, j;
 	u64 avg;
 
-	for (i=STAT_OP_TYPE_ENCODE; i<MAX_STAT_OP_TYPES; i++) {
-		for (j=0; j<MAX_STAT_PHASES; j++) {
+	for (i = STAT_OP_TYPE_ENCODE; i < MAX_STAT_OP_TYPES; i++) {
+		for (j = 0; j < MAX_STAT_PHASES; j++) {
 			if (item[i][j].count > 0) {
 				avg = (u64)item[i][j].sum;
 				do_div(avg, item[i][j].count);
@@ -174,18 +174,18 @@ static ssize_t ssi_sys_stats_cc_db_clear(struct kobject *kobj,
 static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	int i, j ;
+	int i, j;
 	char line[512];
 	u32 min_cyc, max_cyc;
 	u64 avg;
-	ssize_t buf_len, tmp_len=0;
+	ssize_t buf_len, tmp_len = 0;
 
-	buf_len = scnprintf(buf,PAGE_SIZE,
+	buf_len = scnprintf(buf, PAGE_SIZE,
 		"phase\t\t\t\t\t\t\tmin[cy]\tavg[cy]\tmax[cy]\t#samples\n");
-	if ( buf_len <0 )/* scnprintf shouldn't return negative value according to its implementation*/
+	if (buf_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 		return buf_len;
-	for (i=STAT_OP_TYPE_ENCODE; i<MAX_STAT_OP_TYPES; i++) {
-		for (j=0; j<MAX_STAT_PHASES-1; j++) {
+	for (i = STAT_OP_TYPE_ENCODE; i < MAX_STAT_OP_TYPES; i++) {
+		for (j = 0; j < MAX_STAT_PHASES - 1; j++) {
 			if (stat_host_db[i][j].count > 0) {
 				avg = (u64)stat_host_db[i][j].sum;
 				do_div(avg, stat_host_db[i][j].count);
@@ -194,18 +194,18 @@ static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
 			} else {
 				avg = min_cyc = max_cyc = 0;
 			}
-			tmp_len = scnprintf(line,512,
+			tmp_len = scnprintf(line, 512,
 				"%s::%s\t\t\t\t\t%6u\t%6u\t%6u\t%7u\n",
 				stat_name_db[i].op_type_name,
 				stat_name_db[i].stat_phase_name[j],
 				min_cyc, (unsigned int)avg, max_cyc,
 				stat_host_db[i][j].count);
-			if ( tmp_len <0 )/* scnprintf shouldn't return negative value according to its implementation*/
+			if (tmp_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 				return buf_len;
-			if ( buf_len + tmp_len >= PAGE_SIZE)
+			if (buf_len + tmp_len >= PAGE_SIZE)
 				return buf_len;
 			buf_len += tmp_len;
-			strncat(buf, line,512);
+			strncat(buf, line, 512);
 		}
 	}
 	return buf_len;
@@ -218,13 +218,13 @@ static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
 	char line[256];
 	u32 min_cyc, max_cyc;
 	u64 avg;
-	ssize_t buf_len,tmp_len=0;
+	ssize_t buf_len, tmp_len = 0;
 
-	buf_len = scnprintf(buf,PAGE_SIZE,
+	buf_len = scnprintf(buf, PAGE_SIZE,
 		"phase\tmin[cy]\tavg[cy]\tmax[cy]\t#samples\n");
-	if ( buf_len <0 )/* scnprintf shouldn't return negative value according to its implementation*/
+	if (buf_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 		return buf_len;
-	for (i=STAT_OP_TYPE_ENCODE; i<MAX_STAT_OP_TYPES; i++) {
+	for (i = STAT_OP_TYPE_ENCODE; i < MAX_STAT_OP_TYPES; i++) {
 		if (stat_cc_db[i][STAT_PHASE_6].count > 0) {
 			avg = (u64)stat_cc_db[i][STAT_PHASE_6].sum;
 			do_div(avg, stat_cc_db[i][STAT_PHASE_6].count);
@@ -233,7 +233,7 @@ static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
 		} else {
 			avg = min_cyc = max_cyc = 0;
 		}
-		tmp_len = scnprintf(line,256,
+		tmp_len = scnprintf(line, 256,
 			"%s\t%6u\t%6u\t%6u\t%7u\n",
 			stat_name_db[i].op_type_name,
 			min_cyc,
@@ -241,13 +241,13 @@ static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
 			max_cyc,
 			stat_cc_db[i][STAT_PHASE_6].count);
 
-		if ( tmp_len < 0 )/* scnprintf shouldn't return negative value according to its implementation*/
+		if (tmp_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 			return buf_len;
 
-		if ( buf_len + tmp_len >= PAGE_SIZE)
+		if (buf_len + tmp_len >= PAGE_SIZE)
 			return buf_len;
 		buf_len += tmp_len;
-		strncat(buf, line,256);
+		strncat(buf, line, 256);
 	}
 	return buf_len;
 }
@@ -304,7 +304,7 @@ static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 static ssize_t ssi_sys_help_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	char* help_str[]={
+	char* help_str[] = {
 				"cat reg_dump              ", "Print several of CC register values",
 		#if defined CC_CYCLE_COUNT
 				"cat stats_host            ", "Print host statistics",
@@ -313,11 +313,11 @@ static ssize_t ssi_sys_help_show(struct kobject *kobj,
 				"echo <number> > stats_cc  ", "Clear CC statistics database",
 		#endif
 				};
-	int i=0, offset = 0;
+	int i = 0, offset = 0;
 
 	offset += scnprintf(buf + offset, PAGE_SIZE - offset, "Usage:\n");
-	for ( i = 0; i < ARRAY_SIZE(help_str); i+=2) {
-	   offset += scnprintf(buf + offset, PAGE_SIZE - offset, "%s\t\t%s\n", help_str[i], help_str[i+1]);
+	for (i = 0; i < ARRAY_SIZE(help_str); i += 2) {
+	   offset += scnprintf(buf + offset, PAGE_SIZE - offset, "%s\t\t%s\n", help_str[i], help_str[i + 1]);
 	}
 	return offset;
 }

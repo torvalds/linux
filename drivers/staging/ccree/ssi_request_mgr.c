@@ -57,7 +57,7 @@ struct ssi_request_mgr_handle {
 #else
 	struct tasklet_struct comptask;
 #endif
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	bool is_runtime_suspended;
 #endif
 };
@@ -81,7 +81,7 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 	}
 
 	SSI_LOG_DEBUG("max_used_hw_slots=%d\n", (req_mgr_h->hw_queue_size -
-						req_mgr_h->min_free_hw_slots) );
+						req_mgr_h->min_free_hw_slots));
 	SSI_LOG_DEBUG("max_used_sw_slots=%d\n", req_mgr_h->max_used_sw_slots);
 
 #ifdef COMP_IN_WQ
@@ -101,7 +101,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	struct ssi_request_mgr_handle *req_mgr_h;
 	int rc = 0;
 
-	req_mgr_h = kzalloc(sizeof(struct ssi_request_mgr_handle),GFP_KERNEL);
+	req_mgr_h = kzalloc(sizeof(struct ssi_request_mgr_handle), GFP_KERNEL);
 	if (req_mgr_h == NULL) {
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
@@ -168,13 +168,13 @@ static inline void enqueue_seq(
 	int i;
 
 	for (i = 0; i < seq_len; i++) {
-		writel_relaxed(seq[i].word[0], (volatile void __iomem *)(cc_base+CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[1], (volatile void __iomem *)(cc_base+CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[2], (volatile void __iomem *)(cc_base+CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[3], (volatile void __iomem *)(cc_base+CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
-		writel_relaxed(seq[i].word[4], (volatile void __iomem *)(cc_base+CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
+		writel_relaxed(seq[i].word[0], (volatile void __iomem *)(cc_base + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
+		writel_relaxed(seq[i].word[1], (volatile void __iomem *)(cc_base + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
+		writel_relaxed(seq[i].word[2], (volatile void __iomem *)(cc_base + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
+		writel_relaxed(seq[i].word[3], (volatile void __iomem *)(cc_base + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
+		writel_relaxed(seq[i].word[4], (volatile void __iomem *)(cc_base + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
 		wmb();
-		writel_relaxed(seq[i].word[5], (volatile void __iomem *)(cc_base+CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
+		writel_relaxed(seq[i].word[5], (volatile void __iomem *)(cc_base + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
 #ifdef DX_DUMP_DESCS
 		SSI_LOG_DEBUG("desc[%02d]: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", i,
 			seq[i].word[0], seq[i].word[1], seq[i].word[2], seq[i].word[3], seq[i].word[4], seq[i].word[5]);
@@ -215,11 +215,11 @@ static inline int request_mgr_queues_status_check(
 		return -EBUSY;
 	}
 
-	if ((likely(req_mgr_h->q_free_slots >= total_seq_len)) ) {
+	if ((likely(req_mgr_h->q_free_slots >= total_seq_len))) {
 		return 0;
 	}
 	/* Wait for space in HW queue. Poll constant num of iterations. */
-	for (poll_queue =0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue ++) {
+	for (poll_queue = 0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue++) {
 		req_mgr_h->q_free_slots =
 			CC_HAL_READ_REGISTER(
 				CC_REG_OFFSET(CRY_KERNEL,
@@ -229,7 +229,7 @@ static inline int request_mgr_queues_status_check(
 			req_mgr_h->min_free_hw_slots = req_mgr_h->q_free_slots;
 		}
 
-		if (likely (req_mgr_h->q_free_slots >= total_seq_len)) {
+		if (likely(req_mgr_h->q_free_slots >= total_seq_len)) {
 			/* If there is enough place return */
 			return 0;
 		}
@@ -255,8 +255,8 @@ static inline int request_mgr_queues_status_check(
  * \param desc The crypto sequence
  * \param len The crypto sequence length
  * \param is_dout If "true": completion is handled by the caller
- *      	  If "false": this function adds a dummy descriptor completion
- *      	  and waits upon completion signal.
+ *	  If "false": this function adds a dummy descriptor completion
+ *	  and waits upon completion signal.
  *
  * \return int Returns -EINPROGRESS if "is_dout=true"; "0" if "is_dout=false"
  */
@@ -273,13 +273,13 @@ int send_request(
 	int rc;
 	unsigned int max_required_seq_len = (total_seq_len +
 					((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
-					SSI_IVPOOL_SEQ_LEN ) +
-					((is_dout == 0 )? 1 : 0));
+					SSI_IVPOOL_SEQ_LEN) +
+					((is_dout == 0) ? 1 : 0));
 
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	rc = ssi_power_mgr_runtime_get(&drvdata->plat_dev->dev);
 	if (rc != 0) {
-		SSI_LOG_ERR("ssi_power_mgr_runtime_get returned %x\n",rc);
+		SSI_LOG_ERR("ssi_power_mgr_runtime_get returned %x\n", rc);
 		return rc;
 	}
 #endif
@@ -294,7 +294,7 @@ int send_request(
 		rc = request_mgr_queues_status_check(req_mgr_h,
 					       cc_base,
 					       max_required_seq_len);
-		if (likely(rc == 0 ))
+		if (likely(rc == 0))
 			/* There is enough place in the queue */
 			break;
 		/* something wrong release the spinlock*/
@@ -304,7 +304,7 @@ int send_request(
 			/* Any error other than HW queue full
 			 * (SW queue is full)
 			 */
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 			ssi_power_mgr_runtime_put_suspend(&drvdata->plat_dev->dev);
 #endif
 			return rc;
@@ -339,7 +339,7 @@ int send_request(
 		if (unlikely(rc != 0)) {
 			SSI_LOG_ERR("Failed to generate IV (rc=%d)\n", rc);
 			spin_unlock_bh(&req_mgr_h->hw_lock);
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 			ssi_power_mgr_runtime_put_suspend(&drvdata->plat_dev->dev);
 #endif
 			return rc;
@@ -348,7 +348,7 @@ int send_request(
 		total_seq_len += iv_seq_len;
 	}
 
-	used_sw_slots = ((req_mgr_h->req_queue_head - req_mgr_h->req_queue_tail) & (MAX_REQUEST_QUEUE_SIZE-1));
+	used_sw_slots = ((req_mgr_h->req_queue_head - req_mgr_h->req_queue_tail) & (MAX_REQUEST_QUEUE_SIZE - 1));
 	if (unlikely(used_sw_slots > req_mgr_h->max_used_sw_slots)) {
 		req_mgr_h->max_used_sw_slots = used_sw_slots;
 	}
@@ -412,7 +412,7 @@ int send_request_init(
 
 	/* Wait for space in HW and SW FIFO. Poll for as much as FIFO_TIMEOUT. */
 	rc = request_mgr_queues_status_check(req_mgr_h, cc_base, total_seq_len);
-	if (unlikely(rc != 0 )) {
+	if (unlikely(rc != 0)) {
 		return rc;
 	}
 	set_queue_last_ind(&desc[(len - 1)]);
@@ -455,11 +455,11 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 	struct platform_device *plat_dev = drvdata->plat_dev;
 	struct ssi_request_mgr_handle * request_mgr_handle =
 						drvdata->request_mgr_handle;
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	int rc = 0;
 #endif
 
-	while(request_mgr_handle->axi_completed) {
+	while (request_mgr_handle->axi_completed) {
 		request_mgr_handle->axi_completed--;
 
 		/* Dequeue request */
@@ -480,7 +480,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 			u32 axi_err;
 			int i;
 			SSI_LOG_INFO("Delay\n");
-			for (i=0;i<1000000;i++) {
+			for (i = 0; i < 1000000; i++) {
 				axi_err = READ_REGISTER(drvdata->cc_base + CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_ERR));
 			}
 		}
@@ -492,10 +492,10 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		request_mgr_handle->req_queue_tail = (request_mgr_handle->req_queue_tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		SSI_LOG_DEBUG("Dequeue request tail=%u\n", request_mgr_handle->req_queue_tail);
 		SSI_LOG_DEBUG("Request completed. axi_completed=%d\n", request_mgr_handle->axi_completed);
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 		rc = ssi_power_mgr_runtime_put_suspend(&plat_dev->dev);
 		if (rc != 0) {
-			SSI_LOG_ERR("Failed to set runtime suspension %d\n",rc);
+			SSI_LOG_ERR("Failed to set runtime suspension %d\n", rc);
 		}
 #endif
 	}
@@ -561,7 +561,7 @@ static void comp_handler(unsigned long devarg)
  * resume the queue configuration - no need to take the lock as this happens inside
  * the spin lock protection
  */
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle * request_mgr_handle = drvdata->request_mgr_handle;
@@ -570,7 +570,7 @@ int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata)
 	request_mgr_handle->is_runtime_suspended = false;
 	spin_unlock_bh(&request_mgr_handle->hw_lock);
 
-	return 0 ;
+	return 0;
 }
 
 /*
@@ -600,7 +600,7 @@ bool ssi_request_mgr_is_queue_runtime_suspend(struct ssi_drvdata *drvdata)
 	struct ssi_request_mgr_handle * request_mgr_handle =
 						drvdata->request_mgr_handle;
 
-	return 	request_mgr_handle->is_runtime_suspended;
+	return	request_mgr_handle->is_runtime_suspended;
 }
 
 #endif

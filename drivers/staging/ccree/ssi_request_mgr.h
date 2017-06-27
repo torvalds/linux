@@ -33,8 +33,8 @@ int request_mgr_init(struct ssi_drvdata *drvdata);
  * \param desc The crypto sequence
  * \param len The crypto sequence length
  * \param is_dout If "true": completion is handled by the caller
- *      	  If "false": this function adds a dummy descriptor completion
- *      	  and waits upon completion signal.
+ *	  If "false": this function adds a dummy descriptor completion
+ *	  and waits upon completion signal.
  *
  * \return int Returns -EINPROGRESS if "is_dout=ture"; "0" if "is_dout=false"
  */
@@ -49,7 +49,7 @@ void complete_request(struct ssi_drvdata *drvdata);
 
 void request_mgr_fini(struct ssi_drvdata *drvdata);
 
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata);
 
 int ssi_request_mgr_runtime_suspend_queue(struct ssi_drvdata *drvdata);

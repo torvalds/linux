@@ -93,7 +93,7 @@
 
 /* Logging macros */
 #define SSI_LOG(level, format, ...) \
-	printk(level "cc715ree::%s: " format , __func__, ##__VA_ARGS__)
+	printk(level "cc715ree::%s: " format, __func__, ##__VA_ARGS__)
 #define SSI_LOG_ERR(format, ...) SSI_LOG(KERN_ERR, format, ##__VA_ARGS__)
 #define SSI_LOG_WARNING(format, ...) SSI_LOG(KERN_WARNING, format, ##__VA_ARGS__)
 #define SSI_LOG_NOTICE(format, ...) SSI_LOG(KERN_NOTICE, format, ##__VA_ARGS__)
@@ -107,7 +107,7 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-#define SSI_MAX_IVGEN_DMA_ADDRESSES 	3
+#define SSI_MAX_IVGEN_DMA_ADDRESSES	3
 struct ssi_crypto_req {
 	void (*user_cb)(struct device *dev, void *req, void __iomem *cc_base);
 	void *user_arg;

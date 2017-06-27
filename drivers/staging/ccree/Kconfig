@@ -18,7 +18,7 @@ config CRYPTO_DEV_CCREE
 	select CRYPTO_CTR
 	select CRYPTO_XTS
 	help
-	  Say 'Y' to enable a driver for the Arm TrustZone CryptoCell 
+	  Say 'Y' to enable a driver for the Arm TrustZone CryptoCell
 	  C7xx. Currently only the CryptoCell 712 REE is supported.
 	  Choose this if you wish to use hardware acceleration of
 	  cryptographic operations on the system REE.

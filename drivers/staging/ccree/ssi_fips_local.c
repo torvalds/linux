@@ -88,9 +88,9 @@ static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, ssi
 {
 	void __iomem *cc_base = drvdata->cc_base;
 	if (err == CC_REE_FIPS_ERROR_OK) {
-		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS|CC_FIPS_SYNC_MODULE_OK));
+		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_OK));
 	} else {
-		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS|CC_FIPS_SYNC_MODULE_ERROR));
+		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_ERROR));
 	}
 }
 
@@ -305,7 +305,7 @@ int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 
 	FIPS_DBG("CC FIPS code ..  (fips=%d) \n", ssi_fips_support);
 
-	fips_h = kzalloc(sizeof(struct ssi_fips_handle),GFP_KERNEL);
+	fips_h = kzalloc(sizeof(struct ssi_fips_handle), GFP_KERNEL);
 	if (fips_h == NULL) {
 		ssi_fips_set_error(p_drvdata, CC_REE_FIPS_ERROR_GENERAL);
 		return -ENOMEM;
@@ -329,7 +329,7 @@ int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 #endif
 
 	/* init fips driver data */
-	rc = ssi_fips_set_state((ssi_fips_support == 0)? CC_FIPS_STATE_NOT_SUPPORTED : CC_FIPS_STATE_SUPPORTED);
+	rc = ssi_fips_set_state((ssi_fips_support == 0) ? CC_FIPS_STATE_NOT_SUPPORTED : CC_FIPS_STATE_SUPPORTED);
 	if (unlikely(rc != 0)) {
 		ssi_fips_set_error(p_drvdata, CC_REE_FIPS_ERROR_GENERAL);
 		rc = -EAGAIN;

@@ -111,7 +111,7 @@ struct ssi_hash_ctx {
 static void ssi_hash_create_data_desc(
 	struct ahash_req_ctx *areq_ctx,
 	struct ssi_hash_ctx *ctx,
-	unsigned int flow_mode,struct cc_hw_desc desc[],
+	unsigned int flow_mode, struct cc_hw_desc desc[],
 	bool is_not_last_data,
 	unsigned int *seq_size);
 
@@ -158,22 +158,22 @@ static int ssi_hash_map_request(struct device *dev,
 	struct cc_hw_desc desc;
 	int rc = -ENOMEM;
 
-	state->buff0 = kzalloc(SSI_MAX_HASH_BLCK_SIZE ,GFP_KERNEL|GFP_DMA);
+	state->buff0 = kzalloc(SSI_MAX_HASH_BLCK_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!state->buff0) {
 		SSI_LOG_ERR("Allocating buff0 in context failed\n");
 		goto fail0;
 	}
-	state->buff1 = kzalloc(SSI_MAX_HASH_BLCK_SIZE ,GFP_KERNEL|GFP_DMA);
+	state->buff1 = kzalloc(SSI_MAX_HASH_BLCK_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!state->buff1) {
 		SSI_LOG_ERR("Allocating buff1 in context failed\n");
 		goto fail_buff0;
 	}
-	state->digest_result_buff = kzalloc(SSI_MAX_HASH_DIGEST_SIZE ,GFP_KERNEL|GFP_DMA);
+	state->digest_result_buff = kzalloc(SSI_MAX_HASH_DIGEST_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!state->digest_result_buff) {
 		SSI_LOG_ERR("Allocating digest_result_buff in context failed\n");
 		goto fail_buff1;
 	}
-	state->digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL|GFP_DMA);
+	state->digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL | GFP_DMA);
 	if (!state->digest_buff) {
 		SSI_LOG_ERR("Allocating digest-buffer in context failed\n");
 		goto fail_digest_result_buff;
@@ -181,7 +181,7 @@ static int ssi_hash_map_request(struct device *dev,
 
 	SSI_LOG_DEBUG("Allocated digest-buffer in context ctx->digest_buff=@%p\n", state->digest_buff);
 	if (ctx->hw_mode != DRV_CIPHER_XCBC_MAC) {
-		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE, GFP_KERNEL|GFP_DMA);
+		state->digest_bytes_len = kzalloc(HASH_LEN_SIZE, GFP_KERNEL | GFP_DMA);
 		if (!state->digest_bytes_len) {
 			SSI_LOG_ERR("Allocating digest-bytes-len in context failed\n");
 			goto fail1;
@@ -191,7 +191,7 @@ static int ssi_hash_map_request(struct device *dev,
 		state->digest_bytes_len = NULL;
 	}
 
-	state->opad_digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL|GFP_DMA);
+	state->opad_digest_buff = kzalloc(ctx->inter_digestsize, GFP_KERNEL | GFP_DMA);
 	if (!state->opad_digest_buff) {
 		SSI_LOG_ERR("Allocating opad-digest-buffer in context failed\n");
 		goto fail2;
@@ -431,7 +431,7 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 	int rc = 0;
 
 
-	SSI_LOG_DEBUG("===== %s-digest (%d) ====\n", is_hmac?"hmac":"hash", nbytes);
+	SSI_LOG_DEBUG("===== %s-digest (%d) ====\n", is_hmac ? "hmac" : "hash", nbytes);
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
@@ -598,7 +598,7 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 	int rc;
 
 	SSI_LOG_DEBUG("===== %s-update (%d) ====\n", ctx->is_hmac ?
-					"hmac":"hash", nbytes);
+					"hmac" : "hash", nbytes);
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	if (nbytes == 0) {
@@ -696,11 +696,11 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 	int idx = 0;
 	int rc;
 
-	SSI_LOG_DEBUG("===== %s-finup (%d) ====\n", is_hmac?"hmac":"hash", nbytes);
+	SSI_LOG_DEBUG("===== %s-finup (%d) ====\n", is_hmac ? "hmac" : "hash", nbytes);
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
-	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, src , nbytes, 1) != 0)) {
+	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1) != 0)) {
 		SSI_LOG_ERR("map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -742,7 +742,7 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
 		set_dout_dlli(&desc[idx], state->digest_buff_dma_addr,
 			      digestsize, NS_BIT, 0);
-		ssi_set_hash_endianity(ctx->hash_mode,&desc[idx]);
+		ssi_set_hash_endianity(ctx->hash_mode, &desc[idx]);
 		set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 		set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 		idx++;
@@ -792,7 +792,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
-	ssi_set_hash_endianity(ctx->hash_mode,&desc[idx]);
+	ssi_set_hash_endianity(ctx->hash_mode, &desc[idx]);
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	idx++;
 
@@ -833,7 +833,7 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 	int idx = 0;
 	int rc;
 
-	SSI_LOG_DEBUG("===== %s-final (%d) ====\n", is_hmac?"hmac":"hash", nbytes);
+	SSI_LOG_DEBUG("===== %s-final (%d) ====\n", is_hmac ? "hmac" : "hash", nbytes);
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
@@ -890,7 +890,7 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
 		set_dout_dlli(&desc[idx], state->digest_buff_dma_addr,
 			      digestsize, NS_BIT, 0);
-		ssi_set_hash_endianity(ctx->hash_mode,&desc[idx]);
+		ssi_set_hash_endianity(ctx->hash_mode, &desc[idx]);
 		set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 		set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 		idx++;
@@ -939,7 +939,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
-	ssi_set_hash_endianity(ctx->hash_mode,&desc[idx]);
+	ssi_set_hash_endianity(ctx->hash_mode, &desc[idx]);
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	idx++;
 
@@ -1057,7 +1057,7 @@ static int ssi_hash_setkey(void *hash,
 			set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 			set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 			set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
-			ssi_set_hash_endianity(ctx->hash_mode,&desc[idx]);
+			ssi_set_hash_endianity(ctx->hash_mode, &desc[idx]);
 			idx++;
 
 			hw_desc_init(&desc[idx]);
@@ -1871,7 +1871,7 @@ out:
 static int ssi_ahash_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
-	return ssi_hash_setkey((void *) ahash, key, keylen, false);
+	return ssi_hash_setkey((void *)ahash, key, keylen, false);
 }
 
 struct ssi_hash_template {
@@ -2143,7 +2143,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 	struct ssi_hash_handle *hash_handle = drvdata->hash_handle;
 	ssi_sram_addr_t sram_buff_ofs = hash_handle->digest_len_sram_addr;
 	unsigned int larval_seq_len = 0;
-	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX/sizeof(u32)];
+	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX / sizeof(u32)];
 	int rc = 0;
 #if (DX_DEV_SHA_MAX > 256)
 	int i;

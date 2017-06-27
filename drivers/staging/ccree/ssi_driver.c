@@ -77,7 +77,7 @@
 #ifdef DX_DUMP_BYTES
 void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
 {
-	int i , line_offset = 0, ret = 0;
+	int i, line_offset = 0, ret = 0;
 	const u8 *cur_byte;
 	char line_buf[80];
 
@@ -89,17 +89,17 @@ void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
 	ret = snprintf(line_buf, sizeof(line_buf), "%s[%lu]: ",
 		name, size);
 	if (ret < 0) {
-		SSI_LOG_ERR("snprintf returned %d . aborting buffer array dump\n",ret);
+		SSI_LOG_ERR("snprintf returned %d . aborting buffer array dump\n", ret);
 		return;
 	}
 	line_offset = ret;
-	for (i = 0 , cur_byte = the_array;
+	for (i = 0, cur_byte = the_array;
 	     (i < size) && (line_offset < sizeof(line_buf)); i++, cur_byte++) {
 			ret = snprintf(line_buf + line_offset,
 					sizeof(line_buf) - line_offset,
 					"0x%02X ", *cur_byte);
 		if (ret < 0) {
-			SSI_LOG_ERR("snprintf returned %d . aborting buffer array dump\n",ret);
+			SSI_LOG_ERR("snprintf returned %d . aborting buffer array dump\n", ret);
 			return;
 		}
 		line_offset += ret;
@@ -301,9 +301,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (rc)
 		goto init_cc_res_err;
 
-	if(new_drvdata->plat_dev->dev.dma_mask == NULL)
+	if (new_drvdata->plat_dev->dev.dma_mask == NULL)
 	{
-		new_drvdata->plat_dev->dev.dma_mask = & new_drvdata->plat_dev->dev.coherent_dma_mask;
+		new_drvdata->plat_dev->dev.dma_mask = &new_drvdata->plat_dev->dev.coherent_dma_mask;
 	}
 	if (!new_drvdata->plat_dev->dev.coherent_dma_mask)
 	{
@@ -523,7 +523,7 @@ static int cc7x_probe(struct platform_device *plat_dev)
 	asm volatile("mrc p15, 0, %0, c0, c0, 0" : "=r" (ctr));
 	SSI_LOG_DEBUG("Main ID register (MIDR): Implementer 0x%02X, Arch 0x%01X,"
 		     " Part 0x%03X, Rev r%dp%d\n",
-		(ctr>>24), (ctr>>16)&0xF, (ctr>>4)&0xFFF, (ctr>>20)&0xF, ctr&0xF);
+		(ctr >> 24), (ctr >> 16) & 0xF, (ctr >> 4) & 0xFFF, (ctr >> 20) & 0xF, ctr & 0xF);
 #endif
 
 	/* Map registers space */
@@ -546,13 +546,13 @@ static int cc7x_remove(struct platform_device *plat_dev)
 
 	return 0;
 }
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 static struct dev_pm_ops arm_cc7x_driver_pm = {
 	SET_RUNTIME_PM_OPS(ssi_power_mgr_runtime_suspend, ssi_power_mgr_runtime_resume, NULL)
 };
 #endif
 
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 #define	DX_DRIVER_RUNTIME_PM	(&arm_cc7x_driver_pm)
 #else
 #define	DX_DRIVER_RUNTIME_PM	NULL

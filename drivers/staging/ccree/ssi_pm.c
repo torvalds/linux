@@ -31,7 +31,7 @@
 #include "ssi_pm.h"
 
 
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 
 #define POWER_DOWN_ENABLE 0x01
 #define POWER_DOWN_DISABLE 0x00
@@ -71,14 +71,14 @@ int ssi_power_mgr_runtime_resume(struct device *dev)
 	}
 
 	rc = init_cc_regs(drvdata, false);
-	if (rc !=0) {
-		SSI_LOG_ERR("init_cc_regs (%x)\n",rc);
+	if (rc != 0) {
+		SSI_LOG_ERR("init_cc_regs (%x)\n", rc);
 		return rc;
 	}
 
 	rc = ssi_request_mgr_runtime_resume_queue(drvdata);
-	if (rc !=0) {
-		SSI_LOG_ERR("ssi_request_mgr_runtime_resume_queue (%x)\n",rc);
+	if (rc != 0) {
+		SSI_LOG_ERR("ssi_request_mgr_runtime_resume_queue (%x)\n", rc);
 		return rc;
 	}
 
@@ -126,10 +126,10 @@ int ssi_power_mgr_runtime_put_suspend(struct device *dev)
 int ssi_power_mgr_init(struct ssi_drvdata *drvdata)
 {
 	int rc = 0;
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	struct platform_device *plat_dev = drvdata->plat_dev;
 	/* must be before the enabling to avoid resdundent suspending */
-	pm_runtime_set_autosuspend_delay(&plat_dev->dev,SSI_SUSPEND_TIMEOUT);
+	pm_runtime_set_autosuspend_delay(&plat_dev->dev, SSI_SUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(&plat_dev->dev);
 	/* activate the PM module */
 	rc = pm_runtime_set_active(&plat_dev->dev);
@@ -143,7 +143,7 @@ int ssi_power_mgr_init(struct ssi_drvdata *drvdata)
 
 void ssi_power_mgr_fini(struct ssi_drvdata *drvdata)
 {
-#if defined (CONFIG_PM_RUNTIME) || defined (CONFIG_PM_SLEEP)
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	struct platform_device *plat_dev = drvdata->plat_dev;
 
 	pm_runtime_disable(&plat_dev->dev);

@@ -238,8 +238,8 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 	} else { /*ENCRYPT*/
 		if (unlikely(areq_ctx->is_icv_fragmented == true))
 			ssi_buffer_mgr_copy_scatterlist_portion(
-				areq_ctx->mac_buf, areq_ctx->dstSgl, areq->cryptlen+areq_ctx->dstOffset,
-				areq->cryptlen+areq_ctx->dstOffset + ctx->authsize, SSI_SG_FROM_BUF);
+				areq_ctx->mac_buf, areq_ctx->dstSgl, areq->cryptlen + areq_ctx->dstOffset,
+				areq->cryptlen + areq_ctx->dstOffset + ctx->authsize, SSI_SG_FROM_BUF);
 
 		/* If an IV was generated, copy it back to the user provided buffer. */
 		if (areq_ctx->backup_giv != NULL) {
@@ -1561,7 +1561,7 @@ static int config_ccm_adata(struct aead_request *req)
 				(req->cryptlen - ctx->authsize);
 	int rc;
 	memset(req_ctx->mac_buf, 0, AES_BLOCK_SIZE);
-	memset(req_ctx->ccm_config, 0, AES_BLOCK_SIZE*3);
+	memset(req_ctx->ccm_config, 0, AES_BLOCK_SIZE * 3);
 
 	/* taken from crypto/ccm.c */
 	/* 2 <= L <= 8, so 1 <= L' <= 7. */
@@ -1585,12 +1585,12 @@ static int config_ccm_adata(struct aead_request *req)
 	 /* END of "taken from crypto/ccm.c" */
 
 	/* l(a) - size of associated data. */
-	req_ctx->ccm_hdr_size = format_ccm_a0 (a0, req->assoclen);
+	req_ctx->ccm_hdr_size = format_ccm_a0(a0, req->assoclen);
 
 	memset(req->iv + 15 - req->iv[0], 0, req->iv[0] + 1);
 	req->iv[15] = 1;
 
-	memcpy(ctr_count_0, req->iv, AES_BLOCK_SIZE) ;
+	memcpy(ctr_count_0, req->iv, AES_BLOCK_SIZE);
 	ctr_count_0[15] = 0;
 
 	return 0;
@@ -1858,7 +1858,7 @@ static inline void ssi_aead_dump_gcm(
 		SSI_LOG_DEBUG("%s\n", title);
 	}
 
-	SSI_LOG_DEBUG("cipher_mode %d, authsize %d, enc_keylen %d, assoclen %d, cryptlen %d \n", \
+	SSI_LOG_DEBUG("cipher_mode %d, authsize %d, enc_keylen %d, assoclen %d, cryptlen %d\n", \
 				 ctx->cipher_mode, ctx->authsize, ctx->enc_keylen, req->assoclen, req_ctx->cryptlen);
 
 	if (ctx->enckey != NULL) {
@@ -1878,12 +1878,12 @@ static inline void ssi_aead_dump_gcm(
 	dump_byte_array("gcm_len_block", req_ctx->gcm_len_block.lenA, AES_BLOCK_SIZE);
 
 	if (req->src != NULL && req->cryptlen) {
-		dump_byte_array("req->src", sg_virt(req->src), req->cryptlen+req->assoclen);
+		dump_byte_array("req->src", sg_virt(req->src), req->cryptlen + req->assoclen);
 	}
 
 	if (req->dst != NULL) {
-		dump_byte_array("req->dst", sg_virt(req->dst), req->cryptlen+ctx->authsize+req->assoclen);
-    }
+		dump_byte_array("req->dst", sg_virt(req->dst), req->cryptlen + ctx->authsize + req->assoclen);
+	}
 }
 #endif
 
@@ -1899,7 +1899,7 @@ static int config_gcm_context(struct aead_request *req)
 				(req->cryptlen - ctx->authsize);
 	__be32 counter = cpu_to_be32(2);
 
-	SSI_LOG_DEBUG("config_gcm_context() cryptlen = %d, req->assoclen = %d ctx->authsize = %d \n", cryptlen, req->assoclen, ctx->authsize);
+	SSI_LOG_DEBUG("config_gcm_context() cryptlen = %d, req->assoclen = %d ctx->authsize = %d\n", cryptlen, req->assoclen, ctx->authsize);
 
 	memset(req_ctx->hkey, 0, AES_BLOCK_SIZE);
 
@@ -1916,15 +1916,15 @@ static int config_gcm_context(struct aead_request *req)
 	if (req_ctx->plaintext_authenticate_only == false) {
 		__be64 temp64;
 		temp64 = cpu_to_be64(req->assoclen * 8);
-		memcpy (&req_ctx->gcm_len_block.lenA, &temp64, sizeof(temp64));
+		memcpy(&req_ctx->gcm_len_block.lenA, &temp64, sizeof(temp64));
 		temp64 = cpu_to_be64(cryptlen * 8);
-		memcpy (&req_ctx->gcm_len_block.lenC, &temp64, 8);
+		memcpy(&req_ctx->gcm_len_block.lenC, &temp64, 8);
 	} else { //rfc4543=>  all data(AAD,IV,Plain) are considered additional data that is nothing is encrypted.
 		__be64 temp64;
-		temp64 = cpu_to_be64((req->assoclen+GCM_BLOCK_RFC4_IV_SIZE+cryptlen) * 8);
-		memcpy (&req_ctx->gcm_len_block.lenA, &temp64, sizeof(temp64));
+		temp64 = cpu_to_be64((req->assoclen + GCM_BLOCK_RFC4_IV_SIZE + cryptlen) * 8);
+		memcpy(&req_ctx->gcm_len_block.lenA, &temp64, sizeof(temp64));
 		temp64 = 0;
-		memcpy (&req_ctx->gcm_len_block.lenC, &temp64, 8);
+		memcpy(&req_ctx->gcm_len_block.lenC, &temp64, 8);
 	}
 
 	return 0;
@@ -2220,7 +2220,7 @@ static int ssi_rfc4106_gcm_setkey(struct crypto_aead *tfm, const u8 *key, unsign
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	int rc = 0;
 
-	SSI_LOG_DEBUG("ssi_rfc4106_gcm_setkey()  keylen %d, key %p \n", keylen, key);
+	SSI_LOG_DEBUG("ssi_rfc4106_gcm_setkey()  keylen %d, key %p\n", keylen, key);
 
 	if (keylen < 4)
 		return -EINVAL;
@@ -2238,7 +2238,7 @@ static int ssi_rfc4543_gcm_setkey(struct crypto_aead *tfm, const u8 *key, unsign
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	int rc = 0;
 
-	SSI_LOG_DEBUG("ssi_rfc4543_gcm_setkey()  keylen %d, key %p \n", keylen, key);
+	SSI_LOG_DEBUG("ssi_rfc4543_gcm_setkey()  keylen %d, key %p\n", keylen, key);
 
 	if (keylen < 4)
 		return -EINVAL;
@@ -2273,7 +2273,7 @@ static int ssi_gcm_setauthsize(struct crypto_aead *authenc,
 static int ssi_rfc4106_gcm_setauthsize(struct crypto_aead *authenc,
 				      unsigned int authsize)
 {
-	SSI_LOG_DEBUG("ssi_rfc4106_gcm_setauthsize()  authsize %d \n", authsize);
+	SSI_LOG_DEBUG("ssi_rfc4106_gcm_setauthsize()  authsize %d\n", authsize);
 
 	switch (authsize) {
 	case 8:
@@ -2290,7 +2290,7 @@ static int ssi_rfc4106_gcm_setauthsize(struct crypto_aead *authenc,
 static int ssi_rfc4543_gcm_setauthsize(struct crypto_aead *authenc,
 				       unsigned int authsize)
 {
-	SSI_LOG_DEBUG("ssi_rfc4543_gcm_setauthsize()  authsize %d \n", authsize);
+	SSI_LOG_DEBUG("ssi_rfc4543_gcm_setauthsize()  authsize %d\n", authsize);
 
 	if (authsize != 16)
 		return -EINVAL;
