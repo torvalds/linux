@@ -1454,5 +1454,25 @@
 				};
 			};
 		};
+
+		imr-lx4@fe860000 {
+			compatible = "renesas,r8a7796-imr-lx4",
+				     "renesas,imr-lx4";
+			reg = <0 0xfe860000 0 0x2000>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 823>;
+			power-domains = <&sysc R8A7796_PD_A3VC>;
+			resets = <&cpg 823>;
+		};
+
+		imr-lx4@fe870000 {
+			compatible = "renesas,r8a7796-imr-lx4",
+				     "renesas,imr-lx4";
+			reg = <0 0xfe870000 0 0x2000>;
+			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 822>;
+			power-domains = <&sysc R8A7796_PD_A3VC>;
+			resets = <&cpg 822>;
+		};
 	};
 };
