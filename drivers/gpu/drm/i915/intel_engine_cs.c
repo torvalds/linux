@@ -1328,6 +1328,7 @@ void intel_engines_mark_idle(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		intel_engine_disarm_breadcrumbs(engine);
 		i915_gem_batch_pool_fini(&engine->batch_pool);
+		tasklet_kill(&engine->irq_tasklet);
 		engine->no_priolist = false;
 	}
 }
