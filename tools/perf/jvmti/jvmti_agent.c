@@ -304,7 +304,7 @@ jvmti_close(void *agent)
 	FILE *fp = agent;
 
 	if (!fp) {
-		warnx("jvmti: incalid fd in close_agent");
+		warnx("jvmti: invalid fd in close_agent");
 		return -1;
 	}
 
