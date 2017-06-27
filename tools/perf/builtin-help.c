@@ -210,6 +210,12 @@ static void do_add_man_viewer_info(const char *name,
 	man_viewer_info_list = new;
 }
 
+static void unsupported_man_viewer(const char *name, const char *var)
+{
+	pr_warning("'%s': path for unsupported man viewer.\n"
+		   "Please consider using 'man.<tool>.%s' instead.", name, var);
+}
+
 static int add_man_viewer_path(const char *name,
 			       size_t len,
 			       const char *value)
@@ -217,9 +223,7 @@ static int add_man_viewer_path(const char *name,
 	if (supported_man_viewer(name, len))
 		do_add_man_viewer_info(name, len, value);
 	else
-		warning("'%s': path for unsupported man viewer.\n"
-			"Please consider using 'man.<tool>.cmd' instead.",
-			name);
+		unsupported_man_viewer(name, "cmd");
 
 	return 0;
 }
@@ -229,9 +233,7 @@ static int add_man_viewer_cmd(const char *name,
 			      const char *value)
 {
 	if (supported_man_viewer(name, len))
-		warning("'%s': cmd for supported man viewer.\n"
-			"Please consider using 'man.<tool>.path' instead.",
-			name);
+		unsupported_man_viewer(name, "path");
 	else
 		do_add_man_viewer_info(name, len, value);
 
