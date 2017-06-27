@@ -1884,7 +1884,7 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 	 * called on driver load and after a GPU reset, so you can place
 	 * workarounds here even if they get overwritten by GPU reset.
 	 */
-	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk */
+	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl */
 	if (IS_BROADWELL(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -3095,13 +3095,17 @@ int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv)
 
 void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 {
+	GEM_BUG_ON(i915->ggtt.invalidate != gen6_ggtt_invalidate);
+
 	i915->ggtt.invalidate = guc_ggtt_invalidate;
 }
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
-	if (i915->ggtt.invalidate == guc_ggtt_invalidate)
-		i915->ggtt.invalidate = gen6_ggtt_invalidate;
+	/* We should only be called after i915_ggtt_enable_guc() */
+	GEM_BUG_ON(i915->ggtt.invalidate != guc_ggtt_invalidate);
+
+	i915->ggtt.invalidate = gen6_ggtt_invalidate;
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
@@ -3398,6 +3402,9 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
 	if (err != -ENOSPC)
 		return err;
 
+	if (flags & PIN_NOEVICT)
+		return -ENOSPC;
+
 	err = i915_gem_evict_for_node(vm, node, flags);
 	if (err == 0)
 		err = drm_mm_reserve_node(&vm->mm, node);
@@ -3511,6 +3518,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 					  start, end, mode);
 	if (err != -ENOSPC)
 		return err;
+
+	if (flags & PIN_NOEVICT)
+		return -ENOSPC;
 
 	/* No free space, pick a slot at random.
 	 *

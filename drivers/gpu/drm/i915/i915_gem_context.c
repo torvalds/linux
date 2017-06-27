@@ -85,12 +85,78 @@
  *
  */
 
+#include <linux/log2.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
+
+/* Initial size (as log2) to preallocate the handle->object hashtable */
+#define VMA_HT_BITS 2u /* 4 x 2 pointers, 64 bytes minimum */
+
+static void resize_vma_ht(struct work_struct *work)
+{
+	struct i915_gem_context_vma_lut *lut =
+		container_of(work, typeof(*lut), resize);
+	unsigned int bits, new_bits, size, i;
+	struct hlist_head *new_ht;
+
+	GEM_BUG_ON(!(lut->ht_size & I915_CTX_RESIZE_IN_PROGRESS));
+
+	bits = 1 + ilog2(4*lut->ht_count/3 + 1);
+	new_bits = min_t(unsigned int,
+			 max(bits, VMA_HT_BITS),
+			 sizeof(unsigned int) * BITS_PER_BYTE - 1);
+	if (new_bits == lut->ht_bits)
+		goto out;
+
+	new_ht = kzalloc(sizeof(*new_ht)<<new_bits, GFP_KERNEL | __GFP_NOWARN);
+	if (!new_ht)
+		new_ht = vzalloc(sizeof(*new_ht)<<new_bits);
+	if (!new_ht)
+		/* Pretend resize succeeded and stop calling us for a bit! */
+		goto out;
+
+	size = BIT(lut->ht_bits);
+	for (i = 0; i < size; i++) {
+		struct i915_vma *vma;
+		struct hlist_node *tmp;
+
+		hlist_for_each_entry_safe(vma, tmp, &lut->ht[i], ctx_node)
+			hlist_add_head(&vma->ctx_node,
+				       &new_ht[hash_32(vma->ctx_handle,
+						       new_bits)]);
+	}
+	kvfree(lut->ht);
+	lut->ht = new_ht;
+	lut->ht_bits = new_bits;
+out:
+	smp_store_release(&lut->ht_size, BIT(bits));
+	GEM_BUG_ON(lut->ht_size & I915_CTX_RESIZE_IN_PROGRESS);
+}
+
+static void vma_lut_free(struct i915_gem_context *ctx)
+{
+	struct i915_gem_context_vma_lut *lut = &ctx->vma_lut;
+	unsigned int i, size;
+
+	if (lut->ht_size & I915_CTX_RESIZE_IN_PROGRESS)
+		cancel_work_sync(&lut->resize);
+
+	size = BIT(lut->ht_bits);
+	for (i = 0; i < size; i++) {
+		struct i915_vma *vma;
+
+		hlist_for_each_entry(vma, &lut->ht[i], ctx_node) {
+			vma->obj->vma_hashed = NULL;
+			vma->ctx = NULL;
+			i915_vma_put(vma);
+		}
+	}
+	kvfree(lut->ht);
+}
 
 void i915_gem_context_free(struct kref *ctx_ref)
 {
@@ -101,6 +167,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	trace_i915_context_free(ctx);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
+	vma_lut_free(ctx);
 	i915_ppgtt_put(ctx->ppgtt);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
@@ -118,6 +185,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	kfree(ctx->name);
 	put_pid(ctx->pid);
+
 	list_del(&ctx->link);
 
 	ida_simple_remove(&ctx->i915->context_hw_ida, ctx->hw_id);
@@ -201,13 +269,24 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->i915 = dev_priv;
 	ctx->priority = I915_PRIORITY_NORMAL;
 
+	ctx->vma_lut.ht_bits = VMA_HT_BITS;
+	ctx->vma_lut.ht_size = BIT(VMA_HT_BITS);
+	BUILD_BUG_ON(BIT(VMA_HT_BITS) == I915_CTX_RESIZE_IN_PROGRESS);
+	ctx->vma_lut.ht = kcalloc(ctx->vma_lut.ht_size,
+				  sizeof(*ctx->vma_lut.ht),
+				  GFP_KERNEL);
+	if (!ctx->vma_lut.ht)
+		goto err_out;
+
+	INIT_WORK(&ctx->vma_lut.resize, resize_vma_ht);
+
 	/* Default context will never have a file_priv */
 	ret = DEFAULT_CONTEXT_HANDLE;
 	if (file_priv) {
 		ret = idr_alloc(&file_priv->context_idr, ctx,
 				DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
 		if (ret < 0)
-			goto err_out;
+			goto err_lut;
 	}
 	ctx->user_handle = ret;
 
@@ -248,6 +327,8 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 err_pid:
 	put_pid(ctx->pid);
 	idr_remove(&file_priv->context_idr, ctx->user_handle);
+err_lut:
+	kvfree(ctx->vma_lut.ht);
 err_out:
 	context_close(ctx);
 	return ERR_PTR(ret);
@@ -1033,9 +1114,6 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 
 	if (args->flags || args->pad)
 		return -EINVAL;
-
-	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)

@@ -64,7 +64,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 
 	DBG("%s", gpu->name);
 
-	ret = msm_gem_get_iova(gpu->rb->bo, gpu->id, &gpu->rb_iova);
+	ret = msm_gem_get_iova(gpu->rb->bo, gpu->aspace, &gpu->rb_iova);
 	if (ret) {
 		gpu->rb_iova = 0;
 		dev_err(gpu->dev->dev, "could not map ringbuffer: %d\n", ret);
@@ -77,7 +77,6 @@ int adreno_hw_init(struct msm_gpu *gpu)
 	/* reset completed fence seqno: */
 	adreno_gpu->memptrs->fence = gpu->fctx->completed_fence;
 	adreno_gpu->memptrs->rptr  = 0;
-	adreno_gpu->memptrs->wptr  = 0;
 
 	/* Setup REG_CP_RB_CNTL: */
 	adreno_gpu_write(adreno_gpu, REG_ADRENO_CP_RB_CNTL,
@@ -258,7 +257,6 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 	seq_printf(m, "fence:    %d/%d\n", adreno_gpu->memptrs->fence,
 			gpu->fctx->last_fence);
 	seq_printf(m, "rptr:     %d\n", get_rptr(adreno_gpu));
-	seq_printf(m, "wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	seq_printf(m, "rb wptr:  %d\n", get_wptr(gpu->rb));
 
 	/* dump these out in a form that can be parsed by demsm: */
@@ -294,7 +292,6 @@ void adreno_dump_info(struct msm_gpu *gpu)
 	printk("fence:    %d/%d\n", adreno_gpu->memptrs->fence,
 			gpu->fctx->last_fence);
 	printk("rptr:     %d\n", get_rptr(adreno_gpu));
-	printk("wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
 }
 
@@ -342,6 +339,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *adreno_gpu, const struct adreno_gpu_funcs *funcs)
 {
 	struct adreno_platform_config *config = pdev->dev.platform_data;
+	struct msm_gpu_config adreno_gpu_config  = { 0 };
 	struct msm_gpu *gpu = &adreno_gpu->base;
 	int ret;
 
@@ -360,9 +358,16 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	DBG("fast_rate=%u, slow_rate=27000000, bus_freq=%u",
 			gpu->fast_rate, gpu->bus_freq);
 
+	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
+	adreno_gpu_config.irqname = "kgsl_3d0_irq";
+
+	adreno_gpu_config.va_start = SZ_16M;
+	adreno_gpu_config.va_end = 0xffffffff;
+
+	adreno_gpu_config.ringsz = RB_SIZE;
+
 	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
-			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
-			RB_SIZE);
+			adreno_gpu->info->name, &adreno_gpu_config);
 	if (ret)
 		return ret;
 
@@ -392,10 +397,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 			return ret;
 	}
 
-	mutex_lock(&drm->struct_mutex);
 	adreno_gpu->memptrs_bo = msm_gem_new(drm, sizeof(*adreno_gpu->memptrs),
 			MSM_BO_UNCACHED);
-	mutex_unlock(&drm->struct_mutex);
 	if (IS_ERR(adreno_gpu->memptrs_bo)) {
 		ret = PTR_ERR(adreno_gpu->memptrs_bo);
 		adreno_gpu->memptrs_bo = NULL;
@@ -409,7 +412,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	ret = msm_gem_get_iova(adreno_gpu->memptrs_bo, gpu->id,
+	ret = msm_gem_get_iova(adreno_gpu->memptrs_bo, gpu->aspace,
 			&adreno_gpu->memptrs_iova);
 	if (ret) {
 		dev_err(drm->dev, "could not map memptrs: %d\n", ret);
@@ -428,7 +431,7 @@ void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 			msm_gem_put_vaddr(adreno_gpu->memptrs_bo);
 
 		if (adreno_gpu->memptrs_iova)
-			msm_gem_put_iova(adreno_gpu->memptrs_bo, gpu->id);
+			msm_gem_put_iova(adreno_gpu->memptrs_bo, gpu->aspace);
 
 		drm_gem_object_unreference_unlocked(adreno_gpu->memptrs_bo);
 	}

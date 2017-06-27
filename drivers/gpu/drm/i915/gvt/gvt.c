@@ -147,7 +147,9 @@ static int gvt_service_thread(void *data)
 			mutex_unlock(&gvt->lock);
 		}
 
-		if (test_and_clear_bit(INTEL_GVT_REQUEST_SCHED,
+		if (test_bit(INTEL_GVT_REQUEST_SCHED,
+				(void *)&gvt->service_request) ||
+			test_bit(INTEL_GVT_REQUEST_EVENT_SCHED,
 					(void *)&gvt->service_request)) {
 			intel_gvt_schedule(gvt);
 		}
@@ -244,7 +246,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	gvt_dbg_core("init gvt device\n");
 
 	idr_init(&gvt->vgpu_idr);
-
+	spin_lock_init(&gvt->scheduler.mmio_context_lock);
 	mutex_init(&gvt->lock);
 	gvt->dev_priv = dev_priv;
 

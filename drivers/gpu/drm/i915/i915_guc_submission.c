@@ -105,7 +105,7 @@ static int __reserve_doorbell(struct i915_guc_client *client)
 		end += offset;
 	}
 
-	id = find_next_zero_bit(client->guc->doorbell_bitmap, offset, end);
+	id = find_next_zero_bit(client->guc->doorbell_bitmap, end, offset);
 	if (id == end)
 		return -ENOSPC;
 

@@ -167,7 +167,7 @@ void intel_huc_select_fw(struct intel_huc *huc)
 		huc->fw.path = I915_BXT_HUC_UCODE;
 		huc->fw.major_ver_wanted = BXT_HUC_FW_MAJOR;
 		huc->fw.minor_ver_wanted = BXT_HUC_FW_MINOR;
-	} else if (IS_KABYLAKE(dev_priv)) {
+	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
 		huc->fw.path = I915_KBL_HUC_UCODE;
 		huc->fw.major_ver_wanted = KBL_HUC_FW_MAJOR;
 		huc->fw.minor_ver_wanted = KBL_HUC_FW_MINOR;

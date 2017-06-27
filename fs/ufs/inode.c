@@ -566,10 +566,8 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 	 */
 	inode->i_mode = mode = fs16_to_cpu(sb, ufs_inode->ui_mode);
 	set_nlink(inode, fs16_to_cpu(sb, ufs_inode->ui_nlink));
-	if (inode->i_nlink == 0) {
-		ufs_error (sb, "ufs_read_inode", "inode %lu has zero nlink\n", inode->i_ino);
-		return -1;
-	}
+	if (inode->i_nlink == 0)
+		return -ESTALE;
 
 	/*
 	 * Linux now has 32-bit uid and gid, so we can support EFT.
@@ -578,9 +576,9 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 	i_gid_write(inode, ufs_get_inode_gid(sb, ufs_inode));
 
 	inode->i_size = fs64_to_cpu(sb, ufs_inode->ui_size);
-	inode->i_atime.tv_sec = fs32_to_cpu(sb, ufs_inode->ui_atime.tv_sec);
-	inode->i_ctime.tv_sec = fs32_to_cpu(sb, ufs_inode->ui_ctime.tv_sec);
-	inode->i_mtime.tv_sec = fs32_to_cpu(sb, ufs_inode->ui_mtime.tv_sec);
+	inode->i_atime.tv_sec = (signed)fs32_to_cpu(sb, ufs_inode->ui_atime.tv_sec);
+	inode->i_ctime.tv_sec = (signed)fs32_to_cpu(sb, ufs_inode->ui_ctime.tv_sec);
+	inode->i_mtime.tv_sec = (signed)fs32_to_cpu(sb, ufs_inode->ui_mtime.tv_sec);
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
@@ -614,10 +612,8 @@ static int ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
 	 */
 	inode->i_mode = mode = fs16_to_cpu(sb, ufs2_inode->ui_mode);
 	set_nlink(inode, fs16_to_cpu(sb, ufs2_inode->ui_nlink));
-	if (inode->i_nlink == 0) {
-		ufs_error (sb, "ufs_read_inode", "inode %lu has zero nlink\n", inode->i_ino);
-		return -1;
-	}
+	if (inode->i_nlink == 0)
+		return -ESTALE;
 
         /*
          * Linux now has 32-bit uid and gid, so we can support EFT.
@@ -657,7 +653,7 @@ struct inode *ufs_iget(struct super_block *sb, unsigned long ino)
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	struct buffer_head * bh;
 	struct inode *inode;
-	int err;
+	int err = -EIO;
 
 	UFSD("ENTER, ino %lu\n", ino);
 
@@ -692,9 +688,10 @@ struct inode *ufs_iget(struct super_block *sb, unsigned long ino)
 		err = ufs1_read_inode(inode,
 				      ufs_inode + ufs_inotofsbo(inode->i_ino));
 	}
-
+	brelse(bh);
 	if (err)
 		goto bad_inode;
+
 	inode->i_version++;
 	ufsi->i_lastfrag =
 		(inode->i_size + uspi->s_fsize - 1) >> uspi->s_fshift;
@@ -703,15 +700,13 @@ struct inode *ufs_iget(struct super_block *sb, unsigned long ino)
 
 	ufs_set_inode_ops(inode);
 
-	brelse(bh);
-
 	UFSD("EXIT\n");
 	unlock_new_inode(inode);
 	return inode;
 
 bad_inode:
 	iget_failed(inode);
-	return ERR_PTR(-EIO);
+	return ERR_PTR(err);
 }
 
 static void ufs1_update_inode(struct inode *inode, struct ufs_inode *ufs_inode)

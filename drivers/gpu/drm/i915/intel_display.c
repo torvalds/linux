@@ -120,7 +120,8 @@ static void intel_crtc_init_scalers(struct intel_crtc *crtc,
 static void skylake_pfit_enable(struct intel_crtc *crtc);
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
-static void intel_modeset_setup_hw_state(struct drm_device *dev);
+static void intel_modeset_setup_hw_state(struct drm_device *dev,
+					 struct drm_modeset_acquire_ctx *ctx);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 
 struct intel_limit {
@@ -1192,9 +1193,8 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 								      pipe);
 	enum intel_display_power_domain power_domain;
 
-	/* if we need the pipe quirk it must be always on */
-	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	/* we keep both pipes enabled on 830 */
+	if (IS_I830(dev_priv))
 		state = true;
 
 	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
@@ -1549,6 +1549,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	i915_reg_t reg = DPLL(crtc->pipe);
 	u32 dpll = crtc->config->dpll_hw_state.dpll;
+	int i;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
@@ -1595,15 +1596,11 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 	}
 
 	/* We do this three times for luck */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
+	for (i = 0; i < 3; i++) {
+		I915_WRITE(reg, dpll);
+		POSTING_READ(reg);
+		udelay(150); /* wait for warmup */
+	}
 }
 
 /**
@@ -1631,8 +1628,7 @@ static void i9xx_disable_pll(struct intel_crtc *crtc)
 	}
 
 	/* Don't disable pipe or pipe PLLs if needed */
-	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	if (IS_I830(dev_priv))
 		return;
 
 	/* Make sure the pipe isn't still relying on us */
@@ -1915,8 +1911,8 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
 	if (val & PIPECONF_ENABLE) {
-		WARN_ON(!((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-			  (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE)));
+		/* we keep both pipes enabled on 830 */
+		WARN_ON(!IS_I830(dev_priv));
 		return;
 	}
 
@@ -1976,8 +1972,7 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 		val &= ~PIPECONF_DOUBLE_WIDE;
 
 	/* Don't disable pipe or pipe PLLs if needed */
-	if (!(pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) &&
-	    !(pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	if (!IS_I830(dev_priv))
 		val &= ~PIPECONF_ENABLE;
 
 	I915_WRITE(reg, val);
@@ -3461,7 +3456,7 @@ __intel_display_resume(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	intel_modeset_setup_hw_state(dev);
+	intel_modeset_setup_hw_state(dev, ctx);
 	i915_redisable_vga(to_i915(dev));
 
 	if (!state)
@@ -5838,9 +5833,14 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	if (!dev_priv->display.initial_watermarks)
 		intel_update_watermarks(intel_crtc);
+
+	/* clock the pipe down to 640x480@60 to potentially save power */
+	if (IS_I830(dev_priv))
+		i830_enable_pipe(dev_priv, pipe);
 }
 
-static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
+static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
+					struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -5870,7 +5870,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 		return;
 	}
 
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
+	state->acquire_ctx = ctx;
 
 	/* Everything's already locked, -EDEADLK can't happen. */
 	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
@@ -5976,10 +5976,20 @@ static void intel_connector_verify_state(struct drm_crtc_state *crtc_state,
 
 int intel_connector_init(struct intel_connector *connector)
 {
-	drm_atomic_helper_connector_reset(&connector->base);
+	struct intel_digital_connector_state *conn_state;
 
-	if (!connector->base.state)
+	/*
+	 * Allocate enough memory to hold intel_digital_connector_state,
+	 * This might be a few bytes too many, but for connectors that don't
+	 * need it we'll free the state and allocate a smaller one on the first
+	 * succesful commit anyway.
+	 */
+	conn_state = kzalloc(sizeof(*conn_state), GFP_KERNEL);
+	if (!conn_state)
 		return -ENOMEM;
+
+	__drm_atomic_helper_connector_reset(&connector->base,
+					    &conn_state->base);
 
 	return 0;
 }
@@ -7038,8 +7048,8 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 
 	pipeconf = 0;
 
-	if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	/* we keep both pipes enabled on 830 */
+	if (IS_I830(dev_priv))
 		pipeconf |= I915_READ(PIPECONF(intel_crtc->pipe)) & PIPECONF_ENABLE;
 
 	if (intel_crtc->config->double_wide)
@@ -8864,6 +8874,22 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 	return 0;
 }
 
+static void cannonlake_get_ddi_pll(struct drm_i915_private *dev_priv,
+				   enum port port,
+				   struct intel_crtc_state *pipe_config)
+{
+	enum intel_dpll_id id;
+	u32 temp;
+
+	temp = I915_READ(DPCLKA_CFGCR0) & DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
+	id = temp >> (port * 2);
+
+	if (WARN_ON(id < SKL_DPLL0 || id > SKL_DPLL2))
+		return;
+
+	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+}
+
 static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
@@ -9051,7 +9077,9 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 
-	if (IS_GEN9_BC(dev_priv))
+	if (IS_CANNONLAKE(dev_priv))
+		cannonlake_get_ddi_pll(dev_priv, port, pipe_config);
+	else if (IS_GEN9_BC(dev_priv))
 		skylake_get_ddi_pll(dev_priv, port, pipe_config);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_get_ddi_pll(dev_priv, port, pipe_config);
@@ -11185,6 +11213,9 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 			ret = skl_update_scaler_crtc(pipe_config);
 
 		if (!ret)
+			ret = skl_check_pipe_max_pixel_rate(intel_crtc,
+							    pipe_config);
+		if (!ret)
 			ret = intel_atomic_setup_scalers(dev_priv, intel_crtc,
 							 pipe_config);
 	}
@@ -12206,9 +12237,8 @@ verify_crtc_state(struct drm_crtc *crtc,
 
 	active = dev_priv->display.get_pipe_config(intel_crtc, pipe_config);
 
-	/* hw state is inconsistent with the pipe quirk */
-	if ((intel_crtc->pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
-	    (intel_crtc->pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
+	/* we keep both pipes enabled on 830 */
+	if (IS_I830(dev_priv))
 		active = new_crtc_state->active;
 
 	I915_STATE_WARN(new_crtc_state->active != active,
@@ -13117,8 +13147,16 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_hw_done(state);
 
-	if (intel_state->modeset)
+	if (intel_state->modeset) {
+		/* As one of the primary mmio accessors, KMS has a high
+		 * likelihood of triggering bugs in unclaimed access. After we
+		 * finish modesetting, see if an error has been flagged, and if
+		 * so enable debugging for the next modeset - and hope we catch
+		 * the culprit.
+		 */
+		intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
+	}
 
 	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
@@ -13127,19 +13165,6 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_cleanup_done(state);
 
 	drm_atomic_state_put(state);
-
-	/* As one of the primary mmio accessors, KMS has a high likelihood
-	 * of triggering bugs in unclaimed access. After we finish
-	 * modesetting, see if an error has been flagged, and if so
-	 * enable debugging for the next modeset - and hope we catch
-	 * the culprit.
-	 *
-	 * XXX note that we assume display power is on at this point.
-	 * This might hold true now but we need to add pm helper to check
-	 * unclaimed only when the hardware is on, as atomic commits
-	 * can happen also when the device is completely off.
-	 */
-	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	intel_atomic_helper_free_state(dev_priv);
 }
@@ -13270,43 +13295,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	}
 
 	return 0;
-}
-
-void intel_crtc_restore_mode(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_atomic_state *state;
-	struct drm_crtc_state *crtc_state;
-	int ret;
-
-	state = drm_atomic_state_alloc(dev);
-	if (!state) {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] crtc restore failed, out of memory",
-			      crtc->base.id, crtc->name);
-		return;
-	}
-
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
-
-retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	ret = PTR_ERR_OR_ZERO(crtc_state);
-	if (!ret) {
-		if (!crtc_state->active)
-			goto out;
-
-		crtc_state->mode_changed = true;
-		ret = drm_atomic_commit(state);
-	}
-
-	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
-		drm_modeset_backoff(state->acquire_ctx);
-		goto retry;
-	}
-
-out:
-	drm_atomic_state_put(state);
 }
 
 static const struct drm_crtc_funcs intel_crtc_funcs = {
@@ -14749,27 +14737,6 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 }
 
 /*
- * Some BIOSes insist on assuming the GPU's pipe A is enabled at suspend,
- * resume, or other times.  This quirk makes sure that's the case for
- * affected systems.
- */
-static void quirk_pipea_force(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
-	DRM_INFO("applying pipe a force quirk\n");
-}
-
-static void quirk_pipeb_force(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	dev_priv->quirks |= QUIRK_PIPEB_FORCE;
-	DRM_INFO("applying pipe b force quirk\n");
-}
-
-/*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
  */
 static void quirk_ssc_force_disable(struct drm_device *dev)
@@ -14834,18 +14801,6 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 };
 
 static struct intel_quirk intel_quirks[] = {
-	/* Toshiba Protege R-205, S-209 needs pipe A force quirk */
-	{ 0x2592, 0x1179, 0x0001, quirk_pipea_force },
-
-	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
-	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
-
-	/* 830 needs to leave pipe A & dpll A up */
-	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
-
-	/* 830 needs to leave pipe B & dpll B up */
-	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipeb_force },
-
 	/* Lenovo U160 cannot use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
 
@@ -15129,7 +15084,7 @@ int intel_modeset_init(struct drm_device *dev)
 	intel_setup_outputs(dev_priv);
 
 	drm_modeset_lock_all(dev);
-	intel_modeset_setup_hw_state(dev);
+	intel_modeset_setup_hw_state(dev, dev->mode_config.acquire_ctx);
 	drm_modeset_unlock_all(dev);
 
 	for_each_intel_crtc(dev, crtc) {
@@ -15166,35 +15121,89 @@ int intel_modeset_init(struct drm_device *dev)
 	return 0;
 }
 
-static void intel_enable_pipe_a(struct drm_device *dev)
+void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-	struct drm_connector *crt = NULL;
-	struct intel_load_detect_pipe load_detect_temp;
-	struct drm_modeset_acquire_ctx *ctx = dev->mode_config.acquire_ctx;
-	int ret;
+	/* 640x480@60Hz, ~25175 kHz */
+	struct dpll clock = {
+		.m1 = 18,
+		.m2 = 7,
+		.p1 = 13,
+		.p2 = 4,
+		.n = 2,
+	};
+	u32 dpll, fp;
+	int i;
 
-	/* We can't just switch on the pipe A, we need to set things up with a
-	 * proper mode and output configuration. As a gross hack, enable pipe A
-	 * by enabling the load detect pipe once. */
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	for_each_intel_connector_iter(connector, &conn_iter) {
-		if (connector->encoder->type == INTEL_OUTPUT_ANALOG) {
-			crt = &connector->base;
-			break;
-		}
+	WARN_ON(i9xx_calc_dpll_params(48000, &clock) != 25154);
+
+	DRM_DEBUG_KMS("enabling pipe %c due to force quirk (vco=%d dot=%d)\n",
+		      pipe_name(pipe), clock.vco, clock.dot);
+
+	fp = i9xx_dpll_compute_fp(&clock);
+	dpll = (I915_READ(DPLL(pipe)) & DPLL_DVO_2X_MODE) |
+		DPLL_VGA_MODE_DIS |
+		((clock.p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT) |
+		PLL_P2_DIVIDE_BY_4 |
+		PLL_REF_INPUT_DREFCLK |
+		DPLL_VCO_ENABLE;
+
+	I915_WRITE(FP0(pipe), fp);
+	I915_WRITE(FP1(pipe), fp);
+
+	I915_WRITE(HTOTAL(pipe), (640 - 1) | ((800 - 1) << 16));
+	I915_WRITE(HBLANK(pipe), (640 - 1) | ((800 - 1) << 16));
+	I915_WRITE(HSYNC(pipe), (656 - 1) | ((752 - 1) << 16));
+	I915_WRITE(VTOTAL(pipe), (480 - 1) | ((525 - 1) << 16));
+	I915_WRITE(VBLANK(pipe), (480 - 1) | ((525 - 1) << 16));
+	I915_WRITE(VSYNC(pipe), (490 - 1) | ((492 - 1) << 16));
+	I915_WRITE(PIPESRC(pipe), ((640 - 1) << 16) | (480 - 1));
+
+	/*
+	 * Apparently we need to have VGA mode enabled prior to changing
+	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
+	 * dividers, even though the register value does change.
+	 */
+	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VGA_MODE_DIS);
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	/* The pixel multiplier can only be updated once the
+	 * DPLL is enabled and the clocks are stable.
+	 *
+	 * So write it again.
+	 */
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* We do this three times for luck */
+	for (i = 0; i < 3 ; i++) {
+		I915_WRITE(DPLL(pipe), dpll);
+		POSTING_READ(DPLL(pipe));
+		udelay(150); /* wait for warmup */
 	}
-	drm_connector_list_iter_end(&conn_iter);
 
-	if (!crt)
-		return;
+	I915_WRITE(PIPECONF(pipe), PIPECONF_ENABLE | PIPECONF_PROGRESSIVE);
+	POSTING_READ(PIPECONF(pipe));
+}
 
-	ret = intel_get_load_detect_pipe(crt, NULL, &load_detect_temp, ctx);
-	WARN(ret < 0, "All modeset mutexes are locked, but intel_get_load_detect_pipe failed\n");
+void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	DRM_DEBUG_KMS("disabling pipe %c due to force quirk\n",
+		      pipe_name(pipe));
 
-	if (ret > 0)
-		intel_release_load_detect_pipe(crt, &load_detect_temp, ctx);
+	assert_plane_disabled(dev_priv, PLANE_A);
+	assert_plane_disabled(dev_priv, PLANE_B);
+
+	I915_WRITE(PIPECONF(pipe), 0);
+	POSTING_READ(PIPECONF(pipe));
+
+	if (wait_for(pipe_dsl_stopped(dev_priv, pipe), 100))
+		DRM_ERROR("pipe %c off wait timed out\n", pipe_name(pipe));
+
+	I915_WRITE(DPLL(pipe), DPLL_VGA_MODE_DIS);
+	POSTING_READ(DPLL(pipe));
 }
 
 static bool
@@ -15244,7 +15253,8 @@ static bool has_pch_trancoder(struct drm_i915_private *dev_priv,
 		(HAS_PCH_LPT_H(dev_priv) && pch_transcoder == TRANSCODER_A);
 }
 
-static void intel_sanitize_crtc(struct intel_crtc *crtc)
+static void intel_sanitize_crtc(struct intel_crtc *crtc,
+				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -15290,23 +15300,14 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		plane = crtc->plane;
 		crtc->base.primary->state->visible = true;
 		crtc->plane = !plane;
-		intel_crtc_disable_noatomic(&crtc->base);
+		intel_crtc_disable_noatomic(&crtc->base, ctx);
 		crtc->plane = plane;
-	}
-
-	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
-	    crtc->pipe == PIPE_A && !crtc->active) {
-		/* BIOS forgot to enable pipe A, this mostly happens after
-		 * resume. Force-enable the pipe to fix this, the update_dpms
-		 * call below we restore the pipe to the right state, but leave
-		 * the required bits on. */
-		intel_enable_pipe_a(dev);
 	}
 
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
 	if (crtc->active && !intel_crtc_has_encoders(crtc))
-		intel_crtc_disable_noatomic(&crtc->base);
+		intel_crtc_disable_noatomic(&crtc->base, ctx);
 
 	if (crtc->active || HAS_GMCH_DISPLAY(dev_priv)) {
 		/*
@@ -15603,7 +15604,8 @@ get_encoder_power_domains(struct drm_i915_private *dev_priv)
  * and sanitizes it to the current state
  */
 static void
-intel_modeset_setup_hw_state(struct drm_device *dev)
+intel_modeset_setup_hw_state(struct drm_device *dev,
+			     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum pipe pipe;
@@ -15623,7 +15625,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 	for_each_pipe(dev_priv, pipe) {
 		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 
-		intel_sanitize_crtc(crtc);
+		intel_sanitize_crtc(crtc, ctx);
 		intel_dump_pipe_config(crtc, crtc->config,
 				       "[setup_hw_state]");
 	}

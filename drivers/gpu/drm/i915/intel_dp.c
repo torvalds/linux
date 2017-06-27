@@ -798,7 +798,7 @@ static void intel_pps_get_registers(struct drm_i915_private *dev_priv,
 	regs->pp_stat = PP_STATUS(pps_idx);
 	regs->pp_on = PP_ON_DELAYS(pps_idx);
 	regs->pp_off = PP_OFF_DELAYS(pps_idx);
-	if (!IS_GEN9_LP(dev_priv))
+	if (!IS_GEN9_LP(dev_priv) && !HAS_PCH_CNP(dev_priv))
 		regs->pp_div = PP_DIVISOR(pps_idx);
 }
 
@@ -1548,17 +1548,6 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("common rates: %s\n", str);
 }
 
-static int rate_to_index(int find, const int *rates)
-{
-	int i = 0;
-
-	for (i = 0; i < DP_MAX_SUPPORTED_RATES; ++i)
-		if (find == rates[i])
-			break;
-
-	return i;
-}
-
 int
 intel_dp_max_link_rate(struct intel_dp *intel_dp)
 {
@@ -1628,6 +1617,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
 	int lane_count, clock;
 	int min_lane_count = 1;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
@@ -1653,7 +1644,12 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_drrs = false;
-	pipe_config->has_audio = intel_dp->has_audio && port != PORT_A;
+	if (port == PORT_A)
+		pipe_config->has_audio = false;
+	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
+		pipe_config->has_audio = intel_dp->has_audio;
+	else
+		pipe_config->has_audio = intel_conn_state->force_audio == HDMI_AUDIO_ON;
 
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
@@ -1668,10 +1664,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 		if (HAS_GMCH_DISPLAY(dev_priv))
 			intel_gmch_panel_fitting(intel_crtc, pipe_config,
-						 intel_connector->panel.fitting_mode);
+						 conn_state->scaling_mode);
 		else
 			intel_pch_panel_fitting(intel_crtc, pipe_config,
-						intel_connector->panel.fitting_mode);
+						conn_state->scaling_mode);
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
@@ -1740,7 +1736,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	return false;
 
 found:
-	if (intel_dp->color_range_auto) {
+	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
 		/*
 		 * See:
 		 * CEA-861-E - 5.1 Default Encoding Parameters
@@ -1752,7 +1748,7 @@ found:
 			HDMI_QUANTIZATION_RANGE_LIMITED;
 	} else {
 		pipe_config->limited_color_range =
-			intel_dp->limited_color_range;
+			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
 	}
 
 	pipe_config->lane_count = lane_count;
@@ -2315,14 +2311,17 @@ static void _intel_edp_backlight_on(struct intel_dp *intel_dp)
 }
 
 /* Enable backlight PWM and backlight PP control. */
-void intel_edp_backlight_on(struct intel_dp *intel_dp)
+void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
+			    const struct drm_connector_state *conn_state)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(conn_state->best_encoder);
+
 	if (!is_edp(intel_dp))
 		return;
 
 	DRM_DEBUG_KMS("\n");
 
-	intel_panel_enable_backlight(intel_dp->attached_connector);
+	intel_panel_enable_backlight(crtc_state, conn_state);
 	_intel_edp_backlight_on(intel_dp);
 }
 
@@ -2354,15 +2353,17 @@ static void _intel_edp_backlight_off(struct intel_dp *intel_dp)
 }
 
 /* Disable backlight PP control and backlight PWM. */
-void intel_edp_backlight_off(struct intel_dp *intel_dp)
+void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(old_conn_state->best_encoder);
+
 	if (!is_edp(intel_dp))
 		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	_intel_edp_backlight_off(intel_dp);
-	intel_panel_disable_backlight(intel_dp->attached_connector);
+	intel_panel_disable_backlight(old_conn_state);
 }
 
 /*
@@ -2658,7 +2659,7 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
 	intel_edp_panel_vdd_on(intel_dp);
-	intel_edp_backlight_off(intel_dp);
+	intel_edp_backlight_off(old_conn_state);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	intel_edp_panel_off(intel_dp);
 
@@ -2872,10 +2873,8 @@ static void g4x_enable_dp(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config,
 			  struct drm_connector_state *conn_state)
 {
-	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
-
 	intel_enable_dp(encoder, pipe_config, conn_state);
-	intel_edp_backlight_on(intel_dp);
+	intel_edp_backlight_on(pipe_config, conn_state);
 }
 
 static void vlv_enable_dp(struct intel_encoder *encoder,
@@ -2884,7 +2883,7 @@ static void vlv_enable_dp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	intel_edp_backlight_on(intel_dp);
+	intel_edp_backlight_on(pipe_config, conn_state);
 	intel_psr_enable(intel_dp);
 }
 
@@ -3466,7 +3465,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	if (HAS_DDI(dev_priv)) {
 		signal_levels = ddi_signal_levels(intel_dp);
 
-		if (IS_GEN9_LP(dev_priv))
+		if (IS_GEN9_LP(dev_priv) || IS_CANNONLAKE(dev_priv))
 			signal_levels = 0;
 		else
 			mask = DDI_BUF_EMP_MASK;
@@ -4587,10 +4586,7 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	edid = intel_dp_get_edid(intel_dp);
 	intel_connector->detect_edid = edid;
 
-	if (intel_dp->force_audio != HDMI_AUDIO_AUTO)
-		intel_dp->has_audio = intel_dp->force_audio == HDMI_AUDIO_ON;
-	else
-		intel_dp->has_audio = drm_detect_monitor_audio(edid);
+	intel_dp->has_audio = drm_detect_monitor_audio(edid);
 }
 
 static void
@@ -4799,112 +4795,6 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static bool
-intel_dp_detect_audio(struct drm_connector *connector)
-{
-	bool has_audio = false;
-	struct edid *edid;
-
-	edid = to_intel_connector(connector)->detect_edid;
-	if (edid)
-		has_audio = drm_detect_monitor_audio(edid);
-
-	return has_audio;
-}
-
-static int
-intel_dp_set_property(struct drm_connector *connector,
-		      struct drm_property *property,
-		      uint64_t val)
-{
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
-	int ret;
-
-	ret = drm_object_property_set_value(&connector->base, property, val);
-	if (ret)
-		return ret;
-
-	if (property == dev_priv->force_audio_property) {
-		int i = val;
-		bool has_audio;
-
-		if (i == intel_dp->force_audio)
-			return 0;
-
-		intel_dp->force_audio = i;
-
-		if (i == HDMI_AUDIO_AUTO)
-			has_audio = intel_dp_detect_audio(connector);
-		else
-			has_audio = (i == HDMI_AUDIO_ON);
-
-		if (has_audio == intel_dp->has_audio)
-			return 0;
-
-		intel_dp->has_audio = has_audio;
-		goto done;
-	}
-
-	if (property == dev_priv->broadcast_rgb_property) {
-		bool old_auto = intel_dp->color_range_auto;
-		bool old_range = intel_dp->limited_color_range;
-
-		switch (val) {
-		case INTEL_BROADCAST_RGB_AUTO:
-			intel_dp->color_range_auto = true;
-			break;
-		case INTEL_BROADCAST_RGB_FULL:
-			intel_dp->color_range_auto = false;
-			intel_dp->limited_color_range = false;
-			break;
-		case INTEL_BROADCAST_RGB_LIMITED:
-			intel_dp->color_range_auto = false;
-			intel_dp->limited_color_range = true;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		if (old_auto == intel_dp->color_range_auto &&
-		    old_range == intel_dp->limited_color_range)
-			return 0;
-
-		goto done;
-	}
-
-	if (is_edp(intel_dp) &&
-	    property == connector->dev->mode_config.scaling_mode_property) {
-		if (val == DRM_MODE_SCALE_NONE) {
-			DRM_DEBUG_KMS("no scaling not supported\n");
-			return -EINVAL;
-		}
-		if (HAS_GMCH_DISPLAY(dev_priv) &&
-		    val == DRM_MODE_SCALE_CENTER) {
-			DRM_DEBUG_KMS("centering not supported\n");
-			return -EINVAL;
-		}
-
-		if (intel_connector->panel.fitting_mode == val) {
-			/* the eDP scaling property is not changed */
-			return 0;
-		}
-		intel_connector->panel.fitting_mode = val;
-
-		goto done;
-	}
-
-	return -EINVAL;
-
-done:
-	if (intel_encoder->base.crtc)
-		intel_crtc_restore_mode(intel_encoder->base.crtc);
-
-	return 0;
-}
-
 static int
 intel_dp_connector_register(struct drm_connector *connector)
 {
@@ -5063,19 +4953,21 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.force = intel_dp_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_dp_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
+	.atomic_get_property = intel_digital_connector_atomic_get_property,
+	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_dp_connector_register,
 	.early_unregister = intel_dp_connector_unregister,
 	.destroy = intel_dp_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
 static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs = {
 	.detect_ctx = intel_dp_detect,
 	.get_modes = intel_dp_get_modes,
 	.mode_valid = intel_dp_mode_valid,
+	.atomic_check = intel_digital_connector_atomic_check,
 };
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
@@ -5169,19 +5061,22 @@ bool intel_dp_is_edp(struct drm_i915_private *dev_priv, enum port port)
 static void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
-	intel_dp->color_range_auto = true;
 
 	if (is_edp(intel_dp)) {
-		drm_mode_create_scaling_mode_property(connector->dev);
-		drm_object_attach_property(
-			&connector->base,
-			connector->dev->mode_config.scaling_mode_property,
-			DRM_MODE_SCALE_ASPECT);
-		intel_connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
+		u32 allowed_scalers;
+
+		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
+		if (!HAS_GMCH_DISPLAY(dev_priv))
+			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+
+		drm_connector_attach_scaling_mode_property(connector, allowed_scalers);
+
+		connector->state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+
 	}
 }
 
@@ -5207,7 +5102,7 @@ intel_pps_readout_hw_state(struct drm_i915_private *dev_priv,
 
 	pp_on = I915_READ(regs.pp_on);
 	pp_off = I915_READ(regs.pp_off);
-	if (!IS_GEN9_LP(dev_priv)) {
+	if (!IS_GEN9_LP(dev_priv) && !HAS_PCH_CNP(dev_priv)) {
 		I915_WRITE(regs.pp_ctrl, pp_ctl);
 		pp_div = I915_READ(regs.pp_div);
 	}
@@ -5225,7 +5120,7 @@ intel_pps_readout_hw_state(struct drm_i915_private *dev_priv,
 	seq->t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
 		   PANEL_POWER_DOWN_DELAY_SHIFT;
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv)) {
 		u16 tmp = (pp_ctl & BXT_POWER_CYCLE_DELAY_MASK) >>
 			BXT_POWER_CYCLE_DELAY_SHIFT;
 		if (tmp > 0)
@@ -5382,7 +5277,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		 (seq->t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
 	/* Compute the divisor for the pp clock, simply match the Bspec
 	 * formula. */
-	if (IS_GEN9_LP(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv)) {
 		pp_div = I915_READ(regs.pp_ctrl);
 		pp_div &= ~BXT_POWER_CYCLE_DELAY_MASK;
 		pp_div |= (DIV_ROUND_UP((seq->t11_t12 + 1), 1000)
@@ -5408,7 +5303,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 
 	I915_WRITE(regs.pp_on, pp_on);
 	I915_WRITE(regs.pp_off, pp_off);
-	if (IS_GEN9_LP(dev_priv))
+	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv))
 		I915_WRITE(regs.pp_ctrl, pp_div);
 	else
 		I915_WRITE(regs.pp_div, pp_div);
@@ -5416,7 +5311,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
 		      I915_READ(regs.pp_on),
 		      I915_READ(regs.pp_off),
-		      IS_GEN9_LP(dev_priv) ?
+		      (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv)) ?
 		      (I915_READ(regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK) :
 		      I915_READ(regs.pp_div));
 }
