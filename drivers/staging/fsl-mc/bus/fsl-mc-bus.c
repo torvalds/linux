@@ -82,7 +82,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	 * If the object is not 'plugged' don't match.
 	 * Only exception is the root DPRC, which is a special case.
 	 */
-	if ((mc_dev->obj_desc.state & DPRC_OBJ_STATE_PLUGGED) == 0 &&
+	if ((mc_dev->obj_desc.state & FSL_MC_OBJ_STATE_PLUGGED) == 0 &&
 	    !fsl_mc_is_root_dprc(&mc_dev->dev))
 		goto out;
 
@@ -339,7 +339,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 	int i;
 	int error;
 	struct resource *regions;
-	struct dprc_obj_desc *obj_desc = &mc_dev->obj_desc;
+	struct fsl_mc_obj_desc *obj_desc = &mc_dev->obj_desc;
 	struct device *parent_dev = mc_dev->dev.parent;
 	enum dprc_region_type mc_region_type;
 
@@ -432,7 +432,7 @@ static void fsl_mc_device_release(struct device *dev)
 /**
  * Add a newly discovered fsl-mc device to be visible in Linux
  */
-int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
+int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		      struct fsl_mc_io *mc_io,
 		      struct device *parent_dev,
 		      struct fsl_mc_device **new_mc_dev)
@@ -534,7 +534,7 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 	}
 
 	/* Objects are coherent, unless 'no shareability' flag set. */
-	if (!(obj_desc->flags & DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY))
+	if (!(obj_desc->flags & FSL_MC_OBJ_FLAG_NO_MEM_SHAREABILITY))
 		arch_setup_dma_ops(&mc_dev->dev, 0, 0, NULL, true);
 
 	/*
@@ -687,7 +687,7 @@ static int get_mc_addr_translation_ranges(struct device *dev,
  */
 static int fsl_mc_bus_probe(struct platform_device *pdev)
 {
-	struct dprc_obj_desc obj_desc;
+	struct fsl_mc_obj_desc obj_desc;
 	int error;
 	struct fsl_mc *mc;
 	struct fsl_mc_device *mc_bus_dev = NULL;
@@ -746,7 +746,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 		goto error_cleanup_mc_io;
 	}
 
-	memset(&obj_desc, 0, sizeof(struct dprc_obj_desc));
+	memset(&obj_desc, 0, sizeof(struct fsl_mc_obj_desc));
 	error = dprc_get_api_version(mc_io, 0,
 				     &obj_desc.ver_major,
 				     &obj_desc.ver_minor);

@@ -21,13 +21,13 @@
 
 #define FSL_MC_DPRC_DRIVER_NAME    "fsl_mc_dprc"
 
-struct dprc_child_objs {
+struct fsl_mc_child_objs {
 	int child_count;
-	struct dprc_obj_desc *child_array;
+	struct fsl_mc_obj_desc *child_array;
 };
 
 static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
-				struct dprc_obj_desc *obj_desc)
+				struct fsl_mc_obj_desc *obj_desc)
 {
 	return mc_dev->obj_desc.id == obj_desc->id &&
 	       !strcmp(mc_dev->obj_desc.type, obj_desc->type);
@@ -37,7 +37,7 @@ static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
 static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
 {
 	int i;
-	struct dprc_child_objs *objs;
+	struct fsl_mc_child_objs *objs;
 	struct fsl_mc_device *mc_dev;
 
 	WARN_ON(!dev);
@@ -46,7 +46,7 @@ static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
 	objs = data;
 
 	for (i = 0; i < objs->child_count; i++) {
-		struct dprc_obj_desc *obj_desc = &objs->child_array[i];
+		struct fsl_mc_obj_desc *obj_desc = &objs->child_array[i];
 
 		if (strlen(obj_desc->type) != 0 &&
 		    fsl_mc_device_match(mc_dev, obj_desc))
@@ -80,7 +80,7 @@ static int __fsl_mc_device_remove(struct device *dev, void *data)
  * been dynamically removed in the physical DPRC.
  */
 static void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
-				struct dprc_obj_desc *obj_desc_array,
+				struct fsl_mc_obj_desc *obj_desc_array,
 				int num_child_objects_in_mc)
 {
 	if (num_child_objects_in_mc != 0) {
@@ -88,7 +88,7 @@ static void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
 		 * Remove child objects that are in the DPRC in Linux,
 		 * but not in the MC:
 		 */
-		struct dprc_child_objs objs;
+		struct fsl_mc_child_objs objs;
 
 		objs.child_count = num_child_objects_in_mc;
 		objs.child_array = obj_desc_array;
@@ -106,13 +106,13 @@ static void dprc_remove_devices(struct fsl_mc_device *mc_bus_dev,
 
 static int __fsl_mc_device_match(struct device *dev, void *data)
 {
-	struct dprc_obj_desc *obj_desc = data;
+	struct fsl_mc_obj_desc *obj_desc = data;
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 
 	return fsl_mc_device_match(mc_dev, obj_desc);
 }
 
-static struct fsl_mc_device *fsl_mc_device_lookup(struct dprc_obj_desc
+static struct fsl_mc_device *fsl_mc_device_lookup(struct fsl_mc_obj_desc
 								*obj_desc,
 						  struct fsl_mc_device
 								*mc_bus_dev)
@@ -137,16 +137,16 @@ static struct fsl_mc_device *fsl_mc_device_lookup(struct dprc_obj_desc
  * device is unbound from the corresponding device driver.
  */
 static void check_plugged_state_change(struct fsl_mc_device *mc_dev,
-				       struct dprc_obj_desc *obj_desc)
+				       struct fsl_mc_obj_desc *obj_desc)
 {
 	int error;
 	u32 plugged_flag_at_mc =
-			obj_desc->state & DPRC_OBJ_STATE_PLUGGED;
+			obj_desc->state & FSL_MC_OBJ_STATE_PLUGGED;
 
 	if (plugged_flag_at_mc !=
-	    (mc_dev->obj_desc.state & DPRC_OBJ_STATE_PLUGGED)) {
+	    (mc_dev->obj_desc.state & FSL_MC_OBJ_STATE_PLUGGED)) {
 		if (plugged_flag_at_mc) {
-			mc_dev->obj_desc.state |= DPRC_OBJ_STATE_PLUGGED;
+			mc_dev->obj_desc.state |= FSL_MC_OBJ_STATE_PLUGGED;
 			error = device_attach(&mc_dev->dev);
 			if (error < 0) {
 				dev_err(&mc_dev->dev,
@@ -154,7 +154,7 @@ static void check_plugged_state_change(struct fsl_mc_device *mc_dev,
 					error);
 			}
 		} else {
-			mc_dev->obj_desc.state &= ~DPRC_OBJ_STATE_PLUGGED;
+			mc_dev->obj_desc.state &= ~FSL_MC_OBJ_STATE_PLUGGED;
 			device_release_driver(&mc_dev->dev);
 		}
 	}
@@ -173,7 +173,7 @@ static void check_plugged_state_change(struct fsl_mc_device *mc_dev,
  * in the physical DPRC.
  */
 static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
-				 struct dprc_obj_desc *obj_desc_array,
+				 struct fsl_mc_obj_desc *obj_desc_array,
 				 int num_child_objects_in_mc)
 {
 	int error;
@@ -181,7 +181,7 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 
 	for (i = 0; i < num_child_objects_in_mc; i++) {
 		struct fsl_mc_device *child_dev;
-		struct dprc_obj_desc *obj_desc = &obj_desc_array[i];
+		struct fsl_mc_obj_desc *obj_desc = &obj_desc_array[i];
 
 		if (strlen(obj_desc->type) == 0)
 			continue;
@@ -228,7 +228,7 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 	int dprc_get_obj_failures;
 	int error;
 	unsigned int irq_count = mc_bus_dev->obj_desc.irq_count;
-	struct dprc_obj_desc *child_obj_desc_array = NULL;
+	struct fsl_mc_obj_desc *child_obj_desc_array = NULL;
 
 	error = dprc_get_obj_count(mc_bus_dev->mc_io,
 				   0,
@@ -255,7 +255,7 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 		 */
 		dprc_get_obj_failures = 0;
 		for (i = 0; i < num_child_objects; i++) {
-			struct dprc_obj_desc *obj_desc =
+			struct fsl_mc_obj_desc *obj_desc =
 			    &child_obj_desc_array[i];
 
 			error = dprc_get_obj(mc_bus_dev->mc_io,
@@ -283,7 +283,7 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 			if ((strcmp(obj_desc->type, "dpseci") == 0) &&
 			    (obj_desc->ver_major < 4))
 				obj_desc->flags |=
-					DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY;
+					FSL_MC_OBJ_FLAG_NO_MEM_SHAREABILITY;
 
 			irq_count += obj_desc->irq_count;
 			dev_dbg(&mc_bus_dev->dev,

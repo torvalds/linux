@@ -104,6 +104,45 @@ struct fsl_mc_device_irq {
 #define to_fsl_mc_irq(_mc_resource) \
 	container_of(_mc_resource, struct fsl_mc_device_irq, resource)
 
+/* Opened state - Indicates that an object is open by at least one owner */
+#define FSL_MC_OBJ_STATE_OPEN		0x00000001
+/* Plugged state - Indicates that the object is plugged */
+#define FSL_MC_OBJ_STATE_PLUGGED	0x00000002
+
+/**
+ * Shareability flag - Object flag indicating no memory shareability.
+ * the object generates memory accesses that are non coherent with other
+ * masters;
+ * user is responsible for proper memory handling through IOMMU configuration.
+ */
+#define FSL_MC_OBJ_FLAG_NO_MEM_SHAREABILITY	0x0001
+
+/**
+ * struct fsl_mc_obj_desc - Object descriptor
+ * @type: Type of object: NULL terminated string
+ * @id: ID of logical object resource
+ * @vendor: Object vendor identifier
+ * @ver_major: Major version number
+ * @ver_minor:  Minor version number
+ * @irq_count: Number of interrupts supported by the object
+ * @region_count: Number of mappable regions supported by the object
+ * @state: Object state: combination of FSL_MC_OBJ_STATE_ states
+ * @label: Object label: NULL terminated string
+ * @flags: Object's flags
+ */
+struct fsl_mc_obj_desc {
+	char type[16];
+	int id;
+	u16 vendor;
+	u16 ver_major;
+	u16 ver_minor;
+	u8 irq_count;
+	u8 region_count;
+	u32 state;
+	char label[16];
+	u16 flags;
+};
+
 /**
  * Bit masks for a MC object device (struct fsl_mc_device) flags
  */
@@ -150,7 +189,7 @@ struct fsl_mc_device {
 	u16 icid;
 	u16 mc_handle;
 	struct fsl_mc_io *mc_io;
-	struct dprc_obj_desc obj_desc;
+	struct fsl_mc_obj_desc obj_desc;
 	struct resource *regions;
 	struct fsl_mc_device_irq **irqs;
 	struct fsl_mc_resource *resource;
