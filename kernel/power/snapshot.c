@@ -1929,8 +1929,7 @@ static inline unsigned int alloc_highmem_pages(struct memory_bitmap *bm,
  * also be located in the high memory, because of the way in which
  * copy_data_pages() works.
  */
-static int swsusp_alloc(struct memory_bitmap *orig_bm,
-			struct memory_bitmap *copy_bm,
+static int swsusp_alloc(struct memory_bitmap *copy_bm,
 			unsigned int nr_pages, unsigned int nr_highmem)
 {
 	if (nr_highmem > 0) {
@@ -1976,7 +1975,7 @@ asmlinkage __visible int swsusp_save(void)
 		return -ENOMEM;
 	}
 
-	if (swsusp_alloc(&orig_bm, &copy_bm, nr_pages, nr_highmem)) {
+	if (swsusp_alloc(&copy_bm, nr_pages, nr_highmem)) {
 		printk(KERN_ERR "PM: Memory allocation failed\n");
 		return -ENOMEM;
 	}
