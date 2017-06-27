@@ -2714,7 +2714,7 @@ static int its_force_quiescent(void __iomem *base)
 		return 0;
 
 	/* Disable the generation of all interrupts to this ITS */
-	val &= ~GITS_CTLR_ENABLE;
+	val &= ~(GITS_CTLR_ENABLE | GITS_CTLR_ImDe);
 	writel_relaxed(val, base + GITS_CTLR);
 
 	/* Poll GITS_CTLR and wait until ITS becomes quiescent */
@@ -2998,7 +2998,10 @@ static int __init its_probe_one(struct resource *res,
 
 	gits_write_cwriter(0, its->base + GITS_CWRITER);
 	ctlr = readl_relaxed(its->base + GITS_CTLR);
-	writel_relaxed(ctlr | GITS_CTLR_ENABLE, its->base + GITS_CTLR);
+	ctlr |= GITS_CTLR_ENABLE;
+	if (its->is_v4)
+		ctlr |= GITS_CTLR_ImDe;
+	writel_relaxed(ctlr, its->base + GITS_CTLR);
 
 	err = its_init_domain(handle, its);
 	if (err)
