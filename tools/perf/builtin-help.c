@@ -245,8 +245,10 @@ static int add_man_viewer_info(const char *var, const char *value)
 	const char *name = var + 4;
 	const char *subkey = strrchr(name, '.');
 
-	if (!subkey)
-		return error("Config with no key for man viewer: %s", name);
+	if (!subkey) {
+		pr_err("Config with no key for man viewer: %s", name);
+		return -1;
+	}
 
 	if (!strcmp(subkey, ".path")) {
 		if (!value)
@@ -330,7 +332,7 @@ static void setup_man_path(void)
 		setenv("MANPATH", new_path, 1);
 		free(new_path);
 	} else {
-		error("Unable to setup man path");
+		pr_err("Unable to setup man path");
 	}
 }
 

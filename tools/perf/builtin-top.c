@@ -958,7 +958,7 @@ static int __cmd_top(struct perf_top *top)
 
 	ret = perf_evlist__apply_drv_configs(evlist, &pos, &err_term);
 	if (ret) {
-		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set config \"%s\" on event %s with %d (%s)\n",
 			err_term->val.drv_cfg, perf_evsel__name(pos), errno,
 			str_error_r(errno, msg, sizeof(msg)));
 		goto out_delete;

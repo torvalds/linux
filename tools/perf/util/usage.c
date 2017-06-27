@@ -28,15 +28,9 @@ static __noreturn void die_builtin(const char *err, va_list params)
 	exit(128);
 }
 
-static void error_builtin(const char *err, va_list params)
-{
-	report(" Error: ", err, params);
-}
-
 /* If we are in a dlopen()ed .so write to a global variable would segfault
  * (ugh), so keep things static. */
 static void (*usage_routine)(const char *err) __noreturn = usage_builtin;
-static void (*error_routine)(const char *err, va_list params) = error_builtin;
 
 void usage(const char *err)
 {
@@ -50,14 +44,4 @@ void die(const char *err, ...)
 	va_start(params, err);
 	die_builtin(err, params);
 	va_end(params);
-}
-
-int error(const char *err, ...)
-{
-	va_list params;
-
-	va_start(params, err);
-	error_routine(err, params);
-	va_end(params);
-	return -1;
 }

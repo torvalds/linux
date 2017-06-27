@@ -793,7 +793,8 @@ void perf_config_set__delete(struct perf_config_set *set)
  */
 int config_error_nonbool(const char *var)
 {
-	return error("Missing value for '%s'", var);
+	pr_err("Missing value for '%s'", var);
+	return -1;
 }
 
 void set_buildid_dir(const char *dir)
