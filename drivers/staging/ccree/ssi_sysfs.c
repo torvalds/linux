@@ -285,7 +285,7 @@ static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 {
 	struct ssi_drvdata *drvdata = sys_get_drvdata();
 	u32 register_value;
-	void __iomem* cc_base = drvdata->cc_base;
+	void __iomem *cc_base = drvdata->cc_base;
 	int offset = 0;
 
 	register_value = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_SIGNATURE));
@@ -304,7 +304,7 @@ static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 static ssize_t ssi_sys_help_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	char* help_str[] = {
+	char *help_str[] = {
 				"cat reg_dump              ", "Print several of CC register values",
 		#if defined CC_CYCLE_COUNT
 				"cat stats_host            ", "Print host statistics",

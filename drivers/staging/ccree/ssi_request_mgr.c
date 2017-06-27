@@ -452,7 +452,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 {
 	struct ssi_crypto_req *ssi_req;
 	struct platform_device *plat_dev = drvdata->plat_dev;
-	struct ssi_request_mgr_handle * request_mgr_handle =
+	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 	int rc = 0;
@@ -511,7 +511,7 @@ static void comp_handler(unsigned long devarg)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
 	void __iomem *cc_base = drvdata->cc_base;
-	struct ssi_request_mgr_handle * request_mgr_handle =
+	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
 	u32 irq;
@@ -559,7 +559,7 @@ static void comp_handler(unsigned long devarg)
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle * request_mgr_handle = drvdata->request_mgr_handle;
+	struct ssi_request_mgr_handle *request_mgr_handle = drvdata->request_mgr_handle;
 
 	spin_lock_bh(&request_mgr_handle->hw_lock);
 	request_mgr_handle->is_runtime_suspended = false;
@@ -574,7 +574,7 @@ int ssi_request_mgr_runtime_resume_queue(struct ssi_drvdata *drvdata)
  */
 int ssi_request_mgr_runtime_suspend_queue(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle * request_mgr_handle =
+	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
 	/* lock the send_request */
@@ -592,7 +592,7 @@ int ssi_request_mgr_runtime_suspend_queue(struct ssi_drvdata *drvdata)
 
 bool ssi_request_mgr_is_queue_runtime_suspend(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle * request_mgr_handle =
+	struct ssi_request_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
 	return	request_mgr_handle->is_runtime_suspended;

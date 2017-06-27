@@ -268,11 +268,11 @@ static const u8 zero_buff[] = {	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 static int ssi_fips_verify_3des_keys(const u8 *key, unsigned int keylen)
 {
 #ifdef CCREE_FIPS_SUPPORT
-	tdes_keys_t *tdes_key = (tdes_keys_t*)key;
+	tdes_keys_t *tdes_key = (tdes_keys_t *)key;
 
 	/* verify key1 != key2 and key3 != key2*/
-	if (unlikely((memcmp((u8*)tdes_key->key1, (u8*)tdes_key->key2, sizeof(tdes_key->key1)) == 0) ||
-		      (memcmp((u8*)tdes_key->key3, (u8*)tdes_key->key2, sizeof(tdes_key->key3)) == 0))) {
+	if (unlikely((memcmp((u8 *)tdes_key->key1, (u8 *)tdes_key->key2, sizeof(tdes_key->key1)) == 0) ||
+		      (memcmp((u8 *)tdes_key->key3, (u8 *)tdes_key->key2, sizeof(tdes_key->key3)) == 0))) {
 		return -ENOEXEC;
 	}
 #endif /* CCREE_FIPS_SUPPORT */
@@ -342,7 +342,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 
 	if (ssi_is_hw_key(tfm)) {
 		/* setting HW key slots */
-		struct arm_hw_key_info *hki = (struct arm_hw_key_info*)key;
+		struct arm_hw_key_info *hki = (struct arm_hw_key_info *)key;
 
 		if (unlikely(ctx_p->flow_mode != S_DIN_to_AES)) {
 			SSI_LOG_ERR("HW key not supported for non-AES flows\n");

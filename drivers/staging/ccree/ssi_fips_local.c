@@ -165,7 +165,7 @@ static void fips_dsr(unsigned long devarg)
 ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 {
 	ssi_fips_error_t fips_error = CC_REE_FIPS_ERROR_OK;
-	void * cpu_addr_buffer = NULL;
+	void *cpu_addr_buffer = NULL;
 	dma_addr_t dma_handle;
 	size_t alloc_buff_size = ssi_fips_max_mem_alloc_size();
 	struct device *dev = &drvdata->plat_dev->dev;

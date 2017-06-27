@@ -98,8 +98,8 @@ struct aead_req_ctx {
 	struct ssi_mlli assoc;
 	struct ssi_mlli src;
 	struct ssi_mlli dst;
-	struct scatterlist* srcSgl;
-	struct scatterlist* dstSgl;
+	struct scatterlist *srcSgl;
+	struct scatterlist *dstSgl;
 	unsigned int srcOffset;
 	unsigned int dstOffset;
 	enum ssi_req_dma_buf_type assoc_buff_type;

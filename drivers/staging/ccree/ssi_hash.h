@@ -50,9 +50,9 @@ struct aeshash_state {
 
 /* ahash state */
 struct ahash_req_ctx {
-	u8* buff0;
-	u8* buff1;
-	u8* digest_result_buff;
+	u8 *buff0;
+	u8 *buff1;
+	u8 *digest_result_buff;
 	struct async_gen_req_ctx gen_ctx;
 	enum ssi_req_dma_buf_type data_dma_buf_type;
 	u8 *digest_buff;

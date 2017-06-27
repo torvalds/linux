@@ -430,7 +430,7 @@ ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffe
 
 	for (i = 0; i < FIPS_CIPHER_NUM_OF_TESTS; ++i)
 	{
-		FipsCipherData *cipherData = (FipsCipherData*)&FipsCipherDataTable[i];
+		FipsCipherData *cipherData = (FipsCipherData *)&FipsCipherDataTable[i];
 		int rc = 0;
 		size_t iv_size = cipherData->isAes ? NIST_AES_IV_SIZE : NIST_TDES_IV_SIZE;
 
@@ -558,7 +558,7 @@ ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 
 	for (i = 0; i < FIPS_CMAC_NUM_OF_TESTS; ++i)
 	{
-		FipsCmacData *cmac_data = (FipsCmacData*)&FipsCmacDataTable[i];
+		FipsCmacData *cmac_data = (FipsCmacData *)&FipsCmacDataTable[i];
 		int rc = 0;
 
 		memset(cpu_addr_buffer, 0, sizeof(struct fips_cmac_ctx));
@@ -704,7 +704,7 @@ ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 
 	for (i = 0; i < FIPS_HASH_NUM_OF_TESTS; ++i)
 	{
-		FipsHashData *hash_data = (FipsHashData*)&FipsHashDataTable[i];
+		FipsHashData *hash_data = (FipsHashData *)&FipsHashDataTable[i];
 		int rc = 0;
 		enum drv_hash_hw_mode hw_mode = 0;
 		int digest_size = 0;
@@ -718,20 +718,20 @@ ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 			digest_size = CC_SHA1_DIGEST_SIZE;
 			inter_digestsize = CC_SHA1_DIGEST_SIZE;
 			/* copy the initial digest into the allocated cache coherent buffer */
-			memcpy(virt_ctx->initial_digest, (void*)sha1_init, CC_SHA1_DIGEST_SIZE);
+			memcpy(virt_ctx->initial_digest, (void *)sha1_init, CC_SHA1_DIGEST_SIZE);
 			break;
 		case DRV_HASH_SHA256:
 			hw_mode = DRV_HASH_HW_SHA256;
 			digest_size = CC_SHA256_DIGEST_SIZE;
 			inter_digestsize = CC_SHA256_DIGEST_SIZE;
-			memcpy(virt_ctx->initial_digest, (void*)sha256_init, CC_SHA256_DIGEST_SIZE);
+			memcpy(virt_ctx->initial_digest, (void *)sha256_init, CC_SHA256_DIGEST_SIZE);
 			break;
 #if (CC_SUPPORT_SHA > 256)
 		case DRV_HASH_SHA512:
 			hw_mode = DRV_HASH_HW_SHA512;
 			digest_size = CC_SHA512_DIGEST_SIZE;
 			inter_digestsize = CC_SHA512_DIGEST_SIZE;
-			memcpy(virt_ctx->initial_digest, (void*)sha512_init, CC_SHA512_DIGEST_SIZE);
+			memcpy(virt_ctx->initial_digest, (void *)sha512_init, CC_SHA512_DIGEST_SIZE);
 			break;
 #endif
 		default:
@@ -1024,7 +1024,7 @@ ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 
 	for (i = 0; i < FIPS_HMAC_NUM_OF_TESTS; ++i)
 	{
-		FipsHmacData *hmac_data = (FipsHmacData*)&FipsHmacDataTable[i];
+		FipsHmacData *hmac_data = (FipsHmacData *)&FipsHmacDataTable[i];
 		int rc = 0;
 		enum drv_hash_hw_mode hw_mode = 0;
 		int digest_size = 0;
@@ -1039,7 +1039,7 @@ ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 			digest_size = CC_SHA1_DIGEST_SIZE;
 			block_size = CC_SHA1_BLOCK_SIZE;
 			inter_digestsize = CC_SHA1_DIGEST_SIZE;
-			memcpy(virt_ctx->initial_digest, (void*)sha1_init, CC_SHA1_DIGEST_SIZE);
+			memcpy(virt_ctx->initial_digest, (void *)sha1_init, CC_SHA1_DIGEST_SIZE);
 			memcpy(virt_ctx->digest_bytes_len, digest_len_init, HASH_LEN_SIZE);
 			break;
 		case DRV_HASH_SHA256:
@@ -1047,7 +1047,7 @@ ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 			digest_size = CC_SHA256_DIGEST_SIZE;
 			block_size = CC_SHA256_BLOCK_SIZE;
 			inter_digestsize = CC_SHA256_DIGEST_SIZE;
-			memcpy(virt_ctx->initial_digest, (void*)sha256_init, CC_SHA256_DIGEST_SIZE);
+			memcpy(virt_ctx->initial_digest, (void *)sha256_init, CC_SHA256_DIGEST_SIZE);
 			memcpy(virt_ctx->digest_bytes_len, digest_len_init, HASH_LEN_SIZE);
 			break;
 #if (CC_SUPPORT_SHA > 256)
@@ -1056,7 +1056,7 @@ ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 			digest_size = CC_SHA512_DIGEST_SIZE;
 			block_size = CC_SHA512_BLOCK_SIZE;
 			inter_digestsize = CC_SHA512_DIGEST_SIZE;
-			memcpy(virt_ctx->initial_digest, (void*)sha512_init, CC_SHA512_DIGEST_SIZE);
+			memcpy(virt_ctx->initial_digest, (void *)sha512_init, CC_SHA512_DIGEST_SIZE);
 			memcpy(virt_ctx->digest_bytes_len, digest_len_sha512_init, HASH_LEN_SIZE);
 			break;
 #endif
@@ -1266,7 +1266,7 @@ ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 
 	for (i = 0; i < FIPS_CCM_NUM_OF_TESTS; ++i)
 	{
-		FipsCcmData *ccmData = (FipsCcmData*)&FipsCcmDataTable[i];
+		FipsCcmData *ccmData = (FipsCcmData *)&FipsCcmDataTable[i];
 		int rc = 0;
 
 		memset(cpu_addr_buffer, 0, sizeof(struct fips_ccm_ctx));
@@ -1566,7 +1566,7 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 
 	for (i = 0; i < FIPS_GCM_NUM_OF_TESTS; ++i)
 	{
-		FipsGcmData *gcmData = (FipsGcmData*)&FipsGcmDataTable[i];
+		FipsGcmData *gcmData = (FipsGcmData *)&FipsGcmDataTable[i];
 		int rc = 0;
 
 		memset(cpu_addr_buffer, 0, sizeof(struct fips_gcm_ctx));

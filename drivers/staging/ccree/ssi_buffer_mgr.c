@@ -66,7 +66,7 @@ struct buffer_array {
 	int total_data_len[MAX_NUM_OF_BUFFERS_IN_MLLI];
 	enum dma_buffer_type type[MAX_NUM_OF_BUFFERS_IN_MLLI];
 	bool is_last[MAX_NUM_OF_BUFFERS_IN_MLLI];
-	u32 * mlli_nents[MAX_NUM_OF_BUFFERS_IN_MLLI];
+	u32 *mlli_nents[MAX_NUM_OF_BUFFERS_IN_MLLI];
 };
 
 /**
@@ -409,7 +409,7 @@ static int ssi_buffer_mgr_map_scatterlist(
 static inline int
 ssi_aead_handle_config_buf(struct device *dev,
 	struct aead_req_ctx *areq_ctx,
-	u8* config_data,
+	u8 *config_data,
 	struct buffer_array *sg_data,
 	unsigned int assoclen)
 {
@@ -444,7 +444,7 @@ ssi_aead_handle_config_buf(struct device *dev,
 
 static inline int ssi_ahash_handle_curr_buf(struct device *dev,
 					   struct ahash_req_ctx *areq_ctx,
-					   u8* curr_buff,
+					   u8 *curr_buff,
 					   u32 curr_buff_cnt,
 					   struct buffer_array *sg_data)
 {
@@ -1460,7 +1460,7 @@ int ssi_buffer_mgr_map_hash_request_final(
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = &drvdata->plat_dev->dev;
-	u8* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
+	u8 *curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
 			areq_ctx->buff0;
 	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
 			&areq_ctx->buff0_cnt;
@@ -1551,11 +1551,11 @@ int ssi_buffer_mgr_map_hash_request_update(
 {
 	struct ahash_req_ctx *areq_ctx = (struct ahash_req_ctx *)ctx;
 	struct device *dev = &drvdata->plat_dev->dev;
-	u8* curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
+	u8 *curr_buff = areq_ctx->buff_index ? areq_ctx->buff1 :
 			areq_ctx->buff0;
 	u32 *curr_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff1_cnt :
 			&areq_ctx->buff0_cnt;
-	u8* next_buff = areq_ctx->buff_index ? areq_ctx->buff0 :
+	u8 *next_buff = areq_ctx->buff_index ? areq_ctx->buff0 :
 			areq_ctx->buff1;
 	u32 *next_buff_cnt = areq_ctx->buff_index ? &areq_ctx->buff0_cnt :
 			&areq_ctx->buff1_cnt;

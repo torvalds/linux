@@ -1358,7 +1358,7 @@ fail:
 static int ssi_ahash_cra_init(struct crypto_tfm *tfm)
 {
 	struct ssi_hash_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct hash_alg_common * hash_alg_common =
+	struct hash_alg_common *hash_alg_common =
 		container_of(tfm->__crt_alg, struct hash_alg_common, base);
 	struct ahash_alg *ahash_alg =
 		container_of(hash_alg_common, struct ahash_alg, halg);
