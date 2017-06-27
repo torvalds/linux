@@ -20,11 +20,12 @@
 #include <linux/bitops.h>
 #include <linux/msi.h>
 #include <linux/dma-mapping.h>
-#include "../include/dpmng.h"
 #include "../include/mc-sys.h"
+#include "../include/mc-cmd.h"
 
 #include "fsl-mc-private.h"
 #include "dprc-cmd.h"
+#include "dpmng-cmd.h"
 
 /**
  * Default DMA mask for devices on a fsl-mc bus
@@ -57,6 +58,20 @@ struct fsl_mc_addr_translation_range {
 	u64 start_mc_offset;
 	u64 end_mc_offset;
 	phys_addr_t start_phys_addr;
+};
+
+/**
+ * struct mc_version
+ * @major: Major version number: incremented on API compatibility changes
+ * @minor: Minor version number: incremented on API additions (that are
+ *		backward compatible); reset when major version is incremented
+ * @revision: Internal revision number: incremented on implementation changes
+ *		and/or bug fixes that have no impact on API
+ */
+struct mc_version {
+	u32 major;
+	u32 minor;
+	u32 revision;
 };
 
 /**
@@ -236,6 +251,42 @@ void fsl_mc_driver_unregister(struct fsl_mc_driver *mc_driver)
 	driver_unregister(&mc_driver->driver);
 }
 EXPORT_SYMBOL_GPL(fsl_mc_driver_unregister);
+
+/**
+ * mc_get_version() - Retrieves the Management Complex firmware
+ *			version information
+ * @mc_io:		Pointer to opaque I/O object
+ * @cmd_flags:		Command flags; one or more of 'MC_CMD_FLAG_'
+ * @mc_ver_info:	Returned version information structure
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+static int mc_get_version(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  struct mc_version *mc_ver_info)
+{
+	struct mc_command cmd = { 0 };
+	struct dpmng_rsp_get_version *rsp_params;
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPMNG_CMDID_GET_VERSION,
+					  cmd_flags,
+					  0);
+
+	/* send command to mc*/
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	rsp_params = (struct dpmng_rsp_get_version *)cmd.params;
+	mc_ver_info->revision = le32_to_cpu(rsp_params->revision);
+	mc_ver_info->major = le32_to_cpu(rsp_params->version_major);
+	mc_ver_info->minor = le32_to_cpu(rsp_params->version_minor);
+
+	return 0;
+}
 
 /**
  * fsl_mc_get_root_dprc - function to traverse to the root dprc
