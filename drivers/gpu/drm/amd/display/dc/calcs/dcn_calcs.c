@@ -95,6 +95,9 @@ const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		.vmm_page_size = 4096, /*bytes*/
 		.return_bus_width = 64, /*bytes*/
 		.max_request_size = 256, /*bytes*/
+
+		/* Depends on user class (client vs embedded, workstation, etc) */
+		.percent_disp_bw_limit = 0.3f /*%*/
 };
 
 const struct dcn_ip_params dcn10_ip_defaults = {
@@ -695,6 +698,8 @@ bool dcn_validate_bandwidth(
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;
 	int i, input_idx;
 	int vesa_sync_start, asic_blank_end, asic_blank_start;
+	bool bw_limit_pass;
+	float bw_limit;
 
 	if (dcn_bw_apply_registry_override(DC_TO_CORE(&dc->public)))
 		dcn_bw_sync_calcs_and_dml(DC_TO_CORE(&dc->public));
@@ -1072,8 +1077,19 @@ bool dcn_validate_bandwidth(
 		dc_core->dml.soc.sr_exit_time_us = dc_core->dcn_soc.sr_exit_time;
 	}
 
+	/*
+	 * BW limit is set to prevent display from impacting other system functions
+	 */
+
+	bw_limit = dc->dcn_soc.percent_disp_bw_limit * v->fabric_and_dram_bandwidth_vmax0p9;
+	bw_limit_pass = (v->total_data_read_bandwidth / 1000.0) < bw_limit;
+
 	kernel_fpu_end();
-	return v->voltage_level != 5;
+
+	if (bw_limit_pass && v->voltage_level != 5)
+		return true;
+	else
+		return false;
 }
 
 unsigned int dcn_find_normalized_clock_vdd_Level(

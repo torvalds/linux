@@ -572,6 +572,7 @@ struct dcn_soc_bounding_box {
 	int vmm_page_size; /*bytes*/
 	float dram_clock_change_latency; /*us*/
 	int return_bus_width; /*bytes*/
+	float percent_disp_bw_limit; /*%*/
 };
 extern const struct dcn_soc_bounding_box dcn10_soc_defaults;
 
