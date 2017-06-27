@@ -115,7 +115,6 @@ int ssi_power_mgr_runtime_put_suspend(struct device *dev)
 		BUG();
 	}
 	return rc;
-
 }
 
 #endif

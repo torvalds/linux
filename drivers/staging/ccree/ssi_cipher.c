@@ -104,7 +104,6 @@ static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size) {
 #endif
 	default:
 		break;
-
 	}
 	return -EINVAL;
 }
@@ -158,7 +157,6 @@ static int validate_data_size(struct ssi_ablkcipher_ctx *ctx_p, unsigned int siz
 #endif /*SSI_CC_HAS_MULTI2*/
 	default:
 		break;
-
 	}
 	return -EINVAL;
 }
@@ -498,7 +496,6 @@ ssi_blkcipher_create_setup_desc(
 		set_cipher_mode(&desc[*seq_size], cipher_mode);
 		set_cipher_config0(&desc[*seq_size], direction);
 		if (flow_mode == S_DIN_to_AES) {
-
 			if (ssi_is_hw_key(tfm)) {
 				set_hw_crypto_key(&desc[*seq_size],
 						  ctx_p->hw.key1_slot);
@@ -616,7 +613,6 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 	set_cipher_mode(&desc[*seq_size], ctx_p->cipher_mode);
 	set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE1);
 	(*seq_size)++;
-
 }
 #endif /*SSI_CC_HAS_MULTI2*/
 
@@ -782,7 +778,6 @@ static int ssi_blkcipher_process(
 	}
 	/*For CTS in case of data size aligned to 16 use CBC mode*/
 	if (((nbytes % AES_BLOCK_SIZE) == 0) && (ctx_p->cipher_mode == DRV_CIPHER_CBC_CTS)) {
-
 		ctx_p->cipher_mode = DRV_CIPHER_CBC;
 		cts_restore_flag = 1;
 	}

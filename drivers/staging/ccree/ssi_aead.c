@@ -2042,7 +2042,6 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 
 	/* do we need to generate IV? */
 	if (areq_ctx->backup_giv != NULL) {
-
 		/* set the DMA mapped IV address*/
 		if (ctx->cipher_mode == DRV_CIPHER_CTR) {
 			ssi_req.ivgen_dma_addr[0] = areq_ctx->gen_ctx.iv_dma_addr + CTR_RFC3686_NONCE_SIZE;
@@ -2181,7 +2180,6 @@ static int ssi_aead_decrypt(struct aead_request *req)
 		req->iv = areq_ctx->backup_iv;
 
 	return rc;
-
 }
 
 #if SSI_CC_HAS_AES_CCM

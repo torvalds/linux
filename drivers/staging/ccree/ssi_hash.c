@@ -1323,7 +1323,6 @@ static void ssi_hash_free_ctx(struct ssi_hash_ctx *ctx)
 	}
 
 	ctx->key_params.keylen = 0;
-
 }
 
 
@@ -2365,7 +2364,6 @@ int ssi_hash_free(struct ssi_drvdata *drvdata)
 	struct ssi_hash_handle *hash_handle = drvdata->hash_handle;
 
 	if (hash_handle != NULL) {
-
 		list_for_each_entry_safe(t_hash_alg, hash_n, &hash_handle->hash_list, entry) {
 			crypto_unregister_ahash(&t_hash_alg->ahash_alg);
 			list_del(&t_hash_alg->entry);

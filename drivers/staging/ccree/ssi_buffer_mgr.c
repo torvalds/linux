@@ -608,7 +608,6 @@ int ssi_buffer_mgr_map_blkcipher_request(
 		rc = ssi_buffer_mgr_generate_mlli(dev, &sg_data, mlli_params);
 		if (unlikely(rc != 0))
 			goto ablkcipher_exit;
-
 	}
 
 	SSI_LOG_DEBUG("areq_ctx->dma_buf_type = %s\n",
@@ -877,7 +876,6 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 	if (areq_ctx->ccm_hdr_size != ccm_header_size_null) {
 		if (unlikely((mapped_nents + 1) >
 			LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES)) {
-
 			SSI_LOG_ERR("CCM case.Too many fragments. "
 				"Current %d max %d\n",
 				(areq_ctx->assoc.nents + 1),
@@ -895,7 +893,6 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 
 	if (unlikely((do_chain) ||
 		(areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI))) {
-
 		SSI_LOG_DEBUG("Chain assoc: buff_type=%s nents=%u\n",
 			GET_DMA_BUFFER_TYPE(areq_ctx->assoc_buff_type),
 			areq_ctx->assoc.nents);
@@ -1178,7 +1175,6 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 
 	//check where the data starts
 	while (sg_index <= size_to_skip) {
-
 		offset -= areq_ctx->dstSgl->length;
 		areq_ctx->dstSgl = sg_next(areq_ctx->dstSgl);
 		//if have reached the end of the sgl, then this is unexpected
@@ -1450,7 +1446,6 @@ int ssi_buffer_mgr_map_aead_request(
 	if (unlikely(
 		(areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) ||
 		(areq_ctx->data_buff_type == SSI_DMA_BUF_MLLI))) {
-
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
 		rc = ssi_buffer_mgr_generate_mlli(dev, &sg_data, mlli_params);
 		if (unlikely(rc != 0)) {
@@ -1528,7 +1523,6 @@ int ssi_buffer_mgr_map_hash_request_final(
 		} else {
 			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_MLLI;
 		}
-
 	}
 
 	/*build mlli */
@@ -1675,7 +1669,6 @@ int ssi_buffer_mgr_map_hash_request_update(
 						  mlli_params) != 0)) {
 			goto fail_unmap_din;
 		}
-
 	}
 	areq_ctx->buff_index = (areq_ctx->buff_index ^ swap_index);
 
@@ -1771,7 +1764,6 @@ int ssi_buffer_mgr_fini(struct ssi_drvdata *drvdata)
 		dma_pool_destroy(buff_mgr_handle->mlli_buffs_pool);
 		kfree(drvdata->buff_mgr_handle);
 		drvdata->buff_mgr_handle = NULL;
-
 	}
 	return 0;
 }

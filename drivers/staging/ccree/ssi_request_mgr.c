@@ -549,7 +549,6 @@ static void comp_handler(unsigned long devarg)
 			request_mgr_handle->axi_completed +=
 					cc_axi_comp_count(cc_base);
 		}
-
 	}
 	/* after verifing that there is nothing to do, Unmask AXI completion interrupt */
 	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR),

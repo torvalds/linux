@@ -444,7 +444,6 @@ void fini_cc_regs(struct ssi_drvdata *drvdata)
 	/* Mask all interrupts */
 	WRITE_REGISTER(drvdata->cc_base +
 		       CC_REG_OFFSET(HOST_RGF, HOST_IMR), 0xFFFFFFFF);
-
 }
 
 static void cleanup_cc_resources(struct platform_device *plat_dev)
