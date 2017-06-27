@@ -3832,13 +3832,18 @@ static int vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 		struct pp_gpu_power *query)
 {
+	uint32_t value;
+
 	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
 			PPSMC_MSG_GetCurrPkgPwr),
 			"Failed to get current package power!",
 			return -EINVAL);
 
-	return vega10_read_arg_from_smc(hwmgr->smumgr,
-			&query->average_gpu_power);
+	vega10_read_arg_from_smc(hwmgr->smumgr, &value);
+	/* power value is an integer */
+	query->average_gpu_power = value << 8;
+
+	return 0;
 }
 
 static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
