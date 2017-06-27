@@ -571,27 +571,6 @@ int nfp_cpp_area_write(struct nfp_cpp_area *area,
 }
 
 /**
- * nfp_cpp_area_check_range() - check if address range fits in CPP area
- * @area:	CPP area handle
- * @offset:	offset into CPP target
- * @length:	size of address range in bytes
- *
- * Check if address range fits within CPP area.  Return 0 if area
- * fits or -EFAULT on error.
- *
- * Return: 0, or -ERRNO
- */
-int nfp_cpp_area_check_range(struct nfp_cpp_area *area,
-			     unsigned long long offset, unsigned long length)
-{
-	if (offset < area->offset ||
-	    offset + length > area->offset + area->size)
-		return -EFAULT;
-
-	return 0;
-}
-
-/**
  * nfp_cpp_area_name() - return name of a CPP area
  * @cpp_area:	CPP area handle
  *
