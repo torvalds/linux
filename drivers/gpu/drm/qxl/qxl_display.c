@@ -447,7 +447,7 @@ static void qxl_mode_set_nofb(struct drm_crtc *crtc)
 
 }
 
-static void qxl_crtc_commit(struct drm_crtc *crtc)
+static void qxl_crtc_enable(struct drm_crtc *crtc)
 {
 	DRM_DEBUG("\n");
 }
@@ -466,7 +466,7 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 	.disable = qxl_crtc_disable,
 	.mode_fixup = qxl_crtc_mode_fixup,
 	.mode_set_nofb = qxl_mode_set_nofb,
-	.commit = qxl_crtc_commit,
+	.enable = qxl_crtc_enable,
 	.atomic_flush = qxl_crtc_atomic_flush,
 };
 
