@@ -36,6 +36,5 @@ config RPMSG_VIRTIO
 	tristate
 	select RPMSG
 	select VIRTIO
-	select VIRTUALIZATION
 
 endmenu
