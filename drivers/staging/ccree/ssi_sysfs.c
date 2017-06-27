@@ -316,9 +316,9 @@ static ssize_t ssi_sys_help_show(struct kobject *kobj,
 	int i = 0, offset = 0;
 
 	offset += scnprintf(buf + offset, PAGE_SIZE - offset, "Usage:\n");
-	for (i = 0; i < ARRAY_SIZE(help_str); i += 2) {
+	for (i = 0; i < ARRAY_SIZE(help_str); i += 2)
 	   offset += scnprintf(buf + offset, PAGE_SIZE - offset, "%s\t\t%s\n", help_str[i], help_str[i + 1]);
-	}
+
 	return offset;
 }
 

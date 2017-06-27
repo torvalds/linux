@@ -205,16 +205,17 @@ int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 	cache_params = (drvdata->coherent ? CC_COHERENT_CACHE_PARAMS : 0x0);
 
 	val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CACHE_PARAMS));
-	if (is_probe) {
+
+	if (is_probe)
 		SSI_LOG_INFO("Cache params previous: 0x%08X\n", val);
-	}
+
 	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CACHE_PARAMS),
 			      cache_params);
 	val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CACHE_PARAMS));
-	if (is_probe) {
+
+	if (is_probe)
 		SSI_LOG_INFO("Cache params current: 0x%08X (expect: 0x%08X)\n",
 			     val, cache_params);
-	}
 
 	return 0;
 }

@@ -215,9 +215,9 @@ static inline int request_mgr_queues_status_check(
 		return -EBUSY;
 	}
 
-	if ((likely(req_mgr_h->q_free_slots >= total_seq_len))) {
+	if ((likely(req_mgr_h->q_free_slots >= total_seq_len)))
 		return 0;
-	}
+
 	/* Wait for space in HW queue. Poll constant num of iterations. */
 	for (poll_queue = 0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue++) {
 		req_mgr_h->q_free_slots =
@@ -349,9 +349,8 @@ int send_request(
 	}
 
 	used_sw_slots = ((req_mgr_h->req_queue_head - req_mgr_h->req_queue_tail) & (MAX_REQUEST_QUEUE_SIZE - 1));
-	if (unlikely(used_sw_slots > req_mgr_h->max_used_sw_slots)) {
+	if (unlikely(used_sw_slots > req_mgr_h->max_used_sw_slots))
 		req_mgr_h->max_used_sw_slots = used_sw_slots;
-	}
 
 	/* Enqueue request - must be locked with HW lock*/
 	req_mgr_h->req_queue[req_mgr_h->req_queue_head] = *ssi_req;
@@ -412,9 +411,9 @@ int send_request_init(
 
 	/* Wait for space in HW and SW FIFO. Poll for as much as FIFO_TIMEOUT. */
 	rc = request_mgr_queues_status_check(req_mgr_h, cc_base, total_seq_len);
-	if (unlikely(rc != 0)) {
+	if (unlikely(rc != 0))
 		return rc;
-	}
+
 	set_queue_last_ind(&desc[(len - 1)]);
 
 	enqueue_seq(cc_base, desc, len);
@@ -480,23 +479,20 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 			u32 axi_err;
 			int i;
 			SSI_LOG_INFO("Delay\n");
-			for (i = 0; i < 1000000; i++) {
+			for (i = 0; i < 1000000; i++)
 				axi_err = READ_REGISTER(drvdata->cc_base + CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_ERR));
-			}
 		}
 #endif /* COMPLETION_DELAY */
 
-		if (likely(ssi_req->user_cb != NULL)) {
+		if (likely(ssi_req->user_cb != NULL))
 			ssi_req->user_cb(&plat_dev->dev, ssi_req->user_arg, drvdata->cc_base);
-		}
 		request_mgr_handle->req_queue_tail = (request_mgr_handle->req_queue_tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		SSI_LOG_DEBUG("Dequeue request tail=%u\n", request_mgr_handle->req_queue_tail);
 		SSI_LOG_DEBUG("Request completed. axi_completed=%d\n", request_mgr_handle->axi_completed);
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 		rc = ssi_power_mgr_runtime_put_suspend(&plat_dev->dev);
-		if (rc != 0) {
+		if (rc != 0)
 			SSI_LOG_ERR("Failed to set runtime suspension %d\n", rc);
-		}
 #endif
 	}
 }

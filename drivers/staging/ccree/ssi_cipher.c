@@ -165,13 +165,11 @@ static unsigned int get_max_keysize(struct crypto_tfm *tfm)
 {
 	struct ssi_crypto_alg *ssi_alg = container_of(tfm->__crt_alg, struct ssi_crypto_alg, crypto_alg);
 
-	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_ABLKCIPHER) {
+	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_ABLKCIPHER)
 		return ssi_alg->crypto_alg.cra_ablkcipher.max_keysize;
-	}
 
-	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_BLKCIPHER) {
+	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_BLKCIPHER)
 		return ssi_alg->crypto_alg.cra_blkcipher.max_keysize;
-	}
 
 	return 0;
 }
@@ -289,9 +287,8 @@ static int ssi_fips_verify_xts_keys(const u8 *key, unsigned int keylen)
 	/* Weak key is define as key that its first half (128/256 lsb) equals its second half (128/256 msb) */
 	int singleKeySize = keylen >> 1;
 
-	if (unlikely(memcmp(key, &key[singleKeySize], singleKeySize) == 0)) {
+	if (unlikely(memcmp(key, &key[singleKeySize], singleKeySize) == 0))
 		return -ENOEXEC;
-	}
 #endif /* CCREE_FIPS_SUPPORT */
 
 	return 0;
@@ -333,9 +330,8 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 
 #if SSI_CC_HAS_MULTI2
 	/*last byte of key buffer is round number and should not be a part of key size*/
-	if (ctx_p->flow_mode == S_DIN_to_MULTI2) {
+	if (ctx_p->flow_mode == S_DIN_to_MULTI2)
 		keylen -= 1;
-	}
 #endif /*SSI_CC_HAS_MULTI2*/
 
 	if (unlikely(validate_keys_sizes(ctx_p, keylen) != 0)) {
@@ -658,9 +654,9 @@ ssi_blkcipher_create_data_desc(
 			     nbytes, NS_BIT);
 		set_dout_dlli(&desc[*seq_size], sg_dma_address(dst),
 			      nbytes, NS_BIT, (!areq ? 0 : 1));
-		if (areq != NULL) {
+		if (areq != NULL)
 			set_queue_last_ind(&desc[*seq_size]);
-		}
+
 		set_flow_mode(&desc[*seq_size], flow_mode);
 		(*seq_size)++;
 	} else {
@@ -707,9 +703,9 @@ ssi_blkcipher_create_data_desc(
 				      req_ctx->out_mlli_nents, NS_BIT,
 				      (!areq ? 0 : 1));
 		}
-		if (areq != NULL) {
+		if (areq != NULL)
 			set_queue_last_ind(&desc[*seq_size]);
-		}
+
 		set_flow_mode(&desc[*seq_size], flow_mode);
 		(*seq_size)++;
 	}
@@ -809,22 +805,13 @@ static int ssi_blkcipher_process(
 
 	/* Setup processing */
 #if SSI_CC_HAS_MULTI2
-	if (ctx_p->flow_mode == S_DIN_to_MULTI2) {
-		ssi_blkcipher_create_multi2_setup_desc(tfm,
-						       req_ctx,
-						       ivsize,
-						       desc,
-						       &seq_len);
-	} else
+	if (ctx_p->flow_mode == S_DIN_to_MULTI2)
+		ssi_blkcipher_create_multi2_setup_desc(tfm, req_ctx, ivsize,
+						       desc, &seq_len);
+	else
 #endif /*SSI_CC_HAS_MULTI2*/
-	{
-		ssi_blkcipher_create_setup_desc(tfm,
-						req_ctx,
-						ivsize,
-						nbytes,
-						desc,
-						&seq_len);
-	}
+		ssi_blkcipher_create_setup_desc(tfm, req_ctx, ivsize, nbytes,
+						desc, &seq_len);
 	/* Data processing */
 	ssi_blkcipher_create_data_desc(tfm,
 			      req_ctx,

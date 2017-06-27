@@ -72,9 +72,9 @@ static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 	void __iomem *cc_base = drvdata->cc_base;
 
 	regVal = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
-	if (regVal == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK)) {
+	if (regVal == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
 		return CC_REE_FIPS_ERROR_OK;
-	}
+
 	return CC_REE_FIPS_ERROR_FROM_TEE;
 }
 
@@ -87,11 +87,10 @@ static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, ssi_fips_error_t err)
 {
 	void __iomem *cc_base = drvdata->cc_base;
-	if (err == CC_REE_FIPS_ERROR_OK) {
+	if (err == CC_REE_FIPS_ERROR_OK)
 		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_OK));
-	} else {
+	else
 		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_ERROR));
-	}
 }
 
 
@@ -152,9 +151,8 @@ static void fips_dsr(unsigned long devarg)
 
 	if (irq & SSI_GPR0_IRQ_MASK) {
 		teeFipsError = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
-		if (teeFipsError != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK)) {
+		if (teeFipsError != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
 			ssi_fips_set_error(drvdata, CC_REE_FIPS_ERROR_FROM_TEE);
-		}
 	}
 
 	/* after verifing that there is nothing to do, Unmask AXI completion interrupt */
@@ -177,9 +175,9 @@ ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 	// the dma_handle is the returned phy address - use it in the HW descriptor
 	FIPS_DBG("dma_alloc_coherent \n");
 	cpu_addr_buffer = dma_alloc_coherent(dev, alloc_buff_size, &dma_handle, GFP_KERNEL);
-	if (cpu_addr_buffer == NULL) {
+	if (cpu_addr_buffer == NULL)
 		return CC_REE_FIPS_ERROR_GENERAL;
-	}
+
 	FIPS_DBG("allocated coherent buffer - addr 0x%08X , size = %d \n", (size_t)cpu_addr_buffer, alloc_buff_size);
 
 #if FIPS_POWER_UP_TEST_CIPHER
@@ -269,30 +267,29 @@ int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
 	FIPS_LOG("ssi_fips_set_error - fips_error = %d \n", err);
 
 	// setting no error is not allowed
-	if (err == CC_REE_FIPS_ERROR_OK) {
+	if (err == CC_REE_FIPS_ERROR_OK)
 		return -ENOEXEC;
-	}
+
 	// If error exists, do not set new error
-	if (ssi_fips_get_error(&current_err) != 0) {
+	if (ssi_fips_get_error(&current_err) != 0)
 		return -ENOEXEC;
-	}
-	if (current_err != CC_REE_FIPS_ERROR_OK) {
+
+	if (current_err != CC_REE_FIPS_ERROR_OK)
 		return -ENOEXEC;
-	}
+
 	// set REE internal error and state
 	rc = ssi_fips_ext_set_error(err);
-	if (rc != 0) {
+	if (rc != 0)
 		return -ENOEXEC;
-	}
+
 	rc = ssi_fips_ext_set_state(CC_FIPS_STATE_ERROR);
-	if (rc != 0) {
+	if (rc != 0)
 		return -ENOEXEC;
-	}
 
 	// push error towards TEE libraray, if it's not TEE error
-	if (err != CC_REE_FIPS_ERROR_FROM_TEE) {
+	if (err != CC_REE_FIPS_ERROR_FROM_TEE)
 		ssi_fips_update_tee_upon_ree_status(p_drvdata, err);
-	}
+
 	return rc;
 }
 

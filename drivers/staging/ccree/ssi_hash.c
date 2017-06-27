@@ -215,11 +215,10 @@ static int ssi_hash_map_request(struct device *dev,
 		} else { /*sha*/
 			memcpy(state->digest_buff, ctx->digest_buff, ctx->inter_digestsize);
 #if (DX_DEV_SHA_MAX > 256)
-			if (unlikely((ctx->hash_mode == DRV_HASH_SHA512) || (ctx->hash_mode == DRV_HASH_SHA384))) {
+			if (unlikely((ctx->hash_mode == DRV_HASH_SHA512) || (ctx->hash_mode == DRV_HASH_SHA384)))
 				memcpy(state->digest_bytes_len, digest_len_sha512_init, HASH_LEN_SIZE);
-			} else {
+			else
 				memcpy(state->digest_bytes_len, digest_len_init, HASH_LEN_SIZE);
-			}
 #else
 			memcpy(state->digest_bytes_len, digest_len_init, HASH_LEN_SIZE);
 #endif
@@ -480,11 +479,10 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 			     NS_BIT);
 	} else {
 		set_din_const(&desc[idx], 0, HASH_LEN_SIZE);
-		if (likely(nbytes != 0)) {
+		if (likely(nbytes != 0))
 			set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
-		} else {
+		else
 			set_cipher_do(&desc[idx], DO_PAD);
-		}
 	}
 	set_flow_mode(&desc[idx], S_DIN_to_HASH);
 	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
@@ -553,9 +551,8 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr, digestsize,
 		      NS_BIT, (async_req ? 1 : 0));
-	if (async_req) {
+	if (async_req)
 		set_queue_last_ind(&desc[idx]);
-	}
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
@@ -656,9 +653,8 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 	set_cipher_mode(&desc[idx], ctx->hw_mode);
 	set_dout_dlli(&desc[idx], state->digest_bytes_len_dma_addr,
 		      HASH_LEN_SIZE, NS_BIT, (async_req ? 1 : 0));
-	if (async_req) {
+	if (async_req)
 		set_queue_last_ind(&desc[idx]);
-	}
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE1);
 	idx++;
@@ -786,9 +782,8 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr, digestsize,
 		      NS_BIT, (async_req ? 1 : 0));
-	if (async_req) {
+	if (async_req)
 		set_queue_last_ind(&desc[idx]);
-	}
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
@@ -933,9 +928,8 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 	hw_desc_init(&desc[idx]);
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr, digestsize,
 		      NS_BIT, (async_req ? 1 : 0));
-	if (async_req) {
+	if (async_req)
 		set_queue_last_ind(&desc[idx]);
-	}
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE0);
@@ -1423,11 +1417,10 @@ static int ssi_mac_update(struct ahash_request *req)
 		return -ENOMEM;
 	}
 
-	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
+	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC)
 		ssi_hash_create_xcbc_setup(req, desc, &idx);
-	} else {
+	else
 		ssi_hash_create_cmac_setup(req, desc, &idx);
-	}
 
 	ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc, true, &idx);
 
@@ -1525,11 +1518,10 @@ static int ssi_mac_final(struct ahash_request *req)
 		idx++;
 	}
 
-	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
+	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC)
 		ssi_hash_create_xcbc_setup(req, desc, &idx);
-	} else {
+	else
 		ssi_hash_create_cmac_setup(req, desc, &idx);
-	}
 
 	if (state->xcbc_count == 0) {
 		hw_desc_init(&desc[idx]);
@@ -2506,9 +2498,8 @@ static void ssi_hash_create_data_desc(struct ahash_req_ctx *areq_ctx,
 		set_flow_mode(&desc[idx], flow_mode);
 		idx++;
 	}
-	if (is_not_last_data) {
+	if (is_not_last_data)
 		set_din_not_last_indication(&desc[(idx - 1)]);
-	}
 	/* return updated desc sequence size */
 	*seq_size = idx;
 }
