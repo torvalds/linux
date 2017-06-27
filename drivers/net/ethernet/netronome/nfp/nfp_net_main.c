@@ -81,58 +81,6 @@ static int nfp_is_ready(struct nfp_pf *pf)
 }
 
 /**
- * nfp_net_map_area() - Help function to map an area
- * @cpp:    NFP CPP handler
- * @name:   Name for the area
- * @target: CPP target
- * @addr:   CPP address
- * @size:   Size of the area
- * @area:   Area handle (returned).
- *
- * This function is primarily to simplify the code in the main probe
- * function. To undo the effect of this functions call
- * @nfp_cpp_area_release_free(*area);
- *
- * Return: Pointer to memory mapped area or ERR_PTR
- */
-static u8 __iomem *nfp_net_map_area(struct nfp_cpp *cpp,
-				    const char *name, int isl, int target,
-				    unsigned long long addr, unsigned long size,
-				    struct nfp_cpp_area **area)
-{
-	u8 __iomem *res;
-	u32 dest;
-	int err;
-
-	dest = NFP_CPP_ISLAND_ID(target, NFP_CPP_ACTION_RW, 0, isl);
-
-	*area = nfp_cpp_area_alloc_with_name(cpp, dest, name, addr, size);
-	if (!*area) {
-		err = -EIO;
-		goto err_area;
-	}
-
-	err = nfp_cpp_area_acquire(*area);
-	if (err < 0)
-		goto err_acquire;
-
-	res = nfp_cpp_area_iomem(*area);
-	if (!res) {
-		err = -EIO;
-		goto err_map;
-	}
-
-	return res;
-
-err_map:
-	nfp_cpp_area_release(*area);
-err_acquire:
-	nfp_cpp_area_free(*area);
-err_area:
-	return (u8 __iomem *)ERR_PTR(err);
-}
-
-/**
  * nfp_net_get_mac_addr() - Get the MAC address.
  * @pf:       NFP PF handle
  * @port:     NFP port structure
@@ -242,7 +190,7 @@ nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		return (u8 __iomem *)ERR_PTR(-EINVAL);
 	}
 
-	mem = nfp_net_map_area(pf->cpp, name, sym->domain, sym->target,
+	mem = nfp_cpp_map_area(pf->cpp, name, sym->domain, sym->target,
 			       sym->addr, sym->size, area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map PF symbol %s: %ld\n",
@@ -617,7 +565,7 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		pf->vf_cfg_mem = NULL;
 	}
 
-	mem = nfp_net_map_area(pf->cpp, "net.qc", 0, 0,
+	mem = nfp_cpp_map_area(pf->cpp, "net.qc", 0, 0,
 			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
 			       &pf->qc_area);
 	if (IS_ERR(mem)) {
