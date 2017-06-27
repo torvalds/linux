@@ -65,6 +65,30 @@ void fnic_handle_link(struct work_struct *work)
 	fnic->link_status = vnic_dev_link_status(fnic->vdev);
 	fnic->link_down_cnt = vnic_dev_link_down_cnt(fnic->vdev);
 
+	switch (vnic_dev_port_speed(fnic->vdev)) {
+	case DCEM_PORTSPEED_10G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_10GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_10GBIT;
+		break;
+	case DCEM_PORTSPEED_25G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_25GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_25GBIT;
+		break;
+	case DCEM_PORTSPEED_40G:
+	case DCEM_PORTSPEED_4x10G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_40GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_40GBIT;
+		break;
+	case DCEM_PORTSPEED_100G:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_100GBIT;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_100GBIT;
+		break;
+	default:
+		fc_host_speed(fnic->lport->host)   = FC_PORTSPEED_UNKNOWN;
+		fnic->lport->link_supported_speeds = FC_PORTSPEED_UNKNOWN;
+		break;
+	}
+
 	if (old_link_status == fnic->link_status) {
 		if (!fnic->link_status) {
 			/* DOWN -> DOWN */
