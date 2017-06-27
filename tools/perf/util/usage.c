@@ -9,23 +9,10 @@
 #include "util.h"
 #include "debug.h"
 
-static void report(const char *prefix, const char *err, va_list params)
-{
-	char msg[1024];
-	vsnprintf(msg, sizeof(msg), err, params);
-	fprintf(stderr, " %s%s\n", prefix, msg);
-}
-
 static __noreturn void usage_builtin(const char *err)
 {
 	fprintf(stderr, "\n Usage: %s\n", err);
 	exit(129);
-}
-
-static __noreturn void die_builtin(const char *err, va_list params)
-{
-	report(" Fatal: ", err, params);
-	exit(128);
 }
 
 /* If we are in a dlopen()ed .so write to a global variable would segfault
@@ -35,13 +22,4 @@ static void (*usage_routine)(const char *err) __noreturn = usage_builtin;
 void usage(const char *err)
 {
 	usage_routine(err);
-}
-
-void die(const char *err, ...)
-{
-	va_list params;
-
-	va_start(params, err);
-	die_builtin(err, params);
-	va_end(params);
 }
