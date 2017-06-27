@@ -174,31 +174,12 @@ static u8 __iomem *
 nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		     unsigned int min_size, struct nfp_cpp_area **area)
 {
-	const struct nfp_rtsym *sym;
 	char pf_symbol[256];
-	u8 __iomem *mem;
 
 	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
 		 nfp_cppcore_pcie_unit(pf->cpp));
 
-	sym = nfp_rtsym_lookup(pf->rtbl, pf_symbol);
-	if (!sym)
-		return (u8 __iomem *)ERR_PTR(-ENOENT);
-
-	if (sym->size < min_size) {
-		nfp_err(pf->cpp, "PF symbol %s too small\n", pf_symbol);
-		return (u8 __iomem *)ERR_PTR(-EINVAL);
-	}
-
-	mem = nfp_cpp_map_area(pf->cpp, name, sym->domain, sym->target,
-			       sym->addr, sym->size, area);
-	if (IS_ERR(mem)) {
-		nfp_err(pf->cpp, "Failed to map PF symbol %s: %ld\n",
-			pf_symbol, PTR_ERR(mem));
-		return mem;
-	}
-
-	return mem;
+	return nfp_rtsym_map(pf->rtbl, pf_symbol, name, min_size, area);
 }
 
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
@@ -528,23 +509,22 @@ static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
 
 static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 {
-	u32 ctrl_bar_sz;
 	u8 __iomem *mem;
+	u32 min_size;
 	int err;
 
-	ctrl_bar_sz = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
+	min_size = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
 	mem = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%d_net_bar0",
-				   ctrl_bar_sz, &pf->data_vnic_bar);
+				   min_size, &pf->data_vnic_bar);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
 		return PTR_ERR(mem);
 	}
 
-	pf->mac_stats_mem = nfp_net_pf_map_rtsym(pf, "net.macstats",
-						 "_mac_stats",
-						 NFP_MAC_STATS_SIZE *
-						 (pf->eth_tbl->max_index + 1),
-						 &pf->mac_stats_bar);
+	min_size =  NFP_MAC_STATS_SIZE * (pf->eth_tbl->max_index + 1);
+	pf->mac_stats_mem = nfp_rtsym_map(pf->rtbl, "_mac_stats",
+					  "net.macstats", min_size,
+					  &pf->mac_stats_bar);
 	if (IS_ERR(pf->mac_stats_mem)) {
 		if (PTR_ERR(pf->mac_stats_mem) != -ENOENT) {
 			err = PTR_ERR(pf->mac_stats_mem);
