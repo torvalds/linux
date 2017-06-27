@@ -103,7 +103,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 			goto err2;
 	}
 
-	if (buffer->sg_table == NULL) {
+	if (!buffer->sg_table) {
 		WARN_ONCE(1, "This heap needs to set the sgtable");
 		ret = -EINVAL;
 		goto err1;
@@ -161,7 +161,7 @@ static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 		return buffer->vaddr;
 	}
 	vaddr = buffer->heap->ops->map_kernel(buffer->heap, buffer);
-	if (WARN_ONCE(vaddr == NULL,
+	if (WARN_ONCE(!vaddr,
 		      "heap->ops->map_kernel should return ERR_PTR on error"))
 		return ERR_PTR(-EINVAL);
 	if (IS_ERR(vaddr))
@@ -425,7 +425,7 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	}
 	up_read(&dev->lock);
 
-	if (buffer == NULL)
+	if (!buffer)
 		return -ENODEV;
 
 	if (IS_ERR(buffer))
