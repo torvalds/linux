@@ -23,16 +23,6 @@
 #include "ssi_fips.h"
 struct ssi_drvdata;
 
-// IG - how to make 1 file for TEE and REE
-typedef enum CC_FipsSyncStatus {
-	CC_FIPS_SYNC_MODULE_OK		= 0x0,
-	CC_FIPS_SYNC_MODULE_ERROR	= 0x1,
-	CC_FIPS_SYNC_REE_STATUS		= 0x4,
-	CC_FIPS_SYNC_TEE_STATUS		= 0x8,
-	CC_FIPS_SYNC_STATUS_RESERVE32B	= S32_MAX
-} CCFipsSyncStatus_t;
-
-
 #define CHECK_AND_RETURN_UPON_FIPS_ERROR() {\
 	if (ssi_fips_check_fips_error() != 0) {\
 		return -ENOEXEC;\
