@@ -503,3 +503,27 @@ bool rcu_segcblist_future_gp_needed(struct rcu_segcblist *rsclp,
 			return true;
 	return false;
 }
+
+/*
+ * Merge the source rcu_segcblist structure into the destination
+ * rcu_segcblist structure, then initialize the source.  Any pending
+ * callbacks from the source get to start over.  It is best to
+ * advance and accelerate both the destination and the source
+ * before merging.
+ */
+void rcu_segcblist_merge(struct rcu_segcblist *dst_rsclp,
+			 struct rcu_segcblist *src_rsclp)
+{
+	struct rcu_cblist donecbs;
+	struct rcu_cblist pendcbs;
+
+	rcu_cblist_init(&donecbs);
+	rcu_cblist_init(&pendcbs);
+	rcu_segcblist_extract_count(src_rsclp, &donecbs);
+	rcu_segcblist_extract_done_cbs(src_rsclp, &donecbs);
+	rcu_segcblist_extract_pend_cbs(src_rsclp, &pendcbs);
+	rcu_segcblist_insert_count(dst_rsclp, &donecbs);
+	rcu_segcblist_insert_done_cbs(dst_rsclp, &donecbs);
+	rcu_segcblist_insert_pend_cbs(dst_rsclp, &pendcbs);
+	rcu_segcblist_init(src_rsclp);
+}

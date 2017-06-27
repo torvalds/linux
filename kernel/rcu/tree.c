@@ -97,8 +97,6 @@ struct rcu_state sname##_state = { \
 	.gp_state = RCU_GP_IDLE, \
 	.gpnum = 0UL - 300UL, \
 	.completed = 0UL - 300UL, \
-	.orphan_pend = RCU_CBLIST_INITIALIZER(sname##_state.orphan_pend), \
-	.orphan_done = RCU_CBLIST_INITIALIZER(sname##_state.orphan_done), \
 	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
@@ -3850,76 +3848,12 @@ void rcu_report_dead(unsigned int cpu)
 		rcu_cleanup_dying_idle_cpu(cpu, rsp);
 }
 
-/*
- * Send the specified CPU's RCU callbacks to the orphanage.  The
- * specified CPU must be offline.
- */
-static void
-rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
-			  struct rcu_node *rnp, struct rcu_data *rdp)
-{
-	/*
-	 * Orphan the callbacks.  First adjust the counts.  This is safe
-	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
-	 * cannot be running now.  Thus no memory barrier is required.
-	 */
-	rcu_segcblist_extract_count(&rdp->cblist, &rsp->orphan_done);
-
-	/*
-	 * Next, move those callbacks still needing a grace period to
-	 * the orphanage, where some other CPU will pick them up.
-	 * Some of the callbacks might have gone partway through a grace
-	 * period, but that is too bad.  They get to start over because we
-	 * cannot assume that grace periods are synchronized across CPUs.
-	 */
-	rcu_segcblist_extract_pend_cbs(&rdp->cblist, &rsp->orphan_pend);
-
-	/*
-	 * Then move the ready-to-invoke callbacks to the orphanage,
-	 * where some other CPU will pick them up.  These will not be
-	 * required to pass though another grace period: They are done.
-	 */
-	rcu_segcblist_extract_done_cbs(&rdp->cblist, &rsp->orphan_done);
-
-	/* Finally, disallow further callbacks on this CPU.  */
-	rcu_segcblist_disable(&rdp->cblist);
-}
-
-/*
- * Adopt the RCU callbacks from the specified rcu_state structure's
- * orphanage.
- */
-static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
-{
-	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
-
-	/* Do the accounting first. */
-	if (rsp->orphan_done.len_lazy != rsp->orphan_done.len)
-		rcu_idle_count_callbacks_posted();
-	rcu_segcblist_insert_count(&rdp->cblist, &rsp->orphan_done);
-
-	/*
-	 * We do not need a memory barrier here because the only way we
-	 * can get here if there is an rcu_barrier() in flight is if
-	 * we are the task doing the rcu_barrier().
-	 */
-
-	/* First adopt the ready-to-invoke callbacks, then the done ones. */
-	rcu_segcblist_insert_done_cbs(&rdp->cblist, &rsp->orphan_done);
-	WARN_ON_ONCE(rsp->orphan_done.head);
-	rcu_segcblist_insert_pend_cbs(&rdp->cblist, &rsp->orphan_pend);
-	WARN_ON_ONCE(rsp->orphan_pend.head);
-	WARN_ON_ONCE(rcu_segcblist_empty(&rdp->cblist) !=
-		     !rcu_segcblist_n_cbs(&rdp->cblist));
-}
-
-/* Orphan the dead CPU's callbacks, and then adopt them. */
+/* Migrate the dead CPU's callbacks to the current CPU. */
 static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
 	struct rcu_data *my_rdp;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
-	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 	struct rcu_node *rnp_root = rcu_get_root(rdp->rsp);
 
 	if (rcu_is_nocb_cpu(cpu) || rcu_segcblist_empty(&rdp->cblist))
@@ -3933,15 +3867,16 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	}
 	raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
 	rcu_advance_cbs(rsp, rnp_root, rdp); /* Leverage recent GPs. */
-	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
-	rcu_adopt_orphan_cbs(rsp, flags);
 	rcu_advance_cbs(rsp, rnp_root, my_rdp); /* Assign GP to pending CBs. */
+	rcu_segcblist_merge(&my_rdp->cblist, &rdp->cblist);
 	raw_spin_unlock_irqrestore_rcu_node(rnp_root, flags);
 	WARN_ONCE(rcu_segcblist_n_cbs(&rdp->cblist) != 0 ||
 		  !rcu_segcblist_empty(&rdp->cblist),
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, 1stCB=%p\n",
 		  cpu, rcu_segcblist_n_cbs(&rdp->cblist),
 		  rcu_segcblist_first_cb(&rdp->cblist));
+	WARN_ON_ONCE(rcu_segcblist_empty(&my_rdp->cblist) !=
+		     !rcu_segcblist_n_cbs(&my_rdp->cblist));
 }
 
 /*

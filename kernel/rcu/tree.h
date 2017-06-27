@@ -348,12 +348,6 @@ struct rcu_state {
 
 	/* End of fields guarded by root rcu_node's lock. */
 
-	struct rcu_cblist orphan_pend;		/* Orphaned callbacks that */
-						/*  need a grace period. */
-	struct rcu_cblist orphan_done;		/* Orphaned callbacks that */
-						/*  are ready to invoke. */
-						/* (Contains counts.) */
-
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	struct completion barrier_completion;	/* Wake at barrier end. */
