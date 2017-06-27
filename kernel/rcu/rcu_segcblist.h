@@ -31,29 +31,7 @@ static inline void rcu_cblist_dequeued_lazy(struct rcu_cblist *rclp)
 	rclp->len_lazy--;
 }
 
-/*
- * Interim function to return rcu_cblist head pointer.  Longer term, the
- * rcu_cblist will be used more pervasively, removing the need for this
- * function.
- */
-static inline struct rcu_head *rcu_cblist_head(struct rcu_cblist *rclp)
-{
-	return rclp->head;
-}
-
-/*
- * Interim function to return rcu_cblist head pointer.  Longer term, the
- * rcu_cblist will be used more pervasively, removing the need for this
- * function.
- */
-static inline struct rcu_head **rcu_cblist_tail(struct rcu_cblist *rclp)
-{
-	WARN_ON_ONCE(!rclp->head);
-	return rclp->tail;
-}
-
 void rcu_cblist_init(struct rcu_cblist *rclp);
-long rcu_cblist_count_cbs(struct rcu_cblist *rclp, long lim);
 struct rcu_head *rcu_cblist_dequeue(struct rcu_cblist *rclp);
 
 /*
@@ -134,14 +112,10 @@ static inline struct rcu_head **rcu_segcblist_tail(struct rcu_segcblist *rsclp)
 
 void rcu_segcblist_init(struct rcu_segcblist *rsclp);
 void rcu_segcblist_disable(struct rcu_segcblist *rsclp);
-bool rcu_segcblist_segempty(struct rcu_segcblist *rsclp, int seg);
 bool rcu_segcblist_ready_cbs(struct rcu_segcblist *rsclp);
 bool rcu_segcblist_pend_cbs(struct rcu_segcblist *rsclp);
-struct rcu_head *rcu_segcblist_dequeue(struct rcu_segcblist *rsclp);
-void rcu_segcblist_dequeued_lazy(struct rcu_segcblist *rsclp);
 struct rcu_head *rcu_segcblist_first_cb(struct rcu_segcblist *rsclp);
 struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp);
-bool rcu_segcblist_new_cbs(struct rcu_segcblist *rsclp);
 void rcu_segcblist_enqueue(struct rcu_segcblist *rsclp,
 			   struct rcu_head *rhp, bool lazy);
 bool rcu_segcblist_entrain(struct rcu_segcblist *rsclp,
