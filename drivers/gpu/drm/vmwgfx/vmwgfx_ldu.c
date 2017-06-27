@@ -203,18 +203,6 @@ static void vmw_ldu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 /**
- * vmw_ldu_crtc_helper_prepare - Noop
- *
- * @crtc: CRTC associated with the new screen
- *
- * Prepares the CRTC for a mode set, but we don't need to do anything here.
- *
- */
-static void vmw_ldu_crtc_helper_prepare(struct drm_crtc *crtc)
-{
-}
-
-/**
  * vmw_ldu_crtc_helper_commit - Noop
  *
  * @crtc: CRTC associated with the new screen
@@ -388,7 +376,6 @@ drm_plane_helper_funcs vmw_ldu_primary_plane_helper_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
-	.prepare = vmw_ldu_crtc_helper_prepare,
 	.commit = vmw_ldu_crtc_helper_commit,
 	.disable = vmw_ldu_crtc_helper_disable,
 	.mode_set_nofb = vmw_ldu_crtc_mode_set_nofb,
