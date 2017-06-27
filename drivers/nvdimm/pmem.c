@@ -253,6 +253,11 @@ static const struct dax_operations pmem_dax_ops = {
 	.flush = pmem_dax_flush,
 };
 
+static const struct attribute_group *pmem_attribute_groups[] = {
+	&dax_attribute_group,
+	NULL,
+};
+
 static void pmem_release_queue(void *q)
 {
 	blk_cleanup_queue(q);
@@ -287,6 +292,7 @@ static int pmem_attach_disk(struct device *dev,
 	struct pmem_device *pmem;
 	struct resource pfn_res;
 	struct request_queue *q;
+	struct device *gendev;
 	struct gendisk *disk;
 	void *addr;
 
@@ -384,7 +390,11 @@ static int pmem_attach_disk(struct device *dev,
 		put_disk(disk);
 		return -ENOMEM;
 	}
+	dax_write_cache(dax_dev, true);
 	pmem->dax_dev = dax_dev;
+
+	gendev = disk_to_dev(disk);
+	gendev->groups = pmem_attribute_groups;
 
 	device_add_disk(dev, disk);
 	if (devm_add_action_or_reset(dev, pmem_release_disk, pmem))

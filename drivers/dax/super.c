@@ -119,6 +119,8 @@ EXPORT_SYMBOL_GPL(__bdev_dax_supported);
 enum dax_device_flags {
 	/* !alive + rcu grace period == no new operations / mappings */
 	DAXDEV_ALIVE,
+	/* gate whether dax_flush() calls the low level flush routine */
+	DAXDEV_WRITE_CACHE,
 };
 
 /**
@@ -138,6 +140,71 @@ struct dax_device {
 	unsigned long flags;
 	const struct dax_operations *ops;
 };
+
+static ssize_t write_cache_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dax_device *dax_dev = dax_get_by_host(dev_name(dev));
+	ssize_t rc;
+
+	WARN_ON_ONCE(!dax_dev);
+	if (!dax_dev)
+		return -ENXIO;
+
+	rc = sprintf(buf, "%d\n", !!test_bit(DAXDEV_WRITE_CACHE,
+				&dax_dev->flags));
+	put_dax(dax_dev);
+	return rc;
+}
+
+static ssize_t write_cache_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	bool write_cache;
+	int rc = strtobool(buf, &write_cache);
+	struct dax_device *dax_dev = dax_get_by_host(dev_name(dev));
+
+	WARN_ON_ONCE(!dax_dev);
+	if (!dax_dev)
+		return -ENXIO;
+
+	if (rc)
+		len = rc;
+	else if (write_cache)
+		set_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+	else
+		clear_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+
+	put_dax(dax_dev);
+	return len;
+}
+static DEVICE_ATTR_RW(write_cache);
+
+static umode_t dax_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, typeof(*dev), kobj);
+	struct dax_device *dax_dev = dax_get_by_host(dev_name(dev));
+
+	WARN_ON_ONCE(!dax_dev);
+	if (!dax_dev)
+		return 0;
+
+	if (a == &dev_attr_write_cache.attr && !dax_dev->ops->flush)
+		return 0;
+	return a->mode;
+}
+
+static struct attribute *dax_attributes[] = {
+	&dev_attr_write_cache.attr,
+	NULL,
+};
+
+struct attribute_group dax_attribute_group = {
+	.name = "dax",
+	.attrs = dax_attributes,
+	.is_visible = dax_visible,
+};
+EXPORT_SYMBOL_GPL(dax_attribute_group);
 
 /**
  * dax_direct_access() - translate a device pgoff to an absolute pfn
@@ -194,10 +261,22 @@ void dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 	if (!dax_alive(dax_dev))
 		return;
 
+	if (!test_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags))
+		return;
+
 	if (dax_dev->ops->flush)
 		dax_dev->ops->flush(dax_dev, pgoff, addr, size);
 }
 EXPORT_SYMBOL_GPL(dax_flush);
+
+void dax_write_cache(struct dax_device *dax_dev, bool wc)
+{
+	if (wc)
+		set_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+	else
+		clear_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+}
+EXPORT_SYMBOL_GPL(dax_write_cache);
 
 bool dax_alive(struct dax_device *dax_dev)
 {

@@ -23,6 +23,8 @@ struct dax_operations {
 	void (*flush)(struct dax_device *, pgoff_t, void *, size_t);
 };
 
+extern struct attribute_group dax_attribute_group;
+
 #if IS_ENABLED(CONFIG_DAX)
 struct dax_device *dax_get_by_host(const char *host);
 void put_dax(struct dax_device *dax_dev);
@@ -84,6 +86,7 @@ size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 		size_t bytes, struct iov_iter *i);
 void dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 		size_t size);
+void dax_write_cache(struct dax_device *dax_dev, bool wc);
 
 /*
  * We use lowest available bit in exceptional entry for locking, one bit for
