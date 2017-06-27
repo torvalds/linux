@@ -2727,7 +2727,7 @@ static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[],
 	}
 
 	if (tb[IFLA_MTU]) {
-		u32 mtu = nla_get_u32(data[IFLA_MTU]);
+		u32 mtu = nla_get_u32(tb[IFLA_MTU]);
 
 		if (mtu < ETH_MIN_MTU || mtu > ETH_MAX_MTU)
 			return -EINVAL;
