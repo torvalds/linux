@@ -1444,10 +1444,8 @@ static int convert__config(const char *var, const char *value, void *cb)
 {
 	struct convert *c = cb;
 
-	if (!strcmp(var, "convert.queue-size")) {
-		c->queue_size = perf_config_u64(var, value);
-		return 0;
-	}
+	if (!strcmp(var, "convert.queue-size"))
+		return perf_config_u64(&c->queue_size, var, value);
 
 	return 0;
 }

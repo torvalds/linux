@@ -94,10 +94,9 @@ static int report__config(const char *var, const char *value, void *cb)
 		symbol_conf.cumulate_callchain = perf_config_bool(var, value);
 		return 0;
 	}
-	if (!strcmp(var, "report.queue-size")) {
-		rep->queue_size = perf_config_u64(var, value);
-		return 0;
-	}
+	if (!strcmp(var, "report.queue-size"))
+		return perf_config_u64(&rep->queue_size, var, value);
+
 	if (!strcmp(var, "report.sort_order")) {
 		default_sort_order = strdup(value);
 		return 0;
