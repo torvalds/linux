@@ -59,7 +59,7 @@ static const struct regmap_range_cfg rt5645_ranges[] = {
 
 static const struct reg_sequence init_list[] = {
 	{RT5645_PR_BASE + 0x3d,	0x3600},
-	{RT5645_PR_BASE + 0x1c,	0xfd20},
+	{RT5645_PR_BASE + 0x1c,	0xfd70},
 	{RT5645_PR_BASE + 0x20,	0x611f},
 	{RT5645_PR_BASE + 0x21,	0x4040},
 	{RT5645_PR_BASE + 0x23,	0x0004},
@@ -3758,6 +3758,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			dev_warn(&i2c->dev, "Apply rt5650 patch failed: %d\n",
 					   ret);
 	}
+
+	regmap_update_bits(rt5645->regmap, RT5645_CLSD_OUT_CTRL, 0xc0, 0xc0);
 
 	if (rt5645->pdata.in2_diff)
 		regmap_update_bits(rt5645->regmap, RT5645_IN2_CTRL,
