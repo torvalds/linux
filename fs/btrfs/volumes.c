@@ -4769,8 +4769,8 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		goto error;
 	}
 
-	if (devs_max && ndevs > devs_max)
-		ndevs = devs_max;
+	ndevs = min(ndevs, devs_max);
+
 	/*
 	 * the primary goal is to maximize the number of stripes, so use as many
 	 * devices as possible, even if the stripes are not maximum sized.
