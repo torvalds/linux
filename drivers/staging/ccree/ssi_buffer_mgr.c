@@ -94,7 +94,7 @@ static unsigned int ssi_buffer_mgr_get_sgl_nents(
 			sg_list = sg_next(sg_list);
 		} else {
 			sg_list = (struct scatterlist *)sg_page(sg_list);
-			if (is_chained != NULL)
+			if (is_chained)
 				*is_chained = true;
 		}
 	}
@@ -113,7 +113,7 @@ void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, u32 data_len)
 	int sg_index = 0;
 
 	while (sg_index <= data_len) {
-		if (current_sg == NULL) {
+		if (!current_sg) {
 			/* reached the end of the sgl --> just return back */
 			return;
 		}
@@ -190,7 +190,7 @@ static inline int ssi_buffer_mgr_render_scatterlist_to_mlli(
 	u32 *mlli_entry_p = *mlli_entry_pp;
 	s32 rc = 0;
 
-	for ( ; (curr_sgl != NULL) && (sgl_data_len != 0);
+	for ( ; (curr_sgl) && (sgl_data_len != 0);
 	      curr_sgl = sg_next(curr_sgl)) {
 		u32 entry_data_len =
 			(sgl_data_len > sg_dma_len(curr_sgl) - sglOffset) ?
@@ -223,7 +223,7 @@ static int ssi_buffer_mgr_generate_mlli(
 	mlli_params->mlli_virt_addr = dma_pool_alloc(
 			mlli_params->curr_pool, GFP_KERNEL,
 			&(mlli_params->mlli_dma_addr));
-	if (unlikely(mlli_params->mlli_virt_addr == NULL)) {
+	if (unlikely(!mlli_params->mlli_virt_addr)) {
 		SSI_LOG_ERR("dma_pool_alloc() failed\n");
 		rc = -ENOMEM;
 		goto build_mlli_exit;
@@ -246,7 +246,7 @@ static int ssi_buffer_mgr_generate_mlli(
 			return rc;
 
 		/* set last bit in the current table */
-		if (sg_data->mlli_nents[i] != NULL) {
+		if (sg_data->mlli_nents[i]) {
 			/*Calculate the current MLLI table length for the
 			 *length field in the descriptor
 			 */
@@ -286,7 +286,7 @@ static inline void ssi_buffer_mgr_add_buffer_entry(
 	sgl_data->type[index] = DMA_BUFF_TYPE;
 	sgl_data->is_last[index] = is_last_entry;
 	sgl_data->mlli_nents[index] = mlli_nents;
-	if (sgl_data->mlli_nents[index] != NULL)
+	if (sgl_data->mlli_nents[index])
 		*sgl_data->mlli_nents[index] = 0;
 	sgl_data->num_of_buffers++;
 }
@@ -311,7 +311,7 @@ static inline void ssi_buffer_mgr_add_scatterlist_entry(
 	sgl_data->type[index] = DMA_SGL_TYPE;
 	sgl_data->is_last[index] = is_last_table;
 	sgl_data->mlli_nents[index] = mlli_nents;
-	if (sgl_data->mlli_nents[index] != NULL)
+	if (sgl_data->mlli_nents[index])
 		*sgl_data->mlli_nents[index] = 0;
 	sgl_data->num_of_buffers++;
 }
@@ -323,7 +323,7 @@ ssi_buffer_mgr_dma_map_sg(struct device *dev, struct scatterlist *sg, u32 nents,
 	u32 i, j;
 	struct scatterlist *l_sg = sg;
 	for (i = 0; i < nents; i++) {
-		if (l_sg == NULL)
+		if (!l_sg)
 			break;
 		if (unlikely(dma_map_sg(dev, l_sg, 1, direction) != 1)) {
 			SSI_LOG_ERR("dma_map_page() sg buffer failed\n");
@@ -336,7 +336,7 @@ ssi_buffer_mgr_dma_map_sg(struct device *dev, struct scatterlist *sg, u32 nents,
 err:
 	/* Restore mapped parts */
 	for (j = 0; j < i; j++) {
-		if (sg == NULL)
+		if (!sg)
 			break;
 		dma_unmap_sg(dev, sg, 1, direction);
 		sg = sg_next(sg);
@@ -672,7 +672,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 	/*In case a pool was set, a table was
 	 *allocated and should be released
 	 */
-	if (areq_ctx->mlli_params.curr_pool != NULL) {
+	if (areq_ctx->mlli_params.curr_pool) {
 		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%08llX virt=%pK\n",
 			(unsigned long long)areq_ctx->mlli_params.mlli_dma_addr,
 			areq_ctx->mlli_params.mlli_virt_addr);
@@ -731,12 +731,12 @@ static inline int ssi_buffer_mgr_get_aead_icv_nents(
 	}
 
 	for (i = 0 ; i < (sgl_nents - MAX_ICV_NENTS_SUPPORTED) ; i++) {
-		if (sgl == NULL)
+		if (!sgl)
 			break;
 		sgl = sg_next(sgl);
 	}
 
-	if (sgl != NULL)
+	if (sgl)
 		icv_max_size = sgl->length;
 
 	if (last_entry_data_size > authsize) {
@@ -773,7 +773,7 @@ static inline int ssi_buffer_mgr_aead_chain_iv(
 	struct device *dev = &drvdata->plat_dev->dev;
 	int rc = 0;
 
-	if (unlikely(req->iv == NULL)) {
+	if (unlikely(!req->iv)) {
 		areq_ctx->gen_ctx.iv_dma_addr = 0;
 		goto chain_iv_exit;
 	}
@@ -823,7 +823,7 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 	if (areq_ctx->is_gcm4543)
 		size_of_assoc += crypto_aead_ivsize(tfm);
 
-	if (sg_data == NULL) {
+	if (!sg_data) {
 		rc = -EINVAL;
 		goto chain_assoc_exit;
 	}
@@ -847,7 +847,7 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 		while (sg_index <= size_of_assoc) {
 			current_sg = sg_next(current_sg);
 			//if have reached the end of the sgl, then this is unexpected
-			if (current_sg == NULL) {
+			if (!current_sg) {
 				SSI_LOG_ERR("reached end of sg list. unexpected\n");
 				BUG();
 			}
@@ -1108,7 +1108,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 
 	offset = size_to_skip;
 
-	if (sg_data == NULL) {
+	if (!sg_data) {
 		rc = -EINVAL;
 		goto chain_data_exit;
 	}
@@ -1126,7 +1126,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		offset -= areq_ctx->srcSgl->length;
 		areq_ctx->srcSgl = sg_next(areq_ctx->srcSgl);
 		//if have reached the end of the sgl, then this is unexpected
-		if (areq_ctx->srcSgl == NULL) {
+		if (!areq_ctx->srcSgl) {
 			SSI_LOG_ERR("reached end of sg list. unexpected\n");
 			BUG();
 		}
@@ -1169,7 +1169,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		offset -= areq_ctx->dstSgl->length;
 		areq_ctx->dstSgl = sg_next(areq_ctx->dstSgl);
 		//if have reached the end of the sgl, then this is unexpected
-		if (areq_ctx->dstSgl == NULL) {
+		if (!areq_ctx->dstSgl) {
 			SSI_LOG_ERR("reached end of sg list. unexpected\n");
 			BUG();
 		}
@@ -1685,7 +1685,7 @@ void ssi_buffer_mgr_unmap_hash_request(
 	/*In case a pool was set, a table was
 	 *allocated and should be released
 	 */
-	if (areq_ctx->mlli_params.curr_pool != NULL) {
+	if (areq_ctx->mlli_params.curr_pool) {
 		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%llX virt=%pK\n",
 			     (unsigned long long)areq_ctx->mlli_params.mlli_dma_addr,
 			     areq_ctx->mlli_params.mlli_virt_addr);
@@ -1726,7 +1726,7 @@ int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata)
 
 	buff_mgr_handle = (struct buff_mgr_handle *)
 		kmalloc(sizeof(struct buff_mgr_handle), GFP_KERNEL);
-	if (buff_mgr_handle == NULL)
+	if (!buff_mgr_handle)
 		return -ENOMEM;
 
 	drvdata->buff_mgr_handle = buff_mgr_handle;
@@ -1737,7 +1737,7 @@ int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata)
 				LLI_ENTRY_BYTE_SIZE,
 				MLLI_TABLE_MIN_ALIGNMENT, 0);
 
-	if (unlikely(buff_mgr_handle->mlli_buffs_pool == NULL))
+	if (unlikely(!buff_mgr_handle->mlli_buffs_pool))
 		goto error;
 
 	return 0;
@@ -1751,7 +1751,7 @@ int ssi_buffer_mgr_fini(struct ssi_drvdata *drvdata)
 {
 	struct buff_mgr_handle *buff_mgr_handle = drvdata->buff_mgr_handle;
 
-	if (buff_mgr_handle  != NULL) {
+	if (buff_mgr_handle) {
 		dma_pool_destroy(buff_mgr_handle->mlli_buffs_pool);
 		kfree(drvdata->buff_mgr_handle);
 		drvdata->buff_mgr_handle = NULL;

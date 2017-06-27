@@ -71,7 +71,7 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 {
 	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 
-	if (req_mgr_h == NULL)
+	if (!req_mgr_h)
 		return; /* Not allocated */
 
 	if (req_mgr_h->dummy_comp_buff_dma != 0) {
@@ -102,7 +102,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	int rc = 0;
 
 	req_mgr_h = kzalloc(sizeof(struct ssi_request_mgr_handle), GFP_KERNEL);
-	if (req_mgr_h == NULL) {
+	if (!req_mgr_h) {
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
 	}
@@ -113,7 +113,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 #ifdef COMP_IN_WQ
 	SSI_LOG_DEBUG("Initializing completion workqueue\n");
 	req_mgr_h->workq = create_singlethread_workqueue("arm_cc7x_wq");
-	if (unlikely(req_mgr_h->workq == NULL)) {
+	if (unlikely(!req_mgr_h->workq)) {
 		SSI_LOG_ERR("Failed creating work queue\n");
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
@@ -484,7 +484,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		}
 #endif /* COMPLETION_DELAY */
 
-		if (likely(ssi_req->user_cb != NULL))
+		if (likely(ssi_req->user_cb))
 			ssi_req->user_cb(&plat_dev->dev, ssi_req->user_arg, drvdata->cc_base);
 		request_mgr_handle->req_queue_tail = (request_mgr_handle->req_queue_tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		SSI_LOG_DEBUG("Dequeue request tail=%u\n", request_mgr_handle->req_queue_tail);

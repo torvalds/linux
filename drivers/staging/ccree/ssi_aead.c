@@ -98,7 +98,7 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 
 	dev = &ctx->drvdata->plat_dev->dev;
 	/* Unmap enckey buffer */
-	if (ctx->enckey != NULL) {
+	if (ctx->enckey) {
 		dma_free_coherent(dev, AES_MAX_KEY_SIZE, ctx->enckey, ctx->enckey_dma_addr);
 		SSI_LOG_DEBUG("Freed enckey DMA buffer enckey_dma_addr=0x%llX\n",
 			(unsigned long long)ctx->enckey_dma_addr);
@@ -107,7 +107,7 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 	}
 
 	if (ctx->auth_mode == DRV_HASH_XCBC_MAC) { /* XCBC authetication */
-		if (ctx->auth_state.xcbc.xcbc_keys != NULL) {
+		if (ctx->auth_state.xcbc.xcbc_keys) {
 			dma_free_coherent(dev, CC_AES_128_BIT_KEY_SIZE * 3,
 				ctx->auth_state.xcbc.xcbc_keys,
 				ctx->auth_state.xcbc.xcbc_keys_dma_addr);
@@ -117,7 +117,7 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 		ctx->auth_state.xcbc.xcbc_keys_dma_addr = 0;
 		ctx->auth_state.xcbc.xcbc_keys = NULL;
 	} else if (ctx->auth_mode != DRV_HASH_NULL) { /* HMAC auth. */
-		if (ctx->auth_state.hmac.ipad_opad != NULL) {
+		if (ctx->auth_state.hmac.ipad_opad) {
 			dma_free_coherent(dev, 2 * MAX_HMAC_DIGEST_SIZE,
 				ctx->auth_state.hmac.ipad_opad,
 				ctx->auth_state.hmac.ipad_opad_dma_addr);
@@ -126,7 +126,7 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 			ctx->auth_state.hmac.ipad_opad_dma_addr = 0;
 			ctx->auth_state.hmac.ipad_opad = NULL;
 		}
-		if (ctx->auth_state.hmac.padded_authkey != NULL) {
+		if (ctx->auth_state.hmac.padded_authkey) {
 			dma_free_coherent(dev, MAX_HMAC_BLOCK_SIZE,
 				ctx->auth_state.hmac.padded_authkey,
 				ctx->auth_state.hmac.padded_authkey_dma_addr);
@@ -160,7 +160,7 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 	/* Allocate key buffer, cache line aligned */
 	ctx->enckey = dma_alloc_coherent(dev, AES_MAX_KEY_SIZE,
 		&ctx->enckey_dma_addr, GFP_KERNEL);
-	if (ctx->enckey == NULL) {
+	if (!ctx->enckey) {
 		SSI_LOG_ERR("Failed allocating key buffer\n");
 		goto init_failed;
 	}
@@ -174,7 +174,7 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 		ctx->auth_state.xcbc.xcbc_keys = dma_alloc_coherent(dev,
 			CC_AES_128_BIT_KEY_SIZE * 3,
 			&ctx->auth_state.xcbc.xcbc_keys_dma_addr, GFP_KERNEL);
-		if (ctx->auth_state.xcbc.xcbc_keys == NULL) {
+		if (!ctx->auth_state.xcbc.xcbc_keys) {
 			SSI_LOG_ERR("Failed allocating buffer for XCBC keys\n");
 			goto init_failed;
 		}
@@ -183,7 +183,7 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 		ctx->auth_state.hmac.ipad_opad = dma_alloc_coherent(dev,
 			2 * MAX_HMAC_DIGEST_SIZE,
 			&ctx->auth_state.hmac.ipad_opad_dma_addr, GFP_KERNEL);
-		if (ctx->auth_state.hmac.ipad_opad == NULL) {
+		if (!ctx->auth_state.hmac.ipad_opad) {
 			SSI_LOG_ERR("Failed allocating IPAD/OPAD buffer\n");
 			goto init_failed;
 		}
@@ -193,7 +193,7 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 		ctx->auth_state.hmac.padded_authkey = dma_alloc_coherent(dev,
 			MAX_HMAC_BLOCK_SIZE,
 			&ctx->auth_state.hmac.padded_authkey_dma_addr, GFP_KERNEL);
-		if (ctx->auth_state.hmac.padded_authkey == NULL) {
+		if (!ctx->auth_state.hmac.padded_authkey) {
 			SSI_LOG_ERR("failed to allocate padded_authkey\n");
 			goto init_failed;
 		}
@@ -242,7 +242,7 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 				areq->cryptlen + areq_ctx->dstOffset + ctx->authsize, SSI_SG_FROM_BUF);
 
 		/* If an IV was generated, copy it back to the user provided buffer. */
-		if (areq_ctx->backup_giv != NULL) {
+		if (areq_ctx->backup_giv) {
 			if (ctx->cipher_mode == DRV_CIPHER_CTR)
 				memcpy(areq_ctx->backup_giv, areq_ctx->ctr_iv + CTR_RFC3686_NONCE_SIZE, CTR_RFC3686_IV_SIZE);
 			else if (ctx->cipher_mode == DRV_CIPHER_CCM)
@@ -1848,7 +1848,7 @@ static inline void ssi_aead_dump_gcm(
 	if (ctx->cipher_mode != DRV_CIPHER_GCTR)
 		return;
 
-	if (title != NULL) {
+	if (title) {
 		SSI_LOG_DEBUG("----------------------------------------------------------------------------------");
 		SSI_LOG_DEBUG("%s\n", title);
 	}
@@ -1856,7 +1856,7 @@ static inline void ssi_aead_dump_gcm(
 	SSI_LOG_DEBUG("cipher_mode %d, authsize %d, enc_keylen %d, assoclen %d, cryptlen %d\n", \
 				 ctx->cipher_mode, ctx->authsize, ctx->enc_keylen, req->assoclen, req_ctx->cryptlen);
 
-	if (ctx->enckey != NULL)
+	if (ctx->enckey)
 		dump_byte_array("mac key", ctx->enckey, 16);
 
 	dump_byte_array("req->iv", req->iv, AES_BLOCK_SIZE);
@@ -1871,10 +1871,10 @@ static inline void ssi_aead_dump_gcm(
 
 	dump_byte_array("gcm_len_block", req_ctx->gcm_len_block.lenA, AES_BLOCK_SIZE);
 
-	if (req->src != NULL && req->cryptlen)
+	if (req->src && req->cryptlen)
 		dump_byte_array("req->src", sg_virt(req->src), req->cryptlen + req->assoclen);
 
-	if (req->dst != NULL)
+	if (req->dst)
 		dump_byte_array("req->dst", sg_virt(req->dst), req->cryptlen + ctx->authsize + req->assoclen);
 }
 #endif
@@ -1981,7 +1981,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 		 * CTR key to first 4 bytes in CTR IV
 		 */
 		memcpy(areq_ctx->ctr_iv, ctx->ctr_nonce, CTR_RFC3686_NONCE_SIZE);
-		if (areq_ctx->backup_giv == NULL) /*User none-generated IV*/
+		if (!areq_ctx->backup_giv) /*User none-generated IV*/
 			memcpy(areq_ctx->ctr_iv + CTR_RFC3686_NONCE_SIZE,
 				req->iv, CTR_RFC3686_IV_SIZE);
 		/* Initialize counter portion of counter block */
@@ -2033,7 +2033,7 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	}
 
 	/* do we need to generate IV? */
-	if (areq_ctx->backup_giv != NULL) {
+	if (areq_ctx->backup_giv) {
 		/* set the DMA mapped IV address*/
 		if (ctx->cipher_mode == DRV_CIPHER_CTR) {
 			ssi_req.ivgen_dma_addr[0] = areq_ctx->gen_ctx.iv_dma_addr + CTR_RFC3686_NONCE_SIZE;
@@ -2685,7 +2685,7 @@ int ssi_aead_free(struct ssi_drvdata *drvdata)
 	struct ssi_aead_handle *aead_handle =
 		(struct ssi_aead_handle *)drvdata->aead_handle;
 
-	if (aead_handle != NULL) {
+	if (aead_handle) {
 		/* Remove registered algs */
 		list_for_each_entry_safe(t_alg, n, &aead_handle->aead_list, entry) {
 			crypto_unregister_aead(&t_alg->aead_alg);
@@ -2707,7 +2707,7 @@ int ssi_aead_alloc(struct ssi_drvdata *drvdata)
 	int alg;
 
 	aead_handle = kmalloc(sizeof(struct ssi_aead_handle), GFP_KERNEL);
-	if (aead_handle == NULL) {
+	if (!aead_handle) {
 		rc = -ENOMEM;
 		goto fail0;
 	}

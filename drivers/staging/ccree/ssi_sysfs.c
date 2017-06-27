@@ -408,7 +408,7 @@ static void sys_free_dir(struct sys_dir *sys_dir)
 
 	kfree(sys_dir->sys_dir_attr_list);
 
-	if (sys_dir->sys_dir_kobj != NULL)
+	if (sys_dir->sys_dir_kobj)
 		kobject_put(sys_dir->sys_dir_kobj);
 }
 

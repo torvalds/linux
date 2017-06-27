@@ -297,17 +297,17 @@ fail2:
 fail1:
 	 kfree(state->digest_buff);
 fail_digest_result_buff:
-	 if (state->digest_result_buff != NULL) {
+	 if (state->digest_result_buff) {
 		 kfree(state->digest_result_buff);
 	     state->digest_result_buff = NULL;
 	 }
 fail_buff1:
-	 if (state->buff1 != NULL) {
+	 if (state->buff1) {
 		 kfree(state->buff1);
 	     state->buff1 = NULL;
 	 }
 fail_buff0:
-	 if (state->buff0 != NULL) {
+	 if (state->buff0) {
 		 kfree(state->buff0);
 	     state->buff0 = NULL;
 	 }
@@ -2249,7 +2249,7 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 	int alg;
 
 	hash_handle = kzalloc(sizeof(struct ssi_hash_handle), GFP_KERNEL);
-	if (hash_handle == NULL) {
+	if (!hash_handle) {
 		SSI_LOG_ERR("kzalloc failed to allocate %zu B\n",
 			sizeof(struct ssi_hash_handle));
 		rc = -ENOMEM;
@@ -2343,7 +2343,7 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 
 fail:
 
-	if (drvdata->hash_handle != NULL) {
+	if (drvdata->hash_handle) {
 		kfree(drvdata->hash_handle);
 		drvdata->hash_handle = NULL;
 	}
@@ -2355,7 +2355,7 @@ int ssi_hash_free(struct ssi_drvdata *drvdata)
 	struct ssi_hash_alg *t_hash_alg, *hash_n;
 	struct ssi_hash_handle *hash_handle = drvdata->hash_handle;
 
-	if (hash_handle != NULL) {
+	if (hash_handle) {
 		list_for_each_entry_safe(t_hash_alg, hash_n, &hash_handle->hash_list, entry) {
 			crypto_unregister_ahash(&t_hash_alg->ahash_alg);
 			list_del(&t_hash_alg->entry);

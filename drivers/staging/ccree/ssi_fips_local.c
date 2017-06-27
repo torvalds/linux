@@ -99,11 +99,11 @@ void ssi_fips_fini(struct ssi_drvdata *drvdata)
 {
 	struct ssi_fips_handle *fips_h = drvdata->fips_handle;
 
-	if (fips_h == NULL)
+	if (!fips_h)
 		return; /* Not allocated */
 
 #ifdef COMP_IN_WQ
-	if (fips_h->workq != NULL) {
+	if (fips_h->workq) {
 		flush_workqueue(fips_h->workq);
 		destroy_workqueue(fips_h->workq);
 	}
@@ -175,7 +175,7 @@ ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 	// the dma_handle is the returned phy address - use it in the HW descriptor
 	FIPS_DBG("dma_alloc_coherent \n");
 	cpu_addr_buffer = dma_alloc_coherent(dev, alloc_buff_size, &dma_handle, GFP_KERNEL);
-	if (cpu_addr_buffer == NULL)
+	if (!cpu_addr_buffer)
 		return CC_REE_FIPS_ERROR_GENERAL;
 
 	FIPS_DBG("allocated coherent buffer - addr 0x%08X , size = %d \n", (size_t)cpu_addr_buffer, alloc_buff_size);
@@ -303,7 +303,7 @@ int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 	FIPS_DBG("CC FIPS code ..  (fips=%d) \n", ssi_fips_support);
 
 	fips_h = kzalloc(sizeof(struct ssi_fips_handle), GFP_KERNEL);
-	if (fips_h == NULL) {
+	if (!fips_h) {
 		ssi_fips_set_error(p_drvdata, CC_REE_FIPS_ERROR_GENERAL);
 		return -ENOMEM;
 	}
@@ -313,7 +313,7 @@ int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 #ifdef COMP_IN_WQ
 	SSI_LOG_DEBUG("Initializing fips workqueue\n");
 	fips_h->workq = create_singlethread_workqueue("arm_cc7x_fips_wq");
-	if (unlikely(fips_h->workq == NULL)) {
+	if (unlikely(!fips_h->workq)) {
 		SSI_LOG_ERR("Failed creating fips work queue\n");
 		ssi_fips_set_error(p_drvdata, CC_REE_FIPS_ERROR_GENERAL);
 		rc = -ENOMEM;

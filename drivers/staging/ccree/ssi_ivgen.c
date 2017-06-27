@@ -160,10 +160,10 @@ void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
 	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	struct device *device = &(drvdata->plat_dev->dev);
 
-	if (ivgen_ctx == NULL)
+	if (!ivgen_ctx)
 		return;
 
-	if (ivgen_ctx->pool_meta != NULL) {
+	if (ivgen_ctx->pool_meta) {
 		memset(ivgen_ctx->pool_meta, 0, SSI_IVPOOL_META_SIZE);
 		dma_free_coherent(device, SSI_IVPOOL_META_SIZE,
 			ivgen_ctx->pool_meta, ivgen_ctx->pool_meta_dma);

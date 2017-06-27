@@ -653,7 +653,7 @@ ssi_blkcipher_create_data_desc(
 			     nbytes, NS_BIT);
 		set_dout_dlli(&desc[*seq_size], sg_dma_address(dst),
 			      nbytes, NS_BIT, (!areq ? 0 : 1));
-		if (areq != NULL)
+		if (areq)
 			set_queue_last_ind(&desc[*seq_size]);
 
 		set_flow_mode(&desc[*seq_size], flow_mode);
@@ -702,7 +702,7 @@ ssi_blkcipher_create_data_desc(
 				      req_ctx->out_mlli_nents, NS_BIT,
 				      (!areq ? 0 : 1));
 		}
-		if (areq != NULL)
+		if (areq)
 			set_queue_last_ind(&desc[*seq_size]);
 
 		set_flow_mode(&desc[*seq_size], flow_mode);
@@ -829,8 +829,8 @@ static int ssi_blkcipher_process(
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
 
-	rc = send_request(ctx_p->drvdata, &ssi_req, desc, seq_len, (areq == NULL) ? 0 : 1);
-	if (areq != NULL) {
+	rc = send_request(ctx_p->drvdata, &ssi_req, desc, seq_len, (!areq) ? 0 : 1);
+	if (areq) {
 		if (unlikely(rc != -EINPROGRESS)) {
 			/* Failed to send the request or request completed synchronously */
 			ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
@@ -1292,7 +1292,7 @@ int ssi_ablkcipher_free(struct ssi_drvdata *drvdata)
 	struct device *dev;
 	dev = &drvdata->plat_dev->dev;
 
-	if (blkcipher_handle != NULL) {
+	if (blkcipher_handle) {
 		/* Remove registered algs */
 		list_for_each_entry_safe(t_alg, n,
 				&blkcipher_handle->blkcipher_alg_list,
@@ -1318,7 +1318,7 @@ int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 
 	ablkcipher_handle = kmalloc(sizeof(struct ssi_blkcipher_handle),
 		GFP_KERNEL);
-	if (ablkcipher_handle == NULL)
+	if (!ablkcipher_handle)
 		return -ENOMEM;
 
 	drvdata->blkcipher_handle = ablkcipher_handle;

@@ -41,7 +41,7 @@ int ssi_fips_ext_get_state(ssi_fips_state_t *p_state)
 {
 	int rc = 0;
 
-	if (p_state == NULL)
+	if (!p_state)
 		return -EINVAL;
 
 	*p_state = fips_state;
@@ -59,7 +59,7 @@ int ssi_fips_ext_get_error(ssi_fips_error_t *p_err)
 {
 	int rc = 0;
 
-	if (p_err == NULL)
+	if (!p_err)
 		return -EINVAL;
 
 	*p_err = fips_error;

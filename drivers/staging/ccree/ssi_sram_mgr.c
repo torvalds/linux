@@ -37,7 +37,7 @@ void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
 	struct ssi_sram_mgr_ctx *smgr_ctx = drvdata->sram_mgr_handle;
 
 	/* Free "this" context */
-	if (smgr_ctx != NULL) {
+	if (smgr_ctx) {
 		memset(smgr_ctx, 0, sizeof(struct ssi_sram_mgr_ctx));
 		kfree(smgr_ctx);
 	}

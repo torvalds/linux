@@ -81,7 +81,7 @@ void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
 	const u8 *cur_byte;
 	char line_buf[80];
 
-	if (the_array == NULL) {
+	if (!the_array) {
 		SSI_LOG_ERR("cannot dump_byte_array - NULL pointer\n");
 		return;
 	}
@@ -231,7 +231,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	u32 signature_val;
 	int rc = 0;
 
-	if (unlikely(new_drvdata == NULL)) {
+	if (unlikely(!new_drvdata)) {
 		SSI_LOG_ERR("Failed to allocate drvdata");
 		rc = -ENOMEM;
 		goto init_cc_res_err;
@@ -247,7 +247,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	/* Get device resources */
 	/* First CC registers space */
 	new_drvdata->res_mem = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
-	if (unlikely(new_drvdata->res_mem == NULL)) {
+	if (unlikely(!new_drvdata->res_mem)) {
 		SSI_LOG_ERR("Failed getting IO memory resource\n");
 		rc = -ENODEV;
 		goto init_cc_res_err;
@@ -258,14 +258,14 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		(unsigned long long)new_drvdata->res_mem->end);
 	/* Map registers space */
 	req_mem_cc_regs = request_mem_region(new_drvdata->res_mem->start, resource_size(new_drvdata->res_mem), "arm_cc7x_regs");
-	if (unlikely(req_mem_cc_regs == NULL)) {
+	if (unlikely(!req_mem_cc_regs)) {
 		SSI_LOG_ERR("Couldn't allocate registers memory region at "
 			     "0x%08X\n", (unsigned int)new_drvdata->res_mem->start);
 		rc = -EBUSY;
 		goto init_cc_res_err;
 	}
 	cc_base = ioremap(new_drvdata->res_mem->start, resource_size(new_drvdata->res_mem));
-	if (unlikely(cc_base == NULL)) {
+	if (unlikely(!cc_base)) {
 		SSI_LOG_ERR("ioremap[CC](0x%08X,0x%08X) failed\n",
 			(unsigned int)new_drvdata->res_mem->start, (unsigned int)resource_size(new_drvdata->res_mem));
 		rc = -ENOMEM;
@@ -277,7 +277,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Then IRQ */
 	new_drvdata->res_irq = platform_get_resource(plat_dev, IORESOURCE_IRQ, 0);
-	if (unlikely(new_drvdata->res_irq == NULL)) {
+	if (unlikely(!new_drvdata->res_irq)) {
 		SSI_LOG_ERR("Failed getting IRQ resource\n");
 		rc = -ENODEV;
 		goto init_cc_res_err;
@@ -302,7 +302,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (rc)
 		goto init_cc_res_err;
 
-	if (new_drvdata->plat_dev->dev.dma_mask == NULL)
+	if (!new_drvdata->plat_dev->dev.dma_mask)
 	{
 		new_drvdata->plat_dev->dev.dma_mask = &new_drvdata->plat_dev->dev.coherent_dma_mask;
 	}
@@ -408,7 +408,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 init_cc_res_err:
 	SSI_LOG_ERR("Freeing CC HW resources!\n");
 
-	if (new_drvdata != NULL) {
+	if (new_drvdata) {
 		ssi_aead_free(new_drvdata);
 		ssi_hash_free(new_drvdata);
 		ssi_ablkcipher_free(new_drvdata);
@@ -422,7 +422,7 @@ init_cc_res_err:
 		ssi_sysfs_fini();
 #endif
 
-		if (req_mem_cc_regs != NULL) {
+		if (req_mem_cc_regs) {
 			if (irq_registered) {
 				free_irq(new_drvdata->res_irq->start, new_drvdata);
 				new_drvdata->res_irq = NULL;
@@ -470,7 +470,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	free_irq(drvdata->res_irq->start, drvdata);
 	drvdata->res_irq = NULL;
 
-	if (drvdata->cc_base != NULL) {
+	if (drvdata->cc_base) {
 		iounmap(drvdata->cc_base);
 		release_mem_region(drvdata->res_mem->start,
 			resource_size(drvdata->res_mem));
