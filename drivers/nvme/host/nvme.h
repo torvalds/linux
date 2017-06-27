@@ -147,6 +147,8 @@ struct nvme_ctrl {
 	u16 oncs;
 	u16 vid;
 	u16 oacs;
+	u16 nssa;
+	u16 nr_streams;
 	atomic_t abort_limit;
 	u8 event_limit;
 	u8 vwc;
@@ -199,6 +201,8 @@ struct nvme_ns {
 	unsigned ns_id;
 	int lba_shift;
 	u16 ms;
+	u16 sgs;
+	u32 sws;
 	bool ext;
 	u8 pi_type;
 	unsigned long flags;
