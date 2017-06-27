@@ -307,6 +307,7 @@
 
 &i2c4 {
 	status = "okay";
+	clock-frequency = <400000>;
 
 	gsl3673@40 {
 		compatible = "GSL,GSL3673";
