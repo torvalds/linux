@@ -1038,7 +1038,7 @@ static int stm32_spi_config(struct stm32_spi *spi)
 }
 
 static const struct of_device_id stm32_spi_of_match[] = {
-	{ .compatible = "st,stm32-spi", },
+	{ .compatible = "st,stm32h7-spi", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, stm32_spi_of_match);
