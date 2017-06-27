@@ -343,6 +343,28 @@ void trace_event_enable_cmd_record(bool enable)
 	mutex_unlock(&event_mutex);
 }
 
+void trace_event_enable_tgid_record(bool enable)
+{
+	struct trace_event_file *file;
+	struct trace_array *tr;
+
+	mutex_lock(&event_mutex);
+	do_for_each_event_file(tr, file) {
+		if (!(file->flags & EVENT_FILE_FL_ENABLED))
+			continue;
+
+		if (enable) {
+			tracing_start_tgid_record();
+			set_bit(EVENT_FILE_FL_RECORDED_TGID_BIT, &file->flags);
+		} else {
+			tracing_stop_tgid_record();
+			clear_bit(EVENT_FILE_FL_RECORDED_TGID_BIT,
+				  &file->flags);
+		}
+	} while_for_each_event_file();
+	mutex_unlock(&event_mutex);
+}
+
 static int __ftrace_event_enable_disable(struct trace_event_file *file,
 					 int enable, int soft_disable)
 {
@@ -381,6 +403,12 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 				tracing_stop_cmdline_record();
 				clear_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 			}
+
+			if (file->flags & EVENT_FILE_FL_RECORDED_TGID) {
+				tracing_stop_tgid_record();
+				clear_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
+			}
+
 			call->class->reg(call, TRACE_REG_UNREGISTER, file);
 		}
 		/* If in SOFT_MODE, just set the SOFT_DISABLE_BIT, else clear it */
@@ -407,18 +435,30 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 		}
 
 		if (!(file->flags & EVENT_FILE_FL_ENABLED)) {
+			bool cmd = false, tgid = false;
 
 			/* Keep the event disabled, when going to SOFT_MODE. */
 			if (soft_disable)
 				set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 
 			if (tr->trace_flags & TRACE_ITER_RECORD_CMD) {
+				cmd = true;
 				tracing_start_cmdline_record();
 				set_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 			}
+
+			if (tr->trace_flags & TRACE_ITER_RECORD_TGID) {
+				tgid = true;
+				tracing_start_tgid_record();
+				set_bit(EVENT_FILE_FL_RECORDED_TGID_BIT, &file->flags);
+			}
+
 			ret = call->class->reg(call, TRACE_REG_REGISTER, file);
 			if (ret) {
-				tracing_stop_cmdline_record();
+				if (cmd)
+					tracing_stop_cmdline_record();
+				if (tgid)
+					tracing_stop_tgid_record();
 				pr_info("event trace: Could not enable event "
 					"%s\n", trace_event_name(call));
 				break;

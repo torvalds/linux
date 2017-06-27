@@ -640,6 +640,9 @@ void set_graph_array(struct trace_array *tr);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
+void tracing_start_tgid_record(void);
+void tracing_stop_tgid_record(void);
+
 int register_tracer(struct tracer *type);
 int is_tracing_stopped(void);
 
@@ -700,6 +703,7 @@ static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
 extern u64 ftrace_now(int cpu);
 
 extern void trace_find_cmdline(int pid, char comm[]);
+extern int trace_find_tgid(int pid);
 extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -1124,6 +1128,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(CONTEXT_INFO,		"context-info"),   /* Print pid/cpu/time */ \
 		C(LATENCY_FMT,		"latency-format"),	\
 		C(RECORD_CMD,		"record-cmd"),		\
+		C(RECORD_TGID,		"record-tgid"),		\
 		C(OVERWRITE,		"overwrite"),		\
 		C(STOP_ON_FREE,		"disable_on_free"),	\
 		C(IRQ_INFO,		"irq-info"),		\
@@ -1440,6 +1445,8 @@ struct ftrace_event_field *
 trace_find_event_field(struct trace_event_call *call, char *name);
 
 extern void trace_event_enable_cmd_record(bool enable);
+extern void trace_event_enable_tgid_record(bool enable);
+
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 
