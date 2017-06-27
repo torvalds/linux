@@ -1273,7 +1273,6 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	struct mlx5_bfreg_info *bfregi;
 	int ver;
 	int err;
-	size_t reqlen;
 	size_t min_req_v2 = offsetof(struct mlx5_ib_alloc_ucontext_req_v2,
 				     max_cqe_version);
 	bool lib_uar_4k;
@@ -1281,18 +1280,14 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
-	if (udata->inlen < sizeof(struct ib_uverbs_cmd_hdr))
-		return ERR_PTR(-EINVAL);
-
-	reqlen = udata->inlen - sizeof(struct ib_uverbs_cmd_hdr);
-	if (reqlen == sizeof(struct mlx5_ib_alloc_ucontext_req))
+	if (udata->inlen == sizeof(struct mlx5_ib_alloc_ucontext_req))
 		ver = 0;
-	else if (reqlen >= min_req_v2)
+	else if (udata->inlen >= min_req_v2)
 		ver = 2;
 	else
 		return ERR_PTR(-EINVAL);
 
-	err = ib_copy_from_udata(&req, udata, min(reqlen, sizeof(req)));
+	err = ib_copy_from_udata(&req, udata, min(udata->inlen, sizeof(req)));
 	if (err)
 		return ERR_PTR(err);
 
