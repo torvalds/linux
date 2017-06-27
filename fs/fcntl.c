@@ -452,57 +452,56 @@ out:
 #endif
 
 #ifdef CONFIG_COMPAT
+/* careful - don't use anywhere else */
+#define copy_flock_fields(from, to)		\
+	(to).l_type = (from).l_type;		\
+	(to).l_whence = (from).l_whence;	\
+	(to).l_start = (from).l_start;		\
+	(to).l_len = (from).l_len;		\
+	(to).l_pid = (from).l_pid;
+
 static int get_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
 {
-	if (!access_ok(VERIFY_READ, ufl, sizeof(*ufl)) ||
-	    __get_user(kfl->l_type, &ufl->l_type) ||
-	    __get_user(kfl->l_whence, &ufl->l_whence) ||
-	    __get_user(kfl->l_start, &ufl->l_start) ||
-	    __get_user(kfl->l_len, &ufl->l_len) ||
-	    __get_user(kfl->l_pid, &ufl->l_pid))
+	struct compat_flock fl;
+
+	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock)))
 		return -EFAULT;
+	copy_flock_fields(*kfl, fl);
+	return 0;
+}
+
+static int get_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
+{
+	struct compat_flock64 fl;
+
+	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock64)))
+		return -EFAULT;
+	copy_flock_fields(*kfl, fl);
 	return 0;
 }
 
 static int put_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
 {
-	if (!access_ok(VERIFY_WRITE, ufl, sizeof(*ufl)) ||
-	    __put_user(kfl->l_type, &ufl->l_type) ||
-	    __put_user(kfl->l_whence, &ufl->l_whence) ||
-	    __put_user(kfl->l_start, &ufl->l_start) ||
-	    __put_user(kfl->l_len, &ufl->l_len) ||
-	    __put_user(kfl->l_pid, &ufl->l_pid))
+	struct compat_flock fl;
+
+	memset(&fl, 0, sizeof(struct compat_flock));
+	copy_flock_fields(fl, *kfl);
+	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock)))
 		return -EFAULT;
 	return 0;
 }
 
-#ifndef HAVE_ARCH_GET_COMPAT_FLOCK64
-static int get_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
-{
-	if (!access_ok(VERIFY_READ, ufl, sizeof(*ufl)) ||
-	    __get_user(kfl->l_type, &ufl->l_type) ||
-	    __get_user(kfl->l_whence, &ufl->l_whence) ||
-	    __get_user(kfl->l_start, &ufl->l_start) ||
-	    __get_user(kfl->l_len, &ufl->l_len) ||
-	    __get_user(kfl->l_pid, &ufl->l_pid))
-		return -EFAULT;
-	return 0;
-}
-#endif
-
-#ifndef HAVE_ARCH_PUT_COMPAT_FLOCK64
 static int put_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
 {
-	if (!access_ok(VERIFY_WRITE, ufl, sizeof(*ufl)) ||
-	    __put_user(kfl->l_type, &ufl->l_type) ||
-	    __put_user(kfl->l_whence, &ufl->l_whence) ||
-	    __put_user(kfl->l_start, &ufl->l_start) ||
-	    __put_user(kfl->l_len, &ufl->l_len) ||
-	    __put_user(kfl->l_pid, &ufl->l_pid))
+	struct compat_flock64 fl;
+
+	memset(&fl, 0, sizeof(struct compat_flock64));
+	copy_flock_fields(fl, *kfl);
+	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock64)))
 		return -EFAULT;
 	return 0;
 }
-#endif
+#undef copy_flock_fields
 
 static unsigned int
 convert_fcntl_cmd(unsigned int cmd)
