@@ -30,7 +30,7 @@ typedef enum ssi_fips_state {
 } ssi_fips_state_t;
 
 
-typedef enum ssi_fips_error {
+enum cc_fips_error {
 	CC_REE_FIPS_ERROR_OK = 0,
 	CC_REE_FIPS_ERROR_GENERAL,
 	CC_REE_FIPS_ERROR_FROM_TEE,
@@ -53,12 +53,12 @@ typedef enum ssi_fips_error {
 	CC_REE_FIPS_ERROR_HMAC_SHA512_PUT,
 	CC_REE_FIPS_ERROR_ROM_CHECKSUM,
 	CC_REE_FIPS_ERROR_RESERVE32B = S32_MAX
-} ssi_fips_error_t;
+};
 
 
 
 int ssi_fips_get_state(ssi_fips_state_t *p_state);
-int ssi_fips_get_error(ssi_fips_error_t *p_err);
+int ssi_fips_get_error(enum cc_fips_error *p_err);
 
 #endif  /*__SSI_FIPS_H__*/
 

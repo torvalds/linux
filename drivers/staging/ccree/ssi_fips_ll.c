@@ -271,7 +271,7 @@ static const FipsGcmData FipsGcmDataTable[] = {
 #define FIPS_GCM_NUM_OF_TESTS        (sizeof(FipsGcmDataTable) / sizeof(FipsGcmData))
 
 
-static inline ssi_fips_error_t
+static inline enum cc_fips_error
 FIPS_CipherToFipsError(enum drv_cipher_mode mode, bool is_aes)
 {
 	switch (mode)
@@ -415,10 +415,10 @@ ssi_cipher_fips_run_test(struct ssi_drvdata *drvdata,
 }
 
 
-ssi_fips_error_t
+enum cc_fips_error
 ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer)
 {
-	ssi_fips_error_t error = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error error = CC_REE_FIPS_ERROR_OK;
 	size_t i;
 	struct fips_cipher_ctx *virt_ctx = (struct fips_cipher_ctx *)cpu_addr_buffer;
 
@@ -544,10 +544,10 @@ ssi_cmac_fips_run_test(struct ssi_drvdata *drvdata,
 	return rc;
 }
 
-ssi_fips_error_t
+enum cc_fips_error
 ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer)
 {
-	ssi_fips_error_t error = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error error = CC_REE_FIPS_ERROR_OK;
 	size_t i;
 	struct fips_cmac_ctx *virt_ctx = (struct fips_cmac_ctx *)cpu_addr_buffer;
 
@@ -604,7 +604,7 @@ ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 }
 
 
-static inline ssi_fips_error_t
+static inline enum cc_fips_error
 FIPS_HashToFipsError(enum drv_hash_mode hash_mode)
 {
 	switch (hash_mode) {
@@ -690,10 +690,10 @@ ssi_hash_fips_run_test(struct ssi_drvdata *drvdata,
 	return rc;
 }
 
-ssi_fips_error_t
+enum cc_fips_error
 ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer)
 {
-	ssi_fips_error_t error = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error error = CC_REE_FIPS_ERROR_OK;
 	size_t i;
 	struct fips_hash_ctx *virt_ctx = (struct fips_hash_ctx *)cpu_addr_buffer;
 
@@ -780,7 +780,7 @@ ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 }
 
 
-static inline ssi_fips_error_t
+static inline enum cc_fips_error
 FIPS_HmacToFipsError(enum drv_hash_mode hash_mode)
 {
 	switch (hash_mode) {
@@ -1006,10 +1006,10 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 	return rc;
 }
 
-ssi_fips_error_t
+enum cc_fips_error
 ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer)
 {
-	ssi_fips_error_t error = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error error = CC_REE_FIPS_ERROR_OK;
 	size_t i;
 	struct fips_hmac_ctx *virt_ctx = (struct fips_hmac_ctx *)cpu_addr_buffer;
 
@@ -1248,10 +1248,10 @@ ssi_ccm_fips_run_test(struct ssi_drvdata *drvdata,
 	return rc;
 }
 
-ssi_fips_error_t
+enum cc_fips_error
 ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer)
 {
-	ssi_fips_error_t error = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error error = CC_REE_FIPS_ERROR_OK;
 	size_t i;
 	struct fips_ccm_ctx *virt_ctx = (struct fips_ccm_ctx *)cpu_addr_buffer;
 
@@ -1546,10 +1546,10 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 	return rc;
 }
 
-ssi_fips_error_t
+enum cc_fips_error
 ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer)
 {
-	ssi_fips_error_t error = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error error = CC_REE_FIPS_ERROR_OK;
 	size_t i;
 	struct fips_gcm_ctx *virt_ctx = (struct fips_gcm_ctx *)cpu_addr_buffer;
 

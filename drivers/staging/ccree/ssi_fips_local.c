@@ -51,17 +51,17 @@ struct ssi_fips_handle {
 
 
 extern int ssi_fips_get_state(ssi_fips_state_t *p_state);
-extern int ssi_fips_get_error(ssi_fips_error_t *p_err);
+extern int ssi_fips_get_error(enum cc_fips_error *p_err);
 extern int ssi_fips_ext_set_state(ssi_fips_state_t state);
-extern int ssi_fips_ext_set_error(ssi_fips_error_t err);
+extern int ssi_fips_ext_set_error(enum cc_fips_error err);
 
 /* FIPS power-up tests */
-extern ssi_fips_error_t ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
 extern size_t ssi_fips_max_mem_alloc_size(void);
 
 
@@ -84,7 +84,7 @@ static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
  * By writing the error state to HOST_GPR0 register. The function is called from
  * driver entry point so no need to protect by mutex.
  */
-static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, ssi_fips_error_t err)
+static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, enum cc_fips_error err)
 {
 	void __iomem *cc_base = drvdata->cc_base;
 	if (err == CC_REE_FIPS_ERROR_OK)
@@ -162,9 +162,9 @@ static void fips_dsr(unsigned long devarg)
 }
 
 
-ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
+enum cc_fips_error cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 {
-	ssi_fips_error_t fips_error = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error fips_error = CC_REE_FIPS_ERROR_OK;
 	void *cpu_addr_buffer = NULL;
 	dma_addr_t dma_handle;
 	size_t alloc_buff_size = ssi_fips_max_mem_alloc_size();
@@ -259,10 +259,10 @@ int ssi_fips_set_state(ssi_fips_state_t state)
 /* The function sets the REE FIPS error, and pushes the error to TEE library. *
  * It should be used when any of the KAT tests fails.
  */
-int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
+int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, enum cc_fips_error err)
 {
 	int rc = 0;
-	ssi_fips_error_t current_err;
+	enum cc_fips_error current_err;
 
 	FIPS_LOG("ssi_fips_set_error - fips_error = %d \n", err);
 
@@ -297,7 +297,7 @@ int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
 /* The function called once at driver entry point .*/
 int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 {
-	ssi_fips_error_t rc = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error rc = CC_REE_FIPS_ERROR_OK;
 	struct ssi_fips_handle *fips_h;
 
 	FIPS_DBG("CC FIPS code ..  (fips=%d) \n", ssi_fips_support);

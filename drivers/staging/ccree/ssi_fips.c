@@ -24,7 +24,7 @@
 
 
 extern int ssi_fips_ext_get_state(ssi_fips_state_t *p_state);
-extern int ssi_fips_ext_get_error(ssi_fips_error_t *p_err);
+extern int ssi_fips_ext_get_error(enum cc_fips_error *p_err);
 
 /*
  * This function returns the REE FIPS state.
@@ -48,7 +48,7 @@ EXPORT_SYMBOL(ssi_fips_get_state);
  * This function returns the REE FIPS error.
  * It should be called by kernel module.
  */
-int ssi_fips_get_error(ssi_fips_error_t *p_err)
+int ssi_fips_get_error(enum cc_fips_error *p_err)
 {
 	int rc = 0;
 

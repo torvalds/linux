@@ -53,7 +53,7 @@ typedef enum CC_FipsSyncStatus {
 int ssi_fips_init(struct ssi_drvdata *p_drvdata);
 void ssi_fips_fini(struct ssi_drvdata *drvdata);
 int ssi_fips_check_fips_error(void);
-int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err);
+int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, enum cc_fips_error err);
 void fips_handler(struct ssi_drvdata *drvdata);
 
 #else  /* CONFIG_CC7XXREE_FIPS_SUPPORT */
