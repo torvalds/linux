@@ -5705,6 +5705,7 @@ void ftrace_release_mod(struct module *mod)
 			if (pg == ftrace_pages)
 				ftrace_pages = next_to_ftrace_page(last_pg);
 
+			ftrace_update_tot_cnt -= pg->index;
 			*last_pg = pg->next;
 			order = get_count_order(pg->size / ENTRIES_PER_PAGE);
 			free_pages((unsigned long)pg->records, order);
