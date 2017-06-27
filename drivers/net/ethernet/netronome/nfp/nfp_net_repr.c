@@ -256,6 +256,7 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_get_stats64	= nfp_repr_get_stats64,
 	.ndo_has_offload_stats	= nfp_repr_has_offload_stats,
 	.ndo_get_offload_stats	= nfp_repr_get_offload_stats,
+	.ndo_get_phys_port_name	= nfp_port_get_phys_port_name,
 };
 
 static void nfp_repr_clean(struct nfp_repr *repr)
