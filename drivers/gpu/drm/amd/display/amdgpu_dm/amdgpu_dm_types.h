@@ -32,6 +32,16 @@ struct amdgpu_framebuffer;
 struct amdgpu_display_manager;
 struct dc_validation_set;
 struct dc_surface;
+/* TODO rename to dc_stream_state */
+struct  dc_stream;
+
+
+struct dm_crtc_state {
+	struct drm_crtc_state base;
+	struct dc_stream *dc_stream;
+};
+
+#define to_dm_crtc_state(x)    container_of(x, struct dm_crtc_state, base)
 
 struct dm_plane_state {
 	struct drm_plane_state base;

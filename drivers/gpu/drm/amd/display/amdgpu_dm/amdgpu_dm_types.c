@@ -960,15 +960,83 @@ void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc)
 	kfree(crtc);
 }
 
+static void dm_crtc_destroy_state(struct drm_crtc *crtc,
+					   struct drm_crtc_state *state)
+{
+	struct dm_crtc_state *cur = to_dm_crtc_state(state);
+
+	if (cur->dc_stream) {
+		/* TODO Destroy dc_stream objects are stream object is flattened */
+		dm_free(cur->dc_stream);
+	} else
+		WARN_ON(1);
+
+	__drm_atomic_helper_crtc_destroy_state(state);
+
+
+	kfree(state);
+}
+
+static void dm_crtc_reset_state(struct drm_crtc *crtc)
+{
+	struct dm_crtc_state *state;
+
+	if (crtc->state)
+		dm_crtc_destroy_state(crtc, crtc->state);
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (WARN_ON(!state))
+		return;
+
+
+	crtc->state = &state->base;
+	crtc->state->crtc = crtc;
+
+	state->dc_stream = dm_alloc(sizeof(*state->dc_stream));
+	WARN_ON(!state->dc_stream);
+}
+
+static struct drm_crtc_state *
+dm_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct dm_crtc_state *state, *cur;
+	struct dc_stream *dc_stream;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	cur = to_dm_crtc_state(crtc->state);
+	if (WARN_ON(!cur->dc_stream))
+		return NULL;
+
+	dc_stream = dm_alloc(sizeof(*dc_stream));
+	if (WARN_ON(!dc_stream))
+		return NULL;
+
+	state = dm_alloc(sizeof(*state));
+	if (WARN_ON(!state)) {
+		dm_free(dc_stream);
+		return NULL;
+	}
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
+
+	state->dc_stream = dc_stream;
+
+	/* TODO Duplicate dc_stream after objects are stream object is flattened */
+
+	return &state->base;
+}
+
 /* Implemented only the options currently availible for the driver */
 static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
-	.reset = drm_atomic_helper_crtc_reset,
+	.reset = dm_crtc_reset_state,
 	.destroy = amdgpu_dm_crtc_destroy,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_duplicate_state = dm_crtc_duplicate_state,
+	.atomic_destroy_state = dm_crtc_destroy_state,
 };
 
 static enum drm_connector_status
