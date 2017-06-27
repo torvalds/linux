@@ -39,7 +39,7 @@ hotpluggable_memory()
 	done
 }
 
-hotplaggable_offline_memory()
+hotpluggable_offline_memory()
 {
 	hotpluggable_memory offline
 }
@@ -150,7 +150,7 @@ echo -e "\t online all hotplug memory in offline state"
 #
 # Online all hot-pluggable memory
 #
-for memory in `hotplaggable_offline_memory`; do
+for memory in `hotpluggable_offline_memory`; do
 	echo offline-online $memory
 	online_memory_expect_success $memory
 done
@@ -168,7 +168,7 @@ done
 #
 # Online all hot-pluggable memory again
 #
-for memory in `hotplaggable_offline_memory`; do
+for memory in `hotpluggable_offline_memory`; do
 	echo offline-online $memory
 	online_memory_expect_success $memory
 done
@@ -214,7 +214,7 @@ done
 # Test memory hot-add error handling (offline => online)
 #
 echo $error > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
-for memory in `hotplaggable_offline_memory`; do
+for memory in `hotpluggable_offline_memory`; do
 	online_memory_expect_fail $memory
 done
 
@@ -222,7 +222,7 @@ done
 # Online all hot-pluggable memory
 #
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
-for memory in `hotplaggable_offline_memory`; do
+for memory in `hotpluggable_offline_memory`; do
 	online_memory_expect_success $memory
 done
 
