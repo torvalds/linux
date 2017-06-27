@@ -104,36 +104,29 @@ nfp_flower_repr_get(struct nfp_app *app, u32 port_id)
 	return reprs->reprs[port];
 }
 
-static int nfp_flower_repr_netdev_open(struct net_device *netdev)
+static int
+nfp_flower_repr_netdev_open(struct nfp_app *app, struct nfp_repr *repr)
 {
 	int err;
 
-	err = nfp_flower_cmsg_portmod(netdev, true);
+	err = nfp_flower_cmsg_portmod(repr, true);
 	if (err)
 		return err;
 
-	netif_carrier_on(netdev);
-	netif_tx_wake_all_queues(netdev);
+	netif_carrier_on(repr->netdev);
+	netif_tx_wake_all_queues(repr->netdev);
 
 	return 0;
 }
 
-static int nfp_flower_repr_netdev_stop(struct net_device *netdev)
+static int
+nfp_flower_repr_netdev_stop(struct nfp_app *app, struct nfp_repr *repr)
 {
-	netif_carrier_off(netdev);
-	netif_tx_disable(netdev);
+	netif_carrier_off(repr->netdev);
+	netif_tx_disable(repr->netdev);
 
-	return nfp_flower_cmsg_portmod(netdev, false);
+	return nfp_flower_cmsg_portmod(repr, false);
 }
-
-static const struct net_device_ops nfp_flower_repr_netdev_ops = {
-	.ndo_open		= nfp_flower_repr_netdev_open,
-	.ndo_stop		= nfp_flower_repr_netdev_stop,
-	.ndo_start_xmit		= nfp_repr_xmit,
-	.ndo_get_stats64	= nfp_repr_get_stats64,
-	.ndo_has_offload_stats	= nfp_repr_has_offload_stats,
-	.ndo_get_offload_stats	= nfp_repr_get_offload_stats,
-};
 
 static void nfp_flower_sriov_disable(struct nfp_app *app)
 {
@@ -182,7 +175,6 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 		port_id = nfp_flower_cmsg_pcie_port(nfp_pcie, vnic_type,
 						    i, queue);
 		err = nfp_repr_init(app, reprs->reprs[i],
-				    &nfp_flower_repr_netdev_ops,
 				    port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
@@ -261,7 +253,6 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 
 		cmsg_port_id = nfp_flower_cmsg_phys_port(phys_port);
 		err = nfp_repr_init(app, reprs->reprs[phys_port],
-				    &nfp_flower_repr_netdev_ops,
 				    cmsg_port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
@@ -362,6 +353,9 @@ const struct nfp_app_type app_flower = {
 	.clean		= nfp_flower_clean,
 
 	.vnic_init	= nfp_flower_vnic_init,
+
+	.repr_open	= nfp_flower_repr_netdev_open,
+	.repr_stop	= nfp_flower_repr_netdev_stop,
 
 	.start		= nfp_flower_start,
 	.stop		= nfp_flower_stop,
