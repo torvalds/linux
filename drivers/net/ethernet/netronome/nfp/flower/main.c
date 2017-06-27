@@ -162,14 +162,19 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 	u8 nfp_pcie = nfp_cppcore_pcie_unit(app->pf->cpp);
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_reprs *reprs, *old_reprs;
+	enum nfp_port_type port_type;
 	const u8 queue = 0;
 	int i, err;
+
+	port_type = repr_type == NFP_REPR_TYPE_PF ? NFP_PORT_PF_PORT :
+						    NFP_PORT_VF_PORT;
 
 	reprs = nfp_reprs_alloc(cnt);
 	if (!reprs)
 		return -ENOMEM;
 
 	for (i = 0; i < cnt; i++) {
+		struct nfp_port *port;
 		u32 port_id;
 
 		reprs->reprs[i] = nfp_repr_alloc(app);
@@ -178,15 +183,25 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			goto err_reprs_clean;
 		}
 
+		port = nfp_port_alloc(app, port_type, reprs->reprs[i]);
+		if (repr_type == NFP_REPR_TYPE_PF) {
+			port->pf_id = i;
+		} else {
+			port->pf_id = 0; /* For now we only support 1 PF */
+			port->vf_id = i;
+		}
+
 		eth_hw_addr_random(reprs->reprs[i]);
 
 		port_id = nfp_flower_cmsg_pcie_port(nfp_pcie, vnic_type,
 						    i, queue);
 		err = nfp_repr_init(app, reprs->reprs[i],
 				    &nfp_flower_repr_netdev_ops,
-				    port_id, NULL, priv->nn->dp.netdev);
-		if (err)
+				    port_id, port, priv->nn->dp.netdev);
+		if (err) {
+			nfp_port_free(port);
 			goto err_reprs_clean;
+		}
 
 		nfp_info(app->cpp, "%s%d Representor(%s) created\n",
 			 repr_type == NFP_REPR_TYPE_PF ? "PF" : "VF", i,
