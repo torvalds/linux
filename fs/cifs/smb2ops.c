@@ -1288,6 +1288,7 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_ACL
 static struct cifs_ntsd *
 get_smb2_acl_by_fid(struct cifs_sb_info *cifs_sb,
 		const struct cifs_fid *cifsfid, u32 *pacllen)
@@ -1387,7 +1388,7 @@ get_smb2_acl(struct cifs_sb_info *cifs_sb,
 	cifsFileInfo_put(open_file);
 	return pntsd;
 }
-
+#endif
 
 static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 			    loff_t offset, loff_t len, bool keep_size)
