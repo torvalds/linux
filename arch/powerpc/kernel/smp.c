@@ -112,7 +112,8 @@ int smp_generic_cpu_bootable(unsigned int nr)
 #ifdef CONFIG_PPC64
 int smp_generic_kick_cpu(int nr)
 {
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= NR_CPUS)
+		return -EINVAL;
 
 	/*
 	 * The processor is currently spinning, waiting for the

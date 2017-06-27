@@ -63,7 +63,8 @@ static int pnv_smp_kick_cpu(int nr)
 	long rc;
 	uint8_t status;
 
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= NR_CPUS)
+		return -EINVAL;
 
 	/*
 	 * If we already started or OPAL is not supported, we just
