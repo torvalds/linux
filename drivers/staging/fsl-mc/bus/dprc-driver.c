@@ -221,8 +221,8 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
  * populated before they can get allocation requests from probe callbacks
  * of the device drivers for the non-allocatable devices.
  */
-int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
-		      unsigned int *total_irq_count)
+static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
+			     unsigned int *total_irq_count)
 {
 	int num_child_objects;
 	int dprc_get_obj_failures;
@@ -310,7 +310,6 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dprc_scan_objects);
 
 /**
  * dprc_scan_container - Scans a physical DPRC and synchronizes Linux bus state
@@ -321,7 +320,7 @@ EXPORT_SYMBOL_GPL(dprc_scan_objects);
  * bus driver with the actual state of the MC by adding and removing
  * devices as appropriate.
  */
-int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
+static int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 {
 	int error;
 	unsigned int irq_count;
@@ -357,7 +356,6 @@ error:
 	fsl_mc_cleanup_all_resource_pools(mc_bus_dev);
 	return error;
 }
-EXPORT_SYMBOL_GPL(dprc_scan_container);
 
 /**
  * dprc_irq0_handler - Regular ISR for DPRC interrupt 0
