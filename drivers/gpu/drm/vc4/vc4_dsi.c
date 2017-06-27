@@ -1035,7 +1035,17 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 				     DSI_HS_DLT4_TRAIL) |
 		       VC4_SET_FIELD(0, DSI_HS_DLT4_ANLAT));
 
-	DSI_PORT_WRITE(HS_DLT5, VC4_SET_FIELD(dsi_hs_timing(ui_ns, 1000, 5000),
+	/* T_INIT is how long STOP is driven after power-up to
+	 * indicate to the slave (also coming out of power-up) that
+	 * master init is complete, and should be greater than the
+	 * maximum of two value: T_INIT,MASTER and T_INIT,SLAVE.  The
+	 * D-PHY spec gives a minimum 100us for T_INIT,MASTER and
+	 * T_INIT,SLAVE, while allowing protocols on top of it to give
+	 * greater minimums.  The vc4 firmware uses an extremely
+	 * conservative 5ms, and we maintain that here.
+	 */
+	DSI_PORT_WRITE(HS_DLT5, VC4_SET_FIELD(dsi_hs_timing(ui_ns,
+							    5 * 1000 * 1000, 0),
 					      DSI_HS_DLT5_INIT));
 
 	DSI_PORT_WRITE(HS_DLT6,
