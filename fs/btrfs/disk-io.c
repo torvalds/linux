@@ -3519,20 +3519,10 @@ static blk_status_t wait_dev_flush(struct btrfs_device *device)
 	return bio->bi_status;
 }
 
-static int check_barrier_error(struct btrfs_fs_devices *fsdevs)
+static int check_barrier_error(struct btrfs_fs_info *fs_info)
 {
-	int dev_flush_error = 0;
-	struct btrfs_device *dev;
-
-	list_for_each_entry_rcu(dev, &fsdevs->devices, dev_list) {
-		if (!dev->bdev || dev->last_flush_error)
-			dev_flush_error++;
-	}
-
-	if (dev_flush_error >
-	    fsdevs->fs_info->num_tolerated_disk_barrier_failures)
+	if (!btrfs_check_rw_degradable(fs_info))
 		return -EIO;
-
 	return 0;
 }
 
@@ -3587,7 +3577,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 		 * to arrive at the volume status. So error checking
 		 * is being pushed to a separate loop.
 		 */
-		return check_barrier_error(info->fs_devices);
+		return check_barrier_error(info);
 	}
 	return 0;
 }
