@@ -1236,6 +1236,7 @@ static inline int cpsw_tx_packet_submit(struct cpsw_priv *priv,
 {
 	struct cpsw_common *cpsw = priv->cpsw;
 
+	skb_tx_timestamp(skb);
 	return cpdma_chan_submit(txch, skb, skb->data, skb->len,
 				 priv->emac_port + cpsw->data.dual_emac);
 }
@@ -1610,8 +1611,6 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
 	    cpts_is_tx_enabled(cpsw->cpts))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-
-	skb_tx_timestamp(skb);
 
 	q_idx = skb_get_queue_mapping(skb);
 	if (q_idx >= cpsw->tx_ch_num)
