@@ -1382,7 +1382,7 @@ static struct platform_device_id sahara_platform_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, sahara_platform_ids);
 
-static struct of_device_id sahara_dt_ids[] = {
+static const struct of_device_id sahara_dt_ids[] = {
 	{ .compatible = "fsl,imx53-sahara" },
 	{ .compatible = "fsl,imx27-sahara" },
 	{ /* sentinel */ }
