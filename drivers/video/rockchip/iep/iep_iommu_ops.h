@@ -17,6 +17,7 @@
 #define __IEP_IOMMU_OPS_H__
 
 #include <linux/platform_device.h>
+#include <linux/rockchip-iovmm.h>
 #include "iep_drv.h"
 
 #define BUFFER_LIST_MAX_NUMS	30
