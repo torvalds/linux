@@ -203,6 +203,7 @@ struct gsl_ts {
 	int flag_irq_is_disable;
 	spinlock_t irq_lock;
 	struct tp_device  tp;
+	struct work_struct download_fw_work;
 };
 
 #if GSL_DEBUG
@@ -443,6 +444,7 @@ static void clr_reg(struct i2c_client *client)
 static int init_chip(struct i2c_client *client)
 {
 	int rc;
+	struct gsl_ts *ts = i2c_get_clientdata(client);
 
 	gsl3673_shutdown_low();
 	msleep(20);
@@ -450,15 +452,10 @@ static int init_chip(struct i2c_client *client)
 	msleep(20);
 	rc = test_i2c(client);
 	if (rc < 0) {
-		print_info("------GSL3673 test_i2c error------\n");
+		dev_err(&client->dev, "GSL3673 test_i2c error!\n");
 		return rc;
 	}
-	clr_reg(client);
-	reset_chip(client);
-	gsl_load_fw(client);
-	startup_chip(client);
-	reset_chip(client);
-	startup_chip(client);
+	schedule_work(&ts->download_fw_work);
 	return 0;
 }
 
@@ -515,10 +512,10 @@ static int gsl_config_read_proc(struct seq_file *m, void *v)
 				gsl_ts_read(gsl_client, gsl_data_proc[0], temp_data, 4);
 			gsl_ts_read(gsl_client, gsl_data_proc[0], temp_data, 4);
 			seq_printf(m, "offset : {0x%02x,0x", gsl_data_proc[0]);
-			seq_printf(m, "%02x", temp_data[3]);
-			seq_printf(m, "%02x", temp_data[2]);
-			seq_printf(m, "%02x", temp_data[1]);
-			seq_printf(m, "%02x};\n", temp_data[0]);
+			seq_printf(m, "%02d", temp_data[3]);
+			seq_printf(m, "%02d", temp_data[2]);
+			seq_printf(m, "%02d", temp_data[1]);
+			seq_printf(m, "%02d};\n", temp_data[0]);
 		}
 	}
 	return 0;
@@ -534,7 +531,7 @@ static ssize_t gsl_config_write_proc(struct file *file, const char *buffer,
 	int tmp1 = 0;
 
 	if (count > 512) {
-		print_info("size not match [%d:%ld]\n", CONFIG_LEN, count);
+		print_info("size not match [%d:%zd]\n", CONFIG_LEN, count);
 		return -EFAULT;
 	}
 	path_buf = kzalloc(count, GFP_KERNEL);
@@ -1109,6 +1106,18 @@ static int gsl_ts_late_resume(struct tp_device *tp_d)
 	return rc;
 }
 
+static void gsl_download_fw_work(struct work_struct *work)
+{
+	struct gsl_ts *ts = container_of(work, struct gsl_ts, download_fw_work);
+
+	clr_reg(ts->client);
+	reset_chip(ts->client);
+	gsl_load_fw(ts->client);
+	startup_chip(ts->client);
+	reset_chip(ts->client);
+	startup_chip(ts->client);
+}
+
 static int  gsl_ts_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1141,12 +1150,12 @@ static int  gsl_ts_probe(struct i2c_client *client,
 #ifdef GSLX680_COMPATIBLE
 	judge_chip_type(client);
 #endif
+	INIT_WORK(&ts->download_fw_work, gsl_download_fw_work);
 	rc = init_chip(ts->client);
 	if (rc < 0) {
 		dev_err(&client->dev, "gsl_probe: init_chip failed\n");
 		goto error_init_chip_fail;
 	}
-	check_mem_data(ts->client);
 	spin_lock_init(&ts->irq_lock);
 	client->irq = gpio_to_irq(ts->irq);
 	rc = devm_request_irq(&client->dev, client->irq, gsl_ts_irq,
@@ -1167,6 +1176,7 @@ static int  gsl_ts_probe(struct i2c_client *client,
 #endif
 	return 0;
 error_init_chip_fail:
+	cancel_work_sync(&ts->download_fw_work);
 error_mutex_destroy:
 	tp_unregister_fb(&ts->tp);
 	return rc;
@@ -1183,6 +1193,7 @@ static int gsl_ts_remove(struct i2c_client *client)
 	device_init_wakeup(&client->dev, 0);
 	cancel_work_sync(&ts->work);
 	destroy_workqueue(ts->wq);
+	cancel_work_sync(&ts->download_fw_work);
 	return 0;
 }
 
