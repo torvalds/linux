@@ -22,6 +22,11 @@ prerequisite()
 		echo $msg memory hotplug is not supported >&2
 		exit 0
 	fi
+
+	if ! grep -q 1 $SYSFS/devices/system/memory/memory*/removable; then
+		echo $msg no hot-pluggable memory >&2
+		exit 0
+	fi
 }
 
 #
