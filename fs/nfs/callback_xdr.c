@@ -753,7 +753,6 @@ static void nfs4_callback_free_slot(struct nfs4_session *session,
 	 * A single slot, so highest used slotid is either 0 or -1
 	 */
 	nfs4_free_slot(tbl, slot);
-	nfs4_slot_tbl_drain_complete(tbl);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
