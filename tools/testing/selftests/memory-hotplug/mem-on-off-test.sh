@@ -136,6 +136,10 @@ while getopts e:hp:r: opt; do
 		;;
 	r)
 		ratio=$OPTARG
+		if [ "$ratio" -gt 100 ] || [ "$ratio" -lt 0 ]; then
+			echo "The percentage should be an integer within 0~100 range"
+			exit 1
+		fi
 		;;
 	esac
 done
