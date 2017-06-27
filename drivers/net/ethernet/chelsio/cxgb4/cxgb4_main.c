@@ -2171,9 +2171,10 @@ static int cxgb_up(struct adapter *adap)
 {
 	int err;
 
+	mutex_lock(&uld_mutex);
 	err = setup_sge_queues(adap);
 	if (err)
-		goto out;
+		goto rel_lock;
 	err = setup_rss(adap);
 	if (err)
 		goto freeq;
@@ -2197,7 +2198,6 @@ static int cxgb_up(struct adapter *adap)
 			goto irq_err;
 	}
 
-	mutex_lock(&uld_mutex);
 	enable_rx(adap);
 	t4_sge_start(adap);
 	t4_intr_enable(adap);
@@ -2210,13 +2210,15 @@ static int cxgb_up(struct adapter *adap)
 #endif
 	/* Initialize hash mac addr list*/
 	INIT_LIST_HEAD(&adap->mac_hlist);
- out:
 	return err;
+
  irq_err:
 	dev_err(adap->pdev_dev, "request_irq failed, err %d\n", err);
  freeq:
 	t4_free_sge_resources(adap);
-	goto out;
+ rel_lock:
+	mutex_unlock(&uld_mutex);
+	return err;
 }
 
 static void cxgb_down(struct adapter *adapter)

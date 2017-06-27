@@ -49,6 +49,28 @@ static void klp_transition_work_fn(struct work_struct *work)
 static DECLARE_DELAYED_WORK(klp_transition_work, klp_transition_work_fn);
 
 /*
+ * This function is just a stub to implement a hard force
+ * of synchronize_sched(). This requires synchronizing
+ * tasks even in userspace and idle.
+ */
+static void klp_sync(struct work_struct *work)
+{
+}
+
+/*
+ * We allow to patch also functions where RCU is not watching,
+ * e.g. before user_exit(). We can not rely on the RCU infrastructure
+ * to do the synchronization. Instead hard force the sched synchronization.
+ *
+ * This approach allows to use RCU functions for manipulating func_stack
+ * safely.
+ */
+static void klp_synchronize_transition(void)
+{
+	schedule_on_each_cpu(klp_sync);
+}
+
+/*
  * The transition to the target patch state is complete.  Clean up the data
  * structures.
  */
@@ -73,7 +95,7 @@ static void klp_complete_transition(void)
 		 * func->transition gets cleared, the handler may choose a
 		 * removed function.
 		 */
-		synchronize_rcu();
+		klp_synchronize_transition();
 	}
 
 	if (klp_transition_patch->immediate)
@@ -92,7 +114,7 @@ static void klp_complete_transition(void)
 
 	/* Prevent klp_ftrace_handler() from seeing KLP_UNDEFINED state */
 	if (klp_target_state == KLP_PATCHED)
-		synchronize_rcu();
+		klp_synchronize_transition();
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, task) {
@@ -136,7 +158,11 @@ void klp_cancel_transition(void)
  */
 void klp_update_patch_state(struct task_struct *task)
 {
-	rcu_read_lock();
+	/*
+	 * A variant of synchronize_sched() is used to allow patching functions
+	 * where RCU is not watching, see klp_synchronize_transition().
+	 */
+	preempt_disable_notrace();
 
 	/*
 	 * This test_and_clear_tsk_thread_flag() call also serves as a read
@@ -153,7 +179,7 @@ void klp_update_patch_state(struct task_struct *task)
 	if (test_and_clear_tsk_thread_flag(task, TIF_PATCH_PENDING))
 		task->patch_state = READ_ONCE(klp_target_state);
 
-	rcu_read_unlock();
+	preempt_enable_notrace();
 }
 
 /*
@@ -539,7 +565,7 @@ void klp_reverse_transition(void)
 		clear_tsk_thread_flag(idle_task(cpu), TIF_PATCH_PENDING);
 
 	/* Let any remaining calls to klp_update_patch_state() complete */
-	synchronize_rcu();
+	klp_synchronize_transition();
 
 	klp_start_transition();
 }
