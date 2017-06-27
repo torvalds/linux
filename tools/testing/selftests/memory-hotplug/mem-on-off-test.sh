@@ -80,9 +80,12 @@ online_memory_expect_success()
 
 	if ! online_memory $memory; then
 		echo $FUNCNAME $memory: unexpected fail >&2
+		return 1
 	elif ! memory_is_online $memory; then
 		echo $FUNCNAME $memory: unexpected offline >&2
+		return 1
 	fi
+	return 0
 }
 
 online_memory_expect_fail()
@@ -91,9 +94,12 @@ online_memory_expect_fail()
 
 	if online_memory $memory 2> /dev/null; then
 		echo $FUNCNAME $memory: unexpected success >&2
+		return 1
 	elif ! memory_is_offline $memory; then
 		echo $FUNCNAME $memory: unexpected online >&2
+		return 1
 	fi
+	return 0
 }
 
 offline_memory_expect_success()
@@ -102,9 +108,12 @@ offline_memory_expect_success()
 
 	if ! offline_memory $memory; then
 		echo $FUNCNAME $memory: unexpected fail >&2
+		return 1
 	elif ! memory_is_offline $memory; then
 		echo $FUNCNAME $memory: unexpected offline >&2
+		return 1
 	fi
+	return 0
 }
 
 offline_memory_expect_fail()
@@ -113,14 +122,18 @@ offline_memory_expect_fail()
 
 	if offline_memory $memory 2> /dev/null; then
 		echo $FUNCNAME $memory: unexpected success >&2
+		return 1
 	elif ! memory_is_online $memory; then
 		echo $FUNCNAME $memory: unexpected offline >&2
+		return 1
 	fi
+	return 0
 }
 
 error=-12
 priority=0
 ratio=10
+retval=0
 
 while getopts e:hp:r: opt; do
 	case $opt in
@@ -152,35 +165,58 @@ fi
 prerequisite
 
 echo "Test scope: $ratio% hotplug memory"
-echo -e "\t online all hotplug memory in offline state"
-echo -e "\t offline $ratio% hotplug memory in online state"
-echo -e "\t online all hotplug memory in offline state"
 
 #
 # Online all hot-pluggable memory
 #
-for memory in `hotpluggable_offline_memory`; do
-	echo offline-online $memory
-	online_memory_expect_success $memory
-done
+hotpluggable_num=`hotpluggable_offline_memory | wc -l`
+echo -e "\t online all hot-pluggable memory in offline state:"
+if [ "$hotpluggable_num" -gt 0 ]; then
+	for memory in `hotpluggable_offline_memory`; do
+		echo "offline->online memory$memory"
+		if ! online_memory_expect_success $memory; then
+			retval=1
+		fi
+	done
+else
+	echo -e "\t\t SKIPPED - no hot-pluggable memory in offline state"
+fi
 
 #
 # Offline $ratio percent of hot-pluggable memory
 #
+hotpluggable_num=`hotpluggable_online_memory | wc -l`
+target=`echo "a=$hotpluggable_num*$ratio; if ( a%100 ) a/100+1 else a/100" | bc`
+echo -e "\t offline $ratio% hot-pluggable memory in online state"
+echo -e "\t trying to offline $target out of $hotpluggable_num memory block(s):"
 for memory in `hotpluggable_online_memory`; do
-	if [ $((RANDOM % 100)) -lt $ratio ]; then
-		echo online-offline $memory
-		offline_memory_expect_success $memory
+	if [ "$target" -gt 0 ]; then
+		echo "online->offline memory$memory"
+		if offline_memory_expect_success $memory; then
+			target=$(($target - 1))
+		fi
 	fi
 done
+if [ "$target" -gt 0 ]; then
+	retval=1
+	echo -e "\t\t FAILED - unable to offline some memory blocks, device busy?"
+fi
 
 #
 # Online all hot-pluggable memory again
 #
-for memory in `hotpluggable_offline_memory`; do
-	echo offline-online $memory
-	online_memory_expect_success $memory
-done
+hotpluggable_num=`hotpluggable_offline_memory | wc -l`
+echo -e "\t online all hot-pluggable memory in offline state:"
+if [ "$hotpluggable_num" -gt 0 ]; then
+	for memory in `hotpluggable_offline_memory`; do
+		echo "offline->online memory$memory"
+		if ! online_memory_expect_success $memory; then
+			retval=1
+		fi
+	done
+else
+	echo -e "\t\t SKIPPED - no hot-pluggable memory in offline state"
+fi
 
 #
 # Test with memory notifier error injection
@@ -198,12 +234,12 @@ prerequisite_extra()
 
 	if [ ! -d "$DEBUGFS" ]; then
 		echo $msg debugfs is not mounted >&2
-		exit 0
+		exit $retval
 	fi
 
 	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
 		echo $msg memory-notifier-error-inject module is not available >&2
-		exit 0
+		exit $retval
 	fi
 }
 
@@ -246,3 +282,5 @@ done
 
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
 /sbin/modprobe -q -r memory-notifier-error-inject
+
+exit $retval
