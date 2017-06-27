@@ -313,15 +313,15 @@ struct sock_fprog __user *get_compat_bpf_fprog(char __user *optval)
 {
 	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
 	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog));
-	compat_uptr_t ptr;
-	u16 len;
+	struct compat_sock_fprog f32;
+	struct sock_fprog f;
 
-	if (!access_ok(VERIFY_READ, fprog32, sizeof(*fprog32)) ||
-	    !access_ok(VERIFY_WRITE, kfprog, sizeof(struct sock_fprog)) ||
-	    __get_user(len, &fprog32->len) ||
-	    __get_user(ptr, &fprog32->filter) ||
-	    __put_user(len, &kfprog->len) ||
-	    __put_user(compat_ptr(ptr), &kfprog->filter))
+	if (copy_from_user(&f32, fprog32, sizeof(*fprog32)))
+		return NULL;
+	memset(&f, 0, sizeof(f));
+	f.len = f32.len;
+	f.filter = compat_ptr(f32.filter);
+	if (copy_to_user(kfprog, &f, sizeof(struct sock_fprog)))
 		return NULL;
 
 	return kfprog;
