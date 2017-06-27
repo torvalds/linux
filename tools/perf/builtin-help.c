@@ -108,10 +108,14 @@ out:
 	return ret;
 }
 
-static void exec_woman_emacs(const char *path, const char *page)
+static void exec_failed(const char *cmd)
 {
 	char sbuf[STRERR_BUFSIZE];
+	pr_warning("failed to exec '%s': %s", cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
+}
 
+static void exec_woman_emacs(const char *path, const char *page)
+{
 	if (!check_emacsclient_version()) {
 		/* This works only with emacsclient version >= 22. */
 		char *man_page;
@@ -122,8 +126,7 @@ static void exec_woman_emacs(const char *path, const char *page)
 			execlp(path, "emacsclient", "-e", man_page, NULL);
 			free(man_page);
 		}
-		warning("failed to exec '%s': %s", path,
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+		exec_failed(path);
 	}
 }
 
@@ -134,7 +137,6 @@ static void exec_man_konqueror(const char *path, const char *page)
 	if (display && *display) {
 		char *man_page;
 		const char *filename = "kfmclient";
-		char sbuf[STRERR_BUFSIZE];
 
 		/* It's simpler to launch konqueror using kfmclient. */
 		if (path) {
@@ -155,33 +157,27 @@ static void exec_man_konqueror(const char *path, const char *page)
 			execlp(path, filename, "newTab", man_page, NULL);
 			free(man_page);
 		}
-		warning("failed to exec '%s': %s", path,
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+		exec_failed(path);
 	}
 }
 
 static void exec_man_man(const char *path, const char *page)
 {
-	char sbuf[STRERR_BUFSIZE];
-
 	if (!path)
 		path = "man";
 	execlp(path, "man", page, NULL);
-	warning("failed to exec '%s': %s", path,
-		str_error_r(errno, sbuf, sizeof(sbuf)));
+	exec_failed(path);
 }
 
 static void exec_man_cmd(const char *cmd, const char *page)
 {
-	char sbuf[STRERR_BUFSIZE];
 	char *shell_cmd;
 
 	if (asprintf(&shell_cmd, "%s %s", cmd, page) > 0) {
 		execl("/bin/sh", "sh", "-c", shell_cmd, NULL);
 		free(shell_cmd);
 	}
-	warning("failed to exec '%s': %s", cmd,
-		str_error_r(errno, sbuf, sizeof(sbuf)));
+	exec_failed(cmd);
 }
 
 static void add_man_viewer(const char *name)
