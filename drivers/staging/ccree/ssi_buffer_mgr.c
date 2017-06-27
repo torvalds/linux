@@ -551,8 +551,9 @@ int ssi_buffer_mgr_map_blkcipher_request(
 		SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=0x%llX\n",
 			ivsize, info,
 			(unsigned long long)req_ctx->gen_ctx.iv_dma_addr);
-	} else
+	} else {
 		req_ctx->gen_ctx.iv_dma_addr = 0;
+	}
 
 	/* Map the src SGL */
 	rc = ssi_buffer_mgr_map_scatterlist(dev, src,

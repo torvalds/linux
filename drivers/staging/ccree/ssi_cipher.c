@@ -401,8 +401,9 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	/* STAT_PHASE_1: Copy key to ctx */
 	dma_sync_single_for_cpu(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
-#if SSI_CC_HAS_MULTI2
+
 	if (ctx_p->flow_mode == S_DIN_to_MULTI2) {
+#if SSI_CC_HAS_MULTI2
 		memcpy(ctx_p->user.key, key, CC_MULTI2_SYSTEM_N_DATA_KEY_SIZE);
 		ctx_p->key_round_number = key[CC_MULTI2_SYSTEM_N_DATA_KEY_SIZE];
 		if (ctx_p->key_round_number < CC_MULTI2_MIN_NUM_ROUNDS ||
@@ -410,10 +411,8 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 			crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 			SSI_LOG_DEBUG("ssi_blkcipher_setkey: SSI_CC_HAS_MULTI2 einval");
 			return -EINVAL;
-		}
-	} else
 #endif /*SSI_CC_HAS_MULTI2*/
-	{
+	} else {
 		memcpy(ctx_p->user.key, key, keylen);
 		if (keylen == 24)
 			memset(ctx_p->user.key + 24, 0, CC_AES_KEY_SIZE_MAX - 24);
