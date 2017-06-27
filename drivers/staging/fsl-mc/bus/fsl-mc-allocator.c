@@ -13,8 +13,6 @@
 #include "../include/mc-bus.h"
 #include "../include/mc-sys.h"
 
-#include "dpbp-cmd.h"
-#include "dpcon-cmd.h"
 #include "fsl-mc-private.h"
 
 static bool __must_check fsl_mc_is_allocatable(const char *obj_type)
