@@ -94,6 +94,19 @@ bindeb-pkg: FORCE
 
 clean-dirs += $(objtree)/debian/
 
+# snap-pkg
+# ---------------------------------------------------------------------------
+snap-pkg: FORCE
+	rm -rf $(objtree)/snap
+	mkdir $(objtree)/snap
+	sed "s@KERNELRELEASE@$(KERNELRELEASE)@; \
+		s@SRCTREE@$(shell realpath $(srctree))@" \
+		$(srctree)/scripts/package/snapcraft.template > \
+		$(objtree)/snap/snapcraft.yaml
+	cd $(objtree)/snap && \
+	snapcraft --target-arch=$(UTS_MACHINE)
+
+clean-dirs += $(objtree)/snap/
 
 # tarball targets
 # ---------------------------------------------------------------------------
