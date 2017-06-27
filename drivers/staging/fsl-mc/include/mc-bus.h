@@ -75,14 +75,6 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev);
 int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 		      unsigned int *total_irq_count);
 
-int __init dprc_driver_init(void);
-
-void dprc_driver_exit(void);
-
-int __init fsl_mc_allocator_driver_init(void);
-
-void fsl_mc_allocator_driver_exit(void);
-
 struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 						struct msi_domain_info *info,
 						struct irq_domain *parent);
