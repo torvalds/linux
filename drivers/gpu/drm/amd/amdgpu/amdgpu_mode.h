@@ -450,12 +450,6 @@ struct dm_plane_state {
 	struct  dc_surface* dc_surface;
 };
 
-static inline struct dm_plane_state *
-to_amdgpu_plane_state(struct drm_plane_state *state)
-{
-	return container_of(state, struct dm_plane_state, base);
-}
-
 struct amdgpu_plane {
 	struct drm_plane base;
 	enum drm_plane_type plane_type;
