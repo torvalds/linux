@@ -633,6 +633,7 @@ static int fnic_fcpio_fw_reset_cmpl_handler(struct fnic *fnic,
 
 	atomic64_set(&fnic->fnic_stats.fw_stats.active_fw_reqs, 0);
 	atomic64_set(&fnic->fnic_stats.io_stats.active_ios, 0);
+	atomic64_set(&fnic->io_cmpl_skip, 0);
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
 
