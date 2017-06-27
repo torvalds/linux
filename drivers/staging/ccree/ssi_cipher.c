@@ -839,7 +839,7 @@ static int ssi_blkcipher_process(
 			      desc, &seq_len);
 
 	/* do we need to generate IV? */
-	if (req_ctx->is_giv == true) {
+	if (req_ctx->is_giv) {
 		ssi_req.ivgen_dma_addr[0] = req_ctx->gen_ctx.iv_dma_addr;
 		ssi_req.ivgen_dma_addr_len = 1;
 		/* set the IV size (8/16 B long)*/

@@ -798,7 +798,7 @@ static inline int ssi_buffer_mgr_aead_chain_iv(
 	SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=0x%llX\n",
 		hw_iv_size, req->iv,
 		(unsigned long long)areq_ctx->gen_ctx.iv_dma_addr);
-	if (do_chain == true && areq_ctx->plaintext_authenticate_only == true) {  // TODO: what about CTR?? ask Ron
+	if (do_chain && areq_ctx->plaintext_authenticate_only) {  // TODO: what about CTR?? ask Ron
 		struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 		unsigned int iv_size_to_authenc = crypto_aead_ivsize(tfm);
 		unsigned int iv_ofs = GCM_BLOCK_RFC4_IV_OFFSET;
@@ -894,7 +894,7 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 	else
 		areq_ctx->assoc_buff_type = SSI_DMA_BUF_MLLI;
 
-	if (unlikely((do_chain == true) ||
+	if (unlikely((do_chain) ||
 		(areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI))) {
 
 		SSI_LOG_DEBUG("Chain assoc: buff_type=%s nents=%u\n",
@@ -975,7 +975,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 			goto prepare_data_mlli_exit;
 		}
 
-		if (unlikely(areq_ctx->is_icv_fragmented == true)) {
+		if (unlikely(areq_ctx->is_icv_fragmented)) {
 			/* Backup happens only when ICV is fragmented, ICV
 			 * verification is made by CPU compare in order to simplify
 			 * MAC verification upon request completion
@@ -1033,7 +1033,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 			goto prepare_data_mlli_exit;
 		}
 
-		if (unlikely(areq_ctx->is_icv_fragmented == true)) {
+		if (unlikely(areq_ctx->is_icv_fragmented)) {
 			/* Backup happens only when ICV is fragmented, ICV
 			 * verification is made by CPU compare in order to simplify
 			 * MAC verification upon request completion
@@ -1076,7 +1076,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 			goto prepare_data_mlli_exit;
 		}
 
-		if (likely(areq_ctx->is_icv_fragmented == false)) {
+		if (likely(!areq_ctx->is_icv_fragmented)) {
 			/* Contig. ICV */
 			areq_ctx->icv_dma_addr = sg_dma_address(
 				&areq_ctx->dstSgl[areq_ctx->dst.nents - 1]) +
@@ -1200,7 +1200,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 	areq_ctx->dstOffset = offset;
 	if ((src_mapped_nents > 1) ||
 	    (dst_mapped_nents  > 1) ||
-	    (do_chain == true)) {
+	    do_chain) {
 		areq_ctx->data_buff_type = SSI_DMA_BUF_MLLI;
 		rc = ssi_buffer_mgr_prepare_aead_data_mlli(drvdata, req, sg_data,
 			&src_last_bytes, &dst_last_bytes, is_last_table);
@@ -1233,7 +1233,7 @@ static void ssi_buffer_mgr_update_aead_mlli_nents(struct ssi_drvdata *drvdata,
 			areq_ctx->src.sram_addr = drvdata->mlli_sram_addr +
 								curr_mlli_size;
 			areq_ctx->dst.sram_addr = areq_ctx->src.sram_addr;
-			if (areq_ctx->is_single_pass == false)
+			if (!areq_ctx->is_single_pass)
 				areq_ctx->assoc.mlli_nents +=
 					areq_ctx->src.mlli_nents;
 		} else {
@@ -1246,7 +1246,7 @@ static void ssi_buffer_mgr_update_aead_mlli_nents(struct ssi_drvdata *drvdata,
 						areq_ctx->src.sram_addr +
 						areq_ctx->src.mlli_nents *
 						LLI_ENTRY_BYTE_SIZE;
-				if (areq_ctx->is_single_pass == false)
+				if (!areq_ctx->is_single_pass)
 					areq_ctx->assoc.mlli_nents +=
 						areq_ctx->src.mlli_nents;
 			} else {
@@ -1257,7 +1257,7 @@ static void ssi_buffer_mgr_update_aead_mlli_nents(struct ssi_drvdata *drvdata,
 						areq_ctx->dst.sram_addr +
 						areq_ctx->dst.mlli_nents *
 						LLI_ENTRY_BYTE_SIZE;
-				if (areq_ctx->is_single_pass == false)
+				if (!areq_ctx->is_single_pass)
 					areq_ctx->assoc.mlli_nents +=
 						areq_ctx->dst.mlli_nents;
 			}
@@ -1399,7 +1399,7 @@ int ssi_buffer_mgr_map_aead_request(
 		goto aead_map_failure;
 	}
 
-	if (likely(areq_ctx->is_single_pass == true)) {
+	if (likely(areq_ctx->is_single_pass)) {
 		/*
 		 * Create MLLI table for:
 		 *   (1) Assoc. data

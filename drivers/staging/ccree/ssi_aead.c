@@ -236,7 +236,7 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 			err = -EBADMSG;
 		}
 	} else { /*ENCRYPT*/
-		if (unlikely(areq_ctx->is_icv_fragmented == true))
+		if (unlikely(areq_ctx->is_icv_fragmented))
 			ssi_buffer_mgr_copy_scatterlist_portion(
 				areq_ctx->mac_buf, areq_ctx->dstSgl, areq->cryptlen + areq_ctx->dstOffset,
 				areq->cryptlen + areq_ctx->dstOffset + ctx->authsize, SSI_SG_FROM_BUF);
@@ -790,7 +790,7 @@ ssi_aead_process_authenc_data_desc(
 		ssi_sram_addr_t mlli_addr = areq_ctx->assoc.sram_addr;
 		u32 mlli_nents = areq_ctx->assoc.mlli_nents;
 
-		if (likely(areq_ctx->is_single_pass == true)) {
+		if (likely(areq_ctx->is_single_pass)) {
 			if (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) {
 				mlli_addr = areq_ctx->dst.sram_addr;
 				mlli_nents = areq_ctx->dst.mlli_nents;
@@ -1173,7 +1173,7 @@ static inline void ssi_aead_load_mlli_to_sram(
 	if (unlikely(
 		(req_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) ||
 		(req_ctx->data_buff_type == SSI_DMA_BUF_MLLI) ||
-		(req_ctx->is_single_pass == false))) {
+		!req_ctx->is_single_pass)) {
 		SSI_LOG_DEBUG("Copy-to-sram: mlli_dma=%08x, mlli_size=%u\n",
 			(unsigned int)ctx->drvdata->mlli_sram_addr,
 			req_ctx->mlli_params.mlli_len);
@@ -1228,7 +1228,7 @@ static inline void ssi_aead_hmac_authenc(
 	unsigned int data_flow_mode = ssi_aead_get_data_flow_mode(
 		direct, ctx->flow_mode, req_ctx->is_single_pass);
 
-	if (req_ctx->is_single_pass == true) {
+	if (req_ctx->is_single_pass) {
 		/**
 		 * Single-pass flow
 		 */
@@ -1282,7 +1282,7 @@ ssi_aead_xcbc_authenc(
 	unsigned int data_flow_mode = ssi_aead_get_data_flow_mode(
 		direct, ctx->flow_mode, req_ctx->is_single_pass);
 
-	if (req_ctx->is_single_pass == true) {
+	if (req_ctx->is_single_pass) {
 		/**
 		 * Single-pass flow
 		 */
@@ -1341,7 +1341,7 @@ static int validate_data_size(struct ssi_aead_ctx *ctx,
 		if (ctx->cipher_mode == DRV_CIPHER_CCM)
 			break;
 		if (ctx->cipher_mode == DRV_CIPHER_GCTR) {
-			if (areq_ctx->plaintext_authenticate_only == true)
+			if (areq_ctx->plaintext_authenticate_only)
 				areq_ctx->is_single_pass = false;
 			break;
 		}
@@ -1715,7 +1715,7 @@ static inline void ssi_aead_gcm_setup_gctr_desc(
 	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
-	if ((req_ctx->cryptlen != 0) && (req_ctx->plaintext_authenticate_only == false)) {
+	if ((req_ctx->cryptlen != 0) && (!req_ctx->plaintext_authenticate_only)) {
 		/* load AES/CTR initial CTR value inc by 2*/
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], DRV_CIPHER_GCTR);
@@ -1815,7 +1815,7 @@ static inline int ssi_aead_gcm(
 
 
 	//in RFC4543 no data to encrypt. just copy data from src to dest.
-	if (req_ctx->plaintext_authenticate_only == true) {
+	if (req_ctx->plaintext_authenticate_only) {
 		ssi_aead_process_cipher_data_desc(req, BYPASS, desc, seq_size);
 		ssi_aead_gcm_setup_ghash_desc(req, desc, seq_size);
 		/* process(ghash) assoc data */
@@ -1913,7 +1913,7 @@ static int config_gcm_context(struct aead_request *req)
 	memcpy(req_ctx->gcm_iv_inc1, req->iv, 16);
 
 
-	if (req_ctx->plaintext_authenticate_only == false) {
+	if (!req_ctx->plaintext_authenticate_only) {
 		__be64 temp64;
 		temp64 = cpu_to_be64(req->assoclen * 8);
 		memcpy(&req_ctx->gcm_len_block.lenA, &temp64, sizeof(temp64));
