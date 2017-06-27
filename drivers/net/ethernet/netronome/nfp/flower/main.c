@@ -104,20 +104,6 @@ nfp_flower_repr_get(struct nfp_app *app, u32 port_id)
 	return reprs->reprs[port];
 }
 
-static void
-nfp_flower_repr_netdev_get_stats64(struct net_device *netdev,
-				   struct rtnl_link_stats64 *stats)
-{
-	struct nfp_repr *repr = netdev_priv(netdev);
-	enum nfp_repr_type type;
-	u32 port_id;
-	u8 port = 0;
-
-	port_id = repr->dst->u.port_info.port_id;
-	type = nfp_flower_repr_get_type_and_port(repr->app, port_id, &port);
-	nfp_repr_get_stats64(repr->app, type, port, stats);
-}
-
 static int nfp_flower_repr_netdev_open(struct net_device *netdev)
 {
 	int err;
@@ -144,7 +130,7 @@ static const struct net_device_ops nfp_flower_repr_netdev_ops = {
 	.ndo_open		= nfp_flower_repr_netdev_open,
 	.ndo_stop		= nfp_flower_repr_netdev_stop,
 	.ndo_start_xmit		= nfp_repr_xmit,
-	.ndo_get_stats64	= nfp_flower_repr_netdev_get_stats64,
+	.ndo_get_stats64	= nfp_repr_get_stats64,
 	.ndo_has_offload_stats	= nfp_repr_has_offload_stats,
 	.ndo_get_offload_stats	= nfp_repr_get_offload_stats,
 };

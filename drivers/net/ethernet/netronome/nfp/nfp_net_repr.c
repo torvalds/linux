@@ -37,6 +37,7 @@
 #include <net/dst_metadata.h>
 
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
 #include "nfp_net_ctrl.h"
@@ -136,18 +137,27 @@ nfp_repr_pf_get_stats64(const struct nfp_app *app, u8 pf,
 }
 
 void
-nfp_repr_get_stats64(const struct nfp_app *app, enum nfp_repr_type type,
-		     u8 port, struct rtnl_link_stats64 *stats)
+nfp_repr_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
-	switch (type) {
-	case NFP_REPR_TYPE_PHYS_PORT:
-		nfp_repr_phy_port_get_stats64(app, port, stats);
+	struct nfp_repr *repr = netdev_priv(netdev);
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_app *app = repr->app;
+
+	if (WARN_ON(!repr->port))
+		return;
+
+	switch (repr->port->type) {
+	case NFP_PORT_PHYS_PORT:
+		eth_port = __nfp_port_get_eth_port(repr->port);
+		if (!eth_port)
+			break;
+		nfp_repr_phy_port_get_stats64(app, eth_port->index, stats);
 		break;
-	case NFP_REPR_TYPE_PF:
-		nfp_repr_pf_get_stats64(app, port, stats);
+	case NFP_PORT_PF_PORT:
+		nfp_repr_pf_get_stats64(app, repr->port->pf_id, stats);
 		break;
-	case NFP_REPR_TYPE_VF:
-		nfp_repr_vf_get_stats64(app, port, stats);
+	case NFP_PORT_VF_PORT:
+		nfp_repr_vf_get_stats64(app, repr->port->vf_id, stats);
 	default:
 		break;
 	}

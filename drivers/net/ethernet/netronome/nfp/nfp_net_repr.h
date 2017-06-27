@@ -99,8 +99,8 @@ enum nfp_repr_type {
 
 void nfp_repr_inc_rx_stats(struct net_device *netdev, unsigned int len);
 void
-nfp_repr_get_stats64(const struct nfp_app *app, enum nfp_repr_type type,
-		     u8 port, struct rtnl_link_stats64 *stats);
+nfp_repr_get_stats64(struct net_device *netdev,
+		     struct rtnl_link_stats64 *stats);
 bool nfp_repr_has_offload_stats(const struct net_device *dev, int attr_id);
 int nfp_repr_get_offload_stats(int attr_id, const struct net_device *dev,
 			       void *stats);
