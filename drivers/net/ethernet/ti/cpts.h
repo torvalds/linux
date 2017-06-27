@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/skbuff.h>
+#include <linux/ptp_classify.h>
 #include <linux/timecounter.h>
 
 struct cpsw_cpts {
@@ -155,6 +156,16 @@ static inline bool cpts_is_tx_enabled(struct cpts *cpts)
 	return !!cpts->tx_enable;
 }
 
+static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)
+{
+	unsigned int class = ptp_classify_raw(skb);
+
+	if (class == PTP_CLASS_NONE)
+		return false;
+
+	return true;
+}
+
 #else
 struct cpts;
 
@@ -200,6 +211,11 @@ static inline void cpts_tx_enable(struct cpts *cpts, int enable)
 }
 
 static inline bool cpts_is_tx_enabled(struct cpts *cpts)
+{
+	return false;
+}
+
+static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
 	return false;
 }
