@@ -249,7 +249,7 @@ static int nfp_repr_open(struct net_device *netdev)
 	return nfp_app_repr_open(repr->app, repr);
 }
 
-static const struct net_device_ops nfp_repr_netdev_ops = {
+const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_open		= nfp_repr_open,
 	.ndo_stop		= nfp_repr_stop,
 	.ndo_start_xmit		= nfp_repr_xmit,

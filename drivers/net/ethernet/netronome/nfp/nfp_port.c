@@ -42,13 +42,21 @@
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev)
 {
-	struct nfp_net *nn;
+	if (nfp_netdev_is_nfp_net(netdev)) {
+		struct nfp_net *nn = netdev_priv(netdev);
 
-	if (WARN_ON(!nfp_netdev_is_nfp_net(netdev)))
-		return NULL;
-	nn = netdev_priv(netdev);
+		return nn->port;
+	}
 
-	return nn->port;
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		struct nfp_repr *repr = netdev_priv(netdev);
+
+		return repr->port;
+	}
+
+	WARN(1, "Unknown netdev type for nfp_port\n");
+
+	return NULL;
 }
 
 struct nfp_port *

@@ -97,6 +97,13 @@ enum nfp_repr_type {
 };
 #define NFP_REPR_TYPE_MAX (__NFP_REPR_TYPE_MAX - 1)
 
+extern const struct net_device_ops nfp_repr_netdev_ops;
+
+static inline bool nfp_netdev_is_nfp_repr(struct net_device *netdev)
+{
+	return netdev->netdev_ops == &nfp_repr_netdev_ops;
+}
+
 void nfp_repr_inc_rx_stats(struct net_device *netdev, unsigned int len);
 int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 		  u32 cmsg_port_id, struct nfp_port *port,
