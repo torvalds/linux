@@ -112,7 +112,7 @@ int smp_generic_cpu_bootable(unsigned int nr)
 #ifdef CONFIG_PPC64
 int smp_generic_kick_cpu(int nr)
 {
-	if (nr < 0 || nr >= NR_CPUS)
+	if (nr < 0 || nr >= nr_cpu_ids)
 		return -EINVAL;
 
 	/*
