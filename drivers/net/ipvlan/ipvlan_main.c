@@ -455,7 +455,8 @@ static const struct ethtool_ops ipvlan_ethtool_ops = {
 };
 
 static int ipvlan_nl_changelink(struct net_device *dev,
-				struct nlattr *tb[], struct nlattr *data[])
+				struct nlattr *tb[], struct nlattr *data[],
+				struct netlink_ext_ack *extack)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port = ipvlan_port_get_rtnl(ipvlan->phy_dev);
@@ -476,7 +477,8 @@ static size_t ipvlan_nl_getsize(const struct net_device *dev)
 		);
 }
 
-static int ipvlan_nl_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ipvlan_nl_validate(struct nlattr *tb[], struct nlattr *data[],
+			      struct netlink_ext_ack *extack)
 {
 	if (data && data[IFLA_IPVLAN_MODE]) {
 		u16 mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
@@ -508,7 +510,8 @@ err:
 }
 
 int ipvlan_link_new(struct net *src_net, struct net_device *dev,
-		    struct nlattr *tb[], struct nlattr *data[])
+		    struct nlattr *tb[], struct nlattr *data[],
+		    struct netlink_ext_ack *extack)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	struct ipvl_port *port;

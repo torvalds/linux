@@ -1061,7 +1061,8 @@ static const struct nla_policy ppp_nl_policy[IFLA_PPP_MAX + 1] = {
 	[IFLA_PPP_DEV_FD]	= { .type = NLA_S32 },
 };
 
-static int ppp_nl_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ppp_nl_validate(struct nlattr *tb[], struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	if (!data)
 		return -EINVAL;
@@ -1075,7 +1076,8 @@ static int ppp_nl_validate(struct nlattr *tb[], struct nlattr *data[])
 }
 
 static int ppp_nl_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct ppp_config conf = {
 		.unit = -1,

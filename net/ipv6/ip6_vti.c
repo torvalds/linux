@@ -907,7 +907,8 @@ static int __net_init vti6_fb_tnl_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static int vti6_validate(struct nlattr *tb[], struct nlattr *data[])
+static int vti6_validate(struct nlattr *tb[], struct nlattr *data[],
+			 struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -940,7 +941,8 @@ static void vti6_netlink_parms(struct nlattr *data[],
 }
 
 static int vti6_newlink(struct net *src_net, struct net_device *dev,
-			struct nlattr *tb[], struct nlattr *data[])
+			struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	struct net *net = dev_net(dev);
 	struct ip6_tnl *nt;
@@ -966,7 +968,8 @@ static void vti6_dellink(struct net_device *dev, struct list_head *head)
 }
 
 static int vti6_changelink(struct net_device *dev, struct nlattr *tb[],
-			   struct nlattr *data[])
+			   struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	struct ip6_tnl *t;
 	struct __ip6_tnl_parm p;

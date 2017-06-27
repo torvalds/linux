@@ -1352,7 +1352,8 @@ static void cfhsi_netlink_parms(struct nlattr *data[], struct cfhsi *cfhsi)
 }
 
 static int caif_hsi_changelink(struct net_device *dev, struct nlattr *tb[],
-				struct nlattr *data[])
+			       struct nlattr *data[],
+			       struct netlink_ext_ack *extack)
 {
 	cfhsi_netlink_parms(data, netdev_priv(dev));
 	netdev_state_change(dev);
@@ -1399,7 +1400,8 @@ static int caif_hsi_fill_info(struct sk_buff *skb, const struct net_device *dev)
 }
 
 static int caif_hsi_newlink(struct net *src_net, struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+			    struct nlattr *tb[], struct nlattr *data[],
+			    struct netlink_ext_ack *extack)
 {
 	struct cfhsi *cfhsi = NULL;
 	struct cfhsi_ops *(*get_ops)(void);

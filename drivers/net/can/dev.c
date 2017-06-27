@@ -848,7 +848,8 @@ static const struct nla_policy can_policy[IFLA_CAN_MAX + 1] = {
 				= { .len = sizeof(struct can_bittiming_const) },
 };
 
-static int can_validate(struct nlattr *tb[], struct nlattr *data[])
+static int can_validate(struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	bool is_can_fd = false;
 
@@ -880,8 +881,9 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int can_changelink(struct net_device *dev,
-			  struct nlattr *tb[], struct nlattr *data[])
+static int can_changelink(struct net_device *dev, struct nlattr *tb[],
+			  struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct can_priv *priv = netdev_priv(dev);
 	int err;
@@ -1146,7 +1148,8 @@ nla_put_failure:
 }
 
 static int can_newlink(struct net *src_net, struct net_device *dev,
-		       struct nlattr *tb[], struct nlattr *data[])
+		       struct nlattr *tb[], struct nlattr *data[],
+		       struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
