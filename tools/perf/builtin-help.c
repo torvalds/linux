@@ -259,7 +259,7 @@ static int add_man_viewer_info(const char *var, const char *value)
 		return add_man_viewer_cmd(name, subkey - name, value);
 	}
 
-	warning("'%s': unsupported man viewer sub key.", subkey);
+	pr_warning("'%s': unsupported man viewer sub key.", subkey);
 	return 0;
 }
 
@@ -347,7 +347,7 @@ static void exec_viewer(const char *name, const char *page)
 	else if (info)
 		exec_man_cmd(info, page);
 	else
-		warning("'%s': unknown man viewer.", name);
+		pr_warning("'%s': unknown man viewer.", name);
 }
 
 static int show_man_page(const char *perf_cmd)
