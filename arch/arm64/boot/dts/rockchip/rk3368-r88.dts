@@ -49,6 +49,20 @@
 	model = "Rockchip R88";
 	compatible = "rockchip,r88", "rockchip,rk3368";
 
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+
 	keys: gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -155,6 +169,14 @@
 		BT,wake_host_irq = <&gpio3 7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&i2s_8ch {
+	status = "okay";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <2>;
+	#sound-dai-cells = <0>;
 };
 
 &emmc {
@@ -543,6 +565,7 @@
 
 &hdmi {
 	status = "okay";
+	#sound-dai-cells = <0>;
 };
 
 &mailbox {
