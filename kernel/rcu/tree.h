@@ -348,14 +348,11 @@ struct rcu_state {
 
 	/* End of fields guarded by root rcu_node's lock. */
 
-	raw_spinlock_t orphan_lock ____cacheline_internodealigned_in_smp;
-						/* Protect following fields. */
 	struct rcu_cblist orphan_pend;		/* Orphaned callbacks that */
 						/*  need a grace period. */
 	struct rcu_cblist orphan_done;		/* Orphaned callbacks that */
 						/*  are ready to invoke. */
 						/* (Contains counts.) */
-	/* End of fields guarded by orphan_lock. */
 
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */

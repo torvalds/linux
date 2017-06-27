@@ -97,7 +97,6 @@ struct rcu_state sname##_state = { \
 	.gp_state = RCU_GP_IDLE, \
 	.gpnum = 0UL - 300UL, \
 	.completed = 0UL - 300UL, \
-	.orphan_lock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.orphan_lock), \
 	.orphan_pend = RCU_CBLIST_INITIALIZER(sname##_state.orphan_pend), \
 	.orphan_done = RCU_CBLIST_INITIALIZER(sname##_state.orphan_done), \
 	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
@@ -3853,15 +3852,12 @@ void rcu_report_dead(unsigned int cpu)
 
 /*
  * Send the specified CPU's RCU callbacks to the orphanage.  The
- * specified CPU must be offline, and the caller must hold the
- * ->orphan_lock.
+ * specified CPU must be offline.
  */
 static void
 rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 			  struct rcu_node *rnp, struct rcu_data *rdp)
 {
-	lockdep_assert_held(&rsp->orphan_lock);
-
 	/*
 	 * Orphan the callbacks.  First adjust the counts.  This is safe
 	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
@@ -3891,13 +3887,11 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 
 /*
  * Adopt the RCU callbacks from the specified rcu_state structure's
- * orphanage.  The caller must hold the ->orphan_lock.
+ * orphanage.
  */
 static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 {
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
-
-	lockdep_assert_held(&rsp->orphan_lock);
 
 	/* Do the accounting first. */
 	if (rsp->orphan_done.len_lazy != rsp->orphan_done.len)
@@ -3939,12 +3933,9 @@ static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
 	}
 	raw_spin_lock_rcu_node(rnp_root); /* irqs already disabled. */
 	rcu_advance_cbs(rsp, rnp_root, rdp); /* Leverage recent GPs. */
-	raw_spin_unlock_rcu_node(rnp_root);
-
-	raw_spin_lock(&rsp->orphan_lock);
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
-	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);
+	raw_spin_unlock_irqrestore_rcu_node(rnp_root, flags);
 	WARN_ONCE(rcu_segcblist_n_cbs(&rdp->cblist) != 0 ||
 		  !rcu_segcblist_empty(&rdp->cblist),
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, 1stCB=%p\n",
