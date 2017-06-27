@@ -550,8 +550,20 @@
 	status = "okay";
 };
 
+&usb_host0_ohci {
+	status = "okay";
+};
+
 &usb_otg {
 	dr_mode = "device";
+	status = "okay";
+};
+
+&u2phy {
+	status = "okay";
+};
+
+&u2phy_host {
 	status = "okay";
 };
 
