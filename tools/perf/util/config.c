@@ -657,8 +657,7 @@ static int perf_config_set__init(struct perf_config_set *set)
 
 	user_config = strdup(mkpath("%s/.perfconfig", home));
 	if (user_config == NULL) {
-		warning("Not enough memory to process %s/.perfconfig, "
-			"ignoring it.", home);
+		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.", home);
 		goto out;
 	}
 
@@ -671,8 +670,7 @@ static int perf_config_set__init(struct perf_config_set *set)
 	ret = 0;
 
 	if (st.st_uid && (st.st_uid != geteuid())) {
-		warning("File %s not owned by current user or root, "
-			"ignoring it.", user_config);
+		pr_warning("File %s not owned by current user or root, ignoring it.", user_config);
 		goto out_free;
 	}
 
