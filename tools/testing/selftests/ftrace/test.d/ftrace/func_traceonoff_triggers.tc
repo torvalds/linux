@@ -103,11 +103,11 @@ if [ $on != "0" ]; then
     fail "Tracing is not off"
 fi
 
-line1=`cat trace | tail -1`
+csum1=`md5sum trace`
 sleep $SLEEP_TIME
-line2=`cat trace | tail -1`
+csum2=`md5sum trace`
 
-if [ "$line1" != "$line2" ]; then
+if [ "$csum1" != "$csum2" ]; then
     fail "Tracing file is still changing"
 fi
 
