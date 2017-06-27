@@ -634,8 +634,7 @@ const struct amdgpu_ip_block_version dm_ip_block =
 	.funcs = &amdgpu_dm_funcs,
 };
 
-/* TODO: it is temporary non-const, should fixed later */
-static struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
+static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.fb_create = amdgpu_user_framebuffer_create,
 	.output_poll_changed = amdgpu_output_poll_changed,
 	.atomic_check = amdgpu_dm_atomic_check,
