@@ -18,6 +18,9 @@
 
 #define FSL_MC_VENDOR_FREESCALE	0x1957
 
+struct irq_domain;
+struct msi_domain_info;
+
 struct fsl_mc_device;
 struct fsl_mc_io;
 
@@ -232,6 +235,10 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 					struct fsl_mc_device **new_mc_adev);
 
 void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
+
+struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
+						struct msi_domain_info *info,
+						struct irq_domain *parent);
 
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
