@@ -472,18 +472,23 @@ xfs_qm_dqtobp(
 	struct xfs_mount	*mp = dqp->q_mount;
 	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
 	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
-	uint			lock_mode;
+	uint			lock_mode = 0;
 
 	quotip = xfs_quota_inode(dqp->q_mount, dqp->dq_flags);
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
-	lock_mode = xfs_ilock_data_map_shared(quotip);
+	ASSERT(!(flags & XFS_QMOPT_NOLOCK) ||
+		xfs_isilocked(quotip, XFS_ILOCK_SHARED) ||
+		xfs_isilocked(quotip, XFS_ILOCK_EXCL));
+	if (!(flags & XFS_QMOPT_NOLOCK))
+		lock_mode = xfs_ilock_data_map_shared(quotip);
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
 		/*
 		 * Return if this type of quotas is turned off while we
 		 * didn't have the quota inode lock.
 		 */
-		xfs_iunlock(quotip, lock_mode);
+		if (lock_mode)
+			xfs_iunlock(quotip, lock_mode);
 		return -ESRCH;
 	}
 
@@ -493,7 +498,8 @@ xfs_qm_dqtobp(
 	error = xfs_bmapi_read(quotip, dqp->q_fileoffset,
 			       XFS_DQUOT_CLUSTER_SIZE_FSB, &map, &nmaps, 0);
 
-	xfs_iunlock(quotip, lock_mode);
+	if (lock_mode)
+		xfs_iunlock(quotip, lock_mode);
 	if (error)
 		return error;
 
