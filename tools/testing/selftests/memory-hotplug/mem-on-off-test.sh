@@ -207,6 +207,7 @@ prerequisite_extra()
 	fi
 }
 
+echo -e "\t Test with memory notifier error injection"
 prerequisite_extra
 
 #
