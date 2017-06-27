@@ -466,7 +466,7 @@ static const struct platform_device_id cros_ec_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_id);
 
-static int ec_device_suspend(struct device *dev)
+static __maybe_unused int ec_device_suspend(struct device *dev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(dev);
 
@@ -475,7 +475,7 @@ static int ec_device_suspend(struct device *dev)
 	return 0;
 }
 
-static int ec_device_resume(struct device *dev)
+static __maybe_unused int ec_device_resume(struct device *dev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(dev);
 
