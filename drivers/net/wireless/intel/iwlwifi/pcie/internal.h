@@ -654,6 +654,13 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
+static inline void iwl_pcie_sw_reset(struct iwl_trans *trans)
+{
+	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
+	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	usleep_range(5000, 6000);
+}
+
 static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
 				     struct iwl_txq *txq, int idx)
 {

@@ -526,7 +526,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 
 		/* reset the device */
 		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-		usleep_range(1000, 2000);
+		usleep_range(5000, 6000);
 
 		/* set INIT_DONE flag */
 		iwl_set_bit(trans, CSR_GP_CNTRL,

@@ -358,9 +358,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 				 CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 
-	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(1000, 2000);
+	iwl_pcie_sw_reset(trans);
 
 	/*
 	 * Set "initialization complete" bit to move adapter from
@@ -401,12 +399,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 				 apmg_xtal_cfg_reg |
 				 SHR_APMG_XTAL_CFG_XTAL_ON_REQ);
 
-	/*
-	 * Reset entire device again - do controller reset (results in
-	 * SHRD_HW_RST). Turn MAC off before proceeding.
-	 */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(1000, 2000);
+	iwl_pcie_sw_reset(trans);
 
 	/* Enable LP XTAL by indirect access through CSR */
 	apmg_gp1_reg = iwl_trans_pcie_read_shr(trans, SHR_APMG_GP1_REG);
@@ -499,9 +492,7 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		return;
 	}
 
-	/* Reset the entire device */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(1000, 2000);
+	iwl_pcie_sw_reset(trans);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -1181,9 +1172,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_apm_stop(trans, false);
 
-	/* stop and reset the on-board processor */
-	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(1000, 2000);
+	iwl_pcie_sw_reset(trans);
 
 	/*
 	 * Upon stop, the IVAR table gets erased, so msi-x won't
@@ -1657,9 +1646,7 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 		return err;
 	}
 
-	/* Reset the entire device */
-	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(1000, 2000);
+	iwl_pcie_sw_reset(trans);
 
 	err = iwl_pcie_apm_init(trans);
 	if (err)
