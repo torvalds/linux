@@ -335,7 +335,7 @@ static const struct ramc_info ramc_infos[] __initconst = {
 	{ .idle = sama5d3_ddr_standby, .memctrl = AT91_MEMCTRL_DDRSDR},
 };
 
-static const struct of_device_id const ramc_ids[] __initconst = {
+static const struct of_device_id ramc_ids[] __initconst = {
 	{ .compatible = "atmel,at91rm9200-sdramc", .data = &ramc_infos[0] },
 	{ .compatible = "atmel,at91sam9260-sdramc", .data = &ramc_infos[1] },
 	{ .compatible = "atmel,at91sam9g45-ddramc", .data = &ramc_infos[2] },

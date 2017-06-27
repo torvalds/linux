@@ -6504,7 +6504,7 @@ static __init int hardware_setup(void)
 		enable_ept_ad_bits = 0;
 	}
 
-	if (!cpu_has_vmx_ept_ad_bits())
+	if (!cpu_has_vmx_ept_ad_bits() || !enable_ept)
 		enable_ept_ad_bits = 0;
 
 	if (!cpu_has_vmx_unrestricted_guest())
@@ -11213,7 +11213,7 @@ static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
 		if (!nested_cpu_has_pml(vmcs12))
 			return 0;
 
-		if (vmcs12->guest_pml_index > PML_ENTITY_NUM) {
+		if (vmcs12->guest_pml_index >= PML_ENTITY_NUM) {
 			vmx->nested.pml_full = true;
 			return 1;
 		}

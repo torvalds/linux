@@ -195,7 +195,10 @@ struct vgic_dist {
 		/* either a GICv2 CPU interface */
 		gpa_t			vgic_cpu_base;
 		/* or a number of GICv3 redistributor regions */
-		gpa_t			vgic_redist_base;
+		struct {
+			gpa_t		vgic_redist_base;
+			gpa_t		vgic_redist_free_offset;
+		};
 	};
 
 	/* distributor enabled */

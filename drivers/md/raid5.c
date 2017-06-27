@@ -103,8 +103,7 @@ static inline void unlock_device_hash_lock(struct r5conf *conf, int hash)
 static inline void lock_all_device_hash_locks_irq(struct r5conf *conf)
 {
 	int i;
-	local_irq_disable();
-	spin_lock(conf->hash_locks);
+	spin_lock_irq(conf->hash_locks);
 	for (i = 1; i < NR_STRIPE_HASH_LOCKS; i++)
 		spin_lock_nest_lock(conf->hash_locks + i, conf->hash_locks);
 	spin_lock(&conf->device_lock);
@@ -114,9 +113,9 @@ static inline void unlock_all_device_hash_locks_irq(struct r5conf *conf)
 {
 	int i;
 	spin_unlock(&conf->device_lock);
-	for (i = NR_STRIPE_HASH_LOCKS; i; i--)
-		spin_unlock(conf->hash_locks + i - 1);
-	local_irq_enable();
+	for (i = NR_STRIPE_HASH_LOCKS - 1; i; i--)
+		spin_unlock(conf->hash_locks + i);
+	spin_unlock_irq(conf->hash_locks);
 }
 
 /* Find first data disk in a raid6 stripe */
@@ -234,11 +233,15 @@ static void do_release_stripe(struct r5conf *conf, struct stripe_head *sh,
 			if (test_bit(R5_InJournal, &sh->dev[i].flags))
 				injournal++;
 	/*
-	 * When quiesce in r5c write back, set STRIPE_HANDLE for stripes with
-	 * data in journal, so they are not released to cached lists
+	 * In the following cases, the stripe cannot be released to cached
+	 * lists. Therefore, we make the stripe write out and set
+	 * STRIPE_HANDLE:
+	 *   1. when quiesce in r5c write back;
+	 *   2. when resync is requested fot the stripe.
 	 */
-	if (conf->quiesce && r5c_is_writeback(conf->log) &&
-	    !test_bit(STRIPE_HANDLE, &sh->state) && injournal != 0) {
+	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state) ||
+	    (conf->quiesce && r5c_is_writeback(conf->log) &&
+	     !test_bit(STRIPE_HANDLE, &sh->state) && injournal != 0)) {
 		if (test_bit(STRIPE_R5C_CACHING, &sh->state))
 			r5c_make_stripe_write_out(sh);
 		set_bit(STRIPE_HANDLE, &sh->state);
@@ -714,12 +717,11 @@ static bool is_full_stripe_write(struct stripe_head *sh)
 
 static void lock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
 {
-	local_irq_disable();
 	if (sh1 > sh2) {
-		spin_lock(&sh2->stripe_lock);
+		spin_lock_irq(&sh2->stripe_lock);
 		spin_lock_nested(&sh1->stripe_lock, 1);
 	} else {
-		spin_lock(&sh1->stripe_lock);
+		spin_lock_irq(&sh1->stripe_lock);
 		spin_lock_nested(&sh2->stripe_lock, 1);
 	}
 }
@@ -727,8 +729,7 @@ static void lock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
 static void unlock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
 {
 	spin_unlock(&sh1->stripe_lock);
-	spin_unlock(&sh2->stripe_lock);
-	local_irq_enable();
+	spin_unlock_irq(&sh2->stripe_lock);
 }
 
 /* Only freshly new full stripe normal write stripe can be added to a batch list */
@@ -2312,14 +2313,12 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	struct stripe_head *osh, *nsh;
 	LIST_HEAD(newstripes);
 	struct disk_info *ndisks;
-	int err;
+	int err = 0;
 	struct kmem_cache *sc;
 	int i;
 	int hash, cnt;
 
-	err = md_allow_write(conf->mddev);
-	if (err)
-		return err;
+	md_allow_write(conf->mddev);
 
 	/* Step 1 */
 	sc = kmem_cache_create(conf->cache_name[1-conf->active_name],
@@ -2694,7 +2693,7 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 		bdevname(rdev->bdev, b),
 		mdname(mddev),
 		conf->raid_disks - mddev->degraded);
-	r5c_update_on_rdev_error(mddev);
+	r5c_update_on_rdev_error(mddev, rdev);
 }
 
 /*
@@ -3055,6 +3054,11 @@ sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous)
  *      When LOG_CRITICAL, stripes with injournal == 0 will be sent to
  *      no_space_stripes list.
  *
+ *   3. during journal failure
+ *      In journal failure, we try to flush all cached data to raid disks
+ *      based on data in stripe cache. The array is read-only to upper
+ *      layers, so we would skip all pending writes.
+ *
  */
 static inline bool delay_towrite(struct r5conf *conf,
 				 struct r5dev *dev,
@@ -3067,6 +3071,9 @@ static inline bool delay_towrite(struct r5conf *conf,
 	/* case 2 above */
 	if (test_bit(R5C_LOG_CRITICAL, &conf->cache_state) &&
 	    s->injournal > 0)
+		return true;
+	/* case 3 above */
+	if (s->log_failed && s->injournal)
 		return true;
 	return false;
 }
@@ -4653,8 +4660,13 @@ static void handle_stripe(struct stripe_head *sh)
 
 	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state) && !sh->batch_head) {
 		spin_lock(&sh->stripe_lock);
-		/* Cannot process 'sync' concurrently with 'discard' */
-		if (!test_bit(STRIPE_DISCARD, &sh->state) &&
+		/*
+		 * Cannot process 'sync' concurrently with 'discard'.
+		 * Flush data in r5cache before 'sync'.
+		 */
+		if (!test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state) &&
+		    !test_bit(STRIPE_R5C_FULL_STRIPE, &sh->state) &&
+		    !test_bit(STRIPE_DISCARD, &sh->state) &&
 		    test_and_clear_bit(STRIPE_SYNC_REQUESTED, &sh->state)) {
 			set_bit(STRIPE_SYNCING, &sh->state);
 			clear_bit(STRIPE_INSYNC, &sh->state);
@@ -4701,10 +4713,15 @@ static void handle_stripe(struct stripe_head *sh)
 	       " to_write=%d failed=%d failed_num=%d,%d\n",
 	       s.locked, s.uptodate, s.to_read, s.to_write, s.failed,
 	       s.failed_num[0], s.failed_num[1]);
-	/* check if the array has lost more than max_degraded devices and,
+	/*
+	 * check if the array has lost more than max_degraded devices and,
 	 * if so, some requests might need to be failed.
+	 *
+	 * When journal device failed (log_failed), we will only process
+	 * the stripe if there is data need write to raid disks
 	 */
-	if (s.failed > conf->max_degraded || s.log_failed) {
+	if (s.failed > conf->max_degraded ||
+	    (s.log_failed && s.injournal == 0)) {
 		sh->check_state = 0;
 		sh->reconstruct_state = 0;
 		break_stripe_batch_list(sh, 0);
@@ -5277,8 +5294,10 @@ static struct stripe_head *__get_priority_stripe(struct r5conf *conf, int group)
 	struct stripe_head *sh, *tmp;
 	struct list_head *handle_list = NULL;
 	struct r5worker_group *wg;
-	bool second_try = !r5c_is_writeback(conf->log);
-	bool try_loprio = test_bit(R5C_LOG_TIGHT, &conf->cache_state);
+	bool second_try = !r5c_is_writeback(conf->log) &&
+		!r5l_log_disk_error(conf);
+	bool try_loprio = test_bit(R5C_LOG_TIGHT, &conf->cache_state) ||
+		r5l_log_disk_error(conf);
 
 again:
 	wg = NULL;
@@ -6313,7 +6332,6 @@ int
 raid5_set_cache_size(struct mddev *mddev, int size)
 {
 	struct r5conf *conf = mddev->private;
-	int err;
 
 	if (size <= 16 || size > 32768)
 		return -EINVAL;
@@ -6325,10 +6343,7 @@ raid5_set_cache_size(struct mddev *mddev, int size)
 		;
 	mutex_unlock(&conf->cache_size_mutex);
 
-
-	err = md_allow_write(mddev);
-	if (err)
-		return err;
+	md_allow_write(mddev);
 
 	mutex_lock(&conf->cache_size_mutex);
 	while (size > conf->max_nr_stripes)
@@ -7530,7 +7545,9 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 		 * neilb: there is no locking about new writes here,
 		 * so this cannot be safe.
 		 */
-		if (atomic_read(&conf->active_stripes)) {
+		if (atomic_read(&conf->active_stripes) ||
+		    atomic_read(&conf->r5c_cached_full_stripes) ||
+		    atomic_read(&conf->r5c_cached_partial_stripes)) {
 			return -EBUSY;
 		}
 		log_exit(conf);

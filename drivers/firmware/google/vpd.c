@@ -116,9 +116,13 @@ static int vpd_section_attrib_add(const u8 *key, s32 key_len,
 		return VPD_OK;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	info->key = kzalloc(key_len + 1, GFP_KERNEL);
-	if (!info->key)
+	if (!info)
 		return -ENOMEM;
+	info->key = kzalloc(key_len + 1, GFP_KERNEL);
+	if (!info->key) {
+		ret = -ENOMEM;
+		goto free_info;
+	}
 
 	memcpy(info->key, key, key_len);
 
@@ -135,12 +139,17 @@ static int vpd_section_attrib_add(const u8 *key, s32 key_len,
 	list_add_tail(&info->list, &sec->attribs);
 
 	ret = sysfs_create_bin_file(sec->kobj, &info->bin_attr);
-	if (ret) {
-		kfree(info->key);
-		return ret;
-	}
+	if (ret)
+		goto free_info_key;
 
 	return 0;
+
+free_info_key:
+	kfree(info->key);
+free_info:
+	kfree(info);
+
+	return ret;
 }
 
 static void vpd_section_attrib_destroy(struct vpd_section *sec)

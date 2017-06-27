@@ -376,7 +376,6 @@ int send_request(
 	rc = ssi_power_mgr_runtime_get(&drvdata->plat_dev->dev);
 	if (rc != 0) {
 		SSI_LOG_ERR("ssi_power_mgr_runtime_get returned %x\n",rc);
-		spin_unlock_bh(&req_mgr_h->hw_lock);
 		return rc;
 	}
 #endif

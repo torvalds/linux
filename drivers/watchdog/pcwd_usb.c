@@ -630,6 +630,9 @@ static int usb_pcwd_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
+	if (iface_desc->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	/* check out the endpoint: it has to be Interrupt & IN */
 	endpoint = &iface_desc->endpoint[0].desc;
 

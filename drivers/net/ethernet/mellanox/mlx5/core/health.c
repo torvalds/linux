@@ -90,7 +90,7 @@ static void trigger_cmd_completions(struct mlx5_core_dev *dev)
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
 
 	mlx5_core_dbg(dev, "vector 0x%llx\n", vector);
-	mlx5_cmd_comp_handler(dev, vector);
+	mlx5_cmd_comp_handler(dev, vector, true);
 	return;
 
 no_trig:

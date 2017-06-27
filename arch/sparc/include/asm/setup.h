@@ -16,7 +16,7 @@ extern char reboot_command[];
  */
 extern unsigned char boot_cpu_id;
 
-extern unsigned long empty_zero_page;
+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 extern int serial_console;
 static inline int con_is_present(void)

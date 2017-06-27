@@ -265,7 +265,7 @@ static void do_idle(void)
 	smp_mb__after_atomic();
 
 	sched_ttwu_pending();
-	schedule_preempt_disabled();
+	schedule_idle();
 
 	if (unlikely(klp_patch_pending(current)))
 		klp_update_patch_state(current);

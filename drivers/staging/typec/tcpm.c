@@ -238,6 +238,7 @@ struct tcpm_port {
 	unsigned int hard_reset_count;
 	bool pd_capable;
 	bool explicit_contract;
+	unsigned int rx_msgid;
 
 	/* Partner capabilities/requests */
 	u32 sink_request;
@@ -251,6 +252,8 @@ struct tcpm_port {
 	unsigned int nr_src_pdo;
 	u32 snk_pdo[PDO_MAX_OBJECTS];
 	unsigned int nr_snk_pdo;
+	u32 snk_vdo[VDO_MAX_OBJECTS];
+	unsigned int nr_snk_vdo;
 
 	unsigned int max_snk_mv;
 	unsigned int max_snk_ma;
@@ -997,6 +1000,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 	struct pd_mode_data *modep;
 	int rlen = 0;
 	u16 svid;
+	int i;
 
 	tcpm_log(port, "Rx VDM cmd 0x%x type %d cmd %d len %d",
 		 p0, cmd_type, cmd, cnt);
@@ -1007,6 +1011,14 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 	case CMDT_INIT:
 		switch (cmd) {
 		case CMD_DISCOVER_IDENT:
+			/* 6.4.4.3.1: Only respond as UFP (device) */
+			if (port->data_role == TYPEC_DEVICE &&
+			    port->nr_snk_vdo) {
+				for (i = 0; i <  port->nr_snk_vdo; i++)
+					response[i + 1]
+						= cpu_to_le32(port->snk_vdo[i]);
+				rlen = port->nr_snk_vdo + 1;
+			}
 			break;
 		case CMD_DISCOVER_SVID:
 			break;
@@ -1415,6 +1427,7 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 			break;
 		case SOFT_RESET_SEND:
 			port->message_id = 0;
+			port->rx_msgid = -1;
 			if (port->pwr_role == TYPEC_SOURCE)
 				next_state = SRC_SEND_CAPABILITIES;
 			else
@@ -1503,6 +1516,22 @@ static void tcpm_pd_rx_handler(struct work_struct *work)
 		 port->attached);
 
 	if (port->attached) {
+		enum pd_ctrl_msg_type type = pd_header_type_le(msg->header);
+		unsigned int msgid = pd_header_msgid_le(msg->header);
+
+		/*
+		 * USB PD standard, 6.6.1.2:
+		 * "... if MessageID value in a received Message is the
+		 * same as the stored value, the receiver shall return a
+		 * GoodCRC Message with that MessageID value and drop
+		 * the Message (this is a retry of an already received
+		 * Message). Note: this shall not apply to the Soft_Reset
+		 * Message which always has a MessageID value of zero."
+		 */
+		if (msgid == port->rx_msgid && type != PD_CTRL_SOFT_RESET)
+			goto done;
+		port->rx_msgid = msgid;
+
 		/*
 		 * If both ends believe to be DFP/host, we have a data role
 		 * mismatch.
@@ -1520,6 +1549,7 @@ static void tcpm_pd_rx_handler(struct work_struct *work)
 		}
 	}
 
+done:
 	mutex_unlock(&port->lock);
 	kfree(event);
 }
@@ -1719,8 +1749,7 @@ static int tcpm_pd_build_request(struct tcpm_port *port, u32 *rdo)
 	}
 	ma = min(ma, port->max_snk_ma);
 
-	/* XXX: Any other flags need to be set? */
-	flags = 0;
+	flags = RDO_USB_COMM | RDO_NO_SUSPEND;
 
 	/* Set mismatch bit if offered power is less than operating power */
 	mw = ma * mv / 1000;
@@ -1957,6 +1986,12 @@ static void tcpm_reset_port(struct tcpm_port *port)
 	port->attached = false;
 	port->pd_capable = false;
 
+	/*
+	 * First Rx ID should be 0; set this to a sentinel of -1 so that
+	 * we can check tcpm_pd_rx_handler() if we had seen it before.
+	 */
+	port->rx_msgid = -1;
+
 	port->tcpc->set_pd_rx(port->tcpc, false);
 	tcpm_init_vbus(port);	/* also disables charging */
 	tcpm_init_vconn(port);
@@ -2170,6 +2205,7 @@ static void run_state_machine(struct tcpm_port *port)
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
 		port->caps_count = 0;
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		port->explicit_contract = false;
 		tcpm_set_state(port, SRC_SEND_CAPABILITIES, 0);
 		break;
@@ -2329,6 +2365,7 @@ static void run_state_machine(struct tcpm_port *port)
 		typec_set_pwr_opmode(port->typec_port, TYPEC_PWR_MODE_USB);
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		port->explicit_contract = false;
 		tcpm_set_state(port, SNK_DISCOVERY, 0);
 		break;
@@ -2496,6 +2533,7 @@ static void run_state_machine(struct tcpm_port *port)
 	/* Soft_Reset states */
 	case SOFT_RESET:
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		tcpm_pd_send_control(port, PD_CTRL_ACCEPT);
 		if (port->pwr_role == TYPEC_SOURCE)
 			tcpm_set_state(port, SRC_SEND_CAPABILITIES, 0);
@@ -2504,6 +2542,7 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SOFT_RESET_SEND:
 		port->message_id = 0;
+		port->rx_msgid = -1;
 		if (tcpm_pd_send_control(port, PD_CTRL_SOFT_RESET))
 			tcpm_set_state_cond(port, hard_reset_state(port), 0);
 		else
@@ -2568,6 +2607,14 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case PR_SWAP_SRC_SNK_SOURCE_OFF:
 		tcpm_set_cc(port, TYPEC_CC_RD);
+		/*
+		 * USB-PD standard, 6.2.1.4, Port Power Role:
+		 * "During the Power Role Swap Sequence, for the initial Source
+		 * Port, the Port Power Role field shall be set to Sink in the
+		 * PS_RDY Message indicating that the initial Source’s power
+		 * supply is turned off"
+		 */
+		tcpm_set_pwr_role(port, TYPEC_SINK);
 		if (tcpm_pd_send_control(port, PD_CTRL_PS_RDY)) {
 			tcpm_set_state(port, ERROR_RECOVERY, 0);
 			break;
@@ -2575,7 +2622,6 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_state_cond(port, SNK_UNATTACHED, PD_T_PS_SOURCE_ON);
 		break;
 	case PR_SWAP_SRC_SNK_SINK_ON:
-		tcpm_set_pwr_role(port, TYPEC_SINK);
 		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, SNK_STARTUP, 0);
 		break;
@@ -2587,8 +2633,15 @@ static void run_state_machine(struct tcpm_port *port)
 	case PR_SWAP_SNK_SRC_SOURCE_ON:
 		tcpm_set_cc(port, tcpm_rp_cc(port));
 		tcpm_set_vbus(port, true);
-		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
+		/*
+		 * USB PD standard, 6.2.1.4:
+		 * "Subsequent Messages initiated by the Policy Engine,
+		 * such as the PS_RDY Message sent to indicate that Vbus
+		 * is ready, will have the Port Power Role field set to
+		 * Source."
+		 */
 		tcpm_set_pwr_role(port, TYPEC_SOURCE);
+		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
 		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, SRC_STARTUP, 0);
 		break;
@@ -3292,6 +3345,20 @@ static int tcpm_copy_pdos(u32 *dest_pdo, const u32 *src_pdo,
 	return nr_pdo;
 }
 
+static int tcpm_copy_vdos(u32 *dest_vdo, const u32 *src_vdo,
+			  unsigned int nr_vdo)
+{
+	unsigned int i;
+
+	if (nr_vdo > VDO_MAX_OBJECTS)
+		nr_vdo = VDO_MAX_OBJECTS;
+
+	for (i = 0; i < nr_vdo; i++)
+		dest_vdo[i] = src_vdo[i];
+
+	return nr_vdo;
+}
+
 void tcpm_update_source_capabilities(struct tcpm_port *port, const u32 *pdo,
 				     unsigned int nr_pdo)
 {
@@ -3382,6 +3449,8 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 					  tcpc->config->nr_src_pdo);
 	port->nr_snk_pdo = tcpm_copy_pdos(port->snk_pdo, tcpc->config->snk_pdo,
 					  tcpc->config->nr_snk_pdo);
+	port->nr_snk_vdo = tcpm_copy_vdos(port->snk_vdo, tcpc->config->snk_vdo,
+					  tcpc->config->nr_snk_vdo);
 
 	port->max_snk_mv = tcpc->config->max_snk_mv;
 	port->max_snk_ma = tcpc->config->max_snk_ma;
