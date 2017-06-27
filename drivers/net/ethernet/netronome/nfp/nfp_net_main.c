@@ -589,10 +589,7 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 				   ctrl_bar_sz, &pf->data_vnic_bar);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
-		err = PTR_ERR(mem);
-		if (!pf->fw_loaded && err == -ENOENT)
-			err = -EPROBE_DEFER;
-		return err;
+		return PTR_ERR(mem);
 	}
 
 	pf->mac_stats_mem = nfp_net_pf_map_rtsym(pf, "net.macstats",
@@ -784,6 +781,12 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (!nfp_is_ready(pf)) {
 		nfp_err(pf->cpp, "NFP is not ready for NIC operation.\n");
 		return -EINVAL;
+	}
+
+	if (!pf->rtbl) {
+		nfp_err(pf->cpp, "No %s, giving up.\n",
+			pf->fw_loaded ? "symbol table" : "firmware found");
+		return -EPROBE_DEFER;
 	}
 
 	mutex_lock(&pf->lock);
