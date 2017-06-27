@@ -1137,7 +1137,7 @@ static int calc_total_bfregs(struct mlx5_ib_dev *dev, bool lib_uar_4k,
 	if (req->num_low_latency_bfregs > req->total_num_bfregs - 1)
 		return -EINVAL;
 
-	mlx5_ib_dbg(dev, "uar_4k: fw support %s, lib support %s, user requested %d bfregs, alloated %d, using %d sys pages\n",
+	mlx5_ib_dbg(dev, "uar_4k: fw support %s, lib support %s, user requested %d bfregs, allocated %d, using %d sys pages\n",
 		    MLX5_CAP_GEN(dev->mdev, uar_4k) ? "yes" : "no",
 		    lib_uar_4k ? "yes" : "no", ref_bfregs,
 		    req->total_num_bfregs, *num_sys_pages);
