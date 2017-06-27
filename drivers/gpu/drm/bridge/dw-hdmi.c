@@ -150,6 +150,8 @@ struct hdmi_vmode {
 	unsigned int mpixelclock;
 	unsigned int mpixelrepetitioninput;
 	unsigned int mpixelrepetitionoutput;
+
+	unsigned int mtmdsclock;
 };
 
 struct hdmi_data_info {
@@ -773,7 +775,7 @@ static void hdmi_init_clk_regenerator(struct dw_hdmi *hdmi)
 static void hdmi_clk_regenerator_update_pixel_clock(struct dw_hdmi *hdmi)
 {
 	mutex_lock(&hdmi->audio_mutex);
-	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock,
+	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
 				 hdmi->sample_rate);
 	mutex_unlock(&hdmi->audio_mutex);
 }
@@ -782,7 +784,7 @@ void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 {
 	mutex_lock(&hdmi->audio_mutex);
 	hdmi->sample_rate = rate;
-	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock,
+	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
 				 hdmi->sample_rate);
 	mutex_unlock(&hdmi->audio_mutex);
 }
@@ -1408,6 +1410,9 @@ static int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 	const struct dw_hdmi_mpll_config *mpll_config = pdata->mpll_cfg;
 	const struct dw_hdmi_curr_ctrl *curr_ctrl = pdata->cur_ctr;
 	const struct dw_hdmi_phy_config *phy_config = pdata->phy_config;
+	unsigned int tmdsclock = hdmi->hdmi_data.video_mode.mtmdsclock;
+	unsigned int depth =
+		hdmi_bus_fmt_color_depth(hdmi->hdmi_data.enc_out_bus_format);
 
 	/* PLL/MPLL Cfg - always match on final entry */
 	for (; mpll_config->mpixelclock != ~0UL; mpll_config++)
@@ -1415,17 +1420,24 @@ static int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 			break;
 
 	for (; curr_ctrl->mpixelclock != ~0UL; curr_ctrl++)
-		if (mpixelclock <= curr_ctrl->mpixelclock)
+		if (tmdsclock <= curr_ctrl->mpixelclock)
 			break;
 
 	for (; phy_config->mpixelclock != ~0UL; phy_config++)
-		if (mpixelclock <= phy_config->mpixelclock)
+		if (tmdsclock <= phy_config->mpixelclock)
 			break;
 
 	if (mpll_config->mpixelclock == ~0UL ||
 	    curr_ctrl->mpixelclock == ~0UL ||
 	    phy_config->mpixelclock == ~0UL)
 		return -EINVAL;
+
+	if (!hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format))
+		depth = fls(depth - 8);
+	else
+		depth = 0;
+	if (depth)
+		depth--;
 
 	/*
 	 * RK3399 mpll clock source is vpll, also is vop clock source.
@@ -1434,14 +1446,14 @@ static int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 	 */
 	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format) &&
 	    (hdmi->dev_type == RK3399_HDMI || hdmi->dev_type == RK3368_HDMI))
-		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[0].cpce | 4,
+		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce | 4,
 				      HDMI_3D_TX_PHY_CPCE_CTRL);
 	else
-		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[0].cpce,
+		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce,
 				      HDMI_3D_TX_PHY_CPCE_CTRL);
-	dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[0].gmp,
+	dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].gmp,
 			      HDMI_3D_TX_PHY_GMPCTRL);
-	dw_hdmi_phy_i2c_write(hdmi, curr_ctrl->curr[0],
+	dw_hdmi_phy_i2c_write(hdmi, curr_ctrl->curr[depth],
 			      HDMI_3D_TX_PHY_CURRCTRL);
 
 	dw_hdmi_phy_i2c_write(hdmi, 0, HDMI_3D_TX_PHY_PLLPHBYCTRL);
@@ -1465,13 +1477,14 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 	const struct dw_hdmi_phy_data *phy = hdmi->phy.data;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 	unsigned long mpixelclock = hdmi->hdmi_data.video_mode.mpixelclock;
+	unsigned long mtmdsclock = hdmi->hdmi_data.video_mode.mtmdsclock;
 	int ret;
 
 	dw_hdmi_phy_power_off(hdmi);
 
 	/* Control for TMDS Bit Period/TMDS Clock-Period Ratio */
 	if (hdmi->connector.display_info.hdmi.scdc.supported) {
-		if (mpixelclock > 340000000)
+		if (mtmdsclock > 340000000)
 			drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 1);
 		else
 			drm_scdc_set_high_tmds_clock_ratio(hdmi->ddc, 0);
@@ -1504,7 +1517,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 	}
 
 	/* Wait for resuming transmission of TMDS clock and data */
-	if (mpixelclock > 340000000)
+	if (mtmdsclock > 340000000)
 		msleep(100);
 
 	return dw_hdmi_phy_power_on(hdmi);
@@ -1750,6 +1763,32 @@ static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi *hdmi,
 			HDMI_FC_DATAUTO0_VSD_MASK);
 }
 
+static unsigned int
+hdmi_get_tmdsclock(struct dw_hdmi *hdmi, unsigned long mpixelclock)
+{
+	unsigned int tmdsclock = mpixelclock;
+	unsigned int depth =
+		hdmi_bus_fmt_color_depth(hdmi->hdmi_data.enc_out_bus_format);
+
+	if (!hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format)) {
+		switch (depth) {
+		case 16:
+			tmdsclock = mpixelclock * 2;
+			break;
+		case 12:
+			tmdsclock = mpixelclock * 3 / 2;
+			break;
+		case 10:
+			tmdsclock = mpixelclock * 5 / 4;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return tmdsclock;
+}
+
 static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			     const struct drm_display_mode *mode)
 {
@@ -1767,11 +1806,14 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 		vmode->mpixelclock *= 2;
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 
+	vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi, vmode->mpixelclock);
+	dev_dbg(hdmi->dev, "final tmdsclk = %d\n", vmode->mtmdsclock);
+
 	/* Set up HDMI_FC_INVIDCONF
 	 * fc_invidconf.HDCP_keepout must be set (1'b1)
 	 * when activate the scrambler feature.
 	 */
-	inv_val = (vmode->mpixelclock > 340000000 ||
+	inv_val = (vmode->mtmdsclock > 340000000 ||
 		   hdmi_info->scdc.scrambling.low_rates ?
 		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE :
 		   HDMI_FC_INVIDCONF_HDCP_KEEPOUT_INACTIVE);
@@ -1842,7 +1884,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	/* Scrambling Control */
 	if (hdmi_info->scdc.supported) {
-		if (vmode->mpixelclock > 340000000 ||
+		if (vmode->mtmdsclock > 340000000 ||
 		    hdmi_info->scdc.scrambling.low_rates) {
 			drm_scdc_readb(&hdmi->i2c->adap, SCDC_SINK_VERSION,
 				       &bytes);
