@@ -70,7 +70,6 @@ config DA8XX_REMOTEPROC
 config KEYSTONE_REMOTEPROC
 	tristate "Keystone Remoteproc support"
 	depends on ARCH_KEYSTONE
-	depends on RESET_CONTROLLER
 	select RPMSG_VIRTIO
 	help
 	  Say Y here here to support Keystone remote processors (DSP)
