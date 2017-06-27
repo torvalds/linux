@@ -33,21 +33,10 @@ static void error_builtin(const char *err, va_list params)
 	report(" Error: ", err, params);
 }
 
-static void warn_builtin(const char *warn, va_list params)
-{
-	report(" Warning: ", warn, params);
-}
-
 /* If we are in a dlopen()ed .so write to a global variable would segfault
  * (ugh), so keep things static. */
 static void (*usage_routine)(const char *err) __noreturn = usage_builtin;
 static void (*error_routine)(const char *err, va_list params) = error_builtin;
-static void (*warn_routine)(const char *err, va_list params) = warn_builtin;
-
-void set_warning_routine(void (*routine)(const char *err, va_list params))
-{
-	warn_routine = routine;
-}
 
 void usage(const char *err)
 {
@@ -71,13 +60,4 @@ int error(const char *err, ...)
 	error_routine(err, params);
 	va_end(params);
 	return -1;
-}
-
-void warning(const char *warn, ...)
-{
-	va_list params;
-
-	va_start(params, warn);
-	warn_routine(warn, params);
-	va_end(params);
 }

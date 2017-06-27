@@ -17,9 +17,6 @@
 void usage(const char *err) __noreturn;
 void die(const char *err, ...) __noreturn __printf(1, 2);
 int error(const char *err, ...) __printf(1, 2);
-void warning(const char *err, ...) __printf(1, 2);
-
-void set_warning_routine(void (*routine)(const char *err, va_list params));
 
 static inline void *zalloc(size_t size)
 {
