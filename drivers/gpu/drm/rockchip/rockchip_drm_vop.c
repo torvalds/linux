@@ -2788,17 +2788,21 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	vop->len = resource_size(res);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
+	if (!res) {
+		dev_warn(vop->dev, "failed to get vop register byname\n");
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	}
 	vop->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(vop->regs))
 		return PTR_ERR(vop->regs);
+	vop->len = resource_size(res);
 
 	vop->regsbak = devm_kzalloc(dev, vop->len, GFP_KERNEL);
 	if (!vop->regsbak)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gamma_lut");
 	vop->lut_regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(vop->lut_regs)) {
 		dev_warn(vop->dev, "failed to get vop lut registers\n");
