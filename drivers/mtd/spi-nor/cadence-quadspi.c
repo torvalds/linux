@@ -1283,7 +1283,7 @@ static const struct dev_pm_ops cqspi__dev_pm_ops = {
 #define CQSPI_DEV_PM_OPS	NULL
 #endif
 
-static const struct of_device_id const cqspi_dt_ids[] = {
+static const struct of_device_id cqspi_dt_ids[] = {
 	{.compatible = "cdns,qspi-nor",},
 	{ /* end of table */ }
 };
