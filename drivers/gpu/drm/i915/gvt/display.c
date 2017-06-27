@@ -262,6 +262,10 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_A)) |= DDI_INIT_DISPLAY_DETECTED;
 	}
+
+	/* Clear host CRT status, so guest couldn't detect this host CRT. */
+	if (IS_BROADWELL(dev_priv))
+		vgpu_vreg(vgpu, PCH_ADPA) &= ~ADPA_CRT_HOTPLUG_MONITOR_MASK;
 }
 
 static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)

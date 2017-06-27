@@ -1905,7 +1905,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_PCH_DPD_AUX_CH_CTL, 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
 		dp_aux_ch_ctl_mmio_write);
 
-	MMIO_RO(PCH_ADPA, D_ALL, 0, ADPA_CRT_HOTPLUG_MONITOR_MASK, NULL, pch_adpa_mmio_write);
+	MMIO_DH(PCH_ADPA, D_PRE_SKL, NULL, pch_adpa_mmio_write);
 
 	MMIO_DH(_PCH_TRANSACONF, D_ALL, NULL, transconf_mmio_write);
 	MMIO_DH(_PCH_TRANSBCONF, D_ALL, NULL, transconf_mmio_write);
