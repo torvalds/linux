@@ -1031,7 +1031,7 @@ ap_i2c_audio: &i2c8 {
 		 * hurt and dw_mmc will ignore it.  We make sure to disable
 		 * the pull though so we don't burn needless power.
 		 */
-		sdmmc_cd: sdmcc-cd {
+		sdmmc_cd: sdmmc-cd {
 			rockchip,pins =
 				<0 7 RK_FUNC_1 &pcfg_pull_none>;
 		};

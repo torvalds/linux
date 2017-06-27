@@ -1786,7 +1786,7 @@
 					<4 RK_PB5 RK_FUNC_1 &pcfg_pull_up>;
 			};
 
-			sdmmc_cd: sdmcc-cd {
+			sdmmc_cd: sdmmc-cd {
 				rockchip,pins =
 					<0 RK_PA7 RK_FUNC_1 &pcfg_pull_up>;
 			};
