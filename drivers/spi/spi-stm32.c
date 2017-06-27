@@ -775,9 +775,6 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 					xfer->rx_sg.nents,
 					rx_dma_conf.direction,
 					DMA_PREP_INTERRUPT);
-
-		rx_dma_desc->callback = stm32_spi_dma_cb;
-		rx_dma_desc->callback_param = spi;
 	}
 
 	tx_dma_desc = NULL;
@@ -790,11 +787,6 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 					xfer->tx_sg.nents,
 					tx_dma_conf.direction,
 					DMA_PREP_INTERRUPT);
-
-		if (spi->cur_comm == SPI_SIMPLEX_TX) {
-			tx_dma_desc->callback = stm32_spi_dma_cb;
-			tx_dma_desc->callback_param = spi;
-		}
 	}
 
 	if ((spi->tx_buf && !tx_dma_desc) ||
@@ -802,6 +794,9 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 		goto dma_desc_error;
 
 	if (rx_dma_desc) {
+		rx_dma_desc->callback = stm32_spi_dma_cb;
+		rx_dma_desc->callback_param = spi;
+
 		if (dma_submit_error(dmaengine_submit(rx_dma_desc))) {
 			dev_err(spi->dev, "Rx DMA submit failed\n");
 			goto dma_desc_error;
@@ -811,6 +806,11 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 	}
 
 	if (tx_dma_desc) {
+		if (spi->cur_comm == SPI_SIMPLEX_TX) {
+			tx_dma_desc->callback = stm32_spi_dma_cb;
+			tx_dma_desc->callback_param = spi;
+		}
+
 		if (dma_submit_error(dmaengine_submit(tx_dma_desc))) {
 			dev_err(spi->dev, "Tx DMA submit failed\n");
 			goto dma_submit_error;
