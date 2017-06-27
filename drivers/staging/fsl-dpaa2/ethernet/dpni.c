@@ -33,7 +33,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include "../../fsl-mc/include/mc.h"
-#include "../../fsl-mc/include/mc-cmd.h"
 #include "dpni.h"
 #include "dpni-cmd.h"
 
