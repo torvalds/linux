@@ -37,21 +37,16 @@ int get_compat_msghdr(struct msghdr *kmsg,
 		      struct sockaddr __user **save_addr,
 		      struct iovec **iov)
 {
-	compat_uptr_t uaddr, uiov, tmp3;
-	compat_size_t nr_segs;
+	struct compat_msghdr msg;
 	ssize_t err;
 
-	if (!access_ok(VERIFY_READ, umsg, sizeof(*umsg)) ||
-	    __get_user(uaddr, &umsg->msg_name) ||
-	    __get_user(kmsg->msg_namelen, &umsg->msg_namelen) ||
-	    __get_user(uiov, &umsg->msg_iov) ||
-	    __get_user(nr_segs, &umsg->msg_iovlen) ||
-	    __get_user(tmp3, &umsg->msg_control) ||
-	    __get_user(kmsg->msg_controllen, &umsg->msg_controllen) ||
-	    __get_user(kmsg->msg_flags, &umsg->msg_flags))
+	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
 		return -EFAULT;
 
-	if (!uaddr)
+	kmsg->msg_flags = msg.msg_flags;
+	kmsg->msg_namelen = msg.msg_namelen;
+
+	if (!msg.msg_name)
 		kmsg->msg_namelen = 0;
 
 	if (kmsg->msg_namelen < 0)
@@ -59,14 +54,16 @@ int get_compat_msghdr(struct msghdr *kmsg,
 
 	if (kmsg->msg_namelen > sizeof(struct sockaddr_storage))
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
-	kmsg->msg_control = compat_ptr(tmp3);
+
+	kmsg->msg_control = compat_ptr(msg.msg_control);
+	kmsg->msg_controllen = msg.msg_controllen;
 
 	if (save_addr)
-		*save_addr = compat_ptr(uaddr);
+		*save_addr = compat_ptr(msg.msg_name);
 
-	if (uaddr && kmsg->msg_namelen) {
+	if (msg.msg_name && kmsg->msg_namelen) {
 		if (!save_addr) {
-			err = move_addr_to_kernel(compat_ptr(uaddr),
+			err = move_addr_to_kernel(compat_ptr(msg.msg_name),
 						  kmsg->msg_namelen,
 						  kmsg->msg_name);
 			if (err < 0)
@@ -77,13 +74,13 @@ int get_compat_msghdr(struct msghdr *kmsg,
 		kmsg->msg_namelen = 0;
 	}
 
-	if (nr_segs > UIO_MAXIOV)
+	if (msg.msg_iovlen > UIO_MAXIOV)
 		return -EMSGSIZE;
 
 	kmsg->msg_iocb = NULL;
 
 	return compat_import_iovec(save_addr ? READ : WRITE,
-				   compat_ptr(uiov), nr_segs,
+				   compat_ptr(msg.msg_iov), msg.msg_iovlen,
 				   UIO_FASTIOV, iov, &kmsg->msg_iter);
 }
 
