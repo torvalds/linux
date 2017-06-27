@@ -253,11 +253,11 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 }
 
 
-typedef struct tdes_keys {
+struct tdes_keys {
 	u8	key1[DES_KEY_SIZE];
 	u8	key2[DES_KEY_SIZE];
 	u8	key3[DES_KEY_SIZE];
-} tdes_keys_t;
+};
 
 static const u8 zero_buff[] = {	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -268,7 +268,7 @@ static const u8 zero_buff[] = {	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 static int ssi_fips_verify_3des_keys(const u8 *key, unsigned int keylen)
 {
 #ifdef CCREE_FIPS_SUPPORT
-	tdes_keys_t *tdes_key = (tdes_keys_t *)key;
+	struct tdes_keys *tdes_key = (struct tdes_keys *)key;
 
 	/* verify key1 != key2 and key3 != key2*/
 	if (unlikely((memcmp((u8 *)tdes_key->key1, (u8 *)tdes_key->key2, sizeof(tdes_key->key1)) == 0) ||
