@@ -6,7 +6,6 @@ config REMOTEPROC
 	select CRC32
 	select FW_LOADER
 	select VIRTIO
-	select VIRTUALIZATION
 	help
 	  Support for remote processors (such as DSP coprocessors). These
 	  are mainly used on embedded systems.
