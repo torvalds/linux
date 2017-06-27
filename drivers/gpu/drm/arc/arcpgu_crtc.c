@@ -163,7 +163,6 @@ static const struct drm_crtc_helper_funcs arc_pgu_crtc_helper_funcs = {
 	.mode_set_nofb	= arc_pgu_crtc_mode_set_nofb,
 	.enable		= arc_pgu_crtc_enable,
 	.disable	= arc_pgu_crtc_disable,
-	.prepare	= arc_pgu_crtc_disable,
 	.atomic_begin	= arc_pgu_crtc_atomic_begin,
 };
 
