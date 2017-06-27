@@ -20,7 +20,6 @@
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 
-
 struct ccp_device;
 struct ccp_cmd;
 

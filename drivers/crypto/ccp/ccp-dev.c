@@ -415,6 +415,7 @@ static void ccp_do_cmd_complete(unsigned long data)
 	struct ccp_cmd *cmd = tdata->cmd;
 
 	cmd->callback(cmd->data, cmd->ret);
+
 	complete(&tdata->completion);
 }
 
