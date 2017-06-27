@@ -120,6 +120,8 @@ void ath9k_rng_start(struct ath_softc *sc)
 
 void ath9k_rng_stop(struct ath_softc *sc)
 {
-	if (sc->rng_task)
+	if (sc->rng_task) {
 		kthread_stop(sc->rng_task);
+		sc->rng_task = NULL;
+	}
 }
