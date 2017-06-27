@@ -29,8 +29,9 @@ struct dprc_child_objs {
 static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
 				struct dprc_obj_desc *obj_desc)
 {
-	return !strcmp(mc_dev->obj_desc.type, obj_desc->type) &&
-		mc_dev->obj_desc.id == obj_desc->id;
+	return mc_dev->obj_desc.id == obj_desc->id &&
+	       !strcmp(mc_dev->obj_desc.type, obj_desc->type);
+
 }
 
 static int __fsl_mc_device_remove_if_not_in_mc(struct device *dev, void *data)
