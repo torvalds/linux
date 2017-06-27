@@ -290,7 +290,7 @@ struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
 		return NULL;
 
 	nd_pfn->mode = PFN_MODE_NONE;
-	nd_pfn->align = HPAGE_SIZE;
+	nd_pfn->align = PFN_DEFAULT_ALIGNMENT;
 	dev = &nd_pfn->dev;
 	device_initialize(&nd_pfn->dev);
 	if (ndns && !__nd_attach_ndns(&nd_pfn->dev, ndns, &nd_pfn->ndns)) {
@@ -638,11 +638,12 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 			/ PAGE_SIZE);
 	if (nd_pfn->mode == PFN_MODE_PMEM) {
 		/*
-		 * vmemmap_populate_hugepages() allocates the memmap array in
-		 * HPAGE_SIZE chunks.
+		 * The altmap should be padded out to the block size used
+		 * when populating the vmemmap. This *should* be equal to
+		 * PMD_SIZE for most architectures.
 		 */
 		offset = ALIGN(start + SZ_8K + 64 * npfns + dax_label_reserve,
-				max(nd_pfn->align, HPAGE_SIZE)) - start;
+				max(nd_pfn->align, PMD_SIZE)) - start;
 	} else if (nd_pfn->mode == PFN_MODE_RAM)
 		offset = ALIGN(start + SZ_8K + dax_label_reserve,
 				nd_pfn->align) - start;

@@ -285,6 +285,13 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 
 struct nd_pfn *to_nd_pfn(struct device *dev);
 #if IS_ENABLED(CONFIG_NVDIMM_PFN)
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define PFN_DEFAULT_ALIGNMENT HPAGE_PMD_SIZE
+#else
+#define PFN_DEFAULT_ALIGNMENT PAGE_SIZE
+#endif
+
 int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_pfn(struct device *dev);
 struct device *nd_pfn_create(struct nd_region *nd_region);
