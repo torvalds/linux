@@ -218,6 +218,7 @@ struct snd_pcm_ops {
 struct snd_pcm_file {
 	struct snd_pcm_substream *substream;
 	int no_compat_mmap;
+	unsigned int user_pversion;	/* supported protocol version */
 };
 
 struct snd_pcm_hw_rule;
