@@ -488,8 +488,16 @@ static int nfp_net_pf_app_start(struct nfp_pf *pf)
 	if (err)
 		goto err_ctrl_stop;
 
+	if (pf->num_vfs) {
+		err = nfp_app_sriov_enable(pf->app, pf->num_vfs);
+		if (err)
+			goto err_app_stop;
+	}
+
 	return 0;
 
+err_app_stop:
+	nfp_app_stop(pf->app);
 err_ctrl_stop:
 	nfp_net_pf_app_stop_ctrl(pf);
 	return err;
@@ -497,6 +505,8 @@ err_ctrl_stop:
 
 static void nfp_net_pf_app_stop(struct nfp_pf *pf)
 {
+	if (pf->num_vfs)
+		nfp_app_sriov_disable(pf->app);
 	nfp_app_stop(pf->app);
 	nfp_net_pf_app_stop_ctrl(pf);
 }
