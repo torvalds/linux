@@ -112,7 +112,7 @@
 
 &emac {
 	phy-handle = <&int_mii_phy>;
-	phy-mode = "mii";
+	phy-mode = "internal";
 	allwinner,leds-active-low;
 	status = "okay";
 };
