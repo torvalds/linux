@@ -2103,20 +2103,30 @@ static void blk_mq_map_swqueue(struct request_queue *q,
 	}
 }
 
+/*
+ * Caller needs to ensure that we're either frozen/quiesced, or that
+ * the queue isn't live yet.
+ */
 static void queue_set_hctx_shared(struct request_queue *q, bool shared)
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (shared)
+		if (shared) {
+			if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+				atomic_inc(&q->shared_hctx_restart);
 			hctx->flags |= BLK_MQ_F_TAG_SHARED;
-		else
+		} else {
+			if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+				atomic_dec(&q->shared_hctx_restart);
 			hctx->flags &= ~BLK_MQ_F_TAG_SHARED;
+		}
 	}
 }
 
-static void blk_mq_update_tag_set_depth(struct blk_mq_tag_set *set, bool shared)
+static void blk_mq_update_tag_set_depth(struct blk_mq_tag_set *set,
+					bool shared)
 {
 	struct request_queue *q;
 

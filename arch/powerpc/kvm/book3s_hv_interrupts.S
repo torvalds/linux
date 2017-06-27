@@ -121,10 +121,20 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	 * Put whatever is in the decrementer into the
 	 * hypervisor decrementer.
 	 */
+BEGIN_FTR_SECTION
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	ld	r6, VCORE_KVM(r5)
+	ld	r9, KVM_HOST_LPCR(r6)
+	andis.	r9, r9, LPCR_LD@h
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	mfspr	r8,SPRN_DEC
 	mftb	r7
-	mtspr	SPRN_HDEC,r8
+BEGIN_FTR_SECTION
+	/* On POWER9, don't sign-extend if host LPCR[LD] bit is set */
+	bne	32f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	extsw	r8,r8
+32:	mtspr	SPRN_HDEC,r8
 	add	r8,r8,r7
 	std	r8,HSTATE_DECEXP(r13)
 

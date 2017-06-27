@@ -12,6 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/clockchips.h>
+#include <linux/clocksource.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
