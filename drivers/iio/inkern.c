@@ -44,7 +44,7 @@ int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 		}
 		mapi->map = &maps[i];
 		mapi->indio_dev = indio_dev;
-		list_add(&mapi->l, &iio_map_list);
+		list_add_tail(&mapi->l, &iio_map_list);
 		i++;
 	}
 error_ret:
