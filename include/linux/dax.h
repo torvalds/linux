@@ -16,7 +16,7 @@ struct dax_operations {
 	 */
 	long (*direct_access)(struct dax_device *, pgoff_t, long,
 			void **, pfn_t *);
-	/* copy_from_iter: dax-driver override for default copy_from_iter */
+	/* copy_from_iter: required operation for fs-dax direct-i/o */
 	size_t (*copy_from_iter)(struct dax_device *, pgoff_t, void *, size_t,
 			struct iov_iter *);
 	/* flush: optional driver-specific cache management after writes */

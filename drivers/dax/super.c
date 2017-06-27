@@ -179,8 +179,6 @@ size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 	if (!dax_alive(dax_dev))
 		return 0;
 
-	if (!dax_dev->ops->copy_from_iter)
-		return copy_from_iter(addr, bytes, i);
 	return dax_dev->ops->copy_from_iter(dax_dev, pgoff, addr, bytes, i);
 }
 EXPORT_SYMBOL_GPL(dax_copy_from_iter);
