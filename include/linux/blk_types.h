@@ -56,6 +56,7 @@ struct bio {
 						 */
 	unsigned short		bi_flags;	/* status, etc and bvec pool number */
 	unsigned short		bi_ioprio;
+	unsigned short		bi_write_hint;
 
 	struct bvec_iter	bi_iter;
 

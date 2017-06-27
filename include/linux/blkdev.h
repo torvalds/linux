@@ -225,6 +225,8 @@ struct request {
 
 	unsigned int extra_len;	/* length of alignment and padding */
 
+	unsigned short write_hint;
+
 	unsigned long deadline;
 	struct list_head timeout_list;
 
