@@ -2962,15 +2962,14 @@ static int do_aquire_global_lock(
 int amdgpu_dm_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
 {
+	struct dm_atomic_state *dm_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
 	int i, j;
 	int ret;
-	int set_count;
 	int new_stream_count;
-	struct dc_validation_set set[MAX_STREAMS] = {{ 0 }};
 	struct dc_stream *new_streams[MAX_STREAMS] = { 0 };
 	struct drm_crtc *crtc_set[MAX_STREAMS] = { 0 };
 	struct amdgpu_device *adev = dev->dev_private;
@@ -2995,17 +2994,19 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 	ret = -EINVAL;
 
+	dm_state = to_dm_atomic_state(state);
+
 	/* copy existing configuration */
 	new_stream_count = 0;
-	set_count = 0;
+	dm_state->set_count = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 		if (acrtc->stream) {
-			set[set_count].stream = acrtc->stream;
-			crtc_set[set_count] = crtc;
-			++set_count;
+			dm_state->set[dm_state->set_count].stream = acrtc->stream;
+			crtc_set[dm_state->set_count] = crtc;
+			++dm_state->set_count;
 		}
 	}
 
@@ -3034,16 +3035,16 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 			struct dc_stream *new_stream = NULL;
 			struct drm_connector_state *conn_state = NULL;
-			struct dm_connector_state *dm_state = NULL;
+			struct dm_connector_state *dm_conn_state = NULL;
 
 			if (aconnector) {
 				conn_state = drm_atomic_get_connector_state(state, &aconnector->base);
 				if (IS_ERR(conn_state))
 					return ret;
-				dm_state = to_dm_connector_state(conn_state);
+				dm_conn_state = to_dm_connector_state(conn_state);
 			}
 
-			new_stream = create_stream_for_sink(aconnector, &crtc_state->mode, dm_state);
+			new_stream = create_stream_for_sink(aconnector, &crtc_state->mode, dm_conn_state);
 
 			/*
 			 * we can have no stream on ACTION_SET if a display
@@ -3058,10 +3059,10 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			}
 
 			new_streams[new_stream_count] = new_stream;
-			set_count = update_in_val_sets_stream(
-					set,
+			dm_state->set_count = update_in_val_sets_stream(
+					dm_state->set,
 					crtc_set,
-					set_count,
+					dm_state->set_count,
 					acrtc->stream,
 					new_stream,
 					crtc);
@@ -3074,9 +3075,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 			/* i.e. reset mode */
 			if (acrtc->stream) {
-				set_count = remove_from_val_sets(
-						set,
-						set_count,
+				dm_state->set_count = remove_from_val_sets(
+						dm_state->set,
+						dm_state->set_count,
 						acrtc->stream);
 				aquire_global_lock = true;
 			}
@@ -3127,10 +3128,10 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 
 		new_streams[new_stream_count] = new_stream;
-		set_count = update_in_val_sets_stream(
-				set,
+		dm_state->set_count = update_in_val_sets_stream(
+				dm_state->set,
 				crtc_set,
-				set_count,
+				dm_state->set_count,
 				acrtc->stream,
 				new_stream,
 				&acrtc->base);
@@ -3140,12 +3141,12 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		aquire_global_lock = true;
 	}
 
-	for (i = 0; i < set_count; i++) {
+	for (i = 0; i < dm_state->set_count; i++) {
 		for_each_plane_in_state(state, plane, plane_state, j) {
 			struct drm_crtc *crtc = plane_state->crtc;
 			struct drm_framebuffer *fb = plane_state->fb;
 			struct drm_connector *connector;
-			struct dm_connector_state *dm_state = NULL;
+			struct dm_connector_state *dm_conn_state = NULL;
 			struct drm_crtc_state *crtc_state;
 			bool pflip_needed;
 
@@ -3166,7 +3167,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 				list_for_each_entry(connector,
 					&dev->mode_config.connector_list, head)	{
 					if (connector->state->crtc == crtc) {
-						dm_state = to_dm_connector_state(
+						dm_conn_state = to_dm_connector_state(
 							connector->state);
 						break;
 					}
@@ -3186,7 +3187,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 				 * Also it should be needed when used with actual
 				 * drm_atomic_commit ioctl in future
 				 */
-				if (!dm_state)
+				if (!dm_conn_state)
 					continue;
 
 				surface = dc_create_surface(dc);
@@ -3196,11 +3197,10 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 					plane_state,
 					false);
 
-				add_val_sets_surface(
-							set,
-							set_count,
-							set[i].stream,
-							surface);
+				add_val_sets_surface(dm_state->set,
+						     dm_state->set_count,
+						     dm_state->set[i].stream,
+						     surface);
 
 				need_to_validate = true;
 				aquire_global_lock = true;
@@ -3208,9 +3208,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	}
 
-	context = dc_get_validate_context(dc, set, set_count);
+	context = dc_get_validate_context(dc, dm_state->set, dm_state->set_count);
 
-	if (need_to_validate == false || set_count == 0 || context) {
+	if (need_to_validate == false || dm_state->set_count == 0 || context) {
 
 		ret = 0;
 		/*
@@ -3232,9 +3232,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		dm_free(context);
 	}
 
-	for (i = 0; i < set_count; i++)
-		for (j = 0; j < set[i].surface_count; j++)
-			dc_surface_release(set[i].surfaces[j]);
+	for (i = 0; i < dm_state->set_count; i++)
+		for (j = 0; j < dm_state->set[i].surface_count; j++)
+			dc_surface_release(dm_state->set[i].surfaces[j]);
 
 	for (i = 0; i < new_stream_count; i++)
 		dc_stream_release(new_streams[i]);

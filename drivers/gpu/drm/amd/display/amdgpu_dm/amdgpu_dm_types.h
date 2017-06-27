@@ -28,6 +28,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include "dc.h"
 
 struct amdgpu_framebuffer;
 struct amdgpu_display_manager;
@@ -51,6 +52,10 @@ struct dm_crtc_state {
 
 struct dm_atomic_state {
 	struct drm_atomic_state base;
+
+	struct dc_validation_set set[MAX_STREAMS];
+	int set_count;
+
 };
 
 #define to_dm_atomic_state(x) container_of(x, struct dm_atomic_state, base)
