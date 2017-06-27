@@ -29,7 +29,7 @@
 #include "stmmac.h"
 #include "dwmac_dma.h"
 
-#define REG_SPACE_SIZE	0x1054
+#define REG_SPACE_SIZE	0x1060
 #define MAC100_ETHTOOL_NAME	"st_mac100"
 #define GMAC_ETHTOOL_NAME	"st_gmac"
 
