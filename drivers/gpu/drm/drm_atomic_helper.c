@@ -3087,12 +3087,11 @@ backoff:
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_set_property);
 
-static int page_flip_common(
-				struct drm_atomic_state *state,
-				struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				struct drm_pending_vblank_event *event,
-				uint32_t flags)
+static int page_flip_common(struct drm_atomic_state *state,
+			    struct drm_crtc *crtc,
+			    struct drm_framebuffer *fb,
+			    struct drm_pending_vblank_event *event,
+			    uint32_t flags)
 {
 	struct drm_plane *plane = crtc->primary;
 	struct drm_plane_state *plane_state;
@@ -3186,13 +3185,12 @@ EXPORT_SYMBOL(drm_atomic_helper_page_flip);
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.
  */
-int drm_atomic_helper_page_flip_target(
-				struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				struct drm_pending_vblank_event *event,
-				uint32_t flags,
-				uint32_t target,
-				struct drm_modeset_acquire_ctx *ctx)
+int drm_atomic_helper_page_flip_target(struct drm_crtc *crtc,
+				       struct drm_framebuffer *fb,
+				       struct drm_pending_vblank_event *event,
+				       uint32_t flags,
+				       uint32_t target,
+				       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_plane *plane = crtc->primary;
 	struct drm_atomic_state *state;
