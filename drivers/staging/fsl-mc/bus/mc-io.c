@@ -31,7 +31,6 @@
  */
 
 #include <linux/io.h>
-#include "../include/mc-bus.h"
 #include "../include/mc-sys.h"
 
 #include "fsl-mc-private.h"
