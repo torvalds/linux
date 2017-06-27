@@ -336,10 +336,10 @@ static int read_port_immutable(struct ib_device *device)
 	return 0;
 }
 
-void ib_get_device_fw_str(struct ib_device *dev, char *str, size_t str_len)
+void ib_get_device_fw_str(struct ib_device *dev, char *str)
 {
 	if (dev->get_dev_fw_str)
-		dev->get_dev_fw_str(dev, str, str_len);
+		dev->get_dev_fw_str(dev, str);
 	else
 		str[0] = '\0';
 }

@@ -102,12 +102,11 @@ static struct device_attribute *pvrdma_class_attributes[] = {
 	&dev_attr_board_id
 };
 
-static void pvrdma_get_fw_ver_str(struct ib_device *device, char *str,
-				  size_t str_len)
+static void pvrdma_get_fw_ver_str(struct ib_device *device, char *str)
 {
 	struct pvrdma_dev *dev =
 		container_of(device, struct pvrdma_dev, ib_dev);
-	snprintf(str, str_len, "%d.%d.%d\n",
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d.%d.%d\n",
 		 (int) (dev->dsr->caps.fw_ver >> 32),
 		 (int) (dev->dsr->caps.fw_ver >> 16) & 0xffff,
 		 (int) dev->dsr->caps.fw_ver & 0xffff);
