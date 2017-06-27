@@ -164,7 +164,6 @@ static const struct drm_crtc_helper_funcs arc_pgu_crtc_helper_funcs = {
 	.enable		= arc_pgu_crtc_enable,
 	.disable	= arc_pgu_crtc_disable,
 	.prepare	= arc_pgu_crtc_disable,
-	.commit		= arc_pgu_crtc_enable,
 	.atomic_begin	= arc_pgu_crtc_atomic_begin,
 };
 
