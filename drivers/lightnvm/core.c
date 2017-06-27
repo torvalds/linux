@@ -252,8 +252,9 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	}
 	mutex_unlock(&dev->mlock);
 
-	if (nvm_reserve_luns(dev, s->lun_begin, s->lun_end))
-		return -ENOMEM;
+	ret = nvm_reserve_luns(dev, s->lun_begin, s->lun_end);
+	if (ret)
+		return ret;
 
 	t = kmalloc(sizeof(struct nvm_target), GFP_KERNEL);
 	if (!t) {
