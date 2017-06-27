@@ -1301,7 +1301,7 @@ static struct hc_driver vhci_hc_driver = {
 
 static int vhci_hcd_probe(struct platform_device *pdev)
 {
-	struct vhci		*vhci;
+	struct vhci             *vhci = *((void **)dev_get_platdata(&pdev->dev));
 	struct usb_hcd		*hcd_hs;
 	struct usb_hcd		*hcd_ss;
 	int			ret;
