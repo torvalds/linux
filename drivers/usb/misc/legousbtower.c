@@ -926,6 +926,7 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 		 USB_MAJOR, dev->minor);
 
 exit:
+	kfree(get_version_reply);
 	return retval;
 
 error:

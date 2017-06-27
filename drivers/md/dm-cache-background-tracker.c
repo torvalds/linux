@@ -33,6 +33,11 @@ struct background_tracker *btracker_create(unsigned max_work)
 {
 	struct background_tracker *b = kmalloc(sizeof(*b), GFP_KERNEL);
 
+	if (!b) {
+		DMERR("couldn't create background_tracker");
+		return NULL;
+	}
+
 	b->max_work = max_work;
 	atomic_set(&b->pending_promotes, 0);
 	atomic_set(&b->pending_writebacks, 0);

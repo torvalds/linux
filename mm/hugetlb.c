@@ -4170,6 +4170,11 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			}
 			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
 			if (ret & VM_FAULT_ERROR) {
+				int err = vm_fault_to_errno(ret, flags);
+
+				if (err)
+					return err;
+
 				remainder = 0;
 				break;
 			}

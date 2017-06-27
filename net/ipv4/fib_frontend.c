@@ -763,7 +763,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
 	struct hlist_head *head;
-	int dumped = 0;
+	int dumped = 0, err;
 
 	if (nlmsg_len(cb->nlh) >= sizeof(struct rtmsg) &&
 	    ((struct rtmsg *) nlmsg_data(cb->nlh))->rtm_flags & RTM_F_CLONED)
@@ -783,20 +783,27 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			if (dumped)
 				memset(&cb->args[2], 0, sizeof(cb->args) -
 						 2 * sizeof(cb->args[0]));
-			if (fib_table_dump(tb, skb, cb) < 0)
-				goto out;
+			err = fib_table_dump(tb, skb, cb);
+			if (err < 0) {
+				if (likely(skb->len))
+					goto out;
+
+				goto out_err;
+			}
 			dumped = 1;
 next:
 			e++;
 		}
 	}
 out:
+	err = skb->len;
+out_err:
 	rcu_read_unlock();
 
 	cb->args[1] = e;
 	cb->args[0] = h;
 
-	return skb->len;
+	return err;
 }
 
 /* Prepare and feed intra-kernel routing request.

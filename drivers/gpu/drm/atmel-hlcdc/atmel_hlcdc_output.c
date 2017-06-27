@@ -31,13 +31,17 @@ static const struct drm_encoder_funcs atmel_hlcdc_panel_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static int atmel_hlcdc_attach_endpoint(struct drm_device *dev,
-				       const struct device_node *np)
+static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 {
 	struct drm_encoder *encoder;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	int ret;
+
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_node, 0, endpoint,
+					  &panel, &bridge);
+	if (ret)
+		return ret;
 
 	encoder = devm_kzalloc(dev->dev, sizeof(*encoder), GFP_KERNEL);
 	if (!encoder)
@@ -50,10 +54,6 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev,
 		return ret;
 
 	encoder->possible_crtcs = 0x1;
-
-	ret = drm_of_find_panel_or_bridge(np, 0, 0, &panel, &bridge);
-	if (ret)
-		return ret;
 
 	if (panel) {
 		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_Unknown);
@@ -77,22 +77,14 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev,
 
 int atmel_hlcdc_create_outputs(struct drm_device *dev)
 {
-	struct device_node *remote;
-	int ret = -ENODEV;
-	int endpoint = 0;
+	int endpoint, ret = 0;
 
-	while (true) {
-		/* Loop thru possible multiple connections to the output */
-		remote = of_graph_get_remote_node(dev->dev->of_node, 0,
-						  endpoint++);
-		if (!remote)
-			break;
+	for (endpoint = 0; !ret; endpoint++)
+		ret = atmel_hlcdc_attach_endpoint(dev, endpoint);
 
-		ret = atmel_hlcdc_attach_endpoint(dev, remote);
-		of_node_put(remote);
-		if (ret)
-			return ret;
-	}
+	/* At least one device was successfully attached.*/
+	if (ret == -ENODEV && endpoint)
+		return 0;
 
 	return ret;
 }

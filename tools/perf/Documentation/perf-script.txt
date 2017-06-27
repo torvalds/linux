@@ -311,6 +311,10 @@ include::itrace.txt[]
 	Set the maximum number of program blocks to print with brstackasm for
 	each sample.
 
+--inline::
+	If a callgraph address belongs to an inlined function, the inline stack
+	will be printed. Each entry has function name and file/line.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],

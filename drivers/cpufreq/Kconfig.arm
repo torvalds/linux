@@ -71,6 +71,15 @@ config ARM_HIGHBANK_CPUFREQ
 
 	  If in doubt, say N.
 
+config ARM_DB8500_CPUFREQ
+	tristate "ST-Ericsson DB8500 cpufreq" if COMPILE_TEST && !ARCH_U8500
+	default ARCH_U8500
+	depends on HAS_IOMEM
+	depends on !CPU_THERMAL || THERMAL
+	help
+	  This adds the CPUFreq driver for ST-Ericsson Ux500 (DB8500) SoC
+	  series.
+
 config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC

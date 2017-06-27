@@ -601,7 +601,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
-	u32 rate_flags, rates = 0;
+	u32 rates = 0;
 
 	sdata_assert_lock(sdata);
 
@@ -612,7 +612,6 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		return;
 	}
 	chan = chanctx_conf->def.chan;
-	rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
 	rcu_read_unlock();
 	sband = local->hw.wiphy->bands[chan->band];
 	shift = ieee80211_vif_get_shift(&sdata->vif);
@@ -636,9 +635,6 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		 */
 		rates_len = 0;
 		for (i = 0; i < sband->n_bitrates; i++) {
-			if ((rate_flags & sband->bitrates[i].flags)
-			    != rate_flags)
-				continue;
 			rates |= BIT(i);
 			rates_len++;
 		}
@@ -2818,7 +2814,7 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 				u32 *rates, u32 *basic_rates,
 				bool *have_higher_than_11mbit,
 				int *min_rate, int *min_rate_index,
-				int shift, u32 rate_flags)
+				int shift)
 {
 	int i, j;
 
@@ -2846,8 +2842,6 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 			int brate;
 
 			br = &sband->bitrates[j];
-			if ((rate_flags & br->flags) != rate_flags)
-				continue;
 
 			brate = DIV_ROUND_UP(br->bitrate, (1 << shift) * 5);
 			if (brate == rate) {
@@ -4398,40 +4392,32 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			return -ENOMEM;
 	}
 
-	if (new_sta || override) {
-		err = ieee80211_prep_channel(sdata, cbss);
-		if (err) {
-			if (new_sta)
-				sta_info_free(local, new_sta);
-			return -EINVAL;
-		}
-	}
-
+	/*
+	 * Set up the information for the new channel before setting the
+	 * new channel. We can't - completely race-free - change the basic
+	 * rates bitmap and the channel (sband) that it refers to, but if
+	 * we set it up before we at least avoid calling into the driver's
+	 * bss_info_changed() method with invalid information (since we do
+	 * call that from changing the channel - only for IDLE and perhaps
+	 * some others, but ...).
+	 *
+	 * So to avoid that, just set up all the new information before the
+	 * channel, but tell the driver to apply it only afterwards, since
+	 * it might need the new channel for that.
+	 */
 	if (new_sta) {
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
-		struct ieee80211_chanctx_conf *chanctx_conf;
 		const struct cfg80211_bss_ies *ies;
 		int shift = ieee80211_vif_get_shift(&sdata->vif);
-		u32 rate_flags;
-
-		rcu_read_lock();
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-		if (WARN_ON(!chanctx_conf)) {
-			rcu_read_unlock();
-			sta_info_free(local, new_sta);
-			return -EINVAL;
-		}
-		rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
-		rcu_read_unlock();
 
 		ieee80211_get_rates(sband, bss->supp_rates,
 				    bss->supp_rates_len,
 				    &rates, &basic_rates,
 				    &have_higher_than_11mbit,
 				    &min_rate, &min_rate_index,
-				    shift, rate_flags);
+				    shift);
 
 		/*
 		 * This used to be a workaround for basic rates missing
@@ -4489,8 +4475,22 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			sdata->vif.bss_conf.sync_dtim_count = 0;
 		}
 		rcu_read_unlock();
+	}
 
-		/* tell driver about BSSID, basic rates and timing */
+	if (new_sta || override) {
+		err = ieee80211_prep_channel(sdata, cbss);
+		if (err) {
+			if (new_sta)
+				sta_info_free(local, new_sta);
+			return -EINVAL;
+		}
+	}
+
+	if (new_sta) {
+		/*
+		 * tell driver about BSSID, basic rates and timing
+		 * this was set up above, before setting the channel
+		 */
 		ieee80211_bss_info_change_notify(sdata,
 			BSS_CHANGED_BSSID | BSS_CHANGED_BASIC_RATES |
 			BSS_CHANGED_BEACON_INT);

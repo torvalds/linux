@@ -332,9 +332,9 @@ static void addrconf_mod_rs_timer(struct inet6_dev *idev,
 static void addrconf_mod_dad_work(struct inet6_ifaddr *ifp,
 				   unsigned long delay)
 {
-	if (!delayed_work_pending(&ifp->dad_work))
-		in6_ifa_hold(ifp);
-	mod_delayed_work(addrconf_wq, &ifp->dad_work, delay);
+	in6_ifa_hold(ifp);
+	if (mod_delayed_work(addrconf_wq, &ifp->dad_work, delay))
+		in6_ifa_put(ifp);
 }
 
 static int snmp6_alloc_dev(struct inet6_dev *idev)
@@ -1022,7 +1022,10 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	INIT_HLIST_NODE(&ifa->addr_lst);
 	ifa->scope = scope;
 	ifa->prefix_len = pfxlen;
-	ifa->flags = flags | IFA_F_TENTATIVE;
+	ifa->flags = flags;
+	/* No need to add the TENTATIVE flag for addresses with NODAD */
+	if (!(flags & IFA_F_NODAD))
+		ifa->flags |= IFA_F_TENTATIVE;
 	ifa->valid_lft = valid_lft;
 	ifa->prefered_lft = prefered_lft;
 	ifa->cstamp = ifa->tstamp = jiffies;

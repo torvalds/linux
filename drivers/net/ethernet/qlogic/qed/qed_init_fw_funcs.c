@@ -983,7 +983,7 @@ void qed_set_rfs_mode_disable(struct qed_hwfn *p_hwfn,
 	memset(&camline, 0, sizeof(union gft_cam_line_union));
 	qed_wr(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id,
 	       camline.cam_line_mapped.camline);
-	memset(&ramline, 0, sizeof(union gft_cam_line_union));
+	memset(&ramline, 0, sizeof(ramline));
 
 	for (i = 0; i < RAM_LINE_SIZE / REG_SIZE; i++) {
 		u32 hw_addr = PRS_REG_GFT_PROFILE_MASK_RAM;

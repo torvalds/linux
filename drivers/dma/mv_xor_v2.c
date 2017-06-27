@@ -161,6 +161,7 @@ struct mv_xor_v2_device {
 	struct mv_xor_v2_sw_desc *sw_desq;
 	int desc_size;
 	unsigned int npendings;
+	unsigned int hw_queue_idx;
 };
 
 /**
@@ -214,18 +215,6 @@ static void mv_xor_v2_set_data_buffers(struct mv_xor_v2_device *xor_dev,
 }
 
 /*
- * Return the next available index in the DESQ.
- */
-static int mv_xor_v2_get_desq_write_ptr(struct mv_xor_v2_device *xor_dev)
-{
-	/* read the index for the next available descriptor in the DESQ */
-	u32 reg = readl(xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_ALLOC_OFF);
-
-	return ((reg >> MV_XOR_V2_DMA_DESQ_ALLOC_WRPTR_SHIFT)
-		& MV_XOR_V2_DMA_DESQ_ALLOC_WRPTR_MASK);
-}
-
-/*
  * notify the engine of new descriptors, and update the available index.
  */
 static void mv_xor_v2_add_desc_to_desq(struct mv_xor_v2_device *xor_dev,
@@ -257,22 +246,6 @@ static int mv_xor_v2_set_desc_size(struct mv_xor_v2_device *xor_dev)
 	return MV_XOR_V2_EXT_DESC_SIZE;
 }
 
-/*
- * Set the IMSG threshold
- */
-static inline
-void mv_xor_v2_set_imsg_thrd(struct mv_xor_v2_device *xor_dev, int thrd_val)
-{
-	u32 reg;
-
-	reg = readl(xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_THRD_OFF);
-
-	reg &= (~MV_XOR_V2_DMA_IMSG_THRD_MASK << MV_XOR_V2_DMA_IMSG_THRD_SHIFT);
-	reg |= (thrd_val << MV_XOR_V2_DMA_IMSG_THRD_SHIFT);
-
-	writel(reg, xor_dev->dma_base + MV_XOR_V2_DMA_IMSG_THRD_OFF);
-}
-
 static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
 {
 	struct mv_xor_v2_device *xor_dev = data;
@@ -288,12 +261,6 @@ static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
 	if (!ndescs)
 		return IRQ_NONE;
 
-	/*
-	 * Update IMSG threshold, to disable new IMSG interrupts until
-	 * end of the tasklet
-	 */
-	mv_xor_v2_set_imsg_thrd(xor_dev, MV_XOR_V2_DESC_NUM);
-
 	/* schedule a tasklet to handle descriptors callbacks */
 	tasklet_schedule(&xor_dev->irq_tasklet);
 
@@ -306,7 +273,6 @@ static irqreturn_t mv_xor_v2_interrupt_handler(int irq, void *data)
 static dma_cookie_t
 mv_xor_v2_tx_submit(struct dma_async_tx_descriptor *tx)
 {
-	int desq_ptr;
 	void *dest_hw_desc;
 	dma_cookie_t cookie;
 	struct mv_xor_v2_sw_desc *sw_desc =
@@ -322,15 +288,15 @@ mv_xor_v2_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_bh(&xor_dev->lock);
 	cookie = dma_cookie_assign(tx);
 
-	/* get the next available slot in the DESQ */
-	desq_ptr = mv_xor_v2_get_desq_write_ptr(xor_dev);
-
 	/* copy the HW descriptor from the SW descriptor to the DESQ */
-	dest_hw_desc = xor_dev->hw_desq_virt + desq_ptr;
+	dest_hw_desc = xor_dev->hw_desq_virt + xor_dev->hw_queue_idx;
 
 	memcpy(dest_hw_desc, &sw_desc->hw_desc, xor_dev->desc_size);
 
 	xor_dev->npendings++;
+	xor_dev->hw_queue_idx++;
+	if (xor_dev->hw_queue_idx >= MV_XOR_V2_DESC_NUM)
+		xor_dev->hw_queue_idx = 0;
 
 	spin_unlock_bh(&xor_dev->lock);
 
@@ -344,6 +310,7 @@ static struct mv_xor_v2_sw_desc	*
 mv_xor_v2_prep_sw_desc(struct mv_xor_v2_device *xor_dev)
 {
 	struct mv_xor_v2_sw_desc *sw_desc;
+	bool found = false;
 
 	/* Lock the channel */
 	spin_lock_bh(&xor_dev->lock);
@@ -355,18 +322,22 @@ mv_xor_v2_prep_sw_desc(struct mv_xor_v2_device *xor_dev)
 		return NULL;
 	}
 
-	/* get a free SW descriptor from the SW DESQ */
-	sw_desc = list_first_entry(&xor_dev->free_sw_desc,
-				   struct mv_xor_v2_sw_desc, free_list);
+	list_for_each_entry(sw_desc, &xor_dev->free_sw_desc, free_list) {
+		if (async_tx_test_ack(&sw_desc->async_tx)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		spin_unlock_bh(&xor_dev->lock);
+		return NULL;
+	}
+
 	list_del(&sw_desc->free_list);
 
 	/* Release the channel */
 	spin_unlock_bh(&xor_dev->lock);
-
-	/* set the async tx descriptor */
-	dma_async_tx_descriptor_init(&sw_desc->async_tx, &xor_dev->dmachan);
-	sw_desc->async_tx.tx_submit = mv_xor_v2_tx_submit;
-	async_tx_ack(&sw_desc->async_tx);
 
 	return sw_desc;
 }
@@ -389,6 +360,8 @@ mv_xor_v2_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest,
 		__func__, len, &src, &dest, flags);
 
 	sw_desc = mv_xor_v2_prep_sw_desc(xor_dev);
+	if (!sw_desc)
+		return NULL;
 
 	sw_desc->async_tx.flags = flags;
 
@@ -443,6 +416,8 @@ mv_xor_v2_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 		__func__, src_cnt, len, &dest, flags);
 
 	sw_desc = mv_xor_v2_prep_sw_desc(xor_dev);
+	if (!sw_desc)
+		return NULL;
 
 	sw_desc->async_tx.flags = flags;
 
@@ -491,6 +466,8 @@ mv_xor_v2_prep_dma_interrupt(struct dma_chan *chan, unsigned long flags)
 		container_of(chan, struct mv_xor_v2_device, dmachan);
 
 	sw_desc = mv_xor_v2_prep_sw_desc(xor_dev);
+	if (!sw_desc)
+		return NULL;
 
 	/* set the HW descriptor */
 	hw_descriptor = &sw_desc->hw_desc;
@@ -554,7 +531,6 @@ static void mv_xor_v2_tasklet(unsigned long data)
 {
 	struct mv_xor_v2_device *xor_dev = (struct mv_xor_v2_device *) data;
 	int pending_ptr, num_of_pending, i;
-	struct mv_xor_v2_descriptor *next_pending_hw_desc = NULL;
 	struct mv_xor_v2_sw_desc *next_pending_sw_desc = NULL;
 
 	dev_dbg(xor_dev->dmadev.dev, "%s %d\n", __func__, __LINE__);
@@ -562,17 +538,10 @@ static void mv_xor_v2_tasklet(unsigned long data)
 	/* get the pending descriptors parameters */
 	num_of_pending = mv_xor_v2_get_pending_params(xor_dev, &pending_ptr);
 
-	/* next HW descriptor */
-	next_pending_hw_desc = xor_dev->hw_desq_virt + pending_ptr;
-
 	/* loop over free descriptors */
 	for (i = 0; i < num_of_pending; i++) {
-
-		if (pending_ptr > MV_XOR_V2_DESC_NUM)
-			pending_ptr = 0;
-
-		if (next_pending_sw_desc != NULL)
-			next_pending_hw_desc++;
+		struct mv_xor_v2_descriptor *next_pending_hw_desc =
+			xor_dev->hw_desq_virt + pending_ptr;
 
 		/* get the SW descriptor related to the HW descriptor */
 		next_pending_sw_desc =
@@ -608,15 +577,14 @@ static void mv_xor_v2_tasklet(unsigned long data)
 
 		/* increment the next descriptor */
 		pending_ptr++;
+		if (pending_ptr >= MV_XOR_V2_DESC_NUM)
+			pending_ptr = 0;
 	}
 
 	if (num_of_pending != 0) {
 		/* free the descriptores */
 		mv_xor_v2_free_desc_from_desq(xor_dev, num_of_pending);
 	}
-
-	/* Update IMSG threshold, to enable new IMSG interrupts */
-	mv_xor_v2_set_imsg_thrd(xor_dev, 0);
 }
 
 /*
@@ -647,9 +615,6 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_BALR_OFF);
 	writel((xor_dev->hw_desq & 0xFFFF00000000) >> 32,
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_BAHR_OFF);
-
-	/* enable the DMA engine */
-	writel(0, xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_STOP_OFF);
 
 	/*
 	 * This is a temporary solution, until we activate the
@@ -694,6 +659,9 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	reg |= MV_XOR_V2_GLOB_PAUSE_AXI_TIME_DIS_VAL;
 	writel(reg, xor_dev->glob_base + MV_XOR_V2_GLOB_PAUSE);
 
+	/* enable the DMA engine */
+	writel(0, xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_STOP_OFF);
+
 	return 0;
 }
 
@@ -724,6 +692,10 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 		return PTR_ERR(xor_dev->glob_base);
 
 	platform_set_drvdata(pdev, xor_dev);
+
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
+	if (ret)
+		return ret;
 
 	xor_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(xor_dev->clk) && PTR_ERR(xor_dev->clk) == -EPROBE_DEFER)
@@ -785,8 +757,15 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	/* add all SW descriptors to the free list */
 	for (i = 0; i < MV_XOR_V2_DESC_NUM; i++) {
-		xor_dev->sw_desq[i].idx = i;
-		list_add(&xor_dev->sw_desq[i].free_list,
+		struct mv_xor_v2_sw_desc *sw_desc =
+			xor_dev->sw_desq + i;
+		sw_desc->idx = i;
+		dma_async_tx_descriptor_init(&sw_desc->async_tx,
+					     &xor_dev->dmachan);
+		sw_desc->async_tx.tx_submit = mv_xor_v2_tx_submit;
+		async_tx_ack(&sw_desc->async_tx);
+
+		list_add(&sw_desc->free_list,
 			 &xor_dev->free_sw_desc);
 	}
 

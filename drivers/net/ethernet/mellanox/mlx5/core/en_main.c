@@ -2976,7 +2976,7 @@ static int mlx5e_setup_tc(struct net_device *netdev, u8 tc)
 	new_channels.params = priv->channels.params;
 	new_channels.params.num_tc = tc ? tc : 1;
 
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
 		goto out;
 	}
@@ -4241,7 +4241,8 @@ struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 	return netdev;
 
 err_cleanup_nic:
-	profile->cleanup(priv);
+	if (profile->cleanup)
+		profile->cleanup(priv);
 	free_netdev(netdev);
 
 	return NULL;

@@ -595,7 +595,7 @@ static int br_afspec(struct net_bridge *br,
 		err = 0;
 		switch (nla_type(attr)) {
 		case IFLA_BRIDGE_VLAN_TUNNEL_INFO:
-			if (!(p->flags & BR_VLAN_TUNNEL))
+			if (!p || !(p->flags & BR_VLAN_TUNNEL))
 				return -EINVAL;
 			err = br_parse_vlan_tunnel_info(attr, &tinfo_curr);
 			if (err)
@@ -834,6 +834,13 @@ static int br_validate(struct nlattr *tb[], struct nlattr *data[])
 		default:
 			return -EPROTONOSUPPORT;
 		}
+	}
+
+	if (data[IFLA_BR_VLAN_DEFAULT_PVID]) {
+		__u16 defpvid = nla_get_u16(data[IFLA_BR_VLAN_DEFAULT_PVID]);
+
+		if (defpvid >= VLAN_VID_MASK)
+			return -EINVAL;
 	}
 #endif
 

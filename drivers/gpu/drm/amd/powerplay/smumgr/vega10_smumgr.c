@@ -500,7 +500,6 @@ static int vega10_smu_init(struct pp_smumgr *smumgr)
 					smu_lower_32_bits(mc_addr);
 			priv->smu_tables.entry[TOOLSTABLE].table = kaddr;
 			priv->smu_tables.entry[TOOLSTABLE].handle = handle;
-			vega10_set_tools_address(smumgr);
 		}
 	}
 
@@ -569,6 +568,9 @@ static int vega10_start_smu(struct pp_smumgr *smumgr)
 	PP_ASSERT_WITH_CODE(!vega10_verify_smc_interface(smumgr),
 			"Failed to verify SMC interface!",
 			return -EINVAL);
+
+	vega10_set_tools_address(smumgr);
+
 	return 0;
 }
 

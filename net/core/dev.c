@@ -1253,8 +1253,9 @@ int dev_set_alias(struct net_device *dev, const char *alias, size_t len)
 	if (!new_ifalias)
 		return -ENOMEM;
 	dev->ifalias = new_ifalias;
+	memcpy(dev->ifalias, alias, len);
+	dev->ifalias[len] = 0;
 
-	strlcpy(dev->ifalias, alias, len+1);
 	return len;
 }
 
@@ -4948,6 +4949,19 @@ __sum16 __skb_gro_checksum_complete(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(__skb_gro_checksum_complete);
 
+static void net_rps_send_ipi(struct softnet_data *remsd)
+{
+#ifdef CONFIG_RPS
+	while (remsd) {
+		struct softnet_data *next = remsd->rps_ipi_next;
+
+		if (cpu_online(remsd->cpu))
+			smp_call_function_single_async(remsd->cpu, &remsd->csd);
+		remsd = next;
+	}
+#endif
+}
+
 /*
  * net_rps_action_and_irq_enable sends any pending IPI's for rps.
  * Note: called with local irq disabled, but exits with local irq enabled.
@@ -4963,14 +4977,7 @@ static void net_rps_action_and_irq_enable(struct softnet_data *sd)
 		local_irq_enable();
 
 		/* Send pending IPI's to kick RPS processing on remote cpus. */
-		while (remsd) {
-			struct softnet_data *next = remsd->rps_ipi_next;
-
-			if (cpu_online(remsd->cpu))
-				smp_call_function_single_async(remsd->cpu,
-							   &remsd->csd);
-			remsd = next;
-		}
+		net_rps_send_ipi(remsd);
 	} else
 #endif
 		local_irq_enable();
@@ -5199,8 +5206,6 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 	if (rc == BUSY_POLL_BUDGET)
 		__napi_schedule(napi);
 	local_bh_enable();
-	if (local_softirq_pending())
-		do_softirq();
 }
 
 void napi_busy_loop(unsigned int napi_id,
@@ -6852,6 +6857,32 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down)
 }
 EXPORT_SYMBOL(dev_change_proto_down);
 
+bool __dev_xdp_attached(struct net_device *dev, xdp_op_t xdp_op)
+{
+	struct netdev_xdp xdp;
+
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = XDP_QUERY_PROG;
+
+	/* Query must always succeed. */
+	WARN_ON(xdp_op(dev, &xdp) < 0);
+	return xdp.prog_attached;
+}
+
+static int dev_xdp_install(struct net_device *dev, xdp_op_t xdp_op,
+			   struct netlink_ext_ack *extack,
+			   struct bpf_prog *prog)
+{
+	struct netdev_xdp xdp;
+
+	memset(&xdp, 0, sizeof(xdp));
+	xdp.command = XDP_SETUP_PROG;
+	xdp.extack = extack;
+	xdp.prog = prog;
+
+	return xdp_op(dev, &xdp);
+}
+
 /**
  *	dev_change_xdp_fd - set or clear a bpf program for a device rx path
  *	@dev: device
@@ -6864,41 +6895,34 @@ EXPORT_SYMBOL(dev_change_proto_down);
 int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, u32 flags)
 {
-	int (*xdp_op)(struct net_device *dev, struct netdev_xdp *xdp);
 	const struct net_device_ops *ops = dev->netdev_ops;
 	struct bpf_prog *prog = NULL;
-	struct netdev_xdp xdp;
+	xdp_op_t xdp_op, xdp_chk;
 	int err;
 
 	ASSERT_RTNL();
 
-	xdp_op = ops->ndo_xdp;
+	xdp_op = xdp_chk = ops->ndo_xdp;
+	if (!xdp_op && (flags & XDP_FLAGS_DRV_MODE))
+		return -EOPNOTSUPP;
 	if (!xdp_op || (flags & XDP_FLAGS_SKB_MODE))
 		xdp_op = generic_xdp_install;
+	if (xdp_op == xdp_chk)
+		xdp_chk = generic_xdp_install;
 
 	if (fd >= 0) {
-		if (flags & XDP_FLAGS_UPDATE_IF_NOEXIST) {
-			memset(&xdp, 0, sizeof(xdp));
-			xdp.command = XDP_QUERY_PROG;
-
-			err = xdp_op(dev, &xdp);
-			if (err < 0)
-				return err;
-			if (xdp.prog_attached)
-				return -EBUSY;
-		}
+		if (xdp_chk && __dev_xdp_attached(dev, xdp_chk))
+			return -EEXIST;
+		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) &&
+		    __dev_xdp_attached(dev, xdp_op))
+			return -EBUSY;
 
 		prog = bpf_prog_get_type(fd, BPF_PROG_TYPE_XDP);
 		if (IS_ERR(prog))
 			return PTR_ERR(prog);
 	}
 
-	memset(&xdp, 0, sizeof(xdp));
-	xdp.command = XDP_SETUP_PROG;
-	xdp.extack = extack;
-	xdp.prog = prog;
-
-	err = xdp_op(dev, &xdp);
+	err = dev_xdp_install(dev, xdp_op, extack, prog);
 	if (err < 0 && prog)
 		bpf_prog_put(prog);
 
@@ -7482,6 +7506,8 @@ out:
 err_uninit:
 	if (dev->netdev_ops->ndo_uninit)
 		dev->netdev_ops->ndo_uninit(dev);
+	if (dev->priv_destructor)
+		dev->priv_destructor(dev);
 	goto out;
 }
 EXPORT_SYMBOL(register_netdevice);
@@ -7689,8 +7715,10 @@ void netdev_run_todo(void)
 		WARN_ON(rcu_access_pointer(dev->ip6_ptr));
 		WARN_ON(dev->dn_ptr);
 
-		if (dev->destructor)
-			dev->destructor(dev);
+		if (dev->priv_destructor)
+			dev->priv_destructor(dev);
+		if (dev->needs_free_netdev)
+			free_netdev(dev);
 
 		/* Report a network device has been unregistered */
 		rtnl_lock();
@@ -8173,7 +8201,7 @@ static int dev_cpu_dead(unsigned int oldcpu)
 	struct sk_buff **list_skb;
 	struct sk_buff *skb;
 	unsigned int cpu;
-	struct softnet_data *sd, *oldsd;
+	struct softnet_data *sd, *oldsd, *remsd = NULL;
 
 	local_irq_disable();
 	cpu = smp_processor_id();
@@ -8213,6 +8241,13 @@ static int dev_cpu_dead(unsigned int oldcpu)
 
 	raise_softirq_irqoff(NET_TX_SOFTIRQ);
 	local_irq_enable();
+
+#ifdef CONFIG_RPS
+	remsd = oldsd->rps_ipi_list;
+	oldsd->rps_ipi_list = NULL;
+#endif
+	/* send out pending IPI's on offline CPU */
+	net_rps_send_ipi(remsd);
 
 	/* Process offline CPU's input_pkt_queue */
 	while ((skb = __skb_dequeue(&oldsd->process_queue))) {

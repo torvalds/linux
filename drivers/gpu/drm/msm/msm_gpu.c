@@ -203,6 +203,8 @@ int msm_gpu_hw_init(struct msm_gpu *gpu)
 {
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&gpu->dev->struct_mutex));
+
 	if (!gpu->needs_hw_init)
 		return 0;
 
@@ -414,7 +416,7 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		/* move to inactive: */
 		msm_gem_move_to_inactive(&msm_obj->base);
-		msm_gem_put_iova(&msm_obj->base, gpu->id);
+		msm_gem_put_iova(&msm_obj->base, gpu->aspace);
 		drm_gem_object_unreference(&msm_obj->base);
 	}
 
@@ -495,8 +497,8 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 		/* submit takes a reference to the bo and iova until retired: */
 		drm_gem_object_reference(&msm_obj->base);
-		msm_gem_get_iova_locked(&msm_obj->base,
-				submit->gpu->id, &iova);
+		msm_gem_get_iova(&msm_obj->base,
+				submit->gpu->aspace, &iova);
 
 		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
 			msm_gem_move_to_active(&msm_obj->base, gpu, true, submit->fence);
@@ -549,9 +551,9 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 		gpu->grp_clks[i] = get_clock(dev, name);
 
 		/* Remember the key clocks that we need to control later */
-		if (!strcmp(name, "core"))
+		if (!strcmp(name, "core") || !strcmp(name, "core_clk"))
 			gpu->core_clk = gpu->grp_clks[i];
-		else if (!strcmp(name, "rbbmtimer"))
+		else if (!strcmp(name, "rbbmtimer") || !strcmp(name, "rbbmtimer_clk"))
 			gpu->rbbmtimer_clk = gpu->grp_clks[i];
 
 		++i;
@@ -562,7 +564,7 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct msm_gpu *gpu, const struct msm_gpu_funcs *funcs,
-		const char *name, const char *ioname, const char *irqname, int ringsz)
+		const char *name, struct msm_gpu_config *config)
 {
 	struct iommu_domain *iommu;
 	int ret;
@@ -593,14 +595,14 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 
 	/* Map registers: */
-	gpu->mmio = msm_ioremap(pdev, ioname, name);
+	gpu->mmio = msm_ioremap(pdev, config->ioname, name);
 	if (IS_ERR(gpu->mmio)) {
 		ret = PTR_ERR(gpu->mmio);
 		goto fail;
 	}
 
 	/* Get Interrupt: */
-	gpu->irq = platform_get_irq_byname(pdev, irqname);
+	gpu->irq = platform_get_irq_byname(pdev, config->irqname);
 	if (gpu->irq < 0) {
 		ret = gpu->irq;
 		dev_err(drm->dev, "failed to get irq: %d\n", ret);
@@ -640,9 +642,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	 */
 	iommu = iommu_domain_alloc(&platform_bus_type);
 	if (iommu) {
-		/* TODO 32b vs 64b address space.. */
-		iommu->geometry.aperture_start = SZ_16M;
-		iommu->geometry.aperture_end = 0xffffffff;
+		iommu->geometry.aperture_start = config->va_start;
+		iommu->geometry.aperture_end = config->va_end;
 
 		dev_info(drm->dev, "%s: using IOMMU\n", name);
 		gpu->aspace = msm_gem_address_space_create(&pdev->dev,
@@ -658,13 +659,9 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	} else {
 		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
 	}
-	gpu->id = msm_register_address_space(drm, gpu->aspace);
-
 
 	/* Create ringbuffer: */
-	mutex_lock(&drm->struct_mutex);
-	gpu->rb = msm_ringbuffer_new(gpu, ringsz);
-	mutex_unlock(&drm->struct_mutex);
+	gpu->rb = msm_ringbuffer_new(gpu, config->ringsz);
 	if (IS_ERR(gpu->rb)) {
 		ret = PTR_ERR(gpu->rb);
 		gpu->rb = NULL;
@@ -693,7 +690,7 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 
 	if (gpu->rb) {
 		if (gpu->rb_iova)
-			msm_gem_put_iova(gpu->rb->bo, gpu->id);
+			msm_gem_put_iova(gpu->rb->bo, gpu->aspace);
 		msm_ringbuffer_destroy(gpu->rb);
 	}
 

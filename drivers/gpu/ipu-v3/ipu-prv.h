@@ -157,11 +157,8 @@ enum ipu_modules {
 
 struct ipuv3_channel {
 	unsigned int num;
-
-	bool enabled;
-	bool busy;
-
 	struct ipu_soc *ipu;
+	struct list_head list;
 };
 
 struct ipu_cpmem;
@@ -184,6 +181,7 @@ struct ipu_soc {
 	enum ipuv3_type		ipu_type;
 	spinlock_t		lock;
 	struct mutex		channel_lock;
+	struct list_head	channels;
 
 	void __iomem		*cm_reg;
 	void __iomem		*idmac_reg;
@@ -192,8 +190,6 @@ struct ipu_soc {
 	int			usecount;
 
 	struct clk		*clk;
-
-	struct ipuv3_channel	channel[64];
 
 	int			irq_sync;
 	int			irq_err;
@@ -229,7 +225,6 @@ int ipu_module_enable(struct ipu_soc *ipu, u32 mask);
 int ipu_module_disable(struct ipu_soc *ipu, u32 mask);
 
 bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno);
-int ipu_wait_interrupt(struct ipu_soc *ipu, int irq, int ms);
 
 int ipu_csi_init(struct ipu_soc *ipu, struct device *dev, int id,
 		 unsigned long base, u32 module, struct clk *clk_ipu);

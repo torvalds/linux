@@ -98,6 +98,9 @@ DRIVER_ATOMIC
     implement appropriate obj->atomic_get_property() vfuncs for any
     modeset objects with driver specific properties.
 
+DRIVER_SYNCOBJ
+    Driver support drm sync objects.
+
 Major, Minor and Patchlevel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -13,6 +13,7 @@ Linux GPU Driver Developer's Guide
    i915
    meson
    pl111
+   tegra
    tinydrm
    vc4
    vga-switcheroo

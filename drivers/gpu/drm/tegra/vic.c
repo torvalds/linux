@@ -182,7 +182,7 @@ static int vic_init(struct host1x_client *client)
 free_syncpt:
 	host1x_syncpt_free(client->syncpts[0]);
 free_channel:
-	host1x_channel_free(vic->channel);
+	host1x_channel_put(vic->channel);
 detach_device:
 	if (tegra->domain)
 		iommu_detach_device(tegra->domain, vic->dev);
@@ -203,7 +203,7 @@ static int vic_exit(struct host1x_client *client)
 		return err;
 
 	host1x_syncpt_free(client->syncpts[0]);
-	host1x_channel_free(vic->channel);
+	host1x_channel_put(vic->channel);
 
 	if (vic->domain) {
 		iommu_detach_device(vic->domain, vic->dev);

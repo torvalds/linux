@@ -158,7 +158,7 @@ static void
 gk20a_pmu_fini(struct nvkm_pmu *pmu)
 {
 	struct gk20a_pmu *gpmu = gk20a_pmu(pmu);
-	nvkm_timer_alarm_cancel(pmu->subdev.device->timer, &gpmu->alarm);
+	nvkm_timer_alarm(pmu->subdev.device->timer, 0, &gpmu->alarm);
 
 	nvkm_falcon_put(pmu->falcon, &pmu->subdev);
 }

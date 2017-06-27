@@ -2742,6 +2742,7 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 		ctxt->eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
 	}
 
+	ctxt->tf = (ctxt->eflags & X86_EFLAGS_TF) != 0;
 	return X86EMUL_CONTINUE;
 }
 
@@ -4173,7 +4174,7 @@ static int check_dr_write(struct x86_emulate_ctxt *ctxt)
 
 static int check_svme(struct x86_emulate_ctxt *ctxt)
 {
-	u64 efer;
+	u64 efer = 0;
 
 	ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 

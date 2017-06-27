@@ -1034,8 +1034,6 @@ static void batadv_softif_free(struct net_device *dev)
 	 * netdev and its private data (bat_priv)
 	 */
 	rcu_barrier();
-
-	free_netdev(dev);
 }
 
 /**
@@ -1047,7 +1045,8 @@ static void batadv_softif_init_early(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops = &batadv_netdev_ops;
-	dev->destructor = batadv_softif_free;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = batadv_softif_free;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_NETNS_LOCAL;
 	dev->priv_flags |= IFF_NO_QUEUE;
 

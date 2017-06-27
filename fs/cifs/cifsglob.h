@@ -418,7 +418,7 @@ struct smb_version_operations {
 	int (*validate_negotiate)(const unsigned int, struct cifs_tcon *);
 	ssize_t (*query_all_EAs)(const unsigned int, struct cifs_tcon *,
 			const unsigned char *, const unsigned char *, char *,
-			size_t, const struct nls_table *, int);
+			size_t, struct cifs_sb_info *);
 	int (*set_EA)(const unsigned int, struct cifs_tcon *, const char *,
 			const char *, const void *, const __u16,
 			const struct nls_table *, int);

@@ -582,7 +582,7 @@ cifs_relock_file(struct cifsFileInfo *cfile)
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	int rc = 0;
 
-	down_read(&cinode->lock_sem);
+	down_read_nested(&cinode->lock_sem, SINGLE_DEPTH_NESTING);
 	if (cinode->can_cache_brlcks) {
 		/* can cache locks - no need to relock */
 		up_read(&cinode->lock_sem);
@@ -3271,7 +3271,7 @@ ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to)
 	if (!is_sync_kiocb(iocb))
 		ctx->iocb = iocb;
 
-	if (to->type & ITER_IOVEC)
+	if (to->type == ITER_IOVEC)
 		ctx->should_dirty = true;
 
 	rc = setup_aio_ctx_iter(ctx, to, READ);

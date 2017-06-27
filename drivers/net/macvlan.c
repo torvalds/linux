@@ -789,9 +789,11 @@ static int macvlan_change_mtu(struct net_device *dev, int new_mtu)
  */
 static struct lock_class_key macvlan_netdev_addr_lock_key;
 
-#define ALWAYS_ON_FEATURES \
-	(NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_GSO_SOFTWARE | NETIF_F_LLTX | \
+#define ALWAYS_ON_OFFLOADS \
+	(NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_GSO_SOFTWARE | \
 	 NETIF_F_GSO_ROBUST)
+
+#define ALWAYS_ON_FEATURES (ALWAYS_ON_OFFLOADS | NETIF_F_LLTX)
 
 #define MACVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
@@ -827,6 +829,7 @@ static int macvlan_init(struct net_device *dev)
 	dev->features		|= ALWAYS_ON_FEATURES;
 	dev->hw_features	|= NETIF_F_LRO;
 	dev->vlan_features	= lowerdev->vlan_features & MACVLAN_FEATURES;
+	dev->vlan_features	|= ALWAYS_ON_OFFLOADS;
 	dev->gso_max_size	= lowerdev->gso_max_size;
 	dev->gso_max_segs	= lowerdev->gso_max_segs;
 	dev->hard_header_len	= lowerdev->hard_header_len;
@@ -1089,7 +1092,7 @@ void macvlan_common_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 	dev->priv_flags	       |= IFF_UNICAST_FLT;
 	dev->netdev_ops		= &macvlan_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->header_ops		= &macvlan_hard_header_ops;
 	dev->ethtool_ops	= &macvlan_ethtool_ops;
 }

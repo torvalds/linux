@@ -454,8 +454,8 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 			goto error_xenbus;
 	}
 	priv->tag = xenbus_read(xbt, dev->nodename, "tag", NULL);
-	if (!priv->tag) {
-		ret = -EINVAL;
+	if (IS_ERR(priv->tag)) {
+		ret = PTR_ERR(priv->tag);
 		goto error_xenbus;
 	}
 	ret = xenbus_transaction_end(xbt, 0);
@@ -525,7 +525,7 @@ static struct xenbus_driver xen_9pfs_front_driver = {
 	.otherend_changed = xen_9pfs_front_changed,
 };
 
-int p9_trans_xen_init(void)
+static int p9_trans_xen_init(void)
 {
 	if (!xen_domain())
 		return -ENODEV;
@@ -537,7 +537,7 @@ int p9_trans_xen_init(void)
 }
 module_init(p9_trans_xen_init);
 
-void p9_trans_xen_exit(void)
+static void p9_trans_xen_exit(void)
 {
 	v9fs_unregister_trans(&p9_xen_trans);
 	return xenbus_unregister_driver(&xen_9pfs_front_driver);

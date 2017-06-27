@@ -765,7 +765,7 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 	    test_bit(FailFast, &rdev->flags) &&
 	    !test_bit(LastDev, &rdev->flags))
 		ff = MD_FAILFAST;
-	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_FUA | ff;
+	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH | REQ_FUA | ff;
 
 	atomic_inc(&mddev->pending_writes);
 	submit_bio(bio);
@@ -5174,6 +5174,18 @@ static void mddev_delayed_delete(struct work_struct *ws)
 
 static void no_op(struct percpu_ref *r) {}
 
+int mddev_init_writes_pending(struct mddev *mddev)
+{
+	if (mddev->writes_pending.percpu_count_ptr)
+		return 0;
+	if (percpu_ref_init(&mddev->writes_pending, no_op, 0, GFP_KERNEL) < 0)
+		return -ENOMEM;
+	/* We want to start with the refcount at zero */
+	percpu_ref_put(&mddev->writes_pending);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mddev_init_writes_pending);
+
 static int md_alloc(dev_t dev, char *name)
 {
 	/*
@@ -5239,10 +5251,6 @@ static int md_alloc(dev_t dev, char *name)
 	blk_queue_make_request(mddev->queue, md_make_request);
 	blk_set_stacking_limits(&mddev->queue->limits);
 
-	if (percpu_ref_init(&mddev->writes_pending, no_op, 0, GFP_KERNEL) < 0)
-		goto abort;
-	/* We want to start with the refcount at zero */
-	percpu_ref_put(&mddev->writes_pending);
 	disk = alloc_disk(1 << shift);
 	if (!disk) {
 		blk_cleanup_queue(mddev->queue);
@@ -8022,18 +8030,15 @@ EXPORT_SYMBOL(md_write_end);
  * may proceed without blocking.  It is important to call this before
  * attempting a GFP_KERNEL allocation while holding the mddev lock.
  * Must be called with mddev_lock held.
- *
- * In the ->external case MD_SB_CHANGE_PENDING can not be cleared until mddev->lock
- * is dropped, so return -EAGAIN after notifying userspace.
  */
-int md_allow_write(struct mddev *mddev)
+void md_allow_write(struct mddev *mddev)
 {
 	if (!mddev->pers)
-		return 0;
+		return;
 	if (mddev->ro)
-		return 0;
+		return;
 	if (!mddev->pers->sync_request)
-		return 0;
+		return;
 
 	spin_lock(&mddev->lock);
 	if (mddev->in_sync) {
@@ -8046,13 +8051,12 @@ int md_allow_write(struct mddev *mddev)
 		spin_unlock(&mddev->lock);
 		md_update_sb(mddev, 0);
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
+		/* wait for the dirty state to be recorded in the metadata */
+		wait_event(mddev->sb_wait,
+			   !test_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags) &&
+			   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags));
 	} else
 		spin_unlock(&mddev->lock);
-
-	if (test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags))
-		return -EAGAIN;
-	else
-		return 0;
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
 

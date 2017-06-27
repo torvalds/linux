@@ -28,6 +28,14 @@
 struct msm_gem_submit;
 struct msm_gpu_perfcntr;
 
+struct msm_gpu_config {
+	const char *ioname;
+	const char *irqname;
+	uint64_t va_start;
+	uint64_t va_end;
+	unsigned int ringsz;
+};
+
 /* So far, with hardware that I've seen to date, we can have:
  *  + zero, one, or two z180 2d cores
  *  + a3xx or a2xx 3d core, which share a common CP (the firmware
@@ -50,7 +58,6 @@ struct msm_gpu_funcs {
 	void (*submit)(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			struct msm_file_private *ctx);
 	void (*flush)(struct msm_gpu *gpu);
-	bool (*idle)(struct msm_gpu *gpu);
 	irqreturn_t (*irq)(struct msm_gpu *irq);
 	uint32_t (*last_fence)(struct msm_gpu *gpu);
 	void (*recover)(struct msm_gpu *gpu);
@@ -99,7 +106,6 @@ struct msm_gpu {
 	int irq;
 
 	struct msm_gem_address_space *aspace;
-	int id;
 
 	/* Power Control: */
 	struct regulator *gpu_reg, *gpu_cx;
@@ -209,7 +215,8 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct msm_gpu *gpu, const struct msm_gpu_funcs *funcs,
-		const char *name, const char *ioname, const char *irqname, int ringsz);
+		const char *name, struct msm_gpu_config *config);
+
 void msm_gpu_cleanup(struct msm_gpu *gpu);
 
 struct msm_gpu *adreno_load_gpu(struct drm_device *dev);

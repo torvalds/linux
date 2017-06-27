@@ -980,8 +980,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	x86_configure_nx();
 
-	simple_udelay_calibration();
-
 	parse_early_param();
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -1040,6 +1038,8 @@ void __init setup_arch(char **cmdline_p)
 	 * needs to be done after dmi_scan_machine, for the BP.
 	 */
 	init_hypervisor_platform();
+
+	simple_udelay_calibration();
 
 	x86_init.resources.probe_roms();
 

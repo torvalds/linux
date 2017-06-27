@@ -880,8 +880,8 @@ irq_set_chained_handler_and_data(unsigned int irq, irq_flow_handler_t handle,
 	if (!desc)
 		return;
 
-	__irq_do_set_handler(desc, handle, 1, NULL);
 	desc->irq_common_data.handler_data = data;
+	__irq_do_set_handler(desc, handle, 1, NULL);
 
 	irq_put_desc_busunlock(desc, flags);
 }

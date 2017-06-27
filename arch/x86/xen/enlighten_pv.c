@@ -142,9 +142,7 @@ static void __init xen_banner(void)
 	struct xen_extraversion extra;
 	HYPERVISOR_xen_version(XENVER_extraversion, &extra);
 
-	pr_info("Booting paravirtualized kernel %son %s\n",
-		xen_feature(XENFEAT_auto_translated_physmap) ?
-			"with PVH extensions " : "", pv_info.name);
+	pr_info("Booting paravirtualized kernel on %s\n", pv_info.name);
 	printk(KERN_INFO "Xen version: %d.%d%s%s\n",
 	       version >> 16, version & 0xffff, extra.extraversion,
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
@@ -957,15 +955,10 @@ static void xen_write_msr(unsigned int msr, unsigned low, unsigned high)
 
 void xen_setup_shared_info(void)
 {
-	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		set_fixmap(FIX_PARAVIRT_BOOTMAP,
-			   xen_start_info->shared_info);
+	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
 
-		HYPERVISOR_shared_info =
-			(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
-	} else
-		HYPERVISOR_shared_info =
-			(struct shared_info *)__va(xen_start_info->shared_info);
+	HYPERVISOR_shared_info =
+		(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
 
 #ifndef CONFIG_SMP
 	/* In UP this is as good a place as any to set up shared info */

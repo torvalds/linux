@@ -414,12 +414,10 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped && INTEL_GEN(dev_priv) < 8) {
+	if (intel_vtd_active() && INTEL_GEN(dev_priv) < 8) {
 		DRM_INFO("DMAR active, disabling use of stolen memory\n");
 		return 0;
 	}
-#endif
 
 	if (ggtt->stolen_size == 0)
 		return 0;
@@ -592,6 +590,7 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 	obj->stolen = stolen;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
 	obj->cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	obj->cache_coherent = true; /* assumptions! more like cache_oblivious */
 
 	if (i915_gem_object_pin_pages(obj))
 		goto cleanup;

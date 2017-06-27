@@ -2667,7 +2667,8 @@ static int rtw_cfg80211_add_monitor_if (struct adapter *padapter, char *name, st
 	mon_ndev->type = ARPHRD_IEEE80211_RADIOTAP;
 	strncpy(mon_ndev->name, name, IFNAMSIZ);
 	mon_ndev->name[IFNAMSIZ - 1] = 0;
-	mon_ndev->destructor = rtw_ndev_destructor;
+	mon_ndev->needs_free_netdev = true;
+	mon_ndev->priv_destructor = rtw_ndev_destructor;
 
 	mon_ndev->netdev_ops = &rtw_cfg80211_monitor_if_ops;
 
@@ -3531,7 +3532,6 @@ int rtw_wdev_alloc(struct adapter *padapter, struct device *dev)
 		pwdev_priv->power_mgmt = true;
 	else
 		pwdev_priv->power_mgmt = false;
-	kfree((u8 *)wdev);
 
 	return ret;
 

@@ -492,6 +492,7 @@ config ASPEED_LPC_CTRL
 
 config PCI_ENDPOINT_TEST
 	depends on PCI
+	select CRC32
 	tristate "PCI Endpoint Test driver"
 	---help---
            Enable this configuration option to enable the host side test driver

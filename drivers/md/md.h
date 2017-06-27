@@ -648,6 +648,7 @@ extern void md_unregister_thread(struct md_thread **threadp);
 extern void md_wakeup_thread(struct md_thread *thread);
 extern void md_check_recovery(struct mddev *mddev);
 extern void md_reap_sync_thread(struct mddev *mddev);
+extern int mddev_init_writes_pending(struct mddev *mddev);
 extern void md_write_start(struct mddev *mddev, struct bio *bi);
 extern void md_write_inc(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
@@ -665,7 +666,7 @@ extern int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
 			bool metadata_op);
 extern void md_do_sync(struct md_thread *thread);
 extern void md_new_event(struct mddev *mddev);
-extern int md_allow_write(struct mddev *mddev);
+extern void md_allow_write(struct mddev *mddev);
 extern void md_wait_for_blocked_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern void md_set_array_sectors(struct mddev *mddev, sector_t array_sectors);
 extern int md_check_no_bitmap(struct mddev *mddev);

@@ -87,7 +87,7 @@ struct vq_info_block {
 } __packed;
 
 struct virtio_feature_desc {
-	__u32 features;
+	__le32 features;
 	__u8 index;
 } __packed;
 

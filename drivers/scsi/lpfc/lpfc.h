@@ -141,6 +141,13 @@ struct lpfc_dmabuf {
 	uint32_t   buffer_tag;	/* used for tagged queue ring */
 };
 
+struct lpfc_nvmet_ctxbuf {
+	struct list_head list;
+	struct lpfc_nvmet_rcv_ctx *context;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_sglq *sglq;
+};
+
 struct lpfc_dma_pool {
 	struct lpfc_dmabuf   *elements;
 	uint32_t    max_count;
@@ -163,9 +170,7 @@ struct rqb_dmabuf {
 	struct lpfc_dmabuf dbuf;
 	uint16_t total_size;
 	uint16_t bytes_recv;
-	void *context;
-	struct lpfc_iocbq *iocbq;
-	struct lpfc_sglq *sglq;
+	uint16_t idx;
 	struct lpfc_queue *hrq;	  /* ptr to associated Header RQ */
 	struct lpfc_queue *drq;	  /* ptr to associated Data RQ */
 };
@@ -670,6 +675,8 @@ struct lpfc_hba {
 					/* INIT_LINK mailbox command */
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
 #define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
+#define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
+#define LS_MDS_LOOPBACK      0x16	/* MDS Diagnostics Link Up (Loopback) */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
@@ -777,7 +784,6 @@ struct lpfc_hba {
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_io_channel;
 	uint32_t cfg_nvmet_mrq;
-	uint32_t cfg_nvmet_mrq_post;
 	uint32_t cfg_enable_nvmet;
 	uint32_t cfg_nvme_enable_fb;
 	uint32_t cfg_nvmet_fb_size;
@@ -943,6 +949,7 @@ struct lpfc_hba {
 	struct pci_pool *lpfc_mbuf_pool;
 	struct pci_pool *lpfc_hrb_pool;	/* header receive buffer pool */
 	struct pci_pool *lpfc_drb_pool; /* data receive buffer pool */
+	struct pci_pool *lpfc_nvmet_drb_pool; /* data receive buffer pool */
 	struct pci_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
 	struct pci_pool *txrdy_payload_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
@@ -1228,7 +1235,11 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 static inline struct lpfc_sli_ring *
 lpfc_phba_elsring(struct lpfc_hba *phba)
 {
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		return phba->sli4_hba.els_wq->pring;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (phba->sli4_hba.els_wq)
+			return phba->sli4_hba.els_wq->pring;
+		else
+			return NULL;
+	}
 	return &phba->sli.sli3_ring[LPFC_ELS_RING];
 }

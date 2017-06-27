@@ -151,5 +151,5 @@ static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
 
 static int initialize_cpsch_cik(struct device_queue_manager *dqm)
 {
-	return init_pipelines(dqm, get_pipes_num(dqm), get_first_pipe(dqm));
+	return 0;
 }

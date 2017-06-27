@@ -384,8 +384,10 @@ static int ehci_platform_resume(struct device *dev)
 	}
 
 	companion_dev = usb_of_get_companion_dev(hcd->self.controller);
-	if (companion_dev)
+	if (companion_dev) {
 		device_pm_wait_for_dev(hcd->self.controller, companion_dev);
+		put_device(companion_dev);
+	}
 
 	ehci_resume(hcd, priv->reset_on_resume);
 	return 0;

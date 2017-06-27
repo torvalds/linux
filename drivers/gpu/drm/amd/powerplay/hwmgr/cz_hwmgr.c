@@ -1224,6 +1224,12 @@ static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 		phm_destroy_table(hwmgr, &(hwmgr->disable_dynamic_state_management));
 		phm_destroy_table(hwmgr, &(hwmgr->power_down_asic));
 		phm_destroy_table(hwmgr, &(hwmgr->setup_asic));
+
+		if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
+			kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
+			hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
+		}
+
 		kfree(hwmgr->backend);
 		hwmgr->backend = NULL;
 	}
