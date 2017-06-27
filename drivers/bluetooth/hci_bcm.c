@@ -419,8 +419,7 @@ finalize:
 	if (err)
 		return err;
 
-	err = bcm_request_irq(bcm);
-	if (!err)
+	if (!bcm_request_irq(bcm))
 		err = bcm_setup_sleep(hu);
 
 	return err;
