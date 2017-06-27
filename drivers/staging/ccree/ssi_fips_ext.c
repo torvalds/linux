@@ -28,7 +28,7 @@ static bool tee_error;
 module_param(tee_error, bool, 0644);
 MODULE_PARM_DESC(tee_error, "Simulate TEE library failure flag: 0 - no error (default), 1 - TEE error occured ");
 
-static ssi_fips_state_t fips_state = CC_FIPS_STATE_NOT_SUPPORTED;
+static enum cc_fips_state_t fips_state = CC_FIPS_STATE_NOT_SUPPORTED;
 static enum cc_fips_error fips_error = CC_REE_FIPS_ERROR_OK;
 
 /*
@@ -37,7 +37,7 @@ static enum cc_fips_error fips_error = CC_REE_FIPS_ERROR_OK;
  * the state value is stored.
  * The reference code uses global variable.
  */
-int ssi_fips_ext_get_state(ssi_fips_state_t *p_state)
+int ssi_fips_ext_get_state(enum cc_fips_state_t *p_state)
 {
 	int rc = 0;
 
@@ -73,7 +73,7 @@ int ssi_fips_ext_get_error(enum cc_fips_error *p_err)
  * the state value is stored.
  * The reference code uses global variable.
  */
-int ssi_fips_ext_set_state(ssi_fips_state_t state)
+int ssi_fips_ext_set_state(enum cc_fips_state_t state)
 {
 	fips_state = state;
 	return 0;

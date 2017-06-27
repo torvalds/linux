@@ -22,12 +22,12 @@
  * @brief This file contains FIPS related defintions and APIs.
  */
 
-typedef enum ssi_fips_state {
+enum cc_fips_state {
 	CC_FIPS_STATE_NOT_SUPPORTED = 0,
 	CC_FIPS_STATE_SUPPORTED,
 	CC_FIPS_STATE_ERROR,
 	CC_FIPS_STATE_RESERVE32B = S32_MAX
-} ssi_fips_state_t;
+};
 
 
 enum cc_fips_error {
@@ -57,7 +57,7 @@ enum cc_fips_error {
 
 
 
-int ssi_fips_get_state(ssi_fips_state_t *p_state);
+int ssi_fips_get_state(enum cc_fips_state *p_state);
 int ssi_fips_get_error(enum cc_fips_error *p_err);
 
 #endif  /*__SSI_FIPS_H__*/

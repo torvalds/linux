@@ -50,9 +50,9 @@ struct ssi_fips_handle {
 };
 
 
-extern int ssi_fips_get_state(ssi_fips_state_t *p_state);
+extern int ssi_fips_get_state(enum cc_fips_state_t *p_state);
 extern int ssi_fips_get_error(enum cc_fips_error *p_err);
-extern int ssi_fips_ext_set_state(ssi_fips_state_t state);
+extern int ssi_fips_ext_set_state(enum cc_fips_state_t state);
 extern int ssi_fips_ext_set_error(enum cc_fips_error err);
 
 /* FIPS power-up tests */
@@ -234,7 +234,7 @@ enum cc_fips_error cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
  */
 int ssi_fips_check_fips_error(void)
 {
-	ssi_fips_state_t fips_state;
+	enum cc_fips_state_t fips_state;
 
 	if (ssi_fips_get_state(&fips_state) != 0) {
 		FIPS_LOG("ssi_fips_get_state FAILED, returning.. \n");
@@ -251,7 +251,7 @@ int ssi_fips_check_fips_error(void)
 /* The function sets the REE FIPS state.*
  * It should be used while driver is being loaded.
  */
-int ssi_fips_set_state(ssi_fips_state_t state)
+int ssi_fips_set_state(enum cc_fips_state_t state)
 {
 	return ssi_fips_ext_set_state(state);
 }

@@ -23,14 +23,14 @@
 #include "ssi_fips.h"
 
 
-extern int ssi_fips_ext_get_state(ssi_fips_state_t *p_state);
+extern int ssi_fips_ext_get_state(enum cc_fips_state_t *p_state);
 extern int ssi_fips_ext_get_error(enum cc_fips_error *p_err);
 
 /*
  * This function returns the REE FIPS state.
  * It should be called by kernel module.
  */
-int ssi_fips_get_state(ssi_fips_state_t *p_state)
+int ssi_fips_get_state(enum cc_fips_state_t *p_state)
 {
 	int rc = 0;
 
