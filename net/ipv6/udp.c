@@ -362,7 +362,7 @@ try_again:
 	if (!skb)
 		return err;
 
-	ulen = skb->len;
+	ulen = udp_skb_len(skb);
 	copied = len;
 	if (copied > ulen - off)
 		copied = ulen - off;
@@ -379,14 +379,18 @@ try_again:
 
 	if (copied < ulen || peeking ||
 	    (is_udplite && UDP_SKB_CB(skb)->partial_cov)) {
-		checksum_valid = !udp_lib_checksum_complete(skb);
+		checksum_valid = udp_skb_csum_unnecessary(skb) ||
+				!__udp_lib_checksum_complete(skb);
 		if (!checksum_valid)
 			goto csum_copy_err;
 	}
 
-	if (checksum_valid || skb_csum_unnecessary(skb))
-		err = skb_copy_datagram_msg(skb, off, msg, copied);
-	else {
+	if (checksum_valid || udp_skb_csum_unnecessary(skb)) {
+		if (udp_skb_is_linear(skb))
+			err = copy_linear_skb(skb, copied, off, &msg->msg_iter);
+		else
+			err = skb_copy_datagram_msg(skb, off, msg, copied);
+	} else {
 		err = skb_copy_and_csum_datagram_msg(skb, off, msg);
 		if (err == -EINVAL)
 			goto csum_copy_err;
