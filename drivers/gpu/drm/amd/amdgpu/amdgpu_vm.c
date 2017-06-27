@@ -77,8 +77,6 @@ struct amdgpu_pte_update_params {
 	void (*func)(struct amdgpu_pte_update_params *params, uint64_t pe,
 		     uint64_t addr, unsigned count, uint32_t incr,
 		     uint64_t flags);
-	/* indicate update pt or its shadow */
-	bool shadow;
 	/* The next two are used during VM update by CPU
 	 *  DMA addresses to use for mapping
 	 *  Kernel pointer of PD/PT BO that needs to be updated
@@ -1299,16 +1297,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			return -EINVAL;
 		}
 
-		if (params->shadow) {
-			if (WARN_ONCE(use_cpu_update,
-				"CPU VM update doesn't suuport shadow pages"))
-				return 0;
-
-			if (!pt->shadow)
-				return 0;
-			pt = pt->shadow;
-		}
-
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
 		else
@@ -1318,11 +1306,20 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			r = amdgpu_bo_kmap(pt, (void *)&pe_start);
 			if (r)
 				return r;
-		} else
+
+			WARN_ONCE(pt->shadow,
+				  "CPU VM update doesn't support shadow pages");
+		} else {
+			if (pt->shadow) {
+				pe_start = amdgpu_bo_gpu_offset(pt->shadow);
+				pe_start += (addr & mask) * 8;
+				params->func(params, pe_start, dst, nptes,
+					     AMDGPU_GPU_PAGE_SIZE, flags);
+			}
 			pe_start = amdgpu_bo_gpu_offset(pt);
+		}
 
 		pe_start += (addr & mask) * 8;
-
 		params->func(params, pe_start, dst, nptes,
 			     AMDGPU_GPU_PAGE_SIZE, flags);
 
@@ -1459,7 +1456,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 		params.func = amdgpu_vm_cpu_set_ptes;
 		params.pages_addr = pages_addr;
-		params.shadow = false;
 		return amdgpu_vm_frag_ptes(&params, start, last + 1,
 					   addr, flags);
 	}
@@ -1542,11 +1538,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	params.shadow = true;
-	r = amdgpu_vm_frag_ptes(&params, start, last + 1, addr, flags);
-	if (r)
-		goto error_free;
-	params.shadow = false;
 	r = amdgpu_vm_frag_ptes(&params, start, last + 1, addr, flags);
 	if (r)
 		goto error_free;
