@@ -175,7 +175,6 @@ void dce110_compressor_power_up_fbc(struct compressor *compressor)
 
 void dce110_compressor_enable_fbc(
 	struct compressor *compressor,
-	uint32_t paths_num,
 	struct compr_addr_and_pitch_params *params)
 {
 	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
@@ -366,43 +365,6 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 	dm_write_reg(compressor->ctx, addr, value);
 }
 
-bool dce110_compressor_construct(struct dce110_compressor *compressor,
-				 struct dc_context *ctx)
-{
-
-	compressor->base.options.bits.FBC_SUPPORT = true;
-
-	 /* for dce 11 always use one dram channel for lpt */
-	compressor->base.lpt_channels_num = 1;
-	compressor->base.options.bits.DUMMY_BACKEND = false;
-
-	/*
-	 * check if this system has more than 1 dram channel; if only 1 then lpt
-	 * should not be supported
-	 */
-
-
-	compressor->base.options.bits.CLK_GATING_DISABLED = false;
-
-	compressor->base.ctx = ctx;
-	compressor->base.embedded_panel_h_size = 0;
-	compressor->base.embedded_panel_v_size = 0;
-	compressor->base.memory_bus_width = ctx->asic_id.vram_width;
-	compressor->base.allocated_size = 0;
-	compressor->base.preferred_requested_size = 0;
-	compressor->base.min_compress_ratio = FBC_COMPRESS_RATIO_INVALID;
-	compressor->base.options.raw = 0;
-	compressor->base.banks_num = 0;
-	compressor->base.raw_size = 0;
-	compressor->base.channel_interleave_size = 0;
-	compressor->base.dram_channels_num = 0;
-	compressor->base.lpt_channels_num = 0;
-	compressor->base.attached_inst = 0;
-	compressor->base.is_enabled = false;
-
-	return true;
-}
-
 struct compressor *dce110_compressor_create(struct dc_context *ctx)
 {
 	struct dce110_compressor *cp110 =
@@ -502,4 +464,44 @@ static const struct compressor_funcs dce110_compressor_funcs = {
 	.is_fbc_enabled_in_hw = dce110_compressor_is_fbc_enabled_in_hw
 };
 
+
+bool dce110_compressor_construct(struct dce110_compressor *compressor,
+	struct dc_context *ctx)
+{
+
+	compressor->base.options.bits.FBC_SUPPORT = true;
+
+	/* for dce 11 always use one dram channel for lpt */
+	compressor->base.lpt_channels_num = 1;
+	compressor->base.options.bits.DUMMY_BACKEND = false;
+
+	/*
+	 * check if this system has more than 1 dram channel; if only 1 then lpt
+	 * should not be supported
+	 */
+
+
+	compressor->base.options.bits.CLK_GATING_DISABLED = false;
+
+	compressor->base.ctx = ctx;
+	compressor->base.embedded_panel_h_size = 0;
+	compressor->base.embedded_panel_v_size = 0;
+	compressor->base.memory_bus_width = ctx->asic_id.vram_width;
+	compressor->base.allocated_size = 0;
+	compressor->base.preferred_requested_size = 0;
+	compressor->base.min_compress_ratio = FBC_COMPRESS_RATIO_INVALID;
+	compressor->base.options.raw = 0;
+	compressor->base.banks_num = 0;
+	compressor->base.raw_size = 0;
+	compressor->base.channel_interleave_size = 0;
+	compressor->base.dram_channels_num = 0;
+	compressor->base.lpt_channels_num = 0;
+	compressor->base.attached_inst = 0;
+	compressor->base.is_enabled = false;
+#ifdef ENABLE_FBC
+	compressor->base.funcs = &dce110_compressor_funcs;
+
+#endif
+	return true;
+}
 

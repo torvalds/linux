@@ -33,6 +33,10 @@
 #include "dce110_timing_generator.h"
 #include "dce/dce_hwseq.h"
 
+#ifdef ENABLE_FBC
+#include "dce110_compressor.h"
+#endif
+
 #include "bios/bios_parser_helper.h"
 #include "timing_generator.h"
 #include "mem_input.h"
@@ -1166,6 +1170,10 @@ static void power_down_all_hw_blocks(struct core_dc *dc)
 	power_down_controllers(dc);
 
 	power_down_clock_sources(dc);
+
+#ifdef ENABLE_FBC
+	dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
+#endif
 }
 
 static void disable_vga_and_power_gate_all_controllers(
@@ -1630,6 +1638,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 	}
 
 	set_safe_displaymarks(&context->res_ctx, dc->res_pool);
+
+#ifdef ENABLE_FBC
+	dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
+#endif
 	/*TODO: when pplib works*/
 	apply_min_clocks(dc, context, &clocks_state, true);
 
@@ -2215,6 +2227,9 @@ static void init_hw(struct core_dc *dc)
 		abm->funcs->init_backlight(abm);
 		abm->funcs->abm_init(abm);
 	}
+#ifdef ENABLE_FBC
+	dc->fbc_compressor->funcs->power_up_fbc(dc->fbc_compressor);
+#endif
 }
 
 void dce110_fill_display_configs(

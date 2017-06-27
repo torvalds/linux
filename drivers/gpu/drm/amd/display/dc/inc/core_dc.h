@@ -10,6 +10,7 @@
 
 #include "core_types.h"
 #include "hw_sequencer.h"
+#include "compressor.h"
 
 #define DC_TO_CORE(dc)\
 	container_of(dc, struct core_dc, public)
@@ -44,6 +45,11 @@ struct core_dc {
 	 * to compare to see if display config changed
 	 */
 	struct dm_pp_display_configuration prev_display_config;
+
+	/* FBC compressor */
+#ifdef ENABLE_FBC
+	struct compressor *fbc_compressor;
+#endif
 };
 
 #endif /* __CORE_DC_H__ */

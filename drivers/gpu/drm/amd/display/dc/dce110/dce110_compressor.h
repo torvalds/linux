@@ -50,7 +50,7 @@ void dce110_compressor_destroy(struct compressor **cp);
 /* FBC RELATED */
 void dce110_compressor_power_up_fbc(struct compressor *cp);
 
-void dce110_compressor_enable_fbc(struct compressor *cp, uint32_t paths_num,
+void dce110_compressor_enable_fbc(struct compressor *cp,
 	struct compr_addr_and_pitch_params *params);
 
 void dce110_compressor_disable_fbc(struct compressor *cp);

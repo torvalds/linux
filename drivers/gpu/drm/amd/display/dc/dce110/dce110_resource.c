@@ -52,6 +52,10 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 
+#ifdef ENABLE_FBC
+#include "dce110/dce110_compressor.h"
+#endif
+
 #include "reg_helper.h"
 
 #include "dce/dce_11_0_d.h"
@@ -1347,6 +1351,12 @@ static bool construct(
 		}
 	}
 
+#ifdef ENABLE_FBC
+	dc->fbc_compressor = dce110_compressor_create(ctx);
+
+
+
+#endif
 	if (!underlay_create(ctx, &pool->base))
 		goto res_create_fail;
 

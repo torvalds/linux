@@ -45,7 +45,7 @@ union fbc_physical_address {
 };
 
 struct compr_addr_and_pitch_params {
-	enum controller_id controller_id;
+	/* enum controller_id controller_id; */
 	uint32_t inst;
 	uint32_t source_view_width;
 	uint32_t source_view_height;
@@ -63,7 +63,7 @@ struct compressor;
 struct compressor_funcs {
 
 	void (*power_up_fbc)(struct compressor *cp);
-	void (*enable_fbc)(struct compressor *cp, uint32_t paths_num,
+	void (*enable_fbc)(struct compressor *cp,
 		struct compr_addr_and_pitch_params *params);
 	void (*disable_fbc)(struct compressor *cp);
 	void (*set_fbc_invalidation_triggers)(struct compressor *cp,
@@ -78,7 +78,7 @@ struct compressor {
 	struct dc_context *ctx;
 	uint32_t attached_inst;
 	bool is_enabled;
-	const struct compressor_funcs funcs;
+	const struct compressor_funcs *funcs;
 	union {
 		uint32_t raw;
 		struct {

@@ -843,6 +843,11 @@ bool dc_enable_stereo(
 	int i, j;
 	struct pipe_ctx *pipe;
 	struct core_dc *core_dc = DC_TO_CORE(dc);
+
+#ifdef ENABLE_FBC
+	struct compressor *fbc_compressor = core_dc->fbc_compressor;
+#endif
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (context != NULL)
 			pipe = &context->res_ctx.pipe_ctx[i];
@@ -854,6 +859,14 @@ bool dc_enable_stereo(
 				core_dc->hwss.setup_stereo(pipe, core_dc);
 		}
 	}
+
+#ifdef ENABLE_FBC
+	if (fbc_compressor != NULL &&
+	    fbc_compressor->funcs->is_fbc_enabled_in_hw(core_dc->fbc_compressor,
+							&pipe->tg->inst))
+		fbc_compressor->funcs->disable_fbc(fbc_compressor);
+
+#endif
 	return ret;
 }
 
@@ -1232,6 +1245,12 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	if (!stream_status)
 		return; /* Cannot commit surface to stream that is not committed */
 
+#ifdef ENABLE_FBC
+	if (srf_updates->flip_addr) {
+		if (srf_updates->flip_addr->address.grph.addr.low_part == 0)
+			ASSERT(0);
+	}
+#endif
 	context = core_dc->current_context;
 
 	/* update current stream with the new updates */
