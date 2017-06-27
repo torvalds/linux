@@ -376,6 +376,12 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, pf);
 	pf->pdev = pdev;
 
+	pf->wq = alloc_workqueue("nfp-%s", 0, 2, pci_name(pdev));
+	if (!pf->wq) {
+		err = -ENOMEM;
+		goto err_pci_priv_unset;
+	}
+
 	pf->cpp = nfp_cpp_from_nfp6000_pcie(pdev);
 	if (IS_ERR_OR_NULL(pf->cpp)) {
 		err = PTR_ERR(pf->cpp);
@@ -445,6 +451,8 @@ err_hwinfo_free:
 	kfree(pf->hwinfo);
 	nfp_cpp_free(pf->cpp);
 err_disable_msix:
+	destroy_workqueue(pf->wq);
+err_pci_priv_unset:
 	pci_set_drvdata(pdev, NULL);
 	mutex_destroy(&pf->lock);
 	devlink_free(devlink);
@@ -477,6 +485,7 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 	if (pf->fw_loaded)
 		nfp_fw_unload(pf);
 
+	destroy_workqueue(pf->wq);
 	pci_set_drvdata(pdev, NULL);
 	kfree(pf->hwinfo);
 	nfp_cpp_free(pf->cpp);

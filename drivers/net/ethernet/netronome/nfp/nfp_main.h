@@ -89,6 +89,7 @@ struct nfp_rtsym_table;
  * @num_vnics:		Number of vNICs spawned
  * @vnics:		Linked list of vNIC structures (struct nfp_net)
  * @ports:		Linked list of port structures (struct nfp_port)
+ * @wq:			Workqueue for running works which need to grab @lock
  * @port_refresh_work:	Work entry for taking netdevs out
  * @lock:		Protects all fields which may change after probe
  */
@@ -131,7 +132,10 @@ struct nfp_pf {
 
 	struct list_head vnics;
 	struct list_head ports;
+
+	struct workqueue_struct *wq;
 	struct work_struct port_refresh_work;
+
 	struct mutex lock;
 };
 
