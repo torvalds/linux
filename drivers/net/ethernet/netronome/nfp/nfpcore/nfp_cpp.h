@@ -230,6 +230,9 @@ struct nfp_cpp_area *nfp_cpp_area_alloc_with_name(struct nfp_cpp *cpp,
 struct nfp_cpp_area *nfp_cpp_area_alloc(struct nfp_cpp *cpp, u32 cpp_id,
 					unsigned long long address,
 					unsigned long size);
+struct nfp_cpp_area *
+nfp_cpp_area_alloc_acquire(struct nfp_cpp *cpp, const char *name, u32 cpp_id,
+			   unsigned long long address, unsigned long size);
 void nfp_cpp_area_free(struct nfp_cpp_area *area);
 int nfp_cpp_area_acquire(struct nfp_cpp_area *area);
 int nfp_cpp_area_acquire_nonblocking(struct nfp_cpp_area *area);
@@ -239,8 +242,6 @@ int nfp_cpp_area_read(struct nfp_cpp_area *area, unsigned long offset,
 		      void *buffer, size_t length);
 int nfp_cpp_area_write(struct nfp_cpp_area *area, unsigned long offset,
 		       const void *buffer, size_t length);
-int nfp_cpp_area_check_range(struct nfp_cpp_area *area,
-			     unsigned long long offset, unsigned long size);
 const char *nfp_cpp_area_name(struct nfp_cpp_area *cpp_area);
 void *nfp_cpp_area_priv(struct nfp_cpp_area *cpp_area);
 struct nfp_cpp *nfp_cpp_area_cpp(struct nfp_cpp_area *cpp_area);
@@ -277,6 +278,10 @@ int nfp_cpp_readq(struct nfp_cpp *cpp, u32 cpp_id,
 		  unsigned long long address, u64 *value);
 int nfp_cpp_writeq(struct nfp_cpp *cpp, u32 cpp_id,
 		   unsigned long long address, u64 value);
+
+u8 __iomem *
+nfp_cpp_map_area(struct nfp_cpp *cpp, const char *name, int domain, int target,
+		 u64 addr, unsigned long size, struct nfp_cpp_area **area);
 
 struct nfp_cpp_mutex;
 

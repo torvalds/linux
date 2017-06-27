@@ -104,50 +104,29 @@ nfp_flower_repr_get(struct nfp_app *app, u32 port_id)
 	return reprs->reprs[port];
 }
 
-static void
-nfp_flower_repr_netdev_get_stats64(struct net_device *netdev,
-				   struct rtnl_link_stats64 *stats)
-{
-	struct nfp_repr *repr = netdev_priv(netdev);
-	enum nfp_repr_type type;
-	u32 port_id;
-	u8 port = 0;
-
-	port_id = repr->dst->u.port_info.port_id;
-	type = nfp_flower_repr_get_type_and_port(repr->app, port_id, &port);
-	nfp_repr_get_stats64(repr->app, type, port, stats);
-}
-
-static int nfp_flower_repr_netdev_open(struct net_device *netdev)
+static int
+nfp_flower_repr_netdev_open(struct nfp_app *app, struct nfp_repr *repr)
 {
 	int err;
 
-	err = nfp_flower_cmsg_portmod(netdev, true);
+	err = nfp_flower_cmsg_portmod(repr, true);
 	if (err)
 		return err;
 
-	netif_carrier_on(netdev);
-	netif_tx_wake_all_queues(netdev);
+	netif_carrier_on(repr->netdev);
+	netif_tx_wake_all_queues(repr->netdev);
 
 	return 0;
 }
 
-static int nfp_flower_repr_netdev_stop(struct net_device *netdev)
+static int
+nfp_flower_repr_netdev_stop(struct nfp_app *app, struct nfp_repr *repr)
 {
-	netif_carrier_off(netdev);
-	netif_tx_disable(netdev);
+	netif_carrier_off(repr->netdev);
+	netif_tx_disable(repr->netdev);
 
-	return nfp_flower_cmsg_portmod(netdev, false);
+	return nfp_flower_cmsg_portmod(repr, false);
 }
-
-static const struct net_device_ops nfp_flower_repr_netdev_ops = {
-	.ndo_open		= nfp_flower_repr_netdev_open,
-	.ndo_stop		= nfp_flower_repr_netdev_stop,
-	.ndo_start_xmit		= nfp_repr_xmit,
-	.ndo_get_stats64	= nfp_flower_repr_netdev_get_stats64,
-	.ndo_has_offload_stats	= nfp_repr_has_offload_stats,
-	.ndo_get_offload_stats	= nfp_repr_get_offload_stats,
-};
 
 static void nfp_flower_sriov_disable(struct nfp_app *app)
 {
@@ -162,14 +141,19 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 	u8 nfp_pcie = nfp_cppcore_pcie_unit(app->pf->cpp);
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_reprs *reprs, *old_reprs;
+	enum nfp_port_type port_type;
 	const u8 queue = 0;
 	int i, err;
+
+	port_type = repr_type == NFP_REPR_TYPE_PF ? NFP_PORT_PF_PORT :
+						    NFP_PORT_VF_PORT;
 
 	reprs = nfp_reprs_alloc(cnt);
 	if (!reprs)
 		return -ENOMEM;
 
 	for (i = 0; i < cnt; i++) {
+		struct nfp_port *port;
 		u32 port_id;
 
 		reprs->reprs[i] = nfp_repr_alloc(app);
@@ -178,15 +162,24 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			goto err_reprs_clean;
 		}
 
+		port = nfp_port_alloc(app, port_type, reprs->reprs[i]);
+		if (repr_type == NFP_REPR_TYPE_PF) {
+			port->pf_id = i;
+		} else {
+			port->pf_id = 0; /* For now we only support 1 PF */
+			port->vf_id = i;
+		}
+
 		eth_hw_addr_random(reprs->reprs[i]);
 
 		port_id = nfp_flower_cmsg_pcie_port(nfp_pcie, vnic_type,
 						    i, queue);
 		err = nfp_repr_init(app, reprs->reprs[i],
-				    &nfp_flower_repr_netdev_ops,
-				    port_id, NULL, priv->nn->dp.netdev);
-		if (err)
+				    port_id, port, priv->nn->dp.netdev);
+		if (err) {
+			nfp_port_free(port);
 			goto err_reprs_clean;
+		}
 
 		nfp_info(app->cpp, "%s%d Representor(%s) created\n",
 			 repr_type == NFP_REPR_TYPE_PF ? "PF" : "VF", i,
@@ -260,7 +253,6 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 
 		cmsg_port_id = nfp_flower_cmsg_phys_port(phys_port);
 		err = nfp_repr_init(app, reprs->reprs[phys_port],
-				    &nfp_flower_repr_netdev_ops,
 				    cmsg_port_id, port, priv->nn->dp.netdev);
 		if (err) {
 			nfp_port_free(port);
@@ -296,26 +288,16 @@ static int nfp_flower_start(struct nfp_app *app)
 					   NFP_REPR_TYPE_PF, 1);
 }
 
-static void nfp_flower_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
-{
-	kfree(app->priv);
-	app->priv = NULL;
-}
-
 static int nfp_flower_vnic_init(struct nfp_app *app, struct nfp_net *nn,
 				unsigned int id)
 {
-	struct nfp_flower_priv *priv;
+	struct nfp_flower_priv *priv = app->priv;
 
 	if (id > 0) {
 		nfp_warn(app->cpp, "FlowerNIC doesn't support more than one data vNIC\n");
 		goto err_invalid_port;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-	app->priv = priv;
 	priv->nn = nn;
 
 	eth_hw_addr_random(nn->dp.netdev);
@@ -347,7 +329,17 @@ static int nfp_flower_init(struct nfp_app *app)
 		return -EINVAL;
 	}
 
+	app->priv = kzalloc(sizeof(struct nfp_flower_priv), GFP_KERNEL);
+	if (!app->priv)
+		return -ENOMEM;
+
 	return 0;
+}
+
+static void nfp_flower_clean(struct nfp_app *app)
+{
+	kfree(app->priv);
+	app->priv = NULL;
 }
 
 const struct nfp_app_type app_flower = {
@@ -358,9 +350,12 @@ const struct nfp_app_type app_flower = {
 	.extra_cap	= nfp_flower_extra_cap,
 
 	.init		= nfp_flower_init,
+	.clean		= nfp_flower_clean,
 
 	.vnic_init	= nfp_flower_vnic_init,
-	.vnic_clean	= nfp_flower_vnic_clean,
+
+	.repr_open	= nfp_flower_repr_netdev_open,
+	.repr_stop	= nfp_flower_repr_netdev_stop,
 
 	.start		= nfp_flower_start,
 	.stop		= nfp_flower_stop,

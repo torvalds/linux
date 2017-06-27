@@ -42,13 +42,21 @@
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev)
 {
-	struct nfp_net *nn;
+	if (nfp_netdev_is_nfp_net(netdev)) {
+		struct nfp_net *nn = netdev_priv(netdev);
 
-	if (WARN_ON(!nfp_netdev_is_nfp_net(netdev)))
-		return NULL;
-	nn = netdev_priv(netdev);
+		return nn->port;
+	}
 
-	return nn->port;
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		struct nfp_repr *repr = netdev_priv(netdev);
+
+		return repr->port;
+	}
+
+	WARN(1, "Unknown netdev type for nfp_port\n");
+
+	return NULL;
 }
 
 struct nfp_port *
@@ -98,15 +106,31 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	int n;
 
 	port = nfp_port_from_netdev(netdev);
-	eth_port = __nfp_port_get_eth_port(port);
-	if (!eth_port)
+	if (!port)
 		return -EOPNOTSUPP;
 
-	if (!eth_port->is_split)
-		n = snprintf(name, len, "p%d", eth_port->label_port);
-	else
-		n = snprintf(name, len, "p%ds%d", eth_port->label_port,
-			     eth_port->label_subport);
+	switch (port->type) {
+	case NFP_PORT_PHYS_PORT:
+		eth_port = __nfp_port_get_eth_port(port);
+		if (!eth_port)
+			return -EOPNOTSUPP;
+
+		if (!eth_port->is_split)
+			n = snprintf(name, len, "p%d", eth_port->label_port);
+		else
+			n = snprintf(name, len, "p%ds%d", eth_port->label_port,
+				     eth_port->label_subport);
+		break;
+	case NFP_PORT_PF_PORT:
+		n = snprintf(name, len, "pf%d", port->pf_id);
+		break;
+	case NFP_PORT_VF_PORT:
+		n = snprintf(name, len, "pf%dvf%d", port->pf_id, port->vf_id);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
 	if (n >= len)
 		return -EINVAL;
 

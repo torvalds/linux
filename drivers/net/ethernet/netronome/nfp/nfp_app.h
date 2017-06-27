@@ -47,6 +47,7 @@ struct sk_buff;
 struct nfp_app;
 struct nfp_cpp;
 struct nfp_pf;
+struct nfp_repr;
 struct nfp_net;
 
 enum nfp_app_id {
@@ -66,10 +67,13 @@ extern const struct nfp_app_type app_flower;
  * @ctrl_has_meta:  control messages have prepend of type:5/port:CTRL
  *
  * Callbacks
- * @init:	perform basic app checks
+ * @init:	perform basic app checks and init
+ * @clean:	clean app state
  * @extra_cap:	extra capabilities string
  * @vnic_init:	init vNICs (assign port types, etc.)
  * @vnic_clean:	clean up app's vNIC state
+ * @repr_open:	representor netdev open callback
+ * @repr_stop:	representor netdev stop callback
  * @start:	start application logic
  * @stop:	stop application logic
  * @ctrl_msg_rx:    control message handler
@@ -88,12 +92,16 @@ struct nfp_app_type {
 	bool ctrl_has_meta;
 
 	int (*init)(struct nfp_app *app);
+	void (*clean)(struct nfp_app *app);
 
 	const char *(*extra_cap)(struct nfp_app *app, struct nfp_net *nn);
 
 	int (*vnic_init)(struct nfp_app *app, struct nfp_net *nn,
 			 unsigned int id);
 	void (*vnic_clean)(struct nfp_app *app, struct nfp_net *nn);
+
+	int (*repr_open)(struct nfp_app *app, struct nfp_repr *repr);
+	int (*repr_stop)(struct nfp_app *app, struct nfp_repr *repr);
 
 	int (*start)(struct nfp_app *app);
 	void (*stop)(struct nfp_app *app);
@@ -144,6 +152,12 @@ static inline int nfp_app_init(struct nfp_app *app)
 	return app->type->init(app);
 }
 
+static inline void nfp_app_clean(struct nfp_app *app)
+{
+	if (app->type->clean)
+		app->type->clean(app);
+}
+
 static inline int nfp_app_vnic_init(struct nfp_app *app, struct nfp_net *nn,
 				    unsigned int id)
 {
@@ -154,6 +168,20 @@ static inline void nfp_app_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
 {
 	if (app->type->vnic_clean)
 		app->type->vnic_clean(app, nn);
+}
+
+static inline int nfp_app_repr_open(struct nfp_app *app, struct nfp_repr *repr)
+{
+	if (!app->type->repr_open)
+		return -EINVAL;
+	return app->type->repr_open(app, repr);
+}
+
+static inline int nfp_app_repr_stop(struct nfp_app *app, struct nfp_repr *repr)
+{
+	if (!app->type->repr_stop)
+		return -EINVAL;
+	return app->type->repr_stop(app, repr);
 }
 
 static inline int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)

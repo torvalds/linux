@@ -289,3 +289,30 @@ exit:
 		return ~0ULL;
 	return val;
 }
+
+u8 __iomem *
+nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
+	      unsigned int min_size, struct nfp_cpp_area **area)
+{
+	const struct nfp_rtsym *sym;
+	u8 __iomem *mem;
+
+	sym = nfp_rtsym_lookup(rtbl, name);
+	if (!sym)
+		return (u8 __iomem *)ERR_PTR(-ENOENT);
+
+	if (sym->size < min_size) {
+		nfp_err(rtbl->cpp, "Symbol %s too small\n", name);
+		return (u8 __iomem *)ERR_PTR(-EINVAL);
+	}
+
+	mem = nfp_cpp_map_area(rtbl->cpp, id, sym->domain, sym->target,
+			       sym->addr, sym->size, area);
+	if (IS_ERR(mem)) {
+		nfp_err(rtbl->cpp, "Failed to map symbol %s: %ld\n",
+			name, PTR_ERR(mem));
+		return mem;
+	}
+
+	return mem;
+}
