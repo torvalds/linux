@@ -7,7 +7,7 @@ from 4 to 32-bit data size. Although it can be configured as master or slave,
 only master is supported by the driver.
 
 Required properties:
-- compatible: Must be "st,stm32-spi".
+- compatible: Must be "st,stm32h7-spi".
 - reg: Offset and length of the device's register set.
 - interrupts: Must contain the interrupt id.
 - clocks: Must contain an entry for spiclk (which feeds the internal clock
@@ -38,7 +38,7 @@ Example:
 	spi2: spi@40003800 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "st,stm32-spi";
+		compatible = "st,stm32h7-spi";
 		reg = <0x40003800 0x400>;
 		interrupts = <36>;
 		clocks = <&rcc SPI2_CK>;
