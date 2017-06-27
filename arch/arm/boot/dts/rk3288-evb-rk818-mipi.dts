@@ -92,6 +92,10 @@
 	mali-supply = <&vdd_gpu>;
 };
 
+&hdmi_analog_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 

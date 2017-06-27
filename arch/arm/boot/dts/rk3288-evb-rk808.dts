@@ -73,6 +73,10 @@
 	cpu0-supply = <&vdd_cpu>;
 };
 
+&hdmi_analog_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 

@@ -257,6 +257,23 @@
 		clock-names = "clk_nandc", "hclk_nandc";
 		status = "disabled";
 	};
+
+	hdmi_analog_sound: hdmi-analog-sound {
+		status = "disabled";
+		compatible = "rockchip,rk3288-hdmi-analog",
+				"rockchip,rk3368-hdmi-analog";
+		rockchip,cpu = <&i2s>;
+		rockchip,codec = <&rt5640>, <&hdmi>;
+		rockchip,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack";
+		rockchip,routing =
+			"MIC1", "Microphone Jack",
+			"MIC2", "Microphone Jack",
+			"Microphone Jack", "micbias1",
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR";
+	};
 };
 
 &edp_panel {
