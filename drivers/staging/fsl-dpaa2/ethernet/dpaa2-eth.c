@@ -40,7 +40,6 @@
 #include <linux/iommu.h>
 
 #include "../../fsl-mc/include/mc.h"
-#include "../../fsl-mc/include/mc-sys.h"
 #include "dpaa2-eth.h"
 
 /* CREATE_TRACE_POINTS only needs to be defined once. Other dpa files
