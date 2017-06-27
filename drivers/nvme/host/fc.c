@@ -152,8 +152,6 @@ struct nvme_fc_ctrl {
 
 	u64			association_id;
 
-	u64			cap;
-
 	struct list_head	ctrl_list;	/* rport->ctrl_list */
 
 	struct blk_mq_tag_set	admin_tag_set;
@@ -2328,7 +2326,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	 * prior connection values
 	 */
 
-	ret = nvmf_reg_read64(&ctrl->ctrl, NVME_REG_CAP, &ctrl->cap);
+	ret = nvmf_reg_read64(&ctrl->ctrl, NVME_REG_CAP, &ctrl->ctrl.cap);
 	if (ret) {
 		dev_err(ctrl->ctrl.device,
 			"prop_get NVME_REG_CAP failed\n");
@@ -2336,9 +2334,9 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	}
 
 	ctrl->ctrl.sqsize =
-		min_t(int, NVME_CAP_MQES(ctrl->cap) + 1, ctrl->ctrl.sqsize);
+		min_t(int, NVME_CAP_MQES(ctrl->ctrl.cap) + 1, ctrl->ctrl.sqsize);
 
-	ret = nvme_enable_ctrl(&ctrl->ctrl, ctrl->cap);
+	ret = nvme_enable_ctrl(&ctrl->ctrl, ctrl->ctrl.cap);
 	if (ret)
 		goto out_disconnect_admin_queue;
 

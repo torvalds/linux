@@ -1144,8 +1144,7 @@ static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
 	if (shutdown)
 		nvme_shutdown_ctrl(&dev->ctrl);
 	else
-		nvme_disable_ctrl(&dev->ctrl, lo_hi_readq(
-						dev->bar + NVME_REG_CAP));
+		nvme_disable_ctrl(&dev->ctrl, dev->ctrl.cap);
 
 	spin_lock_irq(&nvmeq->q_lock);
 	nvme_process_cq(nvmeq);
@@ -1388,7 +1387,6 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 {
 	int result;
 	u32 aqa;
-	u64 cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
 	struct nvme_queue *nvmeq;
 
 	result = nvme_remap_bar(dev, db_bar_size(dev, 0));
@@ -1396,13 +1394,13 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 		return result;
 
 	dev->subsystem = readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 1, 0) ?
-						NVME_CAP_NSSRC(cap) : 0;
+				NVME_CAP_NSSRC(dev->ctrl.cap) : 0;
 
 	if (dev->subsystem &&
 	    (readl(dev->bar + NVME_REG_CSTS) & NVME_CSTS_NSSRO))
 		writel(NVME_CSTS_NSSRO, dev->bar + NVME_REG_CSTS);
 
-	result = nvme_disable_ctrl(&dev->ctrl, cap);
+	result = nvme_disable_ctrl(&dev->ctrl, dev->ctrl.cap);
 	if (result < 0)
 		return result;
 
@@ -1421,7 +1419,7 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	lo_hi_writeq(nvmeq->sq_dma_addr, dev->bar + NVME_REG_ASQ);
 	lo_hi_writeq(nvmeq->cq_dma_addr, dev->bar + NVME_REG_ACQ);
 
-	result = nvme_enable_ctrl(&dev->ctrl, cap);
+	result = nvme_enable_ctrl(&dev->ctrl, dev->ctrl.cap);
 	if (result)
 		return result;
 
@@ -1865,7 +1863,6 @@ static int nvme_dev_add(struct nvme_dev *dev)
 
 static int nvme_pci_enable(struct nvme_dev *dev)
 {
-	u64 cap;
 	int result = -ENOMEM;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
@@ -1892,10 +1889,11 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	if (result < 0)
 		return result;
 
-	cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
+	dev->ctrl.cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
 
-	dev->q_depth = min_t(int, NVME_CAP_MQES(cap) + 1, NVME_Q_DEPTH);
-	dev->db_stride = 1 << NVME_CAP_STRIDE(cap);
+	dev->q_depth = min_t(int, NVME_CAP_MQES(dev->ctrl.cap) + 1,
+				NVME_Q_DEPTH);
+	dev->db_stride = 1 << NVME_CAP_STRIDE(dev->ctrl.cap);
 	dev->dbs = dev->bar + 4096;
 
 	/*
@@ -1909,7 +1907,7 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 			dev->q_depth);
 	} else if (pdev->vendor == PCI_VENDOR_ID_SAMSUNG &&
 		   (pdev->device == 0xa821 || pdev->device == 0xa822) &&
-		   NVME_CAP_MQES(cap) == 0) {
+		   NVME_CAP_MQES(dev->ctrl.cap) == 0) {
 		dev->q_depth = 64;
 		dev_err(dev->ctrl.device, "detected PM1725 NVMe controller, "
                         "set queue depth=%u\n", dev->q_depth);

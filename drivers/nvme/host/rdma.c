@@ -118,7 +118,6 @@ struct nvme_rdma_ctrl {
 	struct blk_mq_tag_set	admin_tag_set;
 	struct nvme_rdma_device	*device;
 
-	u64			cap;
 	u32			max_fr_pages;
 
 	struct sockaddr_storage addr;
@@ -728,7 +727,7 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 
 	set_bit(NVME_RDMA_Q_LIVE, &ctrl->queues[0].flags);
 
-	ret = nvme_enable_ctrl(&ctrl->ctrl, ctrl->cap);
+	ret = nvme_enable_ctrl(&ctrl->ctrl, ctrl->ctrl.cap);
 	if (ret)
 		goto requeue;
 
@@ -1573,7 +1572,8 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl)
 
 	set_bit(NVME_RDMA_Q_LIVE, &ctrl->queues[0].flags);
 
-	error = nvmf_reg_read64(&ctrl->ctrl, NVME_REG_CAP, &ctrl->cap);
+	error = nvmf_reg_read64(&ctrl->ctrl, NVME_REG_CAP,
+			&ctrl->ctrl.cap);
 	if (error) {
 		dev_err(ctrl->ctrl.device,
 			"prop_get NVME_REG_CAP failed\n");
@@ -1581,9 +1581,9 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl)
 	}
 
 	ctrl->ctrl.sqsize =
-		min_t(int, NVME_CAP_MQES(ctrl->cap), ctrl->ctrl.sqsize);
+		min_t(int, NVME_CAP_MQES(ctrl->ctrl.cap), ctrl->ctrl.sqsize);
 
-	error = nvme_enable_ctrl(&ctrl->ctrl, ctrl->cap);
+	error = nvme_enable_ctrl(&ctrl->ctrl, ctrl->ctrl.cap);
 	if (error)
 		goto out_cleanup_queue;
 

@@ -48,7 +48,6 @@ struct nvme_loop_ctrl {
 	struct blk_mq_tag_set	admin_tag_set;
 
 	struct list_head	list;
-	u64			cap;
 	struct blk_mq_tag_set	tag_set;
 	struct nvme_loop_iod	async_event_iod;
 	struct nvme_ctrl	ctrl;
@@ -387,7 +386,7 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 	if (error)
 		goto out_cleanup_queue;
 
-	error = nvmf_reg_read64(&ctrl->ctrl, NVME_REG_CAP, &ctrl->cap);
+	error = nvmf_reg_read64(&ctrl->ctrl, NVME_REG_CAP, &ctrl->ctrl.cap);
 	if (error) {
 		dev_err(ctrl->ctrl.device,
 			"prop_get NVME_REG_CAP failed\n");
@@ -395,9 +394,9 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 	}
 
 	ctrl->ctrl.sqsize =
-		min_t(int, NVME_CAP_MQES(ctrl->cap), ctrl->ctrl.sqsize);
+		min_t(int, NVME_CAP_MQES(ctrl->ctrl.cap), ctrl->ctrl.sqsize);
 
-	error = nvme_enable_ctrl(&ctrl->ctrl, ctrl->cap);
+	error = nvme_enable_ctrl(&ctrl->ctrl, ctrl->ctrl.cap);
 	if (error)
 		goto out_cleanup_queue;
 

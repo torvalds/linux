@@ -144,6 +144,7 @@ struct nvme_ctrl {
 	u32 ctrl_config;
 	u32 queue_count;
 
+	u64 cap;
 	u32 page_size;
 	u32 max_hw_sectors;
 	u16 oncs;
