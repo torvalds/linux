@@ -414,6 +414,14 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_fw_unload;
 
+	pf->num_vfs = pci_num_vf(pdev);
+	if (pf->num_vfs > pf->limit_vfs) {
+		dev_err(&pdev->dev,
+			"Error: %d VFs already enabled, but loaded FW can only support %d\n",
+			pf->num_vfs, pf->limit_vfs);
+		goto err_fw_unload;
+	}
+
 	err = nfp_net_pci_probe(pf);
 	if (err)
 		goto err_sriov_unlimit;
