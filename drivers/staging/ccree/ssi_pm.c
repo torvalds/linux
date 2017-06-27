@@ -110,8 +110,7 @@ int ssi_power_mgr_runtime_put_suspend(struct device *dev)
 				(struct ssi_drvdata *)dev_get_drvdata(dev))) {
 		pm_runtime_mark_last_busy(dev);
 		rc = pm_runtime_put_autosuspend(dev);
-	}
-	else {
+	} else {
 		/* Something wrong happens*/
 		BUG();
 	}

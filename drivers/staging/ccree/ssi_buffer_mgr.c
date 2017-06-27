@@ -852,8 +852,7 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 	sg_index = current_sg->length;
 	if (sg_index > size_of_assoc) { //the first entry in the scatter list contains all the associated data
 		mapped_nents++;
-	}
-	else{
+	} else {
 		while (sg_index <= size_of_assoc) {
 			current_sg = sg_next(current_sg);
 			//if have reached the end of the sgl, then this is unexpected
