@@ -27,9 +27,13 @@ nfp-objs := \
 	    nfp_port.o \
 	    bpf/main.o \
 	    bpf/offload.o \
-	    flower/cmsg.o \
-	    flower/main.o \
 	    nic/main.o
+
+ifeq ($(CONFIG_NFP_APP_FLOWER),y)
+nfp-objs += \
+	    flower/cmsg.o \
+	    flower/main.o
+endif
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)
 nfp-objs += \

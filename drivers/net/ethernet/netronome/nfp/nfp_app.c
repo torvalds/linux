@@ -43,7 +43,9 @@
 static const struct nfp_app_type *apps[] = {
 	&app_nic,
 	&app_bpf,
+#ifdef CONFIG_NFP_APP_FLOWER
 	&app_flower,
+#endif
 };
 
 const char *nfp_app_mip_name(struct nfp_app *app)
