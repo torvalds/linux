@@ -1547,10 +1547,56 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 	return len;
 }
 
+static int parse_cgroup_root_flags(char *data, unsigned int *root_flags)
+{
+	char *token;
+
+	*root_flags = 0;
+
+	if (!data)
+		return 0;
+
+	while ((token = strsep(&data, ",")) != NULL) {
+		if (!strcmp(token, "nsdelegate")) {
+			*root_flags |= CGRP_ROOT_NS_DELEGATE;
+			continue;
+		}
+
+		pr_err("cgroup2: unknown option \"%s\"\n", token);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void apply_cgroup_root_flags(unsigned int root_flags)
+{
+	if (current->nsproxy->cgroup_ns == &init_cgroup_ns) {
+		if (root_flags & CGRP_ROOT_NS_DELEGATE)
+			cgrp_dfl_root.flags |= CGRP_ROOT_NS_DELEGATE;
+		else
+			cgrp_dfl_root.flags &= ~CGRP_ROOT_NS_DELEGATE;
+	}
+}
+
+static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root)
+{
+	if (cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE)
+		seq_puts(seq, ",nsdelegate");
+	return 0;
+}
+
 static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 {
-	pr_err("remount is not allowed\n");
-	return -EINVAL;
+	unsigned int root_flags;
+	int ret;
+
+	ret = parse_cgroup_root_flags(data, &root_flags);
+	if (ret)
+		return ret;
+
+	apply_cgroup_root_flags(root_flags);
+	return 0;
 }
 
 /*
@@ -1790,6 +1836,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct dentry *dentry;
+	int ret;
 
 	get_cgroup_ns(ns);
 
@@ -1807,16 +1854,21 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		cgroup_enable_task_cg_lists();
 
 	if (fs_type == &cgroup2_fs_type) {
-		if (data) {
-			pr_err("cgroup2: unknown option \"%s\"\n", (char *)data);
+		unsigned int root_flags;
+
+		ret = parse_cgroup_root_flags(data, &root_flags);
+		if (ret) {
 			put_cgroup_ns(ns);
-			return ERR_PTR(-EINVAL);
+			return ERR_PTR(ret);
 		}
+
 		cgrp_dfl_visible = true;
 		cgroup_get_live(&cgrp_dfl_root.cgrp);
 
 		dentry = cgroup_do_mount(&cgroup2_fs_type, flags, &cgrp_dfl_root,
 					 CGROUP2_SUPER_MAGIC, ns);
+		if (!IS_ERR(dentry))
+			apply_cgroup_root_flags(root_flags);
 	} else {
 		dentry = cgroup1_mount(&cgroup_fs_type, flags, data,
 				       CGROUP_SUPER_MAGIC, ns);
@@ -2364,6 +2416,8 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 					 struct kernfs_open_file *of)
 {
 	struct super_block *sb = of->file->f_path.dentry->d_sb;
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
+	struct cgroup *root_cgrp = ns->root_cset->dfl_cgrp;
 	struct cgroup *src_cgrp, *com_cgrp;
 	struct inode *inode;
 	int ret;
@@ -2406,6 +2460,15 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 	iput(inode);
 	if (ret)
 		return ret;
+
+	/*
+	 * If namespaces are delegation boundaries, %current must be able
+	 * to see both source and destination cgroups from its namespace.
+	 */
+	if ((cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE) &&
+	    (!cgroup_is_descendant(src_cgrp, root_cgrp) ||
+	     !cgroup_is_descendant(dst_cgrp, root_cgrp)))
+		return -ENOENT;
 
 	return 0;
 }
@@ -2971,10 +3034,22 @@ static void cgroup_file_release(struct kernfs_open_file *of)
 static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
 				 size_t nbytes, loff_t off)
 {
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup *cgrp = of->kn->parent->priv;
 	struct cftype *cft = of->kn->priv;
 	struct cgroup_subsys_state *css;
 	int ret;
+
+	/*
+	 * If namespaces are delegation boundaries, disallow writes to
+	 * files in an non-init namespace root from inside the namespace
+	 * except for the files explicitly marked delegatable -
+	 * cgroup.procs and cgroup.subtree_control.
+	 */
+	if ((cgrp->root->flags & CGRP_ROOT_NS_DELEGATE) &&
+	    !(cft->flags & CFTYPE_NS_DELEGATABLE) &&
+	    ns != &init_cgroup_ns && ns->root_cset->dfl_cgrp == cgrp)
+		return -EPERM;
 
 	if (cft->write)
 		return cft->write(of, buf, nbytes, off);
@@ -3809,6 +3884,7 @@ static int cgroup_procs_show(struct seq_file *s, void *v)
 static struct cftype cgroup_base_files[] = {
 	{
 		.name = "cgroup.procs",
+		.flags = CFTYPE_NS_DELEGATABLE,
 		.file_offset = offsetof(struct cgroup, procs_file),
 		.release = cgroup_procs_release,
 		.seq_start = cgroup_procs_start,
@@ -3822,6 +3898,7 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "cgroup.subtree_control",
+		.flags = CFTYPE_NS_DELEGATABLE,
 		.seq_show = cgroup_subtree_control_show,
 		.write = cgroup_subtree_control_write,
 	},
@@ -4410,6 +4487,7 @@ int cgroup_rmdir(struct kernfs_node *kn)
 }
 
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops = {
+	.show_options		= cgroup_show_options,
 	.remount_fs		= cgroup_remount,
 	.mkdir			= cgroup_mkdir,
 	.rmdir			= cgroup_rmdir,
