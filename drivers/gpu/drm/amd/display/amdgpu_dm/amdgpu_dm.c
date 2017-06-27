@@ -634,11 +634,46 @@ const struct amdgpu_ip_block_version dm_ip_block =
 	.funcs = &amdgpu_dm_funcs,
 };
 
+
+struct drm_atomic_state *
+dm_atomic_state_alloc(struct drm_device *dev)
+{
+	struct dm_atomic_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (!state || drm_atomic_state_init(dev, &state->base) < 0) {
+		kfree(state);
+		return NULL;
+	}
+
+	return &state->base;
+}
+
+void dm_atomic_state_clear(struct drm_atomic_state *s)
+{
+	struct dm_atomic_state *state = to_dm_atomic_state(s);
+	drm_atomic_state_default_clear(&state->base);
+}
+
+
+static void dm_atomic_state_free(struct drm_atomic_state *state)
+{
+	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
+
+	drm_atomic_state_default_release(state);
+
+	kfree(dm_state);
+}
+
+
+
 static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.fb_create = amdgpu_user_framebuffer_create,
 	.output_poll_changed = amdgpu_output_poll_changed,
 	.atomic_check = amdgpu_dm_atomic_check,
-	.atomic_commit = drm_atomic_helper_commit
+	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_state_alloc = dm_atomic_state_alloc,
+	.atomic_state_clear = dm_atomic_state_clear,
+	.atomic_state_free = dm_atomic_state_free,
 };
 
 static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
