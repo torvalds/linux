@@ -21,7 +21,11 @@
 #include <linux/of_net.h>
 #include "bgmac.h"
 
+#define NICPM_PADRING_CFG		0x00000004
 #define NICPM_IOMUX_CTRL		0x00000008
+
+#define NICPM_PADRING_CFG_INIT_VAL	0x74000000
+#define NICPM_IOMUX_CTRL_INIT_VAL_AX	0x21880000
 
 #define NICPM_IOMUX_CTRL_INIT_VAL	0x3196e000
 #define NICPM_IOMUX_CTRL_SPD_SHIFT	10
@@ -112,6 +116,10 @@ static void bgmac_nicpm_speed_set(struct net_device *net_dev)
 
 	if (!bgmac->plat.nicpm_base)
 		return;
+
+	/* SET RGMII IO CONFIG */
+	writel(NICPM_PADRING_CFG_INIT_VAL,
+	       bgmac->plat.nicpm_base + NICPM_PADRING_CFG);
 
 	val = NICPM_IOMUX_CTRL_INIT_VAL;
 	switch (bgmac->net_dev->phydev->speed) {
@@ -244,6 +252,31 @@ static int bgmac_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int bgmac_suspend(struct device *dev)
+{
+	struct bgmac *bgmac = dev_get_drvdata(dev);
+
+	return bgmac_enet_suspend(bgmac);
+}
+
+static int bgmac_resume(struct device *dev)
+{
+	struct bgmac *bgmac = dev_get_drvdata(dev);
+
+	return bgmac_enet_resume(bgmac);
+}
+
+static const struct dev_pm_ops bgmac_pm_ops = {
+	.suspend = bgmac_suspend,
+	.resume = bgmac_resume
+};
+
+#define BGMAC_PM_OPS (&bgmac_pm_ops)
+#else
+#define BGMAC_PM_OPS NULL
+#endif /* CONFIG_PM */
+
 static const struct of_device_id bgmac_of_enet_match[] = {
 	{.compatible = "brcm,amac",},
 	{.compatible = "brcm,nsp-amac",},
@@ -257,6 +290,7 @@ static struct platform_driver bgmac_enet_driver = {
 	.driver = {
 		.name  = "bgmac-enet",
 		.of_match_table = bgmac_of_enet_match,
+		.pm = BGMAC_PM_OPS
 	},
 	.probe = bgmac_probe,
 	.remove = bgmac_remove,

@@ -8,6 +8,7 @@
 #include <debug.h>
 #include <dwarf-regs.h>
 #include <elf.h>
+#include <linux/kernel.h>
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */

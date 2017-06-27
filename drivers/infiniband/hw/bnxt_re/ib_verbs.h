@@ -150,10 +150,10 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 			       struct ib_udata *udata);
 int bnxt_re_dealloc_pd(struct ib_pd *pd);
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
-				struct ib_ah_attr *ah_attr,
+				struct rdma_ah_attr *ah_attr,
 				struct ib_udata *udata);
-int bnxt_re_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
-int bnxt_re_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
+int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
+int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_destroy_ah(struct ib_ah *ah);
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *qp_init_attr,

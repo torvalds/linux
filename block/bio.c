@@ -30,6 +30,7 @@
 #include <linux/cgroup.h>
 
 #include <trace/events/block.h>
+#include "blk.h"
 
 /*
  * Test patch to inline a certain number of bi_io_vec's inside the bio
@@ -427,7 +428,8 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   RETURNS:
  *   Pointer to new bio on success, NULL on failure.
  */
-struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
+struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
+			     struct bio_set *bs)
 {
 	gfp_t saved_gfp = gfp_mask;
 	unsigned front_pad;
@@ -631,20 +633,21 @@ struct bio *bio_clone_fast(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
 }
 EXPORT_SYMBOL(bio_clone_fast);
 
-static struct bio *__bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
-				      struct bio_set *bs, int offset,
-				      int size)
+/**
+ * 	bio_clone_bioset - clone a bio
+ * 	@bio_src: bio to clone
+ *	@gfp_mask: allocation priority
+ *	@bs: bio_set to allocate from
+ *
+ *	Clone bio. Caller will own the returned bio, but not the actual data it
+ *	points to. Reference count of returned bio will be one.
+ */
+struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
+			     struct bio_set *bs)
 {
 	struct bvec_iter iter;
 	struct bio_vec bv;
 	struct bio *bio;
-	struct bvec_iter iter_src = bio_src->bi_iter;
-
-	/* for supporting partial clone */
-	if (offset || size != bio_src->bi_iter.bi_size) {
-		bio_advance_iter(bio_src, &iter_src, offset);
-		iter_src.bi_size = size;
-	}
 
 	/*
 	 * Pre immutable biovecs, __bio_clone() used to just do a memcpy from
@@ -668,8 +671,7 @@ static struct bio *__bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 	 *    __bio_clone_fast() anyways.
 	 */
 
-	bio = bio_alloc_bioset(gfp_mask, __bio_segments(bio_src,
-			       &iter_src), bs);
+	bio = bio_alloc_bioset(gfp_mask, bio_segments(bio_src), bs);
 	if (!bio)
 		return NULL;
 	bio->bi_bdev		= bio_src->bi_bdev;
@@ -686,7 +688,7 @@ static struct bio *__bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
 		break;
 	default:
-		__bio_for_each_segment(bv, bio_src, iter, iter_src)
+		bio_for_each_segment(bv, bio_src, iter)
 			bio->bi_io_vec[bio->bi_vcnt++] = bv;
 		break;
 	}
@@ -705,42 +707,7 @@ static struct bio *__bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 
 	return bio;
 }
-
-/**
- * 	bio_clone_bioset - clone a bio
- * 	@bio_src: bio to clone
- *	@gfp_mask: allocation priority
- *	@bs: bio_set to allocate from
- *
- *	Clone bio. Caller will own the returned bio, but not the actual data it
- *	points to. Reference count of returned bio will be one.
- */
-struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
-			     struct bio_set *bs)
-{
-	return __bio_clone_bioset(bio_src, gfp_mask, bs, 0,
-				  bio_src->bi_iter.bi_size);
-}
 EXPORT_SYMBOL(bio_clone_bioset);
-
-/**
- * 	bio_clone_bioset_partial - clone a partial bio
- * 	@bio_src: bio to clone
- *	@gfp_mask: allocation priority
- *	@bs: bio_set to allocate from
- *	@offset: cloned starting from the offset
- *	@size: size for the cloned bio
- *
- *	Clone bio. Caller will own the returned bio, but not the actual data it
- *	points to. Reference count of returned bio will be one.
- */
-struct bio *bio_clone_bioset_partial(struct bio *bio_src, gfp_t gfp_mask,
-				     struct bio_set *bs, int offset,
-				     int size)
-{
-	return __bio_clone_bioset(bio_src, gfp_mask, bs, offset, size);
-}
-EXPORT_SYMBOL(bio_clone_bioset_partial);
 
 /**
  *	bio_add_pc_page	-	attempt to add page to bio
@@ -1824,6 +1791,11 @@ static inline bool bio_remaining_done(struct bio *bio)
  *   bio_endio() will end I/O on the whole bio. bio_endio() is the preferred
  *   way to end I/O on a bio. No one should call bi_end_io() directly on a
  *   bio unless they own it and thus know that it has an end_io function.
+ *
+ *   bio_endio() can be called several times on a bio that has been chained
+ *   using bio_chain().  The ->bi_end_io() function will only be called the
+ *   last time.  At this point the BLK_TA_COMPLETE tracing event will be
+ *   generated if BIO_TRACE_COMPLETION is set.
  **/
 void bio_endio(struct bio *bio)
 {
@@ -1844,6 +1816,13 @@ again:
 		goto again;
 	}
 
+	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
+		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev),
+					 bio, bio->bi_error);
+		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
+	}
+
+	blk_throtl_bio_endio(bio);
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
 }
@@ -1881,6 +1860,9 @@ struct bio *bio_split(struct bio *bio, int sectors,
 		bio_integrity_trim(split, 0, sectors);
 
 	bio_advance(bio, split->bi_iter.bi_size);
+
+	if (bio_flagged(bio, BIO_TRACE_COMPLETION))
+		bio_set_flag(bio, BIO_TRACE_COMPLETION);
 
 	return split;
 }

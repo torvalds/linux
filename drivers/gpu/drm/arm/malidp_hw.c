@@ -12,6 +12,7 @@
  * in an attempt to provide to the rest of the driver code a unified view
  */
 
+#include <linux/clk.h>
 #include <linux/types.h>
 #include <linux/io.h>
 #include <drm/drmP.h>
@@ -84,6 +85,80 @@ static const struct malidp_layer malidp550_layers[] = {
 	{ DE_GRAPHICS1, MALIDP550_DE_LG_BASE, MALIDP550_DE_LG_PTR_BASE, MALIDP_DE_LG_STRIDE },
 	{ DE_VIDEO2, MALIDP550_DE_LV2_BASE, MALIDP550_DE_LV2_PTR_BASE, MALIDP_DE_LV_STRIDE0 },
 	{ DE_SMART, MALIDP550_DE_LS_BASE, MALIDP550_DE_LS_PTR_BASE, MALIDP550_DE_LS_R1_STRIDE },
+};
+
+#define SE_N_SCALING_COEFFS	96
+static const u16 dp500_se_scaling_coeffs[][SE_N_SCALING_COEFFS] = {
+	[MALIDP_UPSCALING_COEFFS - 1] = {
+		0x0000, 0x0001, 0x0007, 0x0011, 0x001e, 0x002e, 0x003f, 0x0052,
+		0x0064, 0x0073, 0x007d, 0x0080, 0x007a, 0x006c, 0x0053, 0x002f,
+		0x0000, 0x3fc6, 0x3f83, 0x3f39, 0x3eea, 0x3e9b, 0x3e4f, 0x3e0a,
+		0x3dd4, 0x3db0, 0x3da2, 0x3db1, 0x3dde, 0x3e2f, 0x3ea5, 0x3f40,
+		0x0000, 0x00e5, 0x01ee, 0x0315, 0x0456, 0x05aa, 0x0709, 0x086c,
+		0x09c9, 0x0b15, 0x0c4a, 0x0d5d, 0x0e4a, 0x0f06, 0x0f91, 0x0fe5,
+		0x1000, 0x0fe5, 0x0f91, 0x0f06, 0x0e4a, 0x0d5d, 0x0c4a, 0x0b15,
+		0x09c9, 0x086c, 0x0709, 0x05aa, 0x0456, 0x0315, 0x01ee, 0x00e5,
+		0x0000, 0x3f40, 0x3ea5, 0x3e2f, 0x3dde, 0x3db1, 0x3da2, 0x3db0,
+		0x3dd4, 0x3e0a, 0x3e4f, 0x3e9b, 0x3eea, 0x3f39, 0x3f83, 0x3fc6,
+		0x0000, 0x002f, 0x0053, 0x006c, 0x007a, 0x0080, 0x007d, 0x0073,
+		0x0064, 0x0052, 0x003f, 0x002e, 0x001e, 0x0011, 0x0007, 0x0001
+	},
+	[MALIDP_DOWNSCALING_1_5_COEFFS - 1] = {
+		0x0059, 0x004f, 0x0041, 0x002e, 0x0016, 0x3ffb, 0x3fd9, 0x3fb4,
+		0x3f8c, 0x3f62, 0x3f36, 0x3f09, 0x3edd, 0x3eb3, 0x3e8d, 0x3e6c,
+		0x3e52, 0x3e3f, 0x3e35, 0x3e37, 0x3e46, 0x3e61, 0x3e8c, 0x3ec5,
+		0x3f0f, 0x3f68, 0x3fd1, 0x004a, 0x00d3, 0x0169, 0x020b, 0x02b8,
+		0x036e, 0x042d, 0x04f2, 0x05b9, 0x0681, 0x0745, 0x0803, 0x08ba,
+		0x0965, 0x0a03, 0x0a91, 0x0b0d, 0x0b75, 0x0bc6, 0x0c00, 0x0c20,
+		0x0c28, 0x0c20, 0x0c00, 0x0bc6, 0x0b75, 0x0b0d, 0x0a91, 0x0a03,
+		0x0965, 0x08ba, 0x0803, 0x0745, 0x0681, 0x05b9, 0x04f2, 0x042d,
+		0x036e, 0x02b8, 0x020b, 0x0169, 0x00d3, 0x004a, 0x3fd1, 0x3f68,
+		0x3f0f, 0x3ec5, 0x3e8c, 0x3e61, 0x3e46, 0x3e37, 0x3e35, 0x3e3f,
+		0x3e52, 0x3e6c, 0x3e8d, 0x3eb3, 0x3edd, 0x3f09, 0x3f36, 0x3f62,
+		0x3f8c, 0x3fb4, 0x3fd9, 0x3ffb, 0x0016, 0x002e, 0x0041, 0x004f
+	},
+	[MALIDP_DOWNSCALING_2_COEFFS - 1] = {
+		0x3f19, 0x3f03, 0x3ef0, 0x3edf, 0x3ed0, 0x3ec5, 0x3ebd, 0x3eb9,
+		0x3eb9, 0x3ebf, 0x3eca, 0x3ed9, 0x3eef, 0x3f0a, 0x3f2c, 0x3f52,
+		0x3f7f, 0x3fb0, 0x3fe8, 0x0026, 0x006a, 0x00b4, 0x0103, 0x0158,
+		0x01b1, 0x020d, 0x026c, 0x02cd, 0x032f, 0x0392, 0x03f4, 0x0455,
+		0x04b4, 0x051e, 0x0585, 0x05eb, 0x064c, 0x06a8, 0x06fe, 0x074e,
+		0x0796, 0x07d5, 0x080c, 0x0839, 0x085c, 0x0875, 0x0882, 0x0887,
+		0x0881, 0x0887, 0x0882, 0x0875, 0x085c, 0x0839, 0x080c, 0x07d5,
+		0x0796, 0x074e, 0x06fe, 0x06a8, 0x064c, 0x05eb, 0x0585, 0x051e,
+		0x04b4, 0x0455, 0x03f4, 0x0392, 0x032f, 0x02cd, 0x026c, 0x020d,
+		0x01b1, 0x0158, 0x0103, 0x00b4, 0x006a, 0x0026, 0x3fe8, 0x3fb0,
+		0x3f7f, 0x3f52, 0x3f2c, 0x3f0a, 0x3eef, 0x3ed9, 0x3eca, 0x3ebf,
+		0x3eb9, 0x3eb9, 0x3ebd, 0x3ec5, 0x3ed0, 0x3edf, 0x3ef0, 0x3f03
+	},
+	[MALIDP_DOWNSCALING_2_75_COEFFS - 1] = {
+		0x3f51, 0x3f60, 0x3f71, 0x3f84, 0x3f98, 0x3faf, 0x3fc8, 0x3fe3,
+		0x0000, 0x001f, 0x0040, 0x0064, 0x008a, 0x00b1, 0x00da, 0x0106,
+		0x0133, 0x0160, 0x018e, 0x01bd, 0x01ec, 0x021d, 0x024e, 0x0280,
+		0x02b2, 0x02e4, 0x0317, 0x0349, 0x037c, 0x03ad, 0x03df, 0x0410,
+		0x0440, 0x0468, 0x048f, 0x04b3, 0x04d6, 0x04f8, 0x0516, 0x0533,
+		0x054e, 0x0566, 0x057c, 0x0590, 0x05a0, 0x05ae, 0x05ba, 0x05c3,
+		0x05c9, 0x05c3, 0x05ba, 0x05ae, 0x05a0, 0x0590, 0x057c, 0x0566,
+		0x054e, 0x0533, 0x0516, 0x04f8, 0x04d6, 0x04b3, 0x048f, 0x0468,
+		0x0440, 0x0410, 0x03df, 0x03ad, 0x037c, 0x0349, 0x0317, 0x02e4,
+		0x02b2, 0x0280, 0x024e, 0x021d, 0x01ec, 0x01bd, 0x018e, 0x0160,
+		0x0133, 0x0106, 0x00da, 0x00b1, 0x008a, 0x0064, 0x0040, 0x001f,
+		0x0000, 0x3fe3, 0x3fc8, 0x3faf, 0x3f98, 0x3f84, 0x3f71, 0x3f60
+	},
+	[MALIDP_DOWNSCALING_4_COEFFS - 1] = {
+		0x0094, 0x00a9, 0x00be, 0x00d4, 0x00ea, 0x0101, 0x0118, 0x012f,
+		0x0148, 0x0160, 0x017a, 0x0193, 0x01ae, 0x01c8, 0x01e4, 0x01ff,
+		0x021c, 0x0233, 0x024a, 0x0261, 0x0278, 0x028f, 0x02a6, 0x02bd,
+		0x02d4, 0x02eb, 0x0302, 0x0319, 0x032f, 0x0346, 0x035d, 0x0374,
+		0x038a, 0x0397, 0x03a3, 0x03af, 0x03bb, 0x03c6, 0x03d1, 0x03db,
+		0x03e4, 0x03ed, 0x03f6, 0x03fe, 0x0406, 0x040d, 0x0414, 0x041a,
+		0x0420, 0x041a, 0x0414, 0x040d, 0x0406, 0x03fe, 0x03f6, 0x03ed,
+		0x03e4, 0x03db, 0x03d1, 0x03c6, 0x03bb, 0x03af, 0x03a3, 0x0397,
+		0x038a, 0x0374, 0x035d, 0x0346, 0x032f, 0x0319, 0x0302, 0x02eb,
+		0x02d4, 0x02bd, 0x02a6, 0x028f, 0x0278, 0x0261, 0x024a, 0x0233,
+		0x021c, 0x01ff, 0x01e4, 0x01c8, 0x01ae, 0x0193, 0x017a, 0x0160,
+		0x0148, 0x012f, 0x0118, 0x0101, 0x00ea, 0x00d4, 0x00be, 0x00a9
+	},
 };
 
 #define MALIDP_DE_DEFAULT_PREFETCH_START	5
@@ -209,6 +284,88 @@ static int malidp500_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 
 	 *    size = rotated_width * (bpp / 8) * 8;
 	 */
 	return w * drm_format_plane_cpp(fmt, 0) * 8;
+}
+
+static void malidp500_se_write_pp_coefftab(struct malidp_hw_device *hwdev,
+					   u32 direction,
+					   u16 addr,
+					   u8 coeffs_id)
+{
+	int i;
+	u16 scaling_control = MALIDP500_SE_CONTROL + MALIDP_SE_SCALING_CONTROL;
+
+	malidp_hw_write(hwdev,
+			direction | (addr & MALIDP_SE_COEFFTAB_ADDR_MASK),
+			scaling_control + MALIDP_SE_COEFFTAB_ADDR);
+	for (i = 0; i < ARRAY_SIZE(dp500_se_scaling_coeffs); ++i)
+		malidp_hw_write(hwdev, MALIDP_SE_SET_COEFFTAB_DATA(
+				dp500_se_scaling_coeffs[coeffs_id][i]),
+				scaling_control + MALIDP_SE_COEFFTAB_DATA);
+}
+
+static int malidp500_se_set_scaling_coeffs(struct malidp_hw_device *hwdev,
+					   struct malidp_se_config *se_config,
+					   struct malidp_se_config *old_config)
+{
+	/* Get array indices into dp500_se_scaling_coeffs. */
+	u8 h = (u8)se_config->hcoeff - 1;
+	u8 v = (u8)se_config->vcoeff - 1;
+
+	if (WARN_ON(h >= ARRAY_SIZE(dp500_se_scaling_coeffs) ||
+		    v >= ARRAY_SIZE(dp500_se_scaling_coeffs)))
+		return -EINVAL;
+
+	if ((h == v) && (se_config->hcoeff != old_config->hcoeff ||
+			 se_config->vcoeff != old_config->vcoeff)) {
+		malidp500_se_write_pp_coefftab(hwdev,
+					       (MALIDP_SE_V_COEFFTAB |
+						MALIDP_SE_H_COEFFTAB),
+					       0, v);
+	} else {
+		if (se_config->vcoeff != old_config->vcoeff)
+			malidp500_se_write_pp_coefftab(hwdev,
+						       MALIDP_SE_V_COEFFTAB,
+						       0, v);
+		if (se_config->hcoeff != old_config->hcoeff)
+			malidp500_se_write_pp_coefftab(hwdev,
+						       MALIDP_SE_H_COEFFTAB,
+						       0, h);
+	}
+
+	return 0;
+}
+
+static long malidp500_se_calc_mclk(struct malidp_hw_device *hwdev,
+				   struct malidp_se_config *se_config,
+				   struct videomode *vm)
+{
+	unsigned long mclk;
+	unsigned long pxlclk = vm->pixelclock; /* Hz */
+	unsigned long htotal = vm->hactive + vm->hfront_porch +
+			       vm->hback_porch + vm->hsync_len;
+	unsigned long input_size = se_config->input_w * se_config->input_h;
+	unsigned long a = 10;
+	long ret;
+
+	/*
+	 * mclk = max(a, 1.5) * pxlclk
+	 *
+	 * To avoid float calculaiton, using 15 instead of 1.5 and div by
+	 * 10 to get mclk.
+	 */
+	if (se_config->scale_enable) {
+		a = 15 * input_size / (htotal * se_config->output_h);
+		if (a < 15)
+			a = 15;
+	}
+	mclk = a * pxlclk / 10;
+	ret = clk_get_rate(hwdev->mclk);
+	if (ret < mclk) {
+		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
+				 mclk / 1000);
+		return -EINVAL;
+	}
+	return ret;
 }
 
 static int malidp550_query_hw(struct malidp_hw_device *hwdev)
@@ -384,6 +541,53 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 
 	return w * bytes_per_col;
 }
 
+static int malidp550_se_set_scaling_coeffs(struct malidp_hw_device *hwdev,
+					   struct malidp_se_config *se_config,
+					   struct malidp_se_config *old_config)
+{
+	u32 mask = MALIDP550_SE_CTL_VCSEL(MALIDP550_SE_CTL_SEL_MASK) |
+		   MALIDP550_SE_CTL_HCSEL(MALIDP550_SE_CTL_SEL_MASK);
+	u32 new_value = MALIDP550_SE_CTL_VCSEL(se_config->vcoeff) |
+			MALIDP550_SE_CTL_HCSEL(se_config->hcoeff);
+
+	malidp_hw_clearbits(hwdev, mask, MALIDP550_SE_CONTROL);
+	malidp_hw_setbits(hwdev, new_value, MALIDP550_SE_CONTROL);
+	return 0;
+}
+
+static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
+				   struct malidp_se_config *se_config,
+				   struct videomode *vm)
+{
+	unsigned long mclk;
+	unsigned long pxlclk = vm->pixelclock;
+	unsigned long htotal = vm->hactive + vm->hfront_porch +
+			       vm->hback_porch + vm->hsync_len;
+	unsigned long numerator = 1, denominator = 1;
+	long ret;
+
+	if (se_config->scale_enable) {
+		numerator = max(se_config->input_w, se_config->output_w) *
+			    se_config->input_h;
+		numerator += se_config->output_w *
+			     (se_config->output_h -
+			      min(se_config->input_h, se_config->output_h));
+		denominator = (htotal - 2) * se_config->output_h;
+	}
+
+	/* mclk can't be slower than pxlclk. */
+	if (numerator < denominator)
+		numerator = denominator = 1;
+	mclk = (pxlclk * numerator) / denominator;
+	ret = clk_get_rate(hwdev->mclk);
+	if (ret < mclk) {
+		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
+				 mclk / 1000);
+		return -EINVAL;
+	}
+	return ret;
+}
+
 static int malidp650_query_hw(struct malidp_hw_device *hwdev)
 {
 	u32 conf = malidp_hw_read(hwdev, MALIDP550_CONFIG_ID);
@@ -415,6 +619,7 @@ static int malidp650_query_hw(struct malidp_hw_device *hwdev)
 const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 	[MALIDP_500] = {
 		.map = {
+			.coeffs_base = MALIDP500_COEFFS_BASE,
 			.se_base = MALIDP500_SE_BASE,
 			.dc_base = MALIDP500_DC_BASE,
 			.out_depth_base = MALIDP500_OUTPUT_DEPTH,
@@ -447,10 +652,13 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.set_config_valid = malidp500_set_config_valid,
 		.modeset = malidp500_modeset,
 		.rotmem_required = malidp500_rotmem_required,
+		.se_set_scaling_coeffs = malidp500_se_set_scaling_coeffs,
+		.se_calc_mclk = malidp500_se_calc_mclk,
 		.features = MALIDP_DEVICE_LV_HAS_3_STRIDES,
 	},
 	[MALIDP_550] = {
 		.map = {
+			.coeffs_base = MALIDP550_COEFFS_BASE,
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
@@ -481,10 +689,13 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.set_config_valid = malidp550_set_config_valid,
 		.modeset = malidp550_modeset,
 		.rotmem_required = malidp550_rotmem_required,
+		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
+		.se_calc_mclk = malidp550_se_calc_mclk,
 		.features = 0,
 	},
 	[MALIDP_650] = {
 		.map = {
+			.coeffs_base = MALIDP550_COEFFS_BASE,
 			.se_base = MALIDP550_SE_BASE,
 			.dc_base = MALIDP550_DC_BASE,
 			.out_depth_base = MALIDP550_DE_OUTPUT_DEPTH,
@@ -516,6 +727,8 @@ const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES] = {
 		.set_config_valid = malidp550_set_config_valid,
 		.modeset = malidp550_modeset,
 		.rotmem_required = malidp550_rotmem_required,
+		.se_set_scaling_coeffs = malidp550_se_set_scaling_coeffs,
+		.se_calc_mclk = malidp550_se_calc_mclk,
 		.features = 0,
 	},
 };

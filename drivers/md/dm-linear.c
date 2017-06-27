@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/bio.h>
+#include <linux/dax.h>
 #include <linux/slab.h>
 #include <linux/device-mapper.h>
 
@@ -59,6 +60,7 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->num_write_same_bios = 1;
+	ti->num_write_zeroes_bios = 1;
 	ti->private = lc;
 	return 0;
 
@@ -141,27 +143,26 @@ static int linear_iterate_devices(struct dm_target *ti,
 	return fn(ti, lc->dev, lc->start, ti->len, data);
 }
 
-static long linear_direct_access(struct dm_target *ti, sector_t sector,
-				 void **kaddr, pfn_t *pfn, long size)
+static long linear_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
 {
+	long ret;
 	struct linear_c *lc = ti->private;
 	struct block_device *bdev = lc->dev->bdev;
-	struct blk_dax_ctl dax = {
-		.sector = linear_map_sector(ti, sector),
-		.size = size,
-	};
-	long ret;
+	struct dax_device *dax_dev = lc->dev->dax_dev;
+	sector_t dev_sector, sector = pgoff * PAGE_SECTORS;
 
-	ret = bdev_direct_access(bdev, &dax);
-	*kaddr = dax.addr;
-	*pfn = dax.pfn;
-
-	return ret;
+	dev_sector = linear_map_sector(ti, sector);
+	ret = bdev_dax_pgoff(bdev, dev_sector, nr_pages * PAGE_SIZE, &pgoff);
+	if (ret)
+		return ret;
+	return dax_direct_access(dax_dev, pgoff, nr_pages, kaddr, pfn);
 }
 
 static struct target_type linear_target = {
 	.name   = "linear",
 	.version = {1, 3, 0},
+	.features = DM_TARGET_PASSES_INTEGRITY,
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,
@@ -169,7 +170,7 @@ static struct target_type linear_target = {
 	.status = linear_status,
 	.prepare_ioctl = linear_prepare_ioctl,
 	.iterate_devices = linear_iterate_devices,
-	.direct_access = linear_direct_access,
+	.direct_access = linear_dax_direct_access,
 };
 
 int __init dm_linear_init(void)

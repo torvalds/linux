@@ -1034,6 +1034,10 @@ S: 2037 Walnut #6
 S: Boulder, Colorado 80302
 S: USA
 
+N: Hans-Christian Noren Egtvedt
+E: egtvedt@samfundet.no
+D: AVR32 architecture maintainer.
+
 N: Heiko Eißfeldt
 E: heiko@colossus.escape.de heiko@unifix.de
 D: verify_area stuff, generic SCSI fixes
@@ -3397,6 +3401,10 @@ S: 1001 Denison Street
 S: Suite 101
 S: Markham, Ontario L3R 2Z6
 S: Canada
+
+N: Haavard Skinnemoen
+M: Haavard Skinnemoen <hskinnemoen@gmail.com>
+D: AVR32 architecture port to Linux and maintainer.
 
 N: Rick Sladkey
 E: jrs@world.std.com

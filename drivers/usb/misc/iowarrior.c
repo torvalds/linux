@@ -554,7 +554,7 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 			info.revision = le16_to_cpu(dev->udev->descriptor.bcdDevice);
 
 			/* 0==UNKNOWN, 1==LOW(usb1.1) ,2=FULL(usb1.1), 3=HIGH(usb2.0) */
-			info.speed = le16_to_cpu(dev->udev->speed);
+			info.speed = dev->udev->speed;
 			info.if_num = dev->interface->cur_altsetting->desc.bInterfaceNumber;
 			info.report_size = dev->report_size;
 
@@ -756,9 +756,8 @@ static int iowarrior_probe(struct usb_interface *interface,
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct iowarrior *dev = NULL;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	int i;
 	int retval = -ENOMEM;
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct iowarrior), GFP_KERNEL);
@@ -781,27 +780,19 @@ static int iowarrior_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 	dev->product_id = le16_to_cpu(udev->descriptor.idProduct);
 
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint))
-			dev->int_in_endpoint = endpoint;
-		if (usb_endpoint_is_int_out(endpoint))
-			/* this one will match for the IOWarrior56 only */
-			dev->int_out_endpoint = endpoint;
-	}
-
-	if (!dev->int_in_endpoint) {
+	res = usb_find_last_int_in_endpoint(iface_desc, &dev->int_in_endpoint);
+	if (res) {
 		dev_err(&interface->dev, "no interrupt-in endpoint found\n");
-		retval = -ENODEV;
+		retval = res;
 		goto error;
 	}
 
 	if (dev->product_id == USB_DEVICE_ID_CODEMERCS_IOW56) {
-		if (!dev->int_out_endpoint) {
+		res = usb_find_last_int_out_endpoint(iface_desc,
+				&dev->int_out_endpoint);
+		if (res) {
 			dev_err(&interface->dev, "no interrupt-out endpoint found\n");
-			retval = -ENODEV;
+			retval = res;
 			goto error;
 		}
 	}

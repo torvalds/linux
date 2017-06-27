@@ -169,6 +169,37 @@ void ist_end_non_atomic(void)
 	preempt_disable();
 }
 
+int is_valid_bugaddr(unsigned long addr)
+{
+	unsigned short ud;
+
+	if (addr < TASK_SIZE_MAX)
+		return 0;
+
+	if (probe_kernel_address((unsigned short *)addr, ud))
+		return 0;
+
+	return ud == INSN_UD0 || ud == INSN_UD2;
+}
+
+static int fixup_bug(struct pt_regs *regs, int trapnr)
+{
+	if (trapnr != X86_TRAP_UD)
+		return 0;
+
+	switch (report_bug(regs->ip, regs)) {
+	case BUG_TRAP_TYPE_NONE:
+	case BUG_TRAP_TYPE_BUG:
+		break;
+
+	case BUG_TRAP_TYPE_WARN:
+		regs->ip += LEN_UD0;
+		return 1;
+	}
+
+	return 0;
+}
+
 static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		  struct pt_regs *regs,	long error_code)
@@ -187,12 +218,15 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 	}
 
 	if (!user_mode(regs)) {
-		if (!fixup_exception(regs, trapnr)) {
-			tsk->thread.error_code = error_code;
-			tsk->thread.trap_nr = trapnr;
-			die(str, regs, error_code);
-		}
-		return 0;
+		if (fixup_exception(regs, trapnr))
+			return 0;
+
+		if (fixup_bug(regs, trapnr))
+			return 0;
+
+		tsk->thread.error_code = error_code;
+		tsk->thread.trap_nr = trapnr;
+		die(str, regs, error_code);
 	}
 
 	return -1;
@@ -255,7 +289,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 		pr_info("%s[%d] trap %s ip:%lx sp:%lx error:%lx",
 			tsk->comm, tsk->pid, str,
 			regs->ip, regs->sp, error_code);
-		print_vma_addr(" in ", regs->ip);
+		print_vma_addr(KERN_CONT " in ", regs->ip);
 		pr_cont("\n");
 	}
 
@@ -519,7 +553,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 		pr_info("%s[%d] general protection ip:%lx sp:%lx error:%lx",
 			tsk->comm, task_pid_nr(tsk),
 			regs->ip, regs->sp, error_code);
-		print_vma_addr(" in ", regs->ip);
+		print_vma_addr(KERN_CONT " in ", regs->ip);
 		pr_cont("\n");
 	}
 

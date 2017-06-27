@@ -216,7 +216,8 @@ static void dwmac1000_set_filter(struct mac_device_info *hw,
 
 
 static void dwmac1000_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
-				unsigned int fc, unsigned int pause_time)
+				unsigned int fc, unsigned int pause_time,
+				u32 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	/* Set flow such that DZPQ in Mac Register 6 is 0,
@@ -412,7 +413,8 @@ static void dwmac1000_get_adv_lp(void __iomem *ioaddr, struct rgmii_adv *adv)
 	dwmac_get_adv_lp(ioaddr, GMAC_PCS_BASE, adv);
 }
 
-static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
+static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+			    u32 rx_queues, u32 tx_queues)
 {
 	u32 value = readl(ioaddr + GMAC_DEBUG);
 
@@ -488,6 +490,7 @@ static void dwmac1000_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
 
 static const struct stmmac_ops dwmac1000_ops = {
 	.core_init = dwmac1000_core_init,
+	.set_mac = stmmac_set_mac,
 	.rx_ipc = dwmac1000_rx_ipc_enable,
 	.dump_regs = dwmac1000_dump_regs,
 	.host_irq_status = dwmac1000_irq_status,

@@ -85,8 +85,8 @@ static int ncr_53c400;
 static int ncr_53c400a;
 static int dtc_3181e;
 static int hp_c2502;
-module_param(ncr_irq, int, 0);
-module_param(ncr_addr, int, 0);
+module_param_hw(ncr_irq, int, irq, 0);
+module_param_hw(ncr_addr, int, ioport, 0);
 module_param(ncr_5380, int, 0);
 module_param(ncr_53c400, int, 0);
 module_param(ncr_53c400a, int, 0);
@@ -94,11 +94,11 @@ module_param(dtc_3181e, int, 0);
 module_param(hp_c2502, int, 0);
 
 static int irq[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ number(s) (0=none, 254=auto [default])");
 
 static int base[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-module_param_array(base, int, NULL, 0);
+module_param_hw_array(base, int, ioport, NULL, 0);
 MODULE_PARM_DESC(base, "base address(es)");
 
 static int card[] = { -1, -1, -1, -1, -1, -1, -1, -1 };

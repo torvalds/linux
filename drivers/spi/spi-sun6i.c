@@ -46,13 +46,19 @@
 #define SUN6I_TFR_CTL_XCH			BIT(31)
 
 #define SUN6I_INT_CTL_REG		0x10
+#define SUN6I_INT_CTL_RF_RDY			BIT(0)
+#define SUN6I_INT_CTL_TF_ERQ			BIT(4)
 #define SUN6I_INT_CTL_RF_OVF			BIT(8)
 #define SUN6I_INT_CTL_TC			BIT(12)
 
 #define SUN6I_INT_STA_REG		0x14
 
 #define SUN6I_FIFO_CTL_REG		0x18
+#define SUN6I_FIFO_CTL_RF_RDY_TRIG_LEVEL_MASK	0xff
+#define SUN6I_FIFO_CTL_RF_RDY_TRIG_LEVEL_BITS	0
 #define SUN6I_FIFO_CTL_RF_RST			BIT(15)
+#define SUN6I_FIFO_CTL_TF_ERQ_TRIG_LEVEL_MASK	0xff
+#define SUN6I_FIFO_CTL_TF_ERQ_TRIG_LEVEL_BITS	16
 #define SUN6I_FIFO_CTL_TF_RST			BIT(31)
 
 #define SUN6I_FIFO_STA_REG		0x1c
@@ -68,14 +74,16 @@
 #define SUN6I_CLK_CTL_CDR1(div)			(((div) & SUN6I_CLK_CTL_CDR1_MASK) << 8)
 #define SUN6I_CLK_CTL_DRS			BIT(12)
 
+#define SUN6I_MAX_XFER_SIZE		0xffffff
+
 #define SUN6I_BURST_CNT_REG		0x30
-#define SUN6I_BURST_CNT(cnt)			((cnt) & 0xffffff)
+#define SUN6I_BURST_CNT(cnt)			((cnt) & SUN6I_MAX_XFER_SIZE)
 
 #define SUN6I_XMIT_CNT_REG		0x34
-#define SUN6I_XMIT_CNT(cnt)			((cnt) & 0xffffff)
+#define SUN6I_XMIT_CNT(cnt)			((cnt) & SUN6I_MAX_XFER_SIZE)
 
 #define SUN6I_BURST_CTL_CNT_REG		0x38
-#define SUN6I_BURST_CTL_CNT_STC(cnt)		((cnt) & 0xffffff)
+#define SUN6I_BURST_CTL_CNT_STC(cnt)		((cnt) & SUN6I_MAX_XFER_SIZE)
 
 #define SUN6I_TXDATA_REG		0x200
 #define SUN6I_RXDATA_REG		0x300
@@ -105,6 +113,31 @@ static inline void sun6i_spi_write(struct sun6i_spi *sspi, u32 reg, u32 value)
 	writel(value, sspi->base_addr + reg);
 }
 
+static inline u32 sun6i_spi_get_tx_fifo_count(struct sun6i_spi *sspi)
+{
+	u32 reg = sun6i_spi_read(sspi, SUN6I_FIFO_STA_REG);
+
+	reg >>= SUN6I_FIFO_STA_TF_CNT_BITS;
+
+	return reg & SUN6I_FIFO_STA_TF_CNT_MASK;
+}
+
+static inline void sun6i_spi_enable_interrupt(struct sun6i_spi *sspi, u32 mask)
+{
+	u32 reg = sun6i_spi_read(sspi, SUN6I_INT_CTL_REG);
+
+	reg |= mask;
+	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, reg);
+}
+
+static inline void sun6i_spi_disable_interrupt(struct sun6i_spi *sspi, u32 mask)
+{
+	u32 reg = sun6i_spi_read(sspi, SUN6I_INT_CTL_REG);
+
+	reg &= ~mask;
+	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, reg);
+}
+
 static inline void sun6i_spi_drain_fifo(struct sun6i_spi *sspi, int len)
 {
 	u32 reg, cnt;
@@ -127,10 +160,13 @@ static inline void sun6i_spi_drain_fifo(struct sun6i_spi *sspi, int len)
 
 static inline void sun6i_spi_fill_fifo(struct sun6i_spi *sspi, int len)
 {
+	u32 cnt;
 	u8 byte;
 
-	if (len > sspi->len)
-		len = sspi->len;
+	/* See how much data we can fit */
+	cnt = sspi->fifo_depth - sun6i_spi_get_tx_fifo_count(sspi);
+
+	len = min3(len, (int)cnt, sspi->len);
 
 	while (len--) {
 		byte = sspi->tx_buf ? *sspi->tx_buf++ : 0;
@@ -158,9 +194,7 @@ static void sun6i_spi_set_cs(struct spi_device *spi, bool enable)
 
 static size_t sun6i_spi_max_transfer_size(struct spi_device *spi)
 {
-	struct sun6i_spi *sspi = spi_master_get_devdata(spi->master);
-
-	return sspi->fifo_depth - 1;
+	return SUN6I_MAX_XFER_SIZE - 1;
 }
 
 static int sun6i_spi_transfer_one(struct spi_master *master,
@@ -170,12 +204,12 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	struct sun6i_spi *sspi = spi_master_get_devdata(master);
 	unsigned int mclk_rate, div, timeout;
 	unsigned int start, end, tx_time;
+	unsigned int trig_level;
 	unsigned int tx_len = 0;
 	int ret = 0;
 	u32 reg;
 
-	/* We don't support transfer larger than the FIFO */
-	if (tfr->len > sspi->fifo_depth)
+	if (tfr->len > SUN6I_MAX_XFER_SIZE)
 		return -EINVAL;
 
 	reinit_completion(&sspi->done);
@@ -189,6 +223,17 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 	/* Reset FIFO */
 	sun6i_spi_write(sspi, SUN6I_FIFO_CTL_REG,
 			SUN6I_FIFO_CTL_RF_RST | SUN6I_FIFO_CTL_TF_RST);
+
+	/*
+	 * Setup FIFO interrupt trigger level
+	 * Here we choose 3/4 of the full fifo depth, as it's the hardcoded
+	 * value used in old generation of Allwinner SPI controller.
+	 * (See spi-sun4i.c)
+	 */
+	trig_level = sspi->fifo_depth / 4 * 3;
+	sun6i_spi_write(sspi, SUN6I_FIFO_CTL_REG,
+			(trig_level << SUN6I_FIFO_CTL_RF_RDY_TRIG_LEVEL_BITS) |
+			(trig_level << SUN6I_FIFO_CTL_TF_ERQ_TRIG_LEVEL_BITS));
 
 	/*
 	 * Setup the transfer control register: Chip Select,
@@ -274,6 +319,10 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 
 	/* Enable the interrupts */
 	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, SUN6I_INT_CTL_TC);
+	sun6i_spi_enable_interrupt(sspi, SUN6I_INT_CTL_TC |
+					 SUN6I_INT_CTL_RF_RDY);
+	if (tx_len > sspi->fifo_depth)
+		sun6i_spi_enable_interrupt(sspi, SUN6I_INT_CTL_TF_ERQ);
 
 	/* Start the transfer */
 	reg = sun6i_spi_read(sspi, SUN6I_TFR_CTL_REG);
@@ -293,8 +342,6 @@ static int sun6i_spi_transfer_one(struct spi_master *master,
 		goto out;
 	}
 
-	sun6i_spi_drain_fifo(sspi, sspi->fifo_depth);
-
 out:
 	sun6i_spi_write(sspi, SUN6I_INT_CTL_REG, 0);
 
@@ -309,7 +356,30 @@ static irqreturn_t sun6i_spi_handler(int irq, void *dev_id)
 	/* Transfer complete */
 	if (status & SUN6I_INT_CTL_TC) {
 		sun6i_spi_write(sspi, SUN6I_INT_STA_REG, SUN6I_INT_CTL_TC);
+		sun6i_spi_drain_fifo(sspi, sspi->fifo_depth);
 		complete(&sspi->done);
+		return IRQ_HANDLED;
+	}
+
+	/* Receive FIFO 3/4 full */
+	if (status & SUN6I_INT_CTL_RF_RDY) {
+		sun6i_spi_drain_fifo(sspi, SUN6I_FIFO_DEPTH);
+		/* Only clear the interrupt _after_ draining the FIFO */
+		sun6i_spi_write(sspi, SUN6I_INT_STA_REG, SUN6I_INT_CTL_RF_RDY);
+		return IRQ_HANDLED;
+	}
+
+	/* Transmit FIFO 3/4 empty */
+	if (status & SUN6I_INT_CTL_TF_ERQ) {
+		sun6i_spi_fill_fifo(sspi, SUN6I_FIFO_DEPTH);
+
+		if (!sspi->len)
+			/* nothing left to transmit */
+			sun6i_spi_disable_interrupt(sspi, SUN6I_INT_CTL_TF_ERQ);
+
+		/* Only clear the interrupt _after_ re-seeding the FIFO */
+		sun6i_spi_write(sspi, SUN6I_INT_STA_REG, SUN6I_INT_CTL_TF_ERQ);
+
 		return IRQ_HANDLED;
 	}
 

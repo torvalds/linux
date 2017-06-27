@@ -538,23 +538,19 @@ smb2_mid_entry_alloc(const struct smb2_sync_hdr *shdr,
 	}
 
 	temp = mempool_alloc(cifs_mid_poolp, GFP_NOFS);
-	if (temp == NULL)
-		return temp;
-	else {
-		memset(temp, 0, sizeof(struct mid_q_entry));
-		temp->mid = le64_to_cpu(shdr->MessageId);
-		temp->pid = current->pid;
-		temp->command = shdr->Command; /* Always LE */
-		temp->when_alloc = jiffies;
-		temp->server = server;
+	memset(temp, 0, sizeof(struct mid_q_entry));
+	temp->mid = le64_to_cpu(shdr->MessageId);
+	temp->pid = current->pid;
+	temp->command = shdr->Command; /* Always LE */
+	temp->when_alloc = jiffies;
+	temp->server = server;
 
-		/*
-		 * The default is for the mid to be synchronous, so the
-		 * default callback just wakes up the current task.
-		 */
-		temp->callback = cifs_wake_up_task;
-		temp->callback_data = current;
-	}
+	/*
+	 * The default is for the mid to be synchronous, so the
+	 * default callback just wakes up the current task.
+	 */
+	temp->callback = cifs_wake_up_task;
+	temp->callback_data = current;
 
 	atomic_inc(&midCount);
 	temp->mid_state = MID_REQUEST_ALLOCATED;

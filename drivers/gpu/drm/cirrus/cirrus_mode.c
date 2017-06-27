@@ -327,7 +327,8 @@ static void cirrus_crtc_commit(struct drm_crtc *crtc)
  * but it's a requirement that we provide the function
  */
 static int cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t size)
+				 u16 *blue, uint32_t size,
+				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct cirrus_crtc *cirrus_crtc = to_cirrus_crtc(crtc);
 	int i;

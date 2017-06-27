@@ -17,7 +17,7 @@ import os
 import sphinx
 
 # Get Sphinx version
-major, minor, patch = map(int, sphinx.__version__.split("."))
+major, minor, patch = sphinx.version_info[:3]
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -29,12 +29,12 @@ from load_config import loadConfig
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#needs_sphinx = '1.0'
+needs_sphinx = '1.2'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain']
+extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain', 'kfigure']
 
 # The name of the math extension changed on Sphinx 1.4
 if major == 1 and minor > 3:
@@ -347,6 +347,8 @@ latex_documents = [
     ('core-api/index', 'core-api.tex', 'The kernel core API manual',
      'The kernel development community', 'manual'),
     ('driver-api/index', 'driver-api.tex', 'The kernel driver API manual',
+     'The kernel development community', 'manual'),
+    ('input/index', 'linux-input.tex', 'The Linux input driver subsystem',
      'The kernel development community', 'manual'),
     ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
      'The kernel development community', 'manual'),

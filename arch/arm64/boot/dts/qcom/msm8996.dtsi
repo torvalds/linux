@@ -534,6 +534,26 @@
 		};
 	};
 
+	adsp-pil {
+		compatible = "qcom,msm8996-adsp-pil";
+
+		interrupts-extended = <&intc 0 162 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+				      <&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wdog", "fatal", "ready",
+				  "handover", "stop-ack";
+
+		clocks = <&xo_board>;
+		clock-names = "xo";
+
+		memory-region = <&adsp_region>;
+
+		qcom,smem-states = <&adsp_smp2p_out 0>;
+		qcom,smem-state-names = "stop";
+	};
+
 	adsp-smp2p {
 		compatible = "qcom,smp2p";
 		qcom,smem = <443>, <429>;
@@ -547,7 +567,7 @@
 
 		adsp_smp2p_out: master-kernel {
 			qcom,entry-name = "master-kernel";
-			#qcom,state-cells = <1>;
+			#qcom,smem-state-cells = <1>;
 		};
 
 		adsp_smp2p_in: slave-kernel {
@@ -557,5 +577,29 @@
 			#interrupt-cells = <2>;
 		};
 	};
+
+	smp2p-slpi {
+		compatible = "qcom,smp2p";
+		qcom,smem = <481>, <430>;
+
+		interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,ipc = <&apcs 16 26>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <3>;
+
+		slpi_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		slpi_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+	};
+
 };
 #include "msm8996-pins.dtsi"

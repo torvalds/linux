@@ -2256,8 +2256,8 @@ void set_handler(unsigned long offset, void *addr, unsigned long size)
 	local_flush_icache_range(ebase + offset, ebase + offset + size);
 }
 
-static char panic_null_cerr[] =
-	"Trying to set NULL cache error exception handler";
+static const char panic_null_cerr[] =
+	"Trying to set NULL cache error exception handler\n";
 
 /*
  * Install uncached CPU exception handler.

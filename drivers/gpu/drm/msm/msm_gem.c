@@ -758,6 +758,8 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	struct msm_gem_object *msm_obj;
 	bool use_vram = false;
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	switch (flags & MSM_BO_CACHE_MASK) {
 	case MSM_BO_UNCACHED:
 	case MSM_BO_CACHED:
@@ -853,7 +855,11 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	size = PAGE_ALIGN(dmabuf->size);
 
+	/* Take mutex so we can modify the inactive list in msm_gem_new_impl */
+	mutex_lock(&dev->struct_mutex);
 	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, dmabuf->resv, &obj);
+	mutex_unlock(&dev->struct_mutex);
+
 	if (ret)
 		goto fail;
 

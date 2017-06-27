@@ -367,12 +367,16 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 		goto out;
 	}
 
-	if (out_is_imm)
+	if (out_is_imm && out_param) {
 		*out_param =
 			(u64) be32_to_cpu((__force __be32)
 					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET)) << 32 |
 			(u64) be32_to_cpu((__force __be32)
 					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET + 4));
+	} else if (out_is_imm) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	status = be32_to_cpu((__force __be32) __raw_readl(dev->hcr + HCR_STATUS_OFFSET)) >> 24;
 	if (status) {
@@ -450,8 +454,12 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 		err = mthca_status_to_errno(context->status);
 	}
 
-	if (out_is_imm)
+	if (out_is_imm && out_param) {
 		*out_param = context->out_param;
+	} else if (out_is_imm) {
+		err = -EINVAL;
+		goto out;
+	}
 
 out:
 	spin_lock(&dev->cmd.context_lock);

@@ -94,7 +94,8 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		  unsigned int crtc_w, unsigned int crtc_h,
 		  uint32_t src_x, uint32_t src_y,
-		  uint32_t src_w, uint32_t src_h)
+		  uint32_t src_w, uint32_t src_h,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
 	struct nvif_object *dev = &drm->client.device.object;
@@ -172,7 +173,8 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 }
 
 static int
-nv10_disable_plane(struct drm_plane *plane)
+nv10_disable_plane(struct drm_plane *plane,
+		   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =
@@ -190,7 +192,7 @@ nv10_disable_plane(struct drm_plane *plane)
 static void
 nv_destroy_plane(struct drm_plane *plane)
 {
-	plane->funcs->disable_plane(plane);
+	drm_plane_force_disable(plane);
 	drm_plane_cleanup(plane);
 	kfree(plane);
 }
@@ -331,7 +333,7 @@ nv10_overlay_init(struct drm_device *device)
 
 	plane->set_params = nv10_set_params;
 	nv10_set_params(plane);
-	nv10_disable_plane(&plane->base);
+	drm_plane_force_disable(&plane->base);
 	return;
 cleanup:
 	drm_plane_cleanup(&plane->base);
@@ -345,7 +347,8 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		  unsigned int crtc_w, unsigned int crtc_h,
 		  uint32_t src_x, uint32_t src_y,
-		  uint32_t src_w, uint32_t src_h)
+		  uint32_t src_w, uint32_t src_h,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =
@@ -425,7 +428,8 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 }
 
 static int
-nv04_disable_plane(struct drm_plane *plane)
+nv04_disable_plane(struct drm_plane *plane,
+		   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =
@@ -483,7 +487,7 @@ nv04_overlay_init(struct drm_device *device)
 	drm_object_attach_property(&plane->base.base,
 				   plane->props.brightness, plane->brightness);
 
-	nv04_disable_plane(&plane->base);
+	drm_plane_force_disable(&plane->base);
 	return;
 cleanup:
 	drm_plane_cleanup(&plane->base);

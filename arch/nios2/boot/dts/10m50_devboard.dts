@@ -244,6 +244,7 @@
 	};
 
 	chosen {
-		bootargs = "debug console=ttyS0,115200";
+		bootargs = "debug earlycon console=ttyS0,115200";
+		stdout-path = &a_16550_uart_0;
 	};
 };

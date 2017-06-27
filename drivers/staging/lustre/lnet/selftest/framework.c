@@ -899,7 +899,7 @@ sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 }
 
 int
-sfw_create_test_rpc(struct sfw_test_unit *tsu, lnet_process_id_t peer,
+sfw_create_test_rpc(struct sfw_test_unit *tsu, struct lnet_process_id peer,
 		    unsigned int features, int nblk, int blklen,
 		    struct srpc_client_rpc **rpcpp)
 {
@@ -1379,7 +1379,7 @@ sfw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 }
 
 struct srpc_client_rpc *
-sfw_create_rpc(lnet_process_id_t peer, int service,
+sfw_create_rpc(struct lnet_process_id peer, int service,
 	       unsigned int features, int nbulkiov, int bulklen,
 	       void (*done)(struct srpc_client_rpc *), void *priv)
 {

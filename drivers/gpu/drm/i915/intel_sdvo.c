@@ -2981,6 +2981,7 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
+	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
 	intel_encoder->port = port;
 	drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
 			 &intel_sdvo_enc_funcs, 0,

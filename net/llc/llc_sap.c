@@ -328,7 +328,7 @@ static struct sock *llc_lookup_dgram(struct llc_sap *sap,
 again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
 		if (llc_dgram_match(sap, laddr, rc)) {
-			/* Extra checks required by SLAB_DESTROY_BY_RCU */
+			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
 			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||

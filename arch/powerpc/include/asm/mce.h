@@ -24,97 +24,6 @@
 
 #include <linux/bitops.h>
 
-/*
- * Machine Check bits on power7 and power8
- */
-#define P7_SRR1_MC_LOADSTORE(srr1)	((srr1) & PPC_BIT(42)) /* P8 too */
-
-/* SRR1 bits for machine check (On Power7 and Power8) */
-#define P7_SRR1_MC_IFETCH(srr1)	((srr1) & PPC_BITMASK(43, 45)) /* P8 too */
-
-#define P7_SRR1_MC_IFETCH_UE		(0x1 << PPC_BITLSHIFT(45)) /* P8 too */
-#define P7_SRR1_MC_IFETCH_SLB_PARITY	(0x2 << PPC_BITLSHIFT(45)) /* P8 too */
-#define P7_SRR1_MC_IFETCH_SLB_MULTIHIT	(0x3 << PPC_BITLSHIFT(45)) /* P8 too */
-#define P7_SRR1_MC_IFETCH_SLB_BOTH	(0x4 << PPC_BITLSHIFT(45))
-#define P7_SRR1_MC_IFETCH_TLB_MULTIHIT	(0x5 << PPC_BITLSHIFT(45)) /* P8 too */
-#define P7_SRR1_MC_IFETCH_UE_TLB_RELOAD	(0x6 << PPC_BITLSHIFT(45)) /* P8 too */
-#define P7_SRR1_MC_IFETCH_UE_IFU_INTERNAL	(0x7 << PPC_BITLSHIFT(45))
-
-/* SRR1 bits for machine check (On Power8) */
-#define P8_SRR1_MC_IFETCH_ERAT_MULTIHIT	(0x4 << PPC_BITLSHIFT(45))
-
-/* DSISR bits for machine check (On Power7 and Power8) */
-#define P7_DSISR_MC_UE			(PPC_BIT(48))	/* P8 too */
-#define P7_DSISR_MC_UE_TABLEWALK	(PPC_BIT(49))	/* P8 too */
-#define P7_DSISR_MC_ERAT_MULTIHIT	(PPC_BIT(52))	/* P8 too */
-#define P7_DSISR_MC_TLB_MULTIHIT_MFTLB	(PPC_BIT(53))	/* P8 too */
-#define P7_DSISR_MC_SLB_PARITY_MFSLB	(PPC_BIT(55))	/* P8 too */
-#define P7_DSISR_MC_SLB_MULTIHIT	(PPC_BIT(56))	/* P8 too */
-#define P7_DSISR_MC_SLB_MULTIHIT_PARITY	(PPC_BIT(57))	/* P8 too */
-
-/*
- * DSISR bits for machine check (Power8) in addition to above.
- * Secondary DERAT Multihit
- */
-#define P8_DSISR_MC_ERAT_MULTIHIT_SEC	(PPC_BIT(54))
-
-/* SLB error bits */
-#define P7_DSISR_MC_SLB_ERRORS		(P7_DSISR_MC_ERAT_MULTIHIT | \
-					 P7_DSISR_MC_SLB_PARITY_MFSLB | \
-					 P7_DSISR_MC_SLB_MULTIHIT | \
-					 P7_DSISR_MC_SLB_MULTIHIT_PARITY)
-
-#define P8_DSISR_MC_SLB_ERRORS		(P7_DSISR_MC_SLB_ERRORS | \
-					 P8_DSISR_MC_ERAT_MULTIHIT_SEC)
-
-/*
- * Machine Check bits on power9
- */
-#define P9_SRR1_MC_LOADSTORE(srr1)	(((srr1) >> PPC_BITLSHIFT(42)) & 1)
-
-#define P9_SRR1_MC_IFETCH(srr1)	(	\
-	PPC_BITEXTRACT(srr1, 45, 0) |	\
-	PPC_BITEXTRACT(srr1, 44, 1) |	\
-	PPC_BITEXTRACT(srr1, 43, 2) |	\
-	PPC_BITEXTRACT(srr1, 36, 3) )
-
-/* 0 is reserved */
-#define P9_SRR1_MC_IFETCH_UE				1
-#define P9_SRR1_MC_IFETCH_SLB_PARITY			2
-#define P9_SRR1_MC_IFETCH_SLB_MULTIHIT			3
-#define P9_SRR1_MC_IFETCH_ERAT_MULTIHIT			4
-#define P9_SRR1_MC_IFETCH_TLB_MULTIHIT			5
-#define P9_SRR1_MC_IFETCH_UE_TLB_RELOAD			6
-/* 7 is reserved */
-#define P9_SRR1_MC_IFETCH_LINK_TIMEOUT			8
-#define P9_SRR1_MC_IFETCH_LINK_TABLEWALK_TIMEOUT	9
-/* 10 ? */
-#define P9_SRR1_MC_IFETCH_RA			11
-#define P9_SRR1_MC_IFETCH_RA_TABLEWALK		12
-#define P9_SRR1_MC_IFETCH_RA_ASYNC_STORE		13
-#define P9_SRR1_MC_IFETCH_LINK_ASYNC_STORE_TIMEOUT	14
-#define P9_SRR1_MC_IFETCH_RA_TABLEWALK_FOREIGN	15
-
-/* DSISR bits for machine check (On Power9) */
-#define P9_DSISR_MC_UE					(PPC_BIT(48))
-#define P9_DSISR_MC_UE_TABLEWALK			(PPC_BIT(49))
-#define P9_DSISR_MC_LINK_LOAD_TIMEOUT			(PPC_BIT(50))
-#define P9_DSISR_MC_LINK_TABLEWALK_TIMEOUT		(PPC_BIT(51))
-#define P9_DSISR_MC_ERAT_MULTIHIT			(PPC_BIT(52))
-#define P9_DSISR_MC_TLB_MULTIHIT_MFTLB			(PPC_BIT(53))
-#define P9_DSISR_MC_USER_TLBIE				(PPC_BIT(54))
-#define P9_DSISR_MC_SLB_PARITY_MFSLB			(PPC_BIT(55))
-#define P9_DSISR_MC_SLB_MULTIHIT_MFSLB			(PPC_BIT(56))
-#define P9_DSISR_MC_RA_LOAD				(PPC_BIT(57))
-#define P9_DSISR_MC_RA_TABLEWALK			(PPC_BIT(58))
-#define P9_DSISR_MC_RA_TABLEWALK_FOREIGN		(PPC_BIT(59))
-#define P9_DSISR_MC_RA_FOREIGN				(PPC_BIT(60))
-
-/* SLB error bits */
-#define P9_DSISR_MC_SLB_ERRORS		(P9_DSISR_MC_ERAT_MULTIHIT | \
-					 P9_DSISR_MC_SLB_PARITY_MFSLB | \
-					 P9_DSISR_MC_SLB_MULTIHIT_MFSLB)
-
 enum MCE_Version {
 	MCE_V1 = 1,
 };
@@ -298,7 +207,8 @@ extern void save_mce_event(struct pt_regs *regs, long handled,
 extern int get_mce_event(struct machine_check_event *mce, bool release);
 extern void release_mce_event(void);
 extern void machine_check_queue_event(void);
-extern void machine_check_print_event_info(struct machine_check_event *evt);
+extern void machine_check_print_event_info(struct machine_check_event *evt,
+					   bool user_mode);
 extern uint64_t get_mce_fault_addr(struct machine_check_event *evt);
 
 #endif /* __ASM_PPC64_MCE_H__ */

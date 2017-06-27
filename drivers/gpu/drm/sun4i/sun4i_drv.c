@@ -12,6 +12,7 @@
 
 #include <linux/component.h>
 #include <linux/of_graph.h>
+#include <linux/of_reserved_mem.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -20,45 +21,11 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_of.h>
 
-#include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_framebuffer.h"
-#include "sun4i_layer.h"
 #include "sun4i_tcon.h"
 
-static int sun4i_drv_enable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct sun4i_drv *drv = drm->dev_private;
-	struct sun4i_tcon *tcon = drv->tcon;
-
-	DRM_DEBUG_DRIVER("Enabling VBLANK on pipe %d\n", pipe);
-
-	sun4i_tcon_enable_vblank(tcon, true);
-
-	return 0;
-}
-
-static void sun4i_drv_disable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct sun4i_drv *drv = drm->dev_private;
-	struct sun4i_tcon *tcon = drv->tcon;
-
-	DRM_DEBUG_DRIVER("Disabling VBLANK on pipe %d\n", pipe);
-
-	sun4i_tcon_enable_vblank(tcon, false);
-}
-
-static const struct file_operations sun4i_drv_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap		= drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(sun4i_drv_fops);
 
 static struct drm_driver sun4i_drv_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
@@ -90,11 +57,6 @@ static struct drm_driver sun4i_drv_driver = {
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 
 	/* Frame Buffer Operations */
-
-	/* VBlank Operations */
-	.get_vblank_counter	= drm_vblank_no_hw_counter,
-	.enable_vblank		= sun4i_drv_enable_vblank,
-	.disable_vblank		= sun4i_drv_disable_vblank,
 };
 
 static void sun4i_remove_framebuffers(void)
@@ -130,30 +92,25 @@ static int sun4i_drv_bind(struct device *dev)
 	}
 	drm->dev_private = drv;
 
-	drm_vblank_init(drm, 1);
+	ret = of_reserved_mem_device_init(dev);
+	if (ret && ret != -ENODEV) {
+		dev_err(drm->dev, "Couldn't claim our memory region\n");
+		goto free_drm;
+	}
+
+	/* drm_vblank_init calls kcalloc, which can fail */
+	ret = drm_vblank_init(drm, 1);
+	if (ret)
+		goto free_mem_region;
+
 	drm_mode_config_init(drm);
 
 	ret = component_bind_all(drm->dev, drm);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't bind all pipelines components\n");
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 
-	/* Create our layers */
-	drv->layers = sun4i_layers_init(drm);
-	if (IS_ERR(drv->layers)) {
-		dev_err(drm->dev, "Couldn't create the planes\n");
-		ret = PTR_ERR(drv->layers);
-		goto free_drm;
-	}
-
-	/* Create our CRTC */
-	drv->crtc = sun4i_crtc_init(drm);
-	if (!drv->crtc) {
-		dev_err(drm->dev, "Couldn't create the CRTC\n");
-		ret = -EINVAL;
-		goto free_drm;
-	}
 	drm->irq_enabled = true;
 
 	/* Remove early framebuffers (ie. simplefb) */
@@ -164,7 +121,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (IS_ERR(drv->fbdev)) {
 		dev_err(drm->dev, "Couldn't create our framebuffer\n");
 		ret = PTR_ERR(drv->fbdev);
-		goto free_drm;
+		goto cleanup_mode_config;
 	}
 
 	/* Enable connectors polling */
@@ -172,10 +129,18 @@ static int sun4i_drv_bind(struct device *dev)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto free_drm;
+		goto finish_poll;
 
 	return 0;
 
+finish_poll:
+	drm_kms_helper_poll_fini(drm);
+	sun4i_framebuffer_free(drm);
+cleanup_mode_config:
+	drm_mode_config_cleanup(drm);
+	drm_vblank_cleanup(drm);
+free_mem_region:
+	of_reserved_mem_device_release(dev);
 free_drm:
 	drm_dev_unref(drm);
 	return ret;
@@ -188,7 +153,9 @@ static void sun4i_drv_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
 	sun4i_framebuffer_free(drm);
+	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
+	of_reserved_mem_device_release(dev);
 	drm_dev_unref(drm);
 }
 

@@ -90,15 +90,15 @@ struct sisl_rc {
 #define SISL_AFU_RC_RHT_UNALIGNED         0x02U	/* should never happen */
 #define SISL_AFU_RC_RHT_OUT_OF_BOUNDS     0x03u	/* user error */
 #define SISL_AFU_RC_RHT_DMA_ERR           0x04u	/* see afu_extra
-						   may retry if afu_retry is off
-						   possible on master exit
+						 * may retry if afu_retry is off
+						 * possible on master exit
 						 */
 #define SISL_AFU_RC_RHT_RW_PERM           0x05u	/* no RW perms, user error */
 #define SISL_AFU_RC_LXT_UNALIGNED         0x12U	/* should never happen */
 #define SISL_AFU_RC_LXT_OUT_OF_BOUNDS     0x13u	/* user error */
 #define SISL_AFU_RC_LXT_DMA_ERR           0x14u	/* see afu_extra
-						   may retry if afu_retry is off
-						   possible on master exit
+						 * may retry if afu_retry is off
+						 * possible on master exit
 						 */
 #define SISL_AFU_RC_LXT_RW_PERM           0x15u	/* no RW perms, user error */
 
@@ -111,11 +111,11 @@ struct sisl_rc {
 	 */
 #define SISL_AFU_RC_NO_CHANNELS           0x20U	/* see afu_extra, may retry */
 #define SISL_AFU_RC_CAP_VIOLATION         0x21U	/* either user error or
-						   afu reset/master restart
+						 * afu reset/master restart
 						 */
 #define SISL_AFU_RC_OUT_OF_DATA_BUFS      0x30U	/* always retry */
 #define SISL_AFU_RC_DATA_DMA_ERR          0x31U	/* see afu_extra
-						   may retry if afu_retry is off
+						 * may retry if afu_retry is off
 						 */
 
 	u8 scsi_rc;		/* SCSI status byte, retry as appropriate */
@@ -149,8 +149,9 @@ struct sisl_rc {
 #define SISL_FC_RC_ABORTFAIL	0x59	/* pending abort completed w/fail */
 #define SISL_FC_RC_RESID	0x5A	/* ioasa underrun/overrun flags set */
 #define SISL_FC_RC_RESIDERR	0x5B	/* actual data len does not match SCSI
-					   reported len, possibly due to dropped
-					   frames */
+					 * reported len, possibly due to dropped
+					 * frames
+					 */
 #define SISL_FC_RC_TGTABORT	0x5C	/* command aborted by target */
 };
 
@@ -227,10 +228,10 @@ struct sisl_ioasa {
 
 /* per context host transport MMIO  */
 struct sisl_host_map {
-	__be64 endian_ctrl;     /* Per context Endian Control. The AFU will
-			      * operate on whatever the context is of the
-			      * host application.
-			      */
+	__be64 endian_ctrl;	/* Per context Endian Control. The AFU will
+				 * operate on whatever the context is of the
+				 * host application.
+				 */
 
 	__be64 intr_status;	/* this sends LISN# programmed in ctx_ctrl.
 				 * Only recovery in a PERM_ERR is a context
@@ -292,28 +293,54 @@ struct sisl_ctrl_map {
 /* single copy global regs */
 struct sisl_global_regs {
 	__be64 aintr_status;
-	/* In cxlflash, each FC port/link gets a byte of status */
-#define SISL_ASTATUS_FC0_OTHER	 0x8000ULL /* b48, other err,
-					      FC_ERRCAP[31:20] */
-#define SISL_ASTATUS_FC0_LOGO    0x4000ULL /* b49, target sent FLOGI/PLOGI/LOGO
-						   while logged in */
-#define SISL_ASTATUS_FC0_CRC_T   0x2000ULL /* b50, CRC threshold exceeded */
-#define SISL_ASTATUS_FC0_LOGI_R  0x1000ULL /* b51, login state machine timed out
-						   and retrying */
-#define SISL_ASTATUS_FC0_LOGI_F  0x0800ULL /* b52, login failed,
-					      FC_ERROR[19:0] */
-#define SISL_ASTATUS_FC0_LOGI_S  0x0400ULL /* b53, login succeeded */
-#define SISL_ASTATUS_FC0_LINK_DN 0x0200ULL /* b54, link online to offline */
-#define SISL_ASTATUS_FC0_LINK_UP 0x0100ULL /* b55, link offline to online */
+	/*
+	 * In cxlflash, FC port/link are arranged in port pairs, each
+	 * gets a byte of status:
+	 *
+	 *	*_OTHER:	other err, FC_ERRCAP[31:20]
+	 *	*_LOGO:		target sent FLOGI/PLOGI/LOGO while logged in
+	 *	*_CRC_T:	CRC threshold exceeded
+	 *	*_LOGI_R:	login state machine timed out and retrying
+	 *	*_LOGI_F:	login failed, FC_ERROR[19:0]
+	 *	*_LOGI_S:	login succeeded
+	 *	*_LINK_DN:	link online to offline
+	 *	*_LINK_UP:	link offline to online
+	 */
+#define SISL_ASTATUS_FC2_OTHER	 0x80000000ULL /* b32 */
+#define SISL_ASTATUS_FC2_LOGO    0x40000000ULL /* b33 */
+#define SISL_ASTATUS_FC2_CRC_T   0x20000000ULL /* b34 */
+#define SISL_ASTATUS_FC2_LOGI_R  0x10000000ULL /* b35 */
+#define SISL_ASTATUS_FC2_LOGI_F  0x08000000ULL /* b36 */
+#define SISL_ASTATUS_FC2_LOGI_S  0x04000000ULL /* b37 */
+#define SISL_ASTATUS_FC2_LINK_DN 0x02000000ULL /* b38 */
+#define SISL_ASTATUS_FC2_LINK_UP 0x01000000ULL /* b39 */
 
-#define SISL_ASTATUS_FC1_OTHER   0x0080ULL /* b56 */
-#define SISL_ASTATUS_FC1_LOGO    0x0040ULL /* b57 */
-#define SISL_ASTATUS_FC1_CRC_T   0x0020ULL /* b58 */
-#define SISL_ASTATUS_FC1_LOGI_R  0x0010ULL /* b59 */
-#define SISL_ASTATUS_FC1_LOGI_F  0x0008ULL /* b60 */
-#define SISL_ASTATUS_FC1_LOGI_S  0x0004ULL /* b61 */
-#define SISL_ASTATUS_FC1_LINK_DN 0x0002ULL /* b62 */
-#define SISL_ASTATUS_FC1_LINK_UP 0x0001ULL /* b63 */
+#define SISL_ASTATUS_FC3_OTHER   0x00800000ULL /* b40 */
+#define SISL_ASTATUS_FC3_LOGO    0x00400000ULL /* b41 */
+#define SISL_ASTATUS_FC3_CRC_T   0x00200000ULL /* b42 */
+#define SISL_ASTATUS_FC3_LOGI_R  0x00100000ULL /* b43 */
+#define SISL_ASTATUS_FC3_LOGI_F  0x00080000ULL /* b44 */
+#define SISL_ASTATUS_FC3_LOGI_S  0x00040000ULL /* b45 */
+#define SISL_ASTATUS_FC3_LINK_DN 0x00020000ULL /* b46 */
+#define SISL_ASTATUS_FC3_LINK_UP 0x00010000ULL /* b47 */
+
+#define SISL_ASTATUS_FC0_OTHER	 0x00008000ULL /* b48 */
+#define SISL_ASTATUS_FC0_LOGO    0x00004000ULL /* b49 */
+#define SISL_ASTATUS_FC0_CRC_T   0x00002000ULL /* b50 */
+#define SISL_ASTATUS_FC0_LOGI_R  0x00001000ULL /* b51 */
+#define SISL_ASTATUS_FC0_LOGI_F  0x00000800ULL /* b52 */
+#define SISL_ASTATUS_FC0_LOGI_S  0x00000400ULL /* b53 */
+#define SISL_ASTATUS_FC0_LINK_DN 0x00000200ULL /* b54 */
+#define SISL_ASTATUS_FC0_LINK_UP 0x00000100ULL /* b55 */
+
+#define SISL_ASTATUS_FC1_OTHER   0x00000080ULL /* b56 */
+#define SISL_ASTATUS_FC1_LOGO    0x00000040ULL /* b57 */
+#define SISL_ASTATUS_FC1_CRC_T   0x00000020ULL /* b58 */
+#define SISL_ASTATUS_FC1_LOGI_R  0x00000010ULL /* b59 */
+#define SISL_ASTATUS_FC1_LOGI_F  0x00000008ULL /* b60 */
+#define SISL_ASTATUS_FC1_LOGI_S  0x00000004ULL /* b61 */
+#define SISL_ASTATUS_FC1_LINK_DN 0x00000002ULL /* b62 */
+#define SISL_ASTATUS_FC1_LINK_UP 0x00000001ULL /* b63 */
 
 #define SISL_FC_INTERNAL_UNMASK	0x0000000300000000ULL	/* 1 means unmasked */
 #define SISL_FC_INTERNAL_MASK	~(SISL_FC_INTERNAL_UNMASK)
@@ -325,7 +352,7 @@ struct sisl_global_regs {
 #define SISL_STATUS_SHUTDOWN_ACTIVE	0x0000000000000010ULL
 #define SISL_STATUS_SHUTDOWN_COMPLETE	0x0000000000000020ULL
 
-#define SISL_ASTATUS_UNMASK	0xFFFFULL		/* 1 means unmasked */
+#define SISL_ASTATUS_UNMASK	0xFFFFFFFFULL		/* 1 means unmasked */
 #define SISL_ASTATUS_MASK	~(SISL_ASTATUS_UNMASK)	/* 1 means masked */
 
 	__be64 aintr_clear;
@@ -367,9 +394,18 @@ struct sisl_global_regs {
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_B	0x100000000000ULL
 };
 
-#define CXLFLASH_NUM_FC_PORTS   2
-#define CXLFLASH_MAX_CONTEXT  512	/* how many contexts per afu */
-#define CXLFLASH_NUM_VLUNS    512
+#define CXLFLASH_NUM_FC_PORTS_PER_BANK	2	/* fixed # of ports per bank */
+#define CXLFLASH_MAX_FC_BANKS		2	/* max # of banks supported */
+#define CXLFLASH_MAX_FC_PORTS	(CXLFLASH_NUM_FC_PORTS_PER_BANK *	\
+				 CXLFLASH_MAX_FC_BANKS)
+#define CXLFLASH_MAX_CONTEXT	512	/* number of contexts per AFU */
+#define CXLFLASH_NUM_VLUNS	512	/* number of vluns per AFU/port */
+#define CXLFLASH_NUM_REGS	512	/* number of registers per port */
+
+struct fc_port_bank {
+	__be64 fc_port_regs[CXLFLASH_NUM_FC_PORTS_PER_BANK][CXLFLASH_NUM_REGS];
+	__be64 fc_port_luns[CXLFLASH_NUM_FC_PORTS_PER_BANK][CXLFLASH_NUM_VLUNS];
+};
 
 struct sisl_global_map {
 	union {
@@ -379,11 +415,9 @@ struct sisl_global_map {
 
 	char page1[SIZE_4K];	/* page 1 */
 
-	/* pages 2 & 3 */
-	__be64 fc_regs[CXLFLASH_NUM_FC_PORTS][CXLFLASH_NUM_VLUNS];
+	struct fc_port_bank bank[CXLFLASH_MAX_FC_BANKS]; /* pages 2 - 9 */
 
-	/* pages 4 & 5 (lun tbl) */
-	__be64 fc_port[CXLFLASH_NUM_FC_PORTS][CXLFLASH_NUM_VLUNS];
+	/* pages 10 - 15 are reserved */
 
 };
 
@@ -402,7 +436,7 @@ struct sisl_global_map {
  *	|         64 KB Global          |
  *	|   Trusted Process accessible  |
  *	+-------------------------------+
-*/
+ */
 struct cxlflash_afu_map {
 	union {
 		struct sisl_host_map host;
@@ -478,7 +512,9 @@ struct sisl_rht_entry_f1 {
 
 #define PORT0  0x01U
 #define PORT1  0x02U
-#define BOTH_PORTS    (PORT0 | PORT1)
+#define PORT2  0x04U
+#define PORT3  0x08U
+#define PORT_MASK(_n)	((1 << (_n)) - 1)
 
 /* AFU Sync Mode byte */
 #define AFU_LW_SYNC 0x0U

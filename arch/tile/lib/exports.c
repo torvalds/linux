@@ -38,11 +38,10 @@ EXPORT_SYMBOL(__mcount);
 
 /* arch/tile/lib/, various memcpy files */
 EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(__copy_to_user_inatomic);
-EXPORT_SYMBOL(__copy_from_user_inatomic);
-EXPORT_SYMBOL(__copy_from_user_zeroing);
+EXPORT_SYMBOL(raw_copy_to_user);
+EXPORT_SYMBOL(raw_copy_from_user);
 #ifdef __tilegx__
-EXPORT_SYMBOL(__copy_in_user_inatomic);
+EXPORT_SYMBOL(raw_copy_in_user);
 #endif
 
 /* hypervisor glue */

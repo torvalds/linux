@@ -49,6 +49,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS35L33 if I2C
 	select SND_SOC_CS35L34 if I2C
+	select SND_SOC_CS35L35 if I2C
 	select SND_SOC_CS42L42 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
@@ -69,9 +70,11 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA7219 if I2C
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
+	select SND_SOC_DIO2125
 	select SND_SOC_DMIC
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
+	select SND_SOC_ES7134
 	select SND_SOC_GTM601
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_ICS43432
@@ -89,6 +92,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9867 if I2C
 	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX98926 if I2C
+	select SND_SOC_MAX98927 if I2C
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9860 if I2C
 	select SND_SOC_MAX9768 if I2C
@@ -97,6 +101,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_NAU8540 if I2C
 	select SND_SOC_NAU8810 if I2C
+	select SND_SOC_NAU8824 if I2C
 	select SND_SOC_NAU8825 if I2C
 	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
@@ -303,12 +308,14 @@ config SND_SOC_ADAU1761
 	select SND_SOC_ADAU17X1
 
 config SND_SOC_ADAU1761_I2C
-	tristate
+	tristate "Analog Devices AU1761 CODEC - I2C"
+	depends on I2C
 	select SND_SOC_ADAU1761
 	select REGMAP_I2C
 
 config SND_SOC_ADAU1761_SPI
-	tristate
+	tristate "Analog Devices AU1761 CODEC - SPI"
+	depends on SPI
 	select SND_SOC_ADAU1761
 	select REGMAP_SPI
 
@@ -406,6 +413,10 @@ config SND_SOC_CS35L33
 
 config SND_SOC_CS35L34
 	tristate "Cirrus Logic CS35L34 CODEC"
+	depends on I2C
+
+config SND_SOC_CS35L35
+	tristate "Cirrus Logic CS35L35 CODEC"
 	depends on I2C
 
 config SND_SOC_CS42L42
@@ -516,6 +527,10 @@ config SND_SOC_DA732X
 config SND_SOC_DA9055
 	tristate
 
+config SND_SOC_DIO2125
+	tristate "Dioo DIO2125 Amplifier"
+	select GPIOLIB
+
 config SND_SOC_DMIC
 	tristate
 
@@ -524,6 +539,9 @@ config SND_SOC_HDMI_CODEC
 	select SND_PCM_ELD
 	select SND_PCM_IEC958
 	select HDMI
+
+config SND_SOC_ES7134
+       tristate "Everest Semi ES7134 CODEC"
 
 config SND_SOC_ES8328
 	tristate
@@ -587,6 +605,10 @@ config SND_SOC_MAX98925
 
 config SND_SOC_MAX98926
 	tristate
+
+config SND_SOC_MAX98927
+	tristate "Maxim Integrated MAX98927 Speaker Amplifier"
+	depends on I2C
 
 config SND_SOC_MAX9850
 	tristate
@@ -1114,6 +1136,10 @@ config SND_SOC_NAU8540
 
 config SND_SOC_NAU8810
 	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	depends on I2C
+
+config SND_SOC_NAU8824
+	tristate "Nuvoton Technology Corporation NAU88L24 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8825

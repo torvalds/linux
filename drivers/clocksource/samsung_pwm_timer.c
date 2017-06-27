@@ -385,7 +385,7 @@ static int __init _samsung_pwm_clocksource_init(void)
 	mask = ~pwm.variant.output_mask & ((1 << SAMSUNG_PWM_NUM) - 1);
 	channel = fls(mask) - 1;
 	if (channel < 0) {
-		pr_crit("failed to find PWM channel for clocksource");
+		pr_crit("failed to find PWM channel for clocksource\n");
 		return -EINVAL;
 	}
 	pwm.source_id = channel;
@@ -393,7 +393,7 @@ static int __init _samsung_pwm_clocksource_init(void)
 	mask &= ~(1 << channel);
 	channel = fls(mask) - 1;
 	if (channel < 0) {
-		pr_crit("failed to find PWM channel for clock event");
+		pr_crit("failed to find PWM channel for clock event\n");
 		return -EINVAL;
 	}
 	pwm.event_id = channel;
@@ -448,7 +448,7 @@ static int __init samsung_pwm_alloc(struct device_node *np,
 
 	pwm.timerclk = of_clk_get_by_name(np, "timers");
 	if (IS_ERR(pwm.timerclk)) {
-		pr_crit("failed to get timers clock for timer");
+		pr_crit("failed to get timers clock for timer\n");
 		return PTR_ERR(pwm.timerclk);
 	}
 

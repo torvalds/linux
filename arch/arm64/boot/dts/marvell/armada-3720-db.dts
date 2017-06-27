@@ -46,6 +46,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "armada-372x.dtsi"
 
 / {
@@ -60,10 +61,51 @@
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x20000000>;
 	};
+
+	exp_usb3_vbus: usb3-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb3-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		gpio = <&gpio_exp 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	usb3_phy: usb3-phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&exp_usb3_vbus>;
+	};
 };
 
 &i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
 	status = "okay";
+
+	gpio_exp: pca9555@22 {
+		compatible = "nxp,pca9555";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		reg = <0x22>;
+		/*
+		 * IO0_0: PWR_EN_USB2	IO1_0: PWR_EN_VTT
+		 * IO0_1: PWR_EN_USB23	IO1_1: MPCIE_WDISABLE
+		 * IO0_2: PWR_EN_SATA	IO1_2: RGMII_DEV_RSTN
+		 * IO0_3: PWR_EN_PCIE	IO1_3: SGMII_DEV_RSTN
+		 * IO0_4: PWR_EN_SD
+		 * IO0_5: PWR_EN_EMMC
+		 * IO0_6: PWR_EN_RGMII	IO1_6: SATA_USB3.0_SEL
+		 * IO0_7: PWR_EN_SGMII	IO1_7: PWR_MCI_PS
+		 */
+	};
+
+	rtc@68  {
+		/* PT7C4337A from pericom fully compatible with the ds1337 */
+		compatible = "dallas,ds1337";
+		reg = <0x68>;
+	};
 };
 
 /* CON3 */
@@ -73,6 +115,8 @@
 
 &spi0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_quad_pins>;
 
 	m25p80@0 {
 		compatible = "jedec,spi-nor";
@@ -103,18 +147,36 @@
 
 /* Exported on the micro USB connector CON32 through an FTDI */
 &uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+	status = "okay";
+};
+
+&sdhci0 {
+	non-removable;
+	bus-width = <8>;
+	mmc-ddr-1_8v;
+	mmc-hs400-1_8v;
+	marvell,pad-type = "fixed-1-8v";
 	status = "okay";
 };
 
 /* CON31 */
 &usb3 {
 	status = "okay";
+	usb-phy = <&usb3_phy>;
 };
 
 /* CON17 (PCIe) / CON12 (mini-PCIe) */
 &pcie0 {
 	status = "okay";
 };
+
+/* CON27 */
+&usb2 {
+	status = "okay";
+};
+
 
 &mdio {
 	status = "okay";
@@ -128,6 +190,8 @@
 };
 
 &eth0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins>;
 	phy-mode = "rgmii-id";
 	phy = <&phy0>;
 	status = "okay";

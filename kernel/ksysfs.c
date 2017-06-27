@@ -125,6 +125,10 @@ static ssize_t kexec_crash_size_store(struct kobject *kobj,
 }
 KERNEL_ATTR_RW(kexec_crash_size);
 
+#endif /* CONFIG_KEXEC_CORE */
+
+#ifdef CONFIG_CRASH_CORE
+
 static ssize_t vmcoreinfo_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
 {
@@ -134,7 +138,7 @@ static ssize_t vmcoreinfo_show(struct kobject *kobj,
 }
 KERNEL_ATTR_RO(vmcoreinfo);
 
-#endif /* CONFIG_KEXEC_CORE */
+#endif /* CONFIG_CRASH_CORE */
 
 /* whether file capabilities are enabled */
 static ssize_t fscaps_show(struct kobject *kobj,
@@ -219,6 +223,8 @@ static struct attribute * kernel_attrs[] = {
 	&kexec_loaded_attr.attr,
 	&kexec_crash_loaded_attr.attr,
 	&kexec_crash_size_attr.attr,
+#endif
+#ifdef CONFIG_CRASH_CORE
 	&vmcoreinfo_attr.attr,
 #endif
 #ifndef CONFIG_TINY_RCU

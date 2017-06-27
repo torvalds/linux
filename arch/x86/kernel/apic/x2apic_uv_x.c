@@ -34,6 +34,7 @@
 #include <asm/uv/bios.h>
 #include <asm/uv/uv.h>
 #include <asm/apic.h>
+#include <asm/e820/api.h>
 #include <asm/ipi.h>
 #include <asm/smp.h>
 #include <asm/x86_init.h>

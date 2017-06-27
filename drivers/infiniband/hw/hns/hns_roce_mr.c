@@ -127,11 +127,12 @@ static int hns_roce_buddy_init(struct hns_roce_buddy *buddy, int max_order)
 
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
-
-	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof(long *),
-			       GFP_KERNEL);
-	buddy->num_free = kzalloc((buddy->max_order + 1) * sizeof(int *),
-				   GFP_KERNEL);
+	buddy->bits = kcalloc(buddy->max_order + 1,
+			      sizeof(*buddy->bits),
+			      GFP_KERNEL);
+	buddy->num_free = kcalloc(buddy->max_order + 1,
+				  sizeof(*buddy->num_free),
+				  GFP_KERNEL);
 	if (!buddy->bits || !buddy->num_free)
 		goto err_out;
 
@@ -204,7 +205,7 @@ int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
 		return 0;
 	}
 
-	/* Note: if page_shift is zero, FAST memory regsiter */
+	/* Note: if page_shift is zero, FAST memory register */
 	mtt->page_shift = page_shift;
 
 	/* Compute MTT entry necessary */
@@ -503,7 +504,8 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
 		len = sg_dma_len(sg) >> mtt->page_shift;
 		for (k = 0; k < len; ++k) {
-			pages[i++] = sg_dma_address(sg) + umem->page_size * k;
+			pages[i++] = sg_dma_address(sg) +
+				(k << umem->page_shift);
 			if (i == PAGE_SIZE / sizeof(u64)) {
 				ret = hns_roce_write_mtt(hr_dev, mtt, n, i,
 							 pages);
@@ -563,9 +565,9 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	n = ib_umem_page_count(mr->umem);
-	if (mr->umem->page_size != HNS_ROCE_HEM_PAGE_SIZE) {
-		dev_err(dev, "Just support 4K page size but is 0x%x now!\n",
-			mr->umem->page_size);
+	if (mr->umem->page_shift != HNS_ROCE_HEM_PAGE_SHIFT) {
+		dev_err(dev, "Just support 4K page size but is 0x%lx now!\n",
+			BIT(mr->umem->page_shift));
 		ret = -EINVAL;
 		goto err_umem;
 	}

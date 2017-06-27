@@ -41,7 +41,7 @@ static const struct iio_trigger_ops hts221_trigger_ops = {
 
 static irqreturn_t hts221_trigger_handler_thread(int irq, void *private)
 {
-	struct hts221_hw *hw = (struct hts221_hw *)private;
+	struct hts221_hw *hw = private;
 	u8 status;
 	int err;
 

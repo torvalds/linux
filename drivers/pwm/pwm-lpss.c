@@ -57,15 +57,13 @@ static inline void pwm_lpss_write(const struct pwm_device *pwm, u32 value)
 	writel(value, lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM);
 }
 
-static int pwm_lpss_update(struct pwm_device *pwm)
+static int pwm_lpss_wait_for_update(struct pwm_device *pwm)
 {
 	struct pwm_lpss_chip *lpwm = to_lpwm(pwm->chip);
 	const void __iomem *addr = lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM;
 	const unsigned int ms = 500 * USEC_PER_MSEC;
 	u32 val;
 	int err;
-
-	pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_SW_UPDATE);
 
 	/*
 	 * PWM Configuration register has SW_UPDATE bit that is set when a new
@@ -122,6 +120,12 @@ static void pwm_lpss_prepare(struct pwm_lpss_chip *lpwm, struct pwm_device *pwm,
 	pwm_lpss_write(pwm, ctrl);
 }
 
+static inline void pwm_lpss_cond_enable(struct pwm_device *pwm, bool cond)
+{
+	if (cond)
+		pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
+}
+
 static int pwm_lpss_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			  struct pwm_state *state)
 {
@@ -137,18 +141,21 @@ static int pwm_lpss_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 				return ret;
 			}
 			pwm_lpss_prepare(lpwm, pwm, state->duty_cycle, state->period);
-			ret = pwm_lpss_update(pwm);
+			pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_SW_UPDATE);
+			pwm_lpss_cond_enable(pwm, lpwm->info->bypass == false);
+			ret = pwm_lpss_wait_for_update(pwm);
 			if (ret) {
 				pm_runtime_put(chip->dev);
 				return ret;
 			}
-			pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
+			pwm_lpss_cond_enable(pwm, lpwm->info->bypass == true);
 		} else {
 			ret = pwm_lpss_is_updating(pwm);
 			if (ret)
 				return ret;
 			pwm_lpss_prepare(lpwm, pwm, state->duty_cycle, state->period);
-			return pwm_lpss_update(pwm);
+			pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_SW_UPDATE);
+			return pwm_lpss_wait_for_update(pwm);
 		}
 	} else if (pwm_is_enabled(pwm)) {
 		pwm_lpss_write(pwm, pwm_lpss_read(pwm) & ~PWM_ENABLE);

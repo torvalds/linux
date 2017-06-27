@@ -109,4 +109,23 @@ struct pkey_skey2pkey {
 };
 #define PKEY_SKEY2PKEY _IOWR(PKEY_IOCTL_MAGIC, 0x06, struct pkey_skey2pkey)
 
+/*
+ * Verify the given secure key for being able to be useable with
+ * the pkey module. Check for correct key type and check for having at
+ * least one crypto card being able to handle this key (master key
+ * or old master key verification pattern matches).
+ * Return some info about the key: keysize in bits, keytype (currently
+ * only AES), flag if key is wrapped with an old MKVP.
+ */
+struct pkey_verifykey {
+	struct pkey_seckey seckey;	       /* in: the secure key blob */
+	__u16  cardnr;			       /* out: card number	  */
+	__u16  domain;			       /* out: domain number	  */
+	__u16  keysize;			       /* out: key size in bits   */
+	__u32  attributes;		       /* out: attribute bits	  */
+};
+#define PKEY_VERIFYKEY _IOWR(PKEY_IOCTL_MAGIC, 0x07, struct pkey_verifykey)
+#define PKEY_VERIFY_ATTR_AES	   0x00000001  /* key is an AES key */
+#define PKEY_VERIFY_ATTR_OLD_MKVP  0x00000100  /* key has old MKVP value */
+
 #endif /* _UAPI_PKEY_H */

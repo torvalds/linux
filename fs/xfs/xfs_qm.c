@@ -851,8 +851,8 @@ xfs_qm_reset_dqcounts(
 	 * started afresh by xfs_qm_quotacheck.
 	 */
 #ifdef DEBUG
-	j = XFS_FSB_TO_B(mp, XFS_DQUOT_CLUSTER_SIZE_FSB);
-	do_div(j, sizeof(xfs_dqblk_t));
+	j = (int)XFS_FSB_TO_B(mp, XFS_DQUOT_CLUSTER_SIZE_FSB) /
+		sizeof(xfs_dqblk_t);
 	ASSERT(mp->m_quotainfo->qi_dqperchunk == j);
 #endif
 	dqb = bp->b_addr;
@@ -1384,12 +1384,7 @@ xfs_qm_quotacheck(
 	mp->m_qflags |= flags;
 
  error_return:
-	while (!list_empty(&buffer_list)) {
-		struct xfs_buf *bp =
-			list_first_entry(&buffer_list, struct xfs_buf, b_list);
-		list_del_init(&bp->b_list);
-		xfs_buf_relse(bp);
-	}
+	xfs_buf_delwri_cancel(&buffer_list);
 
 	if (error) {
 		xfs_warn(mp,

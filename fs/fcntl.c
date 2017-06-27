@@ -23,6 +23,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
 #include <linux/shmem_fs.h>
+#include <linux/compat.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -420,6 +421,162 @@ out:
 }
 #endif
 
+#ifdef CONFIG_COMPAT
+static int get_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
+{
+	if (!access_ok(VERIFY_READ, ufl, sizeof(*ufl)) ||
+	    __get_user(kfl->l_type, &ufl->l_type) ||
+	    __get_user(kfl->l_whence, &ufl->l_whence) ||
+	    __get_user(kfl->l_start, &ufl->l_start) ||
+	    __get_user(kfl->l_len, &ufl->l_len) ||
+	    __get_user(kfl->l_pid, &ufl->l_pid))
+		return -EFAULT;
+	return 0;
+}
+
+static int put_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
+{
+	if (!access_ok(VERIFY_WRITE, ufl, sizeof(*ufl)) ||
+	    __put_user(kfl->l_type, &ufl->l_type) ||
+	    __put_user(kfl->l_whence, &ufl->l_whence) ||
+	    __put_user(kfl->l_start, &ufl->l_start) ||
+	    __put_user(kfl->l_len, &ufl->l_len) ||
+	    __put_user(kfl->l_pid, &ufl->l_pid))
+		return -EFAULT;
+	return 0;
+}
+
+#ifndef HAVE_ARCH_GET_COMPAT_FLOCK64
+static int get_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
+{
+	if (!access_ok(VERIFY_READ, ufl, sizeof(*ufl)) ||
+	    __get_user(kfl->l_type, &ufl->l_type) ||
+	    __get_user(kfl->l_whence, &ufl->l_whence) ||
+	    __get_user(kfl->l_start, &ufl->l_start) ||
+	    __get_user(kfl->l_len, &ufl->l_len) ||
+	    __get_user(kfl->l_pid, &ufl->l_pid))
+		return -EFAULT;
+	return 0;
+}
+#endif
+
+#ifndef HAVE_ARCH_PUT_COMPAT_FLOCK64
+static int put_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
+{
+	if (!access_ok(VERIFY_WRITE, ufl, sizeof(*ufl)) ||
+	    __put_user(kfl->l_type, &ufl->l_type) ||
+	    __put_user(kfl->l_whence, &ufl->l_whence) ||
+	    __put_user(kfl->l_start, &ufl->l_start) ||
+	    __put_user(kfl->l_len, &ufl->l_len) ||
+	    __put_user(kfl->l_pid, &ufl->l_pid))
+		return -EFAULT;
+	return 0;
+}
+#endif
+
+static unsigned int
+convert_fcntl_cmd(unsigned int cmd)
+{
+	switch (cmd) {
+	case F_GETLK64:
+		return F_GETLK;
+	case F_SETLK64:
+		return F_SETLK;
+	case F_SETLKW64:
+		return F_SETLKW;
+	}
+
+	return cmd;
+}
+
+COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
+{
+	mm_segment_t old_fs;
+	struct flock f;
+	long ret;
+	unsigned int conv_cmd;
+
+	switch (cmd) {
+	case F_GETLK:
+	case F_SETLK:
+	case F_SETLKW:
+		ret = get_compat_flock(&f, compat_ptr(arg));
+		if (ret != 0)
+			break;
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		ret = sys_fcntl(fd, cmd, (unsigned long)&f);
+		set_fs(old_fs);
+		if (cmd == F_GETLK && ret == 0) {
+			/* GETLK was successful and we need to return the data...
+			 * but it needs to fit in the compat structure.
+			 * l_start shouldn't be too big, unless the original
+			 * start + end is greater than COMPAT_OFF_T_MAX, in which
+			 * case the app was asking for trouble, so we return
+			 * -EOVERFLOW in that case.
+			 * l_len could be too big, in which case we just truncate it,
+			 * and only allow the app to see that part of the conflicting
+			 * lock that might make sense to it anyway
+			 */
+
+			if (f.l_start > COMPAT_OFF_T_MAX)
+				ret = -EOVERFLOW;
+			if (f.l_len > COMPAT_OFF_T_MAX)
+				f.l_len = COMPAT_OFF_T_MAX;
+			if (ret == 0)
+				ret = put_compat_flock(&f, compat_ptr(arg));
+		}
+		break;
+
+	case F_GETLK64:
+	case F_SETLK64:
+	case F_SETLKW64:
+	case F_OFD_GETLK:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+		ret = get_compat_flock64(&f, compat_ptr(arg));
+		if (ret != 0)
+			break;
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		conv_cmd = convert_fcntl_cmd(cmd);
+		ret = sys_fcntl(fd, conv_cmd, (unsigned long)&f);
+		set_fs(old_fs);
+		if ((conv_cmd == F_GETLK || conv_cmd == F_OFD_GETLK) && ret == 0) {
+			/* need to return lock information - see above for commentary */
+			if (f.l_start > COMPAT_LOFF_T_MAX)
+				ret = -EOVERFLOW;
+			if (f.l_len > COMPAT_LOFF_T_MAX)
+				f.l_len = COMPAT_LOFF_T_MAX;
+			if (ret == 0)
+				ret = put_compat_flock64(&f, compat_ptr(arg));
+		}
+		break;
+
+	default:
+		ret = sys_fcntl(fd, cmd, arg);
+		break;
+	}
+	return ret;
+}
+
+COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,
+		       compat_ulong_t, arg)
+{
+	switch (cmd) {
+	case F_GETLK64:
+	case F_SETLK64:
+	case F_SETLKW64:
+	case F_OFD_GETLK:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+		return -EINVAL;
+	}
+	return compat_sys_fcntl64(fd, cmd, arg);
+}
+#endif
+
 /* Table to convert sigio signal codes into poll band bitmaps */
 
 static const long band_table[NSIGPOLL] = {
@@ -742,16 +899,10 @@ static int __init fcntl_init(void)
 	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
 	 * is defined as O_NONBLOCK on some platforms and not on others.
 	 */
-	BUILD_BUG_ON(21 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
-		O_RDONLY	| O_WRONLY	| O_RDWR	|
-		O_CREAT		| O_EXCL	| O_NOCTTY	|
-		O_TRUNC		| O_APPEND	| /* O_NONBLOCK	| */
-		__O_SYNC	| O_DSYNC	| FASYNC	|
-		O_DIRECT	| O_LARGEFILE	| O_DIRECTORY	|
-		O_NOFOLLOW	| O_NOATIME	| O_CLOEXEC	|
-		__FMODE_EXEC	| O_PATH	| __O_TMPFILE	|
-		__FMODE_NONOTIFY
-		));
+	BUILD_BUG_ON(21 - 1 /* for O_RDONLY being 0 */ !=
+		HWEIGHT32(
+			(VALID_OPEN_FLAGS & ~(O_NONBLOCK | O_NDELAY)) |
+			__FMODE_EXEC | __FMODE_NONOTIFY));
 
 	fasync_cache = kmem_cache_create("fasync_cache",
 		sizeof(struct fasync_struct), 0, SLAB_PANIC, NULL);

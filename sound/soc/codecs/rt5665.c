@@ -1139,7 +1139,8 @@ static void rt5665_enable_push_button_irq(struct snd_soc_codec *codec,
 	bool enable)
 {
 	if (enable) {
-		snd_soc_write(codec, RT5665_4BTN_IL_CMD_1, 0x000b);
+		snd_soc_write(codec, RT5665_4BTN_IL_CMD_1, 0x0003);
+		snd_soc_update_bits(codec, RT5665_SAR_IL_CMD_9, 0x1, 0x1);
 		snd_soc_write(codec, RT5665_IL_CMD_1, 0x0048);
 		snd_soc_update_bits(codec, RT5665_4BTN_IL_CMD_2,
 				RT5665_4BTN_IL_MASK | RT5665_4BTN_IL_RST_MASK,
@@ -1192,9 +1193,12 @@ static int rt5665_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 		}
 
 		regmap_update_bits(rt5665->regmap, RT5665_EJD_CTRL_1,
-			0x180, 0x180);
+			0x1a0, 0x120);
 		regmap_write(rt5665->regmap, RT5665_EJD_CTRL_3, 0x3424);
+		regmap_write(rt5665->regmap, RT5665_IL_CMD_1, 0x0048);
 		regmap_write(rt5665->regmap, RT5665_SAR_IL_CMD_1, 0xa291);
+
+		usleep_range(10000, 15000);
 
 		rt5665->sar_adc_value = snd_soc_read(rt5665->codec,
 			RT5665_SAR_IL_CMD_4) & 0x7ff;
@@ -1256,8 +1260,8 @@ static void rt5665_jd_check_handler(struct work_struct *work)
 	}
 }
 
-int rt5665_set_jack_detect(struct snd_soc_codec *codec,
-	struct snd_soc_jack *hs_jack)
+static int rt5665_set_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *hs_jack, void *data)
 {
 	struct rt5665_priv *rt5665 = snd_soc_codec_get_drvdata(codec);
 
@@ -1284,7 +1288,6 @@ int rt5665_set_jack_detect(struct snd_soc_codec *codec,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt5665_set_jack_detect);
 
 static void rt5665_jack_detect_handler(struct work_struct *work)
 {
@@ -2600,6 +2603,55 @@ static int rt5655_set_verf(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int rt5665_i2s_pin_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	unsigned int val1, val2, mask1, mask2 = 0;
+
+	switch (w->shift) {
+	case RT5665_PWR_I2S2_1_BIT:
+		mask1 = RT5665_GP2_PIN_MASK | RT5665_GP3_PIN_MASK |
+			RT5665_GP4_PIN_MASK | RT5665_GP5_PIN_MASK;
+		val1 = RT5665_GP2_PIN_BCLK2 | RT5665_GP3_PIN_LRCK2 |
+			RT5665_GP4_PIN_DACDAT2_1 | RT5665_GP5_PIN_ADCDAT2_1;
+		break;
+	case RT5665_PWR_I2S2_2_BIT:
+		mask1 = RT5665_GP2_PIN_MASK | RT5665_GP3_PIN_MASK |
+			RT5665_GP8_PIN_MASK;
+		val1 = RT5665_GP2_PIN_BCLK2 | RT5665_GP3_PIN_LRCK2 |
+			RT5665_GP8_PIN_DACDAT2_2;
+		mask2 = RT5665_GP9_PIN_MASK;
+		val2 = RT5665_GP9_PIN_ADCDAT2_2;
+		break;
+	case RT5665_PWR_I2S3_BIT:
+		mask1 = RT5665_GP6_PIN_MASK | RT5665_GP7_PIN_MASK |
+			RT5665_GP8_PIN_MASK;
+		val1 = RT5665_GP6_PIN_BCLK3 | RT5665_GP7_PIN_LRCK3 |
+			RT5665_GP8_PIN_DACDAT3;
+		mask2 = RT5665_GP9_PIN_MASK;
+		val2 = RT5665_GP9_PIN_ADCDAT3;
+		break;
+	}
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		snd_soc_update_bits(codec, RT5665_GPIO_CTRL_1, mask1, val1);
+		if (mask2)
+			snd_soc_update_bits(codec, RT5665_GPIO_CTRL_2,
+					    mask2, val2);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RT5665_GPIO_CTRL_1, mask1, 0);
+		if (mask2)
+			snd_soc_update_bits(codec, RT5665_GPIO_CTRL_2,
+					    mask2, 0);
+		break;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
 
 static const struct snd_soc_dapm_widget rt5665_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("LDO2", RT5665_PWR_ANLG_3, RT5665_PWR_LDO2_BIT, 0,
@@ -2852,11 +2904,14 @@ static const struct snd_soc_dapm_widget rt5665_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("I2S1_2", RT5665_PWR_DIG_1, RT5665_PWR_I2S1_2_BIT,
 		0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("I2S2_1", RT5665_PWR_DIG_1, RT5665_PWR_I2S2_1_BIT,
-		0, NULL, 0),
+		0, rt5665_i2s_pin_event, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("I2S2_2", RT5665_PWR_DIG_1, RT5665_PWR_I2S2_2_BIT,
-		0, NULL, 0),
+		0, rt5665_i2s_pin_event, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("I2S3", RT5665_PWR_DIG_1, RT5665_PWR_I2S3_BIT,
-		0, NULL, 0),
+		0, rt5665_i2s_pin_event, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_PGA("IF1 DAC1", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1 DAC2", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("IF1 DAC3", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -3963,12 +4018,68 @@ static const struct snd_soc_dapm_route rt5665_dapm_routes[] = {
 	{"PDMR", NULL, "PDM R Playback"},
 };
 
+static int rt5665_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+			unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	unsigned int val = 0;
+
+	if (rx_mask || tx_mask)
+		val |= RT5665_I2S1_MODE_TDM;
+
+	switch (slots) {
+	case 4:
+		val |= RT5665_TDM_IN_CH_4;
+		val |= RT5665_TDM_OUT_CH_4;
+		break;
+	case 6:
+		val |= RT5665_TDM_IN_CH_6;
+		val |= RT5665_TDM_OUT_CH_6;
+		break;
+	case 8:
+		val |= RT5665_TDM_IN_CH_8;
+		val |= RT5665_TDM_OUT_CH_8;
+		break;
+	case 2:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (slot_width) {
+	case 20:
+		val |= RT5665_TDM_IN_LEN_20;
+		val |= RT5665_TDM_OUT_LEN_20;
+		break;
+	case 24:
+		val |= RT5665_TDM_IN_LEN_24;
+		val |= RT5665_TDM_OUT_LEN_24;
+		break;
+	case 32:
+		val |= RT5665_TDM_IN_LEN_32;
+		val |= RT5665_TDM_OUT_LEN_32;
+		break;
+	case 16:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	snd_soc_update_bits(codec, RT5665_TDM_CTRL_1,
+		RT5665_I2S1_MODE_MASK | RT5665_TDM_IN_CH_MASK |
+		RT5665_TDM_OUT_CH_MASK | RT5665_TDM_IN_LEN_MASK |
+		RT5665_TDM_OUT_LEN_MASK, val);
+
+	return 0;
+}
+
+
 static int rt5665_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5665_priv *rt5665 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val_len = 0, val_clk, mask_clk, val_bits = 0x0100;
+	unsigned int val_len = 0, val_clk, reg_clk, mask_clk, val_bits = 0x0100;
 	int pre_div, frame_size;
 
 	rt5665->lrck[dai->id] = params_rate(params);
@@ -4009,6 +4120,10 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 	switch (dai->id) {
 	case RT5665_AIF1_1:
 	case RT5665_AIF1_2:
+		if (params_channels(params) > 2)
+			rt5665_set_tdm_slot(dai, 0xf, 0xf,
+				params_channels(params), params_width(params));
+		reg_clk = RT5665_ADDA_CLK_1;
 		mask_clk = RT5665_I2S_PD1_MASK;
 		val_clk = pre_div << RT5665_I2S_PD1_SFT;
 		snd_soc_update_bits(codec, RT5665_I2S1_SDP,
@@ -4016,12 +4131,14 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case RT5665_AIF2_1:
 	case RT5665_AIF2_2:
+		reg_clk = RT5665_ADDA_CLK_2;
 		mask_clk = RT5665_I2S_PD2_MASK;
 		val_clk = pre_div << RT5665_I2S_PD2_SFT;
 		snd_soc_update_bits(codec, RT5665_I2S2_SDP,
 			RT5665_I2S_DL_MASK, val_len);
 		break;
 	case RT5665_AIF3:
+		reg_clk = RT5665_ADDA_CLK_2;
 		mask_clk = RT5665_I2S_PD3_MASK;
 		val_clk = pre_div << RT5665_I2S_PD3_SFT;
 		snd_soc_update_bits(codec, RT5665_I2S3_SDP,
@@ -4032,7 +4149,7 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, RT5665_ADDA_CLK_1, mask_clk, val_clk);
+	snd_soc_update_bits(codec, reg_clk, mask_clk, val_clk);
 	snd_soc_update_bits(codec, RT5665_STO1_DAC_SIL_DET, 0x3700, val_bits);
 
 	switch (rt5665->lrck[dai->id]) {
@@ -4125,10 +4242,9 @@ static int rt5665_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int rt5665_set_dai_sysclk(struct snd_soc_dai *dai,
-		int clk_id, unsigned int freq, int dir)
+static int rt5665_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
+				   int source, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct rt5665_priv *rt5665 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg_val = 0;
 
@@ -4154,20 +4270,20 @@ static int rt5665_set_dai_sysclk(struct snd_soc_dai *dai,
 	rt5665->sysclk = freq;
 	rt5665->sysclk_src = clk_id;
 
-	dev_dbg(dai->dev, "Sysclk is %dHz and clock id is %d\n", freq, clk_id);
+	dev_dbg(codec->dev, "Sysclk is %dHz and clock id is %d\n", freq, clk_id);
 
 	return 0;
 }
 
-static int rt5665_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
-			unsigned int freq_in, unsigned int freq_out)
+static int rt5665_set_codec_pll(struct snd_soc_codec *codec, int pll_id,
+				int source, unsigned int freq_in,
+				unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = dai->codec;
 	struct rt5665_priv *rt5665 = snd_soc_codec_get_drvdata(codec);
 	struct rl6231_pll_code pll_code;
 	int ret;
 
-	if (Source == rt5665->pll_src && freq_in == rt5665->pll_in &&
+	if (source == rt5665->pll_src && freq_in == rt5665->pll_in &&
 	    freq_out == rt5665->pll_out)
 		return 0;
 
@@ -4181,7 +4297,7 @@ static int rt5665_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 		return 0;
 	}
 
-	switch (Source) {
+	switch (source) {
 	case RT5665_PLL1_S_MCLK:
 		snd_soc_update_bits(codec, RT5665_GLB_CLK,
 			RT5665_PLL1_SRC_MASK, RT5665_PLL1_SRC_MCLK);
@@ -4199,7 +4315,7 @@ static int rt5665_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 				RT5665_PLL1_SRC_MASK, RT5665_PLL1_SRC_BCLK3);
 		break;
 	default:
-		dev_err(codec->dev, "Unknown PLL Source %d\n", Source);
+		dev_err(codec->dev, "Unknown PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -4221,62 +4337,7 @@ static int rt5665_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int Source,
 
 	rt5665->pll_in = freq_in;
 	rt5665->pll_out = freq_out;
-	rt5665->pll_src = Source;
-
-	return 0;
-}
-
-static int rt5665_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
-			unsigned int rx_mask, int slots, int slot_width)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	unsigned int val = 0;
-
-	if (rx_mask || tx_mask)
-		val |= RT5665_I2S1_MODE_TDM;
-
-	switch (slots) {
-	case 4:
-		val |= RT5665_TDM_IN_CH_4;
-		val |= RT5665_TDM_OUT_CH_4;
-		break;
-	case 6:
-		val |= RT5665_TDM_IN_CH_6;
-		val |= RT5665_TDM_OUT_CH_6;
-		break;
-	case 8:
-		val |= RT5665_TDM_IN_CH_8;
-		val |= RT5665_TDM_OUT_CH_8;
-		break;
-	case 2:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	switch (slot_width) {
-	case 20:
-		val |= RT5665_TDM_IN_LEN_20;
-		val |= RT5665_TDM_OUT_LEN_20;
-		break;
-	case 24:
-		val |= RT5665_TDM_IN_LEN_24;
-		val |= RT5665_TDM_OUT_LEN_24;
-		break;
-	case 32:
-		val |= RT5665_TDM_IN_LEN_32;
-		val |= RT5665_TDM_OUT_LEN_32;
-		break;
-	case 16:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	snd_soc_update_bits(codec, RT5665_TDM_CTRL_1,
-		RT5665_I2S1_MODE_MASK | RT5665_TDM_IN_CH_MASK |
-		RT5665_TDM_OUT_CH_MASK | RT5665_TDM_IN_LEN_MASK |
-		RT5665_TDM_OUT_LEN_MASK, val);
+	rt5665->pll_src = source;
 
 	return 0;
 }
@@ -4393,9 +4454,7 @@ static int rt5665_resume(struct snd_soc_codec *codec)
 static const struct snd_soc_dai_ops rt5665_aif_dai_ops = {
 	.hw_params = rt5665_hw_params,
 	.set_fmt = rt5665_set_dai_fmt,
-	.set_sysclk = rt5665_set_dai_sysclk,
 	.set_tdm_slot = rt5665_set_tdm_slot,
-	.set_pll = rt5665_set_dai_pll,
 	.set_bclk_ratio = rt5665_set_bclk_ratio,
 };
 
@@ -4504,7 +4563,10 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5665 = {
 		.num_dapm_widgets = ARRAY_SIZE(rt5665_dapm_widgets),
 		.dapm_routes = rt5665_dapm_routes,
 		.num_dapm_routes = ARRAY_SIZE(rt5665_dapm_routes),
-	}
+	},
+	.set_sysclk = rt5665_set_codec_sysclk,
+	.set_pll = rt5665_set_codec_pll,
+	.set_jack = rt5665_set_jack_detect,
 };
 
 
@@ -4783,7 +4845,7 @@ static int rt5665_i2c_probe(struct i2c_client *i2c,
 
 	regmap_write(rt5665->regmap, RT5665_HP_LOGIC_CTRL_2, 0x0002);
 	regmap_update_bits(rt5665->regmap, RT5665_EJD_CTRL_1,
-		0xf000 | RT5665_VREF_POW_MASK, 0xd000 | RT5665_VREF_POW_REG);
+		0xf000 | RT5665_VREF_POW_MASK, 0xe000 | RT5665_VREF_POW_REG);
 	/* Work around for pow_pump */
 	regmap_update_bits(rt5665->regmap, RT5665_STO1_DAC_SIL_DET,
 		RT5665_DEB_STO_DAC_MASK, RT5665_DEB_80_MS);

@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2017 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,14 +22,6 @@
 #include <linux/types.h>
 
 struct platform_device;
-
-#define UNIPHIER_PINCTRL_PINMUX_BASE	0x0
-#define UNIPHIER_PINCTRL_LOAD_PINMUX	0x700
-#define UNIPHIER_PINCTRL_DRVCTRL_BASE	0x800
-#define UNIPHIER_PINCTRL_DRV2CTRL_BASE	0x900
-#define UNIPHIER_PINCTRL_DRV3CTRL_BASE	0x980
-#define UNIPHIER_PINCTRL_PUPDCTRL_BASE	0xa00
-#define UNIPHIER_PINCTRL_IECTRL		0xd00
 
 /* input enable control register bit */
 #define UNIPHIER_PIN_IECTRL_SHIFT	0

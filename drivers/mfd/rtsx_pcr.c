@@ -927,7 +927,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 
 static int rtsx_pci_acquire_irq(struct rtsx_pcr *pcr)
 {
-	dev_info(&(pcr->pci->dev), "%s: pcr->msi_en = %d, pci->irq = %d\n",
+	pcr_dbg(pcr, "%s: pcr->msi_en = %d, pci->irq = %d\n",
 			__func__, pcr->msi_en, pcr->pci->irq);
 
 	if (request_irq(pcr->pci->irq, rtsx_pci_isr,

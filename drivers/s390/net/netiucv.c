@@ -635,7 +635,7 @@ static void netiucv_unpack_skb(struct iucv_connection *conn,
 	skb_put(pskb, NETIUCV_HDRLEN);
 	pskb->dev = dev;
 	pskb->ip_summed = CHECKSUM_NONE;
-	pskb->protocol = ntohs(ETH_P_IP);
+	pskb->protocol = cpu_to_be16(ETH_P_IP);
 
 	while (1) {
 		struct sk_buff *skb;

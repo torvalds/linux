@@ -12,8 +12,6 @@
  * User space memory access functions
  */
 #include <linux/string.h>
-#include <linux/thread_info.h>
-#include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/domain.h>
 #include <asm/unified.h>
@@ -26,28 +24,7 @@
 #define __put_user_unaligned __put_user
 #endif
 
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
-
-extern int fixup_exception(struct pt_regs *regs);
+#include <asm/extable.h>
 
 /*
  * These two functions allow hooking accesses to userspace to increase
@@ -271,7 +248,7 @@ static inline void set_fs(mm_segment_t fs)
 #define access_ok(type, addr, size)	(__range_ok(addr, size) == 0)
 
 #define user_addr_max() \
-	(segment_eq(get_fs(), KERNEL_DS) ? ~0UL : get_fs())
+	(uaccess_kernel() ? ~0UL : get_fs())
 
 /*
  * The "__xxx" versions of the user access functions do not verify the
@@ -478,7 +455,7 @@ extern unsigned long __must_check
 arm_copy_from_user(void *to, const void __user *from, unsigned long n);
 
 static inline unsigned long __must_check
-__arch_copy_from_user(void *to, const void __user *from, unsigned long n)
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	unsigned int __ua_flags;
 
@@ -494,7 +471,7 @@ extern unsigned long __must_check
 __copy_to_user_std(void __user *to, const void *from, unsigned long n);
 
 static inline unsigned long __must_check
-__arch_copy_to_user(void __user *to, const void *from, unsigned long n)
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 #ifndef CONFIG_UACCESS_WITH_MEMCPY
 	unsigned int __ua_flags;
@@ -522,54 +499,22 @@ __clear_user(void __user *addr, unsigned long n)
 }
 
 #else
-#define __arch_copy_from_user(to, from, n)	\
-					(memcpy(to, (void __force *)from, n), 0)
-#define __arch_copy_to_user(to, from, n)	\
-					(memcpy((void __force *)to, from, n), 0)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	memcpy(to, (const void __force *)from, n);
+	return 0;
+}
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	memcpy((void __force *)to, from, n);
+	return 0;
+}
 #define __clear_user(addr, n)		(memset((void __force *)addr, 0, n), 0)
 #endif
-
-static inline unsigned long __must_check
-__copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	check_object_size(to, n, false);
-	return __arch_copy_from_user(to, from, n);
-}
-
-static inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long res = n;
-
-	check_object_size(to, n, false);
-
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __arch_copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
-}
-
-static inline unsigned long __must_check
-__copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	check_object_size(from, n, true);
-
-	return __arch_copy_to_user(to, from, n);
-}
-
-static inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	check_object_size(from, n, true);
-
-	if (access_ok(VERIFY_WRITE, to, n))
-		n = __arch_copy_to_user(to, from, n);
-	return n;
-}
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+#define INLINE_COPY_TO_USER
+#define INLINE_COPY_FROM_USER
 
 static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {

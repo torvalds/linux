@@ -266,8 +266,9 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 
 	/* aead_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	cnstr_shdsc_aead_encap(desc, &ctx->cdata, &ctx->adata, ctx->authsize,
-			       is_rfc3686, nonce, ctx1_iv_off);
+	cnstr_shdsc_aead_encap(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, is_rfc3686, nonce, ctx1_iv_off,
+			       false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
 				   desc_bytes(desc), DMA_TO_DEVICE);
 
@@ -299,7 +300,7 @@ skip_enc:
 	desc = ctx->sh_desc_dec;
 	cnstr_shdsc_aead_decap(desc, &ctx->cdata, &ctx->adata, ivsize,
 			       ctx->authsize, alg->caam.geniv, is_rfc3686,
-			       nonce, ctx1_iv_off);
+			       nonce, ctx1_iv_off, false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_dec_dma,
 				   desc_bytes(desc), DMA_TO_DEVICE);
 
@@ -333,7 +334,7 @@ skip_enc:
 	desc = ctx->sh_desc_enc;
 	cnstr_shdsc_aead_givencap(desc, &ctx->cdata, &ctx->adata, ivsize,
 				  ctx->authsize, is_rfc3686, nonce,
-				  ctx1_iv_off);
+				  ctx1_iv_off, false);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_enc_dma,
 				   desc_bytes(desc), DMA_TO_DEVICE);
 

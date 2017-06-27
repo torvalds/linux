@@ -266,7 +266,7 @@ for each mapping.
 
 The number of file transparent huge pages mapped to userspace is available
 by reading ShmemPmdMapped and ShmemHugePages fields in /proc/meminfo.
-To identify what applications are mapping file  transparent huge pages, it
+To identify what applications are mapping file transparent huge pages, it
 is necessary to read /proc/PID/smaps and count the FileHugeMapped fields
 for each mapping.
 
@@ -292,7 +292,7 @@ thp_collapse_alloc_failed is incremented if khugepaged found a range
 	the allocation.
 
 thp_file_alloc is incremented every time a file huge page is successfully
-i	allocated.
+	allocated.
 
 thp_file_mapped is incremented every time a file huge page is mapped into
 	user address space.
@@ -501,7 +501,7 @@ scanner can get reference to a page is get_page_unless_zero().
 
 All tail pages have zero ->_refcount until atomic_add(). This prevents the
 scanner from getting a reference to the tail page up to that point. After the
-atomic_add() we don't care about the ->_refcount value.  We already known how
+atomic_add() we don't care about the ->_refcount value. We already known how
 many references should be uncharged from the head page.
 
 For head page get_page_unless_zero() will succeed and we don't mind. It's
@@ -519,8 +519,8 @@ comes. Splitting will free up unused subpages.
 
 Splitting the page right away is not an option due to locking context in
 the place where we can detect partial unmap. It's also might be
-counterproductive since in many cases partial unmap unmap happens during
-exit(2) if an THP crosses VMA boundary.
+counterproductive since in many cases partial unmap happens during exit(2) if
+a THP crosses a VMA boundary.
 
 Function deferred_split_huge_page() is used to queue page for splitting.
 The splitting itself will happen when we get memory pressure via shrinker

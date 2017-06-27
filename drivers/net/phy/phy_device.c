@@ -1217,7 +1217,7 @@ static int genphy_config_eee_advert(struct phy_device *phydev)
 	 * supported by the phy. If we read 0, EEE is not advertised
 	 * In both case, we don't need to continue
 	 */
-	adv = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV, MDIO_MMD_AN);
+	adv = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
 	if (adv <= 0)
 		return 0;
 
@@ -1228,7 +1228,7 @@ static int genphy_config_eee_advert(struct phy_device *phydev)
 	if (old_adv == adv)
 		return 0;
 
-	phy_write_mmd_indirect(phydev, MDIO_AN_EEE_ADV, MDIO_MMD_AN, adv);
+	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
 
 	return 1;
 }

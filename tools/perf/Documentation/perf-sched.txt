@@ -132,6 +132,10 @@ OPTIONS for 'perf sched timehist'
 --migrations::
 	Show migration events.
 
+-n::
+--next::
+	Show next task.
+
 -I::
 --idle-hist::
 	Show idle-related events only.

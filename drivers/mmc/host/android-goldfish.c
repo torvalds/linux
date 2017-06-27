@@ -212,10 +212,7 @@ static void goldfish_mmc_xfer_done(struct goldfish_mmc_host *host,
 	if (host->dma_in_use) {
 		enum dma_data_direction dma_data_dir;
 
-		if (data->flags & MMC_DATA_WRITE)
-			dma_data_dir = DMA_TO_DEVICE;
-		else
-			dma_data_dir = DMA_FROM_DEVICE;
+		dma_data_dir = mmc_get_dma_dir(data);
 
 		if (dma_data_dir == DMA_FROM_DEVICE) {
 			/*
@@ -390,10 +387,7 @@ static void goldfish_mmc_prepare_data(struct goldfish_mmc_host *host,
 	 */
 	sg_len = (data->blocks == 1) ? 1 : data->sg_len;
 
-	if (data->flags & MMC_DATA_WRITE)
-		dma_data_dir = DMA_TO_DEVICE;
-	else
-		dma_data_dir = DMA_FROM_DEVICE;
+	dma_data_dir = mmc_get_dma_dir(data);
 
 	host->sg_len = dma_map_sg(mmc_dev(host->mmc), data->sg,
 				  sg_len, dma_data_dir);

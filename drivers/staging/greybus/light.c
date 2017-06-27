@@ -12,7 +12,6 @@
 #include <linux/led-class-flash.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <media/v4l2-flash-led-class.h>
 
 #include "greybus.h"

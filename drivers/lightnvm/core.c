@@ -74,7 +74,7 @@ static int nvm_reserve_luns(struct nvm_dev *dev, int lun_begin, int lun_end)
 
 	return 0;
 err:
-	while (--i > lun_begin)
+	while (--i >= lun_begin)
 		clear_bit(i, dev->lun_map);
 
 	return -EBUSY;
@@ -89,7 +89,7 @@ static void nvm_release_luns_err(struct nvm_dev *dev, int lun_begin,
 		WARN_ON(!test_and_clear_bit(i, dev->lun_map));
 }
 
-static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev)
+static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev, int clear)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 	struct nvm_dev_map *dev_map = tgt_dev->map;
@@ -100,11 +100,14 @@ static void nvm_remove_tgt_dev(struct nvm_tgt_dev *tgt_dev)
 		int *lun_offs = ch_map->lun_offs;
 		int ch = i + ch_map->ch_off;
 
-		for (j = 0; j < ch_map->nr_luns; j++) {
-			int lun = j + lun_offs[j];
-			int lunid = (ch * dev->geo.luns_per_chnl) + lun;
+		if (clear) {
+			for (j = 0; j < ch_map->nr_luns; j++) {
+				int lun = j + lun_offs[j];
+				int lunid = (ch * dev->geo.luns_per_chnl) + lun;
 
-			WARN_ON(!test_and_clear_bit(lunid, dev->lun_map));
+				WARN_ON(!test_and_clear_bit(lunid,
+							dev->lun_map));
+			}
 		}
 
 		kfree(ch_map->lun_offs);
@@ -208,7 +211,7 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 
 	return tgt_dev;
 err_ch:
-	while (--i > 0)
+	while (--i >= 0)
 		kfree(dev_map->chnls[i].lun_offs);
 	kfree(luns);
 err_luns:
@@ -232,6 +235,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	struct nvm_target *t;
 	struct nvm_tgt_dev *tgt_dev;
 	void *targetdata;
+	int ret;
 
 	tt = nvm_find_target_type(create->tgttype, 1);
 	if (!tt) {
@@ -252,34 +256,43 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		return -ENOMEM;
 
 	t = kmalloc(sizeof(struct nvm_target), GFP_KERNEL);
-	if (!t)
+	if (!t) {
+		ret = -ENOMEM;
 		goto err_reserve;
+	}
 
 	tgt_dev = nvm_create_tgt_dev(dev, s->lun_begin, s->lun_end);
 	if (!tgt_dev) {
 		pr_err("nvm: could not create target device\n");
+		ret = -ENOMEM;
 		goto err_t;
 	}
 
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
-	if (!tqueue)
+	tdisk = alloc_disk(0);
+	if (!tdisk) {
+		ret = -ENOMEM;
 		goto err_dev;
+	}
+
+	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
+	if (!tqueue) {
+		ret = -ENOMEM;
+		goto err_disk;
+	}
 	blk_queue_make_request(tqueue, tt->make_rq);
 
-	tdisk = alloc_disk(0);
-	if (!tdisk)
-		goto err_queue;
-
-	sprintf(tdisk->disk_name, "%s", create->tgtname);
+	strlcpy(tdisk->disk_name, create->tgtname, sizeof(tdisk->disk_name));
 	tdisk->flags = GENHD_FL_EXT_DEVT;
 	tdisk->major = 0;
 	tdisk->first_minor = 0;
 	tdisk->fops = &nvm_fops;
 	tdisk->queue = tqueue;
 
-	targetdata = tt->init(tgt_dev, tdisk);
-	if (IS_ERR(targetdata))
+	targetdata = tt->init(tgt_dev, tdisk, create->flags);
+	if (IS_ERR(targetdata)) {
+		ret = PTR_ERR(targetdata);
 		goto err_init;
+	}
 
 	tdisk->private_data = targetdata;
 	tqueue->queuedata = targetdata;
@@ -289,8 +302,10 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	set_capacity(tdisk, tt->capacity(targetdata));
 	add_disk(tdisk);
 
-	if (tt->sysfs_init && tt->sysfs_init(tdisk))
+	if (tt->sysfs_init && tt->sysfs_init(tdisk)) {
+		ret = -ENOMEM;
 		goto err_sysfs;
+	}
 
 	t->type = tt;
 	t->disk = tdisk;
@@ -305,16 +320,17 @@ err_sysfs:
 	if (tt->exit)
 		tt->exit(targetdata);
 err_init:
-	put_disk(tdisk);
-err_queue:
 	blk_cleanup_queue(tqueue);
+	tdisk->queue = NULL;
+err_disk:
+	put_disk(tdisk);
 err_dev:
-	nvm_remove_tgt_dev(tgt_dev);
+	nvm_remove_tgt_dev(tgt_dev, 0);
 err_t:
 	kfree(t);
 err_reserve:
 	nvm_release_luns_err(dev, s->lun_begin, s->lun_end);
-	return -ENOMEM;
+	return ret;
 }
 
 static void __nvm_remove_target(struct nvm_target *t)
@@ -332,7 +348,7 @@ static void __nvm_remove_target(struct nvm_target *t)
 	if (tt->exit)
 		tt->exit(tdisk->private_data);
 
-	nvm_remove_tgt_dev(t->dev);
+	nvm_remove_tgt_dev(t->dev, 1);
 	put_disk(tdisk);
 
 	list_del(&t->list);
@@ -411,6 +427,18 @@ err_rmap:
 	return -ENOMEM;
 }
 
+static void nvm_unregister_map(struct nvm_dev *dev)
+{
+	struct nvm_dev_map *rmap = dev->rmap;
+	int i;
+
+	for (i = 0; i < dev->geo.nr_chnls; i++)
+		kfree(rmap->chnls[i].lun_offs);
+
+	kfree(rmap->chnls);
+	kfree(rmap);
+}
+
 static void nvm_map_to_dev(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *p)
 {
 	struct nvm_dev_map *dev_map = tgt_dev->map;
@@ -486,7 +514,6 @@ void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
 		int *lun_roffs;
 		struct ppa_addr gaddr;
 		u64 pba = le64_to_cpu(entries[i]);
-		int off;
 		u64 diff;
 
 		if (!pba)
@@ -495,8 +522,6 @@ void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
 		gaddr = linear_to_generic_addr(geo, pba);
 		ch_rmap = &dev_rmap->chnls[gaddr.g.ch];
 		lun_roffs = ch_rmap->lun_offs;
-
-		off = gaddr.g.ch * geo->luns_per_chnl + gaddr.g.lun;
 
 		diff = ((ch_rmap->ch_off * geo->luns_per_chnl) +
 				(lun_roffs[gaddr.g.lun])) * geo->sec_per_lun;
@@ -590,11 +615,11 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas, 1);
+	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
 	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
 
 	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
-	nvm_free_rqd_ppalist(dev, &rqd);
+	nvm_free_rqd_ppalist(tgt_dev, &rqd);
 	if (ret) {
 		pr_err("nvm: failed bb mark\n");
 		return -EINVAL;
@@ -626,34 +651,45 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
-int nvm_erase_blk(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas, int flags)
+static void nvm_end_io_sync(struct nvm_rq *rqd)
 {
-	struct nvm_dev *dev = tgt_dev->parent;
+	struct completion *waiting = rqd->private;
+
+	complete(waiting);
+}
+
+int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
+								int nr_ppas)
+{
+	struct nvm_geo *geo = &tgt_dev->geo;
 	struct nvm_rq rqd;
 	int ret;
-
-	if (!dev->ops->erase_block)
-		return 0;
-
-	nvm_map_to_dev(tgt_dev, ppas);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	ret = nvm_set_rqd_ppalist(dev, &rqd, ppas, 1, 1);
+	rqd.opcode = NVM_OP_ERASE;
+	rqd.end_io = nvm_end_io_sync;
+	rqd.private = &wait;
+	rqd.flags = geo->plane_mode >> 1;
+
+	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
 	if (ret)
 		return ret;
 
-	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
+	ret = nvm_submit_io(tgt_dev, &rqd);
+	if (ret) {
+		pr_err("rrpr: erase I/O submission failed: %d\n", ret);
+		goto free_ppa_list;
+	}
+	wait_for_completion_io(&wait);
 
-	rqd.flags = flags;
-
-	ret = dev->ops->erase_block(dev, &rqd);
-
-	nvm_free_rqd_ppalist(dev, &rqd);
+free_ppa_list:
+	nvm_free_rqd_ppalist(tgt_dev, &rqd);
 
 	return ret;
 }
-EXPORT_SYMBOL(nvm_erase_blk);
+EXPORT_SYMBOL(nvm_erase_sync);
 
 int nvm_get_l2p_tbl(struct nvm_tgt_dev *tgt_dev, u64 slba, u32 nlb,
 		    nvm_l2p_update_fn *update_l2p, void *priv)
@@ -732,10 +768,11 @@ void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t begin)
 }
 EXPORT_SYMBOL(nvm_put_area);
 
-int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
+int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
 			const struct ppa_addr *ppas, int nr_ppas, int vblk)
 {
-	struct nvm_geo *geo = &dev->geo;
+	struct nvm_dev *dev = tgt_dev->parent;
+	struct nvm_geo *geo = &tgt_dev->geo;
 	int i, plane_cnt, pl_idx;
 	struct ppa_addr ppa;
 
@@ -773,12 +810,12 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 }
 EXPORT_SYMBOL(nvm_set_rqd_ppalist);
 
-void nvm_free_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd)
+void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
 	if (!rqd->ppa_list)
 		return;
 
-	nvm_dev_dma_free(dev, rqd->ppa_list, rqd->dma_ppa_list);
+	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
 }
 EXPORT_SYMBOL(nvm_free_rqd_ppalist);
 
@@ -972,7 +1009,7 @@ err_fmtype:
 	return ret;
 }
 
-void nvm_free(struct nvm_dev *dev)
+static void nvm_free(struct nvm_dev *dev)
 {
 	if (!dev)
 		return;
@@ -980,7 +1017,7 @@ void nvm_free(struct nvm_dev *dev)
 	if (dev->dma_pool)
 		dev->ops->destroy_dma_pool(dev->dma_pool);
 
-	kfree(dev->rmap);
+	nvm_unregister_map(dev);
 	kfree(dev->lptbl);
 	kfree(dev->lun_map);
 	kfree(dev);
@@ -1174,13 +1211,13 @@ static long nvm_ioctl_get_devices(struct file *file, void __user *arg)
 	list_for_each_entry(dev, &nvm_devices, devices) {
 		struct nvm_ioctl_device_info *info = &devices->info[i];
 
-		sprintf(info->devname, "%s", dev->name);
+		strlcpy(info->devname, dev->name, sizeof(info->devname));
 
 		/* kept for compatibility */
 		info->bmversion[0] = 1;
 		info->bmversion[1] = 0;
 		info->bmversion[2] = 0;
-		sprintf(info->bmname, "%s", "gennvm");
+		strlcpy(info->bmname, "gennvm", sizeof(info->bmname));
 		i++;
 
 		if (i > 31) {
@@ -1217,8 +1254,16 @@ static long nvm_ioctl_dev_create(struct file *file, void __user *arg)
 	create.tgtname[DISK_NAME_LEN - 1] = '\0';
 
 	if (create.flags != 0) {
-		pr_err("nvm: no flags supported\n");
-		return -EINVAL;
+		__u32 flags = create.flags;
+
+		/* Check for valid flags */
+		if (flags & NVM_TARGET_FACTORY)
+			flags &= ~NVM_TARGET_FACTORY;
+
+		if (flags) {
+			pr_err("nvm: flag not supported\n");
+			return -EINVAL;
+		}
 	}
 
 	return __nvm_configure_create(&create);

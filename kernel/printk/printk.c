@@ -32,7 +32,7 @@
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/syscalls.h>
-#include <linux/kexec.h>
+#include <linux/crash_core.h>
 #include <linux/kdb.h>
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
@@ -270,7 +270,6 @@ static struct console *exclusive_console;
 
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
-static int selected_console = -1;
 static int preferred_console = -1;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
@@ -1002,7 +1001,7 @@ const struct file_operations kmsg_fops = {
 	.release = devkmsg_release,
 };
 
-#ifdef CONFIG_KEXEC_CORE
+#ifdef CONFIG_CRASH_CORE
 /*
  * This appends the listed symbols to /proc/vmcore
  *
@@ -1011,7 +1010,7 @@ const struct file_operations kmsg_fops = {
  * symbols are specifically used so that utilities can access and extract the
  * dmesg log from a vmcore file after a crash.
  */
-void log_buf_kexec_setup(void)
+void log_buf_vmcoreinfo_setup(void)
 {
 	VMCOREINFO_SYMBOL(log_buf);
 	VMCOREINFO_SYMBOL(log_buf_len);
@@ -1911,14 +1910,14 @@ static int __add_preferred_console(char *name, int idx, char *options,
 	     i++, c++) {
 		if (strcmp(c->name, name) == 0 && c->index == idx) {
 			if (!brl_options)
-				selected_console = i;
+				preferred_console = i;
 			return 0;
 		}
 	}
 	if (i == MAX_CMDLINECONSOLES)
 		return -E2BIG;
 	if (!brl_options)
-		selected_console = i;
+		preferred_console = i;
 	strlcpy(c->name, name, sizeof(c->name));
 	c->options = options;
 	braille_set_options(c, brl_options);
@@ -2031,15 +2030,16 @@ void resume_console(void)
  * @cpu: unused
  *
  * If printk() is called from a CPU that is not online yet, the messages
- * will be spooled but will not show up on the console.  This function is
- * called when a new CPU comes online (or fails to come up), and ensures
- * that any such output gets printed.
+ * will be printed on the console only if there are CON_ANYTIME consoles.
+ * This function is called when a new CPU comes online (or fails to come
+ * up) or goes offline.
  */
 static int console_cpu_notify(unsigned int cpu)
 {
 	if (!cpuhp_tasks_frozen) {
-		console_lock();
-		console_unlock();
+		/* If trylock fails, someone else is doing the printing */
+		if (console_trylock())
+			console_unlock();
 	}
 	return 0;
 }
@@ -2161,7 +2161,7 @@ void console_unlock(void)
 	}
 
 	/*
-	 * Console drivers are called under logbuf_lock, so
+	 * Console drivers are called with interrupts disabled, so
 	 * @console_may_schedule should be cleared before; however, we may
 	 * end up dumping a lot of lines, for example, if called from
 	 * console registration path, and should invoke cond_resched()
@@ -2169,11 +2169,15 @@ void console_unlock(void)
 	 * scheduling stall on a slow console leading to RCU stall and
 	 * softlockup warnings which exacerbate the issue with more
 	 * messages practically incapacitating the system.
+	 *
+	 * console_trylock() is not able to detect the preemptive
+	 * context reliably. Therefore the value must be stored before
+	 * and cleared after the the "again" goto label.
 	 */
 	do_cond_resched = console_may_schedule;
+again:
 	console_may_schedule = 0;
 
-again:
 	/*
 	 * We released the console_sem lock, so we need to recheck if
 	 * cpu is online and (if not) is there at least one CON_ANYTIME
@@ -2409,6 +2413,7 @@ void register_console(struct console *newcon)
 	unsigned long flags;
 	struct console *bcon = NULL;
 	struct console_cmdline *c;
+	static bool has_preferred;
 
 	if (console_drivers)
 		for_each_console(bcon)
@@ -2435,15 +2440,15 @@ void register_console(struct console *newcon)
 	if (console_drivers && console_drivers->flags & CON_BOOT)
 		bcon = console_drivers;
 
-	if (preferred_console < 0 || bcon || !console_drivers)
-		preferred_console = selected_console;
+	if (!has_preferred || bcon || !console_drivers)
+		has_preferred = preferred_console >= 0;
 
 	/*
 	 *	See if we want to use this console driver. If we
 	 *	didn't select a console we take the first one
 	 *	that registers here.
 	 */
-	if (preferred_console < 0) {
+	if (!has_preferred) {
 		if (newcon->index < 0)
 			newcon->index = 0;
 		if (newcon->setup == NULL ||
@@ -2451,7 +2456,7 @@ void register_console(struct console *newcon)
 			newcon->flags |= CON_ENABLED;
 			if (newcon->device) {
 				newcon->flags |= CON_CONSDEV;
-				preferred_console = 0;
+				has_preferred = true;
 			}
 		}
 	}
@@ -2484,9 +2489,9 @@ void register_console(struct console *newcon)
 		}
 
 		newcon->flags |= CON_ENABLED;
-		if (i == selected_console) {
+		if (i == preferred_console) {
 			newcon->flags |= CON_CONSDEV;
-			preferred_console = selected_console;
+			has_preferred = true;
 		}
 		break;
 	}
@@ -2609,6 +2614,30 @@ int unregister_console(struct console *console)
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
+
+/*
+ * Initialize the console device. This is called *early*, so
+ * we can't necessarily depend on lots of kernel help here.
+ * Just do some early initializations, and do the complex setup
+ * later.
+ */
+void __init console_init(void)
+{
+	initcall_t *call;
+
+	/* Setup the default TTY line discipline. */
+	n_tty_init();
+
+	/*
+	 * set up the console device so that later boot sequences can
+	 * inform about problems etc..
+	 */
+	call = __con_initcall_start;
+	while (call < __con_initcall_end) {
+		(*call)();
+		call++;
+	}
+}
 
 /*
  * Some boot consoles access data that is in the init section and which will

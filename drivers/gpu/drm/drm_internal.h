@@ -24,7 +24,7 @@
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
-/* drm_fops.c */
+/* drm_file.c */
 extern struct mutex drm_global_mutex;
 void drm_lastclose(struct drm_device *dev);
 
@@ -100,7 +100,7 @@ int drm_gem_open_ioctl(struct drm_device *dev, void *data,
 void drm_gem_open(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 
-/* drm_debugfs.c */
+/* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root);

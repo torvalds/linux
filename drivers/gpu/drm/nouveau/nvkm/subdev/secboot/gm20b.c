@@ -23,31 +23,32 @@
 #include "acr.h"
 #include "gm200.h"
 
+#define TEGRA210_MC_BASE			0x70019000
+
 #ifdef CONFIG_ARCH_TEGRA
-#define TEGRA_MC_BASE				0x70019000
 #define MC_SECURITY_CARVEOUT2_CFG0		0xc58
 #define MC_SECURITY_CARVEOUT2_BOM_0		0xc5c
 #define MC_SECURITY_CARVEOUT2_BOM_HI_0		0xc60
 #define MC_SECURITY_CARVEOUT2_SIZE_128K		0xc64
 #define TEGRA_MC_SECURITY_CARVEOUT_CFG_LOCKED	(1 << 1)
 /**
- * sb_tegra_read_wpr() - read the WPR registers on Tegra
+ * gm20b_secboot_tegra_read_wpr() - read the WPR registers on Tegra
  *
  * On dGPU, we can manage the WPR region ourselves, but on Tegra the WPR region
  * is reserved from system memory by the bootloader and irreversibly locked.
  * This function reads the address and size of the pre-configured WPR region.
  */
-static int
-gm20b_tegra_read_wpr(struct gm200_secboot *gsb)
+int
+gm20b_secboot_tegra_read_wpr(struct gm200_secboot *gsb, u32 mc_base)
 {
 	struct nvkm_secboot *sb = &gsb->base;
 	void __iomem *mc;
 	u32 cfg;
 
-	mc = ioremap(TEGRA_MC_BASE, 0xd00);
+	mc = ioremap(mc_base, 0xd00);
 	if (!mc) {
 		nvkm_error(&sb->subdev, "Cannot map Tegra MC registers\n");
-		return PTR_ERR(mc);
+		return -ENOMEM;
 	}
 	sb->wpr_addr = ioread32_native(mc + MC_SECURITY_CARVEOUT2_BOM_0) |
 	      ((u64)ioread32_native(mc + MC_SECURITY_CARVEOUT2_BOM_HI_0) << 32);
@@ -70,8 +71,8 @@ gm20b_tegra_read_wpr(struct gm200_secboot *gsb)
 	return 0;
 }
 #else
-static int
-gm20b_tegra_read_wpr(struct gm200_secboot *gsb)
+int
+gm20b_secboot_tegra_read_wpr(struct gm200_secboot *gsb, u32 mc_base)
 {
 	nvkm_error(&gsb->base.subdev, "Tegra support not compiled in\n");
 	return -EINVAL;
@@ -84,7 +85,7 @@ gm20b_secboot_oneinit(struct nvkm_secboot *sb)
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	int ret;
 
-	ret = gm20b_tegra_read_wpr(gsb);
+	ret = gm20b_secboot_tegra_read_wpr(gsb, TEGRA210_MC_BASE);
 	if (ret)
 		return ret;
 
@@ -107,9 +108,12 @@ gm20b_secboot_new(struct nvkm_device *device, int index,
 	struct gm200_secboot *gsb;
 	struct nvkm_acr *acr;
 
-	acr = acr_r352_new(BIT(NVKM_SECBOOT_FALCON_FECS));
+	acr = acr_r352_new(BIT(NVKM_SECBOOT_FALCON_FECS) |
+			   BIT(NVKM_SECBOOT_FALCON_PMU));
 	if (IS_ERR(acr))
 		return PTR_ERR(acr);
+	/* Support the initial GM20B firmware release without PMU */
+	acr->optional_falcons = BIT(NVKM_SECBOOT_FALCON_PMU);
 
 	gsb = kzalloc(sizeof(*gsb), GFP_KERNEL);
 	if (!gsb) {
@@ -137,3 +141,6 @@ MODULE_FIRMWARE("nvidia/gm20b/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm20b/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/gm20b/pmu/desc.bin");
+MODULE_FIRMWARE("nvidia/gm20b/pmu/image.bin");
+MODULE_FIRMWARE("nvidia/gm20b/pmu/sig.bin");

@@ -50,6 +50,8 @@
 #define DM_CACHE_FEATURE_COMPAT_RO_SUPP	  0UL
 #define DM_CACHE_FEATURE_INCOMPAT_SUPP	  0UL
 
+struct dm_cache_metadata;
+
 /*
  * Reopens or creates a new, empty metadata volume.  Returns an ERR_PTR on
  * failure.  If reopening then features must match.

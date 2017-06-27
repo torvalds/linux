@@ -96,8 +96,7 @@ struct drm_i915_gem_object *
 i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 			size_t size)
 {
-	struct drm_i915_gem_object *obj = NULL;
-	struct drm_i915_gem_object *tmp;
+	struct drm_i915_gem_object *obj;
 	struct list_head *list;
 	int n, ret;
 
@@ -112,31 +111,29 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 		n = ARRAY_SIZE(pool->cache_list) - 1;
 	list = &pool->cache_list[n];
 
-	list_for_each_entry(tmp, list, batch_pool_link) {
+	list_for_each_entry(obj, list, batch_pool_link) {
 		/* The batches are strictly LRU ordered */
-		if (i915_gem_object_is_active(tmp))
-			break;
+		if (i915_gem_object_is_active(obj)) {
+			if (!reservation_object_test_signaled_rcu(obj->resv,
+								  true))
+				break;
 
-		GEM_BUG_ON(!reservation_object_test_signaled_rcu(tmp->resv,
+			i915_gem_retire_requests(pool->engine->i915);
+			GEM_BUG_ON(i915_gem_object_is_active(obj));
+		}
+
+		GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->resv,
 								 true));
 
-		if (tmp->base.size >= size) {
-			/* Clear the set of shared fences early */
-			ww_mutex_lock(&tmp->resv->lock, NULL);
-			reservation_object_add_excl_fence(tmp->resv, NULL);
-			ww_mutex_unlock(&tmp->resv->lock);
-
-			obj = tmp;
-			break;
-		}
+		if (obj->base.size >= size)
+			goto found;
 	}
 
-	if (obj == NULL) {
-		obj = i915_gem_object_create_internal(pool->engine->i915, size);
-		if (IS_ERR(obj))
-			return obj;
-	}
+	obj = i915_gem_object_create_internal(pool->engine->i915, size);
+	if (IS_ERR(obj))
+		return obj;
 
+found:
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
 		return ERR_PTR(ret);

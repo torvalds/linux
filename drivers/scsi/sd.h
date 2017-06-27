@@ -59,6 +59,13 @@ enum {
 	SD_LBP_DISABLE,		/* Discard disabled due to failed cmd */
 };
 
+enum {
+	SD_ZERO_WRITE = 0,	/* Use WRITE(10/16) command */
+	SD_ZERO_WS,		/* Use WRITE SAME(10/16) command */
+	SD_ZERO_WS16_UNMAP,	/* Use WRITE SAME(16) with UNMAP */
+	SD_ZERO_WS10_UNMAP,	/* Use WRITE SAME(10) with UNMAP */
+};
+
 struct scsi_disk {
 	struct scsi_driver *driver;	/* always &sd_template */
 	struct scsi_device *device;
@@ -89,6 +96,7 @@ struct scsi_disk {
 	u8		write_prot;
 	u8		protection_type;/* Data Integrity Field */
 	u8		provisioning_mode;
+	u8		zeroing_mode;
 	unsigned	ATO : 1;	/* state of disk ATO bit */
 	unsigned	cache_override : 1; /* temp override of WCE,RCD */
 	unsigned	WCE : 1;	/* state of disk WCE bit */
@@ -106,6 +114,7 @@ struct scsi_disk {
 	unsigned	rc_basis: 2;
 	unsigned	zoned: 2;
 	unsigned	urswrz : 1;
+	unsigned	ignore_medium_access_errors : 1;
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)
 
@@ -166,6 +175,11 @@ static inline sector_t logical_to_sectors(struct scsi_device *sdev, sector_t blo
 static inline unsigned int logical_to_bytes(struct scsi_device *sdev, sector_t blocks)
 {
 	return blocks * sdev->sector_size;
+}
+
+static inline sector_t bytes_to_logical(struct scsi_device *sdev, unsigned int bytes)
+{
+	return bytes >> ilog2(sdev->sector_size);
 }
 
 static inline sector_t sectors_to_logical(struct scsi_device *sdev, sector_t sector)
@@ -266,8 +280,8 @@ static inline int sd_is_zoned(struct scsi_disk *sdkp)
 extern int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buffer);
 extern void sd_zbc_remove(struct scsi_disk *sdkp);
 extern void sd_zbc_print_zones(struct scsi_disk *sdkp);
-extern int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd);
-extern void sd_zbc_cancel_write_cmnd(struct scsi_cmnd *cmd);
+extern int sd_zbc_write_lock_zone(struct scsi_cmnd *cmd);
+extern void sd_zbc_write_unlock_zone(struct scsi_cmnd *cmd);
 extern int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd);
 extern int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd);
 extern void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
@@ -285,13 +299,13 @@ static inline void sd_zbc_remove(struct scsi_disk *sdkp) {}
 
 static inline void sd_zbc_print_zones(struct scsi_disk *sdkp) {}
 
-static inline int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd)
+static inline int sd_zbc_write_lock_zone(struct scsi_cmnd *cmd)
 {
 	/* Let the drive fail requests */
 	return BLKPREP_OK;
 }
 
-static inline void sd_zbc_cancel_write_cmnd(struct scsi_cmnd *cmd) {}
+static inline void sd_zbc_write_unlock_zone(struct scsi_cmnd *cmd) {}
 
 static inline int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd)
 {

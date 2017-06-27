@@ -166,5 +166,34 @@ int crypto_unregister_acomp(struct acomp_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_acomp);
 
+int crypto_register_acomps(struct acomp_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_register_acomp(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	for (--i; i >= 0; --i)
+		crypto_unregister_acomp(&algs[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_register_acomps);
+
+void crypto_unregister_acomps(struct acomp_alg *algs, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_acomp(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_acomps);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous compression type");

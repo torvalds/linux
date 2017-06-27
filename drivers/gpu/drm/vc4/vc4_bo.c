@@ -6,7 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-/* DOC: VC4 GEM BO management support.
+/**
+ * DOC: VC4 GEM BO management support
  *
  * The VC4 GPU architecture (both scanout and rendering) has direct
  * access to system memory with no MMU in between.  To support it, we
@@ -186,6 +187,8 @@ out:
 
 /**
  * vc4_gem_create_object - Implementation of driver->gem_create_object.
+ * @dev: DRM device
+ * @size: Size in bytes of the memory the object will reference
  *
  * This lets the CMA helpers allocate object structs for us, and keep
  * our BO stats correct.
@@ -208,21 +211,22 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 }
 
 struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
-			     bool from_cache)
+			     bool allow_unzeroed)
 {
 	size_t size = roundup(unaligned_size, PAGE_SIZE);
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_gem_cma_object *cma_obj;
+	struct vc4_bo *bo;
 
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
 
 	/* First, try to get a vc4_bo from the kernel BO cache. */
-	if (from_cache) {
-		struct vc4_bo *bo = vc4_bo_get_from_cache(dev, size);
-
-		if (bo)
-			return bo;
+	bo = vc4_bo_get_from_cache(dev, size);
+	if (bo) {
+		if (!allow_unzeroed)
+			memset(bo->base.vaddr, 0, bo->base.base.size);
+		return bo;
 	}
 
 	cma_obj = drm_gem_cma_create(dev, size);
@@ -309,6 +313,14 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 
 	/* Don't cache if it was publicly named. */
 	if (gem_bo->name) {
+		vc4_bo_destroy(bo);
+		goto out;
+	}
+
+	/* If this object was partially constructed but CMA allocation
+	 * had failed, just free it.
+	 */
+	if (!bo->base.vaddr) {
 		vc4_bo_destroy(bo);
 		goto out;
 	}

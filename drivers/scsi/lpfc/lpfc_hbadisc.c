@@ -693,15 +693,16 @@ lpfc_work_done(struct lpfc_hba *phba)
 	pring = lpfc_phba_elsring(phba);
 	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
 	status >>= (4*LPFC_ELS_RING);
-	if ((status & HA_RXMASK) ||
-	    (pring->flag & LPFC_DEFERRED_RING_EVENT) ||
-	    (phba->hba_flag & HBA_SP_QUEUE_EVT)) {
+	if (pring && (status & HA_RXMASK ||
+		      pring->flag & LPFC_DEFERRED_RING_EVENT ||
+		      phba->hba_flag & HBA_SP_QUEUE_EVT)) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 			/* Set the lpfc data pending flag */
 			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			if (phba->link_state >= LPFC_LINK_UP) {
+			if (phba->link_state >= LPFC_LINK_UP ||
+			    phba->link_flag & LS_MDS_LOOPBACK) {
 				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 				lpfc_sli_handle_slow_ring_event(phba, pring,
 								(status &
@@ -3002,6 +3003,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) pmb->context1;
 	struct lpfc_vport  *vport = pmb->vport;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct serv_parm *sp = &vport->fc_sparam;
 	uint32_t ed_tov;
 
@@ -3031,6 +3033,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	lpfc_update_vport_wwn(vport);
+	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		memcpy(&phba->wwnn, &vport->fc_nodename, sizeof(phba->wwnn));
 		memcpy(&phba->wwpn, &vport->fc_portname, sizeof(phba->wwnn));
@@ -3309,6 +3312,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_sli_ring *pring;
 	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
+	uint8_t attn_type;
 
 	/* Unblock ELS traffic */
 	pring = lpfc_phba_elsring(phba);
@@ -3325,6 +3329,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	la = (struct lpfc_mbx_read_top *) &pmb->u.mb.un.varReadTop;
+	attn_type = bf_get(lpfc_mbx_read_top_att_type, la);
 
 	memcpy(&phba->alpa_map[0], mp->virt, 128);
 
@@ -3337,7 +3342,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (phba->fc_eventTag <= la->eventTag) {
 		phba->fc_stat.LinkMultiEvent++;
-		if (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)
+		if (attn_type == LPFC_ATT_LINK_UP)
 			if (phba->fc_eventTag != 0)
 				lpfc_linkdown(phba);
 	}
@@ -3353,7 +3358,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	phba->link_events++;
-	if ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP) &&
+	if ((attn_type == LPFC_ATT_LINK_UP) &&
 	    !(phba->sli.sli_flag & LPFC_MENLO_MAINT)) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
@@ -3379,8 +3384,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					phba->wait_4_mlo_maint_flg);
 		}
 		lpfc_mbx_process_link_up(phba, la);
-	} else if (bf_get(lpfc_mbx_read_top_att_type, la) ==
-		   LPFC_ATT_LINK_DOWN) {
+	} else if (attn_type == LPFC_ATT_LINK_DOWN ||
+		   attn_type == LPFC_ATT_UNEXP_WWPN) {
 		phba->fc_stat.LinkDown++;
 		if (phba->link_flag & LS_LOOPBACK_MODE)
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -3389,6 +3394,14 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				"Data: x%x x%x x%x\n",
 				la->eventTag, phba->fc_eventTag,
 				phba->pport->port_state, vport->fc_flag);
+		else if (attn_type == LPFC_ATT_UNEXP_WWPN)
+			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+				"1313 Link Down UNEXP WWPN Event x%x received "
+				"Data: x%x x%x x%x x%x x%x\n",
+				la->eventTag, phba->fc_eventTag,
+				phba->pport->port_state, vport->fc_flag,
+				bf_get(lpfc_mbx_read_top_mm, la),
+				bf_get(lpfc_mbx_read_top_fa, la));
 		else
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 				"1305 Link Down Event x%x received "
@@ -3399,8 +3412,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				bf_get(lpfc_mbx_read_top_fa, la));
 		lpfc_mbx_issue_link_down(phba);
 	}
-	if ((phba->sli.sli_flag & LPFC_MENLO_MAINT) &&
-	    ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP))) {
+	if (phba->sli.sli_flag & LPFC_MENLO_MAINT &&
+	    attn_type == LPFC_ATT_LINK_UP) {
 		if (phba->link_state != LPFC_LINK_DOWN) {
 			phba->fc_stat.LinkDown++;
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -4136,7 +4149,6 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		       int old_state, int new_state)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_hba *phba = vport->phba;
 
 	if (new_state == NLP_STE_UNMAPPED_NODE) {
 		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
@@ -4155,14 +4167,14 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_unregister_remote_port(ndlp);
 		}
 
-		/* Notify the NVME transport of this rport's loss */
-		if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
-		    (vport->phba->nvmet_support == 0) &&
-		    ((ndlp->nlp_fc4_type & NLP_FC4_NVME) ||
-		    (ndlp->nlp_DID == Fabric_DID))) {
+		/* Notify the NVME transport of this rport's loss on the
+		 * Initiator.  For NVME Target, should upcall transport
+		 * in the else clause when API available.
+		 */
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
 			vport->phba->nport_event_cnt++;
-			lpfc_nvme_unregister_port(vport, ndlp);
+			if (vport->phba->nvmet_support == 0)
+				lpfc_nvme_unregister_port(vport, ndlp);
 		}
 	}
 
@@ -4368,9 +4380,16 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint32_t did;
 	unsigned long flags;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
+	int rpi = LPFC_RPI_ALLOC_ERROR;
 
 	if (!ndlp)
 		return NULL;
+
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		if (rpi == LPFC_RPI_ALLOC_ERROR)
+			return NULL;
+	}
 
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
 	/* The ndlp should not be in memory free mode */
@@ -4381,7 +4400,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				"usgmap:x%x refcnt:%d\n",
 				(void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
-		return NULL;
+		goto free_rpi;
 	}
 	/* The ndlp should not already be in active mode */
 	if (NLP_CHK_NODE_ACT(ndlp)) {
@@ -4391,7 +4410,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				"usgmap:x%x refcnt:%d\n",
 				(void *)ndlp, ndlp->nlp_usg_map,
 				kref_read(&ndlp->kref));
-		return NULL;
+		goto free_rpi;
 	}
 
 	/* Keep the original DID */
@@ -4409,7 +4428,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
-		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		ndlp->nlp_rpi = rpi;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0008 rpi:%x DID:%x flg:%x refcnt:%d "
 				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
@@ -4426,6 +4445,11 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		"node enable:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 	return ndlp;
+
+free_rpi:
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_sli4_free_rpi(vport->phba, rpi);
+	return NULL;
 }
 
 void
@@ -5104,65 +5128,82 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
+		if (vport->phba->nvmet_support)
+			return NULL;
 		if ((vport->fc_flag & FC_RSCN_MODE) != 0 &&
 		    lpfc_rscn_payload_check(vport, did) == 0)
 			return NULL;
-		ndlp = (struct lpfc_nodelist *)
-		     mempool_alloc(vport->phba->nlp_mem_pool, GFP_KERNEL);
+		ndlp = lpfc_nlp_init(vport, did);
 		if (!ndlp)
 			return NULL;
-		lpfc_nlp_init(vport, ndlp, did);
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
-		if (vport->phba->nvmet_support)
-			return ndlp;
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
 		return ndlp;
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		if (vport->phba->nvmet_support)
+			return NULL;
 		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_NPR_NODE);
 		if (!ndlp)
 			return NULL;
-		if (vport->phba->nvmet_support)
-			return ndlp;
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
 		return ndlp;
 	}
 
+	/* The NVME Target does not want to actively manage an rport.
+	 * The goal is to allow the target to reset its state and clear
+	 * pending IO in preparation for the initiator to recover.
+	 */
 	if ((vport->fc_flag & FC_RSCN_MODE) &&
 	    !(vport->fc_flag & FC_NDISC_ACTIVE)) {
 		if (lpfc_rscn_payload_check(vport, did)) {
+
+			/* Since this node is marked for discovery,
+			 * delay timeout is not needed.
+			 */
+			lpfc_cancel_retry_delay_tmo(vport, ndlp);
+
+			/* NVME Target mode waits until rport is known to be
+			 * impacted by the RSCN before it transitions.  No
+			 * active management - just go to NPR provided the
+			 * node had a valid login.
+			 */
+			if (vport->phba->nvmet_support)
+				return ndlp;
+
 			/* If we've already received a PLOGI from this NPort
 			 * we don't need to try to discover it again.
 			 */
 			if (ndlp->nlp_flag & NLP_RCV_PLOGI)
 				return NULL;
 
-			/* Since this node is marked for discovery,
-			 * delay timeout is not needed.
-			 */
-			lpfc_cancel_retry_delay_tmo(vport, ndlp);
-			if (vport->phba->nvmet_support)
-				return ndlp;
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 			spin_unlock_irq(shost->host_lock);
 		} else
 			ndlp = NULL;
 	} else {
-		/* If we've already received a PLOGI from this NPort,
-		 * or we are already in the process of discovery on it,
-		 * we don't need to try to discover it again.
+		/* If the initiator received a PLOGI from this NPort or if the
+		 * initiator is already in the process of discovery on it,
+		 * there's no need to try to discover it again.
 		 */
 		if (ndlp->nlp_state == NLP_STE_ADISC_ISSUE ||
 		    ndlp->nlp_state == NLP_STE_PLOGI_ISSUE ||
-		    ndlp->nlp_flag & NLP_RCV_PLOGI)
+		    (!vport->phba->nvmet_support &&
+		     ndlp->nlp_flag & NLP_RCV_PLOGI))
 			return NULL;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+
 		if (vport->phba->nvmet_support)
 			return ndlp;
+
+		/* Moving to NPR state clears unsolicited flags and
+		 * allows for rediscovery
+		 */
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
@@ -5887,16 +5928,31 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 	return NULL;
 }
 
-void
-lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
-	      uint32_t did)
+struct lpfc_nodelist *
+lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 {
+	struct lpfc_nodelist *ndlp;
+	int rpi = LPFC_RPI_ALLOC_ERROR;
+
+	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
+		rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		if (rpi == LPFC_RPI_ALLOC_ERROR)
+			return NULL;
+	}
+
+	ndlp = mempool_alloc(vport->phba->nlp_mem_pool, GFP_KERNEL);
+	if (!ndlp) {
+		if (vport->phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_free_rpi(vport->phba, rpi);
+		return NULL;
+	}
+
 	memset(ndlp, 0, sizeof (struct lpfc_nodelist));
 
 	lpfc_initialize_node(vport, ndlp, did);
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
-		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
+		ndlp->nlp_rpi = rpi;
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
 				 "0007 rpi:%x DID:%x flg:%x refcnt:%d "
 				 "map:%x %p\n", ndlp->nlp_rpi, ndlp->nlp_DID,
@@ -5918,7 +5974,7 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		"node init:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
-	return;
+	return ndlp;
 }
 
 /* This routine releases all resources associated with a specifc NPort's ndlp

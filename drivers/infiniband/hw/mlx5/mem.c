@@ -59,15 +59,14 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	u64 pfn;
 	struct scatterlist *sg;
 	int entry;
-	unsigned long page_shift = ilog2(umem->page_size);
+	unsigned long page_shift = umem->page_shift;
 
-	/* With ODP we must always match OS page size. */
 	if (umem->odp_data) {
-		*count = ib_umem_page_count(umem);
-		*shift = PAGE_SHIFT;
-		*ncont = *count;
+		*ncont = ib_umem_page_count(umem);
+		*count = *ncont << (page_shift - PAGE_SHIFT);
+		*shift = page_shift;
 		if (order)
-			*order = ilog2(roundup_pow_of_two(*count));
+			*order = ilog2(roundup_pow_of_two(*ncont));
 
 		return;
 	}
@@ -156,7 +155,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			    int page_shift, size_t offset, size_t num_pages,
 			    __be64 *pas, int access_flags)
 {
-	unsigned long umem_page_shift = ilog2(umem->page_size);
+	unsigned long umem_page_shift = umem->page_shift;
 	int shift = page_shift - umem_page_shift;
 	int mask = (1 << shift) - 1;
 	int i, k, idx;

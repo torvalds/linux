@@ -69,6 +69,7 @@ struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 	if (host->h_rpcclnt == NULL && nlm_bind_host(host) == NULL)
 		goto out_nobind;
 
+	host->h_nlmclnt_ops = nlm_init->nlmclnt_ops;
 	return host;
 out_nobind:
 	nlmclnt_release_host(host);

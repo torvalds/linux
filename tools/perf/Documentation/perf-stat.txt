@@ -94,8 +94,7 @@ to activate system-wide monitoring. Default is to count on all CPUs.
 
 -A::
 --no-aggr::
-Do not aggregate counts across all monitored CPUs in system-wide mode (-a).
-This option is only valid in system-wide mode.
+Do not aggregate counts across all monitored CPUs.
 
 -n::
 --null::
@@ -236,6 +235,9 @@ This enables --metric-only, unless overriden with --no-metric-only.
 To interpret the results it is usually needed to know on which
 CPUs the workload runs on. If needed the CPUs can be forced using
 taskset.
+
+--no-merge::
+Do not merge results from same PMUs.
 
 EXAMPLES
 --------

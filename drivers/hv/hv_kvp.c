@@ -69,7 +69,7 @@ static const int fw_versions[] = {
  *
  * While the request/response protocol is guaranteed by the host, we further
  * ensure this by serializing packet processing in this driver - we do not
- * read additional packets from the VMBUs until the current packet is fully
+ * read additional packets from the VMBUS until the current packet is fully
  * handled.
  */
 
@@ -397,7 +397,7 @@ kvp_send_key(struct work_struct *dummy)
 	 * the max lengths specified. We will however, reserve room
 	 * for the string terminating character - in the utf16s_utf8s()
 	 * function we limit the size of the buffer where the converted
-	 * string is placed to HV_KVP_EXCHANGE_MAX_*_SIZE -1 to gaurantee
+	 * string is placed to HV_KVP_EXCHANGE_MAX_*_SIZE -1 to guarantee
 	 * that the strings can be properly terminated!
 	 */
 
@@ -483,8 +483,6 @@ kvp_send_key(struct work_struct *dummy)
 	}
 
 	kfree(message);
-
-	return;
 }
 
 /*
@@ -533,7 +531,7 @@ kvp_respond_to_host(struct hv_kvp_msg *msg_to_host, int error)
 	 */
 	if (error) {
 		/*
-		 * Something failed or we have timedout;
+		 * Something failed or we have timed out;
 		 * terminate the current host-side iteration.
 		 */
 		goto response_done;
@@ -607,8 +605,8 @@ response_done:
  * This callback is invoked when we get a KVP message from the host.
  * The host ensures that only one KVP transaction can be active at a time.
  * KVP implementation in Linux needs to forward the key to a user-mde
- * component to retrive the corresponding value. Consequently, we cannot
- * respond to the host in the conext of this callback. Since the host
+ * component to retrieve the corresponding value. Consequently, we cannot
+ * respond to the host in the context of this callback. Since the host
  * guarantees that at most only one transaction can be active at a time,
  * we stash away the transaction state in a set of global variables.
  */

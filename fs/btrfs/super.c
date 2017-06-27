@@ -549,16 +549,19 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_ssd:
 			btrfs_set_and_info(info, SSD,
 					   "use ssd allocation scheme");
+			btrfs_clear_opt(info->mount_opt, NOSSD);
 			break;
 		case Opt_ssd_spread:
 			btrfs_set_and_info(info, SSD_SPREAD,
 					   "use spread ssd allocation scheme");
 			btrfs_set_opt(info->mount_opt, SSD);
+			btrfs_clear_opt(info->mount_opt, NOSSD);
 			break;
 		case Opt_nossd:
 			btrfs_set_and_info(info, NOSSD,
 					     "not using ssd allocation scheme");
 			btrfs_clear_opt(info->mount_opt, SSD);
+			btrfs_clear_opt(info->mount_opt, SSD_SPREAD);
 			break;
 		case Opt_barrier:
 			btrfs_clear_and_info(info, NOBARRIER,
@@ -1133,6 +1136,13 @@ static int btrfs_fill_super(struct super_block *sb,
 #endif
 	sb->s_flags |= MS_I_VERSION;
 	sb->s_iflags |= SB_I_CGROUPWB;
+
+	err = super_setup_bdi(sb);
+	if (err) {
+		btrfs_err(fs_info, "super_setup_bdi failed");
+		return err;
+	}
+
 	err = open_ctree(sb, fs_devices, (char *)data);
 	if (err) {
 		btrfs_err(fs_info, "open_ctree failed");
@@ -1785,8 +1795,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		}
 
 		if (fs_info->fs_devices->missing_devices >
-		     fs_info->num_tolerated_disk_barrier_failures &&
-		    !(*flags & MS_RDONLY)) {
+		     fs_info->num_tolerated_disk_barrier_failures) {
 			btrfs_warn(fs_info,
 				"too many missing devices, writeable remount is not allowed");
 			ret = -EACCES;

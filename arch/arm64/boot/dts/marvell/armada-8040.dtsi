@@ -54,3 +54,12 @@
 	compatible = "marvell,armada8040", "marvell,armada-ap806-quad",
 		     "marvell,armada-ap806";
 };
+
+/* The RTC requires external oscillator. But on Aramda 80x0, the RTC clock
+ * in CP master is not connected (by package) to the oscillator. So
+ * disable it. However, the RTC clock in CP slave is connected to the
+ * oscillator so this one is let enabled.
+ */
+&cpm_rtc {
+	status = "disabled";
+};

@@ -170,10 +170,8 @@ static int tegra_rt5640_probe(struct platform_device *pdev)
 
 	machine = devm_kzalloc(&pdev->dev,
 			sizeof(struct tegra_rt5640), GFP_KERNEL);
-	if (!machine) {
-		dev_err(&pdev->dev, "Can't allocate tegra_rt5640\n");
+	if (!machine)
 		return -ENOMEM;
-	}
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);

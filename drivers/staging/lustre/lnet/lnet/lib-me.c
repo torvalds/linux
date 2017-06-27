@@ -46,7 +46,7 @@
  * \param portal The portal table index where the ME should be attached.
  * \param match_id Specifies the match criteria for the process ID of
  * the requester. The constants LNET_PID_ANY and LNET_NID_ANY can be
- * used to wildcard either of the identifiers in the lnet_process_id_t
+ * used to wildcard either of the identifiers in the lnet_process_id
  * structure.
  * \param match_bits,ignore_bits Specify the match criteria to apply
  * to the match bits in the incoming request. The ignore bits are used
@@ -70,10 +70,10 @@
  */
 int
 LNetMEAttach(unsigned int portal,
-	     lnet_process_id_t match_id,
+	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
-	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
-	     lnet_handle_me_t *handle)
+	     enum lnet_unlink unlink, enum lnet_ins_pos pos,
+	     struct lnet_handle_me *handle)
 {
 	struct lnet_match_table *mtable;
 	struct lnet_me *me;
@@ -140,11 +140,11 @@ EXPORT_SYMBOL(LNetMEAttach);
  * \retval -ENOENT If \a current_meh does not point to a valid match entry.
  */
 int
-LNetMEInsert(lnet_handle_me_t current_meh,
-	     lnet_process_id_t match_id,
+LNetMEInsert(struct lnet_handle_me current_meh,
+	     struct lnet_process_id match_id,
 	     __u64 match_bits, __u64 ignore_bits,
-	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
-	     lnet_handle_me_t *handle)
+	     enum lnet_unlink unlink, enum lnet_ins_pos pos,
+	     struct lnet_handle_me *handle)
 {
 	struct lnet_me *current_me;
 	struct lnet_me *new_me;
@@ -220,11 +220,11 @@ EXPORT_SYMBOL(LNetMEInsert);
  * \see LNetMDUnlink() for the discussion on delivering unlink event.
  */
 int
-LNetMEUnlink(lnet_handle_me_t meh)
+LNetMEUnlink(struct lnet_handle_me meh)
 {
-	lnet_me_t *me;
-	lnet_libmd_t *md;
-	lnet_event_t ev;
+	struct lnet_me *me;
+	struct lnet_libmd *md;
+	struct lnet_event ev;
 	int cpt;
 
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -256,12 +256,12 @@ EXPORT_SYMBOL(LNetMEUnlink);
 
 /* call with lnet_res_lock please */
 void
-lnet_me_unlink(lnet_me_t *me)
+lnet_me_unlink(struct lnet_me *me)
 {
 	list_del(&me->me_list);
 
 	if (me->me_md) {
-		lnet_libmd_t *md = me->me_md;
+		struct lnet_libmd *md = me->me_md;
 
 		/* detach MD from portal of this ME */
 		lnet_ptl_detach_md(me, md);

@@ -12,6 +12,7 @@ struct btrfs_root;
 struct btrfs_fs_info;
 struct btrfs_inode;
 struct extent_map;
+struct btrfs_file_extent_item;
 struct btrfs_ordered_extent;
 struct btrfs_delayed_ref_node;
 struct btrfs_delayed_tree_ref;
@@ -24,6 +25,7 @@ struct extent_buffer;
 struct btrfs_work;
 struct __btrfs_workqueue;
 struct btrfs_qgroup_extent_record;
+struct btrfs_qgroup;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -53,6 +55,12 @@ struct btrfs_qgroup_extent_record;
 	obj, ((obj >= BTRFS_DATA_RELOC_TREE_OBJECTID) ||		\
 	      (obj >= BTRFS_ROOT_TREE_OBJECTID &&			\
 	       obj <= BTRFS_QUOTA_TREE_OBJECTID)) ? __show_root_type(obj) : "-"
+
+#define show_fi_type(type)						\
+	__print_symbolic(type,						\
+		 { BTRFS_FILE_EXTENT_INLINE,	"INLINE" },		\
+		 { BTRFS_FILE_EXTENT_REG,	"REG"	 },		\
+		 { BTRFS_FILE_EXTENT_PREALLOC,	"PREALLOC"})
 
 #define BTRFS_GROUP_FLAGS	\
 	{ BTRFS_BLOCK_GROUP_DATA,	"DATA"},	\
@@ -213,7 +221,7 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__entry->block_start	= map->block_start;
 		__entry->block_len	= map->block_len;
 		__entry->flags		= map->flags;
-		__entry->refs		= atomic_read(&map->refs);
+		__entry->refs		= refcount_read(&map->refs);
 		__entry->compress_type	= map->compress_type;
 	),
 
@@ -230,6 +238,138 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		  (unsigned long long)__entry->block_len,
 		  show_map_flags(__entry->flags),
 		  __entry->refs, __entry->compress_type)
+);
+
+/* file extent item */
+DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
+
+	TP_PROTO(struct btrfs_inode *bi, struct extent_buffer *l,
+		 struct btrfs_file_extent_item *fi, u64 start),
+
+	TP_ARGS(bi, l, fi, start),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	root_obj	)
+		__field(	u64,	ino		)
+		__field(	loff_t,	isize		)
+		__field(	u64,	disk_isize	)
+		__field(	u64,	num_bytes	)
+		__field(	u64,	ram_bytes	)
+		__field(	u64,	disk_bytenr	)
+		__field(	u64,	disk_num_bytes	)
+		__field(	u64,	extent_offset	)
+		__field(	u8,	extent_type	)
+		__field(	u8,	compression	)
+		__field(	u64,	extent_start	)
+		__field(	u64,	extent_end	)
+	),
+
+	TP_fast_assign_btrfs(bi->root->fs_info,
+		__entry->root_obj	= bi->root->objectid;
+		__entry->ino		= btrfs_ino(bi);
+		__entry->isize		= bi->vfs_inode.i_size;
+		__entry->disk_isize	= bi->disk_i_size;
+		__entry->num_bytes	= btrfs_file_extent_num_bytes(l, fi);
+		__entry->ram_bytes	= btrfs_file_extent_ram_bytes(l, fi);
+		__entry->disk_bytenr	= btrfs_file_extent_disk_bytenr(l, fi);
+		__entry->disk_num_bytes	= btrfs_file_extent_disk_num_bytes(l, fi);
+		__entry->extent_offset	= btrfs_file_extent_offset(l, fi);
+		__entry->extent_type	= btrfs_file_extent_type(l, fi);
+		__entry->compression	= btrfs_file_extent_compression(l, fi);
+		__entry->extent_start	= start;
+		__entry->extent_end	= (start + __entry->num_bytes);
+	),
+
+	TP_printk_btrfs(
+		"root=%llu(%s) inode=%llu size=%llu disk_isize=%llu "
+		"file extent range=[%llu %llu] "
+		"(num_bytes=%llu ram_bytes=%llu disk_bytenr=%llu "
+		"disk_num_bytes=%llu extent_offset=%llu type=%s "
+		"compression=%u",
+		show_root_type(__entry->root_obj), __entry->ino,
+		__entry->isize,
+		__entry->disk_isize, __entry->extent_start,
+		__entry->extent_end, __entry->num_bytes, __entry->ram_bytes,
+		__entry->disk_bytenr, __entry->disk_num_bytes,
+		__entry->extent_offset, show_fi_type(__entry->extent_type),
+		__entry->compression)
+);
+
+DECLARE_EVENT_CLASS(
+	btrfs__file_extent_item_inline,
+
+	TP_PROTO(struct btrfs_inode *bi, struct extent_buffer *l,
+		 struct btrfs_file_extent_item *fi, int slot, u64 start),
+
+	TP_ARGS(bi, l, fi, slot,  start),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	root_obj	)
+		__field(	u64,	ino		)
+		__field(	loff_t,	isize		)
+		__field(	u64,	disk_isize	)
+		__field(	u8,	extent_type	)
+		__field(	u8,	compression	)
+		__field(	u64,	extent_start	)
+		__field(	u64,	extent_end	)
+	),
+
+	TP_fast_assign_btrfs(
+		bi->root->fs_info,
+		__entry->root_obj	= bi->root->objectid;
+		__entry->ino		= btrfs_ino(bi);
+		__entry->isize		= bi->vfs_inode.i_size;
+		__entry->disk_isize	= bi->disk_i_size;
+		__entry->extent_type	= btrfs_file_extent_type(l, fi);
+		__entry->compression	= btrfs_file_extent_compression(l, fi);
+		__entry->extent_start	= start;
+		__entry->extent_end	= (start + btrfs_file_extent_inline_len(l, slot, fi));
+	),
+
+	TP_printk_btrfs(
+		"root=%llu(%s) inode=%llu size=%llu disk_isize=%llu "
+		"file extent range=[%llu %llu] "
+		"extent_type=%s compression=%u",
+		show_root_type(__entry->root_obj), __entry->ino, __entry->isize,
+		__entry->disk_isize, __entry->extent_start,
+		__entry->extent_end, show_fi_type(__entry->extent_type),
+		__entry->compression)
+);
+
+DEFINE_EVENT(
+	btrfs__file_extent_item_regular, btrfs_get_extent_show_fi_regular,
+
+	TP_PROTO(struct btrfs_inode *bi, struct extent_buffer *l,
+		 struct btrfs_file_extent_item *fi, u64 start),
+
+	TP_ARGS(bi, l, fi, start)
+);
+
+DEFINE_EVENT(
+	btrfs__file_extent_item_regular, btrfs_truncate_show_fi_regular,
+
+	TP_PROTO(struct btrfs_inode *bi, struct extent_buffer *l,
+		 struct btrfs_file_extent_item *fi, u64 start),
+
+	TP_ARGS(bi, l, fi, start)
+);
+
+DEFINE_EVENT(
+	btrfs__file_extent_item_inline, btrfs_get_extent_show_fi_inline,
+
+	TP_PROTO(struct btrfs_inode *bi, struct extent_buffer *l,
+		 struct btrfs_file_extent_item *fi, int slot, u64 start),
+
+	TP_ARGS(bi, l, fi, slot, start)
+);
+
+DEFINE_EVENT(
+	btrfs__file_extent_item_inline, btrfs_truncate_show_fi_inline,
+
+	TP_PROTO(struct btrfs_inode *bi, struct extent_buffer *l,
+		 struct btrfs_file_extent_item *fi, int slot, u64 start),
+
+	TP_ARGS(bi, l, fi, slot, start)
 );
 
 #define show_ordered_flags(flags)					   \
@@ -275,7 +415,7 @@ DECLARE_EVENT_CLASS(btrfs__ordered_extent,
 		__entry->bytes_left	= ordered->bytes_left;
 		__entry->flags		= ordered->flags;
 		__entry->compress_type	= ordered->compress_type;
-		__entry->refs		= atomic_read(&ordered->refs);
+		__entry->refs		= refcount_read(&ordered->refs);
 		__entry->root_objectid	=
 				BTRFS_I(inode)->root->root_key.objectid;
 		__entry->truncated_len	= ordered->truncated_len;
@@ -1473,6 +1613,49 @@ TRACE_EVENT(qgroup_update_counters,
 		  __entry->qgid,
 		  __entry->cur_old_count,
 		  __entry->cur_new_count)
+);
+
+TRACE_EVENT(qgroup_update_reserve,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *qgroup,
+		 s64 diff),
+
+	TP_ARGS(fs_info, qgroup, diff),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	qgid			)
+		__field(	u64,	cur_reserved		)
+		__field(	s64,	diff			)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->qgid		= qgroup->qgroupid;
+		__entry->cur_reserved	= qgroup->reserved;
+		__entry->diff		= diff;
+	),
+
+	TP_printk_btrfs("qgid=%llu cur_reserved=%llu diff=%lld",
+		__entry->qgid, __entry->cur_reserved, __entry->diff)
+);
+
+TRACE_EVENT(qgroup_meta_reserve,
+
+	TP_PROTO(struct btrfs_root *root, s64 diff),
+
+	TP_ARGS(root, diff),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	refroot			)
+		__field(	s64,	diff			)
+	),
+
+	TP_fast_assign_btrfs(root->fs_info,
+		__entry->refroot	= root->objectid;
+		__entry->diff		= diff;
+	),
+
+	TP_printk_btrfs("refroot=%llu(%s) diff=%lld",
+		show_root_type(__entry->refroot), __entry->diff)
 );
 
 #endif /* _TRACE_BTRFS_H */

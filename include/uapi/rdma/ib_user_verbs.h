@@ -947,6 +947,17 @@ struct ib_uverbs_flow_spec_action_tag {
 	__u32			      reserved1;
 };
 
+struct ib_uverbs_flow_spec_action_drop {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+};
+
 struct ib_uverbs_flow_tunnel_filter {
 	__be32 tunnel_id;
 };
@@ -1123,5 +1134,7 @@ struct ib_uverbs_ex_destroy_rwq_ind_table  {
 	__u32 comp_mask;
 	__u32 ind_tbl_handle;
 };
+
+#define IB_DEVICE_NAME_MAX 64
 
 #endif /* IB_USER_VERBS_H */

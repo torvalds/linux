@@ -87,22 +87,22 @@ struct k_itimer {
 };
 
 struct k_clock {
-	int (*clock_getres) (const clockid_t which_clock, struct timespec *tp);
+	int (*clock_getres) (const clockid_t which_clock, struct timespec64 *tp);
 	int (*clock_set) (const clockid_t which_clock,
-			  const struct timespec *tp);
-	int (*clock_get) (const clockid_t which_clock, struct timespec * tp);
+			  const struct timespec64 *tp);
+	int (*clock_get) (const clockid_t which_clock, struct timespec64 *tp);
 	int (*clock_adj) (const clockid_t which_clock, struct timex *tx);
 	int (*timer_create) (struct k_itimer *timer);
 	int (*nsleep) (const clockid_t which_clock, int flags,
-		       struct timespec *, struct timespec __user *);
+		       struct timespec64 *, struct timespec __user *);
 	long (*nsleep_restart) (struct restart_block *restart_block);
-	int (*timer_set) (struct k_itimer * timr, int flags,
-			  struct itimerspec * new_setting,
-			  struct itimerspec * old_setting);
-	int (*timer_del) (struct k_itimer * timr);
+	int (*timer_set) (struct k_itimer *timr, int flags,
+			  struct itimerspec64 *new_setting,
+			  struct itimerspec64 *old_setting);
+	int (*timer_del) (struct k_itimer *timr);
 #define TIMER_RETRY 1
-	void (*timer_get) (struct k_itimer * timr,
-			   struct itimerspec * cur_setting);
+	void (*timer_get) (struct k_itimer *timr,
+			   struct itimerspec64 *cur_setting);
 };
 
 extern struct k_clock clock_posix_cpu;

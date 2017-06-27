@@ -36,17 +36,17 @@
 
 /* rxe_av.c */
 
-int rxe_av_chk_attr(struct rxe_dev *rxe, struct ib_ah_attr *attr);
+int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr);
 
 int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
-		     struct rxe_av *av, struct ib_ah_attr *attr);
+		     struct rxe_av *av, struct rdma_ah_attr *attr);
 
 int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
-		   struct ib_ah_attr *attr);
+		   struct rdma_ah_attr *attr);
 
 int rxe_av_fill_ip_info(struct rxe_dev *rxe,
 			struct rxe_av *av,
-			struct ib_ah_attr *attr,
+			struct rdma_ah_attr *attr,
 			struct ib_gid_attr *sgid_attr,
 			union ib_gid *sgid);
 
@@ -145,7 +145,6 @@ int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
 int rxe_loopback(struct sk_buff *skb);
 int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	     struct sk_buff *skb);
-__be64 rxe_port_guid(struct rxe_dev *rxe);
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt);
 int rxe_prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
@@ -153,7 +152,6 @@ int rxe_prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 enum rdma_link_layer rxe_link_layer(struct rxe_dev *rxe, unsigned int port_num);
 const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
 struct device *rxe_dma_device(struct rxe_dev *rxe);
-__be64 rxe_node_guid(struct rxe_dev *rxe);
 int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid);
 int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid);
 
@@ -278,6 +276,7 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	if (err) {
 		rxe->xmit_errors++;
+		rxe_counter_inc(rxe, RXE_CNT_SEND_ERR);
 		return err;
 	}
 
@@ -287,6 +286,7 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 		rxe_run_task(&qp->comp.task, 1);
 	}
 
+	rxe_counter_inc(rxe, RXE_CNT_SENT_PKTS);
 	goto done;
 
 drop:

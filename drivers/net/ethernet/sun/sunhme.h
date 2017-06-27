@@ -418,8 +418,6 @@ struct happy_meal {
 
 	int rx_new, tx_new, rx_old, tx_old;
 
-	struct net_device_stats	  net_stats;      /* Statistical counters              */
-
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	u32 (*read32)(void __iomem *);
 	void (*write32)(void __iomem *, u32);

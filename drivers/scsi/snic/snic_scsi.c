@@ -1066,7 +1066,7 @@ ioctl_hba_rst:
 	if (!snic->remove_wait) {
 		spin_unlock_irqrestore(io_lock, flags);
 		SNIC_HOST_ERR(snic->shost,
-			      "reset_cmpl:host reset completed after timout\n");
+			      "reset_cmpl:host reset completed after timeout\n");
 		ret = 1;
 
 		return ret;

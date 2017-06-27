@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/inet_diag.h>
-#include <rdma/ib_verbs.h>
+#include <rdma/ib_user_verbs.h>
 
 /* Request structure */
 struct smc_diag_req {

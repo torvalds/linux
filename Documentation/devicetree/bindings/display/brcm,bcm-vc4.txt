@@ -34,6 +34,9 @@ Optional properties for HDMI:
 - hpd-gpios:	The GPIO pin for HDMI hotplug detect (if it doesn't appear
 		  as an interrupt/status bit in the HDMI controller
 		  itself).  See bindings/pinctrl/brcm,bcm2835-gpio.txt
+- dmas:		Should contain one entry pointing to the DMA channel used to
+		transfer audio data
+- dma-names:	Should contain "audio-rx"
 
 Required properties for DPI:
 - compatible:	Should be "brcm,bcm2835-dpi"

@@ -43,7 +43,7 @@ static int amdgpu_create_pp_handle(struct amdgpu_device *adev)
 	amd_pp = &(adev->powerplay);
 	pp_init.chip_family = adev->family;
 	pp_init.chip_id = adev->asic_type;
-	pp_init.pm_en = amdgpu_dpm != 0 ? true : false;
+	pp_init.pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
 	pp_init.feature_mask = amdgpu_pp_feature_mask;
 	pp_init.device = amdgpu_cgs_create_device(adev);
 	ret = amd_powerplay_create(&pp_init, &(amd_pp->pp_handle));
@@ -71,6 +71,7 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_TOPAZ:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
+	case CHIP_VEGA10:
 		adev->pp_enabled = true;
 		if (amdgpu_create_pp_handle(adev))
 			return -EINVAL;
@@ -163,7 +164,7 @@ static int amdgpu_pp_hw_init(void *handle)
 	int ret = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->pp_enabled && adev->firmware.smu_load)
+	if (adev->pp_enabled && adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
 		amdgpu_ucode_init_bo(adev);
 
 	if (adev->powerplay.ip_funcs->hw_init)
@@ -190,7 +191,7 @@ static int amdgpu_pp_hw_fini(void *handle)
 		ret = adev->powerplay.ip_funcs->hw_fini(
 					adev->powerplay.pp_handle);
 
-	if (adev->pp_enabled && adev->firmware.smu_load)
+	if (adev->pp_enabled && adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
 		amdgpu_ucode_fini_bo(adev);
 
 	return ret;

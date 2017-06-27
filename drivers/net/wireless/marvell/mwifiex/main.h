@@ -1359,7 +1359,7 @@ mwifiex_netdev_get_priv(struct net_device *dev)
  */
 static inline bool mwifiex_is_skb_mgmt_frame(struct sk_buff *skb)
 {
-	return (le32_to_cpu(*(__le32 *)skb->data) == PKT_TYPE_MGMT);
+	return (get_unaligned_le32(skb->data) == PKT_TYPE_MGMT);
 }
 
 /* This function retrieves channel closed for operation by Channel
@@ -1529,7 +1529,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					      const char *name,
 					      unsigned char name_assign_type,
 					      enum nl80211_iftype type,
-					      u32 *flags,
 					      struct vif_params *params);
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev);
 

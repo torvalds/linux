@@ -1489,7 +1489,7 @@ static struct net_device_stats *cxgb_get_stats(struct net_device *dev)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	struct net_device_stats *ns = &pi->netstats;
+	struct net_device_stats *ns = &dev->stats;
 	const struct mac_stats *pstats;
 
 	spin_lock(&adapter->stats_lock);

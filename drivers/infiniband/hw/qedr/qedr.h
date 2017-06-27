@@ -38,7 +38,8 @@
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_roce_if.h>
 #include <linux/qed/qede_roce.h>
-#include "qedr_hsi.h"
+#include <linux/qed/roce_common.h>
+#include "qedr_hsi_rdma.h"
 
 #define QEDR_MODULE_VERSION	"8.10.10.0"
 #define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"
@@ -271,6 +272,8 @@ struct qedr_cq {
 	u32 cq_cons;
 
 	struct qedr_userq q;
+	u8 destroyed;
+	u16 cnq_notif;
 };
 
 struct qedr_pd {
@@ -389,7 +392,7 @@ struct qedr_qp {
 
 struct qedr_ah {
 	struct ib_ah ibah;
-	struct ib_ah_attr attr;
+	struct rdma_ah_attr attr;
 };
 
 enum qedr_mr_type {
@@ -428,7 +431,8 @@ struct qedr_mr {
 			 RDMA_CQE_RESPONDER_IMM_FLG_SHIFT)
 #define QEDR_RESP_RDMA	(RDMA_CQE_RESPONDER_RDMA_FLG_MASK << \
 			 RDMA_CQE_RESPONDER_RDMA_FLG_SHIFT)
-#define QEDR_RESP_RDMA_IMM (QEDR_RESP_IMM | QEDR_RESP_RDMA)
+#define QEDR_RESP_INV	(RDMA_CQE_RESPONDER_INV_FLG_MASK << \
+			 RDMA_CQE_RESPONDER_INV_FLG_SHIFT)
 
 static inline void qedr_inc_sw_cons(struct qedr_qp_hwq_info *info)
 {
@@ -442,19 +446,24 @@ static inline void qedr_inc_sw_prod(struct qedr_qp_hwq_info *info)
 }
 
 static inline int qedr_get_dmac(struct qedr_dev *dev,
-				struct ib_ah_attr *ah_attr, u8 *mac_addr)
+				struct rdma_ah_attr *ah_attr, u8 *mac_addr)
 {
 	union ib_gid zero_sgid = { { 0 } };
 	struct in6_addr in6;
+	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
+	u8 *dmac;
 
-	if (!memcmp(&ah_attr->grh.dgid, &zero_sgid, sizeof(union ib_gid))) {
+	if (!memcmp(&grh->dgid, &zero_sgid, sizeof(union ib_gid))) {
 		DP_ERR(dev, "Local port GID not supported\n");
 		eth_zero_addr(mac_addr);
 		return -EINVAL;
 	}
 
-	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
-	ether_addr_copy(mac_addr, ah_attr->dmac);
+	memcpy(&in6, grh->dgid.raw, sizeof(in6));
+	dmac = rdma_ah_retrieve_dmac(ah_attr);
+	if (!dmac)
+		return -EINVAL;
+	ether_addr_copy(mac_addr, dmac);
 
 	return 0;
 }

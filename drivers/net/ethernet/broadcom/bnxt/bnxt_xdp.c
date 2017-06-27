@@ -19,11 +19,10 @@
 #include "bnxt.h"
 #include "bnxt_xdp.h"
 
-static void bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
-			  dma_addr_t mapping, u32 len, u16 rx_prod)
+void bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
+		   dma_addr_t mapping, u32 len, u16 rx_prod)
 {
 	struct bnxt_sw_tx_bd *tx_buf;
-	struct tx_bd_ext *txbd1;
 	struct tx_bd *txbd;
 	u32 flags;
 	u16 prod;
@@ -33,21 +32,11 @@ static void bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 	tx_buf->rx_prod = rx_prod;
 
 	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
-	flags = (len << TX_BD_LEN_SHIFT) | TX_BD_TYPE_LONG_TX_BD |
-		(2 << TX_BD_FLAGS_BD_CNT_SHIFT) | TX_BD_FLAGS_COAL_NOW |
+	flags = (len << TX_BD_LEN_SHIFT) | (1 << TX_BD_FLAGS_BD_CNT_SHIFT) |
 		TX_BD_FLAGS_PACKET_END | bnxt_lhint_arr[len >> 9];
 	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
 	txbd->tx_bd_opaque = prod;
 	txbd->tx_bd_haddr = cpu_to_le64(mapping);
-
-	prod = NEXT_TX(prod);
-	txbd1 = (struct tx_bd_ext *)
-		&txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
-
-	txbd1->tx_bd_hsize_lflags = cpu_to_le32(0);
-	txbd1->tx_bd_mss = cpu_to_le32(0);
-	txbd1->tx_bd_cfa_action = cpu_to_le32(0);
-	txbd1->tx_bd_cfa_meta = cpu_to_le32(0);
 
 	prod = NEXT_TX(prod);
 	txr->tx_prod = prod;
@@ -65,7 +54,6 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 
 	for (i = 0; i < nr_pkts; i++) {
 		last_tx_cons = tx_cons;
-		tx_cons = NEXT_TX(tx_cons);
 		tx_cons = NEXT_TX(tx_cons);
 	}
 	txr->tx_cons = tx_cons;
@@ -133,7 +121,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		return false;
 
 	case XDP_TX:
-		if (tx_avail < 2) {
+		if (tx_avail < 1) {
 			trace_xdp_exception(bp->dev, xdp_prog, act);
 			bnxt_reuse_rx_data(rxr, cons, page);
 			return true;

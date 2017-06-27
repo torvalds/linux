@@ -32,7 +32,6 @@
 #include "p2p.h"
 #include "cfg80211.h"
 #include "fwil.h"
-#include "fwsignal.h"
 #include "feature.h"
 #include "proto.h"
 #include "pcie.h"
@@ -198,7 +197,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	int ret;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
-	struct ethhdr *eh = (struct ethhdr *)(skb->data);
+	struct ethhdr *eh;
 
 	brcmf_dbg(DATA, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
@@ -211,22 +210,13 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		goto done;
 	}
 
-	/* Make sure there's enough room for any header */
-	if (skb_headroom(skb) < drvr->hdrlen) {
-		struct sk_buff *skb2;
-
-		brcmf_dbg(INFO, "%s: insufficient headroom\n",
+	/* Make sure there's enough writable headroom*/
+	ret = skb_cow_head(skb, drvr->hdrlen);
+	if (ret < 0) {
+		brcmf_err("%s: skb_cow_head failed\n",
 			  brcmf_ifname(ifp));
-		drvr->bus_if->tx_realloc++;
-		skb2 = skb_realloc_headroom(skb, drvr->hdrlen);
 		dev_kfree_skb(skb);
-		skb = skb2;
-		if (skb == NULL) {
-			brcmf_err("%s: skb_realloc_headroom failed\n",
-				  brcmf_ifname(ifp));
-			ret = -ENOMEM;
-			goto done;
-		}
+		goto done;
 	}
 
 	/* validate length for ether packet */
@@ -235,6 +225,8 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		goto done;
 	}
+
+	eh = (struct ethhdr *)(skb->data);
 
 	if (eh->h_proto == htons(ETH_P_PAE))
 		atomic_inc(&ifp->pend_8021x_cnt);
@@ -281,16 +273,6 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			netif_wake_queue(ifp->ndev);
 	}
 	spin_unlock_irqrestore(&ifp->netif_stop_lock, flags);
-}
-
-void brcmf_txflowblock(struct device *dev, bool state)
-{
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	brcmf_fws_bus_blocked(drvr, state);
 }
 
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
@@ -393,24 +375,6 @@ void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success)
 	brcmu_pkt_buf_free_skb(txp);
 }
 
-void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
-{
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
-	struct brcmf_if *ifp;
-
-	/* await txstatus signal for firmware if active */
-	if (brcmf_fws_fc_active(drvr->fws)) {
-		if (!success)
-			brcmf_fws_bustxfail(drvr->fws, txp);
-	} else {
-		if (brcmf_proto_hdrpull(drvr, false, txp, &ifp))
-			brcmu_pkt_buf_free_skb(txp);
-		else
-			brcmf_txfinalize(ifp, txp, success);
-	}
-}
-
 static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 				    struct ethtool_drvinfo *info)
 {
@@ -504,8 +468,9 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	ndev->needed_headroom += drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
-	/* set the mac address */
+	/* set the mac address & netns */
 	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
+	dev_net_set(ndev, wiphy_net(cfg_to_wiphy(drvr->config)));
 
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 	INIT_WORK(&ifp->ndoffload_work, _brcmf_update_ndtable);
@@ -734,8 +699,26 @@ void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked)
 		return;
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", ifp->bsscfgidx,
 		  ifp->ifidx);
-	brcmf_fws_del_interface(ifp);
+	brcmf_proto_del_if(ifp->drvr, ifp);
 	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, rtnl_locked);
+}
+
+static int brcmf_psm_watchdog_notify(struct brcmf_if *ifp,
+				     const struct brcmf_event_msg *evtmsg,
+				     void *data)
+{
+	int err;
+
+	brcmf_dbg(TRACE, "enter: bsscfgidx=%d\n", ifp->bsscfgidx);
+
+	brcmf_err("PSM's watchdog has fired!\n");
+
+	err = brcmf_debug_create_memdump(ifp->drvr->bus_if, data,
+					 evtmsg->datalen);
+	if (err)
+		brcmf_err("Failed to get memory dump, %d\n", err);
+
+	return err;
 }
 
 #ifdef CONFIG_INET
@@ -917,6 +900,10 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 		goto fail;
 	}
 
+	/* Attach to events important for core code */
+	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
+			    brcmf_psm_watchdog_notify);
+
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
 
@@ -992,11 +979,11 @@ int brcmf_bus_started(struct device *dev)
 	}
 	brcmf_feat_attach(drvr);
 
-	ret = brcmf_fws_init(drvr);
+	ret = brcmf_proto_init_done(drvr);
 	if (ret < 0)
 		goto fail;
 
-	brcmf_fws_add_interface(ifp);
+	brcmf_proto_add_if(drvr, ifp);
 
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev,
 					     drvr->settings->p2p_enable);
@@ -1039,10 +1026,6 @@ fail:
 	if (drvr->config) {
 		brcmf_cfg80211_detach(drvr->config);
 		drvr->config = NULL;
-	}
-	if (drvr->fws) {
-		brcmf_fws_del_interface(ifp);
-		brcmf_fws_deinit(drvr);
 	}
 	brcmf_net_detach(ifp->ndev, false);
 	if (p2p_ifp)
@@ -1108,8 +1091,6 @@ void brcmf_detach(struct device *dev)
 		brcmf_remove_interface(drvr->iflist[i], false);
 
 	brcmf_cfg80211_detach(drvr->config);
-
-	brcmf_fws_deinit(drvr);
 
 	brcmf_bus_stop(drvr->bus_if);
 

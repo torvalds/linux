@@ -7,6 +7,7 @@ config DRM_TEGRA
 	select DRM_MIPI_DSI
 	select DRM_PANEL
 	select TEGRA_HOST1X
+	select IOMMU_IOVA if IOMMU_SUPPORT
 	help
 	  Choose this option if you have an NVIDIA Tegra SoC.
 

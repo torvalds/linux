@@ -803,7 +803,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	size -= temp;
 	next += temp;
 
-#ifdef	CONFIG_PCI
+#ifdef	CONFIG_USB_PCI
 	/* EHCI 0.96 and later may have "extended capabilities" */
 	if (dev_is_pci(hcd->self.controller)) {
 		struct pci_dev	*pdev;

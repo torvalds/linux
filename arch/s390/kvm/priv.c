@@ -37,7 +37,8 @@
 static int handle_ri(struct kvm_vcpu *vcpu)
 {
 	if (test_kvm_facility(vcpu->kvm, 64)) {
-		vcpu->arch.sie_block->ecb3 |= 0x01;
+		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (lazy)");
+		vcpu->arch.sie_block->ecb3 |= ECB3_RI;
 		kvm_s390_retry_instr(vcpu);
 		return 0;
 	} else
@@ -52,6 +53,33 @@ int kvm_s390_handle_aa(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 }
 
+static int handle_gs(struct kvm_vcpu *vcpu)
+{
+	if (test_kvm_facility(vcpu->kvm, 133)) {
+		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: GS (lazy)");
+		preempt_disable();
+		__ctl_set_bit(2, 4);
+		current->thread.gs_cb = (struct gs_cb *)&vcpu->run->s.regs.gscb;
+		restore_gs_cb(current->thread.gs_cb);
+		preempt_enable();
+		vcpu->arch.sie_block->ecb |= ECB_GS;
+		vcpu->arch.sie_block->ecd |= ECD_HOSTREGMGMT;
+		vcpu->arch.gs_enabled = 1;
+		kvm_s390_retry_instr(vcpu);
+		return 0;
+	} else
+		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+}
+
+int kvm_s390_handle_e3(struct kvm_vcpu *vcpu)
+{
+	int code = vcpu->arch.sie_block->ipb & 0xff;
+
+	if (code == 0x49 || code == 0x4d)
+		return handle_gs(vcpu);
+	else
+		return -EOPNOTSUPP;
+}
 /* Handle SCK (SET CLOCK) interception */
 static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
@@ -170,18 +198,25 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int __skey_check_enable(struct kvm_vcpu *vcpu)
+int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 {
 	int rc = 0;
+	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
 
 	trace_kvm_s390_skey_related_inst(vcpu);
-	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
+	if (!(sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)) &&
+	    !(atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS))
 		return rc;
 
 	rc = s390_enable_skey();
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
-	if (!rc)
-		vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
+	if (!rc) {
+		if (atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS)
+			atomic_andnot(CPUSTAT_KSS, &sie_block->cpuflags);
+		else
+			sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE |
+					     ICTL_RRBE);
+	}
 	return rc;
 }
 
@@ -190,7 +225,7 @@ static int try_handle_skey(struct kvm_vcpu *vcpu)
 	int rc;
 
 	vcpu->stat.instruction_storage_key++;
-	rc = __skey_check_enable(vcpu);
+	rc = kvm_s390_skey_check_enable(vcpu);
 	if (rc)
 		return rc;
 	if (sclp.has_skey) {
@@ -759,6 +794,7 @@ static const intercept_handler_t b2_handlers[256] = {
 	[0x3b] = handle_io_inst,
 	[0x3c] = handle_io_inst,
 	[0x50] = handle_ipte_interlock,
+	[0x56] = handle_sthyi,
 	[0x5f] = handle_io_inst,
 	[0x74] = handle_io_inst,
 	[0x76] = handle_io_inst,
@@ -887,7 +923,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		}
 
 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK) {
-			int rc = __skey_check_enable(vcpu);
+			int rc = kvm_s390_skey_check_enable(vcpu);
 
 			if (rc)
 				return rc;

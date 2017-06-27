@@ -332,7 +332,7 @@ static irqreturn_t wdtpci_interrupt(int irq, void *dev_id)
 		pr_crit("Would Reboot\n");
 #else
 		pr_crit("Initiating system reboot\n");
-		emergency_restart(NULL);
+		emergency_restart();
 #endif
 #else
 		pr_crit("Reset in 5ms\n");

@@ -32,9 +32,11 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <net/addrconf.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
+#include "rxe_hw_counters.h"
 
 static int rxe_query_device(struct ib_device *dev,
 			    struct ib_device_attr *attr,
@@ -295,22 +297,22 @@ static int rxe_dealloc_pd(struct ib_pd *ibpd)
 	return 0;
 }
 
-static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
+static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 		       struct rxe_av *av)
 {
 	int err;
 	union ib_gid sgid;
 	struct ib_gid_attr sgid_attr;
 
-	err = ib_get_cached_gid(&rxe->ib_dev, attr->port_num,
-				attr->grh.sgid_index, &sgid,
+	err = ib_get_cached_gid(&rxe->ib_dev, rdma_ah_get_port_num(attr),
+				rdma_ah_read_grh(attr)->sgid_index, &sgid,
 				&sgid_attr);
 	if (err) {
 		pr_err("Failed to query sgid. err = %d\n", err);
 		return err;
 	}
 
-	err = rxe_av_from_attr(rxe, attr->port_num, av, attr);
+	err = rxe_av_from_attr(rxe, rdma_ah_get_port_num(attr), av, attr);
 	if (!err)
 		err = rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
 
@@ -319,7 +321,8 @@ static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
 	return err;
 }
 
-static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
+				   struct rdma_ah_attr *attr,
 				   struct ib_udata *udata)
 
 {
@@ -354,7 +357,7 @@ err1:
 	return ERR_PTR(err);
 }
 
-static int rxe_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibah->device);
@@ -371,11 +374,13 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	return 0;
 }
 
-static int rxe_query_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
+static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	struct rxe_dev *rxe = to_rdev(ibah->device);
 	struct rxe_ah *ah = to_rah(ibah);
 
+	memset(attr, 0, sizeof(*attr));
+	attr->type = ibah->type;
 	rxe_av_to_attr(rxe, &ah->av, attr);
 	return 0;
 }
@@ -1234,10 +1239,11 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->owner = THIS_MODULE;
 	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
-	dev->num_comp_vectors = RXE_NUM_COMP_VECTORS;
+	dev->num_comp_vectors = num_possible_cpus();
 	dev->dev.parent = rxe_dma_device(rxe);
 	dev->local_dma_lkey = 0;
-	dev->node_guid = rxe_node_guid(rxe);
+	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
+			    rxe->ndev->dev_addr);
 	dev->dev.dma_ops = &dma_virt_ops;
 
 	dev->uverbs_abi_ver = RXE_UVERBS_ABI_VERSION;
@@ -1318,6 +1324,15 @@ int rxe_register_device(struct rxe_dev *rxe)
 	dev->map_mr_sg = rxe_map_mr_sg;
 	dev->attach_mcast = rxe_attach_mcast;
 	dev->detach_mcast = rxe_detach_mcast;
+	dev->get_hw_stats = rxe_ib_get_hw_stats;
+	dev->alloc_hw_stats = rxe_ib_alloc_hw_stats;
+
+	rxe->tfm = crypto_alloc_shash("crc32", 0, 0);
+	if (IS_ERR(rxe->tfm)) {
+		pr_err("failed to allocate crc algorithm err:%ld\n",
+		       PTR_ERR(rxe->tfm));
+		return PTR_ERR(rxe->tfm);
+	}
 
 	err = ib_register_device(dev, NULL);
 	if (err) {
@@ -1339,6 +1354,8 @@ int rxe_register_device(struct rxe_dev *rxe)
 err2:
 	ib_unregister_device(dev);
 err1:
+	crypto_free_shash(rxe->tfm);
+
 	return err;
 }
 

@@ -453,9 +453,11 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 		DRM_DEBUG_KMS("dig encoder is %d %d %d\n", dig_enc->dig_encoder,
 			      dig_enc->linkb, radeon_crtc->crtc_id);
 
+		slots = drm_dp_find_vcpi_slots(&radeon_connector->mst_port->mst_mgr,
+					       mst_enc->pbn);
 		ret = drm_dp_mst_allocate_vcpi(&radeon_connector->mst_port->mst_mgr,
 					       radeon_connector->port,
-					       mst_enc->pbn, &slots);
+					       mst_enc->pbn, slots);
 		ret = drm_dp_update_payload_part1(&radeon_connector->mst_port->mst_mgr);
 
 		radeon_dp_mst_set_be_cntl(primary, mst_enc,

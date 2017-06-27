@@ -182,7 +182,6 @@ int brcmf_pno_clean(struct brcmf_if *ifp)
 int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 			       struct cfg80211_sched_scan_request *req)
 {
-	struct brcmu_d11inf *d11inf;
 	struct brcmf_pno_config_le pno_cfg;
 	struct cfg80211_ssid *ssid;
 	u16 chan;
@@ -209,7 +208,6 @@ int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
 	}
 
 	/* configure channels to use */
-	d11inf = &ifp->drvr->config->d11inf;
 	for (i = 0; i < req->n_channels; i++) {
 		chan = req->channels[i]->hw_value;
 		pno_cfg.channel_list[i] = cpu_to_le16(chan);

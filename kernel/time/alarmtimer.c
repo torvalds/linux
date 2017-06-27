@@ -541,7 +541,7 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
  *
  * Returns the granularity of underlying alarm base clock
  */
-static int alarm_clock_getres(const clockid_t which_clock, struct timespec *tp)
+static int alarm_clock_getres(const clockid_t which_clock, struct timespec64 *tp)
 {
 	if (!alarmtimer_get_rtcdev())
 		return -EINVAL;
@@ -558,14 +558,14 @@ static int alarm_clock_getres(const clockid_t which_clock, struct timespec *tp)
  *
  * Provides the underlying alarm base time.
  */
-static int alarm_clock_get(clockid_t which_clock, struct timespec *tp)
+static int alarm_clock_get(clockid_t which_clock, struct timespec64 *tp)
 {
 	struct alarm_base *base = &alarm_bases[clock2alarm(which_clock)];
 
 	if (!alarmtimer_get_rtcdev())
 		return -EINVAL;
 
-	*tp = ktime_to_timespec(base->gettime());
+	*tp = ktime_to_timespec64(base->gettime());
 	return 0;
 }
 
@@ -598,19 +598,19 @@ static int alarm_timer_create(struct k_itimer *new_timer)
  * Copies out the current itimerspec data
  */
 static void alarm_timer_get(struct k_itimer *timr,
-				struct itimerspec *cur_setting)
+			    struct itimerspec64 *cur_setting)
 {
 	ktime_t relative_expiry_time =
 		alarm_expires_remaining(&(timr->it.alarm.alarmtimer));
 
 	if (ktime_to_ns(relative_expiry_time) > 0) {
-		cur_setting->it_value = ktime_to_timespec(relative_expiry_time);
+		cur_setting->it_value = ktime_to_timespec64(relative_expiry_time);
 	} else {
 		cur_setting->it_value.tv_sec = 0;
 		cur_setting->it_value.tv_nsec = 0;
 	}
 
-	cur_setting->it_interval = ktime_to_timespec(timr->it.alarm.interval);
+	cur_setting->it_interval = ktime_to_timespec64(timr->it.alarm.interval);
 }
 
 /**
@@ -640,8 +640,8 @@ static int alarm_timer_del(struct k_itimer *timr)
  * Sets the timer to new_setting, and starts the timer.
  */
 static int alarm_timer_set(struct k_itimer *timr, int flags,
-				struct itimerspec *new_setting,
-				struct itimerspec *old_setting)
+			   struct itimerspec64 *new_setting,
+			   struct itimerspec64 *old_setting)
 {
 	ktime_t exp;
 
@@ -659,8 +659,8 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 		return TIMER_RETRY;
 
 	/* start the timer */
-	timr->it.alarm.interval = timespec_to_ktime(new_setting->it_interval);
-	exp = timespec_to_ktime(new_setting->it_value);
+	timr->it.alarm.interval = timespec64_to_ktime(new_setting->it_interval);
+	exp = timespec64_to_ktime(new_setting->it_value);
 	/* Convert (if necessary) to absolute time */
 	if (flags != TIMER_ABSTIME) {
 		ktime_t now;
@@ -790,13 +790,14 @@ out:
  * Handles clock_nanosleep calls against _ALARM clockids
  */
 static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
-		     struct timespec *tsreq, struct timespec __user *rmtp)
+			      struct timespec64 *tsreq,
+			      struct timespec __user *rmtp)
 {
 	enum  alarmtimer_type type = clock2alarm(which_clock);
+	struct restart_block *restart;
 	struct alarm alarm;
 	ktime_t exp;
 	int ret = 0;
-	struct restart_block *restart;
 
 	if (!alarmtimer_get_rtcdev())
 		return -ENOTSUPP;
@@ -809,7 +810,7 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 
 	alarm_init(&alarm, type, alarmtimer_nsleep_wakeup);
 
-	exp = timespec_to_ktime(*tsreq);
+	exp = timespec64_to_ktime(*tsreq);
 	/* Convert (if necessary) to absolute time */
 	if (flags != TIMER_ABSTIME) {
 		ktime_t now = alarm_bases[type].gettime();

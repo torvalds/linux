@@ -2184,6 +2184,10 @@ static int sii8620_probe(struct i2c_client *client,
 					sii8620_irq_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					"sii8620", ctx);
+	if (ret < 0) {
+		dev_err(dev, "failed to install IRQ handler\n");
+		return ret;
+	}
 
 	ctx->gpio_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->gpio_reset)) {

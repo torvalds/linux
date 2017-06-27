@@ -185,39 +185,6 @@ int tilcdc_attach_bridge(struct drm_device *ddev, struct drm_bridge *bridge)
 	return ret;
 }
 
-static int tilcdc_node_has_port(struct device_node *dev_node)
-{
-	struct device_node *node;
-
-	node = of_get_child_by_name(dev_node, "ports");
-	if (!node)
-		node = of_get_child_by_name(dev_node, "port");
-	if (!node)
-		return 0;
-	of_node_put(node);
-
-	return 1;
-}
-
-static
-struct device_node *tilcdc_get_remote_node(struct device_node *node)
-{
-	struct device_node *ep;
-	struct device_node *parent;
-
-	if (!tilcdc_node_has_port(node))
-		return NULL;
-
-	ep = of_graph_get_next_endpoint(node, NULL);
-	if (!ep)
-		return NULL;
-
-	parent = of_graph_get_remote_port_parent(ep);
-	of_node_put(ep);
-
-	return parent;
-}
-
 int tilcdc_attach_external_device(struct drm_device *ddev)
 {
 	struct tilcdc_drm_private *priv = ddev->dev_private;
@@ -225,7 +192,7 @@ int tilcdc_attach_external_device(struct drm_device *ddev)
 	struct drm_bridge *bridge;
 	int ret;
 
-	remote_node = tilcdc_get_remote_node(ddev->dev->of_node);
+	remote_node = of_graph_get_remote_node(ddev->dev->of_node, 0, 0);
 	if (!remote_node)
 		return 0;
 
@@ -264,35 +231,16 @@ int tilcdc_get_external_components(struct device *dev,
 				   struct component_match **match)
 {
 	struct device_node *node;
-	struct device_node *ep = NULL;
-	int count = 0;
-	int ret = 0;
 
-	if (!tilcdc_node_has_port(dev->of_node))
-		return 0;
+	node = of_graph_get_remote_node(dev->of_node, 0, 0);
 
-	while ((ep = of_graph_get_next_endpoint(dev->of_node, ep))) {
-		node = of_graph_get_remote_port_parent(ep);
-		if (!node || !of_device_is_available(node)) {
-			of_node_put(node);
-			continue;
-		}
-
-		dev_dbg(dev, "Subdevice node '%s' found\n", node->name);
-
-		if (of_device_is_compatible(node, "nxp,tda998x")) {
-			if (match)
-				drm_of_component_match_add(dev, match,
-							   dev_match_of, node);
-			ret = 1;
-		}
-
+	if (!of_device_is_compatible(node, "nxp,tda998x")) {
 		of_node_put(node);
-		if (count++ > 1) {
-			dev_err(dev, "Only one port is supported\n");
-			return -EINVAL;
-		}
+		return 0;
 	}
 
-	return ret;
+	if (match)
+		drm_of_component_match_add(dev, match, dev_match_of, node);
+	of_node_put(node);
+	return 1;
 }

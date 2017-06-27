@@ -38,6 +38,10 @@ struct gm200_secboot {
 int gm200_secboot_oneinit(struct nvkm_secboot *);
 int gm200_secboot_fini(struct nvkm_secboot *, bool);
 void *gm200_secboot_dtor(struct nvkm_secboot *);
-int gm200_secboot_run_blob(struct nvkm_secboot *, struct nvkm_gpuobj *);
+int gm200_secboot_run_blob(struct nvkm_secboot *, struct nvkm_gpuobj *,
+			   struct nvkm_falcon *);
+
+/* Tegra-only */
+int gm20b_secboot_tegra_read_wpr(struct gm200_secboot *, u32);
 
 #endif

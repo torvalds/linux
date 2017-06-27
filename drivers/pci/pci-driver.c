@@ -394,6 +394,18 @@ void __weak pcibios_free_irq(struct pci_dev *dev)
 {
 }
 
+#ifdef CONFIG_PCI_IOV
+static inline bool pci_device_can_probe(struct pci_dev *pdev)
+{
+	return (!pdev->is_virtfn || pdev->physfn->sriov->drivers_autoprobe);
+}
+#else
+static inline bool pci_device_can_probe(struct pci_dev *pdev)
+{
+	return true;
+}
+#endif
+
 static int pci_device_probe(struct device *dev)
 {
 	int error;
@@ -405,10 +417,12 @@ static int pci_device_probe(struct device *dev)
 		return error;
 
 	pci_dev_get(pci_dev);
-	error = __pci_device_probe(drv, pci_dev);
-	if (error) {
-		pcibios_free_irq(pci_dev);
-		pci_dev_put(pci_dev);
+	if (pci_device_can_probe(pci_dev)) {
+		error = __pci_device_probe(drv, pci_dev);
+		if (error) {
+			pcibios_free_irq(pci_dev);
+			pci_dev_put(pci_dev);
+		}
 	}
 
 	return error;
@@ -461,8 +475,6 @@ static void pci_device_shutdown(struct device *dev)
 
 	if (drv && drv->shutdown)
 		drv->shutdown(pci_dev);
-	pci_msi_shutdown(pci_dev);
-	pci_msix_shutdown(pci_dev);
 
 	/*
 	 * If this is a kexec reboot, turn off Bus Master bit on the

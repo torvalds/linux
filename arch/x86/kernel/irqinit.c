@@ -195,7 +195,5 @@ void __init native_init_IRQ(void)
 	if (!acpi_ioapic && !of_ioapic && nr_legacy_irqs())
 		setup_irq(2, &irq2);
 
-#ifdef CONFIG_X86_32
 	irq_ctx_init(smp_processor_id());
-#endif
 }

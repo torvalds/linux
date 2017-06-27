@@ -78,6 +78,9 @@ vma_create(struct drm_i915_gem_object *obj,
 	struct rb_node *rb, **p;
 	int i;
 
+	/* The aliasing_ppgtt should never be used directly! */
+	GEM_BUG_ON(vm == &vm->i915->mm.aliasing_ppgtt->base);
+
 	vma = kmem_cache_zalloc(vm->i915->vmas, GFP_KERNEL);
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -238,7 +241,15 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	u32 vma_flags;
 	int ret;
 
-	if (WARN_ON(flags == 0))
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(vma->size > vma->node.size);
+
+	if (GEM_WARN_ON(range_overflows(vma->node.start,
+					vma->node.size,
+					vma->vm->total)))
+		return -ENODEV;
+
+	if (GEM_WARN_ON(!flags))
 		return -EINVAL;
 
 	bind_flags = 0;
@@ -254,20 +265,6 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		bind_flags &= ~vma_flags;
 	if (bind_flags == 0)
 		return 0;
-
-	if (GEM_WARN_ON(range_overflows(vma->node.start,
-					vma->node.size,
-					vma->vm->total)))
-		return -ENODEV;
-
-	if (vma_flags == 0 && vma->vm->allocate_va_range) {
-		trace_i915_va_alloc(vma);
-		ret = vma->vm->allocate_va_range(vma->vm,
-						 vma->node.start,
-						 vma->node.size);
-		if (ret)
-			return ret;
-	}
 
 	trace_i915_vma_bind(vma, bind_flags);
 	ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
@@ -324,8 +321,8 @@ void i915_vma_unpin_and_release(struct i915_vma **p_vma)
 	__i915_gem_object_release_unless_active(obj);
 }
 
-bool
-i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
+bool i915_vma_misplaced(const struct i915_vma *vma,
+			u64 size, u64 alignment, u64 flags)
 {
 	if (!drm_mm_node_allocated(&vma->node))
 		return false;
@@ -704,3 +701,6 @@ destroy:
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/i915_vma.c"
+#endif

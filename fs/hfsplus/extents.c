@@ -545,9 +545,8 @@ void hfsplus_file_truncate(struct inode *inode)
 		void *fsdata;
 		loff_t size = inode->i_size;
 
-		res = pagecache_write_begin(NULL, mapping, size, 0,
-						AOP_FLAG_UNINTERRUPTIBLE,
-						&page, &fsdata);
+		res = pagecache_write_begin(NULL, mapping, size, 0, 0,
+					    &page, &fsdata);
 		if (res)
 			return;
 		res = pagecache_write_end(NULL, mapping, size,

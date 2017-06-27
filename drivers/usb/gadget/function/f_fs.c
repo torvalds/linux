@@ -246,7 +246,6 @@ EXPORT_SYMBOL_GPL(ffs_lock);
 
 static struct ffs_dev *_ffs_find_dev(const char *name);
 static struct ffs_dev *_ffs_alloc_dev(void);
-static int _ffs_name_dev(struct ffs_dev *dev, const char *name);
 static void _ffs_free_dev(struct ffs_dev *dev);
 static void *ffs_acquire_dev(const char *dev_name);
 static void ffs_release_dev(struct ffs_data *ffs_data);
@@ -1571,14 +1570,14 @@ static void ffs_data_get(struct ffs_data *ffs)
 {
 	ENTER();
 
-	atomic_inc(&ffs->ref);
+	refcount_inc(&ffs->ref);
 }
 
 static void ffs_data_opened(struct ffs_data *ffs)
 {
 	ENTER();
 
-	atomic_inc(&ffs->ref);
+	refcount_inc(&ffs->ref);
 	if (atomic_add_return(1, &ffs->opened) == 1 &&
 			ffs->state == FFS_DEACTIVATED) {
 		ffs->state = FFS_CLOSING;
@@ -1590,7 +1589,7 @@ static void ffs_data_put(struct ffs_data *ffs)
 {
 	ENTER();
 
-	if (unlikely(atomic_dec_and_test(&ffs->ref))) {
+	if (unlikely(refcount_dec_and_test(&ffs->ref))) {
 		pr_info("%s(): freeing\n", __func__);
 		ffs_data_clear(ffs);
 		BUG_ON(waitqueue_active(&ffs->ev.waitq) ||
@@ -1635,7 +1634,7 @@ static struct ffs_data *ffs_data_new(void)
 
 	ENTER();
 
-	atomic_set(&ffs->ref, 1);
+	refcount_set(&ffs->ref, 1);
 	atomic_set(&ffs->opened, 0);
 	ffs->state = FFS_READ_DESCRIPTORS;
 	mutex_init(&ffs->mutex);
@@ -1859,12 +1858,12 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 		ep->ep->driver_data = ep;
 		ep->ep->desc = ds;
 
-		comp_desc = (struct usb_ss_ep_comp_descriptor *)(ds +
-				USB_DT_ENDPOINT_SIZE);
-		ep->ep->maxburst = comp_desc->bMaxBurst + 1;
-
-		if (needs_comp_desc)
+		if (needs_comp_desc) {
+			comp_desc = (struct usb_ss_ep_comp_descriptor *)(ds +
+					USB_DT_ENDPOINT_SIZE);
+			ep->ep->maxburst = comp_desc->bMaxBurst + 1;
 			ep->ep->comp_desc = comp_desc;
+		}
 
 		ret = usb_ep_enable(ep->ep);
 		if (likely(!ret)) {
@@ -3302,9 +3301,10 @@ static struct ffs_dev *_ffs_do_find_dev(const char *name)
 {
 	struct ffs_dev *dev;
 
+	if (!name)
+		return NULL;
+
 	list_for_each_entry(dev, &ffs_devices, entry) {
-		if (!dev->name || !name)
-			continue;
 		if (strcmp(dev->name, name) == 0)
 			return dev;
 	}
@@ -3380,42 +3380,11 @@ static void ffs_free_inst(struct usb_function_instance *f)
 	kfree(opts);
 }
 
-#define MAX_INST_NAME_LEN	40
-
 static int ffs_set_inst_name(struct usb_function_instance *fi, const char *name)
 {
-	struct f_fs_opts *opts;
-	char *ptr;
-	const char *tmp;
-	int name_len, ret;
-
-	name_len = strlen(name) + 1;
-	if (name_len > MAX_INST_NAME_LEN)
+	if (strlen(name) >= FIELD_SIZEOF(struct ffs_dev, name))
 		return -ENAMETOOLONG;
-
-	ptr = kstrndup(name, name_len, GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
-	opts = to_f_fs_opts(fi);
-	tmp = NULL;
-
-	ffs_dev_lock();
-
-	tmp = opts->dev->name_allocated ? opts->dev->name : NULL;
-	ret = _ffs_name_dev(opts->dev, ptr);
-	if (ret) {
-		kfree(ptr);
-		ffs_dev_unlock();
-		return ret;
-	}
-	opts->dev->name_allocated = true;
-
-	ffs_dev_unlock();
-
-	kfree(tmp);
-
-	return 0;
+	return ffs_name_dev(to_f_fs_opts(fi)->dev, name);
 }
 
 static struct usb_function_instance *ffs_alloc_inst(void)
@@ -3545,32 +3514,19 @@ static struct ffs_dev *_ffs_alloc_dev(void)
 	return dev;
 }
 
-/*
- * ffs_lock must be taken by the caller of this function
- * The caller is responsible for "name" being available whenever f_fs needs it
- */
-static int _ffs_name_dev(struct ffs_dev *dev, const char *name)
-{
-	struct ffs_dev *existing;
-
-	existing = _ffs_do_find_dev(name);
-	if (existing)
-		return -EBUSY;
-
-	dev->name = name;
-
-	return 0;
-}
-
-/*
- * The caller is responsible for "name" being available whenever f_fs needs it
- */
 int ffs_name_dev(struct ffs_dev *dev, const char *name)
 {
-	int ret;
+	struct ffs_dev *existing;
+	int ret = 0;
 
 	ffs_dev_lock();
-	ret = _ffs_name_dev(dev, name);
+
+	existing = _ffs_do_find_dev(name);
+	if (!existing)
+		strlcpy(dev->name, name, ARRAY_SIZE(dev->name));
+	else if (existing != dev)
+		ret = -EBUSY;
+
 	ffs_dev_unlock();
 
 	return ret;
@@ -3600,8 +3556,6 @@ EXPORT_SYMBOL_GPL(ffs_single_dev);
 static void _ffs_free_dev(struct ffs_dev *dev)
 {
 	list_del(&dev->entry);
-	if (dev->name_allocated)
-		kfree(dev->name);
 
 	/* Clear the private_data pointer to stop incorrect dev access */
 	if (dev->ffs_data)

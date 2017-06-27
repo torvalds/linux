@@ -677,7 +677,5 @@ void clear_pending_isac_ints(struct IsdnCardState *cs)
 void setup_isac(struct IsdnCardState *cs)
 {
 	INIT_WORK(&cs->tqueue, isac_bh);
-	cs->dbusytimer.function = (void *) dbusy_timer_handler;
-	cs->dbusytimer.data = (long) cs;
-	init_timer(&cs->dbusytimer);
+	setup_timer(&cs->dbusytimer, (void *)dbusy_timer_handler, (long)cs);
 }

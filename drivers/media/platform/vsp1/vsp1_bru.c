@@ -251,7 +251,8 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	sel->r.left = clamp_t(unsigned int, sel->r.left, 0, format->width - 1);
 	sel->r.top = clamp_t(unsigned int, sel->r.top, 0, format->height - 1);
 
-	/* Scaling isn't supported, the compose rectangle size must be identical
+	/*
+	 * Scaling isn't supported, the compose rectangle size must be identical
 	 * to the sink format size.
 	 */
 	format = vsp1_entity_get_pad_format(&bru->entity, config, sel->pad);
@@ -300,13 +301,15 @@ static void bru_configure(struct vsp1_entity *entity,
 	format = vsp1_entity_get_pad_format(&bru->entity, bru->entity.config,
 					    bru->entity.source_pad);
 
-	/* The hardware is extremely flexible but we have no userspace API to
+	/*
+	 * The hardware is extremely flexible but we have no userspace API to
 	 * expose all the parameters, nor is it clear whether we would have use
 	 * cases for all the supported modes. Let's just harcode the parameters
 	 * to sane default values for now.
 	 */
 
-	/* Disable dithering and enable color data normalization unless the
+	/*
+	 * Disable dithering and enable color data normalization unless the
 	 * format at the pipeline output is premultiplied.
 	 */
 	flags = pipe->output ? pipe->output->format.flags : 0;
@@ -314,7 +317,8 @@ static void bru_configure(struct vsp1_entity *entity,
 		       flags & V4L2_PIX_FMT_FLAG_PREMUL_ALPHA ?
 		       0 : VI6_BRU_INCTRL_NRM);
 
-	/* Set the background position to cover the whole output image and
+	/*
+	 * Set the background position to cover the whole output image and
 	 * configure its color.
 	 */
 	vsp1_bru_write(bru, dl, VI6_BRU_VIRRPF_SIZE,
@@ -325,7 +329,8 @@ static void bru_configure(struct vsp1_entity *entity,
 	vsp1_bru_write(bru, dl, VI6_BRU_VIRRPF_COL, bru->bgcolor |
 		       (0xff << VI6_BRU_VIRRPF_COL_A_SHIFT));
 
-	/* Route BRU input 1 as SRC input to the ROP unit and configure the ROP
+	/*
+	 * Route BRU input 1 as SRC input to the ROP unit and configure the ROP
 	 * unit with a NOP operation to make BRU input 1 available as the
 	 * Blend/ROP unit B SRC input.
 	 */
@@ -337,7 +342,8 @@ static void bru_configure(struct vsp1_entity *entity,
 		bool premultiplied = false;
 		u32 ctrl = 0;
 
-		/* Configure all Blend/ROP units corresponding to an enabled BRU
+		/*
+		 * Configure all Blend/ROP units corresponding to an enabled BRU
 		 * input for alpha blending. Blend/ROP units corresponding to
 		 * disabled BRU inputs are used in ROP NOP mode to ignore the
 		 * SRC input.
@@ -352,13 +358,15 @@ static void bru_configure(struct vsp1_entity *entity,
 			     |  VI6_BRU_CTRL_AROP(VI6_ROP_NOP);
 		}
 
-		/* Select the virtual RPF as the Blend/ROP unit A DST input to
+		/*
+		 * Select the virtual RPF as the Blend/ROP unit A DST input to
 		 * serve as a background color.
 		 */
 		if (i == 0)
 			ctrl |= VI6_BRU_CTRL_DSTSEL_VRPF;
 
-		/* Route BRU inputs 0 to 3 as SRC inputs to Blend/ROP units A to
+		/*
+		 * Route BRU inputs 0 to 3 as SRC inputs to Blend/ROP units A to
 		 * D in that order. The Blend/ROP unit B SRC is hardwired to the
 		 * ROP unit output, the corresponding register bits must be set
 		 * to 0.
@@ -368,7 +376,8 @@ static void bru_configure(struct vsp1_entity *entity,
 
 		vsp1_bru_write(bru, dl, VI6_BRU_CTRL(i), ctrl);
 
-		/* Harcode the blending formula to
+		/*
+		 * Harcode the blending formula to
 		 *
 		 *	DSTc = DSTc * (1 - SRCa) + SRCc * SRCa
 		 *	DSTa = DSTa * (1 - SRCa) + SRCa

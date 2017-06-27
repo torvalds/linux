@@ -695,8 +695,6 @@ static int mal_probe(struct platform_device *ofdev)
 	wmb();
 	platform_set_drvdata(ofdev, mal);
 
-	mal_dbg_register(mal);
-
 	return 0;
 
  fail6:
@@ -739,8 +737,6 @@ static int mal_remove(struct platform_device *ofdev)
 	free_irq(mal->rxeob_irq, mal);
 
 	mal_reset(mal);
-
-	mal_dbg_unregister(mal);
 
 	dma_free_coherent(&ofdev->dev,
 			  sizeof(struct mal_descriptor) *

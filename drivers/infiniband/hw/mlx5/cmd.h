@@ -37,4 +37,6 @@
 #include <linux/mlx5/driver.h>
 
 int mlx5_cmd_null_mkey(struct mlx5_core_dev *dev, u32 *null_mkey);
+int mlx5_cmd_query_cong_counter(struct mlx5_core_dev *dev,
+				bool reset, void *out, int out_size);
 #endif /* MLX5_IB_CMD_H */

@@ -54,7 +54,8 @@ struct ath10k_hif_ops {
 	int (*start)(struct ath10k *ar);
 
 	/* Clean up what start() did. This does not revert to BMI phase. If
-	 * desired so, call power_down() and power_up() */
+	 * desired so, call power_down() and power_up()
+	 */
 	void (*stop)(struct ath10k *ar);
 
 	int (*map_service_to_pipe)(struct ath10k *ar, u16 service_id,
@@ -82,7 +83,8 @@ struct ath10k_hif_ops {
 	int (*power_up)(struct ath10k *ar);
 
 	/* Power down the device and free up resources. stop() must be called
-	 * before this if start() was called earlier */
+	 * before this if start() was called earlier
+	 */
 	void (*power_down)(struct ath10k *ar);
 
 	int (*suspend)(struct ath10k *ar);

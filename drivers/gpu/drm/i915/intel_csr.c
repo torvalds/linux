@@ -34,8 +34,8 @@
  * low-power state and comes back to normal.
  */
 
-#define I915_CSR_GLK "i915/glk_dmc_ver1_01.bin"
-#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
+#define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
+#define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
@@ -49,7 +49,7 @@ MODULE_FIRMWARE(I915_CSR_SKL);
 MODULE_FIRMWARE(I915_CSR_BXT);
 #define BXT_CSR_VERSION_REQUIRED	CSR_VERSION(1, 7)
 
-#define FIRMWARE_URL  "https://01.org/linuxgraphics/intel-linux-graphics-firmwares"
+#define FIRMWARE_URL  "https://01.org/linuxgraphics/downloads/firmware"
 
 
 
@@ -395,13 +395,11 @@ static void csr_load_work_fn(struct work_struct *work)
 	struct drm_i915_private *dev_priv;
 	struct intel_csr *csr;
 	const struct firmware *fw = NULL;
-	int ret;
 
 	dev_priv = container_of(work, typeof(*dev_priv), csr.work);
 	csr = &dev_priv->csr;
 
-	ret = request_firmware(&fw, dev_priv->csr.fw_path,
-			       &dev_priv->drm.pdev->dev);
+	request_firmware(&fw, dev_priv->csr.fw_path, &dev_priv->drm.pdev->dev);
 	if (fw)
 		dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
 

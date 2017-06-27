@@ -66,6 +66,15 @@
 #define		BTC_ANT_WIFI_AT_CPL_MAIN		0
 #define		BTC_ANT_WIFI_AT_CPL_AUX			1
 
+enum btc_bt_reg_type {
+	BTC_BT_REG_RF		= 0,
+	BTC_BT_REG_MODEM	= 1,
+	BTC_BT_REG_BLUEWIZE	= 2,
+	BTC_BT_REG_VENDOR	= 3,
+	BTC_BT_REG_LE		= 4,
+	BTC_BT_REG_MAX
+};
+
 enum btc_chip_interface {
 	BTC_INTF_UNKNOWN	= 0,
 	BTC_INTF_PCI		= 1,
@@ -139,6 +148,7 @@ struct btc_board_info {
 	u8 pg_ant_num;	/* pg ant number */
 	u8 btdm_ant_num;	/* ant number for btdm */
 	u8 btdm_ant_pos;
+	u8 single_ant_path; /* current used for 8723b only, 1=>s0,  0=>s1 */
 	bool bt_exist;
 };
 
@@ -205,6 +215,7 @@ enum btc_get_type {
 	BTC_GET_BL_WIFI_ENABLE_ENCRYPTION,
 	BTC_GET_BL_WIFI_UNDER_B_MODE,
 	BTC_GET_BL_EXT_SWITCH,
+	BTC_GET_BL_WIFI_IS_IN_MP_MODE,
 
 	/* type s4Byte */
 	BTC_GET_S4_WIFI_RSSI,
@@ -249,6 +260,8 @@ enum btc_set_type {
 	BTC_SET_BL_TO_REJ_AP_AGG_PKT,
 	BTC_SET_BL_BT_CTRL_AGG_SIZE,
 	BTC_SET_BL_INC_SCAN_DEV_NUM,
+	BTC_SET_BL_BT_TX_RX_MASK,
+	BTC_SET_BL_MIRACAST_PLUS_BT,
 
 	/* type u1Byte */
 	BTC_SET_U1_RSSI_ADJ_VAL_FOR_AGC_TABLE_ON,
@@ -275,7 +288,7 @@ enum btc_set_type {
 	BTC_SET_ACT_NORMAL_LPS,
 	BTC_SET_ACT_INC_FORCE_EXEC_PWR_CMD_CNT,
 	BTC_SET_ACT_DISABLE_LOW_POWER,
-	BTC_SET_ACT_UPDATE_ra_mask,
+	BTC_SET_ACT_UPDATE_RAMASK,
 	BTC_SET_ACT_SEND_MIMO_PS,
 	/* BT Coex related */
 	BTC_SET_ACT_CTRL_BT_INFO,
@@ -366,6 +379,7 @@ typedef void (*bfp_btc_w2)(void *btc_context, u32 reg_addr, u16 data);
 
 typedef void (*bfp_btc_w4)(void *btc_context, u32 reg_addr, u32 data);
 
+typedef void (*bfp_btc_local_reg_w1)(void *btc_context, u32 reg_addr, u8 data);
 typedef void (*bfp_btc_wr_1byte_bit_mask)(void *btc_context, u32 reg_addr,
 					  u8 bit_mask, u8 data);
 
@@ -387,6 +401,9 @@ typedef void (*bfp_btc_fill_h2c)(void *btc_context, u8 element_id,
 typedef	bool (*bfp_btc_get)(void *btcoexist, u8 get_type, void *out_buf);
 
 typedef	bool (*bfp_btc_set)(void *btcoexist, u8 set_type, void *in_buf);
+
+typedef void (*bfp_btc_set_bt_reg)(void *btc_context, u8 reg_type, u32 offset,
+				   u32 value);
 
 typedef void (*bfp_btc_disp_dbg_msg)(void *btcoexist, u8 disp_type);
 
@@ -459,6 +476,7 @@ struct btc_bt_link_info {
 	bool hid_only;
 	bool pan_exist;
 	bool pan_only;
+	bool slave_role;
 };
 
 enum btc_antenna_pos {
@@ -492,6 +510,7 @@ struct btc_coexist {
 	bfp_btc_w2 btc_write_2byte;
 	bfp_btc_r4 btc_read_4byte;
 	bfp_btc_w4 btc_write_4byte;
+	bfp_btc_local_reg_w1 btc_write_local_reg_1byte;
 
 	bfp_btc_set_bb_reg btc_set_bb_reg;
 	bfp_btc_get_bb_reg btc_get_bb_reg;
@@ -505,6 +524,8 @@ struct btc_coexist {
 
 	bfp_btc_get btc_get;
 	bfp_btc_set btc_set;
+
+	bfp_btc_set_bt_reg btc_set_bt_reg;
 };
 
 bool halbtc_is_wifi_uplink(struct rtl_priv *adapter);

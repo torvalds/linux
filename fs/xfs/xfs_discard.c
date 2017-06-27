@@ -132,6 +132,11 @@ next_extent:
 		error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
 			goto out_del_cursor;
+
+		if (fatal_signal_pending(current)) {
+			error = -ERESTARTSYS;
+			goto out_del_cursor;
+		}
 	}
 
 out_del_cursor:
@@ -196,8 +201,11 @@ xfs_ioc_trim(
 	for (agno = start_agno; agno <= end_agno; agno++) {
 		error = xfs_trim_extents(mp, agno, start, end, minlen,
 					  &blocks_trimmed);
-		if (error)
+		if (error) {
 			last_error = error;
+			if (error == -ERESTARTSYS)
+				break;
+		}
 	}
 
 	if (last_error)

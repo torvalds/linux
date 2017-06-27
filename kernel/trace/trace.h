@@ -262,6 +262,9 @@ struct trace_array {
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	struct list_head	func_probes;
+#endif
 	/* function tracing enabled */
 	int			function_enabled;
 #endif
@@ -579,6 +582,8 @@ void tracing_reset_all_online_cpus(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 bool tracing_is_disabled(void);
 int tracer_tracing_is_on(struct trace_array *tr);
+void tracer_tracing_on(struct trace_array *tr);
+void tracer_tracing_off(struct trace_array *tr);
 struct dentry *trace_create_file(const char *name,
 				 umode_t mode,
 				 struct dentry *parent,
@@ -696,6 +701,9 @@ extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
+void ftrace_init_trace_array(struct trace_array *tr);
+#else
+static inline void ftrace_init_trace_array(struct trace_array *tr) { }
 #endif
 #define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 extern int DYN_FTRACE_TEST_NAME(void);
@@ -880,6 +888,14 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 extern struct list_head ftrace_pids;
 
 #ifdef CONFIG_FUNCTION_TRACER
+struct ftrace_func_command {
+	struct list_head	list;
+	char			*name;
+	int			(*func)(struct trace_array *tr,
+					struct ftrace_hash *hash,
+					char *func, char *cmd,
+					char *params, int enable);
+};
 extern bool ftrace_filter_param __initdata;
 static inline int ftrace_trace_task(struct trace_array *tr)
 {
@@ -896,6 +912,9 @@ int using_ftrace_ops_list_func(void);
 void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d_tracer);
 void ftrace_init_tracefs_toplevel(struct trace_array *tr,
 				  struct dentry *d_tracer);
+void ftrace_clear_pids(struct trace_array *tr);
+int init_function_trace(void);
+void ftrace_pid_follow_fork(struct trace_array *tr, bool enable);
 #else
 static inline int ftrace_trace_task(struct trace_array *tr)
 {
@@ -914,15 +933,76 @@ ftrace_init_global_array_ops(struct trace_array *tr) { }
 static inline void ftrace_reset_array_ops(struct trace_array *tr) { }
 static inline void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d) { }
 static inline void ftrace_init_tracefs_toplevel(struct trace_array *tr, struct dentry *d) { }
+static inline void ftrace_clear_pids(struct trace_array *tr) { }
+static inline int init_function_trace(void) { return 0; }
+static inline void ftrace_pid_follow_fork(struct trace_array *tr, bool enable) { }
 /* ftace_func_t type is not defined, use macro instead of static inline */
 #define ftrace_init_array_ops(tr, func) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)
+
+struct ftrace_probe_ops {
+	void			(*func)(unsigned long ip,
+					unsigned long parent_ip,
+					struct trace_array *tr,
+					struct ftrace_probe_ops *ops,
+					void *data);
+	int			(*init)(struct ftrace_probe_ops *ops,
+					struct trace_array *tr,
+					unsigned long ip, void *init_data,
+					void **data);
+	void			(*free)(struct ftrace_probe_ops *ops,
+					struct trace_array *tr,
+					unsigned long ip, void *data);
+	int			(*print)(struct seq_file *m,
+					 unsigned long ip,
+					 struct ftrace_probe_ops *ops,
+					 void *data);
+};
+
+struct ftrace_func_mapper;
+typedef int (*ftrace_mapper_func)(void *data);
+
+struct ftrace_func_mapper *allocate_ftrace_func_mapper(void);
+void **ftrace_func_mapper_find_ip(struct ftrace_func_mapper *mapper,
+					   unsigned long ip);
+int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
+			       unsigned long ip, void *data);
+void *ftrace_func_mapper_remove_ip(struct ftrace_func_mapper *mapper,
+				   unsigned long ip);
+void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
+			     ftrace_mapper_func free_func);
+
+extern int
+register_ftrace_function_probe(char *glob, struct trace_array *tr,
+			       struct ftrace_probe_ops *ops, void *data);
+extern int
+unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
+				      struct ftrace_probe_ops *ops);
+extern void clear_ftrace_function_probes(struct trace_array *tr);
+
+int register_ftrace_command(struct ftrace_func_command *cmd);
+int unregister_ftrace_command(struct ftrace_func_command *cmd);
+
 void ftrace_create_filter_files(struct ftrace_ops *ops,
 				struct dentry *parent);
 void ftrace_destroy_filter_files(struct ftrace_ops *ops);
 #else
+struct ftrace_func_command;
+
+static inline __init int register_ftrace_command(struct ftrace_func_command *cmd)
+{
+	return -EINVAL;
+}
+static inline __init int unregister_ftrace_command(char *cmd_name)
+{
+	return -EINVAL;
+}
+static inline void clear_ftrace_function_probes(struct trace_array *tr)
+{
+}
+
 /*
  * The ops parameter passed in is usually undefined.
  * This must be a macro.
@@ -987,11 +1067,13 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 
 #ifdef CONFIG_FUNCTION_TRACER
 # define FUNCTION_FLAGS						\
-		C(FUNCTION,		"function-trace"),
+		C(FUNCTION,		"function-trace"),	\
+		C(FUNC_FORK,		"function-fork"),
 # define FUNCTION_DEFAULT_FLAGS		TRACE_ITER_FUNCTION
 #else
 # define FUNCTION_FLAGS
 # define FUNCTION_DEFAULT_FLAGS		0UL
+# define TRACE_ITER_FUNC_FORK		0UL
 #endif
 
 #ifdef CONFIG_STACKTRACE

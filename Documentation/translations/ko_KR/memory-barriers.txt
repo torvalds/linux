@@ -2343,7 +2343,7 @@ ACQUIRE VS I/O 액세스
 					spin_unlock(Q);
 
 
-더 많은 정보를 위해선 Documenataion/DocBook/deviceiobook.tmpl 을 참고하세요.
+더 많은 정보를 위해선 Documentation/driver-api/device-io.rst 를 참고하세요.
 
 
 =========================
@@ -2578,7 +2578,7 @@ CPU 에서는 사용되는 어토믹 인스트럭션 자체에 메모리 배리�
  (2) 만약 액세스 함수들이 완화된 메모리 액세스 속성을 갖는 I/O 메모리 윈도우를
      사용한다면, 순서를 강제하기 위해선 _mandatory_ 메모리 배리어가 필요합니다.
 
-더 많은 정보를 위해선 Documentation/DocBook/deviceiobook.tmpl 을 참고하십시오.
+더 많은 정보를 위해선 Documentation/driver-api/device-io.rst 를 참고하십시오.
 
 
 인터럽트

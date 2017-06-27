@@ -700,6 +700,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	pm_runtime_get_sync(dev);
 
+	rcar_i2c_init(priv);
+
 	ret = rcar_i2c_bus_barrier(priv);
 	if (ret < 0)
 		goto out;
@@ -751,6 +753,7 @@ static int rcar_reg_slave(struct i2c_client *slave)
 	if (slave->flags & I2C_CLIENT_TEN)
 		return -EAFNOSUPPORT;
 
+	/* Keep device active for slave address detection logic */
 	pm_runtime_get_sync(rcar_i2c_priv_to_dev(priv));
 
 	priv->slave = slave;
@@ -854,15 +857,14 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	priv->dma_direction = DMA_NONE;
 	priv->dma_rx = priv->dma_tx = ERR_PTR(-EPROBE_DEFER);
 
+	/* Activate device for clock calculation */
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	ret = rcar_i2c_clock_calculate(priv, &i2c_t);
 	if (ret < 0)
 		goto out_pm_put;
 
-	rcar_i2c_init(priv);
-
-	/* Don't suspend when multi-master to keep arbitration working */
+	/* Stay always active when multi-master to keep arbitration working */
 	if (of_property_read_bool(dev->of_node, "multi-master"))
 		priv->flags |= ID_P_PM_BLOCKED;
 	else

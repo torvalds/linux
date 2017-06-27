@@ -172,14 +172,16 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 
 	trace_mmc_request_done(host, mrq);
 
-	if (err && cmd->retries && !mmc_card_removed(host->card)) {
-		/*
-		 * Request starter must handle retries - see
-		 * mmc_wait_for_req_done().
-		 */
-		if (mrq->done)
-			mrq->done(mrq);
-	} else {
+	/*
+	 * We list various conditions for the command to be considered
+	 * properly done:
+	 *
+	 * - There was no error, OK fine then
+	 * - We are not doing some kind of retry
+	 * - The card was removed (...so just complete everything no matter
+	 *   if there are errors or retries)
+	 */
+	if (!err || !cmd->retries || mmc_card_removed(host->card)) {
 		mmc_should_fail_request(host, mrq);
 
 		if (!host->ongoing_mrq)
@@ -211,10 +213,13 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 				mrq->stop->resp[0], mrq->stop->resp[1],
 				mrq->stop->resp[2], mrq->stop->resp[3]);
 		}
-
-		if (mrq->done)
-			mrq->done(mrq);
 	}
+	/*
+	 * Request starter must handle retries - see
+	 * mmc_wait_for_req_done().
+	 */
+	if (mrq->done)
+		mrq->done(mrq);
 }
 
 EXPORT_SYMBOL(mmc_request_done);
@@ -234,8 +239,10 @@ static void __mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	/*
 	 * For sdio rw commands we must wait for card busy otherwise some
 	 * sdio devices won't work properly.
+	 * And bypass I/O abort, reset and bus suspend operations.
 	 */
-	if (mmc_is_io_op(mrq->cmd->opcode) && host->ops->card_busy) {
+	if (sdio_is_io_busy(mrq->cmd->opcode, mrq->cmd->arg) &&
+	    host->ops->card_busy) {
 		int tries = 500; /* Wait aprox 500ms at maximum */
 
 		while (host->ops->card_busy(host) && --tries)
@@ -262,26 +269,19 @@ static void __mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	host->ops->request(host, mrq);
 }
 
-static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
+static void mmc_mrq_pr_debug(struct mmc_host *host, struct mmc_request *mrq)
 {
-#ifdef CONFIG_MMC_DEBUG
-	unsigned int i, sz;
-	struct scatterlist *sg;
-#endif
-	mmc_retune_hold(host);
-
-	if (mmc_card_removed(host->card))
-		return -ENOMEDIUM;
-
 	if (mrq->sbc) {
 		pr_debug("<%s: starting CMD%u arg %08x flags %08x>\n",
 			 mmc_hostname(host), mrq->sbc->opcode,
 			 mrq->sbc->arg, mrq->sbc->flags);
 	}
 
-	pr_debug("%s: starting CMD%u arg %08x flags %08x\n",
-		 mmc_hostname(host), mrq->cmd->opcode,
-		 mrq->cmd->arg, mrq->cmd->flags);
+	if (mrq->cmd) {
+		pr_debug("%s: starting CMD%u arg %08x flags %08x\n",
+			 mmc_hostname(host), mrq->cmd->opcode, mrq->cmd->arg,
+			 mrq->cmd->flags);
+	}
 
 	if (mrq->data) {
 		pr_debug("%s:     blksz %d blocks %d flags %08x "
@@ -297,11 +297,20 @@ static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 			 mmc_hostname(host), mrq->stop->opcode,
 			 mrq->stop->arg, mrq->stop->flags);
 	}
+}
 
-	WARN_ON(!host->claimed);
+static int mmc_mrq_prep(struct mmc_host *host, struct mmc_request *mrq)
+{
+#ifdef CONFIG_MMC_DEBUG
+	unsigned int i, sz;
+	struct scatterlist *sg;
+#endif
 
-	mrq->cmd->error = 0;
-	mrq->cmd->mrq = mrq;
+	if (mrq->cmd) {
+		mrq->cmd->error = 0;
+		mrq->cmd->mrq = mrq;
+		mrq->cmd->data = mrq->data;
+	}
 	if (mrq->sbc) {
 		mrq->sbc->error = 0;
 		mrq->sbc->mrq = mrq;
@@ -318,8 +327,6 @@ static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 		if (sz != mrq->data->blocks * mrq->data->blksz)
 			return -EINVAL;
 #endif
-
-		mrq->cmd->data = mrq->data;
 		mrq->data->error = 0;
 		mrq->data->mrq = mrq;
 		if (mrq->stop) {
@@ -328,6 +335,27 @@ static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 			mrq->stop->mrq = mrq;
 		}
 	}
+
+	return 0;
+}
+
+static int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
+{
+	int err;
+
+	mmc_retune_hold(host);
+
+	if (mmc_card_removed(host->card))
+		return -ENOMEDIUM;
+
+	mmc_mrq_pr_debug(host, mrq);
+
+	WARN_ON(!host->claimed);
+
+	err = mmc_mrq_prep(host, mrq);
+	if (err)
+		return err;
+
 	led_trigger_event(host->led, LED_FULL);
 	__mmc_start_request(host, mrq);
 
@@ -485,56 +513,6 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 	return err;
 }
 
-/*
- * mmc_wait_for_data_req_done() - wait for request completed
- * @host: MMC host to prepare the command.
- * @mrq: MMC request to wait for
- *
- * Blocks MMC context till host controller will ack end of data request
- * execution or new request notification arrives from the block layer.
- * Handles command retries.
- *
- * Returns enum mmc_blk_status after checking errors.
- */
-static enum mmc_blk_status mmc_wait_for_data_req_done(struct mmc_host *host,
-						      struct mmc_request *mrq)
-{
-	struct mmc_command *cmd;
-	struct mmc_context_info *context_info = &host->context_info;
-	enum mmc_blk_status status;
-
-	while (1) {
-		wait_event_interruptible(context_info->wait,
-				(context_info->is_done_rcv ||
-				 context_info->is_new_req));
-
-		if (context_info->is_done_rcv) {
-			context_info->is_done_rcv = false;
-			cmd = mrq->cmd;
-
-			if (!cmd->error || !cmd->retries ||
-			    mmc_card_removed(host->card)) {
-				status = host->areq->err_check(host->card,
-							       host->areq);
-				break; /* return status */
-			} else {
-				mmc_retune_recheck(host);
-				pr_info("%s: req failed (CMD%u): %d, retrying...\n",
-					mmc_hostname(host),
-					cmd->opcode, cmd->error);
-				cmd->retries--;
-				cmd->error = 0;
-				__mmc_start_request(host, mrq);
-				continue; /* wait for done/new event again */
-			}
-		}
-
-		return MMC_BLK_NEW_REQUEST;
-	}
-	mmc_retune_release(host);
-	return status;
-}
-
 void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq)
 {
 	struct mmc_command *cmd;
@@ -639,14 +617,44 @@ static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
  */
 static enum mmc_blk_status mmc_finalize_areq(struct mmc_host *host)
 {
+	struct mmc_context_info *context_info = &host->context_info;
 	enum mmc_blk_status status;
 
 	if (!host->areq)
 		return MMC_BLK_SUCCESS;
 
-	status = mmc_wait_for_data_req_done(host, host->areq->mrq);
-	if (status == MMC_BLK_NEW_REQUEST)
-		return status;
+	while (1) {
+		wait_event_interruptible(context_info->wait,
+				(context_info->is_done_rcv ||
+				 context_info->is_new_req));
+
+		if (context_info->is_done_rcv) {
+			struct mmc_command *cmd;
+
+			context_info->is_done_rcv = false;
+			cmd = host->areq->mrq->cmd;
+
+			if (!cmd->error || !cmd->retries ||
+			    mmc_card_removed(host->card)) {
+				status = host->areq->err_check(host->card,
+							       host->areq);
+				break; /* return status */
+			} else {
+				mmc_retune_recheck(host);
+				pr_info("%s: req failed (CMD%u): %d, retrying...\n",
+					mmc_hostname(host),
+					cmd->opcode, cmd->error);
+				cmd->retries--;
+				cmd->error = 0;
+				__mmc_start_request(host, host->areq->mrq);
+				continue; /* wait for done/new event again */
+			}
+		}
+
+		return MMC_BLK_NEW_REQUEST;
+	}
+
+	mmc_retune_release(host);
 
 	/*
 	 * Check BKOPS urgency for each R1 response
@@ -683,7 +691,7 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 {
 	enum mmc_blk_status status;
 	int start_err = 0;
-	struct mmc_async_req *data = host->areq;
+	struct mmc_async_req *previous = host->areq;
 
 	/* Prepare a new request */
 	if (areq)
@@ -691,13 +699,12 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 
 	/* Finalize previous request */
 	status = mmc_finalize_areq(host);
+	if (ret_stat)
+		*ret_stat = status;
 
 	/* The previous request is still going on... */
-	if (status == MMC_BLK_NEW_REQUEST) {
-		if (ret_stat)
-			*ret_stat = status;
+	if (status == MMC_BLK_NEW_REQUEST)
 		return NULL;
-	}
 
 	/* Fine so far, start the new request! */
 	if (status == MMC_BLK_SUCCESS && areq)
@@ -716,9 +723,7 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 	else
 		host->areq = areq;
 
-	if (ret_stat)
-		*ret_stat = status;
-	return data;
+	return previous;
 }
 EXPORT_SYMBOL(mmc_start_areq);
 
@@ -2554,6 +2559,12 @@ unsigned int mmc_calc_max_discard(struct mmc_card *card)
 	return max_discard;
 }
 EXPORT_SYMBOL(mmc_calc_max_discard);
+
+bool mmc_card_is_blockaddr(struct mmc_card *card)
+{
+	return card ? mmc_card_blockaddr(card) : false;
+}
+EXPORT_SYMBOL(mmc_card_is_blockaddr);
 
 int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 {

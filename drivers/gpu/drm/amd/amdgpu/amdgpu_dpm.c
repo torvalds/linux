@@ -31,86 +31,88 @@
 
 void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 {
-	printk("\tui class: ");
+	const char *s;
+
 	switch (class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
 	case ATOM_PPLIB_CLASSIFICATION_UI_NONE:
 	default:
-		printk("none\n");
+		s = "none";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
-		printk("battery\n");
+		s = "battery";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BALANCED:
-		printk("balanced\n");
+		s = "balanced";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE:
-		printk("performance\n");
+		s = "performance";
 		break;
 	}
-	printk("\tinternal class: ");
+	printk("\tui class: %s\n", s);
+	printk("\tinternal class:");
 	if (((class & ~ATOM_PPLIB_CLASSIFICATION_UI_MASK) == 0) &&
 	    (class2 == 0))
-		printk("none");
+		pr_cont(" none");
 	else {
 		if (class & ATOM_PPLIB_CLASSIFICATION_BOOT)
-			printk("boot ");
+			pr_cont(" boot");
 		if (class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
-			printk("thermal ");
+			pr_cont(" thermal");
 		if (class & ATOM_PPLIB_CLASSIFICATION_LIMITEDPOWERSOURCE)
-			printk("limited_pwr ");
+			pr_cont(" limited_pwr");
 		if (class & ATOM_PPLIB_CLASSIFICATION_REST)
-			printk("rest ");
+			pr_cont(" rest");
 		if (class & ATOM_PPLIB_CLASSIFICATION_FORCED)
-			printk("forced ");
+			pr_cont(" forced");
 		if (class & ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE)
-			printk("3d_perf ");
+			pr_cont(" 3d_perf");
 		if (class & ATOM_PPLIB_CLASSIFICATION_OVERDRIVETEMPLATE)
-			printk("ovrdrv ");
+			pr_cont(" ovrdrv");
 		if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
-			printk("uvd ");
+			pr_cont(" uvd");
 		if (class & ATOM_PPLIB_CLASSIFICATION_3DLOW)
-			printk("3d_low ");
+			pr_cont(" 3d_low");
 		if (class & ATOM_PPLIB_CLASSIFICATION_ACPI)
-			printk("acpi ");
+			pr_cont(" acpi");
 		if (class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
-			printk("uvd_hd2 ");
+			pr_cont(" uvd_hd2");
 		if (class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
-			printk("uvd_hd ");
+			pr_cont(" uvd_hd");
 		if (class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
-			printk("uvd_sd ");
+			pr_cont(" uvd_sd");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2)
-			printk("limited_pwr2 ");
+			pr_cont(" limited_pwr2");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_ULV)
-			printk("ulv ");
+			pr_cont(" ulv");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
-			printk("uvd_mvc ");
+			pr_cont(" uvd_mvc");
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 void amdgpu_dpm_print_cap_info(u32 caps)
 {
-	printk("\tcaps: ");
+	printk("\tcaps:");
 	if (caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY)
-		printk("single_disp ");
+		pr_cont(" single_disp");
 	if (caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK)
-		printk("video ");
+		pr_cont(" video");
 	if (caps & ATOM_PPLIB_DISALLOW_ON_DC)
-		printk("no_dc ");
-	printk("\n");
+		pr_cont(" no_dc");
+	pr_cont("\n");
 }
 
 void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 				struct amdgpu_ps *rps)
 {
-	printk("\tstatus: ");
+	printk("\tstatus:");
 	if (rps == adev->pm.dpm.current_ps)
-		printk("c ");
+		pr_cont(" c");
 	if (rps == adev->pm.dpm.requested_ps)
-		printk("r ");
+		pr_cont(" r");
 	if (rps == adev->pm.dpm.boot_ps)
-		printk("b ");
-	printk("\n");
+		pr_cont(" b");
+	pr_cont("\n");
 }
 
 

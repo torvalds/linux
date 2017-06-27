@@ -121,6 +121,10 @@ config MFD_ATMEL_HLCDC
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config MFD_ATMEL_SMC
+	bool
+	select MFD_SYSCON
+
 config MFD_BCM590XX
 	tristate "Broadcom BCM590xx PMUs"
 	select MFD_CORE
@@ -263,13 +267,14 @@ config MFD_DA9055
 	  called "da9055"
 
 config MFD_DA9062
-	tristate "Dialog Semiconductor DA9062 PMIC Support"
+	tristate "Dialog Semiconductor DA9062/61 PMIC Support"
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	depends on I2C
 	help
-	  Say yes here for support for the Dialog Semiconductor DA9062 PMIC.
+	  Say yes here for support for the Dialog Semiconductor DA9061 and
+	  DA9062 PMICs.
 	  This includes the I2C driver and core APIs.
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
@@ -343,6 +348,23 @@ config MFD_MC13XXX_I2C
 	select MFD_MC13XXX
 	help
 	  Select this if your MC13xxx is connected via an I2C bus.
+
+config MFD_MXS_LRADC
+	tristate "Freescale i.MX23/i.MX28 LRADC"
+	depends on ARCH_MXS || COMPILE_TEST
+	select MFD_CORE
+	select STMP_DEVICE
+	help
+	  Say yes here to build support for the Low Resolution
+	  Analog-to-Digital Converter (LRADC) found on the i.MX23 and i.MX28
+	  processors. This driver provides common support for accessing the
+	  device, additional drivers must be enabled in order to use the
+	  functionality of the device:
+		mxs-lradc-adc for ADC readings
+		mxs-lradc-ts  for touchscreen support
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mxs-lradc.
 
 config MFD_MX25_TSADC
 	tristate "Freescale i.MX25 integrated Touchscreen and ADC unit"
@@ -425,15 +447,26 @@ config LPC_SCH
 	  System Management Bus and General Purpose I/O.
 
 config INTEL_SOC_PMIC
-	bool "Support for Intel Atom SoC PMIC"
+	bool "Support for Crystal Cove PMIC"
 	depends on GPIOLIB
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	  Select this option to enable support for the PMIC device
+	  Select this option to enable support for Crystal Cove PMIC
 	  on some Intel SoC systems. The PMIC provides ADC, GPIO,
+	  thermal, charger and related power management functions
+	  on these systems.
+
+config INTEL_SOC_PMIC_BXTWC
+	tristate "Support for Intel Broxton Whiskey Cove PMIC"
+	depends on INTEL_PMC_IPC
+	select MFD_CORE
+	select REGMAP_IRQ
+	help
+	  Select this option to enable support for Whiskey Cove PMIC
+	  on Intel Broxton systems. The PMIC provides ADC, GPIO,
 	  thermal, charger and related power management functions
 	  on these systems.
 
@@ -1163,6 +1196,18 @@ config MFD_LP8788
 	help
 	  TI LP8788 PMU supports regulators, battery charger, RTC,
 	  ADC, backlight driver and current sinks.
+
+config MFD_TI_LMU
+	tristate "TI Lighting Management Unit driver"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say yes here to enable support for TI LMU chips.
+
+	  TI LMU MFD supports LM3532, LM3631, LM3632, LM3633, LM3695 and LM3697.
+	  It consists of backlight, LED and regulator driver.
+	  It provides consistent device controls for lighting functions.
 
 config MFD_OMAP_USB_HOST
 	bool "TI OMAP USBHS core and TLL driver"

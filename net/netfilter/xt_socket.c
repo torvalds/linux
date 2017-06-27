@@ -152,7 +152,7 @@ static int socket_mt_enable_defrag(struct net *net, int family)
 	switch (family) {
 	case NFPROTO_IPV4:
 		return nf_defrag_ipv4_enable(net);
-#ifdef XT_SOCKET_HAVE_IPV6
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	case NFPROTO_IPV6:
 		return nf_defrag_ipv6_enable(net);
 #endif

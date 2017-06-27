@@ -27,10 +27,11 @@
 #include "gpu_scheduler.h"
 
 /* max number of rings */
-#define AMDGPU_MAX_RINGS		16
+#define AMDGPU_MAX_RINGS		18
 #define AMDGPU_MAX_GFX_RINGS		1
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
+#define AMDGPU_MAX_UVD_ENC_RINGS	2
 
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
@@ -45,7 +46,8 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_SDMA,
 	AMDGPU_RING_TYPE_UVD,
 	AMDGPU_RING_TYPE_VCE,
-	AMDGPU_RING_TYPE_KIQ
+	AMDGPU_RING_TYPE_KIQ,
+	AMDGPU_RING_TYPE_UVD_ENC
 };
 
 struct amdgpu_device;
@@ -96,10 +98,12 @@ struct amdgpu_ring_funcs {
 	enum amdgpu_ring_type	type;
 	uint32_t		align_mask;
 	u32			nop;
+	bool			support_64bit_ptrs;
+	unsigned		vmhub;
 
 	/* ring read/write ptr handling */
-	u32 (*get_rptr)(struct amdgpu_ring *ring);
-	u32 (*get_wptr)(struct amdgpu_ring *ring);
+	u64 (*get_rptr)(struct amdgpu_ring *ring);
+	u64 (*get_wptr)(struct amdgpu_ring *ring);
 	void (*set_wptr)(struct amdgpu_ring *ring);
 	/* validating and patching of IBs */
 	int (*parse_cs)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
@@ -126,6 +130,7 @@ struct amdgpu_ring_funcs {
 	int (*test_ib)(struct amdgpu_ring *ring, long timeout);
 	/* insert NOP packets */
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
+	void (*insert_end)(struct amdgpu_ring *ring);
 	/* pad the indirect buffer to the necessary number of dw */
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 	unsigned (*init_cond_exec)(struct amdgpu_ring *ring);
@@ -148,19 +153,23 @@ struct amdgpu_ring {
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
-	unsigned		wptr;
-	unsigned		wptr_old;
+	u64			wptr;
+	u64			wptr_old;
 	unsigned		ring_size;
 	unsigned		max_dw;
 	int			count_dw;
 	uint64_t		gpu_addr;
-	uint32_t		ptr_mask;
+	uint64_t		ptr_mask;
+	uint32_t		buf_mask;
 	bool			ready;
 	u32			idx;
 	u32			me;
 	u32			pipe;
 	u32			queue;
 	struct amdgpu_bo	*mqd_obj;
+	uint64_t                mqd_gpu_addr;
+	void                    *mqd_ptr;
+	uint64_t                eop_gpu_addr;
 	u32			doorbell_index;
 	bool			use_doorbell;
 	unsigned		wptr_offs;
@@ -170,6 +179,7 @@ struct amdgpu_ring {
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
+	unsigned		vm_inv_eng;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *ent;
 #endif
@@ -184,5 +194,12 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
 		     unsigned irq_type);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
+static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
+{
+	int i = 0;
+	while (i <= ring->buf_mask)
+		ring->ring[i++] = ring->funcs->nop;
+
+}
 
 #endif

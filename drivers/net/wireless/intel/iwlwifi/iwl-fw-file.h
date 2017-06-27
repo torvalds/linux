@@ -241,6 +241,9 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	iteration complete notification, and the timestamp reported for RX
  *	received during scan, are reported in TSF of the mac specified in the
  *	scan request.
+ * @IWL_UCODE_TLV_API_TKIP_MIC_KEYS: This ucode supports version 2 of
+ *	ADD_MODIFY_STA_KEY_API_S_VER_2.
+ * @IWL_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -250,6 +253,8 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= (__force iwl_ucode_tlv_api_t)18,
 	IWL_UCODE_TLV_API_NEW_VERSION		= (__force iwl_ucode_tlv_api_t)20,
 	IWL_UCODE_TLV_API_SCAN_TSF_REPORT	= (__force iwl_ucode_tlv_api_t)28,
+	IWL_UCODE_TLV_API_TKIP_MIC_KEYS		= (__force iwl_ucode_tlv_api_t)29,
+	IWL_UCODE_TLV_API_STA_TYPE		= (__force iwl_ucode_tlv_api_t)30,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
@@ -344,6 +349,8 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
 	IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)31,
 	IWL_UCODE_TLV_CAPA_STA_PM_NOTIF			= (__force iwl_ucode_tlv_capa_t)38,
+	IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT		= (__force iwl_ucode_tlv_capa_t)39,
+	IWL_UCODE_TLV_CAPA_CDB_SUPPORT			= (__force iwl_ucode_tlv_capa_t)40,
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,
 	IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS		= (__force iwl_ucode_tlv_capa_t)65,
 	IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)67,

@@ -59,15 +59,209 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 	writel(value, ioaddr + GMAC_INT_EN);
 }
 
-static void dwmac4_rx_queue_enable(struct mac_device_info *hw, u32 queue)
+static void dwmac4_rx_queue_enable(struct mac_device_info *hw,
+				   u8 mode, u32 queue)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_RXQ_CTRL0);
 
 	value &= GMAC_RX_QUEUE_CLEAR(queue);
-	value |= GMAC_RX_AV_QUEUE_ENABLE(queue);
+	if (mode == MTL_QUEUE_AVB)
+		value |= GMAC_RX_AV_QUEUE_ENABLE(queue);
+	else if (mode == MTL_QUEUE_DCB)
+		value |= GMAC_RX_DCB_QUEUE_ENABLE(queue);
 
 	writel(value, ioaddr + GMAC_RXQ_CTRL0);
+}
+
+static void dwmac4_rx_queue_priority(struct mac_device_info *hw,
+				     u32 prio, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 base_register;
+	u32 value;
+
+	base_register = (queue < 4) ? GMAC_RXQ_CTRL2 : GMAC_RXQ_CTRL3;
+
+	value = readl(ioaddr + base_register);
+
+	value &= ~GMAC_RXQCTRL_PSRQX_MASK(queue);
+	value |= (prio << GMAC_RXQCTRL_PSRQX_SHIFT(queue)) &
+						GMAC_RXQCTRL_PSRQX_MASK(queue);
+	writel(value, ioaddr + base_register);
+}
+
+static void dwmac4_tx_queue_priority(struct mac_device_info *hw,
+				     u32 prio, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 base_register;
+	u32 value;
+
+	base_register = (queue < 4) ? GMAC_TXQ_PRTY_MAP0 : GMAC_TXQ_PRTY_MAP1;
+
+	value = readl(ioaddr + base_register);
+
+	value &= ~GMAC_TXQCTRL_PSTQX_MASK(queue);
+	value |= (prio << GMAC_TXQCTRL_PSTQX_SHIFT(queue)) &
+						GMAC_TXQCTRL_PSTQX_MASK(queue);
+
+	writel(value, ioaddr + base_register);
+}
+
+static void dwmac4_tx_queue_routing(struct mac_device_info *hw,
+				    u8 packet, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	const struct stmmac_rx_routing route_possibilities[] = {
+		{ GMAC_RXQCTRL_AVCPQ_MASK, GMAC_RXQCTRL_AVCPQ_SHIFT },
+		{ GMAC_RXQCTRL_PTPQ_MASK, GMAC_RXQCTRL_PTPQ_SHIFT },
+		{ GMAC_RXQCTRL_DCBCPQ_MASK, GMAC_RXQCTRL_DCBCPQ_SHIFT },
+		{ GMAC_RXQCTRL_UPQ_MASK, GMAC_RXQCTRL_UPQ_SHIFT },
+		{ GMAC_RXQCTRL_MCBCQ_MASK, GMAC_RXQCTRL_MCBCQ_SHIFT },
+	};
+
+	value = readl(ioaddr + GMAC_RXQ_CTRL1);
+
+	/* routing configuration */
+	value &= ~route_possibilities[packet - 1].reg_mask;
+	value |= (queue << route_possibilities[packet-1].reg_shift) &
+		 route_possibilities[packet - 1].reg_mask;
+
+	/* some packets require extra ops */
+	if (packet == PACKET_AVCPQ) {
+		value &= ~GMAC_RXQCTRL_TACPQE;
+		value |= 0x1 << GMAC_RXQCTRL_TACPQE_SHIFT;
+	} else if (packet == PACKET_MCBCQ) {
+		value &= ~GMAC_RXQCTRL_MCBCQEN;
+		value |= 0x1 << GMAC_RXQCTRL_MCBCQEN_SHIFT;
+	}
+
+	writel(value, ioaddr + GMAC_RXQ_CTRL1);
+}
+
+static void dwmac4_prog_mtl_rx_algorithms(struct mac_device_info *hw,
+					  u32 rx_alg)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value = readl(ioaddr + MTL_OPERATION_MODE);
+
+	value &= ~MTL_OPERATION_RAA;
+	switch (rx_alg) {
+	case MTL_RX_ALGORITHM_SP:
+		value |= MTL_OPERATION_RAA_SP;
+		break;
+	case MTL_RX_ALGORITHM_WSP:
+		value |= MTL_OPERATION_RAA_WSP;
+		break;
+	default:
+		break;
+	}
+
+	writel(value, ioaddr + MTL_OPERATION_MODE);
+}
+
+static void dwmac4_prog_mtl_tx_algorithms(struct mac_device_info *hw,
+					  u32 tx_alg)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value = readl(ioaddr + MTL_OPERATION_MODE);
+
+	value &= ~MTL_OPERATION_SCHALG_MASK;
+	switch (tx_alg) {
+	case MTL_TX_ALGORITHM_WRR:
+		value |= MTL_OPERATION_SCHALG_WRR;
+		break;
+	case MTL_TX_ALGORITHM_WFQ:
+		value |= MTL_OPERATION_SCHALG_WFQ;
+		break;
+	case MTL_TX_ALGORITHM_DWRR:
+		value |= MTL_OPERATION_SCHALG_DWRR;
+		break;
+	case MTL_TX_ALGORITHM_SP:
+		value |= MTL_OPERATION_SCHALG_SP;
+		break;
+	default:
+		break;
+	}
+}
+
+static void dwmac4_set_mtl_tx_queue_weight(struct mac_device_info *hw,
+					   u32 weight, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value = readl(ioaddr + MTL_TXQX_WEIGHT_BASE_ADDR(queue));
+
+	value &= ~MTL_TXQ_WEIGHT_ISCQW_MASK;
+	value |= weight & MTL_TXQ_WEIGHT_ISCQW_MASK;
+	writel(value, ioaddr + MTL_TXQX_WEIGHT_BASE_ADDR(queue));
+}
+
+static void dwmac4_map_mtl_dma(struct mac_device_info *hw, u32 queue, u32 chan)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	if (queue < 4)
+		value = readl(ioaddr + MTL_RXQ_DMA_MAP0);
+	else
+		value = readl(ioaddr + MTL_RXQ_DMA_MAP1);
+
+	if (queue == 0 || queue == 4) {
+		value &= ~MTL_RXQ_DMA_Q04MDMACH_MASK;
+		value |= MTL_RXQ_DMA_Q04MDMACH(chan);
+	} else {
+		value &= ~MTL_RXQ_DMA_QXMDMACH_MASK(queue);
+		value |= MTL_RXQ_DMA_QXMDMACH(chan, queue);
+	}
+
+	if (queue < 4)
+		writel(value, ioaddr + MTL_RXQ_DMA_MAP0);
+	else
+		writel(value, ioaddr + MTL_RXQ_DMA_MAP1);
+}
+
+static void dwmac4_config_cbs(struct mac_device_info *hw,
+			      u32 send_slope, u32 idle_slope,
+			      u32 high_credit, u32 low_credit, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 value;
+
+	pr_debug("Queue %d configured as AVB. Parameters:\n", queue);
+	pr_debug("\tsend_slope: 0x%08x\n", send_slope);
+	pr_debug("\tidle_slope: 0x%08x\n", idle_slope);
+	pr_debug("\thigh_credit: 0x%08x\n", high_credit);
+	pr_debug("\tlow_credit: 0x%08x\n", low_credit);
+
+	/* enable AV algorithm */
+	value = readl(ioaddr + MTL_ETSX_CTRL_BASE_ADDR(queue));
+	value |= MTL_ETS_CTRL_AVALG;
+	value |= MTL_ETS_CTRL_CC;
+	writel(value, ioaddr + MTL_ETSX_CTRL_BASE_ADDR(queue));
+
+	/* configure send slope */
+	value = readl(ioaddr + MTL_SEND_SLP_CREDX_BASE_ADDR(queue));
+	value &= ~MTL_SEND_SLP_CRED_SSC_MASK;
+	value |= send_slope & MTL_SEND_SLP_CRED_SSC_MASK;
+	writel(value, ioaddr + MTL_SEND_SLP_CREDX_BASE_ADDR(queue));
+
+	/* configure idle slope (same register as tx weight) */
+	dwmac4_set_mtl_tx_queue_weight(hw, idle_slope, queue);
+
+	/* configure high credit */
+	value = readl(ioaddr + MTL_HIGH_CREDX_BASE_ADDR(queue));
+	value &= ~MTL_HIGH_CRED_HC_MASK;
+	value |= high_credit & MTL_HIGH_CRED_HC_MASK;
+	writel(value, ioaddr + MTL_HIGH_CREDX_BASE_ADDR(queue));
+
+	/* configure high credit */
+	value = readl(ioaddr + MTL_LOW_CREDX_BASE_ADDR(queue));
+	value &= ~MTL_HIGH_CRED_LC_MASK;
+	value |= low_credit & MTL_HIGH_CRED_LC_MASK;
+	writel(value, ioaddr + MTL_LOW_CREDX_BASE_ADDR(queue));
 }
 
 static void dwmac4_dump_regs(struct mac_device_info *hw, u32 *reg_space)
@@ -251,11 +445,12 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 }
 
 static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
-			     unsigned int fc, unsigned int pause_time)
+			     unsigned int fc, unsigned int pause_time,
+			     u32 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 channel = STMMAC_CHAN0;	/* FIXME */
 	unsigned int flow = 0;
+	u32 queue = 0;
 
 	pr_debug("GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {
@@ -265,13 +460,18 @@ static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 	}
 	if (fc & FLOW_TX) {
 		pr_debug("\tTransmit Flow-Control ON\n");
-		flow |= GMAC_TX_FLOW_CTRL_TFE;
-		writel(flow, ioaddr + GMAC_QX_TX_FLOW_CTRL(channel));
 
-		if (duplex) {
+		if (duplex)
 			pr_debug("\tduplex mode: PAUSE %d\n", pause_time);
-			flow |= (pause_time << GMAC_TX_FLOW_CTRL_PT_SHIFT);
-			writel(flow, ioaddr + GMAC_QX_TX_FLOW_CTRL(channel));
+
+		for (queue = 0; queue < tx_cnt; queue++) {
+			flow |= GMAC_TX_FLOW_CTRL_TFE;
+
+			if (duplex)
+				flow |=
+				(pause_time << GMAC_TX_FLOW_CTRL_PT_SHIFT);
+
+			writel(flow, ioaddr + GMAC_QX_TX_FLOW_CTRL(queue));
 		}
 	}
 }
@@ -325,11 +525,34 @@ static void dwmac4_phystatus(void __iomem *ioaddr, struct stmmac_extra_stats *x)
 	}
 }
 
+static int dwmac4_irq_mtl_status(struct mac_device_info *hw, u32 chan)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 mtl_int_qx_status;
+	int ret = 0;
+
+	mtl_int_qx_status = readl(ioaddr + MTL_INT_STATUS);
+
+	/* Check MTL Interrupt */
+	if (mtl_int_qx_status & MTL_INT_QX(chan)) {
+		/* read Queue x Interrupt status */
+		u32 status = readl(ioaddr + MTL_CHAN_INT_CTRL(chan));
+
+		if (status & MTL_RX_OVERFLOW_INT) {
+			/*  clear Interrupt */
+			writel(status | MTL_RX_OVERFLOW_INT,
+			       ioaddr + MTL_CHAN_INT_CTRL(chan));
+			ret = CORE_IRQ_MTL_RX_OVERFLOW;
+		}
+	}
+
+	return ret;
+}
+
 static int dwmac4_irq_status(struct mac_device_info *hw,
 			     struct stmmac_extra_stats *x)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 mtl_int_qx_status;
 	u32 intr_status;
 	int ret = 0;
 
@@ -348,20 +571,6 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 		x->irq_receive_pmt_irq_n++;
 	}
 
-	mtl_int_qx_status = readl(ioaddr + MTL_INT_STATUS);
-	/* Check MTL Interrupt: Currently only one queue is used: Q0. */
-	if (mtl_int_qx_status & MTL_INT_Q0) {
-		/* read Queue 0 Interrupt status */
-		u32 status = readl(ioaddr + MTL_CHAN_INT_CTRL(STMMAC_CHAN0));
-
-		if (status & MTL_RX_OVERFLOW_INT) {
-			/*  clear Interrupt */
-			writel(status | MTL_RX_OVERFLOW_INT,
-			       ioaddr + MTL_CHAN_INT_CTRL(STMMAC_CHAN0));
-			ret = CORE_IRQ_MTL_RX_OVERFLOW;
-		}
-	}
-
 	dwmac_pcs_isr(ioaddr, GMAC_PCS_BASE, intr_status, x);
 	if (intr_status & PCS_RGSMIIIS_IRQ)
 		dwmac4_phystatus(ioaddr, x);
@@ -369,64 +578,69 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 	return ret;
 }
 
-static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
+static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+			 u32 rx_queues, u32 tx_queues)
 {
 	u32 value;
+	u32 queue;
 
-	/*  Currently only channel 0 is supported */
-	value = readl(ioaddr + MTL_CHAN_TX_DEBUG(STMMAC_CHAN0));
+	for (queue = 0; queue < tx_queues; queue++) {
+		value = readl(ioaddr + MTL_CHAN_TX_DEBUG(queue));
 
-	if (value & MTL_DEBUG_TXSTSFSTS)
-		x->mtl_tx_status_fifo_full++;
-	if (value & MTL_DEBUG_TXFSTS)
-		x->mtl_tx_fifo_not_empty++;
-	if (value & MTL_DEBUG_TWCSTS)
-		x->mmtl_fifo_ctrl++;
-	if (value & MTL_DEBUG_TRCSTS_MASK) {
-		u32 trcsts = (value & MTL_DEBUG_TRCSTS_MASK)
-			     >> MTL_DEBUG_TRCSTS_SHIFT;
-		if (trcsts == MTL_DEBUG_TRCSTS_WRITE)
-			x->mtl_tx_fifo_read_ctrl_write++;
-		else if (trcsts == MTL_DEBUG_TRCSTS_TXW)
-			x->mtl_tx_fifo_read_ctrl_wait++;
-		else if (trcsts == MTL_DEBUG_TRCSTS_READ)
-			x->mtl_tx_fifo_read_ctrl_read++;
-		else
-			x->mtl_tx_fifo_read_ctrl_idle++;
+		if (value & MTL_DEBUG_TXSTSFSTS)
+			x->mtl_tx_status_fifo_full++;
+		if (value & MTL_DEBUG_TXFSTS)
+			x->mtl_tx_fifo_not_empty++;
+		if (value & MTL_DEBUG_TWCSTS)
+			x->mmtl_fifo_ctrl++;
+		if (value & MTL_DEBUG_TRCSTS_MASK) {
+			u32 trcsts = (value & MTL_DEBUG_TRCSTS_MASK)
+				     >> MTL_DEBUG_TRCSTS_SHIFT;
+			if (trcsts == MTL_DEBUG_TRCSTS_WRITE)
+				x->mtl_tx_fifo_read_ctrl_write++;
+			else if (trcsts == MTL_DEBUG_TRCSTS_TXW)
+				x->mtl_tx_fifo_read_ctrl_wait++;
+			else if (trcsts == MTL_DEBUG_TRCSTS_READ)
+				x->mtl_tx_fifo_read_ctrl_read++;
+			else
+				x->mtl_tx_fifo_read_ctrl_idle++;
+		}
+		if (value & MTL_DEBUG_TXPAUSED)
+			x->mac_tx_in_pause++;
 	}
-	if (value & MTL_DEBUG_TXPAUSED)
-		x->mac_tx_in_pause++;
 
-	value = readl(ioaddr + MTL_CHAN_RX_DEBUG(STMMAC_CHAN0));
+	for (queue = 0; queue < rx_queues; queue++) {
+		value = readl(ioaddr + MTL_CHAN_RX_DEBUG(queue));
 
-	if (value & MTL_DEBUG_RXFSTS_MASK) {
-		u32 rxfsts = (value & MTL_DEBUG_RXFSTS_MASK)
-			     >> MTL_DEBUG_RRCSTS_SHIFT;
+		if (value & MTL_DEBUG_RXFSTS_MASK) {
+			u32 rxfsts = (value & MTL_DEBUG_RXFSTS_MASK)
+				     >> MTL_DEBUG_RRCSTS_SHIFT;
 
-		if (rxfsts == MTL_DEBUG_RXFSTS_FULL)
-			x->mtl_rx_fifo_fill_level_full++;
-		else if (rxfsts == MTL_DEBUG_RXFSTS_AT)
-			x->mtl_rx_fifo_fill_above_thresh++;
-		else if (rxfsts == MTL_DEBUG_RXFSTS_BT)
-			x->mtl_rx_fifo_fill_below_thresh++;
-		else
-			x->mtl_rx_fifo_fill_level_empty++;
+			if (rxfsts == MTL_DEBUG_RXFSTS_FULL)
+				x->mtl_rx_fifo_fill_level_full++;
+			else if (rxfsts == MTL_DEBUG_RXFSTS_AT)
+				x->mtl_rx_fifo_fill_above_thresh++;
+			else if (rxfsts == MTL_DEBUG_RXFSTS_BT)
+				x->mtl_rx_fifo_fill_below_thresh++;
+			else
+				x->mtl_rx_fifo_fill_level_empty++;
+		}
+		if (value & MTL_DEBUG_RRCSTS_MASK) {
+			u32 rrcsts = (value & MTL_DEBUG_RRCSTS_MASK) >>
+				     MTL_DEBUG_RRCSTS_SHIFT;
+
+			if (rrcsts == MTL_DEBUG_RRCSTS_FLUSH)
+				x->mtl_rx_fifo_read_ctrl_flush++;
+			else if (rrcsts == MTL_DEBUG_RRCSTS_RSTAT)
+				x->mtl_rx_fifo_read_ctrl_read_data++;
+			else if (rrcsts == MTL_DEBUG_RRCSTS_RDATA)
+				x->mtl_rx_fifo_read_ctrl_status++;
+			else
+				x->mtl_rx_fifo_read_ctrl_idle++;
+		}
+		if (value & MTL_DEBUG_RWCSTS)
+			x->mtl_rx_fifo_ctrl_active++;
 	}
-	if (value & MTL_DEBUG_RRCSTS_MASK) {
-		u32 rrcsts = (value & MTL_DEBUG_RRCSTS_MASK) >>
-			     MTL_DEBUG_RRCSTS_SHIFT;
-
-		if (rrcsts == MTL_DEBUG_RRCSTS_FLUSH)
-			x->mtl_rx_fifo_read_ctrl_flush++;
-		else if (rrcsts == MTL_DEBUG_RRCSTS_RSTAT)
-			x->mtl_rx_fifo_read_ctrl_read_data++;
-		else if (rrcsts == MTL_DEBUG_RRCSTS_RDATA)
-			x->mtl_rx_fifo_read_ctrl_status++;
-		else
-			x->mtl_rx_fifo_read_ctrl_idle++;
-	}
-	if (value & MTL_DEBUG_RWCSTS)
-		x->mtl_rx_fifo_ctrl_active++;
 
 	/* GMAC debug */
 	value = readl(ioaddr + GMAC_DEBUG);
@@ -455,10 +669,51 @@ static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x)
 
 static const struct stmmac_ops dwmac4_ops = {
 	.core_init = dwmac4_core_init,
+	.set_mac = stmmac_set_mac,
 	.rx_ipc = dwmac4_rx_ipc_enable,
 	.rx_queue_enable = dwmac4_rx_queue_enable,
+	.rx_queue_prio = dwmac4_rx_queue_priority,
+	.tx_queue_prio = dwmac4_tx_queue_priority,
+	.rx_queue_routing = dwmac4_tx_queue_routing,
+	.prog_mtl_rx_algorithms = dwmac4_prog_mtl_rx_algorithms,
+	.prog_mtl_tx_algorithms = dwmac4_prog_mtl_tx_algorithms,
+	.set_mtl_tx_queue_weight = dwmac4_set_mtl_tx_queue_weight,
+	.map_mtl_to_dma = dwmac4_map_mtl_dma,
+	.config_cbs = dwmac4_config_cbs,
 	.dump_regs = dwmac4_dump_regs,
 	.host_irq_status = dwmac4_irq_status,
+	.host_mtl_irq_status = dwmac4_irq_mtl_status,
+	.flow_ctrl = dwmac4_flow_ctrl,
+	.pmt = dwmac4_pmt,
+	.set_umac_addr = dwmac4_set_umac_addr,
+	.get_umac_addr = dwmac4_get_umac_addr,
+	.set_eee_mode = dwmac4_set_eee_mode,
+	.reset_eee_mode = dwmac4_reset_eee_mode,
+	.set_eee_timer = dwmac4_set_eee_timer,
+	.set_eee_pls = dwmac4_set_eee_pls,
+	.pcs_ctrl_ane = dwmac4_ctrl_ane,
+	.pcs_rane = dwmac4_rane,
+	.pcs_get_adv_lp = dwmac4_get_adv_lp,
+	.debug = dwmac4_debug,
+	.set_filter = dwmac4_set_filter,
+};
+
+static const struct stmmac_ops dwmac410_ops = {
+	.core_init = dwmac4_core_init,
+	.set_mac = stmmac_dwmac4_set_mac,
+	.rx_ipc = dwmac4_rx_ipc_enable,
+	.rx_queue_enable = dwmac4_rx_queue_enable,
+	.rx_queue_prio = dwmac4_rx_queue_priority,
+	.tx_queue_prio = dwmac4_tx_queue_priority,
+	.rx_queue_routing = dwmac4_tx_queue_routing,
+	.prog_mtl_rx_algorithms = dwmac4_prog_mtl_rx_algorithms,
+	.prog_mtl_tx_algorithms = dwmac4_prog_mtl_tx_algorithms,
+	.set_mtl_tx_queue_weight = dwmac4_set_mtl_tx_queue_weight,
+	.map_mtl_to_dma = dwmac4_map_mtl_dma,
+	.config_cbs = dwmac4_config_cbs,
+	.dump_regs = dwmac4_dump_regs,
+	.host_irq_status = dwmac4_irq_status,
+	.host_mtl_irq_status = dwmac4_irq_mtl_status,
 	.flow_ctrl = dwmac4_flow_ctrl,
 	.pmt = dwmac4_pmt,
 	.set_umac_addr = dwmac4_set_umac_addr,
@@ -492,8 +747,6 @@ struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
 	if (mac->multicast_filter_bins)
 		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
 
-	mac->mac = &dwmac4_ops;
-
 	mac->link.port = GMAC_CONFIG_PS;
 	mac->link.duplex = GMAC_CONFIG_DM;
 	mac->link.speed = GMAC_CONFIG_FES;
@@ -513,6 +766,11 @@ struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
 		mac->dma = &dwmac410_dma_ops;
 	else
 		mac->dma = &dwmac4_dma_ops;
+
+	if (*synopsys_id >= DWMAC_CORE_4_00)
+		mac->mac = &dwmac410_ops;
+	else
+		mac->mac = &dwmac4_ops;
 
 	return mac;
 }

@@ -63,6 +63,8 @@
 
 /* bit masks that are common between products */
 #define   MALIDP_CFG_VALID		(1 << 0)
+#define   MALIDP_DISP_FUNC_GAMMA	(1 << 0)
+#define   MALIDP_DISP_FUNC_CADJ		(1 << 4)
 #define   MALIDP_DISP_FUNC_ILACED	(1 << 8)
 
 /* register offsets for IRQ management */
@@ -99,6 +101,58 @@
 
 #define MALIDP_PRODUCT_ID(__core_id) ((u32)(__core_id) >> 16)
 
+/* register offsets relative to MALIDP5x0_COEFFS_BASE */
+#define MALIDP_COLOR_ADJ_COEF		0x00000
+#define MALIDP_COEF_TABLE_ADDR		0x00030
+#define MALIDP_COEF_TABLE_DATA		0x00034
+
+/* Scaling engine registers and masks. */
+#define   MALIDP_SE_SCALING_EN			(1 << 0)
+#define   MALIDP_SE_ALPHA_EN			(1 << 1)
+#define   MALIDP_SE_ENH_MASK			3
+#define   MALIDP_SE_ENH(x)			(((x) & MALIDP_SE_ENH_MASK) << 2)
+#define   MALIDP_SE_RGBO_IF_EN			(1 << 4)
+#define   MALIDP550_SE_CTL_SEL_MASK		7
+#define   MALIDP550_SE_CTL_VCSEL(x) \
+		(((x) & MALIDP550_SE_CTL_SEL_MASK) << 20)
+#define   MALIDP550_SE_CTL_HCSEL(x) \
+		(((x) & MALIDP550_SE_CTL_SEL_MASK) << 16)
+
+/* Blocks with offsets from SE_CONTROL register. */
+#define MALIDP_SE_LAYER_CONTROL			0x14
+#define   MALIDP_SE_L0_IN_SIZE			0x00
+#define   MALIDP_SE_L0_OUT_SIZE			0x04
+#define   MALIDP_SE_SET_V_SIZE(x)		(((x) & 0x1fff) << 16)
+#define   MALIDP_SE_SET_H_SIZE(x)		(((x) & 0x1fff) << 0)
+#define MALIDP_SE_SCALING_CONTROL		0x24
+#define   MALIDP_SE_H_INIT_PH			0x00
+#define   MALIDP_SE_H_DELTA_PH			0x04
+#define   MALIDP_SE_V_INIT_PH			0x08
+#define   MALIDP_SE_V_DELTA_PH			0x0c
+#define   MALIDP_SE_COEFFTAB_ADDR		0x10
+#define     MALIDP_SE_COEFFTAB_ADDR_MASK	0x7f
+#define     MALIDP_SE_V_COEFFTAB		(1 << 8)
+#define     MALIDP_SE_H_COEFFTAB		(1 << 9)
+#define     MALIDP_SE_SET_V_COEFFTAB_ADDR(x) \
+		(MALIDP_SE_V_COEFFTAB | ((x) & MALIDP_SE_COEFFTAB_ADDR_MASK))
+#define     MALIDP_SE_SET_H_COEFFTAB_ADDR(x) \
+		(MALIDP_SE_H_COEFFTAB | ((x) & MALIDP_SE_COEFFTAB_ADDR_MASK))
+#define   MALIDP_SE_COEFFTAB_DATA		0x14
+#define     MALIDP_SE_COEFFTAB_DATA_MASK	0x3fff
+#define     MALIDP_SE_SET_COEFFTAB_DATA(x) \
+		((x) & MALIDP_SE_COEFFTAB_DATA_MASK)
+/* Enhance coeffents reigster offset */
+#define MALIDP_SE_IMAGE_ENH			0x3C
+/* ENH_LIMITS offset 0x0 */
+#define     MALIDP_SE_ENH_LOW_LEVEL		24
+#define     MALIDP_SE_ENH_HIGH_LEVEL		63
+#define     MALIDP_SE_ENH_LIMIT_MASK		0xfff
+#define     MALIDP_SE_SET_ENH_LIMIT_LOW(x) \
+		((x) & MALIDP_SE_ENH_LIMIT_MASK)
+#define     MALIDP_SE_SET_ENH_LIMIT_HIGH(x) \
+		(((x) & MALIDP_SE_ENH_LIMIT_MASK) << 16)
+#define   MALIDP_SE_ENH_COEFF0			0x04
+
 /* register offsets and bits specific to DP500 */
 #define MALIDP500_ADDR_SPACE_SIZE	0x01000
 #define MALIDP500_DC_BASE		0x00000
@@ -120,6 +174,18 @@
 #define MALIDP500_COLOR_ADJ_COEF	0x00078
 #define MALIDP500_COEF_TABLE_ADDR	0x000a8
 #define MALIDP500_COEF_TABLE_DATA	0x000ac
+
+/*
+ * The YUV2RGB coefficients on the DP500 are not in the video layer's register
+ * block. They belong in a separate block above the layer's registers, hence
+ * the negative offset.
+ */
+#define MALIDP500_LV_YUV2RGB		((s16)(-0xB8))
+/*
+ * To match DP550/650, the start of the coeffs registers is
+ * at COLORADJ_COEFF0 instead of at YUV_RGB_COEF1.
+ */
+#define MALIDP500_COEFFS_BASE		0x00078
 #define MALIDP500_DE_LV_BASE		0x00100
 #define MALIDP500_DE_LV_PTR_BASE	0x00124
 #define MALIDP500_DE_LG1_BASE		0x00200
@@ -127,6 +193,7 @@
 #define MALIDP500_DE_LG2_BASE		0x00300
 #define MALIDP500_DE_LG2_PTR_BASE	0x0031c
 #define MALIDP500_SE_BASE		0x00c00
+#define MALIDP500_SE_CONTROL		0x00c0c
 #define MALIDP500_SE_PTR_BASE		0x00e0c
 #define MALIDP500_DC_IRQ_BASE		0x00f00
 #define MALIDP500_CONFIG_VALID		0x00f00
@@ -145,9 +212,7 @@
 #define MALIDP550_DE_DISP_SIDEBAND	0x00040
 #define MALIDP550_DE_BGND_COLOR		0x00044
 #define MALIDP550_DE_OUTPUT_DEPTH	0x0004c
-#define MALIDP550_DE_COLOR_COEF		0x00050
-#define MALIDP550_DE_COEF_TABLE_ADDR	0x00080
-#define MALIDP550_DE_COEF_TABLE_DATA	0x00084
+#define MALIDP550_COEFFS_BASE		0x00050
 #define MALIDP550_DE_LV1_BASE		0x00100
 #define MALIDP550_DE_LV1_PTR_BASE	0x00124
 #define MALIDP550_DE_LV2_BASE		0x00200
@@ -158,6 +223,7 @@
 #define MALIDP550_DE_LS_PTR_BASE	0x0042c
 #define MALIDP550_DE_PERF_BASE		0x00500
 #define MALIDP550_SE_BASE		0x08000
+#define MALIDP550_SE_CONTROL		0x08010
 #define MALIDP550_DC_BASE		0x0c000
 #define MALIDP550_DC_CONTROL		0x0c010
 #define   MALIDP550_DC_CONFIG_REQ	(1 << 16)

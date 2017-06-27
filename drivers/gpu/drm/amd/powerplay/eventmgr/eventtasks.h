@@ -84,5 +84,6 @@ int pem_task_update_allowed_performance_levels(struct pp_eventmgr *eventmgr, str
 /*thermal */
 int pem_task_initialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
 int pem_task_uninitialize_thermal_controller(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
+int pem_task_disable_smc_firmware_ctf(struct pp_eventmgr *eventmgr, struct pem_event_data *event_data);
 
 #endif /* _EVENT_TASKS_H_ */

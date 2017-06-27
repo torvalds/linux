@@ -70,7 +70,7 @@ DECLARE_EVENT_CLASS(sched_wakeup_template,
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
-		__entry->prio		= p->prio;
+		__entry->prio		= p->prio; /* XXX SCHED_DEADLINE */
 		__entry->success	= 1; /* rudiment, kill when possible */
 		__entry->target_cpu	= task_cpu(p);
 	),
@@ -147,6 +147,7 @@ TRACE_EVENT(sched_switch,
 		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
 		__entry->next_pid	= next->pid;
 		__entry->next_prio	= next->prio;
+		/* XXX SCHED_DEADLINE */
 	),
 
 	TP_printk("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s%s ==> next_comm=%s next_pid=%d next_prio=%d",
@@ -181,7 +182,7 @@ TRACE_EVENT(sched_migrate_task,
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
-		__entry->prio		= p->prio;
+		__entry->prio		= p->prio; /* XXX SCHED_DEADLINE */
 		__entry->orig_cpu	= task_cpu(p);
 		__entry->dest_cpu	= dest_cpu;
 	),
@@ -206,7 +207,7 @@ DECLARE_EVENT_CLASS(sched_process_template,
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
-		__entry->prio		= p->prio;
+		__entry->prio		= p->prio; /* XXX SCHED_DEADLINE */
 	),
 
 	TP_printk("comm=%s pid=%d prio=%d",
@@ -253,7 +254,7 @@ TRACE_EVENT(sched_process_wait,
 	TP_fast_assign(
 		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
 		__entry->pid		= pid_nr(pid);
-		__entry->prio		= current->prio;
+		__entry->prio		= current->prio; /* XXX SCHED_DEADLINE */
 	),
 
 	TP_printk("comm=%s pid=%d prio=%d",
@@ -413,9 +414,9 @@ DEFINE_EVENT(sched_stat_runtime, sched_stat_runtime,
  */
 TRACE_EVENT(sched_pi_setprio,
 
-	TP_PROTO(struct task_struct *tsk, int newprio),
+	TP_PROTO(struct task_struct *tsk, struct task_struct *pi_task),
 
-	TP_ARGS(tsk, newprio),
+	TP_ARGS(tsk, pi_task),
 
 	TP_STRUCT__entry(
 		__array( char,	comm,	TASK_COMM_LEN	)
@@ -428,7 +429,8 @@ TRACE_EVENT(sched_pi_setprio,
 		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
 		__entry->pid		= tsk->pid;
 		__entry->oldprio	= tsk->prio;
-		__entry->newprio	= newprio;
+		__entry->newprio	= pi_task ? pi_task->prio : tsk->prio;
+		/* XXX SCHED_DEADLINE bits missing */
 	),
 
 	TP_printk("comm=%s pid=%d oldprio=%d newprio=%d",

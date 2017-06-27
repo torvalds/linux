@@ -1,5 +1,6 @@
 #!/bin/sh
 # description: event tracing - enable/disable with subsystem level files
+# flags: instance
 
 do_reset() {
     echo > set_event

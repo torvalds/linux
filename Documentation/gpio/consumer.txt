@@ -70,6 +70,12 @@ instead of -ENOENT if no GPIO has been assigned to the requested function:
 						   unsigned int index,
 						   enum gpiod_flags flags)
 
+Note that gpio_get*_optional() functions (and their managed variants), unlike
+the rest of gpiolib API, also return NULL when gpiolib support is disabled.
+This is helpful to driver authors, since they do not need to special case
+-ENOSYS return codes.  System integrators should however be careful to enable
+gpiolib on systems that need it.
+
 For a function using multiple GPIOs all of those can be obtained with one call:
 
 	struct gpio_descs *gpiod_get_array(struct device *dev,

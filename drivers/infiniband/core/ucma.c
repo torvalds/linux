@@ -898,11 +898,18 @@ static ssize_t ucma_query_path(struct ucma_context *ctx,
 	for (i = 0, out_len -= sizeof(*resp);
 	     i < resp->num_paths && out_len > sizeof(struct ib_path_rec_data);
 	     i++, out_len -= sizeof(struct ib_path_rec_data)) {
+		struct sa_path_rec *rec = &ctx->cm_id->route.path_rec[i];
 
 		resp->path_data[i].flags = IB_PATH_GMP | IB_PATH_PRIMARY |
 					   IB_PATH_BIDIRECTIONAL;
-		ib_sa_pack_path(&ctx->cm_id->route.path_rec[i],
-				&resp->path_data[i].path_rec);
+		if (rec->rec_type == SA_PATH_REC_TYPE_IB) {
+			ib_sa_pack_path(rec, &resp->path_data[i].path_rec);
+		} else {
+			struct sa_path_rec ib;
+
+			sa_convert_path_opa_to_ib(&ib, rec);
+			ib_sa_pack_path(&ib, &resp->path_data[i].path_rec);
+		}
 	}
 
 	if (copy_to_user(response, resp,
@@ -1197,7 +1204,7 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 static int ucma_set_ib_path(struct ucma_context *ctx,
 			    struct ib_path_rec_data *path_data, size_t optlen)
 {
-	struct ib_sa_path_rec sa_path;
+	struct sa_path_rec sa_path;
 	struct rdma_cm_event event;
 	int ret;
 
@@ -1215,8 +1222,17 @@ static int ucma_set_ib_path(struct ucma_context *ctx,
 
 	memset(&sa_path, 0, sizeof(sa_path));
 
+	sa_path.rec_type = SA_PATH_REC_TYPE_IB;
 	ib_sa_unpack_path(path_data->path_rec, &sa_path);
-	ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
+
+	if (rdma_cap_opa_ah(ctx->cm_id->device, ctx->cm_id->port_num)) {
+		struct sa_path_rec opa;
+
+		sa_convert_path_ib_to_opa(&opa, &sa_path);
+		ret = rdma_set_ib_paths(ctx->cm_id, &opa, 1);
+	} else {
+		ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
+	}
 	if (ret)
 		return ret;
 

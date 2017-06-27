@@ -230,11 +230,42 @@ static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 		return;
 
 	overflow = !!kvm_pmu_overflow_status(vcpu);
-	if (pmu->irq_level != overflow) {
-		pmu->irq_level = overflow;
-		kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-				    pmu->irq_num, overflow);
+	if (pmu->irq_level == overflow)
+		return;
+
+	pmu->irq_level = overflow;
+
+	if (likely(irqchip_in_kernel(vcpu->kvm))) {
+		int ret;
+		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+					  pmu->irq_num, overflow);
+		WARN_ON(ret);
 	}
+}
+
+bool kvm_pmu_should_notify_user(struct kvm_vcpu *vcpu)
+{
+	struct kvm_pmu *pmu = &vcpu->arch.pmu;
+	struct kvm_sync_regs *sregs = &vcpu->run->s.regs;
+	bool run_level = sregs->device_irq_level & KVM_ARM_DEV_PMU;
+
+	if (likely(irqchip_in_kernel(vcpu->kvm)))
+		return false;
+
+	return pmu->irq_level != run_level;
+}
+
+/*
+ * Reflect the PMU overflow interrupt output level into the kvm_run structure
+ */
+void kvm_pmu_update_run(struct kvm_vcpu *vcpu)
+{
+	struct kvm_sync_regs *regs = &vcpu->run->s.regs;
+
+	/* Populate the timer bitmap for user space */
+	regs->device_irq_level &= ~KVM_ARM_DEV_PMU;
+	if (vcpu->arch.pmu.irq_level)
+		regs->device_irq_level |= KVM_ARM_DEV_PMU;
 }
 
 /**

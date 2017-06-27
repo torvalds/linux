@@ -1,0 +1,156 @@
+/*
+ * Device Tree file for Cortina systems Gemini SoC
+ */
+
+/include/ "skeleton.dtsi"
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		compatible = "simple-bus";
+		interrupt-parent = <&intcon>;
+
+		flash@30000000 {
+			compatible = "cortina,gemini-flash", "cfi-flash";
+			syscon = <&syscon>;
+			bank-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+		};
+
+		syscon: syscon@40000000 {
+			compatible = "cortina,gemini-syscon", "syscon", "simple-mfd";
+			reg = <0x40000000 0x1000>;
+
+			syscon-reboot {
+				compatible = "syscon-reboot";
+				regmap = <&syscon>;
+				/* GLOBAL_RESET register */
+				offset = <0x0c>;
+				/* RESET_GLOBAL | RESET_CPU1 */
+				mask = <0xC0000000>;
+			};
+		};
+
+		watchdog@41000000 {
+			compatible = "cortina,gemini-watchdog";
+			reg = <0x41000000 0x1000>;
+			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		uart0: serial@42000000 {
+			compatible = "ns16550a";
+			reg = <0x42000000 0x100>;
+			clock-frequency = <48000000>;
+			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+		};
+
+		timer@43000000 {
+			compatible = "cortina,gemini-timer";
+			reg = <0x43000000 0x1000>;
+			interrupt-parent = <&intcon>;
+			interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
+				     <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
+				     <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+			syscon = <&syscon>;
+		};
+
+		rtc@45000000 {
+			compatible = "cortina,gemini-rtc";
+			reg = <0x45000000 0x100>;
+			interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		intcon: interrupt-controller@48000000 {
+			compatible = "faraday,ftintc010";
+			reg = <0x48000000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		power-controller@4b000000 {
+			compatible = "cortina,gemini-power-controller";
+			reg = <0x4b000000 0x100>;
+			interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		gpio0: gpio@4d000000 {
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
+			reg = <0x4d000000 0x100>;
+			interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@4e000000 {
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
+			reg = <0x4e000000 0x100>;
+			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@4f000000 {
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
+			reg = <0x4f000000 0x100>;
+			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pci@50000000 {
+			compatible = "cortina,gemini-pci", "faraday,ftpci100";
+			/*
+			 * The first 256 bytes in the IO range is actually used
+			 * to configure the host bridge.
+			 */
+			reg = <0x50000000 0x100>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+			status = "disabled";
+
+			bus-range = <0x00 0xff>;
+			/* PCI ranges mappings */
+			ranges =
+			/* 1MiB I/O space 0x50000000-0x500fffff */
+			<0x01000000 0 0          0x50000000 0 0x00100000>,
+			/* 128MiB non-prefetchable memory 0x58000000-0x5fffffff */
+			<0x02000000 0 0x58000000 0x58000000 0 0x08000000>;
+
+			/* DMA ranges */
+			dma-ranges =
+			/* 128MiB at 0x00000000-0x07ffffff */
+			<0x02000000 0 0x00000000 0x00000000 0 0x08000000>,
+			/* 64MiB at 0x00000000-0x03ffffff */
+			<0x02000000 0 0x00000000 0x00000000 0 0x04000000>,
+			/* 64MiB at 0x00000000-0x03ffffff */
+			<0x02000000 0 0x00000000 0x00000000 0 0x04000000>;
+
+			/*
+			 * This PCI host bridge variant has a cascaded interrupt
+			 * controller embedded in the host bridge.
+			 */
+			pci_intc: interrupt-controller {
+				interrupt-parent = <&intcon>;
+				interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+			};
+		};
+	};
+};

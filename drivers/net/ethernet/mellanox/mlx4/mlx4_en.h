@@ -102,17 +102,6 @@
 /* Use the maximum between 16384 and a single page */
 #define MLX4_EN_ALLOC_SIZE	PAGE_ALIGN(16384)
 
-#define MLX4_EN_ALLOC_PREFER_ORDER min_t(int, get_order(32768),		\
-					 PAGE_ALLOC_COSTLY_ORDER)
-
-/* Receive fragment sizes; we use at most 3 fragments (for 9600 byte MTU
- * and 4K allocations) */
-enum {
-	FRAG_SZ0 = 1536 - NET_IP_ALIGN,
-	FRAG_SZ1 = 4096,
-	FRAG_SZ2 = 4096,
-	FRAG_SZ3 = MLX4_EN_ALLOC_SIZE
-};
 #define MLX4_EN_MAX_RX_FRAGS	4
 
 /* Maximum ring sizes */
@@ -264,13 +253,16 @@ struct mlx4_en_rx_alloc {
 	struct page	*page;
 	dma_addr_t	dma;
 	u32		page_offset;
-	u32		page_size;
 };
 
 #define MLX4_EN_CACHE_SIZE (2 * NAPI_POLL_WEIGHT)
+
 struct mlx4_en_page_cache {
 	u32 index;
-	struct mlx4_en_rx_alloc buf[MLX4_EN_CACHE_SIZE];
+	struct {
+		struct page	*page;
+		dma_addr_t	dma;
+	} buf[MLX4_EN_CACHE_SIZE];
 };
 
 struct mlx4_en_priv;
@@ -335,7 +327,6 @@ struct mlx4_en_rx_desc {
 
 struct mlx4_en_rx_ring {
 	struct mlx4_hwq_resources wqres;
-	struct mlx4_en_rx_alloc page_alloc[MLX4_EN_MAX_RX_FRAGS];
 	u32 size ;	/* number of Rx descs*/
 	u32 actual_size;
 	u32 size_mask;
@@ -355,6 +346,7 @@ struct mlx4_en_rx_ring {
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	unsigned long csum_complete;
+	unsigned long rx_alloc_pages;
 	unsigned long xdp_drop;
 	unsigned long xdp_tx;
 	unsigned long xdp_tx_full;
@@ -472,11 +464,7 @@ struct mlx4_en_mc_list {
 
 struct mlx4_en_frag_info {
 	u16 frag_size;
-	u16 frag_prefix_size;
 	u32 frag_stride;
-	enum dma_data_direction dma_dir;
-	u16 order;
-	u16 rx_headroom;
 };
 
 #ifdef CONFIG_MLX4_EN_DCB
@@ -584,8 +572,10 @@ struct mlx4_en_priv {
 	u32 rx_ring_num;
 	u32 rx_skb_size;
 	struct mlx4_en_frag_info frag_info[MLX4_EN_MAX_RX_FRAGS];
-	u16 num_frags;
-	u16 log_rx_info;
+	u8 num_frags;
+	u8 log_rx_info;
+	u8 dma_dir;
+	u16 rx_headroom;
 
 	struct mlx4_en_tx_ring **tx_ring[MLX4_EN_NUM_TX_TYPES];
 	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];

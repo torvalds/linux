@@ -200,11 +200,6 @@ free_master_write:
 	return -ENODEV;
 }
 
-static inline int jz4740_mmc_get_dma_dir(struct mmc_data *data)
-{
-	return (data->flags & MMC_DATA_READ) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-}
-
 static inline struct dma_chan *jz4740_mmc_get_dma_chan(struct jz4740_mmc_host *host,
 						       struct mmc_data *data)
 {
@@ -215,7 +210,7 @@ static void jz4740_mmc_dma_unmap(struct jz4740_mmc_host *host,
 				 struct mmc_data *data)
 {
 	struct dma_chan *chan = jz4740_mmc_get_dma_chan(host, data);
-	enum dma_data_direction dir = jz4740_mmc_get_dma_dir(data);
+	enum dma_data_direction dir = mmc_get_dma_dir(data);
 
 	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, dir);
 }
@@ -227,7 +222,7 @@ static int jz4740_mmc_prepare_dma_data(struct jz4740_mmc_host *host,
 				       struct dma_chan *chan)
 {
 	struct jz4740_mmc_host_next *next_data = &host->next_data;
-	enum dma_data_direction dir = jz4740_mmc_get_dma_dir(data);
+	enum dma_data_direction dir = mmc_get_dma_dir(data);
 	int sg_len;
 
 	if (!next && data->host_cookie &&

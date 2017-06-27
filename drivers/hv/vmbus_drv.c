@@ -787,8 +787,6 @@ static void vmbus_shutdown(struct device *child_device)
 
 	if (drv->shutdown)
 		drv->shutdown(dev);
-
-	return;
 }
 
 
@@ -855,7 +853,7 @@ void vmbus_on_msg_dpc(unsigned long data)
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
 	struct vmbus_channel_message_header *hdr;
-	struct vmbus_channel_message_table_entry *entry;
+	const struct vmbus_channel_message_table_entry *entry;
 	struct onmessage_work_context *ctx;
 	u32 message_type = msg->header.message_type;
 

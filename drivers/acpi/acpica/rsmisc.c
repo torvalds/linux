@@ -596,9 +596,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 
 			/* Set vendor offset only if there is vendor data */
 
-			if (resource->data.gpio.vendor_length) {
-				ACPI_SET16(target, aml_length);
-			}
+			ACPI_SET16(target, aml_length);
 
 			acpi_rs_set_resource_length(aml_length, aml);
 			break;

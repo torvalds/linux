@@ -995,7 +995,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 
 	if (netlen < (payload_len + HTC_HDR_LENGTH)) {
 		ath6kl_dbg(ATH6KL_DBG_HTC,
-			   "HTC Rx: insufficient length, got:%d expected =%u\n",
+			   "HTC Rx: insufficient length, got:%d expected =%zu\n",
 			   netlen, payload_len + HTC_HDR_LENGTH);
 		status = -EINVAL;
 		goto free_skb;

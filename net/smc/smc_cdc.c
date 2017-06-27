@@ -217,8 +217,13 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		smc->sk.sk_err = ECONNRESET;
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 	}
-	if (smc_cdc_rxed_any_close_or_senddone(conn))
-		smc_close_passive_received(smc);
+	if (smc_cdc_rxed_any_close_or_senddone(conn)) {
+		smc->sk.sk_shutdown |= RCV_SHUTDOWN;
+		if (smc->clcsock && smc->clcsock->sk)
+			smc->clcsock->sk->sk_shutdown |= RCV_SHUTDOWN;
+		sock_set_flag(&smc->sk, SOCK_DONE);
+		schedule_work(&conn->close_work);
+	}
 
 	/* piggy backed tx info */
 	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
@@ -227,8 +232,6 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		/* trigger socket release if connection closed */
 		smc_close_wake_tx_prepared(smc);
 	}
-
-	/* subsequent patch: trigger socket release if connection closed */
 
 	/* socket connected but not accepted */
 	if (!smc->sk.sk_socket)

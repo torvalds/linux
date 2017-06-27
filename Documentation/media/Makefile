@@ -1,51 +1,6 @@
-# Rules to convert DOT and SVG to Sphinx images
-
-SRC_DIR=$(srctree)/Documentation/media
-
-DOTS = \
-	uapi/v4l/pipeline.dot \
-
-IMAGES = \
-	typical_media_device.svg \
-	uapi/dvb/dvbstb.svg \
-	uapi/v4l/bayer.svg \
-	uapi/v4l/constraints.svg \
-	uapi/v4l/crop.svg \
-	uapi/v4l/fieldseq_bt.svg \
-	uapi/v4l/fieldseq_tb.svg \
-	uapi/v4l/nv12mt.svg \
-	uapi/v4l/nv12mt_example.svg \
-	uapi/v4l/pipeline.svg \
-	uapi/v4l/selection.svg \
-	uapi/v4l/subdev-image-processing-full.svg \
-	uapi/v4l/subdev-image-processing-scaling-multi-source.svg \
-	uapi/v4l/subdev-image-processing-crop.svg \
-	uapi/v4l/vbi_525.svg \
-	uapi/v4l/vbi_625.svg \
-	uapi/v4l/vbi_hsync.svg \
-
-DOTTGT := $(patsubst %.dot,%.svg,$(DOTS))
-IMGDOT := $(patsubst %,$(SRC_DIR)/%,$(DOTTGT))
-
-IMGTGT := $(patsubst %.svg,%.pdf,$(IMAGES))
-IMGPDF := $(patsubst %,$(SRC_DIR)/%,$(IMGTGT))
-
-cmd = $(echo-cmd) $(cmd_$(1))
-
-quiet_cmd_genpdf = GENPDF  $2
-      cmd_genpdf = convert $2 $3
-
-quiet_cmd_gendot = DOT     $2
-      cmd_gendot = dot -Tsvg $2 > $3 || { rm -f $3; exit 1; }
-
-%.pdf: %.svg
-	@$(call cmd,genpdf,$<,$@)
-
-%.svg: %.dot
-	@$(call cmd,gendot,$<,$@)
-
 # Rules to convert a .h file to inline RST documentation
 
+SRC_DIR=$(srctree)/Documentation/media
 PARSER = $(srctree)/Documentation/sphinx/parse-headers.pl
 UAPI = $(srctree)/include/uapi/linux
 KAPI = $(srctree)/include/linux

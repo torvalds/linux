@@ -85,6 +85,10 @@ struct nvm_ioctl_create_conf {
 	};
 };
 
+enum {
+	NVM_TARGET_FACTORY = 1 << 0,	/* Init target in factory mode */
+};
+
 struct nvm_ioctl_create {
 	char dev[DISK_NAME_LEN];		/* open-channel SSD device */
 	char tgttype[NVM_TTYPE_NAME_MAX];	/* target type name */

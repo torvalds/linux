@@ -567,7 +567,7 @@ static void iscsit_remove_cmd_from_immediate_queue(
 	}
 }
 
-void iscsit_add_cmd_to_response_queue(
+int iscsit_add_cmd_to_response_queue(
 	struct iscsi_cmd *cmd,
 	struct iscsi_conn *conn,
 	u8 state)
@@ -578,7 +578,7 @@ void iscsit_add_cmd_to_response_queue(
 	if (!qr) {
 		pr_err("Unable to allocate memory for"
 			" struct iscsi_queue_req\n");
-		return;
+		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&qr->qr_list);
 	qr->cmd = cmd;
@@ -590,6 +590,7 @@ void iscsit_add_cmd_to_response_queue(
 	spin_unlock_bh(&conn->response_queue_lock);
 
 	wake_up(&conn->queues_wq);
+	return 0;
 }
 
 struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsi_conn *conn)
@@ -737,21 +738,23 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = NULL;
 	int rc;
+	bool op_scsi = false;
 	/*
 	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		se_cmd = &cmd->se_cmd;
-		__iscsit_free_cmd(cmd, true, shutdown);
+		op_scsi = true;
 		/*
 		 * Fallthrough
 		 */
 	case ISCSI_OP_SCSI_TMFUNC:
-		rc = transport_generic_free_cmd(&cmd->se_cmd, shutdown);
-		if (!rc && shutdown && se_cmd && se_cmd->se_sess) {
-			__iscsit_free_cmd(cmd, true, shutdown);
+		se_cmd = &cmd->se_cmd;
+		__iscsit_free_cmd(cmd, op_scsi, shutdown);
+		rc = transport_generic_free_cmd(se_cmd, shutdown);
+		if (!rc && shutdown && se_cmd->se_sess) {
+			__iscsit_free_cmd(cmd, op_scsi, shutdown);
 			target_put_sess_cmd(se_cmd);
 		}
 		break;

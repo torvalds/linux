@@ -145,56 +145,6 @@ static irqreturn_t corehi_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_MIPS_MT_SMP
-
-#define MIPS_CPU_IPI_RESCHED_IRQ 0	/* SW int 0 for resched */
-#define C_RESCHED C_SW0
-#define MIPS_CPU_IPI_CALL_IRQ 1		/* SW int 1 for resched */
-#define C_CALL C_SW1
-static int cpu_ipi_resched_irq, cpu_ipi_call_irq;
-
-static void ipi_resched_dispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
-}
-
-static void ipi_call_dispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
-}
-
-static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
-{
-#ifdef CONFIG_MIPS_VPE_APSP_API_CMP
-	if (aprp_hook)
-		aprp_hook();
-#endif
-
-	scheduler_ipi();
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
-{
-	generic_smp_call_function_interrupt();
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI_call"
-};
-#endif /* CONFIG_MIPS_MT_SMP */
-
 static struct irqaction corehi_irqaction = {
 	.handler = corehi_handler,
 	.name = "CoreHi",
@@ -222,15 +172,20 @@ static msc_irqmap_t msc_eicirqmap[] __initdata = {
 
 static int msc_nr_eicirqs __initdata = ARRAY_SIZE(msc_eicirqmap);
 
-void __init arch_init_ipiirq(int irq, struct irqaction *action)
-{
-	setup_irq(irq, action);
-	irq_set_handler(irq, handle_percpu_irq);
-}
-
 void __init arch_init_irq(void)
 {
 	int corehi_irq;
+
+	/*
+	 * Preallocate the i8259's expected virq's here. Since irqchip_init()
+	 * will probe the irqchips in hierarchial order, i8259 is probed last.
+	 * If anything allocates a virq before the i8259 is probed, it will
+	 * be given one of the i8259's expected range and consequently setup
+	 * of the i8259 will fail.
+	 */
+	WARN(irq_alloc_descs(I8259A_IRQ_BASE, I8259A_IRQ_BASE,
+			    16, numa_node_id()) < 0,
+		"Cannot reserve i8259 virqs at IRQ%d\n", I8259A_IRQ_BASE);
 
 	i8259_set_poll(mips_pcibios_iack);
 	irqchip_init();
@@ -262,30 +217,11 @@ void __init arch_init_irq(void)
 
 	if (gic_present) {
 		corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
+	} else if (cpu_has_veic) {
+		set_vi_handler(MSC01E_INT_COREHI, corehi_irqdispatch);
+		corehi_irq = MSC01E_INT_BASE + MSC01E_INT_COREHI;
 	} else {
-#if defined(CONFIG_MIPS_MT_SMP)
-		/* set up ipi interrupts */
-		if (cpu_has_veic) {
-			set_vi_handler (MSC01E_INT_SW0, ipi_resched_dispatch);
-			set_vi_handler (MSC01E_INT_SW1, ipi_call_dispatch);
-			cpu_ipi_resched_irq = MSC01E_INT_SW0;
-			cpu_ipi_call_irq = MSC01E_INT_SW1;
-		} else {
-			cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE +
-				MIPS_CPU_IPI_RESCHED_IRQ;
-			cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE +
-				MIPS_CPU_IPI_CALL_IRQ;
-		}
-		arch_init_ipiirq(cpu_ipi_resched_irq, &irq_resched);
-		arch_init_ipiirq(cpu_ipi_call_irq, &irq_call);
-#endif
-		if (cpu_has_veic) {
-			set_vi_handler(MSC01E_INT_COREHI,
-				       corehi_irqdispatch);
-			corehi_irq = MSC01E_INT_BASE + MSC01E_INT_COREHI;
-		} else {
-			corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
-		}
+		corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
 	}
 
 	setup_irq(corehi_irq, &corehi_irqaction);

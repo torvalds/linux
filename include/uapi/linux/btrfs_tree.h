@@ -1,6 +1,9 @@
 #ifndef _BTRFS_CTREE_H_
 #define _BTRFS_CTREE_H_
 
+#include <linux/btrfs.h>
+#include <linux/types.h>
+
 /*
  * This header contains the structure definitions and constants used
  * by file system objects that can be retrieved using

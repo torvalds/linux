@@ -63,9 +63,18 @@ static const struct i2c_device_id bmc150_magn_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bmc150_magn_i2c_id);
 
+static const struct of_device_id bmc150_magn_of_match[] = {
+	{ .compatible = "bosch,bmc150_magn" },
+	{ .compatible = "bosch,bmc156_magn" },
+	{ .compatible = "bosch,bmm150_magn" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, bmc150_magn_of_match);
+
 static struct i2c_driver bmc150_magn_driver = {
 	.driver = {
 		.name	= "bmc150_magn_i2c",
+		.of_match_table = bmc150_magn_of_match,
 		.acpi_match_table = ACPI_PTR(bmc150_magn_acpi_match),
 		.pm	= &bmc150_magn_pm_ops,
 	},

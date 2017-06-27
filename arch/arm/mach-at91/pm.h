@@ -17,24 +17,20 @@
 #include <soc/at91/at91sam9_ddrsdr.h>
 #include <soc/at91/at91sam9_sdramc.h>
 
-#ifndef __ASSEMBLY__
-#define at91_ramc_read(id, field) \
-	__raw_readl(at91_ramc_base[id] + field)
-
-#define at91_ramc_write(id, field, value) \
-	__raw_writel(value, at91_ramc_base[id] + field)
-#endif
-
 #define AT91_MEMCTRL_MC		0
 #define AT91_MEMCTRL_SDRAMC	1
 #define AT91_MEMCTRL_DDRSDR	2
 
-#define	AT91_PM_MEMTYPE_MASK	0x0f
-
-#define	AT91_PM_MODE_OFFSET	4
-#define	AT91_PM_MODE_MASK	0x01
-#define	AT91_PM_MODE(x)		(((x) & AT91_PM_MODE_MASK) << AT91_PM_MODE_OFFSET)
-
 #define	AT91_PM_SLOW_CLOCK	0x01
+
+#ifndef __ASSEMBLY__
+struct at91_pm_data {
+	void __iomem *pmc;
+	void __iomem *ramc[2];
+	unsigned long uhp_udp_mask;
+	unsigned int memctrl;
+	unsigned int mode;
+};
+#endif
 
 #endif

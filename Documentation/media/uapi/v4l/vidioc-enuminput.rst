@@ -33,7 +33,7 @@ Description
 
 To query the attributes of a video input applications initialize the
 ``index`` field of struct :c:type:`v4l2_input` and call the
-:ref:`VIDIOC_ENUMINPUT` ioctl with a pointer to this structure. Drivers
+:ref:`VIDIOC_ENUMINPUT` with a pointer to this structure. Drivers
 fill the rest of the structure or return an ``EINVAL`` error code when the
 index is out of bounds. To enumerate all inputs applications shall begin
 at index zero, incrementing by one until the driver returns ``EINVAL``.
@@ -117,8 +117,9 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
       - This input uses a tuner (RF demodulator).
     * - ``V4L2_INPUT_TYPE_CAMERA``
       - 2
-      - Analog baseband input, for example CVBS / Composite Video,
-	S-Video, RGB.
+      - Any non-tuner video input, for example Composite Video,
+	S-Video, HDMI, camera sensor. The naming as ``_TYPE_CAMERA`` is historical,
+	today we would have called it ``_TYPE_VIDEO``.
     * - ``V4L2_INPUT_TYPE_TOUCH``
       - 3
       - This input is a touch device for capturing raw touch data.
@@ -209,11 +210,11 @@ at index zero, incrementing by one until the driver returns ``EINVAL``.
     * - ``V4L2_IN_CAP_DV_TIMINGS``
       - 0x00000002
       - This input supports setting video timings by using
-	VIDIOC_S_DV_TIMINGS.
+	``VIDIOC_S_DV_TIMINGS``.
     * - ``V4L2_IN_CAP_STD``
       - 0x00000004
       - This input supports setting the TV standard by using
-	VIDIOC_S_STD.
+	``VIDIOC_S_STD``.
     * - ``V4L2_IN_CAP_NATIVE_SIZE``
       - 0x00000008
       - This input supports setting the native size using the

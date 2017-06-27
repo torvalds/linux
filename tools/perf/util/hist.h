@@ -30,6 +30,7 @@ enum hist_column {
 	HISTC_DSO,
 	HISTC_THREAD,
 	HISTC_COMM,
+	HISTC_CGROUP_ID,
 	HISTC_PARENT,
 	HISTC_CPU,
 	HISTC_SOCKET,
@@ -57,6 +58,7 @@ enum hist_column {
 	HISTC_SRCLINE_FROM,
 	HISTC_SRCLINE_TO,
 	HISTC_TRACE,
+	HISTC_SYM_SIZE,
 	HISTC_NR_COLS, /* Last entry */
 };
 

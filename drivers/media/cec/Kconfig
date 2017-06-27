@@ -1,0 +1,5 @@
+config MEDIA_CEC_RC
+	bool "HDMI CEC RC integration"
+	depends on CEC_CORE && RC_CORE
+	---help---
+	  Pass on CEC remote control messages to the RC framework.

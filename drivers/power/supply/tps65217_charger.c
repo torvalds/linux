@@ -58,8 +58,6 @@ static int tps65217_config_charger(struct tps65217_charger *charger)
 {
 	int ret;
 
-	dev_dbg(charger->dev, "%s\n", __func__);
-
 	/*
 	 * tps65217 rev. G, p. 31 (see p. 32 for NTC schematic)
 	 *
@@ -204,8 +202,6 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 	int irq[NUM_CHARGER_IRQS];
 	int ret;
 	int i;
-
-	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)

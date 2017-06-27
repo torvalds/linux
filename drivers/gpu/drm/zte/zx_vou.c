@@ -470,6 +470,27 @@ static const struct drm_crtc_helper_funcs zx_crtc_helper_funcs = {
 	.atomic_flush = zx_crtc_atomic_flush,
 };
 
+static int zx_vou_enable_vblank(struct drm_crtc *crtc)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
+	struct zx_vou_hw *vou = crtc_to_vou(crtc);
+	u32 int_frame_mask = zcrtc->bits->int_frame_mask;
+
+	zx_writel_mask(vou->timing + TIMING_INT_CTRL, int_frame_mask,
+		       int_frame_mask);
+
+	return 0;
+}
+
+static void zx_vou_disable_vblank(struct drm_crtc *crtc)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
+	struct zx_vou_hw *vou = crtc_to_vou(crtc);
+
+	zx_writel_mask(vou->timing + TIMING_INT_CTRL,
+		       zcrtc->bits->int_frame_mask, 0);
+}
+
 static const struct drm_crtc_funcs zx_crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
@@ -477,6 +498,8 @@ static const struct drm_crtc_funcs zx_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = zx_vou_enable_vblank,
+	.disable_vblank = zx_vou_disable_vblank,
 };
 
 static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
@@ -551,44 +574,6 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 		vou->aux_crtc = zcrtc;
 
 	return 0;
-}
-
-int zx_vou_enable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct drm_crtc *crtc;
-	struct zx_crtc *zcrtc;
-	struct zx_vou_hw *vou;
-	u32 int_frame_mask;
-
-	crtc = drm_crtc_from_index(drm, pipe);
-	if (!crtc)
-		return 0;
-
-	vou = crtc_to_vou(crtc);
-	zcrtc = to_zx_crtc(crtc);
-	int_frame_mask = zcrtc->bits->int_frame_mask;
-
-	zx_writel_mask(vou->timing + TIMING_INT_CTRL, int_frame_mask,
-		       int_frame_mask);
-
-	return 0;
-}
-
-void zx_vou_disable_vblank(struct drm_device *drm, unsigned int pipe)
-{
-	struct drm_crtc *crtc;
-	struct zx_crtc *zcrtc;
-	struct zx_vou_hw *vou;
-
-	crtc = drm_crtc_from_index(drm, pipe);
-	if (!crtc)
-		return;
-
-	vou = crtc_to_vou(crtc);
-	zcrtc = to_zx_crtc(crtc);
-
-	zx_writel_mask(vou->timing + TIMING_INT_CTRL,
-		       zcrtc->bits->int_frame_mask, 0);
 }
 
 void zx_vou_layer_enable(struct drm_plane *plane)

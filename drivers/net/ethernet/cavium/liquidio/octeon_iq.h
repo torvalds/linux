@@ -152,7 +152,7 @@ struct octeon_instr_queue {
 	struct oct_iq_stats stats;
 
 	/** DMA mapped base address of the input descriptor ring. */
-	u64 base_addr_dma;
+	dma_addr_t base_addr_dma;
 
 	/** Application context */
 	void *app_ctx;

@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,8 +84,21 @@ static int iwl_mvm_binding_cmd(struct iwl_mvm *mvm, u32 action,
 	struct iwl_mvm_phy_ctxt *phyctxt = data->phyctxt;
 	int i, ret;
 	u32 status;
+	int size;
 
 	memset(&cmd, 0, sizeof(cmd));
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT)) {
+		size = sizeof(cmd);
+		if (phyctxt->channel->band == NL80211_BAND_2GHZ ||
+		    !iwl_mvm_is_cdb_supported(mvm))
+			cmd.lmac_id = cpu_to_le32(IWL_LMAC_24G_INDEX);
+		else
+			cmd.lmac_id = cpu_to_le32(IWL_LMAC_5G_INDEX);
+	} else {
+		size = IWL_BINDING_CMD_SIZE_V1;
+	}
 
 	cmd.id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(phyctxt->id,
 							   phyctxt->color));
@@ -99,7 +114,7 @@ static int iwl_mvm_binding_cmd(struct iwl_mvm *mvm, u32 action,
 
 	status = 0;
 	ret = iwl_mvm_send_cmd_pdu_status(mvm, BINDING_CONTEXT_CMD,
-					  sizeof(cmd), &cmd, &status);
+					  size, &cmd, &status);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to send binding (action:%d): %d\n",
 			action, ret);

@@ -637,6 +637,7 @@ void qlcnic_83xx_get_pauseparam(struct qlcnic_adapter *,
 int qlcnic_83xx_set_pauseparam(struct qlcnic_adapter *,
 			       struct ethtool_pauseparam *);
 int qlcnic_83xx_test_link(struct qlcnic_adapter *);
+void qlcnic_83xx_get_port_type(struct qlcnic_adapter *adapter);
 int qlcnic_83xx_reg_test(struct qlcnic_adapter *);
 int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *);
 int qlcnic_83xx_get_registers(struct qlcnic_adapter *, u32 *);

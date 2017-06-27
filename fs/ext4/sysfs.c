@@ -34,7 +34,7 @@ typedef enum {
 	ptr_ext4_super_block_offset,
 } attr_ptr_t;
 
-static const char *proc_dirname = "fs/ext4";
+static const char proc_dirname[] = "fs/ext4";
 static struct proc_dir_entry *ext4_proc_root;
 
 struct ext4_attr {
@@ -375,7 +375,7 @@ static const struct file_operations ext4_seq_##name##_fops = { \
 PROC_FILE_SHOW_DEFN(es_shrinker_info);
 PROC_FILE_SHOW_DEFN(options);
 
-static struct ext4_proc_files {
+static const struct ext4_proc_files {
 	const char *name;
 	const struct file_operations *fops;
 } proc_files[] = {
@@ -388,7 +388,7 @@ static struct ext4_proc_files {
 int ext4_register_sysfs(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_proc_files *p;
+	const struct ext4_proc_files *p;
 	int err;
 
 	sbi->s_kobj.kset = &ext4_kset;
@@ -412,7 +412,7 @@ int ext4_register_sysfs(struct super_block *sb)
 void ext4_unregister_sysfs(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_proc_files *p;
+	const struct ext4_proc_files *p;
 
 	if (sbi->s_proc) {
 		for (p = proc_files; p->name; p++)

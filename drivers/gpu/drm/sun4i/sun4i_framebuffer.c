@@ -48,5 +48,4 @@ void sun4i_framebuffer_free(struct drm_device *drm)
 	struct sun4i_drv *drv = drm->dev_private;
 
 	drm_fbdev_cma_fini(drv->fbdev);
-	drm_mode_config_cleanup(drm);
 }

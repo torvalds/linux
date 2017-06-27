@@ -155,8 +155,15 @@ struct drm_crtc_state {
 	 * Target vertical blank period when a page flip
 	 * should take effect.
 	 */
-
 	u32 target_vblank;
+
+	/**
+	 * @pageflip_flags:
+	 *
+	 * DRM_MODE_PAGE_FLIP_* flags, as passed to the page flip ioctl.
+	 * Zero in any other case.
+	 */
+	u32 pageflip_flags;
 
 	/**
 	 * @event:
@@ -197,6 +204,12 @@ struct drm_crtc_state {
 	 * drm_crtc_arm_vblank_event(). See the documentation of that function
 	 * for a detailed discussion of the constraints it needs to be used
 	 * safely.
+	 *
+	 * If the device can't notify of flip completion in a race-free way
+	 * at all, then the event should be armed just after the page flip is
+	 * committed. In the worst case the driver will send the event to
+	 * userspace one frame too late. This doesn't allow for a real atomic
+	 * update, but it should avoid tearing.
 	 */
 	struct drm_pending_vblank_event *event;
 
@@ -309,7 +322,8 @@ struct drm_crtc_funcs {
 	 * hooks.
 	 */
 	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			 uint32_t size);
+			 uint32_t size,
+			 struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @destroy:
@@ -334,7 +348,8 @@ struct drm_crtc_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*set_config)(struct drm_mode_set *set);
+	int (*set_config)(struct drm_mode_set *set,
+			  struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @page_flip:
@@ -392,7 +407,8 @@ struct drm_crtc_funcs {
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
 			 struct drm_pending_vblank_event *event,
-			 uint32_t flags);
+			 uint32_t flags,
+			 struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @page_flip_target:
@@ -410,7 +426,8 @@ struct drm_crtc_funcs {
 	int (*page_flip_target)(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
-				uint32_t flags, uint32_t target);
+				uint32_t flags, uint32_t target,
+				struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @set_property:
@@ -577,8 +594,11 @@ struct drm_crtc_funcs {
 	 * When CRC generation is enabled, the driver should call
 	 * drm_crtc_add_crc_entry() at each frame, providing any information
 	 * that characterizes the frame contents in the crcN arguments, as
-	 * provided from the configured source. Drivers must accept a "auto"
+	 * provided from the configured source. Drivers must accept an "auto"
 	 * source name that will select a default source for this CRTC.
+	 *
+	 * Note that "auto" can depend upon the current modeset configuration,
+	 * e.g. it could pick an encoder or output specific CRC sampling point.
 	 *
 	 * This callback is optional if the driver does not support any CRC
 	 * generation functionality.
@@ -601,6 +621,50 @@ struct drm_crtc_funcs {
 	 */
 	void (*atomic_print_state)(struct drm_printer *p,
 				   const struct drm_crtc_state *state);
+
+	/**
+	 * @get_vblank_counter:
+	 *
+	 * Driver callback for fetching a raw hardware vblank counter for the
+	 * CRTC. It's meant to be used by new drivers as the replacement of
+	 * &drm_driver.get_vblank_counter hook.
+	 *
+	 * This callback is optional. If a device doesn't have a hardware
+	 * counter, the driver can simply leave the hook as NULL. The DRM core
+	 * will account for missed vblank events while interrupts where disabled
+	 * based on system timestamps.
+	 *
+	 * Wraparound handling and loss of events due to modesetting is dealt
+	 * with in the DRM core code, as long as drivers call
+	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
+	 * enabling a CRTC.
+	 *
+	 * Returns:
+	 *
+	 * Raw vblank counter value.
+	 */
+	u32 (*get_vblank_counter)(struct drm_crtc *crtc);
+
+	/**
+	 * @enable_vblank:
+	 *
+	 * Enable vblank interrupts for the CRTC. It's meant to be used by
+	 * new drivers as the replacement of &drm_driver.enable_vblank hook.
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, appropriate errno if the vblank interrupt cannot
+	 * be enabled.
+	 */
+	int (*enable_vblank)(struct drm_crtc *crtc);
+
+	/**
+	 * @disable_vblank:
+	 *
+	 * Disable vblank interrupts for the CRTC. It's meant to be used by
+	 * new drivers as the replacement of &drm_driver.disable_vblank hook.
+	 */
+	void (*disable_vblank)(struct drm_crtc *crtc);
 };
 
 /**
@@ -639,10 +703,12 @@ struct drm_crtc {
 	/**
 	 * @mutex:
 	 *
-	 * This provides a read lock for the overall crtc state (mode, dpms
+	 * This provides a read lock for the overall CRTC state (mode, dpms
 	 * state, ...) and a write lock for everything which can be update
-	 * without a full modeset (fb, cursor data, crtc properties ...). A full
+	 * without a full modeset (fb, cursor data, CRTC properties ...). A full
 	 * modeset also need to grab &drm_mode_config.connection_mutex.
+	 *
+	 * For atomic drivers specifically this protects @state.
 	 */
 	struct drm_modeset_lock mutex;
 
@@ -688,6 +754,14 @@ struct drm_crtc {
 	 * @state:
 	 *
 	 * Current atomic state for this CRTC.
+	 *
+	 * This is protected by @mutex. Note that nonblocking atomic commits
+	 * access the current CRTC state without taking locks. Either by going
+	 * through the &struct drm_atomic_state pointers, see
+	 * for_each_crtc_in_state(), for_each_oldnew_crtc_in_state(),
+	 * for_each_old_crtc_in_state() and for_each_new_crtc_in_state(). Or
+	 * through careful ordering of atomic commit operations as implemented
+	 * in the atomic helpers, see &struct drm_crtc_commit.
 	 */
 	struct drm_crtc_state *state;
 
@@ -709,15 +783,6 @@ struct drm_crtc {
 	 */
 	spinlock_t commit_lock;
 
-	/**
-	 * @acquire_ctx:
-	 *
-	 * Per-CRTC implicit acquire context used by atomic drivers for legacy
-	 * IOCTLs, so that atomic drivers can get at the locking acquire
-	 * context.
-	 */
-	struct drm_modeset_acquire_ctx *acquire_ctx;
-
 #ifdef CONFIG_DEBUG_FS
 	/**
 	 * @debugfs_entry:
@@ -725,6 +790,7 @@ struct drm_crtc {
 	 * Debugfs directory for this CRTC.
 	 */
 	struct dentry *debugfs_entry;
+#endif
 
 	/**
 	 * @crc:
@@ -732,7 +798,6 @@ struct drm_crtc {
 	 * Configuration settings of CRC capture.
 	 */
 	struct drm_crtc_crc crc;
-#endif
 
 	/**
 	 * @fence_context:

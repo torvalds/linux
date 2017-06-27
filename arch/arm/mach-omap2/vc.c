@@ -559,7 +559,7 @@ struct i2c_init_data {
 	u8 hsscll_12;
 };
 
-static const struct i2c_init_data const omap4_i2c_timing_data[] __initconst = {
+static const struct i2c_init_data omap4_i2c_timing_data[] __initconst = {
 	{
 		.load = 50,
 		.loadbits = 0x3,

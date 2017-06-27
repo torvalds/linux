@@ -1685,6 +1685,29 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260a, quirk_intel_pcie_pm);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260b, quirk_intel_pcie_pm);
 
 #ifdef CONFIG_X86_IO_APIC
+static int dmi_disable_ioapicreroute(const struct dmi_system_id *d)
+{
+	noioapicreroute = 1;
+	pr_info("%s detected: disable boot interrupt reroute\n", d->ident);
+
+	return 0;
+}
+
+static struct dmi_system_id boot_interrupt_dmi_table[] = {
+	/*
+	 * Systems to exclude from boot interrupt reroute quirks
+	 */
+	{
+		.callback = dmi_disable_ioapicreroute,
+		.ident = "ASUSTek Computer INC. M2N-LR",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTek Computer INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "M2N-LR"),
+		},
+	},
+	{}
+};
+
 /*
  * Boot interrupts on some chipsets cannot be turned off. For these chipsets,
  * remap the original interrupt in the linux kernel to the boot interrupt, so
@@ -1693,6 +1716,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	0x260b, quirk_intel_pcie_pm);
  */
 static void quirk_reroute_to_boot_interrupts_intel(struct pci_dev *dev)
 {
+	dmi_check_system(boot_interrupt_dmi_table);
 	if (noioapicquirk || noioapicreroute)
 		return;
 
@@ -3642,19 +3666,11 @@ static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 	 *
 	 * The 82599 supports FLR on VFs, but FLR support is reported only
 	 * in the PF DEVCAP (sec 9.3.10.4), not in the VF DEVCAP (sec 9.5).
-	 * Therefore, we can't use pcie_flr(), which checks the VF DEVCAP.
+	 * Thus we must call pcie_flr() directly without first checking if it is
+	 * supported.
 	 */
-
-	if (probe)
-		return 0;
-
-	if (!pci_wait_for_pending_transaction(dev))
-		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
-
-	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-
-	msleep(100);
-
+	if (!probe)
+		pcie_flr(dev);
 	return 0;
 }
 
@@ -3759,20 +3775,7 @@ static int reset_chelsio_generic_dev(struct pci_dev *dev, int probe)
 				      PCI_MSIX_FLAGS_ENABLE |
 				      PCI_MSIX_FLAGS_MASKALL);
 
-	/*
-	 * Start of pcie_flr() code sequence.  This reset code is a copy of
-	 * the guts of pcie_flr() because that's not an exported function.
-	 */
-
-	if (!pci_wait_for_pending_transaction(dev))
-		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
-
-	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-	msleep(100);
-
-	/*
-	 * End of pcie_flr() code sequence.
-	 */
+	pcie_flr(dev);
 
 	/*
 	 * Restore the configuration information (BAR values, etc.) including
@@ -3939,6 +3942,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ASMEDIA, 0x1080,
 DECLARE_PCI_FIXUP_HEADER(0x10e3, 0x8113, quirk_use_pcie_bridge_dma_alias);
 /* ITE 8892, https://bugzilla.kernel.org/show_bug.cgi?id=73551 */
 DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8892, quirk_use_pcie_bridge_dma_alias);
+/* ITE 8893 has the same problem as the 8892 */
+DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8893, quirk_use_pcie_bridge_dma_alias);
 /* Intel 82801, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c49 */
 DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
 
@@ -3956,6 +3961,20 @@ static void quirk_mic_x200_dma_alias(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2260, quirk_mic_x200_dma_alias);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2264, quirk_mic_x200_dma_alias);
+
+/*
+ * The IOMMU and interrupt controller on Broadcom Vulcan/Cavium ThunderX2 are
+ * associated not at the root bus, but at a bridge below. This quirk avoids
+ * generating invalid DMA aliases.
+ */
+static void quirk_bridge_cavm_thrx2_pcie_root(struct pci_dev *pdev)
+{
+	pdev->dev_flags |= PCI_DEV_FLAGS_BRIDGE_XLATE_ROOT;
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM, 0x9000,
+				quirk_bridge_cavm_thrx2_pcie_root);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM, 0x9084,
+				quirk_bridge_cavm_thrx2_pcie_root);
 
 /*
  * Intersil/Techwell TW686[4589]-based video capture cards have an empty (zero)
@@ -4094,6 +4113,9 @@ static int pci_quirk_cavium_acs(struct pci_dev *dev, u16 acs_flags)
 	 */
 	acs_flags &= ~(PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
 		       PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT);
+
+	if (!((dev->device >= 0xa000) && (dev->device <= 0xa0ff)))
+		return -ENOTTY;
 
 	return acs_flags ? 0 : 1;
 }
@@ -4634,3 +4656,11 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2030, quirk_no_aersid);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2031, quirk_no_aersid);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2032, quirk_no_aersid);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2033, quirk_no_aersid);
+
+/* FLR may cause some 82579 devices to hang. */
+static void quirk_intel_no_flr(struct pci_dev *dev)
+{
+	dev->dev_flags |= PCI_DEV_FLAGS_NO_FLR_RESET;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x1502, quirk_intel_no_flr);
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x1503, quirk_intel_no_flr);

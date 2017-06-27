@@ -13,7 +13,7 @@ config DRM_ROCKCHIP
 	  IP found on the SoC.
 
 config ROCKCHIP_ANALOGIX_DP
-	tristate "Rockchip specific extensions for Analogix DP driver"
+	bool "Rockchip specific extensions for Analogix DP driver"
 	depends on DRM_ROCKCHIP
 	select DRM_ANALOGIX_DP
 	help
@@ -22,7 +22,7 @@ config ROCKCHIP_ANALOGIX_DP
 	  on RK3288 based SoC, you should selet this option.
 
 config ROCKCHIP_CDN_DP
-        tristate "Rockchip cdn DP"
+        bool "Rockchip cdn DP"
         depends on DRM_ROCKCHIP
 	depends on EXTCON
 	select SND_SOC_HDMI_CODEC if SND_SOC
@@ -33,7 +33,7 @@ config ROCKCHIP_CDN_DP
 	  option.
 
 config ROCKCHIP_DW_HDMI
-        tristate "Rockchip specific extensions for Synopsys DW HDMI"
+        bool "Rockchip specific extensions for Synopsys DW HDMI"
         depends on DRM_ROCKCHIP
         select DRM_DW_HDMI
         help
@@ -43,7 +43,7 @@ config ROCKCHIP_DW_HDMI
 	  option.
 
 config ROCKCHIP_DW_MIPI_DSI
-	tristate "Rockchip specific extensions for Synopsys DW MIPI DSI"
+	bool "Rockchip specific extensions for Synopsys DW MIPI DSI"
 	depends on DRM_ROCKCHIP
 	select DRM_MIPI_DSI
 	help
@@ -53,7 +53,7 @@ config ROCKCHIP_DW_MIPI_DSI
 	 option.
 
 config ROCKCHIP_INNO_HDMI
-	tristate "Rockchip specific extensions for Innosilicon HDMI"
+	bool "Rockchip specific extensions for Innosilicon HDMI"
 	depends on DRM_ROCKCHIP
 	help
 	  This selects support for Rockchip SoC specific extensions

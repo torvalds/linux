@@ -52,6 +52,17 @@
 	assigned-clock-rates = <278000000>, <400000000>;
 };
 
+&dsi {
+	panel@0 {
+		compatible = "samsung,s6e3hf2";
+		reg = <0>;
+		vdd3-supply = <&ldo27_reg>;
+		vci-supply = <&ldo28_reg>;
+		reset-gpios = <&gpg0 0 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&gpf1 5 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &ldo31_reg {
 	regulator-name = "TSP_VDD_1.8V_AP";
 	regulator-min-microvolt = <1800000>;
@@ -62,4 +73,11 @@
 	regulator-name = "VCC_3.3V_MOTOR_AP";
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
+};
+
+&stmfts {
+	touchscreen-size-x = <1599>;
+	touchscreen-size-y = <2559>;
+	touch-key-connected;
+	ledvdd-supply = <&ldo33_reg>;
 };

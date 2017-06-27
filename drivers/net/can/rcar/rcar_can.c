@@ -826,8 +826,7 @@ static int rcar_can_probe(struct platform_device *pdev)
 
 	devm_can_led_init(ndev);
 
-	dev_info(&pdev->dev, "device registered (regs @ %p, IRQ%d)\n",
-		 priv->regs, ndev->irq);
+	dev_info(&pdev->dev, "device registered (IRQ%d)\n", ndev->irq);
 
 	return 0;
 fail_candev:

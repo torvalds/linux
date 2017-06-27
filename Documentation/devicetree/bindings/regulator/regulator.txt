@@ -21,6 +21,9 @@ Optional properties:
   design requires. This property describes the total system ramp time
   required due to the combination of internal ramping of the regulator itself,
   and board design issues such as trace capacitance and load on the supply.
+- regulator-settling-time-us: Settling time, in microseconds, for voltage
+  change if regulator have the constant time for any level voltage change.
+  This is useful when regulator have exponential voltage change.
 - regulator-soft-start: Enable soft start so that voltage ramps slowly
 - regulator-state-mem sub-root node for Suspend-to-RAM mode
   : suspend to memory, the device goes to sleep, but all data stored in memory,

@@ -1189,11 +1189,6 @@
 			status = "disabled";
 		};
 
-		cpufreq-cooling {
-			compatible = "stericsson,db8500-cpufreq-cooling";
-			status = "disabled";
-		};
-
 		mcde@a0350000 {
 			compatible = "stericsson,mcde";
 			reg = <0xa0350000 0x1000>, /* MCDE */

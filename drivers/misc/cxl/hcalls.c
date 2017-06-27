@@ -413,9 +413,9 @@ long cxl_h_collect_int_info(u64 unit_address, u64 process_token,
 
 	switch (rc) {
 	case H_SUCCESS:     /* The interrupt info is returned in return registers. */
-		pr_devel("dsisr:%#llx, dar:%#llx, dsr:%#llx, pid:%u, tid:%u, afu_err:%#llx, errstat:%#llx\n",
-			info->dsisr, info->dar, info->dsr, info->pid,
-			info->tid, info->afu_err, info->errstat);
+		pr_devel("dsisr:%#llx, dar:%#llx, dsr:%#llx, pid_tid:%#llx, afu_err:%#llx, errstat:%#llx\n",
+			info->dsisr, info->dar, info->dsr, info->reserved,
+			info->afu_err, info->errstat);
 		return 0;
 	case H_PARAMETER:   /* An incorrect parameter was supplied. */
 		return -EINVAL;

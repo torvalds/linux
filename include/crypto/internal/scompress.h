@@ -133,4 +133,7 @@ int crypto_register_scomp(struct scomp_alg *alg);
  */
 int crypto_unregister_scomp(struct scomp_alg *alg);
 
+int crypto_register_scomps(struct scomp_alg *algs, int count);
+void crypto_unregister_scomps(struct scomp_alg *algs, int count);
+
 #endif

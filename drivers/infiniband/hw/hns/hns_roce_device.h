@@ -687,9 +687,10 @@ void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
 				unsigned long obj, int cnt,
 				int rr);
 
-struct ib_ah *hns_roce_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+struct ib_ah *hns_roce_create_ah(struct ib_pd *pd,
+				 struct rdma_ah_attr *ah_attr,
 				 struct ib_udata *udata);
-int hns_roce_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
+int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 int hns_roce_destroy_ah(struct ib_ah *ah);
 
 struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,

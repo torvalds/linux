@@ -223,25 +223,25 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 		return 0;
 
 	otg_sx->vbus_nb.notifier_call = ssusb_vbus_notifier;
-	ret = extcon_register_notifier(edev, EXTCON_USB,
+	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB,
 					&otg_sx->vbus_nb);
 	if (ret < 0)
 		dev_err(ssusb->dev, "failed to register notifier for USB\n");
 
 	otg_sx->id_nb.notifier_call = ssusb_id_notifier;
-	ret = extcon_register_notifier(edev, EXTCON_USB_HOST,
+	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB_HOST,
 					&otg_sx->id_nb);
 	if (ret < 0)
 		dev_err(ssusb->dev, "failed to register notifier for USB-HOST\n");
 
 	dev_dbg(ssusb->dev, "EXTCON_USB: %d, EXTCON_USB_HOST: %d\n",
-		extcon_get_cable_state_(edev, EXTCON_USB),
-		extcon_get_cable_state_(edev, EXTCON_USB_HOST));
+		extcon_get_state(edev, EXTCON_USB),
+		extcon_get_state(edev, EXTCON_USB_HOST));
 
 	/* default as host, switch to device mode if needed */
-	if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) == false)
+	if (extcon_get_state(edev, EXTCON_USB_HOST) == false)
 		ssusb_set_mailbox(otg_sx, MTU3_ID_FLOAT);
-	if (extcon_get_cable_state_(edev, EXTCON_USB) == true)
+	if (extcon_get_state(edev, EXTCON_USB) == true)
 		ssusb_set_mailbox(otg_sx, MTU3_VBUS_VALID);
 
 	return 0;
@@ -366,13 +366,6 @@ void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
 	cancel_delayed_work(&otg_sx->extcon_reg_dwork);
-
-	if (otg_sx->edev) {
-		extcon_unregister_notifier(otg_sx->edev,
-			EXTCON_USB, &otg_sx->vbus_nb);
-		extcon_unregister_notifier(otg_sx->edev,
-			EXTCON_USB_HOST, &otg_sx->id_nb);
-	}
 
 	if (otg_sx->manual_drd_enabled)
 		ssusb_debugfs_exit(ssusb);

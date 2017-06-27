@@ -521,10 +521,40 @@ config RCU_EXPERT
 
 config SRCU
 	bool
+	default y
 	help
 	  This option selects the sleepable version of RCU. This version
 	  permits arbitrary sleeping or blocking within RCU read-side critical
 	  sections.
+
+config CLASSIC_SRCU
+	bool "Use v4.11 classic SRCU implementation"
+	default n
+	depends on RCU_EXPERT && SRCU
+	help
+	  This option selects the traditional well-tested classic SRCU
+	  implementation from v4.11, as might be desired for enterprise
+	  Linux distributions.  Without this option, the shiny new
+	  Tiny SRCU and Tree SRCU implementations are used instead.
+	  At some point, it is hoped that Tiny SRCU and Tree SRCU
+	  will accumulate enough test time and confidence to allow
+	  Classic SRCU to be dropped entirely.
+
+	  Say Y if you need a rock-solid SRCU.
+
+	  Say N if you would like help test Tree SRCU.
+
+config TINY_SRCU
+	bool
+	default y if SRCU && TINY_RCU && !CLASSIC_SRCU
+	help
+	  This option selects the single-CPU non-preemptible version of SRCU.
+
+config TREE_SRCU
+	bool
+	default y if SRCU && !TINY_RCU && !CLASSIC_SRCU
+	help
+	  This option selects the full-fledged version of SRCU.
 
 config TASKS_RCU
 	bool
@@ -542,6 +572,9 @@ config RCU_STALL_COMMON
 	  the TINY and TREE variants of RCU.  The purpose is to allow
 	  the tiny variants to disable RCU CPU stall warnings, while
 	  making these warnings mandatory for the tree variants.
+
+config RCU_NEED_SEGCBLIST
+	def_bool ( TREE_RCU || PREEMPT_RCU || TINY_SRCU || TREE_SRCU )
 
 config CONTEXT_TRACKING
        bool
@@ -612,11 +645,17 @@ config RCU_FANOUT_LEAF
 	  initialization.  These systems tend to run CPU-bound, and thus
 	  are not helped by synchronized interrupts, and thus tend to
 	  skew them, which reduces lock contention enough that large
-	  leaf-level fanouts work well.
+	  leaf-level fanouts work well.  That said, setting leaf-level
+	  fanout to a large number will likely cause problematic
+	  lock contention on the leaf-level rcu_node structures unless
+	  you boot with the skew_tick kernel parameter.
 
 	  Select a specific number if testing RCU itself.
 
-	  Select the maximum permissible value for large systems.
+	  Select the maximum permissible value for large systems, but
+	  please understand that you may also need to set the skew_tick
+	  kernel boot parameter to avoid contention on the rcu_node
+	  structure's locks.
 
 	  Take the default if unsure.
 

@@ -11,20 +11,16 @@
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- *
- * Driver includes
  */
 
-#ifndef __DGNC_DRIVER_H
-#define __DGNC_DRIVER_H
+#ifndef _DGNC_DRIVER_H
+#define _DGNC_DRIVER_H
 
 #include <linux/types.h>
 #include <linux/tty.h>
 #include <linux/interrupt.h>
 
 #include "digi.h"		/* Digi specific ioctl header */
-
-/* Driver defines */
 
 /* Driver identification and error statements */
 #define	PROCSTR		"dgnc"			/* /proc entries */
@@ -39,11 +35,6 @@
 #define	MAXPORTS	8
 #define MAXTTYNAMELEN	200
 
-/* Our 3 magic numbers for our board, channel and unit structs */
-#define DGNC_BOARD_MAGIC	0x5c6df104
-#define DGNC_CHANNEL_MAGIC	0x6c6df104
-#define DGNC_UNIT_MAGIC		0x7c6df104
-
 /* Serial port types */
 #define DGNC_SERIAL		0
 #define DGNC_PRINT		1
@@ -53,10 +44,7 @@
 #define PORT_NUM(dev)	((dev) & 0x7f)
 #define IS_PRINT(dev)	(((dev) & 0xff) >= 0x80)
 
-/*
- *MAX number of stop characters we will send
- * when our read queue is getting full
- */
+/* MAX number of stop characters sent when our read queue is getting full */
 #define MAX_STOPS_SENT 5
 
 /* 4 extra for alignment play space */
@@ -82,27 +70,24 @@
 #endif
 
 /* All the possible states the driver can be while being loaded. */
-
 enum {
 	DRIVER_INITIALIZED = 0,
 	DRIVER_READY
 };
 
 /* All the possible states the board can be while booting up. */
-
 enum {
 	BOARD_FAILED = 0,
 	BOARD_FOUND,
 	BOARD_READY
 };
 
-/* Structures and closely related defines. */
-
 struct dgnc_board;
 struct channel_t;
 
-/* Per board operations structure */
-
+/**
+ * struct board_ops - Per board operations.
+ */
 struct board_ops {
 	void (*tasklet)(unsigned long data);
 	irqreturn_t (*intr)(int irq, void *voidbrd);
@@ -128,77 +113,107 @@ struct board_ops {
 
 #define BD_IS_PCI_EXPRESS     0x0001	  /* Is a PCI Express board */
 
-/*	Per-board information */
-
+/**
+ * struct dgnc_board - Per board information.
+ * @boardnum: Board number (0 - 32).
+ *
+ * @type: Type of board.
+ * @name: Product name.
+ * @pdev: Pointer to the pci_dev structure.
+ * @bd_flags: Board flags.
+ * @vendor: PCI vendor ID.
+ * @device: PCI device ID.
+ * @subvendor: PCI subsystem vendor ID.
+ * @subdevice: PCI subsystem device ID.
+ * @rev: PCI revision ID.
+ * @pci_bus: PCI bus value.
+ * @pci_slot: PCI slot value.
+ * @maxports: Maximum ports this board can handle.
+ * @dvid: Board specific device ID.
+ * @vpd: VPD of this board, if found.
+ * @serial_num: Serial number of this board, if found in VPD.
+ * @bd_lock: Used to protect board.
+ * @bd_intr_lock: Protect poller tasklet and interrupt routine from each other.
+ * @state: State of the card.
+ * @state_wait: Queue to sleep on for state change.
+ * @helper_tasklet: Poll helper tasklet.
+ * @nasync: Number of ports on card.
+ * @irq: Interrupt request number.
+ * @membase: Start of base memory of the card.
+ * @membase_end: End of base memory of the card.
+ * @iobase: Start of IO base of the card.
+ * @iobase_end: End of IO base of the card.
+ * @bd_uart_offset: Space between each UART.
+ * @channels: array of pointers to our channels.
+ * @serial_driver: Pointer to the serial driver.
+ * @serial_name: Serial driver name.
+ * @print_dirver: Pointer to the print driver.
+ * @print_name: Print driver name.
+ * @dpatype: Board type as defined by DPA.
+ * @dpastatus: Board status as defined by DPA.
+ * @bd_dividend: Board/UART's specific dividend.
+ * @bd_ops: Pointer to board operations structure.
+ * @proc_entry_pointer: Proc/<board> entry
+ * @dgnc_board_table: Proc/<board> entry
+ */
 struct dgnc_board {
-	int		magic;		/* Board Magic number. */
-	int		boardnum;	/* Board number: 0-32 */
+	int		boardnum;
 
-	int		type;		/* Type of board */
-	char		*name;		/* Product Name */
-	struct pci_dev	*pdev;		/* Pointer to the pci_dev struct */
-	unsigned long	bd_flags;	/* Board flags */
-	u16		vendor;		/* PCI vendor ID */
-	u16		device;		/* PCI device ID */
-	u16		subvendor;	/* PCI subsystem vendor ID */
-	u16		subdevice;	/* PCI subsystem device ID */
-	unsigned char	rev;		/* PCI revision ID */
-	uint		pci_bus;	/* PCI bus value */
-	uint		pci_slot;	/* PCI slot value */
-	uint		maxports;	/* MAX ports this board can handle */
-	unsigned char	dvid;		/* Board specific device id */
-	unsigned char	vpd[128];	/* VPD of board, if found */
-	unsigned char	serial_num[20];	/* Serial number of board,
-					 * if found in VPD
-					 */
+	int		type;
+	char		*name;
+	struct pci_dev	*pdev;
+	unsigned long	bd_flags;
+	u16		vendor;
+	u16		device;
+	u16		subvendor;
+	u16		subdevice;
+	unsigned char	rev;
+	uint		pci_bus;
+	uint		pci_slot;
+	uint		maxports;
+	unsigned char	dvid;
+	unsigned char	vpd[128];
+	unsigned char	serial_num[20];
 
-	spinlock_t	bd_lock;	/* Used to protect board */
+	/* used to protect the board */
+	spinlock_t	bd_lock;
 
-	spinlock_t	bd_intr_lock;	/* Used to protect the poller tasklet
-					 * and the interrupt routine from each
-					 * other.
-					 */
+	/*  Protect poller tasklet and interrupt routine from each other. */
+	spinlock_t	bd_intr_lock;
 
-	uint		state;		/* State of card. */
-	wait_queue_head_t state_wait;	/* Place to sleep on for state change */
+	uint		state;
+	wait_queue_head_t state_wait;
 
-	struct		tasklet_struct helper_tasklet; /* Poll helper tasklet */
+	struct tasklet_struct helper_tasklet;
 
-	uint		nasync;		/* Number of ports on card */
+	uint		nasync;
 
-	uint		irq;		/* Interrupt request number */
+	uint		irq;
 
-	ulong		membase;	/* Start of base memory of the card */
-	ulong		membase_end;	/* End of base memory of the card */
+	ulong		membase;
+	ulong		membase_end;
 
-	u8 __iomem	*re_map_membase; /* Remapped memory of the card */
+	u8 __iomem	*re_map_membase;
 
-	ulong		iobase;		/* Start of io base of the card */
-	ulong		iobase_end;	/* End of io base of the card */
+	ulong		iobase;
+	ulong		iobase_end;
 
-	uint		bd_uart_offset;	/* Space between each UART */
+	uint		bd_uart_offset;
 
-	struct channel_t *channels[MAXPORTS];	/* array of pointers
-						 * to our channels.
-						 */
+	struct channel_t *channels[MAXPORTS];
 
 	struct tty_driver *serial_driver;
 	char		serial_name[200];
 	struct tty_driver *print_driver;
 	char		print_name[200];
 
-	u16		dpatype;	/* The board "type",
-					 * as defined by DPA
-					 */
-	u16		dpastatus;	/* The board "status",
-					 * as defined by DPA
-					 */
+	u16		dpatype;
+	u16		dpastatus;
 
-	uint		bd_dividend;	/* Board/UARTs specific dividend */
+	uint		bd_dividend;
 
 	struct board_ops *bd_ops;
 
-	/* /proc/<board> entries */
 	struct proc_dir_entry *proc_entry_pointer;
 	struct dgnc_proc_entry *dgnc_board_table;
 
@@ -221,17 +236,23 @@ struct dgnc_board {
 
 struct device;
 
-/* Structure for terminal or printer unit. */
+/**
+ * struct un_t - terminal or printer unit
+ * @un_open_count: Counter of opens to port.
+ * @un_tty: Pointer to unit tty structure.
+ * @un_flags: Unit flags.
+ * @un_flags_wait: Place to sleep to wait on unit.
+ * @un_dev: Minor device number.
+ */
 struct un_t {
-	int	magic;		/* Unit Magic Number. */
 	struct	channel_t *un_ch;
 	ulong	un_time;
 	uint	un_type;
-	uint	un_open_count;		/* Counter of opens to port */
-	struct tty_struct *un_tty;	/* Pointer to unit tty structure */
-	uint	un_flags;		/* Unit flags */
-	wait_queue_head_t un_flags_wait; /* Place to sleep to wait on unit */
-	uint	un_dev;			/* Minor device number */
+	uint	un_open_count;
+	struct tty_struct *un_tty;
+	uint	un_flags;
+	wait_queue_head_t un_flags_wait;
+	uint	un_dev;
 	struct device *un_sysfs;
 };
 
@@ -263,102 +284,137 @@ struct un_t {
 #define EQUEUESIZE	RQUEUESIZE
 #define WQUEUESIZE	(WQUEUEMASK + 1)
 
-/* Channel information structure. */
+/**
+ * struct channel_t - Channel information.
+ * @dgnc_board: Pointer to board structure.
+ * @ch_bd: Transparent print structure.
+ * @ch_tun: Terminal unit information.
+ * @ch_pun: Printer unit information.
+ * @ch_lock: Provide for serialization.
+ * @ch_flags_wait: Channel flags wait queue.
+ * @ch_portnum: Port number, 0 offset.
+ * @ch_open_count: Open count.
+ * @ch_flags: Channel flags.
+ * @ch_close_delay: How long we should drop RTS/DTR for.
+ * @ch_cpstime: Time for CPS calculations.
+ * @ch_c_iflag: Channel iflags.
+ * @ch_c_cflag: Channel cflags.
+ * @ch_c_oflag: Channel oflags.
+ * @ch_c_lflag: Channel lflags.
+ * @ch_stopc: Stop character.
+ * @ch_startc: Start character.
+ * @ch_old_baud: Cache of the current baud rate.
+ * @ch_custom_speed: Custom baud rate, if set.
+ * @ch_wopen: Waiting for open process count.
+ * @ch_mostat: FEP output modem status.
+ * @ch_mistat: FEP input modem status.
+ * @chc_neo_uart: Pointer to the mapped neo UART struct
+ * @ch_cls_uart:  Pointer to the mapped cls UART struct
+ * @ch_cached_lsr: Cached value of the LSR register.
+ * @ch_rqueue: Read queue buffer, malloc'ed.
+ * @ch_r_head: Head location of the read queue.
+ * @ch_r_tail: Tail location of the read queue.
+ * @ch_equeue: Error queue buffer, malloc'ed.
+ * @ch_e_head: Head location of the error queue.
+ * @ch_e_tail: Tail location of the error queue.
+ * @ch_wqueue: Write queue buffer, malloc'ed.
+ * @ch_w_head: Head location of the write queue.
+ * @ch_w_tail: Tail location of the write queue.
+ * @ch_rxcount: Total of data received so far.
+ * @ch_txcount: Total of data transmitted so far.
+ * @ch_r_tlevel: Receive trigger level.
+ * @ch_t_tlevel: Transmit trigger level.
+ * @ch_r_watermark: Receive water mark.
+ * @ch_stop_sending_break: Time we should STOP sending a break.
+ * @ch_stops_sent: How many times I have send a stop character to try
+ *                 to stop the other guy sending.
+ * @ch_err_parity: Count of parity
+ * @ch_err_frame: Count of framing errors on channel.
+ * @ch_err_break: Count of breaks on channel.
+ * @ch_err_overrun: Count of overruns on channel.
+ * @ch_xon_sends: Count of xons transmitted.
+ * @ch_xoff_sends: Count of xoffs transmitted.
+ * @proc_entry_pointer: Proc/<board>/<channel> entry.
+ * @dgnc_channel_table: Proc/<board>/<channel> entry.
+ */
 struct channel_t {
-	int magic;			/* Channel Magic Number	*/
-	struct dgnc_board *ch_bd;	/* Board structure pointer */
-	struct digi_t	ch_digi;	/* Transparent Print structure  */
-	struct un_t	ch_tun;		/* Terminal unit info */
-	struct un_t	ch_pun;		/* Printer unit info */
+	struct dgnc_board *ch_bd;
+	struct digi_t	ch_digi;
+	struct un_t	ch_tun;
+	struct un_t	ch_pun;
 
-	spinlock_t	ch_lock;	/* provide for serialization */
+	spinlock_t	ch_lock; /* provide for serialization */
 	wait_queue_head_t ch_flags_wait;
 
-	uint		ch_portnum;	/* Port number, 0 offset. */
-	uint		ch_open_count;	/* open count */
-	uint		ch_flags;	/* Channel flags */
+	uint		ch_portnum;
+	uint		ch_open_count;
+	uint		ch_flags;
 
-	ulong		ch_close_delay;	/* How long we should
-					 * drop RTS/DTR for
-					 */
+	ulong		ch_close_delay;
 
-	ulong		ch_cpstime;	/* Time for CPS calculations */
+	ulong		ch_cpstime;
 
-	tcflag_t	ch_c_iflag;	/* channel iflags */
-	tcflag_t	ch_c_cflag;	/* channel cflags */
-	tcflag_t	ch_c_oflag;	/* channel oflags */
-	tcflag_t	ch_c_lflag;	/* channel lflags */
-	unsigned char	ch_stopc;	/* Stop character */
-	unsigned char	ch_startc;	/* Start character */
+	tcflag_t	ch_c_iflag;
+	tcflag_t	ch_c_cflag;
+	tcflag_t	ch_c_oflag;
+	tcflag_t	ch_c_lflag;
+	unsigned char	ch_stopc;
+	unsigned char	ch_startc;
 
-	uint		ch_old_baud;	/* Cache of the current baud */
-	uint		ch_custom_speed;/* Custom baud, if set */
+	uint		ch_old_baud;
+	uint		ch_custom_speed;
 
-	uint		ch_wopen;	/* Waiting for open process cnt */
+	uint		ch_wopen;
 
-	unsigned char	ch_mostat;	/* FEP output modem status */
-	unsigned char	ch_mistat;	/* FEP input modem status */
+	unsigned char	ch_mostat;
+	unsigned char	ch_mistat;
 
-	struct neo_uart_struct __iomem *ch_neo_uart;	/* Pointer to the
-							 * "mapped" UART struct
-							 */
-	struct cls_uart_struct __iomem *ch_cls_uart;	/* Pointer to the
-							 * "mapped" UART struct
-							 */
+	struct neo_uart_struct __iomem *ch_neo_uart;
+	struct cls_uart_struct __iomem *ch_cls_uart;
 
-	unsigned char	ch_cached_lsr;	/* Cached value of the LSR register */
+	unsigned char	ch_cached_lsr;
 
-	unsigned char	*ch_rqueue;	/* Our read queue buffer - malloc'ed */
-	ushort		ch_r_head;	/* Head location of the read queue */
-	ushort		ch_r_tail;	/* Tail location of the read queue */
+	unsigned char	*ch_rqueue;
+	ushort		ch_r_head;
+	ushort		ch_r_tail;
 
-	unsigned char	*ch_equeue;	/* Our error queue buffer - malloc'ed */
-	ushort		ch_e_head;	/* Head location of the error queue */
-	ushort		ch_e_tail;	/* Tail location of the error queue */
+	unsigned char	*ch_equeue;
+	ushort		ch_e_head;
+	ushort		ch_e_tail;
 
-	unsigned char	*ch_wqueue;	/* Our write queue buffer - malloc'ed */
-	ushort		ch_w_head;	/* Head location of the write queue */
-	ushort		ch_w_tail;	/* Tail location of the write queue */
+	unsigned char	*ch_wqueue;
+	ushort		ch_w_head;
+	ushort		ch_w_tail;
 
-	ulong		ch_rxcount;	/* total of data received so far */
-	ulong		ch_txcount;	/* total of data transmitted so far */
+	ulong		ch_rxcount;
+	ulong		ch_txcount;
 
-	unsigned char	ch_r_tlevel;	/* Receive Trigger level */
-	unsigned char	ch_t_tlevel;	/* Transmit Trigger level */
+	unsigned char	ch_r_tlevel;
+	unsigned char	ch_t_tlevel;
 
-	unsigned char	ch_r_watermark;	/* Receive Watermark */
+	unsigned char	ch_r_watermark;
 
-	ulong		ch_stop_sending_break;	/* Time we should STOP
-						 * sending a break
-						 */
+	ulong		ch_stop_sending_break;
+	uint		ch_stops_sent;
 
-	uint		ch_stops_sent;	/* How many times I have sent a stop
-					 * character to try to stop the other
-					 * guy sending.
-					 */
-	ulong		ch_err_parity;	/* Count of parity errors on channel */
-	ulong		ch_err_frame;	/* Count of framing errors on channel */
-	ulong		ch_err_break;	/* Count of breaks on channel */
-	ulong		ch_err_overrun; /* Count of overruns on channel */
+	ulong		ch_err_parity;
+	ulong		ch_err_frame;
+	ulong		ch_err_break;
+	ulong		ch_err_overrun;
 
-	ulong		ch_xon_sends;	/* Count of xons transmitted */
-	ulong		ch_xoff_sends;	/* Count of xoffs transmitted */
+	ulong		ch_xon_sends;
+	ulong		ch_xoff_sends;
 
-	/* /proc/<board>/<channel> entries */
 	struct proc_dir_entry *proc_entry_pointer;
 	struct dgnc_proc_entry *dgnc_channel_table;
 
 };
-
-/* Our Global Variables. */
 
 extern uint		dgnc_major;		/* Our driver/mgmt major */
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
 extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
 extern uint		dgnc_num_boards;	/* Total number of boards */
-extern struct dgnc_board *dgnc_board[MAXBOARDS];/* Array of board
-						 * structs
-						 */
+extern struct dgnc_board *dgnc_board[MAXBOARDS];/* Array of boards */
 
-#endif
+#endif	/* _DGNC_DRIVER_H */

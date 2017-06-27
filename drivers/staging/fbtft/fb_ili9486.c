@@ -26,7 +26,7 @@
 #define HEIGHT		480
 
 /* this init sequence matches PiScreen */
-static s16 default_init_sequence[] = {
+static const s16 default_init_sequence[] = {
 	/* Interface Mode Control */
 	-1, 0xb0, 0x0,
 	-1, MIPI_DCS_EXIT_SLEEP_MODE,

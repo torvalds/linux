@@ -284,8 +284,7 @@ static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			printk(KERN_ERR "Can't enable LVDS and another "
-			       "encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -756,13 +755,13 @@ out:
 
 failed_find:
 	mutex_unlock(&dev->mode_config.mutex);
-	printk(KERN_ERR "Failed find\n");
+	pr_err("Failed find\n");
 	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
 failed_ddc:
-	printk(KERN_ERR "Failed DDC\n");
+	pr_err("Failed DDC\n");
 	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
 failed_blc_i2c:
-	printk(KERN_ERR "Failed BLC\n");
+	pr_err("Failed BLC\n");
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);
 	kfree(lvds_priv);

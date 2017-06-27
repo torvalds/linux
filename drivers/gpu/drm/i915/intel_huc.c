@@ -141,58 +141,43 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_huc_init() - initiate HuC firmware loading request
- * @dev_priv: the drm_i915_private device
- *
- * Called early during driver load, but after GEM is initialised. The loading
- * will continue only when driver explicitly specify firmware name and version.
- * All other cases are considered as INTEL_UC_FIRMWARE_NONE either because HW
- * is not capable or driver yet support it. And there will be no error message
- * for INTEL_UC_FIRMWARE_NONE cases.
- *
- * The DMA-copying to HW is done later when intel_huc_load() is called.
+ * intel_huc_select_fw() - selects HuC firmware for loading
+ * @huc:	intel_huc struct
  */
-void intel_huc_init(struct drm_i915_private *dev_priv)
+void intel_huc_select_fw(struct intel_huc *huc)
 {
-	struct intel_huc *huc = &dev_priv->huc;
-	struct intel_uc_fw *huc_fw = &huc->fw;
-	const char *fw_path = NULL;
+	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 
-	huc_fw->path = NULL;
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
-	huc_fw->load_status = INTEL_UC_FIRMWARE_NONE;
-	huc_fw->fw = INTEL_UC_FW_TYPE_HUC;
+	huc->fw.path = NULL;
+	huc->fw.fetch_status = INTEL_UC_FIRMWARE_NONE;
+	huc->fw.load_status = INTEL_UC_FIRMWARE_NONE;
+	huc->fw.type = INTEL_UC_FW_TYPE_HUC;
 
-	if (!HAS_HUC_UCODE(dev_priv))
-		return;
-
-	if (IS_SKYLAKE(dev_priv)) {
-		fw_path = I915_SKL_HUC_UCODE;
-		huc_fw->major_ver_wanted = SKL_HUC_FW_MAJOR;
-		huc_fw->minor_ver_wanted = SKL_HUC_FW_MINOR;
+	if (i915.huc_firmware_path) {
+		huc->fw.path = i915.huc_firmware_path;
+		huc->fw.major_ver_wanted = 0;
+		huc->fw.minor_ver_wanted = 0;
+	} else if (IS_SKYLAKE(dev_priv)) {
+		huc->fw.path = I915_SKL_HUC_UCODE;
+		huc->fw.major_ver_wanted = SKL_HUC_FW_MAJOR;
+		huc->fw.minor_ver_wanted = SKL_HUC_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
-		fw_path = I915_BXT_HUC_UCODE;
-		huc_fw->major_ver_wanted = BXT_HUC_FW_MAJOR;
-		huc_fw->minor_ver_wanted = BXT_HUC_FW_MINOR;
+		huc->fw.path = I915_BXT_HUC_UCODE;
+		huc->fw.major_ver_wanted = BXT_HUC_FW_MAJOR;
+		huc->fw.minor_ver_wanted = BXT_HUC_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv)) {
-		fw_path = I915_KBL_HUC_UCODE;
-		huc_fw->major_ver_wanted = KBL_HUC_FW_MAJOR;
-		huc_fw->minor_ver_wanted = KBL_HUC_FW_MINOR;
+		huc->fw.path = I915_KBL_HUC_UCODE;
+		huc->fw.major_ver_wanted = KBL_HUC_FW_MAJOR;
+		huc->fw.minor_ver_wanted = KBL_HUC_FW_MINOR;
+	} else {
+		DRM_ERROR("No HuC firmware known for platform with HuC!\n");
+		return;
 	}
-
-	huc_fw->path = fw_path;
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
-
-	DRM_DEBUG_DRIVER("HuC firmware pending, path %s\n", fw_path);
-
-	WARN(huc_fw->path == NULL, "HuC present but no fw path\n");
-
-	intel_uc_fw_fetch(dev_priv, huc_fw);
 }
 
 /**
- * intel_huc_load() - load HuC uCode to device
- * @dev_priv: the drm_i915_private device
+ * intel_huc_init_hw() - load HuC uCode to device
+ * @huc: intel_huc structure
  *
  * Called from guc_setup() during driver loading and also after a GPU reset.
  * Be note that HuC loading must be done before GuC loading.
@@ -203,26 +188,26 @@ void intel_huc_init(struct drm_i915_private *dev_priv)
  *
  * Return:	non-zero code on error
  */
-int intel_huc_load(struct drm_i915_private *dev_priv)
+int intel_huc_init_hw(struct intel_huc *huc)
 {
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
+	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	int err;
 
-	if (huc_fw->fetch_status == INTEL_UC_FIRMWARE_NONE)
+	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_NONE)
 		return 0;
 
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
-		huc_fw->path,
-		intel_uc_fw_status_repr(huc_fw->fetch_status),
-		intel_uc_fw_status_repr(huc_fw->load_status));
+		huc->fw.path,
+		intel_uc_fw_status_repr(huc->fw.fetch_status),
+		intel_uc_fw_status_repr(huc->fw.load_status));
 
-	if (huc_fw->fetch_status == INTEL_UC_FIRMWARE_SUCCESS &&
-	    huc_fw->load_status == INTEL_UC_FIRMWARE_FAIL)
+	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_SUCCESS &&
+	    huc->fw.load_status == INTEL_UC_FIRMWARE_FAIL)
 		return -ENOEXEC;
 
-	huc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
+	huc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
 
-	switch (huc_fw->fetch_status) {
+	switch (huc->fw.fetch_status) {
 	case INTEL_UC_FIRMWARE_FAIL:
 		/* something went wrong :( */
 		err = -EIO;
@@ -233,9 +218,9 @@ int intel_huc_load(struct drm_i915_private *dev_priv)
 	default:
 		/* "can't happen" */
 		WARN_ONCE(1, "HuC fw %s invalid fetch_status %s [%d]\n",
-			huc_fw->path,
-			intel_uc_fw_status_repr(huc_fw->fetch_status),
-			huc_fw->fetch_status);
+			huc->fw.path,
+			intel_uc_fw_status_repr(huc->fw.fetch_status),
+			huc->fw.fetch_status);
 		err = -ENXIO;
 		goto fail;
 
@@ -247,41 +232,22 @@ int intel_huc_load(struct drm_i915_private *dev_priv)
 	if (err)
 		goto fail;
 
-	huc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
+	huc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
 
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
-		huc_fw->path,
-		intel_uc_fw_status_repr(huc_fw->fetch_status),
-		intel_uc_fw_status_repr(huc_fw->load_status));
+		huc->fw.path,
+		intel_uc_fw_status_repr(huc->fw.fetch_status),
+		intel_uc_fw_status_repr(huc->fw.load_status));
 
 	return 0;
 
 fail:
-	if (huc_fw->load_status == INTEL_UC_FIRMWARE_PENDING)
-		huc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
+	if (huc->fw.load_status == INTEL_UC_FIRMWARE_PENDING)
+		huc->fw.load_status = INTEL_UC_FIRMWARE_FAIL;
 
 	DRM_ERROR("Failed to complete HuC uCode load with ret %d\n", err);
 
 	return err;
-}
-
-/**
- * intel_huc_fini() - clean up resources allocated for HuC
- * @dev_priv: the drm_i915_private device
- *
- * Cleans up by releasing the huc firmware GEM obj.
- */
-void intel_huc_fini(struct drm_i915_private *dev_priv)
-{
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	if (huc_fw->obj)
-		i915_gem_object_put(huc_fw->obj);
-	huc_fw->obj = NULL;
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
 }
 
 /**

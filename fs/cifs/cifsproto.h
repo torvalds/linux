@@ -79,8 +79,7 @@ extern void cifs_delete_mid(struct mid_q_entry *mid);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
 extern int cifs_handle_standard(struct TCP_Server_Info *server,
 				struct mid_q_entry *mid);
-extern int cifs_discard_remaining_data(struct TCP_Server_Info *server,
-				       char *buf);
+extern int cifs_discard_remaining_data(struct TCP_Server_Info *server);
 extern int cifs_call_async(struct TCP_Server_Info *server,
 			struct smb_rqst *rqst,
 			mid_receive_t *receive, mid_callback_t *callback,
@@ -481,8 +480,7 @@ extern int CIFSSMBCopy(unsigned int xid,
 extern ssize_t CIFSSMBQAllEAs(const unsigned int xid, struct cifs_tcon *tcon,
 			const unsigned char *searchName,
 			const unsigned char *ea_name, char *EAData,
-			size_t bufsize, const struct nls_table *nls_codepage,
-			int remap_special_chars);
+			size_t bufsize, struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
 		const char *fileName, const char *ea_name,
 		const void *ea_value, const __u16 ea_value_len,
@@ -536,4 +534,7 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 			struct shash_desc *shash);
 enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
+struct cifs_aio_ctx *cifs_aio_ctx_alloc(void);
+void cifs_aio_ctx_release(struct kref *refcount);
+int setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw);
 #endif			/* _CIFSPROTO_H */

@@ -873,6 +873,7 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.fault_reserve_notify = &radeon_bo_fault_reserve_notify,
 	.io_mem_reserve = &radeon_ttm_io_mem_reserve,
 	.io_mem_free = &radeon_ttm_io_mem_free,
+	.io_mem_pfn = ttm_bo_default_io_mem_pfn,
 };
 
 int radeon_ttm_init(struct radeon_device *rdev)

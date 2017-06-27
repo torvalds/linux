@@ -170,7 +170,7 @@ qemu_append="`identify_qemu_append "$QEMU"`"
 # Pull in Kconfig-fragment boot parameters
 boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
 # Generate kernel-version-specific boot parameters
-boot_args="`per_version_boot_params "$boot_args" $builddir/.config $seconds`"
+boot_args="`per_version_boot_params "$boot_args" $resdir/.config $seconds`"
 
 if test -n "$TORTURE_BUILDONLY"
 then

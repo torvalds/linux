@@ -32,6 +32,7 @@
  */
 struct stmmac_pci_dmi_data {
 	const char *name;
+	const char *asset_tag;
 	unsigned int func;
 	int phy_addr;
 };
@@ -46,6 +47,7 @@ struct stmmac_pci_info {
 static int stmmac_pci_find_phy_addr(struct stmmac_pci_info *info)
 {
 	const char *name = dmi_get_system_info(DMI_BOARD_NAME);
+	const char *asset_tag = dmi_get_system_info(DMI_BOARD_ASSET_TAG);
 	unsigned int func = PCI_FUNC(info->pdev->devfn);
 	struct stmmac_pci_dmi_data *dmi;
 
@@ -57,28 +59,25 @@ static int stmmac_pci_find_phy_addr(struct stmmac_pci_info *info)
 		return 1;
 
 	for (dmi = info->dmi; dmi->name && *dmi->name; dmi++) {
-		if (!strcmp(dmi->name, name) && dmi->func == func)
+		if (!strcmp(dmi->name, name) && dmi->func == func) {
+			/* If asset tag is provided, match on it as well. */
+			if (dmi->asset_tag && strcmp(dmi->asset_tag, asset_tag))
+				continue;
 			return dmi->phy_addr;
+		}
 	}
 
 	return -ENODEV;
 }
 
-static void stmmac_default_data(struct plat_stmmacenet_data *plat)
+static void common_default_data(struct plat_stmmacenet_data *plat)
 {
-	plat->bus_id = 1;
-	plat->phy_addr = 0;
-	plat->interface = PHY_INTERFACE_MODE_GMII;
 	plat->clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
 	plat->has_gmac = 1;
 	plat->force_sf_dma_mode = 1;
 
 	plat->mdio_bus_data->phy_reset = NULL;
 	plat->mdio_bus_data->phy_mask = 0;
-
-	plat->dma_cfg->pbl = 32;
-	plat->dma_cfg->pblx8 = true;
-	/* TODO: AXI */
 
 	/* Set default value for multicast hash bins */
 	plat->multicast_filter_bins = HASH_TABLE_SIZE;
@@ -88,6 +87,31 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 
 	/* Set the maxmtu to a default of JUMBO_LEN */
 	plat->maxmtu = JUMBO_LEN;
+
+	/* Set default number of RX and TX queues to use */
+	plat->tx_queues_to_use = 1;
+	plat->rx_queues_to_use = 1;
+
+	/* Disable Priority config by default */
+	plat->tx_queues_cfg[0].use_prio = false;
+	plat->rx_queues_cfg[0].use_prio = false;
+
+	/* Disable RX queues routing by default */
+	plat->rx_queues_cfg[0].pkt_route = 0x0;
+}
+
+static void stmmac_default_data(struct plat_stmmacenet_data *plat)
+{
+	/* Set common default data first */
+	common_default_data(plat);
+
+	plat->bus_id = 1;
+	plat->phy_addr = 0;
+	plat->interface = PHY_INTERFACE_MODE_GMII;
+
+	plat->dma_cfg->pbl = 32;
+	plat->dma_cfg->pblx8 = true;
+	/* TODO: AXI */
 }
 
 static int quark_default_data(struct plat_stmmacenet_data *plat,
@@ -95,6 +119,9 @@ static int quark_default_data(struct plat_stmmacenet_data *plat,
 {
 	struct pci_dev *pdev = info->pdev;
 	int ret;
+
+	/* Set common default data first */
+	common_default_data(plat);
 
 	/*
 	 * Refuse to load the driver and register net device if MAC controller
@@ -107,26 +134,11 @@ static int quark_default_data(struct plat_stmmacenet_data *plat,
 	plat->bus_id = PCI_DEVID(pdev->bus->number, pdev->devfn);
 	plat->phy_addr = ret;
 	plat->interface = PHY_INTERFACE_MODE_RMII;
-	plat->clk_csr = 2;
-	plat->has_gmac = 1;
-	plat->force_sf_dma_mode = 1;
-
-	plat->mdio_bus_data->phy_reset = NULL;
-	plat->mdio_bus_data->phy_mask = 0;
 
 	plat->dma_cfg->pbl = 16;
 	plat->dma_cfg->pblx8 = true;
 	plat->dma_cfg->fixed_burst = 1;
 	/* AXI (TODO) */
-
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
-	/* Set the maxmtu to a default of JUMBO_LEN */
-	plat->maxmtu = JUMBO_LEN;
 
 	return 0;
 }
@@ -140,6 +152,24 @@ static struct stmmac_pci_dmi_data quark_pci_dmi_data[] = {
 	{
 		.name = "GalileoGen2",
 		.func = 6,
+		.phy_addr = 1,
+	},
+	{
+		.name = "SIMATIC IOT2000",
+		.asset_tag = "6ES7647-0AA00-0YA2",
+		.func = 6,
+		.phy_addr = 1,
+	},
+	{
+		.name = "SIMATIC IOT2000",
+		.asset_tag = "6ES7647-0AA00-1YA2",
+		.func = 6,
+		.phy_addr = 1,
+	},
+	{
+		.name = "SIMATIC IOT2000",
+		.asset_tag = "6ES7647-0AA00-1YA2",
+		.func = 7,
 		.phy_addr = 1,
 	},
 	{}

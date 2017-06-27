@@ -20,35 +20,19 @@
 #include <linux/io.h>
 #include <linux/uuid.h>
 
-/*
- * Whenever this file is changed a corresponding change must be made in
- * the Console/ServicePart/visordiag_early/supervisor_channel.h file
- * which is needed for Linux kernel compiles. These two files must be
- * in sync.
- */
-
-/* define the following to prevent include nesting in kernel header
- * files of similar abbreviated content
- */
 #define __SUPERVISOR_CHANNEL_H__
 
-#define SIGNATURE_16(A, B) ((A) | (B << 8))
+#define SIGNATURE_16(A, B) ((A) | ((B) << 8))
 #define SIGNATURE_32(A, B, C, D) \
 	(SIGNATURE_16(A, B) | (SIGNATURE_16(C, D) << 16))
 #define SIGNATURE_64(A, B, C, D, E, F, G, H) \
 	(SIGNATURE_32(A, B, C, D) | ((u64)(SIGNATURE_32(E, F, G, H)) << 32))
 
-#ifndef lengthof
-#define lengthof(TYPE, MEMBER) (sizeof(((TYPE *)0)->MEMBER))
-#endif
-#ifndef COVERQ
-#define COVERQ(v, d)  (((v) + (d) - 1) / (d))
-#endif
 #ifndef COVER
-#define COVER(v, d)   ((d) * COVERQ(v, d))
+#define COVER(v, d) ((d) * DIV_ROUND_UP(v, d))
 #endif
 
-#define ULTRA_CHANNEL_PROTOCOL_SIGNATURE  SIGNATURE_32('E', 'C', 'N', 'L')
+#define ULTRA_CHANNEL_PROTOCOL_SIGNATURE SIGNATURE_32('E', 'C', 'N', 'L')
 
 enum channel_serverstate {
 	CHANNELSRV_UNINITIALIZED = 0,	/* channel is in an undefined state */
@@ -78,7 +62,7 @@ enum channel_clientstate {
 #define SPAR_CHANNEL_SERVER_READY(ch) \
 	(readl(&(ch)->srv_state) == CHANNELSRV_READY)
 
-#define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n)				\
+#define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n) \
 	(((((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_DISABLED)) || \
 	  (((o) == CHANNELCLI_ATTACHING) && ((n) == CHANNELCLI_DISABLED)) || \
 	  (((o) == CHANNELCLI_ATTACHED) && ((n) == CHANNELCLI_DISABLED)) || \
@@ -100,7 +84,7 @@ enum channel_clientstate {
 /* throttling invalid boot channel statetransition error due to client
  * disabled
  */
-#define ULTRA_CLIERRORBOOT_THROTTLEMSG_DISABLED    0x01
+#define ULTRA_CLIERRORBOOT_THROTTLEMSG_DISABLED 0x01
 
 /* throttling invalid boot channel statetransition error due to client
  * not attached
@@ -108,7 +92,7 @@ enum channel_clientstate {
 #define ULTRA_CLIERRORBOOT_THROTTLEMSG_NOTATTACHED 0x02
 
 /* throttling invalid boot channel statetransition error due to busy channel */
-#define ULTRA_CLIERRORBOOT_THROTTLEMSG_BUSY        0x04
+#define ULTRA_CLIERRORBOOT_THROTTLEMSG_BUSY 0x04
 
 /* Values for ULTRA_CHANNEL_PROTOCOL.Features: This define exists so
  * that windows guest can look at the FeatureFlags in the io channel,
@@ -214,180 +198,56 @@ struct signal_queue_header {
 	u8 filler[12];		/* Pad out to 64 byte cacheline */
 } __packed;
 
-#define spar_signal_init(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
-	do {								\
-		memset(&chan->QHDRFLD, 0, sizeof(chan->QHDRFLD));	\
-		chan->QHDRFLD.version = ver;				\
-		chan->QHDRFLD.chtype = typ;				\
-		chan->QHDRFLD.size = sizeof(chan->QDATAFLD);		\
-		chan->QHDRFLD.signal_size = sizeof(QDATATYPE);		\
-		chan->QHDRFLD.sig_base_offset = (u64)(chan->QDATAFLD) -	\
-			(u64)(&chan->QHDRFLD);				\
-		chan->QHDRFLD.max_slots =				\
-			sizeof(chan->QDATAFLD) / sizeof(QDATATYPE);	\
-		chan->QHDRFLD.max_signals = chan->QHDRFLD.max_slots - 1;\
-	} while (0)
-
 /* Generic function useful for validating any type of channel when it is
  * received by the client that will be accessing the channel.
  * Note that <logCtx> is only needed for callers in the EFI environment, and
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 static inline int
-spar_check_channel_client(void __iomem *ch,
-			  uuid_le expected_uuid,
-			  char *chname,
-			  u64 expected_min_bytes,
-			  u32 expected_version,
-			  u64 expected_signature)
+spar_check_channel(struct channel_header *ch,
+		   uuid_le expected_uuid,
+		   char *chname,
+		   u64 expected_min_bytes,
+		   u32 expected_version,
+		   u64 expected_signature)
 {
 	if (uuid_le_cmp(expected_uuid, NULL_UUID_LE) != 0) {
-		uuid_le guid;
-
-		memcpy_fromio(&guid,
-			      &((struct channel_header __iomem *)(ch))->chtype,
-			      sizeof(guid));
 		/* caller wants us to verify type GUID */
-		if (uuid_le_cmp(guid, expected_uuid) != 0) {
+		if (uuid_le_cmp(ch->chtype, expected_uuid) != 0) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=type expected=%pUL actual=%pUL\n",
 			       chname, &expected_uuid,
-			       &expected_uuid, &guid);
+			       &expected_uuid, &ch->chtype);
 			return 0;
 		}
 	}
 	if (expected_min_bytes > 0) {	/* verify channel size */
-		unsigned long long bytes =
-				readq(&((struct channel_header __iomem *)
-					(ch))->size);
-		if (bytes < expected_min_bytes) {
+		if (ch->size < expected_min_bytes) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
 			       chname, &expected_uuid,
-			       (unsigned long long)expected_min_bytes, bytes);
+			       (unsigned long long)expected_min_bytes,
+			       ch->size);
 			return 0;
 		}
 	}
 	if (expected_version > 0) {	/* verify channel version */
-		unsigned long ver = readl(&((struct channel_header __iomem *)
-				    (ch))->version_id);
-		if (ver != expected_version) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8lx\n",
+		if (ch->version_id != expected_version) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8x\n",
 			       chname, &expected_uuid,
-			       (unsigned long)expected_version, ver);
+			       (unsigned long)expected_version,
+			       ch->version_id);
 			return 0;
 		}
 	}
 	if (expected_signature > 0) {	/* verify channel signature */
-		unsigned long long sig =
-				readq(&((struct channel_header __iomem *)
-					(ch))->signature);
-		if (sig != expected_signature) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8llx actual=0x%-8.8llx\n",
+		if (ch->signature != expected_signature) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
 			       chname, &expected_uuid,
-			       expected_signature, sig);
+			       expected_signature, ch->signature);
 			return 0;
 		}
 	}
 	return 1;
 }
-
-/* Generic function useful for validating any type of channel when it is about
- * to be initialized by the server of the channel.
- * Note that <logCtx> is only needed for callers in the EFI environment, and
- * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
- */
-static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
-					    u64 expected_min_bytes,
-					    u64 actual_bytes)
-{
-	if (expected_min_bytes > 0)	/* verify channel size */
-		if (actual_bytes < expected_min_bytes) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8llx actual=0x%-8.8llx\n",
-			       name, &typeuuid, expected_min_bytes,
-			       actual_bytes);
-			return 0;
-		}
-	return 1;
-}
-
-/*
- * Routine Description:
- * Tries to insert the prebuilt signal pointed to by pSignal into the nth
- * Queue of the Channel pointed to by pChannel
- *
- * Parameters:
- * pChannel: (IN) points to the IO Channel
- * Queue: (IN) nth Queue of the IO Channel
- * pSignal: (IN) pointer to the signal
- *
- * Assumptions:
- * - pChannel, Queue and pSignal are valid.
- * - If insertion fails due to a full queue, the caller will determine the
- * retry policy (e.g. wait & try again, report an error, etc.).
- *
- * Return value: 1 if the insertion succeeds, 0 if the queue was
- * full.
- */
-
-unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
-				 void *sig);
-
-/*
- * Routine Description:
- * Removes one signal from Channel pChannel's nth Queue at the
- * time of the call and copies it into the memory pointed to by
- * pSignal.
- *
- * Parameters:
- * pChannel: (IN) points to the IO Channel
- * Queue: (IN) nth Queue of the IO Channel
- * pSignal: (IN) pointer to where the signals are to be copied
- *
- * Assumptions:
- * - pChannel and Queue are valid.
- * - pSignal points to a memory area large enough to hold queue's SignalSize
- *
- * Return value: 1 if the removal succeeds, 0 if the queue was
- * empty.
- */
-
-unsigned char spar_signal_remove(struct channel_header __iomem *ch, u32 queue,
-				 void *sig);
-
-/*
- * Routine Description:
- * Removes all signals present in Channel pChannel's nth Queue at the
- * time of the call and copies them into the memory pointed to by
- * pSignal.  Returns the # of signals copied as the value of the routine.
- *
- * Parameters:
- * pChannel: (IN) points to the IO Channel
- * Queue: (IN) nth Queue of the IO Channel
- * pSignal: (IN) pointer to where the signals are to be copied
- *
- * Assumptions:
- * - pChannel and Queue are valid.
- * - pSignal points to a memory area large enough to hold Queue's MaxSignals
- * # of signals, each of which is Queue's SignalSize.
- *
- * Return value:
- * # of signals copied.
- */
-unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
-				    void *sig);
-
-/*
- * Routine Description:
- * Determine whether a signal queue is empty.
- *
- * Parameters:
- * pChannel: (IN) points to the IO Channel
- * Queue: (IN) nth Queue of the IO Channel
- *
- * Return value:
- * 1 if the signal queue is empty, 0 otherwise.
- */
-unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
-				     u32 queue);
 
 /*
  * CHANNEL Guids
@@ -395,8 +255,8 @@ unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
 
 /* {414815ed-c58c-11da-95a9-00e08161165f} */
 #define SPAR_VHBA_CHANNEL_PROTOCOL_UUID \
-		UUID_LE(0x414815ed, 0xc58c, 0x11da, \
-				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+	UUID_LE(0x414815ed, 0xc58c, 0x11da, \
+		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vhba_channel_protocol_uuid =
 	SPAR_VHBA_CHANNEL_PROTOCOL_UUID;
 #define SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR \
@@ -404,8 +264,8 @@ static const uuid_le spar_vhba_channel_protocol_uuid =
 
 /* {8cd5994d-c58e-11da-95a9-00e08161165f} */
 #define SPAR_VNIC_CHANNEL_PROTOCOL_UUID \
-		UUID_LE(0x8cd5994d, 0xc58e, 0x11da, \
-				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+	UUID_LE(0x8cd5994d, 0xc58e, 0x11da, \
+		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vnic_channel_protocol_uuid =
 	SPAR_VNIC_CHANNEL_PROTOCOL_UUID;
 #define SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR \
@@ -413,21 +273,8 @@ static const uuid_le spar_vnic_channel_protocol_uuid =
 
 /* {72120008-4AAB-11DC-8530-444553544200} */
 #define SPAR_SIOVM_UUID \
-		UUID_LE(0x72120008, 0x4AAB, 0x11DC, \
-				0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
+	UUID_LE(0x72120008, 0x4AAB, 0x11DC, \
+		0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
 static const uuid_le spar_siovm_uuid = SPAR_SIOVM_UUID;
-
-/* {5b52c5ac-e5f5-4d42-8dff-429eaecd221f} */
-#define SPAR_CONTROLDIRECTOR_CHANNEL_PROTOCOL_UUID  \
-		UUID_LE(0x5b52c5ac, 0xe5f5, 0x4d42, \
-				0x8d, 0xff, 0x42, 0x9e, 0xae, 0xcd, 0x22, 0x1f)
-
-static const uuid_le spar_controldirector_channel_protocol_uuid =
-	SPAR_CONTROLDIRECTOR_CHANNEL_PROTOCOL_UUID;
-
-/* {b4e79625-aede-4eAA-9e11-D3eddcd4504c} */
-#define SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID				\
-		UUID_LE(0xb4e79625, 0xaede, 0x4eaa, \
-				0x9e, 0x11, 0xd3, 0xed, 0xdc, 0xd4, 0x50, 0x4c)
 
 #endif

@@ -57,7 +57,7 @@ struct icp_ops {
 	void (*teardown_cpu)(void);
 	void (*flush_ipi)(void);
 #ifdef CONFIG_SMP
-	void (*cause_ipi)(int cpu, unsigned long data);
+	void (*cause_ipi)(int cpu);
 	irq_handler_t ipi_action;
 #endif
 };

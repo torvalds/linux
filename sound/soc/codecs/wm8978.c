@@ -1071,9 +1071,16 @@ static const struct i2c_device_id wm8978_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8978_i2c_id);
 
+static const struct of_device_id wm8978_of_match[] = {
+	{ .compatible = "wlf,wm8978", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8978_of_match);
+
 static struct i2c_driver wm8978_i2c_driver = {
 	.driver = {
 		.name = "wm8978",
+		.of_match_table = wm8978_of_match,
 	},
 	.probe =    wm8978_i2c_probe,
 	.remove =   wm8978_i2c_remove,

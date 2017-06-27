@@ -857,12 +857,12 @@ enum secondary_ch_offset {
 	SCB = 3,  /* secondary channel below */
 };
 
-u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit);
+u8 *rtw_get_ie(u8 *pbuf, int index, uint *len, int limit);
 
 void rtw_set_supported_rate(u8 *SupportedRates, uint mode);
 
-unsigned char *rtw_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit);
-unsigned char *rtw_get_wpa2_ie(unsigned char *pie, int *rsn_ie_len, int limit);
+unsigned char *rtw_get_wpa_ie(unsigned char *pie, uint *wpa_ie_len, int limit);
+unsigned char *rtw_get_wpa2_ie(unsigned char *pie, uint *rsn_ie_len, int limit);
 int rtw_get_wpa_cipher_suite(u8 *s);
 int rtw_get_wpa2_cipher_suite(u8 *s);
 int rtw_get_wapi_ie(u8 *in_ie, uint in_len, u8 *wapi_ie, u16 *wapi_len);

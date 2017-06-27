@@ -63,22 +63,22 @@ MODULE_PARM_DESC(index, "Index number for SoundScape soundcard");
 module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "Description for SoundScape card");
 
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for SoundScape driver.");
 
-module_param_array(wss_port, long, NULL, 0444);
+module_param_hw_array(wss_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(wss_port, "WSS Port # for SoundScape driver.");
 
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for SoundScape driver.");
 
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU401 IRQ # for SoundScape driver.");
 
-module_param_array(dma, int, NULL, 0444);
+module_param_hw_array(dma, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for SoundScape driver.");
 
 module_param_array(joystick, bool, NULL, 0444);

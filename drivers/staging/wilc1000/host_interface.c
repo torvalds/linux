@@ -287,7 +287,6 @@ static int wilc_enqueue_cmd(struct host_if_msg *msg)
 	return 0;
 }
 
-
 /* The u8IfIdx starts from 0 to NUM_CONCURRENT_IFC -1, but 0 index used as
  * special purpose in wilc device, so we add 1 to the index to starts from 1.
  * As a result, the returned index will be 1 to NUM_CONCURRENT_IFC.
@@ -385,7 +384,7 @@ static void handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 
 	wid.id = (u16)WID_IP_ADDRESS;
 	wid.type = WID_STR;
-	wid.val = (u8 *)ip_addr;
+	wid.val = ip_addr;
 	wid.size = IP_ALEN;
 
 	ret = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
@@ -1350,19 +1349,17 @@ static s32 Handle_RcvdGnrlAsyncInfo(struct wilc_vif *vif,
 
 				if (u32RcvdAssocRespInfoLen != 0) {
 					s32Err = wilc_parse_assoc_resp_info(rcv_assoc_resp, u32RcvdAssocRespInfoLen,
-								    &pstrConnectRespInfo);
+									    &pstrConnectRespInfo);
 					if (s32Err) {
 						netdev_err(vif->ndev, "wilc_parse_assoc_resp_info() returned error %d\n", s32Err);
 					} else {
 						strConnectInfo.status = pstrConnectRespInfo->status;
 
-						if (strConnectInfo.status == SUCCESSFUL_STATUSCODE) {
-							if (pstrConnectRespInfo->ies) {
-								strConnectInfo.resp_ies_len = pstrConnectRespInfo->ies_len;
-								strConnectInfo.resp_ies = kmalloc(pstrConnectRespInfo->ies_len, GFP_KERNEL);
-								memcpy(strConnectInfo.resp_ies, pstrConnectRespInfo->ies,
-								       pstrConnectRespInfo->ies_len);
-							}
+						if (strConnectInfo.status == SUCCESSFUL_STATUSCODE && pstrConnectRespInfo->ies) {
+							strConnectInfo.resp_ies_len = pstrConnectRespInfo->ies_len;
+							strConnectInfo.resp_ies = kmalloc(pstrConnectRespInfo->ies_len, GFP_KERNEL);
+							memcpy(strConnectInfo.resp_ies, pstrConnectRespInfo->ies,
+							       pstrConnectRespInfo->ies_len);
 						}
 
 						if (pstrConnectRespInfo) {
@@ -1928,6 +1925,8 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 	wid.type = WID_STR;
 	wid.size = ETH_ALEN;
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
+	if (!wid.val)
+		return -ENOMEM;
 
 	stamac = wid.val;
 	ether_addr_copy(stamac, strHostIfStaInactiveT->mac);
@@ -3348,10 +3347,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	init_completion(&hif_drv->comp_inactive_time);
 
 	if (clients_count == 0)	{
-		if (result < 0) {
-			netdev_err(vif->ndev, "Failed to creat MQ\n");
-			goto _fail_;
-		}
 		hif_workqueue = create_singlethread_workqueue("WILC_wq");
 		if (!hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
@@ -3444,8 +3439,7 @@ int wilc_deinit(struct wilc_vif *vif)
 	return result;
 }
 
-void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
-				u32 u32Length)
+void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -3453,7 +3447,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	struct host_if_drv *hif_drv = NULL;
 	struct wilc_vif *vif;
 
-	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
+	id = ((buffer[length - 4]) | (buffer[length - 3] << 8) | (buffer[length - 2] << 16) | (buffer[length - 1] << 24));
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		return;
@@ -3469,17 +3463,16 @@ void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	msg.id = HOST_IF_MSG_RCVD_NTWRK_INFO;
 	msg.vif = vif;
 
-	msg.body.net_info.len = u32Length;
-	msg.body.net_info.buffer = kmalloc(u32Length, GFP_KERNEL);
-	memcpy(msg.body.net_info.buffer, pu8Buffer, u32Length);
+	msg.body.net_info.len = length;
+	msg.body.net_info.buffer = kmalloc(length, GFP_KERNEL);
+	memcpy(msg.body.net_info.buffer, buffer, length);
 
 	result = wilc_enqueue_cmd(&msg);
 	if (result)
 		netdev_err(vif->ndev, "message parameters (%d)\n", result);
 }
 
-void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
-				   u32 u32Length)
+void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -3489,7 +3482,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
 
 	mutex_lock(&hif_deinit_lock);
 
-	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
+	id = ((buffer[length - 4]) | (buffer[length - 3] << 8) | (buffer[length - 2] << 16) | (buffer[length - 1] << 24));
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif) {
 		mutex_unlock(&hif_deinit_lock);
@@ -3514,9 +3507,9 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	msg.id = HOST_IF_MSG_RCVD_GNRL_ASYNC_INFO;
 	msg.vif = vif;
 
-	msg.body.async_info.len = u32Length;
-	msg.body.async_info.buffer = kmalloc(u32Length, GFP_KERNEL);
-	memcpy(msg.body.async_info.buffer, pu8Buffer, u32Length);
+	msg.body.async_info.len = length;
+	msg.body.async_info.buffer = kmalloc(length, GFP_KERNEL);
+	memcpy(msg.body.async_info.buffer, buffer, length);
 
 	result = wilc_enqueue_cmd(&msg);
 	if (result)
@@ -3525,8 +3518,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
 	mutex_unlock(&hif_deinit_lock);
 }
 
-void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
-				 u32 u32Length)
+void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
 	s32 result = 0;
 	struct host_if_msg msg;
@@ -3534,7 +3526,7 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
 	struct host_if_drv *hif_drv = NULL;
 	struct wilc_vif *vif;
 
-	id = ((pu8Buffer[u32Length - 4]) | (pu8Buffer[u32Length - 3] << 8) | (pu8Buffer[u32Length - 2] << 16) | (pu8Buffer[u32Length - 1] << 24));
+	id = ((buffer[length - 4]) | (buffer[length - 3] << 8) | (buffer[length - 2] << 16) | (buffer[length - 1] << 24));
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		return;
@@ -3892,7 +3884,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 					pNewJoinBssParam->supp_rates[i + 1] = pu8IEs[index + i];
 
 				index += suppRatesNo;
-				continue;
 			} else if (pu8IEs[index] == EXT_SUPP_RATES_IE) {
 				extSuppRatesNo = pu8IEs[index + 1];
 				if (extSuppRatesNo > (MAX_RATES_SUPPORTED - suppRatesNo))
@@ -3904,11 +3895,9 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 					pNewJoinBssParam->supp_rates[suppRatesNo + i + 1] = pu8IEs[index + i];
 
 				index += extSuppRatesNo;
-				continue;
 			} else if (pu8IEs[index] == HT_CAPABILITY_IE) {
 				pNewJoinBssParam->ht_capable = true;
 				index += pu8IEs[index + 1] + 2;
-				continue;
 			} else if ((pu8IEs[index] == WMM_IE) &&
 				   (pu8IEs[index + 2] == 0x00) && (pu8IEs[index + 3] == 0x50) &&
 				   (pu8IEs[index + 4] == 0xF2) &&
@@ -3920,7 +3909,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				if (pu8IEs[index + 8] & BIT(7))
 					pNewJoinBssParam->uapsd_cap = true;
 				index += pu8IEs[index + 1] + 2;
-				continue;
 			} else if ((pu8IEs[index] == P2P_IE) &&
 				 (pu8IEs[index + 2] == 0x50) && (pu8IEs[index + 3] == 0x6f) &&
 				 (pu8IEs[index + 4] == 0x9a) &&
@@ -3950,8 +3938,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				memcpy(pNewJoinBssParam->start_time, pu8IEs + u16P2P_count, 4);
 
 				index += pu8IEs[index + 1] + 2;
-				continue;
-
 			} else if ((pu8IEs[index] == RSN_IE) ||
 				 ((pu8IEs[index] == WPA_IE) && (pu8IEs[index + 2] == 0x00) &&
 				  (pu8IEs[index + 3] == 0x50) && (pu8IEs[index + 4] == 0xF2) &&
@@ -3997,7 +3983,6 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 				}
 				pNewJoinBssParam->rsn_found = true;
 				index += pu8IEs[index + 1] + 2;
-				continue;
 			} else {
 				index += pu8IEs[index + 1] + 2;
 			}

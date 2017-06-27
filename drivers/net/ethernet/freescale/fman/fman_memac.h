@@ -36,6 +36,7 @@
 #include "fman_mac.h"
 
 #include <linux/netdevice.h>
+#include <linux/phy_fixed.h>
 
 struct fman_mac *memac_config(struct fman_mac_params *params);
 int memac_set_promiscuous(struct fman_mac *memac, bool new_val);

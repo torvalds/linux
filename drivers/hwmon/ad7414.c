@@ -217,9 +217,16 @@ static const struct i2c_device_id ad7414_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad7414_id);
 
+static const struct of_device_id ad7414_of_match[] = {
+	{ .compatible = "ad,ad7414" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ad7414_of_match);
+
 static struct i2c_driver ad7414_driver = {
 	.driver = {
 		.name	= "ad7414",
+		.of_match_table = of_match_ptr(ad7414_of_match),
 	},
 	.probe	= ad7414_probe,
 	.id_table = ad7414_id,

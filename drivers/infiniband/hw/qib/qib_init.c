@@ -233,9 +233,8 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 	spin_lock_init(&ppd->cc_shadow_lock);
 	init_waitqueue_head(&ppd->state_wait);
 
-	init_timer(&ppd->symerr_clear_timer);
-	ppd->symerr_clear_timer.function = qib_clear_symerror_on_linkup;
-	ppd->symerr_clear_timer.data = (unsigned long)ppd;
+	setup_timer(&ppd->symerr_clear_timer, qib_clear_symerror_on_linkup,
+		    (unsigned long)ppd);
 
 	ppd->qib_wq = NULL;
 	ppd->ibport_data.pmastats =
@@ -429,9 +428,8 @@ static int loadtime_init(struct qib_devdata *dd)
 	qib_get_eeprom_info(dd);
 
 	/* setup time (don't start yet) to verify we got interrupt */
-	init_timer(&dd->intrchk_timer);
-	dd->intrchk_timer.function = verify_interrupt;
-	dd->intrchk_timer.data = (unsigned long) dd;
+	setup_timer(&dd->intrchk_timer, verify_interrupt,
+		    (unsigned long)dd);
 done:
 	return ret;
 }
@@ -755,9 +753,8 @@ done:
 				continue;
 			if (dd->flags & QIB_HAS_SEND_DMA)
 				ret = qib_setup_sdma(ppd);
-			init_timer(&ppd->hol_timer);
-			ppd->hol_timer.function = qib_hol_event;
-			ppd->hol_timer.data = (unsigned long)ppd;
+			setup_timer(&ppd->hol_timer, qib_hol_event,
+				    (unsigned long)ppd);
 			ppd->hol_state = QIB_HOL_UP;
 		}
 

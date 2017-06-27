@@ -114,7 +114,6 @@ enum rxe_device_param {
 	RXE_MAX_UCONTEXT		= 512,
 
 	RXE_NUM_PORT			= 1,
-	RXE_NUM_COMP_VECTORS		= 1,
 
 	RXE_MIN_QP_INDEX		= 16,
 	RXE_MAX_QP_INDEX		= 0x00020000,

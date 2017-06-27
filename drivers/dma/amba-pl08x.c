@@ -106,6 +106,7 @@ struct pl08x_driver_data;
 
 /**
  * struct vendor_data - vendor-specific config parameters for PL08x derivatives
+ * @config_offset: offset to the configuration register
  * @channels: the number of channels available in this variant
  * @signals: the number of request signals available from the hardware
  * @dualmaster: whether this version supports dual AHB masters or not.
@@ -145,6 +146,8 @@ struct pl08x_bus_data {
 /**
  * struct pl08x_phy_chan - holder for the physical channels
  * @id: physical index to this channel
+ * @base: memory base address for this physical channel
+ * @reg_config: configuration address for this physical channel
  * @lock: a lock to use when altering an instance of this struct
  * @serving: the virtual channel currently being served by this physical
  * channel
@@ -203,7 +206,7 @@ struct pl08x_txd {
 };
 
 /**
- * struct pl08x_dma_chan_state - holds the PL08x specific virtual channel
+ * enum pl08x_dma_chan_state - holds the PL08x specific virtual channel
  * states
  * @PL08X_CHAN_IDLE: the channel is idle
  * @PL08X_CHAN_RUNNING: the channel has allocated a physical transport
@@ -226,9 +229,8 @@ enum pl08x_dma_chan_state {
  * @phychan: the physical channel utilized by this channel, if there is one
  * @name: name of channel
  * @cd: channel platform data
- * @runtime_addr: address for RX/TX according to the runtime config
+ * @cfg: slave configuration
  * @at: active transaction on this channel
- * @lock: a lock for this channel data
  * @host: a pointer to the host (internal use)
  * @state: whether the channel is idle, paused, running etc
  * @slave: whether this channel is a device (slave) or for memcpy
@@ -262,7 +264,7 @@ struct pl08x_dma_chan {
  * @lli_buses: bitmask to or in to LLI pointer selecting AHB port for LLI
  * fetches
  * @mem_buses: set to indicate memory transfers on AHB2.
- * @lock: a spinlock for this struct
+ * @lli_words: how many words are used in each LLI item for this variant
  */
 struct pl08x_driver_data {
 	struct dma_device slave;
@@ -417,7 +419,7 @@ static void pl08x_start_next_txd(struct pl08x_dma_chan *plchan)
 
 	/* Enable the DMA channel */
 	/* Do not access config register until channel shows as disabled */
-	while (readl(pl08x->base + PL080_EN_CHAN) & (1 << phychan->id))
+	while (readl(pl08x->base + PL080_EN_CHAN) & BIT(phychan->id))
 		cpu_relax();
 
 	/* Do not access config register until channel shows as inactive */
@@ -484,8 +486,8 @@ static void pl08x_terminate_phy_chan(struct pl08x_driver_data *pl08x,
 
 	writel(val, ch->reg_config);
 
-	writel(1 << ch->id, pl08x->base + PL080_ERR_CLEAR);
-	writel(1 << ch->id, pl08x->base + PL080_TC_CLEAR);
+	writel(BIT(ch->id), pl08x->base + PL080_ERR_CLEAR);
+	writel(BIT(ch->id), pl08x->base + PL080_TC_CLEAR);
 }
 
 static inline u32 get_bytes_in_cctl(u32 cctl)
@@ -1834,7 +1836,7 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 		return IRQ_NONE;
 
 	for (i = 0; i < pl08x->vd->channels; i++) {
-		if (((1 << i) & err) || ((1 << i) & tc)) {
+		if ((BIT(i) & err) || (BIT(i) & tc)) {
 			/* Locate physical channel */
 			struct pl08x_phy_chan *phychan = &pl08x->phy_chans[i];
 			struct pl08x_dma_chan *plchan = phychan->serving;
@@ -1872,7 +1874,7 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 			}
 			spin_unlock(&plchan->vc.lock);
 
-			mask |= (1 << i);
+			mask |= BIT(i);
 		}
 	}
 

@@ -20,6 +20,8 @@
 #define ADDRCONF_TIMER_FUZZ		(HZ / 4)
 #define ADDRCONF_TIMER_FUZZ_MAX		(HZ)
 
+#define ADDRCONF_NOTIFY_PRIORITY	0
+
 #include <linux/in.h>
 #include <linux/in6.h>
 
@@ -103,12 +105,24 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
 				 u32 addr_flags, bool sllao, bool tokenized,
 				 __u32 valid_lft, u32 prefered_lft);
 
+static inline void addrconf_addr_eui48_base(u8 *eui, const char *const addr)
+{
+	memcpy(eui, addr, 3);
+	eui[3] = 0xFF;
+	eui[4] = 0xFE;
+	memcpy(eui + 5, addr + 3, 3);
+}
+
+static inline void addrconf_addr_eui48(u8 *eui, const char *const addr)
+{
+	addrconf_addr_eui48_base(eui, addr);
+	eui[0] ^= 2;
+}
+
 static inline int addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
 {
 	if (dev->addr_len != ETH_ALEN)
 		return -1;
-	memcpy(eui, dev->dev_addr, 3);
-	memcpy(eui + 5, dev->dev_addr + 3, 3);
 
 	/*
 	 * The zSeries OSA network cards can be shared among various
@@ -123,14 +137,16 @@ static inline int addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
 	 * case.  Hence the resulting interface identifier has local
 	 * scope according to RFC2373.
 	 */
+
+	addrconf_addr_eui48_base(eui, dev->dev_addr);
+
 	if (dev->dev_id) {
 		eui[3] = (dev->dev_id >> 8) & 0xFF;
 		eui[4] = dev->dev_id & 0xFF;
 	} else {
-		eui[3] = 0xFF;
-		eui[4] = 0xFE;
 		eui[0] ^= 2;
 	}
+
 	return 0;
 }
 
@@ -262,8 +278,8 @@ int register_inet6addr_notifier(struct notifier_block *nb);
 int unregister_inet6addr_notifier(struct notifier_block *nb);
 int inet6addr_notifier_call_chain(unsigned long val, void *v);
 
-void inet6_netconf_notify_devconf(struct net *net, int type, int ifindex,
-				  struct ipv6_devconf *devconf);
+void inet6_netconf_notify_devconf(struct net *net, int event, int type,
+				  int ifindex, struct ipv6_devconf *devconf);
 
 /**
  * __in6_dev_get - get inet6_dev pointer from netdevice

@@ -1,5 +1,6 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"

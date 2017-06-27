@@ -90,6 +90,27 @@ void devm_memunmap(struct device *dev, void *addr);
 
 void *__devm_memremap_pages(struct device *dev, struct resource *res);
 
+#ifdef CONFIG_PCI
+/*
+ * The PCI specifications (Rev 3.0, 3.2.5 "Transaction Ordering and
+ * Posting") mandate non-posted configuration transactions. There is
+ * no ioremap API in the kernel that can guarantee non-posted write
+ * semantics across arches so provide a default implementation for
+ * mapping PCI config space that defaults to ioremap_nocache(); arches
+ * should override it if they have memory mapping implementations that
+ * guarantee non-posted writes semantics to make the memory mapping
+ * compliant with the PCI specification.
+ */
+#ifndef pci_remap_cfgspace
+#define pci_remap_cfgspace pci_remap_cfgspace
+static inline void __iomem *pci_remap_cfgspace(phys_addr_t offset,
+					       size_t size)
+{
+	return ioremap_nocache(offset, size);
+}
+#endif
+#endif
+
 /*
  * Some systems do not have legacy ISA devices.
  * /dev/port is not a valid interface on these systems.

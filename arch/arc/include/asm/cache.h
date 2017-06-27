@@ -62,6 +62,8 @@ extern unsigned long perip_base, perip_end;
 #define ARC_REG_IC_BCR		0x77	/* Build Config reg */
 #define ARC_REG_IC_IVIC		0x10
 #define ARC_REG_IC_CTRL		0x11
+#define ARC_REG_IC_IVIR		0x16
+#define ARC_REG_IC_ENDR		0x17
 #define ARC_REG_IC_IVIL		0x19
 #define ARC_REG_IC_PTAG		0x1E
 #define ARC_REG_IC_PTAG_HI	0x1F
@@ -76,6 +78,8 @@ extern unsigned long perip_base, perip_end;
 #define ARC_REG_DC_IVDL		0x4A
 #define ARC_REG_DC_FLSH		0x4B
 #define ARC_REG_DC_FLDL		0x4C
+#define ARC_REG_DC_STARTR	0x4D
+#define ARC_REG_DC_ENDR		0x4E
 #define ARC_REG_DC_PTAG		0x5C
 #define ARC_REG_DC_PTAG_HI	0x5F
 
@@ -83,6 +87,8 @@ extern unsigned long perip_base, perip_end;
 #define DC_CTRL_DIS		0x001
 #define DC_CTRL_INV_MODE_FLUSH	0x040
 #define DC_CTRL_FLUSH_STATUS	0x100
+#define DC_CTRL_RGN_OP_INV	0x200
+#define DC_CTRL_RGN_OP_MSK	0x200
 
 /*System-level cache (L2 cache) related Auxiliary registers */
 #define ARC_REG_SLC_CFG		0x901

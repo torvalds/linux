@@ -490,7 +490,7 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 * make sure request is sane
 	 */
 	if (hwif->rq)
-		hwif->rq->errors = 0;
+		scsi_req(hwif->rq)->result = 0;
 	return ret;
 }
 

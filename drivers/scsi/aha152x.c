@@ -331,11 +331,11 @@ MODULE_LICENSE("GPL");
 #if !defined(PCMCIA)
 #if defined(MODULE)
 static int io[] = {0, 0};
-module_param_array(io, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
 MODULE_PARM_DESC(io,"base io address of controller");
 
 static int irq[] = {0, 0};
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 MODULE_PARM_DESC(irq,"interrupt for controller");
 
 static int scsiid[] = {7, 7};

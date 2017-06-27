@@ -958,3 +958,64 @@ int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data)
 
 	return rc;
 }
+
+static unsigned long vsid_unscramble(unsigned long vsid, int ssize)
+{
+	unsigned long protovsid;
+	unsigned long va_bits = VA_BITS;
+	unsigned long modinv, vsid_modulus;
+	unsigned long max_mod_inv, tmp_modinv;
+
+	if (!mmu_has_feature(MMU_FTR_68_BIT_VA))
+		va_bits = 65;
+
+	if (ssize == MMU_SEGSIZE_256M) {
+		modinv = VSID_MULINV_256M;
+		vsid_modulus = ((1UL << (va_bits - SID_SHIFT)) - 1);
+	} else {
+		modinv = VSID_MULINV_1T;
+		vsid_modulus = ((1UL << (va_bits - SID_SHIFT_1T)) - 1);
+	}
+
+	/*
+	 * vsid outside our range.
+	 */
+	if (vsid >= vsid_modulus)
+		return 0;
+
+	/*
+	 * If modinv is the modular multiplicate inverse of (x % vsid_modulus)
+	 * and vsid = (protovsid * x) % vsid_modulus, then we say:
+	 *   protovsid = (vsid * modinv) % vsid_modulus
+	 */
+
+	/* Check if (vsid * modinv) overflow (63 bits) */
+	max_mod_inv = 0x7fffffffffffffffull / vsid;
+	if (modinv < max_mod_inv)
+		return (vsid * modinv) % vsid_modulus;
+
+	tmp_modinv = modinv/max_mod_inv;
+	modinv %= max_mod_inv;
+
+	protovsid = (((vsid * max_mod_inv) % vsid_modulus) * tmp_modinv) % vsid_modulus;
+	protovsid = (protovsid + vsid * modinv) % vsid_modulus;
+
+	return protovsid;
+}
+
+static int __init reserve_vrma_context_id(void)
+{
+	unsigned long protovsid;
+
+	/*
+	 * Reserve context ids which map to reserved virtual addresses. For now
+	 * we only reserve the context id which maps to the VRMA VSID. We ignore
+	 * the addresses in "ibm,adjunct-virtual-addresses" because we don't
+	 * enable adjunct support via the "ibm,client-architecture-support"
+	 * interface.
+	 */
+	protovsid = vsid_unscramble(VRMA_VSID, MMU_SEGSIZE_1T);
+	hash__reserve_context_id(protovsid >> ESID_BITS_1T);
+	return 0;
+}
+machine_device_initcall(pseries, reserve_vrma_context_id);

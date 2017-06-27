@@ -81,9 +81,9 @@ static void dm_trx_hw_antenna_div_init(struct odm_dm_struct *dm_odm)
 
 	/* antenna mapping table */
 	if (!dm_odm->bIsMPChip) { /* testchip */
-		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N,
+		phy_set_bb_reg(adapter, ODM_REG_RX_DEFAULT_A_11N,
 			       BIT(10) | BIT(9) | BIT(8), 1);
-		phy_set_bb_reg(adapter, ODM_REG_RX_DEFUALT_A_11N,
+		phy_set_bb_reg(adapter, ODM_REG_RX_DEFAULT_A_11N,
 			       BIT(13) | BIT(12) | BIT(11), 2);
 	} else { /* MPchip */
 		phy_set_bb_reg(adapter, ODM_REG_ANT_MAPPING1_11N, bMaskDWord,
@@ -248,6 +248,7 @@ void rtl88eu_dm_ant_sel_statistics(struct odm_dm_struct *dm_odm,
 				   u8 antsel_tr_mux, u32 mac_id, u8 rx_pwdb_all)
 {
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
+
 	if (dm_odm->AntDivType == CG_TRX_HW_ANTDIV) {
 		if (antsel_tr_mux == MAIN_ANT_CG_TRX) {
 			dm_fat_tbl->MainAnt_Sum[mac_id] += rx_pwdb_all;

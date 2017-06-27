@@ -1279,11 +1279,17 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 	 * space. Parsing should be faster in some cases this way.
 	 */
 	batch_end = cmd + (batch_len / sizeof(*batch_end));
-	while (cmd < batch_end) {
+	do {
 		u32 length;
 
-		if (*cmd == MI_BATCH_BUFFER_END)
+		if (*cmd == MI_BATCH_BUFFER_END) {
+			if (needs_clflush_after) {
+				void *ptr = ptr_mask_bits(shadow_batch_obj->mm.mapping);
+				drm_clflush_virt_range(ptr,
+						       (void *)(cmd + 1) - ptr);
+			}
 			break;
+		}
 
 		desc = find_cmd(engine, *cmd, desc, &default_desc);
 		if (!desc) {
@@ -1323,17 +1329,14 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 		}
 
 		cmd += length;
-	}
+		if  (cmd >= batch_end) {
+			DRM_DEBUG_DRIVER("CMD: Got to the end of the buffer w/o a BBE cmd!\n");
+			ret = -EINVAL;
+			break;
+		}
+	} while (1);
 
-	if (cmd >= batch_end) {
-		DRM_DEBUG_DRIVER("CMD: Got to the end of the buffer w/o a BBE cmd!\n");
-		ret = -EINVAL;
-	}
-
-	if (ret == 0 && needs_clflush_after)
-		drm_clflush_virt_range(shadow_batch_obj->mm.mapping, batch_len);
 	i915_gem_object_unpin_map(shadow_batch_obj);
-
 	return ret;
 }
 

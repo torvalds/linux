@@ -578,7 +578,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	writeback_stat = atomic_long_inc_return(&fsc->writeback_count);
 	if (writeback_stat >
 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
-		set_bdi_congested(&fsc->backing_dev_info, BLK_RW_ASYNC);
+		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
 
 	set_page_writeback(page);
 	err = ceph_osdc_writepages(osdc, ceph_vino(inode),
@@ -670,8 +670,12 @@ static void writepages_finish(struct ceph_osd_request *req)
 	bool remove_page;
 
 	dout("writepages_finish %p rc %d\n", inode, rc);
-	if (rc < 0)
+	if (rc < 0) {
 		mapping_set_error(mapping, rc);
+		ceph_set_error_write(ci);
+	} else {
+		ceph_clear_error_write(ci);
+	}
 
 	/*
 	 * We lost the cache cap, need to truncate the page before
@@ -700,11 +704,8 @@ static void writepages_finish(struct ceph_osd_request *req)
 			if (atomic_long_dec_return(&fsc->writeback_count) <
 			     CONGESTION_OFF_THRESH(
 					fsc->mount_options->congestion_kb))
-				clear_bdi_congested(&fsc->backing_dev_info,
+				clear_bdi_congested(inode_to_bdi(inode),
 						    BLK_RW_ASYNC);
-
-			if (rc < 0)
-				SetPageError(page);
 
 			ceph_put_snap_context(page_snap_context(page));
 			page->private = 0;
@@ -979,7 +980,7 @@ get_more_pages:
 			if (atomic_long_inc_return(&fsc->writeback_count) >
 			    CONGESTION_ON_THRESH(
 				    fsc->mount_options->congestion_kb)) {
-				set_bdi_congested(&fsc->backing_dev_info,
+				set_bdi_congested(inode_to_bdi(inode),
 						  BLK_RW_ASYNC);
 			}
 
@@ -1892,6 +1893,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 	err = ceph_osdc_start_request(&fsc->client->osdc, rd_req, false);
 
 	wr_req->r_mtime = ci->vfs_inode.i_mtime;
+	wr_req->r_abort_on_full = true;
 	err2 = ceph_osdc_start_request(&fsc->client->osdc, wr_req, false);
 
 	if (!err)

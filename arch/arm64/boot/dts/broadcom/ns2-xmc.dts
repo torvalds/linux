@@ -54,15 +54,15 @@
 };
 
 &enet {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c0 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c1 {
-	status = "ok";
+	status = "okay";
 };
 
 &mdio_mux_iproc {
@@ -122,27 +122,27 @@
 };
 
 &pci_phy0 {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie0 {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie8 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata_phy0 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata_phy1 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata {
-	status = "ok";
+	status = "okay";
 };
 
 &qspi {
@@ -187,5 +187,5 @@
 };
 
 &uart3 {
-	status = "ok";
+	status = "okay";
 };

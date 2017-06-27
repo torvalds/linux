@@ -1557,10 +1557,10 @@ yyreduce:
     {
 			struct node *target = get_node_by_ref((yyvsp[-3].node), (yyvsp[-1].labelref));
 
-			add_label(&target->labels, (yyvsp[-2].labelref));
-			if (target)
+			if (target) {
+				add_label(&target->labels, (yyvsp[-2].labelref));
 				merge_nodes(target, (yyvsp[0].node));
-			else
+			} else
 				ERROR(&(yylsp[-1]), "Label or path %s not found", (yyvsp[-1].labelref));
 			(yyval.node) = (yyvsp[-3].node);
 		}

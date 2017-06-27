@@ -17,7 +17,8 @@ Required properties:
 
 Optional properties:
 
-- interrupt-parent     : The parent interrupt controller, optional if inherited
+- interrupt-parent      : The parent interrupt controller, optional if inherited
+- clocks                : A phandle to the HPLL clock node for debounce timings
 
 The gpio and interrupt properties are further described in their respective
 bindings documentation:

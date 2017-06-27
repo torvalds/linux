@@ -33,6 +33,24 @@ struct ccw1 {
 	__u32 cda;
 } __attribute__ ((packed,aligned(8)));
 
+/**
+ * struct ccw0 - channel command word
+ * @cmd_code: command code
+ * @cda: data address
+ * @flags: flags, like IDA addressing, etc.
+ * @reserved: will be ignored
+ * @count: byte count
+ *
+ * The format-0 ccw structure.
+ */
+struct ccw0 {
+	__u8 cmd_code;
+	__u32 cda : 24;
+	__u8  flags;
+	__u8  reserved;
+	__u16 count;
+} __packed __aligned(8);
+
 #define CCW_FLAG_DC		0x80
 #define CCW_FLAG_CC		0x40
 #define CCW_FLAG_SLI		0x20

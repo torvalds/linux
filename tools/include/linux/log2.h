@@ -12,6 +12,9 @@
 #ifndef _TOOLS_LINUX_LOG2_H
 #define _TOOLS_LINUX_LOG2_H
 
+#include <linux/bitops.h>
+#include <linux/types.h>
+
 /*
  * non-constant log of base 2 calculators
  * - the arch may override these in asm/bitops.h if they can be implemented

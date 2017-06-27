@@ -372,7 +372,7 @@ static void moom_callback(struct work_struct *ignored)
 
 	mutex_lock(&oom_lock);
 	if (!out_of_memory(&oc))
-		pr_info("OOM request ignored because killer is disabled\n");
+		pr_info("OOM request ignored. No task eligible\n");
 	mutex_unlock(&oom_lock);
 }
 
@@ -446,7 +446,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	 */
 	NULL,				/* a */
 	&sysrq_reboot_op,		/* b */
-	&sysrq_crash_op,		/* c & ibm_emac driver debug */
+	&sysrq_crash_op,		/* c */
 	&sysrq_showlocks_op,		/* d */
 	&sysrq_term_op,			/* e */
 	&sysrq_moom_op,			/* f */

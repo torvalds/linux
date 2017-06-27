@@ -132,6 +132,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/fib_rules.h>
+#include <net/tcp.h>
 #include <net/dn.h>
 #include <net/dn_nsp.h>
 #include <net/dn_dev.h>
@@ -1469,18 +1470,18 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 	case DSO_NODELAY:
 		if (optlen != sizeof(int))
 			return -EINVAL;
-		if (scp->nonagle == 2)
+		if (scp->nonagle == TCP_NAGLE_CORK)
 			return -EINVAL;
-		scp->nonagle = (u.val == 0) ? 0 : 1;
+		scp->nonagle = (u.val == 0) ? 0 : TCP_NAGLE_OFF;
 		/* if (scp->nonagle == 1) { Push pending frames } */
 		break;
 
 	case DSO_CORK:
 		if (optlen != sizeof(int))
 			return -EINVAL;
-		if (scp->nonagle == 1)
+		if (scp->nonagle == TCP_NAGLE_OFF)
 			return -EINVAL;
-		scp->nonagle = (u.val == 0) ? 0 : 2;
+		scp->nonagle = (u.val == 0) ? 0 : TCP_NAGLE_CORK;
 		/* if (scp->nonagle == 0) { Push pending frames } */
 		break;
 
@@ -1608,14 +1609,14 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 	case DSO_NODELAY:
 		if (r_len > sizeof(int))
 			r_len = sizeof(int);
-		val = (scp->nonagle == 1);
+		val = (scp->nonagle == TCP_NAGLE_OFF);
 		r_data = &val;
 		break;
 
 	case DSO_CORK:
 		if (r_len > sizeof(int))
 			r_len = sizeof(int);
-		val = (scp->nonagle == 2);
+		val = (scp->nonagle == TCP_NAGLE_CORK);
 		r_data = &val;
 		break;
 
@@ -2360,7 +2361,8 @@ MODULE_AUTHOR("Linux DECnet Project Team");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_DECnet);
 
-static char banner[] __initdata = KERN_INFO "NET4: DECnet for Linux: V.2.5.68s (C) 1995-2003 Linux DECnet Project Team\n";
+static const char banner[] __initconst = KERN_INFO
+"NET4: DECnet for Linux: V.2.5.68s (C) 1995-2003 Linux DECnet Project Team\n";
 
 static int __init decnet_init(void)
 {

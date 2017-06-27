@@ -350,13 +350,13 @@ MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL");
 module_param_array(type, int, NULL, 0);
 module_param_array(protocol, int, NULL, 0);
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
-module_param_array(mem, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
+module_param_hw_array(mem, int, iomem, NULL, 0);
 module_param(id, charp, 0);
 #ifdef IO0_IO1
-module_param_array(io0, int, NULL, 0);
-module_param_array(io1, int, NULL, 0);
+module_param_hw_array(io0, int, ioport, NULL, 0);
+module_param_hw_array(io1, int, ioport, NULL, 0);
 #endif
 #endif /* MODULE */
 

@@ -365,9 +365,8 @@ static void vbi_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 
 	INIT_LIST_HEAD(&vv->vbi_dmaq.queue);
 
-	init_timer(&vv->vbi_dmaq.timeout);
-	vv->vbi_dmaq.timeout.function = saa7146_buffer_timeout;
-	vv->vbi_dmaq.timeout.data     = (unsigned long)(&vv->vbi_dmaq);
+	setup_timer(&vv->vbi_dmaq.timeout, saa7146_buffer_timeout,
+		    (unsigned long)(&vv->vbi_dmaq));
 	vv->vbi_dmaq.dev              = dev;
 
 	init_waitqueue_head(&vv->vbi_wq);

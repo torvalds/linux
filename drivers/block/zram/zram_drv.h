@@ -92,13 +92,9 @@ struct zram_stats {
 	atomic64_t writestall;		/* no. of write slow paths */
 };
 
-struct zram_meta {
+struct zram {
 	struct zram_table_entry *table;
 	struct zs_pool *mem_pool;
-};
-
-struct zram {
-	struct zram_meta *meta;
 	struct zcomp *comp;
 	struct gendisk *disk;
 	/* Prevent concurrent execution of device init */

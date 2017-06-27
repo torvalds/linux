@@ -25,6 +25,14 @@ Description:
 		code is currently applied.  Writing 0 will disable the patch
 		while writing 1 will re-enable the patch.
 
+What:		/sys/kernel/livepatch/<patch>/transition
+Date:		Feb 2017
+KernelVersion:	4.12.0
+Contact:	live-patching@vger.kernel.org
+Description:
+		An attribute which indicates whether the patch is currently in
+		transition.
+
 What:		/sys/kernel/livepatch/<patch>/<object>
 Date:		Nov 2014
 KernelVersion:	3.19.0

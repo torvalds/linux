@@ -38,6 +38,7 @@ perf-y += cpumap.o
 perf-y += stat.o
 perf-y += event_update.o
 perf-y += event-times.o
+perf-y += expr.o
 perf-y += backward-ring-buffer.o
 perf-y += sdt.o
 perf-y += is_printable_array.o

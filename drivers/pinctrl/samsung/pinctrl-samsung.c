@@ -566,13 +566,11 @@ static int samsung_gpio_set_direction(struct gpio_chip *gc,
 {
 	const struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
-	struct samsung_pinctrl_drv_data *drvdata;
 	void __iomem *reg;
 	u32 data, mask, shift;
 
 	bank = gpiochip_get_data(gc);
 	type = bank->type;
-	drvdata = bank->drvdata;
 
 	reg = bank->pctl_base + bank->pctl_offset
 			+ type->reg_offset[PINCFG_TYPE_FUNC];
@@ -884,11 +882,24 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 		pin_bank->grange.id = bank;
 		pin_bank->grange.pin_base = drvdata->pin_base
 						+ pin_bank->pin_base;
-		pin_bank->grange.base = pin_bank->gpio_chip.base;
+		pin_bank->grange.base = pin_bank->grange.pin_base;
 		pin_bank->grange.npins = pin_bank->gpio_chip.ngpio;
 		pin_bank->grange.gc = &pin_bank->gpio_chip;
 		pinctrl_add_gpio_range(drvdata->pctl_dev, &pin_bank->grange);
 	}
+
+	return 0;
+}
+
+/* unregister the pinctrl interface with the pinctrl subsystem */
+static int samsung_pinctrl_unregister(struct platform_device *pdev,
+				      struct samsung_pinctrl_drv_data *drvdata)
+{
+	struct samsung_pin_bank *bank = drvdata->pin_banks;
+	int i;
+
+	for (i = 0; i < drvdata->nr_banks; ++i, ++bank)
+		pinctrl_remove_gpio_range(drvdata->pctl_dev, &bank->grange);
 
 	return 0;
 }
@@ -917,37 +928,19 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 		bank->gpio_chip = samsung_gpiolib_chip;
 
 		gc = &bank->gpio_chip;
-		gc->base = drvdata->pin_base + bank->pin_base;
+		gc->base = bank->grange.base;
 		gc->ngpio = bank->nr_pins;
 		gc->parent = &pdev->dev;
 		gc->of_node = bank->of_node;
 		gc->label = bank->name;
 
-		ret = gpiochip_add_data(gc, bank);
+		ret = devm_gpiochip_add_data(&pdev->dev, gc, bank);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to register gpio_chip %s, error code: %d\n",
 							gc->label, ret);
-			goto fail;
+			return ret;
 		}
 	}
-
-	return 0;
-
-fail:
-	for (--i, --bank; i >= 0; --i, --bank)
-		gpiochip_remove(&bank->gpio_chip);
-	return ret;
-}
-
-/* unregister the gpiolib interface with the gpiolib subsystem */
-static int samsung_gpiolib_unregister(struct platform_device *pdev,
-				      struct samsung_pinctrl_drv_data *drvdata)
-{
-	struct samsung_pin_bank *bank = drvdata->pin_banks;
-	int i;
-
-	for (i = 0; i < drvdata->nr_banks; ++i, ++bank)
-		gpiochip_remove(&bank->gpio_chip);
 
 	return 0;
 }
@@ -1069,13 +1062,13 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 			return PTR_ERR(drvdata->retention_ctrl);
 	}
 
-	ret = samsung_gpiolib_register(pdev, drvdata);
+	ret = samsung_pinctrl_register(pdev, drvdata);
 	if (ret)
 		return ret;
 
-	ret = samsung_pinctrl_register(pdev, drvdata);
+	ret = samsung_gpiolib_register(pdev, drvdata);
 	if (ret) {
-		samsung_gpiolib_unregister(pdev, drvdata);
+		samsung_pinctrl_unregister(pdev, drvdata);
 		return ret;
 	}
 

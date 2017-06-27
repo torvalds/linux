@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,7 +179,7 @@ enum iwl_sta_key_flag {
  * enum iwl_sta_modify_flag - indicate to the fw what flag are being changed
  * @STA_MODIFY_QUEUE_REMOVAL: this command removes a queue
  * @STA_MODIFY_TID_DISABLE_TX: this command modifies %tid_disable_tx
- * @STA_MODIFY_UAPSD_ACS: this command modifies %uapsd_trigger_acs
+ * @STA_MODIFY_UAPSD_ACS: this command modifies %uapsd_acs
  * @STA_MODIFY_ADD_BA_TID: this command modifies %add_immediate_ba_tid
  * @STA_MODIFY_REMOVE_BA_TID: this command modifies %remove_immediate_ba_tid
  * @STA_MODIFY_SLEEPING_STA_TX_COUNT: this command modifies %sleep_tx_count
@@ -213,20 +213,6 @@ enum iwl_sta_sleep_flag {
 	STA_SLEEP_STATE_UAPSD		= BIT(1),
 	STA_SLEEP_STATE_MOREDATA	= BIT(2),
 };
-
-/* STA ID and color bits definitions */
-#define STA_ID_SEED		(0x0f)
-#define STA_ID_POS		(0)
-#define STA_ID_MSK		(STA_ID_SEED << STA_ID_POS)
-
-#define STA_COLOR_SEED		(0x7)
-#define STA_COLOR_POS		(4)
-#define STA_COLOR_MSK		(STA_COLOR_SEED << STA_COLOR_POS)
-
-#define STA_ID_N_COLOR_GET_COLOR(id_n_color) \
-	(((id_n_color) & STA_COLOR_MSK) >> STA_COLOR_POS)
-#define STA_ID_N_COLOR_GET_ID(id_n_color)    \
-	(((id_n_color) & STA_ID_MSK) >> STA_ID_POS)
 
 #define STA_KEY_MAX_NUM (16)
 #define STA_KEY_IDX_INVALID (0xff)
@@ -324,6 +310,24 @@ struct iwl_mvm_add_sta_cmd_v7 {
 } __packed; /* ADD_STA_CMD_API_S_VER_7 */
 
 /**
+ * enum iwl_sta_type - FW station types
+ * ( REPLY_ADD_STA = 0x18 )
+ * @IWL_STA_LINK: Link station - normal RX and TX traffic.
+ * @IWL_STA_GENERAL_PURPOSE: General purpose. In AP mode used for beacons
+ *	and probe responses.
+ * @IWL_STA_MULTICAST: multicast traffic,
+ * @IWL_STA_TDLS_LINK: TDLS link station
+ * @IWL_STA_AUX_ACTIVITY: auxilary station (scan, ROC and so on).
+ */
+enum iwl_sta_type {
+	IWL_STA_LINK,
+	IWL_STA_GENERAL_PURPOSE,
+	IWL_STA_MULTICAST,
+	IWL_STA_TDLS_LINK,
+	IWL_STA_AUX_ACTIVITY,
+};
+
+/**
  * struct iwl_mvm_add_sta_cmd - Add/modify a station in the fw's sta table.
  * ( REPLY_ADD_STA = 0x18 )
  * @add_modify: 1: modify existing, 0: add new station
@@ -347,14 +351,17 @@ struct iwl_mvm_add_sta_cmd_v7 {
  * @sleep_tx_count: number of packets to transmit to station even though it is
  *	asleep. Used to synchronise PS-poll and u-APSD responses while ucode
  *	keeps track of STA sleep state.
+ * @station_type: type of this station. See &enum iwl_sta_type.
  * @sleep_state_flags: Look at %iwl_sta_sleep_flag.
  * @assoc_id: assoc_id to be sent in VHT PLCP (9-bit), for grp use 0, for AP
  *	mac-addr.
  * @beamform_flags: beam forming controls
- * @tfd_queue_msk: tfd queues used by this station
+ * @tfd_queue_msk: tfd queues used by this station.
+ *	Obselete for new TX API (9 and above).
  * @rx_ba_window: aggregation window size
- * @scd_queue_bank: queue bank in used. Each bank contains 32 queues. 0 means
- *	that the queues used by this station are in the first 32.
+ * @sp_length: the size of the SP as it appears in the WME IE
+ * @uapsd_acs:  4 LS bits are trigger enabled ACs, 4 MS bits are the deliver
+ *	enabled ACs.
  *
  * The device contains an internal table of per-station information, with info
  * on security keys, aggregation parameters, and Tx rates for initial Tx
@@ -379,36 +386,59 @@ struct iwl_mvm_add_sta_cmd {
 	u8 remove_immediate_ba_tid;
 	__le16 add_immediate_ba_ssn;
 	__le16 sleep_tx_count;
-	__le16 sleep_state_flags;
+	u8 sleep_state_flags;
+	u8 station_type;
 	__le16 assoc_id;
 	__le16 beamform_flags;
 	__le32 tfd_queue_msk;
 	__le16 rx_ba_window;
-	u8 scd_queue_bank;
-	u8 uapsd_trigger_acs;
-} __packed; /* ADD_STA_CMD_API_S_VER_8 */
+	u8 sp_length;
+	u8 uapsd_acs;
+} __packed; /* ADD_STA_CMD_API_S_VER_10 */
 
 /**
- * struct iwl_mvm_add_sta_key_cmd - add/modify sta key
+ * struct iwl_mvm_add_sta_key_common - add/modify sta key common part
  * ( REPLY_ADD_STA_KEY = 0x17 )
  * @sta_id: index of station in uCode's station table
  * @key_offset: key offset in key storage
  * @key_flags: type %iwl_sta_key_flag
  * @key: key material data
  * @rx_secur_seq_cnt: RX security sequence counter for the key
- * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
- * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
  */
-struct iwl_mvm_add_sta_key_cmd {
+struct iwl_mvm_add_sta_key_common {
 	u8 sta_id;
 	u8 key_offset;
 	__le16 key_flags;
 	u8 key[32];
 	u8 rx_secur_seq_cnt[16];
+} __packed;
+
+/**
+ * struct iwl_mvm_add_sta_key_cmd_v1 - add/modify sta key
+ * @common: see &struct iwl_mvm_add_sta_key_common
+ * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
+ * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
+ */
+struct iwl_mvm_add_sta_key_cmd_v1 {
+	struct iwl_mvm_add_sta_key_common common;
 	u8 tkip_rx_tsc_byte2;
 	u8 reserved;
 	__le16 tkip_rx_ttak[5];
 } __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_1 */
+
+/**
+ * struct iwl_mvm_add_sta_key_cmd - add/modify sta key
+ * @common: see &struct iwl_mvm_add_sta_key_common
+ * @rx_mic_key: TKIP RX unicast or multicast key
+ * @tx_mic_key: TKIP TX key
+ * @transmit_seq_cnt: TSC, transmit packet number
+ */
+struct iwl_mvm_add_sta_key_cmd {
+	struct iwl_mvm_add_sta_key_common common;
+	__le64 rx_mic_key;
+	__le64 tx_mic_key;
+	__le64 transmit_seq_cnt;
+} __packed; /* ADD_MODIFY_STA_KEY_API_S_VER_2 */
 
 /**
  * enum iwl_mvm_add_sta_rsp_status - status in the response to ADD_STA command

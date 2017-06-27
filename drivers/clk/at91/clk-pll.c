@@ -399,18 +399,18 @@ of_at91_clk_pll_get_characteristics(struct device_node *np)
 	if (!characteristics)
 		return NULL;
 
-	output = kzalloc(sizeof(*output) * num_output, GFP_KERNEL);
+	output = kcalloc(num_output, sizeof(*output), GFP_KERNEL);
 	if (!output)
 		goto out_free_characteristics;
 
 	if (num_cells > 2) {
-		out = kzalloc(sizeof(*out) * num_output, GFP_KERNEL);
+		out = kcalloc(num_output, sizeof(*out), GFP_KERNEL);
 		if (!out)
 			goto out_free_output;
 	}
 
 	if (num_cells > 3) {
-		icpll = kzalloc(sizeof(*icpll) * num_output, GFP_KERNEL);
+		icpll = kcalloc(num_output, sizeof(*icpll), GFP_KERNEL);
 		if (!icpll)
 			goto out_free_output;
 	}

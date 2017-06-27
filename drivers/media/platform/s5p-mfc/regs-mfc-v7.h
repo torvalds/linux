@@ -34,7 +34,7 @@
 #define S5P_FIMV_E_VP8_NUM_T_LAYER_V7			0xfdc4
 
 /* MFCv7 variant defines */
-#define MAX_FW_SIZE_V7			(SZ_1M)		/* 1MB */
+#define MAX_FW_SIZE_V7			(SZ_512K)	/* 512KB */
 #define MAX_CPB_SIZE_V7			(3 * SZ_1M)	/* 3MB */
 #define MFC_VERSION_V7			0x72
 #define MFC_NUM_PORTS_V7		1

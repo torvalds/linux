@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_iommu.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -158,11 +159,6 @@ struct platform_device *of_device_alloc(struct device_node *np,
 }
 EXPORT_SYMBOL(of_device_alloc);
 
-static void of_dma_deconfigure(struct device *dev)
-{
-	arch_teardown_dma_ops(dev);
-}
-
 /**
  * of_platform_device_create_pdata - Alloc, initialize and register an of_device
  * @np: pointer to node to create device for
@@ -191,11 +187,9 @@ static struct platform_device *of_platform_device_create_pdata(
 
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
-	of_dma_configure(&dev->dev, dev->dev.of_node);
 	of_msi_configure(&dev->dev, dev->dev.of_node);
 
 	if (of_device_add(dev) != 0) {
-		of_dma_deconfigure(&dev->dev);
 		platform_device_put(dev);
 		goto err_clear_flag;
 	}
@@ -253,7 +247,6 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 		dev_set_name(&dev->dev, "%s", bus_id);
 	else
 		of_device_make_bus_id(&dev->dev);
-	of_dma_configure(&dev->dev, dev->dev.of_node);
 
 	/* Allow the HW Peripheral ID to be overridden */
 	prop = of_get_property(node, "arm,primecell-periphid", NULL);
@@ -530,7 +523,7 @@ static int __init of_platform_default_populate_init(void)
 arch_initcall_sync(of_platform_default_populate_init);
 #endif
 
-static int of_platform_device_destroy(struct device *dev, void *data)
+int of_platform_device_destroy(struct device *dev, void *data)
 {
 	/* Do not touch devices not populated from the device tree */
 	if (!dev->of_node || !of_node_check_flag(dev->of_node, OF_POPULATED))
@@ -547,11 +540,11 @@ static int of_platform_device_destroy(struct device *dev, void *data)
 		amba_device_unregister(to_amba_device(dev));
 #endif
 
-	of_dma_deconfigure(dev);
 	of_node_clear_flag(dev->of_node, OF_POPULATED);
 	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(of_platform_device_destroy);
 
 /**
  * of_platform_depopulate() - Remove devices populated from device tree
@@ -570,6 +563,77 @@ void of_platform_depopulate(struct device *parent)
 	}
 }
 EXPORT_SYMBOL_GPL(of_platform_depopulate);
+
+static void devm_of_platform_populate_release(struct device *dev, void *res)
+{
+	of_platform_depopulate(*(struct device **)res);
+}
+
+/**
+ * devm_of_platform_populate() - Populate platform_devices from device tree data
+ * @dev: device that requested to populate from device tree data
+ *
+ * Similar to of_platform_populate(), but will automatically call
+ * of_platform_depopulate() when the device is unbound from the bus.
+ *
+ * Returns 0 on success, < 0 on failure.
+ */
+int devm_of_platform_populate(struct device *dev)
+{
+	struct device **ptr;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	ptr = devres_alloc(devm_of_platform_populate_release,
+			   sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret) {
+		devres_free(ptr);
+	} else {
+		*ptr = dev;
+		devres_add(dev, ptr);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_of_platform_populate);
+
+static int devm_of_platform_match(struct device *dev, void *res, void *data)
+{
+	struct device **ptr = res;
+
+	if (!ptr) {
+		WARN_ON(!ptr);
+		return 0;
+	}
+
+	return *ptr == data;
+}
+
+/**
+ * devm_of_platform_depopulate() - Remove devices populated from device tree
+ * @dev: device that requested to depopulate from device tree data
+ *
+ * Complementary to devm_of_platform_populate(), this function removes children
+ * of the given device (and, recurrently, their children) that have been
+ * created from their respective device tree nodes (and only those,
+ * leaving others - eg. manually created - unharmed).
+ */
+void devm_of_platform_depopulate(struct device *dev)
+{
+	int ret;
+
+	ret = devres_release(dev, devm_of_platform_populate_release,
+			     devm_of_platform_match, dev);
+
+	WARN_ON(ret);
+}
+EXPORT_SYMBOL_GPL(devm_of_platform_depopulate);
 
 #ifdef CONFIG_OF_DYNAMIC
 static int of_platform_notify(struct notifier_block *nb,

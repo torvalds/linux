@@ -51,6 +51,8 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 			st->report_state.report_id,
 			st->report_state.index,
 			HID_USAGE_SENSOR_PROP_REPORTING_STATE_ALL_EVENTS_ENUM);
+
+		poll_value = hid_sensor_read_poll_value(st);
 	} else {
 		int val;
 
@@ -87,9 +89,7 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,
 			       st->power_state.index,
 			       sizeof(state_val), &state_val);
-	if (state)
-		poll_value = hid_sensor_read_poll_value(st);
-	if (poll_value > 0)
+	if (state && poll_value)
 		msleep_interruptible(poll_value * 2);
 
 	return 0;
@@ -127,6 +127,20 @@ static void hid_sensor_set_power_work(struct work_struct *work)
 	struct hid_sensor_common *attrb = container_of(work,
 						       struct hid_sensor_common,
 						       work);
+
+	if (attrb->poll_interval >= 0)
+		sensor_hub_set_feature(attrb->hsdev, attrb->poll.report_id,
+				       attrb->poll.index,
+				       sizeof(attrb->poll_interval),
+				       &attrb->poll_interval);
+
+	if (attrb->raw_hystersis >= 0)
+		sensor_hub_set_feature(attrb->hsdev,
+				       attrb->sensitivity.report_id,
+				       attrb->sensitivity.index,
+				       sizeof(attrb->raw_hystersis),
+				       &attrb->raw_hystersis);
+
 	_hid_sensor_power_state(attrb, true);
 }
 
@@ -138,6 +152,10 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 {
+	pm_runtime_disable(&attrb->pdev->dev);
+	pm_runtime_set_suspended(&attrb->pdev->dev);
+	pm_runtime_put_noidle(&attrb->pdev->dev);
+
 	cancel_work_sync(&attrb->work);
 	iio_trigger_unregister(attrb->trigger);
 	iio_trigger_free(attrb->trigger);

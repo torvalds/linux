@@ -27,11 +27,8 @@ HDMI 1.3a specification is sufficient:
 http://www.microprocessor.org/HDMISpecification13a.pdf
 
 
-The Kernel Interface
-====================
-
-CEC Adapter
------------
+CEC Adapter Interface
+---------------------
 
 The struct cec_adapter represents the CEC adapter hardware. It is created by
 calling cec_allocate_adapter() and deleted by calling cec_delete_adapter():
@@ -51,6 +48,7 @@ ops:
 
 priv:
 	will be stored in adap->priv and can be used by the adapter ops.
+	Use cec_get_drvdata(adap) to get the priv pointer.
 
 name:
 	the name of the CEC adapter. Note: this name will be copied.
@@ -65,6 +63,10 @@ available_las:
 	the number of simultaneous logical addresses that this
 	adapter can handle. Must be 1 <= available_las <= CEC_MAX_LOG_ADDRS.
 
+To obtain the priv pointer use this helper function:
+
+.. c:function::
+	void *cec_get_drvdata(const struct cec_adapter *adap);
 
 To register the /dev/cecX device node and the remote control device (if
 CEC_CAP_RC is set) you call:

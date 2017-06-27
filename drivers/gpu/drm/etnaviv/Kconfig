@@ -5,6 +5,7 @@ config DRM_ETNAVIV
 	depends on ARCH_MXC || ARCH_DOVE || (ARM && COMPILE_TEST)
 	depends on MMU
 	select SHMEM
+	select SYNC_FILE
 	select TMPFS
 	select IOMMU_API
 	select IOMMU_SUPPORT

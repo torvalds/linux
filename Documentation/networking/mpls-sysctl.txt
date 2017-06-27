@@ -19,6 +19,25 @@ platform_labels - INTEGER
 	Possible values: 0 - 1048575
 	Default: 0
 
+ip_ttl_propagate - BOOL
+	Control whether TTL is propagated from the IPv4/IPv6 header to
+	the MPLS header on imposing labels and propagated from the
+	MPLS header to the IPv4/IPv6 header on popping the last label.
+
+	If disabled, the MPLS transport network will appear as a
+	single hop to transit traffic.
+
+	0 - disabled / RFC 3443 [Short] Pipe Model
+	1 - enabled / RFC 3443 Uniform Model (default)
+
+default_ttl - BOOL
+	Default TTL value to use for MPLS packets where it cannot be
+	propagated from an IP header, either because one isn't present
+	or ip_ttl_propagate has been disabled.
+
+	Possible values: 1 - 255
+	Default: 255
+
 conf/<interface>/input - BOOL
 	Control whether packets can be input on this interface.
 

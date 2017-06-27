@@ -83,6 +83,8 @@ static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 	if (tc != 0)
 		smvp_copy_vpe_config();
 
+	cpu_data[ncpu].vpe_id = tc;
+
 	return ncpu;
 }
 
@@ -112,49 +114,6 @@ static void __init smvp_tc_init(unsigned int tc, unsigned int mvpconf0)
 	write_tc_c0_tcstatus(tmp);
 
 	write_tc_c0_tchalt(TCHALT_H);
-}
-
-static void vsmp_send_ipi_single(int cpu, unsigned int action)
-{
-	int i;
-	unsigned long flags;
-	int vpflags;
-
-#ifdef CONFIG_MIPS_GIC
-	if (gic_present) {
-		mips_smp_send_ipi_single(cpu, action);
-		return;
-	}
-#endif
-	local_irq_save(flags);
-
-	vpflags = dvpe();	/* can't access the other CPU's registers whilst MVPE enabled */
-
-	switch (action) {
-	case SMP_CALL_FUNCTION:
-		i = C_SW1;
-		break;
-
-	case SMP_RESCHEDULE_YOURSELF:
-	default:
-		i = C_SW0;
-		break;
-	}
-
-	/* 1:1 mapping of vpe and tc... */
-	settc(cpu);
-	write_vpe_c0_cause(read_vpe_c0_cause() | i);
-	evpe(vpflags);
-
-	local_irq_restore(flags);
-}
-
-static void vsmp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
-{
-	unsigned int i;
-
-	for_each_cpu(i, mask)
-		vsmp_send_ipi_single(i, action);
 }
 
 static void vsmp_init_secondary(void)
@@ -281,8 +240,8 @@ static void __init vsmp_prepare_cpus(unsigned int max_cpus)
 }
 
 struct plat_smp_ops vsmp_smp_ops = {
-	.send_ipi_single	= vsmp_send_ipi_single,
-	.send_ipi_mask		= vsmp_send_ipi_mask,
+	.send_ipi_single	= mips_smp_send_ipi_single,
+	.send_ipi_mask		= mips_smp_send_ipi_mask,
 	.init_secondary		= vsmp_init_secondary,
 	.smp_finish		= vsmp_smp_finish,
 	.boot_secondary		= vsmp_boot_secondary,

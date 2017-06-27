@@ -376,6 +376,25 @@ static const struct export_operations orangefs_export_ops = {
 	.fh_to_dentry = orangefs_fh_to_dentry,
 };
 
+static int orangefs_unmount(int id, __s32 fs_id, const char *devname)
+{
+	struct orangefs_kernel_op_s *op;
+	int r;
+	op = op_alloc(ORANGEFS_VFS_OP_FS_UMOUNT);
+	if (!op)
+		return -ENOMEM;
+	op->upcall.req.fs_umount.id = id;
+	op->upcall.req.fs_umount.fs_id = fs_id;
+	strncpy(op->upcall.req.fs_umount.orangefs_config_server,
+	    devname, ORANGEFS_MAX_SERVER_ADDR_LEN);
+	r = service_operation(op, "orangefs_fs_umount", 0);
+	/* Not much to do about an error here. */
+	if (r)
+		gossip_err("orangefs_unmount: service_operation %d\n", r);
+	op_release(op);
+	return r;
+}
+
 static int orangefs_fill_sb(struct super_block *sb,
 		struct orangefs_fs_mount_response *fs_mount,
 		void *data, int silent)
@@ -484,6 +503,8 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	if (IS_ERR(sb)) {
 		d = ERR_CAST(sb);
+		orangefs_unmount(new_op->downcall.resp.fs_mount.id,
+		    new_op->downcall.resp.fs_mount.fs_id, devname);
 		goto free_op;
 	}
 
@@ -493,7 +514,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	if (ret) {
 		d = ERR_PTR(ret);
-		goto free_op;
+		goto free_sb_and_op;
 	}
 
 	/*
@@ -519,6 +540,9 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
 
+	/* Must be removed from the list now. */
+	ORANGEFS_SB(sb)->no_list = 0;
+
 	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
@@ -533,6 +557,11 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 
 	return dget(sb->s_root);
 
+free_sb_and_op:
+	/* Will call orangefs_kill_sb with sb not in list. */
+	ORANGEFS_SB(sb)->no_list = 1;
+	/* ORANGEFS_VFS_OP_FS_UMOUNT is done by orangefs_kill_sb. */
+	deactivate_locked_super(sb);
 free_op:
 	gossip_err("orangefs_mount: mount request failed with %d\n", ret);
 	if (ret == -EINVAL) {
@@ -547,6 +576,7 @@ free_op:
 
 void orangefs_kill_sb(struct super_block *sb)
 {
+	int r;
 	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_kill_sb: called\n");
 
 	/* provided sb cleanup */
@@ -556,14 +586,19 @@ void orangefs_kill_sb(struct super_block *sb)
 	 * issue the unmount to userspace to tell it to remove the
 	 * dynamic mount info it has for this superblock
 	 */
-	 orangefs_unmount_sb(sb);
+	r = orangefs_unmount(ORANGEFS_SB(sb)->id, ORANGEFS_SB(sb)->fs_id,
+	    ORANGEFS_SB(sb)->devname);
+	if (!r)
+		ORANGEFS_SB(sb)->mount_pending = 1;
 
-	/* remove the sb from our list of orangefs specific sb's */
-
-	spin_lock(&orangefs_superblocks_lock);
-	__list_del_entry(&ORANGEFS_SB(sb)->list);	/* not list_del_init */
-	ORANGEFS_SB(sb)->list.prev = NULL;
-	spin_unlock(&orangefs_superblocks_lock);
+	if (!ORANGEFS_SB(sb)->no_list) {
+		/* remove the sb from our list of orangefs specific sb's */
+		spin_lock(&orangefs_superblocks_lock);
+		/* not list_del_init */
+		__list_del_entry(&ORANGEFS_SB(sb)->list);
+		ORANGEFS_SB(sb)->list.prev = NULL;
+		spin_unlock(&orangefs_superblocks_lock);
+	}
 
 	/*
 	 * make sure that ORANGEFS_DEV_REMOUNT_ALL loop that might've seen us

@@ -56,7 +56,7 @@ it is guaranteed that the state did change in between the two events.
     * - __u16
       - ``phys_addr``
       - The current physical address. This is ``CEC_PHYS_ADDR_INVALID`` if no
-          valid physical address is set.
+        valid physical address is set.
     * - __u16
       - ``log_addr_mask``
       - The current set of claimed logical addresses. This is 0 if no logical
@@ -174,3 +174,14 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
+
+The :ref:`ioctl CEC_DQEVENT <CEC_DQEVENT>` can return the following
+error codes:
+
+EAGAIN
+    This is returned when the filehandle is in non-blocking mode and there
+    are no pending events.
+
+ERESTARTSYS
+    An interrupt (e.g. Ctrl-C) arrived while in blocking mode waiting for
+    events to arrive.

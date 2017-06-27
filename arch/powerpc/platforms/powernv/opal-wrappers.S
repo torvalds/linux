@@ -50,21 +50,13 @@ END_FTR_SECTION(0, 1);						\
 #define OPAL_BRANCH(LABEL)
 #endif
 
-/* TODO:
- *
- * - Trace irqs in/off (needs saving/restoring all args, argh...)
- * - Get r11 feed up by Dave so I can have better register usage
+/*
+ * DO_OPAL_CALL assumes:
+ * r0  = opal call token
+ * r12 = msr
+ * LR has been saved
  */
-
-#define OPAL_CALL(name, token)		\
- _GLOBAL_TOC(name);			\
-	mfmsr	r12;			\
-	mflr	r0;			\
-	andi.	r11,r12,MSR_IR|MSR_DR; 	\
-	std	r0,PPC_LR_STKOFF(r1);	\
-	li	r0,token;		\
-	beq	opal_real_call;         \
-	OPAL_BRANCH(opal_tracepoint_entry) \
+#define DO_OPAL_CALL()			\
 	mfcr	r11;			\
 	stw	r11,8(r1);		\
 	li	r11,0;			\
@@ -82,6 +74,18 @@ END_FTR_SECTION(0, 1);						\
 	ld	r2,0(r11);		\
 	mtspr	SPRN_HSRR0,r12;		\
 	hrfid
+
+#define OPAL_CALL(name, token)		\
+ _GLOBAL_TOC(name);			\
+	mfmsr	r12;			\
+	mflr	r0;			\
+	andi.	r11,r12,MSR_IR|MSR_DR; 	\
+	std	r0,PPC_LR_STKOFF(r1);	\
+	li	r0,token;		\
+	beq	opal_real_call;         \
+	OPAL_BRANCH(opal_tracepoint_entry) \
+	DO_OPAL_CALL()
+
 
 opal_return:
 	/*
@@ -148,26 +152,13 @@ opal_tracepoint_entry:
 	ld	r8,STK_REG(R29)(r1)
 	ld	r9,STK_REG(R30)(r1)
 	ld	r10,STK_REG(R31)(r1)
+
+	/* setup LR so we return via tracepoint_return */
 	LOAD_REG_ADDR(r11,opal_tracepoint_return)
-	mfcr	r12
 	std	r11,16(r1)
-	stw	r12,8(r1)
-	li	r11,0
+
 	mfmsr	r12
-	ori	r11,r11,MSR_EE
-	std	r12,PACASAVEDMSR(r13)
-	andc	r12,r12,r11
-	mtmsrd	r12,1
-	LOAD_REG_ADDR(r11,opal_return)
-	mtlr	r11
-	li	r11,MSR_DR|MSR_IR|MSR_LE
-	andc	r12,r12,r11
-	mtspr	SPRN_HSRR1,r12
-	LOAD_REG_ADDR(r11,opal)
-	ld	r12,8(r11)
-	ld	r2,0(r11)
-	mtspr	SPRN_HSRR0,r12
-	hrfid
+	DO_OPAL_CALL()
 
 opal_tracepoint_return:
 	std	r3,STK_REG(R31)(r1)
@@ -301,3 +292,21 @@ OPAL_CALL(opal_int_eoi,				OPAL_INT_EOI);
 OPAL_CALL(opal_int_set_mfrr,			OPAL_INT_SET_MFRR);
 OPAL_CALL(opal_pci_tce_kill,			OPAL_PCI_TCE_KILL);
 OPAL_CALL(opal_nmmu_set_ptcr,			OPAL_NMMU_SET_PTCR);
+OPAL_CALL(opal_xive_reset,			OPAL_XIVE_RESET);
+OPAL_CALL(opal_xive_get_irq_info,		OPAL_XIVE_GET_IRQ_INFO);
+OPAL_CALL(opal_xive_get_irq_config,		OPAL_XIVE_GET_IRQ_CONFIG);
+OPAL_CALL(opal_xive_set_irq_config,		OPAL_XIVE_SET_IRQ_CONFIG);
+OPAL_CALL(opal_xive_get_queue_info,		OPAL_XIVE_GET_QUEUE_INFO);
+OPAL_CALL(opal_xive_set_queue_info,		OPAL_XIVE_SET_QUEUE_INFO);
+OPAL_CALL(opal_xive_donate_page,		OPAL_XIVE_DONATE_PAGE);
+OPAL_CALL(opal_xive_alloc_vp_block,		OPAL_XIVE_ALLOCATE_VP_BLOCK);
+OPAL_CALL(opal_xive_free_vp_block,		OPAL_XIVE_FREE_VP_BLOCK);
+OPAL_CALL(opal_xive_allocate_irq,		OPAL_XIVE_ALLOCATE_IRQ);
+OPAL_CALL(opal_xive_free_irq,			OPAL_XIVE_FREE_IRQ);
+OPAL_CALL(opal_xive_get_vp_info,		OPAL_XIVE_GET_VP_INFO);
+OPAL_CALL(opal_xive_set_vp_info,		OPAL_XIVE_SET_VP_INFO);
+OPAL_CALL(opal_xive_sync,			OPAL_XIVE_SYNC);
+OPAL_CALL(opal_xive_dump,			OPAL_XIVE_DUMP);
+OPAL_CALL(opal_npu_init_context,		OPAL_NPU_INIT_CONTEXT);
+OPAL_CALL(opal_npu_destroy_context,		OPAL_NPU_DESTROY_CONTEXT);
+OPAL_CALL(opal_npu_map_lpar,			OPAL_NPU_MAP_LPAR);

@@ -990,7 +990,7 @@ static void team_port_disable(struct team *team,
 #define TEAM_ENC_FEATURES	(NETIF_F_HW_CSUM | NETIF_F_SG | \
 				 NETIF_F_RXCSUM | NETIF_F_ALL_TSO)
 
-static void ___team_compute_features(struct team *team)
+static void __team_compute_features(struct team *team)
 {
 	struct team_port *port;
 	u32 vlan_features = TEAM_VLAN_FEATURES & NETIF_F_ALL_FOR_ALL;
@@ -1023,16 +1023,10 @@ static void ___team_compute_features(struct team *team)
 		team->dev->priv_flags |= IFF_XMIT_DST_RELEASE;
 }
 
-static void __team_compute_features(struct team *team)
-{
-	___team_compute_features(team);
-	netdev_change_features(team->dev);
-}
-
 static void team_compute_features(struct team *team)
 {
 	mutex_lock(&team->lock);
-	___team_compute_features(team);
+	__team_compute_features(team);
 	mutex_unlock(&team->lock);
 	netdev_change_features(team->dev);
 }
@@ -1641,6 +1635,7 @@ static void team_uninit(struct net_device *dev)
 	team_notify_peers_fini(team);
 	team_queue_override_fini(team);
 	mutex_unlock(&team->lock);
+	netdev_change_features(dev);
 }
 
 static void team_destructor(struct net_device *dev)
@@ -1928,6 +1923,10 @@ static int team_add_slave(struct net_device *dev, struct net_device *port_dev)
 	mutex_lock(&team->lock);
 	err = team_port_add(team, port_dev);
 	mutex_unlock(&team->lock);
+
+	if (!err)
+		netdev_change_features(dev);
+
 	return err;
 }
 
@@ -1939,6 +1938,10 @@ static int team_del_slave(struct net_device *dev, struct net_device *port_dev)
 	mutex_lock(&team->lock);
 	err = team_port_del(team, port_dev);
 	mutex_unlock(&team->lock);
+
+	if (!err)
+		netdev_change_features(dev);
+
 	return err;
 }
 
@@ -2358,8 +2361,10 @@ start_again:
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_OPTIONS_GET);
-	if (!hdr)
+	if (!hdr) {
+		nlmsg_free(skb);
 		return -EMSGSIZE;
+	}
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;
@@ -2471,7 +2476,8 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			goto team_put;
 		}
 		err = nla_parse_nested(opt_attrs, TEAM_ATTR_OPTION_MAX,
-				       nl_option, team_nl_option_policy);
+				       nl_option, team_nl_option_policy,
+				       info->extack);
 		if (err)
 			goto team_put;
 		if (!opt_attrs[TEAM_ATTR_OPTION_NAME] ||
@@ -2631,8 +2637,10 @@ start_again:
 
 	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_PORT_LIST_GET);
-	if (!hdr)
+	if (!hdr) {
+		nlmsg_free(skb);
 		return -EMSGSIZE;
+	}
 
 	if (nla_put_u32(skb, TEAM_ATTR_TEAM_IFINDEX, team->dev->ifindex))
 		goto nla_put_failure;

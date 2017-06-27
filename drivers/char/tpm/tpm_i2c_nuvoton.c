@@ -49,9 +49,10 @@
  */
 #define TPM_I2C_MAX_BUF_SIZE           32
 #define TPM_I2C_RETRY_COUNT            32
-#define TPM_I2C_BUS_DELAY              1       /* msec */
-#define TPM_I2C_RETRY_DELAY_SHORT      2       /* msec */
-#define TPM_I2C_RETRY_DELAY_LONG       10      /* msec */
+#define TPM_I2C_BUS_DELAY              1000      	/* usec */
+#define TPM_I2C_RETRY_DELAY_SHORT      (2 * 1000)	/* usec */
+#define TPM_I2C_RETRY_DELAY_LONG       (10 * 1000) 	/* usec */
+#define TPM_I2C_DELAY_RANGE            300		/* usec */
 
 #define OF_IS_TPM2 ((void *)1)
 #define I2C_IS_TPM2 1
@@ -123,7 +124,9 @@ static s32 i2c_nuvoton_write_status(struct i2c_client *client, u8 data)
 	/* this causes the current command to be aborted */
 	for (i = 0, status = -1; i < TPM_I2C_RETRY_COUNT && status < 0; i++) {
 		status = i2c_nuvoton_write_buf(client, TPM_STS, 1, &data);
-		msleep(TPM_I2C_BUS_DELAY);
+		if (status < 0)
+			usleep_range(TPM_I2C_BUS_DELAY, TPM_I2C_BUS_DELAY
+				     + TPM_I2C_DELAY_RANGE);
 	}
 	return status;
 }
@@ -160,7 +163,8 @@ static int i2c_nuvoton_get_burstcount(struct i2c_client *client,
 			burst_count = min_t(u8, TPM_I2C_MAX_BUF_SIZE, data);
 			break;
 		}
-		msleep(TPM_I2C_BUS_DELAY);
+		usleep_range(TPM_I2C_BUS_DELAY, TPM_I2C_BUS_DELAY
+			     + TPM_I2C_DELAY_RANGE);
 	} while (time_before(jiffies, stop));
 
 	return burst_count;
@@ -203,13 +207,17 @@ static int i2c_nuvoton_wait_for_stat(struct tpm_chip *chip, u8 mask, u8 value,
 			return 0;
 
 		/* use polling to wait for the event */
-		ten_msec = jiffies + msecs_to_jiffies(TPM_I2C_RETRY_DELAY_LONG);
+		ten_msec = jiffies + usecs_to_jiffies(TPM_I2C_RETRY_DELAY_LONG);
 		stop = jiffies + timeout;
 		do {
 			if (time_before(jiffies, ten_msec))
-				msleep(TPM_I2C_RETRY_DELAY_SHORT);
+				usleep_range(TPM_I2C_RETRY_DELAY_SHORT,
+					     TPM_I2C_RETRY_DELAY_SHORT
+					     + TPM_I2C_DELAY_RANGE);
 			else
-				msleep(TPM_I2C_RETRY_DELAY_LONG);
+				usleep_range(TPM_I2C_RETRY_DELAY_LONG,
+					     TPM_I2C_RETRY_DELAY_LONG
+					     + TPM_I2C_DELAY_RANGE);
 			status_valid = i2c_nuvoton_check_status(chip, mask,
 								value);
 			if (status_valid)

@@ -48,7 +48,7 @@ struct nd_namespace_common {
 	struct device dev;
 	struct device *claim;
 	int (*rw_bytes)(struct nd_namespace_common *, resource_size_t offset,
-			void *buf, size_t size, int rw);
+			void *buf, size_t size, int rw, unsigned long flags);
 };
 
 static inline struct nd_namespace_common *to_ndns(struct device *dev)
@@ -134,9 +134,10 @@ static inline struct nd_namespace_blk *to_nd_namespace_blk(const struct device *
  * @buf is up-to-date upon return from this routine.
  */
 static inline int nvdimm_read_bytes(struct nd_namespace_common *ndns,
-		resource_size_t offset, void *buf, size_t size)
+		resource_size_t offset, void *buf, size_t size,
+		unsigned long flags)
 {
-	return ndns->rw_bytes(ndns, offset, buf, size, READ);
+	return ndns->rw_bytes(ndns, offset, buf, size, READ, flags);
 }
 
 /**
@@ -152,9 +153,10 @@ static inline int nvdimm_read_bytes(struct nd_namespace_common *ndns,
  * to media is handled internal to the @ndns driver, if at all.
  */
 static inline int nvdimm_write_bytes(struct nd_namespace_common *ndns,
-		resource_size_t offset, void *buf, size_t size)
+		resource_size_t offset, void *buf, size_t size,
+		unsigned long flags)
 {
-	return ndns->rw_bytes(ndns, offset, buf, size, WRITE);
+	return ndns->rw_bytes(ndns, offset, buf, size, WRITE, flags);
 }
 
 #define MODULE_ALIAS_ND_DEVICE(type) \

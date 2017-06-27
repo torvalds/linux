@@ -33,7 +33,13 @@ struct i915_gem_timeline;
 
 struct intel_timeline {
 	u64 fence_context;
-	u32 last_submitted_seqno;
+	u32 seqno;
+
+	/**
+	 * Count of outstanding requests, from the time they are constructed
+	 * to the moment they are retired. Loosely coupled to hardware.
+	 */
+	u32 inflight_seqnos;
 
 	spinlock_t lock;
 
@@ -56,7 +62,6 @@ struct intel_timeline {
 
 struct i915_gem_timeline {
 	struct list_head link;
-	atomic_t seqno;
 
 	struct drm_i915_private *i915;
 	const char *name;

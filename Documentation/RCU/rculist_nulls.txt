@@ -1,5 +1,5 @@
 Using hlist_nulls to protect read-mostly linked lists and
-objects using SLAB_DESTROY_BY_RCU allocations.
+objects using SLAB_TYPESAFE_BY_RCU allocations.
 
 Please read the basics in Documentation/RCU/listRCU.txt
 
@@ -7,7 +7,7 @@ Using special makers (called 'nulls') is a convenient way
 to solve following problem :
 
 A typical RCU linked list managing objects which are
-allocated with SLAB_DESTROY_BY_RCU kmem_cache can
+allocated with SLAB_TYPESAFE_BY_RCU kmem_cache can
 use following algos :
 
 1) Lookup algo
@@ -96,7 +96,7 @@ unlock_chain(); // typically a spin_unlock()
 3) Remove algo
 --------------
 Nothing special here, we can use a standard RCU hlist deletion.
-But thanks to SLAB_DESTROY_BY_RCU, beware a deleted object can be reused
+But thanks to SLAB_TYPESAFE_BY_RCU, beware a deleted object can be reused
 very very fast (before the end of RCU grace period)
 
 if (put_last_reference_on(obj) {

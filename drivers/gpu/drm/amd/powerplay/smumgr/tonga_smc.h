@@ -56,5 +56,7 @@ uint32_t tonga_get_mac_definition(uint32_t value);
 int tonga_process_firmware_header(struct pp_hwmgr *hwmgr);
 int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr);
 bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr);
+int tonga_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
+		struct amd_pp_profile *request);
 #endif
 

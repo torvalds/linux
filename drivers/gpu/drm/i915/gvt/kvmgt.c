@@ -295,10 +295,12 @@ static ssize_t description_show(struct kobject *kobj, struct device *dev,
 		return 0;
 
 	return sprintf(buf, "low_gm_size: %dMB\nhigh_gm_size: %dMB\n"
-		       "fence: %d\nresolution: %s\n",
+		       "fence: %d\nresolution: %s\n"
+		       "weight: %d\n",
 		       BYTES_TO_MB(type->low_gm_size),
 		       BYTES_TO_MB(type->high_gm_size),
-		       type->fence, vgpu_edid_str(type->resolution));
+		       type->fence, vgpu_edid_str(type->resolution),
+		       type->weight);
 }
 
 static MDEV_TYPE_ATTR_RO(available_instances);
@@ -544,6 +546,8 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	if (ret)
 		goto undo_group;
 
+	intel_gvt_ops->vgpu_activate(vgpu);
+
 	atomic_set(&vgpu->vdev.released, 0);
 	return ret;
 
@@ -568,6 +572,8 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 
 	if (atomic_cmpxchg(&vgpu->vdev.released, 0, 1))
 		return;
+
+	intel_gvt_ops->vgpu_deactivate(vgpu);
 
 	ret = vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_IOMMU_NOTIFY,
 					&vgpu->vdev.iommu_notifier);
@@ -1146,8 +1152,40 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 	return 0;
 }
 
+static ssize_t
+vgpu_id_show(struct device *dev, struct device_attribute *attr,
+	     char *buf)
+{
+	struct mdev_device *mdev = mdev_from_dev(dev);
+
+	if (mdev) {
+		struct intel_vgpu *vgpu = (struct intel_vgpu *)
+			mdev_get_drvdata(mdev);
+		return sprintf(buf, "%d\n", vgpu->id);
+	}
+	return sprintf(buf, "\n");
+}
+
+static DEVICE_ATTR_RO(vgpu_id);
+
+static struct attribute *intel_vgpu_attrs[] = {
+	&dev_attr_vgpu_id.attr,
+	NULL
+};
+
+static const struct attribute_group intel_vgpu_group = {
+	.name = "intel_vgpu",
+	.attrs = intel_vgpu_attrs,
+};
+
+static const struct attribute_group *intel_vgpu_groups[] = {
+	&intel_vgpu_group,
+	NULL,
+};
+
 static const struct mdev_parent_ops intel_vgpu_ops = {
 	.supported_type_groups	= intel_vgpu_type_groups,
+	.mdev_attr_groups       = intel_vgpu_groups,
 	.create			= intel_vgpu_create,
 	.remove			= intel_vgpu_remove,
 
@@ -1340,13 +1378,6 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
-	struct intel_vgpu *vgpu = info->vgpu;
-
-	if (!info) {
-		gvt_vgpu_err("kvmgt_guest_info invalid\n");
-		return false;
-	}
-
 	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
 	kvm_put_kvm(info->kvm);
 	kvmgt_protect_table_destroy(info);

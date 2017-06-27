@@ -2000,10 +2000,8 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 	u32 param_size, char *param)
 {
 	int ret;
-	unsigned char *data = NULL;
 	u32 header = 0;
 	u32 payload_size = 0, transfer_parameter_size = 0;
-	dma_addr_t dma_addr = 0;
 	struct sst_hsw_transfer_parameter *parameter;
 	struct device *dev = hsw->dev;
 
@@ -2046,10 +2044,6 @@ int sst_hsw_module_set_param(struct sst_hsw *hsw,
 		dev_err(dev, "ipc: module set parameter failed - %d\n", ret);
 
 	kfree(parameter);
-
-	if (data)
-		dma_free_coherent(hsw->dsp->dma_dev,
-			param_size, (void *)data, dma_addr);
 
 	return ret;
 }

@@ -84,7 +84,7 @@ struct pca954x {
 
 	struct irq_domain *irq;
 	unsigned int irq_mask;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 };
 
 /* Provide specs for the PCA954x types we know about */
@@ -252,13 +252,13 @@ static void pca954x_irq_mask(struct irq_data *idata)
 	unsigned int pos = idata->hwirq;
 	unsigned long flags;
 
-	spin_lock_irqsave(&data->lock, flags);
+	raw_spin_lock_irqsave(&data->lock, flags);
 
 	data->irq_mask &= ~BIT(pos);
 	if (!data->irq_mask)
 		disable_irq(data->client->irq);
 
-	spin_unlock_irqrestore(&data->lock, flags);
+	raw_spin_unlock_irqrestore(&data->lock, flags);
 }
 
 static void pca954x_irq_unmask(struct irq_data *idata)
@@ -267,13 +267,13 @@ static void pca954x_irq_unmask(struct irq_data *idata)
 	unsigned int pos = idata->hwirq;
 	unsigned long flags;
 
-	spin_lock_irqsave(&data->lock, flags);
+	raw_spin_lock_irqsave(&data->lock, flags);
 
 	if (!data->irq_mask)
 		enable_irq(data->client->irq);
 	data->irq_mask |= BIT(pos);
 
-	spin_unlock_irqrestore(&data->lock, flags);
+	raw_spin_unlock_irqrestore(&data->lock, flags);
 }
 
 static int pca954x_irq_set_type(struct irq_data *idata, unsigned int type)
@@ -299,7 +299,7 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 	if (!data->chip->has_irq || client->irq <= 0)
 		return 0;
 
-	spin_lock_init(&data->lock);
+	raw_spin_lock_init(&data->lock);
 
 	data->irq = irq_domain_add_linear(client->dev.of_node,
 					  data->chip->nchans,
@@ -413,13 +413,8 @@ static int pca954x_probe(struct i2c_client *client,
 				   idle_disconnect_dt) << num;
 
 		ret = i2c_mux_add_adapter(muxc, force, num, class);
-
-		if (ret) {
-			dev_err(&client->dev,
-				"failed to register multiplexed adapter"
-				" %d as bus %d\n", num, force);
+		if (ret)
 			goto fail_del_adapters;
-		}
 	}
 
 	dev_info(&client->dev,

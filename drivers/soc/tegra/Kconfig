@@ -12,6 +12,8 @@ config ARCH_TEGRA_2x_SOC
 	select PINCTRL_TEGRA20
 	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PL310_ERRATA_769419 if CACHE_L2X0
+	select SOC_TEGRA_FLOWCTRL
+	select SOC_TEGRA_PMC
 	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
@@ -23,6 +25,8 @@ config ARCH_TEGRA_3x_SOC
 	select ARM_ERRATA_764369 if SMP
 	select PINCTRL_TEGRA30
 	select PL310_ERRATA_769419 if CACHE_L2X0
+	select SOC_TEGRA_FLOWCTRL
+	select SOC_TEGRA_PMC
 	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra T30 processor family, based on the
@@ -33,6 +37,8 @@ config ARCH_TEGRA_114_SOC
 	select ARM_ERRATA_798181 if SMP
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL_TEGRA114
+	select SOC_TEGRA_FLOWCTRL
+	select SOC_TEGRA_PMC
 	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra T114 processor family, based on the
@@ -42,6 +48,8 @@ config ARCH_TEGRA_124_SOC
 	bool "Enable support for Tegra124 family"
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL_TEGRA124
+	select SOC_TEGRA_FLOWCTRL
+	select SOC_TEGRA_PMC
 	select TEGRA_TIMER
 	help
 	  Support for NVIDIA Tegra T124 processor family, based on the
@@ -55,6 +63,8 @@ if ARM64
 config ARCH_TEGRA_132_SOC
 	bool "NVIDIA Tegra132 SoC"
 	select PINCTRL_TEGRA124
+	select SOC_TEGRA_FLOWCTRL
+	select SOC_TEGRA_PMC
 	help
 	  Enable support for NVIDIA Tegra132 SoC, based on the Denver
 	  ARMv8 CPU.  The Tegra132 SoC is similar to the Tegra124 SoC,
@@ -64,6 +74,8 @@ config ARCH_TEGRA_132_SOC
 config ARCH_TEGRA_210_SOC
 	bool "NVIDIA Tegra210 SoC"
 	select PINCTRL_TEGRA210
+	select SOC_TEGRA_FLOWCTRL
+	select SOC_TEGRA_PMC
 	help
 	  Enable support for the NVIDIA Tegra210 SoC. Also known as Tegra X1,
 	  the Tegra210 has four Cortex-A57 cores paired with four Cortex-A53
@@ -83,6 +95,7 @@ config ARCH_TEGRA_186_SOC
 	select TEGRA_BPMP
 	select TEGRA_HSP_MBOX
 	select TEGRA_IVC
+	select SOC_TEGRA_PMC_TEGRA186
 	help
 	  Enable support for the NVIDIA Tegar186 SoC. The Tegra186 features a
 	  combination of Denver and Cortex-A57 CPU cores and a GPU based on
@@ -93,3 +106,12 @@ config ARCH_TEGRA_186_SOC
 
 endif
 endif
+
+config SOC_TEGRA_FLOWCTRL
+	bool
+
+config SOC_TEGRA_PMC
+	bool
+
+config SOC_TEGRA_PMC_TEGRA186
+	bool

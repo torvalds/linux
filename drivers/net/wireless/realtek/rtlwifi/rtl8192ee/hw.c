@@ -699,9 +699,9 @@ static bool _rtl92ee_llt_table_init(struct ieee80211_hw *hw)
 	u8 txpktbuf_bndy;
 	u8 u8tmp, testcnt = 0;
 
-	txpktbuf_bndy = 0xFA;
+	txpktbuf_bndy = 0xF7;
 
-	rtl_write_dword(rtlpriv, REG_RQPN, 0x80E90808);
+	rtl_write_dword(rtlpriv, REG_RQPN, 0x80E60808);
 
 	rtl_write_byte(rtlpriv, REG_TRXFF_BNDY, txpktbuf_bndy);
 	rtl_write_word(rtlpriv, REG_TRXFF_BNDY + 2, 0x3d00 - 1);

@@ -901,9 +901,8 @@ static void initW6692(struct IsdnCardState *cs, int part)
 	if (part & 1) {
 		cs->setstack_d = setstack_W6692;
 		cs->DC_Close = DC_Close_W6692;
-		cs->dbusytimer.function = (void *) dbusy_timer_handler;
-		cs->dbusytimer.data = (long) cs;
-		init_timer(&cs->dbusytimer);
+		setup_timer(&cs->dbusytimer, (void *)dbusy_timer_handler,
+			    (long)cs);
 		resetW6692(cs);
 		ph_command(cs, W_L1CMD_RST);
 		cs->dc.w6692.ph_state = W_L1CMD_RST;

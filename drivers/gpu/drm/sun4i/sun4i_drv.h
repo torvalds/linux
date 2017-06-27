@@ -18,13 +18,9 @@
 
 struct sun4i_drv {
 	struct sun4i_backend	*backend;
-	struct sun4i_crtc	*crtc;
 	struct sun4i_tcon	*tcon;
 
-	struct drm_plane	*primary;
 	struct drm_fbdev_cma	*fbdev;
-
-	struct sun4i_layer	**layers;
 };
 
 #endif /* _SUN4I_DRV_H_ */
