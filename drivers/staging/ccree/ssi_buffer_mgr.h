@@ -26,7 +26,6 @@
 #include "ssi_config.h"
 #include "ssi_driver.h"
 
-
 enum ssi_req_dma_buf_type {
 	SSI_DMA_BUF_NULL = 0,
 	SSI_DMA_BUF_DLLI,

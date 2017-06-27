@@ -23,7 +23,6 @@
 #include "ssi_fips_local.h"
 #include "ssi_driver.h"
 
-
 static bool tee_error;
 module_param(tee_error, bool, 0644);
 MODULE_PARM_DESC(tee_error, "Simulate TEE library failure flag: 0 - no error (default), 1 - TEE error occured ");
@@ -90,5 +89,4 @@ int ssi_fips_ext_set_error(enum cc_fips_error err)
 	fips_error = err;
 	return 0;
 }
-
 

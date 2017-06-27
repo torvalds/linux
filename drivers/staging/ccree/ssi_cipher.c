@@ -47,6 +47,7 @@ struct cc_user_key_info {
 	u8 *key;
 	dma_addr_t key_dma_addr;
 };
+
 struct cc_hw_key_info {
 	enum cc_hw_crypto_key key1_slot;
 	enum cc_hw_crypto_key key2_slot;
@@ -66,7 +67,6 @@ struct ssi_ablkcipher_ctx {
 };
 
 static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __iomem *cc_base);
-
 
 static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size) {
 	switch (ctx_p->flow_mode) {
@@ -107,7 +107,6 @@ static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size) {
 	}
 	return -EINVAL;
 }
-
 
 static int validate_data_size(struct ssi_ablkcipher_ctx *ctx_p, unsigned int size) {
 	switch (ctx_p->flow_mode) {
@@ -252,7 +251,6 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 	SSI_LOG_DEBUG("Free key buffer in context. key=@%p\n", ctx_p->user.key);
 }
 
-
 struct tdes_keys {
 	u8	key1[DES_KEY_SIZE];
 	u8	key2[DES_KEY_SIZE];
@@ -396,8 +394,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		return -EINVAL;
 	}
 
-
-
 	/* STAT_PHASE_1: Copy key to ctx */
 	dma_sync_single_for_cpu(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
@@ -422,6 +418,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 			int key_len = keylen >> 1;
 			int err;
 			SHASH_DESC_ON_STACK(desc, ctx_p->shash_tfm);
+
 			desc->tfm = ctx_p->shash_tfm;
 
 			err = crypto_shash_digest(desc, ctx_p->user.key, key_len, ctx_p->user.key + key_len);
@@ -434,7 +431,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	dma_sync_single_for_device(dev, ctx_p->user.key_dma_addr,
 					max_key_buf_size, DMA_TO_DEVICE);
 	ctx_p->keylen = keylen;
-
 
 	 SSI_LOG_DEBUG("ssi_blkcipher_setkey: return safely");
 	return 0;
@@ -598,7 +594,6 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 	set_setup_mode(&desc[*seq_size], SETUP_LOAD_STATE0);
 	(*seq_size)++;
 
-
 	/* Set state */
 	hw_desc_init(&desc[*seq_size]);
 	set_din_type(&desc[*seq_size], DMA_DLLI, req_ctx->gen_ctx.iv_dma_addr,
@@ -724,7 +719,6 @@ static int ssi_blkcipher_complete(struct device *dev,
 
 	ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
 
-
 	/*Set the inflight couter value to local variable*/
 	inflight_counter =  ctx_p->drvdata->inflight_counter;
 	/*Decrease the inflight counter*/
@@ -790,7 +784,6 @@ static int ssi_blkcipher_process(
 	/* Setup request context */
 	req_ctx->gen_ctx.op_type = direction;
 
-
 	/* STAT_PHASE_1: Map buffers */
 
 	rc = ssi_buffer_mgr_map_blkcipher_request(ctx_p->drvdata, req_ctx, ivsize, nbytes, info, src, dst);
@@ -798,7 +791,6 @@ static int ssi_blkcipher_process(
 		SSI_LOG_ERR("map_request() failed\n");
 		goto exit_process;
 	}
-
 
 	/* STAT_PHASE_2: Create sequence */
 
@@ -878,7 +870,6 @@ static int ssi_ablkcipher_init(struct crypto_tfm *tfm)
 	return ssi_blkcipher_init(tfm);
 }
 
-
 static int ssi_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 				const u8 *key,
 				unsigned int keylen)
@@ -910,7 +901,6 @@ static int ssi_ablkcipher_decrypt(struct ablkcipher_request *req)
 	req_ctx->is_giv = false;
 	return ssi_blkcipher_process(tfm, req_ctx, req->dst, req->src, req->nbytes, req->info, ivsize, (void *)req, DRV_CRYPTO_DIRECTION_DECRYPT);
 }
-
 
 /* DX Block cipher alg */
 static struct ssi_alg_template blkcipher_algs[] = {
@@ -1290,6 +1280,7 @@ int ssi_ablkcipher_free(struct ssi_drvdata *drvdata)
 	struct ssi_blkcipher_handle *blkcipher_handle =
 						drvdata->blkcipher_handle;
 	struct device *dev;
+
 	dev = &drvdata->plat_dev->dev;
 
 	if (blkcipher_handle) {
@@ -1306,8 +1297,6 @@ int ssi_ablkcipher_free(struct ssi_drvdata *drvdata)
 	}
 	return 0;
 }
-
-
 
 int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 {

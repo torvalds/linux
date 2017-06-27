@@ -17,7 +17,6 @@
 #include "ssi_driver.h"
 #include "ssi_sram_mgr.h"
 
-
 /**
  * struct ssi_sram_mgr_ctx -Internal RAM context manager
  * @sram_free_offset:   the offset to the non-allocated area
@@ -25,7 +24,6 @@
 struct ssi_sram_mgr_ctx {
 	ssi_sram_addr_t sram_free_offset;
 };
-
 
 /**
  * ssi_sram_mgr_fini() - Cleanup SRAM pool.

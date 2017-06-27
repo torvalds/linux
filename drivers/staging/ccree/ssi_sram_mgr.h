@@ -17,7 +17,6 @@
 #ifndef __SSI_SRAM_MGR_H__
 #define __SSI_SRAM_MGR_H__
 
-
 #ifndef SSI_CC_SRAM_SIZE
 #define SSI_CC_SRAM_SIZE 4096
 #endif

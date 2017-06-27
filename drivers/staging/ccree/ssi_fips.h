@@ -29,7 +29,6 @@ enum cc_fips_state {
 	CC_FIPS_STATE_RESERVE32B = S32_MAX
 };
 
-
 enum cc_fips_error {
 	CC_REE_FIPS_ERROR_OK = 0,
 	CC_REE_FIPS_ERROR_GENERAL,
@@ -54,8 +53,6 @@ enum cc_fips_error {
 	CC_REE_FIPS_ERROR_ROM_CHECKSUM,
 	CC_REE_FIPS_ERROR_RESERVE32B = S32_MAX
 };
-
-
 
 int ssi_fips_get_state(enum cc_fips_state *p_state);
 int ssi_fips_get_error(enum cc_fips_error *p_err);

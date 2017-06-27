@@ -108,7 +108,6 @@ static DEFINE_SPINLOCK(stat_lock);
 static struct stat_item stat_host_db[MAX_STAT_OP_TYPES][MAX_STAT_PHASES];
 static struct stat_item stat_cc_db[MAX_STAT_OP_TYPES][MAX_STAT_PHASES];
 
-
 static void init_db(struct stat_item item[MAX_STAT_OP_TYPES][MAX_STAT_PHASES])
 {
 	unsigned int i, j;
@@ -151,7 +150,6 @@ static void display_db(struct stat_item item[MAX_STAT_OP_TYPES][MAX_STAT_PHASES]
 		}
 	}
 }
-
 
 /**************************************
  * Attributes show functions section  *
@@ -277,8 +275,6 @@ void display_all_stat_db(void)
 	display_db(stat_cc_db);
 }
 #endif /*CC_CYCLE_COUNT*/
-
-
 
 static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)

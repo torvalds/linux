@@ -42,7 +42,6 @@
 #define GET_DMA_BUFFER_TYPE(buff_type)
 #endif
 
-
 enum dma_buffer_type {
 	DMA_NULL_TYPE = -1,
 	DMA_SGL_TYPE = 1,
@@ -80,6 +79,7 @@ static unsigned int ssi_buffer_mgr_get_sgl_nents(
 	struct scatterlist *sg_list, unsigned int nbytes, u32 *lbytes, bool *is_chained)
 {
 	unsigned int nents = 0;
+
 	while (nbytes != 0) {
 		if (sg_is_chain(sg_list)) {
 			SSI_LOG_ERR("Unexpected chained entry "
@@ -180,7 +180,6 @@ static inline int ssi_buffer_mgr_render_buff_to_mlli(
 	(*curr_nents)++;
 	return 0;
 }
-
 
 static inline int ssi_buffer_mgr_render_scatterlist_to_mlli(
 	struct scatterlist *sgl, u32 sgl_data_len, u32 sglOffset, u32 *curr_nents,
@@ -322,6 +321,7 @@ ssi_buffer_mgr_dma_map_sg(struct device *dev, struct scatterlist *sg, u32 nents,
 {
 	u32 i, j;
 	struct scatterlist *l_sg = sg;
+
 	for (i = 0; i < nents; i++) {
 		if (!l_sg)
 			break;
@@ -440,7 +440,6 @@ ssi_aead_handle_config_buf(struct device *dev,
 	}
 	return 0;
 }
-
 
 static inline int ssi_ahash_handle_curr_buf(struct device *dev,
 					   struct ahash_req_ctx *areq_ctx,
@@ -700,6 +699,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 	    likely(req->src == req->dst))
 	{
 		u32 size_to_skip = req->assoclen;
+
 		if (areq_ctx->is_gcm4543)
 			size_to_skip += crypto_aead_ivsize(tfm);
 
@@ -1027,6 +1027,7 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 			 * MAC verification upon request completion
 			 */
 			  u32 size_to_skip = req->assoclen;
+
 			  if (areq_ctx->is_gcm4543)
 				  size_to_skip += crypto_aead_ivsize(tfm);
 

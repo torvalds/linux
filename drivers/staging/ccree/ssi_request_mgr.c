@@ -50,6 +50,7 @@ struct ssi_request_mgr_handle {
 	u8 *dummy_comp_buff;
 	dma_addr_t dummy_comp_buff_dma;
 	struct cc_hw_desc monitor_desc;
+
 	volatile unsigned long monitor_lock;
 #ifdef COMP_IN_WQ
 	struct workqueue_struct *workq;
@@ -135,7 +136,6 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	req_mgr_h->min_free_hw_slots = req_mgr_h->hw_queue_size;
 	req_mgr_h->max_used_sw_slots = 0;
 
-
 	/* Allocate DMA word for "dummy" completion descriptor use */
 	req_mgr_h->dummy_comp_buff = dma_alloc_coherent(&drvdata->plat_dev->dev,
 		sizeof(u32), &req_mgr_h->dummy_comp_buff_dma, GFP_KERNEL);
@@ -192,9 +192,9 @@ static inline void enqueue_seq(
 static void request_mgr_complete(struct device *dev, void *dx_compl_h, void __iomem *cc_base)
 {
 	struct completion *this_compl = dx_compl_h;
+
 	complete(this_compl);
 }
-
 
 static inline int request_mgr_queues_status_check(
 		struct ssi_request_mgr_handle *req_mgr_h,
@@ -389,7 +389,6 @@ int send_request(
 	}
 }
 
-
 /*!
  * Enqueue caller request to crypto hardware during init process.
  * assume this function is not called in middle of a flow,
@@ -425,7 +424,6 @@ int send_request_init(
 
 	return 0;
 }
-
 
 void complete_request(struct ssi_drvdata *drvdata)
 {
@@ -478,6 +476,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		{
 			u32 axi_err;
 			int i;
+
 			SSI_LOG_INFO("Delay\n");
 			for (i = 0; i < 1000000; i++)
 				axi_err = READ_REGISTER(drvdata->cc_base + CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_ERR));
@@ -515,8 +514,6 @@ static void comp_handler(unsigned long devarg)
 						drvdata->request_mgr_handle;
 
 	u32 irq;
-
-
 
 	irq = (drvdata->irq & SSI_COMP_IRQ_MASK);
 

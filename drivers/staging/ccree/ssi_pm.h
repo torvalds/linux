@@ -20,13 +20,10 @@
 #ifndef __SSI_POWER_MGR_H__
 #define __SSI_POWER_MGR_H__
 
-
 #include "ssi_config.h"
 #include "ssi_driver.h"
 
-
 #define SSI_SUSPEND_TIMEOUT 3000
-
 
 int ssi_power_mgr_init(struct ssi_drvdata *drvdata);
 

@@ -14,7 +14,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include "ssi_config.h"
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -30,12 +29,10 @@
 #include "ssi_hash.h"
 #include "ssi_pm.h"
 
-
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 
 #define POWER_DOWN_ENABLE 0x01
 #define POWER_DOWN_DISABLE 0x00
-
 
 int ssi_power_mgr_runtime_suspend(struct device *dev)
 {
@@ -118,8 +115,6 @@ int ssi_power_mgr_runtime_put_suspend(struct device *dev)
 }
 
 #endif
-
-
 
 int ssi_power_mgr_init(struct ssi_drvdata *drvdata)
 {

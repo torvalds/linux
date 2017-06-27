@@ -25,12 +25,10 @@
 #include <crypto/algapi.h>
 #include <crypto/ctr.h>
 
-
 /* mac_cmp - HW writes 8 B but all bytes hold the same value */
 #define ICV_CMP_SIZE 8
 #define CCM_CONFIG_BUF_SIZE (AES_BLOCK_SIZE * 3)
 #define MAX_MAC_SIZE MAX(SHA256_DIGEST_SIZE, AES_BLOCK_SIZE)
-
 
 /* defines for AES GCM configuration buffer */
 #define GCM_BLOCK_LEN_SIZE 8
@@ -39,8 +37,6 @@
 #define GCM_BLOCK_RFC4_IV_SIZE		8  /* IV size for rfc's */
 #define GCM_BLOCK_RFC4_NONCE_OFFSET	0
 #define GCM_BLOCK_RFC4_NONCE_SIZE	4
-
-
 
 /* Offsets into AES CCM configuration buffer */
 #define CCM_B0_OFFSET 0

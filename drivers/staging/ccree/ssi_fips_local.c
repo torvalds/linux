@@ -26,7 +26,6 @@
 #include "ssi_driver.h"
 #include "cc_hal.h"
 
-
 #define FIPS_POWER_UP_TEST_CIPHER	1
 #define FIPS_POWER_UP_TEST_CMAC		1
 #define FIPS_POWER_UP_TEST_HASH		1
@@ -49,7 +48,6 @@ struct ssi_fips_handle {
 #endif
 };
 
-
 extern int ssi_fips_get_state(enum cc_fips_state_t *p_state);
 extern int ssi_fips_get_error(enum cc_fips_error *p_err);
 extern int ssi_fips_ext_set_state(enum cc_fips_state_t state);
@@ -64,7 +62,6 @@ extern enum cc_fips_error ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdat
 extern enum cc_fips_error ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
 extern size_t ssi_fips_max_mem_alloc_size(void);
 
-
 /* The function called once at driver entry point to check whether TEE FIPS error occured.*/
 static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 {
@@ -78,7 +75,6 @@ static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 	return CC_REE_FIPS_ERROR_FROM_TEE;
 }
 
-
 /*
  * This function should push the FIPS REE library status towards the TEE library.
  * By writing the error state to HOST_GPR0 register. The function is called from
@@ -87,13 +83,12 @@ static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, enum cc_fips_error err)
 {
 	void __iomem *cc_base = drvdata->cc_base;
+
 	if (err == CC_REE_FIPS_ERROR_OK)
 		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_OK));
 	else
 		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_ERROR));
 }
-
-
 
 void ssi_fips_fini(struct ssi_drvdata *drvdata)
 {
@@ -127,8 +122,6 @@ void fips_handler(struct ssi_drvdata *drvdata)
 #endif
 }
 
-
-
 #ifdef COMP_IN_WQ
 static void fips_wq_handler(struct work_struct *work)
 {
@@ -160,7 +153,6 @@ static void fips_dsr(unsigned long devarg)
 		CC_HAL_READ_REGISTER(
 		CC_REG_OFFSET(HOST_RGF, HOST_IMR)) & ~irq);
 }
-
 
 enum cc_fips_error cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 {
@@ -227,8 +219,6 @@ enum cc_fips_error cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 	return fips_error;
 }
 
-
-
 /* The function checks if FIPS supported and FIPS error exists.*
  * It should be used in every driver API.
  */
@@ -246,7 +236,6 @@ int ssi_fips_check_fips_error(void)
 	}
 	return 0;
 }
-
 
 /* The function sets the REE FIPS state.*
  * It should be used while driver is being loaded.
@@ -292,7 +281,6 @@ int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, enum cc_fips_error err)
 
 	return rc;
 }
-
 
 /* The function called once at driver entry point .*/
 int ssi_fips_init(struct ssi_drvdata *p_drvdata)

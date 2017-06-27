@@ -26,7 +26,6 @@
 #include "ssi_driver.h"
 #include "ssi_buffer_mgr.h"
 
-
 /* Crypto cipher flags */
 #define CC_CRYPTO_CIPHER_KEY_KFDE0    (1 << 0)
 #define CC_CRYPTO_CIPHER_KEY_KFDE1    (1 << 1)
@@ -35,7 +34,6 @@
 #define CC_CRYPTO_CIPHER_DU_SIZE_512B (1 << 4)
 
 #define CC_CRYPTO_CIPHER_KEY_KFDE_MASK (CC_CRYPTO_CIPHER_KEY_KFDE0 | CC_CRYPTO_CIPHER_KEY_KFDE1 | CC_CRYPTO_CIPHER_KEY_KFDE2 | CC_CRYPTO_CIPHER_KEY_KFDE3)
-
 
 struct blkcipher_req_ctx {
 	struct async_gen_req_ctx gen_ctx;
@@ -49,8 +47,6 @@ struct blkcipher_req_ctx {
 	struct mlli_params mlli_params;
 };
 
-
-
 int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata);
 
 int ssi_ablkcipher_free(struct ssi_drvdata *drvdata);
@@ -62,7 +58,6 @@ int ssi_ablkcipher_free(struct ssi_drvdata *drvdata);
 #define CRYPTO_ALG_BULK_MASK	(CRYPTO_ALG_BULK_DU_512 |\
 				CRYPTO_ALG_BULK_DU_4096)
 #endif /* CRYPTO_ALG_BULK_MASK */
-
 
 #ifdef CRYPTO_TFM_REQ_HW_KEY
 
@@ -84,6 +79,5 @@ static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
 }
 
 #endif /* CRYPTO_TFM_REQ_HW_KEY */
-
 
 #endif /*__SSI_CIPHER_H__*/

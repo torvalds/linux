@@ -73,7 +73,6 @@
 #include "ssi_pm.h"
 #include "ssi_fips_local.h"
 
-
 #ifdef DX_DUMP_BYTES
 void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
 {
@@ -273,7 +272,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 	SSI_LOG_DEBUG("CC registers mapped from %pa to 0x%p\n", &new_drvdata->res_mem->start, cc_base);
 	new_drvdata->cc_base = cc_base;
-
 
 	/* Then IRQ */
 	new_drvdata->res_irq = platform_get_resource(plat_dev, IORESOURCE_IRQ, 0);
@@ -546,6 +544,7 @@ static int cc7x_remove(struct platform_device *plat_dev)
 
 	return 0;
 }
+
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 static struct dev_pm_ops arm_cc7x_driver_pm = {
 	SET_RUNTIME_PM_OPS(ssi_power_mgr_runtime_suspend, ssi_power_mgr_runtime_resume, NULL)
@@ -557,7 +556,6 @@ static struct dev_pm_ops arm_cc7x_driver_pm = {
 #else
 #define	DX_DRIVER_RUNTIME_PM	NULL
 #endif
-
 
 #ifdef CONFIG_OF
 static const struct of_device_id arm_cc7x_dev_of_match[] = {

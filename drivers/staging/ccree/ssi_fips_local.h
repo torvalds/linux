@@ -17,7 +17,6 @@
 #ifndef __SSI_FIPS_LOCAL_H__
 #define __SSI_FIPS_LOCAL_H__
 
-
 #ifdef CONFIG_CCX7REE_FIPS_SUPPORT
 
 #include "ssi_fips.h"
@@ -28,11 +27,13 @@ struct ssi_drvdata;
 		return -ENOEXEC;\
 	} \
 }
+
 #define CHECK_AND_RETURN_VOID_UPON_FIPS_ERROR() {\
 	if (ssi_fips_check_fips_error() != 0) {\
 		return;\
 	} \
 }
+
 #define SSI_FIPS_INIT(p_drvData)  (ssi_fips_init(p_drvData))
 #define SSI_FIPS_FINI(p_drvData)  (ssi_fips_fini(p_drvData))
 
@@ -61,7 +62,6 @@ static inline void ssi_fips_fini(struct ssi_drvdata *drvdata) {}
 void fips_handler(struct ssi_drvdata *drvdata);
 
 #endif  /* CONFIG_CC7XXREE_FIPS_SUPPORT */
-
 
 #endif  /*__SSI_FIPS_LOCAL_H__*/
 

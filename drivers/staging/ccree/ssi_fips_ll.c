@@ -27,7 +27,6 @@
 #include "ssi_hash.h"
 #include "ssi_request_mgr.h"
 
-
 static const u32 digest_len_init[] = {
 	0x00000040, 0x00000000, 0x00000000, 0x00000000 };
 static const u32 sha1_init[] = {
@@ -42,7 +41,6 @@ static const u64 sha512_init[] = {
 	SHA512_H7, SHA512_H6, SHA512_H5, SHA512_H4,
 	SHA512_H3, SHA512_H2, SHA512_H1, SHA512_H0 };
 #endif
-
 
 #define NIST_CIPHER_AES_MAX_VECTOR_SIZE      32
 
@@ -65,7 +63,6 @@ typedef struct _FipsCipherData {
 	size_t                    dataInSize;
 } FipsCipherData;
 
-
 struct fips_cmac_ctx {
 	u8 key[AES_256_BIT_KEY_SIZE];
 	u8 din[NIST_CIPHER_AES_MAX_VECTOR_SIZE];
@@ -82,7 +79,6 @@ typedef struct _FipsCmacData {
 	size_t                    mac_res_size;
 } FipsCmacData;
 
-
 struct fips_hash_ctx {
 	u8 initial_digest[CC_DIGEST_SIZE_MAX];
 	u8 din[NIST_SHA_MSG_SIZE];
@@ -95,7 +91,6 @@ typedef struct _FipsHashData {
 	size_t                data_in_size;
 	u8               mac_res[CC_DIGEST_SIZE_MAX];
 } FipsHashData;
-
 
 /* note that the hmac key length must be equal or less than block size (block size is 64 up to sha256 and 128 for sha384/512) */
 struct fips_hmac_ctx {
@@ -116,7 +111,6 @@ typedef struct _FipsHmacData {
 	size_t                data_in_size;
 	u8               mac_res[CC_DIGEST_SIZE_MAX];
 } FipsHmacData;
-
 
 #define FIPS_CCM_B0_A0_ADATA_SIZE   (NIST_AESCCM_IV_SIZE + NIST_AESCCM_IV_SIZE + NIST_AESCCM_ADATA_SIZE)
 
@@ -144,7 +138,6 @@ typedef struct _FipsCcmData {
 	u8                   macResOut[NIST_AESCCM_TAG_SIZE];
 } FipsCcmData;
 
-
 struct fips_gcm_ctx {
 	u8 adata[NIST_AESGCM_ADATA_SIZE];
 	u8 key[CC_AES_KEY_SIZE_MAX];
@@ -171,7 +164,6 @@ typedef struct _FipsGcmData {
 	u8                   macResOut[NIST_AESGCM_TAG_SIZE];
 } FipsGcmData;
 
-
 typedef union _fips_ctx {
 	struct fips_cipher_ctx cipher;
 	struct fips_cmac_ctx cmac;
@@ -180,7 +172,6 @@ typedef union _fips_ctx {
 	struct fips_ccm_ctx ccm;
 	struct fips_gcm_ctx gcm;
 } fips_ctx;
-
 
 /* test data tables */
 static const FipsCipherData FipsCipherDataTable[] = {
@@ -223,6 +214,7 @@ static const FipsCipherData FipsCipherDataTable[] = {
 	{ 0, NIST_TDES_CBC3_KEY, CC_DRV_DES_TRIPLE_KEY_SIZE, NIST_TDES_CBC3_IV, DRV_CRYPTO_DIRECTION_ENCRYPT, DRV_CIPHER_CBC, NIST_TDES_CBC3_PLAIN_DATA, NIST_TDES_CBC3_CIPHER, NIST_TDES_VECTOR_SIZE },
 	{ 0, NIST_TDES_CBC3_KEY, CC_DRV_DES_TRIPLE_KEY_SIZE, NIST_TDES_CBC3_IV, DRV_CRYPTO_DIRECTION_DECRYPT, DRV_CIPHER_CBC, NIST_TDES_CBC3_CIPHER, NIST_TDES_CBC3_PLAIN_DATA, NIST_TDES_VECTOR_SIZE },
 };
+
 #define FIPS_CIPHER_NUM_OF_TESTS        (sizeof(FipsCipherDataTable) / sizeof(FipsCipherData))
 
 static const FipsCmacData FipsCmacDataTable[] = {
@@ -230,6 +222,7 @@ static const FipsCmacData FipsCmacDataTable[] = {
 	{ DRV_CRYPTO_DIRECTION_ENCRYPT, NIST_AES_192_CMAC_KEY, AES_192_BIT_KEY_SIZE, NIST_AES_192_CMAC_PLAIN_DATA, NIST_AES_192_CMAC_VECTOR_SIZE, NIST_AES_192_CMAC_MAC, NIST_AES_192_CMAC_OUTPUT_SIZE },
 	{ DRV_CRYPTO_DIRECTION_ENCRYPT, NIST_AES_256_CMAC_KEY, AES_256_BIT_KEY_SIZE, NIST_AES_256_CMAC_PLAIN_DATA, NIST_AES_256_CMAC_VECTOR_SIZE, NIST_AES_256_CMAC_MAC, NIST_AES_256_CMAC_OUTPUT_SIZE },
 };
+
 #define FIPS_CMAC_NUM_OF_TESTS        (sizeof(FipsCmacDataTable) / sizeof(FipsCmacData))
 
 static const FipsHashData FipsHashDataTable[] = {
@@ -239,6 +232,7 @@ static const FipsHashData FipsHashDataTable[] = {
 //        { DRV_HASH_SHA512, NIST_SHA_512_MSG, NIST_SHA_MSG_SIZE, NIST_SHA_512_MD },
 #endif
 };
+
 #define FIPS_HASH_NUM_OF_TESTS        (sizeof(FipsHashDataTable) / sizeof(FipsHashData))
 
 static const FipsHmacData FipsHmacDataTable[] = {
@@ -248,6 +242,7 @@ static const FipsHmacData FipsHmacDataTable[] = {
 //        { DRV_HASH_SHA512, NIST_HMAC_SHA512_KEY, NIST_HMAC_SHA512_KEY_SIZE, NIST_HMAC_SHA512_MSG, NIST_HMAC_MSG_SIZE, NIST_HMAC_SHA512_MD },
 #endif
 };
+
 #define FIPS_HMAC_NUM_OF_TESTS        (sizeof(FipsHmacDataTable) / sizeof(FipsHmacData))
 
 static const FipsCcmData FipsCcmDataTable[] = {
@@ -258,6 +253,7 @@ static const FipsCcmData FipsCcmDataTable[] = {
 	{ DRV_CRYPTO_DIRECTION_ENCRYPT, NIST_AESCCM_256_KEY, NIST_AESCCM_256_BIT_KEY_SIZE, NIST_AESCCM_256_NONCE, NIST_AESCCM_256_ADATA, NIST_AESCCM_ADATA_SIZE, NIST_AESCCM_256_PLAIN_TEXT, NIST_AESCCM_TEXT_SIZE, NIST_AESCCM_256_CIPHER, NIST_AESCCM_TAG_SIZE, NIST_AESCCM_256_MAC },
 	{ DRV_CRYPTO_DIRECTION_DECRYPT, NIST_AESCCM_256_KEY, NIST_AESCCM_256_BIT_KEY_SIZE, NIST_AESCCM_256_NONCE, NIST_AESCCM_256_ADATA, NIST_AESCCM_ADATA_SIZE, NIST_AESCCM_256_CIPHER, NIST_AESCCM_TEXT_SIZE, NIST_AESCCM_256_PLAIN_TEXT, NIST_AESCCM_TAG_SIZE, NIST_AESCCM_256_MAC },
 };
+
 #define FIPS_CCM_NUM_OF_TESTS        (sizeof(FipsCcmDataTable) / sizeof(FipsCcmData))
 
 static const FipsGcmData FipsGcmDataTable[] = {
@@ -268,8 +264,8 @@ static const FipsGcmData FipsGcmDataTable[] = {
 	{ DRV_CRYPTO_DIRECTION_ENCRYPT, NIST_AESGCM_256_KEY, NIST_AESGCM_256_BIT_KEY_SIZE, NIST_AESGCM_256_IV, NIST_AESGCM_256_ADATA, NIST_AESGCM_ADATA_SIZE, NIST_AESGCM_256_PLAIN_TEXT, NIST_AESGCM_TEXT_SIZE, NIST_AESGCM_256_CIPHER, NIST_AESGCM_TAG_SIZE, NIST_AESGCM_256_MAC },
 	{ DRV_CRYPTO_DIRECTION_DECRYPT, NIST_AESGCM_256_KEY, NIST_AESGCM_256_BIT_KEY_SIZE, NIST_AESGCM_256_IV, NIST_AESGCM_256_ADATA, NIST_AESGCM_ADATA_SIZE, NIST_AESGCM_256_CIPHER, NIST_AESGCM_TEXT_SIZE, NIST_AESGCM_256_PLAIN_TEXT, NIST_AESGCM_TAG_SIZE, NIST_AESGCM_256_MAC },
 };
-#define FIPS_GCM_NUM_OF_TESTS        (sizeof(FipsGcmDataTable) / sizeof(FipsGcmData))
 
+#define FIPS_GCM_NUM_OF_TESTS        (sizeof(FipsGcmDataTable) / sizeof(FipsGcmData))
 
 static inline enum cc_fips_error
 FIPS_CipherToFipsError(enum drv_cipher_mode mode, bool is_aes)
@@ -294,7 +290,6 @@ FIPS_CipherToFipsError(enum drv_cipher_mode mode, bool is_aes)
 
 	return CC_REE_FIPS_ERROR_GENERAL;
 }
-
 
 static inline int
 ssi_cipher_fips_run_test(struct ssi_drvdata *drvdata,
@@ -414,7 +409,6 @@ ssi_cipher_fips_run_test(struct ssi_drvdata *drvdata,
 	return rc;
 }
 
-
 enum cc_fips_error
 ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer)
 {
@@ -479,7 +473,6 @@ ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffe
 	return error;
 }
 
-
 static inline int
 ssi_cmac_fips_run_test(struct ssi_drvdata *drvdata,
 		       dma_addr_t key_dma_addr,
@@ -518,7 +511,6 @@ ssi_cmac_fips_run_test(struct ssi_drvdata *drvdata,
 	set_key_size_aes(&desc[idx], key_len);
 	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
-
 
 	//ssi_hash_create_data_desc(state, ctx, DIN_AES_DOUT, desc, false, &idx);
 	hw_desc_init(&desc[idx]);
@@ -602,7 +594,6 @@ ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 
 	return error;
 }
-
 
 static inline enum cc_fips_error
 FIPS_HashToFipsError(enum drv_hash_mode hash_mode)
@@ -779,7 +770,6 @@ ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 	return error;
 }
 
-
 static inline enum cc_fips_error
 FIPS_HmacToFipsError(enum drv_hash_mode hash_mode)
 {
@@ -866,7 +856,6 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 		set_flow_mode(&desc[idx], S_DIN_to_HASH);
 		set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
 		idx++;
-
 
 		/* Load the hash current length*/
 		hw_desc_init(&desc[idx]);
@@ -980,7 +969,6 @@ ssi_hmac_fips_run_test(struct ssi_drvdata *drvdata,
 	set_din_type(&desc[idx], DMA_DLLI, k0_dma_addr, digest_size, NS_BIT);
 	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
-
 
 	/* Get final MAC result */
 	hw_desc_init(&desc[idx]);
@@ -1111,7 +1099,6 @@ ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 
 	return error;
 }
-
 
 static inline int
 ssi_ccm_fips_run_test(struct ssi_drvdata *drvdata,
@@ -1277,6 +1264,7 @@ ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 		{
 			/* build B0 -- B0, nonce, l(m) */
 			__be16 data = cpu_to_be16(NIST_AESCCM_TEXT_SIZE);
+
 			virt_ctx->b0_a0_adata[0] = NIST_AESCCM_B0_VAL;
 			memcpy(virt_ctx->b0_a0_adata + 1, ccmData->nonce, NIST_AESCCM_NONCE_SIZE);
 			memcpy(virt_ctx->b0_a0_adata + 14, (u8 *)&data, sizeof(__be16));
@@ -1339,7 +1327,6 @@ ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 
 	return error;
 }
-
 
 static inline int
 ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
@@ -1439,8 +1426,6 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 	set_setup_mode(&desc[idx], SETUP_LOAD_STATE0);
 	idx++;
 
-
-
 /////////////////////////////////   2   ////////////////////////////////////
 	/* prcess(ghash) assoc data */
 //	if (req->assoclen > 0)
@@ -1451,7 +1436,6 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 	set_din_type(&desc[idx], DMA_DLLI, adata_dma_addr, adata_size, NS_BIT);
 	set_flow_mode(&desc[idx], DIN_HASH);
 	idx++;
-
 
 /////////////////////////////////   3   ////////////////////////////////////
 //	ssi_aead_gcm_setup_gctr_desc(req, desc, seq_size);
@@ -1478,7 +1462,6 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 	set_flow_mode(&desc[idx], S_DIN_to_AES);
 	idx++;
 
-
 /////////////////////////////////   4   ////////////////////////////////////
 	/* process(gctr+ghash) */
 //	if (req_ctx->cryptlen != 0)
@@ -1490,7 +1473,6 @@ ssi_gcm_fips_run_test(struct ssi_drvdata *drvdata,
 	set_dout_dlli(&desc[idx], dout_dma_addr, din_size, NS_BIT, 0);
 	set_flow_mode(&desc[idx], cipher_flow_mode);
 	idx++;
-
 
 /////////////////////////////////   5   ////////////////////////////////////
 //	ssi_aead_process_gcm_result_desc(req, desc, seq_size);
@@ -1579,6 +1561,7 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 		/* len_block */
 		{
 			__be64 len_bits;
+
 			len_bits = cpu_to_be64(gcmData->adataSize * 8);
 			memcpy(virt_ctx->len_block, &len_bits, sizeof(len_bits));
 			len_bits = cpu_to_be64(gcmData->dataInSize * 8);
@@ -1587,6 +1570,7 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 		/* iv_inc1, iv_inc2 */
 		{
 			__be32 counter = cpu_to_be32(1);
+
 			memcpy(virt_ctx->iv_inc1, gcmData->iv, NIST_AESGCM_IV_SIZE);
 			memcpy(virt_ctx->iv_inc1 + NIST_AESGCM_IV_SIZE, &counter, sizeof(counter));
 			counter = cpu_to_be32(2);
@@ -1650,7 +1634,6 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 	}
 	return error;
 }
-
 
 size_t ssi_fips_max_mem_alloc_size(void)
 {

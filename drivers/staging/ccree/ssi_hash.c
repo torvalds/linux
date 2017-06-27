@@ -83,7 +83,6 @@ struct ssi_hash_alg {
 	struct ahash_alg ahash_alg;
 };
 
-
 struct hash_key_req_ctx {
 	u32 keylen;
 	dma_addr_t key_dma_addr;
@@ -97,6 +96,7 @@ struct ssi_hash_ctx {
 	 */
 	u8 digest_buff[SSI_MAX_HASH_DIGEST_SIZE]  ____cacheline_aligned;
 	u8 opad_tmp_keys_buff[SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE]  ____cacheline_aligned;
+
 	dma_addr_t opad_tmp_keys_dma_addr  ____cacheline_aligned;
 	dma_addr_t digest_buff_dma_addr;
 	/* use for hmac with key large then mode block size */
@@ -428,7 +428,6 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 					ctx->drvdata, ctx->hash_mode);
 	int idx = 0;
 	int rc = 0;
-
 
 	SSI_LOG_DEBUG("===== %s-digest (%d) ====\n", is_hmac ? "hmac" : "hash", nbytes);
 
@@ -962,6 +961,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 static int ssi_hash_init(struct ahash_req_ctx *state, struct ssi_hash_ctx *ctx)
 {
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
+
 	state->xcbc_count = 0;
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
@@ -1164,7 +1164,6 @@ out:
 	return rc;
 }
 
-
 static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
@@ -1252,11 +1251,13 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 
 	return rc;
 }
+
 #if SSI_CC_HAS_CMAC
 static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 			const u8 *key, unsigned int keylen)
 {
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
+
 	SSI_LOG_DEBUG("===== setkey (%d) ====\n", keylen);
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
@@ -1289,7 +1290,6 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 
 	ctx->key_params.keylen = keylen;
 
-
 	return 0;
 }
 #endif
@@ -1318,7 +1318,6 @@ static void ssi_hash_free_ctx(struct ssi_hash_ctx *ctx)
 
 	ctx->key_params.keylen = 0;
 }
-
 
 static int ssi_hash_alloc_ctx(struct ssi_hash_ctx *ctx)
 {
@@ -1364,7 +1363,6 @@ static int ssi_ahash_cra_init(struct crypto_tfm *tfm)
 		container_of(hash_alg_common, struct ahash_alg, halg);
 	struct ssi_hash_alg *ssi_alg =
 			container_of(ahash_alg, struct ssi_hash_alg, ahash_alg);
-
 
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
@@ -1462,7 +1460,6 @@ static int ssi_mac_final(struct ahash_request *req)
 	u32 rem_cnt = state->buff_index ? state->buff1_cnt :
 			state->buff0_cnt;
 
-
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
 		keySize = CC_AES_128_BIT_KEY_SIZE;
@@ -1500,7 +1497,6 @@ static int ssi_mac_final(struct ahash_request *req)
 		set_flow_mode(&desc[idx], S_DIN_to_AES);
 		set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 		idx++;
-
 
 		/* Initiate decryption of block state to previous block_state-XOR-M[n] */
 		hw_desc_init(&desc[idx]);

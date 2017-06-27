@@ -14,14 +14,12 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-
 /**************************************************************
  * This file defines the driver FIPS APIs                     *
  **************************************************************/
 
 #include <linux/module.h>
 #include "ssi_fips.h"
-
 
 extern int ssi_fips_ext_get_state(enum cc_fips_state_t *p_state);
 extern int ssi_fips_ext_get_error(enum cc_fips_error *p_err);

@@ -19,7 +19,6 @@
 
 #include "cc_hw_queue_defs.h"
 
-
 #define SSI_IVPOOL_SEQ_LEN 8
 
 /*!
