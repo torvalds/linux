@@ -736,18 +736,18 @@ static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
 /* Enters or exits Ultra Low Power State. */
 static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 {
-	bool continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
-	u32 phyc_ulps = ((continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
+	bool non_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	u32 phyc_ulps = ((non_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
 			 DSI_PHYC_DLANE0_ULPS |
 			 (dsi->lanes > 1 ? DSI_PHYC_DLANE1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI_PHYC_DLANE2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI_PHYC_DLANE3_ULPS : 0));
-	u32 stat_ulps = ((continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
+	u32 stat_ulps = ((non_continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
 			 DSI1_STAT_PHY_D0_ULPS |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_ULPS : 0));
-	u32 stat_stop = ((continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
+	u32 stat_stop = ((non_continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
 			 DSI1_STAT_PHY_D0_STOP |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_STOP : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
