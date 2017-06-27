@@ -2310,7 +2310,8 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (errcode) {
 		ieee->softmac_stats.rx_auth_rs_err++;
 		netdev_info(ieee->dev,
-			    "Authentication respose status code 0x%x", errcode);
+			    "Authentication response status code 0x%x",
+			    errcode);
 		rtllib_associate_abort(ieee);
 		return;
 	}
