@@ -30,7 +30,7 @@ struct rcar_du_vsp;
  * @extclock: external pixel dot clock (optional)
  * @mmio_offset: offset of the CRTC registers in the DU MMIO block
  * @index: CRTC software and hardware index
- * @started: whether the CRTC has been started and is running
+ * @initialized: whether the CRTC has been initialized and clocks enabled
  * @event: event to post when the pending page flip completes
  * @flip_wait: wait queue used to signal page flip completion
  * @outputs: bitmask of the outputs (enum rcar_du_output) driven by this CRTC
@@ -45,7 +45,7 @@ struct rcar_du_crtc {
 	struct clk *extclock;
 	unsigned int mmio_offset;
 	unsigned int index;
-	bool started;
+	bool initialized;
 
 	struct drm_pending_vblank_event *event;
 	wait_queue_head_t flip_wait;

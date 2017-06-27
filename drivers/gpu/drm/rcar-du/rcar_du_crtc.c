@@ -452,14 +452,8 @@ static void rcar_du_crtc_wait_page_flip(struct rcar_du_crtc *rcrtc)
  * Start/Stop and Suspend/Resume
  */
 
-static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
+static void rcar_du_crtc_setup(struct rcar_du_crtc *rcrtc)
 {
-	struct drm_crtc *crtc = &rcrtc->crtc;
-	bool interlaced;
-
-	if (rcrtc->started)
-		return;
-
 	/* Set display off and background to black */
 	rcar_du_crtc_write(rcrtc, DOOR, DOOR_RGB(0, 0, 0));
 	rcar_du_crtc_write(rcrtc, BPOR, BPOR_RGB(0, 0, 0));
@@ -470,6 +464,18 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 
 	/* Start with all planes disabled. */
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR, 0);
+
+	/* Enable the VSP compositor. */
+	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
+		rcar_du_vsp_enable(rcrtc);
+
+	/* Turn vertical blanking interrupt reporting on. */
+	drm_crtc_vblank_on(&rcrtc->crtc);
+}
+
+static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
+{
+	bool interlaced;
 
 	/*
 	 * Select master sync mode. This enables display operation in master
@@ -482,23 +488,11 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 			     DSYSR_TVM_MASTER);
 
 	rcar_du_group_start_stop(rcrtc->group, true);
-
-	/* Enable the VSP compositor. */
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
-		rcar_du_vsp_enable(rcrtc);
-
-	/* Turn vertical blanking interrupt reporting back on. */
-	drm_crtc_vblank_on(crtc);
-
-	rcrtc->started = true;
 }
 
 static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 {
 	struct drm_crtc *crtc = &rcrtc->crtc;
-
-	if (!rcrtc->started)
-		return;
 
 	/*
 	 * Disable all planes and wait for the change to take effect. This is
@@ -533,8 +527,6 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK, DSYSR_TVM_SWITCH);
 
 	rcar_du_group_start_stop(rcrtc->group, false);
-
-	rcrtc->started = false;
 }
 
 void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc)
@@ -554,12 +546,10 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 		return;
 
 	rcar_du_crtc_get(rcrtc);
-	rcar_du_crtc_start(rcrtc);
+	rcar_du_crtc_setup(rcrtc);
 
 	/* Commit the planes state. */
-	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE)) {
-		rcar_du_vsp_enable(rcrtc);
-	} else {
+	if (!rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE)) {
 		for (i = 0; i < rcrtc->group->num_planes; ++i) {
 			struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 
@@ -571,6 +561,7 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 	}
 
 	rcar_du_crtc_update_planes(rcrtc);
+	rcar_du_crtc_start(rcrtc);
 }
 
 /* -----------------------------------------------------------------------------
@@ -582,7 +573,16 @@ static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
-	rcar_du_crtc_get(rcrtc);
+	/*
+	 * If the CRTC has already been setup by the .atomic_begin() handler we
+	 * can skip the setup stage.
+	 */
+	if (!rcrtc->initialized) {
+		rcar_du_crtc_get(rcrtc);
+		rcar_du_crtc_setup(rcrtc);
+		rcrtc->initialized = true;
+	}
+
 	rcar_du_crtc_start(rcrtc);
 }
 
@@ -601,6 +601,7 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);
 
+	rcrtc->initialized = false;
 	rcrtc->outputs = 0;
 }
 
@@ -608,6 +609,19 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 				      struct drm_crtc_state *old_crtc_state)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+	WARN_ON(!crtc->state->enable);
+
+	/*
+	 * If a mode set is in progress we can be called with the CRTC disabled.
+	 * We then need to first setup the CRTC in order to configure planes.
+	 * The .atomic_enable() handler will notice and skip the CRTC setup.
+	 */
+	if (!rcrtc->initialized) {
+		rcar_du_crtc_get(rcrtc);
+		rcar_du_crtc_setup(rcrtc);
+		rcrtc->initialized = true;
+	}
 
 	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
 		rcar_du_vsp_atomic_begin(rcrtc);
