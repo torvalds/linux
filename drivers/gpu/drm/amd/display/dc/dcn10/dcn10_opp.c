@@ -37,7 +37,7 @@
 #define CTX \
 	oppn10->base.ctx
 
-static void opp_set_regamma_mode(
+static void oppn10_set_regamma_mode(
 	struct output_pixel_processor *opp,
 	enum opp_regamma mode)
 {
@@ -167,7 +167,7 @@ static void set_spatial_dither(
 			FMT_RGB_RANDOM_ENABLE, params->flags.RGB_RANDOM);
 }
 
-static void opp_program_bit_depth_reduction(
+static void oppn10_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
 {
@@ -255,7 +255,7 @@ static void opp_set_clamping(
 
 }
 
-static void opp_set_dyn_expansion(
+static void oppn10_set_dyn_expansion(
 	struct output_pixel_processor *opp,
 	enum dc_color_space color_sp,
 	enum dc_color_depth color_dpth,
@@ -304,7 +304,7 @@ static void opp_program_clamping_and_pixel_encoding(
 	set_pixel_encoding(oppn10, params);
 }
 
-static void opp_program_fmt(
+static void oppn10_program_fmt(
 	struct output_pixel_processor *opp,
 	struct bit_depth_reduction_params *fmt_bit_depth,
 	struct clamping_and_pixel_encoding_params *clamping)
@@ -316,7 +316,7 @@ static void opp_program_fmt(
 
 	/* dithering is affected by <CrtcSourceSelect>, hence should be
 	 * programmed afterwards */
-	opp_program_bit_depth_reduction(
+	oppn10_program_bit_depth_reduction(
 		opp,
 		fmt_bit_depth);
 
@@ -327,7 +327,7 @@ static void opp_program_fmt(
 	return;
 }
 
-static void opp_set_output_csc_default(
+static void oppn10_set_output_csc_default(
 		struct output_pixel_processor *opp,
 		const struct default_adjustment *default_adjust)
 {
@@ -703,7 +703,7 @@ static void opp_configure_regamma_lut(
 	REG_SET(CM_RGAM_LUT_INDEX, 0, CM_RGAM_LUT_INDEX, 0);
 }
 
-static void opp_power_on_regamma_lut(
+static void oppn10_power_on_regamma_lut(
 	struct output_pixel_processor *opp,
 	bool power_on)
 {
@@ -713,142 +713,8 @@ static void opp_power_on_regamma_lut(
 
 }
 
-void opp_set_output_csc_adjustment(
-		struct output_pixel_processor *opp,
-		const struct out_csc_color_matrix *tbl_entry)
-{
 
-	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
-	//enum csc_color_mode config = CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
-
-
-	uint32_t ocsc_mode = 4;
-
-	/**
-	*if (tbl_entry != NULL) {
-	*	switch (tbl_entry->color_space) {
-	*	case COLOR_SPACE_SRGB:
-	*	case COLOR_SPACE_2020_RGB_FULLRANGE:
-	*		ocsc_mode = 0;
-	*		break;
-	*	case COLOR_SPACE_SRGB_LIMITED:
-	*	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
-	*		ocsc_mode = 1;
-	*		break;
-	*	case COLOR_SPACE_YCBCR601:
-	*	case COLOR_SPACE_YCBCR601_LIMITED:
-	*		ocsc_mode = 2;
-	*		break;
-	*	case COLOR_SPACE_YCBCR709:
-	*	case COLOR_SPACE_YCBCR709_LIMITED:
-	*	case COLOR_SPACE_2020_YCBCR:
-	*		ocsc_mode = 3;
-	*		break;
-	*	case COLOR_SPACE_UNKNOWN:
-	*	default:
-	*		break;
-	*	}
-	*}
-	*/
-
-	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
-	program_color_matrix(oppn10, tbl_entry);
-}
-
-static void opp_program_regamma_lut(
-		struct output_pixel_processor *opp,
-		const struct pwl_result_data *rgb,
-		uint32_t num)
-{
-	uint32_t i;
-	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
-	for (i = 0 ; i < num; i++) {
-		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].blue_reg);
-
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_red_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
-
-	}
-
-}
-
-
-
-static bool opp_set_regamma_pwl(
-	struct output_pixel_processor *opp, const struct pwl_params *params)
-{
-	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
-
-	opp_power_on_regamma_lut(opp, true);
-	opp_configure_regamma_lut(opp, oppn10->is_write_to_ram_a_safe);
-
-	if (oppn10->is_write_to_ram_a_safe)
-		 opp_program_regamma_luta_settings(opp, params);
-	else
-		 opp_program_regamma_lutb_settings(opp, params);
-
-	opp_program_regamma_lut(
-		opp, params->rgb_resulted, params->hw_points_num);
-
-	return true;
-}
-
-static void opp_set_stereo_polarity(
-		struct output_pixel_processor *opp,
-		bool enable, bool rightEyePolarity)
-{
-	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
-
-	REG_UPDATE(FMT_CONTROL, FMT_STEREOSYNC_OVERRIDE, enable);
-}
-
-/*****************************************/
-/* Constructor, Destructor               */
-/*****************************************/
-
-static void dcn10_opp_destroy(struct output_pixel_processor **opp)
-{
-	dm_free(TO_DCN10_OPP(*opp));
-	*opp = NULL;
-}
-
-static struct opp_funcs dcn10_opp_funcs = {
-		.opp_power_on_regamma_lut = opp_power_on_regamma_lut,
-		.opp_set_csc_adjustment = opp_set_output_csc_adjustment,
-		.opp_set_csc_default = opp_set_output_csc_default,
-		.opp_set_dyn_expansion = opp_set_dyn_expansion,
-		.opp_program_regamma_pwl = opp_set_regamma_pwl,
-		.opp_set_regamma_mode = opp_set_regamma_mode,
-		.opp_program_fmt = opp_program_fmt,
-		.opp_program_bit_depth_reduction = opp_program_bit_depth_reduction,
-		.opp_set_stereo_polarity = opp_set_stereo_polarity,
-		.opp_destroy = dcn10_opp_destroy
-};
-
-void dcn10_opp_construct(struct dcn10_opp *oppn10,
-	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dcn10_opp_registers *regs,
-	const struct dcn10_opp_shift *opp_shift,
-	const struct dcn10_opp_mask *opp_mask)
-{
-	oppn10->base.ctx = ctx;
-	oppn10->base.inst = inst;
-	oppn10->base.funcs = &dcn10_opp_funcs;
-
-	oppn10->regs = regs;
-	oppn10->opp_shift = opp_shift;
-	oppn10->opp_mask = opp_mask;
-}
-
-
-void program_color_matrix(struct dcn10_opp *oppn10,
+static void oppn10_program_color_matrix(struct dcn10_opp *oppn10,
 		const struct out_csc_color_matrix *tbl_entry)
 {
 	uint32_t mode;
@@ -917,3 +783,136 @@ void program_color_matrix(struct dcn10_opp *oppn10,
 			CM_COMB_C34, tbl_entry->regval[11]);
 	}
 }
+
+void oppn10_set_output_csc_adjustment(
+		struct output_pixel_processor *opp,
+		const struct out_csc_color_matrix *tbl_entry)
+{
+
+	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
+	//enum csc_color_mode config = CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
+
+
+	uint32_t ocsc_mode = 4;
+
+	/**
+	*if (tbl_entry != NULL) {
+	*	switch (tbl_entry->color_space) {
+	*	case COLOR_SPACE_SRGB:
+	*	case COLOR_SPACE_2020_RGB_FULLRANGE:
+	*		ocsc_mode = 0;
+	*		break;
+	*	case COLOR_SPACE_SRGB_LIMITED:
+	*	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
+	*		ocsc_mode = 1;
+	*		break;
+	*	case COLOR_SPACE_YCBCR601:
+	*	case COLOR_SPACE_YCBCR601_LIMITED:
+	*		ocsc_mode = 2;
+	*		break;
+	*	case COLOR_SPACE_YCBCR709:
+	*	case COLOR_SPACE_YCBCR709_LIMITED:
+	*	case COLOR_SPACE_2020_YCBCR:
+	*		ocsc_mode = 3;
+	*		break;
+	*	case COLOR_SPACE_UNKNOWN:
+	*	default:
+	*		break;
+	*	}
+	*}
+	*/
+
+	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
+	oppn10_program_color_matrix(oppn10, tbl_entry);
+}
+
+static void opp_program_regamma_lut(
+		struct output_pixel_processor *opp,
+		const struct pwl_result_data *rgb,
+		uint32_t num)
+{
+	uint32_t i;
+	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
+	for (i = 0 ; i < num; i++) {
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].blue_reg);
+
+		REG_SET(CM_RGAM_LUT_DATA, 0,
+				CM_RGAM_LUT_DATA, rgb[i].delta_red_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0,
+				CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0,
+				CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
+
+	}
+
+}
+
+static bool oppn10_set_regamma_pwl(
+	struct output_pixel_processor *opp, const struct pwl_params *params)
+{
+	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
+
+	oppn10_power_on_regamma_lut(opp, true);
+	opp_configure_regamma_lut(opp, oppn10->is_write_to_ram_a_safe);
+
+	if (oppn10->is_write_to_ram_a_safe)
+		opp_program_regamma_luta_settings(opp, params);
+	else
+		opp_program_regamma_lutb_settings(opp, params);
+
+	opp_program_regamma_lut(
+		opp, params->rgb_resulted, params->hw_points_num);
+
+	return true;
+}
+
+static void oppn10_set_stereo_polarity(
+		struct output_pixel_processor *opp,
+		bool enable, bool rightEyePolarity)
+{
+	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
+
+	REG_UPDATE(FMT_CONTROL, FMT_STEREOSYNC_OVERRIDE, enable);
+}
+
+/*****************************************/
+/* Constructor, Destructor               */
+/*****************************************/
+
+static void dcn10_opp_destroy(struct output_pixel_processor **opp)
+{
+	dm_free(TO_DCN10_OPP(*opp));
+	*opp = NULL;
+}
+
+static struct opp_funcs dcn10_opp_funcs = {
+		.opp_power_on_regamma_lut = oppn10_power_on_regamma_lut,
+		.opp_set_csc_adjustment = oppn10_set_output_csc_adjustment,
+		.opp_set_csc_default = oppn10_set_output_csc_default,
+		.opp_set_dyn_expansion = oppn10_set_dyn_expansion,
+		.opp_program_regamma_pwl = oppn10_set_regamma_pwl,
+		.opp_set_regamma_mode = oppn10_set_regamma_mode,
+		.opp_program_fmt = oppn10_program_fmt,
+		.opp_program_bit_depth_reduction = oppn10_program_bit_depth_reduction,
+		.opp_set_stereo_polarity = oppn10_set_stereo_polarity,
+		.opp_destroy = dcn10_opp_destroy
+};
+
+void dcn10_opp_construct(struct dcn10_opp *oppn10,
+	struct dc_context *ctx,
+	uint32_t inst,
+	const struct dcn10_opp_registers *regs,
+	const struct dcn10_opp_shift *opp_shift,
+	const struct dcn10_opp_mask *opp_mask)
+{
+	oppn10->base.ctx = ctx;
+	oppn10->base.inst = inst;
+	oppn10->base.funcs = &dcn10_opp_funcs;
+
+	oppn10->regs = regs;
+	oppn10->opp_shift = opp_shift;
+	oppn10->opp_mask = opp_mask;
+}
+

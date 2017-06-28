@@ -286,7 +286,7 @@ static const struct dcn10_ipp_mask ipp_mask = {
 
 #define opp_regs(id)\
 [id] = {\
-	OPP_DCN10_REG_LIST(id),\
+	OPP_REG_LIST_DCN10(id),\
 }
 
 static const struct dcn10_opp_registers opp_regs[] = {
@@ -297,11 +297,11 @@ static const struct dcn10_opp_registers opp_regs[] = {
 };
 
 static const struct dcn10_opp_shift opp_shift = {
-		OPP_DCN10_MASK_SH_LIST(__SHIFT)
+		OPP_MASK_SH_LIST_DCN10(__SHIFT)
 };
 
 static const struct dcn10_opp_mask opp_mask = {
-		OPP_DCN10_MASK_SH_LIST(_MASK),
+		OPP_MASK_SH_LIST_DCN10(_MASK),
 };
 
 #define tf_regs(id)\
