@@ -878,6 +878,7 @@ static void eb_release_vmas(const struct i915_execbuffer *eb)
 
 		GEM_BUG_ON(vma->exec_entry != entry);
 		vma->exec_entry = NULL;
+		__exec_to_vma(entry) = 0;
 
 		if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 			__eb_unreserve_vma(vma, entry);
@@ -1199,7 +1200,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	reservation_object_unlock(batch->resv);
 	i915_vma_unpin(batch);
 
-	i915_vma_move_to_active(vma, rq, true);
+	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	reservation_object_lock(vma->resv, NULL);
 	reservation_object_add_excl_fence(vma->resv, &rq->fence);
 	reservation_object_unlock(vma->resv);
