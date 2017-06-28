@@ -3151,7 +3151,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			snd_soc_dapm_sync(dapm);
 			rt5645->jack_type = SND_JACK_HEADPHONE;
 		}
-		if (rt5645->pdata.jd_invert)
+		if (rt5645->pdata.level_trigger_irq)
 			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 				RT5645_JD_1_1_MASK, RT5645_JD_1_1_NOR);
 	} else { /* jack out */
@@ -3172,7 +3172,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			snd_soc_dapm_disable_pin(dapm, "LDO2");
 		snd_soc_dapm_disable_pin(dapm, "Mic Det Power");
 		snd_soc_dapm_sync(dapm);
-		if (rt5645->pdata.jd_invert)
+		if (rt5645->pdata.level_trigger_irq)
 			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 				RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	}
@@ -3586,7 +3586,7 @@ static struct rt5645_platform_data buddy_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
-	.jd_invert = true,
+	.level_trigger_irq = true,
 };
 
 static struct dmi_system_id dmi_platform_intel_broadwell[] = {
@@ -3838,7 +3838,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(rt5645->regmap, RT5645_ADDA_CLK1,
 		RT5645_I2S_PD1_MASK, RT5645_I2S_PD1_2);
 
-	if (rt5645->pdata.jd_invert) {
+	if (rt5645->pdata.level_trigger_irq) {
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	}
