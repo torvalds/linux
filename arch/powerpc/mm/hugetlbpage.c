@@ -964,7 +964,7 @@ pte_t *__find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
 			if (pmd_none(pmd))
 				return NULL;
 
-			if (pmd_trans_huge(pmd)) {
+			if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
 				if (is_thp)
 					*is_thp = true;
 				ret_pte = (pte_t *) pmdp;

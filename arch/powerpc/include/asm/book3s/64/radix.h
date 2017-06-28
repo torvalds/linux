@@ -252,7 +252,7 @@ static inline int radix__pgd_bad(pgd_t pgd)
 
 static inline int radix__pmd_trans_huge(pmd_t pmd)
 {
-	return !!(pmd_val(pmd) & _PAGE_PTE);
+	return (pmd_val(pmd) & (_PAGE_PTE | _PAGE_DEVMAP)) == _PAGE_PTE;
 }
 
 static inline pmd_t radix__pmd_mkhuge(pmd_t pmd)
