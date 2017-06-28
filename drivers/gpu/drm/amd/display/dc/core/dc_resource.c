@@ -626,7 +626,7 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 
 	if (stream->public.view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
 		pipe_ctx->scl_data.ratios.horz.value *= 2;
-	else if (surface->stereo_format == PLANE_STEREO_FORMAT_TOP_AND_BOTTOM)
+	else if (stream->public.view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
 		pipe_ctx->scl_data.ratios.vert.value *= 2;
 
 	pipe_ctx->scl_data.ratios.vert.value = div64_s64(

@@ -891,7 +891,6 @@ static void reset_hw_ctx_wrap(
 	}
 }
 
-
 static bool patch_address_for_sbs_tb_stereo(
 		struct pipe_ctx *pipe_ctx, PHYSICAL_ADDRESS_LOC *addr)
 {
@@ -904,11 +903,17 @@ static bool patch_address_for_sbs_tb_stereo(
 		 pipe_ctx->stream->public.timing.timing_3d_format ==
 		 TIMING_3D_FORMAT_TOP_AND_BOTTOM)) {
 		*addr = surface->public.address.grph_stereo.left_addr;
-		surface->public.address.grph_stereo.left_addr =\
+		surface->public.address.grph_stereo.left_addr =
 		surface->public.address.grph_stereo.right_addr;
 		return true;
+	} else {
+		if (pipe_ctx->stream->public.view_format != VIEW_3D_FORMAT_NONE &&
+			surface->public.address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
+			surface->public.address.type = PLN_ADDR_TYPE_GRPH_STEREO;
+			surface->public.address.grph_stereo.right_addr =
+			surface->public.address.grph_stereo.left_addr;
+		}
 	}
-
 	return false;
 }
 

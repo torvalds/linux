@@ -967,7 +967,6 @@ bool dc_commit_streams(
 					DC_SURFACE_TO_CORE(context->stream_status[i].surfaces[j]);
 
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
-			dc_enable_stereo(dc, context, streams, stream_count);
 		}
 
 		CONN_MSG_MODE(sink->link, "{%ux%u, %ux%u@%u, %ux%u@%uKhz}",
@@ -982,7 +981,7 @@ bool dc_commit_streams(
 				context->streams[i]->public.timing.v_total,
 				context->streams[i]->public.timing.pix_clk_khz);
 	}
-
+	dc_enable_stereo(dc, context, streams, stream_count);
 	dc_resource_validate_ctx_destruct(core_dc->current_context);
 	dm_free(core_dc->current_context);
 
