@@ -44,6 +44,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 					    .len = IB_FW_VERSION_NAME_MAX - 1},
 	[RDMA_NLDEV_ATTR_NODE_GUID]	= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_SYS_IMAGE_GUID] = { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_SUBNET_PREFIX]	= { .type = NLA_U64 },
 };
 
 static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
@@ -96,6 +97,10 @@ static int fill_port_info(struct sk_buff *msg,
 	BUILD_BUG_ON(sizeof(attr.port_cap_flags) > sizeof(u64));
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CAP_FLAGS,
 			      (u64)attr.port_cap_flags, 0))
+		return -EMSGSIZE;
+	if (rdma_protocol_ib(device, port) &&
+	    nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_SUBNET_PREFIX,
+			      attr.subnet_prefix, 0))
 		return -EMSGSIZE;
 
 	return 0;

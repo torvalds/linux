@@ -279,6 +279,11 @@ enum rdma_nldev_attr {
 	 */
 	RDMA_NLDEV_ATTR_SYS_IMAGE_GUID,		/* u64 */
 
+	/*
+	 * Subnet prefix (in host byte order)
+	 */
+	RDMA_NLDEV_ATTR_SUBNET_PREFIX,		/* u64 */
+
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */
