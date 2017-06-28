@@ -510,14 +510,18 @@ static struct pci_bus *pci_alloc_bus(struct pci_bus *parent)
 	return b;
 }
 
-static void pci_release_host_bridge_dev(struct device *dev)
+static void devm_pci_release_host_bridge_dev(struct device *dev)
 {
 	struct pci_host_bridge *bridge = to_pci_host_bridge(dev);
 
 	if (bridge->release_fn)
 		bridge->release_fn(bridge);
+}
 
-	pci_free_host_bridge(bridge);
+static void pci_release_host_bridge_dev(struct device *dev)
+{
+	devm_pci_release_host_bridge_dev(dev);
+	pci_free_host_bridge(to_pci_host_bridge(dev));
 }
 
 struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
@@ -534,6 +538,22 @@ struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
 	return bridge;
 }
 EXPORT_SYMBOL(pci_alloc_host_bridge);
+
+struct pci_host_bridge *devm_pci_alloc_host_bridge(struct device *dev,
+						   size_t priv)
+{
+	struct pci_host_bridge *bridge;
+
+	bridge = devm_kzalloc(dev, sizeof(*bridge) + priv, GFP_KERNEL);
+	if (!bridge)
+		return NULL;
+
+	INIT_LIST_HEAD(&bridge->windows);
+	bridge->dev.release = devm_pci_release_host_bridge_dev;
+
+	return bridge;
+}
+EXPORT_SYMBOL(devm_pci_alloc_host_bridge);
 
 void pci_free_host_bridge(struct pci_host_bridge *bridge)
 {
