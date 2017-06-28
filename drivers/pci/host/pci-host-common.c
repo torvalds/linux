@@ -149,6 +149,8 @@ int pci_host_common_probe(struct platform_device *pdev,
 	bridge->sysdata = cfg;
 	bridge->busnr = cfg->busr.start;
 	bridge->ops = &ops->pci_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 
 	ret = pci_scan_root_bus_bridge(bridge);
 	if (ret < 0) {
@@ -157,10 +159,6 @@ int pci_host_common_probe(struct platform_device *pdev,
 	}
 
 	bus = bridge->bus;
-
-#ifdef CONFIG_ARM
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
-#endif
 
 	/*
 	 * We insert PCI resources into the iomem_resource and
