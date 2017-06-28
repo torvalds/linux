@@ -711,22 +711,38 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
+	if (!phy_data->sfp_mod_absent && !phy_data->sfp_changed)
+		return;
+
+	pdata->phy.supported &= ~SUPPORTED_Autoneg;
+	pdata->phy.supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	pdata->phy.supported &= ~SUPPORTED_TP;
+	pdata->phy.supported &= ~SUPPORTED_FIBRE;
+	pdata->phy.supported &= ~SUPPORTED_100baseT_Full;
+	pdata->phy.supported &= ~SUPPORTED_1000baseT_Full;
+	pdata->phy.supported &= ~SUPPORTED_10000baseT_Full;
+
 	if (phy_data->sfp_mod_absent) {
 		pdata->phy.speed = SPEED_UNKNOWN;
 		pdata->phy.duplex = DUPLEX_UNKNOWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
+		pdata->phy.pause_autoneg = AUTONEG_ENABLE;
+
+		pdata->phy.supported |= SUPPORTED_Autoneg;
+		pdata->phy.supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+		pdata->phy.supported |= SUPPORTED_TP;
+		pdata->phy.supported |= SUPPORTED_FIBRE;
+		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_100)
+			pdata->phy.supported |= SUPPORTED_100baseT_Full;
+		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
+		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000)
+			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
+
 		pdata->phy.advertising = pdata->phy.supported;
 
 		return;
 	}
-
-	pdata->phy.advertising &= ~ADVERTISED_Autoneg;
-	pdata->phy.advertising &= ~ADVERTISED_TP;
-	pdata->phy.advertising &= ~ADVERTISED_FIBRE;
-	pdata->phy.advertising &= ~ADVERTISED_100baseT_Full;
-	pdata->phy.advertising &= ~ADVERTISED_1000baseT_Full;
-	pdata->phy.advertising &= ~ADVERTISED_10000baseT_Full;
-	pdata->phy.advertising &= ~ADVERTISED_10000baseR_FEC;
 
 	switch (phy_data->sfp_base) {
 	case XGBE_SFP_BASE_1000_T:
@@ -736,17 +752,25 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 		pdata->phy.speed = SPEED_UNKNOWN;
 		pdata->phy.duplex = DUPLEX_UNKNOWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
-		pdata->phy.advertising |= ADVERTISED_Autoneg;
+		pdata->phy.pause_autoneg = AUTONEG_ENABLE;
+		pdata->phy.supported |= SUPPORTED_Autoneg;
+		pdata->phy.supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 		break;
 	case XGBE_SFP_BASE_10000_SR:
 	case XGBE_SFP_BASE_10000_LR:
 	case XGBE_SFP_BASE_10000_LRM:
 	case XGBE_SFP_BASE_10000_ER:
 	case XGBE_SFP_BASE_10000_CR:
-	default:
 		pdata->phy.speed = SPEED_10000;
 		pdata->phy.duplex = DUPLEX_FULL;
 		pdata->phy.autoneg = AUTONEG_DISABLE;
+		pdata->phy.pause_autoneg = AUTONEG_DISABLE;
+		break;
+	default:
+		pdata->phy.speed = SPEED_UNKNOWN;
+		pdata->phy.duplex = DUPLEX_UNKNOWN;
+		pdata->phy.autoneg = AUTONEG_DISABLE;
+		pdata->phy.pause_autoneg = AUTONEG_DISABLE;
 		break;
 	}
 
@@ -754,36 +778,38 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 	case XGBE_SFP_BASE_1000_T:
 	case XGBE_SFP_BASE_1000_CX:
 	case XGBE_SFP_BASE_10000_CR:
-		pdata->phy.advertising |= ADVERTISED_TP;
+		pdata->phy.supported |= SUPPORTED_TP;
 		break;
 	default:
-		pdata->phy.advertising |= ADVERTISED_FIBRE;
+		pdata->phy.supported |= SUPPORTED_FIBRE;
 	}
 
 	switch (phy_data->sfp_speed) {
 	case XGBE_SFP_SPEED_100_1000:
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_100)
-			pdata->phy.advertising |= ADVERTISED_100baseT_Full;
+			pdata->phy.supported |= SUPPORTED_100baseT_Full;
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
-			pdata->phy.advertising |= ADVERTISED_1000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
 		break;
 	case XGBE_SFP_SPEED_1000:
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
-			pdata->phy.advertising |= ADVERTISED_1000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
 		break;
 	case XGBE_SFP_SPEED_10000:
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000)
-			pdata->phy.advertising |= ADVERTISED_10000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
 		break;
 	default:
 		/* Choose the fastest supported speed */
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000)
-			pdata->phy.advertising |= ADVERTISED_10000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
 		else if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
-			pdata->phy.advertising |= ADVERTISED_1000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
 		else if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_100)
-			pdata->phy.advertising |= ADVERTISED_100baseT_Full;
+			pdata->phy.supported |= SUPPORTED_100baseT_Full;
 	}
+
+	pdata->phy.advertising = pdata->phy.supported;
 }
 
 static bool xgbe_phy_sfp_bit_rate(struct xgbe_sfp_eeprom *sfp_eeprom,
@@ -2113,6 +2139,8 @@ static bool xgbe_phy_use_sfp_mode(struct xgbe_prv_data *pdata,
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_1000baseT_Full);
 	case XGBE_MODE_SFI:
+		if (phy_data->sfp_mod_absent)
+			return true;
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_10000baseT_Full);
 	default:
@@ -2916,9 +2944,6 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000) {
 			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
 			phy_data->start_mode = XGBE_MODE_SFI;
-			if (pdata->fec_ability & MDIO_PMA_10GBR_FECABLE_ABLE)
-				pdata->phy.supported |=
-					SUPPORTED_10000baseR_FEC;
 		}
 
 		phy_data->phydev_mode = XGBE_MDIO_MODE_CL22;
