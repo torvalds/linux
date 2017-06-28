@@ -1284,6 +1284,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	struct rockchip_pcie *rockchip;
 	struct device *dev = &pdev->dev;
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	struct resource_entry *win;
 	resource_size_t io_base;
 	struct resource	*mem;
@@ -1295,9 +1296,11 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	rockchip = devm_kzalloc(dev, sizeof(*rockchip), GFP_KERNEL);
-	if (!rockchip)
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*rockchip));
+	if (!bridge)
 		return -ENOMEM;
+
+	rockchip = pci_host_bridge_priv(bridge);
 
 	platform_set_drvdata(pdev, rockchip);
 	rockchip->dev = dev;
@@ -1396,11 +1399,18 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		goto err_free_res;
 	}
 
-	bus = pci_scan_root_bus(&pdev->dev, 0, &rockchip_pcie_ops, rockchip, &res);
-	if (!bus) {
-		err = -ENOMEM;
+	list_splice_init(&res, &bridge->windows);
+	bridge->dev.parent = &pdev->dev;
+	bridge->sysdata = rockchip;
+	bridge->busnr = 0;
+	bridge->ops = &rockchip_pcie_ops;
+
+	err = pci_scan_root_bus_bridge(bridge);
+	if (!err)
 		goto err_free_res;
-	}
+
+	bus = bridge->bus;
+
 	rockchip->root_bus = bus;
 
 	pci_bus_size_bridges(bus);
