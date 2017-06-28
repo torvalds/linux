@@ -1777,7 +1777,8 @@ static int new_ssif_client(int addr, char *adapter_name,
 	addr_info->addr_src = addr_src;
 	addr_info->dev = dev;
 
-	dev_set_drvdata(dev, addr_info);
+	if (dev)
+		dev_set_drvdata(dev, addr_info);
 
 	list_add_tail(&addr_info->link, &ssif_infos);
 
