@@ -199,6 +199,8 @@ static int com20020pci_probe(struct pci_dev *pdev,
 		lp->timeout = timeout;
 		lp->hw.owner = THIS_MODULE;
 
+		lp->backplane = (inb(priv->misc) >> (2 + i)) & 0x1;
+
 		/* Get the dev_id from the PLX rotary coder */
 		if (!strncmp(ci->name, "EAE PLX-PCI MA1", 15))
 			dev->dev_id = 0xc;
