@@ -41,32 +41,69 @@ In the gpiolib framework each GPIO controller is packaged as a "struct
 gpio_chip" (see linux/gpio/driver.h for its complete definition) with members
 common to each controller of that type:
 
- - methods to establish GPIO direction
- - methods used to access GPIO values
- - method to return the IRQ number associated to a given GPIO
+ - methods to establish GPIO line direction
+ - methods used to access GPIO line values
+ - method to set electrical configuration to a a given GPIO line
+ - method to return the IRQ number associated to a given GPIO line
  - flag saying whether calls to its methods may sleep
+ - optional line names array to identify lines
  - optional debugfs dump method (showing extra state like pullup config)
  - optional base number (will be automatically assigned if omitted)
- - label for diagnostics and GPIOs mapping using platform data
+ - optional label for diagnostics and GPIO chip mapping using platform data
 
 The code implementing a gpio_chip should support multiple instances of the
 controller, possibly using the driver model. That code will configure each
-gpio_chip and issue gpiochip_add(). Removing a GPIO controller should be rare;
-use gpiochip_remove() when it is unavoidable.
+gpio_chip and issue gpiochip_add[_data]() or devm_gpiochip_add_data().
+Removing a GPIO controller should be rare; use [devm_]gpiochip_remove() when
+it is unavoidable.
 
-Most often a gpio_chip is part of an instance-specific structure with state not
+Often a gpio_chip is part of an instance-specific structure with states not
 exposed by the GPIO interfaces, such as addressing, power management, and more.
-Chips such as codecs will have complex non-GPIO state.
+Chips such as audio codecs will have complex non-GPIO states.
 
 Any debugfs dump method should normally ignore signals which haven't been
 requested as GPIOs. They can use gpiochip_is_requested(), which returns either
 NULL or the label associated with that GPIO when it was requested.
 
-RT_FULL: GPIO driver should not use spinlock_t or any sleepable APIs
+RT_FULL: the GPIO driver should not use spinlock_t or any sleepable APIs
 (like PM runtime) in its gpio_chip implementation (.get/.set and direction
 control callbacks) if it is expected to call GPIO APIs from atomic context
 on -RT (inside hard IRQ handlers and similar contexts). Normally this should
 not be required.
+
+
+GPIO electrical configuration
+-----------------------------
+
+GPIOs can be configured for several electrical modes of operation by using the
+.set_config() callback. Currently this API supports setting debouncing and
+single-ended modes (open drain/open source). These settings are described
+below.
+
+The .set_config() callback uses the same enumerators and configuration
+semantics as the generic pin control drivers. This is not a coincidence: it is
+possible to assign the .set_config() to the function gpiochip_generic_config()
+which will result in pinctrl_gpio_set_config() being called and eventually
+ending up in the pin control back-end "behind" the GPIO controller, usually
+closer to the actual pins. This way the pin controller can manage the below
+listed GPIO configurations.
+
+
+GPIOs with debounce support
+---------------------------
+
+Debouncing is a configuration set to a pin indicating that it is connected to
+a mechanical switch or button, or similar that may bounce. Bouncing means the
+line is pulled high/low quickly at very short intervals for mechanical
+reasons. This can result in the value being unstable or irqs fireing repeatedly
+unless the line is debounced.
+
+Debouncing in practice involves setting up a timer when something happens on
+the line, wait a little while and then sample the line again, so see if it
+still has the same value (low or high). This could also be repeated by a clever
+state machine, waiting for a line to become stable. In either case, it sets
+a certain number of milliseconds for debouncing, or just "on/off" if that time
+is not configurable.
 
 
 GPIOs with open drain/source support
@@ -146,10 +183,11 @@ a pull-up resistor is needed on the outgoing rail to complete the circuit, and
 in the second case, a pull-down resistor is needed on the rail.
 
 Hardware that supports open drain or open source or both, can implement a
-special callback in the gpio_chip: .set_single_ended() that takes an enum flag
-telling whether to configure the line as open drain, open source or push-pull.
-This will happen in response to the GPIO_OPEN_DRAIN or GPIO_OPEN_SOURCE flag
-set in the machine file, or coming from other hardware descriptions.
+special callback in the gpio_chip: .set_config() that takes a generic
+pinconf packed value telling whether to configure the line as open drain,
+open source or push-pull. This will happen in response to the
+GPIO_OPEN_DRAIN or GPIO_OPEN_SOURCE flag set in the machine file, or coming
+from other hardware descriptions.
 
 If this state can not be configured in hardware, i.e. if the GPIO hardware does
 not support open drain/open source in hardware, the GPIO library will instead

@@ -56,6 +56,10 @@ Optional properties:
 
  - <DEPRECATED> tx-fifo-resize: determines if the FIFO *has* to be reallocated.
 
+ - in addition all properties from usb-xhci.txt from the current directory are
+   supported as well
+
+
 This is usually a subnode to DWC3 glue to which it is connected.
 
 dwc3@4a030000 {

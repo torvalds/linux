@@ -167,8 +167,8 @@ static void nft_hash_activate(const struct net *net, const struct nft_set *set,
 	nft_set_elem_clear_busy(&he->ext);
 }
 
-static bool nft_hash_deactivate_one(const struct net *net,
-				    const struct nft_set *set, void *priv)
+static bool nft_hash_flush(const struct net *net,
+			   const struct nft_set *set, void *priv)
 {
 	struct nft_hash_elem *he = priv;
 
@@ -195,7 +195,7 @@ static void *nft_hash_deactivate(const struct net *net,
 	rcu_read_lock();
 	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_hash_params);
 	if (he != NULL &&
-	    !nft_hash_deactivate_one(net, set, he))
+	    !nft_hash_flush(net, set, he))
 		he = NULL;
 
 	rcu_read_unlock();
@@ -203,7 +203,8 @@ static void *nft_hash_deactivate(const struct net *net,
 	return he;
 }
 
-static void nft_hash_remove(const struct nft_set *set,
+static void nft_hash_remove(const struct net *net,
+			    const struct nft_set *set,
 			    const struct nft_set_elem *elem)
 {
 	struct nft_hash *priv = nft_set_priv(set);
@@ -383,7 +384,8 @@ static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 		est->size = esize + 2 * sizeof(struct nft_hash_elem *);
 	}
 
-	est->class = NFT_SET_CLASS_O_1;
+	est->lookup = NFT_SET_CLASS_O_1;
+	est->space  = NFT_SET_CLASS_O_N;
 
 	return true;
 }
@@ -397,12 +399,12 @@ static struct nft_set_ops nft_hash_ops __read_mostly = {
 	.insert		= nft_hash_insert,
 	.activate	= nft_hash_activate,
 	.deactivate	= nft_hash_deactivate,
-	.deactivate_one	= nft_hash_deactivate_one,
+	.flush		= nft_hash_flush,
 	.remove		= nft_hash_remove,
 	.lookup		= nft_hash_lookup,
 	.update		= nft_hash_update,
 	.walk		= nft_hash_walk,
-	.features	= NFT_SET_MAP | NFT_SET_TIMEOUT,
+	.features	= NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
 	.owner		= THIS_MODULE,
 };
 

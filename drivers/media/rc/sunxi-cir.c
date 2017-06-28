@@ -212,7 +212,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 		goto exit_clkdisable_clk;
 	}
 
-	ir->rc = rc_allocate_device();
+	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate device\n");
 		ret = -ENOMEM;
@@ -229,8 +229,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	ir->map_name = of_get_property(dn, "linux,rc-map-name", NULL);
 	ir->rc->map_name = ir->map_name ?: RC_MAP_EMPTY;
 	ir->rc->dev.parent = dev;
-	ir->rc->driver_type = RC_DRIVER_IR_RAW;
-	ir->rc->allowed_protocols = RC_BIT_ALL;
+	ir->rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = SUNXI_IR_SAMPLE;
 	ir->rc->timeout = MS_TO_NS(SUNXI_IR_TIMEOUT);
 	ir->rc->driver_name = SUNXI_IR_DEV;

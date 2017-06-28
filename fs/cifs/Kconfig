@@ -9,8 +9,6 @@ config CIFS
 	select CRYPTO_ARC4
 	select CRYPTO_ECB
 	select CRYPTO_DES
-	select CRYPTO_SHA256
-	select CRYPTO_CMAC
 	help
 	  This is the client VFS module for the Common Internet File System
 	  (CIFS) protocol which is the successor to the Server Message Block
@@ -169,11 +167,15 @@ config CIFS_NFSD_EXPORT
 
 config CIFS_SMB2
 	bool "SMB2 and SMB3 network file system support"
-	depends on CIFS && INET
-	select NLS
+	depends on CIFS
 	select KEYS
 	select FSCACHE
 	select DNS_RESOLVER
+	select CRYPTO_AES
+	select CRYPTO_SHA256
+	select CRYPTO_CMAC
+	select CRYPTO_AEAD2
+	select CRYPTO_CCM
 
 	help
 	  This enables support for the Server Message Block version 2
@@ -194,7 +196,7 @@ config CIFS_SMB2
 
 config CIFS_SMB311
 	bool "SMB3.1.1 network file system support (Experimental)"
-	depends on CIFS_SMB2 && INET
+	depends on CIFS_SMB2
 
 	help
 	  This enables experimental support for the newest, SMB3.1.1, dialect.

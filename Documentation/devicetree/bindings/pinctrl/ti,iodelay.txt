@@ -1,0 +1,47 @@
+* Pin configuration for TI IODELAY controller
+
+TI dra7 based SoCs such as am57xx have a controller for setting the IO delay
+for each pin. For most part the IO delay values are programmed by the bootloader,
+but some pins need to be configured dynamically by the kernel such as the
+MMC pins.
+
+Required Properties:
+
+  - compatible: Must be "ti,dra7-iodelay"
+  - reg: Base address and length of the memory resource used
+  - #address-cells: Number of address cells
+  - #size-cells: Size of cells
+  - #pinctrl-cells: Number of pinctrl cells, must be 2. See also
+    Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+Example
+-------
+
+In the SoC specific dtsi file:
+
+	dra7_iodelay_core: padconf@4844a000 {
+		compatible = "ti,dra7-iodelay";
+		reg = <0x4844a000 0x0d1c>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#pinctrl-cells = <2>;
+	};
+
+In board-specific file:
+
+&dra7_iodelay_core {
+	mmc2_iodelay_3v3_conf: mmc2_iodelay_3v3_conf {
+		pinctrl-pin-array = <
+		0x18c A_DELAY_PS(0) G_DELAY_PS(120)	/* CFG_GPMC_A19_IN */
+		0x1a4 A_DELAY_PS(265) G_DELAY_PS(360)	/* CFG_GPMC_A20_IN */
+		0x1b0 A_DELAY_PS(0) G_DELAY_PS(120)	/* CFG_GPMC_A21_IN */
+		0x1bc A_DELAY_PS(0) G_DELAY_PS(120)	/* CFG_GPMC_A22_IN */
+		0x1c8 A_DELAY_PS(287) G_DELAY_PS(420)	/* CFG_GPMC_A23_IN */
+		0x1d4 A_DELAY_PS(144) G_DELAY_PS(240)	/* CFG_GPMC_A24_IN */
+		0x1e0 A_DELAY_PS(0) G_DELAY_PS(0)	/* CFG_GPMC_A25_IN */
+		0x1ec A_DELAY_PS(120) G_DELAY_PS(0)	/* CFG_GPMC_A26_IN */
+		0x1f8 A_DELAY_PS(120) G_DELAY_PS(180)	/* CFG_GPMC_A27_IN */
+		0x360 A_DELAY_PS(0) G_DELAY_PS(0)	/* CFG_GPMC_CS1_IN */
+		>;
+	};
+};

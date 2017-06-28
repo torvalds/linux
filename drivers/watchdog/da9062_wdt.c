@@ -220,9 +220,8 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.parent = &pdev->dev;
 
 	watchdog_set_drvdata(&wdt->wdtdev, wdt);
-	dev_set_drvdata(&pdev->dev, wdt);
 
-	ret = watchdog_register_device(&wdt->wdtdev);
+	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdtdev);
 	if (ret < 0) {
 		dev_err(wdt->hw->dev,
 			"watchdog registration failed (%d)\n", ret);
@@ -231,24 +230,11 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 
 	da9062_set_window_start(wdt);
 
-	ret = da9062_wdt_ping(&wdt->wdtdev);
-	if (ret < 0)
-		watchdog_unregister_device(&wdt->wdtdev);
-
-	return ret;
-}
-
-static int da9062_wdt_remove(struct platform_device *pdev)
-{
-	struct da9062_watchdog *wdt = dev_get_drvdata(&pdev->dev);
-
-	watchdog_unregister_device(&wdt->wdtdev);
-	return 0;
+	return da9062_wdt_ping(&wdt->wdtdev);
 }
 
 static struct platform_driver da9062_wdt_driver = {
 	.probe = da9062_wdt_probe,
-	.remove = da9062_wdt_remove,
 	.driver = {
 		.name = "da9062-watchdog",
 		.of_match_table = da9062_compatible_id_table,

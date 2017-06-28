@@ -15,12 +15,12 @@
 
 #include <linux/mutex.h>
 #include <linux/wait.h>
+#include <drm/drmP.h>
 #include "malidp_hw.h"
 
 struct malidp_drm {
 	struct malidp_hw_device *dev;
 	struct drm_fbdev_cma *fbdev;
-	struct list_head event_list;
 	struct drm_crtc crtc;
 	wait_queue_head_t wq;
 	atomic_t config_valid;

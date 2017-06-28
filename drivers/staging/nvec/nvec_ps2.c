@@ -107,7 +107,7 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct serio *ser_dev;
 
-	ser_dev = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	ser_dev = kzalloc(sizeof(*ser_dev), GFP_KERNEL);
 	if (!ser_dev)
 		return -ENOMEM;
 

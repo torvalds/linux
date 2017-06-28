@@ -214,7 +214,7 @@ static const struct emac_reg_write tx_rx_setting[] = {
 
 int emac_sgmii_init_fsm9900(struct emac_adapter *adpt)
 {
-	struct emac_phy *phy = &adpt->phy;
+	struct emac_sgmii *phy = &adpt->phy;
 	unsigned int i;
 
 	emac_reg_write_all(phy->base, physical_coding_sublayer_programming,

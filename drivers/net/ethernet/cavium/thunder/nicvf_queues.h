@@ -59,8 +59,9 @@
 /* Default queue count per QS, its lengths and threshold values */
 #define DEFAULT_RBDR_CNT	1
 
-#define SND_QSIZE		SND_QUEUE_SIZE2
+#define SND_QSIZE		SND_QUEUE_SIZE0
 #define SND_QUEUE_LEN		(1ULL << (SND_QSIZE + 10))
+#define MIN_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE0 + 10))
 #define MAX_SND_QUEUE_LEN	(1ULL << (SND_QUEUE_SIZE6 + 10))
 #define SND_QUEUE_THRESH	2ULL
 #define MIN_SQ_DESC_PER_PKT_XMIT	2
@@ -70,16 +71,23 @@
 /* Keep CQ and SQ sizes same, if timestamping
  * is enabled this equation will change.
  */
-#define CMP_QSIZE		CMP_QUEUE_SIZE2
+#define CMP_QSIZE		CMP_QUEUE_SIZE0
 #define CMP_QUEUE_LEN		(1ULL << (CMP_QSIZE + 10))
+#define MIN_CMP_QUEUE_LEN	(1ULL << (CMP_QUEUE_SIZE0 + 10))
+#define MAX_CMP_QUEUE_LEN	(1ULL << (CMP_QUEUE_SIZE6 + 10))
 #define CMP_QUEUE_CQE_THRESH	(NAPI_POLL_WEIGHT / 2)
 #define CMP_QUEUE_TIMER_THRESH	80 /* ~2usec */
+
+/* No of CQEs that might anyway gets used by HW due to pipelining
+ * effects irrespective of PASS/DROP/LEVELS being configured
+ */
+#define CMP_QUEUE_PIPELINE_RSVD 544
 
 #define RBDR_SIZE		RBDR_SIZE0
 #define RCV_BUF_COUNT		(1ULL << (RBDR_SIZE + 13))
 #define MAX_RCV_BUF_COUNT	(1ULL << (RBDR_SIZE6 + 13))
 #define RBDR_THRESH		(RCV_BUF_COUNT / 2)
-#define DMA_BUFFER_LEN		2048 /* In multiples of 128bytes */
+#define DMA_BUFFER_LEN		1536 /* In multiples of 128bytes */
 #define RCV_FRAG_LEN	 (SKB_DATA_ALIGN(DMA_BUFFER_LEN + NET_SKB_PAD) + \
 			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
@@ -93,8 +101,8 @@
  * RED accepts pkt if unused CQE < 2304 & >= 2560
  * DROPs pkts if unused CQE < 2304
  */
-#define RQ_PASS_CQ_LVL		160ULL
-#define RQ_DROP_CQ_LVL		144ULL
+#define RQ_PASS_CQ_LVL         192ULL
+#define RQ_DROP_CQ_LVL         184ULL
 
 /* RED and Backpressure levels of RBDR for pkt reception
  * For RBDR, level is a measure of fullness i.e 0x0 means empty
@@ -293,6 +301,8 @@ struct queue_set {
 
 #define	CQ_ERR_MASK	(CQ_WR_FULL | CQ_WR_DISABLE | CQ_WR_FAULT)
 
+void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
+			      int hdr_sqe, u8 subdesc_cnt);
 void nicvf_config_vlan_stripping(struct nicvf *nic,
 				 netdev_features_t features);
 int nicvf_set_qset_resources(struct nicvf *nic);

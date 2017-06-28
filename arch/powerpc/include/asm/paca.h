@@ -187,7 +187,6 @@ struct paca_struct {
 
 	/* Stuff for accurate time accounting */
 	struct cpu_accounting_data accounting;
-	u64 stolen_time;		/* TB ticks taken by hypervisor */
 	u64 dtl_ridx;			/* read index in dispatch log */
 	struct dtl_entry *dtl_curr;	/* pointer corresponding to dtl_ridx */
 

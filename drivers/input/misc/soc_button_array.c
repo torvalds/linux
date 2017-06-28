@@ -102,6 +102,8 @@ soc_button_device_create(struct platform_device *pdev,
 		gpio_keys[n_buttons].active_low = 1;
 		gpio_keys[n_buttons].desc = info->name;
 		gpio_keys[n_buttons].wakeup = info->wakeup;
+		/* These devices often use cheap buttons, use 50 ms debounce */
+		gpio_keys[n_buttons].debounce_interval = 50;
 		n_buttons++;
 	}
 
@@ -167,12 +169,12 @@ static int soc_button_probe(struct platform_device *pdev)
 
 	button_info = (struct soc_button_info *)id->driver_data;
 
-	if (gpiod_count(&pdev->dev, KBUILD_MODNAME) <= 0) {
-		dev_dbg(&pdev->dev, "no GPIO attached, ignoring...\n");
+	if (gpiod_count(dev, KBUILD_MODNAME) <= 0) {
+		dev_dbg(dev, "no GPIO attached, ignoring...\n");
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

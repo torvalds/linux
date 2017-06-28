@@ -1,32 +1,13 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <linux/list.h>
 #include <linux/bug.h>
-#include <uapi/linux/signal.h>
+#include <linux/signal_types.h>
 
 struct task_struct;
 
 /* for sysctl */
 extern int print_fatal_signals;
-/*
- * Real Time signals may be queued.
- */
-
-struct sigqueue {
-	struct list_head list;
-	int flags;
-	siginfo_t info;
-	struct user_struct *user;
-};
-
-/* flags values. */
-#define SIGQUEUE_PREALLOC	1
-
-struct sigpending {
-	struct list_head list;
-	sigset_t signal;
-};
 
 #ifndef HAVE_ARCH_COPY_SIGINFO
 
@@ -271,42 +252,6 @@ extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern void set_current_blocked(sigset_t *);
 extern void __set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
-
-struct sigaction {
-#ifndef __ARCH_HAS_IRIX_SIGACTION
-	__sighandler_t	sa_handler;
-	unsigned long	sa_flags;
-#else
-	unsigned int	sa_flags;
-	__sighandler_t	sa_handler;
-#endif
-#ifdef __ARCH_HAS_SA_RESTORER
-	__sigrestore_t sa_restorer;
-#endif
-	sigset_t	sa_mask;	/* mask last for extensibility */
-};
-
-struct k_sigaction {
-	struct sigaction sa;
-#ifdef __ARCH_HAS_KA_RESTORER
-	__sigrestore_t ka_restorer;
-#endif
-};
- 
-#ifdef CONFIG_OLD_SIGACTION
-struct old_sigaction {
-	__sighandler_t sa_handler;
-	old_sigset_t sa_mask;
-	unsigned long sa_flags;
-	__sigrestore_t sa_restorer;
-};
-#endif
-
-struct ksignal {
-	struct k_sigaction ka;
-	siginfo_t info;
-	int sig;
-};
 
 extern int get_signal(struct ksignal *ksig);
 extern void signal_setup_done(int failed, struct ksignal *ksig, int stepping);

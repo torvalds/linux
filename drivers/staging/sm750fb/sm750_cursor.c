@@ -20,7 +20,7 @@
 
 
 
-#define POKE32(addr, data) \
+#define poke32(addr, data) \
 writel((data), cursor->mmio + (addr))
 
 /* cursor control for voyager and 718/750*/
@@ -52,11 +52,11 @@ void sm750_hw_cursor_enable(struct lynx_cursor *cursor)
 	u32 reg;
 
 	reg = (cursor->offset & HWC_ADDRESS_ADDRESS_MASK) | HWC_ADDRESS_ENABLE;
-	POKE32(HWC_ADDRESS, reg);
+	poke32(HWC_ADDRESS, reg);
 }
 void sm750_hw_cursor_disable(struct lynx_cursor *cursor)
 {
-	POKE32(HWC_ADDRESS, 0);
+	poke32(HWC_ADDRESS, 0);
 }
 
 void sm750_hw_cursor_setSize(struct lynx_cursor *cursor,
@@ -72,7 +72,7 @@ void sm750_hw_cursor_setPos(struct lynx_cursor *cursor,
 
 	reg = (((y << HWC_LOCATION_Y_SHIFT) & HWC_LOCATION_Y_MASK) |
 		(x & HWC_LOCATION_X_MASK));
-	POKE32(HWC_LOCATION, reg);
+	poke32(HWC_LOCATION, reg);
 }
 void sm750_hw_cursor_setColor(struct lynx_cursor *cursor,
 						u32 fg, u32 bg)
@@ -80,8 +80,8 @@ void sm750_hw_cursor_setColor(struct lynx_cursor *cursor,
 	u32 reg = (fg << HWC_COLOR_12_2_RGB565_SHIFT) &
 		HWC_COLOR_12_2_RGB565_MASK;
 
-	POKE32(HWC_COLOR_12, reg | (bg & HWC_COLOR_12_1_RGB565_MASK));
-	POKE32(HWC_COLOR_3, 0xffe0);
+	poke32(HWC_COLOR_12, reg | (bg & HWC_COLOR_12_1_RGB565_MASK));
+	poke32(HWC_COLOR_3, 0xffe0);
 }
 
 void sm750_hw_cursor_setData(struct lynx_cursor *cursor,

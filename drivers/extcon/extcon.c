@@ -30,10 +30,11 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/err.h>
-#include <linux/extcon.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+
+#include "extcon.h"
 
 #define SUPPORTED_CABLE_MAX	32
 #define CABLE_NAME_MAX		30
@@ -59,7 +60,7 @@ struct __extcon_info {
 	[EXTCON_USB_HOST] = {
 		.type = EXTCON_TYPE_USB,
 		.id = EXTCON_USB_HOST,
-		.name = "USB_HOST",
+		.name = "USB-HOST",
 	},
 
 	/* Charging external connector */
@@ -97,6 +98,11 @@ struct __extcon_info {
 		.type = EXTCON_TYPE_CHG,
 		.id = EXTCON_CHG_WPT,
 		.name = "WPT",
+	},
+	[EXTCON_CHG_USB_PD] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_PD,
+		.name = "PD",
 	},
 
 	/* Jack external connector */
@@ -906,35 +912,16 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 	unsigned long flags;
 	int ret, idx = -EINVAL;
 
-	if (!nb)
+	if (!edev || !nb)
 		return -EINVAL;
 
-	if (edev) {
-		idx = find_cable_index_by_id(edev, id);
-		if (idx < 0)
-			return idx;
+	idx = find_cable_index_by_id(edev, id);
+	if (idx < 0)
+		return idx;
 
-		spin_lock_irqsave(&edev->lock, flags);
-		ret = raw_notifier_chain_register(&edev->nh[idx], nb);
-		spin_unlock_irqrestore(&edev->lock, flags);
-	} else {
-		struct extcon_dev *extd;
-
-		mutex_lock(&extcon_dev_list_lock);
-		list_for_each_entry(extd, &extcon_dev_list, entry) {
-			idx = find_cable_index_by_id(extd, id);
-			if (idx >= 0)
-				break;
-		}
-		mutex_unlock(&extcon_dev_list_lock);
-
-		if (idx >= 0) {
-			edev = extd;
-			return extcon_register_notifier(extd, id, nb);
-		} else {
-			ret = -ENODEV;
-		}
-	}
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = raw_notifier_chain_register(&edev->nh[idx], nb);
+	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
 }

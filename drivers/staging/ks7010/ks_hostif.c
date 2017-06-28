@@ -461,7 +461,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			priv->nstats.rx_packets++;
 			priv->nstats.rx_bytes += rx_ind_size;
-			skb->dev->last_rx = jiffies;
 			netif_rx(skb);
 		} else {
 			priv->nstats.rx_dropped++;
@@ -494,7 +493,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			priv->nstats.rx_packets++;
 			priv->nstats.rx_bytes += rx_ind_size;
-			skb->dev->last_rx = jiffies;
 			netif_rx(skb);
 		} else {
 			priv->nstats.rx_dropped++;
@@ -729,7 +727,6 @@ void hostif_power_mngmt_confirm(struct ks_wlan_private *priv)
 	} else {
 		priv->dev_state = DEVICE_STATE_READY;
 	}
-
 }
 
 static
@@ -855,7 +852,6 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 		DPRINTK(4, " count over :: scan_ind_count=%d\n",
 			priv->scan_ind_count);
 	}
-
 }
 
 static
@@ -902,7 +898,6 @@ void hostif_ps_adhoc_set_confirm(struct ks_wlan_private *priv)
 	DPRINTK(3, "\n");
 	priv->infra_status = 0;	/* infrastructure mode cancel */
 	hostif_sme_enqueue(priv, SME_MODE_SET_CONFIRM);
-
 }
 
 static
@@ -1104,7 +1099,7 @@ void hostif_event_check(struct ks_wlan_private *priv)
 	priv->hostt.qtail = (priv->hostt.qtail + 1) % SME_EVENT_BUFF_SIZE;
 }
 
-#define CHECK_ALINE(size) (size%4 ? (size+(4-(size%4))):size)
+#define CHECK_ALINE(size) (size % 4 ? (size + (4 - (size % 4))) : size)
 
 int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 {
@@ -1918,7 +1913,6 @@ void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 				       sizeof(val), MIB_VALUE_TYPE_BOOL, &val);
 		break;
 	}
-
 }
 
 struct wpa_suite_t {
@@ -2105,7 +2099,6 @@ void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 		hostif_mib_set_request(priv, LOCAL_RSN_MODE, sizeof(rsn_mode),
 				       MIB_VALUE_TYPE_OSTRING, &rsn_mode);
 		break;
-
 	}
 }
 
@@ -2213,13 +2206,11 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 	default:
 		break;
 	}
-
 }
 
 static
 void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 {
-
 	struct net_device *dev = priv->net_dev;
 	int mc_count;
 	struct netdev_hw_addr *ha;
@@ -2269,7 +2260,6 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 	}
 
 	spin_unlock(&priv->multicast_spin);
-
 }
 
 static
@@ -2313,7 +2303,6 @@ void hostif_sme_powermgt_set(struct ks_wlan_private *priv)
 		break;
 	}
 	hostif_power_mngmt_request(priv, mode, wake_up, receiveDTIMs);
-
 }
 
 static
@@ -2330,7 +2319,6 @@ void hostif_sme_sleep_set(struct ks_wlan_private *priv)
 	default:
 		break;
 	}
-
 }
 
 static
@@ -2641,7 +2629,6 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 	}
 
 	tasklet_schedule(&priv->sme_task);
-
 }
 
 int hostif_init(struct ks_wlan_private *priv)

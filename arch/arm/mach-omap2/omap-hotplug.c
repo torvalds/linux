@@ -50,7 +50,7 @@ void omap4_cpu_die(unsigned int cpu)
 		omap4_hotplug_cpu(cpu, PWRDM_POWER_OFF);
 
 		if (omap_secure_apis_support())
-			boot_cpu = omap_read_auxcoreboot0();
+			boot_cpu = omap_read_auxcoreboot0() >> 9;
 		else
 			boot_cpu =
 				readl_relaxed(base + OMAP_AUX_CORE_BOOT_0) >> 5;

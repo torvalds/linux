@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/ioport.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>
@@ -169,16 +168,12 @@ struct au1k_private {
 	u32 speed;
 	u32 newspeed;
 
-	struct timer_list timer;
-
 	struct resource *ioarea;
 	struct au1k_irda_platform_data *platdata;
 	struct clk *irda_clk;
 };
 
 static int qos_mtt_bits = 0x07;  /* 1 ms or more */
-
-#define RUN_AT(x) (jiffies + (x))
 
 static void au1k_irda_plat_set_phy_mode(struct au1k_private *p, int mode)
 {
@@ -620,8 +615,6 @@ static int au1k_irda_start(struct net_device *dev)
 	/* power up */
 	au1k_irda_plat_set_phy_mode(aup, AU1000_IRDA_PHY_MODE_SIR);
 
-	aup->timer.expires = RUN_AT((3 * HZ));
-	aup->timer.data = (unsigned long)dev;
 	return 0;
 }
 
@@ -642,7 +635,6 @@ static int au1k_irda_stop(struct net_device *dev)
 	}
 
 	netif_stop_queue(dev);
-	del_timer(&aup->timer);
 
 	/* disable the interrupt */
 	free_irq(aup->irq_tx, dev);

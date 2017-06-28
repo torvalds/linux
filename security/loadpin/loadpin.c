@@ -182,7 +182,7 @@ static struct security_hook_list loadpin_hooks[] = {
 void __init loadpin_add_hooks(void)
 {
 	pr_info("ready to pin (currently %sabled)", enabled ? "en" : "dis");
-	security_add_hooks(loadpin_hooks, ARRAY_SIZE(loadpin_hooks));
+	security_add_hooks(loadpin_hooks, ARRAY_SIZE(loadpin_hooks), "loadpin");
 }
 
 /* Should not be mutable after boot, so not listed in sysfs (perm == 0). */

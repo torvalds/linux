@@ -138,3 +138,20 @@ Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 Description:	This attribute file will display what type of memory is
 		currently on this csrow. Normally, either buffered or
 		unbuffered memory (for example, Unbuffered-DDR3).
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_ce_count
+Date:		October 2016
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays the total count of correctable
+		errors that have occurred on this DIMM. This count is very important
+		to examine. CEs provide early indications that a DIMM is beginning
+		to fail. This count field should be monitored for non-zero values
+		and report such information to the system administrator.
+
+What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_ue_count
+Date:		October 2016
+Contact:	linux-edac@vger.kernel.org
+Description:	This attribute file displays the total count of uncorrectable
+		errors that have occurred on this DIMM. If panic_on_ue is set, this
+		counter will not have a chance to increment, since EDAC will panic the
+		system

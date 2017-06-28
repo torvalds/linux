@@ -170,6 +170,16 @@ Description:
 		Has all of the equivalent parameters as per voltageY. Units
 		after application of scale and offset are m/s^2.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_gravity_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_gravity_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_gravity_z_raw
+KernelVersion:	4.11
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Gravity in direction x, y or z (may be arbitrarily assigned
+		but should match other such assignments on device).
+		Units after application of scale and offset are m/s^2.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_raw
@@ -805,7 +815,7 @@ Description:
 		attribute. E.g. if in_voltage0_raw_thresh_rising_value is set to 1200
 		and in_voltage0_raw_thresh_rising_hysteresis is set to 50. The event
 		will get activated once in_voltage0_raw goes above 1200 and will become
-		deactived again once the value falls below 1150.
+		deactivated again once the value falls below 1150.
 
 What:		/sys/.../events/in_accel_x_raw_roc_rising_value
 What:		/sys/.../events/in_accel_x_raw_roc_falling_value
@@ -1245,7 +1255,8 @@ Description:
 		reflectivity of infrared or ultrasound emitted.
 		Often these sensors are unit less and as such conversion
 		to SI units is not possible. Higher proximity measurements
-		indicate closer objects, and vice versa.
+		indicate closer objects, and vice versa. Units after
+		application of scale and offset are meters.
 
 What:		/sys/.../iio:deviceX/in_illuminance_input
 What:		/sys/.../iio:deviceX/in_illuminance_raw

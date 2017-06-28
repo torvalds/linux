@@ -398,13 +398,14 @@ static const struct irq_domain_ops regmap_domain_ops = {
 };
 
 /**
- * regmap_add_irq_chip(): Use standard regmap IRQ controller handling
+ * regmap_add_irq_chip() - Use standard regmap IRQ controller handling
  *
- * map:       The regmap for the device.
- * irq:       The IRQ the device uses to signal interrupts
- * irq_flags: The IRQF_ flags to use for the primary interrupt.
- * chip:      Configuration for the interrupt controller.
- * data:      Runtime data structure for the controller, allocated on success
+ * @map: The regmap for the device.
+ * @irq: The IRQ the device uses to signal interrupts.
+ * @irq_flags: The IRQF_ flags to use for the primary interrupt.
+ * @irq_base: Allocate at specific IRQ number if irq_base > 0.
+ * @chip: Configuration for the interrupt controller.
+ * @data: Runtime data structure for the controller, allocated on success.
  *
  * Returns 0 on success or an errno on failure.
  *
@@ -659,12 +660,12 @@ err_alloc:
 EXPORT_SYMBOL_GPL(regmap_add_irq_chip);
 
 /**
- * regmap_del_irq_chip(): Stop interrupt handling for a regmap IRQ chip
+ * regmap_del_irq_chip() - Stop interrupt handling for a regmap IRQ chip
  *
  * @irq: Primary IRQ for the device
- * @d:   regmap_irq_chip_data allocated by regmap_add_irq_chip()
+ * @d: &regmap_irq_chip_data allocated by regmap_add_irq_chip()
  *
- * This function also dispose all mapped irq on chip.
+ * This function also disposes of all mapped IRQs on the chip.
  */
 void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 {
@@ -723,18 +724,19 @@ static int devm_regmap_irq_chip_match(struct device *dev, void *res, void *data)
 }
 
 /**
- * devm_regmap_add_irq_chip(): Resource manager regmap_add_irq_chip()
+ * devm_regmap_add_irq_chip() - Resource manager regmap_add_irq_chip()
  *
- * @dev:       The device pointer on which irq_chip belongs to.
- * @map:       The regmap for the device.
- * @irq:       The IRQ the device uses to signal interrupts
+ * @dev: The device pointer on which irq_chip belongs to.
+ * @map: The regmap for the device.
+ * @irq: The IRQ the device uses to signal interrupts
  * @irq_flags: The IRQF_ flags to use for the primary interrupt.
- * @chip:      Configuration for the interrupt controller.
- * @data:      Runtime data structure for the controller, allocated on success
+ * @irq_base: Allocate at specific IRQ number if irq_base > 0.
+ * @chip: Configuration for the interrupt controller.
+ * @data: Runtime data structure for the controller, allocated on success
  *
  * Returns 0 on success or an errno on failure.
  *
- * The regmap_irq_chip data automatically be released when the device is
+ * The &regmap_irq_chip_data will be automatically released when the device is
  * unbound.
  */
 int devm_regmap_add_irq_chip(struct device *dev, struct regmap *map, int irq,
@@ -765,11 +767,13 @@ int devm_regmap_add_irq_chip(struct device *dev, struct regmap *map, int irq,
 EXPORT_SYMBOL_GPL(devm_regmap_add_irq_chip);
 
 /**
- * devm_regmap_del_irq_chip(): Resource managed regmap_del_irq_chip()
+ * devm_regmap_del_irq_chip() - Resource managed regmap_del_irq_chip()
  *
  * @dev: Device for which which resource was allocated.
- * @irq: Primary IRQ for the device
- * @d:   regmap_irq_chip_data allocated by regmap_add_irq_chip()
+ * @irq: Primary IRQ for the device.
+ * @data: &regmap_irq_chip_data allocated by regmap_add_irq_chip().
+ *
+ * A resource managed version of regmap_del_irq_chip().
  */
 void devm_regmap_del_irq_chip(struct device *dev, int irq,
 			      struct regmap_irq_chip_data *data)
@@ -786,11 +790,11 @@ void devm_regmap_del_irq_chip(struct device *dev, int irq,
 EXPORT_SYMBOL_GPL(devm_regmap_del_irq_chip);
 
 /**
- * regmap_irq_chip_get_base(): Retrieve interrupt base for a regmap IRQ chip
+ * regmap_irq_chip_get_base() - Retrieve interrupt base for a regmap IRQ chip
+ *
+ * @data: regmap irq controller to operate on.
  *
  * Useful for drivers to request their own IRQs.
- *
- * @data: regmap_irq controller to operate on.
  */
 int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data)
 {
@@ -800,12 +804,12 @@ int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data)
 EXPORT_SYMBOL_GPL(regmap_irq_chip_get_base);
 
 /**
- * regmap_irq_get_virq(): Map an interrupt on a chip to a virtual IRQ
+ * regmap_irq_get_virq() - Map an interrupt on a chip to a virtual IRQ
+ *
+ * @data: regmap irq controller to operate on.
+ * @irq: index of the interrupt requested in the chip IRQs.
  *
  * Useful for drivers to request their own IRQs.
- *
- * @data: regmap_irq controller to operate on.
- * @irq: index of the interrupt requested in the chip IRQs
  */
 int regmap_irq_get_virq(struct regmap_irq_chip_data *data, int irq)
 {
@@ -818,14 +822,14 @@ int regmap_irq_get_virq(struct regmap_irq_chip_data *data, int irq)
 EXPORT_SYMBOL_GPL(regmap_irq_get_virq);
 
 /**
- * regmap_irq_get_domain(): Retrieve the irq_domain for the chip
+ * regmap_irq_get_domain() - Retrieve the irq_domain for the chip
+ *
+ * @data: regmap_irq controller to operate on.
  *
  * Useful for drivers to request their own IRQs and for integration
  * with subsystems.  For ease of integration NULL is accepted as a
  * domain, allowing devices to just call this even if no domain is
  * allocated.
- *
- * @data: regmap_irq controller to operate on.
  */
 struct irq_domain *regmap_irq_get_domain(struct regmap_irq_chip_data *data)
 {

@@ -21,6 +21,8 @@
 #define CCU_FEATURE_VARIABLE_PREDIV	BIT(1)
 #define CCU_FEATURE_FIXED_PREDIV	BIT(2)
 #define CCU_FEATURE_FIXED_POSTDIV	BIT(3)
+#define CCU_FEATURE_ALL_PREDIV		BIT(4)
+#define CCU_FEATURE_LOCK_REG		BIT(5)
 
 struct device_node;
 
@@ -56,6 +58,8 @@ struct device_node;
 struct ccu_common {
 	void __iomem	*base;
 	u16		reg;
+	u16		lock_reg;
+	u32		prediv;
 
 	unsigned long	features;
 	spinlock_t	*lock;
@@ -78,6 +82,18 @@ struct sunxi_ccu_desc {
 };
 
 void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock);
+
+struct ccu_pll_nb {
+	struct notifier_block	clk_nb;
+	struct ccu_common	*common;
+
+	u32	enable;
+	u32	lock;
+};
+
+#define to_ccu_pll_nb(_nb) container_of(_nb, struct ccu_pll_nb, clk_nb)
+
+int ccu_pll_notifier_register(struct ccu_pll_nb *pll_nb);
 
 int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
 		    const struct sunxi_ccu_desc *desc);

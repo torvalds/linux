@@ -1605,7 +1605,7 @@ int t1_poll(struct napi_struct *napi, int budget)
 	int work_done = process_responses(adapter, budget);
 
 	if (likely(work_done < budget)) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		writel(adapter->sge->respQ.cidx,
 		       adapter->regs + A_SG_SLEEPING);
 	}

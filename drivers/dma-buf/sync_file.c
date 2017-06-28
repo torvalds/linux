@@ -67,9 +67,10 @@ static void fence_check_cb_func(struct dma_fence *f, struct dma_fence_cb *cb)
  * sync_file_create() - creates a sync file
  * @fence:	fence to add to the sync_fence
  *
- * Creates a sync_file containg @fence. Once this is called, the sync_file
- * takes ownership of @fence. The sync_file can be released with
- * fput(sync_file->file). Returns the sync_file or NULL in case of error.
+ * Creates a sync_file containg @fence. This function acquires and additional
+ * reference of @fence for the newly-created &sync_file, if it succeeds. The
+ * sync_file can be released with fput(sync_file->file). Returns the
+ * sync_file or NULL in case of error.
  */
 struct sync_file *sync_file_create(struct dma_fence *fence)
 {
@@ -90,13 +91,6 @@ struct sync_file *sync_file_create(struct dma_fence *fence)
 }
 EXPORT_SYMBOL(sync_file_create);
 
-/**
- * sync_file_fdget() - get a sync_file from an fd
- * @fd:		fd referencing a fence
- *
- * Ensures @fd references a valid sync_file, increments the refcount of the
- * backing file. Returns the sync_file or NULL in case of error.
- */
 static struct sync_file *sync_file_fdget(int fd)
 {
 	struct file *file = fget(fd);
@@ -379,10 +373,8 @@ static void sync_fill_fence_info(struct dma_fence *fence,
 		sizeof(info->obj_name));
 	strlcpy(info->driver_name, fence->ops->get_driver_name(fence),
 		sizeof(info->driver_name));
-	if (dma_fence_is_signaled(fence))
-		info->status = fence->status >= 0 ? 1 : fence->status;
-	else
-		info->status = 0;
+
+	info->status = dma_fence_get_status(fence);
 	info->timestamp_ns = ktime_to_ns(fence->timestamp);
 }
 
@@ -468,4 +460,3 @@ static const struct file_operations sync_file_fops = {
 	.unlocked_ioctl = sync_file_ioctl,
 	.compat_ioctl = sync_file_ioctl,
 };
-

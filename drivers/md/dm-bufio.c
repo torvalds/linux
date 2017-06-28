@@ -11,6 +11,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 #include <linux/jiffies.h>
 #include <linux/vmalloc.h>
 #include <linux/shrinker.h>
@@ -794,7 +795,7 @@ static void __wait_for_free_buffer(struct dm_bufio_client *c)
 	DECLARE_WAITQUEUE(wait, current);
 
 	add_wait_queue(&c->free_buffer_wait, &wait);
-	set_task_state(current, TASK_UNINTERRUPTIBLE);
+	set_current_state(TASK_UNINTERRUPTIBLE);
 	dm_bufio_unlock(c);
 
 	io_schedule();

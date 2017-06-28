@@ -2,7 +2,6 @@
 #define _TOOLS_LINUX_BITOPS_H_
 
 #include <asm/types.h>
-#include <linux/kernel.h>
 #include <linux/compiler.h>
 
 #ifndef __WORDSIZE

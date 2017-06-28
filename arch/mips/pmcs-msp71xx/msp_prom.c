@@ -34,7 +34,7 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>

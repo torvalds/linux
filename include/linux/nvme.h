@@ -64,26 +64,26 @@ enum {
  * RDMA_QPTYPE field
  */
 enum {
-	NVMF_RDMA_QPTYPE_CONNECTED	= 0, /* Reliable Connected */
-	NVMF_RDMA_QPTYPE_DATAGRAM	= 1, /* Reliable Datagram */
+	NVMF_RDMA_QPTYPE_CONNECTED	= 1, /* Reliable Connected */
+	NVMF_RDMA_QPTYPE_DATAGRAM	= 2, /* Reliable Datagram */
 };
 
 /* RDMA QP Service Type codes for Discovery Log Page entry TSAS
  * RDMA_QPTYPE field
  */
 enum {
-	NVMF_RDMA_PRTYPE_NOT_SPECIFIED	= 0, /* No Provider Specified */
-	NVMF_RDMA_PRTYPE_IB		= 1, /* InfiniBand */
-	NVMF_RDMA_PRTYPE_ROCE		= 2, /* InfiniBand RoCE */
-	NVMF_RDMA_PRTYPE_ROCEV2		= 3, /* InfiniBand RoCEV2 */
-	NVMF_RDMA_PRTYPE_IWARP		= 4, /* IWARP */
+	NVMF_RDMA_PRTYPE_NOT_SPECIFIED	= 1, /* No Provider Specified */
+	NVMF_RDMA_PRTYPE_IB		= 2, /* InfiniBand */
+	NVMF_RDMA_PRTYPE_ROCE		= 3, /* InfiniBand RoCE */
+	NVMF_RDMA_PRTYPE_ROCEV2		= 4, /* InfiniBand RoCEV2 */
+	NVMF_RDMA_PRTYPE_IWARP		= 5, /* IWARP */
 };
 
 /* RDMA Connection Management Service Type codes for Discovery Log Page
  * entry TSAS RDMA_CMS field
  */
 enum {
-	NVMF_RDMA_CMS_RDMA_CM	= 0, /* Sockets based enpoint addressing */
+	NVMF_RDMA_CMS_RDMA_CM	= 1, /* Sockets based endpoint addressing */
 };
 
 #define NVMF_AQ_DEPTH		32
@@ -244,6 +244,7 @@ enum {
 	NVME_CTRL_ONCS_DSM			= 1 << 2,
 	NVME_CTRL_ONCS_WRITE_ZEROES		= 1 << 3,
 	NVME_CTRL_VWC_PRESENT			= 1 << 0,
+	NVME_CTRL_OACS_SEC_SUPP                 = 1 << 0,
 };
 
 struct nvme_lbaf {
@@ -553,6 +554,8 @@ enum {
 	NVME_DSMGMT_AD		= 1 << 2,
 };
 
+#define NVME_DSM_MAX_RANGES	256
+
 struct nvme_dsm_range {
 	__le32			cattr;
 	__le32			nlb;
@@ -574,6 +577,12 @@ struct nvme_write_zeroes_cmd {
 	__le32			reftag;
 	__le16			apptag;
 	__le16			appmask;
+};
+
+/* Features */
+
+struct nvme_feat_auto_pst {
+	__le64 entries[32];
 };
 
 /* Admin commands */
@@ -641,7 +650,9 @@ struct nvme_identify {
 	__le32			nsid;
 	__u64			rsvd2[2];
 	union nvme_data_ptr	dptr;
-	__le32			cns;
+	__u8			cns;
+	__u8			rsvd3;
+	__le16			ctrlid;
 	__u32			rsvd11[5];
 };
 

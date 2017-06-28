@@ -498,6 +498,18 @@ record.*::
 		But if this option is 'no-cache', it will not update the build-id cache.
 		'skip' skips post-processing and does not update the cache.
 
+diff.*::
+	diff.order::
+		This option sets the number of columns to sort the result.
+		The default is 0, which means sorting by baseline.
+		Setting it to 1 will sort the result by delta (or other
+		compute method selected).
+
+	diff.compute::
+		This options sets the method for computing the diff result.
+		Possible values are 'delta', 'delta-abs', 'ratio' and
+		'wdiff'.  Default is 'delta'.
+
 SEE ALSO
 --------
 linkperf:perf[1]

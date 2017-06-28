@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs_struct.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 
 #include "../../../include/linux/libcfs/libcfs.h"
 

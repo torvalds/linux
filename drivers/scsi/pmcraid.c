@@ -4587,16 +4587,14 @@ static void pmcraid_tasklet_function(unsigned long instance)
 static
 void pmcraid_unregister_interrupt_handler(struct pmcraid_instance *pinstance)
 {
+	struct pci_dev *pdev = pinstance->pdev;
 	int i;
 
 	for (i = 0; i < pinstance->num_hrrq; i++)
-		free_irq(pinstance->hrrq_vector[i].vector,
-			 &(pinstance->hrrq_vector[i]));
+		free_irq(pci_irq_vector(pdev, i), &pinstance->hrrq_vector[i]);
 
-	if (pinstance->interrupt_mode) {
-		pci_disable_msix(pinstance->pdev);
-		pinstance->interrupt_mode = 0;
-	}
+	pinstance->interrupt_mode = 0;
+	pci_free_irq_vectors(pdev);
 }
 
 /**
@@ -4609,60 +4607,52 @@ void pmcraid_unregister_interrupt_handler(struct pmcraid_instance *pinstance)
 static int
 pmcraid_register_interrupt_handler(struct pmcraid_instance *pinstance)
 {
-	int rc;
 	struct pci_dev *pdev = pinstance->pdev;
+	unsigned int irq_flag = PCI_IRQ_LEGACY, flag;
+	int num_hrrq, rc, i;
+	irq_handler_t isr;
 
-	if ((pmcraid_enable_msix) &&
-		(pci_find_capability(pdev, PCI_CAP_ID_MSIX))) {
-		int num_hrrq = PMCRAID_NUM_MSIX_VECTORS;
-		struct msix_entry entries[PMCRAID_NUM_MSIX_VECTORS];
-		int i;
-		for (i = 0; i < PMCRAID_NUM_MSIX_VECTORS; i++)
-			entries[i].entry = i;
+	if (pmcraid_enable_msix)
+		irq_flag |= PCI_IRQ_MSIX;
 
-		num_hrrq = pci_enable_msix_range(pdev, entries, 1, num_hrrq);
-		if (num_hrrq < 0)
-			goto pmcraid_isr_legacy;
+	num_hrrq = pci_alloc_irq_vectors(pdev, 1, PMCRAID_NUM_MSIX_VECTORS,
+			irq_flag);
+	if (num_hrrq < 0)
+		return num_hrrq;
 
-		for (i = 0; i < num_hrrq; i++) {
-			pinstance->hrrq_vector[i].hrrq_id = i;
-			pinstance->hrrq_vector[i].drv_inst = pinstance;
-			pinstance->hrrq_vector[i].vector = entries[i].vector;
-			rc = request_irq(pinstance->hrrq_vector[i].vector,
-					pmcraid_isr_msix, 0,
-					PMCRAID_DRIVER_NAME,
-					&(pinstance->hrrq_vector[i]));
+	if (pdev->msix_enabled) {
+		flag = 0;
+		isr = pmcraid_isr_msix;
+	} else {
+		flag = IRQF_SHARED;
+		isr = pmcraid_isr;
+	}
 
-			if (rc) {
-				int j;
-				for (j = 0; j < i; j++)
-					free_irq(entries[j].vector,
-						 &(pinstance->hrrq_vector[j]));
-				pci_disable_msix(pdev);
-				goto pmcraid_isr_legacy;
-			}
-		}
+	for (i = 0; i < num_hrrq; i++) {
+		struct pmcraid_isr_param *vec = &pinstance->hrrq_vector[i];
 
-		pinstance->num_hrrq = num_hrrq;
+		vec->hrrq_id = i;
+		vec->drv_inst = pinstance;
+		rc = request_irq(pci_irq_vector(pdev, i), isr, flag,
+				PMCRAID_DRIVER_NAME, vec);
+		if (rc)
+			goto out_unwind;
+	}
+
+	pinstance->num_hrrq = num_hrrq;
+	if (pdev->msix_enabled) {
 		pinstance->interrupt_mode = 1;
 		iowrite32(DOORBELL_INTR_MODE_MSIX,
 			  pinstance->int_regs.host_ioa_interrupt_reg);
 		ioread32(pinstance->int_regs.host_ioa_interrupt_reg);
-		goto pmcraid_isr_out;
 	}
 
-pmcraid_isr_legacy:
-	/* If MSI-X registration failed fallback to legacy mode, where
-	 * only one hrrq entry will be used
-	 */
-	pinstance->hrrq_vector[0].hrrq_id = 0;
-	pinstance->hrrq_vector[0].drv_inst = pinstance;
-	pinstance->hrrq_vector[0].vector = pdev->irq;
-	pinstance->num_hrrq = 1;
+	return 0;
 
-	rc = request_irq(pdev->irq, pmcraid_isr, IRQF_SHARED,
-			 PMCRAID_DRIVER_NAME, &pinstance->hrrq_vector[0]);
-pmcraid_isr_out:
+out_unwind:
+	while (--i > 0)
+		free_irq(pci_irq_vector(pdev, i), &pinstance->hrrq_vector[i]);
+	pci_free_irq_vectors(pdev);
 	return rc;
 }
 

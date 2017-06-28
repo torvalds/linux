@@ -154,7 +154,7 @@ __asm__ __volatile__					\
 static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
                                 unsigned char *dst, int len)
 {
-	unsigned char *s = hostdata->pdma_io + (INPUT_DATA_REG << 4);
+	u8 __iomem *s = hostdata->pdma_io + (INPUT_DATA_REG << 4);
 	unsigned char *d = dst;
 	int n = len;
 	int transferred;
@@ -257,7 +257,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
                                  unsigned char *src, int len)
 {
 	unsigned char *s = src;
-	unsigned char *d = hostdata->pdma_io + (OUTPUT_DATA_REG << 4);
+	u8 __iomem *d = hostdata->pdma_io + (OUTPUT_DATA_REG << 4);
 	int n = len;
 	int transferred;
 
@@ -381,10 +381,10 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 
 	hostdata = shost_priv(instance);
 	hostdata->base = pio_mem->start;
-	hostdata->io = (void *)pio_mem->start;
+	hostdata->io = (u8 __iomem *)pio_mem->start;
 
 	if (pdma_mem && setup_use_pdma)
-		hostdata->pdma_io = (void *)pdma_mem->start;
+		hostdata->pdma_io = (u8 __iomem *)pdma_mem->start;
 	else
 		host_flags |= FLAG_NO_PSEUDO_DMA;
 

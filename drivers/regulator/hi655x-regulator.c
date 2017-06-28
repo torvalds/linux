@@ -96,7 +96,7 @@ static int hi655x_disable(struct regulator_dev *rdev)
 	return ret;
 }
 
-static struct regulator_ops hi655x_regulator_ops = {
+static const struct regulator_ops hi655x_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = hi655x_disable,
 	.is_enabled = hi655x_is_enabled,
@@ -105,7 +105,7 @@ static struct regulator_ops hi655x_regulator_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
-static struct regulator_ops hi655x_ldo_linear_ops = {
+static const struct regulator_ops hi655x_ldo_linear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = hi655x_disable,
 	.is_enabled = hi655x_is_enabled,

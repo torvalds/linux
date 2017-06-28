@@ -165,7 +165,7 @@ static int s5k6a3_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
+static const struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
 	.enum_mbus_code	= s5k6a3_enum_mbus_code,
 	.get_fmt	= s5k6a3_get_fmt,
 	.set_fmt	= s5k6a3_set_fmt,
@@ -266,11 +266,11 @@ static int s5k6a3_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static struct v4l2_subdev_core_ops s5k6a3_core_ops = {
+static const struct v4l2_subdev_core_ops s5k6a3_core_ops = {
 	.s_power = s5k6a3_s_power,
 };
 
-static struct v4l2_subdev_ops s5k6a3_subdev_ops = {
+static const struct v4l2_subdev_ops s5k6a3_subdev_ops = {
 	.core = &s5k6a3_core_ops,
 	.pad = &s5k6a3_pad_ops,
 };

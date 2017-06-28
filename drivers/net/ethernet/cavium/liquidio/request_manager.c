@@ -455,7 +455,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 /* Can only be called from process context */
 int
 octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
-		u32 pending_thresh, u32 napi_budget)
+		u32 napi_budget)
 {
 	u32 inst_processed = 0;
 	u32 tot_inst_processed = 0;
@@ -468,33 +468,32 @@ octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
 
 	iq->octeon_read_index = oct->fn_list.update_iq_read_idx(iq);
 
-	if (atomic_read(&iq->instr_pending) >= (s32)pending_thresh) {
-		do {
-			/* Process any outstanding IQ packets. */
-			if (iq->flush_index == iq->octeon_read_index)
-				break;
+	do {
+		/* Process any outstanding IQ packets. */
+		if (iq->flush_index == iq->octeon_read_index)
+			break;
 
-			if (napi_budget)
-				inst_processed = lio_process_iq_request_list
-					(oct, iq,
-					 napi_budget - tot_inst_processed);
-			else
-				inst_processed =
-					lio_process_iq_request_list(oct, iq, 0);
+		if (napi_budget)
+			inst_processed =
+				lio_process_iq_request_list(oct, iq,
+							    napi_budget -
+							    tot_inst_processed);
+		else
+			inst_processed =
+				lio_process_iq_request_list(oct, iq, 0);
 
-			if (inst_processed) {
-				atomic_sub(inst_processed, &iq->instr_pending);
-				iq->stats.instr_processed += inst_processed;
-			}
+		if (inst_processed) {
+			atomic_sub(inst_processed, &iq->instr_pending);
+			iq->stats.instr_processed += inst_processed;
+		}
 
-			tot_inst_processed += inst_processed;
-			inst_processed = 0;
+		tot_inst_processed += inst_processed;
+		inst_processed = 0;
 
-		} while (tot_inst_processed < napi_budget);
+	} while (tot_inst_processed < napi_budget);
 
-		if (napi_budget && (tot_inst_processed >= napi_budget))
-			tx_done = 0;
-	}
+	if (napi_budget && (tot_inst_processed >= napi_budget))
+		tx_done = 0;
 
 	iq->last_db_time = jiffies;
 
@@ -530,7 +529,7 @@ static void __check_db_timeout(struct octeon_device *oct, u64 iq_no)
 	iq->last_db_time = jiffies;
 
 	/* Flush the instruction queue */
-	octeon_flush_iq(oct, iq, 1, 0);
+	octeon_flush_iq(oct, iq, 0);
 
 	lio_enable_irq(NULL, iq);
 }

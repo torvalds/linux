@@ -471,7 +471,6 @@ static int fib_count_nexthops(struct rtnexthop *rtnh, int remaining)
 static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 		       int remaining, struct fib_config *cfg)
 {
-	struct net *net = cfg->fc_nlinfo.nl_net;
 	int ret;
 
 	change_nexthops(fi) {
@@ -503,16 +502,14 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 			nla = nla_find(attrs, attrlen, RTA_ENCAP);
 			if (nla) {
 				struct lwtunnel_state *lwtstate;
-				struct net_device *dev = NULL;
 				struct nlattr *nla_entype;
 
 				nla_entype = nla_find(attrs, attrlen,
 						      RTA_ENCAP_TYPE);
 				if (!nla_entype)
 					goto err_inval;
-				if (cfg->fc_oif)
-					dev = __dev_get_by_index(net, cfg->fc_oif);
-				ret = lwtunnel_build_state(dev, nla_get_u16(
+
+				ret = lwtunnel_build_state(nla_get_u16(
 							   nla_entype),
 							   nla,  AF_INET, cfg,
 							   &lwtstate);
@@ -597,21 +594,18 @@ static inline void fib_add_weight(struct fib_info *fi,
 
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
-static int fib_encap_match(struct net *net, u16 encap_type,
+static int fib_encap_match(u16 encap_type,
 			   struct nlattr *encap,
-			   int oif, const struct fib_nh *nh,
+			   const struct fib_nh *nh,
 			   const struct fib_config *cfg)
 {
 	struct lwtunnel_state *lwtstate;
-	struct net_device *dev = NULL;
 	int ret, result = 0;
 
 	if (encap_type == LWTUNNEL_ENCAP_NONE)
 		return 0;
 
-	if (oif)
-		dev = __dev_get_by_index(net, oif);
-	ret = lwtunnel_build_state(dev, encap_type, encap,
+	ret = lwtunnel_build_state(encap_type, encap,
 				   AF_INET, cfg, &lwtstate);
 	if (!ret) {
 		result = lwtunnel_cmp_encap(lwtstate, nh->nh_lwtstate);
@@ -623,7 +617,6 @@ static int fib_encap_match(struct net *net, u16 encap_type,
 
 int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 {
-	struct net *net = cfg->fc_nlinfo.nl_net;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	struct rtnexthop *rtnh;
 	int remaining;
@@ -634,9 +627,8 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi)
 
 	if (cfg->fc_oif || cfg->fc_gw) {
 		if (cfg->fc_encap) {
-			if (fib_encap_match(net, cfg->fc_encap_type,
-					    cfg->fc_encap, cfg->fc_oif,
-					    fi->fib_nh, cfg))
+			if (fib_encap_match(cfg->fc_encap_type,
+					    cfg->fc_encap, fi->fib_nh, cfg))
 			    return 1;
 		}
 		if ((!cfg->fc_oif || cfg->fc_oif == fi->fib_nh->nh_oif) &&
@@ -1093,13 +1085,10 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 		if (cfg->fc_encap) {
 			struct lwtunnel_state *lwtstate;
-			struct net_device *dev = NULL;
 
 			if (cfg->fc_encap_type == LWTUNNEL_ENCAP_NONE)
 				goto err_inval;
-			if (cfg->fc_oif)
-				dev = __dev_get_by_index(net, cfg->fc_oif);
-			err = lwtunnel_build_state(dev, cfg->fc_encap_type,
+			err = lwtunnel_build_state(cfg->fc_encap_type,
 						   cfg->fc_encap, AF_INET, cfg,
 						   &lwtstate);
 			if (err)
@@ -1366,6 +1355,36 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local)
 	return ret;
 }
 
+static int call_fib_nh_notifiers(struct fib_nh *fib_nh,
+				 enum fib_event_type event_type)
+{
+	struct in_device *in_dev = __in_dev_get_rtnl(fib_nh->nh_dev);
+	struct fib_nh_notifier_info info = {
+		.fib_nh = fib_nh,
+	};
+
+	switch (event_type) {
+	case FIB_EVENT_NH_ADD:
+		if (fib_nh->nh_flags & RTNH_F_DEAD)
+			break;
+		if (IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		    fib_nh->nh_flags & RTNH_F_LINKDOWN)
+			break;
+		return call_fib_notifiers(dev_net(fib_nh->nh_dev), event_type,
+					  &info.info);
+	case FIB_EVENT_NH_DEL:
+		if ((IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		     fib_nh->nh_flags & RTNH_F_LINKDOWN) ||
+		    (fib_nh->nh_flags & RTNH_F_DEAD))
+			return call_fib_notifiers(dev_net(fib_nh->nh_dev),
+						  event_type, &info.info);
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 /* Event              force Flags           Description
  * NETDEV_CHANGE      0     LINKDOWN        Carrier OFF, not for scope host
  * NETDEV_DOWN        0     LINKDOWN|DEAD   Link down, not for scope host
@@ -1407,6 +1426,8 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 					nexthop_nh->nh_flags |= RTNH_F_LINKDOWN;
 					break;
 				}
+				call_fib_nh_notifiers(nexthop_nh,
+						      FIB_EVENT_NH_DEL);
 				dead++;
 			}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -1437,7 +1458,7 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 }
 
 /* Must be invoked inside of an RCU protected region.  */
-void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
+static void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
 {
 	struct fib_info *fi = NULL, *last_resort = NULL;
 	struct hlist_head *fa_head = res->fa_head;
@@ -1561,6 +1582,7 @@ int fib_sync_up(struct net_device *dev, unsigned int nh_flags)
 				continue;
 			alive++;
 			nexthop_nh->nh_flags &= ~nh_flags;
+			call_fib_nh_notifiers(nexthop_nh, FIB_EVENT_NH_ADD);
 		} endfor_nexthops(fi)
 
 		if (alive > 0) {

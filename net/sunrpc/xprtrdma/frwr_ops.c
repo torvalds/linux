@@ -466,8 +466,8 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	struct ib_send_wr *first, **prev, *last, *bad_wr;
 	struct rpcrdma_rep *rep = req->rl_reply;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_mw *mw, *tmp;
 	struct rpcrdma_frmr *f;
+	struct rpcrdma_mw *mw;
 	int count, rc;
 
 	dprintk("RPC:       %s: req %p\n", __func__, req);
@@ -534,10 +534,10 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * them to the free MW list.
 	 */
 unmap:
-	list_for_each_entry_safe(mw, tmp, &req->rl_registered, mw_list) {
+	while (!list_empty(&req->rl_registered)) {
+		mw = rpcrdma_pop_mw(&req->rl_registered);
 		dprintk("RPC:       %s: DMA unmapping frmr %p\n",
 			__func__, &mw->frmr);
-		list_del_init(&mw->mw_list);
 		ib_dma_unmap_sg(ia->ri_device,
 				mw->mw_sg, mw->mw_nents, mw->mw_dir);
 		rpcrdma_put_mw(r_xprt, mw);
@@ -571,10 +571,7 @@ frwr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	struct rpcrdma_mw *mw;
 
 	while (!list_empty(&req->rl_registered)) {
-		mw = list_first_entry(&req->rl_registered,
-				      struct rpcrdma_mw, mw_list);
-		list_del_init(&mw->mw_list);
-
+		mw = rpcrdma_pop_mw(&req->rl_registered);
 		if (sync)
 			frwr_op_recover_mr(mw);
 		else

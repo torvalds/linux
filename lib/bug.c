@@ -45,6 +45,7 @@
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/sched.h>
+#include <linux/rculist.h>
 
 extern const struct bug_entry __start___bug_table[], __stop___bug_table[];
 

@@ -288,13 +288,13 @@ static int snd_echo_midi_output_close(struct snd_rawmidi_substream *substream)
 
 
 
-static struct snd_rawmidi_ops snd_echo_midi_input = {
+static const struct snd_rawmidi_ops snd_echo_midi_input = {
 	.open = snd_echo_midi_input_open,
 	.close = snd_echo_midi_input_close,
 	.trigger = snd_echo_midi_input_trigger,
 };
 
-static struct snd_rawmidi_ops snd_echo_midi_output = {
+static const struct snd_rawmidi_ops snd_echo_midi_output = {
 	.open = snd_echo_midi_output_open,
 	.close = snd_echo_midi_output_close,
 	.trigger = snd_echo_midi_output_trigger,

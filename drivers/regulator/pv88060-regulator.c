@@ -162,7 +162,7 @@ static int pv88060_get_current_limit(struct regulator_dev *rdev)
 	return info->current_limits[data];
 }
 
-static struct regulator_ops pv88060_buck_ops = {
+static const struct regulator_ops pv88060_buck_ops = {
 	.get_mode = pv88060_buck_get_mode,
 	.set_mode = pv88060_buck_set_mode,
 	.enable = regulator_enable_regmap,
@@ -175,7 +175,7 @@ static struct regulator_ops pv88060_buck_ops = {
 	.get_current_limit = pv88060_get_current_limit,
 };
 
-static struct regulator_ops pv88060_ldo_ops = {
+static const struct regulator_ops pv88060_ldo_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,

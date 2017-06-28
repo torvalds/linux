@@ -24,7 +24,7 @@
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
-#include "si/sid.h"
+#include "sid.h"
 
 const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
@@ -301,7 +301,7 @@ static int si_dma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	ib.ptr[2] = upper_32_bits(gpu_addr) & 0xff;
 	ib.ptr[3] = 0xDEADBEEF;
 	ib.length_dw = 4;
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
 	if (r)
 		goto err1;
 

@@ -17,6 +17,8 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+
 #include <asm/backtrace.h>
 #include <asm/page.h>
 #include <hv/hypervisor.h>

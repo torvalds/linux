@@ -74,3 +74,4 @@ generic-y += trace_clock.h
 generic-y += uaccess.h
 generic-y += unaligned.h
 generic-y += word-at-a-time.h
+generic-y += kprobes.h

@@ -156,9 +156,9 @@ struct	setopmode_parm {
  * Command-Event Mode
  */
 struct sitesurvey_parm {
-	sint passive_mode;	/*active: 1, passive: 0 */
-	sint bsslimit;	/* 1 ~ 48 */
-	sint	ss_ssidlen;
+	__le32	passive_mode;	/*active: 1, passive: 0 */
+	__le32	bsslimit;	/* 1 ~ 48 */
+	__le32	ss_ssidlen;
 	u8	ss_ssid[IW_ESSID_MAX_SIZE + 1];
 };
 

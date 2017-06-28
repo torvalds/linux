@@ -63,7 +63,6 @@ struct rx8010_data {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 	u8 ctrlreg;
-	spinlock_t flags_lock;
 };
 
 static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
@@ -72,12 +71,12 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 	struct rx8010_data *rx8010 = i2c_get_clientdata(client);
 	int flagreg;
 
-	spin_lock(&rx8010->flags_lock);
+	mutex_lock(&rx8010->rtc->ops_lock);
 
 	flagreg = i2c_smbus_read_byte_data(client, RX8010_FLAG);
 
 	if (flagreg <= 0) {
-		spin_unlock(&rx8010->flags_lock);
+		mutex_unlock(&rx8010->rtc->ops_lock);
 		return IRQ_NONE;
 	}
 
@@ -101,7 +100,7 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 
 	i2c_smbus_write_byte_data(client, RX8010_FLAG, flagreg);
 
-	spin_unlock(&rx8010->flags_lock);
+	mutex_unlock(&rx8010->rtc->ops_lock);
 	return IRQ_HANDLED;
 }
 
@@ -143,7 +142,6 @@ static int rx8010_set_time(struct device *dev, struct rtc_time *dt)
 	u8 date[7];
 	int ctrl, flagreg;
 	int ret;
-	unsigned long irqflags;
 
 	if ((dt->tm_year < 100) || (dt->tm_year > 199))
 		return -EINVAL;
@@ -181,19 +179,14 @@ static int rx8010_set_time(struct device *dev, struct rtc_time *dt)
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irqsave(&rx8010->flags_lock, irqflags);
-
 	flagreg = i2c_smbus_read_byte_data(rx8010->client, RX8010_FLAG);
 	if (flagreg < 0) {
-		spin_unlock_irqrestore(&rx8010->flags_lock, irqflags);
 		return flagreg;
 	}
 
 	if (flagreg & RX8010_FLAG_VLF)
 		ret = i2c_smbus_write_byte_data(rx8010->client, RX8010_FLAG,
 						flagreg & ~RX8010_FLAG_VLF);
-
-	spin_unlock_irqrestore(&rx8010->flags_lock, irqflags);
 
 	return 0;
 }
@@ -288,12 +281,9 @@ static int rx8010_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	u8 alarmvals[3];
 	int extreg, flagreg;
 	int err;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&rx8010->flags_lock, irqflags);
 	flagreg = i2c_smbus_read_byte_data(client, RX8010_FLAG);
 	if (flagreg < 0) {
-		spin_unlock_irqrestore(&rx8010->flags_lock, irqflags);
 		return flagreg;
 	}
 
@@ -302,14 +292,12 @@ static int rx8010_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		err = i2c_smbus_write_byte_data(rx8010->client, RX8010_CTRL,
 						rx8010->ctrlreg);
 		if (err < 0) {
-			spin_unlock_irqrestore(&rx8010->flags_lock, irqflags);
 			return err;
 		}
 	}
 
 	flagreg &= ~RX8010_FLAG_AF;
 	err = i2c_smbus_write_byte_data(rx8010->client, RX8010_FLAG, flagreg);
-	spin_unlock_irqrestore(&rx8010->flags_lock, irqflags);
 	if (err < 0)
 		return err;
 
@@ -404,7 +392,6 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	struct rx8010_data *rx8010 = dev_get_drvdata(dev);
 	int ret, tmp;
 	int flagreg;
-	unsigned long irqflags;
 
 	switch (cmd) {
 	case RTC_VL_READ:
@@ -419,16 +406,13 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	case RTC_VL_CLR:
-		spin_lock_irqsave(&rx8010->flags_lock, irqflags);
 		flagreg = i2c_smbus_read_byte_data(rx8010->client, RX8010_FLAG);
 		if (flagreg < 0) {
-			spin_unlock_irqrestore(&rx8010->flags_lock, irqflags);
 			return flagreg;
 		}
 
 		flagreg &= ~RX8010_FLAG_VLF;
 		ret = i2c_smbus_write_byte_data(client, RX8010_FLAG, flagreg);
-		spin_unlock_irqrestore(&rx8010->flags_lock, irqflags);
 		if (ret < 0)
 			return ret;
 
@@ -465,8 +449,6 @@ static int rx8010_probe(struct i2c_client *client,
 
 	rx8010->client = client;
 	i2c_set_clientdata(client, rx8010);
-
-	spin_lock_init(&rx8010->flags_lock);
 
 	err = rx8010_init_client(client);
 	if (err)

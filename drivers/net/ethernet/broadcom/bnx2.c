@@ -3515,7 +3515,7 @@ static int bnx2_poll_msix(struct napi_struct *napi, int budget)
 		rmb();
 		if (likely(!bnx2_has_fast_work(bnapi))) {
 
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			BNX2_WR(bp, BNX2_PCICFG_INT_ACK_CMD, bnapi->int_num |
 				BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 				bnapi->last_status_idx);
@@ -3552,7 +3552,7 @@ static int bnx2_poll(struct napi_struct *napi, int budget)
 
 		rmb();
 		if (likely(!bnx2_has_work(bnapi))) {
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			if (likely(bp->flags & BNX2_FLAG_USING_MSI_OR_MSIX)) {
 				BNX2_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 					BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
@@ -6821,13 +6821,13 @@ bnx2_save_stats(struct bnx2 *bp)
 	(unsigned long) (bp->stats_blk->ctr +			\
 			 bp->temp_stats_blk->ctr)
 
-static struct rtnl_link_stats64 *
+static void
 bnx2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (bp->stats_blk == NULL)
-		return net_stats;
+		return;
 
 	net_stats->rx_packets =
 		GET_64BIT_NET_STATS(stat_IfHCInUcastPkts) +
@@ -6891,7 +6891,6 @@ bnx2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		GET_32BIT_NET_STATS(stat_IfInMBUFDiscards) +
 		GET_32BIT_NET_STATS(stat_FwRxDrop);
 
-	return net_stats;
 }
 
 /* All ethtool functions called with rtnl_lock */

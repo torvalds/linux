@@ -40,6 +40,7 @@
 #include <net/netlink.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 /* HTB algorithm.
     Author: devik@cdi.cz

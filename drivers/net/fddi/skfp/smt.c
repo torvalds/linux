@@ -35,7 +35,6 @@ static const char ID_sccs[] = "@(#)smt.c	2.43 98/11/23 (C) SK " ;
 
 #define SMT_TID_MAGIC	0x1f0a7b3c
 
-#ifdef	DEBUG
 static const char *const smt_type_name[] = {
 	"SMT_00??", "SMT_INFO", "SMT_02??", "SMT_03??",
 	"SMT_04??", "SMT_05??", "SMT_06??", "SMT_07??",
@@ -47,7 +46,7 @@ static const char *const smt_class_name[] = {
 	"UNKNOWN","NIF","SIF_CONFIG","SIF_OPER","ECF","RAF","RDF",
 	"SRF","PMF_GET","PMF_SET","ESF"
 } ;
-#endif
+
 #define LAST_CLASS	(SMT_PMF_SET)
 
 static const struct fddi_addr SMT_Unknown = {
@@ -203,7 +202,7 @@ void smt_agent_task(struct s_smc *smc)
 {
 	smt_timer_start(smc,&smc->sm.smt_timer, (u_long)1000000L,
 		EV_TOKEN(EVENT_SMT,SM_TIMER)) ;
-	DB_SMT("SMT agent task\n",0,0) ;
+	DB_SMT("SMT agent task");
 }
 
 #ifndef SMT_REAL_TOKEN_CT
@@ -396,7 +395,7 @@ void smt_event(struct s_smc *smc, int event)
 	 */
 	if (smc->sm.smt_tvu &&
 	    time - smc->sm.smt_tvu > 228*TICKS_PER_SECOND) {
-		DB_SMT("SMT : UNA expired\n",0,0) ;
+		DB_SMT("SMT : UNA expired");
 		smc->sm.smt_tvu = 0 ;
 
 		if (!is_equal(&smc->mib.m[MAC0].fddiMACUpstreamNbr,
@@ -419,7 +418,7 @@ void smt_event(struct s_smc *smc, int event)
 	}
 	if (smc->sm.smt_tvd &&
 	    time - smc->sm.smt_tvd > 228*TICKS_PER_SECOND) {
-		DB_SMT("SMT : DNA expired\n",0,0) ;
+		DB_SMT("SMT : DNA expired");
 		smc->sm.smt_tvd = 0 ;
 		if (!is_equal(&smc->mib.m[MAC0].fddiMACDownstreamNbr,
 			&SMT_Unknown)){
@@ -504,10 +503,11 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 #endif
 
 	smt_swap_para(sm,(int) mb->sm_len,1) ;
-	DB_SMT("SMT : received packet [%s] at 0x%p\n",
-		smt_type_name[m_fc(mb) & 0xf],sm) ;
-	DB_SMT("SMT : version %d, class %s\n",sm->smt_version,
-		smt_class_name[(sm->smt_class>LAST_CLASS)?0 : sm->smt_class]) ;
+	DB_SMT("SMT : received packet [%s] at 0x%p",
+	       smt_type_name[m_fc(mb) & 0xf], sm);
+	DB_SMT("SMT : version %d, class %s",
+	       sm->smt_version,
+	       smt_class_name[sm->smt_class > LAST_CLASS ? 0 : sm->smt_class]);
 
 #ifdef	SBA
 	/*
@@ -524,8 +524,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	 * ignore any packet with NSA and A-indicator set
 	 */
 	if ( (fs & A_INDICATOR) && m_fc(mb) == FC_SMT_NSA) {
-		DB_SMT("SMT : ignoring NSA with A-indicator set from %s\n",
-			addr_to_string(&sm->smt_source),0) ;
+		DB_SMT("SMT : ignoring NSA with A-indicator set from %s",
+		       addr_to_string(&sm->smt_source));
 		smt_free_mbuf(smc,mb) ;
 		return ;
 	}
@@ -556,15 +556,15 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		break ;
 	}
 	if (illegal) {
-		DB_SMT("SMT : version = %d, dest = %s\n",
-			sm->smt_version,addr_to_string(&sm->smt_source)) ;
+		DB_SMT("SMT : version = %d, dest = %s",
+		       sm->smt_version, addr_to_string(&sm->smt_source));
 		smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_VERSION,local) ;
 		smt_free_mbuf(smc,mb) ;
 		return ;
 	}
 	if ((sm->smt_len > mb->sm_len - sizeof(struct smt_header)) ||
 	    ((sm->smt_len & 3) && (sm->smt_class != SMT_ECF))) {
-		DB_SMT("SMT: info length error, len = %d\n",sm->smt_len,0) ;
+		DB_SMT("SMT: info length error, len = %d", sm->smt_len);
 		smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_LENGTH,local) ;
 		smt_free_mbuf(smc,mb) ;
 		return ;
@@ -572,7 +572,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	switch (sm->smt_class) {
 	case SMT_NIF :
 		if (smt_check_para(smc,sm,plist_nif)) {
-			DB_SMT("SMT: NIF with para problem, ignoring\n",0,0) ;
+			DB_SMT("SMT: NIF with para problem, ignoring");
 			break ;
 		}
 		switch (sm->smt_type) {
@@ -586,8 +586,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 				if (!is_equal(
 					&smc->mib.m[MAC0].fddiMACUpstreamNbr,
 					&sm->smt_source)) {
-					DB_SMT("SMT : updated my UNA = %s\n",
-					addr_to_string(&sm->smt_source),0) ;
+					DB_SMT("SMT : updated my UNA = %s",
+					       addr_to_string(&sm->smt_source));
 					if (!is_equal(&smc->mib.m[MAC0].
 					    fddiMACUpstreamNbr,&SMT_Unknown)){
 					 /* Do not update unknown address */
@@ -616,8 +616,8 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			    is_individual(&sm->smt_source) &&
 			    ((!(fs & A_INDICATOR) && m_fc(mb) == FC_SMT_NSA) ||
 			     (m_fc(mb) != FC_SMT_NSA))) {
-				DB_SMT("SMT : replying to NIF request %s\n",
-					addr_to_string(&sm->smt_source),0) ;
+				DB_SMT("SMT : replying to NIF request %s",
+				       addr_to_string(&sm->smt_source));
 				smt_send_nif(smc,&sm->smt_source,
 					FC_SMT_INFO,
 					sm->smt_tid,
@@ -625,11 +625,11 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			}
 			break ;
 		case SMT_REPLY :
-			DB_SMT("SMT : received NIF response from %s\n",
-				addr_to_string(&sm->smt_source),0) ;
+			DB_SMT("SMT : received NIF response from %s",
+			       addr_to_string(&sm->smt_source));
 			if (fs & A_INDICATOR) {
 				smc->sm.pend[SMT_TID_NIF] = 0 ;
-				DB_SMT("SMT : duplicate address\n",0,0) ;
+				DB_SMT("SMT : duplicate address");
 				smc->mib.m[MAC0].fddiMACDupAddressTest =
 					DA_FAILED ;
 				smc->r.dup_addr_test = DA_FAILED ;
@@ -644,7 +644,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 				if (!is_equal(
 					&smc->mib.m[MAC0].fddiMACDownstreamNbr,
 					&sm->smt_source)) {
-					DB_SMT("SMT : updated my DNA\n",0,0) ;
+					DB_SMT("SMT : updated my DNA");
 					if (!is_equal(&smc->mib.m[MAC0].
 					 fddiMACDownstreamNbr, &SMT_Unknown)){
 					 /* Do not update unknown address */
@@ -671,11 +671,11 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 			}
 			else if (sm->smt_tid ==
 				smc->sm.pend[SMT_TID_NIF_TEST]) {
-				DB_SMT("SMT : NIF test TID ok\n",0,0) ;
+				DB_SMT("SMT : NIF test TID ok");
 			}
 			else {
-				DB_SMT("SMT : expected TID %lx, got %lx\n",
-				smc->sm.pend[SMT_TID_NIF],sm->smt_tid) ;
+				DB_SMT("SMT : expected TID %lx, got %x",
+				       smc->sm.pend[SMT_TID_NIF], sm->smt_tid);
 			}
 			break ;
 		default :
@@ -686,53 +686,53 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 	case SMT_SIF_CONFIG :	/* station information */
 		if (sm->smt_type != SMT_REQUEST)
 			break ;
-		DB_SMT("SMT : replying to SIF Config request from %s\n",
-			addr_to_string(&sm->smt_source),0) ;
+		DB_SMT("SMT : replying to SIF Config request from %s",
+		       addr_to_string(&sm->smt_source));
 		smt_send_sif_config(smc,&sm->smt_source,sm->smt_tid,local) ;
 		break ;
 	case SMT_SIF_OPER :	/* station information */
 		if (sm->smt_type != SMT_REQUEST)
 			break ;
-		DB_SMT("SMT : replying to SIF Operation request from %s\n",
-			addr_to_string(&sm->smt_source),0) ;
+		DB_SMT("SMT : replying to SIF Operation request from %s",
+		       addr_to_string(&sm->smt_source));
 		smt_send_sif_operation(smc,&sm->smt_source,sm->smt_tid,local) ;
 		break ;
 	case SMT_ECF :		/* echo frame */
 		switch (sm->smt_type) {
 		case SMT_REPLY :
 			smc->mib.priv.fddiPRIVECF_Reply_Rx++ ;
-			DB_SMT("SMT: received ECF reply from %s\n",
-				addr_to_string(&sm->smt_source),0) ;
+			DB_SMT("SMT: received ECF reply from %s",
+			       addr_to_string(&sm->smt_source));
 			if (sm_to_para(smc,sm,SMT_P_ECHODATA) == NULL) {
-				DB_SMT("SMT: ECHODATA missing\n",0,0) ;
+				DB_SMT("SMT: ECHODATA missing");
 				break ;
 			}
 			if (sm->smt_tid == smc->sm.pend[SMT_TID_ECF]) {
-				DB_SMT("SMT : ECF test TID ok\n",0,0) ;
+				DB_SMT("SMT : ECF test TID ok");
 			}
 			else if (sm->smt_tid == smc->sm.pend[SMT_TID_ECF_UNA]) {
-				DB_SMT("SMT : ECF test UNA ok\n",0,0) ;
+				DB_SMT("SMT : ECF test UNA ok");
 			}
 			else if (sm->smt_tid == smc->sm.pend[SMT_TID_ECF_DNA]) {
-				DB_SMT("SMT : ECF test DNA ok\n",0,0) ;
+				DB_SMT("SMT : ECF test DNA ok");
 			}
 			else {
-				DB_SMT("SMT : expected TID %lx, got %lx\n",
-					smc->sm.pend[SMT_TID_ECF],
-					sm->smt_tid) ;
+				DB_SMT("SMT : expected TID %lx, got %x",
+				       smc->sm.pend[SMT_TID_ECF],
+				       sm->smt_tid);
 			}
 			break ;
 		case SMT_REQUEST :
 			smc->mib.priv.fddiPRIVECF_Req_Rx++ ;
 			{
 			if (sm->smt_len && !sm_to_para(smc,sm,SMT_P_ECHODATA)) {
-			DB_SMT("SMT: ECF with para problem,sending RDF\n",0,0) ;
+				DB_SMT("SMT: ECF with para problem,sending RDF");
 				smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_LENGTH,
 					local) ;
 				break ;
 			}
-			DB_SMT("SMT - sending ECF reply to %s\n",
-				addr_to_string(&sm->smt_source),0) ;
+			DB_SMT("SMT - sending ECF reply to %s",
+			       addr_to_string(&sm->smt_source));
 
 			/* set destination addr.  & reply */
 			sm->smt_dest = sm->smt_source ;
@@ -750,7 +750,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 #ifndef	BOOT
 	case SMT_RAF :		/* resource allocation */
 #ifdef	ESS
-		DB_ESSN(2,"ESS: RAF frame received\n",0,0) ;
+		DB_ESSN(2, "ESS: RAF frame received");
 		fs = ess_raf_received_pack(smc,mb,sm,fs) ;
 #endif
 
@@ -764,7 +764,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		break ;
 	case SMT_ESF :		/* extended service - not supported */
 		if (sm->smt_type == SMT_REQUEST) {
-			DB_SMT("SMT - received ESF, sending RDF\n",0,0) ;
+			DB_SMT("SMT - received ESF, sending RDF");
 			smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_CLASS,local) ;
 		}
 		break ;
@@ -782,7 +782,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		 */
 		if ((sm->smt_class == SMT_PMF_SET) &&
 			!is_individual(&sm->smt_dest)) {
-			DB_SMT("SMT: ignoring PMF-SET with I/G set\n",0,0) ;
+			DB_SMT("SMT: ignoring PMF-SET with I/G set");
 			break ;
 		}
 		smt_pmf_received_pack(smc,mb, local) ;
@@ -798,16 +798,15 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 		 * we need to send a RDF frame according to 8.1.3.1.1,
 		 * only if it is a REQUEST.
 		 */
-		DB_SMT("SMT : class = %d, send RDF to %s\n",
-			sm->smt_class, addr_to_string(&sm->smt_source)) ;
+		DB_SMT("SMT : class = %d, send RDF to %s",
+		       sm->smt_class, addr_to_string(&sm->smt_source));
 
 		smt_send_rdf(smc,mb,m_fc(mb),SMT_RDF_CLASS,local) ;
 		break ;
 #endif
 	}
 	if (illegal) {
-		DB_SMT("SMT: discarding invalid frame, reason = %d\n",
-			illegal,0) ;
+		DB_SMT("SMT: discarding invalid frame, reason = %d", illegal);
 	}
 	smt_free_mbuf(smc,mb) ;
 }
@@ -869,8 +868,8 @@ static void smt_send_rdf(struct s_smc *smc, SMbuf *rej, int fc, int reason,
 	if (sm->smt_type != SMT_REQUEST)
 		return ;
 
-	DB_SMT("SMT: sending RDF to %s,reason = 0x%x\n",
-		addr_to_string(&sm->smt_source),reason) ;
+	DB_SMT("SMT: sending RDF to %s,reason = 0x%x",
+	       addr_to_string(&sm->smt_source), reason);
 
 
 	/*
@@ -1653,7 +1652,7 @@ int smt_check_para(struct s_smc *smc, struct smt_header	*sm,
 	const u_short		*p = list ;
 	while (*p) {
 		if (!sm_to_para(smc,sm,(int) *p)) {
-			DB_SMT("SMT: smt_check_para - missing para %x\n",*p,0);
+			DB_SMT("SMT: smt_check_para - missing para %hx", *p);
 			return -1;
 		}
 		p++ ;
@@ -1679,11 +1678,11 @@ void *sm_to_para(struct s_smc *smc, struct smt_header *sm, int para)
 		p += plen ;
 		len -= plen ;
 		if (len < 0) {
-			DB_SMT("SMT : sm_to_para - length error %d\n",plen,0) ;
+			DB_SMT("SMT : sm_to_para - length error %d", plen);
 			return NULL;
 		}
 		if ((plen & 3) && (para != SMT_P_ECHODATA)) {
-			DB_SMT("SMT : sm_to_para - odd length %d\n",plen,0) ;
+			DB_SMT("SMT : sm_to_para - odd length %d", plen);
 			return NULL;
 		}
 		if (found)
@@ -1937,7 +1936,7 @@ int smt_action(struct s_smc *smc, int class, int code, int index)
 {
 	int	event ;
 	int	port ;
-	DB_SMT("SMT: action %d code %d\n",class,code) ;
+	DB_SMT("SMT: action %d code %d", class, code);
 	switch(class) {
 	case SMT_STATION_ACTION :
 		switch(code) {

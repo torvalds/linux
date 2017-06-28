@@ -1557,7 +1557,7 @@ static void rt73usb_write_beacon(struct queue_entry *entry,
 	/*
 	 * Dump beacon to userspace through debugfs.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
 
 	/*
 	 * Write entire beacon with descriptor and padding to register.

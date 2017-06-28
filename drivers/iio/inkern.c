@@ -601,8 +601,14 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 
 	scale_type = iio_channel_read(chan, &scale_val, &scale_val2,
 					IIO_CHAN_INFO_SCALE);
-	if (scale_type < 0)
-		return scale_type;
+	if (scale_type < 0) {
+		/*
+		 * Just pass raw values as processed if no scaling is
+		 * available.
+		 */
+		*processed = raw;
+		return 0;
+	}
 
 	switch (scale_type) {
 	case IIO_VAL_INT:

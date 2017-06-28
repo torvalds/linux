@@ -1901,11 +1901,11 @@ int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay)
 }
 EXPORT_SYMBOL(mlxsw_core_schedule_dw);
 
-int mlxsw_core_schedule_odw(struct delayed_work *dwork, unsigned long delay)
+bool mlxsw_core_schedule_work(struct work_struct *work)
 {
-	return queue_delayed_work(mlxsw_owq, dwork, delay);
+	return queue_work(mlxsw_owq, work);
 }
-EXPORT_SYMBOL(mlxsw_core_schedule_odw);
+EXPORT_SYMBOL(mlxsw_core_schedule_work);
 
 void mlxsw_core_flush_owq(void)
 {

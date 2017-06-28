@@ -4,6 +4,7 @@
  *  Copyright (C) 2008-2009, Red Hat Inc., Ingo Molnar
  */
 #include <linux/sched.h>		/* test_thread_flag(), ...	*/
+#include <linux/sched/task_stack.h>	/* task_stack_*(), ...		*/
 #include <linux/kdebug.h>		/* oops_begin/end, ...		*/
 #include <linux/extable.h>		/* search_exception_tables	*/
 #include <linux/bootmem.h>		/* max_low_pfn			*/

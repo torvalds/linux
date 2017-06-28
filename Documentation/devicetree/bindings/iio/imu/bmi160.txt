@@ -1,0 +1,36 @@
+Bosch BMI160 - Inertial Measurement Unit with Accelerometer, Gyroscope
+and externally connectable Magnetometer
+
+https://www.bosch-sensortec.com/bst/products/all_products/bmi160
+
+Required properties:
+ - compatible : should be "bosch,bmi160"
+ - reg : the I2C address or SPI chip select number of the sensor
+ - spi-max-frequency : set maximum clock frequency (only for SPI)
+
+Optional properties:
+ - interrupt-parent : should be the phandle of the interrupt controller
+ - interrupts : interrupt mapping for IRQ, must be IRQ_TYPE_LEVEL_LOW
+ - interrupt-names : set to "INT1" if INT1 pin should be used as interrupt
+   input, set to "INT2" if INT2 pin should be used instead
+
+Examples:
+
+bmi160@68 {
+	compatible = "bosch,bmi160";
+	reg = <0x68>;
+
+	interrupt-parent = <&gpio4>;
+	interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+	interrupt-names = "INT1";
+};
+
+bmi160@0 {
+	compatible = "bosch,bmi160";
+	reg = <0>;
+	spi-max-frequency = <10000000>;
+
+	interrupt-parent = <&gpio2>;
+	interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+	interrupt-names = "INT2";
+};

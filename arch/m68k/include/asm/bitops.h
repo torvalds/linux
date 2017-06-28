@@ -148,7 +148,7 @@ static inline void bfchg_mem_change_bit(int nr, volatile unsigned long *vaddr)
 #define __change_bit(nr, vaddr)	change_bit(nr, vaddr)
 
 
-static inline int test_bit(int nr, const unsigned long *vaddr)
+static inline int test_bit(int nr, const volatile unsigned long *vaddr)
 {
 	return (vaddr[nr >> 5] & (1UL << (nr & 31))) != 0;
 }

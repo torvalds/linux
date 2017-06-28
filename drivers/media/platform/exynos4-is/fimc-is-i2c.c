@@ -28,7 +28,14 @@ struct fimc_is_i2c {
  * is implemented in the FIMC-IS subsystem firmware and the host CPU
  * doesn't access the I2C bus controller.
  */
-static const struct i2c_algorithm fimc_is_i2c_algorithm;
+static u32 is_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C;
+}
+
+static const struct i2c_algorithm fimc_is_i2c_algorithm = {
+	.functionality	= is_i2c_func,
+};
 
 static int fimc_is_i2c_probe(struct platform_device *pdev)
 {

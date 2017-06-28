@@ -233,15 +233,13 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 	struct link *link = &rt2x00dev->link;
 
 	/*
-	 * Link tuning should only be performed when
-	 * an active sta interface exists. AP interfaces
-	 * don't need link tuning and monitor mode interfaces
-	 * should never have to work with link tuners.
+	 * Single monitor mode interfaces should never have
+	 * work with link tuners.
 	 */
-	if (!rt2x00dev->intf_sta_count)
+	if (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count)
 		return;
 
-	/**
+	/*
 	 * While scanning, link tuning is disabled. By default
 	 * the most sensitive settings will be used to make sure
 	 * that all beacons and probe responses will be received
@@ -308,20 +306,9 @@ static void rt2x00link_reset_qual(struct rt2x00_dev *rt2x00dev)
 	qual->tx_failed = 0;
 }
 
-static void rt2x00link_tuner(struct work_struct *work)
+static void rt2x00link_tuner_sta(struct rt2x00_dev *rt2x00dev, struct link *link)
 {
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, link.work.work);
-	struct link *link = &rt2x00dev->link;
 	struct link_qual *qual = &rt2x00dev->link.qual;
-
-	/*
-	 * When the radio is shutting down we should
-	 * immediately cease all link tuning.
-	 */
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
-		return;
 
 	/*
 	 * Update statistics.
@@ -360,6 +347,38 @@ static void rt2x00link_tuner(struct work_struct *work)
 	 */
 	if (rt2x00lib_antenna_diversity(rt2x00dev))
 		rt2x00link_reset_qual(rt2x00dev);
+}
+
+static void rt2x00link_tuner(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, link.work.work);
+	struct link *link = &rt2x00dev->link;
+
+	/*
+	 * When the radio is shutting down we should
+	 * immediately cease all link tuning.
+	 */
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
+	    test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
+		return;
+
+	/* Do not race with rt2x00mac_config(). */
+	mutex_lock(&rt2x00dev->conf_mutex);
+
+	if (rt2x00dev->intf_sta_count)
+		rt2x00link_tuner_sta(rt2x00dev, link);
+
+	if (rt2x00dev->ops->lib->gain_calibration &&
+	    (link->count % (AGC_SECONDS / LINK_TUNE_SECONDS)) == 0)
+		rt2x00dev->ops->lib->gain_calibration(rt2x00dev);
+
+	if (rt2x00dev->ops->lib->vco_calibration &&
+	    rt2x00_has_cap_vco_recalibration(rt2x00dev) &&
+	    (link->count % (VCO_SECONDS / LINK_TUNE_SECONDS)) == 0)
+		rt2x00dev->ops->lib->vco_calibration(rt2x00dev);
+
+	mutex_unlock(&rt2x00dev->conf_mutex);
 
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
@@ -408,85 +427,8 @@ static void rt2x00link_watchdog(struct work_struct *work)
 					     WATCHDOG_INTERVAL);
 }
 
-void rt2x00link_start_agc(struct rt2x00_dev *rt2x00dev)
-{
-	struct link *link = &rt2x00dev->link;
-
-	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
-	    rt2x00dev->ops->lib->gain_calibration)
-		ieee80211_queue_delayed_work(rt2x00dev->hw,
-					     &link->agc_work,
-					     AGC_INTERVAL);
-}
-
-void rt2x00link_start_vcocal(struct rt2x00_dev *rt2x00dev)
-{
-	struct link *link = &rt2x00dev->link;
-
-	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
-	    rt2x00dev->ops->lib->vco_calibration)
-		ieee80211_queue_delayed_work(rt2x00dev->hw,
-					     &link->vco_work,
-					     VCO_INTERVAL);
-}
-
-void rt2x00link_stop_agc(struct rt2x00_dev *rt2x00dev)
-{
-	cancel_delayed_work_sync(&rt2x00dev->link.agc_work);
-}
-
-void rt2x00link_stop_vcocal(struct rt2x00_dev *rt2x00dev)
-{
-	cancel_delayed_work_sync(&rt2x00dev->link.vco_work);
-}
-
-static void rt2x00link_agc(struct work_struct *work)
-{
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, link.agc_work.work);
-	struct link *link = &rt2x00dev->link;
-
-	/*
-	 * When the radio is shutting down we should
-	 * immediately cease the watchdog monitoring.
-	 */
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		return;
-
-	rt2x00dev->ops->lib->gain_calibration(rt2x00dev);
-
-	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		ieee80211_queue_delayed_work(rt2x00dev->hw,
-					     &link->agc_work,
-					     AGC_INTERVAL);
-}
-
-static void rt2x00link_vcocal(struct work_struct *work)
-{
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, link.vco_work.work);
-	struct link *link = &rt2x00dev->link;
-
-	/*
-	 * When the radio is shutting down we should
-	 * immediately cease the VCO calibration.
-	 */
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		return;
-
-	rt2x00dev->ops->lib->vco_calibration(rt2x00dev);
-
-	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		ieee80211_queue_delayed_work(rt2x00dev->hw,
-					     &link->vco_work,
-					     VCO_INTERVAL);
-}
-
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)
 {
-	INIT_DELAYED_WORK(&rt2x00dev->link.agc_work, rt2x00link_agc);
-	if (rt2x00_has_cap_vco_recalibration(rt2x00dev))
-		INIT_DELAYED_WORK(&rt2x00dev->link.vco_work, rt2x00link_vcocal);
 	INIT_DELAYED_WORK(&rt2x00dev->link.watchdog_work, rt2x00link_watchdog);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00link_tuner);
 }

@@ -326,11 +326,13 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	blu		170f
 	 nop
 	ba,a,pt		%xcc, 180f
+	 nop
 
 4:	/* 32 <= low bits < 48 */
 	blu		150f
 	 nop
 	ba,a,pt		%xcc, 160f
+	 nop
 5:	/* 0 < low bits < 32 */
 	blu,a		6f
 	 cmp		%g2, 8
@@ -338,6 +340,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	blu		130f
 	 nop
 	ba,a,pt		%xcc, 140f
+	 nop
 6:	/* 0 < low bits < 16 */
 	bgeu		120f
 	 nop
@@ -475,6 +478,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	brz,pt		%o2, 85f
 	 sub		%o0, %o1, GLOBAL_SPARE
 	ba,a,pt		%XCC, 90f
+	 nop
 
 	.align		64
 75: /* 16 < len <= 64 */

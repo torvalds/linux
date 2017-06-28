@@ -50,7 +50,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 		brelse(bh);
 		BUG();
 	}
-	memset(bh->b_data, 0, 1 << inode->i_blkbits);
+	memset(bh->b_data, 0, i_blocksize(inode));
 	bh->b_bdev = inode->i_sb->s_bdev;
 	bh->b_blocknr = blocknr;
 	set_buffer_mapped(bh);

@@ -141,7 +141,7 @@ static int zx_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	priv->fbdev = drm_fbdev_cma_init(drm, 32, drm->mode_config.num_crtc,
+	priv->fbdev = drm_fbdev_cma_init(drm, 32,
 					 drm->mode_config.num_connector);
 	if (IS_ERR(priv->fbdev)) {
 		ret = PTR_ERR(priv->fbdev);
@@ -247,6 +247,7 @@ static struct platform_driver zx_drm_platform_driver = {
 static struct platform_driver *drivers[] = {
 	&zx_crtc_driver,
 	&zx_hdmi_driver,
+	&zx_tvenc_driver,
 	&zx_drm_platform_driver,
 };
 

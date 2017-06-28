@@ -145,7 +145,6 @@ static struct drm_driver vc4_drm_driver = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = vc4_debugfs_init,
-	.debugfs_cleanup = vc4_debugfs_cleanup,
 #endif
 
 	.gem_create_object = vc4_create_object,
@@ -296,6 +295,7 @@ static struct platform_driver *const component_drivers[] = {
 	&vc4_hdmi_driver,
 	&vc4_vec_driver,
 	&vc4_dpi_driver,
+	&vc4_dsi_driver,
 	&vc4_hvs_driver,
 	&vc4_crtc_driver,
 	&vc4_v3d_driver,

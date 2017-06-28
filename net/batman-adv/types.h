@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -402,7 +402,7 @@ struct batadv_gw_node {
 	struct rcu_head rcu;
 };
 
-DECLARE_EWMA(throughput, 1024, 8)
+DECLARE_EWMA(throughput, 10, 8)
 
 /**
  * struct batadv_hardif_neigh_node_bat_v - B.A.T.M.A.N. V private neighbor
@@ -1489,6 +1489,7 @@ struct batadv_algo_orig_ops {
 
 /**
  * struct batadv_algo_gw_ops - mesh algorithm callbacks (GW specific)
+ * @init_sel_class: initialize GW selection class (optional)
  * @store_sel_class: parse and stores a new GW selection class (optional)
  * @show_sel_class: prints the current GW selection class (optional)
  * @get_best_gw_node: select the best GW from the list of available nodes
@@ -1499,6 +1500,7 @@ struct batadv_algo_orig_ops {
  * @dump: dump gateways to a netlink socket (optional)
  */
 struct batadv_algo_gw_ops {
+	void (*init_sel_class)(struct batadv_priv *bat_priv);
 	ssize_t (*store_sel_class)(struct batadv_priv *bat_priv, char *buff,
 				   size_t count);
 	ssize_t (*show_sel_class)(struct batadv_priv *bat_priv, char *buff);

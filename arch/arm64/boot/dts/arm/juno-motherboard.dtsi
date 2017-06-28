@@ -131,13 +131,6 @@
 				vddvario-supply = <&mb_fixed_3v3>;
 			};
 
-			usb@5,00000000 {
-				compatible = "nxp,usb-isp1763";
-				reg = <5 0x00000000 0x20000>;
-				bus-width = <16>;
-				interrupts = <4>;
-			};
-
 			iofpga@3,00000000 {
 				compatible = "simple-bus";
 				#address-cells = <1>;

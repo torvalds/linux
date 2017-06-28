@@ -757,9 +757,9 @@ void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf);
 
 /* debugfs and statistics */
-int uvc_debugfs_init(void);
+void uvc_debugfs_init(void);
 void uvc_debugfs_cleanup(void);
-int uvc_debugfs_init_stream(struct uvc_streaming *stream);
+void uvc_debugfs_init_stream(struct uvc_streaming *stream);
 void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream);
 
 size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,

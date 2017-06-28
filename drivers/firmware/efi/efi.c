@@ -389,7 +389,6 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 			return 0;
 		}
 	}
-	pr_err_once("requested map not found.\n");
 	return -ENOENT;
 }
 
@@ -528,6 +527,8 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 			}
 		}
 	}
+
+	efi_memattr_init();
 
 	/* Parse the EFI Properties table if it exists */
 	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {

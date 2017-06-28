@@ -5322,7 +5322,8 @@ static int atlas7_pin_config_set(struct pinctrl_dev *pctldev,
 				unsigned pin, unsigned long *configs,
 				unsigned num_configs)
 {
-	u16 param, arg;
+	u16 param;
+	u32 arg;
 	int idx, err;
 
 	for (idx = 0; idx < num_configs; idx++) {
@@ -5420,14 +5421,15 @@ static int atlas7_pinmux_probe(struct platform_device *pdev)
 	sys2pci_np = of_find_node_by_name(NULL, "sys2pci");
 	if (!sys2pci_np)
 		return -EINVAL;
+
 	ret = of_address_to_resource(sys2pci_np, 0, &res);
+	of_node_put(sys2pci_np);
 	if (ret)
 		return ret;
+
 	pmx->sys2pci_base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(pmx->sys2pci_base)) {
-		of_node_put(sys2pci_np);
+	if (IS_ERR(pmx->sys2pci_base))
 		return -ENOMEM;
-	}
 
 	pmx->dev = &pdev->dev;
 
@@ -5443,7 +5445,7 @@ static int atlas7_pinmux_probe(struct platform_device *pdev)
 		pmx->regs[idx] = of_iomap(np, idx);
 		if (!pmx->regs[idx]) {
 			dev_err(&pdev->dev,
-			"can't map ioc bank#%d registers\n", idx);
+				"can't map ioc bank#%d registers\n", idx);
 			ret = -ENOMEM;
 			goto unmap_io;
 		}
@@ -6056,8 +6058,8 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add_data(chip, a7gc);
 	if (ret) {
 		dev_err(&pdev->dev,
-		"%s: error in probe function with status %d\n",
-		np->name, ret);
+			"%s: error in probe function with status %d\n",
+			np->name, ret);
 		goto failed;
 	}
 

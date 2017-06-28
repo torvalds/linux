@@ -96,6 +96,7 @@ struct tc358743_state {
 
 	struct v4l2_dv_timings timings;
 	u32 mbus_fmt_code;
+	u8 csi_lanes_in_use;
 
 	struct gpio_desc *reset_gpio;
 };
@@ -287,11 +288,6 @@ static int get_audio_sampling_rate(struct v4l2_subdev *sd)
 	return code_to_rate[i2c_rd8(sd, FS_SET) & MASK_FS];
 }
 
-static unsigned tc358743_num_csi_lanes_in_use(struct v4l2_subdev *sd)
-{
-	return ((i2c_rd32(sd, CSI_CONTROL) & MASK_NOL) >> 1) + 1;
-}
-
 /* --------------- TIMINGS --------------- */
 
 static inline unsigned fps(const struct v4l2_bt_timings *t)
@@ -372,29 +368,21 @@ static void tc358743_set_hdmi_hdcp(struct v4l2_subdev *sd, bool enable)
 	v4l2_dbg(2, debug, sd, "%s: %s\n", __func__, enable ?
 				"enable" : "disable");
 
-	i2c_wr8_and_or(sd, HDCP_REG1,
-			~(MASK_AUTH_UNAUTH_SEL | MASK_AUTH_UNAUTH),
-			MASK_AUTH_UNAUTH_SEL_16_FRAMES | MASK_AUTH_UNAUTH_AUTO);
+	if (enable) {
+		i2c_wr8_and_or(sd, HDCP_REG3, ~KEY_RD_CMD, KEY_RD_CMD);
 
-	i2c_wr8_and_or(sd, HDCP_REG2, ~MASK_AUTO_P3_RESET,
-			SET_AUTO_P3_RESET_FRAMES(0x0f));
+		i2c_wr8_and_or(sd, HDCP_MODE, ~MASK_MANUAL_AUTHENTICATION, 0);
 
-	/* HDCP is disabled by configuring the receiver as HDCP repeater. The
-	 * repeater mode require software support to work, so HDCP
-	 * authentication will fail.
-	 */
-	i2c_wr8_and_or(sd, HDCP_REG3, ~KEY_RD_CMD, enable ? KEY_RD_CMD : 0);
-	i2c_wr8_and_or(sd, HDCP_MODE, ~(MASK_AUTO_CLR | MASK_MODE_RST_TN),
-			enable ?  (MASK_AUTO_CLR | MASK_MODE_RST_TN) : 0);
+		i2c_wr8_and_or(sd, HDCP_REG1, 0xff,
+				MASK_AUTH_UNAUTH_SEL_16_FRAMES |
+				MASK_AUTH_UNAUTH_AUTO);
 
-	/* Apple MacBook Pro gen.8 has a bug that makes it freeze every fifth
-	 * second when HDCP is disabled, but the MAX_EXCED bit is handled
-	 * correctly and HDCP is disabled on the HDMI output.
-	 */
-	i2c_wr8_and_or(sd, BSTATUS1, ~MASK_MAX_EXCED,
-			enable ? 0 : MASK_MAX_EXCED);
-	i2c_wr8_and_or(sd, BCAPS, ~(MASK_REPEATER | MASK_READY),
-			enable ? 0 : MASK_REPEATER | MASK_READY);
+		i2c_wr8_and_or(sd, HDCP_REG2, ~MASK_AUTO_P3_RESET,
+				SET_AUTO_P3_RESET_FRAMES(0x0f));
+	} else {
+		i2c_wr8_and_or(sd, HDCP_MODE, ~MASK_MANUAL_AUTHENTICATION,
+				MASK_MANUAL_AUTHENTICATION);
+	}
 }
 
 static void tc358743_disable_edid(struct v4l2_subdev *sd)
@@ -416,6 +404,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 
 	if (state->edid_blocks_written == 0) {
 		v4l2_dbg(2, debug, sd, "%s: no EDID -> no hotplug\n", __func__);
+		tc358743_s_ctrl_detect_tx_5v(sd);
 		return;
 	}
 
@@ -682,6 +671,8 @@ static void tc358743_set_csi(struct v4l2_subdev *sd)
 	unsigned lanes = tc358743_num_csi_lanes_needed(sd);
 
 	v4l2_dbg(3, debug, sd, "%s:\n", __func__);
+
+	state->csi_lanes_in_use = lanes;
 
 	tc358743_reset(sd, MASK_CTXRST);
 
@@ -1155,7 +1146,7 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Lanes needed: %d\n",
 			tc358743_num_csi_lanes_needed(sd));
 	v4l2_info(sd, "Lanes in use: %d\n",
-			tc358743_num_csi_lanes_in_use(sd));
+			state->csi_lanes_in_use);
 	v4l2_info(sd, "Waiting for particular sync signal: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_WSYNC) ?
 			"yes" : "no");
@@ -1438,12 +1429,14 @@ static int tc358743_dv_timings_cap(struct v4l2_subdev *sd,
 static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg)
 {
+	struct tc358743_state *state = to_state(sd);
+
 	cfg->type = V4L2_MBUS_CSI2;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
 	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
-	switch (tc358743_num_csi_lanes_in_use(sd)) {
+	switch (state->csi_lanes_in_use) {
 	case 1:
 		cfg->flags |= V4L2_MBUS_CSI2_1_LANE;
 		break;

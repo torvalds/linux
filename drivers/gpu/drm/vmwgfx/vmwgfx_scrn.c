@@ -598,7 +598,7 @@ static int do_dmabuf_define_gmrfb(struct vmw_private *dev_priv,
 	struct vmw_dma_buffer *buf =
 		container_of(framebuffer, struct vmw_framebuffer_dmabuf,
 			     base)->buffer;
-	int depth = framebuffer->base.depth;
+	int depth = framebuffer->base.format->depth;
 	struct {
 		uint32_t header;
 		SVGAFifoCmdDefineGMRFB body;
@@ -618,7 +618,7 @@ static int do_dmabuf_define_gmrfb(struct vmw_private *dev_priv,
 	}
 
 	cmd->header = SVGA_CMD_DEFINE_GMRFB;
-	cmd->body.format.bitsPerPixel = framebuffer->base.bits_per_pixel;
+	cmd->body.format.bitsPerPixel = framebuffer->base.format->cpp[0] * 8;
 	cmd->body.format.colorDepth = depth;
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = framebuffer->base.pitches[0];

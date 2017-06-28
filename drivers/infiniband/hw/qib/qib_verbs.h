@@ -270,8 +270,6 @@ int qib_snapshot_counters(struct qib_pportdata *ppd, u64 *swords,
 int qib_get_counters(struct qib_pportdata *ppd,
 		     struct qib_verbs_counters *cntrs);
 
-__be32 qib_compute_aeth(struct rvt_qp *qp);
-
 /*
  * Functions provided by qib driver for rdmavt to use
  */
@@ -281,7 +279,7 @@ void qib_qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 void qib_notify_qp_reset(struct rvt_qp *qp);
 int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 		  enum ib_qp_type type, u8 port, gfp_t gfp);
-
+void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
 #ifdef CONFIG_DEBUG_FS
 
 struct qib_qp_iter;
@@ -294,8 +292,6 @@ void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter);
 
 #endif
 
-void qib_get_credit(struct rvt_qp *qp, u32 aeth);
-
 unsigned qib_pkt_delay(u32 plen, u8 snd_mult, u8 rcv_mult);
 
 void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail);
@@ -307,8 +303,6 @@ int qib_verbs_send(struct rvt_qp *qp, struct ib_header *hdr,
 
 void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
 		  int release);
-
-void qib_skip_sge(struct rvt_sge_state *ss, u32 length, int release);
 
 void qib_uc_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
@@ -325,8 +319,6 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 void qib_rc_rnr_retry(unsigned long arg);
 
 void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
-
-void qib_rc_error(struct rvt_qp *qp, enum ib_wc_status err);
 
 int qib_post_ud_send(struct rvt_qp *qp, struct ib_send_wr *wr);
 

@@ -55,7 +55,7 @@ static void snd_cs5535audio_stop_hardware(struct cs5535audio *cs5535au)
 
 }
 
-static int snd_cs5535audio_suspend(struct device *dev)
+static int __maybe_unused snd_cs5535audio_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct cs5535audio *cs5535au = card->private_data;
@@ -74,7 +74,7 @@ static int snd_cs5535audio_suspend(struct device *dev)
 	return 0;
 }
 
-static int snd_cs5535audio_resume(struct device *dev)
+static int __maybe_unused snd_cs5535audio_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct cs5535audio *cs5535au = card->private_data;

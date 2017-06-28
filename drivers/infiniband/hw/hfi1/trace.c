@@ -130,14 +130,14 @@ const char *parse_everbs_hdrs(
 	case OP(RC, ACKNOWLEDGE):
 		trace_seq_printf(p, AETH_PRN, be32_to_cpu(eh->aeth) >> 24,
 				 parse_syndrome(be32_to_cpu(eh->aeth) >> 24),
-				 be32_to_cpu(eh->aeth) & HFI1_MSN_MASK);
+				 be32_to_cpu(eh->aeth) & IB_MSN_MASK);
 		break;
 	/* aeth + atomicacketh */
 	case OP(RC, ATOMIC_ACKNOWLEDGE):
 		trace_seq_printf(p, AETH_PRN " " ATOMICACKETH_PRN,
 				 be32_to_cpu(eh->at.aeth) >> 24,
 				 parse_syndrome(be32_to_cpu(eh->at.aeth) >> 24),
-				 be32_to_cpu(eh->at.aeth) & HFI1_MSN_MASK,
+				 be32_to_cpu(eh->at.aeth) & IB_MSN_MASK,
 				 ib_u64_get(&eh->at.atomic_ack_eth));
 		break;
 	/* atomiceth */

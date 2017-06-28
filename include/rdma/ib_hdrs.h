@@ -75,6 +75,12 @@
 #define IB_GRH_FLOW_SHIFT	0
 #define IB_GRH_NEXT_HDR		0x1B
 
+#define IB_AETH_CREDIT_SHIFT	24
+#define IB_AETH_CREDIT_MASK	0x1F
+#define IB_AETH_CREDIT_INVAL	0x1F
+#define IB_AETH_NAK_SHIFT	29
+#define IB_MSN_MASK		0xFFFFFF
+
 struct ib_reth {
 	__be64 vaddr;        /* potentially unaligned */
 	__be32 rkey;

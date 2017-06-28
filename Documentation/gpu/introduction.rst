@@ -23,13 +23,12 @@ For consistency this documentation uses American English. Abbreviations
 are written as all-uppercase, for example: DRM, KMS, IOCTL, CRTC, and so
 on. To aid in reading, documentations make full use of the markup
 characters kerneldoc provides: @parameter for function parameters,
-@member for structure members, &structure to reference structures and
-function() for functions. These all get automatically hyperlinked if
-kerneldoc for the referenced objects exists. When referencing entries in
-function vtables please use ->vfunc(). Note that kerneldoc does not
-support referencing struct members directly, so please add a reference
-to the vtable struct somewhere in the same paragraph or at least
-section.
+@member for structure members (within the same structure), &struct structure to
+reference structures and function() for functions. These all get automatically
+hyperlinked if kerneldoc for the referenced objects exists. When referencing
+entries in function vtables (and structure members in general) please use
+&vtable_name.vfunc. Unfortunately this does not yet yield a direct link to the
+member, only the structure.
 
 Except in special situations (to separate locked from unlocked variants)
 locking requirements for functions aren't documented in the kerneldoc.
@@ -49,3 +48,5 @@ section name should be all upper-case or not, and whether it should end
 in a colon or not. Go with the file-local style. Other common section
 names are "Notes" with information for dangerous or tricky corner cases,
 and "FIXME" where the interface could be cleaned up.
+
+Also read the :ref:`guidelines for the kernel documentation at large <doc_guide>`.

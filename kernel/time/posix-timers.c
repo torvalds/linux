@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
+#include <linux/sched/task.h>
 
 #include <linux/uaccess.h>
 #include <linux/list.h>

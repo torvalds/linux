@@ -209,6 +209,7 @@ int dm_btree_cursor_begin(struct dm_btree_info *info, dm_block_t root,
 			  bool prefetch_leaves, struct dm_btree_cursor *c);
 void dm_btree_cursor_end(struct dm_btree_cursor *c);
 int dm_btree_cursor_next(struct dm_btree_cursor *c);
+int dm_btree_cursor_skip(struct dm_btree_cursor *c, uint32_t count);
 int dm_btree_cursor_get_value(struct dm_btree_cursor *c, uint64_t *key, void *value_le);
 
 #endif	/* _LINUX_DM_BTREE_H */

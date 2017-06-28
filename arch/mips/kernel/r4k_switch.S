@@ -12,6 +12,7 @@
  */
 #include <asm/asm.h>
 #include <asm/cachectl.h>
+#include <asm/export.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
@@ -75,6 +76,7 @@
  * Save a thread's fp context.
  */
 LEAF(_save_fp)
+EXPORT_SYMBOL(_save_fp)
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
 		defined(CONFIG_CPU_MIPS32_R6)
 	mfc0	t0, CP0_STATUS
@@ -101,6 +103,7 @@ LEAF(_restore_fp)
  * Save a thread's MSA vector context.
  */
 LEAF(_save_msa)
+EXPORT_SYMBOL(_save_msa)
 	msa_save_all	a0
 	jr	ra
 	END(_save_msa)

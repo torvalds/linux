@@ -12,8 +12,8 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
 {
 	FILE *fp;
 	char mountpoint[PATH_MAX + 1], tokens[PATH_MAX + 1], type[PATH_MAX + 1];
+	char path_v1[PATH_MAX + 1], path_v2[PATH_MAX + 2], *path;
 	char *token, *saved_ptr = NULL;
-	int found = 0;
 
 	fp = fopen("/proc/mounts", "r");
 	if (!fp)
@@ -24,31 +24,43 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
 	 * and inspect every cgroupfs mount point to find one that has
 	 * perf_event subsystem
 	 */
+	path_v1[0] = '\0';
+	path_v2[0] = '\0';
+
 	while (fscanf(fp, "%*s %"STR(PATH_MAX)"s %"STR(PATH_MAX)"s %"
 				STR(PATH_MAX)"s %*d %*d\n",
 				mountpoint, type, tokens) == 3) {
 
-		if (!strcmp(type, "cgroup")) {
+		if (!path_v1[0] && !strcmp(type, "cgroup")) {
 
 			token = strtok_r(tokens, ",", &saved_ptr);
 
 			while (token != NULL) {
 				if (!strcmp(token, "perf_event")) {
-					found = 1;
+					strcpy(path_v1, mountpoint);
 					break;
 				}
 				token = strtok_r(NULL, ",", &saved_ptr);
 			}
 		}
-		if (found)
+
+		if (!path_v2[0] && !strcmp(type, "cgroup2"))
+			strcpy(path_v2, mountpoint);
+
+		if (path_v1[0] && path_v2[0])
 			break;
 	}
 	fclose(fp);
-	if (!found)
+
+	if (path_v1[0])
+		path = path_v1;
+	else if (path_v2[0])
+		path = path_v2;
+	else
 		return -1;
 
-	if (strlen(mountpoint) < maxlen) {
-		strcpy(buf, mountpoint);
+	if (strlen(path) < maxlen) {
+		strcpy(buf, path);
 		return 0;
 	}
 	return -1;

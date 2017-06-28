@@ -24,7 +24,7 @@ Prerequisites
 -------------
 
 First the prerequisites. Without these you have already failed, because you
-will need to add a a 32-bit compat layer:
+will need to add a 32-bit compat layer:
 
  * Only use fixed sized integers. To avoid conflicts with typedefs in userspace
    the kernel has special types like __u32, __s64. Use them.

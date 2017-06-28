@@ -32,6 +32,7 @@
  */
 #define UNX_MAXNODENAME	__NEW_UTS_LEN
 #define UNX_CALLSLACK	(21 + XDR_QUADLEN(UNX_MAXNODENAME))
+#define UNX_NGROUPS	16
 
 struct rpcsec_gss_info;
 
@@ -63,9 +64,6 @@ struct rpc_cred {
 	struct rcu_head		cr_rcu;
 	struct rpc_auth *	cr_auth;
 	const struct rpc_credops *cr_ops;
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	unsigned long		cr_magic;	/* 0x0f4aa4f0 */
-#endif
 	unsigned long		cr_expire;	/* when to gc */
 	unsigned long		cr_flags;	/* various flags */
 	atomic_t		cr_count;	/* ref count */
@@ -78,8 +76,6 @@ struct rpc_cred {
 #define RPCAUTH_CRED_UPTODATE	1
 #define RPCAUTH_CRED_HASHED	2
 #define RPCAUTH_CRED_NEGATIVE	3
-
-#define RPCAUTH_CRED_MAGIC	0x0f4aa4f0
 
 /* rpc_auth au_flags */
 #define RPCAUTH_AUTH_NO_CRKEY_TIMEOUT	0x0001 /* underlying cred has no key timeout */

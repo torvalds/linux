@@ -1519,6 +1519,7 @@ static void hns_dsaf_set_mac_key(
 	mac_key->high.bits.mac_3 = addr[3];
 	mac_key->low.bits.mac_4 = addr[4];
 	mac_key->low.bits.mac_5 = addr[5];
+	mac_key->low.bits.port_vlan = 0;
 	dsaf_set_field(mac_key->low.bits.port_vlan, DSAF_TBL_TCAM_KEY_VLAN_M,
 		       DSAF_TBL_TCAM_KEY_VLAN_S, vlan_id);
 	dsaf_set_field(mac_key->low.bits.port_vlan, DSAF_TBL_TCAM_KEY_PORT_M,
@@ -2924,10 +2925,11 @@ void hns_dsaf_set_promisc_tcam(struct dsaf_device *dsaf_dev,
 	/* find the tcam entry index for promisc */
 	entry_index = dsaf_promisc_tcam_entry(port);
 
+	memset(&tbl_tcam_data, 0, sizeof(tbl_tcam_data));
+	memset(&tbl_tcam_mask, 0, sizeof(tbl_tcam_mask));
+
 	/* config key mask */
 	if (enable) {
-		memset(&tbl_tcam_data, 0, sizeof(tbl_tcam_data));
-		memset(&tbl_tcam_mask, 0, sizeof(tbl_tcam_mask));
 		dsaf_set_field(tbl_tcam_data.low.bits.port_vlan,
 			       DSAF_TBL_TCAM_KEY_PORT_M,
 			       DSAF_TBL_TCAM_KEY_PORT_S, port);

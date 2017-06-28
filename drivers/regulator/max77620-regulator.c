@@ -644,7 +644,7 @@ static int max77620_of_parse_cb(struct device_node *np,
 	return max77620_init_pmic(pmic, desc->id);
 }
 
-static struct regulator_ops max77620_regulator_ops = {
+static const struct regulator_ops max77620_regulator_ops = {
 	.is_enabled = max77620_regulator_is_enabled,
 	.enable = max77620_regulator_enable,
 	.disable = max77620_regulator_disable,

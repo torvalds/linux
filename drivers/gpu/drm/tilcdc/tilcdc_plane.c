@@ -69,7 +69,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	pitch = crtc_state->mode.hdisplay *
-		drm_format_plane_cpp(state->fb->pixel_format, 0);
+		state->fb->format->cpp[0];
 	if (state->fb->pitches[0] != pitch) {
 		dev_err(plane->dev->dev,
 			"Invalid pitch: fb and crtc widths must be the same");
@@ -77,7 +77,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	if (state->fb && old_state->fb &&
-	    state->fb->pixel_format != old_state->fb->pixel_format) {
+	    state->fb->format != old_state->fb->format) {
 		dev_dbg(plane->dev->dev,
 			"%s(): pixel format change requires mode_change\n",
 			__func__);

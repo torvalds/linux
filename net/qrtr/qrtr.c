@@ -658,7 +658,9 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	if (plen != len) {
-		skb_pad(skb, plen - len);
+		rc = skb_pad(skb, plen - len);
+		if (rc)
+			goto out_node;
 		skb_put(skb, plen - len);
 	}
 

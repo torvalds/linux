@@ -91,14 +91,7 @@ struct elf_prpsinfo32
 	current->thread.map_base = DEFAULT_MAP_BASE32; \
 	current->thread.task_size = DEFAULT_TASK_SIZE32 \
 
-#undef cputime_to_timeval
-#define cputime_to_timeval cputime_to_compat_timeval
-static __inline__ void
-cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
-{
-	unsigned long jiffies = cputime_to_jiffies(cputime);
-	value->tv_usec = (jiffies % HZ) * (1000000L / HZ);
-	value->tv_sec = jiffies / HZ;
-}
+#undef ns_to_timeval
+#define ns_to_timeval ns_to_compat_timeval
 
 #include "../../../fs/binfmt_elf.c"

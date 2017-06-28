@@ -1778,7 +1778,7 @@ static int rtl2832u_get_rc_config(struct dvb_usb_device *d,
 	/* load empty to enable rc */
 	if (!rc->map_name)
 		rc->map_name = RC_MAP_EMPTY;
-	rc->allowed_protos = RC_BIT_ALL;
+	rc->allowed_protos = RC_BIT_ALL_IR_DECODER;
 	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->query = rtl2832u_rc_query;
 	rc->interval = 200;

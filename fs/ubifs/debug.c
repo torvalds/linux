@@ -32,6 +32,7 @@
 #include <linux/math64.h>
 #include <linux/uaccess.h>
 #include <linux/random.h>
+#include <linux/ctype.h>
 #include "ubifs.h"
 
 static DEFINE_SPINLOCK(dbg_lock);
@@ -286,8 +287,10 @@ void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 			break;
 		}
 
-		pr_err("\t%d: %s (%s)\n",
-		       count++, dent->name, get_dent_type(dent->type));
+		pr_err("\t%d: inode %llu, type %s, len %d\n",
+		       count++, (unsigned long long) le64_to_cpu(dent->inum),
+		       get_dent_type(dent->type),
+		       le16_to_cpu(dent->nlen));
 
 		fname_name(&nm) = dent->name;
 		fname_len(&nm) = le16_to_cpu(dent->nlen);
@@ -464,7 +467,8 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 			pr_err("(bad name length, not printing, bad or corrupted node)");
 		else {
 			for (i = 0; i < nlen && dent->name[i]; i++)
-				pr_cont("%c", dent->name[i]);
+				pr_cont("%c", isprint(dent->name[i]) ?
+					dent->name[i] : '?');
 		}
 		pr_cont("\n");
 

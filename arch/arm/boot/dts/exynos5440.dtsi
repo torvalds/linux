@@ -40,7 +40,7 @@
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg =	<0x2E1000 0x1000>,
-			<0x2E2000 0x1000>,
+			<0x2E2000 0x2000>,
 			<0x2E4000 0x2000>,
 			<0x2E6000 0x2000>;
 		interrupts = <GIC_PPI 9

@@ -353,7 +353,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		smp_rmb();
 
-		boot_addr = virt_to_phys(exynos4_secondary_startup);
+		boot_addr = __pa_symbol(exynos4_secondary_startup);
 
 		ret = exynos_set_boot_addr(core_id, boot_addr);
 		if (ret)
@@ -413,7 +413,7 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 
 		mpidr = cpu_logical_map(i);
 		core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-		boot_addr = virt_to_phys(exynos4_secondary_startup);
+		boot_addr = __pa_symbol(exynos4_secondary_startup);
 
 		ret = exynos_set_boot_addr(core_id, boot_addr);
 		if (ret)

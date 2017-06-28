@@ -50,7 +50,8 @@ static int process_events(union perf_event **events, size_t count)
 }
 
 struct test_attr_event {
-	struct attr_event attr;
+	struct perf_event_header header;
+	struct perf_event_attr	 attr;
 	u64 id;
 };
 
@@ -71,20 +72,16 @@ int test__parse_no_sample_id_all(int subtest __maybe_unused)
 	int err;
 
 	struct test_attr_event event1 = {
-		.attr = {
-			.header = {
-				.type = PERF_RECORD_HEADER_ATTR,
-				.size = sizeof(struct test_attr_event),
-			},
+		.header = {
+			.type = PERF_RECORD_HEADER_ATTR,
+			.size = sizeof(struct test_attr_event),
 		},
 		.id = 1,
 	};
 	struct test_attr_event event2 = {
-		.attr = {
-			.header = {
-				.type = PERF_RECORD_HEADER_ATTR,
-				.size = sizeof(struct test_attr_event),
-			},
+		.header = {
+			.type = PERF_RECORD_HEADER_ATTR,
+			.size = sizeof(struct test_attr_event),
 		},
 		.id = 2,
 	};

@@ -30,14 +30,6 @@ config ADB_MACII
 	  Quadra 610, Quadra 650, Quadra 700, Quadra 800, Centris 610 and
 	  Centris 650.
 
-config ADB_MACIISI
-	bool "Include Mac IIsi ADB driver"
-	depends on ADB && MAC && BROKEN
-	help
-	  Say Y here if want your kernel to support Macintosh systems that use
-	  the Mac IIsi style ADB.  This includes the IIsi, IIvi, IIvx, Classic
-	  II, LC, LC II, LC III, Performa 460, and the Performa 600.
-
 config ADB_IOP
 	bool "Include IOP (IIfx/Quadra 9x0) ADB driver"
 	depends on ADB && MAC
@@ -60,17 +52,15 @@ config ADB_PMU68K
 
 # we want to change this to something like CONFIG_SYSCTRL_CUDA/PMU
 config ADB_CUDA
-	bool "Support for CUDA based Macs and PowerMacs"
+	bool "Support for Cuda/Egret based Macs and PowerMacs"
 	depends on (ADB || PPC_PMAC) && !PPC_PMAC64
 	help
-	  This provides support for CUDA based Macintosh and Power Macintosh
-	  systems.  This includes many m68k based Macs (Color Classic, Mac TV,
-	  Performa 475, Performa 520, Performa 550, Performa 575,
-	  Performa 588, Quadra 605, Quadra 630, Quadra/Centris 660AV, and
-	  Quadra 840AV), most OldWorld PowerMacs, the first generation iMacs,
-	  the Blue&White G3 and the "Yikes" G4 (PCI Graphics).  All later
-	  models should use CONFIG_ADB_PMU instead.  It is safe to say Y here
-	  even if your machine doesn't have a CUDA.
+	  This provides support for Cuda/Egret based Macintosh and
+	  Power Macintosh systems. This includes most m68k based Macs,
+	  most Old World PowerMacs, the first generation iMacs, the
+	  Blue & White G3 and the "Yikes" G4 (PCI Graphics). All later
+	  models should use CONFIG_ADB_PMU instead. It is safe to say Y
+	  here even if your machine doesn't have a Cuda or Egret device.
 
 	  If unsure say Y.
 

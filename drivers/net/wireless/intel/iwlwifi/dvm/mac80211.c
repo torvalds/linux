@@ -163,7 +163,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 				       REGULATORY_DISABLE_BEACON_HINTS;
 
 #ifdef CONFIG_PM_SLEEP
-	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
+	if (priv->fw->img[IWL_UCODE_WOWLAN].num_sec &&
 	    priv->trans->ops->d3_suspend &&
 	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {

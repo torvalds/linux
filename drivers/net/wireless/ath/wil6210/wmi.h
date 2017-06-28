@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2006-2012 Wilocity
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -56,6 +56,8 @@ enum wmi_fw_capability {
 	WMI_FW_CAPABILITY_PS_CONFIG		= 1,
 	WMI_FW_CAPABILITY_RF_SECTORS		= 2,
 	WMI_FW_CAPABILITY_MGMT_RETRY_LIMIT	= 3,
+	WMI_FW_CAPABILITY_DISABLE_AP_SME	= 4,
+	WMI_FW_CAPABILITY_WMI_ONLY		= 5,
 	WMI_FW_CAPABILITY_MAX,
 };
 
@@ -185,8 +187,11 @@ enum wmi_command_id {
 	WMI_RS_CFG_CMDID				= 0x921,
 	WMI_GET_DETAILED_RS_RES_CMDID			= 0x922,
 	WMI_AOA_MEAS_CMDID				= 0x923,
+	WMI_BRP_SET_ANT_LIMIT_CMDID			= 0x924,
 	WMI_SET_MGMT_RETRY_LIMIT_CMDID			= 0x930,
 	WMI_GET_MGMT_RETRY_LIMIT_CMDID			= 0x931,
+	WMI_NEW_STA_CMDID				= 0x935,
+	WMI_DEL_STA_CMDID				= 0x936,
 	WMI_TOF_SESSION_START_CMDID			= 0x991,
 	WMI_TOF_GET_CAPABILITIES_CMDID			= 0x992,
 	WMI_TOF_SET_LCR_CMDID				= 0x993,
@@ -543,7 +548,10 @@ struct wmi_pcp_start_cmd {
 	u8 pcp_max_assoc_sta;
 	u8 hidden_ssid;
 	u8 is_go;
-	u8 reserved0[7];
+	u8 reserved0[5];
+	/* abft_len override if non-0 */
+	u8 abft_len;
+	u8 disable_ap_sme;
 	u8 network_type;
 	u8 channel;
 	u8 disable_sec_offload;
@@ -902,6 +910,18 @@ struct wmi_set_mgmt_retry_limit_cmd {
 	u8 reserved[3];
 } __packed;
 
+/* WMI_NEW_STA_CMDID */
+struct wmi_new_sta_cmd {
+	u8 dst_mac[WMI_MAC_LEN];
+	u8 aid;
+} __packed;
+
+/* WMI_DEL_STA_CMDID */
+struct wmi_del_sta_cmd {
+	u8 dst_mac[WMI_MAC_LEN];
+	__le16 disconnect_reason;
+} __packed;
+
 enum wmi_tof_burst_duration {
 	WMI_TOF_BURST_DURATION_250_USEC		= 2,
 	WMI_TOF_BURST_DURATION_500_USEC		= 3,
@@ -1067,6 +1087,7 @@ enum wmi_event_id {
 	WMI_RS_CFG_DONE_EVENTID				= 0x1921,
 	WMI_GET_DETAILED_RS_RES_EVENTID			= 0x1922,
 	WMI_AOA_MEAS_EVENTID				= 0x1923,
+	WMI_BRP_SET_ANT_LIMIT_EVENTID			= 0x1924,
 	WMI_SET_MGMT_RETRY_LIMIT_EVENTID		= 0x1930,
 	WMI_GET_MGMT_RETRY_LIMIT_EVENTID		= 0x1931,
 	WMI_TOF_SESSION_END_EVENTID			= 0x1991,
@@ -1287,12 +1308,13 @@ struct wmi_connect_event {
 	u8 assoc_req_len;
 	u8 assoc_resp_len;
 	u8 cid;
-	u8 reserved2[3];
+	u8 aid;
+	u8 reserved2[2];
 	/* not in use */
 	u8 assoc_info[0];
 } __packed;
 
-/* WMI_DISCONNECT_EVENTID */
+/* disconnect_reason */
 enum wmi_disconnect_reason {
 	WMI_DIS_REASON_NO_NETWORK_AVAIL		= 0x01,
 	/* bmiss */
@@ -1310,6 +1332,7 @@ enum wmi_disconnect_reason {
 	WMI_DIS_REASON_IBSS_MERGE		= 0x0E,
 };
 
+/* WMI_DISCONNECT_EVENTID */
 struct wmi_disconnect_event {
 	/* reason code, see 802.11 spec. */
 	__le16 protocol_reason_status;
@@ -1756,6 +1779,42 @@ struct wmi_get_detailed_rs_res_event {
 	u8 status;
 	/* detailed rs results */
 	struct wmi_rs_results rs_results;
+	u8 reserved[3];
+} __packed;
+
+/* BRP antenna limit mode */
+enum wmi_brp_ant_limit_mode {
+	/* Disable BRP force antenna limit */
+	WMI_BRP_ANT_LIMIT_MODE_DISABLE		= 0x00,
+	/* Define maximal antennas limit. Only effective antennas will be
+	 * actually used
+	 */
+	WMI_BRP_ANT_LIMIT_MODE_EFFECTIVE	= 0x01,
+	/* Force a specific number of antennas */
+	WMI_BRP_ANT_LIMIT_MODE_FORCE		= 0x02,
+	/* number of BRP antenna limit modes */
+	WMI_BRP_ANT_LIMIT_MODES_NUM		= 0x03,
+};
+
+/* WMI_BRP_SET_ANT_LIMIT_CMDID */
+struct wmi_brp_set_ant_limit_cmd {
+	/* connection id */
+	u8 cid;
+	/* enum wmi_brp_ant_limit_mode */
+	u8 limit_mode;
+	/* antenna limit count, 1-27
+	 * disable_mode - ignored
+	 * effective_mode - upper limit to number of antennas to be used
+	 * force_mode - exact number of antennas to be used
+	 */
+	u8 ant_limit;
+	u8 reserved;
+} __packed;
+
+/* WMI_BRP_SET_ANT_LIMIT_EVENTID */
+struct wmi_brp_set_ant_limit_event {
+	/* wmi_fw_status */
+	u8 status;
 	u8 reserved[3];
 } __packed;
 

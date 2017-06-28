@@ -50,8 +50,7 @@
  * Misc constants. Please retain them as multiples of 8!
  * Otherwise 32-64 bit interactions will be messed up :)
  */
-#define ORANGEFS_MAX_DEBUG_STRING_LEN	0x00000400
-#define ORANGEFS_MAX_DEBUG_ARRAY_LEN	0x00000800
+#define ORANGEFS_MAX_DEBUG_STRING_LEN	0x00000800
 
 /*
  * The maximum number of directory entries in a single request is 96.

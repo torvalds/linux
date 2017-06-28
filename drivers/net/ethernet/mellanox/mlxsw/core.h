@@ -207,7 +207,7 @@ enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 						u8 local_port);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
-int mlxsw_core_schedule_odw(struct delayed_work *dwork, unsigned long delay);
+bool mlxsw_core_schedule_work(struct work_struct *work);
 void mlxsw_core_flush_owq(void);
 
 #define MLXSW_CONFIG_PROFILE_SWID_COUNT 8

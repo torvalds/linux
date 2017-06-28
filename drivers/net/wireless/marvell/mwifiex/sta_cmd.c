@@ -76,7 +76,7 @@ mwifiex_cmd_802_11_rssi_info(struct mwifiex_private *priv,
  */
 static int mwifiex_cmd_mac_control(struct mwifiex_private *priv,
 				   struct host_cmd_ds_command *cmd,
-				   u16 cmd_action, u16 *action)
+				   u16 cmd_action, u32 *action)
 {
 	struct host_cmd_ds_mac_control *mac_ctrl = &cmd->params.mac_ctrl;
 
@@ -89,7 +89,7 @@ static int mwifiex_cmd_mac_control(struct mwifiex_private *priv,
 	cmd->command = cpu_to_le16(HostCmd_CMD_MAC_CONTROL);
 	cmd->size =
 		cpu_to_le16(sizeof(struct host_cmd_ds_mac_control) + S_DS_GEN);
-	mac_ctrl->action = cpu_to_le16(*action);
+	mac_ctrl->action = cpu_to_le32(*action);
 
 	return 0;
 }
@@ -1935,8 +1935,8 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "0x%x command not supported by firmware\n",
 			    cmd_no);
-			return -EOPNOTSUPP;
-		}
+		return -EOPNOTSUPP;
+	}
 
 	/* Prepare command */
 	switch (cmd_no) {

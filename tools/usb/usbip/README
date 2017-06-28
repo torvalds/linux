@@ -4,10 +4,33 @@
 # Copyright (C) 2011 matt mooney <mfm@muteddisk.com>
 #               2005-2008 Takahiro Hirofuchi
 
+[Overview]
+USB/IP protocol allows to pass USB device from server to client over the
+network. Server is a machine which provides (shares) a USB device. Client is
+a machine which uses USB device provided by server over the network.
+The USB device may be either physical device connected to a server or
+software entity created on a server using USB gadget subsystem.
+Whole project consists of four parts:
+
+    - usbip-vhci
+        A client side kernel module which provides a virtual USB Host Controller
+        and allows to import a USB device from a remote machine.
+
+    - usbip-host (stub driver)
+        A server side module which provides a USB device driver which can be
+        bound to a physical USB device to make it exportable.
+
+    - usbip-vudc
+        A server side module which provides a virtual USB Device Controller and allows
+        to export a USB device created using USB Gadget Subsystem.
+
+    - usbip-utils
+        A set of userspace tools used to handle connection and management.
+        Used on both sides.
 
 [Requirements]
     - USB/IP device drivers
-	Found in the staging directory of the Linux kernel.
+        Found in the drivers/usb/usbip/ directory of the Linux kernel tree.
 
     - libudev >= 2.0
 	libudev library
@@ -36,6 +59,10 @@
 
 
 [Usage]
+On a server side there are two entities which can be shared.
+First of them is physical usb device connected to the machine.
+To make it available below steps should be executed:
+
     server:# (Physically attach your USB device.)
 
     server:# insmod usbip-core.ko
@@ -52,6 +79,30 @@
 	- The USB device 1-2 is now exportable to other hosts!
 	- Use `usbip unbind --busid 1-2' to stop exporting the device.
 
+Second of shareable entities is USB Gadget created using USB Gadget Subsystem
+on a server machine. To make it available below steps should be executed:
+
+    server:# (Create your USB gadget)
+        - Currently the most preferable way of creating a new USB gadget
+          is ConfigFS Composite Gadget. Please refer to its documentation
+          for details.
+        - See vudc_server_example.sh for a short example of USB gadget creation
+
+    server:# insmod usbip-core.ko
+    server:# insmod usbip-vudc.ko
+        - To create more than one instance of vudc use num module param
+
+    server:# (Bind gadget to one of available vudc)
+        - Assign your new gadget to USB/IP UDC
+        - Using ConfigFS interface you may do this simply by:
+            server:# cd /sys/kernel/config/usb_gadget/<gadget_name>
+            server:# echo "usbip-vudc.0" > UDC
+
+    server:# usbipd -D --device
+        - Start usbip daemon.
+
+To attach new device to client machine below commands should be used:
+
     client:# insmod usbip-core.ko
     client:# insmod vhci-hcd.ko
 
@@ -60,6 +111,8 @@
 
     client:# usbip attach --remote <host> --busid 1-2
 	- Connect the remote USB device.
+	- When using vudc on a server side busid is really vudc instance name.
+	  For example: usbip-vudc.0
 
     client:# usbip port
 	- Show virtual port status.
@@ -192,6 +245,8 @@ Detach the imported device:
 	- http://usbip.wiki.sourceforge.net/how-to-debug-usbip
     - usbip-host.ko must be bound to the target device.
 	- See /proc/bus/usb/devices and find "Driver=..." lines of the device.
+    - Target USB gadget must be bound to vudc
+      (using USB gadget susbsys, not usbip bind command)
     - Shutdown firewall.
 	- usbip now uses TCP port 3240.
     - Disable SELinux.

@@ -89,8 +89,8 @@ static int bad_inode_permission(struct inode *inode, int mask)
 	return -EIO;
 }
 
-static int bad_inode_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			struct kstat *stat)
+static int bad_inode_getattr(const struct path *path, struct kstat *stat,
+			     u32 request_mask, unsigned int query_flags)
 {
 	return -EIO;
 }

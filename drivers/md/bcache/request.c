@@ -666,7 +666,7 @@ static inline struct search *search_alloc(struct bio *bio,
 	s->iop.write_prio	= 0;
 	s->iop.error		= 0;
 	s->iop.flags		= 0;
-	s->iop.flush_journal	= (bio->bi_opf & (REQ_PREFLUSH|REQ_FUA)) != 0;
+	s->iop.flush_journal	= op_is_flush(bio->bi_opf);
 	s->iop.wq		= bcache_wq;
 
 	return s;
@@ -1009,7 +1009,7 @@ static int cached_dev_congested(void *data, int bits)
 	struct request_queue *q = bdev_get_queue(dc->bdev);
 	int ret = 0;
 
-	if (bdi_congested(&q->backing_dev_info, bits))
+	if (bdi_congested(q->backing_dev_info, bits))
 		return 1;
 
 	if (cached_dev_get(dc)) {
@@ -1018,7 +1018,7 @@ static int cached_dev_congested(void *data, int bits)
 
 		for_each_cache(ca, d->c, i) {
 			q = bdev_get_queue(ca->bdev);
-			ret |= bdi_congested(&q->backing_dev_info, bits);
+			ret |= bdi_congested(q->backing_dev_info, bits);
 		}
 
 		cached_dev_put(dc);
@@ -1032,7 +1032,7 @@ void bch_cached_dev_request_init(struct cached_dev *dc)
 	struct gendisk *g = dc->disk.disk;
 
 	g->queue->make_request_fn		= cached_dev_make_request;
-	g->queue->backing_dev_info.congested_fn = cached_dev_congested;
+	g->queue->backing_dev_info->congested_fn = cached_dev_congested;
 	dc->disk.cache_miss			= cached_dev_cache_miss;
 	dc->disk.ioctl				= cached_dev_ioctl;
 }
@@ -1125,7 +1125,7 @@ static int flash_dev_congested(void *data, int bits)
 
 	for_each_cache(ca, d->c, i) {
 		q = bdev_get_queue(ca->bdev);
-		ret |= bdi_congested(&q->backing_dev_info, bits);
+		ret |= bdi_congested(q->backing_dev_info, bits);
 	}
 
 	return ret;
@@ -1136,7 +1136,7 @@ void bch_flash_dev_request_init(struct bcache_device *d)
 	struct gendisk *g = d->disk;
 
 	g->queue->make_request_fn		= flash_dev_make_request;
-	g->queue->backing_dev_info.congested_fn = flash_dev_congested;
+	g->queue->backing_dev_info->congested_fn = flash_dev_congested;
 	d->cache_miss				= flash_dev_cache_miss;
 	d->ioctl				= flash_dev_ioctl;
 }

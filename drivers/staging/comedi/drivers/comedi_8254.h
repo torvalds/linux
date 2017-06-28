@@ -100,34 +100,36 @@ struct comedi_8254 {
 	unsigned int gate_src[3];
 	bool busy[3];
 
-	int (*insn_config)(struct comedi_device *, struct comedi_subdevice *s,
-			   struct comedi_insn *, unsigned int *data);
+	int (*insn_config)(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data);
 };
 
-unsigned int comedi_8254_status(struct comedi_8254 *, unsigned int counter);
-unsigned int comedi_8254_read(struct comedi_8254 *, unsigned int counter);
-void comedi_8254_write(struct comedi_8254 *,
+unsigned int comedi_8254_status(struct comedi_8254 *i8254,
+				unsigned int counter);
+unsigned int comedi_8254_read(struct comedi_8254 *i8254, unsigned int counter);
+void comedi_8254_write(struct comedi_8254 *i8254,
 		       unsigned int counter, unsigned int val);
 
-int comedi_8254_set_mode(struct comedi_8254 *,
+int comedi_8254_set_mode(struct comedi_8254 *i8254,
 			 unsigned int counter, unsigned int mode);
-int comedi_8254_load(struct comedi_8254 *,
+int comedi_8254_load(struct comedi_8254 *i8254,
 		     unsigned int counter, unsigned int val, unsigned int mode);
 
-void comedi_8254_pacer_enable(struct comedi_8254 *,
+void comedi_8254_pacer_enable(struct comedi_8254 *i8254,
 			      unsigned int counter1, unsigned int counter2,
 			      bool enable);
-void comedi_8254_update_divisors(struct comedi_8254 *);
-void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *,
+void comedi_8254_update_divisors(struct comedi_8254 *i8254);
+void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
 				     unsigned int *nanosec, unsigned int flags);
-void comedi_8254_ns_to_timer(struct comedi_8254 *,
+void comedi_8254_ns_to_timer(struct comedi_8254 *i8254,
 			     unsigned int *nanosec, unsigned int flags);
 
-void comedi_8254_set_busy(struct comedi_8254 *,
+void comedi_8254_set_busy(struct comedi_8254 *i8254,
 			  unsigned int counter, bool busy);
 
-void comedi_8254_subdevice_init(struct comedi_subdevice *,
-				struct comedi_8254 *);
+void comedi_8254_subdevice_init(struct comedi_subdevice *s,
+				struct comedi_8254 *i8254);
 
 struct comedi_8254 *comedi_8254_init(unsigned long iobase,
 				     unsigned int osc_base,

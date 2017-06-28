@@ -50,7 +50,7 @@ enum coda_product {
 struct coda_video_device;
 
 struct coda_devtype {
-	char			*firmware[2];
+	char			*firmware[3];
 	enum coda_product	product;
 	const struct coda_codec	*codecs;
 	unsigned int		num_codecs;
@@ -75,6 +75,7 @@ struct coda_dev {
 	struct platform_device	*plat_dev;
 	const struct coda_devtype *devtype;
 	int			firmware;
+	struct vdoa_data	*vdoa;
 
 	void __iomem		*regs_base;
 	struct clk		*clk_per;
@@ -236,6 +237,8 @@ struct coda_ctx {
 	int				display_idx;
 	struct dentry			*debugfs_entry;
 	bool				use_bit;
+	bool				use_vdoa;
+	struct vdoa_ctx			*vdoa;
 };
 
 extern int coda_debug;

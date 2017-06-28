@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <net/netlink.h>
 
 #include "internal.h"
@@ -132,7 +133,7 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	struct aead_alg *aead = container_of(alg, struct aead_alg, base);

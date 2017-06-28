@@ -94,6 +94,7 @@ struct parse_events_term {
 	int type_term;
 	struct list_head list;
 	bool used;
+	bool no_value;
 
 	/* error string indexes for within parsed string */
 	int err_term;
@@ -122,6 +123,7 @@ void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
 			   int type_term, char *config, u64 num,
+			   bool novalue,
 			   void *loc_term, void *loc_val);
 int parse_events_term__str(struct parse_events_term **term,
 			   int type_term, char *config, char *str,

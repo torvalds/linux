@@ -71,8 +71,9 @@ int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int short_hand, unsigned int dest, int dest_mode);
 
-void __kvm_apic_update_irr(u32 *pir, void *regs);
-void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
+int __kvm_apic_update_irr(u32 *pir, void *regs);
+int kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
+void kvm_apic_update_ppr(struct kvm_vcpu *vcpu);
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
 		     struct dest_map *dest_map);
 int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
@@ -201,17 +202,6 @@ static inline bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)
 static inline int kvm_lapic_latched_init(struct kvm_vcpu *vcpu)
 {
 	return lapic_in_kernel(vcpu) && test_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
-}
-
-static inline u32 kvm_apic_id(struct kvm_lapic *apic)
-{
-	/* To avoid a race between apic_base and following APIC_ID update when
-	 * switching to x2apic_mode, the x2apic mode returns initial x2apic id.
-	 */
-	if (apic_x2apic_mode(apic))
-		return apic->vcpu->vcpu_id;
-
-	return kvm_lapic_get_reg(apic, APIC_ID) >> 24;
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);

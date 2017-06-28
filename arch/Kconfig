@@ -29,7 +29,7 @@ config OPROFILE_EVENT_MULTIPLEX
 	  The number of hardware counters is limited. The multiplexing
 	  feature enables OProfile to gather more events than counters
 	  are provided by the hardware. This is realized by switching
-	  between events at an user specified time interval.
+	  between events at a user specified time interval.
 
 	  If unsure, say N.
 
@@ -222,6 +222,10 @@ config GENERIC_SMP_IDLE_THREAD
 config GENERIC_IDLE_POLL_SETUP
        bool
 
+# Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
+config ARCH_HAS_SET_MEMORY
+	bool
+
 # Select if arch init_task initializer is different to init/init_task.c
 config ARCH_INIT_TASK
        bool
@@ -410,6 +414,28 @@ config GCC_PLUGIN_LATENT_ENTROPY
 	   * https://grsecurity.net/
 	   * https://pax.grsecurity.net/
 
+config GCC_PLUGIN_STRUCTLEAK
+	bool "Force initialization of variables containing userspace addresses"
+	depends on GCC_PLUGINS
+	help
+	  This plugin zero-initializes any structures that containing a
+	  __user attribute. This can prevent some classes of information
+	  exposures.
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_STRUCTLEAK_VERBOSE
+	bool "Report forcefully initialized variables"
+	depends on GCC_PLUGIN_STRUCTLEAK
+	depends on !COMPILE_TEST
+	help
+	  This option will cause a warning to be printed each time the
+	  structleak plugin finds a variable it thinks needs to be
+	  initialized. Since not all existing initializers are detected
+	  by the plugin, this can produce false positive warnings.
+
 config HAVE_CC_STACKPROTECTOR
 	bool
 	help
@@ -543,6 +569,9 @@ config HAVE_IRQ_TIME_ACCOUNTING
 	  support irq time accounting and then call enable_sched_clock_irqtime().
 
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	bool
+
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 	bool
 
 config HAVE_ARCH_HUGE_VMAP
@@ -780,5 +809,42 @@ config VMAP_STACK
 	  This is presently incompatible with KASAN because KASAN expects
 	  the stack to map directly to the KASAN shadow map using a formula
 	  that is incorrect if the stack is in vmalloc space.
+
+config ARCH_OPTIONAL_KERNEL_RWX
+	def_bool n
+
+config ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	def_bool n
+
+config ARCH_HAS_STRICT_KERNEL_RWX
+	def_bool n
+
+config STRICT_KERNEL_RWX
+	bool "Make kernel text and rodata read-only" if ARCH_OPTIONAL_KERNEL_RWX
+	depends on ARCH_HAS_STRICT_KERNEL_RWX
+	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	help
+	  If this is set, kernel text and rodata memory will be made read-only,
+	  and non-text memory will be made non-executable. This provides
+	  protection against certain security exploits (e.g. executing the heap
+	  or modifying text)
+
+	  These features are considered standard security practice these days.
+	  You should say Y here in almost all cases.
+
+config ARCH_HAS_STRICT_MODULE_RWX
+	def_bool n
+
+config STRICT_MODULE_RWX
+	bool "Set loadable kernel module data as NX and text as RO" if ARCH_OPTIONAL_KERNEL_RWX
+	depends on ARCH_HAS_STRICT_MODULE_RWX && MODULES
+	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	help
+	  If this is set, module text and rodata memory will be made read-only,
+	  and non-text memory will be made non-executable. This provides
+	  protection against certain security exploits (e.g. writing to text)
+
+config ARCH_WANT_RELAX_ORDER
+	bool
 
 source "kernel/gcov/Kconfig"

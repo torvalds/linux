@@ -461,7 +461,7 @@ static void clusterip_tg_destroy(const struct xt_tgdtor_param *par)
 
 	clusterip_config_put(cipinfo->config);
 
-	nf_ct_netns_get(par->net, par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 #ifdef CONFIG_COMPAT
@@ -485,6 +485,7 @@ static struct xt_target clusterip_tg_reg __read_mostly = {
 	.checkentry	= clusterip_tg_check,
 	.destroy	= clusterip_tg_destroy,
 	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
+	.usersize	= offsetof(struct ipt_clusterip_tgt_info, config),
 #ifdef CONFIG_COMPAT
 	.compatsize	= sizeof(struct compat_ipt_clusterip_tgt_info),
 #endif /* CONFIG_COMPAT */

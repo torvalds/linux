@@ -351,7 +351,7 @@ struct l2t_entry *t3_l2t_get(struct t3cdev *cdev, struct dst_entry *dst,
 		e->smt_idx = smt_idx;
 		atomic_set(&e->refcnt, 1);
 		neigh_replace(e, neigh);
-		if (neigh->dev->priv_flags & IFF_802_1Q_VLAN)
+		if (is_vlan_dev(neigh->dev))
 			e->vlan = vlan_dev_vlan_id(neigh->dev);
 		else
 			e->vlan = VLAN_NONE;

@@ -1407,6 +1407,18 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* ask the core to calculate the divisor */
 	baud = uart_get_baud_rate(port, termios, old, 50, port->uartclk / 16);
 
+	/*
+	 * Need to update the Ring buffer length according to the selected
+	 * baud rate and restart Rx DMA path.
+	 *
+	 * Since timer function acqures sport->port.lock, need to stop before
+	 * acquring same lock because otherwise del_timer_sync() can deadlock.
+	 */
+	if (old && sport->lpuart_dma_rx_use) {
+		del_timer_sync(&sport->lpuart_timer);
+		lpuart_dma_rx_free(&sport->port);
+	}
+
 	spin_lock_irqsave(&sport->port.lock, flags);
 
 	sport->port.read_status_mask = 0;
@@ -1456,22 +1468,11 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* restore control register */
 	writeb(old_cr2, sport->port.membase + UARTCR2);
 
-	/*
-	 * If new baud rate is set, we will also need to update the Ring buffer
-	 * length according to the selected baud rate and restart Rx DMA path.
-	 */
-	if (old) {
-		if (sport->lpuart_dma_rx_use) {
-			del_timer_sync(&sport->lpuart_timer);
-			lpuart_dma_rx_free(&sport->port);
-		}
-
-		if (sport->dma_rx_chan && !lpuart_start_rx_dma(sport)) {
-			sport->lpuart_dma_rx_use = true;
+	if (old && sport->lpuart_dma_rx_use) {
+		if (!lpuart_start_rx_dma(sport))
 			rx_dma_timer_init(sport);
-		} else {
+		else
 			sport->lpuart_dma_rx_use = false;
-		}
 	}
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -2131,12 +2132,10 @@ static int lpuart_resume(struct device *dev)
 
 	if (sport->lpuart_dma_rx_use) {
 		if (sport->port.irq_wake) {
-			if (!lpuart_start_rx_dma(sport)) {
-				sport->lpuart_dma_rx_use = true;
+			if (!lpuart_start_rx_dma(sport))
 				rx_dma_timer_init(sport);
-			} else {
+			else
 				sport->lpuart_dma_rx_use = false;
-			}
 		}
 	}
 

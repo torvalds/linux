@@ -13,7 +13,7 @@
 #include <linux/errno.h>	/* error codes */
 #include <linux/capability.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/time.h>		/* struct timeval */
 #include <linux/skbuff.h>
 #include <linux/bitops.h>

@@ -16,10 +16,10 @@
 #define __IOMONINTF_H__
 
 /*
-* This file contains all structures needed to support the VMCALLs for IO
-* Virtualization.  The VMCALLs are provided by Monitor and used by IO code
-* running on IO Partitions.
-*/
+ * This file contains all structures needed to support the VMCALLs for IO
+ * Virtualization.  The VMCALLs are provided by Monitor and used by IO code
+ * running on IO Partitions.
+ */
 static inline unsigned long
 __unisys_vmcall_gnuc(unsigned long tuple, unsigned long reg_ebx,
 		     unsigned long reg_ecx)

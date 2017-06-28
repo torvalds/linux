@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
@@ -954,7 +956,7 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 	pcbp->maxRing = (psli->num_rings - 1);
 
 	for (i = 0; i < psli->num_rings; i++) {
-		pring = &psli->ring[i];
+		pring = &psli->sli3_ring[i];
 
 		pring->sli.sli3.sizeCiocb =
 			phba->sli_rev == 3 ? SLI3_IOCB_CMD_SIZE :
@@ -1217,7 +1219,7 @@ lpfc_config_ring(struct lpfc_hba * phba, int ring, LPFC_MBOXQ_t * pmb)
 	mb->un.varCfgRing.recvNotify = 1;
 
 	psli = &phba->sli;
-	pring = &psli->ring[ring];
+	pring = &psli->sli3_ring[ring];
 	mb->un.varCfgRing.numMask = pring->num_mask;
 	mb->mbxCommand = MBX_CONFIG_RING;
 	mb->mbxOwner = OWN_HOST;
@@ -2081,6 +2083,9 @@ lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
 	if (phba->max_vpi && phba->cfg_enable_npiv)
 		bf_set(lpfc_mbx_rq_ftr_rq_npiv, &mboxq->u.mqe.un.req_ftrs, 1);
 
+	if (phba->nvmet_support)
+		bf_set(lpfc_mbx_rq_ftr_rq_mrqp, &mboxq->u.mqe.un.req_ftrs, 1);
+
 	return;
 }
 
@@ -2434,19 +2439,114 @@ lpfc_reg_fcfi(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	memset(mbox, 0, sizeof(*mbox));
 	reg_fcfi = &mbox->u.mqe.un.reg_fcfi;
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_REG_FCFI);
-	bf_set(lpfc_reg_fcfi_rq_id0, reg_fcfi, phba->sli4_hba.hdr_rq->queue_id);
-	bf_set(lpfc_reg_fcfi_rq_id1, reg_fcfi, REG_FCF_INVALID_QID);
+	if (phba->nvmet_support == 0) {
+		bf_set(lpfc_reg_fcfi_rq_id0, reg_fcfi,
+		       phba->sli4_hba.hdr_rq->queue_id);
+		/* Match everything - rq_id0 */
+		bf_set(lpfc_reg_fcfi_type_match0, reg_fcfi, 0);
+		bf_set(lpfc_reg_fcfi_type_mask0, reg_fcfi, 0);
+		bf_set(lpfc_reg_fcfi_rctl_match0, reg_fcfi, 0);
+		bf_set(lpfc_reg_fcfi_rctl_mask0, reg_fcfi, 0);
+
+		bf_set(lpfc_reg_fcfi_rq_id1, reg_fcfi, REG_FCF_INVALID_QID);
+
+		/* addr mode is bit wise inverted value of fcf addr_mode */
+		bf_set(lpfc_reg_fcfi_mam, reg_fcfi,
+		       (~phba->fcf.addr_mode) & 0x3);
+	} else {
+		/* This is ONLY for NVMET MRQ == 1 */
+		if (phba->cfg_nvmet_mrq != 1)
+			return;
+
+		bf_set(lpfc_reg_fcfi_rq_id0, reg_fcfi,
+		       phba->sli4_hba.nvmet_mrq_hdr[0]->queue_id);
+		/* Match type FCP - rq_id0 */
+		bf_set(lpfc_reg_fcfi_type_match0, reg_fcfi, FC_TYPE_FCP);
+		bf_set(lpfc_reg_fcfi_type_mask0, reg_fcfi, 0xff);
+		bf_set(lpfc_reg_fcfi_rctl_match0, reg_fcfi,
+		       FC_RCTL_DD_UNSOL_CMD);
+
+		bf_set(lpfc_reg_fcfi_rq_id1, reg_fcfi,
+		       phba->sli4_hba.hdr_rq->queue_id);
+		/* Match everything else - rq_id1 */
+		bf_set(lpfc_reg_fcfi_type_match1, reg_fcfi, 0);
+		bf_set(lpfc_reg_fcfi_type_mask1, reg_fcfi, 0);
+		bf_set(lpfc_reg_fcfi_rctl_match1, reg_fcfi, 0);
+		bf_set(lpfc_reg_fcfi_rctl_mask1, reg_fcfi, 0);
+	}
 	bf_set(lpfc_reg_fcfi_rq_id2, reg_fcfi, REG_FCF_INVALID_QID);
 	bf_set(lpfc_reg_fcfi_rq_id3, reg_fcfi, REG_FCF_INVALID_QID);
 	bf_set(lpfc_reg_fcfi_info_index, reg_fcfi,
 	       phba->fcf.current_rec.fcf_indx);
-	/* reg_fcf addr mode is bit wise inverted value of fcf addr_mode */
-	bf_set(lpfc_reg_fcfi_mam, reg_fcfi, (~phba->fcf.addr_mode) & 0x3);
 	if (phba->fcf.current_rec.vlan_id != LPFC_FCOE_NULL_VID) {
 		bf_set(lpfc_reg_fcfi_vv, reg_fcfi, 1);
 		bf_set(lpfc_reg_fcfi_vlan_tag, reg_fcfi,
 		       phba->fcf.current_rec.vlan_id);
 	}
+}
+
+/**
+ * lpfc_reg_fcfi_mrq - Initialize the REG_FCFI_MRQ mailbox command
+ * @phba: pointer to the hba structure containing the FCF index and RQ ID.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ * @mode: 0 to register FCFI, 1 to register MRQs
+ *
+ * The REG_FCFI_MRQ mailbox command supports Fibre Channel Forwarders (FCFs).
+ * The SLI Host uses the command to activate an FCF after it has acquired FCF
+ * information via a READ_FCF mailbox command. This mailbox command also is used
+ * to indicate where received unsolicited frames from this FCF will be sent. By
+ * default this routine will set up the FCF to forward all unsolicited frames
+ * the the RQ ID passed in the @phba. This can be overridden by the caller for
+ * more complicated setups.
+ **/
+void
+lpfc_reg_fcfi_mrq(struct lpfc_hba *phba, struct lpfcMboxq *mbox, int mode)
+{
+	struct lpfc_mbx_reg_fcfi_mrq *reg_fcfi;
+
+	/* This is ONLY for MRQ */
+	if (phba->cfg_nvmet_mrq <= 1)
+		return;
+
+	memset(mbox, 0, sizeof(*mbox));
+	reg_fcfi = &mbox->u.mqe.un.reg_fcfi_mrq;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_REG_FCFI_MRQ);
+	if (mode == 0) {
+		bf_set(lpfc_reg_fcfi_mrq_info_index, reg_fcfi,
+		       phba->fcf.current_rec.fcf_indx);
+		if (phba->fcf.current_rec.vlan_id != LPFC_FCOE_NULL_VID) {
+			bf_set(lpfc_reg_fcfi_mrq_vv, reg_fcfi, 1);
+			bf_set(lpfc_reg_fcfi_mrq_vlan_tag, reg_fcfi,
+			       phba->fcf.current_rec.vlan_id);
+		}
+		return;
+	}
+
+	bf_set(lpfc_reg_fcfi_mrq_rq_id0, reg_fcfi,
+	       phba->sli4_hba.nvmet_mrq_hdr[0]->queue_id);
+	/* Match NVME frames of type FCP (protocol NVME) - rq_id0 */
+	bf_set(lpfc_reg_fcfi_mrq_type_match0, reg_fcfi, FC_TYPE_FCP);
+	bf_set(lpfc_reg_fcfi_mrq_type_mask0, reg_fcfi, 0xff);
+	bf_set(lpfc_reg_fcfi_mrq_rctl_match0, reg_fcfi, FC_RCTL_DD_UNSOL_CMD);
+	bf_set(lpfc_reg_fcfi_mrq_rctl_mask0, reg_fcfi, 0xff);
+	bf_set(lpfc_reg_fcfi_mrq_ptc0, reg_fcfi, 1);
+	bf_set(lpfc_reg_fcfi_mrq_pt0, reg_fcfi, 1);
+
+	bf_set(lpfc_reg_fcfi_mrq_policy, reg_fcfi, 3); /* NVME connection id */
+	bf_set(lpfc_reg_fcfi_mrq_mode, reg_fcfi, 1);
+	bf_set(lpfc_reg_fcfi_mrq_filter, reg_fcfi, 1); /* rq_id0 */
+	bf_set(lpfc_reg_fcfi_mrq_npairs, reg_fcfi, phba->cfg_nvmet_mrq);
+
+	bf_set(lpfc_reg_fcfi_mrq_rq_id1, reg_fcfi,
+	       phba->sli4_hba.hdr_rq->queue_id);
+	/* Match everything - rq_id1 */
+	bf_set(lpfc_reg_fcfi_mrq_type_match1, reg_fcfi, 0);
+	bf_set(lpfc_reg_fcfi_mrq_type_mask1, reg_fcfi, 0);
+	bf_set(lpfc_reg_fcfi_mrq_rctl_match1, reg_fcfi, 0);
+	bf_set(lpfc_reg_fcfi_mrq_rctl_mask1, reg_fcfi, 0);
+
+	bf_set(lpfc_reg_fcfi_mrq_rq_id2, reg_fcfi, REG_FCF_INVALID_QID);
+	bf_set(lpfc_reg_fcfi_mrq_rq_id3, reg_fcfi, REG_FCF_INVALID_QID);
 }
 
 /**

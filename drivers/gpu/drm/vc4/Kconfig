@@ -2,10 +2,12 @@ config DRM_VC4
 	tristate "Broadcom VC4 Graphics"
 	depends on ARCH_BCM2835 || COMPILE_TEST
 	depends on DRM
+	depends on COMMON_CLK
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER
 	select DRM_PANEL
+	select DRM_MIPI_DSI
 	help
 	  Choose this option if you have a system that has a Broadcom
 	  VC4 GPU, such as the Raspberry Pi or other BCM2708/BCM2835.

@@ -45,6 +45,8 @@ MODULE_DESCRIPTION("FUJITSU Extended Socket Network Device Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+#define ACPI_MOTHERBOARD_RESOURCE_HID "PNP0C02"
+
 static int fjes_request_irq(struct fjes_adapter *);
 static void fjes_free_irq(struct fjes_adapter *);
 
@@ -57,8 +59,7 @@ static void fjes_raise_intr_rxdata_task(struct work_struct *);
 static void fjes_tx_stall_task(struct work_struct *);
 static void fjes_force_close_task(struct work_struct *);
 static irqreturn_t fjes_intr(int, void*);
-static struct rtnl_link_stats64 *
-fjes_get_stats64(struct net_device *, struct rtnl_link_stats64 *);
+static void fjes_get_stats64(struct net_device *, struct rtnl_link_stats64 *);
 static int fjes_change_mtu(struct net_device *, int);
 static int fjes_vlan_rx_add_vid(struct net_device *, __be16 proto, u16);
 static int fjes_vlan_rx_kill_vid(struct net_device *, __be16 proto, u16);
@@ -79,7 +80,7 @@ static void fjes_rx_irq(struct fjes_adapter *, int);
 static int fjes_poll(struct napi_struct *, int);
 
 static const struct acpi_device_id fjes_acpi_ids[] = {
-	{"PNP0C02", 0},
+	{ACPI_MOTHERBOARD_RESOURCE_HID, 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, fjes_acpi_ids);
@@ -116,18 +117,17 @@ static struct resource fjes_resource[] = {
 	},
 };
 
-static int fjes_acpi_add(struct acpi_device *device)
+static bool is_extended_socket_device(struct acpi_device *device)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL};
 	char str_buf[sizeof(FJES_ACPI_SYMBOL) + 1];
-	struct platform_device *plat_dev;
 	union acpi_object *str;
 	acpi_status status;
 	int result;
 
 	status = acpi_evaluate_object(device->handle, "_STR", NULL, &buffer);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return false;
 
 	str = buffer.pointer;
 	result = utf16s_to_utf8s((wchar_t *)str->string.pointer,
@@ -137,9 +137,41 @@ static int fjes_acpi_add(struct acpi_device *device)
 
 	if (strncmp(FJES_ACPI_SYMBOL, str_buf, strlen(FJES_ACPI_SYMBOL)) != 0) {
 		kfree(buffer.pointer);
-		return -ENODEV;
+		return false;
 	}
 	kfree(buffer.pointer);
+
+	return true;
+}
+
+static int acpi_check_extended_socket_status(struct acpi_device *device)
+{
+	unsigned long long sta;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(device->handle, "_STA", NULL, &sta);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	if (!((sta & ACPI_STA_DEVICE_PRESENT) &&
+	      (sta & ACPI_STA_DEVICE_ENABLED) &&
+	      (sta & ACPI_STA_DEVICE_UI) &&
+	      (sta & ACPI_STA_DEVICE_FUNCTIONING)))
+		return -ENODEV;
+
+	return 0;
+}
+
+static int fjes_acpi_add(struct acpi_device *device)
+{
+	struct platform_device *plat_dev;
+	acpi_status status;
+
+	if (!is_extended_socket_device(device))
+		return -ENODEV;
+
+	if (acpi_check_extended_socket_status(device))
+		return -ENODEV;
 
 	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
 				     fjes_get_acpi_resource, fjes_resource);
@@ -782,14 +814,12 @@ static void fjes_tx_retry(struct net_device *netdev)
 	netif_tx_wake_queue(queue);
 }
 
-static struct rtnl_link_stats64 *
+static void
 fjes_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
 	struct fjes_adapter *adapter = netdev_priv(netdev);
 
 	memcpy(stats, &adapter->stats64, sizeof(struct rtnl_link_stats64));
-
-	return stats;
 }
 
 static int fjes_change_mtu(struct net_device *netdev, int new_mtu)
@@ -1158,7 +1188,7 @@ static int fjes_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		if (adapter->unset_rx_last) {
 			adapter->rx_last_jiffies = jiffies;
@@ -1319,7 +1349,7 @@ static void fjes_netdev_setup(struct net_device *netdev)
 	netdev->min_mtu = fjes_support_mtu[0];
 	netdev->max_mtu = fjes_support_mtu[3];
 	netdev->flags |= IFF_BROADCAST;
-	netdev->features |= NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_FILTER;
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 }
 
 static void fjes_irq_watch_task(struct work_struct *work)
@@ -1476,10 +1506,43 @@ static void fjes_watch_unshare_task(struct work_struct *work)
 	}
 }
 
+static acpi_status
+acpi_find_extended_socket_device(acpi_handle obj_handle, u32 level,
+				 void *context, void **return_value)
+{
+	struct acpi_device *device;
+	bool *found = context;
+	int result;
+
+	result = acpi_bus_get_device(obj_handle, &device);
+	if (result)
+		return AE_OK;
+
+	if (strcmp(acpi_device_hid(device), ACPI_MOTHERBOARD_RESOURCE_HID))
+		return AE_OK;
+
+	if (!is_extended_socket_device(device))
+		return AE_OK;
+
+	if (acpi_check_extended_socket_status(device))
+		return AE_OK;
+
+	*found = true;
+	return AE_CTRL_TERMINATE;
+}
+
 /* fjes_init_module - Driver Registration Routine */
 static int __init fjes_init_module(void)
 {
+	bool found = false;
 	int result;
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+			    acpi_find_extended_socket_device, NULL, &found,
+			    NULL);
+
+	if (!found)
+		return -ENODEV;
 
 	pr_info("%s - version %s - %s\n",
 		fjes_driver_string, fjes_driver_version, fjes_copyright);

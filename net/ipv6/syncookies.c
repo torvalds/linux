@@ -16,7 +16,7 @@
 
 #include <linux/tcp.h>
 #include <linux/random.h>
-#include <linux/cryptohash.h>
+#include <linux/siphash.h>
 #include <linux/kernel.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
@@ -24,7 +24,7 @@
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
 
-static u32 syncookie6_secret[2][16-4+SHA_DIGEST_WORDS] __read_mostly;
+static siphash_key_t syncookie6_secret[2] __read_mostly;
 
 /* RFC 2460, Section 8.3:
  * [ipv6 tcp] MSS must be computed as the maximum packet size minus 60 [..]
@@ -41,30 +41,27 @@ static __u16 const msstab[] = {
 	9000 - 60,
 };
 
-static DEFINE_PER_CPU(__u32 [16 + 5 + SHA_WORKSPACE_WORDS], ipv6_cookie_scratch);
-
-static u32 cookie_hash(const struct in6_addr *saddr, const struct in6_addr *daddr,
+static u32 cookie_hash(const struct in6_addr *saddr,
+		       const struct in6_addr *daddr,
 		       __be16 sport, __be16 dport, u32 count, int c)
 {
-	__u32 *tmp;
+	const struct {
+		struct in6_addr saddr;
+		struct in6_addr daddr;
+		u32 count;
+		__be16 sport;
+		__be16 dport;
+	} __aligned(SIPHASH_ALIGNMENT) combined = {
+		.saddr = *saddr,
+		.daddr = *daddr,
+		.count = count,
+		.sport = sport,
+		.dport = dport
+	};
 
 	net_get_random_once(syncookie6_secret, sizeof(syncookie6_secret));
-
-	tmp  = this_cpu_ptr(ipv6_cookie_scratch);
-
-	/*
-	 * we have 320 bits of information to hash, copy in the remaining
-	 * 192 bits required for sha_transform, from the syncookie6_secret
-	 * and overwrite the digest with the secret
-	 */
-	memcpy(tmp + 10, syncookie6_secret[c], 44);
-	memcpy(tmp, saddr, 16);
-	memcpy(tmp + 4, daddr, 16);
-	tmp[8] = ((__force u32)sport << 16) + (__force u32)dport;
-	tmp[9] = count;
-	sha_transform(tmp + 16, (__u8 *)tmp, tmp + 16 + 5);
-
-	return tmp[17];
+	return siphash(&combined, offsetofend(typeof(combined), dport),
+		       &syncookie6_secret[c]);
 }
 
 static __u32 secure_tcp_syn_cookie(const struct in6_addr *saddr,

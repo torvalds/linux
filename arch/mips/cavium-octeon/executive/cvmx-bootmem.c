@@ -30,8 +30,8 @@
  * application start time.
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 
 #include <asm/octeon/cvmx.h>
 #include <asm/octeon/cvmx-spinlock.h>

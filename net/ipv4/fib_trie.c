@@ -124,7 +124,7 @@ static void fib_notify(struct net *net, struct notifier_block *nb,
 static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 				   enum fib_event_type event_type, u32 dst,
 				   int dst_len, struct fib_info *fi,
-				   u8 tos, u8 type, u32 tb_id, u32 nlflags)
+				   u8 tos, u8 type, u32 tb_id)
 {
 	struct fib_entry_notifier_info info = {
 		.dst = dst,
@@ -133,7 +133,6 @@ static int call_fib_entry_notifier(struct notifier_block *nb, struct net *net,
 		.tos = tos,
 		.type = type,
 		.tb_id = tb_id,
-		.nlflags = nlflags,
 	};
 	return call_fib_notifier(nb, net, event_type, &info.info);
 }
@@ -197,7 +196,7 @@ int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 static int call_fib_entry_notifiers(struct net *net,
 				    enum fib_event_type event_type, u32 dst,
 				    int dst_len, struct fib_info *fi,
-				    u8 tos, u8 type, u32 tb_id, u32 nlflags)
+				    u8 tos, u8 type, u32 tb_id)
 {
 	struct fib_entry_notifier_info info = {
 		.dst = dst,
@@ -206,7 +205,6 @@ static int call_fib_entry_notifiers(struct net *net,
 		.tos = tos,
 		.type = type,
 		.tb_id = tb_id,
-		.nlflags = nlflags,
 	};
 	return call_fib_notifiers(net, event_type, &info.info);
 }
@@ -1198,6 +1196,7 @@ static int fib_insert_alias(struct trie *t, struct key_vector *tp,
 int fib_table_insert(struct net *net, struct fib_table *tb,
 		     struct fib_config *cfg)
 {
+	enum fib_event_type event = FIB_EVENT_ENTRY_ADD;
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct fib_alias *fa, *new_fa;
 	struct key_vector *l, *tp;
@@ -1295,6 +1294,13 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->tb_id = tb->tb_id;
 			new_fa->fa_default = -1;
 
+			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
+						 key, plen, fi,
+						 new_fa->fa_tos, cfg->fc_type,
+						 tb->tb_id);
+			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
+				  tb->tb_id, &cfg->fc_nlinfo, nlflags);
+
 			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
 
 			alias_free_mem_rcu(fa);
@@ -1302,13 +1308,6 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			fib_release_info(fi_drop);
 			if (state & FA_S_ACCESSED)
 				rt_cache_flush(cfg->fc_nlinfo.nl_net);
-
-			call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_ADD,
-						 key, plen, fi,
-						 new_fa->fa_tos, cfg->fc_type,
-						 tb->tb_id, cfg->fc_nlflags);
-			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
-				tb->tb_id, &cfg->fc_nlinfo, nlflags);
 
 			goto succeeded;
 		}
@@ -1319,10 +1318,12 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		if (fa_match)
 			goto out;
 
-		if (cfg->fc_nlflags & NLM_F_APPEND)
+		if (cfg->fc_nlflags & NLM_F_APPEND) {
+			event = FIB_EVENT_ENTRY_APPEND;
 			nlflags |= NLM_F_APPEND;
-		else
+		} else {
 			fa = fa_first;
+		}
 	}
 	err = -ENOENT;
 	if (!(cfg->fc_nlflags & NLM_F_CREATE))
@@ -1351,8 +1352,8 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 		tb->tb_num_default++;
 
 	rt_cache_flush(cfg->fc_nlinfo.nl_net);
-	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_ADD, key, plen, fi, tos,
-				 cfg->fc_type, tb->tb_id, cfg->fc_nlflags);
+	call_fib_entry_notifiers(net, event, key, plen, fi, tos, cfg->fc_type,
+				 tb->tb_id);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, new_fa->tb_id,
 		  &cfg->fc_nlinfo, nlflags);
 succeeded:
@@ -1653,8 +1654,8 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 		return -ESRCH;
 
 	call_fib_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, key, plen,
-				 fa_to_delete->fa_info, tos, cfg->fc_type,
-				 tb->tb_id, 0);
+				 fa_to_delete->fa_info, tos,
+				 fa_to_delete->fa_type, tb->tb_id);
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
@@ -1963,7 +1964,8 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
 			struct fib_info *fi = fa->fa_info;
 
-			if (!fi || !(fi->fib_flags & RTNH_F_DEAD)) {
+			if (!fi || !(fi->fib_flags & RTNH_F_DEAD) ||
+			    tb->tb_id != fa->tb_id) {
 				slen = fa->fa_slen;
 				continue;
 			}
@@ -1972,7 +1974,7 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 						 n->key,
 						 KEYLENGTH - fa->fa_slen,
 						 fi, fa->fa_tos, fa->fa_type,
-						 tb->tb_id, 0);
+						 tb->tb_id);
 			hlist_del_rcu(&fa->fa_list);
 			fib_release_info(fa->fa_info);
 			alias_free_mem_rcu(fa);
@@ -2012,7 +2014,7 @@ static void fib_leaf_notify(struct net *net, struct key_vector *l,
 
 		call_fib_entry_notifier(nb, net, event_type, l->key,
 					KEYLENGTH - fa->fa_slen, fi, fa->fa_tos,
-					fa->fa_type, fa->tb_id, 0);
+					fa->fa_type, fa->tb_id);
 	}
 }
 
@@ -2386,7 +2388,7 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq,
 		   "Basic info: size of leaf:"
-		   " %Zd bytes, size of tnode: %Zd bytes.\n",
+		   " %zd bytes, size of tnode: %zd bytes.\n",
 		   LEAF_SIZE, TNODE_SIZE(0));
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {

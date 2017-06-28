@@ -480,11 +480,16 @@ EXPORT_SYMBOL_GPL(nvmf_connect_io_queue);
  * being implemented to the common NVMe fabrics library. Part of
  * the overall init sequence of starting up a fabrics driver.
  */
-void nvmf_register_transport(struct nvmf_transport_ops *ops)
+int nvmf_register_transport(struct nvmf_transport_ops *ops)
 {
+	if (!ops->create_ctrl)
+		return -EINVAL;
+
 	mutex_lock(&nvmf_transports_mutex);
 	list_add_tail(&ops->entry, &nvmf_transports);
 	mutex_unlock(&nvmf_transports_mutex);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nvmf_register_transport);
 

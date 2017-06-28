@@ -553,34 +553,34 @@ struct hostif_mic_failure_confirm_t {
 #define TX_RATE_FIXED		5
 
 /* 11b rate */
-#define TX_RATE_1M	(uint8_t)(10/5)	/* 11b 11g basic rate */
-#define TX_RATE_2M	(uint8_t)(20/5)	/* 11b 11g basic rate */
-#define TX_RATE_5M	(uint8_t)(55/5)	/* 11g basic rate */
-#define TX_RATE_11M	(uint8_t)(110/5)	/* 11g basic rate */
+#define TX_RATE_1M	(uint8_t)(10 / 5)	/* 11b 11g basic rate */
+#define TX_RATE_2M	(uint8_t)(20 / 5)	/* 11b 11g basic rate */
+#define TX_RATE_5M	(uint8_t)(55 / 5)	/* 11g basic rate */
+#define TX_RATE_11M	(uint8_t)(110 / 5)	/* 11g basic rate */
 
 /* 11g rate */
-#define TX_RATE_6M	(uint8_t)(60/5)	/* 11g basic rate */
-#define TX_RATE_12M	(uint8_t)(120/5)	/* 11g basic rate */
-#define TX_RATE_24M	(uint8_t)(240/5)	/* 11g basic rate */
-#define TX_RATE_9M	(uint8_t)(90/5)
-#define TX_RATE_18M	(uint8_t)(180/5)
-#define TX_RATE_36M	(uint8_t)(360/5)
-#define TX_RATE_48M	(uint8_t)(480/5)
-#define TX_RATE_54M	(uint8_t)(540/5)
+#define TX_RATE_6M	(uint8_t)(60 / 5)	/* 11g basic rate */
+#define TX_RATE_12M	(uint8_t)(120 / 5)	/* 11g basic rate */
+#define TX_RATE_24M	(uint8_t)(240 / 5)	/* 11g basic rate */
+#define TX_RATE_9M	(uint8_t)(90 / 5)
+#define TX_RATE_18M	(uint8_t)(180 / 5)
+#define TX_RATE_36M	(uint8_t)(360 / 5)
+#define TX_RATE_48M	(uint8_t)(480 / 5)
+#define TX_RATE_54M	(uint8_t)(540 / 5)
 
-#define IS_11B_RATE(A) (((A&RATE_MASK)==TX_RATE_1M)||((A&RATE_MASK)==TX_RATE_2M)||\
-                        ((A&RATE_MASK)==TX_RATE_5M)||((A&RATE_MASK)==TX_RATE_11M))
+#define IS_11B_RATE(A) (((A & RATE_MASK) == TX_RATE_1M ) || ((A & RATE_MASK) == TX_RATE_2M) || \
+                        ((A & RATE_MASK) == TX_RATE_5M) || ((A & RATE_MASK) == TX_RATE_11M))
 
-#define IS_OFDM_RATE(A) (((A&RATE_MASK)==TX_RATE_6M)||((A&RATE_MASK)==TX_RATE_12M)||\
-                        ((A&RATE_MASK)==TX_RATE_24M)||((A&RATE_MASK)==TX_RATE_9M)||\
-                        ((A&RATE_MASK)==TX_RATE_18M)||((A&RATE_MASK)==TX_RATE_36M)||\
-                        ((A&RATE_MASK)==TX_RATE_48M)||((A&RATE_MASK)==TX_RATE_54M))
+#define IS_OFDM_RATE(A) (((A & RATE_MASK) == TX_RATE_6M) || ((A & RATE_MASK) == TX_RATE_12M) || \
+                        ((A & RATE_MASK) == TX_RATE_24M) || ((A & RATE_MASK) == TX_RATE_9M) || \
+                        ((A & RATE_MASK) == TX_RATE_18M) || ((A & RATE_MASK) == TX_RATE_36M) || \
+                        ((A & RATE_MASK) == TX_RATE_48M) || ((A & RATE_MASK) == TX_RATE_54M))
 
-#define IS_11BG_RATE(A) (IS_11B_RATE(A)||IS_OFDM_RATE(A))
+#define IS_11BG_RATE(A) (IS_11B_RATE(A) || IS_OFDM_RATE(A))
 
-#define IS_OFDM_EXT_RATE(A)  (((A&RATE_MASK)==TX_RATE_9M)||((A&RATE_MASK)==TX_RATE_18M)||\
-                             ((A&RATE_MASK)==TX_RATE_36M)||((A&RATE_MASK)==TX_RATE_48M)||\
-                             ((A&RATE_MASK)==TX_RATE_54M))
+#define IS_OFDM_EXT_RATE(A)  (((A & RATE_MASK) == TX_RATE_9M) || ((A & RATE_MASK) == TX_RATE_18M) || \
+                             ((A & RATE_MASK) == TX_RATE_36M) || ((A & RATE_MASK) == TX_RATE_48M) || \
+                             ((A & RATE_MASK) == TX_RATE_54M))
 
 enum {
 	CONNECT_STATUS = 0,
@@ -602,16 +602,16 @@ enum {
 
 /* macro function */
 #define HIF_EVENT_MASK 0xE800
-#define IS_HIF_IND(_EVENT)  ((_EVENT&HIF_EVENT_MASK)==0xE800  && \
-                             ((_EVENT&~HIF_EVENT_MASK)==0x0001 || \
-                              (_EVENT&~HIF_EVENT_MASK)==0x0006 || \
-                              (_EVENT&~HIF_EVENT_MASK)==0x000C || \
-                              (_EVENT&~HIF_EVENT_MASK)==0x0011 || \
-                              (_EVENT&~HIF_EVENT_MASK)==0x0012))
+#define IS_HIF_IND(_EVENT)  ((_EVENT & HIF_EVENT_MASK) == 0xE800  && \
+                             ((_EVENT & ~HIF_EVENT_MASK) == 0x0001 || \
+                              (_EVENT & ~HIF_EVENT_MASK) == 0x0006 || \
+                              (_EVENT & ~HIF_EVENT_MASK) == 0x000C || \
+                              (_EVENT & ~HIF_EVENT_MASK) == 0x0011 || \
+                              (_EVENT & ~HIF_EVENT_MASK) == 0x0012))
 
-#define IS_HIF_CONF(_EVENT) ((_EVENT&HIF_EVENT_MASK)==0xE800  && \
-                             (_EVENT&~HIF_EVENT_MASK)>0x0000  && \
-                             (_EVENT&~HIF_EVENT_MASK)<0x0012  && \
+#define IS_HIF_CONF(_EVENT) ((_EVENT & HIF_EVENT_MASK) == 0xE800  && \
+                             (_EVENT & ~HIF_EVENT_MASK) > 0x0000  && \
+                             (_EVENT & ~HIF_EVENT_MASK) < 0x0012  && \
                              !IS_HIF_IND(_EVENT) )
 
 #ifdef __KERNEL__

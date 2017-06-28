@@ -390,6 +390,10 @@ static const struct of_device_id uniphier_reset_match[] = {
 		.data = uniphier_sld3_mio_reset_data,
 	},
 	{
+		.compatible = "socionext,uniphier-ld11-sd-reset",
+		.data = uniphier_pro5_sd_reset_data,
+	},
+	{
 		.compatible = "socionext,uniphier-ld20-sd-reset",
 		.data = uniphier_pro5_sd_reset_data,
 	},

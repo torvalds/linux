@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/sched_clock.h>
 #include <linux/kernel.h>
 #include <linux/param.h>

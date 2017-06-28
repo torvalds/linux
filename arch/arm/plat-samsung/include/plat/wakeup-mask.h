@@ -38,7 +38,7 @@ struct samsung_wakeup_mask {
  * required to be correct before we enter sleep.
  */
 extern void samsung_sync_wakemask(void __iomem *reg,
-				  struct samsung_wakeup_mask *masks,
+				  const struct samsung_wakeup_mask *masks,
 				  int nr_masks);
 
 #endif /* __PLAT_WAKEUP_MASK_H */

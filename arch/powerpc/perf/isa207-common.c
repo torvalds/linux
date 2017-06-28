@@ -65,12 +65,41 @@ static bool is_event_valid(u64 event)
 	return !(event & ~valid_mask);
 }
 
-static u64 mmcra_sdar_mode(u64 event)
+static inline bool is_event_marked(u64 event)
 {
-	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
-		return p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
+	if (event & EVENT_IS_MARKED)
+		return true;
 
-	return MMCRA_SDAR_MODE_TLB;
+	return false;
+}
+
+static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
+{
+	/*
+	 * MMCRA[SDAR_MODE] specifices how the SDAR should be updated in
+	 * continous sampling mode.
+	 *
+	 * Incase of Power8:
+	 * MMCRA[SDAR_MODE] will be programmed as "0b01" for continous sampling
+	 * mode and will be un-changed when setting MMCRA[63] (Marked events).
+	 *
+	 * Incase of Power9:
+	 * Marked event: MMCRA[SDAR_MODE] will be set to 0b00 ('No Updates'),
+	 *               or if group already have any marked events.
+	 * Non-Marked events (for DD1):
+	 *	MMCRA[SDAR_MODE] will be set to 0b01
+	 * For rest
+	 *	MMCRA[SDAR_MODE] will be set from event code.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (is_event_marked(event) || (*mmcra & MMCRA_SAMPLE_ENABLE))
+			*mmcra &= MMCRA_SDAR_MODE_NO_UPDATES;
+		else if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
+			*mmcra |=  p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
+		else if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+			*mmcra |= MMCRA_SDAR_MODE_TLB;
+	} else
+		*mmcra |= MMCRA_SDAR_MODE_TLB;
 }
 
 static u64 thresh_cmp_val(u64 value)
@@ -95,6 +124,28 @@ static unsigned long combine_shift(unsigned long pmc)
 		return p9_MMCR1_COMBINE_SHIFT(pmc);
 
 	return MMCR1_COMBINE_SHIFT(pmc);
+}
+
+static inline bool event_is_threshold(u64 event)
+{
+	return (event >> EVENT_THR_SEL_SHIFT) & EVENT_THR_SEL_MASK;
+}
+
+static bool is_thresh_cmp_valid(u64 event)
+{
+	unsigned int cmp, exp;
+
+	/*
+	 * Check the mantissa upper two bits are not zero, unless the
+	 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
+	 */
+	cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
+	exp = cmp >> 7;
+
+	if (exp && (cmp & 0x60) == 0)
+		return false;
+
+	return true;
 }
 
 int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
@@ -158,33 +209,31 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		value |= CNST_L1_QUAL_VAL(cache);
 	}
 
-	if (event & EVENT_IS_MARKED) {
+	if (is_event_marked(event)) {
 		mask  |= CNST_SAMPLE_MASK;
 		value |= CNST_SAMPLE_VAL(event >> EVENT_SAMPLE_SHIFT);
 	}
 
-	/*
-	 * Special case for PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
-	 * the threshold control bits are used for the match value.
-	 */
-	if (event_is_fab_match(event)) {
-		mask  |= CNST_FAB_MATCH_MASK;
-		value |= CNST_FAB_MATCH_VAL(event >> EVENT_THR_CTL_SHIFT);
+	if (cpu_has_feature(CPU_FTR_ARCH_300))  {
+		if (event_is_threshold(event) && is_thresh_cmp_valid(event)) {
+			mask  |= CNST_THRESH_MASK;
+			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+		}
 	} else {
 		/*
-		 * Check the mantissa upper two bits are not zero, unless the
-		 * exponent is also zero. See the THRESH_CMP_MANTISSA doc.
+		 * Special case for PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
+		 * the threshold control bits are used for the match value.
 		 */
-		unsigned int cmp, exp;
+		if (event_is_fab_match(event)) {
+			mask  |= CNST_FAB_MATCH_MASK;
+			value |= CNST_FAB_MATCH_VAL(event >> EVENT_THR_CTL_SHIFT);
+		} else {
+			if (!is_thresh_cmp_valid(event))
+				return -1;
 
-		cmp = (event >> EVENT_THR_CMP_SHIFT) & EVENT_THR_CMP_MASK;
-		exp = cmp >> 7;
-
-		if (exp && (cmp & 0x60) == 0)
-			return -1;
-
-		mask  |= CNST_THRESH_MASK;
-		value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+			mask  |= CNST_THRESH_MASK;
+			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
+		}
 	}
 
 	if (!pmc && ebb)
@@ -256,7 +305,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 		}
 
 		/* In continuous sampling mode, update SDAR on TLB miss */
-		mmcra |= mmcra_sdar_mode(event[i]);
+		mmcra_sdar_mode(event[i], &mmcra);
 
 		if (event[i] & EVENT_IS_L1) {
 			cache = event[i] >> EVENT_CACHE_SEL_SHIFT;
@@ -265,7 +314,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			mmcr1 |= (cache & 1) << MMCR1_DC_QUAL_SHIFT;
 		}
 
-		if (event[i] & EVENT_IS_MARKED) {
+		if (is_event_marked(event[i])) {
 			mmcra |= MMCRA_SAMPLE_ENABLE;
 
 			val = (event[i] >> EVENT_SAMPLE_SHIFT) & EVENT_SAMPLE_MASK;
@@ -279,7 +328,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 		 * PM_MRK_FAB_RSP_MATCH and PM_MRK_FAB_RSP_MATCH_CYC,
 		 * the threshold bits are used for the match value.
 		 */
-		if (event_is_fab_match(event[i])) {
+		if (!cpu_has_feature(CPU_FTR_ARCH_300) && event_is_fab_match(event[i])) {
 			mmcr1 |= ((event[i] >> EVENT_THR_CTL_SHIFT) &
 				  EVENT_THR_CTL_MASK) << MMCR1_FAB_SHIFT;
 		} else {
@@ -337,4 +386,40 @@ void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 {
 	if (pmc <= 3)
 		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SHIFT(pmc + 1));
+}
+
+static int find_alternative(u64 event, const unsigned int ev_alt[][MAX_ALT], int size)
+{
+	int i, j;
+
+	for (i = 0; i < size; ++i) {
+		if (event < ev_alt[i][0])
+			break;
+
+		for (j = 0; j < MAX_ALT && ev_alt[i][j]; ++j)
+			if (event == ev_alt[i][j])
+				return i;
+	}
+
+	return -1;
+}
+
+int isa207_get_alternatives(u64 event, u64 alt[],
+				const unsigned int ev_alt[][MAX_ALT], int size)
+{
+	int i, j, num_alt = 0;
+	u64 alt_event;
+
+	alt[num_alt++] = event;
+	i = find_alternative(event, ev_alt, size);
+	if (i >= 0) {
+		/* Filter out the original event, it's already in alt[0] */
+		for (j = 0; j < MAX_ALT; ++j) {
+			alt_event = ev_alt[i][j];
+			if (alt_event && alt_event != event)
+				alt[num_alt++] = alt_event;
+		}
+	}
+
+	return num_alt;
 }

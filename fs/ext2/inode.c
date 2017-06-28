@@ -842,13 +842,13 @@ ext2_iomap_end(struct inode *inode, loff_t offset, loff_t length,
 	return 0;
 }
 
-struct iomap_ops ext2_iomap_ops = {
+const struct iomap_ops ext2_iomap_ops = {
 	.iomap_begin		= ext2_iomap_begin,
 	.iomap_end		= ext2_iomap_end,
 };
 #else
 /* Define empty ops for !CONFIG_FS_DAX case to avoid ugly ifdefs */
-struct iomap_ops ext2_iomap_ops;
+const struct iomap_ops ext2_iomap_ops;
 #endif /* CONFIG_FS_DAX */
 
 int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,

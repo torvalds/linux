@@ -170,7 +170,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.get_port_immutable = qedr_port_immutable;
 	dev->ibdev.get_netdev = qedr_get_netdev;
 
-	dev->ibdev.dma_device = &dev->pdev->dev;
+	dev->ibdev.dev.parent = &dev->pdev->dev;
 
 	dev->ibdev.get_link_layer = qedr_link_layer;
 	dev->ibdev.get_dev_fw_str = qedr_get_dev_fw_str;

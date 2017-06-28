@@ -14,6 +14,7 @@
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/tracehook.h>
 #include <linux/uaccess.h>
 #include <linux/user.h>

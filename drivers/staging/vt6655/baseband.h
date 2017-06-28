@@ -75,13 +75,13 @@ void BBvSetShortSlotTime(struct vnt_private *);
 void BBvSetVGAGainOffset(struct vnt_private *, unsigned char byData);
 
 /* VT3253 Baseband */
-bool BBbVT3253Init(struct vnt_private *);
-void BBvSoftwareReset(struct vnt_private *);
-void BBvPowerSaveModeON(struct vnt_private *);
-void BBvPowerSaveModeOFF(struct vnt_private *);
-void BBvSetTxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
-void BBvSetRxAntennaMode(struct vnt_private *, unsigned char byAntennaMode);
-void BBvSetDeepSleep(struct vnt_private *, unsigned char byLocalID);
-void BBvExitDeepSleep(struct vnt_private *, unsigned char byLocalID);
+bool BBbVT3253Init(struct vnt_private *priv);
+void BBvSoftwareReset(struct vnt_private *priv);
+void BBvPowerSaveModeON(struct vnt_private *priv);
+void BBvPowerSaveModeOFF(struct vnt_private *priv);
+void BBvSetTxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
+void BBvSetRxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode);
+void BBvSetDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
+void BBvExitDeepSleep(struct vnt_private *priv, unsigned char byLocalID);
 
 #endif /* __BASEBAND_H__ */

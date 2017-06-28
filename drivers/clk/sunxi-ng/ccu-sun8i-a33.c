@@ -170,7 +170,7 @@ static SUNXI_CCU_N_WITH_GATE_LOCK(pll_ddr1_clk, "pll-ddr1",
 static const char * const cpux_parents[] = { "osc32k", "osc24M",
 					     "pll-cpux" , "pll-cpux" };
 static SUNXI_CCU_MUX(cpux_clk, "cpux", cpux_parents,
-		     0x050, 16, 2, CLK_IS_CRITICAL);
+		     0x050, 16, 2, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_M(axi_clk, "axi", "cpux", 0x050, 0, 2, 0);
 
@@ -440,7 +440,7 @@ static SUNXI_CCU_M_WITH_GATE(ve_clk, "ve", "pll-ve",
 			     0x13c, 16, 3, BIT(31), CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(ac_dig_clk,	"ac-dig",	"pll-audio",
-		      0x140, BIT(31), 0);
+		      0x140, BIT(31), CLK_SET_RATE_PARENT);
 static SUNXI_CCU_GATE(ac_dig_4x_clk,	"ac-dig-4x",	"pll-audio-4x",
 		      0x140, BIT(30), 0);
 static SUNXI_CCU_GATE(avs_clk,		"avs",		"osc24M",
@@ -468,7 +468,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(drc_clk, "drc",
 				       0x180, 0, 4, 24, 3, BIT(31), 0);
 
 static SUNXI_CCU_M_WITH_GATE(gpu_clk, "gpu", "pll-gpu",
-			     0x1a0, 0, 3, BIT(31), 0);
+			     0x1a0, 0, 3, BIT(31), CLK_SET_RATE_PARENT);
 
 static const char * const ats_parents[] = { "osc24M", "pll-periph" };
 static SUNXI_CCU_M_WITH_MUX_GATE(ats_clk, "ats", ats_parents,
@@ -752,6 +752,20 @@ static const struct sunxi_ccu_desc sun8i_a33_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_a33_ccu_resets),
 };
 
+static struct ccu_pll_nb sun8i_a33_pll_cpu_nb = {
+	.common	= &pll_cpux_clk.common,
+	/* copy from pll_cpux_clk */
+	.enable	= BIT(31),
+	.lock	= BIT(28),
+};
+
+static struct ccu_mux_nb sun8i_a33_cpu_nb = {
+	.common		= &cpux_clk.common,
+	.cm		= &cpux_clk.mux,
+	.delay_us	= 1, /* > 8 clock cycles at 24 MHz */
+	.bypass_index	= 1, /* index of 24 MHz oscillator */
+};
+
 static void __init sun8i_a33_ccu_setup(struct device_node *node)
 {
 	void __iomem *reg;
@@ -775,6 +789,13 @@ static void __init sun8i_a33_ccu_setup(struct device_node *node)
 	writel(val, reg + SUN8I_A33_PLL_MIPI_REG);
 
 	sunxi_ccu_probe(node, reg, &sun8i_a33_ccu_desc);
+
+	/* Gate then ungate PLL CPU after any rate changes */
+	ccu_pll_notifier_register(&sun8i_a33_pll_cpu_nb);
+
+	/* Reparent CPU during PLL CPU rate changes */
+	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
+				  &sun8i_a33_cpu_nb);
 }
 CLK_OF_DECLARE(sun8i_a33_ccu, "allwinner,sun8i-a33-ccu",
 	       sun8i_a33_ccu_setup);

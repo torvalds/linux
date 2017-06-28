@@ -161,7 +161,7 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 			goto out_free;
 		}
 		if (buflen > 64) {
-			err("firmare chunk size bigger than 64 bytes.");
+			err("firmware chunk size bigger than 64 bytes.");
 			goto out_free;
 		}
 
@@ -278,7 +278,7 @@ static int gp8psk_fe_reload(void *priv)
 	return gp8psk_bcm4500_reload(d);
 }
 
-const struct gp8psk_fe_ops gp8psk_fe_ops = {
+static const struct gp8psk_fe_ops gp8psk_fe_ops = {
 	.in = gp8psk_fe_in,
 	.out = gp8psk_fe_out,
 	.reload = gp8psk_fe_reload,

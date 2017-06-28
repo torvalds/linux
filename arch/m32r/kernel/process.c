@@ -22,6 +22,9 @@
 
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>

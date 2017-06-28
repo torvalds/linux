@@ -228,7 +228,6 @@ static int tcf_skbmod_dump(struct sk_buff *skb, struct tc_action *a,
 
 	return skb->len;
 nla_put_failure:
-	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -1;
 }

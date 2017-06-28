@@ -251,14 +251,14 @@ static int sunxi_musb_init(struct musb *musb)
 	writeb(SUNXI_MUSB_VEND0_PIO_MODE, musb->mregs + SUNXI_MUSB_VEND0);
 
 	/* Register notifier before calling phy_init() */
-	ret = extcon_register_notifier(glue->extcon, EXTCON_USB_HOST,
-				       &glue->host_nb);
+	ret = devm_extcon_register_notifier(glue->dev, glue->extcon,
+					EXTCON_USB_HOST, &glue->host_nb);
 	if (ret)
 		goto error_reset_assert;
 
 	ret = phy_init(glue->phy);
 	if (ret)
-		goto error_unregister_notifier;
+		goto error_reset_assert;
 
 	musb->isr = sunxi_musb_interrupt;
 
@@ -267,9 +267,6 @@ static int sunxi_musb_init(struct musb *musb)
 
 	return 0;
 
-error_unregister_notifier:
-	extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
-				   &glue->host_nb);
 error_reset_assert:
 	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
 		reset_control_assert(glue->rst);
@@ -292,9 +289,6 @@ static int sunxi_musb_exit(struct musb *musb)
 		phy_power_off(glue->phy);
 
 	phy_exit(glue->phy);
-
-	extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
-				   &glue->host_nb);
 
 	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
 		reset_control_assert(glue->rst);
@@ -645,7 +639,21 @@ static struct musb_fifo_cfg sunxi_musb_mode_cfg[] = {
 	MUSB_EP_FIFO_SINGLE(5, FIFO_RX, 512),
 };
 
-static struct musb_hdrc_config sunxi_musb_hdrc_config = {
+/* H3/V3s OTG supports only 4 endpoints */
+#define SUNXI_MUSB_MAX_EP_NUM_H3	5
+
+static struct musb_fifo_cfg sunxi_musb_mode_cfg_h3[] = {
+	MUSB_EP_FIFO_SINGLE(1, FIFO_TX, 512),
+	MUSB_EP_FIFO_SINGLE(1, FIFO_RX, 512),
+	MUSB_EP_FIFO_SINGLE(2, FIFO_TX, 512),
+	MUSB_EP_FIFO_SINGLE(2, FIFO_RX, 512),
+	MUSB_EP_FIFO_SINGLE(3, FIFO_TX, 512),
+	MUSB_EP_FIFO_SINGLE(3, FIFO_RX, 512),
+	MUSB_EP_FIFO_SINGLE(4, FIFO_TX, 512),
+	MUSB_EP_FIFO_SINGLE(4, FIFO_RX, 512),
+};
+
+static const struct musb_hdrc_config sunxi_musb_hdrc_config = {
 	.fifo_cfg       = sunxi_musb_mode_cfg,
 	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg),
 	.multipoint	= true,
@@ -655,6 +663,18 @@ static struct musb_hdrc_config sunxi_musb_hdrc_config = {
 	.ram_bits	= SUNXI_MUSB_RAM_BITS,
 	.dma		= 0,
 };
+
+static struct musb_hdrc_config sunxi_musb_hdrc_config_h3 = {
+	.fifo_cfg       = sunxi_musb_mode_cfg_h3,
+	.fifo_cfg_size  = ARRAY_SIZE(sunxi_musb_mode_cfg_h3),
+	.multipoint	= true,
+	.dyn_fifo	= true,
+	.soft_con       = true,
+	.num_eps	= SUNXI_MUSB_MAX_EP_NUM_H3,
+	.ram_bits	= SUNXI_MUSB_RAM_BITS,
+	.dma		= 0,
+};
+
 
 static int sunxi_musb_probe(struct platform_device *pdev)
 {
@@ -698,7 +718,10 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	pdata.platform_ops	= &sunxi_musb_ops;
-	pdata.config		= &sunxi_musb_hdrc_config;
+	if (!of_device_is_compatible(np, "allwinner,sun8i-h3-musb"))
+		pdata.config = &sunxi_musb_hdrc_config;
+	else
+		pdata.config = &sunxi_musb_hdrc_config_h3;
 
 	glue->dev = &pdev->dev;
 	INIT_WORK(&glue->work, sunxi_musb_work);
@@ -710,7 +733,8 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "allwinner,sun6i-a31-musb"))
 		set_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags);
 
-	if (of_device_is_compatible(np, "allwinner,sun8i-a33-musb")) {
+	if (of_device_is_compatible(np, "allwinner,sun8i-a33-musb") ||
+	    of_device_is_compatible(np, "allwinner,sun8i-h3-musb")) {
 		set_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags);
 		set_bit(SUNXI_MUSB_FL_NO_CONFIGDATA, &glue->flags);
 	}
@@ -804,6 +828,7 @@ static const struct of_device_id sunxi_musb_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-musb", },
 	{ .compatible = "allwinner,sun6i-a31-musb", },
 	{ .compatible = "allwinner,sun8i-a33-musb", },
+	{ .compatible = "allwinner,sun8i-h3-musb", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sunxi_musb_match);

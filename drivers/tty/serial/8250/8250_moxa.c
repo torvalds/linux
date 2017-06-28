@@ -68,6 +68,7 @@ static int moxa8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			   sizeof(unsigned int) * nr_ports, GFP_KERNEL);
 	if (!brd)
 		return -ENOMEM;
+	brd->num_ports = nr_ports;
 
 	memset(&uart, 0, sizeof(struct uart_8250_port));
 

@@ -207,6 +207,7 @@
 #include <linux/fs.h>
 #include <linux/kref.h>
 #include <linux/kthread.h>
+#include <linux/sched/signal.h>
 #include <linux/limits.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>

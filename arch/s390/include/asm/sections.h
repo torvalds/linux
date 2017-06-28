@@ -4,6 +4,5 @@
 #include <asm-generic/sections.h>
 
 extern char _eshared[], _ehead[];
-extern char __start_ro_after_init[], __end_ro_after_init[];
 
 #endif

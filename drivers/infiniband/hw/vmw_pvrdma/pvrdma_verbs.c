@@ -135,7 +135,7 @@ int pvrdma_query_port(struct ib_device *ibdev, u8 port,
 		return err;
 	}
 
-	memset(props, 0, sizeof(*props));
+	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->state = pvrdma_port_state_to_ib(resp->attrs.state);
 	props->max_mtu = pvrdma_mtu_to_ib(resp->attrs.max_mtu);
@@ -275,7 +275,7 @@ int pvrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
 	}
 
 	mutex_lock(&vdev->port_mutex);
-	ret = pvrdma_query_port(ibdev, port, &attr);
+	ret = ib_query_port(ibdev, port, &attr);
 	if (ret)
 		goto out;
 

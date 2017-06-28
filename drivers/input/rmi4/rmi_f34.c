@@ -157,6 +157,9 @@ static int rmi_f34_write_blocks(struct f34_data *f34, const void *data,
 			i + 1, block_count);
 
 		data += f34->v5.block_size;
+		f34->update_progress += f34->v5.block_size;
+		f34->update_status = (f34->update_progress * 100) /
+			f34->update_size;
 	}
 
 	return 0;
@@ -174,7 +177,7 @@ static int rmi_f34_write_config(struct f34_data *f34, const void *data)
 				    F34_WRITE_CONFIG_BLOCK);
 }
 
-int rmi_f34_enable_flash(struct f34_data *f34)
+static int rmi_f34_enable_flash(struct f34_data *f34)
 {
 	return rmi_f34_command(f34, F34_ENABLE_FLASH_PROG,
 			       F34_ENABLE_WAIT_MS, true);
@@ -184,9 +187,14 @@ static int rmi_f34_flash_firmware(struct f34_data *f34,
 				  const struct rmi_f34_firmware *syn_fw)
 {
 	struct rmi_function *fn = f34->fn;
+	u32 image_size = le32_to_cpu(syn_fw->image_size);
+	u32 config_size = le32_to_cpu(syn_fw->config_size);
 	int ret;
 
-	if (syn_fw->image_size) {
+	f34->update_progress = 0;
+	f34->update_size = image_size + config_size;
+
+	if (image_size) {
 		dev_info(&fn->dev, "Erasing firmware...\n");
 		ret = rmi_f34_command(f34, F34_ERASE_ALL,
 				      F34_ERASE_WAIT_MS, true);
@@ -194,18 +202,18 @@ static int rmi_f34_flash_firmware(struct f34_data *f34,
 			return ret;
 
 		dev_info(&fn->dev, "Writing firmware (%d bytes)...\n",
-			 syn_fw->image_size);
+			 image_size);
 		ret = rmi_f34_write_firmware(f34, syn_fw->data);
 		if (ret)
 			return ret;
 	}
 
-	if (syn_fw->config_size) {
+	if (config_size) {
 		/*
 		 * We only need to erase config if we haven't updated
 		 * firmware.
 		 */
-		if (!syn_fw->image_size) {
+		if (!image_size) {
 			dev_info(&fn->dev, "Erasing config...\n");
 			ret = rmi_f34_command(f34, F34_ERASE_CONFIG,
 					      F34_ERASE_WAIT_MS, true);
@@ -214,9 +222,8 @@ static int rmi_f34_flash_firmware(struct f34_data *f34,
 		}
 
 		dev_info(&fn->dev, "Writing config (%d bytes)...\n",
-			 syn_fw->config_size);
-		ret = rmi_f34_write_config(f34,
-				&syn_fw->data[syn_fw->image_size]);
+			 config_size);
+		ret = rmi_f34_write_config(f34, &syn_fw->data[image_size]);
 		if (ret)
 			return ret;
 	}
@@ -224,21 +231,23 @@ static int rmi_f34_flash_firmware(struct f34_data *f34,
 	return 0;
 }
 
-int rmi_f34_update_firmware(struct f34_data *f34, const struct firmware *fw)
+static int rmi_f34_update_firmware(struct f34_data *f34,
+				   const struct firmware *fw)
 {
-	const struct rmi_f34_firmware *syn_fw;
+	const struct rmi_f34_firmware *syn_fw =
+				(const struct rmi_f34_firmware *)fw->data;
+	u32 image_size = le32_to_cpu(syn_fw->image_size);
+	u32 config_size = le32_to_cpu(syn_fw->config_size);
 	int ret;
 
-	syn_fw = (const struct rmi_f34_firmware *)fw->data;
 	BUILD_BUG_ON(offsetof(struct rmi_f34_firmware, data) !=
 			F34_FW_IMAGE_OFFSET);
 
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
-		"FW size:%d, checksum:%08x, image_size:%d, config_size:%d\n",
-		(int)fw->size,
+		"FW size:%zd, checksum:%08x, image_size:%d, config_size:%d\n",
+		fw->size,
 		le32_to_cpu(syn_fw->checksum),
-		le32_to_cpu(syn_fw->image_size),
-		le32_to_cpu(syn_fw->config_size));
+		image_size, config_size);
 
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
 		"FW bootloader_id:%02x, product_id:%.*s, info: %02x%02x\n",
@@ -246,27 +255,25 @@ int rmi_f34_update_firmware(struct f34_data *f34, const struct firmware *fw)
 		(int)sizeof(syn_fw->product_id), syn_fw->product_id,
 		syn_fw->product_info[0], syn_fw->product_info[1]);
 
-	if (syn_fw->image_size &&
-	    syn_fw->image_size != f34->v5.fw_blocks * f34->v5.block_size) {
+	if (image_size && image_size != f34->v5.fw_blocks * f34->v5.block_size) {
 		dev_err(&f34->fn->dev,
 			"Bad firmware image: fw size %d, expected %d\n",
-			syn_fw->image_size,
-			f34->v5.fw_blocks * f34->v5.block_size);
+			image_size, f34->v5.fw_blocks * f34->v5.block_size);
 		ret = -EILSEQ;
 		goto out;
 	}
 
-	if (syn_fw->config_size &&
-	    syn_fw->config_size != f34->v5.config_blocks * f34->v5.block_size) {
+	if (config_size &&
+	    config_size != f34->v5.config_blocks * f34->v5.block_size) {
 		dev_err(&f34->fn->dev,
 			"Bad firmware image: config size %d, expected %d\n",
-			syn_fw->config_size,
+			config_size,
 			f34->v5.config_blocks * f34->v5.block_size);
 		ret = -EILSEQ;
 		goto out;
 	}
 
-	if (syn_fw->image_size && !syn_fw->config_size) {
+	if (image_size && !config_size) {
 		dev_err(&f34->fn->dev, "Bad firmware image: no config data\n");
 		ret = -EILSEQ;
 		goto out;
@@ -282,6 +289,63 @@ int rmi_f34_update_firmware(struct f34_data *f34, const struct firmware *fw)
 out:
 	return ret;
 }
+
+static int rmi_f34_status(struct rmi_function *fn)
+{
+	struct f34_data *f34 = dev_get_drvdata(&fn->dev);
+
+	/*
+	 * The status is the percentage complete, or once complete,
+	 * zero for success or a negative return code.
+	 */
+	return f34->update_status;
+}
+
+static ssize_t rmi_driver_bootloader_id_show(struct device *dev,
+					     struct device_attribute *dattr,
+					     char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct rmi_function *fn = data->f34_container;
+	struct f34_data *f34;
+
+	if (fn) {
+		f34 = dev_get_drvdata(&fn->dev);
+
+		if (f34->bl_version == 5)
+			return scnprintf(buf, PAGE_SIZE, "%c%c\n",
+					 f34->bootloader_id[0],
+					 f34->bootloader_id[1]);
+		else
+			return scnprintf(buf, PAGE_SIZE, "V%d.%d\n",
+					 f34->bootloader_id[1],
+					 f34->bootloader_id[0]);
+	}
+
+	return 0;
+}
+
+static DEVICE_ATTR(bootloader_id, 0444, rmi_driver_bootloader_id_show, NULL);
+
+static ssize_t rmi_driver_configuration_id_show(struct device *dev,
+						struct device_attribute *dattr,
+						char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct rmi_function *fn = data->f34_container;
+	struct f34_data *f34;
+
+	if (fn) {
+		f34 = dev_get_drvdata(&fn->dev);
+
+		return scnprintf(buf, PAGE_SIZE, "%s\n", f34->configuration_id);
+	}
+
+	return 0;
+}
+
+static DEVICE_ATTR(configuration_id, 0444,
+		   rmi_driver_configuration_id_show, NULL);
 
 static int rmi_firmware_update(struct rmi_driver_data *data,
 			       const struct firmware *fw)
@@ -346,7 +410,13 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	else
 		ret = rmi_f34_update_firmware(f34, fw);
 
-	dev_info(&f34->fn->dev, "Firmware update complete, status:%d\n", ret);
+	if (ret) {
+		f34->update_status = ret;
+		dev_err(&f34->fn->dev,
+			"Firmware update failed, status: %d\n", ret);
+	} else {
+		dev_info(&f34->fn->dev, "Firmware update complete\n");
+	}
 
 	rmi_disable_irq(rmi_dev, false);
 
@@ -376,9 +446,6 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 
 	return ret;
 }
-
-static int rmi_firmware_update(struct rmi_driver_data *data,
-			       const struct firmware *fw);
 
 static ssize_t rmi_driver_update_fw_store(struct device *dev,
 					  struct device_attribute *dattr,
@@ -414,8 +481,27 @@ static ssize_t rmi_driver_update_fw_store(struct device *dev,
 
 static DEVICE_ATTR(update_fw, 0200, NULL, rmi_driver_update_fw_store);
 
+static ssize_t rmi_driver_update_fw_status_show(struct device *dev,
+						struct device_attribute *dattr,
+						char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	int update_status = 0;
+
+	if (data->f34_container)
+		update_status = rmi_f34_status(data->f34_container);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", update_status);
+}
+
+static DEVICE_ATTR(update_fw_status, 0444,
+		   rmi_driver_update_fw_status_show, NULL);
+
 static struct attribute *rmi_firmware_attrs[] = {
+	&dev_attr_bootloader_id.attr,
+	&dev_attr_configuration_id.attr,
 	&dev_attr_update_fw.attr,
+	&dev_attr_update_fw_status.attr,
 	NULL
 };
 
@@ -441,8 +527,6 @@ static int rmi_f34_probe(struct rmi_function *fn)
 	/* v5 code only supported version 0, try V7 probe */
 	if (version > 0)
 		return rmi_f34v7_probe(f34);
-	else if (version != 0)
-		return -ENODEV;
 
 	f34->bl_version = 5;
 

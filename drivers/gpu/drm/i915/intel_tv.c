@@ -1537,9 +1537,9 @@ static const struct drm_encoder_funcs intel_tv_enc_funcs = {
 };
 
 void
-intel_tv_init(struct drm_device *dev)
+intel_tv_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct intel_tv *intel_tv;
 	struct intel_encoder *intel_encoder;

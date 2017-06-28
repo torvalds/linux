@@ -190,6 +190,13 @@ config ARCH_THUNDER
 	help
 	  This enables support for Cavium's Thunder Family of SoCs.
 
+config ARCH_THUNDER2
+	bool "Cavium ThunderX2 Server Processors"
+	select GPIOLIB
+	help
+	  This enables support for Cavium's ThunderX2 CN99XX family of
+	  server processors.
+
 config ARCH_UNIPHIER
 	bool "Socionext UniPhier SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER

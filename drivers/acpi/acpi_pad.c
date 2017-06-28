@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/freezer.h>
 #include <linux/cpu.h>
 #include <linux/tick.h>

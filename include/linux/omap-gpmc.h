@@ -76,22 +76,12 @@ struct gpmc_timings;
 struct omap_nand_platform_data;
 struct omap_onenand_platform_data;
 
-#if IS_ENABLED(CONFIG_MTD_NAND_OMAP2)
-extern int gpmc_nand_init(struct omap_nand_platform_data *d,
-			  struct gpmc_timings *gpmc_t);
-#else
-static inline int gpmc_nand_init(struct omap_nand_platform_data *d,
-				 struct gpmc_timings *gpmc_t)
-{
-	return 0;
-}
-#endif
-
 #if IS_ENABLED(CONFIG_MTD_ONENAND_OMAP2)
-extern void gpmc_onenand_init(struct omap_onenand_platform_data *d);
+extern int gpmc_onenand_init(struct omap_onenand_platform_data *d);
 #else
 #define board_onenand_data	NULL
-static inline void gpmc_onenand_init(struct omap_onenand_platform_data *d)
+static inline int gpmc_onenand_init(struct omap_onenand_platform_data *d)
 {
+	return 0;
 }
 #endif

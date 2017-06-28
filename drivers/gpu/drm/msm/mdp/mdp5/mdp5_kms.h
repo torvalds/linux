@@ -126,6 +126,17 @@ struct mdp5_interface {
 	enum mdp5_intf_mode mode;
 };
 
+struct mdp5_encoder {
+	struct drm_encoder base;
+	struct mdp5_interface intf;
+	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
+	bool enabled;
+	uint32_t bsc;
+
+	struct mdp5_ctl *ctl;
+};
+#define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)
+
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
 	msm_writel(data, mdp5_kms->mmio + reg);
@@ -156,6 +167,7 @@ static inline const char *pipe2name(enum mdp5_pipe pipe)
 		NAME(RGB0), NAME(RGB1), NAME(RGB2),
 		NAME(DMA0), NAME(DMA1),
 		NAME(VIG3), NAME(RGB3),
+		NAME(CURSOR0), NAME(CURSOR1),
 #undef NAME
 	};
 	return names[pipe];
@@ -231,8 +243,10 @@ void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
-struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary);
+struct drm_plane *mdp5_plane_init(struct drm_device *dev,
+				  enum drm_plane_type type);
 
+struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc);
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc);
@@ -240,25 +254,36 @@ void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, int id);
+				struct drm_plane *plane,
+				struct drm_plane *cursor_plane, int id);
 
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
-int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
-					struct drm_encoder *slave_encoder);
+int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
+				       struct drm_encoder *slave_encoder);
+void mdp5_encoder_set_intf_mode(struct drm_encoder *encoder, bool cmd_mode);
 int mdp5_encoder_get_linecount(struct drm_encoder *encoder);
 u32 mdp5_encoder_get_framecount(struct drm_encoder *encoder);
 
 #ifdef CONFIG_DRM_MSM_DSI
-struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
-		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
+void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
+			       struct drm_display_mode *mode,
+			       struct drm_display_mode *adjusted_mode);
+void mdp5_cmd_encoder_disable(struct drm_encoder *encoder);
+void mdp5_cmd_encoder_enable(struct drm_encoder *encoder);
 int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
-					struct drm_encoder *slave_encoder);
+				       struct drm_encoder *slave_encoder);
 #else
-static inline struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
-		struct mdp5_interface *intf, struct mdp5_ctl *ctl)
+static inline void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
+					     struct drm_display_mode *mode,
+					     struct drm_display_mode *adjusted_mode)
 {
-	return ERR_PTR(-EINVAL);
+}
+static inline void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
+{
+}
+static inline void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
+{
 }
 static inline int mdp5_cmd_encoder_set_split_display(
 	struct drm_encoder *encoder, struct drm_encoder *slave_encoder)

@@ -466,6 +466,13 @@ static const struct iwl_hcmd_names iwl_mvm_prot_offload_names[] = {
 	HCMD_NAME(STORED_BEACON_NTF),
 };
 
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
+static const struct iwl_hcmd_names iwl_mvm_regulatory_and_nvm_names[] = {
+	HCMD_NAME(NVM_ACCESS_COMPLETE),
+};
+
 static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[LEGACY_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
 	[LONG_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
@@ -474,6 +481,8 @@ static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[PHY_OPS_GROUP] = HCMD_ARR(iwl_mvm_phy_names),
 	[DATA_PATH_GROUP] = HCMD_ARR(iwl_mvm_data_path_names),
 	[PROT_OFFLOAD_GROUP] = HCMD_ARR(iwl_mvm_prot_offload_names),
+	[REGULATORY_AND_NVM_GROUP] =
+		HCMD_ARR(iwl_mvm_regulatory_and_nvm_names),
 };
 
 /* this forward declaration can avoid to export the function */
@@ -597,7 +606,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		mvm->last_agg_queue = IWL_MVM_DQA_MAX_DATA_QUEUE;
 	}
 	mvm->sf_state = SF_UNINIT;
-	mvm->cur_ucode = IWL_UCODE_INIT;
+	if (iwl_mvm_has_new_tx_api(mvm))
+		mvm->cur_ucode = IWL_UCODE_REGULAR;
+	else
+		mvm->cur_ucode = IWL_UCODE_INIT;
 	mvm->drop_bcn_ap_mode = true;
 
 	mutex_init(&mvm->mutex);
@@ -720,7 +732,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
-	err = iwl_run_init_mvm_ucode(mvm, true);
+	if (iwl_mvm_has_new_tx_api(mvm))
+		err = iwl_run_unified_mvm_ucode(mvm, true);
+	else
+		err = iwl_run_init_mvm_ucode(mvm, true);
 	if (!err || !iwlmvm_mod_params.init_dbg)
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
@@ -743,6 +758,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	err = iwl_mvm_mac_setup_register(mvm);
 	if (err)
 		goto out_free;
+	mvm->hw_registered = true;
 
 	min_backoff = calc_min_backoff(trans, cfg);
 	iwl_mvm_thermal_initialize(mvm, min_backoff);
@@ -764,6 +780,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
  out_unregister:
 	ieee80211_unregister_hw(mvm->hw);
+	mvm->hw_registered = false;
 	iwl_mvm_leds_exit(mvm);
 	iwl_mvm_thermal_exit(mvm);
  out_free:
@@ -1192,7 +1209,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
-	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR) {
+	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
+		   mvm->hw_registered) {
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 

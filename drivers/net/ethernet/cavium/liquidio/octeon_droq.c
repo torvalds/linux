@@ -155,11 +155,6 @@ octeon_droq_destroy_ring_buffers(struct octeon_device *oct,
 			recv_buffer_destroy(droq->recv_buf_list[i].buffer,
 					    pg_info);
 
-		if (droq->desc_ring && droq->desc_ring[i].info_ptr)
-			lio_unmap_ring_info(oct->pci_dev,
-					    (u64)droq->
-					    desc_ring[i].info_ptr,
-					    OCT_DROQ_INFO_SIZE);
 		droq->recv_buf_list[i].buffer = NULL;
 	}
 
@@ -211,10 +206,7 @@ int octeon_delete_droq(struct octeon_device *oct, u32 q_no)
 	vfree(droq->recv_buf_list);
 
 	if (droq->info_base_addr)
-		cnnic_free_aligned_dma(oct->pci_dev, droq->info_list,
-				       droq->info_alloc_size,
-				       droq->info_base_addr,
-				       droq->info_list_dma);
+		lio_free_info_buffer(oct, droq);
 
 	if (droq->desc_ring)
 		lio_dma_free(oct, (droq->max_count * OCT_DROQ_DESC_SIZE),
@@ -294,12 +286,7 @@ int octeon_init_droq(struct octeon_device *oct,
 	dev_dbg(&oct->pci_dev->dev, "droq[%d]: num_desc: %d\n", q_no,
 		droq->max_count);
 
-	droq->info_list =
-		cnnic_numa_alloc_aligned_dma((droq->max_count *
-					      OCT_DROQ_INFO_SIZE),
-					     &droq->info_alloc_size,
-					     &droq->info_base_addr,
-					     numa_node);
+	droq->info_list = lio_alloc_info_buffer(oct, droq);
 	if (!droq->info_list) {
 		dev_err(&oct->pci_dev->dev, "Cannot allocate memory for info list.\n");
 		lio_dma_free(oct, (droq->max_count * OCT_DROQ_DESC_SIZE),

@@ -283,7 +283,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	struct qxl_rect *rects;
 	int stride = qxl_fb->base.pitches[0];
 	/* depth is not actually interesting, we don't mask with it */
-	int depth = qxl_fb->base.bits_per_pixel;
+	int depth = qxl_fb->base.format->cpp[0] * 8;
 	uint8_t *surface_base;
 	struct qxl_release *release;
 	struct qxl_bo *clips_bo;

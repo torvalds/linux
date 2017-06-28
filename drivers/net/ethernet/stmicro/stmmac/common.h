@@ -12,10 +12,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -71,7 +67,7 @@ struct stmmac_extra_stats {
 	unsigned long overflow_error;
 	unsigned long ipc_csum_error;
 	unsigned long rx_collision;
-	unsigned long rx_crc;
+	unsigned long rx_crc_errors;
 	unsigned long dribbling_bit;
 	unsigned long rx_length;
 	unsigned long rx_mii;
@@ -323,6 +319,9 @@ struct dma_features {
 	/* TX and RX number of channels */
 	unsigned int number_rx_channel;
 	unsigned int number_tx_channel;
+	/* TX and RX number of queues */
+	unsigned int number_rx_queues;
+	unsigned int number_tx_queues;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
 };
@@ -340,7 +339,7 @@ struct dma_features {
 /* Common MAC defines */
 #define MAC_CTRL_REG		0x00000000	/* MAC Control */
 #define MAC_ENABLE_TX		0x00000008	/* Transmitter Enable */
-#define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
+#define MAC_ENABLE_RX		0x00000004	/* Receiver Enable */
 
 /* Default LPI timers */
 #define STMMAC_DEFAULT_LIT_LS	0x3E8
@@ -417,7 +416,7 @@ struct stmmac_dma_ops {
 	/* Configure the AXI Bus Mode Register */
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
-	void (*dump_regs) (void __iomem *ioaddr);
+	void (*dump_regs)(void __iomem *ioaddr, u32 *reg_space);
 	/* Set tx/rx threshold in the csr6 register
 	 * An invalid value enables the store-and-forward mode */
 	void (*dma_mode)(void __iomem *ioaddr, int txmode, int rxmode,
@@ -454,8 +453,10 @@ struct stmmac_ops {
 	void (*core_init)(struct mac_device_info *hw, int mtu);
 	/* Enable and verify that the IPC module is supported */
 	int (*rx_ipc)(struct mac_device_info *hw);
+	/* Enable RX Queues */
+	void (*rx_queue_enable)(struct mac_device_info *hw, u32 queue);
 	/* Dump MAC registers */
-	void (*dump_regs)(struct mac_device_info *hw);
+	void (*dump_regs)(struct mac_device_info *hw, u32 *reg_space);
 	/* Handle extra events on specific interrupts hw dependent */
 	int (*host_irq_status)(struct mac_device_info *hw,
 			       struct stmmac_extra_stats *x);
@@ -471,7 +472,8 @@ struct stmmac_ops {
 			      unsigned int reg_n);
 	void (*get_umac_addr)(struct mac_device_info *hw, unsigned char *addr,
 			      unsigned int reg_n);
-	void (*set_eee_mode)(struct mac_device_info *hw);
+	void (*set_eee_mode)(struct mac_device_info *hw,
+			     bool en_tx_lpi_clockgating);
 	void (*reset_eee_mode)(struct mac_device_info *hw);
 	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
 	void (*set_eee_pls)(struct mac_device_info *hw, int link);

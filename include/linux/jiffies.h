@@ -293,6 +293,8 @@ static inline u64 jiffies_to_nsecs(const unsigned long j)
 	return (u64)jiffies_to_usecs(j) * NSEC_PER_USEC;
 }
 
+extern u64 jiffies64_to_nsecs(u64 j);
+
 extern unsigned long __msecs_to_jiffies(const unsigned int m);
 #if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
 /*

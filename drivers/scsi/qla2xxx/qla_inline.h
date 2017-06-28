@@ -166,8 +166,8 @@ qla2x00_set_fcport_state(fc_port_t *fcport, int state)
 	/* Don't print state transitions during initial allocation of fcport */
 	if (old_state && old_state != state) {
 		ql_dbg(ql_dbg_disc, fcport->vha, 0x207d,
-		    "FCPort state transitioned from %s to %s - "
-		    "portid=%02x%02x%02x.\n",
+		    "FCPort %8phC state transitioned from %s to %s - "
+			"portid=%02x%02x%02x.\n", fcport->port_name,
 		    port_state_str[old_state], port_state_str[state],
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa);
@@ -232,6 +232,7 @@ qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->iocbs = 1;
+	sp->vha = qpair->vha;
 done:
 	if (!sp)
 		QLA_QPAIR_MARK_NOT_BUSY(qpair);
@@ -249,20 +250,20 @@ static inline srb_t *
 qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
-	struct qla_hw_data *ha = vha->hw;
 	uint8_t bail;
 
 	QLA_VHA_MARK_BUSY(vha, bail);
 	if (unlikely(bail))
 		return NULL;
 
-	sp = mempool_alloc(ha->srb_mempool, flag);
+	sp = mempool_alloc(vha->hw->srb_mempool, flag);
 	if (!sp)
 		goto done;
 
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->iocbs = 1;
+	sp->vha = vha;
 done:
 	if (!sp)
 		QLA_VHA_MARK_NOT_BUSY(vha);
@@ -270,10 +271,10 @@ done:
 }
 
 static inline void
-qla2x00_rel_sp(scsi_qla_host_t *vha, srb_t *sp)
+qla2x00_rel_sp(srb_t *sp)
 {
-	mempool_free(sp, vha->hw->srb_mempool);
-	QLA_VHA_MARK_NOT_BUSY(vha);
+	QLA_VHA_MARK_NOT_BUSY(sp->vha);
+	mempool_free(sp, sp->vha->hw->srb_mempool);
 }
 
 static inline void
@@ -285,8 +286,7 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
-	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
-	    (sp->type == SRB_FXIOCB_DCMD))
+	if (IS_QLAFX00(sp->vha->hw) && (sp->type == SRB_FXIOCB_DCMD))
 		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
 	if (sp->type == SRB_ELS_DCMD)
 		init_completion(&sp->u.iocb_cmd.u.els_logo.comp);

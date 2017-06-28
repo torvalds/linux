@@ -453,6 +453,20 @@ void edac_mc_free(struct mem_ctl_info *mci)
 }
 EXPORT_SYMBOL_GPL(edac_mc_free);
 
+bool edac_has_mcs(void)
+{
+	bool ret;
+
+	mutex_lock(&mem_ctls_mutex);
+
+	ret = list_empty(&mc_devices);
+
+	mutex_unlock(&mem_ctls_mutex);
+
+	return !ret;
+}
+EXPORT_SYMBOL_GPL(edac_has_mcs);
+
 /* Caller must hold mem_ctls_mutex */
 static struct mem_ctl_info *__find_mci_by_dev(struct device *dev)
 {

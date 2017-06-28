@@ -220,6 +220,13 @@ static const struct skl_dsp_ops dsp_ops[] = {
 		.init_fw = bxt_sst_init_fw,
 		.cleanup = bxt_sst_dsp_cleanup
 	},
+	{
+		.id = 0x3198,
+		.loader_ops = bxt_get_loader_ops,
+		.init = bxt_sst_dsp_init,
+		.init_fw = bxt_sst_init_fw,
+		.cleanup = bxt_sst_dsp_cleanup
+	},
 };
 
 const struct skl_dsp_ops *skl_get_dsp_ops(int pci_id)

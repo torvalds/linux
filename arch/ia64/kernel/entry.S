@@ -455,29 +455,6 @@ GLOBAL_ENTRY(load_switch_stack)
 	br.cond.sptk.many b7
 END(load_switch_stack)
 
-GLOBAL_ENTRY(prefetch_stack)
-	add r14 = -IA64_SWITCH_STACK_SIZE, sp
-	add r15 = IA64_TASK_THREAD_KSP_OFFSET, in0
-	;;
-	ld8 r16 = [r15]				// load next's stack pointer
-	lfetch.fault.excl [r14], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault.excl [r14], 128
-	lfetch.fault [r16], 128
-	;;
-	lfetch.fault [r16], 128
-	br.ret.sptk.many rp
-END(prefetch_stack)
-
 	/*
 	 * Invoke a system call, but do some tracing before and after the call.
 	 * We MUST preserve the current register frame throughout this routine

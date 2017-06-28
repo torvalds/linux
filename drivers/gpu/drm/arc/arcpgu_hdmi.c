@@ -47,10 +47,7 @@ int arcpgu_drm_hdmi_init(struct drm_device *drm, struct device_node *np)
 		return ret;
 
 	/* Link drm_bridge to encoder */
-	bridge->encoder = encoder;
-	encoder->bridge = bridge;
-
-	ret = drm_bridge_attach(drm, bridge);
+	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret)
 		drm_encoder_cleanup(encoder);
 

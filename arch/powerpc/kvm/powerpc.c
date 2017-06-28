@@ -23,6 +23,7 @@
 #include <linux/kvm_host.h>
 #include <linux/vmalloc.h>
 #include <linux/hrtimer.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/file.h>
@@ -511,6 +512,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
+	case KVM_CAP_IMMEDIATE_EXIT:
 		r = 1;
 		break;
 	case KVM_CAP_PPC_PAIRED_SINGLES:
@@ -565,6 +567,13 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PPC_HWRNG:
 		r = kvmppc_hwrng_present();
 		break;
+	case KVM_CAP_PPC_MMU_RADIX:
+		r = !!(hv_enabled && radix_enabled());
+		break;
+	case KVM_CAP_PPC_MMU_HASH_V3:
+		r = !!(hv_enabled && !radix_enabled() &&
+		       cpu_has_feature(CPU_FTR_ARCH_300));
+		break;
 #endif
 	case KVM_CAP_SYNC_MMU:
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -604,6 +613,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_SPAPR_MULTITCE:
 		r = 1;
+		break;
+	case KVM_CAP_SPAPR_RESIZE_HPT:
+		/* Disable this on POWER9 until code handles new HPTE format */
+		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
 		break;
 #endif
 	case KVM_CAP_PPC_HTM:
@@ -1107,7 +1120,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 #endif
 	}
 
-	r = kvmppc_vcpu_run(run, vcpu);
+	if (run->immediate_exit)
+		r = -EINTR;
+	else
+		r = kvmppc_vcpu_run(run, vcpu);
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
@@ -1466,6 +1482,31 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		struct kvm *kvm = filp->private_data;
 
 		r = kvm_vm_ioctl_rtas_define_token(kvm, argp);
+		break;
+	}
+	case KVM_PPC_CONFIGURE_V3_MMU: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_ppc_mmuv3_cfg cfg;
+
+		r = -EINVAL;
+		if (!kvm->arch.kvm_ops->configure_mmu)
+			goto out;
+		r = -EFAULT;
+		if (copy_from_user(&cfg, argp, sizeof(cfg)))
+			goto out;
+		r = kvm->arch.kvm_ops->configure_mmu(kvm, &cfg);
+		break;
+	}
+	case KVM_PPC_GET_RMMU_INFO: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_ppc_rmmu_info info;
+
+		r = -EINVAL;
+		if (!kvm->arch.kvm_ops->get_rmmu_info)
+			goto out;
+		r = kvm->arch.kvm_ops->get_rmmu_info(kvm, &info);
+		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
+			r = -EFAULT;
 		break;
 	}
 	default: {

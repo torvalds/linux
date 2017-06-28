@@ -30,6 +30,8 @@
 struct drm_i915_private;
 struct i915_vma;
 
+#define I965_FENCE_PAGE 4096UL
+
 struct drm_i915_fence_reg {
 	struct list_head link;
 	struct drm_i915_private *i915;

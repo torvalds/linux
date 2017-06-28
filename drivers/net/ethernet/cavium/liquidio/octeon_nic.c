@@ -49,7 +49,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 	/* Add in the response related fields. Opcode and Param are already
 	 * there.
 	 */
-	if (OCTEON_CN23XX_PF(oct)) {
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) {
 		ih3      = (struct octeon_instr_ih3 *)&sc->cmd.cmd3.ih3;
 		rdp     = (struct octeon_instr_rdp *)&sc->cmd.cmd3.rdp;
 		irh     = (struct octeon_instr_irh *)&sc->cmd.cmd3.irh;
@@ -70,7 +70,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 
 	*sc->status_word = COMPLETION_WORD_INIT;
 
-	if (OCTEON_CN23XX_PF(oct))
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))
 		sc->cmd.cmd3.rptr =  sc->dmarptr;
 	else
 		sc->cmd.cmd2.rptr =  sc->dmarptr;

@@ -274,7 +274,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 				 */
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir || !dev)
 		goto err_out_free;
 
@@ -484,7 +484,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	dev->scancode_mask = hardware_mask;
 
 	if (ir->sampling) {
-		dev->driver_type = RC_DRIVER_IR_RAW;
 		dev->timeout = 10 * 1000 * 1000; /* 10 ms */
 	} else {
 		dev->driver_type = RC_DRIVER_SCANCODE;

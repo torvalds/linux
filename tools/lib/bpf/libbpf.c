@@ -4,6 +4,7 @@
  * Copyright (C) 2013-2015 Alexei Starovoitov <ast@kernel.org>
  * Copyright (C) 2015 Wang Nan <wangnan0@huawei.com>
  * Copyright (C) 2015 Huawei Inc.
+ * Copyright (C) 2017 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,15 +23,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <libgen.h>
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <asm/unistd.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/list.h>
+#include <linux/limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/vfs.h>
 #include <libelf.h>
 #include <gelf.h>
 
@@ -39,6 +46,10 @@
 
 #ifndef EM_BPF
 #define EM_BPF 247
+#endif
+
+#ifndef BPF_FS_MAGIC
+#define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
@@ -779,7 +790,7 @@ static int
 bpf_program__collect_reloc(struct bpf_program *prog,
 			   size_t nr_maps, GElf_Shdr *shdr,
 			   Elf_Data *data, Elf_Data *symbols,
-			   int maps_shndx)
+			   int maps_shndx, struct bpf_map *maps)
 {
 	int i, nrels;
 
@@ -829,7 +840,15 @@ bpf_program__collect_reloc(struct bpf_program *prog,
 			return -LIBBPF_ERRNO__RELOC;
 		}
 
-		map_idx = sym.st_value / sizeof(struct bpf_map_def);
+		/* TODO: 'maps' is sorted. We can use bsearch to make it faster. */
+		for (map_idx = 0; map_idx < nr_maps; map_idx++) {
+			if (maps[map_idx].offset == sym.st_value) {
+				pr_debug("relocation: find map %zd (%s) for insn %u\n",
+					 map_idx, maps[map_idx].name, insn_idx);
+				break;
+			}
+		}
+
 		if (map_idx >= nr_maps) {
 			pr_warning("bpf relocation: map_idx %d large than %d\n",
 				   (int)map_idx, (int)nr_maps - 1);
@@ -953,7 +972,8 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 		err = bpf_program__collect_reloc(prog, nr_maps,
 						 shdr, data,
 						 obj->efile.symbols,
-						 obj->efile.maps_shndx);
+						 obj->efile.maps_shndx,
+						 obj->maps);
 		if (err)
 			return err;
 	}
@@ -1227,6 +1247,191 @@ out:
 	return err;
 }
 
+static int check_path(const char *path)
+{
+	struct statfs st_fs;
+	char *dname, *dir;
+	int err = 0;
+
+	if (path == NULL)
+		return -EINVAL;
+
+	dname = strdup(path);
+	if (dname == NULL)
+		return -ENOMEM;
+
+	dir = dirname(dname);
+	if (statfs(dir, &st_fs)) {
+		pr_warning("failed to statfs %s: %s\n", dir, strerror(errno));
+		err = -errno;
+	}
+	free(dname);
+
+	if (!err && st_fs.f_type != BPF_FS_MAGIC) {
+		pr_warning("specified path %s is not on BPF FS\n", path);
+		err = -EINVAL;
+	}
+
+	return err;
+}
+
+int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
+			      int instance)
+{
+	int err;
+
+	err = check_path(path);
+	if (err)
+		return err;
+
+	if (prog == NULL) {
+		pr_warning("invalid program pointer\n");
+		return -EINVAL;
+	}
+
+	if (instance < 0 || instance >= prog->instances.nr) {
+		pr_warning("invalid prog instance %d of prog %s (max %d)\n",
+			   instance, prog->section_name, prog->instances.nr);
+		return -EINVAL;
+	}
+
+	if (bpf_obj_pin(prog->instances.fds[instance], path)) {
+		pr_warning("failed to pin program: %s\n", strerror(errno));
+		return -errno;
+	}
+	pr_debug("pinned program '%s'\n", path);
+
+	return 0;
+}
+
+static int make_dir(const char *path)
+{
+	int err = 0;
+
+	if (mkdir(path, 0700) && errno != EEXIST)
+		err = -errno;
+
+	if (err)
+		pr_warning("failed to mkdir %s: %s\n", path, strerror(-err));
+	return err;
+}
+
+int bpf_program__pin(struct bpf_program *prog, const char *path)
+{
+	int i, err;
+
+	err = check_path(path);
+	if (err)
+		return err;
+
+	if (prog == NULL) {
+		pr_warning("invalid program pointer\n");
+		return -EINVAL;
+	}
+
+	if (prog->instances.nr <= 0) {
+		pr_warning("no instances of prog %s to pin\n",
+			   prog->section_name);
+		return -EINVAL;
+	}
+
+	err = make_dir(path);
+	if (err)
+		return err;
+
+	for (i = 0; i < prog->instances.nr; i++) {
+		char buf[PATH_MAX];
+		int len;
+
+		len = snprintf(buf, PATH_MAX, "%s/%d", path, i);
+		if (len < 0)
+			return -EINVAL;
+		else if (len >= PATH_MAX)
+			return -ENAMETOOLONG;
+
+		err = bpf_program__pin_instance(prog, buf, i);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+int bpf_map__pin(struct bpf_map *map, const char *path)
+{
+	int err;
+
+	err = check_path(path);
+	if (err)
+		return err;
+
+	if (map == NULL) {
+		pr_warning("invalid map pointer\n");
+		return -EINVAL;
+	}
+
+	if (bpf_obj_pin(map->fd, path)) {
+		pr_warning("failed to pin map: %s\n", strerror(errno));
+		return -errno;
+	}
+
+	pr_debug("pinned map '%s'\n", path);
+	return 0;
+}
+
+int bpf_object__pin(struct bpf_object *obj, const char *path)
+{
+	struct bpf_program *prog;
+	struct bpf_map *map;
+	int err;
+
+	if (!obj)
+		return -ENOENT;
+
+	if (!obj->loaded) {
+		pr_warning("object not yet loaded; load it first\n");
+		return -ENOENT;
+	}
+
+	err = make_dir(path);
+	if (err)
+		return err;
+
+	bpf_map__for_each(map, obj) {
+		char buf[PATH_MAX];
+		int len;
+
+		len = snprintf(buf, PATH_MAX, "%s/%s", path,
+			       bpf_map__name(map));
+		if (len < 0)
+			return -EINVAL;
+		else if (len >= PATH_MAX)
+			return -ENAMETOOLONG;
+
+		err = bpf_map__pin(map, buf);
+		if (err)
+			return err;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		char buf[PATH_MAX];
+		int len;
+
+		len = snprintf(buf, PATH_MAX, "%s/%s", path,
+			       prog->section_name);
+		if (len < 0)
+			return -EINVAL;
+		else if (len >= PATH_MAX)
+			return -ENAMETOOLONG;
+
+		err = bpf_program__pin(prog, buf);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 void bpf_object__close(struct bpf_object *obj)
 {
 	size_t i;
@@ -1419,37 +1624,33 @@ static void bpf_program__set_type(struct bpf_program *prog,
 	prog->type = type;
 }
 
-int bpf_program__set_tracepoint(struct bpf_program *prog)
-{
-	if (!prog)
-		return -EINVAL;
-	bpf_program__set_type(prog, BPF_PROG_TYPE_TRACEPOINT);
-	return 0;
-}
-
-int bpf_program__set_kprobe(struct bpf_program *prog)
-{
-	if (!prog)
-		return -EINVAL;
-	bpf_program__set_type(prog, BPF_PROG_TYPE_KPROBE);
-	return 0;
-}
-
 static bool bpf_program__is_type(struct bpf_program *prog,
 				 enum bpf_prog_type type)
 {
 	return prog ? (prog->type == type) : false;
 }
 
-bool bpf_program__is_tracepoint(struct bpf_program *prog)
-{
-	return bpf_program__is_type(prog, BPF_PROG_TYPE_TRACEPOINT);
-}
+#define BPF_PROG_TYPE_FNS(NAME, TYPE)			\
+int bpf_program__set_##NAME(struct bpf_program *prog)	\
+{							\
+	if (!prog)					\
+		return -EINVAL;				\
+	bpf_program__set_type(prog, TYPE);		\
+	return 0;					\
+}							\
+							\
+bool bpf_program__is_##NAME(struct bpf_program *prog)	\
+{							\
+	return bpf_program__is_type(prog, TYPE);	\
+}							\
 
-bool bpf_program__is_kprobe(struct bpf_program *prog)
-{
-	return bpf_program__is_type(prog, BPF_PROG_TYPE_KPROBE);
-}
+BPF_PROG_TYPE_FNS(socket_filter, BPF_PROG_TYPE_SOCKET_FILTER);
+BPF_PROG_TYPE_FNS(kprobe, BPF_PROG_TYPE_KPROBE);
+BPF_PROG_TYPE_FNS(sched_cls, BPF_PROG_TYPE_SCHED_CLS);
+BPF_PROG_TYPE_FNS(sched_act, BPF_PROG_TYPE_SCHED_ACT);
+BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
+BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
+BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
 int bpf_map__fd(struct bpf_map *map)
 {
@@ -1536,4 +1737,11 @@ bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset)
 			return &obj->maps[i];
 	}
 	return ERR_PTR(-ENOENT);
+}
+
+long libbpf_get_error(const void *ptr)
+{
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
+	return 0;
 }

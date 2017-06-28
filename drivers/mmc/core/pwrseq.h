@@ -8,7 +8,11 @@
 #ifndef _MMC_CORE_PWRSEQ_H
 #define _MMC_CORE_PWRSEQ_H
 
-#include <linux/mmc/host.h>
+#include <linux/types.h>
+
+struct mmc_host;
+struct device;
+struct module;
 
 struct mmc_pwrseq_ops {
 	void (*pre_power_on)(struct mmc_host *host);

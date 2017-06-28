@@ -30,7 +30,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>

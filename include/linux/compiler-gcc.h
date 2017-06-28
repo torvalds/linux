@@ -116,6 +116,7 @@
  */
 #define __pure			__attribute__((pure))
 #define __aligned(x)		__attribute__((aligned(x)))
+#define __aligned_largest	__attribute__((aligned))
 #ifdef __MINGW32__
 #define __printf(a, b)		__attribute__((format(gnu_printf, a, b)))
 #else
@@ -125,6 +126,7 @@
 #define __attribute_const__	__attribute__((__const__))
 #define __maybe_unused		__attribute__((unused))
 #define __always_unused		__attribute__((unused))
+#define __mode(x)               __attribute__((mode(x)))
 
 /* gcc version specific checks */
 
@@ -199,6 +201,17 @@
 #endif
 #endif
 
+#ifdef CONFIG_STACK_VALIDATION
+#define annotate_unreachable() ({					\
+	asm("%c0:\t\n"							\
+	    ".pushsection .discard.unreachable\t\n"			\
+	    ".long %c0b - .\t\n"					\
+	    ".popsection\t\n" : : "i" (__LINE__));			\
+})
+#else
+#define annotate_unreachable()
+#endif
+
 /*
  * Mark a position in code as unreachable.  This can be used to
  * suppress control flow warnings after asm blocks that transfer
@@ -208,7 +221,8 @@
  * this in the preprocessor, but we can live with this because they're
  * unreleased.  Really, we need to have autoconf for the kernel.
  */
-#define unreachable() __builtin_unreachable()
+#define unreachable() \
+	do { annotate_unreachable(); __builtin_unreachable(); } while (0)
 
 /* Mark a function definition as prohibited from being cloned. */
 #define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))

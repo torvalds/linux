@@ -35,7 +35,7 @@ enum {
 	DE_SMART = BIT(4),
 };
 
-struct malidp_input_format {
+struct malidp_format_id {
 	u32 format;		/* DRM fourcc */
 	u8 layer;		/* bitmask of layers supporting it */
 	u8 id;			/* used internally */
@@ -58,6 +58,7 @@ struct malidp_layer {
 	u16 id;			/* layer ID */
 	u16 base;		/* address offset for the register bank */
 	u16 ptr;		/* address offset for the pointer register */
+	u16 stride_offset;	/* Offset to the first stride register. */
 };
 
 /* regmap features */
@@ -85,13 +86,17 @@ struct malidp_hw_regmap {
 	const struct malidp_irq_map se_irq_map;
 	const struct malidp_irq_map dc_irq_map;
 
-	/* list of supported input formats for each layer */
-	const struct malidp_input_format *input_formats;
-	const u8 n_input_formats;
+	/* list of supported pixel formats for each layer */
+	const struct malidp_format_id *pixel_formats;
+	const u8 n_pixel_formats;
 
 	/* pitch alignment requirement in bytes */
 	const u8 bus_align_bytes;
 };
+
+/* device features */
+/* Unlike DP550/650, DP500 has 3 stride registers in its video layer. */
+#define MALIDP_DEVICE_LV_HAS_3_STRIDES	BIT(0)
 
 struct malidp_hw_device {
 	const struct malidp_hw_regmap map;

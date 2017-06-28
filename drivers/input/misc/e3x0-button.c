@@ -120,14 +120,7 @@ static int e3x0_button_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, input);
 	device_init_wakeup(&pdev->dev, 1);
-	return 0;
-}
-
-static int e3x0_button_remove(struct platform_device *pdev)
-{
-	device_init_wakeup(&pdev->dev, 0);
 	return 0;
 }
 
@@ -146,7 +139,6 @@ static struct platform_driver e3x0_button_driver = {
 		.pm	= &e3x0_button_pm_ops,
 	},
 	.probe		= e3x0_button_probe,
-	.remove		= e3x0_button_remove,
 };
 
 module_platform_driver(e3x0_button_driver);

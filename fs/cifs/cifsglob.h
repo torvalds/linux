@@ -136,6 +136,8 @@ struct cifs_secmech {
 	struct sdesc *sdescmd5; /* ctxt to generate cifs/smb signature */
 	struct sdesc *sdeschmacsha256;  /* ctxt to generate smb2 signature */
 	struct sdesc *sdesccmacaes;  /* ctxt to generate smb3 signature */
+	struct crypto_aead *ccmaesencrypt; /* smb3 encryption aead */
+	struct crypto_aead *ccmaesdecrypt; /* smb3 decryption aead */
 };
 
 /* per smb session structure/fields */
@@ -208,7 +210,7 @@ struct cifsInodeInfo;
 struct cifs_open_parms;
 
 struct smb_version_operations {
-	int (*send_cancel)(struct TCP_Server_Info *, void *,
+	int (*send_cancel)(struct TCP_Server_Info *, struct smb_rqst *,
 			   struct mid_q_entry *);
 	bool (*compare_fids)(struct cifsFileInfo *, struct cifsFileInfo *);
 	/* setup request: allocate mid, sign message */
@@ -241,6 +243,7 @@ struct smb_version_operations {
 	/* verify the message */
 	int (*check_message)(char *, unsigned int, struct TCP_Server_Info *);
 	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
+	int (*handle_cancelled_mid)(char *, struct TCP_Server_Info *);
 	void (*downgrade_oplock)(struct TCP_Server_Info *,
 					struct cifsInodeInfo *, bool);
 	/* process transaction2 response */
@@ -405,9 +408,10 @@ struct smb_version_operations {
 	char * (*create_lease_buf)(u8 *, u8);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *, unsigned int *);
-	int (*clone_range)(const unsigned int, struct cifsFileInfo *src_file,
-			struct cifsFileInfo *target_file, u64 src_off, u64 len,
-			u64 dest_off);
+	ssize_t (*copychunk_range)(const unsigned int,
+			struct cifsFileInfo *src_file,
+			struct cifsFileInfo *target_file,
+			u64 src_off, u64 len, u64 dest_off);
 	int (*duplicate_extents)(const unsigned int, struct cifsFileInfo *src,
 			struct cifsFileInfo *target_file, u64 src_off, u64 len,
 			u64 dest_off);
@@ -433,6 +437,17 @@ struct smb_version_operations {
 	bool (*dir_needs_close)(struct cifsFileInfo *);
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
 			  loff_t);
+	/* init transform request - used for encryption for now */
+	int (*init_transform_rq)(struct TCP_Server_Info *, struct smb_rqst *,
+				 struct smb_rqst *);
+	/* free transform request */
+	void (*free_transform_rq)(struct smb_rqst *);
+	int (*is_transform_hdr)(void *buf);
+	int (*receive_transform)(struct TCP_Server_Info *,
+				 struct mid_q_entry **);
+	enum securityEnum (*select_sectype)(struct TCP_Server_Info *,
+			    enum securityEnum);
+
 };
 
 struct smb_version_values {
@@ -812,7 +827,7 @@ struct cifs_ses {
 	int ses_count;		/* reference counter */
 	enum statusEnum status;
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
-	__u16 ipc_tid;		/* special tid for connection to IPC share */
+	__u32 ipc_tid;		/* special tid for connection to IPC share */
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */
@@ -933,7 +948,6 @@ struct cifs_tcon {
 	bool use_persistent:1; /* use persistent instead of durable handles */
 #ifdef CONFIG_CIFS_SMB2
 	bool print:1;		/* set if connection to printer share */
-	bool bad_network_name:1; /* set if ret status STATUS_BAD_NETWORK_NAME */
 	__le32 capabilities;
 	__u32 share_flags;
 	__u32 maximal_access;
@@ -1119,7 +1133,10 @@ struct cifs_readdata {
 	int (*read_into_pages)(struct TCP_Server_Info *server,
 				struct cifs_readdata *rdata,
 				unsigned int len);
-	struct kvec			iov;
+	int (*copy_into_pages)(struct TCP_Server_Info *server,
+				struct cifs_readdata *rdata,
+				struct iov_iter *iter);
+	struct kvec			iov[2];
 	unsigned int			pagesz;
 	unsigned int			tailsz;
 	unsigned int			credits;
@@ -1302,6 +1319,13 @@ typedef int (mid_receive_t)(struct TCP_Server_Info *server,
  */
 typedef void (mid_callback_t)(struct mid_q_entry *mid);
 
+/*
+ * This is the protopyte for mid handle function. This is called once the mid
+ * has been recognized after decryption of the message.
+ */
+typedef int (mid_handle_t)(struct TCP_Server_Info *server,
+			    struct mid_q_entry *mid);
+
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
@@ -1316,13 +1340,22 @@ struct mid_q_entry {
 #endif
 	mid_receive_t *receive; /* call receive callback */
 	mid_callback_t *callback; /* call completion callback */
+	mid_handle_t *handle; /* call handle mid callback */
 	void *callback_data;	  /* general purpose pointer for callback */
 	void *resp_buf;		/* pointer to received SMB header */
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
+	unsigned int mid_flags;
 	__le16 command;		/* smb command code */
 	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
+	bool decrypted:1;	/* decrypted entry */
+};
+
+struct close_cancelled_open {
+	struct cifs_fid         fid;
+	struct cifs_tcon        *tcon;
+	struct work_struct      work;
 };
 
 /*	Make code in transport.c a little cleaner by moving
@@ -1456,6 +1489,9 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   MID_RESPONSE_MALFORMED 0x10
 #define   MID_SHUTDOWN		 0x20
 
+/* Flags */
+#define   MID_WAIT_CANCELLED	 1 /* Cancelled while waiting for response */
+
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */
 #define   CIFS_SMALL_BUFFER     1
@@ -1475,7 +1511,9 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
 #define   CIFS_NEG_OP      0x0200    /* negotiate request */
 #define   CIFS_OP_MASK     0x0380    /* mask request type */
+
 #define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
+#define   CIFS_TRANSFORM_REQ 0x0800    /* transform request before sending */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

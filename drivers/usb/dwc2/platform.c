@@ -111,7 +111,7 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 
 	if (mode != hsotg->dr_mode) {
 		dev_warn(hsotg->dev,
-			"Configuration mismatch. dr_mode forced to %s\n",
+			 "Configuration mismatch. dr_mode forced to %s\n",
 			mode == USB_DR_MODE_HOST ? "host" : "device");
 
 		hsotg->dr_mode = mode;
@@ -136,11 +136,11 @@ static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 			return ret;
 	}
 
-	if (hsotg->uphy)
+	if (hsotg->uphy) {
 		ret = usb_phy_init(hsotg->uphy);
-	else if (hsotg->plat && hsotg->plat->phy_init)
+	} else if (hsotg->plat && hsotg->plat->phy_init) {
 		ret = hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
-	else {
+	} else {
 		ret = phy_power_on(hsotg->phy);
 		if (ret == 0)
 			ret = phy_init(hsotg->phy);
@@ -170,11 +170,11 @@ static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
 	int ret = 0;
 
-	if (hsotg->uphy)
+	if (hsotg->uphy) {
 		usb_phy_shutdown(hsotg->uphy);
-	else if (hsotg->plat && hsotg->plat->phy_exit)
+	} else if (hsotg->plat && hsotg->plat->phy_exit) {
 		ret = hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
-	else {
+	} else {
 		ret = phy_exit(hsotg->phy);
 		if (ret == 0)
 			ret = phy_power_off(hsotg->phy);
@@ -445,7 +445,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		retval = dwc2_hcd_init(hsotg, hsotg->irq);
+		retval = dwc2_hcd_init(hsotg);
 		if (retval) {
 			if (hsotg->gadget_enabled)
 				dwc2_hsotg_remove(hsotg);

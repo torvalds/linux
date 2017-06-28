@@ -130,17 +130,16 @@ static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
 	freq = clk_get_rate(clk);
 	clk_put(clk);
 
-	rcu_read_lock();
 	opp = dev_pm_opp_find_freq_ceil(dev, &freq);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		pr_err("%s: unable to find boot up OPP for vdd_%s\n",
 			__func__, vdd_name);
 		goto exit;
 	}
 
 	bootup_volt = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
+
 	if (!bootup_volt) {
 		pr_err("%s: unable to find voltage corresponding to the bootup OPP for vdd_%s\n",
 		       __func__, vdd_name);

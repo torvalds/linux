@@ -85,6 +85,17 @@ static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
 }
 
+/* Report whether the NIC considers this TX queue empty, using
+ * packet_write_count (the write count recorded for the last completable
+ * doorbell push).  May return false negative.  EF10 only, which is OK
+ * because only EF10 supports PIO.
+ */
+static inline bool efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue)
+{
+	EFX_WARN_ON_ONCE_PARANOID(!tx_queue->efx->type->option_descriptors);
+	return __efx_nic_tx_is_empty(tx_queue, tx_queue->packet_write_count);
+}
+
 /* Decide whether we can use TX PIO, ie. write packet data directly into
  * a buffer on the device.  This can reduce latency at the expense of
  * throughput, so we only do this if both hardware and software TX rings
@@ -94,9 +105,9 @@ static inline bool __efx_nic_tx_is_empty(struct efx_tx_queue *tx_queue,
 static inline bool efx_nic_may_tx_pio(struct efx_tx_queue *tx_queue)
 {
 	struct efx_tx_queue *partner = efx_tx_queue_partner(tx_queue);
-	return tx_queue->piobuf &&
-	       __efx_nic_tx_is_empty(tx_queue, tx_queue->insert_count) &&
-	       __efx_nic_tx_is_empty(partner, partner->insert_count);
+
+	return tx_queue->piobuf && efx_nic_tx_is_empty(tx_queue) &&
+	       efx_nic_tx_is_empty(partner);
 }
 
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
@@ -332,6 +343,7 @@ enum {
  * @pio_write_base: Base address for writing PIO buffers
  * @pio_write_vi_base: Relative VI number for @pio_write_base
  * @piobuf_handle: Handle of each PIO buffer allocated
+ * @piobuf_size: size of a single PIO buffer
  * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
  *	reboot
  * @rx_rss_context: Firmware handle for our RSS context
@@ -357,6 +369,10 @@ enum {
  * @vport_mac: The MAC address on the vport, only for PFs; VFs will be zero
  * @vlan_list: List of VLANs added over the interface. Serialised by vlan_lock.
  * @vlan_lock: Lock to serialize access to vlan_list.
+ * @udp_tunnels: UDP tunnel port numbers and types.
+ * @udp_tunnels_dirty: flag indicating a reboot occurred while pushing
+ *	@udp_tunnels to hardware and thus the push must be re-done.
+ * @udp_tunnels_lock: Serialises writes to @udp_tunnels and @udp_tunnels_dirty.
  */
 struct efx_ef10_nic_data {
 	struct efx_buffer mcdi_buf;
@@ -369,6 +385,7 @@ struct efx_ef10_nic_data {
 	void __iomem *wc_membase, *pio_write_base;
 	unsigned int pio_write_vi_base;
 	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
+	u16 piobuf_size;
 	bool must_restore_piobufs;
 	u32 rx_rss_context;
 	bool rx_rss_context_exclusive;
@@ -392,6 +409,9 @@ struct efx_ef10_nic_data {
 	u8 vport_mac[ETH_ALEN];
 	struct list_head vlan_list;
 	struct mutex vlan_lock;
+	struct efx_udp_tunnel udp_tunnels[16];
+	bool udp_tunnels_dirty;
+	struct mutex udp_tunnels_lock;
 };
 
 int efx_init_sriov(void);
@@ -613,6 +633,7 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
 void efx_farch_init_common(struct efx_nic *efx);
 void efx_ef10_handle_drain_event(struct efx_nic *efx);
 void efx_farch_rx_push_indir_table(struct efx_nic *efx);
+void efx_farch_rx_pull_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 			 unsigned int len, gfp_t gfp_flags);

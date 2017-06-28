@@ -52,7 +52,11 @@ static int msm_gem_show(struct drm_device *dev, struct seq_file *m)
 
 static int msm_mm_show(struct drm_device *dev, struct seq_file *m)
 {
-	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
+
+	return 0;
 }
 
 static int msm_fb_show(struct drm_device *dev, struct seq_file *m)

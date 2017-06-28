@@ -9,7 +9,7 @@ frontend parameters
 The kind of parameters passed to the frontend device for tuning depend
 on the kind of hardware you are using.
 
-The struct ``dvb_frontend_parameters`` uses an union with specific
+The struct ``dvb_frontend_parameters`` uses a union with specific
 per-system parameters. However, as newer delivery systems required more
 data, the structure size weren't enough to fit, and just extending its
 size would break the existing applications. So, those parameters were
@@ -23,7 +23,7 @@ So, newer applications should use
 instead, in order to be able to support the newer System Delivery like
 DVB-S2, DVB-T2, DVB-C2, ISDB, etc.
 
-All kinds of parameters are combined as an union in the
+All kinds of parameters are combined as a union in the
 FrontendParameters structure:
 
 

@@ -95,6 +95,20 @@ nvkm_top_intr(struct nvkm_device *device, u32 intr, u64 *psubdevs)
 	return intr & ~handled;
 }
 
+int
+nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_devidx devidx)
+{
+	struct nvkm_top *top = device->top;
+	struct nvkm_top_device *info;
+
+	list_for_each_entry(info, &top->device, head) {
+		if (info->index == devidx && info->fault >= 0)
+			return info->fault;
+	}
+
+	return -ENOENT;
+}
+
 enum nvkm_devidx
 nvkm_top_fault(struct nvkm_device *device, int fault)
 {

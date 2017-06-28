@@ -37,7 +37,7 @@ enum { CH_RX, CH_TX, NUM_CHANNELS };
 
 /* IRQ / Polling option */
 static bool polling_req;
-module_param(polling_req, bool, S_IRUGO);
+module_param(polling_req, bool, 0444);
 MODULE_PARM_DESC(polling_req, "Request Polling. Default = 0 (use irq)");
 
 /* Polling Rate */

@@ -133,6 +133,7 @@ int analogix_dp_disable_psr(struct device *dev)
 {
 	struct analogix_dp_device *dp = dev_get_drvdata(dev);
 	struct edp_vsc_psr psr_vsc;
+	int ret;
 
 	if (!dp->psr_support)
 		return 0;
@@ -146,6 +147,10 @@ int analogix_dp_disable_psr(struct device *dev)
 
 	psr_vsc.DB0 = 0;
 	psr_vsc.DB1 = 0;
+
+	ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
+	if (ret != 1)
+		dev_err(dp->dev, "Failed to set DP Power0 %d\n", ret);
 
 	analogix_dp_send_psr_spd(dp, &psr_vsc);
 	return 0;
@@ -1227,12 +1232,10 @@ static int analogix_dp_create_bridge(struct drm_device *drm_dev,
 
 	dp->bridge = bridge;
 
-	dp->encoder->bridge = bridge;
 	bridge->driver_private = dp;
-	bridge->encoder = dp->encoder;
 	bridge->funcs = &analogix_dp_bridge_funcs;
 
-	ret = drm_bridge_attach(drm_dev, bridge);
+	ret = drm_bridge_attach(dp->encoder, bridge, NULL);
 	if (ret) {
 		DRM_ERROR("failed to attach drm bridge\n");
 		return -EINVAL;

@@ -642,17 +642,6 @@ static int fsl_otg_set_peripheral(struct usb_otg *otg,
 	return 0;
 }
 
-/* Set OTG port power, only for B-device */
-static int fsl_otg_set_power(struct usb_phy *phy, unsigned mA)
-{
-	if (!fsl_otg_dev)
-		return -ENODEV;
-	if (phy->otg->state == OTG_STATE_B_PERIPHERAL)
-		pr_info("FSL OTG: Draw %d mA\n", mA);
-
-	return 0;
-}
-
 /*
  * Delayed pin detect interrupt processing.
  *
@@ -821,7 +810,6 @@ static int fsl_otg_conf(struct platform_device *pdev)
 	/* initialize the otg structure */
 	fsl_otg_tc->phy.label = DRIVER_DESC;
 	fsl_otg_tc->phy.dev = &pdev->dev;
-	fsl_otg_tc->phy.set_power = fsl_otg_set_power;
 
 	fsl_otg_tc->phy.otg->usb_phy = &fsl_otg_tc->phy;
 	fsl_otg_tc->phy.otg->set_host = fsl_otg_set_host;

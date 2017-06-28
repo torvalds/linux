@@ -31,6 +31,9 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+
+#define PFX	KBUILD_MODNAME ": "
+
 #define GEODE_RNG_DATA_REG   0x50
 #define GEODE_RNG_STATUS_REG 0x54
 
@@ -82,6 +85,7 @@ static struct hwrng geode_rng = {
 
 static int __init mod_init(void)
 {
+	int err = -ENODEV;
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
 	void __iomem *mem;
@@ -89,27 +93,43 @@ static int __init mod_init(void)
 
 	for_each_pci_dev(pdev) {
 		ent = pci_match_id(pci_tbl, pdev);
-		if (ent) {
-			rng_base = pci_resource_start(pdev, 0);
-			if (rng_base == 0)
-				return -ENODEV;
-
-			mem = devm_ioremap(&pdev->dev, rng_base, 0x58);
-			if (!mem)
-				return -ENOMEM;
-			geode_rng.priv = (unsigned long)mem;
-
-			pr_info("AMD Geode RNG detected\n");
-			return devm_hwrng_register(&pdev->dev, &geode_rng);
-		}
+		if (ent)
+			goto found;
 	}
-
 	/* Device not found. */
-	return -ENODEV;
+	goto out;
+
+found:
+	rng_base = pci_resource_start(pdev, 0);
+	if (rng_base == 0)
+		goto out;
+	err = -ENOMEM;
+	mem = ioremap(rng_base, 0x58);
+	if (!mem)
+		goto out;
+	geode_rng.priv = (unsigned long)mem;
+
+	pr_info("AMD Geode RNG detected\n");
+	err = hwrng_register(&geode_rng);
+	if (err) {
+		pr_err(PFX "RNG registering failed (%d)\n",
+		       err);
+		goto err_unmap;
+	}
+out:
+	return err;
+
+err_unmap:
+	iounmap(mem);
+	goto out;
 }
 
 static void __exit mod_exit(void)
 {
+	void __iomem *mem = (void __iomem *)geode_rng.priv;
+
+	hwrng_unregister(&geode_rng);
+	iounmap(mem);
 }
 
 module_init(mod_init);

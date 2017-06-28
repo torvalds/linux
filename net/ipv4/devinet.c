@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -64,8 +65,6 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/addrconf.h>
-
-#include "fib_lookup.h"
 
 static struct ipv4_devconf ipv4_devconf = {
 	.data = {

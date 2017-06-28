@@ -1285,6 +1285,22 @@ static void st_gpio_irq_unmask(struct irq_data *d)
 	writel(BIT(d->hwirq), bank->base + REG_PIO_SET_PMASK);
 }
 
+static int st_gpio_irq_request_resources(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	st_gpio_direction_input(gc, d->hwirq);
+
+	return gpiochip_lock_as_irq(gc, d->hwirq);
+}
+
+static void st_gpio_irq_release_resources(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_unlock_as_irq(gc, d->hwirq);
+}
+
 static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
@@ -1438,12 +1454,14 @@ static struct gpio_chip st_gpio_template = {
 };
 
 static struct irq_chip st_gpio_irqchip = {
-	.name		= "GPIO",
-	.irq_disable	= st_gpio_irq_mask,
-	.irq_mask	= st_gpio_irq_mask,
-	.irq_unmask	= st_gpio_irq_unmask,
-	.irq_set_type	= st_gpio_irq_set_type,
-	.flags		= IRQCHIP_SKIP_SET_WAKE,
+	.name			= "GPIO",
+	.irq_request_resources	= st_gpio_irq_request_resources,
+	.irq_release_resources	= st_gpio_irq_release_resources,
+	.irq_disable		= st_gpio_irq_mask,
+	.irq_mask		= st_gpio_irq_mask,
+	.irq_unmask		= st_gpio_irq_unmask,
+	.irq_set_type		= st_gpio_irq_set_type,
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
 static int st_gpiolib_register_bank(struct st_pinctrl *info,

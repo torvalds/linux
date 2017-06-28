@@ -180,31 +180,25 @@
 
 &pio {
 	bl_en_pin_inet: bl_en_pin@0 {
-		allwinner,pins = "PH7";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH7";
+		function = "gpio_out";
 	};
 
 	touchscreen_wake_pin: touchscreen_wake_pin@0 {
-		allwinner,pins = "PB13";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB13";
+		function = "gpio_out";
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH4";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		allwinner,pins = "PH5";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_DOWN>;
+		pins = "PH5";
+		function = "gpio_in";
+		bias-pull-down;
 	};
 };
 

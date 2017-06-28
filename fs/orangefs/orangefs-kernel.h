@@ -41,7 +41,7 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <linux/uio.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/wait.h>
 #include <linux/dcache.h>
@@ -249,6 +249,7 @@ struct orangefs_sb_info_s {
 	char devname[ORANGEFS_MAX_SERVER_ADDR_LEN];
 	struct super_block *sb;
 	int mount_pending;
+	int no_list;
 	struct list_head list;
 };
 
@@ -439,9 +440,8 @@ struct inode *orangefs_new_inode(struct super_block *sb,
 
 int orangefs_setattr(struct dentry *dentry, struct iattr *iattr);
 
-int orangefs_getattr(struct vfsmount *mnt,
-		  struct dentry *dentry,
-		  struct kstat *kstat);
+int orangefs_getattr(const struct path *path, struct kstat *stat,
+		     u32 request_mask, unsigned int flags);
 
 int orangefs_permission(struct inode *inode, int mask);
 
@@ -529,7 +529,6 @@ extern spinlock_t orangefs_htable_ops_in_progress_lock;
 extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;
-extern struct backing_dev_info orangefs_backing_dev_info;
 extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
 extern const struct inode_operations orangefs_symlink_inode_operations;

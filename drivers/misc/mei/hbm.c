@@ -815,7 +815,7 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 	struct mei_cl_cb *cb, *next;
 
 	cl = NULL;
-	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list.list, list) {
+	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list, list) {
 
 		cl = cb->cl;
 

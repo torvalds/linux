@@ -11,8 +11,7 @@ struct nvif_client {
 	bool super;
 };
 
-int  nvif_client_init(const char *drv, const char *name, u64 device,
-		      const char *cfg, const char *dbg,
+int  nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 		      struct nvif_client *);
 void nvif_client_fini(struct nvif_client *);
 int  nvif_client_ioctl(struct nvif_client *, void *, u32);

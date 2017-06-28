@@ -96,17 +96,6 @@
  * of chips.  To use it, you write an architecture specific functions
  * and macros and include this file in your driver.
  *
- * These macros control options :
- * AUTOSENSE - if defined, REQUEST SENSE will be performed automatically
- * for commands that return with a CHECK CONDITION status.
- *
- * DIFFERENTIAL - if defined, NCR53c81 chips will use external differential
- * transceivers.
- *
- * PSEUDO_DMA - if defined, PSEUDO DMA is used during the data transfer phases.
- *
- * REAL_DMA - if defined, REAL DMA is used during the data transfer phases.
- *
  * These macros MUST be defined :
  *
  * NCR5380_read(register)  - read from the specified register
@@ -347,7 +336,7 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 #endif
 
 /**
- * NCR58380_info - report driver and host information
+ * NCR5380_info - report driver and host information
  * @instance: relevant scsi host instance
  *
  * For use as the host template info() handler.
@@ -358,33 +347,6 @@ static const char *NCR5380_info(struct Scsi_Host *instance)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 
 	return hostdata->info;
-}
-
-static void prepare_info(struct Scsi_Host *instance)
-{
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-	snprintf(hostdata->info, sizeof(hostdata->info),
-	         "%s, irq %d, "
-		 "io_port 0x%lx, base 0x%lx, "
-	         "can_queue %d, cmd_per_lun %d, "
-	         "sg_tablesize %d, this_id %d, "
-	         "flags { %s%s%s}, "
-	         "options { %s} ",
-	         instance->hostt->name, instance->irq,
-		 hostdata->io_port, hostdata->base,
-	         instance->can_queue, instance->cmd_per_lun,
-	         instance->sg_tablesize, instance->this_id,
-	         hostdata->flags & FLAG_DMA_FIXUP     ? "DMA_FIXUP "     : "",
-	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
-	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
-#ifdef DIFFERENTIAL
-	         "DIFFERENTIAL "
-#endif
-#ifdef PARITY
-	         "PARITY "
-#endif
-	         "");
 }
 
 /**
@@ -436,7 +398,14 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	if (!hostdata->work_q)
 		return -ENOMEM;
 
-	prepare_info(instance);
+	snprintf(hostdata->info, sizeof(hostdata->info),
+		"%s, irq %d, io_port 0x%lx, base 0x%lx, can_queue %d, cmd_per_lun %d, sg_tablesize %d, this_id %d, flags { %s%s%s}",
+		instance->hostt->name, instance->irq, hostdata->io_port,
+		hostdata->base, instance->can_queue, instance->cmd_per_lun,
+		instance->sg_tablesize, instance->this_id,
+		hostdata->flags & FLAG_DMA_FIXUP     ? "DMA_FIXUP "     : "",
+		hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
+		hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY " : "");
 
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 	NCR5380_write(MODE_REG, MR_BASE);
@@ -622,8 +591,9 @@ static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
 	    list_empty(&hostdata->unissued) &&
 	    list_empty(&hostdata->autosense) &&
 	    !hostdata->connected &&
-	    !hostdata->selecting)
+	    !hostdata->selecting) {
 		NCR5380_release_dma_irq(instance);
+	}
 }
 
 /**
@@ -962,6 +932,7 @@ static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)
 
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
                                         struct scsi_cmnd *cmd)
+	__releases(&hostdata->lock) __acquires(&hostdata->lock)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char tmp[3], phase;
@@ -1194,8 +1165,16 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	data = tmp;
 	phase = PHASE_MSGOUT;
 	NCR5380_transfer_pio(instance, &phase, &len, &data);
+	if (len) {
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		cmd->result = DID_ERROR << 16;
+		complete_cmd(instance, cmd);
+		dsprintk(NDEBUG_SELECTION, instance, "IDENTIFY message transfer failed\n");
+		cmd = NULL;
+		goto out;
+	}
+
 	dsprintk(NDEBUG_SELECTION, instance, "nexus established.\n");
-	/* XXX need to handle errors here */
 
 	hostdata->connected = cmd;
 	hostdata->busy[cmd->device->id] |= 1 << cmd->device->lun;
@@ -1654,6 +1633,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
  */
 
 static void NCR5380_information_transfer(struct Scsi_Host *instance)
+	__releases(&hostdata->lock) __acquires(&hostdata->lock)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char msgout = NOP;

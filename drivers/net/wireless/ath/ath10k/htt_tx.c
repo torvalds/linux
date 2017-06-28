@@ -239,6 +239,7 @@ static void ath10k_htt_tx_free_cont_txbuf(struct ath10k_htt *htt)
 
 	size = htt->max_num_pending_tx * sizeof(struct ath10k_htt_txbuf);
 	dma_free_coherent(ar->dev, size, htt->txbuf.vaddr, htt->txbuf.paddr);
+	htt->txbuf.vaddr = NULL;
 }
 
 static int ath10k_htt_tx_alloc_cont_txbuf(struct ath10k_htt *htt)
@@ -268,6 +269,7 @@ static void ath10k_htt_tx_free_cont_frag_desc(struct ath10k_htt *htt)
 			  size,
 			  htt->frag_desc.vaddr,
 			  htt->frag_desc.paddr);
+	htt->frag_desc.vaddr = NULL;
 }
 
 static int ath10k_htt_tx_alloc_cont_frag_desc(struct ath10k_htt *htt)

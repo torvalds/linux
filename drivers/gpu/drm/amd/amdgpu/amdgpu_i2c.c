@@ -231,8 +231,7 @@ void amdgpu_i2c_init(struct amdgpu_device *adev)
 	if (amdgpu_hw_i2c)
 		DRM_INFO("hw_i2c forced on, you may experience display detection problems!\n");
 
-	if (adev->is_atom_bios)
-		amdgpu_atombios_i2c_init(adev);
+	amdgpu_atombios_i2c_init(adev);
 }
 
 /* remove all the buses */

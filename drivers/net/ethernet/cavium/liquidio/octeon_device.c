@@ -1361,6 +1361,8 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 		spin_lock_bh(&droq->lock);
 		writel(droq->pkt_count, droq->pkts_sent_reg);
 		droq->pkt_count = 0;
+		/* this write needs to be flushed before we release the lock */
+		mmiowb();
 		spin_unlock_bh(&droq->lock);
 		oct = droq->oct_dev;
 	}
@@ -1368,6 +1370,8 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 		spin_lock_bh(&iq->lock);
 		writel(iq->pkt_in_done, iq->inst_cnt_reg);
 		iq->pkt_in_done = 0;
+		/* this write needs to be flushed before we release the lock */
+		mmiowb();
 		spin_unlock_bh(&iq->lock);
 		oct = iq->oct_dev;
 	}

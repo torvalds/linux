@@ -1106,7 +1106,7 @@ static int bcm281xx_std_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -1222,7 +1222,7 @@ static int bcm281xx_i2c_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i, j;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -1292,7 +1292,7 @@ static int bcm281xx_hdmi_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);

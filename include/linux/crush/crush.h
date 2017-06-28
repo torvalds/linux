@@ -135,13 +135,6 @@ struct crush_bucket {
 	__u32 size;      /* num items */
 	__s32 *items;
 
-	/*
-	 * cached random permutation: used for uniform bucket and for
-	 * the linear search fallback for the other bucket types.
-	 */
-	__u32 perm_x;  /* @x for which *perm is defined */
-	__u32 perm_n;  /* num elements of *perm that are permuted/defined */
-	__u32 *perm;
 };
 
 struct crush_bucket_uniform {
@@ -211,6 +204,21 @@ struct crush_map {
 	 * device fails. */
 	__u8 chooseleaf_stable;
 
+	/*
+	 * This value is calculated after decode or construction by
+	 * the builder. It is exposed here (rather than having a
+	 * 'build CRUSH working space' function) so that callers can
+	 * reserve a static buffer, allocate space on the stack, or
+	 * otherwise avoid calling into the heap allocator if they
+	 * want to. The size of the working space depends on the map,
+	 * while the size of the scratch vector passed to the mapper
+	 * depends on the size of the desired result set.
+	 *
+	 * Nothing stops the caller from allocating both in one swell
+	 * foop and passing in two points, though.
+	 */
+	size_t working_size;
+
 #ifndef __KERNEL__
 	/*
 	 * version 0 (original) of straw_calc has various flaws.  version 1
@@ -247,5 +255,24 @@ static inline int crush_calc_tree_node(int i)
 {
 	return ((i+1) << 1)-1;
 }
+
+/*
+ * These data structures are private to the CRUSH implementation. They
+ * are exposed in this header file because builder needs their
+ * definitions to calculate the total working size.
+ *
+ * Moving this out of the crush map allow us to treat the CRUSH map as
+ * immutable within the mapper and removes the requirement for a CRUSH
+ * map lock.
+ */
+struct crush_work_bucket {
+	__u32 perm_x; /* @x for which *perm is defined */
+	__u32 perm_n; /* num elements of *perm that are permuted/defined */
+	__u32 *perm;  /* Permutation of the bucket's items */
+};
+
+struct crush_work {
+	struct crush_work_bucket **work; /* Per-bucket working store */
+};
 
 #endif

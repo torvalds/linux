@@ -136,11 +136,39 @@ static const struct clk_ops samsung_pll3000_clk_ops = {
 #define PLL35XX_MDIV_MASK       (0x3FF)
 #define PLL35XX_PDIV_MASK       (0x3F)
 #define PLL35XX_SDIV_MASK       (0x7)
-#define PLL35XX_LOCK_STAT_MASK	(0x1)
 #define PLL35XX_MDIV_SHIFT      (16)
 #define PLL35XX_PDIV_SHIFT      (8)
 #define PLL35XX_SDIV_SHIFT      (0)
 #define PLL35XX_LOCK_STAT_SHIFT	(29)
+#define PLL35XX_ENABLE_SHIFT	(31)
+
+static int samsung_pll35xx_enable(struct clk_hw *hw)
+{
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
+	u32 tmp;
+
+	tmp = readl_relaxed(pll->con_reg);
+	tmp |= BIT(PLL35XX_ENABLE_SHIFT);
+	writel_relaxed(tmp, pll->con_reg);
+
+	/* wait_lock_time */
+	do {
+		cpu_relax();
+		tmp = readl_relaxed(pll->con_reg);
+	} while (!(tmp & BIT(PLL35XX_LOCK_STAT_SHIFT)));
+
+	return 0;
+}
+
+static void samsung_pll35xx_disable(struct clk_hw *hw)
+{
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
+	u32 tmp;
+
+	tmp = readl_relaxed(pll->con_reg);
+	tmp &= ~BIT(PLL35XX_ENABLE_SHIFT);
+	writel_relaxed(tmp, pll->con_reg);
+}
 
 static unsigned long samsung_pll35xx_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
@@ -210,12 +238,13 @@ static int samsung_pll35xx_set_rate(struct clk_hw *hw, unsigned long drate,
 			(rate->sdiv << PLL35XX_SDIV_SHIFT);
 	writel_relaxed(tmp, pll->con_reg);
 
-	/* wait_lock_time */
-	do {
-		cpu_relax();
-		tmp = readl_relaxed(pll->con_reg);
-	} while (!(tmp & (PLL35XX_LOCK_STAT_MASK
-				<< PLL35XX_LOCK_STAT_SHIFT)));
+	/* wait_lock_time if enabled */
+	if (tmp & BIT(PLL35XX_ENABLE_SHIFT)) {
+		do {
+			cpu_relax();
+			tmp = readl_relaxed(pll->con_reg);
+		} while (!(tmp & BIT(PLL35XX_LOCK_STAT_SHIFT)));
+	}
 	return 0;
 }
 
@@ -223,6 +252,8 @@ static const struct clk_ops samsung_pll35xx_clk_ops = {
 	.recalc_rate = samsung_pll35xx_recalc_rate,
 	.round_rate = samsung_pll_round_rate,
 	.set_rate = samsung_pll35xx_set_rate,
+	.enable = samsung_pll35xx_enable,
+	.disable = samsung_pll35xx_disable,
 };
 
 static const struct clk_ops samsung_pll35xx_clk_min_ops = {

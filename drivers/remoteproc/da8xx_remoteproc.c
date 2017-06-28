@@ -151,7 +151,7 @@ static void da8xx_rproc_kick(struct rproc *rproc, int vqid)
 	writel(SYSCFG_CHIPSIG2, drproc->chipsig);
 }
 
-static struct rproc_ops da8xx_rproc_ops = {
+static const struct rproc_ops da8xx_rproc_ops = {
 	.start = da8xx_rproc_start,
 	.stop = da8xx_rproc_stop,
 	.kick = da8xx_rproc_kick,

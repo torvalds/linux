@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
@@ -48,7 +48,6 @@
 EXPORT_SYMBOL(adb_client_list);
 
 extern struct adb_driver via_macii_driver;
-extern struct adb_driver via_maciisi_driver;
 extern struct adb_driver via_cuda_driver;
 extern struct adb_driver adb_iop_driver;
 extern struct adb_driver via_pmu_driver;
@@ -58,9 +57,6 @@ static DEFINE_MUTEX(adb_mutex);
 static struct adb_driver *adb_driver_list[] = {
 #ifdef CONFIG_ADB_MACII
 	&via_macii_driver,
-#endif
-#ifdef CONFIG_ADB_MACIISI
-	&via_maciisi_driver,
 #endif
 #ifdef CONFIG_ADB_CUDA
 	&via_cuda_driver,

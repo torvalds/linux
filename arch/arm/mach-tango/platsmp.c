@@ -5,7 +5,7 @@
 
 static int tango_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	tango_set_aux_boot_addr(virt_to_phys(secondary_startup));
+	tango_set_aux_boot_addr(__pa_symbol(secondary_startup));
 	tango_start_aux_core(cpu);
 	return 0;
 }

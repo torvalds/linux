@@ -167,7 +167,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, dconfig);
 	}
 
-	dev->dev.archdata.dma_ops = octeon_pci_dma_map_ops;
+	dev->dev.dma_ops = octeon_pci_dma_map_ops;
 
 	return 0;
 }

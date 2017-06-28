@@ -1,3 +1,6 @@
+.. |struct dev_pm_domain| replace:: :c:type:`struct dev_pm_domain <dev_pm_domain>`
+.. |struct generic_pm_domain| replace:: :c:type:`struct generic_pm_domain <generic_pm_domain>`
+
 ============
 Device links
 ============
@@ -120,12 +123,11 @@ Examples
   is the same as if the MMU was the parent of the master device.
 
   The fact that both devices share the same power domain would normally
-  suggest usage of a :c:type:`struct dev_pm_domain` or :c:type:`struct
-  generic_pm_domain`, however these are not independent devices that
-  happen to share a power switch, but rather the MMU device serves the
-  busmaster device and is useless without it.  A device link creates a
-  synthetic hierarchical relationship between the devices and is thus
-  more apt.
+  suggest usage of a |struct dev_pm_domain| or |struct generic_pm_domain|,
+  however these are not independent devices that happen to share a power
+  switch, but rather the MMU device serves the busmaster device and is
+  useless without it.  A device link creates a synthetic hierarchical
+  relationship between the devices and is thus more apt.
 
 * A Thunderbolt host controller comprises a number of PCIe hotplug ports
   and an NHI device to manage the PCIe switch.  On resume from system sleep,
@@ -157,7 +159,7 @@ Examples
 Alternatives
 ============
 
-* A :c:type:`struct dev_pm_domain` can be used to override the bus,
+* A |struct dev_pm_domain| can be used to override the bus,
   class or device type callbacks.  It is intended for devices sharing
   a single on/off switch, however it does not guarantee a specific
   suspend/resume ordering, this needs to be implemented separately.
@@ -166,7 +168,7 @@ Alternatives
   suspended.  Furthermore it cannot be used to enforce a specific shutdown
   ordering or a driver presence dependency.
 
-* A :c:type:`struct generic_pm_domain` is a lot more heavyweight than a
+* A |struct generic_pm_domain| is a lot more heavyweight than a
   device link and does not allow for shutdown ordering or driver presence
   dependencies.  It also cannot be used on ACPI systems.
 

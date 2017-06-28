@@ -1575,7 +1575,7 @@ static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 	pkts = pasemi_mac_clean_rx(rx_ring(mac), budget);
 	if (pkts < budget) {
 		/* all done, no more packets present */
-		napi_complete(napi);
+		napi_complete_done(napi, pkts);
 
 		pasemi_mac_restart_rx_intr(mac);
 		pasemi_mac_restart_tx_intr(mac);

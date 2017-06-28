@@ -372,7 +372,7 @@ static u32 xgene_slimpro_i2c_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
-static struct i2c_algorithm xgene_slimpro_i2c_algorithm = {
+static const struct i2c_algorithm xgene_slimpro_i2c_algorithm = {
 	.smbus_xfer = xgene_slimpro_i2c_xfer,
 	.functionality = xgene_slimpro_i2c_func,
 };

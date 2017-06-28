@@ -40,6 +40,7 @@
 #include <linux/moduleparam.h>
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/ktime.h>
 #include <linux/types.h>
 #include <linux/time.h>

@@ -15,6 +15,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 
 #define dprintk(fmt, args...) do{}while(0)
 
@@ -299,7 +300,8 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 	 * filesystem supports 64-bit inode numbers.  So we need to
 	 * actually call ->getattr, not just read i_ino:
 	 */
-	error = vfs_getattr_nosec(&child_path, &stat);
+	error = vfs_getattr_nosec(&child_path, &stat,
+				  STATX_INO, AT_STATX_SYNC_AS_STAT);
 	if (error)
 		return error;
 	buffer.ino = stat.ino;

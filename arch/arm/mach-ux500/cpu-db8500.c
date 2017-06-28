@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
@@ -32,9 +31,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
-#include "setup.h"
-
-#include "board-mop500.h"
 #include "db8500-regs.h"
 
 static int __init ux500_l2x0_unlock(void)
@@ -142,21 +138,6 @@ static struct arm_pmu_platdata db8500_pmu_platdata = {
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
-	/* Requires DMA bindings. */
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80123000,
-		       "ux500-msp-i2s.0", &msp0_platform_data),
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80124000,
-		       "ux500-msp-i2s.1", &msp1_platform_data),
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80117000,
-		       "ux500-msp-i2s.2", &msp2_platform_data),
-	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
-		       "ux500-msp-i2s.3", &msp3_platform_data),
-	/* Requires non-DT:able platform data. */
-	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu", NULL),
-	OF_DEV_AUXDATA("stericsson,ux500-cryp", 0xa03cb000, "cryp1", NULL),
-	OF_DEV_AUXDATA("stericsson,ux500-hash", 0xa03c2000, "hash1", NULL),
-	OF_DEV_AUXDATA("stericsson,snd-soc-mop500", 0, "snd-soc-mop500.0",
-			NULL),
 	{},
 };
 

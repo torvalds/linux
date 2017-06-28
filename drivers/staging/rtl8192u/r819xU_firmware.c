@@ -10,7 +10,7 @@
  * Returns:
  *        NDIS_STATUS_FAILURE - the following initialization process should be terminated
  *        NDIS_STATUS_SUCCESS - if firmware initialization process success
-**************************************************************************************************/
+ **************************************************************************************************/
 
 #include "r8192U.h"
 #include "r8192U_hw.h"
@@ -42,7 +42,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	rt_firmware	    *pfirmware = priv->pFirmware;
 	struct sk_buff	    *skb;
 	unsigned char	    *seg_ptr;
-	cb_desc		    *tcb_desc;
+	struct cb_desc		    *tcb_desc;
 	u8                  bLastIniPkt;
 	u8		    index;
 
@@ -62,12 +62,12 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 		/* Allocate skb buffer to contain firmware info and tx descriptor info
 		 * add 4 to avoid packet appending overflow.
-		 * */
+		 */
 		skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + frag_length + 4);
 		if (!skb)
 			return false;
 		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
-		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
@@ -277,7 +277,7 @@ bool init_firmware(struct net_device *dev)
 		 * 2. each packet segment will be put in the skb_buff packet.
 		 * 3. each skb_buff packet data content will already include the firmware info
 		 *   and Tx descriptor info
-		 * */
+		 */
 		rt_status = fw_download_code(dev, mapped_file, file_length);
 		if (rst_opt == OPT_SYSTEM_RESET)
 			release_firmware(fw_entry);

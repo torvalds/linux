@@ -419,6 +419,9 @@ struct cxl_afu {
 	struct mutex contexts_lock;
 	spinlock_t afu_cntl_lock;
 
+	/* -1: AFU deconfigured/locked, >= 0: number of readers */
+	atomic_t configured_state;
+
 	/* AFU error buffer fields and bin attribute for sysfs */
 	u64 eb_len, eb_offset;
 	struct bin_attribute attr_eb;
@@ -800,12 +803,67 @@ int afu_register_irqs(struct cxl_context *ctx, u32 count);
 void afu_release_irqs(struct cxl_context *ctx, void *cookie);
 void afu_irq_name_free(struct cxl_context *ctx);
 
+#ifdef CONFIG_DEBUG_FS
+
 int cxl_debugfs_init(void);
 void cxl_debugfs_exit(void);
 int cxl_debugfs_adapter_add(struct cxl *adapter);
 void cxl_debugfs_adapter_remove(struct cxl *adapter);
 int cxl_debugfs_afu_add(struct cxl_afu *afu);
 void cxl_debugfs_afu_remove(struct cxl_afu *afu);
+void cxl_stop_trace(struct cxl *cxl);
+void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir);
+
+#else /* CONFIG_DEBUG_FS */
+
+static inline int __init cxl_debugfs_init(void)
+{
+	return 0;
+}
+
+static inline void cxl_debugfs_exit(void)
+{
+}
+
+static inline int cxl_debugfs_adapter_add(struct cxl *adapter)
+{
+	return 0;
+}
+
+static inline void cxl_debugfs_adapter_remove(struct cxl *adapter)
+{
+}
+
+static inline int cxl_debugfs_afu_add(struct cxl_afu *afu)
+{
+	return 0;
+}
+
+static inline void cxl_debugfs_afu_remove(struct cxl_afu *afu)
+{
+}
+
+static inline void cxl_stop_trace(struct cxl *cxl)
+{
+}
+
+static inline void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter,
+						    struct dentry *dir)
+{
+}
+
+static inline void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter,
+						    struct dentry *dir)
+{
+}
+
+static inline void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir)
+{
+}
+
+#endif /* CONFIG_DEBUG_FS */
 
 void cxl_handle_fault(struct work_struct *work);
 void cxl_prefault(struct cxl_context *ctx, u64 wed);
@@ -870,12 +928,8 @@ int cxl_data_cache_flush(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 
-void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir);
 void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx);
 void cxl_native_err_irq_dump_regs(struct cxl *adapter);
-void cxl_stop_trace(struct cxl *cxl);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
 void cxl_release_mapping(struct cxl_context *ctx);

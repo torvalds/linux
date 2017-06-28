@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -168,6 +192,7 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 
 	/* Initialize the MFW spinlock */
 	spin_lock_init(&p_info->lock);
+	spin_lock_init(&p_info->link_lock);
 
 	return 0;
 
@@ -586,6 +611,9 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	u8 max_bw, min_bw;
 	u32 status = 0;
 
+	/* Prevent SW/attentions from doing this at the same time */
+	spin_lock_bh(&p_hwfn->mcp_info->link_lock);
+
 	p_link = &p_hwfn->mcp_info->link_output;
 	memset(p_link, 0, sizeof(*p_link));
 	if (!b_reset) {
@@ -600,7 +628,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	} else {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
 			   "Resetting link indications\n");
-		return;
+		goto out;
 	}
 
 	if (p_hwfn->b_drv_link_init)
@@ -651,7 +679,8 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 
 	/* Min bandwidth configuration */
 	__qed_configure_pf_min_bandwidth(p_hwfn, p_ptt, p_link, min_bw);
-	qed_configure_vp_wfq_on_link_change(p_hwfn->cdev, p_link->min_pf_rate);
+	qed_configure_vp_wfq_on_link_change(p_hwfn->cdev, p_ptt,
+					    p_link->min_pf_rate);
 
 	p_link->an = !!(status & LINK_STATUS_AUTO_NEGOTIATE_ENABLED);
 	p_link->an_complete = !!(status &
@@ -707,6 +736,8 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	p_link->sfp_tx_fault = !!(status & LINK_STATUS_SFP_TX_FAULT);
 
 	qed_link_update(p_hwfn);
+out:
+	spin_unlock_bh(&p_hwfn->mcp_info->link_lock);
 }
 
 int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
@@ -756,9 +787,13 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 		return rc;
 	}
 
-	/* Reset the link status if needed */
-	if (!b_up)
-		qed_mcp_handle_link_change(p_hwfn, p_ptt, true);
+	/* Mimic link-change attention, done for several reasons:
+	 *  - On reset, there's no guarantee MFW would trigger
+	 *    an attention.
+	 *  - On initialization, older MFWs might not indicate link change
+	 *    during LFA, so we'll never get an UP indication.
+	 */
+	qed_mcp_handle_link_change(p_hwfn, p_ptt, !b_up);
 
 	return 0;
 }
@@ -1098,11 +1133,16 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 
 	switch (p_info->config & FUNC_MF_CFG_PROTOCOL_MASK) {
 	case FUNC_MF_CFG_PROTOCOL_ETHERNET:
-		if (qed_mcp_get_shmem_proto_mfw(p_hwfn, p_ptt, p_proto))
+		if (!IS_ENABLED(CONFIG_QED_RDMA))
+			*p_proto = QED_PCI_ETH;
+		else if (qed_mcp_get_shmem_proto_mfw(p_hwfn, p_ptt, p_proto))
 			qed_mcp_get_shmem_proto_legacy(p_hwfn, p_proto);
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
 		*p_proto = QED_PCI_ISCSI;
+		break;
+	case FUNC_MF_CFG_PROTOCOL_FCOE:
+		*p_proto = QED_PCI_FCOE;
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ROCE:
 		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");

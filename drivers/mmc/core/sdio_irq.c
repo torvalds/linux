@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/kthread.h>
 #include <linux/export.h>
 #include <linux/wait.h>
@@ -27,6 +28,8 @@
 #include <linux/mmc/sdio_func.h>
 
 #include "sdio_ops.h"
+#include "core.h"
+#include "card.h"
 
 static int process_sdio_pending_irqs(struct mmc_host *host)
 {

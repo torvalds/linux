@@ -1298,6 +1298,8 @@ static const struct samsung_pll_rate_table exynos4210_vpll_rates[] __initconst =
 };
 
 static const struct samsung_pll_rate_table exynos4x12_apll_rates[] __initconst = {
+	PLL_35XX_RATE(1704000000, 213, 3, 0),
+	PLL_35XX_RATE(1600000000, 200, 3, 0),
 	PLL_35XX_RATE(1500000000, 250, 4, 0),
 	PLL_35XX_RATE(1400000000, 175, 3, 0),
 	PLL_35XX_RATE(1300000000, 325, 6, 0),
@@ -1421,6 +1423,8 @@ static const struct exynos_cpuclk_cfg_data e4212_armclk_d[] __initconst = {
 		(((cores) << 8) | ((hpm) << 4) | ((copy) << 0))
 
 static const struct exynos_cpuclk_cfg_data e4412_armclk_d[] __initconst = {
+	{ 1704000, E4210_CPU_DIV0(2, 1, 6, 0, 7, 3), E4412_CPU_DIV1(7, 0, 7), },
+	{ 1600000, E4210_CPU_DIV0(2, 1, 6, 0, 7, 3), E4412_CPU_DIV1(7, 0, 6), },
 	{ 1500000, E4210_CPU_DIV0(2, 1, 6, 0, 7, 3), E4412_CPU_DIV1(7, 0, 6), },
 	{ 1400000, E4210_CPU_DIV0(2, 1, 6, 0, 7, 3), E4412_CPU_DIV1(6, 0, 6), },
 	{ 1300000, E4210_CPU_DIV0(2, 1, 5, 0, 7, 3), E4412_CPU_DIV1(6, 0, 5), },

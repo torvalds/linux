@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #define pr_fmt(fmt) "dmxdev: " fmt
@@ -151,6 +147,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
 		void *mem;
+
 		if (!dvbdev->readers) {
 			mutex_unlock(&dmxdev->mutex);
 			return -EBUSY;
@@ -202,6 +199,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 		dvbdev->readers++;
 		if (dmxdev->dvr_buffer.data) {
 			void *mem = dmxdev->dvr_buffer.data;
+			/*memory barrier*/
 			mb();
 			spin_lock_irq(&dmxdev->lock);
 			dmxdev->dvr_buffer.data = NULL;
@@ -876,7 +874,7 @@ static int dvb_dmxdev_pes_filter_set(struct dmxdev *dmxdev,
 	dvb_dmxdev_filter_stop(dmxdevfilter);
 	dvb_dmxdev_filter_reset(dmxdevfilter);
 
-	if ((unsigned)params->pes_type > DMX_PES_OTHER)
+	if ((unsigned int)params->pes_type > DMX_PES_OTHER)
 		return -EINVAL;
 
 	dmxdevfilter->type = DMXDEV_TYPE_PES;
@@ -1125,7 +1123,7 @@ static int dvb_demux_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&dmxdev->mutex);
 	dmxdev->dvbdev->users--;
-	if(dmxdev->dvbdev->users==1 && dmxdev->exit==1) {
+	if (dmxdev->dvbdev->users == 1 && dmxdev->exit == 1) {
 		mutex_unlock(&dmxdev->mutex);
 		wake_up(&dmxdev->dvbdev->wait_queue);
 	} else
@@ -1263,14 +1261,14 @@ EXPORT_SYMBOL(dvb_dmxdev_init);
 
 void dvb_dmxdev_release(struct dmxdev *dmxdev)
 {
-	dmxdev->exit=1;
+	dmxdev->exit = 1;
 	if (dmxdev->dvbdev->users > 1) {
 		wait_event(dmxdev->dvbdev->wait_queue,
-				dmxdev->dvbdev->users==1);
+				dmxdev->dvbdev->users == 1);
 	}
 	if (dmxdev->dvr_dvbdev->users > 1) {
 		wait_event(dmxdev->dvr_dvbdev->wait_queue,
-				dmxdev->dvr_dvbdev->users==1);
+				dmxdev->dvr_dvbdev->users == 1);
 	}
 
 	dvb_unregister_device(dmxdev->dvbdev);

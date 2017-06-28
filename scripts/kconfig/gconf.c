@@ -914,7 +914,7 @@ on_treeview2_button_press_event(GtkWidget * widget,
 			current = menu;
 			display_tree_part();
 			gtk_widget_set_sensitive(back_btn, TRUE);
-		} else if ((col == COL_OPTION)) {
+		} else if (col == COL_OPTION) {
 			toggle_sym_value(menu);
 			gtk_tree_view_expand_row(view, path, TRUE);
 		}

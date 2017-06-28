@@ -36,7 +36,7 @@ enum nfqnl_vlan_attr {
 	NFQA_VLAN_TCI,			/* __be16 skb htons(vlan_tci) */
 	__NFQA_VLAN_MAX,
 };
-#define NFQA_VLAN_MAX (__NFQA_VLAN_MAX + 1)
+#define NFQA_VLAN_MAX (__NFQA_VLAN_MAX - 1)
 
 enum nfqnl_attr_type {
 	NFQA_UNSPEC,

@@ -322,8 +322,12 @@ static int mct_u232_get_modem_stat(struct usb_serial_port *port,
 			MCT_U232_GET_REQUEST_TYPE,
 			0, 0, buf, MCT_U232_GET_MODEM_STAT_SIZE,
 			WDR_TIMEOUT);
-	if (rc < 0) {
+	if (rc < MCT_U232_GET_MODEM_STAT_SIZE) {
 		dev_err(&port->dev, "Get MODEM STATus failed (error = %d)\n", rc);
+
+		if (rc >= 0)
+			rc = -EIO;
+
 		*msr = 0;
 	} else {
 		*msr = buf[0];

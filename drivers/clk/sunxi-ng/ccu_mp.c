@@ -85,15 +85,22 @@ static unsigned long ccu_mp_recalc_rate(struct clk_hw *hw,
 	unsigned int m, p;
 	u32 reg;
 
+	/* Adjust parent_rate according to pre-dividers */
+	ccu_mux_helper_adjust_parent_for_prediv(&cmp->common, &cmp->mux,
+						-1, &parent_rate);
+
 	reg = readl(cmp->common.base + cmp->common.reg);
 
 	m = reg >> cmp->m.shift;
 	m &= (1 << cmp->m.width) - 1;
+	m += cmp->m.offset;
+	if (!m)
+		m++;
 
 	p = reg >> cmp->p.shift;
 	p &= (1 << cmp->p.width) - 1;
 
-	return (parent_rate >> p) / (m + 1);
+	return (parent_rate >> p) / m;
 }
 
 static int ccu_mp_determine_rate(struct clk_hw *hw,
@@ -114,6 +121,10 @@ static int ccu_mp_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned int m, p;
 	u32 reg;
 
+	/* Adjust parent_rate according to pre-dividers */
+	ccu_mux_helper_adjust_parent_for_prediv(&cmp->common, &cmp->mux,
+						-1, &parent_rate);
+
 	max_m = cmp->m.max ?: 1 << cmp->m.width;
 	max_p = cmp->p.max ?: 1 << ((1 << cmp->p.width) - 1);
 
@@ -124,9 +135,10 @@ static int ccu_mp_set_rate(struct clk_hw *hw, unsigned long rate,
 	reg = readl(cmp->common.base + cmp->common.reg);
 	reg &= ~GENMASK(cmp->m.width + cmp->m.shift - 1, cmp->m.shift);
 	reg &= ~GENMASK(cmp->p.width + cmp->p.shift - 1, cmp->p.shift);
+	reg |= (m - cmp->m.offset) << cmp->m.shift;
+	reg |= ilog2(p) << cmp->p.shift;
 
-	writel(reg | (ilog2(p) << cmp->p.shift) | ((m - 1) << cmp->m.shift),
-	       cmp->common.base + cmp->common.reg);
+	writel(reg, cmp->common.base + cmp->common.reg);
 
 	spin_unlock_irqrestore(cmp->common.lock, flags);
 

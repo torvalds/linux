@@ -9,6 +9,7 @@ struct nvkm_mc {
 
 void nvkm_mc_enable(struct nvkm_device *, enum nvkm_devidx);
 void nvkm_mc_disable(struct nvkm_device *, enum nvkm_devidx);
+bool nvkm_mc_enabled(struct nvkm_device *, enum nvkm_devidx);
 void nvkm_mc_reset(struct nvkm_device *, enum nvkm_devidx);
 void nvkm_mc_intr(struct nvkm_device *, bool *handled);
 void nvkm_mc_intr_unarm(struct nvkm_device *);

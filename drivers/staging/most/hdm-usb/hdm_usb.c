@@ -145,7 +145,7 @@ static void wq_netinfo(struct work_struct *wq_obj);
 static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 {
 	int retval;
-	u16 *dma_buf = kzalloc(sizeof(u16), GFP_KERNEL);
+	__le16 *dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
 	u8 req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
 
 	if (!dma_buf)
@@ -154,7 +154,7 @@ static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 	retval = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 				 DRCI_READ_REQ, req_type,
 				 0x0000,
-				 reg, dma_buf, sizeof(u16), 5 * HZ);
+				 reg, dma_buf, sizeof(*dma_buf), 5 * HZ);
 	*buf = le16_to_cpu(*dma_buf);
 	kfree(dma_buf);
 
@@ -846,15 +846,15 @@ static struct usb_device_id usbid[] = {
 
 #define MOST_DCI_RO_ATTR(_name) \
 	struct most_dci_attribute most_dci_attr_##_name = \
-		__ATTR(_name, S_IRUGO, show_value, NULL)
+		__ATTR(_name, 0444, show_value, NULL)
 
 #define MOST_DCI_ATTR(_name) \
 	struct most_dci_attribute most_dci_attr_##_name = \
-		__ATTR(_name, S_IRUGO | S_IWUSR, show_value, store_value)
+		__ATTR(_name, 0644, show_value, store_value)
 
 #define MOST_DCI_WO_ATTR(_name) \
 	struct most_dci_attribute most_dci_attr_##_name = \
-		__ATTR(_name, S_IWUSR, NULL, store_value)
+		__ATTR(_name, 0200, NULL, store_value)
 
 /**
  * struct most_dci_attribute - to access the attributes of a dci object

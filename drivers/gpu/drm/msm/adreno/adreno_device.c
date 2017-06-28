@@ -75,12 +75,14 @@ static const struct adreno_info gpulist[] = {
 		.gmem  = (SZ_1M + SZ_512K),
 		.init  = a4xx_gpu_init,
 	}, {
-		.rev = ADRENO_REV(5, 3, 0, ANY_ID),
+		.rev = ADRENO_REV(5, 3, 0, 2),
 		.revn = 530,
 		.name = "A530",
 		.pm4fw = "a530_pm4.fw",
 		.pfpfw = "a530_pfp.fw",
 		.gmem = SZ_1M,
+		.quirks = ADRENO_QUIRK_TWO_PASS_USE_WFI |
+			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
 		.gpmufw = "a530v3_gpmu.fw2",
 	},
@@ -181,22 +183,51 @@ static void set_gpu_pdev(struct drm_device *dev,
 	priv->gpu_pdev = pdev;
 }
 
-static const struct {
-	const char *str;
-	uint32_t flag;
-} quirks[] = {
-	{ "qcom,gpu-quirk-two-pass-use-wfi", ADRENO_QUIRK_TWO_PASS_USE_WFI },
-	{ "qcom,gpu-quirk-fault-detect-mask", ADRENO_QUIRK_FAULT_DETECT_MASK },
-};
+static int find_chipid(struct device *dev, u32 *chipid)
+{
+	struct device_node *node = dev->of_node;
+	const char *compat;
+	int ret;
+
+	/* first search the compat strings for qcom,adreno-XYZ.W: */
+	ret = of_property_read_string_index(node, "compatible", 0, &compat);
+	if (ret == 0) {
+		unsigned rev, patch;
+
+		if (sscanf(compat, "qcom,adreno-%u.%u", &rev, &patch) == 2) {
+			*chipid = 0;
+			*chipid |= (rev / 100) << 24;  /* core */
+			rev %= 100;
+			*chipid |= (rev / 10) << 16;   /* major */
+			rev %= 10;
+			*chipid |= rev << 8;           /* minor */
+			*chipid |= patch;
+
+			return 0;
+		}
+	}
+
+	/* and if that fails, fall back to legacy "qcom,chipid" property: */
+	ret = of_property_read_u32(node, "qcom,chipid", chipid);
+	if (ret)
+		return ret;
+
+	dev_warn(dev, "Using legacy qcom,chipid binding!\n");
+	dev_warn(dev, "Use compatible qcom,adreno-%u%u%u.%u instead.\n",
+			(*chipid >> 24) & 0xff, (*chipid >> 16) & 0xff,
+			(*chipid >> 8) & 0xff, *chipid & 0xff);
+
+	return 0;
+}
 
 static int adreno_bind(struct device *dev, struct device *master, void *data)
 {
 	static struct adreno_platform_config config = {};
 	struct device_node *child, *node = dev->of_node;
 	u32 val;
-	int ret, i;
+	int ret;
 
-	ret = of_property_read_u32(node, "qcom,chipid", &val);
+	ret = find_chipid(dev, &val);
 	if (ret) {
 		dev_err(dev, "could not find chipid: %d\n", ret);
 		return ret;
@@ -224,13 +255,11 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	if (!config.fast_rate) {
-		dev_err(dev, "could not find clk rates\n");
-		return -ENXIO;
+		dev_warn(dev, "could not find clk rates\n");
+		/* This is a safe low speed for all devices: */
+		config.fast_rate = 200000000;
+		config.slow_rate = 27000000;
 	}
-
-	for (i = 0; i < ARRAY_SIZE(quirks); i++)
-		if (of_property_read_bool(node, quirks[i].str))
-			config.quirks |= quirks[i].flag;
 
 	dev->platform_data = &config;
 	set_gpu_pdev(dev_get_drvdata(master), to_platform_device(dev));
@@ -260,6 +289,7 @@ static int adreno_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dt_match[] = {
+	{ .compatible = "qcom,adreno" },
 	{ .compatible = "qcom,adreno-3xx" },
 	/* for backwards compat w/ downstream kgsl DT files: */
 	{ .compatible = "qcom,kgsl-3d0" },

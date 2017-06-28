@@ -9,6 +9,8 @@
 
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
+
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

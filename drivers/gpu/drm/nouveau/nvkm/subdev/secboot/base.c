@@ -19,184 +19,108 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+/*
+ * Secure boot is the process by which NVIDIA-signed firmware is loaded into
+ * some of the falcons of a GPU. For production devices this is the only way
+ * for the firmware to access useful (but sensitive) registers.
+ *
+ * A Falcon microprocessor supporting advanced security modes can run in one of
+ * three modes:
+ *
+ * - Non-secure (NS). In this mode, functionality is similar to Falcon
+ *   architectures before security modes were introduced (pre-Maxwell), but
+ *   capability is restricted. In particular, certain registers may be
+ *   inaccessible for reads and/or writes, and physical memory access may be
+ *   disabled (on certain Falcon instances). This is the only possible mode that
+ *   can be used if you don't have microcode cryptographically signed by NVIDIA.
+ *
+ * - Heavy Secure (HS). In this mode, the microprocessor is a black box - it's
+ *   not possible to read or write any Falcon internal state or Falcon registers
+ *   from outside the Falcon (for example, from the host system). The only way
+ *   to enable this mode is by loading microcode that has been signed by NVIDIA.
+ *   (The loading process involves tagging the IMEM block as secure, writing the
+ *   signature into a Falcon register, and starting execution. The hardware will
+ *   validate the signature, and if valid, grant HS privileges.)
+ *
+ * - Light Secure (LS). In this mode, the microprocessor has more privileges
+ *   than NS but fewer than HS. Some of the microprocessor state is visible to
+ *   host software to ease debugging. The only way to enable this mode is by HS
+ *   microcode enabling LS mode. Some privileges available to HS mode are not
+ *   available here. LS mode is introduced in GM20x.
+ *
+ * Secure boot consists in temporarily switching a HS-capable falcon (typically
+ * PMU) into HS mode in order to validate the LS firmwares of managed falcons,
+ * load them, and switch managed falcons into LS mode. Once secure boot
+ * completes, no falcon remains in HS mode.
+ *
+ * Secure boot requires a write-protected memory region (WPR) which can only be
+ * written by the secure falcon. On dGPU, the driver sets up the WPR region in
+ * video memory. On Tegra, it is set up by the bootloader and its location and
+ * size written into memory controller registers.
+ *
+ * The secure boot process takes place as follows:
+ *
+ * 1) A LS blob is constructed that contains all the LS firmwares we want to
+ *    load, along with their signatures and bootloaders.
+ *
+ * 2) A HS blob (also called ACR) is created that contains the signed HS
+ *    firmware in charge of loading the LS firmwares into their respective
+ *    falcons.
+ *
+ * 3) The HS blob is loaded (via its own bootloader) and executed on the
+ *    HS-capable falcon. It authenticates itself, switches the secure falcon to
+ *    HS mode and setup the WPR region around the LS blob (dGPU) or copies the
+ *    LS blob into the WPR region (Tegra).
+ *
+ * 4) The LS blob is now secure from all external tampering. The HS falcon
+ *    checks the signatures of the LS firmwares and, if valid, switches the
+ *    managed falcons to LS mode and makes them ready to run the LS firmware.
+ *
+ * 5) The managed falcons remain in LS mode and can be started.
+ *
+ */
+
 #include "priv.h"
+#include "acr.h"
 
 #include <subdev/mc.h>
 #include <subdev/timer.h>
+#include <subdev/pmu.h>
 
-static const char *
-managed_falcons_names[] = {
+const char *
+nvkm_secboot_falcon_name[] = {
 	[NVKM_SECBOOT_FALCON_PMU] = "PMU",
 	[NVKM_SECBOOT_FALCON_RESERVED] = "<reserved>",
 	[NVKM_SECBOOT_FALCON_FECS] = "FECS",
 	[NVKM_SECBOOT_FALCON_GPCCS] = "GPCCS",
 	[NVKM_SECBOOT_FALCON_END] = "<invalid>",
 };
-
-/*
- * Helper falcon functions
- */
-
-static int
-falcon_clear_halt_interrupt(struct nvkm_device *device, u32 base)
-{
-	int ret;
-
-	/* clear halt interrupt */
-	nvkm_mask(device, base + 0x004, 0x10, 0x10);
-	/* wait until halt interrupt is cleared */
-	ret = nvkm_wait_msec(device, 10, base + 0x008, 0x10, 0x0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int
-falcon_wait_idle(struct nvkm_device *device, u32 base)
-{
-	int ret;
-
-	ret = nvkm_wait_msec(device, 10, base + 0x04c, 0xffff, 0x0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int
-nvkm_secboot_falcon_enable(struct nvkm_secboot *sb)
-{
-	struct nvkm_device *device = sb->subdev.device;
-	int ret;
-
-	/* enable engine */
-	nvkm_mc_enable(device, sb->devidx);
-	ret = nvkm_wait_msec(device, 10, sb->base + 0x10c, 0x6, 0x0);
-	if (ret < 0) {
-		nvkm_error(&sb->subdev, "Falcon mem scrubbing timeout\n");
-		nvkm_mc_disable(device, sb->devidx);
-		return ret;
-	}
-
-	ret = falcon_wait_idle(device, sb->base);
-	if (ret)
-		return ret;
-
-	/* enable IRQs */
-	nvkm_wr32(device, sb->base + 0x010, 0xff);
-	nvkm_mc_intr_mask(device, sb->devidx, true);
-
-	return 0;
-}
-
-static int
-nvkm_secboot_falcon_disable(struct nvkm_secboot *sb)
-{
-	struct nvkm_device *device = sb->subdev.device;
-
-	/* disable IRQs and wait for any previous code to complete */
-	nvkm_mc_intr_mask(device, sb->devidx, false);
-	nvkm_wr32(device, sb->base + 0x014, 0xff);
-
-	falcon_wait_idle(device, sb->base);
-
-	/* disable engine */
-	nvkm_mc_disable(device, sb->devidx);
-
-	return 0;
-}
-
-int
-nvkm_secboot_falcon_reset(struct nvkm_secboot *sb)
-{
-	int ret;
-
-	ret = nvkm_secboot_falcon_disable(sb);
-	if (ret)
-		return ret;
-
-	ret = nvkm_secboot_falcon_enable(sb);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-/**
- * nvkm_secboot_falcon_run - run the falcon that will perform secure boot
- *
- * This function is to be called after all chip-specific preparations have
- * been completed. It will start the falcon to perform secure boot, wait for
- * it to halt, and report if an error occurred.
- */
-int
-nvkm_secboot_falcon_run(struct nvkm_secboot *sb)
-{
-	struct nvkm_device *device = sb->subdev.device;
-	int ret;
-
-	/* Start falcon */
-	nvkm_wr32(device, sb->base + 0x100, 0x2);
-
-	/* Wait for falcon halt */
-	ret = nvkm_wait_msec(device, 100, sb->base + 0x100, 0x10, 0x10);
-	if (ret < 0)
-		return ret;
-
-	/* If mailbox register contains an error code, then ACR has failed */
-	ret = nvkm_rd32(device, sb->base + 0x040);
-	if (ret) {
-		nvkm_error(&sb->subdev, "ACR boot failed, ret 0x%08x", ret);
-		falcon_clear_halt_interrupt(device, sb->base);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-
 /**
  * nvkm_secboot_reset() - reset specified falcon
  */
 int
-nvkm_secboot_reset(struct nvkm_secboot *sb, u32 falcon)
+nvkm_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
 {
 	/* Unmanaged falcon? */
-	if (!(BIT(falcon) & sb->func->managed_falcons)) {
+	if (!(BIT(falcon) & sb->acr->managed_falcons)) {
 		nvkm_error(&sb->subdev, "cannot reset unmanaged falcon!\n");
 		return -EINVAL;
 	}
 
-	return sb->func->reset(sb, falcon);
-}
-
-/**
- * nvkm_secboot_start() - start specified falcon
- */
-int
-nvkm_secboot_start(struct nvkm_secboot *sb, u32 falcon)
-{
-	/* Unmanaged falcon? */
-	if (!(BIT(falcon) & sb->func->managed_falcons)) {
-		nvkm_error(&sb->subdev, "cannot start unmanaged falcon!\n");
-		return -EINVAL;
-	}
-
-	return sb->func->start(sb, falcon);
+	return sb->acr->func->reset(sb->acr, sb, falcon);
 }
 
 /**
  * nvkm_secboot_is_managed() - check whether a given falcon is securely-managed
  */
 bool
-nvkm_secboot_is_managed(struct nvkm_secboot *secboot,
-			enum nvkm_secboot_falcon fid)
+nvkm_secboot_is_managed(struct nvkm_secboot *sb, enum nvkm_secboot_falcon fid)
 {
-	if (!secboot)
+	if (!sb)
 		return false;
 
-	return secboot->func->managed_falcons & BIT(fid);
+	return sb->acr->managed_falcons & BIT(fid);
 }
 
 static int
@@ -205,9 +129,19 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 	struct nvkm_secboot *sb = nvkm_secboot(subdev);
 	int ret = 0;
 
+	switch (sb->acr->boot_falcon) {
+	case NVKM_SECBOOT_FALCON_PMU:
+		sb->boot_falcon = subdev->device->pmu->falcon;
+		break;
+	default:
+		nvkm_error(subdev, "Unmanaged boot falcon %s!\n",
+			                nvkm_secboot_falcon_name[sb->acr->boot_falcon]);
+		return -EINVAL;
+	}
+
 	/* Call chip-specific init function */
-	if (sb->func->init)
-		ret = sb->func->init(sb);
+	if (sb->func->oneinit)
+		ret = sb->func->oneinit(sb);
 	if (ret) {
 		nvkm_error(subdev, "Secure Boot initialization failed: %d\n",
 			   ret);
@@ -249,7 +183,7 @@ nvkm_secboot = {
 };
 
 int
-nvkm_secboot_ctor(const struct nvkm_secboot_func *func,
+nvkm_secboot_ctor(const struct nvkm_secboot_func *func, struct nvkm_acr *acr,
 		  struct nvkm_device *device, int index,
 		  struct nvkm_secboot *sb)
 {
@@ -257,22 +191,14 @@ nvkm_secboot_ctor(const struct nvkm_secboot_func *func,
 
 	nvkm_subdev_ctor(&nvkm_secboot, device, index, &sb->subdev);
 	sb->func = func;
-
-	/* setup the performing falcon's base address and masks */
-	switch (func->boot_falcon) {
-	case NVKM_SECBOOT_FALCON_PMU:
-		sb->devidx = NVKM_SUBDEV_PMU;
-		sb->base = 0x10a000;
-		break;
-	default:
-		nvkm_error(&sb->subdev, "invalid secure boot falcon\n");
-		return -EINVAL;
-	};
+	sb->acr = acr;
+	acr->subdev = &sb->subdev;
 
 	nvkm_debug(&sb->subdev, "securely managed falcons:\n");
-	for_each_set_bit(fid, &sb->func->managed_falcons,
+	for_each_set_bit(fid, &sb->acr->managed_falcons,
 			 NVKM_SECBOOT_FALCON_END)
-		nvkm_debug(&sb->subdev, "- %s\n", managed_falcons_names[fid]);
+		nvkm_debug(&sb->subdev, "- %s\n",
+			   nvkm_secboot_falcon_name[fid]);
 
 	return 0;
 }

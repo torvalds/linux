@@ -12,6 +12,7 @@
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_mipi_dsi.h>
@@ -317,6 +318,8 @@ struct adv7511 {
 	bool edid_read;
 
 	wait_queue_head_t wq;
+	struct work_struct hpd_work;
+
 	struct drm_bridge bridge;
 	struct drm_connector connector;
 
@@ -328,6 +331,9 @@ struct adv7511 {
 	struct edid *edid;
 
 	struct gpio_desc *gpio_pd;
+
+	struct regulator_bulk_data *supplies;
+	unsigned int num_supplies;
 
 	/* ADV7533 DSI RX related params */
 	struct device_node *host_node;

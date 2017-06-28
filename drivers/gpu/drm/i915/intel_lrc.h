@@ -26,7 +26,7 @@
 
 #include "intel_ringbuffer.h"
 
-#define GEN8_LR_CONTEXT_ALIGN 4096
+#define GEN8_LR_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
 
 /* Execlists regs */
 #define RING_ELSP(engine)			_MMIO((engine)->mmio_base + 0x230)
@@ -63,14 +63,12 @@ enum {
 };
 
 /* Logical Rings */
-int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request);
-int intel_logical_ring_reserve_space(struct drm_i915_gem_request *request);
 void intel_logical_ring_stop(struct intel_engine_cs *engine);
 void intel_logical_ring_cleanup(struct intel_engine_cs *engine);
 int logical_render_ring_init(struct intel_engine_cs *engine);
 int logical_xcs_ring_init(struct intel_engine_cs *engine);
 
-int intel_engines_init(struct drm_device *dev);
+int intel_engines_init(struct drm_i915_private *dev_priv);
 
 /* Logical Ring Contexts */
 
@@ -79,13 +77,10 @@ int intel_engines_init(struct drm_device *dev);
 #define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + 1)
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
+struct drm_i915_private;
 struct i915_gem_context;
 
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
-void intel_lr_context_unpin(struct i915_gem_context *ctx,
-			    struct intel_engine_cs *engine);
-
-struct drm_i915_private;
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv);
 uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,

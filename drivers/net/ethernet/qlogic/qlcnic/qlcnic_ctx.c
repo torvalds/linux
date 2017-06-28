@@ -573,8 +573,10 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 		ptr = (__le32 *)dma_alloc_coherent(&pdev->dev, sizeof(u32),
 						   &tx_ring->hw_cons_phys_addr,
 						   GFP_KERNEL);
-		if (ptr == NULL)
-			return -ENOMEM;
+		if (ptr == NULL) {
+			err = -ENOMEM;
+			goto err_out_free;
+		}
 
 		tx_ring->hw_consumer = ptr;
 		/* cmd desc ring */

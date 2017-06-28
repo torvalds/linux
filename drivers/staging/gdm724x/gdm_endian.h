@@ -16,6 +16,13 @@
 
 #include <linux/types.h>
 
+/*
+ * For data in "device-endian" byte order (device endianness is model
+ * dependent).  Analogous to __leXX or __beXX.
+ */
+typedef __u32 __bitwise __dev32;
+typedef __u16 __bitwise __dev16;
+
 enum {
 	ENDIANNESS_MIN = 0,
 	ENDIANNESS_UNKNOWN,
@@ -30,9 +37,9 @@ struct gdm_endian {
 };
 
 void gdm_set_endian(struct gdm_endian *ed, u8 dev_endian);
-u16 gdm_cpu_to_dev16(struct gdm_endian *ed, u16 x);
-u16 gdm_dev16_to_cpu(struct gdm_endian *ed, u16 x);
-u32 gdm_cpu_to_dev32(struct gdm_endian *ed, u32 x);
-u32 gdm_dev32_to_cpu(struct gdm_endian *ed, u32 x);
+__dev16 gdm_cpu_to_dev16(struct gdm_endian *ed, u16 x);
+u16 gdm_dev16_to_cpu(struct gdm_endian *ed, __dev16 x);
+__dev32 gdm_cpu_to_dev32(struct gdm_endian *ed, u32 x);
+u32 gdm_dev32_to_cpu(struct gdm_endian *ed, __dev32 x);
 
 #endif /*__GDM_ENDIAN_H__*/

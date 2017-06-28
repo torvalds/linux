@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -349,8 +349,8 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	rc = wmi_addba_rx_resp(wil, cid, tid, dialog_token, status,
 			       agg_amsdu, agg_wsize, agg_timeout);
 	if (rc || (status != WLAN_STATUS_SUCCESS)) {
-		wil_err(wil, "%s: do not apply ba, rc(%d), status(%d)\n",
-			__func__, rc, status);
+		wil_err(wil, "do not apply ba, rc(%d), status(%d)\n", rc,
+			status);
 		goto out;
 	}
 
@@ -387,7 +387,7 @@ int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize)
 	txdata->addba_in_progress = true;
 	rc = wmi_addba(wil, ringid, agg_wsize, agg_timeout);
 	if (rc) {
-		wil_err(wil, "%s: wmi_addba failed, rc (%d)", __func__, rc);
+		wil_err(wil, "wmi_addba failed, rc (%d)", rc);
 		txdata->addba_in_progress = false;
 	}
 

@@ -300,7 +300,7 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 	return 0;
 
 err_tty_register_device_failed:
-	free_irq(irq, pdev);
+	free_irq(irq, qtty);
 err_request_irq_failed:
 	goldfish_tty_current_line_count--;
 	if (goldfish_tty_current_line_count == 0)

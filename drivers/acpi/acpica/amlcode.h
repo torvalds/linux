@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -277,9 +277,23 @@
 #define ARGI_DEVICE_REF             0x0D
 #define ARGI_REFERENCE              0x0E
 #define ARGI_TARGETREF              0x0F	/* Target, subject to implicit conversion */
-#define ARGI_FIXED_TARGET           0x10	/* Target, no implicit conversion */
-#define ARGI_SIMPLE_TARGET          0x11	/* Name, Local, Arg -- no implicit conversion */
-#define ARGI_STORE_TARGET           0x12	/* Target for store is TARGETREF + package objects */
+#define ARGI_SIMPLE_TARGET          0x10	/* Name, Local, Arg -- no implicit conversion */
+#define ARGI_STORE_TARGET           0x11	/* Target for store is TARGETREF + package objects */
+/*
+ * #define ARGI_FIXED_TARGET           0x10     Target, no implicit conversion
+ *
+ * Removed 10/2016. ARGI_FIXED_TARGET was used for these operators:
+ *      from_BCD
+ *      to_BCD
+ *      to_decimal_string
+ *      to_hex_string
+ *      to_integer
+ *      to_buffer
+ * The purpose of this type was to disable "implicit result conversion",
+ * but this was incorrect per the ACPI spec and other ACPI implementations.
+ * These operators now have the target operand defined as a normal
+ * ARGI_TARGETREF.
+ */
 
 /* Multiple/complex types */
 

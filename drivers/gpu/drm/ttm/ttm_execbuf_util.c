@@ -48,9 +48,7 @@ static void ttm_eu_del_from_lru_locked(struct list_head *list)
 
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
-		unsigned put_count = ttm_bo_del_from_lru(bo);
-
-		ttm_bo_list_ref_sub(bo, put_count, true);
+		ttm_bo_del_from_lru(bo);
 	}
 }
 

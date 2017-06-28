@@ -1,3 +1,37 @@
+/*
+ *	Adaptec AAC series RAID controller driver
+ *	(c) Copyright 2001 Red Hat Inc.	<alan@redhat.com>
+ *
+ * based on the old aacraid driver that is..
+ * Adaptec aacraid device driver for Linux.
+ *
+ * Copyright (c) 2000-2010 Adaptec, Inc.
+ *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.  If not, write to
+ * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * Module Name:
+ *  aacraid.h
+ *
+ * Abstract: Contains all routines for control of the aacraid driver
+ *
+ */
+
+#ifndef _AACRAID_H_
+#define _AACRAID_H_
 #ifndef dprintk
 # define dprintk(x)
 #endif
@@ -63,8 +97,8 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 41066
-# define AAC_DRIVER_BRANCH "-ms"
+# define AAC_DRIVER_BUILD 50792
+# define AAC_DRIVER_BRANCH "-custom"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
 
@@ -72,12 +106,310 @@ enum {
 #define AAC_NUM_IO_FIB		(1024 - AAC_NUM_MGT_FIB)
 #define AAC_NUM_FIB		(AAC_NUM_IO_FIB + AAC_NUM_MGT_FIB)
 
-#define AAC_MAX_LUN		(8)
+#define AAC_MAX_LUN		256
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
 #define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)256)
 
 #define AAC_DEBUG_INSTRUMENT_AIF_DELETE
+
+#define AAC_MAX_NATIVE_TARGETS		1024
+/* Thor: 5 phys. buses: #0: empty, 1-4: 256 targets each */
+#define AAC_MAX_BUSES			5
+#define AAC_MAX_TARGETS		256
+#define AAC_MAX_NATIVE_SIZE		2048
+#define FW_ERROR_BUFFER_SIZE		512
+
+/* Thor AIF events */
+#define SA_AIF_HOTPLUG			(1<<1)
+#define SA_AIF_HARDWARE		(1<<2)
+#define SA_AIF_PDEV_CHANGE		(1<<4)
+#define SA_AIF_LDEV_CHANGE		(1<<5)
+#define SA_AIF_BPSTAT_CHANGE		(1<<30)
+#define SA_AIF_BPCFG_CHANGE		(1<<31)
+
+#define HBA_MAX_SG_EMBEDDED		28
+#define HBA_MAX_SG_SEPARATE		90
+#define HBA_SENSE_DATA_LEN_MAX		32
+#define HBA_REQUEST_TAG_ERROR_FLAG	0x00000002
+#define HBA_SGL_FLAGS_EXT		0x80000000UL
+
+struct aac_hba_sgl {
+	u32		addr_lo; /* Lower 32-bits of SGL element address */
+	u32		addr_hi; /* Upper 32-bits of SGL element address */
+	u32		len;	/* Length of SGL element in bytes */
+	u32		flags;	/* SGL element flags */
+};
+
+enum {
+	HBA_IU_TYPE_SCSI_CMD_REQ		= 0x40,
+	HBA_IU_TYPE_SCSI_TM_REQ			= 0x41,
+	HBA_IU_TYPE_SATA_REQ			= 0x42,
+	HBA_IU_TYPE_RESP			= 0x60,
+	HBA_IU_TYPE_COALESCED_RESP		= 0x61,
+	HBA_IU_TYPE_INT_COALESCING_CFG_REQ	= 0x70
+};
+
+enum {
+	HBA_CMD_BYTE1_DATA_DIR_IN		= 0x1,
+	HBA_CMD_BYTE1_DATA_DIR_OUT		= 0x2,
+	HBA_CMD_BYTE1_DATA_TYPE_DDR		= 0x4,
+	HBA_CMD_BYTE1_CRYPTO_ENABLE		= 0x8
+};
+
+enum {
+	HBA_CMD_BYTE1_BITOFF_DATA_DIR_IN	= 0x0,
+	HBA_CMD_BYTE1_BITOFF_DATA_DIR_OUT,
+	HBA_CMD_BYTE1_BITOFF_DATA_TYPE_DDR,
+	HBA_CMD_BYTE1_BITOFF_CRYPTO_ENABLE
+};
+
+enum {
+	HBA_RESP_DATAPRES_NO_DATA		= 0x0,
+	HBA_RESP_DATAPRES_RESPONSE_DATA,
+	HBA_RESP_DATAPRES_SENSE_DATA
+};
+
+enum {
+	HBA_RESP_SVCRES_TASK_COMPLETE		= 0x0,
+	HBA_RESP_SVCRES_FAILURE,
+	HBA_RESP_SVCRES_TMF_COMPLETE,
+	HBA_RESP_SVCRES_TMF_SUCCEEDED,
+	HBA_RESP_SVCRES_TMF_REJECTED,
+	HBA_RESP_SVCRES_TMF_LUN_INVALID
+};
+
+enum {
+	HBA_RESP_STAT_IO_ERROR			= 0x1,
+	HBA_RESP_STAT_IO_ABORTED,
+	HBA_RESP_STAT_NO_PATH_TO_DEVICE,
+	HBA_RESP_STAT_INVALID_DEVICE,
+	HBA_RESP_STAT_HBAMODE_DISABLED		= 0xE,
+	HBA_RESP_STAT_UNDERRUN			= 0x51,
+	HBA_RESP_STAT_OVERRUN			= 0x75
+};
+
+struct aac_hba_cmd_req {
+	u8	iu_type;	/* HBA information unit type */
+	/*
+	 * byte1:
+	 * [1:0] DIR - 0=No data, 0x1 = IN, 0x2 = OUT
+	 * [2]   TYPE - 0=PCI, 1=DDR
+	 * [3]   CRYPTO_ENABLE - 0=Crypto disabled, 1=Crypto enabled
+	 */
+	u8	byte1;
+	u8	reply_qid;	/* Host reply queue to post response to */
+	u8	reserved1;
+	__le32	it_nexus;	/* Device handle for the request */
+	__le32	request_id;	/* Sender context */
+	/* Lower 32-bits of tweak value for crypto enabled IOs */
+	__le32	tweak_value_lo;
+	u8	cdb[16];	/* SCSI CDB of the command */
+	u8	lun[8];		/* SCSI LUN of the command */
+
+	/* Total data length in bytes to be read/written (if any) */
+	__le32	data_length;
+
+	/* [2:0] Task Attribute, [6:3] Command Priority */
+	u8	attr_prio;
+
+	/* Number of SGL elements embedded in the HBA req */
+	u8	emb_data_desc_count;
+
+	__le16	dek_index;	/* DEK index for crypto enabled IOs */
+
+	/* Lower 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_lo;
+
+	/* Upper 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_hi;
+
+	/* Length of reserved error data area on the host in bytes */
+	__le32	error_length;
+
+	/* Upper 32-bits of tweak value for crypto enabled IOs */
+	__le32	tweak_value_hi;
+
+	struct aac_hba_sgl sge[HBA_MAX_SG_SEPARATE+2]; /* SG list space */
+
+	/*
+	 * structure must not exceed
+	 * AAC_MAX_NATIVE_SIZE-FW_ERROR_BUFFER_SIZE
+	 */
+};
+
+/* Task Management Functions (TMF) */
+#define HBA_TMF_ABORT_TASK	0x01
+#define HBA_TMF_LUN_RESET	0x08
+
+struct aac_hba_tm_req {
+	u8	iu_type;	/* HBA information unit type */
+	u8	reply_qid;	/* Host reply queue to post response to */
+	u8	tmf;		/* Task management function */
+	u8	reserved1;
+
+	__le32	it_nexus;	/* Device handle for the command */
+
+	u8	lun[8];		/* SCSI LUN */
+
+	/* Used to hold sender context. */
+	__le32	request_id;	/* Sender context */
+	__le32	reserved2;
+
+	/* Request identifier of managed task */
+	__le32	managed_request_id;	/* Sender context being managed */
+	__le32	reserved3;
+
+	/* Lower 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_lo;
+	/* Upper 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_hi;
+	/* Length of reserved error data area on the host in bytes */
+	__le32	error_length;
+};
+
+struct aac_hba_reset_req {
+	u8	iu_type;	/* HBA information unit type */
+	/* 0 - reset specified device, 1 - reset all devices */
+	u8	reset_type;
+	u8	reply_qid;	/* Host reply queue to post response to */
+	u8	reserved1;
+
+	__le32	it_nexus;	/* Device handle for the command */
+	__le32	request_id;	/* Sender context */
+	/* Lower 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_lo;
+	/* Upper 32-bits of reserved error data target location on the host */
+	__le32	error_ptr_hi;
+	/* Length of reserved error data area on the host in bytes */
+	__le32	error_length;
+};
+
+struct aac_hba_resp {
+	u8	iu_type;		/* HBA information unit type */
+	u8	reserved1[3];
+	__le32	request_identifier;	/* sender context */
+	__le32	reserved2;
+	u8	service_response;	/* SCSI service response */
+	u8	status;			/* SCSI status */
+	u8	datapres;	/* [1:0] - data present, [7:2] - reserved */
+	u8	sense_response_data_len;	/* Sense/response data length */
+	__le32	residual_count;		/* Residual data length in bytes */
+	/* Sense/response data */
+	u8	sense_response_buf[HBA_SENSE_DATA_LEN_MAX];
+};
+
+struct aac_native_hba {
+	union {
+		struct aac_hba_cmd_req cmd;
+		struct aac_hba_tm_req tmr;
+		u8 cmd_bytes[AAC_MAX_NATIVE_SIZE-FW_ERROR_BUFFER_SIZE];
+	} cmd;
+	union {
+		struct aac_hba_resp err;
+		u8 resp_bytes[FW_ERROR_BUFFER_SIZE];
+	} resp;
+};
+
+#define CISS_REPORT_PHYSICAL_LUNS	0xc3
+#define WRITE_HOST_WELLNESS		0xa5
+#define CISS_IDENTIFY_PHYSICAL_DEVICE	0x15
+#define BMIC_IN			0x26
+#define BMIC_OUT			0x27
+
+struct aac_ciss_phys_luns_resp {
+	u8	list_length[4];		/* LUN list length (N-7, big endian) */
+	u8	resp_flag;		/* extended response_flag */
+	u8	reserved[3];
+	struct _ciss_lun {
+		u8	tid[3];		/* Target ID */
+		u8	bus;		/* Bus, flag (bits 6,7) */
+		u8	level3[2];
+		u8	level2[2];
+		u8	node_ident[16];	/* phys. node identifier */
+	} lun[1];			/* List of phys. devices */
+};
+
+/*
+ * Interrupts
+ */
+#define AAC_MAX_HRRQ		64
+
+struct aac_ciss_identify_pd {
+	u8 scsi_bus;			/* SCSI Bus number on controller */
+	u8 scsi_id;			/* SCSI ID on this bus */
+	u16 block_size;			/* sector size in bytes */
+	u32 total_blocks;		/* number for sectors on drive */
+	u32 reserved_blocks;		/* controller reserved (RIS) */
+	u8 model[40];			/* Physical Drive Model */
+	u8 serial_number[40];		/* Drive Serial Number */
+	u8 firmware_revision[8];	/* drive firmware revision */
+	u8 scsi_inquiry_bits;		/* inquiry byte 7 bits */
+	u8 compaq_drive_stamp;		/* 0 means drive not stamped */
+	u8 last_failure_reason;
+
+	u8  flags;
+	u8  more_flags;
+	u8  scsi_lun;			/* SCSI LUN for phys drive */
+	u8  yet_more_flags;
+	u8  even_more_flags;
+	u32 spi_speed_rules;		/* SPI Speed :Ultra disable diagnose */
+	u8  phys_connector[2];		/* connector number on controller */
+	u8  phys_box_on_bus;		/* phys enclosure this drive resides */
+	u8  phys_bay_in_box;		/* phys drv bay this drive resides */
+	u32 rpm;			/* Drive rotational speed in rpm */
+	u8  device_type;		/* type of drive */
+	u8  sata_version;		/* only valid when drive_type is SATA */
+	u64 big_total_block_count;
+	u64 ris_starting_lba;
+	u32 ris_size;
+	u8  wwid[20];
+	u8  controller_phy_map[32];
+	u16 phy_count;
+	u8  phy_connected_dev_type[256];
+	u8  phy_to_drive_bay_num[256];
+	u16 phy_to_attached_dev_index[256];
+	u8  box_index;
+	u8  spitfire_support;
+	u16 extra_physical_drive_flags;
+	u8  negotiated_link_rate[256];
+	u8  phy_to_phy_map[256];
+	u8  redundant_path_present_map;
+	u8  redundant_path_failure_map;
+	u8  active_path_number;
+	u16 alternate_paths_phys_connector[8];
+	u8  alternate_paths_phys_box_on_port[8];
+	u8  multi_lun_device_lun_count;
+	u8  minimum_good_fw_revision[8];
+	u8  unique_inquiry_bytes[20];
+	u8  current_temperature_degreesC;
+	u8  temperature_threshold_degreesC;
+	u8  max_temperature_degreesC;
+	u8  logical_blocks_per_phys_block_exp;	/* phyblocksize = 512 * 2^exp */
+	u16 current_queue_depth_limit;
+	u8  switch_name[10];
+	u16 switch_port;
+	u8  alternate_paths_switch_name[40];
+	u8  alternate_paths_switch_port[8];
+	u16 power_on_hours;		/* valid only if gas gauge supported */
+	u16 percent_endurance_used;	/* valid only if gas gauge supported. */
+	u8  drive_authentication;
+	u8  smart_carrier_authentication;
+	u8  smart_carrier_app_fw_version;
+	u8  smart_carrier_bootloader_fw_version;
+	u8  SanitizeSecureEraseSupport;
+	u8  DriveKeyFlags;
+	u8  encryption_key_name[64];
+	u32 misc_drive_flags;
+	u16 dek_index;
+	u16 drive_encryption_flags;
+	u8  sanitize_maximum_time[6];
+	u8  connector_info_mode;
+	u8  connector_info_number[4];
+	u8  long_connector_name[64];
+	u8  device_unique_identifier[16];
+	u8  padto_2K[17];
+} __packed;
 
 /*
  * These macros convert from physical channels to virtual channels
@@ -86,6 +418,7 @@ enum {
 #define CONTAINER_TO_CHANNEL(cont)	(CONTAINER_CHANNEL)
 #define CONTAINER_TO_ID(cont)		(cont)
 #define CONTAINER_TO_LUN(cont)		(0)
+#define ENCLOSURE_CHANNEL		(3)
 
 #define PMC_DEVICE_S6	0x28b
 #define PMC_DEVICE_S7	0x28c
@@ -351,10 +684,10 @@ enum aac_queue_types {
 
 /* transport FIB header (PMC) */
 struct aac_fib_xporthdr {
-	u64	HostAddress;	/* FIB host address w/o xport header */
-	u32	Size;		/* FIB size excluding xport header */
-	u32	Handle;		/* driver handle to reference the FIB */
-	u64	Reserved[2];
+	__le64	HostAddress;	/* FIB host address w/o xport header */
+	__le32	Size;		/* FIB size excluding xport header */
+	__le32	Handle;		/* driver handle to reference the FIB */
+	__le64	Reserved[2];
 };
 
 #define		ALIGN32		32
@@ -379,7 +712,7 @@ struct aac_fibhdr {
 		__le32 SenderFibAddressHigh;/* upper 32bit of phys. FIB address */
 		__le32 TimeStamp;	/* otherwise timestamp for FW internal use */
 	} u;
-	u32 Handle;		/* FIB handle used for MSGU commnunication */
+	__le32 Handle;		/* FIB handle used for MSGU commnunication */
 	u32 Previous;		/* FW internal use */
 	u32 Next;		/* FW internal use */
 };
@@ -489,41 +822,64 @@ enum fib_xfer_state {
 #define ADAPTER_INIT_STRUCT_REVISION_4		4 // rocket science
 #define ADAPTER_INIT_STRUCT_REVISION_6		6 /* PMC src */
 #define ADAPTER_INIT_STRUCT_REVISION_7		7 /* Denali */
+#define ADAPTER_INIT_STRUCT_REVISION_8		8 // Thor
 
-struct aac_init
+union aac_init
 {
-	__le32	InitStructRevision;
-	__le32	Sa_MSIXVectors;
-	__le32	fsrev;
-	__le32	CommHeaderAddress;
-	__le32	FastIoCommAreaAddress;
-	__le32	AdapterFibsPhysicalAddress;
-	__le32	AdapterFibsVirtualAddress;
-	__le32	AdapterFibsSize;
-	__le32	AdapterFibAlign;
-	__le32	printfbuf;
-	__le32	printfbufsiz;
-	__le32	HostPhysMemPages;   /* number of 4k pages of host
-				       physical memory */
-	__le32	HostElapsedSeconds; /* number of seconds since 1970. */
-	/*
-	 * ADAPTER_INIT_STRUCT_REVISION_4 begins here
-	 */
-	__le32	InitFlags;	/* flags for supported features */
+	struct _r7 {
+		__le32	init_struct_revision;
+		__le32	no_of_msix_vectors;
+		__le32	fsrev;
+		__le32	comm_header_address;
+		__le32	fast_io_comm_area_address;
+		__le32	adapter_fibs_physical_address;
+		__le32	adapter_fibs_virtual_address;
+		__le32	adapter_fibs_size;
+		__le32	adapter_fib_align;
+		__le32	printfbuf;
+		__le32	printfbufsiz;
+		/* number of 4k pages of host phys. mem. */
+		__le32	host_phys_mem_pages;
+		/* number of seconds since 1970. */
+		__le32	host_elapsed_seconds;
+		/* ADAPTER_INIT_STRUCT_REVISION_4 begins here */
+		__le32	init_flags;	/* flags for supported features */
 #define INITFLAGS_NEW_COMM_SUPPORTED	0x00000001
 #define INITFLAGS_DRIVER_USES_UTC_TIME	0x00000010
 #define INITFLAGS_DRIVER_SUPPORTS_PM	0x00000020
 #define INITFLAGS_NEW_COMM_TYPE1_SUPPORTED	0x00000040
 #define INITFLAGS_FAST_JBOD_SUPPORTED	0x00000080
 #define INITFLAGS_NEW_COMM_TYPE2_SUPPORTED	0x00000100
-	__le32	MaxIoCommands;	/* max outstanding commands */
-	__le32	MaxIoSize;	/* largest I/O command */
-	__le32	MaxFibSize;	/* largest FIB to adapter */
-	/* ADAPTER_INIT_STRUCT_REVISION_5 begins here */
-	__le32	MaxNumAif;	/* max number of aif */
-	/* ADAPTER_INIT_STRUCT_REVISION_6 begins here */
-	__le32	HostRRQ_AddrLow;
-	__le32	HostRRQ_AddrHigh;	/* Host RRQ (response queue) for SRC */
+#define INITFLAGS_DRIVER_SUPPORTS_HBA_MODE  0x00000400
+		__le32	max_io_commands;	/* max outstanding commands */
+		__le32	max_io_size;	/* largest I/O command */
+		__le32	max_fib_size;	/* largest FIB to adapter */
+		/* ADAPTER_INIT_STRUCT_REVISION_5 begins here */
+		__le32	max_num_aif;	/* max number of aif */
+		/* ADAPTER_INIT_STRUCT_REVISION_6 begins here */
+		/* Host RRQ (response queue) for SRC */
+		__le32	host_rrq_addr_low;
+		__le32	host_rrq_addr_high;
+	} r7;
+	struct _r8 {
+		/* ADAPTER_INIT_STRUCT_REVISION_8 */
+		__le32	init_struct_revision;
+		__le32	rr_queue_count;
+		__le32	host_elapsed_seconds; /* number of secs since 1970. */
+		__le32	init_flags;
+		__le32	max_io_size;	/* largest I/O command */
+		__le32	max_num_aif;	/* max number of aif */
+		__le32	reserved1;
+		__le32	reserved2;
+		struct _rrq {
+			__le32	host_addr_low;
+			__le32	host_addr_high;
+			__le16	msix_id;
+			__le16	element_count;
+			__le16	comp_thresh;
+			__le16	unused;
+		} rrq[1];		/* up to 64 RRQ addresses */
+	} r8;
 };
 
 enum aac_log_level {
@@ -554,7 +910,7 @@ struct adapter_ops
 	void (*adapter_enable_int)(struct aac_dev *dev);
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
-	int  (*adapter_restart)(struct aac_dev *dev, int bled);
+	int  (*adapter_restart)(struct aac_dev *dev, int bled, u8 reset_type);
 	void (*adapter_start)(struct aac_dev *dev);
 	/* Transport operations */
 	int  (*adapter_ioremap)(struct aac_dev * dev, u32 size);
@@ -727,6 +1083,7 @@ struct sa_registers {
 
 
 #define SA_INIT_NUM_MSIXVECTORS		1
+#define SA_MINIPORT_REVISION		SA_INIT_NUM_MSIXVECTORS
 
 #define sa_readw(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
 #define sa_readl(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
@@ -820,32 +1177,37 @@ struct rkt_registers {
 #define src_inbound rx_inbound
 
 struct src_mu_registers {
-				/*	PCI*| Name */
-	__le32	reserved0[6];	/*	00h | Reserved */
-	__le32	IOAR[2];	/*	18h | IOA->host interrupt register */
-	__le32	IDR;		/*	20h | Inbound Doorbell Register */
-	__le32	IISR;		/*	24h | Inbound Int. Status Register */
-	__le32	reserved1[3];	/*	28h | Reserved */
-	__le32	OIMR;		/*	34h | Outbound Int. Mask Register */
-	__le32	reserved2[25];	/*	38h | Reserved */
-	__le32	ODR_R;		/*	9ch | Outbound Doorbell Read */
-	__le32	ODR_C;		/*	a0h | Outbound Doorbell Clear */
-	__le32	reserved3[6];	/*	a4h | Reserved */
-	__le32	OMR;		/*	bch | Outbound Message Register */
+				/*  PCI*| Name */
+	__le32	reserved0[6];	/*  00h | Reserved */
+	__le32	IOAR[2];	/*  18h | IOA->host interrupt register */
+	__le32	IDR;		/*  20h | Inbound Doorbell Register */
+	__le32	IISR;		/*  24h | Inbound Int. Status Register */
+	__le32	reserved1[3];	/*  28h | Reserved */
+	__le32	OIMR;		/*  34h | Outbound Int. Mask Register */
+	__le32	reserved2[25];  /*  38h | Reserved */
+	__le32	ODR_R;		/*  9ch | Outbound Doorbell Read */
+	__le32	ODR_C;		/*  a0h | Outbound Doorbell Clear */
+	__le32	reserved3[3];	/*  a4h | Reserved */
+	__le32	SCR0;		/*  b0h | Scratchpad 0 */
+	__le32	reserved4[2];	/*  b4h | Reserved */
+	__le32	OMR;		/*  bch | Outbound Message Register */
 	__le32	IQ_L;		/*  c0h | Inbound Queue (Low address) */
 	__le32	IQ_H;		/*  c4h | Inbound Queue (High address) */
 	__le32	ODR_MSI;	/*  c8h | MSI register for sync./AIF */
+	__le32  reserved5;	/*  cch | Reserved */
+	__le32	IQN_L;		/*  d0h | Inbound (native cmd) low  */
+	__le32	IQN_H;		/*  d4h | Inbound (native cmd) high */
 };
 
 struct src_registers {
 	struct src_mu_registers MUnit;	/* 00h - cbh */
 	union {
 		struct {
-			__le32 reserved1[130789];	/* cch - 7fc5fh */
+			__le32 reserved1[130786];	/* d8h - 7fc5fh */
 			struct src_inbound IndexRegs;	/* 7fc60h */
 		} tupelo;
 		struct {
-			__le32 reserved1[973];		/* cch - fffh */
+			__le32 reserved1[970];		/* d8h - fffh */
 			struct src_inbound IndexRegs;	/* 1000h */
 		} denali;
 	} u;
@@ -930,6 +1292,7 @@ struct fsa_dev_info {
 	char		devname[8];
 	struct sense_data sense_data;
 	u32		block_size;
+	u8		identifier[16];
 };
 
 struct fib {
@@ -958,8 +1321,30 @@ struct fib {
 	struct list_head	fiblink;
 	void			*data;
 	u32			vector_no;
-	struct hw_fib		*hw_fib_va;		/* Actual shared object */
-	dma_addr_t		hw_fib_pa;		/* physical address of hw_fib*/
+	struct hw_fib		*hw_fib_va;	/* also used for native */
+	dma_addr_t		hw_fib_pa;	/* physical address of hw_fib*/
+	dma_addr_t		hw_sgl_pa;	/* extra sgl for native */
+	dma_addr_t		hw_error_pa;	/* error buffer for native */
+	u32			hbacmd_size;	/* cmd size for native */
+};
+
+#define AAC_INIT			0
+#define AAC_RESCAN			1
+
+#define AAC_DEVTYPE_RAID_MEMBER	1
+#define AAC_DEVTYPE_ARC_RAW		2
+#define AAC_DEVTYPE_NATIVE_RAW		3
+#define AAC_EXPOSE_DISK		0
+#define AAC_HIDE_DISK			3
+
+struct aac_hba_map_info {
+	__le32	rmw_nexus;		/* nexus for native HBA devices */
+	u8		devtype;	/* device type */
+	u8		new_devtype;
+	u8		reset_state;	/* 0 - no reset, 1..x - */
+					/* after xth TM LUN reset */
+	u16		qd_limit;
+	u8		expose;		/*checks if to expose or not*/
 };
 
 /*
@@ -995,37 +1380,58 @@ struct aac_adapter_info
 
 struct aac_supplement_adapter_info
 {
-	u8	AdapterTypeText[17+1];
-	u8	Pad[2];
-	__le32	FlashMemoryByteSize;
-	__le32	FlashImageId;
-	__le32	MaxNumberPorts;
-	__le32	Version;
-	__le32	FeatureBits;
-	u8	SlotNumber;
-	u8	ReservedPad0[3];
-	u8	BuildDate[12];
-	__le32	CurrentNumberPorts;
+	u8	adapter_type_text[17+1];
+	u8	pad[2];
+	__le32	flash_memory_byte_size;
+	__le32	flash_image_id;
+	__le32	max_number_ports;
+	__le32	version;
+	__le32	feature_bits;
+	u8	slot_number;
+	u8	reserved_pad0[3];
+	u8	build_date[12];
+	__le32	current_number_ports;
 	struct {
-		u8	AssemblyPn[8];
-		u8	FruPn[8];
-		u8	BatteryFruPn[8];
-		u8	EcVersionString[8];
-		u8	Tsid[12];
-	}	VpdInfo;
-	__le32	FlashFirmwareRevision;
-	__le32	FlashFirmwareBuild;
-	__le32	RaidTypeMorphOptions;
-	__le32	FlashFirmwareBootRevision;
-	__le32	FlashFirmwareBootBuild;
-	u8	MfgPcbaSerialNo[12];
-	u8	MfgWWNName[8];
-	__le32	SupportedOptions2;
-	__le32	StructExpansion;
+		u8	assembly_pn[8];
+		u8	fru_pn[8];
+		u8	battery_fru_pn[8];
+		u8	ec_version_string[8];
+		u8	tsid[12];
+	}	vpd_info;
+	__le32	flash_firmware_revision;
+	__le32	flash_firmware_build;
+	__le32	raid_type_morph_options;
+	__le32	flash_firmware_boot_revision;
+	__le32	flash_firmware_boot_build;
+	u8	mfg_pcba_serial_no[12];
+	u8	mfg_wwn_name[8];
+	__le32	supported_options2;
+	__le32	struct_expansion;
 	/* StructExpansion == 1 */
-	__le32	FeatureBits3;
-	__le32	SupportedPerformanceModes;
-	__le32	ReservedForFutureGrowth[80];
+	__le32	feature_bits3;
+	__le32	supported_performance_modes;
+	u8	host_bus_type;		/* uses HOST_BUS_TYPE_xxx defines */
+	u8	host_bus_width;		/* actual width in bits or links */
+	u16	host_bus_speed;		/* actual bus speed/link rate in MHz */
+	u8	max_rrc_drives;		/* max. number of ITP-RRC drives/pool */
+	u8	max_disk_xtasks;	/* max. possible num of DiskX Tasks */
+
+	u8	cpld_ver_loaded;
+	u8	cpld_ver_in_flash;
+
+	__le64	max_rrc_capacity;
+	__le32	compiled_max_hist_log_level;
+	u8	custom_board_name[12];
+	u16	supported_cntlr_mode;	/* identify supported controller mode */
+	u16	reserved_for_future16;
+	__le32	supported_options3;	/* reserved for future options */
+
+	__le16	virt_device_bus;		/* virt. SCSI device for Thor */
+	__le16	virt_device_target;
+	__le16	virt_device_lun;
+	__le16	unused;
+	__le32	reserved_for_future_growth[68];
+
 };
 #define AAC_FEATURE_FALCON	cpu_to_le32(0x00000010)
 #define AAC_FEATURE_JBOD	cpu_to_le32(0x08000000)
@@ -1038,6 +1444,10 @@ struct aac_supplement_adapter_info
 #define AAC_OPTION_VARIABLE_BLOCK_SIZE	cpu_to_le32(0x00040000)
 /* 240 simple volume support */
 #define AAC_OPTION_SUPPORTED_240_VOLUMES cpu_to_le32(0x10000000)
+/*
+ * Supports FIB dump sync command send prior to IOP_RESET
+ */
+#define AAC_OPTION_SUPPORTED3_IOP_RESET_FIB_DUMP	cpu_to_le32(0x00004000)
 #define AAC_SIS_VERSION_V3	3
 #define AAC_SIS_SLOT_UNKNOWN	0xFF
 
@@ -1099,10 +1509,20 @@ struct aac_bus_info_response {
 #define AAC_OPT_SUPPLEMENT_ADAPTER_INFO	cpu_to_le32(1<<16)
 #define AAC_OPT_NEW_COMM		cpu_to_le32(1<<17)
 #define AAC_OPT_NEW_COMM_64		cpu_to_le32(1<<18)
+#define AAC_OPT_EXTENDED		cpu_to_le32(1<<23)
+#define AAC_OPT_NATIVE_HBA		cpu_to_le32(1<<25)
 #define AAC_OPT_NEW_COMM_TYPE1		cpu_to_le32(1<<28)
 #define AAC_OPT_NEW_COMM_TYPE2		cpu_to_le32(1<<29)
 #define AAC_OPT_NEW_COMM_TYPE3		cpu_to_le32(1<<30)
 #define AAC_OPT_NEW_COMM_TYPE4		cpu_to_le32(1<<31)
+
+#define AAC_COMM_PRODUCER		0
+#define AAC_COMM_MESSAGE		1
+#define AAC_COMM_MESSAGE_TYPE1		3
+#define AAC_COMM_MESSAGE_TYPE2		4
+#define AAC_COMM_MESSAGE_TYPE3		5
+
+#define AAC_EXTOPT_SA_FIRMWARE		cpu_to_le32(1<<1)
 
 /* MSIX context */
 struct aac_msix_ctx {
@@ -1119,15 +1539,17 @@ struct aac_dev
 	/*
 	 *	negotiated FIB settings
 	 */
-	unsigned		max_fib_size;
-	unsigned		sg_tablesize;
-	unsigned		max_num_aif;
+	unsigned int		max_fib_size;
+	unsigned int		sg_tablesize;
+	unsigned int		max_num_aif;
+
+	unsigned int		max_cmd_size;	/* max_fib_size or MAX_NATIVE */
 
 	/*
 	 *	Map for 128 fib objects (64k)
 	 */
-	dma_addr_t		hw_fib_pa;
-	struct hw_fib		*hw_fib_va;
+	dma_addr_t		hw_fib_pa;	/* also used for native cmd */
+	struct hw_fib		*hw_fib_va;	/* also used for native cmd */
 	struct hw_fib		*aif_base_va;
 	/*
 	 *	Fib Headers
@@ -1157,21 +1579,23 @@ struct aac_dev
 
 	resource_size_t		base_size, dbg_size;	/* Size of
 							 *  mapped in region */
-
-	struct aac_init		*init;		/* Holds initialization info to communicate with adapter */
+	/*
+	 * Holds initialization info
+	 * to communicate with adapter
+	 */
+	union aac_init		*init;
 	dma_addr_t		init_pa;	/* Holds physical address of the init struct */
-
-	u32			*host_rrq;	/* response queue
-						 * if AAC_COMM_MESSAGE_TYPE1 */
-
+	/* response queue (if AAC_COMM_MESSAGE_TYPE1) */
+	__le32			*host_rrq;
 	dma_addr_t		host_rrq_pa;	/* phys. address */
 	/* index into rrq buffer */
 	u32			host_rrq_idx[AAC_MAX_MSIX];
 	atomic_t		rrq_outstanding[AAC_MAX_MSIX];
 	u32			fibs_pushed_no;
 	struct pci_dev		*pdev;		/* Our PCI interface */
-	void *			printfbuf;	/* pointer to buffer used for printf's from the adapter */
-	void *			comm_addr;	/* Base address of Comm area */
+	/* pointer to buffer used for printf's from the adapter */
+	void			*printfbuf;
+	void			*comm_addr;	/* Base address of Comm area */
 	dma_addr_t		comm_phys;	/* Physical Address of Comm area */
 	size_t			comm_size;
 
@@ -1227,15 +1651,12 @@ struct aac_dev
 	u8			needs_dac;
 	u8			raid_scsi_mode;
 	u8			comm_interface;
-#	define AAC_COMM_PRODUCER 0
-#	define AAC_COMM_MESSAGE  1
-#	define AAC_COMM_MESSAGE_TYPE1	3
-#	define AAC_COMM_MESSAGE_TYPE2	4
 	u8			raw_io_interface;
 	u8			raw_io_64;
 	u8			printf_enabled;
 	u8			in_reset;
 	u8			msi;
+	u8			sa_firmware;
 	int			management_fib_count;
 	spinlock_t		manage_lock;
 	spinlock_t		sync_lock;
@@ -1246,7 +1667,10 @@ struct aac_dev
 	u32			max_msix;	/* max. MSI-X vectors */
 	u32			vector_cap;	/* MSI-X vector capab.*/
 	int			msi_enabled;	/* MSI/MSI-X enabled */
+	atomic_t		msix_counter;
+	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
+	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];
 	u8			adapter_shutdown;
 	u32			handle_pci_error;
 };
@@ -1266,11 +1690,8 @@ struct aac_dev
 #define aac_adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4) \
 	(dev)->a_ops.adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4)
 
-#define aac_adapter_check_health(dev) \
-	(dev)->a_ops.adapter_check_health(dev)
-
-#define aac_adapter_restart(dev,bled) \
-	(dev)->a_ops.adapter_restart(dev,bled)
+#define aac_adapter_restart(dev, bled, reset_type) \
+	((dev)->a_ops.adapter_restart(dev, bled, reset_type))
 
 #define aac_adapter_start(dev) \
 	((dev)->a_ops.adapter_start(dev))
@@ -1300,6 +1721,8 @@ struct aac_dev
 #define FIB_CONTEXT_FLAG			(0x00000002)
 #define FIB_CONTEXT_FLAG_WAIT			(0x00000004)
 #define FIB_CONTEXT_FLAG_FASTRESP		(0x00000008)
+#define FIB_CONTEXT_FLAG_NATIVE_HBA		(0x00000010)
+#define FIB_CONTEXT_FLAG_NATIVE_HBA_TMF	(0x00000020)
 
 /*
  *	Define the command values
@@ -1358,6 +1781,7 @@ struct aac_dev
 #define		ST_IO		5
 #define		ST_NXIO		6
 #define		ST_E2BIG	7
+#define		ST_MEDERR	8
 #define		ST_ACCES	13
 #define		ST_EXIST	17
 #define		ST_XDEV		18
@@ -1715,6 +2139,8 @@ struct aac_fsinfo {
 
 struct  aac_blockdevinfo {
 	__le32	block_size;
+	__le32  logical_phys_map;
+	u8	identifier[16];
 };
 
 union aac_contentinfo {
@@ -1940,6 +2366,15 @@ struct revision
 #define FSACTL_FORCE_DELETE_DISK		CTL_CODE(2120, METHOD_NEITHER)
 #define FSACTL_GET_CONTAINERS			2131
 #define FSACTL_SEND_LARGE_FIB			CTL_CODE(2138, METHOD_BUFFERED)
+#define FSACTL_RESET_IOP			CTL_CODE(2140, METHOD_BUFFERED)
+#define FSACTL_GET_HBA_INFO			CTL_CODE(2150, METHOD_BUFFERED)
+/* flags defined for IOP & HW SOFT RESET */
+#define HW_IOP_RESET				0x01
+#define HW_SOFT_RESET				0x02
+#define IOP_HWSOFT_RESET			(HW_IOP_RESET | HW_SOFT_RESET)
+/* HW Soft Reset register offset */
+#define IBW_SWR_OFFSET				0x4000
+#define SOFT_RESET_TIME			60
 
 
 struct aac_common
@@ -1958,6 +2393,8 @@ struct aac_common
 #ifdef DBG
 	u32 FibsSent;
 	u32 FibRecved;
+	u32 NativeSent;
+	u32 NativeRecved;
 	u32 NoResponseSent;
 	u32 NoResponseRecved;
 	u32 AsyncSent;
@@ -1969,6 +2406,56 @@ struct aac_common
 
 extern struct aac_common aac_config;
 
+/*
+ * This is for management ioctl purpose only.
+ */
+struct aac_hba_info {
+
+	u8	driver_name[50];
+	u8	adapter_number;
+	u8	system_io_bus_number;
+	u8	device_number;
+	u32	function_number;
+	u32	vendor_id;
+	u32	device_id;
+	u32	sub_vendor_id;
+	u32	sub_system_id;
+	u32	mapped_base_address_size;
+	u32	base_physical_address_high_part;
+	u32	base_physical_address_low_part;
+
+	u32	max_command_size;
+	u32	max_fib_size;
+	u32	max_scatter_gather_from_os;
+	u32	max_scatter_gather_to_fw;
+	u32	max_outstanding_fibs;
+
+	u32	queue_start_threshold;
+	u32	queue_dump_threshold;
+	u32	max_io_size_queued;
+	u32	outstanding_io;
+
+	u32	firmware_build_number;
+	u32	bios_build_number;
+	u32	driver_build_number;
+	u32	serial_number_high_part;
+	u32	serial_number_low_part;
+	u32	supported_options;
+	u32	feature_bits;
+	u32	currentnumber_ports;
+
+	u8	new_comm_interface:1;
+	u8	new_commands_supported:1;
+	u8	disable_passthrough:1;
+	u8	expose_non_dasd:1;
+	u8	queue_allowed:1;
+	u8	bled_check_enabled:1;
+	u8	reserved1:1;
+	u8	reserted2:1;
+
+	u32	reserved3[10];
+
+};
 
 /*
  *	The following macro is used when sending and receiving FIBs. It is
@@ -1997,6 +2484,7 @@ extern struct aac_common aac_config;
 #define GET_DRIVER_BUFFER_PROPERTIES	0x00000023
 #define RCV_TEMP_READINGS		0x00000025
 #define GET_COMM_PREFERRED_SETTINGS	0x00000026
+#define IOP_RESET_FW_FIB_DUMP		0x00000034
 #define IOP_RESET			0x00001000
 #define IOP_RESET_ALWAYS		0x00001001
 #define RE_INIT_ADAPTER			0x000000ee
@@ -2096,9 +2584,10 @@ extern struct aac_common aac_config;
 
 /* PMC NEW COMM: Request the event data */
 #define		AifReqEvent		200
+#define		AifRawDeviceRemove	203	/* RAW device deleted */
+#define		AifNativeDeviceAdd	204	/* native HBA device added */
+#define		AifNativeDeviceRemove	205	/* native HBA device removed */
 
-/* RAW device deleted */
-#define		AifRawDeviceRemove	203
 
 /*
  *	Adapter Initiated FIB command structures. Start with the adapter
@@ -2123,6 +2612,14 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 	return capacity;
 }
 
+static inline int aac_adapter_check_health(struct aac_dev *dev)
+{
+	if (unlikely(pci_channel_offline(dev->pdev)))
+		return -1;
+
+	return (dev)->a_ops.adapter_check_health(dev);
+}
+
 /* SCp.phase values */
 #define AAC_OWNER_MIDLEVEL	0x101
 #define AAC_OWNER_LOWLEVEL	0x102
@@ -2131,6 +2628,8 @@ static inline unsigned int cap_to_cyls(sector_t capacity, unsigned divisor)
 
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
+int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr, int rescan);
+int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);
@@ -2141,12 +2640,16 @@ void aac_fib_free(struct fib * context);
 void aac_fib_init(struct fib * context);
 void aac_printf(struct aac_dev *dev, u32 val);
 int aac_fib_send(u16 command, struct fib * context, unsigned long size, int priority, int wait, int reply, fib_callback callback, void *ctxt);
+int aac_hba_send(u8 command, struct fib *context,
+		fib_callback callback, void *ctxt);
 int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entry **entry);
 void aac_consumer_free(struct aac_dev * dev, struct aac_queue * q, u32 qnum);
 int aac_fib_complete(struct fib * context);
+void aac_hba_callback(void *context, struct fib *fibptr);
 #define fib_data(fibctx) ((void *)(fibctx)->hw_fib_va->data)
 struct aac_dev *aac_init_adapter(struct aac_dev *dev);
 void aac_src_access_devreg(struct aac_dev *dev, int mode);
+void aac_set_intx_mode(struct aac_dev *dev);
 int aac_get_config_status(struct aac_dev *dev, int commit_flag);
 int aac_get_containers(struct aac_dev *dev);
 int aac_scsi_cmd(struct scsi_cmnd *cmd);
@@ -2169,7 +2672,7 @@ unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev *dev, u32 Index,
 			int isAif, int isFastResponse,
 			struct hw_fib *aif_fib);
-int aac_reset_adapter(struct aac_dev * dev, int forced);
+int aac_reset_adapter(struct aac_dev *dev, int forced, u8 reset_type);
 int aac_check_health(struct aac_dev * dev);
 int aac_command_thread(void *data);
 int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context *fibctx);
@@ -2183,7 +2686,6 @@ int aac_rx_select_comm(struct aac_dev *dev, int comm);
 int aac_rx_deliver_producer(struct fib * fib);
 char * get_container_type(unsigned type);
 extern int numacb;
-extern int acbsize;
 extern char aac_driver_version[];
 extern int startup_timeout;
 extern int aif_timeout;
@@ -2194,3 +2696,5 @@ extern int aac_commit;
 extern int update_interval;
 extern int check_interval;
 extern int aac_check_reset;
+extern int aac_fib_dump;
+#endif

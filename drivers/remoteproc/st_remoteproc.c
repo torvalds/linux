@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mailbox_client.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -24,6 +25,16 @@
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
 #include <linux/reset.h>
+
+#include "remoteproc_internal.h"
+
+#define ST_RPROC_VQ0		0
+#define ST_RPROC_VQ1		1
+#define ST_RPROC_MAX_VRING	2
+
+#define MBOX_RX			0
+#define MBOX_TX			1
+#define MBOX_MAX		2
 
 struct st_rproc_config {
 	bool			sw_reset;
@@ -39,7 +50,46 @@ struct st_rproc {
 	u32			clk_rate;
 	struct regmap		*boot_base;
 	u32			boot_offset;
+	struct mbox_chan	*mbox_chan[ST_RPROC_MAX_VRING * MBOX_MAX];
+	struct mbox_client mbox_client_vq0;
+	struct mbox_client mbox_client_vq1;
 };
+
+static void st_rproc_mbox_callback(struct device *dev, u32 msg)
+{
+	struct rproc *rproc = dev_get_drvdata(dev);
+
+	if (rproc_vq_interrupt(rproc, msg) == IRQ_NONE)
+		dev_dbg(dev, "no message was found in vqid %d\n", msg);
+}
+
+static
+void st_rproc_mbox_callback_vq0(struct mbox_client *mbox_client, void *data)
+{
+	st_rproc_mbox_callback(mbox_client->dev, 0);
+}
+
+static
+void st_rproc_mbox_callback_vq1(struct mbox_client *mbox_client, void *data)
+{
+	st_rproc_mbox_callback(mbox_client->dev, 1);
+}
+
+static void st_rproc_kick(struct rproc *rproc, int vqid)
+{
+	struct st_rproc *ddata = rproc->priv;
+	struct device *dev = rproc->dev.parent;
+	int ret;
+
+	/* send the index of the triggered virtqueue in the mailbox payload */
+	if (WARN_ON(vqid >= ST_RPROC_MAX_VRING))
+		return;
+
+	ret = mbox_send_message(ddata->mbox_chan[vqid * MBOX_MAX + MBOX_TX],
+				(void *)&vqid);
+	if (ret < 0)
+		dev_err(dev, "failed to send message via mbox: %d\n", ret);
+}
 
 static int st_rproc_start(struct rproc *rproc)
 {
@@ -107,7 +157,8 @@ static int st_rproc_stop(struct rproc *rproc)
 	return sw_err ?: pwr_err;
 }
 
-static struct rproc_ops st_rproc_ops = {
+static const struct rproc_ops st_rproc_ops = {
+	.kick		= st_rproc_kick,
 	.start		= st_rproc_start,
 	.stop		= st_rproc_stop,
 };
@@ -221,8 +272,9 @@ static int st_rproc_probe(struct platform_device *pdev)
 	struct st_rproc *ddata;
 	struct device_node *np = dev->of_node;
 	struct rproc *rproc;
+	struct mbox_chan *chan;
 	int enabled;
-	int ret;
+	int ret, i;
 
 	match = of_match_device(st_rproc_match, dev);
 	if (!match || !match->data) {
@@ -247,7 +299,7 @@ static int st_rproc_probe(struct platform_device *pdev)
 	enabled = st_rproc_state(pdev);
 	if (enabled < 0) {
 		ret = enabled;
-		goto free_rproc;
+		goto free_clk;
 	}
 
 	if (enabled) {
@@ -257,12 +309,67 @@ static int st_rproc_probe(struct platform_device *pdev)
 		clk_set_rate(ddata->clk, ddata->clk_rate);
 	}
 
+	if (of_get_property(np, "mbox-names", NULL)) {
+		ddata->mbox_client_vq0.dev		= dev;
+		ddata->mbox_client_vq0.tx_done		= NULL;
+		ddata->mbox_client_vq0.tx_block	= false;
+		ddata->mbox_client_vq0.knows_txdone	= false;
+		ddata->mbox_client_vq0.rx_callback	= st_rproc_mbox_callback_vq0;
+
+		ddata->mbox_client_vq1.dev		= dev;
+		ddata->mbox_client_vq1.tx_done		= NULL;
+		ddata->mbox_client_vq1.tx_block	= false;
+		ddata->mbox_client_vq1.knows_txdone	= false;
+		ddata->mbox_client_vq1.rx_callback	= st_rproc_mbox_callback_vq1;
+
+		/*
+		 * To control a co-processor without IPC mechanism.
+		 * This driver can be used without mbox and rpmsg.
+		 */
+		chan = mbox_request_channel_byname(&ddata->mbox_client_vq0, "vq0_rx");
+		if (IS_ERR(chan)) {
+			dev_err(&rproc->dev, "failed to request mbox chan 0\n");
+			ret = PTR_ERR(chan);
+			goto free_clk;
+		}
+		ddata->mbox_chan[ST_RPROC_VQ0 * MBOX_MAX + MBOX_RX] = chan;
+
+		chan = mbox_request_channel_byname(&ddata->mbox_client_vq0, "vq0_tx");
+		if (IS_ERR(chan)) {
+			dev_err(&rproc->dev, "failed to request mbox chan 0\n");
+			ret = PTR_ERR(chan);
+			goto free_mbox;
+		}
+		ddata->mbox_chan[ST_RPROC_VQ0 * MBOX_MAX + MBOX_TX] = chan;
+
+		chan = mbox_request_channel_byname(&ddata->mbox_client_vq1, "vq1_rx");
+		if (IS_ERR(chan)) {
+			dev_err(&rproc->dev, "failed to request mbox chan 1\n");
+			ret = PTR_ERR(chan);
+			goto free_mbox;
+		}
+		ddata->mbox_chan[ST_RPROC_VQ1 * MBOX_MAX + MBOX_RX] = chan;
+
+		chan = mbox_request_channel_byname(&ddata->mbox_client_vq1, "vq1_tx");
+		if (IS_ERR(chan)) {
+			dev_err(&rproc->dev, "failed to request mbox chan 1\n");
+			ret = PTR_ERR(chan);
+			goto free_mbox;
+		}
+		ddata->mbox_chan[ST_RPROC_VQ1 * MBOX_MAX + MBOX_TX] = chan;
+	}
+
 	ret = rproc_add(rproc);
 	if (ret)
-		goto free_rproc;
+		goto free_mbox;
 
 	return 0;
 
+free_mbox:
+	for (i = 0; i < ST_RPROC_MAX_VRING * MBOX_MAX; i++)
+		mbox_free_channel(ddata->mbox_chan[i]);
+free_clk:
+	clk_unprepare(ddata->clk);
 free_rproc:
 	rproc_free(rproc);
 	return ret;
@@ -272,12 +379,16 @@ static int st_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct st_rproc *ddata = rproc->priv;
+	int i;
 
 	rproc_del(rproc);
 
 	clk_disable_unprepare(ddata->clk);
 
 	of_reserved_mem_device_release(&pdev->dev);
+
+	for (i = 0; i < ST_RPROC_MAX_VRING * MBOX_MAX; i++)
+		mbox_free_channel(ddata->mbox_chan[i]);
 
 	rproc_free(rproc);
 

@@ -92,6 +92,8 @@
 #define IXGBE_DEV_ID_X550EM_A_SGMII_L	0x15C7
 #define IXGBE_DEV_ID_X550EM_A_10G_T	0x15C8
 #define IXGBE_DEV_ID_X550EM_A_SFP	0x15CE
+#define IXGBE_DEV_ID_X550EM_A_1G_T	0x15E4
+#define IXGBE_DEV_ID_X550EM_A_1G_T_L	0x15E5
 
 /* VF Device IDs */
 #define IXGBE_DEV_ID_82599_VF		0x10ED
@@ -1499,6 +1501,8 @@ enum {
 #define IXGBE_VT_CTL_POOL_MASK  (0x3F << IXGBE_VT_CTL_POOL_SHIFT)
 
 /* VMOLR bitmasks */
+#define IXGBE_VMOLR_UPE		0x00400000 /* unicast promiscuous */
+#define IXGBE_VMOLR_VPE		0x00800000 /* VLAN promiscuous */
 #define IXGBE_VMOLR_AUPE        0x01000000 /* accept untagged packets */
 #define IXGBE_VMOLR_ROMPE       0x02000000 /* accept packets in MTA tbl */
 #define IXGBE_VMOLR_ROPE        0x04000000 /* accept packets in UC tbl */
@@ -1914,6 +1918,7 @@ enum {
 #define IXGBE_LINKS_SPEED_10G_82599 0x30000000
 #define IXGBE_LINKS_SPEED_1G_82599  0x20000000
 #define IXGBE_LINKS_SPEED_100_82599 0x10000000
+#define IXGBE_LINKS_SPEED_10_X550EM_A 0
 #define IXGBE_LINK_UP_TIME      90 /* 9.0 Seconds */
 #define IXGBE_AUTO_NEG_TIME     45 /* 4.5 Seconds */
 
@@ -2619,6 +2624,7 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_CEM_UNUSED_VER		0x0
 #define FW_CEM_MAX_RETRIES		3
 #define FW_CEM_RESP_STATUS_SUCCESS	0x1
+#define FW_CEM_DRIVER_VERSION_SIZE	39 /* +9 would send 48 bytes to fw */
 #define FW_READ_SHADOW_RAM_CMD		0x31
 #define FW_READ_SHADOW_RAM_LEN		0x6
 #define FW_WRITE_SHADOW_RAM_CMD		0x33
@@ -2644,6 +2650,59 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_INT_PHY_REQ_LEN		10
 #define FW_INT_PHY_REQ_READ		0
 #define FW_INT_PHY_REQ_WRITE		1
+#define FW_PHY_ACT_REQ_CMD		5
+#define FW_PHY_ACT_DATA_COUNT		4
+#define FW_PHY_ACT_REQ_LEN		(4 + 4 * FW_PHY_ACT_DATA_COUNT)
+#define FW_PHY_ACT_INIT_PHY		1
+#define FW_PHY_ACT_SETUP_LINK		2
+#define FW_PHY_ACT_LINK_SPEED_10	BIT(0)
+#define FW_PHY_ACT_LINK_SPEED_100	BIT(1)
+#define FW_PHY_ACT_LINK_SPEED_1G	BIT(2)
+#define FW_PHY_ACT_LINK_SPEED_2_5G	BIT(3)
+#define FW_PHY_ACT_LINK_SPEED_5G	BIT(4)
+#define FW_PHY_ACT_LINK_SPEED_10G	BIT(5)
+#define FW_PHY_ACT_LINK_SPEED_20G	BIT(6)
+#define FW_PHY_ACT_LINK_SPEED_25G	BIT(7)
+#define FW_PHY_ACT_LINK_SPEED_40G	BIT(8)
+#define FW_PHY_ACT_LINK_SPEED_50G	BIT(9)
+#define FW_PHY_ACT_LINK_SPEED_100G	BIT(10)
+#define FW_PHY_ACT_SETUP_LINK_PAUSE_SHIFT 16
+#define FW_PHY_ACT_SETUP_LINK_PAUSE_MASK (3 << \
+					  HW_PHY_ACT_SETUP_LINK_PAUSE_SHIFT)
+#define FW_PHY_ACT_SETUP_LINK_PAUSE_NONE 0u
+#define FW_PHY_ACT_SETUP_LINK_PAUSE_TX	1u
+#define FW_PHY_ACT_SETUP_LINK_PAUSE_RX	2u
+#define FW_PHY_ACT_SETUP_LINK_PAUSE_RXTX 3u
+#define FW_PHY_ACT_SETUP_LINK_LP	BIT(18)
+#define FW_PHY_ACT_SETUP_LINK_HP	BIT(19)
+#define FW_PHY_ACT_SETUP_LINK_EEE	BIT(20)
+#define FW_PHY_ACT_SETUP_LINK_AN	BIT(22)
+#define FW_PHY_ACT_SETUP_LINK_RSP_DOWN	BIT(0)
+#define FW_PHY_ACT_GET_LINK_INFO	3
+#define FW_PHY_ACT_GET_LINK_INFO_EEE	BIT(19)
+#define FW_PHY_ACT_GET_LINK_INFO_FC_TX	BIT(20)
+#define FW_PHY_ACT_GET_LINK_INFO_FC_RX	BIT(21)
+#define FW_PHY_ACT_GET_LINK_INFO_POWER	BIT(22)
+#define FW_PHY_ACT_GET_LINK_INFO_AN_COMPLETE	BIT(24)
+#define FW_PHY_ACT_GET_LINK_INFO_TEMP	BIT(25)
+#define FW_PHY_ACT_GET_LINK_INFO_LP_FC_TX	BIT(28)
+#define FW_PHY_ACT_GET_LINK_INFO_LP_FC_RX	BIT(29)
+#define FW_PHY_ACT_FORCE_LINK_DOWN	4
+#define FW_PHY_ACT_FORCE_LINK_DOWN_OFF	BIT(0)
+#define FW_PHY_ACT_PHY_SW_RESET		5
+#define FW_PHY_ACT_PHY_HW_RESET		6
+#define FW_PHY_ACT_GET_PHY_INFO		7
+#define FW_PHY_ACT_UD_2			0x1002
+#define FW_PHY_ACT_UD_2_10G_KR_EEE	BIT(6)
+#define FW_PHY_ACT_UD_2_10G_KX4_EEE	BIT(5)
+#define FW_PHY_ACT_UD_2_1G_KX_EEE	BIT(4)
+#define FW_PHY_ACT_UD_2_10G_T_EEE	BIT(3)
+#define FW_PHY_ACT_UD_2_1G_T_EEE	BIT(2)
+#define FW_PHY_ACT_UD_2_100M_TX_EEE	BIT(1)
+#define FW_PHY_ACT_RETRIES		50
+#define FW_PHY_INFO_SPEED_MASK		0xFFFu
+#define FW_PHY_INFO_ID_HI_MASK		0xFFFF0000u
+#define FW_PHY_INFO_ID_LO_MASK		0x0000FFFFu
 
 /* Host Interface Command Structures */
 struct ixgbe_hic_hdr {
@@ -2684,6 +2743,16 @@ struct ixgbe_hic_drv_info {
 	u8 ver_maj;
 	u8 pad; /* end spacing to ensure length is mult. of dword */
 	u16 pad2; /* end spacing to ensure length is mult. of dword2 */
+};
+
+struct ixgbe_hic_drv_info2 {
+	struct ixgbe_hic_hdr hdr;
+	u8 port_num;
+	u8 ver_sub;
+	u8 ver_build;
+	u8 ver_min;
+	u8 ver_maj;
+	char driver_string[FW_CEM_DRIVER_VERSION_SIZE];
 };
 
 /* These need to be dword aligned */
@@ -2732,6 +2801,19 @@ struct ixgbe_hic_internal_phy_req {
 struct ixgbe_hic_internal_phy_resp {
 	struct ixgbe_hic_hdr hdr;
 	__be32 read_data;
+};
+
+struct ixgbe_hic_phy_activity_req {
+	struct ixgbe_hic_hdr hdr;
+	u8 port_number;
+	u8 pad;
+	__le16 activity_id;
+	__be32 data[FW_PHY_ACT_DATA_COUNT];
+};
+
+struct ixgbe_hic_phy_activity_resp {
+	struct ixgbe_hic_hdr hdr;
+	__be32 data[FW_PHY_ACT_DATA_COUNT];
 };
 
 /* Transmit Descriptor - Advanced */
@@ -2849,6 +2931,7 @@ typedef u32 ixgbe_autoneg_advertised;
 /* Link speed */
 typedef u32 ixgbe_link_speed;
 #define IXGBE_LINK_SPEED_UNKNOWN	0
+#define IXGBE_LINK_SPEED_10_FULL	0x0002
 #define IXGBE_LINK_SPEED_100_FULL	0x0008
 #define IXGBE_LINK_SPEED_1GB_FULL	0x0020
 #define IXGBE_LINK_SPEED_2_5GB_FULL	0x0400
@@ -3064,6 +3147,7 @@ enum ixgbe_phy_type {
 	ixgbe_phy_qsfp_unknown,
 	ixgbe_phy_sfp_unsupported,
 	ixgbe_phy_sgmii,
+	ixgbe_phy_fw,
 	ixgbe_phy_generic
 };
 
@@ -3362,7 +3446,8 @@ struct ixgbe_mac_operations {
 	void (*fc_autoneg)(struct ixgbe_hw *);
 
 	/* Manageability interface */
-	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8);
+	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8, u16,
+			      const char *);
 	s32 (*get_thermal_sensor_data)(struct ixgbe_hw *);
 	s32 (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
 	void (*disable_rx)(struct ixgbe_hw *hw);
@@ -3392,7 +3477,6 @@ struct ixgbe_phy_operations {
 	s32 (*setup_internal_link)(struct ixgbe_hw *);
 	s32 (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool);
 	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *);
-	s32 (*get_firmware_version)(struct ixgbe_hw *, u16 *);
 	s32 (*read_i2c_byte)(struct ixgbe_hw *, u8, u8, u8 *);
 	s32 (*write_i2c_byte)(struct ixgbe_hw *, u8, u8, u8);
 	s32 (*read_i2c_sff8472)(struct ixgbe_hw *, u8 , u8 *);
@@ -3478,6 +3562,8 @@ struct ixgbe_phy_info {
 	bool                            reset_disable;
 	ixgbe_autoneg_advertised        autoneg_advertised;
 	ixgbe_link_speed		speeds_supported;
+	ixgbe_link_speed		eee_speeds_supported;
+	ixgbe_link_speed		eee_speeds_advertised;
 	enum ixgbe_smart_speed          smart_speed;
 	bool                            smart_speed_active;
 	bool                            multispeed_fiber;

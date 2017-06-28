@@ -155,7 +155,7 @@ else
 # $(call addtree,-I$(obj)) locates .h files in srctree, from generated .c files
 #   and locates generated .h files
 # FIXME: Replace both with specific CFLAGS* statements in the makefiles
-__c_flags	= $(if $(obj),-I$(srctree)/$(src) -I$(obj)) \
+__c_flags	= $(if $(obj),$(call addtree,-I$(src)) -I$(obj)) \
 		  $(call flags,_c_flags)
 __a_flags	= $(call flags,_a_flags)
 __cpp_flags     = $(call flags,_cpp_flags)

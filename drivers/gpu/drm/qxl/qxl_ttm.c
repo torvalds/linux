@@ -35,7 +35,6 @@
 #include "qxl_object.h"
 
 #include <linux/delay.h>
-static int qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
 {
@@ -106,15 +105,15 @@ static void qxl_ttm_global_fini(struct qxl_device *qdev)
 static struct vm_operations_struct qxl_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops;
 
-static int qxl_ttm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int qxl_ttm_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *bo;
 	int r;
 
-	bo = (struct ttm_buffer_object *)vma->vm_private_data;
+	bo = (struct ttm_buffer_object *)vmf->vma->vm_private_data;
 	if (bo == NULL)
 		return VM_FAULT_NOPAGE;
-	r = ttm_vm_ops->fault(vma, vmf);
+	r = ttm_vm_ops->fault(vmf);
 	return r;
 }
 
@@ -367,6 +366,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo,
 }
 
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
+			       bool evict,
 			       struct ttm_mem_reg *new_mem)
 {
 	struct qxl_bo *qbo;
@@ -394,8 +394,6 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
 	.io_mem_free = &qxl_ttm_io_mem_free,
 	.move_notify = &qxl_bo_move_notify,
-	.lru_tail = &ttm_bo_default_lru_tail,
-	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int qxl_ttm_init(struct qxl_device *qdev)
@@ -410,7 +408,7 @@ int qxl_ttm_init(struct qxl_device *qdev)
 	r = ttm_bo_device_init(&qdev->mman.bdev,
 			       qdev->mman.bo_global_ref.ref.object,
 			       &qxl_bo_driver,
-			       qdev->ddev->anon_inode->i_mapping,
+			       qdev->ddev.anon_inode->i_mapping,
 			       DRM_FILE_PAGE_OFFSET, 0);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
@@ -436,11 +434,6 @@ int qxl_ttm_init(struct qxl_device *qdev)
 		 ((unsigned)num_io_pages * PAGE_SIZE) / (1024 * 1024));
 	DRM_INFO("qxl: %uM of Surface memory size\n",
 		 (unsigned)qdev->surfaceram_size / (1024 * 1024));
-	r = qxl_ttm_debugfs_init(qdev);
-	if (r) {
-		DRM_ERROR("Failed to init debugfs\n");
-		return r;
-	}
 	return 0;
 }
 
@@ -463,17 +456,17 @@ static int qxl_mm_dump_table(struct seq_file *m, void *data)
 	struct drm_mm *mm = (struct drm_mm *)node->info_ent->data;
 	struct drm_device *dev = node->minor->dev;
 	struct qxl_device *rdev = dev->dev_private;
-	int ret;
 	struct ttm_bo_global *glob = rdev->mman.bdev.glob;
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	spin_lock(&glob->lru_lock);
-	ret = drm_mm_dump_table(m, mm);
+	drm_mm_print(mm, &p);
 	spin_unlock(&glob->lru_lock);
-	return ret;
+	return 0;
 }
 #endif
 
-static int qxl_ttm_debugfs_init(struct qxl_device *qdev)
+int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	static struct drm_info_list qxl_mem_types_list[QXL_DEBUGFS_MEM_TYPES];

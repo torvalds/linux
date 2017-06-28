@@ -54,7 +54,7 @@
 #define DRV_NAME "sis5513"
 
 /* registers layout and init values are chipset family dependent */
-
+#undef ATA_16
 #define ATA_16		0x01
 #define ATA_33		0x02
 #define ATA_66		0x03

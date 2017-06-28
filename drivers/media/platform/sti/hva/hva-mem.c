@@ -17,14 +17,17 @@ int hva_mem_alloc(struct hva_ctx *ctx, u32 size, const char *name,
 	void *base;
 
 	b = devm_kzalloc(dev, sizeof(*b), GFP_KERNEL);
-	if (!b)
+	if (!b) {
+		ctx->sys_errors++;
 		return -ENOMEM;
+	}
 
 	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL | GFP_DMA,
 			       DMA_ATTR_WRITE_COMBINE);
 	if (!base) {
 		dev_err(dev, "%s %s : dma_alloc_attrs failed for %s (size=%d)\n",
 			ctx->name, __func__, name, size);
+		ctx->sys_errors++;
 		devm_kfree(dev, b);
 		return -ENOMEM;
 	}
