@@ -130,14 +130,85 @@ static void rk_context_deinit(struct platform_device *pdev)
 
 #define FALLBACK_STATIC_TEMPERATURE 55000
 
+static u32 dynamic_coefficient;
+static u32 static_coefficient;
+static s32 ts[4];
 static struct thermal_zone_device *gpu_tz;
+
+static int power_model_simple_init(struct platform_device *pdev)
+{
+	struct device_node *power_model_node;
+	const char *tz_name;
+	u32 static_power, dynamic_power;
+	u32 voltage, voltage_squared, voltage_cubed, frequency;
+
+	power_model_node = of_get_child_by_name(pdev->dev.of_node,
+			"power_model");
+	if (!power_model_node) {
+		dev_err(&pdev->dev, "could not find power_model node\n");
+		return -ENODEV;
+	}
+	if (!of_device_is_compatible(power_model_node,
+			"arm,mali-simple-power-model")) {
+		dev_err(&pdev->dev, "power_model incompatible with simple power model\n");
+		return -ENODEV;
+	}
+
+	if (of_property_read_string(power_model_node, "thermal-zone",
+			&tz_name)) {
+		dev_err(&pdev->dev, "ts in power_model not available\n");
+		return -EINVAL;
+	}
+
+	gpu_tz = thermal_zone_get_zone_by_name(tz_name);
+	if (IS_ERR(gpu_tz)) {
+		pr_warn_ratelimited("Error getting gpu thermal zone '%s'(%ld), not yet ready?\n",
+				tz_name,
+				PTR_ERR(gpu_tz));
+		gpu_tz = NULL;
+
+		return -EPROBE_DEFER;
+	}
+
+	if (of_property_read_u32(power_model_node, "static-power",
+			&static_power)) {
+		dev_err(&pdev->dev, "static-power in power_model not available\n");
+		return -EINVAL;
+	}
+	if (of_property_read_u32(power_model_node, "dynamic-power",
+			&dynamic_power)) {
+		dev_err(&pdev->dev, "dynamic-power in power_model not available\n");
+		return -EINVAL;
+	}
+	if (of_property_read_u32(power_model_node, "voltage",
+			&voltage)) {
+		dev_err(&pdev->dev, "voltage in power_model not available\n");
+		return -EINVAL;
+	}
+	if (of_property_read_u32(power_model_node, "frequency",
+			&frequency)) {
+		dev_err(&pdev->dev, "frequency in power_model not available\n");
+		return -EINVAL;
+	}
+	voltage_squared = (voltage * voltage) / 1000;
+	voltage_cubed = voltage * voltage * voltage;
+	static_coefficient = (static_power << 20) / (voltage_cubed >> 10);
+	dynamic_coefficient = (((dynamic_power * 1000) / voltage_squared)
+			* 1000) / frequency;
+
+	if (of_property_read_u32_array(power_model_node, "ts", (u32 *)ts, 4)) {
+		dev_err(&pdev->dev, "ts in power_model not available\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 /* Calculate gpu static power example for reference */
 static unsigned long rk_model_static_power(unsigned long voltage)
 {
 	int temperature, temp;
 	int temp_squared, temp_cubed, temp_scaling_factor;
-	const unsigned long coefficient = (410UL << 20) / (729000000UL >> 10);
 	const unsigned long voltage_cubed = (voltage * voltage * voltage) >> 10;
 	unsigned long static_power;
 
@@ -160,12 +231,12 @@ static unsigned long rk_model_static_power(unsigned long voltage)
 	temp_squared = temp * temp;
 	temp_cubed = temp_squared * temp;
 	temp_scaling_factor =
-		(2 * temp_cubed)
-		- (80 * temp_squared)
-		+ (4700 * temp)
-		+ 32000;
+			(ts[3] * temp_cubed)
+			+ (ts[2] * temp_squared)
+			+ (ts[1] * temp)
+			+ ts[0];
 
-	static_power = (((coefficient * voltage_cubed) >> 20)
+	static_power = (((static_coefficient * voltage_cubed) >> 20)
 			* temp_scaling_factor)
 		       / 1000000;
 
@@ -184,10 +255,9 @@ static unsigned long rk_model_dynamic_power(unsigned long freq,
 	 */
 	const unsigned long v2 = (voltage * voltage) / 1000; /* m*(V*V) */
 	const unsigned long f_mhz = freq / 1000000; /* MHz */
-	const unsigned long coefficient = 3600; /* mW/(MHz*mV*mV) */
 	unsigned long dynamic_power;
 
-	dynamic_power = (coefficient * v2 * f_mhz) / 1000000; /* mW */
+	dynamic_power = (dynamic_coefficient * v2 * f_mhz) / 1000000; /* mW */
 
 	return dynamic_power;
 }
@@ -453,27 +523,31 @@ int mali_platform_device_init(struct platform_device *pdev)
 				       sizeof(mali_gpu_data));
 	if (err) {
 		E("fail to add platform_specific_data. err : %d.", err);
-		goto EXIT;
+		goto add_data_failed;
 	}
 
 	err = rk_context_init(pdev);
 	if (err) {
 		E("fail to init rk_context. err : %d.", err);
-		goto EXIT;
+		goto init_rk_context_failed;
 	}
 
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
-	/* Get thermal zone */
-	gpu_tz = thermal_zone_get_zone_by_name("gpu_thermal");
-	if (IS_ERR(gpu_tz)) {
-		W("Error getting gpu thermal zone (%ld), not yet ready?",
-		  PTR_ERR(gpu_tz));
-		gpu_tz = NULL;
-		/* err =  -EPROBE_DEFER; */
+	err = power_model_simple_init(pdev);
+	if (err) {
+		E("fail to init simple_power_model, err : %d.", err);
+		goto init_power_model_failed;
 	}
 #endif
 
-EXIT:
+	return 0;
+
+#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+init_power_model_failed:
+	rk_context_deinit(pdev);
+#endif
+init_rk_context_failed:
+add_data_failed:
 	return err;
 }
 
