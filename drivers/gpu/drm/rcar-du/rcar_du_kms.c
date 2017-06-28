@@ -309,7 +309,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		return -ENODEV;
 	}
 
-	entity_ep_node = of_parse_phandle(ep->local_node, "remote-endpoint", 0);
+	entity_ep_node = of_graph_get_remote_endpoint(ep->local_node);
 
 	for_each_endpoint_of_node(entity, ep_node) {
 		if (ep_node == entity_ep_node)
