@@ -256,6 +256,19 @@ power_enter_stop:
 	bne	 .Lhandle_esl_ec_set
 	IDLE_STATE_ENTER_SEQ(PPC_STOP)
 	li	r3,0  /* Since we didn't lose state, return 0 */
+
+	/*
+	 * pnv_wakeup_noloss() expects r12 to contain the SRR1 value so
+	 * it can determine if the wakeup reason is an HMI in
+	 * CHECK_HMI_INTERRUPT.
+	 *
+	 * However, when we wakeup with ESL=0, SRR1 will not contain the wakeup
+	 * reason, so there is no point setting r12 to SRR1.
+	 *
+	 * Further, we clear r12 here, so that we don't accidentally enter the
+	 * HMI in pnv_wakeup_noloss() if the value of r12[42:45] == WAKE_HMI.
+	 */
+	li	r12, 0
 	b 	pnv_wakeup_noloss
 
 .Lhandle_esl_ec_set:
