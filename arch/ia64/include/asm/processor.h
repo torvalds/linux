@@ -602,23 +602,6 @@ ia64_set_unat (__u64 *unat, void *spill_addr, unsigned long nat)
 }
 
 /*
- * Return saved PC of a blocked thread.
- * Note that the only way T can block is through a call to schedule() -> switch_to().
- */
-static inline unsigned long
-thread_saved_pc (struct task_struct *t)
-{
-	struct unw_frame_info info;
-	unsigned long ip;
-
-	unw_init_from_blocked_task(&info, t);
-	if (unw_unwind(&info) < 0)
-		return 0;
-	unw_get_ip(&info, &ip);
-	return ip;
-}
-
-/*
  * Get the current instruction/program counter value.
  */
 #define current_text_addr() \

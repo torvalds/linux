@@ -110,11 +110,6 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 }
 
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return (unsigned long)user_regs(t->stack)->pc;
-}
-
 void release_thread(struct task_struct *dead_task)
 {
 }

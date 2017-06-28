@@ -58,8 +58,6 @@ static inline void release_thread(struct task_struct *task)
 {
 }
 
-extern unsigned long thread_saved_pc(struct task_struct *t);
-
 static inline void mm_copy_segments(struct mm_struct *from_mm,
 				    struct mm_struct *new_mm)
 {
