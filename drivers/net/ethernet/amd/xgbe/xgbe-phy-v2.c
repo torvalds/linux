@@ -1121,7 +1121,8 @@ static int xgbe_phy_sfp_read_eeprom(struct xgbe_prv_data *pdata)
 
 	ret = xgbe_phy_sfp_get_mux(pdata);
 	if (ret) {
-		netdev_err(pdata->netdev, "I2C error setting SFP MUX\n");
+		dev_err_once(pdata->dev, "%s: I2C error setting SFP MUX\n",
+			     netdev_name(pdata->netdev));
 		return ret;
 	}
 
@@ -1131,7 +1132,8 @@ static int xgbe_phy_sfp_read_eeprom(struct xgbe_prv_data *pdata)
 				&eeprom_addr, sizeof(eeprom_addr),
 				&sfp_eeprom, sizeof(sfp_eeprom));
 	if (ret) {
-		netdev_err(pdata->netdev, "I2C error reading SFP EEPROM\n");
+		dev_err_once(pdata->dev, "%s: I2C error reading SFP EEPROM\n",
+			     netdev_name(pdata->netdev));
 		goto put;
 	}
 
@@ -1190,7 +1192,8 @@ static void xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 				&gpio_reg, sizeof(gpio_reg),
 				gpio_ports, sizeof(gpio_ports));
 	if (ret) {
-		netdev_err(pdata->netdev, "I2C error reading SFP GPIOs\n");
+		dev_err_once(pdata->dev, "%s: I2C error reading SFP GPIOs\n",
+			     netdev_name(pdata->netdev));
 		return;
 	}
 
