@@ -448,7 +448,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	u32 val;
 	LIST_HEAD(res);
 
-	host = pci_alloc_host_bridge(sizeof(*p));
+	host = devm_pci_alloc_host_bridge(dev, sizeof(*p));
 	if (!host)
 		return -ENOMEM;
 
