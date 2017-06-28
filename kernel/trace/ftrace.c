@@ -3997,7 +3997,7 @@ static void process_mod_list(struct list_head *head, struct ftrace_ops *ops,
 	new_hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS,
 					      *orig_hash);
 	if (!new_hash)
-		return; /* Warn? */
+		goto out; /* warn? */
 
 	mutex_lock(&ftrace_lock);
 
@@ -4042,6 +4042,7 @@ static void process_mod_list(struct list_head *head, struct ftrace_ops *ops,
 					      new_hash, enable);
 	mutex_unlock(&ftrace_lock);
 
+ out:
 	mutex_unlock(&ops->func_hash->regex_lock);
 
 	free_ftrace_hash(new_hash);
