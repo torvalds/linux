@@ -89,6 +89,8 @@ static const struct cdc_ncm_stats cdc_ncm_gstrings_stats[] = {
 	CDC_NCM_SIMPLE_STAT(rx_ntbs),
 };
 
+#define CDC_NCM_LOW_MEM_MAX_CNT 10
+
 static int cdc_ncm_get_sset_count(struct net_device __always_unused *netdev, int sset)
 {
 	switch (sset) {
@@ -1055,10 +1057,10 @@ static struct usb_cdc_ncm_ndp16 *cdc_ncm_ndp(struct cdc_ncm_ctx *ctx, struct sk_
 
 	/* align new NDP */
 	if (!(ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END))
-		cdc_ncm_align_tail(skb, ctx->tx_ndp_modulus, 0, ctx->tx_max);
+		cdc_ncm_align_tail(skb, ctx->tx_ndp_modulus, 0, ctx->tx_curr_size);
 
 	/* verify that there is room for the NDP and the datagram (reserve) */
-	if ((ctx->tx_max - skb->len - reserve) < ctx->max_ndp_size)
+	if ((ctx->tx_curr_size - skb->len - reserve) < ctx->max_ndp_size)
 		return NULL;
 
 	/* link to it */
@@ -1111,13 +1113,41 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 
 	/* allocate a new OUT skb */
 	if (!skb_out) {
-		skb_out = alloc_skb(ctx->tx_max, GFP_ATOMIC);
-		if (skb_out == NULL) {
-			if (skb != NULL) {
-				dev_kfree_skb_any(skb);
-				dev->net->stats.tx_dropped++;
+		if (ctx->tx_low_mem_val == 0) {
+			ctx->tx_curr_size = ctx->tx_max;
+			skb_out = alloc_skb(ctx->tx_curr_size, GFP_ATOMIC);
+			/* If the memory allocation fails we will wait longer
+			 * each time before attempting another full size
+			 * allocation again to not overload the system
+			 * further.
+			 */
+			if (skb_out == NULL) {
+				ctx->tx_low_mem_max_cnt = min(ctx->tx_low_mem_max_cnt + 1,
+							      (unsigned)CDC_NCM_LOW_MEM_MAX_CNT);
+				ctx->tx_low_mem_val = ctx->tx_low_mem_max_cnt;
 			}
-			goto exit_no_skb;
+		}
+		if (skb_out == NULL) {
+			/* See if a very small allocation is possible.
+			 * We will send this packet immediately and hope
+			 * that there is more memory available later.
+			 */
+			if (skb)
+				ctx->tx_curr_size = max(skb->len,
+					(u32)USB_CDC_NCM_NTB_MIN_OUT_SIZE);
+			else
+				ctx->tx_curr_size = USB_CDC_NCM_NTB_MIN_OUT_SIZE;
+			skb_out = alloc_skb(ctx->tx_curr_size, GFP_ATOMIC);
+
+			/* No allocation possible so we will abort */
+			if (skb_out == NULL) {
+				if (skb != NULL) {
+					dev_kfree_skb_any(skb);
+					dev->net->stats.tx_dropped++;
+				}
+				goto exit_no_skb;
+			}
+			ctx->tx_low_mem_val--;
 		}
 		/* fill out the initial 16-bit NTB header */
 		nth16 = skb_put_zero(skb_out, sizeof(struct usb_cdc_ncm_nth16));
@@ -1148,10 +1178,10 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 		ndp16 = cdc_ncm_ndp(ctx, skb_out, sign, skb->len + ctx->tx_modulus + ctx->tx_remainder);
 
 		/* align beginning of next frame */
-		cdc_ncm_align_tail(skb_out,  ctx->tx_modulus, ctx->tx_remainder, ctx->tx_max);
+		cdc_ncm_align_tail(skb_out,  ctx->tx_modulus, ctx->tx_remainder, ctx->tx_curr_size);
 
 		/* check if we had enough room left for both NDP and frame */
-		if (!ndp16 || skb_out->len + skb->len + delayed_ndp_size > ctx->tx_max) {
+		if (!ndp16 || skb_out->len + skb->len + delayed_ndp_size > ctx->tx_curr_size) {
 			if (n == 0) {
 				/* won't fit, MTU problem? */
 				dev_kfree_skb_any(skb);
@@ -1227,7 +1257,7 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	/* If requested, put NDP at end of frame. */
 	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {
 		nth16 = (struct usb_cdc_ncm_nth16 *)skb_out->data;
-		cdc_ncm_align_tail(skb_out, ctx->tx_ndp_modulus, 0, ctx->tx_max);
+		cdc_ncm_align_tail(skb_out, ctx->tx_ndp_modulus, 0, ctx->tx_curr_size);
 		nth16->wNdpIndex = cpu_to_le16(skb_out->len);
 		skb_put_data(skb_out, ctx->delayed_ndp16, ctx->max_ndp_size);
 
@@ -1246,9 +1276,9 @@ cdc_ncm_fill_tx_frame(struct usbnet *dev, struct sk_buff *skb, __le32 sign)
 	 */
 	if (!(dev->driver_info->flags & FLAG_SEND_ZLP) &&
 	    skb_out->len > ctx->min_tx_pkt) {
-		padding_count = ctx->tx_max - skb_out->len;
+		padding_count = ctx->tx_curr_size - skb_out->len;
 		skb_put_zero(skb_out, padding_count);
-	} else if (skb_out->len < ctx->tx_max &&
+	} else if (skb_out->len < ctx->tx_curr_size &&
 		   (skb_out->len % dev->maxpacket) == 0) {
 		skb_put_u8(skb_out, 0);	/* force short packet */
 	}
