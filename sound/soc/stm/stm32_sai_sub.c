@@ -631,7 +631,7 @@ static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 	dev_dbg(cpu_dai->dev, "SAI clock %d, divider %d\n", sai_clk_rate, div);
 
 	mask = SAI_XCR1_MCKDIV_MASK(SAI_XCR1_MCKDIV_WIDTH(version));
-				    cr1 = SAI_XCR1_MCKDIV_SET(div);
+	cr1 = SAI_XCR1_MCKDIV_SET(div);
 	ret = regmap_update_bits(sai->regmap, STM_SAI_CR1_REGX, mask, cr1);
 	if (ret < 0) {
 		dev_err(cpu_dai->dev, "Failed to update CR1 register\n");
