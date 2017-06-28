@@ -900,7 +900,7 @@ static __always_inline int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt,
 	if (rc != X86EMUL_CONTINUE)					\
 		goto done;						\
 	ctxt->_eip += sizeof(_type);					\
-	_x = *(_type __aligned(1) *) ctxt->fetch.ptr;			\
+	memcpy(&_x, ctxt->fetch.ptr, sizeof(_type));			\
 	ctxt->fetch.ptr += sizeof(_type);				\
 	_x;								\
 })
