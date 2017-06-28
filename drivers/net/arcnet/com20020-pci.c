@@ -167,6 +167,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 		arcnet_outb(0x00, ioaddr, COM20020_REG_W_COMMAND);
 		arcnet_inb(ioaddr, COM20020_REG_R_DIAGSTAT);
 
+		SET_NETDEV_DEV(dev, &pdev->dev);
 		dev->base_addr = ioaddr;
 		dev->dev_addr[0] = node;
 		dev->irq = pdev->irq;
