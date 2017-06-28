@@ -65,11 +65,17 @@ struct io_pgtable_cfg {
 	 *	PTEs, for Mediatek IOMMUs which treat it as a 33rd address bit
 	 *	when the SoC is in "4GB mode" and they can only access the high
 	 *	remap of DRAM (0x1_00000000 to 0x1_ffffffff).
+	 *
+	 * IO_PGTABLE_QUIRK_NO_DMA: Guarantees that the tables will only ever
+	 *	be accessed by a fully cache-coherent IOMMU or CPU (e.g. for a
+	 *	software-emulated IOMMU), such that pagetable updates need not
+	 *	be treated as explicit DMA data.
 	 */
 	#define IO_PGTABLE_QUIRK_ARM_NS		BIT(0)
 	#define IO_PGTABLE_QUIRK_NO_PERMS	BIT(1)
 	#define IO_PGTABLE_QUIRK_TLBI_ON_MAP	BIT(2)
 	#define IO_PGTABLE_QUIRK_ARM_MTK_4GB	BIT(3)
+	#define IO_PGTABLE_QUIRK_NO_DMA		BIT(4)
 	unsigned long			quirks;
 	unsigned long			pgsize_bitmap;
 	unsigned int			ias;
