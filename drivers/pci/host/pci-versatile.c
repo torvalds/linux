@@ -125,7 +125,12 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	u32 val;
 	void __iomem *local_pci_cfg_base;
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	LIST_HEAD(pci_res);
+
+	bridge = devm_pci_alloc_host_bridge(&pdev->dev, 0);
+	if (!bridge)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	versatile_pci_base = devm_ioremap_resource(&pdev->dev, res);
@@ -199,11 +204,20 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS);
 	pci_add_flags(PCI_REASSIGN_ALL_BUS | PCI_REASSIGN_ALL_RSRC);
 
-	bus = pci_scan_root_bus(&pdev->dev, 0, &pci_versatile_ops, NULL, &pci_res);
-	if (!bus)
-		return -ENOMEM;
+	list_splice_init(&pci_res, &bridge->windows);
+	bridge->dev.parent = &pdev->dev;
+	bridge->sysdata = NULL;
+	bridge->busnr = 0;
+	bridge->ops = &pci_versatile_ops;
+
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0)
+		return ret;
+
+	bus = bridge->bus;
 
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);
