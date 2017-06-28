@@ -2426,6 +2426,45 @@ void pci_bus_release_busn_res(struct pci_bus *b)
 			res, ret ? "can not be" : "is");
 }
 
+int pci_scan_root_bus_bridge(struct pci_host_bridge *bridge)
+{
+	struct resource_entry *window;
+	bool found = false;
+	struct pci_bus *b;
+	int max, bus, ret;
+
+	if (!bridge)
+		return -EINVAL;
+
+	resource_list_for_each_entry(window, &bridge->windows)
+		if (window->res->flags & IORESOURCE_BUS) {
+			found = true;
+			break;
+		}
+
+	ret = pci_register_host_bridge(bridge);
+	if (ret < 0)
+		return ret;
+
+	b = bridge->bus;
+	bus = bridge->busnr;
+
+	if (!found) {
+		dev_info(&b->dev,
+		 "No busn resource found for root bus, will use [bus %02x-ff]\n",
+			bus);
+		pci_bus_insert_busn_res(b, bus, 255);
+	}
+
+	max = pci_scan_child_bus(b);
+
+	if (!found)
+		pci_bus_update_busn_res_end(b, max);
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_scan_root_bus_bridge);
+
 struct pci_bus *pci_scan_root_bus_msi(struct device *parent, int bus,
 		struct pci_ops *ops, void *sysdata,
 		struct list_head *resources, struct msi_controller *msi)
