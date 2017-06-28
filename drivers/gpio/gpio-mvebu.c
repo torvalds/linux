@@ -721,7 +721,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	u32 set;
 
 	if (!of_device_is_compatible(mvchip->chip.of_node,
-				     "marvell,armada-370-xp-gpio"))
+				     "marvell,armada-370-gpio"))
 		return 0;
 
 	if (IS_ERR(mvchip->clk))
@@ -852,7 +852,7 @@ static const struct of_device_id mvebu_gpio_of_match[] = {
 		.data	    = (void *) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
 	},
 	{
-		.compatible = "marvell,armada-370-xp-gpio",
+		.compatible = "marvell,armada-370-gpio",
 		.data	    = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
 	},
 	{
@@ -1128,7 +1128,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 						 mvchip);
 	}
 
-	/* Armada 370/XP has simple PWM support for GPIO lines */
+	/* Some MVEBU SoCs have simple PWM support for GPIO lines */
 	if (IS_ENABLED(CONFIG_PWM))
 		return mvebu_pwm_probe(pdev, mvchip, id);
 

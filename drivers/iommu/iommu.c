@@ -915,13 +915,7 @@ static int get_pci_alias_or_group(struct pci_dev *pdev, u16 alias, void *opaque)
  */
 struct iommu_group *generic_device_group(struct device *dev)
 {
-	struct iommu_group *group;
-
-	group = iommu_group_alloc();
-	if (IS_ERR(group))
-		return NULL;
-
-	return group;
+	return iommu_group_alloc();
 }
 
 /*
@@ -988,11 +982,7 @@ struct iommu_group *pci_device_group(struct device *dev)
 		return group;
 
 	/* No shared group found, allocate new */
-	group = iommu_group_alloc();
-	if (IS_ERR(group))
-		return NULL;
-
-	return group;
+	return iommu_group_alloc();
 }
 
 /**
@@ -1019,6 +1009,9 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 
 	if (ops && ops->device_group)
 		group = ops->device_group(dev);
+
+	if (WARN_ON_ONCE(group == NULL))
+		return ERR_PTR(-EINVAL);
 
 	if (IS_ERR(group))
 		return group;

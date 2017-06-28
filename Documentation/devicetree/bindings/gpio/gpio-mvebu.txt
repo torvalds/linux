@@ -41,9 +41,9 @@ Required properties:
 Optional properties:
 
 In order to use the GPIO lines in PWM mode, some additional optional
-properties are required. Only Armada 370 and XP support these properties.
+properties are required.
 
-- compatible: Must contain "marvell,armada-370-xp-gpio"
+- compatible: Must contain "marvell,armada-370-gpio"
 
 - reg: an additional register set is needed, for the GPIO Blink
   Counter on/off registers.
@@ -71,7 +71,7 @@ Example:
 		};
 
 		gpio1: gpio@18140 {
-			compatible = "marvell,armada-370-xp-gpio";
+			compatible = "marvell,armada-370-gpio";
 			reg = <0x18140 0x40>, <0x181c8 0x08>;
 			reg-names = "gpio", "pwm";
 			ngpios = <17>;

@@ -73,6 +73,7 @@
 #define RCFW_MAX_OUTSTANDING_CMD	BNXT_QPLIB_CMDQE_MAX_CNT
 #define RCFW_MAX_COOKIE_VALUE		0x7FFF
 #define RCFW_CMD_IS_BLOCKING		0x8000
+#define RCFW_BLOCKED_CMD_WAIT_COUNT	0x4E20
 
 /* Cmdq contains a fix number of a 16-Byte slots */
 struct bnxt_qplib_cmdqe {
@@ -93,32 +94,6 @@ static inline u32 get_cmdq_idx(u32 val)
 struct bnxt_qplib_crsbe {
 	u8			data[1024];
 };
-
-/* CRSQ SB */
-#define BNXT_QPLIB_CRSBE_MAX_CNT	4
-#define BNXT_QPLIB_CRSBE_UNITS		sizeof(struct bnxt_qplib_crsbe)
-#define BNXT_QPLIB_CRSBE_CNT_PER_PG	(PAGE_SIZE / BNXT_QPLIB_CRSBE_UNITS)
-
-#define MAX_CRSB_IDX			(BNXT_QPLIB_CRSBE_MAX_CNT - 1)
-#define MAX_CRSB_IDX_PER_PG		(BNXT_QPLIB_CRSBE_CNT_PER_PG - 1)
-
-static inline u32 get_crsb_pg(u32 val)
-{
-	return (val & ~MAX_CRSB_IDX_PER_PG) / BNXT_QPLIB_CRSBE_CNT_PER_PG;
-}
-
-static inline u32 get_crsb_idx(u32 val)
-{
-	return val & MAX_CRSB_IDX_PER_PG;
-}
-
-static inline void bnxt_qplib_crsb_dma_next(dma_addr_t *pg_map_arr,
-					    u32 prod, dma_addr_t *dma_addr)
-{
-		*dma_addr = pg_map_arr[(prod) / BNXT_QPLIB_CRSBE_CNT_PER_PG];
-		*dma_addr += ((prod) % BNXT_QPLIB_CRSBE_CNT_PER_PG) *
-			      BNXT_QPLIB_CRSBE_UNITS;
-}
 
 /* CREQ */
 /* Allocate 1 per QP for async error notification for now */
@@ -158,17 +133,19 @@ static inline u32 get_creq_idx(u32 val)
 #define CREQ_DB(db, raw_cons, cp_bit)				\
 	writel(CREQ_DB_CP_FLAGS | ((raw_cons) & ((cp_bit) - 1)), db)
 
+#define CREQ_ENTRY_POLL_BUDGET		0x100
+
 /* HWQ */
-struct bnxt_qplib_crsqe {
-	struct creq_qp_event	qp_event;
+
+struct bnxt_qplib_crsq {
+	struct creq_qp_event	*resp;
 	u32			req_size;
 };
 
-struct bnxt_qplib_crsq {
-	struct bnxt_qplib_crsqe	*crsq;
-	u32			prod;
-	u32			cons;
-	u32			max_elements;
+struct bnxt_qplib_rcfw_sbuf {
+	void *sb;
+	dma_addr_t dma_addr;
+	u32 size;
 };
 
 /* RCFW Communication Channels */
@@ -185,7 +162,7 @@ struct bnxt_qplib_rcfw {
 	wait_queue_head_t	waitq;
 	int			(*aeq_handler)(struct bnxt_qplib_rcfw *,
 					       struct creq_func_event *);
-	atomic_t		seq_num;
+	u32			seq_num;
 
 	/* Bar region info */
 	void __iomem		*cmdq_bar_reg_iomem;
@@ -203,8 +180,7 @@ struct bnxt_qplib_rcfw {
 
 	/* Actual Cmd and Resp Queues */
 	struct bnxt_qplib_hwq	cmdq;
-	struct bnxt_qplib_crsq	crsq;
-	struct bnxt_qplib_hwq	crsb;
+	struct bnxt_qplib_crsq	*crsqe_tbl;
 };
 
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
@@ -219,11 +195,14 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 					(struct bnxt_qplib_rcfw *,
 					 struct creq_func_event *));
 
-int bnxt_qplib_rcfw_block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie);
-int bnxt_qplib_rcfw_wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie);
-void *bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
-				   struct cmdq_base *req, void **crsbe,
-				   u8 is_block);
+struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
+				struct bnxt_qplib_rcfw *rcfw,
+				u32 size);
+void bnxt_qplib_rcfw_free_sbuf(struct bnxt_qplib_rcfw *rcfw,
+			       struct bnxt_qplib_rcfw_sbuf *sbuf);
+int bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
+				 struct cmdq_base *req, struct creq_base *resp,
+				 void *sbuf, u8 is_block);
 
 int bnxt_qplib_deinit_rcfw(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
