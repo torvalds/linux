@@ -1977,7 +1977,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "Failed to parse secuirty parameters!\n");
+			    "Failed to parse security parameters!\n");
 		goto out;
 	}
 
