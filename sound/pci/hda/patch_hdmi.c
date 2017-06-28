@@ -174,7 +174,6 @@ struct hdmi_spec {
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
 	bool use_acomp_notifier; /* use i915 eld_notify callback for hotplug */
 	struct i915_audio_component_audio_ops i915_audio_ops;
-	bool i915_bound; /* was i915 bound in this driver? */
 
 	struct hdac_chmap chmap;
 	hda_nid_t vendor_nid;
@@ -2234,8 +2233,6 @@ static void generic_spec_free(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 
 	if (spec) {
-		if (spec->i915_bound)
-			snd_hdac_i915_exit(&codec->bus->core);
 		hdmi_array_free(spec);
 		kfree(spec);
 		codec->spec = NULL;
@@ -2607,20 +2604,16 @@ static int patch_i915_cpt_hdmi(struct hda_codec *codec)
 	struct hdmi_spec *spec;
 	int err;
 
-	/* no i915 component should have been bound before this */
-	if (WARN_ON(codec->bus->core.audio_component))
-		return -EBUSY;
+	/* requires i915 binding */
+	if (!codec->bus->core.audio_component) {
+		codec_info(codec, "No i915 binding for Intel HDMI/DP codec\n");
+		return -ENODEV;
+	}
 
 	err = alloc_generic_hdmi(codec);
 	if (err < 0)
 		return err;
 	spec = codec->spec;
-
-	/* Try to bind with i915 now */
-	err = snd_hdac_i915_init(&codec->bus->core);
-	if (err < 0)
-		goto error;
-	spec->i915_bound = true;
 
 	err = hdmi_parse_codec(codec);
 	if (err < 0)
