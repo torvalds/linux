@@ -224,7 +224,7 @@ TRACE_EVENT(amdgpu_vm_bo_map,
 			     __field(long, start)
 			     __field(long, last)
 			     __field(u64, offset)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
@@ -234,7 +234,7 @@ TRACE_EVENT(amdgpu_vm_bo_map,
 			   __entry->offset = mapping->offset;
 			   __entry->flags = mapping->flags;
 			   ),
-	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%llx",
 		      __entry->bo, __entry->start, __entry->last,
 		      __entry->offset, __entry->flags)
 );
@@ -248,7 +248,7 @@ TRACE_EVENT(amdgpu_vm_bo_unmap,
 			     __field(long, start)
 			     __field(long, last)
 			     __field(u64, offset)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
@@ -258,7 +258,7 @@ TRACE_EVENT(amdgpu_vm_bo_unmap,
 			   __entry->offset = mapping->offset;
 			   __entry->flags = mapping->flags;
 			   ),
-	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%llx",
 		      __entry->bo, __entry->start, __entry->last,
 		      __entry->offset, __entry->flags)
 );
@@ -269,7 +269,7 @@ DECLARE_EVENT_CLASS(amdgpu_vm_mapping,
 	    TP_STRUCT__entry(
 			     __field(u64, soffset)
 			     __field(u64, eoffset)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
@@ -277,7 +277,7 @@ DECLARE_EVENT_CLASS(amdgpu_vm_mapping,
 			   __entry->eoffset = mapping->last + 1;
 			   __entry->flags = mapping->flags;
 			   ),
-	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%08x",
+	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%llx",
 		      __entry->soffset, __entry->eoffset, __entry->flags)
 );
 
@@ -293,14 +293,14 @@ DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_mapping,
 
 TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
-		     uint32_t incr, uint32_t flags),
+		     uint32_t incr, uint64_t flags),
 	    TP_ARGS(pe, addr, count, incr, flags),
 	    TP_STRUCT__entry(
 			     __field(u64, pe)
 			     __field(u64, addr)
 			     __field(u32, count)
 			     __field(u32, incr)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
@@ -310,7 +310,7 @@ TRACE_EVENT(amdgpu_vm_set_ptes,
 			   __entry->incr = incr;
 			   __entry->flags = flags;
 			   ),
-	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%08x, count=%u",
+	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%llx, count=%u",
 		      __entry->pe, __entry->addr, __entry->incr,
 		      __entry->flags, __entry->count)
 );
