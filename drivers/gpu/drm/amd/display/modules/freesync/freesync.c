@@ -440,14 +440,11 @@ static void calc_freesync_range(struct core_freesync *core_freesync,
 	}
 
 	/* Determine whether BTR can be supported */
-	//if (max_frame_duration_in_ns >=
-	//		2 * min_frame_duration_in_ns)
-	//	core_freesync->map[index].caps->btr_supported = true;
-	//else
-	//	core_freesync->map[index].caps->btr_supported = false;
-
-	/* Temp, keep btr disabled */
-	core_freesync->map[index].caps->btr_supported = false;
+	if (max_frame_duration_in_ns >=
+			2 * min_frame_duration_in_ns)
+		core_freesync->map[index].caps->btr_supported = true;
+	else
+		core_freesync->map[index].caps->btr_supported = false;
 
 	/* Cache the time variables */
 	state->time.max_render_time_in_us =
@@ -882,8 +879,10 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 			 * panels. Also change core variables only if there
 			 * is a change.
 			 */
-			if (dc_is_embedded_signal(
-				streams[stream_index]->sink->sink_signal) &&
+			if ((dc_is_embedded_signal(
+				streams[stream_index]->sink->sink_signal) ||
+				core_freesync->map[map_index].caps->
+				no_static_for_external_dp == false) &&
 				state->static_screen !=
 				freesync_params->enable) {
 
@@ -1031,6 +1030,25 @@ bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
 	index = map_index_from_stream(core_freesync, stream);
 
 	*user_enable = core_freesync->map[index].user_enable;
+
+	return true;
+}
+
+bool mod_freesync_get_static_ramp_active(struct mod_freesync *mod_freesync,
+		const struct dc_stream *stream,
+		bool *is_ramp_active)
+{
+	unsigned int index = 0;
+	struct core_freesync *core_freesync = NULL;
+
+	if (mod_freesync == NULL)
+		return false;
+
+	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
+	index = map_index_from_stream(core_freesync, stream);
+
+	*is_ramp_active =
+		core_freesync->map[index].state.static_ramp.ramp_is_active;
 
 	return true;
 }

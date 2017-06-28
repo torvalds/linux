@@ -88,6 +88,7 @@ struct mod_freesync_caps {
 	unsigned int max_refresh_in_micro_hz;
 
 	bool btr_supported;
+	bool no_static_for_external_dp;
 };
 
 struct mod_freesync_params {
@@ -128,6 +129,10 @@ bool mod_freesync_set_user_enable(struct mod_freesync *mod_freesync,
 bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
 		const struct dc_stream *stream,
 		struct mod_freesync_user_enable *user_enable);
+
+bool mod_freesync_get_static_ramp_active(struct mod_freesync *mod_freesync,
+		const struct dc_stream *stream,
+		bool *is_ramp_active);
 
 bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
 		const struct dc_stream *streams,
