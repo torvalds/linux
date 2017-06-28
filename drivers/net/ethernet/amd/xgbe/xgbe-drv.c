@@ -158,48 +158,85 @@ static int xgbe_one_poll(struct napi_struct *, int);
 static int xgbe_all_poll(struct napi_struct *, int);
 static void xgbe_stop(struct xgbe_prv_data *);
 
+static void *xgbe_alloc_node(size_t size, int node)
+{
+	void *mem;
+
+	mem = kzalloc_node(size, GFP_KERNEL, node);
+	if (!mem)
+		mem = kzalloc(size, GFP_KERNEL);
+
+	return mem;
+}
+
+static void xgbe_free_channels(struct xgbe_prv_data *pdata)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pdata->channel); i++) {
+		if (!pdata->channel[i])
+			continue;
+
+		kfree(pdata->channel[i]->rx_ring);
+		kfree(pdata->channel[i]->tx_ring);
+		kfree(pdata->channel[i]);
+
+		pdata->channel[i] = NULL;
+	}
+
+	pdata->channel_count = 0;
+}
+
 static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 {
-	struct xgbe_channel *channel_mem, *channel;
-	struct xgbe_ring *tx_ring, *rx_ring;
+	struct xgbe_channel *channel;
+	struct xgbe_ring *ring;
 	unsigned int count, i;
-	int ret = -ENOMEM;
+	int node;
+
+	node = dev_to_node(pdata->dev);
 
 	count = max_t(unsigned int, pdata->tx_ring_count, pdata->rx_ring_count);
+	for (i = 0; i < count; i++) {
+		channel = xgbe_alloc_node(sizeof(*channel), node);
+		if (!channel)
+			goto err_mem;
+		pdata->channel[i] = channel;
 
-	channel_mem = kcalloc(count, sizeof(struct xgbe_channel), GFP_KERNEL);
-	if (!channel_mem)
-		goto err_channel;
-
-	tx_ring = kcalloc(pdata->tx_ring_count, sizeof(struct xgbe_ring),
-			  GFP_KERNEL);
-	if (!tx_ring)
-		goto err_tx_ring;
-
-	rx_ring = kcalloc(pdata->rx_ring_count, sizeof(struct xgbe_ring),
-			  GFP_KERNEL);
-	if (!rx_ring)
-		goto err_rx_ring;
-
-	for (i = 0, channel = channel_mem; i < count; i++, channel++) {
 		snprintf(channel->name, sizeof(channel->name), "channel-%u", i);
 		channel->pdata = pdata;
 		channel->queue_index = i;
 		channel->dma_regs = pdata->xgmac_regs + DMA_CH_BASE +
 				    (DMA_CH_INC * i);
+		channel->node = node;
 
 		if (pdata->per_channel_irq)
 			channel->dma_irq = pdata->channel_irq[i];
 
 		if (i < pdata->tx_ring_count) {
-			spin_lock_init(&tx_ring->lock);
-			channel->tx_ring = tx_ring++;
+			ring = xgbe_alloc_node(sizeof(*ring), node);
+			if (!ring)
+				goto err_mem;
+
+			spin_lock_init(&ring->lock);
+			ring->node = node;
+
+			channel->tx_ring = ring;
 		}
 
 		if (i < pdata->rx_ring_count) {
-			spin_lock_init(&rx_ring->lock);
-			channel->rx_ring = rx_ring++;
+			ring = xgbe_alloc_node(sizeof(*ring), node);
+			if (!ring)
+				goto err_mem;
+
+			spin_lock_init(&ring->lock);
+			ring->node = node;
+
+			channel->rx_ring = ring;
 		}
+
+		netif_dbg(pdata, drv, pdata->netdev,
+			  "%s: node=%d\n", channel->name, node);
 
 		netif_dbg(pdata, drv, pdata->netdev,
 			  "%s: dma_regs=%p, dma_irq=%d, tx=%p, rx=%p\n",
@@ -207,32 +244,14 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 			  channel->tx_ring, channel->rx_ring);
 	}
 
-	pdata->channel = channel_mem;
 	pdata->channel_count = count;
 
 	return 0;
 
-err_rx_ring:
-	kfree(tx_ring);
+err_mem:
+	xgbe_free_channels(pdata);
 
-err_tx_ring:
-	kfree(channel_mem);
-
-err_channel:
-	return ret;
-}
-
-static void xgbe_free_channels(struct xgbe_prv_data *pdata)
-{
-	if (!pdata->channel)
-		return;
-
-	kfree(pdata->channel->rx_ring);
-	kfree(pdata->channel->tx_ring);
-	kfree(pdata->channel);
-
-	pdata->channel = NULL;
-	pdata->channel_count = 0;
+	return -ENOMEM;
 }
 
 static inline unsigned int xgbe_tx_avail_desc(struct xgbe_ring *ring)
@@ -301,12 +320,10 @@ static void xgbe_enable_rx_tx_int(struct xgbe_prv_data *pdata,
 
 static void xgbe_enable_rx_tx_ints(struct xgbe_prv_data *pdata)
 {
-	struct xgbe_channel *channel;
 	unsigned int i;
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++)
-		xgbe_enable_rx_tx_int(pdata, channel);
+	for (i = 0; i < pdata->channel_count; i++)
+		xgbe_enable_rx_tx_int(pdata, pdata->channel[i]);
 }
 
 static void xgbe_disable_rx_tx_int(struct xgbe_prv_data *pdata,
@@ -329,12 +346,10 @@ static void xgbe_disable_rx_tx_int(struct xgbe_prv_data *pdata,
 
 static void xgbe_disable_rx_tx_ints(struct xgbe_prv_data *pdata)
 {
-	struct xgbe_channel *channel;
 	unsigned int i;
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++)
-		xgbe_disable_rx_tx_int(pdata, channel);
+	for (i = 0; i < pdata->channel_count; i++)
+		xgbe_disable_rx_tx_int(pdata, pdata->channel[i]);
 }
 
 static bool xgbe_ecc_sec(struct xgbe_prv_data *pdata, unsigned long *period,
@@ -475,7 +490,7 @@ static void xgbe_isr_task(unsigned long data)
 		if (!(dma_isr & (1 << i)))
 			continue;
 
-		channel = pdata->channel + i;
+		channel = pdata->channel[i];
 
 		dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
 		netif_dbg(pdata, intr, pdata->netdev, "DMA_CH%u_ISR=%#010x\n",
@@ -675,8 +690,8 @@ static void xgbe_init_timers(struct xgbe_prv_data *pdata)
 	setup_timer(&pdata->service_timer, xgbe_service_timer,
 		    (unsigned long)pdata);
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
+	for (i = 0; i < pdata->channel_count; i++) {
+		channel = pdata->channel[i];
 		if (!channel->tx_ring)
 			break;
 
@@ -697,8 +712,8 @@ static void xgbe_stop_timers(struct xgbe_prv_data *pdata)
 
 	del_timer_sync(&pdata->service_timer);
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
+	for (i = 0; i < pdata->channel_count; i++) {
+		channel = pdata->channel[i];
 		if (!channel->tx_ring)
 			break;
 
@@ -816,8 +831,8 @@ static void xgbe_napi_enable(struct xgbe_prv_data *pdata, unsigned int add)
 	unsigned int i;
 
 	if (pdata->per_channel_irq) {
-		channel = pdata->channel;
-		for (i = 0; i < pdata->channel_count; i++, channel++) {
+		for (i = 0; i < pdata->channel_count; i++) {
+			channel = pdata->channel[i];
 			if (add)
 				netif_napi_add(pdata->netdev, &channel->napi,
 					       xgbe_one_poll, NAPI_POLL_WEIGHT);
@@ -839,8 +854,8 @@ static void xgbe_napi_disable(struct xgbe_prv_data *pdata, unsigned int del)
 	unsigned int i;
 
 	if (pdata->per_channel_irq) {
-		channel = pdata->channel;
-		for (i = 0; i < pdata->channel_count; i++, channel++) {
+		for (i = 0; i < pdata->channel_count; i++) {
+			channel = pdata->channel[i];
 			napi_disable(&channel->napi);
 
 			if (del)
@@ -886,8 +901,8 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 	if (!pdata->per_channel_irq)
 		return 0;
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
+	for (i = 0; i < pdata->channel_count; i++) {
+		channel = pdata->channel[i];
 		snprintf(channel->dma_irq_name,
 			 sizeof(channel->dma_irq_name) - 1,
 			 "%s-TxRx-%u", netdev_name(netdev),
@@ -907,8 +922,11 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 
 err_dma_irq:
 	/* Using an unsigned int, 'i' will go to UINT_MAX and exit */
-	for (i--, channel--; i < pdata->channel_count; i--, channel--)
+	for (i--; i < pdata->channel_count; i--) {
+		channel = pdata->channel[i];
+
 		devm_free_irq(pdata->dev, channel->dma_irq, channel);
+	}
 
 	if (pdata->vdata->ecc_support && (pdata->dev_irq != pdata->ecc_irq))
 		devm_free_irq(pdata->dev, pdata->ecc_irq, pdata);
@@ -932,9 +950,10 @@ static void xgbe_free_irqs(struct xgbe_prv_data *pdata)
 	if (!pdata->per_channel_irq)
 		return;
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++)
+	for (i = 0; i < pdata->channel_count; i++) {
+		channel = pdata->channel[i];
 		devm_free_irq(pdata->dev, channel->dma_irq, channel);
+	}
 }
 
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *pdata)
@@ -969,16 +988,14 @@ void xgbe_init_rx_coalesce(struct xgbe_prv_data *pdata)
 static void xgbe_free_tx_data(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_desc_if *desc_if = &pdata->desc_if;
-	struct xgbe_channel *channel;
 	struct xgbe_ring *ring;
 	struct xgbe_ring_data *rdata;
 	unsigned int i, j;
 
 	DBGPR("-->xgbe_free_tx_data\n");
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		ring = channel->tx_ring;
+	for (i = 0; i < pdata->channel_count; i++) {
+		ring = pdata->channel[i]->tx_ring;
 		if (!ring)
 			break;
 
@@ -994,16 +1011,14 @@ static void xgbe_free_tx_data(struct xgbe_prv_data *pdata)
 static void xgbe_free_rx_data(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_desc_if *desc_if = &pdata->desc_if;
-	struct xgbe_channel *channel;
 	struct xgbe_ring *ring;
 	struct xgbe_ring_data *rdata;
 	unsigned int i, j;
 
 	DBGPR("-->xgbe_free_rx_data\n");
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
-		ring = channel->rx_ring;
+	for (i = 0; i < pdata->channel_count; i++) {
+		ring = pdata->channel[i]->rx_ring;
 		if (!ring)
 			break;
 
@@ -1179,8 +1194,8 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 
 	hw_if->exit(pdata);
 
-	channel = pdata->channel;
-	for (i = 0; i < pdata->channel_count; i++, channel++) {
+	for (i = 0; i < pdata->channel_count; i++) {
+		channel = pdata->channel[i];
 		if (!channel->tx_ring)
 			continue;
 
@@ -1667,7 +1682,7 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	DBGPR("-->xgbe_xmit: skb->len = %d\n", skb->len);
 
-	channel = pdata->channel + skb->queue_mapping;
+	channel = pdata->channel[skb->queue_mapping];
 	txq = netdev_get_tx_queue(netdev, channel->queue_index);
 	ring = channel->tx_ring;
 	packet = &ring->packet_data;
@@ -1877,9 +1892,10 @@ static void xgbe_poll_controller(struct net_device *netdev)
 	DBGPR("-->xgbe_poll_controller\n");
 
 	if (pdata->per_channel_irq) {
-		channel = pdata->channel;
-		for (i = 0; i < pdata->channel_count; i++, channel++)
+		for (i = 0; i < pdata->channel_count; i++) {
+			channel = pdata->channel[i];
 			xgbe_dma_isr(channel->dma_irq, channel);
+		}
 	} else {
 		disable_irq(pdata->dev_irq);
 		xgbe_isr(pdata->dev_irq, pdata);
@@ -2372,8 +2388,9 @@ static int xgbe_all_poll(struct napi_struct *napi, int budget)
 	do {
 		last_processed = processed;
 
-		channel = pdata->channel;
-		for (i = 0; i < pdata->channel_count; i++, channel++) {
+		for (i = 0; i < pdata->channel_count; i++) {
+			channel = pdata->channel[i];
+
 			/* Cleanup Tx ring first */
 			xgbe_tx_poll(channel);
 

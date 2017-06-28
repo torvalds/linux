@@ -412,6 +412,7 @@ struct xgbe_ring {
 	/* Page allocation for RX buffers */
 	struct xgbe_page_alloc rx_hdr_pa;
 	struct xgbe_page_alloc rx_buf_pa;
+	int node;
 
 	/* Ring index values
 	 *  cur   - Tx: index of descriptor to be used for current transfer
@@ -462,6 +463,8 @@ struct xgbe_channel {
 
 	struct xgbe_ring *tx_ring;
 	struct xgbe_ring *rx_ring;
+
+	int node;
 } ____cacheline_aligned;
 
 enum xgbe_state {
@@ -1012,7 +1015,7 @@ struct xgbe_prv_data {
 	struct timer_list service_timer;
 
 	/* Rings for Tx/Rx on a DMA channel */
-	struct xgbe_channel *channel;
+	struct xgbe_channel *channel[XGBE_MAX_DMA_CHANNELS];
 	unsigned int tx_max_channel_count;
 	unsigned int rx_max_channel_count;
 	unsigned int channel_count;
