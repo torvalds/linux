@@ -266,6 +266,19 @@ enum rdma_nldev_attr {
 	 * FW version
 	 */
 	RDMA_NLDEV_ATTR_FW_VERSION,		/* string */
+
+	/*
+	 * Node GUID (in host byte order) associated with the RDMA device.
+	 */
+	RDMA_NLDEV_ATTR_NODE_GUID,			/* u64 */
+
+	/*
+	 * System image GUID (in host byte order) associated with
+	 * this RDMA device and other devices which are part of a
+	 * single system.
+	 */
+	RDMA_NLDEV_ATTR_SYS_IMAGE_GUID,		/* u64 */
+
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */

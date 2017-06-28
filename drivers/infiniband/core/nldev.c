@@ -42,6 +42,8 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_PORT_INDEX]	= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_FW_VERSION]	= { .type = NLA_NUL_STRING,
 					    .len = IB_FW_VERSION_NAME_MAX - 1},
+	[RDMA_NLDEV_ATTR_NODE_GUID]	= { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_SYS_IMAGE_GUID] = { .type = NLA_U64 },
 };
 
 static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
@@ -65,6 +67,12 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 	if (strlen(fw) && nla_put_string(msg, RDMA_NLDEV_ATTR_FW_VERSION, fw))
 		return -EMSGSIZE;
 
+	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_NODE_GUID,
+			      be64_to_cpu(device->node_guid), 0))
+		return -EMSGSIZE;
+	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_SYS_IMAGE_GUID,
+			      be64_to_cpu(device->attrs.sys_image_guid), 0))
+		return -EMSGSIZE;
 	return 0;
 }
 
