@@ -74,6 +74,7 @@
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
+int amdgpu_vis_vram_limit = 0;
 unsigned amdgpu_gart_size = 256;
 int amdgpu_gtt_size = -1; /* auto */
 int amdgpu_moverate = -1; /* auto */
@@ -120,6 +121,9 @@ int amdgpu_lbpw = -1;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
+
+MODULE_PARM_DESC(vis_vramlimit, "Restrict visible VRAM for testing, in megabytes");
+module_param_named(vis_vramlimit, amdgpu_vis_vram_limit, int, 0444);
 
 MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc.)");
 module_param_named(gartsize, amdgpu_gart_size, uint, 0600);
