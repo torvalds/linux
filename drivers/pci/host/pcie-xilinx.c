@@ -680,6 +680,8 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	bridge->sysdata = port;
 	bridge->busnr = 0;
 	bridge->ops = &xilinx_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 
 #ifdef CONFIG_PCI_MSI
 	xilinx_pcie_msi_chip.dev = dev;
@@ -692,9 +694,6 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	bus = bridge->bus;
 
 	pci_assign_unassigned_bus_resources(bus);
-#ifndef CONFIG_MICROBLAZE
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
-#endif
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
