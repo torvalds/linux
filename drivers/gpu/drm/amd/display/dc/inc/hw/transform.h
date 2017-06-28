@@ -180,6 +180,7 @@ struct transform_funcs {
 			struct transform *xfm,
 			const struct xfm_grph_csc_adjustment *adjust);
 
+
 	void (*transform_set_pixel_storage_depth)(
 			struct transform *xfm,
 			enum lb_pixel_depth depth,

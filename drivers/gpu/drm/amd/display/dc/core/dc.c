@@ -221,6 +221,29 @@ static bool set_gamut_remap(struct dc *dc, const struct dc_stream *stream)
 	return ret;
 }
 
+static bool program_csc_matrix(struct dc *dc, const struct dc_stream *stream)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
+	int i = 0;
+	bool ret = false;
+	struct pipe_ctx *pipes;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream
+				== core_stream) {
+
+			pipes = &core_dc->current_context->res_ctx.pipe_ctx[i];
+			core_dc->hwss.program_csc_matrix(pipes,
+			core_stream->public.output_color_space,
+			core_stream->public.csc_color_matrix.matrix);
+			ret = true;
+		}
+	}
+
+	return ret;
+}
+
 static void set_static_screen_events(struct dc *dc,
 		const struct dc_stream **stream,
 		int num_streams,
@@ -372,6 +395,9 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 
 	core_dc->public.stream_funcs.set_gamut_remap =
 			set_gamut_remap;
+
+	core_dc->public.stream_funcs.program_csc_matrix =
+			program_csc_matrix;
 
 	core_dc->public.stream_funcs.set_dither_option =
 			set_dither_option;

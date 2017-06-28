@@ -118,6 +118,9 @@ struct dc_stream_funcs {
 	bool (*set_gamut_remap)(struct dc *dc,
 			const struct dc_stream *stream);
 
+	bool (*program_csc_matrix)(struct dc *dc,
+			const struct dc_stream *stream);
+
 	void (*set_static_screen_events)(struct dc *dc,
 			const struct dc_stream **stream,
 			int num_streams,

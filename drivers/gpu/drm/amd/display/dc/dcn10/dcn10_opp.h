@@ -34,6 +34,18 @@
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
 #define OPP_DCN10_REG_LIST(id) \
+	SRI(CM_OCSC_C11_C12, CM, id), \
+	SRI(CM_OCSC_C13_C14, CM, id), \
+	SRI(CM_OCSC_C21_C22, CM, id), \
+	SRI(CM_OCSC_C23_C24, CM, id), \
+	SRI(CM_OCSC_C31_C32, CM, id), \
+	SRI(CM_OCSC_C33_C34, CM, id), \
+	SRI(CM_COMB_C11_C12, CM, id), \
+	SRI(CM_COMB_C13_C14, CM, id), \
+	SRI(CM_COMB_C21_C22, CM, id), \
+	SRI(CM_COMB_C23_C24, CM, id), \
+	SRI(CM_COMB_C31_C32, CM, id), \
+	SRI(CM_COMB_C33_C34, CM, id), \
 	SRI(CM_RGAM_LUT_WRITE_EN_MASK, CM, id), \
 	SRI(CM_RGAM_CONTROL, CM, id), \
 	SRI(OBUF_CONTROL, DSCL, id), \
@@ -109,6 +121,30 @@
 	SRI(CM_RGAM_LUT_DATA, CM, id)
 
 #define OPP_DCN10_MASK_SH_LIST(mask_sh) \
+	OPP_SF(CM0_CM_OCSC_C11_C12, CM_OCSC_C11, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C11_C12, CM_OCSC_C12, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C13_C14, CM_OCSC_C13, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C13_C14, CM_OCSC_C14, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C21_C22, CM_OCSC_C21, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C21_C22, CM_OCSC_C22, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C23_C24, CM_OCSC_C23, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C23_C24, CM_OCSC_C24, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C31_C32, CM_OCSC_C31, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C31_C32, CM_OCSC_C32, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C33_C34, CM_OCSC_C33, mask_sh), \
+	OPP_SF(CM0_CM_OCSC_C33_C34, CM_OCSC_C34, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C11_C12, CM_COMB_C11, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C11_C12, CM_COMB_C12, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C13_C14, CM_COMB_C13, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C13_C14, CM_COMB_C14, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C21_C22, CM_COMB_C21, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C21_C22, CM_COMB_C22, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C23_C24, CM_COMB_C23, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C23_C24, CM_COMB_C24, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C31_C32, CM_COMB_C31, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C31_C32, CM_COMB_C32, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C33_C34, CM_COMB_C33, mask_sh), \
+	OPP_SF(CM0_CM_COMB_C33_C34, CM_COMB_C34, mask_sh), \
 	OPP_SF(CM0_CM_RGAM_CONTROL, CM_RGAM_LUT_MODE, mask_sh), \
 	OPP_SF(DSCL0_OBUF_CONTROL, OBUF_BYPASS, mask_sh), \
 	OPP_SF(DSCL0_OBUF_CONTROL, OBUF_H_2X_UPSCALE_EN, mask_sh), \
@@ -314,6 +350,30 @@
 	OPP_SF(FMT0_FMT_CONTROL, FMT_STEREOSYNC_OVERRIDE, mask_sh)
 
 #define OPP_DCN10_REG_FIELD_LIST(type) \
+	type CM_OCSC_C11; \
+	type CM_OCSC_C12; \
+	type CM_OCSC_C13; \
+	type CM_OCSC_C14; \
+	type CM_OCSC_C21; \
+	type CM_OCSC_C22; \
+	type CM_OCSC_C23; \
+	type CM_OCSC_C24; \
+	type CM_OCSC_C31; \
+	type CM_OCSC_C32; \
+	type CM_OCSC_C33; \
+	type CM_OCSC_C34; \
+	type CM_COMB_C11; \
+	type CM_COMB_C12; \
+	type CM_COMB_C13; \
+	type CM_COMB_C14; \
+	type CM_COMB_C21; \
+	type CM_COMB_C22; \
+	type CM_COMB_C23; \
+	type CM_COMB_C24; \
+	type CM_COMB_C31; \
+	type CM_COMB_C32; \
+	type CM_COMB_C33; \
+	type CM_COMB_C34; \
 	type CM_RGAM_LUT_MODE; \
 	type OBUF_BYPASS; \
 	type OBUF_H_2X_UPSCALE_EN; \
@@ -527,6 +587,18 @@ struct dcn10_opp_mask {
 };
 
 struct dcn10_opp_registers {
+	uint32_t CM_OCSC_C11_C12;
+	uint32_t CM_OCSC_C13_C14;
+	uint32_t CM_OCSC_C21_C22;
+	uint32_t CM_OCSC_C23_C24;
+	uint32_t CM_OCSC_C31_C32;
+	uint32_t CM_OCSC_C33_C34;
+	uint32_t CM_COMB_C11_C12;
+	uint32_t CM_COMB_C13_C14;
+	uint32_t CM_COMB_C21_C22;
+	uint32_t CM_COMB_C23_C24;
+	uint32_t CM_COMB_C31_C32;
+	uint32_t CM_COMB_C33_C34;
 	uint32_t CM_RGAM_LUT_WRITE_EN_MASK;
 	uint32_t CM_RGAM_CONTROL;
 	uint32_t OBUF_CONTROL;
@@ -618,5 +690,9 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	const struct dcn10_opp_registers *regs,
 	const struct dcn10_opp_shift *opp_shift,
 	const struct dcn10_opp_mask *opp_mask);
+
+void program_color_matrix(
+		struct dcn10_opp *oppn10,
+		const struct out_csc_color_matrix *tbl_entry);
 
 #endif

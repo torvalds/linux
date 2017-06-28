@@ -1027,9 +1027,8 @@ static struct transform_funcs dcn10_transform_funcs = {
 
 	.transform_reset = transform_reset,
 	.transform_set_scaler = transform_set_scaler_manual_scale,
-	.transform_get_optimal_number_of_taps =
-			transform_get_optimal_number_of_taps,
-	.transform_set_gamut_remap = dcn_transform_set_gamut_remap
+	.transform_get_optimal_number_of_taps = transform_get_optimal_number_of_taps,
+	.transform_set_gamut_remap = dcn_transform_set_gamut_remap,
 };
 
 /*****************************************/

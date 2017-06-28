@@ -713,6 +713,48 @@ static void opp_power_on_regamma_lut(
 
 }
 
+void opp_set_output_csc_adjustment(
+		struct output_pixel_processor *opp,
+		const struct out_csc_color_matrix *tbl_entry)
+{
+
+	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
+	//enum csc_color_mode config = CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
+
+
+	uint32_t ocsc_mode = 4;
+
+	/**
+	*if (tbl_entry != NULL) {
+	*	switch (tbl_entry->color_space) {
+	*	case COLOR_SPACE_SRGB:
+	*	case COLOR_SPACE_2020_RGB_FULLRANGE:
+	*		ocsc_mode = 0;
+	*		break;
+	*	case COLOR_SPACE_SRGB_LIMITED:
+	*	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
+	*		ocsc_mode = 1;
+	*		break;
+	*	case COLOR_SPACE_YCBCR601:
+	*	case COLOR_SPACE_YCBCR601_LIMITED:
+	*		ocsc_mode = 2;
+	*		break;
+	*	case COLOR_SPACE_YCBCR709:
+	*	case COLOR_SPACE_YCBCR709_LIMITED:
+	*	case COLOR_SPACE_2020_YCBCR:
+	*		ocsc_mode = 3;
+	*		break;
+	*	case COLOR_SPACE_UNKNOWN:
+	*	default:
+	*		break;
+	*	}
+	*}
+	*/
+
+	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
+	program_color_matrix(oppn10, tbl_entry);
+}
+
 static void opp_program_regamma_lut(
 		struct output_pixel_processor *opp,
 		const struct pwl_result_data *rgb,
@@ -735,6 +777,8 @@ static void opp_program_regamma_lut(
 	}
 
 }
+
+
 
 static bool opp_set_regamma_pwl(
 	struct output_pixel_processor *opp, const struct pwl_params *params)
@@ -776,7 +820,7 @@ static void dcn10_opp_destroy(struct output_pixel_processor **opp)
 
 static struct opp_funcs dcn10_opp_funcs = {
 		.opp_power_on_regamma_lut = opp_power_on_regamma_lut,
-		.opp_set_csc_adjustment = NULL,
+		.opp_set_csc_adjustment = opp_set_output_csc_adjustment,
 		.opp_set_csc_default = opp_set_output_csc_default,
 		.opp_set_dyn_expansion = opp_set_dyn_expansion,
 		.opp_program_regamma_pwl = opp_set_regamma_pwl,
@@ -801,4 +845,75 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	oppn10->regs = regs;
 	oppn10->opp_shift = opp_shift;
 	oppn10->opp_mask = opp_mask;
+}
+
+
+void program_color_matrix(struct dcn10_opp *oppn10,
+		const struct out_csc_color_matrix *tbl_entry)
+{
+	uint32_t mode;
+
+	REG_GET(CM_OCSC_CONTROL, CM_OCSC_MODE, &mode);
+
+	if (tbl_entry == NULL) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
+
+	if (mode == 4) {
+		/*R*/
+		REG_SET_2(CM_OCSC_C11_C12, 0,
+			CM_OCSC_C11, tbl_entry->regval[0],
+			CM_OCSC_C12, tbl_entry->regval[1]);
+
+		REG_SET_2(CM_OCSC_C13_C14, 0,
+			CM_OCSC_C13, tbl_entry->regval[2],
+			CM_OCSC_C14, tbl_entry->regval[3]);
+
+		/*G*/
+		REG_SET_2(CM_OCSC_C21_C22, 0,
+			CM_OCSC_C21, tbl_entry->regval[4],
+			CM_OCSC_C22, tbl_entry->regval[5]);
+
+		REG_SET_2(CM_OCSC_C23_C24, 0,
+			CM_OCSC_C23, tbl_entry->regval[6],
+			CM_OCSC_C24, tbl_entry->regval[7]);
+
+		/*B*/
+		REG_SET_2(CM_OCSC_C31_C32, 0,
+			CM_OCSC_C31, tbl_entry->regval[8],
+			CM_OCSC_C32, tbl_entry->regval[9]);
+
+		REG_SET_2(CM_OCSC_C33_C34, 0,
+			CM_OCSC_C33, tbl_entry->regval[10],
+			CM_OCSC_C34, tbl_entry->regval[11]);
+	} else {
+		/*R*/
+		REG_SET_2(CM_COMB_C11_C12, 0,
+			CM_COMB_C11, tbl_entry->regval[0],
+			CM_COMB_C12, tbl_entry->regval[1]);
+
+		REG_SET_2(CM_COMB_C13_C14, 0,
+			CM_COMB_C13, tbl_entry->regval[2],
+			CM_COMB_C14, tbl_entry->regval[3]);
+
+		/*G*/
+		REG_SET_2(CM_COMB_C21_C22, 0,
+			CM_COMB_C21, tbl_entry->regval[4],
+			CM_COMB_C22, tbl_entry->regval[5]);
+
+		REG_SET_2(CM_COMB_C23_C24, 0,
+			CM_COMB_C23, tbl_entry->regval[6],
+			CM_COMB_C24, tbl_entry->regval[7]);
+
+		/*B*/
+		REG_SET_2(CM_COMB_C31_C32, 0,
+			CM_COMB_C31, tbl_entry->regval[8],
+			CM_COMB_C32, tbl_entry->regval[9]);
+
+		REG_SET_2(CM_COMB_C33_C34, 0,
+			CM_COMB_C33, tbl_entry->regval[10],
+			CM_COMB_C34, tbl_entry->regval[11]);
+	}
 }
