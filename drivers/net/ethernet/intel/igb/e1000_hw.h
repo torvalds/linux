@@ -499,6 +499,7 @@ struct e1000_mbx_operations {
 	s32 (*check_for_msg)(struct e1000_hw *hw, u16 mbx_id);
 	s32 (*check_for_ack)(struct e1000_hw *hw, u16 mbx_id);
 	s32 (*check_for_rst)(struct e1000_hw *hw, u16 mbx_id);
+	s32 (*unlock)(struct e1000_hw *hw, u16 mbx_id);
 };
 
 struct e1000_mbx_stats {
