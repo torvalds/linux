@@ -737,13 +737,6 @@ struct xgbe_hw_if {
 	/* For TX DMA Operate on Second Frame config */
 	int (*config_osp_mode)(struct xgbe_prv_data *);
 
-	/* For RX and TX PBL config */
-	int (*config_rx_pbl_val)(struct xgbe_prv_data *);
-	int (*get_rx_pbl_val)(struct xgbe_prv_data *);
-	int (*config_tx_pbl_val)(struct xgbe_prv_data *);
-	int (*get_tx_pbl_val)(struct xgbe_prv_data *);
-	int (*config_pblx8)(struct xgbe_prv_data *);
-
 	/* For MMC statistics */
 	void (*rx_mmc_int)(struct xgbe_prv_data *);
 	void (*tx_mmc_int)(struct xgbe_prv_data *);
@@ -1029,19 +1022,18 @@ struct xgbe_prv_data {
 	unsigned int rx_q_count;
 
 	/* Tx/Rx common settings */
-	unsigned int pblx8;
+	unsigned int blen;
+	unsigned int pbl;
 
 	/* Tx settings */
 	unsigned int tx_sf_mode;
 	unsigned int tx_threshold;
-	unsigned int tx_pbl;
 	unsigned int tx_osp_mode;
 	unsigned int tx_max_fifo_size;
 
 	/* Rx settings */
 	unsigned int rx_sf_mode;
 	unsigned int rx_threshold;
-	unsigned int rx_pbl;
 	unsigned int rx_max_fifo_size;
 
 	/* Tx coalescing settings */

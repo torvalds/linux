@@ -174,52 +174,30 @@ static unsigned int xgbe_riwt_to_usec(struct xgbe_prv_data *pdata,
 	return ret;
 }
 
-static int xgbe_config_pblx8(struct xgbe_prv_data *pdata)
+static int xgbe_config_pbl_val(struct xgbe_prv_data *pdata)
 {
+	unsigned int pblx8, pbl;
 	unsigned int i;
 
-	for (i = 0; i < pdata->channel_count; i++)
-		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_CR, PBLX8,
-				       pdata->pblx8);
+	pblx8 = DMA_PBL_X8_DISABLE;
+	pbl = pdata->pbl;
 
-	return 0;
-}
-
-static int xgbe_get_tx_pbl_val(struct xgbe_prv_data *pdata)
-{
-	return XGMAC_DMA_IOREAD_BITS(pdata->channel[0], DMA_CH_TCR, PBL);
-}
-
-static int xgbe_config_tx_pbl_val(struct xgbe_prv_data *pdata)
-{
-	unsigned int i;
-
-	for (i = 0; i < pdata->channel_count; i++) {
-		if (!pdata->channel[i]->tx_ring)
-			break;
-
-		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_TCR, PBL,
-				       pdata->tx_pbl);
+	if (pdata->pbl > 32) {
+		pblx8 = DMA_PBL_X8_ENABLE;
+		pbl >>= 3;
 	}
 
-	return 0;
-}
-
-static int xgbe_get_rx_pbl_val(struct xgbe_prv_data *pdata)
-{
-	return XGMAC_DMA_IOREAD_BITS(pdata->channel[0], DMA_CH_RCR, PBL);
-}
-
-static int xgbe_config_rx_pbl_val(struct xgbe_prv_data *pdata)
-{
-	unsigned int i;
-
 	for (i = 0; i < pdata->channel_count; i++) {
-		if (!pdata->channel[i]->rx_ring)
-			break;
+		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_CR, PBLX8,
+				       pblx8);
 
-		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_RCR, PBL,
-				       pdata->rx_pbl);
+		if (pdata->channel[i]->tx_ring)
+			XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_TCR,
+					       PBL, pbl);
+
+		if (pdata->channel[i]->rx_ring)
+			XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_RCR,
+					       PBL, pbl);
 	}
 
 	return 0;
@@ -2141,7 +2119,7 @@ static void xgbe_config_dma_bus(struct xgbe_prv_data *pdata)
 
 	/* Set the System Bus mode */
 	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, UNDEF, 1);
-	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, BLEN_256, 1);
+	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, BLEN, pdata->blen >> 2);
 }
 
 static void xgbe_config_dma_cache(struct xgbe_prv_data *pdata)
@@ -3381,9 +3359,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_dma_bus(pdata);
 	xgbe_config_dma_cache(pdata);
 	xgbe_config_osp_mode(pdata);
-	xgbe_config_pblx8(pdata);
-	xgbe_config_tx_pbl_val(pdata);
-	xgbe_config_rx_pbl_val(pdata);
+	xgbe_config_pbl_val(pdata);
 	xgbe_config_rx_coalesce(pdata);
 	xgbe_config_tx_coalesce(pdata);
 	xgbe_config_rx_buffer_size(pdata);
@@ -3510,13 +3486,6 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 
 	/* For TX DMA Operating on Second Frame config */
 	hw_if->config_osp_mode = xgbe_config_osp_mode;
-
-	/* For RX and TX PBL config */
-	hw_if->config_rx_pbl_val = xgbe_config_rx_pbl_val;
-	hw_if->get_rx_pbl_val = xgbe_get_rx_pbl_val;
-	hw_if->config_tx_pbl_val = xgbe_config_tx_pbl_val;
-	hw_if->get_tx_pbl_val = xgbe_get_tx_pbl_val;
-	hw_if->config_pblx8 = xgbe_config_pblx8;
 
 	/* For MMC statistics support */
 	hw_if->tx_mmc_int = xgbe_tx_mmc_int;

@@ -140,14 +140,13 @@ static void xgbe_default_config(struct xgbe_prv_data *pdata)
 {
 	DBGPR("-->xgbe_default_config\n");
 
-	pdata->pblx8 = DMA_PBL_X8_ENABLE;
+	pdata->blen = DMA_SBMR_BLEN_256;
+	pdata->pbl = DMA_PBL_128;
 	pdata->tx_sf_mode = MTL_TSF_ENABLE;
 	pdata->tx_threshold = MTL_TX_THRESHOLD_64;
-	pdata->tx_pbl = DMA_PBL_16;
 	pdata->tx_osp_mode = DMA_OSP_ENABLE;
 	pdata->rx_sf_mode = MTL_RSF_DISABLE;
 	pdata->rx_threshold = MTL_RX_THRESHOLD_64;
-	pdata->rx_pbl = DMA_PBL_16;
 	pdata->pause_autoneg = 1;
 	pdata->tx_pause = 1;
 	pdata->rx_pause = 1;
