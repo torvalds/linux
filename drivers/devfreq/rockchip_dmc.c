@@ -747,11 +747,17 @@ static int rk3368_dmc_init(struct platform_device *pdev,
 	struct arm_smccc_res res;
 	struct rk3368_dram_timing *dram_timing;
 	struct clk *pclk_phy, *pclk_upctl;
+	struct drm_device *drm = drm_device_get_by_name("rockchip");
 	int ret;
 	u32 dram_spd_bin;
 	u32 addr_mcu_el3;
 	u32 dclk_mode;
 	u32 lcdc_type;
+
+	if (!drm) {
+		dev_err(dev, "Get drm_device fail\n");
+		return -EPROBE_DEFER;
+	}
 
 	pclk_phy = devm_clk_get(dev, "pclk_phy");
 	if (IS_ERR(pclk_phy)) {
@@ -800,7 +806,7 @@ static int rk3368_dmc_init(struct platform_device *pdev,
 	if (of_property_read_u32(np, "vop-dclk-mode", &dclk_mode) == 0)
 		scpi_ddr_dclk_mode(dclk_mode);
 
-	lcdc_type = 7;
+	lcdc_type = rk_drm_get_lcdc_type();
 
 	if (scpi_ddr_init(dram_spd_bin, 0, lcdc_type,
 			  addr_mcu_el3))

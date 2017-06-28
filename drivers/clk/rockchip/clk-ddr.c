@@ -162,7 +162,9 @@ static int rockchip_ddrclk_scpi_set_rate(struct clk_hw *hw, unsigned long drate,
 					 unsigned long prate)
 {
 	u32 ret;
-	u32 lcdc_type = 7;
+	u32 lcdc_type;
+
+	lcdc_type = rk_drm_get_lcdc_type();
 
 	ret = scpi_ddr_set_clk_rate(drate / MHZ, lcdc_type);
 	if (ret) {
