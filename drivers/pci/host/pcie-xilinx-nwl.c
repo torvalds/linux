@@ -530,7 +530,7 @@ static int nwl_pcie_init_irq_domain(struct nwl_pcie *pcie)
 	return 0;
 }
 
-static int nwl_pcie_enable_msi(struct nwl_pcie *pcie, struct pci_bus *bus)
+static int nwl_pcie_enable_msi(struct nwl_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -838,7 +838,7 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		err = nwl_pcie_enable_msi(pcie, bus);
+		err = nwl_pcie_enable_msi(pcie);
 		if (err < 0) {
 			dev_err(dev, "failed to enable MSI support: %d\n", err);
 			goto error;
