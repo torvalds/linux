@@ -1297,7 +1297,9 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
  */
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {
-	fp->bpf_func = interpreters[round_down(fp->aux->stack_depth, 32) / 32];
+	u32 stack_depth = max_t(u32, fp->aux->stack_depth, 1);
+
+	fp->bpf_func = interpreters[(round_up(stack_depth, 32) / 32) - 1];
 
 	/* eBPF JITs can rewrite the program in case constant
 	 * blinding is active. However, in case of error during
