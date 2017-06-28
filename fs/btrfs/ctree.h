@@ -558,7 +558,6 @@ struct btrfs_block_group_cache {
 	u64 bytes_super;
 	u64 flags;
 	u64 cache_generation;
-	u32 sectorsize;
 
 	/*
 	 * If the free space extent count exceeds this number, convert the block
