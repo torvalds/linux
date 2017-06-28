@@ -3599,6 +3599,33 @@ static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{ }
 };
 
+static struct rt5645_platform_data gpd_win_platform_data = {
+	.jd_mode = 3,
+	.inv_jd1_1 = true,
+};
+
+static const struct dmi_system_id dmi_platform_gpd_win[] = {
+	{
+		/*
+		 * Match for the GPDwin which unfortunately uses somewhat
+		 * generic dmi strings, which is why we test for 4 strings.
+		 * Comparing against 23 other byt/cht boards, board_vendor
+		 * and board_name are unique to the GPDwin, where as only one
+		 * other board has the same board_serial and 3 others have
+		 * the same default product_name. Also the GPDwin is the
+		 * only device to have both board_ and product_name not set.
+		 */
+		.ident = "GPD Win",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Default string"),
+			DMI_MATCH(DMI_BOARD_SERIAL, "Default string"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		},
+	},
+	{}
+};
+
 static bool rt5645_check_dp(struct device *dev)
 {
 	if (device_property_present(dev, "realtek,in2-differential") ||
@@ -3649,6 +3676,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645_parse_dt(rt5645, &i2c->dev);
 	else if (dmi_check_system(dmi_platform_intel_braswell))
 		rt5645->pdata = general_platform_data;
+	else if (dmi_check_system(dmi_platform_gpd_win))
+		rt5645->pdata = gpd_win_platform_data;
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);
