@@ -1226,7 +1226,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 		switch (get_unaligned_be16(&cdb[8])) {
 		case READ_32:
 		case WRITE_32:
-		case 0x0c: /* WRITE_VERIFY_32 */
+		case WRITE_VERIFY_32:
 		case XDWRITEREAD_32:
 			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 			break;

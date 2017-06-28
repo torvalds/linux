@@ -161,6 +161,7 @@
 #define READ_32		      0x09
 #define VERIFY_32	      0x0a
 #define WRITE_32	      0x0b
+#define WRITE_VERIFY_32	      0x0c
 #define WRITE_SAME_32	      0x0d
 
 /* Values for T10/04-262r7 */
