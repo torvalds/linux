@@ -128,6 +128,7 @@
 #include <linux/net_tstamp.h>
 #include <net/dcbnl.h>
 #include <linux/completion.h>
+#include <linux/cpumask.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.3"
@@ -465,6 +466,7 @@ struct xgbe_channel {
 	struct xgbe_ring *rx_ring;
 
 	int node;
+	cpumask_t affinity_mask;
 } ____cacheline_aligned;
 
 enum xgbe_state {

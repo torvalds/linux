@@ -192,12 +192,17 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 	struct xgbe_channel *channel;
 	struct xgbe_ring *ring;
 	unsigned int count, i;
+	unsigned int cpu;
 	int node;
-
-	node = dev_to_node(pdata->dev);
 
 	count = max_t(unsigned int, pdata->tx_ring_count, pdata->rx_ring_count);
 	for (i = 0; i < count; i++) {
+		/* Attempt to use a CPU on the node the device is on */
+		cpu = cpumask_local_spread(i, dev_to_node(pdata->dev));
+
+		/* Set the allocation node based on the returned CPU */
+		node = cpu_to_node(cpu);
+
 		channel = xgbe_alloc_node(sizeof(*channel), node);
 		if (!channel)
 			goto err_mem;
@@ -209,6 +214,7 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 		channel->dma_regs = pdata->xgmac_regs + DMA_CH_BASE +
 				    (DMA_CH_INC * i);
 		channel->node = node;
+		cpumask_set_cpu(cpu, &channel->affinity_mask);
 
 		if (pdata->per_channel_irq)
 			channel->dma_irq = pdata->channel_irq[i];
@@ -236,7 +242,7 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 		}
 
 		netif_dbg(pdata, drv, pdata->netdev,
-			  "%s: node=%d\n", channel->name, node);
+			  "%s: cpu=%u, node=%d\n", channel->name, cpu, node);
 
 		netif_dbg(pdata, drv, pdata->netdev,
 			  "%s: dma_regs=%p, dma_irq=%d, tx=%p, rx=%p\n",
@@ -916,6 +922,9 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 				     channel->dma_irq);
 			goto err_dma_irq;
 		}
+
+		irq_set_affinity_hint(channel->dma_irq,
+				      &channel->affinity_mask);
 	}
 
 	return 0;
@@ -925,6 +934,7 @@ err_dma_irq:
 	for (i--; i < pdata->channel_count; i--) {
 		channel = pdata->channel[i];
 
+		irq_set_affinity_hint(channel->dma_irq, NULL);
 		devm_free_irq(pdata->dev, channel->dma_irq, channel);
 	}
 
@@ -952,6 +962,8 @@ static void xgbe_free_irqs(struct xgbe_prv_data *pdata)
 
 	for (i = 0; i < pdata->channel_count; i++) {
 		channel = pdata->channel[i];
+
+		irq_set_affinity_hint(channel->dma_irq, NULL);
 		devm_free_irq(pdata->dev, channel->dma_irq, channel);
 	}
 }
