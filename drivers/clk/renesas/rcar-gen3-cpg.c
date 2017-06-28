@@ -373,18 +373,27 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_R:
 		if (cpg_quirks & RCKCR_CKSEL) {
+			struct cpg_simple_notifier *csn;
+
+			csn = kzalloc(sizeof(*csn), GFP_KERNEL);
+			if (!csn)
+				return ERR_PTR(-ENOMEM);
+
+			csn->reg = base + CPG_RCKCR;
+
 			/*
 			 * RINT is default.
 			 * Only if EXTALR is populated, we switch to it.
 			 */
-			value = readl(base + CPG_RCKCR) & 0x3f;
+			value = readl(csn->reg) & 0x3f;
 
 			if (clk_get_rate(clks[cpg_clk_extalr])) {
 				parent = clks[cpg_clk_extalr];
 				value |= BIT(15);
 			}
 
-			writel(value, base + CPG_RCKCR);
+			writel(value, csn->reg);
+			cpg_simple_notifier_register(notifiers, csn);
 			break;
 		}
 
