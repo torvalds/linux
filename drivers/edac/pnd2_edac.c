@@ -424,16 +424,21 @@ static void dnv_mk_region(char *name, struct region *rp, void *asym)
 
 static int apl_get_registers(void)
 {
+	int ret = -ENODEV;
 	int i;
 
 	if (RD_REG(&asym_2way, b_cr_asym_2way_mem_region_mchbar))
 		return -ENODEV;
 
+	/*
+	 * RD_REGP() will fail for unpopulated or non-existent
+	 * DIMM slots. Return success if we find at least one DIMM.
+	 */
 	for (i = 0; i < APL_NUM_CHANNELS; i++)
-		if (RD_REGP(&drp0[i], d_cr_drp0, apl_dports[i]))
-			return -ENODEV;
+		if (!RD_REGP(&drp0[i], d_cr_drp0, apl_dports[i]))
+			ret = 0;
 
-	return 0;
+	return ret;
 }
 
 static int dnv_get_registers(void)
