@@ -491,3 +491,16 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 }
 EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);
 #endif /* CONFIG_PPC_BOOK3S_64 */
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void mark_rodata_ro(void)
+{
+	if (!mmu_has_feature(MMU_FTR_KERNEL_RO)) {
+		pr_warn("Warning: Unable to mark rodata read only on this CPU.\n");
+		return;
+	}
+
+	if (!radix_enabled())
+		hash__mark_rodata_ro();
+}
+#endif

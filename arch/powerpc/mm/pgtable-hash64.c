@@ -11,8 +11,12 @@
 
 #include <linux/sched.h>
 #include <linux/mm_types.h>
+#include <linux/mm.h>
 
 #include <asm/pgalloc.h>
+#include <asm/pgtable.h>
+#include <asm/sections.h>
+#include <asm/mmu.h>
 #include <asm/tlb.h>
 
 #include "mmu_decl.h"
@@ -419,3 +423,35 @@ int hash__has_transparent_hugepage(void)
 	return 1;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void hash__mark_rodata_ro(void)
+{
+	unsigned long start = (unsigned long)_stext;
+	unsigned long end = (unsigned long)__init_begin;
+	unsigned long idx;
+	unsigned int step, shift;
+	unsigned long newpp = PP_RXXX;
+
+	shift = mmu_psize_defs[mmu_linear_psize].shift;
+	step = 1 << shift;
+
+	start = ((start + step - 1) >> shift) << shift;
+	end = (end >> shift) << shift;
+
+	pr_devel("marking ro start %lx, end %lx, step %x\n",
+			start, end, step);
+
+	if (start == end) {
+		pr_warn("could not set rodata ro, relocate the start"
+			" of the kernel to a 0x%x boundary\n", step);
+		return;
+	}
+
+	for (idx = start; idx < end; idx += step)
+		/* Not sure if we can do much with the return value */
+		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
+							mmu_kernel_ssize);
+
+}
+#endif
