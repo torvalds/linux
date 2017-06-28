@@ -242,7 +242,7 @@ int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 	return 0;
 }
 
-#endif /* CONFIG_CLKSRC_MIPS_GIC */
+#endif /* CONFIG_MIPS_CLOCK_VSYSCALL */
 
 int __vdso_clock_gettime(clockid_t clkid, struct timespec *ts)
 {
