@@ -419,7 +419,7 @@ drm_atomic_replace_property_blob(struct drm_property_blob **blob,
 	return;
 }
 
-static int
+int
 drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
 					 struct drm_property_blob **blob,
 					 uint64_t blob_id,
@@ -441,6 +441,7 @@ drm_atomic_replace_property_blob_from_id(struct drm_crtc *crtc,
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_atomic_replace_property_blob_from_id);
 
 /**
  * drm_atomic_crtc_set_property - set property on CRTC
