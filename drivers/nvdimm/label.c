@@ -21,6 +21,7 @@
 #include "nd.h"
 
 static guid_t nvdimm_btt_guid;
+static guid_t nvdimm_btt2_guid;
 static guid_t nvdimm_pfn_guid;
 static guid_t nvdimm_dax_guid;
 
@@ -578,6 +579,8 @@ enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid)
 {
 	if (guid_equal(guid, &nvdimm_btt_guid))
 		return NVDIMM_CCLASS_BTT;
+	else if (guid_equal(guid, &nvdimm_btt2_guid))
+		return NVDIMM_CCLASS_BTT2;
 	else if (guid_equal(guid, &nvdimm_pfn_guid))
 		return NVDIMM_CCLASS_PFN;
 	else if (guid_equal(guid, &nvdimm_dax_guid))
@@ -593,6 +596,8 @@ static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
 {
 	if (claim_class == NVDIMM_CCLASS_BTT)
 		return &nvdimm_btt_guid;
+	else if (claim_class == NVDIMM_CCLASS_BTT2)
+		return &nvdimm_btt2_guid;
 	else if (claim_class == NVDIMM_CCLASS_PFN)
 		return &nvdimm_pfn_guid;
 	else if (claim_class == NVDIMM_CCLASS_DAX)
@@ -1158,6 +1163,7 @@ int nd_blk_namespace_label_update(struct nd_region *nd_region,
 int __init nd_label_init(void)
 {
 	WARN_ON(guid_parse(NVDIMM_BTT_GUID, &nvdimm_btt_guid));
+	WARN_ON(guid_parse(NVDIMM_BTT2_GUID, &nvdimm_btt2_guid));
 	WARN_ON(guid_parse(NVDIMM_PFN_GUID, &nvdimm_pfn_guid));
 	WARN_ON(guid_parse(NVDIMM_DAX_GUID, &nvdimm_dax_guid));
 

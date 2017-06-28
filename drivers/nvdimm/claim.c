@@ -189,6 +189,7 @@ ssize_t nd_namespace_store(struct device *dev,
 	case NVDIMM_CCLASS_NONE:
 		break;
 	case NVDIMM_CCLASS_BTT:
+	case NVDIMM_CCLASS_BTT2:
 		if (!is_nd_btt(dev)) {
 			len = -EBUSY;
 			goto out_attach;

@@ -1411,6 +1411,58 @@ static ssize_t dpa_extents_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(dpa_extents);
 
+static int btt_claim_class(struct device *dev)
+{
+	struct nd_region *nd_region = to_nd_region(dev->parent);
+	int i, loop_bitmask = 0;
+
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+		struct nd_namespace_index *nsindex;
+
+		nsindex = to_namespace_index(ndd, ndd->ns_current);
+		if (nsindex == NULL)
+			loop_bitmask |= 1;
+		else {
+			/* check whether existing labels are v1.1 or v1.2 */
+			if (__le16_to_cpu(nsindex->major) == 1
+					&& __le16_to_cpu(nsindex->minor) == 1)
+				loop_bitmask |= 2;
+			else
+				loop_bitmask |= 4;
+		}
+	}
+	/*
+	 * If nsindex is null loop_bitmask's bit 0 will be set, and if an index
+	 * block is found, a v1.1 label for any mapping will set bit 1, and a
+	 * v1.2 label will set bit 2.
+	 *
+	 * At the end of the loop, at most one of the three bits must be set.
+	 * If multiple bits were set, it means the different mappings disagree
+	 * about their labels, and this must be cleaned up first.
+	 *
+	 * If all the label index blocks are found to agree, nsindex of NULL
+	 * implies labels haven't been initialized yet, and when they will,
+	 * they will be of the 1.2 format, so we can assume BTT2.0
+	 *
+	 * If 1.1 labels are found, we enforce BTT1.1, and if 1.2 labels are
+	 * found, we enforce BTT2.0
+	 *
+	 * If the loop was never entered, default to BTT1.1 (legacy namespaces)
+	 */
+	switch (loop_bitmask) {
+	case 0:
+	case 2:
+		return NVDIMM_CCLASS_BTT;
+	case 1:
+	case 4:
+		return NVDIMM_CCLASS_BTT2;
+	default:
+		return -ENXIO;
+	}
+}
+
 static ssize_t holder_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -1433,7 +1485,7 @@ static ssize_t __holder_class_store(struct device *dev, const char *buf)
 		return -EBUSY;
 
 	if (strcmp(buf, "btt") == 0 || strcmp(buf, "btt\n") == 0)
-		ndns->claim_class = NVDIMM_CCLASS_BTT;
+		ndns->claim_class = btt_claim_class(dev);
 	else if (strcmp(buf, "pfn") == 0 || strcmp(buf, "pfn\n") == 0)
 		ndns->claim_class = NVDIMM_CCLASS_PFN;
 	else if (strcmp(buf, "dax") == 0 || strcmp(buf, "dax\n") == 0)
@@ -1442,6 +1494,10 @@ static ssize_t __holder_class_store(struct device *dev, const char *buf)
 		ndns->claim_class = NVDIMM_CCLASS_NONE;
 	else
 		return -EINVAL;
+
+	/* btt_claim_class() could've returned an error */
+	if (ndns->claim_class < 0)
+		return ndns->claim_class;
 
 	return 0;
 }
@@ -1474,7 +1530,8 @@ static ssize_t holder_class_show(struct device *dev,
 	device_lock(dev);
 	if (ndns->claim_class == NVDIMM_CCLASS_NONE)
 		rc = sprintf(buf, "\n");
-	else if (ndns->claim_class == NVDIMM_CCLASS_BTT)
+	else if ((ndns->claim_class == NVDIMM_CCLASS_BTT) ||
+			(ndns->claim_class == NVDIMM_CCLASS_BTT2))
 		rc = sprintf(buf, "btt\n");
 	else if (ndns->claim_class == NVDIMM_CCLASS_PFN)
 		rc = sprintf(buf, "pfn\n");

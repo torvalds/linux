@@ -195,6 +195,9 @@ struct nd_btt {
 	u64 size;
 	u8 *uuid;
 	int id;
+	int initial_offset;
+	u16 version_major;
+	u16 version_minor;
 };
 
 enum nd_pfn_mode {
