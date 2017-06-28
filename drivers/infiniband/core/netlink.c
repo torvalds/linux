@@ -232,10 +232,20 @@ int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	int err;
 
-	err = netlink_unicast(nls, skb, pid, 0);
+	err = netlink_unicast(nls, skb, pid, MSG_DONTWAIT);
 	return (err < 0) ? err : 0;
 }
 EXPORT_SYMBOL(ibnl_unicast);
+
+int ibnl_unicast_wait(struct sk_buff *skb, struct nlmsghdr *nlh,
+		      __u32 pid)
+{
+	int err;
+
+	err = netlink_unicast(nls, skb, pid, 0);
+	return (err < 0) ? err : 0;
+}
+EXPORT_SYMBOL(ibnl_unicast_wait);
 
 int ibnl_multicast(struct sk_buff *skb, struct nlmsghdr *nlh,
 			unsigned int group, gfp_t flags)
