@@ -2022,7 +2022,6 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 
 	{ "Stereo1 ADC MIXL", NULL, "Sto1 ADC MIXL" },
 	{ "Stereo1 ADC MIXL", NULL, "ADC Stereo1 Filter" },
-	{ "ADC Stereo1 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo1 ADC MIXR", NULL, "Sto1 ADC MIXR" },
 	{ "Stereo1 ADC MIXR", NULL, "ADC Stereo1 Filter" },
@@ -2061,7 +2060,6 @@ static const struct snd_soc_dapm_route rt5670_dapm_routes[] = {
 
 	{ "Stereo2 ADC MIXL", NULL, "Stereo2 ADC LR Mux" },
 	{ "Stereo2 ADC MIXL", NULL, "ADC Stereo2 Filter" },
-	{ "ADC Stereo2 Filter", NULL, "PLL1", is_sys_clk_from_pll },
 
 	{ "Stereo2 ADC MIXR", NULL, "Sto2 ADC MIXR" },
 	{ "Stereo2 ADC MIXR", NULL, "ADC Stereo2 Filter" },
