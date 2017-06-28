@@ -955,8 +955,10 @@ static void rcu_eqs_exit(bool user)
 	if (oldval & DYNTICK_TASK_NEST_MASK) {
 		rdtp->dynticks_nesting += DYNTICK_TASK_NEST_VALUE;
 	} else {
+		__this_cpu_inc(disable_rcu_irq_enter);
 		rdtp->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
 		rcu_eqs_exit_common(oldval, user);
+		__this_cpu_dec(disable_rcu_irq_enter);
 	}
 }
 
