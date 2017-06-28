@@ -93,6 +93,27 @@ static void led_recon_set(struct led_classdev *led_cdev,
 	outb(!!value, priv->misc + ci->leds[card->index].red);
 }
 
+static ssize_t backplane_mode_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct net_device *net_dev = to_net_dev(dev);
+	struct arcnet_local *lp = netdev_priv(net_dev);
+
+	return sprintf(buf, "%s\n", lp->backplane ? "true" : "false");
+}
+static DEVICE_ATTR_RO(backplane_mode);
+
+static struct attribute *com20020_state_attrs[] = {
+	&dev_attr_backplane_mode.attr,
+	NULL,
+};
+
+static struct attribute_group com20020_state_group = {
+	.name = NULL,
+	.attrs = com20020_state_attrs,
+};
+
 static void com20020pci_remove(struct pci_dev *pdev);
 
 static int com20020pci_probe(struct pci_dev *pdev,
@@ -168,6 +189,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		dev->base_addr = ioaddr;
 		dev->dev_addr[0] = node;
+		dev->sysfs_groups[0] = &com20020_state_group;
 		dev->irq = pdev->irq;
 		lp->card_name = "PCI COM20020";
 		lp->card_flags = ci->flags;
