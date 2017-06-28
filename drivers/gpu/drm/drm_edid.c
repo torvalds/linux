@@ -4556,6 +4556,8 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 
 	DRM_DEBUG_KMS("non_desktop set to %d\n", info->non_desktop);
 
+	memset(&info->hdmi, 0, sizeof(info->hdmi));
+
 	if (edid->revision < 3)
 		return quirks;
 
