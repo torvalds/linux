@@ -459,21 +459,20 @@ static u32 cmd_to_target_hwq(struct Scsi_Host *host, struct scsi_cmnd *scp,
 
 /**
  * send_tmf() - sends a Task Management Function (TMF)
- * @afu:	AFU to checkout from.
- * @scp:	SCSI command from stack describing target.
+ * @cfg:	Internal structure associated with the host.
+ * @sdev:	SCSI device destined for TMF.
  * @tmfcmd:	TMF command to send.
  *
  * Return:
  *	0 on success, SCSI_MLQUEUE_HOST_BUSY or -errno on failure
  */
-static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
+static int send_tmf(struct cxlflash_cfg *cfg, struct scsi_device *sdev,
+		    u64 tmfcmd)
 {
-	struct Scsi_Host *host = scp->device->host;
-	struct cxlflash_cfg *cfg = shost_priv(host);
+	struct afu *afu = cfg->afu;
 	struct afu_cmd *cmd = NULL;
 	struct device *dev = &cfg->dev->dev;
-	int hwq_index = cmd_to_target_hwq(host, scp, afu);
-	struct hwq *hwq = get_hwq(afu, hwq_index);
+	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
 	char *buf = NULL;
 	ulong lock_flags;
 	int rc = 0;
@@ -500,12 +499,12 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 
 	cmd->parent = afu;
 	cmd->cmd_tmf = true;
-	cmd->hwq_index = hwq_index;
+	cmd->hwq_index = hwq->index;
 
 	cmd->rcb.ctx_id = hwq->ctx_hndl;
 	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
-	cmd->rcb.port_sel = CHAN2PORTMASK(scp->device->channel);
-	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
+	cmd->rcb.port_sel = CHAN2PORTMASK(sdev->channel);
+	cmd->rcb.lun_id = lun_to_lunid(sdev->lun);
 	cmd->rcb.req_flags = (SISL_REQ_FLAGS_PORT_LUN_ID |
 			      SISL_REQ_FLAGS_SUP_UNDERRUN |
 			      SISL_REQ_FLAGS_TMF_CMD);
@@ -2430,15 +2429,15 @@ out:
 static int cxlflash_eh_device_reset_handler(struct scsi_cmnd *scp)
 {
 	int rc = SUCCESS;
-	struct Scsi_Host *host = scp->device->host;
+	struct scsi_device *sdev = scp->device;
+	struct Scsi_Host *host = sdev->host;
 	struct cxlflash_cfg *cfg = shost_priv(host);
 	struct device *dev = &cfg->dev->dev;
-	struct afu *afu = cfg->afu;
 	int rcr = 0;
 
 	dev_dbg(dev, "%s: (scp=%p) %d/%d/%d/%llu "
 		"cdb=(%08x-%08x-%08x-%08x)\n", __func__, scp, host->host_no,
-		scp->device->channel, scp->device->id, scp->device->lun,
+		sdev->channel, sdev->id, sdev->lun,
 		get_unaligned_be32(&((u32 *)scp->cmnd)[0]),
 		get_unaligned_be32(&((u32 *)scp->cmnd)[1]),
 		get_unaligned_be32(&((u32 *)scp->cmnd)[2]),
@@ -2447,7 +2446,7 @@ static int cxlflash_eh_device_reset_handler(struct scsi_cmnd *scp)
 retry:
 	switch (cfg->state) {
 	case STATE_NORMAL:
-		rcr = send_tmf(afu, scp, TMF_LUN_RESET);
+		rcr = send_tmf(cfg, sdev, TMF_LUN_RESET);
 		if (unlikely(rcr))
 			rc = FAILED;
 		break;
