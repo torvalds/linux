@@ -398,12 +398,14 @@ static void renesas_sdhi_hw_reset(struct tmio_mmc_host *host)
 		       sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL));
 }
 
-static int renesas_sdhi_wait_idle(struct tmio_mmc_host *host)
+static int renesas_sdhi_wait_idle(struct tmio_mmc_host *host, u32 bit)
 {
 	int timeout = 1000;
+	/* CBSY is set when busy, SCLKDIVEN is cleared when busy */
+	u32 wait_state = (bit == TMIO_STAT_CMD_BUSY ? TMIO_STAT_CMD_BUSY : 0);
 
-	while (--timeout && !(sd_ctrl_read16_and_16_as_32(host, CTL_STATUS)
-			      & TMIO_STAT_SCLKDIVEN))
+	while (--timeout && (sd_ctrl_read16_and_16_as_32(host, CTL_STATUS)
+			      & bit) == wait_state)
 		udelay(1);
 
 	if (!timeout) {
@@ -416,17 +418,22 @@ static int renesas_sdhi_wait_idle(struct tmio_mmc_host *host)
 
 static int renesas_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 {
+	u32 bit = TMIO_STAT_SCLKDIVEN;
+
 	switch (addr) {
 	case CTL_SD_CMD:
 	case CTL_STOP_INTERNAL_ACTION:
 	case CTL_XFER_BLK_COUNT:
-	case CTL_SD_CARD_CLK_CTL:
 	case CTL_SD_XFER_LEN:
 	case CTL_SD_MEM_CARD_OPT:
 	case CTL_TRANSACTION_CTL:
 	case CTL_DMA_ENABLE:
 	case EXT_ACC:
-		return renesas_sdhi_wait_idle(host);
+		if (host->pdata->flags & TMIO_MMC_MIN_RCAR2)
+			bit = TMIO_STAT_CMD_BUSY;
+		/* fallthrough */
+	case CTL_SD_CARD_CLK_CTL:
+		return renesas_sdhi_wait_idle(host, bit);
 	}
 
 	return 0;
