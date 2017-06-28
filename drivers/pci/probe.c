@@ -517,9 +517,7 @@ static void pci_release_host_bridge_dev(struct device *dev)
 	if (bridge->release_fn)
 		bridge->release_fn(bridge);
 
-	pci_free_resource_list(&bridge->windows);
-
-	kfree(bridge);
+	pci_free_host_bridge(bridge);
 }
 
 struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
@@ -536,6 +534,14 @@ struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
 	return bridge;
 }
 EXPORT_SYMBOL(pci_alloc_host_bridge);
+
+void pci_free_host_bridge(struct pci_host_bridge *bridge)
+{
+	pci_free_resource_list(&bridge->windows);
+
+	kfree(bridge);
+}
+EXPORT_SYMBOL(pci_free_host_bridge);
 
 static const unsigned char pcix_bus_speed[] = {
 	PCI_SPEED_UNKNOWN,		/* 0 */
