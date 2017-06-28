@@ -256,7 +256,6 @@ monotonic_raw:
 	seqcnt_check fail=monotonic_raw
 
 	/* All computations are done with left-shifted nsecs. */
-	lsl	x14, x14, x12
 	get_nsec_per_sec res=x9
 	lsl	x9, x9, x12
 
