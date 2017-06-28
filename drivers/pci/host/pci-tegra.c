@@ -2285,13 +2285,11 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	host->dev.parent = &pdev->dev;
 	host->ops = &tegra_pcie_ops;
 
-	err = pci_register_host_bridge(host);
+	err = pci_scan_root_bus_bridge(host);
 	if (err < 0) {
 		dev_err(dev, "failed to register host: %d\n", err);
 		goto disable_msi;
 	}
-
-	pci_scan_child_bus(host->bus);
 
 	pci_fixup_irqs(pci_common_swizzle, tegra_pcie_map_irq);
 	pci_bus_size_bridges(host->bus);

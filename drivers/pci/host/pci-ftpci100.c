@@ -527,14 +527,13 @@ static int faraday_pci_probe(struct platform_device *pdev)
 		return ret;
 
 	list_splice_init(&res, &host->windows);
-	ret = pci_register_host_bridge(host);
+	ret = pci_scan_root_bus_bridge(host);
 	if (ret) {
-		dev_err(dev, "failed to register host: %d\n", ret);
+		dev_err(dev, "failed to scan host: %d\n", ret);
 		return ret;
 	}
 	p->bus = host->bus;
 
-	pci_scan_child_bus(p->bus);
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 	pci_bus_assign_resources(p->bus);
 	pci_bus_add_devices(p->bus);
