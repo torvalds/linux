@@ -1379,8 +1379,10 @@ static int azx_free(struct azx *chip)
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		if (hda->need_i915_power)
 			snd_hdac_display_power(bus, false);
-		snd_hdac_i915_exit(bus);
 	}
+	if (chip->driver_type == AZX_DRIVER_PCH ||
+	    (chip->driver_caps & AZX_DCAPS_I915_POWERWELL))
+		snd_hdac_i915_exit(bus);
 	kfree(hda);
 
 	return 0;
@@ -2196,16 +2198,9 @@ static int azx_probe_continue(struct azx *chip)
 
 	hda->probe_continued = 1;
 
-	/* Request display power well for the HDA controller or codec. For
-	 * Haswell/Broadwell, both the display HDA controller and codec need
-	 * this power. For other platforms, like Baytrail/Braswell, only the
-	 * display codec needs the power and it can be released after probe.
-	 */
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		/* HSW/BDW controllers need this power */
-		if (CONTROLLER_IN_GPU(pci))
-			hda->need_i915_power = 1;
-
+	/* bind with i915 if needed */
+	if (chip->driver_type == AZX_DRIVER_PCH ||
+	    (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)) {
 		err = snd_hdac_i915_init(bus);
 		if (err < 0) {
 			/* if the controller is bound only with HDMI/DP
@@ -2217,9 +2212,22 @@ static int azx_probe_continue(struct azx *chip)
 				dev_err(chip->card->dev,
 					"HSW/BDW HD-audio HDMI/DP requires binding with gfx driver\n");
 				goto out_free;
-			} else
-				goto skip_i915;
+			} else {
+				/* don't bother any longer */
+				chip->driver_caps &= ~AZX_DCAPS_I915_POWERWELL;
+			}
 		}
+	}
+
+	/* Request display power well for the HDA controller or codec. For
+	 * Haswell/Broadwell, both the display HDA controller and codec need
+	 * this power. For other platforms, like Baytrail/Braswell, only the
+	 * display codec needs the power and it can be released after probe.
+	 */
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		/* HSW/BDW controllers need this power */
+		if (CONTROLLER_IN_GPU(pci))
+			hda->need_i915_power = 1;
 
 		err = snd_hdac_display_power(bus, true);
 		if (err < 0) {
@@ -2229,7 +2237,6 @@ static int azx_probe_continue(struct azx *chip)
 		}
 	}
 
- skip_i915:
 	err = azx_first_init(chip);
 	if (err < 0)
 		goto out_free;
