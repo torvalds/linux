@@ -1597,6 +1597,8 @@ void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 		 *  to mask irq/MSI.
 		 */
 		break;
+	case ATH10K_HW_WCN3990:
+		break;
 	}
 }
 
@@ -1622,6 +1624,8 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 		/* TODO: Find appropriate register configuration for QCA99X0
 		 *  to unmask irq/MSI.
 		 */
+		break;
+	case ATH10K_HW_WCN3990:
 		break;
 	}
 }
