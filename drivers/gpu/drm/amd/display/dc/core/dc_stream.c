@@ -164,9 +164,11 @@ const struct dc_stream_status *dc_stream_get_status(
 	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 	struct core_dc *dc = DC_TO_CORE(stream->ctx->dc);
 
-	for (i = 0; i < dc->current_context->stream_count; i++)
-		if (stream == dc->current_context->streams[i])
+	for (i = 0; i < dc->current_context->stream_count; i++) {
+		if (stream == dc->current_context->streams[i]) {
 			return &dc->current_context->stream_status[i];
+		}
+	}
 
 	return NULL;
 }

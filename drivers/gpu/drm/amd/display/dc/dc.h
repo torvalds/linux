@@ -590,10 +590,7 @@ void dc_resource_validate_ctx_destruct(struct validate_context *context);
  *   Phy, Encoder, Timing Generator are programmed and enabled.
  *   New streams are enabled with blank stream; no memory read.
  */
-bool dc_commit_validation_set(
-		const struct dc *dc,
-		const struct dc_validation_set set[],
-		uint8_t set_count);
+bool dc_commit_context(struct dc *dc, struct validate_context *context);
 
 /*
  * Set up streams and links associated to drive sinks

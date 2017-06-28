@@ -2607,6 +2607,7 @@ void amdgpu_dm_atomic_commit_tail(
 					new_stream = dm_state->set[j].stream;
 					break;
 				}
+
 			/*
 			 * this loop saves set mode crtcs
 			 * we needed to enable vblanks once all
@@ -2665,7 +2666,6 @@ void amdgpu_dm_atomic_commit_tail(
 			dm_error("%s: Failed to update stream scaling!\n", __func__);
 	}
 
-
 	/*
 	 * Add streams after required streams from new and replaced streams
 	 * are removed from freesync module
@@ -2693,15 +2693,19 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* DC is optimized not to do anything if 'streams' didn't change. */
-	WARN_ON(!dc_commit_validation_set(dm->dc, dm_state->set,
-					  dm_state->set_count));
+	WARN_ON(!dc_commit_context(dm->dc, dm_state->context));
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-		if (acrtc->stream != NULL)
-			acrtc->otg_inst =
-				dc_stream_get_status(acrtc->stream)->primary_otg_inst;
+		if (acrtc->stream != NULL) {
+			const struct dc_stream_status *status = dc_stream_get_status(acrtc->stream);
+
+			if (!status)
+				DC_ERR("got no status for stream %p on acrtc%p\n", acrtc->stream, acrtc);
+			else
+				acrtc->otg_inst = status->primary_otg_inst;
+		}
 	}
 
 	for (i = 0; i < new_crtcs_count; i++) {
@@ -2884,6 +2888,7 @@ static uint32_t update_in_val_sets_stream(
 	} else {
 		/* update. relase old stream */
 		dc_stream_release(old_stream);
+
 	}
 
 	return set_count;
@@ -3064,6 +3069,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 						__func__, acrtc->base.base.id);
 				break;
 			}
+			new_stream->priv = acrtc;
 
 			new_streams[new_stream_count] = new_stream;
 			dm_state->set_count = update_in_val_sets_stream(
