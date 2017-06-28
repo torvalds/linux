@@ -150,7 +150,8 @@ static int __meminit create_physical_mapping(unsigned long start,
 
 		vaddr = (unsigned long)__va(addr);
 
-		if (overlaps_kernel_text(vaddr, vaddr + mapping_size))
+		if (overlaps_kernel_text(vaddr, vaddr + mapping_size) ||
+		    overlaps_interrupt_vector_text(vaddr, vaddr + mapping_size))
 			prot = PAGE_KERNEL_X;
 		else
 			prot = PAGE_KERNEL;
