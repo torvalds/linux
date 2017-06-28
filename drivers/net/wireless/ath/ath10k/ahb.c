@@ -787,8 +787,9 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	ar_pci->mem = ar_ahb->mem;
 	ar_pci->mem_len = ar_ahb->mem_len;
 	ar_pci->ar = ar;
-	ar_pci->bus_ops = &ath10k_ahb_bus_ops;
+	ar_pci->ce.bus_ops = &ath10k_ahb_bus_ops;
 	ar_pci->targ_cpu_to_ce_addr = ath10k_ahb_qca4019_targ_cpu_to_ce_addr;
+	ar->ce_priv = &ar_pci->ce;
 
 	ret = ath10k_pci_setup_resource(ar);
 	if (ret) {
