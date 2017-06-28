@@ -802,6 +802,14 @@ config RTC_DRV_DS3232
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
 
+config RTC_DRV_DS3232_HWMON
+	bool "HWMON support for Dallas/Maxim DS3232/DS3234"
+	depends on RTC_DRV_DS3232 && HWMON && !(RTC_DRV_DS3232=y && HWMON=m)
+	default y
+	help
+	  Say Y here if you want to expose temperature sensor data on
+	  rtc-ds3232
+
 config RTC_DRV_PCF2127
 	tristate "NXP PCF2127"
 	depends on RTC_I2C_AND_SPI
