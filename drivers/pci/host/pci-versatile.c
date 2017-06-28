@@ -209,14 +209,14 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	bridge->sysdata = NULL;
 	bridge->busnr = 0;
 	bridge->ops = &pci_versatile_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 
 	ret = pci_scan_root_bus_bridge(bridge);
 	if (ret < 0)
 		return ret;
 
 	bus = bridge->bus;
-
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
