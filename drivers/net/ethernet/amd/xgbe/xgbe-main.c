@@ -277,7 +277,11 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	pdata->desc_ded_period = jiffies;
 
 	/* Issue software reset to device */
-	pdata->hw_if.exit(pdata);
+	ret = pdata->hw_if.exit(pdata);
+	if (ret) {
+		dev_err(dev, "software reset failed\n");
+		return ret;
+	}
 
 	/* Set default configuration data */
 	xgbe_default_config(pdata);
