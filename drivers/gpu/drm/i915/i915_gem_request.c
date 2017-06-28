@@ -384,7 +384,11 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 		engine->context_unpin(engine, engine->last_retired_context);
 	engine->last_retired_context = request->ctx;
 
-	dma_fence_signal(&request->fence);
+	spin_lock_irq(&request->lock);
+	if (request->waitboost)
+		atomic_dec(&request->i915->rps.num_waiters);
+	dma_fence_signal_locked(&request->fence);
+	spin_unlock_irq(&request->lock);
 
 	i915_priotree_fini(request->i915, &request->priotree);
 	i915_gem_request_put(request);
@@ -639,6 +643,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->file_priv = NULL;
 	req->batch = NULL;
 	req->capture_list = NULL;
+	req->waitboost = false;
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to

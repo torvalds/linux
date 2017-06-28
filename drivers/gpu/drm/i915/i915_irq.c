@@ -1091,18 +1091,6 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 	return events;
 }
 
-static bool any_waiters(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		if (intel_engine_has_waiter(engine))
-			return true;
-
-	return false;
-}
-
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -1114,7 +1102,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->rps.interrupts_enabled) {
 		pm_iir = fetch_and_zero(&dev_priv->rps.pm_iir);
-		client_boost = fetch_and_zero(&dev_priv->rps.client_boost);
+		client_boost = atomic_read(&dev_priv->rps.num_waiters);
 	}
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -1131,7 +1119,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	new_delay = dev_priv->rps.cur_freq;
 	min = dev_priv->rps.min_freq_softlimit;
 	max = dev_priv->rps.max_freq_softlimit;
-	if (client_boost || any_waiters(dev_priv))
+	if (client_boost)
 		max = dev_priv->rps.max_freq;
 	if (client_boost && new_delay < dev_priv->rps.boost_freq) {
 		new_delay = dev_priv->rps.boost_freq;
@@ -1144,7 +1132,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 		if (new_delay >= dev_priv->rps.max_freq_softlimit)
 			adj = 0;
-	} else if (client_boost || any_waiters(dev_priv)) {
+	} else if (client_boost) {
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
 		if (dev_priv->rps.cur_freq > dev_priv->rps.efficient_freq)

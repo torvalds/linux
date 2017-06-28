@@ -388,7 +388,7 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 	 */
 	if (rps) {
 		if (INTEL_GEN(rq->i915) >= 6)
-			gen6_rps_boost(rq->i915, rps, rq->emitted_jiffies);
+			gen6_rps_boost(rq, rps);
 		else
 			rps = NULL;
 	}
@@ -398,22 +398,6 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 out:
 	if (flags & I915_WAIT_LOCKED && i915_gem_request_completed(rq))
 		i915_gem_request_retire_upto(rq);
-
-	if (rps && i915_gem_request_global_seqno(rq) == intel_engine_last_submit(rq->engine)) {
-		/* The GPU is now idle and this client has stalled.
-		 * Since no other client has submitted a request in the
-		 * meantime, assume that this client is the only one
-		 * supplying work to the GPU but is unable to keep that
-		 * work supplied because it is waiting. Since the GPU is
-		 * then never kept fully busy, RPS autoclocking will
-		 * keep the clocks relatively low, causing further delays.
-		 * Compensate by giving the synchronous client credit for
-		 * a waitboost next time.
-		 */
-		spin_lock(&rq->i915->rps.client_lock);
-		list_del_init(&rps->link);
-		spin_unlock(&rq->i915->rps.client_lock);
-	}
 
 	return timeout;
 }
@@ -5053,12 +5037,6 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	list_for_each_entry(request, &file_priv->mm.request_list, client_link)
 		request->file_priv = NULL;
 	spin_unlock(&file_priv->mm.lock);
-
-	if (!list_empty(&file_priv->rps.link)) {
-		spin_lock(&to_i915(dev)->rps.client_lock);
-		list_del(&file_priv->rps.link);
-		spin_unlock(&to_i915(dev)->rps.client_lock);
-	}
 }
 
 int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
@@ -5075,7 +5053,6 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 	file->driver_priv = file_priv;
 	file_priv->dev_priv = i915;
 	file_priv->file = file;
-	INIT_LIST_HEAD(&file_priv->rps.link);
 
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
