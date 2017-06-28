@@ -608,6 +608,9 @@ static int loop_switch(struct loop_device *lo, struct file *file)
  */
 static int loop_flush(struct loop_device *lo)
 {
+	/* loop not yet configured, no running thread, nothing to flush */
+	if (lo->lo_state != Lo_bound)
+		return 0;
 	return loop_switch(lo, NULL);
 }
 

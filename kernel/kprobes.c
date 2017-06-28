@@ -122,7 +122,7 @@ static void *alloc_insn_page(void)
 	return module_alloc(PAGE_SIZE);
 }
 
-static void free_insn_page(void *page)
+void __weak free_insn_page(void *page)
 {
 	module_memfree(page);
 }
@@ -595,7 +595,7 @@ static void kprobe_optimizer(struct work_struct *work)
 }
 
 /* Wait for completing optimization and unoptimization */
-static void wait_for_kprobe_optimizer(void)
+void wait_for_kprobe_optimizer(void)
 {
 	mutex_lock(&kprobe_mutex);
 
@@ -2183,6 +2183,12 @@ static int kprobes_module_callback(struct notifier_block *nb,
 				 * The vaddr this probe is installed will soon
 				 * be vfreed buy not synced to disk. Hence,
 				 * disarming the breakpoint isn't needed.
+				 *
+				 * Note, this will also move any optimized probes
+				 * that are pending to be removed from their
+				 * corresponding lists to the freeing_list and
+				 * will not be touched by the delayed
+				 * kprobe_optimizer work handler.
 				 */
 				kill_kprobe(p);
 			}

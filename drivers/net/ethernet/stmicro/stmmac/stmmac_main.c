@@ -1208,7 +1208,7 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 	u32 rx_count = priv->plat->rx_queues_to_use;
 	unsigned int bfsize = 0;
 	int ret = -ENOMEM;
-	u32 queue;
+	int queue;
 	int i;
 
 	if (priv->hw->mode->set_16kib_bfsize)
@@ -2724,7 +2724,7 @@ static void stmmac_tso_allocator(struct stmmac_priv *priv, unsigned int des,
 
 		priv->hw->desc->prepare_tso_tx_desc(desc, 0, buff_size,
 			0, 1,
-			(last_segment) && (buff_size < TSO_MAX_BUFF_SIZE),
+			(last_segment) && (tmp_len <= TSO_MAX_BUFF_SIZE),
 			0, 0);
 
 		tmp_len -= TSO_MAX_BUFF_SIZE;
@@ -2947,7 +2947,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, csum_insertion = 0, is_jumbo = 0;
 	u32 queue = skb_get_queue_mapping(skb);
 	int nfrags = skb_shinfo(skb)->nr_frags;
-	unsigned int entry, first_entry;
+	int entry;
+	unsigned int first_entry;
 	struct dma_desc *desc, *first;
 	struct stmmac_tx_queue *tx_q;
 	unsigned int enh_desc;
@@ -3725,7 +3726,7 @@ static void sysfs_display_ring(void *head, int size, int extend_desc,
 			ep++;
 		} else {
 			seq_printf(seq, "%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
-				   i, (unsigned int)virt_to_phys(ep),
+				   i, (unsigned int)virt_to_phys(p),
 				   le32_to_cpu(p->des0), le32_to_cpu(p->des1),
 				   le32_to_cpu(p->des2), le32_to_cpu(p->des3));
 			p++;

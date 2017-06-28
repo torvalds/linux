@@ -783,7 +783,8 @@ static void write_journal(struct dm_integrity_c *ic, unsigned commit_start, unsi
 			for (i = 0; i < commit_sections; i++)
 				rw_section_mac(ic, commit_start + i, true);
 		}
-		rw_journal(ic, REQ_OP_WRITE, REQ_FUA, commit_start, commit_sections, &io_comp);
+		rw_journal(ic, REQ_OP_WRITE, REQ_FUA | REQ_SYNC, commit_start,
+			   commit_sections, &io_comp);
 	} else {
 		unsigned to_end;
 		io_comp.in_flight = (atomic_t)ATOMIC_INIT(2);
@@ -2374,21 +2375,6 @@ static void dm_integrity_set(struct dm_target *ti, struct dm_integrity_c *ic)
 	blk_queue_max_integrity_segments(disk->queue, UINT_MAX);
 }
 
-/* FIXME: use new kvmalloc */
-static void *dm_integrity_kvmalloc(size_t size, gfp_t gfp)
-{
-	void *ptr = NULL;
-
-	if (size <= PAGE_SIZE)
-		ptr = kmalloc(size, GFP_KERNEL | gfp);
-	if (!ptr && size <= KMALLOC_MAX_SIZE)
-		ptr = kmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY | gfp);
-	if (!ptr)
-		ptr = __vmalloc(size, GFP_KERNEL | gfp, PAGE_KERNEL);
-
-	return ptr;
-}
-
 static void dm_integrity_free_page_list(struct dm_integrity_c *ic, struct page_list *pl)
 {
 	unsigned i;
@@ -2407,7 +2393,7 @@ static struct page_list *dm_integrity_alloc_page_list(struct dm_integrity_c *ic)
 	struct page_list *pl;
 	unsigned i;
 
-	pl = dm_integrity_kvmalloc(page_list_desc_size, __GFP_ZERO);
+	pl = kvmalloc(page_list_desc_size, GFP_KERNEL | __GFP_ZERO);
 	if (!pl)
 		return NULL;
 
@@ -2437,7 +2423,7 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
 	struct scatterlist **sl;
 	unsigned i;
 
-	sl = dm_integrity_kvmalloc(ic->journal_sections * sizeof(struct scatterlist *), __GFP_ZERO);
+	sl = kvmalloc(ic->journal_sections * sizeof(struct scatterlist *), GFP_KERNEL | __GFP_ZERO);
 	if (!sl)
 		return NULL;
 
@@ -2453,7 +2439,7 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
 
 		n_pages = (end_index - start_index + 1);
 
-		s = dm_integrity_kvmalloc(n_pages * sizeof(struct scatterlist), 0);
+		s = kvmalloc(n_pages * sizeof(struct scatterlist), GFP_KERNEL);
 		if (!s) {
 			dm_integrity_free_journal_scatterlist(ic, sl);
 			return NULL;
@@ -2617,7 +2603,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				goto bad;
 			}
 
-			sg = dm_integrity_kvmalloc((ic->journal_pages + 1) * sizeof(struct scatterlist), 0);
+			sg = kvmalloc((ic->journal_pages + 1) * sizeof(struct scatterlist), GFP_KERNEL);
 			if (!sg) {
 				*error = "Unable to allocate sg list";
 				r = -ENOMEM;
@@ -2673,7 +2659,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				r = -ENOMEM;
 				goto bad;
 			}
-			ic->sk_requests = dm_integrity_kvmalloc(ic->journal_sections * sizeof(struct skcipher_request *), __GFP_ZERO);
+			ic->sk_requests = kvmalloc(ic->journal_sections * sizeof(struct skcipher_request *), GFP_KERNEL | __GFP_ZERO);
 			if (!ic->sk_requests) {
 				*error = "Unable to allocate sk requests";
 				r = -ENOMEM;
@@ -2740,7 +2726,7 @@ retest_commit_id:
 		r = -ENOMEM;
 		goto bad;
 	}
-	ic->journal_tree = dm_integrity_kvmalloc(journal_tree_size, 0);
+	ic->journal_tree = kvmalloc(journal_tree_size, GFP_KERNEL);
 	if (!ic->journal_tree) {
 		*error = "Could not allocate memory for journal tree";
 		r = -ENOMEM;

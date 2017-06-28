@@ -1980,6 +1980,20 @@ int ip_mr_input(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int local = skb_rtable(skb)->rt_flags & RTCF_LOCAL;
 	struct mr_table *mrt;
+	struct net_device *dev;
+
+	/* skb->dev passed in is the loX master dev for vrfs.
+	 * As there are no vifs associated with loopback devices,
+	 * get the proper interface that does have a vif associated with it.
+	 */
+	dev = skb->dev;
+	if (netif_is_l3_master(skb->dev)) {
+		dev = dev_get_by_index_rcu(net, IPCB(skb)->iif);
+		if (!dev) {
+			kfree_skb(skb);
+			return -ENODEV;
+		}
+	}
 
 	/* Packet is looped back after forward, it should not be
 	 * forwarded second time, but still can be delivered locally.
@@ -2017,7 +2031,7 @@ int ip_mr_input(struct sk_buff *skb)
 	/* already under rcu_read_lock() */
 	cache = ipmr_cache_find(mrt, ip_hdr(skb)->saddr, ip_hdr(skb)->daddr);
 	if (!cache) {
-		int vif = ipmr_find_vif(mrt, skb->dev);
+		int vif = ipmr_find_vif(mrt, dev);
 
 		if (vif >= 0)
 			cache = ipmr_cache_find_any(mrt, ip_hdr(skb)->daddr,
@@ -2037,7 +2051,7 @@ int ip_mr_input(struct sk_buff *skb)
 		}
 
 		read_lock(&mrt_lock);
-		vif = ipmr_find_vif(mrt, skb->dev);
+		vif = ipmr_find_vif(mrt, dev);
 		if (vif >= 0) {
 			int err2 = ipmr_cache_unresolved(mrt, vif, skb);
 			read_unlock(&mrt_lock);

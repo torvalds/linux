@@ -2124,15 +2124,29 @@ static int ext4_writepage(struct page *page,
 static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 {
 	int len;
-	loff_t size = i_size_read(mpd->inode);
+	loff_t size;
 	int err;
 
 	BUG_ON(page->index != mpd->first_page);
+	clear_page_dirty_for_io(page);
+	/*
+	 * We have to be very careful here!  Nothing protects writeback path
+	 * against i_size changes and the page can be writeably mapped into
+	 * page tables. So an application can be growing i_size and writing
+	 * data through mmap while writeback runs. clear_page_dirty_for_io()
+	 * write-protects our page in page tables and the page cannot get
+	 * written to again until we release page lock. So only after
+	 * clear_page_dirty_for_io() we are safe to sample i_size for
+	 * ext4_bio_write_page() to zero-out tail of the written page. We rely
+	 * on the barrier provided by TestClearPageDirty in
+	 * clear_page_dirty_for_io() to make sure i_size is really sampled only
+	 * after page tables are updated.
+	 */
+	size = i_size_read(mpd->inode);
 	if (page->index == size >> PAGE_SHIFT)
 		len = size & ~PAGE_MASK;
 	else
 		len = PAGE_SIZE;
-	clear_page_dirty_for_io(page);
 	err = ext4_bio_write_page(&mpd->io_submit, page, len, mpd->wbc, false);
 	if (!err)
 		mpd->wbc->nr_to_write--;
@@ -3412,7 +3426,7 @@ retry:
 	bdev = inode->i_sb->s_bdev;
 	iomap->bdev = bdev;
 	if (blk_queue_dax(bdev->bd_queue))
-		iomap->dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
+		iomap->dax_dev = fs_dax_get_by_host(bdev->bd_disk->disk_name);
 	else
 		iomap->dax_dev = NULL;
 	iomap->offset = first_block << blkbits;
@@ -3447,7 +3461,7 @@ static int ext4_iomap_end(struct inode *inode, loff_t offset, loff_t length,
 	int blkbits = inode->i_blkbits;
 	bool truncate = false;
 
-	put_dax(iomap->dax_dev);
+	fs_put_dax(iomap->dax_dev);
 	if (!(flags & IOMAP_WRITE) || (flags & IOMAP_FAULT))
 		return 0;
 
@@ -3629,9 +3643,6 @@ static ssize_t ext4_direct_IO_write(struct kiocb *iocb, struct iov_iter *iter)
 		get_block_func = ext4_dio_get_block_unwritten_async;
 		dio_flags = DIO_LOCKING;
 	}
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-	BUG_ON(ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode));
-#endif
 	ret = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
 				   get_block_func, ext4_end_io_dio, NULL,
 				   dio_flags);
@@ -3713,7 +3724,7 @@ static ssize_t ext4_direct_IO_read(struct kiocb *iocb, struct iov_iter *iter)
 	 */
 	inode_lock_shared(inode);
 	ret = filemap_write_and_wait_range(mapping, iocb->ki_pos,
-					   iocb->ki_pos + count);
+					   iocb->ki_pos + count - 1);
 	if (ret)
 		goto out_unlock;
 	ret = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
@@ -4207,6 +4218,8 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
+	if (ret >= 0)
+		ext4_update_inode_fsync_trans(handle, inode, 1);
 out_stop:
 	ext4_journal_stop(handle);
 out_dio:
@@ -5637,8 +5650,9 @@ static int ext4_expand_extra_isize(struct inode *inode,
 	/* No extended attributes present */
 	if (!ext4_test_inode_state(inode, EXT4_STATE_XATTR) ||
 	    header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)) {
-		memset((void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE, 0,
-			new_extra_isize);
+		memset((void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
+		       EXT4_I(inode)->i_extra_isize, 0,
+		       new_extra_isize - EXT4_I(inode)->i_extra_isize);
 		EXT4_I(inode)->i_extra_isize = new_extra_isize;
 		return 0;
 	}

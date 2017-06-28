@@ -312,6 +312,7 @@ ENTRY(system_call)
 	lg	%r14,__LC_VDSO_PER_CPU
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
+.Lsysc_exit_timer:
 	stpt	__LC_EXIT_TIMER
 	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
 	lmg	%r11,%r15,__PT_R11(%r11)
@@ -623,6 +624,7 @@ ENTRY(io_int_handler)
 	lg	%r14,__LC_VDSO_PER_CPU
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
+.Lio_exit_timer:
 	stpt	__LC_EXIT_TIMER
 	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
 	lmg	%r11,%r15,__PT_R11(%r11)
@@ -1174,15 +1176,23 @@ cleanup_critical:
 	br	%r14
 
 .Lcleanup_sysc_restore:
+	# check if stpt has been executed
 	clg	%r9,BASED(.Lcleanup_sysc_restore_insn)
+	jh	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	cghi	%r11,__LC_SAVE_AREA_ASYNC
 	je	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
+0:	clg	%r9,BASED(.Lcleanup_sysc_restore_insn+8)
+	je	1f
 	lg	%r9,24(%r11)		# get saved pointer to pt_regs
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r9)
 	mvc	0(64,%r11),__PT_R8(%r9)
 	lmg	%r0,%r7,__PT_R0(%r9)
-0:	lmg	%r8,%r9,__LC_RETURN_PSW
+1:	lmg	%r8,%r9,__LC_RETURN_PSW
 	br	%r14
 .Lcleanup_sysc_restore_insn:
+	.quad	.Lsysc_exit_timer
 	.quad	.Lsysc_done - 4
 
 .Lcleanup_io_tif:
@@ -1190,15 +1200,20 @@ cleanup_critical:
 	br	%r14
 
 .Lcleanup_io_restore:
+	# check if stpt has been executed
 	clg	%r9,BASED(.Lcleanup_io_restore_insn)
-	je	0f
+	jh	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
+0:	clg	%r9,BASED(.Lcleanup_io_restore_insn+8)
+	je	1f
 	lg	%r9,24(%r11)		# get saved r11 pointer to pt_regs
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r9)
 	mvc	0(64,%r11),__PT_R8(%r9)
 	lmg	%r0,%r7,__PT_R0(%r9)
-0:	lmg	%r8,%r9,__LC_RETURN_PSW
+1:	lmg	%r8,%r9,__LC_RETURN_PSW
 	br	%r14
 .Lcleanup_io_restore_insn:
+	.quad	.Lio_exit_timer
 	.quad	.Lio_done - 4
 
 .Lcleanup_idle:

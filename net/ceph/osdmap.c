@@ -317,6 +317,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		u32 yes;
 		struct crush_rule *r;
 
+		err = -EINVAL;
 		ceph_decode_32_safe(p, end, yes, bad);
 		if (!yes) {
 			dout("crush_decode NO rule %d off %x %p to %p\n",

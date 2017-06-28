@@ -39,6 +39,14 @@ static int __report_module(struct addr_location *al, u64 ip,
 		return 0;
 
 	mod = dwfl_addrmodule(ui->dwfl, ip);
+	if (mod) {
+		Dwarf_Addr s;
+
+		dwfl_module_info(mod, NULL, &s, NULL, NULL, NULL, NULL, NULL);
+		if (s != al->map->start)
+			mod = 0;
+	}
+
 	if (!mod)
 		mod = dwfl_report_elf(ui->dwfl, dso->short_name,
 				      dso->long_name, -1, al->map->start,
@@ -168,11 +176,15 @@ frame_callback(Dwfl_Frame *state, void *arg)
 {
 	struct unwind_info *ui = arg;
 	Dwarf_Addr pc;
+	bool isactivation;
 
-	if (!dwfl_frame_pc(state, &pc, NULL)) {
+	if (!dwfl_frame_pc(state, &pc, &isactivation)) {
 		pr_err("%s", dwfl_errmsg(-1));
 		return DWARF_CB_ABORT;
 	}
+
+	if (!isactivation)
+		--pc;
 
 	return entry(pc, ui) || !(--ui->max_stack) ?
 	       DWARF_CB_ABORT : DWARF_CB_OK;
@@ -220,7 +232,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 
 	err = dwfl_getthread_frames(ui->dwfl, thread->tid, frame_callback, ui);
 
-	if (err && !ui->max_stack)
+	if (err && ui->max_stack != max_stack)
 		err = 0;
 
 	/*

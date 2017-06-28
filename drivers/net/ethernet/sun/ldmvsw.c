@@ -411,13 +411,14 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 	if (port) {
 		del_timer_sync(&port->vio.timer);
+		del_timer_sync(&port->clean_timer);
 
 		napi_disable(&port->napi);
+		unregister_netdev(port->dev);
 
 		list_del_rcu(&port->list);
 
 		synchronize_rcu();
-		del_timer_sync(&port->clean_timer);
 		spin_lock_irqsave(&port->vp->lock, flags);
 		sunvnet_port_rm_txq_common(port);
 		spin_unlock_irqrestore(&port->vp->lock, flags);
@@ -427,7 +428,6 @@ static int vsw_port_remove(struct vio_dev *vdev)
 
 		dev_set_drvdata(&vdev->dev, NULL);
 
-		unregister_netdev(port->dev);
 		free_netdev(port->dev);
 	}
 

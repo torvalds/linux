@@ -499,16 +499,14 @@ static int mce_usable_address(struct mce *m)
 	return 1;
 }
 
-static bool memory_error(struct mce *m)
+bool mce_is_memory_error(struct mce *m)
 {
-	struct cpuinfo_x86 *c = &boot_cpu_data;
-
-	if (c->x86_vendor == X86_VENDOR_AMD) {
+	if (m->cpuvendor == X86_VENDOR_AMD) {
 		/* ErrCodeExt[20:16] */
 		u8 xec = (m->status >> 16) & 0x1f;
 
 		return (xec == 0x0 || xec == 0x8);
-	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
+	} else if (m->cpuvendor == X86_VENDOR_INTEL) {
 		/*
 		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
 		 *
@@ -529,6 +527,7 @@ static bool memory_error(struct mce *m)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(mce_is_memory_error);
 
 static bool cec_add_mce(struct mce *m)
 {
@@ -536,7 +535,7 @@ static bool cec_add_mce(struct mce *m)
 		return false;
 
 	/* We eat only correctable DRAM errors with usable addresses. */
-	if (memory_error(m) &&
+	if (mce_is_memory_error(m) &&
 	    !(m->status & MCI_STATUS_UC) &&
 	    mce_usable_address(m))
 		if (!cec_add_elem(m->addr >> PAGE_SHIFT))
@@ -713,7 +712,7 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
-		if (severity == MCE_DEFERRED_SEVERITY && memory_error(&m))
+		if (severity == MCE_DEFERRED_SEVERITY && mce_is_memory_error(&m))
 			if (m.status & MCI_STATUS_ADDRV)
 				m.severity = severity;
 

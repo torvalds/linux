@@ -80,7 +80,7 @@ int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
 MODULE_PARM_DESC(runpm, "disable (0), force enable (1), optimus only default (-1)");
-int nouveau_runtime_pm = -1;
+static int nouveau_runtime_pm = -1;
 module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 
 static struct drm_driver driver_stub;
@@ -495,13 +495,16 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	nouveau_fbcon_init(dev);
 	nouveau_led_init(dev);
 
-	if (nouveau_runtime_pm != 0) {
+	if (nouveau_pmops_runtime()) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
 		pm_runtime_allow(dev->dev);
 		pm_runtime_mark_last_busy(dev->dev);
 		pm_runtime_put(dev->dev);
+	} else {
+		/* enable polling for external displays */
+		drm_kms_helper_poll_enable(dev);
 	}
 	return 0;
 
@@ -524,7 +527,7 @@ nouveau_drm_unload(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	if (nouveau_runtime_pm != 0) {
+	if (nouveau_pmops_runtime()) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
 	}
@@ -723,6 +726,14 @@ nouveau_pmops_thaw(struct device *dev)
 	return nouveau_do_resume(drm_dev, false);
 }
 
+bool
+nouveau_pmops_runtime()
+{
+	if (nouveau_runtime_pm == -1)
+		return nouveau_is_optimus() || nouveau_is_v1_dsm();
+	return nouveau_runtime_pm == 1;
+}
+
 static int
 nouveau_pmops_runtime_suspend(struct device *dev)
 {
@@ -730,14 +741,7 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (nouveau_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
-		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+	if (!nouveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -762,8 +766,10 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	struct nvif_device *device = &nouveau_drm(drm_dev)->client.device;
 	int ret;
 
-	if (nouveau_runtime_pm == 0)
-		return -EINVAL;
+	if (!nouveau_pmops_runtime()) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -773,9 +779,6 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	pci_set_master(pdev);
 
 	ret = nouveau_do_resume(drm_dev, true);
-
-	if (!drm_dev->mode_config.poll_enabled)
-		drm_kms_helper_poll_enable(drm_dev);
 
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
@@ -796,14 +799,7 @@ nouveau_pmops_runtime_idle(struct device *dev)
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_crtc *crtc;
 
-	if (nouveau_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
-		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+	if (!nouveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}

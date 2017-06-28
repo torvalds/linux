@@ -759,20 +759,23 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			mode_dev->panel_fixed_mode =
 			    drm_mode_duplicate(dev, scan);
+			DRM_DEBUG_KMS("Using mode from DDC\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}
 
 	/* Failed to get EDID, what about VBT? do we need this? */
-	if (mode_dev->vbt_mode)
+	if (dev_priv->lfp_lvds_vbt_mode) {
 		mode_dev->panel_fixed_mode =
-		    drm_mode_duplicate(dev, mode_dev->vbt_mode);
+			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
 
-	if (!mode_dev->panel_fixed_mode)
-		if (dev_priv->lfp_lvds_vbt_mode)
-			mode_dev->panel_fixed_mode =
-				drm_mode_duplicate(dev,
-					dev_priv->lfp_lvds_vbt_mode);
+		if (mode_dev->panel_fixed_mode) {
+			mode_dev->panel_fixed_mode->type |=
+				DRM_MODE_TYPE_PREFERRED;
+			DRM_DEBUG_KMS("Using mode from VBT\n");
+			goto out;
+		}
+	}
 
 	/*
 	 * If we didn't get EDID, try checking if the panel is already turned
@@ -789,6 +792,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (mode_dev->panel_fixed_mode) {
 			mode_dev->panel_fixed_mode->type |=
 			    DRM_MODE_TYPE_PREFERRED;
+			DRM_DEBUG_KMS("Using pre-programmed mode\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}

@@ -630,7 +630,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 						NLP_EVT_DEVICE_RECOVERY);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
-			spin_lock_irq(shost->host_lock);
+			spin_unlock_irq(shost->host_lock);
 		}
 	}
 
@@ -978,9 +978,10 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					 ndlp, did, ndlp->nlp_fc4_type,
 					 FC_TYPE_FCP, FC_TYPE_NVME);
 			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
+			lpfc_issue_els_prli(vport, ndlp, 0);
 		}
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
-		lpfc_issue_els_prli(vport, ndlp, 0);
 	} else
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				 "3065 GFT_ID failed x%08x\n", irsp->ulpStatus);
@@ -2092,6 +2093,7 @@ lpfc_fdmi_port_attr_fc4type(struct lpfc_vport *vport,
 
 	ae->un.AttrTypes[3] = 0x02; /* Type 1 - ELS */
 	ae->un.AttrTypes[2] = 0x01; /* Type 8 - FCP */
+	ae->un.AttrTypes[6] = 0x01; /* Type 40 - NVME */
 	ae->un.AttrTypes[7] = 0x01; /* Type 32 - CT */
 	size = FOURBYTES + 32;
 	ad->AttrLen = cpu_to_be16(size);
