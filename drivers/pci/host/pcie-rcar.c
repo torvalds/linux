@@ -465,6 +465,8 @@ static int rcar_pcie_enable(struct rcar_pcie *pcie)
 	bridge->sysdata = pcie;
 	bridge->busnr = pcie->root_bus_nr;
 	bridge->ops = &rcar_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		bridge->msi = &pcie->msi.chip;
 
@@ -475,8 +477,6 @@ static int rcar_pcie_enable(struct rcar_pcie *pcie)
 	}
 
 	bus = bridge->bus;
-
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
