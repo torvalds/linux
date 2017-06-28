@@ -2284,6 +2284,8 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	host->busnr = pcie->busn.start;
 	host->dev.parent = &pdev->dev;
 	host->ops = &tegra_pcie_ops;
+	host->map_irq = tegra_pcie_map_irq;
+	host->swizzle_irq = pci_common_swizzle;
 
 	err = pci_scan_root_bus_bridge(host);
 	if (err < 0) {
@@ -2291,7 +2293,6 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 		goto disable_msi;
 	}
 
-	pci_fixup_irqs(pci_common_swizzle, tegra_pcie_map_irq);
 	pci_bus_size_bridges(host->bus);
 	pci_bus_assign_resources(host->bus);
 
