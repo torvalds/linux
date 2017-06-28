@@ -266,7 +266,7 @@ static const struct dce110_link_enc_registers link_enc_regs[] = {
 
 #define ipp_regs(id)\
 [id] = {\
-	IPP_DCN10_REG_LIST(id),\
+	IPP_REG_LIST_DCN10(id),\
 }
 
 static const struct dcn10_ipp_registers ipp_regs[] = {
@@ -277,11 +277,11 @@ static const struct dcn10_ipp_registers ipp_regs[] = {
 };
 
 static const struct dcn10_ipp_shift ipp_shift = {
-		IPP_DCN10_MASK_SH_LIST(__SHIFT)
+		IPP_MASK_SH_LIST_DCN10(__SHIFT)
 };
 
 static const struct dcn10_ipp_mask ipp_mask = {
-		IPP_DCN10_MASK_SH_LIST(_MASK),
+		IPP_MASK_SH_LIST_DCN10(_MASK),
 };
 
 #define opp_regs(id)\

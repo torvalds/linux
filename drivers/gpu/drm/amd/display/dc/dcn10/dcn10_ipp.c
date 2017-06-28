@@ -421,7 +421,10 @@ static void dcn10_ipp_enable_cm_block(
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
 
 	REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 1);
-	REG_UPDATE(CM_CONTROL, CM_BYPASS_EN, 0);
+	if (ippn10->ipp_mask->CM_BYPASS_EN)
+		REG_UPDATE(CM_CONTROL, CM_BYPASS_EN, 0);
+	else
+		REG_UPDATE(CM_CONTROL, CM_BYPASS, 0);
 }
 
 
@@ -484,7 +487,7 @@ static bool dcn10_cursor_program_control(
 
 	REG_UPDATE_2(CURSOR0_CONTROL,
 			CUR0_MODE, color_format,
-			CUR0_INVERT_MODE, 0);
+			CUR0_EXPANSION_MODE, 0);
 
 	if (color_format == CURSOR_MODE_MONO) {
 		/* todo: clarify what to program these to */
@@ -500,18 +503,6 @@ static bool dcn10_cursor_program_control(
 				CNVC_BYPASS, 0,
 				ALPHA_EN, 1,
 				FORMAT_EXPANSION_MODE, 0);
-
-	REG_UPDATE(CURSOR0_CONTROL,
-			CUR0_EXPANSION_MODE, 0);
-
-	if (0 /*attributes->attribute_flags.bits.MIN_MAX_INVERT*/) {
-		REG_UPDATE(CURSOR0_CONTROL,
-				CUR0_MAX,
-				0 /* TODO */);
-		REG_UPDATE(CURSOR0_CONTROL,
-				CUR0_MIN,
-				0 /* TODO */);
-	}
 
 	return true;
 }
