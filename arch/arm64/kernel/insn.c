@@ -117,7 +117,7 @@ static void __kprobes patch_unmap(int fixmap)
 int __kprobes aarch64_insn_read(void *addr, u32 *insnp)
 {
 	int ret;
-	u32 val;
+	__le32 val;
 
 	ret = probe_kernel_read(&val, addr, AARCH64_INSN_SIZE);
 	if (!ret)
