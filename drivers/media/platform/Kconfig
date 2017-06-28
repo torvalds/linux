@@ -553,6 +553,16 @@ config VIDEO_MESON_AO_CEC
 	  This is a driver for Amlogic Meson SoCs AO CEC interface. It uses the
 	  generic CEC framework interface.
 	  CEC bus is present in the HDMI connector and enables communication
+
+config CEC_GPIO
+	tristate "Generic GPIO-based CEC driver"
+	depends on PREEMPT
+	select CEC_CORE
+	select CEC_PIN
+	select GPIOLIB
+	---help---
+	  This is a generic GPIO-based CEC driver.
+	  The CEC bus is present in the HDMI connector and enables communication
 	  between compatible devices.
 
 config VIDEO_SAMSUNG_S5P_CEC
