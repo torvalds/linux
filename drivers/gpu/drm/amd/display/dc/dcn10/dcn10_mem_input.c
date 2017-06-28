@@ -38,7 +38,7 @@
 #define FN(reg_name, field_name) \
 	mi->mi_shift->field_name, mi->mi_mask->field_name
 
-static void dcn_mi_set_blank(struct mem_input *mem_input, bool blank)
+static void min10_set_blank(struct mem_input *mem_input, bool blank)
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	uint32_t blank_en = blank ? 1 : 0;
@@ -48,7 +48,7 @@ static void dcn_mi_set_blank(struct mem_input *mem_input, bool blank)
 			HUBP_TTU_DISABLE, blank_en);
 }
 
-static void vready_workaround(struct mem_input *mem_input,
+static void min10_vready_workaround(struct mem_input *mem_input,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	uint32_t value = 0;
@@ -71,7 +71,7 @@ static void vready_workaround(struct mem_input *mem_input,
 	REG_WRITE(HUBPREQ_DEBUG_DB, value);
 }
 
-static void program_tiling(
+static void min10_program_tiling(
 	struct dcn10_mem_input *mi,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
@@ -91,7 +91,7 @@ static void program_tiling(
 			PIPE_ALIGNED, info->gfx9.pipe_aligned);
 }
 
-static void program_size_and_rotation(
+static void min10_program_size_and_rotation(
 	struct dcn10_mem_input *mi,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
@@ -153,7 +153,7 @@ static void program_size_and_rotation(
 				H_MIRROR_EN, mirror);
 }
 
-static void program_pixel_format(
+static void min10_program_pixel_format(
 	struct dcn10_mem_input *mi,
 	enum surface_pixel_format format)
 {
@@ -229,7 +229,7 @@ static void program_pixel_format(
 	/* don't see the need of program the xbar in DCN 1.0 */
 }
 
-static bool mem_input_program_surface_flip_and_addr(
+static bool min10_program_surface_flip_and_addr(
 	struct mem_input *mem_input,
 	const struct dc_plane_address *address,
 	bool flip_immediate)
@@ -369,7 +369,7 @@ static bool mem_input_program_surface_flip_and_addr(
 	return true;
 }
 
-static void dcc_control(struct mem_input *mem_input, bool enable,
+static void min10_dcc_control(struct mem_input *mem_input, bool enable,
 		bool independent_64b_blks)
 {
 	uint32_t dcc_en = enable ? 1 : 0;
@@ -381,13 +381,7 @@ static void dcc_control(struct mem_input *mem_input, bool enable,
 			PRIMARY_SURFACE_DCC_IND_64B_BLK, dcc_ind_64b_blk);
 }
 
-static void program_control(struct dcn10_mem_input *mi,
-		struct dc_plane_dcc_param *dcc)
-{
-	dcc_control(&mi->base, dcc->enable, dcc->grph.independent_64b_blks);
-}
-
-static void mem_input_program_surface_config(
+static void min10_program_surface_config(
 	struct mem_input *mem_input,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
@@ -398,14 +392,14 @@ static void mem_input_program_surface_config(
 {
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
-	program_control(mi, dcc);
-	program_tiling(mi, tiling_info, format);
-	program_size_and_rotation(
+	min10_dcc_control(mem_input, dcc->enable, dcc->grph.independent_64b_blks);
+	min10_program_tiling(mi, tiling_info, format);
+	min10_program_size_and_rotation(
 		mi, rotation, format, plane_size, dcc, horizontal_mirror);
-	program_pixel_format(mi, format);
+	min10_program_pixel_format(mi, format);
 }
 
-static void program_requestor(
+static void min10_program_requestor(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs)
 {
@@ -440,7 +434,7 @@ static void program_requestor(
 }
 
 
-static void program_deadline(
+static void min10_program_deadline(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)
@@ -552,7 +546,7 @@ static void program_deadline(
 		ttu_attr->refcyc_per_req_delivery_pre_c);
 }
 
-static void mem_input_setup(
+static void min10_setup(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
 		struct _vcs_dpi_display_ttu_regs_st *ttu_attr,
@@ -562,9 +556,9 @@ static void mem_input_setup(
 	/* otg is locked when this func is called. Register are double buffered.
 	 * disable the requestors is not needed
 	 */
-	program_requestor(mem_input, rq_regs);
-	program_deadline(mem_input, dlg_attr, ttu_attr);
-	vready_workaround(mem_input, pipe_dest);
+	min10_program_requestor(mem_input, rq_regs);
+	min10_program_deadline(mem_input, dlg_attr, ttu_attr);
+	min10_vready_workaround(mem_input, pipe_dest);
 }
 
 static uint32_t convert_and_clamp(
@@ -582,7 +576,7 @@ static uint32_t convert_and_clamp(
 	return ret_val;
 }
 
-static void program_watermarks(
+static void min10_program_watermarks(
 		struct mem_input *mem_input,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz)
@@ -811,7 +805,7 @@ static void program_watermarks(
 #endif
 }
 
-static void mem_input_program_display_marks(
+static void min10_program_display_marks(
 	struct mem_input *mem_input,
 	struct dce_watermarks nbp,
 	struct dce_watermarks stutter,
@@ -823,14 +817,14 @@ static void mem_input_program_display_marks(
 	 */
 }
 
-bool mem_input_is_flip_pending(struct mem_input *mem_input)
+static bool min10_is_flip_pending(struct mem_input *mem_input)
 {
-	uint32_t update_pending = 0;
+	uint32_t flip_pending = 0;
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	struct dc_plane_address earliest_inuse_address;
 
 	REG_GET(DCSURF_FLIP_CONTROL,
-			SURFACE_UPDATE_PENDING, &update_pending);
+			SURFACE_FLIP_PENDING, &flip_pending);
 
 	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE,
 			SURFACE_EARLIEST_INUSE_ADDRESS, &earliest_inuse_address.grph.addr.low_part);
@@ -838,7 +832,7 @@ bool mem_input_is_flip_pending(struct mem_input *mem_input)
 	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE_HIGH,
 			SURFACE_EARLIEST_INUSE_ADDRESS_HIGH, &earliest_inuse_address.grph.addr.high_part);
 
-	if (update_pending)
+	if (flip_pending)
 		return true;
 
 	if (earliest_inuse_address.grph.addr.quad_part != mem_input->request_address.grph.addr.quad_part)
@@ -848,7 +842,7 @@ bool mem_input_is_flip_pending(struct mem_input *mem_input)
 	return false;
 }
 
-static void mem_input_update_dchub(
+static void min10_update_dchub(
 	struct mem_input *mem_input,
 	struct dchub_init_data *dh_data)
 {
@@ -911,7 +905,7 @@ struct vm_system_aperture_param {
 	PHYSICAL_ADDRESS_LOC sys_high;
 };
 
-static void read_vm_system_aperture_settings(struct dcn10_mem_input *mi,
+static void min10_read_vm_system_aperture_settings(struct dcn10_mem_input *mi,
 		struct vm_system_aperture_param *apt)
 {
 	PHYSICAL_ADDRESS_LOC physical_page_number;
@@ -934,7 +928,7 @@ static void read_vm_system_aperture_settings(struct dcn10_mem_input *mi,
 	apt->sys_high.quad_part =  (int64_t)logical_addr_high << 18;
 }
 
-static void set_vm_system_aperture_settings(struct dcn10_mem_input *mi,
+static void min10_set_vm_system_aperture_settings(struct dcn10_mem_input *mi,
 		struct vm_system_aperture_param *apt)
 {
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_default;
@@ -970,7 +964,7 @@ struct vm_context0_param {
 };
 
 /* Temporary read settings, future will get values from kmd directly */
-static void read_vm_context0_settings(struct dcn10_mem_input *mi,
+static void min10_read_vm_context0_settings(struct dcn10_mem_input *mi,
 		struct vm_context0_param *vm0)
 {
 	PHYSICAL_ADDRESS_LOC fb_base;
@@ -1013,7 +1007,7 @@ static void read_vm_context0_settings(struct dcn10_mem_input *mi,
 	vm0->pte_base.quad_part -= fb_offset.quad_part;
 }
 
-static void set_vm_context0_settings(struct dcn10_mem_input *mi,
+static void min10_set_vm_context0_settings(struct dcn10_mem_input *mi,
 		const struct vm_context0_param *vm0)
 {
 	/* pte base */
@@ -1042,7 +1036,7 @@ static void set_vm_context0_settings(struct dcn10_mem_input *mi,
 			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, vm0->fault_default.low_part);
 }
 
-void dcn_mem_input_program_pte_vm(struct mem_input *mem_input,
+static void min10_program_pte_vm(struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation)
@@ -1052,11 +1046,11 @@ void dcn_mem_input_program_pte_vm(struct mem_input *mem_input,
 	struct vm_context0_param vm0 = { { { 0 } } };
 
 
-	read_vm_system_aperture_settings(mi, &apt);
-	read_vm_context0_settings(mi, &vm0);
+	min10_read_vm_system_aperture_settings(mi, &apt);
+	min10_read_vm_context0_settings(mi, &vm0);
 
-	set_vm_system_aperture_settings(mi, &apt);
-	set_vm_context0_settings(mi, &vm0);
+	min10_set_vm_system_aperture_settings(mi, &apt);
+	min10_set_vm_context0_settings(mi, &vm0);
 
 	/* control: enable VM PTE*/
 	REG_SET_2(DCN_VM_MX_L1_TLB_CNTL, 0,
@@ -1065,20 +1059,18 @@ void dcn_mem_input_program_pte_vm(struct mem_input *mem_input,
 }
 
 static struct mem_input_funcs dcn10_mem_input_funcs = {
-	.mem_input_program_display_marks = mem_input_program_display_marks,
-	.allocate_mem_input = NULL,
-	.free_mem_input = NULL,
+	.mem_input_program_display_marks = min10_program_display_marks,
 	.mem_input_program_surface_flip_and_addr =
-			mem_input_program_surface_flip_and_addr,
+			min10_program_surface_flip_and_addr,
 	.mem_input_program_surface_config =
-			mem_input_program_surface_config,
-	.mem_input_is_flip_pending = mem_input_is_flip_pending,
-	.mem_input_setup = mem_input_setup,
-	.program_watermarks = program_watermarks,
-	.mem_input_update_dchub = mem_input_update_dchub,
-	.mem_input_program_pte_vm = dcn_mem_input_program_pte_vm,
-	.set_blank = dcn_mi_set_blank,
-	.dcc_control = dcc_control,
+			min10_program_surface_config,
+	.mem_input_is_flip_pending = min10_is_flip_pending,
+	.mem_input_setup = min10_setup,
+	.program_watermarks = min10_program_watermarks,
+	.mem_input_update_dchub = min10_update_dchub,
+	.mem_input_program_pte_vm = min10_program_pte_vm,
+	.set_blank = min10_set_blank,
+	.dcc_control = min10_dcc_control,
 };
 
 

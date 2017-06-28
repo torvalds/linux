@@ -374,7 +374,7 @@ static const struct bios_registers bios_regs = {
 
 #define mi_regs(id)\
 [id] = {\
-	MI_DCN10_REG_LIST(id)\
+	MI_REG_LIST_DCN10(id)\
 }
 
 
@@ -386,11 +386,11 @@ static const struct dcn_mi_registers mi_regs[] = {
 };
 
 static const struct dcn_mi_shift mi_shift = {
-		MI_DCN10_MASK_SH_LIST(__SHIFT)
+		MI_MASK_SH_LIST_DCN10(__SHIFT)
 };
 
 static const struct dcn_mi_mask mi_mask = {
-		MI_DCN10_MASK_SH_LIST(_MASK)
+		MI_MASK_SH_LIST_DCN10(_MASK)
 };
 
 #define clk_src_regs(index, pllid)\
