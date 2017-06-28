@@ -292,6 +292,11 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_LID,			/* u32 */
 	RDMA_NLDEV_ATTR_SM_LID,			/* u32 */
 
+	/*
+	 * LID mask control (LMC)
+	 */
+	RDMA_NLDEV_ATTR_LMC,			/* u8 */
+
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */
