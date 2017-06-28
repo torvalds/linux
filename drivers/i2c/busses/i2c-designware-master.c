@@ -51,7 +51,7 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
  * This function is called during I2C init function, and in case of timeout at
  * run time.
  */
-int i2c_dw_init(struct dw_i2c_dev *dev)
+static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 {
 	u32 hcnt, lcnt;
 	u32 reg, comp_param1;
@@ -171,7 +171,6 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(i2c_dw_init);
 
 static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 {
@@ -444,7 +443,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (!wait_for_completion_timeout(&dev->cmd_complete, adap->timeout)) {
 		dev_err(dev->dev, "controller timed out\n");
 		/* i2c_dw_init implicitly disables the adapter */
-		i2c_dw_init(dev);
+		i2c_dw_init_master(dev);
 		ret = -ETIMEDOUT;
 		goto done;
 	}
@@ -622,7 +621,7 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 
 	init_completion(&dev->cmd_complete);
 
-	dev->init = i2c_dw_init;
+	dev->init = i2c_dw_init_master;
 	dev->disable = i2c_dw_disable;
 	dev->disable_int = i2c_dw_disable_int;
 
