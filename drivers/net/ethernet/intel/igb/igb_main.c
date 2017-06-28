@@ -6675,32 +6675,33 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
 	s32 retval;
 
-	retval = igb_read_mbx(hw, msgbuf, E1000_VFMAILBOX_SIZE, vf);
+	retval = igb_read_mbx(hw, msgbuf, E1000_VFMAILBOX_SIZE, vf, false);
 
 	if (retval) {
 		/* if receive failed revoke VF CTS stats and restart init */
 		dev_err(&pdev->dev, "Error receiving message from VF\n");
 		vf_data->flags &= ~IGB_VF_FLAG_CTS;
 		if (!time_after(jiffies, vf_data->last_nack + (2 * HZ)))
-			return;
+			goto unlock;
 		goto out;
 	}
 
 	/* this is a message we already processed, do nothing */
 	if (msgbuf[0] & (E1000_VT_MSGTYPE_ACK | E1000_VT_MSGTYPE_NACK))
-		return;
+		goto unlock;
 
 	/* until the vf completes a reset it should not be
 	 * allowed to start any configuration.
 	 */
 	if (msgbuf[0] == E1000_VF_RESET) {
+		/* unlocks mailbox */
 		igb_vf_reset_msg(adapter, vf);
 		return;
 	}
 
 	if (!(vf_data->flags & IGB_VF_FLAG_CTS)) {
 		if (!time_after(jiffies, vf_data->last_nack + (2 * HZ)))
-			return;
+			goto unlock;
 		retval = -1;
 		goto out;
 	}
@@ -6741,7 +6742,12 @@ out:
 	else
 		msgbuf[0] |= E1000_VT_MSGTYPE_ACK;
 
+	/* unlocks mailbox */
 	igb_write_mbx(hw, msgbuf, 1, vf);
+	return;
+
+unlock:
+	igb_unlock_mbx(hw, vf);
 }
 
 static void igb_msg_task(struct igb_adapter *adapter)

@@ -491,7 +491,8 @@ struct e1000_fc_info {
 
 struct e1000_mbx_operations {
 	s32 (*init_params)(struct e1000_hw *hw);
-	s32 (*read)(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+	s32 (*read)(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id,
+		    bool unlock);
 	s32 (*write)(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id);
 	s32 (*read_posted)(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id);
 	s32 (*write_posted)(struct e1000_hw *hw, u32 *msg, u16 size,
