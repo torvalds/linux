@@ -123,8 +123,11 @@
 #define DMA_ISR				0x3008
 #define DMA_AXIARCR			0x3010
 #define DMA_AXIAWCR			0x3018
+#define DMA_AXIAWARCR			0x301c
 #define DMA_DSR0			0x3020
 #define DMA_DSR1			0x3024
+#define DMA_TXEDMACR			0x3040
+#define DMA_RXEDMACR			0x3044
 
 /* DMA register entry bit positions and sizes */
 #define DMA_ISR_MACIS_INDEX		17
@@ -135,12 +138,22 @@
 #define DMA_MR_INTM_WIDTH		2
 #define DMA_MR_SWR_INDEX		0
 #define DMA_MR_SWR_WIDTH		1
+#define DMA_RXEDMACR_RDPS_INDEX		0
+#define DMA_RXEDMACR_RDPS_WIDTH		3
+#define DMA_SBMR_AAL_INDEX		12
+#define DMA_SBMR_AAL_WIDTH		1
 #define DMA_SBMR_EAME_INDEX		11
 #define DMA_SBMR_EAME_WIDTH		1
 #define DMA_SBMR_BLEN_INDEX		1
 #define DMA_SBMR_BLEN_WIDTH		7
+#define DMA_SBMR_RD_OSR_LMT_INDEX	16
+#define DMA_SBMR_RD_OSR_LMT_WIDTH	6
 #define DMA_SBMR_UNDEF_INDEX		0
 #define DMA_SBMR_UNDEF_WIDTH		1
+#define DMA_SBMR_WR_OSR_LMT_INDEX	24
+#define DMA_SBMR_WR_OSR_LMT_WIDTH	6
+#define DMA_TXEDMACR_TDPS_INDEX		0
+#define DMA_TXEDMACR_TDPS_WIDTH		3
 
 /* DMA register values */
 #define DMA_SBMR_BLEN_256		256

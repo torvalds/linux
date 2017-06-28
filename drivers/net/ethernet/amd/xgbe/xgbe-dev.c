@@ -2114,18 +2114,38 @@ static int xgbe_flush_tx_queues(struct xgbe_prv_data *pdata)
 
 static void xgbe_config_dma_bus(struct xgbe_prv_data *pdata)
 {
+	unsigned int sbmr;
+
+	sbmr = XGMAC_IOREAD(pdata, DMA_SBMR);
+
 	/* Set enhanced addressing mode */
-	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, EAME, 1);
+	XGMAC_SET_BITS(sbmr, DMA_SBMR, EAME, 1);
 
 	/* Set the System Bus mode */
-	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, UNDEF, 1);
-	XGMAC_IOWRITE_BITS(pdata, DMA_SBMR, BLEN, pdata->blen >> 2);
+	XGMAC_SET_BITS(sbmr, DMA_SBMR, UNDEF, 1);
+	XGMAC_SET_BITS(sbmr, DMA_SBMR, BLEN, pdata->blen >> 2);
+	XGMAC_SET_BITS(sbmr, DMA_SBMR, AAL, pdata->aal);
+	XGMAC_SET_BITS(sbmr, DMA_SBMR, RD_OSR_LMT, pdata->rd_osr_limit - 1);
+	XGMAC_SET_BITS(sbmr, DMA_SBMR, WR_OSR_LMT, pdata->wr_osr_limit - 1);
+
+	XGMAC_IOWRITE(pdata, DMA_SBMR, sbmr);
+
+	/* Set descriptor fetching threshold */
+	if (pdata->vdata->tx_desc_prefetch)
+		XGMAC_IOWRITE_BITS(pdata, DMA_TXEDMACR, TDPS,
+				   pdata->vdata->tx_desc_prefetch);
+
+	if (pdata->vdata->rx_desc_prefetch)
+		XGMAC_IOWRITE_BITS(pdata, DMA_RXEDMACR, RDPS,
+				   pdata->vdata->rx_desc_prefetch);
 }
 
 static void xgbe_config_dma_cache(struct xgbe_prv_data *pdata)
 {
 	XGMAC_IOWRITE(pdata, DMA_AXIARCR, pdata->arcr);
 	XGMAC_IOWRITE(pdata, DMA_AXIAWCR, pdata->awcr);
+	if (pdata->awarcr)
+		XGMAC_IOWRITE(pdata, DMA_AXIAWARCR, pdata->awarcr);
 }
 
 static void xgbe_config_mtl_mode(struct xgbe_prv_data *pdata)
