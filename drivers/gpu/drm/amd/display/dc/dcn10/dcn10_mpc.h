@@ -30,7 +30,7 @@
 #define TO_DCN10_MPCC(mpcc_base) \
 	container_of(mpcc_base, struct dcn10_mpcc, base)
 
-#define MAX_OPP 4
+#define MAX_OPP 6
 
 #define MPC_COMMON_REG_LIST_DCN1_0(inst) \
 	SRII(MUX, MPC_OUT, inst),\
