@@ -107,6 +107,20 @@ struct esca_block {
 	struct esca_entry cpu[KVM_S390_ESCA_CPU_SLOTS];
 } __packed;
 
+/*
+ * This struct is used to store some machine check info from lowcore
+ * for machine checks that happen while the guest is running.
+ * This info in host's lowcore might be overwritten by a second machine
+ * check from host when host is in the machine check's high-level handling.
+ * The size is 24 bytes.
+ */
+struct mcck_volatile_info {
+	__u64 mcic;
+	__u64 failing_storage_address;
+	__u32 ext_damage_code;
+	__u32 reserved;
+};
+
 #define CPUSTAT_STOPPED    0x80000000
 #define CPUSTAT_WAIT       0x10000000
 #define CPUSTAT_ECALL_PEND 0x08000000
@@ -264,7 +278,8 @@ struct kvm_s390_itdb {
 
 struct sie_page {
 	struct kvm_s390_sie_block sie_block;
-	__u8 reserved200[1024];		/* 0x0200 */
+	struct mcck_volatile_info mcck_info;	/* 0x0200 */
+	__u8 reserved218[1000];		/* 0x0218 */
 	struct kvm_s390_itdb itdb;	/* 0x0600 */
 	__u8 reserved700[2304];		/* 0x0700 */
 } __packed;

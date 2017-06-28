@@ -58,6 +58,9 @@ int main(void)
 	OFFSET(__SF_BACKCHAIN, stack_frame, back_chain);
 	OFFSET(__SF_GPRS, stack_frame, gprs);
 	OFFSET(__SF_EMPTY, stack_frame, empty1);
+	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[0]);
+	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[1]);
+	OFFSET(__SF_SIE_REASON, stack_frame, empty1[2]);
 	BLANK();
 	/* timeval/timezone offsets for use by vdso */
 	OFFSET(__VDSO_UPD_COUNT, vdso_data, tb_update_count);
