@@ -1324,15 +1324,14 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	host->dev.parent = dev;
 	host->ops = &iproc_pcie_ops;
 	host->sysdata = sysdata;
+	host->map_irq = pcie->map_irq;
+	host->swizzle_irq = pci_common_swizzle;
 
 	ret = pci_scan_root_bus_bridge(host);
 	if (ret < 0) {
 		dev_err(dev, "failed to scan host: %d\n", ret);
 		goto err_power_off_phy;
 	}
-
-	if (pcie->map_irq)
-		pci_fixup_irqs(pci_common_swizzle, pcie->map_irq);
 
 	pci_assign_unassigned_bus_resources(host->bus);
 
