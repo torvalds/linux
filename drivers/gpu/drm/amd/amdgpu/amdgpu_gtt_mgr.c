@@ -43,12 +43,15 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 			       unsigned long p_size)
 {
 	struct amdgpu_gtt_mgr *mgr;
+	uint64_t start, size;
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
 		return -ENOMEM;
 
-	drm_mm_init(&mgr->mm, 0, p_size);
+	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
+	size = p_size - start;
+	drm_mm_init(&mgr->mm, start, size);
 	spin_lock_init(&mgr->lock);
 	mgr->available = p_size;
 	man->priv = mgr;
