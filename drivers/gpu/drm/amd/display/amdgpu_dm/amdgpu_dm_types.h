@@ -36,18 +36,17 @@ struct dc_surface;
 struct  dc_stream;
 
 
+struct dm_plane_state {
+	struct drm_plane_state base;
+	struct dc_surface *dc_surface;
+};
+
 struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream *dc_stream;
 };
 
 #define to_dm_crtc_state(x)    container_of(x, struct dm_crtc_state, base)
-
-struct dm_plane_state {
-	struct drm_plane_state base;
-	struct dc_surface *dc_surface;
-};
-
 
 /*TODO Jodan Hersen use the one in amdgpu_dm*/
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
