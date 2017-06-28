@@ -288,6 +288,11 @@ enum iwl_legacy_cmds {
 	NON_QOS_TX_COUNTER_CMD = 0x2d,
 
 	/**
+	 * @LEDS_CMD: command is &struct iwl_led_cmd
+	 */
+	LEDS_CMD = 0x48,
+
+	/**
 	 * @LQ_CMD: using &struct iwl_lq_cmd
 	 */
 	LQ_CMD = 0x4e,

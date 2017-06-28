@@ -1566,12 +1566,16 @@ void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 #ifdef CONFIG_IWLWIFI_LEDS
 int iwl_mvm_leds_init(struct iwl_mvm *mvm);
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm);
+void iwl_mvm_leds_sync(struct iwl_mvm *mvm);
 #else
 static inline int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 {
 	return 0;
 }
 static inline void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
+{
+}
+static inline void iwl_mvm_leds_sync(struct iwl_mvm *mvm)
 {
 }
 #endif

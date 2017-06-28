@@ -5,9 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,11 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -32,9 +25,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,36 +56,16 @@
  *
  *****************************************************************************/
 
-#ifndef __fw_api_h__
-#define __fw_api_h__
+#ifndef __iwl_fw_api_led_h__
+#define __iwl_fw_api_led_h__
 
-#include "fw/api/tdls.h"
-#include "fw/api/mac-cfg.h"
-#include "fw/api/offload.h"
-#include "fw/api/context.h"
-#include "fw/api/time-event.h"
-#include "fw/api/datapath.h"
-#include "fw/api/phy.h"
-#include "fw/api/config.h"
-#include "fw/api/alive.h"
-#include "fw/api/binding.h"
-#include "fw/api/cmdhdr.h"
-#include "fw/api/coex.h"
-#include "fw/api/commands.h"
-#include "fw/api/d3.h"
-#include "fw/api/filter.h"
-#include "fw/api/led.h"
-#include "fw/api/mac.h"
-#include "fw/api/nvm-reg.h"
-#include "fw/api/phy-ctxt.h"
-#include "fw/api/power.h"
-#include "fw/api/rs.h"
-#include "fw/api/rx.h"
-#include "fw/api/scan.h"
-#include "fw/api/sf.h"
-#include "fw/api/sta.h"
-#include "fw/api/stats.h"
-#include "fw/api/tof.h"
-#include "fw/api/tx.h"
+/**
+ * struct iwl_led_cmd - LED switching command
+ *
+ * @status: LED status (on/off)
+ */
+struct iwl_led_cmd {
+	__le32 status;
+} __packed; /* LEDS_CMD_API_S_VER_2 */
 
-#endif /* __fw_api_h__ */
+#endif /* __iwl_fw_api_led_h__ */
