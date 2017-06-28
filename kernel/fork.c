@@ -1573,7 +1573,7 @@ static __latent_entropy struct task_struct *copy_process(
 		goto fork_out;
 
 	retval = -ENOMEM;
-	p = dup_task_struct(current, node);
+	p = dup_task_struct(current, node);	/* 建立父进程的副本 */
 	if (!p)
 		goto fork_out;
 
@@ -1995,6 +1995,9 @@ struct task_struct *fork_idle(int cpu)
  *
  * It copies the process, and if successful kick-starts
  * it and waits for it to finish using the VM if required.
+ *
+ * clone_flags:最低1字节是子进程结束将发给父进程的信号，其余高字节是flags组合
+ * tls 是Thread Local Storage descriptor
  */
 long _do_fork(unsigned long clone_flags,
 	      unsigned long stack_start,

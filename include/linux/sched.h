@@ -614,7 +614,7 @@ struct task_struct {
 	struct restart_block		restart_block;
 
 	pid_t				pid;
-	pid_t				tgid;
+	pid_t				tgid;	/* 线程组id thread group id */
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 	/* Canary value for the -fstack-protector GCC feature: */
@@ -637,7 +637,7 @@ struct task_struct {
 	 */
 	struct list_head		children;
 	struct list_head		sibling;
-	struct task_struct		*group_leader;
+	struct task_struct		*group_leader;	/* 指向process group的主线程 */
 
 	/*
 	 * 'ptraced' is the list of tasks this task is using ptrace() on.
