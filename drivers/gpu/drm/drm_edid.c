@@ -4212,6 +4212,8 @@ static void drm_add_display_info(struct drm_connector *connector,
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
 
+	memset(&info->hdmi, 0, sizeof(info->hdmi));
+
 	if (edid->revision < 3)
 		return;
 
