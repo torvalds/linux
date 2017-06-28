@@ -791,13 +791,16 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	struct nwl_pcie *pcie;
 	struct pci_bus *bus;
 	struct pci_bus *child;
+	struct pci_host_bridge *bridge;
 	int err;
 	resource_size_t iobase = 0;
 	LIST_HEAD(res);
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
-		return -ENOMEM;
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!bridge)
+		return -ENODEV;
+
+	pcie = pci_host_bridge_priv(bridge);
 
 	pcie->dev = dev;
 	pcie->ecam_value = NWL_ECAM_VALUE_DEFAULT;
@@ -830,12 +833,11 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	bus = pci_create_root_bus(dev, pcie->root_busno,
-				  &nwl_pcie_ops, pcie, &res);
-	if (!bus) {
-		err = -ENOMEM;
-		goto error;
-	}
+	list_splice_init(&res, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = pcie;
+	bridge->busnr = pcie->root_busno;
+	bridge->ops = &nwl_pcie_ops;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = nwl_pcie_enable_msi(pcie);
@@ -844,7 +846,13 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 			goto error;
 		}
 	}
-	pci_scan_child_bus(bus);
+
+	err = pci_scan_root_bus_bridge(bridge);
+	if (err)
+		goto error;
+
+	bus = bridge->bus;
+
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);
