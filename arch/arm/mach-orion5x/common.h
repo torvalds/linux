@@ -54,6 +54,7 @@ void orion5x_restart(enum reboot_mode, const char *);
  * PCIe/PCI functions.
  */
 struct pci_bus;
+struct pci_host_bridge;
 struct pci_sys_data;
 struct pci_dev;
 
@@ -61,7 +62,7 @@ void orion5x_pcie_id(u32 *dev, u32 *rev);
 void orion5x_pci_disable(void);
 void orion5x_pci_set_cardbus_mode(void);
 int orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys);
-struct pci_bus *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
+int orion5x_pci_sys_scan_bus(int nr, struct pci_host_bridge *bridge);
 int orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
 struct tag;
