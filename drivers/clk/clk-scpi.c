@@ -245,10 +245,12 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 		sclk->id = val;
 
 		err = scpi_clk_ops_init(dev, match, sclk, name);
-		if (err)
+		if (err) {
 			dev_err(dev, "failed to register clock '%s'\n", name);
-		else
-			dev_dbg(dev, "Registered clock '%s'\n", name);
+			return err;
+		}
+
+		dev_dbg(dev, "Registered clock '%s'\n", name);
 		clk_data->clk[idx] = sclk;
 	}
 
