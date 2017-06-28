@@ -410,6 +410,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	bridge->sysdata = pp;
 	bridge->busnr = pp->root_bus_nr;
 	bridge->ops = &dw_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		bridge->msi = &dw_pcie_msi_chip;
 		dw_pcie_msi_chip.dev = dev;
@@ -423,11 +425,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 	if (pp->ops->scan_bus)
 		pp->ops->scan_bus(pp);
-
-#ifdef CONFIG_ARM
-	/* support old dtbs that incorrectly describe IRQs */
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
-#endif
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
