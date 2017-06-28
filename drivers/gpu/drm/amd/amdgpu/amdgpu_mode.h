@@ -442,14 +442,6 @@ struct amdgpu_crtc {
 	struct drm_pending_vblank_event *event;
 };
 
-/* TODO rename to dc_plane_state */
-struct  dc_surface;
-
-struct dm_plane_state {
-	struct drm_plane_state base;
-	struct  dc_surface* dc_surface;
-};
-
 struct amdgpu_plane {
 	struct drm_plane base;
 	enum drm_plane_type plane_type;

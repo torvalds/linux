@@ -33,6 +33,12 @@ struct amdgpu_display_manager;
 struct dc_validation_set;
 struct dc_surface;
 
+struct dm_plane_state {
+	struct drm_plane_state base;
+	struct dc_surface *dc_surface;
+};
+
+
 /*TODO Jodan Hersen use the one in amdgpu_dm*/
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 			struct amdgpu_plane *aplane,
