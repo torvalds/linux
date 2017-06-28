@@ -2273,7 +2273,7 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 	} else {
-		netdev_err(dev, "SET_SLEEP_MODE %d errror\n", *uwrq);
+		netdev_err(dev, "SET_SLEEP_MODE %d error\n", *uwrq);
 		return -EINVAL;
 	}
 
