@@ -1010,6 +1010,9 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 	if (ops && ops->device_group)
 		group = ops->device_group(dev);
 
+	if (WARN_ON_ONCE(group == NULL))
+		return ERR_PTR(-EINVAL);
+
 	if (IS_ERR(group))
 		return group;
 
