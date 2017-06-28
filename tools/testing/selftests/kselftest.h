@@ -12,6 +12,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 /* define kselftest exit codes */
 #define KSFT_PASS  0
@@ -54,22 +55,40 @@ static inline void ksft_print_cnts(void)
 	printf("1..%d\n", ksft_test_num());
 }
 
-static inline void ksft_test_result_pass(const char *msg)
+static inline void ksft_test_result_pass(const char *msg, ...)
 {
+	va_list args;
+
 	ksft_cnt.ksft_pass++;
-	printf("ok %d %s\n", ksft_test_num(), msg);
+
+	va_start(args, msg);
+	printf("ok %d ", ksft_test_num());
+	vprintf(msg, args);
+	va_end(args);
 }
 
-static inline void ksft_test_result_fail(const char *msg)
+static inline void ksft_test_result_fail(const char *msg, ...)
 {
+	va_list args;
+
 	ksft_cnt.ksft_fail++;
-	printf("not ok %d %s\n", ksft_test_num(), msg);
+
+	va_start(args, msg);
+	printf("not ok %d ", ksft_test_num());
+	vprintf(msg, args);
+	va_end(args);
 }
 
-static inline void ksft_test_result_skip(const char *msg)
+static inline void ksft_test_result_skip(const char *msg, ...)
 {
+	va_list args;
+
 	ksft_cnt.ksft_xskip++;
-	printf("ok %d # skip %s\n", ksft_test_num(), msg);
+
+	va_start(args, msg);
+	printf("ok %d # skip ", ksft_test_num());
+	vprintf(msg, args);
+	va_end(args);
 }
 
 static inline int ksft_exit_pass(void)
@@ -85,9 +104,15 @@ static inline int ksft_exit_fail(void)
 	exit(KSFT_FAIL);
 }
 
-static inline int ksft_exit_fail_msg(const char *msg)
+static inline int ksft_exit_fail_msg(const char *msg, ...)
 {
-	printf("Bail out! %s\n", msg);
+	va_list args;
+
+	va_start(args, msg);
+	printf("Bail out! ");
+	vprintf(msg, args);
+	va_end(args);
+
 	ksft_print_cnts();
 	exit(KSFT_FAIL);
 }
@@ -104,12 +129,18 @@ static inline int ksft_exit_xpass(void)
 	exit(KSFT_XPASS);
 }
 
-static inline int ksft_exit_skip(const char *msg)
+static inline int ksft_exit_skip(const char *msg, ...)
 {
-	if (msg)
-		printf("1..%d # Skipped: %s\n", ksft_test_num(), msg);
-	else
+	if (msg) {
+		va_list args;
+
+		va_start(args, msg);
+		printf("1..%d # Skipped: ", ksft_test_num());
+		vprintf(msg, args);
+		va_end(args);
+	} else {
 		ksft_print_cnts();
+	}
 	exit(KSFT_SKIP);
 }
 
