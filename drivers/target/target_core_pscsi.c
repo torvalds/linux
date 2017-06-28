@@ -382,7 +382,7 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 	spin_unlock_irq(sh->host_lock);
 	/*
 	 * Claim exclusive struct block_device access to struct scsi_device
-	 * for TYPE_DISK using supplied udev_path
+	 * for TYPE_DISK and TYPE_ZBC using supplied udev_path
 	 */
 	bd = blkdev_get_by_path(dev->udev_path,
 				FMODE_WRITE|FMODE_READ|FMODE_EXCL, pdv);
@@ -400,8 +400,9 @@ static int pscsi_create_type_disk(struct se_device *dev, struct scsi_device *sd)
 		return ret;
 	}
 
-	pr_debug("CORE_PSCSI[%d] - Added TYPE_DISK for %d:%d:%d:%llu\n",
-		phv->phv_host_id, sh->host_no, sd->channel, sd->id, sd->lun);
+	pr_debug("CORE_PSCSI[%d] - Added TYPE_%s for %d:%d:%d:%llu\n",
+		phv->phv_host_id, sd->type == TYPE_DISK ? "DISK" : "ZBC",
+		sh->host_no, sd->channel, sd->id, sd->lun);
 	return 0;
 }
 
@@ -520,6 +521,7 @@ static int pscsi_configure_device(struct se_device *dev)
 		 */
 		switch (sd->type) {
 		case TYPE_DISK:
+		case TYPE_ZBC:
 			ret = pscsi_create_type_disk(dev, sd);
 			break;
 		default:
@@ -576,9 +578,11 @@ static void pscsi_destroy_device(struct se_device *dev)
 	if (sd) {
 		/*
 		 * Release exclusive pSCSI internal struct block_device claim for
-		 * struct scsi_device with TYPE_DISK from pscsi_create_type_disk()
+		 * struct scsi_device with TYPE_DISK or TYPE_ZBC
+		 * from pscsi_create_type_disk()
 		 */
-		if ((sd->type == TYPE_DISK) && pdv->pdv_bd) {
+		if ((sd->type == TYPE_DISK || sd->type == TYPE_ZBC) &&
+		    pdv->pdv_bd) {
 			blkdev_put(pdv->pdv_bd,
 				   FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 			pdv->pdv_bd = NULL;
@@ -1000,7 +1004,8 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 	req->end_io_data = cmd;
 	scsi_req(req)->cmd_len = scsi_command_size(pt->pscsi_cdb);
 	scsi_req(req)->cmd = &pt->pscsi_cdb[0];
-	if (pdv->pdv_sd->type == TYPE_DISK)
+	if (pdv->pdv_sd->type == TYPE_DISK ||
+	    pdv->pdv_sd->type == TYPE_ZBC)
 		req->timeout = PS_TIMEOUT_DISK;
 	else
 		req->timeout = PS_TIMEOUT_OTHER;
