@@ -392,10 +392,15 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	/*
 	 * Store identifier of lower inode in upper inode xattr to
 	 * allow lookup of the copy up origin inode.
+	 *
+	 * Don't set origin when we are breaking the association with a lower
+	 * hard link.
 	 */
-	err = ovl_set_origin(dentry, lowerpath->dentry, temp);
-	if (err)
-		goto out_cleanup;
+	if (S_ISDIR(stat->mode) || stat->nlink == 1) {
+		err = ovl_set_origin(dentry, lowerpath->dentry, temp);
+		if (err)
+			goto out_cleanup;
+	}
 
 	upper = lookup_one_len(dentry->d_name.name, upperdir,
 			       dentry->d_name.len);
