@@ -974,18 +974,21 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	/* hurrah the memory is not visible ! */
 	atomic64_inc(&adev->num_vram_cpu_page_faults);
-	amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM);
+	amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM |
+					 AMDGPU_GEM_DOMAIN_GTT);
+
+	/* Avoid costly evictions; only set GTT as a busy placement */
+	abo->placement.num_busy_placement = 1;
+	abo->placement.busy_placement = &abo->placements[1];
+
 	r = ttm_bo_validate(bo, &abo->placement, false, false);
-	if (unlikely(r == -ENOMEM)) {
-		amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
-		return ttm_bo_validate(bo, &abo->placement, false, false);
-	} else if (unlikely(r != 0)) {
+	if (unlikely(r != 0))
 		return r;
-	}
 
 	offset = bo->mem.start << PAGE_SHIFT;
 	/* this should never happen */
-	if ((offset + size) > adev->mc.visible_vram_size)
+	if (bo->mem.mem_type == TTM_PL_VRAM &&
+	    (offset + size) > adev->mc.visible_vram_size)
 		return -EINVAL;
 
 	return 0;
