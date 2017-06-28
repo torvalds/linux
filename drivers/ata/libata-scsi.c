@@ -4191,7 +4191,6 @@ static unsigned int ata_scsi_var_len_cdb_xlat(struct ata_queued_cmd *qc)
 	if (sa == ATA_32)
 		return ata_scsi_pass_thru(qc);
 
-unspprt_sa:
 	/* unsupported service action */
 	return 1;
 }
