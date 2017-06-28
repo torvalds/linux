@@ -67,11 +67,11 @@
 
 #define E1000_PF_CONTROL_MSG	0x0100 /* PF control message */
 
-s32 igb_read_mbx(struct e1000_hw *, u32 *, u16, u16);
-s32 igb_write_mbx(struct e1000_hw *, u32 *, u16, u16);
-s32 igb_check_for_msg(struct e1000_hw *, u16);
-s32 igb_check_for_ack(struct e1000_hw *, u16);
-s32 igb_check_for_rst(struct e1000_hw *, u16);
-s32 igb_init_mbx_params_pf(struct e1000_hw *);
+s32 igb_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+s32 igb_write_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+s32 igb_check_for_msg(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_check_for_ack(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_check_for_rst(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_init_mbx_params_pf(struct e1000_hw *hw);
 
 #endif /* _E1000_MBX_H_ */
