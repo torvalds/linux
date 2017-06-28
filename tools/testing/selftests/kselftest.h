@@ -55,6 +55,16 @@ static inline void ksft_print_cnts(void)
 	printf("1..%d\n", ksft_test_num());
 }
 
+static inline void ksft_print_msg(const char *msg, ...)
+{
+	va_list args;
+
+	va_start(args, msg);
+	printf("# ");
+	vprintf(msg, args);
+	va_end(args);
+}
+
 static inline void ksft_test_result_pass(const char *msg, ...)
 {
 	va_list args;
