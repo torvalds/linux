@@ -1966,6 +1966,8 @@ static enum xgbe_mode xgbe_phy_get_baset_mode(struct xgbe_phy_data *phy_data,
 		return XGBE_MODE_SGMII_100;
 	case SPEED_1000:
 		return XGBE_MODE_SGMII_1000;
+	case SPEED_2500:
+		return XGBE_MODE_KX_2500;
 	case SPEED_10000:
 		return XGBE_MODE_KR;
 	default:
@@ -2109,6 +2111,9 @@ static bool xgbe_phy_use_baset_mode(struct xgbe_prv_data *pdata,
 	case XGBE_MODE_SGMII_1000:
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_1000baseT_Full);
+	case XGBE_MODE_KX_2500:
+		return xgbe_phy_check_mode(pdata, mode,
+					   ADVERTISED_2500baseX_Full);
 	case XGBE_MODE_KR:
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_10000baseT_Full);
@@ -2218,6 +2223,8 @@ static bool xgbe_phy_valid_speed_baset_mode(struct xgbe_phy_data *phy_data,
 	case SPEED_100:
 	case SPEED_1000:
 		return true;
+	case SPEED_2500:
+		return (phy_data->port_mode == XGBE_PORT_MODE_NBASE_T);
 	case SPEED_10000:
 		return (phy_data->port_mode == XGBE_PORT_MODE_10GBASE_T);
 	default:
