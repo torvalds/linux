@@ -172,7 +172,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (ring->funcs->insert_start)
 		ring->funcs->insert_start(ring);
 
-	if (vm) {
+	if (job) {
 		r = amdgpu_vm_flush(ring, job);
 		if (r) {
 			amdgpu_ring_undo(ring);
