@@ -421,7 +421,7 @@ enum iwl_tx_status {
  *	occur if tx failed for this frame when it was a member of a previous
  *	aggregation block). If rate scaling is used, retry count indicates the
  *	rate table entry used for all frames in the new agg.
- *@ AGG_TX_STATE_SEQ_NUM_MSK: Command ID and sequence number of Tx command for
+ * @AGG_TX_STATE_SEQ_NUM_MSK: Command ID and sequence number of Tx command for
  *	this frame
  *
  * TODO: complete documentation
