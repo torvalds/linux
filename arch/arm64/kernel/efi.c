@@ -264,7 +264,7 @@ static bool __init efi_virtmap_init(void)
 
 		create_pgd_mapping(&efi_mm, md->phys_addr, md->virt_addr,
 				   md->num_pages << EFI_PAGE_SHIFT, 
-				   __pgprot(pgprot_val(prot) | PTE_NG));
+				   __pgprot(pgprot_val(prot) | PTE_NG), true);
 	}
 	return true;
 }
