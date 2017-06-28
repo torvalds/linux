@@ -766,7 +766,6 @@ static int iwl_pci_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	bool hw_rfkill;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
@@ -783,16 +782,13 @@ static int iwl_pci_resume(struct device *device)
 		return 0;
 
 	/*
-	 * Enable rfkill interrupt (in order to keep track of
-	 * the rfkill status). Must be locked to avoid processing
-	 * a possible rfkill interrupt between reading the state
-	 * and calling iwl_trans_pcie_rf_kill() with it.
+	 * Enable rfkill interrupt (in order to keep track of the rfkill
+	 * status). Must be locked to avoid processing a possible rfkill
+	 * interrupt while in iwl_trans_check_hw_rf_kill().
 	 */
 	mutex_lock(&trans_pcie->mutex);
 	iwl_enable_rfkill_int(trans);
-
-	hw_rfkill = iwl_is_rfkill_set(trans);
-	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	iwl_trans_check_hw_rf_kill(trans);
 	mutex_unlock(&trans_pcie->mutex);
 
 	return 0;

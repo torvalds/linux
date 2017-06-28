@@ -74,7 +74,7 @@
 
 #define IWL_A000_JF_FW_PRE	"iwlwifi-Qu-a0-jf-b0-"
 #define IWL_A000_HR_FW_PRE	"iwlwifi-Qu-a0-hr-a0-"
-#define IWL_A000_HR_CDB_FW_PRE	"iwlwifi-QuIcp-a0-hrcdb-a0-"
+#define IWL_A000_HR_CDB_FW_PRE	"iwlwifi-QuIcp-z0-hrcdb-a0-"
 
 #define IWL_A000_HR_MODULE_FIRMWARE(api) \
 	IWL_A000_HR_FW_PRE "-" __stringify(api) ".ucode"

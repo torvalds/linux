@@ -322,7 +322,8 @@ enum iwl_d3_status {
  * @STATUS_DEVICE_ENABLED: APM is enabled
  * @STATUS_TPOWER_PMI: the device might be asleep (need to wake it up)
  * @STATUS_INT_ENABLED: interrupts are enabled
- * @STATUS_RFKILL: the HW RFkill switch is in KILL position
+ * @STATUS_RFKILL_HW: the actual HW state of the RF-kill switch
+ * @STATUS_RFKILL_OPMODE: RF-kill state reported to opmode
  * @STATUS_FW_ERROR: the fw is in error state
  * @STATUS_TRANS_GOING_IDLE: shutting down the trans, only special commands
  *	are sent
@@ -334,7 +335,8 @@ enum iwl_trans_status {
 	STATUS_DEVICE_ENABLED,
 	STATUS_TPOWER_PMI,
 	STATUS_INT_ENABLED,
-	STATUS_RFKILL,
+	STATUS_RFKILL_HW,
+	STATUS_RFKILL_OPMODE,
 	STATUS_FW_ERROR,
 	STATUS_TRANS_GOING_IDLE,
 	STATUS_TRANS_IDLE,
@@ -480,7 +482,9 @@ struct iwl_trans_txq_scd_cfg {
  *	iwl_trans_ac_txq_enable wrapper. fw_alive must have been called before
  *	this one. The op_mode must not configure the HCMD queue. The scheduler
  *	configuration may be %NULL, in which case the hardware will not be
- *	configured. May sleep.
+ *	configured. If true is returned, the operation mode needs to increment
+ *	the sequence number of the packets routed to this queue because of a
+ *	hardware scheduler bug. May sleep.
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
  * @txq_set_shared_mode: change Tx queue shared/unshared marking
@@ -542,7 +546,7 @@ struct iwl_trans_ops {
 	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
 			struct sk_buff_head *skbs);
 
-	void (*txq_enable)(struct iwl_trans *trans, int queue, u16 ssn,
+	bool (*txq_enable)(struct iwl_trans *trans, int queue, u16 ssn,
 			   const struct iwl_trans_txq_scd_cfg *cfg,
 			   unsigned int queue_wdg_timeout);
 	void (*txq_disable)(struct iwl_trans *trans, int queue,
@@ -950,7 +954,7 @@ static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue,
 	trans->ops->txq_disable(trans, queue, configure_scd);
 }
 
-static inline void
+static inline bool
 iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
 			 const struct iwl_trans_txq_scd_cfg *cfg,
 			 unsigned int queue_wdg_timeout)
@@ -959,10 +963,11 @@ iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
 
 	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return;
+		return false;
 	}
 
-	trans->ops->txq_enable(trans, queue, ssn, cfg, queue_wdg_timeout);
+	return trans->ops->txq_enable(trans, queue, ssn,
+				      cfg, queue_wdg_timeout);
 }
 
 static inline void

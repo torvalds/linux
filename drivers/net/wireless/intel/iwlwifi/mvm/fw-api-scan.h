@@ -769,7 +769,7 @@ struct iwl_scan_offload_profiles_query {
  * @last_channel: last channel that was scanned
  * @start_tsf: TSF timer in usecs of the scan start time for the mac specified
  *	in &struct iwl_scan_req_umac.
- * @results: array of scan results, only "scanned_channels" of them are valid
+ * @results: array of scan results, length in @scanned_channels
  */
 struct iwl_umac_scan_iter_complete_notif {
 	__le32 uid;

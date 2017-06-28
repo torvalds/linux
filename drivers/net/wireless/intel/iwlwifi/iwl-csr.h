@@ -153,6 +153,10 @@
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+/* host chicken bits */
+#define CSR_HOST_CHICKEN	(CSR_BASE + 0x204)
+#define CSR_HOST_CHICKEN_PM_IDLE_SRC_DIS_SB_PME	BIT(19)
+
 /* Analog phase-lock-loop configuration  */
 #define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
 

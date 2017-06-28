@@ -131,6 +131,7 @@ enum iwl_led_mode {
 
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0
+#define	ANT_INVALID	0xff
 #define	ANT_A		BIT(0)
 #define	ANT_B		BIT(1)
 #define ANT_C		BIT(2)

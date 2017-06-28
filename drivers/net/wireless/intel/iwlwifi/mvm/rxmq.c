@@ -502,7 +502,7 @@ void iwl_mvm_reorder_timer_expired(unsigned long data)
 			     buf->sta_id, sn);
 		iwl_mvm_release_frames(buf->mvm, sta, NULL, buf, sn);
 		rcu_read_unlock();
-	} else if (buf->num_stored) {
+	} else {
 		/*
 		 * If no frame expired and there are stored frames, index is now
 		 * pointing to the first unexpired frame - modify timer

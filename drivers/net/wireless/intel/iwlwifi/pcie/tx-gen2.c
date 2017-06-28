@@ -249,7 +249,7 @@ static int iwl_pcie_gen2_build_amsdu(struct iwl_trans *trans,
 		IEEE80211_CCMP_HDR_LEN : 0;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
-			     &dev_cmd->hdr, start_len, NULL, 0);
+			     &dev_cmd->hdr, start_len, 0);
 
 	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
 	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
@@ -467,10 +467,8 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 	}
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd), &dev_cmd->hdr,
-			     IWL_FIRST_TB_SIZE + tb1_len,
-			     skb->data + hdr_len, tb2_len);
-	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len,
-				  skb->len - hdr_len);
+			     IWL_FIRST_TB_SIZE + tb1_len, hdr_len);
+	trace_iwlwifi_dev_tx_data(trans->dev, skb, hdr_len);
 
 	return tfd;
 
@@ -863,7 +861,7 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 	}
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL, &trans->status)) {
+	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
 		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
@@ -900,7 +898,7 @@ int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd)
 {
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-	    test_bit(STATUS_RFKILL, &trans->status)) {
+	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
 		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
 				  cmd->id);
 		return -ERFKILL;
@@ -1076,7 +1074,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 	rsp = (void *)hcmd.resp_pkt->data;
 	qid = le16_to_cpu(rsp->queue_number);
 
-	if (qid > ARRAY_SIZE(trans_pcie->txq)) {
+	if (qid >= ARRAY_SIZE(trans_pcie->txq)) {
 		WARN_ONCE(1, "queue index %d unsupported", qid);
 		ret = -EIO;
 		goto error_free_resp;

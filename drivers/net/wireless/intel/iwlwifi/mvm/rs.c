@@ -2836,7 +2836,11 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rs_get_initial_rate(mvm, sta, lq_sta, band, rate);
 	rs_init_optimal_rate(mvm, sta, lq_sta);
 
-	WARN_ON_ONCE(rate->ant != ANT_A && rate->ant != ANT_B);
+	WARN_ONCE(rate->ant != ANT_A && rate->ant != ANT_B,
+		  "ant: 0x%x, chains 0x%x, fw tx ant: 0x%x, nvm tx ant: 0x%x\n",
+		  rate->ant, lq_sta->pers.chains, mvm->fw->valid_tx_ant,
+		  mvm->nvm_data ? mvm->nvm_data->valid_tx_ant : ANT_INVALID);
+
 	tbl->column = rs_get_column_from_rate(rate);
 
 	rs_set_expected_tpt_table(lq_sta, tbl);

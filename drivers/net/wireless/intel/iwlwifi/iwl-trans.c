@@ -117,7 +117,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	int ret;
 
 	if (unlikely(!(cmd->flags & CMD_SEND_IN_RFKILL) &&
-		     test_bit(STATUS_RFKILL, &trans->status)))
+		     test_bit(STATUS_RFKILL_OPMODE, &trans->status)))
 		return -ERFKILL;
 
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
@@ -142,6 +142,9 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_release(&trans->sync_cmd_lockdep_map);
+
+	if (WARN_ON((cmd->flags & CMD_WANT_SKB) && !ret && !cmd->resp_pkt))
+		return -EIO;
 
 	return ret;
 }

@@ -403,7 +403,8 @@ struct iwl_trans_pcie {
 	dma_addr_t ict_tbl_dma;
 	int ict_index;
 	bool use_ict;
-	bool is_down;
+	bool is_down, opmode_down;
+	bool debug_rfkill;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
@@ -515,7 +516,7 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans);
 void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr);
 int iwl_pcie_tx_stop(struct iwl_trans *trans);
 void iwl_pcie_tx_free(struct iwl_trans *trans);
-void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
+bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int queue, u16 ssn,
 			       const struct iwl_trans_txq_scd_cfg *cfg,
 			       unsigned int wdg_timeout);
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue,
@@ -675,6 +676,8 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 	}
 }
 
+void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans);
+
 static inline void iwl_wake_queue(struct iwl_trans *trans,
 				  struct iwl_txq *txq)
 {
@@ -713,7 +716,12 @@ static inline u8 get_cmd_index(struct iwl_txq *q, u32 index)
 
 static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 {
-	lockdep_assert_held(&IWL_TRANS_GET_PCIE_TRANS(trans)->mutex);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	lockdep_assert_held(&trans_pcie->mutex);
+
+	if (trans_pcie->debug_rfkill)
+		return true;
 
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
@@ -767,9 +775,11 @@ void iwl_pcie_apm_config(struct iwl_trans *trans);
 int iwl_pcie_prepare_card_hw(struct iwl_trans *trans);
 void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);
 bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans);
+void iwl_trans_pcie_handle_stop_rfkill(struct iwl_trans *trans,
+				       bool was_in_rfkill);
 void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
 int iwl_queue_space(const struct iwl_txq *q);
-int iwl_pcie_apm_stop_master(struct iwl_trans *trans);
+void iwl_pcie_apm_stop_master(struct iwl_trans *trans);
 void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
 int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 		      int slots_num, bool cmd_queue);

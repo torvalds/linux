@@ -849,7 +849,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	iwl_phy_db_free(mvm->phy_db);
 	mvm->phy_db = NULL;
 
-	iwl_free_nvm_data(mvm->nvm_data);
+	kfree(mvm->nvm_data);
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
 
@@ -1094,6 +1094,16 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 	iwl_mvm_start_mac_queues(mvm, mq);
 }
 
+static void iwl_mvm_set_rfkill_state(struct iwl_mvm *mvm)
+{
+	bool state = iwl_mvm_is_radio_killed(mvm);
+
+	if (state)
+		wake_up(&mvm->rx_sync_waitq);
+
+	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, state);
+}
+
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
 {
 	if (state)
@@ -1101,7 +1111,7 @@ void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
 	else
 		clear_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status);
 
-	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
+	iwl_mvm_set_rfkill_state(mvm);
 }
 
 static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
@@ -1114,7 +1124,7 @@ static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	else
 		clear_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
 
-	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
+	iwl_mvm_set_rfkill_state(mvm);
 
 	/* iwl_run_init_mvm_ucode is waiting for results, abort it */
 	if (calibrating)
@@ -1171,9 +1181,13 @@ static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
 
 		/* start recording again if the firmware is not crashed */
 		if (!test_bit(STATUS_FW_ERROR, &mvm->trans->status) &&
-		    mvm->fw->dbg_dest_tlv)
+		    mvm->fw->dbg_dest_tlv) {
 			iwl_clear_bits_prph(mvm->trans,
 					    MON_BUFF_SAMPLE_CTL, 0x100);
+			iwl_clear_bits_prph(mvm->trans,
+					    MON_BUFF_SAMPLE_CTL, 0x1);
+			iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		}
 	} else {
 		u32 in_sample = iwl_read_prph(mvm->trans, DBGC_IN_SAMPLE);
 		u32 out_ctrl = iwl_read_prph(mvm->trans, DBGC_OUT_CTRL);
@@ -1313,7 +1327,7 @@ static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
 		 * for offloading in order to prevent reuse of the same
 		 * qos seq counters.
 		 */
-		if (iwl_mvm_tid_queued(tid_data))
+		if (iwl_mvm_tid_queued(mvm, tid_data))
 			continue;
 
 		if (tid_data->state != IWL_AGG_OFF)
@@ -1463,9 +1477,15 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	synchronize_net();
 
 	/* Flush the hw queues, in case something got queued during entry */
-	ret = iwl_mvm_flush_tx_path(mvm, iwl_mvm_flushable_queues(mvm), flags);
-	if (ret)
-		return ret;
+	/* TODO new tx api */
+	if (iwl_mvm_has_new_tx_api(mvm)) {
+		WARN_ONCE(1, "d0i3: Need to implement flush TX queue\n");
+	} else {
+		ret = iwl_mvm_flush_tx_path(mvm, iwl_mvm_flushable_queues(mvm),
+					    flags);
+		if (ret)
+			return ret;
+	}
 
 	/* configure wowlan configuration only if needed */
 	if (mvm->d0i3_ap_sta_id != IWL_MVM_INVALID_STA) {
@@ -1609,9 +1629,6 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd(mvm, &get_status_cmd);
 	if (ret)
-		goto out;
-
-	if (!get_status_cmd.resp_pkt)
 		goto out;
 
 	status = (void *)get_status_cmd.resp_pkt->data;
