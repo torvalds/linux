@@ -3238,24 +3238,16 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 		snd_soc_jack_report(rt5645->mic_jack,
 				    report, SND_JACK_MICROPHONE);
 		return;
-	case 1: /* 2 port */
-		val = snd_soc_read(rt5645->codec, RT5645_A_JD_CTRL1) & 0x0070;
-		break;
-	default: /* 1 port */
-		val = snd_soc_read(rt5645->codec, RT5645_A_JD_CTRL1) & 0x0020;
+	default: /* read rt5645 jd1_1 status */
+		val = snd_soc_read(rt5645->codec, RT5645_INT_IRQ_ST) & 0x1000;
 		break;
 
 	}
 
-	switch (val) {
-	/* jack in */
-	case 0x30: /* 2 port */
-	case 0x0: /* 1 port or 2 port */
-		if (rt5645->jack_type == 0) {
-			report = rt5645_jack_detect(rt5645->codec, 1);
-			/* for push button and jack out */
-			break;
-		}
+	if (!val && (rt5645->jack_type == 0)) { /* jack in */
+		report = rt5645_jack_detect(rt5645->codec, 1);
+	} else if (!val && rt5645->jack_type != 0) {
+		/* for push button and jack out */
 		btn_type = 0;
 		if (snd_soc_read(rt5645->codec, RT5645_INT_IRQ_ST) & 0x4) {
 			/* button pressed */
@@ -3302,19 +3294,12 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 			mod_timer(&rt5645->btn_check_timer,
 				msecs_to_jiffies(100));
 		}
-
-		break;
-	/* jack out */
-	case 0x70: /* 2 port */
-	case 0x10: /* 2 port */
-	case 0x20: /* 1 port */
+	} else {
+		/* jack out */
 		report = 0;
 		snd_soc_update_bits(rt5645->codec,
 				    RT5645_INT_IRQ_ST, 0x1, 0x0);
 		rt5645_jack_detect(rt5645->codec, 0);
-		break;
-	default:
-		break;
 	}
 
 	snd_soc_jack_report(rt5645->hp_jack, report, SND_JACK_HEADPHONE);
