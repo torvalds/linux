@@ -23,6 +23,8 @@ struct rt5645_platform_data {
 	unsigned int jd_mode;
 	/* Use level triggered irq */
 	bool level_trigger_irq;
+	/* Invert JD1_1 status polarity */
+	bool inv_jd1_1;
 };
 
 #endif

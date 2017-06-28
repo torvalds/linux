@@ -3833,6 +3833,10 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		default:
 			break;
 		}
+		if (rt5645->pdata.inv_jd1_1) {
+			regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
+				RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
+		}
 	}
 
 	regmap_update_bits(rt5645->regmap, RT5645_ADDA_CLK1,
