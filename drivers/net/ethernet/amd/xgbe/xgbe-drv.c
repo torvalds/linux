@@ -1212,6 +1212,10 @@ static void xgbe_tx_tstamp(struct work_struct *work)
 	u64 nsec;
 	unsigned long flags;
 
+	spin_lock_irqsave(&pdata->tstamp_lock, flags);
+	if (!pdata->tx_tstamp_skb)
+		goto unlock;
+
 	if (pdata->tx_tstamp) {
 		nsec = timecounter_cyc2time(&pdata->tstamp_tc,
 					    pdata->tx_tstamp);
@@ -1223,8 +1227,9 @@ static void xgbe_tx_tstamp(struct work_struct *work)
 
 	dev_kfree_skb_any(pdata->tx_tstamp_skb);
 
-	spin_lock_irqsave(&pdata->tstamp_lock, flags);
 	pdata->tx_tstamp_skb = NULL;
+
+unlock:
 	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
 }
 
