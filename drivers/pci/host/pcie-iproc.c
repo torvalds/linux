@@ -1259,7 +1259,8 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	struct device *dev;
 	int ret;
 	void *sysdata;
-	struct pci_bus *bus, *child;
+	struct pci_bus *child;
+	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 
 	dev = pcie->dev;
 
@@ -1306,18 +1307,10 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	sysdata = pcie;
 #endif
 
-	bus = pci_create_root_bus(dev, 0, &iproc_pcie_ops, sysdata, res);
-	if (!bus) {
-		dev_err(dev, "unable to create PCI root bus\n");
-		ret = -ENOMEM;
-		goto err_power_off_phy;
-	}
-	pcie->root_bus = bus;
-
 	ret = iproc_pcie_check_link(pcie);
 	if (ret) {
 		dev_err(dev, "no PCIe EP device detected\n");
-		goto err_rm_root_bus;
+		goto err_power_off_phy;
 	}
 
 	iproc_pcie_enable(pcie);
@@ -1326,22 +1319,31 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 		if (iproc_pcie_msi_enable(pcie))
 			dev_info(dev, "not using iProc MSI\n");
 
-	pci_scan_child_bus(bus);
-	pci_assign_unassigned_bus_resources(bus);
+	list_splice_init(res, &host->windows);
+	host->busnr = 0;
+	host->dev.parent = dev;
+	host->ops = &iproc_pcie_ops;
+	host->sysdata = sysdata;
+
+	ret = pci_scan_root_bus_bridge(host);
+	if (ret < 0) {
+		dev_err(dev, "failed to scan host: %d\n", ret);
+		goto err_power_off_phy;
+	}
 
 	if (pcie->map_irq)
 		pci_fixup_irqs(pci_common_swizzle, pcie->map_irq);
 
-	list_for_each_entry(child, &bus->children, node)
+	pci_assign_unassigned_bus_resources(host->bus);
+
+	pcie->root_bus = host->bus;
+
+	list_for_each_entry(child, &host->bus->children, node)
 		pcie_bus_configure_settings(child);
 
-	pci_bus_add_devices(bus);
+	pci_bus_add_devices(host->bus);
 
 	return 0;
-
-err_rm_root_bus:
-	pci_stop_root_bus(bus);
-	pci_remove_root_bus(bus);
 
 err_power_off_phy:
 	phy_power_off(pcie->phy);

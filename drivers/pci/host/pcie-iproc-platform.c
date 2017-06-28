@@ -52,11 +52,14 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 	struct resource reg;
 	resource_size_t iobase = 0;
 	LIST_HEAD(resources);
+	struct pci_host_bridge *bridge;
 	int ret;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!bridge)
 		return -ENOMEM;
+
+	pcie = pci_host_bridge_priv(bridge);
 
 	pcie->dev = dev;
 	pcie->type = (enum iproc_pcie_type) of_device_get_match_data(dev);
