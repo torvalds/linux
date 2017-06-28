@@ -633,6 +633,7 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct xilinx_pcie_port *port;
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	int err;
 	resource_size_t iobase = 0;
 	LIST_HEAD(res);
@@ -640,9 +641,11 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -ENODEV;
 
-	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
-	if (!port)
-		return -ENOMEM;
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*port));
+	if (!bridge)
+		return -ENODEV;
+
+	port = pci_host_bridge_priv(bridge);
 
 	port->dev = dev;
 
@@ -671,17 +674,23 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	if (err)
 		goto error;
 
-	bus = pci_create_root_bus(dev, 0, &xilinx_pcie_ops, port, &res);
-	if (!bus) {
-		err = -ENOMEM;
-		goto error;
-	}
+
+	list_splice_init(&res, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = port;
+	bridge->busnr = 0;
+	bridge->ops = &xilinx_pcie_ops;
 
 #ifdef CONFIG_PCI_MSI
 	xilinx_pcie_msi_chip.dev = dev;
-	bus->msi = &xilinx_pcie_msi_chip;
+	bridge->msi = &xilinx_pcie_msi_chip;
 #endif
-	pci_scan_child_bus(bus);
+	err = pci_scan_root_bus_bridge(bridge);
+	if (err < 0)
+		goto error;
+
+	bus = bridge->bus;
+
 	pci_assign_unassigned_bus_resources(bus);
 #ifndef CONFIG_MICROBLAZE
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
