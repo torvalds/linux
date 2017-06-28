@@ -7653,7 +7653,10 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 	unsigned long type, types;
 	gva_t gva;
 	struct x86_exception e;
-	int vpid;
+	struct {
+		u64 vpid;
+		u64 gla;
+	} operand;
 
 	if (!(vmx->nested.nested_vmx_secondary_ctls_high &
 	      SECONDARY_EXEC_ENABLE_VPID) ||
@@ -7683,17 +7686,28 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
 			vmx_instruction_info, false, &gva))
 		return 1;
-	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &vpid,
-				sizeof(u32), &e)) {
+	if (kvm_read_guest_virt(&vcpu->arch.emulate_ctxt, gva, &operand,
+				sizeof(operand), &e)) {
 		kvm_inject_page_fault(vcpu, &e);
 		return 1;
+	}
+	if (operand.vpid >> 16) {
+		nested_vmx_failValid(vcpu,
+			VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
+		return kvm_skip_emulated_instruction(vcpu);
 	}
 
 	switch (type) {
 	case VMX_VPID_EXTENT_INDIVIDUAL_ADDR:
+		if (is_noncanonical_address(operand.gla)) {
+			nested_vmx_failValid(vcpu,
+				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
+			return kvm_skip_emulated_instruction(vcpu);
+		}
+		/* fall through */
 	case VMX_VPID_EXTENT_SINGLE_CONTEXT:
 	case VMX_VPID_EXTENT_SINGLE_NON_GLOBAL:
-		if (!vpid) {
+		if (!operand.vpid) {
 			nested_vmx_failValid(vcpu,
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 			return kvm_skip_emulated_instruction(vcpu);
