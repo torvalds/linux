@@ -382,9 +382,9 @@ static bool xgbe_ecc_ded(struct xgbe_prv_data *pdata, unsigned long *period,
 	return false;
 }
 
-static irqreturn_t xgbe_ecc_isr(int irq, void *data)
+static void xgbe_ecc_isr_task(unsigned long data)
 {
-	struct xgbe_prv_data *pdata = data;
+	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 	unsigned int ecc_isr;
 	bool stop = false;
 
@@ -435,12 +435,26 @@ out:
 	/* Clear all ECC interrupts */
 	XP_IOWRITE(pdata, XP_ECC_ISR, ecc_isr);
 
+	/* Reissue interrupt if status is not clear */
+	if (pdata->vdata->irq_reissue_support)
+		XP_IOWRITE(pdata, XP_INT_REISSUE_EN, 1 << 1);
+}
+
+static irqreturn_t xgbe_ecc_isr(int irq, void *data)
+{
+	struct xgbe_prv_data *pdata = data;
+
+	if (pdata->isr_as_tasklet)
+		tasklet_schedule(&pdata->tasklet_ecc);
+	else
+		xgbe_ecc_isr_task((unsigned long)pdata);
+
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t xgbe_isr(int irq, void *data)
+static void xgbe_isr_task(unsigned long data)
 {
-	struct xgbe_prv_data *pdata = data;
+	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_channel *channel;
 	unsigned int dma_isr, dma_ch_isr;
@@ -543,15 +557,36 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 isr_done:
 	/* If there is not a separate AN irq, handle it here */
 	if (pdata->dev_irq == pdata->an_irq)
-		pdata->phy_if.an_isr(irq, pdata);
+		pdata->phy_if.an_isr(pdata);
 
 	/* If there is not a separate ECC irq, handle it here */
 	if (pdata->vdata->ecc_support && (pdata->dev_irq == pdata->ecc_irq))
-		xgbe_ecc_isr(irq, pdata);
+		xgbe_ecc_isr_task((unsigned long)pdata);
 
 	/* If there is not a separate I2C irq, handle it here */
 	if (pdata->vdata->i2c_support && (pdata->dev_irq == pdata->i2c_irq))
-		pdata->i2c_if.i2c_isr(irq, pdata);
+		pdata->i2c_if.i2c_isr(pdata);
+
+	/* Reissue interrupt if status is not clear */
+	if (pdata->vdata->irq_reissue_support) {
+		unsigned int reissue_mask;
+
+		reissue_mask = 1 << 0;
+		if (!pdata->per_channel_irq)
+			reissue_mask |= 0xffff < 4;
+
+		XP_IOWRITE(pdata, XP_INT_REISSUE_EN, reissue_mask);
+	}
+}
+
+static irqreturn_t xgbe_isr(int irq, void *data)
+{
+	struct xgbe_prv_data *pdata = data;
+
+	if (pdata->isr_as_tasklet)
+		tasklet_schedule(&pdata->tasklet_dev);
+	else
+		xgbe_isr_task((unsigned long)pdata);
 
 	return IRQ_HANDLED;
 }
@@ -825,6 +860,10 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 	struct net_device *netdev = pdata->netdev;
 	unsigned int i;
 	int ret;
+
+	tasklet_init(&pdata->tasklet_dev, xgbe_isr_task, (unsigned long)pdata);
+	tasklet_init(&pdata->tasklet_ecc, xgbe_ecc_isr_task,
+		     (unsigned long)pdata);
 
 	ret = devm_request_irq(pdata->dev, pdata->dev_irq, xgbe_isr, 0,
 			       netdev->name, pdata);

@@ -837,7 +837,7 @@ struct xgbe_phy_if {
 	bool (*phy_valid_speed)(struct xgbe_prv_data *, int);
 
 	/* For single interrupt support */
-	irqreturn_t (*an_isr)(int, struct xgbe_prv_data *);
+	irqreturn_t (*an_isr)(struct xgbe_prv_data *);
 
 	/* PHY implementation specific services */
 	struct xgbe_phy_impl_if phy_impl;
@@ -855,7 +855,7 @@ struct xgbe_i2c_if {
 	int (*i2c_xfer)(struct xgbe_prv_data *, struct xgbe_i2c_op *);
 
 	/* For single interrupt support */
-	irqreturn_t (*i2c_isr)(int, struct xgbe_prv_data *);
+	irqreturn_t (*i2c_isr)(struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -924,6 +924,7 @@ struct xgbe_version_data {
 	unsigned int tx_tstamp_workaround;
 	unsigned int ecc_support;
 	unsigned int i2c_support;
+	unsigned int irq_reissue_support;
 };
 
 struct xgbe_prv_data {
@@ -1158,6 +1159,12 @@ struct xgbe_prv_data {
 	char i2c_name[IFNAMSIZ + 32];
 
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
+
+	unsigned int isr_as_tasklet;
+	struct tasklet_struct tasklet_dev;
+	struct tasklet_struct tasklet_ecc;
+	struct tasklet_struct tasklet_i2c;
+	struct tasklet_struct tasklet_an;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xgbe_debugfs;

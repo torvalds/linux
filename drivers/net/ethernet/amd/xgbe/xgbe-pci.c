@@ -139,6 +139,7 @@ static int xgbe_config_multi_msi(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 
+	pdata->isr_as_tasklet = 1;
 	pdata->irq_count = ret;
 
 	pdata->dev_irq = pci_irq_vector(pdata->pcidev, 0);
@@ -175,6 +176,7 @@ static int xgbe_config_irqs(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 
+	pdata->isr_as_tasklet = pdata->pcidev->msi_enabled ? 1 : 0;
 	pdata->irq_count = 1;
 	pdata->channel_irq_count = 1;
 
@@ -445,6 +447,7 @@ static const struct xgbe_version_data xgbe_v2a = {
 	.tx_tstamp_workaround		= 1,
 	.ecc_support			= 1,
 	.i2c_support			= 1,
+	.irq_reissue_support		= 1,
 };
 
 static const struct xgbe_version_data xgbe_v2b = {
@@ -456,6 +459,7 @@ static const struct xgbe_version_data xgbe_v2b = {
 	.tx_tstamp_workaround		= 1,
 	.ecc_support			= 1,
 	.i2c_support			= 1,
+	.irq_reissue_support		= 1,
 };
 
 static const struct pci_device_id xgbe_pci_table[] = {
