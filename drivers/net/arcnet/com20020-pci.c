@@ -135,6 +135,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 	for (i = 0; i < ci->devcount; i++) {
 		struct com20020_pci_channel_map *cm = &ci->chan_map_tbl[i];
 		struct com20020_dev *card;
+		int dev_id_mask = 0xf;
 
 		dev = alloc_arcdev(device);
 		if (!dev) {
@@ -179,8 +180,8 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		/* Get the dev_id from the PLX rotary coder */
 		if (!strncmp(ci->name, "EAE PLX-PCI MA1", 15))
-			dev->dev_id = 0xc;
-		dev->dev_id ^= inb(priv->misc + ci->rotary) >> 4;
+			dev_id_mask = 0x3;
+		dev->dev_id = (inb(priv->misc + ci->rotary) >> 4) & dev_id_mask;
 
 		snprintf(dev->name, sizeof(dev->name), "arc%d-%d", dev->dev_id, i);
 
