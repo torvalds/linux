@@ -5825,6 +5825,7 @@ void __init ftrace_free_init_mem(void)
 		if (!rec)
 			continue;
 		pg->index--;
+		ftrace_update_tot_cnt--;
 		if (!pg->index) {
 			*last_pg = pg->next;
 			order = get_count_order(pg->size / ENTRIES_PER_PAGE);
