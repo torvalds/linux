@@ -309,7 +309,11 @@ void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 
 extern u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev);
 extern int i2c_dw_probe(struct dw_i2c_dev *dev);
+#if IS_ENABLED(CONFIG_I2C_DESIGNWARE_SLAVE)
 extern int i2c_dw_probe_slave(struct dw_i2c_dev *dev);
+#else
+static inline int i2c_dw_probe_slave(struct dw_i2c_dev *dev) { return -EINVAL; }
+#endif
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
 extern int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev);
