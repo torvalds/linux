@@ -75,6 +75,7 @@ struct rockchip_dclk_pll {
 
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
+	struct drm_property_blob *cabc_lut;
 	struct rockchip_dclk_pll *pll;
 	int left_margin;
 	int right_margin;
@@ -86,6 +87,11 @@ struct rockchip_crtc_state {
 	int afbdc_win_ptr;
 	int afbdc_win_id;
 	int afbdc_en;
+	int cabc_mode;
+	int cabc_stage_up;
+	int cabc_stage_down;
+	int cabc_global_dn;
+	int cabc_calc_pixel_num;
 	int dsp_layer_sel;
 	int output_type;
 	int output_mode;
@@ -126,6 +132,13 @@ struct rockchip_logo {
 struct rockchip_drm_private {
 	struct rockchip_logo *logo;
 	struct drm_property *logo_ymirror_prop;
+	struct drm_property *cabc_mode_property;
+	struct drm_property *cabc_lut_property;
+	struct drm_property *cabc_stage_up_property;
+	struct drm_property *cabc_stage_down_property;
+	struct drm_property *cabc_global_dn_property;
+	struct drm_property *cabc_calc_pixel_num_property;
+	void *backlight;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];

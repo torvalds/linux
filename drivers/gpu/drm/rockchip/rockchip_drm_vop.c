@@ -206,6 +206,8 @@ struct vop {
 	u32 *lut;
 	u32 lut_len;
 	bool lut_active;
+	void __iomem *cabc_lut_regs;
+	u32 cabc_lut_len;
 
 	/* one time only one process allowed to config the register */
 	spinlock_t reg_lock;
@@ -351,6 +353,11 @@ static inline void vop_write_lut(struct vop *vop, uint32_t offset, uint32_t v)
 static inline uint32_t vop_read_lut(struct vop *vop, uint32_t offset)
 {
 	return readl(vop->lut_regs + offset);
+}
+
+static inline void vop_write_cabc_lut(struct vop *vop, uint32_t offset, uint32_t v)
+{
+	writel(v, vop->cabc_lut_regs + offset);
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -1795,6 +1802,13 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, core_dclk_div,
 		     !!(adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK));
 
+	VOP_CTRL_SET(vop, cabc_total_num, hdisplay * vdisplay);
+	VOP_CTRL_SET(vop, cabc_config_mode, STAGE_BY_STAGE);
+	VOP_CTRL_SET(vop, cabc_stage_up_mode, MUL_MODE);
+	VOP_CTRL_SET(vop, cabc_scale_cfg_value, 1);
+	VOP_CTRL_SET(vop, cabc_scale_cfg_enable, 0);
+	VOP_CTRL_SET(vop, cabc_global_dn_limit_en, 1);
+
 	clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
 
 	vop_cfg_done(vop);
@@ -2041,6 +2055,86 @@ static void vop_post_config(struct drm_crtc *crtc)
 	}
 }
 
+static void vop_update_cabc_lut(struct drm_crtc *crtc,
+			    struct drm_crtc_state *old_crtc_state)
+{
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *old_s =
+			to_rockchip_crtc_state(old_crtc_state);
+	struct drm_property_blob *cabc_lut = s->cabc_lut;
+	struct drm_property_blob *old_cabc_lut = old_s->cabc_lut;
+	struct vop *vop = to_vop(crtc);
+	int lut_size;
+	u32 *lut;
+	u32 lut_len = vop->cabc_lut_len;
+	int i, dle;
+
+	if (!cabc_lut && old_cabc_lut) {
+		VOP_CTRL_SET(vop, cabc_lut_en, 0);
+		return;
+	}
+	if (!cabc_lut)
+		return;
+
+	if (old_cabc_lut && old_cabc_lut->base.id == cabc_lut->base.id)
+		return;
+
+	lut = (u32 *)cabc_lut->data;
+	lut_size = cabc_lut->length / sizeof(u32);
+	if (WARN(lut_size != lut_len, "Unexpect cabc lut size not match\n"))
+		return;
+
+#define CTRL_GET(name) VOP_CTRL_GET(vop, name)
+	if (CTRL_GET(cabc_lut_en)) {
+		VOP_CTRL_SET(vop, cabc_lut_en, 0);
+		vop_cfg_done(vop);
+		readx_poll_timeout(CTRL_GET, cabc_lut_en, dle, !dle, 5, 33333);
+	}
+
+	for (i = 0; i < lut_len; i++)
+		vop_write_cabc_lut(vop, (i << 2), lut[i]);
+#undef CTRL_GET
+	VOP_CTRL_SET(vop, cabc_lut_en, 1);
+}
+
+static void vop_update_cabc(struct drm_crtc *crtc,
+			    struct drm_crtc_state *old_crtc_state)
+{
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
+	struct vop *vop = to_vop(crtc);
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	int pixel_total = mode->hdisplay * mode->vdisplay;
+
+	if (!vop->cabc_lut_regs)
+		return;
+
+	vop_update_cabc_lut(crtc, old_crtc_state);
+
+	if (s->cabc_mode != ROCKCHIP_DRM_CABC_MODE_DISABLE) {
+		VOP_CTRL_SET(vop, cabc_en, 1);
+		VOP_CTRL_SET(vop, cabc_handle_en, 1);
+		VOP_CTRL_SET(vop, cabc_stage_up, s->cabc_stage_up);
+		VOP_CTRL_SET(vop, cabc_stage_down, s->cabc_stage_down);
+		VOP_CTRL_SET(vop, cabc_global_dn, s->cabc_global_dn);
+		VOP_CTRL_SET(vop, cabc_calc_pixel_num,
+			     s->cabc_calc_pixel_num * pixel_total / 1000);
+	} else {
+		/*
+		 * There are some hardware issues on cabc disabling:
+		 *   1: if cabc auto gating enable, cabc disabling will cause
+		 *      vop die
+		 *   2: cabc disabling always would make timing several
+		 *      pixel cycle abnormal, cause some panel abnormal.
+		 *
+		 * So just keep cabc enable, and make it no work with max
+		 * cabc_calc_pixel_num, it only has little power consume.
+		 */
+		VOP_CTRL_SET(vop, cabc_calc_pixel_num, pixel_total);
+	}
+}
+
 static void vop_cfg_update(struct drm_crtc *crtc,
 			   struct drm_crtc_state *old_crtc_state)
 {
@@ -2146,6 +2240,8 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 
 		vop->is_iommu_enabled = true;
 	}
+
+	vop_update_cabc(crtc, old_crtc_state);
 
 	vop_cfg_done(vop);
 
@@ -2262,6 +2358,7 @@ static int vop_crtc_atomic_get_property(struct drm_crtc *crtc,
 					uint64_t *val)
 {
 	struct drm_device *drm_dev = crtc->dev;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct drm_mode_config *mode_config = &drm_dev->mode_config;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
 
@@ -2285,6 +2382,36 @@ static int vop_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
+	if (property == private->cabc_mode_property) {
+		*val = s->cabc_mode;
+		return 0;
+	}
+
+	if (property == private->cabc_stage_up_property) {
+		*val = s->cabc_stage_up;
+		return 0;
+	}
+
+	if (property == private->cabc_stage_down_property) {
+		*val = s->cabc_stage_down;
+		return 0;
+	}
+
+	if (property == private->cabc_global_dn_property) {
+		*val = s->cabc_global_dn;
+		return 0;
+	}
+
+	if (property == private->cabc_calc_pixel_num_property) {
+		*val = s->cabc_calc_pixel_num;
+		return 0;
+	}
+
+	if (property == private->cabc_lut_property) {
+		*val = s->cabc_lut ? s->cabc_lut->base.id : 0;
+		return 0;
+	}
+
 	DRM_ERROR("failed to get vop crtc property\n");
 	return -EINVAL;
 }
@@ -2295,8 +2422,10 @@ static int vop_crtc_atomic_set_property(struct drm_crtc *crtc,
 					uint64_t val)
 {
 	struct drm_device *drm_dev = crtc->dev;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct drm_mode_config *mode_config = &drm_dev->mode_config;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
+	struct vop *vop = to_vop(crtc);
 
 	if (property == mode_config->tv_left_margin_property) {
 		s->left_margin = val;
@@ -2316,6 +2445,57 @@ static int vop_crtc_atomic_set_property(struct drm_crtc *crtc,
 	if (property == mode_config->tv_bottom_margin_property) {
 		s->bottom_margin = val;
 		return 0;
+	}
+
+	if (property == private->cabc_mode_property) {
+		s->cabc_mode = val;
+		/*
+		 * Pre-define lowpower and normal mode to make cabc
+		 * easier to use.
+		 */
+		if (s->cabc_mode == ROCKCHIP_DRM_CABC_MODE_NORMAL) {
+			s->cabc_stage_up = 257;
+			s->cabc_stage_down = 255;
+			s->cabc_global_dn = 192;
+			s->cabc_calc_pixel_num = 995;
+		} else if (s->cabc_mode == ROCKCHIP_DRM_CABC_MODE_LOWPOWER) {
+			s->cabc_stage_up = 260;
+			s->cabc_stage_down = 252;
+			s->cabc_global_dn = 180;
+			s->cabc_calc_pixel_num = 992;
+		}
+		return 0;
+	}
+
+	if (property == private->cabc_stage_up_property) {
+		s->cabc_stage_up = val;
+		return 0;
+	}
+
+	if (property == private->cabc_stage_down_property) {
+		s->cabc_stage_down = val;
+		return 0;
+	}
+
+	if (property == private->cabc_calc_pixel_num_property) {
+		s->cabc_calc_pixel_num = val;
+		return 0;
+	}
+
+	if (property == private->cabc_global_dn_property) {
+		s->cabc_global_dn = val;
+		return 0;
+	}
+
+	if (property == private->cabc_lut_property) {
+		bool replaced;
+		ssize_t size = vop->cabc_lut_len * 4;
+
+		return drm_atomic_replace_property_blob_from_id(crtc,
+								&s->cabc_lut,
+								val,
+								size,
+								&replaced);
 	}
 
 	DRM_ERROR("failed to set vop crtc property\n");
@@ -2502,6 +2682,7 @@ static int vop_create_crtc(struct vop *vop)
 	struct device *dev = vop->dev;
 	const struct vop_data *vop_data = vop->data;
 	struct drm_device *drm_dev = vop->drm_dev;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
 	struct device_node *port;
@@ -2582,7 +2763,15 @@ static int vop_create_crtc(struct vop *vop)
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_right_margin_property, 100);
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_top_margin_property, 100);
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_bottom_margin_property, 100);
+
 #undef VOP_ATTACH_MODE_CONFIG_PROP
+
+	drm_object_attach_property(&crtc->base, private->cabc_lut_property, 0);
+	drm_object_attach_property(&crtc->base, private->cabc_mode_property, 0);
+	drm_object_attach_property(&crtc->base, private->cabc_stage_up_property, 0);
+	drm_object_attach_property(&crtc->base, private->cabc_stage_down_property, 0);
+	drm_object_attach_property(&crtc->base, private->cabc_global_dn_property, 0);
+	drm_object_attach_property(&crtc->base, private->cabc_calc_pixel_num_property, 0);
 
 	if (vop_data->feature & VOP_FEATURE_AFBDC)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC);
@@ -2876,6 +3065,22 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		if (vop->lut_len != 256 && vop->lut_len != 1024) {
 			dev_err(vop->dev, "unsupport lut sizes %d\n",
 				vop->lut_len);
+			return -EINVAL;
+		}
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cabc_lut");
+	vop->cabc_lut_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(vop->cabc_lut_regs)) {
+		dev_warn(vop->dev, "failed to get vop cabc lut registers\n");
+		vop->cabc_lut_regs = NULL;
+	}
+
+	if (vop->cabc_lut_regs) {
+		vop->cabc_lut_len = resource_size(res) >> 2;
+		if (vop->cabc_lut_len != 128) {
+			dev_err(vop->dev, "unsupport cabc lut sizes %d\n",
+				vop->cabc_lut_len);
 			return -EINVAL;
 		}
 	}

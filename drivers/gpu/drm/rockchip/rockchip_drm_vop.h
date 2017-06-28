@@ -27,6 +27,17 @@
 #define AFBDC_FMT_U8U8U8U8	0x5
 #define AFBDC_FMT_U8U8U8	0x4
 
+enum cabc_stage_mode {
+	LAST_FRAME_PWM_VAL	= 0x0,
+	CUR_FRAME_PWM_VAL	= 0x1,
+	STAGE_BY_STAGE		= 0x2
+};
+
+enum cabc_stage_up_mode {
+	MUL_MODE,
+	ADD_MODE,
+};
+
 enum vop_csc_format {
 	CSC_BT601,
 	CSC_BT709,
@@ -138,6 +149,21 @@ struct vop_ctrl {
 	struct vop_reg afbdc_pic_size;
 	struct vop_reg afbdc_hdr_ptr;
 	struct vop_reg afbdc_rstn;
+
+	/* CABC */
+	struct vop_reg cabc_total_num;
+	struct vop_reg cabc_config_mode;
+	struct vop_reg cabc_stage_up_mode;
+	struct vop_reg cabc_scale_cfg_value;
+	struct vop_reg cabc_scale_cfg_enable;
+	struct vop_reg cabc_global_dn_limit_en;
+	struct vop_reg cabc_lut_en;
+	struct vop_reg cabc_en;
+	struct vop_reg cabc_handle_en;
+	struct vop_reg cabc_stage_up;
+	struct vop_reg cabc_stage_down;
+	struct vop_reg cabc_global_dn;
+	struct vop_reg cabc_calc_pixel_num;
 
 	struct vop_reg cfg_done;
 };
