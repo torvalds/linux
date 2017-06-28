@@ -164,14 +164,12 @@
 #define XGBE_DMA_STOP_TIMEOUT	1
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
-#define XGBE_DMA_OS_AXDOMAIN	0x2
-#define XGBE_DMA_OS_ARCACHE	0xb
-#define XGBE_DMA_OS_AWCACHE	0xf
+#define XGBE_DMA_OS_ARCR	0x002b2b2b
+#define XGBE_DMA_OS_AWCR	0x2f2f2f2f
 
 /* DMA cache settings - System, no caches used */
-#define XGBE_DMA_SYS_AXDOMAIN	0x3
-#define XGBE_DMA_SYS_ARCACHE	0x0
-#define XGBE_DMA_SYS_AWCACHE	0x0
+#define XGBE_DMA_SYS_ARCR	0x00303030
+#define XGBE_DMA_SYS_AWCR	0x30303030
 
 /* DMA channel interrupt modes */
 #define XGBE_IRQ_MODE_EDGE	0
@@ -1007,9 +1005,8 @@ struct xgbe_prv_data {
 
 	/* AXI DMA settings */
 	unsigned int coherent;
-	unsigned int axdomain;
-	unsigned int arcache;
-	unsigned int awcache;
+	unsigned int arcr;
+	unsigned int awcr;
 
 	/* Service routine support */
 	struct workqueue_struct *dev_workqueue;
