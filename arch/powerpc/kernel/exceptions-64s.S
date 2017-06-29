@@ -1594,6 +1594,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	kernel_bad_stack
 	b	1b
+_ASM_NOKPROBE_SYMBOL(bad_stack);
 
 /*
  * When doorbell is triggered from system reset wakeup, the message is
@@ -1655,3 +1656,4 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 1:
 	blr
 
+_ASM_NOKPROBE_SYMBOL(__replay_interrupt)
