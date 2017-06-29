@@ -170,6 +170,7 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 		goto err_free_mask;
 
 	flow_pay->meta.flags = 0;
+	spin_lock_init(&flow_pay->lock);
 
 	return flow_pay;
 
@@ -291,7 +292,21 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 static int
 nfp_flower_get_stats(struct nfp_app *app, struct tc_cls_flower_offload *flow)
 {
-	return -EOPNOTSUPP;
+	struct nfp_fl_payload *nfp_flow;
+
+	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie);
+	if (!nfp_flow)
+		return -EINVAL;
+
+	spin_lock_bh(&nfp_flow->lock);
+	tcf_exts_stats_update(flow->exts, nfp_flow->stats.bytes,
+			      nfp_flow->stats.pkts, nfp_flow->stats.used);
+
+	nfp_flow->stats.pkts = 0;
+	nfp_flow->stats.bytes = 0;
+	spin_unlock_bh(&nfp_flow->lock);
+
+	return 0;
 }
 
 static int

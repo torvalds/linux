@@ -52,11 +52,6 @@ nfp_flower_cmsg_get_hdr(struct sk_buff *skb)
 	return (struct nfp_flower_cmsg_hdr *)skb->data;
 }
 
-static void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
-{
-	return (unsigned char *)skb->data + NFP_FLOWER_CMSG_HLEN;
-}
-
 static struct sk_buff *
 nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
 		      enum nfp_flower_cmsg_type_port type)

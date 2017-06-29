@@ -43,6 +43,9 @@ struct tc_to_netdev;
 struct net_device;
 struct nfp_app;
 
+#define NFP_FL_STATS_ENTRY_RS		BIT(20)
+#define NFP_FL_STATS_ELEM_RS		4
+#define NFP_FL_REPEATED_HASH_MAX	BIT(17)
 #define NFP_FLOWER_HASH_BITS		19
 #define NFP_FLOWER_MASK_ENTRY_RS	256
 #define NFP_FLOWER_MASK_ELEMENT_RS	1
@@ -60,11 +63,18 @@ struct nfp_fl_mask_id {
 	u8 init_unallocated;
 };
 
+struct nfp_fl_stats_id {
+	struct circ_buf free_list;
+	u32 init_unalloc;
+	u8 repeated_em_count;
+};
+
 /**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
  * @nn:			Pointer to vNIC
  * @mask_id_seed:	Seed used for mask hash table
  * @flower_version:	HW version of flower
+ * @stats_ids:		List of free stats ids
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
  * @flow_table:		Hash table used to store flower rules
@@ -73,6 +83,7 @@ struct nfp_flower_priv {
 	struct nfp_net *nn;
 	u32 mask_id_seed;
 	u64 flower_version;
+	struct nfp_fl_stats_id stats_ids;
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
 	DECLARE_HASHTABLE(flow_table, NFP_FLOWER_HASH_BITS);
@@ -95,14 +106,29 @@ struct nfp_fl_rule_metadata {
 	__be32 shortcut;
 };
 
+struct nfp_fl_stats {
+	u64 pkts;
+	u64 bytes;
+	u64 used;
+};
+
 struct nfp_fl_payload {
 	struct nfp_fl_rule_metadata meta;
 	unsigned long tc_flower_cookie;
 	struct hlist_node link;
 	struct rcu_head rcu;
+	spinlock_t lock; /* lock stats */
+	struct nfp_fl_stats stats;
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
+};
+
+struct nfp_fl_stats_frame {
+	__be32 stats_con_id;
+	__be32 pkt_count;
+	__be64 byte_count;
+	__be64 stats_cookie;
 };
 
 int nfp_flower_metadata_init(struct nfp_app *app);
@@ -127,5 +153,7 @@ struct nfp_fl_payload *
 nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
+
+void nfp_flower_rx_flow_stats(struct nfp_app *app, struct sk_buff *skb);
 
 #endif

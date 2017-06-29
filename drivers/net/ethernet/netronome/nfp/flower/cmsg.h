@@ -300,6 +300,11 @@ nfp_flower_cmsg_pcie_port(u8 nfp_pcie, enum nfp_flower_cmsg_port_vnic_type type,
 			   NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT);
 }
 
+static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
+{
+	return (unsigned char *)skb->data + NFP_FLOWER_CMSG_HLEN;
+}
+
 int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
 
