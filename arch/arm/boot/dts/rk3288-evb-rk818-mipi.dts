@@ -71,6 +71,7 @@
 	vcc_lcd: vcc-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
+		regulator-boot-on;
 		gpio = <&gpio7 3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_en>;
@@ -334,7 +335,7 @@
 &mipi_dsi {
 	status = "okay";
 
-	dsi_panel: dsi_panel {
+	panel: panel {
 		compatible = "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
@@ -344,6 +345,7 @@
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
 		delay,prepare = <120>;
+		delay,enable = <120>;
 		status = "okay";
 
 		disp_timings: display-timings {
