@@ -172,7 +172,7 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_mr = dev_attr->max_mr;
 	ib_attr->max_pd = dev_attr->max_pd;
 	ib_attr->max_qp_rd_atom = dev_attr->max_qp_rd_atom;
-	ib_attr->max_qp_init_rd_atom = dev_attr->max_qp_rd_atom;
+	ib_attr->max_qp_init_rd_atom = dev_attr->max_qp_init_rd_atom;
 	ib_attr->atomic_cap = IB_ATOMIC_HCA;
 	ib_attr->masked_atomic_cap = IB_ATOMIC_HCA;
 
@@ -1512,13 +1512,24 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	if (qp_attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
 		qp->qplib_qp.modify_flags |=
 				CMDQ_MODIFY_QP_MODIFY_MASK_MAX_RD_ATOMIC;
-		qp->qplib_qp.max_rd_atomic = qp_attr->max_rd_atomic;
+		/* Cap the max_rd_atomic to device max */
+		qp->qplib_qp.max_rd_atomic = min_t(u32, qp_attr->max_rd_atomic,
+						   dev_attr->max_qp_rd_atom);
 	}
 	if (qp_attr_mask & IB_QP_SQ_PSN) {
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_SQ_PSN;
 		qp->qplib_qp.sq.psn = qp_attr->sq_psn;
 	}
 	if (qp_attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
+		if (qp_attr->max_dest_rd_atomic >
+		    dev_attr->max_qp_init_rd_atom) {
+			dev_err(rdev_to_dev(rdev),
+				"max_dest_rd_atomic requested%d is > dev_max%d",
+				qp_attr->max_dest_rd_atomic,
+				dev_attr->max_qp_init_rd_atom);
+			return -EINVAL;
+		}
+
 		qp->qplib_qp.modify_flags |=
 				CMDQ_MODIFY_QP_MODIFY_MASK_MAX_DEST_RD_ATOMIC;
 		qp->qplib_qp.max_dest_rd_atomic = qp_attr->max_dest_rd_atomic;
