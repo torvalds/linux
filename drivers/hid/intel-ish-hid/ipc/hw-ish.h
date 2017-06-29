@@ -27,6 +27,7 @@
 #define APL_Ax_DEVICE_ID	0x5AA2
 #define SPT_Ax_DEVICE_ID	0x9D35
 #define CNL_Ax_DEVICE_ID	0x9DFC
+#define GLK_Ax_DEVICE_ID	0x31A2
 
 #define	REVISION_ID_CHT_A0	0x6
 #define	REVISION_ID_CHT_Ax_SI	0x0
