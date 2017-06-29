@@ -2279,6 +2279,8 @@ nvme_fc_reinit_io_queues(struct nvme_fc_ctrl *ctrl)
 	if (ret)
 		goto out_delete_hw_queues;
 
+	blk_mq_update_nr_hw_queues(&ctrl->tag_set, nr_io_queues);
+
 	return 0;
 
 out_delete_hw_queues:
