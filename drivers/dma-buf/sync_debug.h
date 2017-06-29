@@ -14,6 +14,7 @@
 #define _LINUX_SYNC_H
 
 #include <linux/list.h>
+#include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/dma-fence.h>
 
@@ -25,6 +26,7 @@
  * @kref:		reference count on fence.
  * @name:		name of the sync_timeline. Useful for debugging
  * @lock:		lock protecting @pt_list and @value
+ * @pt_tree:		rbtree of active (unsignaled/errored) sync_pts
  * @pt_list:		list of active (unsignaled/errored) sync_pts
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
@@ -36,6 +38,7 @@ struct sync_timeline {
 	u64			context;
 	int			value;
 
+	struct rb_root		pt_tree;
 	struct list_head	pt_list;
 	spinlock_t		lock;
 
@@ -51,10 +54,12 @@ static inline struct sync_timeline *dma_fence_parent(struct dma_fence *fence)
  * struct sync_pt - sync_pt object
  * @base: base fence object
  * @link: link on the sync timeline's list
+ * @node: node in the sync timeline's tree
  */
 struct sync_pt {
 	struct dma_fence base;
 	struct list_head link;
+	struct rb_node node;
 };
 
 #ifdef CONFIG_SW_SYNC
