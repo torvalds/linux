@@ -6291,6 +6291,12 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 				if (idle_cpu(i)) {
 					schedstat_inc(p, se.statistics.nr_wakeups_fbt_pref_idle);
 					schedstat_inc(this_rq(), eas_stats.fbt_pref_idle);
+
+					trace_sched_find_best_target(p,
+							prefer_idle, min_util,
+							cpu, best_idle_cpu,
+							best_active_cpu, i);
+
 					return i;
 				}
 
@@ -6432,6 +6438,10 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 		target_cpu = prefer_idle
 			? best_active_cpu
 			: best_idle_cpu;
+
+	trace_sched_find_best_target(p, prefer_idle, min_util, cpu,
+				     best_idle_cpu, best_active_cpu,
+				     target_cpu);
 
 	schedstat_inc(p, se.statistics.nr_wakeups_fbt_count);
 	schedstat_inc(this_rq(), eas_stats.fbt_count);
