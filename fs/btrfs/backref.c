@@ -682,6 +682,14 @@ out:
 	return ret;
 }
 
+static struct extent_inode_elem *
+unode_aux_to_inode_list(struct ulist_node *node)
+{
+	if (!node)
+		return NULL;
+	return (struct extent_inode_elem *)(uintptr_t)node->aux;
+}
+
 /*
  * resolve all indirect backrefs from the list
  */
@@ -736,8 +744,7 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		ULIST_ITER_INIT(&uiter);
 		node = ulist_next(parents, &uiter);
 		ref->parent = node ? node->val : 0;
-		ref->inode_list = node ?
-			(struct extent_inode_elem *)(uintptr_t)node->aux : NULL;
+		ref->inode_list = unode_aux_to_inode_list(node);
 
 		/* additional parents require new refs being added here */
 		while ((node = ulist_next(parents, &uiter))) {
@@ -749,8 +756,7 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			}
 			memcpy(new_ref, ref, sizeof(*ref));
 			new_ref->parent = node->val;
-			new_ref->inode_list = (struct extent_inode_elem *)
-							(uintptr_t)node->aux;
+			new_ref->inode_list = unode_aux_to_inode_list(node);
 			list_add(&new_ref->list, &ref->list);
 		}
 		ulist_reinit(parents);
@@ -1476,7 +1482,7 @@ static void free_leaf_list(struct ulist *blocks)
 	while ((node = ulist_next(blocks, &uiter))) {
 		if (!node->aux)
 			continue;
-		eie = (struct extent_inode_elem *)(uintptr_t)node->aux;
+		eie = unode_aux_to_inode_list(node);
 		free_inode_elem_list(eie);
 		node->aux = 0;
 	}
