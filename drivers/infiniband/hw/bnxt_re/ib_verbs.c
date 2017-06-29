@@ -3027,6 +3027,11 @@ int bnxt_re_req_notify_cq(struct ib_cq *ib_cq,
 	else if (ib_cqn_flags & IB_CQ_SOLICITED)
 		type = DBR_DBR_TYPE_CQ_ARMSE;
 
+	/* Poll to see if there are missed events */
+	if ((ib_cqn_flags & IB_CQ_REPORT_MISSED_EVENTS) &&
+	    !(bnxt_qplib_is_cq_empty(&cq->qplib_cq)))
+		return 1;
+
 	bnxt_qplib_req_notify_cq(&cq->qplib_cq, type);
 
 	return 0;

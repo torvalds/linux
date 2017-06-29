@@ -1895,6 +1895,25 @@ flush_rq:
 	return rc;
 }
 
+bool bnxt_qplib_is_cq_empty(struct bnxt_qplib_cq *cq)
+{
+	struct cq_base *hw_cqe, **hw_cqe_ptr;
+	unsigned long flags;
+	u32 sw_cons, raw_cons;
+	bool rc = true;
+
+	spin_lock_irqsave(&cq->hwq.lock, flags);
+	raw_cons = cq->hwq.cons;
+	sw_cons = HWQ_CMP(raw_cons, &cq->hwq);
+	hw_cqe_ptr = (struct cq_base **)cq->hwq.pbl_ptr;
+	hw_cqe = &hw_cqe_ptr[CQE_PG(sw_cons)][CQE_IDX(sw_cons)];
+
+	 /* Check for Valid bit. If the CQE is valid, return false */
+	rc = !CQE_CMP_VALID(hw_cqe, raw_cons, cq->hwq.max_elements);
+	spin_unlock_irqrestore(&cq->hwq.lock, flags);
+	return rc;
+}
+
 static int bnxt_qplib_cq_process_res_raweth_qp1(struct bnxt_qplib_cq *cq,
 						struct cq_res_raweth_qp1 *hwcqe,
 						struct bnxt_qplib_cqe **pcqe,
