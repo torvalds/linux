@@ -188,6 +188,18 @@ system_call:			/* label this so stack traces look sane */
 	andi.	r10,r8,MSR_RI
 	beq-	unrecov_restore
 #endif
+
+/*
+ * This is a few instructions into the actual syscall exit path (which actually
+ * starts at .Lsyscall_exit) to cater to kprobe blacklisting and to reduce the
+ * number of visible symbols for profiling purposes.
+ *
+ * We can probe from system_call until this point as MSR_RI is set. But once it
+ * is cleared below, we won't be able to take a trap.
+ *
+ * This is blacklisted from kprobes further below with _ASM_NOKPROBE_SYMBOL().
+ */
+system_call_exit:
 	/*
 	 * Disable interrupts so current_thread_info()->flags can't change,
 	 * and so that we don't get interrupted after loading SRR0/1.
@@ -414,7 +426,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	b	.	/* prevent speculative execution */
 #endif
 _ASM_NOKPROBE_SYMBOL(system_call_common);
-_ASM_NOKPROBE_SYMBOL(system_call);
+_ASM_NOKPROBE_SYMBOL(system_call_exit);
 
 /* Save non-volatile GPRs, if not already saved. */
 _GLOBAL(save_nvgprs)
