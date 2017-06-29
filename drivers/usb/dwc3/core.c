@@ -766,15 +766,15 @@ static int dwc3_core_init(struct dwc3 *dwc)
 			dwc->maximum_speed = USB_SPEED_HIGH;
 	}
 
+	ret = dwc3_core_get_phy(dwc);
+	if (ret)
+		goto err0;
+
 	ret = dwc3_core_soft_reset(dwc);
 	if (ret)
 		goto err0;
 
 	ret = dwc3_phy_setup(dwc);
-	if (ret)
-		goto err0;
-
-	ret = dwc3_core_get_phy(dwc);
 	if (ret)
 		goto err0;
 
