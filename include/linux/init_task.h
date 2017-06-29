@@ -170,9 +170,9 @@ extern struct cred init_cred;
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 # define INIT_VTIME(tsk)						\
-	.vtime_seqcount = SEQCNT_ZERO(tsk.vtime_seqcount),	\
-	.vtime_starttime = 0,				\
-	.vtime_state = VTIME_SYS,
+	.vtime.seqcount = SEQCNT_ZERO(tsk.vtime.seqcount),		\
+	.vtime.starttime = 0,						\
+	.vtime.state = VTIME_SYS,
 #else
 # define INIT_VTIME(tsk)
 #endif
