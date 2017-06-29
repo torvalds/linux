@@ -1914,7 +1914,7 @@ static struct vio_device_id ibmveth_device_table[] = {
 };
 MODULE_DEVICE_TABLE(vio, ibmveth_device_table);
 
-static struct dev_pm_ops ibmveth_pm_ops = {
+static const struct dev_pm_ops ibmveth_pm_ops = {
 	.resume = ibmveth_resume
 };
 
