@@ -2159,7 +2159,6 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7core_edac.c";
-	mci->mod_ver = I7CORE_REVISION;
 	mci->ctl_name = kasprintf(GFP_KERNEL, "i7 core #%d",
 				  i7core_dev->socket);
 	mci->dev_name = pci_name(i7core_dev->pdev[0]);

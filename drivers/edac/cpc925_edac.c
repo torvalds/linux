@@ -999,7 +999,6 @@ static int cpc925_probe(struct platform_device *pdev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = CPC925_EDAC_MOD_STR;
-	mci->mod_ver = CPC925_EDAC_REVISION;
 	mci->ctl_name = pdev->name;
 
 	if (edac_op_state == EDAC_OPSTATE_POLL)

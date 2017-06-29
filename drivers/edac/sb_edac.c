@@ -3125,7 +3125,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "sb_edac.c";
-	mci->mod_ver = SBRIDGE_REVISION;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 

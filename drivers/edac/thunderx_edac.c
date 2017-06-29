@@ -732,7 +732,6 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 	mci->edac_cap = EDAC_FLAG_SECDED;
 
 	mci->mod_name = "thunderx-lmc";
-	mci->mod_ver = "1";
 	mci->ctl_name = "thunderx-lmc";
 	mci->dev_name = dev_name(&pdev->dev);
 	mci->scrub_mode = SCRUB_NONE;

@@ -1063,7 +1063,6 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	/* Initialize strings */
 
 	mci->mod_name		= PPC4XX_EDAC_MODULE_NAME;
-	mci->mod_ver		= PPC4XX_EDAC_MODULE_REVISION;
 	mci->ctl_name		= ppc4xx_edac_match->compatible,
 	mci->dev_name		= np->full_name;
 
