@@ -626,7 +626,7 @@ static struct attribute *netstat_attrs[] = {
 };
 
 
-static struct attribute_group netstat_group = {
+static const struct attribute_group netstat_group = {
 	.name  = "statistics",
 	.attrs  = netstat_attrs,
 };
@@ -636,7 +636,7 @@ static struct attribute *wireless_attrs[] = {
 	NULL
 };
 
-static struct attribute_group wireless_group = {
+static const struct attribute_group wireless_group = {
 	.name = "wireless",
 	.attrs = wireless_attrs,
 };
@@ -1204,7 +1204,7 @@ static struct attribute *dql_attrs[] = {
 	NULL
 };
 
-static struct attribute_group dql_group = {
+static const struct attribute_group dql_group = {
 	.name  = "byte_queue_limits",
 	.attrs  = dql_attrs,
 };
