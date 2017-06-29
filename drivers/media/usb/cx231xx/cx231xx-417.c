@@ -1843,7 +1843,7 @@ static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(&fh->vidq, vma);
 }
 
-static struct v4l2_file_operations mpeg_fops = {
+static const struct v4l2_file_operations mpeg_fops = {
 	.owner	       = THIS_MODULE,
 	.open	       = mpeg_open,
 	.release       = mpeg_release,

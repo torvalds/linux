@@ -1202,7 +1202,7 @@ static const struct v4l2_ctrl_ops stk_ctrl_ops = {
 	.s_ctrl = stk_s_ctrl,
 };
 
-static struct v4l2_file_operations v4l_stk_fops = {
+static const struct v4l2_file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
 	.release = v4l_stk_release,

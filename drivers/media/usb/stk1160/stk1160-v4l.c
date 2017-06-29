@@ -326,7 +326,7 @@ static int stk1160_stop_streaming(struct stk1160 *dev)
 	return 0;
 }
 
-static struct v4l2_file_operations stk1160_fops = {
+static const struct v4l2_file_operations stk1160_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l2_fh_open,
 	.release = vb2_fop_release,

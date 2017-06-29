@@ -857,7 +857,7 @@ static int go7007_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_file_operations go7007_fops = {
+static const struct v4l2_file_operations go7007_fops = {
 	.owner		= THIS_MODULE,
 	.open		= v4l2_fh_open,
 	.release	= vb2_fop_release,

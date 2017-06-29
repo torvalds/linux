@@ -1532,7 +1532,7 @@ static int tm6000_mmap(struct file *file, struct vm_area_struct * vma)
 	return res;
 }
 
-static struct v4l2_file_operations tm6000_fops = {
+static const struct v4l2_file_operations tm6000_fops = {
 	.owner = THIS_MODULE,
 	.open = tm6000_open,
 	.release = tm6000_release,
