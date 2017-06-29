@@ -1340,7 +1340,7 @@ static int viu_mmap(struct file *file, struct vm_area_struct *vma)
 	return ret;
 }
 
-static struct v4l2_file_operations viu_fops = {
+static const struct v4l2_file_operations viu_fops = {
 	.owner		= THIS_MODULE,
 	.open		= viu_open,
 	.release	= viu_release,

@@ -1344,7 +1344,7 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 };
 
 /* vpif file operations */
-static struct v4l2_file_operations vpif_fops = {
+static const struct v4l2_file_operations vpif_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l2_fh_open,
 	.release = vb2_fop_release,

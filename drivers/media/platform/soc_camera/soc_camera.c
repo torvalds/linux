@@ -820,7 +820,7 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 	return res;
 }
 
-static struct v4l2_file_operations soc_camera_fops = {
+static const struct v4l2_file_operations soc_camera_fops = {
 	.owner		= THIS_MODULE,
 	.open		= soc_camera_open,
 	.release	= soc_camera_close,
