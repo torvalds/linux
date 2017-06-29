@@ -70,5 +70,8 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow);
+int nfp_flower_compile_action(struct tc_cls_flower_offload *flow,
+			      struct net_device *netdev,
+			      struct nfp_fl_payload *nfp_flow);
 
 #endif

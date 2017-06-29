@@ -56,6 +56,51 @@
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
 #define NFP_FLOWER_MASK_VLAN_VID	GENMASK(11, 0)
 
+#define NFP_FL_SC_ACT_DROP		0x80000000
+#define NFP_FL_SC_ACT_USER		0x7D000000
+#define NFP_FL_SC_ACT_POPV		0x6A000000
+#define NFP_FL_SC_ACT_NULL		0x00000000
+
+/* The maximum action list size (in bytes) supported by the NFP.
+ */
+#define NFP_FL_MAX_A_SIZ		1216
+#define NFP_FL_LW_SIZ			2
+
+/* Action opcodes */
+#define NFP_FL_ACTION_OPCODE_OUTPUT	0
+#define NFP_FL_ACTION_OPCODE_PUSH_VLAN	1
+#define NFP_FL_ACTION_OPCODE_POP_VLAN	2
+#define NFP_FL_ACTION_OPCODE_NUM	32
+
+#define NFP_FL_ACT_JMP_ID		GENMASK(15, 8)
+#define NFP_FL_ACT_LEN_LW		GENMASK(7, 0)
+
+#define NFP_FL_OUT_FLAGS_LAST		BIT(15)
+#define NFP_FL_OUT_FLAGS_USE_TUN	BIT(4)
+#define NFP_FL_OUT_FLAGS_TYPE_IDX	GENMASK(2, 0)
+
+#define NFP_FL_PUSH_VLAN_PRIO		GENMASK(15, 13)
+#define NFP_FL_PUSH_VLAN_CFI		BIT(12)
+#define NFP_FL_PUSH_VLAN_VID		GENMASK(11, 0)
+
+struct nfp_fl_output {
+	__be16 a_op;
+	__be16 flags;
+	__be32 port;
+};
+
+struct nfp_fl_push_vlan {
+	__be16 a_op;
+	__be16 reserved;
+	__be16 vlan_tpid;
+	__be16 vlan_tci;
+};
+
+struct nfp_fl_pop_vlan {
+	__be16 a_op;
+	__be16 reserved;
+};
+
 /* Metadata without L2 (1W/4B)
  * ----------------------------------------------------------------
  *    3                   2                   1

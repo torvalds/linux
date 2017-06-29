@@ -165,10 +165,16 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
 	if (!flow_pay->mask_data)
 		goto err_free_unmasked;
 
+	flow_pay->action_data = kmalloc(NFP_FL_MAX_A_SIZ, GFP_KERNEL);
+	if (!flow_pay->action_data)
+		goto err_free_mask;
+
 	flow_pay->meta.flags = 0;
 
 	return flow_pay;
 
+err_free_mask:
+	kfree(flow_pay->mask_data);
 err_free_unmasked:
 	kfree(flow_pay->unmasked_data);
 err_free_flow:
@@ -212,10 +218,15 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
+	err = nfp_flower_compile_action(flow, netdev, flow_pay);
+	if (err)
+		goto err_destroy_flow;
+
 	/* TODO: Complete flower_add_offload. */
 	err = -EOPNOTSUPP;
 
 err_destroy_flow:
+	kfree(flow_pay->action_data);
 	kfree(flow_pay->mask_data);
 	kfree(flow_pay->unmasked_data);
 	kfree(flow_pay);
