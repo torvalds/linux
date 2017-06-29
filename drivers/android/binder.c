@@ -167,22 +167,22 @@ enum binder_stat_types {
 };
 
 struct binder_stats {
-	int br[_IOC_NR(BR_FAILED_REPLY) + 1];
-	int bc[_IOC_NR(BC_REPLY_SG) + 1];
-	int obj_created[BINDER_STAT_COUNT];
-	int obj_deleted[BINDER_STAT_COUNT];
+	atomic_t br[_IOC_NR(BR_FAILED_REPLY) + 1];
+	atomic_t bc[_IOC_NR(BC_REPLY_SG) + 1];
+	atomic_t obj_created[BINDER_STAT_COUNT];
+	atomic_t obj_deleted[BINDER_STAT_COUNT];
 };
 
 static struct binder_stats binder_stats;
 
 static inline void binder_stats_deleted(enum binder_stat_types type)
 {
-	binder_stats.obj_deleted[type]++;
+	atomic_inc(&binder_stats.obj_deleted[type]);
 }
 
 static inline void binder_stats_created(enum binder_stat_types type)
 {
-	binder_stats.obj_created[type]++;
+	atomic_inc(&binder_stats.obj_created[type]);
 }
 
 struct binder_transaction_log_entry {
@@ -1825,9 +1825,9 @@ static int binder_thread_write(struct binder_proc *proc,
 		ptr += sizeof(uint32_t);
 		trace_binder_command(cmd);
 		if (_IOC_NR(cmd) < ARRAY_SIZE(binder_stats.bc)) {
-			binder_stats.bc[_IOC_NR(cmd)]++;
-			proc->stats.bc[_IOC_NR(cmd)]++;
-			thread->stats.bc[_IOC_NR(cmd)]++;
+			atomic_inc(&binder_stats.bc[_IOC_NR(cmd)]);
+			atomic_inc(&proc->stats.bc[_IOC_NR(cmd)]);
+			atomic_inc(&thread->stats.bc[_IOC_NR(cmd)]);
 		}
 		switch (cmd) {
 		case BC_INCREFS:
@@ -2201,9 +2201,9 @@ static void binder_stat_br(struct binder_proc *proc,
 {
 	trace_binder_return(cmd);
 	if (_IOC_NR(cmd) < ARRAY_SIZE(binder_stats.br)) {
-		binder_stats.br[_IOC_NR(cmd)]++;
-		proc->stats.br[_IOC_NR(cmd)]++;
-		thread->stats.br[_IOC_NR(cmd)]++;
+		atomic_inc(&binder_stats.br[_IOC_NR(cmd)]);
+		atomic_inc(&proc->stats.br[_IOC_NR(cmd)]);
+		atomic_inc(&thread->stats.br[_IOC_NR(cmd)]);
 	}
 }
 
@@ -3453,17 +3453,21 @@ static void print_binder_stats(struct seq_file *m, const char *prefix,
 	BUILD_BUG_ON(ARRAY_SIZE(stats->bc) !=
 		     ARRAY_SIZE(binder_command_strings));
 	for (i = 0; i < ARRAY_SIZE(stats->bc); i++) {
-		if (stats->bc[i])
+		int temp = atomic_read(&stats->bc[i]);
+
+		if (temp)
 			seq_printf(m, "%s%s: %d\n", prefix,
-				   binder_command_strings[i], stats->bc[i]);
+				   binder_command_strings[i], temp);
 	}
 
 	BUILD_BUG_ON(ARRAY_SIZE(stats->br) !=
 		     ARRAY_SIZE(binder_return_strings));
 	for (i = 0; i < ARRAY_SIZE(stats->br); i++) {
-		if (stats->br[i])
+		int temp = atomic_read(&stats->br[i]);
+
+		if (temp)
 			seq_printf(m, "%s%s: %d\n", prefix,
-				   binder_return_strings[i], stats->br[i]);
+				   binder_return_strings[i], temp);
 	}
 
 	BUILD_BUG_ON(ARRAY_SIZE(stats->obj_created) !=
@@ -3471,11 +3475,15 @@ static void print_binder_stats(struct seq_file *m, const char *prefix,
 	BUILD_BUG_ON(ARRAY_SIZE(stats->obj_created) !=
 		     ARRAY_SIZE(stats->obj_deleted));
 	for (i = 0; i < ARRAY_SIZE(stats->obj_created); i++) {
-		if (stats->obj_created[i] || stats->obj_deleted[i])
-			seq_printf(m, "%s%s: active %d total %d\n", prefix,
+		int created = atomic_read(&stats->obj_created[i]);
+		int deleted = atomic_read(&stats->obj_deleted[i]);
+
+		if (created || deleted)
+			seq_printf(m, "%s%s: active %d total %d\n",
+				prefix,
 				binder_objstat_strings[i],
-				stats->obj_created[i] - stats->obj_deleted[i],
-				stats->obj_created[i]);
+				created - deleted,
+				created);
 	}
 }
 
