@@ -2695,6 +2695,7 @@ void amdgpu_dm_atomic_commit_tail(
 	/* DC is optimized not to do anything if 'streams' didn't change. */
 	WARN_ON(!dc_commit_context(dm->dc, dm_state->context));
 
+
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
@@ -3069,7 +3070,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 						__func__, acrtc->base.base.id);
 				break;
 			}
-			new_stream->priv = acrtc;
 
 			new_streams[new_stream_count] = new_stream;
 			dm_state->set_count = update_in_val_sets_stream(

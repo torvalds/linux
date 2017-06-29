@@ -648,33 +648,29 @@ dm_atomic_state_alloc(struct drm_device *dev)
 	return &state->base;
 }
 
-void dm_atomic_state_clear(struct drm_atomic_state *s)
-{
-	struct dm_atomic_state *state = to_dm_atomic_state(s);
-	drm_atomic_state_default_clear(&state->base);
-}
 
-
-static void dm_atomic_state_free(struct drm_atomic_state *state)
+void dm_atomic_state_clear(struct drm_atomic_state *state)
 {
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
 	int i, j;
 
-	drm_atomic_state_default_release(state);
-
 	for (i = 0; i < dm_state->set_count; i++) {
 		for (j = 0; j < dm_state->set[i].surface_count; j++) {
 			dc_surface_release(dm_state->set[i].surfaces[j]);
+			dm_state->set[i].surfaces[j] = NULL;
 		}
-	}
 
-	for (i = 0; i < dm_state->set_count; i++)
 		dc_stream_release(dm_state->set[i].stream);
+		dm_state->set[i].stream = NULL;
+	}
+	dm_state->set_count = 0;
 
-	kfree(dm_state);
+	dc_resource_validate_ctx_destruct(dm_state->context);
+	dm_free(dm_state->context);
+	dm_state->context = NULL;
+
+	drm_atomic_state_default_clear(state);
 }
-
-
 
 static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.fb_create = amdgpu_user_framebuffer_create,
@@ -683,7 +679,6 @@ static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 	.atomic_state_alloc = dm_atomic_state_alloc,
 	.atomic_state_clear = dm_atomic_state_clear,
-	.atomic_state_free = dm_atomic_state_free,
 };
 
 static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
