@@ -1902,6 +1902,14 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi,
 			frame.extended_colorimetry =
 					HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
 			break;
+		case V4L2_YCBCR_ENC_BT2020:
+			if (hdmi->hdmi_data.enc_in_encoding == V4L2_YCBCR_ENC_BT2020)
+				frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
+			else
+				frame.colorimetry = HDMI_COLORIMETRY_ITU_709;
+			frame.extended_colorimetry =
+				HDMI_EXTENDED_COLORIMETRY_BT2020;
+		break;
 		default: /* Carries no data */
 			frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
 			frame.extended_colorimetry =
