@@ -485,6 +485,7 @@ static struct pci_driver mei_me_driver = {
 	.remove = mei_me_remove,
 	.shutdown = mei_me_shutdown,
 	.driver.pm = MEI_ME_PM_OPS,
+	.driver.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 };
 
 module_pci_driver(mei_me_driver);
