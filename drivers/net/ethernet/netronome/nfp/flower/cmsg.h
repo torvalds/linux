@@ -245,7 +245,10 @@ struct nfp_flower_cmsg_hdr {
 
 /* Types defined for port related control messages  */
 enum nfp_flower_cmsg_type_port {
+	NFP_FLOWER_CMSG_TYPE_FLOW_ADD =		0,
+	NFP_FLOWER_CMSG_TYPE_FLOW_DEL =		2,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
+	NFP_FLOWER_CMSG_TYPE_FLOW_STATS =	15,
 	NFP_FLOWER_CMSG_TYPE_PORT_ECHO =	16,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,
 };
@@ -307,5 +310,8 @@ static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
 
 int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
+struct sk_buff *
+nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
+		      enum nfp_flower_cmsg_type_port type);
 
 #endif

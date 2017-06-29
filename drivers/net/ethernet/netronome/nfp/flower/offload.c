@@ -44,6 +44,52 @@
 #include "../nfp_net.h"
 #include "../nfp_port.h"
 
+static int
+nfp_flower_xmit_flow(struct net_device *netdev,
+		     struct nfp_fl_payload *nfp_flow, u8 mtype)
+{
+	u32 meta_len, key_len, mask_len, act_len, tot_len;
+	struct nfp_repr *priv = netdev_priv(netdev);
+	struct sk_buff *skb;
+	unsigned char *msg;
+
+	meta_len =  sizeof(struct nfp_fl_rule_metadata);
+	key_len = nfp_flow->meta.key_len;
+	mask_len = nfp_flow->meta.mask_len;
+	act_len = nfp_flow->meta.act_len;
+
+	tot_len = meta_len + key_len + mask_len + act_len;
+
+	/* Convert to long words as firmware expects
+	 * lengths in units of NFP_FL_LW_SIZ.
+	 */
+	nfp_flow->meta.key_len >>= NFP_FL_LW_SIZ;
+	nfp_flow->meta.mask_len >>= NFP_FL_LW_SIZ;
+	nfp_flow->meta.act_len >>= NFP_FL_LW_SIZ;
+
+	skb = nfp_flower_cmsg_alloc(priv->app, tot_len, mtype);
+	if (!skb)
+		return -ENOMEM;
+
+	msg = nfp_flower_cmsg_get_data(skb);
+	memcpy(msg, &nfp_flow->meta, meta_len);
+	memcpy(&msg[meta_len], nfp_flow->unmasked_data, key_len);
+	memcpy(&msg[meta_len + key_len], nfp_flow->mask_data, mask_len);
+	memcpy(&msg[meta_len + key_len + mask_len],
+	       nfp_flow->action_data, act_len);
+
+	/* Convert back to bytes as software expects
+	 * lengths in units of bytes.
+	 */
+	nfp_flow->meta.key_len <<= NFP_FL_LW_SIZ;
+	nfp_flow->meta.mask_len <<= NFP_FL_LW_SIZ;
+	nfp_flow->meta.act_len <<= NFP_FL_LW_SIZ;
+
+	nfp_ctrl_tx(priv->app->ctrl, skb);
+
+	return 0;
+}
+
 static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
 {
 	return dissector_uses_key(f->dissector,
@@ -228,6 +274,11 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
+	err = nfp_flower_xmit_flow(netdev, flow_pay,
+				   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
+	if (err)
+		goto err_destroy_flow;
+
 	INIT_HLIST_NODE(&flow_pay->link);
 	flow_pay->tc_flower_cookie = flow->cookie;
 	hash_add_rcu(priv->flow_table, &flow_pay->link, flow->cookie);
@@ -270,7 +321,15 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		return -ENOENT;
 
 	err = nfp_modify_flow_metadata(app, nfp_flow);
+	if (err)
+		goto err_free_flow;
 
+	err = nfp_flower_xmit_flow(netdev, nfp_flow,
+				   NFP_FLOWER_CMSG_TYPE_FLOW_DEL);
+	if (err)
+		goto err_free_flow;
+
+err_free_flow:
 	hash_del_rcu(&nfp_flow->link);
 	kfree(nfp_flow->action_data);
 	kfree(nfp_flow->mask_data);

@@ -36,6 +36,7 @@
 #include <linux/skbuff.h>
 #include <net/dst_metadata.h>
 
+#include "main.h"
 #include "../nfpcore/nfp_cpp.h"
 #include "../nfp_net_repr.h"
 #include "./cmsg.h"
@@ -52,7 +53,7 @@ nfp_flower_cmsg_get_hdr(struct sk_buff *skb)
 	return (struct nfp_flower_cmsg_hdr *)skb->data;
 }
 
-static struct sk_buff *
+struct sk_buff *
 nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
 		      enum nfp_flower_cmsg_type_port type)
 {
@@ -142,6 +143,9 @@ void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)
 	switch (type) {
 	case NFP_FLOWER_CMSG_TYPE_PORT_MOD:
 		nfp_flower_cmsg_portmod_rx(app, skb);
+		break;
+	case NFP_FLOWER_CMSG_TYPE_FLOW_STATS:
+		nfp_flower_rx_flow_stats(app, skb);
 		break;
 	default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",
