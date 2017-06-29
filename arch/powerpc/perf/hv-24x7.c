@@ -31,6 +31,9 @@
 /* Version of the 24x7 hypervisor API that we should use in this machine. */
 static int interface_version;
 
+/* Whether we have to aggregate result data for some domains. */
+static bool aggregate_result_elements;
+
 static bool domain_is_valid(unsigned domain)
 {
 	switch (domain) {
@@ -56,6 +59,15 @@ static bool is_physical_domain(unsigned domain)
 	default:
 		return false;
 	}
+}
+
+/* Domains for which more than one result element are returned for each event. */
+static bool domain_needs_aggregation(unsigned int domain)
+{
+	return aggregate_result_elements &&
+			(domain == HV_PERF_DOMAIN_PHYS_CORE ||
+			 (domain >= HV_PERF_DOMAIN_VCPU_HOME_CORE &&
+			  domain <= HV_PERF_DOMAIN_VCPU_REMOTE_NODE));
 }
 
 static const char *domain_name(unsigned domain)
@@ -1145,17 +1157,23 @@ static int add_event_to_24x7_request(struct perf_event *event,
 	req->starting_ix = cpu_to_be16(idx);
 	req->max_ix = cpu_to_be16(1);
 
-	if (request_buffer->interface_version > 1 &&
-	    req->performance_domain != HV_PERF_DOMAIN_PHYS_CHIP) {
-		req->starting_thread_group_ix = idx % 2;
-		req->max_num_thread_groups = 1;
+	if (request_buffer->interface_version > 1) {
+		if (domain_needs_aggregation(req->performance_domain))
+			req->max_num_thread_groups = -1;
+		else if (req->performance_domain != HV_PERF_DOMAIN_PHYS_CHIP) {
+			req->starting_thread_group_ix = idx % 2;
+			req->max_num_thread_groups = 1;
+		}
 	}
 
 	return 0;
 }
 
 /**
- * get_count_from_result - get event count from the given result
+ * get_count_from_result - get event count from all result elements in result
+ *
+ * If the event corresponding to this result needs aggregation of the result
+ * element values, then this function does that.
  *
  * @event:	Event associated with @res.
  * @resb:	Result buffer containing @res.
@@ -1172,6 +1190,8 @@ static int get_count_from_result(struct perf_event *event,
 	u16 data_size = be16_to_cpu(res->result_element_data_size);
 	unsigned int data_offset;
 	void *element_data;
+	int i;
+	u64 count;
 
 	/*
 	 * We can bail out early if the result is empty.
@@ -1189,8 +1209,10 @@ static int get_count_from_result(struct perf_event *event,
 	/*
 	 * Since we always specify 1 as the maximum for the smallest resource
 	 * we're requesting, there should to be only one element per result.
+	 * Except when an event needs aggregation, in which case there are more.
 	 */
-	if (num_elements != 1) {
+	if (num_elements != 1 &&
+	    !domain_needs_aggregation(event_get_domain(event))) {
 		pr_err("Error: result of request %hhu has %hu elements\n",
 		       res->result_ix, num_elements);
 
@@ -1211,13 +1233,17 @@ static int get_count_from_result(struct perf_event *event,
 		data_offset = offsetof(struct hv_24x7_result_element_v2,
 				       element_data);
 
-	element_data = res->elements + data_offset;
+	/* Go through the result elements in the result. */
+	for (i = count = 0, element_data = res->elements + data_offset;
+	     i < num_elements;
+	     i++, element_data += data_size + data_offset)
+		count += be64_to_cpu(*((u64 *) element_data));
 
-	*countp = be64_to_cpu(*((u64 *) element_data));
+	*countp = count;
 
-	/* The next result is after the result element. */
+	/* The next result is after the last result element. */
 	if (next)
-		*next = element_data + data_size;
+		*next = element_data - data_offset;
 
 	return 0;
 }
@@ -1568,8 +1594,13 @@ static int hv_24x7_init(void)
 	/* POWER8 only supports v1, while POWER9 only supports v2. */
 	if (!strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power8"))
 		interface_version = 1;
-	else
+	else {
 		interface_version = 2;
+
+		/* SMT8 in POWER9 needs to aggregate result elements. */
+		if (threads_per_core == 8)
+			aggregate_result_elements = true;
+	}
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
