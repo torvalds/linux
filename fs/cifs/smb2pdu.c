@@ -3000,8 +3000,9 @@ qdir_exit:
 
 static int
 send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
-	       u64 persistent_fid, u64 volatile_fid, u32 pid, int info_class,
-	       unsigned int num, void **data, unsigned int *size)
+	       u64 persistent_fid, u64 volatile_fid, u32 pid, u8 info_class,
+	       u8 info_type, u32 additional_info, unsigned int num,
+		void **data, unsigned int *size)
 {
 	struct smb2_set_info_req *req;
 	struct smb2_set_info_rsp *rsp = NULL;
@@ -3037,10 +3038,11 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	req->hdr.sync_hdr.ProcessId = cpu_to_le32(pid);
 
-	req->InfoType = SMB2_O_INFO_FILE;
+	req->InfoType = info_type;
 	req->FileInfoClass = info_class;
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	req->AdditionalInformation = cpu_to_le32(additional_info);
 
 	/* 4 for RFC1001 length and 1 for Buffer */
 	req->BufferOffset =
@@ -3100,8 +3102,8 @@ SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
 	size[1] = len + 2 /* null */;
 
 	rc = send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			   current->tgid, FILE_RENAME_INFORMATION, 2, data,
-			   size);
+		current->tgid, FILE_RENAME_INFORMATION, SMB2_O_INFO_FILE,
+		0, 2, data, size);
 	kfree(data);
 	return rc;
 }
@@ -3118,8 +3120,8 @@ SMB2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
 	size = 1; /* sizeof __u8 */
 
 	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			current->tgid, FILE_DISPOSITION_INFORMATION, 1, &data,
-			&size);
+		current->tgid, FILE_DISPOSITION_INFORMATION, SMB2_O_INFO_FILE,
+		0, 1, &data, &size);
 }
 
 int
@@ -3148,7 +3150,8 @@ SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 	size[1] = len + 2 /* null */;
 
 	rc = send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			   current->tgid, FILE_LINK_INFORMATION, 2, data, size);
+			current->tgid, FILE_LINK_INFORMATION, SMB2_O_INFO_FILE,
+			0, 2, data, size);
 	kfree(data);
 	return rc;
 }
@@ -3168,10 +3171,12 @@ SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 	if (is_falloc)
 		return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			pid, FILE_ALLOCATION_INFORMATION, 1, &data, &size);
+			pid, FILE_ALLOCATION_INFORMATION, SMB2_O_INFO_FILE,
+			0, 1, &data, &size);
 	else
 		return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			pid, FILE_END_OF_FILE_INFORMATION, 1, &data, &size);
+			pid, FILE_END_OF_FILE_INFORMATION, SMB2_O_INFO_FILE,
+			0, 1, &data, &size);
 }
 
 int
@@ -3181,8 +3186,18 @@ SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	unsigned int size;
 	size = sizeof(FILE_BASIC_INFO);
 	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			     current->tgid, FILE_BASIC_INFORMATION, 1,
-			     (void **)&buf, &size);
+		current->tgid, FILE_BASIC_INFORMATION, SMB2_O_INFO_FILE,
+		0, 1, (void **)&buf, &size);
+}
+
+int
+SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid,
+		struct cifs_ntsd *pnntsd, int pacllen, int aclflag)
+{
+	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
+			current->tgid, 0, SMB2_O_INFO_SECURITY, aclflag,
+			1, (void **)&pnntsd, &pacllen);
 }
 
 int
