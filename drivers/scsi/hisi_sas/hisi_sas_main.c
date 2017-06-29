@@ -87,8 +87,10 @@ void hisi_sas_sata_done(struct sas_task *task,
 {
 	struct task_status_struct *ts = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)ts->buf;
-	struct dev_to_host_fis *d2h = slot->status_buffer +
-				      sizeof(struct hisi_sas_err_record);
+	struct hisi_sas_status_buffer *status_buf =
+			hisi_sas_status_buf_addr_mem(slot);
+	u8 *iu = &status_buf->iu[0];
+	struct dev_to_host_fis *d2h =  (struct dev_to_host_fis *)iu;
 
 	resp->frame_len = sizeof(struct dev_to_host_fis);
 	memcpy(&resp->ending_fis[0], d2h, sizeof(struct dev_to_host_fis));
@@ -183,17 +185,9 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			atomic64_dec(&sas_dev->running_req);
 	}
 
-	if (slot->command_table)
-		dma_pool_free(hisi_hba->command_table_pool,
-			      slot->command_table, slot->command_table_dma);
+	if (slot->buf)
+		dma_pool_free(hisi_hba->buffer_pool, slot->buf, slot->buf_dma);
 
-	if (slot->status_buffer)
-		dma_pool_free(hisi_hba->status_buffer_pool,
-			      slot->status_buffer, slot->status_buffer_dma);
-
-	if (slot->sge_page)
-		dma_pool_free(hisi_hba->sge_page_pool, slot->sge_page,
-			      slot->sge_page_dma);
 
 	list_del_init(&slot->entry);
 	slot->task = NULL;
@@ -362,24 +356,15 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 	task->lldd_task = slot;
 	INIT_WORK(&slot->abort_slot, hisi_sas_slot_abort);
 
-	slot->status_buffer = dma_pool_alloc(hisi_hba->status_buffer_pool,
-					     GFP_ATOMIC,
-					     &slot->status_buffer_dma);
-	if (!slot->status_buffer) {
+	slot->buf = dma_pool_alloc(hisi_hba->buffer_pool,
+				   GFP_ATOMIC, &slot->buf_dma);
+	if (!slot->buf) {
 		rc = -ENOMEM;
 		goto err_out_slot_buf;
 	}
-	memset(slot->status_buffer, 0, HISI_SAS_STATUS_BUF_SZ);
-
-	slot->command_table = dma_pool_alloc(hisi_hba->command_table_pool,
-					     GFP_ATOMIC,
-					     &slot->command_table_dma);
-	if (!slot->command_table) {
-		rc = -ENOMEM;
-		goto err_out_status_buf;
-	}
-	memset(slot->command_table, 0, HISI_SAS_COMMAND_TABLE_SZ);
 	memset(slot->cmd_hdr, 0, sizeof(struct hisi_sas_cmd_hdr));
+	memset(hisi_sas_cmd_hdr_addr_mem(slot), 0, HISI_SAS_COMMAND_TABLE_SZ);
+	memset(hisi_sas_status_buf_addr_mem(slot), 0, HISI_SAS_STATUS_BUF_SZ);
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
@@ -402,9 +387,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 
 	if (rc) {
 		dev_err(dev, "task prep: rc = 0x%x\n", rc);
-		if (slot->sge_page)
-			goto err_out_sge;
-		goto err_out_command_table;
+		goto err_out_buf;
 	}
 
 	list_add_tail(&slot->entry, &sas_dev->list);
@@ -419,15 +402,9 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_sas_dq
 
 	return 0;
 
-err_out_sge:
-	dma_pool_free(hisi_hba->sge_page_pool, slot->sge_page,
-		slot->sge_page_dma);
-err_out_command_table:
-	dma_pool_free(hisi_hba->command_table_pool, slot->command_table,
-		slot->command_table_dma);
-err_out_status_buf:
-	dma_pool_free(hisi_hba->status_buffer_pool, slot->status_buffer,
-		slot->status_buffer_dma);
+err_out_buf:
+	dma_pool_free(hisi_hba->buffer_pool, slot->buf,
+		slot->buf_dma);
 err_out_slot_buf:
 	/* Nothing to be done */
 err_out_tag:
@@ -1608,16 +1585,9 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 			goto err_out;
 	}
 
-	s = HISI_SAS_STATUS_BUF_SZ;
-	hisi_hba->status_buffer_pool = dma_pool_create("status_buffer",
-						       dev, s, 16, 0);
-	if (!hisi_hba->status_buffer_pool)
-		goto err_out;
-
-	s = HISI_SAS_COMMAND_TABLE_SZ;
-	hisi_hba->command_table_pool = dma_pool_create("command_table",
-						       dev, s, 16, 0);
-	if (!hisi_hba->command_table_pool)
+	s = sizeof(struct hisi_sas_slot_buf_table);
+	hisi_hba->buffer_pool = dma_pool_create("dma_buffer", dev, s, 16, 0);
+	if (!hisi_hba->buffer_pool)
 		goto err_out;
 
 	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
@@ -1650,11 +1620,6 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 	s = hisi_hba->slot_index_count / BITS_PER_BYTE;
 	hisi_hba->slot_index_tags = devm_kzalloc(dev, s, GFP_KERNEL);
 	if (!hisi_hba->slot_index_tags)
-		goto err_out;
-
-	hisi_hba->sge_page_pool = dma_pool_create("status_sge", dev,
-				sizeof(struct hisi_sas_sge_page), 16, 0);
-	if (!hisi_hba->sge_page_pool)
 		goto err_out;
 
 	s = sizeof(struct hisi_sas_initial_fis) * HISI_SAS_MAX_PHYS;
@@ -1703,9 +1668,7 @@ void hisi_sas_free(struct hisi_hba *hisi_hba)
 					  hisi_hba->complete_hdr_dma[i]);
 	}
 
-	dma_pool_destroy(hisi_hba->status_buffer_pool);
-	dma_pool_destroy(hisi_hba->command_table_pool);
-	dma_pool_destroy(hisi_hba->sge_page_pool);
+	dma_pool_destroy(hisi_hba->buffer_pool);
 
 	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
 	if (hisi_hba->itct)

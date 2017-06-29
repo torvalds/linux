@@ -1492,6 +1492,7 @@ static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 			      struct scatterlist *scatter,
 			      int n_elem)
 {
+	struct hisi_sas_sge_page *sge_page = hisi_sas_sge_addr_mem(slot);
 	struct device *dev = hisi_hba->dev;
 	struct scatterlist *sg;
 	int i;
@@ -1502,13 +1503,8 @@ static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 		return -EINVAL;
 	}
 
-	slot->sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_ATOMIC,
-					&slot->sge_page_dma);
-	if (!slot->sge_page)
-		return -ENOMEM;
-
 	for_each_sg(scatter, sg, n_elem, i) {
-		struct hisi_sas_sge *entry = &slot->sge_page->sge[i];
+		struct hisi_sas_sge *entry = &sge_page->sge[i];
 
 		entry->addr = cpu_to_le64(sg_dma_address(sg));
 		entry->page_ctrl_0 = entry->page_ctrl_1 = 0;
@@ -1516,7 +1512,7 @@ static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 		entry->data_off = 0;
 	}
 
-	hdr->prd_table_addr = cpu_to_le64(slot->sge_page_dma);
+	hdr->prd_table_addr = cpu_to_le64(hisi_sas_sge_addr_dma(slot));
 
 	hdr->sg_len = cpu_to_le32(n_elem << CMD_HDR_DATA_SGL_LEN_OFF);
 
@@ -1580,7 +1576,7 @@ static int prep_smp_v2_hw(struct hisi_hba *hisi_hba,
 	hdr->transfer_tags = cpu_to_le32(slot->idx << CMD_HDR_IPTT_OFF);
 
 	hdr->cmd_table_addr = cpu_to_le64(req_dma_addr);
-	hdr->sts_buffer_addr = cpu_to_le64(slot->status_buffer_dma);
+	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
 	return 0;
 
@@ -1654,10 +1650,11 @@ static int prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	}
 
 	hdr->data_transfer_len = cpu_to_le32(task->total_xfer_len);
-	hdr->cmd_table_addr = cpu_to_le64(slot->command_table_dma);
-	hdr->sts_buffer_addr = cpu_to_le64(slot->status_buffer_dma);
+	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
+	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
-	buf_cmd = slot->command_table + sizeof(struct ssp_frame_hdr);
+	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot) +
+		sizeof(struct ssp_frame_hdr);
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 	if (!is_tmf) {
@@ -1884,7 +1881,8 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			   int err_phase)
 {
 	struct task_status_struct *ts = &task->task_status;
-	struct hisi_sas_err_record_v2 *err_record = slot->status_buffer;
+	struct hisi_sas_err_record_v2 *err_record =
+			hisi_sas_status_buf_addr_mem(slot);
 	u32 trans_tx_fail_type = cpu_to_le32(err_record->trans_tx_fail_type);
 	u32 trans_rx_fail_type = cpu_to_le32(err_record->trans_rx_fail_type);
 	u16 dma_tx_err_type = cpu_to_le16(err_record->dma_tx_err_type);
@@ -2273,8 +2271,10 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
 	{
-		struct ssp_response_iu *iu = slot->status_buffer +
-			sizeof(struct hisi_sas_err_record);
+		struct hisi_sas_status_buffer *status_buffer =
+				hisi_sas_status_buf_addr_mem(slot);
+		struct ssp_response_iu *iu = (struct ssp_response_iu *)
+				&status_buffer->iu[0];
 
 		sas_ssp_task_response(dev, task, iu);
 		break;
@@ -2292,7 +2292,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
 			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
-		       slot->status_buffer +
+		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
 		       sg_dma_len(sg_resp));
 		kunmap_atomic(to);
@@ -2398,12 +2398,11 @@ static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 			return rc;
 	}
 
-
 	hdr->data_transfer_len = cpu_to_le32(task->total_xfer_len);
-	hdr->cmd_table_addr = cpu_to_le64(slot->command_table_dma);
-	hdr->sts_buffer_addr = cpu_to_le64(slot->status_buffer_dma);
+	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
+	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
-	buf_cmd = slot->command_table;
+	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot);
 
 	if (likely(!task->ata_task.device_control_reg_update))
 		task->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
