@@ -100,13 +100,16 @@ static u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 		return 0;
 	else {
 		struct amdgpu_crtc *acrtc = adev->mode_info.crtcs[crtc];
+		struct dm_crtc_state *acrtc_state = to_dm_crtc_state(
+				acrtc->base.state);
 
-		if (NULL == acrtc->stream) {
+
+		if (acrtc_state->stream == NULL) {
 			DRM_ERROR("dc_stream is NULL for crtc '%d'!\n", crtc);
 			return 0;
 		}
 
-		return dc_stream_get_vblank_counter(acrtc->stream);
+		return dc_stream_get_vblank_counter(acrtc_state->stream);
 	}
 }
 
@@ -119,8 +122,10 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 		return -EINVAL;
 	else {
 		struct amdgpu_crtc *acrtc = adev->mode_info.crtcs[crtc];
+		struct dm_crtc_state *acrtc_state = to_dm_crtc_state(
+						acrtc->base.state);
 
-		if (NULL == acrtc->stream) {
+		if (acrtc_state->stream ==  NULL) {
 			DRM_ERROR("dc_stream is NULL for crtc '%d'!\n", crtc);
 			return 0;
 		}
@@ -129,7 +134,7 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 		 * TODO rework base driver to use values directly.
 		 * for now parse it back into reg-format
 		 */
-		dc_stream_get_scanoutpos(acrtc->stream,
+		dc_stream_get_scanoutpos(acrtc_state->stream,
 					 &v_blank_start,
 					 &v_blank_end,
 					 &h_position,
@@ -652,22 +657,12 @@ dm_atomic_state_alloc(struct drm_device *dev)
 void dm_atomic_state_clear(struct drm_atomic_state *state)
 {
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
-	int i, j;
 
-	for (i = 0; i < dm_state->set_count; i++) {
-		for (j = 0; j < dm_state->set[i].surface_count; j++) {
-			dc_surface_release(dm_state->set[i].surfaces[j]);
-			dm_state->set[i].surfaces[j] = NULL;
-		}
-
-		dc_stream_release(dm_state->set[i].stream);
-		dm_state->set[i].stream = NULL;
+	if (dm_state->context) {
+		dc_resource_validate_ctx_destruct(dm_state->context);
+		dm_free(dm_state->context);
+		dm_state->context = NULL;
 	}
-	dm_state->set_count = 0;
-
-	dc_resource_validate_ctx_destruct(dm_state->context);
-	dm_free(dm_state->context);
-	dm_state->context = NULL;
 
 	drm_atomic_state_default_clear(state);
 }
@@ -676,7 +671,7 @@ static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.fb_create = amdgpu_user_framebuffer_create,
 	.output_poll_changed = amdgpu_output_poll_changed,
 	.atomic_check = amdgpu_dm_atomic_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = amdgpu_dm_atomic_commit,
 	.atomic_state_alloc = dm_atomic_state_alloc,
 	.atomic_state_clear = dm_atomic_state_clear,
 };

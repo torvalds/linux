@@ -45,7 +45,7 @@ struct dm_plane_state {
 
 struct dm_crtc_state {
 	struct drm_crtc_state base;
-	struct dc_stream *dc_stream;
+	const struct dc_stream *stream;
 };
 
 #define to_dm_crtc_state(x)    container_of(x, struct dm_crtc_state, base)
@@ -53,8 +53,6 @@ struct dm_crtc_state {
 struct dm_atomic_state {
 	struct drm_atomic_state base;
 
-	struct dc_validation_set set[MAX_STREAMS];
-	int set_count;
 	struct validate_context *context;
 };
 
@@ -82,6 +80,11 @@ void amdgpu_dm_connector_destroy(struct drm_connector *connector);
 void amdgpu_dm_encoder_destroy(struct drm_encoder *encoder);
 
 int amdgpu_dm_connector_get_modes(struct drm_connector *connector);
+
+int amdgpu_dm_atomic_commit(
+		struct drm_device *dev,
+		struct drm_atomic_state *state,
+		bool nonblock);
 
 void amdgpu_dm_atomic_commit_tail(
 	struct drm_atomic_state *state);
