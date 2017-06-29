@@ -1525,8 +1525,11 @@ static bool start_hv_timer(struct kvm_lapic *apic)
 	 * the window.  For periodic timer, leave the hv timer running for
 	 * simplicity, and the deadline will be recomputed on the next vmexit.
 	 */
-	if (!apic_lvtt_period(apic) && atomic_read(&ktimer->pending))
+	if (!apic_lvtt_period(apic) && (r || atomic_read(&ktimer->pending))) {
+		if (r)
+			apic_timer_expired(apic);
 		return false;
+	}
 
 	trace_kvm_hv_timer_state(apic->vcpu->vcpu_id, true);
 	return true;
