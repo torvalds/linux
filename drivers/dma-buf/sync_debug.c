@@ -119,13 +119,12 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 
 	seq_printf(s, "%s: %d\n", obj->name, obj->value);
 
-	spin_lock_irq(&obj->child_list_lock);
-	list_for_each(pos, &obj->child_list_head) {
-		struct sync_pt *pt =
-			container_of(pos, struct sync_pt, child_list);
+	spin_lock_irq(&obj->lock);
+	list_for_each(pos, &obj->pt_list) {
+		struct sync_pt *pt = container_of(pos, struct sync_pt, link);
 		sync_print_fence(s, &pt->base, false);
 	}
-	spin_unlock_irq(&obj->child_list_lock);
+	spin_unlock_irq(&obj->lock);
 }
 
 static void sync_print_sync_file(struct seq_file *s,
