@@ -217,6 +217,8 @@ void switchdev_port_fwd_mark_set(struct net_device *dev,
 
 bool switchdev_port_same_parent_id(struct net_device *a,
 				   struct net_device *b);
+
+#define SWITCHDEV_SET_OPS(netdev, ops) ((netdev)->switchdev_ops = (ops))
 #else
 
 static inline void switchdev_deferred_process(void)
@@ -321,6 +323,8 @@ static inline bool switchdev_port_same_parent_id(struct net_device *a,
 {
 	return false;
 }
+
+#define SWITCHDEV_SET_OPS(netdev, ops) do {} while (0)
 
 #endif
 
