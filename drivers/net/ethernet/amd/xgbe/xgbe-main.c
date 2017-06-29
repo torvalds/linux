@@ -140,14 +140,16 @@ static void xgbe_default_config(struct xgbe_prv_data *pdata)
 {
 	DBGPR("-->xgbe_default_config\n");
 
-	pdata->pblx8 = DMA_PBL_X8_ENABLE;
+	pdata->blen = DMA_SBMR_BLEN_64;
+	pdata->pbl = DMA_PBL_128;
+	pdata->aal = 1;
+	pdata->rd_osr_limit = 8;
+	pdata->wr_osr_limit = 8;
 	pdata->tx_sf_mode = MTL_TSF_ENABLE;
 	pdata->tx_threshold = MTL_TX_THRESHOLD_64;
-	pdata->tx_pbl = DMA_PBL_16;
 	pdata->tx_osp_mode = DMA_OSP_ENABLE;
 	pdata->rx_sf_mode = MTL_RSF_DISABLE;
 	pdata->rx_threshold = MTL_RX_THRESHOLD_64;
-	pdata->rx_pbl = DMA_PBL_16;
 	pdata->pause_autoneg = 1;
 	pdata->tx_pause = 1;
 	pdata->rx_pause = 1;
@@ -277,7 +279,11 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	pdata->desc_ded_period = jiffies;
 
 	/* Issue software reset to device */
-	pdata->hw_if.exit(pdata);
+	ret = pdata->hw_if.exit(pdata);
+	if (ret) {
+		dev_err(dev, "software reset failed\n");
+		return ret;
+	}
 
 	/* Set default configuration data */
 	xgbe_default_config(pdata);
