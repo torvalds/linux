@@ -33,6 +33,7 @@ ifeq ($(CONFIG_NFP_APP_FLOWER),y)
 nfp-objs += \
 	    flower/cmsg.o \
 	    flower/main.o \
+	    flower/match.o \
 	    flower/offload.o
 endif
 

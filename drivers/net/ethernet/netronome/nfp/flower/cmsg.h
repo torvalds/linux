@@ -52,6 +52,10 @@
 #define NFP_FLOWER_LAYER_ETHER		BIT(3)
 #define NFP_FLOWER_LAYER_ARP		BIT(4)
 
+#define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
+#define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
+#define NFP_FLOWER_MASK_VLAN_VID	GENMASK(11, 0)
+
 /* Metadata without L2 (1W/4B)
  * ----------------------------------------------------------------
  *    3                   2                   1

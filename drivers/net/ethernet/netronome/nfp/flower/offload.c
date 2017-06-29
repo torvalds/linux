@@ -208,13 +208,17 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_key_ls;
 	}
 
+	err = nfp_flower_compile_flow_match(flow, key_layer, netdev, flow_pay);
+	if (err)
+		goto err_destroy_flow;
+
 	/* TODO: Complete flower_add_offload. */
 	err = -EOPNOTSUPP;
 
+err_destroy_flow:
 	kfree(flow_pay->mask_data);
 	kfree(flow_pay->unmasked_data);
 	kfree(flow_pay);
-
 err_free_key_ls:
 	kfree(key_layer);
 	return err;
