@@ -1764,6 +1764,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	int port_up = 0;
 	int xdp_count;
 	int err = 0;
+	u8 up;
 
 	if (!channel->tx_count || !channel->rx_count)
 		return -EINVAL;
@@ -1801,11 +1802,11 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	mlx4_en_safe_replace_resources(priv, tmp);
 
-	netif_set_real_num_tx_queues(dev, priv->tx_ring_num[TX]);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
-	if (netdev_get_num_tc(dev))
-		mlx4_en_setup_tc(dev, priv->prof->num_up);
+	up = (priv->prof->num_up == MLX4_EN_NUM_UP_LOW) ?
+				    0 : priv->prof->num_up;
+	mlx4_en_setup_tc(dev, up);
 
 	en_warn(priv, "Using %d TX rings\n", priv->tx_ring_num[TX]);
 	en_warn(priv, "Using %d RX rings\n", priv->rx_ring_num);
