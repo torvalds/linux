@@ -159,6 +159,8 @@ static int nfs4_stat_to_errno(int);
 				(op_decode_hdr_maxsz)
 #define encode_lookup_maxsz	(op_encode_hdr_maxsz + nfs4_name_maxsz)
 #define decode_lookup_maxsz	(op_decode_hdr_maxsz)
+#define encode_lookupp_maxsz	(op_encode_hdr_maxsz)
+#define decode_lookupp_maxsz	(op_decode_hdr_maxsz)
 #define encode_share_access_maxsz \
 				(2)
 #define encode_createmode_maxsz	(1 + encode_attrs_maxsz + encode_verifier_maxsz)
@@ -616,6 +618,18 @@ static int nfs4_stat_to_errno(int);
 				decode_sequence_maxsz + \
 				decode_putfh_maxsz + \
 				decode_lookup_maxsz + \
+				decode_getattr_maxsz + \
+				decode_getfh_maxsz)
+#define NFS4_enc_lookupp_sz	(compound_encode_hdr_maxsz + \
+				encode_sequence_maxsz + \
+				encode_putfh_maxsz + \
+				encode_lookupp_maxsz + \
+				encode_getattr_maxsz + \
+				encode_getfh_maxsz)
+#define NFS4_dec_lookupp_sz	(compound_decode_hdr_maxsz + \
+				decode_sequence_maxsz + \
+				decode_putfh_maxsz + \
+				decode_lookupp_maxsz + \
 				decode_getattr_maxsz + \
 				decode_getfh_maxsz)
 #define NFS4_enc_lookup_root_sz (compound_encode_hdr_maxsz + \
@@ -1368,6 +1382,11 @@ static void encode_lookup(struct xdr_stream *xdr, const struct qstr *name, struc
 	encode_string(xdr, name->len, name->name);
 }
 
+static void encode_lookupp(struct xdr_stream *xdr, struct compound_hdr *hdr)
+{
+	encode_op_hdr(xdr, OP_LOOKUPP, decode_lookupp_maxsz, hdr);
+}
+
 static void encode_share_access(struct xdr_stream *xdr, u32 share_access)
 {
 	__be32 *p;
@@ -2117,6 +2136,26 @@ static void nfs4_xdr_enc_lookup(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->dir_fh, &hdr);
 	encode_lookup(xdr, args->name, &hdr);
+	encode_getfh(xdr, &hdr);
+	encode_getfattr(xdr, args->bitmask, &hdr);
+	encode_nops(&hdr);
+}
+
+/*
+ * Encode LOOKUPP request
+ */
+static void nfs4_xdr_enc_lookupp(struct rpc_rqst *req, struct xdr_stream *xdr,
+		const void *data)
+{
+	const struct nfs4_lookupp_arg *args = data;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, args->fh, &hdr);
+	encode_lookupp(xdr, &hdr);
 	encode_getfh(xdr, &hdr);
 	encode_getfattr(xdr, args->bitmask, &hdr);
 	encode_nops(&hdr);
@@ -5058,6 +5097,11 @@ static int decode_lookup(struct xdr_stream *xdr)
 	return decode_op_hdr(xdr, OP_LOOKUP);
 }
 
+static int decode_lookupp(struct xdr_stream *xdr)
+{
+	return decode_op_hdr(xdr, OP_LOOKUPP);
+}
+
 /* This is too sick! */
 static int decode_space_limit(struct xdr_stream *xdr,
 		unsigned long *pagemod_limit)
@@ -6227,6 +6271,36 @@ static int nfs4_xdr_dec_lookup(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	if (status)
 		goto out;
 	status = decode_lookup(xdr);
+	if (status)
+		goto out;
+	status = decode_getfh(xdr, res->fh);
+	if (status)
+		goto out;
+	status = decode_getfattr_label(xdr, res->fattr, res->label, res->server);
+out:
+	return status;
+}
+
+/*
+ * Decode LOOKUPP response
+ */
+static int nfs4_xdr_dec_lookupp(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
+		void *data)
+{
+	struct nfs4_lookupp_res *res = data;
+	struct compound_hdr hdr;
+	int status;
+
+	status = decode_compound_hdr(xdr, &hdr);
+	if (status)
+		goto out;
+	status = decode_sequence(xdr, &res->seq_res, rqstp);
+	if (status)
+		goto out;
+	status = decode_putfh(xdr);
+	if (status)
+		goto out;
+	status = decode_lookupp(xdr);
 	if (status)
 		goto out;
 	status = decode_getfh(xdr, res->fh);
@@ -7614,6 +7688,7 @@ const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(ACCESS,		enc_access,		dec_access),
 	PROC(GETATTR,		enc_getattr,		dec_getattr),
 	PROC(LOOKUP,		enc_lookup,		dec_lookup),
+	PROC(LOOKUPP,		enc_lookupp,		dec_lookupp),
 	PROC(LOOKUP_ROOT,	enc_lookup_root,	dec_lookup_root),
 	PROC(REMOVE,		enc_remove,		dec_remove),
 	PROC(RENAME,		enc_rename,		dec_rename),

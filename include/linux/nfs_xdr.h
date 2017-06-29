@@ -1012,7 +1012,6 @@ struct nfs4_link_res {
 	struct nfs_fattr *		dir_attr;
 };
 
-
 struct nfs4_lookup_arg {
 	struct nfs4_sequence_args	seq_args;
 	const struct nfs_fh *		dir_fh;
@@ -1025,6 +1024,20 @@ struct nfs4_lookup_res {
 	const struct nfs_server *	server;
 	struct nfs_fattr *		fattr;
 	struct nfs_fh *			fh;
+	struct nfs4_label		*label;
+};
+
+struct nfs4_lookupp_arg {
+	struct nfs4_sequence_args	seq_args;
+	const struct nfs_fh		*fh;
+	const u32			*bitmask;
+};
+
+struct nfs4_lookupp_res {
+	struct nfs4_sequence_res	seq_res;
+	const struct nfs_server		*server;
+	struct nfs_fattr		*fattr;
+	struct nfs_fh			*fh;
 	struct nfs4_label		*label;
 };
 
@@ -1569,6 +1582,8 @@ struct nfs_rpc_ops {
 	int	(*lookup)  (struct inode *, const struct qstr *,
 			    struct nfs_fh *, struct nfs_fattr *,
 			    struct nfs4_label *);
+	int	(*lookupp) (struct inode *, struct nfs_fh *,
+			    struct nfs_fattr *, struct nfs4_label *);
 	int	(*access)  (struct inode *, struct nfs_access_entry *);
 	int	(*readlink)(struct inode *, struct page *, unsigned int,
 			    unsigned int);
