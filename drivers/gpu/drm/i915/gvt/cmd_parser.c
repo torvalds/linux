@@ -2647,7 +2647,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
-int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
+int intel_gvt_scan_and_shadow_ringbuffer(struct intel_vgpu_workload *workload)
 {
 	int ret;
 	struct intel_vgpu *vgpu = workload->vgpu;

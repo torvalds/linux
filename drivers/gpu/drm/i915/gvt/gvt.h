@@ -470,6 +470,8 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
 
+int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload);
+
 struct intel_gvt_ops {
 	int (*emulate_cfg_read)(struct intel_vgpu *, unsigned int, void *,
 				unsigned int);
