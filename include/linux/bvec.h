@@ -22,6 +22,7 @@
 
 #include <linux/kernel.h>
 #include <linux/bug.h>
+#include <linux/errno.h>
 
 /*
  * was unsigned short, but we might as well be ready for > 64kB I/O pages
@@ -66,12 +67,14 @@ struct bvec_iter {
 	.bv_offset	= bvec_iter_offset((bvec), (iter)),	\
 })
 
-static inline void bvec_iter_advance(const struct bio_vec *bv,
-				     struct bvec_iter *iter,
-				     unsigned bytes)
+static inline bool bvec_iter_advance(const struct bio_vec *bv,
+		struct bvec_iter *iter, unsigned bytes)
 {
-	WARN_ONCE(bytes > iter->bi_size,
-		  "Attempted to advance past end of bvec iter\n");
+	if (WARN_ONCE(bytes > iter->bi_size,
+		     "Attempted to advance past end of bvec iter\n")) {
+		iter->bi_size = 0;
+		return false;
+	}
 
 	while (bytes) {
 		unsigned iter_len = bvec_iter_len(bv, *iter);
@@ -86,6 +89,7 @@ static inline void bvec_iter_advance(const struct bio_vec *bv,
 			iter->bi_idx++;
 		}
 	}
+	return true;
 }
 
 #define for_each_bvec(bvl, bio_vec, iter, start)			\

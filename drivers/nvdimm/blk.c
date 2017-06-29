@@ -106,7 +106,8 @@ static int nd_blk_rw_integrity(struct nd_namespace_blk *nsblk,
 
 		len -= cur_len;
 		dev_offset += cur_len;
-		bvec_iter_advance(bip->bip_vec, &bip->bip_iter, cur_len);
+		if (!bvec_iter_advance(bip->bip_vec, &bip->bip_iter, cur_len))
+			return -EIO;
 	}
 
 	return err;
