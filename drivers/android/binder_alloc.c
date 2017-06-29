@@ -262,7 +262,7 @@ err_no_vma:
 		up_write(&mm->mmap_sem);
 		mmput(mm);
 	}
-	return -ENOMEM;
+	return vma ? -ENOMEM : -ESRCH;
 }
 
 struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
@@ -278,11 +278,12 @@ struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
 	void *has_page_addr;
 	void *end_page_addr;
 	size_t size, data_offsets_size;
+	int ret;
 
 	if (alloc->vma == NULL) {
 		pr_err("%d: binder_alloc_buf, no vma\n",
 		       alloc->pid);
-		return NULL;
+		return ERR_PTR(-ESRCH);
 	}
 
 	data_offsets_size = ALIGN(data_size, sizeof(void *)) +
@@ -292,21 +293,21 @@ struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 				"%d: got transaction with invalid size %zd-%zd\n",
 				alloc->pid, data_size, offsets_size);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	size = data_offsets_size + ALIGN(extra_buffers_size, sizeof(void *));
 	if (size < data_offsets_size || size < extra_buffers_size) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 				"%d: got transaction with invalid extra_buffers_size %zd\n",
 				alloc->pid, extra_buffers_size);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	if (is_async &&
 	    alloc->free_async_space < size + sizeof(struct binder_buffer)) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 			     "%d: binder_alloc_buf size %zd failed, no async space left\n",
 			      alloc->pid, size);
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 	}
 
 	while (n) {
@@ -327,7 +328,7 @@ struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
 	if (best_fit == NULL) {
 		pr_err("%d: binder_alloc_buf size %zd failed, no address space\n",
 			alloc->pid, size);
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 	}
 	if (n == NULL) {
 		buffer = rb_entry(best_fit, struct binder_buffer, rb_node);
@@ -350,9 +351,10 @@ struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
 		(void *)PAGE_ALIGN((uintptr_t)buffer->data + buffer_size);
 	if (end_page_addr > has_page_addr)
 		end_page_addr = has_page_addr;
-	if (binder_update_page_range(alloc, 1,
-	    (void *)PAGE_ALIGN((uintptr_t)buffer->data), end_page_addr, NULL))
-		return NULL;
+	ret = binder_update_page_range(alloc, 1,
+	    (void *)PAGE_ALIGN((uintptr_t)buffer->data), end_page_addr, NULL);
+	if (ret)
+		return ERR_PTR(ret);
 
 	rb_erase(best_fit, &alloc->free_buffers);
 	buffer->free = 0;
