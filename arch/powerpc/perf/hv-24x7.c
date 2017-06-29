@@ -1144,7 +1144,9 @@ static int add_event_to_24x7_request(struct perf_event *event,
 
 static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 {
+	u16 num_elements;
 	unsigned long ret;
+	struct hv_24x7_result *result;
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
 
@@ -1166,8 +1168,14 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 		goto out;
 	}
 
+	result = result_buffer->results;
+
+	/* This code assumes that a result has only one element. */
+	num_elements = be16_to_cpu(result->num_elements_returned);
+	WARN_ON_ONCE(num_elements != 1);
+
 	/* process result from hcall */
-	*count = be64_to_cpu(result_buffer->results[0].elements[0].element_data[0]);
+	*count = be64_to_cpu(result->elements[0].element_data[0]);
 
 out:
 	put_cpu_var(hv_24x7_reqb);
@@ -1400,8 +1408,7 @@ static int h_24x7_event_commit_txn(struct pmu *pmu)
 {
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
-	struct hv_24x7_result *resb;
-	struct perf_event *event;
+	struct hv_24x7_result *res, *next_res;
 	u64 count;
 	int i, ret, txn_flags;
 	struct hv_24x7_hw *h24x7hw;
@@ -1428,13 +1435,20 @@ static int h_24x7_event_commit_txn(struct pmu *pmu)
 
 	h24x7hw = &get_cpu_var(hv_24x7_hw);
 
-	/* Update event counts from hcall */
-	for (i = 0; i < request_buffer->num_requests; i++) {
-		resb = &result_buffer->results[i];
-		count = be64_to_cpu(resb->elements[0].element_data[0]);
-		event = h24x7hw->events[i];
-		h24x7hw->events[i] = NULL;
+	/* Go through results in the result buffer to update event counts. */
+	for (i = 0, res = result_buffer->results;
+	     i < result_buffer->num_results; i++, res = next_res) {
+		struct perf_event *event = h24x7hw->events[res->result_ix];
+		u16 num_elements = be16_to_cpu(res->num_elements_returned);
+		u16 data_size = be16_to_cpu(res->result_element_data_size);
+
+		/* This code assumes that a result has only one element. */
+		WARN_ON_ONCE(num_elements != 1);
+
+		count = be64_to_cpu(res->elements[0].element_data[0]);
 		update_event_count(event, count);
+
+		next_res = (void *) res->elements[0].element_data + data_size;
 	}
 
 	put_cpu_var(hv_24x7_hw);
