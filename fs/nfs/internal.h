@@ -10,6 +10,8 @@
 
 #define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
 
+extern const struct export_operations nfs_export_ops;
+
 struct nfs_string;
 
 /* Maximum number of readahead requests
