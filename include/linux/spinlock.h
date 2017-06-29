@@ -130,12 +130,6 @@ do {								\
 #define smp_mb__before_spinlock()	smp_wmb()
 #endif
 
-/**
- * raw_spin_unlock_wait - wait until the spinlock gets unlocked
- * @lock: the spinlock in question.
- */
-#define raw_spin_unlock_wait(lock)	arch_spin_unlock_wait(&(lock)->raw_lock)
-
 #ifdef CONFIG_DEBUG_SPINLOCK
  extern void do_raw_spin_lock(raw_spinlock_t *lock) __acquires(lock);
 #define do_raw_spin_lock_flags(lock, flags) do_raw_spin_lock(lock)
@@ -368,11 +362,6 @@ static __always_inline int spin_trylock_irq(spinlock_t *lock)
 ({								\
 	raw_spin_trylock_irqsave(spinlock_check(lock), flags); \
 })
-
-static __always_inline void spin_unlock_wait(spinlock_t *lock)
-{
-	raw_spin_unlock_wait(&lock->rlock);
-}
 
 static __always_inline int spin_is_locked(spinlock_t *lock)
 {
