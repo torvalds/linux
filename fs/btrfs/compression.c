@@ -825,7 +825,7 @@ static void free_workspace(int type, struct list_head *workspace)
 	int *free_ws			= &btrfs_comp_ws[idx].free_ws;
 
 	spin_lock(ws_lock);
-	if (*free_ws < num_online_cpus()) {
+	if (*free_ws <= num_online_cpus()) {
 		list_add(workspace, idle_ws);
 		(*free_ws)++;
 		spin_unlock(ws_lock);
