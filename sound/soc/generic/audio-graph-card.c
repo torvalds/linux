@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -30,6 +31,34 @@ struct graph_card_data {
 		struct asoc_simple_dai codec_dai;
 	} *dai_props;
 	struct snd_soc_dai_link *dai_link;
+	struct gpio_desc *pa_gpio;
+};
+
+static int asoc_graph_card_outdrv_event(struct snd_soc_dapm_widget *w,
+					struct snd_kcontrol *kcontrol,
+					int event)
+{
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct graph_card_data *priv = snd_soc_card_get_drvdata(dapm->card);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		gpiod_set_value_cansleep(priv->pa_gpio, 1);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		gpiod_set_value_cansleep(priv->pa_gpio, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget asoc_graph_card_dapm_widgets[] = {
+	SND_SOC_DAPM_OUT_DRV_E("Amplifier", SND_SOC_NOPM,
+			       0, 0, NULL, 0, asoc_graph_card_outdrv_event,
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 };
 
 #define graph_priv_to_card(priv) (&(priv)->snd_card)
@@ -180,8 +209,16 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	int rc, idx = 0;
 	int ret;
 
+	ret = asoc_simple_card_of_parse_widgets(card, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_card_of_parse_routing(card, NULL, 1);
+	if (ret < 0)
+		return ret;
+
 	/*
-	 * we need to consider "widgets", "routing", "mclk-fs" around here
+	 * we need to consider "mclk-fs" around here
 	 * see simple-card
 	 */
 
@@ -233,6 +270,13 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
 
+	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
+	if (IS_ERR(priv->pa_gpio)) {
+		ret = PTR_ERR(priv->pa_gpio);
+		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
+		return ret;
+	}
+
 	priv->dai_props			= dai_props;
 	priv->dai_link			= dai_link;
 
@@ -242,6 +286,8 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	card->dev	= dev;
 	card->dai_link	= dai_link;
 	card->num_links	= num;
+	card->dapm_widgets = asoc_graph_card_dapm_widgets;
+	card->num_dapm_widgets = ARRAY_SIZE(asoc_graph_card_dapm_widgets);
 
 	ret = asoc_graph_card_parse_of(priv);
 	if (ret < 0) {
