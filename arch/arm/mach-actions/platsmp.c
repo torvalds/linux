@@ -1,0 +1,166 @@
+/*
+ * Actions Semi Leopard
+ *
+ * This file is based on arm realview smp platform.
+ *
+ * Copyright 2012 Actions Semi Inc.
+ * Author: Actions Semi, Inc.
+ *
+ * Copyright (c) 2017 Andreas Färber
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ */
+
+#include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/smp.h>
+#include <asm/cacheflush.h>
+#include <asm/smp_plat.h>
+#include <asm/smp_scu.h>
+
+#define OWL_CPU1_ADDR	0x50
+#define OWL_CPU1_FLAG	0x5c
+
+#define OWL_CPUx_FLAG_BOOT	0x55aa
+
+static void __iomem *scu_base_addr;
+static void __iomem *timer_base_addr;
+static int ncores;
+
+static DEFINE_SPINLOCK(boot_lock);
+
+static void write_pen_release(int val)
+{
+	pen_release = val;
+	smp_wmb();
+	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
+	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+}
+
+static void s500_smp_secondary_init(unsigned int cpu)
+{
+	/*
+	 * let the primary processor know we're out of the
+	 * pen, then head off into the C entry point
+	 */
+	write_pen_release(-1);
+
+	spin_lock(&boot_lock);
+	spin_unlock(&boot_lock);
+}
+
+void owl_secondary_startup(void);
+
+static int s500_wakeup_secondary(unsigned int cpu)
+{
+	if (cpu > 3)
+		return -EINVAL;
+
+	switch (cpu) {
+	case 2:
+	case 3:
+		/* CPU2/3 are power-gated */
+		return -EINVAL;
+	}
+
+	/* wait for CPUx to run to WFE instruction */
+	udelay(200);
+
+	writel(virt_to_phys(owl_secondary_startup),
+	       timer_base_addr + OWL_CPU1_ADDR + (cpu - 1) * 4);
+	writel(OWL_CPUx_FLAG_BOOT,
+	       timer_base_addr + OWL_CPU1_FLAG + (cpu - 1) * 4);
+
+	dsb_sev();
+	mb();
+
+	return 0;
+}
+
+static int s500_smp_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	unsigned long timeout;
+	int ret;
+
+	ret = s500_wakeup_secondary(cpu);
+	if (ret)
+		return ret;
+
+	udelay(10);
+
+	spin_lock(&boot_lock);
+
+	/*
+	 * The secondary processor is waiting to be released from
+	 * the holding pen - release it, then wait for it to flag
+	 * that it has been released by resetting pen_release.
+	 */
+	write_pen_release(cpu_logical_map(cpu));
+	smp_send_reschedule(cpu);
+
+	timeout = jiffies + (1 * HZ);
+	while (time_before(jiffies, timeout)) {
+		if (pen_release == -1)
+			break;
+	}
+
+	writel(0, timer_base_addr + OWL_CPU1_ADDR + (cpu - 1) * 4);
+	writel(0, timer_base_addr + OWL_CPU1_FLAG + (cpu - 1) * 4);
+
+	spin_unlock(&boot_lock);
+
+	return pen_release != -1 ? -ENOSYS : 0;
+}
+
+static void __init s500_smp_prepare_cpus(unsigned int max_cpus)
+{
+	struct device_node *node;
+
+	node = of_find_compatible_node(NULL, NULL, "actions,s500-timer");
+	if (!node) {
+		pr_err("%s: missing timer\n", __func__);
+		return;
+	}
+
+	timer_base_addr = of_iomap(node, 0);
+	if (!timer_base_addr) {
+		pr_err("%s: could not map timer registers\n", __func__);
+		return;
+	}
+
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
+		node = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+		if (!node) {
+			pr_err("%s: missing scu\n", __func__);
+			return;
+		}
+
+		scu_base_addr = of_iomap(node, 0);
+		if (!scu_base_addr) {
+			pr_err("%s: could not map scu registers\n", __func__);
+			return;
+		}
+
+		/*
+		 * While the number of cpus is gathered from dt, also get the
+		 * number of cores from the scu to verify this value when
+		 * booting the cores.
+		 */
+		ncores = scu_get_core_count(scu_base_addr);
+		pr_debug("%s: ncores %d\n", __func__, ncores);
+
+		scu_enable(scu_base_addr);
+	}
+}
+
+static const struct smp_operations s500_smp_ops __initconst = {
+	.smp_prepare_cpus = s500_smp_prepare_cpus,
+	.smp_secondary_init = s500_smp_secondary_init,
+	.smp_boot_secondary = s500_smp_boot_secondary,
+};
+CPU_METHOD_OF_DECLARE(s500_smp, "actions,s500-smp", &s500_smp_ops);
