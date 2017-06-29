@@ -1958,7 +1958,7 @@ static int is_dmi_valid(const char *field)
 		if (strstr(field, dmi_blacklist[i]))
 			return 0;
 		i++;
-	};
+	}
 
 	return 1;
 }
