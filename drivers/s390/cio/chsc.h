@@ -147,8 +147,8 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable);
 int chsc_chp_vary(struct chp_id chpid, int on);
 int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 				     int c, int m, void *page);
-int chsc_determine_base_channel_path_desc(struct chp_id chpid,
-					  struct channel_path_desc *desc);
+int chsc_determine_fmt0_channel_path_desc(struct chp_id chpid,
+					  struct channel_path_desc_fmt0 *desc);
 int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 					  struct channel_path_desc_fmt1 *desc);
 void chsc_chp_online(struct chp_id chpid);

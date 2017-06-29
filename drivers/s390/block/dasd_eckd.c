@@ -994,7 +994,7 @@ static int dasd_eckd_read_conf(struct dasd_device *device)
 	struct dasd_eckd_private *private, path_private;
 	struct dasd_uid *uid;
 	char print_path_uid[60], print_device_uid[60];
-	struct channel_path_desc *chp_desc;
+	struct channel_path_desc_fmt0 *chp_desc;
 	struct subchannel_id sch_id;
 
 	private = device->private;

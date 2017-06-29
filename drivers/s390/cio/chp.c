@@ -422,7 +422,7 @@ int chp_update_desc(struct channel_path *chp)
 {
 	int rc;
 
-	rc = chsc_determine_base_channel_path_desc(chp->chpid, &chp->desc);
+	rc = chsc_determine_fmt0_channel_path_desc(chp->chpid, &chp->desc);
 	if (rc)
 		return rc;
 
@@ -506,20 +506,20 @@ out:
  * On success return a newly allocated copy of the channel-path description
  * data associated with the given channel-path ID. Return %NULL on error.
  */
-struct channel_path_desc *chp_get_chp_desc(struct chp_id chpid)
+struct channel_path_desc_fmt0 *chp_get_chp_desc(struct chp_id chpid)
 {
 	struct channel_path *chp;
-	struct channel_path_desc *desc;
+	struct channel_path_desc_fmt0 *desc;
 
 	chp = chpid_to_chp(chpid);
 	if (!chp)
 		return NULL;
-	desc = kmalloc(sizeof(struct channel_path_desc), GFP_KERNEL);
+	desc = kmalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return NULL;
 
 	mutex_lock(&chp->lock);
-	memcpy(desc, &chp->desc, sizeof(struct channel_path_desc));
+	memcpy(desc, &chp->desc, sizeof(*desc));
 	mutex_unlock(&chp->lock);
 	return desc;
 }
