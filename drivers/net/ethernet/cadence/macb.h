@@ -12,6 +12,10 @@
 
 #include <linux/phy.h>
 
+#if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) || defined(CONFIG_MACB_USE_HWSTAMP)
+#define MACB_EXT_DESC
+#endif
+
 #define MACB_GREGS_NBR 16
 #define MACB_GREGS_VERSION 2
 #define MACB_MAX_QUEUES 8
@@ -269,6 +273,10 @@
 #define GEM_RXBS_SIZE		8
 #define GEM_DDRP_OFFSET		24 /* disc_when_no_ahb */
 #define GEM_DDRP_SIZE		1
+#define GEM_RXEXT_OFFSET	28 /* RX extended Buffer Descriptor mode */
+#define GEM_RXEXT_SIZE		1
+#define GEM_TXEXT_OFFSET	29 /* TX extended Buffer Descriptor mode */
+#define GEM_TXEXT_SIZE		1
 #define GEM_ADDR64_OFFSET	30 /* Address bus width - 64b or 32b */
 #define GEM_ADDR64_SIZE		1
 
@@ -425,6 +433,11 @@
 #define GEM_TX_PKT_BUFF_OFFSET			21
 #define GEM_TX_PKT_BUFF_SIZE			1
 
+
+/* Bitfields in DCFG5. */
+#define GEM_TSU_OFFSET				8
+#define GEM_TSU_SIZE				1
+
 /* Bitfields in DCFG6. */
 #define GEM_PBUF_LSO_OFFSET			27
 #define GEM_PBUF_LSO_SIZE			1
@@ -546,15 +559,20 @@ struct macb_dma_desc {
 	u32	ctrl;
 };
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-enum macb_hw_dma_cap {
-	HW_DMA_CAP_32B,
-	HW_DMA_CAP_64B,
-};
+#ifdef MACB_EXT_DESC
+#define HW_DMA_CAP_32B		0
+#define HW_DMA_CAP_64B		(1 << 0)
+#define HW_DMA_CAP_PTP		(1 << 1)
+#define HW_DMA_CAP_64B_PTP	(HW_DMA_CAP_64B | HW_DMA_CAP_PTP)
 
 struct macb_dma_desc_64 {
 	u32 addrh;
 	u32 resvd;
+};
+
+struct macb_dma_desc_ptp {
+	u32	ts_1;
+	u32	ts_2;
 };
 #endif
 
@@ -955,8 +973,8 @@ struct macb {
 	u32			wol;
 
 	struct macb_ptp_info	*ptp_info;	/* macb-ptp interface */
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	enum macb_hw_dma_cap hw_dma_cap;
+#ifdef MACB_EXT_DESC
+	uint8_t hw_dma_cap;
 #endif
 };
 
