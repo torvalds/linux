@@ -34,11 +34,49 @@
 #ifndef __NFP_FLOWER_H__
 #define __NFP_FLOWER_H__ 1
 
+#include <linux/circ_buf.h>
+#include <linux/hashtable.h>
+#include <linux/time64.h>
 #include <linux/types.h>
 
 struct tc_to_netdev;
 struct net_device;
 struct nfp_app;
+
+#define NFP_FLOWER_HASH_BITS		19
+#define NFP_FLOWER_MASK_ENTRY_RS	256
+#define NFP_FLOWER_MASK_ELEMENT_RS	1
+#define NFP_FLOWER_MASK_HASH_BITS	10
+
+#define NFP_FL_META_FLAG_NEW_MASK	128
+#define NFP_FL_META_FLAG_LAST_MASK	1
+
+#define NFP_FL_MASK_REUSE_TIME_NS	40000
+#define NFP_FL_MASK_ID_LOCATION		1
+
+struct nfp_fl_mask_id {
+	struct circ_buf mask_id_free_list;
+	struct timespec64 *last_used;
+	u8 init_unallocated;
+};
+
+/**
+ * struct nfp_flower_priv - Flower APP per-vNIC priv data
+ * @nn:			Pointer to vNIC
+ * @mask_id_seed:	Seed used for mask hash table
+ * @flower_version:	HW version of flower
+ * @mask_ids:		List of free mask ids
+ * @mask_table:		Hash table used to store masks
+ * @flow_table:		Hash table used to store flower rules
+ */
+struct nfp_flower_priv {
+	struct nfp_net *nn;
+	u32 mask_id_seed;
+	u64 flower_version;
+	struct nfp_fl_mask_id mask_ids;
+	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
+	DECLARE_HASHTABLE(flow_table, NFP_FLOWER_HASH_BITS);
+};
 
 struct nfp_fl_key_ls {
 	u32 key_layer_two;
@@ -59,10 +97,16 @@ struct nfp_fl_rule_metadata {
 
 struct nfp_fl_payload {
 	struct nfp_fl_rule_metadata meta;
+	unsigned long tc_flower_cookie;
+	struct hlist_node link;
+	struct rcu_head rcu;
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
 };
+
+int nfp_flower_metadata_init(struct nfp_app *app);
+void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			u32 handle, __be16 proto, struct tc_to_netdev *tc);
@@ -73,5 +117,15 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 int nfp_flower_compile_action(struct tc_cls_flower_offload *flow,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow);
+int nfp_compile_flow_metadata(struct nfp_app *app,
+			      struct tc_cls_flower_offload *flow,
+			      struct nfp_fl_payload *nfp_flow);
+int nfp_modify_flow_metadata(struct nfp_app *app,
+			     struct nfp_fl_payload *nfp_flow);
+
+struct nfp_fl_payload *
+nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
+struct nfp_fl_payload *
+nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
 #endif
