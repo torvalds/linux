@@ -277,7 +277,7 @@ static int i2c_dw_irq_handler_slave(struct dw_i2c_dev *dev)
 		return 0;
 
 	dev_dbg(dev->dev,
-		"%#x STAUTS SLAVE_ACTTVITY=%#x : RAW_INTR_STAT=%#x : INTR_STAT=%#x\n",
+		"%#x STATUS SLAVE_ACTIVITY=%#x : RAW_INTR_STAT=%#x : INTR_STAT=%#x\n",
 		enabled, slave_activity, raw_stat, stat);
 
 	if ((stat & DW_IC_INTR_RX_FULL) && (stat & DW_IC_INTR_STOP_DET))
