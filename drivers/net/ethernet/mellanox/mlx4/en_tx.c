@@ -691,15 +691,11 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u16 rings_p_up = priv->num_tx_rings_p_up;
-	u8 up = 0;
 
 	if (netdev_get_num_tc(dev))
 		return skb_tx_hash(dev, skb);
 
-	if (skb_vlan_tag_present(skb))
-		up = skb_vlan_tag_get(skb) >> VLAN_PRIO_SHIFT;
-
-	return fallback(dev, skb) % rings_p_up + up * rings_p_up;
+	return fallback(dev, skb) % rings_p_up;
 }
 
 static void mlx4_bf_copy(void __iomem *dst, const void *src,
