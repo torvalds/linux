@@ -187,6 +187,7 @@ static inline void binder_stats_created(enum binder_stat_types type)
 
 struct binder_transaction_log_entry {
 	int debug_id;
+	int debug_id_done;
 	int call_type;
 	int from_proc;
 	int from_thread;
@@ -202,8 +203,8 @@ struct binder_transaction_log_entry {
 	const char *context_name;
 };
 struct binder_transaction_log {
-	int next;
-	int full;
+	atomic_t cur;
+	bool full;
 	struct binder_transaction_log_entry entry[32];
 };
 static struct binder_transaction_log binder_transaction_log;
@@ -213,14 +214,19 @@ static struct binder_transaction_log_entry *binder_transaction_log_add(
 	struct binder_transaction_log *log)
 {
 	struct binder_transaction_log_entry *e;
+	unsigned int cur = atomic_inc_return(&log->cur);
 
-	e = &log->entry[log->next];
-	memset(e, 0, sizeof(*e));
-	log->next++;
-	if (log->next == ARRAY_SIZE(log->entry)) {
-		log->next = 0;
+	if (cur >= ARRAY_SIZE(log->entry))
 		log->full = 1;
-	}
+	e = &log->entry[cur % ARRAY_SIZE(log->entry)];
+	WRITE_ONCE(e->debug_id_done, 0);
+	/*
+	 * write-barrier to synchronize access to e->debug_id_done.
+	 * We make sure the initialized 0 value is seen before
+	 * memset() other fields are zeroed by memset.
+	 */
+	smp_wmb();
+	memset(e, 0, sizeof(*e));
 	return e;
 }
 
@@ -1400,8 +1406,10 @@ static void binder_transaction(struct binder_proc *proc,
 	struct binder_buffer_object *last_fixup_obj = NULL;
 	binder_size_t last_fixup_min_off = 0;
 	struct binder_context *context = proc->context;
+	int t_debug_id = atomic_inc_return(&binder_last_id);
 
 	e = binder_transaction_log_add(&binder_transaction_log);
+	e->debug_id = t_debug_id;
 	e->call_type = reply ? 2 : !!(tr->flags & TF_ONE_WAY);
 	e->from_proc = proc->pid;
 	e->from_thread = thread->pid;
@@ -1545,8 +1553,7 @@ static void binder_transaction(struct binder_proc *proc,
 	}
 	binder_stats_created(BINDER_STAT_TRANSACTION_COMPLETE);
 
-	t->debug_id = atomic_inc_return(&binder_last_id);
-	e->debug_id = t->debug_id;
+	t->debug_id = t_debug_id;
 
 	if (reply)
 		binder_debug(BINDER_DEBUG_TRANSACTION,
@@ -1821,6 +1828,12 @@ static void binder_transaction(struct binder_proc *proc,
 		else
 			wake_up_interruptible(target_wait);
 	}
+	/*
+	 * write barrier to synchronize with initialization
+	 * of log entry
+	 */
+	smp_wmb();
+	WRITE_ONCE(e->debug_id_done, t_debug_id);
 	return;
 
 err_translate_failed:
@@ -1858,6 +1871,13 @@ err_no_context_mgr_node:
 		e->return_error_line = return_error_line;
 		fe = binder_transaction_log_add(&binder_transaction_log_failed);
 		*fe = *e;
+		/*
+		 * write barrier to synchronize with initialization
+		 * of log entry
+		 */
+		smp_wmb();
+		WRITE_ONCE(e->debug_id_done, t_debug_id);
+		WRITE_ONCE(fe->debug_id_done, t_debug_id);
 	}
 
 	BUG_ON(thread->return_error != BR_OK);
@@ -3718,27 +3738,47 @@ static int binder_proc_show(struct seq_file *m, void *unused)
 static void print_binder_transaction_log_entry(struct seq_file *m,
 					struct binder_transaction_log_entry *e)
 {
+	int debug_id = READ_ONCE(e->debug_id_done);
+	/*
+	 * read barrier to guarantee debug_id_done read before
+	 * we print the log values
+	 */
+	smp_rmb();
 	seq_printf(m,
-		   "%d: %s from %d:%d to %d:%d context %s node %d handle %d size %d:%d ret %d/%d l=%d\n",
+		   "%d: %s from %d:%d to %d:%d context %s node %d handle %d size %d:%d ret %d/%d l=%d",
 		   e->debug_id, (e->call_type == 2) ? "reply" :
 		   ((e->call_type == 1) ? "async" : "call "), e->from_proc,
 		   e->from_thread, e->to_proc, e->to_thread, e->context_name,
 		   e->to_node, e->target_handle, e->data_size, e->offsets_size,
 		   e->return_error, e->return_error_param,
 		   e->return_error_line);
+	/*
+	 * read-barrier to guarantee read of debug_id_done after
+	 * done printing the fields of the entry
+	 */
+	smp_rmb();
+	seq_printf(m, debug_id && debug_id == READ_ONCE(e->debug_id_done) ?
+			"\n" : " (incomplete)\n");
 }
 
 static int binder_transaction_log_show(struct seq_file *m, void *unused)
 {
 	struct binder_transaction_log *log = m->private;
+	unsigned int log_cur = atomic_read(&log->cur);
+	unsigned int count;
+	unsigned int cur;
 	int i;
 
-	if (log->full) {
-		for (i = log->next; i < ARRAY_SIZE(log->entry); i++)
-			print_binder_transaction_log_entry(m, &log->entry[i]);
+	count = log_cur + 1;
+	cur = count < ARRAY_SIZE(log->entry) && !log->full ?
+		0 : count % ARRAY_SIZE(log->entry);
+	if (count > ARRAY_SIZE(log->entry) || log->full)
+		count = ARRAY_SIZE(log->entry);
+	for (i = 0; i < count; i++) {
+		unsigned int index = cur++ % ARRAY_SIZE(log->entry);
+
+		print_binder_transaction_log_entry(m, &log->entry[index]);
 	}
-	for (i = 0; i < log->next; i++)
-		print_binder_transaction_log_entry(m, &log->entry[i]);
 	return 0;
 }
 
@@ -3792,6 +3832,9 @@ static int __init binder_init(void)
 	char *device_name, *device_names;
 	struct binder_device *device;
 	struct hlist_node *tmp;
+
+	atomic_set(&binder_transaction_log.cur, ~0U);
+	atomic_set(&binder_transaction_log_failed.cur, ~0U);
 
 	binder_debugfs_dir_entry_root = debugfs_create_dir("binder", NULL);
 	if (binder_debugfs_dir_entry_root)
