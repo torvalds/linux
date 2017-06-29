@@ -6573,16 +6573,9 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	int want_affine = 0;
 	int sync = wake_flags & WF_SYNC;
 
-	if (sd_flag & SD_BALANCE_WAKE) {
-		/*
-		 * do wake_cap unconditionally as it causes task and cpu
-		 * utilization to be synced, and we need that for energy
-		 * aware wakeups
-		 */
-		int _wake_cap = wake_cap(p, cpu, prev_cpu);
-		want_affine = !wake_wide(p) && !_wake_cap
+	if (sd_flag & SD_BALANCE_WAKE)
+		want_affine = !wake_wide(p) && !wake_cap(p, cpu, prev_cpu)
 			      && cpumask_test_cpu(cpu, tsk_cpus_allowed(p));
-	}
 
 	if (energy_aware() && !(cpu_rq(prev_cpu)->rd->overutilized))
 		return select_energy_cpu_brute(p, prev_cpu, sync);
