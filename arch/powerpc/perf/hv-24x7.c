@@ -1049,8 +1049,8 @@ static void init_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 			      struct hv_24x7_data_result_buffer *result_buffer)
 {
 
-	memset(request_buffer, 0, 4096);
-	memset(result_buffer, 0, 4096);
+	memset(request_buffer, 0, H24x7_DATA_BUFFER_SIZE);
+	memset(result_buffer, 0, H24x7_DATA_BUFFER_SIZE);
 
 	request_buffer->interface_version = HV_24X7_IF_VERSION_CURRENT;
 	/* memset above set request_buffer->num_requests to 0 */
@@ -1126,7 +1126,7 @@ static int add_event_to_24x7_request(struct perf_event *event,
 	req->performance_domain = event_get_domain(event);
 	req->data_size = cpu_to_be16(8);
 	req->data_offset = cpu_to_be32(event_get_offset(event));
-	req->starting_lpar_ix = cpu_to_be16(event_get_lpar(event)),
+	req->starting_lpar_ix = cpu_to_be16(event_get_lpar(event));
 	req->max_num_lpars = cpu_to_be16(1);
 	req->starting_ix = cpu_to_be16(idx);
 	req->max_ix = cpu_to_be16(1);
@@ -1218,9 +1218,8 @@ static int h_24x7_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	/* Domains above 6 are invalid */
 	domain = event_get_domain(event);
-	if (domain > 6) {
+	if (domain >= HV_PERF_DOMAIN_MAX) {
 		pr_devel("invalid domain %d\n", domain);
 		return -EINVAL;
 	}

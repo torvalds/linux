@@ -71,6 +71,10 @@ struct hv_24x7_result_element {
 } __packed;
 
 struct hv_24x7_result {
+	/*
+	 * The index of the 24x7 Request Structure in the 24x7 Request Buffer
+	 * used to request this result.
+	 */
 	__u8 result_ix;
 
 	/*
@@ -81,7 +85,12 @@ struct hv_24x7_result {
 	__u8 results_complete;
 	__be16 num_elements_returned;
 
-	/* This is a copy of @data_size from the corresponding hv_24x7_request */
+	/*
+	 * This is a copy of @data_size from the corresponding hv_24x7_request
+	 *
+	 * Warning: to obtain the size of each element in @elements you have
+	 * to add the size of the other members of the result_element struct.
+	 */
 	__be16 result_element_data_size;
 	__u8 reserved[0x2];
 
