@@ -352,10 +352,13 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 
 static void pcpu_destroy_chunk(struct pcpu_chunk *chunk)
 {
+	if (!chunk)
+		return;
+
 	pcpu_stats_chunk_dealloc();
 	trace_percpu_destroy_chunk(chunk->base_addr);
 
-	if (chunk && chunk->data)
+	if (chunk->data)
 		pcpu_free_vm_areas(chunk->data, pcpu_nr_groups);
 	pcpu_free_chunk(chunk);
 }

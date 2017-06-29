@@ -82,10 +82,13 @@ static void pcpu_destroy_chunk(struct pcpu_chunk *chunk)
 {
 	const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
 
+	if (!chunk)
+		return;
+
 	pcpu_stats_chunk_dealloc();
 	trace_percpu_destroy_chunk(chunk->base_addr);
 
-	if (chunk && chunk->data)
+	if (chunk->data)
 		__free_pages(chunk->data, order_base_2(nr_pages));
 	pcpu_free_chunk(chunk);
 }
