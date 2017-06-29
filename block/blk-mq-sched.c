@@ -68,6 +68,45 @@ static void blk_mq_sched_assign_ioc(struct request_queue *q,
 		__blk_mq_sched_assign_ioc(q, rq, bio, ioc);
 }
 
+/*
+ * Mark a hardware queue as needing a restart. For shared queues, maintain
+ * a count of how many hardware queues are marked for restart.
+ */
+static void blk_mq_sched_mark_restart_hctx(struct blk_mq_hw_ctx *hctx)
+{
+	if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+		return;
+
+	if (hctx->flags & BLK_MQ_F_TAG_SHARED) {
+		struct request_queue *q = hctx->queue;
+
+		if (!test_and_set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+			atomic_inc(&q->shared_hctx_restart);
+	} else
+		set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
+}
+
+static bool blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
+{
+	if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+		return false;
+
+	if (hctx->flags & BLK_MQ_F_TAG_SHARED) {
+		struct request_queue *q = hctx->queue;
+
+		if (test_and_clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
+			atomic_dec(&q->shared_hctx_restart);
+	} else
+		clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
+
+	if (blk_mq_hctx_has_pending(hctx)) {
+		blk_mq_run_hw_queue(hctx, true);
+		return true;
+	}
+
+	return false;
+}
+
 struct request *blk_mq_sched_get_request(struct request_queue *q,
 					 struct bio *bio,
 					 unsigned int op,
@@ -266,18 +305,6 @@ static bool blk_mq_sched_bypass_insert(struct blk_mq_hw_ctx *hctx,
 	return true;
 }
 
-static bool blk_mq_sched_restart_hctx(struct blk_mq_hw_ctx *hctx)
-{
-	if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state)) {
-		clear_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
-		if (blk_mq_hctx_has_pending(hctx)) {
-			blk_mq_run_hw_queue(hctx, true);
-			return true;
-		}
-	}
-	return false;
-}
-
 /**
  * list_for_each_entry_rcu_rr - iterate in a round-robin fashion over rcu list
  * @pos:    loop cursor.
@@ -309,6 +336,13 @@ void blk_mq_sched_restart(struct blk_mq_hw_ctx *const hctx)
 	unsigned int i, j;
 
 	if (set->flags & BLK_MQ_F_TAG_SHARED) {
+		/*
+		 * If this is 0, then we know that no hardware queues
+		 * have RESTART marked. We're done.
+		 */
+		if (!atomic_read(&queue->shared_hctx_restart))
+			return;
+
 		rcu_read_lock();
 		list_for_each_entry_rcu_rr(q, queue, &set->tag_list,
 					   tag_set_list) {

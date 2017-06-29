@@ -191,8 +191,10 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		return NULL;
 
 	root_ops = kzalloc_node(sizeof(*root_ops), GFP_KERNEL, node);
-	if (!root_ops)
+	if (!root_ops) {
+		kfree(ri);
 		return NULL;
+	}
 
 	ri->cfg = pci_acpi_setup_ecam_mapping(root);
 	if (!ri->cfg) {

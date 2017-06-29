@@ -326,8 +326,7 @@ static u64 execlists_update_context(struct drm_i915_gem_request *rq)
 		rq->ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
 
-	assert_ring_tail_valid(rq->ring, rq->tail);
-	reg_state[CTX_RING_TAIL+1] = rq->tail;
+	reg_state[CTX_RING_TAIL+1] = intel_ring_set_tail(rq->ring, rq->tail);
 
 	/* True 32b PPGTT with dynamic page allocation: update PDP
 	 * registers and point the unallocated PDPs to scratch page.
@@ -1989,7 +1988,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	ce->ring = ring;
 	ce->state = vma;
-	ce->initialised = engine->init_context == NULL;
+	ce->initialised |= engine->init_context == NULL;
 
 	return 0;
 
@@ -2036,8 +2035,7 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 			ce->state->obj->mm.dirty = true;
 			i915_gem_object_unpin_map(ce->state->obj);
 
-			ce->ring->head = ce->ring->tail = 0;
-			intel_ring_update_space(ce->ring);
+			intel_ring_reset(ce->ring, 0);
 		}
 	}
 }

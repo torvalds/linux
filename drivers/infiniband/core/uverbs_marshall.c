@@ -96,11 +96,11 @@ void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
 }
 EXPORT_SYMBOL(ib_copy_qp_attr_to_user);
 
-void __ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
-				struct sa_path_rec *src)
+static void __ib_copy_path_rec_to_user(struct ib_user_path_rec *dst,
+				       struct sa_path_rec *src)
 {
-	memcpy(dst->dgid, src->dgid.raw, sizeof src->dgid);
-	memcpy(dst->sgid, src->sgid.raw, sizeof src->sgid);
+	memcpy(dst->dgid, src->dgid.raw, sizeof(src->dgid));
+	memcpy(dst->sgid, src->sgid.raw, sizeof(src->sgid));
 
 	dst->dlid		= htons(ntohl(sa_path_get_dlid(src)));
 	dst->slid		= htons(ntohl(sa_path_get_slid(src)));

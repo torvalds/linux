@@ -29,7 +29,7 @@ struct edid;
 struct cec_adapter;
 struct cec_notifier;
 
-#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+#if IS_REACHABLE(CONFIG_CEC_CORE) && IS_ENABLED(CONFIG_CEC_NOTIFIER)
 
 /**
  * cec_notifier_get - find or create a new cec_notifier for the given device.
@@ -103,6 +103,16 @@ static inline void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa)
 
 static inline void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 							const struct edid *edid)
+{
+}
+
+static inline void cec_notifier_register(struct cec_notifier *n,
+			 struct cec_adapter *adap,
+			 void (*callback)(struct cec_adapter *adap, u16 pa))
+{
+}
+
+static inline void cec_notifier_unregister(struct cec_notifier *n)
 {
 }
 
