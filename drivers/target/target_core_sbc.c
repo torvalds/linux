@@ -1450,7 +1450,7 @@ sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 				 (unsigned long long)sector, sdt->guard_tag,
 				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
 
-			if (sdt->app_tag == cpu_to_be16(0xffff)) {
+			if (sdt->app_tag == T10_PI_APP_ESCAPE) {
 				dsg_off += block_size;
 				goto next;
 			}
