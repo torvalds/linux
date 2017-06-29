@@ -1163,7 +1163,8 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes\n", count);
+	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes for index %d\n", count,
+		hdr->index);
 
 	for (i = 0; i < count; i++) {
 		elem = (struct snd_soc_tplg_dapm_graph_elem *)tplg->pos;
