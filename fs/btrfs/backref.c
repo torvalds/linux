@@ -1580,20 +1580,21 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 /**
  * btrfs_check_shared - tell us whether an extent is shared
  *
- * @trans: optional trans handle
- *
  * btrfs_check_shared uses the backref walking code but will short
  * circuit as soon as it finds a root or inode that doesn't match the
  * one passed in. This provides a significant performance benefit for
  * callers (such as fiemap) which want to know whether the extent is
  * shared but do not need a ref count.
  *
+ * This attempts to allocate a transaction in order to account for
+ * delayed refs, but continues on even when the alloc fails.
+ *
  * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
  */
-int btrfs_check_shared(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info, u64 root_objectid,
-		       u64 inum, u64 bytenr)
+int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_trans_handle *trans;
 	struct ulist *tmp = NULL;
 	struct ulist *roots = NULL;
 	struct ulist_iterator uiter;
@@ -1609,14 +1610,18 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	}
 
-	if (trans)
-		btrfs_get_tree_mod_seq(fs_info, &elem);
-	else
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans)) {
+		trans = NULL;
 		down_read(&fs_info->commit_root_sem);
+	} else {
+		btrfs_get_tree_mod_seq(fs_info, &elem);
+	}
+
 	ULIST_ITER_INIT(&uiter);
 	while (1) {
 		ret = find_parent_nodes(trans, fs_info, bytenr, elem.seq, tmp,
-					roots, NULL, root_objectid, inum, 1);
+					roots, NULL, root->objectid, inum, 1);
 		if (ret == BACKREF_FOUND_SHARED) {
 			/* this is the only condition under which we return 1 */
 			ret = 1;
@@ -1631,10 +1636,13 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 		bytenr = node->val;
 		cond_resched();
 	}
-	if (trans)
+
+	if (trans) {
 		btrfs_put_tree_mod_seq(fs_info, &elem);
-	else
+		btrfs_end_transaction(trans);
+	} else {
 		up_read(&fs_info->commit_root_sem);
+	}
 	ulist_free(tmp);
 	ulist_free(roots);
 	return ret;
