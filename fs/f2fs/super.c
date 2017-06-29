@@ -566,8 +566,6 @@ static void f2fs_put_super(struct super_block *sb)
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	int i;
 
-	stop_gc_thread(sbi);
-
 	/* prevent remaining shrinker jobs */
 	mutex_lock(&sbi->umount_mutex);
 
@@ -1976,8 +1974,11 @@ static struct dentry *f2fs_mount(struct file_system_type *fs_type, int flags,
 
 static void kill_f2fs_super(struct super_block *sb)
 {
-	if (sb->s_root)
+	if (sb->s_root) {
 		set_sbi_flag(F2FS_SB(sb), SBI_IS_CLOSE);
+		stop_gc_thread(F2FS_SB(sb));
+		stop_discard_thread(F2FS_SB(sb));
+	}
 	kill_block_super(sb);
 }
 
