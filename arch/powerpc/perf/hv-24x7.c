@@ -670,7 +670,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 	       event_data_bytes, junk_events, event_idx, event_attr_ct, i,
 	       attr_max, event_idx_last, desc_ct, long_desc_ct;
 	ssize_t ct, ev_len;
-	uint32_t catalog_version_num;
+	uint64_t catalog_version_num;
 	struct attribute **events, **event_descs, **event_long_descs;
 	struct hv_24x7_catalog_page_0 *page_0 =
 		kmem_cache_alloc(hv_page_cache, GFP_KERNEL);
@@ -706,8 +706,8 @@ static int create_events_from_catalog(struct attribute ***events_,
 	event_data_offs   = be16_to_cpu(page_0->event_data_offs);
 	event_data_len    = be16_to_cpu(page_0->event_data_len);
 
-	pr_devel("cv %zu cl %zu eec %zu edo %zu edl %zu\n",
-			(size_t)catalog_version_num, catalog_len,
+	pr_devel("cv %llu cl %zu eec %zu edo %zu edl %zu\n",
+			catalog_version_num, catalog_len,
 			event_entry_count, event_data_offs, event_data_len);
 
 	if ((MAX_4K < event_data_len)
@@ -761,8 +761,8 @@ static int create_events_from_catalog(struct attribute ***events_,
 				catalog_version_num,
 				i + event_data_offs);
 		if (hret) {
-			pr_err("failed to get event data in page %zu\n",
-					i + event_data_offs);
+			pr_err("Failed to get event data in page %zu: rc=%ld\n",
+			       i + event_data_offs, hret);
 			ret = -EIO;
 			goto e_event_data;
 		}
