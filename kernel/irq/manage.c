@@ -1489,7 +1489,6 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 	if (!desc->action) {
 		irq_settings_clr_disable_unlazy(desc);
 		irq_shutdown(desc);
-		irq_remove_timings(desc);
 	}
 
 #ifdef CONFIG_SMP
@@ -1531,8 +1530,10 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 		}
 	}
 
-	if (!desc->action)
+	if (!desc->action) {
 		irq_release_resources(desc);
+		irq_remove_timings(desc);
+	}
 
 	mutex_unlock(&desc->request_mutex);
 
