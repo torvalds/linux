@@ -4337,9 +4337,6 @@ static int ftrace_process_regex(struct ftrace_iterator *iter,
 
 	command = strsep(&next, ":");
 
-	if (WARN_ON_ONCE(!tr))
-		return -EINVAL;
-
 	mutex_lock(&ftrace_cmd_mutex);
 	list_for_each_entry(p, &ftrace_commands, list) {
 		if (strcmp(p->name, command) == 0) {
