@@ -833,6 +833,42 @@ static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev)
 	mutex_unlock(&rdev->qp_lock);
 }
 
+static int bnxt_re_update_gid(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
+	struct bnxt_qplib_gid gid;
+	u16 gid_idx, index;
+	int rc = 0;
+
+	if (!test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
+		return 0;
+
+	if (!sgid_tbl) {
+		dev_err(rdev_to_dev(rdev), "QPLIB: SGID table not allocated");
+		return -EINVAL;
+	}
+
+	for (index = 0; index < sgid_tbl->active; index++) {
+		gid_idx = sgid_tbl->hw_id[index];
+
+		if (!memcmp(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
+			    sizeof(bnxt_qplib_gid_zero)))
+			continue;
+		/* need to modify the VLAN enable setting of non VLAN GID only
+		 * as setting is done for VLAN GID while adding GID
+		 */
+		if (sgid_tbl->vlan[index])
+			continue;
+
+		memcpy(&gid, &sgid_tbl->tbl[index], sizeof(gid));
+
+		rc = bnxt_qplib_update_sgid(sgid_tbl, &gid, gid_idx,
+					    rdev->qplib_res.netdev->dev_addr);
+	}
+
+	return rc;
+}
+
 static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
 {
 	u32 prio_map = 0, tmp_map = 0;
@@ -852,8 +888,6 @@ static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
 	tmp_map = dcb_ieee_getapp_mask(netdev, &app);
 	prio_map |= tmp_map;
 
-	if (!prio_map)
-		prio_map = -EFAULT;
 	return prio_map;
 }
 
@@ -879,10 +913,7 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	int rc;
 
 	/* Get priority for roce */
-	rc = bnxt_re_get_priority_mask(rdev);
-	if (rc < 0)
-		return rc;
-	prio_map = (u8)rc;
+	prio_map = bnxt_re_get_priority_mask(rdev);
 
 	if (prio_map == rdev->cur_prio_map)
 		return 0;
@@ -902,6 +933,16 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 		dev_warn(rdev_to_dev(rdev), "no tc for cos{%x, %x}\n",
 			 rdev->cosq[0], rdev->cosq[1]);
 		return rc;
+	}
+
+	/* Actual priorities are not programmed as they are already
+	 * done by L2 driver; just enable or disable priority vlan tagging
+	 */
+	if ((prio_map == 0 && rdev->qplib_res.prio) ||
+	    (prio_map != 0 && !rdev->qplib_res.prio)) {
+		rdev->qplib_res.prio = prio_map ? true : false;
+
+		bnxt_re_update_gid(rdev);
 	}
 
 	return 0;
