@@ -236,6 +236,9 @@ struct vtime {
 	seqcount_t		seqcount;
 	unsigned long long	starttime;
 	enum vtime_state	state;
+	u64			utime;
+	u64			stime;
+	u64			gtime;
 };
 
 struct sched_info {
