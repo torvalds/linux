@@ -1797,6 +1797,7 @@ static void virtnet_freeze_down(struct virtio_device *vdev)
 	flush_work(&vi->config_work);
 
 	netif_device_detach(vi->dev);
+	netif_tx_disable(vi->dev);
 	cancel_delayed_work_sync(&vi->refill);
 
 	if (netif_running(vi->dev)) {

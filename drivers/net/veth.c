@@ -383,7 +383,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		tbp = tb;
 	}
 
-	if (tbp[IFLA_IFNAME]) {
+	if (ifmp && tbp[IFLA_IFNAME]) {
 		nla_strlcpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
 		name_assign_type = NET_NAME_USER;
 	} else {
@@ -402,7 +402,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		return PTR_ERR(peer);
 	}
 
-	if (tbp[IFLA_ADDRESS] == NULL)
+	if (!ifmp || !tbp[IFLA_ADDRESS])
 		eth_hw_addr_random(peer);
 
 	if (ifmp && (dev->ifindex != 0))

@@ -2330,6 +2330,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tcp_init_send_head(sk);
 	memset(&tp->rx_opt, 0, sizeof(tp->rx_opt));
 	__sk_dst_reset(sk);
+	dst_release(sk->sk_rx_dst);
+	sk->sk_rx_dst = NULL;
 	tcp_saved_syn_free(tp);
 
 	/* Clean up fastopen related fields */

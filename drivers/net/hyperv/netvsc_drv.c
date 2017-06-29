@@ -776,7 +776,7 @@ static int netvsc_set_channels(struct net_device *net,
 	    channels->rx_count || channels->tx_count || channels->other_count)
 		return -EINVAL;
 
-	if (count > net->num_tx_queues || count > net->num_rx_queues)
+	if (count > net->num_tx_queues || count > VRSS_CHANNEL_MAX)
 		return -EINVAL;
 
 	if (!nvdev || nvdev->destroy)
@@ -1203,7 +1203,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
-			if (indir[i] >= dev->num_rx_queues)
+			if (indir[i] >= VRSS_CHANNEL_MAX)
 				return -EINVAL;
 
 		for (i = 0; i < ITAB_NUM; i++)

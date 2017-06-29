@@ -135,6 +135,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 	for (i = 0; i < ci->devcount; i++) {
 		struct com20020_pci_channel_map *cm = &ci->chan_map_tbl[i];
 		struct com20020_dev *card;
+		int dev_id_mask = 0xf;
 
 		dev = alloc_arcdev(device);
 		if (!dev) {
@@ -166,6 +167,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 		arcnet_outb(0x00, ioaddr, COM20020_REG_W_COMMAND);
 		arcnet_inb(ioaddr, COM20020_REG_R_DIAGSTAT);
 
+		SET_NETDEV_DEV(dev, &pdev->dev);
 		dev->base_addr = ioaddr;
 		dev->dev_addr[0] = node;
 		dev->irq = pdev->irq;
@@ -179,8 +181,8 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		/* Get the dev_id from the PLX rotary coder */
 		if (!strncmp(ci->name, "EAE PLX-PCI MA1", 15))
-			dev->dev_id = 0xc;
-		dev->dev_id ^= inb(priv->misc + ci->rotary) >> 4;
+			dev_id_mask = 0x3;
+		dev->dev_id = (inb(priv->misc + ci->rotary) >> 4) & dev_id_mask;
 
 		snprintf(dev->name, sizeof(dev->name), "arc%d-%d", dev->dev_id, i);
 

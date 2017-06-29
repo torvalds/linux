@@ -305,7 +305,7 @@ static int ipip6_tunnel_get_prl(struct ip_tunnel *t,
 	 * we try harder to allocate.
 	 */
 	kp = (cmax <= 1 || capable(CAP_NET_ADMIN)) ?
-		kcalloc(cmax, sizeof(*kp), GFP_KERNEL) :
+		kcalloc(cmax, sizeof(*kp), GFP_KERNEL | __GFP_NOWARN) :
 		NULL;
 
 	rcu_read_lock();
