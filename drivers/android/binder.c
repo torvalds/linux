@@ -2024,8 +2024,8 @@ static int binder_thread_write(struct binder_proc *proc,
 				return -EFAULT;
 			ptr += sizeof(binder_uintptr_t);
 
-			buffer = binder_alloc_buffer_lookup(&proc->alloc,
-							    data_ptr);
+			buffer = binder_alloc_prepare_to_free(&proc->alloc,
+							      data_ptr);
 			if (buffer == NULL) {
 				binder_user_error("%d:%d BC_FREE_BUFFER u%016llx no match\n",
 					proc->pid, thread->pid, (u64)data_ptr);

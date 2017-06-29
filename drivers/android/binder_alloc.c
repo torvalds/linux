@@ -116,7 +116,7 @@ static void binder_insert_allocated_buffer_locked(
 	rb_insert_color(&new_buffer->rb_node, &alloc->allocated_buffers);
 }
 
-static struct binder_buffer *binder_alloc_buffer_lookup_locked(
+static struct binder_buffer *binder_alloc_prepare_to_free_locked(
 		struct binder_alloc *alloc,
 		uintptr_t user_ptr)
 {
@@ -135,8 +135,19 @@ static struct binder_buffer *binder_alloc_buffer_lookup_locked(
 			n = n->rb_left;
 		else if (kern_ptr > buffer)
 			n = n->rb_right;
-		else
+		else {
+			/*
+			 * Guard against user threads attempting to
+			 * free the buffer twice
+			 */
+			if (buffer->free_in_progress) {
+				pr_err("%d:%d FREE_BUFFER u%016llx user freed buffer twice\n",
+				       alloc->pid, current->pid, (u64)user_ptr);
+				return NULL;
+			}
+			buffer->free_in_progress = 1;
 			return buffer;
+		}
 	}
 	return NULL;
 }
@@ -152,13 +163,13 @@ static struct binder_buffer *binder_alloc_buffer_lookup_locked(
  *
  * Return:	Pointer to buffer or NULL
  */
-struct binder_buffer *binder_alloc_buffer_lookup(struct binder_alloc *alloc,
-						 uintptr_t user_ptr)
+struct binder_buffer *binder_alloc_prepare_to_free(struct binder_alloc *alloc,
+						   uintptr_t user_ptr)
 {
 	struct binder_buffer *buffer;
 
 	mutex_lock(&alloc->mutex);
-	buffer = binder_alloc_buffer_lookup_locked(alloc, user_ptr);
+	buffer = binder_alloc_prepare_to_free_locked(alloc, user_ptr);
 	mutex_unlock(&alloc->mutex);
 	return buffer;
 }
@@ -358,6 +369,7 @@ struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
 
 	rb_erase(best_fit, &alloc->free_buffers);
 	buffer->free = 0;
+	buffer->free_in_progress = 0;
 	binder_insert_allocated_buffer_locked(alloc, buffer);
 	if (buffer_size != size) {
 		struct binder_buffer *new_buffer = (void *)buffer->data + size;
