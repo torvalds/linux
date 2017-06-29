@@ -64,6 +64,7 @@
 #include <linux/vmalloc.h>
 #include <linux/ktime.h>
 
+#include <net/switchdev.h>
 #include <net/vxlan.h>
 
 #include "nfpcore/nfp_nsp.h"
@@ -3702,6 +3703,8 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	/* Finalise the netdev setup */
 	netdev->netdev_ops = &nfp_net_netdev_ops;
 	netdev->watchdog_timeo = msecs_to_jiffies(5 * 1000);
+
+	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
 
 	/* MTU range: 68 - hw-specific max */
 	netdev->min_mtu = ETH_MIN_MTU;

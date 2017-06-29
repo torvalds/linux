@@ -106,6 +106,8 @@ struct nfp_port {
 	struct list_head port_list;
 };
 
+extern const struct switchdev_ops nfp_port_switchdev_ops;
+
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
 struct nfp_port *
 nfp_port_from_id(struct nfp_pf *pf, enum nfp_port_type type, unsigned int id);
