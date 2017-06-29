@@ -135,12 +135,11 @@ static void sync_timeline_put(struct sync_timeline *obj)
  */
 static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 {
-	unsigned long flags;
 	struct sync_pt *pt, *next;
 
 	trace_sync_timeline(obj);
 
-	spin_lock_irqsave(&obj->child_list_lock, flags);
+	spin_lock_irq(&obj->child_list_lock);
 
 	obj->value += inc;
 
@@ -150,7 +149,7 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 			list_del_init(&pt->active_list);
 	}
 
-	spin_unlock_irqrestore(&obj->child_list_lock, flags);
+	spin_unlock_irq(&obj->child_list_lock);
 }
 
 /**
@@ -167,7 +166,6 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 static struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size,
 			     unsigned int value)
 {
-	unsigned long flags;
 	struct sync_pt *pt;
 
 	if (size < sizeof(*pt))
@@ -177,13 +175,16 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size,
 	if (!pt)
 		return NULL;
 
-	spin_lock_irqsave(&obj->child_list_lock, flags);
+	spin_lock_irq(&obj->child_list_lock);
+
 	sync_timeline_get(obj);
 	dma_fence_init(&pt->base, &timeline_fence_ops, &obj->child_list_lock,
 		       obj->context, value);
 	list_add_tail(&pt->child_list, &obj->child_list_head);
 	INIT_LIST_HEAD(&pt->active_list);
-	spin_unlock_irqrestore(&obj->child_list_lock, flags);
+
+	spin_unlock_irq(&obj->child_list_lock);
+
 	return pt;
 }
 
@@ -206,9 +207,11 @@ static void timeline_fence_release(struct dma_fence *fence)
 	unsigned long flags;
 
 	spin_lock_irqsave(fence->lock, flags);
+
 	list_del(&pt->child_list);
 	if (!list_empty(&pt->active_list))
 		list_del(&pt->active_list);
+
 	spin_unlock_irqrestore(fence->lock, flags);
 
 	sync_timeline_put(parent);

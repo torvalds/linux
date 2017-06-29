@@ -116,17 +116,16 @@ static void sync_print_fence(struct seq_file *s,
 static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 {
 	struct list_head *pos;
-	unsigned long flags;
 
 	seq_printf(s, "%s: %d\n", obj->name, obj->value);
 
-	spin_lock_irqsave(&obj->child_list_lock, flags);
+	spin_lock_irq(&obj->child_list_lock);
 	list_for_each(pos, &obj->child_list_head) {
 		struct sync_pt *pt =
 			container_of(pos, struct sync_pt, child_list);
 		sync_print_fence(s, &pt->base, false);
 	}
-	spin_unlock_irqrestore(&obj->child_list_lock, flags);
+	spin_unlock_irq(&obj->child_list_lock);
 }
 
 static void sync_print_sync_file(struct seq_file *s,
@@ -151,12 +150,11 @@ static void sync_print_sync_file(struct seq_file *s,
 
 static int sync_debugfs_show(struct seq_file *s, void *unused)
 {
-	unsigned long flags;
 	struct list_head *pos;
 
 	seq_puts(s, "objs:\n--------------\n");
 
-	spin_lock_irqsave(&sync_timeline_list_lock, flags);
+	spin_lock_irq(&sync_timeline_list_lock);
 	list_for_each(pos, &sync_timeline_list_head) {
 		struct sync_timeline *obj =
 			container_of(pos, struct sync_timeline,
@@ -165,11 +163,11 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 		sync_print_obj(s, obj);
 		seq_putc(s, '\n');
 	}
-	spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
+	spin_unlock_irq(&sync_timeline_list_lock);
 
 	seq_puts(s, "fences:\n--------------\n");
 
-	spin_lock_irqsave(&sync_file_list_lock, flags);
+	spin_lock_irq(&sync_file_list_lock);
 	list_for_each(pos, &sync_file_list_head) {
 		struct sync_file *sync_file =
 			container_of(pos, struct sync_file, sync_file_list);
@@ -177,7 +175,7 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 		sync_print_sync_file(s, sync_file);
 		seq_putc(s, '\n');
 	}
-	spin_unlock_irqrestore(&sync_file_list_lock, flags);
+	spin_unlock_irq(&sync_file_list_lock);
 	return 0;
 }
 
