@@ -201,6 +201,9 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	struct intel_vgpu *vgpu = workload->vgpu;
 	int ret;
 
+	if (workload->shadowed)
+		return 0;
+
 	shadow_ctx->desc_template &= ~(0x3 << GEN8_CTX_ADDRESSING_MODE_SHIFT);
 	shadow_ctx->desc_template |= workload->ctx_desc.addressing_mode <<
 				    GEN8_CTX_ADDRESSING_MODE_SHIFT;
@@ -228,6 +231,10 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	}
 
 	ret = populate_shadow_context(workload);
+	if (ret)
+		goto out;
+
+	workload->shadowed = true;
 
 out:
 	return ret;
