@@ -143,6 +143,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	mtmsrd	r11,1
 #endif /* CONFIG_PPC_BOOK3E */
 
+system_call:			/* label this so stack traces look sane */
 	/* We do need to set SOFTE in the stack frame or the return
 	 * from interrupt will be painful
 	 */
@@ -156,7 +157,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	cmpldi	0,r0,NR_syscalls
 	bge-	.Lsyscall_enosys
 
-system_call:			/* label this so stack traces look sane */
+.Lsyscall:
 /*
  * Need to vector to 32 Bit or default sys_call_table here,
  * based on caller's run-mode / personality.
@@ -310,13 +311,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r7,GPR7(r1)
 	ld	r8,GPR8(r1)
 
-	/* Repopulate r9 and r10 for the system_call path */
+	/* Repopulate r9 and r10 for the syscall path */
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 	CURRENT_THREAD_INFO(r10, r1)
 	ld	r10,TI_FLAGS(r10)
 
 	cmpldi	r0,NR_syscalls
-	blt+	system_call
+	blt+	.Lsyscall
 
 	/* Return code is already in r3 thanks to do_syscall_trace_enter() */
 	b	.Lsyscall_exit
