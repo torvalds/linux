@@ -299,10 +299,11 @@ static int ref_tree_add(struct ref_root *ref_tree, u64 root_id, u64 object_id,
 	return 0;
 }
 
-static int check_extent_in_eb(struct btrfs_key *key, struct extent_buffer *eb,
-				struct btrfs_file_extent_item *fi,
-				u64 extent_item_pos,
-				struct extent_inode_elem **eie)
+static int check_extent_in_eb(const struct btrfs_key *key,
+			      const struct extent_buffer *eb,
+			      const struct btrfs_file_extent_item *fi,
+			      u64 extent_item_pos,
+			      struct extent_inode_elem **eie)
 {
 	u64 offset = 0;
 	struct extent_inode_elem *e;
@@ -344,9 +345,9 @@ static void free_inode_elem_list(struct extent_inode_elem *eie)
 	}
 }
 
-static int find_extent_in_eb(struct extent_buffer *eb, u64 wanted_disk_byte,
-				u64 extent_item_pos,
-				struct extent_inode_elem **eie)
+static int find_extent_in_eb(const struct extent_buffer *eb,
+			     u64 wanted_disk_byte, u64 extent_item_pos,
+			     struct extent_inode_elem **eie)
 {
 	u64 disk_byte;
 	struct btrfs_key key;
@@ -456,7 +457,7 @@ void btrfs_prelim_ref_exit(void)
  */
 
 static int __add_prelim_ref(struct list_head *head, u64 root_id,
-			    struct btrfs_key *key, int level,
+			    const struct btrfs_key *key, int level,
 			    u64 parent, u64 wanted_disk_byte, int count,
 			    gfp_t gfp_mask)
 {
@@ -1649,7 +1650,7 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_inode_extref *extref;
-	struct extent_buffer *leaf;
+	const struct extent_buffer *leaf;
 	unsigned long ptr;
 
 	key.objectid = inode_objectid;
@@ -1806,7 +1807,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	u64 flags;
 	u64 size = 0;
 	u32 item_size;
-	struct extent_buffer *eb;
+	const struct extent_buffer *eb;
 	struct btrfs_extent_item *ei;
 	struct btrfs_key key;
 
@@ -1874,9 +1875,11 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
  * next ref. after the last ref was processed, 1 is returned.
  * returns <0 on error
  */
-static int __get_extent_inline_ref(unsigned long *ptr, struct extent_buffer *eb,
-				   struct btrfs_key *key,
-				   struct btrfs_extent_item *ei, u32 item_size,
+static int __get_extent_inline_ref(unsigned long *ptr,
+				   const struct extent_buffer *eb,
+				   const struct btrfs_key *key,
+				   const struct btrfs_extent_item *ei,
+				   u32 item_size,
 				   struct btrfs_extent_inline_ref **out_eiref,
 				   int *out_type)
 {
