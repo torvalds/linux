@@ -97,8 +97,10 @@ struct rockchip_hdmi {
 	struct drm_property *hdmi_output_property;
 	struct drm_property *colordepth_capacity;
 	struct drm_property *outputmode_capacity;
+	struct drm_property *colorimetry_property;
 
 	unsigned int colordepth;
+	unsigned int colorimetry;
 	enum drm_hdmi_output_type hdmi_output;
 };
 
@@ -688,8 +690,10 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			*eotf = hdr_metadata->eotf;
 	}
 
-	if (*eotf > TRADITIONAL_GAMMA_HDR &&
-	    info->hdmi.hdr_panel_metadata.eotf & BIT(*eotf))
+	if ((*eotf > TRADITIONAL_GAMMA_HDR &&
+	     info->hdmi.hdr_panel_metadata.eotf & BIT(*eotf)) ||
+	    (hdmi->colorimetry == HDMI_EXTENDED_COLORIMETRY_BT2020 &&
+	     info->hdmi.colorimetry & (BIT(6) | BIT(7))))
 		*enc_out_encoding = V4L2_YCBCR_ENC_BT2020;
 	else if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
 		   (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18))
@@ -698,8 +702,9 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		*enc_out_encoding = V4L2_YCBCR_ENC_709;
 
 	if (*enc_out_encoding == V4L2_YCBCR_ENC_BT2020) {
-		/* According to ITU.BT2020, color depth is at lest 10bit */
+		/* BT2020 require color depth at lest 10bit */
 		*color_depth = 10;
+		/* We prefer use YCbCr422 to send 10bit */
 		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 			*color_format = DRM_HDMI_OUTPUT_YCBCR422;
 	}
@@ -789,6 +794,14 @@ dw_hdmi_rockchip_get_output_bus_format(void *data)
 }
 
 static unsigned long
+dw_hdmi_rockchip_get_enc_in_encoding(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return hdmi->enc_out_encoding;
+}
+
+static unsigned long
 dw_hdmi_rockchip_get_enc_out_encoding(void *data)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
@@ -810,6 +823,12 @@ static const struct drm_prop_enum_list drm_hdmi_output_enum_list[] = {
 	{ DRM_HDMI_OUTPUT_YCBCR_HQ, "output_ycbcr_high_subsampling" },
 	{ DRM_HDMI_OUTPUT_YCBCR_LQ, "output_ycbcr_low_subsampling" },
 	{ DRM_HDMI_OUTPUT_INVALID, "invalid_output" },
+};
+
+static const struct drm_prop_enum_list colorimetry_enum_list[] = {
+	{ HDMI_COLORIMETRY_NONE, "None" },
+	{ HDMI_COLORIMETRY_EXTENDED + HDMI_EXTENDED_COLORIMETRY_BT2020,
+	  "ITU_2020" },
 };
 
 static void
@@ -837,6 +856,15 @@ dw_hdmi_rockchip_attatch_properties(struct drm_connector *connector,
 					ARRAY_SIZE(drm_hdmi_output_enum_list));
 	if (prop) {
 		hdmi->hdmi_output_property = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
+	prop = drm_property_create_enum(connector->dev, 0,
+					"hdmi_output_colorimetry",
+					colorimetry_enum_list,
+					ARRAY_SIZE(colorimetry_enum_list));
+	if (prop) {
+		hdmi->colorimetry_property = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
@@ -893,6 +921,12 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 				     hdmi->outputmode_capacity);
 		hdmi->outputmode_capacity = NULL;
 	}
+
+	if (hdmi->colorimetry_property) {
+		drm_property_destroy(connector->dev,
+				     hdmi->colorimetry_property);
+		hdmi->colordepth_capacity = NULL;
+	}
 }
 
 static int
@@ -912,6 +946,9 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		hdmi->hdmi_output = val;
 		return 0;
 	} else if (property == config->hdr_source_metadata_property) {
+		return 0;
+	} else if (property == hdmi->colorimetry_property) {
+		hdmi->colorimetry = val;
 		return 0;
 	}
 
@@ -967,6 +1004,9 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 		return 0;
 	} else if (property == config->hdr_source_metadata_property) {
 		*val = conn_state->blob_id;
+		return 0;
+	} else if (property == hdmi->colorimetry_property) {
+		*val = hdmi->colorimetry;
 		return 0;
 	}
 
@@ -1121,6 +1161,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_input_bus_format;
 	plat_data->get_output_bus_format =
 		dw_hdmi_rockchip_get_output_bus_format;
+	plat_data->get_enc_in_encoding =
+		dw_hdmi_rockchip_get_enc_in_encoding;
 	plat_data->get_enc_out_encoding =
 		dw_hdmi_rockchip_get_enc_out_encoding;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
