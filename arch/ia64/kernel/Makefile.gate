@@ -1,8 +1,6 @@
 # The gate DSO image is built using a special linker script.
 
-targets += gate.so gate-syms.o
-
-extra-y += gate.so gate-syms.o gate.lds gate.o
+targets += gate.so gate-syms.o gate.lds gate.o
 
 CPPFLAGS_gate.lds := -P -C -U$(ARCH)
 
