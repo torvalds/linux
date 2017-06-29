@@ -300,6 +300,8 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_PORT_STATE,		/* u8 */
 	RDMA_NLDEV_ATTR_PORT_PHYS_STATE,	/* u8 */
 
+	RDMA_NLDEV_ATTR_DEV_NODE_TYPE,		/* u8 */
+
 	RDMA_NLDEV_ATTR_MAX
 };
 #endif /* _UAPI_RDMA_NETLINK_H */
