@@ -1128,6 +1128,11 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		}
 		/* Each SGE entry = 1 WQE size16 */
 		wqe_size16 = wqe->num_sge;
+		/* HW requires wqe size has room for atleast one SGE even if
+		 * none was supplied by ULP
+		 */
+		if (!wqe->num_sge)
+			wqe_size16++;
 	}
 
 	/* Specifics */
@@ -1364,6 +1369,11 @@ int bnxt_qplib_post_recv(struct bnxt_qplib_qp *qp,
 	rqe->flags = wqe->flags;
 	rqe->wqe_size = wqe->num_sge +
 			((offsetof(typeof(*rqe), data) + 15) >> 4);
+	/* HW requires wqe size has room for atleast one SGE even if none
+	 * was supplied by ULP
+	 */
+	if (!wqe->num_sge)
+		rqe->wqe_size++;
 
 	/* Supply the rqe->wr_id index to the wr_id_tbl for now */
 	rqe->wr_id[0] = cpu_to_le32(sw_prod);
