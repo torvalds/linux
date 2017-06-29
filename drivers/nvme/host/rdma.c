@@ -741,6 +741,9 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 		ret = nvme_rdma_connect_io_queues(ctrl);
 		if (ret)
 			goto requeue;
+
+		blk_mq_update_nr_hw_queues(&ctrl->tag_set,
+				ctrl->ctrl.queue_count - 1);
 	}
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
@@ -1727,6 +1730,9 @@ static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
 		ret = nvme_rdma_connect_io_queues(ctrl);
 		if (ret)
 			goto del_dead_ctrl;
+
+		blk_mq_update_nr_hw_queues(&ctrl->tag_set,
+				ctrl->ctrl.queue_count - 1);
 	}
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
