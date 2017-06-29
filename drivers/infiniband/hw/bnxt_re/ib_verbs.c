@@ -612,30 +612,13 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 	int rc;
 
 	bnxt_re_destroy_fence_mr(pd);
-	if (ib_pd->uobject && pd->dpi.dbr) {
-		struct ib_ucontext *ib_uctx = ib_pd->uobject->context;
-		struct bnxt_re_ucontext *ucntx;
 
-		/* Free DPI only if this is the first PD allocated by the
-		 * application and mark the context dpi as NULL
-		 */
-		ucntx = container_of(ib_uctx, struct bnxt_re_ucontext, ib_uctx);
-
-		rc = bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
-					    &rdev->qplib_res.dpi_tbl,
-					    &pd->dpi);
+	if (pd->qplib_pd.id) {
+		rc = bnxt_qplib_dealloc_pd(&rdev->qplib_res,
+					   &rdev->qplib_res.pd_tbl,
+					   &pd->qplib_pd);
 		if (rc)
-			dev_err(rdev_to_dev(rdev), "Failed to deallocate HW DPI");
-			/* Don't fail, continue*/
-		ucntx->dpi = NULL;
-	}
-
-	rc = bnxt_qplib_dealloc_pd(&rdev->qplib_res,
-				   &rdev->qplib_res.pd_tbl,
-				   &pd->qplib_pd);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Failed to deallocate HW PD");
-		return rc;
+			dev_err(rdev_to_dev(rdev), "Failed to deallocate HW PD");
 	}
 
 	kfree(pd);
@@ -667,23 +650,22 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 	if (udata) {
 		struct bnxt_re_pd_resp resp;
 
-		if (!ucntx->dpi) {
+		if (!ucntx->dpi.dbr) {
 			/* Allocate DPI in alloc_pd to avoid failing of
 			 * ibv_devinfo and family of application when DPIs
 			 * are depleted.
 			 */
 			if (bnxt_qplib_alloc_dpi(&rdev->qplib_res.dpi_tbl,
-						 &pd->dpi, ucntx)) {
+						 &ucntx->dpi, ucntx)) {
 				rc = -ENOMEM;
 				goto dbfail;
 			}
-			ucntx->dpi = &pd->dpi;
 		}
 
 		resp.pdid = pd->qplib_pd.id;
 		/* Still allow mapping this DBR to the new user PD. */
-		resp.dpi = ucntx->dpi->dpi;
-		resp.dbr = (u64)ucntx->dpi->umdbr;
+		resp.dpi = ucntx->dpi.dpi;
+		resp.dbr = (u64)ucntx->dpi.umdbr;
 
 		rc = ib_copy_to_udata(udata, &resp, sizeof(resp));
 		if (rc) {
@@ -960,7 +942,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		qplib_qp->rq.nmap = umem->nmap;
 	}
 
-	qplib_qp->dpi = cntx->dpi;
+	qplib_qp->dpi = &cntx->dpi;
 	return 0;
 rqfail:
 	ib_umem_release(qp->sumem);
@@ -2403,7 +2385,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		}
 		cq->qplib_cq.sghead = cq->umem->sg_head.sgl;
 		cq->qplib_cq.nmap = cq->umem->nmap;
-		cq->qplib_cq.dpi = uctx->dpi;
+		cq->qplib_cq.dpi = &uctx->dpi;
 	} else {
 		cq->max_cql = min_t(u32, entries, MAX_CQL_PER_POLL);
 		cq->cql = kcalloc(cq->max_cql, sizeof(struct bnxt_qplib_cqe),
@@ -3388,8 +3370,26 @@ int bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 	struct bnxt_re_ucontext *uctx = container_of(ib_uctx,
 						   struct bnxt_re_ucontext,
 						   ib_uctx);
+
+	struct bnxt_re_dev *rdev = uctx->rdev;
+	int rc = 0;
+
 	if (uctx->shpg)
 		free_page((unsigned long)uctx->shpg);
+
+	if (uctx->dpi.dbr) {
+		/* Free DPI only if this is the first PD allocated by the
+		 * application and mark the context dpi as NULL
+		 */
+		rc = bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
+					    &rdev->qplib_res.dpi_tbl,
+					    &uctx->dpi);
+		if (rc)
+			dev_err(rdev_to_dev(rdev), "Deallocte HW DPI failed!");
+			/* Don't fail, continue*/
+		uctx->dpi.dbr = NULL;
+	}
+
 	kfree(uctx);
 	return 0;
 }
