@@ -184,7 +184,7 @@ typedef struct siginfo {
 #define SI_TIMER __SI_CODE(__SI_TIMER,-2) /* sent by timer expiration */
 #define SI_MESGQ __SI_CODE(__SI_MESGQ,-3) /* sent by real time mesq state change */
 #define SI_ASYNCIO	-4		/* sent by AIO completion */
-#define SI_SIGIO	-5		/* sent by queued SIGIO */
+#define SI_SIGIO __SI_CODE(__SI_POLL,-5) /* sent by queued SIGIO */
 #define SI_TKILL	-6		/* sent by tkill system call */
 #define SI_DETHREAD	-7		/* sent by execve() killing subsidiary threads */
 
@@ -259,7 +259,7 @@ typedef struct siginfo {
 #define NSIGCHLD	6
 
 /*
- * SIGPOLL si_codes
+ * SIGPOLL (or any other signal without signal specific si_codes) si_codes
  */
 #define POLL_IN		(__SI_POLL|1)	/* data input available */
 #define POLL_OUT	(__SI_POLL|2)	/* output buffers available */
