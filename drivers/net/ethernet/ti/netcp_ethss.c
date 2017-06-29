@@ -2503,24 +2503,8 @@ static bool gbe_need_txtstamp(struct gbe_intf *gbe_intf,
 			      const struct netcp_packet *p_info)
 {
 	struct sk_buff *skb = p_info->skb;
-	unsigned int class = ptp_classify_raw(skb);
 
-	if (class == PTP_CLASS_NONE)
-		return false;
-
-	switch (class) {
-	case PTP_CLASS_V1_IPV4:
-	case PTP_CLASS_V1_IPV6:
-	case PTP_CLASS_V2_IPV4:
-	case PTP_CLASS_V2_IPV6:
-	case PTP_CLASS_V2_L2:
-	case (PTP_CLASS_V2_VLAN | PTP_CLASS_L2):
-	case (PTP_CLASS_V2_VLAN | PTP_CLASS_IPV4):
-	case (PTP_CLASS_V2_VLAN | PTP_CLASS_IPV6):
-		return true;
-	}
-
-	return false;
+	return cpts_can_timestamp(gbe_intf->gbe_dev->cpts, skb);
 }
 
 static int gbe_txtstamp_mark_pkt(struct gbe_intf *gbe_intf,
