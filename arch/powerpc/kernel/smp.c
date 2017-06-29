@@ -957,6 +957,8 @@ static void add_cpu_to_masks(int cpu)
 			set_cpus_related(cpu, i, cpu_core_mask);
 }
 
+static bool shared_caches;
+
 /* Activate a secondary processor. */
 void start_secondary(void *unused)
 {
@@ -985,6 +987,13 @@ void start_secondary(void *unused)
 #endif
 	/* Update topology CPU masks */
 	add_cpu_to_masks(cpu);
+
+	/*
+	 * Check for any shared caches. Note that this must be done on a
+	 * per-core basis because one core in the pair might be disabled.
+	 */
+	if (!cpumask_equal(cpu_l2_cache_mask(cpu), cpu_sibling_mask(cpu)))
+		shared_caches = true;
 
 	set_numa_node(numa_cpu_lookup_table[cpu]);
 	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
@@ -1027,6 +1036,35 @@ static struct sched_domain_topology_level powerpc_topology[] = {
 	{ NULL, },
 };
 
+/*
+ * P9 has a slightly odd architecture where pairs of cores share an L2 cache.
+ * This topology makes it *much* cheaper to migrate tasks between adjacent cores
+ * since the migrated task remains cache hot. We want to take advantage of this
+ * at the scheduler level so an extra topology level is required.
+ */
+static int powerpc_shared_cache_flags(void)
+{
+	return SD_SHARE_PKG_RESOURCES;
+}
+
+/*
+ * We can't just pass cpu_l2_cache_mask() directly because
+ * returns a non-const pointer and the compiler barfs on that.
+ */
+static const struct cpumask *shared_cache_mask(int cpu)
+{
+	return cpu_l2_cache_mask(cpu);
+}
+
+static struct sched_domain_topology_level power9_topology[] = {
+#ifdef CONFIG_SCHED_SMT
+	{ cpu_smt_mask, powerpc_smt_flags, SD_INIT_NAME(SMT) },
+#endif
+	{ shared_cache_mask, powerpc_shared_cache_flags, SD_INIT_NAME(CACHE) },
+	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
+	{ NULL, },
+};
+
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	/*
@@ -1040,7 +1078,17 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 	dump_numa_cpu_topology();
 
-	set_sched_topology(powerpc_topology);
+	/*
+	 * If any CPU detects that it's sharing a cache with another CPU then
+	 * use the deeper topology that is aware of this sharing.
+	 */
+	if (shared_caches) {
+		pr_info("Using shared cache scheduler topology\n");
+		set_sched_topology(power9_topology);
+	} else {
+		pr_info("Using standard scheduler topology\n");
+		set_sched_topology(powerpc_topology);
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
