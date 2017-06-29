@@ -47,6 +47,7 @@ Optional Property:
 	using 24MHz OSC for RC's PHY.
 - ep-gpios: contain the entry for pre-reset gpio
 - num-lanes: number of lanes to use
+- vpcie12v-supply: The phandle to the 12v regulator to use for PCIe.
 - vpcie3v3-supply: The phandle to the 3.3v regulator to use for PCIe.
 - vpcie1v8-supply: The phandle to the 1.8v regulator to use for PCIe.
 - vpcie0v9-supply: The phandle to the 0.9v regulator to use for PCIe.
