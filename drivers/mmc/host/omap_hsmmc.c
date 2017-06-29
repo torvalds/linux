@@ -2322,7 +2322,7 @@ static int omap_hsmmc_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops omap_hsmmc_dev_pm_ops = {
+static const struct dev_pm_ops omap_hsmmc_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(omap_hsmmc_suspend, omap_hsmmc_resume)
 	.runtime_suspend = omap_hsmmc_runtime_suspend,
 	.runtime_resume = omap_hsmmc_runtime_resume,
