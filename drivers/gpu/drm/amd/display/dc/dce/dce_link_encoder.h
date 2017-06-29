@@ -50,7 +50,6 @@
 	SR(DMCU_IRAM_RD_CTRL), \
 	SR(DMCU_IRAM_RD_DATA), \
 	SR(DMCU_INTERRUPT_TO_UC_EN_MASK), \
-	SR(SMU_INTERRUPT_CONTROL), \
 	SRI(DIG_BE_CNTL, DIG, id), \
 	SRI(DIG_BE_EN_CNTL, DIG, id), \
 	SRI(DP_CONFIG, DP, id), \
@@ -137,7 +136,6 @@ struct dce110_link_enc_registers {
 	uint32_t DMCU_IRAM_RD_CTRL;
 	uint32_t DMCU_IRAM_RD_DATA;
 	uint32_t DMCU_INTERRUPT_TO_UC_EN_MASK;
-	uint32_t SMU_INTERRUPT_CONTROL;
 
 	/* Common DP registers */
 	uint32_t DIG_BE_CNTL;
