@@ -50,7 +50,6 @@ void leave_mm(int cpu)
 
 	switch_mm(NULL, &init_mm, NULL);
 }
-EXPORT_SYMBOL_GPL(leave_mm);
 
 void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	       struct task_struct *tsk)
@@ -117,15 +116,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
 				       next_tlb_gen);
 			write_cr3(__pa(next->pgd));
-
-			/*
-			 * This gets called via leave_mm() in the idle path
-			 * where RCU functions differently.  Tracing normally
-			 * uses RCU, so we have to call the tracepoint
-			 * specially here.
-			 */
-			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,
-						TLB_FLUSH_ALL);
+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
+					TLB_FLUSH_ALL);
 		}
 
 		/*
@@ -167,13 +159,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		this_cpu_write(cpu_tlbstate.loaded_mm, next);
 		write_cr3(__pa(next->pgd));
 
-		/*
-		 * This gets called via leave_mm() in the idle path where RCU
-		 * functions differently.  Tracing normally uses RCU, so we
-		 * have to call the tracepoint specially here.
-		 */
-		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,
-					TLB_FLUSH_ALL);
+		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 	}
 
 	load_mm_cr4(next);
