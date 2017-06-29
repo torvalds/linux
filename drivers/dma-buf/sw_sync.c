@@ -345,6 +345,11 @@ static long sw_sync_ioctl_inc(struct sync_timeline *obj, unsigned long arg)
 	if (copy_from_user(&value, (void __user *)arg, sizeof(value)))
 		return -EFAULT;
 
+	while (value > INT_MAX)  {
+		sync_timeline_signal(obj, INT_MAX);
+		value -= INT_MAX;
+	}
+
 	sync_timeline_signal(obj, value);
 
 	return 0;
