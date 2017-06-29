@@ -52,6 +52,7 @@ Board compatible values (alphabetically, grouped by SoC):
   - "amlogic,p212" (Meson gxl s905x)
   - "hwacom,amazetv" (Meson gxl s905x)
   - "khadas,vim" (Meson gxl s905x)
+  - "libretech,cc" (Meson gxl s905x)
 
   - "amlogic,p230" (Meson gxl s905d)
   - "amlogic,p231" (Meson gxl s905d)
