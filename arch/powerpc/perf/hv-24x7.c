@@ -264,9 +264,8 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 	return start + nl + dl + ldl;
 }
 
-static unsigned long h_get_24x7_catalog_page_(unsigned long phys_4096,
-					      unsigned long version,
-					      unsigned long index)
+static long h_get_24x7_catalog_page_(unsigned long phys_4096,
+				     unsigned long version, unsigned long index)
 {
 	pr_devel("h_get_24x7_catalog_page(0x%lx, %lu, %lu)",
 			phys_4096, version, index);
@@ -277,8 +276,7 @@ static unsigned long h_get_24x7_catalog_page_(unsigned long phys_4096,
 			phys_4096, version, index);
 }
 
-static unsigned long h_get_24x7_catalog_page(char page[],
-					     u64 version, u32 index)
+static long h_get_24x7_catalog_page(char page[], u64 version, u32 index)
 {
 	return h_get_24x7_catalog_page_(virt_to_phys(page),
 					version, index);
@@ -668,7 +666,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 				      struct attribute ***event_descs_,
 				      struct attribute ***event_long_descs_)
 {
-	unsigned long hret;
+	long hret;
 	size_t catalog_len, catalog_page_len, event_entry_count,
 	       event_data_len, event_data_offs,
 	       event_data_bytes, junk_events, event_idx, event_attr_ct, i,
@@ -907,7 +905,7 @@ static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
 			    struct bin_attribute *bin_attr, char *buf,
 			    loff_t offset, size_t count)
 {
-	unsigned long hret;
+	long hret;
 	ssize_t ret = 0;
 	size_t catalog_len = 0, catalog_page_len = 0;
 	loff_t page_offset = 0;
@@ -992,7 +990,7 @@ static ssize_t _name##_show(struct device *dev,			\
 			    struct device_attribute *dev_attr,	\
 			    char *buf)				\
 {								\
-	unsigned long hret;					\
+	long hret;						\
 	ssize_t ret = 0;					\
 	void *page = kmem_cache_alloc(hv_page_cache, GFP_USER);	\
 	struct hv_24x7_catalog_page_0 *page_0 = page;		\
@@ -1065,7 +1063,7 @@ static void init_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 			     struct hv_24x7_data_result_buffer *result_buffer)
 {
-	unsigned long ret;
+	long ret;
 
 	/*
 	 * NOTE: Due to variable number of array elements in request and
@@ -1085,9 +1083,10 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 				      req->starting_ix, req->starting_lpar_ix,
 				      ret, ret, result_buffer->detailed_rc,
 				      result_buffer->failing_request_ix);
+		return -EIO;
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -1135,10 +1134,10 @@ static int add_event_to_24x7_request(struct perf_event *event,
 	return 0;
 }
 
-static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
+static int single_24x7_request(struct perf_event *event, u64 *count)
 {
+	int ret;
 	u16 num_elements;
-	unsigned long ret;
 	struct hv_24x7_result *result;
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
@@ -1253,10 +1252,9 @@ static int h_24x7_event_init(struct perf_event *event)
 
 static u64 h_24x7_get_value(struct perf_event *event)
 {
-	unsigned long ret;
 	u64 ct;
-	ret = single_24x7_request(event, &ct);
-	if (ret)
+
+	if (single_24x7_request(event, &ct))
 		/* We checked this in event init, shouldn't fail here... */
 		return 0;
 
