@@ -306,6 +306,7 @@ static int gemini_clk_probe(struct platform_device *pdev)
 	gemini_clk_data->hws[GEMINI_CLK_RTC] = hw;
 
 	/* CPU clock derived as a fixed ratio from the AHB clock */
+	regmap_read(map, GEMINI_GLOBAL_STATUS, &val);
 	val >>= CPU_AHB_RATIO_SHIFT;
 	val &= CPU_AHB_RATIO_MASK;
 	hw = clk_hw_register_fixed_factor(NULL, "cpu", "ahb", 0,
