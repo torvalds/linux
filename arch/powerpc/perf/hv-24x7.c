@@ -1044,21 +1044,6 @@ static const struct attribute_group *attr_groups[] = {
 	NULL,
 };
 
-static void log_24x7_hcall(struct hv_24x7_request_buffer *request_buffer,
-			   struct hv_24x7_data_result_buffer *result_buffer,
-			   unsigned long ret)
-{
-	struct hv_24x7_request *req;
-
-	req = &request_buffer->requests[0];
-	pr_notice_ratelimited("hcall failed: [%d %#x %#x %d] => "
-			"ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
-			req->performance_domain, req->data_offset,
-			req->starting_ix, req->starting_lpar_ix, ret, ret,
-			result_buffer->detailed_rc,
-			result_buffer->failing_request_ix);
-}
-
 /*
  * Start the process for a new H_GET_24x7_DATA hcall.
  */
@@ -1091,8 +1076,16 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 			virt_to_phys(request_buffer), H24x7_DATA_BUFFER_SIZE,
 			virt_to_phys(result_buffer),  H24x7_DATA_BUFFER_SIZE);
 
-	if (ret)
-		log_24x7_hcall(request_buffer, result_buffer, ret);
+	if (ret) {
+		struct hv_24x7_request *req;
+
+		req = &request_buffer->requests[0];
+		pr_notice_ratelimited("hcall failed: [%d %#x %#x %d] => ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
+				      req->performance_domain, req->data_offset,
+				      req->starting_ix, req->starting_lpar_ix,
+				      ret, ret, result_buffer->detailed_rc,
+				      result_buffer->failing_request_ix);
+	}
 
 	return ret;
 }
@@ -1163,10 +1156,8 @@ static unsigned long single_24x7_request(struct perf_event *event, u64 *count)
 		goto out;
 
 	ret = make_24x7_request(request_buffer, result_buffer);
-	if (ret) {
-		log_24x7_hcall(request_buffer, result_buffer, ret);
+	if (ret)
 		goto out;
-	}
 
 	result = result_buffer->results;
 
@@ -1428,10 +1419,8 @@ static int h_24x7_event_commit_txn(struct pmu *pmu)
 	result_buffer = (void *)get_cpu_var(hv_24x7_resb);
 
 	ret = make_24x7_request(request_buffer, result_buffer);
-	if (ret) {
-		log_24x7_hcall(request_buffer, result_buffer, ret);
+	if (ret)
 		goto put_reqb;
-	}
 
 	h24x7hw = &get_cpu_var(hv_24x7_hw);
 
