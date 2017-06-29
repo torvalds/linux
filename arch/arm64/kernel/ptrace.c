@@ -937,9 +937,6 @@ static int compat_vfp_set(struct task_struct *target,
 	compat_ulong_t fpscr;
 	int ret;
 
-	if (pos + count > VFP_STATE_SIZE)
-		return -EIO;
-
 	uregs = &target->thread.fpsimd_state.user_fpsimd;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, uregs, 0,
