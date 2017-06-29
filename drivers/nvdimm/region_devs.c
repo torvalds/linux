@@ -833,7 +833,7 @@ int nd_blk_region_init(struct nd_region *nd_region)
 		return 0;
 
 	if (nd_region->ndr_mappings < 1) {
-		dev_err(dev, "invalid BLK region\n");
+		dev_dbg(dev, "invalid BLK region\n");
 		return -ENXIO;
 	}
 
