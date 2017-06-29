@@ -640,7 +640,7 @@ void hmm_vunmap(ia_css_ptr virt)
 		return;
 	}
 
-	return hmm_bo_vunmap(bo);
+	hmm_bo_vunmap(bo);
 }
 
 int hmm_pool_register(unsigned int pool_size,
