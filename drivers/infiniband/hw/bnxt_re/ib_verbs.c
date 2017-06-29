@@ -145,10 +145,8 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->fw_ver = (u64)(unsigned long)(dev_attr->fw_ver);
 	bnxt_qplib_get_guid(rdev->netdev->dev_addr,
 			    (u8 *)&ib_attr->sys_image_guid);
-	ib_attr->max_mr_size = ~0ull;
-	ib_attr->page_size_cap = BNXT_RE_PAGE_SIZE_4K | BNXT_RE_PAGE_SIZE_8K |
-				 BNXT_RE_PAGE_SIZE_64K | BNXT_RE_PAGE_SIZE_2M |
-				 BNXT_RE_PAGE_SIZE_8M | BNXT_RE_PAGE_SIZE_1G;
+	ib_attr->max_mr_size = BNXT_RE_MAX_MR_SIZE;
+	ib_attr->page_size_cap = BNXT_RE_PAGE_SIZE_4K;
 
 	ib_attr->vendor_id = rdev->en_dev->pdev->vendor;
 	ib_attr->vendor_part_id = rdev->en_dev->pdev->device;
@@ -3228,6 +3226,12 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	int i, umem_pgs, pages, rc;
 	struct scatterlist *sg;
 	int entry;
+
+	if (length > BNXT_RE_MAX_MR_SIZE) {
+		dev_err(rdev_to_dev(rdev), "MR Size: %lld > Max supported:%ld\n",
+			length, BNXT_RE_MAX_MR_SIZE);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
