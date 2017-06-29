@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
+#include <asm/cputhreads.h>
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/io.h>
@@ -26,6 +27,9 @@
 #include "hv-24x7.h"
 #include "hv-24x7-catalog.h"
 #include "hv-common.h"
+
+/* Version of the 24x7 hypervisor API that we should use in this machine. */
+static int interface_version;
 
 static bool domain_is_valid(unsigned domain)
 {
@@ -74,7 +78,11 @@ static const char *domain_name(unsigned domain)
 
 static bool catalog_entry_domain_is_valid(unsigned domain)
 {
-	return is_physical_domain(domain);
+	/* POWER8 doesn't support virtual domains. */
+	if (interface_version == 1)
+		return is_physical_domain(domain);
+	else
+		return domain_is_valid(domain);
 }
 
 /*
@@ -166,9 +174,11 @@ DEFINE_PER_CPU(struct hv_24x7_hw, hv_24x7_hw);
 DEFINE_PER_CPU(char, hv_24x7_reqb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
 DEFINE_PER_CPU(char, hv_24x7_resb[H24x7_DATA_BUFFER_SIZE]) __aligned(4096);
 
-#define MAX_NUM_REQUESTS	((H24x7_DATA_BUFFER_SIZE -		       \
-					sizeof(struct hv_24x7_request_buffer)) \
-					/ sizeof(struct hv_24x7_request))
+static unsigned int max_num_requests(int interface_version)
+{
+	return (H24x7_DATA_BUFFER_SIZE - sizeof(struct hv_24x7_request_buffer))
+		/ H24x7_REQUEST_SIZE(interface_version);
+}
 
 static char *event_name(struct hv_24x7_event_data *ev, int *len)
 {
@@ -1052,7 +1062,7 @@ static void init_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 	memset(request_buffer, 0, H24x7_DATA_BUFFER_SIZE);
 	memset(result_buffer, 0, H24x7_DATA_BUFFER_SIZE);
 
-	request_buffer->interface_version = HV_24X7_IF_VERSION_CURRENT;
+	request_buffer->interface_version = interface_version;
 	/* memset above set request_buffer->num_requests to 0 */
 }
 
@@ -1077,7 +1087,7 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 	if (ret) {
 		struct hv_24x7_request *req;
 
-		req = &request_buffer->requests[0];
+		req = request_buffer->requests;
 		pr_notice_ratelimited("hcall failed: [%d %#x %#x %d] => ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
 				      req->performance_domain, req->data_offset,
 				      req->starting_ix, req->starting_lpar_ix,
@@ -1101,9 +1111,11 @@ static int add_event_to_24x7_request(struct perf_event *event,
 {
 	u16 idx;
 	int i;
+	size_t req_size;
 	struct hv_24x7_request *req;
 
-	if (request_buffer->num_requests >= MAX_NUM_REQUESTS) {
+	if (request_buffer->num_requests >=
+	    max_num_requests(request_buffer->interface_version)) {
 		pr_devel("Too many requests for 24x7 HCALL %d\n",
 				request_buffer->num_requests);
 		return -EINVAL;
@@ -1120,8 +1132,10 @@ static int add_event_to_24x7_request(struct perf_event *event,
 		idx = event_get_vcpu(event);
 	}
 
+	req_size = H24x7_REQUEST_SIZE(request_buffer->interface_version);
+
 	i = request_buffer->num_requests++;
-	req = &request_buffer->requests[i];
+	req = (void *) request_buffer->requests + i * req_size;
 
 	req->performance_domain = event_get_domain(event);
 	req->data_size = cpu_to_be16(8);
@@ -1131,14 +1145,86 @@ static int add_event_to_24x7_request(struct perf_event *event,
 	req->starting_ix = cpu_to_be16(idx);
 	req->max_ix = cpu_to_be16(1);
 
+	if (request_buffer->interface_version > 1 &&
+	    req->performance_domain != HV_PERF_DOMAIN_PHYS_CHIP) {
+		req->starting_thread_group_ix = idx % 2;
+		req->max_num_thread_groups = 1;
+	}
+
+	return 0;
+}
+
+/**
+ * get_count_from_result - get event count from the given result
+ *
+ * @event:	Event associated with @res.
+ * @resb:	Result buffer containing @res.
+ * @res:	Result to work on.
+ * @countp:	Output variable containing the event count.
+ * @next:	Optional output variable pointing to the next result in @resb.
+ */
+static int get_count_from_result(struct perf_event *event,
+				 struct hv_24x7_data_result_buffer *resb,
+				 struct hv_24x7_result *res, u64 *countp,
+				 struct hv_24x7_result **next)
+{
+	u16 num_elements = be16_to_cpu(res->num_elements_returned);
+	u16 data_size = be16_to_cpu(res->result_element_data_size);
+	unsigned int data_offset;
+	void *element_data;
+
+	/*
+	 * We can bail out early if the result is empty.
+	 */
+	if (!num_elements) {
+		pr_debug("Result of request %hhu is empty, nothing to do\n",
+			 res->result_ix);
+
+		if (next)
+			*next = (struct hv_24x7_result *) res->elements;
+
+		return -ENODATA;
+	}
+
+	/*
+	 * Since we always specify 1 as the maximum for the smallest resource
+	 * we're requesting, there should to be only one element per result.
+	 */
+	if (num_elements != 1) {
+		pr_err("Error: result of request %hhu has %hu elements\n",
+		       res->result_ix, num_elements);
+
+		return -EIO;
+	}
+
+	if (data_size != sizeof(u64)) {
+		pr_debug("Error: result of request %hhu has data of %hu bytes\n",
+			 res->result_ix, data_size);
+
+		return -ENOTSUPP;
+	}
+
+	if (resb->interface_version == 1)
+		data_offset = offsetof(struct hv_24x7_result_element_v1,
+				       element_data);
+	else
+		data_offset = offsetof(struct hv_24x7_result_element_v2,
+				       element_data);
+
+	element_data = res->elements + data_offset;
+
+	*countp = be64_to_cpu(*((u64 *) element_data));
+
+	/* The next result is after the result element. */
+	if (next)
+		*next = element_data + data_size;
+
 	return 0;
 }
 
 static int single_24x7_request(struct perf_event *event, u64 *count)
 {
 	int ret;
-	u16 num_elements;
-	struct hv_24x7_result *result;
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
 
@@ -1158,14 +1244,9 @@ static int single_24x7_request(struct perf_event *event, u64 *count)
 	if (ret)
 		goto out;
 
-	result = result_buffer->results;
-
-	/* This code assumes that a result has only one element. */
-	num_elements = be16_to_cpu(result->num_elements_returned);
-	WARN_ON_ONCE(num_elements != 1);
-
 	/* process result from hcall */
-	*count = be64_to_cpu(result->elements[0].element_data[0]);
+	ret = get_count_from_result(event, result_buffer,
+				    result_buffer->results, count, NULL);
 
 out:
 	put_cpu_var(hv_24x7_reqb);
@@ -1425,16 +1506,13 @@ static int h_24x7_event_commit_txn(struct pmu *pmu)
 	for (i = 0, res = result_buffer->results;
 	     i < result_buffer->num_results; i++, res = next_res) {
 		struct perf_event *event = h24x7hw->events[res->result_ix];
-		u16 num_elements = be16_to_cpu(res->num_elements_returned);
-		u16 data_size = be16_to_cpu(res->result_element_data_size);
 
-		/* This code assumes that a result has only one element. */
-		WARN_ON_ONCE(num_elements != 1);
+		ret = get_count_from_result(event, result_buffer, res, &count,
+					    &next_res);
+		if (ret)
+			break;
 
-		count = be64_to_cpu(res->elements[0].element_data[0]);
 		update_event_count(event, count);
-
-		next_res = (void *) res->elements[0].element_data + data_size;
 	}
 
 	put_cpu_var(hv_24x7_hw);
@@ -1484,7 +1562,14 @@ static int hv_24x7_init(void)
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		pr_debug("not a virtualized system, not enabling\n");
 		return -ENODEV;
-	}
+	} else if (!cur_cpu_spec->oprofile_cpu_type)
+		return -ENODEV;
+
+	/* POWER8 only supports v1, while POWER9 only supports v2. */
+	if (!strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power8"))
+		interface_version = 1;
+	else
+		interface_version = 2;
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {

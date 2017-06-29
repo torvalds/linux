@@ -124,7 +124,7 @@ config HV_PERF_CTRS
 	  Enable access to hypervisor supplied counters in perf. Currently,
 	  this enables code that uses the hcall GetPerfCounterInfo and 24x7
 	  interfaces to retrieve counters. GPCI exists on Power 6 and later
-	  systems. 24x7 is available on Power 8 systems.
+	  systems. 24x7 is available on Power 8 and later systems.
 
           If unsure, select Y.
 
