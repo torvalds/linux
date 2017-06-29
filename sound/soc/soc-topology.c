@@ -2381,7 +2381,7 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 
 	/* check for matching ID */
 	if (hdr->index != tplg->req_index &&
-		hdr->index != SND_SOC_TPLG_INDEX_ALL)
+		tplg->req_index != SND_SOC_TPLG_INDEX_ALL)
 		return 0;
 
 	tplg->index = hdr->index;
