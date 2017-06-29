@@ -95,7 +95,6 @@ struct tlb_state {
 	 * mode even if we've already switched back to swapper_pg_dir.
 	 */
 	struct mm_struct *loaded_mm;
-	int state;
 
 	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
@@ -309,9 +308,6 @@ static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
 
 void native_flush_tlb_others(const struct cpumask *cpumask,
 			     const struct flush_tlb_info *info);
-
-#define TLBSTATE_OK	1
-#define TLBSTATE_LAZY	2
 
 static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
 					struct mm_struct *mm)

@@ -45,8 +45,8 @@ void leave_mm(int cpu)
 	if (loaded_mm == &init_mm)
 		return;
 
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
-		BUG();
+	/* Warn if we're not lazy. */
+	WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm)));
 
 	switch_mm(NULL, &init_mm, NULL);
 }
@@ -65,94 +65,117 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {
-	unsigned cpu = smp_processor_id();
 	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);
+	unsigned cpu = smp_processor_id();
+	u64 next_tlb_gen;
 
 	/*
-	 * NB: The scheduler will call us with prev == next when
-	 * switching from lazy TLB mode to normal mode if active_mm
-	 * isn't changing.  When this happens, there is no guarantee
-	 * that CR3 (and hence cpu_tlbstate.loaded_mm) matches next.
+	 * NB: The scheduler will call us with prev == next when switching
+	 * from lazy TLB mode to normal mode if active_mm isn't changing.
+	 * When this happens, we don't assume that CR3 (and hence
+	 * cpu_tlbstate.loaded_mm) matches next.
 	 *
 	 * NB: leave_mm() calls us with prev == NULL and tsk == NULL.
 	 */
 
-	this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
+	/* We don't want flush_tlb_func_* to run concurrently with us. */
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING))
+		WARN_ON_ONCE(!irqs_disabled());
+
+	/*
+	 * Verify that CR3 is what we think it is.  This will catch
+	 * hypothetical buggy code that directly switches to swapper_pg_dir
+	 * without going through leave_mm() / switch_mm_irqs_off().
+	 */
+	VM_BUG_ON(read_cr3_pa() != __pa(real_prev->pgd));
 
 	if (real_prev == next) {
+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
+			  next->context.ctx_id);
+
+		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
+			/*
+			 * There's nothing to do: we weren't lazy, and we
+			 * aren't changing our mm.  We don't need to flush
+			 * anything, nor do we need to update CR3, CR4, or
+			 * LDTR.
+			 */
+			return;
+		}
+
+		/* Resume remote flushes and then read tlb_gen. */
+		cpumask_set_cpu(cpu, mm_cpumask(next));
+		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+
+		if (this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen) < next_tlb_gen) {
+			/*
+			 * Ideally, we'd have a flush_tlb() variant that
+			 * takes the known CR3 value as input.  This would
+			 * be faster on Xen PV and on hypothetical CPUs
+			 * on which INVPCID is fast.
+			 */
+			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
+				       next_tlb_gen);
+			write_cr3(__pa(next->pgd));
+
+			/*
+			 * This gets called via leave_mm() in the idle path
+			 * where RCU functions differently.  Tracing normally
+			 * uses RCU, so we have to call the tracepoint
+			 * specially here.
+			 */
+			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,
+						TLB_FLUSH_ALL);
+		}
+
 		/*
-		 * There's nothing to do: we always keep the per-mm control
-		 * regs in sync with cpu_tlbstate.loaded_mm.  Just
-		 * sanity-check mm_cpumask.
+		 * We just exited lazy mode, which means that CR4 and/or LDTR
+		 * may be stale.  (Changes to the required CR4 and LDTR states
+		 * are not reflected in tlb_gen.)
 		 */
-		if (WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(next))))
-			cpumask_set_cpu(cpu, mm_cpumask(next));
-		return;
+	} else {
+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) ==
+			  next->context.ctx_id);
+
+		if (IS_ENABLED(CONFIG_VMAP_STACK)) {
+			/*
+			 * If our current stack is in vmalloc space and isn't
+			 * mapped in the new pgd, we'll double-fault.  Forcibly
+			 * map it.
+			 */
+			unsigned int index = pgd_index(current_stack_pointer());
+			pgd_t *pgd = next->pgd + index;
+
+			if (unlikely(pgd_none(*pgd)))
+				set_pgd(pgd, init_mm.pgd[index]);
+		}
+
+		/* Stop remote flushes for the previous mm */
+		if (cpumask_test_cpu(cpu, mm_cpumask(real_prev)))
+			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
+
+		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+
+		/*
+		 * Start remote flushes and then read tlb_gen.
+		 */
+		cpumask_set_cpu(cpu, mm_cpumask(next));
+		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
+
+		this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
+		this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, next_tlb_gen);
+		this_cpu_write(cpu_tlbstate.loaded_mm, next);
+		write_cr3(__pa(next->pgd));
+
+		/*
+		 * This gets called via leave_mm() in the idle path where RCU
+		 * functions differently.  Tracing normally uses RCU, so we
+		 * have to call the tracepoint specially here.
+		 */
+		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,
+					TLB_FLUSH_ALL);
 	}
 
-	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
-		/*
-		 * If our current stack is in vmalloc space and isn't
-		 * mapped in the new pgd, we'll double-fault.  Forcibly
-		 * map it.
-		 */
-		unsigned int stack_pgd_index = pgd_index(current_stack_pointer());
-
-		pgd_t *pgd = next->pgd + stack_pgd_index;
-
-		if (unlikely(pgd_none(*pgd)))
-			set_pgd(pgd, init_mm.pgd[stack_pgd_index]);
-	}
-
-	this_cpu_write(cpu_tlbstate.loaded_mm, next);
-	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
-	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, atomic64_read(&next->context.tlb_gen));
-
-	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
-	cpumask_set_cpu(cpu, mm_cpumask(next));
-
-	/*
-	 * Re-load page tables.
-	 *
-	 * This logic has an ordering constraint:
-	 *
-	 *  CPU 0: Write to a PTE for 'next'
-	 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-	 *  CPU 1: set bit 1 in next's mm_cpumask
-	 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-	 *
-	 * We need to prevent an outcome in which CPU 1 observes
-	 * the new PTE value and CPU 0 observes bit 1 clear in
-	 * mm_cpumask.  (If that occurs, then the IPI will never
-	 * be sent, and CPU 0's TLB will contain a stale entry.)
-	 *
-	 * The bad outcome can occur if either CPU's load is
-	 * reordered before that CPU's store, so both CPUs must
-	 * execute full barriers to prevent this from happening.
-	 *
-	 * Thus, switch_mm needs a full barrier between the
-	 * store to mm_cpumask and any operation that could load
-	 * from next->pgd.  TLB fills are special and can happen
-	 * due to instruction fetches or for no reason at all,
-	 * and neither LOCK nor MFENCE orders them.
-	 * Fortunately, load_cr3() is serializing and gives the
-	 * ordering guarantee we need.
-	 */
-	load_cr3(next->pgd);
-
-	/*
-	 * This gets called via leave_mm() in the idle path where RCU
-	 * functions differently.  Tracing normally uses RCU, so we have to
-	 * call the tracepoint specially here.
-	 */
-	trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
-
-	/* Stop flush ipis for the previous mm */
-	WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(real_prev)) &&
-		     real_prev != &init_mm);
-	cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
-
-	/* Load per-mm CR4 and LDTR state */
 	load_mm_cr4(next);
 	switch_ldt(real_prev, next);
 }
@@ -186,13 +209,13 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
 		   loaded_mm->context.ctx_id);
 
-	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
+	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
 		/*
-		 * leave_mm() is adequate to handle any type of flush, and
-		 * we would prefer not to receive further IPIs.  leave_mm()
-		 * clears this CPU's bit in mm_cpumask().
+		 * We're in lazy mode -- don't flush.  We can get here on
+		 * remote flushes due to races and on local flushes if a
+		 * kernel thread coincidentally flushes the mm it's lazily
+		 * still using.
 		 */
-		leave_mm(smp_processor_id());
 		return;
 	}
 
@@ -203,6 +226,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 		 * be handled can catch us all the way up, leaving no work for
 		 * the second flush.
 		 */
+		trace_tlb_flush(reason, 0);
 		return;
 	}
 
@@ -304,6 +328,21 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 				(info->end - info->start) >> PAGE_SHIFT);
 
 	if (is_uv_system()) {
+		/*
+		 * This whole special case is confused.  UV has a "Broadcast
+		 * Assist Unit", which seems to be a fancy way to send IPIs.
+		 * Back when x86 used an explicit TLB flush IPI, UV was
+		 * optimized to use its own mechanism.  These days, x86 uses
+		 * smp_call_function_many(), but UV still uses a manual IPI,
+		 * and that IPI's action is out of date -- it does a manual
+		 * flush instead of calling flush_tlb_func_remote().  This
+		 * means that the percpu tlb_gen variables won't be updated
+		 * and we'll do pointless flushes on future context switches.
+		 *
+		 * Rather than hooking native_flush_tlb_others() here, I think
+		 * that UV should be updated so that smp_call_function_many(),
+		 * etc, are optimal on UV.
+		 */
 		unsigned int cpu;
 
 		cpu = smp_processor_id();
@@ -363,6 +402,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 
 	if (cpumask_any_but(mm_cpumask(mm), cpu) < nr_cpu_ids)
 		flush_tlb_others(mm_cpumask(mm), &info);
+
 	put_cpu();
 }
 
@@ -371,8 +411,6 @@ static void do_flush_tlb_all(void *info)
 {
 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 	__flush_tlb_all();
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
-		leave_mm(smp_processor_id());
 }
 
 void flush_tlb_all(void)
@@ -425,6 +463,7 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 
 	if (cpumask_any_but(&batch->cpumask, cpu) < nr_cpu_ids)
 		flush_tlb_others(&batch->cpumask, &info);
+
 	cpumask_clear(&batch->cpumask);
 
 	put_cpu();
