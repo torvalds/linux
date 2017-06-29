@@ -221,8 +221,8 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct mdp5_ctl *ctl = mdp5_cstate->ctl;
 	uint32_t blend_op, fg_alpha, bg_alpha, ctl_blend_flags = 0;
 	unsigned long flags;
-	enum mdp5_pipe stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { SSPP_NONE };
-	enum mdp5_pipe r_stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { SSPP_NONE };
+	enum mdp5_pipe stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_NONE } };
+	enum mdp5_pipe r_stage[STAGE_MAX + 1][MAX_PIPE_STAGE] = { { SSPP_NONE } };
 	int i, plane_cnt = 0;
 	bool bg_alpha_enabled = false;
 	u32 mixer_op_mode = 0;
