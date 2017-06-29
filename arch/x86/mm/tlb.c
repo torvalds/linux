@@ -153,42 +153,6 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	switch_ldt(real_prev, next);
 }
 
-/*
- * The flush IPI assumes that a thread switch happens in this order:
- * [cpu0: the cpu that switches]
- * 1) switch_mm() either 1a) or 1b)
- * 1a) thread switch to a different mm
- * 1a1) set cpu_tlbstate to TLBSTATE_OK
- *	Now the tlb flush NMI handler flush_tlb_func won't call leave_mm
- *	if cpu0 was in lazy tlb mode.
- * 1a2) update cpu active_mm
- *	Now cpu0 accepts tlb flushes for the new mm.
- * 1a3) cpu_set(cpu, new_mm->cpu_vm_mask);
- *	Now the other cpus will send tlb flush ipis.
- * 1a4) change cr3.
- * 1a5) cpu_clear(cpu, old_mm->cpu_vm_mask);
- *	Stop ipi delivery for the old mm. This is not synchronized with
- *	the other cpus, but flush_tlb_func ignore flush ipis for the wrong
- *	mm, and in the worst case we perform a superfluous tlb flush.
- * 1b) thread switch without mm change
- *	cpu active_mm is correct, cpu0 already handles flush ipis.
- * 1b1) set cpu_tlbstate to TLBSTATE_OK
- * 1b2) test_and_set the cpu bit in cpu_vm_mask.
- *	Atomically set the bit [other cpus will start sending flush ipis],
- *	and test the bit.
- * 1b3) if the bit was 0: leave_mm was called, flush the tlb.
- * 2) switch %%esp, ie current
- *
- * The interrupt must handle 2 special cases:
- * - cr3 is changed before %%esp, ie. it cannot use current->{active_,}mm.
- * - the cpu performs speculative tlb reads, i.e. even if the cpu only
- *   runs in kernel space, the cpu could load tlb entries for user space
- *   pages.
- *
- * The good news is that cpu_tlbstate is local to each cpu, no
- * write/read ordering problems.
- */
-
 static void flush_tlb_func_common(const struct flush_tlb_info *f,
 				  bool local, enum tlb_flush_reason reason)
 {
