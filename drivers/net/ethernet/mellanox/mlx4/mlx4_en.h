@@ -115,11 +115,11 @@
 #define MLX4_EN_SMALL_PKT_SIZE		64
 #define MLX4_EN_MIN_TX_RING_P_UP	1
 #define MLX4_EN_MAX_TX_RING_P_UP	32
-#define MLX4_EN_NUM_UP			8
+#define MLX4_EN_NUM_UP_HIGH		8
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
 #define MLX4_EN_DEF_TX_RING_SIZE	MLX4_EN_DEF_RX_RING_SIZE
 #define MAX_TX_RINGS			(MLX4_EN_MAX_TX_RING_P_UP * \
-					 MLX4_EN_NUM_UP)
+					 MLX4_EN_NUM_UP_HIGH)
 
 #define MLX4_EN_DEFAULT_TX_WORK		256
 
@@ -386,6 +386,7 @@ struct mlx4_en_port_profile {
 	u8 rx_ppp;
 	u8 tx_pause;
 	u8 tx_ppp;
+	u8 num_up;
 	int rss_rings;
 	int inline_thold;
 	struct hwtstamp_config hwtstamp_config;
@@ -485,7 +486,7 @@ enum dcb_pfc_type {
 
 struct mlx4_en_cee_config {
 	bool	pfc_state;
-	enum	dcb_pfc_type dcb_pfc[MLX4_EN_NUM_UP];
+	enum	dcb_pfc_type dcb_pfc[MLX4_EN_NUM_UP_HIGH];
 };
 #endif
 

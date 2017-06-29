@@ -60,7 +60,7 @@ int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 	int i;
 	unsigned int offset = 0;
 
-	if (up && up != MLX4_EN_NUM_UP)
+	if (up && up != MLX4_EN_NUM_UP_HIGH)
 		return -EINVAL;
 
 	netdev_set_num_tc(dev, up);
@@ -2780,7 +2780,7 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	if (priv->tx_ring_num[TX] + xdp_ring_num > MAX_TX_RINGS) {
 		tx_changed = 1;
 		new_prof.tx_ring_num[TX] =
-			MAX_TX_RINGS - ALIGN(xdp_ring_num, MLX4_EN_NUM_UP);
+			MAX_TX_RINGS - ALIGN(xdp_ring_num, priv->prof->num_up);
 		en_warn(priv, "Reducing the number of TX rings, to not exceed the max total rings number.\n");
 	}
 
@@ -3271,7 +3271,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		priv->flags |= MLX4_EN_DCB_ENABLED;
 		priv->cee_config.pfc_state = false;
 
-		for (i = 0; i < MLX4_EN_NUM_UP; i++)
+		for (i = 0; i < MLX4_EN_NUM_UP_HIGH; i++)
 			priv->cee_config.dcb_pfc[i] = pfc_disabled;
 
 		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETS_CFG) {
