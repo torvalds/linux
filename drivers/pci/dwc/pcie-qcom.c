@@ -51,6 +51,12 @@
 #define PCIE20_ELBI_SYS_CTRL			0x04
 #define PCIE20_ELBI_SYS_CTRL_LT_ENABLE		BIT(0)
 
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL0		0x818
+#define CFG_REMOTE_RD_REQ_BRIDGE_SIZE_2K	0x4
+#define CFG_REMOTE_RD_REQ_BRIDGE_SIZE_4K	0x5
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL1		0x81c
+#define CFG_BRIDGE_SB_INIT			BIT(0)
+
 #define PCIE20_CAP				0x70
 
 #define PERST_DELAY_US				1000
@@ -335,6 +341,13 @@ static int qcom_pcie_init_v0(struct qcom_pcie *pcie)
 
 	/* wait for clock acquisition */
 	usleep_range(1000, 1500);
+
+
+	/* Set the Max TLP size to 2K, instead of using default of 4K */
+	writel(CFG_REMOTE_RD_REQ_BRIDGE_SIZE_2K,
+	       pci->dbi_base + PCIE20_AXI_MSTR_RESP_COMP_CTRL0);
+	writel(CFG_BRIDGE_SB_INIT,
+	       pci->dbi_base + PCIE20_AXI_MSTR_RESP_COMP_CTRL1);
 
 	return 0;
 
