@@ -6960,7 +6960,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 					  "umm, got %d back from search, was looking for %llu",
 					  ret, bytenr);
 				if (ret > 0)
-					btrfs_print_leaf(info, path->nodes[0]);
+					btrfs_print_leaf(path->nodes[0]);
 			}
 			if (ret < 0) {
 				btrfs_abort_transaction(trans, ret);
@@ -6969,7 +6969,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			extent_slot = path->slots[0];
 		}
 	} else if (WARN_ON(ret == -ENOENT)) {
-		btrfs_print_leaf(info, path->nodes[0]);
+		btrfs_print_leaf(path->nodes[0]);
 		btrfs_err(info,
 			"unable to find ref byte nr %llu parent %llu root %llu  owner %llu offset %llu",
 			bytenr, parent, root_objectid, owner_objectid,
@@ -7006,7 +7006,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			btrfs_err(info,
 				  "umm, got %d back from search, was looking for %llu",
 				ret, bytenr);
-			btrfs_print_leaf(info, path->nodes[0]);
+			btrfs_print_leaf(path->nodes[0]);
 		}
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, ret);

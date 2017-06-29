@@ -3984,7 +3984,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 					 fs_info->dirty_metadata_batch);
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_header_level(buf) == 0 && check_leaf(root, buf)) {
-		btrfs_print_leaf(fs_info, buf);
+		btrfs_print_leaf(buf);
 		ASSERT(0);
 	}
 #endif
