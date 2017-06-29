@@ -325,6 +325,7 @@
 		status = "disabled";
 		compatible = "rockchip,rk3288-hdmi-analog",
 				"rockchip,rk3368-hdmi-analog";
+		rockchip,model = "rockchip,rt5640-codec";
 		rockchip,cpu = <&i2s>;
 		rockchip,codec = <&rt5640>, <&hdmi>;
 		rockchip,widgets =
