@@ -2841,10 +2841,10 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			kvm_vcpu_write_tsc_offset(vcpu, offset);
 			vcpu->arch.tsc_catchup = 1;
 		}
-		if (kvm_lapic_hv_timer_in_use(vcpu) &&
-				kvm_x86_ops->set_hv_timer(vcpu,
-					kvm_get_lapic_target_expiration_tsc(vcpu)))
-			kvm_lapic_switch_to_sw_timer(vcpu);
+
+		if (kvm_lapic_hv_timer_in_use(vcpu))
+			kvm_lapic_restart_hv_timer(vcpu);
+
 		/*
 		 * On a host with synchronized TSC, there is no need to update
 		 * kvmclock on vcpu->cpu migration
