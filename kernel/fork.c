@@ -1274,7 +1274,7 @@ static int copy_files(unsigned long clone_flags, struct task_struct *tsk)
 		goto out;
 
 	if (clone_flags & CLONE_FILES) {
-		atomic_inc(&oldf->count);
+		atomic_inc(&oldf->count);	/* 与父进程共享file table */
 		goto out;
 	}
 
@@ -1526,15 +1526,24 @@ static __latent_entropy struct task_struct *copy_process(
 	int retval;
 	struct task_struct *p;
 
+	/* 
+	 * CLONE_NEWNS标志表示子进程需要自己的命名空间，而CLONE_FS则代表子进程共
+	 * 享父进程的根目录和当前工作目录，两者不可兼容。
+	 */
 	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
 		return ERR_PTR(-EINVAL);
 
+	/*
+	 * 
+	 */
 	if ((clone_flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
 		return ERR_PTR(-EINVAL);
 
 	/*
 	 * Thread groups must share signals as well, and detached threads
 	 * can only be started up within the thread group.
+	 *
+	 * 如果子进程和父进程属于同一个线程组，那么子进程必须共享父进程的信号
 	 */
 	if ((clone_flags & CLONE_THREAD) && !(clone_flags & CLONE_SIGHAND))
 		return ERR_PTR(-EINVAL);
@@ -1543,6 +1552,9 @@ static __latent_entropy struct task_struct *copy_process(
 	 * Shared signal handlers imply shared VM. By way of the above,
 	 * thread groups also imply shared VM. Blocking this case allows
 	 * for various simplifications in other code.
+	 *
+	 * 如果子进程共享父进程的信号，那么必须同时共享父进程的内存描述符和所
+	 * 有的页表
 	 */
 	if ((clone_flags & CLONE_SIGHAND) && !(clone_flags & CLONE_VM))
 		return ERR_PTR(-EINVAL);
@@ -1568,7 +1580,7 @@ static __latent_entropy struct task_struct *copy_process(
 			return ERR_PTR(-EINVAL);
 	}
 
-	retval = security_task_create(clone_flags);
+	retval = security_task_create(clone_flags);	/* 执行所有附加的安全性检查 */
 	if (retval)
 		goto fork_out;
 
