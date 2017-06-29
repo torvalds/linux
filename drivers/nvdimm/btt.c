@@ -1203,10 +1203,13 @@ static int btt_rw_page(struct block_device *bdev, sector_t sector,
 		struct page *page, bool is_write)
 {
 	struct btt *btt = bdev->bd_disk->private_data;
+	int rc;
 
-	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, is_write, sector);
-	page_endio(page, is_write, 0);
-	return 0;
+	rc = btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, is_write, sector);
+	if (rc == 0)
+		page_endio(page, is_write, 0);
+
+	return rc;
 }
 
 
