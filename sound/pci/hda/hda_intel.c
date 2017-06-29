@@ -293,38 +293,43 @@ enum {
 	(AZX_DCAPS_NO_ALIGN_BUFSIZE | AZX_DCAPS_COUNT_LPIB_DELAY |\
 	 AZX_DCAPS_SNOOP_TYPE(SCH))
 
-/* PCH up to IVB; no runtime PM */
+/* PCH up to IVB; no runtime PM; bind with i915 gfx */
 #define AZX_DCAPS_INTEL_PCH_NOPM \
-	(AZX_DCAPS_INTEL_PCH_BASE)
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_I915_COMPONENT)
 
 /* PCH for HSW/BDW; with runtime PM */
+/* no i915 binding for this as HSW/BDW has another controller for HDMI */
 #define AZX_DCAPS_INTEL_PCH \
 	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME)
 
 /* HSW HDMI */
 #define AZX_DCAPS_INTEL_HASWELL \
 	(/*AZX_DCAPS_ALIGN_BUFSIZE |*/ AZX_DCAPS_COUNT_LPIB_DELAY |\
-	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_POWERWELL |\
-	 AZX_DCAPS_SNOOP_TYPE(SCH))
+	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_COMPONENT |\
+	 AZX_DCAPS_I915_POWERWELL | AZX_DCAPS_SNOOP_TYPE(SCH))
 
 /* Broadwell HDMI can't use position buffer reliably, force to use LPIB */
 #define AZX_DCAPS_INTEL_BROADWELL \
 	(/*AZX_DCAPS_ALIGN_BUFSIZE |*/ AZX_DCAPS_POSFIX_LPIB |\
-	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_POWERWELL |\
-	 AZX_DCAPS_SNOOP_TYPE(SCH))
+	 AZX_DCAPS_PM_RUNTIME | AZX_DCAPS_I915_COMPONENT |\
+	 AZX_DCAPS_I915_POWERWELL | AZX_DCAPS_SNOOP_TYPE(SCH))
 
 #define AZX_DCAPS_INTEL_BAYTRAIL \
-	(AZX_DCAPS_INTEL_PCH_NOPM | AZX_DCAPS_I915_POWERWELL)
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_I915_COMPONENT |\
+	 AZX_DCAPS_I915_POWERWELL)
 
 #define AZX_DCAPS_INTEL_BRASWELL \
-	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_I915_POWERWELL)
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME |\
+	 AZX_DCAPS_I915_COMPONENT | AZX_DCAPS_I915_POWERWELL)
 
 #define AZX_DCAPS_INTEL_SKYLAKE \
-	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_SEPARATE_STREAM_TAG |\
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME |\
+	 AZX_DCAPS_SEPARATE_STREAM_TAG | AZX_DCAPS_I915_COMPONENT |\
 	 AZX_DCAPS_I915_POWERWELL)
 
 #define AZX_DCAPS_INTEL_BROXTON \
-	(AZX_DCAPS_INTEL_PCH | AZX_DCAPS_SEPARATE_STREAM_TAG |\
+	(AZX_DCAPS_INTEL_PCH_BASE | AZX_DCAPS_PM_RUNTIME |\
+	 AZX_DCAPS_SEPARATE_STREAM_TAG | AZX_DCAPS_I915_COMPONENT |\
 	 AZX_DCAPS_I915_POWERWELL)
 
 /* quirks for ATI SB / AMD Hudson */
@@ -1008,7 +1013,7 @@ static int azx_suspend(struct device *dev)
 
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		&& hda->need_i915_power)
 		snd_hdac_display_power(bus, false);
 
@@ -1114,7 +1119,7 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		&& hda->need_i915_power)
 		snd_hdac_display_power(azx_bus(chip), false);
 
@@ -1380,8 +1385,7 @@ static int azx_free(struct azx *chip)
 		if (hda->need_i915_power)
 			snd_hdac_display_power(bus, false);
 	}
-	if (chip->driver_type == AZX_DRIVER_PCH ||
-	    (chip->driver_caps & AZX_DCAPS_I915_POWERWELL))
+	if (chip->driver_type & AZX_DCAPS_I915_COMPONENT)
 		snd_hdac_i915_exit(bus);
 	kfree(hda);
 
@@ -2199,8 +2203,7 @@ static int azx_probe_continue(struct azx *chip)
 	hda->probe_continued = 1;
 
 	/* bind with i915 if needed */
-	if (chip->driver_type == AZX_DRIVER_PCH ||
-	    (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)) {
+	if (chip->driver_caps & AZX_DCAPS_I915_COMPONENT) {
 		err = snd_hdac_i915_init(bus);
 		if (err < 0) {
 			/* if the controller is bound only with HDMI/DP
@@ -2214,7 +2217,8 @@ static int azx_probe_continue(struct azx *chip)
 				goto out_free;
 			} else {
 				/* don't bother any longer */
-				chip->driver_caps &= ~AZX_DCAPS_I915_POWERWELL;
+				chip->driver_caps &=
+					~(AZX_DCAPS_I915_COMPONENT | AZX_DCAPS_I915_POWERWELL);
 			}
 		}
 	}
@@ -2279,7 +2283,7 @@ static int azx_probe_continue(struct azx *chip)
 		pm_runtime_put_autosuspend(&pci->dev);
 
 out_free:
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		&& !hda->need_i915_power)
 		snd_hdac_display_power(bus, false);
 
