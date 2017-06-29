@@ -321,6 +321,25 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 	}
 }
 
+static void setup_pcid(struct cpuinfo_x86 *c)
+{
+	if (cpu_has(c, X86_FEATURE_PCID)) {
+		if (cpu_has(c, X86_FEATURE_PGE)) {
+			cr4_set_bits(X86_CR4_PCIDE);
+		} else {
+			/*
+			 * flush_tlb_all(), as currently implemented, won't
+			 * work if PCID is on but PGE is not.  Since that
+			 * combination doesn't exist on real hardware, there's
+			 * no reason to try to fully support it, but it's
+			 * polite to avoid corrupting data if we're on
+			 * an improperly configured VM.
+			 */
+			clear_cpu_cap(c, X86_FEATURE_PCID);
+		}
+	}
+}
+
 /*
  * Some CPU features depend on higher CPUID levels, which may not always
  * be available due to CPUID level capping or broken virtualization
@@ -951,6 +970,9 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	/* Set up SMEP/SMAP */
 	setup_smep(c);
 	setup_smap(c);
+
+	/* Set up PCID */
+	setup_pcid(c);
 
 	/*
 	 * The vendor-specific functions might have changed features.
