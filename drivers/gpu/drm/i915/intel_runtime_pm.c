@@ -2694,9 +2694,10 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&power_domains->lock);
 
-	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
-	intel_power_well_disable(dev_priv, well);
-
+	/*
+	 * BSpec says to keep the MISC IO power well enabled here, only
+	 * remove our request for power well 1.
+	 */
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
 	intel_power_well_disable(dev_priv, well);
 
