@@ -724,21 +724,21 @@ void vtime_account_system(struct task_struct *tsk)
 	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
-void vtime_account_user(struct task_struct *tsk)
-{
-	write_seqcount_begin(&tsk->vtime_seqcount);
-	tsk->vtime_snap_whence = VTIME_SYS;
-	if (vtime_delta(tsk))
-		account_user_time(tsk, get_vtime_delta(tsk));
-	write_seqcount_end(&tsk->vtime_seqcount);
-}
-
 void vtime_user_enter(struct task_struct *tsk)
 {
 	write_seqcount_begin(&tsk->vtime_seqcount);
 	if (vtime_delta(tsk))
 		__vtime_account_system(tsk);
 	tsk->vtime_snap_whence = VTIME_USER;
+	write_seqcount_end(&tsk->vtime_seqcount);
+}
+
+void vtime_user_exit(struct task_struct *tsk)
+{
+	write_seqcount_begin(&tsk->vtime_seqcount);
+	tsk->vtime_snap_whence = VTIME_SYS;
+	if (vtime_delta(tsk))
+		account_user_time(tsk, get_vtime_delta(tsk));
 	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
