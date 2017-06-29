@@ -1137,8 +1137,9 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 }
 
 static void dma_pte_free_level(struct dmar_domain *domain, int level,
-			       struct dma_pte *pte, unsigned long pfn,
-			       unsigned long start_pfn, unsigned long last_pfn)
+			       int retain_level, struct dma_pte *pte,
+			       unsigned long pfn, unsigned long start_pfn,
+			       unsigned long last_pfn)
 {
 	pfn = max(start_pfn, pfn);
 	pte = &pte[pfn_level_offset(pfn, level)];
@@ -1153,12 +1154,17 @@ static void dma_pte_free_level(struct dmar_domain *domain, int level,
 		level_pfn = pfn & level_mask(level);
 		level_pte = phys_to_virt(dma_pte_addr(pte));
 
-		if (level > 2)
-			dma_pte_free_level(domain, level - 1, level_pte,
-					   level_pfn, start_pfn, last_pfn);
+		if (level > 2) {
+			dma_pte_free_level(domain, level - 1, retain_level,
+					   level_pte, level_pfn, start_pfn,
+					   last_pfn);
+		}
 
-		/* If range covers entire pagetable, free it */
-		if (!(start_pfn > level_pfn ||
+		/*
+		 * Free the page table if we're below the level we want to
+		 * retain and the range covers the entire table.
+		 */
+		if (level < retain_level && !(start_pfn > level_pfn ||
 		      last_pfn < level_pfn + level_size(level) - 1)) {
 			dma_clear_pte(pte);
 			domain_flush_cache(domain, pte, sizeof(*pte));
@@ -1169,10 +1175,14 @@ next:
 	} while (!first_pte_in_page(++pte) && pfn <= last_pfn);
 }
 
-/* clear last level (leaf) ptes and free page table pages. */
+/*
+ * clear last level (leaf) ptes and free page table pages below the
+ * level we wish to keep intact.
+ */
 static void dma_pte_free_pagetable(struct dmar_domain *domain,
 				   unsigned long start_pfn,
-				   unsigned long last_pfn)
+				   unsigned long last_pfn,
+				   int retain_level)
 {
 	BUG_ON(!domain_pfn_supported(domain, start_pfn));
 	BUG_ON(!domain_pfn_supported(domain, last_pfn));
@@ -1181,7 +1191,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 	dma_pte_clear_range(domain, start_pfn, last_pfn);
 
 	/* We don't need lock here; nobody else touches the iova range */
-	dma_pte_free_level(domain, agaw_to_level(domain->agaw),
+	dma_pte_free_level(domain, agaw_to_level(domain->agaw), retain_level,
 			   domain->pgd, 0, start_pfn, last_pfn);
 
 	/* free pgd */
@@ -2274,8 +2284,11 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 				/*
 				 * Ensure that old small page tables are
 				 * removed to make room for superpage(s).
+				 * We're adding new large pages, so make sure
+				 * we don't remove their parent tables.
 				 */
-				dma_pte_free_pagetable(domain, iov_pfn, end_pfn);
+				dma_pte_free_pagetable(domain, iov_pfn, end_pfn,
+						       largepage_lvl + 1);
 			} else {
 				pteval &= ~(uint64_t)DMA_PTE_LARGE_PAGE;
 			}
@@ -3935,7 +3948,8 @@ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nele
 	ret = domain_sg_mapping(domain, start_vpfn, sglist, size, prot);
 	if (unlikely(ret)) {
 		dma_pte_free_pagetable(domain, start_vpfn,
-				       start_vpfn + size - 1);
+				       start_vpfn + size - 1,
+				       agaw_to_level(domain->agaw) + 1);
 		free_iova_fast(&domain->iovad, iova_pfn, dma_to_mm_pfn(size));
 		return 0;
 	}
