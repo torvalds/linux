@@ -3886,7 +3886,7 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
 
 	/* Read entire ID string */
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < ARRAY_SIZE(chip->id.data); i++)
 		id_data[i] = chip->read_byte(mtd);
 
 	if (id_data[0] != maf_id || id_data[1] != dev_id) {
@@ -3895,7 +3895,7 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 		return -ENODEV;
 	}
 
-	chip->id.len = nand_id_len(id_data, 8);
+	chip->id.len = nand_id_len(id_data, ARRAY_SIZE(chip->id.data));
 
 	/* Try to identify manufacturer */
 	manufacturer = nand_get_manufacturer(maf_id);

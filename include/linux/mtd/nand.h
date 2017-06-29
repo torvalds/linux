@@ -439,14 +439,16 @@ struct nand_jedec_params {
 	__le16 crc;
 } __packed;
 
+/* The maximum expected count of bytes in the NAND ID sequence */
+#define NAND_MAX_ID_LEN 8
+
 /**
  * struct nand_id - NAND id structure
- * @data: buffer containing the id bytes. Currently 8 bytes large, but can
- *	  be extended if required.
+ * @data: buffer containing the id bytes.
  * @len: ID length.
  */
 struct nand_id {
-	u8 data[8];
+	u8 data[NAND_MAX_ID_LEN];
 	int len;
 };
 
@@ -1018,8 +1020,6 @@ static inline void *nand_get_manufacturer_data(struct nand_chip *chip)
 #define NAND_MFR_ATO		0x9b
 #define NAND_MFR_WINBOND	0xef
 
-/* The maximum expected count of bytes in the NAND ID sequence */
-#define NAND_MAX_ID_LEN 8
 
 /*
  * A helper for defining older NAND chips where the second ID byte fully
