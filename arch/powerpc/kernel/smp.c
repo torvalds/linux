@@ -75,9 +75,11 @@ static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 struct thread_info *secondary_ti;
 
 DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_l2_cache_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
 
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
+EXPORT_PER_CPU_SYMBOL(cpu_l2_cache_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 
 /* SMP operations for this machine */
@@ -610,6 +612,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	for_each_possible_cpu(cpu) {
 		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map, cpu),
 					GFP_KERNEL, cpu_to_node(cpu));
+		zalloc_cpumask_var_node(&per_cpu(cpu_l2_cache_map, cpu),
+					GFP_KERNEL, cpu_to_node(cpu));
 		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, cpu),
 					GFP_KERNEL, cpu_to_node(cpu));
 		/*
@@ -624,6 +628,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	/* Init the cpumasks so the boot CPU is related to itself */
 	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
+	cpumask_set_cpu(boot_cpuid, cpu_l2_cache_mask(boot_cpuid));
 	cpumask_set_cpu(boot_cpuid, cpu_core_mask(boot_cpuid));
 
 	if (smp_ops && smp_ops->probe)
@@ -907,6 +912,7 @@ static void remove_cpu_from_masks(int cpu)
 	/* NB: cpu_core_mask is a superset of the others */
 	for_each_cpu(i, cpu_core_mask(cpu)) {
 		set_cpus_unrelated(cpu, i, cpu_core_mask);
+		set_cpus_unrelated(cpu, i, cpu_l2_cache_mask);
 		set_cpus_unrelated(cpu, i, cpu_sibling_mask);
 	}
 }
@@ -929,17 +935,22 @@ static void add_cpu_to_masks(int cpu)
 			set_cpus_related(i, cpu, cpu_sibling_mask);
 
 	/*
-	 * Copy the thread sibling into core sibling mask, and
-	 * add CPUs that share a chip or an L2 to the core sibling
-	 * mask.
+	 * Copy the thread sibling mask into the cache sibling mask
+	 * and mark any CPUs that share an L2 with this CPU.
 	 */
 	for_each_cpu(i, cpu_sibling_mask(cpu))
+		set_cpus_related(cpu, i, cpu_l2_cache_mask);
+	update_mask_by_l2(cpu, cpu_l2_cache_mask);
+
+	/*
+	 * Copy the cache sibling mask into core sibling mask and mark
+	 * any CPUs on the same chip as this CPU.
+	 */
+	for_each_cpu(i, cpu_l2_cache_mask(cpu))
 		set_cpus_related(cpu, i, cpu_core_mask);
 
-	if (chipid == -1) {
-		update_mask_by_l2(cpu, cpu_core_mask);
+	if (chipid == -1)
 		return;
-	}
 
 	for_each_cpu(i, cpu_online_mask)
 		if (cpu_to_chip_id(i) == chipid)
