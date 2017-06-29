@@ -62,6 +62,13 @@
 
 #define BNXT_RE_RQ_WQE_THRESHOLD	32
 
+/*
+ * Setting the default ack delay value to 16, which means
+ * the default timeout is approx. 260ms(4 usec * 2 ^(timeout))
+ */
+
+#define BNXT_RE_DEFAULT_ACK_DELAY	16
+
 struct bnxt_re_work {
 	struct work_struct	work;
 	unsigned long		event;

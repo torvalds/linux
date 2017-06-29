@@ -201,7 +201,7 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_fast_reg_page_list_len = MAX_PBL_LVL_1_PGS;
 
 	ib_attr->max_pkeys = 1;
-	ib_attr->local_ca_ack_delay = 0;
+	ib_attr->local_ca_ack_delay = BNXT_RE_DEFAULT_ACK_DELAY;
 	return 0;
 }
 
