@@ -894,6 +894,13 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 
 	audit_syscall_entry(syscall, regs->regs[4], regs->regs[5],
 			    regs->regs[6], regs->regs[7]);
+
+	/*
+	 * Negative syscall numbers are mistaken for rejected syscalls, but
+	 * won't have had the return value set appropriately, so we do so now.
+	 */
+	if (syscall < 0)
+		syscall_set_return_value(current, regs, -ENOSYS, 0);
 	return syscall;
 }
 
