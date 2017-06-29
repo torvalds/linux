@@ -2900,6 +2900,7 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	budget = min_t(u32, num_entries, cq->max_cql);
+	num_entries = budget;
 	if (!cq->cql) {
 		dev_err(rdev_to_dev(cq->rdev), "POLL CQ : no CQL to use");
 		goto exit;
