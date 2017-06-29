@@ -508,6 +508,9 @@ static void nvme_loop_reset_ctrl_work(struct work_struct *work)
 	if (ret)
 		goto out_destroy_io;
 
+	blk_mq_update_nr_hw_queues(&ctrl->tag_set,
+			ctrl->ctrl.queue_count - 1);
+
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
 
