@@ -1,0 +1,39 @@
+Actions Semi platforms device tree bindings
+-------------------------------------------
+
+
+S500 SoC
+========
+
+Required root node properties:
+
+ - compatible :  must contain "actions,s500"
+
+
+Modules:
+
+Root node property compatible must contain, depending on module:
+
+ - LeMaker Guitar: "lemaker,guitar"
+
+
+Boards:
+
+Root node property compatible must contain, depending on board:
+
+ - LeMaker Guitar Base Board rev. B: "lemaker,guitar-bb-rev-b", "lemaker,guitar"
+
+
+S900 SoC
+========
+
+Required root node properties:
+
+- compatible :  must contain "actions,s900"
+
+
+Boards:
+
+Root node property compatible must contain, depending on board:
+
+ - uCRobotics Bubblegum-96: "ucrobotics,bubblegum-96"
