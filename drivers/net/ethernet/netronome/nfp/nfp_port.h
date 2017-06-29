@@ -36,6 +36,7 @@
 
 #include <net/devlink.h>
 
+struct tc_to_netdev;
 struct net_device;
 struct nfp_app;
 struct nfp_pf;
@@ -107,6 +108,9 @@ struct nfp_port {
 };
 
 extern const struct switchdev_ops nfp_port_switchdev_ops;
+
+int nfp_port_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
+		      __be16 proto, struct tc_to_netdev *tc);
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
 struct nfp_port *

@@ -32,7 +32,8 @@ nfp-objs := \
 ifeq ($(CONFIG_NFP_APP_FLOWER),y)
 nfp-objs += \
 	    flower/cmsg.o \
-	    flower/main.o
+	    flower/main.o \
+	    flower/offload.o
 endif
 
 ifeq ($(CONFIG_BPF_SYSCALL),y)

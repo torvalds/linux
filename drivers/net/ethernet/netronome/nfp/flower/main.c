@@ -37,7 +37,9 @@
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 
+#include "main.h"
 #include "../nfpcore/nfp_cpp.h"
+#include "../nfpcore/nfp_nffw.h"
 #include "../nfpcore/nfp_nsp.h"
 #include "../nfp_app.h"
 #include "../nfp_main.h"
@@ -45,6 +47,8 @@
 #include "../nfp_net_repr.h"
 #include "../nfp_port.h"
 #include "./cmsg.h"
+
+#define NFP_FLOWER_ALLOWED_VER 0x0001000000010000UL
 
 /**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
@@ -313,6 +317,8 @@ err_invalid_port:
 static int nfp_flower_init(struct nfp_app *app)
 {
 	const struct nfp_pf *pf = app->pf;
+	u64 version;
+	int err;
 
 	if (!pf->eth_tbl) {
 		nfp_warn(app->cpp, "FlowerNIC requires eth table\n");
@@ -326,6 +332,18 @@ static int nfp_flower_init(struct nfp_app *app)
 
 	if (!pf->vf_cfg_bar) {
 		nfp_warn(app->cpp, "FlowerNIC requires vf_cfg BAR\n");
+		return -EINVAL;
+	}
+
+	version = nfp_rtsym_read_le(app->pf->rtbl, "hw_flower_version", &err);
+	if (err) {
+		nfp_warn(app->cpp, "FlowerNIC requires hw_flower_version memory symbol\n");
+		return err;
+	}
+
+	/* We need to ensure hardware has enough flower capabilities. */
+	if (version != NFP_FLOWER_ALLOWED_VER) {
+		nfp_warn(app->cpp, "FlowerNIC: unsupported firmware version\n");
 		return -EINVAL;
 	}
 
@@ -367,4 +385,6 @@ const struct nfp_app_type app_flower = {
 
 	.eswitch_mode_get  = eswitch_mode_get,
 	.repr_get	= nfp_flower_repr_get,
+
+	.setup_tc	= nfp_flower_setup_tc,
 };

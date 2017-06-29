@@ -3097,18 +3097,6 @@ static void nfp_net_stat64(struct net_device *netdev,
 	}
 }
 
-static int
-nfp_net_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
-		 __be16 proto, struct tc_to_netdev *tc)
-{
-	struct nfp_net *nn = netdev_priv(netdev);
-
-	if (chain_index)
-		return -EOPNOTSUPP;
-
-	return nfp_app_setup_tc(nn->app, netdev, handle, proto, tc);
-}
-
 static int nfp_net_set_features(struct net_device *netdev,
 				netdev_features_t features)
 {
@@ -3424,7 +3412,7 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_get_stats64	= nfp_net_stat64,
 	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
-	.ndo_setup_tc		= nfp_net_setup_tc,
+	.ndo_setup_tc		= nfp_port_setup_tc,
 	.ndo_tx_timeout		= nfp_net_tx_timeout,
 	.ndo_set_rx_mode	= nfp_net_set_rx_mode,
 	.ndo_change_mtu		= nfp_net_change_mtu,
