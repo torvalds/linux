@@ -1492,6 +1492,9 @@ static int __write_data_page(struct page *page, bool *submitted,
 
 	trace_f2fs_writepage(page, DATA);
 
+	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
+		goto redirty_out;
+
 	if (page->index < end_index)
 		goto write;
 
@@ -1505,8 +1508,6 @@ static int __write_data_page(struct page *page, bool *submitted,
 
 	zero_user_segment(page, offset, PAGE_SIZE);
 write:
-	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
-		goto redirty_out;
 	if (f2fs_is_drop_cache(inode))
 		goto out;
 	/* we should not write 0'th page having journal header */
@@ -1754,6 +1755,10 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	if (!get_dirty_pages(inode) && wbc->sync_mode == WB_SYNC_NONE)
 		return 0;
 
+	/* during POR, we don't need to trigger writepage at all. */
+	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
+		goto skip_write;
+
 	if (S_ISDIR(inode->i_mode) && wbc->sync_mode == WB_SYNC_NONE &&
 			get_dirty_pages(inode) < nr_pages_to_skip(sbi, DATA) &&
 			available_free_memory(sbi, DIRTY_DENTS))
@@ -1761,10 +1766,6 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 
 	/* skip writing during file defragment */
 	if (is_inode_flag_set(inode, FI_DO_DEFRAG))
-		goto skip_write;
-
-	/* during POR, we don't need to trigger writepage at all. */
-	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		goto skip_write;
 
 	trace_f2fs_writepages(mapping->host, wbc, DATA);

@@ -1687,6 +1687,9 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	struct blk_plug plug;
 	long diff;
 
+	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
+		goto skip_write;
+
 	/* balancing f2fs's metadata in background */
 	f2fs_balance_fs_bg(sbi);
 
