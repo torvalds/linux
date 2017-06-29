@@ -249,11 +249,17 @@ struct binder_work {
 	enum {
 		BINDER_WORK_TRANSACTION = 1,
 		BINDER_WORK_TRANSACTION_COMPLETE,
+		BINDER_WORK_RETURN_ERROR,
 		BINDER_WORK_NODE,
 		BINDER_WORK_DEAD_BINDER,
 		BINDER_WORK_DEAD_BINDER_AND_CLEAR,
 		BINDER_WORK_CLEAR_DEATH_NOTIFICATION,
 	} type;
+};
+
+struct binder_error {
+	struct binder_work work;
+	uint32_t cmd;
 };
 
 struct binder_node {
@@ -350,10 +356,8 @@ struct binder_thread {
 	bool looper_need_return; /* can be written by other thread */
 	struct binder_transaction *transaction_stack;
 	struct list_head todo;
-	uint32_t return_error; /* Write failed, return error code in read buf */
-	uint32_t return_error2; /* Write failed, return error code in read */
-		/* buffer. Used when sending a reply to a dead process that */
-		/* we are also waiting on */
+	struct binder_error return_error;
+	struct binder_error reply_error;
 	wait_queue_head_t wait;
 	struct binder_stats stats;
 };
@@ -794,29 +798,24 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 	while (1) {
 		target_thread = t->from;
 		if (target_thread) {
-			if (target_thread->return_error != BR_OK &&
-			   target_thread->return_error2 == BR_OK) {
-				target_thread->return_error2 =
-					target_thread->return_error;
-				target_thread->return_error = BR_OK;
-			}
-			if (target_thread->return_error == BR_OK) {
-				binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
-					     "send failed reply for transaction %d to %d:%d\n",
-					      t->debug_id,
-					      target_thread->proc->pid,
-					      target_thread->pid);
+			binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
+				     "send failed reply for transaction %d to %d:%d\n",
+				      t->debug_id,
+				      target_thread->proc->pid,
+				      target_thread->pid);
 
-				binder_pop_transaction(target_thread, t);
-				target_thread->return_error = error_code;
+			binder_pop_transaction(target_thread, t);
+			if (target_thread->reply_error.cmd == BR_OK) {
+				target_thread->reply_error.cmd = error_code;
+				list_add_tail(
+					&target_thread->reply_error.work.entry,
+					&target_thread->todo);
 				wake_up_interruptible(&target_thread->wait);
-				binder_free_transaction(t);
 			} else {
-				pr_err("reply failed, target thread, %d:%d, has error code %d already\n",
-					target_thread->proc->pid,
-					target_thread->pid,
-					target_thread->return_error);
+				WARN(1, "Unexpected reply error: %u\n",
+						target_thread->reply_error.cmd);
 			}
+			binder_free_transaction(t);
 			return;
 		}
 		next = t->from_parent;
@@ -1884,12 +1883,17 @@ err_no_context_mgr_node:
 		WRITE_ONCE(fe->debug_id_done, t_debug_id);
 	}
 
-	BUG_ON(thread->return_error != BR_OK);
+	BUG_ON(thread->return_error.cmd != BR_OK);
 	if (in_reply_to) {
-		thread->return_error = BR_TRANSACTION_COMPLETE;
+		thread->return_error.cmd = BR_TRANSACTION_COMPLETE;
+		list_add_tail(&thread->return_error.work.entry,
+			      &thread->todo);
 		binder_send_failed_reply(in_reply_to, return_error);
-	} else
-		thread->return_error = return_error;
+	} else {
+		thread->return_error.cmd = return_error;
+		list_add_tail(&thread->return_error.work.entry,
+			      &thread->todo);
+	}
 }
 
 static int binder_thread_write(struct binder_proc *proc,
@@ -1903,7 +1907,7 @@ static int binder_thread_write(struct binder_proc *proc,
 	void __user *ptr = buffer + *consumed;
 	void __user *end = buffer + size;
 
-	while (ptr < end && thread->return_error == BR_OK) {
+	while (ptr < end && thread->return_error.cmd == BR_OK) {
 		if (get_user(cmd, (uint32_t __user *)ptr))
 			return -EFAULT;
 		ptr += sizeof(uint32_t);
@@ -2183,7 +2187,12 @@ static int binder_thread_write(struct binder_proc *proc,
 				}
 				death = kzalloc(sizeof(*death), GFP_KERNEL);
 				if (death == NULL) {
-					thread->return_error = BR_ERROR;
+					WARN_ON(thread->return_error.cmd !=
+						BR_OK);
+					thread->return_error.cmd = BR_ERROR;
+					list_add_tail(
+					    &thread->return_error.work.entry,
+					    &thread->todo);
 					binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
 						     "%d:%d BC_REQUEST_DEATH_NOTIFICATION failed\n",
 						     proc->pid, thread->pid);
@@ -2299,8 +2308,7 @@ static int binder_has_proc_work(struct binder_proc *proc,
 
 static int binder_has_thread_work(struct binder_thread *thread)
 {
-	return !list_empty(&thread->todo) || thread->return_error != BR_OK ||
-		thread->looper_need_return;
+	return !list_empty(&thread->todo) || thread->looper_need_return;
 }
 
 static int binder_put_node_cmd(struct binder_proc *proc,
@@ -2355,25 +2363,6 @@ static int binder_thread_read(struct binder_proc *proc,
 retry:
 	wait_for_proc_work = thread->transaction_stack == NULL &&
 				list_empty(&thread->todo);
-
-	if (thread->return_error != BR_OK && ptr < end) {
-		if (thread->return_error2 != BR_OK) {
-			if (put_user(thread->return_error2, (uint32_t __user *)ptr))
-				return -EFAULT;
-			ptr += sizeof(uint32_t);
-			binder_stat_br(proc, thread, thread->return_error2);
-			if (ptr == end)
-				goto done;
-			thread->return_error2 = BR_OK;
-		}
-		if (put_user(thread->return_error, (uint32_t __user *)ptr))
-			return -EFAULT;
-		ptr += sizeof(uint32_t);
-		binder_stat_br(proc, thread, thread->return_error);
-		thread->return_error = BR_OK;
-		goto done;
-	}
-
 
 	thread->looper |= BINDER_LOOPER_STATE_WAITING;
 	if (wait_for_proc_work)
@@ -2440,6 +2429,19 @@ retry:
 		switch (w->type) {
 		case BINDER_WORK_TRANSACTION: {
 			t = container_of(w, struct binder_transaction, work);
+		} break;
+		case BINDER_WORK_RETURN_ERROR: {
+			struct binder_error *e = container_of(
+					w, struct binder_error, work);
+
+			WARN_ON(e->cmd == BR_OK);
+			if (put_user(e->cmd, (uint32_t __user *)ptr))
+				return -EFAULT;
+			e->cmd = BR_OK;
+			ptr += sizeof(uint32_t);
+
+			binder_stat_br(proc, thread, cmd);
+			list_del(&w->entry);
 		} break;
 		case BINDER_WORK_TRANSACTION_COMPLETE: {
 			cmd = BR_TRANSACTION_COMPLETE;
@@ -2685,6 +2687,14 @@ static void binder_release_work(struct list_head *list)
 				binder_free_transaction(t);
 			}
 		} break;
+		case BINDER_WORK_RETURN_ERROR: {
+			struct binder_error *e = container_of(
+					w, struct binder_error, work);
+
+			binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
+				"undelivered TRANSACTION_ERROR: %u\n",
+				e->cmd);
+		} break;
 		case BINDER_WORK_TRANSACTION_COMPLETE: {
 			binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
 				"undelivered TRANSACTION_COMPLETE\n");
@@ -2740,8 +2750,10 @@ static struct binder_thread *binder_get_thread(struct binder_proc *proc)
 		rb_link_node(&thread->rb_node, parent, p);
 		rb_insert_color(&thread->rb_node, &proc->threads);
 		thread->looper_need_return = true;
-		thread->return_error = BR_OK;
-		thread->return_error2 = BR_OK;
+		thread->return_error.work.type = BINDER_WORK_RETURN_ERROR;
+		thread->return_error.cmd = BR_OK;
+		thread->reply_error.work.type = BINDER_WORK_RETURN_ERROR;
+		thread->reply_error.cmd = BR_OK;
 	}
 	return thread;
 }
@@ -2799,7 +2811,7 @@ static unsigned int binder_poll(struct file *filp,
 	thread = binder_get_thread(proc);
 
 	wait_for_proc_work = thread->transaction_stack == NULL &&
-		list_empty(&thread->todo) && thread->return_error == BR_OK;
+		list_empty(&thread->todo);
 
 	binder_unlock(__func__);
 
@@ -3378,6 +3390,13 @@ static void print_binder_work(struct seq_file *m, const char *prefix,
 		t = container_of(w, struct binder_transaction, work);
 		print_binder_transaction(m, transaction_prefix, t);
 		break;
+	case BINDER_WORK_RETURN_ERROR: {
+		struct binder_error *e = container_of(
+				w, struct binder_error, work);
+
+		seq_printf(m, "%stransaction error: %u\n",
+			   prefix, e->cmd);
+	} break;
 	case BINDER_WORK_TRANSACTION_COMPLETE:
 		seq_printf(m, "%stransaction complete\n", prefix);
 		break;
