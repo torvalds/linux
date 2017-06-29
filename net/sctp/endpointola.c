@@ -268,16 +268,14 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 
 	memset(ep->secret_key, 0, sizeof(ep->secret_key));
 
-	/* Give up our hold on the sock. */
 	sk = ep->base.sk;
-	if (sk != NULL) {
-		/* Remove and free the port */
-		if (sctp_sk(sk)->bind_hash)
-			sctp_put_port(sk);
+	/* Remove and free the port */
+	if (sctp_sk(sk)->bind_hash)
+		sctp_put_port(sk);
 
-		sctp_sk(sk)->ep = NULL;
-		sock_put(sk);
-	}
+	sctp_sk(sk)->ep = NULL;
+	/* Give up our hold on the sock */
+	sock_put(sk);
 
 	kfree(ep);
 	SCTP_DBG_OBJCNT_DEC(ep);
