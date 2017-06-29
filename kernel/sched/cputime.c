@@ -736,9 +736,9 @@ void vtime_user_enter(struct task_struct *tsk)
 void vtime_user_exit(struct task_struct *tsk)
 {
 	write_seqcount_begin(&tsk->vtime_seqcount);
-	tsk->vtime_snap_whence = VTIME_SYS;
 	if (vtime_delta(tsk))
 		account_user_time(tsk, get_vtime_delta(tsk));
+	tsk->vtime_snap_whence = VTIME_SYS;
 	write_seqcount_end(&tsk->vtime_seqcount);
 }
 
