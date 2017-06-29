@@ -13,7 +13,6 @@ VDSO32-$(CONFIG_COMPAT) := y
 
 obj-y += vdso.o vdso-syms.o
 obj-$(VDSO32-y) += vdso32.o
-extra-y += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
 # vDSO code runs in userspace and -pg doesn't help with profiling anyway.
