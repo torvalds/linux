@@ -1103,6 +1103,9 @@ enum mlx5_mcam_feature_groups {
 #define MLX5_CAP_FPGA(mdev, cap) \
 	MLX5_GET(fpga_cap, (mdev)->caps.hca_cur[MLX5_CAP_FPGA], cap)
 
+#define MLX5_CAP64_FPGA(mdev, cap) \
+	MLX5_GET64(fpga_cap, (mdev)->caps.hca_cur[MLX5_CAP_FPGA], cap)
+
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
 	MLX5_CMD_STAT_INT_ERR			= 0x1,

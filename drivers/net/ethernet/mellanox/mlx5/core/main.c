@@ -56,7 +56,9 @@
 #ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
 #endif
+#include "lib/mlx5.h"
 #include "fpga/core.h"
+#include "accel/ipsec.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
@@ -936,6 +938,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	mlx5_init_mkey_table(dev);
 
+	mlx5_init_reserved_gids(dev);
+
 	err = mlx5_init_rl_table(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init rate limiting\n");
@@ -956,8 +960,16 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto err_eswitch_cleanup;
 	}
 
+	err = mlx5_fpga_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init fpga device %d\n", err);
+		goto err_sriov_cleanup;
+	}
+
 	return 0;
 
+err_sriov_cleanup:
+	mlx5_sriov_cleanup(dev);
 err_eswitch_cleanup:
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
@@ -981,11 +993,13 @@ out:
 
 static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
+	mlx5_fpga_cleanup(dev);
 	mlx5_sriov_cleanup(dev);
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
 	mlx5_cleanup_rl_table(dev);
+	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
@@ -1117,16 +1131,10 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_disable_msix;
 	}
 
-	err = mlx5_fpga_device_init(dev);
-	if (err) {
-		dev_err(&pdev->dev, "fpga device init failed %d\n", err);
-		goto err_put_uars;
-	}
-
 	err = mlx5_start_eqs(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to start pages and async EQs\n");
-		goto err_fpga_init;
+		goto err_put_uars;
 	}
 
 	err = alloc_comp_eqs(dev);
@@ -1160,7 +1168,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	err = mlx5_fpga_device_start(dev);
 	if (err) {
 		dev_err(&pdev->dev, "fpga device start failed %d\n", err);
-		goto err_reg_dev;
+		goto err_fpga_start;
+	}
+	err = mlx5_accel_ipsec_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "IPSec device start failed %d\n", err);
+		goto err_ipsec_start;
 	}
 
 	if (mlx5_device_registered(dev)) {
@@ -1181,6 +1194,11 @@ out:
 	return 0;
 
 err_reg_dev:
+	mlx5_accel_ipsec_cleanup(dev);
+err_ipsec_start:
+	mlx5_fpga_device_stop(dev);
+
+err_fpga_start:
 	mlx5_sriov_detach(dev);
 
 err_sriov:
@@ -1197,9 +1215,6 @@ err_affinity_hints:
 
 err_stop_eqs:
 	mlx5_stop_eqs(dev);
-
-err_fpga_init:
-	mlx5_fpga_device_cleanup(dev);
 
 err_put_uars:
 	mlx5_put_uars_page(dev, priv->uar);
@@ -1254,8 +1269,14 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto out;
 	}
 
+	clear_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
+	set_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
+
 	if (mlx5_device_registered(dev))
 		mlx5_detach_device(dev);
+
+	mlx5_accel_ipsec_cleanup(dev);
+	mlx5_fpga_device_stop(dev);
 
 	mlx5_sriov_detach(dev);
 #ifdef CONFIG_MLX5_CORE_EN
@@ -1265,7 +1286,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
-	mlx5_fpga_device_cleanup(dev);
 	mlx5_put_uars_page(dev, priv->uar);
 	mlx5_disable_msix(dev);
 	if (cleanup)
@@ -1282,8 +1302,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_cmd_cleanup(dev);
 
 out:
-	clear_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
-	set_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	mutex_unlock(&dev->intf_state_mutex);
 	return err;
 }

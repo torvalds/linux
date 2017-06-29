@@ -35,7 +35,9 @@
 #include <linux/mlx5/driver.h>
 
 #include "mlx5_core.h"
+#include "lib/mlx5.h"
 #include "fpga/core.h"
+#include "fpga/conn.h"
 
 static const char *const mlx5_fpga_error_strings[] = {
 	"Null Syndrome",
@@ -100,10 +102,34 @@ static int mlx5_fpga_device_load_check(struct mlx5_fpga_device *fdev)
 	return 0;
 }
 
+int mlx5_fpga_device_brb(struct mlx5_fpga_device *fdev)
+{
+	int err;
+	struct mlx5_core_dev *mdev = fdev->mdev;
+
+	err = mlx5_fpga_ctrl_op(mdev, MLX5_FPGA_CTRL_OPERATION_SANDBOX_BYPASS_ON);
+	if (err) {
+		mlx5_fpga_err(fdev, "Failed to set bypass on: %d\n", err);
+		return err;
+	}
+	err = mlx5_fpga_ctrl_op(mdev, MLX5_FPGA_CTRL_OPERATION_RESET_SANDBOX);
+	if (err) {
+		mlx5_fpga_err(fdev, "Failed to reset SBU: %d\n", err);
+		return err;
+	}
+	err = mlx5_fpga_ctrl_op(mdev, MLX5_FPGA_CTRL_OPERATION_SANDBOX_BYPASS_OFF);
+	if (err) {
+		mlx5_fpga_err(fdev, "Failed to set bypass off: %d\n", err);
+		return err;
+	}
+	return 0;
+}
+
 int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
 	unsigned long flags;
+	unsigned int max_num_qps;
 	int err;
 
 	if (!fdev)
@@ -123,6 +149,28 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 		       mlx5_fpga_image_name(fdev->last_oper_image),
 		       MLX5_CAP_FPGA(fdev->mdev, image_version));
 
+	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
+	err = mlx5_core_reserve_gids(mdev, max_num_qps);
+	if (err)
+		goto out;
+
+	err = mlx5_fpga_conn_device_init(fdev);
+	if (err)
+		goto err_rsvd_gid;
+
+	if (fdev->last_oper_image == MLX5_FPGA_IMAGE_USER) {
+		err = mlx5_fpga_device_brb(fdev);
+		if (err)
+			goto err_conn_init;
+	}
+
+	goto out;
+
+err_conn_init:
+	mlx5_fpga_conn_device_cleanup(fdev);
+
+err_rsvd_gid:
+	mlx5_core_unreserve_gids(mdev, max_num_qps);
 out:
 	spin_lock_irqsave(&fdev->state_lock, flags);
 	fdev->state = err ? MLX5_FPGA_STATUS_FAILURE : MLX5_FPGA_STATUS_SUCCESS;
@@ -130,7 +178,7 @@ out:
 	return err;
 }
 
-int mlx5_fpga_device_init(struct mlx5_core_dev *mdev)
+int mlx5_fpga_init(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = NULL;
 
@@ -151,9 +199,42 @@ int mlx5_fpga_device_init(struct mlx5_core_dev *mdev)
 	return 0;
 }
 
-void mlx5_fpga_device_cleanup(struct mlx5_core_dev *mdev)
+void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
 {
-	kfree(mdev->fpga);
+	struct mlx5_fpga_device *fdev = mdev->fpga;
+	unsigned int max_num_qps;
+	unsigned long flags;
+	int err;
+
+	if (!fdev)
+		return;
+
+	spin_lock_irqsave(&fdev->state_lock, flags);
+	if (fdev->state != MLX5_FPGA_STATUS_SUCCESS) {
+		spin_unlock_irqrestore(&fdev->state_lock, flags);
+		return;
+	}
+	fdev->state = MLX5_FPGA_STATUS_NONE;
+	spin_unlock_irqrestore(&fdev->state_lock, flags);
+
+	if (fdev->last_oper_image == MLX5_FPGA_IMAGE_USER) {
+		err = mlx5_fpga_ctrl_op(mdev, MLX5_FPGA_CTRL_OPERATION_SANDBOX_BYPASS_ON);
+		if (err)
+			mlx5_fpga_err(fdev, "Failed to re-set SBU bypass on: %d\n",
+				      err);
+	}
+
+	mlx5_fpga_conn_device_cleanup(fdev);
+	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
+	mlx5_core_unreserve_gids(mdev, max_num_qps);
+}
+
+void mlx5_fpga_cleanup(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_fpga_device *fdev = mdev->fpga;
+
+	mlx5_fpga_device_stop(mdev);
+	kfree(fdev);
 	mdev->fpga = NULL;
 }
 

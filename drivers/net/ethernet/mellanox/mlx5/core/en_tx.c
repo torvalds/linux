@@ -34,6 +34,7 @@
 #include <linux/if_vlan.h>
 #include "en.h"
 #include "ipoib/ipoib.h"
+#include "en_accel/ipsec_rxtx.h"
 
 #define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
 #define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
@@ -299,12 +300,9 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 }
 
-static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb)
+static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+				 struct mlx5e_tx_wqe *wqe, u16 pi)
 {
-	struct mlx5_wq_cyc       *wq   = &sq->wq;
-
-	u16 pi = sq->pc & wq->sz_m1;
-	struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
 	struct mlx5e_tx_wqe_info *wi   = &sq->db.wqe_info[pi];
 
 	struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
@@ -318,8 +316,6 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb)
 	u16 headlen;
 	u16 ds_cnt;
 	u16 ihs;
-
-	memset(wqe, 0, sizeof(*wqe));
 
 	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
 
@@ -375,8 +371,21 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_txqsq *sq = priv->txq2sq[skb_get_queue_mapping(skb)];
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 pi = sq->pc & wq->sz_m1;
+	struct mlx5e_tx_wqe *wqe = mlx5_wq_cyc_get_wqe(wq, pi);
 
-	return mlx5e_sq_xmit(sq, skb);
+	memset(wqe, 0, sizeof(*wqe));
+
+#ifdef CONFIG_MLX5_EN_IPSEC
+	if (sq->state & BIT(MLX5E_SQ_STATE_IPSEC)) {
+		skb = mlx5e_ipsec_handle_tx_skb(dev, wqe, skb);
+		if (unlikely(!skb))
+			return NETDEV_TX_OK;
+	}
+#endif
+
+	return mlx5e_sq_xmit(sq, skb, wqe, pi);
 }
 
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
@@ -409,7 +418,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		u16 wqe_counter;
 		bool last_wqe;
 
-		cqe = mlx5e_get_cqe(cq);
+		cqe = mlx5_cqwq_get_cqe(&cq->wq);
 		if (!cqe)
 			break;
 

@@ -41,6 +41,7 @@
 #include "eswitch.h"
 #include "en_rep.h"
 #include "ipoib/ipoib.h"
+#include "en_accel/ipsec_rxtx.h"
 
 static inline bool mlx5e_rx_hw_stamp(struct mlx5e_tstamp *tstamp)
 {
@@ -996,7 +997,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 		work_done += mlx5e_decompress_cqes_cont(rq, cq, 0, budget);
 
 	for (; work_done < budget; work_done++) {
-		struct mlx5_cqe64 *cqe = mlx5e_get_cqe(cq);
+		struct mlx5_cqe64 *cqe = mlx5_cqwq_get_cqe(&cq->wq);
 
 		if (!cqe)
 			break;
@@ -1050,7 +1051,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 		u16 wqe_counter;
 		bool last_wqe;
 
-		cqe = mlx5e_get_cqe(cq);
+		cqe = mlx5_cqwq_get_cqe(&cq->wq);
 		if (!cqe)
 			break;
 
@@ -1183,3 +1184,43 @@ wq_free_wqe:
 }
 
 #endif /* CONFIG_MLX5_CORE_IPOIB */
+
+#ifdef CONFIG_MLX5_EN_IPSEC
+
+void mlx5e_ipsec_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
+{
+	struct mlx5e_wqe_frag_info *wi;
+	struct mlx5e_rx_wqe *wqe;
+	__be16 wqe_counter_be;
+	struct sk_buff *skb;
+	u16 wqe_counter;
+	u32 cqe_bcnt;
+
+	wqe_counter_be = cqe->wqe_counter;
+	wqe_counter    = be16_to_cpu(wqe_counter_be);
+	wqe            = mlx5_wq_ll_get_wqe(&rq->wq, wqe_counter);
+	wi             = &rq->wqe.frag_info[wqe_counter];
+	cqe_bcnt       = be32_to_cpu(cqe->byte_cnt);
+
+	skb = skb_from_cqe(rq, cqe, wi, cqe_bcnt);
+	if (unlikely(!skb)) {
+		/* a DROP, save the page-reuse checks */
+		mlx5e_free_rx_wqe(rq, wi);
+		goto wq_ll_pop;
+	}
+	skb = mlx5e_ipsec_handle_rx_skb(rq->netdev, skb);
+	if (unlikely(!skb)) {
+		mlx5e_free_rx_wqe(rq, wi);
+		goto wq_ll_pop;
+	}
+
+	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
+	napi_gro_receive(rq->cq.napi, skb);
+
+	mlx5e_free_rx_wqe_reuse(rq, wi);
+wq_ll_pop:
+	mlx5_wq_ll_pop(&rq->wq, wqe_counter_be,
+		       &wqe->next.next_wqe_index);
+}
+
+#endif /* CONFIG_MLX5_EN_IPSEC */

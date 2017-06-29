@@ -328,6 +328,7 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_ENABLED,
+	MLX5E_SQ_STATE_IPSEC,
 };
 
 struct mlx5e_sq_wqe_info {
@@ -784,6 +785,9 @@ struct mlx5e_priv {
 
 	const struct mlx5e_profile *profile;
 	void                      *ppriv;
+#ifdef CONFIG_MLX5_EN_IPSEC
+	struct mlx5e_ipsec        *ipsec;
+#endif
 };
 
 struct mlx5e_profile {
@@ -833,7 +837,6 @@ void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
 void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq);
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
-struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void mlx5e_rx_am(struct mlx5e_rq *rq);
 void mlx5e_rx_am_work(struct work_struct *work);

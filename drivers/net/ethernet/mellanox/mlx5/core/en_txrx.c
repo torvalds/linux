@@ -32,23 +32,6 @@
 
 #include "en.h"
 
-struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
-{
-	struct mlx5_cqwq *wq = &cq->wq;
-	u32 ci = mlx5_cqwq_get_ci(wq);
-	struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(wq, ci);
-	u8 cqe_ownership_bit = cqe->op_own & MLX5_CQE_OWNER_MASK;
-	u8 sw_ownership_val = mlx5_cqwq_get_wrap_cnt(wq) & 1;
-
-	if (cqe_ownership_bit != sw_ownership_val)
-		return NULL;
-
-	/* ensure cqe content is read after cqe ownership bit */
-	dma_rmb();
-
-	return cqe;
-}
-
 static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
 					     struct mlx5e_icosq *sq,
 					     struct mlx5_cqe64 *cqe,
@@ -89,7 +72,7 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
 		return;
 
-	cqe = mlx5e_get_cqe(cq);
+	cqe = mlx5_cqwq_get_cqe(&cq->wq);
 	if (likely(!cqe))
 		return;
 

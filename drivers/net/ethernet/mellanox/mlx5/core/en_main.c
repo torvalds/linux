@@ -39,6 +39,9 @@
 #include "en.h"
 #include "en_tc.h"
 #include "en_rep.h"
+#include "en_accel/ipsec.h"
+#include "en_accel/ipsec_rxtx.h"
+#include "accel/ipsec.h"
 #include "vxlan.h"
 
 struct mlx5e_rq_param {
@@ -115,7 +118,7 @@ void mlx5e_set_rq_type_params(struct mlx5_core_dev *mdev,
 static void mlx5e_set_rq_params(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	u8 rq_type = mlx5e_check_fragmented_striding_rq_cap(mdev) &&
-		    !params->xdp_prog ?
+		    !params->xdp_prog && !MLX5_IPSEC_DEV(mdev) ?
 		    MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
 		    MLX5_WQ_TYPE_LINKED_LIST;
 	mlx5e_set_rq_type_params(mdev, params, rq_type);
@@ -328,8 +331,10 @@ static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
 
 void mlx5e_update_stats(struct mlx5e_priv *priv, bool full)
 {
-	if (full)
+	if (full) {
 		mlx5e_update_pcie_counters(priv);
+		mlx5e_ipsec_update_stats(priv);
+	}
 	mlx5e_update_pport_counters(priv, full);
 	mlx5e_update_vport_counters(priv);
 	mlx5e_update_q_counter(priv);
@@ -592,6 +597,13 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
 		rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe_mpwqe;
+#ifdef CONFIG_MLX5_EN_IPSEC
+		if (MLX5_IPSEC_DEV(mdev)) {
+			err = -EINVAL;
+			netdev_err(c->netdev, "MPWQE RQ with IPSec offload not supported\n");
+			goto err_rq_wq_destroy;
+		}
+#endif
 		if (!rq->handle_rx_cqe) {
 			err = -EINVAL;
 			netdev_err(c->netdev, "RX handler of MPWQE RQ is not set, err %d\n", err);
@@ -624,7 +636,12 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->alloc_wqe = mlx5e_alloc_rx_wqe;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
 
-		rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe;
+#ifdef CONFIG_MLX5_EN_IPSEC
+		if (c->priv->ipsec)
+			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
+		else
+#endif
+			rq->handle_rx_cqe = c->priv->profile->rx_handlers.handle_rx_cqe;
 		if (!rq->handle_rx_cqe) {
 			kfree(rq->wqe.frag_info);
 			err = -EINVAL;
@@ -635,6 +652,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		rq->buff.wqe_sz = params->lro_en  ?
 				params->lro_wqe_sz :
 				MLX5E_SW2HW_MTU(c->priv, c->netdev->mtu);
+#ifdef CONFIG_MLX5_EN_IPSEC
+		if (MLX5_IPSEC_DEV(mdev))
+			rq->buff.wqe_sz += MLX5E_METADATA_ETHER_LEN;
+#endif
 		rq->wqe.page_reuse = !params->xdp_prog && !params->lro_en;
 		byte_count = rq->buff.wqe_sz;
 
@@ -1095,6 +1116,8 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
 	sq->max_inline      = params->tx_max_inline;
 	sq->min_inline_mode = params->tx_min_inline_mode;
+	if (MLX5_IPSEC_DEV(c->priv->mdev))
+		set_bit(MLX5E_SQ_STATE_IPSEC, &sq->state);
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq, &sq->wq_ctrl);
@@ -1914,6 +1937,7 @@ static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
 
 	mlx5e_build_sq_param_common(priv, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
+	MLX5_SET(sqc, sqc, allow_swp, !!MLX5_IPSEC_DEV(priv->mdev));
 }
 
 static void mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
@@ -3508,6 +3532,11 @@ static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 	features = vlan_features_check(skb, features);
 	features = vxlan_features_check(skb, features);
 
+#ifdef CONFIG_MLX5_EN_IPSEC
+	if (mlx5e_ipsec_feature_check(skb, netdev, features))
+		return features;
+#endif
+
 	/* Validate if the tunneled packet is being offloaded by HW */
 	if (skb->encapsulation &&
 	    (features & NETIF_F_CSUM_MASK || features & NETIF_F_GSO_MASK))
@@ -3551,6 +3580,12 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 
 	if ((netdev->features & NETIF_F_LRO) && prog) {
 		netdev_warn(netdev, "can't set XDP while LRO is on, disable LRO first\n");
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	if ((netdev->features & NETIF_F_HW_ESP) && prog) {
+		netdev_warn(netdev, "can't set XDP with IPSec offload\n");
 		err = -EINVAL;
 		goto unlock;
 	}
@@ -4046,6 +4081,8 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	if (MLX5_CAP_GEN(mdev, vport_group_manager))
 		netdev->switchdev_ops = &mlx5e_switchdev_ops;
 #endif
+
+	mlx5e_ipsec_build_netdev(priv);
 }
 
 static void mlx5e_create_q_counter(struct mlx5e_priv *priv)
@@ -4074,14 +4111,19 @@ static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
 			   void *ppriv)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err;
 
 	mlx5e_build_nic_netdev_priv(mdev, netdev, profile, ppriv);
+	err = mlx5e_ipsec_init(priv);
+	if (err)
+		mlx5_core_err(mdev, "IPSec initialization failed, %d\n", err);
 	mlx5e_build_nic_netdev(netdev);
 	mlx5e_vxlan_init(priv);
 }
 
 static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 {
+	mlx5e_ipsec_cleanup(priv);
 	mlx5e_vxlan_cleanup(priv);
 
 	if (priv->channels.params.xdp_prog)
@@ -4473,6 +4515,7 @@ static struct mlx5_interface mlx5e_interface = {
 
 void mlx5e_init(void)
 {
+	mlx5e_ipsec_build_inverse_table();
 	mlx5e_build_ptys2ethtool_map();
 	mlx5_register_interface(&mlx5e_interface);
 }

@@ -31,6 +31,7 @@
  */
 
 #include "en.h"
+#include "en_accel/ipsec.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
@@ -186,7 +187,8 @@ int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 		       MLX5E_NUM_SQ_STATS(priv) +
 		       MLX5E_NUM_PFC_COUNTERS(priv) +
 		       ARRAY_SIZE(mlx5e_pme_status_desc) +
-		       ARRAY_SIZE(mlx5e_pme_error_desc);
+		       ARRAY_SIZE(mlx5e_pme_error_desc) +
+		       mlx5e_ipsec_get_count(priv);
 
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx5e_priv_flags);
@@ -274,6 +276,9 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 
 	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_error_desc[i].format);
+
+	/* IPSec counters */
+	idx += mlx5e_ipsec_get_strings(priv, data + idx * ETH_GSTRING_LEN);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;
@@ -402,6 +407,9 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
 		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
 						   mlx5e_pme_error_desc, i);
+
+	/* IPSec counters */
+	idx += mlx5e_ipsec_get_stats(priv, data + idx);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;

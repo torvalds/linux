@@ -926,12 +926,16 @@ static int mlx5_nic_vport_update_roce_state(struct mlx5_core_dev *mdev,
 
 int mlx5_nic_vport_enable_roce(struct mlx5_core_dev *mdev)
 {
+	if (atomic_inc_return(&mdev->roce.roce_en) != 1)
+		return 0;
 	return mlx5_nic_vport_update_roce_state(mdev, MLX5_VPORT_ROCE_ENABLED);
 }
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_enable_roce);
 
 int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev)
 {
+	if (atomic_dec_return(&mdev->roce.roce_en) != 0)
+		return 0;
 	return mlx5_nic_vport_update_roce_state(mdev, MLX5_VPORT_ROCE_DISABLED);
 }
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_disable_roce);
