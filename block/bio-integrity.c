@@ -184,10 +184,11 @@ static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
 /**
  * bio_integrity_process - Process integrity metadata for a bio
  * @bio:	bio to generate/verify integrity metadata for
+ * @proc_iter:  iterator to process
  * @proc_fn:	Pointer to the relevant processing function
  */
 static blk_status_t bio_integrity_process(struct bio *bio,
-				 integrity_processing_fn *proc_fn)
+		struct bvec_iter *proc_iter, integrity_processing_fn *proc_fn)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 	struct blk_integrity_iter iter;
@@ -200,10 +201,10 @@ static blk_status_t bio_integrity_process(struct bio *bio,
 
 	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	iter.interval = 1 << bi->interval_exp;
-	iter.seed = bip_get_seed(bip);
+	iter.seed = proc_iter->bi_sector;
 	iter.prot_buf = prot_buf;
 
-	bio_for_each_segment(bv, bio, bviter) {
+	__bio_for_each_segment(bv, bio, bviter, *proc_iter) {
 		void *kaddr = kmap_atomic(bv.bv_page);
 
 		iter.data_buf = kaddr + bv.bv_offset;
@@ -332,8 +333,10 @@ bool bio_integrity_prep(struct bio *bio)
 	}
 
 	/* Auto-generate integrity metadata if this is a write */
-	if (bio_data_dir(bio) == WRITE)
-		bio_integrity_process(bio, bi->profile->generate_fn);
+	if (bio_data_dir(bio) == WRITE) {
+		bio_integrity_process(bio, &bio->bi_iter,
+				      bi->profile->generate_fn);
+	}
 	return true;
 
 err_end_io:
@@ -358,8 +361,19 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
+	struct bvec_iter iter = bio->bi_iter;
 
-	bio->bi_status = bio_integrity_process(bio, bi->profile->verify_fn);
+	/*
+	 * At the moment verify is called bio's iterator was advanced
+	 * during split and completion, we need to rewind iterator to
+	 * it's original position.
+	 */
+	if (bio_rewind_iter(bio, &iter, iter.bi_done)) {
+		bio->bi_status = bio_integrity_process(bio, &iter,
+						       bi->profile->verify_fn);
+	} else {
+		bio->bi_status = BLK_STS_IOERR;
+	}
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
