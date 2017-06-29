@@ -2442,7 +2442,7 @@ static int rt5670_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int rt5670_set_codec_sysclk(struct snd_soc_dai *dai, int clk_id,
+static int rt5670_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
 				   int source, unsigned int freq, int dir)
 {
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
