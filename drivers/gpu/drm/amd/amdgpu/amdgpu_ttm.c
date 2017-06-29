@@ -318,7 +318,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 		r = amdgpu_copy_buffer(ring, old_start, new_start,
 				       cur_pages * PAGE_SIZE,
-				       bo->resv, &next, false);
+				       bo->resv, &next, false, false);
 		if (r)
 			goto error;
 
@@ -1256,12 +1256,11 @@ int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ttm_bo_mmap(filp, vma, &adev->mman.bdev);
 }
 
-int amdgpu_copy_buffer(struct amdgpu_ring *ring,
-		       uint64_t src_offset,
-		       uint64_t dst_offset,
-		       uint32_t byte_count,
+int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
+		       uint64_t dst_offset, uint32_t byte_count,
 		       struct reservation_object *resv,
-		       struct dma_fence **fence, bool direct_submit)
+		       struct dma_fence **fence, bool direct_submit,
+		       bool vm_needs_flush)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_job *job;
@@ -1283,6 +1282,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	if (r)
 		return r;
 
+	job->vm_needs_flush = vm_needs_flush;
 	if (resv) {
 		r = amdgpu_sync_resv(adev, &job->sync, resv,
 				     AMDGPU_FENCE_OWNER_UNDEFINED);

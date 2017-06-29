@@ -535,7 +535,7 @@ int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 
 	r = amdgpu_copy_buffer(ring, bo_addr, shadow_addr,
 			       amdgpu_bo_size(bo), resv, fence,
-			       direct);
+			       direct, false);
 	if (!r)
 		amdgpu_bo_fence(bo, *fence, true);
 
@@ -588,7 +588,7 @@ int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 
 	r = amdgpu_copy_buffer(ring, shadow_addr, bo_addr,
 			       amdgpu_bo_size(bo), resv, fence,
-			       direct);
+			       direct, false);
 	if (!r)
 		amdgpu_bo_fence(bo, *fence, true);
 
