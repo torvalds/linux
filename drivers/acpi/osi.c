@@ -265,7 +265,8 @@ static void __init acpi_osi_dmi_darwin(bool enable,
 	__acpi_osi_setup_darwin(enable);
 }
 
-void __init acpi_osi_dmi_linux(bool enable, const struct dmi_system_id *d)
+static void __init acpi_osi_dmi_linux(bool enable,
+				      const struct dmi_system_id *d)
 {
 	pr_notice("DMI detected to setup _OSI(\"Linux\"): %s\n", d->ident);
 	osi_config.linux_dmi = 1;
