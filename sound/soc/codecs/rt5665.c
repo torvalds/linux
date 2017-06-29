@@ -70,6 +70,7 @@ struct rt5665_priv {
 	int jack_type;
 	int irq_work_delay_time;
 	unsigned int sar_adc_value;
+	bool calibration_done;
 };
 
 static const struct reg_default rt5665_reg[] = {
@@ -1302,6 +1303,11 @@ static void rt5665_jack_detect_handler(struct work_struct *work)
 
 	while (!rt5665->codec->component.card->instantiated) {
 		pr_debug("%s\n", __func__);
+		usleep_range(10000, 15000);
+	}
+
+	while (!rt5665->calibration_done) {
+		pr_debug("%s calibration not ready\n", __func__);
 		usleep_range(10000, 15000);
 	}
 
@@ -4695,6 +4701,7 @@ static void rt5665_calibrate(struct rt5665_priv *rt5665)
 	regmap_write(rt5665->regmap, RT5665_ASRC_8, 0x0120);
 
 out_unlock:
+	rt5665->calibration_done = true;
 	mutex_unlock(&rt5665->calibrate_mutex);
 }
 
