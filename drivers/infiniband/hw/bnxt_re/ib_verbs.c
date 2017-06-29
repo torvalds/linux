@@ -390,15 +390,17 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 			return -EINVAL;
 		ctx->refcnt--;
 		if (!ctx->refcnt) {
-			rc = bnxt_qplib_del_sgid
-					(sgid_tbl,
-					 &sgid_tbl->tbl[ctx->idx], true);
-			if (rc)
+			rc = bnxt_qplib_del_sgid(sgid_tbl,
+						 &sgid_tbl->tbl[ctx->idx],
+						 true);
+			if (rc) {
 				dev_err(rdev_to_dev(rdev),
 					"Failed to remove GID: %#x", rc);
-			ctx_tbl = sgid_tbl->ctx;
-			ctx_tbl[ctx->idx] = NULL;
-			kfree(ctx);
+			} else {
+				ctx_tbl = sgid_tbl->ctx;
+				ctx_tbl[ctx->idx] = NULL;
+				kfree(ctx);
+			}
 		}
 	} else {
 		return -EINVAL;
