@@ -786,6 +786,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 	struct bnxt_re_dev *rdev = qp->rdev;
 	int rc;
 
+	bnxt_qplib_del_flush_qp(&qp->qplib_qp);
 	rc = bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to destroy HW QP");
@@ -800,6 +801,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 			return rc;
 		}
 
+		bnxt_qplib_del_flush_qp(&qp->qplib_qp);
 		rc = bnxt_qplib_destroy_qp(&rdev->qplib_res,
 					   &rdev->qp1_sqp->qplib_qp);
 		if (rc) {
@@ -1344,6 +1346,21 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		}
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_STATE;
 		qp->qplib_qp.state = __from_ib_qp_state(qp_attr->qp_state);
+
+		if (!qp->sumem &&
+		    qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR) {
+			dev_dbg(rdev_to_dev(rdev),
+				"Move QP = %p to flush list\n",
+				qp);
+			bnxt_qplib_add_flush_qp(&qp->qplib_qp);
+		}
+		if (!qp->sumem &&
+		    qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_RESET) {
+			dev_dbg(rdev_to_dev(rdev),
+				"Move QP = %p out of flush list\n",
+				qp);
+			bnxt_qplib_del_flush_qp(&qp->qplib_qp);
+		}
 	}
 	if (qp_attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) {
 		qp->qplib_qp.modify_flags |=
@@ -2354,6 +2371,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	}
 	cq->qplib_cq.max_wqe = entries;
 	cq->qplib_cq.cnq_hw_ring_id = rdev->nq.ring_id;
+	cq->qplib_cq.nq	= &rdev->nq;
 
 	rc = bnxt_qplib_create_cq(&rdev->qplib_res, &cq->qplib_cq);
 	if (rc) {
@@ -2861,6 +2879,10 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 					sq->send_phantom = false;
 			}
 		}
+		if (ncqe < budget)
+			ncqe += bnxt_qplib_process_flush_list(&cq->qplib_cq,
+							      cqe + ncqe,
+							      budget - ncqe);
 
 		if (!ncqe)
 			break;

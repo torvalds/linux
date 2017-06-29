@@ -1037,7 +1037,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	/* Establish RCFW Communication Channel to initialize the context
 	 * memory for the function and all child VFs
 	 */
-	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw);
+	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
+					   BNXT_RE_MAX_QPC_COUNT);
 	if (rc)
 		goto fail;
 
