@@ -46,7 +46,7 @@
  */
 
 /dts-v1/;
-/include/ "meson6.dtsi"
+#include "meson6.dtsi"
 
 / {
 	model = "Geniatech ATV1200";

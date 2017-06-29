@@ -82,6 +82,11 @@
 			reg = <0x203>;
 		};
 	};
+
+	scu@c4300000 {
+		compatible = "arm,cortex-a5-scu";
+		reg = <0xc4300000 0x100>;
+	};
 }; /* end of / */
 
 &aobus {
@@ -171,10 +176,29 @@
 	};
 };
 
+&ethmac {
+	clocks = <&clkc CLKID_ETH>;
+	clock-names = "stmmaceth";
+};
+
+&hwrng {
+	compatible = "amlogic,meson8b-rng", "amlogic,meson-rng";
+	clocks = <&clkc CLKID_RNG0>;
+	clock-names = "core";
+};
+
 &L2 {
 	arm,data-latency = <3 3 3>;
 	arm,tag-latency = <2 2 2>;
 	arm,filter-ranges = <0x100000 0xc0000000>;
+};
+
+&saradc {
+	compatible = "amlogic,meson8b-saradc", "amlogic,meson-saradc";
+	clocks = <&clkc CLKID_XTAL>,
+		<&clkc CLKID_SAR_ADC>,
+		<&clkc CLKID_SANA>;
+	clock-names = "clkin", "core", "sana";
 };
 
 &uart_AO {
@@ -191,4 +215,30 @@
 
 &uart_C {
 	clocks = <&clkc CLKID_CLK81>;
+};
+
+&usb0 {
+	compatible = "amlogic,meson8b-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB0_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb1 {
+	compatible = "amlogic,meson8b-usb", "snps,dwc2";
+	clocks = <&clkc CLKID_USB1_DDR_BRIDGE>;
+	clock-names = "otg";
+};
+
+&usb0_phy {
+	compatible = "amlogic,meson8b-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
+};
+
+&usb1_phy {
+	compatible = "amlogic,meson8b-usb2-phy", "amlogic,meson-mx-usb2-phy";
+	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
+	clock-names = "usb_general", "usb";
+	resets = <&reset RESET_USB_OTG>;
 };
