@@ -2845,7 +2845,10 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	val |= CL_POWER_DOWN_ENABLE;
 	I915_WRITE(CNL_PORT_CL1CM_DW5, val);
 
-	/* 4. Enable Power Well 1 (PG1) and Aux IO Power */
+	/*
+	 * 4. Enable Power Well 1 (PG1).
+	 *    The AUX IO power wells will be enabled on demand.
+	 */
 	mutex_lock(&power_domains->lock);
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
 	intel_power_well_enable(dev_priv, well);
@@ -2877,7 +2880,11 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 	/* 3. Disable CD clock */
 	cnl_uninit_cdclk(dev_priv);
 
-	/* 4. Disable Power Well 1 (PG1) and Aux IO Power */
+	/*
+	 * 4. Disable Power Well 1 (PG1).
+	 *    The AUX IO power wells are toggled on demand, so they are already
+	 *    disabled at this point.
+	 */
 	mutex_lock(&power_domains->lock);
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
 	intel_power_well_disable(dev_priv, well);
