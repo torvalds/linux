@@ -274,6 +274,7 @@ struct binder_node {
 	int internal_strong_refs;
 	int local_weak_refs;
 	int local_strong_refs;
+	int tmp_refs;
 	binder_uintptr_t ptr;
 	binder_uintptr_t cookie;
 	unsigned has_strong_ref:1;
@@ -427,6 +428,7 @@ static void
 binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
 static void binder_free_thread(struct binder_thread *thread);
 static void binder_free_proc(struct binder_proc *proc);
+static void binder_inc_node_tmpref(struct binder_node *node);
 
 static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
 {
@@ -521,8 +523,15 @@ static struct binder_node *binder_get_node(struct binder_proc *proc,
 			n = n->rb_left;
 		else if (ptr > node->ptr)
 			n = n->rb_right;
-		else
+		else {
+			/*
+			 * take an implicit weak reference
+			 * to ensure node stays alive until
+			 * call to binder_put_node()
+			 */
+			binder_inc_node_tmpref(node);
 			return node;
+		}
 	}
 	return NULL;
 }
@@ -551,6 +560,7 @@ static struct binder_node *binder_new_node(struct binder_proc *proc,
 	if (node == NULL)
 		return NULL;
 	binder_stats_created(BINDER_STAT_NODE);
+	node->tmp_refs++;
 	rb_link_node(&node->rb_node, parent, p);
 	rb_insert_color(&node->rb_node, &proc->nodes);
 	node->debug_id = atomic_inc_return(&binder_last_id);
@@ -615,7 +625,8 @@ static int binder_dec_node(struct binder_node *node, int strong, int internal)
 	} else {
 		if (!internal)
 			node->local_weak_refs--;
-		if (node->local_weak_refs || !hlist_empty(&node->refs))
+		if (node->local_weak_refs || node->tmp_refs ||
+				!hlist_empty(&node->refs))
 			return 0;
 	}
 	if (node->proc && (node->has_strong_ref || node->has_weak_ref)) {
@@ -625,7 +636,7 @@ static int binder_dec_node(struct binder_node *node, int strong, int internal)
 		}
 	} else {
 		if (hlist_empty(&node->refs) && !node->local_strong_refs &&
-		    !node->local_weak_refs) {
+		    !node->local_weak_refs && !node->tmp_refs) {
 			list_del_init(&node->work.entry);
 			if (node->proc) {
 				rb_erase(&node->rb_node, &node->proc->nodes);
@@ -648,6 +659,46 @@ static int binder_dec_node(struct binder_node *node, int strong, int internal)
 	return 0;
 }
 
+/**
+ * binder_inc_node_tmpref() - take a temporary reference on node
+ * @node:	node to reference
+ *
+ * Take reference on node to prevent the node from being freed
+ * while referenced only by a local variable
+ */
+static void binder_inc_node_tmpref(struct binder_node *node)
+{
+	/*
+	 * No call to binder_inc_node() is needed since we
+	 * don't need to inform userspace of any changes to
+	 * tmp_refs
+	 */
+	node->tmp_refs++;
+}
+
+/**
+ * binder_dec_node_tmpref() - remove a temporary reference on node
+ * @node:	node to reference
+ *
+ * Release temporary reference on node taken via binder_inc_node_tmpref()
+ */
+static void binder_dec_node_tmpref(struct binder_node *node)
+{
+	node->tmp_refs--;
+	BUG_ON(node->tmp_refs < 0);
+	/*
+	 * Call binder_dec_node() to check if all refcounts are 0
+	 * and cleanup is needed. Calling with strong=0 and internal=1
+	 * causes no actual reference to be released in binder_dec_node().
+	 * If that changes, a change is needed here too.
+	 */
+	binder_dec_node(node, 0, 1);
+}
+
+static void binder_put_node(struct binder_node *node)
+{
+	binder_dec_node_tmpref(node);
+}
 
 static struct binder_ref *binder_get_ref(struct binder_proc *proc,
 					 u32 desc, bool need_strong_ref)
@@ -888,6 +939,11 @@ static struct binder_node *binder_get_node_from_ref(
 	if (!ref)
 		goto err_no_ref;
 	node = ref->node;
+	/*
+	 * Take an implicit reference on the node to ensure
+	 * it stays alive until the call to binder_put_node()
+	 */
+	binder_inc_node_tmpref(node);
 	if (rdata)
 		*rdata = ref->data;
 
@@ -1348,6 +1404,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 				     node->debug_id, (u64)node->ptr);
 			binder_dec_node(node, hdr->type == BINDER_TYPE_BINDER,
 					0);
+			binder_put_node(node);
 		} break;
 		case BINDER_TYPE_HANDLE:
 		case BINDER_TYPE_WEAK_HANDLE: {
@@ -1441,7 +1498,7 @@ static int binder_translate_binder(struct flat_binder_object *fp,
 	struct binder_proc *proc = thread->proc;
 	struct binder_proc *target_proc = t->to_proc;
 	struct binder_ref_data rdata;
-	int ret;
+	int ret = 0;
 
 	node = binder_get_node(proc, fp->binder);
 	if (!node) {
@@ -1457,16 +1514,19 @@ static int binder_translate_binder(struct flat_binder_object *fp,
 				  proc->pid, thread->pid, (u64)fp->binder,
 				  node->debug_id, (u64)fp->cookie,
 				  (u64)node->cookie);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
-	if (security_binder_transfer_binder(proc->tsk, target_proc->tsk))
-		return -EPERM;
+	if (security_binder_transfer_binder(proc->tsk, target_proc->tsk)) {
+		ret = -EPERM;
+		goto done;
+	}
 
 	ret = binder_inc_ref_for_node(target_proc, node,
 			fp->hdr.type == BINDER_TYPE_BINDER,
 			&thread->todo, &rdata);
 	if (ret)
-		return ret;
+		goto done;
 
 	if (fp->hdr.type == BINDER_TYPE_BINDER)
 		fp->hdr.type = BINDER_TYPE_HANDLE;
@@ -1481,7 +1541,9 @@ static int binder_translate_binder(struct flat_binder_object *fp,
 		     "        node %d u%016llx -> ref %d desc %d\n",
 		     node->debug_id, (u64)node->ptr,
 		     rdata.debug_id, rdata.desc);
-	return 0;
+done:
+	binder_put_node(node);
+	return ret;
 }
 
 static int binder_translate_handle(struct flat_binder_object *fp,
@@ -1492,6 +1554,7 @@ static int binder_translate_handle(struct flat_binder_object *fp,
 	struct binder_proc *target_proc = t->to_proc;
 	struct binder_node *node;
 	struct binder_ref_data src_rdata;
+	int ret = 0;
 
 	node = binder_get_node_from_ref(proc, fp->handle,
 			fp->hdr.type == BINDER_TYPE_HANDLE, &src_rdata);
@@ -1500,8 +1563,10 @@ static int binder_translate_handle(struct flat_binder_object *fp,
 				  proc->pid, thread->pid, fp->handle);
 		return -EINVAL;
 	}
-	if (security_binder_transfer_binder(proc->tsk, target_proc->tsk))
-		return -EPERM;
+	if (security_binder_transfer_binder(proc->tsk, target_proc->tsk)) {
+		ret = -EPERM;
+		goto done;
+	}
 
 	if (node->proc == target_proc) {
 		if (fp->hdr.type == BINDER_TYPE_HANDLE)
@@ -1526,7 +1591,7 @@ static int binder_translate_handle(struct flat_binder_object *fp,
 				fp->hdr.type == BINDER_TYPE_HANDLE,
 				NULL, &dest_rdata);
 		if (ret)
-			return ret;
+			goto done;
 
 		fp->binder = 0;
 		fp->handle = dest_rdata.desc;
@@ -1539,7 +1604,9 @@ static int binder_translate_handle(struct flat_binder_object *fp,
 			     dest_rdata.debug_id, dest_rdata.desc,
 			     node->debug_id);
 	}
-	return 0;
+done:
+	binder_put_node(node);
+	return ret;
 }
 
 static int binder_translate_fd(int fd,
@@ -2381,6 +2448,7 @@ static int binder_thread_write(struct binder_proc *proc,
 					"BC_INCREFS_DONE" : "BC_ACQUIRE_DONE",
 					(u64)node_ptr, node->debug_id,
 					(u64)cookie, (u64)node->cookie);
+				binder_put_node(node);
 				break;
 			}
 			if (cmd == BC_ACQUIRE_DONE) {
@@ -2388,6 +2456,7 @@ static int binder_thread_write(struct binder_proc *proc,
 					binder_user_error("%d:%d BC_ACQUIRE_DONE node %d has no pending acquire request\n",
 						proc->pid, thread->pid,
 						node->debug_id);
+					binder_put_node(node);
 					break;
 				}
 				node->pending_strong_ref = 0;
@@ -2396,16 +2465,19 @@ static int binder_thread_write(struct binder_proc *proc,
 					binder_user_error("%d:%d BC_INCREFS_DONE node %d has no pending increfs request\n",
 						proc->pid, thread->pid,
 						node->debug_id);
+					binder_put_node(node);
 					break;
 				}
 				node->pending_weak_ref = 0;
 			}
 			binder_dec_node(node, cmd == BC_ACQUIRE_DONE, 0);
 			binder_debug(BINDER_DEBUG_USER_REFS,
-				     "%d:%d %s node %d ls %d lw %d\n",
+				     "%d:%d %s node %d ls %d lw %d tr %d\n",
 				     proc->pid, thread->pid,
 				     cmd == BC_INCREFS_DONE ? "BC_INCREFS_DONE" : "BC_ACQUIRE_DONE",
-				     node->debug_id, node->local_strong_refs, node->local_weak_refs);
+				     node->debug_id, node->local_strong_refs,
+				     node->local_weak_refs, node->tmp_refs);
+			binder_put_node(node);
 			break;
 		}
 		case BC_ATTEMPT_ACQUIRE:
@@ -2845,7 +2917,8 @@ retry:
 			strong = node->internal_strong_refs ||
 					node->local_strong_refs;
 			weak = !hlist_empty(&node->refs) ||
-					node->local_weak_refs || strong;
+					node->local_weak_refs ||
+					node->tmp_refs || strong;
 			has_strong_ref = node->has_strong_ref;
 			has_weak_ref = node->has_weak_ref;
 
@@ -3357,6 +3430,7 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp)
 	new_node->has_strong_ref = 1;
 	new_node->has_weak_ref = 1;
 	context->binder_context_mgr_node = new_node;
+	binder_put_node(new_node);
 out:
 	mutex_unlock(&context->context_mgr_node_lock);
 	return ret;
@@ -3615,8 +3689,11 @@ static int binder_node_release(struct binder_node *node, int refs)
 
 	list_del_init(&node->work.entry);
 	binder_release_work(&node->async_todo);
-
-	if (hlist_empty(&node->refs)) {
+	/*
+	 * The caller must have taken a temporary ref on the node,
+	 */
+	BUG_ON(!node->tmp_refs);
+	if (hlist_empty(&node->refs) && node->tmp_refs == 1) {
 		kfree(node);
 		binder_stats_deleted(BINDER_STAT_NODE);
 
@@ -3651,6 +3728,7 @@ static int binder_node_release(struct binder_node *node, int refs)
 	binder_debug(BINDER_DEBUG_DEAD_BINDER,
 		     "node %d now dead, refs %d, death %d\n",
 		     node->debug_id, refs, death);
+	binder_put_node(node);
 
 	return refs;
 }
@@ -3700,6 +3778,12 @@ static void binder_deferred_release(struct binder_proc *proc)
 
 		node = rb_entry(n, struct binder_node, rb_node);
 		nodes++;
+		/*
+		 * take a temporary ref on the node before
+		 * calling binder_node_release() which will either
+		 * kfree() the node or call binder_put_node()
+		 */
+		binder_inc_node_tmpref(node);
 		rb_erase(&node->rb_node, &proc->nodes);
 		incoming_refs = binder_node_release(node, incoming_refs);
 	}
@@ -3895,11 +3979,11 @@ static void print_binder_node(struct seq_file *m, struct binder_node *node)
 	hlist_for_each_entry(ref, &node->refs, node_entry)
 		count++;
 
-	seq_printf(m, "  node %d: u%016llx c%016llx hs %d hw %d ls %d lw %d is %d iw %d",
+	seq_printf(m, "  node %d: u%016llx c%016llx hs %d hw %d ls %d lw %d is %d iw %d tr %d",
 		   node->debug_id, (u64)node->ptr, (u64)node->cookie,
 		   node->has_strong_ref, node->has_weak_ref,
 		   node->local_strong_refs, node->local_weak_refs,
-		   node->internal_strong_refs, count);
+		   node->internal_strong_refs, count, node->tmp_refs);
 	if (count) {
 		seq_puts(m, " proc");
 		hlist_for_each_entry(ref, &node->refs, node_entry)
