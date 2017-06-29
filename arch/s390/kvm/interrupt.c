@@ -189,8 +189,8 @@ static int cpu_timer_irq_pending(struct kvm_vcpu *vcpu)
 
 static inline int is_ioirq(unsigned long irq_type)
 {
-	return ((irq_type >= IRQ_PEND_IO_ISC_0) &&
-		(irq_type <= IRQ_PEND_IO_ISC_7));
+	return ((irq_type >= IRQ_PEND_IO_ISC_7) &&
+		(irq_type <= IRQ_PEND_IO_ISC_0));
 }
 
 static uint64_t isc_to_isc_bits(int isc)
@@ -211,12 +211,12 @@ static inline unsigned long pending_irqs(struct kvm_vcpu *vcpu)
 
 static inline int isc_to_irq_type(unsigned long isc)
 {
-	return IRQ_PEND_IO_ISC_0 + isc;
+	return IRQ_PEND_IO_ISC_0 - isc;
 }
 
 static inline int irq_type_to_isc(unsigned long irq_type)
 {
-	return irq_type - IRQ_PEND_IO_ISC_0;
+	return IRQ_PEND_IO_ISC_0 - irq_type;
 }
 
 static unsigned long disable_iscs(struct kvm_vcpu *vcpu,
@@ -1149,8 +1149,8 @@ int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 		set_bit(IRQ_PEND_EXT_CPU_TIMER, &li->pending_irqs);
 
 	while ((irqs = deliverable_irqs(vcpu)) && !rc) {
-		/* bits are in the order of interrupt priority */
-		irq_type = find_first_bit(&irqs, IRQ_PEND_COUNT);
+		/* bits are in the reverse order of interrupt priority */
+		irq_type = find_last_bit(&irqs, IRQ_PEND_COUNT);
 		if (is_ioirq(irq_type)) {
 			rc = __deliver_io(vcpu, irq_type);
 		} else {
