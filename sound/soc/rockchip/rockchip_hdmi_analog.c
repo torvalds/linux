@@ -117,6 +117,8 @@ static int rk_hdmi_analog_probe(struct platform_device *pdev)
 	int count;
 	int ret = 0, i = 0, idx = 0;
 
+	snd_soc_of_parse_card_name(card, "rockchip,model");
+
 	card->dev = &pdev->dev;
 	count = of_count_phandle_with_args(np, "rockchip,codec", NULL);
 	if (count < 0 || count > MAX_CODECS)
