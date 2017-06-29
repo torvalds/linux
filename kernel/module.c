@@ -302,7 +302,7 @@ int unregister_module_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL(unregister_module_notifier);
 
 struct load_info {
-	char *name;
+	const char *name;
 	Elf_Ehdr *hdr;
 	unsigned long len;
 	Elf_Shdr *sechdrs;
@@ -3265,7 +3265,7 @@ int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
 
 /* module_blacklist is a comma-separated list of module names */
 static char *module_blacklist;
-static bool blacklisted(char *module_name)
+static bool blacklisted(const char *module_name)
 {
 	const char *p;
 	size_t len;
