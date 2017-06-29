@@ -1463,15 +1463,14 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	if (err)
 		goto err_free_res;
 
-	rockchip->msg_region = devm_ioremap(rockchip->dev,
-					    rockchip->msg_bus_addr, SZ_1M);
+	rockchip->msg_region = devm_ioremap(dev, rockchip->msg_bus_addr, SZ_1M);
 	if (!rockchip->msg_region) {
 		err = -ENOMEM;
 		goto err_free_res;
 	}
 
 	list_splice_init(&res, &bridge->windows);
-	bridge->dev.parent = &pdev->dev;
+	bridge->dev.parent = dev;
 	bridge->sysdata = rockchip;
 	bridge->busnr = 0;
 	bridge->ops = &rockchip_pcie_ops;
