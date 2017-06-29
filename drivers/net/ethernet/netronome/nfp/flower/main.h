@@ -40,6 +40,30 @@ struct tc_to_netdev;
 struct net_device;
 struct nfp_app;
 
+struct nfp_fl_key_ls {
+	u32 key_layer_two;
+	u8 key_layer;
+	int key_size;
+};
+
+struct nfp_fl_rule_metadata {
+	u8 key_len;
+	u8 mask_len;
+	u8 act_len;
+	u8 flags;
+	__be32 host_ctx_id;
+	__be64 host_cookie __packed;
+	__be64 flow_version __packed;
+	__be32 shortcut;
+};
+
+struct nfp_fl_payload {
+	struct nfp_fl_rule_metadata meta;
+	char *unmasked_data;
+	char *mask_data;
+	char *action_data;
+};
+
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			u32 handle, __be16 proto, struct tc_to_netdev *tc);
 #endif

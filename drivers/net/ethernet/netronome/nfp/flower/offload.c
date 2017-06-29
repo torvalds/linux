@@ -44,6 +44,138 @@
 #include "../nfp_net.h"
 #include "../nfp_port.h"
 
+static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
+{
+	return dissector_uses_key(f->dissector,
+				  FLOW_DISSECTOR_KEY_IPV4_ADDRS) ||
+		dissector_uses_key(f->dissector,
+				   FLOW_DISSECTOR_KEY_IPV6_ADDRS) ||
+		dissector_uses_key(f->dissector,
+				   FLOW_DISSECTOR_KEY_PORTS) ||
+		dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ICMP);
+}
+
+static int
+nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
+				struct tc_cls_flower_offload *flow)
+{
+	struct flow_dissector_key_control *mask_enc_ctl;
+	struct flow_dissector_key_basic *mask_basic;
+	struct flow_dissector_key_basic *key_basic;
+	u32 key_layer_two;
+	u8 key_layer;
+	int key_size;
+
+	mask_enc_ctl = skb_flow_dissector_target(flow->dissector,
+						 FLOW_DISSECTOR_KEY_ENC_CONTROL,
+						 flow->mask);
+
+	mask_basic = skb_flow_dissector_target(flow->dissector,
+					       FLOW_DISSECTOR_KEY_BASIC,
+					       flow->mask);
+
+	key_basic = skb_flow_dissector_target(flow->dissector,
+					      FLOW_DISSECTOR_KEY_BASIC,
+					      flow->key);
+	key_layer_two = 0;
+	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
+	key_size = sizeof(struct nfp_flower_meta_one) +
+		   sizeof(struct nfp_flower_in_port) +
+		   sizeof(struct nfp_flower_mac_mpls);
+
+	/* We are expecting a tunnel. For now we ignore offloading. */
+	if (mask_enc_ctl->addr_type)
+		return -EOPNOTSUPP;
+
+	if (mask_basic->n_proto) {
+		/* Ethernet type is present in the key. */
+		switch (key_basic->n_proto) {
+		case cpu_to_be16(ETH_P_IP):
+			key_layer |= NFP_FLOWER_LAYER_IPV4;
+			key_size += sizeof(struct nfp_flower_ipv4);
+			break;
+
+		case cpu_to_be16(ETH_P_IPV6):
+			key_layer |= NFP_FLOWER_LAYER_IPV6;
+			key_size += sizeof(struct nfp_flower_ipv6);
+			break;
+
+		/* Currently we do not offload ARP
+		 * because we rely on it to get to the host.
+		 */
+		case cpu_to_be16(ETH_P_ARP):
+			return -EOPNOTSUPP;
+
+		/* Will be included in layer 2. */
+		case cpu_to_be16(ETH_P_8021Q):
+			break;
+
+		default:
+			/* Other ethtype - we need check the masks for the
+			 * remainder of the key to ensure we can offload.
+			 */
+			if (nfp_flower_check_higher_than_mac(flow))
+				return -EOPNOTSUPP;
+			break;
+		}
+	}
+
+	if (mask_basic->ip_proto) {
+		/* Ethernet type is present in the key. */
+		switch (key_basic->ip_proto) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+		case IPPROTO_SCTP:
+		case IPPROTO_ICMP:
+		case IPPROTO_ICMPV6:
+			key_layer |= NFP_FLOWER_LAYER_TP;
+			key_size += sizeof(struct nfp_flower_tp_ports);
+			break;
+		default:
+			/* Other ip proto - we need check the masks for the
+			 * remainder of the key to ensure we can offload.
+			 */
+			return -EOPNOTSUPP;
+		}
+	}
+
+	ret_key_ls->key_layer = key_layer;
+	ret_key_ls->key_layer_two = key_layer_two;
+	ret_key_ls->key_size = key_size;
+
+	return 0;
+}
+
+static struct nfp_fl_payload *
+nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer)
+{
+	struct nfp_fl_payload *flow_pay;
+
+	flow_pay = kmalloc(sizeof(*flow_pay), GFP_KERNEL);
+	if (!flow_pay)
+		return NULL;
+
+	flow_pay->meta.key_len = key_layer->key_size;
+	flow_pay->unmasked_data = kmalloc(key_layer->key_size, GFP_KERNEL);
+	if (!flow_pay->unmasked_data)
+		goto err_free_flow;
+
+	flow_pay->meta.mask_len = key_layer->key_size;
+	flow_pay->mask_data = kmalloc(key_layer->key_size, GFP_KERNEL);
+	if (!flow_pay->mask_data)
+		goto err_free_unmasked;
+
+	flow_pay->meta.flags = 0;
+
+	return flow_pay;
+
+err_free_unmasked:
+	kfree(flow_pay->unmasked_data);
+err_free_flow:
+	kfree(flow_pay);
+	return NULL;
+}
+
 /**
  * nfp_flower_add_offload() - Adds a new flow to hardware.
  * @app:	Pointer to the APP handle
@@ -58,7 +190,34 @@ static int
 nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct tc_cls_flower_offload *flow)
 {
-	return -EOPNOTSUPP;
+	struct nfp_fl_payload *flow_pay;
+	struct nfp_fl_key_ls *key_layer;
+	int err;
+
+	key_layer = kmalloc(sizeof(*key_layer), GFP_KERNEL);
+	if (!key_layer)
+		return -ENOMEM;
+
+	err = nfp_flower_calculate_key_layers(key_layer, flow);
+	if (err)
+		goto err_free_key_ls;
+
+	flow_pay = nfp_flower_allocate_new(key_layer);
+	if (!flow_pay) {
+		err = -ENOMEM;
+		goto err_free_key_ls;
+	}
+
+	/* TODO: Complete flower_add_offload. */
+	err = -EOPNOTSUPP;
+
+	kfree(flow_pay->mask_data);
+	kfree(flow_pay->unmasked_data);
+	kfree(flow_pay);
+
+err_free_key_ls:
+	kfree(key_layer);
+	return err;
 }
 
 /**
