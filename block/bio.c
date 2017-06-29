@@ -1868,7 +1868,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	split->bi_iter.bi_size = sectors << 9;
 
 	if (bio_integrity(split))
-		bio_integrity_trim(split, 0, sectors);
+		bio_integrity_trim(split);
 
 	bio_advance(bio, split->bi_iter.bi_size);
 
@@ -1902,7 +1902,7 @@ void bio_trim(struct bio *bio, int offset, int size)
 	bio->bi_iter.bi_size = size;
 
 	if (bio_integrity(bio))
-		bio_integrity_trim(bio, 0, size);
+		bio_integrity_trim(bio);
 
 }
 EXPORT_SYMBOL_GPL(bio_trim);

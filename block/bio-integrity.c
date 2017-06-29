@@ -433,22 +433,15 @@ EXPORT_SYMBOL(bio_integrity_advance);
 /**
  * bio_integrity_trim - Trim integrity vector
  * @bio:	bio whose integrity vector to update
- * @offset:	offset to first data sector
- * @sectors:	number of data sectors
  *
  * Description: Used to trim the integrity vector in a cloned bio.
- * The ivec will be advanced corresponding to 'offset' data sectors
- * and the length will be truncated corresponding to 'len' data
- * sectors.
  */
-void bio_integrity_trim(struct bio *bio, unsigned int offset,
-			unsigned int sectors)
+void bio_integrity_trim(struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 
-	bio_integrity_advance(bio, offset << 9);
-	bip->bip_iter.bi_size = bio_integrity_bytes(bi, sectors);
+	bip->bip_iter.bi_size = bio_integrity_bytes(bi, bio_sectors(bio));
 }
 EXPORT_SYMBOL(bio_integrity_trim);
 
