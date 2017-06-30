@@ -327,46 +327,93 @@ next_read_rq:
 	return 0;
 }
 
+static void pblk_recov_complete(struct kref *ref)
+{
+	struct pblk_pad_rq *pad_rq = container_of(ref, struct pblk_pad_rq, ref);
+
+	complete(&pad_rq->wait);
+}
+
+static void pblk_end_io_recov(struct nvm_rq *rqd)
+{
+	struct pblk_pad_rq *pad_rq = rqd->private;
+	struct pblk *pblk = pad_rq->pblk;
+	struct nvm_tgt_dev *dev = pblk->dev;
+
+	kref_put(&pad_rq->ref, pblk_recov_complete);
+	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
+	pblk_free_rqd(pblk, rqd, WRITE);
+}
+
 static int pblk_recov_pad_oob(struct pblk *pblk, struct pblk_line *line,
-			      struct pblk_recov_alloc p, int left_ppas)
+			      int left_ppas)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct ppa_addr *ppa_list;
 	struct pblk_sec_meta *meta_list;
+	struct pblk_pad_rq *pad_rq;
 	struct nvm_rq *rqd;
 	struct bio *bio;
 	void *data;
 	dma_addr_t dma_ppa_list, dma_meta_list;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	u64 w_ptr = line->cur_sec;
-	int left_line_ppas = line->left_msecs;
-	int rq_ppas, rq_len;
+	int left_line_ppas, rq_ppas, rq_len;
 	int i, j;
 	int ret = 0;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
-	ppa_list = p.ppa_list;
-	meta_list = p.meta_list;
-	rqd = p.rqd;
-	data = p.data;
-	dma_ppa_list = p.dma_ppa_list;
-	dma_meta_list = p.dma_meta_list;
+	spin_lock(&line->lock);
+	left_line_ppas = line->left_msecs;
+	spin_unlock(&line->lock);
+
+	pad_rq = kmalloc(sizeof(struct pblk_pad_rq), GFP_KERNEL);
+	if (!pad_rq)
+		return -ENOMEM;
+
+	data = vzalloc(pblk->max_write_pgs * geo->sec_size);
+	if (!data) {
+		ret = -ENOMEM;
+		goto free_rq;
+	}
+
+	pad_rq->pblk = pblk;
+	init_completion(&pad_rq->wait);
+	kref_init(&pad_rq->ref);
 
 next_pad_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
-	if (!rq_ppas)
-		rq_ppas = pblk->min_write_pgs;
+	if (rq_ppas < pblk->min_write_pgs) {
+		pr_err("pblk: corrupted pad line %d\n", line->id);
+		goto free_rq;
+	}
+
 	rq_len = rq_ppas * geo->sec_size;
 
+	meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL, &dma_meta_list);
+	if (!meta_list) {
+		ret = -ENOMEM;
+		goto free_data;
+	}
+
+	ppa_list = (void *)(meta_list) + pblk_dma_meta_size;
+	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
+
+	rqd = pblk_alloc_rqd(pblk, WRITE);
+	if (IS_ERR(rqd)) {
+		ret = PTR_ERR(rqd);
+		goto fail_free_meta;
+	}
+	memset(rqd, 0, pblk_w_rq_size);
+
 	bio = bio_map_kern(dev->q, data, rq_len, GFP_KERNEL);
-	if (IS_ERR(bio))
-		return PTR_ERR(bio);
+	if (IS_ERR(bio)) {
+		ret = PTR_ERR(bio);
+		goto fail_free_rqd;
+	}
 
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
-	memset(rqd, 0, pblk_g_rq_size);
 
 	rqd->bio = bio;
 	rqd->opcode = NVM_OP_PWRITE;
@@ -376,8 +423,8 @@ next_pad_rq:
 	rqd->ppa_list = ppa_list;
 	rqd->dma_ppa_list = dma_ppa_list;
 	rqd->dma_meta_list = dma_meta_list;
-	rqd->end_io = pblk_end_io_sync;
-	rqd->private = &wait;
+	rqd->end_io = pblk_end_io_recov;
+	rqd->private = pad_rq;
 
 	for (i = 0; i < rqd->nr_ppas; ) {
 		struct ppa_addr ppa;
@@ -405,25 +452,41 @@ next_pad_rq:
 		}
 	}
 
+	kref_get(&pad_rq->ref);
+
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
 		pr_err("pblk: I/O submission failed: %d\n", ret);
-		return ret;
+		goto free_data;
 	}
 
-	if (!wait_for_completion_io_timeout(&wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pr_err("pblk: L2P recovery write timed out\n");
-	}
 	atomic_dec(&pblk->inflight_io);
-	reinit_completion(&wait);
 
 	left_line_ppas -= rq_ppas;
 	left_ppas -= rq_ppas;
-	if (left_ppas > 0 && left_line_ppas)
+	if (left_ppas && left_line_ppas)
 		goto next_pad_rq;
 
-	return 0;
+	kref_put(&pad_rq->ref, pblk_recov_complete);
+
+	if (!wait_for_completion_io_timeout(&pad_rq->wait,
+				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
+		pr_err("pblk: pad write timed out\n");
+		ret = -ETIME;
+	}
+
+free_rq:
+	kfree(pad_rq);
+free_data:
+	vfree(data);
+	return ret;
+
+fail_free_rqd:
+	pblk_free_rqd(pblk, rqd, WRITE);
+fail_free_meta:
+	nvm_dev_dma_free(dev->parent, meta_list, dma_meta_list);
+	kfree(pad_rq);
+	return ret;
 }
 
 /* When this function is called, it means that not all upper pages have been
@@ -555,7 +618,7 @@ next_rq:
 		if (pad_secs > line->left_msecs)
 			pad_secs = line->left_msecs;
 
-		ret = pblk_recov_pad_oob(pblk, line, p, pad_secs);
+		ret = pblk_recov_pad_oob(pblk, line, pad_secs);
 		if (ret)
 			pr_err("pblk: OOB padding failed (err:%d)\n", ret);
 
@@ -961,64 +1024,22 @@ out:
  */
 int pblk_recov_pad(struct pblk *pblk)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line *line;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
-	struct nvm_rq *rqd;
-	struct pblk_recov_alloc p;
-	struct ppa_addr *ppa_list;
-	struct pblk_sec_meta *meta_list;
-	void *data;
 	int left_msecs;
 	int ret = 0;
-	dma_addr_t dma_ppa_list, dma_meta_list;
 
 	spin_lock(&l_mg->free_lock);
 	line = l_mg->data_line;
 	left_msecs = line->left_msecs;
 	spin_unlock(&l_mg->free_lock);
 
-	rqd = pblk_alloc_rqd(pblk, READ);
-	if (IS_ERR(rqd))
-		return PTR_ERR(rqd);
-
-	meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL, &dma_meta_list);
-	if (!meta_list) {
-		ret = -ENOMEM;
-		goto free_rqd;
-	}
-
-	ppa_list = (void *)(meta_list) + pblk_dma_meta_size;
-	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
-
-	data = kcalloc(pblk->max_write_pgs, geo->sec_size, GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto free_meta_list;
-	}
-
-	p.ppa_list = ppa_list;
-	p.meta_list = meta_list;
-	p.rqd = rqd;
-	p.data = data;
-	p.dma_ppa_list = dma_ppa_list;
-	p.dma_meta_list = dma_meta_list;
-
-	ret = pblk_recov_pad_oob(pblk, line, p, left_msecs);
+	ret = pblk_recov_pad_oob(pblk, line, left_msecs);
 	if (ret) {
 		pr_err("pblk: Tear down padding failed (%d)\n", ret);
-		goto free_data;
+		return ret;
 	}
 
 	pblk_line_close_meta(pblk, line);
-
-free_data:
-	kfree(data);
-free_meta_list:
-	nvm_dev_dma_free(dev->parent, meta_list, dma_meta_list);
-free_rqd:
-	pblk_free_rqd(pblk, rqd, READ);
-
 	return ret;
 }

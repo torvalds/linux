@@ -111,6 +111,13 @@ struct pblk_g_ctx {
 	void *private;
 };
 
+/* Pad context */
+struct pblk_pad_rq {
+	struct pblk *pblk;
+	struct completion wait;
+	struct kref ref;
+};
+
 /* Recovery context */
 struct pblk_rec_ctx {
 	struct pblk *pblk;
@@ -674,6 +681,7 @@ void pblk_rb_sync_end(struct pblk_rb *rb, unsigned long *flags);
 unsigned int pblk_rb_sync_point_count(struct pblk_rb *rb);
 
 unsigned int pblk_rb_read_count(struct pblk_rb *rb);
+unsigned int pblk_rb_sync_count(struct pblk_rb *rb);
 unsigned int pblk_rb_wrap_pos(struct pblk_rb *rb, unsigned int pos);
 
 int pblk_rb_tear_down_check(struct pblk_rb *rb);

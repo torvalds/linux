@@ -190,7 +190,7 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 
 	if (rqd->error) {
 		pblk_log_write_err(pblk, rqd);
-		pr_err("pblk: metadata I/O failed\n");
+		pr_err("pblk: metadata I/O failed. Line %d\n", line->id);
 	}
 #ifdef CONFIG_NVM_DEBUG
 	else

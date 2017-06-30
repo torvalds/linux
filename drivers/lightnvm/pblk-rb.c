@@ -180,6 +180,14 @@ unsigned int pblk_rb_read_count(struct pblk_rb *rb)
 	return pblk_rb_ring_count(mem, subm, rb->nr_entries);
 }
 
+unsigned int pblk_rb_sync_count(struct pblk_rb *rb)
+{
+	unsigned int mem = READ_ONCE(rb->mem);
+	unsigned int sync = READ_ONCE(rb->sync);
+
+	return pblk_rb_ring_count(mem, sync, rb->nr_entries);
+}
+
 unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int nr_entries)
 {
 	unsigned int subm;

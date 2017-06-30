@@ -273,9 +273,10 @@ static void pblk_flush_writer(struct pblk *pblk)
 {
 	pblk_rb_flush(&pblk->rwb);
 	do {
-		if (!pblk_rb_read_count(&pblk->rwb))
+		if (!pblk_rb_sync_count(&pblk->rwb))
 			break;
 
+		pblk_write_kick(pblk);
 		schedule();
 	} while (1);
 }
@@ -1350,6 +1351,7 @@ void pblk_pipeline_stop(struct pblk *pblk)
 		return;
 	}
 
+	flush_workqueue(pblk->bb_wq);
 	pblk_line_close_meta_sync(pblk);
 
 	spin_lock(&l_mg->free_lock);
@@ -1547,6 +1549,7 @@ void pblk_line_close_meta_sync(struct pblk *pblk)
 	}
 
 	pblk_wait_for_meta(pblk);
+	flush_workqueue(pblk->close_wq);
 }
 
 static void pblk_line_should_sync_meta(struct pblk *pblk)

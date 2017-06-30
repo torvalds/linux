@@ -841,6 +841,15 @@ static int pblk_writer_init(struct pblk *pblk)
 
 static void pblk_writer_stop(struct pblk *pblk)
 {
+	/* The pipeline must be stopped and the write buffer emptied before the
+	 * write thread is stopped
+	 */
+	WARN(pblk_rb_read_count(&pblk->rwb),
+			"Stopping not fully persisted write buffer\n");
+
+	WARN(pblk_rb_sync_count(&pblk->rwb),
+			"Stopping not fully synced write buffer\n");
+
 	if (pblk->writer_ts)
 		kthread_stop(pblk->writer_ts);
 	del_timer(&pblk->wtimer);
