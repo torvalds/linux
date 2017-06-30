@@ -7,9 +7,7 @@
  * Everything needed for IOPart-GuestPart communication is define in
  * this file. Note: Everything is OS-independent because this file is
  * used by Windows, Linux and possible EFI drivers.
- */
-
-/*
+ *
  * Communication flow between the IOPart and GuestPart uses the channel headers
  * channel state. The following states are currently being used:
  *       UNINIT(All Zeroes), CHANNEL_ATTACHING, CHANNEL_ATTACHED, CHANNEL_OPENED
@@ -30,7 +28,6 @@
  */
 
 #include <linux/uuid.h>
-
 #include <linux/dma-direction.h>
 #include "channel.h"
 
@@ -80,9 +77,7 @@
 
 /* Size of cdb - i.e., SCSI cmnd */
 #define MAX_CMND_SIZE 16
-
 #define MAX_SENSE_SIZE 64
-
 #define MAX_PHYS_INFO 64
 
 /*
@@ -245,9 +240,7 @@ struct uiscmdrsp_scsi {
 /*
  * Defines to support sending correct inquiry result when no disk is
  * configured.
- */
-
-/*
+ *
  * From SCSI SPC2 -
  *
  * If the target is not capable of supporting a device on this logical unit, the
