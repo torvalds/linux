@@ -233,6 +233,17 @@ xfs_errortag_test(
 {
 	unsigned int		randfactor;
 
+	/*
+	 * To be able to use error injection anywhere, we need to ensure error
+	 * injection mechanism is already initialized.
+	 *
+	 * Code paths like I/O completion can be called before the
+	 * initialization is complete, but be able to inject errors in such
+	 * places is still useful.
+	 */
+	if (!mp->m_errortag)
+		return false;
+
 	ASSERT(error_tag < XFS_ERRTAG_MAX);
 	randfactor = mp->m_errortag[error_tag];
 	if (!randfactor || prandom_u32() % randfactor)
