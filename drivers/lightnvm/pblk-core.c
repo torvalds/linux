@@ -425,16 +425,15 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 
 struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 			      unsigned int nr_secs, unsigned int len,
-			      gfp_t gfp_mask)
+			      int alloc_type, gfp_t gfp_mask)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
-	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	void *kaddr = data;
 	struct page *page;
 	struct bio *bio;
 	int i, ret;
 
-	if (l_mg->emeta_alloc_type == PBLK_KMALLOC_META)
+	if (alloc_type == PBLK_KMALLOC_META)
 		return bio_map_kern(dev->q, kaddr, len, gfp_mask);
 
 	bio = bio_kmalloc(gfp_mask, nr_secs);
@@ -552,6 +551,7 @@ static int pblk_line_submit_emeta_io(struct pblk *pblk, struct pblk_line *line,
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	void *ppa_list, *meta_list;
 	struct bio *bio;
@@ -589,7 +589,8 @@ next_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
 	rq_len = rq_ppas * geo->sec_size;
 
-	bio = pblk_bio_map_addr(pblk, emeta_buf, rq_ppas, rq_len, GFP_KERNEL);
+	bio = pblk_bio_map_addr(pblk, emeta_buf, rq_ppas, rq_len,
+					l_mg->emeta_alloc_type, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		ret = PTR_ERR(bio);
 		goto free_rqd_dma;

@@ -698,7 +698,7 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line);
 struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 			      unsigned int nr_secs, unsigned int len,
-			      gfp_t gfp_mask);
+			      int alloc_type, gfp_t gfp_mask);
 struct pblk_line *pblk_line_get(struct pblk *pblk);
 struct pblk_line *pblk_line_get_first_data(struct pblk *pblk);
 void pblk_line_replace_data(struct pblk *pblk);
@@ -805,7 +805,7 @@ int pblk_recov_setup_rq(struct pblk *pblk, struct pblk_c_ctx *c_ctx,
  * pblk gc
  */
 #define PBLK_GC_MAX_READERS 8	/* Max number of outstanding GC reader jobs */
-#define PBLK_GC_W_QD 1024	/* Queue depth for inflight GC write I/Os */
+#define PBLK_GC_W_QD 128	/* Queue depth for inflight GC write I/Os */
 #define PBLK_GC_L_QD 4		/* Queue depth for inflight GC lines */
 #define PBLK_GC_RSV_LINE 1	/* Reserved lines for GC */
 
