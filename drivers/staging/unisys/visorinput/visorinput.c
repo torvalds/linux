@@ -60,11 +60,13 @@ enum visorinput_device_type {
  */
 struct visorinput_devdata {
 	struct visor_device *dev;
-	struct mutex lock_visor_dev; /* lock for dev */
+	/* lock for dev */
+	struct mutex lock_visor_dev;
 	struct input_dev *visorinput_dev;
 	bool paused;
 	bool interrupts_enabled;
-	unsigned int keycode_table_bytes; /* size of following array */
+	/* size of following array */
+	unsigned int keycode_table_bytes;
 	/* for keyboard devices: visorkbd_keycode[] + visorkbd_ext_keycode[] */
 	unsigned char keycode_table[0];
 };
@@ -162,9 +164,8 @@ static const unsigned char visorkbd_keycode[KEYCODE_TABLE_BYTES] = {
 	[81] = KEY_KP3,
 	[82] = KEY_KP0,
 	[83] = KEY_KPDOT,
-	[86] = KEY_102ND, /* enables UK backslash+pipe key,
-			   * and FR lessthan+greaterthan key
-			   */
+	/* enables UK backslash+pipe key and FR lessthan+greaterthan key */
+	[86] = KEY_102ND,
 	[87] = KEY_F11,
 	[88] = KEY_F12,
 	[90] = KEY_KPLEFTPAREN,
@@ -302,7 +303,8 @@ setup_client_keyboard(void *devdata,  /* opaque on purpose */
 				    BIT_MASK(LED_SCROLLL) |
 				    BIT_MASK(LED_NUML);
 	visorinput_dev->keycode = keycode_table;
-	visorinput_dev->keycodesize = 1; /* sizeof(unsigned char) */
+	/* sizeof(unsigned char) */
+	visorinput_dev->keycodesize = 1;
 	visorinput_dev->keycodemax = KEYCODE_TABLE_BYTES;
 
 	for (i = 1; i < visorinput_dev->keycodemax; i++)
@@ -313,7 +315,8 @@ setup_client_keyboard(void *devdata,  /* opaque on purpose */
 
 	visorinput_dev->open = visorinput_open;
 	visorinput_dev->close = visorinput_close;
-	input_set_drvdata(visorinput_dev, devdata); /* pre input_register! */
+	/* pre input_register! */
+	input_set_drvdata(visorinput_dev, devdata);
 
 	return visorinput_dev;
 }
@@ -354,7 +357,8 @@ setup_client_mouse(void *devdata /* opaque on purpose */)
 
 	visorinput_dev->open = visorinput_open;
 	visorinput_dev->close = visorinput_close;
-	input_set_drvdata(visorinput_dev, devdata); /* pre input_register! */
+	/* pre input_register! */
+	input_set_drvdata(visorinput_dev, devdata);
 	input_set_capability(visorinput_dev, EV_REL, REL_WHEEL);
 
 	return visorinput_dev;
