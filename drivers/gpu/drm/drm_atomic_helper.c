@@ -795,6 +795,9 @@ int drm_atomic_helper_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	if (state->legacy_cursor_update)
+		state->async_update = !drm_atomic_helper_async_check(dev, state);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_check);
@@ -1353,6 +1356,114 @@ static void commit_work(struct work_struct *work)
 }
 
 /**
+ * drm_atomic_helper_async_check - check if state can be commited asynchronously
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * This helper will check if it is possible to commit the state asynchronously.
+ * Async commits are not supposed to swap the states like normal sync commits
+ * but just do in-place changes on the current state.
+ *
+ * It will return 0 if the commit can happen in an asynchronous fashion or error
+ * if not. Note that error just mean it can't be commited asynchronously, if it
+ * fails the commit should be treated like a normal synchronous commit.
+ */
+int drm_atomic_helper_async_check(struct drm_device *dev,
+				   struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_commit *commit;
+	struct drm_plane *__plane, *plane = NULL;
+	struct drm_plane_state *__plane_state, *plane_state = NULL;
+	const struct drm_plane_helper_funcs *funcs;
+	int i, j, n_planes = 0;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		if (drm_atomic_crtc_needs_modeset(crtc_state))
+			return -EINVAL;
+	}
+
+	for_each_new_plane_in_state(state, __plane, __plane_state, i) {
+		n_planes++;
+		plane = __plane;
+		plane_state = __plane_state;
+	}
+
+	/* FIXME: we support only single plane updates for now */
+	if (!plane || n_planes != 1)
+		return -EINVAL;
+
+	if (!plane_state->crtc)
+		return -EINVAL;
+
+	funcs = plane->helper_private;
+	if (!funcs->atomic_async_update)
+		return -EINVAL;
+
+	if (plane_state->fence)
+		return -EINVAL;
+
+	/*
+	 * Don't do an async update if there is an outstanding commit modifying
+	 * the plane.  This prevents our async update's changes from getting
+	 * overridden by a previous synchronous update's state.
+	 */
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		if (plane->crtc != crtc)
+			continue;
+
+		spin_lock(&crtc->commit_lock);
+		commit = list_first_entry_or_null(&crtc->commit_list,
+						  struct drm_crtc_commit,
+						  commit_entry);
+		if (!commit) {
+			spin_unlock(&crtc->commit_lock);
+			continue;
+		}
+		spin_unlock(&crtc->commit_lock);
+
+		if (!crtc->state->state)
+			continue;
+
+		for_each_plane_in_state(crtc->state->state, __plane,
+					__plane_state, j) {
+			if (__plane == plane)
+				return -EINVAL;
+		}
+	}
+
+	return funcs->atomic_async_check(plane, plane_state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_async_check);
+
+/**
+ * drm_atomic_helper_async_commit - commit state asynchronously
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * This function commits a state asynchronously, i.e., not vblank
+ * synchronized. It should be used on a state only when
+ * drm_atomic_async_check() succeeds. Async commits are not supposed to swap
+ * the states like normal sync commits, but just do in-place changes on the
+ * current state.
+ */
+void drm_atomic_helper_async_commit(struct drm_device *dev,
+				    struct drm_atomic_state *state)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	const struct drm_plane_helper_funcs *funcs;
+	int i;
+
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
+		funcs = plane->helper_private;
+		funcs->atomic_async_update(plane, plane_state);
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_async_commit);
+
+/**
  * drm_atomic_helper_commit - commit validated state object
  * @dev: DRM device
  * @state: the driver state object
@@ -1375,6 +1486,17 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 			     bool nonblock)
 {
 	int ret;
+
+	if (state->async_update) {
+		ret = drm_atomic_helper_prepare_planes(dev, state);
+		if (ret)
+			return ret;
+
+		drm_atomic_helper_async_commit(dev, state);
+		drm_atomic_helper_cleanup_planes(dev, state);
+
+		return 0;
+	}
 
 	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
