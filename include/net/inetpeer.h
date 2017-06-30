@@ -46,7 +46,7 @@ struct inet_peer {
 		struct rcu_head     gc_rcu;
 	};
 	/*
-	 * Once inet_peer is queued for deletion (refcnt == -1), following field
+	 * Once inet_peer is queued for deletion (refcnt == 0), following field
 	 * is not available: rid
 	 * We can share memory with rcu_head to help keep inet_peer small.
 	 */
@@ -60,7 +60,7 @@ struct inet_peer {
 
 	/* following fields might be frequently dirtied */
 	__u32			dtime;	/* the time of last use of not referenced entries */
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 };
 
 struct inet_peer_base {
