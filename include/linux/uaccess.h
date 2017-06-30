@@ -109,8 +109,11 @@ static inline unsigned long
 _copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	unsigned long res = n;
-	if (likely(access_ok(VERIFY_READ, from, n)))
+	might_fault();
+	if (likely(access_ok(VERIFY_READ, from, n))) {
+		kasan_check_write(to, n);
 		res = raw_copy_from_user(to, from, n);
+	}
 	if (unlikely(res))
 		memset(to + (n - res), 0, res);
 	return res;
@@ -124,8 +127,11 @@ _copy_from_user(void *, const void __user *, unsigned long);
 static inline unsigned long
 _copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
+	might_fault();
+	if (access_ok(VERIFY_WRITE, to, n)) {
+		kasan_check_read(from, n);
 		n = raw_copy_to_user(to, from, n);
+	}
 	return n;
 }
 #else
@@ -146,9 +152,6 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(to);
 
-	might_fault();
-	kasan_check_write(to, n);
-
 	if (likely(sz < 0 || sz >= n)) {
 		check_object_size(to, n, false);
 		n = _copy_from_user(to, from, n);
@@ -164,9 +167,6 @@ static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(from);
-
-	kasan_check_read(from, n);
-	might_fault();
 
 	if (likely(sz < 0 || sz >= n)) {
 		check_object_size(from, n, true);
