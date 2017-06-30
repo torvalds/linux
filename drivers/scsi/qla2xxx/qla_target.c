@@ -4079,6 +4079,8 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	cmd = &((struct qla_tgt_cmd *)se_sess->sess_cmd_map)[tag];
 	memset(cmd, 0, sizeof(struct qla_tgt_cmd));
 
+	init_completion(&cmd->write_pending_abort_comp);
+
 	memcpy(&cmd->atio, atio, sizeof(*atio));
 	cmd->state = QLA_TGT_STATE_NEW;
 	cmd->tgt = vha->vha_tgt.qla_tgt;
@@ -5083,6 +5085,8 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 	qlt_incr_num_pend_cmds(vha);
 	INIT_LIST_HEAD(&cmd->cmd_list);
+	init_completion(&cmd->write_pending_abort_comp);
+
 	memcpy(&cmd->atio, atio, sizeof(*atio));
 
 	cmd->tgt = vha->vha_tgt.qla_tgt;

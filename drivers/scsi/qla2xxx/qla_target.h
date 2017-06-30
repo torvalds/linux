@@ -868,6 +868,7 @@ struct qla_tgt_cmd {
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 
 	spinlock_t cmd_lock;
+	struct completion write_pending_abort_comp;
 	/* to save extra sess dereferences */
 	unsigned int conf_compl_supported:1;
 	unsigned int sg_mapped:1;
