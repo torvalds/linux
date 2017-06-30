@@ -1298,11 +1298,11 @@ int sctp_has_association(struct net *net, const union sctp_addr *laddr,
 
 int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 		     const struct sctp_association *asoc,
-		     enum sctp_cid cid, sctp_init_chunk_t *peer_init,
+		     enum sctp_cid cid, struct sctp_init_chunk *peer_init,
 		     struct sctp_chunk *chunk, struct sctp_chunk **err_chunk);
 int sctp_process_init(struct sctp_association *, struct sctp_chunk *chunk,
 		      const union sctp_addr *peer,
-		      sctp_init_chunk_t *init, gfp_t gfp);
+		      struct sctp_init_chunk *init, gfp_t gfp);
 __u32 sctp_generate_tag(const struct sctp_endpoint *);
 __u32 sctp_generate_tsn(const struct sctp_endpoint *);
 

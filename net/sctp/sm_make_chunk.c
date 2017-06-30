@@ -2242,8 +2242,8 @@ fallthrough:
 /* Verify the INIT packet before we process it.  */
 int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 		     const struct sctp_association *asoc, enum sctp_cid cid,
-		     sctp_init_chunk_t *peer_init, struct sctp_chunk *chunk,
-		     struct sctp_chunk **errp)
+		     struct sctp_init_chunk *peer_init,
+		     struct sctp_chunk *chunk, struct sctp_chunk **errp)
 {
 	union sctp_params param;
 	bool has_cookie = false;
@@ -2307,7 +2307,7 @@ int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
  */
 int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 		      const union sctp_addr *peer_addr,
-		      sctp_init_chunk_t *peer_init, gfp_t gfp)
+		      struct sctp_init_chunk *peer_init, gfp_t gfp)
 {
 	struct net *net = sock_net(asoc->base.sk);
 	union sctp_params param;

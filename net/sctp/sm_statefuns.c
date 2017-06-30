@@ -345,7 +345,7 @@ sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 	 * error, but since we don't have an association, we'll
 	 * just discard the packet.
 	 */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_init_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_init_chunk)))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* If the INIT is coming toward a closing socket, we'll send back
@@ -360,7 +360,7 @@ sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
 	if (!sctp_verify_init(net, ep, asoc, chunk->chunk_hdr->type,
-			      (sctp_init_chunk_t *)chunk->chunk_hdr, chunk,
+			      (struct sctp_init_chunk *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 		/* This chunk contains fatal error. It is to be discarded.
 		 * Send an ABORT, with causes if there is any.
@@ -405,7 +405,7 @@ sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 
 	/* The call, sctp_process_init(), can fail on memory allocation.  */
 	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk),
-			       (sctp_init_chunk_t *)chunk->chunk_hdr,
+			       (struct sctp_init_chunk *)chunk->chunk_hdr,
 			       GFP_ATOMIC))
 		goto nomem_init;
 
@@ -503,7 +503,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 				       sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	sctp_init_chunk_t *initchunk;
+	struct sctp_init_chunk *initchunk;
 	struct sctp_chunk *err_chunk;
 	struct sctp_packet *packet;
 
@@ -527,7 +527,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
 	if (!sctp_verify_init(net, ep, asoc, chunk->chunk_hdr->type,
-			      (sctp_init_chunk_t *)chunk->chunk_hdr, chunk,
+			      (struct sctp_init_chunk *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 
 		sctp_error_t error = SCTP_ERROR_NO_RESOURCE;
@@ -578,7 +578,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 	 */
 	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(struct sctp_inithdr));
 
-	initchunk = (sctp_init_chunk_t *) chunk->chunk_hdr;
+	initchunk = (struct sctp_init_chunk *)chunk->chunk_hdr;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_PEER_INIT,
 			SCTP_PEER_INIT(initchunk));
@@ -653,7 +653,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(struct net *net,
 {
 	struct sctp_chunk *chunk = arg;
 	struct sctp_association *new_asoc;
-	sctp_init_chunk_t *peer_init;
+	struct sctp_init_chunk *peer_init;
 	struct sctp_chunk *repl;
 	struct sctp_ulpevent *ev, *ai_ev = NULL;
 	int error = 0;
@@ -1450,7 +1450,7 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	 * In this case, we generate a protocol violation since we have
 	 * an association established.
 	 */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_init_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_init_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 	/* Grab the INIT header.  */
@@ -1462,7 +1462,7 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
 	if (!sctp_verify_init(net, ep, asoc, chunk->chunk_hdr->type,
-			      (sctp_init_chunk_t *)chunk->chunk_hdr, chunk,
+			      (struct sctp_init_chunk *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 		/* This chunk contains fatal error. It is to be discarded.
 		 * Send an ABORT, with causes if there is any.
@@ -1509,7 +1509,7 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	 * place (local tie-tag and per tie-tag) within the state cookie.
 	 */
 	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk),
-			       (sctp_init_chunk_t *)chunk->chunk_hdr,
+			       (struct sctp_init_chunk *)chunk->chunk_hdr,
 			       GFP_ATOMIC))
 		goto nomem;
 
@@ -1730,7 +1730,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_a(struct net *net,
 					sctp_cmd_seq_t *commands,
 					struct sctp_association *new_asoc)
 {
-	sctp_init_chunk_t *peer_init;
+	struct sctp_init_chunk *peer_init;
 	struct sctp_ulpevent *ev;
 	struct sctp_chunk *repl;
 	struct sctp_chunk *err;
@@ -1845,7 +1845,7 @@ static sctp_disposition_t sctp_sf_do_dupcook_b(struct net *net,
 					sctp_cmd_seq_t *commands,
 					struct sctp_association *new_asoc)
 {
-	sctp_init_chunk_t *peer_init;
+	struct sctp_init_chunk *peer_init;
 	struct sctp_chunk *repl;
 
 	/* new_asoc is a brand-new association, so these are not yet
@@ -6124,9 +6124,9 @@ static struct sctp_packet *sctp_ootb_pkt_new(struct net *net,
 		switch (chunk->chunk_hdr->type) {
 		case SCTP_CID_INIT:
 		{
-			sctp_init_chunk_t *init;
+			struct sctp_init_chunk *init;
 
-			init = (sctp_init_chunk_t *)chunk->chunk_hdr;
+			init = (struct sctp_init_chunk *)chunk->chunk_hdr;
 			vtag = ntohl(init->init_hdr.init_tag);
 			break;
 		}

@@ -266,10 +266,10 @@ struct sctp_inithdr {
 	__u8  params[0];
 };
 
-typedef struct sctp_init_chunk {
+struct sctp_init_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_inithdr init_hdr;
-} sctp_init_chunk_t;
+};
 
 
 /* Section 3.3.2.1. IPv4 Address Parameter (5) */
@@ -341,7 +341,7 @@ typedef struct sctp_hmac_algo_param {
  *   The INIT ACK chunk is used to acknowledge the initiation of an SCTP
  *   association.
  */
-typedef sctp_init_chunk_t sctp_initack_chunk_t;
+typedef struct sctp_init_chunk sctp_initack_chunk_t;
 
 /* Section 3.3.3.1 State Cookie (7) */
 typedef struct sctp_cookie_param {

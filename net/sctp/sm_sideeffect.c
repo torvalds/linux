@@ -647,7 +647,7 @@ static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 static int sctp_cmd_process_init(sctp_cmd_seq_t *commands,
 				 struct sctp_association *asoc,
 				 struct sctp_chunk *chunk,
-				 sctp_init_chunk_t *peer_init,
+				 struct sctp_init_chunk *peer_init,
 				 gfp_t gfp)
 {
 	int error;

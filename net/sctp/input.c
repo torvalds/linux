@@ -1051,7 +1051,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 	union sctp_addr *paddr = &addr;
 	struct sctphdr *sh = sctp_hdr(skb);
 	union sctp_params params;
-	sctp_init_chunk_t *init;
+	struct sctp_init_chunk *init;
 	struct sctp_af *af;
 
 	/*
@@ -1070,7 +1070,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 	/* Find the start of the TLVs and the end of the chunk.  This is
 	 * the region we search for address parameters.
 	 */
-	init = (sctp_init_chunk_t *)skb->data;
+	init = (struct sctp_init_chunk *)skb->data;
 
 	/* Walk the parameters looking for embedded addresses. */
 	sctp_walk_params(params, init, init_hdr.params) {
