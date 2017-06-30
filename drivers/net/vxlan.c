@@ -2656,7 +2656,6 @@ static void vxlan_setup(struct net_device *dev)
 	vxlan->age_timer.data = (unsigned long) vxlan;
 
 	vxlan->dev = dev;
-	vxlan->net = dev_net(dev);
 
 	gro_cells_init(&vxlan->gro_cells, dev);
 
@@ -3028,7 +3027,9 @@ static int vxlan_config_validate(struct net *src_net, struct vxlan_config *conf,
 
 static void vxlan_config_apply(struct net_device *dev,
 			       struct vxlan_config *conf,
-			       struct net_device *lowerdev, bool changelink)
+			       struct net_device *lowerdev,
+			       struct net *src_net,
+			       bool changelink)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_rdst *dst = &vxlan->default_dst;
@@ -3044,6 +3045,8 @@ static void vxlan_config_apply(struct net_device *dev,
 
 		if (conf->mtu)
 			dev->mtu = conf->mtu;
+
+		vxlan->net = src_net;
 	}
 
 	dst->remote_vni = conf->vni;
@@ -3086,7 +3089,7 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	if (ret)
 		return ret;
 
-	vxlan_config_apply(dev, conf, lowerdev, changelink);
+	vxlan_config_apply(dev, conf, lowerdev, src_net, changelink);
 
 	return 0;
 }
