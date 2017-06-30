@@ -168,6 +168,7 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
+	phy-reset-gpios = <&extended_io 5 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	mdio {
