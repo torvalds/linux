@@ -16,10 +16,15 @@
 #include <linux/pci.h>
 #include <linux/debugfs.h>
 #include "skl.h"
+#include "skl-sst-dsp.h"
+#include "skl-sst-ipc.h"
 #include "skl-tplg-interface.h"
 #include "skl-topology.h"
+#include "../common/sst-dsp-priv.h"
 
 #define MOD_BUF		PAGE_SIZE
+#define FW_REG_BUF	PAGE_SIZE
+#define FW_REG_SIZE	0x60
 
 struct skl_debug {
 	struct skl *skl;
@@ -27,6 +32,7 @@ struct skl_debug {
 
 	struct dentry *fs;
 	struct dentry *modules;
+	u8 fw_read_buff[FW_REG_BUF];
 };
 
 static ssize_t skl_print_pins(struct skl_module_pin *m_pin, char *buf,
@@ -169,6 +175,51 @@ void skl_debug_init_module(struct skl_debug *d,
 		dev_err(d->dev, "%s: module debugfs init failed\n", w->name);
 }
 
+static ssize_t fw_softreg_read(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct skl_debug *d = file->private_data;
+	struct sst_dsp *sst = d->skl->skl_sst->dsp;
+	size_t w0_stat_sz = sst->addr.w0_stat_sz;
+	void __iomem *in_base = sst->mailbox.in_base;
+	void __iomem *fw_reg_addr;
+	unsigned int offset;
+	char *tmp;
+	ssize_t ret = 0;
+
+	tmp = kzalloc(FW_REG_BUF, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	fw_reg_addr = in_base - w0_stat_sz;
+	memset(d->fw_read_buff, 0, FW_REG_BUF);
+
+	if (w0_stat_sz > 0)
+		__iowrite32_copy(d->fw_read_buff, fw_reg_addr, w0_stat_sz >> 2);
+
+	for (offset = 0; offset < FW_REG_SIZE; offset += 16) {
+		ret += snprintf(tmp + ret, FW_REG_BUF - ret, "%#.4x: ", offset);
+		hex_dump_to_buffer(d->fw_read_buff + offset, 16, 16, 4,
+				   tmp + ret, FW_REG_BUF - ret, 0);
+		ret += strlen(tmp + ret);
+
+		/* print newline for each offset */
+		if (FW_REG_BUF - ret > 0)
+			tmp[ret++] = '\n';
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, tmp, ret);
+	kfree(tmp);
+
+	return ret;
+}
+
+static const struct file_operations soft_regs_ctrl_fops = {
+	.open = simple_open,
+	.read = fw_softreg_read,
+	.llseek = default_llseek,
+};
+
 struct skl_debug *skl_debugfs_init(struct skl *skl)
 {
 	struct skl_debug *d;
@@ -192,6 +243,12 @@ struct skl_debug *skl_debugfs_init(struct skl *skl)
 	d->modules = debugfs_create_dir("modules", d->fs);
 	if (IS_ERR(d->modules) || !d->modules) {
 		dev_err(&skl->pci->dev, "modules debugfs create failed\n");
+		goto err;
+	}
+
+	if (!debugfs_create_file("fw_soft_regs_rd", 0444, d->fs, d,
+				 &soft_regs_ctrl_fops)) {
+		dev_err(d->dev, "fw soft regs control debugfs init failed\n");
 		goto err;
 	}
 
