@@ -32,6 +32,7 @@
 #define PAGE_SHIFT_16G	34
 
 unsigned int HPAGE_SHIFT;
+EXPORT_SYMBOL(HPAGE_SHIFT);
 
 /*
  * Tracks gpages after the device tree is scanned and before the
