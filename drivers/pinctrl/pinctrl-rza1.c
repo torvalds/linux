@@ -1257,9 +1257,6 @@ static int rza1_pinctrl_probe(struct platform_device *pdev)
 	rza1_pctl->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (ret)
-		return -ENODEV;
-
 	rza1_pctl->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rza1_pctl->base))
 		return PTR_ERR(rza1_pctl->base);
