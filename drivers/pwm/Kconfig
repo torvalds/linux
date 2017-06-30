@@ -300,7 +300,7 @@ config PWM_MEDIATEK
 	  Generic PWM framework driver for Mediatek ARM SoC.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-mxs.
+	  will be called pwm-mediatek.
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
