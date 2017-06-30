@@ -48,7 +48,8 @@ MODULE_ALIAS("visorbus:" VISOR_VHBA_CHANNEL_UUID_STR);
 
 struct visordisk_info {
 	u32 valid;
-	u32 channel, id, lun;	/* Disk Path */
+	/* Disk Path */
+	u32 channel, id, lun;
 	atomic_t ios_threshold;
 	atomic_t error_count;
 	struct visordisk_info *next;
@@ -56,8 +57,10 @@ struct visordisk_info {
 
 struct scsipending {
 	struct uiscmdrsp cmdrsp;
-	void *sent;		/* The Data being tracked */
-	char cmdtype;		/* Type of pointer that is being stored */
+	/* The Data being tracked */
+	void *sent;
+	/* Type of pointer that is being stored */
+	char cmdtype;
 };
 
 /* Each scsi_host has a host_data area that contains this struct. */
@@ -71,7 +74,8 @@ struct visorhba_devdata {
 	struct scsipending pending[MAX_PENDING_REQUESTS];
 	/* Start search for next pending free slot here */
 	unsigned int nextinsert;
-	spinlock_t privlock; /* lock to protect data in devdata */
+	/* lock to protect data in devdata */
+	spinlock_t privlock;
 	bool serverdown;
 	bool serverchangingstate;
 	unsigned long long acquire_failed_cnt;
@@ -136,8 +140,9 @@ static struct task_struct *visor_thread_start
  */
 static void visor_thread_stop(struct task_struct *task)
 {
+	/* no thread running */
 	if (!task)
-		return;  /* no thread running */
+		return;
 	kthread_stop(task);
 }
 
@@ -176,7 +181,8 @@ static int add_scsipending_entry(struct visorhba_devdata *devdata,
 	entry->cmdtype = cmdtype;
 	if (new)
 		entry->sent = new;
-	else /* wants to send cmdrsp */
+	/* wants to send cmdrsp */
+	else
 		entry->sent = &entry->cmdrsp;
 	devdata->nextinsert = (insert_location + 1) % MAX_PENDING_REQUESTS;
 	spin_unlock_irqrestore(&devdata->privlock, flags);
@@ -249,9 +255,11 @@ static unsigned int simple_idr_get(struct idr *idrtable, void *p,
 	id = idr_alloc(idrtable, p, 1, INT_MAX, GFP_NOWAIT);
 	spin_unlock_irqrestore(lock, flags);
 	idr_preload_end();
+	/* failure */
 	if (id < 0)
-		return 0;  /* failure */
-	return (unsigned int)(id);  /* idr_alloc() guarantees > 0 */
+		return 0;
+	/* idr_alloc() guarantees > 0 */
+	return (unsigned int)(id);
 }
 
 /*
@@ -573,12 +581,14 @@ static int visorhba_slave_alloc(struct scsi_device *scsidev)
 	struct visorhba_devdata *devdata;
 	struct Scsi_Host *scsihost = (struct Scsi_Host *)scsidev->host;
 
+	/* even though we errored, treat as success */
 	devdata = (struct visorhba_devdata *)scsihost->hostdata;
 	if (!devdata)
-		return 0; /* even though we errored, treat as success */
+		return 0;
 
+	/* already allocated return success */
 	for_each_vdisk_match(vdisk, devdata, scsidev)
-		return 0; /* already allocated return success */
+		return 0;
 
 	tmpvdisk = kzalloc(sizeof(*tmpvdisk), GFP_ATOMIC);
 	if (!tmpvdisk)
@@ -930,10 +940,11 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 	struct scsi_cmnd *scsicmd;
 
 	while (1) {
+		/* queue empty */
 		if (visorchannel_signalremove(devdata->dev->visorchannel,
 					      IOCHAN_FROM_IOPART,
 					      cmdrsp))
-			break; /* queue empty */
+			break;
 
 		if (cmdrsp->cmdtype == CMD_SCSI_TYPE) {
 			/* scsicmd location is returned by the
