@@ -578,8 +578,10 @@ unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
 		 */
 try:
 		flags = READ_ONCE(entry->w_ctx.flags);
-		if (!(flags & PBLK_WRITTEN_DATA))
+		if (!(flags & PBLK_WRITTEN_DATA)) {
+			io_schedule();
 			goto try;
+		}
 
 		page = virt_to_page(entry->data);
 		if (!page) {
