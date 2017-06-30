@@ -12,6 +12,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/r8a7796-sysc.h>
 
+#define CPG_AUDIO_CLK_I		R8A7796_CLK_S0D4
+
 / {
 	compatible = "renesas,r8a7796";
 	#address-cells = <2>;

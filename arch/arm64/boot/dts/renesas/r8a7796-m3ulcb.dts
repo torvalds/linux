@@ -9,8 +9,6 @@
  * kind, whether express or implied.
  */
 
-#define CPG_AUDIO_CLK_I		R8A7796_CLK_S0D4
-
 /dts-v1/;
 #include "r8a7796.dtsi"
 #include "ulcb.dtsi"
