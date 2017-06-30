@@ -3010,7 +3010,8 @@ sctp_disposition_t sctp_sf_eat_data_6_2(struct net *net,
 		return SCTP_DISPOSITION_ABORT;
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
-			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
+					       (u8 *)chunk->subh.data_hdr,
+					       sizeof(struct sctp_datahdr));
 	default:
 		BUG();
 	}
@@ -3124,7 +3125,8 @@ sctp_disposition_t sctp_sf_eat_data_fast_4_4(struct net *net,
 		return SCTP_DISPOSITION_ABORT;
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
-			(u8 *)chunk->subh.data_hdr, sizeof(sctp_datahdr_t));
+					       (u8 *)chunk->subh.data_hdr,
+					       sizeof(struct sctp_datahdr));
 	default:
 		BUG();
 	}
@@ -6197,7 +6199,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 			 struct sctp_chunk *chunk,
 			 sctp_cmd_seq_t *commands)
 {
-	sctp_datahdr_t *data_hdr;
+	struct sctp_datahdr *data_hdr;
 	struct sctp_chunk *err;
 	size_t datalen;
 	sctp_verb_t deliver;
@@ -6210,8 +6212,9 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	u16 sid;
 	u8 ordered = 0;
 
-	data_hdr = chunk->subh.data_hdr = (sctp_datahdr_t *)chunk->skb->data;
-	skb_pull(chunk->skb, sizeof(sctp_datahdr_t));
+	data_hdr = (struct sctp_datahdr *)chunk->skb->data;
+	chunk->subh.data_hdr = data_hdr;
+	skb_pull(chunk->skb, sizeof(*data_hdr));
 
 	tsn = ntohl(data_hdr->tsn);
 	pr_debug("%s: TSN 0x%x\n", __func__, tsn);

@@ -227,17 +227,17 @@ enum { SCTP_PARAM_ACTION_MASK = cpu_to_be16(0xc000), };
 
 /* RFC 2960 Section 3.3.1 Payload Data (DATA) (0) */
 
-typedef struct sctp_datahdr {
+struct sctp_datahdr {
 	__be32 tsn;
 	__be16 stream;
 	__be16 ssn;
 	__be32 ppid;
 	__u8  payload[0];
-} sctp_datahdr_t;
+};
 
 typedef struct sctp_data_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_datahdr_t  data_hdr;
+	struct sctp_datahdr data_hdr;
 } sctp_data_chunk_t;
 
 /* DATA Chuck Specific Flags */
