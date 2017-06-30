@@ -28,6 +28,8 @@
 #include <linux/iio/driver.h>
 
 #define AXP288_ADC_EN_MASK		0xF1
+#define AXP288_ADC_TS_PIN_GPADC		0xF2
+#define AXP288_ADC_TS_PIN_ON		0xF3
 
 enum axp288_adc_id {
 	AXP288_ADC_TS,
@@ -121,6 +123,16 @@ static int axp288_adc_read_channel(int *val, unsigned long address,
 	return IIO_VAL_INT;
 }
 
+static int axp288_adc_set_ts(struct regmap *regmap, unsigned int mode,
+				unsigned long address)
+{
+	/* channels other than GPADC do not need to switch TS pin */
+	if (address != AXP288_GP_ADC_H)
+		return 0;
+
+	return regmap_write(regmap, AXP288_ADC_TS_PIN_CTRL, mode);
+}
+
 static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 			struct iio_chan_spec const *chan,
 			int *val, int *val2, long mask)
@@ -131,7 +143,16 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		if (axp288_adc_set_ts(info->regmap, AXP288_ADC_TS_PIN_GPADC,
+					chan->address)) {
+			dev_err(&indio_dev->dev, "GPADC mode\n");
+			ret = -EINVAL;
+			break;
+		}
 		ret = axp288_adc_read_channel(val, chan->address, info->regmap);
+		if (axp288_adc_set_ts(info->regmap, AXP288_ADC_TS_PIN_ON,
+						chan->address))
+			dev_err(&indio_dev->dev, "TS pin restore\n");
 		break;
 	default:
 		ret = -EINVAL;
@@ -139,6 +160,15 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
+}
+
+static int axp288_adc_set_state(struct regmap *regmap)
+{
+	/* ADC should be always enabled for internal FG to function */
+	if (regmap_write(regmap, AXP288_ADC_TS_PIN_CTRL, AXP288_ADC_TS_PIN_ON))
+		return -EIO;
+
+	return regmap_write(regmap, AXP20X_ADC_EN1, AXP288_ADC_EN_MASK);
 }
 
 static const struct iio_info axp288_adc_iio_info = {
@@ -169,7 +199,7 @@ static int axp288_adc_probe(struct platform_device *pdev)
 	 * Set ADC to enabled state at all time, including system suspend.
 	 * otherwise internal fuel gauge functionality may be affected.
 	 */
-	ret = regmap_write(info->regmap, AXP20X_ADC_EN1, AXP288_ADC_EN_MASK);
+	ret = axp288_adc_set_state(axp20x->regmap);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to enable ADC device\n");
 		return ret;
