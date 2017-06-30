@@ -550,9 +550,9 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->io);
 
 	priv->irq = platform_get_irq(pdev, 0);
-	if (priv->irq <= 0) {
-		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		return -ENXIO;
+	if (priv->irq < 0) {
+		dev_err(&pdev->dev, "platform_get_irq failed: %d\n", priv->irq);
+		return priv->irq;
 	}
 
 	if (np) {
