@@ -6033,7 +6033,8 @@ static int sctp_getsockopt_hmac_ident(struct sock *sk, int len,
 		return -EACCES;
 
 	hmacs = ep->auth_hmacs_list;
-	data_len = ntohs(hmacs->param_hdr.length) - sizeof(sctp_paramhdr_t);
+	data_len = ntohs(hmacs->param_hdr.length) -
+		   sizeof(struct sctp_paramhdr);
 
 	if (len < sizeof(struct sctp_hmacalgo) + data_len)
 		return -EINVAL;
@@ -6117,7 +6118,7 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 		goto num;
 
 	/* See if the user provided enough room for all the data */
-	num_chunks = ntohs(ch->param_hdr.length) - sizeof(sctp_paramhdr_t);
+	num_chunks = ntohs(ch->param_hdr.length) - sizeof(struct sctp_paramhdr);
 	if (len < num_chunks)
 		return -EINVAL;
 
@@ -6165,7 +6166,7 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 	if (!ch)
 		goto num;
 
-	num_chunks = ntohs(ch->param_hdr.length) - sizeof(sctp_paramhdr_t);
+	num_chunks = ntohs(ch->param_hdr.length) - sizeof(struct sctp_paramhdr);
 	if (len < sizeof(struct sctp_authchunks) + num_chunks)
 		return -EINVAL;
 

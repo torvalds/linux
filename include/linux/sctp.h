@@ -162,10 +162,10 @@ enum { SCTP_CHUNK_FLAG_T = 0x01 };
  * Section 3.2.1 Optional/Variable-length Parmaeter Format.
  */
 
-typedef struct sctp_paramhdr {
+struct sctp_paramhdr {
 	__be16 type;
 	__be16 length;
-} sctp_paramhdr_t;
+};
 
 typedef enum {
 
@@ -274,37 +274,37 @@ typedef struct sctp_init_chunk {
 
 /* Section 3.3.2.1. IPv4 Address Parameter (5) */
 typedef struct sctp_ipv4addr_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	struct in_addr  addr;
 } sctp_ipv4addr_param_t;
 
 /* Section 3.3.2.1. IPv6 Address Parameter (6) */
 typedef struct sctp_ipv6addr_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	struct in6_addr addr;
 } sctp_ipv6addr_param_t;
 
 /* Section 3.3.2.1 Cookie Preservative (9) */
 typedef struct sctp_cookie_preserve_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__be32          lifespan_increment;
 } sctp_cookie_preserve_param_t;
 
 /* Section 3.3.2.1 Host Name Address (11) */
 typedef struct sctp_hostname_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	uint8_t hostname[0];
 } sctp_hostname_param_t;
 
 /* Section 3.3.2.1 Supported Address Types (12) */
 typedef struct sctp_supported_addrs_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__be16 types[0];
 } sctp_supported_addrs_param_t;
 
 /* Appendix A. ECN Capable (32768) */
 typedef struct sctp_ecn_capable_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 } sctp_ecn_capable_param_t;
 
 /* ADDIP Section 3.2.6 Adaptation Layer Indication */
@@ -321,19 +321,19 @@ typedef struct sctp_supported_ext_param {
 
 /* AUTH Section 3.1 Random */
 typedef struct sctp_random_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u8 random_val[0];
 } sctp_random_param_t;
 
 /* AUTH Section 3.2 Chunk List */
 typedef struct sctp_chunks_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u8 chunks[0];
 } sctp_chunks_param_t;
 
 /* AUTH Section 3.3 HMAC Algorithm */
 typedef struct sctp_hmac_algo_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__be16 hmac_ids[0];
 } sctp_hmac_algo_param_t;
 
@@ -345,14 +345,14 @@ typedef sctp_init_chunk_t sctp_initack_chunk_t;
 
 /* Section 3.3.3.1 State Cookie (7) */
 typedef struct sctp_cookie_param {
-	sctp_paramhdr_t p;
+	struct sctp_paramhdr p;
 	__u8 body[0];
 } sctp_cookie_param_t;
 
 /* Section 3.3.3.1 Unrecognized Parameters (8) */
 typedef struct sctp_unrecognized_param {
-	sctp_paramhdr_t param_hdr;
-	sctp_paramhdr_t unrecognized;
+	struct sctp_paramhdr param_hdr;
+	struct sctp_paramhdr unrecognized;
 } sctp_unrecognized_param_t;
 
 
@@ -399,7 +399,7 @@ typedef struct sctp_sack_chunk {
  */
 
 typedef struct sctp_heartbeathdr {
-	sctp_paramhdr_t info;
+	struct sctp_paramhdr info;
 } sctp_heartbeathdr_t;
 
 typedef struct sctp_heartbeat_chunk {
@@ -639,7 +639,7 @@ struct sctp_fwdtsn_chunk {
  *	report status of ASCONF processing.
  */
 typedef struct sctp_addip_param {
-	sctp_paramhdr_t	param_hdr;
+	struct sctp_paramhdr	param_hdr;
 	__be32		crr_id;
 } sctp_addip_param_t;
 
@@ -724,7 +724,7 @@ struct sctp_reconf_chunk {
 };
 
 struct sctp_strreset_outreq {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 	__u32 response_seq;
 	__u32 send_reset_at_tsn;
@@ -732,18 +732,18 @@ struct sctp_strreset_outreq {
 };
 
 struct sctp_strreset_inreq {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 	__u16 list_of_streams[0];
 };
 
 struct sctp_strreset_tsnreq {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 };
 
 struct sctp_strreset_addstrm {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 	__u16 number_of_streams;
 	__u16 reserved;
@@ -760,13 +760,13 @@ enum {
 };
 
 struct sctp_strreset_resp {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 response_seq;
 	__u32 result;
 };
 
 struct sctp_strreset_resptsn {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 response_seq;
 	__u32 result;
 	__u32 senders_next_tsn;

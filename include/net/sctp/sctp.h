@@ -470,7 +470,7 @@ _sctp_walk_params((pos), (chunk), ntohs((chunk)->chunk_hdr.length), member)
 #define _sctp_walk_params(pos, chunk, end, member)\
 for (pos.v = chunk->member;\
      pos.v <= (void *)chunk + end - ntohs(pos.p->length) &&\
-     ntohs(pos.p->length) >= sizeof(sctp_paramhdr_t);\
+     ntohs(pos.p->length) >= sizeof(struct sctp_paramhdr);\
      pos.v += SCTP_PAD4(ntohs(pos.p->length)))
 
 #define sctp_walk_errors(err, chunk_hdr)\

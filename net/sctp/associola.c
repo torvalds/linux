@@ -71,7 +71,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 {
 	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
-	sctp_paramhdr_t *p;
+	struct sctp_paramhdr *p;
 	int i;
 
 	/* Retrieve the SCTP per socket area.  */
@@ -284,9 +284,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 			ntohs(ep->auth_chunk_list->param_hdr.length));
 
 	/* Get the AUTH random number for this association */
-	p = (sctp_paramhdr_t *)asoc->c.auth_random;
+	p = (struct sctp_paramhdr *)asoc->c.auth_random;
 	p->type = SCTP_PARAM_RANDOM;
-	p->length = htons(sizeof(sctp_paramhdr_t) + SCTP_AUTH_RANDOM_LENGTH);
+	p->length = htons(sizeof(*p) + SCTP_AUTH_RANDOM_LENGTH);
 	get_random_bytes(p+1, SCTP_AUTH_RANDOM_LENGTH);
 
 	return asoc;
