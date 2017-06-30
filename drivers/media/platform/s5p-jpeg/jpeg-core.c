@@ -1099,6 +1099,8 @@ static void skip(struct s5p_jpeg_buffer *buf, long len)
 static bool s5p_jpeg_subsampling_decode(struct s5p_jpeg_ctx *ctx,
 					unsigned int subsampling)
 {
+	unsigned int version;
+
 	switch (subsampling) {
 	case 0x11:
 		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_444;
@@ -1111,6 +1113,19 @@ static bool s5p_jpeg_subsampling_decode(struct s5p_jpeg_ctx *ctx,
 		break;
 	case 0x33:
 		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
+		break;
+	case 0x41:
+		/*
+		 * 4:1:1 subsampling only supported by 3250, 5420, and 5433
+		 * variants
+		 */
+		version = ctx->jpeg->variant->version;
+		if (version != SJPEG_EXYNOS3250 &&
+		    version != SJPEG_EXYNOS5420 &&
+		    version != SJPEG_EXYNOS5433)
+			return false;
+
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_411;
 		break;
 	default:
 		return false;
