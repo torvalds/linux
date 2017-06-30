@@ -1389,8 +1389,9 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 				MCDI_EVENT_FIELD(*event, PROXY_RESPONSE_RC));
 		break;
 	default:
-		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",
-			  code);
+		netif_err(efx, hw, efx->net_dev,
+			  "Unknown MCDI event " EFX_QWORD_FMT "\n",
+			  EFX_QWORD_VAL(*event));
 	}
 }
 
