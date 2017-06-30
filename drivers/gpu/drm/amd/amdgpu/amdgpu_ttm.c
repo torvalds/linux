@@ -199,7 +199,6 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		.lpfn = 0,
 		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
 	};
-	unsigned i;
 
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo)) {
 		placement->placement = &placements;
@@ -217,20 +216,6 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_CPU);
 		} else {
 			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
-			for (i = 0; i < abo->placement.num_placement; ++i) {
-				if (!(abo->placements[i].flags &
-				      TTM_PL_FLAG_TT))
-					continue;
-
-				if (abo->placements[i].lpfn)
-					continue;
-
-				/* set an upper limit to force directly
-				 * allocating address space for the BO.
-				 */
-				abo->placements[i].lpfn =
-					adev->mc.gtt_size >> PAGE_SHIFT;
-			}
 		}
 		break;
 	case TTM_PL_TT:
@@ -391,7 +376,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
 	placement.num_busy_placement = 1;
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
-	placements.lpfn = adev->mc.gtt_size >> PAGE_SHIFT;
+	placements.lpfn = 0;
 	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
 			     interruptible, no_wait_gpu);
@@ -438,7 +423,7 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo,
 	placement.num_busy_placement = 1;
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
-	placements.lpfn = adev->mc.gtt_size >> PAGE_SHIFT;
+	placements.lpfn = 0;
 	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
 			     interruptible, no_wait_gpu);
