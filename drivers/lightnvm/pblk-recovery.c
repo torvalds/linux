@@ -801,7 +801,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 	set_bit(meta_line, &l_mg->meta_bitmap);
 	smeta = l_mg->sline_meta[meta_line];
 	emeta = l_mg->eline_meta[meta_line];
-	smeta_buf = smeta->buf;
+	smeta_buf = (struct line_smeta *)smeta;
 	spin_unlock(&l_mg->free_lock);
 
 	/* Order data lines using their sequence number */
@@ -888,9 +888,9 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		nr_bb = bitmap_weight(line->blk_bitmap, lm->blk_per_line);
 		off -= nr_bb * geo->sec_per_pl;
 
-		memset(&emeta->buf, 0, lm->emeta_len[0]);
-		line->emeta = emeta;
 		line->emeta_ssec = off;
+		line->emeta = emeta;
+		memset(line->emeta->buf, 0, lm->emeta_len[0]);
 
 		if (pblk_line_read_emeta(pblk, line, line->emeta->buf)) {
 			pblk_recov_l2p_from_oob(pblk, line);
