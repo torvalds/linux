@@ -100,6 +100,7 @@ static bool gcov_enabled(struct objtool_file *file)
 static bool ignore_func(struct objtool_file *file, struct symbol *func)
 {
 	struct rela *rela;
+	struct instruction *insn;
 
 	/* check for STACK_FRAME_NON_STANDARD */
 	if (file->whitelist && file->whitelist->rela)
@@ -111,6 +112,11 @@ static bool ignore_func(struct objtool_file *file, struct symbol *func)
 			if (rela->sym->type == STT_FUNC && rela->sym == func)
 				return true;
 		}
+
+	/* check if it has a context switching instruction */
+	func_for_each_insn(file, func, insn)
+		if (insn->type == INSN_CONTEXT_SWITCH)
+			return true;
 
 	return false;
 }
@@ -1444,14 +1450,6 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 				return 1;
 			}
 
-			return 0;
-
-		case INSN_CONTEXT_SWITCH:
-			if (func) {
-				WARN_FUNC("unsupported instruction in callable function",
-					  sec, insn->offset);
-				return 1;
-			}
 			return 0;
 
 		case INSN_STACK:
