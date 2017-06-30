@@ -611,7 +611,7 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 	reg_data[3] = (u8)(data >> 24);
 
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE_IFRF,
-				0, 0, ARRAY_SIZE(reg_data), reg_data);
+			0, 0, ARRAY_SIZE(reg_data), reg_data);
 
 	return true;
 }
