@@ -44,7 +44,7 @@ struct thread_info {
 	int preempt_count;		/* 0 => preemptable, <0 => BUG */
 	struct task_struct *task;	/* main task structure */
 	mm_segment_t addr_limit;	/* thread address space */
-	__u32 cpu;			/* current CPU */
+	__u32 cpu;			/* current CPU, processÖ´ĞĞµÄCPU */
 	unsigned long thr_ptr;		/* TLS ptr */
 };
 

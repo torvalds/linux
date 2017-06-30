@@ -490,14 +490,42 @@ struct task_struct {
 #endif
 	/* -1 unrunnable, 0 runnable, >0 stopped: */
 	volatile long			state;
+	
+	/* 内核栈 */
 	void				*stack;
+	
+	/* (REM)
+	* used by get_task_struct(). It's also set in kernel/fork.c. 
+	* This value acts like a reference count on the task structure
+	* of a process. It can be used if we don't want to hold the 
+	* tasklist_lock.
+	*/
 	atomic_t			usage;
-	/* Per task flags (PF_*), defined further below: */
+
+	/* REM
+	 * Per task flags (PF_*), defined further below:
+	 * process flag can be, for example, PF_DEAD when exit_notify() 
+	 * is called. List is of possible values is in include/linux/sched.h 
+	*/
 	unsigned int			flags;
+
+	/* (REM)
+	 * used by ptrace a system call that provides the ability to a 
+	 * parent process to observe and control the execution of another
+	 * process
+	 */
 	unsigned int			ptrace;
 
 #ifdef CONFIG_SMP
-	struct llist_node		wake_entry;
+	struct llist_node		wake_entry;	/* list挂接点， 用于调度*/
+
+	/* (REM)
+	 * a lock when context switching and wanting to have interrupts 
+	 * enabled during a context switch in order to avoid high latency
+	 * by having an unlocked runqueue. Basically when it's 0 then the
+	 * task can be moved to a different cpu.而process运行的cpu保存在
+	 * thread_info
+	 */
 	int				on_cpu;
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/* Current CPU: */
@@ -511,8 +539,9 @@ struct task_struct {
 #endif
 	int				on_rq;
 
+	/* 优先级*/
 	int				prio;
-	int				static_prio;
+	int				static_prio;	/* 静态优先级在进程启动的分配，可以同nice和sched_setscheduler修改 */
 	int				normal_prio;
 	unsigned int			rt_priority;
 
@@ -530,9 +559,15 @@ struct task_struct {
 #endif
 
 #ifdef CONFIG_BLK_DEV_IO_TRACE
+	/*
+	 * 见blktrace，用于块设备调试？
+	 */
 	unsigned int			btrace_seq;
 #endif
 
+	/* REM
+	 * the scheduling policy used for this process. 
+	 */
 	unsigned int			policy;
 	int				nr_cpus_allowed;
 	cpumask_t			cpus_allowed;

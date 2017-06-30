@@ -516,11 +516,11 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 
 	if (node == NUMA_NO_NODE)
 		node = tsk_fork_get_node(orig);
-	tsk = alloc_task_struct_node(node);
+	tsk = alloc_task_struct_node(node);	/* 分配进程结构体 */
 	if (!tsk)
 		return NULL;
 
-	stack = alloc_thread_stack_node(tsk, node);
+	stack = alloc_thread_stack_node(tsk, node);	/* 分配process的栈 */
 	if (!stack)
 		goto free_tsk;
 
