@@ -3893,7 +3893,7 @@ qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 		rval = QLA_FUNCTION_FAILED;
 	} else if (vce->comp_status != cpu_to_le16(CS_COMPLETE)) {
 		ql_dbg(ql_dbg_mbx, vha, 0x10c5,
-		    "Failed to complet IOCB -- completion status (%x).\n",
+		    "Failed to complete IOCB -- completion status (%x).\n",
 		    le16_to_cpu(vce->comp_status));
 		rval = QLA_FUNCTION_FAILED;
 	} else {

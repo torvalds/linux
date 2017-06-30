@@ -929,7 +929,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 			    iter->name, ret);
 		else
 			ql_dbg(ql_dbg_init, vha, 0x00f4,
-			    "Successfully created sysfs %s binary attribure.\n",
+			    "Successfully created sysfs %s binary attribute.\n",
 			    iter->name);
 	}
 }

@@ -432,8 +432,7 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 			    "Register: 0x%x%x.\n", mb[7], mb[3]);
 			if (err_level == ERR_LEVEL_NON_FATAL) {
 				ql_log(ql_log_warn, vha, 0x5063,
-				    "Not a fatal error, f/w has recovered "
-				    "iteself.\n");
+				    "Not a fatal error, f/w has recovered itself.\n");
 			} else if (err_level == ERR_LEVEL_RECOVERABLE_FATAL) {
 				ql_log(ql_log_fatal, vha, 0x5064,
 				    "Recoverable Fatal error: Chip reset "

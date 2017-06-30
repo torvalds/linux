@@ -489,7 +489,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	struct nvme_private *priv;
 
 	if (!fd) {
-		ql_log(ql_log_warn, NULL, 0x2134, "NO NVMe FCP reqeust\n");
+		ql_log(ql_log_warn, NULL, 0x2134, "NO NVMe FCP request\n");
 		return rval;
 	}
 
@@ -626,7 +626,7 @@ void qla_nvme_abort(struct qla_hw_data *ha, srb_t *sp)
 	if (!rval) {
 		if (!qla_nvme_wait_on_command(sp))
 			ql_log(ql_log_warn, NULL, 0x2112,
-			    "nvme_wait_on_comand timed out waiting on sp=%p\n",
+			    "nvme_wait_on_command timed out waiting on sp=%p\n",
 			    sp);
 	}
 }

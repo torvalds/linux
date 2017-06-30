@@ -4660,7 +4660,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			} else if (qla2x00_rsnn_nn(vha)) {
 				/* EMPTY */
 				ql_dbg(ql_dbg_disc, vha, 0x209b,
-				    "Register Symobilic Node Name failed.\n");
+				    "Register Symbolic Node Name failed.\n");
 				if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
 					break;
 			}
