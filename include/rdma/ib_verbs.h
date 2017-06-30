@@ -1927,6 +1927,9 @@ struct rdma_netdev {
 	struct ib_device  *hca;
 	u8                 port_num;
 
+	/* cleanup function must be specified */
+	void (*free_rdma_netdev)(struct net_device *netdev);
+
 	/* control functions */
 	void (*set_id)(struct net_device *netdev, int id);
 	/* send packet */
@@ -2194,7 +2197,7 @@ struct ib_device {
 							   struct ib_udata *udata);
 	int                        (*destroy_rwq_ind_table)(struct ib_rwq_ind_table *wq_ind_table);
 	/**
-	 * rdma netdev operations
+	 * rdma netdev operation
 	 *
 	 * Driver implementing alloc_rdma_netdev must return -EOPNOTSUPP if it
 	 * doesn't support the specified rdma netdev type.
@@ -2206,7 +2209,6 @@ struct ib_device {
 					const char *name,
 					unsigned char name_assign_type,
 					void (*setup)(struct net_device *));
-	void (*free_rdma_netdev)(struct net_device *netdev);
 
 	struct module               *owner;
 	struct device                dev;
