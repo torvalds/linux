@@ -216,12 +216,12 @@ enum sctp_param {
  *  not recognize the Parameter Type.
  *
  */
-typedef enum {
+enum {
 	SCTP_PARAM_ACTION_DISCARD     = cpu_to_be16(0x0000),
 	SCTP_PARAM_ACTION_DISCARD_ERR = cpu_to_be16(0x4000),
 	SCTP_PARAM_ACTION_SKIP        = cpu_to_be16(0x8000),
 	SCTP_PARAM_ACTION_SKIP_ERR    = cpu_to_be16(0xc000),
-} sctp_param_action_t;
+};
 
 enum { SCTP_PARAM_ACTION_MASK = cpu_to_be16(0xc000), };
 
