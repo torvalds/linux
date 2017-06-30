@@ -14771,6 +14771,17 @@ static void quirk_backlight_present(struct drm_device *dev)
 	DRM_INFO("applying backlight present quirk\n");
 }
 
+/* Toshiba Satellite P50-C-18C requires T12 delay to be min 800ms
+ * which is 300 ms greater than eDP spec T12 min.
+ */
+static void quirk_increase_t12_delay(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	dev_priv->quirks |= QUIRK_INCREASE_T12_DELAY;
+	DRM_INFO("Applying T12 delay quirk\n");
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
@@ -14854,6 +14865,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Dell Chromebook 11 (2015 version) */
 	{ 0x0a16, 0x1028, 0x0a35, quirk_backlight_present },
+
+	/* Toshiba Satellite P50-C-18C */
+	{ 0x191B, 0x1179, 0xF840, quirk_increase_t12_delay },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
