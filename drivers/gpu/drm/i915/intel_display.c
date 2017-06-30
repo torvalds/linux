@@ -4612,6 +4612,9 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		&crtc_state->scaler_state;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 	int need_scaling;
 
 	/*
@@ -4620,6 +4623,18 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 * GTT mapping), hence no need to account for rotation here.
 	 */
 	need_scaling = src_w != dst_w || src_h != dst_h;
+
+	/*
+	 * Scaling/fitting not supported in IF-ID mode in GEN9+
+	 * TODO: Interlace fetch mode doesn't support YUV420 planar formats.
+	 * Once NV12 is enabled, handle it here while allocating scaler
+	 * for NV12.
+	 */
+	if (INTEL_GEN(dev_priv) >= 9 && crtc_state->base.enable &&
+	    need_scaling && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		DRM_DEBUG_KMS("Pipe/Plane scaling not supported with IF-ID mode\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * if plane is being disabled or scaler is no more required or force detach
