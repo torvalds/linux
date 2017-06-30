@@ -191,7 +191,7 @@ int mlx5_fpga_query_qp(struct mlx5_core_dev *dev,
 	if (ret)
 		return ret;
 
-	memcpy(fpga_qpc, MLX5_ADDR_OF(fpga_query_qp_out, in, fpga_qpc),
+	memcpy(fpga_qpc, MLX5_ADDR_OF(fpga_query_qp_out, out, fpga_qpc),
 	       MLX5_FLD_SZ_BYTES(fpga_query_qp_out, fpga_qpc));
 	return ret;
 }
