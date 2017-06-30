@@ -117,12 +117,12 @@ enum sctp_cid {
  *  the action that must be taken if the processing endpoint does not
  *  recognize the Chunk Type.
  */
-typedef enum {
+enum {
 	SCTP_CID_ACTION_DISCARD     = 0x00,
 	SCTP_CID_ACTION_DISCARD_ERR = 0x40,
 	SCTP_CID_ACTION_SKIP        = 0x80,
 	SCTP_CID_ACTION_SKIP_ERR    = 0xc0,
-} sctp_cid_action_t;
+};
 
 enum { SCTP_CID_ACTION_MASK = 0xc0, };
 
