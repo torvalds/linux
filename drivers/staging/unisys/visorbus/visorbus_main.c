@@ -240,23 +240,23 @@ static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(typename);
 
 static struct attribute *channel_attrs[] = {
-		&dev_attr_physaddr.attr,
-		&dev_attr_nbytes.attr,
-		&dev_attr_clientpartition.attr,
-		&dev_attr_typeguid.attr,
-		&dev_attr_zoneguid.attr,
-		&dev_attr_typename.attr,
-		NULL
+	&dev_attr_physaddr.attr,
+	&dev_attr_nbytes.attr,
+	&dev_attr_clientpartition.attr,
+	&dev_attr_typeguid.attr,
+	&dev_attr_zoneguid.attr,
+	&dev_attr_typename.attr,
+	NULL
 };
 
 static struct attribute_group channel_attr_grp = {
-		.name = "channel",
-		.attrs = channel_attrs,
+	.name = "channel",
+	.attrs = channel_attrs,
 };
 
 static const struct attribute_group *visorbus_channel_groups[] = {
-		&channel_attr_grp,
-		NULL
+	&channel_attr_grp,
+	NULL
 };
 
 /* end implementation of specific channel attributes */
@@ -331,22 +331,22 @@ static ssize_t channel_id_show(struct device *dev,
 static DEVICE_ATTR_RO(channel_id);
 
 static struct attribute *dev_attrs[] = {
-		&dev_attr_partition_handle.attr,
-		&dev_attr_partition_guid.attr,
-		&dev_attr_partition_name.attr,
-		&dev_attr_channel_addr.attr,
-		&dev_attr_channel_bytes.attr,
-		&dev_attr_channel_id.attr,
-		NULL
+	&dev_attr_partition_handle.attr,
+	&dev_attr_partition_guid.attr,
+	&dev_attr_partition_name.attr,
+	&dev_attr_channel_addr.attr,
+	&dev_attr_channel_bytes.attr,
+	&dev_attr_channel_id.attr,
+	NULL
 };
 
 static struct attribute_group dev_attr_grp = {
-		.attrs = dev_attrs,
+	.attrs = dev_attrs,
 };
 
 static const struct attribute_group *visorbus_groups[] = {
-		&dev_attr_grp,
-		NULL
+	&dev_attr_grp,
+	NULL
 };
 
 /*
