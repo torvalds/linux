@@ -84,7 +84,8 @@ struct visornic_devdata {
 	u64 incarnation_id;
 	/* flags as they were prior to set_multicast_list */
 	unsigned short old_flags;
-	atomic_t usage;	/* count of users */
+	/* count of users */
+	atomic_t usage;
 
 	/* number of rcv buffers the vnic will post */
 	int num_rcv_bufs;
@@ -108,31 +109,43 @@ struct visornic_devdata {
 	struct uiscmdrsp *cmdrsp_rcv;
 	/* xmit_cmdrsp - issues NET_XMIT - only one active xmit at a time */
 	struct uiscmdrsp *xmit_cmdrsp;
-
-	bool server_down;		 /* IOPART is down */
-	bool server_change_state;	 /* Processing SERVER_CHANGESTATE msg */
-	bool going_away;		 /* device is being torn down */
+	/* IOPART is down */
+	bool server_down;
+	/* Processing SERVER_CHANGESTATE msg */
+	bool server_change_state;
+	/* device is being torn down */
+	bool going_away;
 	struct dentry *eth_debugfs_dir;
 	u64 interrupts_rcvd;
 	u64 interrupts_notme;
 	u64 interrupts_disabled;
 	u64 busy_cnt;
-	spinlock_t priv_lock;  /* spinlock to access devdata structures */
+	/* spinlock to access devdata structures */
+	spinlock_t priv_lock;
 
 	/* flow control counter */
 	u64 flow_control_upper_hits;
 	u64 flow_control_lower_hits;
 
 	/* debug counters */
-	unsigned long n_rcv0;			/* # rcvs of 0 buffers */
-	unsigned long n_rcv1;			/* # rcvs of 1 buffers */
-	unsigned long n_rcv2;			/* # rcvs of 2 buffers */
-	unsigned long n_rcvx;			/* # rcvs of >2 buffers */
-	unsigned long found_repost_rcvbuf_cnt;	/* # repost_rcvbuf_cnt */
-	unsigned long repost_found_skb_cnt;	/* # of found the skb */
-	unsigned long n_repost_deficit;		/* # of lost rcv buffers */
-	unsigned long bad_rcv_buf; /* # of unknown rcv skb  not freed */
-	unsigned long n_rcv_packets_not_accepted;/* # bogs rcv packets */
+	/* # rcvs of 0 buffers */
+	unsigned long n_rcv0;
+	/* # rcvs of 1 buffers */
+	unsigned long n_rcv1;
+	/* # rcvs of 2 buffers */
+	unsigned long n_rcv2;
+	/* # rcvs of >2 buffers */
+	unsigned long n_rcvx;
+	/* # repost_rcvbuf_cnt */
+	unsigned long found_repost_rcvbuf_cnt;
+	/* # of found the skb */
+	unsigned long repost_found_skb_cnt;
+	/* # of lost rcv buffers */
+	unsigned long n_repost_deficit;
+	/* # of unknown rcv skb  not freed */
+	unsigned long bad_rcv_buf;
+	/* # bogs rcv packets */
+	unsigned long n_rcv_packets_not_accepted;
 
 	int queuefullmsg_logged;
 	struct chanstat chstat;
@@ -493,7 +506,8 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 	/* send a msg telling the other end we are stopping incoming pkts */
 	spin_lock_irqsave(&devdata->priv_lock, flags);
 	devdata->enabled = 0;
-	devdata->enab_dis_acked = 0; /* must wait for ack */
+	/* must wait for ack */
+	devdata->enab_dis_acked = 0;
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 
 	/* send disable and wait for ack -- don't hold lock when sending
@@ -578,10 +592,12 @@ init_rcv_bufs(struct net_device *netdev, struct visornic_devdata *devdata)
 	 */
 	for (i = 0; i < devdata->num_rcv_bufs; i++) {
 		devdata->rcvbuf[i] = alloc_rcv_buf(netdev);
+		/* if we failed to allocate one let us stop */
 		if (!devdata->rcvbuf[i])
-			break; /* if we failed to allocate one let us stop */
+			break;
 	}
-	if (i == 0) /* couldn't even allocate one -- bail out */
+	/* couldn't even allocate one -- bail out */
+	if (i == 0)
 		return -ENOMEM;
 	count = i;
 
@@ -1236,7 +1252,8 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	 * firstfrag & set data_len to show rest see if we have to chain
 	 * frag_list.
 	 */
-	if (skb->len > RCVPOST_BUF_SIZE) {	/* do PRECAUTIONARY check */
+	/* do PRECAUTIONARY check */
+	if (skb->len > RCVPOST_BUF_SIZE) {
 		if (cmdrsp->net.rcv.numrcvbufs < 2) {
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
@@ -1244,23 +1261,24 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			return 0;
 		}
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
-		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
-		skb->data_len = skb->len - RCVPOST_BUF_SIZE;	/* amount that
-								 *  will be in
-								 * frag_list
-								 */
+		/* amount in skb->data */
+		skb->tail += RCVPOST_BUF_SIZE;
+		/* amount that will be in frag_list */
+		skb->data_len = skb->len - RCVPOST_BUF_SIZE;
 	} else {
 		/* data fits in this skb - no chaining - do
 		 * PRECAUTIONARY check
 		 */
-		if (cmdrsp->net.rcv.numrcvbufs != 1) {	/* should be 1 */
+		/* should be 1 */
+		if (cmdrsp->net.rcv.numrcvbufs != 1) {
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
 			return 0;
 		}
 		skb->tail += skb->len;
-		skb->data_len = 0;	/* nothing rcvd in frag_list */
+		/* nothing rcvd in frag_list */
+		skb->data_len = 0;
 	}
 	off = skb_tail_pointer(skb) - skb->data;
 
@@ -1286,7 +1304,8 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		     cc < cmdrsp->net.rcv.numrcvbufs; cc++) {
 			curr = (struct sk_buff *)cmdrsp->net.rcv.rcvbuf[cc];
 			curr->next = NULL;
-			if (!prev)	/* start of list- set head */
+			/* start of list- set head */
+			if (!prev)
 				skb_shinfo(skb)->frag_list = curr;
 			else
 				prev->next = curr;
@@ -1321,11 +1340,13 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	do {
+		/* accept all packets */
 		if (netdev->flags & IFF_PROMISC)
-			break;	/* accept all packets */
+			break;
 		if (skb->pkt_type == PACKET_BROADCAST) {
+			/* accept all broadcast packets */
 			if (netdev->flags & IFF_BROADCAST)
-				break;	/* accept all broadcast packets */
+				break;
 		} else if (skb->pkt_type == PACKET_MULTICAST) {
 			if ((netdev->flags & IFF_MULTICAST) &&
 			    (netdev_mc_count(netdev))) {
@@ -1651,13 +1672,14 @@ service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 	struct net_device *netdev;
 
 	while (*rx_work_done < budget) {
-	/* TODO: CLIENT ACQUIRE -- Don't really need this at the
-	 * moment
-	 */
+		/* TODO: CLIENT ACQUIRE -- Don't really need this at the
+		 * moment
+		 */
+		/* queue empty */
 		if (visorchannel_signalremove(devdata->dev->visorchannel,
 					      IOCHAN_FROM_IOPART,
 					      cmdrsp))
-			break; /* queue empty */
+			break;
 
 		switch (cmdrsp->net.type) {
 		case NET_RCV:
@@ -1831,7 +1853,8 @@ static int visornic_probe(struct visor_device *dev)
 	dev_set_drvdata(&dev->device, devdata);
 	init_waitqueue_head(&devdata->rsp_queue);
 	spin_lock_init(&devdata->priv_lock);
-	devdata->enabled = 0; /* not yet */
+	/* not yet */
+	devdata->enabled = 0;
 	atomic_set(&devdata->usage, 1);
 
 	/* Setup rcv bufs */
@@ -1984,7 +2007,8 @@ static void host_side_disappeared(struct visornic_devdata *devdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
-	devdata->dev = NULL;   /* indicate device destroyed */
+	/* indicate device destroyed */
+	devdata->dev = NULL;
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
 
@@ -2023,8 +2047,8 @@ static void visornic_remove(struct visor_device *dev)
 	cancel_work_sync(&devdata->timeout_reset);
 
 	debugfs_remove_recursive(devdata->eth_debugfs_dir);
-
-	unregister_netdev(netdev);  /* this will call visornic_close() */
+	/* this will call visornic_close() */
+	unregister_netdev(netdev);
 
 	del_timer_sync(&devdata->irq_poll_timer);
 	netif_napi_del(&devdata->napi);
