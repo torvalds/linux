@@ -1379,20 +1379,20 @@ static struct sctp_chunk *_sctp_make_chunk(const struct sctp_association *asoc,
 					    gfp_t gfp)
 {
 	struct sctp_chunk *retval;
-	sctp_chunkhdr_t *chunk_hdr;
+	struct sctp_chunkhdr *chunk_hdr;
 	struct sk_buff *skb;
 	struct sock *sk;
 
 	/* No need to allocate LL here, as this is only a chunk. */
-	skb = alloc_skb(SCTP_PAD4(sizeof(sctp_chunkhdr_t) + paylen), gfp);
+	skb = alloc_skb(SCTP_PAD4(sizeof(*chunk_hdr) + paylen), gfp);
 	if (!skb)
 		goto nodata;
 
 	/* Make room for the chunk header.  */
-	chunk_hdr = skb_put(skb, sizeof(sctp_chunkhdr_t));
+	chunk_hdr = (struct sctp_chunkhdr *)skb_put(skb, sizeof(*chunk_hdr));
 	chunk_hdr->type	  = type;
 	chunk_hdr->flags  = flags;
-	chunk_hdr->length = htons(sizeof(sctp_chunkhdr_t));
+	chunk_hdr->length = htons(sizeof(*chunk_hdr));
 
 	sk = asoc ? asoc->base.sk : NULL;
 	retval = sctp_chunkify(skb, asoc, sk, gfp);
@@ -1402,7 +1402,7 @@ static struct sctp_chunk *_sctp_make_chunk(const struct sctp_association *asoc,
 	}
 
 	retval->chunk_hdr = chunk_hdr;
-	retval->chunk_end = ((__u8 *)chunk_hdr) + sizeof(struct sctp_chunkhdr);
+	retval->chunk_end = ((__u8 *)chunk_hdr) + sizeof(*chunk_hdr);
 
 	/* Determine if the chunk needs to be authenticated */
 	if (sctp_auth_send_cid(type, asoc))
@@ -1710,7 +1710,7 @@ struct sctp_association *sctp_unpack_cookie(
 	/* Header size is static data prior to the actual cookie, including
 	 * any padding.
 	 */
-	headersize = sizeof(sctp_chunkhdr_t) +
+	headersize = sizeof(struct sctp_chunkhdr) +
 		     (sizeof(struct sctp_signed_cookie) -
 		      sizeof(struct sctp_cookie));
 	bodysize = ntohs(chunk->chunk_hdr->length) - headersize;
@@ -3218,7 +3218,8 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 	int	chunk_len;
 	__u32	serial;
 
-	chunk_len = ntohs(asconf->chunk_hdr->length) - sizeof(sctp_chunkhdr_t);
+	chunk_len = ntohs(asconf->chunk_hdr->length) -
+		    sizeof(struct sctp_chunkhdr);
 	hdr = (sctp_addiphdr_t *)asconf->skb->data;
 	serial = ntohl(hdr->serial);
 
@@ -3364,7 +3365,7 @@ static __be16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
 		err_code = SCTP_ERROR_REQ_REFUSED;
 
 	asconf_ack_len = ntohs(asconf_ack->chunk_hdr->length) -
-			     sizeof(sctp_chunkhdr_t);
+			 sizeof(struct sctp_chunkhdr);
 
 	/* Skip the addiphdr from the asconf_ack chunk and store a pointer to
 	 * the first asconf_ack parameter.

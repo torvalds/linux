@@ -15,7 +15,7 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		   struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_service *svc;
-	sctp_chunkhdr_t _schunkh, *sch;
+	struct sctp_chunkhdr _schunkh, *sch;
 	struct sctphdr *sh, _sctph;
 	__be16 _ports[2], *ports = NULL;
 
@@ -377,7 +377,7 @@ static inline void
 set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		int direction, const struct sk_buff *skb)
 {
-	sctp_chunkhdr_t _sctpch, *sch;
+	struct sctp_chunkhdr _sctpch, *sch;
 	unsigned char chunk_type;
 	int event, next_state;
 	int ihl, cofs;
@@ -409,7 +409,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	    (sch->type == SCTP_CID_COOKIE_ACK)) {
 		int clen = ntohs(sch->length);
 
-		if (clen >= sizeof(sctp_chunkhdr_t)) {
+		if (clen >= sizeof(_sctpch)) {
 			sch = skb_header_pointer(skb, cofs + ALIGN(clen, 4),
 						 sizeof(_sctpch), &_sctpch);
 			if (sch && sch->type == SCTP_CID_ABORT)

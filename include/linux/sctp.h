@@ -70,11 +70,11 @@ static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb)
 }
 
 /* Section 3.2.  Chunk Field Descriptions. */
-typedef struct sctp_chunkhdr {
+struct sctp_chunkhdr {
 	__u8 type;
 	__u8 flags;
 	__be16 length;
-} sctp_chunkhdr_t;
+};
 
 
 /* Section 3.2.  Chunk Type Values.
@@ -236,8 +236,8 @@ typedef struct sctp_datahdr {
 } sctp_datahdr_t;
 
 typedef struct sctp_data_chunk {
-        sctp_chunkhdr_t chunk_hdr;
-        sctp_datahdr_t  data_hdr;
+	struct sctp_chunkhdr chunk_hdr;
+	sctp_datahdr_t  data_hdr;
 } sctp_data_chunk_t;
 
 /* DATA Chuck Specific Flags */
@@ -267,7 +267,7 @@ typedef struct sctp_inithdr {
 } sctp_inithdr_t;
 
 typedef struct sctp_init_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_inithdr_t init_hdr;
 } sctp_init_chunk_t;
 
@@ -386,7 +386,7 @@ typedef struct sctp_sackhdr {
 } sctp_sackhdr_t;
 
 typedef struct sctp_sack_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_sackhdr_t sack_hdr;
 } sctp_sack_chunk_t;
 
@@ -403,7 +403,7 @@ typedef struct sctp_heartbeathdr {
 } sctp_heartbeathdr_t;
 
 typedef struct sctp_heartbeat_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_heartbeathdr_t hb_hdr;
 } sctp_heartbeat_chunk_t;
 
@@ -413,7 +413,7 @@ typedef struct sctp_heartbeat_chunk {
  * chunk descriptor.
  */
 typedef struct sctp_abort_chunk {
-        sctp_chunkhdr_t uh;
+	struct sctp_chunkhdr uh;
 } sctp_abort_chunk_t;
 
 
@@ -425,8 +425,8 @@ typedef struct sctp_shutdownhdr {
 } sctp_shutdownhdr_t;
 
 struct sctp_shutdown_chunk_t {
-        sctp_chunkhdr_t    chunk_hdr;
-        sctp_shutdownhdr_t shutdown_hdr;
+	struct sctp_chunkhdr chunk_hdr;
+	sctp_shutdownhdr_t shutdown_hdr;
 };
 
 /* RFC 2960.  Section 3.3.10 Operation Error (ERROR) (9) */
@@ -438,8 +438,8 @@ typedef struct sctp_errhdr {
 } sctp_errhdr_t;
 
 typedef struct sctp_operr_chunk {
-        sctp_chunkhdr_t chunk_hdr;
-	sctp_errhdr_t   err_hdr;
+	struct sctp_chunkhdr chunk_hdr;
+	sctp_errhdr_t err_hdr;
 } sctp_operr_chunk_t;
 
 /* RFC 2960 3.3.10 - Operation Error
@@ -528,7 +528,7 @@ typedef struct sctp_ecnehdr {
 } sctp_ecnehdr_t;
 
 typedef struct sctp_ecne_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_ecnehdr_t ence_hdr;
 } sctp_ecne_chunk_t;
 
@@ -540,7 +540,7 @@ typedef struct sctp_cwrhdr {
 } sctp_cwrhdr_t;
 
 typedef struct sctp_cwr_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_cwrhdr_t cwr_hdr;
 } sctp_cwr_chunk_t;
 
@@ -649,7 +649,7 @@ typedef struct sctp_addiphdr {
 } sctp_addiphdr_t;
 
 typedef struct sctp_addip_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_addiphdr_t addip_hdr;
 } sctp_addip_chunk_t;
 
@@ -709,7 +709,7 @@ typedef struct sctp_authhdr {
 } sctp_authhdr_t;
 
 typedef struct sctp_auth_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_authhdr_t auth_hdr;
 } sctp_auth_chunk_t;
 
@@ -719,7 +719,7 @@ struct sctp_infox {
 };
 
 struct sctp_reconf_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	__u8 params[0];
 };
 

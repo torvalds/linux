@@ -42,8 +42,8 @@ match_packet(const struct sk_buff *skb,
 	     bool *hotdrop)
 {
 	u_int32_t chunkmapcopy[256 / sizeof (u_int32_t)];
-	const sctp_chunkhdr_t *sch;
-	sctp_chunkhdr_t _sch;
+	const struct sctp_chunkhdr *sch;
+	struct sctp_chunkhdr _sch;
 	int chunk_match_type = info->chunk_match_type;
 	const struct xt_sctp_flag_info *flag_info = info->flag_info;
 	int flag_count = info->flag_count;

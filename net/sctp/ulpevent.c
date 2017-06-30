@@ -158,7 +158,7 @@ struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 		/* Trim the buffer to the right length.  */
 		skb_trim(skb, sizeof(struct sctp_assoc_change) +
 			 ntohs(chunk->chunk_hdr->length) -
-			 sizeof(sctp_chunkhdr_t));
+			 sizeof(struct sctp_chunkhdr));
 	} else {
 		event = sctp_ulpevent_new(sizeof(struct sctp_assoc_change),
 				  MSG_NOTIFICATION, gfp);
