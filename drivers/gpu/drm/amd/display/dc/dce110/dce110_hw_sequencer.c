@@ -1395,6 +1395,10 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 	if (events->cursor_update)
 		value |= 0x2;
 
+#ifdef ENABLE_FBC
+	value |= 0x84;
+#endif
+
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->tg->funcs->
 			set_static_screen_control(pipe_ctx[i]->tg, value);
