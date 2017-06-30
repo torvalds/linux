@@ -639,9 +639,20 @@ bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL(_copy_from_iter_full_nocache);
 
+static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
+{
+	size_t v = n + offset;
+	if (likely(n <= v && v <= (PAGE_SIZE << compound_order(page))))
+		return true;
+	WARN_ON(1);
+	return false;
+}
+
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
+	if (unlikely(!page_copy_sane(page, offset, bytes)))
+		return 0;
 	if (i->type & (ITER_BVEC|ITER_KVEC)) {
 		void *kaddr = kmap_atomic(page);
 		size_t wanted = copy_to_iter(kaddr + offset, bytes, i);
@@ -657,6 +668,8 @@ EXPORT_SYMBOL(copy_page_to_iter);
 size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
+	if (unlikely(!page_copy_sane(page, offset, bytes)))
+		return 0;
 	if (unlikely(i->type & ITER_PIPE)) {
 		WARN_ON(1);
 		return 0;
@@ -713,6 +726,10 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 		struct iov_iter *i, unsigned long offset, size_t bytes)
 {
 	char *kaddr = kmap_atomic(page), *p = kaddr + offset;
+	if (unlikely(!page_copy_sane(page, offset, bytes))) {
+		kunmap_atomic(kaddr);
+		return 0;
+	}
 	if (unlikely(i->type & ITER_PIPE)) {
 		kunmap_atomic(kaddr);
 		WARN_ON(1);
