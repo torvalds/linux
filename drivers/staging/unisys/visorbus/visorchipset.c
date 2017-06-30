@@ -365,9 +365,9 @@ struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 	struct device *dev_start = NULL;
 	struct visor_device *vdev = NULL;
 	struct visor_busdev id = {
-			.bus_no = bus_no,
-			.dev_no = dev_no
-		};
+		.bus_no = bus_no,
+		.dev_no = dev_no
+	};
 
 	if (from)
 		dev_start = &from->device;
