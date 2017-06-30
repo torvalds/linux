@@ -37,3 +37,4 @@ then point your browser at **Documentation/output/labs/index.html**.
    interrupts.rst
    deferred_work.rst
    memory_mapping.rst
+   device_model.rst
