@@ -1882,7 +1882,7 @@ struct __sctp_missing {
  * Report a missing mandatory parameter.
  */
 static int sctp_process_missing_param(const struct sctp_association *asoc,
-				      sctp_param_t paramtype,
+				      enum sctp_param paramtype,
 				      struct sctp_chunk *chunk,
 				      struct sctp_chunk **errp)
 {

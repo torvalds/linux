@@ -167,7 +167,7 @@ struct sctp_paramhdr {
 	__be16 length;
 };
 
-typedef enum {
+enum sctp_param {
 
 	/* RFC 2960 Section 3.3.5 */
 	SCTP_PARAM_HEARTBEAT_INFO		= cpu_to_be16(1),
@@ -207,7 +207,7 @@ typedef enum {
 	SCTP_PARAM_RESET_RESPONSE		= cpu_to_be16(0x0010),
 	SCTP_PARAM_RESET_ADD_OUT_STREAMS	= cpu_to_be16(0x0011),
 	SCTP_PARAM_RESET_ADD_IN_STREAMS		= cpu_to_be16(0x0012),
-} sctp_param_t; /* enum */
+}; /* enum */
 
 
 /* RFC 2960 Section 3.2.1
