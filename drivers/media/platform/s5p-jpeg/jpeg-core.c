@@ -1206,22 +1206,9 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			break;
 		}
 	}
-	result->w = width;
-	result->h = height;
-	result->sos = sos;
-	result->dht.n = n_dht;
-	while (n_dht--) {
-		result->dht.marker[n_dht] = dht[n_dht];
-		result->dht.len[n_dht] = dht_len[n_dht];
-	}
-	result->dqt.n = n_dqt;
-	while (n_dqt--) {
-		result->dqt.marker[n_dqt] = dqt[n_dqt];
-		result->dqt.len[n_dqt] = dqt_len[n_dqt];
-	}
-	result->sof = sof;
-	result->sof_len = sof_len;
-	result->size = result->components = components;
+
+	if (notfound || !sos)
+		return false;
 
 	switch (subsampling) {
 	case 0x11:
@@ -1240,7 +1227,24 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 		return false;
 	}
 
-	return !notfound && sos;
+	result->w = width;
+	result->h = height;
+	result->sos = sos;
+	result->dht.n = n_dht;
+	while (n_dht--) {
+		result->dht.marker[n_dht] = dht[n_dht];
+		result->dht.len[n_dht] = dht_len[n_dht];
+	}
+	result->dqt.n = n_dqt;
+	while (n_dqt--) {
+		result->dqt.marker[n_dqt] = dqt[n_dqt];
+		result->dqt.len[n_dqt] = dqt_len[n_dqt];
+	}
+	result->sof = sof;
+	result->sof_len = sof_len;
+	result->size = result->components = components;
+
+	return true;
 }
 
 static int s5p_jpeg_querycap(struct file *file, void *priv,
