@@ -13846,9 +13846,10 @@ static void init_sc2vl_tables(struct hfi1_devdata *dd)
  * a reset following the (possible) FLR in this routine.
  *
  */
-static void init_chip(struct hfi1_devdata *dd)
+static int init_chip(struct hfi1_devdata *dd)
 {
 	int i;
+	int ret = 0;
 
 	/*
 	 * Put the HFI CSRs in a known state.
@@ -13896,12 +13897,22 @@ static void init_chip(struct hfi1_devdata *dd)
 		pcie_flr(dd->pcidev);
 
 		/* restore command and BARs */
-		restore_pci_variables(dd);
+		ret = restore_pci_variables(dd);
+		if (ret) {
+			dd_dev_err(dd, "%s: Could not restore PCI variables\n",
+				   __func__);
+			return ret;
+		}
 
 		if (is_ax(dd)) {
 			dd_dev_info(dd, "Resetting CSRs with FLR\n");
 			pcie_flr(dd->pcidev);
-			restore_pci_variables(dd);
+			ret = restore_pci_variables(dd);
+			if (ret) {
+				dd_dev_err(dd, "%s: Could not restore PCI variables\n",
+					   __func__);
+				return ret;
+			}
 		}
 	} else {
 		dd_dev_info(dd, "Resetting CSRs with writes\n");
@@ -13929,6 +13940,7 @@ static void init_chip(struct hfi1_devdata *dd)
 	write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
 	write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
 	init_chip_resources(dd);
+	return ret;
 }
 
 static void init_early_variables(struct hfi1_devdata *dd)
@@ -14914,7 +14926,9 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		goto bail_cleanup;
 
 	/* obtain chip sizes, reset chip CSRs */
-	init_chip(dd);
+	ret = init_chip(dd);
+	if (ret)
+		goto bail_cleanup;
 
 	/* read in the PCIe link speed information */
 	ret = pcie_speeds(dd);
