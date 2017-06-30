@@ -1180,6 +1180,7 @@ EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
 #define pm_genpd_resume_noirq		NULL
 #define pm_genpd_freeze_noirq		NULL
 #define pm_genpd_thaw_noirq		NULL
+#define pm_genpd_poweroff_noirq		NULL
 #define pm_genpd_restore_noirq		NULL
 #define pm_genpd_complete		NULL
 
