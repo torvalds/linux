@@ -69,7 +69,8 @@ ctnl_timeout_parse_policy(void *timeouts, struct nf_conntrack_l4proto *l4proto,
 static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	__u16 l3num;
 	__u8 l4num;
@@ -239,7 +240,8 @@ ctnl_timeout_dump(struct sk_buff *skb, struct netlink_callback *cb)
 static int cttimeout_get_timeout(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	int ret = -ENOENT;
 	char *name;
@@ -287,49 +289,20 @@ static int cttimeout_get_timeout(struct net *net, struct sock *ctnl,
 	return ret;
 }
 
-static void untimeout(struct nf_conntrack_tuple_hash *i,
-		      struct ctnl_timeout *timeout)
+static int untimeout(struct nf_conn *ct, void *timeout)
 {
-	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(i);
 	struct nf_conn_timeout *timeout_ext = nf_ct_timeout_find(ct);
 
 	if (timeout_ext && (!timeout || timeout_ext->timeout == timeout))
 		RCU_INIT_POINTER(timeout_ext->timeout, NULL);
+
+	/* We are not intended to delete this conntrack. */
+	return 0;
 }
 
 static void ctnl_untimeout(struct net *net, struct ctnl_timeout *timeout)
 {
-	struct nf_conntrack_tuple_hash *h;
-	const struct hlist_nulls_node *nn;
-	unsigned int last_hsize;
-	spinlock_t *lock;
-	int i, cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
-
-		spin_lock_bh(&pcpu->lock);
-		hlist_nulls_for_each_entry(h, nn, &pcpu->unconfirmed, hnnode)
-			untimeout(h, timeout);
-		spin_unlock_bh(&pcpu->lock);
-	}
-
-	local_bh_disable();
-restart:
-	last_hsize = nf_conntrack_htable_size;
-	for (i = 0; i < last_hsize; i++) {
-		lock = &nf_conntrack_locks[i % CONNTRACK_LOCKS];
-		nf_conntrack_lock(lock);
-		if (last_hsize != nf_conntrack_htable_size) {
-			spin_unlock(lock);
-			goto restart;
-		}
-
-		hlist_nulls_for_each_entry(h, nn, &nf_conntrack_hash[i], hnnode)
-			untimeout(h, timeout);
-		spin_unlock(lock);
-	}
-	local_bh_enable();
+	nf_ct_iterate_cleanup_net(net, untimeout, timeout, 0, 0);
 }
 
 /* try to delete object, fail if it is still in use. */
@@ -355,7 +328,8 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	struct ctnl_timeout *cur, *tmp;
 	int ret = -ENOENT;
@@ -386,7 +360,8 @@ static int cttimeout_del_timeout(struct net *net, struct sock *ctnl,
 static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	__u16 l3num;
 	__u8 l4num;
@@ -475,7 +450,8 @@ nla_put_failure:
 static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 				 struct sk_buff *skb,
 				 const struct nlmsghdr *nlh,
-				 const struct nlattr * const cda[])
+				 const struct nlattr * const cda[],
+				 struct netlink_ext_ack *extack)
 {
 	__u16 l3num;
 	__u8 l4num;
