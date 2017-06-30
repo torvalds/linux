@@ -1756,6 +1756,16 @@ void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
 	WREG32(adev->bios_scratch_reg_offset + 3, tmp);
 }
 
+bool amdgpu_atombios_scratch_need_asic_init(struct amdgpu_device *adev)
+{
+	u32 tmp = RREG32(adev->bios_scratch_reg_offset + 7);
+
+	if (tmp & ATOM_S7_ASIC_INIT_COMPLETE_MASK)
+		return false;
+	else
+		return true;
+}
+
 /* Atom needs data in little endian format
  * so swap as appropriate when copying data to
  * or from atom. Note that atom operates on
