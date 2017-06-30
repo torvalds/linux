@@ -1,4 +1,5 @@
-/* visorbus_main.c
+/*
+ * visorbus_main.c
  *
  * Copyright � 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
@@ -22,13 +23,14 @@
 
 #define MYDRVNAME "visorbus"
 
-/* Display string that is guaranteed to be no longer the 99 characters*/
+/* Display string that is guaranteed to be no longer the 99 characters */
 #define LINESIZE 99
 
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
 #define POLLJIFFIES_NORMALCHANNEL 10
 
-static bool initialized; /* stores whether bus_registration was successful */
+/* stores whether bus_registration was successful */
+static bool initialized;
 static struct dentry *visorbus_debugfs_dir;
 
 /*
@@ -122,7 +124,7 @@ visorbus_match(struct device *xdev, struct device_driver *xdrv)
 
 /*
  * This describes the TYPE of bus.
- *  (Don't confuse this with an INSTANCE of the bus.)
+ * (Don't confuse this with an INSTANCE of the bus.)
  */
 struct bus_type visorbus_type = {
 	.name = "visorbus",
@@ -369,8 +371,9 @@ static void
 vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
 			  struct seq_file *seq, int devix)
 {
+	/* uninitialized vbus device entry */
 	if (!isprint(devinfo->devtype[0]))
-		return; /* uninitialized vbus device entry */
+		return;
 
 	if (devix >= 0)
 		seq_printf(seq, "[%d]", devix);
@@ -503,7 +506,7 @@ visordriver_remove_device(struct device *xdev)
 	return 0;
 }
 
-/**
+/*
  * visorbus_unregister_visor_driver() - unregisters the provided driver
  * @drv: the driver to unregister
  *
@@ -517,7 +520,7 @@ visorbus_unregister_visor_driver(struct visor_driver *drv)
 }
 EXPORT_SYMBOL_GPL(visorbus_unregister_visor_driver);
 
-/**
+/*
  * visorbus_read_channel() - reads from the designated channel into
  *                           the provided buffer
  * @dev:    the device whose channel is read from
@@ -538,7 +541,7 @@ visorbus_read_channel(struct visor_device *dev, unsigned long offset,
 }
 EXPORT_SYMBOL_GPL(visorbus_read_channel);
 
-/**
+/*
  * visorbus_write_channel() - writes the provided buffer into the designated
  *                            channel
  * @dev:    the device whose channel is written to
@@ -559,7 +562,7 @@ visorbus_write_channel(struct visor_device *dev, unsigned long offset,
 }
 EXPORT_SYMBOL_GPL(visorbus_write_channel);
 
-/**
+/*
  * visorbus_enable_channel_interrupts() - enables interrupts on the
  *                                        designated device
  * @dev: the device on which to enable interrupts
@@ -581,7 +584,7 @@ visorbus_enable_channel_interrupts(struct visor_device *dev)
 }
 EXPORT_SYMBOL_GPL(visorbus_enable_channel_interrupts);
 
-/**
+/*
  * visorbus_disable_channel_interrupts() - disables interrupts on the
  *                                         designated device
  * @dev: the device on which to disable interrupts
@@ -664,7 +667,8 @@ create_visor_device(struct visor_device *dev)
 		goto err_put;
 
 	list_add_tail(&dev->list_all, &list_all_device_instances);
-	return 0; /* success: reference kept via unmatched get_device() */
+	/* success: reference kept via unmatched get_device() */
+	return 0;
 
 err_put:
 	put_device(&dev->device);
@@ -901,7 +905,7 @@ visordriver_probe_device(struct device *xdev)
 	return res;
 }
 
-/**
+/*
  * visorbus_register_visor_driver() - registers the provided visor driver
  *                                    for handling one or more visor device
  *                                    types (channel_types)
@@ -952,8 +956,9 @@ visordriver_probe_device(struct device *xdev)
  */
 int visorbus_register_visor_driver(struct visor_driver *drv)
 {
+	/* can't register on a nonexistent bus */
 	if (!initialized)
-		return -ENODEV; /* can't register on a nonexistent bus */
+		return -ENODEV;
 
 	drv->driver.name = drv->name;
 	drv->driver.bus = &visorbus_type;
@@ -1195,8 +1200,9 @@ visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 		dev->pausing = true;
 		err = drv->pause(dev, pause_state_change_complete);
 	} else {
-		/* The vbus_dev_info structure in the channel was been
-		 * cleared, make sure it is valid.
+		/*
+		 * The vbus_dev_info structure in the channel was been cleared,
+		 * make sure it is valid.
 		 */
 		fix_vbus_dev_info(dev);
 		if (!drv->resume)
@@ -1209,7 +1215,7 @@ visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 	return err;
 }
 
-/**
+/*
  * visorchipset_device_pause() - start a pause operation for a visor device
  * @dev_info: struct visor_device identifying the device being paused
  *
@@ -1232,7 +1238,7 @@ visorchipset_device_pause(struct visor_device *dev_info)
 	return 0;
 }
 
-/**
+/*
  * visorchipset_device_resume() - start a resume operation for a visor device
  * @dev_info: struct visor_device identifying the device being resumed
  *
