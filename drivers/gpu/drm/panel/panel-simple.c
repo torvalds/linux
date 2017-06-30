@@ -315,7 +315,8 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(panel->enable_gpio)) {
 		err = PTR_ERR(panel->enable_gpio);
-		dev_err(dev, "failed to request GPIO: %d\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev, "failed to request GPIO: %d\n", err);
 		return err;
 	}
 
