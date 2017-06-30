@@ -1203,10 +1203,122 @@ static void print_sample_bpf_output(struct perf_sample *sample)
 		       (char *)(sample->raw_data));
 }
 
-static void print_sample_synth(struct perf_sample *sample __maybe_unused,
+static void print_sample_spacing(int len, int spacing)
+{
+	if (len > 0 && len < spacing)
+		printf("%*s", spacing - len, "");
+}
+
+static void print_sample_pt_spacing(int len)
+{
+	print_sample_spacing(len, 34);
+}
+
+static void print_sample_synth_ptwrite(struct perf_sample *sample)
+{
+	struct perf_synth_intel_ptwrite *data = perf_sample__synth_ptr(sample);
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return;
+
+	len = printf(" IP: %u payload: %#" PRIx64 " ",
+		     data->ip, le64_to_cpu(data->payload));
+	print_sample_pt_spacing(len);
+}
+
+static void print_sample_synth_mwait(struct perf_sample *sample)
+{
+	struct perf_synth_intel_mwait *data = perf_sample__synth_ptr(sample);
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return;
+
+	len = printf(" hints: %#x extensions: %#x ",
+		     data->hints, data->extensions);
+	print_sample_pt_spacing(len);
+}
+
+static void print_sample_synth_pwre(struct perf_sample *sample)
+{
+	struct perf_synth_intel_pwre *data = perf_sample__synth_ptr(sample);
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return;
+
+	len = printf(" hw: %u cstate: %u sub-cstate: %u ",
+		     data->hw, data->cstate, data->subcstate);
+	print_sample_pt_spacing(len);
+}
+
+static void print_sample_synth_exstop(struct perf_sample *sample)
+{
+	struct perf_synth_intel_exstop *data = perf_sample__synth_ptr(sample);
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return;
+
+	len = printf(" IP: %u ", data->ip);
+	print_sample_pt_spacing(len);
+}
+
+static void print_sample_synth_pwrx(struct perf_sample *sample)
+{
+	struct perf_synth_intel_pwrx *data = perf_sample__synth_ptr(sample);
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return;
+
+	len = printf(" deepest cstate: %u last cstate: %u wake reason: %#x ",
+		     data->deepest_cstate, data->last_cstate,
+		     data->wake_reason);
+	print_sample_pt_spacing(len);
+}
+
+static void print_sample_synth_cbr(struct perf_sample *sample)
+{
+	struct perf_synth_intel_cbr *data = perf_sample__synth_ptr(sample);
+	unsigned int percent, freq;
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return;
+
+	freq = (le32_to_cpu(data->freq) + 500) / 1000;
+	len = printf(" cbr: %2u freq: %4u MHz ", data->cbr, freq);
+	if (data->max_nonturbo) {
+		percent = (5 + (1000 * data->cbr) / data->max_nonturbo) / 10;
+		len += printf("(%3u%%) ", percent);
+	}
+	print_sample_pt_spacing(len);
+}
+
+static void print_sample_synth(struct perf_sample *sample,
 			       struct perf_evsel *evsel)
 {
 	switch (evsel->attr.config) {
+	case PERF_SYNTH_INTEL_PTWRITE:
+		print_sample_synth_ptwrite(sample);
+		break;
+	case PERF_SYNTH_INTEL_MWAIT:
+		print_sample_synth_mwait(sample);
+		break;
+	case PERF_SYNTH_INTEL_PWRE:
+		print_sample_synth_pwre(sample);
+		break;
+	case PERF_SYNTH_INTEL_EXSTOP:
+		print_sample_synth_exstop(sample);
+		break;
+	case PERF_SYNTH_INTEL_PWRX:
+		print_sample_synth_pwrx(sample);
+		break;
+	case PERF_SYNTH_INTEL_CBR:
+		print_sample_synth_cbr(sample);
+		break;
 	default:
 		break;
 	}
