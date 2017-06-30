@@ -682,7 +682,9 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		cycle = increment_cycle_count(cycle, 1);
 		if (s->handle_packet(s, 0, cycle, i) < 0) {
 			s->packet_index = -1;
-			amdtp_stream_pcm_abort(s);
+			if (in_interrupt())
+				amdtp_stream_pcm_abort(s);
+			WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
 			return;
 		}
 	}
@@ -734,7 +736,9 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	/* Queueing error or detecting invalid payload. */
 	if (i < packets) {
 		s->packet_index = -1;
-		amdtp_stream_pcm_abort(s);
+		if (in_interrupt())
+			amdtp_stream_pcm_abort(s);
+		WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
 		return;
 	}
 

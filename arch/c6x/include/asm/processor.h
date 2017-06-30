@@ -96,11 +96,6 @@ static inline void release_thread(struct task_struct *dead_task)
 #define release_segments(mm)		do { } while (0)
 
 /*
- * saved PC of a blocked thread.
- */
-#define thread_saved_pc(tsk) (task_pt_regs(tsk)->pc)
-
-/*
  * saved kernel SP and DP of a blocked thread.
  */
 #ifdef _BIG_ENDIAN

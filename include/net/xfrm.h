@@ -1854,8 +1854,9 @@ static inline struct xfrm_offload *xfrm_offload(struct sk_buff *skb)
 }
 #endif
 
-#ifdef CONFIG_XFRM_OFFLOAD
 void __net_init xfrm_dev_init(void);
+
+#ifdef CONFIG_XFRM_OFFLOAD
 int validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features);
 int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		       struct xfrm_user_offload *xuo);
@@ -1881,10 +1882,6 @@ static inline void xfrm_dev_state_free(struct xfrm_state *x)
 	}
 }
 #else
-static inline void __net_init xfrm_dev_init(void)
-{
-}
-
 static inline int validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features)
 {
 	return 0;

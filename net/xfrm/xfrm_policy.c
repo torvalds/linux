@@ -1006,10 +1006,6 @@ int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 		err = -ESRCH;
 out:
 	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
-
-	if (cnt)
-		xfrm_garbage_collect(net);
-
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_flush);
