@@ -876,6 +876,15 @@ struct OpalIoPhb4ErrorData {
 enum {
 	OPAL_REINIT_CPUS_HILE_BE	= (1 << 0),
 	OPAL_REINIT_CPUS_HILE_LE	= (1 << 1),
+
+	/* These two define the base MMU mode of the host on P9
+	 *
+	 * On P9 Nimbus DD2.0 and Cumlus (and later), KVM can still
+	 * create hash guests in "radix" mode with care (full core
+	 * switch only).
+	 */
+	OPAL_REINIT_CPUS_MMU_HASH	= (1 << 2),
+	OPAL_REINIT_CPUS_MMU_RADIX	= (1 << 3),
 };
 
 typedef struct oppanel_line {
