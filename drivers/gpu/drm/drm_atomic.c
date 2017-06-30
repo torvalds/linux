@@ -29,7 +29,6 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_mode.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 #include <linux/sync_file.h>
 
