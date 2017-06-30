@@ -227,7 +227,7 @@ static int calipso_cache_check(const unsigned char *key,
 		    entry->key_len == key_len &&
 		    memcmp(entry->key, key, key_len) == 0) {
 			entry->activity += 1;
-			atomic_inc(&entry->lsm_data->refcount);
+			refcount_inc(&entry->lsm_data->refcount);
 			secattr->cache = entry->lsm_data;
 			secattr->flags |= NETLBL_SECATTR_CACHE;
 			secattr->type = NETLBL_NLTYPE_CALIPSO;
@@ -296,7 +296,7 @@ static int calipso_cache_add(const unsigned char *calipso_ptr,
 	}
 	entry->key_len = calipso_ptr_len;
 	entry->hash = calipso_map_cache_hash(calipso_ptr, calipso_ptr_len);
-	atomic_inc(&secattr->cache->refcount);
+	refcount_inc(&secattr->cache->refcount);
 	entry->lsm_data = secattr->cache;
 
 	bkt = entry->hash & (CALIPSO_CACHE_BUCKETS - 1);
