@@ -1096,6 +1096,29 @@ static void skip(struct s5p_jpeg_buffer *buf, long len)
 		get_byte(buf);
 }
 
+static bool s5p_jpeg_subsampling_decode(struct s5p_jpeg_ctx *ctx,
+					unsigned int subsampling)
+{
+	switch (subsampling) {
+	case 0x11:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_444;
+		break;
+	case 0x21:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_422;
+		break;
+	case 0x22:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_420;
+		break;
+	case 0x33:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
 static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			       unsigned long buffer, unsigned long size,
 			       struct s5p_jpeg_ctx *ctx)
@@ -1207,25 +1230,8 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 		}
 	}
 
-	if (notfound || !sos)
+	if (notfound || !sos || !s5p_jpeg_subsampling_decode(ctx, subsampling))
 		return false;
-
-	switch (subsampling) {
-	case 0x11:
-		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_444;
-		break;
-	case 0x21:
-		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_422;
-		break;
-	case 0x22:
-		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_420;
-		break;
-	case 0x33:
-		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
-		break;
-	default:
-		return false;
-	}
 
 	result->w = width;
 	result->h = height;
