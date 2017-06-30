@@ -690,6 +690,7 @@ static int rcar_du_crtc_enable_vblank(struct drm_crtc *crtc)
 
 	rcar_du_crtc_write(rcrtc, DSRCR, DSRCR_VBCL);
 	rcar_du_crtc_set(rcrtc, DIER, DIER_VBE);
+	rcrtc->vblank_enable = true;
 
 	return 0;
 }
@@ -699,6 +700,7 @@ static void rcar_du_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
 	rcar_du_crtc_clr(rcrtc, DIER, DIER_VBE);
+	rcrtc->vblank_enable = false;
 }
 
 static const struct drm_crtc_funcs crtc_funcs = {
@@ -743,10 +745,10 @@ static irqreturn_t rcar_du_crtc_irq(int irq, void *arg)
 	spin_unlock(&rcrtc->vblank_lock);
 
 	if (status & DSSR_VBK) {
-		drm_crtc_handle_vblank(&rcrtc->crtc);
-
-		if (rcdu->info->gen < 3)
+		if (rcdu->info->gen < 3) {
+			drm_crtc_handle_vblank(&rcrtc->crtc);
 			rcar_du_crtc_finish_page_flip(rcrtc);
+		}
 
 		ret = IRQ_HANDLED;
 	}

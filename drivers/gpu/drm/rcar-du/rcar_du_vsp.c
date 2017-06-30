@@ -31,11 +31,15 @@
 #include "rcar_du_kms.h"
 #include "rcar_du_vsp.h"
 
-static void rcar_du_vsp_complete(void *private)
+static void rcar_du_vsp_complete(void *private, bool completed)
 {
 	struct rcar_du_crtc *crtc = private;
 
-	rcar_du_crtc_finish_page_flip(crtc);
+	if (crtc->vblank_enable)
+		drm_crtc_handle_vblank(&crtc->crtc);
+
+	if (completed)
+		rcar_du_crtc_finish_page_flip(crtc);
 }
 
 void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)

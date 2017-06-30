@@ -34,7 +34,7 @@ struct vsp1_du_lif_config {
 	unsigned int width;
 	unsigned int height;
 
-	void (*callback)(void *);
+	void (*callback)(void *, bool);
 	void *callback_data;
 };
 

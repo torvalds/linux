@@ -32,6 +32,7 @@ struct rcar_du_vsp;
  * @mmio_offset: offset of the CRTC registers in the DU MMIO block
  * @index: CRTC software and hardware index
  * @initialized: whether the CRTC has been initialized and clocks enabled
+ * @vblank_enable: whether vblank events are enabled on this CRTC
  * @event: event to post when the pending page flip completes
  * @flip_wait: wait queue used to signal page flip completion
  * @vblank_lock: protects vblank_wait and vblank_count
@@ -51,6 +52,7 @@ struct rcar_du_crtc {
 	unsigned int index;
 	bool initialized;
 
+	bool vblank_enable;
 	struct drm_pending_vblank_event *event;
 	wait_queue_head_t flip_wait;
 

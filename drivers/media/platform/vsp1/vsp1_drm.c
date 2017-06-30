@@ -32,12 +32,13 @@
  * Interrupt Handling
  */
 
-static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe)
+static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
+				       bool completed)
 {
 	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
 
 	if (drm_pipe->du_complete)
-		drm_pipe->du_complete(drm_pipe->du_private);
+		drm_pipe->du_complete(drm_pipe->du_private, completed);
 }
 
 /* -----------------------------------------------------------------------------
