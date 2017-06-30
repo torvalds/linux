@@ -632,7 +632,7 @@ void sctp_auth_asoc_set_default_hmac(struct sctp_association *asoc,
 
 
 /* Check to see if the given chunk is supposed to be authenticated */
-static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
+static int __sctp_auth_cid(enum sctp_cid chunk, struct sctp_chunks_param *param)
 {
 	unsigned short len;
 	int found = 0;
@@ -668,7 +668,7 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 }
 
 /* Check if peer requested that this chunk is authenticated */
-int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
+int sctp_auth_send_cid(enum sctp_cid chunk, const struct sctp_association *asoc)
 {
 	if (!asoc)
 		return 0;
@@ -680,7 +680,7 @@ int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 }
 
 /* Check if we requested that peer authenticate this chunk. */
-int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
+int sctp_auth_recv_cid(enum sctp_cid chunk, const struct sctp_association *asoc)
 {
 	if (!asoc)
 		return 0;

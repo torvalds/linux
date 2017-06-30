@@ -2123,7 +2123,7 @@ static sctp_ierror_t sctp_verify_param(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
 					union sctp_params param,
-					sctp_cid_t cid,
+					enum sctp_cid cid,
 					struct sctp_chunk *chunk,
 					struct sctp_chunk **err_chunk)
 {
@@ -2240,7 +2240,7 @@ fallthrough:
 
 /* Verify the INIT packet before we process it.  */
 int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
-		     const struct sctp_association *asoc, sctp_cid_t cid,
+		     const struct sctp_association *asoc, enum sctp_cid cid,
 		     sctp_init_chunk_t *peer_init, struct sctp_chunk *chunk,
 		     struct sctp_chunk **errp)
 {

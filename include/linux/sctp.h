@@ -82,7 +82,7 @@ struct sctp_chunkhdr {
  * Value field. It takes a value from 0 to 254. The value of 255 is
  * reserved for future use as an extension field.
  */
-typedef enum {
+enum sctp_cid {
 	SCTP_CID_DATA			= 0,
         SCTP_CID_INIT			= 1,
         SCTP_CID_INIT_ACK		= 2,
@@ -109,7 +109,7 @@ typedef enum {
 	SCTP_CID_ASCONF			= 0xC1,
 	SCTP_CID_ASCONF_ACK		= 0x80,
 	SCTP_CID_RECONF			= 0x82,
-} sctp_cid_t; /* enum */
+}; /* enum */
 
 
 /* Section 3.2

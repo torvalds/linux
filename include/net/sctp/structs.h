@@ -1297,7 +1297,7 @@ int sctp_has_association(struct net *net, const union sctp_addr *laddr,
 
 int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 		     const struct sctp_association *asoc,
-		     sctp_cid_t, sctp_init_chunk_t *peer_init,
+		     enum sctp_cid cid, sctp_init_chunk_t *peer_init,
 		     struct sctp_chunk *chunk, struct sctp_chunk **err_chunk);
 int sctp_process_init(struct sctp_association *, struct sctp_chunk *chunk,
 		      const union sctp_addr *peer,
