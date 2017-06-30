@@ -218,11 +218,12 @@ static void vmw_ldu_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 /**
- * vmw_ldu_crtc_helper_disable - Turns off CRTC
+ * vmw_ldu_crtc_atomic_disable - Turns off CRTC
  *
  * @crtc: CRTC to be turned off
  */
-static void vmw_ldu_crtc_helper_disable(struct drm_crtc *crtc)
+static void vmw_ldu_crtc_atomic_disable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 }
 
@@ -377,12 +378,12 @@ drm_plane_helper_funcs vmw_ldu_primary_plane_helper_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
-	.disable = vmw_ldu_crtc_helper_disable,
 	.mode_set_nofb = vmw_ldu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
 	.atomic_enable = vmw_ldu_crtc_atomic_enable,
+	.atomic_disable = vmw_ldu_crtc_atomic_disable,
 };
 
 

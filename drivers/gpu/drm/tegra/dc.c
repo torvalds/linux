@@ -1199,7 +1199,8 @@ static int tegra_dc_wait_idle(struct tegra_dc *dc, unsigned long timeout)
 	return -ETIMEDOUT;
 }
 
-static void tegra_crtc_disable(struct drm_crtc *crtc)
+static void tegra_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
@@ -1352,11 +1353,11 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
-	.disable = tegra_crtc_disable,
 	.atomic_check = tegra_crtc_atomic_check,
 	.atomic_begin = tegra_crtc_atomic_begin,
 	.atomic_flush = tegra_crtc_atomic_flush,
 	.atomic_enable = tegra_crtc_atomic_enable,
+	.atomic_disable = tegra_crtc_atomic_disable,
 };
 
 static irqreturn_t tegra_dc_irq(int irq, void *data)

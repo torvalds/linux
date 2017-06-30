@@ -118,7 +118,8 @@ static void virtio_gpu_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 }
 
-static void virtio_gpu_crtc_disable(struct drm_crtc *crtc)
+static void virtio_gpu_crtc_atomic_disable(struct drm_crtc *crtc,
+					   struct drm_crtc_state *old_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
@@ -146,11 +147,11 @@ static void virtio_gpu_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs virtio_gpu_crtc_helper_funcs = {
-	.disable       = virtio_gpu_crtc_disable,
 	.mode_set_nofb = virtio_gpu_crtc_mode_set_nofb,
 	.atomic_check  = virtio_gpu_crtc_atomic_check,
 	.atomic_flush  = virtio_gpu_crtc_atomic_flush,
 	.atomic_enable = virtio_gpu_crtc_atomic_enable,
+	.atomic_disable = virtio_gpu_crtc_atomic_disable,
 };
 
 static void virtio_gpu_enc_mode_set(struct drm_encoder *encoder,

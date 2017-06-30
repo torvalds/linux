@@ -453,7 +453,8 @@ static void qxl_crtc_atomic_enable(struct drm_crtc *crtc,
 	DRM_DEBUG("\n");
 }
 
-static void qxl_crtc_disable(struct drm_crtc *crtc)
+static void qxl_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct qxl_crtc *qcrtc = to_qxl_crtc(crtc);
 	struct qxl_device *qdev = crtc->dev->dev_private;
@@ -464,11 +465,11 @@ static void qxl_crtc_disable(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
-	.disable = qxl_crtc_disable,
 	.mode_fixup = qxl_crtc_mode_fixup,
 	.mode_set_nofb = qxl_mode_set_nofb,
 	.atomic_flush = qxl_crtc_atomic_flush,
 	.atomic_enable = qxl_crtc_atomic_enable,
+	.atomic_disable = qxl_crtc_atomic_disable,
 };
 
 static int qxl_primary_atomic_check(struct drm_plane *plane,

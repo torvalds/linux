@@ -455,7 +455,8 @@ static void zx_crtc_atomic_enable(struct drm_crtc *crtc,
 		DRM_DEV_ERROR(vou->dev, "failed to enable pixclk: %d\n", ret);
 }
 
-static void zx_crtc_disable(struct drm_crtc *crtc)
+static void zx_crtc_atomic_disable(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_state)
 {
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
 	const struct zx_crtc_bits *bits = zcrtc->bits;
@@ -491,9 +492,9 @@ static void zx_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs zx_crtc_helper_funcs = {
-	.disable = zx_crtc_disable,
 	.atomic_flush = zx_crtc_atomic_flush,
 	.atomic_enable = zx_crtc_atomic_enable,
+	.atomic_disable = zx_crtc_atomic_disable,
 };
 
 static int zx_vou_enable_vblank(struct drm_crtc *crtc)

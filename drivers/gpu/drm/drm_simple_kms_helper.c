@@ -52,7 +52,8 @@ static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
 	pipe->funcs->enable(pipe, crtc->state);
 }
 
-static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc)
+static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -66,7 +67,7 @@ static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc)
 static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
 	.atomic_check = drm_simple_kms_crtc_check,
 	.atomic_enable = drm_simple_kms_crtc_enable,
-	.disable = drm_simple_kms_crtc_disable,
+	.atomic_disable = drm_simple_kms_crtc_disable,
 };
 
 static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {

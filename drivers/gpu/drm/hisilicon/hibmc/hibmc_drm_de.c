@@ -210,7 +210,8 @@ static void hibmc_crtc_atomic_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 }
 
-static void hibmc_crtc_disable(struct drm_crtc *crtc)
+static void hibmc_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	unsigned int reg;
 	struct hibmc_drm_private *priv = crtc->dev->dev_private;
@@ -454,11 +455,11 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {
-	.disable	= hibmc_crtc_disable,
 	.mode_set_nofb	= hibmc_crtc_mode_set_nofb,
 	.atomic_begin	= hibmc_crtc_atomic_begin,
 	.atomic_flush	= hibmc_crtc_atomic_flush,
 	.atomic_enable	= hibmc_crtc_atomic_enable,
+	.atomic_disable	= hibmc_crtc_atomic_disable,
 };
 
 int hibmc_de_init(struct hibmc_drm_private *priv)

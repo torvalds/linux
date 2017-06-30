@@ -433,7 +433,8 @@ static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
 		vmw_kms_del_active(dev_priv, &stdu->base);
 }
 
-static void vmw_stdu_crtc_helper_disable(struct drm_crtc *crtc)
+static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -1416,12 +1417,12 @@ drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
 
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 	.prepare = vmw_stdu_crtc_helper_prepare,
-	.disable = vmw_stdu_crtc_helper_disable,
 	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
 	.atomic_enable = vmw_stdu_crtc_atomic_enable,
+	.atomic_disable = vmw_stdu_crtc_atomic_disable,
 };
 
 
