@@ -2500,9 +2500,9 @@ static void s5p_jpeg_buf_queue(struct vb2_buffer *vb)
 
 	if (ctx->mode == S5P_JPEG_DECODE &&
 	    vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		struct s5p_jpeg_q_data tmp, *q_data;
+		struct s5p_jpeg_q_data *q_data;
 
-		ctx->hdr_parsed = s5p_jpeg_parse_hdr(&tmp,
+		ctx->hdr_parsed = s5p_jpeg_parse_hdr(&ctx->out_q,
 		     (unsigned long)vb2_plane_vaddr(vb, 0),
 		     min((unsigned long)ctx->out_q.size,
 			 vb2_get_plane_payload(vb, 0)), ctx);
@@ -2511,24 +2511,9 @@ static void s5p_jpeg_buf_queue(struct vb2_buffer *vb)
 			return;
 		}
 
-		q_data = &ctx->out_q;
-		q_data->w = tmp.w;
-		q_data->h = tmp.h;
-		q_data->sos = tmp.sos;
-		memcpy(q_data->dht.marker, tmp.dht.marker,
-		       sizeof(tmp.dht.marker));
-		memcpy(q_data->dht.len, tmp.dht.len, sizeof(tmp.dht.len));
-		q_data->dht.n = tmp.dht.n;
-		memcpy(q_data->dqt.marker, tmp.dqt.marker,
-		       sizeof(tmp.dqt.marker));
-		memcpy(q_data->dqt.len, tmp.dqt.len, sizeof(tmp.dqt.len));
-		q_data->dqt.n = tmp.dqt.n;
-		q_data->sof = tmp.sof;
-		q_data->sof_len = tmp.sof_len;
-
 		q_data = &ctx->cap_q;
-		q_data->w = tmp.w;
-		q_data->h = tmp.h;
+		q_data->w = ctx->out_q.w;
+		q_data->h = ctx->out_q.h;
 
 		/*
 		 * This call to jpeg_bound_align_image() takes care of width and
