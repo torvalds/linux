@@ -1010,23 +1010,29 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
 	struct Scsi_Host * host = dev->host;
 	struct aac_dev * aac = (struct aac_dev *)host->hostdata;
 	int count;
-	u32 bus, cid;
+	u32 cmd_bus;
 	int status = 0;
 
 
-	bus = aac_logical_to_phys(scmd_channel(cmd));
-	cid = scmd_id(cmd);
-	if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
-	    aac->hba_map[bus][cid].devtype != AAC_DEVTYPE_NATIVE_RAW) {
-		/* Mark the assoc. FIB to not complete, eh handler does this */
-		for (count = 0;
-			count < (host->can_queue + AAC_NUM_MGT_FIB);
-			++count) {
-			struct fib *fib = &aac->fibs[count];
+	cmd_bus = aac_logical_to_phys(scmd_channel(cmd));
+	/* Mark the assoc. FIB to not complete, eh handler does this */
+	for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
+		struct fib *fib = &aac->fibs[count];
 
-			if (fib->hw_fib_va->header.XferState &&
-				(fib->flags & FIB_CONTEXT_FLAG) &&
-				(fib->callback_data == cmd)) {
+		if (fib->hw_fib_va->header.XferState &&
+		    (fib->flags & FIB_CONTEXT_FLAG) &&
+		    (fib->flags & FIB_CONTEXT_FLAG_SCSI_CMD)) {
+			struct aac_hba_map_info *info;
+			u32 bus, cid;
+
+			cmd = (struct scsi_cmnd *)fib->callback_data;
+			bus = aac_logical_to_phys(scmd_channel(cmd));
+			if (bus != cmd_bus)
+				continue;
+			cid = scmd_id(cmd);
+			info = &aac->hba_map[bus][cid];
+			if (bus >= AAC_MAX_BUSES || cid >= AAC_MAX_TARGETS ||
+			    info->devtype != AAC_DEVTYPE_NATIVE_RAW) {
 				fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
 				cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
 			}
