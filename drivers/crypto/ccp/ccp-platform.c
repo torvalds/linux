@@ -66,8 +66,10 @@ static int ccp_get_irq(struct ccp_device *ccp)
 	int ret;
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_notice(dev, "unable to get IRQ (%d)\n", ret);
 		return ret;
+	}
 
 	ccp->irq = ret;
 	ret = request_irq(ccp->irq, ccp->vdata->perform->irqhandler, 0,
