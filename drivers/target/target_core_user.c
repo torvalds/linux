@@ -825,21 +825,21 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		size_t pad_size = head_to_end(cmd_head, udev->cmdr_size);
 
 		entry = (void *) mb + CMDR_OFF + cmd_head;
-		tcmu_flush_dcache_range(entry, sizeof(*entry));
 		tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_PAD);
 		tcmu_hdr_set_len(&entry->hdr.len_op, pad_size);
 		entry->hdr.cmd_id = 0; /* not used for PAD */
 		entry->hdr.kflags = 0;
 		entry->hdr.uflags = 0;
+		tcmu_flush_dcache_range(entry, sizeof(*entry));
 
 		UPDATE_HEAD(mb->cmd_head, pad_size, udev->cmdr_size);
+		tcmu_flush_dcache_range(mb, sizeof(*mb));
 
 		cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
 		WARN_ON(cmd_head != 0);
 	}
 
 	entry = (void *) mb + CMDR_OFF + cmd_head;
-	tcmu_flush_dcache_range(entry, sizeof(*entry));
 	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
 	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
 	entry->hdr.kflags = 0;
