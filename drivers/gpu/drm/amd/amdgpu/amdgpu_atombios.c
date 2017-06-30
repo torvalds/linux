@@ -1686,7 +1686,7 @@ void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock)
 {
 	uint32_t bios_6_scratch;
 
-	bios_6_scratch = RREG32(mmBIOS_SCRATCH_6);
+	bios_6_scratch = RREG32(adev->bios_scratch_reg_offset + 6);
 
 	if (lock) {
 		bios_6_scratch |= ATOM_S6_CRITICAL_STATE;
@@ -1696,15 +1696,17 @@ void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock)
 		bios_6_scratch |= ATOM_S6_ACC_MODE;
 	}
 
-	WREG32(mmBIOS_SCRATCH_6, bios_6_scratch);
+	WREG32(adev->bios_scratch_reg_offset + 6, bios_6_scratch);
 }
 
 void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev)
 {
 	uint32_t bios_2_scratch, bios_6_scratch;
 
-	bios_2_scratch = RREG32(mmBIOS_SCRATCH_2);
-	bios_6_scratch = RREG32(mmBIOS_SCRATCH_6);
+	adev->bios_scratch_reg_offset = mmBIOS_SCRATCH_0;
+
+	bios_2_scratch = RREG32(adev->bios_scratch_reg_offset + 2);
+	bios_6_scratch = RREG32(adev->bios_scratch_reg_offset + 6);
 
 	/* let the bios control the backlight */
 	bios_2_scratch &= ~ATOM_S2_VRI_BRIGHT_ENABLE;
@@ -1715,8 +1717,8 @@ void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev)
 	/* clear the vbios dpms state */
 	bios_2_scratch &= ~ATOM_S2_DEVICE_DPMS_STATE;
 
-	WREG32(mmBIOS_SCRATCH_2, bios_2_scratch);
-	WREG32(mmBIOS_SCRATCH_6, bios_6_scratch);
+	WREG32(adev->bios_scratch_reg_offset + 2, bios_2_scratch);
+	WREG32(adev->bios_scratch_reg_offset + 6, bios_6_scratch);
 }
 
 void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev)
@@ -1724,7 +1726,7 @@ void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
-		adev->bios_scratch[i] = RREG32(mmBIOS_SCRATCH_0 + i);
+		adev->bios_scratch[i] = RREG32(adev->bios_scratch_reg_offset + i);
 }
 
 void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
@@ -1738,20 +1740,20 @@ void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
 	adev->bios_scratch[7] &= ~ATOM_S7_ASIC_INIT_COMPLETE_MASK;
 
 	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
-		WREG32(mmBIOS_SCRATCH_0 + i, adev->bios_scratch[i]);
+		WREG32(adev->bios_scratch_reg_offset + i, adev->bios_scratch[i]);
 }
 
 void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
 					      bool hung)
 {
-	u32 tmp = RREG32(mmBIOS_SCRATCH_3);
+	u32 tmp = RREG32(adev->bios_scratch_reg_offset + 3);
 
 	if (hung)
 		tmp |= ATOM_S3_ASIC_GUI_ENGINE_HUNG;
 	else
 		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
 
-	WREG32(mmBIOS_SCRATCH_3, tmp);
+	WREG32(adev->bios_scratch_reg_offset + 3, tmp);
 }
 
 /* Atom needs data in little endian format
