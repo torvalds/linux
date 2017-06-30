@@ -202,14 +202,14 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 fail_refresh:
 	ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-	ip->i_iopen_gh.gh_gl->gl_object = NULL;
+	glock_set_object(ip->i_iopen_gh.gh_gl, NULL);
 	gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 fail_put:
 	if (io_gl)
 		gfs2_glock_put(io_gl);
 	if (gfs2_holder_initialized(&i_gh))
 		gfs2_glock_dq_uninit(&i_gh);
-	ip->i_gl->gl_object = NULL;
+	glock_set_object(ip->i_gl, NULL);
 fail:
 	iget_failed(inode);
 	return ERR_PTR(error);
@@ -706,7 +706,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_free_inode;
 
-	ip->i_gl->gl_object = ip;
+	glock_set_object(ip->i_gl, ip);
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, ghs + 1);
 	if (error)
 		goto fail_free_inode;
@@ -732,7 +732,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
-	ip->i_iopen_gh.gh_gl->gl_object = ip;
+	glock_set_object(ip->i_iopen_gh.gh_gl, ip);
 	gfs2_glock_put(io_gl);
 	gfs2_set_iop(inode);
 	insert_inode_hash(inode);

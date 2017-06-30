@@ -1105,9 +1105,12 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
 					gfs2_holder_uninit(gh);
 					error = err;
 				} else {
-					if (!error)
-						error = statfs_slow_fill(
-							gh->gh_gl->gl_object, sc);
+					if (!error) {
+						struct gfs2_rgrpd *rgd =
+							gfs2_glock2rgrp(gh->gh_gl);
+
+						error = statfs_slow_fill(rgd, sc);
+					}
 					gfs2_glock_dq_uninit(gh);
 				}
 			}
@@ -1637,7 +1640,7 @@ out:
 	gfs2_glock_put(ip->i_gl);
 	ip->i_gl = NULL;
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
-		ip->i_iopen_gh.gh_gl->gl_object = NULL;
+		glock_set_object(ip->i_iopen_gh.gh_gl, NULL);
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 	}

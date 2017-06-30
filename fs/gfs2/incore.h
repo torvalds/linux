@@ -857,5 +857,7 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 	preempt_enable();
 }
 
+extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
+
 #endif /* __INCORE_DOT_H__ */
 

@@ -137,7 +137,7 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
  *
  * Called when demoting or unlocking an EX glock.  We must flush
  * to disk all dirty buffers/pages relating to this glock, and must not
- * not return to caller to demote/unlock the glock until I/O is complete.
+ * return to caller to demote/unlock the glock until I/O is complete.
  */
 
 static void rgrp_go_sync(struct gfs2_glock *gl)
@@ -184,7 +184,7 @@ static void rgrp_go_inval(struct gfs2_glock *gl, int flags)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct address_space *mapping = &sdp->sd_aspace;
-	struct gfs2_rgrpd *rgd = gl->gl_object;
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 
 	if (rgd)
 		gfs2_rgrp_brelse(rgd);
@@ -207,6 +207,17 @@ static struct gfs2_inode *gfs2_glock2inode(struct gfs2_glock *gl)
 		set_bit(GIF_GLOP_PENDING, &ip->i_flags);
 	spin_unlock(&gl->gl_lockref.lock);
 	return ip;
+}
+
+struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl)
+{
+	struct gfs2_rgrpd *rgd;
+
+	spin_lock(&gl->gl_lockref.lock);
+	rgd = gl->gl_object;
+	spin_unlock(&gl->gl_lockref.lock);
+
+	return rgd;
 }
 
 static void gfs2_clear_glop_pending(struct gfs2_inode *ip)
@@ -566,7 +577,7 @@ static int freeze_go_demote_ok(const struct gfs2_glock *gl)
  */
 static void iopen_go_callback(struct gfs2_glock *gl, bool remote)
 {
-	struct gfs2_inode *ip = (struct gfs2_inode *)gl->gl_object;
+	struct gfs2_inode *ip = gl->gl_object;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	if (!remote || (sdp->sd_vfs->s_flags & MS_RDONLY))
