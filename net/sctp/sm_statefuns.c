@@ -389,10 +389,10 @@ sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 	}
 
 	/* Grab the INIT header.  */
-	chunk->subh.init_hdr = (sctp_inithdr_t *)chunk->skb->data;
+	chunk->subh.init_hdr = (struct sctp_inithdr *)chunk->skb->data;
 
 	/* Tag the variable length parameters.  */
-	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(sctp_inithdr_t));
+	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(struct sctp_inithdr));
 
 	new_asoc = sctp_make_temp_asoc(ep, chunk, GFP_ATOMIC);
 	if (!new_asoc)
@@ -522,7 +522,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 	/* Grab the INIT header.  */
-	chunk->subh.init_hdr = (sctp_inithdr_t *) chunk->skb->data;
+	chunk->subh.init_hdr = (struct sctp_inithdr *)chunk->skb->data;
 
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
@@ -576,7 +576,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 	/* Tag the variable length parameters.  Note that we never
 	 * convert the parameters in an INIT chunk.
 	 */
-	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(sctp_inithdr_t));
+	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(struct sctp_inithdr));
 
 	initchunk = (sctp_init_chunk_t *) chunk->chunk_hdr;
 
@@ -1454,10 +1454,10 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 	/* Grab the INIT header.  */
-	chunk->subh.init_hdr = (sctp_inithdr_t *) chunk->skb->data;
+	chunk->subh.init_hdr = (struct sctp_inithdr *)chunk->skb->data;
 
 	/* Tag the variable length parameters.  */
-	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(sctp_inithdr_t));
+	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(struct sctp_inithdr));
 
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;

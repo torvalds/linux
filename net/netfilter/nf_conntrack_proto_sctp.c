@@ -395,7 +395,7 @@ static int sctp_packet(struct nf_conn *ct,
 		/* If it is an INIT or an INIT ACK note down the vtag */
 		if (sch->type == SCTP_CID_INIT ||
 		    sch->type == SCTP_CID_INIT_ACK) {
-			sctp_inithdr_t _inithdr, *ih;
+			struct sctp_inithdr _inithdr, *ih;
 
 			ih = skb_header_pointer(skb, offset + sizeof(_sch),
 						sizeof(_inithdr), &_inithdr);
@@ -471,7 +471,7 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 		/* Copy the vtag into the state info */
 		if (sch->type == SCTP_CID_INIT) {
-			sctp_inithdr_t _inithdr, *ih;
+			struct sctp_inithdr _inithdr, *ih;
 			/* Sec 8.5.1 (A) */
 			if (sh->vtag)
 				return false;

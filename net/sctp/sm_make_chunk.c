@@ -217,7 +217,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 {
 	struct net *net = sock_net(asoc->base.sk);
 	struct sctp_endpoint *ep = asoc->ep;
-	sctp_inithdr_t init;
+	struct sctp_inithdr init;
 	union sctp_params addrs;
 	size_t chunksize;
 	struct sctp_chunk *retval = NULL;
@@ -385,7 +385,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 				 const struct sctp_chunk *chunk,
 				 gfp_t gfp, int unkparam_len)
 {
-	sctp_inithdr_t initack;
+	struct sctp_inithdr initack;
 	struct sctp_chunk *retval;
 	union sctp_params addrs;
 	struct sctp_sock *sp;

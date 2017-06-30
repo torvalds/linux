@@ -257,18 +257,18 @@ enum { SCTP_DATA_FRAG_MASK = 0x03, };
  *  This chunk is used to initiate a SCTP association between two
  *  endpoints.
  */
-typedef struct sctp_inithdr {
+struct sctp_inithdr {
 	__be32 init_tag;
 	__be32 a_rwnd;
 	__be16 num_outbound_streams;
 	__be16 num_inbound_streams;
 	__be32 initial_tsn;
 	__u8  params[0];
-} sctp_inithdr_t;
+};
 
 typedef struct sctp_init_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_inithdr_t init_hdr;
+	struct sctp_inithdr init_hdr;
 } sctp_init_chunk_t;
 
 
