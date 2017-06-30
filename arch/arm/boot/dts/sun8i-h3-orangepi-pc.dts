@@ -52,7 +52,6 @@
 	compatible = "xunlong,orangepi-pc", "allwinner,sun8i-h3";
 
 	aliases {
-		ethernet0 = &emac;
 		serial0 = &uart0;
 	};
 
@@ -107,13 +106,6 @@
 };
 
 &ehci3 {
-	status = "okay";
-};
-
-&emac {
-	phy-handle = <&int_mii_phy>;
-	phy-mode = "internal";
-	allwinner,leds-active-low;
 	status = "okay";
 };
 
