@@ -448,7 +448,7 @@ static struct regmap *twl_get_regmap(u8 mod_no)
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
- * Returns the result of operation - 0 is success
+ * Returns 0 on success or else a negative error code.
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {
@@ -476,7 +476,7 @@ EXPORT_SYMBOL(twl_i2c_write);
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
- * Returns result of operation - num_bytes is success else failure.
+ * Returns 0 on success or else a negative error code.
  */
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {
