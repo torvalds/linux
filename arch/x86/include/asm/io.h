@@ -406,6 +406,9 @@ extern bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 
 #define IO_SPACE_LIMIT 0xffff
 
+#include <asm-generic/io.h>
+#undef PCI_IOBASE
+
 #ifdef CONFIG_MTRR
 extern int __must_check arch_phys_wc_index(int handle);
 #define arch_phys_wc_index arch_phys_wc_index
