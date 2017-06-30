@@ -112,15 +112,15 @@ struct visorhba_devices_open {
 		    (iter->lun == match->lun))
 
 /*
- *	visor_thread_start - starts a thread for the device
- *	@threadfn: Function the thread starts
- *	@thrcontext: Context to pass to the thread, i.e. devdata
- *	@name: string describing name of thread
+ * visor_thread_start - Starts a thread for the device
+ * @threadfn:   Function the thread starts
+ * @thrcontext: Context to pass to the thread, i.e. devdata
+ * @name:	String describing name of thread
  *
- *	Starts a thread for the device.
+ * Starts a thread for the device.
  *
- *	Return the task_struct * denoting the thread on success,
- *             or NULL on failure
+ * Return: The task_struct * denoting the thread on success,
+ *	   or NULL on failure
  */
 static struct task_struct *visor_thread_start
 (int (*threadfn)(void *), void *thrcontext, char *name)
@@ -136,7 +136,8 @@ static struct task_struct *visor_thread_start
 }
 
 /*
- *      visor_thread_stop - stops the thread if it is running
+ * visor_thread_stop - Stops the thread if it is running
+ * @task: Description of process to stop
  */
 static void visor_thread_stop(struct task_struct *task)
 {
@@ -147,17 +148,18 @@ static void visor_thread_stop(struct task_struct *task)
 }
 
 /*
- *	add_scsipending_entry - save off io command that is pending in
- *				Service Partition
- *	@devdata: Pointer to devdata
- *	@cmdtype: Specifies the type of command pending
- *	@new:	The command to be saved
+ * add_scsipending_entry - Save off io command that is pending in
+ *			   Service Partition
+ * @devdata: Pointer to devdata
+ * @cmdtype: Specifies the type of command pending
+ * @new:     The command to be saved
  *
- *	Saves off the io command that is being handled by the Service
- *	Partition so that it can be handled when it completes. If new is
- *	NULL it is assumed the entry refers only to the cmdrsp.
- *	Returns insert_location where entry was added,
- *	-EBUSY if it can't
+ * Saves off the io command that is being handled by the Service
+ * Partition so that it can be handled when it completes. If new is
+ * NULL it is assumed the entry refers only to the cmdrsp.
+ *
+ * Return: Insert_location where entry was added on success,
+ *	   -EBUSY if it can't
  */
 static int add_scsipending_entry(struct visorhba_devdata *devdata,
 				 char cmdtype, void *new)
@@ -191,12 +193,13 @@ static int add_scsipending_entry(struct visorhba_devdata *devdata,
 }
 
 /*
- *	del_scsipending_ent - removes an entry from the pending array
- *	@devdata: Device holding the pending array
- *	@del: Entry to remove
+ * del_scsipending_ent - Removes an entry from the pending array
+ * @devdata: Device holding the pending array
+ * @del:     Entry to remove
  *
- *	Removes the entry pointed at by del and returns it.
- *	Returns the scsipending entry pointed at
+ * Removes the entry pointed at by del and returns it.
+ *
+ * Return: The scsipending entry pointed to on success, NULL on failure
  */
 static void *del_scsipending_ent(struct visorhba_devdata *devdata,
 				 int del)
@@ -218,13 +221,14 @@ static void *del_scsipending_ent(struct visorhba_devdata *devdata,
 }
 
 /*
- *	get_scsipending_cmdrsp - return the cmdrsp stored in a pending entry
- *	@ddata: Device holding the pending array
- *	@ent: Entry that stores the cmdrsp
+ * get_scsipending_cmdrsp - Return the cmdrsp stored in a pending entry
+ * @ddata: Device holding the pending array
+ * @ent:   Entry that stores the cmdrsp
  *
- *	Each scsipending entry has a cmdrsp in it. The cmdrsp is only valid
- *	if the "sent" field is not NULL
- *	Returns a pointer to the cmdrsp.
+ * Each scsipending entry has a cmdrsp in it. The cmdrsp is only valid
+ * if the "sent" field is not NULL.
+ *
+ * Return: A pointer to the cmdrsp, NULL on failure
  */
 static struct uiscmdrsp *get_scsipending_cmdrsp(struct visorhba_devdata *ddata,
 						int ent)
@@ -236,13 +240,15 @@ static struct uiscmdrsp *get_scsipending_cmdrsp(struct visorhba_devdata *ddata,
 }
 
 /*
- *      simple_idr_get - associate a provided pointer with an int value
- *                       1 <= value <= INT_MAX, and return this int value;
- *                       the pointer value can be obtained later by passing
- *                       this int value to idr_find()
- *      @idrtable: the data object maintaining the pointer<-->int mappings
- *      @p: the pointer value to be remembered
- *      @lock: a spinlock used when exclusive access to idrtable is needed
+ * simple_idr_get - Associate a provided pointer with an int value
+ *		    1 <= value <= INT_MAX, and return this int value;
+ *		    the pointer value can be obtained later by passing
+ *		    this int value to idr_find()
+ * @idrtable: The data object maintaining the pointer<-->int mappings
+ * @p:	      The pointer value to be remembered
+ * @lock:     A spinlock used when exclusive access to idrtable is needed
+ *
+ * Return: The id number mapped to pointer 'p', 0 on failure
  */
 static unsigned int simple_idr_get(struct idr *idrtable, void *p,
 				   spinlock_t *lock)
@@ -263,10 +269,15 @@ static unsigned int simple_idr_get(struct idr *idrtable, void *p,
 }
 
 /*
- *      setup_scsitaskmgmt_handles - stash the necessary handles so that the
- *                                   completion processing logic for a taskmgmt
- *                                   cmd will be able to find who to wake up
- *                                   and where to stash the result
+ * setup_scsitaskmgmt_handles - Stash the necessary handles so that the
+ *				completion processing logic for a taskmgmt
+ *				cmd will be able to find who to wake up
+ *				and where to stash the result
+ * @idrtable: The data object maintaining the pointer<-->int mappings
+ * @lock:     A spinlock used when exclusive access to idrtable is needed
+ * @cmdrsp:   Response from the IOVM
+ * @event:    The event handle to associate with an id
+ * @result:   The location to place the result of the event handle into
  */
 static void setup_scsitaskmgmt_handles(struct idr *idrtable, spinlock_t *lock,
 				       struct uiscmdrsp *cmdrsp,
@@ -281,8 +292,10 @@ static void setup_scsitaskmgmt_handles(struct idr *idrtable, spinlock_t *lock,
 }
 
 /*
- *      cleanup_scsitaskmgmt_handles - forget handles created by
- *                                     setup_scsitaskmgmt_handles()
+ * cleanup_scsitaskmgmt_handles - Forget handles created by
+ *				  setup_scsitaskmgmt_handles()
+ * @idrtable: The data object maintaining the pointer<-->int mappings
+ * @cmdrsp:   Response from the IOVM
  */
 static void cleanup_scsitaskmgmt_handles(struct idr *idrtable,
 					 struct uiscmdrsp *cmdrsp)
@@ -294,14 +307,15 @@ static void cleanup_scsitaskmgmt_handles(struct idr *idrtable,
 }
 
 /*
- *	forward_taskmgmt_command - send taskmegmt command to the Service
- *				   Partition
- *	@tasktype: Type of taskmgmt command
- *	@scsidev: Scsidev that issued command
+ * forward_taskmgmt_command - Send taskmegmt command to the Service
+ *			      Partition
+ * @tasktype: Type of taskmgmt command
+ * @scsidev:  Scsidev that issued command
  *
- *	Create a cmdrsp packet and send it to the Serivce Partition
- *	that will service this request.
- *	Returns whether the command was queued successfully or not.
+ * Create a cmdrsp packet and send it to the Serivce Partition
+ * that will service this request.
+ *
+ * Return: Int representing whether command was queued successfully or not
  */
 static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 				    struct scsi_cmnd *scsicmd)
@@ -373,11 +387,10 @@ err_del_scsipending_ent:
 }
 
 /*
- *	visorhba_abort_handler - Send TASK_MGMT_ABORT_TASK
- *	@scsicmd: The scsicmd that needs aborted
+ * visorhba_abort_handler - Send TASK_MGMT_ABORT_TASK
+ * @scsicmd: The scsicmd that needs aborted
  *
- *	Returns SUCCESS if inserted, failure otherwise
- *
+ * Return: SUCCESS if inserted, FAILED otherwise
  */
 static int visorhba_abort_handler(struct scsi_cmnd *scsicmd)
 {
@@ -398,10 +411,10 @@ static int visorhba_abort_handler(struct scsi_cmnd *scsicmd)
 }
 
 /*
- *	visorhba_device_reset_handler - Send TASK_MGMT_LUN_RESET
- *	@scsicmd: The scsicmd that needs aborted
+ * visorhba_device_reset_handler - Send TASK_MGMT_LUN_RESET
+ * @scsicmd: The scsicmd that needs aborted
  *
- *	Returns SUCCESS if inserted, failure otherwise
+ * Return: SUCCESS if inserted, FAILED otherwise
  */
 static int visorhba_device_reset_handler(struct scsi_cmnd *scsicmd)
 {
@@ -422,11 +435,11 @@ static int visorhba_device_reset_handler(struct scsi_cmnd *scsicmd)
 }
 
 /*
- *	visorhba_bus_reset_handler - Send TASK_MGMT_TARGET_RESET for each
- *				     target on the bus
- *	@scsicmd: The scsicmd that needs aborted
+ * visorhba_bus_reset_handler - Send TASK_MGMT_TARGET_RESET for each
+ *				target on the bus
+ * @scsicmd: The scsicmd that needs aborted
  *
- *	Returns SUCCESS
+ * Return: SUCCESS if inserted, FAILED otherwise
  */
 static int visorhba_bus_reset_handler(struct scsi_cmnd *scsicmd)
 {
@@ -446,11 +459,10 @@ static int visorhba_bus_reset_handler(struct scsi_cmnd *scsicmd)
 }
 
 /*
- *	visorhba_host_reset_handler - Not supported
- *	@scsicmd: The scsicmd that needs aborted
+ * visorhba_host_reset_handler - Not supported
+ * @scsicmd: The scsicmd that needs to be aborted
  *
- *	Not supported, return SUCCESS
- *	Returns SUCCESS
+ * Return: Not supported, return SUCCESS
  */
 static int
 visorhba_host_reset_handler(struct scsi_cmnd *scsicmd)
@@ -460,10 +472,10 @@ visorhba_host_reset_handler(struct scsi_cmnd *scsicmd)
 }
 
 /*
- *	visorhba_get_info
- *	@shp: Scsi host that is requesting information
+ * visorhba_get_info - Get information about SCSI device
+ * @shp: Scsi host that is requesting information
  *
- *	Returns string with info
+ * Return: String with visorhba information
  */
 static const char *visorhba_get_info(struct Scsi_Host *shp)
 {
@@ -472,15 +484,15 @@ static const char *visorhba_get_info(struct Scsi_Host *shp)
 }
 
 /*
- *	visorhba_queue_command_lck -- queues command to the Service Partition
- *	@scsicmd: Command to be queued
- *	@vsiorhba_cmnd_done: Done command to call when scsicmd is returned
+ * visorhba_queue_command_lck - Queues command to the Service Partition
+ * @scsicmd:		Command to be queued
+ * @vsiorhba_cmnd_done: Done command to call when scsicmd is returned
  *
- *	Queues to scsicmd to the ServicePartition after converting it to a
- *	uiscmdrsp structure.
+ * Queues to scsicmd to the ServicePartition after converting it to a
+ * uiscmdrsp structure.
  *
- *	Returns success if queued to the Service Partition, otherwise
- *	failure.
+ * Return: 0 if successfully queued to the Service Partition, otherwise
+ *	   error code
  */
 static int
 visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
@@ -563,13 +575,13 @@ static DEF_SCSI_QCMD(visorhba_queue_command)
 #endif
 
 /*
- *	visorhba_slave_alloc - called when new disk is discovered
- *	@scsidev: New disk
+ * visorhba_slave_alloc - Called when new disk is discovered
+ * @scsidev: New disk
  *
- *	Create a new visordisk_info structure and add it to our
- *	list of vdisks.
+ * Create a new visordisk_info structure and add it to our
+ * list of vdisks.
  *
- *	Returns success when created, otherwise error.
+ * Return: 0 on success, -ENOMEM on failure.
  */
 static int visorhba_slave_alloc(struct scsi_device *scsidev)
 {
@@ -602,11 +614,8 @@ static int visorhba_slave_alloc(struct scsi_device *scsidev)
 }
 
 /*
- *	visorhba_slave_destroy - disk is going away
- *	@scsidev: scsi device going away
- *
- *	Disk is going away, clean up resources.
- *	Returns void.
+ * visorhba_slave_destroy - Disk is going away, clean up resources.
+ * @scsidev: Scsi device to destroy
  */
 static void visorhba_slave_destroy(struct scsi_device *scsidev)
 {
@@ -645,10 +654,13 @@ static struct scsi_host_template visorhba_driver_template = {
 };
 
 /*
- *	info_debugfs_show - debugfs interface to dump visorhba states
+ * info_debugfs_show - Debugfs interface to dump visorhba states
+ * @seq: The sequence file to write information to
+ * @v:   Unused, but needed for use with seq file single_open invocation
  *
- *      This presents a file in the debugfs tree named:
- *          /visorhba/vbus<x>:dev<y>/info
+ * Presents a file in the debugfs tree named: /visorhba/vbus<x>:dev<y>/info.
+ *
+ * Return: SUCCESS
  */
 static int info_debugfs_show(struct seq_file *seq, void *v)
 {
@@ -689,12 +701,13 @@ static const struct file_operations info_debugfs_fops = {
 };
 
 /*
- *	complete_taskmgmt_command - complete task management
- *	@cmdrsp: Response from the IOVM
+ * complete_taskmgmt_command - Complete task management
+ * @idrtable: The data object maintaining the pointer<-->int mappings
+ * @cmdrsp:   Response from the IOVM
+ * @result:   The result of the task management command
  *
- *	Service Partition returned the result of the task management
- *	command. Wake up anyone waiting for it.
- *	Returns void
+ * Service Partition returned the result of the task management
+ * command. Wake up anyone waiting for it.
  */
 static void complete_taskmgmt_command(struct idr *idrtable,
 				      struct uiscmdrsp *cmdrsp, int result)
@@ -718,13 +731,12 @@ static void complete_taskmgmt_command(struct idr *idrtable,
 }
 
 /*
- *	visorhba_serverdown_complete - Called when we are done cleaning up
- *				       from serverdown
- *	@work: work structure for this serverdown request
+ * visorhba_serverdown_complete - Called when we are done cleaning up
+ *				  from serverdown
+ * @devdata: Visorhba instance on which to complete serverdown
  *
- *	Called when we are done cleanning up from serverdown, stop processing
- *	queue, fail pending IOs.
- *	Returns void when finished cleaning up
+ * Called when we are done cleanning up from serverdown, stop processing
+ * queue, fail pending IOs.
  */
 static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 {
@@ -768,12 +780,13 @@ static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 }
 
 /*
- *	visorhba_serverdown - Got notified that the IOVM is down
- *	@devdata: visorhba that is being serviced by downed IOVM.
+ * visorhba_serverdown - Got notified that the IOVM is down
+ * @devdata: Visorhba that is being serviced by downed IOVM
  *
- *	Something happened to the IOVM, return immediately and
- *	schedule work cleanup work.
- *	Return SUCCESS or EINVAL
+ * Something happened to the IOVM, return immediately and
+ * schedule cleanup work.
+ *
+ * Return: 0 on success, -EINVAL on failure
  */
 static int visorhba_serverdown(struct visorhba_devdata *devdata)
 {
@@ -787,12 +800,11 @@ static int visorhba_serverdown(struct visorhba_devdata *devdata)
 }
 
 /*
- *	do_scsi_linuxstat - scsi command returned linuxstat
- *	@cmdrsp: response from IOVM
- *	@scsicmd: Command issued.
+ * do_scsi_linuxstat - Scsi command returned linuxstat
+ * @cmdrsp:  Response from IOVM
+ * @scsicmd: Command issued
  *
- *	Don't log errors for disk-not-present inquiries
- *	Returns void
+ * Don't log errors for disk-not-present inquiries.
  */
 static void
 do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
@@ -838,12 +850,11 @@ static int set_no_disk_inquiry_result(unsigned char *buf,
 }
 
 /*
- *	do_scsi_nolinuxstat - scsi command didn't have linuxstat
- *	@cmdrsp: response from IOVM
- *	@scsicmd: Command issued.
+ * do_scsi_nolinuxstat - Scsi command didn't have linuxstat
+ * @cmdrsp:  Response from IOVM
+ * @scsicmd: Command issued
  *
- *	Handle response when no linuxstat was returned
- *	Returns void
+ * Handle response when no linuxstat was returned.
  */
 static void
 do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
@@ -905,13 +916,12 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 }
 
 /*
- *	complete_scsi_command - complete a scsi command
- *	@uiscmdrsp: Response from Service Partition
- *	@scsicmd: The scsi command
+ * complete_scsi_command - Complete a scsi command
+ * @uiscmdrsp: Response from Service Partition
+ * @scsicmd:   The scsi command
  *
- *	Response returned by the Service Partition, finish it and send
- *	completion to the scsi midlayer.
- *	Returns void.
+ * Response was returned by the Service Partition. Finish it and send
+ * completion to the scsi midlayer.
  */
 static void
 complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
@@ -927,12 +937,11 @@ complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 }
 
 /*
- *	drain_queue - pull responses out of iochannel
- *	@cmdrsp: Response from the IOSP
- *	@devdata: device that owns this iochannel
+ * drain_queue - Pull responses out of iochannel
+ * @cmdrsp:  Response from the IOSP
+ * @devdata: Device that owns this iochannel
  *
- *	Pulls responses out of the iochannel and process the responses.
- *	Restuns void
+ * Pulls responses out of the iochannel and process the responses.
  */
 static void
 drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
@@ -970,12 +979,14 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 }
 
 /*
- *	process_incoming_rsps - Process responses from IOSP
- *	@v: void pointer to visorhba_devdata
+ * process_incoming_rsps - Process responses from IOSP
+ * @v:  Void pointer to visorhba_devdata
  *
- *	Main function for the thread that processes the responses
- *	from the IO Service Partition. When the queue is empty, wait
- *	to check to see if it is full again.
+ * Main function for the thread that processes the responses
+ * from the IO Service Partition. When the queue is empty, wait
+ * to check to see if it is full again.
+ *
+ * Return: 0 on success, -ENOMEM on failure
  */
 static int process_incoming_rsps(void *v)
 {
@@ -1002,14 +1013,15 @@ static int process_incoming_rsps(void *v)
 }
 
 /*
- *	visorhba_pause - function to handle visorbus pause messages
- *	@dev: device that is pausing.
- *	@complete_func: function to call when finished
+ * visorhba_pause - Function to handle visorbus pause messages
+ * @dev:	   Device that is pausing
+ * @complete_func: Function to call when finished
  *
- *	Something has happened to the IO Service Partition that is
- *	handling this device. Quiet this device and reset commands
- *	so that the Service Partition can be corrected.
- *	Returns SUCCESS
+ * Something has happened to the IO Service Partition that is
+ * handling this device. Quiet this device and reset commands
+ * so that the Service Partition can be corrected.
+ *
+ * Return: SUCCESS
  */
 static int visorhba_pause(struct visor_device *dev,
 			  visorbus_state_complete_func complete_func)
@@ -1022,13 +1034,14 @@ static int visorhba_pause(struct visor_device *dev,
 }
 
 /*
- *	visorhba_resume - function called when the IO Service Partition is back
- *	@dev: device that is pausing.
- *	@complete_func: function to call when finished
+ * visorhba_resume - Function called when the IO Service Partition is back
+ * @dev:	   Device that is pausing
+ * @complete_func: Function to call when finished
  *
- *	Yay! The IO Service Partition is back, the channel has been wiped
- *	so lets re-establish connection and start processing responses.
- *	Returns 0 on success, error on failure.
+ * Yay! The IO Service Partition is back, the channel has been wiped
+ * so lets re-establish connection and start processing responses.
+ *
+ * Return: 0 on success, -EINVAL on failure
  */
 static int visorhba_resume(struct visor_device *dev,
 			   visorbus_state_complete_func complete_func)
@@ -1052,11 +1065,12 @@ static int visorhba_resume(struct visor_device *dev,
 }
 
 /*
- *	visorhba_probe - device has been discovered, do acquire
- *	@dev: visor_device that was discovered
+ * visorhba_probe - Device has been discovered; do acquire
+ * @dev: visor_device that was discovered
  *
- *	A new HBA was discovered, do the initial connections of it.
- *	Return 0 on success, otherwise error.
+ * A new HBA was discovered; do the initial connections of it.
+ *
+ * Return: 0 on success, otherwise error code
  */
 static int visorhba_probe(struct visor_device *dev)
 {
@@ -1150,11 +1164,10 @@ err_scsi_host_put:
 }
 
 /*
- *	visorhba_remove - remove a visorhba device
- *	@dev: Device to remove
+ * visorhba_remove - Remove a visorhba device
+ * @dev: Device to remove
  *
- *	Removes the visorhba device.
- *	Returns void.
+ * Removes the visorhba device.
  */
 static void visorhba_remove(struct visor_device *dev)
 {
@@ -1192,10 +1205,12 @@ static struct visor_driver visorhba_driver = {
 };
 
 /*
- *	visorhba_init		- driver init routine
+ * visorhba_init - Driver init routine
  *
- *	Initialize the visorhba driver and register it with visorbus
- *	to handle s-Par virtual host bus adapter.
+ * Initialize the visorhba driver and register it with visorbus
+ * to handle s-Par virtual host bus adapter.
+ *
+ * Return: 0 on success, error code otherwise
  */
 static int visorhba_init(void)
 {
@@ -1218,9 +1233,9 @@ cleanup_debugfs:
 }
 
 /*
- *	visorhba_exit	- driver exit routine
+ * visorhba_exit - Driver exit routine
  *
- *	Unregister driver from the bus and free up memory.
+ * Unregister driver from the bus and free up memory.
  */
 static void visorhba_exit(void)
 {
