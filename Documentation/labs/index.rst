@@ -34,3 +34,4 @@ then point your browser at **Documentation/output/labs/index.html**.
    kernel_modules.rst
    kernel_api.rst
    device_drivers.rst
+   interrupts.rst
