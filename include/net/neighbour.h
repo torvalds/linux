@@ -17,6 +17,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rcupdate.h>
@@ -137,7 +138,7 @@ struct neighbour {
 	unsigned long		confirmed;
 	unsigned long		updated;
 	rwlock_t		lock;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	struct sk_buff_head	arp_queue;
 	unsigned int		arp_queue_len_bytes;
 	struct timer_list	timer;
@@ -410,18 +411,18 @@ static inline struct neigh_parms *neigh_parms_clone(struct neigh_parms *parms)
 
 static inline void neigh_release(struct neighbour *neigh)
 {
-	if (atomic_dec_and_test(&neigh->refcnt))
+	if (refcount_dec_and_test(&neigh->refcnt))
 		neigh_destroy(neigh);
 }
 
 static inline struct neighbour * neigh_clone(struct neighbour *neigh)
 {
 	if (neigh)
-		atomic_inc(&neigh->refcnt);
+		refcount_inc(&neigh->refcnt);
 	return neigh;
 }
 
-#define neigh_hold(n)	atomic_inc(&(n)->refcnt)
+#define neigh_hold(n)	refcount_inc(&(n)->refcnt)
 
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {
