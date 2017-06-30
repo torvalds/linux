@@ -643,9 +643,9 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 	case RATE_48M:
 	case RATE_54M:
 		if (channel > CB_MAX_CHANNEL_24G)
-			power = priv->ofdm_a_pwr_tbl[channel-15];
+			power = priv->ofdm_a_pwr_tbl[channel - 15];
 		else
-			power = priv->ofdm_pwr_tbl[channel-1];
+			power = priv->ofdm_pwr_tbl[channel - 1];
 		break;
 	}
 
