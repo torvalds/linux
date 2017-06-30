@@ -84,6 +84,13 @@ static const u32 mt7623_regs[] = {
 	[MTK_IRINT_CLR_REG] =	0xd0,
 };
 
+static const u32 mt7622_regs[] = {
+	[MTK_IRCLR_REG] =	0x18,
+	[MTK_CHKDATA_REG] =	0x30,
+	[MTK_IRINT_EN_REG] =	0x1c,
+	[MTK_IRINT_CLR_REG] =	0x20,
+};
+
 struct mtk_field_type {
 	u32 reg;
 	u8 offset;
@@ -111,6 +118,11 @@ struct mtk_ir_data {
 static const struct mtk_field_type mt7623_fields[] = {
 	[MTK_CHK_PERIOD] = {0x10, 8, GENMASK(20, 8)},
 	[MTK_HW_PERIOD] = {0x10, 0, GENMASK(7, 0)},
+};
+
+static const struct mtk_field_type mt7622_fields[] = {
+	[MTK_CHK_PERIOD] = {0x24, 0, GENMASK(24, 0)},
+	[MTK_HW_PERIOD] = {0x10, 0, GENMASK(24, 0)},
 };
 
 /*
@@ -268,8 +280,17 @@ static const struct mtk_ir_data mt7623_data = {
 	.div	= 4,
 };
 
+static const struct mtk_ir_data mt7622_data = {
+	.regs = mt7622_regs,
+	.fields = mt7622_fields,
+	.ok_count = 0xf,
+	.hw_period = 0xffff,
+	.div	= 32,
+};
+
 static const struct of_device_id mtk_ir_match[] = {
 	{ .compatible = "mediatek,mt7623-cir", .data = &mt7623_data},
+	{ .compatible = "mediatek,mt7622-cir", .data = &mt7622_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_ir_match);
