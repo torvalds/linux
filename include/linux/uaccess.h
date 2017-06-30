@@ -139,43 +139,19 @@ extern unsigned long
 _copy_to_user(void __user *, const void *, unsigned long);
 #endif
 
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
 static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	int sz = __compiletime_object_size(to);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(to, n, false);
+	if (likely(check_copy_size(to, n, false)))
 		n = _copy_from_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
 	return n;
 }
 
 static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	int sz = __compiletime_object_size(from);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(from, n, true);
+	if (likely(check_copy_size(from, n, true)))
 		n = _copy_to_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
 	return n;
 }
 #ifdef CONFIG_COMPAT
