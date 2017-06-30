@@ -94,13 +94,15 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 #ifdef CONFIG_X86_64
 
 build_mmio_read(readq, "q", unsigned long, "=r", :"memory")
+build_mmio_read(__readq, "q", unsigned long, "=r", )
 build_mmio_write(writeq, "q", unsigned long, "r", :"memory")
+build_mmio_write(__writeq, "q", unsigned long, "r", )
 
-#define readq_relaxed(a)	readq(a)
-#define writeq_relaxed(v, a)	writeq(v, a)
+#define readq_relaxed(a)	__readq(a)
+#define writeq_relaxed(v, a)	__writeq(v, a)
 
-#define __raw_readq(a)		readq(a)
-#define __raw_writeq(val, addr)	writeq(val, addr)
+#define __raw_readq		__readq
+#define __raw_writeq		__writeq
 
 /* Let people know that we have them */
 #define readq			readq
