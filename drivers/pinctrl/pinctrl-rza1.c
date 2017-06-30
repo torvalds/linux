@@ -723,7 +723,7 @@ static void rza1_gpio_set(struct gpio_chip *chip, unsigned int gpio,
 	rza1_pin_set(port, gpio, value);
 }
 
-struct gpio_chip rza1_gpiochip_template = {
+static struct gpio_chip rza1_gpiochip_template = {
 	.request		= rza1_gpio_request,
 	.free			= rza1_gpio_free,
 	.get_direction		= rza1_gpio_get_direction,
@@ -1026,7 +1026,7 @@ static int rza1_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 	return 0;
 }
 
-struct pinmux_ops rza1_pinmux_ops = {
+static struct pinmux_ops rza1_pinmux_ops = {
 	.get_functions_count	= pinmux_generic_get_function_count,
 	.get_function_name	= pinmux_generic_get_function_name,
 	.get_function_groups	= pinmux_generic_get_function_groups,
