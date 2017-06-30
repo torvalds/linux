@@ -386,7 +386,8 @@ static void ltdc_crtc_load_lut(struct drm_crtc *crtc)
 				  ldev->clut[i]);
 }
 
-static void ltdc_crtc_enable(struct drm_crtc *crtc)
+static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
@@ -524,10 +525,10 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
 	.load_lut = ltdc_crtc_load_lut,
-	.enable = ltdc_crtc_enable,
 	.disable = ltdc_crtc_disable,
 	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
 	.atomic_flush = ltdc_crtc_atomic_flush,
+	.atomic_enable = ltdc_crtc_atomic_enable,
 };
 
 int ltdc_crtc_enable_vblank(struct drm_device *ddev, unsigned int pipe)

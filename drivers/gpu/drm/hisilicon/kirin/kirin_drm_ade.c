@@ -467,7 +467,8 @@ static void ade_dump_regs(void __iomem *base)
 static void ade_dump_regs(void __iomem *base) { }
 #endif
 
-static void ade_crtc_enable(struct drm_crtc *crtc)
+static void ade_crtc_atomic_enable(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_state)
 {
 	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
@@ -553,11 +554,11 @@ static void ade_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs ade_crtc_helper_funcs = {
-	.enable		= ade_crtc_enable,
 	.disable	= ade_crtc_disable,
 	.mode_set_nofb	= ade_crtc_mode_set_nofb,
 	.atomic_begin	= ade_crtc_atomic_begin,
 	.atomic_flush	= ade_crtc_atomic_flush,
+	.atomic_enable	= ade_crtc_atomic_enable,
 };
 
 static const struct drm_crtc_funcs ade_crtc_funcs = {

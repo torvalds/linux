@@ -119,7 +119,8 @@ static void arc_pgu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	clk_set_rate(arcpgu->clk, m->crtc_clock * 1000);
 }
 
-static void arc_pgu_crtc_enable(struct drm_crtc *crtc)
+static void arc_pgu_crtc_atomic_enable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
@@ -161,9 +162,9 @@ static const struct drm_crtc_helper_funcs arc_pgu_crtc_helper_funcs = {
 	.mode_set	= drm_helper_crtc_mode_set,
 	.mode_set_base	= drm_helper_crtc_mode_set_base,
 	.mode_set_nofb	= arc_pgu_crtc_mode_set_nofb,
-	.enable		= arc_pgu_crtc_enable,
 	.disable	= arc_pgu_crtc_disable,
 	.atomic_begin	= arc_pgu_crtc_atomic_begin,
+	.atomic_enable	= arc_pgu_crtc_atomic_enable,
 };
 
 static void arc_pgu_plane_atomic_update(struct drm_plane *plane,

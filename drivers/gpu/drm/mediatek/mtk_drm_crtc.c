@@ -366,7 +366,8 @@ static void mtk_crtc_ddp_config(struct drm_crtc *crtc)
 	}
 }
 
-static void mtk_drm_crtc_enable(struct drm_crtc *crtc)
+static void mtk_drm_crtc_atomic_enable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *ovl = mtk_crtc->ddp_comp[0];
@@ -487,10 +488,10 @@ static const struct drm_crtc_funcs mtk_crtc_funcs = {
 static const struct drm_crtc_helper_funcs mtk_crtc_helper_funcs = {
 	.mode_fixup	= mtk_drm_crtc_mode_fixup,
 	.mode_set_nofb	= mtk_drm_crtc_mode_set_nofb,
-	.enable		= mtk_drm_crtc_enable,
 	.disable	= mtk_drm_crtc_disable,
 	.atomic_begin	= mtk_drm_crtc_atomic_begin,
 	.atomic_flush	= mtk_drm_crtc_atomic_flush,
+	.atomic_enable	= mtk_drm_crtc_atomic_enable,
 };
 
 static int mtk_drm_crtc_init(struct drm_device *drm,

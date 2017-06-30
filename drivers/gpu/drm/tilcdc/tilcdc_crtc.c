@@ -504,6 +504,12 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	mutex_unlock(&tilcdc_crtc->enable_lock);
 }
 
+static void tilcdc_crtc_atomic_enable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
+{
+	tilcdc_crtc_enable(crtc);
+}
+
 static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
@@ -729,9 +735,9 @@ static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
 		.mode_fixup     = tilcdc_crtc_mode_fixup,
-		.enable		= tilcdc_crtc_enable,
 		.disable	= tilcdc_crtc_disable,
 		.atomic_check	= tilcdc_crtc_atomic_check,
+		.atomic_enable	= tilcdc_crtc_atomic_enable,
 };
 
 int tilcdc_crtc_max_width(struct drm_crtc *crtc)

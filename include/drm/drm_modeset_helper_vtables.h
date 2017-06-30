@@ -71,7 +71,7 @@ struct drm_crtc_helper_funcs {
 	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
 	 * also support using this hook for enabling and disabling a CRTC to
 	 * facilitate transitions to atomic, but it is deprecated. Instead
-	 * @enable and @disable should be used.
+	 * @atomic_enable and @atomic_disable should be used.
 	 */
 	void (*dpms)(struct drm_crtc *crtc, int mode);
 
@@ -85,8 +85,8 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
 	 * also support using this hook for disabling a CRTC to facilitate
-	 * transitions to atomic, but it is deprecated. Instead @disable should
-	 * be used.
+	 * transitions to atomic, but it is deprecated. Instead @atomic_disable
+	 * should be used.
 	 */
 	void (*prepare)(struct drm_crtc *crtc);
 
@@ -100,8 +100,8 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This callback is used by the legacy CRTC helpers.  Atomic helpers
 	 * also support using this hook for enabling a CRTC to facilitate
-	 * transitions to atomic, but it is deprecated. Instead @enable should
-	 * be used.
+	 * transitions to atomic, but it is deprecated. Instead @atomic_enable
+	 * should be used.
 	 */
 	void (*commit)(struct drm_crtc *crtc);
 
@@ -222,7 +222,7 @@ struct drm_crtc_helper_funcs {
 	 * pipeline is suspended using either DPMS or the new "ACTIVE" property.
 	 * Which means register values set in this callback might get reset when
 	 * the CRTC is suspended, but not restored.  Such drivers should instead
-	 * move all their CRTC setup into the @enable callback.
+	 * move all their CRTC setup into the @atomic_enable callback.
 	 *
 	 * This callback is optional.
 	 */
@@ -297,7 +297,7 @@ struct drm_crtc_helper_funcs {
 	 * Atomic drivers don't need to implement it if there's no need to
 	 * disable anything at the CRTC level. To ensure that runtime PM
 	 * handling (using either DPMS or the new "ACTIVE" property) works
-	 * @disable must be the inverse of @enable for atomic drivers.
+	 * @disable must be the inverse of @atomic_enable for atomic drivers.
 	 * Atomic drivers should consider to use @atomic_disable instead of
 	 * this one.
 	 *
@@ -314,24 +314,6 @@ struct drm_crtc_helper_funcs {
 	 * rules under atomic.
 	 */
 	void (*disable)(struct drm_crtc *crtc);
-
-	/**
-	 * @enable:
-	 *
-	 * This callback should be used to enable the CRTC. With the atomic
-	 * drivers it is called before all encoders connected to this CRTC are
-	 * enabled through the encoder's own &drm_encoder_helper_funcs.enable
-	 * hook.  If that sequence is too simple drivers can just add their own
-	 * hooks and call it from this CRTC callback here by looping over all
-	 * encoders connected to it using for_each_encoder_on_crtc().
-	 *
-	 * This hook is used only by atomic helpers, for symmetry with @disable.
-	 * Atomic drivers don't need to implement it if there's no need to
-	 * enable anything at the CRTC level. To ensure that runtime PM handling
-	 * (using either DPMS or the new "ACTIVE" property) works
-	 * @enable must be the inverse of @disable for atomic drivers.
-	 */
-	void (*enable)(struct drm_crtc *crtc);
 
 	/**
 	 * @atomic_check:
@@ -431,6 +413,30 @@ struct drm_crtc_helper_funcs {
 	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
 			     struct drm_crtc_state *old_crtc_state);
+
+	/**
+	 * @atomic_enable:
+	 *
+	 * This callback should be used to enable the CRTC. With the atomic
+	 * drivers it is called before all encoders connected to this CRTC are
+	 * enabled through the encoder's own &drm_encoder_helper_funcs.enable
+	 * hook.  If that sequence is too simple drivers can just add their own
+	 * hooks and call it from this CRTC callback here by looping over all
+	 * encoders connected to it using for_each_encoder_on_crtc().
+	 *
+	 * This hook is used only by atomic helpers, for symmetry with
+	 * @atomic_disable. Atomic drivers don't need to implement it if there's
+	 * no need to enable anything at the CRTC level. To ensure that runtime
+	 * PM handling (using either DPMS or the new "ACTIVE" property) works
+	 * @atomic_enable must be the inverse of @atomic_disable for atomic
+	 * drivers.
+	 *
+	 * Drivers can use the @old_crtc_state input parameter if the operations
+	 * needed to enable the CRTC don't depend solely on the new state but
+	 * also on the transition between the old state and the new state.
+	 */
+	void (*atomic_enable)(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state);
 
 	/**
 	 * @atomic_disable:

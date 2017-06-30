@@ -552,7 +552,8 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
  * CRTC Functions
  */
 
-static void rcar_du_crtc_enable(struct drm_crtc *crtc)
+static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
@@ -610,9 +611,9 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.disable = rcar_du_crtc_disable,
-	.enable = rcar_du_crtc_enable,
 	.atomic_begin = rcar_du_crtc_atomic_begin,
 	.atomic_flush = rcar_du_crtc_atomic_flush,
+	.atomic_enable = rcar_du_crtc_atomic_enable,
 };
 
 static int rcar_du_crtc_enable_vblank(struct drm_crtc *crtc)

@@ -183,7 +183,8 @@ static void atmel_hlcdc_crtc_disable(struct drm_crtc *c)
 	pm_runtime_put_sync(dev->dev);
 }
 
-static void atmel_hlcdc_crtc_enable(struct drm_crtc *c)
+static void atmel_hlcdc_crtc_atomic_enable(struct drm_crtc *c,
+					   struct drm_crtc_state *old_state)
 {
 	struct drm_device *dev = c->dev;
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
@@ -320,10 +321,10 @@ static const struct drm_crtc_helper_funcs lcdc_crtc_helper_funcs = {
 	.mode_set_nofb = atmel_hlcdc_crtc_mode_set_nofb,
 	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.disable = atmel_hlcdc_crtc_disable,
-	.enable = atmel_hlcdc_crtc_enable,
 	.atomic_check = atmel_hlcdc_crtc_atomic_check,
 	.atomic_begin = atmel_hlcdc_crtc_atomic_begin,
 	.atomic_flush = atmel_hlcdc_crtc_atomic_flush,
+	.atomic_enable = atmel_hlcdc_crtc_atomic_enable,
 };
 
 static void atmel_hlcdc_crtc_destroy(struct drm_crtc *c)

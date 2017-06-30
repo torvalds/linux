@@ -1243,7 +1243,8 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 	pm_runtime_put_sync(dc->dev);
 }
 
-static void tegra_crtc_enable(struct drm_crtc *crtc)
+static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
@@ -1352,10 +1353,10 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.disable = tegra_crtc_disable,
-	.enable = tegra_crtc_enable,
 	.atomic_check = tegra_crtc_atomic_check,
 	.atomic_begin = tegra_crtc_atomic_begin,
 	.atomic_flush = tegra_crtc_atomic_flush,
+	.atomic_enable = tegra_crtc_atomic_enable,
 };
 
 static irqreturn_t tegra_dc_irq(int irq, void *data)

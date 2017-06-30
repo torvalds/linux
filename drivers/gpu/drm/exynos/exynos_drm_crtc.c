@@ -21,7 +21,8 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_plane.h"
 
-static void exynos_drm_crtc_enable(struct drm_crtc *crtc)
+static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
+					  struct drm_crtc_state *old_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
@@ -82,11 +83,11 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
-	.enable		= exynos_drm_crtc_enable,
 	.disable	= exynos_drm_crtc_disable,
 	.atomic_check	= exynos_crtc_atomic_check,
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,
+	.atomic_enable	= exynos_drm_crtc_atomic_enable,
 };
 
 void exynos_crtc_handle_event(struct exynos_drm_crtc *exynos_crtc)

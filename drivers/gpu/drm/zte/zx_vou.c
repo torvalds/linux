@@ -350,7 +350,8 @@ static inline void vou_chn_set_update(struct zx_crtc *zcrtc)
 	zx_writel(zcrtc->chnreg + CHN_UPDATE, 1);
 }
 
-static void zx_crtc_enable(struct drm_crtc *crtc)
+static void zx_crtc_atomic_enable(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_state)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
@@ -490,9 +491,9 @@ static void zx_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs zx_crtc_helper_funcs = {
-	.enable = zx_crtc_enable,
 	.disable = zx_crtc_disable,
 	.atomic_flush = zx_crtc_atomic_flush,
+	.atomic_enable = zx_crtc_atomic_enable,
 };
 
 static int zx_vou_enable_vblank(struct drm_crtc *crtc)
