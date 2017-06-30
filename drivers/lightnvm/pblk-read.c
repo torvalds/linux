@@ -34,8 +34,7 @@ static int pblk_read_from_cache(struct pblk *pblk, struct bio *bio,
 	BUG_ON(!pblk_addr_in_cache(ppa));
 #endif
 
-	return pblk_rb_copy_to_bio(&pblk->rwb, bio, lba,
-					pblk_addr_to_cacheline(ppa), bio_iter);
+	return pblk_rb_copy_to_bio(&pblk->rwb, bio, lba, ppa, bio_iter);
 }
 
 static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,

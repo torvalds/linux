@@ -670,7 +670,7 @@ unsigned int pblk_rb_read_to_bio_list(struct pblk_rb *rb, struct bio *bio,
 				      struct list_head *list,
 				      unsigned int max);
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
-			u64 pos, int bio_iter);
+			struct ppa_addr ppa, int bio_iter);
 unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int entries);
 
 unsigned int pblk_rb_sync_init(struct pblk_rb *rb, unsigned long *flags);
@@ -1035,6 +1035,14 @@ static inline int pblk_ppa_empty(struct ppa_addr ppa_addr)
 static inline void pblk_ppa_set_empty(struct ppa_addr *ppa_addr)
 {
 	ppa_addr->ppa = ADDR_EMPTY;
+}
+
+static inline bool pblk_ppa_comp(struct ppa_addr lppa, struct ppa_addr rppa)
+{
+	if (lppa.ppa == rppa.ppa)
+		return true;
+
+	return false;
 }
 
 static inline int pblk_addr_in_cache(struct ppa_addr ppa)

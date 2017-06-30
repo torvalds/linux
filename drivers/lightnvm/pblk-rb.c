@@ -150,6 +150,7 @@ try:
 	/* Release flags on context. Protect from writes and reads */
 	smp_store_release(&w_ctx->flags, PBLK_WRITABLE_ENTRY);
 	pblk_ppa_set_empty(&w_ctx->ppa);
+	w_ctx->lba = ADDR_EMPTY;
 }
 
 #define pblk_rb_ring_count(head, tail, size) CIRC_CNT(head, tail, size)
@@ -656,15 +657,17 @@ try:
  * be directed to disk.
  */
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
-			u64 pos, int bio_iter)
+			struct ppa_addr ppa, int bio_iter)
 {
+	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_rb_entry *entry;
 	struct pblk_w_ctx *w_ctx;
+	struct ppa_addr l2p_ppa;
+	u64 pos = pblk_addr_to_cacheline(ppa);
 	void *data;
 	int flags;
 	int ret = 1;
 
-	spin_lock(&rb->w_lock);
 
 #ifdef CONFIG_NVM_DEBUG
 	/* Caller must ensure that the access will not cause an overflow */
@@ -674,8 +677,14 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 	w_ctx = &entry->w_ctx;
 	flags = READ_ONCE(w_ctx->flags);
 
+	spin_lock(&rb->w_lock);
+	spin_lock(&pblk->trans_lock);
+	l2p_ppa = pblk_trans_map_get(pblk, lba);
+	spin_unlock(&pblk->trans_lock);
+
 	/* Check if the entry has been overwritten or is scheduled to be */
-	if (w_ctx->lba != lba || flags & PBLK_WRITABLE_ENTRY) {
+	if (!pblk_ppa_comp(l2p_ppa, ppa) || w_ctx->lba != lba ||
+						flags & PBLK_WRITABLE_ENTRY) {
 		ret = 0;
 		goto out;
 	}
