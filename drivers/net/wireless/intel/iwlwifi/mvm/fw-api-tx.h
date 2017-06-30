@@ -537,7 +537,6 @@ struct agg_tx_status {
  * @tlc_info: TLC rate info
  * @ra_tid: bits [3:0] = ra, bits [7:4] = tid
  * @frame_ctrl: frame control
- * @tx_queue: TX queue for this response
  * @status: for non-agg:  frame status TX_STATUS_*
  *	for agg: status of 1st frame, AGG_TX_STATE_*; other frame status fields
  *	follow this one, up to frame_count. Length in @frame_count.
@@ -596,6 +595,7 @@ struct iwl_mvm_tx_resp_v3 {
  * @ra_tid: bits [3:0] = ra, bits [7:4] = tid
  * @frame_ctrl: frame control
  * @tx_queue: TX queue for this response
+ * @reserved2: reserved for padding/alignment
  * @status: for non-agg:  frame status TX_STATUS_*
  *	For version 6 TX response isn't received for aggregation at all.
  *
@@ -668,13 +668,15 @@ struct iwl_mvm_ba_notif {
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
  * @scd_queue: For debug only - the physical queue the TFD queue is bound to
+ * @tid: TID of the queue (0-7)
  * @reserved: reserved for alignment
  */
 struct iwl_mvm_compressed_ba_tfd {
 	__le16 q_num;
 	__le16 tfd_index;
 	u8 scd_queue;
-	u8 reserved[3];
+	u8 tid;
+	u8 reserved[2];
 } __packed; /* COMPRESSED_BA_TFD_API_S_VER_1 */
 
 /**

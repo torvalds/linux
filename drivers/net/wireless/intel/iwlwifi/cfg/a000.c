@@ -55,7 +55,7 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL_A000_UCODE_API_MAX	31
+#define IWL_A000_UCODE_API_MAX	33
 
 /* Lowest firmware API version supported */
 #define IWL_A000_UCODE_API_MIN	24
@@ -151,6 +151,16 @@ const struct iwl_cfg iwla000_2ac_cfg_hr_cdb = {
 const struct iwl_cfg iwla000_2ac_cfg_jf = {
 		.name = "Intel(R) Dual Band Wireless AC a000",
 		.fw_name_pre = IWL_A000_JF_FW_PRE,
+		IWL_DEVICE_A000,
+		.ht_params = &iwl_a000_ht_params,
+		.nvm_ver = IWL_A000_NVM_VERSION,
+		.nvm_calib_ver = IWL_A000_TX_POWER_VERSION,
+		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+};
+
+const struct iwl_cfg iwla000_2ax_cfg_hr = {
+		.name = "Intel(R) Dual Band Wireless AX a000",
+		.fw_name_pre = IWL_A000_HR_FW_PRE,
 		IWL_DEVICE_A000,
 		.ht_params = &iwl_a000_ht_params,
 		.nvm_ver = IWL_A000_NVM_VERSION,

@@ -255,8 +255,8 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* In CDB mode we cannot modify PHY context between bands so... */
-	if (iwl_mvm_has_new_tx_api(mvm) &&
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT) &&
 	    ctxt->channel->band != chandef->chan->band) {
 		int ret;
 

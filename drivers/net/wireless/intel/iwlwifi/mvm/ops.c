@@ -68,10 +68,10 @@
 #include <linux/vmalloc.h>
 #include <net/mac80211.h>
 
-#include "iwl-notif-wait.h"
+#include "fw/notif-wait.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
-#include "iwl-fw.h"
+#include "fw/img.h"
 #include "iwl-debug.h"
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
@@ -357,9 +357,6 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(SCAN_OFFLOAD_ABORT_CMD),
 	HCMD_NAME(HOT_SPOT_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_PROFILES_QUERY_CMD),
-	HCMD_NAME(SCAN_OFFLOAD_HOTSPOTS_CONFIG_CMD),
-	HCMD_NAME(SCAN_OFFLOAD_HOTSPOTS_QUERY_CMD),
-	HCMD_NAME(BT_COEX_UPDATE_SW_BOOST),
 	HCMD_NAME(BT_COEX_UPDATE_CORUN_LUT),
 	HCMD_NAME(BT_COEX_UPDATE_REDUCED_TXP),
 	HCMD_NAME(BT_COEX_CI),
@@ -368,13 +365,11 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(PHY_DB_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_COMPLETE),
 	HCMD_NAME(SCAN_OFFLOAD_UPDATE_PROFILES_CMD),
-	HCMD_NAME(SCAN_OFFLOAD_CONFIG_CMD),
 	HCMD_NAME(POWER_TABLE_CMD),
 	HCMD_NAME(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION),
 	HCMD_NAME(REPLY_THERMAL_MNG_BACKOFF),
 	HCMD_NAME(DC2DC_CONFIG_CMD),
 	HCMD_NAME(NVM_ACCESS_CMD),
-	HCMD_NAME(SET_CALIB_DEFAULT_CMD),
 	HCMD_NAME(BEACON_NOTIFICATION),
 	HCMD_NAME(BEACON_TEMPLATE_CMD),
 	HCMD_NAME(TX_ANT_CONFIGURATION_CMD),
@@ -383,7 +378,6 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(STATISTICS_NOTIFICATION),
 	HCMD_NAME(EOSP_NOTIFICATION),
 	HCMD_NAME(REDUCE_TX_POWER_CMD),
-	HCMD_NAME(CARD_STATE_CMD),
 	HCMD_NAME(CARD_STATE_NOTIFICATION),
 	HCMD_NAME(MISSED_BEACONS_NOTIFICATION),
 	HCMD_NAME(TDLS_CONFIG_CMD),
@@ -398,8 +392,6 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(MCC_UPDATE_CMD),
 	HCMD_NAME(MCC_CHUB_UPDATE_CMD),
 	HCMD_NAME(MARKER_CMD),
-	HCMD_NAME(BT_COEX_PRIO_TABLE),
-	HCMD_NAME(BT_COEX_PROT_ENV),
 	HCMD_NAME(BT_PROFILE_NOTIFICATION),
 	HCMD_NAME(BCAST_FILTER_CMD),
 	HCMD_NAME(MCAST_FILTER_CMD),
@@ -410,7 +402,6 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(OFFLOADS_QUERY_CMD),
 	HCMD_NAME(REMOTE_WAKE_CONFIG_CMD),
 	HCMD_NAME(MATCH_FOUND_NOTIFICATION),
-	HCMD_NAME(CMD_DTS_MEASUREMENT_TRIGGER),
 	HCMD_NAME(DTS_MEASUREMENT_NOTIFICATION),
 	HCMD_NAME(WOWLAN_PATTERNS),
 	HCMD_NAME(WOWLAN_CONFIGURATION),
@@ -418,11 +409,9 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(WOWLAN_TKIP_PARAM),
 	HCMD_NAME(WOWLAN_KEK_KCK_MATERIAL),
 	HCMD_NAME(WOWLAN_GET_STATUSES),
-	HCMD_NAME(WOWLAN_TX_POWER_PER_DB),
 	HCMD_NAME(SCAN_ITERATION_COMPLETE),
 	HCMD_NAME(D0I3_END_CMD),
 	HCMD_NAME(LTR_CONFIG),
-	HCMD_NAME(REPLY_DEBUG_CMD),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -605,7 +594,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			goto out_free;
 	}
 
-	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
+	mvm->fw_restart = iwlwifi_mod_params.fw_restart ? -1 : 0;
 
 	if (!iwl_mvm_is_dqa_supported(mvm)) {
 		mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
@@ -613,9 +602,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		if (mvm->cfg->base_params->num_of_queues == 16) {
 			mvm->aux_queue = 11;
 			mvm->first_agg_queue = 12;
+			BUILD_BUG_ON(BITS_PER_BYTE *
+				     sizeof(mvm->hw_queue_to_mac80211[0]) < 12);
 		} else {
 			mvm->aux_queue = 15;
 			mvm->first_agg_queue = 16;
+			BUILD_BUG_ON(BITS_PER_BYTE *
+				     sizeof(mvm->hw_queue_to_mac80211[0]) < 16);
 		}
 	} else {
 		mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;
@@ -752,7 +745,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
 	err = iwl_run_init_mvm_ucode(mvm, true);
-	if (!err || !iwlmvm_mod_params.init_dbg)
+	if (!iwlmvm_mod_params.init_dbg)
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
 	mutex_unlock(&mvm->mutex);
@@ -783,7 +776,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (err)
 		goto out_unregister;
 
-	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
+	if (!iwl_mvm_has_new_rx_stats_api(mvm))
+		memset(&mvm->rx_stats_v3, 0,
+		       sizeof(struct mvm_statistics_rx_v3));
+	else
+		memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
 	/* The transport always starts with a taken reference, we can
 	 * release it now if d0i3 is supported */
@@ -1236,7 +1233,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * If WoWLAN fw asserted, don't restart either, mac80211
 	 * can't recover this since we're already half suspended.
 	 */
-	if (!mvm->restart_fw && fw_error) {
+	if (!mvm->fw_restart && fw_error) {
 		iwl_mvm_fw_dbg_collect_desc(mvm, &iwl_mvm_dump_desc_assert,
 					    NULL);
 	} else if (test_and_set_bit(IWL_MVM_STATUS_IN_HW_RESTART,
@@ -1269,8 +1266,8 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
-		if (fw_error && mvm->restart_fw > 0)
-			mvm->restart_fw--;
+		if (fw_error && mvm->fw_restart > 0)
+			mvm->fw_restart--;
 		ieee80211_restart_hw(mvm->hw);
 	}
 }

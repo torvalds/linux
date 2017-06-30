@@ -331,9 +331,11 @@ struct iwl_ac_qos {
  * @id_and_color: ID and color of the MAC
  * @action: action to perform, one of FW_CTXT_ACTION_*
  * @mac_type: one of &enum iwl_mac_types
- * @tsd_id: TSF HW timer, one of &enum iwl_tsf_id
+ * @tsf_id: TSF HW timer, one of &enum iwl_tsf_id
  * @node_addr: MAC address
+ * @reserved_for_node_addr: reserved
  * @bssid_addr: BSSID
+ * @reserved_for_bssid_addr: reserved
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
  * @protection_flags: combination of &enum iwl_mac_protection_flags
@@ -342,7 +344,6 @@ struct iwl_ac_qos {
  * @filter_flags: combination of &enum iwl_mac_filter_flags
  * @qos_flags: from &enum iwl_mac_qos_flags
  * @ac: one iwl_mac_qos configuration for each AC
- * @mac_specific: one of struct iwl_mac_data_*, according to mac_type
  */
 struct iwl_mac_ctx_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */

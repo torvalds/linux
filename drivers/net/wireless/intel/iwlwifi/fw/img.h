@@ -64,12 +64,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __iwl_fw_h__
-#define __iwl_fw_h__
+#ifndef __iwl_fw_img_h__
+#define __iwl_fw_img_h__
 #include <linux/types.h>
 
-#include "iwl-fw-file.h"
-#include "iwl-fw-error-dump.h"
+#include "file.h"
+#include "error-dump.h"
 
 /**
  * enum iwl_ucode_type
@@ -339,4 +339,4 @@ iwl_get_ucode_image(const struct iwl_fw *fw, enum iwl_ucode_type ucode_type)
 	return &fw->img[ucode_type];
 }
 
-#endif  /* __iwl_fw_h__ */
+#endif  /* __iwl_fw_img_h__ */

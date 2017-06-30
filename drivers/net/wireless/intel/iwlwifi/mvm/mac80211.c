@@ -84,7 +84,7 @@
 #include "iwl-eeprom-parse.h"
 #include "iwl-phy-db.h"
 #include "testmode.h"
-#include "iwl-fw-error-dump.h"
+#include "fw/error-dump.h"
 #include "iwl-prph.h"
 #include "iwl-nvm-parse.h"
 #include "fw-dbg.h"
@@ -493,7 +493,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	 * firmware will interpret some mgmt packets, so enabling it
 	 * with software crypto isn't safe).
 	 */
-	if (!iwlwifi_mod_params.sw_crypto) {
+	if (!iwlwifi_mod_params.swcrypto) {
 		ieee80211_hw_set(hw, MFP_CAPABLE);
 		mvm->ciphers[hw->wiphy->n_cipher_suites] =
 			WLAN_CIPHER_SUITE_AES_CMAC;
@@ -687,7 +687,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 				     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
 				     WIPHY_WOWLAN_RFKILL_RELEASE |
 				     WIPHY_WOWLAN_NET_DETECT;
-		if (!iwlwifi_mod_params.sw_crypto)
+		if (!iwlwifi_mod_params.swcrypto)
 			mvm->wowlan.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 					     WIPHY_WOWLAN_GTK_REKEY_FAILURE |
 					     WIPHY_WOWLAN_4WAY_HANDSHAKE;
@@ -2888,7 +2888,7 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	int ret;
 	u8 key_offset;
 
-	if (iwlwifi_mod_params.sw_crypto) {
+	if (iwlwifi_mod_params.swcrypto) {
 		IWL_DEBUG_MAC80211(mvm, "leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -4151,11 +4151,11 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					const struct ieee80211_event *event)
 {
-#define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _fmt...)	\
+#define CHECK_MLME_TRIGGER(_cnt, _fmt...)			\
 	do {							\
-		if ((_cnt) && --(_cnt))				\
+		if ((trig_mlme->_cnt) && --(trig_mlme->_cnt))	\
 			break;					\
-		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);\
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig, _fmt);	\
 	} while (0)
 
 	struct iwl_fw_dbg_trigger_tlv *trig;
@@ -4171,31 +4171,25 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 
 	if (event->u.mlme.data == ASSOC_EVENT) {
 		if (event->u.mlme.status == MLME_DENIED)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_assoc_denied,
+			CHECK_MLME_TRIGGER(stop_assoc_denied,
 					   "DENIED ASSOC: reason %d",
 					    event->u.mlme.reason);
 		else if (event->u.mlme.status == MLME_TIMEOUT)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_assoc_timeout,
+			CHECK_MLME_TRIGGER(stop_assoc_timeout,
 					   "ASSOC TIMEOUT");
 	} else if (event->u.mlme.data == AUTH_EVENT) {
 		if (event->u.mlme.status == MLME_DENIED)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_auth_denied,
+			CHECK_MLME_TRIGGER(stop_auth_denied,
 					   "DENIED AUTH: reason %d",
 					   event->u.mlme.reason);
 		else if (event->u.mlme.status == MLME_TIMEOUT)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_auth_timeout,
+			CHECK_MLME_TRIGGER(stop_auth_timeout,
 					   "AUTH TIMEOUT");
 	} else if (event->u.mlme.data == DEAUTH_RX_EVENT) {
-		CHECK_MLME_TRIGGER(mvm, trig, buf,
-				   trig_mlme->stop_rx_deauth,
+		CHECK_MLME_TRIGGER(stop_rx_deauth,
 				   "DEAUTH RX %d", event->u.mlme.reason);
 	} else if (event->u.mlme.data == DEAUTH_TX_EVENT) {
-		CHECK_MLME_TRIGGER(mvm, trig, buf,
-				   trig_mlme->stop_tx_deauth,
+		CHECK_MLME_TRIGGER(stop_tx_deauth,
 				   "DEAUTH TX %d", event->u.mlme.reason);
 	}
 #undef CHECK_MLME_TRIGGER

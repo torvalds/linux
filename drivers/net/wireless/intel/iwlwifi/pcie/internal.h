@@ -654,6 +654,13 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
+static inline void iwl_pcie_sw_reset(struct iwl_trans *trans)
+{
+	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
+	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	usleep_range(5000, 6000);
+}
+
 static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
 				     struct iwl_txq *txq, int idx)
 {
@@ -673,6 +680,16 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 			    trans_pcie->fh_init_mask);
 		iwl_enable_hw_int_msk_msix(trans,
 					   MSIX_HW_INT_CAUSES_REG_RF_KILL);
+	}
+
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_9000) {
+		/*
+		 * On 9000-series devices this bit isn't enabled by default, so
+		 * when we power down the device we need set the bit to allow it
+		 * to wake up the PCI-E bus for RF-kill interrupts.
+		 */
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_RFKILL_WAKE_L1A_EN);
 	}
 }
 

@@ -202,4 +202,28 @@ struct iwl_tx_queue_cfg_rsp {
 	__le16 reserved;
 } __packed; /* TX_QUEUE_CFG_RSP_API_S_VER_2 */
 
+/**
+ * struct iwl_calib_res_notif_phy_db - Receive phy db chunk after calibrations
+ * @type: type of the result - mostly ignored
+ * @length: length of the data
+ * @data: data, length in @length
+ */
+struct iwl_calib_res_notif_phy_db {
+	__le16 type;
+	__le16 length;
+	u8 data[];
+} __packed;
+
+/**
+ * struct iwl_phy_db_cmd - configure operational ucode
+ * @type: type of the data
+ * @length: length of the data
+ * @data: data, length in @length
+ */
+struct iwl_phy_db_cmd {
+	__le16 type;
+	__le16 length;
+	u8 data[];
+} __packed;
+
 #endif /* __iwl_fw_api_h__*/

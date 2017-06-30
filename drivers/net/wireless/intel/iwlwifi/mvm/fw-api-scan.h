@@ -80,6 +80,10 @@
  * selected by "type" bit field in struct iwl_scan_channel;
  * each channel may select different ssids from among the 20 entries.
  * SSID IEs get transmitted in reverse order of entry.
+ *
+ * @id: element ID
+ * @len: element length
+ * @ssid: element (SSID) data
  */
 struct iwl_ssid_ie {
 	u8 id;
@@ -137,10 +141,11 @@ enum iwl_scan_offload_band_selection {
  * struct iwl_scan_offload_profile - SCAN_OFFLOAD_PROFILE_S
  * @ssid_index:		index to ssid list in fixed part
  * @unicast_cipher:	encryption algorithm to match - bitmap
- * @aut_alg:		authentication algorithm to match - bitmap
+ * @auth_alg:		authentication algorithm to match - bitmap
  * @network_type:	enum iwl_scan_offload_network_type
  * @band_selection:	enum iwl_scan_offload_band_selection
  * @client_bitmap:	clients waiting for match - enum scan_framework_client
+ * @reserved:		reserved
  */
 struct iwl_scan_offload_profile {
 	u8 ssid_index;
@@ -161,6 +166,7 @@ struct iwl_scan_offload_profile {
  * @pass_match:		clients waiting for the results
  * @active_clients:	active clients bitmap - enum scan_framework_client
  * @any_beacon_notify:	clients waiting for match notification without match
+ * @reserved:		reserved
  */
 struct iwl_scan_offload_profile_cfg {
 	struct iwl_scan_offload_profile profiles[IWL_SCAN_MAX_PROFILES];
@@ -221,7 +227,7 @@ enum iwl_scan_channel_flags_lmac {
  * struct iwl_scan_channel_cfg_lmac - SCAN_CHANNEL_CFG_S_VER2
  * @flags:		bits 1-20: directed scan to i'th ssid
  *			other bits &enum iwl_scan_channel_flags_lmac
- * @channel_number:	channel number 1-13 etc
+ * @channel_num:	channel number 1-13 etc
  * @iter_count:		scan iteration on this channel
  * @iter_interval:	interval in seconds between iterations on one channel
  */
@@ -280,7 +286,7 @@ struct iwl_scan_channel_opt {
  * @IWL_MVM_LMAC_SCAN_FLAG_PASSIVE: force passive scan on all channels
  * @IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION: single channel scan
  * @IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE: send iteration complete notification
- * @IWL_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS multiple SSID matching
+ * @IWL_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS: multiple SSID matching
  * @IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED: all passive scans will be fragmented
  * @IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED: insert WFA vendor-specific TPC report
  *	and DS parameter set IEs into probe requests.
@@ -320,13 +326,13 @@ enum iwl_scan_priority_ext {
 /**
  * struct iwl_scan_req_lmac - SCAN_REQUEST_CMD_API_S_VER_1
  * @reserved1: for alignment and future use
- * @channel_num: num of channels to scan
- * @active-dwell: dwell time for active channels
- * @passive-dwell: dwell time for passive channels
- * @fragmented-dwell: dwell time for fragmented passive scan
+ * @n_channels: num of channels to scan
+ * @active_dwell: dwell time for active channels
+ * @passive_dwell: dwell time for passive channels
+ * @fragmented_dwell: dwell time for fragmented passive scan
  * @extended_dwell: dwell time for channels 1, 6 and 11 (in certain cases)
  * @reserved2: for alignment and future use
- * @rx_chain_selct: PHY_RX_CHAIN_* flags
+ * @rx_chain_select: PHY_RX_CHAIN_* flags
  * @scan_flags: &enum iwl_mvm_lmac_scan_flags
  * @max_out_time: max time (in TU) to be out of associated channel
  * @suspend_time: pause scan this long (TUs) when returning to service channel
@@ -411,9 +417,10 @@ struct iwl_lmac_scan_complete_notif {
  * struct iwl_scan_offload_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
  * @last_schedule_line: last schedule line executed (fast or regular)
  * @last_schedule_iteration: last scan iteration executed before scan abort
- * @status: enum iwl_scan_offload_complete_status
+ * @status: &enum iwl_scan_offload_complete_status
  * @ebs_status: EBS success status &enum iwl_scan_ebs_status
- * @time_after_last_iter; time in seconds elapsed after last iteration
+ * @time_after_last_iter: time in seconds elapsed after last iteration
+ * @reserved: reserved
  */
 struct iwl_periodic_scan_complete {
 	u8 last_schedule_line;
@@ -699,8 +706,8 @@ struct iwl_umac_scan_abort {
  * struct iwl_umac_scan_complete
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @last_schedule: last scheduling line
- * @last_iter:	last scan iteration number
- * @scan status: &enum iwl_scan_offload_complete_status
+ * @last_iter: last scan iteration number
+ * @status: &enum iwl_scan_offload_complete_status
  * @ebs_status: &enum iwl_scan_ebs_status
  * @time_from_last_iter: time elapsed from last iteration
  * @reserved: for future use
@@ -719,9 +726,10 @@ struct iwl_umac_scan_complete {
 /**
  * struct iwl_scan_offload_profile_match - match information
  * @bssid: matched bssid
+ * @reserved: reserved
  * @channel: channel where the match occurred
- * @energy:
- * @matching_feature:
+ * @energy: energy
+ * @matching_feature: feature matches
  * @matching_channels: bitmap of channels that matched, referencing
  *	the channels passed in tue scan offload request
  */
