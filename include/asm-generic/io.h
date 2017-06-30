@@ -915,6 +915,9 @@ extern void ioport_unmap(void __iomem *p);
 #endif /* CONFIG_GENERIC_IOMAP */
 #endif /* CONFIG_HAS_IOPORT_MAP */
 
+/*
+ * Convert a virtual cached pointer to an uncached pointer
+ */
 #ifndef xlate_dev_kmem_ptr
 #define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
 static inline void *xlate_dev_kmem_ptr(void *addr)
