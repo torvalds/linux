@@ -66,17 +66,6 @@
 		reset-gpios = <&gpio2 26 GPIO_ACTIVE_LOW>; /* GPIO2_D2 */
 	};
 
-	vcc_host: vcc-host-regulator {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&host_vbus_drv>;
-		regulator-name = "vcc_host";
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		clocks = <&rk805 1>;
@@ -286,11 +275,6 @@
 		};
 	};
 
-	usb {
-		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <3 20 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
 };
 
 &sdio {
@@ -304,6 +288,3 @@
 	status = "disabled";
 };
 
-&u2phy0_host {
-	phy-supply = <&vcc_host>;
-};
