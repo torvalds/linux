@@ -938,7 +938,7 @@ static struct notifier_block pm_notifier = {
 static int __init telemetry_debugfs_init(void)
 {
 	const struct x86_cpu_id *id;
-	int err = -ENOMEM;
+	int err;
 	struct dentry *f;
 
 	/* Only APL supported for now */
@@ -958,11 +958,10 @@ static int __init telemetry_debugfs_init(void)
 
 	register_pm_notifier(&pm_notifier);
 
+	err = -ENOMEM;
 	debugfs_conf->telemetry_dbg_dir = debugfs_create_dir("telemetry", NULL);
-	if (!debugfs_conf->telemetry_dbg_dir) {
-		err = -ENOMEM;
+	if (!debugfs_conf->telemetry_dbg_dir)
 		goto out_pm;
-	}
 
 	f = debugfs_create_file("pss_info", S_IFREG | S_IRUGO,
 				debugfs_conf->telemetry_dbg_dir, NULL,
