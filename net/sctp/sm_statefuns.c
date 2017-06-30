@@ -2990,7 +2990,7 @@ sctp_disposition_t sctp_sf_eat_data_6_2(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_data_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_data_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3109,7 +3109,7 @@ sctp_disposition_t sctp_sf_eat_data_fast_4_4(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_data_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_data_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -6262,7 +6262,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * Actually, allow a little bit of overflow (up to a MTU).
 	 */
 	datalen = ntohs(chunk->chunk_hdr->length);
-	datalen -= sizeof(sctp_data_chunk_t);
+	datalen -= sizeof(struct sctp_data_chunk);
 
 	deliver = SCTP_CMD_CHUNK_ULP;
 

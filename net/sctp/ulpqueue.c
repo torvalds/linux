@@ -1090,7 +1090,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 
 	if (chunk) {
 		needed = ntohs(chunk->chunk_hdr->length);
-		needed -= sizeof(sctp_data_chunk_t);
+		needed -= sizeof(struct sctp_data_chunk);
 	} else
 		needed = SCTP_DEFAULT_MAXWINDOW;
 

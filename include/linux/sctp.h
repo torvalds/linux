@@ -235,10 +235,10 @@ struct sctp_datahdr {
 	__u8  payload[0];
 };
 
-typedef struct sctp_data_chunk {
+struct sctp_data_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_datahdr data_hdr;
-} sctp_data_chunk_t;
+};
 
 /* DATA Chuck Specific Flags */
 enum {

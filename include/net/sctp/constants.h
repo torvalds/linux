@@ -152,7 +152,7 @@ SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
 /* Calculate the actual data size in a data chunk */
 #define SCTP_DATA_SNDSIZE(c) ((int)((unsigned long)(c->chunk_end)\
 		       		- (unsigned long)(c->chunk_hdr)\
-				- sizeof(sctp_data_chunk_t)))
+				- sizeof(struct sctp_data_chunk)))
 
 /* Internal error codes */
 typedef enum {
