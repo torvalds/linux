@@ -245,18 +245,6 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.atomic_print_state = mdp5_plane_atomic_print_state,
 };
 
-static const struct drm_plane_funcs mdp5_cursor_plane_funcs = {
-		.update_plane = drm_atomic_helper_update_plane,
-		.disable_plane = drm_atomic_helper_disable_plane,
-		.destroy = mdp5_plane_destroy,
-		.atomic_set_property = mdp5_plane_atomic_set_property,
-		.atomic_get_property = mdp5_plane_atomic_get_property,
-		.reset = mdp5_plane_reset,
-		.atomic_duplicate_state = mdp5_plane_duplicate_state,
-		.atomic_destroy_state = mdp5_plane_destroy_state,
-		.atomic_print_state = mdp5_plane_atomic_print_state,
-};
-
 static int mdp5_plane_prepare_fb(struct drm_plane *plane,
 				 struct drm_plane_state *new_state)
 {
@@ -1108,16 +1096,9 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
 		ARRAY_SIZE(mdp5_plane->formats), false);
 
-	if (type == DRM_PLANE_TYPE_CURSOR)
-		ret = drm_universal_plane_init(dev, plane, 0xff,
-				&mdp5_cursor_plane_funcs,
-				mdp5_plane->formats, mdp5_plane->nformats,
-				NULL, type, NULL);
-	else
-		ret = drm_universal_plane_init(dev, plane, 0xff,
-				&mdp5_plane_funcs,
-				mdp5_plane->formats, mdp5_plane->nformats,
-				NULL, type, NULL);
+	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
+			mdp5_plane->formats, mdp5_plane->nformats,
+			NULL, type, NULL);
 	if (ret)
 		goto fail;
 
