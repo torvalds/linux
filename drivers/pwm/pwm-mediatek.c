@@ -30,6 +30,8 @@
 #define PWMDWIDTH		0x2c
 #define PWMTHRES		0x30
 
+#define PWM_CLK_DIV_MAX		7
+
 enum {
 	MTK_CLK_MAIN = 0,
 	MTK_CLK_TOP,
@@ -130,8 +132,11 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		clkdiv++;
 	}
 
-	if (clkdiv > 7)
+	if (clkdiv > PWM_CLK_DIV_MAX) {
+		mtk_pwm_clk_disable(chip, pwm);
+		dev_err(chip->dev, "period %d not supported\n", period_ns);
 		return -EINVAL;
+	}
 
 	mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, BIT(15) | clkdiv);
 	mtk_pwm_writel(pc, pwm->hwpwm, PWMDWIDTH, period_ns / resolution);
