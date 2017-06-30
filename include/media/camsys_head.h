@@ -35,8 +35,11 @@
 	1) powerup sequence type moved to common_head.h.
 *v0.e.0:
 	1) add fs_id, fe_id and some reserved bytes in struct camsys_irqsta_s.
+*v0.f.0:
+	1) add pid in struct camsys_irqsta_s.
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0, 0xe, 0)
+
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0, 0xf, 0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -64,7 +67,8 @@ typedef struct camsys_irqsta_s {
     unsigned int mis;                 //Masked interrupt status
 	unsigned int fs_id; // frame number from Frame Start (FS) short packet
 	unsigned int fe_id; // frame number from Frame End (FE) short packet
-	unsigned int reserved[4];
+	int pid;
+	unsigned int reserved[3];
 } camsys_irqsta_t;
 
 typedef struct camsys_irqcnnt_s {

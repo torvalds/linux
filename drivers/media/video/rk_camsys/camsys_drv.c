@@ -643,7 +643,7 @@ static int camsys_irq_wait(camsys_irqsta_t *irqsta, camsys_dev_t *camsys_dev)
 	spin_lock_irqsave(&camsys_dev->irq.lock, flags);
 	if (!list_empty(&camsys_dev->irq.irq_pool)) {
 		list_for_each_entry(irqpool, &camsys_dev->irq.irq_pool, list) {
-			if (irqpool->pid == current->pid) {
+			if (irqpool->pid == irqsta->pid) {
 				find_pool = true;
 				break;
 			}
@@ -654,7 +654,7 @@ static int camsys_irq_wait(camsys_irqsta_t *irqsta, camsys_dev_t *camsys_dev)
 	if (find_pool == false) {
 		camsys_err(
 			"this thread(pid: %d) hasn't been connect irq, so wait irq failed!",
-			current->pid);
+			irqsta->pid);
 		err = -EINVAL;
 		goto end;
 	}
@@ -674,7 +674,7 @@ static int camsys_irq_wait(camsys_irqsta_t *irqsta, camsys_dev_t *camsys_dev)
 			active_list_isnot_empty(irqpool),
 			usecs_to_jiffies(irqpool->timeout));
 
-		if (irqpool->pid == current->pid) {
+		if (irqpool->pid == irqsta->pid) {
 			if (active_list_isnot_empty(irqpool)) {
 				spin_lock_irqsave(&irqpool->lock, flags);
 				irqstas = list_first_entry(
@@ -692,7 +692,7 @@ static int camsys_irq_wait(camsys_irqsta_t *irqsta, camsys_dev_t *camsys_dev)
 		} else {
 			camsys_warn(
 				"Thread(pid: %d) has been disconnect!",
-				current->pid);
+				irqsta->pid);
 			err = -EAGAIN;
 		}
 	}
@@ -700,7 +700,7 @@ static int camsys_irq_wait(camsys_irqsta_t *irqsta, camsys_dev_t *camsys_dev)
 	if (err == 0) {
 		camsys_trace(3,
 			"Thread(pid: %d) has been wake up for irq(mis: 0x%x ris:0x%x)!",
-			current->pid, irqsta->mis, irqsta->ris);
+			irqsta->pid, irqsta->mis, irqsta->ris);
 	}
 
 end:
@@ -1052,7 +1052,9 @@ static long camsys_ioctl_compat(struct file *filp, unsigned int cmd, unsigned
 
 	case CAMSYS_IRQWAIT: {
 		camsys_irqsta_t irqsta;
-
+		if (copy_from_user((void *)&irqsta, (void __user *)arg,
+			sizeof(camsys_irqsta_t)))
+			return -EFAULT;
 		err = camsys_irq_wait(&irqsta, camsys_dev);
 		if (err == 0) {
 			if (copy_to_user((void __user *)arg, (void *)&irqsta,
@@ -1263,7 +1265,9 @@ static long camsys_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case CAMSYS_IRQWAIT:
 	{
 		camsys_irqsta_t irqsta;
-
+		if (copy_from_user((void *)&irqsta, (void __user *)arg,
+			sizeof(camsys_irqsta_t)))
+			return -EFAULT;
 		err = camsys_irq_wait(&irqsta, camsys_dev);
 		if (err == 0) {
 			if (copy_to_user((void __user *)arg, (void *)&irqsta,

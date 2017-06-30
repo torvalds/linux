@@ -185,9 +185,11 @@
 	fs_id and fe_id into isp library.
 *v0.0x22.8:
 	1) 3399 power management is wrong, correct it.
+*v0.0x23.0:
+       1) replace current->pid with irqsta->pid.
 */
 
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 8)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x23, 0)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
