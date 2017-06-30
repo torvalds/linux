@@ -26,10 +26,6 @@
 
 bool amdgpu_atomfirmware_gpu_supports_virtualization(struct amdgpu_device *adev);
 void amdgpu_atomfirmware_scratch_regs_init(struct amdgpu_device *adev);
-void amdgpu_atomfirmware_scratch_regs_save(struct amdgpu_device *adev);
-void amdgpu_atomfirmware_scratch_regs_restore(struct amdgpu_device *adev);
-void amdgpu_atomfirmware_scratch_regs_engine_hung(struct amdgpu_device *adev,
-						  bool hung);
 int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev);
 
 #endif

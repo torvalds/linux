@@ -2393,10 +2393,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	 */
 	amdgpu_bo_evict_vram(adev);
 
-	if (adev->is_atom_fw)
-		amdgpu_atomfirmware_scratch_regs_save(adev);
-	else
-		amdgpu_atombios_scratch_regs_save(adev);
+	amdgpu_atombios_scratch_regs_save(adev);
 	pci_save_state(dev->pdev);
 	if (suspend) {
 		/* Shut down the device */
@@ -2445,10 +2442,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 		if (r)
 			goto unlock;
 	}
-	if (adev->is_atom_fw)
-		amdgpu_atomfirmware_scratch_regs_restore(adev);
-	else
-		amdgpu_atombios_scratch_regs_restore(adev);
+	amdgpu_atombios_scratch_regs_restore(adev);
 
 	/* post card */
 	if (amdgpu_need_post(adev)) {
@@ -2861,15 +2855,9 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 		r = amdgpu_suspend(adev);
 
 retry:
-		if (adev->is_atom_fw)
-			amdgpu_atomfirmware_scratch_regs_save(adev);
-		else
-			amdgpu_atombios_scratch_regs_save(adev);
+		amdgpu_atombios_scratch_regs_save(adev);
 		r = amdgpu_asic_reset(adev);
-		if (adev->is_atom_fw)
-			amdgpu_atomfirmware_scratch_regs_restore(adev);
-		else
-			amdgpu_atombios_scratch_regs_restore(adev);
+		amdgpu_atombios_scratch_regs_restore(adev);
 		/* post card */
 		amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
