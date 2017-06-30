@@ -736,7 +736,12 @@ bool amdgpu_need_post(struct amdgpu_device *adev)
 		adev->has_hw_reset = false;
 		return true;
 	}
-	/* then check MEM_SIZE, in case the crtcs are off */
+
+	/* bios scratch used on CIK+ */
+	if (adev->asic_type >= CHIP_BONAIRE)
+		return amdgpu_atombios_scratch_need_asic_init(adev);
+
+	/* check MEM_SIZE for older asics */
 	reg = amdgpu_asic_get_config_memsize(adev);
 
 	if ((reg != 0) && (reg != 0xffffffff))
