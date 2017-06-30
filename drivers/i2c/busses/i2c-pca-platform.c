@@ -184,7 +184,6 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 			if (ret == 0) {
 				i2c->gpio = gpio_to_desc(platform_data->gpio);
 				gpiod_direction_output(i2c->gpio, 0);
-				i2c->algo_data.reset_chip = i2c_pca_pf_resetchip;
 			} else {
 				dev_warn(&pdev->dev, "Registering gpio failed!\n");
 				i2c->gpio = NULL;
@@ -205,7 +204,10 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 
 	i2c->algo_data.data = i2c;
 	i2c->algo_data.wait_for_completion = i2c_pca_pf_waitforcompletion;
-	i2c->algo_data.reset_chip = i2c_pca_pf_dummyreset;
+	if (i2c->gpio)
+		i2c->algo_data.reset_chip = i2c_pca_pf_resetchip;
+	else
+		i2c->algo_data.reset_chip = i2c_pca_pf_dummyreset;
 
 	switch (res->flags & IORESOURCE_MEM_TYPE_MASK) {
 	case IORESOURCE_MEM_32BIT:
