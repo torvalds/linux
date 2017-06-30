@@ -79,7 +79,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 			 * already in progress, just let that be the last
 			 * authoritative one
 			 */
-			acpi_nfit_ars_rescan(acpi_desc);
+			acpi_nfit_ars_rescan(acpi_desc, 0);
 		}
 		break;
 	}
