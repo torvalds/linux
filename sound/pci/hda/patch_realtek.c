@@ -327,6 +327,7 @@ static void alc_fill_eapd_coef(struct hda_codec *codec)
 	case 0x10ec0292:
 		alc_update_coef_idx(codec, 0x4, 1<<15, 0);
 		break;
+	case 0x10ec0215:
 	case 0x10ec0225:
 	case 0x10ec0233:
 	case 0x10ec0255:
@@ -335,12 +336,13 @@ static void alc_fill_eapd_coef(struct hda_codec *codec)
 	case 0x10ec0283:
 	case 0x10ec0286:
 	case 0x10ec0288:
+	case 0x10ec0285:
 	case 0x10ec0295:
 	case 0x10ec0298:
+	case 0x10ec0289:
 	case 0x10ec0299:
 		alc_update_coef_idx(codec, 0x10, 1<<9, 0);
 		break;
-	case 0x10ec0285:
 	case 0x10ec0293:
 		alc_update_coef_idx(codec, 0xa, 1<<13, 0);
 		break;
@@ -2738,11 +2740,12 @@ enum {
 	ALC269_TYPE_ALC282,
 	ALC269_TYPE_ALC283,
 	ALC269_TYPE_ALC284,
-	ALC269_TYPE_ALC285,
+	ALC269_TYPE_ALC293,
 	ALC269_TYPE_ALC286,
 	ALC269_TYPE_ALC298,
 	ALC269_TYPE_ALC255,
 	ALC269_TYPE_ALC256,
+	ALC269_TYPE_ALC215,
 	ALC269_TYPE_ALC225,
 	ALC269_TYPE_ALC294,
 	ALC269_TYPE_ALC700,
@@ -2764,7 +2767,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	case ALC269_TYPE_ALC269VC:
 	case ALC269_TYPE_ALC280:
 	case ALC269_TYPE_ALC284:
-	case ALC269_TYPE_ALC285:
+	case ALC269_TYPE_ALC293:
 		ssids = alc269va_ssids;
 		break;
 	case ALC269_TYPE_ALC269VB:
@@ -2775,6 +2778,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	case ALC269_TYPE_ALC298:
 	case ALC269_TYPE_ALC255:
 	case ALC269_TYPE_ALC256:
+	case ALC269_TYPE_ALC215:
 	case ALC269_TYPE_ALC225:
 	case ALC269_TYPE_ALC294:
 	case ALC269_TYPE_ALC700:
@@ -6678,9 +6682,8 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0292:
 		spec->codec_variant = ALC269_TYPE_ALC284;
 		break;
-	case 0x10ec0285:
 	case 0x10ec0293:
-		spec->codec_variant = ALC269_TYPE_ALC285;
+		spec->codec_variant = ALC269_TYPE_ALC293;
 		break;
 	case 0x10ec0286:
 	case 0x10ec0288:
@@ -6699,6 +6702,12 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->init_hook = alc256_init;
 		spec->gen.mixer_nid = 0; /* ALC256 does not have any loopback mixer path */
 		alc_update_coef_idx(codec, 0x36, 1 << 13, 1 << 5); /* Switch pcbeep path to Line in path*/
+		break;
+	case 0x10ec0215:
+	case 0x10ec0285:
+	case 0x10ec0289:
+		spec->codec_variant = ALC269_TYPE_ALC215;
+		spec->gen.mixer_nid = 0;
 		break;
 	case 0x10ec0225:
 	case 0x10ec0295:
@@ -7730,6 +7739,7 @@ static int patch_alc680(struct hda_codec *codec)
  * patch entries
  */
 static const struct hda_device_id snd_hda_id_realtek[] = {
+	HDA_CODEC_ENTRY(0x10ec0215, "ALC215", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0221, "ALC221", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0225, "ALC225", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0231, "ALC231", patch_alc269),
@@ -7755,6 +7765,7 @@ static const struct hda_device_id snd_hda_id_realtek[] = {
 	HDA_CODEC_ENTRY(0x10ec0285, "ALC285", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0286, "ALC286", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0288, "ALC288", patch_alc269),
+	HDA_CODEC_ENTRY(0x10ec0289, "ALC289", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0290, "ALC290", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0292, "ALC292", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0293, "ALC293", patch_alc269),
