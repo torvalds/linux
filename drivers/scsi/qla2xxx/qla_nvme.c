@@ -17,9 +17,11 @@ static void qla_nvme_unregister_remote_port(struct work_struct *);
 
 int qla_nvme_register_remote(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
-#if (IS_ENABLED(CONFIG_NVME_FC))
 	struct nvme_rport *rport;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_NVME_FC))
+		return 0;
 
 	if (fcport->nvme_flag & NVME_FLAG_REGISTERED)
 		return 0;
@@ -78,7 +80,6 @@ int qla_nvme_register_remote(scsi_qla_host_t *vha, fc_port_t *fcport)
 	init_waitqueue_head(&fcport->nvme_waitQ);
 	rport->fcport = fcport;
 	list_add_tail(&rport->list, &vha->nvme_rport_list);
-#endif
 	return 0;
 }
 
@@ -666,10 +667,12 @@ static void qla_nvme_abort_all(fc_port_t *fcport)
 
 static void qla_nvme_unregister_remote_port(struct work_struct *work)
 {
-#if (IS_ENABLED(CONFIG_NVME_FC))
 	struct fc_port *fcport = container_of(work, struct fc_port,
 	    nvme_del_work);
 	struct nvme_rport *rport, *trport;
+
+	if (!IS_ENABLED(CONFIG_NVME_FC))
+		return;
 
 	list_for_each_entry_safe(rport, trport,
 	    &fcport->vha->nvme_rport_list, list) {
@@ -680,15 +683,16 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 			    fcport->nvme_remote_port);
 		}
 	}
-#endif
 }
 
 void qla_nvme_delete(scsi_qla_host_t *vha)
 {
-#if (IS_ENABLED(CONFIG_NVME_FC))
 	struct nvme_rport *rport, *trport;
 	fc_port_t *fcport;
 	int nv_ret;
+
+	if (!IS_ENABLED(CONFIG_NVME_FC))
+		return;
 
 	list_for_each_entry_safe(rport, trport, &vha->nvme_rport_list, list) {
 		fcport = rport->fcport;
@@ -711,16 +715,17 @@ void qla_nvme_delete(scsi_qla_host_t *vha)
 			ql_log(ql_log_info, vha, 0x2115,
 			    "Unregister of localport failed\n");
 	}
-#endif
 }
 
 void qla_nvme_register_hba(scsi_qla_host_t *vha)
 {
-#if (IS_ENABLED(CONFIG_NVME_FC))
 	struct nvme_fc_port_template *tmpl;
 	struct qla_hw_data *ha;
 	struct nvme_fc_port_info pinfo;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_NVME_FC))
+		return;
 
 	ha = vha->hw;
 	tmpl = &qla_nvme_fc_transport;
@@ -752,5 +757,4 @@ void qla_nvme_register_hba(scsi_qla_host_t *vha)
 	atomic_set(&vha->nvme_ref_count, 1);
 	vha->nvme_local_port->private = vha;
 	init_waitqueue_head(&vha->nvme_waitQ);
-#endif
 }
