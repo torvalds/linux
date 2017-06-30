@@ -57,12 +57,12 @@
 #include <uapi/linux/sctp.h>
 
 /* Section 3.1.  SCTP Common Header Format */
-typedef struct sctphdr {
+struct sctphdr {
 	__be16 source;
 	__be16 dest;
 	__be32 vtag;
 	__le32 checksum;
-} sctp_sctphdr_t;
+};
 
 static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb)
 {

@@ -118,8 +118,8 @@ static bool
 sctp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_sctp_info *info = par->matchinfo;
-	const sctp_sctphdr_t *sh;
-	sctp_sctphdr_t _sh;
+	const struct sctphdr *sh;
+	struct sctphdr _sh;
 
 	if (par->fragoff != 0) {
 		pr_debug("Dropping non-first fragment.. FIXME\n");
@@ -136,13 +136,13 @@ sctp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	return  SCCHECK(ntohs(sh->source) >= info->spts[0]
 			&& ntohs(sh->source) <= info->spts[1],
-			XT_SCTP_SRC_PORTS, info->flags, info->invflags)
-		&& SCCHECK(ntohs(sh->dest) >= info->dpts[0]
+			XT_SCTP_SRC_PORTS, info->flags, info->invflags) &&
+		SCCHECK(ntohs(sh->dest) >= info->dpts[0]
 			&& ntohs(sh->dest) <= info->dpts[1],
-			XT_SCTP_DEST_PORTS, info->flags, info->invflags)
-		&& SCCHECK(match_packet(skb, par->thoff + sizeof(sctp_sctphdr_t),
-					info, &par->hotdrop),
-			   XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
+			XT_SCTP_DEST_PORTS, info->flags, info->invflags) &&
+		SCCHECK(match_packet(skb, par->thoff + sizeof(_sh),
+				     info, &par->hotdrop),
+			XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
 }
 
 static int sctp_mt_check(const struct xt_mtchk_param *par)
