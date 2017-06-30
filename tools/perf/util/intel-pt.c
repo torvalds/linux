@@ -92,6 +92,18 @@ struct intel_pt {
 	u64 transactions_sample_type;
 	u64 transactions_id;
 
+	bool sample_ptwrites;
+	u64 ptwrites_sample_type;
+	u64 ptwrites_id;
+
+	bool sample_pwr_events;
+	u64 pwr_events_sample_type;
+	u64 mwait_id;
+	u64 pwre_id;
+	u64 exstop_id;
+	u64 pwrx_id;
+	u64 cbr_id;
+
 	bool synth_needs_swap;
 
 	u64 tsc_bit;
@@ -102,6 +114,7 @@ struct intel_pt {
 	u64 cyc_bit;
 	u64 noretcomp_bit;
 	unsigned max_non_turbo_ratio;
+	unsigned cbr2khz;
 
 	unsigned long num_events;
 
@@ -1236,6 +1249,175 @@ static int intel_pt_synth_transaction_sample(struct intel_pt_queue *ptq)
 					    pt->transactions_sample_type);
 }
 
+static void intel_pt_prep_p_sample(struct intel_pt *pt,
+				   struct intel_pt_queue *ptq,
+				   union perf_event *event,
+				   struct perf_sample *sample)
+{
+	intel_pt_prep_sample(pt, ptq, event, sample);
+
+	/*
+	 * Zero IP is used to mean "trace start" but that is not the case for
+	 * power or PTWRITE events with no IP, so clear the flags.
+	 */
+	if (!sample->ip)
+		sample->flags = 0;
+}
+
+static int intel_pt_synth_ptwrite_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_ptwrite raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->ptwrites_id;
+	sample.stream_id = ptq->pt->ptwrites_id;
+
+	raw.flags = 0;
+	raw.ip = !!(ptq->state->flags & INTEL_PT_FUP_IP);
+	raw.payload = cpu_to_le64(ptq->state->ptw_payload);
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, ptq, event, &sample,
+					    pt->ptwrites_sample_type);
+}
+
+static int intel_pt_synth_cbr_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_cbr raw;
+	u32 flags;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->cbr_id;
+	sample.stream_id = ptq->pt->cbr_id;
+
+	flags = (u16)ptq->state->cbr_payload | (pt->max_non_turbo_ratio << 16);
+	raw.flags = cpu_to_le32(flags);
+	raw.freq = cpu_to_le32(raw.cbr * pt->cbr2khz);
+	raw.reserved3 = 0;
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, ptq, event, &sample,
+					    pt->pwr_events_sample_type);
+}
+
+static int intel_pt_synth_mwait_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_mwait raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->mwait_id;
+	sample.stream_id = ptq->pt->mwait_id;
+
+	raw.reserved = 0;
+	raw.payload = cpu_to_le64(ptq->state->mwait_payload);
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, ptq, event, &sample,
+					    pt->pwr_events_sample_type);
+}
+
+static int intel_pt_synth_pwre_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_pwre raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->pwre_id;
+	sample.stream_id = ptq->pt->pwre_id;
+
+	raw.reserved = 0;
+	raw.payload = cpu_to_le64(ptq->state->pwre_payload);
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, ptq, event, &sample,
+					    pt->pwr_events_sample_type);
+}
+
+static int intel_pt_synth_exstop_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_exstop raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->exstop_id;
+	sample.stream_id = ptq->pt->exstop_id;
+
+	raw.flags = 0;
+	raw.ip = !!(ptq->state->flags & INTEL_PT_FUP_IP);
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, ptq, event, &sample,
+					    pt->pwr_events_sample_type);
+}
+
+static int intel_pt_synth_pwrx_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_pwrx raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->pwrx_id;
+	sample.stream_id = ptq->pt->pwrx_id;
+
+	raw.reserved = 0;
+	raw.payload = cpu_to_le64(ptq->state->pwrx_payload);
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, ptq, event, &sample,
+					    pt->pwr_events_sample_type);
+}
+
 static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 				pid_t pid, pid_t tid, u64 ip)
 {
@@ -1287,6 +1469,10 @@ static inline bool intel_pt_is_switch_ip(struct intel_pt_queue *ptq, u64 ip)
 			       PERF_IP_FLAG_INTERRUPT | PERF_IP_FLAG_TX_ABORT));
 }
 
+#define INTEL_PT_PWR_EVT (INTEL_PT_MWAIT_OP | INTEL_PT_PWR_ENTRY | \
+			  INTEL_PT_EX_STOP | INTEL_PT_PWR_EXIT | \
+			  INTEL_PT_CBR_CHG)
+
 static int intel_pt_sample(struct intel_pt_queue *ptq)
 {
 	const struct intel_pt_state *state = ptq->state;
@@ -1298,6 +1484,34 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	ptq->have_sample = false;
 
+	if (pt->sample_pwr_events && (state->type & INTEL_PT_PWR_EVT)) {
+		if (state->type & INTEL_PT_CBR_CHG) {
+			err = intel_pt_synth_cbr_sample(ptq);
+			if (err)
+				return err;
+		}
+		if (state->type & INTEL_PT_MWAIT_OP) {
+			err = intel_pt_synth_mwait_sample(ptq);
+			if (err)
+				return err;
+		}
+		if (state->type & INTEL_PT_PWR_ENTRY) {
+			err = intel_pt_synth_pwre_sample(ptq);
+			if (err)
+				return err;
+		}
+		if (state->type & INTEL_PT_EX_STOP) {
+			err = intel_pt_synth_exstop_sample(ptq);
+			if (err)
+				return err;
+		}
+		if (state->type & INTEL_PT_PWR_EXIT) {
+			err = intel_pt_synth_pwrx_sample(ptq);
+			if (err)
+				return err;
+		}
+	}
+
 	if (pt->sample_instructions && (state->type & INTEL_PT_INSTRUCTION)) {
 		err = intel_pt_synth_instruction_sample(ptq);
 		if (err)
@@ -1306,6 +1520,12 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	if (pt->sample_transactions && (state->type & INTEL_PT_TRANSACTION)) {
 		err = intel_pt_synth_transaction_sample(ptq);
+		if (err)
+			return err;
+	}
+
+	if (pt->sample_ptwrites && (state->type & INTEL_PT_PTW)) {
+		err = intel_pt_synth_ptwrite_sample(ptq);
 		if (err)
 			return err;
 	}
@@ -2047,6 +2267,68 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		id += 1;
 	}
 
+	attr.type = PERF_TYPE_SYNTH;
+	attr.sample_type |= PERF_SAMPLE_RAW;
+
+	if (pt->synth_opts.ptwrites) {
+		attr.config = PERF_SYNTH_INTEL_PTWRITE;
+		err = intel_pt_synth_event(session, "ptwrite", &attr, id);
+		if (err)
+			return err;
+		pt->sample_ptwrites = true;
+		pt->ptwrites_sample_type = attr.sample_type;
+		pt->ptwrites_id = id;
+		intel_pt_set_event_name(evlist, id, "ptwrite");
+		id += 1;
+	}
+
+	if (pt->synth_opts.pwr_events) {
+		pt->sample_pwr_events = true;
+		pt->pwr_events_sample_type = attr.sample_type;
+
+		attr.config = PERF_SYNTH_INTEL_CBR;
+		err = intel_pt_synth_event(session, "cbr", &attr, id);
+		if (err)
+			return err;
+		pt->cbr_id = id;
+		intel_pt_set_event_name(evlist, id, "cbr");
+		id += 1;
+	}
+
+	if (pt->synth_opts.pwr_events && (evsel->attr.config & 0x10)) {
+		attr.config = PERF_SYNTH_INTEL_MWAIT;
+		err = intel_pt_synth_event(session, "mwait", &attr, id);
+		if (err)
+			return err;
+		pt->mwait_id = id;
+		intel_pt_set_event_name(evlist, id, "mwait");
+		id += 1;
+
+		attr.config = PERF_SYNTH_INTEL_PWRE;
+		err = intel_pt_synth_event(session, "pwre", &attr, id);
+		if (err)
+			return err;
+		pt->pwre_id = id;
+		intel_pt_set_event_name(evlist, id, "pwre");
+		id += 1;
+
+		attr.config = PERF_SYNTH_INTEL_EXSTOP;
+		err = intel_pt_synth_event(session, "exstop", &attr, id);
+		if (err)
+			return err;
+		pt->exstop_id = id;
+		intel_pt_set_event_name(evlist, id, "exstop");
+		id += 1;
+
+		attr.config = PERF_SYNTH_INTEL_PWRX;
+		err = intel_pt_synth_event(session, "pwrx", &attr, id);
+		if (err)
+			return err;
+		pt->pwrx_id = id;
+		intel_pt_set_event_name(evlist, id, "pwrx");
+		id += 1;
+	}
+
 	pt->synth_needs_swap = evsel->needs_swap;
 
 	return 0;
@@ -2313,6 +2595,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		intel_pt_log("TSC frequency %"PRIu64"\n", tsc_freq);
 		intel_pt_log("Maximum non-turbo ratio %u\n",
 			     pt->max_non_turbo_ratio);
+		pt->cbr2khz = tsc_freq / pt->max_non_turbo_ratio / 1000;
 	}
 
 	if (pt->synth_opts.calls)
