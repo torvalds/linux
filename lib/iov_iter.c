@@ -535,7 +535,7 @@ static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
 	return bytes;
 }
 
-size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
+size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
 	const char *from = addr;
 	if (unlikely(i->type & ITER_PIPE))
@@ -550,9 +550,9 @@ size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 
 	return bytes;
 }
-EXPORT_SYMBOL(copy_to_iter);
+EXPORT_SYMBOL(_copy_to_iter);
 
-size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
+size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
 	if (unlikely(i->type & ITER_PIPE)) {
@@ -569,9 +569,9 @@ size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 
 	return bytes;
 }
-EXPORT_SYMBOL(copy_from_iter);
+EXPORT_SYMBOL(_copy_from_iter);
 
-bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
+bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
 	if (unlikely(i->type & ITER_PIPE)) {
@@ -594,9 +594,9 @@ bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 	iov_iter_advance(i, bytes);
 	return true;
 }
-EXPORT_SYMBOL(copy_from_iter_full);
+EXPORT_SYMBOL(_copy_from_iter_full);
 
-size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
+size_t _copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
 	if (unlikely(i->type & ITER_PIPE)) {
@@ -613,9 +613,9 @@ size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 
 	return bytes;
 }
-EXPORT_SYMBOL(copy_from_iter_nocache);
+EXPORT_SYMBOL(_copy_from_iter_nocache);
 
-bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
+bool _copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
 	if (unlikely(i->type & ITER_PIPE)) {
@@ -637,7 +637,7 @@ bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 	iov_iter_advance(i, bytes);
 	return true;
 }
-EXPORT_SYMBOL(copy_from_iter_full_nocache);
+EXPORT_SYMBOL(_copy_from_iter_full_nocache);
 
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
@@ -663,7 +663,7 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 	}
 	if (i->type & (ITER_BVEC|ITER_KVEC)) {
 		void *kaddr = kmap_atomic(page);
-		size_t wanted = copy_from_iter(kaddr + offset, bytes, i);
+		size_t wanted = _copy_from_iter(kaddr + offset, bytes, i);
 		kunmap_atomic(kaddr);
 		return wanted;
 	} else
