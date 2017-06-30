@@ -31,10 +31,3 @@ then point your browser at **Documentation/output/labs/index.html**.
 
    vm.rst
    exercises.rst
-   kernel_modules.rst
-   kernel_api.rst
-   device_drivers.rst
-   interrupts.rst
-   deferred_work.rst
-   memory_mapping.rst
-   device_model.rst
