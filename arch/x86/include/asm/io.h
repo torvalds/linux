@@ -220,51 +220,6 @@ extern void set_iounmap_nonlazy(void);
  */
 #define xlate_dev_kmem_ptr(p)	p
 
-/**
- * memset_io	Set a range of I/O memory to a constant value
- * @addr:	The beginning of the I/O-memory range to set
- * @val:	The value to set the memory to
- * @count:	The number of bytes to set
- *
- * Set a range of I/O memory to a given value.
- */
-static inline void
-memset_io(volatile void __iomem *addr, unsigned char val, size_t count)
-{
-	memset((void __force *)addr, val, count);
-}
-#define memset_io(dst,c,count) memset_io(dst,c,count)
-
-/**
- * memcpy_fromio	Copy a block of data from I/O memory
- * @dst:		The (RAM) destination for the copy
- * @src:		The (I/O memory) source for the data
- * @count:		The number of bytes to copy
- *
- * Copy a block of data from I/O memory.
- */
-static inline void
-memcpy_fromio(void *dst, const volatile void __iomem *src, size_t count)
-{
-	memcpy(dst, (const void __force *)src, count);
-}
-#define memcpy_fromio(to,from,count) memcpy_fromio(to,from,count)
-
-/**
- * memcpy_toio		Copy a block of data into I/O memory
- * @dst:		The (I/O memory) destination for the copy
- * @src:		The (RAM) source for the data
- * @count:		The number of bytes to copy
- *
- * Copy a block of data to I/O memory.
- */
-static inline void
-memcpy_toio(volatile void __iomem *dst, const void *src, size_t count)
-{
-	memcpy((void __force *)dst, src, count);
-}
-#define memcpy_toio(to,from,count) memcpy_toio(to,from,count)
-
 /*
  * ISA space is 'always mapped' on a typical x86 system, no need to
  * explicitly ioremap() it. The fact that the ISA IO space is mapped
