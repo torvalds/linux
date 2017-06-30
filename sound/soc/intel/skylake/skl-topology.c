@@ -2472,6 +2472,9 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	ret = skl_tplg_get_pvt_data(tplg_w, skl, bus->dev, mconfig);
 	if (ret < 0)
 		return ret;
+
+	skl_debug_init_module(skl->debugfs, w, mconfig);
+
 bind_event:
 	if (tplg_w->event_type == 0) {
 		dev_dbg(bus->dev, "ASoC: No event handler required\n");

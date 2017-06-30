@@ -23,6 +23,7 @@
 
 #include <sound/hda_register.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/soc.h>
 #include "skl-nhlt.h"
 
 #define SKL_SUSPEND_DELAY 2000
@@ -120,15 +121,24 @@ void skl_update_d0i3c(struct device *dev, bool enable);
 int skl_nhlt_create_sysfs(struct skl *skl);
 void skl_nhlt_remove_sysfs(struct skl *skl);
 
+struct skl_module_cfg;
+
 #ifdef CONFIG_DEBUG_FS
 struct skl_debug *skl_debugfs_init(struct skl *skl);
 void skl_debugfs_exit(struct skl_debug *d);
+void skl_debug_init_module(struct skl_debug *d,
+			struct snd_soc_dapm_widget *w,
+			struct skl_module_cfg *mconfig);
 #else
 static inline struct skl_debug *skl_debugfs_init(struct skl *skl)
 {
 	return NULL;
 }
 static inline void skl_debugfs_exit(struct skl_debug *d)
+{}
+static inline void skl_debug_init_module(struct skl_debug *d,
+					 struct snd_soc_dapm_widget *w,
+					 struct skl_module_cfg *mconfig)
 {}
 #endif
 
