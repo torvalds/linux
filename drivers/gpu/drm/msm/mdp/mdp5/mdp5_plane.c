@@ -31,15 +31,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		struct drm_rect *src, struct drm_rect *dest);
 
-static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
-		struct drm_crtc *crtc,
-		struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h,
-		struct drm_modeset_acquire_ctx *ctx);
-
 static struct mdp5_kms *get_kms(struct drm_plane *plane)
 {
 	struct msm_drm_private *priv = plane->dev->dev_private;
@@ -255,7 +246,7 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 };
 
 static const struct drm_plane_funcs mdp5_cursor_plane_funcs = {
-		.update_plane = mdp5_update_cursor_plane_legacy,
+		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
 		.destroy = mdp5_plane_destroy,
 		.atomic_set_property = mdp5_plane_atomic_set_property,
@@ -487,11 +478,73 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 	}
 }
 
+static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
+					 struct drm_plane_state *state)
+{
+	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
+	struct drm_crtc_state *crtc_state;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+							state->crtc);
+	if (WARN_ON(!crtc_state))
+		return -EINVAL;
+
+	if (!crtc_state->active)
+		return -EINVAL;
+
+	mdp5_state = to_mdp5_plane_state(state);
+
+	/* don't use fast path if we don't have a hwpipe allocated yet */
+	if (!mdp5_state->hwpipe)
+		return -EINVAL;
+
+	/* only allow changing of position(crtc x/y or src x/y) in fast path */
+	if (plane->state->crtc != state->crtc ||
+	    plane->state->src_w != state->src_w ||
+	    plane->state->src_h != state->src_h ||
+	    plane->state->crtc_w != state->crtc_w ||
+	    plane->state->crtc_h != state->crtc_h ||
+	    !plane->state->fb ||
+	    plane->state->fb != state->fb)
+		return -EINVAL;
+
+	return 0;
+}
+
+static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
+					   struct drm_plane_state *new_state)
+{
+	plane->state->src_x = new_state->src_x;
+	plane->state->src_y = new_state->src_y;
+	plane->state->crtc_x = new_state->crtc_x;
+	plane->state->crtc_y = new_state->crtc_y;
+
+	if (plane_enabled(new_state)) {
+		struct mdp5_ctl *ctl;
+		struct mdp5_pipeline *pipeline =
+					mdp5_crtc_get_pipeline(plane->crtc);
+		int ret;
+
+		ret = mdp5_plane_mode_set(plane, new_state->crtc, new_state->fb,
+				&new_state->src, &new_state->dst);
+		WARN_ON(ret < 0);
+
+		ctl = mdp5_crtc_get_ctl(new_state->crtc);
+
+		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane));
+	}
+
+	*to_mdp5_plane_state(plane->state) =
+		*to_mdp5_plane_state(new_state);
+}
+
 static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
 		.prepare_fb = mdp5_plane_prepare_fb,
 		.cleanup_fb = mdp5_plane_cleanup_fb,
 		.atomic_check = mdp5_plane_atomic_check,
 		.atomic_update = mdp5_plane_atomic_update,
+		.atomic_async_check = mdp5_plane_atomic_async_check,
+		.atomic_async_update = mdp5_plane_atomic_async_update,
 };
 
 static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
@@ -994,84 +1047,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	plane->fb = fb;
 
 	return ret;
-}
-
-static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
-			struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			int crtc_x, int crtc_y,
-			unsigned int crtc_w, unsigned int crtc_h,
-			uint32_t src_x, uint32_t src_y,
-			uint32_t src_w, uint32_t src_h,
-			struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_plane_state *plane_state, *new_plane_state;
-	struct mdp5_plane_state *mdp5_pstate;
-	struct drm_crtc_state *crtc_state = crtc->state;
-	int ret;
-
-	if (!crtc_state->active || drm_atomic_crtc_needs_modeset(crtc_state))
-		goto slow;
-
-	plane_state = plane->state;
-	mdp5_pstate = to_mdp5_plane_state(plane_state);
-
-	/* don't use fast path if we don't have a hwpipe allocated yet */
-	if (!mdp5_pstate->hwpipe)
-		goto slow;
-
-	/* only allow changing of position(crtc x/y or src x/y) in fast path */
-	if (plane_state->crtc != crtc ||
-	    plane_state->src_w != src_w ||
-	    plane_state->src_h != src_h ||
-	    plane_state->crtc_w != crtc_w ||
-	    plane_state->crtc_h != crtc_h ||
-	    !plane_state->fb ||
-	    plane_state->fb != fb)
-		goto slow;
-
-	new_plane_state = mdp5_plane_duplicate_state(plane);
-	if (!new_plane_state)
-		return -ENOMEM;
-
-	new_plane_state->src_x = src_x;
-	new_plane_state->src_y = src_y;
-	new_plane_state->src_w = src_w;
-	new_plane_state->src_h = src_h;
-	new_plane_state->crtc_x = crtc_x;
-	new_plane_state->crtc_y = crtc_y;
-	new_plane_state->crtc_w = crtc_w;
-	new_plane_state->crtc_h = crtc_h;
-
-	ret = mdp5_plane_atomic_check_with_state(crtc_state, new_plane_state);
-	if (ret)
-		goto slow_free;
-
-	if (new_plane_state->visible) {
-		struct mdp5_ctl *ctl;
-		struct mdp5_pipeline *pipeline = mdp5_crtc_get_pipeline(crtc);
-
-		ret = mdp5_plane_mode_set(plane, crtc, fb,
-					  &new_plane_state->src,
-					  &new_plane_state->dst);
-		WARN_ON(ret < 0);
-
-		ctl = mdp5_crtc_get_ctl(crtc);
-
-		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane));
-	}
-
-	*to_mdp5_plane_state(plane_state) =
-		*to_mdp5_plane_state(new_plane_state);
-
-	mdp5_plane_destroy_state(plane, new_plane_state);
-
-	return 0;
-slow_free:
-	mdp5_plane_destroy_state(plane, new_plane_state);
-slow:
-	return drm_atomic_helper_update_plane(plane, crtc, fb,
-					      crtc_x, crtc_y, crtc_w, crtc_h,
-					      src_x, src_y, src_w, src_h, ctx);
 }
 
 /*

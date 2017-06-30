@@ -173,6 +173,18 @@ int msm_atomic_commit(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	/*
+	 * Note that plane->atomic_async_check() should fail if we need
+	 * to re-assign hwpipe or anything that touches global atomic
+	 * state, so we'll never go down the async update path in those
+	 * cases.
+	 */
+	if (state->async_update) {
+		drm_atomic_helper_async_commit(dev, state);
+		drm_atomic_helper_cleanup_planes(dev, state);
+		return 0;
+	}
+
 	c = commit_init(state);
 	if (!c) {
 		ret = -ENOMEM;
