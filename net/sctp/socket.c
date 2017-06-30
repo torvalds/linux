@@ -7563,7 +7563,7 @@ struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 		if (flags & MSG_PEEK) {
 			skb = skb_peek(&sk->sk_receive_queue);
 			if (skb)
-				atomic_inc(&skb->users);
+				refcount_inc(&skb->users);
 		} else {
 			skb = __skb_dequeue(&sk->sk_receive_queue);
 		}

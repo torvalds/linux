@@ -277,7 +277,7 @@ static void zap_completion_queue(void)
 			struct sk_buff *skb = clist;
 			clist = clist->next;
 			if (!skb_irq_freeable(skb)) {
-				atomic_inc(&skb->users);
+				refcount_inc(&skb->users);
 				dev_kfree_skb_any(skb); /* put this one back */
 			} else {
 				__kfree_skb(skb);
@@ -309,7 +309,7 @@ repeat:
 		return NULL;
 	}
 
-	atomic_set(&skb->users, 1);
+	refcount_set(&skb->users, 1);
 	skb_reserve(skb, reserve);
 	return skb;
 }

@@ -353,7 +353,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (ipv6_opt_accepted(sk, skb, IP6CB(skb)) ||
 	    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||
 	    np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim) {
-		atomic_inc(&skb->users);
+		refcount_inc(&skb->users);
 		ireq->pktopts = skb;
 	}
 	ireq->ir_iif = sk->sk_bound_dev_if;

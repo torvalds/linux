@@ -3363,7 +3363,7 @@ static void pktgen_wait_for_skb(struct pktgen_dev *pkt_dev)
 {
 	ktime_t idle_start = ktime_get();
 
-	while (atomic_read(&(pkt_dev->skb->users)) != 1) {
+	while (refcount_read(&(pkt_dev->skb->users)) != 1) {
 		if (signal_pending(current))
 			break;
 
@@ -3420,7 +3420,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	if (pkt_dev->xmit_mode == M_NETIF_RECEIVE) {
 		skb = pkt_dev->skb;
 		skb->protocol = eth_type_trans(skb, skb->dev);
-		atomic_add(burst, &skb->users);
+		refcount_add(burst, &skb->users);
 		local_bh_disable();
 		do {
 			ret = netif_receive_skb(skb);
@@ -3428,11 +3428,11 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 				pkt_dev->errors++;
 			pkt_dev->sofar++;
 			pkt_dev->seq_num++;
-			if (atomic_read(&skb->users) != burst) {
+			if (refcount_read(&skb->users) != burst) {
 				/* skb was queued by rps/rfs or taps,
 				 * so cannot reuse this skb
 				 */
-				atomic_sub(burst - 1, &skb->users);
+				WARN_ON(refcount_sub_and_test(burst - 1, &skb->users));
 				/* get out of the loop and wait
 				 * until skb is consumed
 				 */
@@ -3446,7 +3446,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		goto out; /* Skips xmit_mode M_START_XMIT */
 	} else if (pkt_dev->xmit_mode == M_QUEUE_XMIT) {
 		local_bh_disable();
-		atomic_inc(&pkt_dev->skb->users);
+		refcount_inc(&pkt_dev->skb->users);
 
 		ret = dev_queue_xmit(pkt_dev->skb);
 		switch (ret) {
@@ -3487,7 +3487,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->last_ok = 0;
 		goto unlock;
 	}
-	atomic_add(burst, &pkt_dev->skb->users);
+	refcount_add(burst, &pkt_dev->skb->users);
 
 xmit_more:
 	ret = netdev_start_xmit(pkt_dev->skb, odev, txq, --burst > 0);
@@ -3513,11 +3513,11 @@ xmit_more:
 		/* fallthru */
 	case NETDEV_TX_BUSY:
 		/* Retry it next time */
-		atomic_dec(&(pkt_dev->skb->users));
+		refcount_dec(&(pkt_dev->skb->users));
 		pkt_dev->last_ok = 0;
 	}
 	if (unlikely(burst))
-		atomic_sub(burst, &pkt_dev->skb->users);
+		WARN_ON(refcount_sub_and_test(burst, &pkt_dev->skb->users));
 unlock:
 	HARD_TX_UNLOCK(odev, txq);
 

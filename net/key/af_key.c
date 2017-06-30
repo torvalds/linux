@@ -203,11 +203,11 @@ static int pfkey_broadcast_one(struct sk_buff *skb, struct sk_buff **skb2,
 
 	sock_hold(sk);
 	if (*skb2 == NULL) {
-		if (atomic_read(&skb->users) != 1) {
+		if (refcount_read(&skb->users) != 1) {
 			*skb2 = skb_clone(skb, allocation);
 		} else {
 			*skb2 = skb;
-			atomic_inc(&skb->users);
+			refcount_inc(&skb->users);
 		}
 	}
 	if (*skb2 != NULL) {

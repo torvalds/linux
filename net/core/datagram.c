@@ -188,7 +188,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 				}
 			}
 			*peeked = 1;
-			atomic_inc(&skb->users);
+			refcount_inc(&skb->users);
 		} else {
 			__skb_unlink(skb, queue);
 			if (destructor)
@@ -358,7 +358,7 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
 		spin_lock_bh(&sk_queue->lock);
 		if (skb == skb_peek(sk_queue)) {
 			__skb_unlink(skb, sk_queue);
-			atomic_dec(&skb->users);
+			refcount_dec(&skb->users);
 			if (destructor)
 				destructor(sk, skb);
 			err = 0;

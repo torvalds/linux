@@ -734,7 +734,7 @@ static void tcp_v6_init_req(struct request_sock *req,
 	     np->rxopt.bits.rxinfo ||
 	     np->rxopt.bits.rxoinfo || np->rxopt.bits.rxhlim ||
 	     np->rxopt.bits.rxohlim || np->repflow)) {
-		atomic_inc(&skb->users);
+		refcount_inc(&skb->users);
 		ireq->pktopts = skb;
 	}
 }

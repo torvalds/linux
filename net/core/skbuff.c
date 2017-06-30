@@ -176,7 +176,7 @@ struct sk_buff *__alloc_skb_head(gfp_t gfp_mask, int node)
 	memset(skb, 0, offsetof(struct sk_buff, tail));
 	skb->head = NULL;
 	skb->truesize = sizeof(struct sk_buff);
-	atomic_set(&skb->users, 1);
+	refcount_set(&skb->users, 1);
 
 	skb->mac_header = (typeof(skb->mac_header))~0U;
 out:
@@ -247,7 +247,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	/* Account for allocated memory : skb + skb->head */
 	skb->truesize = SKB_TRUESIZE(size);
 	skb->pfmemalloc = pfmemalloc;
-	atomic_set(&skb->users, 1);
+	refcount_set(&skb->users, 1);
 	skb->head = data;
 	skb->data = data;
 	skb_reset_tail_pointer(skb);
@@ -314,7 +314,7 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 
 	memset(skb, 0, offsetof(struct sk_buff, tail));
 	skb->truesize = SKB_TRUESIZE(size);
-	atomic_set(&skb->users, 1);
+	refcount_set(&skb->users, 1);
 	skb->head = data;
 	skb->data = data;
 	skb_reset_tail_pointer(skb);
@@ -915,7 +915,7 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(head_frag);
 	C(data);
 	C(truesize);
-	atomic_set(&n->users, 1);
+	refcount_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
 	skb->cloned = 1;

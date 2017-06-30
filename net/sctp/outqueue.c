@@ -1102,7 +1102,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
 				 "illegal chunk", ntohl(chunk->subh.data_hdr->tsn),
 				 chunk->skb ? chunk->skb->head : NULL, chunk->skb ?
-				 atomic_read(&chunk->skb->users) : -1);
+				 refcount_read(&chunk->skb->users) : -1);
 
 			/* Add the chunk to the packet.  */
 			status = sctp_packet_transmit_chunk(packet, chunk, 0, gfp);
