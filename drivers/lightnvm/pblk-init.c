@@ -812,8 +812,6 @@ add_emeta_page:
 fail_free_lines:
 	while (--i >= 0)
 		pblk_free_line_bitmaps(&pblk->lines[i]);
-
-	kfree(pblk->lines);
 fail_free_bb_aux:
 	kfree(l_mg->bb_aux);
 fail_free_bb_template:
