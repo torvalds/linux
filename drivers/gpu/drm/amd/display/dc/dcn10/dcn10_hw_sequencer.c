@@ -1819,7 +1819,7 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, !is_pipe_tree_visible(pipe_ctx));
 	}
 
-	if (pipe_ctx->surface->public.visible) {
+	if (pipe_ctx->surface != NULL) {
 		dcn10_power_on_fe(dc, pipe_ctx, context);
 		update_dchubp_dpp(dc, pipe_ctx, context);
 	}
