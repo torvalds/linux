@@ -322,7 +322,7 @@ static ssize_t pblk_sysfs_gc_force(struct pblk *pblk, const char *page,
 				   size_t len)
 {
 	size_t c_len;
-	int ret, force;
+	int force;
 
 	c_len = strcspn(page, "\n");
 	if (c_len >= len)
@@ -331,7 +331,7 @@ static ssize_t pblk_sysfs_gc_force(struct pblk *pblk, const char *page,
 	if (kstrtouint(page, 0, &force))
 		return -EINVAL;
 
-	ret = pblk_gc_sysfs_force(pblk, force);
+	pblk_gc_sysfs_force(pblk, force);
 
 	return len;
 }
