@@ -340,7 +340,6 @@ static void alc_fill_eapd_coef(struct hda_codec *codec)
 	case 0x10ec0299:
 		alc_update_coef_idx(codec, 0x10, 1<<9, 0);
 		break;
-	case 0x10ec0285:
 	case 0x10ec0293:
 		alc_update_coef_idx(codec, 0xa, 1<<13, 0);
 		break;
@@ -2738,7 +2737,7 @@ enum {
 	ALC269_TYPE_ALC282,
 	ALC269_TYPE_ALC283,
 	ALC269_TYPE_ALC284,
-	ALC269_TYPE_ALC285,
+	ALC269_TYPE_ALC293,
 	ALC269_TYPE_ALC286,
 	ALC269_TYPE_ALC298,
 	ALC269_TYPE_ALC255,
@@ -2764,7 +2763,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	case ALC269_TYPE_ALC269VC:
 	case ALC269_TYPE_ALC280:
 	case ALC269_TYPE_ALC284:
-	case ALC269_TYPE_ALC285:
+	case ALC269_TYPE_ALC293:
 		ssids = alc269va_ssids;
 		break;
 	case ALC269_TYPE_ALC269VB:
@@ -6678,9 +6677,8 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0292:
 		spec->codec_variant = ALC269_TYPE_ALC284;
 		break;
-	case 0x10ec0285:
 	case 0x10ec0293:
-		spec->codec_variant = ALC269_TYPE_ALC285;
+		spec->codec_variant = ALC269_TYPE_ALC293;
 		break;
 	case 0x10ec0286:
 	case 0x10ec0288:
@@ -7752,7 +7750,6 @@ static const struct hda_device_id snd_hda_id_realtek[] = {
 	HDA_CODEC_ENTRY(0x10ec0282, "ALC282", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0283, "ALC283", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0284, "ALC284", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0285, "ALC285", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0286, "ALC286", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0288, "ALC288", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0290, "ALC290", patch_alc269),
