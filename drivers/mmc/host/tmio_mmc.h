@@ -81,9 +81,11 @@
 #define TMIO_STAT_CMD_BUSY      BIT(30)
 #define TMIO_STAT_ILL_ACCESS    BIT(31)
 
+/* Definitions for values the CTL_SD_CARD_CLK_CTL register can take */
 #define	CLK_CTL_DIV_MASK	0xff
 #define	CLK_CTL_SCLKEN		BIT(8)
 
+/* Definitions for values the CTL_SD_MEM_CARD_OPT register can take */
 #define CARD_OPT_WIDTH8		BIT(13)
 #define CARD_OPT_WIDTH		BIT(15)
 
