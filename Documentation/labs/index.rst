@@ -35,3 +35,4 @@ then point your browser at **Documentation/output/labs/index.html**.
    kernel_api.rst
    device_drivers.rst
    interrupts.rst
+   deferred_work.rst
