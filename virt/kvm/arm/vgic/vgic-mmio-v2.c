@@ -226,7 +226,13 @@ static unsigned long vgic_mmio_read_vcpuif(struct kvm_vcpu *vcpu,
 
 	switch (addr & 0xff) {
 	case GIC_CPU_CTRL:
-		val = vmcr.ctlr;
+		val = vmcr.grpen0 << GIC_CPU_CTRL_EnableGrp0_SHIFT;
+		val |= vmcr.grpen1 << GIC_CPU_CTRL_EnableGrp1_SHIFT;
+		val |= vmcr.ackctl << GIC_CPU_CTRL_AckCtl_SHIFT;
+		val |= vmcr.fiqen << GIC_CPU_CTRL_FIQEn_SHIFT;
+		val |= vmcr.cbpr << GIC_CPU_CTRL_CBPR_SHIFT;
+		val |= vmcr.eoim << GIC_CPU_CTRL_EOImodeNS_SHIFT;
+
 		break;
 	case GIC_CPU_PRIMASK:
 		/*
@@ -267,7 +273,13 @@ static void vgic_mmio_write_vcpuif(struct kvm_vcpu *vcpu,
 
 	switch (addr & 0xff) {
 	case GIC_CPU_CTRL:
-		vmcr.ctlr = val;
+		vmcr.grpen0 = !!(val & GIC_CPU_CTRL_EnableGrp0);
+		vmcr.grpen1 = !!(val & GIC_CPU_CTRL_EnableGrp1);
+		vmcr.ackctl = !!(val & GIC_CPU_CTRL_AckCtl);
+		vmcr.fiqen = !!(val & GIC_CPU_CTRL_FIQEn);
+		vmcr.cbpr = !!(val & GIC_CPU_CTRL_CBPR);
+		vmcr.eoim = !!(val & GIC_CPU_CTRL_EOImodeNS);
+
 		break;
 	case GIC_CPU_PRIMASK:
 		/*
@@ -296,34 +308,36 @@ static const struct vgic_register_region vgic_v2_dist_registers[] = {
 		vgic_mmio_read_v2_misc, vgic_mmio_write_v2_misc, 12,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_IGROUP,
-		vgic_mmio_read_rao, vgic_mmio_write_wi, 1,
+		vgic_mmio_read_rao, vgic_mmio_write_wi, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_ENABLE_SET,
-		vgic_mmio_read_enable, vgic_mmio_write_senable, 1,
+		vgic_mmio_read_enable, vgic_mmio_write_senable, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_ENABLE_CLEAR,
-		vgic_mmio_read_enable, vgic_mmio_write_cenable, 1,
+		vgic_mmio_read_enable, vgic_mmio_write_cenable, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_PENDING_SET,
-		vgic_mmio_read_pending, vgic_mmio_write_spending, 1,
+		vgic_mmio_read_pending, vgic_mmio_write_spending, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_PENDING_CLEAR,
-		vgic_mmio_read_pending, vgic_mmio_write_cpending, 1,
+		vgic_mmio_read_pending, vgic_mmio_write_cpending, NULL, NULL, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_ACTIVE_SET,
-		vgic_mmio_read_active, vgic_mmio_write_sactive, 1,
+		vgic_mmio_read_active, vgic_mmio_write_sactive,
+		NULL, vgic_mmio_uaccess_write_sactive, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_ACTIVE_CLEAR,
-		vgic_mmio_read_active, vgic_mmio_write_cactive, 1,
+		vgic_mmio_read_active, vgic_mmio_write_cactive,
+		NULL, vgic_mmio_uaccess_write_cactive, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_PRI,
-		vgic_mmio_read_priority, vgic_mmio_write_priority, 8,
-		VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
+		vgic_mmio_read_priority, vgic_mmio_write_priority, NULL, NULL,
+		8, VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_TARGET,
-		vgic_mmio_read_target, vgic_mmio_write_target, 8,
+		vgic_mmio_read_target, vgic_mmio_write_target, NULL, NULL, 8,
 		VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ(GIC_DIST_CONFIG,
-		vgic_mmio_read_config, vgic_mmio_write_config, 2,
+		vgic_mmio_read_config, vgic_mmio_write_config, NULL, NULL, 2,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GIC_DIST_SOFTINT,
 		vgic_mmio_read_raz, vgic_mmio_write_sgir, 4,
