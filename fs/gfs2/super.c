@@ -1538,6 +1538,12 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (inode->i_nlink || (sb->s_flags & MS_RDONLY))
 		goto out;
 
+	if (test_bit(GIF_ALLOC_FAILED, &ip->i_flags)) {
+		BUG_ON(!gfs2_glock_is_locked_by_me(ip->i_gl));
+		gfs2_holder_mark_uninitialized(&gh);
+		goto alloc_failed;
+	}
+
 	/* Must not read inode block until block type has been verified */
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
 	if (unlikely(error)) {
@@ -1546,11 +1552,9 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto out;
 	}
 
-	if (!test_bit(GIF_ALLOC_FAILED, &ip->i_flags)) {
-		error = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
-		if (error)
-			goto out_truncate;
-	}
+	error = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
+	if (error)
+		goto out_truncate;
 
 	if (test_bit(GIF_INVALID, &ip->i_flags)) {
 		error = gfs2_inode_refresh(ip);
@@ -1558,6 +1562,7 @@ static void gfs2_evict_inode(struct inode *inode)
 			goto out_truncate;
 	}
 
+alloc_failed:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
 	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
@@ -1624,7 +1629,8 @@ out_unlock:
 		}
 		gfs2_holder_uninit(&ip->i_iopen_gh);
 	}
-	gfs2_glock_dq_uninit(&gh);
+	if (gfs2_holder_initialized(&gh))
+		gfs2_glock_dq_uninit(&gh);
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:

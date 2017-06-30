@@ -608,6 +608,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	if (error)
 		goto fail;
+	gfs2_holder_mark_uninitialized(ghs + 1);
 
 	error = create_ok(dip, name, mode);
 	if (error)
@@ -779,7 +780,6 @@ fail_gunlock3:
 fail_gunlock2:
 	if (io_gl)
 		clear_bit(GLF_INODE_CREATING, &io_gl->gl_flags);
-	gfs2_glock_dq_uninit(ghs + 1);
 fail_free_inode:
 	if (ip->i_gl)
 		gfs2_glock_put(ip->i_gl);
@@ -800,6 +800,8 @@ fail_gunlock:
 			&GFS2_I(inode)->i_flags);
 		iput(inode);
 	}
+	if (gfs2_holder_initialized(ghs + 1))
+		gfs2_glock_dq_uninit(ghs + 1);
 fail:
 	return error;
 }
