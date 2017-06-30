@@ -57,6 +57,7 @@ struct drm_pending_vblank_event {
 	union {
 		struct drm_event base;
 		struct drm_event_vblank vbl;
+		struct drm_event_crtc_sequence seq;
 	} event;
 };
 

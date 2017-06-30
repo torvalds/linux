@@ -70,6 +70,12 @@ int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
 int drm_legacy_irq_control(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 
+int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp);
+
+int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *filp);
+
 /* drm_auth.c */
 int drm_getmagic(struct drm_device *dev, void *data,
 		 struct drm_file *file_priv);
