@@ -774,8 +774,8 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_dbg(&pdev->dev, "could not get irq\n");
-		return -ENXIO;
+		dev_dbg(&pdev->dev, "could not get irq: %d\n", irq);
+		return irq;
 	}
 
 	pclk = clk_get(&pdev->dev, "ac97_clk");
