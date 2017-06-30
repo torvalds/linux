@@ -915,7 +915,7 @@ struct sk_buff_fclones {
 
 	struct sk_buff	skb2;
 
-	atomic_t	fclone_ref;
+	refcount_t	fclone_ref;
 };
 
 /**
@@ -935,7 +935,7 @@ static inline bool skb_fclone_busy(const struct sock *sk,
 	fclones = container_of(skb, struct sk_buff_fclones, skb1);
 
 	return skb->fclone == SKB_FCLONE_ORIG &&
-	       atomic_read(&fclones->fclone_ref) > 1 &&
+	       refcount_read(&fclones->fclone_ref) > 1 &&
 	       fclones->skb2.sk == sk;
 }
 
