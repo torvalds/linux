@@ -187,12 +187,23 @@ static void ack_flush(void *_completed)
 {
 }
 
+static inline bool kvm_kick_many_cpus(const struct cpumask *cpus, bool wait)
+{
+	if (unlikely(!cpus))
+		cpus = cpu_online_mask;
+
+	if (cpumask_empty(cpus))
+		return false;
+
+	smp_call_function_many(cpus, ack_flush, NULL, wait);
+	return true;
+}
+
 bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 {
 	int i, cpu, me;
 	cpumask_var_t cpus;
-	bool called = true;
-	bool wait = req & KVM_REQUEST_WAIT;
+	bool called;
 	struct kvm_vcpu *vcpu;
 
 	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
@@ -207,14 +218,9 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 
 		if (cpus != NULL && cpu != -1 && cpu != me &&
 		    kvm_request_needs_ipi(vcpu, req))
-			cpumask_set_cpu(cpu, cpus);
+			__cpumask_set_cpu(cpu, cpus);
 	}
-	if (unlikely(cpus == NULL))
-		smp_call_function_many(cpu_online_mask, ack_flush, NULL, wait);
-	else if (!cpumask_empty(cpus))
-		smp_call_function_many(cpus, ack_flush, NULL, wait);
-	else
-		called = false;
+	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
 	put_cpu();
 	free_cpumask_var(cpus);
 	return called;
