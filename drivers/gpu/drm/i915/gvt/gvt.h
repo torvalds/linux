@@ -182,6 +182,9 @@ struct intel_vgpu {
 		struct kvm *kvm;
 		struct work_struct release_work;
 		atomic_t released;
+		struct work_struct unpin_work;
+		spinlock_t unpin_lock; /* To protect unpin_list */
+		struct list_head unpin_list;
 	} vdev;
 #endif
 };

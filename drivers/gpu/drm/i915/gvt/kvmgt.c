@@ -78,6 +78,7 @@ struct gvt_dma {
 	struct rb_node node;
 	gfn_t gfn;
 	unsigned long iova;
+	struct list_head list;
 };
 
 static inline bool handle_valid(unsigned long handle)
@@ -166,6 +167,7 @@ static void gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 
 	new->gfn = gfn;
 	new->iova = iova;
+	INIT_LIST_HEAD(&new->list);
 
 	mutex_lock(&vgpu->vdev.cache_lock);
 	while (*link) {
@@ -197,26 +199,52 @@ static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
 	kfree(entry);
 }
 
-static void gvt_cache_remove(struct intel_vgpu *vgpu, gfn_t gfn)
+static void intel_vgpu_unpin_work(struct work_struct *work)
 {
+	struct intel_vgpu *vgpu = container_of(work, struct intel_vgpu,
+					       vdev.unpin_work);
 	struct device *dev = mdev_dev(vgpu->vdev.mdev);
 	struct gvt_dma *this;
-	unsigned long g1;
-	int rc;
+	unsigned long gfn;
+
+	for (;;) {
+		spin_lock(&vgpu->vdev.unpin_lock);
+		if (list_empty(&vgpu->vdev.unpin_list)) {
+			spin_unlock(&vgpu->vdev.unpin_lock);
+			break;
+		}
+		this = list_first_entry(&vgpu->vdev.unpin_list,
+					struct gvt_dma, list);
+		list_del(&this->list);
+		spin_unlock(&vgpu->vdev.unpin_lock);
+
+		gfn = this->gfn;
+		vfio_unpin_pages(dev, &gfn, 1);
+		kfree(this);
+	}
+}
+
+static bool gvt_cache_mark_remove(struct intel_vgpu *vgpu, gfn_t gfn)
+{
+	struct gvt_dma *this;
 
 	mutex_lock(&vgpu->vdev.cache_lock);
 	this  = __gvt_cache_find(vgpu, gfn);
 	if (!this) {
 		mutex_unlock(&vgpu->vdev.cache_lock);
-		return;
+		return false;
 	}
-
-	g1 = gfn;
 	gvt_dma_unmap_iova(vgpu, this->iova);
-	rc = vfio_unpin_pages(dev, &g1, 1);
-	WARN_ON(rc != 1);
-	__gvt_cache_remove_entry(vgpu, this);
+	/* remove this from rb tree */
+	rb_erase(&this->node, &vgpu->vdev.cache);
 	mutex_unlock(&vgpu->vdev.cache_lock);
+
+	/* put this to the unpin_list */
+	spin_lock(&vgpu->vdev.unpin_lock);
+	list_move_tail(&this->list, &vgpu->vdev.unpin_list);
+	spin_unlock(&vgpu->vdev.unpin_lock);
+
+	return true;
 }
 
 static void gvt_cache_init(struct intel_vgpu *vgpu)
@@ -232,16 +260,20 @@ static void gvt_cache_destroy(struct intel_vgpu *vgpu)
 	struct device *dev = mdev_dev(vgpu->vdev.mdev);
 	unsigned long gfn;
 
-	mutex_lock(&vgpu->vdev.cache_lock);
-	while ((node = rb_first(&vgpu->vdev.cache))) {
+	for (;;) {
+		mutex_lock(&vgpu->vdev.cache_lock);
+		node = rb_first(&vgpu->vdev.cache);
+		if (!node) {
+			mutex_unlock(&vgpu->vdev.cache_lock);
+			break;
+		}
 		dma = rb_entry(node, struct gvt_dma, node);
 		gvt_dma_unmap_iova(vgpu, dma->iova);
 		gfn = dma->gfn;
-
-		vfio_unpin_pages(dev, &gfn, 1);
 		__gvt_cache_remove_entry(vgpu, dma);
+		mutex_unlock(&vgpu->vdev.cache_lock);
+		vfio_unpin_pages(dev, &gfn, 1);
 	}
-	mutex_unlock(&vgpu->vdev.cache_lock);
 }
 
 static struct intel_vgpu_type *intel_gvt_find_vgpu_type(struct intel_gvt *gvt,
@@ -453,6 +485,9 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 	}
 
 	INIT_WORK(&vgpu->vdev.release_work, intel_vgpu_release_work);
+	INIT_WORK(&vgpu->vdev.unpin_work, intel_vgpu_unpin_work);
+	spin_lock_init(&vgpu->vdev.unpin_lock);
+	INIT_LIST_HEAD(&vgpu->vdev.unpin_list);
 
 	vgpu->vdev.mdev = mdev;
 	mdev_set_drvdata(mdev, vgpu);
@@ -482,6 +517,7 @@ static int intel_vgpu_iommu_notifier(struct notifier_block *nb,
 	struct intel_vgpu *vgpu = container_of(nb,
 					struct intel_vgpu,
 					vdev.iommu_notifier);
+	bool sched_unmap = false;
 
 	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP) {
 		struct vfio_iommu_type1_dma_unmap *unmap = data;
@@ -491,7 +527,10 @@ static int intel_vgpu_iommu_notifier(struct notifier_block *nb,
 		end_gfn = gfn + unmap->size / PAGE_SIZE;
 
 		while (gfn < end_gfn)
-			gvt_cache_remove(vgpu, gfn++);
+			sched_unmap |= gvt_cache_mark_remove(vgpu, gfn++);
+
+		if (sched_unmap)
+			schedule_work(&vgpu->vdev.unpin_work);
 	}
 
 	return NOTIFY_OK;
