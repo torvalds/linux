@@ -104,6 +104,24 @@
 		WIFI,host_wake_irq = <&gpio0 28 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+
+		power_key: power-key {
+			label = "GPIO Key Power";
+			gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+	};
 };
 
 &gpu {
@@ -279,6 +297,11 @@
 		};
 	};
 
+	keys {
+		pwr_key: pwr-key {
+			rockchip,pins = <3 23 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };
 
 &sdio {
