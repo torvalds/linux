@@ -106,7 +106,7 @@ static struct ion_heap *__ion_cma_heap_create(struct cma *cma)
 	return &cma_heap->heap;
 }
 
-int __ion_add_cma_heaps(struct cma *cma, void *data)
+static int __ion_add_cma_heaps(struct cma *cma, void *data)
 {
 	struct ion_heap *heap;
 
