@@ -23,7 +23,6 @@
  *
  *  There should be nothing in this file that is private to the visorbus
  *  bus implementation itself.
- *
  */
 
 #ifndef __VISORBUS_H__
@@ -45,6 +44,7 @@ extern struct bus_type visorbus_type;
 
 typedef void (*visorbus_state_complete_func) (struct visor_device *dev,
 					      int status);
+
 struct visorchipset_state {
 	u32 created:1;
 	u32 attached:1;
