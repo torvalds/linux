@@ -101,7 +101,7 @@ int mlx5_core_reserved_gid_alloc(struct mlx5_core_dev *dev, int *gid_index)
 	if (index < 0)
 		return index;
 
-	mlx5_core_dbg(dev, "Allodating reserved GID %u\n", index);
+	mlx5_core_dbg(dev, "Allocating reserved GID %u\n", index);
 	*gid_index = index;
 	return 0;
 }
