@@ -1708,7 +1708,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		 * (Documentation/RCU/rculist_nulls.txt for details)
 		 */
 		smp_wmb();
-		atomic_set(&newsk->sk_refcnt, 2);
+		refcount_set(&newsk->sk_refcnt, 2);
 
 		/*
 		 * Increment the counter in the same struct proto as the master
@@ -1851,7 +1851,7 @@ void skb_orphan_partial(struct sk_buff *skb)
 		) {
 		struct sock *sk = skb->sk;
 
-		if (atomic_inc_not_zero(&sk->sk_refcnt)) {
+		if (refcount_inc_not_zero(&sk->sk_refcnt)) {
 			WARN_ON(refcount_sub_and_test(skb->truesize, &sk->sk_wmem_alloc));
 			skb->destructor = sock_efree;
 		}
@@ -2687,7 +2687,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	 * (Documentation/RCU/rculist_nulls.txt for details)
 	 */
 	smp_wmb();
-	atomic_set(&sk->sk_refcnt, 1);
+	refcount_set(&sk->sk_refcnt, 1);
 	atomic_set(&sk->sk_drops, 0);
 }
 EXPORT_SYMBOL(sock_init_data);
