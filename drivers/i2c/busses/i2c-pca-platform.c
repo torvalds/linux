@@ -232,9 +232,9 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	if (i2c_pca_add_numbered_bus(&i2c->adap) < 0) {
-		return -ENODEV;
-	}
+	ret = i2c_pca_add_numbered_bus(&i2c->adap);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, i2c);
 
