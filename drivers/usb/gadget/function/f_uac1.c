@@ -337,7 +337,7 @@ static int audio_set_endpoint_req(struct usb_function *f,
 {
 	struct usb_composite_dev *cdev = f->config->cdev;
 	int			value = -EOPNOTSUPP;
-	u16			ep = le16_to_cpu(ctrl->wIndex);
+	u8			ep = le16_to_cpu(ctrl->wIndex) & 0xff;
 	u16			len = le16_to_cpu(ctrl->wLength);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 
@@ -373,7 +373,7 @@ static int audio_get_endpoint_req(struct usb_function *f,
 {
 	struct usb_composite_dev *cdev = f->config->cdev;
 	int value = -EOPNOTSUPP;
-	u8 ep = ((le16_to_cpu(ctrl->wIndex) >> 8) & 0xFF);
+	u8 ep = le16_to_cpu(ctrl->wIndex) & 0xff;
 	u16 len = le16_to_cpu(ctrl->wLength);
 	u16 w_value = le16_to_cpu(ctrl->wValue);
 
