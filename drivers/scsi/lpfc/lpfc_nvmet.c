@@ -866,44 +866,44 @@ lpfc_nvmet_cleanup_io_context(struct lpfc_hba *phba)
 	unsigned long flags;
 
 	spin_lock_irqsave(&phba->sli4_hba.nvmet_ctx_get_lock, flags);
-	spin_lock_irq(&phba->sli4_hba.nvmet_ctx_put_lock);
+	spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
 	list_for_each_entry_safe(ctx_buf, next_ctx_buf,
 			&phba->sli4_hba.lpfc_nvmet_ctx_get_list, list) {
-		spin_lock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		list_del_init(&ctx_buf->list);
-		spin_unlock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		__lpfc_clear_active_sglq(phba,
 					 ctx_buf->sglq->sli4_lxritag);
 		ctx_buf->sglq->state = SGL_FREED;
 		ctx_buf->sglq->ndlp = NULL;
 
-		spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
+		spin_lock(&phba->sli4_hba.sgl_list_lock);
 		list_add_tail(&ctx_buf->sglq->list,
 			      &phba->sli4_hba.lpfc_nvmet_sgl_list);
-		spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
+		spin_unlock(&phba->sli4_hba.sgl_list_lock);
 
 		lpfc_sli_release_iocbq(phba, ctx_buf->iocbq);
 		kfree(ctx_buf->context);
 	}
 	list_for_each_entry_safe(ctx_buf, next_ctx_buf,
 			&phba->sli4_hba.lpfc_nvmet_ctx_put_list, list) {
-		spin_lock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		list_del_init(&ctx_buf->list);
-		spin_unlock_irq(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		__lpfc_clear_active_sglq(phba,
 					 ctx_buf->sglq->sli4_lxritag);
 		ctx_buf->sglq->state = SGL_FREED;
 		ctx_buf->sglq->ndlp = NULL;
 
-		spin_lock_irq(&phba->sli4_hba.sgl_list_lock);
+		spin_lock(&phba->sli4_hba.sgl_list_lock);
 		list_add_tail(&ctx_buf->sglq->list,
 			      &phba->sli4_hba.lpfc_nvmet_sgl_list);
-		spin_unlock_irq(&phba->sli4_hba.sgl_list_lock);
+		spin_unlock(&phba->sli4_hba.sgl_list_lock);
 
 		lpfc_sli_release_iocbq(phba, ctx_buf->iocbq);
 		kfree(ctx_buf->context);
 	}
-	spin_unlock_irq(&phba->sli4_hba.nvmet_ctx_put_lock);
+	spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
 	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_ctx_get_lock, flags);
 }
 
