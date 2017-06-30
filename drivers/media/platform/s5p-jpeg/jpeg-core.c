@@ -2523,6 +2523,25 @@ static void s5p_jpeg_buf_queue(struct vb2_buffer *vb)
 		q_data = &ctx->cap_q;
 		q_data->w = tmp.w;
 		q_data->h = tmp.h;
+
+		/*
+		 * This call to jpeg_bound_align_image() takes care of width and
+		 * height values alignment when user space calls the QBUF of
+		 * OUTPUT buffer after the S_FMT of CAPTURE buffer.
+		 * Please note that on Exynos4x12 SoCs, resigning from executing
+		 * S_FMT on capture buffer for each JPEG image can result in a
+		 * hardware hangup if subsampling is lower than the one of input
+		 * JPEG.
+		 */
+		jpeg_bound_align_image(ctx,
+				       &q_data->w,
+				       S5P_JPEG_MIN_WIDTH, S5P_JPEG_MAX_WIDTH,
+				       q_data->fmt->h_align,
+				       &q_data->h,
+				       S5P_JPEG_MIN_HEIGHT, S5P_JPEG_MAX_HEIGHT,
+				       q_data->fmt->v_align);
+
+		q_data->size = q_data->w * q_data->h * q_data->fmt->depth >> 3;
 	}
 
 	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
