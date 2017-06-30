@@ -432,18 +432,18 @@
 };
 
 &sdio0 {
-	assigned-clocks = <&cru SCLK_SDIO0>;
-	assigned-clock-parents = <&cru PLL_CPLL>;
-	broken-cd;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;
+	keep-power-in-suspend;
+	max-frequency = <100000000>;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
 	num-slots = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdio0_clk &sdio0_cmd &sdio0_bus4>;
-	vmmc-supply = <&vcc_io>;
-	vqmmc-supply = <&vcc_wl>;
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	sd-uhs-sdr104;
+	supports-sdio;
 	status = "okay";
 };
 
