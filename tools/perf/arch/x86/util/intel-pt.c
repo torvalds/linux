@@ -752,6 +752,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		tracking_evsel->attr.freq = 0;
 		tracking_evsel->attr.sample_period = 1;
 
+		tracking_evsel->no_aux_samples = true;
 		if (need_immediate)
 			tracking_evsel->immediate = true;
 
