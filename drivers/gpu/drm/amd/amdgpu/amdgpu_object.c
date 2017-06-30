@@ -432,6 +432,10 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 
 	trace_amdgpu_bo_create(bo);
 
+	/* Treat CPU_ACCESS_REQUIRED only as a hint if given by UMD */
+	if (type == ttm_bo_type_device)
+		bo->flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+
 	return 0;
 
 fail_unreserve:
@@ -945,13 +949,17 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct amdgpu_bo *abo;
-	unsigned long offset, size, lpfn;
-	int i, r;
+	unsigned long offset, size;
+	int r;
 
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo))
 		return 0;
 
 	abo = container_of(bo, struct amdgpu_bo, tbo);
+
+	/* Remember that this BO was accessed by the CPU */
+	abo->flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+
 	if (bo->mem.mem_type != TTM_PL_VRAM)
 		return 0;
 
@@ -967,14 +975,6 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	/* hurrah the memory is not visible ! */
 	atomic64_inc(&adev->num_vram_cpu_page_faults);
 	amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM);
-	lpfn =	adev->mc.visible_vram_size >> PAGE_SHIFT;
-	for (i = 0; i < abo->placement.num_placement; i++) {
-		/* Force into visible VRAM */
-		if ((abo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
-		    (!abo->placements[i].lpfn ||
-		     abo->placements[i].lpfn > lpfn))
-			abo->placements[i].lpfn = lpfn;
-	}
 	r = ttm_bo_validate(bo, &abo->placement, false, false);
 	if (unlikely(r == -ENOMEM)) {
 		amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
