@@ -844,6 +844,31 @@ static int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	return 0;
 }
 
+void __check_sit_bitmap(struct f2fs_sb_info *sbi,
+				block_t start, block_t end)
+{
+#ifdef CONFIG_F2FS_CHECK_FS
+	struct seg_entry *sentry;
+	unsigned int segno;
+	block_t blk = start;
+	unsigned long offset, size, max_blocks = sbi->blocks_per_seg;
+	unsigned long *map;
+
+	while (blk < end) {
+		segno = GET_SEGNO(sbi, blk);
+		sentry = get_seg_entry(sbi, segno);
+		offset = GET_BLKOFF_FROM_SEG0(sbi, blk);
+
+		size = min((unsigned long)(end - blk), max_blocks);
+		map = (unsigned long *)(sentry->cur_valid_map);
+		offset = __find_rev_next_bit(map, size, offset);
+		f2fs_bug_on(sbi, offset != size);
+		blk += size;
+	}
+#endif
+}
+
+/* this function is copied from blkdev_issue_discard from block/blk-lib.c */
 static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 				struct discard_cmd *dc)
 {
@@ -869,6 +894,7 @@ static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 			bio->bi_end_io = f2fs_submit_discard_endio;
 			submit_bio(REQ_SYNC, bio);
 			list_move_tail(&dc->list, &dcc->wait_list);
+			__check_sit_bitmap(sbi, dc->start, dc->start + dc->len);
 		}
 	} else {
 		__remove_discard_cmd(sbi, dc);
