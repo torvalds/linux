@@ -1049,6 +1049,26 @@ release_fb:
 	return err;
 }
 
+static int lynxfb_kick_out_firmware_fb(struct pci_dev *pdev)
+{
+	struct apertures_struct *ap;
+	bool primary = false;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return -ENOMEM;
+
+	ap->ranges[0].base = pci_resource_start(pdev, 0);
+	ap->ranges[0].size = pci_resource_len(pdev, 0);
+#ifdef CONFIG_X86
+	primary = pdev->resource[PCI_ROM_RESOURCE].flags &
+					IORESOURCE_ROM_SHADOW;
+#endif
+	remove_conflicting_framebuffers(ap, "sm750_fb1", primary);
+	kfree(ap);
+	return 0;
+}
+
 static int lynxfb_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
@@ -1056,6 +1076,10 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	int max_fb;
 	int fbidx;
 	int err;
+
+	err = lynxfb_kick_out_firmware_fb(pdev);
+	if (err)
+		return err;
 
 	/* enable device */
 	err = pcim_enable_device(pdev);
