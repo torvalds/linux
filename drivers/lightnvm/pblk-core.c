@@ -1561,11 +1561,14 @@ static void pblk_line_should_sync_meta(struct pblk *pblk)
 void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
-	struct pblk_line_meta *lm = &pblk->lm;
 	struct list_head *move_list;
+
+#ifdef CONFIG_NVM_DEBUG
+	struct pblk_line_meta *lm = &pblk->lm;
 
 	WARN(!bitmap_full(line->map_bitmap, lm->sec_per_line),
 				"pblk: corrupt closed line %d\n", line->id);
+#endif
 
 	spin_lock(&l_mg->free_lock);
 	WARN_ON(!test_and_clear_bit(line->meta_line, &l_mg->meta_bitmap));
