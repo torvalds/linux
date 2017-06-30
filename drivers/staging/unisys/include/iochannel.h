@@ -71,8 +71,10 @@
 #define MAXNUM(a, b) (((a) > (b)) ? (a) : (b))
 
 /* Define the two queues per data channel between iopart and ioguestparts. */
+
 /* Used by ioguestpart to 'insert' signals to iopart. */
 #define IOCHAN_TO_IOPART 0
+
 /* Used by ioguestpart to 'remove' signals from iopart, same previous queue. */
 #define IOCHAN_FROM_IOPART 1
 
@@ -83,46 +85,45 @@
 
 #define MAX_PHYS_INFO 64
 
-/* Various types of network packets that can be sent in cmdrsp. */
+/*
+ * enum net_types - Various types of network packets that can be sent in cmdrsp.
+ * @NET_RCV_POST:	Submit buffer to hold receiving incoming packet.
+ * @NET_RCV:		visornic -> uisnic. Incoming packet received.
+ * @NET_XMIT:		uisnic -> visornic. For outgoing packet.
+ * @NET_XMIT_DONE:	visornic -> uisnic. Outgoing packet xmitted.
+ * @NET_RCV_ENBDIS:	uisnic -> visornic. Enable/Disable packet reception.
+ * @NET_RCV_ENBDIS_ACK:	visornic -> uisnic. Acknowledge enable/disable packet.
+ * @NET_RCV_PROMISC:	uisnic -> visornic. Enable/Disable promiscuous mode.
+ * @NET_CONNECT_STATUS:	visornic -> uisnic. Indicate the loss or restoration of
+ *			a network connection.
+ * @NET_MACADDR:	uisnic -> visornic. Indicates the client has requested
+ *			to update it's MAC address.
+ * @NET_MACADDR_ACK:	MAC address acknowledge.
+ */
 enum net_types {
-	NET_RCV_POST = 0,	/*
-				 * Submit buffer to hold receiving
-				 * incoming packet
-				 */
-	/* visornic -> uisnic */
-	NET_RCV,		/* incoming packet received */
-	/* uisnic -> visornic */
-	NET_XMIT,		/* for outgoing net packets */
-	/* visornic -> uisnic */
-	NET_XMIT_DONE,		/* outgoing packet xmitted */
-	/* uisnic -> visornic */
-	NET_RCV_ENBDIS,		/* enable/disable packet reception */
-	/* visornic -> uisnic */
-	NET_RCV_ENBDIS_ACK,	/* acknowledge enable/disable packet */
-				/* reception */
-	/* uisnic -> visornic */
-	NET_RCV_PROMISC,	/* enable/disable promiscuous mode */
-	/* visornic -> uisnic */
-	NET_CONNECT_STATUS,	/*
-				 * indicate the loss or restoration of a network
-				 * connection
-				 */
-	/* uisnic -> visornic */
-	NET_MACADDR,		/*
-				 * Indicates the client has requested to update
-				 * it's MAC address
-				 */
-	NET_MACADDR_ACK,	/* MAC address acknowledge */
-
+	NET_RCV_POST = 0,
+	NET_RCV,
+	NET_XMIT,
+	NET_XMIT_DONE,
+	NET_RCV_ENBDIS,
+	NET_RCV_ENBDIS_ACK,
+	/* Reception */
+	NET_RCV_PROMISC,
+	NET_CONNECT_STATUS,
+	NET_MACADDR,
+	NET_MACADDR_ACK,
 };
 
-#define ETH_MIN_DATA_SIZE 46	/* minimum eth data size */
+/* Minimum eth data size */
+#define ETH_MIN_DATA_SIZE 46
 #define ETH_MIN_PACKET_SIZE (ETH_HLEN + ETH_MIN_DATA_SIZE)
 
-#define VISOR_ETH_MAX_MTU 16384	/* maximum data size */
+/* Maximum data size */
+#define VISOR_ETH_MAX_MTU 16384
 
 #ifndef MAX_MACADDR_LEN
-#define MAX_MACADDR_LEN 6	/* number of bytes in MAC address */
+/* Number of bytes in MAC address */
+#define MAX_MACADDR_LEN 6
 #endif
 
 /* Various types of scsi task mgmt commands. */
@@ -156,10 +157,16 @@ struct guest_phys_info {
 
 #define GPI_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct guest_phys_info))
 
+/*
+ * struct uisscsi_dest
+ * @channel: Bus number.
+ * @id:      Target number.
+ * @lun:     Logical unit number.
+ */
 struct uisscsi_dest {
-	u32 channel;	/* channel == bus number */
-	u32 id;		/* id == target number */
-	u32 lun;	/* lun == logical unit number */
+	u32 channel;
+	u32 id;
+	u32 lun;
 } __packed;
 
 struct vhba_wwnn {
@@ -168,53 +175,71 @@ struct vhba_wwnn {
 } __packed;
 
 /*
+ * struct vhba_config_max
+ * @max_channel: Maximum channel for devices attached to this bus.
+ * @max_id:	 Maximum SCSI ID for devices attached to bus.
+ * @max_lun:	 Maximum SCSI LUN for devices attached to bus.
+ * @cmd_per_lun: Maximum number of outstanding commands per LUN.
+ * @max_io_size: Maximum io size for devices attached to this bus. Max io size
+ *		 is often determined by the resource of the hba.
+ *		 e.g Max scatter gather list length * page size / sector size.
+ *
  * WARNING: Values stired in this structure must contain maximum counts (not
  * maximum values).
+ *
+ * 20 bytes
  */
-struct vhba_config_max {/* 20 bytes */
-	u32 max_channel;/* maximum channel for devices attached to this bus */
-	u32 max_id;	/* maximum SCSI ID for devices attached to bus */
-	u32 max_lun;	/* maximum SCSI LUN for devices attached to bus */
-	u32 cmd_per_lun;/* maximum number of outstanding commands per LUN */
-	u32 max_io_size;/* maximum io size for devices attached to this bus */
-	/* max io size is often determined by the resource of the hba. e.g */
-	/* max scatter gather list length * page size / sector size */
+struct vhba_config_max {
+	u32 max_channel;
+	u32 max_id;
+	u32 max_lun;
+	u32 cmd_per_lun;
+	u32 max_io_size;
 } __packed;
 
+/*
+ * struct uiscmdrsp_scsi
+ *
+ * @handle:		The handle to the cmd that was received. Send it back as
+ *			is in the rsp packet.
+ * @cmnd:		The cdb for the command.
+ * @bufflen:		Length of data to be transferred out or in.
+ * @guest_phys_entries:	Number of entries in scatter-gather list.
+ * @struct gpi_list:	Physical address information for each fragment.
+ * @enum data_dir:	Direction of the data, if any.
+ * @struct vdest:	Identifies the virtual hba, id, channel, lun to which
+ *			cmd was sent.
+ * @linuxstat:		Original Linux status used by Linux vdisk.
+ * @scsistat:		The scsi status.
+ * @addlstat:		Non-scsi status.
+ * @sensebuf:		Sense info in case cmd failed. sensebuf holds the
+ *			sense_data struct. See sense_data struct for more
+ *			details.
+ * @*vdisk:		Pointer to the vdisk to clean up when IO completes.
+ * @no_disk_result:	Used to return no disk inquiry result when
+ *			no_disk_result is set to 1
+ *			scsi.scsistat is SAM_STAT_GOOD
+ *			scsi.addlstat is 0
+ *			scsi.linuxstat is SAM_STAT_GOOD
+ *			That is, there is NO error.
+ */
 struct uiscmdrsp_scsi {
-	u64 handle;		/* the handle to the cmd that was received */
-				/* send it back as is in the rsp packet.  */
-	u8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
-	u32 bufflen;		/* length of data to be transferred out or in */
-	u16 guest_phys_entries;	/* Number of entries in scatter-gather list */
-	struct guest_phys_info gpi_list[MAX_PHYS_INFO];	/* physical address
-							 * information for each
-							 * fragment
-							 */
-	enum dma_data_direction data_dir; /* direction of the data, if any */
-	struct uisscsi_dest vdest;	/* identifies the virtual hba, id, */
-					/* channel, lun to which cmd was sent */
-
+	u64 handle;
+	u8 cmnd[MAX_CMND_SIZE];
+	u32 bufflen;
+	u16 guest_phys_entries;
+	struct guest_phys_info gpi_list[MAX_PHYS_INFO];
+	enum dma_data_direction data_dir;
+	struct uisscsi_dest vdest;
 	/* Needed to queue the rsp back to cmd originator. */
-	int linuxstat;		/* original Linux status used by Linux vdisk */
-	u8 scsistat;		/* the scsi status */
-	u8 addlstat;		/* non-scsi status */
+	int linuxstat;
+	u8 scsistat;
+	u8 addlstat;
 #define ADDL_SEL_TIMEOUT 4
-
 	/* The following fields are need to determine the result of command. */
-	 u8 sensebuf[MAX_SENSE_SIZE];	/* sense info in case cmd failed; */
-	/* sensebuf holds the sense_data struct; */
-	/* See sense_data struct for more details. */
-	void *vdisk; /* Pointer to the vdisk to clean up when IO completes. */
+	u8 sensebuf[MAX_SENSE_SIZE];
+	void *vdisk;
 	int no_disk_result;
-	/*
-	 * Used to return no disk inquiry result
-	 * when no_disk_result is set to 1,
-	 * scsi.scsistat is SAM_STAT_GOOD
-	 * scsi.addlstat is 0
-	 * scsi.linuxstat is SAM_STAT_GOOD
-	 * That is, there is NO error.
-	 */
 } __packed;
 
 /*
@@ -234,22 +259,35 @@ struct uiscmdrsp_scsi {
  * connected to this logical unit.
  */
 
-#define DEV_NOT_CAPABLE 0x7f	/*
-				 * peripheral qualifier of 0x3
-				 * peripheral type of 0x1f
-				 * specifies no device but target present
-				 */
+/*
+ * Peripheral qualifier of 0x3
+ * Peripheral type of 0x1f
+ * Specifies no device but target present
+ */
+#define DEV_NOT_CAPABLE 0x7f
+/*
+ * Peripheral qualifier of 0x1
+ * Peripheral type of 0 - disk
+ * Specifies device capable, but not present
+ */
+#define DEV_DISK_CAPABLE_NOT_PRESENT 0x20
+/* HiSup = 1; shows support for report luns must be returned for lun 0. */
+#define DEV_HISUPPORT 0x10
 
-#define DEV_DISK_CAPABLE_NOT_PRESENT 0x20	/* peripheral qualifier of 0x1
-						 * peripheral type of 0 - disk
-						 * Specifies device capable, but
-						 * not present
-						 */
-
-#define DEV_HISUPPORT 0x10	/*
-				 * HiSup = 1; shows support for report luns
-				 * must be returned for lun 0.
-				 */
+/*
+ * Peripheral qualifier of 0x3
+ * Peripheral type of 0x1f
+ * Specifies no device but target present
+ */
+#define DEV_NOT_CAPABLE 0x7f
+/*
+ * Peripheral qualifier of 0x1
+ * Peripheral type of 0 - disk
+ * Specifies device capable, but not present
+ */
+#define DEV_DISK_CAPABLE_NOT_PRESENT 0x20
+/* HiSup = 1; shows support for report luns must be returned for lun 0. */
+#define DEV_HISUPPORT 0x10
 
 /*
  * NOTE: Linux code assumes inquiry contains 36 bytes. Without checking length
@@ -258,11 +296,12 @@ struct uiscmdrsp_scsi {
  * inquiry result.
  */
 #define NO_DISK_INQUIRY_RESULT_LEN 36
-
-#define MIN_INQUIRY_RESULT_LEN 5 /* 5 bytes minimum for inquiry result */
+/* 5 bytes minimum for inquiry result */
+#define MIN_INQUIRY_RESULT_LEN 5
 
 /* SCSI device version for no disk inquiry result */
-#define SCSI_SPC2_VER 4	/* indicates SCSI SPC2 (SPC3 is 5) */
+/* indicates SCSI SPC2 (SPC3 is 5) */
+#define SCSI_SPC2_VER 4
 
 /* Struct and Defines to support sense information. */
 
@@ -297,35 +336,48 @@ struct sense_data {
 	u8 sense_key_specific[3];
 } __packed;
 
+/*
+ * struct net_pkt_xmt
+ * @len:		    Full length of data in the packet.
+ * @num_frags:		    Number of fragments in frags containing data.
+ * @struct phys_info frags: Physical page information.
+ * @ethhdr:		    The ethernet header.
+ * @struct lincsum:	    These are needed for csum at uisnic end.
+ *      @valid:	    1 = struct is valid - else ignore.
+ *      @hrawoffv:  1 = hwrafoff is valid.
+ *      @nhrawoffv: 1 = nhwrafoff is valid.
+ *      @protocol:  Specifies packet protocol.
+ *      @csum:	    Value used to set skb->csum at IOPart.
+ *      @hrawoff:   Value used to set skb->h.raw at IOPart. hrawoff points to
+ *		    the start of the TRANSPORT LAYER HEADER.
+ *      @nhrawoff:  Value used to set skb->nh.raw at IOPart. nhrawoff points to
+ *		    the start of the NETWORK LAYER HEADER.
+ *
+ * NOTE:
+ * The full packet is described in frags but the ethernet header is
+ * separately kept in ethhdr so that uisnic doesn't have "MAP" the
+ * guest memory to get to the header. uisnic needs ethhdr to
+ * determine how to route the packet.
+ */
 struct net_pkt_xmt {
-	int len;	/* full length of data in the packet */
-	int num_frags;	/* number of fragments in frags containing data */
-	struct phys_info frags[MAX_PHYS_INFO];	/* physical page information */
-	char ethhdr[ETH_HLEN];	/* the ethernet header  */
+	int len;
+	int num_frags;
+	struct phys_info frags[MAX_PHYS_INFO];
+	char ethhdr[ETH_HLEN];
 	struct {
-		/* These are needed for csum at uisnic end */
-		u8 valid;	/* 1 = struct is valid - else ignore */
-		u8 hrawoffv;	/* 1 = hwrafoff is valid */
-		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
-		__be16 protocol;	/* specifies packet protocol */
-		__wsum csum;	/* value used to set skb->csum at IOPart */
-		u32 hrawoff;	/* value used to set skb->h.raw at IOPart */
-		/* hrawoff points to the start of the TRANSPORT LAYER HEADER */
-		u32 nhrawoff;	/* value used to set skb->nh.raw at IOPart */
-		/* nhrawoff points to the start of the NETWORK LAYER HEADER */
+		u8 valid;
+		u8 hrawoffv;
+		u8 nhrawoffv;
+		__be16 protocol;
+		__wsum csum;
+		u32 hrawoff;
+		u32 nhrawoff;
 	} lincsum;
-
-	    /*
-	     * NOTE:
-	     * The full packet is described in frags but the ethernet header is
-	     * separately kept in ethhdr so that uisnic doesn't have "MAP" the
-	     * guest memory to get to the header. uisnic needs ethhdr to
-	     * determine how to route the packet.
-	     */
 } __packed;
 
 struct net_pkt_xmtdone {
-	u32 xmt_done_result; /* result of NET_XMIT */
+	/* Result of NET_XMIT */
+	u32 xmt_done_result;
 } __packed;
 
 /*
@@ -341,14 +393,12 @@ struct net_pkt_xmtdone {
 	((VISOR_ETH_MAX_MTU + ETH_HLEN + RCVPOST_BUF_SIZE - 1) \
 	 / RCVPOST_BUF_SIZE)
 
-/*
- * rcv buf size must be large enough to include ethernet data len + ethernet
+/* rcv buf size must be large enough to include ethernet data len + ethernet
  * header len - we are choosing 2K because it is guaranteed to be describable.
  */
 struct net_pkt_rcvpost {
 	/* Physical page information for the single fragment 2K rcv buf */
 	struct phys_info frag;
-
 	/*
 	 * Ensures that receive posts are returned to the adapter which we sent
 	 * them from originally.
@@ -358,143 +408,148 @@ struct net_pkt_rcvpost {
 } __packed;
 
 /*
+ * struct net_pkt_rcv
+ * @rcv_done_len:	Length of the received data.
+ * @numrcvbufs:		Contains the incoming data. Guest side MUST chain these
+ *			together.
+ * @*rcvbuf:		List of chained rcvbufa. Each entry is a receive buffer
+ *			provided by NET_RCV_POST. NOTE: First rcvbuf in the
+ *			chain will also be provided in net.buf.
+ * @unique_num:
+ * @rcvs_dropped_delta:
+ *
  * The number of rcvbuf that can be chained is based on max mtu and size of each
  * rcvbuf.
  */
 struct net_pkt_rcv {
-	u32 rcv_done_len; /* length of received data */
-
-	/*
-	 * numrcvbufs: contain the incoming data; guest side MUST chain these
-	 * together.
-	 */
+	u32 rcv_done_len;
 	u8 numrcvbufs;
-
-	void *rcvbuf[MAX_NET_RCV_CHAIN]; /* list of chained rcvbufs */
-
-	/* Each entry is a receive buffer provided by NET_RCV_POST. */
-	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
+	void *rcvbuf[MAX_NET_RCV_CHAIN];
 	u64 unique_num;
 	u32 rcvs_dropped_delta;
 } __packed;
 
 struct net_pkt_enbdis {
 	void *context;
-	u16 enable; /* 1 = enable, 0 = disable */
+	/* 1 = enable, 0 = disable */
+	u16 enable;
 } __packed;
 
 struct net_pkt_macaddr {
 	void *context;
-	u8 macaddr[MAX_MACADDR_LEN]; /* 6 bytes */
+	/* 6 bytes */
+	u8 macaddr[MAX_MACADDR_LEN];
 } __packed;
 
-/* cmd rsp packet used for VNIC network traffic  */
+/*
+ * struct uiscmdrsp_net - cmd rsp packet used for VNIC network traffic.
+ * @enum type:
+ * @*buf:
+ * @union:
+ *	@struct xmt:	 Used for NET_XMIT.
+ *	@struct xmtdone: Used for NET_XMIT_DONE.
+ *	@struct rcvpost: Used for NET_RCV_POST.
+ *	@struct rcv:	 Used for NET_RCV.
+ *	@struct enbdis:	 Used for NET_RCV_ENBDIS, NET_RCV_ENBDIS_ACK,
+ *			 NET_RCV_PROMSIC, and NET_CONNECT_STATUS.
+ *	@struct macaddr:
+ */
 struct uiscmdrsp_net {
 	enum net_types type;
 	void *buf;
 	union {
-		struct net_pkt_xmt xmt;		/* used for NET_XMIT */
-		struct net_pkt_xmtdone xmtdone;	/* used for NET_XMIT_DONE */
-		struct net_pkt_rcvpost rcvpost;	/* used for NET_RCV_POST */
-		struct net_pkt_rcv rcv;		/* used for NET_RCV */
-		struct net_pkt_enbdis enbdis;	/* used for NET_RCV_ENBDIS, */
-						/* NET_RCV_ENBDIS_ACK,  */
-						/* NET_RCV_PROMSIC, */
-						/* and NET_CONNECT_STATUS */
+		struct net_pkt_xmt xmt;
+		struct net_pkt_xmtdone xmtdone;
+		struct net_pkt_rcvpost rcvpost;
+		struct net_pkt_rcv rcv;
+		struct net_pkt_enbdis enbdis;
 		struct net_pkt_macaddr macaddr;
 	};
 } __packed;
 
+/*
+ * struct uiscmdrsp_scsitaskmgmt
+ * @enum tasktype:	 The type of task.
+ * @struct vdest:	 The vdisk for which this task mgmt is generated.
+ * @handle:		 This is a handle that the guest has saved off for its
+ *			 own use. The handle value is preserved by iopart and
+ *			 returned as in task mgmt rsp.
+ * @notify_handle:	 For Linux guests, this is a pointer to wait_queue_head
+ *			 that a thread is waiting on to see if the taskmgmt
+ *			 command has completed. When the rsp is received by
+ *			 guest, the thread receiving the response uses this to
+ *			 notify the thread waiting for taskmgmt command
+ *			 completion. It's value is preserved by iopart and
+ *			 returned as in the task mgmt rsp.
+ * @notifyresult_handle: This is a handle to the location in the guest where
+ *			 the result of the taskmgmt command (result field) is
+ *			 saved to when the response is handled. It's value is
+ *			 preserved by iopart and returned as is in the task mgmt
+ *			 rsp.
+ * @result:		 Result of taskmgmt command - set by IOPart.
+ */
 struct uiscmdrsp_scsitaskmgmt {
-	/* The type of task. */
 	enum task_mgmt_types tasktype;
-
-	/* The vdisk for which this task mgmt is generated. */
 	struct uisscsi_dest vdest;
-
-	/*
-	 * This is a handle that the guest has saved off for its own use.
-	 * The handle value is preserved by iopart and returned as in task
-	 * mgmt rsp.
-	 */
 	u64 handle;
-
-	/*
-	 * For Linux guests, this is a pointer to wait_queue_head that a
-	 * thread is waiting on to see if the taskmgmt command has completed.
-	 * When the rsp is received by guest, the thread receiving the
-	 * response uses this to notify the thread waiting for taskmgmt
-	 * command completion. It's value is preserved by iopart and returned
-	 * as in the task mgmt rsp.
-	 */
 	u64 notify_handle;
-
-	/*
-	 * This is a handle to the location in the guest where the result of
-	 * the taskmgmt command (result field) is saved to when the response
-	 * is handled. It's value is preserved by iopart and returned as in
-	 * the task mgmt rsp.
-	 */
 	u64 notifyresult_handle;
-
-	/* Result of taskmgmt command - set by IOPart - values are: */
 	char result;
 
 #define TASK_MGMT_FAILED 0
 } __packed;
 
-/* Used by uissd to send disk add/remove notifications to Guest. */
-/* Note that the vHba pointer is not used by the Client/Guest side. */
+/*
+ * struct uiscmdrsp_disknotify - Used by uissd to send disk add/remove
+ *				 notifications to Guest.
+ * @add:     0-remove, 1-add.
+ * @*v_hba:  Channel info to route msg.
+ * @channel: SCSI Path of Disk to added or removed.
+ * @id:	     SCSI Path of Disk to added or removed.
+ * @lun:     SCSI Path of Disk to added or removed.
+ *
+ * Note that the vHba pointer is not used by the Client/Guest side.
+ */
 struct uiscmdrsp_disknotify {
-	u8 add;			/* 0-remove, 1-add */
-	void *v_hba;		/* channel info to route msg */
-	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
+	u8 add;
+	void *v_hba;
+	u32 channel, id, lun;
 } __packed;
 
 /*
- * The following is used by virthba/vSCSI to send the Acquire/Release commands
- * to the IOVM.
+ * struct uiscmdrsp_vdiskmgmt - The following is used by virthba/vSCSI to send
+ *				the Acquire/Release commands to the IOVM.
+ * @enum vdisktype:	 The type of task.
+ * @struct vdest:	 The vdisk for which this task mgmt is generated.
+ * @handle:		 This is a handle that the guest has saved off for its
+ *			 own use. It's value is preserved by iopart and returned
+ *			 as in the task mgmt rsp.
+ * @notify_handle:	 For Linux guests, this is a pointer to wait_queue_head
+ *			 that a thread is waiting on to see if the tskmgmt
+ *			 command has completed. When the rsp is received by
+ *			 guest, the thread receiving the response uses this to
+ *			 notify the thread waiting for taskmgmt command
+ *			 completion. It's value is preserved by iopart and
+ *			 returned as in the task mgmt rsp.
+ * @notifyresult_handle: Handle to the location in guest where the result of the
+ *			 taskmgmt command (result field) is saved to when the
+ *			 response is handled. It's value is preserved by iopart
+ *			 and returned as in the task mgmt rsp.
+ * @result: Result of taskmgmt command - set by IOPart.
  */
 struct uiscmdrsp_vdiskmgmt {
-	/* The type of task */
 	enum vdisk_mgmt_types vdisktype;
-
-	/* The vdisk for which this task mgmt is generated */
 	struct uisscsi_dest vdest;
-
-	/*
-	 * This is a handle that the guest has saved off for its own use. It's
-	 * value is preserved by iopart and returned as in the task mgmt rsp.
-	 */
 	u64 handle;
-
-	/*
-	 * For Linux guests, this is a pointer to wait_queue_head that a
-	 * thread is waiting on to see if the tskmgmt command has completed.
-	 * When the rsp is received by guest, the thread receiving the
-	 * response uses this to notify the thread waiting for taskmgmt
-	 * command completion. It's value is preserved by iopart and returned
-	 * as in the task mgmt rsp.
-	 */
 	u64 notify_handle;
-
-	/*
-	 * Handle to the location in guest where the result of the
-	 * taskmgmt command (result field) is saved to when the response
-	 * is handled. It's value is preserved by iopart and returned as in
-	 * the task mgmt rsp.
-	 */
 	u64 notifyresult_handle;
-
-	/* Result of taskmgmt command - set by IOPart - values are: */
 	char result;
 } __packed;
 
 /* Keeping cmd and rsp info in one structure for now cmd rsp packet for SCSI */
 struct uiscmdrsp {
 	char cmdtype;
-
-/* Describes what type of information is in the struct */
+	/* Describes what type of information is in the struct */
 #define CMD_SCSI_TYPE	      1
 #define CMD_NET_TYPE	      2
 #define CMD_SCSITASKMGMT_TYPE 3
@@ -509,21 +564,33 @@ struct uiscmdrsp {
 	};
 	/* Send the response when the cmd is done (scsi and scsittaskmgmt). */
 	void *private_data;
-	struct uiscmdrsp *next;	/* General Purpose Queue Link */
-	struct uiscmdrsp *activeQ_next;	/* Pointer to the nextactive commands */
-	struct uiscmdrsp *activeQ_prev;	/* Pointer to the prevactive commands */
+	/* General Purpose Queue Link */
+	struct uiscmdrsp *next;
+	/* Pointer to the nextactive commands */
+	struct uiscmdrsp *activeQ_next;
+	/* Pointer to the prevactive commands */
+	struct uiscmdrsp *activeQ_prev;
 } __packed;
 
+/* total = 28 bytes */
 struct iochannel_vhba {
-	struct vhba_wwnn wwnn;		/* 8 bytes */
-	struct vhba_config_max max;	/* 20 bytes */
-} __packed;				/* total = 28 bytes */
-struct iochannel_vnic {
-	u8 macaddr[6];			/* 6 bytes */
-	u32 num_rcv_bufs;		/* 4 bytes */
-	u32 mtu;			/* 4 bytes */
-	uuid_le zone_uuid;		/* 16 bytes */
+	/* 8 bytes */
+	struct vhba_wwnn wwnn;
+	/* 20 bytes */
+	struct vhba_config_max max;
 } __packed;
+
+struct iochannel_vnic {
+	/* 6 bytes */
+	u8 macaddr[6];
+	/* 4 bytes */
+	u32 num_rcv_bufs;
+	/* 4 bytes */
+	u32 mtu;
+	/* 16 bytes */
+	uuid_le zone_uuid;
+} __packed;
+
 /*
  * This is just the header of the IO channel. It is assumed that directly after
  * this header there is a large region of memory which contains the command and
@@ -550,4 +617,5 @@ struct visor_io_channel {
 #define PI_PAGE_SIZE 0x1000
 #define PI_PAGE_MASK 0x0FFF
 
-#endif /* __IOCHANNEL_H__ */
+/* __IOCHANNEL_H__ */
+#endif
