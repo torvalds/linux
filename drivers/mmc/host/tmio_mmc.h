@@ -87,8 +87,6 @@
 #define CARD_OPT_WIDTH8		BIT(13)
 #define CARD_OPT_WIDTH		BIT(15)
 
-#define TMIO_BBS		512		/* Boot block size */
-
 /* Definitions for values the CTL_SDIO_STATUS register can take */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001
 #define TMIO_SDIO_STAT_EXPUB52	0x4000
