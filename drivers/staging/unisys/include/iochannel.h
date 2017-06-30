@@ -184,7 +184,7 @@ struct vhba_wwnn {
  *		 is often determined by the resource of the hba.
  *		 e.g Max scatter gather list length * page size / sector size.
  *
- * WARNING: Values stired in this structure must contain maximum counts (not
+ * WARNING: Values stored in this structure must contain maximum counts (not
  * maximum values).
  *
  * 20 bytes
