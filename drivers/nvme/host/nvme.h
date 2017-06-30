@@ -27,6 +27,13 @@ enum {
 	NVME_NS_LIGHTNVM	= 1,
 };
 
+/* The below value is the specific amount of delay needed before checking
+ * readiness in case of the PCI_DEVICE(0x1c58, 0x0003), which needs the
+ * NVME_QUIRK_DELAY_BEFORE_CHK_RDY quirk enabled. The value (in ms) was
+ * found empirically.
+ */
+#define NVME_QUIRK_DELAY_AMOUNT		2000
+
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
  */
