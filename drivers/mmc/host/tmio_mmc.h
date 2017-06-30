@@ -97,6 +97,9 @@
 
 #define TMIO_SDIO_SETBITS_MASK	0x0006
 
+/* Definitions for values the CTL_DMA_ENABLE register can take */
+#define DMA_ENABLE_DMASDRW	BIT(1)
+
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
 #define TMIO_MASK_ALL           0x837f031d
