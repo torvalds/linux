@@ -59,7 +59,7 @@ static int restore_crunch_context(struct crunch_sigframe __user *frame)
 
 #ifdef CONFIG_IWMMXT
 
-static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
+static int preserve_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 {
 	char kbuf[sizeof(*frame) + 8];
 	struct iwmmxt_sigframe *kframe;
@@ -72,7 +72,7 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
 	return __copy_to_user(frame, kframe, sizeof(*frame));
 }
 
-static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
+static int restore_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 {
 	char kbuf[sizeof(*frame) + 8];
 	struct iwmmxt_sigframe *kframe;
