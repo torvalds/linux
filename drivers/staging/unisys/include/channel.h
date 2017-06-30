@@ -59,27 +59,6 @@ enum channel_clientstate {
 				/* access channel anytime */
 };
 
-#define VISOR_CHANNEL_SERVER_READY(ch) \
-	(readl(&(ch)->srv_state) == CHANNELSRV_READY)
-
-#define VISOR_VALID_CHANNELCLI_TRANSITION(o, n) \
-	(((((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_DISABLED)) || \
-	  (((o) == CHANNELCLI_ATTACHING) && ((n) == CHANNELCLI_DISABLED)) || \
-	  (((o) == CHANNELCLI_ATTACHED) && ((n) == CHANNELCLI_DISABLED)) || \
-	  (((o) == CHANNELCLI_ATTACHING) && ((n) == CHANNELCLI_DETACHED)) || \
-	  (((o) == CHANNELCLI_ATTACHED) && ((n) == CHANNELCLI_DETACHED)) || \
-	  (((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_ATTACHING)) || \
-	  (((o) == CHANNELCLI_ATTACHING) && ((n) == CHANNELCLI_ATTACHED)) || \
-	  (((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_ATTACHED)) || \
-	  (((o) == CHANNELCLI_BUSY) && ((n) == CHANNELCLI_ATTACHED)) ||	\
-	  (((o) == CHANNELCLI_ATTACHED) && ((n) == CHANNELCLI_BUSY)) ||	\
-	  (((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_OWNED)) || \
-	  (((o) == CHANNELCLI_DISABLED) && ((n) == CHANNELCLI_OWNED)) || \
-	  (((o) == CHANNELCLI_ATTACHING) && ((n) == CHANNELCLI_OWNED)) || \
-	  (((o) == CHANNELCLI_ATTACHED) && ((n) == CHANNELCLI_OWNED)) || \
-	  (((o) == CHANNELCLI_BUSY) && ((n) == CHANNELCLI_OWNED)) || (0)) \
-	 ? (1) : (0))
-
 /* Values for VISORA_CHANNEL_PROTOCOL.CliErrorBoot: */
 /* throttling invalid boot channel statetransition error due to client
  * disabled
