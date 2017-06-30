@@ -114,8 +114,8 @@ static void dce100_pplib_apply_display_requirements(
 
 	pp_display_cfg->avail_mclk_switch_time_us =
 						dce110_get_min_vblank_time_us(context);
-	pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
-		/ MEMORY_TYPE_MULTIPLIER;
+	/*pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
+		/ MEMORY_TYPE_MULTIPLIER;*/
 
 	dce110_fill_display_configs(context, pp_display_cfg);
 
