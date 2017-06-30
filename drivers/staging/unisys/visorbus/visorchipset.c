@@ -581,7 +581,7 @@ visorbus_create(struct controlvm_message *inmsg)
 	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
 	if (bus_info && (bus_info->state.created == 1)) {
 		dev_err(&chipset_dev->acpi_device->dev,
-			"failed visorbus_create: already exists\n");
+			"failed %s: already exists\n", __func__);
 		err = -EEXIST;
 		goto err_respond;
 	}
