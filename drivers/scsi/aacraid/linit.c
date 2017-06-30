@@ -874,10 +874,6 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	u32 bus, cid;
 	int ret = FAILED;
 	int status = 0;
-	__le32 supported_options2 = 0;
-	bool is_mu_reset;
-	bool is_ignore_reset;
-	bool is_doorbell_reset;
 
 
 	bus = aac_logical_to_phys(scmd_channel(cmd));
@@ -923,7 +919,7 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		}
 
 		if (ret == SUCCESS)
-			goto out;
+			return ret;
 
 	} else {
 
@@ -952,8 +948,24 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		dev_err(&aac->pdev->dev, "Adapter health - %d\n", status);
 
 	count = get_num_of_incomplete_fibs(aac);
-	if (count == 0)
-		return SUCCESS;
+	return (count == 0) ? SUCCESS : FAILED;
+}
+
+/*
+ *	aac_eh_host_reset	- Host reset command handling
+ *	@scsi_cmd:	SCSI command block causing the reset
+ *
+ */
+int aac_eh_host_reset(struct scsi_cmnd *cmd)
+{
+	struct scsi_device * dev = cmd->device;
+	struct Scsi_Host * host = dev->host;
+	struct aac_dev * aac = (struct aac_dev *)host->hostdata;
+	int ret = FAILED;
+	__le32 supported_options2 = 0;
+	bool is_mu_reset;
+	bool is_ignore_reset;
+	bool is_doorbell_reset;
 
 	/*
 	 * Check if reset is supported by the firmware
@@ -972,10 +984,8 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	 && (aac_check_reset != -1 || !is_ignore_reset)) {
 		/* Bypass wait for command quiesce */
 		aac_reset_adapter(aac, 2, IOP_HWSOFT_RESET);
+		ret = SUCCESS;
 	}
-	ret = SUCCESS;
-
-out:
 	return ret;
 }
 
@@ -1399,7 +1409,8 @@ static struct scsi_host_template aac_driver_template = {
 	.change_queue_depth		= aac_change_queue_depth,
 	.sdev_attrs			= aac_dev_attrs,
 	.eh_abort_handler		= aac_eh_abort,
-	.eh_host_reset_handler		= aac_eh_reset,
+	.eh_bus_reset_handler		= aac_eh_reset,
+	.eh_host_reset_handler		= aac_eh_host_reset,
 	.can_queue			= AAC_NUM_IO_FIB,
 	.this_id			= MAXIMUM_NUM_CONTAINERS,
 	.sg_tablesize			= 16,
