@@ -614,7 +614,7 @@ int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 		skb->data_len += copied;
 		skb->len += copied;
 		skb->truesize += truesize;
-		atomic_add(truesize, &skb->sk->sk_wmem_alloc);
+		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
 		while (copied) {
 			int size = min_t(int, copied, PAGE_SIZE - start);
 			skb_fill_page_desc(skb, frag++, pages[n], start, size);

@@ -363,7 +363,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		assoc->stream.outcnt, assoc->max_retrans,
 		assoc->init_retries, assoc->shutdown_retries,
 		assoc->rtx_data_chunks,
-		atomic_read(&sk->sk_wmem_alloc),
+		refcount_read(&sk->sk_wmem_alloc),
 		sk->sk_wmem_queued,
 		sk->sk_sndbuf,
 		sk->sk_rcvbuf);

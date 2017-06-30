@@ -53,7 +53,7 @@ static void rxrpc_sock_destructor(struct sock *);
  */
 static inline int rxrpc_writable(struct sock *sk)
 {
-	return atomic_read(&sk->sk_wmem_alloc) < (size_t) sk->sk_sndbuf;
+	return refcount_read(&sk->sk_wmem_alloc) < (size_t) sk->sk_sndbuf;
 }
 
 /*
@@ -730,7 +730,7 @@ static void rxrpc_sock_destructor(struct sock *sk)
 
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
-	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(refcount_read(&sk->sk_wmem_alloc));
 	WARN_ON(!sk_unhashed(sk));
 	WARN_ON(sk->sk_socket);
 

@@ -442,7 +442,7 @@ static int unix_dgram_peer_wake_me(struct sock *sk, struct sock *other)
 static int unix_writable(const struct sock *sk)
 {
 	return sk->sk_state != TCP_LISTEN &&
-	       (atomic_read(&sk->sk_wmem_alloc) << 2) <= sk->sk_sndbuf;
+	       (refcount_read(&sk->sk_wmem_alloc) << 2) <= sk->sk_sndbuf;
 }
 
 static void unix_write_space(struct sock *sk)
@@ -487,7 +487,7 @@ static void unix_sock_destructor(struct sock *sk)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 
-	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(refcount_read(&sk->sk_wmem_alloc));
 	WARN_ON(!sk_unhashed(sk));
 	WARN_ON(sk->sk_socket);
 	if (!sock_flag(sk, SOCK_DEAD)) {
@@ -2033,7 +2033,7 @@ alloc_skb:
 	skb->len += size;
 	skb->data_len += size;
 	skb->truesize += size;
-	atomic_add(size, &sk->sk_wmem_alloc);
+	refcount_add(size, &sk->sk_wmem_alloc);
 
 	if (newskb) {
 		err = unix_scm_to_skb(&scm, skb, false);

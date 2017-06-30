@@ -924,12 +924,7 @@ fore200e_tx_irq(struct fore200e* fore200e)
 		else {
 		    dev_kfree_skb_any(entry->skb);
 		}
-#if 1
-		/* race fixed by the above incarnation mechanism, but... */
-		if (atomic_read(&sk_atm(vcc)->sk_wmem_alloc) < 0) {
-		    atomic_set(&sk_atm(vcc)->sk_wmem_alloc, 0);
-		}
-#endif
+
 		/* check error condition */
 		if (*entry->status & STATUS_ERROR)
 		    atomic_inc(&vcc->stats->tx_err);
@@ -1130,12 +1125,8 @@ fore200e_push_rpd(struct fore200e* fore200e, struct atm_vcc* vcc, struct rpd* rp
 	return -ENOMEM;
     }
 
-    ASSERT(atomic_read(&sk_atm(vcc)->sk_wmem_alloc) >= 0);
-
     vcc->push(vcc, skb);
     atomic_inc(&vcc->stats->rx);
-
-    ASSERT(atomic_read(&sk_atm(vcc)->sk_wmem_alloc) >= 0);
 
     return 0;
 }
@@ -1572,7 +1563,6 @@ fore200e_send(struct atm_vcc *vcc, struct sk_buff *skb)
     unsigned long           flags;
 
     ASSERT(vcc);
-    ASSERT(atomic_read(&sk_atm(vcc)->sk_wmem_alloc) >= 0);
     ASSERT(fore200e);
     ASSERT(fore200e_vcc);
 

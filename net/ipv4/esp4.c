@@ -307,7 +307,7 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 			skb->data_len += tailen;
 			skb->truesize += tailen;
 			if (sk)
-				atomic_add(tailen, &sk->sk_wmem_alloc);
+				refcount_add(tailen, &sk->sk_wmem_alloc);
 
 			goto out;
 		}
