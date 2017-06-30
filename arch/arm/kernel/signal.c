@@ -40,8 +40,10 @@ static int preserve_crunch_context(struct crunch_sigframe __user *frame)
 	return __copy_to_user(frame, kframe, sizeof(*frame));
 }
 
-static int restore_crunch_context(struct crunch_sigframe __user *frame)
+static int restore_crunch_context(char __user **auxp)
 {
+	struct crunch_sigframe __user *frame =
+		(struct crunch_sigframe __user *)*auxp;
 	char kbuf[sizeof(*frame) + 8];
 	struct crunch_sigframe *kframe;
 
@@ -52,6 +54,7 @@ static int restore_crunch_context(struct crunch_sigframe __user *frame)
 	if (kframe->magic != CRUNCH_MAGIC ||
 	    kframe->size != CRUNCH_STORAGE_SIZE)
 		return -1;
+	*auxp += CRUNCH_STORAGE_SIZE;
 	crunch_task_restore(current_thread_info(), &kframe->storage);
 	return 0;
 }
@@ -63,17 +66,35 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 {
 	char kbuf[sizeof(*frame) + 8];
 	struct iwmmxt_sigframe *kframe;
+	int err = 0;
 
 	/* the iWMMXt context must be 64 bit aligned */
 	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
-	kframe->magic = IWMMXT_MAGIC;
-	kframe->size = IWMMXT_STORAGE_SIZE;
-	iwmmxt_task_copy(current_thread_info(), &kframe->storage);
-	return __copy_to_user(frame, kframe, sizeof(*frame));
+
+	if (test_thread_flag(TIF_USING_IWMMXT)) {
+		kframe->magic = IWMMXT_MAGIC;
+		kframe->size = IWMMXT_STORAGE_SIZE;
+		iwmmxt_task_copy(current_thread_info(), &kframe->storage);
+
+		err = __copy_to_user(frame, kframe, sizeof(*frame));
+	} else {
+		/*
+		 * For bug-compatibility with older kernels, some space
+		 * has to be reserved for iWMMXt even if it's not used.
+		 * Set the magic and size appropriately so that properly
+		 * written userspace can skip it reliably:
+		 */
+		__put_user_error(DUMMY_MAGIC, &frame->magic, err);
+		__put_user_error(IWMMXT_STORAGE_SIZE, &frame->size, err);
+	}
+
+	return err;
 }
 
-static int restore_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
+static int restore_iwmmxt_context(char __user **auxp)
 {
+	struct iwmmxt_sigframe __user *frame =
+		(struct iwmmxt_sigframe __user *)*auxp;
 	char kbuf[sizeof(*frame) + 8];
 	struct iwmmxt_sigframe *kframe;
 
@@ -81,10 +102,28 @@ static int restore_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
 	if (__copy_from_user(kframe, frame, sizeof(*frame)))
 		return -1;
-	if (kframe->magic != IWMMXT_MAGIC ||
-	    kframe->size != IWMMXT_STORAGE_SIZE)
+
+	/*
+	 * For non-iWMMXt threads: a single iwmmxt_sigframe-sized dummy
+	 * block is discarded for compatibility with setup_sigframe() if
+	 * present, but we don't mandate its presence.  If some other
+	 * magic is here, it's not for us:
+	 */
+	if (!test_thread_flag(TIF_USING_IWMMXT) &&
+	    kframe->magic != DUMMY_MAGIC)
+		return 0;
+
+	if (kframe->size != IWMMXT_STORAGE_SIZE)
 		return -1;
-	iwmmxt_task_restore(current_thread_info(), &kframe->storage);
+
+	if (test_thread_flag(TIF_USING_IWMMXT)) {
+		if (kframe->magic != IWMMXT_MAGIC)
+			return -1;
+
+		iwmmxt_task_restore(current_thread_info(), &kframe->storage);
+	}
+
+	*auxp += IWMMXT_STORAGE_SIZE;
 	return 0;
 }
 
@@ -107,8 +146,10 @@ static int preserve_vfp_context(struct vfp_sigframe __user *frame)
 	return vfp_preserve_user_clear_hwstate(&frame->ufp, &frame->ufp_exc);
 }
 
-static int restore_vfp_context(struct vfp_sigframe __user *frame)
+static int restore_vfp_context(char __user **auxp)
 {
+	struct vfp_sigframe __user *frame =
+		(struct vfp_sigframe __user *)*auxp;
 	unsigned long magic;
 	unsigned long size;
 	int err = 0;
@@ -121,6 +162,7 @@ static int restore_vfp_context(struct vfp_sigframe __user *frame)
 	if (magic != VFP_MAGIC || size != VFP_STORAGE_SIZE)
 		return -EINVAL;
 
+	*auxp += size;
 	return vfp_restore_user_hwstate(&frame->ufp, &frame->ufp_exc);
 }
 
@@ -141,7 +183,7 @@ struct rt_sigframe {
 
 static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 {
-	struct aux_sigframe __user *aux;
+	char __user *aux;
 	sigset_t set;
 	int err;
 
@@ -169,18 +211,18 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 
 	err |= !valid_user_regs(regs);
 
-	aux = (struct aux_sigframe __user *) sf->uc.uc_regspace;
+	aux = (char __user *) sf->uc.uc_regspace;
 #ifdef CONFIG_CRUNCH
 	if (err == 0)
-		err |= restore_crunch_context(&aux->crunch);
+		err |= restore_crunch_context(&aux);
 #endif
 #ifdef CONFIG_IWMMXT
-	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
-		err |= restore_iwmmxt_context(&aux->iwmmxt);
+	if (err == 0)
+		err |= restore_iwmmxt_context(&aux);
 #endif
 #ifdef CONFIG_VFP
 	if (err == 0)
-		err |= restore_vfp_context(&aux->vfp);
+		err |= restore_vfp_context(&aux);
 #endif
 
 	return err;
@@ -286,7 +328,7 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 		err |= preserve_crunch_context(&aux->crunch);
 #endif
 #ifdef CONFIG_IWMMXT
-	if (err == 0 && test_thread_flag(TIF_USING_IWMMXT))
+	if (err == 0)
 		err |= preserve_iwmmxt_context(&aux->iwmmxt);
 #endif
 #ifdef CONFIG_VFP
