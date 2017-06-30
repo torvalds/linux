@@ -21,8 +21,6 @@
 #include "visorbus.h"
 #include "visorbus_private.h"
 
-#define MYDRVNAME "visorbus"
-
 /* Display string that is guaranteed to be no longer the 99 characters */
 #define LINESIZE 99
 
