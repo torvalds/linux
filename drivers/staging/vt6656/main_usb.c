@@ -419,8 +419,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 	int ii;
 
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
-		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
-				     GFP_KERNEL);
+		tx_context = kmalloc(sizeof(*tx_context), GFP_KERNEL);
 		if (!tx_context)
 			goto free_tx;
 
@@ -437,7 +436,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 	}
 
 	for (ii = 0; ii < priv->num_rcb; ii++) {
-		priv->rcb[ii] = kzalloc(sizeof(struct vnt_rcb), GFP_KERNEL);
+		priv->rcb[ii] = kzalloc(sizeof(*priv->rcb[ii]), GFP_KERNEL);
 		if (!priv->rcb[ii]) {
 			dev_err(&priv->usb->dev,
 				"failed to allocate rcb no %d\n", ii);
