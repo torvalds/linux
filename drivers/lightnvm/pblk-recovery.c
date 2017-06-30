@@ -395,7 +395,7 @@ next_pad_rq:
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, w_ptr++) {
 			struct ppa_addr dev_ppa;
-			u64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+			__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
 
 			dev_ppa = addr_to_gen_ppa(pblk, w_ptr, line->id);
 

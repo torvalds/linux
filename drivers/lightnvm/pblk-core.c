@@ -765,7 +765,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 
 		if (dir == WRITE) {
-			u64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+			__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
 
 			meta_list[i].lba = lba_list[paddr] = addr_empty;
 		}

@@ -53,7 +53,7 @@ static void pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 			lba_list[paddr] = cpu_to_le64(w_ctx->lba);
 			line->nr_valid_lbas++;
 		} else {
-			u64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+			__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
 
 			lba_list[paddr] = meta_list[i].lba = addr_empty;
 			__pblk_map_invalidate(pblk, line, paddr);
