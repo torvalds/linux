@@ -1260,7 +1260,7 @@ snic_io_cmpl_handler(struct vnic_dev *vdev,
 	default:
 		SNIC_BUG_ON(1);
 		SNIC_SCSI_DBG(snic->shost,
-			      "Unknown Firmwqre completion request type %d\n",
+			      "Unknown Firmware completion request type %d\n",
 			      fwreq->hdr.type);
 		break;
 	}
