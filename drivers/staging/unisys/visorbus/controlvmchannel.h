@@ -613,17 +613,14 @@ struct visor_controlvm_parameters_header {
 #define CONTROLVM_RESP_KMALLOC_FAILED		   3
 #define CONTROLVM_RESP_ID_UNKNOWN		   4
 #define CONTROLVM_RESP_ID_INVALID_FOR_CLIENT	   5
-
 /* CONTROLVM_INIT_CHIPSET-------------------------------------------[100-199] */
 #define CONTROLVM_RESP_CLIENT_SWITCHCOUNT_NONZERO  100
 #define CONTROLVM_RESP_EXPECTED_CHIPSET_INIT	   101
-
 /* Maximum Limit----------------------------------------------------[200-299] */
 /* BUS_CREATE */
 #define CONTROLVM_RESP_ERROR_MAX_BUSES		   201
 /* DEVICE_CREATE */
 #define CONTROLVM_RESP_ERROR_MAX_DEVICES	   202
-
 /* Payload and Parameter Related------------------------------------[400-499] */
 /* SWITCH_ATTACHEXTPORT, DEVICE_CONFIGURE */
 #define CONTROLVM_RESP_PAYLOAD_INVALID		   400
@@ -633,7 +630,6 @@ struct visor_controlvm_parameters_header {
 #define CONTROLVM_RESP_TARGET_PARAMETER_INVALID	   402
 /* DEVICE_CONFIGURE */
 #define CONTROLVM_RESP_CLIENT_PARAMETER_INVALID	   403
-
 /* Specified[Packet Structure] Value--------------------------------[500-599] */
 /* SWITCH_ATTACHINTPORT */
 /* BUS_CONFIGURE, DEVICE_CREATE, DEVICE_CONFIG, DEVICE_DESTROY */
@@ -652,25 +648,20 @@ struct visor_controlvm_parameters_header {
 /* Generic device callback returned error. */
 /* SWITCH_ATTACHEXTPORT, SWITCH_DETACHEXTPORT, DEVICE_CONFIGURE */
 #define CONTROLVM_RESP_GENERIC_DRIVER_CALLBACK_ERROR   606
-
 /* Bus Related------------------------------------------------------[700-799] */
 /* BUS_DESTROY */
 #define CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED       700
-
 /* Channel Related--------------------------------------------------[800-899] */
 /* GET_CHANNELINFO, DEVICE_DESTROY */
 #define CONTROLVM_RESP_CHANNEL_TYPE_UNKNOWN	       800
 /* DEVICE_CREATE */
 #define CONTROLVM_RESP_CHANNEL_SIZE_TOO_SMALL	       801
-
 /* Chipset Shutdown Related---------------------------------------[1000-1099] */
 #define CONTROLVM_RESP_CHIPSET_SHUTDOWN_FAILED	       1000
 #define CONTROLVM_RESP_CHIPSET_SHUTDOWN_ALREADY_ACTIVE 1001
-
 /* Chipset Stop Related-------------------------------------------[1100-1199] */
 #define CONTROLVM_RESP_CHIPSET_STOP_FAILED_BUS	       1100
 #define CONTROLVM_RESP_CHIPSET_STOP_FAILED_SWITCH      1101
-
 /* Device Related-------------------------------------------------[1400-1499] */
 #define CONTROLVM_RESP_DEVICE_UDEV_TIMEOUT	       1400
 
