@@ -4311,41 +4311,31 @@ void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data)
 EXPORT_SYMBOL_GPL(regulator_get_init_drvdata);
 
 #ifdef CONFIG_DEBUG_FS
-static ssize_t supply_map_read_file(struct file *file, char __user *user_buf,
-				    size_t count, loff_t *ppos)
+static int supply_map_show(struct seq_file *sf, void *data)
 {
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t len, ret = 0;
 	struct regulator_map *map;
 
-	if (!buf)
-		return -ENOMEM;
-
 	list_for_each_entry(map, &regulator_map_list, list) {
-		len = snprintf(buf + ret, PAGE_SIZE - ret,
-			       "%s -> %s.%s\n",
-			       rdev_get_name(map->regulator), map->dev_name,
-			       map->supply);
-		if (len >= 0)
-			ret += len;
-		if (ret > PAGE_SIZE) {
-			ret = PAGE_SIZE;
-			break;
-		}
+		seq_printf(sf, "%s -> %s.%s\n",
+				rdev_get_name(map->regulator), map->dev_name,
+				map->supply);
 	}
 
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	return 0;
+}
 
-	kfree(buf);
-
-	return ret;
+static int supply_map_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, supply_map_show, inode->i_private);
 }
 #endif
 
 static const struct file_operations supply_map_fops = {
 #ifdef CONFIG_DEBUG_FS
-	.read = supply_map_read_file,
-	.llseek = default_llseek,
+	.open = supply_map_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 #endif
 };
 
