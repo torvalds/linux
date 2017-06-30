@@ -270,7 +270,8 @@ static const struct attribute_group *visorbus_channel_groups[] = {
 
 static ssize_t partition_handle_show(struct device *dev,
 				     struct device_attribute *attr,
-				     char *buf) {
+				     char *buf)
+{
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 handle = visorchannel_get_clientpartition(vdev->visorchannel);
 
@@ -280,7 +281,8 @@ static DEVICE_ATTR_RO(partition_handle);
 
 static ssize_t partition_guid_show(struct device *dev,
 				   struct device_attribute *attr,
-				   char *buf) {
+				   char *buf)
+{
 	struct visor_device *vdev = to_visor_device(dev);
 
 	return sprintf(buf, "{%pUb}\n", &vdev->partition_uuid);
@@ -289,7 +291,8 @@ static DEVICE_ATTR_RO(partition_guid);
 
 static ssize_t partition_name_show(struct device *dev,
 				   struct device_attribute *attr,
-				   char *buf) {
+				   char *buf)
+{
 	struct visor_device *vdev = to_visor_device(dev);
 
 	return sprintf(buf, "%s\n", vdev->name);
@@ -298,7 +301,8 @@ static DEVICE_ATTR_RO(partition_name);
 
 static ssize_t channel_addr_show(struct device *dev,
 				 struct device_attribute *attr,
-				 char *buf) {
+				 char *buf)
+{
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 addr = visorchannel_get_physaddr(vdev->visorchannel);
 
@@ -308,7 +312,8 @@ static DEVICE_ATTR_RO(channel_addr);
 
 static ssize_t channel_bytes_show(struct device *dev,
 				  struct device_attribute *attr,
-				  char *buf) {
+				  char *buf)
+{
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 nbytes = visorchannel_get_nbytes(vdev->visorchannel);
 
@@ -318,7 +323,8 @@ static DEVICE_ATTR_RO(channel_bytes);
 
 static ssize_t channel_id_show(struct device *dev,
 			       struct device_attribute *attr,
-			       char *buf) {
+			       char *buf)
+{
 	struct visor_device *vdev = to_visor_device(dev);
 	int len = 0;
 
