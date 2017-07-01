@@ -257,7 +257,8 @@ union kvm_mmu_page_role {
 		unsigned cr0_wp:1;
 		unsigned smep_andnot_wp:1;
 		unsigned smap_andnot_wp:1;
-		unsigned :8;
+		unsigned ad_disabled:1;
+		unsigned :7;
 
 		/*
 		 * This is left at the top of the word so that
