@@ -388,7 +388,7 @@ static const uint32_t armada_ovl_formats[] = {
 	DRM_FORMAT_BGR565,
 };
 
-static struct drm_prop_enum_list armada_drm_colorkey_enum_list[] = {
+static const struct drm_prop_enum_list armada_drm_colorkey_enum_list[] = {
 	{ CKMODE_DISABLE, "disabled" },
 	{ CKMODE_Y,       "Y component" },
 	{ CKMODE_U,       "U component" },
