@@ -3245,19 +3245,6 @@ int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
 }
 EXPORT_SYMBOL(kernel_sendpage_locked);
 
-int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg)
-{
-	mm_segment_t oldfs = get_fs();
-	int err;
-
-	set_fs(KERNEL_DS);
-	err = sock->ops->ioctl(sock, cmd, arg);
-	set_fs(oldfs);
-
-	return err;
-}
-EXPORT_SYMBOL(kernel_sock_ioctl);
-
 int kernel_sock_shutdown(struct socket *sock, enum sock_shutdown_cmd how)
 {
 	return sock->ops->shutdown(sock, how);
