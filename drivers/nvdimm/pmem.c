@@ -382,10 +382,8 @@ static int pmem_attach_disk(struct device *dev,
 
 	pmem->bb_state = sysfs_get_dirent(disk_to_dev(disk)->kobj.sd,
 					  "badblocks");
-	if (pmem->bb_state)
-		sysfs_put(pmem->bb_state);
-	else
-		dev_warn(dev, "sysfs_get_dirent 'badblocks' failed\n");
+	if (!pmem->bb_state)
+		dev_warn(dev, "'badblocks' notification disabled\n");
 
 	return 0;
 }
@@ -418,8 +416,18 @@ static int nd_pmem_probe(struct device *dev)
 
 static int nd_pmem_remove(struct device *dev)
 {
+	struct pmem_device *pmem = dev_get_drvdata(dev);
+
 	if (is_nd_btt(dev))
 		nvdimm_namespace_detach_btt(to_nd_btt(dev));
+	else {
+		/*
+		 * Note, this assumes device_lock() context to not race
+		 * nd_pmem_notify()
+		 */
+		sysfs_put(pmem->bb_state);
+		pmem->bb_state = NULL;
+	}
 	nvdimm_flush(to_nd_region(dev->parent));
 
 	return 0;
