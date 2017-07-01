@@ -464,7 +464,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	snprintf(ir->name, sizeof(ir->name), "cx88 IR (%s)", core->board.name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
 
-	dev->input_name = ir->name;
+	dev->device_name = ir->name;
 	dev->input_phys = ir->phys;
 	dev->input_id.bustype = BUS_PCI;
 	dev->input_id.version = 1;

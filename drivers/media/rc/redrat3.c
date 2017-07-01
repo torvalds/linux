@@ -951,7 +951,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 
 	usb_make_path(rr3->udev, rr3->phys, sizeof(rr3->phys));
 
-	rc->input_name = rr3->name;
+	rc->device_name = rr3->name;
 	rc->input_phys = rr3->phys;
 	usb_to_input_id(rr3->udev, &rc->input_id);
 	rc->dev.parent = dev;

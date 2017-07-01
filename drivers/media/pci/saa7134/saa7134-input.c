@@ -870,7 +870,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	if (raw_decode)
 		rc->driver_type = RC_DRIVER_IR_RAW;
 
-	rc->input_name = ir->name;
+	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_PCI;
 	rc->input_id.version = 1;

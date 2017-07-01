@@ -219,7 +219,7 @@ static int __init loop_init(void)
 		return -ENOMEM;
 	}
 
-	rc->input_name		= "rc-core loopback device";
+	rc->device_name		= "rc-core loopback device";
 	rc->input_phys		= "rc-core/virtual";
 	rc->input_id.bustype	= BUS_VIRTUAL;
 	rc->input_id.version	= 1;

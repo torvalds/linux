@@ -1068,7 +1068,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	}
 
 	data->dev->driver_name = DRVNAME;
-	data->dev->input_name = WBCIR_NAME;
+	data->dev->device_name = WBCIR_NAME;
 	data->dev->input_phys = "wbcir/cir0";
 	data->dev->input_id.bustype = BUS_HOST;
 	data->dev->input_id.vendor = PCI_VENDOR_ID_WINBOND;

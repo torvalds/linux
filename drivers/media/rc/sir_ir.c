@@ -308,7 +308,7 @@ static int sir_ir_probe(struct platform_device *dev)
 	if (!rcdev)
 		return -ENOMEM;
 
-	rcdev->input_name = "SIR IrDA port";
+	rcdev->device_name = "SIR IrDA port";
 	rcdev->input_phys = KBUILD_MODNAME "/input0";
 	rcdev->input_id.bustype = BUS_HOST;
 	rcdev->input_id.vendor = 0x0001;

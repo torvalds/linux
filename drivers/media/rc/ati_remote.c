@@ -766,7 +766,7 @@ static void ati_remote_rc_init(struct ati_remote *ati_remote)
 	rdev->open = ati_remote_rc_open;
 	rdev->close = ati_remote_rc_close;
 
-	rdev->input_name = ati_remote->rc_name;
+	rdev->device_name = ati_remote->rc_name;
 	rdev->input_phys = ati_remote->rc_phys;
 
 	usb_to_input_id(ati_remote->udev, &rdev->input_id);

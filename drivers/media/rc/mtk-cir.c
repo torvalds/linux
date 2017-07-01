@@ -343,7 +343,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	}
 
 	ir->rc->priv = ir;
-	ir->rc->input_name = MTK_IR_DEV;
+	ir->rc->device_name = MTK_IR_DEV;
 	ir->rc->input_phys = MTK_IR_DEV "/input0";
 	ir->rc->input_id.bustype = BUS_HOST;
 	ir->rc->input_id.vendor = 0x0001;

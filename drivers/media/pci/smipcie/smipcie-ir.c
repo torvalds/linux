@@ -188,14 +188,14 @@ int smi_ir_init(struct smi_dev *dev)
 		return -ENOMEM;
 
 	/* init input device */
-	snprintf(ir->input_name, sizeof(ir->input_name), "IR (%s)",
+	snprintf(ir->device_name, sizeof(ir->device_name), "IR (%s)",
 		 dev->info->name);
 	snprintf(ir->input_phys, sizeof(ir->input_phys), "pci-%s/ir0",
 		 pci_name(dev->pci_dev));
 
 	rc_dev->driver_name = "SMI_PCIe";
 	rc_dev->input_phys = ir->input_phys;
-	rc_dev->input_name = ir->input_name;
+	rc_dev->device_name = ir->device_name;
 	rc_dev->input_id.bustype = BUS_PCI;
 	rc_dev->input_id.version = 1;
 	rc_dev->input_id.vendor = dev->pci_dev->subsystem_vendor;

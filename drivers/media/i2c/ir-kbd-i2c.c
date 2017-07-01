@@ -452,7 +452,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 */
 	rc->input_id.bustype = BUS_I2C;
 	rc->input_phys       = ir->phys;
-	rc->input_name	     = ir->name;
+	rc->device_name	     = ir->name;
 
 	/*
 	 * Initialize the other fields of rc_dev

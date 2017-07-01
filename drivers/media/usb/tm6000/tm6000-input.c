@@ -458,7 +458,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	rc_type = RC_BIT_UNKNOWN;
 	tm6000_ir_change_protocol(rc, &rc_type);
 
-	rc->input_name = ir->name;
+	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_USB;
 	rc->input_id.version = 1;

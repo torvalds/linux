@@ -351,7 +351,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	}
 
 	kernel_ir->rc = rc;
-	rc->input_name = kernel_ir->name;
+	rc->device_name = kernel_ir->name;
 	rc->input_phys = kernel_ir->phys;
 	rc->input_id.bustype = BUS_PCI;
 	rc->input_id.version = 1;

@@ -2063,7 +2063,7 @@ static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 		      sizeof(ictx->phys_rdev));
 	strlcat(ictx->phys_rdev, "/input0", sizeof(ictx->phys_rdev));
 
-	rdev->input_name = ictx->name_rdev;
+	rdev->device_name = ictx->name_rdev;
 	rdev->input_phys = ictx->phys_rdev;
 	usb_to_input_id(ictx->usbdev_intf0, &rdev->input_id);
 	rdev->dev.parent = ictx->dev;

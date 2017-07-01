@@ -194,7 +194,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	if (!rc)
 		goto fail;
 
-	rc->input_name = DRIVER_DESC;
+	rc->device_name = DRIVER_DESC;
 	rc->input_phys = ir->phys;
 	usb_to_input_id(udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;

@@ -1083,7 +1083,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	rdev->priv = priv;
 	rdev->map_name = RC_MAP_EMPTY;
 	rdev->allowed_protocols = img_ir_allowed_protos(priv);
-	rdev->input_name = "IMG Infrared Decoder";
+	rdev->device_name = "IMG Infrared Decoder";
 	rdev->s_filter = img_ir_set_normal_filter;
 	rdev->s_wakeup_filter = img_ir_set_wakeup_filter;
 

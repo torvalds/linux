@@ -215,7 +215,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	}
 
 	ir->rc->priv = ir;
-	ir->rc->input_name = SUNXI_IR_DEV;
+	ir->rc->device_name = SUNXI_IR_DEV;
 	ir->rc->input_phys = "sunxi-ir/input0";
 	ir->rc->input_id.bustype = BUS_HOST;
 	ir->rc->input_id.vendor = 0x0001;

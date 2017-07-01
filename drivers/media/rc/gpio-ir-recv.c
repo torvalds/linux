@@ -150,7 +150,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	}
 
 	rcdev->priv = gpio_dev;
-	rcdev->input_name = GPIO_IR_DEVICE_NAME;
+	rcdev->device_name = GPIO_IR_DEVICE_NAME;
 	rcdev->input_phys = GPIO_IR_DEVICE_NAME "/input0";
 	rcdev->input_id.bustype = BUS_HOST;
 	rcdev->input_id.vendor = 0x0001;

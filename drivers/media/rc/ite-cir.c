@@ -1576,7 +1576,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 		rdev->s_tx_duty_cycle = ite_set_tx_duty_cycle;
 	}
 
-	rdev->input_name = dev_desc->model;
+	rdev->device_name = dev_desc->model;
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = PCI_VENDOR_ID_ITE;
 	rdev->input_id.product = 0;

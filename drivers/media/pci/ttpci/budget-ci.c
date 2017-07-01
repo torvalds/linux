@@ -186,7 +186,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		 "pci-%s/ir0", pci_name(saa->pci));
 
 	dev->driver_name = MODULE_NAME;
-	dev->input_name = budget_ci->ir.name;
+	dev->device_name = budget_ci->ir.name;
 	dev->input_phys = budget_ci->ir.phys;
 	dev->input_id.bustype = BUS_PCI;
 	dev->input_id.version = 1;
