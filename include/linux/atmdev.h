@@ -254,7 +254,7 @@ static inline void atm_return(struct atm_vcc *vcc,int truesize)
 
 static inline int atm_may_send(struct atm_vcc *vcc,unsigned int size)
 {
-	return (size + atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) <
+	return (size + refcount_read(&sk_atm(vcc)->sk_wmem_alloc)) <
 	       sk_atm(vcc)->sk_sndbuf;
 }
 

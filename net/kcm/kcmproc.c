@@ -162,7 +162,7 @@ static void kcm_format_psock(struct kcm_psock *psock, struct seq_file *seq,
 		   psock->sk->sk_receive_queue.qlen,
 		   atomic_read(&psock->sk->sk_rmem_alloc),
 		   psock->sk->sk_write_queue.qlen,
-		   atomic_read(&psock->sk->sk_wmem_alloc));
+		   refcount_read(&psock->sk->sk_wmem_alloc));
 
 	if (psock->done)
 		seq_puts(seq, "Done ");

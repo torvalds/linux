@@ -144,9 +144,8 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 		   tunnel->encap == L2TP_ENCAPTYPE_IP ? "IP" :
 		   "");
 	seq_printf(m, " %d sessions, refcnt %d/%d\n", session_count,
-		   tunnel->sock ? atomic_read(&tunnel->sock->sk_refcnt) : 0,
+		   tunnel->sock ? refcount_read(&tunnel->sock->sk_refcnt) : 0,
 		   atomic_read(&tunnel->ref_count));
-
 	seq_printf(m, " %08x rx %ld/%ld/%ld rx %ld/%ld/%ld\n",
 		   tunnel->debug,
 		   atomic_long_read(&tunnel->stats.tx_packets),

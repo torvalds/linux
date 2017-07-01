@@ -483,7 +483,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			spin_unlock_irqrestore(&ch->collect_lock, saveflags);
 			return -EBUSY;
 		} else {
-			atomic_inc(&skb->users);
+			refcount_inc(&skb->users);
 			header.length = l;
 			header.type = be16_to_cpu(skb->protocol);
 			header.unused = 0;
@@ -500,7 +500,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	 * Protect skb against beeing free'd by upper
 	 * layers.
 	 */
-	atomic_inc(&skb->users);
+	refcount_inc(&skb->users);
 	ch->prof.txlen += skb->len;
 	header.length = skb->len + LL_HEADER_LENGTH;
 	header.type = be16_to_cpu(skb->protocol);
@@ -517,14 +517,14 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	if (hi) {
 		nskb = alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
 		if (!nskb) {
-			atomic_dec(&skb->users);
+			refcount_dec(&skb->users);
 			skb_pull(skb, LL_HEADER_LENGTH + 2);
 			ctcm_clear_busy(ch->netdev);
 			return -ENOMEM;
 		} else {
 			skb_put_data(nskb, skb->data, skb->len);
-			atomic_inc(&nskb->users);
-			atomic_dec(&skb->users);
+			refcount_inc(&nskb->users);
+			refcount_dec(&skb->users);
 			dev_kfree_skb_irq(skb);
 			skb = nskb;
 		}
@@ -542,7 +542,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			 * Remove our header. It gets added
 			 * again on retransmit.
 			 */
-			atomic_dec(&skb->users);
+			refcount_dec(&skb->users);
 			skb_pull(skb, LL_HEADER_LENGTH + 2);
 			ctcm_clear_busy(ch->netdev);
 			return -ENOMEM;
@@ -553,7 +553,7 @@ static int ctcm_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		ch->ccw[1].count = skb->len;
 		skb_copy_from_linear_data(skb,
 				skb_put(ch->trans_skb, skb->len), skb->len);
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_irq(skb);
 		ccw_idx = 0;
 	} else {
@@ -679,7 +679,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 
 	if ((fsm_getstate(ch->fsm) != CTC_STATE_TXIDLE) || grp->in_sweep) {
 		spin_lock_irqsave(&ch->collect_lock, saveflags);
-		atomic_inc(&skb->users);
+		refcount_inc(&skb->users);
 		p_header = kmalloc(PDU_HEADER_LENGTH, gfp_type());
 
 		if (!p_header) {
@@ -716,7 +716,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	 * Protect skb against beeing free'd by upper
 	 * layers.
 	 */
-	atomic_inc(&skb->users);
+	refcount_inc(&skb->users);
 
 	/*
 	 * IDAL support in CTCM is broken, so we have to
@@ -729,8 +729,8 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 			goto nomem_exit;
 		} else {
 			skb_put_data(nskb, skb->data, skb->len);
-			atomic_inc(&nskb->users);
-			atomic_dec(&skb->users);
+			refcount_inc(&nskb->users);
+			refcount_dec(&skb->users);
 			dev_kfree_skb_irq(skb);
 			skb = nskb;
 		}
@@ -810,7 +810,7 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		ch->trans_skb->len = 0;
 		ch->ccw[1].count = skb->len;
 		skb_put_data(ch->trans_skb, skb->data, skb->len);
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_irq(skb);
 		ccw_idx = 0;
 		CTCM_PR_DBGDATA("%s(%s): trans_skb len: %04x\n"
@@ -855,7 +855,7 @@ nomem_exit:
 			"%s(%s): MEMORY allocation ERROR\n",
 			CTCM_FUNTAIL, ch->id);
 	rc = -ENOMEM;
-	atomic_dec(&skb->users);
+	refcount_dec(&skb->users);
 	dev_kfree_skb_any(skb);
 	fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
 done:
