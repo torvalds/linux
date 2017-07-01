@@ -606,6 +606,7 @@ int solo_tw28_init(struct solo_dev *solo_dev)
 			solo_dev->tw28_cnt++;
 			break;
 		case 0x0c:
+		case 0x0d:
 			solo_dev->tw2864 |= 1 << i;
 			solo_dev->tw28_cnt++;
 			break;
