@@ -9,12 +9,22 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <getopt.h>
 #include <sys/ioctl.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
 int fd;
 const char v = 'V';
+static const char sopts[] = "dehp:t:";
+static const struct option lopts[] = {
+	{"disable",             no_argument, NULL, 'd'},
+	{"enable",              no_argument, NULL, 'e'},
+	{"help",                no_argument, NULL, 'h'},
+	{"pingrate",      required_argument, NULL, 'p'},
+	{"timeout",       required_argument, NULL, 't'},
+	{NULL,                  no_argument, NULL, 0x0}
+};
 
 /*
  * This function simply sends an IOCTL to the driver, which in turn ticks
@@ -48,12 +58,25 @@ static void term(int sig)
 	exit(0);
 }
 
+static void usage(char *progname)
+{
+	printf("Usage: %s [options]\n", progname);
+	printf(" -d, --disable       Turn off the watchdog timer\n");
+	printf(" -e, --enable        Turn on the watchdog timer\n");
+	printf(" -h, --help          Print the help message\n");
+	printf(" -p, --pingrate=P    Set ping rate to P seconds\n");
+	printf(" -t, --timeout=T     Set timeout to T seconds\n");
+	printf("\n");
+	printf("Parameters are parsed left-to-right in real-time.\n");
+	printf("Example: %s -d -t 10 -p 5 -e\n", progname);
+}
+
 int main(int argc, char *argv[])
 {
 	int flags;
 	unsigned int ping_rate = 1;
 	int ret;
-	int i;
+	int c;
 
 	setbuf(stdout, NULL);
 
@@ -64,33 +87,32 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
-	for (i = 1; i < argc; i++) {
-		if (!strncasecmp(argv[i], "-d", 2)) {
+	while ((c = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
+		switch (c) {
+		case 'd':
 			flags = WDIOS_DISABLECARD;
 			ret = ioctl(fd, WDIOC_SETOPTIONS, &flags);
 			if (!ret)
 				printf("Watchdog card disabled.\n");
-		} else if (!strncasecmp(argv[i], "-e", 2)) {
+			break;
+		case 'e':
 			flags = WDIOS_ENABLECARD;
 			ret = ioctl(fd, WDIOC_SETOPTIONS, &flags);
 			if (!ret)
 				printf("Watchdog card enabled.\n");
-		} else if (!strncasecmp(argv[i], "-t", 2) && argv[2]) {
-			flags = atoi(argv[i + 1]);
+			break;
+		case 'p':
+			ping_rate = strtoul(optarg, NULL, 0);
+			printf("Watchdog ping rate set to %u seconds.\n", ping_rate);
+			break;
+		case 't':
+			flags = atoi(optarg);
 			ret = ioctl(fd, WDIOC_SETTIMEOUT, &flags);
 			if (!ret)
 				printf("Watchdog timeout set to %u seconds.\n", flags);
-			i++;
-		} else if (!strncasecmp(argv[i], "-p", 2) && argv[2]) {
-			ping_rate = strtoul(argv[i + 1], NULL, 0);
-			printf("Watchdog ping rate set to %u seconds.\n", ping_rate);
-			i++;
-		} else {
-			printf("-d to disable, -e to enable, -t <n> to set "
-				"the timeout,\n-p <n> to set the ping rate, and ");
-			printf("run by itself to tick the card.\n");
-			printf("Parameters are parsed left-to-right in real-time.\n");
-			printf("Example: %s -d -t 10 -p 5 -e\n", argv[0]);
+			break;
+		default:
+			usage(argv[0]);
 			goto end;
 		}
 	}
