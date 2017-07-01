@@ -41,26 +41,6 @@ static int ncores;
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void write_pen_release(int val)
-{
-	pen_release = val;
-	smp_wmb();
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
-}
-
-static void s500_smp_secondary_init(unsigned int cpu)
-{
-	/*
-	 * let the primary processor know we're out of the
-	 * pen, then head off into the C entry point
-	 */
-	write_pen_release(-1);
-
-	spin_lock(&boot_lock);
-	spin_unlock(&boot_lock);
-}
-
 void owl_secondary_startup(void);
 
 static int s500_wakeup_secondary(unsigned int cpu)
@@ -115,12 +95,6 @@ static int s500_smp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	spin_lock(&boot_lock);
 
-	/*
-	 * The secondary processor is waiting to be released from
-	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting pen_release.
-	 */
-	write_pen_release(cpu_logical_map(cpu));
 	smp_send_reschedule(cpu);
 
 	timeout = jiffies + (1 * HZ);
@@ -134,7 +108,7 @@ static int s500_smp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	spin_unlock(&boot_lock);
 
-	return pen_release != -1 ? -ENOSYS : 0;
+	return 0;
 }
 
 static void __init s500_smp_prepare_cpus(unsigned int max_cpus)
@@ -192,7 +166,6 @@ static void __init s500_smp_prepare_cpus(unsigned int max_cpus)
 
 static const struct smp_operations s500_smp_ops __initconst = {
 	.smp_prepare_cpus = s500_smp_prepare_cpus,
-	.smp_secondary_init = s500_smp_secondary_init,
 	.smp_boot_secondary = s500_smp_boot_secondary,
 };
 CPU_METHOD_OF_DECLARE(s500_smp, "actions,s500-smp", &s500_smp_ops);

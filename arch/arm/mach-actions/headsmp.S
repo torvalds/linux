@@ -2,6 +2,8 @@
  * Copyright 2012 Actions Semi Inc.
  * Author: Actions Semi, Inc.
  *
+ * Copyright (c) 2017 Andreas Färber
+ *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
@@ -46,23 +48,5 @@ ENTRY(owl_v7_invalidate_l1)
 ENDPROC(owl_v7_invalidate_l1)
 
 ENTRY(owl_secondary_startup)
-	mrc	p15, 0, r0, c0, c0, 5
-	and	r0, r0, #0xf
-	adr	r4, 1f
-	ldmia	r4, {r5, r6}
-	sub	r4, r4, r5
-	add	r6, r6, r4
-pen:
-	ldr	r7, [r6]
-	cmp	r7, r0
-	bne	pen
-
-	/*
-	 * we've been released from the holding pen: secondary_stack
-	 * should now contain the SVC stack for this core
-	 */
 	bl	owl_v7_invalidate_l1
 	b	secondary_startup
-
-1:	.long	.
-	.long	pen_release
