@@ -143,8 +143,12 @@ static void display_db(struct stat_item item[MAX_STAT_OP_TYPES][MAX_STAT_PHASES]
 				avg = (u64)item[i][j].sum;
 				do_div(avg, item[i][j].count);
 				SSI_LOG_ERR("%s, %s: min=%d avg=%d max=%d sum=%lld count=%d\n",
-					stat_name_db[i].op_type_name, stat_name_db[i].stat_phase_name[j],
-					item[i][j].min, (int)avg, item[i][j].max, (long long)item[i][j].sum, item[i][j].count);
+					    stat_name_db[i].op_type_name,
+					    stat_name_db[i].stat_phase_name[j],
+					    item[i][j].min, (int)avg,
+					    item[i][j].max,
+					    (long long)item[i][j].sum,
+					    item[i][j].count);
 			}
 		}
 	}
@@ -155,21 +159,23 @@ static void display_db(struct stat_item item[MAX_STAT_OP_TYPES][MAX_STAT_PHASES]
  **************************************/
 
 static ssize_t ssi_sys_stats_host_db_clear(struct kobject *kobj,
-	struct kobj_attribute *attr, const char *buf, size_t count)
+					   struct kobj_attribute *attr,
+					   const char *buf, size_t count)
 {
 	init_db(stat_host_db);
 	return count;
 }
 
 static ssize_t ssi_sys_stats_cc_db_clear(struct kobject *kobj,
-	struct kobj_attribute *attr, const char *buf, size_t count)
+					 struct kobj_attribute *attr,
+					 const char *buf, size_t count)
 {
 	init_db(stat_cc_db);
 	return count;
 }
 
 static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+					 struct kobj_attribute *attr, char *buf)
 {
 	int i, j;
 	char line[512];
@@ -178,7 +184,7 @@ static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
 	ssize_t buf_len, tmp_len = 0;
 
 	buf_len = scnprintf(buf, PAGE_SIZE,
-		"phase\t\t\t\t\t\t\tmin[cy]\tavg[cy]\tmax[cy]\t#samples\n");
+			    "phase\t\t\t\t\t\t\tmin[cy]\tavg[cy]\tmax[cy]\t#samples\n");
 	if (buf_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 		return buf_len;
 	for (i = STAT_OP_TYPE_ENCODE; i < MAX_STAT_OP_TYPES; i++) {
@@ -192,11 +198,11 @@ static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
 				avg = min_cyc = max_cyc = 0;
 			}
 			tmp_len = scnprintf(line, 512,
-				"%s::%s\t\t\t\t\t%6u\t%6u\t%6u\t%7u\n",
-				stat_name_db[i].op_type_name,
-				stat_name_db[i].stat_phase_name[j],
-				min_cyc, (unsigned int)avg, max_cyc,
-				stat_host_db[i][j].count);
+					    "%s::%s\t\t\t\t\t%6u\t%6u\t%6u\t%7u\n",
+					    stat_name_db[i].op_type_name,
+					    stat_name_db[i].stat_phase_name[j],
+					    min_cyc, (unsigned int)avg, max_cyc,
+					    stat_host_db[i][j].count);
 			if (tmp_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 				return buf_len;
 			if (buf_len + tmp_len >= PAGE_SIZE)
@@ -209,7 +215,7 @@ static ssize_t ssi_sys_stat_host_db_show(struct kobject *kobj,
 }
 
 static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+				       struct kobj_attribute *attr, char *buf)
 {
 	int i;
 	char line[256];
@@ -218,7 +224,7 @@ static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
 	ssize_t buf_len, tmp_len = 0;
 
 	buf_len = scnprintf(buf, PAGE_SIZE,
-		"phase\tmin[cy]\tavg[cy]\tmax[cy]\t#samples\n");
+			    "phase\tmin[cy]\tavg[cy]\tmax[cy]\t#samples\n");
 	if (buf_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 		return buf_len;
 	for (i = STAT_OP_TYPE_ENCODE; i < MAX_STAT_OP_TYPES; i++) {
@@ -230,13 +236,10 @@ static ssize_t ssi_sys_stat_cc_db_show(struct kobject *kobj,
 		} else {
 			avg = min_cyc = max_cyc = 0;
 		}
-		tmp_len = scnprintf(line, 256,
-			"%s\t%6u\t%6u\t%6u\t%7u\n",
-			stat_name_db[i].op_type_name,
-			min_cyc,
-			(unsigned int)avg,
-			max_cyc,
-			stat_cc_db[i][STAT_PHASE_6].count);
+		tmp_len = scnprintf(line, 256, "%s\t%6u\t%6u\t%6u\t%7u\n",
+				    stat_name_db[i].op_type_name, min_cyc,
+				    (unsigned int)avg, max_cyc,
+				    stat_cc_db[i][STAT_PHASE_6].count);
 
 		if (tmp_len < 0)/* scnprintf shouldn't return negative value according to its implementation*/
 			return buf_len;
@@ -276,7 +279,7 @@ void display_all_stat_db(void)
 #endif /*CC_CYCLE_COUNT*/
 
 static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+				    struct kobj_attribute *attr, char *buf)
 {
 	struct ssi_drvdata *drvdata = sys_get_drvdata();
 	u32 register_value;
@@ -297,7 +300,7 @@ static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 }
 
 static ssize_t ssi_sys_help_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
+				 struct kobj_attribute *attr, char *buf)
 {
 	char *help_str[] = {
 				"cat reg_dump              ", "Print several of CC register values",
@@ -356,8 +359,8 @@ static struct ssi_drvdata *sys_get_drvdata(void)
 }
 
 static int sys_init_dir(struct sys_dir *sys_dir, struct ssi_drvdata *drvdata,
-		 struct kobject *parent_dir_kobj, const char *dir_name,
-		 struct kobj_attribute *attrs, u32 num_of_attrs)
+			struct kobject *parent_dir_kobj, const char *dir_name,
+			struct kobj_attribute *attrs, u32 num_of_attrs)
 {
 	int i;
 
@@ -374,7 +377,7 @@ static int sys_init_dir(struct sys_dir *sys_dir, struct ssi_drvdata *drvdata,
 	/* allocate memory for directory's attributes list */
 	sys_dir->sys_dir_attr_list =
 		kzalloc(sizeof(struct attribute *) * (num_of_attrs + 1),
-				GFP_KERNEL);
+			GFP_KERNEL);
 
 	if (!(sys_dir->sys_dir_attr_list)) {
 		kobject_put(sys_dir->sys_dir_kobj);
@@ -420,9 +423,9 @@ int ssi_sysfs_init(struct kobject *sys_dev_obj, struct ssi_drvdata *drvdata)
 	SSI_LOG_ERR("setup sysfs under %s\n", sys_dev_obj->name);
 
 	/* Initialize top directory */
-	retval = sys_init_dir(&sys_top_dir, drvdata, sys_dev_obj,
-				"cc_info", ssi_sys_top_level_attrs,
-				ARRAY_SIZE(ssi_sys_top_level_attrs));
+	retval = sys_init_dir(&sys_top_dir, drvdata, sys_dev_obj, "cc_info",
+			      ssi_sys_top_level_attrs,
+			      ARRAY_SIZE(ssi_sys_top_level_attrs));
 	return retval;
 }
 
