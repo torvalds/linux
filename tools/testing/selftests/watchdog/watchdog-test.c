@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 			printf("Watchdog ping rate set to %u seconds.\n", ping_rate);
 			break;
 		case 't':
-			flags = atoi(optarg);
+			flags = strtoul(optarg, NULL, 0);
 			ret = ioctl(fd, WDIOC_SETTIMEOUT, &flags);
 			if (!ret)
 				printf("Watchdog timeout set to %u seconds.\n", flags);
