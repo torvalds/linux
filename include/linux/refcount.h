@@ -49,7 +49,6 @@ extern __must_check bool refcount_inc_not_zero(refcount_t *r);
 extern void refcount_inc(refcount_t *r);
 
 extern __must_check bool refcount_sub_and_test(unsigned int i, refcount_t *r);
-extern void refcount_sub(unsigned int i, refcount_t *r);
 
 extern __must_check bool refcount_dec_and_test(refcount_t *r);
 extern void refcount_dec(refcount_t *r);
@@ -77,11 +76,6 @@ static inline void refcount_inc(refcount_t *r)
 static inline __must_check bool refcount_sub_and_test(unsigned int i, refcount_t *r)
 {
 	return atomic_sub_and_test(i, &r->refs);
-}
-
-static inline void refcount_sub(unsigned int i, refcount_t *r)
-{
-	atomic_sub(i, &r->refs);
 }
 
 static inline __must_check bool refcount_dec_and_test(refcount_t *r)
