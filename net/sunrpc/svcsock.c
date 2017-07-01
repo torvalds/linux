@@ -338,8 +338,8 @@ static int svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr,
 	rqstp->rq_xprt_hlen = 0;
 
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
-	len = kernel_recvmsg(svsk->sk_sock, &msg, iov, nr, buflen,
-				msg.msg_flags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, iov, nr, buflen);
+	len = sock_recvmsg(svsk->sk_sock, &msg, msg.msg_flags);
 	/* If we read a full record, then assume there may be more
 	 * data to read (stream based sockets only!)
 	 */
