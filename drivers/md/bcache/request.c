@@ -607,7 +607,8 @@ static void request_endio(struct bio *bio)
 static void bio_complete(struct search *s)
 {
 	if (s->orig_bio) {
-		generic_end_io_acct(bio_data_dir(s->orig_bio),
+		struct request_queue *q = bdev_get_queue(s->orig_bio->bi_bdev);
+		generic_end_io_acct(q, bio_data_dir(s->orig_bio),
 				    &s->d->disk->part0, s->start_time);
 
 		trace_bcache_request_end(s->d, s->orig_bio);
@@ -959,7 +960,7 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
 	int rw = bio_data_dir(bio);
 
-	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
+	generic_start_io_acct(q, rw, bio_sectors(bio), &d->disk->part0);
 
 	bio->bi_bdev = dc->bdev;
 	bio->bi_iter.bi_sector += dc->sb.data_offset;
@@ -1074,7 +1075,7 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
 	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
 	int rw = bio_data_dir(bio);
 
-	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
+	generic_start_io_acct(q, rw, bio_sectors(bio), &d->disk->part0);
 
 	s = search_alloc(bio, d);
 	cl = &s->cl;

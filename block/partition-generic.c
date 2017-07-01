@@ -112,10 +112,11 @@ ssize_t part_stat_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
+	struct request_queue *q = dev_to_disk(dev)->queue;
 	int cpu;
 
 	cpu = part_stat_lock();
-	part_round_stats(cpu, p);
+	part_round_stats(q, cpu, p);
 	part_stat_unlock();
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
@@ -130,7 +131,7 @@ ssize_t part_stat_show(struct device *dev,
 		part_stat_read(p, merges[WRITE]),
 		(unsigned long long)part_stat_read(p, sectors[WRITE]),
 		jiffies_to_msecs(part_stat_read(p, ticks[WRITE])),
-		part_in_flight(p),
+		part_in_flight(q, p),
 		jiffies_to_msecs(part_stat_read(p, io_ticks)),
 		jiffies_to_msecs(part_stat_read(p, time_in_queue)));
 }
