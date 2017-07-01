@@ -1150,13 +1150,13 @@ int armada_drm_plane_init(struct armada_plane *plane)
 	return 0;
 }
 
-static struct drm_prop_enum_list armada_drm_csc_yuv_enum_list[] = {
+static const struct drm_prop_enum_list armada_drm_csc_yuv_enum_list[] = {
 	{ CSC_AUTO,        "Auto" },
 	{ CSC_YUV_CCIR601, "CCIR601" },
 	{ CSC_YUV_CCIR709, "CCIR709" },
 };
 
-static struct drm_prop_enum_list armada_drm_csc_rgb_enum_list[] = {
+static const struct drm_prop_enum_list armada_drm_csc_rgb_enum_list[] = {
 	{ CSC_AUTO,         "Auto" },
 	{ CSC_RGB_COMPUTER, "Computer system" },
 	{ CSC_RGB_STUDIO,   "Studio" },
