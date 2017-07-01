@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016   Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016   Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1795,12 +1795,6 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return ERR_PTR(ret);
 	}
 
-	/* RF-kill already asserted again... */
-	if (!cmd.resp_pkt) {
-		fw_status = ERR_PTR(-ERFKILL);
-		goto out_free_resp;
-	}
-
 	status_size = sizeof(*fw_status);
 
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
@@ -1923,12 +1917,6 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 	if (ret) {
 		IWL_ERR(mvm, "failed to query matched profiles (%d)\n", ret);
 		return ret;
-	}
-
-	/* RF-kill already asserted again... */
-	if (!cmd.resp_pkt) {
-		ret = -ERFKILL;
-		goto out_free_resp;
 	}
 
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
@@ -2087,9 +2075,8 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	bool keep = false;
 	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
-
-	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE |
-				    CMD_WAKE_UP_TRANS;
+	bool d0i3_first = fw_has_capa(&mvm->fw->ucode_capa,
+				      IWL_UCODE_TLV_CAPA_D0I3_END_FIRST);
 
 	mutex_lock(&mvm->mutex);
 
@@ -2109,6 +2096,15 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 
 	/* query SRAM first in case we want event logging */
 	iwl_mvm_read_d3_sram(mvm);
+
+	if (d0i3_first) {
+		ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, 0, 0, NULL);
+		if (ret < 0) {
+			IWL_ERR(mvm, "Failed to send D0I3_END_CMD first (%d)\n",
+				ret);
+			goto err;
+		}
+	}
 
 	/*
 	 * Query the current location and source from the D3 firmware so we
@@ -2155,9 +2151,14 @@ out_iterate:
 			iwl_mvm_d3_disconnect_iter, keep ? vif : NULL);
 
 out:
+	/* no need to reset the device in unified images, if successful */
 	if (unified_image && !ret) {
-		ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, flags, 0, NULL);
-		if (!ret) /* D3 ended successfully - no need to reset device */
+		/* nothing else to do if we already sent D0I3_END_CMD */
+		if (d0i3_first)
+			return 0;
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, 0, 0, NULL);
+		if (!ret)
 			return 0;
 	}
 

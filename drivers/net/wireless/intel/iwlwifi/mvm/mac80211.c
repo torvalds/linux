@@ -1988,14 +1988,32 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			WARN_ONCE(iwl_mvm_sf_update(mvm, vif, false),
 				  "Failed to update SF upon disassociation\n");
 
-			/* remove AP station now that the MAC is unassoc */
-			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
-			if (ret)
-				IWL_ERR(mvm, "failed to remove AP station\n");
+			/*
+			 * If we get an assert during the connection (after the
+			 * station has been added, but before the vif is set
+			 * to associated), mac80211 will re-add the station and
+			 * then configure the vif. Since the vif is not
+			 * associated, we would remove the station here and
+			 * this would fail the recovery.
+			 */
+			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+				      &mvm->status)) {
+				/*
+				 * Remove AP station now that
+				 * the MAC is unassoc
+				 */
+				ret = iwl_mvm_rm_sta_id(mvm, vif,
+							mvmvif->ap_sta_id);
+				if (ret)
+					IWL_ERR(mvm,
+						"failed to remove AP station\n");
 
-			if (mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
-				mvm->d0i3_ap_sta_id = IWL_MVM_INVALID_STA;
-			mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
+				if (mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
+					mvm->d0i3_ap_sta_id =
+						IWL_MVM_INVALID_STA;
+				mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
+			}
+
 			/* remove quota for this interface */
 			ret = iwl_mvm_update_quotas(mvm, false, NULL);
 			if (ret)
@@ -2395,7 +2413,7 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 
 		__set_bit(tid_data->txq_id, &txqs);
 
-		if (iwl_mvm_tid_queued(tid_data) == 0)
+		if (iwl_mvm_tid_queued(mvm, tid_data) == 0)
 			continue;
 
 		__set_bit(tid, &tids);
@@ -2883,7 +2901,8 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		if (!iwl_mvm_has_new_tx_api(mvm))
+			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
@@ -2929,8 +2948,13 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 				ret = -EOPNOTSUPP;
 			else
 				ret = 0;
-			key->hw_key_idx = STA_KEY_IDX_INVALID;
-			break;
+
+			if (key->cipher != WLAN_CIPHER_SUITE_GCMP &&
+			    key->cipher != WLAN_CIPHER_SUITE_GCMP_256 &&
+			    !iwl_mvm_has_new_tx_api(mvm)) {
+				key->hw_key_idx = STA_KEY_IDX_INVALID;
+				break;
+			}
 		}
 
 		/* During FW restart, in order to restore the state as it was,
@@ -3731,6 +3755,13 @@ static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static int iwl_mvm_tx_last_beacon(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	return mvm->ibss_manager;
+}
+
 static int iwl_mvm_set_tim(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *sta,
 			   bool set)
@@ -4264,11 +4295,13 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	if (notif->sync)
+	if (notif->sync) {
 		ret = wait_event_timeout(mvm->rx_sync_waitq,
-					 atomic_read(&mvm->queue_sync_counter) == 0,
+					 atomic_read(&mvm->queue_sync_counter) == 0 ||
+					 iwl_mvm_is_radio_killed(mvm),
 					 HZ);
-	WARN_ON_ONCE(!ret);
+		WARN_ON_ONCE(!ret && !iwl_mvm_is_radio_killed(mvm));
+	}
 
 out:
 	atomic_set(&mvm->queue_sync_counter, 0);
@@ -4331,6 +4364,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.stop_ap = iwl_mvm_stop_ap_ibss,
 	.join_ibss = iwl_mvm_start_ap_ibss,
 	.leave_ibss = iwl_mvm_stop_ap_ibss,
+
+	.tx_last_beacon = iwl_mvm_tx_last_beacon,
 
 	.set_tim = iwl_mvm_set_tim,
 

@@ -224,9 +224,9 @@ void iwl_pcie_apm_config(struct iwl_trans *trans)
 
 	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_DEVCTL2, &cap);
 	trans->ltr_enabled = cap & PCI_EXP_DEVCTL2_LTR_EN;
-	dev_info(trans->dev, "L1 %sabled - LTR %sabled\n",
-		 (lctl & PCI_EXP_LNKCTL_ASPM_L1) ? "En" : "Dis",
-		 trans->ltr_enabled ? "En" : "Dis");
+	IWL_DEBUG_POWER(trans, "L1 %sabled - LTR %sabled\n",
+			(lctl & PCI_EXP_LNKCTL_ASPM_L1) ? "En" : "Dis",
+			trans->ltr_enabled ? "En" : "Dis");
 }
 
 /*
@@ -448,9 +448,9 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 				 ~SHR_APMG_XTAL_CFG_XTAL_ON_REQ);
 }
 
-int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
+void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 {
-	int ret = 0;
+	int ret;
 
 	/* stop device's busmaster DMA activity */
 	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
@@ -462,8 +462,6 @@ int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
 	IWL_DEBUG_INFO(trans, "stop master\n");
-
-	return ret;
 }
 
 static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
@@ -996,14 +994,24 @@ static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
 
 bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill = iwl_is_rfkill_set(trans);
+	bool prev = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
+	bool report;
 
-	if (hw_rfkill)
-		set_bit(STATUS_RFKILL, &trans->status);
-	else
-		clear_bit(STATUS_RFKILL, &trans->status);
+	if (hw_rfkill) {
+		set_bit(STATUS_RFKILL_HW, &trans->status);
+		set_bit(STATUS_RFKILL_OPMODE, &trans->status);
+	} else {
+		clear_bit(STATUS_RFKILL_HW, &trans->status);
+		if (trans_pcie->opmode_down)
+			clear_bit(STATUS_RFKILL_OPMODE, &trans->status);
+	}
 
-	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+	report = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
+
+	if (prev != report)
+		iwl_trans_pcie_rf_kill(trans, report);
 
 	return hw_rfkill;
 }
@@ -1128,7 +1136,6 @@ static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
 static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	bool hw_rfkill, was_hw_rfkill;
 
 	lockdep_assert_held(&trans_pcie->mutex);
 
@@ -1136,8 +1143,6 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 		return;
 
 	trans_pcie->is_down = true;
-
-	was_hw_rfkill = iwl_is_rfkill_set(trans);
 
 	/* tell the device to stop sending interrupts */
 	iwl_disable_interrupts(trans);
@@ -1199,33 +1204,12 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	clear_bit(STATUS_INT_ENABLED, &trans->status);
 	clear_bit(STATUS_TPOWER_PMI, &trans->status);
-	clear_bit(STATUS_RFKILL, &trans->status);
 
 	/*
 	 * Even if we stop the HW, we still want the RF kill
 	 * interrupt
 	 */
 	iwl_enable_rfkill_int(trans);
-
-	/*
-	 * Check again since the RF kill state may have changed while
-	 * all the interrupts were disabled, in this case we couldn't
-	 * receive the RF kill interrupt and update the state in the
-	 * op_mode.
-	 * Don't call the op_mode if the rkfill state hasn't changed.
-	 * This allows the op_mode to call stop_device from the rfkill
-	 * notification without endless recursion. Under very rare
-	 * circumstances, we might have a small recursion if the rfkill
-	 * state changed exactly now while we were called from stop_device.
-	 * This is very unlikely but can happen and is supported.
-	 */
-	hw_rfkill = iwl_is_rfkill_set(trans);
-	if (hw_rfkill)
-		set_bit(STATUS_RFKILL, &trans->status);
-	else
-		clear_bit(STATUS_RFKILL, &trans->status);
-	if (hw_rfkill != was_hw_rfkill)
-		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 
 	/* re-take ownership to prevent other users from stealing the device */
 	iwl_pcie_prepare_card_hw(trans);
@@ -1339,12 +1323,45 @@ static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	iwl_pcie_tx_start(trans, scd_addr);
 }
 
+void iwl_trans_pcie_handle_stop_rfkill(struct iwl_trans *trans,
+				       bool was_in_rfkill)
+{
+	bool hw_rfkill;
+
+	/*
+	 * Check again since the RF kill state may have changed while
+	 * all the interrupts were disabled, in this case we couldn't
+	 * receive the RF kill interrupt and update the state in the
+	 * op_mode.
+	 * Don't call the op_mode if the rkfill state hasn't changed.
+	 * This allows the op_mode to call stop_device from the rfkill
+	 * notification without endless recursion. Under very rare
+	 * circumstances, we might have a small recursion if the rfkill
+	 * state changed exactly now while we were called from stop_device.
+	 * This is very unlikely but can happen and is supported.
+	 */
+	hw_rfkill = iwl_is_rfkill_set(trans);
+	if (hw_rfkill) {
+		set_bit(STATUS_RFKILL_HW, &trans->status);
+		set_bit(STATUS_RFKILL_OPMODE, &trans->status);
+	} else {
+		clear_bit(STATUS_RFKILL_HW, &trans->status);
+		clear_bit(STATUS_RFKILL_OPMODE, &trans->status);
+	}
+	if (hw_rfkill != was_in_rfkill)
+		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
+}
+
 static void iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	bool was_in_rfkill;
 
 	mutex_lock(&trans_pcie->mutex);
+	trans_pcie->opmode_down = true;
+	was_in_rfkill = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
 	_iwl_trans_pcie_stop_device(trans, low_power);
+	iwl_trans_pcie_handle_stop_rfkill(trans, was_in_rfkill);
 	mutex_unlock(&trans_pcie->mutex);
 }
 
@@ -1355,6 +1372,8 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state)
 
 	lockdep_assert_held(&trans_pcie->mutex);
 
+	IWL_WARN(trans, "reporting RF_KILL (radio %s)\n",
+		 state ? "disabled" : "enabled");
 	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state)) {
 		if (trans->cfg->gen2)
 			_iwl_trans_pcie_gen2_stop_device(trans, true);
@@ -1645,6 +1664,8 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 
 	/* From now on, the op_mode will be kept updated about RF kill state */
 	iwl_enable_rfkill_int(trans);
+
+	trans_pcie->opmode_down = false;
 
 	/* Set is_down to false here so that...*/
 	trans_pcie->is_down = false;
@@ -2405,17 +2426,12 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
-
-	char buf[8];
-	int buf_size;
 	u32 reset_flag;
+	int ret;
 
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%x", &reset_flag) != 1)
-		return -EFAULT;
+	ret = kstrtou32_from_user(user_buf, count, 16, &reset_flag);
+	if (ret)
+		return ret;
 	if (reset_flag == 0)
 		memset(isr_stats, 0, sizeof(*isr_stats));
 
@@ -2427,16 +2443,6 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 				   size_t count, loff_t *ppos)
 {
 	struct iwl_trans *trans = file->private_data;
-	char buf[8];
-	int buf_size;
-	int csr;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &csr) != 1)
-		return -EFAULT;
 
 	iwl_pcie_dump_csr(trans);
 
@@ -2461,11 +2467,50 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_rfkill_read(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	char buf[100];
+	int pos;
+
+	pos = scnprintf(buf, sizeof(buf), "debug: %d\nhw: %d\n",
+			trans_pcie->debug_rfkill,
+			!(iwl_read32(trans, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_rfkill_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	bool old = trans_pcie->debug_rfkill;
+	int ret;
+
+	ret = kstrtobool_from_user(user_buf, count, &trans_pcie->debug_rfkill);
+	if (ret)
+		return ret;
+	if (old == trans_pcie->debug_rfkill)
+		return count;
+	IWL_WARN(trans, "changing debug rfkill %d->%d\n",
+		 old, trans_pcie->debug_rfkill);
+	iwl_pcie_handle_rfkill_irq(trans);
+
+	return count;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
+DEBUGFS_READ_WRITE_FILE_OPS(rfkill);
 
 /* Create the debugfs files and directories */
 int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
@@ -2477,6 +2522,7 @@ int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	DEBUGFS_ADD_FILE(interrupt, dir, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(csr, dir, S_IWUSR);
 	DEBUGFS_ADD_FILE(fh_reg, dir, S_IRUSR);
+	DEBUGFS_ADD_FILE(rfkill, dir, S_IWUSR | S_IRUSR);
 	return 0;
 
 err:
@@ -2965,6 +3011,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	trans_pcie->trans = trans;
+	trans_pcie->opmode_down = true;
 	spin_lock_init(&trans_pcie->irq_lock);
 	spin_lock_init(&trans_pcie->reg_lock);
 	mutex_init(&trans_pcie->mutex);
@@ -3086,6 +3133,17 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			iwl_trans_release_nic_access(trans, &flags);
 		}
 	}
+
+	/*
+	 * 9000-series integrated A-step has a problem with suspend/resume
+	 * and sometimes even causes the whole platform to get stuck. This
+	 * workaround makes the hardware not go into the problematic state.
+	 */
+	if (trans->cfg->integrated &&
+	    trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
+	    CSR_HW_REV_STEP(trans->hw_rev) == SILICON_A_STEP)
+		iwl_set_bit(trans, CSR_HOST_CHICKEN,
+			    CSR_HOST_CHICKEN_PM_IDLE_SRC_DIS_SB_PME);
 
 	trans->hw_rf_id = iwl_read32(trans, CSR_HW_RF_ID);
 

@@ -469,7 +469,7 @@ static int ath10k_pci_wake_wait(struct ath10k *ar)
 	while (tot_delay < PCIE_WAKE_TIMEOUT) {
 		if (ath10k_pci_is_awake(ar)) {
 			if (tot_delay > PCIE_WAKE_LATE_US)
-				ath10k_warn(ar, "device wakeup took %d ms which is unusally long, otherwise it works normally.\n",
+				ath10k_warn(ar, "device wakeup took %d ms which is unusually long, otherwise it works normally.\n",
 					    tot_delay / 1000);
 			return 0;
 		}

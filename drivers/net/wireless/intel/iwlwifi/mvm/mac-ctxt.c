@@ -846,6 +846,8 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 			cpu_to_le64(vif->bss_conf.sync_tsf + dtim_offs);
 		ctxt_sta->dtim_time =
 			cpu_to_le32(vif->bss_conf.sync_device_ts + dtim_offs);
+		ctxt_sta->assoc_beacon_arrive_time =
+			cpu_to_le32(vif->bss_conf.sync_device_ts);
 
 		IWL_DEBUG_INFO(mvm, "DTIM TBTT is 0x%llx/0x%x, offset %d\n",
 			       le64_to_cpu(ctxt_sta->dtim_tsf),
@@ -1457,6 +1459,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
+	mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 
 	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
 	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;

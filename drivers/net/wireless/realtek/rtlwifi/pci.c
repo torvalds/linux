@@ -879,6 +879,9 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 				if (unicast)
 					rtlpriv->link_info.num_rx_inperiod++;
 			}
+
+			rtl_collect_scan_list(hw, skb);
+
 			/* static bcn for roaming */
 			rtl_beacon_statistic(hw, skb);
 			rtl_p2p_info(hw, (void *)skb->data, skb->len);
@@ -1824,6 +1827,7 @@ static int rtl_pci_start(struct ieee80211_hw *hw)
 	rtlpci->driver_is_goingto_unload = false;
 	if (rtlpriv->cfg->ops->get_btc_status &&
 	    rtlpriv->cfg->ops->get_btc_status()) {
+		rtlpriv->btcoexist.btc_info.ap_num = 36;
 		rtlpriv->btcoexist.btc_ops->btc_init_variables(rtlpriv);
 		rtlpriv->btcoexist.btc_ops->btc_init_hal_vars(rtlpriv);
 	}

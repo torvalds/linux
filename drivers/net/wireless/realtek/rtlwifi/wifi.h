@@ -2333,6 +2333,7 @@ struct rtl_locks {
 	spinlock_t entry_list_lock;
 	spinlock_t usb_lock;
 	spinlock_t c2hcmd_lock;
+	spinlock_t scan_list_lock; /* lock for the scan list */
 
 	/*FW clock change */
 	spinlock_t fw_ps_lock;
@@ -2481,6 +2482,9 @@ struct rtl_btc_info {
 	u8 btcoexist;
 	u8 ant_num;
 	u8 single_ant_path;
+
+	u8 ap_num;
+	bool in_4way;
 };
 
 struct bt_coexist_info {
@@ -2585,6 +2589,17 @@ struct rtl_c2hcmd {
 	u8 *val;
 };
 
+struct rtl_bssid_entry {
+	struct list_head list;
+	u8 bssid[ETH_ALEN];
+	u32 age;
+};
+
+struct rtl_scan_list {
+	int num;
+	struct list_head list;	/* sort by age */
+};
+
 struct rtl_priv {
 	struct ieee80211_hw *hw;
 	struct completion firmware_loading_complete;
@@ -2606,6 +2621,7 @@ struct rtl_priv {
 	struct rtl_efuse efuse;
 	struct rtl_led_ctl ledctl;
 	struct rtl_tx_report tx_report;
+	struct rtl_scan_list scan_list;
 
 	struct rtl_ps_ctl psc;
 	struct rate_adaptive ra;

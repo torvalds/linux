@@ -216,7 +216,9 @@ enum iwl_legacy_cmds {
 	FW_GET_ITEM_CMD = 0x1a,
 
 	/**
-	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2
+	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2,
+	 *	response in &struct iwl_mvm_tx_resp or
+	 *	&struct iwl_mvm_tx_resp_v3
 	 */
 	TX_CMD = 0x1c,
 
@@ -552,9 +554,26 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_GET_INFO = 0x2,
 };
 
+/**
+ * enum iwl_debug_cmds - debug commands
+ */
 enum iwl_debug_cmds {
+	/**
+	 * @LMAC_RD_WR:
+	 * LMAC memory read/write, using &struct iwl_dbg_mem_access_cmd and
+	 * &struct iwl_dbg_mem_access_rsp
+	 */
 	LMAC_RD_WR = 0x0,
+	/**
+	 * @UMAC_RD_WR:
+	 * UMAC memory read/write, using &struct iwl_dbg_mem_access_cmd and
+	 * &struct iwl_dbg_mem_access_rsp
+	 */
 	UMAC_RD_WR = 0x1,
+	/**
+	 * @MFU_ASSERT_DUMP_NTF:
+	 * &struct iwl_mfu_assert_dump_notif
+	 */
 	MFU_ASSERT_DUMP_NTF = 0xFE,
 };
 
@@ -2111,7 +2130,7 @@ struct ct_kill_notif {
 * enum ctdp_cmd_operation - CTDP command operations
 * @CTDP_CMD_OPERATION_START: update the current budget
 * @CTDP_CMD_OPERATION_STOP: stop ctdp
-* @CTDP_CMD_OPERATION_REPORT: get the avgerage budget
+* @CTDP_CMD_OPERATION_REPORT: get the average budget
 */
 enum iwl_mvm_ctdp_cmd_operation {
 	CTDP_CMD_OPERATION_START	= 0x1,

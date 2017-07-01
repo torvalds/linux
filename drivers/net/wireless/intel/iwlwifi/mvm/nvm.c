@@ -118,10 +118,6 @@ static int iwl_nvm_write_chunk(struct iwl_mvm *mvm, u16 section,
 		return ret;
 
 	pkt = cmd.resp_pkt;
-	if (!pkt) {
-		IWL_ERR(mvm, "Error in NVM_ACCESS response\n");
-		return -EINVAL;
-	}
 	/* Extract & check NVM write response */
 	nvm_resp = (void *)pkt->data;
 	if (le16_to_cpu(nvm_resp->status) != READ_NVM_CHUNK_SUCCEED) {
@@ -600,8 +596,10 @@ int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm)
 	if (!is_valid_ether_addr(mvm->nvm_data->hw_addr)) {
 		IWL_ERR(trans, "no valid mac address was found\n");
 		ret = -EINVAL;
-		goto out;
+		goto err_free;
 	}
+
+	IWL_INFO(trans, "base HW address: %pM\n", mvm->nvm_data->hw_addr);
 
 	/* Initialize general data */
 	mvm->nvm_data->nvm_version = le16_to_cpu(rsp->general.nvm_version);
@@ -632,7 +630,11 @@ int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm)
 			mvm->nvm_data->valid_rx_ant & mvm->fw->valid_rx_ant,
 			rsp->regulatory.lar_enabled && lar_fw_supported);
 
-	ret = 0;
+	iwl_free_resp(&hcmd);
+	return 0;
+
+err_free:
+	kfree(mvm->nvm_data);
 out:
 	iwl_free_resp(&hcmd);
 	return ret;
@@ -783,6 +785,10 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = sizeof(struct iwl_mcc_update_resp) +
 			   n_channels * sizeof(__le32);
 		resp_cp = kmemdup(mcc_resp, resp_len, GFP_KERNEL);
+		if (!resp_cp) {
+			resp_cp = ERR_PTR(-ENOMEM);
+			goto exit;
+		}
 	} else {
 		struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = (void *)pkt->data;
 
@@ -790,21 +796,18 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_len = sizeof(struct iwl_mcc_update_resp) +
 			   n_channels * sizeof(__le32);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
-
-		if (resp_cp) {
-			resp_cp->status = mcc_resp_v1->status;
-			resp_cp->mcc = mcc_resp_v1->mcc;
-			resp_cp->cap = mcc_resp_v1->cap;
-			resp_cp->source_id = mcc_resp_v1->source_id;
-			resp_cp->n_channels = mcc_resp_v1->n_channels;
-			memcpy(resp_cp->channels, mcc_resp_v1->channels,
-			       n_channels * sizeof(__le32));
+		if (!resp_cp) {
+			resp_cp = ERR_PTR(-ENOMEM);
+			goto exit;
 		}
-	}
 
-	if (!resp_cp) {
-		ret = -ENOMEM;
-		goto exit;
+		resp_cp->status = mcc_resp_v1->status;
+		resp_cp->mcc = mcc_resp_v1->mcc;
+		resp_cp->cap = mcc_resp_v1->cap;
+		resp_cp->source_id = mcc_resp_v1->source_id;
+		resp_cp->n_channels = mcc_resp_v1->n_channels;
+		memcpy(resp_cp->channels, mcc_resp_v1->channels,
+		       n_channels * sizeof(__le32));
 	}
 
 	status = le32_to_cpu(resp_cp->status);
@@ -824,8 +827,6 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 exit:
 	iwl_free_resp(&cmd);
-	if (ret)
-		return ERR_PTR(ret);
 	return resp_cp;
 }
 

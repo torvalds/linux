@@ -319,10 +319,8 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 
 void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm)
 {
-	if (mvm->fw_dump_desc == &iwl_mvm_dump_desc_assert)
-		return;
-
-	kfree(mvm->fw_dump_desc);
+	if (mvm->fw_dump_desc != &iwl_mvm_dump_desc_assert)
+		kfree(mvm->fw_dump_desc);
 	mvm->fw_dump_desc = NULL;
 }
 
@@ -914,6 +912,10 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 
 	if (trigger)
 		delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
+
+	if (WARN(mvm->trans->state == IWL_TRANS_NO_FW,
+		 "Can't collect dbg data when FW isn't alive\n"))
+		return -EIO;
 
 	if (test_and_set_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status))
 		return -EBUSY;

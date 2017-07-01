@@ -1021,6 +1021,9 @@ struct iwl_mvm {
 	/* system time of last beacon (for AP/GO interface) */
 	u32 ap_last_beacon_gp2;
 
+	/* indicates that we transmitted the last beacon */
+	bool ibss_manager;
+
 	bool lar_regdom_set;
 	enum iwl_mcc_source mcc_src;
 
@@ -1078,6 +1081,18 @@ struct iwl_mvm {
 #define IWL_MAC80211_GET_MVM(_hw)			\
 	IWL_OP_MODE_GET_MVM((struct iwl_op_mode *)((_hw)->priv))
 
+/**
+ * enum iwl_mvm_status - MVM status bits
+ * @IWL_MVM_STATUS_HW_RFKILL: HW RF-kill is asserted
+ * @IWL_MVM_STATUS_HW_CTKILL: CT-kill is active
+ * @IWL_MVM_STATUS_ROC_RUNNING: remain-on-channel is running
+ * @IWL_MVM_STATUS_IN_HW_RESTART: HW restart is active
+ * @IWL_MVM_STATUS_IN_D0I3: NIC is in D0i3
+ * @IWL_MVM_STATUS_ROC_AUX_RUNNING: AUX remain-on-channel is running
+ * @IWL_MVM_STATUS_D3_RECONFIG: D3 reconfiguration is being done
+ * @IWL_MVM_STATUS_DUMPING_FW_LOG: FW log is being dumped
+ * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
+ */
 enum iwl_mvm_status {
 	IWL_MVM_STATUS_HW_RFKILL,
 	IWL_MVM_STATUS_HW_CTKILL,
@@ -1281,14 +1296,13 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
 }
 
-static inline struct agg_tx_status*
-iwl_mvm_get_agg_status(struct iwl_mvm *mvm,
-		       struct iwl_mvm_tx_resp *tx_resp)
+static inline struct agg_tx_status *
+iwl_mvm_get_agg_status(struct iwl_mvm *mvm, void *tx_resp)
 {
 	if (iwl_mvm_has_new_tx_api(mvm))
-		return &tx_resp->v6.status;
+		return &((struct iwl_mvm_tx_resp *)tx_resp)->status;
 	else
-		return &tx_resp->v3.status;
+		return ((struct iwl_mvm_tx_resp_v3 *)tx_resp)->status;
 }
 
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
@@ -1370,7 +1384,9 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status);
 static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags);
-int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool int_sta, u32 flags);
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal, u32 flags);
+int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id,
+			   u16 tids, u32 flags);
 
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
 
@@ -1730,7 +1746,7 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 }
 
 /* hw scheduler queue config */
-void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+bool iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
 			unsigned int wdg_timeout);
 int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,

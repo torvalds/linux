@@ -892,24 +892,20 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
 			 MWIFIEX_BSS_TYPE_STA);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_STA;
-		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
 			 MWIFIEX_BSS_TYPE_P2P);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_STA;
-		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
 			 MWIFIEX_BSS_TYPE_P2P);
 		priv->bss_role =  MWIFIEX_BSS_ROLE_UAP;
-		priv->bss_type = MWIFIEX_BSS_TYPE_P2P;
 		break;
 	case NL80211_IFTYPE_AP:
 		priv->bss_num = mwifiex_get_unused_bss_num(adapter,
 			 MWIFIEX_BSS_TYPE_UAP);
-		priv->bss_type = MWIFIEX_BSS_TYPE_UAP;
 		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
 		break;
 	default:
@@ -1981,7 +1977,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "Failed to parse secuirty parameters!\n");
+			    "Failed to parse security parameters!\n");
 		goto out;
 	}
 

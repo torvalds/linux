@@ -199,6 +199,7 @@ struct iwl_mac_data_ibss {
  * @dtim_reciprocal: 2^32 / dtim_interval , applicable only when associated
  * @listen_interval: in beacon intervals, applicable only when associated
  * @assoc_id: unique ID assigned by the AP during association
+ * @assoc_beacon_arrive_time: TSF of first beacon after association
  */
 struct iwl_mac_data_sta {
 	__le32 is_assoc;

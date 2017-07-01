@@ -2037,6 +2037,7 @@ brcmf_sdio_wait_event_wakeup(struct brcmf_sdio *bus)
 
 static int brcmf_sdio_txpkt_hdalign(struct brcmf_sdio *bus, struct sk_buff *pkt)
 {
+	struct brcmf_bus_stats *stats;
 	u16 head_pad;
 	u8 *dat_buf;
 
@@ -2046,16 +2047,18 @@ static int brcmf_sdio_txpkt_hdalign(struct brcmf_sdio *bus, struct sk_buff *pkt)
 	head_pad = ((unsigned long)dat_buf % bus->head_align);
 	if (head_pad) {
 		if (skb_headroom(pkt) < head_pad) {
-			bus->sdiodev->bus_if->tx_realloc++;
-			head_pad = 0;
-			if (skb_cow(pkt, head_pad))
+			stats = &bus->sdiodev->bus_if->stats;
+			atomic_inc(&stats->pktcowed);
+			if (skb_cow_head(pkt, head_pad)) {
+				atomic_inc(&stats->pktcow_failed);
 				return -ENOMEM;
+			}
 		}
 		skb_push(pkt, head_pad);
 		dat_buf = (u8 *)(pkt->data);
-		memset(dat_buf, 0, head_pad + bus->tx_hdrlen);
 	}
-	return head_pad;
+	memset(dat_buf, 0, head_pad + bus->tx_hdrlen);
+	return 0;
 }
 
 /**
