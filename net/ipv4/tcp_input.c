@@ -6191,7 +6191,8 @@ static void tcp_ecn_create_request(struct request_sock *req,
 	ecn_ok = net->ipv4.sysctl_tcp_ecn || ecn_ok_dst;
 
 	if ((!ect && ecn_ok) || tcp_ca_needs_ecn(listen_sk) ||
-	    (ecn_ok_dst & DST_FEATURE_ECN_CA))
+	    (ecn_ok_dst & DST_FEATURE_ECN_CA) ||
+	    tcp_bpf_ca_needs_ecn((struct sock *)req))
 		inet_rsk(req)->ecn_ok = 1;
 }
 
