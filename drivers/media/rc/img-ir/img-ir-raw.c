@@ -117,7 +117,7 @@ int img_ir_probe_raw(struct img_ir_priv *priv)
 	}
 	rdev->priv = priv;
 	rdev->map_name = RC_MAP_EMPTY;
-	rdev->input_name = "IMG Infrared Decoder Raw";
+	rdev->device_name = "IMG Infrared Decoder Raw";
 
 	/* Register raw decoder */
 	error = rc_register_device(rdev);

@@ -513,19 +513,19 @@ static int serial_ir_probe(struct platform_device *dev)
 
 	switch (type) {
 	case IR_HOMEBREW:
-		rcdev->input_name = "Serial IR type home-brew";
+		rcdev->device_name = "Serial IR type home-brew";
 		break;
 	case IR_IRDEO:
-		rcdev->input_name = "Serial IR type IRdeo";
+		rcdev->device_name = "Serial IR type IRdeo";
 		break;
 	case IR_IRDEO_REMOTE:
-		rcdev->input_name = "Serial IR type IRdeo remote";
+		rcdev->device_name = "Serial IR type IRdeo remote";
 		break;
 	case IR_ANIMAX:
-		rcdev->input_name = "Serial IR type AnimaX";
+		rcdev->device_name = "Serial IR type AnimaX";
 		break;
 	case IR_IGOR:
-		rcdev->input_name = "Serial IR type IgorPlug";
+		rcdev->device_name = "Serial IR type IgorPlug";
 		break;
 	}
 

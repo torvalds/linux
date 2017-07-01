@@ -46,12 +46,12 @@ int mantis_input_init(struct mantis_pci *mantis)
 		goto out;
 	}
 
-	snprintf(mantis->input_name, sizeof(mantis->input_name),
+	snprintf(mantis->device_name, sizeof(mantis->device_name),
 		 "Mantis %s IR receiver", mantis->hwconfig->model_name);
 	snprintf(mantis->input_phys, sizeof(mantis->input_phys),
 		 "pci-%s/ir0", pci_name(mantis->pdev));
 
-	dev->input_name         = mantis->input_name;
+	dev->device_name        = mantis->device_name;
 	dev->input_phys         = mantis->input_phys;
 	dev->input_id.bustype   = BUS_PCI;
 	dev->input_id.vendor    = mantis->vendor_id;

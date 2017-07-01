@@ -73,7 +73,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	strlcpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
 	strlcat(coredev->ir.phys, "/ir0", sizeof(coredev->ir.phys));
 
-	dev->input_name = coredev->ir.name;
+	dev->device_name = coredev->ir.name;
 	dev->input_phys = coredev->ir.phys;
 	dev->dev.parent = coredev->device;
 
@@ -91,7 +91,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	dev->driver_name = MODULE_NAME;
 
 	pr_debug("Input device (IR) %s is set for key events\n",
-		 dev->input_name);
+		 dev->device_name);
 
 	err = rc_register_device(dev);
 	if (err < 0) {

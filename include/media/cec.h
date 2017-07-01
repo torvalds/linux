@@ -201,7 +201,7 @@ struct cec_adapter {
 	u16 phys_addrs[15];
 	u32 sequence;
 
-	char input_name[32];
+	char device_name[32];
 	char input_phys[32];
 	char input_drv[32];
 };

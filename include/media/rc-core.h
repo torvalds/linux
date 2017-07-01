@@ -72,7 +72,7 @@ enum rc_filter_type {
  * @dev: driver model's view of this device
  * @managed_alloc: devm_rc_allocate_device was used to create rc_dev
  * @sysfs_groups: sysfs attribute groups
- * @input_name: name of the input child device
+ * @device_name: name of the rc child device
  * @input_phys: physical path to the input child device
  * @input_id: id of the input child device (struct input_id)
  * @driver_name: name of the hardware driver which registered this device
@@ -138,10 +138,10 @@ struct rc_dev {
 	struct device			dev;
 	bool				managed_alloc;
 	const struct attribute_group	*sysfs_groups[5];
-	const char			*input_name;
+	const char			*device_name;
 	const char			*input_phys;
 	struct input_id			input_id;
-	char				*driver_name;
+	const char			*driver_name;
 	const char			*map_name;
 	struct rc_map			rc_map;
 	struct mutex			lock;

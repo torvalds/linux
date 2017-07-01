@@ -530,7 +530,7 @@ u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode)
 
 	if (keycode != KEY_RESERVED)
 		IR_dprintk(1, "%s: scancode 0x%04x keycode 0x%02x\n",
-			   dev->input_name, scancode, keycode);
+			   dev->device_name, scancode, keycode);
 
 	return keycode;
 }
@@ -663,7 +663,7 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_type protocol,
 		dev->last_keycode = keycode;
 
 		IR_dprintk(1, "%s: key down event, key 0x%04x, protocol 0x%04x, scancode 0x%08x\n",
-			   dev->input_name, keycode, protocol, scancode);
+			   dev->device_name, keycode, protocol, scancode);
 		input_report_key(dev->input_dev, keycode, 1);
 
 		led_trigger_event(led_feedback, LED_FULL);
@@ -1663,7 +1663,7 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 	dev->input_dev->dev.parent = &dev->dev;
 	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
 	dev->input_dev->phys = dev->input_phys;
-	dev->input_dev->name = dev->input_name;
+	dev->input_dev->name = dev->device_name;
 
 	return 0;
 
@@ -1759,7 +1759,7 @@ int rc_register_device(struct rc_dev *dev)
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
-		dev->input_name ?: "Unspecified device", path ?: "N/A");
+		 dev->device_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
