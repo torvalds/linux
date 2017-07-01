@@ -81,8 +81,6 @@ static inline void choose_random_location(unsigned long input,
 					  unsigned long output_size,
 					  unsigned long *virt_addr)
 {
-	/* No change from existing output location. */
-	*virt_addr = *output;
 }
 #endif
 
