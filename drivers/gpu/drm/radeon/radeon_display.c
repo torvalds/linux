@@ -1388,12 +1388,12 @@ static const struct drm_mode_config_funcs radeon_mode_funcs = {
 	.output_poll_changed = radeon_output_poll_changed
 };
 
-static struct drm_prop_enum_list radeon_tmds_pll_enum_list[] =
+static const struct drm_prop_enum_list radeon_tmds_pll_enum_list[] =
 {	{ 0, "driver" },
 	{ 1, "bios" },
 };
 
-static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
+static const struct drm_prop_enum_list radeon_tv_std_enum_list[] =
 {	{ TV_STD_NTSC, "ntsc" },
 	{ TV_STD_PAL, "pal" },
 	{ TV_STD_PAL_M, "pal-m" },
@@ -1404,25 +1404,25 @@ static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
 	{ TV_STD_SECAM, "secam" },
 };
 
-static struct drm_prop_enum_list radeon_underscan_enum_list[] =
+static const struct drm_prop_enum_list radeon_underscan_enum_list[] =
 {	{ UNDERSCAN_OFF, "off" },
 	{ UNDERSCAN_ON, "on" },
 	{ UNDERSCAN_AUTO, "auto" },
 };
 
-static struct drm_prop_enum_list radeon_audio_enum_list[] =
+static const struct drm_prop_enum_list radeon_audio_enum_list[] =
 {	{ RADEON_AUDIO_DISABLE, "off" },
 	{ RADEON_AUDIO_ENABLE, "on" },
 	{ RADEON_AUDIO_AUTO, "auto" },
 };
 
 /* XXX support different dither options? spatial, temporal, both, etc. */
-static struct drm_prop_enum_list radeon_dither_enum_list[] =
+static const struct drm_prop_enum_list radeon_dither_enum_list[] =
 {	{ RADEON_FMT_DITHER_DISABLE, "off" },
 	{ RADEON_FMT_DITHER_ENABLE, "on" },
 };
 
-static struct drm_prop_enum_list radeon_output_csc_enum_list[] =
+static const struct drm_prop_enum_list radeon_output_csc_enum_list[] =
 {	{ RADEON_OUTPUT_CSC_BYPASS, "bypass" },
 	{ RADEON_OUTPUT_CSC_TVRGB, "tvrgb" },
 	{ RADEON_OUTPUT_CSC_YCBCR601, "ycbcr601" },
