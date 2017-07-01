@@ -898,4 +898,13 @@ static inline int bpf_tell_extensions(void)
 	return SKF_AD_MAX;
 }
 
+struct bpf_sock_ops_kern {
+	struct	sock *sk;
+	u32	op;
+	union {
+		u32 reply;
+		u32 replylong[4];
+	};
+};
+
 #endif /* __LINUX_FILTER_H__ */
