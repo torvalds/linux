@@ -916,6 +916,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
+		.ident = "Lenovo V510-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V510-15IKB"),
+		},
+	},
+	{
 		.ident = "Lenovo ideapad 310-15IKB",
 		.matches = {
 		        DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
