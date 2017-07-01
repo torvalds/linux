@@ -14,6 +14,8 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
+#define DEFAULT_PING_RATE	1
+
 int fd;
 const char v = 'V';
 static const char sopts[] = "dehp:t:";
@@ -64,7 +66,7 @@ static void usage(char *progname)
 	printf(" -d, --disable       Turn off the watchdog timer\n");
 	printf(" -e, --enable        Turn on the watchdog timer\n");
 	printf(" -h, --help          Print the help message\n");
-	printf(" -p, --pingrate=P    Set ping rate to P seconds\n");
+	printf(" -p, --pingrate=P    Set ping rate to P seconds (default %d)\n", DEFAULT_PING_RATE);
 	printf(" -t, --timeout=T     Set timeout to T seconds\n");
 	printf("\n");
 	printf("Parameters are parsed left-to-right in real-time.\n");
@@ -74,7 +76,7 @@ static void usage(char *progname)
 int main(int argc, char *argv[])
 {
 	int flags;
-	unsigned int ping_rate = 1;
+	unsigned int ping_rate = DEFAULT_PING_RATE;
 	int ret;
 	int c;
 
@@ -107,6 +109,8 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			ping_rate = strtoul(optarg, NULL, 0);
+			if (!ping_rate)
+				ping_rate = DEFAULT_PING_RATE;
 			printf("Watchdog ping rate set to %u seconds.\n", ping_rate);
 			break;
 		case 't':
