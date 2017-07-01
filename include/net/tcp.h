@@ -46,6 +46,10 @@
 #include <linux/seq_file.h>
 #include <linux/memcontrol.h>
 
+#include <linux/bpf.h>
+#include <linux/filter.h>
+#include <linux/bpf-cgroup.h>
+
 extern struct inet_hashinfo tcp_hashinfo;
 
 extern struct percpu_counter tcp_orphan_count;
@@ -1000,7 +1004,9 @@ void tcp_get_default_congestion_control(char *name);
 void tcp_get_available_congestion_control(char *buf, size_t len);
 void tcp_get_allowed_congestion_control(char *buf, size_t len);
 int tcp_set_allowed_congestion_control(char *allowed);
-int tcp_set_congestion_control(struct sock *sk, const char *name);
+int tcp_set_congestion_control(struct sock *sk, const char *name, bool load);
+void tcp_reinit_congestion_control(struct sock *sk,
+				   const struct tcp_congestion_ops *ca);
 u32 tcp_slow_start(struct tcp_sock *tp, u32 acked);
 void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked);
 
@@ -2021,4 +2027,62 @@ int tcp_set_ulp(struct sock *sk, const char *name);
 void tcp_get_available_ulp(char *buf, size_t len);
 void tcp_cleanup_ulp(struct sock *sk);
 
+/* Call BPF_SOCK_OPS program that returns an int. If the return value
+ * is < 0, then the BPF op failed (for example if the loaded BPF
+ * program does not support the chosen operation or there is no BPF
+ * program loaded).
+ */
+#ifdef CONFIG_BPF
+static inline int tcp_call_bpf(struct sock *sk, int op)
+{
+	struct bpf_sock_ops_kern sock_ops;
+	int ret;
+
+	if (sk_fullsock(sk))
+		sock_owned_by_me(sk);
+
+	memset(&sock_ops, 0, sizeof(sock_ops));
+	sock_ops.sk = sk;
+	sock_ops.op = op;
+
+	ret = BPF_CGROUP_RUN_PROG_SOCK_OPS(&sock_ops);
+	if (ret == 0)
+		ret = sock_ops.reply;
+	else
+		ret = -1;
+	return ret;
+}
+#else
+static inline int tcp_call_bpf(struct sock *sk, int op)
+{
+	return -EPERM;
+}
+#endif
+
+static inline u32 tcp_timeout_init(struct sock *sk)
+{
+	int timeout;
+
+	timeout = tcp_call_bpf(sk, BPF_SOCK_OPS_TIMEOUT_INIT);
+
+	if (timeout <= 0)
+		timeout = TCP_TIMEOUT_INIT;
+	return timeout;
+}
+
+static inline u32 tcp_rwnd_init_bpf(struct sock *sk)
+{
+	int rwnd;
+
+	rwnd = tcp_call_bpf(sk, BPF_SOCK_OPS_RWND_INIT);
+
+	if (rwnd < 0)
+		rwnd = 0;
+	return rwnd;
+}
+
+static inline bool tcp_bpf_ca_needs_ecn(struct sock *sk)
+{
+	return (tcp_call_bpf(sk, BPF_SOCK_OPS_NEEDS_ECN) == 1);
+}
 #endif	/* _TCP_H */
