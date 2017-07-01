@@ -304,7 +304,7 @@ out:
 	return retval;
 }
 
-static sctp_paramhdr_t *sctp_chunk_lookup_strreset_param(
+static struct sctp_paramhdr *sctp_chunk_lookup_strreset_param(
 			struct sctp_association *asoc, __u32 resp_seq,
 			__be16 type)
 {
@@ -749,7 +749,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 	struct sctp_strreset_resp *resp = param.v;
 	struct sctp_transport *t;
 	__u16 i, nums, flags = 0;
-	sctp_paramhdr_t *req;
+	struct sctp_paramhdr *req;
 	__u32 result;
 
 	req = sctp_chunk_lookup_strreset_param(asoc, resp->response_seq, 0);

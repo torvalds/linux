@@ -130,7 +130,7 @@ typedef enum {
  */
 
 typedef union {
-	sctp_cid_t chunk;
+	enum sctp_cid chunk;
 	sctp_event_timeout_t timeout;
 	sctp_event_other_t other;
 	sctp_event_primitive_t primitive;
@@ -141,7 +141,7 @@ static inline sctp_subtype_t	\
 SCTP_ST_## _name (_type _arg)		\
 { sctp_subtype_t _retval; _retval._elt = _arg; return _retval; }
 
-SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		sctp_cid_t,		chunk)
+SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		enum sctp_cid,		chunk)
 SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	sctp_event_timeout_t,	timeout)
 SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		sctp_event_other_t,	other)
 SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
@@ -152,7 +152,7 @@ SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
 /* Calculate the actual data size in a data chunk */
 #define SCTP_DATA_SNDSIZE(c) ((int)((unsigned long)(c->chunk_end)\
 		       		- (unsigned long)(c->chunk_hdr)\
-				- sizeof(sctp_data_chunk_t)))
+				- sizeof(struct sctp_data_chunk)))
 
 /* Internal error codes */
 typedef enum {
