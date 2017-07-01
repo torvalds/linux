@@ -352,7 +352,7 @@ static int vb2_dc_dmabuf_ops_mmap(struct dma_buf *dbuf,
 	return vb2_dc_mmap(dbuf->priv, vma);
 }
 
-static struct dma_buf_ops vb2_dc_dmabuf_ops = {
+static const struct dma_buf_ops vb2_dc_dmabuf_ops = {
 	.attach = vb2_dc_dmabuf_ops_attach,
 	.detach = vb2_dc_dmabuf_ops_detach,
 	.map_dma_buf = vb2_dc_dmabuf_ops_map,
