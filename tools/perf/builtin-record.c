@@ -453,7 +453,7 @@ try_again:
 	}
 
 	if (perf_evlist__apply_filters(evlist, &pos)) {
-		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, perf_evsel__name(pos), errno,
 			str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
@@ -461,7 +461,7 @@ try_again:
 	}
 
 	if (perf_evlist__apply_drv_configs(evlist, &pos, &err_term)) {
-		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+		pr_err("failed to set config \"%s\" on event %s with %d (%s)\n",
 		      err_term->val.drv_cfg, perf_evsel__name(pos), errno,
 		      str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
