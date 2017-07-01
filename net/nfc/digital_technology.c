@@ -27,6 +27,7 @@
 
 #define DIGITAL_SDD_RES_CT  0x88
 #define DIGITAL_SDD_RES_LEN 5
+#define DIGITAL_SEL_RES_LEN 1
 
 #define DIGITAL_SEL_RES_NFCID1_COMPLETE(sel_res) (!((sel_res) & 0x04))
 #define DIGITAL_SEL_RES_IS_T2T(sel_res) (!((sel_res) & 0x60))
@@ -299,7 +300,7 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 		}
 	}
 
-	if (!resp->len) {
+	if (resp->len != DIGITAL_SEL_RES_LEN) {
 		rc = -EIO;
 		goto exit;
 	}
