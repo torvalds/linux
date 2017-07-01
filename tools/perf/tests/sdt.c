@@ -83,6 +83,8 @@ int test__sdt_event(int subtests __maybe_unused)
 	}
 	/* Note that buildid_dir must be an absolute path */
 	tempdir = realpath(__tempdir, NULL);
+	if (tempdir == NULL)
+		goto error_rmdir;
 
 	/* At first, scan itself */
 	set_buildid_dir(tempdir);
@@ -100,7 +102,7 @@ int test__sdt_event(int subtests __maybe_unused)
 
 error_rmdir:
 	/* Cleanup temporary buildid dir */
-	rm_rf(tempdir);
+	rm_rf(__tempdir);
 error:
 	free(tempdir);
 	free(myself);
