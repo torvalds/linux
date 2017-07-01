@@ -218,6 +218,11 @@
 	status = "okay";
 };
 
+&saradc {
+	vref-supply = <&vcc_18>;
+	status = "okay";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-mmc-highspeed;
