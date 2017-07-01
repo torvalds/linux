@@ -18,8 +18,9 @@
 
 int fd;
 const char v = 'V';
-static const char sopts[] = "dehp:t:";
+static const char sopts[] = "bdehp:t:";
 static const struct option lopts[] = {
+	{"bootstatus",          no_argument, NULL, 'b'},
 	{"disable",             no_argument, NULL, 'd'},
 	{"enable",              no_argument, NULL, 'e'},
 	{"help",                no_argument, NULL, 'h'},
@@ -63,6 +64,7 @@ static void term(int sig)
 static void usage(char *progname)
 {
 	printf("Usage: %s [options]\n", progname);
+	printf(" -b, --bootstatus    Get last boot status (Watchdog/POR)\n");
 	printf(" -d, --disable       Turn off the watchdog timer\n");
 	printf(" -e, --enable        Turn on the watchdog timer\n");
 	printf(" -h, --help          Print the help message\n");
@@ -79,6 +81,7 @@ int main(int argc, char *argv[])
 	unsigned int ping_rate = DEFAULT_PING_RATE;
 	int ret;
 	int c;
+	int oneshot = 0;
 
 	setbuf(stdout, NULL);
 
@@ -91,6 +94,16 @@ int main(int argc, char *argv[])
 
 	while ((c = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
 		switch (c) {
+		case 'b':
+			flags = 0;
+			oneshot = 1;
+			ret = ioctl(fd, WDIOC_GETBOOTSTATUS, &flags);
+			if (!ret)
+				printf("Last boot is caused by: %s.\n", (flags != 0) ?
+					"Watchdog" : "Power-On-Reset");
+			else
+				printf("WDIOC_GETBOOTSTATUS errno '%s'\n", strerror(errno));
+			break;
 		case 'd':
 			flags = WDIOS_DISABLECARD;
 			ret = ioctl(fd, WDIOC_SETOPTIONS, &flags);
@@ -126,6 +139,9 @@ int main(int argc, char *argv[])
 			goto end;
 		}
 	}
+
+	if (oneshot)
+		goto end;
 
 	printf("Watchdog Ticking Away!\n");
 
