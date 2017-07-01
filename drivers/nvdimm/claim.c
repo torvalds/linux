@@ -289,8 +289,7 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 		 * work around this collision.
 		 */
 		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)
-				&& !(flags & NVDIMM_IO_ATOMIC)
-				&& !ndns->claim) {
+				&& !(flags & NVDIMM_IO_ATOMIC)) {
 			long cleared;
 
 			cleared = nvdimm_clear_poison(&ndns->dev,
