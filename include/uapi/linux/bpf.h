@@ -748,6 +748,9 @@ struct bpf_sock_ops {
  */
 enum {
 	BPF_SOCK_OPS_VOID,
+	BPF_SOCK_OPS_TIMEOUT_INIT,	/* Should return SYN-RTO value to use or
+					 * -1 if default value should be used
+					 */
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */
