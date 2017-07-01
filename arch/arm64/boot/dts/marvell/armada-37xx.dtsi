@@ -323,6 +323,7 @@
 				interrupt-controller;
 				reg = <0x1d00000 0x10000>, /* GICD */
 				      <0x1d40000 0x40000>; /* GICR */
+				interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
