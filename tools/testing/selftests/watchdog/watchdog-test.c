@@ -94,12 +94,16 @@ int main(int argc, char *argv[])
 			ret = ioctl(fd, WDIOC_SETOPTIONS, &flags);
 			if (!ret)
 				printf("Watchdog card disabled.\n");
+			else
+				printf("WDIOS_DISABLECARD errno '%s'\n", strerror(errno));
 			break;
 		case 'e':
 			flags = WDIOS_ENABLECARD;
 			ret = ioctl(fd, WDIOC_SETOPTIONS, &flags);
 			if (!ret)
 				printf("Watchdog card enabled.\n");
+			else
+				printf("WDIOS_ENABLECARD errno '%s'\n", strerror(errno));
 			break;
 		case 'p':
 			ping_rate = strtoul(optarg, NULL, 0);
@@ -110,6 +114,8 @@ int main(int argc, char *argv[])
 			ret = ioctl(fd, WDIOC_SETTIMEOUT, &flags);
 			if (!ret)
 				printf("Watchdog timeout set to %u seconds.\n", flags);
+			else
+				printf("WDIOC_SETTIMEOUT errno '%s'\n", strerror(errno));
 			break;
 		default:
 			usage(argv[0]);
