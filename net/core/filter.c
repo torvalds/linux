@@ -54,6 +54,7 @@
 #include <net/dst.h>
 #include <net/sock_reuseport.h>
 #include <net/busy_poll.h>
+#include <net/tcp.h>
 
 /**
  *	sk_filter_trim_cap - run a packet through a socket filter
@@ -2672,6 +2673,71 @@ static const struct bpf_func_proto bpf_get_socket_uid_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_5(bpf_setsockopt, struct bpf_sock_ops_kern *, bpf_sock,
+	   int, level, int, optname, char *, optval, int, optlen)
+{
+	struct sock *sk = bpf_sock->sk;
+	int ret = 0;
+	int val;
+
+	if (!sk_fullsock(sk))
+		return -EINVAL;
+
+	if (level == SOL_SOCKET) {
+		if (optlen != sizeof(int))
+			return -EINVAL;
+		val = *((int *)optval);
+
+		/* Only some socketops are supported */
+		switch (optname) {
+		case SO_RCVBUF:
+			sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
+			sk->sk_rcvbuf = max_t(int, val * 2, SOCK_MIN_RCVBUF);
+			break;
+		case SO_SNDBUF:
+			sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
+			sk->sk_sndbuf = max_t(int, val * 2, SOCK_MIN_SNDBUF);
+			break;
+		case SO_MAX_PACING_RATE:
+			sk->sk_max_pacing_rate = val;
+			sk->sk_pacing_rate = min(sk->sk_pacing_rate,
+						 sk->sk_max_pacing_rate);
+			break;
+		case SO_PRIORITY:
+			sk->sk_priority = val;
+			break;
+		case SO_RCVLOWAT:
+			if (val < 0)
+				val = INT_MAX;
+			sk->sk_rcvlowat = val ? : 1;
+			break;
+		case SO_MARK:
+			sk->sk_mark = val;
+			break;
+		default:
+			ret = -EINVAL;
+		}
+	} else if (level == SOL_TCP &&
+		   sk->sk_prot->setsockopt == tcp_setsockopt) {
+		/* Place holder */
+		ret = -EINVAL;
+	} else {
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+static const struct bpf_func_proto bpf_setsockopt_proto = {
+	.func		= bpf_setsockopt,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_MEM,
+	.arg5_type	= ARG_CONST_SIZE,
+};
+
 static const struct bpf_func_proto *
 bpf_base_func_proto(enum bpf_func_id func_id)
 {
@@ -2817,6 +2883,17 @@ lwt_inout_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_smp_processor_id_proto;
 	case BPF_FUNC_skb_under_cgroup:
 		return &bpf_skb_under_cgroup_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
+static const struct bpf_func_proto *
+	sock_ops_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_setsockopt:
+		return &bpf_setsockopt_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -3591,7 +3668,7 @@ const struct bpf_verifier_ops cg_sock_prog_ops = {
 };
 
 const struct bpf_verifier_ops sock_ops_prog_ops = {
-	.get_func_proto		= bpf_base_func_proto,
+	.get_func_proto		= sock_ops_func_proto,
 	.is_valid_access	= sock_ops_is_valid_access,
 	.convert_ctx_access	= sock_ops_convert_ctx_access,
 };
