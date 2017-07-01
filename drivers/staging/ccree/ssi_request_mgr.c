@@ -127,7 +127,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	SSI_LOG_DEBUG("hw_queue_size=0x%08X\n", req_mgr_h->hw_queue_size);
 	if (req_mgr_h->hw_queue_size < MIN_HW_QUEUE_SIZE) {
 		SSI_LOG_ERR("Invalid HW queue size = %u (Min. required is %u)\n",
-			req_mgr_h->hw_queue_size, MIN_HW_QUEUE_SIZE);
+			    req_mgr_h->hw_queue_size, MIN_HW_QUEUE_SIZE);
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
 	}
@@ -175,7 +175,8 @@ static inline void enqueue_seq(
 		writel_relaxed(seq[i].word[5], (volatile void __iomem *)(cc_base + CC_REG_OFFSET(CRY_KERNEL, DSCRPTR_QUEUE_WORD0)));
 #ifdef DX_DUMP_DESCS
 		SSI_LOG_DEBUG("desc[%02d]: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n", i,
-			seq[i].word[0], seq[i].word[1], seq[i].word[2], seq[i].word[3], seq[i].word[4], seq[i].word[5]);
+			      seq[i].word[0], seq[i].word[1], seq[i].word[2],
+			      seq[i].word[3], seq[i].word[4], seq[i].word[5]);
 #endif
 	}
 }
@@ -209,7 +210,7 @@ static inline int request_mgr_queues_status_check(
 		      (MAX_REQUEST_QUEUE_SIZE - 1)) ==
 		     req_mgr_h->req_queue_tail)) {
 		SSI_LOG_ERR("SW FIFO is full. req_queue_head=%d sw_fifo_len=%d\n",
-			   req_mgr_h->req_queue_head, MAX_REQUEST_QUEUE_SIZE);
+			    req_mgr_h->req_queue_head, MAX_REQUEST_QUEUE_SIZE);
 		return -EBUSY;
 	}
 
@@ -219,9 +220,8 @@ static inline int request_mgr_queues_status_check(
 	/* Wait for space in HW queue. Poll constant num of iterations. */
 	for (poll_queue = 0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue++) {
 		req_mgr_h->q_free_slots =
-			CC_HAL_READ_REGISTER(
-				CC_REG_OFFSET(CRY_KERNEL,
-						 DSCRPTR_QUEUE_CONTENT));
+			CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL,
+							   DSCRPTR_QUEUE_CONTENT));
 		if (unlikely(req_mgr_h->q_free_slots <
 						req_mgr_h->min_free_hw_slots)) {
 			req_mgr_h->min_free_hw_slots = req_mgr_h->q_free_slots;
@@ -233,7 +233,7 @@ static inline int request_mgr_queues_status_check(
 		}
 
 		SSI_LOG_DEBUG("HW FIFO is full. q_free_slots=%d total_seq_len=%d\n",
-			req_mgr_h->q_free_slots, total_seq_len);
+			      req_mgr_h->q_free_slots, total_seq_len);
 	}
 	/* No room in the HW queue try again later */
 	SSI_LOG_DEBUG("HW FIFO full, timeout. req_queue_head=%d "
@@ -289,9 +289,8 @@ int send_request(
 		 * in case iv gen add the max size and in case of no dout add 1
 		 * for the internal completion descriptor
 		 */
-		rc = request_mgr_queues_status_check(req_mgr_h,
-					       cc_base,
-					       max_required_seq_len);
+		rc = request_mgr_queues_status_check(req_mgr_h, cc_base,
+						     max_required_seq_len);
 		if (likely(rc == 0))
 			/* There is enough place in the queue */
 			break;
@@ -324,15 +323,16 @@ int send_request(
 
 	if (ssi_req->ivgen_dma_addr_len > 0) {
 		SSI_LOG_DEBUG("Acquire IV from pool into %d DMA addresses 0x%llX, 0x%llX, 0x%llX, IV-size=%u\n",
-			ssi_req->ivgen_dma_addr_len,
-			(unsigned long long)ssi_req->ivgen_dma_addr[0],
-			(unsigned long long)ssi_req->ivgen_dma_addr[1],
-			(unsigned long long)ssi_req->ivgen_dma_addr[2],
-			ssi_req->ivgen_size);
+			      ssi_req->ivgen_dma_addr_len,
+			      (unsigned long long)ssi_req->ivgen_dma_addr[0],
+			      (unsigned long long)ssi_req->ivgen_dma_addr[1],
+			      (unsigned long long)ssi_req->ivgen_dma_addr[2],
+			      ssi_req->ivgen_size);
 
 		/* Acquire IV from pool */
-		rc = ssi_ivgen_getiv(drvdata, ssi_req->ivgen_dma_addr, ssi_req->ivgen_dma_addr_len,
-			ssi_req->ivgen_size, iv_seq, &iv_seq_len);
+		rc = ssi_ivgen_getiv(drvdata, ssi_req->ivgen_dma_addr,
+				     ssi_req->ivgen_dma_addr_len,
+				     ssi_req->ivgen_size, iv_seq, &iv_seq_len);
 
 		if (unlikely(rc != 0)) {
 			SSI_LOG_ERR("Failed to generate IV (rc=%d)\n", rc);
@@ -416,9 +416,8 @@ int send_request_init(
 	enqueue_seq(cc_base, desc, len);
 
 	/* Update the free slots in HW queue */
-	req_mgr_h->q_free_slots = CC_HAL_READ_REGISTER(
-					CC_REG_OFFSET(CRY_KERNEL,
-					 DSCRPTR_QUEUE_CONTENT));
+	req_mgr_h->q_free_slots = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL,
+								     DSCRPTR_QUEUE_CONTENT));
 
 	return 0;
 }
@@ -543,8 +542,7 @@ static void comp_handler(unsigned long devarg)
 	}
 	/* after verifing that there is nothing to do, Unmask AXI completion interrupt */
 	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR),
-		CC_HAL_READ_REGISTER(
-		CC_REG_OFFSET(HOST_RGF, HOST_IMR)) & ~irq);
+			      CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR)) & ~irq);
 }
 
 /*
