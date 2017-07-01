@@ -340,17 +340,6 @@ static int __init ic_dev_ioctl(unsigned int cmd, struct ifreq *arg)
 	return res;
 }
 
-static int __init ic_route_ioctl(unsigned int cmd, struct rtentry *arg)
-{
-	int res;
-
-	mm_segment_t oldfs = get_fs();
-	set_fs(get_ds());
-	res = ip_rt_ioctl(&init_net, cmd, (void __user *) arg);
-	set_fs(oldfs);
-	return res;
-}
-
 /*
  *	Set up interface addresses and routes.
  */
@@ -412,7 +401,7 @@ static int __init ic_setup_routes(void)
 		set_sockaddr((struct sockaddr_in *) &rm.rt_genmask, 0, 0);
 		set_sockaddr((struct sockaddr_in *) &rm.rt_gateway, ic_gateway, 0);
 		rm.rt_flags = RTF_UP | RTF_GATEWAY;
-		if ((err = ic_route_ioctl(SIOCADDRT, &rm)) < 0) {
+		if ((err = ip_rt_ioctl(&init_net, SIOCADDRT, &rm)) < 0) {
 			pr_err("IP-Config: Cannot add default route (%d)\n",
 			       err);
 			return -1;

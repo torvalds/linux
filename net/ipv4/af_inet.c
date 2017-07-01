@@ -874,6 +874,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	struct net *net = sock_net(sk);
 	void __user *p = (void __user *)arg;
 	struct ifreq ifr;
+	struct rtentry rt;
 
 	switch (cmd) {
 	case SIOCGSTAMP:
@@ -884,8 +885,12 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 	case SIOCADDRT:
 	case SIOCDELRT:
+		if (copy_from_user(&rt, p, sizeof(struct rtentry)))
+			return -EFAULT;
+		err = ip_rt_ioctl(net, cmd, &rt);
+		break;
 	case SIOCRTMSG:
-		err = ip_rt_ioctl(net, cmd, (void __user *)arg);
+		err = -EINVAL;
 		break;
 	case SIOCDARP:
 	case SIOCGARP:
