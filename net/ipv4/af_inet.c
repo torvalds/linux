@@ -872,6 +872,8 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	struct sock *sk = sock->sk;
 	int err = 0;
 	struct net *net = sock_net(sk);
+	void __user *p = (void __user *)arg;
+	struct ifreq ifr;
 
 	switch (cmd) {
 	case SIOCGSTAMP:
@@ -891,17 +893,26 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		err = arp_ioctl(net, cmd, (void __user *)arg);
 		break;
 	case SIOCGIFADDR:
-	case SIOCSIFADDR:
 	case SIOCGIFBRDADDR:
-	case SIOCSIFBRDADDR:
 	case SIOCGIFNETMASK:
-	case SIOCSIFNETMASK:
 	case SIOCGIFDSTADDR:
+	case SIOCGIFPFLAGS:
+		if (copy_from_user(&ifr, p, sizeof(struct ifreq)))
+			return -EFAULT;
+		err = devinet_ioctl(net, cmd, &ifr);
+		if (!err && copy_to_user(p, &ifr, sizeof(struct ifreq)))
+			err = -EFAULT;
+		break;
+
+	case SIOCSIFADDR:
+	case SIOCSIFBRDADDR:
+	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
 	case SIOCSIFPFLAGS:
-	case SIOCGIFPFLAGS:
 	case SIOCSIFFLAGS:
-		err = devinet_ioctl(net, cmd, (void __user *)arg);
+		if (copy_from_user(&ifr, p, sizeof(struct ifreq)))
+			return -EFAULT;
+		err = devinet_ioctl(net, cmd, &ifr);
 		break;
 	default:
 		if (sk->sk_prot->ioctl)

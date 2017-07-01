@@ -329,17 +329,6 @@ set_sockaddr(struct sockaddr_in *sin, __be32 addr, __be16 port)
 	sin->sin_port = port;
 }
 
-static int __init ic_devinet_ioctl(unsigned int cmd, struct ifreq *arg)
-{
-	int res;
-
-	mm_segment_t oldfs = get_fs();
-	set_fs(get_ds());
-	res = devinet_ioctl(&init_net, cmd, (struct ifreq __user *) arg);
-	set_fs(oldfs);
-	return res;
-}
-
 static int __init ic_dev_ioctl(unsigned int cmd, struct ifreq *arg)
 {
 	int res;
@@ -375,19 +364,19 @@ static int __init ic_setup_if(void)
 	memset(&ir, 0, sizeof(ir));
 	strcpy(ir.ifr_ifrn.ifrn_name, ic_dev->dev->name);
 	set_sockaddr(sin, ic_myaddr, 0);
-	if ((err = ic_devinet_ioctl(SIOCSIFADDR, &ir)) < 0) {
+	if ((err = devinet_ioctl(&init_net, SIOCSIFADDR, &ir)) < 0) {
 		pr_err("IP-Config: Unable to set interface address (%d)\n",
 		       err);
 		return -1;
 	}
 	set_sockaddr(sin, ic_netmask, 0);
-	if ((err = ic_devinet_ioctl(SIOCSIFNETMASK, &ir)) < 0) {
+	if ((err = devinet_ioctl(&init_net, SIOCSIFNETMASK, &ir)) < 0) {
 		pr_err("IP-Config: Unable to set interface netmask (%d)\n",
 		       err);
 		return -1;
 	}
 	set_sockaddr(sin, ic_myaddr | ~ic_netmask, 0);
-	if ((err = ic_devinet_ioctl(SIOCSIFBRDADDR, &ir)) < 0) {
+	if ((err = devinet_ioctl(&init_net, SIOCSIFBRDADDR, &ir)) < 0) {
 		pr_err("IP-Config: Unable to set interface broadcast address (%d)\n",
 		       err);
 		return -1;
