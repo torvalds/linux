@@ -419,8 +419,7 @@ finalize:
 	if (err)
 		return err;
 
-	err = bcm_request_irq(bcm);
-	if (!err)
+	if (!bcm_request_irq(bcm))
 		err = bcm_setup_sleep(hu);
 
 	return err;
@@ -654,6 +653,15 @@ static const struct dmi_system_id bcm_wrong_irq_dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR,
 					"ASUSTeK COMPUTER INC."),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "T100TA"),
+		},
+		.driver_data = &acpi_active_low,
+	},
+	{
+		.ident = "Asus T100CHI",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR,
+					"ASUSTeK COMPUTER INC."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "T100CHI"),
 		},
 		.driver_data = &acpi_active_low,
 	},
