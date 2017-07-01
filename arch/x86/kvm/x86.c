@@ -6009,7 +6009,7 @@ static void kvm_set_mmio_spte_mask(void)
 		mask &= ~1ull;
 #endif
 
-	kvm_mmu_set_mmio_spte_mask(mask);
+	kvm_mmu_set_mmio_spte_mask(mask, mask);
 }
 
 #ifdef CONFIG_X86_64
