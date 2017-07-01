@@ -323,7 +323,7 @@ static int btt_log_read(struct arena_info *arena, u32 lane,
 
 	old_ent = btt_log_get_old(log);
 	if (old_ent < 0 || old_ent > 1) {
-		dev_info(to_dev(arena),
+		dev_err(to_dev(arena),
 				"log corruption (%d): lane %d seq [%d, %d]\n",
 			old_ent, lane, log[0].seq, log[1].seq);
 		/* TODO set error state? */
@@ -684,7 +684,7 @@ static int discover_arenas(struct btt *btt)
 				dev_info(to_dev(arena), "No existing arenas\n");
 				goto out;
 			} else {
-				dev_info(to_dev(arena),
+				dev_err(to_dev(arena),
 						"Found corrupted metadata!\n");
 				ret = -ENODEV;
 				goto out;
@@ -1227,7 +1227,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 		err = btt_do_bvec(btt, bip, bvec.bv_page, len, bvec.bv_offset,
 				  op_is_write(bio_op(bio)), iter.bi_sector);
 		if (err) {
-			dev_info(&btt->nd_btt->dev,
+			dev_err(&btt->nd_btt->dev,
 					"io error in %s sector %lld, len %d,\n",
 					(op_is_write(bio_op(bio))) ? "WRITE" :
 					"READ",
@@ -1373,7 +1373,7 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 	}
 
 	if (btt->init_state != INIT_READY && nd_region->ro) {
-		dev_info(dev, "%s is read-only, unable to init btt metadata\n",
+		dev_warn(dev, "%s is read-only, unable to init btt metadata\n",
 				dev_name(&nd_region->dev));
 		return NULL;
 	} else if (btt->init_state != INIT_READY) {
