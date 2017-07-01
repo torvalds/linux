@@ -166,7 +166,8 @@ void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
 	if (ivgen_ctx->pool_meta) {
 		memset(ivgen_ctx->pool_meta, 0, SSI_IVPOOL_META_SIZE);
 		dma_free_coherent(device, SSI_IVPOOL_META_SIZE,
-			ivgen_ctx->pool_meta, ivgen_ctx->pool_meta_dma);
+				  ivgen_ctx->pool_meta,
+				  ivgen_ctx->pool_meta_dma);
 	}
 
 	ivgen_ctx->pool = NULL_SRAM_ADDR;
