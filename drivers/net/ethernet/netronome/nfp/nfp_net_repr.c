@@ -35,6 +35,7 @@
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/lockdep.h>
 #include <net/dst_metadata.h>
+#include <net/switchdev.h>
 
 #include "nfpcore/nfp_cpp.h"
 #include "nfpcore/nfp_nsp.h"
@@ -257,6 +258,7 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_has_offload_stats	= nfp_repr_has_offload_stats,
 	.ndo_get_offload_stats	= nfp_repr_get_offload_stats,
 	.ndo_get_phys_port_name	= nfp_port_get_phys_port_name,
+	.ndo_setup_tc		= nfp_port_setup_tc,
 };
 
 static void nfp_repr_clean(struct nfp_repr *repr)
@@ -299,6 +301,12 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	repr->dst->u.port_info.lower_dev = pf_netdev;
 
 	netdev->netdev_ops = &nfp_repr_netdev_ops;
+	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
+
+	if (nfp_app_has_tc(app)) {
+		netdev->features |= NETIF_F_HW_TC;
+		netdev->hw_features |= NETIF_F_HW_TC;
+	}
 
 	err = register_netdev(netdev);
 	if (err)

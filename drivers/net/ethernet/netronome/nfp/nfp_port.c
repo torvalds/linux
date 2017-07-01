@@ -32,6 +32,7 @@
  */
 
 #include <linux/lockdep.h>
+#include <net/switchdev.h>
 
 #include "nfpcore/nfp_cpp.h"
 #include "nfpcore/nfp_nsp.h"
@@ -57,6 +58,49 @@ struct nfp_port *nfp_port_from_netdev(struct net_device *netdev)
 	WARN(1, "Unknown netdev type for nfp_port\n");
 
 	return NULL;
+}
+
+static int
+nfp_port_attr_get(struct net_device *netdev, struct switchdev_attr *attr)
+{
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!port)
+		return -EOPNOTSUPP;
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID: {
+		const u8 *serial;
+		/* N.B: attr->u.ppid.id is binary data */
+		attr->u.ppid.id_len = nfp_cpp_serial(port->app->cpp, &serial);
+		memcpy(&attr->u.ppid.id, serial, attr->u.ppid.id_len);
+		break;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+const struct switchdev_ops nfp_port_switchdev_ops = {
+	.switchdev_port_attr_get	= nfp_port_attr_get,
+};
+
+int nfp_port_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
+		      __be16 proto, struct tc_to_netdev *tc)
+{
+	struct nfp_port *port;
+
+	if (chain_index)
+		return -EOPNOTSUPP;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!port)
+		return -EOPNOTSUPP;
+
+	return nfp_app_setup_tc(port->app, netdev, handle, proto, tc);
 }
 
 struct nfp_port *
