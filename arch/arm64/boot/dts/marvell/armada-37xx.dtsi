@@ -81,6 +81,11 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
