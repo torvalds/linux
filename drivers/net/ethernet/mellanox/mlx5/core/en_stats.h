@@ -47,7 +47,7 @@
 
 struct counter_desc {
 	char		format[ETH_GSTRING_LEN];
-	int		offset; /* Byte offset */
+	size_t		offset; /* Byte offset */
 };
 
 struct mlx5e_sw_stats {
