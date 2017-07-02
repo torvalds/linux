@@ -615,10 +615,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_rq_wq_destroy;
 		}
 
-		rq->mpwqe.stride_sz = BIT(params->mpwqe_log_stride_sz);
+		rq->mpwqe.log_stride_sz = params->mpwqe_log_stride_sz;
 		rq->mpwqe.num_strides = BIT(params->mpwqe_log_num_strides);
 
-		rq->buff.wqe_sz = rq->mpwqe.stride_sz * rq->mpwqe.num_strides;
+		rq->buff.wqe_sz = rq->mpwqe.num_strides << rq->mpwqe.log_stride_sz;
 		byte_count = rq->buff.wqe_sz;
 
 		err = mlx5e_create_rq_umr_mkey(mdev, rq);

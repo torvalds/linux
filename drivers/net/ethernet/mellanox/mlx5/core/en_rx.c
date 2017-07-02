@@ -304,7 +304,7 @@ static inline void mlx5e_add_skb_frag_mpwqe(struct mlx5e_rq *rq,
 					    u32 page_idx, u32 frag_offset,
 					    u32 len)
 {
-	unsigned int truesize = ALIGN(len, rq->mpwqe.stride_sz);
+	unsigned int truesize = ALIGN(len, BIT(rq->mpwqe.log_stride_sz));
 
 	dma_sync_single_for_cpu(rq->pdev,
 				wi->umr.dma_info[page_idx].addr + frag_offset,
@@ -910,7 +910,7 @@ static inline void mlx5e_mpwqe_fill_rx_skb(struct mlx5e_rq *rq,
 					   struct sk_buff *skb)
 {
 	u16 stride_ix      = mpwrq_get_cqe_stride_index(cqe);
-	u32 wqe_offset     = stride_ix * rq->mpwqe.stride_sz;
+	u32 wqe_offset     = stride_ix << rq->mpwqe.log_stride_sz;
 	u32 head_offset    = wqe_offset & (PAGE_SIZE - 1);
 	u32 page_idx       = wqe_offset >> PAGE_SHIFT;
 	u32 head_page_idx  = page_idx;
