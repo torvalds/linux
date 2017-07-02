@@ -2477,6 +2477,8 @@ struct rtl_global_var {
 	spinlock_t glb_list_lock;
 };
 
+#define IN_4WAY_TIMEOUT_TIME	(30 * MSEC_PER_SEC)	/* 30 seconds */
+
 struct rtl_btc_info {
 	u8 bt_type;
 	u8 btcoexist;
@@ -2485,6 +2487,7 @@ struct rtl_btc_info {
 
 	u8 ap_num;
 	bool in_4way;
+	unsigned long in_4way_ts;
 };
 
 struct bt_coexist_info {
