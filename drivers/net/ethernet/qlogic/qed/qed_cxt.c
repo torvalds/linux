@@ -246,14 +246,16 @@ struct qed_cxt_mngr {
 static bool src_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
-	       type == PROTOCOLID_FCOE;
+	       type == PROTOCOLID_FCOE ||
+	       type == PROTOCOLID_IWARP;
 }
 
 static bool tm_cid_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
 	       type == PROTOCOLID_FCOE ||
-	       type == PROTOCOLID_ROCE;
+	       type == PROTOCOLID_ROCE ||
+	       type == PROTOCOLID_IWARP;
 }
 
 static bool tm_tid_proto(enum protocol_type type)
@@ -2068,6 +2070,11 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 	num_srqs = min_t(u32, 32 * 1024, p_params->num_srqs);
 
 	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_ETH_IWARP:
+		/* Each QP requires one connection */
+		num_cons = min_t(u32, IWARP_MAX_QPS, p_params->num_qps);
+		proto = PROTOCOLID_IWARP;
+		break;
 	case QED_PCI_ETH_ROCE:
 		num_qps = min_t(u32, ROCE_MAX_QPS, p_params->num_qps);
 		num_cons = num_qps * 2;	/* each QP requires two connections */
@@ -2103,6 +2110,8 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 	qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_CORE, core_cids, 0);
 
 	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_ETH_RDMA:
+	case QED_PCI_ETH_IWARP:
 	case QED_PCI_ETH_ROCE:
 	{
 			qed_rdma_set_pf_params(p_hwfn,
