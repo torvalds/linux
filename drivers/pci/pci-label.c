@@ -43,9 +43,11 @@ static size_t find_smbios_instance_string(struct pci_dev *pdev, char *buf,
 {
 	const struct dmi_device *dmi;
 	struct dmi_dev_onboard *donboard;
+	int domain_nr;
 	int bus;
 	int devfn;
 
+	domain_nr = pci_domain_nr(pdev->bus);
 	bus = pdev->bus->number;
 	devfn = pdev->devfn;
 
@@ -53,8 +55,9 @@ static size_t find_smbios_instance_string(struct pci_dev *pdev, char *buf,
 	while ((dmi = dmi_find_device(DMI_DEV_TYPE_DEV_ONBOARD,
 				      NULL, dmi)) != NULL) {
 		donboard = dmi->device_data;
-		if (donboard && donboard->bus == bus &&
-					donboard->devfn == devfn) {
+		if (donboard && donboard->segment == domain_nr &&
+				donboard->bus == bus &&
+				donboard->devfn == devfn) {
 			if (buf) {
 				if (attribute == SMBIOS_ATTR_INSTANCE_SHOW)
 					return scnprintf(buf, PAGE_SIZE,
