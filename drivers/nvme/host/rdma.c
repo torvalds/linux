@@ -1946,10 +1946,6 @@ static struct nvmf_transport_ops nvme_rdma_transport = {
 	.create_ctrl	= nvme_rdma_create_ctrl,
 };
 
-static void nvme_rdma_add_one(struct ib_device *ib_device)
-{
-}
-
 static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 {
 	struct nvme_rdma_ctrl *ctrl;
@@ -1971,7 +1967,6 @@ static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 
 static struct ib_client nvme_rdma_ib_client = {
 	.name   = "nvme_rdma",
-	.add = nvme_rdma_add_one,
 	.remove = nvme_rdma_remove_one
 };
 
