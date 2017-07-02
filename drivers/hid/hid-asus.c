@@ -107,7 +107,7 @@ static const struct asus_touchpad_info asus_i2c_tp = {
 
 static const struct asus_touchpad_info asus_t100ta_tp = {
 	.max_x = 2240,
-	.max_y = 1758,
+	.max_y = 1120,
 	.contact_size = 5,
 	.max_contacts = 5,
 };
