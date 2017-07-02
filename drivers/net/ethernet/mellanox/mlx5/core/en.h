@@ -582,6 +582,9 @@ struct mlx5e_channel {
 	__be32                     mkey_be;
 	u8                         num_tc;
 
+	/* data path - accessed per napi poll */
+	struct irq_desc *irq_desc;
+
 	/* control */
 	struct mlx5e_priv         *priv;
 	struct mlx5_core_dev      *mdev;
