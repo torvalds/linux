@@ -170,6 +170,11 @@ void qed_iwarp_query_qp(struct qed_rdma_qp *qp,
 			struct qed_rdma_query_qp_out_params *out_params);
 
 int
+qed_iwarp_connect(void *rdma_cxt,
+		  struct qed_iwarp_connect_in *iparams,
+		  struct qed_iwarp_connect_out *oparams);
+
+int
 qed_iwarp_create_listen(void *rdma_cxt,
 			struct qed_iwarp_listen_in *iparams,
 			struct qed_iwarp_listen_out *oparams);
@@ -178,5 +183,7 @@ int qed_iwarp_accept(void *rdma_cxt, struct qed_iwarp_accept_in *iparams);
 
 int qed_iwarp_reject(void *rdma_cxt, struct qed_iwarp_reject_in *iparams);
 int qed_iwarp_destroy_listen(void *rdma_cxt, void *handle);
+
+int qed_iwarp_send_rtr(void *rdma_cxt, struct qed_iwarp_send_rtr_in *iparams);
 
 #endif

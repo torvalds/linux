@@ -1772,8 +1772,12 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.ll2_set_fragment_of_tx_packet = &qed_ll2_set_fragment_of_tx_packet,
 	.ll2_set_mac_filter = &qed_roce_ll2_set_mac_filter,
 	.ll2_get_stats = &qed_ll2_get_stats,
+	.iwarp_connect = &qed_iwarp_connect,
 	.iwarp_create_listen = &qed_iwarp_create_listen,
 	.iwarp_destroy_listen = &qed_iwarp_destroy_listen,
+	.iwarp_accept = &qed_iwarp_accept,
+	.iwarp_reject = &qed_iwarp_reject,
+	.iwarp_send_rtr = &qed_iwarp_send_rtr,
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void)

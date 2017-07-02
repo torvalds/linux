@@ -473,6 +473,8 @@ struct qed_rdma_counters_out_params {
 enum qed_iwarp_event_type {
 	QED_IWARP_EVENT_MPA_REQUEST,	  /* Passive side request received */
 	QED_IWARP_EVENT_PASSIVE_COMPLETE, /* ack on mpa response */
+	QED_IWARP_EVENT_ACTIVE_COMPLETE,  /* Active side reply received */
+	QED_IWARP_EVENT_ACTIVE_MPA_REPLY,
 };
 
 enum qed_tcp_ip_version {
@@ -503,6 +505,20 @@ struct qed_iwarp_cm_event_params {
 typedef int (*iwarp_event_handler) (void *context,
 				    struct qed_iwarp_cm_event_params *event);
 
+struct qed_iwarp_connect_in {
+	iwarp_event_handler event_cb;
+	void *cb_context;
+	struct qed_rdma_qp *qp;
+	struct qed_iwarp_cm_info cm_info;
+	u16 mss;
+	u8 remote_mac_addr[ETH_ALEN];
+	u8 local_mac_addr[ETH_ALEN];
+};
+
+struct qed_iwarp_connect_out {
+	void *ep_context;
+};
+
 struct qed_iwarp_listen_in {
 	iwarp_event_handler event_cb;
 	void *cb_context;	/* passed to event_cb */
@@ -532,6 +548,10 @@ struct qed_iwarp_reject_in {
 	void *cb_context;
 	const void *private_data;
 	u16 private_data_len;
+};
+
+struct qed_iwarp_send_rtr_in {
+	void *ep_context;
 };
 
 struct qed_roce_ll2_header {
@@ -640,6 +660,10 @@ struct qed_rdma_ops {
 	int (*ll2_set_mac_filter)(struct qed_dev *cdev,
 				  u8 *old_mac_address, u8 *new_mac_address);
 
+	int (*iwarp_connect)(void *rdma_cxt,
+			     struct qed_iwarp_connect_in *iparams,
+			     struct qed_iwarp_connect_out *oparams);
+
 	int (*iwarp_create_listen)(void *rdma_cxt,
 				   struct qed_iwarp_listen_in *iparams,
 				   struct qed_iwarp_listen_out *oparams);
@@ -652,6 +676,8 @@ struct qed_rdma_ops {
 
 	int (*iwarp_destroy_listen)(void *rdma_cxt, void *handle);
 
+	int (*iwarp_send_rtr)(void *rdma_cxt,
+			      struct qed_iwarp_send_rtr_in *iparams);
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void);
