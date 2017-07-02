@@ -251,7 +251,7 @@ static int get_e820_md5(struct e820_table *table, void *buf)
 
 static void hibernation_e820_save(void *buf)
 {
-	get_e820_md5(e820_table_firmware, buf);
+	get_e820_md5(e820_table_kexec, buf);
 }
 
 static bool hibernation_e820_mismatch(void *buf)
@@ -264,7 +264,7 @@ static bool hibernation_e820_mismatch(void *buf)
 	if (!memcmp(result, buf, MD5_DIGEST_SIZE))
 		return false;
 
-	ret = get_e820_md5(e820_table_firmware, result);
+	ret = get_e820_md5(e820_table_kexec, result);
 	if (ret)
 		return true;
 
