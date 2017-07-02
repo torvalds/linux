@@ -669,6 +669,8 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 	__append_e820_table(extmap, entries);
 	e820__update_table(e820_table);
 
+	memcpy(e820_table_firmware, e820_table, sizeof(*e820_table_firmware));
+
 	early_memunmap(sdata, data_len);
 	pr_info("e820: extended physical RAM map:\n");
 	e820__print_table("extended");
@@ -923,13 +925,13 @@ void __init e820__reserve_setup_data(void)
 	while (pa_data) {
 		data = early_memremap(pa_data, sizeof(*data));
 		e820__range_update(pa_data, sizeof(*data)+data->len, E820_TYPE_RAM, E820_TYPE_RESERVED_KERN);
+		e820__range_update_firmware(pa_data, sizeof(*data)+data->len, E820_TYPE_RAM, E820_TYPE_RESERVED_KERN);
 		pa_data = data->next;
 		early_memunmap(data, sizeof(*data));
 	}
 
 	e820__update_table(e820_table);
-
-	memcpy(e820_table_firmware, e820_table, sizeof(*e820_table_firmware));
+	e820__update_table(e820_table_firmware);
 
 	pr_info("extended physical RAM map:\n");
 	e820__print_table("reserve setup_data");
