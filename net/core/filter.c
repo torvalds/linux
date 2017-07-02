@@ -2012,7 +2012,7 @@ static int bpf_skb_net_hdr_pop(struct sk_buff *skb, u32 off, u32 len)
 static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
 {
 	const u32 len_diff = sizeof(struct ipv6hdr) - sizeof(struct iphdr);
-	u32 off = skb->network_header - skb->mac_header;
+	u32 off = skb_mac_header_len(skb);
 	int ret;
 
 	ret = skb_cow(skb, len_diff);
@@ -2048,7 +2048,7 @@ static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
 static int bpf_skb_proto_6_to_4(struct sk_buff *skb)
 {
 	const u32 len_diff = sizeof(struct ipv6hdr) - sizeof(struct iphdr);
-	u32 off = skb->network_header - skb->mac_header;
+	u32 off = skb_mac_header_len(skb);
 	int ret;
 
 	ret = skb_unclone(skb, GFP_ATOMIC);
