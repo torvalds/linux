@@ -571,3 +571,18 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2fc0, pci_invalid_bar);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6f60, pci_invalid_bar);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fa0, pci_invalid_bar);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fc0, pci_invalid_bar);
+
+/*
+ * Device [1022:7808]
+ * 23. USB Wake on Connect/Disconnect with Low Speed Devices
+ * https://support.amd.com/TechDocs/46837.pdf
+ * Appendix A2
+ * https://support.amd.com/TechDocs/42413.pdf
+ */
+static void pci_fixup_amd_ehci_pme(struct pci_dev *dev)
+{
+	dev_info(&dev->dev, "PME# does not work under D3, disabling it\n");
+	dev->pme_support &= ~((PCI_PM_CAP_PME_D3 | PCI_PM_CAP_PME_D3cold)
+		>> PCI_PM_CAP_PME_SHIFT);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x7808, pci_fixup_amd_ehci_pme);
