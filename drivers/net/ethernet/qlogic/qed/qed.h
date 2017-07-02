@@ -789,6 +789,8 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_device_num_engines(struct qed_dev *cdev);
 int qed_device_get_port_id(struct qed_dev *cdev);
+void qed_set_fw_mac_addr(__le16 *fw_msb,
+			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac);
 
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 

@@ -471,7 +471,8 @@ struct qed_rdma_counters_out_params {
 #define QED_ROCE_TX_FRAG_FAILURE        (2)
 
 enum qed_iwarp_event_type {
-	QED_IWARP_EVENT_MPA_REQUEST,	/* Passive side request received */
+	QED_IWARP_EVENT_MPA_REQUEST,	  /* Passive side request received */
+	QED_IWARP_EVENT_PASSIVE_COMPLETE, /* ack on mpa response */
 };
 
 enum qed_tcp_ip_version {
@@ -514,6 +515,23 @@ struct qed_iwarp_listen_in {
 
 struct qed_iwarp_listen_out {
 	void *handle;
+};
+
+struct qed_iwarp_accept_in {
+	void *ep_context;
+	void *cb_context;
+	struct qed_rdma_qp *qp;
+	const void *private_data;
+	u16 private_data_len;
+	u8 ord;
+	u8 ird;
+};
+
+struct qed_iwarp_reject_in {
+	void *ep_context;
+	void *cb_context;
+	const void *private_data;
+	u16 private_data_len;
 };
 
 struct qed_roce_ll2_header {
@@ -625,6 +643,12 @@ struct qed_rdma_ops {
 	int (*iwarp_create_listen)(void *rdma_cxt,
 				   struct qed_iwarp_listen_in *iparams,
 				   struct qed_iwarp_listen_out *oparams);
+
+	int (*iwarp_accept)(void *rdma_cxt,
+			    struct qed_iwarp_accept_in *iparams);
+
+	int (*iwarp_reject)(void *rdma_cxt,
+			    struct qed_iwarp_reject_in *iparams);
 
 	int (*iwarp_destroy_listen)(void *rdma_cxt, void *handle);
 

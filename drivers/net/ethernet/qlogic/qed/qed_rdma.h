@@ -85,6 +85,7 @@ struct qed_rdma_info {
 	struct qed_bmap qp_map;
 	struct qed_bmap srq_map;
 	struct qed_bmap cid_map;
+	struct qed_bmap tcp_cid_map;
 	struct qed_bmap real_cid_map;
 	struct qed_bmap dpi_map;
 	struct qed_bmap toggle_bits;
@@ -167,6 +168,7 @@ struct qed_rdma_qp {
 
 	void *shared_queue;
 	dma_addr_t shared_queue_phys_addr;
+	struct qed_iwarp_ep *ep;
 };
 
 #if IS_ENABLED(CONFIG_QED_RDMA)

@@ -1227,19 +1227,6 @@ static enum eth_filter_action qed_filter_action(enum qed_filter_opcode opcode)
 	return action;
 }
 
-static void qed_set_fw_mac_addr(__le16 *fw_msb,
-				__le16 *fw_mid,
-				__le16 *fw_lsb,
-				u8 *mac)
-{
-	((u8 *)fw_msb)[0] = mac[1];
-	((u8 *)fw_msb)[1] = mac[0];
-	((u8 *)fw_mid)[0] = mac[3];
-	((u8 *)fw_mid)[1] = mac[2];
-	((u8 *)fw_lsb)[0] = mac[5];
-	((u8 *)fw_lsb)[1] = mac[4];
-}
-
 static int
 qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 			u16 opaque_fid,

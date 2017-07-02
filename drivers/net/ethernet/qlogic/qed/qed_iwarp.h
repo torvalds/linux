@@ -42,6 +42,8 @@ enum qed_iwarp_qp_state {
 
 enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
 
+#define QED_IWARP_PREALLOC_CNT  (256)
+
 #define QED_IWARP_LL2_SYN_TX_SIZE       (128)
 #define QED_IWARP_LL2_SYN_RX_SIZE       (256)
 #define QED_IWARP_MAX_SYN_PKT_SIZE      (128)
@@ -55,6 +57,8 @@ struct qed_iwarp_ll2_buff {
 
 struct qed_iwarp_info {
 	struct list_head listen_list;	/* qed_iwarp_listener */
+	struct list_head ep_list;	/* qed_iwarp_ep */
+	struct list_head ep_free_list;	/* pre-allocated ep's */
 	spinlock_t iw_lock;	/* for iwarp resources */
 	spinlock_t qp_lock;	/* for teardown races */
 	u32 rcv_wnd_scale;
@@ -66,6 +70,61 @@ struct qed_iwarp_info {
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
+};
+
+enum qed_iwarp_ep_state {
+	QED_IWARP_EP_INIT,
+	QED_IWARP_EP_MPA_REQ_RCVD,
+	QED_IWARP_EP_MPA_OFFLOADED,
+	QED_IWARP_EP_ESTABLISHED,
+	QED_IWARP_EP_CLOSED
+};
+
+union async_output {
+	struct iwarp_eqe_data_mpa_async_completion mpa_response;
+	struct iwarp_eqe_data_tcp_async_completion mpa_request;
+};
+
+#define QED_MAX_PRIV_DATA_LEN (512)
+struct qed_iwarp_ep_memory {
+	u8 in_pdata[QED_MAX_PRIV_DATA_LEN];
+	u8 out_pdata[QED_MAX_PRIV_DATA_LEN];
+	union async_output async_output;
+};
+
+/* Endpoint structure represents a TCP connection. This connection can be
+ * associated with a QP or not (in which case QP==NULL)
+ */
+struct qed_iwarp_ep {
+	struct list_head list_entry;
+	struct qed_rdma_qp *qp;
+	struct qed_iwarp_ep_memory *ep_buffer_virt;
+	dma_addr_t ep_buffer_phys;
+	enum qed_iwarp_ep_state state;
+	int sig;
+	struct qed_iwarp_cm_info cm_info;
+	enum tcp_connect_mode connect_mode;
+	enum mpa_rtr_type rtr_type;
+	enum mpa_negotiation_mode mpa_rev;
+	u32 tcp_cid;
+	u32 cid;
+	u16 mss;
+	u8 remote_mac_addr[6];
+	u8 local_mac_addr[6];
+	bool mpa_reply_processed;
+
+	/* For Passive side - syn packet related data */
+	u16 syn_ip_payload_length;
+	struct qed_iwarp_ll2_buff *syn;
+	dma_addr_t syn_phy_addr;
+
+	/* The event_cb function is called for asynchrounous events associated
+	 * with the ep. It is initialized at different entry points depending
+	 * on whether the ep is the tcp connection active side or passive side
+	 * The cb_context is passed to the event_cb function.
+	 */
+	iwarp_event_handler event_cb;
+	void *cb_context;
 };
 
 struct qed_iwarp_listener {
@@ -115,6 +174,9 @@ qed_iwarp_create_listen(void *rdma_cxt,
 			struct qed_iwarp_listen_in *iparams,
 			struct qed_iwarp_listen_out *oparams);
 
+int qed_iwarp_accept(void *rdma_cxt, struct qed_iwarp_accept_in *iparams);
+
+int qed_iwarp_reject(void *rdma_cxt, struct qed_iwarp_reject_in *iparams);
 int qed_iwarp_destroy_listen(void *rdma_cxt, void *handle);
 
 #endif

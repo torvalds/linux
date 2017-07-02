@@ -38,6 +38,8 @@
 #include <linux/slab.h>
 
 /* dma_addr_t manip */
+#define PTR_LO(x)               ((u32)(((uintptr_t)(x)) & 0xffffffff))
+#define PTR_HI(x)               ((u32)((((uintptr_t)(x)) >> 16) >> 16))
 #define DMA_LO_LE(x)		cpu_to_le32(lower_32_bits(x))
 #define DMA_HI_LE(x)		cpu_to_le32(upper_32_bits(x))
 #define DMA_REGPAIR_LE(x, val)	do { \
