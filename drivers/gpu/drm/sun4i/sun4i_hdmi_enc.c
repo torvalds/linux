@@ -29,8 +29,6 @@
 #include "sun4i_hdmi.h"
 #include "sun4i_tcon.h"
 
-#define DDC_SEGMENT_ADDR	0x30
-
 static inline struct sun4i_hdmi *
 drm_encoder_to_sun4i_hdmi(struct drm_encoder *encoder)
 {
@@ -184,93 +182,13 @@ static const struct drm_encoder_funcs sun4i_hdmi_funcs = {
 	.destroy	= drm_encoder_cleanup,
 };
 
-static int sun4i_hdmi_read_sub_block(struct sun4i_hdmi *hdmi,
-				     unsigned int blk, unsigned int offset,
-				     u8 *buf, unsigned int count)
-{
-	unsigned long reg;
-	int i;
-
-	reg = readl(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-	reg &= ~SUN4I_HDMI_DDC_CTRL_FIFO_DIR_MASK;
-	writel(reg | SUN4I_HDMI_DDC_CTRL_FIFO_DIR_READ,
-	       hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-
-	writel(SUN4I_HDMI_DDC_ADDR_SEGMENT(offset >> 8) |
-	       SUN4I_HDMI_DDC_ADDR_EDDC(DDC_SEGMENT_ADDR << 1) |
-	       SUN4I_HDMI_DDC_ADDR_OFFSET(offset) |
-	       SUN4I_HDMI_DDC_ADDR_SLAVE(DDC_ADDR),
-	       hdmi->base + SUN4I_HDMI_DDC_ADDR_REG);
-
-	reg = readl(hdmi->base + SUN4I_HDMI_DDC_FIFO_CTRL_REG);
-	writel(reg | SUN4I_HDMI_DDC_FIFO_CTRL_CLEAR,
-	       hdmi->base + SUN4I_HDMI_DDC_FIFO_CTRL_REG);
-
-	writel(count, hdmi->base + SUN4I_HDMI_DDC_BYTE_COUNT_REG);
-	writel(SUN4I_HDMI_DDC_CMD_EXPLICIT_EDDC_READ,
-	       hdmi->base + SUN4I_HDMI_DDC_CMD_REG);
-
-	reg = readl(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-	writel(reg | SUN4I_HDMI_DDC_CTRL_START_CMD,
-	       hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-
-	if (readl_poll_timeout(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG, reg,
-			       !(reg & SUN4I_HDMI_DDC_CTRL_START_CMD),
-			       100, 100000))
-		return -EIO;
-
-	for (i = 0; i < count; i++)
-		buf[i] = readb(hdmi->base + SUN4I_HDMI_DDC_FIFO_DATA_REG);
-
-	return 0;
-}
-
-static int sun4i_hdmi_read_edid_block(void *data, u8 *buf, unsigned int blk,
-				      size_t length)
-{
-	struct sun4i_hdmi *hdmi = data;
-	int retry = 2, i;
-
-	do {
-		for (i = 0; i < length; i += SUN4I_HDMI_DDC_FIFO_SIZE) {
-			unsigned char offset = blk * EDID_LENGTH + i;
-			unsigned int count = min((unsigned int)SUN4I_HDMI_DDC_FIFO_SIZE,
-						 length - i);
-			int ret;
-
-			ret = sun4i_hdmi_read_sub_block(hdmi, blk, offset,
-							buf + i, count);
-			if (ret)
-				return ret;
-		}
-	} while (!drm_edid_block_valid(buf, blk, true, NULL) && (retry--));
-
-	return 0;
-}
-
 static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 {
 	struct sun4i_hdmi *hdmi = drm_connector_to_sun4i_hdmi(connector);
-	unsigned long reg;
 	struct edid *edid;
 	int ret;
 
-	/* Reset i2c controller */
-	writel(SUN4I_HDMI_DDC_CTRL_ENABLE | SUN4I_HDMI_DDC_CTRL_RESET,
-	       hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
-	if (readl_poll_timeout(hdmi->base + SUN4I_HDMI_DDC_CTRL_REG, reg,
-			       !(reg & SUN4I_HDMI_DDC_CTRL_RESET),
-			       100, 2000))
-		return -EIO;
-
-	writel(SUN4I_HDMI_DDC_LINE_CTRL_SDA_ENABLE |
-	       SUN4I_HDMI_DDC_LINE_CTRL_SCL_ENABLE,
-	       hdmi->base + SUN4I_HDMI_DDC_LINE_CTRL_REG);
-
-	clk_prepare_enable(hdmi->ddc_clk);
-	clk_set_rate(hdmi->ddc_clk, 100000);
-
-	edid = drm_do_get_edid(connector, sun4i_hdmi_read_edid_block, hdmi);
+	edid = drm_get_edid(connector, hdmi->i2c);
 	if (!edid)
 		return 0;
 
@@ -281,8 +199,6 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	kfree(edid);
-
-	clk_disable_unprepare(hdmi->ddc_clk);
 
 	return ret;
 }
@@ -407,9 +323,9 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 		SUN4I_HDMI_PLL_CTRL_PLL_EN;
 	writel(reg, hdmi->base + SUN4I_HDMI_PLL_CTRL_REG);
 
-	ret = sun4i_ddc_create(hdmi, hdmi->tmds_clk);
+	ret = sun4i_hdmi_i2c_create(dev, hdmi);
 	if (ret) {
-		dev_err(dev, "Couldn't create the DDC clock\n");
+		dev_err(dev, "Couldn't create the HDMI I2C adapter\n");
 		return ret;
 	}
 
@@ -422,13 +338,15 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 			       NULL);
 	if (ret) {
 		dev_err(dev, "Couldn't initialise the HDMI encoder\n");
-		return ret;
+		goto err_del_i2c_adapter;
 	}
 
 	hdmi->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
 								  dev->of_node);
-	if (!hdmi->encoder.possible_crtcs)
-		return -EPROBE_DEFER;
+	if (!hdmi->encoder.possible_crtcs) {
+		ret = -EPROBE_DEFER;
+		goto err_del_i2c_adapter;
+	}
 
 	drm_connector_helper_add(&hdmi->connector,
 				 &sun4i_hdmi_connector_helper_funcs);
@@ -451,6 +369,8 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 
 err_cleanup_connector:
 	drm_encoder_cleanup(&hdmi->encoder);
+err_del_i2c_adapter:
+	i2c_del_adapter(hdmi->i2c);
 	return ret;
 }
 
@@ -461,6 +381,7 @@ static void sun4i_hdmi_unbind(struct device *dev, struct device *master,
 
 	drm_connector_cleanup(&hdmi->connector);
 	drm_encoder_cleanup(&hdmi->encoder);
+	i2c_del_adapter(hdmi->i2c);
 }
 
 static const struct component_ops sun4i_hdmi_ops = {
