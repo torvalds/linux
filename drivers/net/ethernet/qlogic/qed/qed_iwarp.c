@@ -1001,12 +1001,75 @@ qed_iwarp_mpa_complete(struct qed_hwfn *p_hwfn,
 		ep->state = QED_IWARP_EP_ESTABLISHED;
 		params.status = 0;
 		break;
+	case IWARP_CONN_ERROR_MPA_TIMEOUT:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA timeout\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -EBUSY;
+		break;
+	case IWARP_CONN_ERROR_MPA_ERROR_REJECT:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Reject\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -ECONNREFUSED;
+		break;
+	case IWARP_CONN_ERROR_MPA_RST:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA reset(tcp cid: 0x%x)\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid,
+			  ep->tcp_cid);
+		params.status = -ECONNRESET;
+		break;
+	case IWARP_CONN_ERROR_MPA_FIN:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA received FIN\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -ECONNREFUSED;
+		break;
+	case IWARP_CONN_ERROR_MPA_INSUF_IRD:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA insufficient ird\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -ECONNREFUSED;
+		break;
+	case IWARP_CONN_ERROR_MPA_RTR_MISMATCH:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA RTR MISMATCH\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -ECONNREFUSED;
+		break;
+	case IWARP_CONN_ERROR_MPA_INVALID_PACKET:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Invalid Packet\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -ECONNREFUSED;
+		break;
+	case IWARP_CONN_ERROR_MPA_LOCAL_ERROR:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Local Error\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -ECONNREFUSED;
+		break;
+	case IWARP_CONN_ERROR_MPA_TERMINATE:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA TERMINATE\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->cid);
+		params.status = -ECONNREFUSED;
+		break;
 	default:
 		params.status = -ECONNRESET;
 		break;
 	}
 
 	ep->event_cb(ep->cb_context, &params);
+
+	/* on passive side, if there is no associated QP (REJECT) we need to
+	 * return the ep to the pool, (in the regular case we add an element
+	 * in accept instead of this one.
+	 * In both cases we need to remove it from the ep_list.
+	 */
+	if (fw_return_code != RDMA_RETURN_OK) {
+		ep->tcp_cid = QED_IWARP_INVALID_TCP_CID;
+		if ((ep->connect_mode == TCP_CONNECT_PASSIVE) &&
+		    (!ep->qp)) {	/* Rejected */
+			qed_iwarp_return_ep(p_hwfn, ep);
+		} else {
+			spin_lock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+			list_del(&ep->list_entry);
+			spin_unlock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+		}
+	}
 }
 
 static void
@@ -2011,6 +2074,42 @@ void qed_iwarp_exception_received(struct qed_hwfn *p_hwfn,
 		params.event = QED_IWARP_EVENT_DISCONNECT;
 		event_cb = true;
 		break;
+	case IWARP_EXCEPTION_DETECTED_RQ_EMPTY:
+		params.event = QED_IWARP_EVENT_RQ_EMPTY;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_IRQ_FULL:
+		params.event = QED_IWARP_EVENT_IRQ_FULL;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_LLP_TIMEOUT:
+		params.event = QED_IWARP_EVENT_LLP_TIMEOUT;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_REMOTE_PROTECTION_ERROR:
+		params.event = QED_IWARP_EVENT_REMOTE_PROTECTION_ERROR;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_CQ_OVERFLOW:
+		params.event = QED_IWARP_EVENT_CQ_OVERFLOW;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_LOCAL_CATASTROPHIC:
+		params.event = QED_IWARP_EVENT_QP_CATASTROPHIC;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_LOCAL_ACCESS_ERROR:
+		params.event = QED_IWARP_EVENT_LOCAL_ACCESS_ERROR;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_REMOTE_OPERATION_ERROR:
+		params.event = QED_IWARP_EVENT_REMOTE_OPERATION_ERROR;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_TERMINATE_RECEIVED:
+		params.event = QED_IWARP_EVENT_TERMINATE_RECEIVED;
+		event_cb = true;
+		break;
 	default:
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
 			   "Unhandled exception received...fw_ret_code=%d\n",
@@ -2022,6 +2121,66 @@ void qed_iwarp_exception_received(struct qed_hwfn *p_hwfn,
 		params.ep_context = ep;
 		params.cm_info = &ep->cm_info;
 		ep->event_cb(ep->cb_context, &params);
+	}
+}
+
+static void
+qed_iwarp_tcp_connect_unsuccessful(struct qed_hwfn *p_hwfn,
+				   struct qed_iwarp_ep *ep, u8 fw_return_code)
+{
+	struct qed_iwarp_cm_event_params params;
+
+	memset(&params, 0, sizeof(params));
+	params.event = QED_IWARP_EVENT_ACTIVE_COMPLETE;
+	params.ep_context = ep;
+	params.cm_info = &ep->cm_info;
+	ep->state = QED_IWARP_EP_CLOSED;
+
+	switch (fw_return_code) {
+	case IWARP_CONN_ERROR_TCP_CONNECT_INVALID_PACKET:
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "%s(0x%x) TCP connect got invalid packet\n",
+			   QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
+		params.status = -ECONNRESET;
+		break;
+	case IWARP_CONN_ERROR_TCP_CONNECTION_RST:
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "%s(0x%x) TCP Connection Reset\n",
+			   QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
+		params.status = -ECONNRESET;
+		break;
+	case IWARP_CONN_ERROR_TCP_CONNECT_TIMEOUT:
+		DP_NOTICE(p_hwfn, "%s(0x%x) TCP timeout\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
+		params.status = -EBUSY;
+		break;
+	case IWARP_CONN_ERROR_MPA_NOT_SUPPORTED_VER:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA not supported VER\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
+		params.status = -ECONNREFUSED;
+		break;
+	case IWARP_CONN_ERROR_MPA_INVALID_PACKET:
+		DP_NOTICE(p_hwfn, "%s(0x%x) MPA Invalid Packet\n",
+			  QED_IWARP_CONNECT_MODE_STRING(ep), ep->tcp_cid);
+		params.status = -ECONNRESET;
+		break;
+	default:
+		DP_ERR(p_hwfn,
+		       "%s(0x%x) Unexpected return code tcp connect: %d\n",
+		       QED_IWARP_CONNECT_MODE_STRING(ep),
+		       ep->tcp_cid, fw_return_code);
+		params.status = -ECONNRESET;
+		break;
+	}
+
+	if (ep->connect_mode == TCP_CONNECT_PASSIVE) {
+		ep->tcp_cid = QED_IWARP_INVALID_TCP_CID;
+		qed_iwarp_return_ep(p_hwfn, ep);
+	} else {
+		ep->event_cb(ep->cb_context, &params);
+		spin_lock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+		list_del(&ep->list_entry);
+		spin_unlock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
 	}
 }
 
@@ -2038,9 +2197,17 @@ qed_iwarp_connect_complete(struct qed_hwfn *p_hwfn,
 		ep->syn = NULL;
 
 		/* If connect failed - upper layer doesn't know about it */
-		qed_iwarp_mpa_received(p_hwfn, ep);
+		if (fw_return_code == RDMA_RETURN_OK)
+			qed_iwarp_mpa_received(p_hwfn, ep);
+		else
+			qed_iwarp_tcp_connect_unsuccessful(p_hwfn, ep,
+							   fw_return_code);
 	} else {
-		qed_iwarp_mpa_offload(p_hwfn, ep);
+		if (fw_return_code == RDMA_RETURN_OK)
+			qed_iwarp_mpa_offload(p_hwfn, ep);
+		else
+			qed_iwarp_tcp_connect_unsuccessful(p_hwfn, ep,
+							   fw_return_code);
 	}
 }
 
@@ -2123,6 +2290,18 @@ static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
 		qed_iwarp_cid_cleaned(p_hwfn, cid);
 
 		break;
+	case IWARP_EVENT_TYPE_ASYNC_CQ_OVERFLOW:
+		DP_NOTICE(p_hwfn, "IWARP_EVENT_TYPE_ASYNC_CQ_OVERFLOW\n");
+
+		p_hwfn->p_rdma_info->events.affiliated_event(
+			p_hwfn->p_rdma_info->events.context,
+			QED_IWARP_EVENT_CQ_OVERFLOW,
+			(void *)fw_handle);
+		break;
+	default:
+		DP_ERR(p_hwfn, "Received unexpected async iwarp event %d\n",
+		       fw_event_code);
+		return -EINVAL;
 	}
 	return 0;
 }
