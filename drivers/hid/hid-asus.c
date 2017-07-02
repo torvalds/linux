@@ -86,6 +86,8 @@ struct asus_kbd_leds {
 struct asus_touchpad_info {
 	int max_x;
 	int max_y;
+	int res_x;
+	int res_y;
 	int contact_size;
 	int max_contacts;
 };
@@ -108,6 +110,8 @@ static const struct asus_touchpad_info asus_i2c_tp = {
 static const struct asus_touchpad_info asus_t100ta_tp = {
 	.max_x = 2240,
 	.max_y = 1120,
+	.res_x = 30, /* units/mm */
+	.res_y = 27, /* units/mm */
 	.contact_size = 5,
 	.max_contacts = 5,
 };
@@ -361,6 +365,8 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 				     drvdata->tp->max_x, 0, 0);
 		input_set_abs_params(input, ABS_MT_POSITION_Y, 0,
 				     drvdata->tp->max_y, 0, 0);
+		input_abs_set_res(input, ABS_MT_POSITION_X, drvdata->tp->res_x);
+		input_abs_set_res(input, ABS_MT_POSITION_Y, drvdata->tp->res_y);
 		input_set_abs_params(input, ABS_TOOL_WIDTH, 0, MAX_TOUCH_MAJOR, 0, 0);
 		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, MAX_TOUCH_MAJOR, 0, 0);
 		input_set_abs_params(input, ABS_MT_PRESSURE, 0, MAX_PRESSURE, 0, 0);
