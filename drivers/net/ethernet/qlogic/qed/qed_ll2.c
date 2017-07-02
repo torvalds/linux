@@ -309,7 +309,7 @@ static void qed_ll2_txq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 		list_del(&p_pkt->list_entry);
 		b_last_packet = list_empty(&p_tx->active_descq);
 		list_add_tail(&p_pkt->list_entry, &p_tx->free_descq);
-		if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_ISCSI_OOO) {
+		if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_OOO) {
 			struct qed_ooo_buffer *p_buffer;
 
 			p_buffer = (struct qed_ooo_buffer *)p_pkt->cookie;
@@ -532,7 +532,7 @@ static void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 
 		list_move_tail(&p_pkt->list_entry, &p_rx->free_descq);
 
-		if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_ISCSI_OOO) {
+		if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_OOO) {
 			struct qed_ooo_buffer *p_buffer;
 
 			p_buffer = (struct qed_ooo_buffer *)p_pkt->cookie;
@@ -893,8 +893,7 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->drop_ttl0_flg = p_ll2_conn->input.rx_drop_ttl0_flg;
 	p_ramrod->inner_vlan_removal_en = p_ll2_conn->input.rx_vlan_removal_en;
 	p_ramrod->queue_id = p_ll2_conn->queue_id;
-	p_ramrod->main_func_queue = (conn_type == QED_LL2_TYPE_ISCSI_OOO) ? 0
-									  : 1;
+	p_ramrod->main_func_queue = (conn_type == QED_LL2_TYPE_OOO) ? 0 : 1;
 
 	if ((IS_MF_DEFAULT(p_hwfn) || IS_MF_SI(p_hwfn)) &&
 	    p_ramrod->main_func_queue && (conn_type != QED_LL2_TYPE_ROCE)) {
@@ -924,7 +923,7 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	if (!QED_LL2_TX_REGISTERED(p_ll2_conn))
 		return 0;
 
-	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_ISCSI_OOO)
+	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_OOO)
 		p_ll2_conn->tx_stats_en = 0;
 	else
 		p_ll2_conn->tx_stats_en = 1;
@@ -955,10 +954,10 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->pbl_size = cpu_to_le16(pbl_size);
 
 	switch (p_ll2_conn->input.tx_tc) {
-	case LB_TC:
+	case PURE_LB_TC:
 		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_LB);
 		break;
-	case OOO_LB_TC:
+	case PKT_LB_TC:
 		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OOO);
 		break;
 	default:
@@ -973,7 +972,7 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->conn_type = PROTOCOLID_FCOE;
 		break;
 	case QED_LL2_TYPE_ISCSI:
-	case QED_LL2_TYPE_ISCSI_OOO:
+	case QED_LL2_TYPE_OOO:
 		p_ramrod->conn_type = PROTOCOLID_ISCSI;
 		break;
 	case QED_LL2_TYPE_ROCE:
@@ -1142,7 +1141,7 @@ qed_ll2_acquire_connection_ooo(struct qed_hwfn *p_hwfn,
 	u16 buf_idx;
 	int rc = 0;
 
-	if (p_ll2_info->input.conn_type != QED_LL2_TYPE_ISCSI_OOO)
+	if (p_ll2_info->input.conn_type != QED_LL2_TYPE_OOO)
 		return rc;
 
 	/* Correct number of requested OOO buffers if needed */
@@ -1280,7 +1279,7 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 		goto q_allocate_fail;
 
 	/* Register callbacks for the Rx/Tx queues */
-	if (data->input.conn_type == QED_LL2_TYPE_ISCSI_OOO) {
+	if (data->input.conn_type == QED_LL2_TYPE_OOO) {
 		comp_rx_cb = qed_ll2_lb_rxq_completion;
 		comp_tx_cb = qed_ll2_lb_txq_completion;
 	} else {
@@ -1339,7 +1338,7 @@ static void
 qed_ll2_establish_connection_ooo(struct qed_hwfn *p_hwfn,
 				 struct qed_ll2_info *p_ll2_conn)
 {
-	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_ISCSI_OOO)
+	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_OOO)
 		return;
 
 	qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
@@ -1794,7 +1793,7 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 		qed_ll2_rxq_flush(p_hwfn, connection_handle);
 	}
 
-	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_ISCSI_OOO)
+	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_OOO)
 		qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
 
 	if (p_ll2_conn->input.conn_type == QED_LL2_TYPE_FCOE) {
@@ -1816,7 +1815,7 @@ static void qed_ll2_release_connection_ooo(struct qed_hwfn *p_hwfn,
 {
 	struct qed_ooo_buffer *p_buffer;
 
-	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_ISCSI_OOO)
+	if (p_ll2_conn->input.conn_type != QED_LL2_TYPE_OOO)
 		return;
 
 	qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
@@ -2063,7 +2062,7 @@ static void qed_ll2_set_conn_data(struct qed_dev *cdev,
 	ll2_cbs.cookie = QED_LEADING_HWFN(cdev);
 
 	if (lb) {
-		data->input.tx_tc = OOO_LB_TC;
+		data->input.tx_tc = PKT_LB_TC;
 		data->input.tx_dest = QED_LL2_TX_DEST_LB;
 	} else {
 		data->input.tx_tc = 0;
@@ -2080,7 +2079,7 @@ static int qed_ll2_start_ooo(struct qed_dev *cdev,
 	int rc;
 
 	qed_ll2_set_conn_data(cdev, &data, params,
-			      QED_LL2_TYPE_ISCSI_OOO, handle, true);
+			      QED_LL2_TYPE_OOO, handle, true);
 
 	rc = qed_ll2_acquire_connection(hwfn, &data);
 	if (rc) {
