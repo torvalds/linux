@@ -3697,7 +3697,6 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 
 		set_bit(MLX5E_RQ_STATE_ENABLED, &c->rq.state);
 		/* napi_schedule in case we have missed anything */
-		set_bit(MLX5E_CHANNEL_NAPI_SCHED, &c->flags);
 		napi_schedule(&c->napi);
 
 		if (old_prog)
