@@ -1510,10 +1510,6 @@ static struct nvmet_fabrics_ops nvmet_rdma_ops = {
 	.delete_ctrl		= nvmet_rdma_delete_ctrl,
 };
 
-static void nvmet_rdma_add_one(struct ib_device *ib_device)
-{
-}
-
 static void nvmet_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 {
 	struct nvmet_rdma_queue *queue;
@@ -1534,7 +1530,6 @@ static void nvmet_rdma_remove_one(struct ib_device *ib_device, void *client_data
 
 static struct ib_client nvmet_rdma_ib_client = {
 	.name   = "nvmet_rdma",
-	.add = nvmet_rdma_add_one,
 	.remove = nvmet_rdma_remove_one
 };
 
