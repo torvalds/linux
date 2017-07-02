@@ -489,7 +489,7 @@ int ib_register_device(struct ib_device *device,
 	device->reg_state = IB_DEV_REGISTERED;
 
 	list_for_each_entry(client, &client_list, list)
-		if (client->add && !add_client_context(device, client))
+		if (!add_client_context(device, client) && client->add)
 			client->add(device);
 
 	down_write(&lists_rwsem);
@@ -577,7 +577,7 @@ int ib_register_client(struct ib_client *client)
 	mutex_lock(&device_mutex);
 
 	list_for_each_entry(device, &device_list, core_list)
-		if (client->add && !add_client_context(device, client))
+		if (!add_client_context(device, client) && client->add)
 			client->add(device);
 
 	down_write(&lists_rwsem);
