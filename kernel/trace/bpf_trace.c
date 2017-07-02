@@ -122,8 +122,8 @@ static const struct bpf_func_proto *bpf_get_probe_write_proto(void)
 }
 
 /*
- * limited trace_printk()
- * only %d %u %x %ld %lu %lx %lld %llu %llx %p %s conversion specifiers allowed
+ * Only limited trace_printk() conversion specifiers allowed:
+ * %d %i %u %x %ld %li %lu %lx %lld %lli %llu %llx %p %s
  */
 BPF_CALL_5(bpf_trace_printk, char *, fmt, u32, fmt_size, u64, arg1,
 	   u64, arg2, u64, arg3)
@@ -198,7 +198,8 @@ BPF_CALL_5(bpf_trace_printk, char *, fmt, u32, fmt_size, u64, arg1,
 			i++;
 		}
 
-		if (fmt[i] != 'd' && fmt[i] != 'u' && fmt[i] != 'x')
+		if (fmt[i] != 'i' && fmt[i] != 'd' &&
+		    fmt[i] != 'u' && fmt[i] != 'x')
 			return -EINVAL;
 		fmt_cnt++;
 	}
