@@ -496,6 +496,8 @@ static void qed_iwarp_destroy_ep(struct qed_hwfn *p_hwfn,
 
 int qed_iwarp_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 {
+	struct qed_iwarp_ep *ep = qp->ep;
+	int wait_count = 0;
 	int rc = 0;
 
 	if (qp->iwarp_state != QED_IWARP_QP_STATE_ERROR) {
@@ -503,6 +505,18 @@ int qed_iwarp_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 					 QED_IWARP_QP_STATE_ERROR, false);
 		if (rc)
 			return rc;
+	}
+
+	/* Make sure ep is closed before returning and freeing memory. */
+	if (ep) {
+		while (ep->state != QED_IWARP_EP_CLOSED && wait_count++ < 200)
+			msleep(100);
+
+		if (ep->state != QED_IWARP_EP_CLOSED)
+			DP_NOTICE(p_hwfn, "ep state close timeout state=%x\n",
+				  ep->state);
+
+		qed_iwarp_destroy_ep(p_hwfn, ep, false);
 	}
 
 	rc = qed_iwarp_fw_destroy(p_hwfn, qp);
@@ -1956,6 +1970,61 @@ int qed_iwarp_stop(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return qed_iwarp_ll2_stop(p_hwfn, p_ptt);
 }
 
+void qed_iwarp_qp_in_error(struct qed_hwfn *p_hwfn,
+			   struct qed_iwarp_ep *ep, u8 fw_return_code)
+{
+	struct qed_iwarp_cm_event_params params;
+
+	qed_iwarp_modify_qp(p_hwfn, ep->qp, QED_IWARP_QP_STATE_ERROR, true);
+
+	params.event = QED_IWARP_EVENT_CLOSE;
+	params.ep_context = ep;
+	params.cm_info = &ep->cm_info;
+	params.status = (fw_return_code == IWARP_QP_IN_ERROR_GOOD_CLOSE) ?
+			 0 : -ECONNRESET;
+
+	ep->state = QED_IWARP_EP_CLOSED;
+	spin_lock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+	list_del(&ep->list_entry);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+
+	ep->event_cb(ep->cb_context, &params);
+}
+
+void qed_iwarp_exception_received(struct qed_hwfn *p_hwfn,
+				  struct qed_iwarp_ep *ep, int fw_ret_code)
+{
+	struct qed_iwarp_cm_event_params params;
+	bool event_cb = false;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "EP(0x%x) fw_ret_code=%d\n",
+		   ep->cid, fw_ret_code);
+
+	switch (fw_ret_code) {
+	case IWARP_EXCEPTION_DETECTED_LLP_CLOSED:
+		params.status = 0;
+		params.event = QED_IWARP_EVENT_DISCONNECT;
+		event_cb = true;
+		break;
+	case IWARP_EXCEPTION_DETECTED_LLP_RESET:
+		params.status = -ECONNRESET;
+		params.event = QED_IWARP_EVENT_DISCONNECT;
+		event_cb = true;
+		break;
+	default:
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "Unhandled exception received...fw_ret_code=%d\n",
+			   fw_ret_code);
+		break;
+	}
+
+	if (event_cb) {
+		params.ep_context = ep;
+		params.cm_info = &ep->cm_info;
+		ep->event_cb(ep->cb_context, &params);
+	}
+}
+
 void
 qed_iwarp_connect_complete(struct qed_hwfn *p_hwfn,
 			   struct qed_iwarp_ep *ep, u8 fw_return_code)
@@ -2009,8 +2078,27 @@ static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
 			   ep->tcp_cid, fw_return_code);
 		qed_iwarp_connect_complete(p_hwfn, ep, fw_return_code);
 		break;
-		/* Async event for active side only */
+	case IWARP_EVENT_TYPE_ASYNC_EXCEPTION_DETECTED:
+		if (!qed_iwarp_check_ep_ok(p_hwfn, ep))
+			return -EINVAL;
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_RDMA,
+			   "QP(0x%x) IWARP_EVENT_TYPE_ASYNC_EXCEPTION_DETECTED fw_ret_code=%d\n",
+			   ep->cid, fw_return_code);
+		qed_iwarp_exception_received(p_hwfn, ep, fw_return_code);
+		break;
+	case IWARP_EVENT_TYPE_ASYNC_QP_IN_ERROR_STATE:
+		/* Async completion for Close Connection ramrod */
+		if (!qed_iwarp_check_ep_ok(p_hwfn, ep))
+			return -EINVAL;
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_RDMA,
+			   "QP(0x%x) IWARP_EVENT_TYPE_ASYNC_QP_IN_ERROR_STATE fw_ret_code=%d\n",
+			   ep->cid, fw_return_code);
+		qed_iwarp_qp_in_error(p_hwfn, ep, fw_return_code);
+		break;
 	case IWARP_EVENT_TYPE_ASYNC_ENHANCED_MPA_REPLY_ARRIVED:
+		/* Async event for active side only */
 		if (!qed_iwarp_check_ep_ok(p_hwfn, ep))
 			return -EINVAL;
 		DP_VERBOSE(p_hwfn,

@@ -474,6 +474,8 @@ enum qed_iwarp_event_type {
 	QED_IWARP_EVENT_MPA_REQUEST,	  /* Passive side request received */
 	QED_IWARP_EVENT_PASSIVE_COMPLETE, /* ack on mpa response */
 	QED_IWARP_EVENT_ACTIVE_COMPLETE,  /* Active side reply received */
+	QED_IWARP_EVENT_DISCONNECT,
+	QED_IWARP_EVENT_CLOSE,
 	QED_IWARP_EVENT_ACTIVE_MPA_REPLY,
 };
 
