@@ -2154,6 +2154,124 @@ static const struct bpf_func_proto bpf_skb_change_type_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
+static u32 bpf_skb_net_base_len(const struct sk_buff *skb)
+{
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		return sizeof(struct iphdr);
+	case htons(ETH_P_IPV6):
+		return sizeof(struct ipv6hdr);
+	default:
+		return ~0U;
+	}
+}
+
+static int bpf_skb_net_grow(struct sk_buff *skb, u32 len_diff)
+{
+	u32 off = skb_mac_header_len(skb) + bpf_skb_net_base_len(skb);
+	int ret;
+
+	ret = skb_cow(skb, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = bpf_skb_net_hdr_push(skb, off, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	if (skb_is_gso(skb)) {
+		/* Due to header grow, MSS needs to be downgraded. */
+		skb_shinfo(skb)->gso_size -= len_diff;
+		/* Header must be checked, and gso_segs recomputed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
+
+	return 0;
+}
+
+static int bpf_skb_net_shrink(struct sk_buff *skb, u32 len_diff)
+{
+	u32 off = skb_mac_header_len(skb) + bpf_skb_net_base_len(skb);
+	int ret;
+
+	ret = skb_unclone(skb, GFP_ATOMIC);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = bpf_skb_net_hdr_pop(skb, off, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	if (skb_is_gso(skb)) {
+		/* Due to header shrink, MSS can be upgraded. */
+		skb_shinfo(skb)->gso_size += len_diff;
+		/* Header must be checked, and gso_segs recomputed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
+
+	return 0;
+}
+
+static u32 __bpf_skb_max_len(const struct sk_buff *skb)
+{
+	return skb->dev->mtu + skb->dev->hard_header_len;
+}
+
+static int bpf_skb_adjust_net(struct sk_buff *skb, s32 len_diff)
+{
+	bool trans_same = skb->transport_header == skb->network_header;
+	u32 len_cur, len_diff_abs = abs(len_diff);
+	u32 len_min = bpf_skb_net_base_len(skb);
+	u32 len_max = __bpf_skb_max_len(skb);
+	__be16 proto = skb->protocol;
+	bool shrink = len_diff < 0;
+	int ret;
+
+	if (unlikely(len_diff_abs > 0xfffU))
+		return -EFAULT;
+	if (unlikely(proto != htons(ETH_P_IP) &&
+		     proto != htons(ETH_P_IPV6)))
+		return -ENOTSUPP;
+
+	len_cur = skb->len - skb_network_offset(skb);
+	if (skb_transport_header_was_set(skb) && !trans_same)
+		len_cur = skb_network_header_len(skb);
+	if ((shrink && (len_diff_abs >= len_cur ||
+			len_cur - len_diff_abs < len_min)) ||
+	    (!shrink && (skb->len + len_diff_abs > len_max &&
+			 !skb_is_gso(skb))))
+		return -ENOTSUPP;
+
+	ret = shrink ? bpf_skb_net_shrink(skb, len_diff_abs) :
+		       bpf_skb_net_grow(skb, len_diff_abs);
+
+	bpf_compute_data_end(skb);
+	return 0;
+}
+
+BPF_CALL_4(bpf_skb_adjust_room, struct sk_buff *, skb, s32, len_diff,
+	   u32, mode, u64, flags)
+{
+	if (unlikely(flags))
+		return -EINVAL;
+	if (likely(mode == BPF_ADJ_ROOM_NET))
+		return bpf_skb_adjust_net(skb, len_diff);
+
+	return -ENOTSUPP;
+}
+
+static const struct bpf_func_proto bpf_skb_adjust_room_proto = {
+	.func		= bpf_skb_adjust_room,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_ANYTHING,
+};
+
 static u32 __bpf_skb_min_len(const struct sk_buff *skb)
 {
 	u32 min_len = skb_network_offset(skb);
@@ -2164,11 +2282,6 @@ static u32 __bpf_skb_min_len(const struct sk_buff *skb)
 		min_len = skb_checksum_start_offset(skb) +
 			  skb->csum_offset + sizeof(__sum16);
 	return min_len;
-}
-
-static u32 __bpf_skb_max_len(const struct sk_buff *skb)
-{
-	return skb->dev->mtu + skb->dev->hard_header_len;
 }
 
 static int bpf_skb_grow_rcsum(struct sk_buff *skb, unsigned int new_len)
@@ -2307,6 +2420,7 @@ bool bpf_helper_changes_pkt_data(void *func)
 	    func == bpf_skb_change_proto ||
 	    func == bpf_skb_change_head ||
 	    func == bpf_skb_change_tail ||
+	    func == bpf_skb_adjust_room ||
 	    func == bpf_skb_pull_data ||
 	    func == bpf_clone_redirect ||
 	    func == bpf_l3_csum_replace ||
@@ -2849,6 +2963,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_skb_change_proto_proto;
 	case BPF_FUNC_skb_change_type:
 		return &bpf_skb_change_type_proto;
+	case BPF_FUNC_skb_adjust_room:
+		return &bpf_skb_adjust_room_proto;
 	case BPF_FUNC_skb_change_tail:
 		return &bpf_skb_change_tail_proto;
 	case BPF_FUNC_skb_get_tunnel_key:
