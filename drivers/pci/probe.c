@@ -1330,6 +1330,34 @@ static void pci_msi_setup_pci_dev(struct pci_dev *dev)
 }
 
 /**
+ * pci_intx_mask_broken - test PCI_COMMAND_INTX_DISABLE writability
+ * @dev: PCI device
+ *
+ * Test whether PCI_COMMAND_INTX_DISABLE is writable for @dev.  Check this
+ * at enumeration-time to avoid modifying PCI_COMMAND at run-time.
+ */
+static int pci_intx_mask_broken(struct pci_dev *dev)
+{
+	u16 orig, toggle, new;
+
+	pci_read_config_word(dev, PCI_COMMAND, &orig);
+	toggle = orig ^ PCI_COMMAND_INTX_DISABLE;
+	pci_write_config_word(dev, PCI_COMMAND, toggle);
+	pci_read_config_word(dev, PCI_COMMAND, &new);
+
+	pci_write_config_word(dev, PCI_COMMAND, orig);
+
+	/*
+	 * PCI_COMMAND_INTX_DISABLE was reserved and read-only prior to PCI
+	 * r2.3, so strictly speaking, a device is not *broken* if it's not
+	 * writable.  But we'll live with the misnomer for now.
+	 */
+	if (new != toggle)
+		return 1;
+	return 0;
+}
+
+/**
  * pci_setup_device - fill in class and map information of a device
  * @dev: the device structure to fill
  *
@@ -1398,6 +1426,8 @@ int pci_setup_device(struct pci_dev *dev)
 			pci_write_config_word(dev, PCI_COMMAND, cmd);
 		}
 	}
+
+	dev->broken_intx_masking = pci_intx_mask_broken(dev);
 
 	switch (dev->hdr_type) {		    /* header type */
 	case PCI_HEADER_TYPE_NORMAL:		    /* standard header */
@@ -1674,6 +1704,11 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	/* Initialize Advanced Error Capabilities and Control Register */
 	pci_read_config_dword(dev, pos + PCI_ERR_CAP, &reg32);
 	reg32 = (reg32 & hpp->adv_err_cap_and) | hpp->adv_err_cap_or;
+	/* Don't enable ECRC generation or checking if unsupported */
+	if (!(reg32 & PCI_ERR_CAP_ECRC_GENC))
+		reg32 &= ~PCI_ERR_CAP_ECRC_GENE;
+	if (!(reg32 & PCI_ERR_CAP_ECRC_CHKC))
+		reg32 &= ~PCI_ERR_CAP_ECRC_CHKE;
 	pci_write_config_dword(dev, pos + PCI_ERR_CAP, reg32);
 
 	/*
