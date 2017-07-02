@@ -31,6 +31,10 @@
  */
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/spinlock.h>
+#include <linux/tcp.h>
 #include "qed_cxt.h"
 #include "qed_hw.h"
 #include "qed_ll2.h"
@@ -477,6 +481,31 @@ void qed_iwarp_resc_free(struct qed_hwfn *p_hwfn)
 {
 }
 
+static void
+qed_iwarp_print_cm_info(struct qed_hwfn *p_hwfn,
+			struct qed_iwarp_cm_info *cm_info)
+{
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "ip_version = %d\n",
+		   cm_info->ip_version);
+
+	if (cm_info->ip_version == QED_TCP_IPV4)
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "remote_ip %pI4h:%x, local_ip %pI4h:%x vlan=%x\n",
+			   cm_info->remote_ip, cm_info->remote_port,
+			   cm_info->local_ip, cm_info->local_port,
+			   cm_info->vlan);
+	else
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+			   "remote_ip %pI6h:%x, local_ip %pI6h:%x vlan=%x\n",
+			   cm_info->remote_ip, cm_info->remote_port,
+			   cm_info->local_ip, cm_info->local_port,
+			   cm_info->vlan);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
+		   "private_data_len = %x ord = %d, ird = %d\n",
+		   cm_info->private_data_len, cm_info->ord, cm_info->ird);
+}
+
 static int
 qed_iwarp_ll2_post_rx(struct qed_hwfn *p_hwfn,
 		      struct qed_iwarp_ll2_buff *buf, u8 handle)
@@ -497,11 +526,147 @@ qed_iwarp_ll2_post_rx(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+static struct qed_iwarp_listener *
+qed_iwarp_get_listener(struct qed_hwfn *p_hwfn,
+		       struct qed_iwarp_cm_info *cm_info)
+{
+	struct qed_iwarp_listener *listener = NULL;
+	static const u32 ip_zero[4] = { 0, 0, 0, 0 };
+	bool found = false;
+
+	qed_iwarp_print_cm_info(p_hwfn, cm_info);
+
+	list_for_each_entry(listener,
+			    &p_hwfn->p_rdma_info->iwarp.listen_list,
+			    list_entry) {
+		if (listener->port == cm_info->local_port) {
+			if (!memcmp(listener->ip_addr,
+				    ip_zero, sizeof(ip_zero))) {
+				found = true;
+				break;
+			}
+
+			if (!memcmp(listener->ip_addr,
+				    cm_info->local_ip,
+				    sizeof(cm_info->local_ip)) &&
+			    (listener->vlan == cm_info->vlan)) {
+				found = true;
+				break;
+			}
+		}
+	}
+
+	if (found) {
+		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "listener found = %p\n",
+			   listener);
+		return listener;
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "listener not found\n");
+	return NULL;
+}
+
+static int
+qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
+		       struct qed_iwarp_cm_info *cm_info,
+		       void *buf,
+		       u8 *remote_mac_addr,
+		       u8 *local_mac_addr,
+		       int *payload_len, int *tcp_start_offset)
+{
+	struct vlan_ethhdr *vethh;
+	bool vlan_valid = false;
+	struct ipv6hdr *ip6h;
+	struct ethhdr *ethh;
+	struct tcphdr *tcph;
+	struct iphdr *iph;
+	int eth_hlen;
+	int ip_hlen;
+	int eth_type;
+	int i;
+
+	ethh = buf;
+	eth_type = ntohs(ethh->h_proto);
+	if (eth_type == ETH_P_8021Q) {
+		vlan_valid = true;
+		vethh = (struct vlan_ethhdr *)ethh;
+		cm_info->vlan = ntohs(vethh->h_vlan_TCI) & VLAN_VID_MASK;
+		eth_type = ntohs(vethh->h_vlan_encapsulated_proto);
+	}
+
+	eth_hlen = ETH_HLEN + (vlan_valid ? sizeof(u32) : 0);
+
+	memcpy(remote_mac_addr, ethh->h_source, ETH_ALEN);
+
+	memcpy(local_mac_addr, ethh->h_dest, ETH_ALEN);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "eth_type =%d source mac: %pM\n",
+		   eth_type, ethh->h_source);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "eth_hlen=%d destination mac: %pM\n",
+		   eth_hlen, ethh->h_dest);
+
+	iph = (struct iphdr *)((u8 *)(ethh) + eth_hlen);
+
+	if (eth_type == ETH_P_IP) {
+		cm_info->local_ip[0] = ntohl(iph->daddr);
+		cm_info->remote_ip[0] = ntohl(iph->saddr);
+		cm_info->ip_version = TCP_IPV4;
+
+		ip_hlen = (iph->ihl) * sizeof(u32);
+		*payload_len = ntohs(iph->tot_len) - ip_hlen;
+	} else if (eth_type == ETH_P_IPV6) {
+		ip6h = (struct ipv6hdr *)iph;
+		for (i = 0; i < 4; i++) {
+			cm_info->local_ip[i] =
+			    ntohl(ip6h->daddr.in6_u.u6_addr32[i]);
+			cm_info->remote_ip[i] =
+			    ntohl(ip6h->saddr.in6_u.u6_addr32[i]);
+		}
+		cm_info->ip_version = TCP_IPV6;
+
+		ip_hlen = sizeof(*ip6h);
+		*payload_len = ntohs(ip6h->payload_len);
+	} else {
+		DP_NOTICE(p_hwfn, "Unexpected ethertype on ll2 %x\n", eth_type);
+		return -EINVAL;
+	}
+
+	tcph = (struct tcphdr *)((u8 *)iph + ip_hlen);
+
+	if (!tcph->syn) {
+		DP_NOTICE(p_hwfn,
+			  "Only SYN type packet expected on this ll2 conn, iph->ihl=%d source=%d dest=%d\n",
+			  iph->ihl, tcph->source, tcph->dest);
+		return -EINVAL;
+	}
+
+	cm_info->local_port = ntohs(tcph->dest);
+	cm_info->remote_port = ntohs(tcph->source);
+
+	qed_iwarp_print_cm_info(p_hwfn, cm_info);
+
+	*tcp_start_offset = eth_hlen + ip_hlen;
+
+	return 0;
+}
+
 static void
 qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 {
 	struct qed_iwarp_ll2_buff *buf = data->cookie;
+	struct qed_iwarp_listener *listener;
+	struct qed_ll2_tx_pkt_info tx_pkt;
+	struct qed_iwarp_cm_info cm_info;
 	struct qed_hwfn *p_hwfn = cxt;
+	u8 remote_mac_addr[ETH_ALEN];
+	u8 local_mac_addr[ETH_ALEN];
+	int tcp_start_offset;
+	u8 ll2_syn_handle;
+	int payload_len;
+	int rc;
+
+	memset(&cm_info, 0, sizeof(cm_info));
 
 	if (GET_FIELD(data->parse_flags,
 		      PARSING_AND_ERR_FLAGS_L4CHKSMWASCALCULATED) &&
@@ -510,11 +675,52 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 		goto err;
 	}
 
-	/* Process SYN packet - added later on in series */
+	rc = qed_iwarp_parse_rx_pkt(p_hwfn, &cm_info, (u8 *)(buf->data) +
+				    data->u.placement_offset, remote_mac_addr,
+				    local_mac_addr, &payload_len,
+				    &tcp_start_offset);
+	if (rc)
+		goto err;
 
+	/* Check if there is a listener for this 4-tuple+vlan */
+	ll2_syn_handle = p_hwfn->p_rdma_info->iwarp.ll2_syn_handle;
+	listener = qed_iwarp_get_listener(p_hwfn, &cm_info);
+	if (!listener) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_RDMA,
+			   "SYN received on tuple not listened on parse_flags=%d packet len=%d\n",
+			   data->parse_flags, data->length.packet_length);
+
+		memset(&tx_pkt, 0, sizeof(tx_pkt));
+		tx_pkt.num_of_bds = 1;
+		tx_pkt.vlan = data->vlan;
+
+		if (GET_FIELD(data->parse_flags,
+			      PARSING_AND_ERR_FLAGS_TAG8021QEXIST))
+			SET_FIELD(tx_pkt.bd_flags,
+				  CORE_TX_BD_DATA_VLAN_INSERTION, 1);
+
+		tx_pkt.l4_hdr_offset_w = (data->length.packet_length) >> 2;
+		tx_pkt.tx_dest = QED_LL2_TX_DEST_LB;
+		tx_pkt.first_frag = buf->data_phys_addr +
+				    data->u.placement_offset;
+		tx_pkt.first_frag_len = data->length.packet_length;
+		tx_pkt.cookie = buf;
+
+		rc = qed_ll2_prepare_tx_packet(p_hwfn, ll2_syn_handle,
+					       &tx_pkt, true);
+
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Can't post SYN back to chip rc=%d\n", rc);
+			goto err;
+		}
+		return;
+	}
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Received syn on listening port\n");
 err:
-	qed_iwarp_ll2_post_rx(p_hwfn, buf,
-			      p_hwfn->p_rdma_info->iwarp.ll2_syn_handle);
+	qed_iwarp_ll2_post_rx(p_hwfn, buf, ll2_syn_handle);
 }
 
 static void qed_iwarp_ll2_rel_rx_pkt(void *cxt, u8 connection_handle,
@@ -700,6 +906,7 @@ int qed_iwarp_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	iwarp_info->peer2peer = QED_IWARP_PARAM_P2P;
 
 	spin_lock_init(&p_hwfn->p_rdma_info->iwarp.qp_lock);
+	INIT_LIST_HEAD(&p_hwfn->p_rdma_info->iwarp.listen_list);
 
 	qed_spq_register_async_cb(p_hwfn, PROTOCOLID_IWARP,
 				  qed_iwarp_async_event);
@@ -725,6 +932,62 @@ static int qed_iwarp_async_event(struct qed_hwfn *p_hwfn,
 				 union event_ring_data *data,
 				 u8 fw_return_code)
 {
+	return 0;
+}
+
+int
+qed_iwarp_create_listen(void *rdma_cxt,
+			struct qed_iwarp_listen_in *iparams,
+			struct qed_iwarp_listen_out *oparams)
+{
+	struct qed_hwfn *p_hwfn = rdma_cxt;
+	struct qed_iwarp_listener *listener;
+
+	listener = kzalloc(sizeof(*listener), GFP_KERNEL);
+	if (!listener)
+		return -ENOMEM;
+
+	listener->ip_version = iparams->ip_version;
+	memcpy(listener->ip_addr, iparams->ip_addr, sizeof(listener->ip_addr));
+	listener->port = iparams->port;
+	listener->vlan = iparams->vlan;
+
+	listener->event_cb = iparams->event_cb;
+	listener->cb_context = iparams->cb_context;
+	listener->max_backlog = iparams->max_backlog;
+	oparams->handle = listener;
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+	list_add_tail(&listener->list_entry,
+		      &p_hwfn->p_rdma_info->iwarp.listen_list);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_RDMA,
+		   "callback=%p handle=%p ip=%x:%x:%x:%x port=0x%x vlan=0x%x\n",
+		   listener->event_cb,
+		   listener,
+		   listener->ip_addr[0],
+		   listener->ip_addr[1],
+		   listener->ip_addr[2],
+		   listener->ip_addr[3], listener->port, listener->vlan);
+
+	return 0;
+}
+
+int qed_iwarp_destroy_listen(void *rdma_cxt, void *handle)
+{
+	struct qed_iwarp_listener *listener = handle;
+	struct qed_hwfn *p_hwfn = rdma_cxt;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "handle=%p\n", handle);
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+	list_del(&listener->list_entry);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->iwarp.iw_lock);
+
+	kfree(listener);
+
 	return 0;
 }
 

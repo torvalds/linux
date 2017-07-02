@@ -470,6 +470,52 @@ struct qed_rdma_counters_out_params {
 #define QED_ROCE_TX_HEAD_FAILURE        (1)
 #define QED_ROCE_TX_FRAG_FAILURE        (2)
 
+enum qed_iwarp_event_type {
+	QED_IWARP_EVENT_MPA_REQUEST,	/* Passive side request received */
+};
+
+enum qed_tcp_ip_version {
+	QED_TCP_IPV4,
+	QED_TCP_IPV6,
+};
+
+struct qed_iwarp_cm_info {
+	enum qed_tcp_ip_version ip_version;
+	u32 remote_ip[4];
+	u32 local_ip[4];
+	u16 remote_port;
+	u16 local_port;
+	u16 vlan;
+	u8 ord;
+	u8 ird;
+	u16 private_data_len;
+	const void *private_data;
+};
+
+struct qed_iwarp_cm_event_params {
+	enum qed_iwarp_event_type event;
+	const struct qed_iwarp_cm_info *cm_info;
+	void *ep_context;	/* To be passed to accept call */
+	int status;
+};
+
+typedef int (*iwarp_event_handler) (void *context,
+				    struct qed_iwarp_cm_event_params *event);
+
+struct qed_iwarp_listen_in {
+	iwarp_event_handler event_cb;
+	void *cb_context;	/* passed to event_cb */
+	u32 max_backlog;
+	enum qed_tcp_ip_version ip_version;
+	u32 ip_addr[4];
+	u16 port;
+	u16 vlan;
+};
+
+struct qed_iwarp_listen_out {
+	void *handle;
+};
+
 struct qed_roce_ll2_header {
 	void *vaddr;
 	dma_addr_t baddr;
@@ -575,6 +621,12 @@ struct qed_rdma_ops {
 			     struct qed_ll2_stats *p_stats);
 	int (*ll2_set_mac_filter)(struct qed_dev *cdev,
 				  u8 *old_mac_address, u8 *new_mac_address);
+
+	int (*iwarp_create_listen)(void *rdma_cxt,
+				   struct qed_iwarp_listen_in *iparams,
+				   struct qed_iwarp_listen_out *oparams);
+
+	int (*iwarp_destroy_listen)(void *rdma_cxt, void *handle);
 
 };
 

@@ -54,6 +54,7 @@ struct qed_iwarp_ll2_buff {
 };
 
 struct qed_iwarp_info {
+	struct list_head listen_list;	/* qed_iwarp_listener */
 	spinlock_t iw_lock;	/* for iwarp resources */
 	spinlock_t qp_lock;	/* for teardown races */
 	u32 rcv_wnd_scale;
@@ -65,6 +66,21 @@ struct qed_iwarp_info {
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
+};
+
+struct qed_iwarp_listener {
+	struct list_head list_entry;
+
+	/* The event_cb function is called for connection requests.
+	 * The cb_context is passed to the event_cb function.
+	 */
+	iwarp_event_handler event_cb;
+	void *cb_context;
+	u32 max_backlog;
+	u32 ip_addr[4];
+	u16 port;
+	u16 vlan;
+	u8 ip_version;
 };
 
 int qed_iwarp_alloc(struct qed_hwfn *p_hwfn);
@@ -93,5 +109,12 @@ int qed_iwarp_fw_destroy(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp);
 
 void qed_iwarp_query_qp(struct qed_rdma_qp *qp,
 			struct qed_rdma_query_qp_out_params *out_params);
+
+int
+qed_iwarp_create_listen(void *rdma_cxt,
+			struct qed_iwarp_listen_in *iparams,
+			struct qed_iwarp_listen_out *oparams);
+
+int qed_iwarp_destroy_listen(void *rdma_cxt, void *handle);
 
 #endif
