@@ -221,9 +221,17 @@ struct vxlan_config {
 	bool			no_share;
 };
 
+struct vxlan_dev_node {
+	struct hlist_node hlist;
+	struct vxlan_dev *vxlan;
+};
+
 /* Pseudo network device */
 struct vxlan_dev {
-	struct hlist_node hlist;	/* vni hash table */
+	struct vxlan_dev_node hlist4;	/* vni hash table for IPv4 socket */
+#if IS_ENABLED(CONFIG_IPV6)
+	struct vxlan_dev_node hlist6;	/* vni hash table for IPv6 socket */
+#endif
 	struct list_head  next;		/* vxlan's per namespace list */
 	struct vxlan_sock __rcu *vn4_sock;	/* listening socket for IPv4 */
 #if IS_ENABLED(CONFIG_IPV6)
