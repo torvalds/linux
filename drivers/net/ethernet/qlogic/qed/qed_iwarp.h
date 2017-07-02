@@ -42,6 +42,17 @@ enum qed_iwarp_qp_state {
 
 enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
 
+#define QED_IWARP_LL2_SYN_TX_SIZE       (128)
+#define QED_IWARP_LL2_SYN_RX_SIZE       (256)
+#define QED_IWARP_MAX_SYN_PKT_SIZE      (128)
+#define QED_IWARP_HANDLE_INVAL			(0xff)
+
+struct qed_iwarp_ll2_buff {
+	void *data;
+	dma_addr_t data_phys_addr;
+	u32 buff_size;
+};
+
 struct qed_iwarp_info {
 	spinlock_t iw_lock;	/* for iwarp resources */
 	spinlock_t qp_lock;	/* for teardown races */
@@ -50,6 +61,7 @@ struct qed_iwarp_info {
 	u8 mac_addr[ETH_ALEN];
 	u8 crc_needed;
 	u8 tcp_flags;
+	u8 ll2_syn_handle;
 	u8 peer2peer;
 	enum mpa_negotiation_mode mpa_rev;
 	enum mpa_rtr_type rtr_type;
