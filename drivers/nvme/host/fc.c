@@ -2232,7 +2232,6 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 out_delete_hw_queues:
 	nvme_fc_delete_hw_io_queues(ctrl);
 out_cleanup_blk_queue:
-	nvme_stop_keep_alive(&ctrl->ctrl);
 	blk_cleanup_queue(ctrl->ctrl.connect_q);
 out_free_tag_set:
 	blk_mq_free_tag_set(&ctrl->tag_set);
@@ -2366,8 +2365,6 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 		goto out_disconnect_admin_queue;
 	}
 
-	nvme_start_keep_alive(&ctrl->ctrl);
-
 	/* FC-NVME supports normal SGL Data Block Descriptors */
 
 	if (opts->queue_size > ctrl->ctrl.maxcmd) {
@@ -2401,17 +2398,12 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 
 	ctrl->ctrl.nr_reconnects = 0;
 
-	if (ctrl->ctrl.queue_count > 1) {
-		nvme_start_queues(&ctrl->ctrl);
-		nvme_queue_scan(&ctrl->ctrl);
-		nvme_queue_async_events(&ctrl->ctrl);
-	}
+	nvme_start_ctrl(&ctrl->ctrl);
 
 	return 0;	/* Success */
 
 out_term_aen_ops:
 	nvme_fc_term_aen_ops(ctrl);
-	nvme_stop_keep_alive(&ctrl->ctrl);
 out_disconnect_admin_queue:
 	/* send a Disconnect(association) LS to fc-nvme target */
 	nvme_fc_xmt_disconnect_assoc(ctrl);
@@ -2433,8 +2425,6 @@ static void
 nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 {
 	unsigned long flags;
-
-	nvme_stop_keep_alive(&ctrl->ctrl);
 
 	spin_lock_irqsave(&ctrl->lock, flags);
 	ctrl->flags |= FCCTRL_TERMIO;
@@ -2517,7 +2507,8 @@ nvme_fc_delete_ctrl_work(struct work_struct *work)
 
 	cancel_work_sync(&ctrl->ctrl.reset_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
-
+	nvme_stop_ctrl(&ctrl->ctrl);
+	nvme_remove_namespaces(&ctrl->ctrl);
 	/*
 	 * kill the association on the link side.  this will block
 	 * waiting for io to terminate
@@ -2612,6 +2603,7 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 		container_of(work, struct nvme_fc_ctrl, ctrl.reset_work);
 	int ret;
 
+	nvme_stop_ctrl(&ctrl->ctrl);
 	/* will block will waiting for io to terminate */
 	nvme_fc_delete_association(ctrl);
 

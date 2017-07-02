@@ -2591,12 +2591,29 @@ static void nvme_release_instance(struct nvme_ctrl *ctrl)
 	spin_unlock(&dev_list_lock);
 }
 
-void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
+void nvme_stop_ctrl(struct nvme_ctrl *ctrl)
 {
+	nvme_stop_keep_alive(ctrl);
 	flush_work(&ctrl->async_event_work);
 	flush_work(&ctrl->scan_work);
-	nvme_remove_namespaces(ctrl);
+}
+EXPORT_SYMBOL_GPL(nvme_stop_ctrl);
 
+void nvme_start_ctrl(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->kato)
+		nvme_start_keep_alive(ctrl);
+
+	if (ctrl->queue_count > 1) {
+		nvme_queue_scan(ctrl);
+		nvme_queue_async_events(ctrl);
+		nvme_start_queues(ctrl);
+	}
+}
+EXPORT_SYMBOL_GPL(nvme_start_ctrl);
+
+void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
+{
 	device_destroy(nvme_class, MKDEV(nvme_char_major, ctrl->instance));
 
 	spin_lock(&dev_list_lock);

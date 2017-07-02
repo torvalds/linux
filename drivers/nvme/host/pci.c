@@ -2135,15 +2135,6 @@ static void nvme_reset_work(struct work_struct *work)
 		goto out;
 
 	/*
-	 * A controller that can not execute IO typically requires user
-	 * intervention to correct. For such degraded controllers, the driver
-	 * should not submit commands the user did not request, so skip
-	 * registering for asynchronous event notification on this condition.
-	 */
-	if (dev->online_queues > 1)
-		nvme_queue_async_events(&dev->ctrl);
-
-	/*
 	 * Keep the controller around but remove all namespaces if we don't have
 	 * any working I/O queue.
 	 */
@@ -2163,8 +2154,7 @@ static void nvme_reset_work(struct work_struct *work)
 		goto out;
 	}
 
-	if (dev->online_queues > 1)
-		nvme_queue_scan(&dev->ctrl);
+	nvme_start_ctrl(&dev->ctrl);
 	return;
 
  out:
@@ -2341,11 +2331,13 @@ static void nvme_remove(struct pci_dev *pdev)
 	}
 
 	flush_work(&dev->ctrl.reset_work);
-	nvme_uninit_ctrl(&dev->ctrl);
+	nvme_stop_ctrl(&dev->ctrl);
+	nvme_remove_namespaces(&dev->ctrl);
 	nvme_dev_disable(dev, true);
 	nvme_free_host_mem(dev);
 	nvme_dev_remove_admin(dev);
 	nvme_free_queues(dev, 0);
+	nvme_uninit_ctrl(&dev->ctrl);
 	nvme_release_prp_pools(dev);
 	nvme_dev_unmap(dev);
 	nvme_put_ctrl(&dev->ctrl);
