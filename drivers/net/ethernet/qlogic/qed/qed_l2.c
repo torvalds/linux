@@ -79,8 +79,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 	unsigned long **pp_qids;
 	u32 i;
 
-	if (p_hwfn->hw_info.personality != QED_PCI_ETH &&
-	    p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+	if (!QED_IS_L2_PERSONALITY(p_hwfn))
 		return 0;
 
 	p_l2_info = kzalloc(sizeof(*p_l2_info), GFP_KERNEL);

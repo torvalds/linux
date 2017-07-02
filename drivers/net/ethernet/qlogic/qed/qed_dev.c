@@ -936,7 +936,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		/* EQ */
 		n_eqes = qed_chain_get_capacity(&p_hwfn->p_spq->chain);
-		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+		if (QED_IS_RDMA_PERSONALITY(p_hwfn)) {
 			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
 							       PROTOCOLID_ROCE,
 							       NULL) * 2;
@@ -2057,7 +2057,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 	qed_int_get_num_sbs(p_hwfn, &sb_cnt);
 
 	if (IS_ENABLED(CONFIG_QED_RDMA) &&
-	    p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+	    QED_IS_RDMA_PERSONALITY(p_hwfn)) {
 		/* Roce CNQ each requires: 1 status block + 1 CNQ. We divide
 		 * the status blocks equally between L2 / RoCE but with
 		 * consideration as to how many l2 queues / cnqs we have.
@@ -2068,9 +2068,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 
 		non_l2_sbs = feat_num[QED_RDMA_CNQ];
 	}
-
-	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE ||
-	    p_hwfn->hw_info.personality == QED_PCI_ETH) {
+	if (QED_IS_L2_PERSONALITY(p_hwfn)) {
 		/* Start by allocating VF queues, then PF's */
 		feat_num[QED_VF_L2_QUE] = min_t(u32,
 						RESC_NUM(p_hwfn, QED_L2_QUEUE),
@@ -2083,12 +2081,12 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 							 QED_VF_L2_QUE));
 	}
 
-	if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
+	if (QED_IS_FCOE_PERSONALITY(p_hwfn))
 		feat_num[QED_FCOE_CQ] =  min_t(u32, sb_cnt.cnt,
 					       RESC_NUM(p_hwfn,
 							QED_CMDQS_CQS));
 
-	if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn))
 		feat_num[QED_ISCSI_CQ] = min_t(u32, sb_cnt.cnt,
 					       RESC_NUM(p_hwfn,
 							QED_CMDQS_CQS));
