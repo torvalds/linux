@@ -937,8 +937,15 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		/* EQ */
 		n_eqes = qed_chain_get_capacity(&p_hwfn->p_spq->chain);
 		if (QED_IS_RDMA_PERSONALITY(p_hwfn)) {
+			enum protocol_type rdma_proto;
+
+			if (QED_IS_ROCE_PERSONALITY(p_hwfn))
+				rdma_proto = PROTOCOLID_ROCE;
+			else
+				rdma_proto = PROTOCOLID_IWARP;
+
 			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
-							       PROTOCOLID_ROCE,
+							       rdma_proto,
 							       NULL) * 2;
 			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB;
 		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {

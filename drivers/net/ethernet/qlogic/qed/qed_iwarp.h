@@ -1,0 +1,85 @@
+/* QLogic qed NIC Driver
+ * Copyright (c) 2015-2017  QLogic Corporation
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+#ifndef _QED_IWARP_H
+#define _QED_IWARP_H
+
+enum qed_iwarp_qp_state {
+	QED_IWARP_QP_STATE_IDLE,
+	QED_IWARP_QP_STATE_RTS,
+	QED_IWARP_QP_STATE_TERMINATE,
+	QED_IWARP_QP_STATE_CLOSING,
+	QED_IWARP_QP_STATE_ERROR,
+};
+
+enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
+
+struct qed_iwarp_info {
+	spinlock_t iw_lock;	/* for iwarp resources */
+	spinlock_t qp_lock;	/* for teardown races */
+	u32 rcv_wnd_scale;
+	u16 max_mtu;
+	u8 mac_addr[ETH_ALEN];
+	u8 crc_needed;
+	u8 tcp_flags;
+	u8 peer2peer;
+	enum mpa_negotiation_mode mpa_rev;
+	enum mpa_rtr_type rtr_type;
+};
+
+int qed_iwarp_alloc(struct qed_hwfn *p_hwfn);
+
+int qed_iwarp_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		    struct qed_rdma_start_in_params *params);
+
+int qed_iwarp_stop(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+void qed_iwarp_resc_free(struct qed_hwfn *p_hwfn);
+
+void qed_iwarp_init_devinfo(struct qed_hwfn *p_hwfn);
+
+void qed_iwarp_init_hw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+int qed_iwarp_create_qp(struct qed_hwfn *p_hwfn,
+			struct qed_rdma_qp *qp,
+			struct qed_rdma_create_qp_out_params *out_params);
+
+int qed_iwarp_modify_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp,
+			enum qed_iwarp_qp_state new_state, bool internal);
+
+int qed_iwarp_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp);
+
+int qed_iwarp_fw_destroy(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp);
+
+void qed_iwarp_query_qp(struct qed_rdma_qp *qp,
+			struct qed_rdma_query_qp_out_params *out_params);
+
+#endif

@@ -42,6 +42,7 @@
 #include "qed.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"
+#include "qed_iwarp.h"
 #include "qed_roce.h"
 
 #define QED_RDMA_MAX_FMR                    (RDMA_MAX_TIDS)
@@ -97,6 +98,7 @@ struct qed_rdma_info {
 	u16 queue_zone_base;
 	u16 max_queue_zones;
 	enum protocol_type proto;
+	struct qed_iwarp_info iwarp;
 };
 
 struct qed_rdma_qp {
@@ -105,6 +107,7 @@ struct qed_rdma_qp {
 	u32 qpid;
 	u16 icid;
 	enum qed_roce_qp_state cur_state;
+	enum qed_iwarp_qp_state iwarp_state;
 	bool use_srq;
 	bool signal_all;
 	bool fmr_and_reserved_lkey;

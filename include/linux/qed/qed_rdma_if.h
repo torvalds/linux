@@ -491,6 +491,7 @@ struct qed_roce_ll2_packet {
 
 enum qed_rdma_type {
 	QED_RDMA_TYPE_ROCE,
+	QED_RDMA_TYPE_IWARP
 };
 
 struct qed_dev_rdma_info {
