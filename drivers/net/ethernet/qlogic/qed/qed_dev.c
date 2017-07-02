@@ -216,6 +216,10 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 	case QED_PCI_ETH_ROCE:
 		flags |= PQ_FLAGS_MCOS | PQ_FLAGS_OFLD | PQ_FLAGS_LLT;
 		break;
+	case QED_PCI_ETH_IWARP:
+		flags |= PQ_FLAGS_MCOS | PQ_FLAGS_ACK | PQ_FLAGS_OOO |
+		    PQ_FLAGS_OFLD;
+		break;
 	default:
 		DP_ERR(p_hwfn,
 		       "unknown personality %d\n", p_hwfn->hw_info.personality);
