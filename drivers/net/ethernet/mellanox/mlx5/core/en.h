@@ -501,7 +501,7 @@ struct mlx5e_rx_am { /* Adaptive Moderation */
  */
 #define MLX5E_CACHE_UNIT	(MLX5_MPWRQ_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
 				 MLX5_MPWRQ_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
-#define MLX5E_CACHE_SIZE	(2 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
+#define MLX5E_CACHE_SIZE	(4 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
 struct mlx5e_page_cache {
 	u32 head;
 	u32 tail;
