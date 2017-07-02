@@ -65,6 +65,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_NO_CONSUMER_USAGES	BIT(4)
 #define QUIRK_USE_KBD_BACKLIGHT		BIT(5)
 #define QUIRK_T100_KEYBOARD		BIT(6)
+#define QUIRK_T100CHI			BIT(7)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -619,10 +620,33 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "Fixing up Asus notebook report descriptor\n");
 		rdesc[55] = 0xdd;
 	}
+	/* For the T100TA keyboard dock */
 	if (drvdata->quirks & QUIRK_T100_KEYBOARD &&
 		 *rsize == 76 && rdesc[73] == 0x81 && rdesc[74] == 0x01) {
 		hid_info(hdev, "Fixing up Asus T100 keyb report descriptor\n");
 		rdesc[74] &= ~HID_MAIN_ITEM_CONSTANT;
+	}
+	/* For the T100CHI keyboard dock */
+	if (drvdata->quirks & QUIRK_T100CHI &&
+		 *rsize == 403 && rdesc[388] == 0x09 && rdesc[389] == 0x76) {
+		/*
+		 * Change Usage (76h) to Usage Minimum (00h), Usage Maximum
+		 * (FFh) and clear the flags in the Input() byte.
+		 * Note the descriptor has a bogus 0 byte at the end so we
+		 * only need 1 extra byte.
+		 */
+		*rsize = 404;
+		rdesc = kmemdup(rdesc, *rsize, GFP_KERNEL);
+		if (!rdesc)
+			return NULL;
+
+		hid_info(hdev, "Fixing up T100CHI keyb report descriptor\n");
+		memmove(rdesc + 392, rdesc + 390, 12);
+		rdesc[388] = 0x19;
+		rdesc[389] = 0x00;
+		rdesc[390] = 0x29;
+		rdesc[391] = 0xff;
+		rdesc[402] = 0x00;
 	}
 
 	return rdesc;
@@ -643,6 +667,9 @@ static const struct hid_device_id asus_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_ASUS_AK1D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_ASUS_MD_5110) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS, USB_DEVICE_ID_ASUS_MD_5112) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_T100CHI_KEYBOARD), QUIRK_T100CHI },
+
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, asus_devices);
