@@ -896,7 +896,8 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->main_func_queue = (conn_type == QED_LL2_TYPE_OOO) ? 0 : 1;
 
 	if ((IS_MF_DEFAULT(p_hwfn) || IS_MF_SI(p_hwfn)) &&
-	    p_ramrod->main_func_queue && (conn_type != QED_LL2_TYPE_ROCE)) {
+	    p_ramrod->main_func_queue && (conn_type != QED_LL2_TYPE_ROCE) &&
+	    (conn_type != QED_LL2_TYPE_IWARP)) {
 		p_ramrod->mf_si_bcast_accept_all = 1;
 		p_ramrod->mf_si_mcast_accept_all = 1;
 	} else {
@@ -972,11 +973,19 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->conn_type = PROTOCOLID_FCOE;
 		break;
 	case QED_LL2_TYPE_ISCSI:
-	case QED_LL2_TYPE_OOO:
 		p_ramrod->conn_type = PROTOCOLID_ISCSI;
 		break;
 	case QED_LL2_TYPE_ROCE:
 		p_ramrod->conn_type = PROTOCOLID_ROCE;
+		break;
+	case QED_LL2_TYPE_IWARP:
+		p_ramrod->conn_type = PROTOCOLID_IWARP;
+		break;
+	case QED_LL2_TYPE_OOO:
+		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
+			p_ramrod->conn_type = PROTOCOLID_ISCSI;
+		else
+			p_ramrod->conn_type = PROTOCOLID_IWARP;
 		break;
 	default:
 		p_ramrod->conn_type = PROTOCOLID_ETH;
