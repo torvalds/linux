@@ -586,3 +586,35 @@ static void pci_fixup_amd_ehci_pme(struct pci_dev *dev)
 		>> PCI_PM_CAP_PME_SHIFT);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x7808, pci_fixup_amd_ehci_pme);
+
+/*
+ * Apple MacBook Pro: Avoid [mem 0x7fa00000-0x7fbfffff]
+ *
+ * Using the [mem 0x7fa00000-0x7fbfffff] region, e.g., by assigning it to
+ * the 00:1c.0 Root Port, causes a conflict with [io 0x1804], which is used
+ * for soft poweroff and suspend-to-RAM.
+ *
+ * As far as we know, this is related to the address space, not to the Root
+ * Port itself.  Attaching the quirk to the Root Port is a convenience, but
+ * it could probably also be a standalone DMI quirk.
+ *
+ * https://bugzilla.kernel.org/show_bug.cgi?id=103211
+ */
+static void quirk_apple_mbp_poweroff(struct pci_dev *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+
+	if ((!dmi_match(DMI_PRODUCT_NAME, "MacBookPro11,4") &&
+	     !dmi_match(DMI_PRODUCT_NAME, "MacBookPro11,5")) ||
+	    pdev->bus->number != 0 || pdev->devfn != PCI_DEVFN(0x1c, 0))
+		return;
+
+	res = request_mem_region(0x7fa00000, 0x200000,
+				 "MacBook Pro poweroff workaround");
+	if (res)
+		dev_info(dev, "claimed %s %pR\n", res->name, res);
+	else
+		dev_info(dev, "can't work around MacBook Pro poweroff issue\n");
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x8c10, quirk_apple_mbp_poweroff);
