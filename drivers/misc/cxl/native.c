@@ -105,11 +105,16 @@ static int native_afu_reset(struct cxl_afu *afu)
 			   CXL_AFU_Cntl_An_RS_MASK | CXL_AFU_Cntl_An_ES_MASK,
 			   false);
 
-	/* Re-enable any masked interrupts */
-	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
-	serr &= ~CXL_PSL_SERR_An_IRQ_MASKS;
-	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
-
+	/*
+	 * Re-enable any masked interrupts when the AFU is not
+	 * activated to avoid side effects after attaching a process
+	 * in dedicated mode.
+	 */
+	if (afu->current_mode == 0) {
+		serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
+		serr &= ~CXL_PSL_SERR_An_IRQ_MASKS;
+		cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
+	}
 
 	return rc;
 }
@@ -139,9 +144,9 @@ int cxl_psl_purge(struct cxl_afu *afu)
 
 	pr_devel("PSL purge request\n");
 
-	if (cxl_is_psl8(afu))
+	if (cxl_is_power8())
 		trans_fault = CXL_PSL_DSISR_TRANS;
-	if (cxl_is_psl9(afu))
+	if (cxl_is_power9())
 		trans_fault = CXL_PSL9_DSISR_An_TF;
 
 	if (!cxl_ops->link_ok(afu->adapter, afu)) {
@@ -603,7 +608,7 @@ static u64 calculate_sr(struct cxl_context *ctx)
 		if (!test_tsk_thread_flag(current, TIF_32BIT))
 			sr |= CXL_PSL_SR_An_SF;
 	}
-	if (cxl_is_psl9(ctx->afu)) {
+	if (cxl_is_power9()) {
 		if (radix_enabled())
 			sr |= CXL_PSL_SR_An_XLAT_ror;
 		else
@@ -1117,10 +1122,10 @@ static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
 
 static bool cxl_is_translation_fault(struct cxl_afu *afu, u64 dsisr)
 {
-	if ((cxl_is_psl8(afu)) && (dsisr & CXL_PSL_DSISR_TRANS))
+	if ((cxl_is_power8()) && (dsisr & CXL_PSL_DSISR_TRANS))
 		return true;
 
-	if ((cxl_is_psl9(afu)) && (dsisr & CXL_PSL9_DSISR_An_TF))
+	if ((cxl_is_power9()) && (dsisr & CXL_PSL9_DSISR_An_TF))
 		return true;
 
 	return false;
@@ -1194,10 +1199,10 @@ static void native_irq_wait(struct cxl_context *ctx)
 		if (ph != ctx->pe)
 			return;
 		dsisr = cxl_p2n_read(ctx->afu, CXL_PSL_DSISR_An);
-		if (cxl_is_psl8(ctx->afu) &&
+		if (cxl_is_power8() &&
 		   ((dsisr & CXL_PSL_DSISR_PENDING) == 0))
 			return;
-		if (cxl_is_psl9(ctx->afu) &&
+		if (cxl_is_power9() &&
 		   ((dsisr & CXL_PSL9_DSISR_PENDING) == 0))
 			return;
 		/*
@@ -1302,13 +1307,16 @@ int cxl_native_register_psl_err_irq(struct cxl *adapter)
 
 void cxl_native_release_psl_err_irq(struct cxl *adapter)
 {
-	if (adapter->native->err_virq != irq_find_mapping(NULL, adapter->native->err_hwirq))
+	if (adapter->native->err_virq == 0 ||
+	    adapter->native->err_virq !=
+	    irq_find_mapping(NULL, adapter->native->err_hwirq))
 		return;
 
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, 0x0000000000000000);
 	cxl_unmap_irq(adapter->native->err_virq, adapter);
 	cxl_ops->release_one_irq(adapter, adapter->native->err_hwirq);
 	kfree(adapter->irq_name);
+	adapter->native->err_virq = 0;
 }
 
 int cxl_native_register_serr_irq(struct cxl_afu *afu)
@@ -1346,13 +1354,15 @@ int cxl_native_register_serr_irq(struct cxl_afu *afu)
 
 void cxl_native_release_serr_irq(struct cxl_afu *afu)
 {
-	if (afu->serr_virq != irq_find_mapping(NULL, afu->serr_hwirq))
+	if (afu->serr_virq == 0 ||
+	    afu->serr_virq != irq_find_mapping(NULL, afu->serr_hwirq))
 		return;
 
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, 0x0000000000000000);
 	cxl_unmap_irq(afu->serr_virq, afu);
 	cxl_ops->release_one_irq(afu->adapter, afu->serr_hwirq);
 	kfree(afu->err_irq_name);
+	afu->serr_virq = 0;
 }
 
 int cxl_native_register_psl_irq(struct cxl_afu *afu)
@@ -1375,12 +1385,15 @@ int cxl_native_register_psl_irq(struct cxl_afu *afu)
 
 void cxl_native_release_psl_irq(struct cxl_afu *afu)
 {
-	if (afu->native->psl_virq != irq_find_mapping(NULL, afu->native->psl_hwirq))
+	if (afu->native->psl_virq == 0 ||
+	    afu->native->psl_virq !=
+	    irq_find_mapping(NULL, afu->native->psl_hwirq))
 		return;
 
 	cxl_unmap_irq(afu->native->psl_virq, afu);
 	cxl_ops->release_one_irq(afu->adapter, afu->native->psl_hwirq);
 	kfree(afu->psl_irq_name);
+	afu->native->psl_virq = 0;
 }
 
 static void recover_psl_err(struct cxl_afu *afu, u64 errstat)
