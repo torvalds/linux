@@ -220,9 +220,9 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
+static __poll_t dlmfs_file_poll(struct file *file, poll_table *wait)
 {
-	int event = 0;
+	__poll_t event = 0;
 	struct inode *inode = file_inode(file);
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 

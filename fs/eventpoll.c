@@ -920,7 +920,7 @@ static int ep_read_events_proc(struct eventpoll *ep, struct list_head *head,
 	return 0;
 }
 
-static unsigned int ep_eventpoll_poll(struct file *file, poll_table *wait)
+static __poll_t ep_eventpoll_poll(struct file *file, poll_table *wait)
 {
 	struct eventpoll *ep = file->private_data;
 	int depth = 0;

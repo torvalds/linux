@@ -814,10 +814,10 @@ void orangefs_dev_cleanup(void)
 		     ORANGEFS_REQDEVICE_NAME);
 }
 
-static unsigned int orangefs_devreq_poll(struct file *file,
+static __poll_t orangefs_devreq_poll(struct file *file,
 				      struct poll_table_struct *poll_table)
 {
-	int poll_revent_mask = 0;
+	__poll_t poll_revent_mask = 0;
 
 	poll_wait(file, &orangefs_request_list_waitq, poll_table);
 

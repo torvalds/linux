@@ -921,10 +921,10 @@ static inline struct userfaultfd_wait_queue *find_userfault_evt(
 	return find_userfault_in(&ctx->event_wqh);
 }
 
-static unsigned int userfaultfd_poll(struct file *file, poll_table *wait)
+static __poll_t userfaultfd_poll(struct file *file, poll_table *wait)
 {
 	struct userfaultfd_ctx *ctx = file->private_data;
-	unsigned int ret;
+	__poll_t ret;
 
 	poll_wait(file, &ctx->fd_wqh, wait);
 

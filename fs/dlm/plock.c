@@ -463,9 +463,9 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 	return count;
 }
 
-static unsigned int dev_poll(struct file *file, poll_table *wait)
+static __poll_t dev_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &send_wq, wait);
 

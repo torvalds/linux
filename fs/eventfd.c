@@ -114,10 +114,10 @@ static int eventfd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int eventfd_poll(struct file *file, poll_table *wait)
+static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 {
 	struct eventfd_ctx *ctx = file->private_data;
-	unsigned int events = 0;
+	__poll_t events = 0;
 	u64 count;
 
 	poll_wait(file, &ctx->wqh, wait);
