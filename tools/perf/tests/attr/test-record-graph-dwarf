@@ -1,6 +1,7 @@
 [config]
 command = record
 args    = --call-graph dwarf -- kill >/dev/null 2>&1
+ret     = 1
 
 [event:base-record]
 sample_type=45359
