@@ -118,7 +118,7 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from);
 static int sock_mmap(struct file *file, struct vm_area_struct *vma);
 
 static int sock_close(struct inode *inode, struct file *file);
-static unsigned int sock_poll(struct file *file,
+static __poll_t sock_poll(struct file *file,
 			      struct poll_table_struct *wait);
 static long sock_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
@@ -1091,7 +1091,7 @@ out_release:
 EXPORT_SYMBOL(sock_create_lite);
 
 /* No kernel lock held - perfect */
-static unsigned int sock_poll(struct file *file, poll_table *wait)
+static __poll_t sock_poll(struct file *file, poll_table *wait)
 {
 	__poll_t busy_flag = 0;
 	struct socket *sock;

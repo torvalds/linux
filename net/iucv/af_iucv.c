@@ -1474,7 +1474,7 @@ done:
 	return copied;
 }
 
-static inline unsigned int iucv_accept_poll(struct sock *parent)
+static inline __poll_t iucv_accept_poll(struct sock *parent)
 {
 	struct iucv_sock *isk, *n;
 	struct sock *sk;
@@ -1489,11 +1489,11 @@ static inline unsigned int iucv_accept_poll(struct sock *parent)
 	return 0;
 }
 
-unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
+__poll_t iucv_sock_poll(struct file *file, struct socket *sock,
 			    poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 

@@ -292,7 +292,7 @@ out:
 	return len;
 }
 
-static unsigned int batadv_socket_poll(struct file *file, poll_table *wait)
+static __poll_t batadv_socket_poll(struct file *file, poll_table *wait)
 {
 	struct batadv_socket_client *socket_client = file->private_data;
 

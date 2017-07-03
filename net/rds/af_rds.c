@@ -152,12 +152,12 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
  * to send to a congested destination, the system call may still fail (and
  * return ENOBUFS).
  */
-static unsigned int rds_poll(struct file *file, struct socket *sock,
+static __poll_t rds_poll(struct file *file, struct socket *sock,
 			     poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct rds_sock *rs = rds_sk_to_rs(sk);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 	poll_wait(file, sk_sleep(sk), wait);

@@ -2496,7 +2496,7 @@ int sock_no_getname(struct socket *sock, struct sockaddr *saddr,
 }
 EXPORT_SYMBOL(sock_no_getname);
 
-unsigned int sock_no_poll(struct file *file, struct socket *sock, poll_table *pt)
+__poll_t sock_no_poll(struct file *file, struct socket *sock, poll_table *pt)
 {
 	return 0;
 }

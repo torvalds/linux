@@ -341,12 +341,12 @@ static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
 	return 0;
 }
 
-static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
+static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 					poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct pep_sock *pn = pep_sk(sk);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, sk_sleep(sk), wait);
 

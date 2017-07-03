@@ -831,11 +831,11 @@ EXPORT_SYMBOL(skb_copy_and_csum_datagram_msg);
  *	and you use a different write policy from sock_writeable()
  *	then please supply your own write_space callback.
  */
-unsigned int datagram_poll(struct file *file, struct socket *sock,
+__poll_t datagram_poll(struct file *file, struct socket *sock,
 			   poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	unsigned int mask;
+	__poll_t mask;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
