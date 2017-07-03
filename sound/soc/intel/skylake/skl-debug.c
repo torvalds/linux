@@ -20,6 +20,7 @@
 #include "skl-sst-ipc.h"
 #include "skl-tplg-interface.h"
 #include "skl-topology.h"
+#include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
 
 #define MOD_BUF		PAGE_SIZE
