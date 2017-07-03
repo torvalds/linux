@@ -38,6 +38,8 @@ Optional properties:
 			 specifiers, one for transmission, and one for
 			 reception.
 - dma-names            : Must contain a list of two DMA names, "tx" and "rx".
+- spi-slave            : Empty property indicating the SPI controller is used
+			 in slave mode.
 - renesas,dtdl         : delay sync signal (setup) in transmit mode.
 			 Must contain one of the following values:
 			 0   (no bit delay)
