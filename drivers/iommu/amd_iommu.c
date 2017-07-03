@@ -4384,21 +4384,29 @@ static void ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 }
 
 static struct irq_chip amd_ir_chip = {
-	.irq_ack = ir_ack_apic_edge,
-	.irq_set_affinity = amd_ir_set_affinity,
-	.irq_set_vcpu_affinity = amd_ir_set_vcpu_affinity,
-	.irq_compose_msi_msg = ir_compose_msi_msg,
+	.name			= "AMD-IR",
+	.irq_ack		= ir_ack_apic_edge,
+	.irq_set_affinity	= amd_ir_set_affinity,
+	.irq_set_vcpu_affinity	= amd_ir_set_vcpu_affinity,
+	.irq_compose_msi_msg	= ir_compose_msi_msg,
 };
 
 int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
 {
-	iommu->ir_domain = irq_domain_add_tree(NULL, &amd_ir_domain_ops, iommu);
+	struct fwnode_handle *fn;
+
+	fn = irq_domain_alloc_named_id_fwnode("AMD-IR", iommu->index);
+	if (!fn)
+		return -ENOMEM;
+	iommu->ir_domain = irq_domain_create_tree(fn, &amd_ir_domain_ops, iommu);
+	irq_domain_free_fwnode(fn);
 	if (!iommu->ir_domain)
 		return -ENOMEM;
 
 	iommu->ir_domain->parent = arch_get_ir_parent_domain();
-	iommu->msi_domain = arch_create_msi_irq_domain(iommu->ir_domain);
-
+	iommu->msi_domain = arch_create_remap_msi_irq_domain(iommu->ir_domain,
+							     "AMD-IR-MSI",
+							     iommu->index);
 	return 0;
 }
 

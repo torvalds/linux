@@ -874,7 +874,7 @@ int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	}
 }
 
-static struct irq_domain_ops gic_ipi_domain_ops = {
+static const struct irq_domain_ops gic_ipi_domain_ops = {
 	.xlate = gic_ipi_domain_xlate,
 	.alloc = gic_ipi_domain_alloc,
 	.free = gic_ipi_domain_free,
@@ -960,7 +960,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 		panic("Failed to add GIC IPI domain");
 
 	gic_ipi_domain->name = "mips-gic-ipi";
-	gic_ipi_domain->bus_token = DOMAIN_BUS_IPI;
+	irq_domain_update_bus_token(gic_ipi_domain, DOMAIN_BUS_IPI);
 
 	if (node &&
 	    !of_property_read_u32_array(node, "mti,reserved-ipi-vectors", v, 2)) {

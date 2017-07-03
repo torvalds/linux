@@ -14,13 +14,12 @@
 #include "blk.h"
 #include "blk-mq.h"
 
-static int cpu_to_queue_index(unsigned int nr_queues, const int cpu,
-			      const struct cpumask *online_mask)
+static int cpu_to_queue_index(unsigned int nr_queues, const int cpu)
 {
 	/*
 	 * Non online CPU will be mapped to queue index 0.
 	 */
-	if (!cpumask_test_cpu(cpu, online_mask))
+	if (!cpu_online(cpu))
 		return 0;
 	return cpu % nr_queues;
 }
@@ -40,7 +39,6 @@ int blk_mq_map_queues(struct blk_mq_tag_set *set)
 {
 	unsigned int *map = set->mq_map;
 	unsigned int nr_queues = set->nr_hw_queues;
-	const struct cpumask *online_mask = cpu_online_mask;
 	unsigned int cpu, first_sibling;
 
 	for_each_possible_cpu(cpu) {
@@ -51,11 +49,11 @@ int blk_mq_map_queues(struct blk_mq_tag_set *set)
 		 * performace optimizations.
 		 */
 		if (cpu < nr_queues) {
-			map[cpu] = cpu_to_queue_index(nr_queues, cpu, online_mask);
+			map[cpu] = cpu_to_queue_index(nr_queues, cpu);
 		} else {
 			first_sibling = get_first_sibling(cpu);
 			if (first_sibling == cpu)
-				map[cpu] = cpu_to_queue_index(nr_queues, cpu, online_mask);
+				map[cpu] = cpu_to_queue_index(nr_queues, cpu);
 			else
 				map[cpu] = map[first_sibling];
 		}
