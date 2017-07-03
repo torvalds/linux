@@ -288,7 +288,7 @@ situations a cross-subsystem mapping between pins and GPIOs is needed.
 
 Since the pin controller subsystem has its pinspace local to the pin controller
 we need a mapping so that the pin control subsystem can figure out which pin
-controller handles control of a certain GPIO pin. Since a single pin controller
+controllers handle control of a certain GPIO pin. Since a single pin controller
 may be muxing several GPIO ranges (typically SoCs that have one set of pins,
 but internally several GPIO silicon blocks, each modelled as a struct
 gpio_chip) any number of GPIO ranges can be added to a pin controller instance
@@ -365,10 +365,10 @@ group "foo":
 pinctrl_get_group_pins(pctl, "foo", &gpio_range.pins, &gpio_range.npins);
 
 When GPIO-specific functions in the pin control subsystem are called, these
-ranges will be used to look up the appropriate pin controller by inspecting
-and matching the pin to the pin ranges across all controllers. When a
-pin controller handling the matching range is found, GPIO-specific functions
-will be called on that specific pin controller.
+ranges will be used to look up the appropriate pin controllers by inspecting
+and matching the pin to the pin ranges across all controllers. For each pin
+controller handling the matching range, GPIO-specific functions will be called
+on that specific pin controller.
 
 For all functionalities dealing with pin biasing, pin muxing etc, the pin
 controller subsystem will look up the corresponding pin number from the passed
