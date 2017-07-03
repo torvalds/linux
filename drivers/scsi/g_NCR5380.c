@@ -44,12 +44,13 @@
 	int c400_ctl_status; \
 	int c400_blk_cnt; \
 	int c400_host_buf; \
-	int io_width
+	int io_width; \
+	int pdma_residual
 
 #define NCR5380_dma_xfer_len            generic_NCR5380_dma_xfer_len
 #define NCR5380_dma_recv_setup          generic_NCR5380_pread
 #define NCR5380_dma_send_setup          generic_NCR5380_pwrite
-#define NCR5380_dma_residual            NCR5380_dma_residual_none
+#define NCR5380_dma_residual            generic_NCR5380_dma_residual
 
 #define NCR5380_intr                    generic_NCR5380_intr
 #define NCR5380_queue_command           generic_NCR5380_queue_command
@@ -500,10 +501,8 @@ static inline int generic_NCR5380_pread(struct NCR5380_hostdata *hostdata,
 	while (1) {
 		if (NCR5380_read(hostdata->c400_blk_cnt) == 0)
 			break;
-		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ) {
-			printk(KERN_ERR "53C400r: Got 53C80_IRQ start=%d, blocks=%d\n", start, blocks);
-			return -1;
-		}
+		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ)
+			goto out_wait;
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; /* FIXME - no timeout */
 
@@ -542,13 +541,19 @@ static inline int generic_NCR5380_pread(struct NCR5380_hostdata *hostdata,
 	if (!(NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ))
 		printk("53C400r: no 53C80 gated irq after transfer");
 
+out_wait:
+	hostdata->pdma_residual = len - start;
+
 	/* wait for 53C80 registers to be available */
 	while (!(NCR5380_read(hostdata->c400_ctl_status) & CSR_53C80_REG))
 		;
 
-	if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_END_DMA_TRANSFER))
-		printk(KERN_ERR "53C400r: no end dma signal\n");
-		
+	if (NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
+	                          BASR_END_DMA_TRANSFER, BASR_END_DMA_TRANSFER,
+	                          HZ / 64) < 0)
+		scmd_printk(KERN_ERR, hostdata->connected, "%s: End of DMA timeout (%d)\n",
+		            __func__, hostdata->pdma_residual);
+
 	return 0;
 }
 
@@ -571,10 +576,8 @@ static inline int generic_NCR5380_pwrite(struct NCR5380_hostdata *hostdata,
 	NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
 	NCR5380_write(hostdata->c400_blk_cnt, blocks);
 	while (1) {
-		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ) {
-			printk(KERN_ERR "53C400w: Got 53C80_IRQ start=%d, blocks=%d\n", start, blocks);
-			return -1;
-		}
+		if (NCR5380_read(hostdata->c400_ctl_status) & CSR_GATED_53C80_IRQ)
+			goto out_wait;
 
 		if (NCR5380_read(hostdata->c400_blk_cnt) == 0)
 			break;
@@ -612,18 +615,24 @@ static inline int generic_NCR5380_pwrite(struct NCR5380_hostdata *hostdata,
 		blocks--;
 	}
 
+out_wait:
+	hostdata->pdma_residual = len - start;
+
 	/* wait for 53C80 registers to be available */
 	while (!(NCR5380_read(hostdata->c400_ctl_status) & CSR_53C80_REG)) {
 		udelay(4); /* DTC436 chip hangs without this */
 		/* FIXME - no timeout */
 	}
 
-	if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_END_DMA_TRANSFER)) {
-		printk(KERN_ERR "53C400w: no end dma signal\n");
-	}
-
 	while (!(NCR5380_read(TARGET_COMMAND_REG) & TCR_LAST_BYTE_SENT))
 		; 	// TIMEOUT
+
+	if (NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
+	                          BASR_END_DMA_TRANSFER, BASR_END_DMA_TRANSFER,
+	                          HZ / 64) < 0)
+		scmd_printk(KERN_ERR, hostdata->connected, "%s: End of DMA timeout (%d)\n",
+		            __func__, hostdata->pdma_residual);
+
 	return 0;
 }
 
@@ -640,6 +649,11 @@ static int generic_NCR5380_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 		transfersize = 0;
 
 	return min(transfersize, DMA_MAX_SIZE);
+}
+
+static int generic_NCR5380_dma_residual(struct NCR5380_hostdata *hostdata)
+{
+	return hostdata->pdma_residual;
 }
 
 /*
