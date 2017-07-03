@@ -409,7 +409,9 @@ static const struct file_operations stack_trace_fops = {
 static int
 stack_trace_filter_open(struct inode *inode, struct file *file)
 {
-	return ftrace_regex_open(&trace_ops, FTRACE_ITER_FILTER,
+	struct ftrace_ops *ops = inode->i_private;
+
+	return ftrace_regex_open(ops, FTRACE_ITER_FILTER,
 				 inode, file);
 }
 
@@ -476,7 +478,7 @@ static __init int stack_trace_init(void)
 			NULL, &stack_trace_fops);
 
 	trace_create_file("stack_trace_filter", 0444, d_tracer,
-			NULL, &stack_trace_filter_fops);
+			  &trace_ops, &stack_trace_filter_fops);
 
 	if (stack_trace_filter_buf[0])
 		ftrace_set_early_filter(&trace_ops, stack_trace_filter_buf, 1);

@@ -686,6 +686,7 @@ static int nfnl_cthelper_del(struct net *net, struct sock *nfnl,
 		tuple_set = true;
 	}
 
+	ret = -ENOENT;
 	list_for_each_entry_safe(nlcth, n, &nfnl_cthelper_list, list) {
 		cur = &nlcth->helper;
 		j++;
@@ -699,16 +700,20 @@ static int nfnl_cthelper_del(struct net *net, struct sock *nfnl,
 		     tuple.dst.protonum != cur->tuple.dst.protonum))
 			continue;
 
-		found = true;
-		nf_conntrack_helper_unregister(cur);
-		kfree(cur->expect_policy);
+		if (refcount_dec_if_one(&cur->refcnt)) {
+			found = true;
+			nf_conntrack_helper_unregister(cur);
+			kfree(cur->expect_policy);
 
-		list_del(&nlcth->list);
-		kfree(nlcth);
+			list_del(&nlcth->list);
+			kfree(nlcth);
+		} else {
+			ret = -EBUSY;
+		}
 	}
 
 	/* Make sure we return success if we flush and there is no helpers */
-	return (found || j == 0) ? 0 : -ENOENT;
+	return (found || j == 0) ? 0 : ret;
 }
 
 static const struct nla_policy nfnl_cthelper_policy[NFCTH_MAX+1] = {

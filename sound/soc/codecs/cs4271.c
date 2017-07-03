@@ -674,8 +674,6 @@ static int cs4271_common_probe(struct device *dev,
 		cs4271->gpio_nreset = cs4271plat->gpio_nreset;
 
 	if (gpio_is_valid(cs4271->gpio_nreset)) {
-		int ret;
-
 		ret = devm_gpio_request(dev, cs4271->gpio_nreset,
 					"CS4271 Reset");
 		if (ret < 0)

@@ -568,7 +568,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	struct fib_rules_ops *ops = NULL;
-	struct fib_rule *rule, *tmp;
+	struct fib_rule *rule, *r;
 	struct nlattr *tb[FRA_MAX+1];
 	struct fib_kuid_range range;
 	int err = -EINVAL;
@@ -668,16 +668,23 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 		/*
 		 * Check if this rule is a target to any of them. If so,
+		 * adjust to the next one with the same preference or
 		 * disable them. As this operation is eventually very
-		 * expensive, it is only performed if goto rules have
-		 * actually been added.
+		 * expensive, it is only performed if goto rules, except
+		 * current if it is goto rule, have actually been added.
 		 */
 		if (ops->nr_goto_rules > 0) {
-			list_for_each_entry(tmp, &ops->rules_list, list) {
-				if (rtnl_dereference(tmp->ctarget) == rule) {
-					RCU_INIT_POINTER(tmp->ctarget, NULL);
+			struct fib_rule *n;
+
+			n = list_next_entry(rule, list);
+			if (&n->list == &ops->rules_list || n->pref != rule->pref)
+				n = NULL;
+			list_for_each_entry(r, &ops->rules_list, list) {
+				if (rtnl_dereference(r->ctarget) != rule)
+					continue;
+				rcu_assign_pointer(r->ctarget, n);
+				if (!n)
 					ops->unresolved_rules++;
-				}
 			}
 		}
 

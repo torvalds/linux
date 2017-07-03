@@ -1323,6 +1323,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvmsta;
 	struct sk_buff_head skbs;
 	u8 skb_freed = 0;
+	u8 lq_color;
 	u16 next_reclaimed, seq_ctl;
 	bool is_ndp = false;
 
@@ -1405,8 +1406,9 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		info->status.tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
 		BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
+		lq_color = TX_RES_RATE_TABLE_COL_GET(tx_resp->tlc_info);
 		info->status.status_driver_data[0] =
-				(void *)(uintptr_t)tx_resp->reduced_tpc;
+			RS_DRV_DATA_PACK(lq_color, tx_resp->reduced_tpc);
 
 		ieee80211_tx_status(mvm->hw, skb);
 	}
@@ -1638,6 +1640,9 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 			le32_to_cpu(tx_resp->initial_rate);
 		mvmsta->tid_data[tid].tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
+		mvmsta->tid_data[tid].lq_color =
+			(tx_resp->tlc_info & TX_RES_RATE_TABLE_COLOR_MSK) >>
+			TX_RES_RATE_TABLE_COLOR_POS;
 	}
 
 	rcu_read_unlock();
@@ -1707,6 +1712,11 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	iwl_mvm_check_ratid_empty(mvm, sta, tid);
 
 	freed = 0;
+
+	/* pack lq color from tid_data along the reduced txp */
+	ba_info->status.status_driver_data[0] =
+		RS_DRV_DATA_PACK(tid_data->lq_color,
+				 ba_info->status.status_driver_data[0]);
 	ba_info->status.status_driver_data[1] = (void *)(uintptr_t)rate;
 
 	skb_queue_walk(&reclaimed_skbs, skb) {

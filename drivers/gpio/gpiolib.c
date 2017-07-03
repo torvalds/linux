@@ -708,7 +708,8 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 
 	ge.timestamp = ktime_get_real_ns();
 
-	if (le->eflags & GPIOEVENT_REQUEST_BOTH_EDGES) {
+	if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE
+	    && le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
 		int level = gpiod_get_value_cansleep(le->desc);
 
 		if (level)

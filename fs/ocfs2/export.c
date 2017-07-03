@@ -119,7 +119,7 @@ check_err:
 
 	if (IS_ERR(inode)) {
 		mlog_errno(PTR_ERR(inode));
-		result = (void *)inode;
+		result = ERR_CAST(inode);
 		goto bail;
 	}
 

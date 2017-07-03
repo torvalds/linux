@@ -45,10 +45,14 @@ _GLOBAL(ftrace_caller)
 	stdu	r1,-SWITCH_FRAME_SIZE(r1)
 
 	/* Save all gprs to pt_regs */
-	SAVE_8GPRS(0,r1)
-	SAVE_8GPRS(8,r1)
-	SAVE_8GPRS(16,r1)
-	SAVE_8GPRS(24,r1)
+	SAVE_GPR(0, r1)
+	SAVE_10GPRS(2, r1)
+	SAVE_10GPRS(12, r1)
+	SAVE_10GPRS(22, r1)
+
+	/* Save previous stack pointer (r1) */
+	addi	r8, r1, SWITCH_FRAME_SIZE
+	std	r8, GPR1(r1)
 
 	/* Load special regs for save below */
 	mfmsr   r8
@@ -95,18 +99,44 @@ ftrace_call:
 	bl	ftrace_stub
 	nop
 
-	/* Load ctr with the possibly modified NIP */
-	ld	r3, _NIP(r1)
-	mtctr	r3
+	/* Load the possibly modified NIP */
+	ld	r15, _NIP(r1)
+
 #ifdef CONFIG_LIVEPATCH
-	cmpd	r14,r3		/* has NIP been altered? */
+	cmpd	r14, r15	/* has NIP been altered? */
 #endif
 
+#if defined(CONFIG_LIVEPATCH) && defined(CONFIG_KPROBES_ON_FTRACE)
+	/* NIP has not been altered, skip over further checks */
+	beq	1f
+
+	/* Check if there is an active kprobe on us */
+	subi	r3, r14, 4
+	bl	is_current_kprobe_addr
+	nop
+
+	/*
+	 * If r3 == 1, then this is a kprobe/jprobe.
+	 * else, this is livepatched function.
+	 *
+	 * The conditional branch for livepatch_handler below will use the
+	 * result of this comparison. For kprobe/jprobe, we just need to branch to
+	 * the new NIP, not call livepatch_handler. The branch below is bne, so we
+	 * want CR0[EQ] to be true if this is a kprobe/jprobe. Which means we want
+	 * CR0[EQ] = (r3 == 1).
+	 */
+	cmpdi	r3, 1
+1:
+#endif
+
+	/* Load CTR with the possibly modified NIP */
+	mtctr	r15
+
 	/* Restore gprs */
-	REST_8GPRS(0,r1)
-	REST_8GPRS(8,r1)
-	REST_8GPRS(16,r1)
-	REST_8GPRS(24,r1)
+	REST_GPR(0,r1)
+	REST_10GPRS(2,r1)
+	REST_10GPRS(12,r1)
+	REST_10GPRS(22,r1)
 
 	/* Restore possibly modified LR */
 	ld	r0, _LINK(r1)
@@ -119,7 +149,10 @@ ftrace_call:
 	addi r1, r1, SWITCH_FRAME_SIZE
 
 #ifdef CONFIG_LIVEPATCH
-        /* Based on the cmpd above, if the NIP was altered handle livepatch */
+        /*
+	 * Based on the cmpd or cmpdi above, if the NIP was altered and we're
+	 * not on a kprobe/jprobe, then handle livepatch.
+	 */
 	bne-	livepatch_handler
 #endif
 
