@@ -18,7 +18,6 @@
 #include <linux/libnvdimm.h>
 #include <linux/ndctl.h>
 #include <linux/types.h>
-#include <linux/uuid.h>
 #include <linux/acpi.h>
 #include <acpi/acuuid.h>
 
@@ -237,7 +236,7 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 	return container_of(nd_desc, struct acpi_nfit_desc, nd_desc);
 }
 
-const u8 *to_nfit_uuid(enum nfit_uuids id);
+const guid_t *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
 void acpi_nfit_shutdown(void *data);
 void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event);
