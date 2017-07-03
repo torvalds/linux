@@ -1,8 +1,11 @@
 /*
- * Intel Skylake I2S Machine Driver with MAXIM98357A
- * and NAU88L25
+ * Intel Kabylake I2S Machine Driver with MAXIM98927
+ * and RT5663 Codecs
  *
- * Copyright (C) 2015, Intel Corporation. All rights reserved.
+ * Copyright (C) 2017, Intel Corporation. All rights reserved.
+ *
+ * Modified from:
+ *   Intel Skylake I2S Machine driver
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -21,125 +24,86 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include "../../codecs/nau8825.h"
+#include "../../codecs/rt5663.h"
 #include "../../codecs/hdac_hdmi.h"
 #include "../skylake/skl.h"
 
-#define SKL_NUVOTON_CODEC_DAI	"nau8825-hifi"
-#define SKL_MAXIM_CODEC_DAI "HiFi"
-#define DMIC_CH(p)     p->list[p->count-1]
+#define KBL_REALTEK_CODEC_DAI "rt5663-aif"
+#define KBL_MAXIM_CODEC_DAI "max98927-aif1"
+#define DMIC_CH(p) p->list[p->count-1]
+#define MAXIM_DEV0_NAME "i2c-MX98927:00"
+#define MAXIM_DEV1_NAME "i2c-MX98927:01"
 
-static struct snd_soc_jack skylake_headset;
-static struct snd_soc_card skylake_audio_card;
+static struct snd_soc_card kabylake_audio_card;
 static const struct snd_pcm_hw_constraint_list *dmic_constraints;
 static struct snd_soc_jack skylake_hdmi[3];
 
-struct skl_hdmi_pcm {
+struct kbl_hdmi_pcm {
 	struct list_head head;
 	struct snd_soc_dai *codec_dai;
 	int device;
 };
 
-struct skl_nau8825_private {
+struct kbl_rt5663_private {
+	struct snd_soc_jack kabylake_headset;
 	struct list_head hdmi_pcm_list;
 };
 
 enum {
-	SKL_DPCM_AUDIO_PB = 0,
-	SKL_DPCM_AUDIO_CP,
-	SKL_DPCM_AUDIO_REF_CP,
-	SKL_DPCM_AUDIO_DMIC_CP,
-	SKL_DPCM_AUDIO_HDMI1_PB,
-	SKL_DPCM_AUDIO_HDMI2_PB,
-	SKL_DPCM_AUDIO_HDMI3_PB,
+	KBL_DPCM_AUDIO_PB = 0,
+	KBL_DPCM_AUDIO_CP,
+	KBL_DPCM_AUDIO_REF_CP,
+	KBL_DPCM_AUDIO_DMIC_CP,
+	KBL_DPCM_AUDIO_HDMI1_PB,
+	KBL_DPCM_AUDIO_HDMI2_PB,
+	KBL_DPCM_AUDIO_HDMI3_PB,
 };
 
-static inline struct snd_soc_dai *skl_get_codec_dai(struct snd_soc_card *card)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-
-		if (!strncmp(rtd->codec_dai->name, SKL_NUVOTON_CODEC_DAI,
-			     strlen(SKL_NUVOTON_CODEC_DAI)))
-			return rtd->codec_dai;
-	}
-
-	return NULL;
-}
-
-static int platform_clock_control(struct snd_soc_dapm_widget *w,
-	struct snd_kcontrol *k, int  event)
-{
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
-	struct snd_soc_dai *codec_dai;
-	int ret;
-
-	codec_dai = skl_get_codec_dai(card);
-	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
-		return -EIO;
-	}
-
-	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		ret = snd_soc_dai_set_sysclk(codec_dai,
-				NAU8825_CLK_MCLK, 24000000, SND_SOC_CLOCK_IN);
-		if (ret < 0) {
-			dev_err(card->dev, "set sysclk err = %d\n", ret);
-			return -EIO;
-		}
-	} else {
-		ret = snd_soc_dai_set_sysclk(codec_dai,
-				NAU8825_CLK_INTERNAL, 0, SND_SOC_CLOCK_IN);
-		if (ret < 0) {
-			dev_err(card->dev, "set sysclk err = %d\n", ret);
-			return -EIO;
-		}
-	}
-
-	return ret;
-}
-
-static const struct snd_kcontrol_new skylake_controls[] = {
+static const struct snd_kcontrol_new kabylake_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Spk"),
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
-static const struct snd_soc_dapm_widget skylake_widgets[] = {
+static const struct snd_soc_dapm_widget kabylake_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SPK("Spk", NULL),
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
-	SND_SOC_DAPM_SPK("DP1", NULL),
-	SND_SOC_DAPM_SPK("DP2", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
-			platform_clock_control, SND_SOC_DAPM_PRE_PMU |
-			SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SPK("DP", NULL),
+	SND_SOC_DAPM_SPK("HDMI", NULL),
+
 };
 
-static const struct snd_soc_dapm_route skylake_map[] = {
+static const struct snd_soc_dapm_route kabylake_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
 	{ "Headphone Jack", NULL, "HPOL" },
 	{ "Headphone Jack", NULL, "HPOR" },
 
 	/* speaker */
-	{ "Spk", NULL, "Speaker" },
+	{ "Left Spk", NULL, "Left BE_OUT" },
+	{ "Right Spk", NULL, "Right BE_OUT" },
 
 	/* other jacks */
-	{ "MIC", NULL, "Headset Mic" },
+	{ "IN1P", NULL, "Headset Mic" },
+	{ "IN1N", NULL, "Headset Mic" },
 	{ "DMic", NULL, "SoC DMIC" },
 
+	{ "HDMI", NULL, "hif5 Output" },
+	{ "DP", NULL, "hif6 Output" },
+
 	/* CODEC BE connections */
-	{ "HiFi Playback", NULL, "ssp0 Tx" },
+	{ "Left HiFi Playback", NULL, "ssp0 Tx" },
+	{ "Right HiFi Playback", NULL, "ssp0 Tx" },
 	{ "ssp0 Tx", NULL, "codec0_out" },
 
-	{ "Playback", NULL, "ssp1 Tx" },
+	{ "AIF Playback", NULL, "ssp1 Tx" },
 	{ "ssp1 Tx", NULL, "codec1_out" },
 
 	{ "codec0_in", NULL, "ssp1 Rx" },
-	{ "ssp1 Rx", NULL, "Capture" },
+	{ "ssp1 Rx", NULL, "AIF Capture" },
 
 	/* DMIC */
 	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
@@ -151,67 +115,86 @@ static const struct snd_soc_dapm_route skylake_map[] = {
 	{ "iDisp2 Tx", NULL, "iDisp2_out"},
 	{ "hifi1", NULL, "iDisp1 Tx"},
 	{ "iDisp1 Tx", NULL, "iDisp1_out"},
-
-	{ "Headphone Jack", NULL, "Platform Clock" },
-	{ "Headset Mic", NULL, "Platform Clock" },
 };
 
-static int skylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
-	struct snd_pcm_hw_params *params)
-{
-	struct snd_interval *rate = hw_param_interval(params,
-			SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval *channels = hw_param_interval(params,
-			SNDRV_PCM_HW_PARAM_CHANNELS);
-	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+static struct snd_soc_codec_conf max98927_codec_conf[] = {
+	{
+		.dev_name = MAXIM_DEV0_NAME,
+		.name_prefix = "Right",
+	},
+	{
+		.dev_name = MAXIM_DEV1_NAME,
+		.name_prefix = "Left",
+	},
+};
 
-	/* The ADSP will covert the FE rate to 48k, stereo */
-	rate->min = rate->max = 48000;
-	channels->min = channels->max = 2;
+static struct snd_soc_dai_link_component max98927_codec_components[] = {
+	{ /* Left */
+		.name = MAXIM_DEV0_NAME,
+		.dai_name = KBL_MAXIM_CODEC_DAI,
+	},
+	{ /* Right */
+		.name = MAXIM_DEV1_NAME,
+		.dai_name = KBL_MAXIM_CODEC_DAI,
+	},
+};
 
-	/* set SSP0 to 24 bit */
-	snd_mask_none(fmt);
-	snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
-
-	return 0;
-}
-
-static int skylake_nau8825_codec_init(struct snd_soc_pcm_runtime *rtd)
+static int kabylake_rt5663_fe_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int ret;
+	struct snd_soc_dapm_context *dapm;
+	struct snd_soc_component *component = rtd->cpu_dai->component;
+
+	dapm = snd_soc_component_get_dapm(component);
+	ret = snd_soc_dapm_ignore_suspend(dapm, "Reference Capture");
+	if (ret) {
+		dev_err(rtd->dev, "Ref Cap ignore suspend failed %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int kabylake_rt5663_codec_init(struct snd_soc_pcm_runtime *rtd)
+{
+	int ret;
+	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_codec *codec = rtd->codec;
 
 	/*
 	 * Headset buttons map to the google Reference headset.
 	 * These can be configured by userspace.
 	 */
-	ret = snd_soc_card_jack_new(&skylake_audio_card, "Headset Jack",
+	ret = snd_soc_card_jack_new(&kabylake_audio_card, "Headset Jack",
 			SND_JACK_HEADSET | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-			SND_JACK_BTN_2 | SND_JACK_BTN_3, &skylake_headset,
+			SND_JACK_BTN_2 | SND_JACK_BTN_3, &ctx->kabylake_headset,
 			NULL, 0);
 	if (ret) {
 		dev_err(rtd->dev, "Headset Jack creation failed %d\n", ret);
 		return ret;
 	}
 
-	nau8825_enable_jack_detect(codec, &skylake_headset);
-
-	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
+	rt5663_set_jack_detect(codec, &ctx->kabylake_headset);
+	ret = snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
+	if (ret) {
+		dev_err(rtd->dev, "SoC DMIC ignore suspend failed %d\n", ret);
+		return ret;
+	}
 
 	return ret;
 }
 
-static int skylake_hdmi1_init(struct snd_soc_pcm_runtime *rtd)
+static int kabylake_hdmi1_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct skl_nau8825_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
-	struct skl_hdmi_pcm *pcm;
+	struct kbl_hdmi_pcm *pcm;
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
 		return -ENOMEM;
 
-	pcm->device = SKL_DPCM_AUDIO_HDMI1_PB;
+	pcm->device = KBL_DPCM_AUDIO_HDMI1_PB;
 	pcm->codec_dai = dai;
 
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
@@ -219,17 +202,17 @@ static int skylake_hdmi1_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int skylake_hdmi2_init(struct snd_soc_pcm_runtime *rtd)
+static int kabylake_hdmi2_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct skl_nau8825_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
-	struct skl_hdmi_pcm *pcm;
+	struct kbl_hdmi_pcm *pcm;
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
 		return -ENOMEM;
 
-	pcm->device = SKL_DPCM_AUDIO_HDMI2_PB;
+	pcm->device = KBL_DPCM_AUDIO_HDMI2_PB;
 	pcm->codec_dai = dai;
 
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
@@ -237,17 +220,17 @@ static int skylake_hdmi2_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int skylake_hdmi3_init(struct snd_soc_pcm_runtime *rtd)
+static int kabylake_hdmi3_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct skl_nau8825_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
-	struct skl_hdmi_pcm *pcm;
+	struct kbl_hdmi_pcm *pcm;
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
 		return -ENOMEM;
 
-	pcm->device = SKL_DPCM_AUDIO_HDMI3_PB;
+	pcm->device = KBL_DPCM_AUDIO_HDMI3_PB;
 	pcm->codec_dai = dai;
 
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
@@ -255,38 +238,27 @@ static int skylake_hdmi3_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int skylake_nau8825_fe_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dapm_context *dapm;
-	struct snd_soc_component *component = rtd->cpu_dai->component;
-
-	dapm = snd_soc_component_get_dapm(component);
-	snd_soc_dapm_ignore_suspend(dapm, "Reference Capture");
-
-	return 0;
-}
-
-static const unsigned int rates[] = {
+static unsigned int rates[] = {
 	48000,
 };
 
-static const struct snd_pcm_hw_constraint_list constraints_rates = {
+static struct snd_pcm_hw_constraint_list constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list  = rates,
 	.mask = 0,
 };
 
-static const unsigned int channels[] = {
+static unsigned int channels[] = {
 	2,
 };
 
-static const struct snd_pcm_hw_constraint_list constraints_channels = {
+static struct snd_pcm_hw_constraint_list constraints_channels = {
 	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,
 };
 
-static int skl_fe_startup(struct snd_pcm_substream *substream)
+static int kbl_fe_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -310,11 +282,30 @@ static int skl_fe_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static const struct snd_soc_ops skylake_nau8825_fe_ops = {
-	.startup = skl_fe_startup,
+static const struct snd_soc_ops kabylake_rt5663_fe_ops = {
+	.startup = kbl_fe_startup,
 };
 
-static int skylake_nau8825_hw_params(struct snd_pcm_substream *substream,
+static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
+	struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+			SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+			SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+
+	/* The ADSP will convert the FE rate to 48k, stereo */
+	rate->min = rate->max = 48000;
+	channels->min = channels->max = 2;
+	/* set SSP1 to 24 bit */
+	snd_mask_none(fmt);
+	snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
+
+	return 0;
+}
+
+static int kabylake_rt5663_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -322,7 +313,9 @@ static int skylake_nau8825_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	ret = snd_soc_dai_set_sysclk(codec_dai,
-			NAU8825_CLK_MCLK, 24000000, SND_SOC_CLOCK_IN);
+			RT5663_SCLK_S_MCLK, 24576000, SND_SOC_CLOCK_IN);
+	/* use ASRC for internal clocks, as PLL rate isn't multiple of BCLK */
+	rt5663_sel_asrc_clk_src(codec_dai->codec, RT5663_DA_STEREO_FILTER, 1);
 
 	if (ret < 0)
 		dev_err(rtd->dev, "snd_soc_dai_set_sysclk err = %d\n", ret);
@@ -330,11 +323,11 @@ static int skylake_nau8825_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static const struct snd_soc_ops skylake_nau8825_ops = {
-	.hw_params = skylake_nau8825_hw_params,
+static struct snd_soc_ops kabylake_rt5663_ops = {
+	.hw_params = kabylake_rt5663_hw_params,
 };
 
-static int skylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
+static int kabylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 		struct snd_pcm_hw_params *params)
 {
 	struct snd_interval *channels = hw_param_interval(params,
@@ -348,11 +341,11 @@ static int skylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static const unsigned int channels_dmic[] = {
+static unsigned int channels_dmic[] = {
 	2, 4,
 };
 
-static const struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
+static struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
 	.count = ARRAY_SIZE(channels_dmic),
 	.list = channels_dmic,
 	.mask = 0,
@@ -368,7 +361,7 @@ static const struct snd_pcm_hw_constraint_list constraints_dmic_2ch = {
 	.mask = 0,
 };
 
-static int skylake_dmic_startup(struct snd_pcm_substream *substream)
+static int kabylake_dmic_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -380,15 +373,15 @@ static int skylake_dmic_startup(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
 }
 
-static const struct snd_soc_ops skylake_dmic_ops = {
-	.startup = skylake_dmic_startup,
+static struct snd_soc_ops kabylake_dmic_ops = {
+	.startup = kabylake_dmic_startup,
 };
 
-static const unsigned int rates_16000[] = {
+static unsigned int rates_16000[] = {
 	16000,
 };
 
-static const struct snd_pcm_hw_constraint_list constraints_16000 = {
+static struct snd_pcm_hw_constraint_list constraints_16000 = {
 	.count = ARRAY_SIZE(rates_16000),
 	.list  = rates_16000,
 };
@@ -402,7 +395,7 @@ static const struct snd_pcm_hw_constraint_list constraints_refcap = {
 	.list  = ch_mono,
 };
 
-static int skylake_refcap_startup(struct snd_pcm_substream *substream)
+static int kabylake_refcap_startup(struct snd_pcm_substream *substream)
 {
 	substream->runtime->hw.channels_max = 1;
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
@@ -414,15 +407,15 @@ static int skylake_refcap_startup(struct snd_pcm_substream *substream)
 				&constraints_16000);
 }
 
-static const struct snd_soc_ops skylaye_refcap_ops = {
-	.startup = skylake_refcap_startup,
+static struct snd_soc_ops skylaye_refcap_ops = {
+	.startup = kabylake_refcap_startup,
 };
 
-/* skylake digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link skylake_dais[] = {
+/* kabylake digital audio interface glue - connects codec <--> CPU */
+static struct snd_soc_dai_link kabylake_dais[] = {
 	/* Front End DAI links */
-	[SKL_DPCM_AUDIO_PB] = {
-		.name = "Skl Audio Port",
+	[KBL_DPCM_AUDIO_PB] = {
+		.name = "Kbl Audio Port",
 		.stream_name = "Audio",
 		.cpu_dai_name = "System Pin",
 		.platform_name = "0000:00:1f.3",
@@ -430,14 +423,14 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.nonatomic = 1,
-		.init = skylake_nau8825_fe_init,
+		.init = kabylake_rt5663_fe_init,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
-		.ops = &skylake_nau8825_fe_ops,
+		.ops = &kabylake_rt5663_fe_ops,
 	},
-	[SKL_DPCM_AUDIO_CP] = {
-		.name = "Skl Audio Capture Port",
+	[KBL_DPCM_AUDIO_CP] = {
+		.name = "Kbl Audio Capture Port",
 		.stream_name = "Audio Record",
 		.cpu_dai_name = "System Pin",
 		.platform_name = "0000:00:1f.3",
@@ -448,10 +441,10 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_capture = 1,
-		.ops = &skylake_nau8825_fe_ops,
+		.ops = &kabylake_rt5663_fe_ops,
 	},
-	[SKL_DPCM_AUDIO_REF_CP] = {
-		.name = "Skl Audio Reference cap",
+	[KBL_DPCM_AUDIO_REF_CP] = {
+		.name = "Kbl Audio Reference cap",
 		.stream_name = "Wake on Voice",
 		.cpu_dai_name = "Reference Pin",
 		.codec_name = "snd-soc-dummy",
@@ -463,8 +456,8 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.dynamic = 1,
 		.ops = &skylaye_refcap_ops,
 	},
-	[SKL_DPCM_AUDIO_DMIC_CP] = {
-		.name = "Skl Audio DMIC cap",
+	[KBL_DPCM_AUDIO_DMIC_CP] = {
+		.name = "Kbl Audio DMIC cap",
 		.stream_name = "dmiccap",
 		.cpu_dai_name = "DMIC Pin",
 		.codec_name = "snd-soc-dummy",
@@ -474,10 +467,10 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.dpcm_capture = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
-		.ops = &skylake_dmic_ops,
+		.ops = &kabylake_dmic_ops,
 	},
-	[SKL_DPCM_AUDIO_HDMI1_PB] = {
-		.name = "Skl HDMI Port1",
+	[KBL_DPCM_AUDIO_HDMI1_PB] = {
+		.name = "Kbl HDMI Port1",
 		.stream_name = "Hdmi1",
 		.cpu_dai_name = "HDMI1 Pin",
 		.codec_name = "snd-soc-dummy",
@@ -490,8 +483,8 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.nonatomic = 1,
 		.dynamic = 1,
 	},
-	[SKL_DPCM_AUDIO_HDMI2_PB] = {
-		.name = "Skl HDMI Port2",
+	[KBL_DPCM_AUDIO_HDMI2_PB] = {
+		.name = "Kbl HDMI Port2",
 		.stream_name = "Hdmi2",
 		.cpu_dai_name = "HDMI2 Pin",
 		.codec_name = "snd-soc-dummy",
@@ -504,8 +497,8 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.nonatomic = 1,
 		.dynamic = 1,
 	},
-	[SKL_DPCM_AUDIO_HDMI3_PB] = {
-		.name = "Skl HDMI Port3",
+	[KBL_DPCM_AUDIO_HDMI3_PB] = {
+		.name = "Kbl HDMI Port3",
 		.stream_name = "Hdmi3",
 		.cpu_dai_name = "HDMI3 Pin",
 		.codec_name = "snd-soc-dummy",
@@ -527,13 +520,13 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.cpu_dai_name = "SSP0 Pin",
 		.platform_name = "0000:00:1f.3",
 		.no_pcm = 1,
-		.codec_name = "MX98357A:00",
-		.codec_dai_name = SKL_MAXIM_CODEC_DAI,
+		.codecs = max98927_codec_components,
+		.num_codecs = ARRAY_SIZE(max98927_codec_components),
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_pmdown_time = 1,
-		.be_hw_params_fixup = skylake_ssp_fixup,
+		.be_hw_params_fixup = kabylake_ssp_fixup,
 		.dpcm_playback = 1,
 	},
 	{
@@ -543,14 +536,14 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.cpu_dai_name = "SSP1 Pin",
 		.platform_name = "0000:00:1f.3",
 		.no_pcm = 1,
-		.codec_name = "i2c-10508825:00",
-		.codec_dai_name = SKL_NUVOTON_CODEC_DAI,
-		.init = skylake_nau8825_codec_init,
+		.codec_name = "i2c-10EC5663:00",
+		.codec_dai_name = KBL_REALTEK_CODEC_DAI,
+		.init = kabylake_rt5663_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_pmdown_time = 1,
-		.be_hw_params_fixup = skylake_ssp_fixup,
-		.ops = &skylake_nau8825_ops,
+		.be_hw_params_fixup = kabylake_ssp_fixup,
+		.ops = &kabylake_rt5663_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
@@ -561,7 +554,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
 		.platform_name = "0000:00:1f.3",
-		.be_hw_params_fixup = skylake_dmic_fixup,
+		.be_hw_params_fixup = kabylake_dmic_fixup,
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
@@ -574,7 +567,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.codec_dai_name = "intel-hdmi-hifi1",
 		.platform_name = "0000:00:1f.3",
 		.dpcm_playback = 1,
-		.init = skylake_hdmi1_init,
+		.init = kabylake_hdmi1_init,
 		.no_pcm = 1,
 	},
 	{
@@ -584,7 +577,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi2",
 		.platform_name = "0000:00:1f.3",
-		.init = skylake_hdmi2_init,
+		.init = kabylake_hdmi2_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
 	},
@@ -595,28 +588,25 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi3",
 		.platform_name = "0000:00:1f.3",
-		.init = skylake_hdmi3_init,
+		.init = kabylake_hdmi3_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
 	},
 };
 
 #define NAME_SIZE	32
-static int skylake_card_late_probe(struct snd_soc_card *card)
+static int kabylake_card_late_probe(struct snd_soc_card *card)
 {
-	struct skl_nau8825_private *ctx = snd_soc_card_get_drvdata(card);
-	struct skl_hdmi_pcm *pcm;
-	struct snd_soc_codec *codec = NULL;
+	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(card);
+	struct kbl_hdmi_pcm *pcm;
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		codec = pcm->codec_dai->codec;
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
-					SND_JACK_AVOUT,
-					&skylake_hdmi[i],
+					SND_JACK_AVOUT, &skylake_hdmi[i],
 					NULL, 0);
 
 		if (err)
@@ -630,31 +620,30 @@ static int skylake_card_late_probe(struct snd_soc_card *card)
 		i++;
 	}
 
-	if (!codec)
-		return -EINVAL;
-
-	return hdac_hdmi_jack_port_init(codec, &card->dapm);
+	return 0;
 }
 
-/* skylake audio machine driver for SPT + NAU88L25 */
-static struct snd_soc_card skylake_audio_card = {
-	.name = "sklnau8825max",
+/* kabylake audio machine driver for SPT + RT5663 */
+static struct snd_soc_card kabylake_audio_card = {
+	.name = "kblrt5663max",
 	.owner = THIS_MODULE,
-	.dai_link = skylake_dais,
-	.num_links = ARRAY_SIZE(skylake_dais),
-	.controls = skylake_controls,
-	.num_controls = ARRAY_SIZE(skylake_controls),
-	.dapm_widgets = skylake_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(skylake_widgets),
-	.dapm_routes = skylake_map,
-	.num_dapm_routes = ARRAY_SIZE(skylake_map),
+	.dai_link = kabylake_dais,
+	.num_links = ARRAY_SIZE(kabylake_dais),
+	.controls = kabylake_controls,
+	.num_controls = ARRAY_SIZE(kabylake_controls),
+	.dapm_widgets = kabylake_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(kabylake_widgets),
+	.dapm_routes = kabylake_map,
+	.num_dapm_routes = ARRAY_SIZE(kabylake_map),
+	.codec_conf = max98927_codec_conf,
+	.num_configs = ARRAY_SIZE(max98927_codec_conf),
 	.fully_routed = true,
-	.late_probe = skylake_card_late_probe,
+	.late_probe = kabylake_card_late_probe,
 };
 
-static int skylake_audio_probe(struct platform_device *pdev)
+static int kabylake_audio_probe(struct platform_device *pdev)
 {
-	struct skl_nau8825_private *ctx;
+	struct kbl_rt5663_private *ctx;
 	struct skl_machine_pdata *pdata;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
@@ -663,37 +652,36 @@ static int skylake_audio_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
-	skylake_audio_card.dev = &pdev->dev;
-	snd_soc_card_set_drvdata(&skylake_audio_card, ctx);
+	kabylake_audio_card.dev = &pdev->dev;
+	snd_soc_card_set_drvdata(&kabylake_audio_card, ctx);
 
 	pdata = dev_get_drvdata(&pdev->dev);
 	if (pdata)
 		dmic_constraints = pdata->dmic_num == 2 ?
 			&constraints_dmic_2ch : &constraints_dmic_channels;
 
-	return devm_snd_soc_register_card(&pdev->dev, &skylake_audio_card);
+	return devm_snd_soc_register_card(&pdev->dev, &kabylake_audio_card);
 }
 
-static const struct platform_device_id skl_board_ids[] = {
-	{ .name = "skl_n88l25_m98357a" },
-	{ .name = "kbl_n88l25_m98357a" },
+static const struct platform_device_id kbl_board_ids[] = {
+	{ .name = "kbl_rt5663_m98927" },
 	{ }
 };
 
-static struct platform_driver skylake_audio = {
-	.probe = skylake_audio_probe,
+static struct platform_driver kabylake_audio = {
+	.probe = kabylake_audio_probe,
 	.driver = {
-		.name = "skl_n88l25_m98357a",
+		.name = "kbl_rt5663_m98927",
 		.pm = &snd_soc_pm_ops,
 	},
-	.id_table = skl_board_ids,
+	.id_table = kbl_board_ids,
 };
 
-module_platform_driver(skylake_audio)
+module_platform_driver(kabylake_audio)
 
 /* Module information */
-MODULE_DESCRIPTION("Audio Machine driver-NAU88L25 & MAX98357A in I2S mode");
-MODULE_AUTHOR("Rohit Ainapure <rohit.m.ainapure@intel.com");
+MODULE_DESCRIPTION("Audio Machine driver-RT5663 & MAX98927 in I2S mode");
+MODULE_AUTHOR("Naveen M <naveen.m@intel.com>");
+MODULE_AUTHOR("Harsha Priya <harshapriya.n@intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:skl_n88l25_m98357a");
-MODULE_ALIAS("platform:kbl_n88l25_m98357a");
+MODULE_ALIAS("platform:kbl_rt5663_m98927");

@@ -85,11 +85,11 @@ static int codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static unsigned int rates_48000[] = {
+static const unsigned int rates_48000[] = {
 	48000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_48000 = {
+static const struct snd_pcm_hw_constraint_list constraints_48000 = {
 	.count = ARRAY_SIZE(rates_48000),
 	.list  = rates_48000,
 };
