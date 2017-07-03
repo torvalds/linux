@@ -1014,7 +1014,6 @@ static void __init __efi_enter_virtual_mode(void)
 	 * necessary relocation fixups for the new virtual addresses.
 	 */
 	efi_runtime_update_mappings();
-	efi_dump_pagetable();
 
 	/* clean DUMMY object */
 	efi_delete_dummy_variable();
@@ -1029,6 +1028,8 @@ void __init efi_enter_virtual_mode(void)
 		kexec_enter_virtual_mode();
 	else
 		__efi_enter_virtual_mode();
+
+	efi_dump_pagetable();
 }
 
 /*
