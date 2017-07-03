@@ -111,8 +111,10 @@ static u32 lba_t32;
 
 
 /* Looks nice and keeps the compiler happy */
-#define LBA_DEV(d) ((struct lba_device *) (d))
-
+#define LBA_DEV(d) ({				\
+	void *__pdata = d;			\
+	BUG_ON(!__pdata);			\
+	(struct lba_device *)__pdata; })
 
 /*
 ** Only allow 8 subsidiary busses per LBA

@@ -40,6 +40,11 @@
 
 int pdc_type __read_mostly = PDC_TYPE_ILLEGAL;
 
+/* cell number and location (PAT firmware only) */
+unsigned long parisc_cell_num __read_mostly;
+unsigned long parisc_cell_loc __read_mostly;
+
+
 void __init setup_pdc(void)
 {
 	long status;
@@ -78,6 +83,10 @@ void __init setup_pdc(void)
 	if (status == PDC_OK) {
 		pdc_type = PDC_TYPE_PAT;
 		pr_cont("64 bit PAT.\n");
+		parisc_cell_num = cell_info.cell_num;
+		parisc_cell_loc = cell_info.cell_loc;
+		pr_info("PAT: Running on cell %lu and location %lu.\n",
+			parisc_cell_num, parisc_cell_loc);
 		return;
 	}
 #endif
