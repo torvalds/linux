@@ -13,6 +13,46 @@
 #include <linux/of_graph.h>
 #include <sound/simple_card_utils.h>
 
+void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
+				    struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	if (data->convert_rate)
+		rate->min =
+		rate->max = data->convert_rate;
+
+	if (data->convert_channels)
+		channels->min =
+		channels->max = data->convert_channels;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_convert_fixup);
+
+void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
+				    struct asoc_simple_card_data *data)
+{
+	struct device_node *np = dev->of_node;
+	char prop[128];
+
+	if (!prefix)
+		prefix = "";
+
+	/* sampling rate convert */
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-rate");
+	of_property_read_u32(np, prop, &data->convert_rate);
+
+	/* channels transfer */
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "convert-channels");
+	of_property_read_u32(np, prop, &data->convert_channels);
+
+	dev_dbg(dev, "convert_rate     %d\n", data->convert_rate);
+	dev_dbg(dev, "convert_channels %d\n", data->convert_channels);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_parse_convert);
+
 int asoc_simple_card_parse_daifmt(struct device *dev,
 				  struct device_node *node,
 				  struct device_node *codec,
@@ -110,6 +150,24 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 
+static void asoc_simple_card_clk_register(struct asoc_simple_dai *dai,
+					  struct clk *clk)
+{
+	dai->clk = clk;
+}
+
+int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
+{
+	return clk_prepare_enable(dai->clk);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_clk_enable);
+
+void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai)
+{
+	clk_disable_unprepare(dai->clk);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_clk_disable);
+
 int asoc_simple_card_parse_clk(struct device *dev,
 			       struct device_node *node,
 			       struct device_node *dai_of_node,
@@ -128,7 +186,8 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	clk = devm_get_clk_from_child(dev, node, NULL);
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
-		simple_dai->clk = clk;
+
+		asoc_simple_card_clk_register(simple_dai, clk);
 	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 	} else {
@@ -315,6 +374,47 @@ int asoc_simple_card_clean_reference(struct snd_soc_card *card)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_clean_reference);
+
+int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
+				      char *prefix,
+				      int optional)
+{
+	struct device_node *node = card->dev->of_node;
+	char prop[128];
+
+	if (!prefix)
+		prefix = "";
+
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
+
+	if (!of_property_read_bool(node, prop)) {
+		if (optional)
+			return 0;
+		return -EINVAL;
+	}
+
+	return snd_soc_of_parse_audio_routing(card, prop);
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_of_parse_routing);
+
+int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
+				      char *prefix)
+{
+	struct device_node *node = card->dev->of_node;
+	char prop[128];
+
+	if (!prefix)
+		prefix = "";
+
+	snprintf(prop, sizeof(prop), "%s%s", prefix, "widgets");
+
+	if (of_property_read_bool(node, prop))
+		return snd_soc_of_parse_audio_simple_widgets(card, prop);
+
+	/* no widgets is not error */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_card_of_parse_widgets);
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

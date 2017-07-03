@@ -27,8 +27,7 @@ struct simple_card_data {
 	struct snd_soc_codec_conf codec_conf;
 	struct asoc_simple_dai *dai_props;
 	struct snd_soc_dai_link *dai_link;
-	u32 convert_rate;
-	u32 convert_channels;
+	struct asoc_simple_card_data adata;
 };
 
 #define simple_priv_to_card(priv) (&(priv)->snd_card)
@@ -47,7 +46,7 @@ static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 	struct asoc_simple_dai *dai_props =
 		simple_priv_to_props(priv, rtd->num);
 
-	return clk_prepare_enable(dai_props->clk);
+	return asoc_simple_card_clk_enable(dai_props);
 }
 
 static void asoc_simple_card_shutdown(struct snd_pcm_substream *substream)
@@ -57,7 +56,7 @@ static void asoc_simple_card_shutdown(struct snd_pcm_substream *substream)
 	struct asoc_simple_dai *dai_props =
 		simple_priv_to_props(priv, rtd->num);
 
-	clk_disable_unprepare(dai_props->clk);
+	asoc_simple_card_clk_disable(dai_props);
 }
 
 static const struct snd_soc_ops asoc_simple_card_ops = {
@@ -86,18 +85,8 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
 {
 	struct simple_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_interval *rate = hw_param_interval(params,
-						      SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval *channels = hw_param_interval(params,
-						SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	if (priv->convert_rate)
-		rate->min =
-		rate->max = priv->convert_rate;
-
-	if (priv->convert_channels)
-		channels->min =
-		channels->max = priv->convert_channels;
+	asoc_simple_card_convert_fixup(&priv->adata, params);
 
 	return 0;
 }
@@ -171,11 +160,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 					      PREFIX "prefix");
 	}
 
-	ret = snd_soc_of_parse_tdm_slot(np,
-					&dai_props->tx_slot_mask,
-					&dai_props->rx_slot_mask,
-					&dai_props->slots,
-					&dai_props->slot_width);
+	ret = asoc_simple_card_of_parse_tdm(np, dai_props);
 	if (ret)
 		return ret;
 
@@ -206,15 +191,11 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	if (!node)
 		return -EINVAL;
 
-	ret = snd_soc_of_parse_audio_routing(card, PREFIX "routing");
+	ret = asoc_simple_card_of_parse_routing(card, PREFIX, 0);
 	if (ret < 0)
 		return ret;
 
-	/* sampling rate convert */
-	of_property_read_u32(node, PREFIX "convert-rate", &priv->convert_rate);
-
-	/* channels transfer */
-	of_property_read_u32(node, PREFIX "convert-channels", &priv->convert_channels);
+	asoc_simple_card_parse_convert(dev, PREFIX, &priv->adata);
 
 	/* find 1st codec */
 	np = of_get_child_by_name(node, PREFIX "codec");
@@ -240,9 +221,6 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	ret = asoc_simple_card_parse_card_name(card, PREFIX);
 	if (ret < 0)
 		return ret;
-
-	dev_dbg(dev, "convert_rate     %d\n", priv->convert_rate);
-	dev_dbg(dev, "convert_channels %d\n", priv->convert_channels);
 
 	return 0;
 }
