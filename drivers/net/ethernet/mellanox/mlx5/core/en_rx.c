@@ -422,7 +422,7 @@ void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
 	struct mlx5_wq_ll *wq = &rq->wq;
 	struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(wq, wq->head);
 
-	clear_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
+	rq->mpwqe.umr_in_progress = false;
 
 	if (unlikely(!MLX5E_TEST_BIT(rq->state, MLX5E_RQ_STATE_ENABLED))) {
 		mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
@@ -441,10 +441,13 @@ int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
 {
 	int err;
 
+	if (rq->mpwqe.umr_in_progress)
+		return -EBUSY;
+
 	err = mlx5e_alloc_rx_umr_mpwqe(rq, ix);
 	if (unlikely(err))
 		return err;
-	set_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
+	rq->mpwqe.umr_in_progress = true;
 	mlx5e_post_umr_wqe(rq, ix);
 	return -EBUSY;
 }
@@ -466,9 +469,6 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 
 	if (mlx5_wq_ll_is_full(wq))
 		return false;
-
-	if (test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
-		return true;
 
 	do {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(wq, wq->head);
