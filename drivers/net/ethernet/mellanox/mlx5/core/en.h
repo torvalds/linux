@@ -540,7 +540,6 @@ struct mlx5e_rq {
 		} mpwqe;
 	};
 	struct {
-		u32            wqe_sz;    /* wqe data buffer size */
 		u16            headroom;
 		u8             page_order;
 		u8             map_dir;   /* dma map direction */
