@@ -528,11 +528,11 @@ static int log_results(struct loopback_test *t)
 	tm = *localtime(&local_time);
 
 	/*
-	* file name will test_name_size_iteration_max.csv
-	* every time the same test with the same parameters is run we will then
-	* append to the same CSV with datestamp - representing each test
-	* dataset.
-	*/
+	 * file name will test_name_size_iteration_max.csv
+	 * every time the same test with the same parameters is run we will then
+	 * append to the same CSV with datestamp - representing each test
+	 * dataset.
+	 */
 	if (t->file_output && !t->porcelain) {
 		snprintf(file_name, sizeof(file_name), "%s_%d_%d.csv",
 			t->test_name, t->size, t->iteration_max);
@@ -779,7 +779,8 @@ static void prepare_devices(struct loopback_test *t)
 {
 	int i;
 
-	/* Cancel any running tests on enabled devices. If
+	/*
+	 * Cancel any running tests on enabled devices. If
 	 * stop_all option is given, stop test on all devices.
 	 */
 	for (i = 0; i < t->device_count; i++)
