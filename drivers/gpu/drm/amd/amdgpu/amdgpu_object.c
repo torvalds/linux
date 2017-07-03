@@ -951,7 +951,6 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	size = bo->mem.num_pages << PAGE_SHIFT;
 	offset = bo->mem.start << PAGE_SHIFT;
-	/* TODO: figure out how to map scattered VRAM to the CPU */
 	if ((offset + size) <= adev->mc.visible_vram_size)
 		return 0;
 
