@@ -1862,11 +1862,11 @@ out:
 	return ret;
 }
 
-static unsigned int dev_poll(struct file *file, poll_table *wait)
+static __poll_t dev_poll(struct file *file, poll_table *wait)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 	__poll_t req_events = poll_requested_events(wait);
-	int ret = 0;
+	__poll_t ret = 0;
 
 	PDEBUG(D_FRAM, "poll");
 

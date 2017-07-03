@@ -1118,13 +1118,13 @@ done:
 }
 EXPORT_SYMBOL_GPL(videobuf_read_stream);
 
-unsigned int videobuf_poll_stream(struct file *file,
+__poll_t videobuf_poll_stream(struct file *file,
 				  struct videobuf_queue *q,
 				  poll_table *wait)
 {
 	__poll_t req_events = poll_requested_events(wait);
 	struct videobuf_buffer *buf = NULL;
-	unsigned int rc = 0;
+	__poll_t rc = 0;
 
 	videobuf_queue_lock(q);
 	if (q->streaming) {

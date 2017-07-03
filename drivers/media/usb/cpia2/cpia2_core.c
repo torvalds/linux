@@ -2370,10 +2370,10 @@ long cpia2_read(struct camera_data *cam,
  *  cpia2_poll
  *
  *****************************************************************************/
-unsigned int cpia2_poll(struct camera_data *cam, struct file *filp,
+__poll_t cpia2_poll(struct camera_data *cam, struct file *filp,
 			poll_table *wait)
 {
-	unsigned int status = v4l2_ctrl_poll(filp, wait);
+	__poll_t status = v4l2_ctrl_poll(filp, wait);
 
 	if ((poll_requested_events(wait) & (POLLIN | POLLRDNORM)) &&
 			!cam->streaming) {

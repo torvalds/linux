@@ -1255,7 +1255,7 @@ static int atomisp_file_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(&pipe->outq, vma);
 }
 
-static unsigned int atomisp_poll(struct file *file,
+static __poll_t atomisp_poll(struct file *file,
 				 struct poll_table_struct *pt)
 {
 	struct video_device *vdev = video_devdata(file);

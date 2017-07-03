@@ -1190,9 +1190,9 @@ static ssize_t pvr2_v4l2_read(struct file *file,
 }
 
 
-static unsigned int pvr2_v4l2_poll(struct file *file, poll_table *wait)
+static __poll_t pvr2_v4l2_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	int ret;
 

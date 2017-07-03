@@ -1149,12 +1149,12 @@ static ssize_t si476x_radio_fops_read(struct file *file, char __user *buf,
 	return rval;
 }
 
-static unsigned int si476x_radio_fops_poll(struct file *file,
+static __poll_t si476x_radio_fops_poll(struct file *file,
 				struct poll_table_struct *pts)
 {
 	struct si476x_radio *radio = video_drvdata(file);
 	__poll_t req_events = poll_requested_events(pts);
-	unsigned int err = v4l2_ctrl_poll(file, pts);
+	__poll_t err = v4l2_ctrl_poll(file, pts);
 
 	if (req_events & (POLLIN | POLLRDNORM)) {
 		if (atomic_read(&radio->core->is_alive))

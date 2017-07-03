@@ -1066,10 +1066,10 @@ static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
 	return dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
 }
 
-static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
+static __poll_t dvb_demux_poll(struct file *file, poll_table *wait)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if ((!dmxdevfilter) || dmxdevfilter->dev->exit)
 		return POLLERR;
@@ -1160,11 +1160,11 @@ static long dvb_dvr_ioctl(struct file *file,
 	return dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
 }
 
-static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
+static __poll_t dvb_dvr_poll(struct file *file, poll_table *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	dprintk("%s\n", __func__);
 

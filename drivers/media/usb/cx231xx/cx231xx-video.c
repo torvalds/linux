@@ -2006,12 +2006,12 @@ cx231xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
  * cx231xx_v4l2_poll()
  * will allocate buffers when called for the first time
  */
-static unsigned int cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
+static __poll_t cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t req_events = poll_requested_events(wait);
 	struct cx231xx_fh *fh = filp->private_data;
 	struct cx231xx *dev = fh->dev;
-	unsigned res = 0;
+	__poll_t res = 0;
 	int rc;
 
 	rc = check_dev(dev);

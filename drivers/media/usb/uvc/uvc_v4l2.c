@@ -1423,7 +1423,7 @@ static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 	return uvc_queue_mmap(&stream->queue, vma);
 }
 
-static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
+static __poll_t uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
 	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;

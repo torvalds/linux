@@ -2467,7 +2467,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 }
 
 
-static unsigned int dvb_frontend_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t dvb_frontend_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;

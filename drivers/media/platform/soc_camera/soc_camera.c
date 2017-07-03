@@ -805,7 +805,7 @@ static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
 	return err;
 }
 
-static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
+static __poll_t soc_camera_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);

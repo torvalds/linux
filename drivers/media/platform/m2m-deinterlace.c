@@ -950,11 +950,11 @@ static int deinterlace_release(struct file *file)
 	return 0;
 }
 
-static unsigned int deinterlace_poll(struct file *file,
+static __poll_t deinterlace_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct deinterlace_ctx *ctx = file->private_data;
-	int ret;
+	__poll_t ret;
 
 	deinterlace_lock(ctx);
 	ret = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);

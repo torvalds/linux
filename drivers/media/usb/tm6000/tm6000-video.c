@@ -1423,13 +1423,13 @@ tm6000_read(struct file *file, char __user *data, size_t count, loff_t *pos)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 __tm6000_poll(struct file *file, struct poll_table_struct *wait)
 {
 	__poll_t req_events = poll_requested_events(wait);
 	struct tm6000_fh        *fh = file->private_data;
 	struct tm6000_buffer    *buf;
-	int res = 0;
+	__poll_t res = 0;
 
 	if (v4l2_event_pending(&fh->fh))
 		res = POLLPRI;
@@ -1457,11 +1457,11 @@ __tm6000_poll(struct file *file, struct poll_table_struct *wait)
 	return res;
 }
 
-static unsigned int tm6000_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t tm6000_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct tm6000_fh *fh = file->private_data;
 	struct tm6000_core *dev = fh->dev;
-	unsigned int res;
+	__poll_t res;
 
 	mutex_lock(&dev->lock);
 	res = __tm6000_poll(file, wait);

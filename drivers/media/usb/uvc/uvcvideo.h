@@ -678,7 +678,7 @@ extern struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 		struct uvc_buffer *buf);
 extern int uvc_queue_mmap(struct uvc_video_queue *queue,
 		struct vm_area_struct *vma);
-extern unsigned int uvc_queue_poll(struct uvc_video_queue *queue,
+extern __poll_t uvc_queue_poll(struct uvc_video_queue *queue,
 		struct file *file, poll_table *wait);
 #ifndef CONFIG_MMU
 extern unsigned long uvc_queue_get_unmapped_area(struct uvc_video_queue *queue,

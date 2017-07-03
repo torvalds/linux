@@ -671,11 +671,11 @@ void vb2_queue_release(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(vb2_queue_release);
 
-unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
+__poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 {
 	struct video_device *vfd = video_devdata(file);
 	__poll_t req_events = poll_requested_events(wait);
-	unsigned int res = 0;
+	__poll_t res = 0;
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
@@ -904,12 +904,12 @@ exit:
 }
 EXPORT_SYMBOL_GPL(vb2_fop_read);
 
-unsigned int vb2_fop_poll(struct file *file, poll_table *wait)
+__poll_t vb2_fop_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct vb2_queue *q = vdev->queue;
 	struct mutex *lock = q->lock ? q->lock : vdev->lock;
-	unsigned res;
+	__poll_t res;
 	void *fileio;
 
 	/*

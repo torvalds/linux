@@ -2018,7 +2018,7 @@ void vb2_core_queue_release(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(vb2_core_queue_release);
 
-unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
+__poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 		poll_table *wait)
 {
 	__poll_t req_events = poll_requested_events(wait);

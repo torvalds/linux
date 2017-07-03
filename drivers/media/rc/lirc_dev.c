@@ -272,10 +272,10 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 }
 EXPORT_SYMBOL(lirc_dev_fop_close);
 
-unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
+__poll_t lirc_dev_fop_poll(struct file *file, poll_table *wait)
 {
 	struct lirc_dev *d = file->private_data;
-	unsigned int ret;
+	__poll_t ret;
 
 	if (!d->attached)
 		return POLLHUP | POLLERR;
