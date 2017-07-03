@@ -237,7 +237,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	char *buf;
-	size_t len = 0, buf_len = 4096;
+	size_t len = 0, buf_len = 8192;
 	const char *name;
 	ssize_t ret_cnt;
 	bool enabled;
