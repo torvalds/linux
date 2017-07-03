@@ -1126,11 +1126,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	adv7511->bridge.funcs = &adv7511_bridge_funcs;
 	adv7511->bridge.of_node = dev->of_node;
 
-	ret = drm_bridge_add(&adv7511->bridge);
-	if (ret) {
-		dev_err(dev, "failed to add adv7511 bridge\n");
-		goto err_unregister_cec;
-	}
+	drm_bridge_add(&adv7511->bridge);
 
 	adv7511_audio_init(dev, adv7511);
 
