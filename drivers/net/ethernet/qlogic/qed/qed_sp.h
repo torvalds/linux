@@ -104,12 +104,17 @@ union ramrod_data {
 	struct roce_query_qp_req_ramrod_data roce_query_qp_req;
 	struct roce_destroy_qp_resp_ramrod_data roce_destroy_qp_resp;
 	struct roce_destroy_qp_req_ramrod_data roce_destroy_qp_req;
+	struct roce_init_func_ramrod_data roce_init_func;
 	struct rdma_create_cq_ramrod_data rdma_create_cq;
 	struct rdma_destroy_cq_ramrod_data rdma_destroy_cq;
 	struct rdma_srq_create_ramrod_data rdma_create_srq;
 	struct rdma_srq_destroy_ramrod_data rdma_destroy_srq;
 	struct rdma_srq_modify_ramrod_data rdma_modify_srq;
-	struct roce_init_func_ramrod_data roce_init_func;
+	struct iwarp_create_qp_ramrod_data iwarp_create_qp;
+	struct iwarp_tcp_offload_ramrod_data iwarp_tcp_offload;
+	struct iwarp_mpa_offload_ramrod_data iwarp_mpa_offload;
+	struct iwarp_modify_qp_ramrod_data iwarp_modify_qp;
+	struct iwarp_init_func_ramrod_data iwarp_init_func;
 	struct fcoe_init_ramrod_params fcoe_init;
 	struct fcoe_conn_offload_ramrod_params fcoe_conn_ofld;
 	struct fcoe_conn_terminate_ramrod_params fcoe_conn_terminate;

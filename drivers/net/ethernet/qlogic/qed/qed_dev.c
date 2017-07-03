@@ -216,6 +216,10 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 	case QED_PCI_ETH_ROCE:
 		flags |= PQ_FLAGS_MCOS | PQ_FLAGS_OFLD | PQ_FLAGS_LLT;
 		break;
+	case QED_PCI_ETH_IWARP:
+		flags |= PQ_FLAGS_MCOS | PQ_FLAGS_ACK | PQ_FLAGS_OOO |
+		    PQ_FLAGS_OFLD;
+		break;
 	default:
 		DP_ERR(p_hwfn,
 		       "unknown personality %d\n", p_hwfn->hw_info.personality);
@@ -936,9 +940,16 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		/* EQ */
 		n_eqes = qed_chain_get_capacity(&p_hwfn->p_spq->chain);
-		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+		if (QED_IS_RDMA_PERSONALITY(p_hwfn)) {
+			enum protocol_type rdma_proto;
+
+			if (QED_IS_ROCE_PERSONALITY(p_hwfn))
+				rdma_proto = PROTOCOLID_ROCE;
+			else
+				rdma_proto = PROTOCOLID_IWARP;
+
 			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
-							       PROTOCOLID_ROCE,
+							       rdma_proto,
 							       NULL) * 2;
 			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB;
 		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
@@ -2057,7 +2068,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 	qed_int_get_num_sbs(p_hwfn, &sb_cnt);
 
 	if (IS_ENABLED(CONFIG_QED_RDMA) &&
-	    p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+	    QED_IS_RDMA_PERSONALITY(p_hwfn)) {
 		/* Roce CNQ each requires: 1 status block + 1 CNQ. We divide
 		 * the status blocks equally between L2 / RoCE but with
 		 * consideration as to how many l2 queues / cnqs we have.
@@ -2068,9 +2079,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 
 		non_l2_sbs = feat_num[QED_RDMA_CNQ];
 	}
-
-	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE ||
-	    p_hwfn->hw_info.personality == QED_PCI_ETH) {
+	if (QED_IS_L2_PERSONALITY(p_hwfn)) {
 		/* Start by allocating VF queues, then PF's */
 		feat_num[QED_VF_L2_QUE] = min_t(u32,
 						RESC_NUM(p_hwfn, QED_L2_QUEUE),
@@ -2083,12 +2092,12 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 							 QED_VF_L2_QUE));
 	}
 
-	if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
+	if (QED_IS_FCOE_PERSONALITY(p_hwfn))
 		feat_num[QED_FCOE_CQ] =  min_t(u32, sb_cnt.cnt,
 					       RESC_NUM(p_hwfn,
 							QED_CMDQS_CQS));
 
-	if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn))
 		feat_num[QED_ISCSI_CQ] = min_t(u32, sb_cnt.cnt,
 					       RESC_NUM(p_hwfn,
 							QED_CMDQS_CQS));
@@ -4121,4 +4130,15 @@ static int qed_device_num_ports(struct qed_dev *cdev)
 int qed_device_get_port_id(struct qed_dev *cdev)
 {
 	return (QED_LEADING_HWFN(cdev)->abs_pf_id) % qed_device_num_ports(cdev);
+}
+
+void qed_set_fw_mac_addr(__le16 *fw_msb,
+			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac)
+{
+	((u8 *)fw_msb)[0] = mac[1];
+	((u8 *)fw_msb)[1] = mac[0];
+	((u8 *)fw_mid)[0] = mac[3];
+	((u8 *)fw_mid)[1] = mac[2];
+	((u8 *)fw_lsb)[0] = mac[5];
+	((u8 *)fw_lsb)[1] = mac[4];
 }

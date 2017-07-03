@@ -161,7 +161,10 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	num_cons = qed_cxt_get_proto_cid_count(p_hwfn, p_rdma_info->proto,
 					       NULL);
 
-	p_rdma_info->num_qps = num_cons / 2;
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		p_rdma_info->num_qps = num_cons;
+	else
+		p_rdma_info->num_qps = num_cons / 2; /* 2 cids per qp */
 
 	num_tasks = qed_cxt_get_proto_tid_count(p_hwfn, PROTOCOLID_ROCE);
 
@@ -252,6 +255,13 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 			   "Failed to allocate real cid bitmap, rc = %d\n", rc);
 		goto free_cid_map;
 	}
+
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		rc = qed_iwarp_alloc(p_hwfn);
+
+	if (rc)
+		goto free_cid_map;
+
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocation successful\n");
 	return 0;
 
@@ -328,6 +338,9 @@ end:
 static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_info *p_rdma_info = p_hwfn->p_rdma_info;
+
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		qed_iwarp_resc_free(p_hwfn);
 
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->cid_map, 1);
 	qed_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->pd_map, 1);
@@ -470,6 +483,9 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 
 	if (pci_status_control & PCI_EXP_DEVCTL2_LTR_EN)
 		SET_FIELD(dev->dev_caps, QED_RDMA_DEV_CAP_ATOMIC_OP, 1);
+
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		qed_iwarp_init_devinfo(p_hwfn);
 }
 
 static void qed_rdma_init_port(struct qed_hwfn *p_hwfn)
@@ -490,29 +506,17 @@ static void qed_rdma_init_port(struct qed_hwfn *p_hwfn)
 
 static int qed_rdma_init_hw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 ll2_ethertype_en;
+	int rc = 0;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Initializing HW\n");
 	p_hwfn->b_rdma_enabled_in_prs = false;
 
-	qed_wr(p_hwfn, p_ptt, PRS_REG_ROCE_DEST_QP_MAX_PF, 0);
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		qed_iwarp_init_hw(p_hwfn, p_ptt);
+	else
+		rc = qed_roce_init_hw(p_hwfn, p_ptt);
 
-	p_hwfn->rdma_prs_search_reg = PRS_REG_SEARCH_ROCE;
-
-	/* We delay writing to this reg until first cid is allocated. See
-	 * qed_cxt_dynamic_ilt_alloc function for more details
-	 */
-	ll2_ethertype_en = qed_rd(p_hwfn, p_ptt, PRS_REG_LIGHT_L2_ETHERTYPE_EN);
-	qed_wr(p_hwfn, p_ptt, PRS_REG_LIGHT_L2_ETHERTYPE_EN,
-	       (ll2_ethertype_en | 0x01));
-
-	if (qed_cxt_get_proto_cid_start(p_hwfn, PROTOCOLID_ROCE) % 2) {
-		DP_NOTICE(p_hwfn, "The first RoCE's cid should be even\n");
-		return -EINVAL;
-	}
-
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Initializing HW - Done\n");
-	return 0;
+	return rc;
 }
 
 static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
@@ -544,7 +548,10 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	p_ramrod = &p_ent->ramrod.roce_init_func.rdma;
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		p_ramrod = &p_ent->ramrod.iwarp_init_func.rdma;
+	else
+		p_ramrod = &p_ent->ramrod.roce_init_func.rdma;
 
 	p_params_header = &p_ramrod->params_header;
 	p_params_header->cnq_start_offset = (u8)RESC_START(p_hwfn,
@@ -641,7 +648,15 @@ static int qed_rdma_setup(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	qed_roce_setup(p_hwfn);
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
+		rc = qed_iwarp_setup(p_hwfn, p_ptt, params);
+		if (rc)
+			return rc;
+	} else {
+		rc = qed_roce_setup(p_hwfn);
+		if (rc)
+			return rc;
+	}
 
 	return qed_rdma_start_fw(p_hwfn, params, p_ptt);
 }
@@ -675,7 +690,16 @@ int qed_rdma_stop(void *rdma_cxt)
 	qed_wr(p_hwfn, p_ptt, PRS_REG_LIGHT_L2_ETHERTYPE_EN,
 	       (ll2_ethertype_en & 0xFFFE));
 
-	qed_roce_stop(p_hwfn);
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
+		rc = qed_iwarp_stop(p_hwfn, p_ptt);
+		if (rc) {
+			qed_ptt_release(p_hwfn, p_ptt);
+			return rc;
+		}
+	} else {
+		qed_roce_stop(p_hwfn);
+	}
+
 	qed_ptt_release(p_hwfn, p_ptt);
 
 	/* Get SPQ entry */
@@ -810,7 +834,9 @@ static int qed_fill_rdma_dev_info(struct qed_dev *cdev,
 
 	memset(info, 0, sizeof(*info));
 
-	info->rdma_type = QED_RDMA_TYPE_ROCE;
+	info->rdma_type = QED_IS_ROCE_PERSONALITY(p_hwfn) ?
+	    QED_RDMA_TYPE_ROCE : QED_RDMA_TYPE_IWARP;
+
 	info->user_dpm_enabled = (p_hwfn->db_bar_no_edpm == 0);
 
 	qed_fill_dev_info(cdev, &info->common);
@@ -1112,7 +1138,7 @@ static int qed_rdma_query_qp(void *rdma_cxt,
 			     struct qed_rdma_query_qp_out_params *out_params)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
-	int rc;
+	int rc = 0;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
@@ -1138,7 +1164,10 @@ static int qed_rdma_query_qp(void *rdma_cxt,
 	out_params->max_dest_rd_atomic = qp->max_rd_atomic_resp;
 	out_params->sqd_async = qp->sqd_async;
 
-	rc = qed_roce_query_qp(p_hwfn, qp, out_params);
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		qed_iwarp_query_qp(qp, out_params);
+	else
+		rc = qed_roce_query_qp(p_hwfn, qp, out_params);
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Query QP, rc = %d\n", rc);
 	return rc;
@@ -1151,7 +1180,10 @@ static int qed_rdma_destroy_qp(void *rdma_cxt, struct qed_rdma_qp *qp)
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
-	rc = qed_roce_destroy_qp(p_hwfn, qp);
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn))
+		rc = qed_iwarp_destroy_qp(p_hwfn, qp);
+	else
+		rc = qed_roce_destroy_qp(p_hwfn, qp);
 
 	/* free qp params struct */
 	kfree(qp);
@@ -1190,19 +1222,26 @@ qed_rdma_create_qp(void *rdma_cxt,
 		return NULL;
 	}
 
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
+		if (in_params->sq_num_pages * sizeof(struct regpair) >
+		    IWARP_SHARED_QUEUE_PAGE_SQ_PBL_MAX_SIZE) {
+			DP_NOTICE(p_hwfn->cdev,
+				  "Sq num pages: %d exceeds maximum\n",
+				  in_params->sq_num_pages);
+			return NULL;
+		}
+		if (in_params->rq_num_pages * sizeof(struct regpair) >
+		    IWARP_SHARED_QUEUE_PAGE_RQ_PBL_MAX_SIZE) {
+			DP_NOTICE(p_hwfn->cdev,
+				  "Rq num pages: %d exceeds maximum\n",
+				  in_params->rq_num_pages);
+			return NULL;
+		}
+	}
+
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return NULL;
-
-	rc = qed_roce_alloc_cid(p_hwfn, &qp->icid);
-	qp->qpid = ((0xFF << 16) | qp->icid);
-
-	DP_INFO(p_hwfn, "ROCE qpid=%x\n", qp->qpid);
-
-	if (rc) {
-		kfree(qp);
-		return NULL;
-	}
 
 	qp->cur_state = QED_ROCE_QP_STATE_RESET;
 	qp->qp_handle.hi = cpu_to_le32(in_params->qp_handle_hi);
@@ -1225,6 +1264,19 @@ qed_rdma_create_qp(void *rdma_cxt,
 	qp->resp_offloaded = false;
 	qp->e2e_flow_control_en = qp->use_srq ? false : true;
 	qp->stats_queue = in_params->stats_queue;
+
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
+		rc = qed_iwarp_create_qp(p_hwfn, qp, out_params);
+		qp->qpid = qp->icid;
+	} else {
+		rc = qed_roce_alloc_cid(p_hwfn, &qp->icid);
+		qp->qpid = ((0xFF << 16) | qp->icid);
+	}
+
+	if (rc) {
+		kfree(qp);
+		return NULL;
+	}
 
 	out_params->icid = qp->icid;
 	out_params->qp_id = qp->qpid;
@@ -1324,7 +1376,14 @@ static int qed_rdma_modify_qp(void *rdma_cxt,
 			   qp->cur_state);
 	}
 
-	rc = qed_roce_modify_qp(p_hwfn, qp, prev_state, params);
+	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
+		enum qed_iwarp_qp_state new_state =
+		    qed_roce2iwarp_state(qp->cur_state);
+
+		rc = qed_iwarp_modify_qp(p_hwfn, qp, new_state, 0);
+	} else {
+		rc = qed_roce_modify_qp(p_hwfn, qp, prev_state, params);
+	}
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Modify QP, rc = %d\n", rc);
 	return rc;
@@ -1713,6 +1772,12 @@ static const struct qed_rdma_ops qed_rdma_ops_pass = {
 	.ll2_set_fragment_of_tx_packet = &qed_ll2_set_fragment_of_tx_packet,
 	.ll2_set_mac_filter = &qed_roce_ll2_set_mac_filter,
 	.ll2_get_stats = &qed_ll2_get_stats,
+	.iwarp_connect = &qed_iwarp_connect,
+	.iwarp_create_listen = &qed_iwarp_create_listen,
+	.iwarp_destroy_listen = &qed_iwarp_destroy_listen,
+	.iwarp_accept = &qed_iwarp_accept,
+	.iwarp_reject = &qed_iwarp_reject,
+	.iwarp_send_rtr = &qed_iwarp_send_rtr,
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void)

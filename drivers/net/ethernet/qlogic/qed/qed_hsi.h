@@ -46,6 +46,7 @@
 #include <linux/qed/fcoe_common.h>
 #include <linux/qed/eth_common.h>
 #include <linux/qed/iscsi_common.h>
+#include <linux/qed/iwarp_common.h>
 #include <linux/qed/rdma_common.h>
 #include <linux/qed/roce_common.h>
 #include <linux/qed/qed_fcoe_if.h>

@@ -470,6 +470,101 @@ struct qed_rdma_counters_out_params {
 #define QED_ROCE_TX_HEAD_FAILURE        (1)
 #define QED_ROCE_TX_FRAG_FAILURE        (2)
 
+enum qed_iwarp_event_type {
+	QED_IWARP_EVENT_MPA_REQUEST,	  /* Passive side request received */
+	QED_IWARP_EVENT_PASSIVE_COMPLETE, /* ack on mpa response */
+	QED_IWARP_EVENT_ACTIVE_COMPLETE,  /* Active side reply received */
+	QED_IWARP_EVENT_DISCONNECT,
+	QED_IWARP_EVENT_CLOSE,
+	QED_IWARP_EVENT_IRQ_FULL,
+	QED_IWARP_EVENT_RQ_EMPTY,
+	QED_IWARP_EVENT_LLP_TIMEOUT,
+	QED_IWARP_EVENT_REMOTE_PROTECTION_ERROR,
+	QED_IWARP_EVENT_CQ_OVERFLOW,
+	QED_IWARP_EVENT_QP_CATASTROPHIC,
+	QED_IWARP_EVENT_ACTIVE_MPA_REPLY,
+	QED_IWARP_EVENT_LOCAL_ACCESS_ERROR,
+	QED_IWARP_EVENT_REMOTE_OPERATION_ERROR,
+	QED_IWARP_EVENT_TERMINATE_RECEIVED
+};
+
+enum qed_tcp_ip_version {
+	QED_TCP_IPV4,
+	QED_TCP_IPV6,
+};
+
+struct qed_iwarp_cm_info {
+	enum qed_tcp_ip_version ip_version;
+	u32 remote_ip[4];
+	u32 local_ip[4];
+	u16 remote_port;
+	u16 local_port;
+	u16 vlan;
+	u8 ord;
+	u8 ird;
+	u16 private_data_len;
+	const void *private_data;
+};
+
+struct qed_iwarp_cm_event_params {
+	enum qed_iwarp_event_type event;
+	const struct qed_iwarp_cm_info *cm_info;
+	void *ep_context;	/* To be passed to accept call */
+	int status;
+};
+
+typedef int (*iwarp_event_handler) (void *context,
+				    struct qed_iwarp_cm_event_params *event);
+
+struct qed_iwarp_connect_in {
+	iwarp_event_handler event_cb;
+	void *cb_context;
+	struct qed_rdma_qp *qp;
+	struct qed_iwarp_cm_info cm_info;
+	u16 mss;
+	u8 remote_mac_addr[ETH_ALEN];
+	u8 local_mac_addr[ETH_ALEN];
+};
+
+struct qed_iwarp_connect_out {
+	void *ep_context;
+};
+
+struct qed_iwarp_listen_in {
+	iwarp_event_handler event_cb;
+	void *cb_context;	/* passed to event_cb */
+	u32 max_backlog;
+	enum qed_tcp_ip_version ip_version;
+	u32 ip_addr[4];
+	u16 port;
+	u16 vlan;
+};
+
+struct qed_iwarp_listen_out {
+	void *handle;
+};
+
+struct qed_iwarp_accept_in {
+	void *ep_context;
+	void *cb_context;
+	struct qed_rdma_qp *qp;
+	const void *private_data;
+	u16 private_data_len;
+	u8 ord;
+	u8 ird;
+};
+
+struct qed_iwarp_reject_in {
+	void *ep_context;
+	void *cb_context;
+	const void *private_data;
+	u16 private_data_len;
+};
+
+struct qed_iwarp_send_rtr_in {
+	void *ep_context;
+};
+
 struct qed_roce_ll2_header {
 	void *vaddr;
 	dma_addr_t baddr;
@@ -491,6 +586,7 @@ struct qed_roce_ll2_packet {
 
 enum qed_rdma_type {
 	QED_RDMA_TYPE_ROCE,
+	QED_RDMA_TYPE_IWARP
 };
 
 struct qed_dev_rdma_info {
@@ -575,6 +671,24 @@ struct qed_rdma_ops {
 	int (*ll2_set_mac_filter)(struct qed_dev *cdev,
 				  u8 *old_mac_address, u8 *new_mac_address);
 
+	int (*iwarp_connect)(void *rdma_cxt,
+			     struct qed_iwarp_connect_in *iparams,
+			     struct qed_iwarp_connect_out *oparams);
+
+	int (*iwarp_create_listen)(void *rdma_cxt,
+				   struct qed_iwarp_listen_in *iparams,
+				   struct qed_iwarp_listen_out *oparams);
+
+	int (*iwarp_accept)(void *rdma_cxt,
+			    struct qed_iwarp_accept_in *iparams);
+
+	int (*iwarp_reject)(void *rdma_cxt,
+			    struct qed_iwarp_reject_in *iparams);
+
+	int (*iwarp_destroy_listen)(void *rdma_cxt, void *handle);
+
+	int (*iwarp_send_rtr)(void *rdma_cxt,
+			      struct qed_iwarp_send_rtr_in *iparams);
 };
 
 const struct qed_rdma_ops *qed_get_rdma_ops(void);

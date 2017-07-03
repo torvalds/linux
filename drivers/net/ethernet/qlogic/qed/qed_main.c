@@ -237,6 +237,8 @@ err0:
 int qed_fill_dev_info(struct qed_dev *cdev,
 		      struct qed_dev_info *dev_info)
 {
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_hw_info *hw_info = &p_hwfn->hw_info;
 	struct qed_tunnel_info *tun = &cdev->tunnel;
 	struct qed_ptt  *ptt;
 
@@ -260,11 +262,10 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->pci_mem_start = cdev->pci_params.mem_start;
 	dev_info->pci_mem_end = cdev->pci_params.mem_end;
 	dev_info->pci_irq = cdev->pci_params.irq;
-	dev_info->rdma_supported = (cdev->hwfns[0].hw_info.personality ==
-				    QED_PCI_ETH_ROCE);
+	dev_info->rdma_supported = QED_IS_RDMA_PERSONALITY(p_hwfn);
 	dev_info->is_mf_default = IS_MF_DEFAULT(&cdev->hwfns[0]);
 	dev_info->dev_type = cdev->type;
-	ether_addr_copy(dev_info->hw_mac, cdev->hwfns[0].hw_info.hw_mac_addr);
+	ether_addr_copy(dev_info->hw_mac, hw_info->hw_mac_addr);
 
 	if (IS_PF(cdev)) {
 		dev_info->fw_major = FW_MAJOR_VERSION;
@@ -274,8 +275,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		dev_info->mf_mode = cdev->mf_mode;
 		dev_info->tx_switching = true;
 
-		if (QED_LEADING_HWFN(cdev)->hw_info.b_wol_support ==
-		    QED_WOL_SUPPORT_PME)
+		if (hw_info->b_wol_support == QED_WOL_SUPPORT_PME)
 			dev_info->wol_support = true;
 
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
@@ -304,7 +304,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 				    &dev_info->mfw_rev, NULL);
 	}
 
-	dev_info->mtu = QED_LEADING_HWFN(cdev)->hw_info.mtu;
+	dev_info->mtu = hw_info->mtu;
 
 	return 0;
 }
@@ -790,7 +790,7 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 				       cdev->num_hwfns;
 
 	if (!IS_ENABLED(CONFIG_QED_RDMA) ||
-	    QED_LEADING_HWFN(cdev)->hw_info.personality != QED_PCI_ETH_ROCE)
+	    !QED_IS_RDMA_PERSONALITY(QED_LEADING_HWFN(cdev)))
 		return 0;
 
 	for_each_hwfn(cdev, i)
@@ -931,8 +931,7 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 	/* In case we might support RDMA, don't allow qede to be greedy
 	 * with the L2 contexts. Allow for 64 queues [rx, tx, xdp] per hwfn.
 	 */
-	if (QED_LEADING_HWFN(cdev)->hw_info.personality ==
-	    QED_PCI_ETH_ROCE) {
+	if (QED_IS_RDMA_PERSONALITY(QED_LEADING_HWFN(cdev))) {
 		u16 *num_cons;
 
 		num_cons = &params->eth_pf_params.num_cons;
