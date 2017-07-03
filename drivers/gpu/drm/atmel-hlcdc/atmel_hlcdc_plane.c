@@ -940,7 +940,7 @@ void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane)
 			desc->name);
 }
 
-static struct drm_plane_helper_funcs atmel_hlcdc_layer_plane_helper_funcs = {
+static const struct drm_plane_helper_funcs atmel_hlcdc_layer_plane_helper_funcs = {
 	.atomic_check = atmel_hlcdc_plane_atomic_check,
 	.atomic_update = atmel_hlcdc_plane_atomic_update,
 	.atomic_disable = atmel_hlcdc_plane_atomic_disable,
@@ -1049,7 +1049,7 @@ static void atmel_hlcdc_plane_atomic_destroy_state(struct drm_plane *p,
 	kfree(state);
 }
 
-static struct drm_plane_funcs layer_plane_funcs = {
+static const struct drm_plane_funcs layer_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.set_property = drm_atomic_helper_plane_set_property,
