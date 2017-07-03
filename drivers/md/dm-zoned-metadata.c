@@ -191,12 +191,12 @@ unsigned int dmz_id(struct dmz_metadata *zmd, struct dm_zone *zone)
 
 sector_t dmz_start_sect(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
-	return dmz_id(zmd, zone) << zmd->dev->zone_nr_sectors_shift;
+	return (sector_t)dmz_id(zmd, zone) << zmd->dev->zone_nr_sectors_shift;
 }
 
 sector_t dmz_start_block(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
-	return dmz_id(zmd, zone) << zmd->dev->zone_nr_blocks_shift;
+	return (sector_t)dmz_id(zmd, zone) << zmd->dev->zone_nr_blocks_shift;
 }
 
 unsigned int dmz_nr_chunks(struct dmz_metadata *zmd)
