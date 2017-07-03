@@ -1115,6 +1115,67 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	return ttm_bo_eviction_valuable(bo, place);
 }
 
+static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
+				    unsigned long offset,
+				    void *buf, int len, int write)
+{
+	struct amdgpu_bo *abo = container_of(bo, struct amdgpu_bo, tbo);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
+	struct drm_mm_node *nodes = abo->tbo.mem.mm_node;
+	uint32_t value = 0;
+	int ret = 0;
+	uint64_t pos;
+	unsigned long flags;
+
+	if (bo->mem.mem_type != TTM_PL_VRAM)
+		return -EIO;
+
+	while (offset >= (nodes->size << PAGE_SHIFT)) {
+		offset -= nodes->size << PAGE_SHIFT;
+		++nodes;
+	}
+	pos = (nodes->start << PAGE_SHIFT) + offset;
+
+	while (len && pos < adev->mc.mc_vram_size) {
+		uint64_t aligned_pos = pos & ~(uint64_t)3;
+		uint32_t bytes = 4 - (pos & 3);
+		uint32_t shift = (pos & 3) * 8;
+		uint32_t mask = 0xffffffff << shift;
+
+		if (len < bytes) {
+			mask &= 0xffffffff >> (bytes - len) * 8;
+			bytes = len;
+		}
+
+		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
+		WREG32(mmMM_INDEX, ((uint32_t)aligned_pos) | 0x80000000);
+		WREG32(mmMM_INDEX_HI, aligned_pos >> 31);
+		if (!write || mask != 0xffffffff)
+			value = RREG32(mmMM_DATA);
+		if (write) {
+			value &= ~mask;
+			value |= (*(uint32_t *)buf << shift) & mask;
+			WREG32(mmMM_DATA, value);
+		}
+		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
+		if (!write) {
+			value = (value & mask) >> shift;
+			memcpy(buf, &value, bytes);
+		}
+
+		ret += bytes;
+		buf = (uint8_t *)buf + bytes;
+		pos += bytes;
+		len -= bytes;
+		if (pos >= (nodes->start + nodes->size) << PAGE_SHIFT) {
+			++nodes;
+			pos = (nodes->start << PAGE_SHIFT);
+		}
+	}
+
+	return ret;
+}
+
 static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_create = &amdgpu_ttm_tt_create,
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
@@ -1130,6 +1191,7 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_free = &amdgpu_ttm_io_mem_free,
 	.io_mem_pfn = amdgpu_ttm_io_mem_pfn,
+	.access_memory = &amdgpu_ttm_access_memory
 };
 
 int amdgpu_ttm_init(struct amdgpu_device *adev)
