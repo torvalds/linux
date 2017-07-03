@@ -2051,8 +2051,8 @@ static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
 		return ret;
 
 	if (skb_is_gso(skb)) {
-		/* SKB_GSO_UDP stays as is. SKB_GSO_TCPV4 needs to
-		 * be changed into SKB_GSO_TCPV6.
+		/* SKB_GSO_TCPV4 needs to be changed into
+		 * SKB_GSO_TCPV6.
 		 */
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4) {
 			skb_shinfo(skb)->gso_type &= ~SKB_GSO_TCPV4;
@@ -2087,8 +2087,8 @@ static int bpf_skb_proto_6_to_4(struct sk_buff *skb)
 		return ret;
 
 	if (skb_is_gso(skb)) {
-		/* SKB_GSO_UDP stays as is. SKB_GSO_TCPV6 needs to
-		 * be changed into SKB_GSO_TCPV4.
+		/* SKB_GSO_TCPV6 needs to be changed into
+		 * SKB_GSO_TCPV4.
 		 */
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6) {
 			skb_shinfo(skb)->gso_type &= ~SKB_GSO_TCPV6;
