@@ -546,20 +546,6 @@ static int check_reg_arg(struct bpf_reg_state *regs, u32 regno,
 	return 0;
 }
 
-static int bpf_size_to_bytes(int bpf_size)
-{
-	if (bpf_size == BPF_W)
-		return 4;
-	else if (bpf_size == BPF_H)
-		return 2;
-	else if (bpf_size == BPF_B)
-		return 1;
-	else if (bpf_size == BPF_DW)
-		return 8;
-	else
-		return -EINVAL;
-}
-
 static bool is_spillable_regtype(enum bpf_reg_type type)
 {
 	switch (type) {
@@ -761,7 +747,9 @@ static int check_packet_access(struct bpf_verifier_env *env, u32 regno, int off,
 static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off, int size,
 			    enum bpf_access_type t, enum bpf_reg_type *reg_type)
 {
-	struct bpf_insn_access_aux info = { .reg_type = *reg_type };
+	struct bpf_insn_access_aux info = {
+		.reg_type = *reg_type,
+	};
 
 	/* for analyzer ctx accesses are already validated and converted */
 	if (env->analyzer_ops)
@@ -769,25 +757,14 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 
 	if (env->prog->aux->ops->is_valid_access &&
 	    env->prog->aux->ops->is_valid_access(off, size, t, &info)) {
-		/* a non zero info.ctx_field_size indicates:
-		 * . For this field, the prog type specific ctx conversion algorithm
-		 *   only supports whole field access.
-		 * . This ctx access is a candiate for later verifier transformation
-		 *   to load the whole field and then apply a mask to get correct result.
-		 * a non zero info.converted_op_size indicates perceived actual converted
-		 * value width in convert_ctx_access.
+		/* A non zero info.ctx_field_size indicates that this field is a
+		 * candidate for later verifier transformation to load the whole
+		 * field and then apply a mask when accessed with a narrower
+		 * access than actual ctx access size. A zero info.ctx_field_size
+		 * will only allow for whole field access and rejects any other
+		 * type of narrower access.
 		 */
-		if ((info.ctx_field_size && !info.converted_op_size) ||
-		    (!info.ctx_field_size &&  info.converted_op_size)) {
-			verbose("verifier bug in is_valid_access prog type=%u off=%d size=%d\n",
-				env->prog->type, off, size);
-			return -EACCES;
-		}
-
-		if (info.ctx_field_size) {
-			env->insn_aux_data[insn_idx].ctx_field_size = info.ctx_field_size;
-			env->insn_aux_data[insn_idx].converted_op_size = info.converted_op_size;
-		}
+		env->insn_aux_data[insn_idx].ctx_field_size = info.ctx_field_size;
 		*reg_type = info.reg_type;
 
 		/* remember the offset of last byte accessed in ctx */
@@ -1680,6 +1657,65 @@ static int evaluate_reg_alu(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	return 0;
 }
 
+static int evaluate_reg_imm_alu_unknown(struct bpf_verifier_env *env,
+					struct bpf_insn *insn)
+{
+	struct bpf_reg_state *regs = env->cur_state.regs;
+	struct bpf_reg_state *dst_reg = &regs[insn->dst_reg];
+	struct bpf_reg_state *src_reg = &regs[insn->src_reg];
+	u8 opcode = BPF_OP(insn->code);
+	s64 imm_log2 = __ilog2_u64((long long)dst_reg->imm);
+
+	/* BPF_X code with src_reg->type UNKNOWN_VALUE here. */
+	if (src_reg->imm > 0 && dst_reg->imm) {
+		switch (opcode) {
+		case BPF_ADD:
+			/* dreg += sreg
+			 * where both have zero upper bits. Adding them
+			 * can only result making one more bit non-zero
+			 * in the larger value.
+			 * Ex. 0xffff (imm=48) + 1 (imm=63) = 0x10000 (imm=47)
+			 *     0xffff (imm=48) + 0xffff = 0x1fffe (imm=47)
+			 */
+			dst_reg->imm = min(src_reg->imm, 63 - imm_log2);
+			dst_reg->imm--;
+			break;
+		case BPF_AND:
+			/* dreg &= sreg
+			 * AND can not extend zero bits only shrink
+			 * Ex.  0x00..00ffffff
+			 *    & 0x0f..ffffffff
+			 *     ----------------
+			 *      0x00..00ffffff
+			 */
+			dst_reg->imm = max(src_reg->imm, 63 - imm_log2);
+			break;
+		case BPF_OR:
+			/* dreg |= sreg
+			 * OR can only extend zero bits
+			 * Ex.  0x00..00ffffff
+			 *    | 0x0f..ffffffff
+			 *     ----------------
+			 *      0x0f..00ffffff
+			 */
+			dst_reg->imm = min(src_reg->imm, 63 - imm_log2);
+			break;
+		case BPF_SUB:
+		case BPF_MUL:
+		case BPF_RSH:
+		case BPF_LSH:
+			/* These may be flushed out later */
+		default:
+			mark_reg_unknown_value(regs, insn->dst_reg);
+		}
+	} else {
+		mark_reg_unknown_value(regs, insn->dst_reg);
+	}
+
+	dst_reg->type = UNKNOWN_VALUE;
+	return 0;
+}
+
 static int evaluate_reg_imm_alu(struct bpf_verifier_env *env,
 				struct bpf_insn *insn)
 {
@@ -1688,6 +1724,9 @@ static int evaluate_reg_imm_alu(struct bpf_verifier_env *env,
 	struct bpf_reg_state *src_reg = &regs[insn->src_reg];
 	u8 opcode = BPF_OP(insn->code);
 	u64 dst_imm = dst_reg->imm;
+
+	if (BPF_SRC(insn->code) == BPF_X && src_reg->type == UNKNOWN_VALUE)
+		return evaluate_reg_imm_alu_unknown(env, insn);
 
 	/* dst_reg->type == CONST_IMM here. Simulate execution of insns
 	 * containing ALU ops. Don't care about overflow or negative
@@ -3401,11 +3440,13 @@ static struct bpf_prog *bpf_patch_insn_data(struct bpf_verifier_env *env, u32 of
 static int convert_ctx_accesses(struct bpf_verifier_env *env)
 {
 	const struct bpf_verifier_ops *ops = env->prog->aux->ops;
+	int i, cnt, size, ctx_field_size, delta = 0;
 	const int insn_cnt = env->prog->len;
 	struct bpf_insn insn_buf[16], *insn;
 	struct bpf_prog *new_prog;
 	enum bpf_access_type type;
-	int i, cnt, off, size, ctx_field_size, converted_op_size, is_narrower_load, delta = 0;
+	bool is_narrower_load;
+	u32 target_size;
 
 	if (ops->gen_prologue) {
 		cnt = ops->gen_prologue(insn_buf, env->seen_direct_write,
@@ -3445,39 +3486,50 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		if (env->insn_aux_data[i + delta].ptr_type != PTR_TO_CTX)
 			continue;
 
-		off = insn->off;
-		size = bpf_size_to_bytes(BPF_SIZE(insn->code));
 		ctx_field_size = env->insn_aux_data[i + delta].ctx_field_size;
-		converted_op_size = env->insn_aux_data[i + delta].converted_op_size;
-		is_narrower_load = type == BPF_READ && size < ctx_field_size;
+		size = BPF_LDST_BYTES(insn);
 
 		/* If the read access is a narrower load of the field,
 		 * convert to a 4/8-byte load, to minimum program type specific
 		 * convert_ctx_access changes. If conversion is successful,
 		 * we will apply proper mask to the result.
 		 */
+		is_narrower_load = size < ctx_field_size;
 		if (is_narrower_load) {
-			int size_code = BPF_H;
+			u32 off = insn->off;
+			u8 size_code;
 
+			if (type == BPF_WRITE) {
+				verbose("bpf verifier narrow ctx access misconfigured\n");
+				return -EINVAL;
+			}
+
+			size_code = BPF_H;
 			if (ctx_field_size == 4)
 				size_code = BPF_W;
 			else if (ctx_field_size == 8)
 				size_code = BPF_DW;
+
 			insn->off = off & ~(ctx_field_size - 1);
 			insn->code = BPF_LDX | BPF_MEM | size_code;
 		}
-		cnt = ops->convert_ctx_access(type, insn, insn_buf, env->prog);
-		if (cnt == 0 || cnt >= ARRAY_SIZE(insn_buf)) {
+
+		target_size = 0;
+		cnt = ops->convert_ctx_access(type, insn, insn_buf, env->prog,
+					      &target_size);
+		if (cnt == 0 || cnt >= ARRAY_SIZE(insn_buf) ||
+		    (ctx_field_size && !target_size)) {
 			verbose("bpf verifier is misconfigured\n");
 			return -EINVAL;
 		}
-		if (is_narrower_load && size < converted_op_size) {
+
+		if (is_narrower_load && size < target_size) {
 			if (ctx_field_size <= 4)
 				insn_buf[cnt++] = BPF_ALU32_IMM(BPF_AND, insn->dst_reg,
-							(1 << size * 8) - 1);
+								(1 << size * 8) - 1);
 			else
 				insn_buf[cnt++] = BPF_ALU64_IMM(BPF_AND, insn->dst_reg,
-							(1 << size * 8) - 1);
+								(1 << size * 8) - 1);
 		}
 
 		new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);

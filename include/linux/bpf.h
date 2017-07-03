@@ -156,8 +156,13 @@ struct bpf_prog;
 struct bpf_insn_access_aux {
 	enum bpf_reg_type reg_type;
 	int ctx_field_size;
-	int converted_op_size;
 };
+
+static inline void
+bpf_ctx_record_field_size(struct bpf_insn_access_aux *aux, u32 size)
+{
+	aux->ctx_field_size = size;
+}
 
 struct bpf_verifier_ops {
 	/* return eBPF function prototype for verification */
@@ -173,7 +178,7 @@ struct bpf_verifier_ops {
 	u32 (*convert_ctx_access)(enum bpf_access_type type,
 				  const struct bpf_insn *src,
 				  struct bpf_insn *dst,
-				  struct bpf_prog *prog);
+				  struct bpf_prog *prog, u32 *target_size);
 	int (*test_run)(struct bpf_prog *prog, const union bpf_attr *kattr,
 			union bpf_attr __user *uattr);
 };

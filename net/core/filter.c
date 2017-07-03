@@ -2012,7 +2012,7 @@ static int bpf_skb_net_hdr_pop(struct sk_buff *skb, u32 off, u32 len)
 static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
 {
 	const u32 len_diff = sizeof(struct ipv6hdr) - sizeof(struct iphdr);
-	u32 off = skb->network_header - skb->mac_header;
+	u32 off = skb_mac_header_len(skb);
 	int ret;
 
 	ret = skb_cow(skb, len_diff);
@@ -2048,7 +2048,7 @@ static int bpf_skb_proto_4_to_6(struct sk_buff *skb)
 static int bpf_skb_proto_6_to_4(struct sk_buff *skb)
 {
 	const u32 len_diff = sizeof(struct ipv6hdr) - sizeof(struct iphdr);
-	u32 off = skb->network_header - skb->mac_header;
+	u32 off = skb_mac_header_len(skb);
 	int ret;
 
 	ret = skb_unclone(skb, GFP_ATOMIC);
@@ -2154,6 +2154,124 @@ static const struct bpf_func_proto bpf_skb_change_type_proto = {
 	.arg2_type	= ARG_ANYTHING,
 };
 
+static u32 bpf_skb_net_base_len(const struct sk_buff *skb)
+{
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		return sizeof(struct iphdr);
+	case htons(ETH_P_IPV6):
+		return sizeof(struct ipv6hdr);
+	default:
+		return ~0U;
+	}
+}
+
+static int bpf_skb_net_grow(struct sk_buff *skb, u32 len_diff)
+{
+	u32 off = skb_mac_header_len(skb) + bpf_skb_net_base_len(skb);
+	int ret;
+
+	ret = skb_cow(skb, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = bpf_skb_net_hdr_push(skb, off, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	if (skb_is_gso(skb)) {
+		/* Due to header grow, MSS needs to be downgraded. */
+		skb_shinfo(skb)->gso_size -= len_diff;
+		/* Header must be checked, and gso_segs recomputed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
+
+	return 0;
+}
+
+static int bpf_skb_net_shrink(struct sk_buff *skb, u32 len_diff)
+{
+	u32 off = skb_mac_header_len(skb) + bpf_skb_net_base_len(skb);
+	int ret;
+
+	ret = skb_unclone(skb, GFP_ATOMIC);
+	if (unlikely(ret < 0))
+		return ret;
+
+	ret = bpf_skb_net_hdr_pop(skb, off, len_diff);
+	if (unlikely(ret < 0))
+		return ret;
+
+	if (skb_is_gso(skb)) {
+		/* Due to header shrink, MSS can be upgraded. */
+		skb_shinfo(skb)->gso_size += len_diff;
+		/* Header must be checked, and gso_segs recomputed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
+
+	return 0;
+}
+
+static u32 __bpf_skb_max_len(const struct sk_buff *skb)
+{
+	return skb->dev->mtu + skb->dev->hard_header_len;
+}
+
+static int bpf_skb_adjust_net(struct sk_buff *skb, s32 len_diff)
+{
+	bool trans_same = skb->transport_header == skb->network_header;
+	u32 len_cur, len_diff_abs = abs(len_diff);
+	u32 len_min = bpf_skb_net_base_len(skb);
+	u32 len_max = __bpf_skb_max_len(skb);
+	__be16 proto = skb->protocol;
+	bool shrink = len_diff < 0;
+	int ret;
+
+	if (unlikely(len_diff_abs > 0xfffU))
+		return -EFAULT;
+	if (unlikely(proto != htons(ETH_P_IP) &&
+		     proto != htons(ETH_P_IPV6)))
+		return -ENOTSUPP;
+
+	len_cur = skb->len - skb_network_offset(skb);
+	if (skb_transport_header_was_set(skb) && !trans_same)
+		len_cur = skb_network_header_len(skb);
+	if ((shrink && (len_diff_abs >= len_cur ||
+			len_cur - len_diff_abs < len_min)) ||
+	    (!shrink && (skb->len + len_diff_abs > len_max &&
+			 !skb_is_gso(skb))))
+		return -ENOTSUPP;
+
+	ret = shrink ? bpf_skb_net_shrink(skb, len_diff_abs) :
+		       bpf_skb_net_grow(skb, len_diff_abs);
+
+	bpf_compute_data_end(skb);
+	return 0;
+}
+
+BPF_CALL_4(bpf_skb_adjust_room, struct sk_buff *, skb, s32, len_diff,
+	   u32, mode, u64, flags)
+{
+	if (unlikely(flags))
+		return -EINVAL;
+	if (likely(mode == BPF_ADJ_ROOM_NET))
+		return bpf_skb_adjust_net(skb, len_diff);
+
+	return -ENOTSUPP;
+}
+
+static const struct bpf_func_proto bpf_skb_adjust_room_proto = {
+	.func		= bpf_skb_adjust_room,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_ANYTHING,
+};
+
 static u32 __bpf_skb_min_len(const struct sk_buff *skb)
 {
 	u32 min_len = skb_network_offset(skb);
@@ -2164,11 +2282,6 @@ static u32 __bpf_skb_min_len(const struct sk_buff *skb)
 		min_len = skb_checksum_start_offset(skb) +
 			  skb->csum_offset + sizeof(__sum16);
 	return min_len;
-}
-
-static u32 __bpf_skb_max_len(const struct sk_buff *skb)
-{
-	return skb->dev->mtu + skb->dev->hard_header_len;
 }
 
 static int bpf_skb_grow_rcsum(struct sk_buff *skb, unsigned int new_len)
@@ -2307,6 +2420,7 @@ bool bpf_helper_changes_pkt_data(void *func)
 	    func == bpf_skb_change_proto ||
 	    func == bpf_skb_change_head ||
 	    func == bpf_skb_change_tail ||
+	    func == bpf_skb_adjust_room ||
 	    func == bpf_skb_pull_data ||
 	    func == bpf_clone_redirect ||
 	    func == bpf_l3_csum_replace ||
@@ -2849,6 +2963,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_skb_change_proto_proto;
 	case BPF_FUNC_skb_change_type:
 		return &bpf_skb_change_type_proto;
+	case BPF_FUNC_skb_adjust_room:
+		return &bpf_skb_adjust_room_proto;
 	case BPF_FUNC_skb_change_tail:
 		return &bpf_skb_change_tail_proto;
 	case BPF_FUNC_skb_get_tunnel_key:
@@ -2972,38 +3088,11 @@ lwt_xmit_func_proto(enum bpf_func_id func_id)
 	}
 }
 
-static void __set_access_aux_info(int off, struct bpf_insn_access_aux *info)
+static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type,
+				    struct bpf_insn_access_aux *info)
 {
-	info->ctx_field_size = 4;
-	switch (off) {
-	case offsetof(struct __sk_buff, pkt_type) ...
-	     offsetof(struct __sk_buff, pkt_type) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, vlan_present) ...
-	     offsetof(struct __sk_buff, vlan_present) + sizeof(__u32) - 1:
-		info->converted_op_size = 1;
-		break;
-	case offsetof(struct __sk_buff, queue_mapping) ...
-	     offsetof(struct __sk_buff, queue_mapping) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, protocol) ...
-	     offsetof(struct __sk_buff, protocol) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, vlan_tci) ...
-	     offsetof(struct __sk_buff, vlan_tci) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, vlan_proto) ...
-	     offsetof(struct __sk_buff, vlan_proto) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, tc_index) ...
-	     offsetof(struct __sk_buff, tc_index) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, tc_classid) ...
-	     offsetof(struct __sk_buff, tc_classid) + sizeof(__u32) - 1:
-		info->converted_op_size = 2;
-		break;
-	default:
-		info->converted_op_size = 4;
-	}
-}
+	const int size_default = sizeof(__u32);
 
-static bool __is_valid_access(int off, int size, enum bpf_access_type type,
-			      struct bpf_insn_access_aux *info)
-{
 	if (off < 0 || off >= sizeof(struct __sk_buff))
 		return false;
 
@@ -3012,40 +3101,24 @@ static bool __is_valid_access(int off, int size, enum bpf_access_type type,
 		return false;
 
 	switch (off) {
-	case offsetof(struct __sk_buff, cb[0]) ...
-	     offsetof(struct __sk_buff, cb[4]) + sizeof(__u32) - 1:
-		if (off + size >
-		    offsetof(struct __sk_buff, cb[4]) + sizeof(__u32))
+	case bpf_ctx_range_till(struct __sk_buff, cb[0], cb[4]):
+		if (off + size > offsetofend(struct __sk_buff, cb[4]))
 			return false;
 		break;
-	case offsetof(struct __sk_buff, data) ...
-	     offsetof(struct __sk_buff, data) + sizeof(__u32) - 1:
-		if (size != sizeof(__u32))
+	case bpf_ctx_range(struct __sk_buff, data):
+	case bpf_ctx_range(struct __sk_buff, data_end):
+		if (size != size_default)
 			return false;
-		info->reg_type = PTR_TO_PACKET;
-		break;
-	case offsetof(struct __sk_buff, data_end) ...
-	     offsetof(struct __sk_buff, data_end) + sizeof(__u32) - 1:
-		if (size != sizeof(__u32))
-			return false;
-		info->reg_type = PTR_TO_PACKET_END;
 		break;
 	default:
+		/* Only narrow read access allowed for now. */
 		if (type == BPF_WRITE) {
-			if (size != sizeof(__u32))
+			if (size != size_default)
 				return false;
 		} else {
-			int allowed;
-
-			/* permit narrower load for not cb/data/data_end fields */
-#ifdef __LITTLE_ENDIAN
-			allowed = (off & 0x3) == 0 && size <= 4 && (size & (size - 1)) == 0;
-#else
-			allowed = (off & 0x3) + size == 4 && size <= 4 && (size & (size - 1)) == 0;
-#endif
-			if (!allowed)
+			bpf_ctx_record_field_size(info, size_default);
+			if (!bpf_ctx_narrow_access_ok(off, size, size_default))
 				return false;
-			__set_access_aux_info(off, info);
 		}
 	}
 
@@ -3057,26 +3130,22 @@ static bool sk_filter_is_valid_access(int off, int size,
 				      struct bpf_insn_access_aux *info)
 {
 	switch (off) {
-	case offsetof(struct __sk_buff, tc_classid) ...
-	     offsetof(struct __sk_buff, tc_classid) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, data) ...
-	     offsetof(struct __sk_buff, data) + sizeof(__u32) - 1:
-	case offsetof(struct __sk_buff, data_end) ...
-	     offsetof(struct __sk_buff, data_end) + sizeof(__u32) - 1:
+	case bpf_ctx_range(struct __sk_buff, tc_classid):
+	case bpf_ctx_range(struct __sk_buff, data):
+	case bpf_ctx_range(struct __sk_buff, data_end):
 		return false;
 	}
 
 	if (type == BPF_WRITE) {
 		switch (off) {
-		case offsetof(struct __sk_buff, cb[0]) ...
-		     offsetof(struct __sk_buff, cb[4]) + sizeof(__u32) - 1:
+		case bpf_ctx_range_till(struct __sk_buff, cb[0], cb[4]):
 			break;
 		default:
 			return false;
 		}
 	}
 
-	return __is_valid_access(off, size, type, info);
+	return bpf_skb_is_valid_access(off, size, type, info);
 }
 
 static bool lwt_is_valid_access(int off, int size,
@@ -3084,24 +3153,31 @@ static bool lwt_is_valid_access(int off, int size,
 				struct bpf_insn_access_aux *info)
 {
 	switch (off) {
-	case offsetof(struct __sk_buff, tc_classid) ...
-	     offsetof(struct __sk_buff, tc_classid) + sizeof(__u32) - 1:
+	case bpf_ctx_range(struct __sk_buff, tc_classid):
 		return false;
 	}
 
 	if (type == BPF_WRITE) {
 		switch (off) {
-		case offsetof(struct __sk_buff, mark):
-		case offsetof(struct __sk_buff, priority):
-		case offsetof(struct __sk_buff, cb[0]) ...
-		     offsetof(struct __sk_buff, cb[4]) + sizeof(__u32) - 1:
+		case bpf_ctx_range(struct __sk_buff, mark):
+		case bpf_ctx_range(struct __sk_buff, priority):
+		case bpf_ctx_range_till(struct __sk_buff, cb[0], cb[4]):
 			break;
 		default:
 			return false;
 		}
 	}
 
-	return __is_valid_access(off, size, type, info);
+	switch (off) {
+	case bpf_ctx_range(struct __sk_buff, data):
+		info->reg_type = PTR_TO_PACKET;
+		break;
+	case bpf_ctx_range(struct __sk_buff, data_end):
+		info->reg_type = PTR_TO_PACKET_END;
+		break;
+	}
+
+	return bpf_skb_is_valid_access(off, size, type, info);
 }
 
 static bool sock_filter_is_valid_access(int off, int size,
@@ -3173,19 +3249,27 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 {
 	if (type == BPF_WRITE) {
 		switch (off) {
-		case offsetof(struct __sk_buff, mark):
-		case offsetof(struct __sk_buff, tc_index):
-		case offsetof(struct __sk_buff, priority):
-		case offsetof(struct __sk_buff, cb[0]) ...
-		     offsetof(struct __sk_buff, cb[4]) + sizeof(__u32) - 1:
-		case offsetof(struct __sk_buff, tc_classid):
+		case bpf_ctx_range(struct __sk_buff, mark):
+		case bpf_ctx_range(struct __sk_buff, tc_index):
+		case bpf_ctx_range(struct __sk_buff, priority):
+		case bpf_ctx_range(struct __sk_buff, tc_classid):
+		case bpf_ctx_range_till(struct __sk_buff, cb[0], cb[4]):
 			break;
 		default:
 			return false;
 		}
 	}
 
-	return __is_valid_access(off, size, type, info);
+	switch (off) {
+	case bpf_ctx_range(struct __sk_buff, data):
+		info->reg_type = PTR_TO_PACKET;
+		break;
+	case bpf_ctx_range(struct __sk_buff, data_end):
+		info->reg_type = PTR_TO_PACKET_END;
+		break;
+	}
+
+	return bpf_skb_is_valid_access(off, size, type, info);
 }
 
 static bool __is_valid_xdp_access(int off, int size)
@@ -3258,98 +3342,108 @@ static bool sock_ops_is_valid_access(int off, int size,
 static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 				  const struct bpf_insn *si,
 				  struct bpf_insn *insn_buf,
-				  struct bpf_prog *prog)
+				  struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
 	int off;
 
 	switch (si->off) {
 	case offsetof(struct __sk_buff, len):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
-
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-				      offsetof(struct sk_buff, len));
+				      bpf_target_off(struct sk_buff, len, 4,
+						     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, protocol):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, protocol) != 2);
-
 		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
-				      offsetof(struct sk_buff, protocol));
+				      bpf_target_off(struct sk_buff, protocol, 2,
+						     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, vlan_proto):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_proto) != 2);
-
 		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
-				      offsetof(struct sk_buff, vlan_proto));
+				      bpf_target_off(struct sk_buff, vlan_proto, 2,
+						     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, priority):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, priority) != 4);
-
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
-					      offsetof(struct sk_buff, priority));
+					      bpf_target_off(struct sk_buff, priority, 4,
+							     target_size));
 		else
 			*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-					      offsetof(struct sk_buff, priority));
+					      bpf_target_off(struct sk_buff, priority, 4,
+							     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, ingress_ifindex):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, skb_iif) != 4);
-
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-				      offsetof(struct sk_buff, skb_iif));
+				      bpf_target_off(struct sk_buff, skb_iif, 4,
+						     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, ifindex):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
-
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, dev),
 				      si->dst_reg, si->src_reg,
 				      offsetof(struct sk_buff, dev));
 		*insn++ = BPF_JMP_IMM(BPF_JEQ, si->dst_reg, 0, 1);
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
-				      offsetof(struct net_device, ifindex));
+				      bpf_target_off(struct net_device, ifindex, 4,
+						     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, hash):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
-
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-				      offsetof(struct sk_buff, hash));
+				      bpf_target_off(struct sk_buff, hash, 4,
+						     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, mark):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
-
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
-					      offsetof(struct sk_buff, mark));
+					      bpf_target_off(struct sk_buff, mark, 4,
+							     target_size));
 		else
 			*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-					      offsetof(struct sk_buff, mark));
+					      bpf_target_off(struct sk_buff, mark, 4,
+							     target_size));
 		break;
 
 	case offsetof(struct __sk_buff, pkt_type):
-		return convert_skb_access(SKF_AD_PKTTYPE, si->dst_reg,
-					  si->src_reg, insn);
+		*target_size = 1;
+		*insn++ = BPF_LDX_MEM(BPF_B, si->dst_reg, si->src_reg,
+				      PKT_TYPE_OFFSET());
+		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, PKT_TYPE_MAX);
+#ifdef __BIG_ENDIAN_BITFIELD
+		*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg, 5);
+#endif
+		break;
 
 	case offsetof(struct __sk_buff, queue_mapping):
-		return convert_skb_access(SKF_AD_QUEUE, si->dst_reg,
-					  si->src_reg, insn);
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct sk_buff, queue_mapping, 2,
+						     target_size));
+		break;
 
 	case offsetof(struct __sk_buff, vlan_present):
-		return convert_skb_access(SKF_AD_VLAN_TAG_PRESENT,
-					  si->dst_reg, si->src_reg, insn);
-
 	case offsetof(struct __sk_buff, vlan_tci):
-		return convert_skb_access(SKF_AD_VLAN_TAG,
-					  si->dst_reg, si->src_reg, insn);
+		BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+
+		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
+				      bpf_target_off(struct sk_buff, vlan_tci, 2,
+						     target_size));
+		if (si->off == offsetof(struct __sk_buff, vlan_tci)) {
+			*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg,
+						~VLAN_TAG_PRESENT);
+		} else {
+			*insn++ = BPF_ALU32_IMM(BPF_RSH, si->dst_reg, 12);
+			*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, 1);
+		}
+		break;
 
 	case offsetof(struct __sk_buff, cb[0]) ...
-	     offsetof(struct __sk_buff, cb[4]) + sizeof(__u32) - 1:
+	     offsetofend(struct __sk_buff, cb[4]) - 1:
 		BUILD_BUG_ON(FIELD_SIZEOF(struct qdisc_skb_cb, data) < 20);
 		BUILD_BUG_ON((offsetof(struct sk_buff, cb) +
 			      offsetof(struct qdisc_skb_cb, data)) %
@@ -3375,6 +3469,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		off -= offsetof(struct __sk_buff, tc_classid);
 		off += offsetof(struct sk_buff, cb);
 		off += offsetof(struct qdisc_skb_cb, tc_classid);
+		*target_size = 2;
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_H, si->dst_reg,
 					      si->src_reg, off);
@@ -3400,14 +3495,14 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 
 	case offsetof(struct __sk_buff, tc_index):
 #ifdef CONFIG_NET_SCHED
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, tc_index) != 2);
-
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_H, si->dst_reg, si->src_reg,
-					      offsetof(struct sk_buff, tc_index));
+					      bpf_target_off(struct sk_buff, tc_index, 2,
+							     target_size));
 		else
 			*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->src_reg,
-					      offsetof(struct sk_buff, tc_index));
+					      bpf_target_off(struct sk_buff, tc_index, 2,
+							     target_size));
 #else
 		if (type == BPF_WRITE)
 			*insn++ = BPF_MOV64_REG(si->dst_reg, si->dst_reg);
@@ -3418,10 +3513,9 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 
 	case offsetof(struct __sk_buff, napi_id):
 #if defined(CONFIG_NET_RX_BUSY_POLL)
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, napi_id) != 4);
-
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
-				      offsetof(struct sk_buff, napi_id));
+				      bpf_target_off(struct sk_buff, napi_id, 4,
+						     target_size));
 		*insn++ = BPF_JMP_IMM(BPF_JGE, si->dst_reg, MIN_NAPI_ID, 1);
 		*insn++ = BPF_MOV64_IMM(si->dst_reg, 0);
 #else
@@ -3436,7 +3530,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
 					  const struct bpf_insn *si,
 					  struct bpf_insn *insn_buf,
-					  struct bpf_prog *prog)
+					  struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
 
@@ -3480,22 +3574,22 @@ static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
 static u32 tc_cls_act_convert_ctx_access(enum bpf_access_type type,
 					 const struct bpf_insn *si,
 					 struct bpf_insn *insn_buf,
-					 struct bpf_prog *prog)
+					 struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
 
 	switch (si->off) {
 	case offsetof(struct __sk_buff, ifindex):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
-
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, dev),
 				      si->dst_reg, si->src_reg,
 				      offsetof(struct sk_buff, dev));
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
-				      offsetof(struct net_device, ifindex));
+				      bpf_target_off(struct net_device, ifindex, 4,
+						     target_size));
 		break;
 	default:
-		return bpf_convert_ctx_access(type, si, insn_buf, prog);
+		return bpf_convert_ctx_access(type, si, insn_buf, prog,
+					      target_size);
 	}
 
 	return insn - insn_buf;
@@ -3504,7 +3598,7 @@ static u32 tc_cls_act_convert_ctx_access(enum bpf_access_type type,
 static u32 xdp_convert_ctx_access(enum bpf_access_type type,
 				  const struct bpf_insn *si,
 				  struct bpf_insn *insn_buf,
-				  struct bpf_prog *prog)
+				  struct bpf_prog *prog, u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
 
@@ -3527,7 +3621,8 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type,
 static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 				       const struct bpf_insn *si,
 				       struct bpf_insn *insn_buf,
-				       struct bpf_prog *prog)
+				       struct bpf_prog *prog,
+				       u32 *target_size)
 {
 	struct bpf_insn *insn = insn_buf;
 	int off;
