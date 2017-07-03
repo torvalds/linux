@@ -68,10 +68,10 @@ static ssize_t posix_clock_read(struct file *fp, char __user *buf,
 	return err;
 }
 
-static unsigned int posix_clock_poll(struct file *fp, poll_table *wait)
+static __poll_t posix_clock_poll(struct file *fp, poll_table *wait)
 {
 	struct posix_clock *clk = get_posix_clock(fp);
-	unsigned int result = 0;
+	__poll_t result = 0;
 
 	if (!clk)
 		return POLLERR;

@@ -4511,11 +4511,11 @@ perf_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return ret;
 }
 
-static unsigned int perf_poll(struct file *file, poll_table *wait)
+static __poll_t perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_event *event = file->private_data;
 	struct ring_buffer *rb;
-	unsigned int events = POLLHUP;
+	__poll_t events = POLLHUP;
 
 	poll_wait(file, &event->waitq, wait);
 
