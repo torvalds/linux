@@ -244,7 +244,7 @@ void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
 
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evsel__new_cycles();
+	struct perf_evsel *evsel = perf_evsel__new_cycles(true);
 
 	if (evsel == NULL)
 		return -ENOMEM;
