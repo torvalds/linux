@@ -191,11 +191,11 @@ error:
 	return ret;
 }
 
-static unsigned int cros_ec_console_log_poll(struct file *file,
+static __poll_t cros_ec_console_log_poll(struct file *file,
 					     poll_table *wait)
 {
 	struct cros_ec_debugfs *debug_info = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &debug_info->log_wq, wait);
 

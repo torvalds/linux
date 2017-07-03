@@ -354,10 +354,10 @@ static inline bool ctx_event_pending(struct cxl_context *ctx)
 	return false;
 }
 
-unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
+__poll_t afu_poll(struct file *file, struct poll_table_struct *poll)
 {
 	struct cxl_context *ctx = file->private_data;
-	int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 

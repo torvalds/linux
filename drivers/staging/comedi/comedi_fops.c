@@ -2276,9 +2276,9 @@ done:
 	return retval;
 }
 
-static unsigned int comedi_poll(struct file *file, poll_table *wait)
+static __poll_t comedi_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct comedi_file *cfp = file->private_data;
 	struct comedi_device *dev = cfp->dev;
 	struct comedi_subdevice *s, *s_read;

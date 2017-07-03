@@ -281,10 +281,10 @@ hysdn_log_close(struct inode *ino, struct file *filep)
 /*************************************************/
 /* select/poll routine to be able using select() */
 /*************************************************/
-static unsigned int
+static __poll_t
 hysdn_log_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	hysdn_card *card = PDE_DATA(file_inode(file));
 	struct procdata *pd = card->proclog;
 

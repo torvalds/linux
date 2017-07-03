@@ -603,11 +603,11 @@ struct lineevent_state {
 	(GPIOEVENT_REQUEST_RISING_EDGE | \
 	GPIOEVENT_REQUEST_FALLING_EDGE)
 
-static unsigned int lineevent_poll(struct file *filep,
+static __poll_t lineevent_poll(struct file *filep,
 				   struct poll_table_struct *wait)
 {
 	struct lineevent_state *le = filep->private_data;
-	unsigned int events = 0;
+	__poll_t events = 0;
 
 	poll_wait(filep, &le->wait, wait);
 

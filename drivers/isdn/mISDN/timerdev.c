@@ -141,11 +141,11 @@ mISDN_read(struct file *filep, char __user *buf, size_t count, loff_t *off)
 	return ret;
 }
 
-static unsigned int
+static __poll_t
 mISDN_poll(struct file *filep, poll_table *wait)
 {
 	struct mISDNtimerdev	*dev = filep->private_data;
-	unsigned int		mask = POLLERR;
+	__poll_t		mask = POLLERR;
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p, %p)\n", __func__, filep, wait);

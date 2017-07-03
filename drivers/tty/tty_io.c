@@ -144,7 +144,7 @@ static ssize_t tty_read(struct file *, char __user *, size_t, loff_t *);
 static ssize_t tty_write(struct file *, const char __user *, size_t, loff_t *);
 ssize_t redirected_tty_write(struct file *, const char __user *,
 							size_t, loff_t *);
-static unsigned int tty_poll(struct file *, poll_table *);
+static __poll_t tty_poll(struct file *, poll_table *);
 static int tty_open(struct inode *, struct file *);
 long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
@@ -443,7 +443,7 @@ static ssize_t hung_up_tty_write(struct file *file, const char __user *buf,
 }
 
 /* No kernel lock held - none needed ;) */
-static unsigned int hung_up_tty_poll(struct file *filp, poll_table *wait)
+static __poll_t hung_up_tty_poll(struct file *filp, poll_table *wait)
 {
 	return POLLIN | POLLOUT | POLLERR | POLLHUP | POLLRDNORM | POLLWRNORM;
 }
@@ -2055,7 +2055,7 @@ retry_open:
  *	may be re-entered freely by other callers.
  */
 
-static unsigned int tty_poll(struct file *filp, poll_table *wait)
+static __poll_t tty_poll(struct file *filp, poll_table *wait)
 {
 	struct tty_struct *tty = file_tty(filp);
 	struct tty_ldisc *ld;

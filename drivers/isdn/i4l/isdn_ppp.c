@@ -685,10 +685,10 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-unsigned int
+__poll_t
 isdn_ppp_poll(struct file *file, poll_table *wait)
 {
-	u_int mask;
+	__poll_t mask;
 	struct ippp_buf_queue *bf, *bl;
 	u_long flags;
 	struct ippp_struct *is;

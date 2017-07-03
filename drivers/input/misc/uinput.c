@@ -694,7 +694,7 @@ static ssize_t uinput_read(struct file *file, char __user *buffer,
 	return retval;
 }
 
-static unsigned int uinput_poll(struct file *file, poll_table *wait)
+static __poll_t uinput_poll(struct file *file, poll_table *wait)
 {
 	struct uinput_device *udev = file->private_data;
 

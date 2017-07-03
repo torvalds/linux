@@ -1057,10 +1057,10 @@ done:
 }
 EXPORT_SYMBOL(vhost_chr_write_iter);
 
-unsigned int vhost_chr_poll(struct file *file, struct vhost_dev *dev,
+__poll_t vhost_chr_poll(struct file *file, struct vhost_dev *dev,
 			    poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &dev->wait, wait);
 

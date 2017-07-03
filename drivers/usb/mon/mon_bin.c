@@ -1189,11 +1189,11 @@ static long mon_bin_compat_ioctl(struct file *file,
 }
 #endif /* CONFIG_COMPAT */
 
-static unsigned int
+static __poll_t
 mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct mon_reader_bin *rp = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 	if (file->f_mode & FMODE_READ)

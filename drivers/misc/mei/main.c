@@ -542,12 +542,12 @@ static long mei_compat_ioctl(struct file *file,
  *
  * Return: poll mask
  */
-static unsigned int mei_poll(struct file *file, poll_table *wait)
+static __poll_t mei_poll(struct file *file, poll_table *wait)
 {
 	__poll_t req_events = poll_requested_events(wait);
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	bool notify_en;
 
 	if (WARN_ON(!cl || !cl->dev))

@@ -1227,10 +1227,10 @@ out:
 	return retval;
 }
 
-static unsigned int
+static __poll_t
 isdn_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned int minor = iminor(file_inode(file));
 	int drvidx = isdn_minor2drv(minor - ISDN_MINOR_CTRL);
 

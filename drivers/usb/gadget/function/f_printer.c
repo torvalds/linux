@@ -680,12 +680,12 @@ printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 printer_poll(struct file *fd, poll_table *wait)
 {
 	struct printer_dev	*dev = fd->private_data;
 	unsigned long		flags;
-	int			status = 0;
+	__poll_t		status = 0;
 
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);

@@ -43,7 +43,7 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
 #ifdef CONFIG_IIO_BUFFER
 struct poll_table_struct;
 
-unsigned int iio_buffer_poll(struct file *filp,
+__poll_t iio_buffer_poll(struct file *filp,
 			     struct poll_table_struct *wait);
 ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 				      size_t n, loff_t *f_ps);

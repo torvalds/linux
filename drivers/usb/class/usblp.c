@@ -469,9 +469,9 @@ static int usblp_release(struct inode *inode, struct file *file)
 }
 
 /* No kernel lock - fine */
-static unsigned int usblp_poll(struct file *file, struct poll_table_struct *wait)
+static __poll_t usblp_poll(struct file *file, struct poll_table_struct *wait)
 {
-	int ret;
+	__poll_t ret;
 	unsigned long flags;
 
 	struct usblp *usblp = file->private_data;

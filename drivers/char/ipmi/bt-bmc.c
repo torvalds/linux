@@ -338,10 +338,10 @@ static int bt_bmc_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int bt_bmc_poll(struct file *file, poll_table *wait)
+static __poll_t bt_bmc_poll(struct file *file, poll_table *wait)
 {
 	struct bt_bmc *bt_bmc = file_bt_bmc(file);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	u8 ctrl;
 
 	poll_wait(file, &bt_bmc->queue, wait);

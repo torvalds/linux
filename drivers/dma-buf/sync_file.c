@@ -312,7 +312,7 @@ static int sync_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int sync_file_poll(struct file *file, poll_table *wait)
+static __poll_t sync_file_poll(struct file *file, poll_table *wait)
 {
 	struct sync_file *sync_file = file->private_data;
 

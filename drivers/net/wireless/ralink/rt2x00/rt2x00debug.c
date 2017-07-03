@@ -301,7 +301,7 @@ exit:
 	return status;
 }
 
-static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
+static __poll_t rt2x00debug_poll_queue_dump(struct file *file,
 						poll_table *wait)
 {
 	struct rt2x00debug_intf *intf = file->private_data;

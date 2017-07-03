@@ -299,7 +299,7 @@ static ssize_t vhci_write(struct kiocb *iocb, struct iov_iter *from)
 	return vhci_get_user(data, from);
 }
 
-static unsigned int vhci_poll(struct file *file, poll_table *wait)
+static __poll_t vhci_poll(struct file *file, poll_table *wait)
 {
 	struct vhci_data *data = file->private_data;
 

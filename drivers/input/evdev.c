@@ -635,11 +635,11 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 }
 
 /* No kernel lock - fine */
-static unsigned int evdev_poll(struct file *file, poll_table *wait)
+static __poll_t evdev_poll(struct file *file, poll_table *wait)
 {
 	struct evdev_client *client = file->private_data;
 	struct evdev *evdev = client->evdev;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &evdev->wait, wait);
 

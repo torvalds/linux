@@ -157,7 +157,7 @@ static void dma_buf_poll_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	spin_unlock_irqrestore(&dcb->poll->lock, flags);
 }
 
-static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
+static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 {
 	struct dma_buf *dmabuf;
 	struct reservation_object *resv;
@@ -195,7 +195,7 @@ retry:
 
 	if (fence_excl && (!(events & POLLOUT) || shared_count == 0)) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_excl;
-		unsigned long pevents = POLLIN;
+		__poll_t pevents = POLLIN;
 
 		if (shared_count == 0)
 			pevents |= POLLOUT;

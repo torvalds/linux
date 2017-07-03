@@ -236,7 +236,7 @@ static ssize_t apm_read(struct file *fp, char __user *buf, size_t count, loff_t 
 	return ret;
 }
 
-static unsigned int apm_poll(struct file *fp, poll_table * wait)
+static __poll_t apm_poll(struct file *fp, poll_table * wait)
 {
 	struct apm_user *as = fp->private_data;
 

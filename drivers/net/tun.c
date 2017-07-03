@@ -1248,12 +1248,12 @@ static void tun_net_init(struct net_device *dev)
 /* Character device part */
 
 /* Poll */
-static unsigned int tun_chr_poll(struct file *file, poll_table *wait)
+static __poll_t tun_chr_poll(struct file *file, poll_table *wait)
 {
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun = tun_get(tfile);
 	struct sock *sk;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (!tun)
 		return POLLERR;

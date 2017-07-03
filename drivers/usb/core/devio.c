@@ -2568,11 +2568,11 @@ static long usbdev_compat_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 /* No kernel lock - fine */
-static unsigned int usbdev_poll(struct file *file,
+static __poll_t usbdev_poll(struct file *file,
 				struct poll_table_struct *wait)
 {
 	struct usb_dev_state *ps = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &ps->wait, wait);
 	if (file->f_mode & FMODE_WRITE && !list_empty(&ps->async_completed))

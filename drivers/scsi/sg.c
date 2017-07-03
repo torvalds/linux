@@ -1140,10 +1140,10 @@ static long sg_compat_ioctl(struct file *filp, unsigned int cmd_in, unsigned lon
 }
 #endif
 
-static unsigned int
+static __poll_t
 sg_poll(struct file *filp, poll_table * wait)
 {
-	unsigned int res = 0;
+	__poll_t res = 0;
 	Sg_device *sdp;
 	Sg_fd *sfp;
 	Sg_request *srp;

@@ -235,7 +235,7 @@ kfree_err:
 	return ret;
 }
 
-static unsigned int
+static __poll_t
 mbox_test_message_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct mbox_test_device *tdev = filp->private_data;

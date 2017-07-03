@@ -157,7 +157,7 @@ int rpmsg_trysendto(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
 int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			     void *data, int len);
 
-unsigned int rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
+__poll_t rpmsg_poll(struct rpmsg_endpoint *ept, struct file *filp,
 			poll_table *wait);
 
 #else
@@ -258,7 +258,7 @@ static inline int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src,
 	return -ENXIO;
 }
 
-static inline unsigned int rpmsg_poll(struct rpmsg_endpoint *ept,
+static inline __poll_t rpmsg_poll(struct rpmsg_endpoint *ept,
 				      struct file *filp, poll_table *wait)
 {
 	/* This shouldn't be possible */

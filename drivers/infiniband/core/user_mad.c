@@ -617,12 +617,12 @@ err:
 	return ret;
 }
 
-static unsigned int ib_umad_poll(struct file *filp, struct poll_table_struct *wait)
+static __poll_t ib_umad_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct ib_umad_file *file = filp->private_data;
 
 	/* we will always be able to post a MAD send */
-	unsigned int mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = POLLOUT | POLLWRNORM;
 
 	poll_wait(filp, &file->recv_wait, wait);
 

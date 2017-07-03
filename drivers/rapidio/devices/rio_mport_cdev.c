@@ -2319,7 +2319,7 @@ static int mport_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 
-static unsigned int mport_cdev_poll(struct file *filp, poll_table *wait)
+static __poll_t mport_cdev_poll(struct file *filp, poll_table *wait)
 {
 	struct mport_cdev_priv *priv = filp->private_data;
 

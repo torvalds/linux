@@ -887,9 +887,9 @@ static int ipmi_open(struct inode *ino, struct file *filep)
 	}
 }
 
-static unsigned int ipmi_poll(struct file *file, poll_table *wait)
+static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &read_q, wait);
 

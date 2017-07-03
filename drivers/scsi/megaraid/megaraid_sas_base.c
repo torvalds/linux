@@ -7004,9 +7004,9 @@ static int megasas_mgmt_fasync(int fd, struct file *filep, int mode)
 /**
  * megasas_mgmt_poll -  char node "poll" entry point
  * */
-static unsigned int megasas_mgmt_poll(struct file *file, poll_table *wait)
+static __poll_t megasas_mgmt_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask;
+	__poll_t mask;
 	unsigned long flags;
 
 	poll_wait(file, &megasas_poll_wait, wait);

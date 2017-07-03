@@ -1353,7 +1353,7 @@ static ssize_t vhost_net_chr_write_iter(struct kiocb *iocb,
 	return vhost_chr_write_iter(dev, from);
 }
 
-static unsigned int vhost_net_chr_poll(struct file *file, poll_table *wait)
+static __poll_t vhost_net_chr_poll(struct file *file, poll_table *wait)
 {
 	struct vhost_net *n = file->private_data;
 	struct vhost_dev *dev = &n->dev;

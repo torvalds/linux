@@ -415,10 +415,10 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 	return count;
 }
 
-static unsigned int cm4040_poll(struct file *filp, poll_table *wait)
+static __poll_t cm4040_poll(struct file *filp, poll_table *wait)
 {
 	struct reader_dev *dev = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(filp, &dev->poll_wait, wait);
 
