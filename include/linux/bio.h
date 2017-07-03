@@ -320,8 +320,6 @@ struct bio_integrity_payload {
 
 	struct bvec_iter	bip_iter;
 
-	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
-
 	unsigned short		bip_slab;	/* slab the bip came from */
 	unsigned short		bip_vcnt;	/* # of integrity bio_vecs */
 	unsigned short		bip_max_vcnt;	/* integrity bio_vec slots */
@@ -739,10 +737,8 @@ struct biovec_slab {
 		bip_for_each_vec(_bvl, _bio->bi_integrity, _iter)
 
 extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
-extern void bio_integrity_free(struct bio *);
 extern int bio_integrity_add_page(struct bio *, struct page *, unsigned int, unsigned int);
 extern bool bio_integrity_prep(struct bio *);
-extern void bio_integrity_endio(struct bio *);
 extern void bio_integrity_advance(struct bio *, unsigned int);
 extern void bio_integrity_trim(struct bio *);
 extern int bio_integrity_clone(struct bio *, struct bio *, gfp_t);
@@ -770,11 +766,6 @@ static inline void bioset_integrity_free (struct bio_set *bs)
 static inline bool bio_integrity_prep(struct bio *bio)
 {
 	return true;
-}
-
-static inline void bio_integrity_free(struct bio *bio)
-{
-	return;
 }
 
 static inline int bio_integrity_clone(struct bio *bio, struct bio *bio_src,

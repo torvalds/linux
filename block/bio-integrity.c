@@ -102,7 +102,7 @@ EXPORT_SYMBOL(bio_integrity_alloc);
  * Description: Used to free the integrity portion of a bio. Usually
  * called from bio_free().
  */
-void bio_integrity_free(struct bio *bio)
+static void bio_integrity_free(struct bio *bio)
 {
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct bio_set *bs = bio->bi_pool;
@@ -120,8 +120,8 @@ void bio_integrity_free(struct bio *bio)
 	}
 
 	bio->bi_integrity = NULL;
+	bio->bi_opf &= ~REQ_INTEGRITY;
 }
-EXPORT_SYMBOL(bio_integrity_free);
 
 /**
  * bio_integrity_add_page - Attach integrity metadata
@@ -326,12 +326,6 @@ bool bio_integrity_prep(struct bio *bio)
 		offset = 0;
 	}
 
-	/* Install custom I/O completion handler if read verify is enabled */
-	if (bio_data_dir(bio) == READ) {
-		bip->bip_end_io = bio->bi_end_io;
-		bio->bi_end_io = bio_integrity_endio;
-	}
-
 	/* Auto-generate integrity metadata if this is a write */
 	if (bio_data_dir(bio) == WRITE) {
 		bio_integrity_process(bio, &bio->bi_iter,
@@ -375,13 +369,12 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 		bio->bi_status = BLK_STS_IOERR;
 	}
 
-	/* Restore original bio completion handler */
-	bio->bi_end_io = bip->bip_end_io;
+	bio_integrity_free(bio);
 	bio_endio(bio);
 }
 
 /**
- * bio_integrity_endio - Integrity I/O completion function
+ * __bio_integrity_endio - Integrity I/O completion function
  * @bio:	Protected bio
  * @error:	Pointer to errno
  *
@@ -392,27 +385,19 @@ static void bio_integrity_verify_fn(struct work_struct *work)
  * in process context.	This function postpones completion
  * accordingly.
  */
-void bio_integrity_endio(struct bio *bio)
+bool __bio_integrity_endio(struct bio *bio)
 {
-	struct bio_integrity_payload *bip = bio_integrity(bio);
+	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status) {
+		struct bio_integrity_payload *bip = bio_integrity(bio);
 
-	BUG_ON(bip->bip_bio != bio);
-
-	/* In case of an I/O error there is no point in verifying the
-	 * integrity metadata.  Restore original bio end_io handler
-	 * and run it.
-	 */
-	if (bio->bi_status) {
-		bio->bi_end_io = bip->bip_end_io;
-		bio_endio(bio);
-
-		return;
+		INIT_WORK(&bip->bip_work, bio_integrity_verify_fn);
+		queue_work(kintegrityd_wq, &bip->bip_work);
+		return false;
 	}
 
-	INIT_WORK(&bip->bip_work, bio_integrity_verify_fn);
-	queue_work(kintegrityd_wq, &bip->bip_work);
+	bio_integrity_free(bio);
+	return true;
 }
-EXPORT_SYMBOL(bio_integrity_endio);
 
 /**
  * bio_integrity_advance - Advance integrity vector

@@ -243,9 +243,6 @@ fallback:
 void bio_uninit(struct bio *bio)
 {
 	bio_disassociate_task(bio);
-
-	if (bio_integrity(bio))
-		bio_integrity_free(bio);
 }
 EXPORT_SYMBOL(bio_uninit);
 
@@ -1812,6 +1809,8 @@ void bio_endio(struct bio *bio)
 {
 again:
 	if (!bio_remaining_done(bio))
+		return;
+	if (!bio_integrity_endio(bio))
 		return;
 
 	/*
