@@ -362,6 +362,16 @@ config LPC32XX_ADC
 	  activate only one via device tree selection.  Provides direct access
 	  via sysfs.
 
+config LTC2471
+	tristate "Linear Technology LTC2471 and LTC2473 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2471 and
+	  LTC2473 16-bit I2C ADC.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2471.
+
 config LTC2485
 	tristate "Linear Technology LTC2485 ADC driver"
 	depends on I2C
