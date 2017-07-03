@@ -475,6 +475,8 @@ static void mddev_delayed_delete(struct work_struct *ws);
 
 static void mddev_put(struct mddev *mddev)
 {
+	struct bio_set *bs = NULL, *sync_bs = NULL;
+
 	if (!atomic_dec_and_lock(&mddev->active, &all_mddevs_lock))
 		return;
 	if (!mddev->raid_disks && list_empty(&mddev->disks) &&
@@ -482,10 +484,8 @@ static void mddev_put(struct mddev *mddev)
 		/* Array is not configured at all, and not held active,
 		 * so destroy it */
 		list_del_init(&mddev->all_mddevs);
-		if (mddev->bio_set)
-			bioset_free(mddev->bio_set);
-		if (mddev->sync_set)
-			bioset_free(mddev->sync_set);
+		bs = mddev->bio_set;
+		sync_bs = mddev->sync_set;
 		mddev->bio_set = NULL;
 		mddev->sync_set = NULL;
 		if (mddev->gendisk) {
@@ -500,6 +500,10 @@ static void mddev_put(struct mddev *mddev)
 			kfree(mddev);
 	}
 	spin_unlock(&all_mddevs_lock);
+	if (bs)
+		bioset_free(bs);
+	if (sync_bs)
+		bioset_free(sync_bs);
 }
 
 static void md_safemode_timeout(unsigned long data);
