@@ -1,6 +1,6 @@
 [config]
 command = record
-args    = -D kill >/dev/null 2>&1
+args    = --no-buffering kill >/dev/null 2>&1
 
 [event:base-record]
 sample_period=4000
