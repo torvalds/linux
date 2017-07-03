@@ -704,7 +704,8 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 		INIT_LIST_HEAD(&vmd->irqs[i].irq_list);
 		err = devm_request_irq(&dev->dev, pci_irq_vector(dev, i),
-				       vmd_irq, 0, "vmd", &vmd->irqs[i]);
+				       vmd_irq, IRQF_NO_THREAD,
+				       "vmd", &vmd->irqs[i]);
 		if (err)
 			return err;
 	}

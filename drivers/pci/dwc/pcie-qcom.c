@@ -634,7 +634,7 @@ static int qcom_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	return dw_pcie_read(pci->dbi_base + where, size, val);
 }
 
-static struct dw_pcie_host_ops qcom_pcie_dw_ops = {
+static const struct dw_pcie_host_ops qcom_pcie_dw_ops = {
 	.host_init = qcom_pcie_host_init,
 	.rd_own_conf = qcom_pcie_rd_own_conf,
 };
@@ -727,7 +727,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 		ret = devm_request_irq(dev, pp->msi_irq,
 				       qcom_pcie_msi_irq_handler,
-				       IRQF_SHARED, "qcom-pcie-msi", pp);
+				       IRQF_SHARED | IRQF_NO_THREAD,
+				       "qcom-pcie-msi", pp);
 		if (ret) {
 			dev_err(dev, "cannot request msi irq\n");
 			return ret;
