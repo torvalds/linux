@@ -419,8 +419,9 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 	if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
 		brelse(bh);
 		ret = -EIO;
+	} else {
+		*bhp = bh;
 	}
-	*bhp = bh;
 	return ret;
 }
 
