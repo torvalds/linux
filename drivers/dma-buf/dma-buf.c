@@ -163,7 +163,7 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 	struct reservation_object *resv;
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence_excl;
-	unsigned long events;
+	__poll_t events;
 	unsigned shared_count, seq;
 
 	dmabuf = file->private_data;

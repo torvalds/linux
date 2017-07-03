@@ -511,7 +511,7 @@ static unsigned int si470x_fops_poll(struct file *file,
 		struct poll_table_struct *pts)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(pts);
+	__poll_t req_events = poll_requested_events(pts);
 	int retval = v4l2_ctrl_poll(file, pts);
 
 	if (req_events & (POLLIN | POLLRDNORM)) {

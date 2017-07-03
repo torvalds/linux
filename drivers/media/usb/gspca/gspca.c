@@ -1865,7 +1865,7 @@ out:
 static unsigned int dev_poll(struct file *file, poll_table *wait)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	int ret = 0;
 
 	PDEBUG(D_FRAM, "poll");

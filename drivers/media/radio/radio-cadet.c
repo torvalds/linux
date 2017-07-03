@@ -484,7 +484,7 @@ static int cadet_release(struct file *file)
 static unsigned int cadet_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct cadet *dev = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	unsigned int res = v4l2_ctrl_poll(file, wait);
 
 	poll_wait(file, &dev->read_queue, wait);

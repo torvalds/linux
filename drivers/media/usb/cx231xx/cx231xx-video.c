@@ -2008,7 +2008,7 @@ cx231xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
  */
 static unsigned int cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct cx231xx_fh *fh = filp->private_data;
 	struct cx231xx *dev = fh->dev;
 	unsigned res = 0;

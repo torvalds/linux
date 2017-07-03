@@ -766,7 +766,7 @@ unsigned int ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 
 unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct ivtv_open_id *id = fh2id(filp->private_data);
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];

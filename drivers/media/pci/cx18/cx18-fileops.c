@@ -604,7 +604,7 @@ ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 
 unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct cx18_open_id *id = file2id(filp);
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];

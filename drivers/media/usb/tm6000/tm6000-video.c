@@ -1426,7 +1426,7 @@ tm6000_read(struct file *file, char __user *data, size_t count, loff_t *pos)
 static unsigned int
 __tm6000_poll(struct file *file, struct poll_table_struct *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct tm6000_fh        *fh = file->private_data;
 	struct tm6000_buffer    *buf;
 	int res = 0;

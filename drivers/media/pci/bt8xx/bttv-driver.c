@@ -2961,7 +2961,7 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 	struct bttv_buffer *buf;
 	enum v4l2_field field;
 	unsigned int rc = 0;
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 
 	if (v4l2_event_pending(&fh->fh))
 		rc = POLLPRI;
@@ -3333,7 +3333,7 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct saa6588_command cmd;
 	unsigned int res = 0;
 

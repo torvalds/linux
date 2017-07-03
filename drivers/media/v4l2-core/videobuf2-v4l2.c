@@ -674,7 +674,7 @@ EXPORT_SYMBOL_GPL(vb2_queue_release);
 unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 {
 	struct video_device *vfd = video_devdata(file);
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	unsigned int res = 0;
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {

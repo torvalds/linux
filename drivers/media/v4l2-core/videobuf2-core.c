@@ -2021,7 +2021,7 @@ EXPORT_SYMBOL_GPL(vb2_core_queue_release);
 unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
 		poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct vb2_buffer *vb = NULL;
 	unsigned long flags;
 

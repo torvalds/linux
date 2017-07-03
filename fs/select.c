@@ -438,7 +438,7 @@ get_max:
 
 static inline void wait_key_set(poll_table *wait, unsigned long in,
 				unsigned long out, unsigned long bit,
-				unsigned int ll_flag)
+				__poll_t ll_flag)
 {
 	wait->_key = POLLEX_SET | ll_flag;
 	if (in & bit)
@@ -454,7 +454,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 	poll_table *wait;
 	int retval, i, timed_out = 0;
 	u64 slack = 0;
-	unsigned int busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
+	__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
 	unsigned long busy_start = 0;
 
 	rcu_read_lock();

@@ -1153,7 +1153,7 @@ static unsigned int si476x_radio_fops_poll(struct file *file,
 				struct poll_table_struct *pts)
 {
 	struct si476x_radio *radio = video_drvdata(file);
-	unsigned long req_events = poll_requested_events(pts);
+	__poll_t req_events = poll_requested_events(pts);
 	unsigned int err = v4l2_ctrl_poll(file, pts);
 
 	if (req_events & (POLLIN | POLLRDNORM)) {

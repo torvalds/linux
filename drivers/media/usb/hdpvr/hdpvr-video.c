@@ -523,7 +523,7 @@ err:
 
 static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct hdpvr_buffer *buf = NULL;
 	struct hdpvr_device *dev = video_drvdata(filp);
 	unsigned int mask = v4l2_ctrl_poll(filp, wait);
