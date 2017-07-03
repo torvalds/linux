@@ -105,6 +105,11 @@ class Event(dict):
                 return False
         return True
 
+    def optional(self):
+        if self.has_key('optional') and self['optional'] == '1':
+            return True
+        return False
+
     def diff(self, other):
         for t in Event.terms:
             if not self.has_key(t) or not other.has_key(t):
@@ -244,9 +249,12 @@ class Test(object):
             log.debug("    match: [%s] matches %s" % (exp_name, str(exp_list)))
 
             # we did not any matching event - fail
-            if (not exp_list):
-		exp_event.diff(res_event)
-                raise Fail(self, 'match failure');
+            if not exp_list:
+                if exp_event.optional():
+                    log.debug("    %s does not match, but is optional" % exp_name)
+                else:
+                    exp_event.diff(res_event)
+                    raise Fail(self, 'match failure');
 
             match[exp_name] = exp_list
 
