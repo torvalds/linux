@@ -174,7 +174,8 @@ int __init extent_io_init(void)
 		goto free_state_cache;
 
 	btrfs_bioset = bioset_create(BIO_POOL_SIZE,
-				     offsetof(struct btrfs_io_bio, bio));
+				     offsetof(struct btrfs_io_bio, bio),
+				     BIOSET_NEED_BVECS);
 	if (!btrfs_bioset)
 		goto free_buffer_cache;
 
@@ -2399,6 +2400,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct bio *bio;
 	int read_mode = 0;
+	blk_status_t status;
 	int ret;
 
 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
@@ -2431,11 +2433,12 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 		"Repair Read Error: submitting new read[%#x] to this_mirror=%d, in_validation=%d",
 		read_mode, failrec->this_mirror, failrec->in_validation);
 
-	ret = tree->ops->submit_bio_hook(inode, bio, failrec->this_mirror,
+	status = tree->ops->submit_bio_hook(inode, bio, failrec->this_mirror,
 					 failrec->bio_flags, 0);
-	if (ret) {
+	if (status) {
 		free_io_failure(BTRFS_I(inode), failrec);
 		bio_put(bio);
+		ret = blk_status_to_errno(status);
 	}
 
 	return ret;
@@ -2474,6 +2477,7 @@ void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
  */
 static void end_bio_extent_writepage(struct bio *bio)
 {
+	int error = blk_status_to_errno(bio->bi_status);
 	struct bio_vec *bvec;
 	u64 start;
 	u64 end;
@@ -2503,7 +2507,7 @@ static void end_bio_extent_writepage(struct bio *bio)
 		start = page_offset(page);
 		end = start + bvec->bv_offset + bvec->bv_len - 1;
 
-		end_extent_writepage(page, bio->bi_error, start, end);
+		end_extent_writepage(page, error, start, end);
 		end_page_writeback(page);
 	}
 
@@ -2536,7 +2540,7 @@ endio_readpage_release_extent(struct extent_io_tree *tree, u64 start, u64 len,
 static void end_bio_extent_readpage(struct bio *bio)
 {
 	struct bio_vec *bvec;
-	int uptodate = !bio->bi_error;
+	int uptodate = !bio->bi_status;
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	struct extent_io_tree *tree;
 	u64 offset = 0;
@@ -2556,7 +2560,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 
 		btrfs_debug(fs_info,
 			"end_bio_extent_readpage: bi_sector=%llu, err=%d, mirror=%u",
-			(u64)bio->bi_iter.bi_sector, bio->bi_error,
+			(u64)bio->bi_iter.bi_sector, bio->bi_status,
 			io_bio->mirror_num);
 		tree = &BTRFS_I(inode)->io_tree;
 
@@ -2615,7 +2619,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 				ret = bio_readpage_error(bio, offset, page,
 							 start, end, mirror);
 				if (ret == 0) {
-					uptodate = !bio->bi_error;
+					uptodate = !bio->bi_status;
 					offset += len;
 					continue;
 				}
@@ -2673,7 +2677,7 @@ readpage_ok:
 		endio_readpage_release_extent(tree, extent_start, extent_len,
 					      uptodate);
 	if (io_bio->end_io)
-		io_bio->end_io(io_bio, bio->bi_error);
+		io_bio->end_io(io_bio, blk_status_to_errno(bio->bi_status));
 	bio_put(bio);
 }
 
@@ -2743,7 +2747,7 @@ struct bio *btrfs_io_bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 				       unsigned long bio_flags)
 {
-	int ret = 0;
+	blk_status_t ret = 0;
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
 	struct page *page = bvec->bv_page;
 	struct extent_io_tree *tree = bio->bi_private;
@@ -2761,7 +2765,7 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 		btrfsic_submit_bio(bio);
 
 	bio_put(bio);
-	return ret;
+	return blk_status_to_errno(ret);
 }
 
 static int merge_bio(struct extent_io_tree *tree, struct page *page,
@@ -2826,6 +2830,7 @@ static int submit_extent_page(int op, int op_flags, struct extent_io_tree *tree,
 	bio_add_page(bio, page, page_size, offset);
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = tree;
+	bio->bi_write_hint = page->mapping->host->i_write_hint;
 	bio_set_op_attrs(bio, op, op_flags);
 	if (wbc) {
 		wbc_init_bio(wbc, bio);
@@ -3707,7 +3712,7 @@ static void end_bio_extent_buffer_writepage(struct bio *bio)
 		BUG_ON(!eb);
 		done = atomic_dec_and_test(&eb->io_pages);
 
-		if (bio->bi_error ||
+		if (bio->bi_status ||
 		    test_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags)) {
 			ClearPageUptodate(page);
 			set_btree_ioerr(page);

@@ -55,7 +55,7 @@ static inline struct pscsi_dev_virt *PSCSI_DEV(struct se_device *dev)
 }
 
 static sense_reason_t pscsi_execute_cmd(struct se_cmd *cmd);
-static void pscsi_req_done(struct request *, int);
+static void pscsi_req_done(struct request *, blk_status_t);
 
 /*	pscsi_attach_hba():
  *
@@ -992,8 +992,6 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		goto fail;
 	}
 
-	scsi_req_init(req);
-
 	if (sgl) {
 		ret = pscsi_map_sg(cmd, sgl, sgl_nents, req);
 		if (ret)
@@ -1045,7 +1043,7 @@ static sector_t pscsi_get_blocks(struct se_device *dev)
 	return 0;
 }
 
-static void pscsi_req_done(struct request *req, int uptodate)
+static void pscsi_req_done(struct request *req, blk_status_t status)
 {
 	struct se_cmd *cmd = req->end_io_data;
 	struct pscsi_plugin_task *pt = cmd->priv;

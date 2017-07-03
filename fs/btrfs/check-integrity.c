@@ -2129,7 +2129,7 @@ static void btrfsic_bio_end_io(struct bio *bp)
 	/* mutex is not held! This is not save if IO is not yet completed
 	 * on umount */
 	iodone_w_error = 0;
-	if (bp->bi_error)
+	if (bp->bi_status)
 		iodone_w_error = 1;
 
 	BUG_ON(NULL == block);
@@ -2143,7 +2143,7 @@ static void btrfsic_bio_end_io(struct bio *bp)
 		if ((dev_state->state->print_mask &
 		     BTRFSIC_PRINT_MASK_END_IO_BIO_BH))
 			pr_info("bio_end_io(err=%d) for %c @%llu (%s/%llu/%d)\n",
-			       bp->bi_error,
+			       bp->bi_status,
 			       btrfsic_get_block_type(dev_state->state, block),
 			       block->logical_bytenr, dev_state->name,
 			       block->dev_bytenr, block->mirror_num);

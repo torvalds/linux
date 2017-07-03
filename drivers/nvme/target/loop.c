@@ -21,8 +21,6 @@
 #include "../host/nvme.h"
 #include "../host/fabrics.h"
 
-#define NVME_LOOP_AQ_DEPTH		256
-
 #define NVME_LOOP_MAX_SEGMENTS		256
 
 /*
@@ -31,7 +29,7 @@
  */
 #define NVME_LOOP_NR_AEN_COMMANDS	1
 #define NVME_LOOP_AQ_BLKMQ_DEPTH	\
-	(NVME_LOOP_AQ_DEPTH - NVME_LOOP_NR_AEN_COMMANDS)
+	(NVME_AQ_DEPTH - NVME_LOOP_NR_AEN_COMMANDS)
 
 struct nvme_loop_iod {
 	struct nvme_request	nvme_req;
@@ -45,7 +43,6 @@ struct nvme_loop_iod {
 };
 
 struct nvme_loop_ctrl {
-	spinlock_t		lock;
 	struct nvme_loop_queue	*queues;
 	u32			queue_count;
 
@@ -59,7 +56,6 @@ struct nvme_loop_ctrl {
 
 	struct nvmet_ctrl	*target_ctrl;
 	struct work_struct	delete_work;
-	struct work_struct	reset_work;
 };
 
 static inline struct nvme_loop_ctrl *to_loop_ctrl(struct nvme_ctrl *ctrl)
@@ -151,7 +147,7 @@ nvme_loop_timeout(struct request *rq, bool reserved)
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(rq);
 
 	/* queue error recovery */
-	schedule_work(&iod->queue->ctrl->reset_work);
+	nvme_reset_ctrl(&iod->queue->ctrl->ctrl);
 
 	/* fail with DNR on admin cmd timeout */
 	nvme_req(rq)->status = NVME_SC_ABORT_REQ | NVME_SC_DNR;
@@ -159,17 +155,17 @@ nvme_loop_timeout(struct request *rq, bool reserved)
 	return BLK_EH_HANDLED;
 }
 
-static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct nvme_ns *ns = hctx->queue->queuedata;
 	struct nvme_loop_queue *queue = hctx->driver_data;
 	struct request *req = bd->rq;
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
-	int ret;
+	blk_status_t ret;
 
 	ret = nvme_setup_cmd(ns, req, &iod->cmd);
-	if (ret != BLK_MQ_RQ_QUEUE_OK)
+	if (ret)
 		return ret;
 
 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
@@ -179,16 +175,15 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		nvme_cleanup_cmd(req);
 		blk_mq_start_request(req);
 		nvme_loop_queue_response(&iod->req);
-		return BLK_MQ_RQ_QUEUE_OK;
+		return BLK_STS_OK;
 	}
 
 	if (blk_rq_bytes(req)) {
 		iod->sg_table.sgl = iod->first_sgl;
-		ret = sg_alloc_table_chained(&iod->sg_table,
+		if (sg_alloc_table_chained(&iod->sg_table,
 				blk_rq_nr_phys_segments(req),
-				iod->sg_table.sgl);
-		if (ret)
-			return BLK_MQ_RQ_QUEUE_BUSY;
+				iod->sg_table.sgl))
+			return BLK_STS_RESOURCE;
 
 		iod->req.sg = iod->sg_table.sgl;
 		iod->req.sg_cnt = blk_rq_map_sg(req->q, req, iod->sg_table.sgl);
@@ -197,7 +192,7 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(req);
 
 	schedule_work(&iod->work);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static void nvme_loop_submit_async_event(struct nvme_ctrl *arg, int aer_idx)
@@ -234,15 +229,10 @@ static int nvme_loop_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
 		unsigned int numa_node)
 {
-	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req),
-			hctx_idx + 1);
-}
+	struct nvme_loop_ctrl *ctrl = set->driver_data;
 
-static int nvme_loop_init_admin_request(struct blk_mq_tag_set *set,
-		struct request *req, unsigned int hctx_idx,
-		unsigned int numa_node)
-{
-	return nvme_loop_init_iod(set->driver_data, blk_mq_rq_to_pdu(req), 0);
+	return nvme_loop_init_iod(ctrl, blk_mq_rq_to_pdu(req),
+			(set == &ctrl->tag_set) ? hctx_idx + 1 : 0);
 }
 
 static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
@@ -280,7 +270,7 @@ static const struct blk_mq_ops nvme_loop_mq_ops = {
 static const struct blk_mq_ops nvme_loop_admin_mq_ops = {
 	.queue_rq	= nvme_loop_queue_rq,
 	.complete	= nvme_loop_complete_rq,
-	.init_request	= nvme_loop_init_admin_request,
+	.init_request	= nvme_loop_init_request,
 	.init_hctx	= nvme_loop_init_admin_hctx,
 	.timeout	= nvme_loop_timeout,
 };
@@ -467,7 +457,7 @@ static int __nvme_loop_del_ctrl(struct nvme_loop_ctrl *ctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
 		return -EBUSY;
 
-	if (!schedule_work(&ctrl->delete_work))
+	if (!queue_work(nvme_wq, &ctrl->delete_work))
 		return -EBUSY;
 
 	return 0;
@@ -501,8 +491,8 @@ static void nvme_loop_delete_ctrl(struct nvmet_ctrl *nctrl)
 
 static void nvme_loop_reset_ctrl_work(struct work_struct *work)
 {
-	struct nvme_loop_ctrl *ctrl = container_of(work,
-					struct nvme_loop_ctrl, reset_work);
+	struct nvme_loop_ctrl *ctrl =
+		container_of(work, struct nvme_loop_ctrl, ctrl.reset_work);
 	bool changed;
 	int ret;
 
@@ -540,21 +530,6 @@ out_disable:
 	nvme_put_ctrl(&ctrl->ctrl);
 }
 
-static int nvme_loop_reset_ctrl(struct nvme_ctrl *nctrl)
-{
-	struct nvme_loop_ctrl *ctrl = to_loop_ctrl(nctrl);
-
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RESETTING))
-		return -EBUSY;
-
-	if (!schedule_work(&ctrl->reset_work))
-		return -EBUSY;
-
-	flush_work(&ctrl->reset_work);
-
-	return 0;
-}
-
 static const struct nvme_ctrl_ops nvme_loop_ctrl_ops = {
 	.name			= "loop",
 	.module			= THIS_MODULE,
@@ -562,11 +537,9 @@ static const struct nvme_ctrl_ops nvme_loop_ctrl_ops = {
 	.reg_read32		= nvmf_reg_read32,
 	.reg_read64		= nvmf_reg_read64,
 	.reg_write32		= nvmf_reg_write32,
-	.reset_ctrl		= nvme_loop_reset_ctrl,
 	.free_ctrl		= nvme_loop_free_ctrl,
 	.submit_async_event	= nvme_loop_submit_async_event,
 	.delete_ctrl		= nvme_loop_del_ctrl,
-	.get_subsysnqn		= nvmf_get_subsysnqn,
 };
 
 static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
@@ -629,14 +602,12 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	INIT_LIST_HEAD(&ctrl->list);
 
 	INIT_WORK(&ctrl->delete_work, nvme_loop_del_ctrl_work);
-	INIT_WORK(&ctrl->reset_work, nvme_loop_reset_ctrl_work);
+	INIT_WORK(&ctrl->ctrl.reset_work, nvme_loop_reset_ctrl_work);
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_loop_ctrl_ops,
 				0 /* no quirks, we're perfect! */);
 	if (ret)
 		goto out_put_ctrl;
-
-	spin_lock_init(&ctrl->lock);
 
 	ret = -ENOMEM;
 
@@ -766,7 +737,7 @@ static void __exit nvme_loop_cleanup_module(void)
 		__nvme_loop_del_ctrl(ctrl);
 	mutex_unlock(&nvme_loop_ctrl_mutex);
 
-	flush_scheduled_work();
+	flush_workqueue(nvme_wq);
 }
 
 module_init(nvme_loop_init_module);

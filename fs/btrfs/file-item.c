@@ -160,7 +160,7 @@ static void btrfs_io_bio_endio_readpage(struct btrfs_io_bio *bio, int err)
 	kfree(bio->csum_allocated);
 }
 
-static int __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
+static blk_status_t __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 				   u64 logical_offset, u32 *dst, int dio)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -182,7 +182,7 @@ static int __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		return BLK_STS_RESOURCE;
 
 	nblocks = bio->bi_iter.bi_size >> inode->i_sb->s_blocksize_bits;
 	if (!dst) {
@@ -191,7 +191,7 @@ static int __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 					csum_size, GFP_NOFS);
 			if (!btrfs_bio->csum_allocated) {
 				btrfs_free_path(path);
-				return -ENOMEM;
+				return BLK_STS_RESOURCE;
 			}
 			btrfs_bio->csum = btrfs_bio->csum_allocated;
 			btrfs_bio->end_io = btrfs_io_bio_endio_readpage;
@@ -303,12 +303,12 @@ next:
 	return 0;
 }
 
-int btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio, u32 *dst)
+blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio, u32 *dst)
 {
 	return __btrfs_lookup_bio_sums(inode, bio, 0, dst, 0);
 }
 
-int btrfs_lookup_bio_sums_dio(struct inode *inode, struct bio *bio, u64 offset)
+blk_status_t btrfs_lookup_bio_sums_dio(struct inode *inode, struct bio *bio, u64 offset)
 {
 	return __btrfs_lookup_bio_sums(inode, bio, offset, NULL, 1);
 }
@@ -433,7 +433,7 @@ fail:
 	return ret;
 }
 
-int btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
+blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 		       u64 file_start, int contig)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -452,7 +452,7 @@ int btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 	sums = kzalloc(btrfs_ordered_sum_size(fs_info, bio->bi_iter.bi_size),
 		       GFP_NOFS);
 	if (!sums)
-		return -ENOMEM;
+		return BLK_STS_RESOURCE;
 
 	sums->len = bio->bi_iter.bi_size;
 	INIT_LIST_HEAD(&sums->list);

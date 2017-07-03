@@ -231,7 +231,7 @@ static inline void scm_request_init(struct scm_blk_dev *bdev,
 	aob->request.data = (u64) aobrq;
 	scmrq->bdev = bdev;
 	scmrq->retries = 4;
-	scmrq->error = 0;
+	scmrq->error = BLK_STS_OK;
 	/* We don't use all msbs - place aidaws at the end of the aob page. */
 	scmrq->next_aidaw = (void *) &aob->msb[nr_requests_per_io];
 	scm_request_cluster_init(scmrq);
@@ -364,7 +364,7 @@ static void __scmrq_log_error(struct scm_request *scmrq)
 {
 	struct aob *aob = scmrq->aob;
 
-	if (scmrq->error == -ETIMEDOUT)
+	if (scmrq->error == BLK_STS_TIMEOUT)
 		SCM_LOG(1, "Request timeout");
 	else {
 		SCM_LOG(1, "Request error");
@@ -377,7 +377,7 @@ static void __scmrq_log_error(struct scm_request *scmrq)
 		       scmrq->error);
 }
 
-void scm_blk_irq(struct scm_device *scmdev, void *data, int error)
+void scm_blk_irq(struct scm_device *scmdev, void *data, blk_status_t error)
 {
 	struct scm_request *scmrq = data;
 	struct scm_blk_dev *bdev = scmrq->bdev;
@@ -397,7 +397,7 @@ static void scm_blk_handle_error(struct scm_request *scmrq)
 	struct scm_blk_dev *bdev = scmrq->bdev;
 	unsigned long flags;
 
-	if (scmrq->error != -EIO)
+	if (scmrq->error != BLK_STS_IOERR)
 		goto restart;
 
 	/* For -EIO the response block is valid. */

@@ -10,7 +10,7 @@ struct data_insert_op {
 	unsigned		inode;
 	uint16_t		write_point;
 	uint16_t		write_prio;
-	short			error;
+	blk_status_t		status;
 
 	union {
 		uint16_t	flags;

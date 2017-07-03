@@ -3464,7 +3464,7 @@ static inline bool DAC960_ProcessCompletedRequest(DAC960_Command_T *Command,
 						 bool SuccessfulIO)
 {
 	struct request *Request = Command->Request;
-	int Error = SuccessfulIO ? 0 : -EIO;
+	blk_status_t Error = SuccessfulIO ? BLK_STS_OK : BLK_STS_IOERR;
 
 	pci_unmap_sg(Command->Controller->PCIDevice, Command->cmd_sglist,
 		Command->SegmentCount, Command->DmaDirection);

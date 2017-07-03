@@ -49,19 +49,19 @@ static struct nd_region *to_region(struct pmem_device *pmem)
 	return to_nd_region(to_dev(pmem)->parent);
 }
 
-static int pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
-		unsigned int len)
+static blk_status_t pmem_clear_poison(struct pmem_device *pmem,
+		phys_addr_t offset, unsigned int len)
 {
 	struct device *dev = to_dev(pmem);
 	sector_t sector;
 	long cleared;
-	int rc = 0;
+	blk_status_t rc = BLK_STS_OK;
 
 	sector = (offset - pmem->data_offset) / 512;
 
 	cleared = nvdimm_clear_poison(dev, pmem->phys_addr + offset, len);
 	if (cleared < len)
-		rc = -EIO;
+		rc = BLK_STS_IOERR;
 	if (cleared > 0 && cleared / 512) {
 		cleared /= 512;
 		dev_dbg(dev, "%s: %#llx clear %ld sector%s\n", __func__,
@@ -84,7 +84,7 @@ static void write_pmem(void *pmem_addr, struct page *page,
 	kunmap_atomic(mem);
 }
 
-static int read_pmem(struct page *page, unsigned int off,
+static blk_status_t read_pmem(struct page *page, unsigned int off,
 		void *pmem_addr, unsigned int len)
 {
 	int rc;
@@ -93,15 +93,15 @@ static int read_pmem(struct page *page, unsigned int off,
 	rc = memcpy_mcsafe(mem + off, pmem_addr, len);
 	kunmap_atomic(mem);
 	if (rc)
-		return -EIO;
-	return 0;
+		return BLK_STS_IOERR;
+	return BLK_STS_OK;
 }
 
-static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
+static blk_status_t pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			unsigned int len, unsigned int off, bool is_write,
 			sector_t sector)
 {
-	int rc = 0;
+	blk_status_t rc = BLK_STS_OK;
 	bool bad_pmem = false;
 	phys_addr_t pmem_off = sector * 512 + pmem->data_offset;
 	void *pmem_addr = pmem->virt_addr + pmem_off;
@@ -111,7 +111,7 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 
 	if (!is_write) {
 		if (unlikely(bad_pmem))
-			rc = -EIO;
+			rc = BLK_STS_IOERR;
 		else {
 			rc = read_pmem(page, off, pmem_addr, len);
 			flush_dcache_page(page);
@@ -149,7 +149,7 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 
 static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 {
-	int rc = 0;
+	blk_status_t rc = 0;
 	bool do_acct;
 	unsigned long start;
 	struct bio_vec bvec;
@@ -166,7 +166,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 				bvec.bv_offset, op_is_write(bio_op(bio)),
 				iter.bi_sector);
 		if (rc) {
-			bio->bi_error = rc;
+			bio->bi_status = rc;
 			break;
 		}
 	}
@@ -184,7 +184,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 		       struct page *page, bool is_write)
 {
 	struct pmem_device *pmem = bdev->bd_queue->queuedata;
-	int rc;
+	blk_status_t rc;
 
 	rc = pmem_do_bvec(pmem, page, PAGE_SIZE, 0, is_write, sector);
 
@@ -197,7 +197,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	if (rc == 0)
 		page_endio(page, is_write, 0);
 
-	return rc;
+	return blk_status_to_errno(rc);
 }
 
 /* see "strong" declaration in tools/testing/nvdimm/pmem-dax.c */
@@ -343,7 +343,6 @@ static int pmem_attach_disk(struct device *dev,
 	blk_queue_make_request(q, pmem_make_request);
 	blk_queue_physical_block_size(q, PAGE_SIZE);
 	blk_queue_max_hw_sectors(q, UINT_MAX);
-	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 	queue_flag_set_unlocked(QUEUE_FLAG_DAX, q);
 	q->queuedata = pmem;

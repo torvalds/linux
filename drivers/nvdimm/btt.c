@@ -1210,7 +1210,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 	 * another kernel subsystem, and we just pass it through.
 	 */
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 		goto out;
 	}
 
@@ -1232,7 +1232,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 					(op_is_write(bio_op(bio))) ? "WRITE" :
 					"READ",
 					(unsigned long long) iter.bi_sector, len);
-			bio->bi_error = err;
+			bio->bi_status = errno_to_blk_status(err);
 			break;
 		}
 	}
@@ -1297,7 +1297,6 @@ static int btt_blk_init(struct btt *btt)
 	blk_queue_make_request(btt->btt_queue, btt_make_request);
 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
 	blk_queue_max_hw_sectors(btt->btt_queue, UINT_MAX);
-	blk_queue_bounce_limit(btt->btt_queue, BLK_BOUNCE_ANY);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, btt->btt_queue);
 	btt->btt_queue->queuedata = btt;
 

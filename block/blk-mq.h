@@ -128,17 +128,6 @@ static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data
 	return data->hctx->tags;
 }
 
-/*
- * Internal helpers for request allocation/init/free
- */
-void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
-			struct request *rq, unsigned int op);
-void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-				struct request *rq);
-void blk_mq_finish_request(struct request *rq);
-struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
-					unsigned int op);
-
 static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
 {
 	return test_bit(BLK_MQ_S_STOPPED, &hctx->state);

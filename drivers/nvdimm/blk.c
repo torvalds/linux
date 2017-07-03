@@ -186,7 +186,7 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 	 * another kernel subsystem, and we just pass it through.
 	 */
 	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 		goto out;
 	}
 
@@ -205,7 +205,7 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 					"io error in %s sector %lld, len %d,\n",
 					(rw == READ) ? "READ" : "WRITE",
 					(unsigned long long) iter.bi_sector, len);
-			bio->bi_error = err;
+			bio->bi_status = errno_to_blk_status(err);
 			break;
 		}
 	}
@@ -273,7 +273,6 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
 
 	blk_queue_make_request(q, nd_blk_make_request);
 	blk_queue_max_hw_sectors(q, UINT_MAX);
-	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_logical_block_size(q, nsblk_sector_size(nsblk));
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 	q->queuedata = nsblk;

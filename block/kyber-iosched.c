@@ -426,33 +426,29 @@ static void rq_clear_domain_token(struct kyber_queue_data *kqd,
 	}
 }
 
-static struct request *kyber_get_request(struct request_queue *q,
-					 unsigned int op,
-					 struct blk_mq_alloc_data *data)
+static void kyber_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
 {
-	struct kyber_queue_data *kqd = q->elevator->elevator_data;
-	struct request *rq;
-
 	/*
 	 * We use the scheduler tags as per-hardware queue queueing tokens.
 	 * Async requests can be limited at this stage.
 	 */
-	if (!op_is_sync(op))
-		data->shallow_depth = kqd->async_depth;
+	if (!op_is_sync(op)) {
+		struct kyber_queue_data *kqd = data->q->elevator->elevator_data;
 
-	rq = __blk_mq_alloc_request(data, op);
-	if (rq)
-		rq_set_domain_token(rq, -1);
-	return rq;
+		data->shallow_depth = kqd->async_depth;
+	}
 }
 
-static void kyber_put_request(struct request *rq)
+static void kyber_prepare_request(struct request *rq, struct bio *bio)
 {
-	struct request_queue *q = rq->q;
-	struct kyber_queue_data *kqd = q->elevator->elevator_data;
+	rq_set_domain_token(rq, -1);
+}
+
+static void kyber_finish_request(struct request *rq)
+{
+	struct kyber_queue_data *kqd = rq->q->elevator->elevator_data;
 
 	rq_clear_domain_token(kqd, rq);
-	blk_mq_finish_request(rq);
 }
 
 static void kyber_completed_request(struct request *rq)
@@ -815,8 +811,9 @@ static struct elevator_type kyber_sched = {
 		.exit_sched = kyber_exit_sched,
 		.init_hctx = kyber_init_hctx,
 		.exit_hctx = kyber_exit_hctx,
-		.get_request = kyber_get_request,
-		.put_request = kyber_put_request,
+		.limit_depth = kyber_limit_depth,
+		.prepare_request = kyber_prepare_request,
+		.finish_request = kyber_finish_request,
 		.completed_request = kyber_completed_request,
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,

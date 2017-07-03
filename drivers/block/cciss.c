@@ -1864,7 +1864,8 @@ static void cciss_softirq_done(struct request *rq)
 	/* set the residual count for pc requests */
 	if (blk_rq_is_passthrough(rq))
 		scsi_req(rq)->resid_len = c->err_info->ResidualCnt;
-	blk_end_request_all(rq, scsi_req(rq)->result ? -EIO : 0);
+	blk_end_request_all(rq, scsi_req(rq)->result ?
+			BLK_STS_IOERR : BLK_STS_OK);
 
 	spin_lock_irqsave(&h->lock, flags);
 	cmd_free(h, c);
@@ -1956,6 +1957,7 @@ static int cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 	disk->queue->cmd_size = sizeof(struct scsi_request);
 	disk->queue->request_fn = do_cciss_request;
 	disk->queue->queue_lock = &h->lock;
+	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, disk->queue);
 	if (blk_init_allocated_queue(disk->queue) < 0)
 		goto cleanup_queue;
 

@@ -271,7 +271,7 @@ static void write_super_endio(struct bio *bio)
 {
 	struct cache *ca = bio->bi_private;
 
-	bch_count_io_errors(ca, bio->bi_error, "writing superblock");
+	bch_count_io_errors(ca, bio->bi_status, "writing superblock");
 	closure_put(&ca->set->sb_write);
 }
 
@@ -321,7 +321,7 @@ static void uuid_endio(struct bio *bio)
 	struct closure *cl = bio->bi_private;
 	struct cache_set *c = container_of(cl, struct cache_set, uuid_write);
 
-	cache_set_err_on(bio->bi_error, c, "accessing uuids");
+	cache_set_err_on(bio->bi_status, c, "accessing uuids");
 	bch_bbio_free(bio, c);
 	closure_put(cl);
 }
@@ -494,7 +494,7 @@ static void prio_endio(struct bio *bio)
 {
 	struct cache *ca = bio->bi_private;
 
-	cache_set_err_on(bio->bi_error, ca->set, "accessing priorities");
+	cache_set_err_on(bio->bi_status, ca->set, "accessing priorities");
 	bch_bbio_free(bio, ca->set);
 	closure_put(&ca->prio);
 }
@@ -782,7 +782,9 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 
 	minor *= BCACHE_MINORS;
 
-	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
+	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio),
+					   BIOSET_NEED_BVECS |
+					   BIOSET_NEED_RESCUER)) ||
 	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
 		ida_simple_remove(&bcache_minor, minor);
 		return -ENOMEM;
@@ -1516,7 +1518,9 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 				sizeof(struct bbio) + sizeof(struct bio_vec) *
 				bucket_pages(c))) ||
 	    !(c->fill_iter = mempool_create_kmalloc_pool(1, iter_size)) ||
-	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
+	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio),
+					   BIOSET_NEED_BVECS |
+					   BIOSET_NEED_RESCUER)) ||
 	    !(c->uuids = alloc_bucket_pages(GFP_KERNEL, c)) ||
 	    !(c->moving_gc_wq = alloc_workqueue("bcache_gc",
 						WQ_MEM_RECLAIM, 0)) ||

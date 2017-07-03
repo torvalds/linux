@@ -73,7 +73,7 @@ static void mpage_end_io(struct bio *bio)
 	int i;
 
 	if (ext4_bio_encrypted(bio)) {
-		if (bio->bi_error) {
+		if (bio->bi_status) {
 			fscrypt_release_ctx(bio->bi_private);
 		} else {
 			fscrypt_decrypt_bio_pages(bio->bi_private, bio);
@@ -83,7 +83,7 @@ static void mpage_end_io(struct bio *bio)
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 
-		if (!bio->bi_error) {
+		if (!bio->bi_status) {
 			SetPageUptodate(page);
 		} else {
 			ClearPageUptodate(page);

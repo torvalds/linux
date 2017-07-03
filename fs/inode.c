@@ -146,6 +146,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	i_gid_write(inode, 0);
 	atomic_set(&inode->i_writecount, 0);
 	inode->i_size = 0;
+	inode->i_write_hint = WRITE_LIFE_NOT_SET;
 	inode->i_blocks = 0;
 	inode->i_bytes = 0;
 	inode->i_generation = 0;

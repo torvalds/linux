@@ -342,7 +342,7 @@ struct mtip_cmd {
 	int retries; /* The number of retries left for this command. */
 
 	int direction; /* Data transfer direction */
-	int status;
+	blk_status_t status;
 };
 
 /* Structure used to describe a port. */

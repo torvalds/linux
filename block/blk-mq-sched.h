@@ -7,8 +7,7 @@
 void blk_mq_sched_free_hctx_data(struct request_queue *q,
 				 void (*exit)(struct blk_mq_hw_ctx *));
 
-struct request *blk_mq_sched_get_request(struct request_queue *q, struct bio *bio, unsigned int op, struct blk_mq_alloc_data *data);
-void blk_mq_sched_put_request(struct request *rq);
+void blk_mq_sched_assign_ioc(struct request *rq, struct bio *bio);
 
 void blk_mq_sched_request_inserted(struct request *rq);
 bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
@@ -38,33 +37,10 @@ int blk_mq_sched_init(struct request_queue *q);
 static inline bool
 blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
-	struct elevator_queue *e = q->elevator;
-
-	if (!e || blk_queue_nomerges(q) || !bio_mergeable(bio))
+	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
 		return false;
 
 	return __blk_mq_sched_bio_merge(q, bio);
-}
-
-static inline int blk_mq_sched_get_rq_priv(struct request_queue *q,
-					   struct request *rq,
-					   struct bio *bio)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e && e->type->ops.mq.get_rq_priv)
-		return e->type->ops.mq.get_rq_priv(q, rq, bio);
-
-	return 0;
-}
-
-static inline void blk_mq_sched_put_rq_priv(struct request_queue *q,
-					    struct request *rq)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e && e->type->ops.mq.put_rq_priv)
-		e->type->ops.mq.put_rq_priv(q, rq);
 }
 
 static inline bool

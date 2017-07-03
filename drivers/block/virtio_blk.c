@@ -64,15 +64,15 @@ struct virtblk_req {
 	struct scatterlist sg[];
 };
 
-static inline int virtblk_result(struct virtblk_req *vbr)
+static inline blk_status_t virtblk_result(struct virtblk_req *vbr)
 {
 	switch (vbr->status) {
 	case VIRTIO_BLK_S_OK:
-		return 0;
+		return BLK_STS_OK;
 	case VIRTIO_BLK_S_UNSUPP:
-		return -ENOTTY;
+		return BLK_STS_NOTSUPP;
 	default:
-		return -EIO;
+		return BLK_STS_IOERR;
 	}
 }
 
@@ -214,7 +214,7 @@ static void virtblk_done(struct virtqueue *vq)
 	spin_unlock_irqrestore(&vblk->vqs[qid].lock, flags);
 }
 
-static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 			   const struct blk_mq_queue_data *bd)
 {
 	struct virtio_blk *vblk = hctx->queue->queuedata;
@@ -246,7 +246,7 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 	}
 
 	vbr->out_hdr.type = cpu_to_virtio32(vblk->vdev, type);
@@ -276,8 +276,8 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 		/* Out of mem doesn't actually happen, since we fall back
 		 * to direct descriptors */
 		if (err == -ENOMEM || err == -ENOSPC)
-			return BLK_MQ_RQ_QUEUE_BUSY;
-		return BLK_MQ_RQ_QUEUE_ERROR;
+			return BLK_STS_RESOURCE;
+		return BLK_STS_IOERR;
 	}
 
 	if (bd->last && virtqueue_kick_prepare(vblk->vqs[qid].vq))
@@ -286,7 +286,7 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (notify)
 		virtqueue_notify(vblk->vqs[qid].vq);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 /* return id (s/n) string for *disk to *id_str
@@ -307,7 +307,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 		goto out;
 
 	blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
-	err = virtblk_result(blk_mq_rq_to_pdu(req));
+	err = blk_status_to_errno(virtblk_result(blk_mq_rq_to_pdu(req)));
 out:
 	blk_put_request(req);
 	return err;
@@ -719,9 +719,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 
 	/* We can handle whatever the host told us to handle. */
 	blk_queue_max_segments(q, vblk->sg_elems-2);
-
-	/* No need to bounce any requests */
-	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 
 	/* No real sector limit. */
 	blk_queue_max_hw_sectors(q, -1U);

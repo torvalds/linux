@@ -95,7 +95,7 @@ struct scrub_bio {
 	struct scrub_ctx	*sctx;
 	struct btrfs_device	*dev;
 	struct bio		*bio;
-	int			err;
+	blk_status_t		status;
 	u64			logical;
 	u64			physical;
 #if SCRUB_PAGES_PER_WR_BIO >= SCRUB_PAGES_PER_RD_BIO
@@ -1668,14 +1668,14 @@ leave_nomem:
 
 struct scrub_bio_ret {
 	struct completion event;
-	int error;
+	blk_status_t status;
 };
 
 static void scrub_bio_wait_endio(struct bio *bio)
 {
 	struct scrub_bio_ret *ret = bio->bi_private;
 
-	ret->error = bio->bi_error;
+	ret->status = bio->bi_status;
 	complete(&ret->event);
 }
 
@@ -1693,7 +1693,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	init_completion(&done.event);
-	done.error = 0;
+	done.status = 0;
 	bio->bi_iter.bi_sector = page->logical >> 9;
 	bio->bi_private = &done;
 	bio->bi_end_io = scrub_bio_wait_endio;
@@ -1705,7 +1705,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 		return ret;
 
 	wait_for_completion(&done.event);
-	if (done.error)
+	if (done.status)
 		return -EIO;
 
 	return 0;
@@ -1937,7 +1937,7 @@ again:
 		bio->bi_bdev = sbio->dev->bdev;
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-		sbio->err = 0;
+		sbio->status = 0;
 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
 		   spage->physical_for_dev_replace ||
 		   sbio->logical + sbio->page_count * PAGE_SIZE !=
@@ -1992,7 +1992,7 @@ static void scrub_wr_bio_end_io(struct bio *bio)
 	struct scrub_bio *sbio = bio->bi_private;
 	struct btrfs_fs_info *fs_info = sbio->dev->fs_info;
 
-	sbio->err = bio->bi_error;
+	sbio->status = bio->bi_status;
 	sbio->bio = bio;
 
 	btrfs_init_work(&sbio->work, btrfs_scrubwrc_helper,
@@ -2007,7 +2007,7 @@ static void scrub_wr_bio_end_io_worker(struct btrfs_work *work)
 	int i;
 
 	WARN_ON(sbio->page_count > SCRUB_PAGES_PER_WR_BIO);
-	if (sbio->err) {
+	if (sbio->status) {
 		struct btrfs_dev_replace *dev_replace =
 			&sbio->sctx->fs_info->dev_replace;
 
@@ -2341,7 +2341,7 @@ again:
 		bio->bi_bdev = sbio->dev->bdev;
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
-		sbio->err = 0;
+		sbio->status = 0;
 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
 		   spage->physical ||
 		   sbio->logical + sbio->page_count * PAGE_SIZE !=
@@ -2377,7 +2377,7 @@ static void scrub_missing_raid56_end_io(struct bio *bio)
 	struct scrub_block *sblock = bio->bi_private;
 	struct btrfs_fs_info *fs_info = sblock->sctx->fs_info;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		sblock->no_io_error_seen = 0;
 
 	bio_put(bio);
@@ -2588,7 +2588,7 @@ static void scrub_bio_end_io(struct bio *bio)
 	struct scrub_bio *sbio = bio->bi_private;
 	struct btrfs_fs_info *fs_info = sbio->dev->fs_info;
 
-	sbio->err = bio->bi_error;
+	sbio->status = bio->bi_status;
 	sbio->bio = bio;
 
 	btrfs_queue_work(fs_info->scrub_workers, &sbio->work);
@@ -2601,7 +2601,7 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 	int i;
 
 	BUG_ON(sbio->page_count > SCRUB_PAGES_PER_RD_BIO);
-	if (sbio->err) {
+	if (sbio->status) {
 		for (i = 0; i < sbio->page_count; i++) {
 			struct scrub_page *spage = sbio->pagev[i];
 
@@ -3004,7 +3004,7 @@ static void scrub_parity_bio_endio(struct bio *bio)
 	struct scrub_parity *sparity = (struct scrub_parity *)bio->bi_private;
 	struct btrfs_fs_info *fs_info = sparity->sctx->fs_info;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
 			  sparity->nsectors);
 

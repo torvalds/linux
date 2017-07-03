@@ -133,7 +133,7 @@ static void mmc_request_fn(struct request_queue *q)
 	if (!mq) {
 		while ((req = blk_fetch_request(q)) != NULL) {
 			req->rq_flags |= RQF_QUIET;
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		}
 		return;
 	}
@@ -388,7 +388,6 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		mmc_queue_setup_discard(mq->queue, card);
 
 	if (card->bouncesz) {
-		blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
 		blk_queue_max_hw_sectors(mq->queue, card->bouncesz / 512);
 		blk_queue_max_segments(mq->queue, card->bouncesz / 512);
 		blk_queue_max_segment_size(mq->queue, card->bouncesz);

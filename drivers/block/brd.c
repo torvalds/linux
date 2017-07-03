@@ -418,7 +418,6 @@ static struct brd_device *brd_alloc(int i)
 
 	blk_queue_make_request(brd->brd_queue, brd_make_request);
 	blk_queue_max_hw_sectors(brd->brd_queue, 1024);
-	blk_queue_bounce_limit(brd->brd_queue, BLK_BOUNCE_ANY);
 
 	/* This is so fdisk will align partitions on 4k, because of
 	 * direct_access API needing 4k alignment, returning a PFN

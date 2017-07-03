@@ -224,7 +224,7 @@ static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
  * @bio:	bio to generate/verify integrity metadata for
  * @proc_fn:	Pointer to the relevant processing function
  */
-static int bio_integrity_process(struct bio *bio,
+static blk_status_t bio_integrity_process(struct bio *bio,
 				 integrity_processing_fn *proc_fn)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
@@ -232,7 +232,7 @@ static int bio_integrity_process(struct bio *bio,
 	struct bvec_iter bviter;
 	struct bio_vec bv;
 	struct bio_integrity_payload *bip = bio_integrity(bio);
-	unsigned int ret = 0;
+	blk_status_t ret = BLK_STS_OK;
 	void *prot_buf = page_address(bip->bip_vec->bv_page) +
 		bip->bip_vec->bv_offset;
 
@@ -369,7 +369,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 	struct bio *bio = bip->bip_bio;
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 
-	bio->bi_error = bio_integrity_process(bio, bi->profile->verify_fn);
+	bio->bi_status = bio_integrity_process(bio, bi->profile->verify_fn);
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
@@ -398,7 +398,7 @@ void bio_integrity_endio(struct bio *bio)
 	 * integrity metadata.  Restore original bio end_io handler
 	 * and run it.
 	 */
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		bio->bi_end_io = bip->bip_end_io;
 		bio_endio(bio);
 

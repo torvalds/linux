@@ -35,7 +35,8 @@ struct nullb {
 	struct request_queue *q;
 	struct gendisk *disk;
 	struct nvm_dev *ndev;
-	struct blk_mq_tag_set tag_set;
+	struct blk_mq_tag_set *tag_set;
+	struct blk_mq_tag_set __tag_set;
 	struct hrtimer timer;
 	unsigned int queue_depth;
 	spinlock_t lock;
@@ -50,6 +51,7 @@ static struct mutex lock;
 static int null_major;
 static int nullb_indexes;
 static struct kmem_cache *ppa_cache;
+static struct blk_mq_tag_set tag_set;
 
 enum {
 	NULL_IRQ_NONE		= 0,
@@ -109,7 +111,7 @@ static int bs = 512;
 module_param(bs, int, S_IRUGO);
 MODULE_PARM_DESC(bs, "Block size (in bytes)");
 
-static int nr_devices = 2;
+static int nr_devices = 1;
 module_param(nr_devices, int, S_IRUGO);
 MODULE_PARM_DESC(nr_devices, "Number of devices to register");
 
@@ -120,6 +122,10 @@ MODULE_PARM_DESC(use_lightnvm, "Register as a LightNVM device");
 static bool blocking;
 module_param(blocking, bool, S_IRUGO);
 MODULE_PARM_DESC(blocking, "Register as a blocking blk-mq driver device");
+
+static bool shared_tags;
+module_param(shared_tags, bool, S_IRUGO);
+MODULE_PARM_DESC(shared_tags, "Share tag set between devices for blk-mq");
 
 static int irqmode = NULL_IRQ_SOFTIRQ;
 
@@ -229,11 +235,11 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
-		blk_mq_end_request(cmd->rq, 0);
+		blk_mq_end_request(cmd->rq, BLK_STS_OK);
 		return;
 	case NULL_Q_RQ:
 		INIT_LIST_HEAD(&cmd->rq->queuelist);
-		blk_end_request_all(cmd->rq, 0);
+		blk_end_request_all(cmd->rq, BLK_STS_OK);
 		break;
 	case NULL_Q_BIO:
 		bio_endio(cmd->bio);
@@ -356,7 +362,7 @@ static void null_request_fn(struct request_queue *q)
 	}
 }
 
-static int null_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
@@ -373,34 +379,11 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(bd->rq);
 
 	null_handle_cmd(cmd);
-	return BLK_MQ_RQ_QUEUE_OK;
-}
-
-static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
-{
-	BUG_ON(!nullb);
-	BUG_ON(!nq);
-
-	init_waitqueue_head(&nq->wait);
-	nq->queue_depth = nullb->queue_depth;
-}
-
-static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
-			  unsigned int index)
-{
-	struct nullb *nullb = data;
-	struct nullb_queue *nq = &nullb->queues[index];
-
-	hctx->driver_data = nq;
-	null_init_queue(nullb, nq);
-	nullb->nr_queues++;
-
-	return 0;
+	return BLK_STS_OK;
 }
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
-	.init_hctx	= null_init_hctx,
 	.complete	= null_softirq_done_fn,
 };
 
@@ -422,11 +405,12 @@ static void cleanup_queues(struct nullb *nullb)
 
 #ifdef CONFIG_NVM
 
-static void null_lnvm_end_io(struct request *rq, int error)
+static void null_lnvm_end_io(struct request *rq, blk_status_t status)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
 
-	rqd->error = error;
+	/* XXX: lighnvm core seems to expect NVM_RSP_* values here.. */
+	rqd->error = status ? -EIO : 0;
 	nvm_end_io(rqd);
 
 	blk_put_request(rq);
@@ -591,8 +575,8 @@ static void null_del_dev(struct nullb *nullb)
 	else
 		del_gendisk(nullb->disk);
 	blk_cleanup_queue(nullb->q);
-	if (queue_mode == NULL_Q_MQ)
-		blk_mq_free_tag_set(&nullb->tag_set);
+	if (queue_mode == NULL_Q_MQ && nullb->tag_set == &nullb->__tag_set)
+		blk_mq_free_tag_set(nullb->tag_set);
 	if (!use_lightnvm)
 		put_disk(nullb->disk);
 	cleanup_queues(nullb);
@@ -613,6 +597,32 @@ static const struct block_device_operations null_fops = {
 	.open =		null_open,
 	.release =	null_release,
 };
+
+static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
+{
+	BUG_ON(!nullb);
+	BUG_ON(!nq);
+
+	init_waitqueue_head(&nq->wait);
+	nq->queue_depth = nullb->queue_depth;
+}
+
+static void null_init_queues(struct nullb *nullb)
+{
+	struct request_queue *q = nullb->q;
+	struct blk_mq_hw_ctx *hctx;
+	struct nullb_queue *nq;
+	int i;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (!hctx->nr_ctx || !hctx->tags)
+			continue;
+		nq = &nullb->queues[i];
+		hctx->driver_data = nq;
+		null_init_queue(nullb, nq);
+		nullb->nr_queues++;
+	}
+}
 
 static int setup_commands(struct nullb_queue *nq)
 {
@@ -694,6 +704,22 @@ static int null_gendisk_register(struct nullb *nullb)
 	return 0;
 }
 
+static int null_init_tag_set(struct blk_mq_tag_set *set)
+{
+	set->ops = &null_mq_ops;
+	set->nr_hw_queues = submit_queues;
+	set->queue_depth = hw_queue_depth;
+	set->numa_node = home_node;
+	set->cmd_size	= sizeof(struct nullb_cmd);
+	set->flags = BLK_MQ_F_SHOULD_MERGE;
+	set->driver_data = NULL;
+
+	if (blocking)
+		set->flags |= BLK_MQ_F_BLOCKING;
+
+	return blk_mq_alloc_tag_set(set);
+}
+
 static int null_add_dev(void)
 {
 	struct nullb *nullb;
@@ -715,26 +741,23 @@ static int null_add_dev(void)
 		goto out_free_nullb;
 
 	if (queue_mode == NULL_Q_MQ) {
-		nullb->tag_set.ops = &null_mq_ops;
-		nullb->tag_set.nr_hw_queues = submit_queues;
-		nullb->tag_set.queue_depth = hw_queue_depth;
-		nullb->tag_set.numa_node = home_node;
-		nullb->tag_set.cmd_size	= sizeof(struct nullb_cmd);
-		nullb->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
-		nullb->tag_set.driver_data = nullb;
+		if (shared_tags) {
+			nullb->tag_set = &tag_set;
+			rv = 0;
+		} else {
+			nullb->tag_set = &nullb->__tag_set;
+			rv = null_init_tag_set(nullb->tag_set);
+		}
 
-		if (blocking)
-			nullb->tag_set.flags |= BLK_MQ_F_BLOCKING;
-
-		rv = blk_mq_alloc_tag_set(&nullb->tag_set);
 		if (rv)
 			goto out_cleanup_queues;
 
-		nullb->q = blk_mq_init_queue(&nullb->tag_set);
+		nullb->q = blk_mq_init_queue(nullb->tag_set);
 		if (IS_ERR(nullb->q)) {
 			rv = -ENOMEM;
 			goto out_cleanup_tags;
 		}
+		null_init_queues(nullb);
 	} else if (queue_mode == NULL_Q_BIO) {
 		nullb->q = blk_alloc_queue_node(GFP_KERNEL, home_node);
 		if (!nullb->q) {
@@ -787,8 +810,8 @@ static int null_add_dev(void)
 out_cleanup_blk_queue:
 	blk_cleanup_queue(nullb->q);
 out_cleanup_tags:
-	if (queue_mode == NULL_Q_MQ)
-		blk_mq_free_tag_set(&nullb->tag_set);
+	if (queue_mode == NULL_Q_MQ && nullb->tag_set == &nullb->__tag_set)
+		blk_mq_free_tag_set(nullb->tag_set);
 out_cleanup_queues:
 	cleanup_queues(nullb);
 out_free_nullb:
@@ -820,6 +843,9 @@ static int __init null_init(void)
 		pr_warn("null_blk: defaults queue mode to blk-mq\n");
 		queue_mode = NULL_Q_MQ;
 	}
+
+	if (queue_mode == NULL_Q_MQ && shared_tags)
+		null_init_tag_set(&tag_set);
 
 	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
 		if (submit_queues < nr_online_nodes) {
@@ -880,6 +906,9 @@ static void __exit null_exit(void)
 		null_del_dev(nullb);
 	}
 	mutex_unlock(&lock);
+
+	if (queue_mode == NULL_Q_MQ && shared_tags)
+		blk_mq_free_tag_set(&tag_set);
 
 	kmem_cache_destroy(ppa_cache);
 }

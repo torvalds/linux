@@ -493,7 +493,7 @@ static inline int swim_read_sector(struct floppy_state *fs,
 	return ret;
 }
 
-static int floppy_read_sectors(struct floppy_state *fs,
+static blk_status_t floppy_read_sectors(struct floppy_state *fs,
 			       int req_sector, int sectors_nb,
 			       unsigned char *buffer)
 {
@@ -516,7 +516,7 @@ static int floppy_read_sectors(struct floppy_state *fs,
 			ret = swim_read_sector(fs, side, track, sector,
 						buffer);
 			if (try-- == 0)
-				return -EIO;
+				return BLK_STS_IOERR;
 		} while (ret != 512);
 
 		buffer += ret;
@@ -553,7 +553,7 @@ static void do_fd_request(struct request_queue *q)
 
 	req = swim_next_request(swd);
 	while (req) {
-		int err = -EIO;
+		blk_status_t err = BLK_STS_IOERR;
 
 		fs = req->rq_disk->private_data;
 		if (blk_rq_pos(req) >= fs->total_secs)
@@ -864,6 +864,8 @@ static int swim_floppy_init(struct swim_priv *swd)
 			put_disk(swd->unit[drive].disk);
 			goto exit_put_disks;
 		}
+		blk_queue_bounce_limit(swd->unit[drive].disk->queue,
+				BLK_BOUNCE_HIGH);
 		swd->unit[drive].disk->queue->queuedata = swd;
 		swd->unit[drive].swd = swd;
 	}

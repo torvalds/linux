@@ -326,7 +326,6 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 	req = scsi_req(rq);
-	scsi_req_init(rq);
 
 	if (hdr->cmd_len > BLK_MAX_CDB) {
 		req->cmd = kzalloc(hdr->cmd_len, GFP_KERNEL);
@@ -456,7 +455,6 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		goto error_free_buffer;
 	}
 	req = scsi_req(rq);
-	scsi_req_init(rq);
 
 	cmdlen = COMMAND_SIZE(opcode);
 
@@ -542,7 +540,6 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 	rq = blk_get_request(q, REQ_OP_SCSI_OUT, __GFP_RECLAIM);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
-	scsi_req_init(rq);
 	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	scsi_req(rq)->cmd[0] = cmd;
 	scsi_req(rq)->cmd[4] = data;
@@ -744,10 +741,14 @@ int scsi_cmd_blk_ioctl(struct block_device *bd, fmode_t mode,
 }
 EXPORT_SYMBOL(scsi_cmd_blk_ioctl);
 
-void scsi_req_init(struct request *rq)
+/**
+ * scsi_req_init - initialize certain fields of a scsi_request structure
+ * @req: Pointer to a scsi_request structure.
+ * Initializes .__cmd[], .cmd, .cmd_len and .sense_len but no other members
+ * of struct scsi_request.
+ */
+void scsi_req_init(struct scsi_request *req)
 {
-	struct scsi_request *req = scsi_req(rq);
-
 	memset(req->__cmd, 0, sizeof(req->__cmd));
 	req->cmd = req->__cmd;
 	req->cmd_len = BLK_MAX_CDB;

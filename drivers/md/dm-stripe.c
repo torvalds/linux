@@ -375,20 +375,21 @@ static void stripe_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int stripe_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int stripe_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t *error)
 {
 	unsigned i;
 	char major_minor[16];
 	struct stripe_c *sc = ti->private;
 
-	if (!error)
-		return 0; /* I/O complete */
+	if (!*error)
+		return DM_ENDIO_DONE; /* I/O complete */
 
-	if ((error == -EWOULDBLOCK) && (bio->bi_opf & REQ_RAHEAD))
-		return error;
+	if (bio->bi_opf & REQ_RAHEAD)
+		return DM_ENDIO_DONE;
 
-	if (error == -EOPNOTSUPP)
-		return error;
+	if (*error == BLK_STS_NOTSUPP)
+		return DM_ENDIO_DONE;
 
 	memset(major_minor, 0, sizeof(major_minor));
 	sprintf(major_minor, "%d:%d",
@@ -409,7 +410,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio, int error)
 				schedule_work(&sc->trigger_event);
 		}
 
-	return error;
+	return DM_ENDIO_DONE;
 }
 
 static int stripe_iterate_devices(struct dm_target *ti,
