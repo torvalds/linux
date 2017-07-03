@@ -36,6 +36,26 @@ static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
 	return false;
 }
 
+/*
+ * APM X-Gene v1 and v2 UART hardware is an 16550 like device but has its
+ * register aligned to 32-bit. In addition, the BIOS also encoded the
+ * access width to be 8 bits. This function detects this errata condition.
+ */
+static bool xgene_8250_erratum_present(struct acpi_table_spcr *tb)
+{
+	if (tb->interface_type != ACPI_DBG2_16550_COMPATIBLE)
+		return false;
+
+	if (memcmp(tb->header.oem_id, "APMC0D", ACPI_OEM_ID_SIZE))
+		return false;
+
+	if (!memcmp(tb->header.oem_table_id, "XGENESPC",
+	    ACPI_OEM_TABLE_ID_SIZE) && tb->header.oem_revision == 0)
+		return true;
+
+	return false;
+}
+
 /**
  * parse_spcr() - parse ACPI SPCR table and add preferred console
  *
@@ -129,6 +149,8 @@ int __init parse_spcr(bool earlycon)
 
 	if (qdf2400_erratum_44_present(&table->header))
 		uart = "qdf2400_e44";
+	if (xgene_8250_erratum_present(table))
+		iotype = "mmio32";
 
 	snprintf(opts, sizeof(opts), "%s,%s,0x%llx,%d", uart, iotype,
 		 table->serial_port.address, baud_rate);
