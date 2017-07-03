@@ -65,8 +65,7 @@ static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
 		if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
 			continue;
 
-		__dma_sync(page_to_phys(sg_page(sg)) + sg->offset,
-							sg->length, direction);
+		__dma_sync(sg_phys(sg), sg->length, direction);
 	}
 
 	return nents;
