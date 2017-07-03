@@ -4881,7 +4881,7 @@ static void ixgbe_clear_udp_tunnel_port(struct ixgbe_adapter *adapter, u32 mask)
 				IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE)))
 		return;
 
-	vxlanctrl = IXGBE_READ_REG(hw, IXGBE_VXLANCTRL) && ~mask;
+	vxlanctrl = IXGBE_READ_REG(hw, IXGBE_VXLANCTRL) & ~mask;
 	IXGBE_WRITE_REG(hw, IXGBE_VXLANCTRL, vxlanctrl);
 
 	if (mask & IXGBE_VXLANCTRL_VXLAN_UDPPORT_MASK)
