@@ -343,7 +343,7 @@ found:
  * are still connected to it and there's no way to inform "a polling
  * implementation" that it should let go of a certain wait queue
  *
- * In order to propagate a wake up, a wait_queue_t of the client
+ * In order to propagate a wake up, a wait_queue_entry_t of the client
  * socket is enqueued on the peer_wait queue of the server socket
  * whose wake function does a wake_up on the ordinary client socket
  * wait queue. This connection is established whenever a write (or
@@ -352,7 +352,7 @@ found:
  * was relayed.
  */
 
-static int unix_dgram_peer_wake_relay(wait_queue_t *q, unsigned mode, int flags,
+static int unix_dgram_peer_wake_relay(wait_queue_entry_t *q, unsigned mode, int flags,
 				      void *key)
 {
 	struct unix_sock *u;

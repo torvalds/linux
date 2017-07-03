@@ -453,7 +453,7 @@ static int lbs_thread(void *data)
 {
 	struct net_device *dev = data;
 	struct lbs_private *priv = dev->ml_priv;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	lbs_deb_enter(LBS_DEB_THREAD);
 

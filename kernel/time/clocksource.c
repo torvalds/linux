@@ -233,6 +233,9 @@ static void clocksource_watchdog(unsigned long data)
 			continue;
 		}
 
+		if (cs == curr_clocksource && cs->tick_stable)
+			cs->tick_stable(cs);
+
 		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) &&
 		    (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
 		    (watchdog->flags & CLOCK_SOURCE_IS_CONTINUOUS)) {

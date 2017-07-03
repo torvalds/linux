@@ -800,10 +800,10 @@ struct wait_page_key {
 struct wait_page_queue {
 	struct page *page;
 	int bit_nr;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 };
 
-static int wake_page_function(wait_queue_t *wait, unsigned mode, int sync, void *arg)
+static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync, void *arg)
 {
 	struct wait_page_key *key = arg;
 	struct wait_page_queue *wait_page
@@ -866,7 +866,7 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 		struct page *page, int bit_nr, int state, bool lock)
 {
 	struct wait_page_queue wait_page;
-	wait_queue_t *wait = &wait_page.wait;
+	wait_queue_entry_t *wait = &wait_page.wait;
 	int ret = 0;
 
 	init_wait(wait);
@@ -877,9 +877,9 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	for (;;) {
 		spin_lock_irq(&q->lock);
 
-		if (likely(list_empty(&wait->task_list))) {
+		if (likely(list_empty(&wait->entry))) {
 			if (lock)
-				__add_wait_queue_tail_exclusive(q, wait);
+				__add_wait_queue_entry_tail_exclusive(q, wait);
 			else
 				__add_wait_queue(q, wait);
 			SetPageWaiters(page);
@@ -939,7 +939,7 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
  *
  * Add an arbitrary @waiter to the wait queue for the nominated @page.
  */
-void add_page_wait_queue(struct page *page, wait_queue_t *waiter)
+void add_page_wait_queue(struct page *page, wait_queue_entry_t *waiter)
 {
 	wait_queue_head_t *q = page_waitqueue(page);
 	unsigned long flags;

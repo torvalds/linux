@@ -152,7 +152,7 @@ static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 					struct list_head *continuation)
 {
 	wait_queue_head_t *x = &fence->wait;
-	wait_queue_t *pos, *next;
+	wait_queue_entry_t *pos, *next;
 	unsigned long flags;
 
 	debug_fence_deactivate(fence);
@@ -160,31 +160,30 @@ static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 
 	/*
 	 * To prevent unbounded recursion as we traverse the graph of
-	 * i915_sw_fences, we move the task_list from this, the next ready
-	 * fence, to the tail of the original fence's task_list
+	 * i915_sw_fences, we move the entry list from this, the next ready
+	 * fence, to the tail of the original fence's entry list
 	 * (and so added to the list to be woken).
 	 */
 
 	spin_lock_irqsave_nested(&x->lock, flags, 1 + !!continuation);
 	if (continuation) {
-		list_for_each_entry_safe(pos, next, &x->task_list, task_list) {
+		list_for_each_entry_safe(pos, next, &x->head, entry) {
 			if (pos->func == autoremove_wake_function)
 				pos->func(pos, TASK_NORMAL, 0, continuation);
 			else
-				list_move_tail(&pos->task_list, continuation);
+				list_move_tail(&pos->entry, continuation);
 		}
 	} else {
 		LIST_HEAD(extra);
 
 		do {
-			list_for_each_entry_safe(pos, next,
-						 &x->task_list, task_list)
+			list_for_each_entry_safe(pos, next, &x->head, entry)
 				pos->func(pos, TASK_NORMAL, 0, &extra);
 
 			if (list_empty(&extra))
 				break;
 
-			list_splice_tail_init(&extra, &x->task_list);
+			list_splice_tail_init(&extra, &x->head);
 		} while (1);
 	}
 	spin_unlock_irqrestore(&x->lock, flags);
@@ -254,9 +253,9 @@ void i915_sw_fence_commit(struct i915_sw_fence *fence)
 	__i915_sw_fence_commit(fence);
 }
 
-static int i915_sw_fence_wake(wait_queue_t *wq, unsigned mode, int flags, void *key)
+static int i915_sw_fence_wake(wait_queue_entry_t *wq, unsigned mode, int flags, void *key)
 {
-	list_del(&wq->task_list);
+	list_del(&wq->entry);
 	__i915_sw_fence_complete(wq->private, key);
 	i915_sw_fence_put(wq->private);
 	if (wq->flags & I915_SW_FENCE_FLAG_ALLOC)
@@ -267,7 +266,7 @@ static int i915_sw_fence_wake(wait_queue_t *wq, unsigned mode, int flags, void *
 static bool __i915_sw_fence_check_if_after(struct i915_sw_fence *fence,
 				    const struct i915_sw_fence * const signaler)
 {
-	wait_queue_t *wq;
+	wait_queue_entry_t *wq;
 
 	if (__test_and_set_bit(I915_SW_FENCE_CHECKED_BIT, &fence->flags))
 		return false;
@@ -275,7 +274,7 @@ static bool __i915_sw_fence_check_if_after(struct i915_sw_fence *fence,
 	if (fence == signaler)
 		return true;
 
-	list_for_each_entry(wq, &fence->wait.task_list, task_list) {
+	list_for_each_entry(wq, &fence->wait.head, entry) {
 		if (wq->func != i915_sw_fence_wake)
 			continue;
 
@@ -288,12 +287,12 @@ static bool __i915_sw_fence_check_if_after(struct i915_sw_fence *fence,
 
 static void __i915_sw_fence_clear_checked_bit(struct i915_sw_fence *fence)
 {
-	wait_queue_t *wq;
+	wait_queue_entry_t *wq;
 
 	if (!__test_and_clear_bit(I915_SW_FENCE_CHECKED_BIT, &fence->flags))
 		return;
 
-	list_for_each_entry(wq, &fence->wait.task_list, task_list) {
+	list_for_each_entry(wq, &fence->wait.head, entry) {
 		if (wq->func != i915_sw_fence_wake)
 			continue;
 
@@ -320,7 +319,7 @@ static bool i915_sw_fence_check_if_after(struct i915_sw_fence *fence,
 
 static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 					  struct i915_sw_fence *signaler,
-					  wait_queue_t *wq, gfp_t gfp)
+					  wait_queue_entry_t *wq, gfp_t gfp)
 {
 	unsigned long flags;
 	int pending;
@@ -350,7 +349,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 		pending |= I915_SW_FENCE_FLAG_ALLOC;
 	}
 
-	INIT_LIST_HEAD(&wq->task_list);
+	INIT_LIST_HEAD(&wq->entry);
 	wq->flags = pending;
 	wq->func = i915_sw_fence_wake;
 	wq->private = i915_sw_fence_get(fence);
@@ -359,7 +358,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 
 	spin_lock_irqsave(&signaler->wait.lock, flags);
 	if (likely(!i915_sw_fence_done(signaler))) {
-		__add_wait_queue_tail(&signaler->wait, wq);
+		__add_wait_queue_entry_tail(&signaler->wait, wq);
 		pending = 1;
 	} else {
 		i915_sw_fence_wake(wq, 0, 0, NULL);
@@ -372,7 +371,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 
 int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 				 struct i915_sw_fence *signaler,
-				 wait_queue_t *wq)
+				 wait_queue_entry_t *wq)
 {
 	return __i915_sw_fence_await_sw_fence(fence, signaler, wq, 0);
 }

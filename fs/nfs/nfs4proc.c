@@ -6373,7 +6373,7 @@ struct nfs4_lock_waiter {
 };
 
 static int
-nfs4_wake_lock_waiter(wait_queue_t *wait, unsigned int mode, int flags, void *key)
+nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, void *key)
 {
 	int ret;
 	struct cb_notify_lock_args *cbnl = key;
@@ -6416,7 +6416,7 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 					   .inode = state->inode,
 					   .owner = &owner,
 					   .notified = false };
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	/* Don't bother with waitqueue if we don't expect a callback */
 	if (!test_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags))

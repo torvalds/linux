@@ -1782,7 +1782,7 @@ wavefront_should_cause_interrupt (snd_wavefront_t *dev,
 				  int val, int port, unsigned long timeout)
 
 {
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	init_waitqueue_entry(&wait, current);
 	spin_lock_irq(&dev->irq_lock);

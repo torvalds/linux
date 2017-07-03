@@ -183,7 +183,7 @@ struct virqfd {
 	void			(*thread)(void *, void *);
 	void			*data;
 	struct work_struct	inject;
-	wait_queue_t		wait;
+	wait_queue_entry_t		wait;
 	poll_table		pt;
 	struct work_struct	shutdown;
 	struct virqfd		**pvirqfd;

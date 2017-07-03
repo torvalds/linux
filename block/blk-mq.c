@@ -941,14 +941,14 @@ static bool reorder_tags_to_front(struct list_head *list)
 	return first != NULL;
 }
 
-static int blk_mq_dispatch_wake(wait_queue_t *wait, unsigned mode, int flags,
+static int blk_mq_dispatch_wake(wait_queue_entry_t *wait, unsigned mode, int flags,
 				void *key)
 {
 	struct blk_mq_hw_ctx *hctx;
 
 	hctx = container_of(wait, struct blk_mq_hw_ctx, dispatch_wait);
 
-	list_del(&wait->task_list);
+	list_del(&wait->entry);
 	clear_bit_unlock(BLK_MQ_S_TAG_WAITING, &hctx->state);
 	blk_mq_run_hw_queue(hctx, true);
 	return 1;

@@ -318,19 +318,6 @@ void rcuwait_wake_up(struct rcuwait *w)
 	rcu_read_unlock();
 }
 
-struct task_struct *try_get_task_struct(struct task_struct **ptask)
-{
-	struct task_struct *task;
-
-	rcu_read_lock();
-	task = task_rcu_dereference(ptask);
-	if (task)
-		get_task_struct(task);
-	rcu_read_unlock();
-
-	return task;
-}
-
 /*
  * Determine if a process group is "orphaned", according to the POSIX
  * definition in 2.2.2.52.  Orphaned process groups are not to be affected
@@ -1004,7 +991,7 @@ struct wait_opts {
 	int __user		*wo_stat;
 	struct rusage __user	*wo_rusage;
 
-	wait_queue_t		child_wait;
+	wait_queue_entry_t		child_wait;
 	int			notask_error;
 };
 
@@ -1541,7 +1528,7 @@ static int ptrace_do_wait(struct wait_opts *wo, struct task_struct *tsk)
 	return 0;
 }
 
-static int child_wait_callback(wait_queue_t *wait, unsigned mode,
+static int child_wait_callback(wait_queue_entry_t *wait, unsigned mode,
 				int sync, void *key)
 {
 	struct wait_opts *wo = container_of(wait, struct wait_opts,

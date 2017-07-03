@@ -190,6 +190,7 @@ static void do_poweroff(void)
 {
 	switch (system_state) {
 	case SYSTEM_BOOTING:
+	case SYSTEM_SCHEDULING:
 		orderly_poweroff(true);
 		break;
 	case SYSTEM_RUNNING:

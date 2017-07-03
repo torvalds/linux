@@ -1244,7 +1244,7 @@ static void hidp_session_run(struct hidp_session *session)
 static int hidp_session_thread(void *arg)
 {
 	struct hidp_session *session = arg;
-	wait_queue_t ctrl_wait, intr_wait;
+	wait_queue_entry_t ctrl_wait, intr_wait;
 
 	BT_DBG("session %p", session);
 

@@ -191,7 +191,7 @@ static void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt)
  * This is used to atomically remove a wait queue entry from the eventfd wait
  * queue head, and read/reset the counter value.
  */
-int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_t *wait,
+int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *wait,
 				  __u64 *cnt)
 {
 	unsigned long flags;

@@ -1939,7 +1939,7 @@ static int i40iw_virtchnl_receive(struct i40e_info *ldev,
 bool i40iw_vf_clear_to_send(struct i40iw_sc_dev *dev)
 {
 	struct i40iw_device *iwdev;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	iwdev = dev->back_dev;
 

@@ -103,7 +103,7 @@ static bool of_iommu_driver_present(struct device_node *np)
 	 * it never will be. We don't want to defer indefinitely, nor attempt
 	 * to dereference __iommu_of_table after it's been freed.
 	 */
-	if (system_state > SYSTEM_BOOTING)
+	if (system_state >= SYSTEM_RUNNING)
 		return false;
 
 	return of_match_node(&__iommu_of_table, np);
