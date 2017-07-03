@@ -76,6 +76,7 @@
 #define IRQ_AUTO 254
 
 #define MAX_CARDS 8
+#define DMA_MAX_SIZE 32768
 
 /* old-style parameters for compatibility */
 static int ncr_irq = -1;
@@ -629,23 +630,16 @@ static inline int generic_NCR5380_pwrite(struct NCR5380_hostdata *hostdata,
 static int generic_NCR5380_dma_xfer_len(struct NCR5380_hostdata *hostdata,
                                         struct scsi_cmnd *cmd)
 {
-	int transfersize = cmd->transfersize;
+	int transfersize = cmd->SCp.this_residual;
 
 	if (hostdata->flags & FLAG_NO_PSEUDO_DMA)
 		return 0;
-
-	/* Limit transfers to 32K, for xx400 & xx406
-	 * pseudoDMA that transfers in 128 bytes blocks.
-	 */
-	if (transfersize > 32 * 1024 && cmd->SCp.this_residual &&
-	    !(cmd->SCp.this_residual % transfersize))
-		transfersize = 32 * 1024;
 
 	/* 53C400 datasheet: non-modulo-128-byte transfers should use PIO */
 	if (transfersize % 128)
 		transfersize = 0;
 
-	return transfersize;
+	return min(transfersize, DMA_MAX_SIZE);
 }
 
 /*
