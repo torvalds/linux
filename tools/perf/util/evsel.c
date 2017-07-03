@@ -58,6 +58,8 @@ static int perf_evsel__no_extra_init(struct perf_evsel *evsel __maybe_unused)
 	return 0;
 }
 
+void __weak test_attr__ready(void) { }
+
 static void perf_evsel__no_extra_fini(struct perf_evsel *evsel __maybe_unused)
 {
 }
@@ -1571,6 +1573,8 @@ retry_sample_id:
 retry_open:
 			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 				  pid, cpus->map[cpu], group_fd, flags);
+
+			test_attr__ready();
 
 			fd = sys_perf_event_open(&evsel->attr, pid, cpus->map[cpu],
 						 group_fd, flags);
