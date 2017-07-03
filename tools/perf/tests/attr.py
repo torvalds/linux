@@ -9,6 +9,20 @@ import logging
 import shutil
 import ConfigParser
 
+def compare_data(a, b):
+    # Allow multiple values in assignment separated by '|'
+    a_list = a.split('|')
+    b_list = b.split('|')
+
+    for a_item in a_list:
+        for b_item in b_list:
+            if (a_item == b_item):
+                return True
+            elif (a_item == '*') or (b_item == '*'):
+                return True
+
+    return False
+
 class Fail(Exception):
     def __init__(self, test, msg):
         self.msg = msg
@@ -82,26 +96,12 @@ class Event(dict):
         self.add(base)
         self.add(data)
 
-    def compare_data(self, a, b):
-        # Allow multiple values in assignment separated by '|'
-        a_list = a.split('|')
-        b_list = b.split('|')
-
-        for a_item in a_list:
-            for b_item in b_list:
-                if (a_item == b_item):
-                    return True
-                elif (a_item == '*') or (b_item == '*'):
-                    return True
-
-        return False
-
     def equal(self, other):
         for t in Event.terms:
             log.debug("      [%s] %s %s" % (t, self[t], other[t]));
             if not self.has_key(t) or not other.has_key(t):
                 return False
-            if not self.compare_data(self[t], other[t]):
+            if not compare_data(self[t], other[t]):
                 return False
         return True
 
@@ -109,7 +109,7 @@ class Event(dict):
         for t in Event.terms:
             if not self.has_key(t) or not other.has_key(t):
                 continue
-            if not self.compare_data(self[t], other[t]):
+            if not compare_data(self[t], other[t]):
 		log.warning("expected %s=%s, got %s" % (t, self[t], other[t]))
 
 # Test file description needs to have following sections:
@@ -218,9 +218,9 @@ class Test(object):
               self.perf, self.command, tempdir, self.args)
         ret = os.WEXITSTATUS(os.system(cmd))
 
-        log.info("  '%s' ret %d " % (cmd, ret))
+        log.info("  '%s' ret '%s', expected '%s'" % (cmd, str(ret), str(self.ret)))
 
-        if ret != int(self.ret):
+        if not compare_data(str(ret), str(self.ret)):
             raise Unsup(self)
 
     def compare(self, expect, result):
