@@ -243,7 +243,7 @@ out:
 	return err ? err : buf - ubuf;
 }
 
-static unsigned int mce_chrdev_poll(struct file *file, poll_table *wait)
+static __poll_t mce_chrdev_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &mce_chrdev_wait, wait);
 	if (READ_ONCE(mcelog.next))
