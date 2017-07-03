@@ -892,7 +892,8 @@ void bfq_put_idle_entity(struct bfq_service_tree *st,
 			 struct bfq_entity *entity);
 struct bfq_service_tree *
 __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
-				struct bfq_entity *entity);
+				struct bfq_entity *entity,
+				bool update_class_too);
 void bfq_bfqq_served(struct bfq_queue *bfqq, int served);
 void bfq_bfqq_charge_time(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  unsigned long time_ms);
