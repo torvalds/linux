@@ -2485,17 +2485,12 @@ int dw_hdmi_probe(struct platform_device *pdev,
 		  const struct dw_hdmi_plat_data *plat_data)
 {
 	struct dw_hdmi *hdmi;
-	int ret;
 
 	hdmi = __dw_hdmi_probe(pdev, plat_data);
 	if (IS_ERR(hdmi))
 		return PTR_ERR(hdmi);
 
-	ret = drm_bridge_add(&hdmi->bridge);
-	if (ret < 0) {
-		__dw_hdmi_remove(hdmi);
-		return ret;
-	}
+	drm_bridge_add(&hdmi->bridge);
 
 	return 0;
 }
