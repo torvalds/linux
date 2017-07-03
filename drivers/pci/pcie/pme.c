@@ -294,31 +294,29 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
 }
 
 /**
- * pcie_pme_set_native - Set the PME interrupt flag for given device.
+ * pcie_pme_can_wakeup - Set the wakeup capability flag.
  * @dev: PCI device to handle.
  * @ign: Ignored.
  */
-static int pcie_pme_set_native(struct pci_dev *dev, void *ign)
+static int pcie_pme_can_wakeup(struct pci_dev *dev, void *ign)
 {
-	device_set_run_wake(&dev->dev, true);
-	dev->pme_interrupt = true;
+	device_set_wakeup_capable(&dev->dev, true);
 	return 0;
 }
 
 /**
- * pcie_pme_mark_devices - Set the PME interrupt flag for devices below a port.
+ * pcie_pme_mark_devices - Set the wakeup flag for devices below a port.
  * @port: PCIe root port or event collector to handle.
  *
  * For each device below given root port, including the port itself (or for each
  * root complex integrated endpoint if @port is a root complex event collector)
- * set the flag indicating that it can signal run-time wake-up events via PCIe
- * PME interrupts.
+ * set the flag indicating that it can signal run-time wake-up events.
  */
 static void pcie_pme_mark_devices(struct pci_dev *port)
 {
-	pcie_pme_set_native(port, NULL);
+	pcie_pme_can_wakeup(port, NULL);
 	if (port->subordinate)
-		pci_walk_bus(port->subordinate, pcie_pme_set_native, NULL);
+		pci_walk_bus(port->subordinate, pcie_pme_can_wakeup, NULL);
 }
 
 /**

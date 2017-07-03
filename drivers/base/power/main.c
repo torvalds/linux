@@ -418,6 +418,7 @@ static void pm_dev_err(struct device *dev, pm_message_t state, const char *info,
 		dev_name(dev), pm_verb(state.event), info, error);
 }
 
+#ifdef CONFIG_PM_DEBUG
 static void dpm_show_time(ktime_t starttime, pm_message_t state,
 			  const char *info)
 {
@@ -435,6 +436,10 @@ static void dpm_show_time(ktime_t starttime, pm_message_t state,
 		info ?: "", info ? " " : "", pm_verb(state.event),
 		usecs / USEC_PER_MSEC, usecs % USEC_PER_MSEC);
 }
+#else
+static inline void dpm_show_time(ktime_t starttime, pm_message_t state,
+				 const char *info) {}
+#endif /* CONFIG_PM_DEBUG */
 
 static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 			    pm_message_t state, const char *info)
@@ -1092,11 +1097,6 @@ static int __device_suspend_noirq(struct device *dev, pm_message_t state, bool a
 
 	if (async_error)
 		goto Complete;
-
-	if (pm_wakeup_pending()) {
-		async_error = -EBUSY;
-		goto Complete;
-	}
 
 	if (dev->power.syscore || dev->power.direct_complete)
 		goto Complete;
