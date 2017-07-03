@@ -147,7 +147,7 @@ static bool opal_msg_queue_empty(void)
 	return ret;
 }
 
-static unsigned int opal_prd_poll(struct file *file,
+static __poll_t opal_prd_poll(struct file *file,
 		struct poll_table_struct *wait)
 {
 	poll_wait(file, &opal_prd_msg_wait, wait);
