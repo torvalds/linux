@@ -135,7 +135,7 @@ struct sinit_table {
 
 struct slookup {
 	s16  value;
-	u16  reg_value;
+	u32  reg_value;
 };
 
 static inline int i2c_write(struct i2c_adapter *adap, u8 adr,
@@ -325,6 +325,25 @@ struct slookup s2_sn_lookup[] = {
 	{  450,    466  },  /*C/N=45.0dB*/
 	{  500,    464  },  /*C/N=50.0dB*/
 	{  510,    463  },  /*C/N=51.0dB*/
+};
+
+struct slookup padc_lookup[] = {
+	{    0,  118000 }, /* PADC=+0dBm  */
+	{ -100,  93600  }, /* PADC=-1dBm  */
+	{ -200,  74500  }, /* PADC=-2dBm  */
+	{ -300,  59100  }, /* PADC=-3dBm  */
+	{ -400,  47000  }, /* PADC=-4dBm  */
+	{ -500,  37300  }, /* PADC=-5dBm  */
+	{ -600,  29650  }, /* PADC=-6dBm  */
+	{ -700,  23520  }, /* PADC=-7dBm  */
+	{ -900,  14850  }, /* PADC=-9dBm  */
+	{ -1100, 9380   }, /* PADC=-11dBm */
+	{ -1300, 5910   }, /* PADC=-13dBm */
+	{ -1500, 3730   }, /* PADC=-15dBm */
+	{ -1700, 2354   }, /* PADC=-17dBm */
+	{ -1900, 1485   }, /* PADC=-19dBm */
+	{ -2000, 1179   }, /* PADC=-20dBm */
+	{ -2100, 1000   }, /* PADC=-21dBm */
 };
 
 /*********************************************************************
@@ -567,7 +586,7 @@ static int tracking_optimization(struct stv *state)
 }
 
 static s32 table_lookup(struct slookup *table,
-		       int table_size, u16 reg_value)
+		       int table_size, u32 reg_value)
 {
 	s32 value;
 	int imin = 0;
@@ -1300,11 +1319,32 @@ static int read_ber(struct dvb_frontend *fe)
 
 static void read_signal_strength(struct dvb_frontend *fe)
 {
-	/* FIXME: add signal strength algo */
 	struct stv *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &state->fe.dtv_property_cache;
+	s64 strength;
+	u8 reg[2];
+	u16 agc;
+	s32 padc, power = 0;
+	int i;
 
-	p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	read_regs(state, RSTV0910_P2_AGCIQIN1 + state->regoff, reg, 2);
+
+	agc = (((u32) reg[0]) << 8) | reg[1];
+
+	for (i = 0; i < 5; i += 1) {
+		read_regs(state, RSTV0910_P2_POWERI + state->regoff, reg, 2);
+		power += (u32) reg[0] * (u32) reg[0]
+			+ (u32) reg[1] * (u32) reg[1];
+		usleep_range(3000, 4000);
+	}
+	power /= 5;
+
+	padc = table_lookup(padc_lookup, ARRAY_SIZE(padc_lookup), power) + 352;
+
+	strength = (padc - agc);
+
+	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
+	p->strength.stat[0].uvalue = strength;
 }
 
 static int read_status(struct dvb_frontend *fe, enum fe_status *status)
