@@ -162,6 +162,14 @@ static bool cs35l35_precious_register(struct device *dev, unsigned int reg)
 	}
 }
 
+static void cs35l35_reset(struct cs35l35_private *cs35l35)
+{
+	gpiod_set_value_cansleep(cs35l35->reset_gpio, 0);
+	usleep_range(2000, 2100);
+	gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
+	usleep_range(1000, 1100);
+}
+
 static int cs35l35_wait_for_pdn(struct cs35l35_private *cs35l35)
 {
 	int ret;
@@ -1454,7 +1462,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		}
 	}
 
-	gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
+	cs35l35_reset(cs35l35);
 
 	init_completion(&cs35l35->pdn_done);
 
