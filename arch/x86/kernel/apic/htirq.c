@@ -150,7 +150,7 @@ static const struct irq_domain_ops htirq_domain_ops = {
 	.deactivate	= htirq_domain_deactivate,
 };
 
-void arch_init_htirq_domain(struct irq_domain *parent)
+void __init arch_init_htirq_domain(struct irq_domain *parent)
 {
 	if (disable_apic)
 		return;

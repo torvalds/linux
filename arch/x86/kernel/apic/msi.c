@@ -136,7 +136,7 @@ static struct msi_domain_info pci_msi_domain_info = {
 	.handler_name	= "edge",
 };
 
-void arch_init_msi_domain(struct irq_domain *parent)
+void __init arch_init_msi_domain(struct irq_domain *parent)
 {
 	if (disable_apic)
 		return;

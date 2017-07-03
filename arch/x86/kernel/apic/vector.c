@@ -405,7 +405,7 @@ int __init arch_probe_nr_irqs(void)
 }
 
 #ifdef	CONFIG_X86_IO_APIC
-static void init_legacy_irqs(void)
+static void __init init_legacy_irqs(void)
 {
 	int i, node = cpu_to_node(0);
 	struct apic_chip_data *data;
@@ -424,7 +424,7 @@ static void init_legacy_irqs(void)
 	}
 }
 #else
-static void init_legacy_irqs(void) { }
+static inline void init_legacy_irqs(void) { }
 #endif
 
 int __init arch_early_irq_init(void)
