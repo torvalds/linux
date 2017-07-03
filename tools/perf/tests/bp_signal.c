@@ -62,8 +62,7 @@ static void __test_function(volatile long *ptr)
 }
 #endif
 
-__attribute__ ((noinline))
-static int test_function(void)
+static noinline int test_function(void)
 {
 	__test_function(&the_var);
 	the_var++;
