@@ -185,7 +185,15 @@ enum iwl_legacy_cmds {
 	 * uses &struct iwl_scan_config_v1 or &struct iwl_scan_config
 	 */
 	SCAN_CFG_CMD = 0xc,
+
+	/**
+	 * @SCAN_REQ_UMAC: uses &struct iwl_scan_req_umac
+	 */
 	SCAN_REQ_UMAC = 0xd,
+
+	/**
+	 * @SCAN_ABORT_UMAC: uses &struct iwl_umac_scan_abort
+	 */
 	SCAN_ABORT_UMAC = 0xe,
 
 	/**
@@ -193,6 +201,10 @@ enum iwl_legacy_cmds {
 	 */
 	SCAN_COMPLETE_UMAC = 0xf,
 
+	/**
+	 * @BA_WINDOW_STATUS_NOTIFICATION_ID:
+	 * uses &struct iwl_ba_window_status_notif
+	 */
 	BA_WINDOW_STATUS_NOTIFICATION_ID = 0x13,
 
 	/**
@@ -207,12 +219,15 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_mvm_add_sta_cmd or &struct iwl_mvm_add_sta_cmd_v7.
 	 */
 	ADD_STA = 0x18,
+
 	/**
 	 * @REMOVE_STA: &struct iwl_mvm_rm_sta_cmd
 	 */
 	REMOVE_STA = 0x19,
 
-	/* paging get item */
+	/**
+	 * @FW_GET_ITEM_CMD: uses &struct iwl_fw_get_item_cmd
+	 */
 	FW_GET_ITEM_CMD = 0x1a,
 
 	/**
@@ -242,15 +257,33 @@ enum iwl_legacy_cmds {
 	 */
 	SCD_QUEUE_CFG = 0x1d,
 
-	/* global key */
+	/**
+	 * @WEP_KEY: uses &struct iwl_mvm_wep_key_cmd
+	 */
 	WEP_KEY = 0x20,
 
-	/* Memory */
+	/**
+	 * @SHARED_MEM_CFG:
+	 * retrieve shared memory configuration - response in
+	 * &struct iwl_shared_mem_cfg
+	 */
 	SHARED_MEM_CFG = 0x25,
 
-	/* TDLS */
+	/**
+	 * @TDLS_CHANNEL_SWITCH_CMD: uses &struct iwl_tdls_channel_switch_cmd
+	 */
 	TDLS_CHANNEL_SWITCH_CMD = 0x27,
+
+	/**
+	 * @TDLS_CHANNEL_SWITCH_NOTIFICATION:
+	 * uses &struct iwl_tdls_channel_switch_notif
+	 */
 	TDLS_CHANNEL_SWITCH_NOTIFICATION = 0xaa,
+
+	/**
+	 * @TDLS_CONFIG_CMD:
+	 * &struct iwl_tdls_config_cmd, response in &struct iwl_tdls_config_res
+	 */
 	TDLS_CONFIG_CMD = 0xa7,
 
 	/**
@@ -263,19 +296,27 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_time_event_cmd, response in &struct iwl_time_event_resp
 	 */
 	TIME_EVENT_CMD = 0x29, /* both CMD and response */
+
 	/**
 	 * @TIME_EVENT_NOTIFICATION: &struct iwl_time_event_notif
 	 */
 	TIME_EVENT_NOTIFICATION = 0x2a,
+
 	/**
 	 * @BINDING_CONTEXT_CMD:
 	 * &struct iwl_binding_cmd or &struct iwl_binding_cmd_v1
 	 */
 	BINDING_CONTEXT_CMD = 0x2b,
+
 	/**
 	 * @TIME_QUOTA_CMD: &struct iwl_time_quota_cmd
 	 */
 	TIME_QUOTA_CMD = 0x2c,
+
+	/**
+	 * @NON_QOS_TX_COUNTER_CMD:
+	 * command is &struct iwl_nonqos_seq_query_cmd
+	 */
 	NON_QOS_TX_COUNTER_CMD = 0x2d,
 
 	/**
@@ -285,18 +326,46 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @FW_PAGING_BLOCK_CMD:
-	 * &struct iwl_fw_paging_cmd or &struct iwl_fw_paging_cmd_v1
+	 * &struct iwl_fw_paging_cmd
 	 */
 	FW_PAGING_BLOCK_CMD = 0x4f,
 
-	/* Scan offload */
+	/**
+	 * @SCAN_OFFLOAD_REQUEST_CMD: uses &struct iwl_scan_req_lmac
+	 */
 	SCAN_OFFLOAD_REQUEST_CMD = 0x51,
+
+	/**
+	 * @SCAN_OFFLOAD_ABORT_CMD: abort the scan - no further contents
+	 */
 	SCAN_OFFLOAD_ABORT_CMD = 0x52,
+
+	/**
+	 * @HOT_SPOT_CMD: uses &struct iwl_hs20_roc_req
+	 */
 	HOT_SPOT_CMD = 0x53,
+
+	/**
+	 * @SCAN_OFFLOAD_COMPLETE:
+	 * notification, &struct iwl_periodic_scan_complete
+	 */
 	SCAN_OFFLOAD_COMPLETE = 0x6D,
+
+	/**
+	 * @SCAN_OFFLOAD_UPDATE_PROFILES_CMD:
+	 * update scan offload (scheduled scan) profiles/blacklist/etc.
+	 */
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
-	SCAN_OFFLOAD_CONFIG_CMD = 0x6f,
+
+	/**
+	 * @MATCH_FOUND_NOTIFICATION: scan match found
+	 */
 	MATCH_FOUND_NOTIFICATION = 0xd9,
+
+	/**
+	 * @SCAN_ITERATION_COMPLETE:
+	 * uses &struct iwl_lmac_scan_complete_notif
+	 */
 	SCAN_ITERATION_COMPLETE = 0xe7,
 
 	/* Phy */
@@ -304,24 +373,55 @@ enum iwl_legacy_cmds {
 	 * @PHY_CONFIGURATION_CMD: &struct iwl_phy_cfg_cmd
 	 */
 	PHY_CONFIGURATION_CMD = 0x6a,
+
+	/**
+	 * @CALIB_RES_NOTIF_PHY_DB: &struct iwl_calib_res_notif_phy_db
+	 */
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
+
+	/**
+	 * @PHY_DB_CMD: &struct iwl_phy_db_cmd
+	 */
 	PHY_DB_CMD = 0x6c,
 
-	/* ToF - 802.11mc FTM */
+	/**
+	 * @TOF_CMD: &struct iwl_tof_config_cmd
+	 */
 	TOF_CMD = 0x10,
+
+	/**
+	 * @TOF_NOTIFICATION: &struct iwl_tof_gen_resp_cmd
+	 */
 	TOF_NOTIFICATION = 0x11,
 
 	/**
 	 * @POWER_TABLE_CMD: &struct iwl_device_power_cmd
 	 */
 	POWER_TABLE_CMD = 0x77,
+
+	/**
+	 * @PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION:
+	 * &struct iwl_uapsd_misbehaving_ap_notif
+	 */
 	PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
+
+	/**
+	 * @LTR_CONFIG: &struct iwl_ltr_config_cmd
+	 */
 	LTR_CONFIG = 0xee,
 
-	/* Thermal Throttling*/
+	/**
+	 * @REPLY_THERMAL_MNG_BACKOFF:
+	 * Thermal throttling command
+	 */
 	REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
-	/* Set/Get DC2DC frequency tune */
+	/**
+	 * @DC2DC_CONFIG_CMD:
+	 * Set/Get DC2DC frequency tune
+	 * Command is &struct iwl_dc2dc_config_cmd,
+	 * response is &struct iwl_dc2dc_config_resp
+	 */
 	DC2DC_CONFIG_CMD = 0x83,
 
 	/**
@@ -329,9 +429,11 @@ enum iwl_legacy_cmds {
 	 */
 	NVM_ACCESS_CMD = 0x88,
 
-	SET_CALIB_DEFAULT_CMD = 0x8e,
-
+	/**
+	 * @BEACON_NOTIFICATION: &struct iwl_extended_beacon_notif
+	 */
 	BEACON_NOTIFICATION = 0x90,
+
 	/**
 	 * @BEACON_TEMPLATE_CMD:
 	 *	Uses one of &struct iwl_mac_beacon_cmd_v6,
@@ -345,7 +447,11 @@ enum iwl_legacy_cmds {
 	TX_ANT_CONFIGURATION_CMD = 0x98,
 
 	/**
-	 * @STATISTICS_CMD: &struct iwl_statistics_cmd
+	 * @STATISTICS_CMD:
+	 * one of &struct iwl_statistics_cmd,
+	 * &struct iwl_notif_statistics_v11,
+	 * &struct iwl_notif_statistics_v10,
+	 * &struct iwl_notif_statistics_cdb
 	 */
 	STATISTICS_CMD = 0x9c,
 
@@ -356,6 +462,12 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_notif_statistics_cdb
 	 */
 	STATISTICS_NOTIFICATION = 0x9d,
+
+	/**
+	 * @EOSP_NOTIFICATION:
+	 * Notify that a service period ended,
+	 * &struct iwl_mvm_eosp_notification
+	 */
 	EOSP_NOTIFICATION = 0x9e,
 
 	/**
@@ -364,10 +476,16 @@ enum iwl_legacy_cmds {
 	 */
 	REDUCE_TX_POWER_CMD = 0x9f,
 
-	/* RF-KILL commands and notifications */
-	CARD_STATE_CMD = 0xa0,
+	/**
+	 * @CARD_STATE_NOTIFICATION:
+	 * Card state (RF/CT kill) notification,
+	 * uses &struct iwl_card_state_notif
+	 */
 	CARD_STATE_NOTIFICATION = 0xa1,
 
+	/**
+	 * @MISSED_BEACONS_NOTIFICATION: &struct iwl_missed_beacons_notif
+	 */
 	MISSED_BEACONS_NOTIFICATION = 0xa2,
 
 	/**
@@ -395,7 +513,19 @@ enum iwl_legacy_cmds {
 	 * &struct iwl_rx_mpdu_res_start or &struct iwl_rx_mpdu_desc
 	 */
 	REPLY_RX_MPDU_CMD = 0xc1,
+
+	/**
+	 * @FRAME_RELEASE:
+	 * Frame release (reorder helper) notification, uses
+	 * &struct iwl_frame_release
+	 */
 	FRAME_RELEASE = 0xc3,
+
+	/**
+	 * @BA_NOTIF:
+	 * BlockAck notification, uses &struct iwl_mvm_compressed_ba_notif
+	 * or &struct iwl_mvm_ba_notif depending on the HW
+	 */
 	BA_NOTIF = 0xc5,
 
 	/* Location Aware Regulatory */
@@ -409,22 +539,33 @@ enum iwl_legacy_cmds {
 	 */
 	MCC_CHUB_UPDATE_CMD = 0xc9,
 
+	/**
+	 * @MARKER_CMD: trace marker command, uses &struct iwl_mvm_marker
+	 */
 	MARKER_CMD = 0xcb,
 
-	/* BT Coex */
-	BT_COEX_PRIO_TABLE = 0xcc,
-	BT_COEX_PROT_ENV = 0xcd,
 	/**
 	 * @BT_PROFILE_NOTIFICATION: &struct iwl_bt_coex_profile_notif
 	 */
 	BT_PROFILE_NOTIFICATION = 0xce,
+
 	/**
 	 * @BT_CONFIG: &struct iwl_bt_coex_cmd
 	 */
 	BT_CONFIG = 0x9b,
-	BT_COEX_UPDATE_SW_BOOST = 0x5a,
+
+	/**
+	 * @BT_COEX_UPDATE_CORUN_LUT:
+	 * &struct iwl_bt_coex_corun_lut_update_cmd
+	 */
 	BT_COEX_UPDATE_CORUN_LUT = 0x5b,
+
+	/**
+	 * @BT_COEX_UPDATE_REDUCED_TXP:
+	 * &struct iwl_bt_coex_reduced_txp_update_cmd
+	 */
 	BT_COEX_UPDATE_REDUCED_TXP = 0x5c,
+
 	/**
 	 * @BT_COEX_CI: &struct iwl_bt_coex_ci_cmd
 	 */
@@ -439,24 +580,60 @@ enum iwl_legacy_cmds {
 	 */
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
 
-	/* DTS measurements */
-	CMD_DTS_MEASUREMENT_TRIGGER = 0xdc,
+	/**
+	 * @DTS_MEASUREMENT_NOTIFICATION:
+	 * &struct iwl_dts_measurement_notif_v1 or
+	 * &struct iwl_dts_measurement_notif_v2
+	 */
 	DTS_MEASUREMENT_NOTIFICATION = 0xdd,
 
-	REPLY_DEBUG_CMD = 0xf0,
+	/**
+	 * @LDBG_CONFIG_CMD: configure continuous trace recording
+	 */
 	LDBG_CONFIG_CMD = 0xf6,
+
+	/**
+	 * @DEBUG_LOG_MSG: Debugging log data from firmware
+	 */
 	DEBUG_LOG_MSG = 0xf7,
 
+	/**
+	 * @BCAST_FILTER_CMD: &struct iwl_bcast_filter_cmd
+	 */
 	BCAST_FILTER_CMD = 0xcf,
+
+	/**
+	 * @MCAST_FILTER_CMD: &struct iwl_mcast_filter_cmd
+	 */
 	MCAST_FILTER_CMD = 0xd0,
 
 	/**
 	 * @D3_CONFIG_CMD: &struct iwl_d3_manager_config
 	 */
 	D3_CONFIG_CMD = 0xd3,
+
+	/**
+	 * @PROT_OFFLOAD_CONFIG_CMD: Depending on firmware, uses one of
+	 * &struct iwl_proto_offload_cmd_v1, &struct iwl_proto_offload_cmd_v2,
+	 * &struct iwl_proto_offload_cmd_v3_small,
+	 * &struct iwl_proto_offload_cmd_v3_large
+	 */
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
+
+	/**
+	 * @OFFLOADS_QUERY_CMD:
+	 * No data in command, response in &struct iwl_wowlan_status
+	 */
 	OFFLOADS_QUERY_CMD = 0xd5,
+
+	/**
+	 * @REMOTE_WAKE_CONFIG_CMD: &struct iwl_wowlan_remote_wake_config
+	 */
 	REMOTE_WAKE_CONFIG_CMD = 0xd6,
+
+	/**
+	 * @D0I3_END_CMD: End D0i3/D3 state, no command data
+	 */
 	D0I3_END_CMD = 0xed,
 
 	/**
@@ -468,28 +645,32 @@ enum iwl_legacy_cmds {
 	 * @WOWLAN_CONFIGURATION: &struct iwl_wowlan_config_cmd
 	 */
 	WOWLAN_CONFIGURATION = 0xe1,
+
 	/**
 	 * @WOWLAN_TSC_RSC_PARAM: &struct iwl_wowlan_rsc_tsc_params_cmd
 	 */
 	WOWLAN_TSC_RSC_PARAM = 0xe2,
+
 	/**
 	 * @WOWLAN_TKIP_PARAM: &struct iwl_wowlan_tkip_params_cmd
 	 */
 	WOWLAN_TKIP_PARAM = 0xe3,
+
 	/**
 	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd
 	 */
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
+
 	/**
 	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
-	WOWLAN_TX_POWER_PER_DB = 0xe6,
 
-	/* and for NetDetect */
+	/**
+	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD:
+	 * No command data, response is &struct iwl_scan_offload_profiles_query
+	 */
 	SCAN_OFFLOAD_PROFILES_QUERY_CMD = 0x56,
-	SCAN_OFFLOAD_HOTSPOTS_CONFIG_CMD = 0x58,
-	SCAN_OFFLOAD_HOTSPOTS_QUERY_CMD = 0x59,
 };
 
 /* Please keep this enum *SORTED* by hex value.
@@ -505,15 +686,38 @@ enum iwl_mac_conf_subcmd_ids {
  * enum iwl_phy_ops_subcmd_ids - PHY group commands
  */
 enum iwl_phy_ops_subcmd_ids {
+	/**
+	 * @CMD_DTS_MEASUREMENT_TRIGGER_WIDE:
+	 * Uses either &struct iwl_dts_measurement_cmd or
+	 * &struct iwl_ext_dts_measurement_cmd
+	 */
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+
+	/**
+	 * @CTDP_CONFIG_CMD: &struct iwl_mvm_ctdp_cmd
+	 */
 	CTDP_CONFIG_CMD = 0x03,
 
 	/**
 	 * @TEMP_REPORTING_THRESHOLDS_CMD: &struct temp_report_ths_cmd
 	 */
 	TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
+
+	/**
+	 * @GEO_TX_POWER_LIMIT: &struct iwl_geo_tx_power_profiles_cmd
+	 */
 	GEO_TX_POWER_LIMIT = 0x05,
+
+	/**
+	 * @CT_KILL_NOTIFICATION: &struct ct_kill_notif
+	 */
 	CT_KILL_NOTIFICATION = 0xFE,
+
+	/**
+	 * @DTS_MEASUREMENT_NOTIF_WIDE:
+	 * &struct iwl_dts_measurement_notif_v1 or
+	 * &struct iwl_dts_measurement_notif_v2
+	 */
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
 
@@ -524,9 +728,13 @@ enum iwl_system_subcmd_ids {
 	/**
 	 * @SHARED_MEM_CFG_CMD:
 	 * response in &struct iwl_shared_mem_cfg or
-	 * &struct iwl_shared_mem_cfg_v1
+	 * &struct iwl_shared_mem_cfg_v2
 	 */
 	SHARED_MEM_CFG_CMD = 0x0,
+
+	/**
+	 * @INIT_EXTENDED_CFG_CMD: &struct iwl_init_extended_cfg_cmd
+	 */
 	INIT_EXTENDED_CFG_CMD = 0x03,
 };
 
@@ -538,19 +746,57 @@ enum iwl_data_path_subcmd_ids {
 	 * @DQA_ENABLE_CMD: &struct iwl_dqa_enable_cmd
 	 */
 	DQA_ENABLE_CMD = 0x0,
+
+	/**
+	 * @UPDATE_MU_GROUPS_CMD: &struct iwl_mu_group_mgmt_cmd
+	 */
 	UPDATE_MU_GROUPS_CMD = 0x1,
+
+	/**
+	 * @TRIGGER_RX_QUEUES_NOTIF_CMD: &struct iwl_rxq_sync_cmd
+	 */
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+
+	/**
+	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
+	 */
 	STA_PM_NOTIF = 0xFD,
+
+	/**
+	 * @MU_GROUP_MGMT_NOTIF: &struct iwl_mu_group_mgmt_notif
+	 */
 	MU_GROUP_MGMT_NOTIF = 0xFE,
+
+	/**
+	 * @RX_QUEUES_NOTIFICATION: &struct iwl_rxq_sync_notification
+	 */
 	RX_QUEUES_NOTIFICATION = 0xFF,
 };
 
+/**
+ * enum iwl_prot_offload_subcmd_ids - protocol offload commands
+ */
 enum iwl_prot_offload_subcmd_ids {
+	/**
+	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif
+	 */
 	STORED_BEACON_NTF = 0xFF,
 };
 
+/**
+ * enum iwl_regulatory_and_nvm_subcmd_ids - regulatory/NVM commands
+ */
 enum iwl_regulatory_and_nvm_subcmd_ids {
+	/**
+	 * @NVM_ACCESS_COMPLETE: &struct iwl_nvm_access_complete_cmd
+	 */
 	NVM_ACCESS_COMPLETE = 0x0,
+
+	/**
+	 * @NVM_GET_INFO:
+	 * Command is &struct iwl_nvm_get_info,
+	 * response is &struct iwl_nvm_get_info_rsp
+	 */
 	NVM_GET_INFO = 0x2,
 };
 
@@ -757,25 +1003,6 @@ struct iwl_nvm_access_cmd {
 #define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
 
 /**
- * struct iwl_fw_paging_cmd_v1 - paging layout
- *
- * (FW_PAGING_BLOCK_CMD = 0x4f)
- *
- * Send to FW the paging layout in the driver.
- *
- * @flags: various flags for the command
- * @block_size: the block size in powers of 2
- * @block_num: number of blocks specified in the command.
- * @device_phy_addr: virtual addresses from device side
- */
-struct iwl_fw_paging_cmd_v1 {
-	__le32 flags;
-	__le32 block_size;
-	__le32 block_num;
-	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
-} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
-
-/**
  * struct iwl_fw_paging_cmd - paging layout
  *
  * (FW_PAGING_BLOCK_CMD = 0x4f)
@@ -791,8 +1018,8 @@ struct iwl_fw_paging_cmd {
 	__le32 flags;
 	__le32 block_size;
 	__le32 block_num;
-	__le64 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
-} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_2 */
+	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
 
 /*
  * Fw items ID's
@@ -945,6 +1172,7 @@ enum {
  * ( REPLY_ERROR = 0x2 )
  * @error_type: one of FW_ERR_*
  * @cmd_id: the command ID for which the error occured
+ * @reserved1: reserved
  * @bad_cmd_seq_num: sequence number of the erroneous command
  * @error_service: which service created the error, applicable only if
  *	error_type = 2, otherwise 0
@@ -1407,7 +1635,7 @@ struct iwl_fw_channel_info {
  * @apply_time: 0 means immediate apply and context switch.
  *	other value means apply new params after X usecs
  * @tx_param_color: ???
- * @channel_info:
+ * @ci: channel info
  * @txchain_info: ???
  * @rxchain_info: ???
  * @acquisition_data: ???
@@ -1496,9 +1724,9 @@ struct iwl_hs20_roc_res {
 /**
  * struct iwl_radio_version_notif - information on the radio version
  * ( RADIO_VERSION_NOTIFICATION = 0x68 )
- * @radio_flavor:
- * @radio_step:
- * @radio_dash:
+ * @radio_flavor: radio flavor
+ * @radio_step: radio version step
+ * @radio_dash: radio version dash
  */
 struct iwl_radio_version_notif {
 	__le32 radio_flavor;
@@ -1532,8 +1760,8 @@ struct iwl_card_state_notif {
  * @consec_missed_beacons_since_last_rx: number of consecutive missed
  *	beacons since last RX.
  * @consec_missed_beacons: number of consecutive missed beacons
- * @num_expected_beacons:
- * @num_recvd_beacons:
+ * @num_expected_beacons: number of expected beacons
+ * @num_recvd_beacons: number of received beacons
  */
 struct iwl_missed_beacons_notif {
 	__le32 mac_id;
@@ -1580,19 +1808,6 @@ struct iwl_mfu_assert_dump_notif {
 	__le32   data[0];
 } __packed; /*MFU_DUMP_ASSERT_API_S_VER_1*/
 
-/**
- * struct iwl_set_calib_default_cmd - set default value for calibration.
- * ( SET_CALIB_DEFAULT_CMD = 0x8e )
- * @calib_index: the calibration to set value for
- * @length: of data
- * @data: the value to set for the calibration result
- */
-struct iwl_set_calib_default_cmd {
-	__le16 calib_index;
-	__le16 length;
-	u8 data[0];
-} __packed; /* PHY_CALIB_OVERRIDE_VALUES_S */
-
 #define MAX_PORT_ID_NUM	2
 #define MAX_MCAST_FILTERING_ADDRESSES 256
 
@@ -1606,6 +1821,7 @@ struct iwl_set_calib_default_cmd {
  * @count:	Number of MAC addresses in the array
  * @pass_all:	Set 1 to pass all multicast packets.
  * @bssid:	current association BSSID.
+ * @reserved:	reserved
  * @addr_list:	Place holder for array of MAC addresses.
  *		IMPORTANT: add padding if necessary to ensure DWORD alignment.
  */
@@ -1637,7 +1853,8 @@ enum iwl_mvm_bcast_filter_attr_offset {
  * struct iwl_fw_bcast_filter_attr - broadcast filter attribute
  * @offset_type:	&enum iwl_mvm_bcast_filter_attr_offset.
  * @offset:	starting offset of this pattern.
- * @val:		value to match - big endian (MSB is the first
+ * @reserved1:	reserved
+ * @val:	value to match - big endian (MSB is the first
  *		byte to match from offset pos).
  * @mask:	mask to match (big endian).
  */
@@ -1663,6 +1880,7 @@ enum iwl_mvm_bcast_filter_frame_type {
  * struct iwl_fw_bcast_filter - broadcast filter
  * @discard: discard frame (1) or let it pass (0).
  * @frame_type: &enum iwl_mvm_bcast_filter_frame_type.
+ * @reserved1: reserved
  * @num_attrs: number of valid attributes in this filter.
  * @attrs: attributes of this filter. a filter is considered matched
  *	only when all its attributes are matched (i.e. AND relationship)
@@ -1698,6 +1916,7 @@ struct iwl_ba_window_status_notif {
 /**
  * struct iwl_fw_bcast_mac - per-mac broadcast filtering configuration.
  * @default_discard: default action for this mac (discard (1) / pass (0)).
+ * @reserved1: reserved
  * @attached_filters: bitmap of relevant filters for this mac.
  */
 struct iwl_fw_bcast_mac {
@@ -1711,6 +1930,7 @@ struct iwl_fw_bcast_mac {
  * @disable: enable (0) / disable (1)
  * @max_bcast_filters: max number of filters (MAX_BCAST_FILTERS)
  * @max_macs: max number of macs (NUM_MAC_INDEX_DRIVER)
+ * @reserved1: reserved
  * @filters: broadcast filters
  * @macs: broadcast filtering configuration per-mac
  */
@@ -1748,8 +1968,8 @@ enum iwl_mvm_marker_id {
  * @metadata: additional meta data that will be written to the unsiffer log
  */
 struct iwl_mvm_marker {
-	u8 dwLen;
-	u8 markerId;
+	u8 dw_len;
+	u8 marker_id;
 	__le16 reserved;
 	__le64 timestamp;
 	__le32 metadata[0];
@@ -2053,7 +2273,7 @@ enum iwl_dts_control_measurement_mode {
 * @DTS_USE_CHAIN_A: chain A
 * @DTS_USE_CHAIN_B: chain B
 * @DTS_USE_CHAIN_C: chain C
-* @XTAL_TEMPERATURE - read temperature from xtal
+* @XTAL_TEMPERATURE: read temperature from xtal
 */
 enum iwl_dts_used {
 	DTS_USE_TOP		= 0,
@@ -2184,7 +2404,7 @@ enum iwl_tdls_channel_switch_type {
  *	200TU and the TDLS peer is to be given 25% of the time, the value
  *	given will be 50TU, or 50 * 1024 if translated into microseconds.
  * @switch_time: switch time the peer sent in its channel switch timing IE
- * @switch_timout: switch timeout the peer sent in its channel switch timing IE
+ * @switch_timeout: switch timeout the peer sent in its channel switch timing IE
  */
 struct iwl_tdls_channel_switch_timing {
 	__le32 frame_timestamp; /* GP2 time of peer packet Rx */
@@ -2311,7 +2531,7 @@ struct iwl_tdls_config_res {
 #define TX_FIFO_INTERNAL_MAX_NUM	6
 
 /**
- * struct iwl_shared_mem_cfg_v1 - Shared memory configuration information
+ * struct iwl_shared_mem_cfg_v2 - Shared memory configuration information
  *
  * @shared_mem_addr: shared memory addr (pre 8000 HW set to 0x0 as MARBH is not
  *	accessible)
@@ -2333,7 +2553,7 @@ struct iwl_tdls_config_res {
  * NOTE: on firmware that don't have IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG
  *	 set, the last 3 members don't exist.
  */
-struct iwl_shared_mem_cfg_v1 {
+struct iwl_shared_mem_cfg_v2 {
 	__le32 shared_mem_addr;
 	__le32 shared_mem_size;
 	__le32 sample_buff_addr;
@@ -2395,6 +2615,7 @@ struct iwl_shared_mem_cfg {
 /**
  * struct iwl_mu_group_mgmt_cmd - VHT MU-MIMO group configuration
  *
+ * @reserved: reserved
  * @membership_status: a bitmap of MU groups
  * @user_position:the position of station in a group. If the station is in the
  *	group then bits (group * 2) is the position -1
@@ -2429,6 +2650,7 @@ struct iwl_mu_group_mgmt_notif {
  * @channel: channel this beacon was received on
  * @rates: rate in ucode internal format
  * @byte_count: frame's byte count
+ * @data: beacon data, length in @byte_count
  */
 struct iwl_stored_beacon_notif {
 	__le32 system_time;
@@ -2456,7 +2678,7 @@ enum iwl_lqm_status {
 
 /**
  * struct iwl_link_qual_msrmnt_cmd - Link Quality Measurement command
- * @cmd_operatrion: command operation to be performed (start or stop)
+ * @cmd_operation: command operation to be performed (start or stop)
  *	as defined above.
  * @mac_id: MAC ID the measurement applies to.
  * @measurement_time: time of the total measurement to be performed, in uSec.
@@ -2552,6 +2774,7 @@ struct iwl_dbg_mem_access_rsp {
 
 /**
  * struct iwl_nvm_access_complete_cmd - NVM_ACCESS commands are completed
+ * @reserved: reserved
  */
 struct iwl_nvm_access_complete_cmd {
 	__le32 reserved;
@@ -2591,6 +2814,7 @@ struct iwl_nvm_get_info {
  * @flags: 1 - empty, 0 - valid
  * @nvm_version: nvm version
  * @board_type: board type
+ * @reserved: reserved
  */
 struct iwl_nvm_get_info_general {
 	__le32 flags;
@@ -2633,7 +2857,7 @@ struct iwl_nvm_get_info_phy {
  * struct iwl_nvm_get_info_regulatory - regulatory information
  * @lar_enabled: is LAR enabled
  * @channel_profile: regulatory data of this channel
- * @regulatory: regulatory data, see &enum iwl_nvm_channel_flags for data
+ * @reserved: reserved
  */
 struct iwl_nvm_get_info_regulatory {
 	__le32 lar_enabled;

@@ -3233,7 +3233,11 @@ static void rs_build_rates_table_from_fixed(struct iwl_mvm *mvm,
 	if (num_of_ant(ant) == 1)
 		lq_cmd->single_stream_ant_msk = ant;
 
-	lq_cmd->agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	if (!mvm->trans->cfg->gen2)
+		lq_cmd->agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	else
+		lq_cmd->agg_frame_cnt_limit =
+			LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
 }
 #endif /* CONFIG_MAC80211_DEBUGFS */
 

@@ -1909,11 +1909,10 @@ enum nl80211_commands {
  *	that configured the indoor setting, and the indoor operation would be
  *	cleared when the socket is closed.
  *	If set during NAN interface creation, the interface will be destroyed
- *	if the socket is closed just like any other interface. Moreover, only
- *	the netlink socket that created the interface will be allowed to add
- *	and remove functions. NAN notifications will be sent in unicast to that
- *	socket. Without this attribute, any socket can add functions and the
- *	notifications will be sent to the %NL80211_MCGRP_NAN multicast group.
+ *	if the socket is closed just like any other interface. Moreover, NAN
+ *	notifications will be sent in unicast to that socket. Without this
+ *	attribute, the notifications will be sent to the %NL80211_MCGRP_NAN
+ *	multicast group.
  *	If set during %NL80211_CMD_ASSOCIATE or %NL80211_CMD_CONNECT the
  *	station will deauthenticate when the socket is closed.
  *

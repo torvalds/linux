@@ -70,7 +70,7 @@
 
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
-#include "iwl-fw.h"
+#include "fw/img.h"
 #include "iwl-debug.h"
 #include "iwl-csr.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
@@ -384,44 +384,29 @@ static int iwl_save_fw_paging(struct iwl_mvm *mvm,
 /* send paging cmd to FW in case CPU2 has paging image */
 static int iwl_send_paging_cmd(struct iwl_mvm *mvm, const struct fw_img *fw)
 {
-	union {
-		struct iwl_fw_paging_cmd v2;
-		struct iwl_fw_paging_cmd_v1 v1;
-	} paging_cmd = {
-		.v2.flags =
-			cpu_to_le32(PAGING_CMD_IS_SECURED |
-				    PAGING_CMD_IS_ENABLED |
-				    (mvm->num_of_pages_in_last_blk <<
-				    PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS)),
-		.v2.block_size = cpu_to_le32(BLOCK_2_EXP_SIZE),
-		.v2.block_num = cpu_to_le32(mvm->num_of_paging_blk),
+	struct iwl_fw_paging_cmd paging_cmd = {
+		.flags = cpu_to_le32(PAGING_CMD_IS_SECURED |
+				     PAGING_CMD_IS_ENABLED |
+				     (mvm->num_of_pages_in_last_blk <<
+				      PAGING_CMD_NUM_OF_PAGES_IN_LAST_GRP_POS)),
+		.block_size = cpu_to_le32(BLOCK_2_EXP_SIZE),
+		.block_num = cpu_to_le32(mvm->num_of_paging_blk),
 	};
-	int blk_idx, size = sizeof(paging_cmd.v2);
-
-	/* A bit hard coded - but this is the old API and will be deprecated */
-	if (!iwl_mvm_has_new_tx_api(mvm))
-		size = sizeof(paging_cmd.v1);
+	int blk_idx;
 
 	/* loop for for all paging blocks + CSS block */
 	for (blk_idx = 0; blk_idx < mvm->num_of_paging_blk + 1; blk_idx++) {
 		dma_addr_t addr = mvm->fw_paging_db[blk_idx].fw_paging_phys;
+		__le32 phy_addr;
 
 		addr = addr >> PAGE_2_EXP_SIZE;
-
-		if (iwl_mvm_has_new_tx_api(mvm)) {
-			__le64 phy_addr = cpu_to_le64(addr);
-
-			paging_cmd.v2.device_phy_addr[blk_idx] = phy_addr;
-		} else {
-			__le32 phy_addr = cpu_to_le32(addr);
-
-			paging_cmd.v1.device_phy_addr[blk_idx] = phy_addr;
-		}
+		phy_addr = cpu_to_le32(addr);
+		paging_cmd.device_phy_addr[blk_idx] = phy_addr;
 	}
 
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(FW_PAGING_BLOCK_CMD,
 						    IWL_ALWAYS_LONG_GROUP, 0),
-				    0, size, &paging_cmd);
+				    0, sizeof(paging_cmd), &paging_cmd);
 }
 
 /*
@@ -836,9 +821,11 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
-	ret = iwl_send_bt_init_conf(mvm);
-	if (ret)
-		goto error;
+	if (mvm->cfg->device_family < IWL_DEVICE_FAMILY_8000) {
+		ret = iwl_mvm_send_bt_init_conf(mvm);
+		if (ret)
+			goto error;
+	}
 
 	/* Read the NVM only at driver load time, no need to do this twice */
 	if (read_nvm) {
@@ -953,7 +940,7 @@ static void iwl_mvm_parse_shared_mem_a000(struct iwl_mvm *mvm,
 static void iwl_mvm_parse_shared_mem(struct iwl_mvm *mvm,
 				     struct iwl_rx_packet *pkt)
 {
-	struct iwl_shared_mem_cfg_v1 *mem_cfg = (void *)pkt->data;
+	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
 	int i;
 
 	mvm->smem_cfg.num_lmacs = 1;
@@ -1243,15 +1230,15 @@ out_free:
 	return ret;
 }
 
-static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm,
-				      struct iwl_mvm_geo_table *geo_table)
+static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 {
 	union acpi_object *wifi_pkg;
 	acpi_handle root_handle;
 	acpi_handle handle;
 	struct acpi_buffer wgds = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
-	int i, ret;
+	int i, j, ret;
+	int idx = 1;
 
 	root_handle = ACPI_HANDLE(mvm->dev);
 	if (!root_handle) {
@@ -1282,15 +1269,17 @@ static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm,
 		goto out_free;
 	}
 
-	for (i = 0; i < ACPI_WGDS_WIFI_DATA_SIZE; i++) {
-		union acpi_object *entry;
+	for (i = 0; i < IWL_NUM_GEO_PROFILES; i++) {
+		for (j = 0; j < IWL_MVM_GEO_TABLE_SIZE; j++) {
+			union acpi_object *entry;
 
-		entry = &wifi_pkg->package.elements[i + 1];
-		if ((entry->type != ACPI_TYPE_INTEGER) ||
-		    (entry->integer.value > U8_MAX))
-			return -EINVAL;
+			entry = &wifi_pkg->package.elements[idx++];
+			if ((entry->type != ACPI_TYPE_INTEGER) ||
+			    (entry->integer.value > U8_MAX))
+				return -EINVAL;
 
-		geo_table->values[i] = entry->integer.value;
+			mvm->geo_profiles[i].values[j] = entry->integer.value;
+		}
 	}
 	ret = 0;
 out_free:
@@ -1351,16 +1340,47 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }
 
+int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
+{
+	struct iwl_geo_tx_power_profiles_resp *resp;
+	int ret;
+
+	struct iwl_geo_tx_power_profiles_cmd geo_cmd = {
+		.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_GET_CURRENT_TABLE),
+	};
+	struct iwl_host_cmd cmd = {
+		.id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT),
+		.len = { sizeof(geo_cmd), },
+		.flags = CMD_WANT_SKB,
+		.data = { &geo_cmd },
+	};
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to get geographic profile info %d\n", ret);
+		return ret;
+	}
+
+	resp = (void *)cmd.resp_pkt->data;
+	ret = le32_to_cpu(resp->profile_idx);
+	if (WARN_ON(ret > IWL_NUM_GEO_PROFILES)) {
+		ret = -EIO;
+		IWL_WARN(mvm, "Invalid geographic profile idx (%d)\n", ret);
+	}
+
+	iwl_free_resp(&cmd);
+	return ret;
+}
+
 static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm_geo_table geo_table;
 	struct iwl_geo_tx_power_profiles_cmd cmd = {
 		.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES),
 	};
-	int ret, i, j, idx;
+	int ret, i, j;
 	u16 cmd_wide_id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
 
-	ret = iwl_mvm_sar_get_wgds_table(mvm, &geo_table);
+	ret = iwl_mvm_sar_get_wgds_table(mvm);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
@@ -1381,9 +1401,8 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 		for (j = 0; j < ACPI_WGDS_NUM_BANDS; j++) {
 			u8 *value;
 
-			idx = i * ACPI_WGDS_NUM_BANDS * ACPI_WGDS_TABLE_SIZE +
-				j * ACPI_WGDS_TABLE_SIZE;
-			value = &geo_table.values[idx];
+			value = &mvm->geo_profiles[i].values[j *
+				IWL_GEO_PER_CHAIN_SIZE];
 			chain[j].max_tx_power = cpu_to_le16(value[0]);
 			chain[j].chain_a = value[1];
 			chain[j].chain_b = value[2];
@@ -1513,10 +1532,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	ret = iwl_send_bt_init_conf(mvm);
-	if (ret)
-		goto error;
-
 	/* Send phy db control command and then phy db calibration*/
 	if (!iwl_mvm_has_new_tx_api(mvm)) {
 		ret = iwl_send_phy_db_data(mvm->phy_db);
@@ -1527,6 +1542,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		if (ret)
 			goto error;
 	}
+
+	ret = iwl_mvm_send_bt_init_conf(mvm);
+	if (ret)
+		goto error;
 
 	/* Init RSS configuration */
 	/* TODO - remove a000 disablement when we have RXQ config API */

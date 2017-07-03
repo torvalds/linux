@@ -65,7 +65,7 @@
 #include <linux/export.h>
 
 #include "iwl-drv.h"
-#include "iwl-notif-wait.h"
+#include "notif-wait.h"
 
 
 void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_wait)

@@ -79,9 +79,9 @@
 
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
-#include "iwl-notif-wait.h"
+#include "fw/notif-wait.h"
 #include "iwl-eeprom-parse.h"
-#include "iwl-fw-file.h"
+#include "fw/file.h"
 #include "iwl-config.h"
 #include "sta.h"
 #include "fw-api.h"
@@ -724,14 +724,14 @@ enum iwl_mvm_queue_status {
 #ifdef CONFIG_ACPI
 #define IWL_MVM_SAR_TABLE_SIZE		10
 #define IWL_MVM_SAR_PROFILE_NUM		4
-#define IWL_MVM_GEO_TABLE_SIZE		18
+#define IWL_MVM_GEO_TABLE_SIZE		6
 
 struct iwl_mvm_sar_profile {
 	bool enabled;
 	u8 table[IWL_MVM_SAR_TABLE_SIZE];
 };
 
-struct iwl_mvm_geo_table {
+struct iwl_mvm_geo_profile {
 	u8 values[IWL_MVM_GEO_TABLE_SIZE];
 };
 #endif
@@ -780,7 +780,10 @@ struct iwl_mvm {
 
 	struct iwl_notif_wait_data notif_wait;
 
-	struct mvm_statistics_rx rx_stats;
+	union {
+		struct mvm_statistics_rx_v3 rx_stats_v3;
+		struct mvm_statistics_rx rx_stats;
+	};
 
 	struct {
 		u64 rx_time;
@@ -789,7 +792,7 @@ struct iwl_mvm {
 		u64 on_time_scan;
 	} radio_stats, accu_radio_stats;
 
-	u8 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
+	u16 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
 
 	struct {
 		u8 hw_queue_refcount;
@@ -921,7 +924,7 @@ struct iwl_mvm {
 	u8 vif_count;
 
 	/* -1 for always, 0 for never, >0 for that many times */
-	s8 restart_fw;
+	s8 fw_restart;
 	u8 fw_dbg_conf;
 	struct delayed_work fw_dump_wk;
 	const struct iwl_mvm_dump_desc *fw_dump_desc;
@@ -1071,6 +1074,7 @@ struct iwl_mvm {
 	struct delayed_work cs_tx_unblock_dwork;
 #ifdef CONFIG_ACPI
 	struct iwl_mvm_sar_profile sar_profiles[IWL_MVM_SAR_PROFILE_NUM];
+	struct iwl_mvm_geo_profile geo_profiles[IWL_NUM_GEO_PROFILES];
 #endif
 };
 
@@ -1294,6 +1298,12 @@ static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
 	 */
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
+}
+
+static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_NEW_RX_STATS);
 }
 
 static inline struct agg_tx_status *
@@ -1679,7 +1689,7 @@ int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode);
 int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm);
 
 /* BT Coex */
-int iwl_send_bt_init_conf(struct iwl_mvm *mvm);
+int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm);
 void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -1889,9 +1899,16 @@ bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
 
 #ifdef CONFIG_ACPI
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
+int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
 #else
 static inline
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
+{
+	return -ENOENT;
+}
+
+static inline
+int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 {
 	return -ENOENT;
 }

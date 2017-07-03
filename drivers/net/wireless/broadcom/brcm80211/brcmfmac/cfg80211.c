@@ -1357,6 +1357,27 @@ static u16 brcmf_map_fw_linkdown_reason(const struct brcmf_event_msg *e)
 	return reason;
 }
 
+static int brcmf_set_pmk(struct brcmf_if *ifp, const u8 *pmk_data, u16 pmk_len)
+{
+	struct brcmf_wsec_pmk_le pmk;
+	int i, err;
+
+	/* convert to firmware key format */
+	pmk.key_len = cpu_to_le16(pmk_len << 1);
+	pmk.flags = cpu_to_le16(BRCMF_WSEC_PASSPHRASE);
+	for (i = 0; i < pmk_len; i++)
+		snprintf(&pmk.key[2 * i], 3, "%02x", pmk_data[i]);
+
+	/* store psk in firmware */
+	err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_WSEC_PMK,
+				     &pmk, sizeof(pmk));
+	if (err < 0)
+		brcmf_err("failed to change PSK in firmware (len=%u)\n",
+			  pmk_len);
+
+	return err;
+}
+
 static void brcmf_link_down(struct brcmf_cfg80211_vif *vif, u16 reason)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(vif->wdev.wiphy);
@@ -1379,6 +1400,10 @@ static void brcmf_link_down(struct brcmf_cfg80211_vif *vif, u16 reason)
 	clear_bit(BRCMF_VIF_STATUS_CONNECTING, &vif->sme_state);
 	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
 	brcmf_btcoex_set_mode(vif, BRCMF_BTCOEX_ENABLED, 0);
+	if (vif->profile.use_fwsup != BRCMF_PROFILE_FWSUP_NONE) {
+		brcmf_set_pmk(vif->ifp, NULL, 0);
+		vif->profile.use_fwsup = BRCMF_PROFILE_FWSUP_NONE;
+	}
 	brcmf_dbg(TRACE, "Exit\n");
 }
 
@@ -1692,6 +1717,7 @@ static s32
 brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	s32 val;
 	s32 err;
 	const struct brcmf_tlv *rsn_ie;
@@ -1701,6 +1727,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 	u16 rsn_cap;
 	u32 mfp;
 	u16 count;
+
+	profile->use_fwsup = BRCMF_PROFILE_FWSUP_NONE;
 
 	if (!sme->crypto.n_akm_suites)
 		return 0;
@@ -1714,6 +1742,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 		switch (sme->crypto.akm_suites[0]) {
 		case WLAN_AKM_SUITE_8021X:
 			val = WPA_AUTH_UNSPECIFIED;
+			if (sme->want_1x)
+				profile->use_fwsup = BRCMF_PROFILE_FWSUP_1X;
 			break;
 		case WLAN_AKM_SUITE_PSK:
 			val = WPA_AUTH_PSK;
@@ -1727,9 +1757,13 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 		switch (sme->crypto.akm_suites[0]) {
 		case WLAN_AKM_SUITE_8021X:
 			val = WPA2_AUTH_UNSPECIFIED;
+			if (sme->want_1x)
+				profile->use_fwsup = BRCMF_PROFILE_FWSUP_1X;
 			break;
 		case WLAN_AKM_SUITE_8021X_SHA256:
 			val = WPA2_AUTH_1X_SHA256;
+			if (sme->want_1x)
+				profile->use_fwsup = BRCMF_PROFILE_FWSUP_1X;
 			break;
 		case WLAN_AKM_SUITE_PSK_SHA256:
 			val = WPA2_AUTH_PSK_SHA256;
@@ -1743,6 +1777,9 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			return -EINVAL;
 		}
 	}
+
+	if (profile->use_fwsup == BRCMF_PROFILE_FWSUP_1X)
+		brcmf_dbg(INFO, "using 1X offload\n");
 
 	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MFP))
 		goto skip_mfp_config;
@@ -1916,6 +1953,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	struct ieee80211_channel *chan = sme->channel;
 	struct brcmf_join_params join_params;
 	size_t join_params_size;
@@ -2010,6 +2048,31 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (err) {
 		brcmf_err("brcmf_set_sharedkey failed (%d)\n", err);
 		goto done;
+	}
+
+	if (sme->crypto.psk) {
+		if (WARN_ON(profile->use_fwsup != BRCMF_PROFILE_FWSUP_NONE)) {
+			err = -EINVAL;
+			goto done;
+		}
+		brcmf_dbg(INFO, "using PSK offload\n");
+		profile->use_fwsup = BRCMF_PROFILE_FWSUP_PSK;
+	}
+
+	if (profile->use_fwsup != BRCMF_PROFILE_FWSUP_NONE) {
+		/* enable firmware supplicant for this interface */
+		err = brcmf_fil_iovar_int_set(ifp, "sup_wpa", 1);
+		if (err < 0) {
+			brcmf_err("failed to enable fw supplicant\n");
+			goto done;
+		}
+	}
+
+	if (profile->use_fwsup == BRCMF_PROFILE_FWSUP_PSK) {
+		err = brcmf_set_pmk(ifp, sme->crypto.psk,
+				    BRCMF_WSEC_MAX_PSK_LEN);
+		if (err)
+			goto done;
 	}
 
 	/* Join with specific BSSID and cached SSID
@@ -5151,6 +5214,34 @@ brcmf_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *ndev,
 }
 #endif
 
+static int brcmf_cfg80211_set_pmk(struct wiphy *wiphy, struct net_device *dev,
+				  const struct cfg80211_pmk_conf *conf)
+{
+	struct brcmf_if *ifp;
+
+	brcmf_dbg(TRACE, "enter\n");
+
+	/* expect using firmware supplicant for 1X */
+	ifp = netdev_priv(dev);
+	if (WARN_ON(ifp->vif->profile.use_fwsup != BRCMF_PROFILE_FWSUP_1X))
+		return -EINVAL;
+
+	return brcmf_set_pmk(ifp, conf->pmk, conf->pmk_len);
+}
+
+static int brcmf_cfg80211_del_pmk(struct wiphy *wiphy, struct net_device *dev,
+				  const u8 *aa)
+{
+	struct brcmf_if *ifp;
+
+	brcmf_dbg(TRACE, "enter\n");
+	ifp = netdev_priv(dev);
+	if (WARN_ON(ifp->vif->profile.use_fwsup != BRCMF_PROFILE_FWSUP_1X))
+		return -EINVAL;
+
+	return brcmf_set_pmk(ifp, NULL, 0);
+}
+
 static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
@@ -5194,6 +5285,8 @@ static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
 	.tdls_oper = brcmf_cfg80211_tdls_oper,
 	.update_connect_params = brcmf_cfg80211_update_conn_params,
+	.set_pmk = brcmf_cfg80211_set_pmk,
+	.del_pmk = brcmf_cfg80211_del_pmk,
 };
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
@@ -5247,16 +5340,31 @@ void brcmf_cfg80211_free_netdev(struct net_device *ndev)
 		brcmf_free_vif(vif);
 }
 
-static bool brcmf_is_linkup(const struct brcmf_event_msg *e)
+static bool brcmf_is_linkup(struct brcmf_cfg80211_vif *vif,
+			    const struct brcmf_event_msg *e)
 {
 	u32 event = e->event_code;
 	u32 status = e->status;
 
+	if (vif->profile.use_fwsup == BRCMF_PROFILE_FWSUP_PSK &&
+	    event == BRCMF_E_PSK_SUP &&
+	    status == BRCMF_E_STATUS_FWSUP_COMPLETED)
+		set_bit(BRCMF_VIF_STATUS_EAP_SUCCESS, &vif->sme_state);
 	if (event == BRCMF_E_SET_SSID && status == BRCMF_E_STATUS_SUCCESS) {
 		brcmf_dbg(CONN, "Processing set ssid\n");
-		return true;
+		memcpy(vif->profile.bssid, e->addr, ETH_ALEN);
+		if (vif->profile.use_fwsup != BRCMF_PROFILE_FWSUP_PSK)
+			return true;
+
+		set_bit(BRCMF_VIF_STATUS_ASSOC_SUCCESS, &vif->sme_state);
 	}
 
+	if (test_bit(BRCMF_VIF_STATUS_EAP_SUCCESS, &vif->sme_state) &&
+	    test_bit(BRCMF_VIF_STATUS_ASSOC_SUCCESS, &vif->sme_state)) {
+		clear_bit(BRCMF_VIF_STATUS_EAP_SUCCESS, &vif->sme_state);
+		clear_bit(BRCMF_VIF_STATUS_ASSOC_SUCCESS, &vif->sme_state);
+		return true;
+	}
 	return false;
 }
 
@@ -5288,6 +5396,13 @@ static bool brcmf_is_nonetwork(struct brcmf_cfg80211_info *cfg,
 
 	if (event == BRCMF_E_SET_SSID && status != BRCMF_E_STATUS_SUCCESS) {
 		brcmf_dbg(CONN, "Processing connecting & no network found\n");
+		return true;
+	}
+
+	if (event == BRCMF_E_PSK_SUP &&
+	    status != BRCMF_E_STATUS_FWSUP_COMPLETED) {
+		brcmf_dbg(CONN, "Processing failed supplicant state: %u\n",
+			  status);
 		return true;
 	}
 
@@ -5441,27 +5556,28 @@ brcmf_bss_connect_done(struct brcmf_cfg80211_info *cfg,
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	struct brcmf_cfg80211_connect_info *conn_info = cfg_to_conn(cfg);
+	struct cfg80211_connect_resp_params conn_params;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (test_and_clear_bit(BRCMF_VIF_STATUS_CONNECTING,
 			       &ifp->vif->sme_state)) {
+		memset(&conn_params, 0, sizeof(conn_params));
 		if (completed) {
 			brcmf_get_assoc_ies(cfg, ifp);
-			memcpy(profile->bssid, e->addr, ETH_ALEN);
 			brcmf_update_bss_info(cfg, ifp);
 			set_bit(BRCMF_VIF_STATUS_CONNECTED,
 				&ifp->vif->sme_state);
+			conn_params.status = WLAN_STATUS_SUCCESS;
+		} else {
+			conn_params.status = WLAN_STATUS_AUTH_TIMEOUT;
 		}
-		cfg80211_connect_result(ndev,
-					(u8 *)profile->bssid,
-					conn_info->req_ie,
-					conn_info->req_ie_len,
-					conn_info->resp_ie,
-					conn_info->resp_ie_len,
-					completed ? WLAN_STATUS_SUCCESS :
-						    WLAN_STATUS_AUTH_TIMEOUT,
-					GFP_KERNEL);
+		conn_params.bssid = profile->bssid;
+		conn_params.req_ie = conn_info->req_ie;
+		conn_params.req_ie_len = conn_info->req_ie_len;
+		conn_params.resp_ie = conn_info->resp_ie;
+		conn_params.resp_ie_len = conn_info->resp_ie_len;
+		cfg80211_connect_done(ndev, &conn_params, GFP_KERNEL);
 		brcmf_dbg(CONN, "Report connect result - connection %s\n",
 			  completed ? "succeeded" : "failed");
 	}
@@ -5527,7 +5643,7 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
 
 	if (brcmf_is_apmode(ifp->vif)) {
 		err = brcmf_notify_connect_status_ap(cfg, ndev, e, data);
-	} else if (brcmf_is_linkup(e)) {
+	} else if (brcmf_is_linkup(ifp->vif, e)) {
 		brcmf_dbg(CONN, "Linkup\n");
 		if (brcmf_is_ibssmode(ifp->vif)) {
 			brcmf_inform_ibss(cfg, ndev, e->addr);
@@ -5695,6 +5811,8 @@ static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 			    brcmf_p2p_notify_action_tx_complete);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_ACTION_FRAME_OFF_CHAN_COMPLETE,
 			    brcmf_p2p_notify_action_tx_complete);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_PSK_SUP,
+			    brcmf_notify_connect_status);
 }
 
 static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
@@ -6491,6 +6609,12 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 	if (!ifp->drvr->settings->roamoff)
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM;
+	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_FWSUP)) {
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_PSK);
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_1X);
+	}
 	wiphy->mgmt_stypes = brcmf_txrx_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_PNO)) {

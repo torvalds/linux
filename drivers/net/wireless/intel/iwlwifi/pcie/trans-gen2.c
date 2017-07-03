@@ -136,9 +136,7 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 	/* Stop device's DMA activity */
 	iwl_pcie_apm_stop_master(trans);
 
-	/* Reset the entire device */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(1000, 2000);
+	iwl_pcie_sw_reset(trans);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -188,9 +186,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_gen2_apm_stop(trans, false);
 
-	/* stop and reset the on-board processor */
-	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-	usleep_range(1000, 2000);
+	iwl_pcie_sw_reset(trans);
 
 	/*
 	 * Upon stop, the IVAR table gets erased, so msi-x won't

@@ -257,7 +257,7 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	};
 
 	if (iwl_mvm_is_dqa_supported(mvm))
-		data.used_hw_queues |= BIT(IWL_MVM_DQA_CMD_QUEUE);
+		data.used_hw_queues |= BIT(IWL_MVM_DQA_GCAST_QUEUE);
 	else
 		data.used_hw_queues |= BIT(IWL_MVM_CMD_QUEUE);
 
@@ -267,6 +267,14 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_iface_hw_queues_iter, &data);
+
+	/*
+	 * for DQA, the hw_queue in mac80211 is never really used for
+	 * real traffic (only the few queue IDs covered above), so
+	 * we can reuse the real HW queue IDs the stations use
+	 */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		return data.used_hw_queues;
 
 	/* don't assign the same hw queues as TDLS stations */
 	ieee80211_iterate_stations_atomic(mvm->hw,
@@ -344,7 +352,7 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.found_vif = false,
 	};
 	u32 ac;
-	int ret, i;
+	int ret, i, queue_limit;
 	unsigned long used_hw_queues;
 
 	/*
@@ -430,17 +438,29 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 	}
 
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		/*
+		 * queues in mac80211 almost entirely independent of
+		 * the ones here - no real limit
+		 */
+		queue_limit = IEEE80211_MAX_QUEUES;
+		BUILD_BUG_ON(IEEE80211_MAX_QUEUES >
+			     BITS_PER_BYTE *
+			     sizeof(mvm->hw_queue_to_mac80211[0]));
+	} else {
+		/* need to not use too many in this case */
+		queue_limit = mvm->first_agg_queue;
+	}
+
 	/*
 	 * Find available queues, and allocate them to the ACs. When in
 	 * DQA-mode they aren't really used, and this is done only so the
 	 * mac80211 ieee80211_check_queues() function won't fail
 	 */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		u8 queue = find_first_zero_bit(&used_hw_queues,
-					       mvm->first_agg_queue);
+		u8 queue = find_first_zero_bit(&used_hw_queues, queue_limit);
 
-		if (!iwl_mvm_is_dqa_supported(mvm) &&
-		    queue >= mvm->first_agg_queue) {
+		if (queue >= queue_limit) {
 			IWL_ERR(mvm, "Failed to allocate queue\n");
 			ret = -EIO;
 			goto exit_fail;

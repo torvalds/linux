@@ -761,6 +761,15 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 
 void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
 {
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_9000)
+		return;
+
+	if (CSR_HW_REV_STEP(trans->hw_rev) != SILICON_A_STEP)
+		return;
+
+	if (!trans->cfg->integrated)
+		return;
+
 	/*
 	 * Turn on the chicken-bits that cause MAC wakeup for RX-related
 	 * values.
@@ -768,12 +777,10 @@ void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
 	 * bug where shadow registers are not in the retention list and their
 	 * value is lost when NIC powers down
 	 */
-	if (trans->cfg->integrated) {
-		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
-			    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
-		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
-			    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
-	}
+	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
+		    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
+	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
+		    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
 }
 
 static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
@@ -1119,15 +1126,23 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		pkt = rxb_addr(&rxcb);
 
-		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID))
+		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID)) {
+			IWL_DEBUG_RX(trans,
+				     "Q %d: RB end marker at offset %d\n",
+				     rxq->id, offset);
 			break;
+		}
 
-		WARN_ON((le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
-			FH_RSCSR_RXQ_POS != rxq->id);
+		WARN((le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
+			FH_RSCSR_RXQ_POS != rxq->id,
+		     "frame on invalid queue - is on %d and indicates %d\n",
+		     rxq->id,
+		     (le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
+			FH_RSCSR_RXQ_POS);
 
 		IWL_DEBUG_RX(trans,
-			     "cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
-			     rxcb._offset,
+			     "Q %d: cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
+			     rxq->id, offset,
 			     iwl_get_cmd_string(trans,
 						iwl_cmd_id(pkt->hdr.cmd,
 							   pkt->hdr.group_id,
@@ -1375,6 +1390,8 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	struct msix_entry *entry = dev_id;
 	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
 	struct iwl_trans *trans = trans_pcie->trans;
+
+	trace_iwlwifi_dev_irq_msix(trans->dev, entry, false, 0, 0);
 
 	if (WARN_ON(entry->entry >= trans->num_rx_queues))
 		return IRQ_NONE;
@@ -1916,6 +1933,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	iwl_write32(trans, CSR_MSIX_FH_INT_CAUSES_AD, inta_fh);
 	iwl_write32(trans, CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
 	spin_unlock(&trans_pcie->irq_lock);
+
+	trace_iwlwifi_dev_irq_msix(trans->dev, entry, true, inta_fh, inta_hw);
 
 	if (unlikely(!(inta_fh | inta_hw))) {
 		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");

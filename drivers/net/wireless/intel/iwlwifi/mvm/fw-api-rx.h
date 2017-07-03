@@ -90,13 +90,13 @@ enum iwl_mac_context_info {
  * @non_cfg_phy_cnt: non configurable DSP phy data byte count
  * @cfg_phy_cnt: configurable DSP phy data byte count
  * @stat_id: configurable DSP phy data set ID
- * @reserved1:
+ * @reserved1: reserved
  * @system_timestamp: GP2  at on air rise
  * @timestamp: TSF at on air rise
  * @beacon_time_stamp: beacon at on-air rise
  * @phy_flags: general phy flags: band, modulation, ...
  * @channel: channel number
- * @non_cfg_phy_buf: for various implementations of non_cfg_phy
+ * @non_cfg_phy: for various implementations of non_cfg_phy
  * @rate_n_flags: RATE_MCS_*
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate
@@ -158,10 +158,11 @@ struct iwl_rx_mpdu_res_start {
 /**
  * enum iwl_rx_phy_flags - to parse %iwl_rx_phy_info phy_flags
  * @RX_RES_PHY_FLAGS_BAND_24: true if the packet was received on 2.4 band
- * @RX_RES_PHY_FLAGS_MOD_CCK:
+ * @RX_RES_PHY_FLAGS_MOD_CCK: modulation is CCK
  * @RX_RES_PHY_FLAGS_SHORT_PREAMBLE: true if packet's preamble was short
- * @RX_RES_PHY_FLAGS_NARROW_BAND:
+ * @RX_RES_PHY_FLAGS_NARROW_BAND: narrow band (<20 MHz) receive
  * @RX_RES_PHY_FLAGS_ANTENNA: antenna on which the packet was received
+ * @RX_RES_PHY_FLAGS_ANTENNA_POS: antenna bit position
  * @RX_RES_PHY_FLAGS_AGG: set if the packet was part of an A-MPDU
  * @RX_RES_PHY_FLAGS_OFDM_HT: The frame was an HT frame
  * @RX_RES_PHY_FLAGS_OFDM_GF: The frame used GF preamble
@@ -184,9 +185,9 @@ enum iwl_rx_phy_flags {
  * enum iwl_mvm_rx_status - written by fw for each Rx packet
  * @RX_MPDU_RES_STATUS_CRC_OK: CRC is fine
  * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was no RXE overflow
- * @RX_MPDU_RES_STATUS_SRC_STA_FOUND:
- * @RX_MPDU_RES_STATUS_KEY_VALID:
- * @RX_MPDU_RES_STATUS_KEY_PARAM_OK:
+ * @RX_MPDU_RES_STATUS_SRC_STA_FOUND: station was found
+ * @RX_MPDU_RES_STATUS_KEY_VALID: key was valid
+ * @RX_MPDU_RES_STATUS_KEY_PARAM_OK: key parameters were usable
  * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if not, the packet is destroyed
  * @RX_MPDU_RES_STATUS_MIC_OK: used for CCM alg only. TKIP MIC is checked
  *	in the driver.
@@ -198,21 +199,21 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_SEC_WEP_ENC: this frame is encrypted using WEP
  * @RX_MPDU_RES_STATUS_SEC_CCM_ENC: this frame is encrypted using CCM
  * @RX_MPDU_RES_STATUS_SEC_TKIP_ENC: this frame is encrypted using TKIP
+ * @RX_MPDU_RES_STATUS_SEC_EXT_ENC: this frame is encrypted using extension
+ *	algorithm
  * @RX_MPDU_RES_STATUS_SEC_CCM_CMAC_ENC: this frame is encrypted using CCM_CMAC
  * @RX_MPDU_RES_STATUS_SEC_ENC_ERR: this frame couldn't be decrypted
  * @RX_MPDU_RES_STATUS_SEC_ENC_MSK: bitmask of the encryption algorithm
  * @RX_MPDU_RES_STATUS_DEC_DONE: this frame has been successfully decrypted
- * @RX_MPDU_RES_STATUS_PROTECT_FRAME_BIT_CMP:
- * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP:
- * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT:
+ * @RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP: extended IV (set with TKIP)
+ * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT: key ID comparison done
  * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
  * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
  * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
- * @RX_MPDU_RES_STATUS_HASH_INDEX_MSK:
- * @RX_MPDU_RES_STATUS_STA_ID_MSK:
- * @RX_MPDU_RES_STATUS_RRF_KILL:
- * @RX_MPDU_RES_STATUS_FILTERING_MSK:
- * @RX_MPDU_RES_STATUS2_FILTERING_MSK:
+ * @RX_MPDU_RES_STATUS_STA_ID_MSK: station ID mask
+ * @RX_MDPU_RES_STATUS_STA_ID_SHIFT: station ID bit shift
+ * @RX_MPDU_RES_STATUS_FILTERING_MSK: filter status
+ * @RX_MPDU_RES_STATUS2_FILTERING_MSK: filter status 2
  */
 enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_CRC_OK			= BIT(0),
@@ -233,16 +234,13 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_SEC_ENC_ERR			= (7 << 8),
 	RX_MPDU_RES_STATUS_SEC_ENC_MSK			= (7 << 8),
 	RX_MPDU_RES_STATUS_DEC_DONE			= BIT(11),
-	RX_MPDU_RES_STATUS_PROTECT_FRAME_BIT_CMP	= BIT(12),
 	RX_MPDU_RES_STATUS_EXT_IV_BIT_CMP		= BIT(13),
 	RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT		= BIT(14),
 	RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME		= BIT(15),
 	RX_MPDU_RES_STATUS_CSUM_DONE			= BIT(16),
 	RX_MPDU_RES_STATUS_CSUM_OK			= BIT(17),
-	RX_MPDU_RES_STATUS_HASH_INDEX_MSK		= (0x3F0000),
 	RX_MDPU_RES_STATUS_STA_ID_SHIFT			= 24,
 	RX_MPDU_RES_STATUS_STA_ID_MSK			= 0x1f << RX_MDPU_RES_STATUS_STA_ID_SHIFT,
-	RX_MPDU_RES_STATUS_RRF_KILL			= BIT(29),
 	RX_MPDU_RES_STATUS_FILTERING_MSK		= (0xc00000),
 	RX_MPDU_RES_STATUS2_FILTERING_MSK		= (0xc0000000),
 };
@@ -476,6 +474,7 @@ enum iwl_rss_hash_func_en {
  *
  * @flags: 1 - enable, 0 - disable
  * @hash_mask: Type of RSS to use. Values are from %iwl_rss_hash_func_en
+ * @reserved: reserved
  * @secret_key: 320 bit input of random key configuration from driver
  * @indirection_table: indirection table
  */
@@ -569,7 +568,7 @@ struct iwl_mvm_pm_state_notification {
 	u8 sta_id;
 	u8 type;
 	/* private: */
-	u16 reserved;
+	__le16 reserved;
 } __packed; /* PEER_PM_NTFY_API_S_VER_1 */
 
 #endif /* __fw_api_rx_h__ */
