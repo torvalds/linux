@@ -4451,11 +4451,13 @@ nv50_display_create(struct drm_device *dev)
 
 	/* create crtc objects to represent the hw heads */
 	if (disp->disp->oclass >= GF110_DISP)
-		crtcs = nvif_rd32(&device->object, 0x022448);
+		crtcs = nvif_rd32(&device->object, 0x612004) & 0xf;
 	else
-		crtcs = 2;
+		crtcs = 0x3;
 
-	for (i = 0; i < crtcs; i++) {
+	for (i = 0; i < fls(crtcs); i++) {
+		if (!(crtcs & (1 << i)))
+			continue;
 		ret = nv50_head_create(dev, i);
 		if (ret)
 			goto out;
