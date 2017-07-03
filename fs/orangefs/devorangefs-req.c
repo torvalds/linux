@@ -822,7 +822,7 @@ static unsigned int orangefs_devreq_poll(struct file *file,
 	poll_wait(file, &orangefs_request_list_waitq, poll_table);
 
 	if (!list_empty(&orangefs_request_list))
-		poll_revent_mask |= POLL_IN;
+		poll_revent_mask |= POLLIN;
 	return poll_revent_mask;
 }
 
