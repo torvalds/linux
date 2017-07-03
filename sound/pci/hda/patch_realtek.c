@@ -41,9 +41,6 @@
 /* keep halting ALC5505 DSP, for power saving */
 #define HALT_REALTEK_ALC5505
 
-/* for GPIO Poll */
-#define GPIO_MASK	0x03
-
 /* extra amp-initialization sequence types */
 enum {
 	ALC_INIT_NONE,
