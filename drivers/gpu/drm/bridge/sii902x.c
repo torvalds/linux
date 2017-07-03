@@ -418,11 +418,7 @@ static int sii902x_probe(struct i2c_client *client,
 
 	sii902x->bridge.funcs = &sii902x_bridge_funcs;
 	sii902x->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&sii902x->bridge);
-	if (ret) {
-		dev_err(dev, "Failed to add drm_bridge\n");
-		return ret;
-	}
+	drm_bridge_add(&sii902x->bridge);
 
 	i2c_set_clientdata(client, sii902x);
 
