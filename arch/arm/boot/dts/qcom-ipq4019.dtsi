@@ -119,7 +119,7 @@
 			reg = <0x1800000 0x60000>;
 		};
 
-		tlmm: pinctrl@0x01000000 {
+		tlmm: pinctrl@1000000 {
 			compatible = "qcom,ipq4019-pinctrl";
 			reg = <0x01000000 0x300000>;
 			gpio-controller;

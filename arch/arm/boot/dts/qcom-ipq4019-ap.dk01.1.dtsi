@@ -40,7 +40,7 @@
 			clock-frequency = <48000000>;
 		};
 
-		pinctrl@0x01000000 {
+		pinctrl@1000000 {
 			serial_pins: serial_pinmux {
 				mux {
 					pins = "gpio60", "gpio61";
