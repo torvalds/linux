@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -30,6 +31,34 @@ struct graph_card_data {
 		struct asoc_simple_dai codec_dai;
 	} *dai_props;
 	struct snd_soc_dai_link *dai_link;
+	struct gpio_desc *pa_gpio;
+};
+
+static int asoc_graph_card_outdrv_event(struct snd_soc_dapm_widget *w,
+					struct snd_kcontrol *kcontrol,
+					int event)
+{
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct graph_card_data *priv = snd_soc_card_get_drvdata(dapm->card);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		gpiod_set_value_cansleep(priv->pa_gpio, 1);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		gpiod_set_value_cansleep(priv->pa_gpio, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget asoc_graph_card_dapm_widgets[] = {
+	SND_SOC_DAPM_OUT_DRV_E("Amplifier", SND_SOC_NOPM,
+			       0, 0, NULL, 0, asoc_graph_card_outdrv_event,
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 };
 
 #define graph_priv_to_card(priv) (&(priv)->snd_card)
@@ -44,13 +73,13 @@ static int asoc_graph_card_startup(struct snd_pcm_substream *substream)
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
 	int ret;
 
-	ret = clk_prepare_enable(dai_props->cpu_dai.clk);
+	ret = asoc_simple_card_clk_enable(&dai_props->cpu_dai);
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(dai_props->codec_dai.clk);
+	ret = asoc_simple_card_clk_enable(&dai_props->codec_dai);
 	if (ret)
-		clk_disable_unprepare(dai_props->cpu_dai.clk);
+		asoc_simple_card_clk_disable(&dai_props->cpu_dai);
 
 	return ret;
 }
@@ -61,9 +90,9 @@ static void asoc_graph_card_shutdown(struct snd_pcm_substream *substream)
 	struct graph_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
 
-	clk_disable_unprepare(dai_props->cpu_dai.clk);
+	asoc_simple_card_clk_disable(&dai_props->cpu_dai);
 
-	clk_disable_unprepare(dai_props->codec_dai.clk);
+	asoc_simple_card_clk_disable(&dai_props->codec_dai);
 }
 
 static struct snd_soc_ops asoc_graph_card_ops = {
@@ -100,7 +129,6 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_port,
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, idx);
 	struct asoc_simple_dai *cpu_dai = &dai_props->cpu_dai;
 	struct asoc_simple_dai *codec_dai = &dai_props->codec_dai;
-	struct snd_soc_card *card = graph_priv_to_card(priv);
 	struct device_node *cpu_ep    = of_get_next_child(cpu_port, NULL);
 	struct device_node *codec_ep = of_graph_get_remote_endpoint(cpu_ep);
 	struct device_node *rcpu_ep = of_graph_get_remote_endpoint(codec_ep);
@@ -131,19 +159,11 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_port,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = snd_soc_of_parse_tdm_slot(cpu_ep,
-					&cpu_dai->tx_slot_mask,
-					&cpu_dai->rx_slot_mask,
-					&cpu_dai->slots,
-					&cpu_dai->slot_width);
+	ret = asoc_simple_card_of_parse_tdm(cpu_ep, cpu_dai);
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = snd_soc_of_parse_tdm_slot(codec_ep,
-					&codec_dai->tx_slot_mask,
-					&codec_dai->rx_slot_mask,
-					&codec_dai->slots,
-					&codec_dai->slot_width);
+	ret = asoc_simple_card_of_parse_tdm(codec_ep, codec_dai);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -170,7 +190,7 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_port,
 	dai_link->init = asoc_graph_card_dai_init;
 
 	asoc_simple_card_canonicalize_cpu(dai_link,
-					  card->num_links == 1);
+		of_graph_get_endpoint_count(dai_link->cpu_of_node) == 1);
 
 dai_link_of_err:
 	of_node_put(cpu_ep);
@@ -189,8 +209,16 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	int rc, idx = 0;
 	int ret;
 
+	ret = asoc_simple_card_of_parse_widgets(card, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_card_of_parse_routing(card, NULL, 1);
+	if (ret < 0)
+		return ret;
+
 	/*
-	 * we need to consider "widgets", "routing", "mclk-fs" around here
+	 * we need to consider "mclk-fs" around here
 	 * see simple-card
 	 */
 
@@ -242,6 +270,13 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
 
+	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
+	if (IS_ERR(priv->pa_gpio)) {
+		ret = PTR_ERR(priv->pa_gpio);
+		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
+		return ret;
+	}
+
 	priv->dai_props			= dai_props;
 	priv->dai_link			= dai_link;
 
@@ -251,6 +286,8 @@ static int asoc_graph_card_probe(struct platform_device *pdev)
 	card->dev	= dev;
 	card->dai_link	= dai_link;
 	card->num_links	= num;
+	card->dapm_widgets = asoc_graph_card_dapm_widgets;
+	card->num_dapm_widgets = ARRAY_SIZE(asoc_graph_card_dapm_widgets);
 
 	ret = asoc_graph_card_parse_of(priv);
 	if (ret < 0) {

@@ -10,6 +10,8 @@ see ${LINUX}/Documentation/devicetree/bindings/sound/simple-card.txt
 Below are same as Simple-Card.
 
 - label
+- widgets
+- routing
 - dai-format
 - frame-master
 - bitclock-master
@@ -23,6 +25,9 @@ Required properties:
 
 - compatible				: "audio-graph-card";
 - dais					: list of CPU DAI port{s}
+
+Optional properties:
+- pa-gpios: GPIO used to control external amplifier.
 
 Example: Single DAI case
 

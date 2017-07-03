@@ -90,8 +90,11 @@ Example 2. 2 CPU 1 Codec (Mixing)
 		...
 
 		port {
-			codec_endpoint: endpoint {
+			codec_endpoint0: endpoint {
 				remote-endpoint = <&cpu_endpoint0>;
+			};
+			codec_endpoint1: endpoint {
+				remote-endpoint = <&cpu_endpoint1>;
 			};
 		};
 	};
@@ -101,7 +104,7 @@ Example 2. 2 CPU 1 Codec (Mixing)
 		ports {
 			cpu_port0: port {
 				cpu_endpoint0: endpoint {
-					remote-endpoint = <&codec_endpoint>;
+					remote-endpoint = <&codec_endpoint0>;
 
 					dai-format = "left_j";
 					...
@@ -109,6 +112,8 @@ Example 2. 2 CPU 1 Codec (Mixing)
 			};
 			cpu_port1: port {
 				cpu_endpoint1: endpoint {
+					remote-endpoint = <&codec_endpoint1>;
+
 					dai-format = "left_j";
 					...
 				};
