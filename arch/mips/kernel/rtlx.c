@@ -336,10 +336,10 @@ static int file_release(struct inode *inode, struct file *filp)
 	return rtlx_release(iminor(inode));
 }
 
-static unsigned int file_poll(struct file *file, poll_table *wait)
+static __poll_t file_poll(struct file *file, poll_table *wait)
 {
 	int minor = iminor(file_inode(file));
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &channel_wqs[minor].rt_queue, wait);
 	poll_wait(file, &channel_wqs[minor].lx_queue, wait);
