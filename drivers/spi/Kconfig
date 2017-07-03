@@ -627,6 +627,16 @@ config SPI_SIRF
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
 
+config SPI_STM32
+	tristate "STMicroelectronics STM32 SPI controller"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  SPI driver for STMicroelectonics STM32 SoCs.
+
+	  STM32 SPI controller supports DMA and PIO modes. When DMA
+	  is not available, the driver automatically falls back to
+	  PIO mode.
+
 config SPI_ST_SSC4
 	tristate "STMicroelectronics SPI SSC-based driver"
 	depends on ARCH_STI || COMPILE_TEST
