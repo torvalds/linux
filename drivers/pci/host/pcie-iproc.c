@@ -452,14 +452,13 @@ static inline void iproc_pcie_apb_err_disable(struct pci_bus *bus,
  * Note access to the configuration registers are protected at the higher layer
  * by 'pci_lock' in drivers/pci/access.c
  */
-static void __iomem *iproc_pcie_map_cfg_bus(struct pci_bus *bus,
+static void __iomem *iproc_pcie_map_cfg_bus(struct iproc_pcie *pcie,
+					    int busno,
 					    unsigned int devfn,
 					    int where)
 {
-	struct iproc_pcie *pcie = iproc_data(bus);
 	unsigned slot = PCI_SLOT(devfn);
 	unsigned fn = PCI_FUNC(devfn);
-	unsigned busno = bus->number;
 	u32 val;
 	u16 offset;
 
@@ -499,6 +498,58 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct pci_bus *bus,
 		return (pcie->base + offset);
 }
 
+static void __iomem *iproc_pcie_bus_map_cfg_bus(struct pci_bus *bus,
+						unsigned int devfn,
+						int where)
+{
+	return iproc_pcie_map_cfg_bus(iproc_data(bus), bus->number, devfn,
+				      where);
+}
+
+static int iproc_pci_raw_config_read32(struct iproc_pcie *pcie,
+				       unsigned int devfn, int where,
+				       int size, u32 *val)
+{
+	void __iomem *addr;
+
+	addr = iproc_pcie_map_cfg_bus(pcie, 0, devfn, where & ~0x3);
+	if (!addr) {
+		*val = ~0;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	*val = readl(addr);
+
+	if (size <= 2)
+		*val = (*val >> (8 * (where & 3))) & ((1 << (size * 8)) - 1);
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static int iproc_pci_raw_config_write32(struct iproc_pcie *pcie,
+					unsigned int devfn, int where,
+					int size, u32 val)
+{
+	void __iomem *addr;
+	u32 mask, tmp;
+
+	addr = iproc_pcie_map_cfg_bus(pcie, 0, devfn, where & ~0x3);
+	if (!addr)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (size == 4) {
+		writel(val, addr);
+		return PCIBIOS_SUCCESSFUL;
+	}
+
+	mask = ~(((1 << (size * 8)) - 1) << ((where & 0x3) * 8));
+	tmp = readl(addr) & mask;
+	tmp |= val << ((where & 0x3) * 8);
+	writel(tmp, addr);
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
 static int iproc_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 				    int where, int size, u32 *val)
 {
@@ -524,7 +575,7 @@ static int iproc_pcie_config_write32(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops iproc_pcie_ops = {
-	.map_bus = iproc_pcie_map_cfg_bus,
+	.map_bus = iproc_pcie_bus_map_cfg_bus,
 	.read = iproc_pcie_config_read32,
 	.write = iproc_pcie_config_write32,
 };
@@ -556,12 +607,11 @@ static void iproc_pcie_reset(struct iproc_pcie *pcie)
 	msleep(100);
 }
 
-static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
+static int iproc_pcie_check_link(struct iproc_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
-	u8 hdr_type;
-	u32 link_ctrl, class, val;
-	u16 pos = PCI_EXP_CAP, link_status;
+	u32 hdr_type, link_ctrl, link_status, class, val;
+	u16 pos = PCI_EXP_CAP;
 	bool link_is_active = false;
 
 	/*
@@ -578,7 +628,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 	}
 
 	/* make sure we are not in EP mode */
-	pci_bus_read_config_byte(bus, 0, PCI_HEADER_TYPE, &hdr_type);
+	iproc_pci_raw_config_read32(pcie,  0, PCI_HEADER_TYPE, 1, &hdr_type);
 	if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE) {
 		dev_err(dev, "in EP mode, hdr=%#02x\n", hdr_type);
 		return -EFAULT;
@@ -588,13 +638,16 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 #define PCI_BRIDGE_CTRL_REG_OFFSET 0x43c
 #define PCI_CLASS_BRIDGE_MASK      0xffff00
 #define PCI_CLASS_BRIDGE_SHIFT     8
-	pci_bus_read_config_dword(bus, 0, PCI_BRIDGE_CTRL_REG_OFFSET, &class);
+	iproc_pci_raw_config_read32(pcie, 0, PCI_BRIDGE_CTRL_REG_OFFSET,
+				    4, &class);
 	class &= ~PCI_CLASS_BRIDGE_MASK;
 	class |= (PCI_CLASS_BRIDGE_PCI << PCI_CLASS_BRIDGE_SHIFT);
-	pci_bus_write_config_dword(bus, 0, PCI_BRIDGE_CTRL_REG_OFFSET, class);
+	iproc_pci_raw_config_write32(pcie, 0, PCI_BRIDGE_CTRL_REG_OFFSET,
+				     4, class);
 
 	/* check link status to see if link is active */
-	pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA, &link_status);
+	iproc_pci_raw_config_read32(pcie, 0, pos + PCI_EXP_LNKSTA,
+				    2, &link_status);
 	if (link_status & PCI_EXP_LNKSTA_NLW)
 		link_is_active = true;
 
@@ -603,20 +656,21 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 #define PCI_TARGET_LINK_SPEED_MASK    0xf
 #define PCI_TARGET_LINK_SPEED_GEN2    0x2
 #define PCI_TARGET_LINK_SPEED_GEN1    0x1
-		pci_bus_read_config_dword(bus, 0,
-					  pos + PCI_EXP_LNKCTL2,
+		iproc_pci_raw_config_read32(pcie, 0,
+					  pos + PCI_EXP_LNKCTL2, 4,
 					  &link_ctrl);
 		if ((link_ctrl & PCI_TARGET_LINK_SPEED_MASK) ==
 		    PCI_TARGET_LINK_SPEED_GEN2) {
 			link_ctrl &= ~PCI_TARGET_LINK_SPEED_MASK;
 			link_ctrl |= PCI_TARGET_LINK_SPEED_GEN1;
-			pci_bus_write_config_dword(bus, 0,
-					   pos + PCI_EXP_LNKCTL2,
-					   link_ctrl);
+			iproc_pci_raw_config_write32(pcie, 0,
+						pos + PCI_EXP_LNKCTL2,
+						4, link_ctrl);
 			msleep(100);
 
-			pci_bus_read_config_word(bus, 0, pos + PCI_EXP_LNKSTA,
-						 &link_status);
+			iproc_pci_raw_config_read32(pcie, 0,
+						pos + PCI_EXP_LNKSTA,
+						2, &link_status);
 			if (link_status & PCI_EXP_LNKSTA_NLW)
 				link_is_active = true;
 		}
@@ -1205,7 +1259,8 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	struct device *dev;
 	int ret;
 	void *sysdata;
-	struct pci_bus *bus, *child;
+	struct pci_bus *child;
+	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 
 	dev = pcie->dev;
 
@@ -1252,18 +1307,10 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	sysdata = pcie;
 #endif
 
-	bus = pci_create_root_bus(dev, 0, &iproc_pcie_ops, sysdata, res);
-	if (!bus) {
-		dev_err(dev, "unable to create PCI root bus\n");
-		ret = -ENOMEM;
-		goto err_power_off_phy;
-	}
-	pcie->root_bus = bus;
-
-	ret = iproc_pcie_check_link(pcie, bus);
+	ret = iproc_pcie_check_link(pcie);
 	if (ret) {
 		dev_err(dev, "no PCIe EP device detected\n");
-		goto err_rm_root_bus;
+		goto err_power_off_phy;
 	}
 
 	iproc_pcie_enable(pcie);
@@ -1272,22 +1319,30 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 		if (iproc_pcie_msi_enable(pcie))
 			dev_info(dev, "not using iProc MSI\n");
 
-	pci_scan_child_bus(bus);
-	pci_assign_unassigned_bus_resources(bus);
+	list_splice_init(res, &host->windows);
+	host->busnr = 0;
+	host->dev.parent = dev;
+	host->ops = &iproc_pcie_ops;
+	host->sysdata = sysdata;
+	host->map_irq = pcie->map_irq;
+	host->swizzle_irq = pci_common_swizzle;
 
-	if (pcie->map_irq)
-		pci_fixup_irqs(pci_common_swizzle, pcie->map_irq);
+	ret = pci_scan_root_bus_bridge(host);
+	if (ret < 0) {
+		dev_err(dev, "failed to scan host: %d\n", ret);
+		goto err_power_off_phy;
+	}
 
-	list_for_each_entry(child, &bus->children, node)
+	pci_assign_unassigned_bus_resources(host->bus);
+
+	pcie->root_bus = host->bus;
+
+	list_for_each_entry(child, &host->bus->children, node)
 		pcie_bus_configure_settings(child);
 
-	pci_bus_add_devices(bus);
+	pci_bus_add_devices(host->bus);
 
 	return 0;
-
-err_rm_root_bus:
-	pci_stop_root_bus(bus);
-	pci_remove_root_bus(bus);
 
 err_power_off_phy:
 	phy_power_off(pcie->phy);
