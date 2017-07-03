@@ -39,6 +39,7 @@
 #include <linux/compat.h>
 #include <linux/cn_proc.h>
 #include <linux/compiler.h>
+#include <linux/posix-timers.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -637,7 +638,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		 * about to disable them again anyway.
 		 */
 		spin_unlock(&tsk->sighand->siglock);
-		do_schedule_next_timer(info);
+		posixtimer_rearm(info);
 		spin_lock(&tsk->sighand->siglock);
 	}
 #endif

@@ -540,4 +540,4 @@ static int __init ttc_timer_init(struct device_node *timer)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(ttc, "cdns,ttc", ttc_timer_init);
+TIMER_OF_DECLARE(ttc, "cdns,ttc", ttc_timer_init);

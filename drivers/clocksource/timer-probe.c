@@ -19,20 +19,20 @@
 #include <linux/of.h>
 #include <linux/clocksource.h>
 
-extern struct of_device_id __clksrc_of_table[];
+extern struct of_device_id __timer_of_table[];
 
-static const struct of_device_id __clksrc_of_table_sentinel
-	__used __section(__clksrc_of_table_end);
+static const struct of_device_id __timer_of_table_sentinel
+	__used __section(__timer_of_table_end);
 
-void __init clocksource_probe(void)
+void __init timer_probe(void)
 {
 	struct device_node *np;
 	const struct of_device_id *match;
 	of_init_fn_1_ret init_func_ret;
-	unsigned clocksources = 0;
+	unsigned timers = 0;
 	int ret;
 
-	for_each_matching_node_and_match(np, __clksrc_of_table, &match) {
+	for_each_matching_node_and_match(np, __timer_of_table, &match) {
 		if (!of_device_is_available(np))
 			continue;
 
@@ -45,11 +45,11 @@ void __init clocksource_probe(void)
 			continue;
 		}
 
-		clocksources++;
+		timers++;
 	}
 
-	clocksources += acpi_probe_device_table(clksrc);
+	timers += acpi_probe_device_table(timer);
 
-	if (!clocksources)
-		pr_crit("%s: no matching clocksources found\n", __func__);
+	if (!timers)
+		pr_crit("%s: no matching timers found\n", __func__);
 }

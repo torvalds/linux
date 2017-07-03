@@ -119,7 +119,7 @@ static void __init sh_of_mem_reserve(void)
 static void __init sh_of_time_init(void)
 {
 	pr_info("SH generic board support: scanning for clocksource devices\n");
-	clocksource_probe();
+	timer_probe();
 }
 
 static void __init sh_of_setup(char **cmdline_p)

@@ -3,15 +3,12 @@
 
 #include <linux/bug.h>
 #include <linux/signal_types.h>
+#include <linux/string.h>
 
 struct task_struct;
 
 /* for sysctl */
 extern int print_fatal_signals;
-
-#ifndef HAVE_ARCH_COPY_SIGINFO
-
-#include <linux/string.h>
 
 static inline void copy_siginfo(struct siginfo *to, struct siginfo *from)
 {
@@ -22,7 +19,7 @@ static inline void copy_siginfo(struct siginfo *to, struct siginfo *from)
 		memcpy(to, from, __ARCH_SI_PREAMBLE_SIZE + sizeof(from->_sifields._sigchld));
 }
 
-#endif
+int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
 
 /*
  * Define some primitives to manipulate sigset_t.

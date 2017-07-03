@@ -250,16 +250,19 @@ extern int clocksource_mmio_init(void __iomem *, const char *,
 
 extern int clocksource_i8253_init(void);
 
-#define CLOCKSOURCE_OF_DECLARE(name, compat, fn) \
-	OF_DECLARE_1_RET(clksrc, name, compat, fn)
+#define TIMER_OF_DECLARE(name, compat, fn) \
+	OF_DECLARE_1_RET(timer, name, compat, fn)
 
-#ifdef CONFIG_CLKSRC_PROBE
-extern void clocksource_probe(void);
+#define CLOCKSOURCE_OF_DECLARE(name, compat, fn) \
+	TIMER_OF_DECLARE(name, compat, fn)
+
+#ifdef CONFIG_TIMER_PROBE
+extern void timer_probe(void);
 #else
-static inline void clocksource_probe(void) {}
+static inline void timer_probe(void) {}
 #endif
 
-#define CLOCKSOURCE_ACPI_DECLARE(name, table_id, fn)		\
-	ACPI_DECLARE_PROBE_ENTRY(clksrc, name, table_id, 0, NULL, 0, fn)
+#define TIMER_ACPI_DECLARE(name, table_id, fn)		\
+	ACPI_DECLARE_PROBE_ENTRY(timer, name, table_id, 0, NULL, 0, fn)
 
 #endif /* _LINUX_CLOCKSOURCE_H */
