@@ -61,7 +61,7 @@ static inline void write_cr2(unsigned long x)
 	PVOP_VCALL1(pv_mmu_ops.write_cr2, x);
 }
 
-static inline unsigned long read_cr3(void)
+static inline unsigned long __read_cr3(void)
 {
 	return PVOP_CALL0(unsigned long, pv_mmu_ops.read_cr3);
 }
@@ -312,11 +312,9 @@ static inline void __flush_tlb_single(unsigned long addr)
 }
 
 static inline void flush_tlb_others(const struct cpumask *cpumask,
-				    struct mm_struct *mm,
-				    unsigned long start,
-				    unsigned long end)
+				    const struct flush_tlb_info *info)
 {
-	PVOP_VCALL4(pv_mmu_ops.flush_tlb_others, cpumask, mm, start, end);
+	PVOP_VCALL2(pv_mmu_ops.flush_tlb_others, cpumask, info);
 }
 
 static inline int paravirt_pgd_alloc(struct mm_struct *mm)

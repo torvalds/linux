@@ -7,6 +7,7 @@
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 #include <asm/special_insns.h>
+#include <asm/smp.h>
 
 static inline void __invpcid(unsigned long pcid, unsigned long addr,
 			     unsigned long type)
@@ -65,10 +66,14 @@ static inline void invpcid_flush_all_nonglobals(void)
 #endif
 
 struct tlb_state {
-#ifdef CONFIG_SMP
-	struct mm_struct *active_mm;
+	/*
+	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
+	 * are on.  This means that it may not match current->active_mm,
+	 * which will contain the previous user mm when we're in lazy TLB
+	 * mode even if we've already switched back to swapper_pg_dir.
+	 */
+	struct mm_struct *loaded_mm;
 	int state;
-#endif
 
 	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
@@ -151,7 +156,7 @@ static inline void __native_flush_tlb(void)
 	 * back:
 	 */
 	preempt_disable();
-	native_write_cr3(native_read_cr3());
+	native_write_cr3(__native_read_cr3());
 	preempt_enable();
 }
 
@@ -220,84 +225,16 @@ static inline void __flush_tlb_one(unsigned long addr)
  *  - flush_tlb_page(vma, vmaddr) flushes one page
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_others(cpumask, mm, start, end) flushes TLBs on other cpus
+ *  - flush_tlb_others(cpumask, info) flushes TLBs on other cpus
  *
  * ..but the i386 has somewhat limited tlb flushing capabilities,
  * and page-granular flushes are available only on i486 and up.
  */
-
-#ifndef CONFIG_SMP
-
-/* "_up" is for UniProcessor.
- *
- * This is a helper for other header functions.  *Not* intended to be called
- * directly.  All global TLB flushes need to either call this, or to bump the
- * vm statistics themselves.
- */
-static inline void __flush_tlb_up(void)
-{
-	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-	__flush_tlb();
-}
-
-static inline void flush_tlb_all(void)
-{
-	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-	__flush_tlb_all();
-}
-
-static inline void local_flush_tlb(void)
-{
-	__flush_tlb_up();
-}
-
-static inline void flush_tlb_mm(struct mm_struct *mm)
-{
-	if (mm == current->active_mm)
-		__flush_tlb_up();
-}
-
-static inline void flush_tlb_page(struct vm_area_struct *vma,
-				  unsigned long addr)
-{
-	if (vma->vm_mm == current->active_mm)
-		__flush_tlb_one(addr);
-}
-
-static inline void flush_tlb_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end)
-{
-	if (vma->vm_mm == current->active_mm)
-		__flush_tlb_up();
-}
-
-static inline void flush_tlb_mm_range(struct mm_struct *mm,
-	   unsigned long start, unsigned long end, unsigned long vmflag)
-{
-	if (mm == current->active_mm)
-		__flush_tlb_up();
-}
-
-static inline void native_flush_tlb_others(const struct cpumask *cpumask,
-					   struct mm_struct *mm,
-					   unsigned long start,
-					   unsigned long end)
-{
-}
-
-static inline void reset_lazy_tlbstate(void)
-{
-}
-
-static inline void flush_tlb_kernel_range(unsigned long start,
-					  unsigned long end)
-{
-	flush_tlb_all();
-}
-
-#else  /* SMP */
-
-#include <asm/smp.h>
+struct flush_tlb_info {
+	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
+};
 
 #define local_flush_tlb() __flush_tlb()
 
@@ -307,29 +244,32 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 		flush_tlb_mm_range(vma->vm_mm, start, end, vma->vm_flags)
 
 extern void flush_tlb_all(void);
-extern void flush_tlb_page(struct vm_area_struct *, unsigned long);
 extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				unsigned long end, unsigned long vmflag);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
 
+static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
+{
+	flush_tlb_mm_range(vma->vm_mm, a, a + PAGE_SIZE, VM_NONE);
+}
+
 void native_flush_tlb_others(const struct cpumask *cpumask,
-				struct mm_struct *mm,
-				unsigned long start, unsigned long end);
+			     const struct flush_tlb_info *info);
 
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
 
-static inline void reset_lazy_tlbstate(void)
+static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
+					struct mm_struct *mm)
 {
-	this_cpu_write(cpu_tlbstate.state, 0);
-	this_cpu_write(cpu_tlbstate.active_mm, &init_mm);
+	cpumask_or(&batch->cpumask, &batch->cpumask, mm_cpumask(mm));
 }
 
-#endif	/* SMP */
+extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
 
 #ifndef CONFIG_PARAVIRT
-#define flush_tlb_others(mask, mm, start, end)	\
-	native_flush_tlb_others(mask, mm, start, end)
+#define flush_tlb_others(mask, info)	\
+	native_flush_tlb_others(mask, info)
 #endif
 
 #endif /* _ASM_X86_TLBFLUSH_H */
