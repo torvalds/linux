@@ -273,8 +273,10 @@ int mtk_ecc_enable(struct mtk_ecc *ecc, struct mtk_ecc_config *config)
 	mtk_ecc_wait_idle(ecc, op);
 
 	ret = mtk_ecc_config(ecc, config);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&ecc->lock);
 		return ret;
+	}
 
 	if (config->mode != ECC_NFI_MODE || op != ECC_ENCODE) {
 		init_completion(&ecc->done);
