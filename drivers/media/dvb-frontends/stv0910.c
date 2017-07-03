@@ -671,6 +671,7 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 static u32 dvbs2_nbch(enum dvbs2_mod_cod mod_cod, enum dvbs2_fectype fectype)
 {
 	static u32 nbch[][2] = {
+		{    0,     0}, /* DUMMY_PLF */
 		{16200,  3240}, /* QPSK_1_4, */
 		{21600,  5400}, /* QPSK_1_3, */
 		{25920,  6480}, /* QPSK_2_5, */
@@ -703,7 +704,7 @@ static u32 dvbs2_nbch(enum dvbs2_mod_cod mod_cod, enum dvbs2_fectype fectype)
 
 	if (mod_cod >= DVBS2_QPSK_1_4 &&
 	    mod_cod <= DVBS2_32APSK_9_10 && fectype <= DVBS2_16K)
-		return nbch[fectype][mod_cod];
+		return nbch[mod_cod][fectype];
 	return 64800;
 }
 
