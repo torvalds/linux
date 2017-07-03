@@ -230,7 +230,6 @@ do {									\
 #define mlx4_warn(mdev, format, ...)					\
 	dev_warn(&(mdev)->persist->pdev->dev, format, ##__VA_ARGS__)
 
-extern int mlx4_log_num_mgm_entry_size;
 extern int log_mtts_per_seg;
 extern int mlx4_internal_err_reset;
 
