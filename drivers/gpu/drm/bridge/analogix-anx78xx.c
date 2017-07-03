@@ -1438,11 +1438,7 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 
 	anx78xx->bridge.funcs = &anx78xx_bridge_funcs;
 
-	err = drm_bridge_add(&anx78xx->bridge);
-	if (err < 0) {
-		DRM_ERROR("Failed to add drm bridge: %d\n", err);
-		goto err_poweroff;
-	}
+	drm_bridge_add(&anx78xx->bridge);
 
 	/* If cable is pulled out, just poweroff and wait for HPD event */
 	if (!gpiod_get_value(anx78xx->pdata.gpiod_hpd))
