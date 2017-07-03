@@ -35,15 +35,26 @@
 #include <linux/time.h>
 #include <linux/cpu.h>
 #include <linux/prefetch.h>
-#include <linux/trace_events.h>
 
 #include "rcu.h"
 
-/* Forward declarations for tiny_plugin.h. */
-struct rcu_ctrlblk;
-static void __call_rcu(struct rcu_head *head,
-		       rcu_callback_t func,
-		       struct rcu_ctrlblk *rcp);
+/* Global control variables for rcupdate callback mechanism. */
+struct rcu_ctrlblk {
+	struct rcu_head *rcucblist;	/* List of pending callbacks (CBs). */
+	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
+	struct rcu_head **curtail;	/* ->next pointer of last CB. */
+};
+
+/* Definition for rcupdate control block. */
+static struct rcu_ctrlblk rcu_sched_ctrlblk = {
+	.donetail	= &rcu_sched_ctrlblk.rcucblist,
+	.curtail	= &rcu_sched_ctrlblk.rcucblist,
+};
+
+static struct rcu_ctrlblk rcu_bh_ctrlblk = {
+	.donetail	= &rcu_bh_ctrlblk.rcucblist,
+	.curtail	= &rcu_bh_ctrlblk.rcucblist,
+};
 
 #include "tiny_plugin.h"
 
@@ -59,19 +70,6 @@ void rcu_barrier_sched(void)
 }
 EXPORT_SYMBOL(rcu_barrier_sched);
 
-#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
-
-/*
- * Test whether RCU thinks that the current CPU is idle.
- */
-bool notrace __rcu_is_watching(void)
-{
-	return true;
-}
-EXPORT_SYMBOL(__rcu_is_watching);
-
-#endif /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
-
 /*
  * Helper function for rcu_sched_qs() and rcu_bh_qs().
  * Also irqs are disabled to avoid confusion due to interrupt handlers
@@ -79,7 +77,6 @@ EXPORT_SYMBOL(__rcu_is_watching);
  */
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
-	RCU_TRACE(reset_cpu_stall_ticks(rcp);)
 	if (rcp->donetail != rcp->curtail) {
 		rcp->donetail = rcp->curtail;
 		return 1;
@@ -125,7 +122,6 @@ void rcu_bh_qs(void)
  */
 void rcu_check_callbacks(int user)
 {
-	RCU_TRACE(check_cpu_stalls();)
 	if (user)
 		rcu_sched_qs();
 	else if (!in_softirq())
@@ -140,10 +136,8 @@ void rcu_check_callbacks(int user)
  */
 static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 {
-	const char *rn = NULL;
 	struct rcu_head *next, *list;
 	unsigned long flags;
-	RCU_TRACE(int cb_count = 0;)
 
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
@@ -152,7 +146,6 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		local_irq_restore(flags);
 		return;
 	}
-	RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, rcp->qlen, -1);)
 	list = rcp->rcucblist;
 	rcp->rcucblist = *rcp->donetail;
 	*rcp->donetail = NULL;
@@ -162,22 +155,15 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	local_irq_restore(flags);
 
 	/* Invoke the callbacks on the local list. */
-	RCU_TRACE(rn = rcp->name;)
 	while (list) {
 		next = list->next;
 		prefetch(next);
 		debug_rcu_head_unqueue(list);
 		local_bh_disable();
-		__rcu_reclaim(rn, list);
+		__rcu_reclaim("", list);
 		local_bh_enable();
 		list = next;
-		RCU_TRACE(cb_count++;)
 	}
-	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count);)
-	RCU_TRACE(trace_rcu_batch_end(rcp->name,
-				      cb_count, 0, need_resched(),
-				      is_idle_task(current),
-				      false));
 }
 
 static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
@@ -221,7 +207,6 @@ static void __call_rcu(struct rcu_head *head,
 	local_irq_save(flags);
 	*rcp->curtail = head;
 	rcp->curtail = &head->next;
-	RCU_TRACE(rcp->qlen++;)
 	local_irq_restore(flags);
 
 	if (unlikely(is_idle_task(current))) {
@@ -254,8 +239,5 @@ EXPORT_SYMBOL_GPL(call_rcu_bh);
 void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
-	RCU_TRACE(reset_cpu_stall_ticks(&rcu_sched_ctrlblk);)
-	RCU_TRACE(reset_cpu_stall_ticks(&rcu_bh_ctrlblk);)
-
 	rcu_early_boot_tests();
 }

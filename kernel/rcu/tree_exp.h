@@ -147,7 +147,7 @@ static void __maybe_unused sync_exp_reset_tree(struct rcu_state *rsp)
  *
  * Caller must hold the rcu_state's exp_mutex.
  */
-static int sync_rcu_preempt_exp_done(struct rcu_node *rnp)
+static bool sync_rcu_preempt_exp_done(struct rcu_node *rnp)
 {
 	return rnp->exp_tasks == NULL &&
 	       READ_ONCE(rnp->expmask) == 0;
