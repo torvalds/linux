@@ -2021,7 +2021,7 @@ static void devm_spi_unregister(struct device *dev, void *res)
 }
 
 /**
- * dev_spi_register_master - register managed SPI master controller
+ * devm_spi_register_master - register managed SPI master controller
  * @dev:    device managing SPI master
  * @master: initialized master, originally from spi_alloc_master()
  * Context: can sleep
