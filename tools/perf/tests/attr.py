@@ -9,7 +9,7 @@ import logging
 import shutil
 import ConfigParser
 
-def compare_data(a, b):
+def data_equal(a, b):
     # Allow multiple values in assignment separated by '|'
     a_list = a.split('|')
     b_list = b.split('|')
@@ -101,7 +101,7 @@ class Event(dict):
             log.debug("      [%s] %s %s" % (t, self[t], other[t]));
             if not self.has_key(t) or not other.has_key(t):
                 return False
-            if not compare_data(self[t], other[t]):
+            if not data_equal(self[t], other[t]):
                 return False
         return True
 
@@ -109,7 +109,7 @@ class Event(dict):
         for t in Event.terms:
             if not self.has_key(t) or not other.has_key(t):
                 continue
-            if not compare_data(self[t], other[t]):
+            if not data_equal(self[t], other[t]):
 		log.warning("expected %s=%s, got %s" % (t, self[t], other[t]))
 
 # Test file description needs to have following sections:
@@ -220,7 +220,7 @@ class Test(object):
 
         log.info("  '%s' ret '%s', expected '%s'" % (cmd, str(ret), str(self.ret)))
 
-        if not compare_data(str(ret), str(self.ret)):
+        if not data_equal(str(ret), str(self.ret)):
             raise Unsup(self)
 
     def compare(self, expect, result):
