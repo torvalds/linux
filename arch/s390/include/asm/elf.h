@@ -117,6 +117,9 @@
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
 
+/* s390 specific phdr types */
+#define PT_S390_PGSTE	0x70000000
+
 /*
  * ELF register definitions..
  */
@@ -150,6 +153,35 @@ extern unsigned int vdso_enabled;
 	(((x)->e_machine == EM_S390 || (x)->e_machine == EM_S390_OLD) \
 	 && (x)->e_ident[EI_CLASS] == ELF_CLASS)
 #define compat_start_thread	start_thread31
+
+struct arch_elf_state {
+	int rc;
+};
+
+#define INIT_ARCH_ELF_STATE { .rc = 0 }
+
+#define arch_check_elf(ehdr, interp, interp_ehdr, state) (0)
+#ifdef CONFIG_PGSTE
+#define arch_elf_pt_proc(ehdr, phdr, elf, interp, state)	\
+({								\
+	struct arch_elf_state *_state = state;			\
+	if ((phdr)->p_type == PT_S390_PGSTE &&			\
+	    !page_table_allocate_pgste &&			\
+	    !test_thread_flag(TIF_PGSTE) &&			\
+	    !current->mm->context.alloc_pgste) {		\
+		set_thread_flag(TIF_PGSTE);			\
+		set_pt_regs_flag(task_pt_regs(current),		\
+				 PIF_SYSCALL_RESTART);		\
+		_state->rc = -EAGAIN;				\
+	}							\
+	_state->rc;						\
+})
+#else
+#define arch_elf_pt_proc(ehdr, phdr, elf, interp, state)	\
+({								\
+	(state)->rc;						\
+})
+#endif
 
 /* For SVR4/S390 the function pointer to be registered with `atexit` is
    passed in R14. */

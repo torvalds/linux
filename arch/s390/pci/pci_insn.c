@@ -40,20 +40,20 @@ static inline u8 __mpcifc(u64 req, struct zpci_fib *fib, u8 *status)
 	return cc;
 }
 
-int zpci_mod_fc(u64 req, struct zpci_fib *fib)
+u8 zpci_mod_fc(u64 req, struct zpci_fib *fib, u8 *status)
 {
-	u8 cc, status;
+	u8 cc;
 
 	do {
-		cc = __mpcifc(req, fib, &status);
+		cc = __mpcifc(req, fib, status);
 		if (cc == 2)
 			msleep(ZPCI_INSN_BUSY_DELAY);
 	} while (cc == 2);
 
 	if (cc)
-		zpci_err_insn(cc, status, req, 0);
+		zpci_err_insn(cc, *status, req, 0);
 
-	return (cc) ? -EIO : 0;
+	return cc;
 }
 
 /* Refresh PCI Translations */

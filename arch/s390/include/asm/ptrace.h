@@ -11,9 +11,11 @@
 
 #define PIF_SYSCALL		0	/* inside a system call */
 #define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
+#define PIF_SYSCALL_RESTART	2	/* restart the current system call */
 
 #define _PIF_SYSCALL		_BITUL(PIF_SYSCALL)
 #define _PIF_PER_TRAP		_BITUL(PIF_PER_TRAP)
+#define _PIF_SYSCALL_RESTART	_BITUL(PIF_SYSCALL_RESTART)
 
 #ifndef __ASSEMBLY__
 
@@ -24,38 +26,38 @@
 			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
 
 struct psw_bits {
-	unsigned long	   :  1;
-	unsigned long r	   :  1; /* PER-Mask */
-	unsigned long	   :  3;
-	unsigned long t	   :  1; /* DAT Mode */
-	unsigned long i	   :  1; /* Input/Output Mask */
-	unsigned long e	   :  1; /* External Mask */
-	unsigned long key  :  4; /* PSW Key */
-	unsigned long	   :  1;
-	unsigned long m	   :  1; /* Machine-Check Mask */
-	unsigned long w	   :  1; /* Wait State */
-	unsigned long p	   :  1; /* Problem State */
-	unsigned long as   :  2; /* Address Space Control */
-	unsigned long cc   :  2; /* Condition Code */
-	unsigned long pm   :  4; /* Program Mask */
-	unsigned long ri   :  1; /* Runtime Instrumentation */
-	unsigned long	   :  6;
-	unsigned long eaba :  2; /* Addressing Mode */
-	unsigned long	   : 31;
-	unsigned long ia   : 64; /* Instruction Address */
+	unsigned long	     :	1;
+	unsigned long per    :	1; /* PER-Mask */
+	unsigned long	     :	3;
+	unsigned long dat    :	1; /* DAT Mode */
+	unsigned long io     :	1; /* Input/Output Mask */
+	unsigned long ext    :	1; /* External Mask */
+	unsigned long key    :	4; /* PSW Key */
+	unsigned long	     :	1;
+	unsigned long mcheck :	1; /* Machine-Check Mask */
+	unsigned long wait   :	1; /* Wait State */
+	unsigned long pstate :	1; /* Problem State */
+	unsigned long as     :	2; /* Address Space Control */
+	unsigned long cc     :	2; /* Condition Code */
+	unsigned long pm     :	4; /* Program Mask */
+	unsigned long ri     :	1; /* Runtime Instrumentation */
+	unsigned long	     :	6;
+	unsigned long eaba   :	2; /* Addressing Mode */
+	unsigned long	     : 31;
+	unsigned long ia     : 64; /* Instruction Address */
 };
 
 enum {
-	PSW_AMODE_24BIT = 0,
-	PSW_AMODE_31BIT = 1,
-	PSW_AMODE_64BIT = 3
+	PSW_BITS_AMODE_24BIT = 0,
+	PSW_BITS_AMODE_31BIT = 1,
+	PSW_BITS_AMODE_64BIT = 3
 };
 
 enum {
-	PSW_AS_PRIMARY	 = 0,
-	PSW_AS_ACCREG	 = 1,
-	PSW_AS_SECONDARY = 2,
-	PSW_AS_HOME	 = 3
+	PSW_BITS_AS_PRIMARY	= 0,
+	PSW_BITS_AS_ACCREG	= 1,
+	PSW_BITS_AS_SECONDARY	= 2,
+	PSW_BITS_AS_HOME	= 3
 };
 
 #define psw_bits(__psw) (*({			\

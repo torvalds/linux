@@ -291,7 +291,7 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
 		return -EFAULT;
 
 	/* Set up key which is located after the variable length text. */
-	size = zcrypt_type6_mex_key_en(mex, msg->text+mex->inputdatalength, 1);
+	size = zcrypt_type6_mex_key_en(mex, msg->text+mex->inputdatalength);
 	if (size < 0)
 		return size;
 	size += sizeof(*msg) + mex->inputdatalength;
@@ -353,7 +353,7 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_queue *zq,
 		return -EFAULT;
 
 	/* Set up key which is located after the variable length text. */
-	size = zcrypt_type6_crt_key(crt, msg->text + crt->inputdatalength, 1);
+	size = zcrypt_type6_crt_key(crt, msg->text + crt->inputdatalength);
 	if (size < 0)
 		return size;
 	size += sizeof(*msg) + crt->inputdatalength;	/* total size of msg */

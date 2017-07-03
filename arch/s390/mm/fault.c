@@ -130,7 +130,7 @@ static int bad_address(void *p)
 
 static void dump_pagetable(unsigned long asce, unsigned long address)
 {
-	unsigned long *table = __va(asce & PAGE_MASK);
+	unsigned long *table = __va(asce & _ASCE_ORIGIN);
 
 	pr_alert("AS:%016lx ", asce);
 	switch (asce & _ASCE_TYPE_MASK) {
