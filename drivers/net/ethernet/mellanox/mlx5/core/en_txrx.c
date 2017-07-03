@@ -69,7 +69,7 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 	struct mlx5_cqe64 *cqe;
 	u16 sqcc;
 
-	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
+	if (unlikely(!MLX5E_TEST_BIT(sq->state, MLX5E_SQ_STATE_ENABLED)))
 		return;
 
 	cqe = mlx5_cqwq_get_cqe(&cq->wq);
@@ -129,7 +129,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	for (i = 0; i < c->num_tc; i++)
 		mlx5e_cq_arm(&c->sq[i].cq);
 
-	if (test_bit(MLX5E_RQ_STATE_AM, &c->rq.state))
+	if (MLX5E_TEST_BIT(c->rq.state, MLX5E_RQ_STATE_AM))
 		mlx5e_rx_am(&c->rq);
 
 	mlx5e_cq_arm(&c->rq.cq);
