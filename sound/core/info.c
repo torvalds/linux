@@ -203,11 +203,11 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 	return size;
 }
 
-static unsigned int snd_info_entry_poll(struct file *file, poll_table *wait)
+static __poll_t snd_info_entry_poll(struct file *file, poll_table *wait)
 {
 	struct snd_info_private_data *data = file->private_data;
 	struct snd_info_entry *entry = data->entry;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (entry->c.ops->poll)
 		return entry->c.ops->poll(entry,

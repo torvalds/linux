@@ -1666,9 +1666,9 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
       	return result > 0 ? result : err;
 }
 
-static unsigned int snd_ctl_poll(struct file *file, poll_table * wait)
+static __poll_t snd_ctl_poll(struct file *file, poll_table * wait)
 {
-	unsigned int mask;
+	__poll_t mask;
 	struct snd_ctl_file *ctl;
 
 	ctl = file->private_data;

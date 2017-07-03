@@ -1357,11 +1357,11 @@ static ssize_t snd_rawmidi_write(struct file *file, const char __user *buf,
 	return result;
 }
 
-static unsigned int snd_rawmidi_poll(struct file *file, poll_table * wait)
+static __poll_t snd_rawmidi_poll(struct file *file, poll_table * wait)
 {
 	struct snd_rawmidi_file *rfile;
 	struct snd_rawmidi_runtime *runtime;
-	unsigned int mask;
+	__poll_t mask;
 
 	rfile = file->private_data;
 	if (rfile->input != NULL) {

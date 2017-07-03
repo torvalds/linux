@@ -1086,10 +1086,10 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf,
 /*
  * handle polling
  */
-static unsigned int snd_seq_poll(struct file *file, poll_table * wait)
+static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 {
 	struct snd_seq_client *client = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	/* check client structures are in place */
 	if (snd_BUG_ON(!client))
