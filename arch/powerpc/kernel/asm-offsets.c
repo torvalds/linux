@@ -485,6 +485,7 @@ int main(void)
 	OFFSET(KVM_ENABLED_HCALLS, kvm, arch.enabled_hcalls);
 	OFFSET(KVM_VRMA_SLB_V, kvm, arch.vrma_slb_v);
 	OFFSET(KVM_RADIX, kvm, arch.radix);
+	OFFSET(KVM_FWNMI, kvm, arch.fwnmi_enabled);
 	OFFSET(VCPU_DSISR, kvm_vcpu, arch.shregs.dsisr);
 	OFFSET(VCPU_DAR, kvm_vcpu, arch.shregs.dar);
 	OFFSET(VCPU_VPA, kvm_vcpu, arch.vpa.pinned_addr);
@@ -513,6 +514,7 @@ int main(void)
 	OFFSET(VCPU_PENDING_EXC, kvm_vcpu, arch.pending_exceptions);
 	OFFSET(VCPU_CEDED, kvm_vcpu, arch.ceded);
 	OFFSET(VCPU_PRODDED, kvm_vcpu, arch.prodded);
+	OFFSET(VCPU_DBELL_REQ, kvm_vcpu, arch.doorbell_request);
 	OFFSET(VCPU_MMCR, kvm_vcpu, arch.mmcr);
 	OFFSET(VCPU_PMC, kvm_vcpu, arch.pmc);
 	OFFSET(VCPU_SPMC, kvm_vcpu, arch.spmc);
@@ -542,6 +544,7 @@ int main(void)
 	OFFSET(VCPU_WORT, kvm_vcpu, arch.wort);
 	OFFSET(VCPU_TID, kvm_vcpu, arch.tid);
 	OFFSET(VCPU_PSSCR, kvm_vcpu, arch.psscr);
+	OFFSET(VCPU_HFSCR, kvm_vcpu, arch.hfscr);
 	OFFSET(VCORE_ENTRY_EXIT, kvmppc_vcore, entry_exit_map);
 	OFFSET(VCORE_IN_GUEST, kvmppc_vcore, in_guest);
 	OFFSET(VCORE_NAPPING_THREADS, kvmppc_vcore, napping_threads);

@@ -130,12 +130,28 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 
 out:
 	/*
+	 * For guest that supports FWNMI capability, hook the MCE event into
+	 * vcpu structure. We are going to exit the guest with KVM_EXIT_NMI
+	 * exit reason. On our way to exit we will pull this event from vcpu
+	 * structure and print it from thread 0 of the core/subcore.
+	 *
+	 * For guest that does not support FWNMI capability (old QEMU):
 	 * We are now going enter guest either through machine check
 	 * interrupt (for unhandled errors) or will continue from
 	 * current HSRR0 (for handled errors) in guest. Hence
 	 * queue up the event so that we can log it from host console later.
 	 */
-	machine_check_queue_event();
+	if (vcpu->kvm->arch.fwnmi_enabled) {
+		/*
+		 * Hook up the mce event on to vcpu structure.
+		 * First clear the old event.
+		 */
+		memset(&vcpu->arch.mce_evt, 0, sizeof(vcpu->arch.mce_evt));
+		if (get_mce_event(&mce_evt, MCE_EVENT_RELEASE)) {
+			vcpu->arch.mce_evt = mce_evt;
+		}
+	} else
+		machine_check_queue_event();
 
 	return handled;
 }
