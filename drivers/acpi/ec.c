@@ -27,7 +27,7 @@
 
 /* Uncomment next line to get verbose printout */
 /* #define DEBUG */
-#define pr_fmt(fmt) "ACPI : EC: " fmt
+#define pr_fmt(fmt) "ACPI: EC: " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>
