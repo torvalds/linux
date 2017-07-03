@@ -1668,6 +1668,7 @@ static struct dvb_frontend_ops stv0910_ops = {
 	.sleep				= sleep,
 	.release                        = release,
 	.i2c_gate_ctrl                  = gate_ctrl,
+	.set_frontend			= set_parameters,
 	.get_frontend_algo              = get_algo,
 	.get_frontend                   = get_frontend,
 	.tune                           = tune,
