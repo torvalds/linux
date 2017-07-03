@@ -7,8 +7,15 @@
 #include <limits.h>
 #include <linux/utsname.h>
 #include <linux/compiler.h>
+#include <linux/export.h>
+#include <linux/kern_levels.h>
+#include <linux/err.h>
+#include <linux/rcu.h>
+#include <linux/list.h>
+#include <linux/hardirq.h>
+#include <unistd.h>
 
-#define MAX_LOCK_DEPTH 2000UL
+#define MAX_LOCK_DEPTH 63UL
 
 #define asmlinkage
 #define __visible
@@ -29,31 +36,32 @@ extern struct task_struct *__curr(void);
 
 #define current (__curr())
 
-#define debug_locks_off() 1
+static inline int debug_locks_off(void)
+{
+	return 1;
+}
+
 #define task_pid_nr(tsk) ((tsk)->pid)
 
 #define KSYM_NAME_LEN 128
-#define printk printf
+#define printk(...) dprintf(STDOUT_FILENO, __VA_ARGS__)
+#define pr_err(format, ...) fprintf (stderr, format, ## __VA_ARGS__)
+#define pr_warn pr_err
 
 #define list_del_rcu list_del
 
 #define atomic_t unsigned long
 #define atomic_inc(x) ((*(x))++)
 
-static struct new_utsname *init_utsname(void)
-{
-	static struct new_utsname n = (struct new_utsname) {
-		.release = "liblockdep",
-		.version = LIBLOCKDEP_VERSION,
-	};
-
-	return &n;
-}
-
 #define print_tainted() ""
 #define static_obj(x) 1
 
 #define debug_show_all_locks()
 extern void debug_check_no_locks_held(void);
+
+static __used bool __is_kernel_percpu_address(unsigned long addr, void *can_addr)
+{
+	return false;
+}
 
 #endif
