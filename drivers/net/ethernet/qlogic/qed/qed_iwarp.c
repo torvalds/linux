@@ -1724,7 +1724,7 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 	int rc;
 
 	memset(&cm_info, 0, sizeof(cm_info));
-
+	ll2_syn_handle = p_hwfn->p_rdma_info->iwarp.ll2_syn_handle;
 	if (GET_FIELD(data->parse_flags,
 		      PARSING_AND_ERR_FLAGS_L4CHKSMWASCALCULATED) &&
 	    GET_FIELD(data->parse_flags, PARSING_AND_ERR_FLAGS_L4CHKSMERROR)) {
@@ -1740,7 +1740,6 @@ qed_iwarp_ll2_comp_syn_pkt(void *cxt, struct qed_ll2_comp_rx_data *data)
 		goto err;
 
 	/* Check if there is a listener for this 4-tuple+vlan */
-	ll2_syn_handle = p_hwfn->p_rdma_info->iwarp.ll2_syn_handle;
 	listener = qed_iwarp_get_listener(p_hwfn, &cm_info);
 	if (!listener) {
 		DP_VERBOSE(p_hwfn,
