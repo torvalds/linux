@@ -345,7 +345,7 @@ static int ak4613_dai_hw_params(struct snd_pcm_substream *substream,
 		if (ak4613_dai_fmt_matching(priv->iface, is_play, fmt, width))
 			iface = priv->iface;
 	} else {
-		for (i = ARRAY_SIZE(ak4613_iface); i >= 0; i--) {
+		for (i = ARRAY_SIZE(ak4613_iface) - 1; i >= 0; i--) {
 			if (!ak4613_dai_fmt_matching(ak4613_iface + i,
 						     is_play,
 						     fmt, width))
