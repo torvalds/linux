@@ -249,6 +249,9 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 {
 	DBG("");
 
+	mdp5_kms->enable_count--;
+	WARN_ON(mdp5_kms->enable_count < 0);
+
 	clk_disable_unprepare(mdp5_kms->ahb_clk);
 	clk_disable_unprepare(mdp5_kms->axi_clk);
 	clk_disable_unprepare(mdp5_kms->core_clk);
@@ -261,6 +264,8 @@ int mdp5_disable(struct mdp5_kms *mdp5_kms)
 int mdp5_enable(struct mdp5_kms *mdp5_kms)
 {
 	DBG("");
+
+	mdp5_kms->enable_count++;
 
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
