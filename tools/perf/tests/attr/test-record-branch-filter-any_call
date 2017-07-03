@@ -4,6 +4,5 @@ args    = -j any_call kill >/dev/null 2>&1
 ret     = 1
 
 [event:base-record]
-sample_period=4000
 sample_type=2311
 branch_sample_type=16
