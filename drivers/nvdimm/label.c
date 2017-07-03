@@ -660,6 +660,7 @@ static int __pmem_label_update(struct nd_region *nd_region,
 	nd_label->position = __cpu_to_le16(pos);
 	nd_label->isetcookie = __cpu_to_le64(cookie);
 	nd_label->rawsize = __cpu_to_le64(resource_size(res));
+	nd_label->lbasize = __cpu_to_le64(nspm->lbasize);
 	nd_label->dpa = __cpu_to_le64(res->start);
 	nd_label->slot = __cpu_to_le32(slot);
 	if (namespace_label_has(ndd, type_guid))
