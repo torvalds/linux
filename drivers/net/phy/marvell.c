@@ -2171,6 +2171,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_sset_count = marvell_get_sset_count,
 		.get_strings = marvell_get_strings,
 		.get_stats = marvell_get_stats,
+		.set_loopback = genphy_loopback,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1540,
