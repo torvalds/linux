@@ -525,8 +525,14 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 		nfs_fscache_init_inode(inode);
 
 		unlock_new_inode(inode);
-	} else
-		nfs_refresh_inode(inode, fattr);
+	} else {
+		int err = nfs_refresh_inode(inode, fattr);
+		if (err < 0) {
+			iput(inode);
+			inode = ERR_PTR(err);
+			goto out_no_inode;
+		}
+	}
 	dprintk("NFS: nfs_fhget(%s/%Lu fh_crc=0x%08x ct=%d)\n",
 		inode->i_sb->s_id,
 		(unsigned long long)NFS_FILEID(inode),
