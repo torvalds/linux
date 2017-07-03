@@ -213,6 +213,23 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 		}
 	}
 },
+#ifdef CONFIG_CRYPTO_DEV_SUN4I_SS_PRNG
+{
+	.type = CRYPTO_ALG_TYPE_RNG,
+	.alg.rng = {
+		.base = {
+			.cra_name		= "stdrng",
+			.cra_driver_name	= "sun4i_ss_rng",
+			.cra_priority		= 300,
+			.cra_ctxsize		= 0,
+			.cra_module		= THIS_MODULE,
+		},
+		.generate               = sun4i_ss_prng_generate,
+		.seed                   = sun4i_ss_prng_seed,
+		.seedsize               = SS_SEED_LEN / BITS_PER_BYTE,
+	}
+},
+#endif
 };
 
 static int sun4i_ss_probe(struct platform_device *pdev)
@@ -355,6 +372,13 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 				goto error_alg;
 			}
 			break;
+		case CRYPTO_ALG_TYPE_RNG:
+			err = crypto_register_rng(&ss_algs[i].alg.rng);
+			if (err) {
+				dev_err(ss->dev, "Fail to register %s\n",
+					ss_algs[i].alg.rng.base.cra_name);
+			}
+			break;
 		}
 	}
 	platform_set_drvdata(pdev, ss);
@@ -368,6 +392,9 @@ error_alg:
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			crypto_unregister_ahash(&ss_algs[i].alg.hash);
+			break;
+		case CRYPTO_ALG_TYPE_RNG:
+			crypto_unregister_rng(&ss_algs[i].alg.rng);
 			break;
 		}
 	}
@@ -392,6 +419,9 @@ static int sun4i_ss_remove(struct platform_device *pdev)
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
 			crypto_unregister_ahash(&ss_algs[i].alg.hash);
+			break;
+		case CRYPTO_ALG_TYPE_RNG:
+			crypto_unregister_rng(&ss_algs[i].alg.rng);
 			break;
 		}
 	}
