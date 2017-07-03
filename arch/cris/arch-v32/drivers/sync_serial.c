@@ -178,7 +178,7 @@ static inline int sync_data_avail(struct sync_port *port);
 
 static int sync_serial_open(struct inode *, struct file *);
 static int sync_serial_release(struct inode *, struct file *);
-static unsigned int sync_serial_poll(struct file *filp, poll_table *wait);
+static __poll_t sync_serial_poll(struct file *filp, poll_table *wait);
 
 static long sync_serial_ioctl(struct file *file,
 			      unsigned int cmd, unsigned long arg);
@@ -555,13 +555,13 @@ static int sync_serial_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int sync_serial_poll(struct file *file, poll_table *wait)
+static __poll_t sync_serial_poll(struct file *file, poll_table *wait)
 {
 	int dev = iminor(file_inode(file));
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct sync_port *port;
 	DEBUGPOLL(
-	static unsigned int prev_mask;
+	static __poll_t prev_mask;
 	);
 
 	port = &ports[dev];
