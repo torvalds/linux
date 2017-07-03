@@ -82,7 +82,7 @@ acpi_ds_execute_arguments(struct acpi_namespace_node *node,
 	union acpi_parse_object *op;
 	struct acpi_walk_state *walk_state;
 
-	ACPI_FUNCTION_TRACE(ds_execute_arguments);
+	ACPI_FUNCTION_TRACE_PTR(ds_execute_arguments, aml_start);
 
 	/* Allocate a new parser op to be the root of the parsed tree */
 
@@ -338,7 +338,8 @@ acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Package Arg Init\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Package Argument Init, AML Ptr: %p\n",
+			  obj_desc->package.aml_start));
 
 	/* Execute the AML code for the term_arg arguments */
 

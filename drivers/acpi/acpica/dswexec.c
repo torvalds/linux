@@ -576,8 +576,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_CREATE_OBJECT:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-					  "Executing CreateObject (Buffer/Package) Op=%p\n",
-					  op));
+					  "Executing CreateObject (Buffer/Package) Op=%p AMLPtr=%p\n",
+					  op, op->named.data));
 
 			switch (op->common.parent->common.aml_opcode) {
 			case AML_NAME_OP:
