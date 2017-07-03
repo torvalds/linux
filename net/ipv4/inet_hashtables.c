@@ -43,7 +43,7 @@ static u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 /* This function handles inet_sock, but also timewait and request sockets
  * for IPv4/IPv6.
  */
-u32 sk_ehashfn(const struct sock *sk)
+static u32 sk_ehashfn(const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6 &&
