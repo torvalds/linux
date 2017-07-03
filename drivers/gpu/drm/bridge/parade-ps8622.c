@@ -598,11 +598,7 @@ static int ps8622_probe(struct i2c_client *client,
 
 	ps8622->bridge.funcs = &ps8622_bridge_funcs;
 	ps8622->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&ps8622->bridge);
-	if (ret) {
-		DRM_ERROR("Failed to add bridge\n");
-		return ret;
-	}
+	drm_bridge_add(&ps8622->bridge);
 
 	i2c_set_clientdata(client, ps8622);
 
