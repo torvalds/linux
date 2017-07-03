@@ -209,7 +209,8 @@ static void amdgpu_pp_late_fini(void *handle)
 	if (adev->pp_enabled && adev->pm.dpm_enabled)
 		amdgpu_pm_sysfs_fini(adev);
 
-	amd_powerplay_destroy(adev->powerplay.pp_handle);
+	if (adev->pp_enabled)
+		amd_powerplay_destroy(adev->powerplay.pp_handle);
 }
 
 static int amdgpu_pp_suspend(void *handle)
