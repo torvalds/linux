@@ -1079,8 +1079,9 @@ void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p)
 int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid)
 {
-	struct hlist_head *head;
 	struct net_bridge_fdb_entry *fdb;
+	struct hlist_head *head;
+	bool modified = false;
 	int err = 0;
 
 	spin_lock_bh(&br->hash_lock);
@@ -1095,14 +1096,25 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 		}
 		fdb->added_by_external_learn = 1;
 		fdb_notify(br, fdb, RTM_NEWNEIGH);
-	} else if (fdb->added_by_external_learn) {
-		/* Refresh entry */
-		fdb->updated = fdb->used = jiffies;
-	} else if (!fdb->added_by_user) {
-		/* Take over SW learned entry */
-		fdb->added_by_external_learn = 1;
+	} else {
 		fdb->updated = jiffies;
-		fdb_notify(br, fdb, RTM_NEWNEIGH);
+
+		if (fdb->dst != p) {
+			fdb->dst = p;
+			modified = true;
+		}
+
+		if (fdb->added_by_external_learn) {
+			/* Refresh entry */
+			fdb->used = jiffies;
+		} else if (!fdb->added_by_user) {
+			/* Take over SW learned entry */
+			fdb->added_by_external_learn = 1;
+			modified = true;
+		}
+
+		if (modified)
+			fdb_notify(br, fdb, RTM_NEWNEIGH);
 	}
 
 err_unlock:
