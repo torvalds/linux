@@ -213,6 +213,16 @@ static inline unsigned long pending_irqs(struct kvm_vcpu *vcpu)
 	       vcpu->arch.local_int.pending_irqs;
 }
 
+static inline int isc_to_irq_type(unsigned long isc)
+{
+	return IRQ_PEND_IO_ISC_0 + isc;
+}
+
+static inline int irq_type_to_isc(unsigned long irq_type)
+{
+	return irq_type - IRQ_PEND_IO_ISC_0;
+}
+
 static unsigned long disable_iscs(struct kvm_vcpu *vcpu,
 				   unsigned long active_mask)
 {
@@ -220,7 +230,7 @@ static unsigned long disable_iscs(struct kvm_vcpu *vcpu,
 
 	for (i = 0; i <= MAX_ISC; i++)
 		if (!(vcpu->arch.sie_block->gcr[6] & isc_to_isc_bits(i)))
-			active_mask &= ~(1UL << (IRQ_PEND_IO_ISC_0 + i));
+			active_mask &= ~(1UL << (isc_to_irq_type(i)));
 
 	return active_mask;
 }
@@ -901,7 +911,7 @@ static int __must_check __deliver_io(struct kvm_vcpu *vcpu,
 	fi = &vcpu->kvm->arch.float_int;
 
 	spin_lock(&fi->lock);
-	isc_list = &fi->lists[irq_type - IRQ_PEND_IO_ISC_0];
+	isc_list = &fi->lists[irq_type_to_isc(irq_type)];
 	inti = list_first_entry_or_null(isc_list,
 					struct kvm_s390_interrupt_info,
 					list);
@@ -1401,7 +1411,7 @@ static struct kvm_s390_interrupt_info *get_io_int(struct kvm *kvm,
 		list_del_init(&iter->list);
 		fi->counters[FIRQ_CNTR_IO] -= 1;
 		if (list_empty(isc_list))
-			clear_bit(IRQ_PEND_IO_ISC_0 + isc, &fi->pending_irqs);
+			clear_bit(isc_to_irq_type(isc), &fi->pending_irqs);
 		spin_unlock(&fi->lock);
 		return iter;
 	}
@@ -1528,7 +1538,7 @@ static int __inject_io(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	isc = int_word_to_isc(inti->io.io_int_word);
 	list = &fi->lists[FIRQ_LIST_IO_ISC_0 + isc];
 	list_add_tail(&inti->list, list);
-	set_bit(IRQ_PEND_IO_ISC_0 + isc, &fi->pending_irqs);
+	set_bit(isc_to_irq_type(isc), &fi->pending_irqs);
 	spin_unlock(&fi->lock);
 	return 0;
 }
