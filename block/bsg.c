@@ -845,10 +845,10 @@ static int bsg_release(struct inode *inode, struct file *file)
 	return bsg_put_device(bd);
 }
 
-static unsigned int bsg_poll(struct file *file, poll_table *wait)
+static __poll_t bsg_poll(struct file *file, poll_table *wait)
 {
 	struct bsg_device *bd = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, &bd->wq_done, wait);
 	poll_wait(file, &bd->wq_free, wait);
