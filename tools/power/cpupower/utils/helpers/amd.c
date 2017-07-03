@@ -26,6 +26,15 @@ union msr_pstate {
 		unsigned res3:21;
 		unsigned en:1;
 	} bits;
+	struct {
+		unsigned fid:8;
+		unsigned did:6;
+		unsigned vid:8;
+		unsigned iddval:8;
+		unsigned idddiv:2;
+		unsigned res1:30;
+		unsigned en:1;
+	} fam17h_bits;
 	unsigned long long val;
 };
 
@@ -35,6 +44,8 @@ static int get_did(int family, union msr_pstate pstate)
 
 	if (family == 0x12)
 		t = pstate.val & 0xf;
+	else if (family == 0x17)
+		t = pstate.fam17h_bits.did;
 	else
 		t = pstate.bits.did;
 
@@ -44,16 +55,20 @@ static int get_did(int family, union msr_pstate pstate)
 static int get_cof(int family, union msr_pstate pstate)
 {
 	int t;
-	int fid, did;
+	int fid, did, cof;
 
 	did = get_did(family, pstate);
-
-	t = 0x10;
-	fid = pstate.bits.fid;
-	if (family == 0x11)
-		t = 0x8;
-
-	return (100 * (fid + t)) >> did;
+	if (family == 0x17) {
+		fid = pstate.fam17h_bits.fid;
+		cof = 200 * fid / did;
+	} else {
+		t = 0x10;
+		fid = pstate.bits.fid;
+		if (family == 0x11)
+			t = 0x8;
+		cof = (100 * (fid + t)) >> did;
+	}
+	return cof;
 }
 
 /* Needs:
