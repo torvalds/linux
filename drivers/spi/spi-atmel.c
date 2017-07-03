@@ -1423,7 +1423,6 @@ static void atmel_get_caps(struct atmel_spi *as)
 	unsigned int version;
 
 	version = atmel_get_version(as);
-	dev_info(&as->pdev->dev, "version: 0x%x\n", version);
 
 	as->caps.is_spi2 = version > 0x121;
 	as->caps.has_wdrbt = version >= 0x210;
@@ -1631,8 +1630,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		goto out_free_dma;
 
 	/* go! */
-	dev_info(&pdev->dev, "Atmel SPI Controller at 0x%08lx (irq %d)\n",
-			(unsigned long)regs->start, irq);
+	dev_info(&pdev->dev, "Atmel SPI Controller version 0x%x at 0x%08lx (irq %d)\n",
+			atmel_get_version(as), (unsigned long)regs->start,
+			irq);
 
 	return 0;
 
