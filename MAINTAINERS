@@ -7324,7 +7324,7 @@ F:	arch/powerpc/kvm/
 
 KERNEL VIRTUAL MACHINE for s390 (KVM/s390)
 M:	Christian Borntraeger <borntraeger@de.ibm.com>
-M:	Cornelia Huck <cornelia.huck@de.ibm.com>
+M:	Cornelia Huck <cohuck@redhat.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvms390/linux.git
@@ -11109,7 +11109,7 @@ S:	Supported
 F:	drivers/iommu/s390-iommu.c
 
 S390 VFIO-CCW DRIVER
-M:	Cornelia Huck <cornelia.huck@de.ibm.com>
+M:	Cornelia Huck <cohuck@redhat.com>
 M:	Dong Jia Shi <bjsdjshi@linux.vnet.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	kvm@vger.kernel.org
@@ -13639,7 +13639,7 @@ F:	include/uapi/linux/virtio_*.h
 F:	drivers/crypto/virtio/
 
 VIRTIO DRIVERS FOR S390
-M:	Cornelia Huck <cornelia.huck@de.ibm.com>
+M:	Cornelia Huck <cohuck@redhat.com>
 M:	Halil Pasic <pasic@linux.vnet.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	virtualization@lists.linux-foundation.org
