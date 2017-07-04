@@ -984,12 +984,6 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		v_total <<= 1;
 	}
 
-	vdisplay = yres;
-#ifdef CONFIG_FB_ATY_GENERIC_LCD
-	if ((par->lcd_table != 0) && (crtc->lcd_gen_cntl & LCD_ON))
-		vdisplay  = par->lcd_height;
-#endif
-
 	v_disp--;
 	v_sync_strt--;
 	v_sync_end--;
