@@ -611,17 +611,23 @@ static void cputime_adjust(struct task_cputime *curr,
 	utime = curr->utime;
 
 	/*
-	 * If either stime or both stime and utime are 0, assume all runtime is
-	 * userspace. Once a task gets some ticks, the monotonicy code at
-	 * 'update' will ensure things converge to the observed ratio.
+	 * If either stime or utime are 0, assume all runtime is userspace.
+	 * Once a task gets some ticks, the monotonicy code at 'update:'
+	 * will ensure things converge to the observed ratio.
 	 */
-	if (stime != 0) {
-		if (utime == 0)
-			stime = rtime;
-		else
-			stime = scale_stime(stime, rtime, stime + utime);
+	if (stime == 0) {
+		utime = rtime;
+		goto update;
 	}
 
+	if (utime == 0) {
+		stime = rtime;
+		goto update;
+	}
+
+	stime = scale_stime(stime, rtime, stime + utime);
+
+update:
 	/*
 	 * Make sure stime doesn't go backwards; this preserves monotonicity
 	 * for utime because rtime is monotonic.
