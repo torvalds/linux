@@ -9965,6 +9965,14 @@ S:	Supported
 F:	Documentation/devicetree/bindings/pci/pci-thunder-*
 F:	drivers/pci/host/pci-thunder-*
 
+PCIE DRIVER FOR MEDIATEK
+M:      Ryder Lee <ryder.lee@mediatek.com>
+L:      linux-pci@vger.kernel.org
+L:      linux-mediatek@lists.infradead.org
+S:      Supported
+F:      Documentation/devicetree/bindings/pci/mediatek*
+F:      drivers/pci/host/*mediatek*
+
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
 L:	linux-pcmcia@lists.infradead.org
