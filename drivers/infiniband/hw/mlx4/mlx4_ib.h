@@ -46,6 +46,7 @@
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
+#include <linux/mlx4/qp.h>
 
 #define MLX4_IB_DRV_NAME	"mlx4_ib"
 
@@ -299,6 +300,12 @@ struct mlx4_wqn_range {
 	struct list_head	list;
 };
 
+struct mlx4_ib_rss {
+	unsigned int		base_qpn_tbl_sz;
+	u8			flags;
+	u8			rss_key[MLX4_EN_RSS_KEY_SIZE];
+};
+
 struct mlx4_ib_qp {
 	union {
 		struct ib_qp	ibqp;
@@ -345,6 +352,7 @@ struct mlx4_ib_qp {
 	struct mlx4_wqn_range	*wqn_range;
 	/* Number of RSS QP parents that uses this WQ */
 	u32			rss_usecnt;
+	struct mlx4_ib_rss	*rss_ctx;
 };
 
 struct mlx4_ib_srq {

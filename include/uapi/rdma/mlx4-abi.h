@@ -95,6 +95,16 @@ struct mlx4_ib_create_srq_resp {
 	__u32	reserved;
 };
 
+struct mlx4_ib_create_qp_rss {
+	__u64   rx_hash_fields_mask;
+	__u8    rx_hash_function;
+	__u8    rx_key_len;
+	__u8    reserved[6];
+	__u8    rx_hash_key[40];
+	__u32   comp_mask;
+	__u32   reserved1;
+};
+
 struct mlx4_ib_create_qp {
 	__u64	buf_addr;
 	__u64	db_addr;
@@ -123,4 +133,27 @@ struct mlx4_ib_create_rwq_ind_tbl_resp {
 	__u32	response_length;
 	__u32	reserved;
 };
+
+/* RX Hash function flags */
+enum mlx4_ib_rx_hash_function_flags {
+	MLX4_IB_RX_HASH_FUNC_TOEPLITZ	= 1 << 0,
+};
+
+/*
+ * RX Hash flags, these flags allows to set which incoming packet's field should
+ * participates in RX Hash. Each flag represent certain packet's field,
+ * when the flag is set the field that is represented by the flag will
+ * participate in RX Hash calculation.
+ */
+enum mlx4_ib_rx_hash_fields {
+	MLX4_IB_RX_HASH_SRC_IPV4	= 1 << 0,
+	MLX4_IB_RX_HASH_DST_IPV4	= 1 << 1,
+	MLX4_IB_RX_HASH_SRC_IPV6	= 1 << 2,
+	MLX4_IB_RX_HASH_DST_IPV6	= 1 << 3,
+	MLX4_IB_RX_HASH_SRC_PORT_TCP	= 1 << 4,
+	MLX4_IB_RX_HASH_DST_PORT_TCP	= 1 << 5,
+	MLX4_IB_RX_HASH_SRC_PORT_UDP	= 1 << 6,
+	MLX4_IB_RX_HASH_DST_PORT_UDP	= 1 << 7
+};
+
 #endif /* MLX4_ABI_USER_H */
