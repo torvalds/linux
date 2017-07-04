@@ -832,7 +832,6 @@
 
 &mshc_0 {
 	status = "okay";
-	num-slots = <1>;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-highspeed;
@@ -854,7 +853,6 @@
 
 &mshc_2 {
 	status = "okay";
-	num-slots = <1>;
 	cap-sd-highspeed;
 	disable-wp;
 	cd-gpios = <&gpa2 4 GPIO_ACTIVE_HIGH>;
