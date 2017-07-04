@@ -1328,10 +1328,10 @@ void __init tsc_init(void)
 
 	use_tsc_delay();
 
+	check_system_tsc_reliable();
+
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
-
-	check_system_tsc_reliable();
 
 	detect_art();
 }
