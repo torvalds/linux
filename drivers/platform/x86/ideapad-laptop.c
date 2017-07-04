@@ -932,8 +932,8 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 	{
 		.ident = "Lenovo V310-15ISK",
 		.matches = {
-		        DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		        DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15ISK"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15ISK"),
 		},
 	},
 	{
@@ -981,8 +981,8 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 	{
 		.ident = "Lenovo ideapad 310-15IKB",
 		.matches = {
-		        DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		        DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IKB"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IKB"),
 		},
 	},
 	{
