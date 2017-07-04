@@ -56,10 +56,6 @@
 
 /* The maximum  bytes that a sdma BD can transfer.*/
 #define MAX_SDMA_BD_BYTES  (1 << 15)
-struct spi_imx_config {
-	unsigned int speed_hz;
-	unsigned int bpw;
-};
 
 enum spi_imx_devtype {
 	IMX1_CSPI,
@@ -74,7 +70,7 @@ struct spi_imx_data;
 
 struct spi_imx_devtype_data {
 	void (*intctrl)(struct spi_imx_data *, int);
-	int (*config)(struct spi_device *, struct spi_imx_config *);
+	int (*config)(struct spi_device *);
 	void (*trigger)(struct spi_imx_data *);
 	int (*rx_available)(struct spi_imx_data *);
 	void (*reset)(struct spi_imx_data *);
@@ -94,7 +90,8 @@ struct spi_imx_data {
 	unsigned long spi_clk;
 	unsigned int spi_bus_clk;
 
-	unsigned int bytes_per_word;
+	unsigned int speed_hz;
+	unsigned int bits_per_word;
 	unsigned int spi_drctl;
 
 	unsigned int count;
@@ -203,34 +200,27 @@ out:
 	return i;
 }
 
-static int spi_imx_bytes_per_word(const int bpw)
+static int spi_imx_bytes_per_word(const int bits_per_word)
 {
-	return DIV_ROUND_UP(bpw, BITS_PER_BYTE);
+	return DIV_ROUND_UP(bits_per_word, BITS_PER_BYTE);
 }
 
 static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	unsigned int bpw, i;
+	unsigned int bytes_per_word, i;
 
 	if (!master->dma_rx)
 		return false;
 
-	if (!transfer)
-		return false;
+	bytes_per_word = spi_imx_bytes_per_word(transfer->bits_per_word);
 
-	bpw = transfer->bits_per_word;
-	if (!bpw)
-		bpw = spi->bits_per_word;
-
-	bpw = spi_imx_bytes_per_word(bpw);
-
-	if (bpw != 1 && bpw != 2 && bpw != 4)
+	if (bytes_per_word != 1 && bytes_per_word != 2 && bytes_per_word != 4)
 		return false;
 
 	for (i = spi_imx_get_fifosize(spi_imx) / 2; i > 0; i--) {
-		if (!(transfer->len % (i * bpw)))
+		if (!(transfer->len % (i * bytes_per_word)))
 			break;
 	}
 
@@ -340,12 +330,11 @@ static void mx51_ecspi_trigger(struct spi_imx_data *spi_imx)
 	writel(reg, spi_imx->base + MX51_ECSPI_CTRL);
 }
 
-static int mx51_ecspi_config(struct spi_device *spi,
-			     struct spi_imx_config *config)
+static int mx51_ecspi_config(struct spi_device *spi)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	u32 ctrl = MX51_ECSPI_CTRL_ENABLE;
-	u32 clk = config->speed_hz, delay, reg;
+	u32 clk = spi_imx->speed_hz, delay, reg;
 	u32 cfg = readl(spi_imx->base + MX51_ECSPI_CONFIG);
 
 	/*
@@ -364,13 +353,13 @@ static int mx51_ecspi_config(struct spi_device *spi,
 		ctrl |= MX51_ECSPI_CTRL_DRCTL(spi_imx->spi_drctl);
 
 	/* set clock speed */
-	ctrl |= mx51_ecspi_clkdiv(spi_imx, config->speed_hz, &clk);
+	ctrl |= mx51_ecspi_clkdiv(spi_imx, spi_imx->speed_hz, &clk);
 	spi_imx->spi_bus_clk = clk;
 
 	/* set chip select to use */
 	ctrl |= MX51_ECSPI_CTRL_CS(spi->chip_select);
 
-	ctrl |= (config->bpw - 1) << MX51_ECSPI_CTRL_BL_OFFSET;
+	ctrl |= (spi_imx->bits_per_word - 1) << MX51_ECSPI_CTRL_BL_OFFSET;
 
 	cfg |= MX51_ECSPI_CONFIG_SBBCTRL(spi->chip_select);
 
@@ -501,21 +490,21 @@ static void mx31_trigger(struct spi_imx_data *spi_imx)
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 }
 
-static int mx31_config(struct spi_device *spi, struct spi_imx_config *config)
+static int mx31_config(struct spi_device *spi)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	unsigned int reg = MX31_CSPICTRL_ENABLE | MX31_CSPICTRL_MASTER;
 	unsigned int clk;
 
-	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz, &clk) <<
+	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, spi_imx->speed_hz, &clk) <<
 		MX31_CSPICTRL_DR_SHIFT;
 	spi_imx->spi_bus_clk = clk;
 
 	if (is_imx35_cspi(spi_imx)) {
-		reg |= (config->bpw - 1) << MX35_CSPICTRL_BL_SHIFT;
+		reg |= (spi_imx->bits_per_word - 1) << MX35_CSPICTRL_BL_SHIFT;
 		reg |= MX31_CSPICTRL_SSCTL;
 	} else {
-		reg |= (config->bpw - 1) << MX31_CSPICTRL_BC_SHIFT;
+		reg |= (spi_imx->bits_per_word - 1) << MX31_CSPICTRL_BC_SHIFT;
 	}
 
 	if (spi->mode & SPI_CPHA)
@@ -597,18 +586,18 @@ static void mx21_trigger(struct spi_imx_data *spi_imx)
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 }
 
-static int mx21_config(struct spi_device *spi, struct spi_imx_config *config)
+static int mx21_config(struct spi_device *spi)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	unsigned int reg = MX21_CSPICTRL_ENABLE | MX21_CSPICTRL_MASTER;
 	unsigned int max = is_imx27_cspi(spi_imx) ? 16 : 18;
 	unsigned int clk;
 
-	reg |= spi_imx_clkdiv_1(spi_imx->spi_clk, config->speed_hz, max, &clk)
+	reg |= spi_imx_clkdiv_1(spi_imx->spi_clk, spi_imx->speed_hz, max, &clk)
 		<< MX21_CSPICTRL_DR_SHIFT;
 	spi_imx->spi_bus_clk = clk;
 
-	reg |= config->bpw - 1;
+	reg |= spi_imx->bits_per_word - 1;
 
 	if (spi->mode & SPI_CPHA)
 		reg |= MX21_CSPICTRL_PHA;
@@ -666,17 +655,17 @@ static void mx1_trigger(struct spi_imx_data *spi_imx)
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 }
 
-static int mx1_config(struct spi_device *spi, struct spi_imx_config *config)
+static int mx1_config(struct spi_device *spi)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
 	unsigned int reg = MX1_CSPICTRL_ENABLE | MX1_CSPICTRL_MASTER;
 	unsigned int clk;
 
-	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz, &clk) <<
+	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, spi_imx->speed_hz, &clk) <<
 		MX1_CSPICTRL_DR_SHIFT;
 	spi_imx->spi_bus_clk = clk;
 
-	reg |= config->bpw - 1;
+	reg |= spi_imx->bits_per_word - 1;
 
 	if (spi->mode & SPI_CPHA)
 		reg |= MX1_CSPICTRL_PHA;
@@ -841,15 +830,14 @@ static irqreturn_t spi_imx_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int spi_imx_dma_configure(struct spi_master *master,
-				 int bytes_per_word)
+static int spi_imx_dma_configure(struct spi_master *master)
 {
 	int ret;
 	enum dma_slave_buswidth buswidth;
 	struct dma_slave_config rx = {}, tx = {};
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
-	switch (bytes_per_word) {
+	switch (spi_imx_bytes_per_word(spi_imx->bits_per_word)) {
 	case 4:
 		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
@@ -883,8 +871,6 @@ static int spi_imx_dma_configure(struct spi_master *master,
 		return ret;
 	}
 
-	spi_imx->bytes_per_word = bytes_per_word;
-
 	return 0;
 }
 
@@ -892,22 +878,19 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 				 struct spi_transfer *t)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
-	struct spi_imx_config config;
 	int ret;
 
-	config.bpw = t ? t->bits_per_word : spi->bits_per_word;
-	config.speed_hz  = t ? t->speed_hz : spi->max_speed_hz;
+	if (!t)
+		return 0;
 
-	if (!config.speed_hz)
-		config.speed_hz = spi->max_speed_hz;
-	if (!config.bpw)
-		config.bpw = spi->bits_per_word;
+	spi_imx->bits_per_word = t->bits_per_word;
+	spi_imx->speed_hz  = t->speed_hz;
 
 	/* Initialize the functions for transfer */
-	if (config.bpw <= 8) {
+	if (spi_imx->bits_per_word <= 8) {
 		spi_imx->rx = spi_imx_buf_rx_u8;
 		spi_imx->tx = spi_imx_buf_tx_u8;
-	} else if (config.bpw <= 16) {
+	} else if (spi_imx->bits_per_word <= 16) {
 		spi_imx->rx = spi_imx_buf_rx_u16;
 		spi_imx->tx = spi_imx_buf_tx_u16;
 	} else {
@@ -921,13 +904,12 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		spi_imx->usedma = 0;
 
 	if (spi_imx->usedma) {
-		ret = spi_imx_dma_configure(spi->master,
-					    spi_imx_bytes_per_word(config.bpw));
+		ret = spi_imx_dma_configure(spi->master);
 		if (ret)
 			return ret;
 	}
 
-	spi_imx->devtype_data->config(spi, &config);
+	spi_imx->devtype_data->config(spi);
 
 	return 0;
 }
@@ -975,8 +957,6 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 		master->dma_rx = NULL;
 		goto err;
 	}
-
-	spi_imx_dma_configure(master, 1);
 
 	init_completion(&spi_imx->dma_rx_completion);
 	init_completion(&spi_imx->dma_tx_completion);
@@ -1189,14 +1169,14 @@ static int spi_imx_probe(struct platform_device *pdev)
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct spi_imx_data));
+	if (!master)
+		return -ENOMEM;
+
 	ret = of_property_read_u32(np, "fsl,spi-rdy-drctl", &spi_drctl);
 	if ((ret < 0) || (spi_drctl >= 0x3)) {
 		/* '11' is reserved */
 		spi_drctl = 0;
 	}
-
-	if (!master)
-		return -ENOMEM;
 
 	platform_set_drvdata(pdev, master);
 
