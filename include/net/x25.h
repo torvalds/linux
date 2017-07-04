@@ -142,7 +142,7 @@ struct x25_neigh {
 	unsigned long		t20;
 	struct timer_list	t20timer;
 	unsigned long		global_facil_mask;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 };
 
 struct x25_sock {
@@ -243,12 +243,12 @@ void x25_link_free(void);
 /* x25_neigh.c */
 static __inline__ void x25_neigh_hold(struct x25_neigh *nb)
 {
-	atomic_inc(&nb->refcnt);
+	refcount_inc(&nb->refcnt);
 }
 
 static __inline__ void x25_neigh_put(struct x25_neigh *nb)
 {
-	if (atomic_dec_and_test(&nb->refcnt))
+	if (refcount_dec_and_test(&nb->refcnt))
 		kfree(nb);
 }
 
