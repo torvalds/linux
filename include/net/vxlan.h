@@ -183,7 +183,7 @@ struct vxlan_sock {
 	struct hlist_node hlist;
 	struct socket	 *sock;
 	struct hlist_head vni_list[VNI_HASH_SIZE];
-	atomic_t	  refcnt;
+	refcount_t	  refcnt;
 	u32		  flags;
 };
 
