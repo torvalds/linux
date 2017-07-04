@@ -45,7 +45,7 @@
 #include "rk3288-android.dtsi"
 
 / {
-	compatible = "rockchip,rk3288-evb-rk818", "rockchip,rk3288";
+	compatible = "rockchip,rk3288-evb-android-rk818", "rockchip,rk3288";
 
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
