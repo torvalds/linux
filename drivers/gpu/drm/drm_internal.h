@@ -143,3 +143,6 @@ static inline int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 	return 0;
 }
 #endif
+drm_ioctl_t drm_version;
+drm_ioctl_t drm_getunique;
+drm_ioctl_t drm_getclient;

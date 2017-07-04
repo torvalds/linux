@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/compat.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_fb_helper.h>
 
@@ -154,8 +155,6 @@ void radeon_gem_prime_unpin(struct drm_gem_object *obj);
 struct reservation_object *radeon_gem_prime_res_obj(struct drm_gem_object *);
 void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
 void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
-extern long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd,
-				    unsigned long arg);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
@@ -504,6 +503,21 @@ long radeon_drm_ioctl(struct file *filp,
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+static long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	unsigned int nr = DRM_IOCTL_NR(cmd);
+	int ret;
+
+	if (nr < DRM_COMMAND_BASE)
+		return drm_compat_ioctl(filp, cmd, arg);
+
+	ret = radeon_drm_ioctl(filp, cmd, arg);
+
+	return ret;
+}
+#endif
 
 static const struct dev_pm_ops radeon_pm_ops = {
 	.suspend = radeon_pmops_suspend,
