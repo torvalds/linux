@@ -1277,6 +1277,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	const struct drm_crtc_helper_funcs *crtc_funcs;
 	u16 *red, *green, *blue, *transp;
 	struct drm_crtc *crtc;
+	u16 *r, *g, *b;
 	int i, j, rc = 0;
 	int start;
 
@@ -1304,6 +1305,24 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		blue = cmap->blue;
 		transp = cmap->transp;
 		start = cmap->start;
+
+		if (!crtc->gamma_size) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		if (cmap->start + cmap->len > crtc->gamma_size) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		r = crtc->gamma_store;
+		g = r + crtc->gamma_size;
+		b = g + crtc->gamma_size;
+
+		memcpy(r + cmap->start, cmap->red, cmap->len * sizeof(*r));
+		memcpy(g + cmap->start, cmap->green, cmap->len * sizeof(*g));
+		memcpy(b + cmap->start, cmap->blue, cmap->len * sizeof(*b));
 
 		for (j = 0; j < cmap->len; j++) {
 			u16 hred, hgreen, hblue, htransp = 0xffff;
