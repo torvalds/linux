@@ -23,6 +23,7 @@
 #include <net/inetpeer.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
+#include <linux/refcount.h>
 
 struct fib_config {
 	u8			fc_dst_len;
@@ -105,7 +106,7 @@ struct fib_info {
 	struct hlist_node	fib_lhash;
 	struct net		*fib_net;
 	int			fib_treeref;
-	atomic_t		fib_clntref;
+	refcount_t		fib_clntref;
 	unsigned int		fib_flags;
 	unsigned char		fib_dead;
 	unsigned char		fib_protocol;
@@ -430,12 +431,12 @@ void free_fib_info(struct fib_info *fi);
 
 static inline void fib_info_hold(struct fib_info *fi)
 {
-	atomic_inc(&fi->fib_clntref);
+	refcount_inc(&fi->fib_clntref);
 }
 
 static inline void fib_info_put(struct fib_info *fi)
 {
-	if (atomic_dec_and_test(&fi->fib_clntref))
+	if (refcount_dec_and_test(&fi->fib_clntref))
 		free_fib_info(fi);
 }
 
