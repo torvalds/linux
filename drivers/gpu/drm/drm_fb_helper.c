@@ -1328,7 +1328,6 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 		goto unlock;
 	}
 
-	mutex_lock(&dev->mode_config.mutex);
 	switch (cmd) {
 	case FBIO_WAITFORVSYNC:
 		/*
@@ -1368,7 +1367,6 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 	}
 
 unlock:
-	mutex_unlock(&dev->mode_config.mutex);
 	mutex_unlock(&fb_helper->lock);
 	return ret;
 }
