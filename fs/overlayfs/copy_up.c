@@ -316,34 +316,6 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 	return err;
 }
 
-static int ovl_link_up(struct dentry *parent, struct dentry *dentry)
-{
-	int err;
-	struct dentry *upper;
-	struct dentry *upperdir = ovl_dentry_upper(parent);
-	struct inode *udir = d_inode(upperdir);
-
-	err = ovl_set_nlink_lower(dentry);
-	if (err)
-		return err;
-
-	inode_lock_nested(udir, I_MUTEX_PARENT);
-	upper = lookup_one_len(dentry->d_name.name, upperdir,
-			       dentry->d_name.len);
-	err = PTR_ERR(upper);
-	if (!IS_ERR(upper)) {
-		err = ovl_do_link(ovl_dentry_upper(dentry), udir, upper, true);
-		dput(upper);
-
-		if (!err)
-			ovl_dentry_set_upper_alias(dentry);
-	}
-	inode_unlock(udir);
-	ovl_set_nlink_upper(dentry);
-
-	return err;
-}
-
 struct ovl_copy_up_ctx {
 	struct dentry *parent;
 	struct dentry *dentry;
@@ -357,6 +329,43 @@ struct ovl_copy_up_ctx {
 	bool tmpfile;
 	bool origin;
 };
+
+static int ovl_link_up(struct ovl_copy_up_ctx *c)
+{
+	int err;
+	struct dentry *upper;
+	struct dentry *upperdir = ovl_dentry_upper(c->parent);
+	struct inode *udir = d_inode(upperdir);
+
+	/* Mark parent "impure" because it may now contain non-pure upper */
+	err = ovl_set_impure(c->parent, upperdir);
+	if (err)
+		return err;
+
+	err = ovl_set_nlink_lower(c->dentry);
+	if (err)
+		return err;
+
+	inode_lock_nested(udir, I_MUTEX_PARENT);
+	upper = lookup_one_len(c->dentry->d_name.name, upperdir,
+			       c->dentry->d_name.len);
+	err = PTR_ERR(upper);
+	if (!IS_ERR(upper)) {
+		err = ovl_do_link(ovl_dentry_upper(c->dentry), udir, upper,
+				  true);
+		dput(upper);
+
+		if (!err) {
+			/* Restore timestamps on parent (best effort) */
+			ovl_set_timestamps(upperdir, &c->pstat);
+			ovl_dentry_set_upper_alias(c->dentry);
+		}
+	}
+	inode_unlock(udir);
+	ovl_set_nlink_upper(c->dentry);
+
+	return err;
+}
 
 static int ovl_install_temp(struct ovl_copy_up_ctx *c, struct dentry *temp,
 			    struct dentry **newdentry)
@@ -629,7 +638,7 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		if (!ovl_dentry_upper(dentry))
 			err = ovl_do_copy_up(&ctx);
 		if (!err && !ovl_dentry_has_upper_alias(dentry))
-			err = ovl_link_up(parent, dentry);
+			err = ovl_link_up(&ctx);
 		ovl_copy_up_end(dentry);
 	}
 	do_delayed_call(&done);
