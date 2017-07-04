@@ -1385,7 +1385,7 @@ static int azx_free(struct azx *chip)
 		if (hda->need_i915_power)
 			snd_hdac_display_power(bus, false);
 	}
-	if (chip->driver_type & AZX_DCAPS_I915_COMPONENT)
+	if (chip->driver_caps & AZX_DCAPS_I915_COMPONENT)
 		snd_hdac_i915_exit(bus);
 	kfree(hda);
 
