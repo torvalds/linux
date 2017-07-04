@@ -186,6 +186,7 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
  * @pclk:		APB clock
  * @baud:		Current baud rate
  * @clk_rate_change_nb:	Notifier block for clock changes
+ * @quirks:		Flags for RXBS support.
  */
 struct cdns_uart {
 	struct uart_port	*port;
@@ -1587,20 +1588,21 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(&pdev->dev,
 			"uart_add_one_port() failed; err=%i\n", rc);
-		goto err_out_notif_unreg;
+		goto err_out_pm_disable;
 	}
 
 	return 0;
 
+err_out_pm_disable:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 err_out_notif_unreg:
 #ifdef CONFIG_COMMON_CLK
 	clk_notifier_unregister(cdns_uart_data->uartclk,
 			&cdns_uart_data->clk_rate_change_nb);
 #endif
 err_out_clk_disable:
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	clk_disable_unprepare(cdns_uart_data->uartclk);
 err_out_clk_dis_pclk:
 	clk_disable_unprepare(cdns_uart_data->pclk);

@@ -954,11 +954,10 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		    old_custom_divisor != uport->custom_divisor) {
 			/*
 			 * If they're setting up a custom divisor or speed,
-			 * instead of clearing it, then bitch about it. No
-			 * need to rate-limit; it's CAP_SYS_ADMIN only.
+			 * instead of clearing it, then bitch about it.
 			 */
 			if (uport->flags & UPF_SPD_MASK) {
-				dev_notice(uport->dev,
+				dev_notice_ratelimited(uport->dev,
 				       "%s sets custom speed on %s. This is deprecated.\n",
 				      current->comm,
 				      tty_name(port->tty));

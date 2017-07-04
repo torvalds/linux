@@ -20,6 +20,8 @@ Required properties:
 	- "fsl,16550-FIFO64"
 	- "fsl,ns16550"
 	- "ti,da830-uart"
+	- "aspeed,ast2400-vuart"
+	- "aspeed,ast2500-vuart"
 	- "serial" if the port type is unknown.
 - reg : offset and length of the register set for the device.
 - interrupts : should contain uart interrupt.
@@ -45,6 +47,7 @@ Optional properties:
   property.
 - tx-threshold: Specify the TX FIFO low water indication for parts with
   programmable TX FIFO thresholds.
+- resets : phandle + reset specifier pairs
 
 Note:
 * fsl,ns16550:
