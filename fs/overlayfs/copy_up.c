@@ -345,16 +345,13 @@ static int ovl_install_temp(struct dentry *workdir, struct dentry *upperdir,
 	return err;
 }
 
-static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
-			      struct dentry *dentry, struct path *lowerpath,
-			      struct kstat *stat, const char *link,
-			      struct kstat *pstat, bool tmpfile)
+static int ovl_get_tmpfile(struct dentry *workdir, struct dentry *upperdir,
+			   struct dentry *dentry,
+			   struct kstat *stat, const char *link, bool tmpfile,
+			   struct dentry **tempp)
 {
-	struct inode *wdir = workdir->d_inode;
-	struct inode *udir = upperdir->d_inode;
-	struct dentry *newdentry = NULL;
-	struct dentry *temp = NULL;
 	int err;
+	struct dentry *temp;
 	const struct cred *old_creds = NULL;
 	struct cred *new_creds = NULL;
 	struct cattr cattr = {
@@ -371,24 +368,50 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (new_creds)
 		old_creds = override_creds(new_creds);
 
-	if (tmpfile)
+	if (tmpfile) {
 		temp = ovl_do_tmpfile(upperdir, stat->mode);
-	else
+		if (IS_ERR(temp))
+			goto temp_err;
+	} else {
 		temp = ovl_lookup_temp(workdir);
-	err = 0;
-	if (IS_ERR(temp)) {
-		err = PTR_ERR(temp);
-		temp = NULL;
+		if (IS_ERR(temp))
+			goto temp_err;
+
+		err = ovl_create_real(d_inode(workdir), temp, &cattr,
+				      NULL, true);
+		if (err) {
+			dput(temp);
+			goto out;
+		}
 	}
-
-	if (!err && !tmpfile)
-		err = ovl_create_real(wdir, temp, &cattr, NULL, true);
-
+	err = 0;
+	*tempp = temp;
+out:
 	if (new_creds) {
 		revert_creds(old_creds);
 		put_cred(new_creds);
 	}
 
+	return err;
+
+temp_err:
+	err = PTR_ERR(temp);
+	goto out;
+}
+
+static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
+			      struct dentry *dentry, struct path *lowerpath,
+			      struct kstat *stat, const char *link,
+			      struct kstat *pstat, bool tmpfile)
+{
+	struct inode *wdir = workdir->d_inode;
+	struct inode *udir = upperdir->d_inode;
+	struct dentry *newdentry = NULL;
+	struct dentry *temp = NULL;
+	int err;
+
+	err = ovl_get_tmpfile(workdir, upperdir, dentry, stat, link, tmpfile,
+			      &temp);
 	if (err)
 		goto out;
 
