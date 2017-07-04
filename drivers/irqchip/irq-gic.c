@@ -1027,8 +1027,11 @@ static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < nr_irqs; i++)
-		gic_irq_domain_map(domain, virq + i, hwirq + i);
+	for (i = 0; i < nr_irqs; i++) {
+		ret = gic_irq_domain_map(domain, virq + i, hwirq + i);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
