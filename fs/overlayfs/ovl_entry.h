@@ -35,12 +35,8 @@ struct ovl_fs {
 
 /* private information held for every overlayfs dentry */
 struct ovl_entry {
-	struct ovl_dir_cache *cache;
 	union {
-		struct {
-			u64 version;
-			bool opaque;
-		};
+		bool opaque;
 		struct rcu_head rcu;
 	};
 	unsigned numlower;
@@ -50,7 +46,9 @@ struct ovl_entry {
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
 
 struct ovl_inode {
+	struct ovl_dir_cache *cache;
 	const char *redirect;
+	u64 version;
 	unsigned long flags;
 	struct inode vfs_inode;
 	struct dentry *__upperdentry;

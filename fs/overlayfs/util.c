@@ -160,16 +160,12 @@ struct inode *ovl_inode_real(struct inode *inode)
 
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	return oe->cache;
+	return OVL_I(d_inode(dentry))->cache;
 }
 
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	oe->cache = cache;
+	OVL_I(d_inode(dentry))->cache = cache;
 }
 
 bool ovl_dentry_is_opaque(struct dentry *dentry)
@@ -242,18 +238,18 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 
 void ovl_dentry_version_inc(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
+	struct inode *inode = d_inode(dentry);
 
-	WARN_ON(!inode_is_locked(dentry->d_inode));
-	oe->version++;
+	WARN_ON(!inode_is_locked(inode));
+	OVL_I(inode)->version++;
 }
 
 u64 ovl_dentry_version_get(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
+	struct inode *inode = d_inode(dentry);
 
-	WARN_ON(!inode_is_locked(dentry->d_inode));
-	return oe->version;
+	WARN_ON(!inode_is_locked(inode));
+	return OVL_I(inode)->version;
 }
 
 bool ovl_is_whiteout(struct dentry *dentry)
