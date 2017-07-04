@@ -240,6 +240,8 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 		return RREG32_DIDT(index);
 	case CGS_IND_REG_GC_CAC:
 		return RREG32_GC_CAC(index);
+	case CGS_IND_REG_SE_CAC:
+		return RREG32_SE_CAC(index);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return 0;
@@ -266,6 +268,8 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 		return WREG32_DIDT(index, value);
 	case CGS_IND_REG_GC_CAC:
 		return WREG32_GC_CAC(index, value);
+	case CGS_IND_REG_SE_CAC:
+		return WREG32_SE_CAC(index, value);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return;
