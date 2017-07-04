@@ -31,6 +31,7 @@
 #define __sctp_auth_h__
 
 #include <linux/list.h>
+#include <linux/refcount.h>
 
 struct sctp_endpoint;
 struct sctp_association;
@@ -53,7 +54,7 @@ struct sctp_hmac {
  * over SCTP-AUTH
  */
 struct sctp_auth_bytes {
-	atomic_t refcnt;
+	refcount_t refcnt;
 	__u32 len;
 	__u8  data[];
 };
@@ -76,7 +77,7 @@ static inline void sctp_auth_key_hold(struct sctp_auth_bytes *key)
 	if (!key)
 		return;
 
-	atomic_inc(&key->refcnt);
+	refcount_inc(&key->refcnt);
 }
 
 void sctp_auth_key_put(struct sctp_auth_bytes *key);

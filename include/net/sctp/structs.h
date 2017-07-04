@@ -496,7 +496,7 @@ struct sctp_datamsg {
 	/* Chunks waiting to be submitted to lower layer. */
 	struct list_head chunks;
 	/* Reference counting. */
-	atomic_t refcnt;
+	refcount_t refcnt;
 	/* When is this message no longer interesting to the peer? */
 	unsigned long expires_at;
 	/* Did the messenge fail to send? */
@@ -524,7 +524,7 @@ int sctp_chunk_abandoned(struct sctp_chunk *);
 struct sctp_chunk {
 	struct list_head list;
 
-	atomic_t refcnt;
+	refcount_t refcnt;
 
 	/* How many times this chunk have been sent, for prsctp RTX policy */
 	int sent_count;
@@ -735,7 +735,7 @@ struct sctp_transport {
 	struct rhlist_head node;
 
 	/* Reference counting. */
-	atomic_t refcnt;
+	refcount_t refcnt;
 		/* RTO-Pending : A flag used to track if one of the DATA
 		 *		chunks sent to this address is currently being
 		 *		used to compute a RTT. If this flag is 0,
@@ -1174,7 +1174,7 @@ struct sctp_ep_common {
 	 *   refcnt   - Reference count access to this object.
 	 *   dead     - Do not attempt to use this object.
 	 */
-	atomic_t    refcnt;
+	refcount_t    refcnt;
 	bool	    dead;
 
 	/* What socket does this endpoint belong to?  */

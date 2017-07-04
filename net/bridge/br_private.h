@@ -21,6 +21,7 @@
 #include <net/ip6_fib.h>
 #include <linux/if_vlan.h>
 #include <linux/rhashtable.h>
+#include <linux/refcount.h>
 
 #define BR_HASH_BITS 8
 #define BR_HASH_SIZE (1 << BR_HASH_BITS)
@@ -127,7 +128,7 @@ struct net_bridge_vlan {
 		struct net_bridge_port	*port;
 	};
 	union {
-		atomic_t		refcnt;
+		refcount_t		refcnt;
 		struct net_bridge_vlan	*brvlan;
 	};
 

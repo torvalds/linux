@@ -8,6 +8,7 @@
 #include <linux/mutex.h>
 #include <linux/rds.h>
 #include <linux/rhashtable.h>
+#include <linux/refcount.h>
 
 #include "info.h"
 
@@ -261,7 +262,7 @@ struct rds_ext_header_rdma_dest {
 #define	RDS_MSG_RX_CMSG		3
 
 struct rds_incoming {
-	atomic_t		i_refcount;
+	refcount_t		i_refcount;
 	struct list_head	i_item;
 	struct rds_connection	*i_conn;
 	struct rds_conn_path	*i_conn_path;
@@ -276,7 +277,7 @@ struct rds_incoming {
 
 struct rds_mr {
 	struct rb_node		r_rb_node;
-	atomic_t		r_refcount;
+	refcount_t		r_refcount;
 	u32			r_key;
 
 	/* A copy of the creation flags */
@@ -355,7 +356,7 @@ static inline u32 rds_rdma_cookie_offset(rds_rdma_cookie_t cookie)
 #define RDS_MSG_FLUSH		8
 
 struct rds_message {
-	atomic_t		m_refcount;
+	refcount_t		m_refcount;
 	struct list_head	m_sock_item;
 	struct list_head	m_conn_item;
 	struct rds_incoming	m_inc;
@@ -856,7 +857,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 void __rds_put_mr_final(struct rds_mr *mr);
 static inline void rds_mr_put(struct rds_mr *mr)
 {
-	if (atomic_dec_and_test(&mr->r_refcount))
+	if (refcount_dec_and_test(&mr->r_refcount))
 		__rds_put_mr_final(mr);
 }
 

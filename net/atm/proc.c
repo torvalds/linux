@@ -61,7 +61,7 @@ static void atm_dev_info(struct seq_file *seq, const struct atm_dev *dev)
 	add_stats(seq, "0", &dev->stats.aal0);
 	seq_puts(seq, "  ");
 	add_stats(seq, "5", &dev->stats.aal5);
-	seq_printf(seq, "\t[%d]", atomic_read(&dev->refcnt));
+	seq_printf(seq, "\t[%d]", refcount_read(&dev->refcnt));
 	seq_putc(seq, '\n');
 }
 
