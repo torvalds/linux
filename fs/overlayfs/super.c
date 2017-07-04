@@ -41,7 +41,6 @@ static void ovl_dentry_release(struct dentry *dentry)
 	if (oe) {
 		unsigned int i;
 
-		kfree(oe->redirect);
 		for (i = 0; i < oe->numlower; i++)
 			dput(oe->lowerstack[i].dentry);
 		kfree_rcu(oe, rcu);
@@ -170,6 +169,7 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 {
 	struct ovl_inode *oi = kmem_cache_alloc(ovl_inode_cachep, GFP_KERNEL);
 
+	oi->redirect = NULL;
 	oi->__upperdentry = NULL;
 	oi->lower = NULL;
 
@@ -188,6 +188,7 @@ static void ovl_destroy_inode(struct inode *inode)
 	struct ovl_inode *oi = OVL_I(inode);
 
 	dput(oi->__upperdentry);
+	kfree(oi->redirect);
 
 	call_rcu(&inode->i_rcu, ovl_i_callback);
 }

@@ -435,7 +435,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	oe->opaque = upperopaque;
 	oe->impure = upperimpure;
-	oe->redirect = upperredirect;
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);
 	dentry->d_fsdata = oe;
 
@@ -444,6 +443,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		inode = ovl_get_inode(dentry, upperdentry);
 		if (!inode)
 			goto out_free_oe;
+
+		OVL_I(inode)->redirect = upperredirect;
 	}
 
 	revert_creds(old_cred);

@@ -206,17 +206,15 @@ bool ovl_redirect_dir(struct super_block *sb)
 
 const char *ovl_dentry_get_redirect(struct dentry *dentry)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	return oe->redirect;
+	return OVL_I(d_inode(dentry))->redirect;
 }
 
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect)
 {
-	struct ovl_entry *oe = dentry->d_fsdata;
+	struct ovl_inode *oi = OVL_I(d_inode(dentry));
 
-	kfree(oe->redirect);
-	oe->redirect = redirect;
+	kfree(oi->redirect);
+	oi->redirect = redirect;
 }
 
 void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
