@@ -614,6 +614,17 @@ static int amdgpu_cgs_enter_safe_mode(struct cgs_device *cgs_device,
 	return 0;
 }
 
+static void amdgpu_cgs_lock_grbm_idx(struct cgs_device *cgs_device,
+					bool lock)
+{
+	CGS_FUNC_ADEV;
+
+	if (lock)
+		mutex_lock(&adev->grbm_idx_mutex);
+	else
+		mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type,
 					struct cgs_firmware_info *info)
@@ -1127,6 +1138,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.query_system_info = amdgpu_cgs_query_system_info,
 	.is_virtualization_enabled = amdgpu_cgs_is_virtualization_enabled,
 	.enter_safe_mode = amdgpu_cgs_enter_safe_mode,
+	.lock_grbm_idx = amdgpu_cgs_lock_grbm_idx,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
