@@ -61,6 +61,8 @@ static inline struct dentry *ovl_upperdentry_dereference(struct ovl_entry *oe)
 
 struct ovl_inode {
 	struct inode vfs_inode;
+	struct inode *upper;
+	struct inode *lower;
 };
 
 static inline struct ovl_inode *OVL_I(struct inode *inode)

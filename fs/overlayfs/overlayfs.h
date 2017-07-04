@@ -60,8 +60,6 @@ struct ovl_fh {
 	u8 fid[0];	/* file identifier */
 } __packed;
 
-#define OVL_ISUPPER_MASK 1UL
-
 static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int err = vfs_rmdir(dir, dentry);
@@ -175,16 +173,6 @@ static inline struct dentry *ovl_do_tmpfile(struct dentry *dentry, umode_t mode)
 	return ret;
 }
 
-static inline struct inode *ovl_inode_real(struct inode *inode, bool *is_upper)
-{
-	unsigned long x = (unsigned long) READ_ONCE(inode->i_private);
-
-	if (is_upper)
-		*is_upper = x & OVL_ISUPPER_MASK;
-
-	return (struct inode *) (x & ~OVL_ISUPPER_MASK);
-}
-
 /* util.c */
 int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
@@ -201,6 +189,7 @@ enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
+struct inode *ovl_inode_real(struct inode *inode, bool *is_upper);
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache);
 bool ovl_dentry_is_opaque(struct dentry *dentry);

@@ -155,6 +155,22 @@ struct dentry *ovl_dentry_real(struct dentry *dentry)
 	return realdentry;
 }
 
+struct inode *ovl_inode_real(struct inode *inode, bool *is_upper)
+{
+	struct inode *realinode = lockless_dereference(OVL_I(inode)->upper);
+	bool isup = false;
+
+	if (!realinode)
+		realinode = OVL_I(inode)->lower;
+	else
+		isup = true;
+
+	if (is_upper)
+		*is_upper = isup;
+
+	return realinode;
+}
+
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
@@ -233,10 +249,11 @@ void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry)
 void ovl_inode_init(struct inode *inode, struct dentry *dentry)
 {
 	struct inode *realinode = d_inode(ovl_dentry_real(dentry));
-	bool is_upper = ovl_dentry_upper(dentry);
 
-	WRITE_ONCE(inode->i_private, (unsigned long) realinode |
-		   (is_upper ? OVL_ISUPPER_MASK : 0));
+	if (ovl_dentry_upper(dentry))
+		OVL_I(inode)->upper = realinode;
+	else
+		OVL_I(inode)->lower = realinode;
 
 	ovl_copyattr(realinode, inode);
 }
@@ -245,10 +262,16 @@ void ovl_inode_update(struct inode *inode, struct inode *upperinode)
 {
 	WARN_ON(!upperinode);
 	WARN_ON(!inode_unhashed(inode));
-	WRITE_ONCE(inode->i_private,
-		   (unsigned long) upperinode | OVL_ISUPPER_MASK);
-	if (!S_ISDIR(upperinode->i_mode))
+	/*
+	 * Make sure upperinode is consistent before making it visible to
+	 * ovl_inode_real();
+	 */
+	smp_wmb();
+	OVL_I(inode)->upper = upperinode;
+	if (!S_ISDIR(upperinode->i_mode)) {
+		inode->i_private = upperinode;
 		__insert_inode_hash(inode, (unsigned long) upperinode);
+	}
 }
 
 void ovl_dentry_version_inc(struct dentry *dentry)

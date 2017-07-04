@@ -453,12 +453,12 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 
 static int ovl_inode_test(struct inode *inode, void *data)
 {
-	return ovl_inode_real(inode, NULL) == data;
+	return inode->i_private == data;
 }
 
 static int ovl_inode_set(struct inode *inode, void *data)
 {
-	inode->i_private = (void *) (((unsigned long) data) | OVL_ISUPPER_MASK);
+	inode->i_private = data;
 	return 0;
 }
 

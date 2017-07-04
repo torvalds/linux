@@ -171,6 +171,9 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 {
 	struct ovl_inode *oi = kmem_cache_alloc(ovl_inode_cachep, GFP_KERNEL);
 
+	oi->upper = NULL;
+	oi->lower = NULL;
+
 	return &oi->vfs_inode;
 }
 
