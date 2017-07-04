@@ -84,46 +84,22 @@ static int nfp_is_ready(struct nfp_pf *pf)
  * nfp_net_get_mac_addr() - Get the MAC address.
  * @pf:       NFP PF handle
  * @port:     NFP port structure
- * @id:	      NFP port id
  *
  * First try to get the MAC address from NSP ETH table. If that
- * fails try HWInfo.  As a last resort generate a random address.
+ * fails generate a random address.
  */
-void
-nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_port *port, unsigned int id)
+void nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_port *port)
 {
 	struct nfp_eth_table_port *eth_port;
-	u8 mac_addr[ETH_ALEN];
-	const char *mac_str;
-	char name[32];
 
 	eth_port = __nfp_port_get_eth_port(port);
-	if (eth_port) {
-		ether_addr_copy(port->netdev->dev_addr, eth_port->mac_addr);
-		ether_addr_copy(port->netdev->perm_addr, eth_port->mac_addr);
-		return;
-	}
-
-	snprintf(name, sizeof(name), "eth%d.mac", id);
-
-	mac_str = nfp_hwinfo_lookup(pf->hwinfo, name);
-	if (!mac_str) {
-		nfp_warn(pf->cpp, "Can't lookup MAC address. Generate\n");
+	if (!eth_port) {
 		eth_hw_addr_random(port->netdev);
 		return;
 	}
 
-	if (sscanf(mac_str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-		   &mac_addr[0], &mac_addr[1], &mac_addr[2],
-		   &mac_addr[3], &mac_addr[4], &mac_addr[5]) != 6) {
-		nfp_warn(pf->cpp, "Can't parse MAC address (%s). Generate.\n",
-			 mac_str);
-		eth_hw_addr_random(port->netdev);
-		return;
-	}
-
-	ether_addr_copy(port->netdev->dev_addr, mac_addr);
-	ether_addr_copy(port->netdev->perm_addr, mac_addr);
+	ether_addr_copy(port->netdev->dev_addr, eth_port->mac_addr);
+	ether_addr_copy(port->netdev->perm_addr, eth_port->mac_addr);
 }
 
 static struct nfp_eth_table_port *
