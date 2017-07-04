@@ -160,11 +160,14 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 		goto out;
 
 	fpga_device_id = MLX5_CAP_FPGA(fdev->mdev, fpga_device);
-	mlx5_fpga_info(fdev, "%s:%u; %s image, version %u\n",
+	mlx5_fpga_info(fdev, "%s:%u; %s image, version %u; SBU %06x:%04x version %d\n",
 		       mlx5_fpga_device_name(fpga_device_id),
 		       fpga_device_id,
 		       mlx5_fpga_image_name(fdev->last_oper_image),
-		       MLX5_CAP_FPGA(fdev->mdev, image_version));
+		       MLX5_CAP_FPGA(fdev->mdev, image_version),
+		       MLX5_CAP_FPGA(fdev->mdev, ieee_vendor_id),
+		       MLX5_CAP_FPGA(fdev->mdev, sandbox_product_id),
+		       MLX5_CAP_FPGA(fdev->mdev, sandbox_product_version));
 
 	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
 	err = mlx5_core_reserve_gids(mdev, max_num_qps);
