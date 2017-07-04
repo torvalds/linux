@@ -37,6 +37,16 @@ config SENSORS_ADM1275
 	  This driver can also be built as a module. If so, the module will
 	  be called adm1275.
 
+config SENSORS_IR35221
+	tristate "Infineon IR35221"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for the
+	  Infineon IR35221 controller.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ir35521.
+
 config SENSORS_LM25066
 	tristate "National Semiconductor LM25066 and compatibles"
 	default n
