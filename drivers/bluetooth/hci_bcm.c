@@ -176,7 +176,7 @@ static irqreturn_t bcm_host_wake(int irq, void *data)
 static int bcm_request_irq(struct bcm_data *bcm)
 {
 	struct bcm_device *bdev = bcm->dev;
-	int err = 0;
+	int err;
 
 	/* If this is not a platform device, do not enable PM functionalities */
 	mutex_lock(&bcm_device_lock);
@@ -185,21 +185,23 @@ static int bcm_request_irq(struct bcm_data *bcm)
 		goto unlock;
 	}
 
-	if (bdev->irq > 0) {
-		err = devm_request_irq(&bdev->pdev->dev, bdev->irq,
-				       bcm_host_wake, IRQF_TRIGGER_RISING,
-				       "host_wake", bdev);
-		if (err)
-			goto unlock;
-
-		device_init_wakeup(&bdev->pdev->dev, true);
-
-		pm_runtime_set_autosuspend_delay(&bdev->pdev->dev,
-						 BCM_AUTOSUSPEND_DELAY);
-		pm_runtime_use_autosuspend(&bdev->pdev->dev);
-		pm_runtime_set_active(&bdev->pdev->dev);
-		pm_runtime_enable(&bdev->pdev->dev);
+	if (bdev->irq <= 0) {
+		err = -EOPNOTSUPP;
+		goto unlock;
 	}
+
+	err = devm_request_irq(&bdev->pdev->dev, bdev->irq, bcm_host_wake,
+			       IRQF_TRIGGER_RISING, "host_wake", bdev);
+	if (err)
+		goto unlock;
+
+	device_init_wakeup(&bdev->pdev->dev, true);
+
+	pm_runtime_set_autosuspend_delay(&bdev->pdev->dev,
+					 BCM_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(&bdev->pdev->dev);
+	pm_runtime_set_active(&bdev->pdev->dev);
+	pm_runtime_enable(&bdev->pdev->dev);
 
 unlock:
 	mutex_unlock(&bcm_device_lock);
