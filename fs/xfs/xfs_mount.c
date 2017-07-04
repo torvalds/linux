@@ -74,20 +74,19 @@ xfs_uuid_mount(
 	int			hole, i;
 
 	/* Publish UUID in struct super_block */
-	BUILD_BUG_ON(sizeof(mp->m_super->s_uuid) != sizeof(uuid_t));
-	memcpy(&mp->m_super->s_uuid, uuid, sizeof(uuid_t));
+	uuid_copy(&mp->m_super->s_uuid, uuid);
 
 	if (mp->m_flags & XFS_MOUNT_NOUUID)
 		return 0;
 
-	if (uuid_is_nil(uuid)) {
-		xfs_warn(mp, "Filesystem has nil UUID - can't mount");
+	if (uuid_is_null(uuid)) {
+		xfs_warn(mp, "Filesystem has null UUID - can't mount");
 		return -EINVAL;
 	}
 
 	mutex_lock(&xfs_uuid_table_mutex);
 	for (i = 0, hole = -1; i < xfs_uuid_table_size; i++) {
-		if (uuid_is_nil(&xfs_uuid_table[i])) {
+		if (uuid_is_null(&xfs_uuid_table[i])) {
 			hole = i;
 			continue;
 		}
@@ -124,7 +123,7 @@ xfs_uuid_unmount(
 
 	mutex_lock(&xfs_uuid_table_mutex);
 	for (i = 0; i < xfs_uuid_table_size; i++) {
-		if (uuid_is_nil(&xfs_uuid_table[i]))
+		if (uuid_is_null(&xfs_uuid_table[i]))
 			continue;
 		if (!uuid_equal(uuid, &xfs_uuid_table[i]))
 			continue;
@@ -793,7 +792,10 @@ xfs_mountfs(
 	 *  Copies the low order bits of the timestamp and the randomly
 	 *  set "sequence" number out of a UUID.
 	 */
-	uuid_getnodeuniq(&sbp->sb_uuid, mp->m_fixedfsid);
+	mp->m_fixedfsid[0] =
+		(get_unaligned_be16(&sbp->sb_uuid.b[8]) << 16) |
+		 get_unaligned_be16(&sbp->sb_uuid.b[4]);
+	mp->m_fixedfsid[1] = get_unaligned_be32(&sbp->sb_uuid.b[0]);
 
 	mp->m_dmevmask = 0;	/* not persistent; set after each mount */
 

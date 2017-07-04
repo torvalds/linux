@@ -29,10 +29,9 @@ enum _dsm_rst_type {
 	HNS_ROCE_RESET_FUNC     = 0x7,
 };
 
-const u8 hns_dsaf_acpi_dsm_uuid[] = {
-	0x1A, 0xAA, 0x85, 0x1A, 0x93, 0xE2, 0x5E, 0x41,
-	0x8E, 0x28, 0x8D, 0x69, 0x0A, 0x0F, 0x82, 0x0A
-};
+static const guid_t hns_dsaf_acpi_dsm_guid =
+	GUID_INIT(0x1A85AA1A, 0xE293, 0x415E,
+		  0x8E, 0x28, 0x8D, 0x69, 0x0A, 0x0F, 0x82, 0x0A);
 
 static void dsaf_write_sub(struct dsaf_device *dsaf_dev, u32 reg, u32 val)
 {
@@ -151,7 +150,7 @@ static void hns_dsaf_acpi_srst_by_port(struct dsaf_device *dsaf_dev, u8 op_type,
 	argv4.package.elements = obj_args;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(dsaf_dev->dev),
-				hns_dsaf_acpi_dsm_uuid, 0, op_type, &argv4);
+				&hns_dsaf_acpi_dsm_guid, 0, op_type, &argv4);
 	if (!obj) {
 		dev_warn(dsaf_dev->dev, "reset port_type%d port%d fail!",
 			 port_type, port);
@@ -434,7 +433,7 @@ static phy_interface_t hns_mac_get_phy_if_acpi(struct hns_mac_cb *mac_cb)
 	argv4.package.elements = &obj_args,
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
-				hns_dsaf_acpi_dsm_uuid, 0,
+				&hns_dsaf_acpi_dsm_guid, 0,
 				HNS_OP_GET_PORT_TYPE_FUNC, &argv4);
 
 	if (!obj || obj->type != ACPI_TYPE_INTEGER)
@@ -474,7 +473,7 @@ int hns_mac_get_sfp_prsnt_acpi(struct hns_mac_cb *mac_cb, int *sfp_prsnt)
 	argv4.package.elements = &obj_args,
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dev),
-				hns_dsaf_acpi_dsm_uuid, 0,
+				&hns_dsaf_acpi_dsm_guid, 0,
 				HNS_OP_GET_SFP_STAT_FUNC, &argv4);
 
 	if (!obj || obj->type != ACPI_TYPE_INTEGER)
@@ -565,7 +564,7 @@ hns_mac_config_sds_loopback_acpi(struct hns_mac_cb *mac_cb, bool en)
 	argv4.package.elements = obj_args;
 
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(mac_cb->dsaf_dev->dev),
-				hns_dsaf_acpi_dsm_uuid, 0,
+				&hns_dsaf_acpi_dsm_guid, 0,
 				HNS_OP_SERDES_LP_FUNC, &argv4);
 	if (!obj) {
 		dev_warn(mac_cb->dsaf_dev->dev, "set port%d serdes lp fail!",
