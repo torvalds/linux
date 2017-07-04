@@ -62,6 +62,7 @@ configure specific aspects of kernel behavior to your liking.
    ras
    pm/index
    thunderbolt
+   LSM/index
 
 .. only::  subproject and html
 

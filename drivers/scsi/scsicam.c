@@ -116,8 +116,8 @@ EXPORT_SYMBOL(scsicam_bios_param);
  * @hds: put heads here
  * @secs: put sectors here
  *
- * Description: determine the BIOS mapping/geometry used to create the partition
- *      table, storing the results in *cyls, *hds, and *secs 
+ * Determine the BIOS mapping/geometry used to create the partition
+ * table, storing the results in @cyls, @hds, and @secs
  *
  * Returns: -1 on failure, 0 on success.
  */

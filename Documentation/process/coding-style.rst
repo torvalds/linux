@@ -980,8 +980,8 @@ do so, though, and doing so unnecessarily can limit optimization.
 
 When writing a single inline assembly statement containing multiple
 instructions, put each instruction on a separate line in a separate quoted
-string, and end each string except the last with \n\t to properly indent the
-next instruction in the assembly output:
+string, and end each string except the last with ``\n\t`` to properly indent
+the next instruction in the assembly output:
 
 .. code-block:: c
 

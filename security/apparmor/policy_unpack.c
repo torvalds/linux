@@ -13,7 +13,7 @@
  * License.
  *
  * AppArmor uses a serialized binary format for loading policy. To find
- * policy format documentation look in Documentation/security/apparmor.txt
+ * policy format documentation see Documentation/admin-guide/LSM/apparmor.rst
  * All policy is validated before it is used.
  */
 

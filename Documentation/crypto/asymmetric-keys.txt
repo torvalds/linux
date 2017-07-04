@@ -265,7 +265,7 @@ mandatory:
 
      The caller passes a pointer to the following struct with all of the fields
      cleared, except for data, datalen and quotalen [see
-     Documentation/security/keys.txt].
+     Documentation/security/keys/core.rst].
 
 	struct key_preparsed_payload {
 		char		*description;
