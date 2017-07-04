@@ -364,7 +364,7 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
-static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
+static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool active)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_plane *plane;
@@ -413,6 +413,17 @@ retry:
 		ret = __drm_atomic_helper_set_config(mode_set, state);
 		if (ret != 0)
 			goto out_state;
+
+		/*
+		 * __drm_atomic_helper_set_config() sets active when a
+		 * mode is set, unconditionally clear it if we force DPMS off
+		 */
+		if (!active) {
+			struct drm_crtc *crtc = mode_set->crtc;
+			struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+			crtc_state->active = false;
+		}
 	}
 
 	ret = drm_atomic_commit(state);
@@ -483,7 +494,7 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 
 	if (drm_drv_uses_atomic_modeset(dev))
-		return restore_fbdev_mode_atomic(fb_helper);
+		return restore_fbdev_mode_atomic(fb_helper, true);
 	else
 		return restore_fbdev_mode_legacy(fb_helper);
 }
@@ -602,22 +613,12 @@ static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
 static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
 #endif
 
-static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
+static void dpms_legacy(struct drm_fb_helper *fb_helper, int dpms_mode)
 {
-	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
 	int i, j;
-
-	/*
-	 * For each CRTC in this fb, turn the connectors on/off.
-	 */
-	mutex_lock(&fb_helper->lock);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
-		mutex_unlock(&fb_helper->lock);
-		return;
-	}
 
 	drm_modeset_lock_all(dev);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
@@ -635,6 +636,25 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 		}
 	}
 	drm_modeset_unlock_all(dev);
+}
+
+static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+
+	/*
+	 * For each CRTC in this fb, turn the connectors on/off.
+	 */
+	mutex_lock(&fb_helper->lock);
+	if (!drm_fb_helper_is_bound(fb_helper)) {
+		mutex_unlock(&fb_helper->lock);
+		return;
+	}
+
+	if (drm_drv_uses_atomic_modeset(fb_helper->dev))
+		restore_fbdev_mode_atomic(fb_helper, dpms_mode == DRM_MODE_DPMS_ON);
+	else
+		dpms_legacy(fb_helper, dpms_mode);
 	mutex_unlock(&fb_helper->lock);
 }
 
@@ -1489,70 +1509,36 @@ int drm_fb_helper_set_par(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_set_par);
 
-static int pan_display_atomic(struct fb_var_screeninfo *var,
-			      struct fb_info *info)
+static void pan_set(struct drm_fb_helper *fb_helper, int x, int y)
 {
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
-	struct drm_atomic_state *state;
-	struct drm_plane *plane;
-	int i, ret;
-	unsigned int plane_mask;
-	struct drm_modeset_acquire_ctx ctx;
+	int i;
 
-	drm_modeset_acquire_init(&ctx, 0);
-
-	state = drm_atomic_state_alloc(dev);
-	if (!state) {
-		ret = -ENOMEM;
-		goto out_ctx;
-	}
-
-	state->acquire_ctx = &ctx;
-retry:
-	plane_mask = 0;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set;
 
 		mode_set = &fb_helper->crtc_info[i].mode_set;
 
-		mode_set->x = var->xoffset;
-		mode_set->y = var->yoffset;
-
-		ret = __drm_atomic_helper_set_config(mode_set, state);
-		if (ret != 0)
-			goto out_state;
-
-		plane = mode_set->crtc->primary;
-		plane_mask |= (1 << drm_plane_index(plane));
-		plane->old_fb = plane->fb;
+		mode_set->x = x;
+		mode_set->y = y;
 	}
+}
 
-	ret = drm_atomic_commit(state);
-	if (ret != 0)
-		goto out_state;
+static int pan_display_atomic(struct fb_var_screeninfo *var,
+			      struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	int ret;
 
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
+	pan_set(fb_helper, var->xoffset, var->yoffset);
 
-out_state:
-	drm_atomic_clean_old_fb(dev, plane_mask, ret);
-
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	drm_atomic_state_put(state);
-out_ctx:
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	ret = restore_fbdev_mode_atomic(fb_helper, true);
+	if (!ret) {
+		info->var.xoffset = var->xoffset;
+		info->var.yoffset = var->yoffset;
+	} else
+		pan_set(fb_helper, info->var.xoffset, info->var.yoffset);
 
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_modeset_backoff(&ctx);
-
-	goto retry;
 }
 
 static int pan_display_legacy(struct fb_var_screeninfo *var,
@@ -2453,7 +2439,6 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
  */
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
-	struct drm_device *dev = fb_helper->dev;
 	int err = 0;
 
 	if (!drm_fbdev_emulation)
