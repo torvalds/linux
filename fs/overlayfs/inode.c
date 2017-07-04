@@ -490,6 +490,10 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 	}
 	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
 	ovl_inode_init(inode, upperdentry, lowerdentry);
+
+	if (upperdentry && ovl_is_impuredir(upperdentry))
+		ovl_set_flag(OVL_IMPURE, inode);
+
 	if (inode->i_state & I_NEW)
 		unlock_new_inode(inode);
 out:

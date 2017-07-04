@@ -341,7 +341,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	unsigned int ctr = 0;
 	struct inode *inode = NULL;
 	bool upperopaque = false;
-	bool upperimpure = false;
 	char *upperredirect = NULL;
 	struct dentry *this;
 	unsigned int i;
@@ -386,8 +385,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 				poe = roe;
 		}
 		upperopaque = d.opaque;
-		if (upperdentry && d.is_dir)
-			upperimpure = ovl_is_impuredir(upperdentry);
 	}
 
 	if (!d.stop && poe->numlower) {
@@ -434,7 +431,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_put;
 
 	oe->opaque = upperopaque;
-	oe->impure = upperimpure;
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);
 	dentry->d_fsdata = oe;
 

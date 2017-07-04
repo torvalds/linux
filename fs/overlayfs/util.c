@@ -178,13 +178,6 @@ bool ovl_dentry_is_opaque(struct dentry *dentry)
 	return oe->opaque;
 }
 
-bool ovl_dentry_is_impure(struct dentry *dentry)
-{
-	struct ovl_entry *oe = dentry->d_fsdata;
-
-	return oe->impure;
-}
-
 bool ovl_dentry_is_whiteout(struct dentry *dentry)
 {
 	return !dentry->d_inode && ovl_dentry_is_opaque(dentry);
@@ -344,9 +337,8 @@ int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
 {
 	int err;
-	struct ovl_entry *oe = dentry->d_fsdata;
 
-	if (oe->impure)
+	if (ovl_test_flag(OVL_IMPURE, d_inode(dentry)))
 		return 0;
 
 	/*
@@ -356,7 +348,17 @@ int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry)
 	err = ovl_check_setxattr(dentry, upperdentry, OVL_XATTR_IMPURE,
 				 "y", 1, 0);
 	if (!err)
-		oe->impure = true;
+		ovl_set_flag(OVL_IMPURE, d_inode(dentry));
 
 	return err;
+}
+
+void ovl_set_flag(unsigned long flag, struct inode *inode)
+{
+	set_bit(flag, &OVL_I(inode)->flags);
+}
+
+bool ovl_test_flag(unsigned long flag, struct inode *inode)
+{
+	return test_bit(flag, &OVL_I(inode)->flags);
 }

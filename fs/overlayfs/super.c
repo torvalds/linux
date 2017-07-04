@@ -170,6 +170,7 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 	struct ovl_inode *oi = kmem_cache_alloc(ovl_inode_cachep, GFP_KERNEL);
 
 	oi->redirect = NULL;
+	oi->flags = 0;
 	oi->__upperdentry = NULL;
 	oi->lower = NULL;
 
@@ -1004,7 +1005,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	kfree(lowertmp);
 
 	if (upperpath.dentry) {
-		oe->impure = ovl_is_impuredir(upperpath.dentry);
+		if (ovl_is_impuredir(upperpath.dentry))
+			ovl_set_flag(OVL_IMPURE, d_inode(root_dentry));
 	}
 	for (i = 0; i < numlower; i++) {
 		oe->lowerstack[i].dentry = stack[i].dentry;

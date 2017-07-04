@@ -41,7 +41,6 @@ struct ovl_entry {
 		struct {
 			u64 version;
 			bool opaque;
-			bool impure;
 			bool copying;
 		};
 		struct rcu_head rcu;
@@ -54,6 +53,7 @@ struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
 
 struct ovl_inode {
 	const char *redirect;
+	unsigned long flags;
 	struct inode vfs_inode;
 	struct dentry *__upperdentry;
 	struct inode *lower;
