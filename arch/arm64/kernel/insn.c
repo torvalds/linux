@@ -255,6 +255,7 @@ static int __kprobes aarch64_insn_patch_text_cb(void *arg)
 	return ret;
 }
 
+static
 int __kprobes aarch64_insn_patch_text_sync(void *addrs[], u32 insns[], int cnt)
 {
 	struct aarch64_insn_patch patch = {
@@ -267,8 +268,8 @@ int __kprobes aarch64_insn_patch_text_sync(void *addrs[], u32 insns[], int cnt)
 	if (cnt <= 0)
 		return -EINVAL;
 
-	return stop_machine(aarch64_insn_patch_text_cb, &patch,
-			    cpu_online_mask);
+	return stop_machine_cpuslocked(aarch64_insn_patch_text_cb, &patch,
+				       cpu_online_mask);
 }
 
 int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)

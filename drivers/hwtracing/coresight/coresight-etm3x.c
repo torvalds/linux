@@ -587,7 +587,7 @@ static void etm_disable_sysfs(struct coresight_device *csdev)
 	 * after cpu online mask indicates the cpu is offline but before the
 	 * DYING hotplug callback is serviced by the ETM driver.
 	 */
-	get_online_cpus();
+	cpus_read_lock();
 	spin_lock(&drvdata->spinlock);
 
 	/*
@@ -597,7 +597,7 @@ static void etm_disable_sysfs(struct coresight_device *csdev)
 	smp_call_function_single(drvdata->cpu, etm_disable_hw, drvdata, 1);
 
 	spin_unlock(&drvdata->spinlock);
-	put_online_cpus();
+	cpus_read_unlock();
 
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
 }
@@ -795,7 +795,7 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata->cpu = pdata ? pdata->cpu : 0;
 
-	get_online_cpus();
+	cpus_read_lock();
 	etmdrvdata[drvdata->cpu] = drvdata;
 
 	if (smp_call_function_single(drvdata->cpu,
@@ -803,17 +803,17 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(dev, "ETM arch init failed\n");
 
 	if (!etm_count++) {
-		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
-					  "arm/coresight:starting",
-					  etm_starting_cpu, etm_dying_cpu);
-		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-						"arm/coresight:online",
-						etm_online_cpu, NULL);
+		cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
+						     "arm/coresight:starting",
+						     etm_starting_cpu, etm_dying_cpu);
+		ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+							   "arm/coresight:online",
+							   etm_online_cpu, NULL);
 		if (ret < 0)
 			goto err_arch_supported;
 		hp_online = ret;
 	}
-	put_online_cpus();
+	cpus_read_unlock();
 
 	if (etm_arch_supported(drvdata->arch) == false) {
 		ret = -EINVAL;
