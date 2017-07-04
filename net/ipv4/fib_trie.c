@@ -1463,7 +1463,7 @@ found:
 			}
 
 			if (!(fib_flags & FIB_LOOKUP_NOREF))
-				atomic_inc(&fi->fib_clntref);
+				refcount_inc(&fi->fib_clntref);
 
 			res->prefix = htonl(n->key);
 			res->prefixlen = KEYLENGTH - fa->fa_slen;

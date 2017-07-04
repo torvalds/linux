@@ -505,7 +505,7 @@ sticky_done:
 			break;
 
 		memset(opt, 0, sizeof(*opt));
-		atomic_set(&opt->refcnt, 1);
+		refcount_set(&opt->refcnt, 1);
 		opt->tot_len = sizeof(*opt) + optlen;
 		retv = -EFAULT;
 		if (copy_from_user(opt+1, optval, optlen))

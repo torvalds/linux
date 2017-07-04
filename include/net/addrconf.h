@@ -316,7 +316,7 @@ static inline struct inet6_dev *in6_dev_get(const struct net_device *dev)
 	rcu_read_lock();
 	idev = rcu_dereference(dev->ip6_ptr);
 	if (idev)
-		atomic_inc(&idev->refcnt);
+		refcount_inc(&idev->refcnt);
 	rcu_read_unlock();
 	return idev;
 }
@@ -332,36 +332,36 @@ void in6_dev_finish_destroy(struct inet6_dev *idev);
 
 static inline void in6_dev_put(struct inet6_dev *idev)
 {
-	if (atomic_dec_and_test(&idev->refcnt))
+	if (refcount_dec_and_test(&idev->refcnt))
 		in6_dev_finish_destroy(idev);
 }
 
 static inline void __in6_dev_put(struct inet6_dev *idev)
 {
-	atomic_dec(&idev->refcnt);
+	refcount_dec(&idev->refcnt);
 }
 
 static inline void in6_dev_hold(struct inet6_dev *idev)
 {
-	atomic_inc(&idev->refcnt);
+	refcount_inc(&idev->refcnt);
 }
 
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp);
 
 static inline void in6_ifa_put(struct inet6_ifaddr *ifp)
 {
-	if (atomic_dec_and_test(&ifp->refcnt))
+	if (refcount_dec_and_test(&ifp->refcnt))
 		inet6_ifa_finish_destroy(ifp);
 }
 
 static inline void __in6_ifa_put(struct inet6_ifaddr *ifp)
 {
-	atomic_dec(&ifp->refcnt);
+	refcount_dec(&ifp->refcnt);
 }
 
 static inline void in6_ifa_hold(struct inet6_ifaddr *ifp)
 {
-	atomic_inc(&ifp->refcnt);
+	refcount_inc(&ifp->refcnt);
 }
 
 
