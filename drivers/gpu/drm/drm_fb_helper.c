@@ -1317,7 +1317,6 @@ int drm_fb_helper_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
 	struct drm_mode_set *mode_set;
 	struct drm_crtc *crtc;
 	int ret = 0;
@@ -1508,12 +1507,17 @@ static int pan_display_atomic(struct fb_var_screeninfo *var,
 	struct drm_plane *plane;
 	int i, ret;
 	unsigned int plane_mask;
+	struct drm_modeset_acquire_ctx ctx;
+
+	drm_modeset_acquire_init(&ctx, 0);
 
 	state = drm_atomic_state_alloc(dev);
-	if (!state)
-		return -ENOMEM;
+	if (!state) {
+		ret = -ENOMEM;
+		goto out_ctx;
+	}
 
-	state->acquire_ctx = dev->mode_config.acquire_ctx;
+	state->acquire_ctx = &ctx;
 retry:
 	plane_mask = 0;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
@@ -1526,7 +1530,7 @@ retry:
 
 		ret = __drm_atomic_helper_set_config(mode_set, state);
 		if (ret != 0)
-			goto fail;
+			goto out_state;
 
 		plane = mode_set->crtc->primary;
 		plane_mask |= (1 << drm_plane_index(plane));
@@ -1535,23 +1539,27 @@ retry:
 
 	ret = drm_atomic_commit(state);
 	if (ret != 0)
-		goto fail;
+		goto out_state;
 
 	info->var.xoffset = var->xoffset;
 	info->var.yoffset = var->yoffset;
 
-fail:
+out_state:
 	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK)
 		goto backoff;
 
 	drm_atomic_state_put(state);
+out_ctx:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	return ret;
 
 backoff:
 	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
+	drm_modeset_backoff(&ctx);
 
 	goto retry;
 }
@@ -1564,6 +1572,7 @@ static int pan_display_legacy(struct fb_var_screeninfo *var,
 	int ret = 0;
 	int i;
 
+	drm_modeset_lock_all(fb_helper->dev);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		modeset = &fb_helper->crtc_info[i].mode_set;
 
@@ -1578,6 +1587,7 @@ static int pan_display_legacy(struct fb_var_screeninfo *var,
 			}
 		}
 	}
+	drm_modeset_unlock_all(fb_helper->dev);
 
 	return ret;
 }
@@ -1603,12 +1613,10 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 		return -EBUSY;
 	}
 
-	drm_modeset_lock_all(dev);
 	if (drm_drv_uses_atomic_modeset(dev))
 		ret = pan_display_atomic(var, info);
 	else
 		ret = pan_display_legacy(var, info);
-	drm_modeset_unlock_all(dev);
 	mutex_unlock(&fb_helper->lock);
 
 	return ret;
