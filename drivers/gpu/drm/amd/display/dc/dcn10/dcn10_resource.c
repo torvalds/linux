@@ -1358,6 +1358,19 @@ static bool construct(
 	dml_init_instance(&dc->dml, DML_PROJECT_RAVEN1);
 	dc->dcn_ip = dcn10_ip_defaults;
 	dc->dcn_soc = dcn10_soc_defaults;
+
+	dc->dcn_soc.number_of_channels = dc->ctx->asic_id.vram_width / ddr4_dram_width;
+	ASSERT(dc->dcn_soc.number_of_channels < 3);
+	if (dc->dcn_soc.number_of_channels == 0)/*old sbios bug*/
+		dc->dcn_soc.number_of_channels = 2;
+
+	if (dc->dcn_soc.number_of_channels == 1) {
+		dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 = 19.2f;
+		dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8 = 17.066f;
+		dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 = 14.933f;
+		dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 = 12.8f;
+	}
+
 	if (!dc->public.debug.disable_pplib_clock_request)
 		dcn_bw_update_from_pplib(dc);
 	dcn_bw_sync_calcs_and_dml(dc);

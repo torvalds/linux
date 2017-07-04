@@ -1215,10 +1215,6 @@ void dcn_bw_update_from_pplib(struct core_dc *dc)
 	struct dm_pp_clock_levels_with_voltage clks2 = {0};
 
 	kernel_fpu_begin();
-	dc->dcn_soc.number_of_channels = dc->ctx->asic_id.vram_width / ddr4_dram_width;
-	ASSERT(dc->dcn_soc.number_of_channels && dc->dcn_soc.number_of_channels < 3);
-	if (dc->dcn_soc.number_of_channels == 0)/*old sbios bug*/
-		dc->dcn_soc.number_of_channels = 2;
 
 	if (dm_pp_get_clock_levels_by_type_with_voltage(
 				ctx, DM_PP_CLOCK_TYPE_DISPLAY_CLK, &clks2) &&
