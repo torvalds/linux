@@ -567,8 +567,12 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		    memcmp(shname, "perf_event", 10) == 0 ||
 		    memcmp(shname, "socket", 6) == 0 ||
 		    memcmp(shname, "cgroup/", 7) == 0 ||
-		    memcmp(shname, "sockops", 7) == 0)
-			load_and_attach(shname, data->d_buf, data->d_size);
+		    memcmp(shname, "sockops", 7) == 0) {
+			ret = load_and_attach(shname, data->d_buf,
+					      data->d_size);
+			if (ret != 0)
+				goto done;
+		}
 	}
 
 	ret = 0;
