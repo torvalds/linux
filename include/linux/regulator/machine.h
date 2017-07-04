@@ -110,6 +110,10 @@ struct regulator_state {
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
  * @settling_time: Time to settle down after voltage change when voltage
  *		   change is non-linear (unit: microseconds).
+ * @settling_time_up: Time to settle down after voltage increase when voltage
+ *		      change is non-linear (unit: microseconds).
+ * @settling_time_down : Time to settle down after voltage decrease when
+ *			 voltage change is non-linear (unit: microseconds).
  * @active_discharge: Enable/disable active discharge. The enum
  *		      regulator_active_discharge values are used for
  *		      initialisation.
@@ -152,6 +156,8 @@ struct regulation_constraints {
 
 	unsigned int ramp_delay;
 	unsigned int settling_time;
+	unsigned int settling_time_up;
+	unsigned int settling_time_down;
 	unsigned int enable_time;
 
 	unsigned int active_discharge;
