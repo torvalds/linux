@@ -1966,10 +1966,9 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 		if (ret != -EBUSY)
 			return BLK_STS_IOERR;
 
-		if (op->rq) {
-			blk_mq_stop_hw_queues(op->rq->q);
-			blk_mq_delay_queue(queue->hctx, NVMEFC_QUEUE_DELAY);
-		}
+		if (op->rq)
+			blk_mq_delay_run_hw_queue(queue->hctx, NVMEFC_QUEUE_DELAY);
+
 		return BLK_STS_RESOURCE;
 	}
 
