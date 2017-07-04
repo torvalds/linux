@@ -2224,6 +2224,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb->io.ep_select = musb_flat_ep_select;
 	}
 
+	if (musb->io.quirks & MUSB_G_NO_SKB_RESERVE)
+		musb->g.quirk_avoids_skb_reserve = 1;
+
 	/* At least tusb6010 has its own offsets */
 	if (musb->ops->ep_offset)
 		musb->io.ep_offset = musb->ops->ep_offset;

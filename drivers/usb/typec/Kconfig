@@ -19,4 +19,6 @@ config TYPEC_WCOVE
 	  To compile this driver as module, choose M here: the module will be
 	  called typec_wcove
 
+source "drivers/usb/typec/ucsi/Kconfig"
+
 endmenu

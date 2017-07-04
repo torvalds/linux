@@ -11,11 +11,10 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of_device.h>
+#include <linux/phy/phy.h>
 #include <linux/reset.h>
 #include <linux/extcon.h>
 #include <linux/notifier.h>
-
-#include "ulpi_phy.h"
 
 #define ULPI_PWR_CLK_MNG_REG		0x88
 # define ULPI_PWR_OTG_COMP_DISABLE	BIT(0)

@@ -879,6 +879,8 @@ struct dev_links_info {
  *
  * @offline_disabled: If set, the device is permanently online.
  * @offline:	Set after successful invocation of bus type's .offline().
+ * @of_node_reused: Set if the device-tree node is shared with an ancestor
+ *              device.
  *
  * At the lowest level, every device in a Linux system is represented by an
  * instance of struct device. The device structure contains the information
@@ -966,6 +968,7 @@ struct device {
 
 	bool			offline_disabled:1;
 	bool			offline:1;
+	bool			of_node_reused:1;
 };
 
 static inline struct device *kobj_to_dev(struct kobject *kobj)
@@ -1144,6 +1147,7 @@ extern int device_offline(struct device *dev);
 extern int device_online(struct device *dev);
 extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 extern void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
+void device_set_of_node_from_dev(struct device *dev, const struct device *dev2);
 
 static inline int dev_num_vf(struct device *dev)
 {

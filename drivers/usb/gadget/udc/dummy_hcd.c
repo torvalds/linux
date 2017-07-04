@@ -881,22 +881,6 @@ static int dummy_pullup(struct usb_gadget *_gadget, int value)
 	unsigned long	flags;
 
 	dum = gadget_dev_to_dummy(&_gadget->dev);
-
-	if (value && dum->driver) {
-		if (mod_data.is_super_speed)
-			dum->gadget.speed = dum->driver->max_speed;
-		else if (mod_data.is_high_speed)
-			dum->gadget.speed = min_t(u8, USB_SPEED_HIGH,
-					dum->driver->max_speed);
-		else
-			dum->gadget.speed = USB_SPEED_FULL;
-		dummy_udc_update_ep0(dum);
-
-		if (dum->gadget.speed < dum->driver->max_speed)
-			dev_dbg(udc_dev(dum), "This device can perform faster"
-				" if you connect it to a %s port...\n",
-				usb_speed_string(dum->driver->max_speed));
-	}
 	dum_hcd = gadget_to_dummy_hcd(_gadget);
 
 	spin_lock_irqsave(&dum->lock, flags);
@@ -906,6 +890,28 @@ static int dummy_pullup(struct usb_gadget *_gadget, int value)
 
 	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
+}
+
+static void dummy_udc_set_speed(struct usb_gadget *_gadget,
+		enum usb_device_speed speed)
+{
+	struct dummy	*dum;
+
+	dum = gadget_dev_to_dummy(&_gadget->dev);
+
+	 if (mod_data.is_super_speed)
+		 dum->gadget.speed = min_t(u8, USB_SPEED_SUPER, speed);
+	 else if (mod_data.is_high_speed)
+		 dum->gadget.speed = min_t(u8, USB_SPEED_HIGH, speed);
+	 else
+		 dum->gadget.speed = USB_SPEED_FULL;
+
+	dummy_udc_update_ep0(dum);
+
+	if (dum->gadget.speed < speed)
+		dev_dbg(udc_dev(dum), "This device can perform faster"
+			" if you connect it to a %s port...\n",
+			usb_speed_string(speed));
 }
 
 static int dummy_udc_start(struct usb_gadget *g,
@@ -919,6 +925,7 @@ static const struct usb_gadget_ops dummy_ops = {
 	.pullup		= dummy_pullup,
 	.udc_start	= dummy_udc_start,
 	.udc_stop	= dummy_udc_stop,
+	.udc_set_speed	= dummy_udc_set_speed,
 };
 
 /*-------------------------------------------------------------------------*/
