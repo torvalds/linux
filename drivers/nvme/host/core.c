@@ -131,7 +131,7 @@ void nvme_complete_rq(struct request *req)
 {
 	if (unlikely(nvme_req(req)->status && nvme_req_needs_retry(req))) {
 		nvme_req(req)->retries++;
-		blk_mq_requeue_request(req, !blk_mq_queue_stopped(req->q));
+		blk_mq_requeue_request(req, true);
 		return;
 	}
 
@@ -2694,9 +2694,6 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 	/* Forcibly unquiesce queues to avoid blocking dispatch */
 	blk_mq_unquiesce_queue(ctrl->admin_q);
 
-	/* Forcibly start all queues to avoid having stuck requests */
-	blk_mq_start_hw_queues(ctrl->admin_q);
-
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		/*
 		 * Revalidating a dead namespace sets capacity to 0. This will
@@ -2709,16 +2706,6 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 
 		/* Forcibly unquiesce queues to avoid blocking dispatch */
 		blk_mq_unquiesce_queue(ns->queue);
-
-		/*
-		 * Forcibly start all queues to avoid having stuck requests.
-		 * Note that we must ensure the queues are not stopped
-		 * when the final removal happens.
-		 */
-		blk_mq_start_hw_queues(ns->queue);
-
-		/* draining requests in requeue list */
-		blk_mq_kick_requeue_list(ns->queue);
 	}
 	mutex_unlock(&ctrl->namespaces_mutex);
 }
@@ -2787,10 +2774,8 @@ void nvme_start_queues(struct nvme_ctrl *ctrl)
 	struct nvme_ns *ns;
 
 	mutex_lock(&ctrl->namespaces_mutex);
-	list_for_each_entry(ns, &ctrl->namespaces, list) {
+	list_for_each_entry(ns, &ctrl->namespaces, list)
 		blk_mq_unquiesce_queue(ns->queue);
-		blk_mq_kick_requeue_list(ns->queue);
-	}
 	mutex_unlock(&ctrl->namespaces_mutex);
 }
 EXPORT_SYMBOL_GPL(nvme_start_queues);
