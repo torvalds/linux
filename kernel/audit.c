@@ -1662,7 +1662,7 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 				   struct timespec64 *t, unsigned int *serial)
 {
 	if (!ctx || !auditsc_get_stamp(ctx, t, serial)) {
-		ktime_get_real_ts64(t);
+		*t = current_kernel_time64();
 		*serial = audit_serial();
 	}
 }
