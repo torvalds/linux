@@ -382,12 +382,17 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
 	struct drm_atomic_state *state;
 	int i, ret;
 	unsigned int plane_mask;
+	struct drm_modeset_acquire_ctx ctx;
+
+	drm_modeset_acquire_init(&ctx, 0);
 
 	state = drm_atomic_state_alloc(dev);
-	if (!state)
-		return -ENOMEM;
+	if (!state) {
+		ret = -ENOMEM;
+		goto out_ctx;
+	}
 
-	state->acquire_ctx = dev->mode_config.acquire_ctx;
+	state->acquire_ctx = &ctx;
 retry:
 	plane_mask = 0;
 	drm_for_each_plane(plane, dev) {
@@ -396,7 +401,7 @@ retry:
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			ret = PTR_ERR(plane_state);
-			goto fail;
+			goto out_state;
 		}
 
 		plane_state->rotation = DRM_MODE_ROTATE_0;
@@ -410,7 +415,7 @@ retry:
 
 		ret = __drm_atomic_helper_disable_plane(plane, plane_state);
 		if (ret != 0)
-			goto fail;
+			goto out_state;
 	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
@@ -418,23 +423,27 @@ retry:
 
 		ret = __drm_atomic_helper_set_config(mode_set, state);
 		if (ret != 0)
-			goto fail;
+			goto out_state;
 	}
 
 	ret = drm_atomic_commit(state);
 
-fail:
+out_state:
 	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK)
 		goto backoff;
 
 	drm_atomic_state_put(state);
+out_ctx:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	return ret;
 
 backoff:
 	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
+	drm_modeset_backoff(&ctx);
 
 	goto retry;
 }
@@ -443,8 +452,9 @@ static int restore_fbdev_mode_legacy(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_plane *plane;
-	int i;
+	int i, ret = 0;
 
+	drm_modeset_lock_all(fb_helper->dev);
 	drm_for_each_plane(plane, dev) {
 		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
 			drm_plane_force_disable(plane);
@@ -458,31 +468,30 @@ static int restore_fbdev_mode_legacy(struct drm_fb_helper *fb_helper)
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
 		struct drm_crtc *crtc = mode_set->crtc;
-		int ret;
 
 		if (crtc->funcs->cursor_set2) {
 			ret = crtc->funcs->cursor_set2(crtc, NULL, 0, 0, 0, 0, 0);
 			if (ret)
-				return ret;
+				goto out;
 		} else if (crtc->funcs->cursor_set) {
 			ret = crtc->funcs->cursor_set(crtc, NULL, 0, 0, 0);
 			if (ret)
-				return ret;
+				goto out;
 		}
 
 		ret = drm_mode_set_config_internal(mode_set);
 		if (ret)
-			return ret;
+			goto out;
 	}
+out:
+	drm_modeset_unlock_all(fb_helper->dev);
 
-	return 0;
+	return ret;
 }
 
 static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
-
-	drm_warn_on_modeset_not_all_locked(dev);
 
 	if (drm_drv_uses_atomic_modeset(dev))
 		return restore_fbdev_mode_atomic(fb_helper);
@@ -503,7 +512,6 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
  */
 int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 {
-	struct drm_device *dev = fb_helper->dev;
 	bool do_delayed;
 	int ret;
 
@@ -511,15 +519,11 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 		return -ENODEV;
 
 	mutex_lock(&fb_helper->lock);
-	drm_modeset_lock_all(dev);
-
 	ret = restore_fbdev_mode(fb_helper);
 
 	do_delayed = fb_helper->delayed_hotplug;
 	if (do_delayed)
 		fb_helper->delayed_hotplug = false;
-
-	drm_modeset_unlock_all(dev);
 	mutex_unlock(&fb_helper->lock);
 
 	if (do_delayed)
@@ -577,11 +581,9 @@ static bool drm_fb_helper_force_kernel_mode(void)
 			continue;
 
 		mutex_lock(&helper->lock);
-		drm_modeset_lock_all(dev);
 		ret = restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
-		drm_modeset_unlock_all(dev);
 		mutex_unlock(&helper->lock);
 	}
 	return error;
