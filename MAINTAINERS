@@ -12915,7 +12915,7 @@ M:	Wolfram Sang <wsa+renesas@sang-engineering.com>
 L:	linux-mmc@vger.kernel.org
 S:	Supported
 F:	drivers/mmc/host/tmio_mmc*
-F:	drivers/mmc/host/sh_mobile_sdhi.c
+F:	drivers/mmc/host/renesas_sdhi*
 F:	include/linux/mfd/tmio.h
 
 TMP401 HARDWARE MONITOR DRIVER

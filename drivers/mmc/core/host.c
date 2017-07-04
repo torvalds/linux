@@ -30,6 +30,7 @@
 #include "host.h"
 #include "slot-gpio.h"
 #include "pwrseq.h"
+#include "sdio_ops.h"
 
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
 
@@ -176,19 +177,17 @@ static void mmc_retune_timer(unsigned long data)
  */
 int mmc_of_parse(struct mmc_host *host)
 {
-	struct device_node *np;
+	struct device *dev = host->parent;
 	u32 bus_width;
 	int ret;
 	bool cd_cap_invert, cd_gpio_invert = false;
 	bool ro_cap_invert, ro_gpio_invert = false;
 
-	if (!host->parent || !host->parent->of_node)
+	if (!dev || !dev_fwnode(dev))
 		return 0;
 
-	np = host->parent->of_node;
-
 	/* "bus-width" is translated to MMC_CAP_*_BIT_DATA flags */
-	if (of_property_read_u32(np, "bus-width", &bus_width) < 0) {
+	if (device_property_read_u32(dev, "bus-width", &bus_width) < 0) {
 		dev_dbg(host->parent,
 			"\"bus-width\" property is missing, assuming 1 bit.\n");
 		bus_width = 1;
@@ -210,7 +209,7 @@ int mmc_of_parse(struct mmc_host *host)
 	}
 
 	/* f_max is obtained from the optional "max-frequency" property */
-	of_property_read_u32(np, "max-frequency", &host->f_max);
+	device_property_read_u32(dev, "max-frequency", &host->f_max);
 
 	/*
 	 * Configure CD and WP pins. They are both by default active low to
@@ -225,12 +224,12 @@ int mmc_of_parse(struct mmc_host *host)
 	 */
 
 	/* Parse Card Detection */
-	if (of_property_read_bool(np, "non-removable")) {
+	if (device_property_read_bool(dev, "non-removable")) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
-		cd_cap_invert = of_property_read_bool(np, "cd-inverted");
+		cd_cap_invert = device_property_read_bool(dev, "cd-inverted");
 
-		if (of_property_read_bool(np, "broken-cd"))
+		if (device_property_read_bool(dev, "broken-cd"))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
 		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
@@ -256,7 +255,7 @@ int mmc_of_parse(struct mmc_host *host)
 	}
 
 	/* Parse Write Protection */
-	ro_cap_invert = of_property_read_bool(np, "wp-inverted");
+	ro_cap_invert = device_property_read_bool(dev, "wp-inverted");
 
 	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &ro_gpio_invert);
 	if (!ret)
@@ -264,64 +263,64 @@ int mmc_of_parse(struct mmc_host *host)
 	else if (ret != -ENOENT && ret != -ENOSYS)
 		return ret;
 
-	if (of_property_read_bool(np, "disable-wp"))
+	if (device_property_read_bool(dev, "disable-wp"))
 		host->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
 
 	/* See the comment on CD inversion above */
 	if (ro_cap_invert ^ ro_gpio_invert)
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
-	if (of_property_read_bool(np, "cap-sd-highspeed"))
+	if (device_property_read_bool(dev, "cap-sd-highspeed"))
 		host->caps |= MMC_CAP_SD_HIGHSPEED;
-	if (of_property_read_bool(np, "cap-mmc-highspeed"))
+	if (device_property_read_bool(dev, "cap-mmc-highspeed"))
 		host->caps |= MMC_CAP_MMC_HIGHSPEED;
-	if (of_property_read_bool(np, "sd-uhs-sdr12"))
+	if (device_property_read_bool(dev, "sd-uhs-sdr12"))
 		host->caps |= MMC_CAP_UHS_SDR12;
-	if (of_property_read_bool(np, "sd-uhs-sdr25"))
+	if (device_property_read_bool(dev, "sd-uhs-sdr25"))
 		host->caps |= MMC_CAP_UHS_SDR25;
-	if (of_property_read_bool(np, "sd-uhs-sdr50"))
+	if (device_property_read_bool(dev, "sd-uhs-sdr50"))
 		host->caps |= MMC_CAP_UHS_SDR50;
-	if (of_property_read_bool(np, "sd-uhs-sdr104"))
+	if (device_property_read_bool(dev, "sd-uhs-sdr104"))
 		host->caps |= MMC_CAP_UHS_SDR104;
-	if (of_property_read_bool(np, "sd-uhs-ddr50"))
+	if (device_property_read_bool(dev, "sd-uhs-ddr50"))
 		host->caps |= MMC_CAP_UHS_DDR50;
-	if (of_property_read_bool(np, "cap-power-off-card"))
+	if (device_property_read_bool(dev, "cap-power-off-card"))
 		host->caps |= MMC_CAP_POWER_OFF_CARD;
-	if (of_property_read_bool(np, "cap-mmc-hw-reset"))
+	if (device_property_read_bool(dev, "cap-mmc-hw-reset"))
 		host->caps |= MMC_CAP_HW_RESET;
-	if (of_property_read_bool(np, "cap-sdio-irq"))
+	if (device_property_read_bool(dev, "cap-sdio-irq"))
 		host->caps |= MMC_CAP_SDIO_IRQ;
-	if (of_property_read_bool(np, "full-pwr-cycle"))
+	if (device_property_read_bool(dev, "full-pwr-cycle"))
 		host->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
-	if (of_property_read_bool(np, "keep-power-in-suspend"))
+	if (device_property_read_bool(dev, "keep-power-in-suspend"))
 		host->pm_caps |= MMC_PM_KEEP_POWER;
-	if (of_property_read_bool(np, "wakeup-source") ||
-	    of_property_read_bool(np, "enable-sdio-wakeup")) /* legacy */
+	if (device_property_read_bool(dev, "wakeup-source") ||
+	    device_property_read_bool(dev, "enable-sdio-wakeup")) /* legacy */
 		host->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
-	if (of_property_read_bool(np, "mmc-ddr-3_3v"))
+	if (device_property_read_bool(dev, "mmc-ddr-3_3v"))
 		host->caps |= MMC_CAP_3_3V_DDR;
-	if (of_property_read_bool(np, "mmc-ddr-1_8v"))
+	if (device_property_read_bool(dev, "mmc-ddr-1_8v"))
 		host->caps |= MMC_CAP_1_8V_DDR;
-	if (of_property_read_bool(np, "mmc-ddr-1_2v"))
+	if (device_property_read_bool(dev, "mmc-ddr-1_2v"))
 		host->caps |= MMC_CAP_1_2V_DDR;
-	if (of_property_read_bool(np, "mmc-hs200-1_8v"))
+	if (device_property_read_bool(dev, "mmc-hs200-1_8v"))
 		host->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
-	if (of_property_read_bool(np, "mmc-hs200-1_2v"))
+	if (device_property_read_bool(dev, "mmc-hs200-1_2v"))
 		host->caps2 |= MMC_CAP2_HS200_1_2V_SDR;
-	if (of_property_read_bool(np, "mmc-hs400-1_8v"))
+	if (device_property_read_bool(dev, "mmc-hs400-1_8v"))
 		host->caps2 |= MMC_CAP2_HS400_1_8V | MMC_CAP2_HS200_1_8V_SDR;
-	if (of_property_read_bool(np, "mmc-hs400-1_2v"))
+	if (device_property_read_bool(dev, "mmc-hs400-1_2v"))
 		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
-	if (of_property_read_bool(np, "mmc-hs400-enhanced-strobe"))
+	if (device_property_read_bool(dev, "mmc-hs400-enhanced-strobe"))
 		host->caps2 |= MMC_CAP2_HS400_ES;
-	if (of_property_read_bool(np, "no-sdio"))
+	if (device_property_read_bool(dev, "no-sdio"))
 		host->caps2 |= MMC_CAP2_NO_SDIO;
-	if (of_property_read_bool(np, "no-sd"))
+	if (device_property_read_bool(dev, "no-sd"))
 		host->caps2 |= MMC_CAP2_NO_SD;
-	if (of_property_read_bool(np, "no-mmc"))
+	if (device_property_read_bool(dev, "no-mmc"))
 		host->caps2 |= MMC_CAP2_NO_MMC;
 
-	host->dsr_req = !of_property_read_u32(np, "dsr", &host->dsr);
+	host->dsr_req = !device_property_read_u32(dev, "dsr", &host->dsr);
 	if (host->dsr_req && (host->dsr & ~0xffff)) {
 		dev_err(host->parent,
 			"device tree specified broken value for DSR: 0x%x, ignoring\n",
@@ -379,6 +378,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
+	INIT_DELAYED_WORK(&host->sdio_irq_work, sdio_irq_work);
 	setup_timer(&host->retune_timer, mmc_retune_timer, (unsigned long)host);
 
 	/*
