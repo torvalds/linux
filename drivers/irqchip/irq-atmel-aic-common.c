@@ -148,9 +148,9 @@ void __init aic_common_rtc_irq_fixup(struct device_node *root)
 	struct device_node *np;
 	void __iomem *regs;
 
-	np = of_find_compatible_node(root, NULL, "atmel,at91rm9200-rtc");
+	np = of_find_compatible_node(NULL, NULL, "atmel,at91rm9200-rtc");
 	if (!np)
-		np = of_find_compatible_node(root, NULL,
+		np = of_find_compatible_node(NULL, NULL,
 					     "atmel,at91sam9x5-rtc");
 
 	if (!np)
