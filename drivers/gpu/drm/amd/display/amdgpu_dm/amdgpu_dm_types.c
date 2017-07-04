@@ -1431,7 +1431,8 @@ void dm_drm_plane_destroy_state(struct drm_plane *plane,
 		dc_surface_release(dc_surface);
 	}
 
-	drm_atomic_helper_plane_destroy_state(plane, state);
+	__drm_atomic_helper_plane_destroy_state(state);
+	kfree(dm_plane_state);
 }
 
 static const struct drm_plane_funcs dm_plane_funcs = {
