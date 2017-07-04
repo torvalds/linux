@@ -79,6 +79,7 @@
 #include "l2t.h"
 #include "sched.h"
 #include "cxgb4_tc_u32.h"
+#include "cxgb4_ptp.h"
 
 char cxgb4_driver_name[] = KBUILD_MODNAME;
 
@@ -868,6 +869,14 @@ static int setup_sge_queues(struct adapter *adap)
 
 		err = t4_sge_alloc_ctrl_txq(adap, &s->ctrlq[i], adap->port[i],
 					    s->fw_evtq.cntxt_id, cmplqid);
+		if (err)
+			goto freeout;
+	}
+
+	if (!is_t4(adap->params.chip)) {
+		err = t4_sge_alloc_eth_txq(adap, &s->ptptxq, adap->port[0],
+					   netdev_get_tx_queue(adap->port[0], 0)
+					   , s->fw_evtq.cntxt_id);
 		if (err)
 			goto freeout;
 	}
@@ -2438,6 +2447,7 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 	unsigned int mbox;
 	int ret = 0, prtad, devad;
 	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
 	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&req->ifr_data;
 
 	switch (cmd) {
@@ -2475,18 +2485,69 @@ static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 				   sizeof(pi->tstamp_config)))
 			return -EFAULT;
 
-		switch (pi->tstamp_config.rx_filter) {
-		case HWTSTAMP_FILTER_NONE:
+		if (!is_t4(adapter->params.chip)) {
+			switch (pi->tstamp_config.tx_type) {
+			case HWTSTAMP_TX_OFF:
+			case HWTSTAMP_TX_ON:
+				break;
+			default:
+				return -ERANGE;
+			}
+
+			switch (pi->tstamp_config.rx_filter) {
+			case HWTSTAMP_FILTER_NONE:
+				pi->rxtstamp = false;
+				break;
+			case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+			case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+				cxgb4_ptprx_timestamping(pi, pi->port_id,
+							 PTP_TS_L4);
+				break;
+			case HWTSTAMP_FILTER_PTP_V2_EVENT:
+				cxgb4_ptprx_timestamping(pi, pi->port_id,
+							 PTP_TS_L2_L4);
+				break;
+			case HWTSTAMP_FILTER_ALL:
+			case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+			case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+			case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+			case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+				pi->rxtstamp = true;
+				break;
+			default:
+				pi->tstamp_config.rx_filter =
+					HWTSTAMP_FILTER_NONE;
+				return -ERANGE;
+			}
+
+			if ((pi->tstamp_config.tx_type == HWTSTAMP_TX_OFF) &&
+			    (pi->tstamp_config.rx_filter ==
+				HWTSTAMP_FILTER_NONE)) {
+				if (cxgb4_ptp_txtype(adapter, pi->port_id) >= 0)
+					pi->ptp_enable = false;
+			}
+
+			if (pi->tstamp_config.rx_filter !=
+				HWTSTAMP_FILTER_NONE) {
+				if (cxgb4_ptp_redirect_rx_packet(adapter,
+								 pi) >= 0)
+					pi->ptp_enable = true;
+			}
+		} else {
+			/* For T4 Adapters */
+			switch (pi->tstamp_config.rx_filter) {
+			case HWTSTAMP_FILTER_NONE:
 			pi->rxtstamp = false;
 			break;
-		case HWTSTAMP_FILTER_ALL:
+			case HWTSTAMP_FILTER_ALL:
 			pi->rxtstamp = true;
 			break;
-		default:
-			pi->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+			default:
+			pi->tstamp_config.rx_filter =
+			HWTSTAMP_FILTER_NONE;
 			return -ERANGE;
+			}
 		}
-
 		return copy_to_user(req->ifr_data, &pi->tstamp_config,
 				    sizeof(pi->tstamp_config)) ?
 			-EFAULT : 0;
@@ -4239,6 +4300,9 @@ static void cfg_queues(struct adapter *adap)
 
 	for (i = 0; i < ARRAY_SIZE(s->ctrlq); i++)
 		s->ctrlq[i].q.size = 512;
+
+	if (!is_t4(adap->params.chip))
+		s->ptptxq.q.size = 8;
 
 	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
 	init_rspq(adap, &s->intrq, 0, 1, 512, 64);
