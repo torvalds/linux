@@ -212,7 +212,7 @@
 	clock_in_out = "output";
 	snps,reset-gpio = <&gpio3 12 0>;
 	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 50000>;
+	snps,reset-delays-us = <0 50000 50000>;
 	//assigned-clocks = <&cru SCLK_RMII_SRC>;
 	//assigned-clock-parents = <&clkin_gmac>;
 	pinctrl-names = "default";
