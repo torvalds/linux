@@ -214,7 +214,35 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		    adev->mman.buffer_funcs_ring &&
 		    adev->mman.buffer_funcs_ring->ready == false) {
 			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_CPU);
+		} else if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+			   !(abo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)) {
+			unsigned fpfn = adev->mc.visible_vram_size >> PAGE_SHIFT;
+			struct drm_mm_node *node = bo->mem.mm_node;
+			unsigned long pages_left;
+
+			for (pages_left = bo->mem.num_pages;
+			     pages_left;
+			     pages_left -= node->size, node++) {
+				if (node->start < fpfn)
+					break;
+			}
+
+			if (!pages_left)
+				goto gtt;
+
+			/* Try evicting to the CPU inaccessible part of VRAM
+			 * first, but only set GTT as busy placement, so this
+			 * BO will be evicted to GTT rather than causing other
+			 * BOs to be evicted from VRAM
+			 */
+			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM |
+							 AMDGPU_GEM_DOMAIN_GTT);
+			abo->placements[0].fpfn = fpfn;
+			abo->placements[0].lpfn = 0;
+			abo->placement.busy_placement = &abo->placements[1];
+			abo->placement.num_busy_placement = 1;
 		} else {
+gtt:
 			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
 		}
 		break;
