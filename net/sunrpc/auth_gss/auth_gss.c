@@ -117,14 +117,14 @@ static const struct rpc_pipe_ops gss_upcall_ops_v1;
 static inline struct gss_cl_ctx *
 gss_get_ctx(struct gss_cl_ctx *ctx)
 {
-	atomic_inc(&ctx->count);
+	refcount_inc(&ctx->count);
 	return ctx;
 }
 
 static inline void
 gss_put_ctx(struct gss_cl_ctx *ctx)
 {
-	if (atomic_dec_and_test(&ctx->count))
+	if (refcount_dec_and_test(&ctx->count))
 		gss_free_ctx(ctx);
 }
 
@@ -200,7 +200,7 @@ gss_alloc_context(void)
 		ctx->gc_proc = RPC_GSS_PROC_DATA;
 		ctx->gc_seq = 1;	/* NetApp 6.4R1 doesn't accept seq. no. 0 */
 		spin_lock_init(&ctx->gc_seq_lock);
-		atomic_set(&ctx->count,1);
+		refcount_set(&ctx->count,1);
 	}
 	return ctx;
 }
