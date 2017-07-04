@@ -2784,7 +2784,7 @@ static int acpi_ipmi_probe(struct platform_device *dev)
 
 static int ipmi_probe(struct platform_device *dev)
 {
-	if (of_ipmi_probe(dev) == 0)
+	if (dev->dev.of_node && of_ipmi_probe(dev) == 0)
 		return 0;
 
 	if (acpi_ipmi_probe(dev) == 0)
