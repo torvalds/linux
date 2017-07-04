@@ -1382,13 +1382,13 @@ static inline int cmd_address_audit(struct parser_exec_state *s,
 			ret = -EINVAL;
 			goto err;
 		}
-	} else if ((!vgpu_gmadr_is_valid(s->vgpu, guest_gma)) ||
-			(!vgpu_gmadr_is_valid(s->vgpu,
-					      guest_gma + op_size - 1))) {
+	} else if (!intel_gvt_ggtt_validate_range(vgpu, guest_gma, op_size)) {
 		ret = -EINVAL;
 		goto err;
 	}
+
 	return 0;
+
 err:
 	gvt_vgpu_err("cmd_parser: Malicious %s detected, addr=0x%lx, len=%d!\n",
 			s->info->name, guest_gma, op_size);
