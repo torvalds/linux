@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017 - Vikas MANOCHA <vikas.manocha@st.com>
+ *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
  * licensing only applies to this file, and not this project as a
@@ -14,7 +16,7 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *  Or, alternatively,
+ * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
  *     obtaining a copy of this software and associated documentation
@@ -39,31 +41,34 @@
  */
 
 /dts-v1/;
-
-#include "rk1108.dtsi"
+#include "stm32f746.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
-	model = "Rockchip RK1108 Evaluation board";
-	compatible = "rockchip,rk1108-evb", "rockchip,rk1108";
-
-	memory@60000000 {
-		device_type = "memory";
-		reg = <0x60000000 0x08000000>;
-	};
+	model = "STMicroelectronics STM32F769-DISCO board";
+	compatible = "st,stm32f769-disco", "st,stm32f7";
 
 	chosen {
-		stdout-path = "serial2:1500000n8";
+		bootargs = "root=/dev/ram";
+		stdout-path = "serial0:115200n8";
 	};
+
+	memory {
+		reg = <0xC0000000 0x1000000>;
+	};
+
+	aliases {
+		serial0 = &usart1;
+	};
+
 };
 
-&uart0 {
-	status = "okay";
+&clk_hse {
+	clock-frequency = <25000000>;
 };
 
-&uart1 {
-	status = "okay";
-};
-
-&uart2 {
+&usart1 {
+	pinctrl-0 = <&usart1_pins_a>;
+	pinctrl-names = "default";
 	status = "okay";
 };

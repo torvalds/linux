@@ -150,42 +150,37 @@
 		};
 
 		/* OTG */
-		usb1_phy: phy@12500000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l4>;
-		};
-
-		usb3_phy: phy@12520000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l23>;
-		};
-
-		usb4_phy: phy@12530000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l23>;
-		};
-
-		gadget1: gadget@12500000 {
+		usb@12500000 {
 			status = "ok";
+			dr_mode = "otg";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l4>;
+				};
+			};
 		};
 
-		/* OTG */
-		usb1: usb@12500000 {
-			status = "ok";
-		};
-
-		usb3: usb@12520000 {
+		usb@12520000 {
 			status = "okay";
+			dr_mode = "host";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l23>;
+				};
+			};
 		};
 
-		usb4: usb@12530000 {
+		usb@12530000 {
 			status = "okay";
+			dr_mode = "host";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l23>;
+				};
+			};
 		};
 
 		/* on board fixed 3.3v supply */

@@ -45,13 +45,11 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/include/ "meson.dtsi"
+#include "meson.dtsi"
 
 / {
 	model = "Amlogic Meson6 SoC";
 	compatible = "amlogic,meson6";
-
-	interrupt-parent = <&gic>;
 
 	cpus {
 		#address-cells = <1>;

@@ -886,12 +886,10 @@
 			};
 
 			timer: timer@1e782000 {
+				/* This timer is a Faraday FTTMR010 derivative */
 				compatible = "aspeed,ast2400-timer";
 				reg = <0x1e782000 0x90>;
-				// The moxart_timer driver registers only one
-				// interrupt and assumes it's for timer 1
-				//interrupts = <16 17 18 35 36 37 38 39>;
-				interrupts = <16>;
+				interrupts = <16 17 18 35 36 37 38 39>;
 				clocks = <&clk_apb>;
 				clock-names = "PCLK";
 			};
