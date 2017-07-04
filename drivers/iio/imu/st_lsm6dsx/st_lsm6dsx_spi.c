@@ -115,6 +115,7 @@ MODULE_DEVICE_TABLE(spi, st_lsm6dsx_spi_id_table);
 static struct spi_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_spi",
+		.pm = &st_lsm6dsx_pm_ops,
 		.of_match_table = of_match_ptr(st_lsm6dsx_spi_of_match),
 	},
 	.probe = st_lsm6dsx_spi_probe,

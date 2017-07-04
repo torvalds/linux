@@ -2881,29 +2881,25 @@ static int __init comedi_init(void)
 	retval = register_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 					COMEDI_NUM_MINORS, "comedi");
 	if (retval)
-		return -EIO;
+		return retval;
+
 	cdev_init(&comedi_cdev, &comedi_fops);
 	comedi_cdev.owner = THIS_MODULE;
 
 	retval = kobject_set_name(&comedi_cdev.kobj, "comedi");
-	if (retval) {
-		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-					 COMEDI_NUM_MINORS);
-		return retval;
-	}
+	if (retval)
+		goto out_unregister_chrdev_region;
 
-	if (cdev_add(&comedi_cdev, MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS)) {
-		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-					 COMEDI_NUM_MINORS);
-		return -EIO;
-	}
+	retval = cdev_add(&comedi_cdev, MKDEV(COMEDI_MAJOR, 0),
+			  COMEDI_NUM_MINORS);
+	if (retval)
+		goto out_unregister_chrdev_region;
+
 	comedi_class = class_create(THIS_MODULE, "comedi");
 	if (IS_ERR(comedi_class)) {
+		retval = PTR_ERR(comedi_class);
 		pr_err("failed to create class\n");
-		cdev_del(&comedi_cdev);
-		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-					 COMEDI_NUM_MINORS);
-		return PTR_ERR(comedi_class);
+		goto out_cdev_del;
 	}
 
 	comedi_class->dev_groups = comedi_dev_groups;
@@ -2914,11 +2910,8 @@ static int __init comedi_init(void)
 
 		dev = comedi_alloc_board_minor(NULL);
 		if (IS_ERR(dev)) {
-			comedi_cleanup_board_minors();
-			cdev_del(&comedi_cdev);
-			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-						 COMEDI_NUM_MINORS);
-			return PTR_ERR(dev);
+			retval = PTR_ERR(dev);
+			goto out_cleanup_board_minors;
 		}
 		/* comedi_alloc_board_minor() locked the mutex */
 		mutex_unlock(&dev->mutex);
@@ -2928,6 +2921,15 @@ static int __init comedi_init(void)
 	comedi_proc_init();
 
 	return 0;
+
+out_cleanup_board_minors:
+	comedi_cleanup_board_minors();
+	class_destroy(comedi_class);
+out_cdev_del:
+	cdev_del(&comedi_cdev);
+out_unregister_chrdev_region:
+	unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
+	return retval;
 }
 module_init(comedi_init);
 

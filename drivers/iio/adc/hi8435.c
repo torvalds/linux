@@ -105,6 +105,26 @@ static int hi8435_writew(struct hi8435_priv *priv, u8 reg, u16 val)
 	return spi_write(priv->spi, priv->reg_buffer, 3);
 }
 
+static int hi8435_read_raw(struct iio_dev *idev,
+			   const struct iio_chan_spec *chan,
+			   int *val, int *val2, long mask)
+{
+	struct hi8435_priv *priv = iio_priv(idev);
+	u32 tmp;
+	int ret;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		ret = hi8435_readl(priv, HI8435_SO31_0_REG, &tmp);
+		if (ret < 0)
+			return ret;
+		*val = !!(tmp & BIT(chan->channel));
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int hi8435_read_event_config(struct iio_dev *idev,
 				    const struct iio_chan_spec *chan,
 				    enum iio_event_type type,
@@ -121,10 +141,21 @@ static int hi8435_write_event_config(struct iio_dev *idev,
 				     enum iio_event_direction dir, int state)
 {
 	struct hi8435_priv *priv = iio_priv(idev);
+	int ret;
+	u32 tmp;
 
-	priv->event_scan_mask &= ~BIT(chan->channel);
-	if (state)
+	if (state) {
+		ret = hi8435_readl(priv, HI8435_SO31_0_REG, &tmp);
+		if (ret < 0)
+			return ret;
+		if (tmp & BIT(chan->channel))
+			priv->event_prev_val |= BIT(chan->channel);
+		else
+			priv->event_prev_val &= ~BIT(chan->channel);
+
 		priv->event_scan_mask |= BIT(chan->channel);
+	} else
+		priv->event_scan_mask &= ~BIT(chan->channel);
 
 	return 0;
 }
@@ -325,6 +356,7 @@ static const struct iio_enum hi8435_sensing_mode = {
 
 static const struct iio_chan_spec_ext_info hi8435_ext_info[] = {
 	IIO_ENUM("sensing_mode", IIO_SEPARATE, &hi8435_sensing_mode),
+	IIO_ENUM_AVAILABLE("sensing_mode", &hi8435_sensing_mode),
 	{},
 };
 
@@ -333,6 +365,7 @@ static const struct iio_chan_spec_ext_info hi8435_ext_info[] = {
 	.type = IIO_VOLTAGE,				\
 	.indexed = 1,					\
 	.channel = num,					\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
 	.event_spec = hi8435_events,			\
 	.num_event_specs = ARRAY_SIZE(hi8435_events),	\
 	.ext_info = hi8435_ext_info,			\
@@ -376,11 +409,12 @@ static const struct iio_chan_spec hi8435_channels[] = {
 
 static const struct iio_info hi8435_info = {
 	.driver_module = THIS_MODULE,
-	.read_event_config = &hi8435_read_event_config,
+	.read_raw = hi8435_read_raw,
+	.read_event_config = hi8435_read_event_config,
 	.write_event_config = hi8435_write_event_config,
-	.read_event_value = &hi8435_read_event_value,
-	.write_event_value = &hi8435_write_event_value,
-	.debugfs_reg_access = &hi8435_debugfs_reg_access,
+	.read_event_value = hi8435_read_event_value,
+	.write_event_value = hi8435_write_event_value,
+	.debugfs_reg_access = hi8435_debugfs_reg_access,
 };
 
 static void hi8435_iio_push_event(struct iio_dev *idev, unsigned int val)

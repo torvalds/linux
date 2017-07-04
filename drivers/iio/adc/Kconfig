@@ -679,6 +679,18 @@ config TI_ADC0832
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc0832.
 
+config TI_ADC084S021
+	tristate "Texas Instruments ADC084S021"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADC084S021
+	  chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc084s021.
+
 config TI_ADC12138
 	tristate "Texas Instruments ADC12130/ADC12132/ADC12138"
 	depends on SPI
@@ -690,6 +702,18 @@ config TI_ADC12138
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc12138.
+
+config TI_ADC108S102
+	tristate "Texas Instruments ADC108S102 and ADC128S102 driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Texas Instruments ADC108S102 and
+	  ADC128S102 ADC.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called ti-adc108s102.
 
 config TI_ADC128S052
 	tristate "Texas Instruments ADC128S052/ADC122S021/ADC124S021"

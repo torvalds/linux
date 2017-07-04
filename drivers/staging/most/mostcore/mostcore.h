@@ -233,6 +233,8 @@ struct mbo {
  *   The callback returns a negative value on error, otherwise 0.
  * @request_netinfo: triggers retrieving of network info from the HDM by
  *   means of "Message exchange over MDP/MEP"
+ *   The call of the function request_netinfo with the parameter on_netinfo as
+ *   NULL prohibits use of the previously obtained function pointer.
  * @priv Private field used by mostcore to store context information.
  */
 struct most_interface {
@@ -246,7 +248,10 @@ struct most_interface {
 	int (*enqueue)(struct most_interface *iface, int channel_idx,
 		       struct mbo *mbo);
 	int (*poison_channel)(struct most_interface *iface, int channel_idx);
-	void (*request_netinfo)(struct most_interface *iface, int channel_idx);
+	void (*request_netinfo)(struct most_interface *iface, int channel_idx,
+				void (*on_netinfo)(struct most_interface *iface,
+						   unsigned char link_stat,
+						   unsigned char *mac_addr));
 	void *priv;
 };
 

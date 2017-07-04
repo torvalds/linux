@@ -14,9 +14,11 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
-#include "../include/dprc.h"
 
 #define FSL_MC_VENDOR_FREESCALE	0x1957
+
+struct irq_domain;
+struct msi_domain_info;
 
 struct fsl_mc_device;
 struct fsl_mc_io;
@@ -104,6 +106,45 @@ struct fsl_mc_device_irq {
 #define to_fsl_mc_irq(_mc_resource) \
 	container_of(_mc_resource, struct fsl_mc_device_irq, resource)
 
+/* Opened state - Indicates that an object is open by at least one owner */
+#define FSL_MC_OBJ_STATE_OPEN		0x00000001
+/* Plugged state - Indicates that the object is plugged */
+#define FSL_MC_OBJ_STATE_PLUGGED	0x00000002
+
+/**
+ * Shareability flag - Object flag indicating no memory shareability.
+ * the object generates memory accesses that are non coherent with other
+ * masters;
+ * user is responsible for proper memory handling through IOMMU configuration.
+ */
+#define FSL_MC_OBJ_FLAG_NO_MEM_SHAREABILITY	0x0001
+
+/**
+ * struct fsl_mc_obj_desc - Object descriptor
+ * @type: Type of object: NULL terminated string
+ * @id: ID of logical object resource
+ * @vendor: Object vendor identifier
+ * @ver_major: Major version number
+ * @ver_minor:  Minor version number
+ * @irq_count: Number of interrupts supported by the object
+ * @region_count: Number of mappable regions supported by the object
+ * @state: Object state: combination of FSL_MC_OBJ_STATE_ states
+ * @label: Object label: NULL terminated string
+ * @flags: Object's flags
+ */
+struct fsl_mc_obj_desc {
+	char type[16];
+	int id;
+	u16 vendor;
+	u16 ver_major;
+	u16 ver_minor;
+	u8 irq_count;
+	u8 region_count;
+	u32 state;
+	char label[16];
+	u16 flags;
+};
+
 /**
  * Bit masks for a MC object device (struct fsl_mc_device) flags
  */
@@ -150,7 +191,7 @@ struct fsl_mc_device {
 	u16 icid;
 	u16 mc_handle;
 	struct fsl_mc_io *mc_io;
-	struct dprc_obj_desc obj_desc;
+	struct fsl_mc_obj_desc obj_desc;
 	struct resource *regions;
 	struct fsl_mc_device_irq **irqs;
 	struct fsl_mc_resource *resource;
@@ -158,6 +199,159 @@ struct fsl_mc_device {
 
 #define to_fsl_mc_device(_dev) \
 	container_of(_dev, struct fsl_mc_device, dev)
+
+#define MC_CMD_NUM_OF_PARAMS	7
+
+struct mc_cmd_header {
+	u8 src_id;
+	u8 flags_hw;
+	u8 status;
+	u8 flags_sw;
+	__le16 token;
+	__le16 cmd_id;
+};
+
+struct mc_command {
+	u64 header;
+	u64 params[MC_CMD_NUM_OF_PARAMS];
+};
+
+enum mc_cmd_status {
+	MC_CMD_STATUS_OK = 0x0, /* Completed successfully */
+	MC_CMD_STATUS_READY = 0x1, /* Ready to be processed */
+	MC_CMD_STATUS_AUTH_ERR = 0x3, /* Authentication error */
+	MC_CMD_STATUS_NO_PRIVILEGE = 0x4, /* No privilege */
+	MC_CMD_STATUS_DMA_ERR = 0x5, /* DMA or I/O error */
+	MC_CMD_STATUS_CONFIG_ERR = 0x6, /* Configuration error */
+	MC_CMD_STATUS_TIMEOUT = 0x7, /* Operation timed out */
+	MC_CMD_STATUS_NO_RESOURCE = 0x8, /* No resources */
+	MC_CMD_STATUS_NO_MEMORY = 0x9, /* No memory available */
+	MC_CMD_STATUS_BUSY = 0xA, /* Device is busy */
+	MC_CMD_STATUS_UNSUPPORTED_OP = 0xB, /* Unsupported operation */
+	MC_CMD_STATUS_INVALID_STATE = 0xC /* Invalid state */
+};
+
+/*
+ * MC command flags
+ */
+
+/* High priority flag */
+#define MC_CMD_FLAG_PRI		0x80
+/* Command completion flag */
+#define MC_CMD_FLAG_INTR_DIS	0x01
+
+static inline u64 mc_encode_cmd_header(u16 cmd_id,
+				       u32 cmd_flags,
+				       u16 token)
+{
+	u64 header = 0;
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&header;
+
+	hdr->cmd_id = cpu_to_le16(cmd_id);
+	hdr->token  = cpu_to_le16(token);
+	hdr->status = MC_CMD_STATUS_READY;
+	if (cmd_flags & MC_CMD_FLAG_PRI)
+		hdr->flags_hw = MC_CMD_FLAG_PRI;
+	if (cmd_flags & MC_CMD_FLAG_INTR_DIS)
+		hdr->flags_sw = MC_CMD_FLAG_INTR_DIS;
+
+	return header;
+}
+
+static inline u16 mc_cmd_hdr_read_token(struct mc_command *cmd)
+{
+	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
+	u16 token = le16_to_cpu(hdr->token);
+
+	return token;
+}
+
+struct mc_rsp_create {
+	__le32 object_id;
+};
+
+struct mc_rsp_api_ver {
+	__le16 major_ver;
+	__le16 minor_ver;
+};
+
+static inline u32 mc_cmd_read_object_id(struct mc_command *cmd)
+{
+	struct mc_rsp_create *rsp_params;
+
+	rsp_params = (struct mc_rsp_create *)cmd->params;
+	return le32_to_cpu(rsp_params->object_id);
+}
+
+static inline void mc_cmd_read_api_version(struct mc_command *cmd,
+					   u16 *major_ver,
+					   u16 *minor_ver)
+{
+	struct mc_rsp_api_ver *rsp_params;
+
+	rsp_params = (struct mc_rsp_api_ver *)cmd->params;
+	*major_ver = le16_to_cpu(rsp_params->major_ver);
+	*minor_ver = le16_to_cpu(rsp_params->minor_ver);
+}
+
+/**
+ * Bit masks for a MC I/O object (struct fsl_mc_io) flags
+ */
+#define FSL_MC_IO_ATOMIC_CONTEXT_PORTAL	0x0001
+
+/**
+ * struct fsl_mc_io - MC I/O object to be passed-in to mc_send_command()
+ * @dev: device associated with this Mc I/O object
+ * @flags: flags for mc_send_command()
+ * @portal_size: MC command portal size in bytes
+ * @portal_phys_addr: MC command portal physical address
+ * @portal_virt_addr: MC command portal virtual address
+ * @dpmcp_dev: pointer to the DPMCP device associated with the MC portal.
+ *
+ * Fields are only meaningful if the FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is not
+ * set:
+ * @mutex: Mutex to serialize mc_send_command() calls that use the same MC
+ * portal, if the fsl_mc_io object was created with the
+ * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag off. mc_send_command() calls for this
+ * fsl_mc_io object must be made only from non-atomic context.
+ *
+ * Fields are only meaningful if the FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is
+ * set:
+ * @spinlock: Spinlock to serialize mc_send_command() calls that use the same MC
+ * portal, if the fsl_mc_io object was created with the
+ * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag on. mc_send_command() calls for this
+ * fsl_mc_io object can be made from atomic or non-atomic context.
+ */
+struct fsl_mc_io {
+	struct device *dev;
+	u16 flags;
+	u16 portal_size;
+	phys_addr_t portal_phys_addr;
+	void __iomem *portal_virt_addr;
+	struct fsl_mc_device *dpmcp_dev;
+	union {
+		/*
+		 * This field is only meaningful if the
+		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is not set
+		 */
+		struct mutex mutex; /* serializes mc_send_command() */
+
+		/*
+		 * This field is only meaningful if the
+		 * FSL_MC_IO_ATOMIC_CONTEXT_PORTAL flag is set
+		 */
+		spinlock_t spinlock;	/* serializes mc_send_command() */
+	};
+};
+
+int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd);
+
+#ifdef CONFIG_FSL_MC_BUS
+#define dev_is_fsl_mc(_dev) ((_dev)->bus == &fsl_mc_bus_type)
+#else
+/* If fsl-mc bus is not present device cannot belong to fsl-mc bus */
+#define dev_is_fsl_mc(_dev) (0)
+#endif
 
 /*
  * module_fsl_mc_driver() - Helper macro for drivers that don't do
@@ -194,8 +388,14 @@ int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
 
 void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
 
+struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
+						struct msi_domain_info *info,
+						struct irq_domain *parent);
+
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
+
+extern struct bus_type fsl_mc_bus_type;
 
 #endif /* _FSL_MC_H_ */

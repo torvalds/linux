@@ -367,8 +367,8 @@ void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 		 */
 		CDEBUG((lustre_msg_get_flags(req->rq_reqmsg) & MSG_RESENT) ?
 		       D_ADAPTTO : D_WARNING,
-		       "Reported service time %u > total measured time "
-		       CFS_DURATION_T"\n", service_time,
+		       "Reported service time %u > total measured time " CFS_DURATION_T "\n",
+		       service_time,
 		       (long)(now - req->rq_sent));
 		return;
 	}

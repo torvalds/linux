@@ -1797,8 +1797,8 @@ static void rtl8192_link_change(struct net_device *dev)
 		 * way, but there is no chance to set this as wep will not set
 		 * group key in wext.
 		 */
-		if (KEY_TYPE_WEP40 == ieee->pairwise_key_type ||
-		    KEY_TYPE_WEP104 == ieee->pairwise_key_type)
+		if (ieee->pairwise_key_type == KEY_TYPE_WEP40 ||
+		    ieee->pairwise_key_type == KEY_TYPE_WEP104)
 			EnableHWSecurityConfig8192(dev);
 	}
 	/*update timing params*/
@@ -2071,7 +2071,7 @@ static bool GetNmodeSupportBySecCfg8192(struct net_device *dev)
 	 */
 	encrypt = (network->capability & WLAN_CAPABILITY_PRIVACY) ||
 		  (ieee->host_encrypt && crypt && crypt->ops &&
-		   (0 == strcmp(crypt->ops->name, "WEP")));
+		   (strcmp(crypt->ops->name, "WEP") == 0));
 
 	/* simply judge  */
 	if (encrypt && (wpa_ie_len == 0)) {
@@ -4498,7 +4498,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	praddr = hdr->addr1;
 
 	/* Check if the received packet is acceptable. */
-	bpacket_match_bssid = (IEEE80211_FTYPE_CTL != type) &&
+	bpacket_match_bssid = (type != IEEE80211_FTYPE_CTL) &&
 			       (eqMacAddr(priv->ieee80211->current_network.bssid,  (fc & IEEE80211_FCTL_TODS) ? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
 			       && (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV);
 	bpacket_toself =  bpacket_match_bssid &
@@ -5098,7 +5098,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 	struct ieee80211_device *ieee = priv->ieee80211;
 
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
-	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) && (priv->ieee80211->auth_mode != 2)) {
+	if (((ieee->pairwise_key_type == KEY_TYPE_WEP40) || (ieee->pairwise_key_type == KEY_TYPE_WEP104)) && (priv->ieee80211->auth_mode != 2)) {
 		SECR_value |= SCR_RxUseDK;
 		SECR_value |= SCR_TxUseDK;
 	} else if ((ieee->iw_mode == IW_MODE_ADHOC) && (ieee->pairwise_key_type & (KEY_TYPE_CCMP | KEY_TYPE_TKIP))) {

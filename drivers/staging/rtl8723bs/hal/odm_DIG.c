@@ -278,11 +278,11 @@ void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 
 	if (!pDM_Odm->ForceEDCCA) {
 		if (pDM_Odm->RSSI_Min > pDM_Odm->AdapEn_RSSI)
-			EDCCA_State = 1;
+			EDCCA_State = true;
 		else if (pDM_Odm->RSSI_Min < (pDM_Odm->AdapEn_RSSI - 5))
-			EDCCA_State = 0;
+			EDCCA_State = false;
 	} else
-		EDCCA_State = 1;
+		EDCCA_State = true;
 
 	if (
 		pDM_Odm->bLinked &&
@@ -305,7 +305,7 @@ void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 		)
 	);
 
-	if (EDCCA_State == 1) {
+	if (EDCCA_State) {
 		Diff = IGI_target-(s8)IGI;
 		TH_L2H_dmc = pDM_Odm->TH_L2H_ini + Diff;
 		if (TH_L2H_dmc > 10)
@@ -372,7 +372,7 @@ void odm_PauseDIG(
 {
 	PDM_ODM_T pDM_Odm = (PDM_ODM_T)pDM_VOID;
 	pDIG_T pDM_DigTable = &pDM_Odm->DM_DigTable;
-	static bool bPaused = false;
+	static bool bPaused;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_PauseDIG() =========>\n"));
 

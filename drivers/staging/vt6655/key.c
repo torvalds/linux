@@ -27,8 +27,8 @@
 #include "mac.h"
 
 static int vnt_set_keymode(struct ieee80211_hw *hw, u8 *mac_addr,
-	struct ieee80211_key_conf *key, u32 key_type, u32 mode,
-	bool onfly_latch)
+			   struct ieee80211_key_conf *key, u32 key_type,
+			   u32 mode, bool onfly_latch)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};

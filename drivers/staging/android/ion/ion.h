@@ -68,14 +68,6 @@ struct ion_platform_heap {
  * @kmap_cnt:		number of times the buffer is mapped to the kernel
  * @vaddr:		the kernel mapping if kmap_cnt is not zero
  * @sg_table:		the sg table for the buffer if dmap_cnt is not zero
- * @pages:		flat array of pages in the buffer -- used by fault
- *			handler and only valid for buffers that are faulted in
- * @vmas:		list of vma's mapping this buffer
- * @handle_count:	count of handles referencing this buffer
- * @task_comm:		taskcomm of last client to reference this buffer in a
- *			handle, used for debugging
- * @pid:		pid of last client to reference this buffer in a
- *			handle, used for debugging
  */
 struct ion_buffer {
 	union {
@@ -92,13 +84,7 @@ struct ion_buffer {
 	int kmap_cnt;
 	void *vaddr;
 	struct sg_table *sg_table;
-	struct page **pages;
-	struct list_head vmas;
 	struct list_head attachments;
-	/* used to track orphaned buffers */
-	int handle_count;
-	char task_comm[TASK_COMM_LEN];
-	pid_t pid;
 };
 void ion_buffer_destroy(struct ion_buffer *buffer);
 

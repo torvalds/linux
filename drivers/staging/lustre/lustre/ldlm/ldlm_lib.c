@@ -363,17 +363,16 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	 */
 	cli->cl_chunkbits = PAGE_SHIFT;
 
-	if (!strcmp(name, LUSTRE_MDC_NAME)) {
+	if (!strcmp(name, LUSTRE_MDC_NAME))
 		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
-	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 128 /* MB */) {
+	else if (totalram_pages >> (20 - PAGE_SHIFT) <= 128 /* MB */)
 		cli->cl_max_rpcs_in_flight = 2;
-	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 256 /* MB */) {
+	else if (totalram_pages >> (20 - PAGE_SHIFT) <= 256 /* MB */)
 		cli->cl_max_rpcs_in_flight = 3;
-	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 512 /* MB */) {
+	else if (totalram_pages >> (20 - PAGE_SHIFT) <= 512 /* MB */)
 		cli->cl_max_rpcs_in_flight = 4;
-	} else {
+	else
 		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
-	}
 
 	spin_lock_init(&cli->cl_mod_rpcs_lock);
 	spin_lock_init(&cli->cl_mod_rpcs_hist.oh_lock);

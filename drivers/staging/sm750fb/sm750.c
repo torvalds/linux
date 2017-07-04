@@ -33,7 +33,7 @@ static int g_hwcursor = 1;
 static int g_noaccel;
 static int g_nomtrr;
 static const char *g_fbmode[] = {NULL, NULL};
-static const char *g_def_fbmode = "800x600-16@60";
+static const char *g_def_fbmode = "1024x768-32@60";
 static char *g_settings;
 static int g_dualview;
 static char *g_option;
@@ -112,42 +112,42 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 	cursor = &crtc->cursor;
 
 	if (fbcursor->image.width > cursor->maxW ||
-	   fbcursor->image.height > cursor->maxH ||
-	   fbcursor->image.depth > 1) {
+	    fbcursor->image.height > cursor->maxH ||
+	    fbcursor->image.depth > 1) {
 		return -ENXIO;
 	}
 
 	sm750_hw_cursor_disable(cursor);
 	if (fbcursor->set & FB_CUR_SETSIZE)
 		sm750_hw_cursor_setSize(cursor,
-				  fbcursor->image.width,
-				  fbcursor->image.height);
+					fbcursor->image.width,
+					fbcursor->image.height);
 
 	if (fbcursor->set & FB_CUR_SETPOS)
 		sm750_hw_cursor_setPos(cursor,
-				 fbcursor->image.dx - info->var.xoffset,
-				 fbcursor->image.dy - info->var.yoffset);
+				       fbcursor->image.dx - info->var.xoffset,
+				       fbcursor->image.dy - info->var.yoffset);
 
 	if (fbcursor->set & FB_CUR_SETCMAP) {
 		/* get the 16bit color of kernel means */
 		u16 fg, bg;
 
 		fg = ((info->cmap.red[fbcursor->image.fg_color] & 0xf800)) |
-		      ((info->cmap.green[fbcursor->image.fg_color] & 0xfc00) >> 5) |
-		      ((info->cmap.blue[fbcursor->image.fg_color] & 0xf800) >> 11);
+		     ((info->cmap.green[fbcursor->image.fg_color] & 0xfc00) >> 5) |
+		     ((info->cmap.blue[fbcursor->image.fg_color] & 0xf800) >> 11);
 
 		bg = ((info->cmap.red[fbcursor->image.bg_color] & 0xf800)) |
-		      ((info->cmap.green[fbcursor->image.bg_color] & 0xfc00) >> 5) |
-		      ((info->cmap.blue[fbcursor->image.bg_color] & 0xf800) >> 11);
+		     ((info->cmap.green[fbcursor->image.bg_color] & 0xfc00) >> 5) |
+		     ((info->cmap.blue[fbcursor->image.bg_color] & 0xf800) >> 11);
 
 		sm750_hw_cursor_setColor(cursor, fg, bg);
 	}
 
 	if (fbcursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETIMAGE)) {
 		sm750_hw_cursor_setData(cursor,
-				  fbcursor->rop,
-				  fbcursor->image.data,
-				  fbcursor->mask);
+					fbcursor->rop,
+					fbcursor->image.data,
+					fbcursor->mask);
 	}
 
 	if (fbcursor->enable)
@@ -183,19 +183,19 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	rop = (region->rop != ROP_COPY) ? HW_ROP2_XOR : HW_ROP2_COPY;
 
 	/*
-	 * If not use spin_lock,system will die if user load driver
+	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
+	 * since they fb_count could change during the lifetime of
+	 * this lock, we are holding it for all cases.
 	 */
-	if (sm750_dev->fb_count > 1)
-		spin_lock(&sm750_dev->slock);
+	spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_fillrect(&sm750_dev->accel,
 				     base, pitch, Bpp,
 				     region->dx, region->dy,
 				     region->width, region->height,
 				     color, rop);
-	if (sm750_dev->fb_count > 1)
-		spin_unlock(&sm750_dev->slock);
+	spin_unlock(&sm750_dev->slock);
 }
 
 static void lynxfb_ops_copyarea(struct fb_info *info,
@@ -219,17 +219,17 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	/*
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
+	 * since they fb_count could change during the lifetime of
+	 * this lock, we are holding it for all cases.
 	 */
-	if (sm750_dev->fb_count > 1)
-		spin_lock(&sm750_dev->slock);
+	spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_copyarea(&sm750_dev->accel,
 				     base, pitch, region->sx, region->sy,
 				     base, pitch, Bpp, region->dx, region->dy,
 				     region->width, region->height,
 				     HW_ROP2_COPY);
-	if (sm750_dev->fb_count > 1)
-		spin_unlock(&sm750_dev->slock);
+	spin_unlock(&sm750_dev->slock);
 }
 
 static void lynxfb_ops_imageblit(struct fb_info *info,
@@ -268,9 +268,10 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	/*
 	 * If not use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
+	 * since they fb_count could change during the lifetime of
+	 * this lock, we are holding it for all cases.
 	 */
-	if (sm750_dev->fb_count > 1)
-		spin_lock(&sm750_dev->slock);
+	spin_lock(&sm750_dev->slock);
 
 	sm750_dev->accel.de_imageblit(&sm750_dev->accel,
 				      image->data, image->width >> 3, 0,
@@ -278,8 +279,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 				      image->dx, image->dy,
 				      image->width, image->height,
 				      fgcol, bgcol, HW_ROP2_COPY);
-	if (sm750_dev->fb_count > 1)
-		spin_unlock(&sm750_dev->slock);
+	spin_unlock(&sm750_dev->slock);
 }
 
 static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,

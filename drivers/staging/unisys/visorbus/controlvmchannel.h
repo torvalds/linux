@@ -19,12 +19,11 @@
 #include "channel.h"
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
-#define SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID \
+#define VISOR_CONTROLVM_CHANNEL_UUID \
 	UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
 		0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
-#define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE \
-	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
+#define VISOR_CONTROLVM_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
 #define CONTROLVM_MESSAGE_MAX 64
 
 /* Must increment this whenever you insert or delete fields within
@@ -33,15 +32,15 @@
  * software.  Note that you can usually add fields to the END of the
  * channel struct withOUT needing to increment this.
  */
-#define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID 1
+#define VISOR_CONTROLVM_CHANNEL_VERSIONID 1
 
-#define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch) \
-	(spar_check_channel(ch, \
-			    SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID, \
-			    "controlvm", \
-			    sizeof(struct spar_controlvm_channel_protocol), \
-			    ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
-			    ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
+#define VISOR_CONTROLVM_CHANNEL_OK_CLIENT(ch) \
+	(visor_check_channel(ch, \
+			     VISOR_CONTROLVM_CHANNEL_UUID, \
+			     "controlvm", \
+			     sizeof(struct visor_controlvm_channel), \
+			     VISOR_CONTROLVM_CHANNEL_VERSIONID, \
+			     VISOR_CONTROLVM_CHANNEL_SIGNATURE))
 
 /* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST	 0
@@ -52,7 +51,7 @@
 /* Max num of messages stored during IOVM creation to be reused after crash */
 #define CONTROLVM_CRASHMSG_MAX 2
 
-struct spar_segment_state  {
+struct visor_segment_state  {
 	/* Bit 0: May enter other states */
 	u16 enabled:1;
 	/* Bit 1: Assigned to active partition */
@@ -76,15 +75,15 @@ struct spar_segment_state  {
  */
 } __packed;
 
-static const struct spar_segment_state segment_state_running = {
+static const struct visor_segment_state segment_state_running = {
 	1, 1, 1, 0, 1, 1, 1, 1
 };
 
-static const struct spar_segment_state segment_state_paused = {
+static const struct visor_segment_state segment_state_paused = {
 	1, 1, 1, 0, 1, 1, 1, 0
 };
 
-static const struct spar_segment_state segment_state_standby = {
+static const struct visor_segment_state segment_state_standby = {
 	1, 1, 0, 0, 1, 1, 1, 0
 };
 
@@ -149,7 +148,7 @@ struct irq_info {
 	u8 reserved[3];	/* Natural alignment purposes */
 } __packed;
 
-struct efi_spar_indication  {
+struct efi_visor_indication  {
 	u64 boot_to_fw_ui:1;		/* Bit 0: Stop in uefi ui */
 	u64 clear_nvram:1;		/* Bit 1: Clear NVRAM */
 	u64 clear_cmos:1;		/* Bit 2: Clear CMOS */
@@ -158,9 +157,9 @@ struct efi_spar_indication  {
 	u64 reserved:60;		/* Natural alignment */
 } __packed;
 
-enum ultra_chipset_feature {
-	ULTRA_CHIPSET_FEATURE_REPLY = 0x00000001,
-	ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG = 0x00000002,
+enum visor_chipset_feature {
+	VISOR_CHIPSET_FEATURE_REPLY = 0x00000001,
+	VISOR_CHIPSET_FEATURE_PARA_HOTPLUG = 0x00000002,
 };
 
 /* This is the common structure that is at the beginning of every
@@ -298,13 +297,13 @@ struct controlvm_message_packet  {
 			/* for CONTROLVM_DEVICE_RECONFIGURE */
 		struct  {
 			u32 bus_no;
-			struct spar_segment_state state;
+			struct visor_segment_state state;
 			u8 reserved[2];	/* Natural alignment purposes */
 		} __packed bus_change_state; /* for CONTROLVM_BUS_CHANGESTATE */
 		struct  {
 			u32 bus_no;
 			u32 dev_no;
-			struct spar_segment_state state;
+			struct visor_segment_state state;
 			struct  {
 				/* =1 if message is for a physical device */
 				u32 phys_device:1;
@@ -317,7 +316,7 @@ struct controlvm_message_packet  {
 		struct  {
 			u32 bus_no;
 			u32 dev_no;
-			struct spar_segment_state state;
+			struct visor_segment_state state;
 			u8 reserved[6];	/* Natural alignment purposes */
 		} __packed device_change_state_event;
 			/* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
@@ -326,7 +325,7 @@ struct controlvm_message_packet  {
 			u32 bus_count;
 			/* indicates the max number of switches */
 			u32 switch_count;
-			enum ultra_chipset_feature features;
+			enum visor_chipset_feature features;
 			u32 platform_number;	/* Platform Number */
 		} __packed init_chipset;	/* for CONTROLVM_CHIPSET_INIT */
 		struct  {
@@ -349,7 +348,7 @@ struct controlvm_message {
 	struct controlvm_message_packet cmd;
 } __packed;
 
-struct spar_controlvm_channel_protocol {
+struct visor_controlvm_channel {
 	struct channel_header header;
 	u64 gp_controlvm;	/* guest phys addr of this channel */
 	u64 gp_partition_tables;/* guest phys addr of partition tables */
@@ -371,7 +370,7 @@ struct spar_controlvm_channel_protocol {
 	u32 message_count;		/* CONTROLVM_MESSAGE_MAX */
 	u64 gp_smbios_table;		/* guest phys addr of SMBIOS tables */
 	u64 gp_physical_smbios_table;	/* guest phys addr of SMBIOS table  */
-	/* ULTRA_MAX_GUESTS_PER_SERVICE */
+	/* VISOR_MAX_GUESTS_PER_SERVICE */
 	char gp_reserved[2688];
 
 	/* guest physical address of EFI firmware image base  */
@@ -402,11 +401,10 @@ struct spar_controlvm_channel_protocol {
 	u32 installation_text_id;	/* Id of string to display */
 	/* Number of remaining installation  steps (for progress bars) */
 	u16 installation_remaining_steps;
-	/* ULTRA_TOOL_ACTIONS Installation Action field */
+	/* VISOR_TOOL_ACTIONS Installation Action field */
 	u8 tool_action;
 	u8 reserved;		/* alignment */
-	struct efi_spar_indication efi_spar_ind;
-	struct efi_spar_indication efi_spar_ind_supported;
+	struct efi_visor_indication efi_visor_ind;
 	u32 sp_reserved;
 	/* Force signals to begin on 128-byte cache line */
 	u8 reserved2[28];
@@ -444,7 +442,7 @@ struct spar_controlvm_channel_protocol {
  * of total_length should equal PayloadBytes. The format of the strings at
  * PayloadVmOffset will take different forms depending on the message.
  */
-struct spar_controlvm_parameters_header {
+struct visor_controlvm_parameters_header {
 	u32 total_length;
 	u32 header_length;
 	u32 connection_offset;

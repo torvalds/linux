@@ -1021,7 +1021,7 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 		break;
 	case CIT_FAULT:
 		result = -EFAULT;
-		CERROR("Page fault on a file without stripes: "DFID"\n",
+		CERROR("Page fault on a file without stripes: " DFID "\n",
 		       PFID(lu_object_fid(&obj->co_lu)));
 		break;
 	}

@@ -282,10 +282,10 @@ static void iterate_diffusion_matrix(u32 xres, u32 yres, int x,
 				continue;
 			write_pos = &convert_buf[(y + j) * xres + x + i];
 			coeff = diffusing_matrix[i][j];
-			if (-1 == coeff)
+			if (-1 == coeff) {
 				/* pixel itself */
 				*write_pos = pixel;
-			else {
+			} else {
 				signed short p = *write_pos + error * coeff;
 
 				if (p > WHITE)

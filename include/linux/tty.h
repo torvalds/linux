@@ -400,6 +400,9 @@ extern struct tty_struct *get_current_tty(void);
 /* tty_io.c */
 extern int __init tty_init(void);
 extern const char *tty_name(const struct tty_struct *tty);
+extern struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
+		struct file *filp);
+extern int tty_dev_name_to_number(const char *name, dev_t *number);
 #else
 static inline void tty_kref_put(struct tty_struct *tty)
 { }
@@ -420,6 +423,11 @@ static inline int __init tty_init(void)
 { return 0; }
 static inline const char *tty_name(const struct tty_struct *tty)
 { return "(none)"; }
+static inline struct tty_struct *tty_open_by_driver(dev_t device,
+		struct inode *inode, struct file *filp)
+{ return NULL; }
+static inline int tty_dev_name_to_number(const char *name, dev_t *number)
+{ return -ENOTSUPP; }
 #endif
 
 extern struct ktermios tty_std_termios;

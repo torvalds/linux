@@ -33,14 +33,13 @@
 #ifndef _FSL_DPRC_H
 #define _FSL_DPRC_H
 
-#include "mc-cmd.h"
-
 /*
  * Data Path Resource Container API
  * Contains DPRC API for managing and querying DPAA resources
  */
 
 struct fsl_mc_io;
+struct fsl_mc_obj_desc;
 
 int dprc_open(struct fsl_mc_io *mc_io,
 	      u32 cmd_flags,
@@ -50,7 +49,6 @@ int dprc_open(struct fsl_mc_io *mc_io,
 int dprc_close(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token);
-
 
 /* IRQ */
 
@@ -170,59 +168,18 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
 		       u16 token,
 		       int *obj_count);
 
-/* Objects Attributes Flags */
-
-/* Opened state - Indicates that an object is open by at least one owner */
-#define DPRC_OBJ_STATE_OPEN		0x00000001
-/* Plugged state - Indicates that the object is plugged */
-#define DPRC_OBJ_STATE_PLUGGED		0x00000002
-
-/**
- * Shareability flag - Object flag indicating no memory shareability.
- * the object generates memory accesses that are non coherent with other
- * masters;
- * user is responsible for proper memory handling through IOMMU configuration.
- */
-#define DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY	0x0001
-
-/**
- * struct dprc_obj_desc - Object descriptor, returned from dprc_get_obj()
- * @type: Type of object: NULL terminated string
- * @id: ID of logical object resource
- * @vendor: Object vendor identifier
- * @ver_major: Major version number
- * @ver_minor:  Minor version number
- * @irq_count: Number of interrupts supported by the object
- * @region_count: Number of mappable regions supported by the object
- * @state: Object state: combination of DPRC_OBJ_STATE_ states
- * @label: Object label
- * @flags: Object's flags
- */
-struct dprc_obj_desc {
-	char type[16];
-	int id;
-	u16 vendor;
-	u16 ver_major;
-	u16 ver_minor;
-	u8 irq_count;
-	u8 region_count;
-	u32 state;
-	char label[16];
-	u16 flags;
-};
-
 int dprc_get_obj(struct fsl_mc_io *mc_io,
 		 u32 cmd_flags,
 		 u16 token,
 		 int obj_index,
-		 struct dprc_obj_desc *obj_desc);
+		 struct fsl_mc_obj_desc *obj_desc);
 
 int dprc_get_obj_desc(struct fsl_mc_io *mc_io,
 		      u32 cmd_flags,
 		      u16 token,
 		      char *obj_type,
 		      int obj_id,
-		      struct dprc_obj_desc *obj_desc);
+		      struct fsl_mc_obj_desc *obj_desc);
 
 int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 		     u32 cmd_flags,

@@ -213,7 +213,7 @@ int lmv_revalidate_slaves(struct obd_export *exp,
 		lockh = (struct lustre_handle *)&it.it_lock_handle;
 		if (rc > 0 && !req) {
 			/* slave inode is still valid */
-			CDEBUG(D_INODE, "slave "DFID" is still valid.\n",
+			CDEBUG(D_INODE, "slave " DFID " is still valid.\n",
 			       PFID(&fid));
 			rc = 0;
 		} else {
@@ -435,7 +435,7 @@ static int lmv_intent_lookup(struct obd_export *exp,
 			if (IS_ERR(tgt))
 				return PTR_ERR(tgt);
 
-			CDEBUG(D_INODE, "Try other stripes " DFID"\n",
+			CDEBUG(D_INODE, "Try other stripes " DFID "\n",
 			       PFID(&oinfo->lmo_fid));
 
 			op_data->op_fid1 = oinfo->lmo_fid;
@@ -479,7 +479,7 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 
 	LASSERT(fid_is_sane(&op_data->op_fid1));
 
-	CDEBUG(D_INODE, "INTENT LOCK '%s' for "DFID" '%*s' on "DFID"\n",
+	CDEBUG(D_INODE, "INTENT LOCK '%s' for " DFID " '%*s' on " DFID "\n",
 	       LL_IT2STR(it), PFID(&op_data->op_fid2),
 	       (int)op_data->op_namelen, op_data->op_name,
 	       PFID(&op_data->op_fid1));

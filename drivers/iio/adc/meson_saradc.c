@@ -220,6 +220,7 @@ enum meson_sar_adc_chan7_mux_sel {
 };
 
 struct meson_sar_adc_data {
+	bool					has_bl30_integration;
 	unsigned int				resolution;
 	const char				*name;
 };
@@ -437,19 +438,24 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 
 	mutex_lock(&indio_dev->mlock);
 
-	/* prevent BL30 from using the SAR ADC while we are using it */
-	regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
-			   MESON_SAR_ADC_DELAY_KERNEL_BUSY,
-			   MESON_SAR_ADC_DELAY_KERNEL_BUSY);
+	if (priv->data->has_bl30_integration) {
+		/* prevent BL30 from using the SAR ADC while we are using it */
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
+				MESON_SAR_ADC_DELAY_KERNEL_BUSY,
+				MESON_SAR_ADC_DELAY_KERNEL_BUSY);
 
-	/* wait until BL30 releases it's lock (so we can use the SAR ADC) */
-	do {
-		udelay(1);
-		regmap_read(priv->regmap, MESON_SAR_ADC_DELAY, &val);
-	} while (val & MESON_SAR_ADC_DELAY_BL30_BUSY && timeout--);
+		/*
+		 * wait until BL30 releases it's lock (so we can use the SAR
+		 * ADC)
+		 */
+		do {
+			udelay(1);
+			regmap_read(priv->regmap, MESON_SAR_ADC_DELAY, &val);
+		} while (val & MESON_SAR_ADC_DELAY_BL30_BUSY && timeout--);
 
-	if (timeout < 0)
-		return -ETIMEDOUT;
+		if (timeout < 0)
+			return -ETIMEDOUT;
+	}
 
 	return 0;
 }
@@ -458,9 +464,10 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 
-	/* allow BL30 to use the SAR ADC again */
-	regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
-			   MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
+	if (priv->data->has_bl30_integration)
+		/* allow BL30 to use the SAR ADC again */
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELAY,
+				MESON_SAR_ADC_DELAY_KERNEL_BUSY, 0);
 
 	mutex_unlock(&indio_dev->mlock);
 }
@@ -614,14 +621,16 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 	 */
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_CH7_INPUT);
 
-	/*
-	 * leave sampling delay and the input clocks as configured by BL30 to
-	 * make sure BL30 gets the values it expects when reading the
-	 * temperature sensor.
-	 */
-	regmap_read(priv->regmap, MESON_SAR_ADC_REG3, &regval);
-	if (regval & MESON_SAR_ADC_REG3_BL30_INITIALIZED)
-		return 0;
+	if (priv->data->has_bl30_integration) {
+		/*
+		 * leave sampling delay and the input clocks as configured by
+		 * BL30 to make sure BL30 gets the values it expects when
+		 * reading the temperature sensor.
+		 */
+		regmap_read(priv->regmap, MESON_SAR_ADC_REG3, &regval);
+		if (regval & MESON_SAR_ADC_REG3_BL30_INITIALIZED)
+			return 0;
+	}
 
 	meson_sar_adc_stop_sample_engine(indio_dev);
 
@@ -834,22 +843,45 @@ static const struct iio_info meson_sar_adc_iio_info = {
 	.driver_module = THIS_MODULE,
 };
 
-struct meson_sar_adc_data meson_sar_adc_gxbb_data = {
+static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
+	.has_bl30_integration = false,
+	.resolution = 10,
+	.name = "meson-meson8-saradc",
+};
+
+static const struct meson_sar_adc_data meson_sar_adc_meson8b_data = {
+	.has_bl30_integration = false,
+	.resolution = 10,
+	.name = "meson-meson8b-saradc",
+};
+
+static const struct meson_sar_adc_data meson_sar_adc_gxbb_data = {
+	.has_bl30_integration = true,
 	.resolution = 10,
 	.name = "meson-gxbb-saradc",
 };
 
-struct meson_sar_adc_data meson_sar_adc_gxl_data = {
+static const struct meson_sar_adc_data meson_sar_adc_gxl_data = {
+	.has_bl30_integration = true,
 	.resolution = 12,
 	.name = "meson-gxl-saradc",
 };
 
-struct meson_sar_adc_data meson_sar_adc_gxm_data = {
+static const struct meson_sar_adc_data meson_sar_adc_gxm_data = {
+	.has_bl30_integration = true,
 	.resolution = 12,
 	.name = "meson-gxm-saradc",
 };
 
 static const struct of_device_id meson_sar_adc_of_match[] = {
+	{
+		.compatible = "amlogic,meson8-saradc",
+		.data = &meson_sar_adc_meson8_data,
+	},
+	{
+		.compatible = "amlogic,meson8b-saradc",
+		.data = &meson_sar_adc_meson8b_data,
+	},
 	{
 		.compatible = "amlogic,meson-gxbb-saradc",
 		.data = &meson_sar_adc_gxbb_data,

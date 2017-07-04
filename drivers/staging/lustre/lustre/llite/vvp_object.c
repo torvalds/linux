@@ -70,7 +70,7 @@ static int vvp_object_print(const struct lu_env *env, void *cookie,
 	     atomic_read(&obj->vob_mmap_cnt), inode);
 	if (inode) {
 		lli = ll_i2info(inode);
-		(*p)(env, cookie, "%lu/%u %o %u %d %p "DFID,
+		(*p)(env, cookie, "%lu/%u %o %u %d %p " DFID,
 		     inode->i_ino, inode->i_generation, inode->i_mode,
 		     inode->i_nlink, atomic_read(&inode->i_count),
 		     lli->lli_clob, PFID(&lli->lli_fid));

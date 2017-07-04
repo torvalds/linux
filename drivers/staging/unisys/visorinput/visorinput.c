@@ -33,17 +33,16 @@
 #include "ultrainputreport.h"
 
 /* Keyboard channel {c73416d0-b0b8-44af-b304-9d2ae99f1b3d} */
-#define SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID \
+#define VISOR_KEYBOARD_CHANNEL_UUID \
 	UUID_LE(0xc73416d0, 0xb0b8, 0x44af, \
 		0xb3, 0x4, 0x9d, 0x2a, 0xe9, 0x9f, 0x1b, 0x3d)
-#define SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR "c73416d0-b0b8-44af-b304-9d2ae99f1b3d"
+#define VISOR_KEYBOARD_CHANNEL_UUID_STR "c73416d0-b0b8-44af-b304-9d2ae99f1b3d"
 
 /* Mouse channel {addf07d4-94a9-46e2-81c3-61abcdbdbd87} */
-#define SPAR_MOUSE_CHANNEL_PROTOCOL_UUID \
+#define VISOR_MOUSE_CHANNEL_UUID \
 	UUID_LE(0xaddf07d4, 0x94a9, 0x46e2, \
 		0x81, 0xc3, 0x61, 0xab, 0xcd, 0xbd, 0xbd, 0x87)
-#define SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR \
-	"addf07d4-94a9-46e2-81c3-61abcdbdbd87"
+#define VISOR_MOUSE_CHANNEL_UUID_STR "addf07d4-94a9-46e2-81c3-61abcdbdbd87"
 
 #define PIXELS_ACROSS_DEFAULT 800
 #define PIXELS_DOWN_DEFAULT   600
@@ -70,10 +69,8 @@ struct visorinput_devdata {
 	unsigned char keycode_table[0];
 };
 
-static const uuid_le spar_keyboard_channel_protocol_uuid =
-	SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID;
-static const uuid_le spar_mouse_channel_protocol_uuid =
-	SPAR_MOUSE_CHANNEL_PROTOCOL_UUID;
+static const uuid_le visor_keyboard_channel_uuid = VISOR_KEYBOARD_CHANNEL_UUID;
+static const uuid_le visor_mouse_channel_uuid = VISOR_MOUSE_CHANNEL_UUID;
 
 /*
  * Borrowed from drivers/input/keyboard/atakbd.c
@@ -456,9 +453,9 @@ visorinput_probe(struct visor_device *dev)
 	enum visorinput_device_type devtype;
 
 	guid = visorchannel_get_uuid(dev->visorchannel);
-	if (uuid_le_cmp(guid, spar_mouse_channel_protocol_uuid) == 0)
+	if (uuid_le_cmp(guid, visor_mouse_channel_uuid) == 0)
 		devtype = visorinput_mouse;
-	else if (uuid_le_cmp(guid, spar_keyboard_channel_protocol_uuid) == 0)
+	else if (uuid_le_cmp(guid, visor_keyboard_channel_uuid) == 0)
 		devtype = visorinput_keyboard;
 	else
 		return -ENODEV;
@@ -568,7 +565,7 @@ calc_button(int x)
 static void
 visorinput_channel_interrupt(struct visor_device *dev)
 {
-	struct ultra_inputreport r;
+	struct visor_inputreport r;
 	int scancode, keycode;
 	struct input_dev *visorinput_dev;
 	int xmotion, ymotion, button;
@@ -585,46 +582,46 @@ visorinput_channel_interrupt(struct visor_device *dev)
 		scancode = r.activity.arg1;
 		keycode = scancode_to_keycode(scancode);
 		switch (r.activity.action) {
-		case inputaction_key_down:
+		case INPUTACTION_KEY_DOWN:
 			input_report_key(visorinput_dev, keycode, 1);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_key_up:
+		case INPUTACTION_KEY_UP:
 			input_report_key(visorinput_dev, keycode, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_key_down_up:
+		case INPUTACTION_KEY_DOWN_UP:
 			input_report_key(visorinput_dev, keycode, 1);
 			input_sync(visorinput_dev);
 			input_report_key(visorinput_dev, keycode, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_set_locking_key_state:
+		case INPUTACTION_SET_LOCKING_KEY_STATE:
 			handle_locking_key(visorinput_dev, keycode,
 					   r.activity.arg2);
 			break;
-		case inputaction_xy_motion:
+		case INPUTACTION_XY_MOTION:
 			xmotion = r.activity.arg1;
 			ymotion = r.activity.arg2;
 			input_report_abs(visorinput_dev, ABS_X, xmotion);
 			input_report_abs(visorinput_dev, ABS_Y, ymotion);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_down:
+		case INPUTACTION_MOUSE_BUTTON_DOWN:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
 			input_report_key(visorinput_dev, button, 1);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_up:
+		case INPUTACTION_MOUSE_BUTTON_UP:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
 			input_report_key(visorinput_dev, button, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_click:
+		case INPUTACTION_MOUSE_BUTTON_CLICK:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
@@ -634,7 +631,7 @@ visorinput_channel_interrupt(struct visor_device *dev)
 			input_report_key(visorinput_dev, button, 0);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_mouse_button_dclick:
+		case INPUTACTION_MOUSE_BUTTON_DCLICK:
 			button = calc_button(r.activity.arg1);
 			if (button < 0)
 				break;
@@ -645,11 +642,11 @@ visorinput_channel_interrupt(struct visor_device *dev)
 				input_sync(visorinput_dev);
 			}
 			break;
-		case inputaction_wheel_rotate_away:
+		case INPUTACTION_WHEEL_ROTATE_AWAY:
 			input_report_rel(visorinput_dev, REL_WHEEL, 1);
 			input_sync(visorinput_dev);
 			break;
-		case inputaction_wheel_rotate_toward:
+		case INPUTACTION_WHEEL_ROTATE_TOWARD:
 			input_report_rel(visorinput_dev, REL_WHEEL, -1);
 			input_sync(visorinput_dev);
 			break;
@@ -730,8 +727,8 @@ out:
 
 /* GUIDS for all channel types supported by this driver. */
 static struct visor_channeltype_descriptor visorinput_channel_types[] = {
-	{ SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID, "keyboard"},
-	{ SPAR_MOUSE_CHANNEL_PROTOCOL_UUID, "mouse"},
+	{ VISOR_KEYBOARD_CHANNEL_UUID, "keyboard"},
+	{ VISOR_MOUSE_CHANNEL_UUID, "mouse"},
 	{ NULL_UUID_LE, NULL }
 };
 
@@ -767,5 +764,5 @@ MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("s-Par human input driver for virtual keyboard/mouse");
 
-MODULE_ALIAS("visorbus:" SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR);
-MODULE_ALIAS("visorbus:" SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR);
+MODULE_ALIAS("visorbus:" VISOR_MOUSE_CHANNEL_UUID_STR);
+MODULE_ALIAS("visorbus:" VISOR_KEYBOARD_CHANNEL_UUID_STR);
