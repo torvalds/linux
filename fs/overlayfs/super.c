@@ -1119,6 +1119,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	kfree(lowertmp);
 
 	if (upperpath.dentry) {
+		oe->has_upper = true;
 		if (ovl_is_impuredir(upperpath.dentry))
 			ovl_set_flag(OVL_IMPURE, d_inode(root_dentry));
 	}

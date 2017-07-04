@@ -674,7 +674,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);
 	dentry->d_fsdata = oe;
 
-	if (index && !upperdentry)
+	if (upperdentry)
+		ovl_dentry_set_upper_alias(dentry);
+	else if (index)
 		upperdentry = dget(index);
 
 	if (upperdentry || ctr) {

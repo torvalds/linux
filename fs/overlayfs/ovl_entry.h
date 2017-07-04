@@ -42,7 +42,10 @@ struct ovl_fs {
 /* private information held for every overlayfs dentry */
 struct ovl_entry {
 	union {
-		bool opaque;
+		struct {
+			unsigned long has_upper;
+			bool opaque;
+		};
 		struct rcu_head rcu;
 	};
 	unsigned numlower;

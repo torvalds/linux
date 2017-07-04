@@ -472,6 +472,7 @@ static int ovl_copy_up_locked(struct ovl_copy_up_ctx *c)
 	if (err)
 		goto out_cleanup;
 
+	ovl_dentry_set_upper_alias(c->dentry);
 	ovl_inode_update(d_inode(c->dentry), newdentry);
 out:
 	dput(temp);

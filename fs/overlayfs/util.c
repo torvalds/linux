@@ -201,6 +201,25 @@ void ovl_dentry_set_opaque(struct dentry *dentry)
 	oe->opaque = true;
 }
 
+/*
+ * For hard links it's possible for ovl_dentry_upper() to return positive, while
+ * there's no actual upper alias for the inode.  Copy up code needs to know
+ * about the existence of the upper alias, so it can't use ovl_dentry_upper().
+ */
+bool ovl_dentry_has_upper_alias(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	return oe->has_upper;
+}
+
+void ovl_dentry_set_upper_alias(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	oe->has_upper = true;
+}
+
 bool ovl_redirect_dir(struct super_block *sb)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
