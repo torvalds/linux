@@ -169,7 +169,6 @@ struct drm_fb_helper_connector {
  * @crtc_info: per-CRTC helper state (mode, x/y offset, etc)
  * @connector_count: number of connected connectors
  * @connector_info_alloc_count: size of connector_info
- * @connector_info: array of per-connector information
  * @funcs: driver callbacks for fb helper
  * @fbdev: emulated fbdev device info struct
  * @pseudo_palette: fake palette of 16 colors
@@ -191,6 +190,12 @@ struct drm_fb_helper {
 	struct drm_fb_helper_crtc *crtc_info;
 	int connector_count;
 	int connector_info_alloc_count;
+	/**
+	 * @connector_info:
+	 *
+	 * Array of per-connector information. Do not iterate directly, but use
+	 * drm_fb_helper_for_each_connector.
+	 */
 	struct drm_fb_helper_connector **connector_info;
 	const struct drm_fb_helper_funcs *funcs;
 	struct fb_info *fbdev;
@@ -199,6 +204,18 @@ struct drm_fb_helper {
 	spinlock_t dirty_lock;
 	struct work_struct dirty_work;
 	struct work_struct resume_work;
+
+	/**
+	 * @lock:
+	 *
+	 * Top-level FBDEV helper lock. This protects all internal data
+	 * structures and lists, such as @connector_info and @crtc_info.
+	 *
+	 * FIXME: fbdev emulation locking is a mess and long term we want to
+	 * protect all helper internal state with this lock as well as reduce
+	 * core KMS locking as much as possible.
+	 */
+	struct mutex lock;
 
 	/**
 	 * @kernel_fb_list:
