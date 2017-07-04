@@ -539,7 +539,10 @@ static void vmd_detach_resources(struct vmd_dev *vmd)
 }
 
 /*
- * VMD domains start at 0x1000 to not clash with ACPI _SEG domains.
+ * VMD domains start at 0x10000 to not clash with ACPI _SEG domains.
+ * Per ACPI r6.0, sec 6.5.6,  _SEG returns an integer, of which the lower
+ * 16 bits are the PCI Segment Group (domain) number.  Other bits are
+ * currently reserved.
  */
 static int vmd_find_free_domain(void)
 {
@@ -734,10 +737,10 @@ static void vmd_remove(struct pci_dev *dev)
 	struct vmd_dev *vmd = pci_get_drvdata(dev);
 
 	vmd_detach_resources(vmd);
-	vmd_cleanup_srcu(vmd);
 	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_stop_root_bus(vmd->bus);
 	pci_remove_root_bus(vmd->bus);
+	vmd_cleanup_srcu(vmd);
 	vmd_teardown_dma_ops(vmd);
 	irq_domain_remove(vmd->irq_domain);
 }
