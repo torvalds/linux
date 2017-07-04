@@ -201,6 +201,8 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	struct intel_vgpu *vgpu = workload->vgpu;
 	int ret;
 
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
 	if (workload->shadowed)
 		return 0;
 
