@@ -678,9 +678,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		upperdentry = dget(index);
 
 	if (upperdentry || ctr) {
-		err = -ENOMEM;
 		inode = ovl_get_inode(dentry, upperdentry);
-		if (!inode)
+		err = PTR_ERR(inode);
+		if (IS_ERR(inode))
 			goto out_free_oe;
 
 		OVL_I(inode)->redirect = upperredirect;

@@ -236,7 +236,6 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 {
 	struct inode *upperinode = d_inode(upperdentry);
 
-	WARN_ON(!inode_unhashed(inode));
 	WARN_ON(!inode_is_locked(upperdentry->d_parent->d_inode));
 	WARN_ON(OVL_I(inode)->__upperdentry);
 
@@ -245,7 +244,7 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 	 */
 	smp_wmb();
 	OVL_I(inode)->__upperdentry = upperdentry;
-	if (!S_ISDIR(upperinode->i_mode)) {
+	if (!S_ISDIR(upperinode->i_mode) && inode_unhashed(inode)) {
 		inode->i_private = upperinode;
 		__insert_inode_hash(inode, (unsigned long) upperinode);
 	}

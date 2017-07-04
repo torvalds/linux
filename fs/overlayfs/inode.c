@@ -467,6 +467,25 @@ static int ovl_inode_set(struct inode *inode, void *data)
 	return 0;
 }
 
+static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
+			     struct dentry *upperdentry)
+{
+	struct inode *lowerinode = lowerdentry ? d_inode(lowerdentry) : NULL;
+
+	/* Lower (origin) inode must match, even if NULL */
+	if (ovl_inode_lower(inode) != lowerinode)
+		return false;
+
+	/*
+	 * Allow non-NULL __upperdentry in inode even if upperdentry is NULL.
+	 * This happens when finding a lower alias for a copied up hard link.
+	 */
+	if (upperdentry && ovl_inode_upper(inode) != d_inode(upperdentry))
+		return false;
+
+	return true;
+}
+
 struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 {
 	struct dentry *lowerdentry = ovl_dentry_lower(dentry);
@@ -476,12 +495,25 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 	if (!realinode)
 		realinode = d_inode(lowerdentry);
 
-	if (upperdentry && !d_is_dir(upperdentry)) {
-		inode = iget5_locked(dentry->d_sb, (unsigned long) realinode,
-				     ovl_inode_test, ovl_inode_set, realinode);
+	if (!S_ISDIR(realinode->i_mode) &&
+	    (upperdentry || (lowerdentry && ovl_indexdir(dentry->d_sb)))) {
+		struct inode *key = d_inode(lowerdentry ?: upperdentry);
+
+		inode = iget5_locked(dentry->d_sb, (unsigned long) key,
+				     ovl_inode_test, ovl_inode_set, key);
 		if (!inode)
-			goto out;
+			goto out_nomem;
 		if (!(inode->i_state & I_NEW)) {
+			/*
+			 * Verify that the underlying files stored in the inode
+			 * match those in the dentry.
+			 */
+			if (!ovl_verify_inode(inode, lowerdentry, upperdentry)) {
+				iput(inode);
+				inode = ERR_PTR(-ESTALE);
+				goto out;
+			}
+
 			dput(upperdentry);
 			goto out;
 		}
@@ -490,7 +522,7 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 	} else {
 		inode = new_inode(dentry->d_sb);
 		if (!inode)
-			goto out;
+			goto out_nomem;
 	}
 	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
 	ovl_inode_init(inode, upperdentry, lowerdentry);
@@ -502,4 +534,8 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry)
 		unlock_new_inode(inode);
 out:
 	return inode;
+
+out_nomem:
+	inode = ERR_PTR(-ENOMEM);
+	goto out;
 }
