@@ -230,10 +230,15 @@ void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry)
 	oe->__upperdentry = upperdentry;
 }
 
-void ovl_inode_init(struct inode *inode, struct inode *realinode, bool is_upper)
+void ovl_inode_init(struct inode *inode, struct dentry *dentry)
 {
+	struct inode *realinode = d_inode(ovl_dentry_real(dentry));
+	bool is_upper = ovl_dentry_upper(dentry);
+
 	WRITE_ONCE(inode->i_private, (unsigned long) realinode |
 		   (is_upper ? OVL_ISUPPER_MASK : 0));
+
+	ovl_copyattr(realinode, inode);
 }
 
 void ovl_inode_update(struct inode *inode, struct inode *upperinode)

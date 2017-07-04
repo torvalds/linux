@@ -433,41 +433,29 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	if (!oe)
 		goto out_put;
 
-	if (upperdentry || ctr) {
-		struct dentry *realdentry;
-		struct inode *realinode;
-
-		realdentry = upperdentry ? upperdentry : stack[0].dentry;
-		realinode = d_inode(realdentry);
-
-		err = -ENOMEM;
-		if (upperdentry && !d_is_dir(upperdentry)) {
-			inode = ovl_get_inode(dentry->d_sb, realinode);
-		} else {
-			inode = ovl_new_inode(dentry->d_sb, realinode->i_mode,
-					      realinode->i_rdev);
-			if (inode)
-				ovl_inode_init(inode, realinode, !!upperdentry);
-		}
-		if (!inode)
-			goto out_free_oe;
-		ovl_copyattr(realdentry->d_inode, inode);
-	}
-
-	revert_creds(old_cred);
 	oe->opaque = upperopaque;
 	oe->impure = upperimpure;
 	oe->redirect = upperredirect;
 	oe->__upperdentry = upperdentry;
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);
+	dentry->d_fsdata = oe;
+
+	if (upperdentry || ctr) {
+		err = -ENOMEM;
+		inode = ovl_get_inode(dentry);
+		if (!inode)
+			goto out_free_oe;
+	}
+
+	revert_creds(old_cred);
 	kfree(stack);
 	kfree(d.redirect);
-	dentry->d_fsdata = oe;
 	d_add(dentry, inode);
 
 	return NULL;
 
 out_free_oe:
+	dentry->d_fsdata = NULL;
 	kfree(oe);
 out_put:
 	for (i = 0; i < ctr; i++)

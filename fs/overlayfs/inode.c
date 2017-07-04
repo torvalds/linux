@@ -462,18 +462,28 @@ static int ovl_inode_set(struct inode *inode, void *data)
 	return 0;
 }
 
-struct inode *ovl_get_inode(struct super_block *sb, struct inode *realinode)
-
+struct inode *ovl_get_inode(struct dentry *dentry)
 {
+	struct dentry *upperdentry = ovl_dentry_upper(dentry);
+	struct inode *realinode = d_inode(ovl_dentry_real(dentry));
 	struct inode *inode;
 
-	inode = iget5_locked(sb, (unsigned long) realinode,
-			     ovl_inode_test, ovl_inode_set, realinode);
-	if (inode && inode->i_state & I_NEW) {
-		ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
-		set_nlink(inode, realinode->i_nlink);
-		unlock_new_inode(inode);
-	}
+	if (upperdentry && !d_is_dir(upperdentry)) {
+		inode = iget5_locked(dentry->d_sb, (unsigned long) realinode,
+				     ovl_inode_test, ovl_inode_set, realinode);
+		if (!inode || !(inode->i_state & I_NEW))
+			goto out;
 
+		set_nlink(inode, realinode->i_nlink);
+	} else {
+		inode = new_inode(dentry->d_sb);
+		if (!inode)
+			goto out;
+	}
+	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
+	ovl_inode_init(inode, dentry);
+	if (inode->i_state & I_NEW)
+		unlock_new_inode(inode);
+out:
 	return inode;
 }

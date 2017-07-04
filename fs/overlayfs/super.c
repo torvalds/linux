@@ -757,7 +757,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	struct path upperpath = { };
 	struct path workpath = { };
 	struct dentry *root_dentry;
-	struct inode *realinode;
 	struct ovl_entry *oe;
 	struct ovl_fs *ufs;
 	struct path *stack = NULL;
@@ -1009,9 +1008,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry->d_fsdata = oe;
 
-	realinode = d_inode(ovl_dentry_real(root_dentry));
-	ovl_inode_init(d_inode(root_dentry), realinode, !!upperpath.dentry);
-	ovl_copyattr(realinode, d_inode(root_dentry));
+	ovl_inode_init(d_inode(root_dentry), root_dentry);
 
 	sb->s_root = root_dentry;
 
