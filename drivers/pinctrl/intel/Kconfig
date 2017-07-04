@@ -1,6 +1,7 @@
 #
 # Intel pin control drivers
 #
+if (X86 || COMPILE_TEST)
 
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
@@ -80,3 +81,5 @@ config PINCTRL_SUNRISEPOINT
 	  Sunrisepoint is the PCH of Intel Skylake. This pinctrl driver
 	  provides an interface that allows configuring of PCH pins and
 	  using them as GPIOs.
+
+endif
