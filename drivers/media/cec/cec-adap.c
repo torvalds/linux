@@ -1471,8 +1471,13 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		return -ENODEV;
 
 	if (!log_addrs || log_addrs->num_log_addrs == 0) {
-		adap->log_addrs.num_log_addrs = 0;
 		cec_adap_unconfigure(adap);
+		adap->log_addrs.num_log_addrs = 0;
+		for (i = 0; i < CEC_MAX_LOG_ADDRS; i++)
+			adap->log_addrs.log_addr[i] = CEC_LOG_ADDR_INVALID;
+		adap->log_addrs.osd_name[0] = '\0';
+		adap->log_addrs.vendor_id = CEC_VENDOR_ID_NONE;
+		adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
 		return 0;
 	}
 

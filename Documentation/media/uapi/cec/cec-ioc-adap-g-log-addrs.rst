@@ -48,7 +48,9 @@ can only be called by a file descriptor in initiator mode (see :ref:`CEC_S_MODE`
 the ``EBUSY`` error code will be returned.
 
 To clear existing logical addresses set ``num_log_addrs`` to 0. All other fields
-will be ignored in that case. The adapter will go to the unconfigured state.
+will be ignored in that case. The adapter will go to the unconfigured state and the
+``cec_version``, ``vendor_id`` and ``osd_name`` fields are all reset to their default
+values (CEC version 2.0, no vendor ID and an empty OSD name).
 
 If the physical address is valid (see :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>`),
 then this ioctl will block until all requested logical
