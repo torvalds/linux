@@ -57,7 +57,7 @@ static void pnv_smp_setup_cpu(int cpu)
 
 static int pnv_smp_kick_cpu(int nr)
 {
-	unsigned int pcpu = get_hard_smp_processor_id(nr);
+	unsigned int pcpu;
 	unsigned long start_here =
 			__pa(ppc_function_entry(generic_secondary_smp_init));
 	long rc;
@@ -66,6 +66,7 @@ static int pnv_smp_kick_cpu(int nr)
 	if (nr < 0 || nr >= nr_cpu_ids)
 		return -EINVAL;
 
+	pcpu = get_hard_smp_processor_id(nr);
 	/*
 	 * If we already started or OPAL is not supported, we just
 	 * kick the CPU via the PACA
