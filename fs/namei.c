@@ -3400,7 +3400,6 @@ out:
 
 struct dentry *vfs_tmpfile(struct dentry *dentry, umode_t mode, int open_flag)
 {
-	static const struct qstr name = QSTR_INIT("/", 1);
 	struct dentry *child = NULL;
 	struct inode *dir = dentry->d_inode;
 	struct inode *inode;
@@ -3414,7 +3413,7 @@ struct dentry *vfs_tmpfile(struct dentry *dentry, umode_t mode, int open_flag)
 	if (!dir->i_op->tmpfile)
 		goto out_err;
 	error = -ENOMEM;
-	child = d_alloc(dentry, &name);
+	child = d_alloc(dentry, &slash_name);
 	if (unlikely(!child))
 		goto out_err;
 	error = dir->i_op->tmpfile(dir, child, mode);
