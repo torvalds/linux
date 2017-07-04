@@ -1148,8 +1148,8 @@ static void genpd_syscore_switch(struct device *dev, bool suspend)
 {
 	struct generic_pm_domain *genpd;
 
-	genpd = genpd_lookup_dev(dev);
-	if (!genpd)
+	genpd = dev_to_genpd(dev);
+	if (!pm_genpd_present(genpd))
 		return;
 
 	if (suspend) {
