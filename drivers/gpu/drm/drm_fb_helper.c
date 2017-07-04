@@ -253,22 +253,6 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 }
 EXPORT_SYMBOL(drm_fb_helper_remove_one_connector);
 
-static void drm_fb_helper_save_lut_atomic(struct drm_crtc *crtc, struct drm_fb_helper *helper)
-{
-	uint16_t *r_base, *g_base, *b_base;
-	int i;
-
-	if (helper->funcs->gamma_get == NULL)
-		return;
-
-	r_base = crtc->gamma_store;
-	g_base = r_base + crtc->gamma_size;
-	b_base = g_base + crtc->gamma_size;
-
-	for (i = 0; i < crtc->gamma_size; i++)
-		helper->funcs->gamma_get(crtc, &r_base[i], &g_base[i], &b_base[i], i);
-}
-
 static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 {
 	uint16_t *r_base, *g_base, *b_base;
@@ -309,7 +293,6 @@ int drm_fb_helper_debug_enter(struct fb_info *info)
 			if (drm_drv_uses_atomic_modeset(mode_set->crtc->dev))
 				continue;
 
-			drm_fb_helper_save_lut_atomic(mode_set->crtc, helper);
 			funcs->mode_set_base_atomic(mode_set->crtc,
 						    mode_set->fb,
 						    mode_set->x,
