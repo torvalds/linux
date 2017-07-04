@@ -76,6 +76,15 @@ static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
+static const struct acpi_device_id i2c_acpi_ignored_device_ids[] = {
+	/*
+	 * ACPI video acpi_devices, which are handled by the acpi-video driver
+	 * sometimes contain a SERIAL_TYPE_I2C ACPI resource, ignore these.
+	 */
+	{ ACPI_VIDEO_HID, 0 },
+	{}
+};
+
 static int i2c_acpi_do_lookup(struct acpi_device *adev,
 			      struct i2c_acpi_lookup *lookup)
 {
@@ -86,6 +95,9 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 	if (acpi_bus_get_status(adev) || !adev->status.present ||
 	    acpi_device_enumerated(adev))
 		return -EINVAL;
+
+	if (acpi_match_device_ids(adev, i2c_acpi_ignored_device_ids) == 0)
+		return -ENODEV;
 
 	memset(info, 0, sizeof(*info));
 	lookup->device_handle = acpi_device_handle(adev);
