@@ -19,7 +19,7 @@
 #include <linux/power_supply.h>
 #include <linux/idr.h>
 
-#include "../../w1/w1.h"
+#include <linux/w1.h>
 #include "../../w1/slaves/w1_ds2781.h"
 
 /* Current unit measurement in uA for a 1 milli-ohm sense resistor */

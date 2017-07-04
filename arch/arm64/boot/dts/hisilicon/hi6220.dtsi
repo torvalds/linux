@@ -887,5 +887,69 @@
 				};
 			};
 		};
+
+		debug@f6590000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6590000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu0>;
+		};
+
+		debug@f6592000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6592000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu1>;
+		};
+
+		debug@f6594000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6594000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu2>;
+		};
+
+		debug@f6596000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6596000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu3>;
+		};
+
+		debug@f65d0000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d0000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu4>;
+		};
+
+		debug@f65d2000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d2000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu5>;
+		};
+
+		debug@f65d4000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d4000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu6>;
+		};
+
+		debug@f65d6000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d6000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu7>;
+		};
 	};
 };

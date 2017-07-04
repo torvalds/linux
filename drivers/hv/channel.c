@@ -630,9 +630,13 @@ void vmbus_close(struct vmbus_channel *channel)
 	 */
 	list_for_each_safe(cur, tmp, &channel->sc_list) {
 		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
-		if (cur_channel->state != CHANNEL_OPENED_STATE)
-			continue;
 		vmbus_close_internal(cur_channel);
+		if (cur_channel->rescind) {
+			mutex_lock(&vmbus_connection.channel_mutex);
+			hv_process_channel_removal(cur_channel,
+					   cur_channel->offermsg.child_relid);
+			mutex_unlock(&vmbus_connection.channel_mutex);
+		}
 	}
 	/*
 	 * Now close the primary.

@@ -166,9 +166,6 @@ out:
 	if (!used)
 		kfree(buf);
 
-	if (!ret)
-		dev_info(drvdata->dev, "TMC-ETB/ETF enabled\n");
-
 	return ret;
 }
 
@@ -204,15 +201,27 @@ out:
 
 static int tmc_enable_etf_sink(struct coresight_device *csdev, u32 mode)
 {
+	int ret;
+	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
 	switch (mode) {
 	case CS_MODE_SYSFS:
-		return tmc_enable_etf_sink_sysfs(csdev);
+		ret = tmc_enable_etf_sink_sysfs(csdev);
+		break;
 	case CS_MODE_PERF:
-		return tmc_enable_etf_sink_perf(csdev);
+		ret = tmc_enable_etf_sink_perf(csdev);
+		break;
+	/* We shouldn't be here */
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
-	/* We shouldn't be here */
-	return -EINVAL;
+	if (ret)
+		return ret;
+
+	dev_info(drvdata->dev, "TMC-ETB/ETF enabled\n");
+	return 0;
 }
 
 static void tmc_disable_etf_sink(struct coresight_device *csdev)
@@ -273,7 +282,7 @@ static void tmc_disable_etf_link(struct coresight_device *csdev,
 	drvdata->mode = CS_MODE_DISABLED;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
-	dev_info(drvdata->dev, "TMC disabled\n");
+	dev_info(drvdata->dev, "TMC-ETF disabled\n");
 }
 
 static void *tmc_alloc_etf_buffer(struct coresight_device *csdev, int cpu,

@@ -12,8 +12,10 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __W1_H
-#define __W1_H
+#ifndef __LINUX_W1_H
+#define __LINUX_W1_H
+
+#include <linux/device.h>
 
 /**
  * struct w1_reg_num - broken out slave device id
@@ -22,8 +24,7 @@
  * @id: along with family is the unique device id
  * @crc: checksum of the other bytes
  */
-struct w1_reg_num
-{
+struct w1_reg_num {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u64	family:8,
 		id:48,
@@ -39,12 +40,6 @@ struct w1_reg_num
 
 #ifdef __KERNEL__
 
-#include <linux/completion.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
-
-#include "w1_family.h"
-
 #define W1_MAXNAMELEN		32
 
 #define W1_SEARCH		0xF0
@@ -58,9 +53,6 @@ struct w1_reg_num
 #define W1_READ_PSUPPLY		0xB4
 #define W1_MATCH_ROM		0x55
 #define W1_RESUME_CMD		0xA5
-
-#define W1_SLAVE_ACTIVE		0
-#define W1_SLAVE_DETACH		1
 
 /**
  * struct w1_slave - holds a single slave device on the bus
@@ -78,8 +70,7 @@ struct w1_reg_num
  * @dev: kernel device identifier
  *
  */
-struct w1_slave
-{
+struct w1_slave {
 	struct module		*owner;
 	unsigned char		name[W1_MAXNAMELEN];
 	struct list_head	w1_slave_entry;
@@ -95,7 +86,6 @@ struct w1_slave
 };
 
 typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
-
 
 /**
  * struct w1_bus_master - operations available on a bus master
@@ -142,8 +132,7 @@ typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
  * reset_bus.
  *
  */
-struct w1_bus_master
-{
+struct w1_bus_master {
 	void		*data;
 
 	u8		(*read_bit)(void *);
@@ -209,8 +198,7 @@ enum w1_master_flags {
  * @bus_master:		io operations available
  * @seq:		sequence number used for netlink broadcasts
  */
-struct w1_master
-{
+struct w1_master {
 	struct list_head	w1_master_entry;
 	struct module		*owner;
 	unsigned char		name[W1_MAXNAMELEN];
@@ -254,45 +242,51 @@ struct w1_master
 	u32			seq;
 };
 
+int w1_add_master_device(struct w1_bus_master *master);
+void w1_remove_master_device(struct w1_bus_master *master);
+
 /**
- * struct w1_async_cmd - execute callback from the w1_process kthread
- * @async_entry: link entry
- * @cb: callback function, must list_del and destroy this list before
- * returning
- *
- * When inserted into the w1_master async_list, w1_process will execute
- * the callback.  Embed this into the structure with the command details.
+ * struct w1_family_ops - operations for a family type
+ * @add_slave: add_slave
+ * @remove_slave: remove_slave
+ * @groups: sysfs group
  */
-struct w1_async_cmd {
-	struct list_head	async_entry;
-	void (*cb)(struct w1_master *dev, struct w1_async_cmd *async_cmd);
+struct w1_family_ops {
+	int  (*add_slave)(struct w1_slave *sl);
+	void (*remove_slave)(struct w1_slave *sl);
+	const struct attribute_group **groups;
 };
 
-int w1_create_master_attributes(struct w1_master *);
-void w1_destroy_master_attributes(struct w1_master *master);
-void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
-void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
-/* call w1_unref_slave to release the reference counts w1_search_slave added */
-struct w1_slave *w1_search_slave(struct w1_reg_num *id);
-/* decrements the reference on sl->master and sl, and cleans up if zero
- * returns the reference count after it has been decremented */
-int w1_unref_slave(struct w1_slave *sl);
-void w1_slave_found(struct w1_master *dev, u64 rn);
-void w1_search_process_cb(struct w1_master *dev, u8 search_type,
-	w1_slave_found_callback cb);
-struct w1_slave *w1_slave_search_device(struct w1_master *dev,
-	struct w1_reg_num *rn);
-struct w1_master *w1_search_master_id(u32 id);
-
-/* Disconnect and reconnect devices in the given family.  Used for finding
- * unclaimed devices after a family has been registered or releasing devices
- * after a family has been unregistered.  Set attach to 1 when a new family
- * has just been registered, to 0 when it has been unregistered.
+/**
+ * struct w1_family - reference counted family structure.
+ * @family_entry:	family linked list
+ * @fid:		8 bit family identifier
+ * @fops:		operations for this family
+ * @refcnt:		reference counter
  */
-void w1_reconnect_slaves(struct w1_family *f, int attach);
-int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn);
-/* 0 success, otherwise EBUSY */
-int w1_slave_detach(struct w1_slave *sl);
+struct w1_family {
+	struct list_head	family_entry;
+	u8			fid;
+
+	struct w1_family_ops	*fops;
+
+	atomic_t		refcnt;
+};
+
+int w1_register_family(struct w1_family *family);
+void w1_unregister_family(struct w1_family *family);
+
+/**
+ * module_w1_driver() - Helper macro for registering a 1-Wire families
+ * @__w1_family: w1_family struct
+ *
+ * Helper macro for 1-Wire families which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_w1_family(__w1_family) \
+	module_driver(__w1_family, w1_register_family, \
+			w1_unregister_family)
 
 u8 w1_triplet(struct w1_master *dev, int bdir);
 void w1_write_8(struct w1_master *, u8);
@@ -321,16 +315,6 @@ static inline struct w1_master* dev_to_w1_master(struct device *dev)
 	return container_of(dev, struct w1_master, dev);
 }
 
-extern struct device_driver w1_master_driver;
-extern struct device w1_master_device;
-extern int w1_max_slave_count;
-extern int w1_max_slave_ttl;
-extern struct list_head w1_masters;
-extern struct mutex w1_mlock;
-
-extern int w1_process_callbacks(struct w1_master *dev);
-extern int w1_process(void *);
-
 #endif /* __KERNEL__ */
 
-#endif /* __W1_H */
+#endif /* __LINUX_W1_H */

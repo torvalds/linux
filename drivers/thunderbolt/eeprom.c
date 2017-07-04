@@ -204,6 +204,11 @@ struct tb_drom_entry_header {
 	enum tb_drom_entry_type type:1;
 } __packed;
 
+struct tb_drom_entry_generic {
+	struct tb_drom_entry_header header;
+	u8 data[0];
+} __packed;
+
 struct tb_drom_entry_port {
 	/* BYTES 0-1 */
 	struct tb_drom_entry_header header;
@@ -276,6 +281,9 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
 	if (res)
 		return res;
 
+	if (drom_offset == 0)
+		return -ENODEV;
+
 	/* read uid */
 	res = tb_eeprom_read_n(sw, drom_offset, data, 9);
 	if (res)
@@ -283,7 +291,7 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
 
 	crc = tb_crc8(data + 1, 8);
 	if (crc != data[0]) {
-		tb_sw_warn(sw, "uid crc8 missmatch (expected: %#x, got: %#x)\n",
+		tb_sw_warn(sw, "uid crc8 mismatch (expected: %#x, got: %#x)\n",
 				data[0], crc);
 		return -EIO;
 	}
@@ -292,24 +300,38 @@ int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
 	return 0;
 }
 
-static void tb_drom_parse_port_entry(struct tb_port *port,
-		struct tb_drom_entry_port *entry)
+static int tb_drom_parse_entry_generic(struct tb_switch *sw,
+		struct tb_drom_entry_header *header)
 {
-	port->link_nr = entry->link_nr;
-	if (entry->has_dual_link_port)
-		port->dual_link_port =
-				&port->sw->ports[entry->dual_link_port_nr];
+	const struct tb_drom_entry_generic *entry =
+		(const struct tb_drom_entry_generic *)header;
+
+	switch (header->index) {
+	case 1:
+		/* Length includes 2 bytes header so remove it before copy */
+		sw->vendor_name = kstrndup(entry->data,
+			header->len - sizeof(*header), GFP_KERNEL);
+		if (!sw->vendor_name)
+			return -ENOMEM;
+		break;
+
+	case 2:
+		sw->device_name = kstrndup(entry->data,
+			header->len - sizeof(*header), GFP_KERNEL);
+		if (!sw->device_name)
+			return -ENOMEM;
+		break;
+	}
+
+	return 0;
 }
 
-static int tb_drom_parse_entry(struct tb_switch *sw,
-		struct tb_drom_entry_header *header)
+static int tb_drom_parse_entry_port(struct tb_switch *sw,
+				    struct tb_drom_entry_header *header)
 {
 	struct tb_port *port;
 	int res;
 	enum tb_port_type type;
-
-	if (header->type != TB_DROM_ENTRY_PORT)
-		return 0;
 
 	port = &sw->ports[header->index];
 	port->disabled = header->port_disabled;
@@ -329,7 +351,10 @@ static int tb_drom_parse_entry(struct tb_switch *sw,
 				header->len, sizeof(struct tb_drom_entry_port));
 			return -EIO;
 		}
-		tb_drom_parse_port_entry(port, entry);
+		port->link_nr = entry->link_nr;
+		if (entry->has_dual_link_port)
+			port->dual_link_port =
+				&port->sw->ports[entry->dual_link_port_nr];
 	}
 	return 0;
 }
@@ -344,6 +369,7 @@ static int tb_drom_parse_entries(struct tb_switch *sw)
 	struct tb_drom_header *header = (void *) sw->drom;
 	u16 pos = sizeof(*header);
 	u16 drom_size = header->data_len + TB_DROM_DATA_START;
+	int res;
 
 	while (pos < drom_size) {
 		struct tb_drom_entry_header *entry = (void *) (sw->drom + pos);
@@ -353,7 +379,16 @@ static int tb_drom_parse_entries(struct tb_switch *sw)
 			return -EIO;
 		}
 
-		tb_drom_parse_entry(sw, entry);
+		switch (entry->type) {
+		case TB_DROM_ENTRY_GENERIC:
+			res = tb_drom_parse_entry_generic(sw, entry);
+			break;
+		case TB_DROM_ENTRY_PORT:
+			res = tb_drom_parse_entry_port(sw, entry);
+			break;
+		}
+		if (res)
+			return res;
 
 		pos += entry->len;
 	}
@@ -394,6 +429,50 @@ err:
 	return -EINVAL;
 }
 
+static int tb_drom_copy_nvm(struct tb_switch *sw, u16 *size)
+{
+	u32 drom_offset;
+	int ret;
+
+	if (!sw->dma_port)
+		return -ENODEV;
+
+	ret = tb_sw_read(sw, &drom_offset, TB_CFG_SWITCH,
+			 sw->cap_plug_events + 12, 1);
+	if (ret)
+		return ret;
+
+	if (!drom_offset)
+		return -ENODEV;
+
+	ret = dma_port_flash_read(sw->dma_port, drom_offset + 14, size,
+				  sizeof(*size));
+	if (ret)
+		return ret;
+
+	/* Size includes CRC8 + UID + CRC32 */
+	*size += 1 + 8 + 4;
+	sw->drom = kzalloc(*size, GFP_KERNEL);
+	if (!sw->drom)
+		return -ENOMEM;
+
+	ret = dma_port_flash_read(sw->dma_port, drom_offset, sw->drom, *size);
+	if (ret)
+		goto err_free;
+
+	/*
+	 * Read UID from the minimal DROM because the one in NVM is just
+	 * a placeholder.
+	 */
+	tb_drom_read_uid_only(sw, &sw->uid);
+	return 0;
+
+err_free:
+	kfree(sw->drom);
+	sw->drom = NULL;
+	return ret;
+}
+
 /**
  * tb_drom_read - copy drom to sw->drom and parse it
  */
@@ -413,6 +492,10 @@ int tb_drom_read(struct tb_switch *sw)
 		 * in a device property. Use it if available.
 		 */
 		if (tb_drom_copy_efi(sw, &size) == 0)
+			goto parse;
+
+		/* Non-Apple hardware has the DROM as part of NVM */
+		if (tb_drom_copy_nvm(sw, &size) == 0)
 			goto parse;
 
 		/*
@@ -475,17 +558,19 @@ parse:
 			header->uid_crc8, crc);
 		goto err;
 	}
-	sw->uid = header->uid;
+	if (!sw->uid)
+		sw->uid = header->uid;
+	sw->vendor = header->vendor_id;
+	sw->device = header->model_id;
 
 	crc = tb_crc32(sw->drom + TB_DROM_DATA_START, header->data_len);
 	if (crc != header->data_crc32) {
 		tb_sw_warn(sw,
-			"drom data crc32 mismatch (expected: %#x, got: %#x), aborting\n",
+			"drom data crc32 mismatch (expected: %#x, got: %#x), continuing\n",
 			header->data_crc32, crc);
-		goto err;
 	}
 
-	if (header->device_rom_revision > 1)
+	if (header->device_rom_revision > 2)
 		tb_sw_warn(sw, "drom device_rom_revision %#x unknown\n",
 			header->device_rom_revision);
 

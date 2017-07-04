@@ -1345,14 +1345,11 @@ static inline void input_state_falling(struct logical_input *input)
 
 static void panel_process_inputs(void)
 {
-	struct list_head *item;
 	struct logical_input *input;
 
 	keypressed = 0;
 	inputs_stable = 1;
-	list_for_each(item, &logical_inputs) {
-		input = list_entry(item, struct logical_input, list);
-
+	list_for_each_entry(input, &logical_inputs, list) {
 		switch (input->state) {
 		case INPUT_ST_LOW:
 			if ((phys_curr & input->mask) != input->value)

@@ -61,6 +61,7 @@ configure specific aspects of kernel behavior to your liking.
    java
    ras
    pm/index
+   thunderbolt
 
 .. only::  subproject and html
 

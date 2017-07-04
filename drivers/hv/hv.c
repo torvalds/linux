@@ -82,9 +82,14 @@ int hv_post_message(union hv_connection_id connection_id,
 	aligned_msg->message_type = message_type;
 	aligned_msg->payload_size = payload_size;
 	memcpy((void *)aligned_msg->payload, payload, payload_size);
-	put_cpu_ptr(hv_cpu);
 
 	status = hv_do_hypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL);
+
+	/* Preemption must remain disabled until after the hypercall
+	 * so some other thread can't get scheduled onto this cpu and
+	 * corrupt the per-cpu post_msg_page
+	 */
+	put_cpu_ptr(hv_cpu);
 
 	return status & 0xFFFF;
 }
@@ -96,7 +101,7 @@ static int hv_ce_set_next_event(unsigned long delta,
 
 	WARN_ON(!clockevent_state_oneshot(evt));
 
-	hv_get_current_tick(current_tick);
+	current_tick = hyperv_cs->read(NULL);
 	current_tick += delta;
 	hv_init_timer(HV_X64_MSR_STIMER0_COUNT, current_tick);
 	return 0;

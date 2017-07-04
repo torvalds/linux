@@ -4,6 +4,7 @@ Required properties:
 - compatible: Should be one of the following.
   - "rockchip,rk3066a-efuse" - for RK3066a SoCs.
   - "rockchip,rk3188-efuse" - for RK3188 SoCs.
+  - "rockchip,rk322x-efuse" - for RK322x SoCs.
   - "rockchip,rk3288-efuse" - for RK3288 SoCs.
   - "rockchip,rk3399-efuse" - for RK3399 SoCs.
 - reg: Should contain the registers location and exact eFuse size
