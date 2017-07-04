@@ -317,6 +317,7 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 }
 
 struct ovl_copy_up_ctx {
+	struct dentry *parent;
 	struct dentry *dentry;
 	struct path lowerpath;
 	struct kstat stat;
@@ -493,38 +494,15 @@ out_cleanup:
  * is possible that the copy up will lock the old parent.  At that point
  * the file will have already been copied up anyway.
  */
-static int ovl_copy_up_one(struct dentry *parent, struct ovl_copy_up_ctx *c)
+static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 {
-	DEFINE_DELAYED_CALL(done);
 	int err;
-	struct path parentpath;
-	struct dentry *lowerdentry = c->lowerpath.dentry;
 	struct ovl_fs *ofs = c->dentry->d_sb->s_fs_info;
 
-	c->workdir = ovl_workdir(c->dentry);
-	if (WARN_ON(!c->workdir))
-		return -EROFS;
-
-	ovl_do_check_copy_up(lowerdentry);
-
-	ovl_path_upper(parent, &parentpath);
-	c->upperdir = parentpath.dentry;
-
 	/* Mark parent "impure" because it may now contain non-pure upper */
-	err = ovl_set_impure(parent, c->upperdir);
+	err = ovl_set_impure(c->parent, c->upperdir);
 	if (err)
 		return err;
-
-	err = vfs_getattr(&parentpath, &c->pstat,
-			  STATX_ATIME | STATX_MTIME, AT_STATX_SYNC_AS_STAT);
-	if (err)
-		return err;
-
-	if (S_ISLNK(c->stat.mode)) {
-		c->link = vfs_get_link(lowerdentry, &done);
-		if (IS_ERR(c->link))
-			return PTR_ERR(c->link);
-	}
 
 	/* Should we copyup with O_TMPFILE or with workdir? */
 	if (S_ISREG(c->stat.mode) && ofs->tmpfile) {
@@ -558,6 +536,52 @@ static int ovl_copy_up_one(struct dentry *parent, struct ovl_copy_up_ctx *c)
 out_unlock:
 	unlock_rename(c->workdir, c->upperdir);
 out_done:
+
+	return err;
+}
+
+static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
+			   int flags)
+{
+	int err;
+	DEFINE_DELAYED_CALL(done);
+	struct path parentpath;
+	struct ovl_copy_up_ctx ctx = {
+		.parent = parent,
+		.dentry = dentry,
+		.workdir = ovl_workdir(dentry),
+	};
+
+	if (WARN_ON(!ctx.workdir))
+		return -EROFS;
+
+	ovl_path_lower(dentry, &ctx.lowerpath);
+	err = vfs_getattr(&ctx.lowerpath, &ctx.stat,
+			  STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
+	if (err)
+		return err;
+
+	ovl_path_upper(parent, &parentpath);
+	ctx.upperdir = parentpath.dentry;
+
+	err = vfs_getattr(&parentpath, &ctx.pstat,
+			  STATX_ATIME | STATX_MTIME, AT_STATX_SYNC_AS_STAT);
+	if (err)
+		return err;
+
+	/* maybe truncate regular file. this has no effect on dirs */
+	if (flags & O_TRUNC)
+		ctx.stat.size = 0;
+
+	if (S_ISLNK(ctx.stat.mode)) {
+		ctx.link = vfs_get_link(ctx.lowerpath.dentry, &done);
+		if (IS_ERR(ctx.link))
+			return PTR_ERR(ctx.link);
+	}
+	ovl_do_check_copy_up(ctx.lowerpath.dentry);
+
+	err = ovl_do_copy_up(&ctx);
+
 	do_delayed_call(&done);
 
 	return err;
@@ -571,7 +595,6 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 	while (!err) {
 		struct dentry *next;
 		struct dentry *parent;
-		struct ovl_copy_up_ctx ctx = { };
 		enum ovl_path_type type = ovl_path_type(dentry);
 
 		if (OVL_TYPE_UPPER(type))
@@ -590,16 +613,7 @@ int ovl_copy_up_flags(struct dentry *dentry, int flags)
 			next = parent;
 		}
 
-		ovl_path_lower(next, &ctx.lowerpath);
-		err = vfs_getattr(&ctx.lowerpath, &ctx.stat,
-				  STATX_BASIC_STATS, AT_STATX_SYNC_AS_STAT);
-		/* maybe truncate regular file. this has no effect on dirs */
-		if (flags & O_TRUNC)
-			ctx.stat.size = 0;
-		if (!err) {
-			ctx.dentry = next;
-			err = ovl_copy_up_one(parent, &ctx);
-		}
+		err = ovl_copy_up_one(parent, next, flags);
 
 		dput(parent);
 		dput(next);
