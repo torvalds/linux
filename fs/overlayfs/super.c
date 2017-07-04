@@ -41,7 +41,6 @@ static void ovl_dentry_release(struct dentry *dentry)
 	if (oe) {
 		unsigned int i;
 
-		dput(oe->__upperdentry);
 		kfree(oe->redirect);
 		for (i = 0; i < oe->numlower; i++)
 			dput(oe->lowerstack[i].dentry);
@@ -171,7 +170,7 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 {
 	struct ovl_inode *oi = kmem_cache_alloc(ovl_inode_cachep, GFP_KERNEL);
 
-	oi->upper = NULL;
+	oi->__upperdentry = NULL;
 	oi->lower = NULL;
 
 	return &oi->vfs_inode;
@@ -186,6 +185,10 @@ static void ovl_i_callback(struct rcu_head *head)
 
 static void ovl_destroy_inode(struct inode *inode)
 {
+	struct ovl_inode *oi = OVL_I(inode);
+
+	dput(oi->__upperdentry);
+
 	call_rcu(&inode->i_rcu, ovl_i_callback);
 }
 
@@ -636,7 +639,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 			size_t size, int flags)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
-	struct inode *realinode = ovl_inode_real(inode, NULL);
+	struct inode *realinode = ovl_inode_real(inode);
 	struct posix_acl *acl = NULL;
 	int err;
 
@@ -678,7 +681,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 
 	err = ovl_xattr_set(dentry, handler->name, value, size, flags);
 	if (!err)
-		ovl_copyattr(ovl_inode_real(inode, NULL), inode);
+		ovl_copyattr(ovl_inode_real(inode), inode);
 
 	return err;
 
@@ -1000,7 +1003,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	kfree(lowertmp);
 
 	if (upperpath.dentry) {
-		oe->__upperdentry = upperpath.dentry;
 		oe->impure = ovl_is_impuredir(upperpath.dentry);
 	}
 	for (i = 0; i < numlower; i++) {
@@ -1011,7 +1013,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry->d_fsdata = oe;
 
-	ovl_inode_init(d_inode(root_dentry), root_dentry);
+	ovl_inode_init(d_inode(root_dentry), upperpath.dentry,
+		       ovl_dentry_lower(root_dentry));
 
 	sb->s_root = root_dentry;
 

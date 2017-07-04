@@ -189,7 +189,9 @@ enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
-struct inode *ovl_inode_real(struct inode *inode, bool *is_upper);
+struct inode *ovl_inode_upper(struct inode *inode);
+struct inode *ovl_inode_lower(struct inode *inode);
+struct inode *ovl_inode_real(struct inode *inode);
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
@@ -199,9 +201,9 @@ void ovl_dentry_set_opaque(struct dentry *dentry);
 bool ovl_redirect_dir(struct super_block *sb);
 const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
-void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry);
-void ovl_inode_init(struct inode *inode, struct dentry *dentry);
-void ovl_inode_update(struct inode *inode, struct inode *upperinode);
+void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
+		    struct dentry *lowerdentry);
+void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
 void ovl_dentry_version_inc(struct dentry *dentry);
 u64 ovl_dentry_version_get(struct dentry *dentry);
 bool ovl_is_whiteout(struct dentry *dentry);
@@ -250,7 +252,7 @@ int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
 bool ovl_is_private_xattr(const char *name);
 
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
-struct inode *ovl_get_inode(struct dentry *dentry);
+struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry);
 static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
 	to->i_uid = from->i_uid;

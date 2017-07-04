@@ -36,7 +36,6 @@ struct ovl_fs {
 
 /* private information held for every overlayfs dentry */
 struct ovl_entry {
-	struct dentry *__upperdentry;
 	struct ovl_dir_cache *cache;
 	union {
 		struct {
@@ -54,18 +53,18 @@ struct ovl_entry {
 
 struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
 
-static inline struct dentry *ovl_upperdentry_dereference(struct ovl_entry *oe)
-{
-	return lockless_dereference(oe->__upperdentry);
-}
-
 struct ovl_inode {
 	struct inode vfs_inode;
-	struct inode *upper;
+	struct dentry *__upperdentry;
 	struct inode *lower;
 };
 
 static inline struct ovl_inode *OVL_I(struct inode *inode)
 {
 	return container_of(inode, struct ovl_inode, vfs_inode);
+}
+
+static inline struct dentry *ovl_upperdentry_dereference(struct ovl_inode *oi)
+{
+	return lockless_dereference(oi->__upperdentry);
 }

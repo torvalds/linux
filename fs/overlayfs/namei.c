@@ -359,7 +359,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(-ENAMETOOLONG);
 
 	old_cred = ovl_override_creds(dentry->d_sb);
-	upperdir = ovl_upperdentry_dereference(poe);
+	upperdir = ovl_dentry_upper(dentry->d_parent);
 	if (upperdir) {
 		err = ovl_lookup_layer(upperdir, &d, &upperdentry);
 		if (err)
@@ -436,13 +436,12 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	oe->opaque = upperopaque;
 	oe->impure = upperimpure;
 	oe->redirect = upperredirect;
-	oe->__upperdentry = upperdentry;
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);
 	dentry->d_fsdata = oe;
 
 	if (upperdentry || ctr) {
 		err = -ENOMEM;
-		inode = ovl_get_inode(dentry);
+		inode = ovl_get_inode(dentry, upperdentry);
 		if (!inode)
 			goto out_free_oe;
 	}
@@ -487,7 +486,7 @@ bool ovl_lower_positive(struct dentry *dentry)
 		return oe->opaque;
 
 	/* Negative upper -> positive lower */
-	if (!oe->__upperdentry)
+	if (!ovl_dentry_upper(dentry))
 		return true;
 
 	/* Positive upper -> have to look up lower to see whether it exists */

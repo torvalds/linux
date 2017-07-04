@@ -417,8 +417,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 		goto out_cleanup;
 
 	newdentry = dget(tmpfile ? upper : temp);
-	ovl_dentry_update(dentry, newdentry);
-	ovl_inode_update(d_inode(dentry), d_inode(newdentry));
+	ovl_inode_update(d_inode(dentry), newdentry);
 
 	/* Restore timestamps on parent (best effort) */
 	ovl_set_timestamps(upperdir, pstat);

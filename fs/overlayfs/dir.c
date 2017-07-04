@@ -154,12 +154,12 @@ static void ovl_instantiate(struct dentry *dentry, struct inode *inode,
 			    struct dentry *newdentry, bool hardlink)
 {
 	ovl_dentry_version_inc(dentry->d_parent);
-	ovl_dentry_update(dentry, newdentry);
 	if (!hardlink) {
-		ovl_inode_update(inode, d_inode(newdentry));
+		ovl_inode_update(inode, newdentry);
 		ovl_copyattr(newdentry->d_inode, inode);
 	} else {
-		WARN_ON(ovl_inode_real(inode, NULL) != d_inode(newdentry));
+		WARN_ON(ovl_inode_real(inode) != d_inode(newdentry));
+		dput(newdentry);
 		inc_nlink(inode);
 	}
 	d_instantiate(dentry, inode);
@@ -1003,7 +1003,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	new_opaque = ovl_dentry_is_opaque(new);
 
 	err = -ESTALE;
-	if (ovl_dentry_upper(new)) {
+	if (d_inode(new) && ovl_dentry_upper(new)) {
 		if (opaquedir) {
 			if (newdentry != opaquedir)
 				goto out_dput;
