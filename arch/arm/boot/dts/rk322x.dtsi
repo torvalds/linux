@@ -586,7 +586,7 @@
 		operating-points-v2 = <&gpu_opp_table>;
 		status = "disabled";
 
-		gpu_power_model: power-model {
+		gpu_power_model: power_model {
 			compatible = "arm,mali-simple-power-model";
 			voltage = <900>;
 			frequency = <500>;
