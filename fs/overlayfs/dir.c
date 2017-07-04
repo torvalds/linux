@@ -611,6 +611,11 @@ out:
 	return err;
 }
 
+static bool ovl_matches_upper(struct dentry *dentry, struct dentry *upper)
+{
+	return d_inode(ovl_dentry_upper(dentry)) == d_inode(upper);
+}
+
 static int ovl_remove_and_whiteout(struct dentry *dentry, bool is_dir)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
@@ -646,7 +651,7 @@ static int ovl_remove_and_whiteout(struct dentry *dentry, bool is_dir)
 	err = -ESTALE;
 	if ((opaquedir && upper != opaquedir) ||
 	    (!opaquedir && ovl_dentry_upper(dentry) &&
-	     upper != ovl_dentry_upper(dentry))) {
+	     !ovl_matches_upper(dentry, upper))) {
 		goto out_dput_upper;
 	}
 
@@ -707,7 +712,7 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 
 	err = -ESTALE;
 	if ((opaquedir && upper != opaquedir) ||
-	    (!opaquedir && upper != ovl_dentry_upper(dentry)))
+	    (!opaquedir && !ovl_matches_upper(dentry, upper)))
 		goto out_dput_upper;
 
 	if (is_dir)
@@ -985,7 +990,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 		goto out_unlock;
 
 	err = -ESTALE;
-	if (olddentry != ovl_dentry_upper(old))
+	if (!ovl_matches_upper(old, olddentry))
 		goto out_dput_old;
 
 	newdentry = lookup_one_len(new->d_name.name, new_upperdir,
@@ -1003,7 +1008,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 			if (newdentry != opaquedir)
 				goto out_dput;
 		} else {
-			if (newdentry != ovl_dentry_upper(new))
+			if (!ovl_matches_upper(new, newdentry))
 				goto out_dput;
 		}
 	} else {
