@@ -147,7 +147,7 @@ struct ifacaddr6 {
 	struct rt6_info		*aca_rt;
 	struct ifacaddr6	*aca_next;
 	int			aca_users;
-	atomic_t		aca_refcnt;
+	refcount_t		aca_refcnt;
 	unsigned long		aca_cstamp;
 	unsigned long		aca_tstamp;
 };
