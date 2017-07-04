@@ -287,7 +287,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	struct fd f;
 	struct eventfd_ctx *eventfd = NULL, *resamplefd = NULL;
 	int ret;
-	unsigned int events;
+	__poll_t events;
 	int idx;
 
 	if (!kvm_arch_intc_initialized(kvm))

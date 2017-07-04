@@ -809,7 +809,7 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	unsigned res = POLLERR;
+	__poll_t res = POLLERR;
 
 	if (icd->streamer != file)
 		return POLLERR;

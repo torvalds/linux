@@ -210,7 +210,7 @@ static unsigned int full_proxy_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
 	struct dentry *dentry = F_DENTRY(filp);
-	unsigned int r = 0;
+	__poll_t r = 0;
 	const struct file_operations *real_fops;
 
 	if (debugfs_file_get(dentry))

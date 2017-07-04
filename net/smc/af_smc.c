@@ -1130,7 +1130,7 @@ static unsigned int smc_poll(struct file *file, struct socket *sock,
 			     poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct smc_sock *smc;
 	int rc;
 

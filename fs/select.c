@@ -484,8 +484,9 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 		rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
 
 		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
-			unsigned long in, out, ex, all_bits, bit = 1, mask, j;
+			unsigned long in, out, ex, all_bits, bit = 1, j;
 			unsigned long res_in = 0, res_out = 0, res_ex = 0;
+			__poll_t mask;
 
 			in = *inp++; out = *outp++; ex = *exp++;
 			all_bits = in | out | ex;
@@ -806,7 +807,7 @@ static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 				     bool *can_busy_poll,
 				     unsigned int busy_flag)
 {
-	unsigned int mask;
+	__poll_t mask;
 	int fd;
 
 	mask = 0;

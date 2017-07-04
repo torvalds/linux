@@ -113,7 +113,7 @@ int vfio_virqfd_enable(void *opaque,
 	struct eventfd_ctx *ctx;
 	struct virqfd *virqfd;
 	int ret = 0;
-	unsigned int events;
+	__poll_t events;
 
 	virqfd = kzalloc(sizeof(*virqfd), GFP_KERNEL);
 	if (!virqfd)

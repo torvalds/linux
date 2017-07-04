@@ -237,7 +237,7 @@ static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t 
 static unsigned int proc_reg_poll(struct file *file, struct poll_table_struct *pts)
 {
 	struct proc_dir_entry *pde = PDE(file_inode(file));
-	unsigned int rv = DEFAULT_POLLMASK;
+	__poll_t rv = DEFAULT_POLLMASK;
 	__poll_t (*poll)(struct file *, struct poll_table_struct *);
 	if (use_pde(pde)) {
 		poll = pde->proc_fops->poll;
