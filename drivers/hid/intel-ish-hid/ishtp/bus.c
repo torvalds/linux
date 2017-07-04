@@ -321,11 +321,13 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 	len = snprintf(buf, PAGE_SIZE, "ishtp:%s\n", dev_name(dev));
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute ishtp_cl_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *ishtp_cl_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(ishtp_cl_dev);
 
 static int ishtp_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -346,7 +348,7 @@ static const struct dev_pm_ops ishtp_cl_bus_dev_pm_ops = {
 
 static struct bus_type ishtp_cl_bus_type = {
 	.name		= "ishtp",
-	.dev_attrs	= ishtp_cl_dev_attrs,
+	.dev_groups	= ishtp_cl_dev_groups,
 	.probe		= ishtp_cl_device_probe,
 	.remove		= ishtp_cl_device_remove,
 	.pm		= &ishtp_cl_bus_dev_pm_ops,

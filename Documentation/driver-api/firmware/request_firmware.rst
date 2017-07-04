@@ -44,6 +44,17 @@ request_firmware_nowait
 .. kernel-doc:: drivers/base/firmware_class.c
    :functions: request_firmware_nowait
 
+Considerations for suspend and resume
+=====================================
+
+During suspend and resume only the built-in firmware and the firmware cache
+elements of the firmware API can be used. This is managed by fw_pm_notify().
+
+fw_pm_notify
+------------
+.. kernel-doc:: drivers/base/firmware_class.c
+   :functions: fw_pm_notify
+
 request firmware API expected driver use
 ========================================
 

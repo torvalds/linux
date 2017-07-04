@@ -169,6 +169,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
+static DEVICE_ATTR_RO(modalias);
 
 static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
@@ -178,6 +179,7 @@ static ssize_t name_show(struct device *dev,
 	giodev = to_gio_device(dev);
 	return sprintf(buf, "%s", giodev->name);
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t id_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
@@ -187,13 +189,15 @@ static ssize_t id_show(struct device *dev,
 	giodev = to_gio_device(dev);
 	return sprintf(buf, "%x", giodev->id.id);
 }
+static DEVICE_ATTR_RO(id);
 
-static struct device_attribute gio_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_RO(name),
-	__ATTR_RO(id),
-	__ATTR_NULL,
+static struct attribute *gio_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	&dev_attr_name.attr,
+	&dev_attr_id.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(gio_dev);
 
 static int gio_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -374,7 +378,7 @@ static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 
 static struct bus_type gio_bus_type = {
 	.name	   = "gio",
-	.dev_attrs = gio_dev_attrs,
+	.dev_groups = gio_dev_groups,
 	.match	   = gio_bus_match,
 	.probe	   = gio_device_probe,
 	.remove	   = gio_device_remove,

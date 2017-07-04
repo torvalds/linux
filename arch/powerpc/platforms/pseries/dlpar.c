@@ -588,7 +588,7 @@ static ssize_t dlpar_show(struct class *class, struct class_attribute *attr,
 	return sprintf(buf, "%s\n", "memory,cpu");
 }
 
-static CLASS_ATTR(dlpar, S_IWUSR | S_IRUSR, dlpar_show, dlpar_store);
+static CLASS_ATTR_RW(dlpar);
 
 static int __init pseries_dlpar_init(void)
 {

@@ -66,7 +66,6 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @name:	The name of the bus.
  * @dev_name:	Used for subsystems to enumerate devices like ("foo%u", dev->id).
  * @dev_root:	Default device to use as the parent.
- * @dev_attrs:	Default attributes of the devices on the bus.
  * @bus_groups:	Default attributes of the bus.
  * @dev_groups:	Default attributes of the devices on the bus.
  * @drv_groups: Default attributes of the device drivers on the bus.
@@ -112,7 +111,6 @@ struct bus_type {
 	const char		*name;
 	const char		*dev_name;
 	struct device		*dev_root;
-	struct device_attribute	*dev_attrs;	/* use dev_groups instead */
 	const struct attribute_group **bus_groups;
 	const struct attribute_group **dev_groups;
 	const struct attribute_group **drv_groups;
@@ -365,7 +363,6 @@ int subsys_virtual_register(struct bus_type *subsys,
  * struct class - device classes
  * @name:	Name of the class.
  * @owner:	The module owner.
- * @class_attrs: Default attributes of this class.
  * @class_groups: Default attributes of this class.
  * @dev_groups:	Default attributes of the devices that belong to the class.
  * @dev_kobj:	The kobject that represents this class and links it into the hierarchy.
@@ -394,7 +391,6 @@ struct class {
 	const char		*name;
 	struct module		*owner;
 
-	struct class_attribute		*class_attrs;
 	const struct attribute_group	**class_groups;
 	const struct attribute_group	**dev_groups;
 	struct kobject			*dev_kobj;
@@ -465,8 +461,6 @@ struct class_attribute {
 			const char *buf, size_t count);
 };
 
-#define CLASS_ATTR(_name, _mode, _show, _store) \
-	struct class_attribute class_attr_##_name = __ATTR(_name, _mode, _show, _store)
 #define CLASS_ATTR_RW(_name) \
 	struct class_attribute class_attr_##_name = __ATTR_RW(_name)
 #define CLASS_ATTR_RO(_name) \

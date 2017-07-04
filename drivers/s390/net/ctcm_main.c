@@ -1770,15 +1770,15 @@ static struct ccwgroup_driver ctcm_group_driver = {
 	.restore     = ctcm_pm_resume,
 };
 
-static ssize_t ctcm_driver_group_store(struct device_driver *ddrv,
-				       const char *buf,	size_t count)
+static ssize_t group_store(struct device_driver *ddrv, const char *buf,
+			   size_t count)
 {
 	int err;
 
 	err = ccwgroup_create_dev(ctcm_root_dev, &ctcm_group_driver, 2, buf);
 	return err ? err : count;
 }
-static DRIVER_ATTR(group, 0200, NULL, ctcm_driver_group_store);
+static DRIVER_ATTR_WO(group);
 
 static struct attribute *ctcm_drv_attrs[] = {
 	&driver_attr_group.attr,

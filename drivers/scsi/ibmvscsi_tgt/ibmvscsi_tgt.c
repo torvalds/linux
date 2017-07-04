@@ -3934,10 +3934,6 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 
 static void ibmvscsis_dev_release(struct device *dev) {};
 
-static struct class_attribute ibmvscsis_class_attrs[] = {
-	__ATTR_NULL,
-};
-
 static struct device_attribute dev_attr_system_id =
 	__ATTR(system_id, S_IRUGO, system_id_show, NULL);
 
@@ -3957,7 +3953,6 @@ ATTRIBUTE_GROUPS(ibmvscsis_dev);
 static struct class ibmvscsis_class = {
 	.name		= "ibmvscsis",
 	.dev_release	= ibmvscsis_dev_release,
-	.class_attrs	= ibmvscsis_class_attrs,
 	.dev_groups	= ibmvscsis_dev_groups,
 };
 

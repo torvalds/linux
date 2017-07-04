@@ -397,6 +397,7 @@ static ssize_t devspec_show(struct device *dev,
 	ofdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
 }
+static DEVICE_ATTR_RO(devspec);
 
 static ssize_t name_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -406,19 +407,22 @@ static ssize_t name_show(struct device *dev,
 	ofdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", ofdev->dev.of_node->name);
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t modalias_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute ibmebus_bus_device_attrs[] = {
-	__ATTR_RO(devspec),
-	__ATTR_RO(name),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *ibmebus_bus_device_attrs[] = {
+	&dev_attr_devspec.attr,
+	&dev_attr_name.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(ibmebus_bus_device);
 
 struct bus_type ibmebus_bus_type = {
 	.name      = "ibmebus",
@@ -428,7 +432,7 @@ struct bus_type ibmebus_bus_type = {
 	.probe     = ibmebus_bus_device_probe,
 	.remove    = ibmebus_bus_device_remove,
 	.shutdown  = ibmebus_bus_device_shutdown,
-	.dev_attrs = ibmebus_bus_device_attrs,
+	.dev_groups = ibmebus_bus_device_groups,
 };
 EXPORT_SYMBOL(ibmebus_bus_type);
 
