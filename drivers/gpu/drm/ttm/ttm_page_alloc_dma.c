@@ -902,7 +902,8 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 			return -ENOMEM;
 		}
 
-		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i]);
+		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
+						pool->size);
 		if (unlikely(ret != 0)) {
 			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;
@@ -967,13 +968,13 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	if (is_cached) {
 		list_for_each_entry_safe(d_page, next, &ttm_dma->pages_list, page_list) {
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
-						 d_page->p);
+						 d_page->p, pool->size);
 			ttm_dma_page_put(pool, d_page);
 		}
 	} else {
 		for (i = 0; i < count; i++) {
 			ttm_mem_global_free_page(ttm->glob->mem_glob,
-						 ttm->pages[i]);
+						 ttm->pages[i], pool->size);
 		}
 	}
 
