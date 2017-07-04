@@ -437,7 +437,9 @@ static inline void irq_remove_debugfs_entry(struct irq_desc *desc)
 # ifdef CONFIG_IRQ_DOMAIN
 void irq_domain_debugfs_init(struct dentry *root);
 # else
-static inline void irq_domain_debugfs_init(struct dentry *root);
+static inline void irq_domain_debugfs_init(struct dentry *root)
+{
+}
 # endif
 #else /* CONFIG_GENERIC_IRQ_DEBUGFS */
 static inline void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *d)
