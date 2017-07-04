@@ -1854,7 +1854,7 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		/* Bump the reference count. The session context is deleted
 		 * only when this drops to zero.
 		 */
-		l2tp_session_inc_refcount(session);
+		refcount_set(&session->ref_count, 1);
 		l2tp_tunnel_inc_refcount(tunnel);
 
 		/* Ensure tunnel socket isn't deleted */
