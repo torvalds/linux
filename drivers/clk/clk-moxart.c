@@ -18,7 +18,7 @@
 
 static void __init moxart_of_pll_clk_init(struct device_node *node)
 {
-	static void __iomem *base;
+	void __iomem *base;
 	struct clk_hw *hw;
 	struct clk *ref_clk;
 	unsigned int mul;
@@ -57,7 +57,7 @@ CLK_OF_DECLARE(moxart_pll_clock, "moxa,moxart-pll-clock",
 
 static void __init moxart_of_apb_clk_init(struct device_node *node)
 {
-	static void __iomem *base;
+	void __iomem *base;
 	struct clk_hw *hw;
 	struct clk *pll_clk;
 	unsigned int div, val;
