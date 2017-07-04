@@ -126,13 +126,13 @@ nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_port *port, unsigned int id)
 	ether_addr_copy(port->netdev->perm_addr, mac_addr);
 }
 
-struct nfp_eth_table_port *
-nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id)
+static struct nfp_eth_table_port *
+nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int index)
 {
 	int i;
 
 	for (i = 0; eth_tbl && i < eth_tbl->count; i++)
-		if (eth_tbl->ports[i].eth_index == id)
+		if (eth_tbl->ports[i].index == index)
 			return &eth_tbl->ports[i];
 
 	return NULL;
@@ -202,7 +202,7 @@ static void nfp_net_pf_free_vnics(struct nfp_pf *pf)
 static struct nfp_net *
 nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 		      void __iomem *ctrl_bar, void __iomem *qc_bar,
-		      int stride, unsigned int eth_id)
+		      int stride, unsigned int id)
 {
 	u32 tx_base, rx_base, n_tx_rings, n_rx_rings;
 	struct nfp_net *nn;
@@ -228,7 +228,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	nn->stride_tx = stride;
 
 	if (needs_netdev) {
-		err = nfp_app_vnic_init(pf->app, nn, eth_id);
+		err = nfp_app_vnic_init(pf->app, nn, id);
 		if (err) {
 			nfp_net_free(nn);
 			return ERR_PTR(err);

@@ -149,8 +149,6 @@ void nfp_net_pci_remove(struct nfp_pf *pf);
 int nfp_hwmon_register(struct nfp_pf *pf);
 void nfp_hwmon_unregister(struct nfp_pf *pf);
 
-struct nfp_eth_table_port *
-nfp_net_find_port(struct nfp_eth_table *eth_tbl, unsigned int id);
 void
 nfp_net_get_mac_addr(struct nfp_pf *pf, struct nfp_port *port, unsigned int id);
 
