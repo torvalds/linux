@@ -1054,6 +1054,13 @@ void __init setup_arch(char **cmdline_p)
 	max_possible_pfn = max_pfn;
 
 	/*
+	 * This call is required when the CPU does not support PAT. If
+	 * mtrr_bp_init() invoked it already via pat_init() the call has no
+	 * effect.
+	 */
+	init_cache_modes();
+
+	/*
 	 * Define random base addresses for memory sections after max_pfn is
 	 * defined and before each memory section base is used.
 	 */
