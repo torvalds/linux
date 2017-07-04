@@ -127,13 +127,17 @@ static int debug_port_init(struct platform_device *pdev)
 
 	/* enable rx and lsr interrupt */
 	rk_fiq_write(t, UART_IER_RLSI | UART_IER_RDI, UART_IER);
-	/* interrupt on every character when receive,but we can enable fifo for TX
-	I found that if we enable the RX fifo, some problem may vanish such as when
-	you continuously input characters in the command line the uart irq may be disable
-	because of the uart irq is served when CPU is at IRQ exception,but it is
-	found unregistered, so it is disable.
-	hhb@rock-chips.com */
+
+	/*
+	 * Interrupt on every character when received, but we can enable fifo for TX
+	 * I found that if we enable the RX fifo, some problem may vanish such as when
+	 * you continuously input characters in the command line the uart irq may be disable
+	 * because of the uart irq is served when CPU is at IRQ exception, but it is
+	 * found unregistered, so it is disable.
+	 */
 	rk_fiq_write(t, 0xc1, UART_FCR);
+
+	/* disbale loop back mode */
 	rk_fiq_write(t, 0x0, UART_MCR);
 
 	return 0;
@@ -177,21 +181,30 @@ static int debug_getc(struct platform_device *pdev)
 static void debug_putc(struct platform_device *pdev, unsigned int c)
 {
 	struct rk_fiq_debugger *t;
+	unsigned int count = 10000;
 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
-	while (!(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL))
-		cpu_relax();
+	while (!(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL) && count--)
+		udelay(10);
+	/* If uart is always busy, maybe it is abnormal, reinit it */
+	if ((count == 0) && (rk_fiq_read(t, UART_USR) & UART_USR_BUSY))
+		debug_port_init(pdev);
+
 	rk_fiq_write(t, c, UART_TX);
 }
 
 static void debug_flush(struct platform_device *pdev)
 {
 	struct rk_fiq_debugger *t;
+	unsigned int count = 10000;
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
 
-	while (!(rk_fiq_read_lsr(t) & UART_LSR_TEMT))
-		cpu_relax();
+	while (!(rk_fiq_read_lsr(t) & UART_LSR_TEMT) && count--)
+		udelay(10);
+	/* If uart is always busy, maybe it is abnormal, reinit it */
+	if ((count == 0) && (rk_fiq_read(t, UART_USR) & UART_USR_BUSY))
+		debug_port_init(pdev);
 }
 
 #ifdef CONFIG_RK_CONSOLE_THREAD
