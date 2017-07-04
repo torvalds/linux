@@ -316,7 +316,7 @@ bool bio_integrity_prep(struct bio *bio)
 					     bytes, offset);
 
 		if (ret == 0)
-			return 0;
+			return false;
 
 		if (ret < bytes)
 			break;
