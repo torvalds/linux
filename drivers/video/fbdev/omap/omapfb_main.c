@@ -62,7 +62,7 @@ struct caps_table_struct {
 	const char *name;
 };
 
-static struct caps_table_struct ctrl_caps[] = {
+static const struct caps_table_struct ctrl_caps[] = {
 	{ OMAPFB_CAPS_MANUAL_UPDATE,  "manual update" },
 	{ OMAPFB_CAPS_TEARSYNC,       "tearing synchronization" },
 	{ OMAPFB_CAPS_PLANE_RELOCATE_MEM, "relocate plane memory" },
@@ -74,7 +74,7 @@ static struct caps_table_struct ctrl_caps[] = {
 	{ OMAPFB_CAPS_SET_BACKLIGHT,  "backlight setting" },
 };
 
-static struct caps_table_struct color_caps[] = {
+static const struct caps_table_struct color_caps[] = {
 	{ 1 << OMAPFB_COLOR_RGB565,	"RGB565", },
 	{ 1 << OMAPFB_COLOR_YUV422,	"YUV422", },
 	{ 1 << OMAPFB_COLOR_YUV420,	"YUV420", },
@@ -1384,7 +1384,7 @@ static struct attribute *panel_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group panel_attr_grp = {
+static const struct attribute_group panel_attr_grp = {
 	.name  = "panel",
 	.attrs = panel_attrs,
 };
@@ -1406,7 +1406,7 @@ static struct attribute *ctrl_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ctrl_attr_grp = {
+static const struct attribute_group ctrl_attr_grp = {
 	.name  = "ctrl",
 	.attrs = ctrl_attrs,
 };
