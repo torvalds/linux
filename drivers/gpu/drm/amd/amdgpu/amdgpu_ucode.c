@@ -275,14 +275,10 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 		else
 			return AMDGPU_FW_LOAD_PSP;
 	case CHIP_RAVEN:
-#if 0
-		if (!load_type)
+		if (load_type != 2)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
-#else
-		return AMDGPU_FW_LOAD_DIRECT;
-#endif
 	default:
 		DRM_ERROR("Unknow firmware load type\n");
 	}
