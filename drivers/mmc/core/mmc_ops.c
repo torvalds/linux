@@ -946,7 +946,7 @@ static int mmc_read_bkops_status(struct mmc_card *card)
 /**
  *	mmc_start_bkops - start BKOPS for supported cards
  *	@card: MMC card to start BKOPS
- *	@form_exception: A flag to indicate if this function was
+ *	@from_exception: A flag to indicate if this function was
  *			 called due to an exception raised by the card
  *
  *	Start background operations whenever requested.
