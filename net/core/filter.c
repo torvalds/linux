@@ -2867,6 +2867,7 @@ BPF_CALL_5(bpf_setsockopt, struct bpf_sock_ops_kern *, bpf_sock,
 					tp->snd_cwnd_clamp = val;
 					tp->snd_ssthresh = val;
 				}
+				break;
 			default:
 				ret = -EINVAL;
 			}
