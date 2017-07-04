@@ -88,6 +88,8 @@ struct mlx4_ib_ucontext {
 	struct list_head	db_page_list;
 	struct mutex		db_page_mutex;
 	struct mlx4_ib_vma_private_data hw_bar_info[HW_BAR_COUNT];
+	struct list_head	wqn_ranges_list;
+	struct mutex		wqn_ranges_mutex; /* protect wqn_ranges_list */
 };
 
 struct mlx4_ib_pd {
@@ -289,8 +291,19 @@ struct mlx4_roce_smac_vlan_info {
 	int update_vid;
 };
 
+struct mlx4_wqn_range {
+	int			base_wqn;
+	int			size;
+	int			refcount;
+	bool			dirty;
+	struct list_head	list;
+};
+
 struct mlx4_ib_qp {
-	struct ib_qp		ibqp;
+	union {
+		struct ib_qp	ibqp;
+		struct ib_wq	ibwq;
+	};
 	struct mlx4_qp		mqp;
 	struct mlx4_buf		buf;
 
@@ -329,6 +342,9 @@ struct mlx4_ib_qp {
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
 	struct counter_index	*counter_index;
+	struct mlx4_wqn_range	*wqn_range;
+	/* Number of RSS QP parents that uses this WQ */
+	u32			rss_usecnt;
 };
 
 struct mlx4_ib_srq {
@@ -892,5 +908,12 @@ void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
 				     int port);
 
 void mlx4_ib_sl2vl_update(struct mlx4_ib_dev *mdev, int port);
+
+struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
+				struct ib_wq_init_attr *init_attr,
+				struct ib_udata *udata);
+int mlx4_ib_destroy_wq(struct ib_wq *wq);
+int mlx4_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
+		      u32 wq_attr_mask, struct ib_udata *udata);
 
 #endif /* MLX4_IB_H */
