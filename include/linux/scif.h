@@ -123,8 +123,8 @@ struct scif_range {
  */
 struct scif_pollepd {
 	scif_epd_t epd;
-	short events;
-	short revents;
+	__poll_t events;
+	__poll_t revents;
 };
 
 /**
