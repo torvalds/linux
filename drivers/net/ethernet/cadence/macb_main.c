@@ -146,7 +146,6 @@ static unsigned int macb_adj_dma_desc_idx(struct macb *bp, unsigned int desc_idx
 	default:
 		break;
 	}
-	return desc_idx;
 #endif
 	return desc_idx;
 }
