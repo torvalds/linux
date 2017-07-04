@@ -110,7 +110,7 @@ struct nr_node {
 	unsigned char		which;
 	unsigned char		count;
 	struct nr_route		routes[3];
-	atomic_t		refcount;
+	refcount_t		refcount;
 	spinlock_t		node_lock;
 };
 
@@ -119,11 +119,11 @@ struct nr_node {
  *********************************************************************/
 
 #define nr_node_hold(__nr_node) \
-	atomic_inc(&((__nr_node)->refcount))
+	refcount_inc(&((__nr_node)->refcount))
 
 static __inline__ void nr_node_put(struct nr_node *nr_node)
 {
-	if (atomic_dec_and_test(&nr_node->refcount)) {
+	if (refcount_dec_and_test(&nr_node->refcount)) {
 		kfree(nr_node);
 	}
 }

@@ -184,7 +184,7 @@ static int __must_check nr_add_node(ax25_address *nr, const char *mnemonic,
 
 		nr_node->which = 0;
 		nr_node->count = 1;
-		atomic_set(&nr_node->refcount, 1);
+		refcount_set(&nr_node->refcount, 1);
 		spin_lock_init(&nr_node->node_lock);
 
 		nr_node->routes[0].quality   = quality;
