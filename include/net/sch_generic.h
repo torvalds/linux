@@ -9,6 +9,7 @@
 #include <linux/percpu.h>
 #include <linux/dynamic_queue_limits.h>
 #include <linux/list.h>
+#include <linux/refcount.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -95,7 +96,7 @@ struct Qdisc {
 	struct sk_buff		*skb_bad_txq;
 	struct rcu_head		rcu_head;
 	int			padded;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
 };
