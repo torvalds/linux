@@ -398,7 +398,7 @@ static void sdma_v4_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, SOC15_REG_OFFSET(HDP, 0, mmHDP_DEBUG0));
+	amdgpu_ring_write(ring, SOC15_REG_OFFSET(HDP, 0, mmHDP_READ_CACHE_INVALIDATE));
 	amdgpu_ring_write(ring, 1);
 }
 

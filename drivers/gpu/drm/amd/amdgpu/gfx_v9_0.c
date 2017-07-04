@@ -3535,7 +3535,7 @@ static void gfx_v9_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 static void gfx_v9_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 {
 	gfx_v9_0_write_data_to_reg(ring, 0, true,
-				   SOC15_REG_OFFSET(HDP, 0, mmHDP_DEBUG0), 1);
+				   SOC15_REG_OFFSET(HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 1);
 }
 
 static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
