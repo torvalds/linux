@@ -2738,10 +2738,16 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		ibdev->ib_dev.create_wq		= mlx4_ib_create_wq;
 		ibdev->ib_dev.modify_wq		= mlx4_ib_modify_wq;
 		ibdev->ib_dev.destroy_wq	= mlx4_ib_destroy_wq;
+		ibdev->ib_dev.create_rwq_ind_table  =
+			mlx4_ib_create_rwq_ind_table;
+		ibdev->ib_dev.destroy_rwq_ind_table =
+			mlx4_ib_destroy_rwq_ind_table;
 		ibdev->ib_dev.uverbs_ex_cmd_mask |=
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ) |
-			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ);
+			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ)	  |
+			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ)	  |
+			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ)	  |
+			(1ull << IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
+			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
 	}
 
 	if (!mlx4_is_slave(ibdev->dev)) {

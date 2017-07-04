@@ -119,4 +119,8 @@ struct mlx4_ib_modify_wq {
 	__u32	reserved;
 };
 
+struct mlx4_ib_create_rwq_ind_tbl_resp {
+	__u32	response_length;
+	__u32	reserved;
+};
 #endif /* MLX4_ABI_USER_H */

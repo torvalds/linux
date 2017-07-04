@@ -3943,3 +3943,73 @@ int mlx4_ib_destroy_wq(struct ib_wq *ibwq)
 
 	return 0;
 }
+
+struct ib_rwq_ind_table
+*mlx4_ib_create_rwq_ind_table(struct ib_device *device,
+			      struct ib_rwq_ind_table_init_attr *init_attr,
+			      struct ib_udata *udata)
+{
+	struct ib_rwq_ind_table *rwq_ind_table;
+	struct mlx4_ib_create_rwq_ind_tbl_resp resp = {};
+	unsigned int ind_tbl_size = 1 << init_attr->log_ind_tbl_size;
+	unsigned int base_wqn;
+	size_t min_resp_len;
+	int i;
+	int err;
+
+	if (udata->inlen > 0 &&
+	    !ib_is_udata_cleared(udata, 0,
+				 udata->inlen))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	min_resp_len = offsetof(typeof(resp), reserved) + sizeof(resp.reserved);
+	if (udata->outlen && udata->outlen < min_resp_len)
+		return ERR_PTR(-EINVAL);
+
+	if (ind_tbl_size >
+	    device->attrs.rss_caps.max_rwq_indirection_table_size) {
+		pr_debug("log_ind_tbl_size = %d is bigger than supported = %d\n",
+			 ind_tbl_size,
+			 device->attrs.rss_caps.max_rwq_indirection_table_size);
+		return ERR_PTR(-EINVAL);
+	}
+
+	base_wqn = init_attr->ind_tbl[0]->wq_num;
+
+	if (base_wqn % ind_tbl_size) {
+		pr_debug("WQN=0x%x isn't aligned with indirection table size\n",
+			 base_wqn);
+		return ERR_PTR(-EINVAL);
+	}
+
+	for (i = 1; i < ind_tbl_size; i++) {
+		if (++base_wqn != init_attr->ind_tbl[i]->wq_num) {
+			pr_debug("indirection table's WQNs aren't consecutive\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+	rwq_ind_table = kzalloc(sizeof(*rwq_ind_table), GFP_KERNEL);
+	if (!rwq_ind_table)
+		return ERR_PTR(-ENOMEM);
+
+	if (udata->outlen) {
+		resp.response_length = offsetof(typeof(resp), response_length) +
+					sizeof(resp.response_length);
+		err = ib_copy_to_udata(udata, &resp, resp.response_length);
+		if (err)
+			goto err;
+	}
+
+	return rwq_ind_table;
+
+err:
+	kfree(rwq_ind_table);
+	return ERR_PTR(err);
+}
+
+int mlx4_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_tbl)
+{
+	kfree(ib_rwq_ind_tbl);
+	return 0;
+}

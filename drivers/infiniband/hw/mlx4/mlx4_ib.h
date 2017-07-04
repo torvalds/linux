@@ -916,4 +916,10 @@ int mlx4_ib_destroy_wq(struct ib_wq *wq);
 int mlx4_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		      u32 wq_attr_mask, struct ib_udata *udata);
 
+struct ib_rwq_ind_table
+*mlx4_ib_create_rwq_ind_table(struct ib_device *device,
+			      struct ib_rwq_ind_table_init_attr *init_attr,
+			      struct ib_udata *udata);
+int mlx4_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
+
 #endif /* MLX4_IB_H */
