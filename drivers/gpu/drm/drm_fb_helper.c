@@ -1218,29 +1218,6 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
 
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
-		u32 *palette;
-		u32 value;
-		/* place color in psuedopalette */
-		if (regno > 16)
-			return -EINVAL;
-		palette = (u32 *)info->pseudo_palette;
-		red >>= (16 - info->var.red.length);
-		green >>= (16 - info->var.green.length);
-		blue >>= (16 - info->var.blue.length);
-		value = (red << info->var.red.offset) |
-			(green << info->var.green.offset) |
-			(blue << info->var.blue.offset);
-		if (info->var.transp.length > 0) {
-			u32 mask = (1 << info->var.transp.length) - 1;
-
-			mask <<= info->var.transp.offset;
-			value |= mask;
-		}
-		palette[regno] = value;
-		return 0;
-	}
-
 	/*
 	 * The driver really shouldn't advertise pseudo/directcolor
 	 * visuals if it can't deal with the palette.
@@ -1252,6 +1229,38 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 	WARN_ON(fb->format->cpp[0] != 1);
 
 	fb_helper->funcs->gamma_set(crtc, red, green, blue, regno);
+
+	return 0;
+}
+
+static int setcmap_pseudo_palette(struct fb_cmap *cmap, struct fb_info *info)
+{
+	u32 *palette = (u32 *)info->pseudo_palette;
+	int i;
+
+	if (cmap->start + cmap->len > 16)
+		return -EINVAL;
+
+	for (i = 0; i < cmap->len; ++i) {
+		u16 red = cmap->red[i];
+		u16 green = cmap->green[i];
+		u16 blue = cmap->blue[i];
+		u32 value;
+
+		red >>= 16 - info->var.red.length;
+		green >>= 16 - info->var.green.length;
+		blue >>= 16 - info->var.blue.length;
+		value = (red << info->var.red.offset) |
+			(green << info->var.green.offset) |
+			(blue << info->var.blue.offset);
+		if (info->var.transp.length > 0) {
+			u32 mask = (1 << info->var.transp.length) - 1;
+
+			mask <<= info->var.transp.offset;
+			value |= mask;
+		}
+		palette[cmap->start + i] = value;
+	}
 
 	return 0;
 }
@@ -1281,6 +1290,11 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	}
 
 	drm_modeset_lock_all(dev);
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
+		rc = setcmap_pseudo_palette(cmap, info);
+		goto out;
+	}
+
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		crtc = fb_helper->crtc_info[i].mode_set.crtc;
 		crtc_funcs = crtc->helper_private;
