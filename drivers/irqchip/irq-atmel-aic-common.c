@@ -202,7 +202,6 @@ void __init aic_common_irq_fixup(const struct of_device_id *matches)
 		return;
 
 	match = of_match_node(matches, root);
-	of_node_put(root);
 
 	if (match) {
 		void (*fixup)(struct device_node *) = match->data;
