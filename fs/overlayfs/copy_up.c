@@ -345,8 +345,7 @@ static int ovl_install_temp(struct dentry *workdir, struct dentry *upperdir,
 	return err;
 }
 
-static int ovl_get_tmpfile(struct dentry *workdir, struct dentry *upperdir,
-			   struct dentry *dentry,
+static int ovl_get_tmpfile(struct dentry *workdir, struct dentry *dentry,
 			   struct kstat *stat, const char *link, bool tmpfile,
 			   struct dentry **tempp)
 {
@@ -369,7 +368,7 @@ static int ovl_get_tmpfile(struct dentry *workdir, struct dentry *upperdir,
 		old_creds = override_creds(new_creds);
 
 	if (tmpfile) {
-		temp = ovl_do_tmpfile(upperdir, stat->mode);
+		temp = ovl_do_tmpfile(workdir, stat->mode);
 		if (IS_ERR(temp))
 			goto temp_err;
 	} else {
@@ -453,8 +452,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	struct dentry *temp = NULL;
 	int err;
 
-	err = ovl_get_tmpfile(workdir, upperdir, dentry, stat, link, tmpfile,
-			      &temp);
+	err = ovl_get_tmpfile(workdir, dentry, stat, link, tmpfile, &temp);
 	if (err)
 		goto out;
 
