@@ -278,7 +278,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 			obj->mm.quirked = false;
 		}
 		if (!i915_gem_object_is_tiled(obj)) {
-			GEM_BUG_ON(!obj->mm.quirked);
+			GEM_BUG_ON(obj->mm.quirked);
 			__i915_gem_object_pin_pages(obj);
 			obj->mm.quirked = true;
 		}

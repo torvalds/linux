@@ -810,7 +810,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 
 	if (!pages) {
 		pages = vmalloc(max_pages * sizeof(struct page *));
-		if (!bv) {
+		if (!pages) {
 			kvfree(bv);
 			return -ENOMEM;
 		}

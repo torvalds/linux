@@ -514,7 +514,7 @@ int tboot_force_iommu(void)
 	if (!tboot_enabled())
 		return 0;
 
-	if (!intel_iommu_tboot_noforce)
+	if (intel_iommu_tboot_noforce)
 		return 1;
 
 	if (no_iommu || swiotlb || dmar_disabled)

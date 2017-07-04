@@ -300,7 +300,11 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 			return PTR_ERR(fh);
 	}
 
-	err = ovl_do_setxattr(upper, OVL_XATTR_ORIGIN, fh, fh ? fh->len : 0, 0);
+	/*
+	 * Do not fail when upper doesn't support xattrs.
+	 */
+	err = ovl_check_setxattr(dentry, upper, OVL_XATTR_ORIGIN, fh,
+				 fh ? fh->len : 0, 0);
 	kfree(fh);
 
 	return err;
@@ -326,15 +330,9 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 		.link = link
 	};
 
-	upper = lookup_one_len(dentry->d_name.name, upperdir,
-			       dentry->d_name.len);
-	err = PTR_ERR(upper);
-	if (IS_ERR(upper))
-		goto out;
-
 	err = security_inode_copy_up(dentry, &new_creds);
 	if (err < 0)
-		goto out1;
+		goto out;
 
 	if (new_creds)
 		old_creds = override_creds(new_creds);
@@ -342,13 +340,14 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	if (tmpfile)
 		temp = ovl_do_tmpfile(upperdir, stat->mode);
 	else
-		temp = ovl_lookup_temp(workdir, dentry);
-	err = PTR_ERR(temp);
-	if (IS_ERR(temp))
-		goto out1;
-
+		temp = ovl_lookup_temp(workdir);
 	err = 0;
-	if (!tmpfile)
+	if (IS_ERR(temp)) {
+		err = PTR_ERR(temp);
+		temp = NULL;
+	}
+
+	if (!err && !tmpfile)
 		err = ovl_create_real(wdir, temp, &cattr, NULL, true);
 
 	if (new_creds) {
@@ -357,7 +356,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	}
 
 	if (err)
-		goto out2;
+		goto out;
 
 	if (S_ISREG(stat->mode)) {
 		struct path upperpath;
@@ -393,10 +392,23 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	/*
 	 * Store identifier of lower inode in upper inode xattr to
 	 * allow lookup of the copy up origin inode.
+	 *
+	 * Don't set origin when we are breaking the association with a lower
+	 * hard link.
 	 */
-	err = ovl_set_origin(dentry, lowerpath->dentry, temp);
-	if (err)
+	if (S_ISDIR(stat->mode) || stat->nlink == 1) {
+		err = ovl_set_origin(dentry, lowerpath->dentry, temp);
+		if (err)
+			goto out_cleanup;
+	}
+
+	upper = lookup_one_len(dentry->d_name.name, upperdir,
+			       dentry->d_name.len);
+	if (IS_ERR(upper)) {
+		err = PTR_ERR(upper);
+		upper = NULL;
 		goto out_cleanup;
+	}
 
 	if (tmpfile)
 		err = ovl_do_link(temp, udir, upper, true);
@@ -411,17 +423,15 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 
 	/* Restore timestamps on parent (best effort) */
 	ovl_set_timestamps(upperdir, pstat);
-out2:
-	dput(temp);
-out1:
-	dput(upper);
 out:
+	dput(temp);
+	dput(upper);
 	return err;
 
 out_cleanup:
 	if (!tmpfile)
 		ovl_cleanup(wdir, temp);
-	goto out2;
+	goto out;
 }
 
 /*
@@ -453,6 +463,11 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 
 	ovl_path_upper(parent, &parentpath);
 	upperdir = parentpath.dentry;
+
+	/* Mark parent "impure" because it may now contain non-pure upper */
+	err = ovl_set_impure(parent, upperdir);
+	if (err)
+		return err;
 
 	err = vfs_getattr(&parentpath, &pstat,
 			  STATX_ATIME | STATX_MTIME, AT_STATX_SYNC_AS_STAT);

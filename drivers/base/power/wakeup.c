@@ -28,8 +28,8 @@ bool events_check_enabled __read_mostly;
 /* First wakeup IRQ seen by the kernel in the last cycle. */
 unsigned int pm_wakeup_irq __read_mostly;
 
-/* If greater than 0 and the system is suspending, terminate the suspend. */
-static atomic_t pm_abort_suspend __read_mostly;
+/* If set and the system is suspending, terminate the suspend. */
+static bool pm_abort_suspend __read_mostly;
 
 /*
  * Combined counters of registered wakeup events and wakeup events in progress.
@@ -512,22 +512,18 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
 /**
  * wakup_source_activate - Mark given wakeup source as active.
  * @ws: Wakeup source to handle.
- * @hard: If set, abort suspends in progress and wake up from suspend-to-idle.
  *
  * Update the @ws' statistics and, if @ws has just been activated, notify the PM
  * core of the event by incrementing the counter of of wakeup events being
  * processed.
  */
-static void wakeup_source_activate(struct wakeup_source *ws, bool hard)
+static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
 	if (WARN_ONCE(wakeup_source_not_registered(ws),
 			"unregistered wakeup source\n"))
 		return;
-
-	if (hard)
-		pm_system_wakeup();
 
 	ws->active = true;
 	ws->active_count++;
@@ -554,7 +550,10 @@ static void wakeup_source_report_event(struct wakeup_source *ws, bool hard)
 		ws->wakeup_count++;
 
 	if (!ws->active)
-		wakeup_source_activate(ws, hard);
+		wakeup_source_activate(ws);
+
+	if (hard)
+		pm_system_wakeup();
 }
 
 /**
@@ -856,26 +855,20 @@ bool pm_wakeup_pending(void)
 		pm_print_active_wakeup_sources();
 	}
 
-	return ret || atomic_read(&pm_abort_suspend) > 0;
+	return ret || pm_abort_suspend;
 }
 
 void pm_system_wakeup(void)
 {
-	atomic_inc(&pm_abort_suspend);
+	pm_abort_suspend = true;
 	freeze_wake();
 }
 EXPORT_SYMBOL_GPL(pm_system_wakeup);
 
-void pm_system_cancel_wakeup(void)
+void pm_wakeup_clear(void)
 {
-	atomic_dec(&pm_abort_suspend);
-}
-
-void pm_wakeup_clear(bool reset)
-{
+	pm_abort_suspend = false;
 	pm_wakeup_irq = 0;
-	if (reset)
-		atomic_set(&pm_abort_suspend, 0);
 }
 
 void pm_system_irq_wakeup(unsigned int irq_number)

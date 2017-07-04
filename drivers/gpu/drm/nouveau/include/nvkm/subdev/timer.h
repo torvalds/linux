@@ -4,6 +4,7 @@
 
 struct nvkm_alarm {
 	struct list_head head;
+	struct list_head exec;
 	u64 timestamp;
 	void (*func)(struct nvkm_alarm *);
 };

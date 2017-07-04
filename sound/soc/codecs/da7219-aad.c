@@ -115,19 +115,21 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
 	u16 tonegen_freq_hptest;
-	u8 pll_srm_sts, gain_ramp_ctrl, accdet_cfg8;
+	u8 pll_srm_sts, pll_ctrl, gain_ramp_ctrl, accdet_cfg8;
 	int report = 0, ret = 0;
 
-	/* Lock DAPM and any Kcontrols that are affected by this test */
+	/* Lock DAPM, Kcontrols affected by this test and the PLL */
 	snd_soc_dapm_mutex_lock(dapm);
-	mutex_lock(&da7219->lock);
+	mutex_lock(&da7219->ctrl_lock);
+	mutex_lock(&da7219->pll_lock);
 
 	/* Ensure MCLK is available for HP test procedure */
 	if (da7219->mclk) {
 		ret = clk_prepare_enable(da7219->mclk);
 		if (ret) {
 			dev_err(codec->dev, "Failed to enable mclk - %d\n", ret);
-			mutex_unlock(&da7219->lock);
+			mutex_unlock(&da7219->pll_lock);
+			mutex_unlock(&da7219->ctrl_lock);
 			snd_soc_dapm_mutex_unlock(dapm);
 			return;
 		}
@@ -136,12 +138,21 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	/*
 	 * If MCLK not present, then we're using the internal oscillator and
 	 * require different frequency settings to achieve the same result.
+	 *
+	 * If MCLK is present, but PLL is not enabled then we enable it here to
+	 * ensure a consistent detection procedure.
 	 */
 	pll_srm_sts = snd_soc_read(codec, DA7219_PLL_SRM_STS);
-	if (pll_srm_sts & DA7219_PLL_SRM_STS_MCLK)
+	if (pll_srm_sts & DA7219_PLL_SRM_STS_MCLK) {
 		tonegen_freq_hptest = cpu_to_le16(DA7219_AAD_HPTEST_RAMP_FREQ);
-	else
+
+		pll_ctrl = snd_soc_read(codec, DA7219_PLL_CTRL);
+		if ((pll_ctrl & DA7219_PLL_MODE_MASK) == DA7219_PLL_MODE_BYPASS)
+			da7219_set_pll(codec, DA7219_SYSCLK_PLL,
+				       DA7219_PLL_FREQ_OUT_98304);
+	} else {
 		tonegen_freq_hptest = cpu_to_le16(DA7219_AAD_HPTEST_RAMP_FREQ_INT_OSC);
+	}
 
 	/* Ensure gain ramping at fastest rate */
 	gain_ramp_ctrl = snd_soc_read(codec, DA7219_GAIN_RAMP_CTRL);
@@ -302,11 +313,17 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	snd_soc_update_bits(codec, DA7219_HP_R_CTRL, DA7219_HP_R_AMP_OE_MASK,
 			    DA7219_HP_R_AMP_OE_MASK);
 
+	/* Restore PLL to previous configuration, if re-configured */
+	if ((pll_srm_sts & DA7219_PLL_SRM_STS_MCLK) &&
+	    ((pll_ctrl & DA7219_PLL_MODE_MASK) == DA7219_PLL_MODE_BYPASS))
+		da7219_set_pll(codec, DA7219_SYSCLK_MCLK, 0);
+
 	/* Remove MCLK, if previously enabled */
 	if (da7219->mclk)
 		clk_disable_unprepare(da7219->mclk);
 
-	mutex_unlock(&da7219->lock);
+	mutex_unlock(&da7219->pll_lock);
+	mutex_unlock(&da7219->ctrl_lock);
 	snd_soc_dapm_mutex_unlock(dapm);
 
 	/*

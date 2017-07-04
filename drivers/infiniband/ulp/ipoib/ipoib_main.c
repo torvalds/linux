@@ -1590,11 +1590,13 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	wait_for_completion(&priv->ntbl.deleted);
 }
 
-void ipoib_dev_uninit_default(struct net_device *dev)
+static void ipoib_dev_uninit_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_transport_dev_cleanup(dev);
+
+	netif_napi_del(&priv->napi);
 
 	ipoib_cm_dev_cleanup(dev);
 
@@ -1649,6 +1651,7 @@ out_rx_ring_cleanup:
 	kfree(priv->rx_ring);
 
 out:
+	netif_napi_del(&priv->napi);
 	return -ENOMEM;
 }
 
@@ -2237,6 +2240,7 @@ event_failed:
 
 device_init_failed:
 	free_netdev(priv->dev);
+	kfree(priv);
 
 alloc_mem_failed:
 	return ERR_PTR(result);
@@ -2277,7 +2281,7 @@ static void ipoib_add_one(struct ib_device *device)
 
 static void ipoib_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ipoib_dev_priv *priv, *tmp;
+	struct ipoib_dev_priv *priv, *tmp, *cpriv, *tcpriv;
 	struct list_head *dev_list = client_data;
 
 	if (!dev_list)
@@ -2300,7 +2304,14 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		flush_workqueue(priv->wq);
 
 		unregister_netdev(priv->dev);
-		free_netdev(priv->dev);
+		if (device->free_rdma_netdev)
+			device->free_rdma_netdev(priv->dev);
+		else
+			free_netdev(priv->dev);
+
+		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)
+			kfree(cpriv);
+
 		kfree(priv);
 	}
 

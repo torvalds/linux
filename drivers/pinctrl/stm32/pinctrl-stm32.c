@@ -798,7 +798,7 @@ static int stm32_pconf_parse_conf(struct pinctrl_dev *pctldev,
 		break;
 	case PIN_CONFIG_OUTPUT:
 		__stm32_gpio_set(bank, offset, arg);
-		ret = stm32_pmx_gpio_set_direction(pctldev, NULL, pin, false);
+		ret = stm32_pmx_gpio_set_direction(pctldev, range, pin, false);
 		break;
 	default:
 		ret = -EINVAL;

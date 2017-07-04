@@ -129,11 +129,6 @@ int copy_thread(unsigned long clone_flags,
 	return 0;
 }
 
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return ((struct pt_regs *)tsk->thread.esp0)->pc;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long fp, pc;

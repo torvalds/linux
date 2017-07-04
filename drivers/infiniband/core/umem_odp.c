@@ -321,11 +321,15 @@ int ib_umem_odp_get(struct ib_ucontext *context, struct ib_umem *umem,
 		struct vm_area_struct *vma;
 		struct hstate *h;
 
+		down_read(&mm->mmap_sem);
 		vma = find_vma(mm, ib_umem_start(umem));
-		if (!vma || !is_vm_hugetlb_page(vma))
+		if (!vma || !is_vm_hugetlb_page(vma)) {
+			up_read(&mm->mmap_sem);
 			return -EINVAL;
+		}
 		h = hstate_vma(vma);
 		umem->page_shift = huge_page_shift(h);
+		up_read(&mm->mmap_sem);
 		umem->hugetlb = 1;
 	} else {
 		umem->hugetlb = 0;

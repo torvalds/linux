@@ -227,7 +227,7 @@ int tse850_put_ana(struct snd_kcontrol *kctrl,
 static const char * const mux_text[] = { "Mixer", "Loop" };
 
 static const struct soc_enum mux_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 2, mux_text);
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(mux_text), mux_text);
 
 static const struct snd_kcontrol_new mux1 =
 	SOC_DAPM_ENUM_EXT("MUX1", mux_enum, tse850_get_mux1, tse850_put_mux1);
@@ -252,7 +252,7 @@ static const char * const ana_text[] = {
 };
 
 static const struct soc_enum ana_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 9, ana_text);
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(ana_text), ana_text);
 
 static const struct snd_kcontrol_new out =
 	SOC_DAPM_ENUM_EXT("ANA", ana_enum, tse850_get_ana, tse850_put_ana);

@@ -201,7 +201,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 			handler = acpi_gpio_irq_handler_evt;
 	}
 	if (!handler)
-		return AE_BAD_PARAMETER;
+		return AE_OK;
 
 	pin = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, pin);
 	if (pin < 0)

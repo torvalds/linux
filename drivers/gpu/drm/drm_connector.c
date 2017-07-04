@@ -1229,21 +1229,6 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	if (!connector)
 		return -ENOENT;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	encoder = drm_connector_get_encoder(connector);
-	if (encoder)
-		out_resp->encoder_id = encoder->base.id;
-	else
-		out_resp->encoder_id = 0;
-
-	ret = drm_mode_object_get_properties(&connector->base, file_priv->atomic,
-			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
-			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
-			&out_resp->count_props);
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
-	if (ret)
-		goto out_unref;
-
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
 		if (connector->encoder_ids[i] != 0)
 			encoders_count++;
@@ -1256,7 +1241,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 				if (put_user(connector->encoder_ids[i],
 					     encoder_ptr + copied)) {
 					ret = -EFAULT;
-					goto out_unref;
+					goto out;
 				}
 				copied++;
 			}
@@ -1300,15 +1285,32 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 			if (copy_to_user(mode_ptr + copied,
 					 &u_mode, sizeof(u_mode))) {
 				ret = -EFAULT;
+				mutex_unlock(&dev->mode_config.mutex);
+
 				goto out;
 			}
 			copied++;
 		}
 	}
 	out_resp->count_modes = mode_count;
-out:
 	mutex_unlock(&dev->mode_config.mutex);
-out_unref:
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	encoder = drm_connector_get_encoder(connector);
+	if (encoder)
+		out_resp->encoder_id = encoder->base.id;
+	else
+		out_resp->encoder_id = 0;
+
+	/* Only grab properties after probing, to make sure EDID and other
+	 * properties reflect the latest status. */
+	ret = drm_mode_object_get_properties(&connector->base, file_priv->atomic,
+			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
+			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
+			&out_resp->count_props);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+out:
 	drm_connector_put(connector);
 
 	return ret;

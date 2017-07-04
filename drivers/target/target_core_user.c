@@ -97,7 +97,7 @@ struct tcmu_hba {
 
 struct tcmu_dev {
 	struct list_head node;
-
+	struct kref kref;
 	struct se_device se_dev;
 
 	char *name;
@@ -969,6 +969,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	udev = kzalloc(sizeof(struct tcmu_dev), GFP_KERNEL);
 	if (!udev)
 		return NULL;
+	kref_init(&udev->kref);
 
 	udev->name = kstrdup(name, GFP_KERNEL);
 	if (!udev->name) {
@@ -1145,6 +1146,24 @@ static int tcmu_open(struct uio_info *info, struct inode *inode)
 	return 0;
 }
 
+static void tcmu_dev_call_rcu(struct rcu_head *p)
+{
+	struct se_device *dev = container_of(p, struct se_device, rcu_head);
+	struct tcmu_dev *udev = TCMU_DEV(dev);
+
+	kfree(udev->uio_info.name);
+	kfree(udev->name);
+	kfree(udev);
+}
+
+static void tcmu_dev_kref_release(struct kref *kref)
+{
+	struct tcmu_dev *udev = container_of(kref, struct tcmu_dev, kref);
+	struct se_device *dev = &udev->se_dev;
+
+	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
+}
+
 static int tcmu_release(struct uio_info *info, struct inode *inode)
 {
 	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
@@ -1152,7 +1171,8 @@ static int tcmu_release(struct uio_info *info, struct inode *inode)
 	clear_bit(TCMU_DEV_BIT_OPEN, &udev->flags);
 
 	pr_debug("close\n");
-
+	/* release ref from configure */
+	kref_put(&udev->kref, tcmu_dev_kref_release);
 	return 0;
 }
 
@@ -1272,6 +1292,12 @@ static int tcmu_configure_device(struct se_device *dev)
 		dev->dev_attrib.hw_max_sectors = 128;
 	dev->dev_attrib.hw_queue_depth = 128;
 
+	/*
+	 * Get a ref incase userspace does a close on the uio device before
+	 * LIO has initiated tcmu_free_device.
+	 */
+	kref_get(&udev->kref);
+
 	ret = tcmu_netlink_event(TCMU_CMD_ADDED_DEVICE, udev->uio_info.name,
 				 udev->uio_info.uio_dev->minor);
 	if (ret)
@@ -1284,11 +1310,13 @@ static int tcmu_configure_device(struct se_device *dev)
 	return 0;
 
 err_netlink:
+	kref_put(&udev->kref, tcmu_dev_kref_release);
 	uio_unregister_device(&udev->uio_info);
 err_register:
 	vfree(udev->mb_addr);
 err_vzalloc:
 	kfree(info->name);
+	info->name = NULL;
 
 	return ret;
 }
@@ -1300,14 +1328,6 @@ static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
 		return 0;
 	}
 	return -EINVAL;
-}
-
-static void tcmu_dev_call_rcu(struct rcu_head *p)
-{
-	struct se_device *dev = container_of(p, struct se_device, rcu_head);
-	struct tcmu_dev *udev = TCMU_DEV(dev);
-
-	kfree(udev);
 }
 
 static bool tcmu_dev_configured(struct tcmu_dev *udev)
@@ -1364,10 +1384,10 @@ static void tcmu_free_device(struct se_device *dev)
 				   udev->uio_info.uio_dev->minor);
 
 		uio_unregister_device(&udev->uio_info);
-		kfree(udev->uio_info.name);
-		kfree(udev->name);
 	}
-	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
+
+	/* release ref from init */
+	kref_put(&udev->kref, tcmu_dev_kref_release);
 }
 
 enum {
