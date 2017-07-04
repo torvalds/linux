@@ -46,7 +46,7 @@ static void virqfd_deactivate(struct virqfd *virqfd)
 static int virqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	struct virqfd *virqfd = container_of(wait, struct virqfd, wait);
-	unsigned long flags = (unsigned long)key;
+	__poll_t flags = key_to_poll(key);
 
 	if (flags & POLLIN) {
 		/* An event has been signaled, call function */
