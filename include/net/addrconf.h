@@ -350,18 +350,18 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp);
 
 static inline void in6_ifa_put(struct inet6_ifaddr *ifp)
 {
-	if (atomic_dec_and_test(&ifp->refcnt))
+	if (refcount_dec_and_test(&ifp->refcnt))
 		inet6_ifa_finish_destroy(ifp);
 }
 
 static inline void __in6_ifa_put(struct inet6_ifaddr *ifp)
 {
-	atomic_dec(&ifp->refcnt);
+	refcount_dec(&ifp->refcnt);
 }
 
 static inline void in6_ifa_hold(struct inet6_ifaddr *ifp)
 {
-	atomic_inc(&ifp->refcnt);
+	refcount_inc(&ifp->refcnt);
 }
 
 
