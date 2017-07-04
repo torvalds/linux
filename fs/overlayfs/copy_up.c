@@ -506,36 +506,17 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 
 	/* Should we copyup with O_TMPFILE or with workdir? */
 	if (S_ISREG(c->stat.mode) && ofs->tmpfile) {
-		err = ovl_copy_up_start(c->dentry);
-		/* err < 0: interrupted, err > 0: raced with another copy-up */
-		if (unlikely(err)) {
-			pr_debug("ovl_copy_up_start(%pd2) = %i\n", c->dentry,
-				 err);
-			if (err > 0)
-				err = 0;
-			goto out_done;
-		}
 		c->tmpfile = true;
-		err = ovl_copy_up_locked(c);
-		ovl_copy_up_end(c->dentry);
-		goto out_done;
+		return  ovl_copy_up_locked(c);
 	}
 
 	err = -EIO;
 	if (lock_rename(c->workdir, c->upperdir) != NULL) {
 		pr_err("overlayfs: failed to lock workdir+upperdir\n");
-		goto out_unlock;
+	} else {
+		err = ovl_copy_up_locked(c);
+		unlock_rename(c->workdir, c->upperdir);
 	}
-	if (ovl_dentry_upper(c->dentry)) {
-		/* Raced with another copy-up?  Nothing to do, then... */
-		err = 0;
-		goto out_unlock;
-	}
-
-	err = ovl_copy_up_locked(c);
-out_unlock:
-	unlock_rename(c->workdir, c->upperdir);
-out_done:
 
 	return err;
 }
@@ -580,8 +561,15 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	}
 	ovl_do_check_copy_up(ctx.lowerpath.dentry);
 
-	err = ovl_do_copy_up(&ctx);
-
+	err = ovl_copy_up_start(dentry);
+	/* err < 0: interrupted, err > 0: raced with another copy-up */
+	if (unlikely(err)) {
+		if (err > 0)
+			err = 0;
+	} else {
+		err = ovl_do_copy_up(&ctx);
+		ovl_copy_up_end(dentry);
+	}
 	do_delayed_call(&done);
 
 	return err;
