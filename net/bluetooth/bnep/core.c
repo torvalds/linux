@@ -374,25 +374,22 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	/* Decompress header and construct ether frame */
 	switch (type & BNEP_TYPE_MASK) {
 	case BNEP_COMPRESSED:
-		memcpy(__skb_put(nskb, ETH_HLEN), &s->eh, ETH_HLEN);
+		__skb_put_data(nskb, &s->eh, ETH_HLEN);
 		break;
 
 	case BNEP_COMPRESSED_SRC_ONLY:
-		memcpy(__skb_put(nskb, ETH_ALEN), s->eh.h_dest, ETH_ALEN);
-		memcpy(__skb_put(nskb, ETH_ALEN), skb_mac_header(skb), ETH_ALEN);
+		__skb_put_data(nskb, s->eh.h_dest, ETH_ALEN);
+		__skb_put_data(nskb, skb_mac_header(skb), ETH_ALEN);
 		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 
 	case BNEP_COMPRESSED_DST_ONLY:
-		memcpy(__skb_put(nskb, ETH_ALEN), skb_mac_header(skb),
-								ETH_ALEN);
-		memcpy(__skb_put(nskb, ETH_ALEN + 2), s->eh.h_source,
-								ETH_ALEN + 2);
+		__skb_put_data(nskb, skb_mac_header(skb), ETH_ALEN);
+		__skb_put_data(nskb, s->eh.h_source, ETH_ALEN + 2);
 		break;
 
 	case BNEP_GENERAL:
-		memcpy(__skb_put(nskb, ETH_ALEN * 2), skb_mac_header(skb),
-								ETH_ALEN * 2);
+		__skb_put_data(nskb, skb_mac_header(skb), ETH_ALEN * 2);
 		put_unaligned(s->eh.h_proto, (__be16 *) __skb_put(nskb, 2));
 		break;
 	}
@@ -484,16 +481,16 @@ static int bnep_session(void *arg)
 	struct net_device *dev = s->dev;
 	struct sock *sk = s->sock->sk;
 	struct sk_buff *skb;
-	wait_queue_entry_t wait;
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	BT_DBG("");
 
 	set_user_nice(current, -15);
 
-	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
+		/* Ensure session->terminate is updated */
+		smp_mb__before_atomic();
 
 		if (atomic_read(&s->terminate))
 			break;
@@ -515,9 +512,8 @@ static int bnep_session(void *arg)
 				break;
 		netif_wake_queue(dev);
 
-		schedule();
+		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 	}
-	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
 	/* Cleanup session */
@@ -666,7 +662,7 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 	s = __bnep_get_session(req->dst);
 	if (s) {
 		atomic_inc(&s->terminate);
-		wake_up_process(s->task);
+		wake_up_interruptible(sk_sleep(s->sock->sk));
 	} else
 		err = -ENOENT;
 

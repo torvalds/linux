@@ -1,0 +1,35 @@
+/* Copyright (c) 2017 Facebook
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of version 2 of the GNU General Public
+ * License as published by the Free Software Foundation.
+ */
+#include <stddef.h>
+#include <string.h>
+#include <linux/bpf.h>
+#include <linux/pkt_cls.h>
+#include "bpf_helpers.h"
+
+int _version SEC("version") = 1;
+
+#define TEST_FIELD(TYPE, FIELD, MASK)					\
+	{								\
+		TYPE tmp = *(volatile TYPE *)&skb->FIELD;		\
+		if (tmp != ((*(volatile __u32 *)&skb->FIELD) & MASK))	\
+			return TC_ACT_SHOT;				\
+	}
+
+SEC("test1")
+int process(struct __sk_buff *skb)
+{
+	TEST_FIELD(__u8,  len, 0xFF);
+	TEST_FIELD(__u16, len, 0xFFFF);
+	TEST_FIELD(__u32, len, 0xFFFFFFFF);
+	TEST_FIELD(__u16, protocol, 0xFFFF);
+	TEST_FIELD(__u32, protocol, 0xFFFFFFFF);
+	TEST_FIELD(__u8,  hash, 0xFF);
+	TEST_FIELD(__u16, hash, 0xFFFF);
+	TEST_FIELD(__u32, hash, 0xFFFFFFFF);
+
+	return TC_ACT_OK;
+}

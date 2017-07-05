@@ -655,8 +655,7 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 		goto err;
 	}
 	skb_reserve(skb, sizeof(struct sge_opaque_hdr));
-	chcr_req = (struct chcr_wr *)__skb_put(skb, transhdr_len);
-	memset(chcr_req, 0, transhdr_len);
+	chcr_req = __skb_put_zero(skb, transhdr_len);
 	chcr_req->sec_cpl.op_ivinsrtofst =
 		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2, 1);
 
@@ -1371,8 +1370,7 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 		return skb;
 
 	skb_reserve(skb, sizeof(struct sge_opaque_hdr));
-	chcr_req = (struct chcr_wr *)__skb_put(skb, transhdr_len);
-	memset(chcr_req, 0, transhdr_len);
+	chcr_req = __skb_put_zero(skb, transhdr_len);
 
 	chcr_req->sec_cpl.op_ivinsrtofst =
 		FILL_SEC_CPL_OP_IVINSR(ctx->dev->rx_channel_id, 2, 0);
@@ -2015,8 +2013,7 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	skb_reserve(skb, sizeof(struct sge_opaque_hdr));
 
 	/* Write WR */
-	chcr_req = (struct chcr_wr *) __skb_put(skb, transhdr_len);
-	memset(chcr_req, 0, transhdr_len);
+	chcr_req = __skb_put_zero(skb, transhdr_len);
 
 	stop_offset = (op_type == CHCR_ENCRYPT_OP) ? 0 : authsize;
 
@@ -2367,8 +2364,7 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 
 	skb_reserve(skb, sizeof(struct sge_opaque_hdr));
 
-	chcr_req = (struct chcr_wr *) __skb_put(skb, transhdr_len);
-	memset(chcr_req, 0, transhdr_len);
+	chcr_req = __skb_put_zero(skb, transhdr_len);
 
 	fill_sec_cpl_for_aead(&chcr_req->sec_cpl, dst_size, req, op_type, ctx);
 
@@ -2496,8 +2492,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	/* NIC driver is going to write the sge hdr. */
 	skb_reserve(skb, sizeof(struct sge_opaque_hdr));
 
-	chcr_req = (struct chcr_wr *)__skb_put(skb, transhdr_len);
-	memset(chcr_req, 0, transhdr_len);
+	chcr_req = __skb_put_zero(skb, transhdr_len);
 
 	if (get_aead_subtype(tfm) == CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106)
 		assoclen = req->assoclen - 8;

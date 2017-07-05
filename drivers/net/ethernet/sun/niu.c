@@ -6667,7 +6667,7 @@ static netdev_tx_t niu_start_xmit(struct sk_buff *skb,
 	headroom = align + sizeof(struct tx_pkt_hdr);
 
 	ehdr = (struct ethhdr *) skb->data;
-	tp = (struct tx_pkt_hdr *) skb_push(skb, headroom);
+	tp = skb_push(skb, headroom);
 
 	len = skb->len - sizeof(struct tx_pkt_hdr);
 	tp->flags = cpu_to_le64(niu_compute_tx_flags(skb, ehdr, align, len));

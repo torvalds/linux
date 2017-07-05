@@ -479,7 +479,7 @@ isdnloop_fake(isdnloop_card *card, char *s, int ch)
 	}
 	if (ch >= 0)
 		sprintf(skb_put(skb, 3), "%02d;", ch);
-	memcpy(skb_put(skb, strlen(s)), s, strlen(s));
+	skb_put_data(skb, s, strlen(s));
 	skb_queue_tail(&card->dqueue, skb);
 	return 0;
 }

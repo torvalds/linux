@@ -4,6 +4,7 @@
 #include <linux/socket.h>
 #include <linux/un.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 #include <net/sock.h>
 
 void unix_inflight(struct user_struct *user, struct file *fp);
@@ -21,7 +22,7 @@ extern spinlock_t unix_table_lock;
 extern struct hlist_head unix_socket_table[2 * UNIX_HASH_SIZE];
 
 struct unix_address {
-	atomic_t	refcnt;
+	refcount_t	refcnt;
 	int		len;
 	unsigned int	hash;
 	struct sockaddr_un name[0];

@@ -743,7 +743,7 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 	conn->prof.tx_pending--;
 	if (single_flag) {
 		if ((skb = skb_dequeue(&conn->commit_queue))) {
-			atomic_dec(&skb->users);
+			refcount_dec(&skb->users);
 			if (privptr) {
 				privptr->stats.tx_packets++;
 				privptr->stats.tx_bytes +=
@@ -759,15 +759,14 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 	spin_lock_irqsave(&conn->collect_lock, saveflags);
 	while ((skb = skb_dequeue(&conn->collect_queue))) {
 		header.next = conn->tx_buff->len + skb->len + NETIUCV_HDRLEN;
-		memcpy(skb_put(conn->tx_buff, NETIUCV_HDRLEN), &header,
-		       NETIUCV_HDRLEN);
+		skb_put_data(conn->tx_buff, &header, NETIUCV_HDRLEN);
 		skb_copy_from_linear_data(skb,
 					  skb_put(conn->tx_buff, skb->len),
 					  skb->len);
 		txbytes += skb->len;
 		txpackets++;
 		stat_maxcq++;
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_any(skb);
 	}
 	if (conn->collect_len > conn->prof.maxmulti)
@@ -780,7 +779,7 @@ static void conn_action_txdone(fsm_instance *fi, int event, void *arg)
 	}
 
 	header.next = 0;
-	memcpy(skb_put(conn->tx_buff, NETIUCV_HDRLEN), &header, NETIUCV_HDRLEN);
+	skb_put_data(conn->tx_buff, &header, NETIUCV_HDRLEN);
 	conn->prof.send_stamp = jiffies;
 	txmsg.class = 0;
 	txmsg.tag = 0;
@@ -959,7 +958,7 @@ static void netiucv_purge_skb_queue(struct sk_buff_head *q)
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(q))) {
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_any(skb);
 	}
 }
@@ -1177,7 +1176,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 			IUCV_DBF_TEXT(data, 2,
 				      "EBUSY from netiucv_transmit_skb\n");
 		} else {
-			atomic_inc(&skb->users);
+			refcount_inc(&skb->users);
 			skb_queue_tail(&conn->collect_queue, skb);
 			conn->collect_len += l;
 			rc = 0;
@@ -1201,8 +1200,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 				return rc;
 			} else {
 				skb_reserve(nskb, NETIUCV_HDRLEN);
-				memcpy(skb_put(nskb, skb->len),
-				       skb->data, skb->len);
+				skb_put_data(nskb, skb->data, skb->len);
 			}
 			copied = 1;
 		}
@@ -1212,7 +1210,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 		header.next = nskb->len + NETIUCV_HDRLEN;
 		memcpy(skb_push(nskb, NETIUCV_HDRLEN), &header, NETIUCV_HDRLEN);
 		header.next = 0;
-		memcpy(skb_put(nskb, NETIUCV_HDRLEN), &header,  NETIUCV_HDRLEN);
+		skb_put_data(nskb, &header, NETIUCV_HDRLEN);
 
 		fsm_newstate(conn->fsm, CONN_STATE_TX);
 		conn->prof.send_stamp = jiffies;
@@ -1247,7 +1245,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 		} else {
 			if (copied)
 				dev_kfree_skb(skb);
-			atomic_inc(&nskb->users);
+			refcount_inc(&nskb->users);
 			skb_queue_tail(&conn->commit_queue, nskb);
 		}
 	}

@@ -60,7 +60,7 @@ static int nfcmrvl_i2c_read(struct nfcmrvl_i2c_drv_data *drv_data,
 		return -ENOMEM;
 
 	/* Copy NCI header into the SKB */
-	memcpy(skb_put(*skb, NCI_CTRL_HDR_SIZE), &nci_hdr, NCI_CTRL_HDR_SIZE);
+	skb_put_data(*skb, &nci_hdr, NCI_CTRL_HDR_SIZE);
 
 	if (nci_hdr.plen) {
 		/* Read the NCI payload */

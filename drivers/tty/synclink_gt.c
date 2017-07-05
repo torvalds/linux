@@ -1755,7 +1755,7 @@ static void hdlcdev_rx(struct slgt_info *info, char *buf, int size)
 		return;
 	}
 
-	memcpy(skb_put(skb, size), buf, size);
+	skb_put_data(skb, buf, size);
 
 	skb->protocol = hdlc_type_trans(skb, dev);
 

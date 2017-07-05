@@ -1842,7 +1842,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		  qedi->mac);
 
 	sprintf(host_buf, "host_%d", qedi->shost->host_no);
-	qedi_ops->common->set_id(qedi->cdev, host_buf, QEDI_MODULE_VERSION);
+	qedi_ops->common->set_name(qedi->cdev, host_buf);
 
 	qedi_ops->register_ops(qedi->cdev, &qedi_cb_ops, qedi);
 

@@ -22,6 +22,13 @@ config ATH10K_AHB
 	---help---
 	  This module adds support for AHB bus
 
+config ATH10K_SDIO
+	tristate "Atheros ath10k SDIO support (EXPERIMENTAL)"
+	depends on ATH10K && MMC
+	---help---
+	  This module adds experimental support for SDIO/MMC bus. Currently
+	  work in progress and will not fully work.
+
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"
 	depends on ATH10K

@@ -424,8 +424,8 @@ static void tcpnv_acked(struct sock *sk, const struct ack_sample *sample)
 }
 
 /* Extract info for Tcp socket info provided via netlink */
-size_t tcpnv_get_info(struct sock *sk, u32 ext, int *attr,
-		      union tcp_cc_info *info)
+static size_t tcpnv_get_info(struct sock *sk, u32 ext, int *attr,
+			     union tcp_cc_info *info)
 {
 	const struct tcpnv *ca = inet_csk_ca(sk);
 
@@ -440,7 +440,6 @@ size_t tcpnv_get_info(struct sock *sk, u32 ext, int *attr,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tcpnv_get_info);
 
 static struct tcp_congestion_ops tcpnv __read_mostly = {
 	.init		= tcpnv_init,

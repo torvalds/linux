@@ -123,12 +123,14 @@ struct tid_info {
 
 	spinlock_t stid_lock;
 	unsigned int stids_in_use;
+	unsigned int v6_stids_in_use;
 	unsigned int sftids_in_use;
 
 	/* TIDs in the TCAM */
 	atomic_t tids_in_use;
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
+	atomic_t conns_in_use;
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
 };
@@ -157,13 +159,21 @@ static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 }
 
 static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
-				    unsigned int tid)
+				    unsigned int tid, unsigned short family)
 {
 	t->tid_tab[tid] = data;
-	if (t->hash_base && (tid >= t->hash_base))
-		atomic_inc(&t->hash_tids_in_use);
-	else
-		atomic_inc(&t->tids_in_use);
+	if (t->hash_base && (tid >= t->hash_base)) {
+		if (family == AF_INET6)
+			atomic_add(2, &t->hash_tids_in_use);
+		else
+			atomic_inc(&t->hash_tids_in_use);
+	} else {
+		if (family == AF_INET6)
+			atomic_add(2, &t->tids_in_use);
+		else
+			atomic_inc(&t->tids_in_use);
+	}
+	atomic_inc(&t->conns_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -171,8 +181,8 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data);
 int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data);
 void cxgb4_free_atid(struct tid_info *t, unsigned int atid);
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family);
-void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid);
-
+void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid,
+		      unsigned short family);
 struct in6_addr;
 
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,

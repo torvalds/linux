@@ -2669,6 +2669,8 @@ static int tid_info_show(struct seq_file *seq, void *v)
 
 	if (t4_read_reg(adap, LE_DB_CONFIG_A) & HASHEN_F) {
 		unsigned int sb;
+		seq_printf(seq, "Connections in use: %u\n",
+			   atomic_read(&t->conns_in_use));
 
 		if (chip <= CHELSIO_T5)
 			sb = t4_read_reg(adap, LE_DB_SERVER_INDEX_A) / 4;
@@ -2699,17 +2701,23 @@ static int tid_info_show(struct seq_file *seq, void *v)
 				   atomic_read(&t->hash_tids_in_use));
 		}
 	} else if (t->ntids) {
+		seq_printf(seq, "Connections in use: %u\n",
+			   atomic_read(&t->conns_in_use));
+
 		seq_printf(seq, "TID range: 0..%u", t->ntids - 1);
 		seq_printf(seq, ", in use: %u\n",
 			   atomic_read(&t->tids_in_use));
 	}
 
 	if (t->nstids)
-		seq_printf(seq, "STID range: %u..%u, in use: %u\n",
+		seq_printf(seq, "STID range: %u..%u, in use-IPv4/IPv6: %u/%u\n",
 			   (!t->stid_base &&
 			   (chip <= CHELSIO_T5)) ?
 			   t->stid_base + 1 : t->stid_base,
-			   t->stid_base + t->nstids - 1, t->stids_in_use);
+			   t->stid_base + t->nstids - 1,
+			   t->stids_in_use - t->v6_stids_in_use,
+			   t->v6_stids_in_use);
+
 	if (t->natids)
 		seq_printf(seq, "ATID range: 0..%u, in use: %u\n",
 			   t->natids - 1, t->atids_in_use);

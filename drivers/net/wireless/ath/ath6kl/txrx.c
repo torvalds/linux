@@ -399,15 +399,10 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 			csum_dest = skb->csum_offset + csum_start;
 		}
 
-		if (skb_headroom(skb) < dev->needed_headroom) {
-			struct sk_buff *tmp_skb = skb;
-
-			skb = skb_realloc_headroom(skb, dev->needed_headroom);
-			kfree_skb(tmp_skb);
-			if (skb == NULL) {
-				dev->stats.tx_dropped++;
-				return 0;
-			}
+		if (skb_cow_head(skb, dev->needed_headroom)) {
+			dev->stats.tx_dropped++;
+			kfree_skb(skb);
+			return 0;
 		}
 
 		if (ath6kl_wmi_dix_2_dot3(ar->wmi, skb)) {

@@ -173,7 +173,8 @@ int ip_build_and_send_pkt(struct sk_buff *skb, const struct sock *sk,
 	}
 
 	skb->priority = sk->sk_priority;
-	skb->mark = sk->sk_mark;
+	if (!skb->mark)
+		skb->mark = sk->sk_mark;
 
 	/* Send it out. */
 	return ip_local_out(net, skb->sk, skb);
@@ -1037,7 +1038,7 @@ alloc_new_skb:
 						(flags & MSG_DONTWAIT), &err);
 			} else {
 				skb = NULL;
-				if (atomic_read(&sk->sk_wmem_alloc) <=
+				if (refcount_read(&sk->sk_wmem_alloc) <=
 				    2 * sk->sk_sndbuf)
 					skb = sock_wmalloc(sk,
 							   alloclen + hh_len + 15, 1,
@@ -1145,7 +1146,7 @@ alloc_new_skb:
 			skb->len += copy;
 			skb->data_len += copy;
 			skb->truesize += copy;
-			atomic_add(copy, &sk->sk_wmem_alloc);
+			refcount_add(copy, &sk->sk_wmem_alloc);
 		}
 		offset += copy;
 		length -= copy;
@@ -1369,7 +1370,7 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 		skb->len += len;
 		skb->data_len += len;
 		skb->truesize += len;
-		atomic_add(len, &sk->sk_wmem_alloc);
+		refcount_add(len, &sk->sk_wmem_alloc);
 		offset += len;
 		size -= len;
 	}

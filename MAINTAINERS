@@ -155,7 +155,7 @@ S:	Maintained
 F:	drivers/scsi/53c700*
 
 6LOWPAN GENERIC (BTLE/IEEE 802.15.4)
-M:	Alexander Aring <aar@pengutronix.de>
+M:	Alexander Aring <alex.aring@gmail.com>
 M:	Jukka Rissanen <jukka.rissanen@linux.intel.com>
 L:	linux-bluetooth@vger.kernel.org
 L:	linux-wpan@vger.kernel.org
@@ -2819,8 +2819,11 @@ BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
 M:	Arend van Spriel <arend.vanspriel@broadcom.com>
 M:	Franky Lin <franky.lin@broadcom.com>
 M:	Hante Meuleman <hante.meuleman@broadcom.com>
+M:	Chi-Hsien Lin <chi-hsien.lin@cypress.com>
+M:	Wright Feng <wright.feng@cypress.com>
 L:	linux-wireless@vger.kernel.org
 L:	brcm80211-dev-list.pdl@broadcom.com
+L:	brcm80211-dev-list@cypress.com
 S:	Supported
 F:	drivers/net/wireless/broadcom/brcm80211/
 
@@ -6465,7 +6468,7 @@ F:	Documentation/cdrom/ide-cd
 F:	drivers/ide/ide-cd*
 
 IEEE 802.15.4 SUBSYSTEM
-M:	Alexander Aring <aar@pengutronix.de>
+M:	Alexander Aring <alex.aring@gmail.com>
 M:	Stefan Schmidt <stefan@osg.samsung.com>
 L:	linux-wpan@vger.kernel.org
 W:	http://wpan.cakelab.org/
@@ -6789,6 +6792,7 @@ F:	Documentation/networking/i40e.txt
 F:	Documentation/networking/i40evf.txt
 F:	drivers/net/ethernet/intel/
 F:	drivers/net/ethernet/intel/*/
+F:	include/linux/avf/virtchnl.h
 
 INTEL RDMA RNIC DRIVER
 M:     Faisal Latif <faisal.latif@intel.com>
@@ -8029,6 +8033,12 @@ S:	Maintained
 F:	drivers/net/ethernet/marvell/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
+MARVELL MV88X3310 PHY DRIVER
+M:	Russell King <rmk@armlinux.org.uk>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/phy/marvell10g.c
+
 MARVELL MVNETA ETHERNET DRIVER
 M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
 L:	netdev@vger.kernel.org
@@ -8367,6 +8377,26 @@ W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlx5/core/en_*
 
+MELLANOX ETHERNET INNOVA DRIVER
+M:	Ilan Tayari <ilant@mellanox.com>
+R:	Boris Pismenny <borisp@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
+F:	drivers/net/ethernet/mellanox/mlx5/core/fpga/*
+F:	include/linux/mlx5/mlx5_ifc_fpga.h
+
+MELLANOX ETHERNET INNOVA IPSEC DRIVER
+M:	Ilan Tayari <ilant@mellanox.com>
+R:	Boris Pismenny <borisp@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
+F:	drivers/net/ethernet/mellanox/mlx5/core/en_ipsec/*
+F:	drivers/net/ethernet/mellanox/mlx5/core/ipsec*
+
 MELLANOX ETHERNET SWITCH DRIVERS
 M:	Jiri Pirko <jiri@mellanox.com>
 M:	Ido Schimmel <idosch@mellanox.com>
@@ -8375,6 +8405,14 @@ S:	Supported
 W:	http://www.mellanox.com
 Q:	http://patchwork.ozlabs.org/project/netdev/list/
 F:	drivers/net/ethernet/mellanox/mlxsw/
+
+MELLANOX FIRMWARE FLASH LIBRARY (mlxfw)
+M:	Yotam Gigi <yotamg@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+W:	http://www.mellanox.com
+Q:	http://patchwork.ozlabs.org/project/netdev/list/
+F:	drivers/net/ethernet/mellanox/mlxfw/
 
 MELLANOX MLXCPLD I2C AND MUX DRIVER
 M:	Vadim Pasternak <vadimp@mellanox.com>
@@ -8516,6 +8554,16 @@ S:	Supported
 F:	drivers/media/platform/atmel/atmel-isc.c
 F:	drivers/media/platform/atmel/atmel-isc-regs.h
 F:	devicetree/bindings/media/atmel-isc.txt
+
+MICROCHIP KSZ SERIES ETHERNET SWITCH DRIVER
+M:	Woojung Huh <Woojung.Huh@microchip.com>
+M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/dsa/tag_ksz.c
+F:	drivers/net/dsa/microchip/*
+F:	include/linux/platform_data/microchip-ksz.h
+F:	Documentation/devicetree/bindings/net/dsa/ksz.txt
 
 MICROCHIP USB251XB DRIVER
 M:	Richard Leitner <richard.leitner@skidata.com>
@@ -9009,6 +9057,16 @@ F:	net/ipv6/
 F:	include/net/ip*
 F:	arch/x86/net/*
 
+NETWORKING [TLS]
+M:	Ilya Lesokhin <ilyal@mellanox.com>
+M:	Aviad Yehezkel <aviadye@mellanox.com>
+M:	Dave Watson <davejwatson@fb.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/tls/*
+F:	include/uapi/linux/tls.h
+F:	include/net/tls.h
+
 NETWORKING [IPSEC]
 M:	Steffen Klassert <steffen.klassert@secunet.com>
 M:	Herbert Xu <herbert@gondor.apana.org.au>
@@ -9090,9 +9148,6 @@ F:	include/uapi/linux/nfc.h
 F:	drivers/nfc/
 F:	include/linux/platform_data/nfcmrvl.h
 F:	include/linux/platform_data/nxp-nci.h
-F:	include/linux/platform_data/pn544.h
-F:	include/linux/platform_data/st21nfca.h
-F:	include/linux/platform_data/st-nci.h
 F:	Documentation/devicetree/bindings/net/nfc/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
@@ -10665,6 +10720,14 @@ L:	qemu-devel@nongnu.org
 S:	Maintained
 F:	drivers/firmware/qemu_fw_cfg.c
 
+QUANTENNA QTNFMAC WIRELESS DRIVER
+M:   Igor Mitsyanko <imitsyanko@quantenna.com>
+M:   Avinash Patil <avinashp@quantenna.com>
+M:   Sergey Matyukevich <smatyukevich@quantenna.com>
+L:   linux-wireless@vger.kernel.org
+S:   Maintained
+F:   drivers/net/wireless/quantenna
+
 RADOS BLOCK DEVICE (RBD)
 M:	Ilya Dryomov <idryomov@gmail.com>
 M:	Sage Weil <sage@redhat.com>
@@ -11422,6 +11485,14 @@ F:	kernel/time/time*.c
 F:	kernel/time/alarmtimer.c
 F:	kernel/time/ntp.c
 F:	tools/testing/selftests/timers/
+
+TI TRF7970A NFC DRIVER
+M:	Mark Greer <mgreer@animalcreek.com>
+L:	linux-wireless@vger.kernel.org
+L:	linux-nfc@lists.01.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/nfc/trf7970a.c
+F:	Documentation/devicetree/bindings/net/nfc/trf7970a.txt
 
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwanem@gmail.com>

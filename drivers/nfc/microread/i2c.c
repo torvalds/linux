@@ -70,12 +70,12 @@ static void microread_i2c_add_len_crc(struct sk_buff *skb)
 	int len;
 
 	len = skb->len;
-	*skb_push(skb, 1) = len;
+	*(u8 *)skb_push(skb, 1) = len;
 
 	for (i = 0; i < skb->len; i++)
 		crc = crc ^ skb->data[i];
 
-	*skb_put(skb, 1) = crc;
+	skb_put_u8(skb, crc);
 }
 
 static void microread_i2c_remove_len_crc(struct sk_buff *skb)
@@ -173,7 +173,7 @@ static int microread_i2c_read(struct microread_i2c_phy *phy,
 		goto flush;
 	}
 
-	*skb_put(*skb, 1) = len;
+	skb_put_u8(*skb, len);
 
 	r = i2c_master_recv(client, skb_put(*skb, len), len);
 	if (r != len) {

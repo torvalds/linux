@@ -84,7 +84,7 @@
 #include "iwl-eeprom-parse.h"
 #include "iwl-phy-db.h"
 #include "testmode.h"
-#include "iwl-fw-error-dump.h"
+#include "fw/error-dump.h"
 #include "iwl-prph.h"
 #include "iwl-nvm-parse.h"
 #include "fw-dbg.h"
@@ -493,7 +493,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	 * firmware will interpret some mgmt packets, so enabling it
 	 * with software crypto isn't safe).
 	 */
-	if (!iwlwifi_mod_params.sw_crypto) {
+	if (!iwlwifi_mod_params.swcrypto) {
 		ieee80211_hw_set(hw, MFP_CAPABLE);
 		mvm->ciphers[hw->wiphy->n_cipher_suites] =
 			WLAN_CIPHER_SUITE_AES_CMAC;
@@ -687,7 +687,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 				     WIPHY_WOWLAN_EAP_IDENTITY_REQ |
 				     WIPHY_WOWLAN_RFKILL_RELEASE |
 				     WIPHY_WOWLAN_NET_DETECT;
-		if (!iwlwifi_mod_params.sw_crypto)
+		if (!iwlwifi_mod_params.swcrypto)
 			mvm->wowlan.flags |= WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 					     WIPHY_WOWLAN_GTK_REKEY_FAILURE |
 					     WIPHY_WOWLAN_4WAY_HANDSHAKE;
@@ -735,6 +735,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)
 		iwl_mvm_leds_exit(mvm);
+	mvm->init_status |= IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE;
 
 	if (mvm->cfg->vht_mu_mimo_supported)
 		wiphy_ext_feature_set(hw->wiphy,
@@ -1243,6 +1244,17 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	flush_work(&mvm->d0i3_exit_work);
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);
+
+	/*
+	 * Lock and clear the firmware running bit here already, so that
+	 * new commands coming in elsewhere, e.g. from debugfs, will not
+	 * be able to proceed. This is important here because one of those
+	 * debugfs files causes the fw_dump_wk to be triggered, and if we
+	 * don't stop debugfs accesses before canceling that it could be
+	 * retriggered after we flush it but before we've cleared the bit.
+	 */
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+
 	cancel_delayed_work_sync(&mvm->fw_dump_wk);
 	cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
 	cancel_delayed_work_sync(&mvm->scan_timeout_dwork);
@@ -1451,7 +1463,7 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 {
 	u32 tfd_msk = iwl_mvm_mac_get_queues_mask(vif);
 
-	if (tfd_msk) {
+	if (tfd_msk && !iwl_mvm_is_dqa_supported(mvm)) {
 		/*
 		 * mac80211 first removes all the stations of the vif and
 		 * then removes the vif. When it removes a station it also
@@ -1460,6 +1472,8 @@ static void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 * of these AMPDU sessions are properly closed.
 		 * We still need to take care of the shared queues of the vif.
 		 * Flush them here.
+		 * For DQA mode there is no need - broacast and multicast queue
+		 * are flushed separately.
 		 */
 		mutex_lock(&mvm->mutex);
 		iwl_mvm_flush_tx_path(mvm, tfd_msk, 0);
@@ -1974,14 +1988,32 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			WARN_ONCE(iwl_mvm_sf_update(mvm, vif, false),
 				  "Failed to update SF upon disassociation\n");
 
-			/* remove AP station now that the MAC is unassoc */
-			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
-			if (ret)
-				IWL_ERR(mvm, "failed to remove AP station\n");
+			/*
+			 * If we get an assert during the connection (after the
+			 * station has been added, but before the vif is set
+			 * to associated), mac80211 will re-add the station and
+			 * then configure the vif. Since the vif is not
+			 * associated, we would remove the station here and
+			 * this would fail the recovery.
+			 */
+			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+				      &mvm->status)) {
+				/*
+				 * Remove AP station now that
+				 * the MAC is unassoc
+				 */
+				ret = iwl_mvm_rm_sta_id(mvm, vif,
+							mvmvif->ap_sta_id);
+				if (ret)
+					IWL_ERR(mvm,
+						"failed to remove AP station\n");
 
-			if (mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
-				mvm->d0i3_ap_sta_id = IWL_MVM_INVALID_STA;
-			mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
+				if (mvm->d0i3_ap_sta_id == mvmvif->ap_sta_id)
+					mvm->d0i3_ap_sta_id =
+						IWL_MVM_INVALID_STA;
+				mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
+			}
+
 			/* remove quota for this interface */
 			ret = iwl_mvm_update_quotas(mvm, false, NULL);
 			if (ret)
@@ -2381,7 +2413,7 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 
 		__set_bit(tid_data->txq_id, &txqs);
 
-		if (iwl_mvm_tid_queued(tid_data) == 0)
+		if (iwl_mvm_tid_queued(mvm, tid_data) == 0)
 			continue;
 
 		__set_bit(tid, &tids);
@@ -2856,7 +2888,7 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	int ret;
 	u8 key_offset;
 
-	if (iwlwifi_mod_params.sw_crypto) {
+	if (iwlwifi_mod_params.swcrypto) {
 		IWL_DEBUG_MAC80211(mvm, "leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -2869,7 +2901,8 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		if (!iwl_mvm_has_new_tx_api(mvm))
+			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
@@ -2915,8 +2948,13 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 				ret = -EOPNOTSUPP;
 			else
 				ret = 0;
-			key->hw_key_idx = STA_KEY_IDX_INVALID;
-			break;
+
+			if (key->cipher != WLAN_CIPHER_SUITE_GCMP &&
+			    key->cipher != WLAN_CIPHER_SUITE_GCMP_256 &&
+			    !iwl_mvm_has_new_tx_api(mvm)) {
+				key->hw_key_idx = STA_KEY_IDX_INVALID;
+				break;
+			}
 		}
 
 		/* During FW restart, in order to restore the state as it was,
@@ -3717,6 +3755,13 @@ static int iwl_mvm_switch_vif_chanctx(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static int iwl_mvm_tx_last_beacon(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	return mvm->ibss_manager;
+}
+
 static int iwl_mvm_set_tim(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *sta,
 			   bool set)
@@ -3988,21 +4033,23 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		/* make sure only TDLS peers or the AP are flushed */
 		WARN_ON(i != mvmvif->ap_sta_id && !sta->tdls);
 
-		msk |= mvmsta->tfd_queue_msk;
+		if (drop) {
+			if (iwl_mvm_flush_sta(mvm, mvmsta, false, 0))
+				IWL_ERR(mvm, "flush request fail\n");
+		} else {
+			msk |= mvmsta->tfd_queue_msk;
+			if (iwl_mvm_has_new_tx_api(mvm))
+				iwl_mvm_wait_sta_queues_empty(mvm, mvmsta);
+		}
 	}
 
-	if (drop) {
-		if (iwl_mvm_flush_tx_path(mvm, msk, 0))
-			IWL_ERR(mvm, "flush request fail\n");
-		mutex_unlock(&mvm->mutex);
-	} else {
-		mutex_unlock(&mvm->mutex);
+	mutex_unlock(&mvm->mutex);
 
-		/* this can take a while, and we may need/want other operations
-		 * to succeed while doing this, so do it without the mutex held
-		 */
+	/* this can take a while, and we may need/want other operations
+	 * to succeed while doing this, so do it without the mutex held
+	 */
+	if (!drop && !iwl_mvm_has_new_tx_api(mvm))
 		iwl_trans_wait_tx_queues_empty(mvm->trans, msk);
-	}
 }
 
 static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
@@ -4023,7 +4070,7 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 
 	mutex_lock(&mvm->mutex);
 
-	if (mvm->ucode_loaded) {
+	if (iwl_mvm_firmware_running(mvm)) {
 		ret = iwl_mvm_request_statistics(mvm, false);
 		if (ret)
 			goto out;
@@ -4104,11 +4151,11 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					const struct ieee80211_event *event)
 {
-#define CHECK_MLME_TRIGGER(_mvm, _trig, _buf, _cnt, _fmt...)	\
+#define CHECK_MLME_TRIGGER(_cnt, _fmt...)			\
 	do {							\
-		if ((_cnt) && --(_cnt))				\
+		if ((trig_mlme->_cnt) && --(trig_mlme->_cnt))	\
 			break;					\
-		iwl_mvm_fw_dbg_collect_trig(_mvm, _trig, _fmt);\
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig, _fmt);	\
 	} while (0)
 
 	struct iwl_fw_dbg_trigger_tlv *trig;
@@ -4124,31 +4171,25 @@ static void iwl_mvm_event_mlme_callback(struct iwl_mvm *mvm,
 
 	if (event->u.mlme.data == ASSOC_EVENT) {
 		if (event->u.mlme.status == MLME_DENIED)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_assoc_denied,
+			CHECK_MLME_TRIGGER(stop_assoc_denied,
 					   "DENIED ASSOC: reason %d",
 					    event->u.mlme.reason);
 		else if (event->u.mlme.status == MLME_TIMEOUT)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_assoc_timeout,
+			CHECK_MLME_TRIGGER(stop_assoc_timeout,
 					   "ASSOC TIMEOUT");
 	} else if (event->u.mlme.data == AUTH_EVENT) {
 		if (event->u.mlme.status == MLME_DENIED)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_auth_denied,
+			CHECK_MLME_TRIGGER(stop_auth_denied,
 					   "DENIED AUTH: reason %d",
 					   event->u.mlme.reason);
 		else if (event->u.mlme.status == MLME_TIMEOUT)
-			CHECK_MLME_TRIGGER(mvm, trig, buf,
-					   trig_mlme->stop_auth_timeout,
+			CHECK_MLME_TRIGGER(stop_auth_timeout,
 					   "AUTH TIMEOUT");
 	} else if (event->u.mlme.data == DEAUTH_RX_EVENT) {
-		CHECK_MLME_TRIGGER(mvm, trig, buf,
-				   trig_mlme->stop_rx_deauth,
+		CHECK_MLME_TRIGGER(stop_rx_deauth,
 				   "DEAUTH RX %d", event->u.mlme.reason);
 	} else if (event->u.mlme.data == DEAUTH_TX_EVENT) {
-		CHECK_MLME_TRIGGER(mvm, trig, buf,
-				   trig_mlme->stop_tx_deauth,
+		CHECK_MLME_TRIGGER(stop_tx_deauth,
 				   "DEAUTH TX %d", event->u.mlme.reason);
 	}
 #undef CHECK_MLME_TRIGGER
@@ -4248,11 +4289,13 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	if (notif->sync)
+	if (notif->sync) {
 		ret = wait_event_timeout(mvm->rx_sync_waitq,
-					 atomic_read(&mvm->queue_sync_counter) == 0,
+					 atomic_read(&mvm->queue_sync_counter) == 0 ||
+					 iwl_mvm_is_radio_killed(mvm),
 					 HZ);
-	WARN_ON_ONCE(!ret);
+		WARN_ON_ONCE(!ret && !iwl_mvm_is_radio_killed(mvm));
+	}
 
 out:
 	atomic_set(&mvm->queue_sync_counter, 0);
@@ -4315,6 +4358,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.stop_ap = iwl_mvm_stop_ap_ibss,
 	.join_ibss = iwl_mvm_start_ap_ibss,
 	.leave_ibss = iwl_mvm_stop_ap_ibss,
+
+	.tx_last_beacon = iwl_mvm_tx_last_beacon,
 
 	.set_tim = iwl_mvm_set_tim,
 

@@ -79,7 +79,7 @@ cxgbit_ppod_init_idata(struct cxgbit_device *cdev, struct cxgbi_ppm *ppm,
 	if (!skb)
 		return NULL;
 
-	req = (struct ulp_mem_io *)__skb_put(skb, wr_len);
+	req = __skb_put(skb, wr_len);
 	INIT_ULPTX_WR(req, wr_len, 0, tid);
 	req->wr.wr_hi = htonl(FW_WR_OP_V(FW_ULPTX_WR) |
 		FW_WR_ATOMIC_V(0));

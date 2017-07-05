@@ -141,6 +141,8 @@
 			bluetooth {
 				compatible = "ti,wl1835-st";
 				enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+				clocks = <&pmic>;
+				clock-names = "ext_clock";
 			};
 		};
 

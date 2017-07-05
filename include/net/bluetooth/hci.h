@@ -399,6 +399,7 @@ enum {
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
 #define HCI_LE_EXT_SCAN_POLICY		0x80
+#define HCI_LE_CHAN_SEL_ALG2		0x40
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -1496,6 +1497,13 @@ struct hci_rp_le_read_max_data_len {
 	__le16	tx_time;
 	__le16	rx_len;
 	__le16	rx_time;
+} __packed;
+
+#define HCI_OP_LE_SET_DEFAULT_PHY	0x2031
+struct hci_cp_le_set_default_phy {
+	__u8    all_phys;
+	__u8    tx_phys;
+	__u8    rx_phys;
 } __packed;
 
 /* ---- HCI Events ---- */

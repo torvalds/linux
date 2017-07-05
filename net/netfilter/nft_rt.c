@@ -23,9 +23,9 @@ struct nft_rt {
 	enum nft_registers	dreg:8;
 };
 
-void nft_rt_get_eval(const struct nft_expr *expr,
-		     struct nft_regs *regs,
-		     const struct nft_pktinfo *pkt)
+static void nft_rt_get_eval(const struct nft_expr *expr,
+			    struct nft_regs *regs,
+			    const struct nft_pktinfo *pkt)
 {
 	const struct nft_rt *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
@@ -72,9 +72,9 @@ const struct nla_policy nft_rt_policy[NFTA_RT_MAX + 1] = {
 	[NFTA_RT_KEY]		= { .type = NLA_U32 },
 };
 
-int nft_rt_get_init(const struct nft_ctx *ctx,
-		    const struct nft_expr *expr,
-		    const struct nlattr * const tb[])
+static int nft_rt_get_init(const struct nft_ctx *ctx,
+			   const struct nft_expr *expr,
+			   const struct nlattr * const tb[])
 {
 	struct nft_rt *priv = nft_expr_priv(expr);
 	unsigned int len;
@@ -103,8 +103,8 @@ int nft_rt_get_init(const struct nft_ctx *ctx,
 					   NFT_DATA_VALUE, len);
 }
 
-int nft_rt_get_dump(struct sk_buff *skb,
-		    const struct nft_expr *expr)
+static int nft_rt_get_dump(struct sk_buff *skb,
+			   const struct nft_expr *expr)
 {
 	const struct nft_rt *priv = nft_expr_priv(expr);
 

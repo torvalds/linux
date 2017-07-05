@@ -279,3 +279,43 @@ exit_release:
 
 	return err;
 }
+
+/**
+ * nfp_cpp_map_area() - Helper function to map an area
+ * @cpp:    NFP CPP handler
+ * @name:   Name for the area
+ * @domain: CPP domain
+ * @target: CPP target
+ * @addr:   CPP address
+ * @size:   Size of the area
+ * @area:   Area handle (output)
+ *
+ * Map an area of IOMEM access.  To undo the effect of this function call
+ * @nfp_cpp_area_release_free(*area).
+ *
+ * Return: Pointer to memory mapped area or ERR_PTR
+ */
+u8 __iomem *
+nfp_cpp_map_area(struct nfp_cpp *cpp, const char *name, int domain, int target,
+		 u64 addr, unsigned long size, struct nfp_cpp_area **area)
+{
+	u8 __iomem *res;
+	u32 dest;
+
+	dest = NFP_CPP_ISLAND_ID(target, NFP_CPP_ACTION_RW, 0, domain);
+
+	*area = nfp_cpp_area_alloc_acquire(cpp, name, dest, addr, size);
+	if (!*area)
+		goto err_eio;
+
+	res = nfp_cpp_area_iomem(*area);
+	if (!res)
+		goto err_release_free;
+
+	return res;
+
+err_release_free:
+	nfp_cpp_area_release_free(*area);
+err_eio:
+	return (u8 __iomem *)ERR_PTR(-EIO);
+}

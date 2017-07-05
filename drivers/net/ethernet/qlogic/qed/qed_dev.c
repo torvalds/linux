@@ -62,18 +62,12 @@
 #include "qed_sp.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
-#include "qed_roce.h"
+#include "qed_rdma.h"
 
 static DEFINE_SPINLOCK(qm_lock);
 
 #define QED_MIN_DPIS            (4)
 #define QED_MIN_PWM_REGION      (QED_WID_SIZE * QED_MIN_DPIS)
-
-/* API common to all protocols */
-enum BAR_ID {
-	BAR_ID_0,       /* used for GRC */
-	BAR_ID_1        /* Used for doorbells */
-};
 
 static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt, enum BAR_ID bar_id)
@@ -83,7 +77,7 @@ static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
 	u32 val;
 
 	if (IS_VF(p_hwfn->cdev))
-		return 1 << 17;
+		return qed_vf_hw_bar_size(p_hwfn, bar_id);
 
 	val = qed_rd(p_hwfn, p_ptt, bar_reg);
 	if (val)
@@ -154,13 +148,17 @@ void qed_resc_free(struct qed_dev *cdev)
 {
 	int i;
 
-	if (IS_VF(cdev))
+	if (IS_VF(cdev)) {
+		for_each_hwfn(cdev, i)
+			qed_l2_free(&cdev->hwfns[i]);
 		return;
+	}
 
 	kfree(cdev->fw_data);
 	cdev->fw_data = NULL;
 
 	kfree(cdev->reset_stats);
+	cdev->reset_stats = NULL;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -168,20 +166,21 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_cxt_mngr_free(p_hwfn);
 		qed_qm_info_free(p_hwfn);
 		qed_spq_free(p_hwfn);
-		qed_eq_free(p_hwfn, p_hwfn->p_eq);
-		qed_consq_free(p_hwfn, p_hwfn->p_consq);
+		qed_eq_free(p_hwfn);
+		qed_consq_free(p_hwfn);
 		qed_int_free(p_hwfn);
 #ifdef CONFIG_QED_LL2
-		qed_ll2_free(p_hwfn, p_hwfn->p_ll2_info);
+		qed_ll2_free(p_hwfn);
 #endif
 		if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
-			qed_fcoe_free(p_hwfn, p_hwfn->p_fcoe_info);
+			qed_fcoe_free(p_hwfn);
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
-			qed_iscsi_free(p_hwfn, p_hwfn->p_iscsi_info);
-			qed_ooo_free(p_hwfn, p_hwfn->p_ooo_info);
+			qed_iscsi_free(p_hwfn);
+			qed_ooo_free(p_hwfn);
 		}
 		qed_iov_free(p_hwfn);
+		qed_l2_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 		qed_dcbx_info_free(p_hwfn);
 	}
@@ -216,6 +215,10 @@ static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 		break;
 	case QED_PCI_ETH_ROCE:
 		flags |= PQ_FLAGS_MCOS | PQ_FLAGS_OFLD | PQ_FLAGS_LLT;
+		break;
+	case QED_PCI_ETH_IWARP:
+		flags |= PQ_FLAGS_MCOS | PQ_FLAGS_ACK | PQ_FLAGS_OOO |
+		    PQ_FLAGS_OFLD;
 		break;
 	default:
 		DP_ERR(p_hwfn,
@@ -299,7 +302,7 @@ static void qed_init_qm_params(struct qed_hwfn *p_hwfn)
 	qm_info->vport_wfq_en = 1;
 
 	/* TC config is different for AH 4 port */
-	four_port = p_hwfn->cdev->num_ports_in_engines == MAX_NUM_PORTS_K2;
+	four_port = p_hwfn->cdev->num_ports_in_engine == MAX_NUM_PORTS_K2;
 
 	/* in AH 4 port we have fewer TCs per port */
 	qm_info->max_phys_tcs_per_port = four_port ? NUM_PHYS_TCS_4PORT_K2 :
@@ -328,7 +331,7 @@ static void qed_init_qm_vport_params(struct qed_hwfn *p_hwfn)
 static void qed_init_qm_port_params(struct qed_hwfn *p_hwfn)
 {
 	/* Initialize qm port parameters */
-	u8 i, active_phys_tcs, num_ports = p_hwfn->cdev->num_ports_in_engines;
+	u8 i, active_phys_tcs, num_ports = p_hwfn->cdev->num_ports_in_engine;
 
 	/* indicate how ooo and high pri traffic is dealt with */
 	active_phys_tcs = num_ports == MAX_NUM_PORTS_K2 ?
@@ -692,7 +695,7 @@ static void qed_dp_init_qm_params(struct qed_hwfn *p_hwfn)
 		   qm_info->num_pf_rls, qed_get_pq_flags(p_hwfn));
 
 	/* port table */
-	for (i = 0; i < p_hwfn->cdev->num_ports_in_engines; i++) {
+	for (i = 0; i < p_hwfn->cdev->num_ports_in_engine; i++) {
 		port = &(qm_info->qm_port_params[i]);
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_HW,
@@ -822,7 +825,7 @@ static int qed_alloc_qm_data(struct qed_hwfn *p_hwfn)
 		goto alloc_err;
 
 	qm_info->qm_port_params = kzalloc(sizeof(*qm_info->qm_port_params) *
-					  p_hwfn->cdev->num_ports_in_engines,
+					  p_hwfn->cdev->num_ports_in_engine,
 					  GFP_KERNEL);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
@@ -843,20 +846,18 @@ alloc_err:
 
 int qed_resc_alloc(struct qed_dev *cdev)
 {
-	struct qed_iscsi_info *p_iscsi_info;
-	struct qed_fcoe_info *p_fcoe_info;
-	struct qed_ooo_info *p_ooo_info;
-#ifdef CONFIG_QED_LL2
-	struct qed_ll2_info *p_ll2_info;
-#endif
 	u32 rdma_tasks, excess_tasks;
-	struct qed_consq *p_consq;
-	struct qed_eq *p_eq;
 	u32 line_count;
 	int i, rc = 0;
 
-	if (IS_VF(cdev))
+	if (IS_VF(cdev)) {
+		for_each_hwfn(cdev, i) {
+			rc = qed_l2_alloc(&cdev->hwfns[i]);
+			if (rc)
+				return rc;
+		}
 		return rc;
+	}
 
 	cdev->fw_data = kzalloc(sizeof(*cdev->fw_data), GFP_KERNEL);
 	if (!cdev->fw_data)
@@ -939,9 +940,16 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 		/* EQ */
 		n_eqes = qed_chain_get_capacity(&p_hwfn->p_spq->chain);
-		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+		if (QED_IS_RDMA_PERSONALITY(p_hwfn)) {
+			enum protocol_type rdma_proto;
+
+			if (QED_IS_ROCE_PERSONALITY(p_hwfn))
+				rdma_proto = PROTOCOLID_ROCE;
+			else
+				rdma_proto = PROTOCOLID_IWARP;
+
 			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
-							       PROTOCOLID_ROCE,
+							       rdma_proto,
 							       NULL) * 2;
 			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB;
 		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
@@ -956,45 +964,42 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			DP_ERR(p_hwfn,
 			       "Cannot allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
 			       n_eqes, 0xFFFF);
-			rc = -EINVAL;
-			goto alloc_err;
+			goto alloc_no_mem;
 		}
 
-		p_eq = qed_eq_alloc(p_hwfn, (u16) n_eqes);
-		if (!p_eq)
-			goto alloc_no_mem;
-		p_hwfn->p_eq = p_eq;
+		rc = qed_eq_alloc(p_hwfn, (u16) n_eqes);
+		if (rc)
+			goto alloc_err;
 
-		p_consq = qed_consq_alloc(p_hwfn);
-		if (!p_consq)
-			goto alloc_no_mem;
-		p_hwfn->p_consq = p_consq;
+		rc = qed_consq_alloc(p_hwfn);
+		if (rc)
+			goto alloc_err;
+
+		rc = qed_l2_alloc(p_hwfn);
+		if (rc)
+			goto alloc_err;
 
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2) {
-			p_ll2_info = qed_ll2_alloc(p_hwfn);
-			if (!p_ll2_info)
-				goto alloc_no_mem;
-			p_hwfn->p_ll2_info = p_ll2_info;
+			rc = qed_ll2_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
 		}
 #endif
 
 		if (p_hwfn->hw_info.personality == QED_PCI_FCOE) {
-			p_fcoe_info = qed_fcoe_alloc(p_hwfn);
-			if (!p_fcoe_info)
-				goto alloc_no_mem;
-			p_hwfn->p_fcoe_info = p_fcoe_info;
+			rc = qed_fcoe_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
 		}
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
-			p_iscsi_info = qed_iscsi_alloc(p_hwfn);
-			if (!p_iscsi_info)
-				goto alloc_no_mem;
-			p_hwfn->p_iscsi_info = p_iscsi_info;
-			p_ooo_info = qed_ooo_alloc(p_hwfn);
-			if (!p_ooo_info)
-				goto alloc_no_mem;
-			p_hwfn->p_ooo_info = p_ooo_info;
+			rc = qed_iscsi_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+			rc = qed_ooo_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
 		}
 
 		/* DMA info initialization */
@@ -1025,16 +1030,19 @@ void qed_resc_setup(struct qed_dev *cdev)
 {
 	int i;
 
-	if (IS_VF(cdev))
+	if (IS_VF(cdev)) {
+		for_each_hwfn(cdev, i)
+			qed_l2_setup(&cdev->hwfns[i]);
 		return;
+	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		qed_cxt_mngr_setup(p_hwfn);
 		qed_spq_setup(p_hwfn);
-		qed_eq_setup(p_hwfn, p_hwfn->p_eq);
-		qed_consq_setup(p_hwfn, p_hwfn->p_consq);
+		qed_eq_setup(p_hwfn);
+		qed_consq_setup(p_hwfn);
 
 		/* Read shadow of current MFW mailbox */
 		qed_mcp_read_mb(p_hwfn, p_hwfn->p_main_ptt);
@@ -1044,17 +1052,18 @@ void qed_resc_setup(struct qed_dev *cdev)
 
 		qed_int_setup(p_hwfn, p_hwfn->p_main_ptt);
 
-		qed_iov_setup(p_hwfn, p_hwfn->p_main_ptt);
+		qed_l2_setup(p_hwfn);
+		qed_iov_setup(p_hwfn);
 #ifdef CONFIG_QED_LL2
 		if (p_hwfn->using_ll2)
-			qed_ll2_setup(p_hwfn, p_hwfn->p_ll2_info);
+			qed_ll2_setup(p_hwfn);
 #endif
 		if (p_hwfn->hw_info.personality == QED_PCI_FCOE)
-			qed_fcoe_setup(p_hwfn, p_hwfn->p_fcoe_info);
+			qed_fcoe_setup(p_hwfn);
 
 		if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
-			qed_iscsi_setup(p_hwfn, p_hwfn->p_iscsi_info);
-			qed_ooo_setup(p_hwfn, p_hwfn->p_ooo_info);
+			qed_iscsi_setup(p_hwfn);
+			qed_ooo_setup(p_hwfn);
 		}
 	}
 }
@@ -1122,7 +1131,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 		return -EINVAL;
 	}
 
-	switch (p_hwfn->cdev->num_ports_in_engines) {
+	switch (p_hwfn->cdev->num_ports_in_engine) {
 	case 1:
 		hw_mode |= 1 << MODE_PORTS_PER_ENG_1;
 		break;
@@ -1134,7 +1143,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 		break;
 	default:
 		DP_NOTICE(p_hwfn, "num_ports_in_engine = %d not supported\n",
-			  p_hwfn->cdev->num_ports_in_engines);
+			  p_hwfn->cdev->num_ports_in_engine);
 		return -EINVAL;
 	}
 
@@ -1169,7 +1178,7 @@ static int qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 static void qed_init_cau_rt_data(struct qed_dev *cdev)
 {
 	u32 offset = CAU_REG_SB_VAR_MEMORY_RT_OFFSET;
-	int i, sb_id;
+	int i, igu_sb_id;
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -1179,15 +1188,17 @@ static void qed_init_cau_rt_data(struct qed_dev *cdev)
 
 		p_igu_info = p_hwfn->hw_info.p_igu_info;
 
-		for (sb_id = 0; sb_id < QED_MAPPING_MEMORY_SIZE(cdev);
-		     sb_id++) {
-			p_block = &p_igu_info->igu_map.igu_blocks[sb_id];
+		for (igu_sb_id = 0;
+		     igu_sb_id < QED_MAPPING_MEMORY_SIZE(cdev); igu_sb_id++) {
+			p_block = &p_igu_info->entry[igu_sb_id];
+
 			if (!p_block->is_pf)
 				continue;
 
 			qed_init_cau_sb_entry(p_hwfn, &sb_entry,
 					      p_block->function_id, 0, 0);
-			STORE_RT_REG_AGG(p_hwfn, offset + sb_id * 2, sb_entry);
+			STORE_RT_REG_AGG(p_hwfn, offset + igu_sb_id * 2,
+					 sb_entry);
 		}
 	}
 }
@@ -1241,6 +1252,10 @@ static void qed_init_cache_line_size(struct qed_hwfn *p_hwfn,
 			L1_CACHE_BYTES, wr_mbs);
 
 	STORE_RT_REG(p_hwfn, PGLUE_REG_B_CACHE_LINE_SIZE_RT_OFFSET, val);
+	if (val > 0) {
+		STORE_RT_REG(p_hwfn, PSWRQ2_REG_DRAM_ALIGN_WR_RT_OFFSET, val);
+		STORE_RT_REG(p_hwfn, PSWRQ2_REG_DRAM_ALIGN_RD_RT_OFFSET, val);
+	}
 }
 
 static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
@@ -1267,7 +1282,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	}
 
 	memset(&params, 0, sizeof(params));
-	params.max_ports_per_engine = p_hwfn->cdev->num_ports_in_engines;
+	params.max_ports_per_engine = p_hwfn->cdev->num_ports_in_engine;
 	params.max_phys_tcs_per_port = qm_info->max_phys_tcs_per_port;
 	params.pf_rl_en = qm_info->pf_rl_en;
 	params.pf_wfq_en = qm_info->pf_wfq_en;
@@ -1447,8 +1462,15 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt, int hw_mode)
 {
-	return qed_init_run(p_hwfn, p_ptt, PHASE_PORT,
-			    p_hwfn->port_id, hw_mode);
+	int rc = 0;
+
+	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id, hw_mode);
+	if (rc)
+		return rc;
+
+	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_MASTER_WRITE_PAD_ENABLE, 0);
+
+	return 0;
 }
 
 static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
@@ -1527,7 +1549,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		qed_int_igu_enable(p_hwfn, p_ptt, int_mode);
 
 		/* send function start command */
-		rc = qed_sp_pf_start(p_hwfn, p_tunn, p_hwfn->cdev->mf_mode,
+		rc = qed_sp_pf_start(p_hwfn, p_ptt, p_tunn,
+				     p_hwfn->cdev->mf_mode,
 				     allow_npar_tx_switch);
 		if (rc) {
 			DP_NOTICE(p_hwfn, "Function start ramrod failed\n");
@@ -1710,6 +1733,11 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			DP_NOTICE(p_hwfn, "Failed sending LOAD_DONE command\n");
 			return mfw_rc;
 		}
+
+		/* Check if there is a DID mismatch between nvm-cfg/efuse */
+		if (param & FW_MB_PARAM_LOAD_DONE_DID_EFUSE_ERROR)
+			DP_NOTICE(p_hwfn,
+				  "warning: device configuration is not supported on this board type. The device may not function as expected.\n");
 
 		/* send DCBX attention request command */
 		DP_VERBOSE(p_hwfn,
@@ -1956,6 +1984,13 @@ int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 	if (!p_ptt)
 		return -EAGAIN;
 
+	/* If roce info is allocated it means roce is initialized and should
+	 * be enabled in searcher.
+	 */
+	if (p_hwfn->p_rdma_info &&
+	    p_hwfn->b_rdma_enabled_in_prs)
+		qed_wr(p_hwfn, p_ptt, p_hwfn->rdma_prs_search_reg, 0x1);
+
 	/* Re-open incoming traffic */
 	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
 	qed_ptt_release(p_hwfn, p_ptt);
@@ -1968,6 +2003,7 @@ static void qed_hw_hwfn_free(struct qed_hwfn *p_hwfn)
 {
 	qed_ptt_pool_free(p_hwfn);
 	kfree(p_hwfn->hw_info.p_igu_info);
+	p_hwfn->hw_info.p_igu_info = NULL;
 }
 
 /* Setup bar access */
@@ -2025,51 +2061,55 @@ static void get_function_id(struct qed_hwfn *p_hwfn)
 static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 {
 	u32 *feat_num = p_hwfn->hw_info.feat_num;
-	struct qed_sb_cnt_info sb_cnt_info;
+	struct qed_sb_cnt_info sb_cnt;
 	u32 non_l2_sbs = 0;
 
+	memset(&sb_cnt, 0, sizeof(sb_cnt));
+	qed_int_get_num_sbs(p_hwfn, &sb_cnt);
+
 	if (IS_ENABLED(CONFIG_QED_RDMA) &&
-	    p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+	    QED_IS_RDMA_PERSONALITY(p_hwfn)) {
 		/* Roce CNQ each requires: 1 status block + 1 CNQ. We divide
 		 * the status blocks equally between L2 / RoCE but with
 		 * consideration as to how many l2 queues / cnqs we have.
 		 */
 		feat_num[QED_RDMA_CNQ] =
-			min_t(u32, RESC_NUM(p_hwfn, QED_SB) / 2,
+			min_t(u32, sb_cnt.cnt / 2,
 			      RESC_NUM(p_hwfn, QED_RDMA_CNQ_RAM));
 
 		non_l2_sbs = feat_num[QED_RDMA_CNQ];
 	}
-
-	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE ||
-	    p_hwfn->hw_info.personality == QED_PCI_ETH) {
+	if (QED_IS_L2_PERSONALITY(p_hwfn)) {
 		/* Start by allocating VF queues, then PF's */
-		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
-		qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
 		feat_num[QED_VF_L2_QUE] = min_t(u32,
 						RESC_NUM(p_hwfn, QED_L2_QUEUE),
-						sb_cnt_info.sb_iov_cnt);
+						sb_cnt.iov_cnt);
 		feat_num[QED_PF_L2_QUE] = min_t(u32,
-						RESC_NUM(p_hwfn, QED_SB) -
-						non_l2_sbs,
+						sb_cnt.cnt - non_l2_sbs,
 						RESC_NUM(p_hwfn,
 							 QED_L2_QUEUE) -
 						FEAT_NUM(p_hwfn,
 							 QED_VF_L2_QUE));
 	}
 
-	if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
-		feat_num[QED_ISCSI_CQ] = min_t(u32, RESC_NUM(p_hwfn, QED_SB),
+	if (QED_IS_FCOE_PERSONALITY(p_hwfn))
+		feat_num[QED_FCOE_CQ] =  min_t(u32, sb_cnt.cnt,
+					       RESC_NUM(p_hwfn,
+							QED_CMDQS_CQS));
+
+	if (QED_IS_ISCSI_PERSONALITY(p_hwfn))
+		feat_num[QED_ISCSI_CQ] = min_t(u32, sb_cnt.cnt,
 					       RESC_NUM(p_hwfn,
 							QED_CMDQS_CQS));
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
-		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d ISCSI_CQ=%d #SBS=%d\n",
+		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d FCOE_CQ=%d ISCSI_CQ=%d #SBS=%d\n",
 		   (int)FEAT_NUM(p_hwfn, QED_PF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_VF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_RDMA_CNQ),
+		   (int)FEAT_NUM(p_hwfn, QED_FCOE_CQ),
 		   (int)FEAT_NUM(p_hwfn, QED_ISCSI_CQ),
-		   RESC_NUM(p_hwfn, QED_SB));
+		   (int)sb_cnt.cnt);
 }
 
 const char *qed_hw_get_resc_name(enum qed_resources res_id)
@@ -2188,7 +2228,6 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 {
 	u8 num_funcs = p_hwfn->num_funcs_on_engine;
 	bool b_ah = QED_IS_AH(p_hwfn->cdev);
-	struct qed_sb_cnt_info sb_cnt_info;
 
 	switch (res_id) {
 	case QED_L2_QUEUE:
@@ -2240,9 +2279,10 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 			*p_resc_num = 1;
 		break;
 	case QED_SB:
-		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
-		qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
-		*p_resc_num = sb_cnt_info.sb_cnt;
+		/* Since we want its value to reflect whether MFW supports
+		 * the new scheme, have a default of 0.
+		 */
+		*p_resc_num = 0;
 		break;
 	default:
 		return -EINVAL;
@@ -2252,7 +2292,7 @@ int qed_hw_get_dflt_resc(struct qed_hwfn *p_hwfn,
 	case QED_BDQ:
 		if (!*p_resc_num)
 			*p_resc_start = 0;
-		else if (p_hwfn->cdev->num_ports_in_engines == 4)
+		else if (p_hwfn->cdev->num_ports_in_engine == 4)
 			*p_resc_start = p_hwfn->port_id;
 		else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI)
 			*p_resc_start = p_hwfn->port_id;
@@ -2311,11 +2351,6 @@ static int __qed_hw_set_resc_info(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
-	/* Special handling for status blocks; Would be revised in future */
-	if (res_id == QED_SB) {
-		*p_resc_num -= 1;
-		*p_resc_start -= p_hwfn->enabled_func_idx;
-	}
 out:
 	/* PQs have to divide by 8 [that's the HW granularity].
 	 * Reduce number so it would fit.
@@ -2412,6 +2447,10 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			  RESC_END(p_hwfn, QED_ILT) - 1);
 		return -EINVAL;
 	}
+
+	/* This will also learn the number of SBs from MFW */
+	if (qed_int_igu_reset_cam(p_hwfn, p_ptt))
+		return -EINVAL;
 
 	qed_hw_set_feat(p_hwfn);
 
@@ -2669,15 +2708,15 @@ static void qed_hw_info_port_num_bb(struct qed_hwfn *p_hwfn,
 	port_mode = qed_rd(p_hwfn, p_ptt, CNIG_REG_NW_PORT_MODE_BB_B0);
 
 	if (port_mode < 3) {
-		p_hwfn->cdev->num_ports_in_engines = 1;
+		p_hwfn->cdev->num_ports_in_engine = 1;
 	} else if (port_mode <= 5) {
-		p_hwfn->cdev->num_ports_in_engines = 2;
+		p_hwfn->cdev->num_ports_in_engine = 2;
 	} else {
 		DP_NOTICE(p_hwfn, "PORT MODE: %d not supported\n",
-			  p_hwfn->cdev->num_ports_in_engines);
+			  p_hwfn->cdev->num_ports_in_engine);
 
-		/* Default num_ports_in_engines to something */
-		p_hwfn->cdev->num_ports_in_engines = 1;
+		/* Default num_ports_in_engine to something */
+		p_hwfn->cdev->num_ports_in_engine = 1;
 	}
 }
 
@@ -2687,20 +2726,20 @@ static void qed_hw_info_port_num_ah(struct qed_hwfn *p_hwfn,
 	u32 port;
 	int i;
 
-	p_hwfn->cdev->num_ports_in_engines = 0;
+	p_hwfn->cdev->num_ports_in_engine = 0;
 
 	for (i = 0; i < MAX_NUM_PORTS_K2; i++) {
 		port = qed_rd(p_hwfn, p_ptt,
 			      CNIG_REG_NIG_PORT0_CONF_K2 + (i * 4));
 		if (port & 1)
-			p_hwfn->cdev->num_ports_in_engines++;
+			p_hwfn->cdev->num_ports_in_engine++;
 	}
 
-	if (!p_hwfn->cdev->num_ports_in_engines) {
+	if (!p_hwfn->cdev->num_ports_in_engine) {
 		DP_NOTICE(p_hwfn, "All NIG ports are inactive\n");
 
 		/* Default num_ports_in_engine to something */
-		p_hwfn->cdev->num_ports_in_engines = 1;
+		p_hwfn->cdev->num_ports_in_engine = 1;
 	}
 }
 
@@ -2818,12 +2857,6 @@ static int qed_get_dev_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		(int)cdev->chip_metal,
 		cdev->chip_num, cdev->chip_rev,
 		cdev->chip_bond_id, cdev->chip_metal);
-
-	if (QED_IS_BB(cdev) && CHIP_REV_IS_A0(cdev)) {
-		DP_NOTICE(cdev->hwfns,
-			  "The chip type/rev (BB A0) is not supported!\n");
-		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -3051,12 +3084,15 @@ static void qed_chain_free_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 	}
 
 	pbl_size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-	dma_free_coherent(&cdev->pdev->dev,
-			  pbl_size,
-			  p_chain->pbl_sp.p_virt_table,
-			  p_chain->pbl_sp.p_phys_table);
+
+	if (!p_chain->b_external_pbl)
+		dma_free_coherent(&cdev->pdev->dev,
+				  pbl_size,
+				  p_chain->pbl_sp.p_virt_table,
+				  p_chain->pbl_sp.p_phys_table);
 out:
 	vfree(p_chain->pbl.pp_virt_addr_tbl);
+	p_chain->pbl.pp_virt_addr_tbl = NULL;
 }
 
 void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain)
@@ -3150,7 +3186,10 @@ qed_chain_alloc_single(struct qed_dev *cdev, struct qed_chain *p_chain)
 	return 0;
 }
 
-static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
+static int
+qed_chain_alloc_pbl(struct qed_dev *cdev,
+		    struct qed_chain *p_chain,
+		    struct qed_chain_ext_pbl *ext_pbl)
 {
 	u32 page_cnt = p_chain->page_cnt, size, i;
 	dma_addr_t p_phys = 0, p_pbl_phys = 0;
@@ -3170,8 +3209,16 @@ static int qed_chain_alloc_pbl(struct qed_dev *cdev, struct qed_chain *p_chain)
 	 * should be saved to allow its freeing during the error flow.
 	 */
 	size = page_cnt * QED_CHAIN_PBL_ENTRY_SIZE;
-	p_pbl_virt = dma_alloc_coherent(&cdev->pdev->dev,
-					size, &p_pbl_phys, GFP_KERNEL);
+
+	if (!ext_pbl) {
+		p_pbl_virt = dma_alloc_coherent(&cdev->pdev->dev,
+						size, &p_pbl_phys, GFP_KERNEL);
+	} else {
+		p_pbl_virt = ext_pbl->p_pbl_virt;
+		p_pbl_phys = ext_pbl->p_pbl_phys;
+		p_chain->b_external_pbl = true;
+	}
+
 	qed_chain_init_pbl_mem(p_chain, p_pbl_virt, p_pbl_phys,
 			       pp_virt_addr_tbl);
 	if (!p_pbl_virt)
@@ -3204,7 +3251,10 @@ int qed_chain_alloc(struct qed_dev *cdev,
 		    enum qed_chain_use_mode intended_use,
 		    enum qed_chain_mode mode,
 		    enum qed_chain_cnt_type cnt_type,
-		    u32 num_elems, size_t elem_size, struct qed_chain *p_chain)
+		    u32 num_elems,
+		    size_t elem_size,
+		    struct qed_chain *p_chain,
+		    struct qed_chain_ext_pbl *ext_pbl)
 {
 	u32 page_cnt;
 	int rc = 0;
@@ -3235,7 +3285,7 @@ int qed_chain_alloc(struct qed_dev *cdev,
 		rc = qed_chain_alloc_single(cdev, p_chain);
 		break;
 	case QED_CHAIN_MODE_PBL:
-		rc = qed_chain_alloc_pbl(cdev, p_chain);
+		rc = qed_chain_alloc_pbl(cdev, p_chain, ext_pbl);
 		break;
 	}
 	if (rc)
@@ -4074,10 +4124,21 @@ static int qed_device_num_ports(struct qed_dev *cdev)
 	if (cdev->num_hwfns > 1)
 		return 1;
 
-	return cdev->num_ports_in_engines * qed_device_num_engines(cdev);
+	return cdev->num_ports_in_engine * qed_device_num_engines(cdev);
 }
 
 int qed_device_get_port_id(struct qed_dev *cdev)
 {
 	return (QED_LEADING_HWFN(cdev)->abs_pf_id) % qed_device_num_ports(cdev);
+}
+
+void qed_set_fw_mac_addr(__le16 *fw_msb,
+			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac)
+{
+	((u8 *)fw_msb)[0] = mac[1];
+	((u8 *)fw_msb)[1] = mac[0];
+	((u8 *)fw_mid)[0] = mac[3];
+	((u8 *)fw_mid)[1] = mac[2];
+	((u8 *)fw_lsb)[0] = mac[5];
+	((u8 *)fw_lsb)[1] = mac[4];
 }

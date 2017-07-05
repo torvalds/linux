@@ -145,6 +145,17 @@ config DWMAC_SUNXI
 	  This selects Allwinner SoC glue layer support for the
 	  stmmac device driver. This driver is used for A20/A31
 	  GMAC ethernet controller.
+
+config DWMAC_SUN8I
+	tristate "Allwinner sun8i GMAC support"
+	default ARCH_SUNXI
+	depends on OF && (ARCH_SUNXI || COMPILE_TEST)
+	---help---
+	  Support for Allwinner H3 A83T A64 EMAC ethernet controllers.
+
+	  This selects Allwinner SoC glue layer support for the
+	  stmmac device driver. This driver is used for H3/A83T/A64
+	  EMAC ethernet controller.
 endif
 
 config STMMAC_PCI

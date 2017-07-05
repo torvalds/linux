@@ -60,6 +60,7 @@ u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block);
 void mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
 void mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
 int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block);
+int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 			       u8 local_port, bool in_port);
 int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,

@@ -935,7 +935,7 @@ struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 						   QED_CHAIN_CNT_TYPE_U32,
 						   chain_entries,
 						   sizeof(union rdma_cqe),
-						   &cq->pbl);
+						   &cq->pbl, NULL);
 		if (rc)
 			goto err1;
 
@@ -1423,7 +1423,7 @@ qedr_roce_create_kernel_qp(struct qedr_dev *dev,
 					   QED_CHAIN_CNT_TYPE_U32,
 					   n_sq_elems,
 					   QEDR_SQE_ELEMENT_SIZE,
-					   &qp->sq.pbl);
+					   &qp->sq.pbl, NULL);
 
 	if (rc)
 		return rc;
@@ -1437,7 +1437,7 @@ qedr_roce_create_kernel_qp(struct qedr_dev *dev,
 					   QED_CHAIN_CNT_TYPE_U32,
 					   n_rq_elems,
 					   QEDR_RQE_ELEMENT_SIZE,
-					   &qp->rq.pbl);
+					   &qp->rq.pbl, NULL);
 	if (rc)
 		return rc;
 

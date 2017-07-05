@@ -270,7 +270,7 @@ static struct rtl_hal_ops rtl8188ee_hal_ops = {
 
 static struct rtl_mod_params rtl88ee_mod_params = {
 	.sw_crypto = false,
-	.inactiveps = false,
+	.inactiveps = true,
 	.swctrl_lps = false,
 	.fwctrl_lps = false,
 	.msi_support = true,
