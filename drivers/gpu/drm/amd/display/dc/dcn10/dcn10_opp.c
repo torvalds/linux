@@ -784,7 +784,7 @@ static void oppn10_program_color_matrix(struct dcn10_opp *oppn10,
 	}
 }
 
-void oppn10_set_output_csc_adjustment(
+static void oppn10_set_output_csc_adjustment(
 		struct output_pixel_processor *opp,
 		const struct out_csc_color_matrix *tbl_entry)
 {
