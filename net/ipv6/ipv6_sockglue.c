@@ -735,14 +735,9 @@ done:
 			retv = -ENOBUFS;
 			break;
 		}
-		gsf = kmalloc(optlen, GFP_KERNEL);
-		if (!gsf) {
-			retv = -ENOBUFS;
-			break;
-		}
-		retv = -EFAULT;
-		if (copy_from_user(gsf, optval, optlen)) {
-			kfree(gsf);
+		gsf = memdup_user(optval, optlen);
+		if (IS_ERR(gsf)) {
+			retv = PTR_ERR(gsf);
 			break;
 		}
 		/* numsrc >= (4G-140)/128 overflow in 32 bits */
