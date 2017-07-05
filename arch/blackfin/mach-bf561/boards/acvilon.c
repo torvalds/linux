@@ -112,7 +112,6 @@ static struct resource bfin_i2c_pca_resources[] = {
 };
 
 struct i2c_pca9564_pf_platform_data pca9564_platform_data = {
-	.gpio = -1,
 	.i2c_clock_speed = 330000,
 	.timeout = HZ,
 };
