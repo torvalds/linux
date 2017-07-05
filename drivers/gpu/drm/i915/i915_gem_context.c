@@ -384,7 +384,6 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	/* Reap stale contexts */
-	i915_gem_retire_requests(dev_priv);
 	contexts_free(dev_priv);
 
 	ctx = __create_hw_context(dev_priv, file_priv);
