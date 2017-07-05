@@ -2953,17 +2953,11 @@ static int ip6_route_info_append(struct list_head *rt6_nh_list,
 				 struct rt6_info *rt, struct fib6_config *r_cfg)
 {
 	struct rt6_nh *nh;
-	struct rt6_info *rtnh;
 	int err = -EEXIST;
 
 	list_for_each_entry(nh, rt6_nh_list, next) {
 		/* check if rt6_info already exists */
-		rtnh = nh->rt6_info;
-
-		if (rtnh->dst.dev == rt->dst.dev &&
-		    rtnh->rt6i_idev == rt->rt6i_idev &&
-		    ipv6_addr_equal(&rtnh->rt6i_gateway,
-				    &rt->rt6i_gateway))
+		if (rt6_duplicate_nexthop(nh->rt6_info, rt))
 			return err;
 	}
 
