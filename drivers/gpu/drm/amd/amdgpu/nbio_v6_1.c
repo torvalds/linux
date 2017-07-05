@@ -67,7 +67,7 @@ void nbio_v6_1_mc_access_enable(struct amdgpu_device *adev, bool enable)
 
 void nbio_v6_1_hdp_flush(struct amdgpu_device *adev)
 {
-	WREG32_SOC15(NBIO, 0, mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	WREG32_SOC15_NO_KIQ(NBIO, 0, mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL, 0);
 }
 
 u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
