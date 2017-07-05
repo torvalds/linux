@@ -897,6 +897,15 @@ static void __synchronize_srcu(struct srcu_struct *sp, bool do_norm)
 	__call_srcu(sp, &rcu.head, wakeme_after_rcu, do_norm);
 	wait_for_completion(&rcu.completion);
 	destroy_rcu_head_on_stack(&rcu.head);
+
+	/*
+	 * Make sure that later code is ordered after the SRCU grace
+	 * period.  This pairs with the raw_spin_lock_irq_rcu_node()
+	 * in srcu_invoke_callbacks().  Unlike Tree RCU, this is needed
+	 * because the current CPU might have been totally uninvolved with
+	 * (and thus unordered against) that grace period.
+	 */
+	smp_mb();
 }
 
 /**
