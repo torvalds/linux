@@ -32,7 +32,7 @@
 #include "include/logger_interface.h"
 
 #include "reg_helper.h"
-#include "dcn10_transform.h"
+#include "dcn10_dpp.h"
 #include "basics/conversion.h"
 
 #define NUM_PHASES    64
@@ -112,8 +112,8 @@ enum gamut_remap_select {
 	GAMUT_REMAP_COMB_COEFF
 };
 
-static void transform_set_overscan(
-	struct dcn10_transform *xfm,
+static void dpp_set_overscan(
+	struct dcn10_dpp *xfm,
 	const struct scaler_data *data)
 {
 	uint32_t left = data->recout.x;
@@ -140,8 +140,8 @@ static void transform_set_overscan(
 		EXT_OVERSCAN_TOP, top);
 }
 
-static void transform_set_otg_blank(
-		struct dcn10_transform *xfm, const struct scaler_data *data)
+static void dpp_set_otg_blank(
+		struct dcn10_dpp *xfm, const struct scaler_data *data)
 {
 	uint32_t h_blank_start = data->h_active;
 	uint32_t h_blank_end = 0;
@@ -212,8 +212,8 @@ static int get_pixel_depth_val(enum lb_pixel_depth depth)
 	}
 }
 
-static void xfmn10_set_lb(
-	struct dcn10_transform *xfm,
+static void dpp_set_lb(
+	struct dcn10_dpp *xfm,
 	const struct line_buffer_params *lb_params,
 	enum lb_memory_config mem_size_config)
 {
@@ -233,8 +233,8 @@ static void xfmn10_set_lb(
 		LB_MAX_PARTITIONS, 63);
 }
 
-static void transform_set_scaler_filter(
-		struct dcn10_transform *xfm,
+static void dpp_set_scaler_filter(
+		struct dcn10_dpp *xfm,
 		uint32_t taps,
 		enum dcn10_coef_filter_type_sel filter_type,
 		const uint16_t *filter)
@@ -272,12 +272,12 @@ static void transform_set_scaler_filter(
 }
 
 #if 0
-bool transform_set_pixel_storage_depth(
-	struct transform *xfm,
+bool dpp_set_pixel_storage_depth(
+	struct dpp *xfm,
 	enum lb_pixel_depth depth,
 	const struct bit_depth_reduction_params *bit_depth_params)
 {
-	struct dcn10_transform *xfm110 = TO_DCN10_TRANSFORM(xfm);
+	struct dcn10_dpp *xfm110 = TO_DCN10_DPP(xfm);
 	bool ret = true;
 	uint32_t value;
 	enum dc_color_depth color_depth;
@@ -355,8 +355,8 @@ static const uint16_t *get_filter_coeffs_64p(int taps, struct fixed31_32 ratio)
 	}
 }
 
-static void transform_set_scl_filter(
-		struct dcn10_transform *xfm,
+static void dpp_set_scl_filter(
+		struct dcn10_dpp *xfm,
 		const struct scaler_data *scl_data,
 		bool chroma_coef_mode)
 {
@@ -414,25 +414,25 @@ static void transform_set_scl_filter(
 			uint32_t scl_mode = REG_READ(SCL_MODE);
 
 			if (!h_2tap_hardcode_coef_en && filter_h) {
-				transform_set_scaler_filter(
+				dpp_set_scaler_filter(
 					xfm, scl_data->taps.h_taps,
 					SCL_COEF_LUMA_HORZ_FILTER, filter_h);
 			}
 			xfm->filter_h = filter_h;
 			if (!v_2tap_hardcode_coef_en && filter_v) {
-				transform_set_scaler_filter(
+				dpp_set_scaler_filter(
 					xfm, scl_data->taps.v_taps,
 					SCL_COEF_LUMA_VERT_FILTER, filter_v);
 			}
 			xfm->filter_v = filter_v;
 			if (chroma_coef_mode) {
 				if (!h_2tap_hardcode_coef_en && filter_h_c) {
-					transform_set_scaler_filter(
+					dpp_set_scaler_filter(
 						xfm, scl_data->taps.h_taps_c,
 						SCL_COEF_CHROMA_HORZ_FILTER, filter_h_c);
 				}
 				if (!v_2tap_hardcode_coef_en && filter_v_c) {
-					transform_set_scaler_filter(
+					dpp_set_scaler_filter(
 						xfm, scl_data->taps.v_taps_c,
 						SCL_COEF_CHROMA_VERT_FILTER, filter_v_c);
 				}
@@ -452,8 +452,8 @@ static void transform_set_scl_filter(
 	}
 }
 
-static void transform_set_viewport(
-		struct dcn10_transform *xfm,
+static void dpp_set_viewport(
+		struct dcn10_dpp *xfm,
 		const struct rect *viewport,
 		const struct rect *viewport_c)
 {
@@ -599,30 +599,30 @@ static enum lb_memory_config find_lb_memory_config(const struct scaler_data *scl
 	return LB_MEMORY_CONFIG_0;
 }
 
-void transform_set_scaler_auto_scale(
+void dpp_set_scaler_auto_scale(
 	struct transform *xfm_base,
 	const struct scaler_data *scl_data)
 {
 	enum lb_memory_config lb_config;
-	struct dcn10_transform *xfm = TO_DCN10_TRANSFORM(xfm_base);
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 	enum dscl_mode_sel dscl_mode = get_dscl_mode(
 			scl_data, xfm_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 
-	transform_set_overscan(xfm, scl_data);
+	dpp_set_overscan(xfm, scl_data);
 
-	transform_set_otg_blank(xfm, scl_data);
+	dpp_set_otg_blank(xfm, scl_data);
 
 	REG_UPDATE(SCL_MODE, DSCL_MODE, dscl_mode);
 
-	transform_set_viewport(xfm, &scl_data->viewport, &scl_data->viewport_c);
+	dpp_set_viewport(xfm, &scl_data->viewport, &scl_data->viewport_c);
 
 	if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
 		return;
 
 	lb_config =  find_lb_memory_config(scl_data);
-	xfmn10_set_lb(xfm, &scl_data->lb_params, lb_config);
+	dpp_set_lb(xfm, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
@@ -650,19 +650,19 @@ void transform_set_scaler_auto_scale(
 		SCL_V_NUM_TAPS_C, scl_data->taps.v_taps_c - 1,
 		SCL_H_NUM_TAPS_C, scl_data->taps.h_taps_c - 1);
 
-	transform_set_scl_filter(xfm, scl_data, ycbcr);
+	dpp_set_scl_filter(xfm, scl_data, ycbcr);
 }
 
 /* Program gamut remap in bypass mode */
-void transform_set_gamut_remap_bypass(struct dcn10_transform *xfm)
+void dpp_set_gamut_remap_bypass(struct dcn10_dpp *xfm)
 {
 	REG_SET(CM_GAMUT_REMAP_CONTROL, 0,
 			CM_GAMUT_REMAP_MODE, 0);
 	/* Gamut remap in bypass */
 }
 
-static void transform_set_recout(
-			struct dcn10_transform *xfm, const struct rect *recout)
+static void dpp_set_recout(
+			struct dcn10_dpp *xfm, const struct rect *recout)
 {
 	REG_SET_2(RECOUT_START, 0,
 		/* First pixel of RECOUT */
@@ -679,8 +679,8 @@ static void transform_set_recout(
 			 (xfm->base.inst + 1));
 }
 
-static void transform_set_manual_ratio_init(
-		struct dcn10_transform *xfm, const struct scaler_data *data)
+static void dpp_set_manual_ratio_init(
+		struct dcn10_dpp *xfm, const struct scaler_data *data)
 {
 	uint32_t init_frac = 0;
 	uint32_t init_int = 0;
@@ -738,19 +738,19 @@ static void transform_set_manual_ratio_init(
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */
-static void xfmn10_set_scaler_manual_scale(
+static void dpp_set_scaler_manual_scale(
 	struct transform *xfm_base,
 	const struct scaler_data *scl_data)
 {
 	enum lb_memory_config lb_config;
-	struct dcn10_transform *xfm = TO_DCN10_TRANSFORM(xfm_base);
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 	enum dscl_mode_sel dscl_mode = get_dscl_mode(
 			scl_data, xfm_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 
 	/* Recout */
-	transform_set_recout(xfm, &scl_data->recout);
+	dpp_set_recout(xfm, &scl_data->recout);
 
 	/* MPC Size */
 	REG_SET_2(MPC_SIZE, 0,
@@ -763,13 +763,13 @@ static void xfmn10_set_scaler_manual_scale(
 	REG_UPDATE(SCL_MODE, DSCL_MODE, dscl_mode);
 
 	/* Viewport */
-	transform_set_viewport(xfm, &scl_data->viewport, &scl_data->viewport_c);
+	dpp_set_viewport(xfm, &scl_data->viewport, &scl_data->viewport_c);
 
 	if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
 		return;
 	/* LB */
 	lb_config =  find_lb_memory_config(scl_data);
-	xfmn10_set_lb(xfm, &scl_data->lb_params, lb_config);
+	dpp_set_lb(xfm, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
@@ -792,7 +792,7 @@ static void xfmn10_set_scaler_manual_scale(
 				SCL_BLACK_OFFSET_CBCR, BLACK_OFFSET_RGB_Y);
 
 	/* Manually calculate scale ratio and init values */
-	transform_set_manual_ratio_init(xfm, scl_data);
+	dpp_set_manual_ratio_init(xfm, scl_data);
 
 	/* HTaps/VTaps */
 	REG_SET_4(SCL_TAP_CONTROL, 0,
@@ -801,13 +801,13 @@ static void xfmn10_set_scaler_manual_scale(
 		SCL_V_NUM_TAPS_C, scl_data->taps.v_taps_c - 1,
 		SCL_H_NUM_TAPS_C, scl_data->taps.h_taps_c - 1);
 
-	transform_set_scl_filter(xfm, scl_data, ycbcr);
+	dpp_set_scl_filter(xfm, scl_data, ycbcr);
 }
 
 #define IDENTITY_RATIO(ratio) (dal_fixed31_32_u2d19(ratio) == (1 << 19))
 
 
-static bool transform_get_optimal_number_of_taps(
+static bool dpp_get_optimal_number_of_taps(
 		struct transform *xfm,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
@@ -866,9 +866,9 @@ static bool transform_get_optimal_number_of_taps(
 	return true;
 }
 
-static void transform_reset(struct transform *xfm_base)
+static void dpp_reset(struct transform *xfm_base)
 {
-	struct dcn10_transform *xfm = TO_DCN10_TRANSFORM(xfm_base);
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 
 	xfm->filter_h_c = NULL;
 	xfm->filter_v_c = NULL;
@@ -880,7 +880,7 @@ static void transform_reset(struct transform *xfm_base)
 }
 
 static void program_gamut_remap(
-		struct dcn10_transform *xfm,
+		struct dcn10_dpp *xfm,
 		const uint16_t *regval,
 		enum gamut_remap_select select)
 {
@@ -989,11 +989,11 @@ static void program_gamut_remap(
 
 }
 
-static void dcn_transform_set_gamut_remap(
+static void dcn_dpp_set_gamut_remap(
 	struct transform *xfm,
 	const struct xfm_grph_csc_adjustment *adjust)
 {
-	struct dcn10_transform *dcn_xfm = TO_DCN10_TRANSFORM(xfm);
+	struct dcn10_dpp *dcn_xfm = TO_DCN10_DPP(xfm);
 
 	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW)
 		/* Bypass if type is bypass or hw */
@@ -1024,30 +1024,29 @@ static void dcn_transform_set_gamut_remap(
 	}
 }
 
-static struct transform_funcs dcn10_transform_funcs = {
-
-	.transform_reset = transform_reset,
-	.transform_set_scaler = xfmn10_set_scaler_manual_scale,
-	.transform_get_optimal_number_of_taps = transform_get_optimal_number_of_taps,
-	.transform_set_gamut_remap = dcn_transform_set_gamut_remap,
+static struct transform_funcs dcn10_dpp_funcs = {
+		.transform_reset = dpp_reset,
+		.transform_set_scaler = dpp_set_scaler_manual_scale,
+		.transform_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,
+		.transform_set_gamut_remap = dcn_dpp_set_gamut_remap,
 };
 
 /*****************************************/
 /* Constructor, Destructor               */
 /*****************************************/
 
-bool dcn10_transform_construct(
-	struct dcn10_transform *xfm,
+bool dcn10_dpp_construct(
+	struct dcn10_dpp *xfm,
 	struct dc_context *ctx,
 	uint32_t inst,
-	const struct dcn_transform_registers *tf_regs,
-	const struct dcn_transform_shift *tf_shift,
-	const struct dcn_transform_mask *tf_mask)
+	const struct dcn_dpp_registers *tf_regs,
+	const struct dcn_dpp_shift *tf_shift,
+	const struct dcn_dpp_mask *tf_mask)
 {
 	xfm->base.ctx = ctx;
 
 	xfm->base.inst = inst;
-	xfm->base.funcs = &dcn10_transform_funcs;
+	xfm->base.funcs = &dcn10_dpp_funcs;
 
 	xfm->tf_regs = tf_regs;
 	xfm->tf_shift = tf_shift;

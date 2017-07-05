@@ -33,7 +33,7 @@
 #include "dcn10/dcn10_ipp.h"
 #include "dcn10/dcn10_mpc.h"
 #include "irq/dcn10/irq_service_dcn10.h"
-#include "dcn10/dcn10_transform.h"
+#include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_timing_generator.h"
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
@@ -309,18 +309,18 @@ static const struct dcn10_opp_mask opp_mask = {
 	TF_REG_LIST_DCN10(id),\
 }
 
-static const struct dcn_transform_registers tf_regs[] = {
+static const struct dcn_dpp_registers tf_regs[] = {
 	tf_regs(0),
 	tf_regs(1),
 	tf_regs(2),
 	tf_regs(3),
 };
 
-static const struct dcn_transform_shift tf_shift = {
+static const struct dcn_dpp_shift tf_shift = {
 	TF_REG_LIST_SH_MASK_DCN10(__SHIFT)
 };
 
-static const struct dcn_transform_mask tf_mask = {
+static const struct dcn_dpp_mask tf_mask = {
 	TF_REG_LIST_SH_MASK_DCN10(_MASK),
 };
 
@@ -449,28 +449,28 @@ static const struct dc_debug debug_defaults_diags = {
 #endif
 };
 
-static void dcn10_transform_destroy(struct transform **xfm)
+static void dcn10_dpp_destroy(struct transform **xfm)
 {
-	dm_free(TO_DCN10_TRANSFORM(*xfm));
+	dm_free(TO_DCN10_DPP(*xfm));
 	*xfm = NULL;
 }
 
-static struct transform *dcn10_transform_create(
+static struct transform *dcn10_dpp_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn10_transform *transform =
-		dm_alloc(sizeof(struct dcn10_transform));
+	struct dcn10_dpp *dpp =
+		dm_alloc(sizeof(struct dcn10_dpp));
 
-	if (!transform)
+	if (!dpp)
 		return NULL;
 
-	if (dcn10_transform_construct(transform, ctx, inst,
+	if (dcn10_dpp_construct(dpp, ctx, inst,
 			&tf_regs[inst], &tf_shift, &tf_mask))
-		return &transform->base;
+		return &dpp->base;
 
 	BREAK_TO_DEBUGGER();
-	dm_free(transform);
+	dm_free(dpp);
 	return NULL;
 }
 
@@ -710,7 +710,7 @@ static void destruct(struct dcn10_resource_pool *pool)
 			pool->base.opps[i]->funcs->opp_destroy(&pool->base.opps[i]);
 
 		if (pool->base.transforms[i] != NULL)
-			dcn10_transform_destroy(&pool->base.transforms[i]);
+			dcn10_dpp_destroy(&pool->base.transforms[i]);
 
 		if (pool->base.ipps[i] != NULL)
 			pool->base.ipps[i]->funcs->ipp_destroy(&pool->base.ipps[i]);
@@ -1387,7 +1387,7 @@ static bool construct(
 	#endif
 	}
 
-	/* mem input -> ipp -> transform -> opp -> TG */
+	/* mem input -> ipp -> dpp -> opp -> TG */
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		pool->base.mis[i] = dcn10_mem_input_create(ctx, i);
 		if (pool->base.mis[i] == NULL) {
@@ -1405,12 +1405,12 @@ static bool construct(
 			goto ipp_create_fail;
 		}
 
-		pool->base.transforms[i] = dcn10_transform_create(ctx, i);
+		pool->base.transforms[i] = dcn10_dpp_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
-				"DC: failed to create transform!\n");
-			goto transform_create_fail;
+				"DC: failed to create dpp!\n");
+			goto dpp_create_fail;
 		}
 
 		pool->base.opps[i] = dcn10_opp_create(ctx, i);
@@ -1452,7 +1452,7 @@ disp_clk_create_fail:
 mpcc_create_fail:
 otg_create_fail:
 opp_create_fail:
-transform_create_fail:
+dpp_create_fail:
 ipp_create_fail:
 mi_create_fail:
 irqs_create_fail:

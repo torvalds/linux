@@ -33,6 +33,8 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
+#include "dcn10/dcn10_dpp.h"
+#include "dcn10/dcn10_mpc.h"
 #include "mem_input.h"
 #include "timing_generator.h"
 #include "opp.h"

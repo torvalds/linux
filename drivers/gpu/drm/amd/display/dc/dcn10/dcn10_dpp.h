@@ -22,13 +22,13 @@
  *
  */
 
-#ifndef __DAL_TRANSFORM_DCN10_H__
-#define __DAL_TRANSFORM_DCN10_H__
+#ifndef __DAL_DPP_DCN10_H__
+#define __DAL_DPP_DCN10_H__
 
 #include "transform.h"
 
-#define TO_DCN10_TRANSFORM(transform)\
-	container_of(transform, struct dcn10_transform, base)
+#define TO_DCN10_DPP(transform)\
+	container_of(transform, struct dcn10_dpp, base)
 
 /* TODO: Use correct number of taps. Using polaris values for now */
 #define LB_TOTAL_NUMBER_OF_ENTRIES 5124
@@ -332,15 +332,15 @@
 	type CM_COMB_C33; \
 	type CM_COMB_C34
 
-struct dcn_transform_shift {
+struct dcn_dpp_shift {
 	TF_REG_FIELD_LIST(uint8_t);
 };
 
-struct dcn_transform_mask {
+struct dcn_dpp_mask {
 	TF_REG_FIELD_LIST(uint32_t);
 };
 
-struct dcn_transform_registers {
+struct dcn_dpp_registers {
 	uint32_t DSCL_EXT_OVERSCAN_LEFT_RIGHT;
 	uint32_t DSCL_EXT_OVERSCAN_TOP_BOTTOM;
 	uint32_t OTG_H_BLANK;
@@ -395,12 +395,12 @@ struct dcn_transform_registers {
 	uint32_t CM_COMB_C33_C34;
 };
 
-struct dcn10_transform {
+struct dcn10_dpp {
 	struct transform base;
 
-	const struct dcn_transform_registers *tf_regs;
-	const struct dcn_transform_shift *tf_shift;
-	const struct dcn_transform_mask *tf_mask;
+	const struct dcn_dpp_registers *tf_regs;
+	const struct dcn_dpp_shift *tf_shift;
+	const struct dcn_dpp_mask *tf_mask;
 
 	const uint16_t *filter_v;
 	const uint16_t *filter_h;
@@ -410,12 +410,10 @@ struct dcn10_transform {
 	int lb_memory_size;
 	int lb_bits_per_entry;
 };
-
-bool dcn10_transform_construct(struct dcn10_transform *xfmn10,
+bool dcn10_dpp_construct(struct dcn10_dpp *xfm110,
 	struct dc_context *ctx,
 	uint32_t inst,
-	const struct dcn_transform_registers *tf_regs,
-	const struct dcn_transform_shift *tf_shift,
-	const struct dcn_transform_mask *tf_mask);
-
+	const struct dcn_dpp_registers *tf_regs,
+	const struct dcn_dpp_shift *tf_shift,
+	const struct dcn_dpp_mask *tf_mask);
 #endif
