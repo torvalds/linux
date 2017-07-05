@@ -571,13 +571,12 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	mutex_lock(&i915->drm.struct_mutex);
 	ctx = i915_gem_create_context(i915, file_priv);
 	mutex_unlock(&i915->drm.struct_mutex);
-
-	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
-
 	if (IS_ERR(ctx)) {
 		idr_destroy(&file_priv->context_idr);
 		return PTR_ERR(ctx);
 	}
+
+	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 
 	return 0;
 }
