@@ -155,7 +155,7 @@ static irqreturn_t sir_interrupt(int irq, void *dev_id)
 {
 	unsigned char data;
 	ktime_t curr_time;
-	static unsigned long delt;
+	unsigned long delt;
 	unsigned long deltintr;
 	unsigned long flags;
 	int counter = 0;
