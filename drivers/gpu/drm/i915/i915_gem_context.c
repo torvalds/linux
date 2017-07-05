@@ -383,6 +383,10 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
+	/* Reap stale contexts */
+	i915_gem_retire_requests(dev_priv);
+	contexts_free(dev_priv);
+
 	ctx = __create_hw_context(dev_priv, file_priv);
 	if (IS_ERR(ctx))
 		return ctx;
@@ -988,10 +992,6 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
-
-	/* Reap stale contexts */
-	i915_gem_retire_requests(dev_priv);
-	contexts_free(dev_priv);
 
 	ctx = i915_gem_create_context(dev_priv, file_priv);
 	mutex_unlock(&dev->struct_mutex);
