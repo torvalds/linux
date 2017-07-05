@@ -733,10 +733,15 @@ xfs_dq_get_next_id(
 			return error;
 	}
 
-	if (xfs_iext_lookup_extent(quotip, &quotip->i_df, start, &idx, &got))
+	if (xfs_iext_lookup_extent(quotip, &quotip->i_df, start, &idx, &got)) {
+		/* contiguous chunk, bump startoff for the id calculation */
+		if (got.br_startoff < start)
+			got.br_startoff = start;
 		*id = got.br_startoff * mp->m_quotainfo->qi_dqperchunk;
-	else
+	} else {
 		error = -ENOENT;
+	}
+
 	xfs_iunlock(quotip, lock_flags);
 
 	return error;
