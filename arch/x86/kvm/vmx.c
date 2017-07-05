@@ -8418,9 +8418,15 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 			exit_reason != EXIT_REASON_TASK_SWITCH)) {
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_DELIVERY_EV;
-		vcpu->run->internal.ndata = 2;
+		vcpu->run->internal.ndata = 3;
 		vcpu->run->internal.data[0] = vectoring_info;
 		vcpu->run->internal.data[1] = exit_reason;
+		vcpu->run->internal.data[2] = vcpu->arch.exit_qualification;
+		if (exit_reason == EXIT_REASON_EPT_MISCONFIG) {
+			vcpu->run->internal.ndata++;
+			vcpu->run->internal.data[3] =
+				vmcs_read64(GUEST_PHYSICAL_ADDRESS);
+		}
 		return 0;
 	}
 
