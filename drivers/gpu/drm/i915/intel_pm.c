@@ -3837,7 +3837,7 @@ skl_plane_downscale_amount(const struct intel_crtc_state *cstate,
 	uint_fixed_16_16_t downscale_h, downscale_w;
 
 	if (WARN_ON(!intel_wm_plane_visible(cstate, pstate)))
-		return u32_to_fixed_16_16(0);
+		return u32_to_fixed16(0);
 
 	/* n.b., src is 16.16 fixed point, dst is whole integer */
 	if (plane->id == PLANE_CURSOR) {
@@ -3861,10 +3861,10 @@ skl_plane_downscale_amount(const struct intel_crtc_state *cstate,
 		dst_h = drm_rect_height(&pstate->base.dst);
 	}
 
-	fp_w_ratio = fixed_16_16_div(src_w, dst_w);
-	fp_h_ratio = fixed_16_16_div(src_h, dst_h);
-	downscale_w = max_fixed_16_16(fp_w_ratio, u32_to_fixed_16_16(1));
-	downscale_h = max_fixed_16_16(fp_h_ratio, u32_to_fixed_16_16(1));
+	fp_w_ratio = div_fixed16(src_w, dst_w);
+	fp_h_ratio = div_fixed16(src_h, dst_h);
+	downscale_w = max_fixed16(fp_w_ratio, u32_to_fixed16(1));
+	downscale_h = max_fixed16(fp_h_ratio, u32_to_fixed16(1));
 
 	return mul_fixed16(downscale_w, downscale_h);
 }
@@ -3872,7 +3872,7 @@ skl_plane_downscale_amount(const struct intel_crtc_state *cstate,
 static uint_fixed_16_16_t
 skl_pipe_downscale_amount(const struct intel_crtc_state *crtc_state)
 {
-	uint_fixed_16_16_t pipe_downscale = u32_to_fixed_16_16(1);
+	uint_fixed_16_16_t pipe_downscale = u32_to_fixed16(1);
 
 	if (!crtc_state->base.enable)
 		return pipe_downscale;
@@ -3891,10 +3891,10 @@ skl_pipe_downscale_amount(const struct intel_crtc_state *crtc_state)
 		if (!dst_w || !dst_h)
 			return pipe_downscale;
 
-		fp_w_ratio = fixed_16_16_div(src_w, dst_w);
-		fp_h_ratio = fixed_16_16_div(src_h, dst_h);
-		downscale_w = max_fixed_16_16(fp_w_ratio, u32_to_fixed_16_16(1));
-		downscale_h = max_fixed_16_16(fp_h_ratio, u32_to_fixed_16_16(1));
+		fp_w_ratio = div_fixed16(src_w, dst_w);
+		fp_h_ratio = div_fixed16(src_h, dst_h);
+		downscale_w = max_fixed16(fp_w_ratio, u32_to_fixed16(1));
+		downscale_h = max_fixed16(fp_h_ratio, u32_to_fixed16(1));
 
 		pipe_downscale = mul_fixed16(downscale_w, downscale_h);
 	}
@@ -3913,14 +3913,14 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 	int crtc_clock, dotclk;
 	uint32_t pipe_max_pixel_rate;
 	uint_fixed_16_16_t pipe_downscale;
-	uint_fixed_16_16_t max_downscale = u32_to_fixed_16_16(1);
+	uint_fixed_16_16_t max_downscale = u32_to_fixed16(1);
 
 	if (!cstate->base.enable)
 		return 0;
 
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
 		uint_fixed_16_16_t plane_downscale;
-		uint_fixed_16_16_t fp_9_div_8 = fixed_16_16_div(9, 8);
+		uint_fixed_16_16_t fp_9_div_8 = div_fixed16(9, 8);
 		int bpp;
 
 		if (!intel_wm_plane_visible(cstate,
@@ -3938,7 +3938,7 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 			plane_downscale = mul_fixed16(plane_downscale,
 						      fp_9_div_8);
 
-		max_downscale = max_fixed_16_16(plane_downscale, max_downscale);
+		max_downscale = max_fixed16(plane_downscale, max_downscale);
 	}
 	pipe_downscale = skl_pipe_downscale_amount(cstate);
 
@@ -4276,7 +4276,7 @@ static uint_fixed_16_16_t skl_wm_method1(uint32_t pixel_rate, uint8_t cpp,
 		return FP_16_16_MAX;
 
 	wm_intermediate_val = latency * pixel_rate * cpp;
-	ret = fixed_16_16_div(wm_intermediate_val, 1000 * 512);
+	ret = div_fixed16(wm_intermediate_val, 1000 * 512);
 	return ret;
 }
 
@@ -4294,7 +4294,7 @@ static uint_fixed_16_16_t skl_wm_method2(uint32_t pixel_rate,
 	wm_intermediate_val = latency * pixel_rate;
 	wm_intermediate_val = DIV_ROUND_UP(wm_intermediate_val,
 					   pipe_htotal * 1000);
-	ret = mul_u32_fixed_16_16(wm_intermediate_val, plane_blocks_per_line);
+	ret = mul_u32_fixed16(wm_intermediate_val, plane_blocks_per_line);
 	return ret;
 }
 
@@ -4306,15 +4306,15 @@ intel_get_linetime_us(struct intel_crtc_state *cstate)
 	uint_fixed_16_16_t linetime_us;
 
 	if (!cstate->base.active)
-		return u32_to_fixed_16_16(0);
+		return u32_to_fixed16(0);
 
 	pixel_rate = cstate->pixel_rate;
 
 	if (WARN_ON(pixel_rate == 0))
-		return u32_to_fixed_16_16(0);
+		return u32_to_fixed16(0);
 
 	crtc_htotal = cstate->base.adjusted_mode.crtc_htotal;
-	linetime_us = fixed_16_16_div(crtc_htotal * 1000, pixel_rate);
+	linetime_us = div_fixed16(crtc_htotal * 1000, pixel_rate);
 
 	return linetime_us;
 }
@@ -4434,14 +4434,14 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	if (y_tiled) {
 		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line *
 					   y_min_scanlines, 512);
-		plane_blocks_per_line = fixed_16_16_div(interm_pbpl,
+		plane_blocks_per_line = div_fixed16(interm_pbpl,
 							y_min_scanlines);
 	} else if (x_tiled) {
 		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line, 512);
-		plane_blocks_per_line = u32_to_fixed_16_16(interm_pbpl);
+		plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
 	} else {
 		interm_pbpl = DIV_ROUND_UP(plane_bytes_per_line, 512) + 1;
-		plane_blocks_per_line = u32_to_fixed_16_16(interm_pbpl);
+		plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
 	}
 
 	method1 = skl_wm_method1(plane_pixel_rate, cpp, latency);
@@ -4450,35 +4450,35 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				 latency,
 				 plane_blocks_per_line);
 
-	y_tile_minimum = mul_u32_fixed_16_16(y_min_scanlines,
-					     plane_blocks_per_line);
+	y_tile_minimum = mul_u32_fixed16(y_min_scanlines,
+					 plane_blocks_per_line);
 
 	if (y_tiled) {
-		selected_result = max_fixed_16_16(method2, y_tile_minimum);
+		selected_result = max_fixed16(method2, y_tile_minimum);
 	} else {
 		uint32_t linetime_us;
 
-		linetime_us = fixed_16_16_to_u32_round_up(
+		linetime_us = fixed16_to_u32_round_up(
 				intel_get_linetime_us(cstate));
 		if ((cpp * cstate->base.adjusted_mode.crtc_htotal / 512 < 1) &&
 		    (plane_bytes_per_line / 512 < 1))
 			selected_result = method2;
 		else if ((ddb_allocation && ddb_allocation /
-			fixed_16_16_to_u32_round_up(plane_blocks_per_line)) >= 1)
-			selected_result = min_fixed_16_16(method1, method2);
+			fixed16_to_u32_round_up(plane_blocks_per_line)) >= 1)
+			selected_result = min_fixed16(method1, method2);
 		else if (latency >= linetime_us)
-			selected_result = min_fixed_16_16(method1, method2);
+			selected_result = min_fixed16(method1, method2);
 		else
 			selected_result = method1;
 	}
 
-	res_blocks = fixed_16_16_to_u32_round_up(selected_result) + 1;
+	res_blocks = fixed16_to_u32_round_up(selected_result) + 1;
 	res_lines = div_round_up_fixed16(selected_result,
 					 plane_blocks_per_line);
 
 	if (level >= 1 && level <= 7) {
 		if (y_tiled) {
-			res_blocks += fixed_16_16_to_u32_round_up(y_tile_minimum);
+			res_blocks += fixed16_to_u32_round_up(y_tile_minimum);
 			res_lines += y_min_scanlines;
 		} else {
 			res_blocks++;
@@ -4563,8 +4563,7 @@ skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 	if (is_fixed16_zero(linetime_us))
 		return 0;
 
-	linetime_wm = fixed_16_16_to_u32_round_up(mul_u32_fixed_16_16(8,
-				linetime_us));
+	linetime_wm = fixed16_to_u32_round_up(mul_u32_fixed16(8, linetime_us));
 
 	/* Display WA #1135: bxt. */
 	if (IS_BROXTON(dev_priv) && dev_priv->ipc_enabled)
