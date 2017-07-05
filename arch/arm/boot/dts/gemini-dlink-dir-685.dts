@@ -32,6 +32,7 @@
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";
+			/* Collides with LPC_LAD[0], UART DCD, SSP 97RST */
 			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
 		};
 		button-eject {
@@ -39,6 +40,7 @@
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
 			label = "unmount";
+			/* Collides with LPC LFRAME, UART RTS, SSP TXD */
 			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -47,6 +49,7 @@
 		compatible = "gpio-leds";
 		led-wps {
 			label = "dir685:blue:WPS";
+			/* Collides with ICE */
 			gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
@@ -61,11 +64,13 @@
 		 */
 		led-blue-hd {
 			label = "dir685:blue:HD";
+			/* Collides with LPC_SERIRQ, UART DTR, SSP FSC pins */
 			gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 		led-orange-hd {
 			label = "dir685:orange:HD";
+			/* Collides with LPC_LAD[2], UART DSR, SSP ECLK pins */
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
@@ -81,6 +86,7 @@
 	 */
 	gpio-fan {
 		compatible = "gpio-fan";
+		/* Collides with IDE */
 		gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 		gpio-fan,speed-map = <0 0>, <10000 1>;
 		#cooling-cells = <2>;
@@ -92,6 +98,7 @@
 	 */
 	gpio-i2c {
 		compatible = "i2c-gpio";
+		/* Collides with ICE */
 		gpios = <&gpio0 5 0>, /* SDA */
 			<&gpio0 6 0>; /* SCL */
 		#address-cells = <1>;
@@ -101,6 +108,7 @@
 			compatible = "dlink,dir685-touchkeys";
 			reg = <0x26>;
 			interrupt-parent = <&gpio0>;
+			/* Collides with NAND flash */
 			interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
@@ -156,10 +164,57 @@
 			};
 		};
 
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0bgrp cover line 5, 6 used by TK I2C
+				 * gpio0bgrp cover line 7 used by WPS LED
+				 * gpio0cgrp cover line 8, 13 used by keys
+				 *           and 11, 12 used by the HD LEDs
+				 * gpio0egrp cover line 16 used by VDISP
+				 * gpio0fgrp cover line 17 used by TK IRQ
+				 * gpio0ggrp cover line 20 used by panel CS
+				 * gpio0hgrp cover line 21,22 used by RTL8366RB
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0bgrp",
+						"gpio0cgrp",
+						"gpio0egrp",
+						"gpio0fgrp",
+						"gpio0ggrp",
+						"gpio0hgrp";
+					};
+				};
+				/*
+				 * gpio1bgrp cover line 5,8,7 used by panel SPI
+				 * also line 6 used by the fan
+				 *
+				 */
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						groups = "gpio1bgrp";
+					};
+				};
+			};
+		};
+
 		sata: sata@46000000 {
 			cortina,gemini-ata-muxmode = <0>;
 			cortina,gemini-enable-sata-bridge;
 			status = "okay";
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
 		};
 
 		pci@50000000 {

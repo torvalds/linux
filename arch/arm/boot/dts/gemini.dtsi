@@ -20,6 +20,8 @@
 		flash@30000000 {
 			compatible = "cortina,gemini-flash", "cfi-flash";
 			syscon = <&syscon>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pflash_default_pins>;
 			bank-width = <2>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -41,6 +43,105 @@
 				/* RESET_GLOBAL | RESET_CPU1 */
 				mask = <0xC0000000>;
 			};
+
+			pinctrl {
+				compatible = "cortina,gemini-pinctrl";
+				regmap = <&syscon>;
+				/* Hog the DRAM pins */
+				pinctrl-names = "default";
+				pinctrl-0 = <&dram_default_pins>, <&system_default_pins>,
+					    <&vcontrol_default_pins>;
+
+				dram_default_pins: pinctrl-dram {
+					mux {
+						function = "dram";
+						groups = "dramgrp";
+					};
+				};
+				rtc_default_pins: pinctrl-rtc {
+					mux {
+						function = "rtc";
+						groups = "rtcgrp";
+					};
+				};
+				power_default_pins: pinctrl-power {
+					mux {
+						function = "power";
+						groups = "powergrp";
+					};
+				};
+				cir_default_pins: pinctrl-cir {
+					mux {
+						function = "cir";
+						groups = "cirgrp";
+					};
+				};
+				system_default_pins: pinctrl-system {
+					mux {
+						function = "system";
+						groups = "systemgrp";
+					};
+				};
+				vcontrol_default_pins: pinctrl-vcontrol {
+					mux {
+						function = "vcontrol";
+						groups = "vcontrolgrp";
+					};
+				};
+				ice_default_pins: pinctrl-ice {
+					mux {
+						function = "ice";
+						groups = "icegrp";
+					};
+				};
+				uart_default_pins: pinctrl-uart {
+					mux {
+						function = "uart";
+						groups = "uartrxtxgrp";
+					};
+				};
+				pflash_default_pins: pinctrl-pflash {
+					mux {
+						function = "pflash";
+						groups = "pflashgrp";
+					};
+				};
+				usb_default_pins: pinctrl-usb {
+					mux {
+						function = "usb";
+						groups = "usbgrp";
+					};
+				};
+				gmii_default_pins: pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmiigrp";
+					};
+				};
+				pci_default_pins: pinctrl-pci {
+					mux {
+						function = "pci";
+						groups = "pcigrp";
+					};
+				};
+				sata_default_pins: pinctrl-sata {
+					mux {
+						function = "sata";
+						groups = "satagrp";
+					};
+				};
+				/* Activate both groups of pins for this state */
+				sata_and_ide_pins: pinctrl-sata-ide {
+					mux0 {
+						function = "sata";
+						groups = "satagrp";
+					};
+					mux1 {
+						function = "ide";
+						groups = "idegrp";
+					};
+				};
+			};
 		};
 
 		watchdog@41000000 {
@@ -57,6 +158,8 @@
 			resets = <&syscon GEMINI_RESET_UART>;
 			clocks = <&syscon GEMINI_CLK_UART>;
 			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart_default_pins>;
 			reg-shift = <2>;
 		};
 
@@ -81,6 +184,8 @@
 			resets = <&syscon GEMINI_RESET_RTC>;
 			clocks = <&syscon GEMINI_CLK_APB>, <&syscon GEMINI_CLK_RTC>;
 			clock-names = "PCLK", "EXTCLK";
+			pinctrl-names = "default";
+			pinctrl-0 = <&rtc_default_pins>;
 		};
 
 		sata: sata@46000000 {
@@ -92,6 +197,14 @@
 			clocks = <&syscon GEMINI_CLK_GATE_SATA0>,
 				 <&syscon GEMINI_CLK_GATE_SATA1>;
 			clock-names = "SATA0_PCLK", "SATA1_PCLK";
+			/*
+			 * This defines the special "ide" state that needs
+			 * to be explicitly enabled to enable the IDE pins,
+			 * as these pins are normally used for other things.
+			 */
+			pinctrl-names = "default", "ide";
+			pinctrl-0 = <&sata_default_pins>;
+			pinctrl-1 = <&sata_and_ide_pins>;
 			syscon = <&syscon>;
 			status = "disabled";
 		};
@@ -108,6 +221,8 @@
 			compatible = "cortina,gemini-power-controller";
 			reg = <0x4b000000 0x100>;
 			interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&power_default_pins>;
 		};
 
 		gpio0: gpio@4d000000 {
@@ -156,6 +271,8 @@
 			resets = <&syscon GEMINI_RESET_PCI>;
 			clocks = <&syscon GEMINI_CLK_GATE_PCI>, <&syscon GEMINI_CLK_PCI>;
 			clock-names = "PCLK", "PCICLK";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pci_default_pins>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
