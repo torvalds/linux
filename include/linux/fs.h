@@ -1351,11 +1351,6 @@ struct super_block {
 	 */
 	char *s_subtype;
 
-	/*
-	 * Saved mount options for lazy filesystems using
-	 * generic_show_options()
-	 */
-	char __rcu *s_options;
 	const struct dentry_operations *s_d_op; /* default d_op for dentries */
 
 	/*
@@ -3032,10 +3027,6 @@ extern int inode_newsize_ok(const struct inode *, loff_t offset);
 extern void setattr_copy(struct inode *inode, const struct iattr *attr);
 
 extern int file_update_time(struct file *file);
-
-extern int generic_show_options(struct seq_file *m, struct dentry *root);
-extern void save_mount_options(struct super_block *sb, char *options);
-extern void replace_mount_options(struct super_block *sb, char *options);
 
 static inline bool io_is_direct(struct file *filp)
 {

@@ -168,7 +168,6 @@ static void destroy_super(struct super_block *s)
 	WARN_ON(!list_empty(&s->s_mounts));
 	put_user_ns(s->s_user_ns);
 	kfree(s->s_subtype);
-	kfree(s->s_options);
 	call_rcu(&s->rcu, destroy_super_rcu);
 }
 
