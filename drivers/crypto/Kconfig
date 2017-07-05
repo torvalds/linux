@@ -525,6 +525,20 @@ config CRYPTO_DEV_ATMEL_SHA
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-sha.
 
+config CRYPTO_DEV_ATMEL_ECC
+	tristate "Support for Microchip / Atmel ECC hw accelerator"
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on I2C
+	select CRYPTO_ECDH
+	select CRC16
+	help
+	  Microhip / Atmel ECC hw accelerator.
+	  Select this if you want to use the Microchip / Atmel module for
+	  ECDH algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called atmel-ecc.
+
 config CRYPTO_DEV_CCP
 	bool "Support for AMD Cryptographic Coprocessor"
 	depends on ((X86 && PCI) || (ARM64 && (OF_ADDRESS || ACPI))) && HAS_IOMEM
