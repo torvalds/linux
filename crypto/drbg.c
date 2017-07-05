@@ -1768,9 +1768,8 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&drbg->ctr_completion);
-			if (!ret && !drbg->ctr_async_err) {
+			wait_for_completion(&drbg->ctr_completion);
+			if (!drbg->ctr_async_err) {
 				reinit_completion(&drbg->ctr_completion);
 				break;
 			}
