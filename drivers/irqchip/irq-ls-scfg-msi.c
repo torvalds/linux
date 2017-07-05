@@ -219,8 +219,10 @@ static int ls_scfg_msi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ls_scfg_msi_id[] = {
-	{ .compatible = "fsl,1s1021a-msi", },
-	{ .compatible = "fsl,1s1043a-msi", },
+	{ .compatible = "fsl,1s1021a-msi", }, /* a typo */
+	{ .compatible = "fsl,1s1043a-msi", }, /* a typo */
+	{ .compatible = "fsl,ls1021a-msi", },
+	{ .compatible = "fsl,ls1043a-msi", },
 	{},
 };
 
