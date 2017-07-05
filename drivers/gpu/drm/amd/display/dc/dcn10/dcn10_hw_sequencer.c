@@ -33,381 +33,120 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
-
-#include "dcn10/dcn10_transform.h"
-#include "dcn10/dcn10_mpc.h"
-#include "dcn10/dcn10_timing_generator.h"
-
 #include "mem_input.h"
 #include "timing_generator.h"
 #include "opp.h"
 #include "ipp.h"
-
 #include "dc_bios_types.h"
-
 #include "raven1/DCN/dcn_1_0_offset.h"
 #include "raven1/DCN/dcn_1_0_sh_mask.h"
 #include "vega10/soc15ip.h"
-
 #include "custom_float.h"
+#include "reg_helper.h"
 
+#define CTX \
+	hws->ctx
+#define REG(reg)\
+	hws->regs->reg
 
-struct dcn10_hwseq_reg_offsets {
-	uint32_t dchubp;
-	uint32_t dpp;
-	uint32_t otg;
-	uint32_t vtg;
-	uint32_t fmt;
-};
-
-/* TODO: move to resource */
-static const struct dcn10_hwseq_reg_offsets reg_offsets[] = {
-	{
-		.dchubp = (mmHUBP0_DCHUBP_CNTL - mmHUBP0_DCHUBP_CNTL),
-		.dpp = (mmCM0_CM_DGAM_CONTROL - mmCM0_CM_DGAM_CONTROL),
-		.otg = (mmOTG0_OTG_CONTROL - mmOTG0_OTG_CONTROL),
-		.vtg = (mmVTG0_CONTROL - mmVTG0_CONTROL),
-		.fmt = (mmFMT0_FMT_BIT_DEPTH_CONTROL -
-				mmFMT0_FMT_BIT_DEPTH_CONTROL),
-	},
-	{
-		.dchubp = (mmHUBP1_DCHUBP_CNTL - mmHUBP0_DCHUBP_CNTL),
-		.dpp = (mmCM1_CM_DGAM_CONTROL - mmCM0_CM_DGAM_CONTROL),
-		.otg = (mmOTG1_OTG_CONTROL - mmOTG0_OTG_CONTROL),
-		.vtg = (mmVTG1_CONTROL - mmVTG0_CONTROL),
-		.fmt = (mmFMT1_FMT_BIT_DEPTH_CONTROL -
-				mmFMT0_FMT_BIT_DEPTH_CONTROL),
-	},
-	{
-		.dchubp = (mmHUBP2_DCHUBP_CNTL - mmHUBP0_DCHUBP_CNTL),
-		.dpp = (mmCM2_CM_DGAM_CONTROL - mmCM0_CM_DGAM_CONTROL),
-		.otg = (mmOTG2_OTG_CONTROL - mmOTG0_OTG_CONTROL),
-		.vtg = (mmVTG2_CONTROL - mmVTG0_CONTROL),
-		.fmt = (mmFMT2_FMT_BIT_DEPTH_CONTROL -
-				mmFMT0_FMT_BIT_DEPTH_CONTROL),
-	},
-	{
-		.dchubp = (mmHUBP3_DCHUBP_CNTL - mmHUBP0_DCHUBP_CNTL),
-		.dpp = (mmCM3_CM_DGAM_CONTROL - mmCM0_CM_DGAM_CONTROL),
-		.otg = (mmOTG3_OTG_CONTROL - mmOTG0_OTG_CONTROL),
-		.vtg = (mmVTG3_CONTROL - mmVTG0_CONTROL),
-		.fmt = (mmFMT3_FMT_BIT_DEPTH_CONTROL -
-				mmFMT0_FMT_BIT_DEPTH_CONTROL),
-	}
-};
-
-#define HWSEQ_REG_UPDATE_N(reg_name, n, ...)	\
-		generic_reg_update_soc15(ctx, inst_offset, reg_name, n, __VA_ARGS__)
-
-#define HWSEQ_REG_SET_N(reg_name, n, ...)	\
-		generic_reg_set_soc15(ctx, inst_offset, reg_name, n, __VA_ARGS__)
-
-#define HWSEQ_REG_UPDATE(reg, field, val)	\
-		HWSEQ_REG_UPDATE_N(reg, 1, FD(reg##__##field), val)
-
-#define HWSEQ_REG_UPDATE_2(reg, field1, val1, field2, val2)	\
-		HWSEQ_REG_UPDATE_N(reg, 2, FD(reg##__##field1), val1, FD(reg##__##field2), val2)
-
-#define HWSEQ_REG_UPDATE_3(reg, field1, val1, field2, val2, field3, val3)	\
-		HWSEQ_REG_UPDATE_N(reg, 2, FD(reg##__##field1), val1, FD(reg##__##field2), val2, FD(reg##__##field3), val3)
-
-
-#define HWSEQ_REG_SET(reg, field, val)	\
-		HWSEQ_REG_SET_N(reg, 1, FD(reg##__##field), val)
-
-/* TODO should be moved to OTG */
-
-static bool unlock_master_tg_and_wait(
-	struct dc_context *ctx,
-	uint8_t inst)
-{
-	uint32_t inst_offset = reg_offsets[inst].otg;
-
-	HWSEQ_REG_UPDATE(OTG0_OTG_GLOBAL_SYNC_STATUS,
-			VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
-	HWSEQ_REG_UPDATE(OTG0_OTG_MASTER_UPDATE_LOCK, OTG_MASTER_UPDATE_LOCK, 0);
-
-	if (!wait_reg(ctx, inst_offset, OTG0_OTG_GLOBAL_SYNC_STATUS, VUPDATE_NO_LOCK_EVENT_OCCURRED, 1)) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
-				"wait for VUPDATE_NO_LOCK_EVENT_OCCURRED failed\n");
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-	return true;
-}
-
-static void wait_no_outstanding_request(
-	struct dc_context *ctx,
-	uint8_t plane_id)
-{
-	uint32_t inst_offset = reg_offsets[plane_id].dchubp;
-
-	if (!wait_reg(ctx, inst_offset, HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, 1))
-				BREAK_TO_DEBUGGER();
-}
+#undef FN
+#define FN(reg_name, field_name) \
+	hws->shifts->field_name, hws->masks->field_name
 
 static void disable_clocks(
-	struct dc_context *ctx,
+	struct dce_hwseq *hws,
 	uint8_t plane_id)
 {
-	uint32_t inst_offset = reg_offsets[plane_id].dchubp;
+	REG_UPDATE(HUBP_CLK_CNTL[plane_id], HUBP_CLOCK_ENABLE, 0);
 
-	generic_reg_update_soc15(ctx, inst_offset, HUBP0_HUBP_CLK_CNTL, 1,
-			FD(HUBP0_HUBP_CLK_CNTL__HUBP_CLOCK_ENABLE), 0);
-
-	inst_offset = reg_offsets[plane_id].dpp;
-	generic_reg_update_soc15(ctx, inst_offset, DPP_TOP0_DPP_CONTROL, 1,
-				FD(DPP_TOP0_DPP_CONTROL__DPP_CLOCK_ENABLE), 0);
-}
-
-/* TODO: This is one time program during system boot up,
- * this should be done within BIOS or CAIL
- */
-static void dchubp_map_fb_to_mc(struct dc_context *ctx)
-{
-	/* TODO: do not know where to program
-	 * DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB
-	 */
-	/*
-	 * TODO: For real ASIC, FB_OFFSET may be need change to the same value
-	 * as FB_BASE. Need re-visit this for real ASIC.
-	 */
-	dm_write_reg_soc15(ctx, mmDCHUBBUB_SDPIF_FB_BASE, 0, 0x80);
-	dm_write_reg_soc15(ctx, mmDCHUBBUB_SDPIF_FB_OFFSET, 0, 0);
-	dm_write_reg_soc15(ctx, mmDCHUBBUB_SDPIF_FB_TOP, 0, 0xFF);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_CFG0, 7,
-			FD(DCHUBBUB_SDPIF_CFG0__SDPIF_DATA_RESPONSE_STATUS_CLEAR), 0,
-			FD(DCHUBBUB_SDPIF_CFG0__SDPIF_REQ_CREDIT_ERROR_CLEAR), 0,
-			FD(DCHUBBUB_SDPIF_CFG0__SDPIF_FLUSH_REQ_CREDIT_EN), 0,
-			FD(DCHUBBUB_SDPIF_CFG0__SDPIF_REQ_CREDIT_EN), 0,
-			FD(DCHUBBUB_SDPIF_CFG0__SDPIF_PORT_CONTROL), 1,
-			FD(DCHUBBUB_SDPIF_CFG0__SDPIF_UNIT_ID_BITMASK), 0xd3,
-			FD(DCHUBBUB_SDPIF_CFG0__SDPIF_CREDIT_DISCONNECT_DELAY), 0xc);
-
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_CFG1, 4,
-			FD(DCHUBBUB_SDPIF_CFG1__SDPIF_INSIDE_FB_IO), 0,
-			FD(DCHUBBUB_SDPIF_CFG1__SDPIF_INSIDE_FB_VC), 6,
-			FD(DCHUBBUB_SDPIF_CFG1__SDPIF_OUTSIDE_FB_IO), 1,
-			FD(DCHUBBUB_SDPIF_CFG1__SDPIF_OUTSIDE_FB_VC), 6);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_FB_BASE, 1,
-			FD(DCHUBBUB_SDPIF_FB_BASE__SDPIF_FB_BASE), 0x000080);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_FB_TOP, 1,
-			FD(DCHUBBUB_SDPIF_FB_TOP__SDPIF_FB_TOP), 0x0000ff);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_AGP_BOT, 1,
-			FD(DCHUBBUB_SDPIF_AGP_BOT__SDPIF_AGP_BOT), 0x0000040);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_AGP_TOP, 1,
-			FD(DCHUBBUB_SDPIF_AGP_TOP__SDPIF_AGP_TOP), 0x00001ff);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_AGP_BASE, 1,
-			FD(DCHUBBUB_SDPIF_AGP_BASE__SDPIF_AGP_BASE), 0x0000080);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_APER_TOP, 1,
-			FD(DCHUBBUB_SDPIF_APER_TOP__SDPIF_APER_TOP), 0x00007ff);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_APER_DEF_0, 1,
-			FD(DCHUBBUB_SDPIF_APER_DEF_0__SDPIF_APER_DEF_0), 0xdeadbeef);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_RELOC_LO_0, 2,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_0__SDPIF_MARC_EN_0), 0,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_0__SDPIF_MARC_RELOC_LO_0), 0x90000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_LENGTH_LO_0, 1,
-			FD(DCHUBBUB_SDPIF_MARC_LENGTH_LO_0__SDPIF_MARC_LENGTH_LO_0), 0x10000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_BASE_LO_1, 1,
-			FD(DCHUBBUB_SDPIF_MARC_BASE_LO_1__SDPIF_MARC_BASE_LO_1), 0x10000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_RELOC_LO_1, 2,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_1__SDPIF_MARC_EN_1), 0,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_1__SDPIF_MARC_RELOC_LO_1), 0xa0000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_LENGTH_LO_1, 1,
-			FD(DCHUBBUB_SDPIF_MARC_LENGTH_LO_1__SDPIF_MARC_LENGTH_LO_1), 0x10000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_BASE_LO_2, 1,
-			FD(DCHUBBUB_SDPIF_MARC_BASE_LO_2__SDPIF_MARC_BASE_LO_2), 0x20000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_RELOC_LO_2, 2,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_2__SDPIF_MARC_EN_2), 0,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_2__SDPIF_MARC_RELOC_LO_2), 0xb0000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_LENGTH_LO_2, 1,
-			FD(DCHUBBUB_SDPIF_MARC_LENGTH_LO_2__SDPIF_MARC_LENGTH_LO_2), 0x10000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_BASE_LO_3, 1,
-			FD(DCHUBBUB_SDPIF_MARC_BASE_LO_3__SDPIF_MARC_BASE_LO_3), 0x30000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_RELOC_LO_3, 2,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_3__SDPIF_MARC_EN_3), 0,
-			FD(DCHUBBUB_SDPIF_MARC_RELOC_LO_3__SDPIF_MARC_RELOC_LO_3), 0xc0000);
-
-	generic_reg_set_soc15(ctx, 0, DCHUBBUB_SDPIF_MARC_LENGTH_LO_3, 1,
-			FD(DCHUBBUB_SDPIF_MARC_LENGTH_LO_3__SDPIF_MARC_LENGTH_LO_3), 0x10000);
-
-	/* TODO: Is DCN_VM_SYSTEM_APERTURE address one time programming?
-	 * Are all 4 hubp programmed with the same address?
-	 */
-	dm_write_reg_soc15(ctx, mmHUBPREQ0_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ0_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ0_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, 0, 0x100000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ0_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, 0, 0);
-
-	dm_write_reg_soc15(ctx, mmHUBPREQ1_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ1_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ1_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, 0, 0x100000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ1_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ1_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ1_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, 0, 0);
-
-	dm_write_reg_soc15(ctx, mmHUBPREQ2_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ2_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ2_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, 0, 0x100000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ2_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ2_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ2_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, 0, 0);
-
-	dm_write_reg_soc15(ctx, mmHUBPREQ3_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ3_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ3_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, 0, 0x100000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ3_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, 0, 0);
-	dm_write_reg_soc15(ctx, mmHUBPREQ3_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, 0, 0x80000);
-	dm_write_reg_soc15(ctx, mmHUBPREQ3_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, 0, 0);
-}
-
-/* TODO: This is one time program during system boot up,
- * this should be done within BIOS
- */
-static void dchubup_setup_timer(struct dc_context *ctx)
-{
-	dm_write_reg_soc15(ctx, mmREFCLK_CNTL, 0, 0);
-
-	generic_reg_update_soc15(ctx, 0, DCHUBBUB_GLOBAL_TIMER_CNTL, 1,
-			FD(DCHUBBUB_GLOBAL_TIMER_CNTL__DCHUBBUB_GLOBAL_TIMER_ENABLE), 1);
-}
-
-/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
- * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.
- * VTG is 1:1 mapping with OTG. Each pipe HUBP will select which VTG
- */
-static void select_vtg(
-	struct dc_context *ctx,
-	uint8_t plane_id,
-	uint8_t inst)
-{
-	uint32_t inst_offset = reg_offsets[plane_id].dchubp;
-
-	HWSEQ_REG_UPDATE(HUBP0_DCHUBP_CNTL, HUBP_VTG_SEL, inst);
-}
-
-static void enable_dcfclk(
-	struct dc_context *ctx,
-	uint8_t plane_id,
-	uint32_t requested_pix_clk,
-	bool dppclk_div)
-{
-	uint32_t inst_offset = reg_offsets[plane_id].dchubp;
-
-	HWSEQ_REG_UPDATE(HUBP0_HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, 1);
+	REG_UPDATE(DPP_CONTROL[plane_id], DPP_CLOCK_ENABLE, 0);
 }
 
 static void enable_dppclk(
-	struct dc_context *ctx,
+	struct dce_hwseq *hws,
 	uint8_t plane_id,
 	uint32_t requested_pix_clk,
 	bool dppclk_div)
 {
-	uint32_t inst_offset = reg_offsets[plane_id].dpp;
-
-	dm_logger_write(ctx->logger, LOG_SURFACE,
+	dm_logger_write(hws->ctx->logger, LOG_SURFACE,
 			"dppclk_rate_control for pipe %d programed to %d\n",
 			plane_id,
 			dppclk_div);
 
-	/* TODO: find condition for DPP clock to DISPCLK or 1/2 DISPCLK */
 	if (dppclk_div) {
 		/* 1/2 DISPCLK*/
-		HWSEQ_REG_UPDATE_2(DPP_TOP0_DPP_CONTROL,
+		REG_UPDATE_2(DPP_CONTROL[plane_id],
 			DPPCLK_RATE_CONTROL, 1,
 			DPP_CLOCK_ENABLE, 1);
 	} else {
 		/* DISPCLK */
-		HWSEQ_REG_UPDATE_2(DPP_TOP0_DPP_CONTROL,
+		REG_UPDATE_2(DPP_CONTROL[plane_id],
 			DPPCLK_RATE_CONTROL, 0,
 			DPP_CLOCK_ENABLE, 1);
 	}
 }
 
 static void enable_power_gating_plane(
-	struct dc_context *ctx,
+	struct dce_hwseq *hws,
 	bool enable)
 {
-	uint32_t inst_offset = 0; /* each register only has one instance */
 	bool force_on = 1; /* disable power gating */
 
 	if (enable)
 		force_on = 0;
 
 	/* DCHUBP0/1/2/3 */
-	HWSEQ_REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN0_POWER_FORCEON, force_on);
-	HWSEQ_REG_UPDATE(DOMAIN2_PG_CONFIG, DOMAIN2_POWER_FORCEON, force_on);
-	HWSEQ_REG_UPDATE(DOMAIN4_PG_CONFIG, DOMAIN4_POWER_FORCEON, force_on);
-	HWSEQ_REG_UPDATE(DOMAIN6_PG_CONFIG, DOMAIN6_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN0_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN2_PG_CONFIG, DOMAIN2_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN4_PG_CONFIG, DOMAIN4_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN6_PG_CONFIG, DOMAIN6_POWER_FORCEON, force_on);
 
 	/* DPP0/1/2/3 */
-	HWSEQ_REG_UPDATE(DOMAIN1_PG_CONFIG, DOMAIN1_POWER_FORCEON, force_on);
-	HWSEQ_REG_UPDATE(DOMAIN3_PG_CONFIG, DOMAIN3_POWER_FORCEON, force_on);
-	HWSEQ_REG_UPDATE(DOMAIN5_PG_CONFIG, DOMAIN5_POWER_FORCEON, force_on);
-	HWSEQ_REG_UPDATE(DOMAIN7_PG_CONFIG, DOMAIN7_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN1_PG_CONFIG, DOMAIN1_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN3_PG_CONFIG, DOMAIN3_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN5_PG_CONFIG, DOMAIN5_POWER_FORCEON, force_on);
+	REG_UPDATE(DOMAIN7_PG_CONFIG, DOMAIN7_POWER_FORCEON, force_on);
 }
 
 static void dpp_pg_control(
-		struct dc_context *ctx,
+		struct dce_hwseq *hws,
 		unsigned int dpp_inst,
 		bool power_on)
 {
-	uint32_t inst_offset = 0;
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 
-	if (ctx->dc->debug.disable_dpp_power_gate)
+	if (hws->ctx->dc->debug.disable_dpp_power_gate)
 		return;
 
 	switch (dpp_inst) {
 	case 0: /* DPP0 */
-		HWSEQ_REG_UPDATE(DOMAIN1_PG_CONFIG,
+		REG_UPDATE(DOMAIN1_PG_CONFIG,
 				DOMAIN1_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN1_PG_STATUS,
-				DOMAIN1_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN1_PG_STATUS,
+				DOMAIN1_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	case 1: /* DPP1 */
-		HWSEQ_REG_UPDATE(DOMAIN3_PG_CONFIG,
+		REG_UPDATE(DOMAIN3_PG_CONFIG,
 				DOMAIN3_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN3_PG_STATUS,
-				DOMAIN3_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN3_PG_STATUS,
+				DOMAIN3_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	case 2: /* DPP2 */
-		HWSEQ_REG_UPDATE(DOMAIN5_PG_CONFIG,
+		REG_UPDATE(DOMAIN5_PG_CONFIG,
 				DOMAIN5_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN5_PG_STATUS,
-				DOMAIN5_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN5_PG_STATUS,
+				DOMAIN5_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	case 3: /* DPP3 */
-		HWSEQ_REG_UPDATE(DOMAIN7_PG_CONFIG,
+		REG_UPDATE(DOMAIN7_PG_CONFIG,
 				DOMAIN7_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN7_PG_STATUS,
-				DOMAIN7_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN7_PG_STATUS,
+				DOMAIN7_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -416,45 +155,44 @@ static void dpp_pg_control(
 }
 
 static void hubp_pg_control(
-		struct dc_context *ctx,
+		struct dce_hwseq *hws,
 		unsigned int hubp_inst,
 		bool power_on)
 {
-	uint32_t inst_offset = 0;
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 
-	if (ctx->dc->debug.disable_hubp_power_gate)
+	if (hws->ctx->dc->debug.disable_hubp_power_gate)
 		return;
 
 	switch (hubp_inst) {
 	case 0: /* DCHUBP0 */
-		HWSEQ_REG_UPDATE(DOMAIN0_PG_CONFIG,
+		REG_UPDATE(DOMAIN0_PG_CONFIG,
 				DOMAIN0_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN0_PG_STATUS,
-				DOMAIN0_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN0_PG_STATUS,
+				DOMAIN0_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	case 1: /* DCHUBP1 */
-		HWSEQ_REG_UPDATE(DOMAIN2_PG_CONFIG,
+		REG_UPDATE(DOMAIN2_PG_CONFIG,
 				DOMAIN2_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN2_PG_STATUS,
-				DOMAIN2_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN2_PG_STATUS,
+				DOMAIN2_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	case 2: /* DCHUBP2 */
-		HWSEQ_REG_UPDATE(DOMAIN4_PG_CONFIG,
+		REG_UPDATE(DOMAIN4_PG_CONFIG,
 				DOMAIN4_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN4_PG_STATUS,
-				DOMAIN4_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN4_PG_STATUS,
+				DOMAIN4_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	case 3: /* DCHUBP3 */
-		HWSEQ_REG_UPDATE(DOMAIN6_PG_CONFIG,
+		REG_UPDATE(DOMAIN6_PG_CONFIG,
 				DOMAIN6_POWER_GATE, power_gate);
 
-		wait_reg(ctx, 0, DOMAIN6_PG_STATUS,
-				DOMAIN6_PGFSM_PWR_STATUS, pwr_status);
+		REG_WAIT(DOMAIN6_PG_STATUS,
+				DOMAIN6_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -463,18 +201,16 @@ static void hubp_pg_control(
 }
 
 static void power_on_plane(
-	struct dc_context *ctx,
+	struct dce_hwseq *hws,
 	int plane_id)
 {
-	uint32_t inst_offset = 0;
-
-	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
-	dpp_pg_control(ctx, plane_id, true);
-	hubp_pg_control(ctx, plane_id, true);
-	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
+	dpp_pg_control(hws, plane_id, true);
+	hubp_pg_control(hws, plane_id, true);
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
-	dm_logger_write(ctx->logger, LOG_DC,
+	dm_logger_write(hws->ctx->logger, LOG_DC,
 			"Un-gated front end for pipe %d\n", plane_id);
 }
 
@@ -513,47 +249,54 @@ static void bios_golden_init(struct core_dc *dc)
 	}
 }
 
+/*
+ * This should be done within BIOS, we are doing it for maximus only
+ */
+static void dchubup_setup_timer(struct dce_hwseq *hws)
+{
+	REG_WRITE(REFCLK_CNTL, 0);
+
+	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
+}
+
 static void init_hw(struct core_dc *dc)
 {
 	int i;
-	struct dc_bios *bp;
 	struct transform *xfm;
 	struct abm *abm;
+	struct dce_hwseq *hws = dc->hwseq;
 
-	bp = dc->ctx->dc_bios;
-
+#if 1
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		/* TODO: this will be moved to Diag or BIOS */
-		dchubup_setup_timer(dc->ctx);
+		dchubup_setup_timer(dc->hwseq);
 
 		/* TODO: dchubp_map_fb_to_mc will be moved to dchub interface
 		 * between dc and kmd
 		 */
-		dchubp_map_fb_to_mc(dc->ctx);
+		/*dchubp_map_fb_to_mc(dc->hwseq);*/
+		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
-		enable_power_gating_plane(dc->ctx, true);
+		if (!dc->public.debug.disable_clock_gate) {
+			/* enable all DCN clock gating */
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+
+			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
+		}
+
+		enable_power_gating_plane(dc->hwseq, true);
 		return;
 	}
 	/* end of FPGA. Below if real ASIC */
+#endif
 
 	bios_golden_init(dc);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		xfm = dc->res_pool->transforms[i];
 		xfm->funcs->transform_reset(xfm);
-
-		/* TODOFPGA: may need later */
-#if 0
-		xfm->funcs->transform_power_up(xfm);
-		dc->hwss.enable_display_pipe_clock_gating(
-			dc->ctx,
-			true);
-#endif
 	}
-	/* TODOFPGA: light sleep */
-#if 0
-	dc->hwss.clock_gating_power_up(dc->ctx, false);
-#endif
 
 	for (i = 0; i < dc->link_count; i++) {
 		/* Power up AND update implementation according to the
@@ -601,67 +344,18 @@ static void init_hw(struct core_dc *dc)
 	}
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
-	generic_reg_set_soc15(dc->ctx, 0, DIO_MEM_PWR_CTRL, 7,
-			FD(DIO_MEM_PWR_CTRL__HDMI0_MEM_PWR_FORCE), 0,
-			FD(DIO_MEM_PWR_CTRL__HDMI1_MEM_PWR_FORCE), 0,
-			FD(DIO_MEM_PWR_CTRL__HDMI2_MEM_PWR_FORCE), 0,
-			FD(DIO_MEM_PWR_CTRL__HDMI3_MEM_PWR_FORCE), 0,
-			FD(DIO_MEM_PWR_CTRL__HDMI4_MEM_PWR_FORCE), 0,
-			FD(DIO_MEM_PWR_CTRL__HDMI5_MEM_PWR_FORCE), 0,
-			FD(DIO_MEM_PWR_CTRL__HDMI6_MEM_PWR_FORCE), 0);
+	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
 	if (!dc->public.debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
-		generic_reg_set_soc15(dc->ctx, 0, DCCG_GATE_DISABLE_CNTL, 19,
-				FD(DCCG_GATE_DISABLE_CNTL__DISPCLK_DCCG_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DISPCLK_R_DCCG_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__SOCCLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DPREFCLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DACACLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DVOACLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DPREFCLK_R_DCCG_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DPPCLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__AOMCLK0_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__AOMCLK1_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__AOMCLK2_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__AUDIO_DTO2_CLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DPREFCLK_GTC_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__UNB_DB_CLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__REFCLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__REFCLK_R_DIG_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__DSICLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__BYTECLK_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL__ESCCLK_GATE_DISABLE), 0);
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
 
-		generic_reg_set_soc15(dc->ctx, 0, DCCG_GATE_DISABLE_CNTL2, 14,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKA_FE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKB_FE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKC_FE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKD_FE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKE_FE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKF_FE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKG_FE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKA_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKB_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKC_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKD_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKE_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKF_GATE_DISABLE), 0,
-				FD(DCCG_GATE_DISABLE_CNTL2__SYMCLKG_GATE_DISABLE), 0);
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
 
-		generic_reg_update_soc15(dc->ctx, 0, DCFCLK_CNTL, 1,
-				FD(DCFCLK_CNTL__DCFCLK_GATE_DIS), 0);
+		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
 
-	/* This power gating should be one-time program for DAL.
-	 * It can only change by registry key
-	 * TODO: new task will for this.
-	 * if power gating is disable, power_on_plane and power_off_plane
-	 * should be skip. Otherwise, hand will be met in power_off_plane
-	 */
-	enable_power_gating_plane(dc->ctx, true);
-
-
+	enable_power_gating_plane(dc->hwseq, true);
 }
 
 static enum dc_status dcn10_prog_pixclk_crtc_otg(
@@ -759,9 +453,6 @@ static void reset_back_end_for_pipe(
 		struct validate_context *context)
 {
 	int i;
-	struct dc_bios *bp;
-
-	bp = dc->ctx->dc_bios;
 
 	if (pipe_ctx->stream_enc == NULL) {
 		pipe_ctx->stream = NULL;
@@ -807,6 +498,7 @@ static void reset_front_end(
 		struct core_dc *dc,
 		int fe_idx)
 {
+	struct dce_hwseq *hws = dc->hwseq;
 	struct mpcc_cfg mpcc_cfg;
 	struct mem_input *mi = dc->res_pool->mis[fe_idx];
 	struct transform *xfm = dc->res_pool->transforms[fe_idx];
@@ -826,11 +518,14 @@ static void reset_front_end(
 	mpcc_cfg.top_of_tree = tg->inst == mpcc->inst;
 	mpcc->funcs->set(mpcc, &mpcc_cfg);
 
-	unlock_master_tg_and_wait(dc->ctx, tg->inst);
+	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
+	tg->funcs->unlock(tg);
+	REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
+
 	mpcc->funcs->wait_for_idle(mpcc);
 	mi->funcs->set_blank(mi, true);
-	wait_no_outstanding_request(dc->ctx, fe_idx);
-	disable_clocks(dc->ctx, fe_idx);
+	REG_WAIT(DCHUBP_CNTL[fe_idx], HUBP_NO_OUTSTANDING_REQ, 1, 20000, 200000);
+	disable_clocks(dc->hwseq, fe_idx);
 
 	xfm->funcs->transform_reset(xfm);
 
@@ -841,16 +536,15 @@ static void reset_front_end(
 
 static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
 {
-	struct dc_context *ctx = dc->ctx;
-	uint32_t inst_offset = 0;
+	struct dce_hwseq *hws = dc->hwseq;
 
 	reset_front_end(dc, fe_idx);
 
-	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
-	dpp_pg_control(ctx, fe_idx, false);
-	hubp_pg_control(ctx, fe_idx, false);
-	HWSEQ_REG_SET(DC_IP_REQUEST_CNTL,
+	dpp_pg_control(hws, fe_idx, false);
+	hubp_pg_control(hws, fe_idx, false);
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 	dm_logger_write(dc->ctx->logger, LOG_DC,
 			"Power gated front end %d\n", fe_idx);
@@ -1538,18 +1232,13 @@ static void dcn10_power_on_fe(
 	struct validate_context *context)
 {
 	struct dc_surface *dc_surface = &pipe_ctx->surface->public;
+	struct dce_hwseq *hws = dc->hwseq;
 
-	power_on_plane(dc->ctx,
+	power_on_plane(dc->hwseq,
 		pipe_ctx->pipe_idx);
 
 	/* enable DCFCLK current DCHUB */
-	enable_dcfclk(dc->ctx,
-			pipe_ctx->pipe_idx,
-			pipe_ctx->pix_clk_params.requested_pix_clk,
-			context->bw.dcn.calc_clk.dppclk_div);
-	dc->current_context->bw.dcn.cur_clk.dppclk_div =
-			context->bw.dcn.calc_clk.dppclk_div;
-	context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
+	REG_UPDATE(HUBP_CLK_CNTL[pipe_ctx->pipe_idx], HUBP_CLOCK_ENABLE, 1);
 
 	if (dc_surface) {
 		dm_logger_write(dc->ctx->logger, LOG_DC,
@@ -1706,6 +1395,7 @@ static void update_dchubp_dpp(
 	struct pipe_ctx *pipe_ctx,
 	struct validate_context *context)
 {
+	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = pipe_ctx->mi;
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	struct core_surface *surface = pipe_ctx->surface;
@@ -1718,7 +1408,7 @@ static void update_dchubp_dpp(
 	/* TODO: proper fix once fpga works */
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	enable_dppclk(
-		dc->ctx,
+		dc->hwseq,
 		pipe_ctx->pipe_idx,
 		pipe_ctx->pix_clk_params.requested_pix_clk,
 		context->bw.dcn.calc_clk.dppclk_div);
@@ -1726,7 +1416,11 @@ static void update_dchubp_dpp(
 			context->bw.dcn.calc_clk.dppclk_div;
 	context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
 
-	select_vtg(dc->ctx, pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
+	/* TODO: Need input parameter to tell current DCHUB pipe tie to which OTG
+	 * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.
+	 * VTG is 1:1 mapping with OTG. Each pipe HUBP will select which VTG
+	 */
+	REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->tg->inst);
 
 	update_plane_addr(dc, pipe_ctx);
 

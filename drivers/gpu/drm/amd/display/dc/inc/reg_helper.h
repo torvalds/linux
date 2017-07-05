@@ -270,7 +270,7 @@
 				FN(reg, f8), v8, \
 				FN(reg, f9), v9)
 
-#define REG_UPDATE_10(reg, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7, f8, v8, f9, v9, f10, v10)	\
+#define REG_UPDATE_10(reg, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7, f8, v8, f9, v9, f10, v10)\
 		REG_UPDATE_N(reg, 10, \
 				FN(reg, f1), v1,\
 				FN(reg, f2), v2, \
@@ -283,6 +283,70 @@
 				FN(reg, f9), v9, \
 				FN(reg, f10), v10)
 
+#define REG_UPDATE_14(reg, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7, f8, v8, f9, v9, f10,\
+		v10, f11, v11, f12, v12, f13, v13, f14, v14)\
+		REG_UPDATE_N(reg, 14, \
+				FN(reg, f1), v1,\
+				FN(reg, f2), v2, \
+				FN(reg, f3), v3, \
+				FN(reg, f4), v4, \
+				FN(reg, f5), v5, \
+				FN(reg, f6), v6, \
+				FN(reg, f7), v7, \
+				FN(reg, f8), v8, \
+				FN(reg, f9), v9, \
+				FN(reg, f10), v10, \
+				FN(reg, f11), v11, \
+				FN(reg, f12), v12, \
+				FN(reg, f13), v13, \
+				FN(reg, f14), v14)
+
+#define REG_UPDATE_19(reg, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7, f8, v8, f9, v9, f10,\
+		v10, f11, v11, f12, v12, f13, v13, f14, v14, f15, v15, f16, v16, f17, v17, f18, v18, f19, v19)\
+		REG_UPDATE_N(reg, 19, \
+				FN(reg, f1), v1,\
+				FN(reg, f2), v2, \
+				FN(reg, f3), v3, \
+				FN(reg, f4), v4, \
+				FN(reg, f5), v5, \
+				FN(reg, f6), v6, \
+				FN(reg, f7), v7, \
+				FN(reg, f8), v8, \
+				FN(reg, f9), v9, \
+				FN(reg, f10), v10, \
+				FN(reg, f11), v11, \
+				FN(reg, f12), v12, \
+				FN(reg, f13), v13, \
+				FN(reg, f14), v14, \
+				FN(reg, f15), v15, \
+				FN(reg, f16), v16, \
+				FN(reg, f17), v17, \
+				FN(reg, f18), v18, \
+				FN(reg, f19), v19)
+
+#define REG_UPDATE_20(reg, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5, f6, v6, f7, v7, f8, v8, f9, v9, f10,\
+		v10, f11, v11, f12, v12, f13, v13, f14, v14, f15, v15, f16, v16, f17, v17, f18, v18, f19, v19, f20, v20)\
+		REG_UPDATE_N(reg, 20, \
+				FN(reg, f1), v1,\
+				FN(reg, f2), v2, \
+				FN(reg, f3), v3, \
+				FN(reg, f4), v4, \
+				FN(reg, f5), v5, \
+				FN(reg, f6), v6, \
+				FN(reg, f7), v7, \
+				FN(reg, f8), v8, \
+				FN(reg, f9), v9, \
+				FN(reg, f10), v10, \
+				FN(reg, f11), v11, \
+				FN(reg, f12), v12, \
+				FN(reg, f13), v13, \
+				FN(reg, f14), v14, \
+				FN(reg, f15), v15, \
+				FN(reg, f16), v16, \
+				FN(reg, f17), v17, \
+				FN(reg, f18), v18, \
+				FN(reg, f19), v19, \
+				FN(reg, f20), v20)
 /* macro to update a register field to specified values in given sequences.
  * useful when toggling bits
  */
