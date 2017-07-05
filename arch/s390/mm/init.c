@@ -84,7 +84,7 @@ void __init paging_init(void)
 	psw_t psw;
 
 	init_mm.pgd = swapper_pg_dir;
-	if (VMALLOC_END > (1UL << 42)) {
+	if (VMALLOC_END > _REGION2_SIZE) {
 		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
 		pgd_type = _REGION2_ENTRY_EMPTY;
 	} else {
@@ -93,8 +93,7 @@ void __init paging_init(void)
 	}
 	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	S390_lowcore.kernel_asce = init_mm.context.asce;
-	clear_table((unsigned long *) init_mm.pgd, pgd_type,
-		    sizeof(unsigned long)*2048);
+	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
 
         /* enable virtual mapping in kernel mode */

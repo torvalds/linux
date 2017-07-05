@@ -33,7 +33,7 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.use_cmma = 0;
 #endif
 	switch (mm->context.asce_limit) {
-	case 1UL << 42:
+	case _REGION2_SIZE:
 		/*
 		 * forked 3-level task, fall through to set new asce with new
 		 * mm->pgd
@@ -44,12 +44,12 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
 		break;
-	case 1UL << 53:
+	case _REGION1_SIZE:
 		/* forked 4-level task, set new asce with new mm->pgd */
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
 		break;
-	case 1UL << 31:
+	case _REGION3_SIZE:
 		/* forked 2-level compat task, set new asce with new mm->pgd */
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
