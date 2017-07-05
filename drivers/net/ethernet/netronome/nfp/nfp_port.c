@@ -184,23 +184,23 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 			   struct nfp_port *port, unsigned int id)
 {
-	port->eth_id = id;
-	port->eth_port = nfp_net_find_port(pf->eth_tbl, id);
-
 	/* Check if vNIC has external port associated and cfg is OK */
-	if (!port->eth_port) {
+	if (!pf->eth_tbl || id >= pf->eth_tbl->count) {
 		nfp_err(app->cpp,
-			"NSP port entries don't match vNICs (no entry for port #%d)\n",
+			"NSP port entries don't match vNICs (no entry %d)\n",
 			id);
 		return -EINVAL;
 	}
-	if (port->eth_port->override_changed) {
+	if (pf->eth_tbl->ports[id].override_changed) {
 		nfp_warn(app->cpp,
 			 "Config changed for port #%d, reboot required before port will be operational\n",
-			 id);
+			 pf->eth_tbl->ports[id].index);
 		port->type = NFP_PORT_INVALID;
 		return 0;
 	}
+
+	port->eth_port = &pf->eth_tbl->ports[id];
+	port->eth_id = pf->eth_tbl->ports[id].index;
 
 	return 0;
 }

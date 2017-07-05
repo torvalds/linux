@@ -3719,10 +3719,17 @@ int nfp_net_init(struct nfp_net *nn)
 	nn->cap = nn_readl(nn, NFP_NET_CFG_CAP);
 	nn->max_mtu = nn_readl(nn, NFP_NET_CFG_MAX_MTU);
 
-	/* Chained metadata is signalled by capabilities except in version 4 */
+	/* ABI 4.x and ctrl vNIC always use chained metadata, in other cases
+	 * we allow use of non-chained metadata if RSS(v1) is the only
+	 * advertised capability requiring metadata.
+	 */
 	nn->dp.chained_metadata_format = nn->fw_ver.major == 4 ||
 					 !nn->dp.netdev ||
+					 !(nn->cap & NFP_NET_CFG_CTRL_RSS) ||
 					 nn->cap & NFP_NET_CFG_CTRL_CHAIN_META;
+	/* RSS(v1) uses non-chained metadata format, except in ABI 4.x where
+	 * it has the same meaning as RSSv2.
+	 */
 	if (nn->dp.chained_metadata_format && nn->fw_ver.major != 4)
 		nn->cap &= ~NFP_NET_CFG_CTRL_RSS;
 
