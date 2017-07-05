@@ -629,7 +629,7 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 	iep = ctlreg0.iep && test_kvm_facility(vcpu->kvm, 130);
 	if (asce.r)
 		goto real_address;
-	ptr = asce.origin * 4096;
+	ptr = asce.origin * PAGE_SIZE;
 	switch (asce.dt) {
 	case ASCE_TYPE_REGION1:
 		if (vaddr.rfx01 > asce.tl)
@@ -674,7 +674,7 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 			return PGM_REGION_SECOND_TRANS;
 		if (edat1)
 			dat_protection |= rfte.p;
-		ptr = rfte.rto * 4096 + vaddr.rsx * 8;
+		ptr = rfte.rto * PAGE_SIZE + vaddr.rsx * 8;
 	}
 		/* fallthrough */
 	case ASCE_TYPE_REGION2: {
@@ -692,7 +692,7 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 			return PGM_REGION_THIRD_TRANS;
 		if (edat1)
 			dat_protection |= rste.p;
-		ptr = rste.rto * 4096 + vaddr.rtx * 8;
+		ptr = rste.rto * PAGE_SIZE + vaddr.rtx * 8;
 	}
 		/* fallthrough */
 	case ASCE_TYPE_REGION3: {
@@ -720,7 +720,7 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 			return PGM_SEGMENT_TRANSLATION;
 		if (edat1)
 			dat_protection |= rtte.fc0.p;
-		ptr = rtte.fc0.sto * 4096 + vaddr.sx * 8;
+		ptr = rtte.fc0.sto * PAGE_SIZE + vaddr.sx * 8;
 	}
 		/* fallthrough */
 	case ASCE_TYPE_SEGMENT: {
@@ -743,7 +743,7 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 			goto absolute_address;
 		}
 		dat_protection |= ste.fc0.p;
-		ptr = ste.fc0.pto * 2048 + vaddr.px * 8;
+		ptr = ste.fc0.pto * (PAGE_SIZE / 2) + vaddr.px * 8;
 	}
 	}
 	if (kvm_is_error_gpa(vcpu->kvm, ptr))
@@ -993,7 +993,7 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 	parent = sg->parent;
 	vaddr.addr = saddr;
 	asce.val = sg->orig_asce;
-	ptr = asce.origin * 4096;
+	ptr = asce.origin * PAGE_SIZE;
 	if (asce.r) {
 		*fake = 1;
 		ptr = 0;
@@ -1029,7 +1029,7 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 		union region1_table_entry rfte;
 
 		if (*fake) {
-			ptr += (unsigned long) vaddr.rfx << 53;
+			ptr += vaddr.rfx * _REGION1_SIZE;
 			rfte.val = ptr;
 			goto shadow_r2t;
 		}
@@ -1044,7 +1044,7 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 			return PGM_REGION_SECOND_TRANS;
 		if (sg->edat_level >= 1)
 			*dat_protection |= rfte.p;
-		ptr = rfte.rto << 12UL;
+		ptr = rfte.rto * PAGE_SIZE;
 shadow_r2t:
 		rc = gmap_shadow_r2t(sg, saddr, rfte.val, *fake);
 		if (rc)
@@ -1055,7 +1055,7 @@ shadow_r2t:
 		union region2_table_entry rste;
 
 		if (*fake) {
-			ptr += (unsigned long) vaddr.rsx << 42;
+			ptr += vaddr.rsx * _REGION2_SIZE;
 			rste.val = ptr;
 			goto shadow_r3t;
 		}
@@ -1070,7 +1070,7 @@ shadow_r2t:
 			return PGM_REGION_THIRD_TRANS;
 		if (sg->edat_level >= 1)
 			*dat_protection |= rste.p;
-		ptr = rste.rto << 12UL;
+		ptr = rste.rto * PAGE_SIZE;
 shadow_r3t:
 		rste.p |= *dat_protection;
 		rc = gmap_shadow_r3t(sg, saddr, rste.val, *fake);
@@ -1082,7 +1082,7 @@ shadow_r3t:
 		union region3_table_entry rtte;
 
 		if (*fake) {
-			ptr += (unsigned long) vaddr.rtx << 31;
+			ptr += vaddr.rtx * _REGION3_SIZE;
 			rtte.val = ptr;
 			goto shadow_sgt;
 		}
@@ -1098,7 +1098,7 @@ shadow_r3t:
 		if (rtte.fc && sg->edat_level >= 2) {
 			*dat_protection |= rtte.fc0.p;
 			*fake = 1;
-			ptr = rtte.fc1.rfaa << 31UL;
+			ptr = rtte.fc1.rfaa * _REGION3_SIZE;
 			rtte.val = ptr;
 			goto shadow_sgt;
 		}
@@ -1106,7 +1106,7 @@ shadow_r3t:
 			return PGM_SEGMENT_TRANSLATION;
 		if (sg->edat_level >= 1)
 			*dat_protection |= rtte.fc0.p;
-		ptr = rtte.fc0.sto << 12UL;
+		ptr = rtte.fc0.sto * PAGE_SIZE;
 shadow_sgt:
 		rtte.fc0.p |= *dat_protection;
 		rc = gmap_shadow_sgt(sg, saddr, rtte.val, *fake);
@@ -1118,7 +1118,7 @@ shadow_sgt:
 		union segment_table_entry ste;
 
 		if (*fake) {
-			ptr += (unsigned long) vaddr.sx << 20;
+			ptr += vaddr.sx * _SEGMENT_SIZE;
 			ste.val = ptr;
 			goto shadow_pgt;
 		}
@@ -1134,11 +1134,11 @@ shadow_sgt:
 		*dat_protection |= ste.fc0.p;
 		if (ste.fc && sg->edat_level >= 1) {
 			*fake = 1;
-			ptr = ste.fc1.sfaa << 20UL;
+			ptr = ste.fc1.sfaa * _SEGMENT_SIZE;
 			ste.val = ptr;
 			goto shadow_pgt;
 		}
-		ptr = ste.fc0.pto << 11UL;
+		ptr = ste.fc0.pto * (PAGE_SIZE / 2);
 shadow_pgt:
 		ste.fc0.p |= *dat_protection;
 		rc = gmap_shadow_pgt(sg, saddr, ste.val, *fake);
@@ -1187,8 +1187,7 @@ int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg,
 
 	vaddr.addr = saddr;
 	if (fake) {
-		/* offset in 1MB guest memory block */
-		pte.val = pgt + ((unsigned long) vaddr.px << 12UL);
+		pte.val = pgt + vaddr.px * PAGE_SIZE;
 		goto shadow_page;
 	}
 	if (!rc)
