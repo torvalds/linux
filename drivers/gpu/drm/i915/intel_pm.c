@@ -4361,7 +4361,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint32_t plane_bytes_per_line;
 	uint32_t res_blocks, res_lines;
 	uint8_t cpp;
-	uint32_t width = 0, height = 0;
+	uint32_t width = 0;
 	uint32_t plane_pixel_rate;
 	uint_fixed_16_16_t y_tile_minimum;
 	uint32_t y_min_scanlines;
@@ -4390,7 +4390,6 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	if (plane->id == PLANE_CURSOR) {
 		width = intel_pstate->base.crtc_w;
-		height = intel_pstate->base.crtc_h;
 	} else {
 		/*
 		 * Src coordinates are already rotated by 270 degrees for
@@ -4398,7 +4397,6 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		 * GTT mapping), hence no need to account for rotation here.
 		 */
 		width = drm_rect_width(&intel_pstate->base.src) >> 16;
-		height = drm_rect_height(&intel_pstate->base.src) >> 16;
 	}
 
 	cpp = fb->format->cpp[0];
