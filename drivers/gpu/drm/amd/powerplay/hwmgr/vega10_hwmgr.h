@@ -232,7 +232,9 @@ struct vega10_registry_data {
 	uint8_t   cac_support;
 	uint8_t   clock_stretcher_support;
 	uint8_t   db_ramping_support;
+	uint8_t   didt_mode;
 	uint8_t   didt_support;
+	uint8_t   edc_didt_support;
 	uint8_t   dynamic_state_patching_support;
 	uint8_t   enable_pkg_pwr_tracking_feature;
 	uint8_t   enable_tdc_limit_feature;
@@ -265,6 +267,9 @@ struct vega10_registry_data {
 	uint8_t   tcp_ramping_support;
 	uint8_t   tdc_support;
 	uint8_t   td_ramping_support;
+	uint8_t   dbr_ramping_support;
+	uint8_t   gc_didt_support;
+	uint8_t   psm_didt_support;
 	uint8_t   thermal_out_gpio_support;
 	uint8_t   thermal_support;
 	uint8_t   fw_ctf_enabled;
