@@ -1812,7 +1812,7 @@ int drm_atomic_debugfs_init(struct drm_minor *minor)
  */
 
 static struct drm_pending_vblank_event *create_vblank_event(
-		struct drm_device *dev, uint64_t user_data)
+		struct drm_crtc *crtc, uint64_t user_data)
 {
 	struct drm_pending_vblank_event *e = NULL;
 
@@ -1822,7 +1822,8 @@ static struct drm_pending_vblank_event *create_vblank_event(
 
 	e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 	e->event.base.length = sizeof(e->event);
-	e->event.user_data = user_data;
+	e->event.vbl.crtc_id = crtc->base.id;
+	e->event.vbl.user_data = user_data;
 
 	return e;
 }
@@ -2076,7 +2077,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 		if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT || fence_ptr) {
 			struct drm_pending_vblank_event *e;
 
-			e = create_vblank_event(dev, arg->user_data);
+			e = create_vblank_event(crtc, arg->user_data);
 			if (!e)
 				return -ENOMEM;
 

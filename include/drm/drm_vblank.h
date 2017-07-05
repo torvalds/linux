@@ -54,7 +54,10 @@ struct drm_pending_vblank_event {
 	/**
 	 * @event: Actual event which will be sent to userspace.
 	 */
-	struct drm_event_vblank event;
+	union {
+		struct drm_event base;
+		struct drm_event_vblank vbl;
+	} event;
 };
 
 /**
@@ -163,6 +166,9 @@ void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 			       struct drm_pending_vblank_event *e);
 void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 			      struct drm_pending_vblank_event *e);
+void drm_vblank_set_event(struct drm_pending_vblank_event *e,
+			  u64 *seq,
+			  ktime_t *now);
 bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
 bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
 int drm_crtc_vblank_get(struct drm_crtc *crtc);

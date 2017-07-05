@@ -804,20 +804,23 @@ static void send_vblank_event(struct drm_device *dev,
 		struct drm_pending_vblank_event *e,
 		u64 seq, ktime_t now)
 {
-	struct timespec64 tv = ktime_to_timespec64(now);
+	struct timespec64 tv;
 
-	e->event.sequence = seq;
-	/*
-	 * e->event is a user space structure, with hardcoded unsigned
-	 * 32-bit seconds/microseconds. This is safe as we always use
-	 * monotonic timestamps since linux-4.15
-	 */
-	e->event.tv_sec = tv.tv_sec;
-	e->event.tv_usec = tv.tv_nsec / 1000;
-
-	trace_drm_vblank_event_delivered(e->base.file_priv, e->pipe,
-					 e->event.sequence);
-
+	switch (e->event.base.type) {
+	case DRM_EVENT_VBLANK:
+	case DRM_EVENT_FLIP_COMPLETE:
+		tv = ktime_to_timespec64(now);
+		e->event.vbl.sequence = seq;
+		/*
+		 * e->event is a user space structure, with hardcoded unsigned
+		 * 32-bit seconds/microseconds. This is safe as we always use
+		 * monotonic timestamps since linux-4.15
+		 */
+		e->event.vbl.tv_sec = tv.tv_sec;
+		e->event.vbl.tv_usec = tv.tv_nsec / 1000;
+		break;
+	}
+	trace_drm_vblank_event_delivered(e->base.file_priv, e->pipe, seq);
 	drm_send_event_locked(dev, &e->base);
 }
 
@@ -869,7 +872,6 @@ void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 
 	e->pipe = pipe;
 	e->sequence = drm_crtc_accurate_vblank_count(crtc) + 1;
-	e->event.crtc_id = crtc->base.id;
 	list_add_tail(&e->base.link, &dev->vblank_event_list);
 }
 EXPORT_SYMBOL(drm_crtc_arm_vblank_event);
@@ -901,7 +903,6 @@ void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 		now = ktime_get();
 	}
 	e->pipe = pipe;
-	e->event.crtc_id = crtc->base.id;
 	send_vblank_event(dev, e, seq, now);
 }
 EXPORT_SYMBOL(drm_crtc_send_vblank_event);
@@ -1336,8 +1337,14 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 
 	e->pipe = pipe;
 	e->event.base.type = DRM_EVENT_VBLANK;
-	e->event.base.length = sizeof(e->event);
-	e->event.user_data = vblwait->request.signal;
+	e->event.base.length = sizeof(e->event.vbl);
+	e->event.vbl.user_data = vblwait->request.signal;
+	e->event.vbl.crtc_id = 0;
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+		if (crtc)
+			e->event.vbl.crtc_id = crtc->base.id;
+	}
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 

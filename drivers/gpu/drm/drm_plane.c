@@ -1025,7 +1025,7 @@ retry:
 		}
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof(e->event);
-		e->event.user_data = page_flip->user_data;
+		e->event.vbl.user_data = page_flip->user_data;
 		ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
 		if (ret) {
 			kfree(e);
