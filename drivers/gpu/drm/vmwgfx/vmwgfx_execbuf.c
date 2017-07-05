@@ -4449,11 +4449,6 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 		arg.context_handle = (uint32_t) -1;
 		break;
 	case 2:
-		if (arg.pad64 != 0) {
-			DRM_ERROR("Unused IOCTL data not set to zero.\n");
-			return -EINVAL;
-		}
-		break;
 	default:
 		break;
 	}
