@@ -29,6 +29,7 @@
 #include <linux/swab.h>
 #include <linux/fips.h>
 #include <crypto/ecdh.h>
+#include <crypto/rng.h>
 
 #include "ecc.h"
 #include "ecc_curve_defs.h"
@@ -904,7 +905,7 @@ static inline void ecc_swap_digits(const u64 *in, u64 *out,
 }
 
 int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
-		     const u8 *private_key, unsigned int private_key_len)
+		     const u64 *private_key, unsigned int private_key_len)
 {
 	int nbytes;
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
@@ -917,24 +918,77 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 	if (private_key_len != nbytes)
 		return -EINVAL;
 
-	if (vli_is_zero((const u64 *)&private_key[0], ndigits))
+	if (vli_is_zero(private_key, ndigits))
 		return -EINVAL;
 
 	/* Make sure the private key is in the range [1, n-1]. */
-	if (vli_cmp(curve->n, (const u64 *)&private_key[0], ndigits) != 1)
+	if (vli_cmp(curve->n, private_key, ndigits) != 1)
 		return -EINVAL;
 
 	return 0;
 }
 
-int ecdh_make_pub_key(unsigned int curve_id, unsigned int ndigits,
-		      const u8 *private_key, unsigned int private_key_len,
-		      u8 *public_key, unsigned int public_key_len)
+/*
+ * ECC private keys are generated using the method of extra random bits,
+ * equivalent to that described in FIPS 186-4, Appendix B.4.1.
+ *
+ * d = (c mod(n–1)) + 1    where c is a string of random bits, 64 bits longer
+ *                         than requested
+ * 0 <= c mod(n-1) <= n-2  and implies that
+ * 1 <= d <= n-1
+ *
+ * This method generates a private key uniformly distributed in the range
+ * [1, n-1].
+ */
+int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
+{
+	const struct ecc_curve *curve = ecc_get_curve(curve_id);
+	u64 priv[ndigits];
+	unsigned int nbytes = ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
+	unsigned int nbits = vli_num_bits(curve->n, ndigits);
+	int err;
+
+	/* Check that N is included in Table 1 of FIPS 186-4, section 6.1.1 */
+	if (nbits < 160)
+		return -EINVAL;
+
+	/*
+	 * FIPS 186-4 recommends that the private key should be obtained from a
+	 * RBG with a security strength equal to or greater than the security
+	 * strength associated with N.
+	 *
+	 * The maximum security strength identified by NIST SP800-57pt1r4 for
+	 * ECC is 256 (N >= 512).
+	 *
+	 * This condition is met by the default RNG because it selects a favored
+	 * DRBG with a security strength of 256.
+	 */
+	if (crypto_get_default_rng())
+		err = -EFAULT;
+
+	err = crypto_rng_get_bytes(crypto_default_rng, (u8 *)priv, nbytes);
+	crypto_put_default_rng();
+	if (err)
+		return err;
+
+	if (vli_is_zero(priv, ndigits))
+		return -EINVAL;
+
+	/* Make sure the private key is in the range [1, n-1]. */
+	if (vli_cmp(curve->n, priv, ndigits) != 1)
+		return -EINVAL;
+
+	ecc_swap_digits(priv, privkey, ndigits);
+
+	return 0;
+}
+
+int ecc_make_pub_key(unsigned int curve_id, unsigned int ndigits,
+		     const u64 *private_key, u64 *public_key)
 {
 	int ret = 0;
 	struct ecc_point *pk;
 	u64 priv[ndigits];
-	unsigned int nbytes;
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
 
 	if (!private_key || !curve) {
@@ -942,7 +996,7 @@ int ecdh_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 		goto out;
 	}
 
-	ecc_swap_digits((const u64 *)private_key, priv, ndigits);
+	ecc_swap_digits(private_key, priv, ndigits);
 
 	pk = ecc_alloc_point(ndigits);
 	if (!pk) {
@@ -956,9 +1010,8 @@ int ecdh_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 		goto err_free_point;
 	}
 
-	nbytes = ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
-	ecc_swap_digits(pk->x, (u64 *)public_key, ndigits);
-	ecc_swap_digits(pk->y, (u64 *)&public_key[nbytes], ndigits);
+	ecc_swap_digits(pk->x, public_key, ndigits);
+	ecc_swap_digits(pk->y, &public_key[ndigits], ndigits);
 
 err_free_point:
 	ecc_free_point(pk);
@@ -967,9 +1020,8 @@ out:
 }
 
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
-		       const u8 *private_key, unsigned int private_key_len,
-		       const u8 *public_key, unsigned int public_key_len,
-		       u8 *secret, unsigned int secret_len)
+			      const u64 *private_key, const u64 *public_key,
+			      u64 *secret)
 {
 	int ret = 0;
 	struct ecc_point *product, *pk;
@@ -999,13 +1051,13 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 		goto err_alloc_product;
 	}
 
-	ecc_swap_digits((const u64 *)public_key, pk->x, ndigits);
-	ecc_swap_digits((const u64 *)&public_key[nbytes], pk->y, ndigits);
-	ecc_swap_digits((const u64 *)private_key, priv, ndigits);
+	ecc_swap_digits(public_key, pk->x, ndigits);
+	ecc_swap_digits(&public_key[ndigits], pk->y, ndigits);
+	ecc_swap_digits(private_key, priv, ndigits);
 
 	ecc_point_mult(product, pk, priv, rand_z, curve->p, ndigits);
 
-	ecc_swap_digits(product->x, (u64 *)secret, ndigits);
+	ecc_swap_digits(product->x, secret, ndigits);
 
 	if (ecc_point_is_zero(product))
 		ret = -EFAULT;
