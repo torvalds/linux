@@ -25,14 +25,21 @@
 #define MSI_IRQS_PER_MSIR	32
 #define MSI_MSIR_OFFSET		4
 
+#define MSI_LS1043V1_1_IRQS_PER_MSIR	8
+#define MSI_LS1043V1_1_MSIR_OFFSET	0x10
+
 struct ls_scfg_msi_cfg {
 	u32 ibs_shift; /* Shift of interrupt bit select */
+	u32 msir_irqs; /* The irq number per MSIR */
+	u32 msir_base; /* The base address of MSIR */
 };
 
 struct ls_scfg_msir {
 	struct ls_scfg_msi *msi_data;
 	unsigned int index;
 	unsigned int gic_irq;
+	unsigned int bit_start;
+	unsigned int bit_end;
 	void __iomem *reg;
 };
 
@@ -140,13 +147,18 @@ static void ls_scfg_msi_irq_handler(struct irq_desc *desc)
 	struct ls_scfg_msir *msir = irq_desc_get_handler_data(desc);
 	struct ls_scfg_msi *msi_data = msir->msi_data;
 	unsigned long val;
-	int pos, virq, hwirq;
+	int pos, size, virq, hwirq;
 
 	chained_irq_enter(irq_desc_get_chip(desc), desc);
 
 	val = ioread32be(msir->reg);
-	for_each_set_bit(pos, &val, MSI_IRQS_PER_MSIR) {
-		hwirq = ((31 - pos) << msi_data->cfg->ibs_shift) | msir->index;
+
+	pos = msir->bit_start;
+	size = msir->bit_end + 1;
+
+	for_each_set_bit_from(pos, &val, size) {
+		hwirq = ((msir->bit_end - pos) << msi_data->cfg->ibs_shift) |
+			msir->index;
 		virq = irq_find_mapping(msi_data->parent, hwirq);
 		if (virq)
 			generic_handle_irq(virq);
@@ -193,14 +205,24 @@ static int ls_scfg_msi_setup_hwirq(struct ls_scfg_msi *msi_data, int index)
 	msir->index = index;
 	msir->msi_data = msi_data;
 	msir->gic_irq = virq;
-	msir->reg = msi_data->regs + MSI_MSIR_OFFSET + 4 * index;
+	msir->reg = msi_data->regs + msi_data->cfg->msir_base + 4 * index;
+
+	if (msi_data->cfg->msir_irqs == MSI_LS1043V1_1_IRQS_PER_MSIR) {
+		msir->bit_start = 32 - ((msir->index + 1) *
+				  MSI_LS1043V1_1_IRQS_PER_MSIR);
+		msir->bit_end = msir->bit_start +
+				MSI_LS1043V1_1_IRQS_PER_MSIR - 1;
+	} else {
+		msir->bit_start = 0;
+		msir->bit_end = msi_data->cfg->msir_irqs - 1;
+	}
 
 	irq_set_chained_handler_and_data(msir->gic_irq,
 					 ls_scfg_msi_irq_handler,
 					 msir);
 
 	/* Release the hwirqs corresponding to this MSIR */
-	for (i = 0; i < MSI_IRQS_PER_MSIR; i++) {
+	for (i = 0; i < msi_data->cfg->msir_irqs; i++) {
 		hwirq = i << msi_data->cfg->ibs_shift | msir->index;
 		bitmap_clear(msi_data->used, hwirq, 1);
 	}
@@ -216,7 +238,7 @@ static int ls_scfg_msi_teardown_hwirq(struct ls_scfg_msir *msir)
 	if (msir->gic_irq > 0)
 		irq_set_chained_handler_and_data(msir->gic_irq, NULL, NULL);
 
-	for (i = 0; i < MSI_IRQS_PER_MSIR; i++) {
+	for (i = 0; i < msi_data->cfg->msir_irqs; i++) {
 		hwirq = i << msi_data->cfg->ibs_shift | msir->index;
 		bitmap_set(msi_data->used, hwirq, 1);
 	}
@@ -226,10 +248,20 @@ static int ls_scfg_msi_teardown_hwirq(struct ls_scfg_msir *msir)
 
 static struct ls_scfg_msi_cfg ls1021_msi_cfg = {
 	.ibs_shift = 3,
+	.msir_irqs = MSI_IRQS_PER_MSIR,
+	.msir_base = MSI_MSIR_OFFSET,
 };
 
 static struct ls_scfg_msi_cfg ls1046_msi_cfg = {
 	.ibs_shift = 2,
+	.msir_irqs = MSI_IRQS_PER_MSIR,
+	.msir_base = MSI_MSIR_OFFSET,
+};
+
+static struct ls_scfg_msi_cfg ls1043_v1_1_msi_cfg = {
+	.ibs_shift = 2,
+	.msir_irqs = MSI_LS1043V1_1_IRQS_PER_MSIR,
+	.msir_base = MSI_LS1043V1_1_MSIR_OFFSET,
 };
 
 static const struct of_device_id ls_scfg_msi_id[] = {
@@ -239,6 +271,7 @@ static const struct of_device_id ls_scfg_msi_id[] = {
 
 	{ .compatible = "fsl,ls1021a-msi", .data = &ls1021_msi_cfg },
 	{ .compatible = "fsl,ls1043a-msi", .data = &ls1021_msi_cfg },
+	{ .compatible = "fsl,ls1043a-v1.1-msi", .data = &ls1043_v1_1_msi_cfg },
 	{ .compatible = "fsl,ls1046a-msi", .data = &ls1046_msi_cfg },
 	{},
 };
