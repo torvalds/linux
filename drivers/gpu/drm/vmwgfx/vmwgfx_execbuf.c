@@ -24,6 +24,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
+#include <linux/sync_file.h>
 
 #include "vmwgfx_drv.h"
 #include "vmwgfx_reg.h"
@@ -4414,6 +4415,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 	static const size_t copy_offset[] = {
 		offsetof(struct drm_vmw_execbuf_arg, context_handle),
 		sizeof(struct drm_vmw_execbuf_arg)};
+	struct dma_fence *in_fence = NULL;
 
 	if (unlikely(size < copy_offset[0])) {
 		DRM_ERROR("Invalid command size, ioctl %d\n",
@@ -4453,6 +4455,21 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 		break;
 	}
 
+
+	/* If imported a fence FD from elsewhere, then wait on it */
+	if (arg.flags & DRM_VMW_EXECBUF_FLAG_IMPORT_FENCE_FD) {
+		in_fence = sync_file_get_fence(arg.imported_fence_fd);
+
+		if (!in_fence) {
+			DRM_ERROR("Cannot get imported fence\n");
+			return -EINVAL;
+		}
+
+		ret = vmw_wait_dma_fence(dev_priv->fman, in_fence);
+		if (ret)
+			goto out;
+	}
+
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
@@ -4465,9 +4482,12 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 				  NULL);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (unlikely(ret != 0))
-		return ret;
+		goto out;
 
 	vmw_kms_cursor_post_execbuf(dev_priv);
 
-	return 0;
+out:
+	if (in_fence)
+		dma_fence_put(in_fence);
+	return ret;
 }
