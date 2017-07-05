@@ -1603,10 +1603,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;
 
-			/* TODO find out why check is false */
-			/* TODO with this still not programming some color stuff... panel is dark-ish */
-			/*if (is_new_pipe_surface ||
-					srf_updates[i].in_transfer_func)*/
+			if (srf_updates[i].in_transfer_func)
 				core_dc->hwss.set_input_transfer_func(
 						pipe_ctx, pipe_ctx->surface);
 
