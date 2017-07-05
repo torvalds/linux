@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "gmc_v9_0.h"
+#include "amdgpu_atomfirmware.h"
 
 #include "vega10/soc15ip.h"
 #include "vega10/HDP/hdp_4_0_offset.h"
@@ -442,43 +443,46 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	u32 tmp;
 	int chansize, numchan;
 
-	/* hbm memory channel size */
-	chansize = 128;
+	adev->mc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
+	if (!adev->mc.vram_width) {
+		/* hbm memory channel size */
+		chansize = 128;
 
-	tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
-	tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
-	tmp >>= DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
-	switch (tmp) {
-	case 0:
-	default:
-		numchan = 1;
-		break;
-	case 1:
-		numchan = 2;
-		break;
-	case 2:
-		numchan = 0;
-		break;
-	case 3:
-		numchan = 4;
-		break;
-	case 4:
-		numchan = 0;
-		break;
-	case 5:
-		numchan = 8;
-		break;
-	case 6:
-		numchan = 0;
-		break;
-	case 7:
-		numchan = 16;
-		break;
-	case 8:
-		numchan = 2;
-		break;
+		tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
+		tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
+		tmp >>= DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
+		switch (tmp) {
+		case 0:
+		default:
+			numchan = 1;
+			break;
+		case 1:
+			numchan = 2;
+			break;
+		case 2:
+			numchan = 0;
+			break;
+		case 3:
+			numchan = 4;
+			break;
+		case 4:
+			numchan = 0;
+			break;
+		case 5:
+			numchan = 8;
+			break;
+		case 6:
+			numchan = 0;
+			break;
+		case 7:
+			numchan = 16;
+			break;
+		case 8:
+			numchan = 2;
+			break;
+		}
+		adev->mc.vram_width = numchan * chansize;
 	}
-	adev->mc.vram_width = numchan * chansize;
 
 	/* Could aper size report 0 ? */
 	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
