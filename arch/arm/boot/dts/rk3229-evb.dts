@@ -173,6 +173,14 @@
 	status = "okay";
 };
 
+&io_domains {
+	status = "okay";
+
+	vccio1-supply = <&vccio_3v3>;
+	vccio2-supply = <&vccio_1v8>;
+	vccio4-supply = <&vccio_3v3>;
+};
+
 &pinctrl {
 	usb {
 		host_vbus_drv: host-vbus-drv {
