@@ -131,21 +131,6 @@ struct drm_gem_object {
 	uint32_t write_domain;
 
 	/**
-	 * @pending_read_domains:
-	 *
-	 * While validating an exec operation, the
-	 * new read/write domain values are computed here.
-	 * They will be transferred to the above values
-	 * at the point that any cache flushing occurs
-	 */
-	uint32_t pending_read_domains;
-
-	/**
-	 * @pending_write_domain: Write domain similar to @pending_read_domains.
-	 */
-	uint32_t pending_write_domain;
-
-	/**
 	 * @dma_buf:
 	 *
 	 * dma-buf associated with this GEM object.
