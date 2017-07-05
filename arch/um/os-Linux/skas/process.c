@@ -323,11 +323,17 @@ void userspace(struct uml_pt_regs *regs)
 		 * fail.  In this case, there is nothing to do but
 		 * just kill the process.
 		 */
-		if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp))
+		if (ptrace(PTRACE_SETREGS, pid, 0, regs->gp)) {
+			printk(UM_KERN_ERR "userspace - ptrace set regs "
+			       "failed, errno = %d\n", errno);
 			fatal_sigsegv();
+		}
 
-		if (put_fp_registers(pid, regs->fp))
+		if (put_fp_registers(pid, regs->fp)) {
+			printk(UM_KERN_ERR "userspace - ptrace set fp regs "
+			       "failed, errno = %d\n", errno);
 			fatal_sigsegv();
+		}
 
 		/* Now we set local_using_sysemu to be used for one loop */
 		local_using_sysemu = get_using_sysemu();
