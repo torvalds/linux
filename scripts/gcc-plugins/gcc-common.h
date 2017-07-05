@@ -63,6 +63,13 @@
 #endif
 
 #if BUILDING_GCC_VERSION >= 4006
+/*
+ * The c-family headers were moved into a subdirectory in GCC version
+ * 4.7, but most plugin-building users of GCC 4.6 are using the Debian
+ * or Ubuntu package, which has an out-of-tree patch to move this to the
+ * same location as found in 4.7 and later:
+ * https://sources.debian.net/src/gcc-4.6/4.6.3-14/debian/patches/pr45078.diff/
+ */
 #include "c-family/c-common.h"
 #else
 #include "c-common.h"
@@ -944,6 +951,11 @@ static inline void debug_gimple_stmt(const_gimple s)
 #if BUILDING_GCC_VERSION >= 7000
 #define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep, keep_aligning)	\
 	get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep)
+#endif
+
+#if BUILDING_GCC_VERSION < 7000
+#define SET_DECL_ALIGN(decl, align)	DECL_ALIGN(decl) = (align)
+#define SET_DECL_MODE(decl, mode)	DECL_MODE(decl) = (mode)
 #endif
 
 #endif
