@@ -1374,7 +1374,7 @@ static int s5k5baf_get_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
-	static enum selection_rect rtype;
+	enum selection_rect rtype;
 	struct s5k5baf *state = to_s5k5baf(sd);
 
 	rtype = s5k5baf_get_sel_rect(sel->pad, sel->target);
