@@ -140,6 +140,7 @@ enum {
 				(1 << MTIP_PF_SE_ACTIVE_BIT) |
 				(1 << MTIP_PF_DM_ACTIVE_BIT) |
 				(1 << MTIP_PF_TO_ACTIVE_BIT)),
+	MTIP_PF_HOST_CAP_64         = 10, /* cache HOST_CAP_64 */
 
 	MTIP_PF_SVC_THD_ACTIVE_BIT  = 4,
 	MTIP_PF_ISSUE_CMDS_BIT      = 5,

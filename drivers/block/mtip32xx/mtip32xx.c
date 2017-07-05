@@ -174,7 +174,6 @@ static void mtip_init_cmd_header(struct request *rq)
 {
 	struct driver_data *dd = rq->q->queuedata;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-	u32 host_cap_64 = readl(dd->mmio + HOST_CAP) & HOST_CAP_64;
 
 	/* Point the command headers at the command tables. */
 	cmd->command_header = dd->port->command_list +
@@ -182,7 +181,7 @@ static void mtip_init_cmd_header(struct request *rq)
 	cmd->command_header_dma = dd->port->command_list_dma +
 				(sizeof(struct mtip_cmd_hdr) * rq->tag);
 
-	if (host_cap_64)
+	if (test_bit(MTIP_PF_HOST_CAP_64, &dd->port->flags))
 		cmd->command_header->ctbau = __force_bit2int cpu_to_le32((cmd->command_dma >> 16) >> 16);
 
 	cmd->command_header->ctba = __force_bit2int cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
@@ -386,6 +385,7 @@ static void mtip_init_port(struct mtip_port *port)
 			 port->mmio + PORT_LST_ADDR_HI);
 		writel((port->rxfis_dma >> 16) >> 16,
 			 port->mmio + PORT_FIS_ADDR_HI);
+		set_bit(MTIP_PF_HOST_CAP_64, &port->flags);
 	}
 
 	writel(port->command_list_dma & 0xFFFFFFFF,
