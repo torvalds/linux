@@ -272,9 +272,6 @@ static int nvme_rdma_reinit_request(void *data, struct request *rq)
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 	int ret = 0;
 
-	if (!req->mr->need_inval)
-		goto out;
-
 	ib_dereg_mr(req->mr);
 
 	req->mr = ib_alloc_mr(dev->pd, IB_MR_TYPE_MEM_REG,
