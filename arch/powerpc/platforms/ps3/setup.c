@@ -104,20 +104,6 @@ static void __noreturn ps3_halt(void)
 	ps3_sys_manager_halt(); /* never returns */
 }
 
-static void ps3_panic(char *str)
-{
-	DBG("%s:%d %s\n", __func__, __LINE__, str);
-
-	smp_send_stop();
-	printk("\n");
-	printk("   System does not reboot automatically.\n");
-	printk("   Please press POWER button.\n");
-	printk("\n");
-
-	while(1)
-		lv1_pause(1);
-}
-
 #if defined(CONFIG_FB_PS3) || defined(CONFIG_FB_PS3_MODULE) || \
     defined(CONFIG_PS3_FLASH) || defined(CONFIG_PS3_FLASH_MODULE)
 static void __init prealloc(struct ps3_prealloc *p)
@@ -269,7 +255,6 @@ define_machine(ps3) {
 	.probe				= ps3_probe,
 	.setup_arch			= ps3_setup_arch,
 	.init_IRQ			= ps3_init_IRQ,
-	.panic				= ps3_panic,
 	.get_boot_time			= ps3_get_boot_time,
 	.set_dabr			= ps3_set_dabr,
 	.calibrate_decr			= ps3_calibrate_decr,
