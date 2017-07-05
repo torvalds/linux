@@ -349,48 +349,48 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 	switch (record->type) {
 	case PSTORE_TYPE_DMESG:
-		scnprintf(name, sizeof(name), "dmesg-%s-%lld%s",
+		scnprintf(name, sizeof(name), "dmesg-%s-%llu%s",
 			  record->psi->name, record->id,
 			  record->compressed ? ".enc.z" : "");
 		break;
 	case PSTORE_TYPE_CONSOLE:
-		scnprintf(name, sizeof(name), "console-%s-%lld",
+		scnprintf(name, sizeof(name), "console-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_FTRACE:
-		scnprintf(name, sizeof(name), "ftrace-%s-%lld",
+		scnprintf(name, sizeof(name), "ftrace-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_MCE:
-		scnprintf(name, sizeof(name), "mce-%s-%lld",
+		scnprintf(name, sizeof(name), "mce-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_RTAS:
-		scnprintf(name, sizeof(name), "rtas-%s-%lld",
+		scnprintf(name, sizeof(name), "rtas-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_OF:
-		scnprintf(name, sizeof(name), "powerpc-ofw-%s-%lld",
+		scnprintf(name, sizeof(name), "powerpc-ofw-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_COMMON:
-		scnprintf(name, sizeof(name), "powerpc-common-%s-%lld",
+		scnprintf(name, sizeof(name), "powerpc-common-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PMSG:
-		scnprintf(name, sizeof(name), "pmsg-%s-%lld",
+		scnprintf(name, sizeof(name), "pmsg-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_PPC_OPAL:
-		scnprintf(name, sizeof(name), "powerpc-opal-%s-%lld",
+		scnprintf(name, sizeof(name), "powerpc-opal-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	case PSTORE_TYPE_UNKNOWN:
-		scnprintf(name, sizeof(name), "unknown-%s-%lld",
+		scnprintf(name, sizeof(name), "unknown-%s-%llu",
 			  record->psi->name, record->id);
 		break;
 	default:
-		scnprintf(name, sizeof(name), "type%d-%s-%lld",
+		scnprintf(name, sizeof(name), "type%d-%s-%llu",
 			  record->type, record->psi->name, record->id);
 		break;
 	}
