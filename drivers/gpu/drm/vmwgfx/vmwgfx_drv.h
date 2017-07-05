@@ -40,6 +40,7 @@
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
+#include <linux/sync_file.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DATE "20170607"
@@ -826,7 +827,8 @@ extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       uint32_t dx_context_handle,
 			       struct drm_vmw_fence_rep __user
 			       *user_fence_rep,
-			       struct vmw_fence_obj **out_fence);
+			       struct vmw_fence_obj **out_fence,
+			       uint32_t flags);
 extern void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 					    struct vmw_fence_obj *fence);
 extern void vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv);
@@ -841,7 +843,9 @@ extern void vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 					struct drm_vmw_fence_rep __user
 					*user_fence_rep,
 					struct vmw_fence_obj *fence,
-					uint32_t fence_handle);
+					uint32_t fence_handle,
+					int32_t out_fence_fd,
+					struct sync_file *sync_file);
 extern int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 				      struct ttm_buffer_object *bo,
 				      bool interruptible,

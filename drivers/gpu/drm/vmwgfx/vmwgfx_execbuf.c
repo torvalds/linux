@@ -3830,6 +3830,8 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
  * which the information should be copied.
  * @fence: Pointer to the fenc object.
  * @fence_handle: User-space fence handle.
+ * @out_fence_fd: exported file descriptor for the fence.  -1 if not used
+ * @sync_file:  Only used to clean up in case of an error in this function.
  *
  * This function copies fence information to user-space. If copying fails,
  * The user-space struct drm_vmw_fence_rep::error member is hopefully
@@ -3845,7 +3847,9 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 			    int ret,
 			    struct drm_vmw_fence_rep __user *user_fence_rep,
 			    struct vmw_fence_obj *fence,
-			    uint32_t fence_handle)
+			    uint32_t fence_handle,
+			    int32_t out_fence_fd,
+			    struct sync_file *sync_file)
 {
 	struct drm_vmw_fence_rep fence_rep;
 
@@ -3855,6 +3859,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 	memset(&fence_rep, 0, sizeof(fence_rep));
 
 	fence_rep.error = ret;
+	fence_rep.fd = out_fence_fd;
 	if (ret == 0) {
 		BUG_ON(fence == NULL);
 
@@ -3877,6 +3882,14 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 	 * and unreference the handle.
 	 */
 	if (unlikely(ret != 0) && (fence_rep.error == 0)) {
+		if (sync_file)
+			fput(sync_file->file);
+
+		if (fence_rep.fd != -1) {
+			put_unused_fd(fence_rep.fd);
+			fence_rep.fd = -1;
+		}
+
 		ttm_ref_object_base_unref(vmw_fp->tfile,
 					  fence_handle, TTM_REF_USAGE);
 		DRM_ERROR("Fence copy error. Syncing.\n");
@@ -4052,7 +4065,8 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 			uint64_t throttle_us,
 			uint32_t dx_context_handle,
 			struct drm_vmw_fence_rep __user *user_fence_rep,
-			struct vmw_fence_obj **out_fence)
+			struct vmw_fence_obj **out_fence,
+			uint32_t flags)
 {
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
 	struct vmw_fence_obj *fence = NULL;
@@ -4062,20 +4076,33 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	struct ww_acquire_ctx ticket;
 	uint32_t handle;
 	int ret;
+	int32_t out_fence_fd = -1;
+	struct sync_file *sync_file = NULL;
+
+
+	if (flags & DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD) {
+		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
+		if (out_fence_fd < 0) {
+			DRM_ERROR("Failed to get a fence file descriptor.\n");
+			return out_fence_fd;
+		}
+	}
 
 	if (throttle_us) {
 		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
 				   throttle_us);
 
 		if (ret)
-			return ret;
+			goto out_free_fence_fd;
 	}
 
 	kernel_commands = vmw_execbuf_cmdbuf(dev_priv, user_commands,
 					     kernel_commands, command_size,
 					     &header);
-	if (IS_ERR(kernel_commands))
-		return PTR_ERR(kernel_commands);
+	if (IS_ERR(kernel_commands)) {
+		ret = PTR_ERR(kernel_commands);
+		goto out_free_fence_fd;
+	}
 
 	ret = mutex_lock_interruptible(&dev_priv->cmdbuf_mutex);
 	if (ret) {
@@ -4211,8 +4238,32 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 		__vmw_execbuf_release_pinned_bo(dev_priv, fence);
 
 	vmw_clear_validations(sw_context);
+
+	/*
+	 * If anything fails here, give up trying to export the fence
+	 * and do a sync since the user mode will not be able to sync
+	 * the fence itself.  This ensures we are still functionally
+	 * correct.
+	 */
+	if (flags & DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD) {
+
+		sync_file = sync_file_create(&fence->base);
+		if (!sync_file) {
+			DRM_ERROR("Unable to create sync file for fence\n");
+			put_unused_fd(out_fence_fd);
+			out_fence_fd = -1;
+
+			(void) vmw_fence_obj_wait(fence, false, false,
+						  VMW_FENCE_WAIT_TIMEOUT);
+		} else {
+			/* Link the fence with the FD created earlier */
+			fd_install(out_fence_fd, sync_file->file);
+		}
+	}
+
 	vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv), ret,
-				    user_fence_rep, fence, handle);
+				    user_fence_rep, fence, handle,
+				    out_fence_fd, sync_file);
 
 	/* Don't unreference when handing fence out */
 	if (unlikely(out_fence != NULL)) {
@@ -4263,6 +4314,9 @@ out_unlock:
 out_free_header:
 	if (header)
 		vmw_cmdbuf_header_free(header);
+out_free_fence_fd:
+	if (out_fence_fd >= 0)
+		put_unused_fd(out_fence_fd);
 
 	return ret;
 }
@@ -4479,7 +4533,8 @@ int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,
 				  NULL, arg.command_size, arg.throttle_us,
 				  arg.context_handle,
 				  (void __user *)(unsigned long)arg.fence_rep,
-				  NULL);
+				  NULL,
+				  arg.flags);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 	if (unlikely(ret != 0))
 		goto out;

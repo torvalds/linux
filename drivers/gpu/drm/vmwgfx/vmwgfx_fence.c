@@ -1150,7 +1150,7 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 	}
 
 	vmw_execbuf_copy_fence_user(dev_priv, vmw_fp, 0, user_fence_rep, fence,
-				    handle);
+				    handle, -1, NULL);
 	vmw_fence_obj_unreference(&fence);
 	return 0;
 out_no_create:
