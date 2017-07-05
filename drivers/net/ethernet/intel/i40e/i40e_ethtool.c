@@ -147,6 +147,7 @@ static const struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("VF_admin_queue_requests", vf_aq_requests),
 	I40E_PF_STAT("arq_overflows", arq_overflows),
 	I40E_PF_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+	I40E_PF_STAT("tx_hwtstamp_skipped", tx_hwtstamp_skipped),
 	I40E_PF_STAT("fdir_flush_cnt", fd_flush_cnt),
 	I40E_PF_STAT("fdir_atr_match", stats.fd_atr_match),
 	I40E_PF_STAT("fdir_atr_tunnel_match", stats.fd_atr_tunnel_match),
@@ -1298,6 +1299,17 @@ static void i40e_get_ringparam(struct net_device *netdev,
 	ring->rx_jumbo_pending = 0;
 }
 
+static bool i40e_active_tx_ring_index(struct i40e_vsi *vsi, u16 index)
+{
+	if (i40e_enabled_xdp_vsi(vsi)) {
+		return index < vsi->num_queue_pairs ||
+			(index >= vsi->alloc_queue_pairs &&
+			 index < vsi->alloc_queue_pairs + vsi->num_queue_pairs);
+	}
+
+	return index < vsi->num_queue_pairs;
+}
+
 static int i40e_set_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring)
 {
@@ -1307,6 +1319,7 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
 	u32 new_rx_count, new_tx_count;
+	u16 tx_alloc_queue_pairs;
 	int timeout = 50;
 	int i, err = 0;
 
@@ -1344,6 +1357,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			vsi->tx_rings[i]->count = new_tx_count;
 			vsi->rx_rings[i]->count = new_rx_count;
+			if (i40e_enabled_xdp_vsi(vsi))
+				vsi->xdp_rings[i]->count = new_tx_count;
 		}
 		goto done;
 	}
@@ -1353,20 +1368,24 @@ static int i40e_set_ringparam(struct net_device *netdev,
 	 * to the Tx and Rx ring structs.
 	 */
 
-	/* alloc updated Tx resources */
+	/* alloc updated Tx and XDP Tx resources */
+	tx_alloc_queue_pairs = vsi->alloc_queue_pairs *
+			       (i40e_enabled_xdp_vsi(vsi) ? 2 : 1);
 	if (new_tx_count != vsi->tx_rings[0]->count) {
 		netdev_info(netdev,
 			    "Changing Tx descriptor count from %d to %d.\n",
 			    vsi->tx_rings[0]->count, new_tx_count);
-		tx_rings = kcalloc(vsi->alloc_queue_pairs,
+		tx_rings = kcalloc(tx_alloc_queue_pairs,
 				   sizeof(struct i40e_ring), GFP_KERNEL);
 		if (!tx_rings) {
 			err = -ENOMEM;
 			goto done;
 		}
 
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			/* clone ring and setup updated count */
+		for (i = 0; i < tx_alloc_queue_pairs; i++) {
+			if (!i40e_active_tx_ring_index(vsi, i))
+				continue;
+
 			tx_rings[i] = *vsi->tx_rings[i];
 			tx_rings[i].count = new_tx_count;
 			/* the desc and bi pointers will be reallocated in the
@@ -1378,6 +1397,8 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			if (err) {
 				while (i) {
 					i--;
+					if (!i40e_active_tx_ring_index(vsi, i))
+						continue;
 					i40e_free_tx_resources(&tx_rings[i]);
 				}
 				kfree(tx_rings);
@@ -1445,9 +1466,11 @@ rx_unwind:
 	i40e_down(vsi);
 
 	if (tx_rings) {
-		for (i = 0; i < vsi->num_queue_pairs; i++) {
-			i40e_free_tx_resources(vsi->tx_rings[i]);
-			*vsi->tx_rings[i] = tx_rings[i];
+		for (i = 0; i < tx_alloc_queue_pairs; i++) {
+			if (i40e_active_tx_ring_index(vsi, i)) {
+				i40e_free_tx_resources(vsi->tx_rings[i]);
+				*vsi->tx_rings[i] = tx_rings[i];
+			}
 		}
 		kfree(tx_rings);
 		tx_rings = NULL;
@@ -1478,8 +1501,10 @@ rx_unwind:
 free_tx:
 	/* error cleanup if the Rx allocations failed after getting Tx */
 	if (tx_rings) {
-		for (i = 0; i < vsi->num_queue_pairs; i++)
-			i40e_free_tx_resources(&tx_rings[i]);
+		for (i = 0; i < tx_alloc_queue_pairs; i++) {
+			if (i40e_active_tx_ring_index(vsi, i))
+				i40e_free_tx_resources(vsi->tx_rings[i]);
+		}
 		kfree(tx_rings);
 		tx_rings = NULL;
 	}
@@ -2685,6 +2710,12 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 		   ((u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1)) << 32);
 	u8 flow_pctype = 0;
 	u64 i_set, i_setc;
+
+	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+		dev_err(&pf->pdev->dev,
+			"Change of RSS hash input set is not supported when MFP mode is enabled\n");
+		return -EOPNOTSUPP;
+	}
 
 	/* RSS does not support anything other than hashing
 	 * to queues on src and dst IPs and ports

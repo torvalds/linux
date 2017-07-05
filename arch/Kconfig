@@ -425,7 +425,7 @@ config GCC_PLUGIN_STRUCTLEAK
 	bool "Force initialization of variables containing userspace addresses"
 	depends on GCC_PLUGINS
 	help
-	  This plugin zero-initializes any structures that containing a
+	  This plugin zero-initializes any structures containing a
 	  __user attribute. This can prevent some classes of information
 	  exposures.
 
@@ -442,6 +442,45 @@ config GCC_PLUGIN_STRUCTLEAK_VERBOSE
 	  structleak plugin finds a variable it thinks needs to be
 	  initialized. Since not all existing initializers are detected
 	  by the plugin, this can produce false positive warnings.
+
+config GCC_PLUGIN_RANDSTRUCT
+	bool "Randomize layout of sensitive kernel structures"
+	depends on GCC_PLUGINS
+	select MODVERSIONS if MODULES
+	help
+	  If you say Y here, the layouts of structures explicitly
+	  marked by __randomize_layout will be randomized at
+	  compile-time.  This can introduce the requirement of an
+	  additional information exposure vulnerability for exploits
+	  targeting these structure types.
+
+	  Enabling this feature will introduce some performance impact,
+	  slightly increase memory usage, and prevent the use of forensic
+	  tools like Volatility against the system (unless the kernel
+	  source tree isn't cleaned after kernel installation).
+
+	  The seed used for compilation is located at
+	  scripts/gcc-plgins/randomize_layout_seed.h.  It remains after
+	  a make clean to allow for external modules to be compiled with
+	  the existing seed and will be removed by a make mrproper or
+	  make distclean.
+
+	  Note that the implementation requires gcc 4.7 or newer.
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
+config GCC_PLUGIN_RANDSTRUCT_PERFORMANCE
+	bool "Use cacheline-aware structure randomization"
+	depends on GCC_PLUGIN_RANDSTRUCT
+	depends on !COMPILE_TEST
+	help
+	  If you say Y here, the RANDSTRUCT randomization will make a
+	  best effort at restricting randomization to cacheline-sized
+	  groups of elements.  It will further not randomize bitfields
+	  in structures.  This reduces the performance hit of RANDSTRUCT
+	  at the cost of weakened randomization.
 
 config HAVE_CC_STACKPROTECTOR
 	bool
@@ -866,5 +905,14 @@ config STRICT_MODULE_RWX
 
 config ARCH_WANT_RELAX_ORDER
 	bool
+
+config REFCOUNT_FULL
+	bool "Perform full reference count validation at the expense of speed"
+	help
+	  Enabling this switches the refcounting infrastructure from a fast
+	  unchecked atomic_t implementation to a fully state checked
+	  implementation, which can be (slightly) slower but provides protections
+	  against various use-after-free conditions that can be used in
+	  security flaw exploits.
 
 source "kernel/gcov/Kconfig"

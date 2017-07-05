@@ -83,7 +83,7 @@ static
 struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 {
 	int i;
-	bool peer_is_smaller = (conn->c_faddr < conn->c_laddr);
+	bool peer_is_smaller = IS_CANONICAL(conn->c_faddr, conn->c_laddr);
 	int npaths = max_t(int, 1, conn->c_npaths);
 
 	/* for mprds, all paths MUST be initiated by the peer
@@ -110,6 +110,17 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 		}
 	}
 	return NULL;
+}
+
+void rds_tcp_set_linger(struct socket *sock)
+{
+	struct linger no_linger = {
+		.l_onoff = 1,
+		.l_linger = 0,
+	};
+
+	kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
+			  (char *)&no_linger, sizeof(no_linger));
 }
 
 int rds_tcp_accept_one(struct socket *sock)
@@ -171,30 +182,27 @@ int rds_tcp_accept_one(struct socket *sock)
 	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_ERROR)
 		goto rst_nsk;
 	if (rs_tcp->t_sock) {
-		/* Need to resolve a duelling SYN between peers.
-		 * We have an outstanding SYN to this peer, which may
-		 * potentially have transitioned to the RDS_CONN_UP state,
-		 * so we must quiesce any send threads before resetting
-		 * c_transport_data.
-		 */
-		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
-		    !cp->cp_outgoing) {
-			goto rst_nsk;
-		} else {
-			rds_tcp_reset_callbacks(new_sock, cp);
-			cp->cp_outgoing = 0;
-			/* rds_connect_path_complete() marks RDS_CONN_UP */
-			rds_connect_path_complete(cp, RDS_CONN_RESETTING);
-		}
+		/* Duelling SYN has been handled in rds_tcp_accept_one() */
+		rds_tcp_reset_callbacks(new_sock, cp);
+		/* rds_connect_path_complete() marks RDS_CONN_UP */
+		rds_connect_path_complete(cp, RDS_CONN_RESETTING);
 	} else {
 		rds_tcp_set_callbacks(new_sock, cp);
 		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
 	}
 	new_sock = NULL;
 	ret = 0;
+	if (conn->c_npaths == 0)
+		rds_send_ping(cp->cp_conn, cp->cp_index);
 	goto out;
 rst_nsk:
-	/* reset the newly returned accept sock and bail */
+	/* reset the newly returned accept sock and bail.
+	 * It is safe to set linger on new_sock because the RDS connection
+	 * has not been brought up on new_sock, so no RDS-level data could
+	 * be pending on it. By setting linger, we achieve the side-effect
+	 * of avoiding TIME_WAIT state on new_sock.
+	 */
+	rds_tcp_set_linger(new_sock);
 	kernel_sock_shutdown(new_sock, SHUT_RDWR);
 	ret = 0;
 out:

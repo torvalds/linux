@@ -99,7 +99,6 @@ MODULE_PARM_DESC(bufsiz, "data bytes in biggest supported SPI message");
 static ssize_t
 spidev_sync(struct spidev_data *spidev, struct spi_message *message)
 {
-	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
 	struct spi_device *spi;
 
@@ -325,7 +324,6 @@ static struct spi_ioc_transfer *
 spidev_get_ioc_message(unsigned int cmd, struct spi_ioc_transfer __user *u_ioc,
 		unsigned *n_ioc)
 {
-	struct spi_ioc_transfer	*ioc;
 	u32	tmp;
 
 	/* Check type, command number and direction */
@@ -342,14 +340,7 @@ spidev_get_ioc_message(unsigned int cmd, struct spi_ioc_transfer __user *u_ioc,
 		return NULL;
 
 	/* copy into scratch area */
-	ioc = kmalloc(tmp, GFP_KERNEL);
-	if (!ioc)
-		return ERR_PTR(-ENOMEM);
-	if (__copy_from_user(ioc, u_ioc, tmp)) {
-		kfree(ioc);
-		return ERR_PTR(-EFAULT);
-	}
-	return ioc;
+	return memdup_user(u_ioc, tmp);
 }
 
 static long

@@ -296,7 +296,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle *rule;
 	int err = 0;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 	err = set_flow_attrs(spec->match_criteria, spec->match_value,

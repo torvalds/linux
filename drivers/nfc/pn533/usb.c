@@ -75,8 +75,8 @@ static void pn533_recv_response(struct urb *urb)
 		if (!skb) {
 			nfc_err(&phy->udev->dev, "failed to alloc memory\n");
 		} else {
-			memcpy(skb_put(skb, urb->actual_length),
-			       urb->transfer_buffer, urb->actual_length);
+			skb_put_data(skb, urb->transfer_buffer,
+				     urb->actual_length);
 		}
 	}
 

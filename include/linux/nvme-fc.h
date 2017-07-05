@@ -177,7 +177,6 @@ struct fcnvme_lsdesc_rjt {
 };
 
 
-#define FCNVME_ASSOC_HOSTID_LEN		16
 #define FCNVME_ASSOC_HOSTNQN_LEN	256
 #define FCNVME_ASSOC_SUBNQN_LEN		256
 
@@ -191,7 +190,7 @@ struct fcnvme_lsdesc_cr_assoc_cmd {
 	__be16	cntlid;
 	__be16	sqsize;
 	__be32	rsvd52;
-	u8	hostid[FCNVME_ASSOC_HOSTID_LEN];
+	uuid_t	hostid;
 	u8	hostnqn[FCNVME_ASSOC_HOSTNQN_LEN];
 	u8	subnqn[FCNVME_ASSOC_SUBNQN_LEN];
 	u8	rsvd632[384];

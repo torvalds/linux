@@ -92,9 +92,9 @@ struct btrfs_inode;
 struct btrfs_io_bio;
 struct io_failure_record;
 
-typedef	int (extent_submit_bio_hook_t)(struct inode *inode, struct bio *bio,
-				       int mirror_num, unsigned long bio_flags,
-				       u64 bio_offset);
+typedef	blk_status_t (extent_submit_bio_hook_t)(struct inode *inode,
+		struct bio *bio, int mirror_num, unsigned long bio_flags,
+		u64 bio_offset);
 struct extent_io_ops {
 	/*
 	 * The following callbacks must be allways defined, the function

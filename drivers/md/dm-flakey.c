@@ -321,7 +321,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		if (bio_data_dir(bio) == READ) {
 			if (!fc->corrupt_bio_byte && !test_bit(DROP_WRITES, &fc->flags) &&
 			    !test_bit(ERROR_WRITES, &fc->flags))
-				return -EIO;
+				return DM_MAPIO_KILL;
 			goto map_bio;
 		}
 
@@ -349,7 +349,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		/*
 		 * By default, error all I/O.
 		 */
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 map_bio:
@@ -358,12 +358,13 @@ map_bio:
 	return DM_MAPIO_REMAPPED;
 }
 
-static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int flakey_end_io(struct dm_target *ti, struct bio *bio,
+		blk_status_t *error)
 {
 	struct flakey_c *fc = ti->private;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 
-	if (!error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
+	if (!*error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
 		if (fc->corrupt_bio_byte && (fc->corrupt_bio_rw == READ) &&
 		    all_corrupt_bio_flags_match(bio, fc)) {
 			/*
@@ -377,11 +378,11 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 			 * Error read during the down_interval if drop_writes
 			 * and error_writes were not configured.
 			 */
-			return -EIO;
+			*error = BLK_STS_IOERR;
 		}
 	}
 
-	return error;
+	return DM_ENDIO_DONE;
 }
 
 static void flakey_status(struct dm_target *ti, status_type_t type,

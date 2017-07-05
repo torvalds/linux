@@ -1508,6 +1508,10 @@ static int create_qp(struct ib_uverbs_file *file,
 	}
 
 	if (cmd->qp_type != IB_QPT_XRC_TGT) {
+		ret = ib_create_qp_security(qp, device);
+		if (ret)
+			goto err_cb;
+
 		qp->real_qp	  = qp;
 		qp->device	  = device;
 		qp->pd		  = pd;
@@ -2002,14 +2006,17 @@ static int modify_qp(struct ib_uverbs_file *file,
 			if (ret)
 				goto release_qp;
 		}
-		ret = qp->device->modify_qp(qp, attr,
+		ret = ib_security_modify_qp(qp,
+					    attr,
 					    modify_qp_mask(qp->qp_type,
 							   cmd->base.attr_mask),
 					    udata);
 	} else {
-		ret = ib_modify_qp(qp, attr,
-				   modify_qp_mask(qp->qp_type,
-						  cmd->base.attr_mask));
+		ret = ib_security_modify_qp(qp,
+					    attr,
+					    modify_qp_mask(qp->qp_type,
+							   cmd->base.attr_mask),
+					    NULL);
 	}
 
 release_qp:

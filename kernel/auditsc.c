@@ -1261,6 +1261,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 		audit_log_cap(ab, "cap_pi", &context->capset.cap.inheritable);
 		audit_log_cap(ab, "cap_pp", &context->capset.cap.permitted);
 		audit_log_cap(ab, "cap_pe", &context->capset.cap.effective);
+		audit_log_cap(ab, "cap_pa", &context->capset.cap.ambient);
 		break;
 	case AUDIT_MMAP:
 		audit_log_format(ab, "fd=%d flags=0x%x", context->mmap.fd,
@@ -1382,9 +1383,11 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			audit_log_cap(ab, "old_pp", &axs->old_pcap.permitted);
 			audit_log_cap(ab, "old_pi", &axs->old_pcap.inheritable);
 			audit_log_cap(ab, "old_pe", &axs->old_pcap.effective);
-			audit_log_cap(ab, "new_pp", &axs->new_pcap.permitted);
-			audit_log_cap(ab, "new_pi", &axs->new_pcap.inheritable);
-			audit_log_cap(ab, "new_pe", &axs->new_pcap.effective);
+			audit_log_cap(ab, "old_pa", &axs->old_pcap.ambient);
+			audit_log_cap(ab, "pp", &axs->new_pcap.permitted);
+			audit_log_cap(ab, "pi", &axs->new_pcap.inheritable);
+			audit_log_cap(ab, "pe", &axs->new_pcap.effective);
+			audit_log_cap(ab, "pa", &axs->new_pcap.ambient);
 			break; }
 
 		}
@@ -2342,10 +2345,12 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	ax->old_pcap.permitted   = old->cap_permitted;
 	ax->old_pcap.inheritable = old->cap_inheritable;
 	ax->old_pcap.effective   = old->cap_effective;
+	ax->old_pcap.ambient     = old->cap_ambient;
 
 	ax->new_pcap.permitted   = new->cap_permitted;
 	ax->new_pcap.inheritable = new->cap_inheritable;
 	ax->new_pcap.effective   = new->cap_effective;
+	ax->new_pcap.ambient     = new->cap_ambient;
 	return 0;
 }
 
@@ -2364,6 +2369,7 @@ void __audit_log_capset(const struct cred *new, const struct cred *old)
 	context->capset.cap.effective   = new->cap_effective;
 	context->capset.cap.inheritable = new->cap_effective;
 	context->capset.cap.permitted   = new->cap_permitted;
+	context->capset.cap.ambient     = new->cap_ambient;
 	context->type = AUDIT_CAPSET;
 }
 

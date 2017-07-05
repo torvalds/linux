@@ -330,7 +330,8 @@ field##_show(struct device *dev,					\
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);		\
 									\
 	return sprintf(buf, format_string, rpdev->path);		\
-}
+}									\
+static DEVICE_ATTR_RO(field);
 
 /* for more info, see Documentation/ABI/testing/sysfs-bus-rpmsg */
 rpmsg_show_attr(name, id.name, "%s\n");
@@ -345,15 +346,17 @@ static ssize_t modalias_show(struct device *dev,
 
 	return sprintf(buf, RPMSG_DEVICE_MODALIAS_FMT "\n", rpdev->id.name);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute rpmsg_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_RO(modalias),
-	__ATTR_RO(dst),
-	__ATTR_RO(src),
-	__ATTR_RO(announce),
-	__ATTR_NULL
+static struct attribute *rpmsg_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_modalias.attr,
+	&dev_attr_dst.attr,
+	&dev_attr_src.attr,
+	&dev_attr_announce.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(rpmsg_dev);
 
 /* rpmsg devices and drivers are matched using the service name */
 static inline int rpmsg_id_match(const struct rpmsg_device *rpdev,
@@ -455,7 +458,7 @@ static int rpmsg_dev_remove(struct device *dev)
 static struct bus_type rpmsg_bus = {
 	.name		= "rpmsg",
 	.match		= rpmsg_dev_match,
-	.dev_attrs	= rpmsg_dev_attrs,
+	.dev_groups	= rpmsg_dev_groups,
 	.uevent		= rpmsg_uevent,
 	.probe		= rpmsg_dev_probe,
 	.remove		= rpmsg_dev_remove,

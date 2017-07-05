@@ -16,7 +16,6 @@
 #include <dt-bindings/regulator/maxim,max77802.h>
 #include "exynos5420.dtsi"
 #include "exynos5420-cpus.dtsi"
-#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Google Peach Pit Rev 6+";
@@ -604,7 +603,7 @@
 	max98090: codec@10 {
 		compatible = "maxim,max98090";
 		reg = <0x10>;
-		interrupts = <2 0>;
+		interrupts = <2 IRQ_TYPE_NONE>;
 		interrupt-parent = <&gpx0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max98090_irq>;
@@ -945,7 +944,7 @@
 	cros_ec: cros-ec@0 {
 		compatible = "google,cros-ec-spi";
 		interrupt-parent = <&gpx1>;
-		interrupts = <5 0>;
+		interrupts = <5 IRQ_TYPE_NONE>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ec_spi_cs &ec_irq>;
 		reg = <0>;

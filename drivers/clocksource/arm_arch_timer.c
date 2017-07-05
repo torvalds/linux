@@ -1194,8 +1194,8 @@ static int __init arch_timer_of_init(struct device_node *np)
 
 	return arch_timer_common_init();
 }
-CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
-CLOCKSOURCE_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
+TIMER_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
+TIMER_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
 
 static u32 __init
 arch_timer_mem_frame_get_cntfrq(struct arch_timer_mem_frame *frame)
@@ -1382,7 +1382,7 @@ out:
 	kfree(timer_mem);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
+TIMER_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_of_init);
 
 #ifdef CONFIG_ACPI_GTDT
@@ -1516,5 +1516,5 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 
 	return arch_timer_common_init();
 }
-CLOCKSOURCE_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
+TIMER_ACPI_DECLARE(arch_timer, ACPI_SIG_GTDT, arch_timer_acpi_init);
 #endif

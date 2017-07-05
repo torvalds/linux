@@ -44,11 +44,11 @@ static struct sk_buff *create_monitor_ctrl_event(__le16 index, u32 cookie,
 	put_unaligned_le16(opcode, skb_put(skb, 2));
 
 	if (buf)
-		memcpy(skb_put(skb, len), buf, len);
+		skb_put_data(skb, buf, len);
 
 	__net_timestamp(skb);
 
-	hdr = (void *)skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr = skb_push(skb, HCI_MON_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(HCI_MON_CTRL_EVENT);
 	hdr->index = index;
 	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
@@ -66,7 +66,7 @@ int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->opcode = cpu_to_le16(event);
 	if (hdev)
 		hdr->index = cpu_to_le16(hdev->id);
@@ -75,7 +75,7 @@ int mgmt_send_event(u16 event, struct hci_dev *hdev, unsigned short channel,
 	hdr->len = cpu_to_le16(data_len);
 
 	if (data)
-		memcpy(skb_put(skb, data_len), data, data_len);
+		skb_put_data(skb, data, data_len);
 
 	/* Time stamp */
 	__net_timestamp(skb);
@@ -103,13 +103,13 @@ int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 
 	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_STATUS);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev));
 
-	ev = (void *) skb_put(skb, sizeof(*ev));
+	ev = skb_put(skb, sizeof(*ev));
 	ev->status = status;
 	ev->opcode = cpu_to_le16(cmd);
 
@@ -147,13 +147,13 @@ int mgmt_cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 
 	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev) + rp_len);
 
-	ev = (void *) skb_put(skb, sizeof(*ev) + rp_len);
+	ev = skb_put(skb, sizeof(*ev) + rp_len);
 	ev->opcode = cpu_to_le16(cmd);
 	ev->status = status;
 

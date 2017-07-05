@@ -700,6 +700,13 @@ static void lio_set_msglevel(struct net_device *netdev, u32 msglvl)
 	lio->msg_enable = msglvl;
 }
 
+static void lio_vf_set_msglevel(struct net_device *netdev, u32 msglvl)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	lio->msg_enable = msglvl;
+}
+
 static void
 lio_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 {
@@ -984,11 +991,11 @@ lio_get_ethtool_stats(struct net_device *netdev,
 		data[i++] =
 			CVM_CAST64(oct_dev->instr_queue[j]->stats.instr_posted);
 		/*# of instructions processed */
-		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->
-				       stats.instr_processed);
+		data[i++] = CVM_CAST64(
+				oct_dev->instr_queue[j]->stats.instr_processed);
 		/*# of instructions could not be processed */
-		data[i++] = CVM_CAST64(oct_dev->instr_queue[j]->
-				       stats.instr_dropped);
+		data[i++] = CVM_CAST64(
+				oct_dev->instr_queue[j]->stats.instr_dropped);
 		/*bytes sent through the queue */
 		data[i++] =
 			CVM_CAST64(oct_dev->instr_queue[j]->stats.bytes_sent);
@@ -1801,7 +1808,7 @@ oct_cfg_rx_intrcnt(struct lio *lio,
 			    (octeon_read_csr64(
 				 oct, CN23XX_VF_SLI_OQ_PKT_INT_LEVELS(q_no)) &
 			     (0x3fffff00000000UL)) |
-				rx_max_coalesced_frames);
+				(rx_max_coalesced_frames - 1));
 			/*consider writing to resend bit here*/
 		}
 		intrmod->rx_frames = rx_max_coalesced_frames;
@@ -2611,7 +2618,7 @@ static const struct ethtool_ops lio_vf_ethtool_ops = {
 	.get_regs_len		= lio_get_regs_len,
 	.get_regs		= lio_get_regs,
 	.get_msglevel		= lio_get_msglevel,
-	.set_msglevel		= lio_set_msglevel,
+	.set_msglevel		= lio_vf_set_msglevel,
 	.get_sset_count		= lio_vf_get_sset_count,
 	.get_coalesce		= lio_get_intr_coalesce,
 	.set_coalesce		= lio_set_intr_coalesce,

@@ -36,8 +36,8 @@
 #include <rdma/ib_addr.h>
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_chain.h>
-#include <linux/qed/qed_roce_if.h>
-#include <linux/qed/qede_roce.h>
+#include <linux/qed/qed_rdma_if.h>
+#include <linux/qed/qede_rdma.h>
 #include <linux/qed/roce_common.h>
 #include "qedr_hsi_rdma.h"
 
@@ -153,6 +153,8 @@ struct qedr_dev {
 	u32			dp_module;
 	u8			dp_level;
 	u8			num_hwfns;
+	u8			gsi_ll2_handle;
+
 	uint			wq_multiplier;
 	u8			gsi_ll2_mac_address[ETH_ALEN];
 	int			gsi_qp_created;

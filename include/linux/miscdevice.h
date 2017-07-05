@@ -54,6 +54,7 @@
 #define VHOST_NET_MINOR		238
 #define UHID_MINOR		239
 #define USERIO_MINOR		240
+#define VHOST_VSOCK_MINOR	241
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;

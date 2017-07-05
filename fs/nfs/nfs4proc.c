@@ -2589,7 +2589,8 @@ static inline void nfs4_exclusive_attrset(struct nfs4_opendata *opendata,
 
 	/* Except MODE, it seems harmless of setting twice. */
 	if (opendata->o_arg.createmode != NFS4_CREATE_EXCLUSIVE &&
-		attrset[1] & FATTR4_WORD1_MODE)
+		(attrset[1] & FATTR4_WORD1_MODE ||
+		 attrset[2] & FATTR4_WORD2_MODE_UMASK))
 		sattr->ia_valid &= ~ATTR_MODE;
 
 	if (attrset[2] & FATTR4_WORD2_SECURITY_LABEL)
@@ -6372,7 +6373,7 @@ struct nfs4_lock_waiter {
 };
 
 static int
-nfs4_wake_lock_waiter(wait_queue_t *wait, unsigned int mode, int flags, void *key)
+nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, void *key)
 {
 	int ret;
 	struct cb_notify_lock_args *cbnl = key;
@@ -6415,7 +6416,7 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 					   .inode = state->inode,
 					   .owner = &owner,
 					   .notified = false };
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	/* Don't bother with waitqueue if we don't expect a callback */
 	if (!test_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags))
@@ -8416,6 +8417,7 @@ static void nfs4_layoutget_release(void *calldata)
 	size_t max_pages = max_response_pages(server);
 
 	dprintk("--> %s\n", __func__);
+	nfs4_sequence_free_slot(&lgp->res.seq_res);
 	nfs4_free_pages(lgp->args.layout.pages, max_pages);
 	pnfs_put_layout_hdr(NFS_I(inode)->layout);
 	put_nfs_open_context(lgp->args.ctx);
@@ -8490,7 +8492,6 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout, gfp_t gfp_flags)
 	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
 	if (status == 0 && lgp->res.layoutp->len)
 		lseg = pnfs_layout_process(lgp);
-	nfs4_sequence_free_slot(&lgp->res.seq_res);
 	rpc_put_task(task);
 	dprintk("<-- %s status=%d\n", __func__, status);
 	if (status)

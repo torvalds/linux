@@ -96,13 +96,14 @@ static struct spk_synth synth_acntsa = {
 	.trigger = 50,
 	.jiffies = 30,
 	.full = 40000,
+	.dev_name = SYNTH_DEFAULT_DEV,
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
-	.io_ops = &spk_serial_io_ops,
+	.io_ops = &spk_ttyio_ops,
 	.probe = synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_serial_synth_immediate,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = spk_synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -125,7 +126,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	int failed;
 
-	failed = spk_serial_synth_probe(synth);
+	failed = spk_ttyio_synth_probe(synth);
 	if (failed == 0) {
 		synth->synth_immediate(synth, "\033=R\r");
 		mdelay(100);
@@ -135,9 +136,11 @@ static int synth_probe(struct spk_synth *synth)
 }
 
 module_param_named(ser, synth_acntsa.ser, int, 0444);
+module_param_named(dev, synth_acntsa.dev_name, charp, S_IRUGO);
 module_param_named(start, synth_acntsa.startup, short, 0444);
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
+MODULE_PARM_DESC(dev, "Set the device e.g. ttyUSB0, for the synthesizer.");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
 module_spk_synth(synth_acntsa);

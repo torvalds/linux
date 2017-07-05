@@ -1146,7 +1146,7 @@ struct page *get_dump_page(unsigned long addr)
 #endif /* CONFIG_ELF_CORE */
 
 /*
- * Generic RCU Fast GUP
+ * Generic Fast GUP
  *
  * get_user_pages_fast attempts to pin user pages by walking the page
  * tables directly and avoids taking locks. Thus the walker needs to be
@@ -1167,8 +1167,8 @@ struct page *get_dump_page(unsigned long addr)
  * Before activating this code, please be aware that the following assumptions
  * are currently made:
  *
- *  *) HAVE_RCU_TABLE_FREE is enabled, and tlb_remove_table is used to free
- *      pages containing page tables.
+ *  *) Either HAVE_RCU_TABLE_FREE is enabled, and tlb_remove_table() is used to
+ *  free pages containing page tables or TLB flushing requires IPI broadcast.
  *
  *  *) ptes can be read atomically by the architecture.
  *
@@ -1178,7 +1178,7 @@ struct page *get_dump_page(unsigned long addr)
  *
  * This code is based heavily on the PowerPC implementation by Nick Piggin.
  */
-#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
+#ifdef CONFIG_HAVE_GENERIC_GUP
 
 #ifndef gup_get_pte
 /*
@@ -1668,4 +1668,4 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	return ret;
 }
 
-#endif /* CONFIG_HAVE_GENERIC_RCU_GUP */
+#endif /* CONFIG_HAVE_GENERIC_GUP */

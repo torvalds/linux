@@ -32,7 +32,13 @@ available subsections can be seen below.
    i2c
    hsi
    edac
+   scsi
+   libata
+   mtdnand
    miscellaneous
+   w1
+   rapidio
+   s390-drivers
    vme
    80211/index
    uio-howto

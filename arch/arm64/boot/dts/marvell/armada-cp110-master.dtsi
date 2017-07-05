@@ -44,45 +44,46 @@
  * Device Tree file for Marvell Armada CP110 Master.
  */
 
+#define ICU_GRP_NSR 0x0
+
 / {
 	cp110-master {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		compatible = "simple-bus";
-		interrupt-parent = <&gic>;
+		interrupt-parent = <&cpm_icu>;
 		ranges;
 
 		config-space@f2000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
-			interrupt-parent = <&gic>;
 			ranges = <0x0 0x0 0xf2000000 0x2000000>;
 
 			cpm_ethernet: ethernet@0 {
 				compatible = "marvell,armada-7k-pp22";
 				reg = <0x0 0x100000>, <0x129000 0xb000>;
-				clocks = <&cpm_syscon0 1 3>, <&cpm_syscon0 1 9>, <&cpm_syscon0 1 5>;
+				clocks = <&cpm_clk 1 3>, <&cpm_clk 1 9>, <&cpm_clk 1 5>;
 				clock-names = "pp_clk", "gop_clk", "mg_clk";
 				status = "disabled";
 				dma-coherent;
 
 				cpm_eth0: eth0 {
-					interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts = <ICU_GRP_NSR 39 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <0>;
 					gop-port-id = <0>;
 					status = "disabled";
 				};
 
 				cpm_eth1: eth1 {
-					interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts = <ICU_GRP_NSR 40 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <1>;
 					gop-port-id = <2>;
 					status = "disabled";
 				};
 
 				cpm_eth2: eth2 {
-					interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts = <ICU_GRP_NSR 41 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <2>;
 					gop-port-id = <3>;
 					status = "disabled";
@@ -94,41 +95,70 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x12a200 0x10>;
+				clocks = <&cpm_clk 1 9>, <&cpm_clk 1 5>;
+				status = "disabled";
+			};
+
+			cpm_xmdio: mdio@12a600 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "marvell,xmdio";
+				reg = <0x12a600 0x10>;
+				status = "disabled";
+			};
+
+			cpm_icu: interrupt-controller@1e0000 {
+				compatible = "marvell,cp110-icu";
+				reg = <0x1e0000 0x10>;
+				#interrupt-cells = <3>;
+				interrupt-controller;
+				msi-parent = <&gicp>;
 			};
 
 			cpm_syscon0: system-controller@440000 {
-				compatible = "marvell,cp110-system-controller0",
-					     "syscon";
+				compatible = "syscon", "simple-mfd";
 				reg = <0x440000 0x1000>;
-				#clock-cells = <2>;
-				core-clock-output-names =
-					"cpm-apll", "cpm-ppv2-core", "cpm-eip",
-					"cpm-core", "cpm-nand-core";
-				gate-clock-output-names =
-					"cpm-audio", "cpm-communit", "cpm-nand",
-					"cpm-ppv2", "cpm-sdio", "cpm-mg-domain",
-					"cpm-mg-core", "cpm-xor1", "cpm-xor0",
-					"cpm-gop-dp", "none", "cpm-pcie_x10",
-					"cpm-pcie_x11", "cpm-pcie_x4", "cpm-pcie-xor",
-					"cpm-sata", "cpm-sata-usb", "cpm-main",
-					"cpm-sd-mmc-gop", "none", "none",
-					"cpm-slow-io", "cpm-usb3h0", "cpm-usb3h1",
-					"cpm-usb3dev", "cpm-eip150", "cpm-eip197";
+
+				cpm_clk: clock {
+					compatible = "marvell,cp110-clock";
+					#clock-cells = <2>;
+				};
+
+				cpm_gpio1: gpio@100 {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x100>;
+					ngpios = <32>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&cpm_pinctrl 0 0 32>;
+					status = "disabled";
+
+				};
+
+				cpm_gpio2: gpio@140 {
+					compatible = "marvell,armada-8k-gpio";
+					offset = <0x140>;
+					ngpios = <31>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&cpm_pinctrl 0 32 31>;
+					status = "disabled";
+				};
 			};
 
 			cpm_rtc: rtc@284000 {
 				compatible = "marvell,armada-8k-rtc";
 				reg = <0x284000 0x20>, <0x284080 0x24>;
 				reg-names = "rtc", "rtc-soc";
-				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <ICU_GRP_NSR 77 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			cpm_sata0: sata@540000 {
 				compatible = "marvell,armada-8k-ahci",
 					     "generic-ahci";
 				reg = <0x540000 0x30000>;
-				interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cpm_syscon0 1 15>;
+				interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_clk 1 15>;
 				status = "disabled";
 			};
 
@@ -137,8 +167,8 @@
 					     "generic-xhci";
 				reg = <0x500000 0x4000>;
 				dma-coherent;
-				interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cpm_syscon0 1 22>;
+				interrupts = <ICU_GRP_NSR 106 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_clk 1 22>;
 				status = "disabled";
 			};
 
@@ -147,8 +177,8 @@
 					     "generic-xhci";
 				reg = <0x510000 0x4000>;
 				dma-coherent;
-				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cpm_syscon0 1 23>;
+				interrupts = <ICU_GRP_NSR 105 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_clk 1 23>;
 				status = "disabled";
 			};
 
@@ -158,7 +188,7 @@
 				      <0x6b0000 0x1000>;
 				dma-coherent;
 				msi-parent = <&gic_v2m0>;
-				clocks = <&cpm_syscon0 1 8>;
+				clocks = <&cpm_clk 1 8>;
 			};
 
 			cpm_xor1: xor@6c0000 {
@@ -167,7 +197,7 @@
 				      <0x6d0000 0x1000>;
 				dma-coherent;
 				msi-parent = <&gic_v2m0>;
-				clocks = <&cpm_syscon0 1 7>;
+				clocks = <&cpm_clk 1 7>;
 			};
 
 			cpm_spi0: spi@700600 {
@@ -176,7 +206,7 @@
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
 				cell-index = <1>;
-				clocks = <&cpm_syscon0 1 21>;
+				clocks = <&cpm_clk 1 21>;
 				status = "disabled";
 			};
 
@@ -186,7 +216,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				cell-index = <2>;
-				clocks = <&cpm_syscon0 1 21>;
+				clocks = <&cpm_clk 1 21>;
 				status = "disabled";
 			};
 
@@ -195,8 +225,8 @@
 				reg = <0x701000 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cpm_syscon0 1 21>;
+				interrupts = <ICU_GRP_NSR 120 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_clk 1 21>;
 				status = "disabled";
 			};
 
@@ -205,25 +235,25 @@
 				reg = <0x701100 0x20>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cpm_syscon0 1 21>;
+				interrupts = <ICU_GRP_NSR 121 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_clk 1 21>;
 				status = "disabled";
 			};
 
 			cpm_trng: trng@760000 {
 				compatible = "marvell,armada-8k-rng", "inside-secure,safexcel-eip76";
 				reg = <0x760000 0x7d>;
-				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cpm_syscon0 1 25>;
+				interrupts = <ICU_GRP_NSR 95 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_clk 1 25>;
 				status = "okay";
 			};
 
 			cpm_sdhci0: sdhci@780000 {
 				compatible = "marvell,armada-cp110-sdhci";
 				reg = <0x780000 0x300>;
-				interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <ICU_GRP_NSR 27 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "core";
-				clocks = <&cpm_syscon0 1 4>;
+				clocks = <&cpm_clk 1 4>;
 				dma-coherent;
 				status = "disabled";
 			};
@@ -231,16 +261,15 @@
 			cpm_crypto: crypto@800000 {
 				compatible = "inside-secure,safexcel-eip197";
 				reg = <0x800000 0x200000>;
-				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
-					     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <ICU_GRP_NSR 87 IRQ_TYPE_LEVEL_HIGH>,
+					     <ICU_GRP_NSR 88 IRQ_TYPE_LEVEL_HIGH>,
+					     <ICU_GRP_NSR 89 IRQ_TYPE_LEVEL_HIGH>,
+					     <ICU_GRP_NSR 90 IRQ_TYPE_LEVEL_HIGH>,
+					     <ICU_GRP_NSR 91 IRQ_TYPE_LEVEL_HIGH>,
+					     <ICU_GRP_NSR 92 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "mem", "ring0", "ring1",
 				"ring2", "ring3", "eip";
-				clocks = <&cpm_syscon0 1 26>;
-				status = "disabled";
+				clocks = <&cpm_clk 1 26>;
 			};
 		};
 
@@ -263,10 +292,10 @@
 				/* non-prefetchable memory */
 				0x82000000 0 0xf6000000 0  0xf6000000 0 0xf00000>;
 			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0 0 0 0 &gic 0 GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 0 &cpm_icu 0 ICU_GRP_NSR 22 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <ICU_GRP_NSR 22 IRQ_TYPE_LEVEL_HIGH>;
 			num-lanes = <1>;
-			clocks = <&cpm_syscon0 1 13>;
+			clocks = <&cpm_clk 1 13>;
 			status = "disabled";
 		};
 
@@ -289,11 +318,11 @@
 				/* non-prefetchable memory */
 				0x82000000 0 0xf7000000 0  0xf7000000 0 0xf00000>;
 			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0 0 0 0 &gic 0 GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 0 &cpm_icu 0 ICU_GRP_NSR 24 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <ICU_GRP_NSR 24 IRQ_TYPE_LEVEL_HIGH>;
 
 			num-lanes = <1>;
-			clocks = <&cpm_syscon0 1 11>;
+			clocks = <&cpm_clk 1 11>;
 			status = "disabled";
 		};
 
@@ -316,11 +345,11 @@
 				/* non-prefetchable memory */
 				0x82000000 0 0xf8000000 0  0xf8000000 0 0xf00000>;
 			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0 0 0 0 &gic 0 GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-map = <0 0 0 0 &cpm_icu 0 ICU_GRP_NSR 23 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <ICU_GRP_NSR 23 IRQ_TYPE_LEVEL_HIGH>;
 
 			num-lanes = <1>;
-			clocks = <&cpm_syscon0 1 12>;
+			clocks = <&cpm_clk 1 12>;
 			status = "disabled";
 		};
 	};

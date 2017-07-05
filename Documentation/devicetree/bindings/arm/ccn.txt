@@ -3,6 +3,7 @@
 Required properties:
 
 - compatible: (standard compatible string) should be one of:
+	"arm,ccn-502"
 	"arm,ccn-504"
 	"arm,ccn-508"
 

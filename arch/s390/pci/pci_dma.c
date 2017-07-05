@@ -601,7 +601,9 @@ void zpci_dma_exit_device(struct zpci_dev *zdev)
 	 */
 	WARN_ON(zdev->s390_domain);
 
-	zpci_unregister_ioat(zdev, 0);
+	if (zpci_unregister_ioat(zdev, 0))
+		return;
+
 	dma_cleanup_tables(zdev->dma_table);
 	zdev->dma_table = NULL;
 	vfree(zdev->iommu_bitmap);

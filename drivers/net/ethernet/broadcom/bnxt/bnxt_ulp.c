@@ -266,6 +266,25 @@ void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs)
 	}
 }
 
+void bnxt_ulp_shutdown(struct bnxt *bp)
+{
+	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_ulp_ops *ops;
+	int i;
+
+	if (!edev)
+		return;
+
+	for (i = 0; i < BNXT_MAX_ULP; i++) {
+		struct bnxt_ulp *ulp = &edev->ulp_tbl[i];
+
+		ops = rtnl_dereference(ulp->ulp_ops);
+		if (!ops || !ops->ulp_shutdown)
+			continue;
+		ops->ulp_shutdown(ulp->handle);
+	}
+}
+
 void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl)
 {
 	u16 event_id = le16_to_cpu(cmpl->event_id);

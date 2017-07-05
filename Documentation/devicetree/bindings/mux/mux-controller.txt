@@ -1,0 +1,157 @@
+Common multiplexer controller bindings
+======================================
+
+A multiplexer (or mux) controller will have one, or several, consumer devices
+that uses the mux controller. Thus, a mux controller can possibly control
+several parallel multiplexers. Presumably there will be at least one
+multiplexer needed by each consumer, but a single mux controller can of course
+control several multiplexers for a single consumer.
+
+A mux controller provides a number of states to its consumers, and the state
+space is a simple zero-based enumeration. I.e. 0-1 for a 2-way multiplexer,
+0-7 for an 8-way multiplexer, etc.
+
+
+Consumers
+---------
+
+Mux controller consumers should specify a list of mux controllers that they
+want to use with a property containing a 'mux-ctrl-list':
+
+	mux-ctrl-list ::= <single-mux-ctrl> [mux-ctrl-list]
+	single-mux-ctrl ::= <mux-ctrl-phandle> [mux-ctrl-specifier]
+	mux-ctrl-phandle : phandle to mux controller node
+	mux-ctrl-specifier : array of #mux-control-cells specifying the
+			     given mux controller (controller specific)
+
+Mux controller properties should be named "mux-controls". The exact meaning of
+each mux controller property must be documented in the device tree binding for
+each consumer. An optional property "mux-control-names" may contain a list of
+strings to label each of the mux controllers listed in the "mux-controls"
+property.
+
+Drivers for devices that use more than a single mux controller can use the
+"mux-control-names" property to map the name of the requested mux controller
+to an index into the list given by the "mux-controls" property.
+
+mux-ctrl-specifier typically encodes the chip-relative mux controller number.
+If the mux controller chip only provides a single mux controller, the
+mux-ctrl-specifier can typically be left out.
+
+Example:
+
+	/* One consumer of a 2-way mux controller (one GPIO-line) */
+	mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+
+		mux-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>;
+	};
+
+	adc-mux {
+		compatible = "io-channel-mux";
+		io-channels = <&adc 0>;
+		io-channel-names = "parent";
+
+		mux-controls = <&mux>;
+		mux-control-names = "adc";
+
+		channels = "sync", "in";
+	};
+
+Note that in the example above, specifying the "mux-control-names" is redundant
+because there is only one mux controller in the list. However, if the driver
+for the consumer node in fact asks for a named mux controller, that name is of
+course still required.
+
+	/*
+	 * Two consumers (one for an ADC line and one for an i2c bus) of
+	 * parallel 4-way multiplexers controlled by the same two GPIO-lines.
+	 */
+	mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+
+		mux-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>,
+			    <&pioA 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	adc-mux {
+		compatible = "io-channel-mux";
+		io-channels = <&adc 0>;
+		io-channel-names = "parent";
+
+		mux-controls = <&mux>;
+
+		channels = "sync-1", "in", "out", "sync-2";
+	};
+
+	i2c-mux {
+		compatible = "i2c-mux";
+		i2c-parent = <&i2c1>;
+
+		mux-controls = <&mux>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ssd1307: oled@3c {
+				/* ... */
+			};
+		};
+
+		i2c@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pca9555: pca9555@20 {
+				/* ... */
+			};
+		};
+	};
+
+
+Mux controller nodes
+--------------------
+
+Mux controller nodes must specify the number of cells used for the
+specifier using the '#mux-control-cells' property.
+
+Optionally, mux controller nodes can also specify the state the mux should
+have when it is idle. The idle-state property is used for this. If the
+idle-state is not present, the mux controller is typically left as is when
+it is idle. For multiplexer chips that expose several mux controllers, the
+idle-state property is an array with one idle state for each mux controller.
+
+The special value (-1) may be used to indicate that the mux should be left
+as is when it is idle. This is the default, but can still be useful for
+mux controller chips with more than one mux controller, particularly when
+there is a need to "step past" a mux controller and set some other idle
+state for a mux controller with a higher index.
+
+Some mux controllers have the ability to disconnect the input/output of the
+multiplexer. Using this disconnected high-impedance state as the idle state
+is indicated with idle state (-2).
+
+These constants are available in
+
+      #include <dt-bindings/mux/mux.h>
+
+as MUX_IDLE_AS_IS (-1) and MUX_IDLE_DISCONNECT (-2).
+
+An example mux controller node look like this (the adg972a chip is a triple
+4-way multiplexer):
+
+	mux: mux-controller@50 {
+		compatible = "adi,adg792a";
+		reg = <0x50>;
+		#mux-control-cells = <1>;
+
+		idle-state = <MUX_IDLE_DISCONNECT MUX_IDLE_AS_IS 2>;
+	};

@@ -244,7 +244,7 @@ struct eppoll_entry {
 	 * Wait queue item that will be linked to the target file wait
 	 * queue head.
 	 */
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	/* The wait queue head that linked the "wait" wait queue item */
 	wait_queue_head_t *whead;
@@ -347,13 +347,13 @@ static inline int ep_is_linked(struct list_head *p)
 	return !list_empty(p);
 }
 
-static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_t *p)
+static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait);
 }
 
 /* Get the "struct epitem" from a wait queue pointer */
-static inline struct epitem *ep_item_from_wait(wait_queue_t *p)
+static inline struct epitem *ep_item_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait)->base;
 }
@@ -1078,7 +1078,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
  * mechanism. It is called by the stored file descriptors when they
  * have events to report.
  */
-static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	int pwake = 0;
 	unsigned long flags;
@@ -1094,7 +1094,7 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 		 * can't use __remove_wait_queue(). whead->lock is held by
 		 * the caller.
 		 */
-		list_del_init(&wait->task_list);
+		list_del_init(&wait->entry);
 	}
 
 	spin_lock_irqsave(&ep->lock, flags);
@@ -1699,7 +1699,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	int res = 0, eavail, timed_out = 0;
 	unsigned long flags;
 	u64 slack = 0;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	ktime_t expires, *to = NULL;
 
 	if (timeout > 0) {

@@ -214,11 +214,11 @@ config REGULATOR_DA9055
 	  will be called da9055-regulator.
 
 config REGULATOR_DA9062
-	tristate "Dialog Semiconductor DA9062 regulators"
+	tristate "Dialog Semiconductor DA9061/62 regulators"
 	depends on MFD_DA9062
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
-	  DA9062 PMICs.
+	  DA9061 and DA9062 PMICs.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called da9062-regulator.
@@ -296,6 +296,16 @@ config REGULATOR_HI6421
 	  21 general purpose LDOs, 3 dedicated LDOs, and 5 BUCKs. All
 	  of them come with support to either ECO (idle) or sleep mode.
 
+config REGULATOR_HI6421V530
+	tristate "HiSilicon Hi6421v530 PMIC voltage regulator support"
+	depends on MFD_HI6421_PMIC && OF
+	help
+	  This driver provides support for the voltage regulators on
+	  HiSilicon Hi6421v530 PMU / Codec IC.
+	  Hi6421v530 is a multi-function device which, on regulator part,
+	  provides 5 general purpose LDOs, and all of them come with support
+	  to either ECO (idle) or sleep mode.
+
 config REGULATOR_HI655X
 	tristate "Hisilicon HI655X PMIC regulators support"
 	depends on ARCH_HISI || COMPILE_TEST
@@ -364,6 +374,14 @@ config REGULATOR_LP8755
 	  This driver supports LP8755 High Performance PMU driver. This
 	  chip contains six step-down DC/DC converters which can support
 	  9 mode multiphase configuration.
+
+config REGULATOR_LP87565
+	tristate "TI LP87565 Power regulators"
+	depends on MFD_TI_LP87565 && OF
+	help
+	  This driver supports LP87565 voltage regulator chips. LP87565
+	  provides four step-down converters. It supports software based
+	  voltage control for different voltage domains
 
 config REGULATOR_LP8788
 	tristate "TI LP8788 Power Regulators"

@@ -28,8 +28,10 @@ static inline void fib_alias_accessed(struct fib_alias *fa)
 
 /* Exported by fib_semantics.c */
 void fib_release_info(struct fib_info *);
-struct fib_info *fib_create_info(struct fib_config *cfg);
-int fib_nh_match(struct fib_config *cfg, struct fib_info *fi);
+struct fib_info *fib_create_info(struct fib_config *cfg,
+				 struct netlink_ext_ack *extack);
+int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
+		 struct netlink_ext_ack *extack);
 int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event, u32 tb_id,
 		  u8 type, __be32 dst, int dst_len, u8 tos, struct fib_info *fi,
 		  unsigned int);

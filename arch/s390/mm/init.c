@@ -81,6 +81,7 @@ void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long pgd_type, asce_bits;
+	psw_t psw;
 
 	init_mm.pgd = swapper_pg_dir;
 	if (VMALLOC_END > (1UL << 42)) {
@@ -100,7 +101,10 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	__arch_local_irq_stosm(0x04);
+	psw.mask = __extract_psw();
+	psw_bits(psw).dat = 1;
+	psw_bits(psw).as = PSW_BITS_AS_HOME;
+	__load_psw_mask(psw.mask);
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();

@@ -125,8 +125,7 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	sub = fiph->fip_subcode;
 
 	if (!qedf->vlan_hw_insert) {
-		vlan_hdr = (struct vlan_ethhdr *)skb_push(skb, sizeof(*vlan_hdr)
-		    - sizeof(*eth_hdr));
+		vlan_hdr = skb_push(skb, sizeof(*vlan_hdr) - sizeof(*eth_hdr));
 		memcpy(vlan_hdr, eth_hdr, 2 * ETH_ALEN);
 		vlan_hdr->h_vlan_proto = htons(ETH_P_8021Q);
 		vlan_hdr->h_vlan_encapsulated_proto = eth_hdr->h_proto;

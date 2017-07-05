@@ -116,12 +116,11 @@ DevFS has been obsoleted in favour of udev
 
 Linux documentation for functions is transitioning to inline
 documentation via specially-formatted comments near their
-definitions in the source.  These comments can be combined with the
-SGML templates in the Documentation/DocBook directory to make DocBook
-files, which can then be converted by DocBook stylesheets to PostScript,
-HTML, PDF files, and several other formats.  In order to convert from
-DocBook format to a format of your choice, you'll need to install Jade as
-well as the desired DocBook stylesheets.
+definitions in the source.  These comments can be combined with ReST
+files the Documentation/ directory to make enriched documentation, which can
+then be converted to PostScript, HTML, LaTex, ePUB and PDF files.
+In order to convert from ReST format to a format of your choice, you'll need
+Sphinx.
 
 Util-linux
 ----------
@@ -323,12 +322,6 @@ PDF outputs, it is recommended to use version 1.4.6.
   functionalities required for ``XeLaTex`` to work. For PDF output you'll also
   need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
 
-Other tools
------------
-
-In order to produce documentation from DocBook, you'll also need ``xmlto``.
-Please notice, however, that we're currently migrating all documents to use
-``Sphinx``.
 
 Getting updated software
 ========================
@@ -409,15 +402,6 @@ Quota-tools
 
 - <http://sourceforge.net/projects/linuxquota/>
 
-DocBook Stylesheets
--------------------
-
-- <http://sourceforge.net/projects/docbook/files/docbook-dsssl/>
-
-XMLTO XSLT Frontend
--------------------
-
-- <http://cyberelk.net/tim/xmlto/>
 
 Intel P6 microcode
 ------------------

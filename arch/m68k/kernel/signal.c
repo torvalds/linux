@@ -109,22 +109,6 @@ int fixup_exception(struct pt_regs *regs)
 	return 1;
 }
 
-void ptrace_signal_deliver(void)
-{
-	struct pt_regs *regs = signal_pt_regs();
-	if (regs->orig_d0 < 0)
-		return;
-	switch (regs->d0) {
-	case -ERESTARTNOHAND:
-	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
-		regs->d0 = regs->orig_d0;
-		regs->orig_d0 = -1;
-		regs->pc -= 2;
-		break;
-	}
-}
-
 static inline void push_cache (unsigned long vaddr)
 {
 	/*

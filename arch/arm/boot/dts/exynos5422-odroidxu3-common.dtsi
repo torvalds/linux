@@ -18,7 +18,6 @@
 #include <dt-bindings/sound/samsung-i2s.h>
 #include "exynos5800.dtsi"
 #include "exynos5422-cpus.dtsi"
-#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	memory@40000000 {
@@ -263,6 +262,10 @@
 	vdd_osc-supply = <&ldo7_reg>;
 	vdd_pll-supply = <&ldo6_reg>;
 	vdd-supply = <&ldo6_reg>;
+};
+
+&hdmicec {
+	status = "okay";
 };
 
 &hsi2c_4 {

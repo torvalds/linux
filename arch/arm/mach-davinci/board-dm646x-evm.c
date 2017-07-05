@@ -641,7 +641,7 @@ static struct vpif_subdev_info vpif_capture_sdev_info[] = {
 	},
 };
 
-static const struct vpif_input dm6467_ch0_inputs[] = {
+static struct vpif_input dm6467_ch0_inputs[] = {
 	{
 		.input = {
 			.index = 0,
@@ -656,7 +656,7 @@ static const struct vpif_input dm6467_ch0_inputs[] = {
 	},
 };
 
-static const struct vpif_input dm6467_ch1_inputs[] = {
+static struct vpif_input dm6467_ch1_inputs[] = {
        {
 		.input = {
 			.index = 0,

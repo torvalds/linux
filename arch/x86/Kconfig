@@ -69,7 +69,7 @@ config X86
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
-	select ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH if SMP
+	select ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select BUILDTIME_EXTABLE_SORT
@@ -87,6 +87,8 @@ config X86
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IOMAP
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK	if SMP
+	select GENERIC_IRQ_MIGRATION		if SMP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PENDING_IRQ		if SMP
@@ -166,6 +168,7 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
 	select IRQ_FORCED_THREADING
+	select PCI_LOCKLESS_CONFIG
 	select PERF_EVENTS
 	select RTC_LIB
 	select RTC_MC146818_LIB
@@ -1082,7 +1085,7 @@ config X86_MCE_THRESHOLD
 	def_bool y
 
 config X86_MCE_INJECT
-	depends on X86_MCE && X86_LOCAL_APIC && X86_MCELOG_LEGACY
+	depends on X86_MCE && X86_LOCAL_APIC && DEBUG_FS
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.
@@ -2792,6 +2795,9 @@ config X86_DEV_DMA_OPS
 config X86_DMA_REMAP
 	bool
 	depends on STA2X11
+
+config HAVE_GENERIC_GUP
+	def_bool y
 
 source "net/Kconfig"
 

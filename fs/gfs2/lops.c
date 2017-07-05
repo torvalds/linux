@@ -170,7 +170,7 @@ static u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
  */
 
 static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct bio_vec *bvec,
-				  int error)
+				  blk_status_t error)
 {
 	struct buffer_head *bh, *next;
 	struct page *page = bvec->bv_page;
@@ -209,15 +209,13 @@ static void gfs2_end_log_write(struct bio *bio)
 	struct page *page;
 	int i;
 
-	if (bio->bi_error) {
-		sdp->sd_log_error = bio->bi_error;
-		fs_err(sdp, "Error %d writing to log\n", bio->bi_error);
-	}
+	if (bio->bi_status)
+		fs_err(sdp, "Error %d writing to log\n", bio->bi_status);
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		page = bvec->bv_page;
 		if (page_has_buffers(page))
-			gfs2_end_log_write_bh(sdp, bvec, bio->bi_error);
+			gfs2_end_log_write_bh(sdp, bvec, bio->bi_status);
 		else
 			mempool_free(page, gfs2_page_pool);
 	}

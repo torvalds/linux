@@ -642,6 +642,7 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->sge_ingpadboundary = adap->sge.fl_align;
 	lld->sge_egrstatuspagesize = adap->sge.stat_len;
 	lld->sge_pktshift = adap->sge.pktshift;
+	lld->ulp_crypto = adap->params.crypto;
 	lld->enable_fw_ofld_conn = adap->flags & FW_OFLD_CONN;
 	lld->max_ordird_qp = adap->params.max_ordird_qp;
 	lld->max_ird_adapter = adap->params.max_ird_adapter;

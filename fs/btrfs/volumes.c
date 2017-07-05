@@ -6042,9 +6042,10 @@ static void btrfs_end_bio(struct bio *bio)
 	struct btrfs_bio *bbio = bio->bi_private;
 	int is_orig_bio = 0;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		atomic_inc(&bbio->error);
-		if (bio->bi_error == -EIO || bio->bi_error == -EREMOTEIO) {
+		if (bio->bi_status == BLK_STS_IOERR ||
+		    bio->bi_status == BLK_STS_TARGET) {
 			unsigned int stripe_index =
 				btrfs_io_bio(bio)->stripe_index;
 			struct btrfs_device *dev;
@@ -6082,13 +6083,13 @@ static void btrfs_end_bio(struct bio *bio)
 		 * beyond the tolerance of the btrfs bio
 		 */
 		if (atomic_read(&bbio->error) > bbio->max_errors) {
-			bio->bi_error = -EIO;
+			bio->bi_status = BLK_STS_IOERR;
 		} else {
 			/*
 			 * this bio is actually up to date, we didn't
 			 * go over the max number of errors
 			 */
-			bio->bi_error = 0;
+			bio->bi_status = 0;
 		}
 
 		btrfs_end_bbio(bbio, bio);
@@ -6199,7 +6200,7 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 
 		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
 		bio->bi_iter.bi_sector = logical >> 9;
-		bio->bi_error = -EIO;
+		bio->bi_status = BLK_STS_IOERR;
 		btrfs_end_bbio(bbio, bio);
 	}
 }

@@ -1117,6 +1117,11 @@ static int pwrap_probe(struct platform_device *pdev)
 	const struct of_device_id *of_slave_id = NULL;
 	struct resource *res;
 
+	if (!of_id) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
+
 	if (pdev->dev.of_node->child)
 		of_slave_id = of_match_node(of_slave_match_tbl,
 					    pdev->dev.of_node->child);
@@ -1200,7 +1205,8 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	if (!(pwrap_readl(wrp, PWRAP_WACS2_RDATA) & PWRAP_STATE_INIT_DONE0)) {
 		dev_dbg(wrp->dev, "initialization isn't finished\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_out2;
 	}
 
 	/* Initialize watchdog, may not be done by the bootloader */
@@ -1220,8 +1226,10 @@ static int pwrap_probe(struct platform_device *pdev)
 		goto err_out2;
 
 	wrp->regmap = devm_regmap_init(wrp->dev, NULL, wrp, &pwrap_regmap_config);
-	if (IS_ERR(wrp->regmap))
-		return PTR_ERR(wrp->regmap);
+	if (IS_ERR(wrp->regmap)) {
+		ret = PTR_ERR(wrp->regmap);
+		goto err_out2;
+	}
 
 	ret = of_platform_populate(np, NULL, NULL, wrp->dev);
 	if (ret) {

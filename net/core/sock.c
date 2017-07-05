@@ -1038,6 +1038,10 @@ set_rcvbuf:
 #endif
 
 	case SO_MAX_PACING_RATE:
+		if (val != ~0U)
+			cmpxchg(&sk->sk_pacing_status,
+				SK_PACING_NONE,
+				SK_PACING_NEEDED);
 		sk->sk_max_pacing_rate = val;
 		sk->sk_pacing_rate = min(sk->sk_pacing_rate,
 					 sk->sk_max_pacing_rate);
@@ -1072,6 +1076,18 @@ static void cred_to_ucred(struct pid *pid, const struct cred *cred,
 		ucred->uid = from_kuid_munged(current_ns, cred->euid);
 		ucred->gid = from_kgid_munged(current_ns, cred->egid);
 	}
+}
+
+static int groups_to_user(gid_t __user *dst, const struct group_info *src)
+{
+	struct user_namespace *user_ns = current_user_ns();
+	int i;
+
+	for (i = 0; i < src->ngroups; i++)
+		if (put_user(from_kgid_munged(user_ns, src->gid[i]), dst + i))
+			return -EFAULT;
+
+	return 0;
 }
 
 int sock_getsockopt(struct socket *sock, int level, int optname,
@@ -1224,6 +1240,27 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		cred_to_ucred(sk->sk_peer_pid, sk->sk_peer_cred, &peercred);
 		if (copy_to_user(optval, &peercred, len))
 			return -EFAULT;
+		goto lenout;
+	}
+
+	case SO_PEERGROUPS:
+	{
+		int ret, n;
+
+		if (!sk->sk_peer_cred)
+			return -ENODATA;
+
+		n = sk->sk_peer_cred->group_info->ngroups;
+		if (len < n * sizeof(gid_t)) {
+			len = n * sizeof(gid_t);
+			return put_user(len, optlen) ? -EFAULT : -ERANGE;
+		}
+		len = n * sizeof(gid_t);
+
+		ret = groups_to_user((gid_t __user *)optval,
+				     sk->sk_peer_cred->group_info);
+		if (ret)
+			return ret;
 		goto lenout;
 	}
 
@@ -1491,7 +1528,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		if (likely(sk->sk_net_refcnt))
 			get_net(net);
 		sock_net_set(sk, net);
-		atomic_set(&sk->sk_wmem_alloc, 1);
+		refcount_set(&sk->sk_wmem_alloc, 1);
 
 		mem_cgroup_sk_alloc(sk);
 		cgroup_sk_alloc(&sk->sk_cgrp_data);
@@ -1515,7 +1552,7 @@ static void __sk_destruct(struct rcu_head *head)
 		sk->sk_destruct(sk);
 
 	filter = rcu_dereference_check(sk->sk_filter,
-				       atomic_read(&sk->sk_wmem_alloc) == 0);
+				       refcount_read(&sk->sk_wmem_alloc) == 0);
 	if (filter) {
 		sk_filter_uncharge(sk, filter);
 		RCU_INIT_POINTER(sk->sk_filter, NULL);
@@ -1565,7 +1602,7 @@ void sk_free(struct sock *sk)
 	 * some packets are still in some tx queue.
 	 * If not null, sock_wfree() will call __sk_free(sk) later
 	 */
-	if (atomic_dec_and_test(&sk->sk_wmem_alloc))
+	if (refcount_dec_and_test(&sk->sk_wmem_alloc))
 		__sk_free(sk);
 }
 EXPORT_SYMBOL(sk_free);
@@ -1622,7 +1659,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		/*
 		 * sk_wmem_alloc set to one (see sk_free() and sock_wfree())
 		 */
-		atomic_set(&newsk->sk_wmem_alloc, 1);
+		refcount_set(&newsk->sk_wmem_alloc, 1);
 		atomic_set(&newsk->sk_omem_alloc, 0);
 		sk_init_common(newsk);
 
@@ -1671,7 +1708,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		 * (Documentation/RCU/rculist_nulls.txt for details)
 		 */
 		smp_wmb();
-		atomic_set(&newsk->sk_refcnt, 2);
+		refcount_set(&newsk->sk_refcnt, 2);
 
 		/*
 		 * Increment the counter in the same struct proto as the master
@@ -1750,7 +1787,7 @@ void sock_wfree(struct sk_buff *skb)
 		 * Keep a reference on sk_wmem_alloc, this will be released
 		 * after sk_write_space() call
 		 */
-		atomic_sub(len - 1, &sk->sk_wmem_alloc);
+		WARN_ON(refcount_sub_and_test(len - 1, &sk->sk_wmem_alloc));
 		sk->sk_write_space(sk);
 		len = 1;
 	}
@@ -1758,7 +1795,7 @@ void sock_wfree(struct sk_buff *skb)
 	 * if sk_wmem_alloc reaches 0, we must finish what sk_free()
 	 * could not do because of in-flight packets
 	 */
-	if (atomic_sub_and_test(len, &sk->sk_wmem_alloc))
+	if (refcount_sub_and_test(len, &sk->sk_wmem_alloc))
 		__sk_free(sk);
 }
 EXPORT_SYMBOL(sock_wfree);
@@ -1770,7 +1807,7 @@ void __sock_wfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
-	if (atomic_sub_and_test(skb->truesize, &sk->sk_wmem_alloc))
+	if (refcount_sub_and_test(skb->truesize, &sk->sk_wmem_alloc))
 		__sk_free(sk);
 }
 
@@ -1792,7 +1829,7 @@ void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 	 * is enough to guarantee sk_free() wont free this sock until
 	 * all in-flight packets are completed
 	 */
-	atomic_add(skb->truesize, &sk->sk_wmem_alloc);
+	refcount_add(skb->truesize, &sk->sk_wmem_alloc);
 }
 EXPORT_SYMBOL(skb_set_owner_w);
 
@@ -1814,8 +1851,8 @@ void skb_orphan_partial(struct sk_buff *skb)
 		) {
 		struct sock *sk = skb->sk;
 
-		if (atomic_inc_not_zero(&sk->sk_refcnt)) {
-			atomic_sub(skb->truesize, &sk->sk_wmem_alloc);
+		if (refcount_inc_not_zero(&sk->sk_refcnt)) {
+			WARN_ON(refcount_sub_and_test(skb->truesize, &sk->sk_wmem_alloc));
 			skb->destructor = sock_efree;
 		}
 	} else {
@@ -1875,7 +1912,7 @@ EXPORT_SYMBOL(sock_i_ino);
 struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
 			     gfp_t priority)
 {
-	if (force || atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf) {
+	if (force || refcount_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf) {
 		struct sk_buff *skb = alloc_skb(size, priority);
 		if (skb) {
 			skb_set_owner_w(skb, sk);
@@ -1950,7 +1987,7 @@ static long sock_wait_for_wmem(struct sock *sk, long timeo)
 			break;
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		if (atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf)
+		if (refcount_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf)
 			break;
 		if (sk->sk_shutdown & SEND_SHUTDOWN)
 			break;
@@ -2071,6 +2108,26 @@ int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
 	return 0;
 }
 EXPORT_SYMBOL(sock_cmsg_send);
+
+static void sk_enter_memory_pressure(struct sock *sk)
+{
+	if (!sk->sk_prot->enter_memory_pressure)
+		return;
+
+	sk->sk_prot->enter_memory_pressure(sk);
+}
+
+static void sk_leave_memory_pressure(struct sock *sk)
+{
+	if (sk->sk_prot->leave_memory_pressure) {
+		sk->sk_prot->leave_memory_pressure(sk);
+	} else {
+		unsigned long *memory_pressure = sk->sk_prot->memory_pressure;
+
+		if (memory_pressure && *memory_pressure)
+			*memory_pressure = 0;
+	}
+}
 
 /* On 32bit arches, an skb frag is limited to 2^15 */
 #define SKB_FRAG_PAGE_ORDER	get_order(32768)
@@ -2253,7 +2310,7 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 		if (sk->sk_type == SOCK_STREAM) {
 			if (sk->sk_wmem_queued < prot->sysctl_wmem[0])
 				return 1;
-		} else if (atomic_read(&sk->sk_wmem_alloc) <
+		} else if (refcount_read(&sk->sk_wmem_alloc) <
 			   prot->sysctl_wmem[0])
 				return 1;
 	}
@@ -2520,7 +2577,7 @@ static void sock_def_write_space(struct sock *sk)
 	/* Do not wake up a writer until he can make "significant"
 	 * progress.  --DaveM
 	 */
-	if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
+	if ((refcount_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
 		wq = rcu_dereference(sk->sk_wq);
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
@@ -2630,7 +2687,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	 * (Documentation/RCU/rculist_nulls.txt for details)
 	 */
 	smp_wmb();
-	atomic_set(&sk->sk_refcnt, 1);
+	refcount_set(&sk->sk_refcnt, 1);
 	atomic_set(&sk->sk_drops, 0);
 }
 EXPORT_SYMBOL(sock_init_data);
@@ -2675,9 +2732,12 @@ EXPORT_SYMBOL(release_sock);
  * @sk: socket
  *
  * This version should be used for very small section, where process wont block
- * return false if fast path is taken
+ * return false if fast path is taken:
+ *
  *   sk_lock.slock locked, owned = 0, BH disabled
- * return true if slow path is taken
+ *
+ * return true if slow path is taken:
+ *
  *   sk_lock.slock unlocked, owned = 1, BH enabled
  */
 bool lock_sock_fast(struct sock *sk)

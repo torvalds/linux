@@ -27,7 +27,7 @@ The purpose of this document is twofold:
  (2) to provide a guide as to how to use the barriers that are available.
 
 Note that an architecture can provide more than the minimum requirement
-for any particular barrier, but if the architecure provides less than
+for any particular barrier, but if the architecture provides less than
 that, that architecture is incorrect.
 
 Note also that it is possible that a barrier may be a no-op for an
@@ -498,11 +498,11 @@ And a couple of implicit varieties:
      This means that ACQUIRE acts as a minimal "acquire" operation and
      RELEASE acts as a minimal "release" operation.
 
-A subset of the atomic operations described in atomic_ops.txt have ACQUIRE
-and RELEASE variants in addition to fully-ordered and relaxed (no barrier
-semantics) definitions.  For compound atomics performing both a load and a
-store, ACQUIRE semantics apply only to the load and RELEASE semantics apply
-only to the store portion of the operation.
+A subset of the atomic operations described in core-api/atomic_ops.rst have
+ACQUIRE and RELEASE variants in addition to fully-ordered and relaxed (no
+barrier semantics) definitions.  For compound atomics performing both a load
+and a store, ACQUIRE semantics apply only to the load and RELEASE semantics
+apply only to the store portion of the operation.
 
 Memory barriers are only required where there's a possibility of interaction
 between two CPUs or between a CPU and a device.  If it can be guaranteed that

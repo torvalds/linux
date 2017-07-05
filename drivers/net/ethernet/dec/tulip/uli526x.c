@@ -864,9 +864,9 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 					skb = new_skb;
 					/* size less than COPY_SIZE, allocate a rxlen SKB */
 					skb_reserve(skb, 2); /* 16byte align */
-					memcpy(skb_put(skb, rxlen),
-					       skb_tail_pointer(rxptr->rx_skb_ptr),
-					       rxlen);
+					skb_put_data(skb,
+						     skb_tail_pointer(rxptr->rx_skb_ptr),
+						     rxlen);
 					uli526x_reuse_skb(db, rxptr->rx_skb_ptr);
 				} else
 					skb_put(skb, rxlen);

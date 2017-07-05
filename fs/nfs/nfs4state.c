@@ -2134,6 +2134,8 @@ again:
 	put_rpccred(cred);
 	switch (status) {
 	case 0:
+	case -EINTR:
+	case -ERESTARTSYS:
 		break;
 	case -ETIMEDOUT:
 		if (clnt->cl_softrtry)

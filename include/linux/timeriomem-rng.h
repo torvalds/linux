@@ -13,4 +13,7 @@ struct timeriomem_rng_data {
 
 	/* measures in usecs */
 	unsigned int		period;
+
+	/* bits of entropy per 1024 bits read */
+	unsigned int		quality;
 };

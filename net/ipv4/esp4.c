@@ -307,7 +307,7 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 			skb->data_len += tailen;
 			skb->truesize += tailen;
 			if (sk)
-				atomic_add(tailen, &sk->sk_wmem_alloc);
+				refcount_add(tailen, &sk->sk_wmem_alloc);
 
 			goto out;
 		}
@@ -377,9 +377,11 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 	esp->esph = esph;
 
 	sg_init_table(sg, esp->nfrags);
-	skb_to_sgvec(skb, sg,
-		     (unsigned char *)esph - skb->data,
-		     assoclen + ivlen + esp->clen + alen);
+	err = skb_to_sgvec(skb, sg,
+		           (unsigned char *)esph - skb->data,
+		           assoclen + ivlen + esp->clen + alen);
+	if (unlikely(err < 0))
+		goto error;
 
 	if (!esp->inplace) {
 		int allocsize;
@@ -403,9 +405,11 @@ int esp_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 		spin_unlock_bh(&x->lock);
 
 		sg_init_table(dsg, skb_shinfo(skb)->nr_frags + 1);
-		skb_to_sgvec(skb, dsg,
-			     (unsigned char *)esph - skb->data,
-			     assoclen + ivlen + esp->clen + alen);
+		err = skb_to_sgvec(skb, dsg,
+			           (unsigned char *)esph - skb->data,
+			           assoclen + ivlen + esp->clen + alen);
+		if (unlikely(err < 0))
+			goto error;
 	}
 
 	if ((x->props.flags & XFRM_STATE_ESN))
@@ -605,7 +609,7 @@ static void esp_input_set_header(struct sk_buff *skb, __be32 *seqhi)
 	 * decryption.
 	 */
 	if ((x->props.flags & XFRM_STATE_ESN)) {
-		esph = (void *)skb_push(skb, 4);
+		esph = skb_push(skb, 4);
 		*seqhi = esph->spi;
 		esph->spi = esph->seq_no;
 		esph->seq_no = XFRM_SKB_CB(skb)->seq.input.hi;
@@ -690,7 +694,9 @@ skip_cow:
 	esp_input_set_header(skb, seqhi);
 
 	sg_init_table(sg, nfrags);
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	err = skb_to_sgvec(skb, sg, 0, skb->len);
+	if (unlikely(err < 0))
+		goto out;
 
 	skb->ip_summed = CHECKSUM_NONE;
 

@@ -311,6 +311,8 @@ IRQ
   devm_irq_alloc_desc_at()
   devm_irq_alloc_desc_from()
   devm_irq_alloc_descs_from()
+  devm_irq_alloc_generic_chip()
+  devm_irq_setup_generic_chip()
 
 LED
   devm_led_classdev_register()
@@ -335,7 +337,12 @@ MEM
   devm_kzalloc()
 
 MFD
- devm_mfd_add_devices()
+  devm_mfd_add_devices()
+
+MUX
+  devm_mux_chip_alloc()
+  devm_mux_chip_register()
+  devm_mux_control_get()
 
 PER-CPU MEM
   devm_alloc_percpu()

@@ -48,7 +48,7 @@
 
 #define VREF_MV_BASE 1850
 
-const char *mx23_lradc_adc_irq_names[] = {
+static const char *mx23_lradc_adc_irq_names[] = {
 	"mxs-lradc-channel0",
 	"mxs-lradc-channel1",
 	"mxs-lradc-channel2",
@@ -57,7 +57,7 @@ const char *mx23_lradc_adc_irq_names[] = {
 	"mxs-lradc-channel5",
 };
 
-const char *mx28_lradc_adc_irq_names[] = {
+static const char *mx28_lradc_adc_irq_names[] = {
 	"mxs-lradc-thresh0",
 	"mxs-lradc-thresh1",
 	"mxs-lradc-channel0",
@@ -344,20 +344,20 @@ static ssize_t mxs_lradc_adc_show_scale_avail(struct device *dev,
 	IIO_DEVICE_ATTR(in_voltage##ch##_scale_available, 0444,\
 			mxs_lradc_adc_show_scale_avail, NULL, ch)
 
-SHOW_SCALE_AVAILABLE_ATTR(0);
-SHOW_SCALE_AVAILABLE_ATTR(1);
-SHOW_SCALE_AVAILABLE_ATTR(2);
-SHOW_SCALE_AVAILABLE_ATTR(3);
-SHOW_SCALE_AVAILABLE_ATTR(4);
-SHOW_SCALE_AVAILABLE_ATTR(5);
-SHOW_SCALE_AVAILABLE_ATTR(6);
-SHOW_SCALE_AVAILABLE_ATTR(7);
-SHOW_SCALE_AVAILABLE_ATTR(10);
-SHOW_SCALE_AVAILABLE_ATTR(11);
-SHOW_SCALE_AVAILABLE_ATTR(12);
-SHOW_SCALE_AVAILABLE_ATTR(13);
-SHOW_SCALE_AVAILABLE_ATTR(14);
-SHOW_SCALE_AVAILABLE_ATTR(15);
+static SHOW_SCALE_AVAILABLE_ATTR(0);
+static SHOW_SCALE_AVAILABLE_ATTR(1);
+static SHOW_SCALE_AVAILABLE_ATTR(2);
+static SHOW_SCALE_AVAILABLE_ATTR(3);
+static SHOW_SCALE_AVAILABLE_ATTR(4);
+static SHOW_SCALE_AVAILABLE_ATTR(5);
+static SHOW_SCALE_AVAILABLE_ATTR(6);
+static SHOW_SCALE_AVAILABLE_ATTR(7);
+static SHOW_SCALE_AVAILABLE_ATTR(10);
+static SHOW_SCALE_AVAILABLE_ATTR(11);
+static SHOW_SCALE_AVAILABLE_ATTR(12);
+static SHOW_SCALE_AVAILABLE_ATTR(13);
+static SHOW_SCALE_AVAILABLE_ATTR(14);
+static SHOW_SCALE_AVAILABLE_ATTR(15);
 
 static struct attribute *mxs_lradc_adc_attributes[] = {
 	&iio_dev_attr_in_voltage0_scale_available.dev_attr.attr,

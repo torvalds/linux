@@ -203,7 +203,7 @@ void start_new_tl_epoch(struct drbd_connection *connection)
 void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m)
 {
-	m->bio->bi_error = m->error;
+	m->bio->bi_status = errno_to_blk_status(m->error);
 	bio_endio(m->bio);
 	dec_ap_bio(device);
 }
@@ -1157,7 +1157,7 @@ static void drbd_process_discard_req(struct drbd_request *req)
 
 	if (blkdev_issue_zeroout(bdev, req->i.sector, req->i.size >> 9,
 			GFP_NOIO, 0))
-		req->private_bio->bi_error = -EIO;
+		req->private_bio->bi_status = BLK_STS_IOERR;
 	bio_endio(req->private_bio);
 }
 
@@ -1225,7 +1225,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 		/* only pass the error to the upper layers.
 		 * if user cannot handle io errors, that's not our business. */
 		drbd_err(device, "could not kmalloc() req\n");
-		bio->bi_error = -ENOMEM;
+		bio->bi_status = BLK_STS_RESOURCE;
 		bio_endio(bio);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1560,7 +1560,7 @@ blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio)
 	struct drbd_device *device = (struct drbd_device *) q->queuedata;
 	unsigned long start_jif;
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	start_jif = jiffies;
 

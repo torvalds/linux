@@ -267,13 +267,7 @@ do {								\
 extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);
 
-#ifndef __powerpc64__
-
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
-
-#else /* __powerpc64__ */
-
+#ifdef __powerpc64__
 static inline unsigned long
 raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {

@@ -645,10 +645,12 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	/* obj_desc is a valid object */
 
 	if (depth > 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%*s[%u] %p ",
-				  depth, " ", depth, obj_desc));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%*s[%u] %p Refs=%u ",
+				  depth, " ", depth, obj_desc,
+				  obj_desc->common.reference_count));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p ", obj_desc));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p Refs=%u ",
+				  obj_desc, obj_desc->common.reference_count));
 	}
 
 	/* Decode object type */
@@ -690,8 +692,11 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		case ACPI_REFCLASS_NAME:
 
-			acpi_os_printf("- [%4.4s]\n",
-				       obj_desc->reference.node->name.ascii);
+			acpi_ut_repair_name(obj_desc->reference.node->name.
+					    ascii);
+			acpi_os_printf("- [%4.4s] (Node %p)\n",
+				       obj_desc->reference.node->name.ascii,
+				       obj_desc->reference.node);
 			break;
 
 		case ACPI_REFCLASS_ARG:
@@ -999,9 +1004,15 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 		status = acpi_ns_handle_to_pathname(obj_desc->reference.node,
 						    &ret_buf, TRUE);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf(" Could not convert name to pathname\n");
+			acpi_os_printf
+			    (" Could not convert name to pathname: %s\n",
+			     acpi_format_exception(status));
 		} else {
-			acpi_os_printf("%s\n", (char *)ret_buf.pointer);
+			acpi_os_printf("%s: %s\n",
+				       acpi_ut_get_type_name(obj_desc->
+							     reference.node->
+							     type),
+				       (char *)ret_buf.pointer);
 			ACPI_FREE(ret_buf.pointer);
 		}
 	} else if (obj_desc->reference.object) {
@@ -1111,9 +1122,8 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		acpi_os_printf("[Object Reference] Type [%s] %2.2X",
-			       acpi_ut_get_reference_name(obj_desc),
-			       obj_desc->reference.class);
+		acpi_os_printf("[Object Reference] Class [%s]",
+			       acpi_ut_get_reference_name(obj_desc));
 		acpi_ex_dump_reference_obj(obj_desc);
 		break;
 

@@ -1040,7 +1040,7 @@ static void mei_cl_bus_dev_init(struct mei_device *bus,
  *
  * @bus: mei device
  */
-void mei_cl_bus_rescan(struct mei_device *bus)
+static void mei_cl_bus_rescan(struct mei_device *bus)
 {
 	struct mei_cl_device *cldev, *n;
 	struct mei_me_client *me_cl;

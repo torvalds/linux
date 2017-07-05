@@ -645,6 +645,9 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	int enabled;
 	u64 val;
 
+	if (cpu >= nr_cpu_ids)
+		return -EINVAL;
+
 	if (gic_irq_in_rdist(d))
 		return -EINVAL;
 

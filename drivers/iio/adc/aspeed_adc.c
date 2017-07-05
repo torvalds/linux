@@ -212,7 +212,10 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	}
 
 	/* Start all channels in normal mode. */
-	clk_prepare_enable(data->clk_scaler->clk);
+	ret = clk_prepare_enable(data->clk_scaler->clk);
+	if (ret)
+		goto clk_enable_error;
+
 	adc_engine_control_reg_val = GENMASK(31, 16) |
 		ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE;
 	writel(adc_engine_control_reg_val,
@@ -236,6 +239,7 @@ iio_register_error:
 	writel(ASPEED_OPERATION_MODE_POWER_DOWN,
 		data->base + ASPEED_REG_ENGINE_CONTROL);
 	clk_disable_unprepare(data->clk_scaler->clk);
+clk_enable_error:
 	clk_hw_unregister_divider(data->clk_scaler);
 
 scaler_error:

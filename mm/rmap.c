@@ -579,25 +579,13 @@ void page_unlock_anon_vma_read(struct anon_vma *anon_vma)
 void try_to_unmap_flush(void)
 {
 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
-	int cpu;
 
 	if (!tlb_ubc->flush_required)
 		return;
 
-	cpu = get_cpu();
-
-	if (cpumask_test_cpu(cpu, &tlb_ubc->cpumask)) {
-		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-		local_flush_tlb();
-		trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
-	}
-
-	if (cpumask_any_but(&tlb_ubc->cpumask, cpu) < nr_cpu_ids)
-		flush_tlb_others(&tlb_ubc->cpumask, NULL, 0, TLB_FLUSH_ALL);
-	cpumask_clear(&tlb_ubc->cpumask);
+	arch_tlbbatch_flush(&tlb_ubc->arch);
 	tlb_ubc->flush_required = false;
 	tlb_ubc->writable = false;
-	put_cpu();
 }
 
 /* Flush iff there are potentially writable TLB entries that can race with IO */
@@ -613,7 +601,7 @@ static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
 {
 	struct tlbflush_unmap_batch *tlb_ubc = &current->tlb_ubc;
 
-	cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, mm_cpumask(mm));
+	arch_tlbbatch_add_mm(&tlb_ubc->arch, mm);
 	tlb_ubc->flush_required = true;
 
 	/*

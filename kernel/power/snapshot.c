@@ -36,13 +36,13 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
-#ifdef CONFIG_STRICT_KERNEL_RWX
+#ifdef CONFIG_ARCH_HAS_SET_MEMORY
 #include <asm/set_memory.h>
 #endif
 
 #include "power.h"
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
+#if defined(CONFIG_STRICT_KERNEL_RWX) && defined(CONFIG_ARCH_HAS_SET_MEMORY)
 static bool hibernate_restore_protection;
 static bool hibernate_restore_protection_active;
 
@@ -77,7 +77,7 @@ static inline void hibernate_restore_protection_begin(void) {}
 static inline void hibernate_restore_protection_end(void) {}
 static inline void hibernate_restore_protect_page(void *page_address) {}
 static inline void hibernate_restore_unprotect_page(void *page_address) {}
-#endif /* CONFIG_STRICT_KERNEL_RWX */
+#endif /* CONFIG_STRICT_KERNEL_RWX  && CONFIG_ARCH_HAS_SET_MEMORY */
 
 static int swsusp_page_is_free(struct page *);
 static void swsusp_set_page_forbidden(struct page *);
@@ -1929,8 +1929,7 @@ static inline unsigned int alloc_highmem_pages(struct memory_bitmap *bm,
  * also be located in the high memory, because of the way in which
  * copy_data_pages() works.
  */
-static int swsusp_alloc(struct memory_bitmap *orig_bm,
-			struct memory_bitmap *copy_bm,
+static int swsusp_alloc(struct memory_bitmap *copy_bm,
 			unsigned int nr_pages, unsigned int nr_highmem)
 {
 	if (nr_highmem > 0) {
@@ -1976,7 +1975,7 @@ asmlinkage __visible int swsusp_save(void)
 		return -ENOMEM;
 	}
 
-	if (swsusp_alloc(&orig_bm, &copy_bm, nr_pages, nr_highmem)) {
+	if (swsusp_alloc(&copy_bm, nr_pages, nr_highmem)) {
 		printk(KERN_ERR "PM: Memory allocation failed\n");
 		return -ENOMEM;
 	}

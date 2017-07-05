@@ -633,7 +633,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	sch->dequeue = ops->dequeue;
 	sch->dev_queue = dev_queue;
 	dev_hold(dev);
-	atomic_set(&sch->refcnt, 1);
+	refcount_set(&sch->refcnt, 1);
 
 	return sch;
 errout:
@@ -701,7 +701,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	const struct Qdisc_ops  *ops = qdisc->ops;
 
 	if (qdisc->flags & TCQ_F_BUILTIN ||
-	    !atomic_dec_and_test(&qdisc->refcnt))
+	    !refcount_dec_and_test(&qdisc->refcnt))
 		return;
 
 #ifdef CONFIG_NET_SCHED
@@ -739,7 +739,7 @@ struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 	spin_lock_bh(root_lock);
 
 	/* Prune old scheduler */
-	if (oqdisc && atomic_read(&oqdisc->refcnt) <= 1)
+	if (oqdisc && refcount_read(&oqdisc->refcnt) <= 1)
 		qdisc_reset(oqdisc);
 
 	/* ... and graft new one */
@@ -785,7 +785,7 @@ static void attach_default_qdiscs(struct net_device *dev)
 	    dev->priv_flags & IFF_NO_QUEUE) {
 		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
 		dev->qdisc = txq->qdisc_sleeping;
-		atomic_inc(&dev->qdisc->refcnt);
+		refcount_inc(&dev->qdisc->refcnt);
 	} else {
 		qdisc = qdisc_create_dflt(txq, &mq_qdisc_ops, TC_H_ROOT);
 		if (qdisc) {

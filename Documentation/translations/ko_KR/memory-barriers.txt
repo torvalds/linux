@@ -786,7 +786,7 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 위의 코드를 아래와 같이 바꿔버릴 수 있습니다:
 
 	q = READ_ONCE(a);
-	WRITE_ONCE(b, 1);
+	WRITE_ONCE(b, 2);
 	do_something_else();
 
 이렇게 되면, CPU 는 변수 'a' 로부터의 로드와 변수 'b' 로의 스토어 사이의 순서를

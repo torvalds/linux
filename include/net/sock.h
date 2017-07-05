@@ -66,6 +66,7 @@
 #include <linux/poll.h>
 
 #include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <net/dst.h>
 #include <net/checksum.h>
 #include <net/tcp_states.h>
@@ -219,7 +220,7 @@ struct sock_common {
 		u32		skc_tw_rcv_nxt; /* struct tcp_timewait_sock  */
 	};
 
-	atomic_t		skc_refcnt;
+	refcount_t		skc_refcnt;
 	/* private: */
 	int                     skc_dontcopy_end[0];
 	union {
@@ -253,6 +254,7 @@ struct sock_common {
   *	@sk_ll_usec: usecs to busypoll when there is no data
   *	@sk_allocation: allocation mode
   *	@sk_pacing_rate: Pacing rate (if supported by transport/packet scheduler)
+  *	@sk_pacing_status: Pacing status (requested, handled by sch_fq)
   *	@sk_max_pacing_rate: Maximum pacing rate (%SO_MAX_PACING_RATE)
   *	@sk_sndbuf: size of send buffer in bytes
   *	@sk_padding: unused element for alignment
@@ -389,14 +391,14 @@ struct sock {
 
 	/* ===== cache line for TX ===== */
 	int			sk_wmem_queued;
-	atomic_t		sk_wmem_alloc;
+	refcount_t		sk_wmem_alloc;
 	unsigned long		sk_tsq_flags;
 	struct sk_buff		*sk_send_head;
 	struct sk_buff_head	sk_write_queue;
 	__s32			sk_peek_off;
 	int			sk_write_pending;
 	__u32			sk_dst_pending_confirm;
-	/* Note: 32bit hole on 64bit arches */
+	u32			sk_pacing_status; /* see enum sk_pacing */
 	long			sk_sndtimeo;
 	struct timer_list	sk_timer;
 	__u32			sk_priority;
@@ -473,6 +475,12 @@ struct sock {
 	void                    (*sk_destruct)(struct sock *sk);
 	struct sock_reuseport __rcu	*sk_reuseport_cb;
 	struct rcu_head		sk_rcu;
+};
+
+enum sk_pacing {
+	SK_PACING_NONE		= 0,
+	SK_PACING_NEEDED	= 1,
+	SK_PACING_FQ		= 2,
 };
 
 #define __sk_user_data(sk) ((*((void __rcu **)&(sk)->sk_user_data)))
@@ -604,7 +612,7 @@ static inline bool __sk_del_node_init(struct sock *sk)
 
 static __always_inline void sock_hold(struct sock *sk)
 {
-	atomic_inc(&sk->sk_refcnt);
+	refcount_inc(&sk->sk_refcnt);
 }
 
 /* Ungrab socket in the context, which assumes that socket refcnt
@@ -612,7 +620,7 @@ static __always_inline void sock_hold(struct sock *sk)
  */
 static __always_inline void __sock_put(struct sock *sk)
 {
-	atomic_dec(&sk->sk_refcnt);
+	refcount_dec(&sk->sk_refcnt);
 }
 
 static inline bool sk_del_node_init(struct sock *sk)
@@ -621,7 +629,7 @@ static inline bool sk_del_node_init(struct sock *sk)
 
 	if (rc) {
 		/* paranoid for a while -acme */
-		WARN_ON(atomic_read(&sk->sk_refcnt) == 1);
+		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
 		__sock_put(sk);
 	}
 	return rc;
@@ -643,7 +651,7 @@ static inline bool sk_nulls_del_node_init_rcu(struct sock *sk)
 
 	if (rc) {
 		/* paranoid for a while -acme */
-		WARN_ON(atomic_read(&sk->sk_refcnt) == 1);
+		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
 		__sock_put(sk);
 	}
 	return rc;
@@ -900,7 +908,10 @@ static inline int sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 
 static inline void sk_incoming_cpu_update(struct sock *sk)
 {
-	sk->sk_incoming_cpu = raw_smp_processor_id();
+	int cpu = raw_smp_processor_id();
+
+	if (unlikely(sk->sk_incoming_cpu != cpu))
+		sk->sk_incoming_cpu = cpu;
 }
 
 static inline void sock_rps_record_flow_hash(__u32 hash)
@@ -1073,6 +1084,7 @@ struct proto {
 	bool			(*stream_memory_free)(const struct sock *sk);
 	/* Memory pressure */
 	void			(*enter_memory_pressure)(struct sock *sk);
+	void			(*leave_memory_pressure)(struct sock *sk);
 	atomic_long_t		*memory_allocated;	/* Current allocated memory. */
 	struct percpu_counter	*sockets_allocated;	/* Current number of sockets. */
 	/*
@@ -1081,7 +1093,7 @@ struct proto {
 	 * All the __sk_mem_schedule() is of this nature: accounting
 	 * is strict, actions are advisory and have some latency.
 	 */
-	int			*memory_pressure;
+	unsigned long		*memory_pressure;
 	long			*sysctl_mem;
 	int			*sysctl_wmem;
 	int			*sysctl_rmem;
@@ -1133,9 +1145,9 @@ static inline void sk_refcnt_debug_dec(struct sock *sk)
 
 static inline void sk_refcnt_debug_release(const struct sock *sk)
 {
-	if (atomic_read(&sk->sk_refcnt) != 1)
+	if (refcount_read(&sk->sk_refcnt) != 1)
 		printk(KERN_DEBUG "Destruction of the %s socket %p delayed, refcnt=%d\n",
-		       sk->sk_prot->name, sk, atomic_read(&sk->sk_refcnt));
+		       sk->sk_prot->name, sk, refcount_read(&sk->sk_refcnt));
 }
 #else /* SOCK_REFCNT_DEBUG */
 #define sk_refcnt_debug_inc(sk) do { } while (0)
@@ -1184,25 +1196,6 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
 		return true;
 
 	return !!*sk->sk_prot->memory_pressure;
-}
-
-static inline void sk_leave_memory_pressure(struct sock *sk)
-{
-	int *memory_pressure = sk->sk_prot->memory_pressure;
-
-	if (!memory_pressure)
-		return;
-
-	if (*memory_pressure)
-		*memory_pressure = 0;
-}
-
-static inline void sk_enter_memory_pressure(struct sock *sk)
-{
-	if (!sk->sk_prot->enter_memory_pressure)
-		return;
-
-	sk->sk_prot->enter_memory_pressure(sk);
 }
 
 static inline long
@@ -1644,7 +1637,7 @@ void sock_init_data(struct socket *sock, struct sock *sk);
 /* Ungrab socket and destroy it, if it was the last reference. */
 static inline void sock_put(struct sock *sk)
 {
-	if (atomic_dec_and_test(&sk->sk_refcnt))
+	if (refcount_dec_and_test(&sk->sk_refcnt))
 		sk_free(sk);
 }
 /* Generic version of sock_put(), dealing with all sockets
@@ -1919,7 +1912,7 @@ static inline int skb_copy_to_page_nocache(struct sock *sk, struct iov_iter *fro
  */
 static inline int sk_wmem_alloc_get(const struct sock *sk)
 {
-	return atomic_read(&sk->sk_wmem_alloc) - 1;
+	return refcount_read(&sk->sk_wmem_alloc) - 1;
 }
 
 /**
@@ -1953,11 +1946,10 @@ static inline bool sk_has_allocations(const struct sock *sk)
  * The purpose of the skwq_has_sleeper and sock_poll_wait is to wrap the memory
  * barrier call. They were added due to the race found within the tcp code.
  *
- * Consider following tcp code paths:
+ * Consider following tcp code paths::
  *
- * CPU1                  CPU2
- *
- * sys_select            receive packet
+ *   CPU1                CPU2
+ *   sys_select          receive packet
  *   ...                 ...
  *   __add_wait_queue    update tp->rcv_nxt
  *   ...                 ...
@@ -2035,8 +2027,8 @@ void sk_reset_timer(struct sock *sk, struct timer_list *timer,
 
 void sk_stop_timer(struct sock *sk, struct timer_list *timer);
 
-int __sk_queue_drop_skb(struct sock *sk, struct sk_buff *skb,
-			unsigned int flags,
+int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
+			struct sk_buff *skb, unsigned int flags,
 			void (*destructor)(struct sock *sk,
 					   struct sk_buff *skb));
 int __sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
@@ -2063,7 +2055,7 @@ static inline unsigned long sock_wspace(struct sock *sk)
 	int amt = 0;
 
 	if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
-		amt = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
+		amt = sk->sk_sndbuf - refcount_read(&sk->sk_wmem_alloc);
 		if (amt < 0)
 			amt = 0;
 	}
@@ -2144,7 +2136,7 @@ bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag);
  */
 static inline bool sock_writeable(const struct sock *sk)
 {
-	return atomic_read(&sk->sk_wmem_alloc) < (sk->sk_sndbuf >> 1);
+	return refcount_read(&sk->sk_wmem_alloc) < (sk->sk_sndbuf >> 1);
 }
 
 static inline gfp_t gfp_any(void)
@@ -2264,7 +2256,7 @@ void __sock_tx_timestamp(__u16 tsflags, __u8 *tx_flags);
  * @tsflags:	timestamping flags to use
  * @tx_flags:	completed with instructions for time stamping
  *
- * Note : callers should take care of initial *tx_flags value (usually 0)
+ * Note: callers should take care of initial ``*tx_flags`` value (usually 0)
  */
 static inline void sock_tx_timestamp(const struct sock *sk, __u16 tsflags,
 				     __u8 *tx_flags)

@@ -269,7 +269,8 @@ static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer,
 	hdr = (struct hostif_hdr *)buffer;
 
 	DPRINTK(4, "size=%d\n", hdr->size);
-	if (hdr->event < HIF_DATA_REQ || HIF_REQ_MAX < hdr->event) {
+	if (le16_to_cpu(hdr->event) < HIF_DATA_REQ ||
+	    le16_to_cpu(hdr->event) > HIF_REQ_MAX) {
 		DPRINTK(1, "unknown event=%04X\n", hdr->event);
 		return 0;
 	}
@@ -327,13 +328,14 @@ int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 
 	hdr = (struct hostif_hdr *)p;
 
-	if (hdr->event < HIF_DATA_REQ || HIF_REQ_MAX < hdr->event) {
+	if (le16_to_cpu(hdr->event) < HIF_DATA_REQ ||
+	    le16_to_cpu(hdr->event) > HIF_REQ_MAX) {
 		DPRINTK(1, "unknown event=%04X\n", hdr->event);
 		return 0;
 	}
 
 	/* add event to hostt buffer */
-	priv->hostt.buff[priv->hostt.qtail] = hdr->event;
+	priv->hostt.buff[priv->hostt.qtail] = le16_to_cpu(hdr->event);
 	priv->hostt.qtail = (priv->hostt.qtail + 1) % SME_EVENT_BUFF_SIZE;
 
 	DPRINTK(4, "event=%04X\n", hdr->event);
@@ -403,7 +405,7 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 
 	hdr = (struct hostif_hdr *)&rx_buffer->data[0];
 	rx_buffer->size = le16_to_cpu(hdr->size) + sizeof(hdr->size);
-	event = hdr->event;
+	event = le16_to_cpu(hdr->event);
 	inc_rxqtail(priv);
 
 	ret = ks7010_sdio_writeb(priv, READ_STATUS, REG_STATUS_IDLE);

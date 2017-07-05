@@ -42,7 +42,7 @@
 #define RDMA_MAX_SGE_PER_SQ_WQE         (4)
 #define RDMA_MAX_SGE_PER_RQ_WQE         (4)
 
-#define RDMA_MAX_DATA_SIZE_IN_WQE       (0x7FFFFFFF)
+#define RDMA_MAX_DATA_SIZE_IN_WQE	(0x80000000)
 
 #define RDMA_REQ_RD_ATOMIC_ELM_SIZE             (0x50)
 #define RDMA_RESP_RD_ATOMIC_ELM_SIZE    (0x20)

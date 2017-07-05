@@ -785,7 +785,7 @@ struct nand_manufacturer_ops {
  *			Minimum amount of bit errors per @ecc_step_ds guaranteed
  *			to be correctable. If unknown, set to zero.
  * @ecc_step_ds:	[INTERN] ECC step required by the @ecc_strength_ds,
- *                      also from the datasheet. It is the recommended ECC step
+ *			also from the datasheet. It is the recommended ECC step
  *			size, if known; if unknown, set to zero.
  * @onfi_timing_mode_default: [INTERN] default ONFI timing mode. This field is
  *			      set to the actually used ONFI mode if the chip is

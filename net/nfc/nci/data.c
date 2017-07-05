@@ -81,7 +81,7 @@ static inline void nci_push_data_hdr(struct nci_dev *ndev,
 	struct nci_data_hdr *hdr;
 	int plen = skb->len;
 
-	hdr = (struct nci_data_hdr *) skb_push(skb, NCI_DATA_HDR_SIZE);
+	hdr = skb_push(skb, NCI_DATA_HDR_SIZE);
 	hdr->conn_id = conn_id;
 	hdr->rfu = 0;
 	hdr->plen = plen;
@@ -138,7 +138,7 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 		skb_reserve(skb_frag, NCI_DATA_HDR_SIZE);
 
 		/* first, copy the data */
-		memcpy(skb_put(skb_frag, frag_len), data, frag_len);
+		skb_put_data(skb_frag, data, frag_len);
 
 		/* second, set the header */
 		nci_push_data_hdr(ndev, conn_id, skb_frag,

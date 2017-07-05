@@ -840,7 +840,7 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 	/* In places where shutdown command is sent there's no much we can do
 	 * except print the error code on a system failure.
 	 */
-	if (rc < 0)
+	if (rc < 0 && rc != -EPIPE)
 		dev_warn(&chip->dev, "transmit returned %d while stopping the TPM",
 			 rc);
 }

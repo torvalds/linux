@@ -122,6 +122,14 @@ unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int bas
 	return result;
 }
 
+long simple_strtol(const char *cp, char **endp, unsigned int base)
+{
+	if (*cp == '-')
+		return -simple_strtoull(cp + 1, endp, base);
+
+	return simple_strtoull(cp, endp, base);
+}
+
 /**
  * strlen - Find the length of a string
  * @s: The string to be sized

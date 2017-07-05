@@ -251,7 +251,7 @@ static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
 #endif
 }
 
-void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
+static void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
 {
 	struct ucode_cpu_info *uci;
 	struct cpio_data cp;

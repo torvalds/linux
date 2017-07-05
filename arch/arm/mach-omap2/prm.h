@@ -16,7 +16,7 @@
 #include "prcm-common.h"
 
 # ifndef __ASSEMBLER__
-extern void __iomem *prm_base;
+extern struct omap_domain_base prm_base;
 extern u16 prm_features;
 extern void omap2_set_globals_prm(void __iomem *prm);
 int omap_prcm_init(void);

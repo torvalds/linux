@@ -1343,8 +1343,12 @@ static int set_affinity_irq(struct irq_data *data, const struct cpumask *dest,
 			    bool force)
 {
 	unsigned tcpu = cpumask_first_and(dest, cpu_online_mask);
+	int ret = rebind_irq_to_cpu(data->irq, tcpu);
 
-	return rebind_irq_to_cpu(data->irq, tcpu);
+	if (!ret)
+		irq_data_update_effective_affinity(data, cpumask_of(tcpu));
+
+	return ret;
 }
 
 static void enable_dynirq(struct irq_data *data)

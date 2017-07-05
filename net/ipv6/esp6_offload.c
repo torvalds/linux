@@ -30,6 +30,25 @@
 #include <net/ipv6.h>
 #include <linux/icmpv6.h>
 
+static __u16 esp6_nexthdr_esp_offset(struct ipv6hdr *ipv6_hdr, int nhlen)
+{
+	int off = sizeof(struct ipv6hdr);
+	struct ipv6_opt_hdr *exthdr;
+
+	if (likely(ipv6_hdr->nexthdr == NEXTHDR_ESP))
+		return offsetof(struct ipv6hdr, nexthdr);
+
+	while (off < nhlen) {
+		exthdr = (void *)ipv6_hdr + off;
+		if (exthdr->nexthdr == NEXTHDR_ESP)
+			return off;
+
+		off += ipv6_optlen(exthdr);
+	}
+
+	return 0;
+}
+
 static struct sk_buff **esp6_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
 {
@@ -38,6 +57,7 @@ static struct sk_buff **esp6_gro_receive(struct sk_buff **head,
 	struct xfrm_state *x;
 	__be32 seq;
 	__be32 spi;
+	int nhoff;
 	int err;
 
 	skb_pull(skb, offset);
@@ -72,6 +92,11 @@ static struct sk_buff **esp6_gro_receive(struct sk_buff **head,
 
 	xo->flags |= XFRM_GRO;
 
+	nhoff = esp6_nexthdr_esp_offset(ipv6_hdr(skb), offset);
+	if (!nhoff)
+		goto out;
+
+	IP6CB(skb)->nhoff = nhoff;
 	XFRM_TUNNEL_SKB_CB(skb)->tunnel.ip6 = NULL;
 	XFRM_SPI_SKB_CB(skb)->family = AF_INET6;
 	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct ipv6hdr, daddr);

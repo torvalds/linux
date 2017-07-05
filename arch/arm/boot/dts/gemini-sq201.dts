@@ -93,6 +93,12 @@
 			};
 		};
 
+		sata: sata@46000000 {
+			cortina,gemini-ata-muxmode = <0>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
 		pci@50000000 {
 			status = "okay";
 			interrupt-map-mask = <0xf800 0 0 7>;
@@ -113,6 +119,10 @@
 				<0x6000 0 0 2 &pci_intc 0>,
 				<0x6000 0 0 3 &pci_intc 1>,
 				<0x6000 0 0 4 &pci_intc 2>;
+		};
+
+		ata@63000000 {
+			status = "okay";
 		};
 	};
 };
