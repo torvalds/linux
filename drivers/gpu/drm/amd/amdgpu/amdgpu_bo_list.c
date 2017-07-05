@@ -83,7 +83,7 @@ static int amdgpu_bo_list_create(struct amdgpu_device *adev,
 	r = idr_alloc(&fpriv->bo_list_handles, list, 1, 0, GFP_KERNEL);
 	mutex_unlock(&fpriv->bo_list_lock);
 	if (r < 0) {
-		kfree(list);
+		amdgpu_bo_list_free(list);
 		return r;
 	}
 	*id = r;
