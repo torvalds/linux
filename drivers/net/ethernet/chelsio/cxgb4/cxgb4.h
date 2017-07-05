@@ -48,6 +48,8 @@
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_classify.h>
 #include <asm/io.h>
 #include "t4_chip_type.h"
 #include "cxgb4_uld.h"
@@ -510,6 +512,7 @@ struct port_info {
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	bool rxtstamp;  /* Enable TS */
 	struct hwtstamp_config tstamp_config;
+	bool ptp_enable;
 	struct sched_table *sched_tbl;
 };
 
@@ -705,6 +708,7 @@ struct sge_uld_txq_info {
 
 struct sge {
 	struct sge_eth_txq ethtxq[MAX_ETH_QSETS];
+	struct sge_eth_txq ptptxq;
 	struct sge_ctrl_txq ctrlq[MAX_CTRL_QUEUES];
 
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
@@ -869,6 +873,11 @@ struct adapter {
 			 * used for all 4 filters.
 			 */
 
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_clock_info;
+	struct sk_buff *ptp_tx_skb;
+	/* ptp lock */
+	spinlock_t ptp_lock;
 	spinlock_t stats_lock;
 	spinlock_t win0_lock ____cacheline_aligned_in_smp;
 
