@@ -95,3 +95,36 @@ int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev)
 	ctx->scratch_size_bytes = usage_bytes;
 	return 0;
 }
+
+union igp_info {
+	struct atom_integrated_system_info_v1_11 v11;
+};
+
+/*
+ * Return vram width from integrated system info table, if available,
+ * or 0 if not.
+ */
+int amdgpu_atomfirmware_get_vram_width(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+						integratedsysteminfo);
+	u16 data_offset, size;
+	union igp_info *igp_info;
+	u8 frev, crev;
+
+	/* get any igp specific overrides */
+	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		igp_info = (union igp_info *)
+			(mode_info->atom_context->bios + data_offset);
+		switch (crev) {
+		case 11:
+			return igp_info->v11.umachannelnumber * 64;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}

@@ -27,5 +27,6 @@
 bool amdgpu_atomfirmware_gpu_supports_virtualization(struct amdgpu_device *adev);
 void amdgpu_atomfirmware_scratch_regs_init(struct amdgpu_device *adev);
 int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev);
+int amdgpu_atomfirmware_get_vram_width(struct amdgpu_device *adev);
 
 #endif
