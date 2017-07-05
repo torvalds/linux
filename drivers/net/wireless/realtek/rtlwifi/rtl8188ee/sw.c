@@ -175,6 +175,8 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 				      rtl_fw_cb);
 	if (err) {
 		pr_info("Failed to request firmware!\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
 		return 1;
 	}
 

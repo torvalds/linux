@@ -216,6 +216,8 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 				      rtl92se_fw_cb);
 	if (err) {
 		pr_err("Failed to request firmware!\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
 		return 1;
 	}
 

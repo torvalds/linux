@@ -196,6 +196,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->rtlhal.wowlan_firmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.wowlan_firmware) {
 		pr_err("Can't alloc buffer for wowlan fw.\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
 		return 1;
 	}
 
@@ -222,6 +224,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 					      rtl_fw_cb);
 		if (err) {
 			pr_err("Failed to request normal firmware!\n");
+			vfree(rtlpriv->rtlhal.wowlan_firmware);
+			vfree(rtlpriv->rtlhal.pfirmware);
 			return 1;
 		}
 	}
@@ -233,6 +237,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				      rtl_wowlan_fw_cb);
 	if (err) {
 		pr_err("Failed to request wowlan firmware!\n");
+		vfree(rtlpriv->rtlhal.wowlan_firmware);
+		vfree(rtlpriv->rtlhal.pfirmware);
 		return 1;
 	}
 	return 0;
