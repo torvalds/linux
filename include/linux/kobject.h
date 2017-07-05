@@ -217,11 +217,9 @@ extern struct kobject *firmware_kobj;
 int kobject_uevent(struct kobject *kobj, enum kobject_action action);
 int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp[]);
+int kobject_synth_uevent(struct kobject *kobj, const char *buf, size_t count);
 
 __printf(2, 3)
 int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...);
-
-int kobject_action_type(const char *buf, size_t count,
-			enum kobject_action *type);
 
 #endif /* _KOBJECT_H_ */

@@ -761,6 +761,15 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 
 void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
 {
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_9000)
+		return;
+
+	if (CSR_HW_REV_STEP(trans->hw_rev) != SILICON_A_STEP)
+		return;
+
+	if (!trans->cfg->integrated)
+		return;
+
 	/*
 	 * Turn on the chicken-bits that cause MAC wakeup for RX-related
 	 * values.
@@ -768,12 +777,10 @@ void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable)
 	 * bug where shadow registers are not in the retention list and their
 	 * value is lost when NIC powers down
 	 */
-	if (trans->cfg->integrated) {
-		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
-			    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
-		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
-			    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
-	}
+	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
+		    CSR_MAC_SHADOW_REG_CTRL_RX_WAKE);
+	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTL2,
+		    CSR_MAC_SHADOW_REG_CTL2_RX_WAKE);
 }
 
 static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
@@ -845,14 +852,14 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 	 * Set RX DMA chunk size to 64B for IOSF and 128B for PCIe
 	 * Default queue is 0
 	 */
-	iwl_write_prph_no_grab(trans, RFH_GEN_CFG, RFH_GEN_CFG_RFH_DMA_SNOOP |
-			       (DEFAULT_RXQ_NUM <<
-				RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS) |
+	iwl_write_prph_no_grab(trans, RFH_GEN_CFG,
+			       RFH_GEN_CFG_RFH_DMA_SNOOP |
+			       RFH_GEN_CFG_VAL(DEFAULT_RXQ_NUM, 0) |
 			       RFH_GEN_CFG_SERVICE_DMA_SNOOP |
-			       (trans->cfg->integrated ?
-				RFH_GEN_CFG_RB_CHUNK_SIZE_64 :
-				RFH_GEN_CFG_RB_CHUNK_SIZE_128) <<
-			       RFH_GEN_CFG_RB_CHUNK_SIZE_POS);
+			       RFH_GEN_CFG_VAL(RB_CHUNK_SIZE,
+					       trans->cfg->integrated ?
+					       RFH_GEN_CFG_RB_CHUNK_SIZE_64 :
+					       RFH_GEN_CFG_RB_CHUNK_SIZE_128));
 	/* Enable the relevant rx queues */
 	iwl_write_prph_no_grab(trans, RFH_RXF_RXQ_ACTIVE, enabled);
 
@@ -1119,15 +1126,23 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		pkt = rxb_addr(&rxcb);
 
-		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID))
+		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID)) {
+			IWL_DEBUG_RX(trans,
+				     "Q %d: RB end marker at offset %d\n",
+				     rxq->id, offset);
 			break;
+		}
 
-		WARN_ON((le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
-			FH_RSCSR_RXQ_POS != rxq->id);
+		WARN((le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
+			FH_RSCSR_RXQ_POS != rxq->id,
+		     "frame on invalid queue - is on %d and indicates %d\n",
+		     rxq->id,
+		     (le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
+			FH_RSCSR_RXQ_POS);
 
 		IWL_DEBUG_RX(trans,
-			     "cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
-			     rxcb._offset,
+			     "Q %d: cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
+			     rxq->id, offset,
 			     iwl_get_cmd_string(trans,
 						iwl_cmd_id(pkt->hdr.cmd,
 							   pkt->hdr.group_id,
@@ -1376,6 +1391,8 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
 	struct iwl_trans *trans = trans_pcie->trans;
 
+	trace_iwlwifi_dev_irq_msix(trans->dev, entry, false, 0, 0);
+
 	if (WARN_ON(entry->entry >= trans->num_rx_queues))
 		return IRQ_NONE;
 
@@ -1413,17 +1430,15 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 		return;
 	}
 
-	local_bh_disable();
-	/* The STATUS_FW_ERROR bit is set in this function. This must happen
-	 * before we wake up the command caller, to ensure a proper cleanup. */
-	iwl_trans_fw_error(trans);
-	local_bh_enable();
-
 	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
 		if (!trans_pcie->txq[i])
 			continue;
 		del_timer(&trans_pcie->txq[i]->stuck_timer);
 	}
+
+	/* The STATUS_FW_ERROR bit is set in this function. This must happen
+	 * before we wake up the command caller, to ensure a proper cleanup. */
+	iwl_trans_fw_error(trans);
 
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans_pcie->wait_command_queue);
@@ -1507,6 +1522,46 @@ static u32 iwl_pcie_int_cause_ict(struct iwl_trans *trans)
 
 	inta = (0xff & val) | ((0xff00 & val) << 16);
 	return inta;
+}
+
+void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
+	bool hw_rfkill, prev, report;
+
+	mutex_lock(&trans_pcie->mutex);
+	prev = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
+	hw_rfkill = iwl_is_rfkill_set(trans);
+	if (hw_rfkill) {
+		set_bit(STATUS_RFKILL_OPMODE, &trans->status);
+		set_bit(STATUS_RFKILL_HW, &trans->status);
+	}
+	if (trans_pcie->opmode_down)
+		report = hw_rfkill;
+	else
+		report = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
+
+	IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
+		 hw_rfkill ? "disable radio" : "enable radio");
+
+	isr_stats->rfkill++;
+
+	if (prev != report)
+		iwl_trans_pcie_rf_kill(trans, report);
+	mutex_unlock(&trans_pcie->mutex);
+
+	if (hw_rfkill) {
+		if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
+				       &trans->status))
+			IWL_DEBUG_RF_KILL(trans,
+					  "Rfkill while SYNC HCMD in flight\n");
+		wake_up(&trans_pcie->wait_command_queue);
+	} else {
+		clear_bit(STATUS_RFKILL_HW, &trans->status);
+		if (trans_pcie->opmode_down)
+			clear_bit(STATUS_RFKILL_OPMODE, &trans->status);
+	}
 }
 
 irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
@@ -1632,30 +1687,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
-		bool hw_rfkill;
-
-		mutex_lock(&trans_pcie->mutex);
-		hw_rfkill = iwl_is_rfkill_set(trans);
-		if (hw_rfkill)
-			set_bit(STATUS_RFKILL, &trans->status);
-
-		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
-			 hw_rfkill ? "disable radio" : "enable radio");
-
-		isr_stats->rfkill++;
-
-		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
-		mutex_unlock(&trans_pcie->mutex);
-		if (hw_rfkill) {
-			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
-					       &trans->status))
-				IWL_DEBUG_RF_KILL(trans,
-						  "Rfkill while SYNC HCMD in flight\n");
-			wake_up(&trans_pcie->wait_command_queue);
-		} else {
-			clear_bit(STATUS_RFKILL, &trans->status);
-		}
-
+		iwl_pcie_handle_rfkill_irq(trans);
 		handled |= CSR_INT_BIT_RF_KILL;
 	}
 
@@ -1902,6 +1934,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	iwl_write32(trans, CSR_MSIX_HW_INT_CAUSES_AD, inta_hw);
 	spin_unlock(&trans_pcie->irq_lock);
 
+	trace_iwlwifi_dev_irq_msix(trans->dev, entry, true, inta_fh, inta_hw);
+
 	if (unlikely(!(inta_fh | inta_hw))) {
 		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
 		lock_map_release(&trans->sync_cmd_lockdep_map);
@@ -1982,31 +2016,8 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	}
 
 	/* HW RF KILL switch toggled */
-	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL) {
-		bool hw_rfkill;
-
-		mutex_lock(&trans_pcie->mutex);
-		hw_rfkill = iwl_is_rfkill_set(trans);
-		if (hw_rfkill)
-			set_bit(STATUS_RFKILL, &trans->status);
-
-		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
-			 hw_rfkill ? "disable radio" : "enable radio");
-
-		isr_stats->rfkill++;
-
-		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
-		mutex_unlock(&trans_pcie->mutex);
-		if (hw_rfkill) {
-			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
-					       &trans->status))
-				IWL_DEBUG_RF_KILL(trans,
-						  "Rfkill while SYNC HCMD in flight\n");
-			wake_up(&trans_pcie->wait_command_queue);
-		} else {
-			clear_bit(STATUS_RFKILL, &trans->status);
-		}
-	}
+	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL)
+		iwl_pcie_handle_rfkill_irq(trans);
 
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_HW_ERR) {
 		IWL_ERR(trans,

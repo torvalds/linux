@@ -1,12 +1,13 @@
 Aspeed Vectored Interrupt Controller
 
-These bindings are for the Aspeed AST2400 interrupt controller register layout.
-The SoC has an legacy register layout, but this driver does not support that
-mode of operation.
+These bindings are for the Aspeed interrupt controller. The AST2400 and
+AST2500 SoC families include a legacy register layout before a re-designed
+layout, but the bindings do not prescribe the use of one or the other.
 
 Required properties:
 
-- compatible : should be "aspeed,ast2400-vic".
+- compatible : "aspeed,ast2400-vic"
+               "aspeed,ast2500-vic"
 
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an

@@ -107,10 +107,8 @@ static int __init pxa_pm_init(void)
 	sleep_save = kmalloc_array(pxa_cpu_pm_fns->save_count,
 				   sizeof(*sleep_save),
 				   GFP_KERNEL);
-	if (!sleep_save) {
-		printk(KERN_ERR "failed to alloc memory for pm save\n");
+	if (!sleep_save)
 		return -ENOMEM;
-	}
 
 	suspend_set_ops(&pxa_pm_ops);
 	return 0;

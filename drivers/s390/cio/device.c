@@ -208,44 +208,6 @@ int __init io_subchannel_init(void)
 
 /************************ device handling **************************/
 
-/*
- * A ccw_device has some interfaces in sysfs in addition to the
- * standard ones.
- * The following entries are designed to export the information which
- * resided in 2.4 in /proc/subchannels. Subchannel and device number
- * are obvious, so they don't have an entry :)
- * TODO: Split chpids and pimpampom up? Where is "in use" in the tree?
- */
-static ssize_t
-chpids_show (struct device * dev, struct device_attribute *attr, char * buf)
-{
-	struct subchannel *sch = to_subchannel(dev);
-	struct chsc_ssd_info *ssd = &sch->ssd_info;
-	ssize_t ret = 0;
-	int chp;
-	int mask;
-
-	for (chp = 0; chp < 8; chp++) {
-		mask = 0x80 >> chp;
-		if (ssd->path_mask & mask)
-			ret += sprintf(buf + ret, "%02x ", ssd->chpid[chp].id);
-		else
-			ret += sprintf(buf + ret, "00 ");
-	}
-	ret += sprintf (buf+ret, "\n");
-	return min((ssize_t)PAGE_SIZE, ret);
-}
-
-static ssize_t
-pimpampom_show (struct device * dev, struct device_attribute *attr, char * buf)
-{
-	struct subchannel *sch = to_subchannel(dev);
-	struct pmcw *pmcw = &sch->schib.pmcw;
-
-	return sprintf (buf, "%02x %02x %02x\n",
-			pmcw->pim, pmcw->pam, pmcw->pom);
-}
-
 static ssize_t
 devtype_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -636,8 +598,6 @@ static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%02x\n", sch->vpm);
 }
 
-static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
-static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
 static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
 static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
 static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
@@ -647,8 +607,6 @@ static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
 static DEVICE_ATTR(vpm, 0444, vpm_show, NULL);
 
 static struct attribute *io_subchannel_attrs[] = {
-	&dev_attr_chpids.attr,
-	&dev_attr_pimpampom.attr,
 	&dev_attr_logging.attr,
 	&dev_attr_vpm.attr,
 	NULL,

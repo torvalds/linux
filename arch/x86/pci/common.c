@@ -75,8 +75,8 @@ struct pci_ops pci_root_ops = {
 };
 
 /*
- * This interrupt-safe spinlock protects all accesses to PCI
- * configuration space.
+ * This interrupt-safe spinlock protects all accesses to PCI configuration
+ * space, except for the mmconfig (ECAM) based operations.
  */
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 

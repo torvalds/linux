@@ -859,7 +859,7 @@ ACPI_PARSE_COMMON};
  * and bytelists.
  */
 struct acpi_parse_obj_named {
-	ACPI_PARSE_COMMON u8 *path;
+	ACPI_PARSE_COMMON char *path;
 	u8 *data;		/* AML body or bytelist data */
 	u32 length;		/* AML length */
 	u32 name;		/* 4-byte name or zero if no name */
@@ -1142,8 +1142,13 @@ struct acpi_port_info {
 #define ACPI_RESOURCE_NAME_ADDRESS64            0x8A
 #define ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64   0x8B
 #define ACPI_RESOURCE_NAME_GPIO                 0x8C
+#define ACPI_RESOURCE_NAME_PIN_FUNCTION         0x8D
 #define ACPI_RESOURCE_NAME_SERIAL_BUS           0x8E
-#define ACPI_RESOURCE_NAME_LARGE_MAX            0x8E
+#define ACPI_RESOURCE_NAME_PIN_CONFIG           0x8F
+#define ACPI_RESOURCE_NAME_PIN_GROUP            0x90
+#define ACPI_RESOURCE_NAME_PIN_GROUP_FUNCTION   0x91
+#define ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG     0x92
+#define ACPI_RESOURCE_NAME_LARGE_MAX            0x92
 
 /*****************************************************************************
  *
@@ -1176,10 +1181,16 @@ struct acpi_external_list {
 #define ACPI_EXT_INTERNAL_PATH_ALLOCATED    0x04	/* Deallocate internal path on completion */
 #define ACPI_EXT_EXTERNAL_EMITTED           0x08	/* External() statement has been emitted */
 #define ACPI_EXT_ORIGIN_FROM_OPCODE         0x10	/* External came from a External() opcode */
+#define ACPI_EXT_CONFLICTING_DECLARATION    0x20	/* External has a conflicting declaration within AML */
 
 struct acpi_external_file {
 	char *path;
 	struct acpi_external_file *next;
+};
+
+struct acpi_parse_object_list {
+	union acpi_parse_object *op;
+	struct acpi_parse_object_list *next;
 };
 
 /*****************************************************************************

@@ -442,6 +442,8 @@ static DEFINE_SPINLOCK(rbd_client_list_lock);
 static struct kmem_cache	*rbd_img_request_cache;
 static struct kmem_cache	*rbd_obj_request_cache;
 
+static struct bio_set		*rbd_bio_clone;
+
 static int rbd_major;
 static DEFINE_IDA(rbd_dev_id_ida);
 
@@ -1363,7 +1365,7 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 {
 	struct bio *bio;
 
-	bio = bio_clone(bio_src, gfpmask);
+	bio = bio_clone_fast(bio_src, gfpmask, rbd_bio_clone);
 	if (!bio)
 		return NULL;	/* ENOMEM */
 
@@ -2293,11 +2295,13 @@ static bool rbd_img_obj_end_request(struct rbd_obj_request *obj_request)
 		rbd_assert(img_request->obj_request != NULL);
 		more = obj_request->which < img_request->obj_request_count - 1;
 	} else {
+		blk_status_t status = errno_to_blk_status(result);
+
 		rbd_assert(img_request->rq != NULL);
 
-		more = blk_update_request(img_request->rq, result, xferred);
+		more = blk_update_request(img_request->rq, status, xferred);
 		if (!more)
-			__blk_mq_end_request(img_request->rq, result);
+			__blk_mq_end_request(img_request->rq, status);
 	}
 
 	return more;
@@ -4150,17 +4154,17 @@ err_rq:
 			 obj_op_name(op_type), length, offset, result);
 	ceph_put_snap_context(snapc);
 err:
-	blk_mq_end_request(rq, result);
+	blk_mq_end_request(rq, errno_to_blk_status(result));
 }
 
-static int rbd_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t rbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
 	struct work_struct *work = blk_mq_rq_to_pdu(rq);
 
 	queue_work(rbd_wq, work);
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
 static void rbd_free_disk(struct rbd_device *rbd_dev)
@@ -6414,8 +6418,16 @@ static int rbd_slab_init(void)
 	if (!rbd_obj_request_cache)
 		goto out_err;
 
+	rbd_assert(!rbd_bio_clone);
+	rbd_bio_clone = bioset_create(BIO_POOL_SIZE, 0, 0);
+	if (!rbd_bio_clone)
+		goto out_err_clone;
+
 	return 0;
 
+out_err_clone:
+	kmem_cache_destroy(rbd_obj_request_cache);
+	rbd_obj_request_cache = NULL;
 out_err:
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
@@ -6431,6 +6443,10 @@ static void rbd_slab_exit(void)
 	rbd_assert(rbd_img_request_cache);
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
+
+	rbd_assert(rbd_bio_clone);
+	bioset_free(rbd_bio_clone);
+	rbd_bio_clone = NULL;
 }
 
 static int __init rbd_init(void)

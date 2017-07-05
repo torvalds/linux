@@ -118,7 +118,6 @@ static inline void *bio_data(struct bio *bio)
 /*
  * will die
  */
-#define bio_to_phys(bio)	(page_to_phys(bio_page((bio))) + (unsigned long) bio_offset((bio)))
 #define bvec_to_phys(bv)	(page_to_phys((bv)->bv_page) + (unsigned long) (bv)->bv_offset)
 
 /*
@@ -373,8 +372,11 @@ static inline struct bio *bio_next_split(struct bio *bio, int sectors,
 	return bio_split(bio, sectors, gfp, bs);
 }
 
-extern struct bio_set *bioset_create(unsigned int, unsigned int);
-extern struct bio_set *bioset_create_nobvec(unsigned int, unsigned int);
+extern struct bio_set *bioset_create(unsigned int, unsigned int, int flags);
+enum {
+	BIOSET_NEED_BVECS = BIT(0),
+	BIOSET_NEED_RESCUER = BIT(1),
+};
 extern void bioset_free(struct bio_set *);
 extern mempool_t *biovec_create_pool(int pool_entries);
 
@@ -390,11 +392,6 @@ extern struct bio_set *fs_bio_set;
 static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
 {
 	return bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
-}
-
-static inline struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
-{
-	return bio_clone_bioset(bio, gfp_mask, fs_bio_set);
 }
 
 static inline struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs)
@@ -414,7 +411,13 @@ extern void bio_endio(struct bio *);
 
 static inline void bio_io_error(struct bio *bio)
 {
-	bio->bi_error = -EIO;
+	bio->bi_status = BLK_STS_IOERR;
+	bio_endio(bio);
+}
+
+static inline void bio_wouldblock_error(struct bio *bio)
+{
+	bio->bi_status = BLK_STS_AGAIN;
 	bio_endio(bio);
 }
 
@@ -426,6 +429,7 @@ extern void bio_advance(struct bio *, unsigned);
 
 extern void bio_init(struct bio *bio, struct bio_vec *table,
 		     unsigned short max_vecs);
+extern void bio_uninit(struct bio *);
 extern void bio_reset(struct bio *);
 void bio_chain(struct bio *, struct bio *);
 

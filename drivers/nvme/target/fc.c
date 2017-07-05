@@ -2096,20 +2096,22 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 	/* clear any response payload */
 	memset(&fod->rspiubuf, 0, sizeof(fod->rspiubuf));
 
+	fod->data_sg = NULL;
+	fod->data_sg_cnt = 0;
+
 	ret = nvmet_req_init(&fod->req,
 				&fod->queue->nvme_cq,
 				&fod->queue->nvme_sq,
 				&nvmet_fc_tgt_fcp_ops);
-	if (!ret) {	/* bad SQE content or invalid ctrl state */
-		nvmet_fc_abort_op(tgtport, fod);
+	if (!ret) {
+		/* bad SQE content or invalid ctrl state */
+		/* nvmet layer has already called op done to send rsp. */
 		return;
 	}
 
 	/* keep a running counter of tail position */
 	atomic_inc(&fod->queue->sqtail);
 
-	fod->data_sg = NULL;
-	fod->data_sg_cnt = 0;
 	if (fod->total_length) {
 		ret = nvmet_fc_alloc_tgt_pgs(fod);
 		if (ret) {

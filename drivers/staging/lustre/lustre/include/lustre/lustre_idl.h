@@ -546,7 +546,7 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
 {
 	if (unlikely(fid_seq_is_igif(fid->f_seq))) {
-		CERROR("bad IGIF, "DFID"\n", PFID(fid));
+		CERROR("bad IGIF, " DFID "\n", PFID(fid));
 		return -EBADF;
 	}
 
@@ -585,7 +585,7 @@ static inline int ostid_to_fid(struct lu_fid *fid, struct ost_id *ostid,
 	__u64 seq = ostid_seq(ostid);
 
 	if (ost_idx > 0xffff) {
-		CERROR("bad ost_idx, "DOSTID" ost_idx:%u\n", POSTID(ostid),
+		CERROR("bad ost_idx, " DOSTID " ost_idx:%u\n", POSTID(ostid),
 		       ost_idx);
 		return -EBADF;
 	}
@@ -630,7 +630,7 @@ static inline int ostid_to_fid(struct lu_fid *fid, struct ost_id *ostid,
 static inline int fid_to_ostid(const struct lu_fid *fid, struct ost_id *ostid)
 {
 	if (unlikely(fid_seq_is_igif(fid->f_seq))) {
-		CERROR("bad IGIF, "DFID"\n", PFID(fid));
+		CERROR("bad IGIF, " DFID "\n", PFID(fid));
 		return -EBADF;
 	}
 

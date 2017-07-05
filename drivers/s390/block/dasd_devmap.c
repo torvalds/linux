@@ -315,45 +315,58 @@ static int __init dasd_parse_range(const char *range)
 	char *features_str = NULL;
 	char *from_str = NULL;
 	char *to_str = NULL;
-	size_t len = strlen(range) + 1;
-	char tmp[len];
+	int rc = 0;
+	char *tmp;
 
-	strlcpy(tmp, range, len);
+	tmp = kstrdup(range, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
-	if (dasd_evaluate_range_param(tmp, &from_str, &to_str, &features_str))
-		goto out_err;
+	if (dasd_evaluate_range_param(tmp, &from_str, &to_str, &features_str)) {
+		rc = -EINVAL;
+		goto out;
+	}
 
-	if (dasd_busid(from_str, &from_id0, &from_id1, &from))
-		goto out_err;
+	if (dasd_busid(from_str, &from_id0, &from_id1, &from)) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	to = from;
 	to_id0 = from_id0;
 	to_id1 = from_id1;
 	if (to_str) {
-		if (dasd_busid(to_str, &to_id0, &to_id1, &to))
-			goto out_err;
+		if (dasd_busid(to_str, &to_id0, &to_id1, &to)) {
+			rc = -EINVAL;
+			goto out;
+		}
 		if (from_id0 != to_id0 || from_id1 != to_id1 || from > to) {
 			pr_err("%s is not a valid device range\n", range);
-			goto out_err;
+			rc = -EINVAL;
+			goto out;
 		}
 	}
 
 	features = dasd_feature_list(features_str);
-	if (features < 0)
-		goto out_err;
+	if (features < 0) {
+		rc = -EINVAL;
+		goto out;
+	}
 	/* each device in dasd= parameter should be set initially online */
 	features |= DASD_FEATURE_INITIAL_ONLINE;
 	while (from <= to) {
 		sprintf(bus_id, "%01x.%01x.%04x", from_id0, from_id1, from++);
 		devmap = dasd_add_busid(bus_id, features);
-		if (IS_ERR(devmap))
-			return PTR_ERR(devmap);
+		if (IS_ERR(devmap)) {
+			rc = PTR_ERR(devmap);
+			goto out;
+		}
 	}
 
-	return 0;
+out:
+	kfree(tmp);
 
-out_err:
-	return -EINVAL;
+	return rc;
 }
 
 /*
@@ -735,13 +748,22 @@ static ssize_t
 dasd_ro_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dasd_devmap *devmap;
-	int ro_flag;
+	struct dasd_device *device;
+	int ro_flag = 0;
 
 	devmap = dasd_find_busid(dev_name(dev));
-	if (!IS_ERR(devmap))
-		ro_flag = (devmap->features & DASD_FEATURE_READONLY) != 0;
-	else
-		ro_flag = (DASD_FEATURE_DEFAULT & DASD_FEATURE_READONLY) != 0;
+	if (IS_ERR(devmap))
+		goto out;
+
+	ro_flag = !!(devmap->features & DASD_FEATURE_READONLY);
+
+	spin_lock(&dasd_devmap_lock);
+	device = devmap->device;
+	if (device)
+		ro_flag |= test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+	spin_unlock(&dasd_devmap_lock);
+
+out:
 	return snprintf(buf, PAGE_SIZE, ro_flag ? "1\n" : "0\n");
 }
 
@@ -764,7 +786,7 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 
 	device = dasd_device_from_cdev(cdev);
 	if (IS_ERR(device))
-		return PTR_ERR(device);
+		return count;
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	val = val || test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
@@ -928,11 +950,14 @@ dasd_safe_offline_store(struct device *dev, struct device_attribute *attr,
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct dasd_device *device;
+	unsigned long flags;
 	int rc;
 
-	device = dasd_device_from_cdev(cdev);
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	device = dasd_device_from_cdev_locked(cdev);
 	if (IS_ERR(device)) {
 		rc = PTR_ERR(device);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 		goto out;
 	}
 
@@ -940,12 +965,14 @@ dasd_safe_offline_store(struct device *dev, struct device_attribute *attr,
 	    test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
 		/* Already doing offline processing */
 		dasd_put_device(device);
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 		rc = -EBUSY;
 		goto out;
 	}
 
 	set_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
 	dasd_put_device(device);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	rc = ccw_device_set_offline(cdev);
 

@@ -1371,7 +1371,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	/* is antenna coupling more than 35dB ? */
 	priv->bt_ant_couple_ok =
-		(iwlwifi_mod_params.ant_coupling >
+		(iwlwifi_mod_params.antenna_coupling >
 			IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
 			true : false;
 
@@ -1513,7 +1513,7 @@ out_destroy_workqueue:
 out_free_eeprom_blob:
 	kfree(priv->eeprom_blob);
 out_free_eeprom:
-	iwl_free_nvm_data(priv->nvm_data);
+	kfree(priv->nvm_data);
 out_free_hw:
 	ieee80211_free_hw(priv->hw);
 out:
@@ -1532,7 +1532,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	iwl_tt_exit(priv);
 
 	kfree(priv->eeprom_blob);
-	iwl_free_nvm_data(priv->nvm_data);
+	kfree(priv->nvm_data);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);
@@ -1958,7 +1958,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	}
 
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		if (iwlwifi_mod_params.restart_fw) {
+		if (iwlwifi_mod_params.fw_restart) {
 			IWL_DEBUG_FW_ERRORS(priv,
 				  "Restarting adapter due to uCode error.\n");
 			queue_work(priv->workqueue, &priv->restart);

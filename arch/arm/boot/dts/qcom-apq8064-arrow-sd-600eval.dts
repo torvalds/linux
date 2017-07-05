@@ -320,43 +320,37 @@
 		};
 
 		/* OTG */
-		phy@12500000 {
-			status		= "okay";
-			dr_mode		= "peripheral";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l4>;
-		};
-
-		phy@12520000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l23>;
-		};
-
-		phy@12530000 {
-			status		= "okay";
-			vddcx-supply	= <&pm8921_s3>;
-			v3p3-supply	= <&pm8921_l3>;
-			v1p8-supply	= <&pm8921_l23>;
-		};
-
-		gadget@12500000 {
-			status = "okay";
-		};
-
-		/* OTG */
 		usb@12500000 {
 			status = "okay";
+			dr_mode = "peripheral";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l4>;
+				};
+			};
 		};
 
 		usb@12520000 {
 			status = "okay";
+			dr_mode = "otg";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l23>;
+				};
+			};
 		};
 
 		usb@12530000 {
 			status = "okay";
+			dr_mode = "otg";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l23>;
+				};
+			};
 		};
 
 		amba {

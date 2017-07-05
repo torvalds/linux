@@ -94,8 +94,7 @@ static int int3496_probe(struct platform_device *pdev)
 	struct int3496_data *data;
 	int ret;
 
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev),
-					acpi_int3496_default_gpios);
+	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_int3496_default_gpios);
 	if (ret) {
 		dev_err(dev, "can't add GPIO ACPI mapping\n");
 		return ret;
@@ -168,8 +167,6 @@ static int int3496_remove(struct platform_device *pdev)
 
 	devm_free_irq(&pdev->dev, data->usb_id_irq, data);
 	cancel_delayed_work_sync(&data->work);
-
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pdev->dev));
 
 	return 0;
 }

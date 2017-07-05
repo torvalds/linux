@@ -66,7 +66,7 @@ void i915_sw_fence_commit(struct i915_sw_fence *fence);
 
 int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 				 struct i915_sw_fence *after,
-				 wait_queue_t *wq);
+				 wait_queue_entry_t *wq);
 int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
 				     struct i915_sw_fence *after,
 				     gfp_t gfp);

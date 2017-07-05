@@ -328,11 +328,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 		goto err_sleep_init;
 	}
 
-	/* Return if there is no sleep keepon data. */
-	if (!pmic_pdata->slp_keepon)
-		return 0;
-
-	if (pmic_pdata->slp_keepon->therm_keepon) {
+	if (pmic_pdata->slp_keepon.therm_keepon) {
 		ret = tps65910_reg_set_bits(tps65910,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_THERM_KEEPON_MASK);
@@ -342,7 +338,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 		}
 	}
 
-	if (pmic_pdata->slp_keepon->clkout32k_keepon) {
+	if (pmic_pdata->slp_keepon.clkout32k_keepon) {
 		ret = tps65910_reg_set_bits(tps65910,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_CLKOUT32K_KEEPON_MASK);
@@ -352,7 +348,7 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 		}
 	}
 
-	if (pmic_pdata->slp_keepon->i2chs_keepon) {
+	if (pmic_pdata->slp_keepon.i2chs_keepon) {
 		ret = tps65910_reg_set_bits(tps65910,
 				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_I2CHS_KEEPON_MASK);
@@ -414,6 +410,18 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 
 	prop = of_property_read_bool(np, "ti,en-ck32k-xtal");
 	board_info->en_ck32k_xtal = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-enable");
+	board_info->en_dev_slp = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-keep-therm");
+	board_info->slp_keepon.therm_keepon = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-keep-ck32k");
+	board_info->slp_keepon.clkout32k_keepon = prop;
+
+	prop = of_property_read_bool(np, "ti,sleep-keep-hsclk");
+	board_info->slp_keepon.i2chs_keepon = prop;
 
 	board_info->irq = client->irq;
 	board_info->irq_base = -1;

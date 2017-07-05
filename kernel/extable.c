@@ -75,7 +75,7 @@ int core_kernel_text(unsigned long addr)
 	    addr < (unsigned long)_etext)
 		return 1;
 
-	if (system_state == SYSTEM_BOOTING &&
+	if (system_state < SYSTEM_RUNNING &&
 	    init_kernel_text(addr))
 		return 1;
 	return 0;

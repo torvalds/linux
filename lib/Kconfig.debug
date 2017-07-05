@@ -286,7 +286,7 @@ config DEBUG_FS
 	  write to these files.
 
 	  For detailed documentation on the debugfs API, see
-	  Documentation/DocBook/filesystems.
+	  Documentation/filesystems/.
 
 	  If unsure, say N.
 
@@ -1052,6 +1052,7 @@ config DEBUG_LOCK_ALLOC
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
+	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select LOCKDEP
 	help
 	 This feature will check whether any held lock (spinlock, rwlock,
@@ -1067,6 +1068,7 @@ config PROVE_LOCKING
 	select LOCKDEP
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
+	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select DEBUG_LOCK_ALLOC
 	select TRACE_IRQFLAGS
 	default n
@@ -1121,6 +1123,7 @@ config LOCK_STAT
 	select LOCKDEP
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
+	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select DEBUG_LOCK_ALLOC
 	default n
 	help
@@ -1301,189 +1304,7 @@ config DEBUG_CREDENTIALS
 
 	  If unsure, say N.
 
-menu "RCU Debugging"
-
-config PROVE_RCU
-	def_bool PROVE_LOCKING
-
-config PROVE_RCU_REPEATEDLY
-	bool "RCU debugging: don't disable PROVE_RCU on first splat"
-	depends on PROVE_RCU
-	default n
-	help
-	 By itself, PROVE_RCU will disable checking upon issuing the
-	 first warning (or "splat").  This feature prevents such
-	 disabling, allowing multiple RCU-lockdep warnings to be printed
-	 on a single reboot.
-
-	 Say Y to allow multiple RCU-lockdep warnings per boot.
-
-	 Say N if you are unsure.
-
-config SPARSE_RCU_POINTER
-	bool "RCU debugging: sparse-based checks for pointer usage"
-	default n
-	help
-	 This feature enables the __rcu sparse annotation for
-	 RCU-protected pointers.  This annotation will cause sparse
-	 to flag any non-RCU used of annotated pointers.  This can be
-	 helpful when debugging RCU usage.  Please note that this feature
-	 is not intended to enforce code cleanliness; it is instead merely
-	 a debugging aid.
-
-	 Say Y to make sparse flag questionable use of RCU-protected pointers
-
-	 Say N if you are unsure.
-
-config TORTURE_TEST
-	tristate
-	default n
-
-config RCU_PERF_TEST
-	tristate "performance tests for RCU"
-	depends on DEBUG_KERNEL
-	select TORTURE_TEST
-	select SRCU
-	select TASKS_RCU
-	default n
-	help
-	  This option provides a kernel module that runs performance
-	  tests on the RCU infrastructure.  The kernel module may be built
-	  after the fact on the running kernel to be tested, if desired.
-
-	  Say Y here if you want RCU performance tests to be built into
-	  the kernel.
-	  Say M if you want the RCU performance tests to build as a module.
-	  Say N if you are unsure.
-
-config RCU_TORTURE_TEST
-	tristate "torture tests for RCU"
-	depends on DEBUG_KERNEL
-	select TORTURE_TEST
-	select SRCU
-	select TASKS_RCU
-	default n
-	help
-	  This option provides a kernel module that runs torture tests
-	  on the RCU infrastructure.  The kernel module may be built
-	  after the fact on the running kernel to be tested, if desired.
-
-	  Say Y here if you want RCU torture tests to be built into
-	  the kernel.
-	  Say M if you want the RCU torture tests to build as a module.
-	  Say N if you are unsure.
-
-config RCU_TORTURE_TEST_SLOW_PREINIT
-	bool "Slow down RCU grace-period pre-initialization to expose races"
-	depends on RCU_TORTURE_TEST
-	help
-	  This option delays grace-period pre-initialization (the
-	  propagation of CPU-hotplug changes up the rcu_node combining
-	  tree) for a few jiffies between initializing each pair of
-	  consecutive rcu_node structures.  This helps to expose races
-	  involving grace-period pre-initialization, in other words, it
-	  makes your kernel less stable.  It can also greatly increase
-	  grace-period latency, especially on systems with large numbers
-	  of CPUs.  This is useful when torture-testing RCU, but in
-	  almost no other circumstance.
-
-	  Say Y here if you want your system to crash and hang more often.
-	  Say N if you want a sane system.
-
-config RCU_TORTURE_TEST_SLOW_PREINIT_DELAY
-	int "How much to slow down RCU grace-period pre-initialization"
-	range 0 5
-	default 3
-	depends on RCU_TORTURE_TEST_SLOW_PREINIT
-	help
-	  This option specifies the number of jiffies to wait between
-	  each rcu_node structure pre-initialization step.
-
-config RCU_TORTURE_TEST_SLOW_INIT
-	bool "Slow down RCU grace-period initialization to expose races"
-	depends on RCU_TORTURE_TEST
-	help
-	  This option delays grace-period initialization for a few
-	  jiffies between initializing each pair of consecutive
-	  rcu_node structures.	This helps to expose races involving
-	  grace-period initialization, in other words, it makes your
-	  kernel less stable.  It can also greatly increase grace-period
-	  latency, especially on systems with large numbers of CPUs.
-	  This is useful when torture-testing RCU, but in almost no
-	  other circumstance.
-
-	  Say Y here if you want your system to crash and hang more often.
-	  Say N if you want a sane system.
-
-config RCU_TORTURE_TEST_SLOW_INIT_DELAY
-	int "How much to slow down RCU grace-period initialization"
-	range 0 5
-	default 3
-	depends on RCU_TORTURE_TEST_SLOW_INIT
-	help
-	  This option specifies the number of jiffies to wait between
-	  each rcu_node structure initialization.
-
-config RCU_TORTURE_TEST_SLOW_CLEANUP
-	bool "Slow down RCU grace-period cleanup to expose races"
-	depends on RCU_TORTURE_TEST
-	help
-	  This option delays grace-period cleanup for a few jiffies
-	  between cleaning up each pair of consecutive rcu_node
-	  structures.  This helps to expose races involving grace-period
-	  cleanup, in other words, it makes your kernel less stable.
-	  It can also greatly increase grace-period latency, especially
-	  on systems with large numbers of CPUs.  This is useful when
-	  torture-testing RCU, but in almost no other circumstance.
-
-	  Say Y here if you want your system to crash and hang more often.
-	  Say N if you want a sane system.
-
-config RCU_TORTURE_TEST_SLOW_CLEANUP_DELAY
-	int "How much to slow down RCU grace-period cleanup"
-	range 0 5
-	default 3
-	depends on RCU_TORTURE_TEST_SLOW_CLEANUP
-	help
-	  This option specifies the number of jiffies to wait between
-	  each rcu_node structure cleanup operation.
-
-config RCU_CPU_STALL_TIMEOUT
-	int "RCU CPU stall timeout in seconds"
-	depends on RCU_STALL_COMMON
-	range 3 300
-	default 21
-	help
-	  If a given RCU grace period extends more than the specified
-	  number of seconds, a CPU stall warning is printed.  If the
-	  RCU grace period persists, additional CPU stall warnings are
-	  printed at more widely spaced intervals.
-
-config RCU_TRACE
-	bool "Enable tracing for RCU"
-	depends on DEBUG_KERNEL
-	default y if TREE_RCU
-	select TRACE_CLOCK
-	help
-	  This option provides tracing in RCU which presents stats
-	  in debugfs for debugging RCU implementation.  It also enables
-	  additional tracepoints for ftrace-style event tracing.
-
-	  Say Y here if you want to enable RCU tracing
-	  Say N if you are unsure.
-
-config RCU_EQS_DEBUG
-	bool "Provide debugging asserts for adding NO_HZ support to an arch"
-	depends on DEBUG_KERNEL
-	help
-	  This option provides consistency checks in RCU's handling of
-	  NO_HZ.  These checks have proven quite helpful in detecting
-	  bugs in arch-specific NO_HZ code.
-
-	  Say N here if you need ultimate kernel/user switch latencies
-	  Say Y if you are unsure
-
-endmenu # "RCU Debugging"
+source "kernel/rcu/Kconfig.debug"
 
 config DEBUG_WQ_FORCE_RR_CPU
 	bool "Force round-robin CPU selection for unbound work items"

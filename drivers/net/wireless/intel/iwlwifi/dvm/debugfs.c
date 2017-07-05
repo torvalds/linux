@@ -681,11 +681,10 @@ DEBUGFS_READ_FILE_OPS(temperature);
 DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
 DEBUGFS_READ_FILE_OPS(current_sleep_command);
 
-static const char *fmt_value = "  %-30s %10u\n";
-static const char *fmt_hex   = "  %-30s       0x%02X\n";
-static const char *fmt_table = "  %-30s %10u  %10u  %10u  %10u\n";
-static const char *fmt_header =
-	"%-32s    current  cumulative       delta         max\n";
+#define fmt_value	"  %-30s %10u\n"
+#define fmt_hex		"  %-30s       0x%02X\n"
+#define fmt_table	"  %-30s %10u  %10u  %10u  %10u\n"
+#define fmt_header	"%-32s    current  cumulative       delta         max\n"
 
 static int iwl_statistics_flag(struct iwl_priv *priv, char *buf, int bufsz)
 {
@@ -2309,10 +2308,10 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
-	bool restart_fw = iwlwifi_mod_params.restart_fw;
+	bool fw_restart = iwlwifi_mod_params.fw_restart;
 	int __maybe_unused ret;
 
-	iwlwifi_mod_params.restart_fw = true;
+	iwlwifi_mod_params.fw_restart = true;
 
 	mutex_lock(&priv->mutex);
 
@@ -2321,7 +2320,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 
 	mutex_unlock(&priv->mutex);
 
-	iwlwifi_mod_params.restart_fw = restart_fw;
+	iwlwifi_mod_params.fw_restart = fw_restart;
 
 	return count;
 }

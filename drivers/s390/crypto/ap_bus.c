@@ -766,7 +766,7 @@ static ssize_t ap_domain_store(struct bus_type *bus,
 	ap_domain_index = domain;
 	spin_unlock_bh(&ap_domain_lock);
 
-	AP_DBF(DBF_DEBUG, "store new default domain=%d\n", domain);
+	AP_DBF(DBF_DEBUG, "stored new default domain=%d\n", domain);
 
 	return count;
 }
@@ -952,6 +952,7 @@ static int ap_select_domain(void)
 	}
 	if (best_domain >= 0){
 		ap_domain_index = best_domain;
+		AP_DBF(DBF_DEBUG, "new ap_domain_index=%d\n", ap_domain_index);
 		spin_unlock_bh(&ap_domain_lock);
 		return 0;
 	}
@@ -988,7 +989,7 @@ static void ap_scan_bus(struct work_struct *unused)
 	ap_qid_t qid;
 	int depth = 0, type = 0;
 	unsigned int functions = 0;
-	int rc, id, dom, borked, domains;
+	int rc, id, dom, borked, domains, defdomdevs = 0;
 
 	AP_DBF(DBF_DEBUG, "ap_scan_bus running\n");
 
@@ -1052,6 +1053,8 @@ static void ap_scan_bus(struct work_struct *unused)
 				put_device(dev);
 				if (!borked) {
 					domains++;
+					if (dom == ap_domain_index)
+						defdomdevs++;
 					continue;
 				}
 			}
@@ -1098,6 +1101,8 @@ static void ap_scan_bus(struct work_struct *unused)
 				continue;
 			}
 			domains++;
+			if (dom == ap_domain_index)
+				defdomdevs++;
 		} /* end domain loop */
 		if (ac) {
 			/* remove card dev if there are no queue devices */
@@ -1106,6 +1111,11 @@ static void ap_scan_bus(struct work_struct *unused)
 			put_device(&ac->ap_dev.device);
 		}
 	} /* end device loop */
+
+	if (defdomdevs < 1)
+		AP_DBF(DBF_INFO, "no queue device with default domain %d available\n",
+		       ap_domain_index);
+
 out:
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
@@ -1174,14 +1184,14 @@ int __init ap_module_init(void)
 	ap_init_configuration();
 
 	if (ap_configuration)
-		max_domain_id = ap_max_domain_id ? : (AP_DOMAINS - 1);
+		max_domain_id =
+			ap_max_domain_id ? ap_max_domain_id : AP_DOMAINS - 1;
 	else
 		max_domain_id = 15;
 	if (ap_domain_index < -1 || ap_domain_index > max_domain_id) {
 		pr_warn("%d is not a valid cryptographic domain\n",
 			ap_domain_index);
-		rc = -EINVAL;
-		goto out_free;
+		ap_domain_index = -1;
 	}
 	/* In resume callback we need to know if the user had set the domain.
 	 * If so, we can not just reset it.
@@ -1254,7 +1264,6 @@ out:
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
 		unregister_adapter_interrupt(&ap_airq);
-out_free:
 	kfree(ap_configuration);
 	return rc;
 }

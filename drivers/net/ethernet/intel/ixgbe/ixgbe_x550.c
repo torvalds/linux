@@ -1750,14 +1750,14 @@ ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	if (ret_val == IXGBE_ERR_SFP_NOT_PRESENT)
 		return 0;
 
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	/* Configure internal PHY for native SFI based on module type */
 	ret_val = hw->mac.ops.read_iosf_sb_reg(hw,
 				IXGBE_KRM_PMD_FLX_MASK_ST20(hw->bus.lan_id),
 				IXGBE_SB_IOSF_TARGET_KR_PHY, &reg_phy_int);
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	reg_phy_int &= IXGBE_KRM_PMD_FLX_MASK_ST20_SFI_10G_DA;
@@ -1767,7 +1767,7 @@ ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	ret_val = hw->mac.ops.write_iosf_sb_reg(hw,
 				IXGBE_KRM_PMD_FLX_MASK_ST20(hw->bus.lan_id),
 				IXGBE_SB_IOSF_TARGET_KR_PHY, reg_phy_int);
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	/* Setup SFI internal link. */
@@ -1798,7 +1798,7 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	if (ret_val == IXGBE_ERR_SFP_NOT_PRESENT)
 		return 0;
 
-	if (!ret_val)
+	if (ret_val)
 		return ret_val;
 
 	/* Configure internal PHY for KR/KX. */
@@ -1807,16 +1807,16 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	if (hw->phy.mdio.prtad == MDIO_PRTAD_NONE)
 		return IXGBE_ERR_PHY_ADDR_INVALID;
 
-	/* Get external PHY device id */
-	ret_val = hw->phy.ops.read_reg(hw, IXGBE_CS4227_GLOBAL_ID_MSB,
-				  IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
+	/* Get external PHY SKU id */
+	ret_val = hw->phy.ops.read_reg(hw, IXGBE_CS4227_EFUSE_PDF_SKU,
+				       IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
 	if (ret_val)
 		return ret_val;
 
 	/* When configuring quad port CS4223, the MAC instance is part
 	 * of the slice offset.
 	 */
-	if (reg_phy_ext == IXGBE_CS4223_PHY_ID)
+	if (reg_phy_ext == IXGBE_CS4223_SKU_ID)
 		slice_offset = (hw->bus.lan_id +
 				(hw->bus.instance_id << 1)) << 12;
 	else
@@ -1824,12 +1824,28 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 
 	/* Configure CS4227/CS4223 LINE side to proper mode. */
 	reg_slice = IXGBE_CS4227_LINE_SPARE24_LSB + slice_offset;
+
+	ret_val = hw->phy.ops.read_reg(hw, reg_slice,
+				       IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
+	if (ret_val)
+		return ret_val;
+
+	reg_phy_ext &= ~((IXGBE_CS4227_EDC_MODE_CX1 << 1) |
+			 (IXGBE_CS4227_EDC_MODE_SR << 1));
+
 	if (setup_linear)
 		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_CX1 << 1) | 1;
 	else
 		reg_phy_ext = (IXGBE_CS4227_EDC_MODE_SR << 1) | 1;
-	return hw->phy.ops.write_reg(hw, reg_slice, IXGBE_MDIO_ZERO_DEV_TYPE,
-				     reg_phy_ext);
+
+	ret_val = hw->phy.ops.write_reg(hw, reg_slice,
+					IXGBE_MDIO_ZERO_DEV_TYPE, reg_phy_ext);
+	if (ret_val)
+		return ret_val;
+
+	/* Flush previous write with a read */
+	return hw->phy.ops.read_reg(hw, reg_slice,
+				    IXGBE_MDIO_ZERO_DEV_TYPE, &reg_phy_ext);
 }
 
 /**
@@ -3206,6 +3222,7 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		phy->ops.setup_link = NULL;
 		phy->ops.read_reg = NULL;
 		phy->ops.write_reg = NULL;
+		phy->ops.reset = NULL;
 		break;
 	default:
 		break;
@@ -3819,6 +3836,28 @@ static const struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550,
 };
 
+static const struct ixgbe_mac_operations mac_ops_X550EM_x_fw = {
+	X550_COMMON_MAC
+	.led_on			= NULL,
+	.led_off		= NULL,
+	.init_led_link_act	= NULL,
+	.reset_hw		= &ixgbe_reset_hw_X550em,
+	.get_media_type		= &ixgbe_get_media_type_X550em,
+	.get_san_mac_addr	= NULL,
+	.get_wwn_prefix		= NULL,
+	.setup_link		= &ixgbe_setup_mac_link_X540,
+	.get_link_capabilities	= &ixgbe_get_link_capabilities_X550em,
+	.get_bus_info		= &ixgbe_get_bus_info_X550em,
+	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
+	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X550em,
+	.release_swfw_sync	= &ixgbe_release_swfw_sync_X550em,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
+	.setup_fc		= NULL,
+	.fc_autoneg		= ixgbe_fc_autoneg,
+	.read_iosf_sb_reg	= ixgbe_read_iosf_sb_reg_x550,
+	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550,
+};
+
 static struct ixgbe_mac_operations mac_ops_x550em_a = {
 	X550_COMMON_MAC
 	.led_on			= ixgbe_led_on_t_x550em,
@@ -3986,7 +4025,7 @@ const struct ixgbe_info ixgbe_X550EM_x_info = {
 const struct ixgbe_info ixgbe_x550em_x_fw_info = {
 	.mac			= ixgbe_mac_X550EM_x,
 	.get_invariants		= ixgbe_get_invariants_X550_x_fw,
-	.mac_ops		= &mac_ops_X550EM_x,
+	.mac_ops		= &mac_ops_X550EM_x_fw,
 	.eeprom_ops		= &eeprom_ops_X550EM_x,
 	.phy_ops		= &phy_ops_x550em_x_fw,
 	.mbx_ops		= &mbx_ops_generic,

@@ -275,6 +275,24 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 EXPORT_SYMBOL(dma_common_mmap);
 
 #ifdef CONFIG_MMU
+static struct vm_struct *__dma_common_pages_remap(struct page **pages,
+			size_t size, unsigned long vm_flags, pgprot_t prot,
+			const void *caller)
+{
+	struct vm_struct *area;
+
+	area = get_vm_area_caller(size, vm_flags, caller);
+	if (!area)
+		return NULL;
+
+	if (map_vm_area(area, prot, pages)) {
+		vunmap(area->addr);
+		return NULL;
+	}
+
+	return area;
+}
+
 /*
  * remaps an array of PAGE_SIZE pages into another vm_area
  * Cannot be used in non-sleeping contexts
@@ -285,16 +303,11 @@ void *dma_common_pages_remap(struct page **pages, size_t size,
 {
 	struct vm_struct *area;
 
-	area = get_vm_area_caller(size, vm_flags, caller);
+	area = __dma_common_pages_remap(pages, size, vm_flags, prot, caller);
 	if (!area)
 		return NULL;
 
 	area->pages = pages;
-
-	if (map_vm_area(area, prot, pages)) {
-		vunmap(area->addr);
-		return NULL;
-	}
 
 	return area->addr;
 }
@@ -310,7 +323,7 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 {
 	int i;
 	struct page **pages;
-	void *ptr;
+	struct vm_struct *area;
 
 	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
 	if (!pages)
@@ -319,11 +332,13 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 	for (i = 0; i < (size >> PAGE_SHIFT); i++)
 		pages[i] = nth_page(page, i);
 
-	ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
+	area = __dma_common_pages_remap(pages, size, vm_flags, prot, caller);
 
 	kfree(pages);
 
-	return ptr;
+	if (!area)
+		return NULL;
+	return area->addr;
 }
 
 /*

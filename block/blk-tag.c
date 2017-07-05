@@ -258,14 +258,13 @@ EXPORT_SYMBOL(blk_queue_resize_tags);
  *    all transfers have been done for a request. It's important to call
  *    this function before end_that_request_last(), as that will put the
  *    request back on the free list thus corrupting the internal tag list.
- *
- *  Notes:
- *   queue lock must be held.
  **/
 void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
 	unsigned tag = rq->tag; /* negative tags invalid */
+
+	lockdep_assert_held(q->queue_lock);
 
 	BUG_ON(tag >= bqt->real_max_depth);
 
@@ -307,15 +306,14 @@ EXPORT_SYMBOL(blk_queue_end_tag);
  *    calling this function.  The request will also be removed from
  *    the request queue, so it's the drivers responsibility to readd
  *    it if it should need to be restarted for some reason.
- *
- *  Notes:
- *   queue lock must be held.
  **/
 int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
 	unsigned max_depth;
 	int tag;
+
+	lockdep_assert_held(q->queue_lock);
 
 	if (unlikely((rq->rq_flags & RQF_QUEUED))) {
 		printk(KERN_ERR
@@ -389,13 +387,12 @@ EXPORT_SYMBOL(blk_queue_start_tag);
  *   Hardware conditions may dictate a need to stop all pending requests.
  *   In this case, we will safely clear the block side of the tag queue and
  *   readd all requests to the request queue in the right order.
- *
- *  Notes:
- *   queue lock must be held.
  **/
 void blk_queue_invalidate_tags(struct request_queue *q)
 {
 	struct list_head *tmp, *n;
+
+	lockdep_assert_held(q->queue_lock);
 
 	list_for_each_safe(tmp, n, &q->tag_busy_list)
 		blk_requeue_request(q, list_entry_rq(tmp));

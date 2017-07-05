@@ -622,12 +622,12 @@ __xfs_iflock(
 	DEFINE_WAIT_BIT(wait, &ip->i_flags, __XFS_IFLOCK_BIT);
 
 	do {
-		prepare_to_wait_exclusive(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait_exclusive(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
 		if (xfs_isiflocked(ip))
 			io_schedule();
 	} while (!xfs_iflock_nowait(ip));
 
-	finish_wait(wq, &wait.wait);
+	finish_wait(wq, &wait.wq_entry);
 }
 
 STATIC uint
@@ -2486,11 +2486,11 @@ __xfs_iunpin_wait(
 	xfs_iunpin(ip);
 
 	do {
-		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
 		if (xfs_ipincount(ip))
 			io_schedule();
 	} while (xfs_ipincount(ip));
-	finish_wait(wq, &wait.wait);
+	finish_wait(wq, &wait.wq_entry);
 }
 
 void

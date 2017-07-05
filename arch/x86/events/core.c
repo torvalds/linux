@@ -1750,6 +1750,8 @@ ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event)
 	return ret;
 }
 
+static struct attribute_group x86_pmu_attr_group;
+
 static int __init init_hw_perf_events(void)
 {
 	struct x86_pmu_quirk *quirk;
@@ -1811,6 +1813,14 @@ static int __init init_hw_perf_events(void)
 		tmp = merge_attr(x86_pmu_events_group.attrs, x86_pmu.cpu_events);
 		if (!WARN_ON(!tmp))
 			x86_pmu_events_group.attrs = tmp;
+	}
+
+	if (x86_pmu.attrs) {
+		struct attribute **tmp;
+
+		tmp = merge_attr(x86_pmu_attr_group.attrs, x86_pmu.attrs);
+		if (!WARN_ON(!tmp))
+			x86_pmu_attr_group.attrs = tmp;
 	}
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
@@ -2101,8 +2111,7 @@ static int x86_pmu_event_init(struct perf_event *event)
 
 static void refresh_pce(void *ignored)
 {
-	if (current->active_mm)
-		load_mm_cr4(current->active_mm);
+	load_mm_cr4(this_cpu_read(cpu_tlbstate.loaded_mm));
 }
 
 static void x86_pmu_event_mapped(struct perf_event *event)
@@ -2224,7 +2233,6 @@ void perf_check_microcode(void)
 	if (x86_pmu.check_microcode)
 		x86_pmu.check_microcode();
 }
-EXPORT_SYMBOL_GPL(perf_check_microcode);
 
 static struct pmu pmu = {
 	.pmu_enable		= x86_pmu_enable,
@@ -2255,7 +2263,7 @@ static struct pmu pmu = {
 void arch_perf_update_userpage(struct perf_event *event,
 			       struct perf_event_mmap_page *userpg, u64 now)
 {
-	struct cyc2ns_data *data;
+	struct cyc2ns_data data;
 	u64 offset;
 
 	userpg->cap_user_time = 0;
@@ -2267,17 +2275,17 @@ void arch_perf_update_userpage(struct perf_event *event,
 	if (!using_native_sched_clock() || !sched_clock_stable())
 		return;
 
-	data = cyc2ns_read_begin();
+	cyc2ns_read_begin(&data);
 
-	offset = data->cyc2ns_offset + __sched_clock_offset;
+	offset = data.cyc2ns_offset + __sched_clock_offset;
 
 	/*
 	 * Internal timekeeping for enabled/running/stopped times
 	 * is always in the local_clock domain.
 	 */
 	userpg->cap_user_time = 1;
-	userpg->time_mult = data->cyc2ns_mul;
-	userpg->time_shift = data->cyc2ns_shift;
+	userpg->time_mult = data.cyc2ns_mul;
+	userpg->time_shift = data.cyc2ns_shift;
 	userpg->time_offset = offset - now;
 
 	/*
@@ -2289,7 +2297,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 		userpg->time_zero = offset;
 	}
 
-	cyc2ns_read_end(data);
+	cyc2ns_read_end();
 }
 
 void
@@ -2334,7 +2342,7 @@ static unsigned long get_segment_base(unsigned int segment)
 
 		/* IRQs are off, so this synchronizes with smp_store_release */
 		ldt = lockless_dereference(current->active_mm->context.ldt);
-		if (!ldt || idx > ldt->size)
+		if (!ldt || idx > ldt->nr_entries)
 			return 0;
 
 		desc = &ldt->entries[idx];

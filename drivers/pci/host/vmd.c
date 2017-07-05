@@ -554,6 +554,7 @@ static int vmd_find_free_domain(void)
 static int vmd_enable_domain(struct vmd_dev *vmd)
 {
 	struct pci_sysdata *sd = &vmd->sysdata;
+	struct fwnode_handle *fn;
 	struct resource *res;
 	u32 upper_bits;
 	unsigned long flags;
@@ -617,8 +618,13 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 
 	sd->node = pcibus_to_node(vmd->dev->bus);
 
-	vmd->irq_domain = pci_msi_create_irq_domain(NULL, &vmd_msi_domain_info,
+	fn = irq_domain_alloc_named_id_fwnode("VMD-MSI", vmd->sysdata.domain);
+	if (!fn)
+		return -ENODEV;
+
+	vmd->irq_domain = pci_msi_create_irq_domain(fn, &vmd_msi_domain_info,
 						    x86_vector_domain);
+	irq_domain_free_fwnode(fn);
 	if (!vmd->irq_domain)
 		return -ENODEV;
 

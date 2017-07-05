@@ -6,7 +6,7 @@
  *
  * This file contains the core interrupt handling code.
  *
- * Detailed information is available in Documentation/DocBook/genericirq
+ * Detailed information is available in Documentation/core-api/genericirq.rst
  *
  */
 
@@ -137,6 +137,8 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 	irqreturn_t retval = IRQ_NONE;
 	unsigned int irq = desc->irq_data.irq;
 	struct irqaction *action;
+
+	record_irq_time(desc);
 
 	for_each_action_of_desc(desc, action) {
 		irqreturn_t res;

@@ -56,11 +56,6 @@ void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 				bool at_head);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct list_head *list);
-/*
- * CPU hotplug helpers
- */
-void blk_mq_enable_hotplug(void);
-void blk_mq_disable_hotplug(void);
 
 /*
  * CPU -> queue mappings
@@ -127,17 +122,6 @@ static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data
 
 	return data->hctx->tags;
 }
-
-/*
- * Internal helpers for request allocation/init/free
- */
-void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
-			struct request *rq, unsigned int op);
-void __blk_mq_finish_request(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
-				struct request *rq);
-void blk_mq_finish_request(struct request *rq);
-struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data,
-					unsigned int op);
 
 static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
 {

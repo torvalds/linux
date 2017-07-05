@@ -173,6 +173,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 /*------------------------- End Scatter/Gather ---------------------------*/
 
+#define   OCTNET_FRM_LENGTH_SIZE      8
+
 #define   OCTNET_FRM_PTP_HEADER_SIZE  8
 
 #define   OCTNET_FRM_HEADER_SIZE     22 /* VLAN + Ethernet */
@@ -215,7 +217,7 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_VERBOSE_ENABLE   0x14
 #define   OCTNET_CMD_VERBOSE_DISABLE  0x15
 
-#define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
+#define   OCTNET_CMD_VLAN_FILTER_CTL 0x16
 #define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
 #define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
 #define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
@@ -230,6 +232,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_RXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_TXCSUM_ENABLE     0x0
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
+#define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
+#define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */

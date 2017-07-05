@@ -19,8 +19,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
+#include <linux/w1.h>
 
 /*
  * MXC W1 Register offsets

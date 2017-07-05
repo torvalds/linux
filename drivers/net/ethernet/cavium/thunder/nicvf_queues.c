@@ -1811,11 +1811,9 @@ void nicvf_update_sq_stats(struct nicvf *nic, int sq_idx)
 /* Check for errors in the receive cmp.queue entry */
 int nicvf_check_cqe_rx_errs(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 {
-	if (netif_msg_rx_err(nic))
-		netdev_err(nic->netdev,
-			   "%s: RX error CQE err_level 0x%x err_opcode 0x%x\n",
-			   nic->netdev->name,
-			   cqe_rx->err_level, cqe_rx->err_opcode);
+	netif_err(nic, rx_err, nic->netdev,
+		  "RX error CQE err_level 0x%x err_opcode 0x%x\n",
+		  cqe_rx->err_level, cqe_rx->err_opcode);
 
 	switch (cqe_rx->err_opcode) {
 	case CQ_RX_ERROP_RE_PARTIAL:

@@ -36,7 +36,7 @@
  */
 #define NVME_FC_NR_AEN_COMMANDS	1
 #define NVME_FC_AQ_BLKMQ_DEPTH	\
-	(NVMF_AQ_DEPTH - NVME_FC_NR_AEN_COMMANDS)
+	(NVME_AQ_DEPTH - NVME_FC_NR_AEN_COMMANDS)
 #define AEN_CMDID_BASE		(NVME_FC_AQ_BLKMQ_DEPTH + 1)
 
 enum nvme_fc_queue_flags {
@@ -161,12 +161,12 @@ struct nvme_fc_ctrl {
 	struct blk_mq_tag_set	tag_set;
 
 	struct work_struct	delete_work;
-	struct work_struct	reset_work;
 	struct delayed_work	connect_work;
 
 	struct kref		ref;
 	u32			flags;
 	u32			iocnt;
+	wait_queue_head_t	ioabort_wait;
 
 	struct nvme_fc_fcp_op	aen_ops[NVME_FC_NR_AEN_COMMANDS];
 
@@ -214,7 +214,6 @@ static LIST_HEAD(nvme_fc_lport_list);
 static DEFINE_IDA(nvme_fc_local_port_cnt);
 static DEFINE_IDA(nvme_fc_ctrl_cnt);
 
-static struct workqueue_struct *nvme_fc_wq;
 
 
 
@@ -878,8 +877,7 @@ nvme_fc_connect_admin_queue(struct nvme_fc_ctrl *ctrl,
 	assoc_rqst->assoc_cmd.sqsize = cpu_to_be16(qsize);
 	/* Linux supports only Dynamic controllers */
 	assoc_rqst->assoc_cmd.cntlid = cpu_to_be16(0xffff);
-	memcpy(&assoc_rqst->assoc_cmd.hostid, &ctrl->ctrl.opts->host->id,
-		min_t(size_t, FCNVME_ASSOC_HOSTID_LEN, sizeof(uuid_be)));
+	uuid_copy(&assoc_rqst->assoc_cmd.hostid, &ctrl->ctrl.opts->host->id);
 	strncpy(assoc_rqst->assoc_cmd.hostnqn, ctrl->ctrl.opts->host->nqn,
 		min(FCNVME_ASSOC_HOSTNQN_LEN, NVMF_NQN_SIZE));
 	strncpy(assoc_rqst->assoc_cmd.subnqn, ctrl->ctrl.opts->subsysnqn,
@@ -1242,8 +1240,10 @@ __nvme_fc_fcpop_chk_teardowns(struct nvme_fc_ctrl *ctrl,
 
 	spin_lock_irqsave(&ctrl->lock, flags);
 	if (unlikely(op->flags & FCOP_FLAGS_TERMIO)) {
-		if (ctrl->flags & FCCTRL_TERMIO)
-			ctrl->iocnt--;
+		if (ctrl->flags & FCCTRL_TERMIO) {
+			if (!--ctrl->iocnt)
+				wake_up(&ctrl->ioabort_wait);
+		}
 	}
 	if (op->flags & FCOP_FLAGS_RELEASED)
 		complete_rq = true;
@@ -1450,18 +1450,8 @@ nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
 {
 	struct nvme_fc_ctrl *ctrl = set->driver_data;
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
-	struct nvme_fc_queue *queue = &ctrl->queues[hctx_idx+1];
-
-	return __nvme_fc_init_request(ctrl, queue, op, rq, queue->rqcnt++);
-}
-
-static int
-nvme_fc_init_admin_request(struct blk_mq_tag_set *set, struct request *rq,
-		unsigned int hctx_idx, unsigned int numa_node)
-{
-	struct nvme_fc_ctrl *ctrl = set->driver_data;
-	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
-	struct nvme_fc_queue *queue = &ctrl->queues[0];
+	int queue_idx = (set == &ctrl->tag_set) ? hctx_idx + 1 : 0;
+	struct nvme_fc_queue *queue = &ctrl->queues[queue_idx];
 
 	return __nvme_fc_init_request(ctrl, queue, op, rq, queue->rqcnt++);
 }
@@ -1759,15 +1749,15 @@ nvme_fc_nvme_ctrl_freed(struct nvme_ctrl *nctrl)
 static void
 nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 {
+	/* only proceed if in LIVE state - e.g. on first error */
+	if (ctrl->ctrl.state != NVME_CTRL_LIVE)
+		return;
+
 	dev_warn(ctrl->ctrl.device,
 		"NVME-FC{%d}: transport association error detected: %s\n",
 		ctrl->cnum, errmsg);
 	dev_warn(ctrl->ctrl.device,
 		"NVME-FC{%d}: resetting controller\n", ctrl->cnum);
-
-	/* stop the queues on error, cleanup is in reset thread */
-	if (ctrl->queue_count > 1)
-		nvme_stop_queues(&ctrl->ctrl);
 
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RECONNECTING)) {
 		dev_err(ctrl->ctrl.device,
@@ -1776,10 +1766,7 @@ nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 		return;
 	}
 
-	if (!queue_work(nvme_fc_wq, &ctrl->reset_work))
-		dev_err(ctrl->ctrl.device,
-			"NVME-FC{%d}: error_recovery: Failed to schedule "
-			"reset work\n", ctrl->cnum);
+	nvme_reset_ctrl(&ctrl->ctrl);
 }
 
 static enum blk_eh_timer_return
@@ -1888,7 +1875,7 @@ nvme_fc_unmap_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
  * level FC exchange resource that is also outstanding. This must be
  * considered in all cleanup operations.
  */
-static int
+static blk_status_t
 nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	struct nvme_fc_fcp_op *op, u32 data_len,
 	enum nvmefc_fcp_datadir	io_dir)
@@ -1903,10 +1890,10 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	 * the target device is present
 	 */
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 
 	if (!nvme_fc_ctrl_get(ctrl))
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 
 	/* format the FC-NVME CMD IU and fcp_req */
 	cmdiu->connection_id = cpu_to_be64(queue->connection_id);
@@ -1954,8 +1941,9 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 		if (ret < 0) {
 			nvme_cleanup_cmd(op->rq);
 			nvme_fc_ctrl_put(ctrl);
-			return (ret == -ENOMEM || ret == -EAGAIN) ?
-				BLK_MQ_RQ_QUEUE_BUSY : BLK_MQ_RQ_QUEUE_ERROR;
+			if (ret == -ENOMEM || ret == -EAGAIN)
+				return BLK_STS_RESOURCE;
+			return BLK_STS_IOERR;
 		}
 	}
 
@@ -1972,28 +1960,26 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 					queue->lldd_handle, &op->fcp_req);
 
 	if (ret) {
-		if (op->rq) {			/* normal request */
+		if (op->rq)			/* normal request */
 			nvme_fc_unmap_data(ctrl, op->rq, op);
-			nvme_cleanup_cmd(op->rq);
-		}
 		/* else - aen. no cleanup needed */
 
 		nvme_fc_ctrl_put(ctrl);
 
 		if (ret != -EBUSY)
-			return BLK_MQ_RQ_QUEUE_ERROR;
+			return BLK_STS_IOERR;
 
 		if (op->rq) {
 			blk_mq_stop_hw_queues(op->rq->q);
 			blk_mq_delay_queue(queue->hctx, NVMEFC_QUEUE_DELAY);
 		}
-		return BLK_MQ_RQ_QUEUE_BUSY;
+		return BLK_STS_RESOURCE;
 	}
 
-	return BLK_MQ_RQ_QUEUE_OK;
+	return BLK_STS_OK;
 }
 
-static int
+static blk_status_t
 nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 			const struct blk_mq_queue_data *bd)
 {
@@ -2006,7 +1992,7 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nvme_command *sqe = &cmdiu->sqe;
 	enum nvmefc_fcp_datadir	io_dir;
 	u32 data_len;
-	int ret;
+	blk_status_t ret;
 
 	ret = nvme_setup_cmd(ns, rq, sqe);
 	if (ret)
@@ -2061,7 +2047,7 @@ nvme_fc_submit_async_event(struct nvme_ctrl *arg, int aer_idx)
 	struct nvme_fc_fcp_op *aen_op;
 	unsigned long flags;
 	bool terminating = false;
-	int ret;
+	blk_status_t ret;
 
 	if (aer_idx > NVME_FC_NR_AEN_COMMANDS)
 		return;
@@ -2093,7 +2079,6 @@ __nvme_fc_final_op_cleanup(struct request *rq)
 	op->flags &= ~(FCOP_FLAGS_TERMIO | FCOP_FLAGS_RELEASED |
 			FCOP_FLAGS_COMPLETE);
 
-	nvme_cleanup_cmd(rq);
 	nvme_fc_unmap_data(ctrl, rq, op);
 	nvme_complete_rq(rq);
 	nvme_fc_ctrl_put(ctrl);
@@ -2311,7 +2296,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	int ret;
 	bool changed;
 
-	++ctrl->ctrl.opts->nr_reconnects;
+	++ctrl->ctrl.nr_reconnects;
 
 	/*
 	 * Create the admin queue
@@ -2408,7 +2393,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 	WARN_ON_ONCE(!changed);
 
-	ctrl->ctrl.opts->nr_reconnects = 0;
+	ctrl->ctrl.nr_reconnects = 0;
 
 	if (ctrl->queue_count > 1) {
 		nvme_start_queues(&ctrl->ctrl);
@@ -2494,11 +2479,7 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 
 	/* wait for all io that had to be aborted */
 	spin_lock_irqsave(&ctrl->lock, flags);
-	while (ctrl->iocnt) {
-		spin_unlock_irqrestore(&ctrl->lock, flags);
-		msleep(1000);
-		spin_lock_irqsave(&ctrl->lock, flags);
-	}
+	wait_event_lock_irq(ctrl->ioabort_wait, ctrl->iocnt == 0, ctrl->lock);
 	ctrl->flags &= ~FCCTRL_TERMIO;
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 
@@ -2528,7 +2509,7 @@ nvme_fc_delete_ctrl_work(struct work_struct *work)
 	struct nvme_fc_ctrl *ctrl =
 		container_of(work, struct nvme_fc_ctrl, delete_work);
 
-	cancel_work_sync(&ctrl->reset_work);
+	cancel_work_sync(&ctrl->ctrl.reset_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 
 	/*
@@ -2555,7 +2536,7 @@ __nvme_fc_schedule_delete_work(struct nvme_fc_ctrl *ctrl)
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
 		return true;
 
-	if (!queue_work(nvme_fc_wq, &ctrl->delete_work))
+	if (!queue_work(nvme_wq, &ctrl->delete_work))
 		return true;
 
 	return false;
@@ -2582,7 +2563,7 @@ nvme_fc_del_nvme_ctrl(struct nvme_ctrl *nctrl)
 	ret = __nvme_fc_del_ctrl(ctrl);
 
 	if (!ret)
-		flush_workqueue(nvme_fc_wq);
+		flush_workqueue(nvme_wq);
 
 	nvme_put_ctrl(&ctrl->ctrl);
 
@@ -2607,13 +2588,13 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 		dev_info(ctrl->ctrl.device,
 			"NVME-FC{%d}: Reconnect attempt in %d seconds.\n",
 			ctrl->cnum, ctrl->ctrl.opts->reconnect_delay);
-		queue_delayed_work(nvme_fc_wq, &ctrl->connect_work,
+		queue_delayed_work(nvme_wq, &ctrl->connect_work,
 				ctrl->ctrl.opts->reconnect_delay * HZ);
 	} else {
 		dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: Max reconnect attempts (%d) "
 				"reached. Removing controller\n",
-				ctrl->cnum, ctrl->ctrl.opts->nr_reconnects);
+				ctrl->cnum, ctrl->ctrl.nr_reconnects);
 		WARN_ON(__nvme_fc_schedule_delete_work(ctrl));
 	}
 }
@@ -2622,7 +2603,7 @@ static void
 nvme_fc_reset_ctrl_work(struct work_struct *work)
 {
 	struct nvme_fc_ctrl *ctrl =
-			container_of(work, struct nvme_fc_ctrl, reset_work);
+		container_of(work, struct nvme_fc_ctrl, ctrl.reset_work);
 	int ret;
 
 	/* will block will waiting for io to terminate */
@@ -2636,29 +2617,6 @@ nvme_fc_reset_ctrl_work(struct work_struct *work)
 			"NVME-FC{%d}: controller reset complete\n", ctrl->cnum);
 }
 
-/*
- * called by the nvme core layer, for sysfs interface that requests
- * a reset of the nvme controller
- */
-static int
-nvme_fc_reset_nvme_ctrl(struct nvme_ctrl *nctrl)
-{
-	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
-
-	dev_info(ctrl->ctrl.device,
-		"NVME-FC{%d}: admin requested controller reset\n", ctrl->cnum);
-
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_RESETTING))
-		return -EBUSY;
-
-	if (!queue_work(nvme_fc_wq, &ctrl->reset_work))
-		return -EBUSY;
-
-	flush_work(&ctrl->reset_work);
-
-	return 0;
-}
-
 static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.name			= "fc",
 	.module			= THIS_MODULE,
@@ -2666,11 +2624,9 @@ static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.reg_read32		= nvmf_reg_read32,
 	.reg_read64		= nvmf_reg_read64,
 	.reg_write32		= nvmf_reg_write32,
-	.reset_ctrl		= nvme_fc_reset_nvme_ctrl,
 	.free_ctrl		= nvme_fc_nvme_ctrl_freed,
 	.submit_async_event	= nvme_fc_submit_async_event,
 	.delete_ctrl		= nvme_fc_del_nvme_ctrl,
-	.get_subsysnqn		= nvmf_get_subsysnqn,
 	.get_address		= nvmf_get_address,
 };
 
@@ -2696,7 +2652,7 @@ nvme_fc_connect_ctrl_work(struct work_struct *work)
 static const struct blk_mq_ops nvme_fc_admin_mq_ops = {
 	.queue_rq	= nvme_fc_queue_rq,
 	.complete	= nvme_fc_complete_rq,
-	.init_request	= nvme_fc_init_admin_request,
+	.init_request	= nvme_fc_init_request,
 	.exit_request	= nvme_fc_exit_request,
 	.reinit_request	= nvme_fc_reinit_request,
 	.init_hctx	= nvme_fc_init_admin_hctx,
@@ -2741,7 +2697,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	kref_init(&ctrl->ref);
 
 	INIT_WORK(&ctrl->delete_work, nvme_fc_delete_ctrl_work);
-	INIT_WORK(&ctrl->reset_work, nvme_fc_reset_ctrl_work);
+	INIT_WORK(&ctrl->ctrl.reset_work, nvme_fc_reset_ctrl_work);
 	INIT_DELAYED_WORK(&ctrl->connect_work, nvme_fc_connect_ctrl_work);
 	spin_lock_init(&ctrl->lock);
 
@@ -2806,6 +2762,9 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 		ctrl->ctrl.opts = NULL;
 		/* initiate nvme ctrl ref counting teardown */
 		nvme_uninit_ctrl(&ctrl->ctrl);
+		nvme_put_ctrl(&ctrl->ctrl);
+
+		/* Remove core ctrl ref. */
 		nvme_put_ctrl(&ctrl->ctrl);
 
 		/* as we're past the point where we transition to the ref
@@ -2966,20 +2925,7 @@ static struct nvmf_transport_ops nvme_fc_transport = {
 
 static int __init nvme_fc_init_module(void)
 {
-	int ret;
-
-	nvme_fc_wq = create_workqueue("nvme_fc_wq");
-	if (!nvme_fc_wq)
-		return -ENOMEM;
-
-	ret = nvmf_register_transport(&nvme_fc_transport);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	destroy_workqueue(nvme_fc_wq);
-	return ret;
+	return nvmf_register_transport(&nvme_fc_transport);
 }
 
 static void __exit nvme_fc_exit_module(void)
@@ -2989,8 +2935,6 @@ static void __exit nvme_fc_exit_module(void)
 		pr_warn("%s: localport list not empty\n", __func__);
 
 	nvmf_unregister_transport(&nvme_fc_transport);
-
-	destroy_workqueue(nvme_fc_wq);
 
 	ida_destroy(&nvme_fc_local_port_cnt);
 	ida_destroy(&nvme_fc_ctrl_cnt);

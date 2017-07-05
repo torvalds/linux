@@ -311,7 +311,7 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 
 	if (rc < 0) {
 		CDEBUG(D_CACHE,
-		       "md_intent_lock failed with %d for fid "DFID"\n",
+		       "md_intent_lock failed with %d for fid " DFID "\n",
 		       rc, PFID(ll_inode2fid(inode)));
 		mutex_unlock(&lli->lli_xattrs_enq_lock);
 		return rc;
@@ -365,7 +365,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 
 	if (oit->it_status < 0) {
-		CDEBUG(D_CACHE, "getxattr intent returned %d for fid "DFID"\n",
+		CDEBUG(D_CACHE, "getxattr intent returned %d for fid " DFID "\n",
 		       oit->it_status, PFID(ll_inode2fid(inode)));
 		rc = oit->it_status;
 		/* xattr data is so large that we don't want to cache it */

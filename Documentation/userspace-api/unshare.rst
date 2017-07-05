@@ -107,7 +107,7 @@ the benefits of this new feature can exceed its cost.
 
 unshare() reverses sharing that was done using clone(2) system call,
 so unshare() should have a similar interface as clone(2). That is,
-since flags in clone(int flags, void *stack) specifies what should
+since flags in clone(int flags, void \*stack) specifies what should
 be shared, similar flags in unshare(int flags) should specify
 what should be unshared. Unfortunately, this may appear to invert
 the meaning of the flags from the way they are used in clone(2).

@@ -551,26 +551,26 @@ static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
 	int rc;
 	struct psw_bits psw = psw_bits(vcpu->arch.sie_block->gpsw);
 
-	if (!psw.t) {
+	if (!psw.dat) {
 		asce->val = 0;
 		asce->r = 1;
 		return 0;
 	}
 
-	if (mode == GACC_IFETCH)
-		psw.as = psw.as == PSW_AS_HOME ? PSW_AS_HOME : PSW_AS_PRIMARY;
+	if ((mode == GACC_IFETCH) && (psw.as != PSW_BITS_AS_HOME))
+		psw.as = PSW_BITS_AS_PRIMARY;
 
 	switch (psw.as) {
-	case PSW_AS_PRIMARY:
+	case PSW_BITS_AS_PRIMARY:
 		asce->val = vcpu->arch.sie_block->gcr[1];
 		return 0;
-	case PSW_AS_SECONDARY:
+	case PSW_BITS_AS_SECONDARY:
 		asce->val = vcpu->arch.sie_block->gcr[7];
 		return 0;
-	case PSW_AS_HOME:
+	case PSW_BITS_AS_HOME:
 		asce->val = vcpu->arch.sie_block->gcr[13];
 		return 0;
-	case PSW_AS_ACCREG:
+	case PSW_BITS_AS_ACCREG:
 		rc = ar_translation(vcpu, asce, ar, mode);
 		if (rc > 0)
 			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_ALC);
@@ -771,7 +771,7 @@ static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
 
 	if (!ctlreg0.lap)
 		return 0;
-	if (psw_bits(*psw).t && asce.p)
+	if (psw_bits(*psw).dat && asce.p)
 		return 0;
 	return 1;
 }
@@ -790,7 +790,7 @@ static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 			return trans_exc(vcpu, PGM_PROTECTION, ga, ar, mode,
 					 PROT_TYPE_LA);
 		ga &= PAGE_MASK;
-		if (psw_bits(*psw).t) {
+		if (psw_bits(*psw).dat) {
 			rc = guest_translate(vcpu, ga, pages, asce, mode);
 			if (rc < 0)
 				return rc;
@@ -831,7 +831,7 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		pages = vmalloc(nr_pages * sizeof(unsigned long));
 	if (!pages)
 		return -ENOMEM;
-	need_ipte_lock = psw_bits(*psw).t && !asce.r;
+	need_ipte_lock = psw_bits(*psw).dat && !asce.r;
 	if (need_ipte_lock)
 		ipte_lock(vcpu);
 	rc = guest_page_range(vcpu, ga, ar, pages, nr_pages, asce, mode);
@@ -899,7 +899,7 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 					 mode, PROT_TYPE_LA);
 	}
 
-	if (psw_bits(*psw).t && !asce.r) {	/* Use DAT? */
+	if (psw_bits(*psw).dat && !asce.r) {	/* Use DAT? */
 		rc = guest_translate(vcpu, gva, gpa, asce, mode);
 		if (rc > 0)
 			return trans_exc(vcpu, rc, gva, 0, mode, PROT_TYPE_DAT);

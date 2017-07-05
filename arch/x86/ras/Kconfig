@@ -1,13 +1,3 @@
-config MCE_AMD_INJ
-	tristate "Simple MCE injection interface for AMD processors"
-	depends on RAS && X86_MCE && DEBUG_FS && AMD_NB
-	default n
-	help
-	  This is a simple debugfs interface to inject MCEs and test different
-	  aspects of the MCE handling code.
-
-	  WARNING: Do not even assume this interface is staying stable!
-
 config RAS_CEC
 	bool "Correctable Errors Collector"
 	depends on X86_MCE && MEMORY_FAILURE && DEBUG_FS
@@ -20,4 +10,3 @@ config RAS_CEC
 
 	  Bear in mind that this is absolutely useless if your platform doesn't
 	  have ECC DIMMs and doesn't have DRAM ECC checking enabled in the BIOS.
-

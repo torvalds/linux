@@ -103,7 +103,7 @@ static u16 opa_vnic_select_queue(struct net_device *netdev, struct sk_buff *skb,
 	int rc;
 
 	/* pass entropy and vl as metadata in skb */
-	mdata = (struct opa_vnic_skb_mdata *)skb_push(skb, sizeof(*mdata));
+	mdata = skb_push(skb, sizeof(*mdata));
 	mdata->entropy =  opa_vnic_calc_entropy(adapter, skb);
 	mdata->vl = opa_vnic_get_vl(adapter, skb);
 	rc = adapter->rn_ops->ndo_select_queue(netdev, skb,

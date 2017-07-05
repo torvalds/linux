@@ -205,8 +205,8 @@ static void dwmac1000_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
 
-	for (i = 0; i < 22; i++)
-		if ((i < 9) || (i > 17))
+	for (i = 0; i < 23; i++)
+		if ((i < 12) || (i > 17))
 			reg_space[DMA_BUS_MODE / 4 + i] =
 				readl(ioaddr + DMA_BUS_MODE + i * 4);
 }

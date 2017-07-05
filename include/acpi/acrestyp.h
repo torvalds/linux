@@ -289,6 +289,11 @@ union acpi_resource_attribute {
 	u8 type_specific;
 };
 
+struct acpi_resource_label {
+	u16 string_length;
+	char *string_ptr;
+};
+
 struct acpi_resource_source {
 	u8 index;
 	u16 string_length;
@@ -534,6 +539,81 @@ struct acpi_resource_uart_serialbus {
 #define ACPI_UART_CLEAR_TO_SEND                 (1<<6)
 #define ACPI_UART_REQUEST_TO_SEND               (1<<7)
 
+struct acpi_resource_pin_function {
+	u8 revision_id;
+	u8 pin_config;
+	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u16 function_number;
+	u16 pin_table_length;
+	u16 vendor_length;
+	struct acpi_resource_source resource_source;
+	u16 *pin_table;
+	u8 *vendor_data;
+};
+
+struct acpi_resource_pin_config {
+	u8 revision_id;
+	u8 producer_consumer;	/* For values, see Producer/Consumer above */
+	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 pin_config_type;
+	u32 pin_config_value;
+	u16 pin_table_length;
+	u16 vendor_length;
+	struct acpi_resource_source resource_source;
+	u16 *pin_table;
+	u8 *vendor_data;
+};
+
+/* Values for pin_config_type field above */
+
+#define ACPI_PIN_CONFIG_DEFAULT                 0
+#define ACPI_PIN_CONFIG_BIAS_PULL_UP            1
+#define ACPI_PIN_CONFIG_BIAS_PULL_DOWN          2
+#define ACPI_PIN_CONFIG_BIAS_DEFAULT            3
+#define ACPI_PIN_CONFIG_BIAS_DISABLE            4
+#define ACPI_PIN_CONFIG_BIAS_HIGH_IMPEDANCE     5
+#define ACPI_PIN_CONFIG_BIAS_BUS_HOLD           6
+#define ACPI_PIN_CONFIG_DRIVE_OPEN_DRAIN        7
+#define ACPI_PIN_CONFIG_DRIVE_OPEN_SOURCE       8
+#define ACPI_PIN_CONFIG_DRIVE_PUSH_PULL         9
+#define ACPI_PIN_CONFIG_DRIVE_STRENGTH          10
+#define ACPI_PIN_CONFIG_SLEW_RATE               11
+#define ACPI_PIN_CONFIG_INPUT_DEBOUNCE          12
+#define ACPI_PIN_CONFIG_INPUT_SCHMITT_TRIGGER   13
+
+struct acpi_resource_pin_group {
+	u8 revision_id;
+	u8 producer_consumer;	/* For values, see Producer/Consumer above */
+	u16 pin_table_length;
+	u16 vendor_length;
+	u16 *pin_table;
+	struct acpi_resource_label resource_label;
+	u8 *vendor_data;
+};
+
+struct acpi_resource_pin_group_function {
+	u8 revision_id;
+	u8 producer_consumer;	/* For values, see Producer/Consumer above */
+	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u16 function_number;
+	u16 vendor_length;
+	struct acpi_resource_source resource_source;
+	struct acpi_resource_label resource_source_label;
+	u8 *vendor_data;
+};
+
+struct acpi_resource_pin_group_config {
+	u8 revision_id;
+	u8 producer_consumer;	/* For values, see Producer/Consumer above */
+	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 pin_config_type;	/* For values, see pin_config_type above */
+	u32 pin_config_value;
+	u16 vendor_length;
+	struct acpi_resource_source resource_source;
+	struct acpi_resource_label resource_source_label;
+	u8 *vendor_data;
+};
+
 /* ACPI_RESOURCE_TYPEs */
 
 #define ACPI_RESOURCE_TYPE_IRQ                  0
@@ -556,7 +636,12 @@ struct acpi_resource_uart_serialbus {
 #define ACPI_RESOURCE_TYPE_GPIO                 17	/* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_FIXED_DMA            18	/* ACPI 5.0 */
 #define ACPI_RESOURCE_TYPE_SERIAL_BUS           19	/* ACPI 5.0 */
-#define ACPI_RESOURCE_TYPE_MAX                  19
+#define ACPI_RESOURCE_TYPE_PIN_FUNCTION         20	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_CONFIG           21	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_GROUP            22	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_GROUP_FUNCTION   23	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_PIN_GROUP_CONFIG     24	/* ACPI 6.2 */
+#define ACPI_RESOURCE_TYPE_MAX                  24
 
 /* Master union for resource descriptors */
 
@@ -584,6 +669,11 @@ union acpi_resource_data {
 	struct acpi_resource_spi_serialbus spi_serial_bus;
 	struct acpi_resource_uart_serialbus uart_serial_bus;
 	struct acpi_resource_common_serialbus common_serial_bus;
+	struct acpi_resource_pin_function pin_function;
+	struct acpi_resource_pin_config pin_config;
+	struct acpi_resource_pin_group pin_group;
+	struct acpi_resource_pin_group_function pin_group_function;
+	struct acpi_resource_pin_group_config pin_group_config;
 
 	/* Common fields */
 

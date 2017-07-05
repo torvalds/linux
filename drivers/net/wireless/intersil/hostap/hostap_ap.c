@@ -998,11 +998,9 @@ static void prism2_send_mgmt(struct net_device *dev,
 
 	fc = type_subtype;
 	hdrlen = hostap_80211_get_hdrlen(cpu_to_le16(type_subtype));
-	hdr = (struct ieee80211_hdr *) skb_put(skb, hdrlen);
+	hdr = skb_put_zero(skb, hdrlen);
 	if (body)
-		memcpy(skb_put(skb, body_len), body, body_len);
-
-	memset(hdr, 0, hdrlen);
+		skb_put_data(skb, body, body_len);
 
 	/* FIX: ctrl::ack sending used special HFA384X_TX_CTRL_802_11
 	 * tx_control instead of using local->tx_control */
@@ -1325,8 +1323,7 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 	}
 
 	skb_reserve(skb, ap->crypt->extra_mpdu_prefix_len);
-	memset(skb_put(skb, WLAN_AUTH_CHALLENGE_LEN), 0,
-	       WLAN_AUTH_CHALLENGE_LEN);
+	skb_put_zero(skb, WLAN_AUTH_CHALLENGE_LEN);
 	if (ap->crypt->encrypt_mpdu(skb, 0, ap->crypt_priv)) {
 		dev_kfree_skb(skb);
 		kfree(tmpbuf);
@@ -2364,7 +2361,7 @@ static void schedule_packet_send(local_info_t *local, struct sta_info *sta)
 		return;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb_put(skb, 16);
+	hdr = skb_put(skb, 16);
 
 	/* Generate a fake pspoll frame to start packet delivery */
 	hdr->frame_control = cpu_to_le16(

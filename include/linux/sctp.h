@@ -57,12 +57,12 @@
 #include <uapi/linux/sctp.h>
 
 /* Section 3.1.  SCTP Common Header Format */
-typedef struct sctphdr {
+struct sctphdr {
 	__be16 source;
 	__be16 dest;
 	__be32 vtag;
 	__le32 checksum;
-} sctp_sctphdr_t;
+};
 
 static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb)
 {
@@ -70,11 +70,11 @@ static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb)
 }
 
 /* Section 3.2.  Chunk Field Descriptions. */
-typedef struct sctp_chunkhdr {
+struct sctp_chunkhdr {
 	__u8 type;
 	__u8 flags;
 	__be16 length;
-} sctp_chunkhdr_t;
+};
 
 
 /* Section 3.2.  Chunk Type Values.
@@ -82,7 +82,7 @@ typedef struct sctp_chunkhdr {
  * Value field. It takes a value from 0 to 254. The value of 255 is
  * reserved for future use as an extension field.
  */
-typedef enum {
+enum sctp_cid {
 	SCTP_CID_DATA			= 0,
         SCTP_CID_INIT			= 1,
         SCTP_CID_INIT_ACK		= 2,
@@ -109,7 +109,7 @@ typedef enum {
 	SCTP_CID_ASCONF			= 0xC1,
 	SCTP_CID_ASCONF_ACK		= 0x80,
 	SCTP_CID_RECONF			= 0x82,
-} sctp_cid_t; /* enum */
+}; /* enum */
 
 
 /* Section 3.2
@@ -117,12 +117,12 @@ typedef enum {
  *  the action that must be taken if the processing endpoint does not
  *  recognize the Chunk Type.
  */
-typedef enum {
+enum {
 	SCTP_CID_ACTION_DISCARD     = 0x00,
 	SCTP_CID_ACTION_DISCARD_ERR = 0x40,
 	SCTP_CID_ACTION_SKIP        = 0x80,
 	SCTP_CID_ACTION_SKIP_ERR    = 0xc0,
-} sctp_cid_action_t;
+};
 
 enum { SCTP_CID_ACTION_MASK = 0xc0, };
 
@@ -162,12 +162,12 @@ enum { SCTP_CHUNK_FLAG_T = 0x01 };
  * Section 3.2.1 Optional/Variable-length Parmaeter Format.
  */
 
-typedef struct sctp_paramhdr {
+struct sctp_paramhdr {
 	__be16 type;
 	__be16 length;
-} sctp_paramhdr_t;
+};
 
-typedef enum {
+enum sctp_param {
 
 	/* RFC 2960 Section 3.3.5 */
 	SCTP_PARAM_HEARTBEAT_INFO		= cpu_to_be16(1),
@@ -207,7 +207,7 @@ typedef enum {
 	SCTP_PARAM_RESET_RESPONSE		= cpu_to_be16(0x0010),
 	SCTP_PARAM_RESET_ADD_OUT_STREAMS	= cpu_to_be16(0x0011),
 	SCTP_PARAM_RESET_ADD_IN_STREAMS		= cpu_to_be16(0x0012),
-} sctp_param_t; /* enum */
+}; /* enum */
 
 
 /* RFC 2960 Section 3.2.1
@@ -216,29 +216,29 @@ typedef enum {
  *  not recognize the Parameter Type.
  *
  */
-typedef enum {
+enum {
 	SCTP_PARAM_ACTION_DISCARD     = cpu_to_be16(0x0000),
 	SCTP_PARAM_ACTION_DISCARD_ERR = cpu_to_be16(0x4000),
 	SCTP_PARAM_ACTION_SKIP        = cpu_to_be16(0x8000),
 	SCTP_PARAM_ACTION_SKIP_ERR    = cpu_to_be16(0xc000),
-} sctp_param_action_t;
+};
 
 enum { SCTP_PARAM_ACTION_MASK = cpu_to_be16(0xc000), };
 
 /* RFC 2960 Section 3.3.1 Payload Data (DATA) (0) */
 
-typedef struct sctp_datahdr {
+struct sctp_datahdr {
 	__be32 tsn;
 	__be16 stream;
 	__be16 ssn;
 	__be32 ppid;
 	__u8  payload[0];
-} sctp_datahdr_t;
+};
 
-typedef struct sctp_data_chunk {
-        sctp_chunkhdr_t chunk_hdr;
-        sctp_datahdr_t  data_hdr;
-} sctp_data_chunk_t;
+struct sctp_data_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_datahdr data_hdr;
+};
 
 /* DATA Chuck Specific Flags */
 enum {
@@ -257,54 +257,54 @@ enum { SCTP_DATA_FRAG_MASK = 0x03, };
  *  This chunk is used to initiate a SCTP association between two
  *  endpoints.
  */
-typedef struct sctp_inithdr {
+struct sctp_inithdr {
 	__be32 init_tag;
 	__be32 a_rwnd;
 	__be16 num_outbound_streams;
 	__be16 num_inbound_streams;
 	__be32 initial_tsn;
 	__u8  params[0];
-} sctp_inithdr_t;
+};
 
-typedef struct sctp_init_chunk {
-	sctp_chunkhdr_t chunk_hdr;
-	sctp_inithdr_t init_hdr;
-} sctp_init_chunk_t;
+struct sctp_init_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_inithdr init_hdr;
+};
 
 
 /* Section 3.3.2.1. IPv4 Address Parameter (5) */
 typedef struct sctp_ipv4addr_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	struct in_addr  addr;
 } sctp_ipv4addr_param_t;
 
 /* Section 3.3.2.1. IPv6 Address Parameter (6) */
 typedef struct sctp_ipv6addr_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	struct in6_addr addr;
 } sctp_ipv6addr_param_t;
 
 /* Section 3.3.2.1 Cookie Preservative (9) */
 typedef struct sctp_cookie_preserve_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__be32          lifespan_increment;
 } sctp_cookie_preserve_param_t;
 
 /* Section 3.3.2.1 Host Name Address (11) */
 typedef struct sctp_hostname_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	uint8_t hostname[0];
 } sctp_hostname_param_t;
 
 /* Section 3.3.2.1 Supported Address Types (12) */
 typedef struct sctp_supported_addrs_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__be16 types[0];
 } sctp_supported_addrs_param_t;
 
 /* Appendix A. ECN Capable (32768) */
 typedef struct sctp_ecn_capable_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 } sctp_ecn_capable_param_t;
 
 /* ADDIP Section 3.2.6 Adaptation Layer Indication */
@@ -321,19 +321,19 @@ typedef struct sctp_supported_ext_param {
 
 /* AUTH Section 3.1 Random */
 typedef struct sctp_random_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u8 random_val[0];
 } sctp_random_param_t;
 
 /* AUTH Section 3.2 Chunk List */
 typedef struct sctp_chunks_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u8 chunks[0];
 } sctp_chunks_param_t;
 
 /* AUTH Section 3.3 HMAC Algorithm */
 typedef struct sctp_hmac_algo_param {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__be16 hmac_ids[0];
 } sctp_hmac_algo_param_t;
 
@@ -341,18 +341,18 @@ typedef struct sctp_hmac_algo_param {
  *   The INIT ACK chunk is used to acknowledge the initiation of an SCTP
  *   association.
  */
-typedef sctp_init_chunk_t sctp_initack_chunk_t;
+typedef struct sctp_init_chunk sctp_initack_chunk_t;
 
 /* Section 3.3.3.1 State Cookie (7) */
 typedef struct sctp_cookie_param {
-	sctp_paramhdr_t p;
+	struct sctp_paramhdr p;
 	__u8 body[0];
 } sctp_cookie_param_t;
 
 /* Section 3.3.3.1 Unrecognized Parameters (8) */
 typedef struct sctp_unrecognized_param {
-	sctp_paramhdr_t param_hdr;
-	sctp_paramhdr_t unrecognized;
+	struct sctp_paramhdr param_hdr;
+	struct sctp_paramhdr unrecognized;
 } sctp_unrecognized_param_t;
 
 
@@ -386,7 +386,7 @@ typedef struct sctp_sackhdr {
 } sctp_sackhdr_t;
 
 typedef struct sctp_sack_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_sackhdr_t sack_hdr;
 } sctp_sack_chunk_t;
 
@@ -399,11 +399,11 @@ typedef struct sctp_sack_chunk {
  */
 
 typedef struct sctp_heartbeathdr {
-	sctp_paramhdr_t info;
+	struct sctp_paramhdr info;
 } sctp_heartbeathdr_t;
 
 typedef struct sctp_heartbeat_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_heartbeathdr_t hb_hdr;
 } sctp_heartbeat_chunk_t;
 
@@ -413,7 +413,7 @@ typedef struct sctp_heartbeat_chunk {
  * chunk descriptor.
  */
 typedef struct sctp_abort_chunk {
-        sctp_chunkhdr_t uh;
+	struct sctp_chunkhdr uh;
 } sctp_abort_chunk_t;
 
 
@@ -425,8 +425,8 @@ typedef struct sctp_shutdownhdr {
 } sctp_shutdownhdr_t;
 
 struct sctp_shutdown_chunk_t {
-        sctp_chunkhdr_t    chunk_hdr;
-        sctp_shutdownhdr_t shutdown_hdr;
+	struct sctp_chunkhdr chunk_hdr;
+	sctp_shutdownhdr_t shutdown_hdr;
 };
 
 /* RFC 2960.  Section 3.3.10 Operation Error (ERROR) (9) */
@@ -438,8 +438,8 @@ typedef struct sctp_errhdr {
 } sctp_errhdr_t;
 
 typedef struct sctp_operr_chunk {
-        sctp_chunkhdr_t chunk_hdr;
-	sctp_errhdr_t   err_hdr;
+	struct sctp_chunkhdr chunk_hdr;
+	sctp_errhdr_t err_hdr;
 } sctp_operr_chunk_t;
 
 /* RFC 2960 3.3.10 - Operation Error
@@ -528,7 +528,7 @@ typedef struct sctp_ecnehdr {
 } sctp_ecnehdr_t;
 
 typedef struct sctp_ecne_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_ecnehdr_t ence_hdr;
 } sctp_ecne_chunk_t;
 
@@ -540,7 +540,7 @@ typedef struct sctp_cwrhdr {
 } sctp_cwrhdr_t;
 
 typedef struct sctp_cwr_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_cwrhdr_t cwr_hdr;
 } sctp_cwr_chunk_t;
 
@@ -639,7 +639,7 @@ struct sctp_fwdtsn_chunk {
  *	report status of ASCONF processing.
  */
 typedef struct sctp_addip_param {
-	sctp_paramhdr_t	param_hdr;
+	struct sctp_paramhdr	param_hdr;
 	__be32		crr_id;
 } sctp_addip_param_t;
 
@@ -649,7 +649,7 @@ typedef struct sctp_addiphdr {
 } sctp_addiphdr_t;
 
 typedef struct sctp_addip_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_addiphdr_t addip_hdr;
 } sctp_addip_chunk_t;
 
@@ -709,7 +709,7 @@ typedef struct sctp_authhdr {
 } sctp_authhdr_t;
 
 typedef struct sctp_auth_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	sctp_authhdr_t auth_hdr;
 } sctp_auth_chunk_t;
 
@@ -719,12 +719,12 @@ struct sctp_infox {
 };
 
 struct sctp_reconf_chunk {
-	sctp_chunkhdr_t chunk_hdr;
+	struct sctp_chunkhdr chunk_hdr;
 	__u8 params[0];
 };
 
 struct sctp_strreset_outreq {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 	__u32 response_seq;
 	__u32 send_reset_at_tsn;
@@ -732,18 +732,18 @@ struct sctp_strreset_outreq {
 };
 
 struct sctp_strreset_inreq {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 	__u16 list_of_streams[0];
 };
 
 struct sctp_strreset_tsnreq {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 };
 
 struct sctp_strreset_addstrm {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 request_seq;
 	__u16 number_of_streams;
 	__u16 reserved;
@@ -760,13 +760,13 @@ enum {
 };
 
 struct sctp_strreset_resp {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 response_seq;
 	__u32 result;
 };
 
 struct sctp_strreset_resptsn {
-	sctp_paramhdr_t param_hdr;
+	struct sctp_paramhdr param_hdr;
 	__u32 response_seq;
 	__u32 result;
 	__u32 senders_next_tsn;

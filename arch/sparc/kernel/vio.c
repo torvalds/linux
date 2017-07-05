@@ -105,6 +105,7 @@ static ssize_t devspec_show(struct device *dev,
 
 	return sprintf(buf, "%s\n", str);
 }
+static DEVICE_ATTR_RO(devspec);
 
 static ssize_t type_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -112,6 +113,7 @@ static ssize_t type_show(struct device *dev,
 	struct vio_dev *vdev = to_vio_dev(dev);
 	return sprintf(buf, "%s\n", vdev->type);
 }
+static DEVICE_ATTR_RO(type);
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -120,17 +122,19 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "vio:T%sS%s\n", vdev->type, vdev->compat);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute vio_dev_attrs[] = {
-	__ATTR_RO(devspec),
-	__ATTR_RO(type),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
-};
+static struct attribute *vio_dev_attrs[] = {
+	&dev_attr_devspec.attr,
+	&dev_attr_type.attr,
+	&dev_attr_modalias.attr,
+	NULL,
+ };
+ATTRIBUTE_GROUPS(vio_dev);
 
 static struct bus_type vio_bus_type = {
 	.name		= "vio",
-	.dev_attrs	= vio_dev_attrs,
+	.dev_groups	= vio_dev_groups,
 	.uevent         = vio_hotplug,
 	.match		= vio_bus_match,
 	.probe		= vio_device_probe,

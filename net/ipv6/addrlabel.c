@@ -18,6 +18,7 @@
 #include <linux/if_addrlabel.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#include <linux/refcount.h>
 
 #if 0
 #define ADDRLABEL(x...) printk(x)
@@ -36,7 +37,7 @@ struct ip6addrlbl_entry {
 	int addrtype;
 	u32 label;
 	struct hlist_node list;
-	atomic_t refcnt;
+	refcount_t refcnt;
 	struct rcu_head rcu;
 };
 
@@ -137,12 +138,12 @@ static void ip6addrlbl_free_rcu(struct rcu_head *h)
 
 static bool ip6addrlbl_hold(struct ip6addrlbl_entry *p)
 {
-	return atomic_inc_not_zero(&p->refcnt);
+	return refcount_inc_not_zero(&p->refcnt);
 }
 
 static inline void ip6addrlbl_put(struct ip6addrlbl_entry *p)
 {
-	if (atomic_dec_and_test(&p->refcnt))
+	if (refcount_dec_and_test(&p->refcnt))
 		call_rcu(&p->rcu, ip6addrlbl_free_rcu);
 }
 
@@ -236,7 +237,7 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(struct net *net,
 	newp->label = label;
 	INIT_HLIST_NODE(&newp->list);
 	write_pnet(&newp->lbl_net, net);
-	atomic_set(&newp->refcnt, 1);
+	refcount_set(&newp->refcnt, 1);
 	return newp;
 }
 

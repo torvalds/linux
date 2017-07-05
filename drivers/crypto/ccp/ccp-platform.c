@@ -44,7 +44,7 @@ static struct ccp_vdata *ccp_get_of_version(struct platform_device *pdev)
 	if (match && match->data)
 		return (struct ccp_vdata *)match->data;
 #endif
-	return 0;
+	return NULL;
 }
 
 static struct ccp_vdata *ccp_get_acpi_version(struct platform_device *pdev)
@@ -56,7 +56,7 @@ static struct ccp_vdata *ccp_get_acpi_version(struct platform_device *pdev)
 	if (match && match->driver_data)
 		return (struct ccp_vdata *)match->driver_data;
 #endif
-	return 0;
+	return NULL;
 }
 
 static int ccp_get_irq(struct ccp_device *ccp)

@@ -31,20 +31,10 @@
 #define PS_FAST_INTERVAL         1       /* Fast power saving listen interval */
 #define PS_MAX_INTERVAL          4       /* MAX power saving listen interval */
 
-void
-PSvDisablePowerSaving(
-	struct vnt_private *
-);
+void PSvDisablePowerSaving(struct vnt_private *priv);
 
-void
-PSvEnablePowerSaving(
-	struct vnt_private *,
-	unsigned short wListenInterval
-);
+void PSvEnablePowerSaving(struct vnt_private *priv, unsigned short wListenInterval);
 
-bool
-PSbIsNextTBTTWakeUp(
-	struct vnt_private *
-);
+bool PSbIsNextTBTTWakeUp(struct vnt_private *priv);
 
 #endif /* __POWER_H__ */

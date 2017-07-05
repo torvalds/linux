@@ -1202,10 +1202,7 @@ static ssize_t store_uevent(struct module_attribute *mattr,
 			    struct module_kobject *mk,
 			    const char *buffer, size_t count)
 {
-	enum kobject_action action;
-
-	if (kobject_action_type(buffer, count, &action) == 0)
-		kobject_uevent(&mk->kobj, action);
+	kobject_synth_uevent(&mk->kobj, buffer, count);
 	return count;
 }
 

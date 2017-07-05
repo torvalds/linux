@@ -202,9 +202,13 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 			 netdev->name);
 		break;
 
-	case OCTNET_CMD_ENABLE_VLAN_FILTER:
-		dev_info(&oct->pci_dev->dev, "%s VLAN filter enabled\n",
-			 netdev->name);
+	case OCTNET_CMD_VLAN_FILTER_CTL:
+		if (nctrl->ncmd.s.param1)
+			dev_info(&oct->pci_dev->dev,
+				 "%s VLAN filter enabled\n", netdev->name);
+		else
+			dev_info(&oct->pci_dev->dev,
+				 "%s VLAN filter disabled\n", netdev->name);
 		break;
 
 	case OCTNET_CMD_ADD_VLAN_FILTER:
