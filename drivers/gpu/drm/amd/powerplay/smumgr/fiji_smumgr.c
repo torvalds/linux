@@ -161,44 +161,47 @@ static int fiji_start_smu_in_non_protection_mode(struct pp_smumgr *smumgr)
 
 static int fiji_setup_pwr_virus(struct pp_smumgr *smumgr)
 {
-	int i, result = -1;
+	int i;
+	int result = -EINVAL;
 	uint32_t reg, data;
-	const PWR_Command_Table *virus = PwrVirusTable;
-	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
 
-	priv->avfs.AvfsBtcStatus = AVFS_LOAD_VIRUS;
-	for (i = 0; (i < PWR_VIRUS_TABLE_SIZE); i++) {
-		switch (virus->command) {
+	const PWR_Command_Table *pvirus = PwrVirusTable;
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
+
+	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
+		switch (pvirus->command) {
 		case PwrCmdWrite:
-			reg  = virus->reg;
-			data = virus->data;
+			reg  = pvirus->reg;
+			data = pvirus->data;
 			cgs_write_register(smumgr->device, reg, data);
 			break;
+
 		case PwrCmdEnd:
-			priv->avfs.AvfsBtcStatus = AVFS_BTC_VIRUS_LOADED;
 			result = 0;
 			break;
+
 		default:
-			pr_err("Table Exit with Invalid Command!");
-			priv->avfs.AvfsBtcStatus = AVFS_BTC_VIRUS_FAIL;
-			result = -1;
+			pr_info("Table Exit with Invalid Command!");
+			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
+			result = -EINVAL;
 			break;
 		}
-		virus++;
+		pvirus++;
 	}
+
 	return result;
 }
 
 static int fiji_start_avfs_btc(struct pp_smumgr *smumgr)
 {
 	int result = 0;
-	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
 
-	if (priv->avfs.AvfsBtcParam) {
-		if (!smum_send_msg_to_smc_with_parameter(smumgr,
-				PPSMC_MSG_PerformBtc, priv->avfs.AvfsBtcParam)) {
-			pr_err("PerformBTC SMU msg failed \n");
-			result = -1;
+	if (0 != smu_data->avfs.avfs_btc_param) {
+		if (0 != smu7_send_msg_to_smc_with_parameter(smumgr,
+				PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
+			pr_info("[AVFS][Fiji_PerformBtc] PerformBTC SMU msg failed");
+			result = -EINVAL;
 		}
 	}
 	/* Soft-Reset to reset the engine before loading uCode */
@@ -252,39 +255,39 @@ static int fiji_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 
 static int fiji_avfs_event_mgr(struct pp_smumgr *smumgr, bool smu_started)
 {
-	struct fiji_smumgr *priv = (struct fiji_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
 
-	switch (priv->avfs.AvfsBtcStatus) {
+	switch (smu_data->avfs.avfs_btc_status) {
 	case AVFS_BTC_COMPLETED_PREVIOUSLY:
 		break;
 
 	case AVFS_BTC_BOOT: /*Cold Boot State - Post SMU Start*/
 		if (!smu_started)
 			break;
-		priv->avfs.AvfsBtcStatus = AVFS_BTC_FAILED;
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_FAILED;
 		PP_ASSERT_WITH_CODE(0 == fiji_setup_graphics_level_structure(smumgr),
 				"[AVFS][fiji_avfs_event_mgr] Could not Copy Graphics Level"
 				" table over to SMU",
-				return -1;);
-		priv->avfs.AvfsBtcStatus = AVFS_BTC_VIRUS_FAIL;
+				return -EINVAL;);
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
 		PP_ASSERT_WITH_CODE(0 == fiji_setup_pwr_virus(smumgr),
 				"[AVFS][fiji_avfs_event_mgr] Could not setup "
 				"Pwr Virus for AVFS ",
-				return -1;);
-		priv->avfs.AvfsBtcStatus = AVFS_BTC_FAILED;
+				return -EINVAL;);
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_FAILED;
 		PP_ASSERT_WITH_CODE(0 == fiji_start_avfs_btc(smumgr),
 				"[AVFS][fiji_avfs_event_mgr] Failure at "
 				"fiji_start_avfs_btc. AVFS Disabled",
-				return -1;);
+				return -EINVAL;);
 
-		priv->avfs.AvfsBtcStatus =  AVFS_BTC_ENABLEAVFS;
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_ENABLEAVFS;
 		break;
 	case AVFS_BTC_DISABLED: /* Do nothing */
 	case AVFS_BTC_NOTSUPPORTED: /* Do nothing */
 	case AVFS_BTC_ENABLEAVFS:
 		break;
 	default:
-		pr_err("AVFS failed status is %x !\n", priv->avfs.AvfsBtcStatus);
+		pr_err("AVFS failed status is %x !\n", smu_data->avfs.avfs_btc_status);
 		break;
 	}
 	return 0;
@@ -377,19 +380,6 @@ static int fiji_smu_init(struct pp_smumgr *smumgr)
 	if (smu7_init(smumgr))
 		return -EINVAL;
 
-	fiji_priv->avfs.AvfsBtcStatus = AVFS_BTC_BOOT;
-	if (fiji_is_hw_avfs_present(smumgr))
-		/* AVFS Parameter
-		 * 0 - BTC DC disabled, BTC AC disabled
-		 * 1 - BTC DC enabled,  BTC AC disabled
-		 * 2 - BTC DC disabled, BTC AC enabled
-		 * 3 - BTC DC enabled,  BTC AC enabled
-		 * Default is 0 - BTC DC disabled, BTC AC disabled
-		 */
-		fiji_priv->avfs.AvfsBtcParam = 0;
-	else
-		fiji_priv->avfs.AvfsBtcStatus = AVFS_BTC_NOTSUPPORTED;
-
 	for (i = 0; i < SMU73_MAX_LEVELS_GRAPHICS; i++)
 		fiji_priv->activity_target[i] = 30;
 
@@ -421,4 +411,5 @@ const struct pp_smumgr_func fiji_smu_funcs = {
 	.initialize_mc_reg_table = fiji_initialize_mc_reg_table,
 	.is_dpm_running = fiji_is_dpm_running,
 	.populate_requested_graphic_levels = fiji_populate_requested_graphic_levels,
+	.is_hw_avfs_present = fiji_is_hw_avfs_present,
 };

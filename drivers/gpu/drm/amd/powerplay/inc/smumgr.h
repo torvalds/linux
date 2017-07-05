@@ -131,6 +131,7 @@ struct pp_smumgr_func {
 	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
 	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
 			struct amd_pp_profile *request);
+	bool (*is_hw_avfs_present)(struct pp_smumgr *smumgr);
 };
 
 struct pp_smumgr {
@@ -201,6 +202,8 @@ extern bool smum_is_dpm_running(struct pp_hwmgr *hwmgr);
 
 extern int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request);
+
+extern bool smum_is_hw_avfs_present(struct pp_smumgr *smumgr);
 
 #define SMUM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 
