@@ -1581,6 +1581,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page **pages = NULL;
 	struct extent_state *cached_state = NULL;
+	struct extent_changeset *data_reserved = NULL;
 	u64 release_bytes = 0;
 	u64 lockstart;
 	u64 lockend;
@@ -1628,7 +1629,9 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		reserve_bytes = round_up(write_bytes + sector_offset,
 				fs_info->sectorsize);
 
-		ret = btrfs_check_data_free_space(inode, pos, write_bytes);
+		extent_changeset_release(data_reserved);
+		ret = btrfs_check_data_free_space(inode, &data_reserved, pos,
+						  write_bytes);
 		if (ret < 0) {
 			if ((BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW |
 						      BTRFS_INODE_PREALLOC)) &&
@@ -1657,8 +1660,9 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 				reserve_bytes);
 		if (ret) {
 			if (!only_release_metadata)
-				btrfs_free_reserved_data_space(inode, pos,
-							       write_bytes);
+				btrfs_free_reserved_data_space(inode,
+						data_reserved, pos,
+						write_bytes);
 			else
 				btrfs_end_write_no_snapshoting(root);
 			break;
@@ -1740,8 +1744,9 @@ again:
 				__pos = round_down(pos,
 						   fs_info->sectorsize) +
 					(dirty_pages << PAGE_SHIFT);
-				btrfs_delalloc_release_space(inode, __pos,
-							     release_bytes);
+				btrfs_delalloc_release_space(inode,
+						data_reserved, __pos,
+						release_bytes);
 			}
 		}
 
@@ -1796,12 +1801,13 @@ again:
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
 					release_bytes);
 		} else {
-			btrfs_delalloc_release_space(inode,
-						round_down(pos, fs_info->sectorsize),
-						release_bytes);
+			btrfs_delalloc_release_space(inode, data_reserved,
+					round_down(pos, fs_info->sectorsize),
+					release_bytes);
 		}
 	}
 
+	extent_changeset_free(data_reserved);
 	return num_written ? num_written : ret;
 }
 
@@ -2405,10 +2411,13 @@ out:
  */
 static int find_first_non_hole(struct inode *inode, u64 *start, u64 *len)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_map *em;
 	int ret = 0;
 
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, *start, *len, 0);
+	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0,
+			      round_down(*start, fs_info->sectorsize),
+			      round_up(*len, fs_info->sectorsize), 0);
 	if (IS_ERR(em))
 		return PTR_ERR(em);
 
@@ -2784,6 +2793,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 {
 	struct inode *inode = file_inode(file);
 	struct extent_state *cached_state = NULL;
+	struct extent_changeset *data_reserved = NULL;
 	struct falloc_range *range;
 	struct falloc_range *tmp;
 	struct list_head reserve_list;
@@ -2913,8 +2923,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 				free_extent_map(em);
 				break;
 			}
-			ret = btrfs_qgroup_reserve_data(inode, cur_offset,
-					last_byte - cur_offset);
+			ret = btrfs_qgroup_reserve_data(inode, &data_reserved,
+					cur_offset, last_byte - cur_offset);
 			if (ret < 0) {
 				free_extent_map(em);
 				break;
@@ -2925,8 +2935,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 			 * range, free reserved data space first, otherwise
 			 * it'll result in false ENOSPC error.
 			 */
-			btrfs_free_reserved_data_space(inode, cur_offset,
-				last_byte - cur_offset);
+			btrfs_free_reserved_data_space(inode, data_reserved,
+					cur_offset, last_byte - cur_offset);
 		}
 		free_extent_map(em);
 		cur_offset = last_byte;
@@ -2945,8 +2955,9 @@ static long btrfs_fallocate(struct file *file, int mode,
 					range->len, i_blocksize(inode),
 					offset + len, &alloc_hint);
 		else
-			btrfs_free_reserved_data_space(inode, range->start,
-						       range->len);
+			btrfs_free_reserved_data_space(inode,
+					data_reserved, range->start,
+					range->len);
 		list_del(&range->list);
 		kfree(range);
 	}
@@ -2984,8 +2995,9 @@ out:
 	inode_unlock(inode);
 	/* Let go of our reservation. */
 	if (ret != 0)
-		btrfs_free_reserved_data_space(inode, alloc_start,
-				       alloc_end - cur_offset);
+		btrfs_free_reserved_data_space(inode, data_reserved,
+				alloc_start, alloc_end - cur_offset);
+	extent_changeset_free(data_reserved);
 	return ret;
 }
 
