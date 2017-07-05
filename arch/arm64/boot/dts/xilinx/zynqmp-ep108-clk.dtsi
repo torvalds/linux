@@ -11,7 +11,7 @@
  * the License, or (at your option) any later version.
  */
 
-&amba {
+/ {
 	misc_clk: misc_clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
