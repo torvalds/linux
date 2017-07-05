@@ -130,7 +130,7 @@ static int do_read_inode(struct inode *inode)
 	i_gid_write(inode, le32_to_cpu(ri->i_gid));
 	set_nlink(inode, le32_to_cpu(ri->i_links));
 	inode->i_size = le64_to_cpu(ri->i_size);
-	inode->i_blocks = SECTOR_FROM_BLOCK(le64_to_cpu(ri->i_blocks));
+	inode->i_blocks = SECTOR_FROM_BLOCK(le64_to_cpu(ri->i_blocks) - 1);
 
 	inode->i_atime.tv_sec = le64_to_cpu(ri->i_atime);
 	inode->i_ctime.tv_sec = le64_to_cpu(ri->i_ctime);
@@ -268,7 +268,7 @@ int update_inode(struct inode *inode, struct page *node_page)
 	ri->i_gid = cpu_to_le32(i_gid_read(inode));
 	ri->i_links = cpu_to_le32(inode->i_nlink);
 	ri->i_size = cpu_to_le64(i_size_read(inode));
-	ri->i_blocks = cpu_to_le64(SECTOR_TO_BLOCK(inode->i_blocks));
+	ri->i_blocks = cpu_to_le64(SECTOR_TO_BLOCK(inode->i_blocks) + 1);
 
 	if (et) {
 		read_lock(&et->lock);
