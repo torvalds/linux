@@ -1355,8 +1355,6 @@ static inline int check_nid_range(struct f2fs_sb_info *sbi, nid_t nid)
 	return 0;
 }
 
-#define F2FS_DEFAULT_ALLOCATED_BLOCKS	1
-
 /*
  * Check whether the inode has blocks or not
  */
@@ -1364,8 +1362,7 @@ static inline int F2FS_HAS_BLOCKS(struct inode *inode)
 {
 	block_t xattr_block = F2FS_I(inode)->i_xattr_nid ? 1 : 0;
 
-	return (inode->i_blocks >> F2FS_LOG_SECTORS_PER_BLOCK) >
-			(F2FS_DEFAULT_ALLOCATED_BLOCKS + xattr_block);
+	return (inode->i_blocks >> F2FS_LOG_SECTORS_PER_BLOCK) > xattr_block;
 }
 
 static inline bool f2fs_has_xattr_block(unsigned int ofs)
@@ -1552,7 +1549,7 @@ static inline block_t __start_sum_addr(struct f2fs_sb_info *sbi)
 }
 
 static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
-						struct inode *inode)
+					struct inode *inode, bool is_inode)
 {
 	block_t	valid_block_count;
 	unsigned int valid_node_count;
@@ -1572,8 +1569,12 @@ static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
 		return false;
 	}
 
-	if (inode)
-		f2fs_i_blocks_write(inode, 1, true);
+	if (inode) {
+		if (is_inode)
+			f2fs_mark_inode_dirty_sync(inode, true);
+		else
+			f2fs_i_blocks_write(inode, 1, true);
+	}
 
 	sbi->total_valid_node_count++;
 	sbi->total_valid_block_count++;
@@ -1584,15 +1585,16 @@ static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
 }
 
 static inline void dec_valid_node_count(struct f2fs_sb_info *sbi,
-						struct inode *inode)
+					struct inode *inode, bool is_inode)
 {
 	spin_lock(&sbi->stat_lock);
 
 	f2fs_bug_on(sbi, !sbi->total_valid_block_count);
 	f2fs_bug_on(sbi, !sbi->total_valid_node_count);
-	f2fs_bug_on(sbi, !inode->i_blocks);
+	f2fs_bug_on(sbi, !is_inode && !inode->i_blocks);
 
-	f2fs_i_blocks_write(inode, 1, false);
+	if (!is_inode)
+		f2fs_i_blocks_write(inode, 1, false);
 	sbi->total_valid_node_count--;
 	sbi->total_valid_block_count--;
 

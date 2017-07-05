@@ -678,15 +678,11 @@ static void truncate_node(struct dnode_of_data *dn)
 	struct node_info ni;
 
 	get_node_info(sbi, dn->nid, &ni);
-	if (dn->inode->i_blocks == 0) {
-		f2fs_bug_on(sbi, ni.blk_addr != NULL_ADDR);
-		goto invalidate;
-	}
 	f2fs_bug_on(sbi, ni.blk_addr == NULL_ADDR);
 
 	/* Deallocate node address */
 	invalidate_blocks(sbi, ni.blk_addr);
-	dec_valid_node_count(sbi, dn->inode);
+	dec_valid_node_count(sbi, dn->inode, dn->nid == dn->inode->i_ino);
 	set_node_addr(sbi, &ni, NULL_ADDR, false);
 
 	if (dn->nid == dn->inode->i_ino) {
@@ -694,7 +690,7 @@ static void truncate_node(struct dnode_of_data *dn)
 		dec_valid_inode_count(sbi);
 		f2fs_inode_synced(dn->inode);
 	}
-invalidate:
+
 	clear_node_page_dirty(dn->node_page);
 	set_sbi_flag(sbi, SBI_IS_DIRTY);
 
@@ -1044,7 +1040,7 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	if (unlikely(!inc_valid_node_count(sbi, dn->inode))) {
+	if (unlikely(!inc_valid_node_count(sbi, dn->inode, !ofs))) {
 		err = -ENOSPC;
 		goto fail;
 	}
@@ -2207,14 +2203,14 @@ int recover_xattr_data(struct inode *inode, struct page *page, block_t blkaddr)
 	get_node_info(sbi, prev_xnid, &ni);
 	f2fs_bug_on(sbi, ni.blk_addr == NULL_ADDR);
 	invalidate_blocks(sbi, ni.blk_addr);
-	dec_valid_node_count(sbi, inode);
+	dec_valid_node_count(sbi, inode, false);
 	set_node_addr(sbi, &ni, NULL_ADDR, false);
 
 recover_xnid:
 	/* 2: update xattr nid in inode */
 	remove_free_nid(sbi, new_xnid);
 	f2fs_i_xnid_write(inode, new_xnid);
-	if (unlikely(!inc_valid_node_count(sbi, inode)))
+	if (unlikely(!inc_valid_node_count(sbi, inode, false)))
 		f2fs_bug_on(sbi, 1);
 	update_inode_page(inode);
 
@@ -2272,7 +2268,7 @@ retry:
 	new_ni = old_ni;
 	new_ni.ino = ino;
 
-	if (unlikely(!inc_valid_node_count(sbi, NULL)))
+	if (unlikely(!inc_valid_node_count(sbi, NULL, true)))
 		WARN_ON(1);
 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
 	inc_valid_inode_count(sbi);
