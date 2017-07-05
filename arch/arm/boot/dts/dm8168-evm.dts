@@ -196,7 +196,7 @@
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <4>;
 	cd-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
 };
 
 /* At least dm8168-evm rev c won't support multipoint, later may */
