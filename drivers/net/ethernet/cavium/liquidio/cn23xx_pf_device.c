@@ -230,7 +230,7 @@ static int cn23xx_pf_soft_reset(struct octeon_device *oct)
 	/* Wait for 100ms as Octeon resets. */
 	mdelay(100);
 
-	if (octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1) == 0x1234ULL) {
+	if (octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1)) {
 		dev_err(&oct->pci_dev->dev, "OCTEON[%d]: Soft reset failed\n",
 			oct->octeon_id);
 		return 1;

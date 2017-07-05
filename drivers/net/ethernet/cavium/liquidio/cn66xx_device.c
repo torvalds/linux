@@ -48,7 +48,7 @@ int lio_cn6xxx_soft_reset(struct octeon_device *oct)
 	/* Wait for 10ms as Octeon resets. */
 	mdelay(100);
 
-	if (octeon_read_csr64(oct, CN6XXX_SLI_SCRATCH1) == 0x1234ULL) {
+	if (octeon_read_csr64(oct, CN6XXX_SLI_SCRATCH1)) {
 		dev_err(&oct->pci_dev->dev, "Soft reset failed\n");
 		return 1;
 	}
