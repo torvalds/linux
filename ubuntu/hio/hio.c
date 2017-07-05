@@ -11,7 +11,7 @@
 * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 * more details.
 */
-
+ 
 #ifndef LINUX_VERSION_CODE
 #include <linux/version.h>
 #endif
@@ -4296,7 +4296,11 @@ static void ssd_end_timeout_request(struct ssd_cmd *cmd)
 	int i;
 
 	for (i=0; i<dev->nr_queue; i++) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 		disable_irq(dev->entry[i].vector);
+#else
+		disable_irq(pci_irq_vector(dev->pdev, i));
+#endif
 	}
 
 	atomic_inc(&dev->tocnt);
@@ -4307,7 +4311,11 @@ static void ssd_end_timeout_request(struct ssd_cmd *cmd)
 	//}
 
 	for (i=0; i<dev->nr_queue; i++) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 		enable_irq(dev->entry[i].vector);
+#else
+		enable_irq(pci_irq_vector(dev->pdev, i));
+#endif
 	}
 
 	/* alarm led */
@@ -10313,7 +10321,9 @@ static void ssd_init_trim(ssd_device_t *dev)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, dev->rq);
 
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)) || (defined RHEL_MAJOR && RHEL_MAJOR >= 6))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,12,0))
 	dev->rq->limits.discard_zeroes_data = 1;
+#endif
 	dev->rq->limits.discard_alignment = 4096;
 	dev->rq->limits.discard_granularity = 4096;
 #endif
@@ -11569,7 +11579,7 @@ static void ssd_free_irq(struct ssd_device *dev)
 {
 	int i;
 
-#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6))
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6)) && (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 	if (SSD_INT_MSIX == dev->int_mode) {
 		for (i=0; i<dev->nr_queue; i++) {
 			irq_set_affinity_hint(dev->entry[i].vector, NULL);
@@ -11578,7 +11588,11 @@ static void ssd_free_irq(struct ssd_device *dev)
 #endif
 
 	for (i=0; i<dev->nr_queue; i++) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 		free_irq(dev->entry[i].vector, &dev->queue[i]);
+#else
+		free_irq(pci_irq_vector(dev->pdev, i), &dev->queue[i]);
+#endif
 	}
 
 	if (SSD_INT_MSIX == dev->int_mode) {
@@ -11591,11 +11605,11 @@ static void ssd_free_irq(struct ssd_device *dev)
 
 static int ssd_init_irq(struct ssd_device *dev)
 {
-#if (!defined MODULE) && (defined SSD_MSIX_AFFINITY_FORCE)
+#if (!defined MODULE) && (defined SSD_MSIX_AFFINITY_FORCE) && (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 	const struct cpumask *cpu_mask = NULL;
 	static int cpu_affinity = 0;
 #endif
-#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6))
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6)) && (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 	const struct cpumask *mask = NULL;
 	static int cpu = 0;
 	int j;
@@ -11610,8 +11624,10 @@ static int ssd_init_irq(struct ssd_device *dev)
 	dev->irq_cpu = -1;
 #endif
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 	if (int_mode >= SSD_INT_MSIX && pci_find_capability(dev->pdev, PCI_CAP_ID_MSIX)) {
 		dev->nr_queue = SSD_MSIX_VEC;
+
 		for (i=0; i<dev->nr_queue; i++) {
 			dev->entry[i].entry = i;
 		}
@@ -11663,6 +11679,47 @@ static int ssd_init_irq(struct ssd_device *dev)
 
 		dev->int_mode = SSD_INT_LEGACY;
 	}
+#else
+	if (int_mode >= SSD_INT_MSIX && pci_find_capability(dev->pdev, PCI_CAP_ID_MSIX)) {
+		dev->nr_queue = SSD_MSIX_VEC;
+
+		dev->nr_queue = pci_alloc_irq_vectors(dev->pdev, 1, dev->nr_queue, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
+		if (dev->nr_queue <= 0) {
+			ret = -EIO;
+			hio_warn("%s: can not enable msix\n", dev->name);
+			ssd_set_alarm(dev);
+			goto out;
+		}
+
+		dev->int_mode = SSD_INT_MSIX;
+	} else if (int_mode >= SSD_INT_MSI && pci_find_capability(dev->pdev, PCI_CAP_ID_MSI)) {
+		
+		ret = pci_alloc_irq_vectors(dev->pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_AFFINITY);
+		if (ret <= 0) {
+			ret = -EIO;
+			hio_warn("%s: can not enable msi\n", dev->name);
+			/* alarm led */
+			ssd_set_alarm(dev);
+			goto out;
+		}
+		dev->nr_queue = 1;
+		
+		dev->int_mode = SSD_INT_MSI;
+	} else {
+		ret = pci_alloc_irq_vectors(dev->pdev, 1, 1, PCI_IRQ_LEGACY);
+		
+		if (ret <= 0) {
+			ret = -EIO;
+			hio_warn("%s: can not enable msi\n", dev->name);
+			/* alarm led */
+			ssd_set_alarm(dev);
+			goto out;
+		}
+		dev->nr_queue = 1;
+
+		dev->int_mode = SSD_INT_LEGACY;
+	}
+#endif
 
 	for (i=0; i<dev->nr_queue; i++) {
 		if (dev->nr_queue > 1) {
@@ -11692,7 +11749,13 @@ static int ssd_init_irq(struct ssd_device *dev)
 #endif
 
 	for (i=0; i<dev->nr_queue; i++) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30))
+		if (dev->int_mode == SSD_INT_LEGACY) {
+			ret = request_irq(dev->entry[i].vector, &ssd_interrupt_legacy, flags, dev->queue[i].name, &dev->queue[i]);
+		} else {
+			ret = request_irq(dev->entry[i].vector, &ssd_interrupt, flags, dev->queue[i].name, &dev->queue[i]);
+		}
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 		if (threaded_irq) {
 			ret = request_threaded_irq(dev->entry[i].vector, ssd_interrupt_check, ssd_interrupt_threaded, flags, dev->queue[i].name, &dev->queue[i]);
 		} else if (dev->int_mode == SSD_INT_LEGACY) {
@@ -11701,10 +11764,12 @@ static int ssd_init_irq(struct ssd_device *dev)
 			ret = request_irq(dev->entry[i].vector, &ssd_interrupt, flags, dev->queue[i].name, &dev->queue[i]);
 		}
 #else
-		if (dev->int_mode == SSD_INT_LEGACY) {
-			ret = request_irq(dev->entry[i].vector, &ssd_interrupt_legacy, flags, dev->queue[i].name, &dev->queue[i]);
+		if (threaded_irq) {
+			ret = request_threaded_irq(pci_irq_vector(dev->pdev, i), ssd_interrupt_check, ssd_interrupt_threaded, flags, dev->queue[i].name, &dev->queue[i]);
+		} else if (dev->int_mode == SSD_INT_LEGACY) {
+			ret = request_irq(pci_irq_vector(dev->pdev, i), &ssd_interrupt_legacy, flags, dev->queue[i].name, &dev->queue[i]);
 		} else {
-			ret = request_irq(dev->entry[i].vector, &ssd_interrupt, flags, dev->queue[i].name, &dev->queue[i]);
+			ret = request_irq(pci_irq_vector(dev->pdev, i), &ssd_interrupt, flags, dev->queue[i].name, &dev->queue[i]);
 		}
 #endif
 		if (ret) {
@@ -11714,7 +11779,7 @@ static int ssd_init_irq(struct ssd_device *dev)
 			goto out_request_irq;
 		}
 
-#if (!defined MODULE) && (defined SSD_MSIX_AFFINITY_FORCE)
+#if (!defined MODULE) && (defined SSD_MSIX_AFFINITY_FORCE) && (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 		cpu_mask = (dev_to_node(&dev->pdev->dev) == -1) ? cpu_online_mask : cpumask_of_node(dev_to_node(&dev->pdev->dev));
 		if (SSD_INT_MSIX == dev->int_mode) {
 			if ((0 == cpu_affinity) || (!cpumask_intersects(mask, cpumask_of(cpu_affinity)))) {
@@ -11733,7 +11798,7 @@ static int ssd_init_irq(struct ssd_device *dev)
 	return ret;
 
 out_request_irq:
-#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6))
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6)) && (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 	if (SSD_INT_MSIX == dev->int_mode) {
 		for (j=0; j<dev->nr_queue; j++) {
 			irq_set_affinity_hint(dev->entry[j].vector, NULL);
@@ -11742,7 +11807,11 @@ out_request_irq:
 #endif
 
 	for (i--; i>=0; i--) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
 		free_irq(dev->entry[i].vector, &dev->queue[i]);
+#else
+		free_irq(pci_irq_vector(dev->pdev, i), &dev->queue[i]);
+#endif
 	}
 
 	if (SSD_INT_MSIX == dev->int_mode) {
