@@ -1182,7 +1182,7 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 
 	switch (mq_rq->drv_op) {
 	case MMC_DRV_OP_IOCTL:
-		for (i = 0; i < mq_rq->ioc_count; i++) {
+		for (i = 0, ret = 0; i < mq_rq->ioc_count; i++) {
 			ret = __mmc_blk_ioctl_cmd(card, md, mq_rq->idata[i]);
 			if (ret)
 				break;
