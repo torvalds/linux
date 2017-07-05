@@ -203,8 +203,6 @@ static int debug_fill_super(struct super_block *sb, void *data, int silent)
 	struct debugfs_fs_info *fsi;
 	int err;
 
-	save_mount_options(sb, data);
-
 	fsi = kzalloc(sizeof(struct debugfs_fs_info), GFP_KERNEL);
 	sb->s_fs_info = fsi;
 	if (!fsi) {
