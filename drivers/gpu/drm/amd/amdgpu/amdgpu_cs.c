@@ -1069,10 +1069,8 @@ static void amdgpu_cs_post_dependencies(struct amdgpu_cs_parser *p)
 {
 	int i;
 
-	for (i = 0; i < p->num_post_dep_syncobjs; ++i) {
-		drm_syncobj_replace_fence(p->filp, p->post_dep_syncobjs[i],
-					  p->fence);
-	}
+	for (i = 0; i < p->num_post_dep_syncobjs; ++i)
+		drm_syncobj_replace_fence(p->post_dep_syncobjs[i], p->fence);
 }
 
 static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,

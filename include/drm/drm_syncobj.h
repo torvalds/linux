@@ -79,8 +79,7 @@ drm_syncobj_put(struct drm_syncobj *obj)
 
 struct drm_syncobj *drm_syncobj_find(struct drm_file *file_private,
 				     u32 handle);
-void drm_syncobj_replace_fence(struct drm_file *file_private,
-			       struct drm_syncobj *syncobj,
+void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 			       struct dma_fence *fence);
 int drm_syncobj_fence_get(struct drm_file *file_private,
 			  u32 handle,

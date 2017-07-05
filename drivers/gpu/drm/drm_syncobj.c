@@ -77,17 +77,15 @@ EXPORT_SYMBOL(drm_syncobj_find);
 
 /**
  * drm_syncobj_replace_fence - replace fence in a sync object.
- * @file_private: drm file private pointer.
  * @syncobj: Sync object to replace fence in
  * @fence: fence to install in sync file.
  *
  * This replaces the fence on a sync object.
  */
-void drm_syncobj_replace_fence(struct drm_file *file_private,
-			       struct drm_syncobj *syncobj,
+void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 			       struct dma_fence *fence)
 {
-	struct dma_fence *old_fence = NULL;
+	struct dma_fence *old_fence;
 
 	if (fence)
 		dma_fence_get(fence);
@@ -292,7 +290,7 @@ int drm_syncobj_import_sync_file_fence(struct drm_file *file_private,
 		return -ENOENT;
 	}
 
-	drm_syncobj_replace_fence(file_private, syncobj, fence);
+	drm_syncobj_replace_fence(syncobj, fence);
 	dma_fence_put(fence);
 	drm_syncobj_put(syncobj);
 	return 0;
