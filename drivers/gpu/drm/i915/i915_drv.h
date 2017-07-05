@@ -224,6 +224,25 @@ static inline uint_fixed_16_16_t mul_u32_fixed16(uint32_t val,
 	return clamp_u64_to_fixed16(intermediate_val);
 }
 
+static inline uint_fixed_16_16_t add_fixed16(uint_fixed_16_16_t add1,
+					     uint_fixed_16_16_t add2)
+{
+	uint64_t interm_sum;
+
+	interm_sum = (uint64_t) add1.val + add2.val;
+	return clamp_u64_to_fixed16(interm_sum);
+}
+
+static inline uint_fixed_16_16_t add_fixed16_u32(uint_fixed_16_16_t add1,
+						 uint32_t add2)
+{
+	uint64_t interm_sum;
+	uint_fixed_16_16_t interm_add2 = u32_to_fixed16(add2);
+
+	interm_sum = (uint64_t) add1.val + interm_add2.val;
+	return clamp_u64_to_fixed16(interm_sum);
+}
+
 static inline const char *yesno(bool v)
 {
 	return v ? "yes" : "no";
