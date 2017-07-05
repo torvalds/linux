@@ -453,7 +453,7 @@ static inline u64 hrtimer_forward_now(struct hrtimer *timer,
 
 /* Precise sleep: */
 
-extern int nanosleep_copyout(struct restart_block *, struct timespec *);
+extern int nanosleep_copyout(struct restart_block *, struct timespec64 *);
 extern long hrtimer_nanosleep(const struct timespec64 *rqtp,
 			      const enum hrtimer_mode mode,
 			      const clockid_t clockid);
