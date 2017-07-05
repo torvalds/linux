@@ -822,8 +822,7 @@ bool dcn_validate_bandwidth(
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
 
 	if (dc->public.debug.disable_pipe_split) {
-		v->max_dppclk[1] = v->max_dppclk_vnom0p8;
-		v->max_dppclk[0] = v->max_dppclk_vnom0p8;
+		v->max_dispclk[0] = v->max_dppclk_vmin0p65;
 	}
 
 	if (v->voltage_override == dcn_bw_v_max0p9) {
