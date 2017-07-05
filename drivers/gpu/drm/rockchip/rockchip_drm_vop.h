@@ -24,6 +24,7 @@
 #define VOP_MINOR(version) 	((version) & 0xff)
 
 #define ROCKCHIP_OUTPUT_DSI_DUAL_CHANNEL	BIT(0)
+#define ROCKCHIP_OUTPUT_DSI_DUAL_LINK		BIT(1)
 
 #define AFBDC_FMT_RGB565	0x0
 #define AFBDC_FMT_U8U8U8U8	0x5
@@ -112,6 +113,7 @@ struct vop_ctrl {
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
+	struct vop_reg data01_swap;
 	struct vop_reg mipi_dual_channel_en;
 	struct vop_reg dp_en;
 	struct vop_reg dclk_pol;
