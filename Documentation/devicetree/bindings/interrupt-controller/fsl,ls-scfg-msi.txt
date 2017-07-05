@@ -6,6 +6,7 @@ Required properties:
 	      Layerscape PCIe MSI controller block such as:
               "fsl,ls1021a-msi"
               "fsl,ls1043a-msi"
+              "fsl,ls1046a-msi"
 - msi-controller: indicates that this is a PCIe MSI controller node
 - reg: physical base address of the controller and length of memory mapped.
 - interrupts: an interrupt to the parent interrupt controller.
