@@ -2091,7 +2091,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	u8 n_labels;
 
 	err = nlmsg_parse(in_nlh, sizeof(*rtm), tb, RTA_MAX,
-			  rtm_ipv4_policy, extack);
+			  rtm_mpls_policy, extack);
 	if (err < 0)
 		goto errout;
 
