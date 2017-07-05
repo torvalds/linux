@@ -637,6 +637,9 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 			   sizeof(num_of_cmds)))
 		return -EFAULT;
 
+	if (!num_of_cmds)
+		return 0;
+
 	if (num_of_cmds > MMC_IOC_MAX_CMDS)
 		return -EINVAL;
 
