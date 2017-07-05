@@ -12,7 +12,6 @@ config CRYPTO_DEV_NITROX_CNN55XX
 	tristate "Support for Cavium CNN55XX driver"
 	depends on PCI_MSI && 64BIT
 	select CRYPTO_DEV_NITROX
-	default m
 	help
 	  Support for Cavium NITROX family CNN55XX driver
 	  for accelerating crypto workloads.
