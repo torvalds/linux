@@ -4276,7 +4276,7 @@ static uint_fixed_16_16_t skl_wm_method1(uint32_t pixel_rate, uint8_t cpp,
 		return FP_16_16_MAX;
 
 	wm_intermediate_val = latency * pixel_rate * cpp;
-	ret = fixed_16_16_div_u64(wm_intermediate_val, 1000 * 512);
+	ret = fixed_16_16_div(wm_intermediate_val, 1000 * 512);
 	return ret;
 }
 
@@ -4314,7 +4314,7 @@ intel_get_linetime_us(struct intel_crtc_state *cstate)
 		return u32_to_fixed_16_16(0);
 
 	crtc_htotal = cstate->base.adjusted_mode.crtc_htotal;
-	linetime_us = fixed_16_16_div_u64(crtc_htotal * 1000, pixel_rate);
+	linetime_us = fixed_16_16_div(crtc_htotal * 1000, pixel_rate);
 
 	return linetime_us;
 }
