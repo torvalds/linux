@@ -63,7 +63,7 @@
 
 /* driver */
 #define MODULE_NAME		"hio"
-#define DRIVER_VERSION	"2.1.0.28"
+#define DRIVER_VERSION	"2.1.0.40"
 #define DRIVER_VERSION_LEN	16
 
 #define SSD_FW_MIN		0x1
@@ -103,7 +103,7 @@
 #define SSD_MSIX_VEC	8
 #ifdef SSD_MSIX
 #undef SSD_MSI
-//#undef SSD_ESCAPE_IRQ
+#undef SSD_ESCAPE_IRQ
 #define SSD_MSIX_AFFINITY_FORCE
 #endif
 
@@ -1249,7 +1249,7 @@ enum ssd_state {
 	/* hw log */
 	SSD_LOG_HW, 
 	/* log err */
-	SSD_LOG_ERR
+	SSD_LOG_ERR,
 };
 
 #define SSD_QUEUE_NAME_LEN	16
@@ -1399,6 +1399,11 @@ typedef struct ssd_device {
 	/* debug info */
 	struct ssd_debug_info db_info;
 	uint64_t reset_time;
+	int has_non_0x98_reg_access;
+	spinlock_t in_flight_lock;
+
+	uint64_t last_poweron_id;
+
 } ssd_device_t;
 
 
@@ -1735,6 +1740,7 @@ static struct sbs_cmd ssd_bm_sbs[] = {
 /* log */
 #define SSD_LOG_MAX_SZ				4096
 #define SSD_LOG_LEVEL				SSD_LOG_LEVEL_NOTICE
+#define SSD_DIF_WITH_OLD_LOG		0x3f
 
 enum ssd_log_data
 {
@@ -1815,7 +1821,7 @@ static struct ssd_log_desc ssd_log_desc[] = {
 	{0xf6, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  1, 1, "Program failure"}, 
 	{0xf7, SSD_LOG_LEVEL_WARNING, SSD_LOG_DATA_LOC,  1, 1, "Init: RAID not complete"}, 
 	{0xf8, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  1, 0, "Init: data moving interrupted"}, 
-	{0xfe, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  0, 0, "Data inspection failure"}, 
+	{0xfe, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  1, 1, "Data inspection failure"},
 	{0xff, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  1, 1, "IO: ECC failed"}, 
 
 	/* new */
@@ -1913,8 +1919,8 @@ static struct ssd_log_desc ssd_log_desc[] = {
 	{0xaa, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  0, 0, "Flash init failure"}, 
 	{0xab, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  1, 1, "Mapping table recovery failure"}, 
 	{0xac, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_LOC,  1, 1, "RAID recovery: ECC failed"}, 
-	{0xb0, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_NONE, 0, 0, "Warning: Temperature is 95 degrees centigrade"},
-	{0xb1, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_NONE, 0, 0, "Warning: Temperature is 100 degrees centigrade"},
+	{0xb0, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_NONE, 0, 0, "Warning: Temperature is 95 degrees C"},
+	{0xb1, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_NONE, 0, 0, "Warning: Temperature is 100 degrees C"},
 
 	{0x300, SSD_LOG_LEVEL_ERR,    SSD_LOG_DATA_HEX,  0, 0, "CMD timeout"}, 
 	{0x301, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_HEX,  0, 0, "Power on"}, 
@@ -1938,14 +1944,18 @@ static struct ssd_log_desc ssd_log_desc[] = {
 	{0x313, SSD_LOG_LEVEL_WARNING,SSD_LOG_DATA_NONE, 0, 0, "CAP: learn fault"}, 
 	{0x314, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_HEX,  0, 0, "CAP status"}, 
 	{0x315, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_HEX,  0, 0, "Board voltage fault status"}, 
-	{0x316, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Info: Inlet temperature is 55 degrees centigrade"}, //55
-	{0x317, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Info: Inlet temperature is 50 degrees centigrade"}, //50
+	{0x316, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Info: Inlet temperature is 55 degrees C"}, //55
+	{0x317, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Info: Inlet temperature is 50 degrees C"}, //50
 	{0x318, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Info: Flash over temperature"}, //70
 	{0x319, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Info: Flash temperature is OK"}, //65
 	{0x31a, SSD_LOG_LEVEL_WARNING,SSD_LOG_DATA_NONE, 0, 0, "CAP: short circuit"}, 
 	{0x31b, SSD_LOG_LEVEL_WARNING,SSD_LOG_DATA_HEX,  0, 0, "Sensor fault"}, 
 	{0x31c, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Erase all data"}, 
 	{0x31d, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Erase all data finished"},
+	{0x320, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_HEX,  0, 0, "Temperature sensor event"},
+	
+	{0x350, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Clear smart"}, 
+	{0x351, SSD_LOG_LEVEL_NOTICE, SSD_LOG_DATA_NONE, 0, 0, "Clear warning"},
 
 	{SSD_UNKNOWN_EVENT, SSD_LOG_LEVEL_NOTICE,  SSD_LOG_DATA_HEX,  0, 0, "unknown event"}, 
 };
@@ -1990,6 +2000,9 @@ static struct ssd_log_desc ssd_log_desc[] = {
 #define SSD_LOG_SENSOR_FAULT	0x31b
 #define SSD_LOG_ERASE_ALL		0x31c
 #define SSD_LOG_ERASE_ALL_END	0x31d
+#define SSD_LOG_TEMP_SENSOR_EVENT	0x320
+#define SSD_LOG_CLEAR_SMART	    0x350
+#define SSD_LOG_CLEAR_WARNING   0x351
 
 
 /* sw log fifo depth */
@@ -2119,12 +2132,18 @@ static inline int ssd_bio_has_flush(struct bio *bio)
 #endif
 }
 
-static inline int ssd_bio_has_fua(struct bio *bio)
+static inline int ssd_bio_has_barrier_or_fua(struct bio * bio)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
 	return bio->bi_opf & REQ_FUA;
-#else
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 	return bio->bi_rw & REQ_FUA;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36))
+	return bio->bi_rw & REQ_HARDBARRIER;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32))
+	return bio_rw_flagged(bio, BIO_RW_BARRIER);
+#else
+	return bio_barrier(bio);
 #endif
 }
 
@@ -3737,7 +3756,13 @@ static int ssd_lm80_read_temp(struct ssd_device *dev, uint8_t saddr, uint16_t *d
 
 	return 0;
 }
-
+static int ssd_generate_sensor_fault_log(struct ssd_device *dev, uint16_t event, uint8_t addr,uint32_t ret)
+{
+	uint32_t data;
+	data = ((ret & 0xffff) << 16) | (addr << 8) | addr;
+	ssd_gen_swlog(dev,event,data);
+	return 0;
+}
 static int ssd_lm80_check_event(struct ssd_device *dev, uint8_t saddr)
 {
 	uint32_t volt;
@@ -3836,13 +3861,14 @@ static int ssd_lm80_check_event(struct ssd_device *dev, uint8_t saddr)
 out:
 	if (ret) {
 		if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon)) {
-			ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, (uint32_t)saddr);
+			ssd_generate_sensor_fault_log(dev, SSD_LOG_SENSOR_FAULT, (uint32_t)saddr,ret);
 		}
 	} else {
 		test_and_clear_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon);
 	}
 	return ret;
 }
+
 
 static int ssd_init_sensor(struct ssd_device *dev)
 {
@@ -3856,7 +3882,7 @@ static int ssd_init_sensor(struct ssd_device *dev)
 	if (ret) {
 		hio_warn("%s: init lm75 failed\n", dev->name);
 		if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM75), &dev->hwmon)) {
-			ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM75_SADDRESS);
+			ssd_generate_sensor_fault_log(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM75_SADDRESS,ret);
 		}
 		goto out;
 	}
@@ -3866,7 +3892,7 @@ static int ssd_init_sensor(struct ssd_device *dev)
 		if (ret) {
 			hio_warn("%s: init lm80 failed\n", dev->name);
 			if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon)) {
-				ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS);
+				ssd_generate_sensor_fault_log(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS,ret);
 			}
 			goto out;
 		}
@@ -3913,7 +3939,7 @@ static int ssd_mon_temp(struct ssd_device *dev)
 	ret = ssd_lm80_read_temp(dev, SSD_SENSOR_LM80_SADDRESS, &val);
 	if (ret) {
 		if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon)) {
-			ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS);
+			ssd_generate_sensor_fault_log(dev, SSD_LOG_TEMP_SENSOR_EVENT, SSD_SENSOR_LM80_SADDRESS,ret);
 		}
 		goto out;
 	}
@@ -3934,7 +3960,7 @@ static int ssd_mon_temp(struct ssd_device *dev)
 	ret = ssd_lm75_read(dev, SSD_SENSOR_LM75_SADDRESS, &val);
 	if (ret) {
 		if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM75), &dev->hwmon)) {
-			ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM75_SADDRESS);
+			ssd_generate_sensor_fault_log(dev, SSD_LOG_TEMP_SENSOR_EVENT, SSD_SENSOR_LM75_SADDRESS,ret);
 		}
 		goto out;
 	}
@@ -4100,7 +4126,11 @@ static void ssd_end_io_acct(struct ssd_cmd *cmd)
 	struct bio *bio = cmd->bio;
 	unsigned long dur = jiffies - cmd->start_time;
 	int rw = bio_data_dir(bio);
-
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
+#else
+	unsigned long flag;
+#endif
+	
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
 	int cpu = part_stat_lock();
 	struct hd_struct *part = disk_map_sector_rcu(dev->gd, bio_start(bio));
@@ -4113,24 +4143,38 @@ static void ssd_end_io_acct(struct ssd_cmd *cmd)
 	struct hd_struct *part = &dev->gd->part0;
 	part_round_stats(cpu, part);
 	part_stat_add(cpu, part, ticks[rw], dur);
+
+	spin_lock_irqsave(&dev->in_flight_lock,flag);
+	part->in_flight[rw]--;
+	spin_unlock_irqrestore(&dev->in_flight_lock,flag);
+	
 	part_stat_unlock();
-	part->in_flight[rw] = atomic_dec_return(&dev->in_flight[rw]);
+	
 #elif (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,14))
 	preempt_disable();
 	disk_round_stats(dev->gd);
-	preempt_enable();
 	disk_stat_add(dev->gd, ticks[rw], dur);
-	dev->gd->in_flight = atomic_dec_return(&dev->in_flight[0]);
+	
+	spin_lock_irqsave(&dev->in_flight_lock,flag);
+	dev->gd->in_flight--;
+	spin_unlock_irqrestore(&dev->in_flight_lock,flag);
+	
+	preempt_enable();
+	
 #else
 	preempt_disable();
 	disk_round_stats(dev->gd);
-	preempt_enable();
 	if (rw == WRITE) {
 		disk_stat_add(dev->gd, write_ticks, dur);
 	} else {
 		disk_stat_add(dev->gd, read_ticks, dur);
 	}
-	dev->gd->in_flight = atomic_dec_return(&dev->in_flight[0]);
+	spin_lock_irqsave(&dev->in_flight_lock,flag);
+	dev->gd->in_flight--;
+	spin_unlock_irqrestore(&dev->in_flight_lock,flag);
+	
+	preempt_enable();
+	
 #endif
 }
 
@@ -4139,6 +4183,10 @@ static void ssd_start_io_acct(struct ssd_cmd *cmd)
 	struct ssd_device *dev = cmd->dev;
 	struct bio *bio = cmd->bio;
 	int rw = bio_data_dir(bio);
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
+#else
+	unsigned long flag;
+#endif
 
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)) || (defined RHEL_MAJOR && RHEL_MAJOR == 6 && RHEL_MINOR >= 7))
 	int cpu = part_stat_lock();
@@ -4154,19 +4202,27 @@ static void ssd_start_io_acct(struct ssd_cmd *cmd)
 	part_round_stats(cpu, part);
 	part_stat_inc(cpu, part, ios[rw]);
 	part_stat_add(cpu, part, sectors[rw], bio_sectors(bio));
+
+	spin_lock_irqsave(&dev->in_flight_lock,flag);
+	part->in_flight[rw]++;
+	spin_unlock_irqrestore(&dev->in_flight_lock,flag);	
+	
 	part_stat_unlock();
-	part->in_flight[rw] = atomic_inc_return(&dev->in_flight[rw]);
+
 #elif (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,14))
 	preempt_disable();
 	disk_round_stats(dev->gd);
-	preempt_enable();
 	disk_stat_inc(dev->gd, ios[rw]);
 	disk_stat_add(dev->gd, sectors[rw], bio_sectors(bio));
-	dev->gd->in_flight = atomic_inc_return(&dev->in_flight[0]);
+	
+	spin_lock_irqsave(&dev->in_flight_lock,flag);
+	dev->gd->in_flight++;
+	spin_unlock_irqrestore(&dev->in_flight_lock,flag);	
+	
+	preempt_enable();
 #else
 	preempt_disable();
 	disk_round_stats(dev->gd);
-	preempt_enable();
 	if (rw == WRITE) {
 		disk_stat_inc(dev->gd, writes);
 		disk_stat_add(dev->gd, write_sectors, bio_sectors(bio));
@@ -4174,7 +4230,13 @@ static void ssd_start_io_acct(struct ssd_cmd *cmd)
 		disk_stat_inc(dev->gd, reads);
 		disk_stat_add(dev->gd, read_sectors, bio_sectors(bio));
 	}
-	dev->gd->in_flight = atomic_inc_return(&dev->in_flight[0]);
+
+	spin_lock_irqsave(&dev->in_flight_lock,flag);
+	dev->gd->in_flight++;
+	spin_unlock_irqrestore(&dev->in_flight_lock,flag);	
+	
+	preempt_enable();
+
 #endif
 
 	cmd->start_time = jiffies;
@@ -5470,6 +5532,61 @@ out:
 	return ret;
 }
 
+/** CRC table for the CRC-16. The poly is 0x8005 (x^16 + x^15 + x^2 + 1) */
+static unsigned short const crc16_table[256] = {
+	0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
+	0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
+	0xCC01, 0x0CC0, 0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40,
+	0x0A00, 0xCAC1, 0xCB81, 0x0B40, 0xC901, 0x09C0, 0x0880, 0xC841,
+	0xD801, 0x18C0, 0x1980, 0xD941, 0x1B00, 0xDBC1, 0xDA81, 0x1A40,
+	0x1E00, 0xDEC1, 0xDF81, 0x1F40, 0xDD01, 0x1DC0, 0x1C80, 0xDC41,
+	0x1400, 0xD4C1, 0xD581, 0x1540, 0xD701, 0x17C0, 0x1680, 0xD641,
+	0xD201, 0x12C0, 0x1380, 0xD341, 0x1100, 0xD1C1, 0xD081, 0x1040,
+	0xF001, 0x30C0, 0x3180, 0xF141, 0x3300, 0xF3C1, 0xF281, 0x3240,
+	0x3600, 0xF6C1, 0xF781, 0x3740, 0xF501, 0x35C0, 0x3480, 0xF441,
+	0x3C00, 0xFCC1, 0xFD81, 0x3D40, 0xFF01, 0x3FC0, 0x3E80, 0xFE41,
+	0xFA01, 0x3AC0, 0x3B80, 0xFB41, 0x3900, 0xF9C1, 0xF881, 0x3840,
+	0x2800, 0xE8C1, 0xE981, 0x2940, 0xEB01, 0x2BC0, 0x2A80, 0xEA41,
+	0xEE01, 0x2EC0, 0x2F80, 0xEF41, 0x2D00, 0xEDC1, 0xEC81, 0x2C40,
+	0xE401, 0x24C0, 0x2580, 0xE541, 0x2700, 0xE7C1, 0xE681, 0x2640,
+	0x2200, 0xE2C1, 0xE381, 0x2340, 0xE101, 0x21C0, 0x2080, 0xE041,
+	0xA001, 0x60C0, 0x6180, 0xA141, 0x6300, 0xA3C1, 0xA281, 0x6240,
+	0x6600, 0xA6C1, 0xA781, 0x6740, 0xA501, 0x65C0, 0x6480, 0xA441,
+	0x6C00, 0xACC1, 0xAD81, 0x6D40, 0xAF01, 0x6FC0, 0x6E80, 0xAE41,
+	0xAA01, 0x6AC0, 0x6B80, 0xAB41, 0x6900, 0xA9C1, 0xA881, 0x6840,
+	0x7800, 0xB8C1, 0xB981, 0x7940, 0xBB01, 0x7BC0, 0x7A80, 0xBA41,
+	0xBE01, 0x7EC0, 0x7F80, 0xBF41, 0x7D00, 0xBDC1, 0xBC81, 0x7C40,
+	0xB401, 0x74C0, 0x7580, 0xB541, 0x7700, 0xB7C1, 0xB681, 0x7640,
+	0x7200, 0xB2C1, 0xB381, 0x7340, 0xB101, 0x71C0, 0x7080, 0xB041,
+	0x5000, 0x90C1, 0x9181, 0x5140, 0x9301, 0x53C0, 0x5280, 0x9241,
+	0x9601, 0x56C0, 0x5780, 0x9741, 0x5500, 0x95C1, 0x9481, 0x5440,
+	0x9C01, 0x5CC0, 0x5D80, 0x9D41, 0x5F00, 0x9FC1, 0x9E81, 0x5E40,
+	0x5A00, 0x9AC1, 0x9B81, 0x5B40, 0x9901, 0x59C0, 0x5880, 0x9841,
+	0x8801, 0x48C0, 0x4980, 0x8941, 0x4B00, 0x8BC1, 0x8A81, 0x4A40,
+	0x4E00, 0x8EC1, 0x8F81, 0x4F40, 0x8D01, 0x4DC0, 0x4C80, 0x8C41,
+	0x4400, 0x84C1, 0x8581, 0x4540, 0x8701, 0x47C0, 0x4680, 0x8641,
+	0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040
+};
+
+static unsigned short crc16_byte(unsigned short crc, const unsigned char data)
+{
+	return (crc >> 8) ^ crc16_table[(crc ^ data) & 0xff];
+}
+/**
+ * crc16 - compute the CRC-16 for the data buffer
+ * @crc:	previous CRC value
+ * @buffer:	data pointer
+ * @len:	number of bytes in the buffer
+ *
+ * Returns the updated CRC value.
+ */
+static unsigned short crc16(unsigned short crc, unsigned char const *buffer, int len)
+{
+	while (len--)
+		crc = crc16_byte(crc, *buffer++);
+	return crc;
+}
+
 static int ssd_save_swlog(struct ssd_device *dev, uint16_t event, uint32_t data)
 {
 	struct ssd_log log;
@@ -5488,6 +5605,8 @@ static int ssd_save_swlog(struct ssd_device *dev, uint16_t event, uint32_t data)
 	log.le.event = event;
 	log.le.data.val = data;
 
+	log.le.mod = SSD_DIF_WITH_OLD_LOG;
+	log.le.idx = crc16(0,(const unsigned char *)&log,14);
 	level = ssd_parse_log(dev, &log, 0);
 	if (level >= SSD_LOG_LEVEL) {
 		ret = ssd_save_log(dev, &log);
@@ -5619,6 +5738,8 @@ static int ssd_do_log(struct ssd_device *dev, int ctrl_idx, void *buf)
 	while (nr_log > 0) {
 		memcpy(&log.le, le, sizeof(struct ssd_log_entry));
 
+		log.le.mod = SSD_DIF_WITH_OLD_LOG;
+		log.le.idx = crc16(0,(const unsigned char *)&log,14);
 		level = ssd_parse_log(dev, &log, 1);
 		if (level >= SSD_LOG_LEVEL) {
 			ssd_save_log(dev, &log);
@@ -5642,6 +5763,9 @@ static int ssd_do_log(struct ssd_device *dev, int ctrl_idx, void *buf)
 			/* do something */
 			dev->reload_fw = 1;
 			ssd_reg32_write(dev->ctrlp + SSD_RELOAD_FW_REG, SSD_RELOAD_FLAG);
+			if (le->event != SSD_LOG_SEU_FAULT1) {
+				dev->has_non_0x98_reg_access = 1;
+			}
 
 			/*dev->readonly = 1;
 			set_disk_ro(dev->gd, 1);
@@ -5757,6 +5881,12 @@ static int ssd_init_log(struct ssd_device *dev)
 
 		if (log->ctrl_idx == 0xff) {
 			break;
+		}
+
+		if (log->le.event == SSD_LOG_POWER_ON) {
+			if (dev->internal_log.nr_log > dev->last_poweron_id) {
+				dev->last_poweron_id = dev->internal_log.nr_log;
+			}
 		}
 
 		dev->internal_log.nr_log++;
@@ -5991,7 +6121,7 @@ static int ssd_update_smart(struct ssd_device *dev, struct ssd_smart *smart)
 	return ret;
 }
 
-static int ssd_clear_smart(struct ssd_device *dev)
+static int __ssd_clear_smart(struct ssd_device *dev)
 {
 	struct timeval tv;
 	uint64_t sversion;
@@ -6039,7 +6169,7 @@ out:
 	return ret;
 }
 
-static int ssd_clear_warning(struct ssd_device *dev)
+static int __ssd_clear_warning(struct ssd_device *dev)
 {
 	uint32_t off, size;
 	int i, ret = 0;
@@ -6102,6 +6232,30 @@ out:
 	return ret;
 }
 
+static int ssd_clear_smart(struct ssd_device *dev)
+{
+	int ret;
+
+	ret = __ssd_clear_smart(dev);
+	if(!ret) {
+		ssd_gen_swlog(dev, SSD_LOG_CLEAR_SMART, 0);
+	}
+
+	return ret;
+}
+
+static int ssd_clear_warning(struct ssd_device *dev)
+{
+	int ret;
+
+	ret = __ssd_clear_warning(dev);
+	if(!ret) {
+		ssd_gen_swlog(dev, SSD_LOG_CLEAR_WARNING, 0);
+	}
+
+	return ret;
+}
+
 static int ssd_save_smart(struct ssd_device *dev)
 {
 	uint32_t off, size;
@@ -6150,9 +6304,10 @@ static int ssd_init_smart(struct ssd_device *dev)
 {
 	struct ssd_smart *smart;
 	struct timeval tv;
-	uint32_t off, size;
+	uint32_t off, size, val;
 	int i;
 	int ret = 0;
+	int update_smart = 0;
 
 	do_gettimeofday(&tv);
 	dev->uptime = tv.tv_sec;
@@ -6199,6 +6354,16 @@ static int ssd_init_smart(struct ssd_device *dev)
 		dev->smart.version = 1;
 	}
 
+	val = ssd_reg32_read(dev->ctrlp + SSD_INTR_INTERVAL_REG);
+	if (!val) {
+		dev->last_poweron_id = ~0;
+		ssd_gen_swlog(dev, SSD_LOG_POWER_ON, dev->hw_info.bridge_ver);
+		if (dev->smart.io_stat.nr_to) {
+			dev->smart.io_stat.nr_to = 0;
+			update_smart = 1;
+		}
+	}
+
 	/* check log info */
 	{
 		struct ssd_log_info log_info;
@@ -6207,8 +6372,20 @@ static int ssd_init_smart(struct ssd_device *dev)
 		memset(&log_info, 0, sizeof(struct ssd_log_info));
 
 		while (log_info.nr_log < dev->internal_log.nr_log) {
+			int skip = 0;
+
+			switch (log->le.event) {
 			/* skip the volatile log info */
-			if (SSD_LOG_SEU_FAULT != log->le.event && SSD_LOG_SEU_FAULT1 != log->le.event) {
+			case SSD_LOG_SEU_FAULT:
+			case SSD_LOG_SEU_FAULT1:
+				skip = 1;
+				break;
+			case SSD_LOG_TIMEOUT:
+				skip = (dev->last_poweron_id >= log_info.nr_log);
+				break;
+			}
+
+			if (!skip) {
 				log_info.stat[ssd_parse_log(dev, log, 0)]++;
 			}
 
@@ -6218,12 +6395,16 @@ static int ssd_init_smart(struct ssd_device *dev)
 
 		/* check */
 		for (i=(SSD_LOG_NR_LEVEL-1); i>=0; i--) {
-			if (log_info.stat[i] > dev->smart.log_info.stat[i]) {
+			if (log_info.stat[i] != dev->smart.log_info.stat[i]) {
 				/* unclean */
 				memcpy(&dev->smart.log_info, &log_info, sizeof(struct ssd_log_info));
-				dev->smart.version++;
+				update_smart = 1;
 				break;
 			}
+		}
+
+		if (update_smart) {
+			++dev->smart.version;
 		}
 	}
 
@@ -6630,7 +6811,7 @@ static int ssd_do_cap_learn(struct ssd_device *dev, uint32_t *cap)
 		ret = ssd_smbus_read_word(dev, SSD_SENSOR_LM80_SADDRESS, SSD_PL_CAP_U1, (uint8_t *)&val);
 		if (ret) {
 			if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon)) {
-				ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS);
+				ssd_generate_sensor_fault_log(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS,ret);
 			}
 			goto out;
 		}
@@ -6650,7 +6831,7 @@ static int ssd_do_cap_learn(struct ssd_device *dev, uint32_t *cap)
 	ret = ssd_smbus_read_word(dev, SSD_SENSOR_LM80_SADDRESS, SSD_PL_CAP_U2, (uint8_t *)&val);
 	if (ret) {
 		if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon)) {
-			ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS);
+			ssd_generate_sensor_fault_log(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS,ret);
 		}
 		goto out;
 	}
@@ -6746,7 +6927,7 @@ static int ssd_check_pl_cap(struct ssd_device *dev)
 		ret = ssd_smbus_read_word(dev, SSD_SENSOR_LM80_SADDRESS, SSD_PL_CAP_U1, (uint8_t *)&val);
 		if (ret) {
 			if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon)) {
-				ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS);
+				ssd_generate_sensor_fault_log(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS,ret);
 			}
 			goto out;
 		}
@@ -6774,7 +6955,7 @@ static int ssd_check_pl_cap(struct ssd_device *dev)
 	ret = ssd_lm80_enable_in(dev, SSD_SENSOR_LM80_SADDRESS, SSD_LM80_IN_CAP);
 	if (ret) {
 		if (!test_and_set_bit(SSD_HWMON_SENSOR(SSD_SENSOR_LM80), &dev->hwmon)) {
-			ssd_gen_swlog(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS);
+			ssd_generate_sensor_fault_log(dev, SSD_LOG_SENSOR_FAULT, SSD_SENSOR_LM80_SADDRESS,ret);
 		}
 		goto out;
 	}
@@ -8176,6 +8357,7 @@ out:
 
 int ssd_reset(struct block_device *bdev)
 {
+	int ret;
 	struct ssd_device *dev;
 
 	if (!bdev || !(bdev->bd_disk)) {
@@ -8184,7 +8366,14 @@ int ssd_reset(struct block_device *bdev)
 
 	dev = bdev->bd_disk->private_data;
 
-	return ssd_full_reset(dev);
+	ret = ssd_full_reset(dev);
+	if (!ret) {
+		if (!dev->has_non_0x98_reg_access) {
+			ssd_reg32_write(dev->ctrlp + SSD_RELOAD_FW_REG, 0);
+		}
+	}
+
+	return ret ;
 }
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
@@ -8217,30 +8406,12 @@ void ssd_submit_pbio(struct request_queue *q, struct bio *bio)
 	}
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32))
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(ssd_bio_has_barrier_or_fua(bio))) {
 		ssd_bio_endio(bio, -EOPNOTSUPP);
 		goto out;
 	}
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36))
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
-		ssd_bio_endio(bio, -EOPNOTSUPP);
-		goto out;
-	}
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37))
-	if (unlikely(bio->bi_rw & REQ_HARDBARRIER)) {
-		ssd_bio_endio(bio, -EOPNOTSUPP);
-		goto out;
-	}
-#else
-	//xx
-	if (unlikely(ssd_bio_has_fua(bio))) {
-		ssd_bio_endio(bio, -EOPNOTSUPP);
-		goto out;
-	}
-#endif
 
-	 if (unlikely(dev->readonly && bio_data_dir(bio) == WRITE)) {
+	if (unlikely(dev->readonly && bio_data_dir(bio) == WRITE)) {
 		ssd_bio_endio(bio, -EROFS);
 		goto out;
 	}
@@ -8290,24 +8461,7 @@ static int ssd_make_request(struct request_queue *q, struct bio *bio)
 	}
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32))
-	if (unlikely(bio_barrier(bio))) {
-		ssd_bio_endio(bio, -EOPNOTSUPP);
-		goto out;
-	}
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36))
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
-		ssd_bio_endio(bio, -EOPNOTSUPP);
-		goto out;
-	}
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37))
-	if (unlikely(bio->bi_rw & REQ_HARDBARRIER)) {
-		ssd_bio_endio(bio, -EOPNOTSUPP);
-		goto out;
-	}
-#else
-	//xx
-	if (unlikely(ssd_bio_has_fua(bio))) {
+	if (unlikely(ssd_bio_has_barrier_or_fua(bio))) {
 		ssd_bio_endio(bio, -EOPNOTSUPP);
 		goto out;
 	}
@@ -8317,8 +8471,6 @@ static int ssd_make_request(struct request_queue *q, struct bio *bio)
 		ssd_bio_endio(bio, 0);
 		goto out;
 	}
-
-#endif
 
 	if (0 == atomic_read(&dev->in_sendq)) {
 		ret = ssd_submit_bio(dev, bio, 0);
@@ -9485,6 +9637,7 @@ static int ssd_ioctl_common(struct ssd_device *dev, unsigned int cmd, unsigned l
 
 		case SSD_CMD_RELOAD_FW:
 			dev->reload_fw = 1;
+			dev->has_non_0x98_reg_access = 1;
 			if (dev->protocol_info.ver >= SSD_PROTOCOL_V3_2) {
 				ssd_reg32_write(dev->ctrlp + SSD_RELOAD_FW_REG, SSD_RELOAD_FLAG);
 			} else if (dev->protocol_info.ver >= SSD_PROTOCOL_V3_1_1) {
@@ -11613,7 +11766,8 @@ static void ssd_initial_log(struct ssd_device *dev)
 
 	val = ssd_reg32_read(dev->ctrlp + SSD_POWER_ON_REG);
 	if (val) {
-		ssd_gen_swlog(dev, SSD_LOG_POWER_ON, dev->hw_info.bridge_ver);
+		// Poweron detection switched to SSD_INTR_INTERVAL_REG in 'ssd_init_smart'
+		//ssd_gen_swlog(dev, SSD_LOG_POWER_ON, dev->hw_info.bridge_ver);
 	}
 
 	val = ssd_reg32_read(dev->ctrlp + SSD_PCIE_LINKSTATUS_REG);
@@ -11870,6 +12024,7 @@ ssd_remove_one (struct pci_dev *pdev)
 	}
 
 	if (dev->reload_fw) { //reload fw
+		dev->has_non_0x98_reg_access = 1;
 		ssd_reg32_write(dev->ctrlp + SSD_RELOAD_FW_REG, SSD_RELOAD_FW);
 	}
 
@@ -11947,6 +12102,10 @@ ssd_init_one(struct pci_dev *pdev,
 
 	//xx
 	mutex_init(&dev->gd_mutex);
+	dev->has_non_0x98_reg_access = 0;
+
+	//init in_flight lock
+	spin_lock_init(&dev->in_flight_lock);
 
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
@@ -12362,6 +12521,7 @@ static int ssd_hio_suspend(struct device *ddev)
 	}
 
 	if (dev->reload_fw) { //reload fw
+		dev->has_non_0x98_reg_access = 1;
 		ssd_reg32_write(dev->ctrlp + SSD_RELOAD_FW_REG, SSD_RELOAD_FW);
 	}
 
@@ -12702,6 +12862,7 @@ static int ssd_notify_reboot(struct notifier_block *nb, unsigned long event, voi
 			ssd_stop_workq(dev);
 
 			if (dev->reload_fw) {
+				dev->has_non_0x98_reg_access = 1;
 				ssd_reg32_write(dev->ctrlp + SSD_RELOAD_FW_REG, SSD_RELOAD_FW);
 			}
 		}
