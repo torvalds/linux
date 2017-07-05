@@ -25,6 +25,11 @@
 #include <xen/xenbus.h>
 #include <xen/interface/io/pvcalls.h>
 
+struct pvcalls_back_global {
+	struct list_head frontends;
+	struct semaphore frontends_lock;
+} pvcalls_back_global;
+
 static int pvcalls_back_probe(struct xenbus_device *dev,
 			      const struct xenbus_device_id *id)
 {
@@ -59,3 +64,20 @@ static struct xenbus_driver pvcalls_back_driver = {
 	.uevent = pvcalls_back_uevent,
 	.otherend_changed = pvcalls_back_changed,
 };
+
+static int __init pvcalls_back_init(void)
+{
+	int ret;
+
+	if (!xen_domain())
+		return -ENODEV;
+
+	ret = xenbus_register_backend(&pvcalls_back_driver);
+	if (ret < 0)
+		return ret;
+
+	sema_init(&pvcalls_back_global.frontends_lock, 1);
+	INIT_LIST_HEAD(&pvcalls_back_global.frontends);
+	return 0;
+}
+module_init(pvcalls_back_init);
