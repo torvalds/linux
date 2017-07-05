@@ -404,12 +404,42 @@ static int s35390a_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return s35390a_set_datetime(to_i2c_client(dev), tm);
 }
 
+static int s35390a_rtc_ioctl(struct device *dev, unsigned int cmd,
+			     unsigned long arg)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct s35390a *s35390a = i2c_get_clientdata(client);
+	char sts;
+	int err;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		/* s35390a_reset set lowvoltage flag and init RTC if needed */
+		err = s35390a_read_status(s35390a, &sts);
+		if (err < 0)
+			return err;
+		if (copy_to_user((void __user *)arg, &err, sizeof(int)))
+			return -EFAULT;
+		break;
+	case RTC_VL_CLR:
+		/* update flag and clear register */
+		err = s35390a_init(s35390a);
+		if (err < 0)
+			return err;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
+}
+
 static const struct rtc_class_ops s35390a_rtc_ops = {
 	.read_time	= s35390a_rtc_read_time,
 	.set_time	= s35390a_rtc_set_time,
 	.set_alarm	= s35390a_rtc_set_alarm,
 	.read_alarm	= s35390a_rtc_read_alarm,
-
+	.ioctl          = s35390a_rtc_ioctl,
 };
 
 static struct i2c_driver s35390a_driver;
