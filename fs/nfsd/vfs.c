@@ -911,24 +911,13 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp,
 __be32 nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
 		unsigned long *count)
 {
-	mm_segment_t oldfs;
+	struct iov_iter iter;
 	int host_err;
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	host_err = vfs_readv(file, (struct iovec __user *)vec, vlen, &offset, 0);
-	set_fs(oldfs);
-	return nfsd_finish_read(file, count, host_err);
-}
+	iov_iter_kvec(&iter, READ | ITER_KVEC, vec, vlen, *count);
+	host_err = vfs_iter_read(file, &iter, &offset, 0);
 
-static __be32
-nfsd_vfs_read(struct svc_rqst *rqstp, struct file *file,
-	      loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
-{
-	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
-		return nfsd_splice_read(rqstp, file, offset, count);
-	else
-		return nfsd_readv(file, offset, vec, vlen, count);
+	return nfsd_finish_read(file, count, host_err);
 }
 
 /*
@@ -974,7 +963,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				unsigned long *cnt, int stable)
 {
 	struct svc_export	*exp;
-	mm_segment_t		oldfs;
+	struct iov_iter		iter;
 	__be32			err = 0;
 	int			host_err;
 	int			use_wgather;
@@ -1000,10 +989,8 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (stable && !use_wgather)
 		flags |= RWF_SYNC;
 
-	/* Write the data. */
-	oldfs = get_fs(); set_fs(KERNEL_DS);
-	host_err = vfs_writev(file, (struct iovec __user *)vec, vlen, &pos, flags);
-	set_fs(oldfs);
+	iov_iter_kvec(&iter, WRITE | ITER_KVEC, vec, vlen, *cnt);
+	host_err = vfs_iter_write(file, &iter, &pos, flags);
 	if (host_err < 0)
 		goto out_nfserr;
 	*cnt = host_err;
@@ -1044,7 +1031,12 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	ra = nfsd_init_raparms(file);
 
 	trace_read_opened(rqstp, fhp, offset, vlen);
-	err = nfsd_vfs_read(rqstp, file, offset, vec, vlen, count);
+
+	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
+		err = nfsd_splice_read(rqstp, file, offset, count);
+	else
+		err = nfsd_readv(file, offset, vec, vlen, count);
+
 	trace_read_io_done(rqstp, fhp, offset, vlen);
 
 	if (ra)
