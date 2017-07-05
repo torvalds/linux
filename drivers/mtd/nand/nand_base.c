@@ -65,8 +65,14 @@ static int nand_ooblayout_ecc_sp(struct mtd_info *mtd, int section,
 
 	if (!section) {
 		oobregion->offset = 0;
-		oobregion->length = 4;
+		if (mtd->oobsize == 16)
+			oobregion->length = 4;
+		else
+			oobregion->length = 3;
 	} else {
+		if (mtd->oobsize == 8)
+			return -ERANGE;
+
 		oobregion->offset = 6;
 		oobregion->length = ecc->total - 4;
 	}
