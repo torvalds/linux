@@ -836,7 +836,7 @@ static void send_vblank_event(struct drm_device *dev,
  * NOTE: Drivers using this to send out the &drm_crtc_state.event as part of an
  * atomic commit must ensure that the next vblank happens at exactly the same
  * time as the atomic commit is committed to the hardware. This function itself
- * does **not** protect again the next vblank interrupt racing with either this
+ * does **not** protect against the next vblank interrupt racing with either this
  * function call or the atomic commit operation. A possible sequence could be:
  *
  * 1. Driver commits new hardware state into vblank-synchronized registers.

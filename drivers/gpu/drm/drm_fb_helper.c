@@ -106,7 +106,7 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  */
 
 #define drm_fb_helper_for_each_connector(fbh, i__) \
-	for (({ lockdep_assert_held(&(fbh)->dev->mode_config.mutex); }), \
+	for (({ lockdep_assert_held(&(fbh)->lock); }), \
 	     i__ = 0; i__ < (fbh)->connector_count; i__++)
 
 static int __drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
@@ -120,7 +120,6 @@ static int __drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
 		return 0;
 
 	lockdep_assert_held(&fb_helper->lock);
-	lockdep_assert_held(&fb_helper->dev->mode_config.mutex);
 
 	count = fb_helper->connector_count + 1;
 
@@ -152,11 +151,7 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
 	int err;
 
 	mutex_lock(&fb_helper->lock);
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
-
 	err = __drm_fb_helper_add_one_connector(fb_helper, connector);
-
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
 	mutex_unlock(&fb_helper->lock);
 
 	return err;
@@ -188,7 +183,6 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
-	mutex_lock(&dev->mode_config.mutex);
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		ret = __drm_fb_helper_add_one_connector(fb_helper, connector);
@@ -210,7 +204,6 @@ fail:
 	fb_helper->connector_count = 0;
 out:
 	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev->mode_config.mutex);
 	mutex_unlock(&fb_helper->lock);
 
 	return ret;
@@ -253,11 +246,7 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 	int err;
 
 	mutex_lock(&fb_helper->lock);
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
-
 	err = __drm_fb_helper_remove_one_connector(fb_helper, connector);
-
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
 	mutex_unlock(&fb_helper->lock);
 
 	return err;
@@ -1879,12 +1868,11 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 EXPORT_SYMBOL(drm_fb_helper_fill_var);
 
 static int drm_fb_helper_probe_connector_modes(struct drm_fb_helper *fb_helper,
-					       uint32_t maxX,
-					       uint32_t maxY)
+						uint32_t maxX,
+						uint32_t maxY)
 {
 	struct drm_connector *connector;
-	int count = 0;
-	int i;
+	int i, count = 0;
 
 	drm_fb_helper_for_each_connector(fb_helper, i) {
 		connector = fb_helper->connector_info[i]->connector;
@@ -2282,12 +2270,8 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 	int i;
 
 	DRM_DEBUG_KMS("\n");
-	if (drm_fb_helper_probe_connector_modes(fb_helper, width, height) == 0)
-		DRM_DEBUG_KMS("No connectors reported connected with modes\n");
-
 	/* prevent concurrent modification of connector_count by hotplug */
 	lockdep_assert_held(&fb_helper->lock);
-	lockdep_assert_held(&fb_helper->dev->mode_config.mutex);
 
 	crtcs = kcalloc(fb_helper->connector_count,
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
@@ -2302,6 +2286,9 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 		goto out;
 	}
 
+	mutex_lock(&fb_helper->dev->mode_config.mutex);
+	if (drm_fb_helper_probe_connector_modes(fb_helper, width, height) == 0)
+		DRM_DEBUG_KMS("No connectors reported connected with modes\n");
 	drm_enable_connectors(fb_helper, enabled);
 
 	if (!(fb_helper->funcs->initial_config &&
@@ -2323,6 +2310,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 
 		drm_pick_crtcs(fb_helper, crtcs, modes, 0, width, height);
 	}
+	mutex_unlock(&fb_helper->dev->mode_config.mutex);
 
 	/* need to set the modesets up here for use later */
 	/* fill out the connector<->crtc mappings into the modesets */
@@ -2414,12 +2402,10 @@ int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
-	mutex_lock(&dev->mode_config.mutex);
 	drm_setup_crtcs(fb_helper,
 			dev->mode_config.max_width,
 			dev->mode_config.max_height);
 	ret = drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
-	mutex_unlock(&dev->mode_config.mutex);
 	mutex_unlock(&fb_helper->lock);
 	if (ret)
 		return ret;
@@ -2482,10 +2468,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev->mode_config.mutex);
 	drm_setup_crtcs(fb_helper, fb_helper->fb->width, fb_helper->fb->height);
-
-	mutex_unlock(&dev->mode_config.mutex);
 	mutex_unlock(&fb_helper->lock);
 
 	drm_fb_helper_set_par(fb_helper->fbdev);

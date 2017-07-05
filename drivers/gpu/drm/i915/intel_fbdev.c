@@ -352,13 +352,19 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	unsigned int count = min(fb_helper->connector_count, BITS_PER_LONG);
 	int i, j;
 	bool *save_enabled;
-	bool fallback = true;
+	bool fallback = true, ret = true;
 	int num_connectors_enabled = 0;
 	int num_connectors_detected = 0;
+	struct drm_modeset_acquire_ctx ctx;
 
 	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
 	if (!save_enabled)
 		return false;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	while (drm_modeset_lock_all_ctx(fb_helper->dev, &ctx) != 0)
+		drm_modeset_backoff(&ctx);
 
 	memcpy(save_enabled, enabled, count);
 	mask = GENMASK(count - 1, 0);
@@ -509,12 +515,14 @@ retry:
 bail:
 		DRM_DEBUG_KMS("Not using firmware configuration\n");
 		memcpy(enabled, save_enabled, count);
-		kfree(save_enabled);
-		return false;
+		ret = false;
 	}
 
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	kfree(save_enabled);
-	return true;
+	return ret;
 }
 
 static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
