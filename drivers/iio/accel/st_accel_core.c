@@ -166,6 +166,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_ihl = 0x02,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
@@ -233,6 +237,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr_od = 0x22,
 			.mask_od = 0x40,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
@@ -316,6 +324,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 				.en_mask = 0x08,
 			},
 		},
+		.sim = {
+			.addr = 0x24,
+			.value = BIT(0),
+		},
 		.multi_read_bit = false,
 		.bootime = 2,
 	},
@@ -379,6 +391,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask_int1 = 0x04,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
+		.sim = {
+			.addr = 0x21,
+			.value = BIT(1),
+		},
 		.multi_read_bit = true,
 		.bootime = 2, /* guess */
 	},
@@ -436,6 +452,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr_od = 0x22,
 			.mask_od = 0x40,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x21,
+			.value = BIT(7),
 		},
 		.multi_read_bit = false,
 		.bootime = 2, /* guess */
@@ -499,6 +519,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr_ihl = 0x22,
 			.mask_ihl = 0x80,
 		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
+		},
 		.multi_read_bit = true,
 		.bootime = 2,
 	},
@@ -546,6 +570,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr = 0x21,
 			.mask_int1 = 0x04,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x21,
+			.value = BIT(1),
 		},
 		.multi_read_bit = false,
 		.bootime = 2,
@@ -613,6 +641,10 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.addr_ihl = 0x25,
 			.mask_ihl = 0x02,
 			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+		},
+		.sim = {
+			.addr = 0x23,
+			.value = BIT(0),
 		},
 		.multi_read_bit = true,
 		.bootime = 2,
