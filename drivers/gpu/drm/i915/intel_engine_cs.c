@@ -149,6 +149,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		switch (INTEL_GEN(dev_priv)) {
 		default:
 			MISSING_CASE(INTEL_GEN(dev_priv));
+		case 10:
 		case 9:
 			return GEN9_LR_CONTEXT_RENDER_SIZE;
 		case 8:
