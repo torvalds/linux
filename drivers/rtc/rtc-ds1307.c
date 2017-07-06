@@ -1674,8 +1674,8 @@ read_rtc:
 		device_set_wakeup_capable(ds1307->dev, true);
 		set_bit(HAS_ALARM, &ds1307->flags);
 	}
-	ds1307->rtc = devm_rtc_device_register(ds1307->dev, ds1307->name,
-				rtc_ops, THIS_MODULE);
+
+	ds1307->rtc = devm_rtc_allocate_device(ds1307->dev);
 	if (IS_ERR(ds1307->rtc)) {
 		return PTR_ERR(ds1307->rtc);
 	}
@@ -1736,6 +1736,11 @@ read_rtc:
 			}
 		}
 	}
+
+	ds1307->rtc->ops = rtc_ops;
+	err = rtc_register_device(ds1307->rtc);
+	if (err)
+		return err;
 
 	ds1307_hwmon_register(ds1307);
 	ds1307_clks_register(ds1307);
