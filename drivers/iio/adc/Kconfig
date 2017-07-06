@@ -239,6 +239,15 @@ config DA9150_GPADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called berlin2-adc.
 
+config DLN2_ADC
+	tristate "Diolan DLN-2 ADC driver support"
+	depends on MFD_DLN2
+	help
+	  Say yes here to build support for Diolan DLN-2 ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called adc_dln2.
+
 config ENVELOPE_DETECTOR
 	tristate "Envelope detector using a DAC and a comparator"
 	depends on OF
