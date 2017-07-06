@@ -184,7 +184,7 @@ void __delete_from_swap_cache(struct page *page)
  * Allocate swap space for the page and add the page to the
  * swap cache.  Caller needs to hold the page lock. 
  */
-int add_to_swap(struct page *page, struct list_head *list)
+int add_to_swap(struct page *page)
 {
 	swp_entry_t entry;
 	int err;
@@ -192,12 +192,12 @@ int add_to_swap(struct page *page, struct list_head *list)
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(!PageUptodate(page), page);
 
-retry:
 	entry = get_swap_page(page);
 	if (!entry.val)
-		goto fail;
+		return 0;
+
 	if (mem_cgroup_try_charge_swap(page, entry))
-		goto fail_free;
+		goto fail;
 
 	/*
 	 * Radix-tree node allocations from PF_MEMALLOC contexts could
@@ -218,23 +218,12 @@ retry:
 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
 		 * clear SWAP_HAS_CACHE flag.
 		 */
-		goto fail_free;
-
-	if (PageTransHuge(page)) {
-		err = split_huge_page_to_list(page, list);
-		if (err) {
-			delete_from_swap_cache(page);
-			return 0;
-		}
-	}
+		goto fail;
 
 	return 1;
 
-fail_free:
-	put_swap_page(page, entry);
 fail:
-	if (PageTransHuge(page) && !split_huge_page_to_list(page, list))
-		goto retry;
+	put_swap_page(page, entry);
 	return 0;
 }
 
