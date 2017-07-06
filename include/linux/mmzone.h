@@ -533,6 +533,22 @@ static inline bool zone_is_empty(struct zone *zone)
 }
 
 /*
+ * Return true if [start_pfn, start_pfn + nr_pages) range has a non-empty
+ * intersection with the given zone
+ */
+static inline bool zone_intersects(struct zone *zone,
+		unsigned long start_pfn, unsigned long nr_pages)
+{
+	if (zone_is_empty(zone))
+		return false;
+	if (start_pfn >= zone_end_pfn(zone) ||
+	    start_pfn + nr_pages <= zone->zone_start_pfn)
+		return false;
+
+	return true;
+}
+
+/*
  * The "priority" of VM scanning is how much of the queues we will scan in one
  * go. A value of 12 for DEF_PRIORITY implies that we will scan 1/4096th of the
  * queues ("queue_length >> 12") during an aging round.

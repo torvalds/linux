@@ -392,39 +392,43 @@ static ssize_t show_valid_zones(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct memory_block *mem = to_memory_block(dev);
-	unsigned long start_pfn, end_pfn;
-	unsigned long valid_start, valid_end, valid_pages;
+	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
-	struct zone *zone;
-	int zone_shift = 0;
+	unsigned long valid_start_pfn, valid_end_pfn;
+	bool append = false;
+	int nid;
 
-	start_pfn = section_nr_to_pfn(mem->start_section_nr);
-	end_pfn = start_pfn + nr_pages;
-
-	/* The block contains more than one zone can not be offlined. */
-	if (!test_pages_in_a_zone(start_pfn, end_pfn, &valid_start, &valid_end))
+	/*
+	 * The block contains more than one zone can not be offlined.
+	 * This can happen e.g. for ZONE_DMA and ZONE_DMA32
+	 */
+	if (!test_pages_in_a_zone(start_pfn, start_pfn + nr_pages, &valid_start_pfn, &valid_end_pfn))
 		return sprintf(buf, "none\n");
 
-	zone = page_zone(pfn_to_page(valid_start));
-	valid_pages = valid_end - valid_start;
+	start_pfn = valid_start_pfn;
+	nr_pages = valid_end_pfn - start_pfn;
 
-	/* MMOP_ONLINE_KEEP */
-	sprintf(buf, "%s", zone->name);
-
-	/* MMOP_ONLINE_KERNEL */
-	zone_can_shift(valid_start, valid_pages, ZONE_NORMAL, &zone_shift);
-	if (zone_shift) {
-		strcat(buf, " ");
-		strcat(buf, (zone + zone_shift)->name);
+	/*
+	 * Check the existing zone. Make sure that we do that only on the
+	 * online nodes otherwise the page_zone is not reliable
+	 */
+	if (mem->state == MEM_ONLINE) {
+		strcat(buf, page_zone(pfn_to_page(start_pfn))->name);
+		goto out;
 	}
 
-	/* MMOP_ONLINE_MOVABLE */
-	zone_can_shift(valid_start, valid_pages, ZONE_MOVABLE, &zone_shift);
-	if (zone_shift) {
-		strcat(buf, " ");
-		strcat(buf, (zone + zone_shift)->name);
+	nid = pfn_to_nid(start_pfn);
+	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL)) {
+		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_NORMAL].name);
+		append = true;
 	}
 
+	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_MOVABLE)) {
+		if (append)
+			strcat(buf, " ");
+		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_MOVABLE].name);
+	}
+out:
 	strcat(buf, "\n");
 
 	return strlen(buf);

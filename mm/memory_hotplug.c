@@ -433,25 +433,6 @@ out_fail:
 	return -1;
 }
 
-static struct zone * __meminit move_pfn_range(int zone_shift,
-		unsigned long start_pfn, unsigned long end_pfn)
-{
-	struct zone *zone = page_zone(pfn_to_page(start_pfn));
-	int ret = 0;
-
-	if (zone_shift < 0)
-		ret = move_pfn_range_left(zone + zone_shift, zone,
-					  start_pfn, end_pfn);
-	else if (zone_shift)
-		ret = move_pfn_range_right(zone, zone + zone_shift,
-					   start_pfn, end_pfn);
-
-	if (ret)
-		return NULL;
-
-	return zone + zone_shift;
-}
-
 static void __meminit grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
 				      unsigned long end_pfn)
 {
@@ -493,23 +474,35 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	return 0;
 }
 
-static int __meminit __add_section(int nid, struct zone *zone,
-		unsigned long phys_start_pfn, bool want_memblock)
+static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+		bool want_memblock)
 {
 	int ret;
+	int i;
 
 	if (pfn_valid(phys_start_pfn))
 		return -EEXIST;
 
-	ret = sparse_add_one_section(zone, phys_start_pfn);
-
+	ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn);
 	if (ret < 0)
 		return ret;
 
-	ret = __add_zone(zone, phys_start_pfn);
+	/*
+	 * Make all the pages reserved so that nobody will stumble over half
+	 * initialized state.
+	 * FIXME: We also have to associate it with a node because pfn_to_node
+	 * relies on having page with the proper node.
+	 */
+	for (i = 0; i < PAGES_PER_SECTION; i++) {
+		unsigned long pfn = phys_start_pfn + i;
+		struct page *page;
+		if (!pfn_valid(pfn))
+			continue;
 
-	if (ret < 0)
-		return ret;
+		page = pfn_to_page(pfn);
+		set_page_node(page, nid);
+		SetPageReserved(page);
+	}
 
 	if (!want_memblock)
 		return 0;
@@ -523,15 +516,13 @@ static int __meminit __add_section(int nid, struct zone *zone,
  * call this function after deciding the zone to which to
  * add the new pages.
  */
-int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
+int __ref __add_pages(int nid, unsigned long phys_start_pfn,
 			unsigned long nr_pages, bool want_memblock)
 {
 	unsigned long i;
 	int err = 0;
 	int start_sec, end_sec;
 	struct vmem_altmap *altmap;
-
-	clear_zone_contiguous(zone);
 
 	/* during initialize mem_map, align hot-added range to section */
 	start_sec = pfn_to_section_nr(phys_start_pfn);
@@ -552,7 +543,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
 	}
 
 	for (i = start_sec; i <= end_sec; i++) {
-		err = __add_section(nid, zone, section_nr_to_pfn(i), want_memblock);
+		err = __add_section(nid, section_nr_to_pfn(i), want_memblock);
 
 		/*
 		 * EEXIST is finally dealt with by ioresource collision
@@ -565,7 +556,6 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
 	}
 	vmemmap_populate_print_last();
 out:
-	set_zone_contiguous(zone);
 	return err;
 }
 EXPORT_SYMBOL_GPL(__add_pages);
@@ -1034,39 +1024,109 @@ static void node_states_set_node(int node, struct memory_notify *arg)
 	node_set_state(node, N_MEMORY);
 }
 
-bool zone_can_shift(unsigned long pfn, unsigned long nr_pages,
-		   enum zone_type target, int *zone_shift)
+bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages, int online_type)
 {
-	struct zone *zone = page_zone(pfn_to_page(pfn));
-	enum zone_type idx = zone_idx(zone);
-	int i;
+	struct pglist_data *pgdat = NODE_DATA(nid);
+	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
+	struct zone *normal_zone =  &pgdat->node_zones[ZONE_NORMAL];
 
-	*zone_shift = 0;
-
-	if (idx < target) {
-		/* pages must be at end of current zone */
-		if (pfn + nr_pages != zone_end_pfn(zone))
-			return false;
-
-		/* no zones in use between current zone and target */
-		for (i = idx + 1; i < target; i++)
-			if (zone_is_initialized(zone - idx + i))
-				return false;
+	/*
+	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
+	 * physically before ZONE_MOVABLE. All we need is they do not
+	 * overlap. Historically we didn't allow ZONE_NORMAL after ZONE_MOVABLE
+	 * though so let's stick with it for simplicity for now.
+	 * TODO make sure we do not overlap with ZONE_DEVICE
+	 */
+	if (online_type == MMOP_ONLINE_KERNEL) {
+		if (zone_is_empty(movable_zone))
+			return true;
+		return movable_zone->zone_start_pfn >= pfn + nr_pages;
+	} else if (online_type == MMOP_ONLINE_MOVABLE) {
+		return zone_end_pfn(normal_zone) <= pfn;
 	}
 
-	if (target < idx) {
-		/* pages must be at beginning of current zone */
-		if (pfn != zone->zone_start_pfn)
-			return false;
+	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
+	return online_type == MMOP_ONLINE_KEEP;
+}
 
-		/* no zones in use between current zone and target */
-		for (i = target + 1; i < idx; i++)
-			if (zone_is_initialized(zone - idx + i))
-				return false;
+static void __meminit resize_zone_range(struct zone *zone, unsigned long start_pfn,
+		unsigned long nr_pages)
+{
+	unsigned long old_end_pfn = zone_end_pfn(zone);
+
+	if (zone_is_empty(zone) || start_pfn < zone->zone_start_pfn)
+		zone->zone_start_pfn = start_pfn;
+
+	zone->spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - zone->zone_start_pfn;
+}
+
+static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned long start_pfn,
+                                     unsigned long nr_pages)
+{
+	unsigned long old_end_pfn = pgdat_end_pfn(pgdat);
+
+	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
+		pgdat->node_start_pfn = start_pfn;
+
+	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
+}
+
+void move_pfn_range_to_zone(struct zone *zone,
+		unsigned long start_pfn, unsigned long nr_pages)
+{
+	struct pglist_data *pgdat = zone->zone_pgdat;
+	int nid = pgdat->node_id;
+	unsigned long flags;
+
+	if (zone_is_empty(zone))
+		init_currently_empty_zone(zone, start_pfn, nr_pages);
+
+	clear_zone_contiguous(zone);
+
+	/* TODO Huh pgdat is irqsave while zone is not. It used to be like that before */
+	pgdat_resize_lock(pgdat, &flags);
+	zone_span_writelock(zone);
+	resize_zone_range(zone, start_pfn, nr_pages);
+	zone_span_writeunlock(zone);
+	resize_pgdat_range(pgdat, start_pfn, nr_pages);
+	pgdat_resize_unlock(pgdat, &flags);
+
+	/*
+	 * TODO now we have a visible range of pages which are not associated
+	 * with their zone properly. Not nice but set_pfnblock_flags_mask
+	 * expects the zone spans the pfn range. All the pages in the range
+	 * are reserved so nobody should be touching them so we should be safe
+	 */
+	memmap_init_zone(nr_pages, nid, zone_idx(zone), start_pfn, MEMMAP_HOTPLUG);
+
+	set_zone_contiguous(zone);
+}
+
+/*
+ * Associates the given pfn range with the given node and the zone appropriate
+ * for the given online type.
+ */
+static struct zone * __meminit move_pfn_range(int online_type, int nid,
+		unsigned long start_pfn, unsigned long nr_pages)
+{
+	struct pglist_data *pgdat = NODE_DATA(nid);
+	struct zone *zone = &pgdat->node_zones[ZONE_NORMAL];
+
+	if (online_type == MMOP_ONLINE_KEEP) {
+		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
+		/*
+		 * MMOP_ONLINE_KEEP inherits the current zone which is
+		 * ZONE_NORMAL by default but we might be within ZONE_MOVABLE
+		 * already.
+		 */
+		if (zone_intersects(movable_zone, start_pfn, nr_pages))
+			zone = movable_zone;
+	} else if (online_type == MMOP_ONLINE_MOVABLE) {
+		zone = &pgdat->node_zones[ZONE_MOVABLE];
 	}
 
-	*zone_shift = target - idx;
-	return true;
+	move_pfn_range_to_zone(zone, start_pfn, nr_pages);
+	return zone;
 }
 
 /* Must be protected by mem_hotplug_begin() */
@@ -1079,37 +1139,20 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	int nid;
 	int ret;
 	struct memory_notify arg;
-	int zone_shift = 0;
 
-	/*
-	 * This doesn't need a lock to do pfn_to_page().
-	 * The section can't be removed here because of the
-	 * memory_block->state_mutex.
-	 */
-	zone = page_zone(pfn_to_page(pfn));
-
-	if ((zone_idx(zone) > ZONE_NORMAL ||
-	    online_type == MMOP_ONLINE_MOVABLE) &&
-	    !can_online_high_movable(pfn_to_nid(pfn)))
+	nid = pfn_to_nid(pfn);
+	if (!allow_online_pfn_range(nid, pfn, nr_pages, online_type))
 		return -EINVAL;
 
-	if (online_type == MMOP_ONLINE_KERNEL) {
-		if (!zone_can_shift(pfn, nr_pages, ZONE_NORMAL, &zone_shift))
-			return -EINVAL;
-	} else if (online_type == MMOP_ONLINE_MOVABLE) {
-		if (!zone_can_shift(pfn, nr_pages, ZONE_MOVABLE, &zone_shift))
-			return -EINVAL;
-	}
-
-	zone = move_pfn_range(zone_shift, pfn, pfn + nr_pages);
-	if (!zone)
+	if (online_type == MMOP_ONLINE_MOVABLE && !can_online_high_movable(nid))
 		return -EINVAL;
+
+	/* associate pfn range with the zone */
+	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
 
 	arg.start_pfn = pfn;
 	arg.nr_pages = nr_pages;
 	node_states_check_changes_online(nr_pages, zone, &arg);
-
-	nid = zone_to_nid(zone);
 
 	ret = memory_notify(MEM_GOING_ONLINE, &arg);
 	ret = notifier_to_errno(ret);
