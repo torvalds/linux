@@ -727,6 +727,9 @@ static int soc15_common_hw_init(void *handle)
 	soc15_pcie_gen3_enable(adev);
 	/* enable aspm */
 	soc15_program_aspm(adev);
+	/* setup nbio registers */
+	if (!(adev->flags & AMD_IS_APU))
+		nbio_v6_1_init_registers(adev);
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
 
