@@ -807,6 +807,43 @@ static int backend_connect(struct xenbus_device *dev)
 
 static int backend_disconnect(struct xenbus_device *dev)
 {
+	struct pvcalls_fedata *fedata;
+	struct sock_mapping *map, *n;
+	struct sockpass_mapping *mappass;
+	struct radix_tree_iter iter;
+	void **slot;
+
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	down(&fedata->socket_lock);
+	list_for_each_entry_safe(map, n, &fedata->socket_mappings, list) {
+		list_del(&map->list);
+		pvcalls_back_release_active(dev, fedata, map);
+	}
+
+	radix_tree_for_each_slot(slot, &fedata->socketpass_mappings, &iter, 0) {
+		mappass = radix_tree_deref_slot(slot);
+		if (!mappass)
+			continue;
+		if (radix_tree_exception(mappass)) {
+			if (radix_tree_deref_retry(mappass))
+				slot = radix_tree_iter_retry(&iter);
+		} else {
+			radix_tree_delete(&fedata->socketpass_mappings,
+					  mappass->id);
+			pvcalls_back_release_passive(dev, fedata, mappass);
+		}
+	}
+	up(&fedata->socket_lock);
+
+	unbind_from_irqhandler(fedata->irq, dev);
+	xenbus_unmap_ring_vfree(dev, fedata->sring);
+
+	list_del(&fedata->list);
+	kfree(fedata);
+	dev_set_drvdata(&dev->dev, NULL);
+
 	return 0;
 }
 
@@ -1003,3 +1040,19 @@ static int __init pvcalls_back_init(void)
 	return 0;
 }
 module_init(pvcalls_back_init);
+
+static void __exit pvcalls_back_fin(void)
+{
+	struct pvcalls_fedata *fedata, *nfedata;
+
+	down(&pvcalls_back_global.frontends_lock);
+	list_for_each_entry_safe(fedata, nfedata,
+				 &pvcalls_back_global.frontends, list) {
+		backend_disconnect(fedata->dev);
+	}
+	up(&pvcalls_back_global.frontends_lock);
+
+	xenbus_unregister_driver(&pvcalls_back_driver);
+}
+
+module_exit(pvcalls_back_fin);
