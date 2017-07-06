@@ -211,6 +211,9 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
+	max-frequency = <100000000>;
+	mmc-hs200-1_8v;
+	mmc-ddr-1_8v;
 	status = "okay";
 };
 
