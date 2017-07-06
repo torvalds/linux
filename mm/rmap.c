@@ -1145,8 +1145,7 @@ void page_add_file_rmap(struct page *page, bool compound)
 		if (!atomic_inc_and_test(&page->_mapcount))
 			goto out;
 	}
-	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, nr);
-	mod_memcg_page_state(page, NR_FILE_MAPPED, nr);
+	__mod_lruvec_page_state(page, NR_FILE_MAPPED, nr);
 out:
 	unlock_page_memcg(page);
 }
@@ -1181,12 +1180,11 @@ static void page_remove_file_rmap(struct page *page, bool compound)
 	}
 
 	/*
-	 * We use the irq-unsafe __{inc|mod}_zone_page_state because
+	 * We use the irq-unsafe __{inc|mod}_lruvec_page_state because
 	 * these counters are not modified in interrupt context, and
 	 * pte lock(a spinlock) is held, which implies preemption disabled.
 	 */
-	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, -nr);
-	mod_memcg_page_state(page, NR_FILE_MAPPED, -nr);
+	__mod_lruvec_page_state(page, NR_FILE_MAPPED, -nr);
 
 	if (unlikely(PageMlocked(page)))
 		clear_page_mlock(page);
