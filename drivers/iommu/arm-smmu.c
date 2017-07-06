@@ -1519,7 +1519,6 @@ static int arm_smmu_add_device(struct device *dev)
 
 	if (using_legacy_binding) {
 		ret = arm_smmu_register_legacy_master(dev, &smmu);
-		fwspec = dev->iommu_fwspec;
 		if (ret)
 			goto out_free;
 	} else if (fwspec && fwspec->ops == &arm_smmu_ops) {
@@ -1558,15 +1557,15 @@ static int arm_smmu_add_device(struct device *dev)
 
 	ret = arm_smmu_master_alloc_smes(dev);
 	if (ret)
-		goto out_free;
+		goto out_cfg_free;
 
 	iommu_device_link(&smmu->iommu, dev);
 
 	return 0;
 
+out_cfg_free:
+	kfree(cfg);
 out_free:
-	if (fwspec)
-		kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);
 	return ret;
 }
