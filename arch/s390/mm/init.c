@@ -195,7 +195,7 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 			continue;
 		nr_pages = (start_pfn + size_pages > zone_end_pfn) ?
 			   zone_end_pfn - start_pfn : size_pages;
-		rc = __add_pages(nid, zone, start_pfn, nr_pages);
+		rc = __add_pages(nid, zone, start_pfn, nr_pages, !for_device);
 		if (rc)
 			break;
 		start_pfn += nr_pages;

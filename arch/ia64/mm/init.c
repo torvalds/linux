@@ -658,7 +658,7 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 
 	zone = pgdat->node_zones +
 		zone_for_memory(nid, start, size, ZONE_NORMAL, for_device);
-	ret = __add_pages(nid, zone, start_pfn, nr_pages);
+	ret = __add_pages(nid, zone, start_pfn, nr_pages, !for_device);
 
 	if (ret)
 		printk("%s: Problem encountered in __add_pages() as ret=%d\n",
