@@ -223,8 +223,8 @@ struct pm8916_wcd_analog_priv {
 	u16 codec_version;
 	struct clk *mclk;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
-	bool micbias1_cap_mode;
-	bool micbias2_cap_mode;
+	unsigned int micbias1_cap_mode;
+	unsigned int micbias2_cap_mode;
 };
 
 static const char *const adc2_mux_text[] = { "ZERO", "INP2", "INP3" };
@@ -285,7 +285,7 @@ static void pm8916_wcd_analog_micbias_enable(struct snd_soc_codec *codec)
 
 static int pm8916_wcd_analog_enable_micbias_ext(struct snd_soc_codec
 						 *codec, int event,
-						 int reg, u32 cap_mode)
+						 int reg, unsigned int cap_mode)
 {
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
