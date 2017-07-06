@@ -346,8 +346,8 @@ static void skl_power_well_pre_disable(struct drm_i915_private *dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 }
 
-static void gen9_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
-					    struct i915_power_well *power_well)
+static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
 {
 	enum i915_power_well_id id = power_well->id;
 
@@ -359,8 +359,8 @@ static void gen9_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 					1));
 }
 
-static u32 gen9_power_well_requesters(struct drm_i915_private *dev_priv,
-				      enum i915_power_well_id id)
+static u32 hsw_power_well_requesters(struct drm_i915_private *dev_priv,
+				     enum i915_power_well_id id)
 {
 	u32 req_mask = HSW_PWR_WELL_CTL_REQ(id);
 	u32 ret;
@@ -373,8 +373,8 @@ static u32 gen9_power_well_requesters(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-static void gen9_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
-					     struct i915_power_well *power_well)
+static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
+					    struct i915_power_well *power_well)
 {
 	enum i915_power_well_id id = power_well->id;
 	bool disabled;
@@ -391,7 +391,7 @@ static void gen9_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 	 */
 	wait_for((disabled = !(I915_READ(HSW_PWR_WELL_DRIVER) &
 			       HSW_PWR_WELL_CTL_STATE(id))) ||
-		 (reqs = gen9_power_well_requesters(dev_priv, id)), 1);
+		 (reqs = hsw_power_well_requesters(dev_priv, id)), 1);
 	if (disabled)
 		return;
 
@@ -408,13 +408,7 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 
 	val = I915_READ(HSW_PWR_WELL_DRIVER);
 	I915_WRITE(HSW_PWR_WELL_DRIVER, val | HSW_PWR_WELL_CTL_REQ(id));
-
-	if (intel_wait_for_register(dev_priv,
-				    HSW_PWR_WELL_DRIVER,
-				    HSW_PWR_WELL_CTL_STATE(id),
-				    HSW_PWR_WELL_CTL_STATE(id),
-				    20))
-		DRM_ERROR("Timeout enabling power well\n");
+	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
 	hsw_power_well_post_enable(dev_priv, power_well->hsw.irq_pipe_mask,
 				   power_well->hsw.has_vga);
@@ -430,7 +424,7 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 
 	val = I915_READ(HSW_PWR_WELL_DRIVER);
 	I915_WRITE(HSW_PWR_WELL_DRIVER, val & ~HSW_PWR_WELL_CTL_REQ(id));
-	POSTING_READ(HSW_PWR_WELL_DRIVER);
+	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
 #define SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
@@ -856,13 +850,13 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
 		check_fuse_status = true;
 
-		gen9_wait_for_power_well_enable(dev_priv, power_well);
+		hsw_wait_for_power_well_enable(dev_priv, power_well);
 	} else {
 		I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
 		POSTING_READ(HSW_PWR_WELL_DRIVER);
 		DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
 
-		gen9_wait_for_power_well_disable(dev_priv, power_well);
+		hsw_wait_for_power_well_disable(dev_priv, power_well);
 	}
 
 	if (check_fuse_status) {
