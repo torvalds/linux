@@ -53,15 +53,6 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
-static void disable_clocks(
-	struct dce_hwseq *hws,
-	uint8_t plane_id)
-{
-	REG_UPDATE(HUBP_CLK_CNTL[plane_id], HUBP_CLOCK_ENABLE, 0);
-
-	REG_UPDATE(DPP_CONTROL[plane_id], DPP_CLOCK_ENABLE, 0);
-}
-
 static void enable_dppclk(
 	struct dce_hwseq *hws,
 	uint8_t plane_id,
@@ -212,25 +203,6 @@ static void power_on_plane(
 			IP_REQUEST_EN, 0);
 	dm_logger_write(hws->ctx->logger, LOG_DC,
 			"Un-gated front end for pipe %d\n", plane_id);
-}
-
-/* fully check bios enabledisplaypowergating table. dal only need dce init
- * other power, clock gate register will be handle by dal itself.
- * further may be put within init_hw
- */
-static bool dcn10_enable_display_power_gating(
-	struct core_dc *dc,
-	uint8_t controller_id,
-	struct dc_bios *dcb,
-	enum pipe_gating_control power_gating)
-{
-	/* TODOFPGA */
-#if 0
-	if (power_gating != PIPE_GATING_CONTROL_ENABLE)
-		dce110_init_pte(ctx);
-#endif
-
-	return true;
 }
 
 static void bios_golden_init(struct core_dc *dc)
@@ -525,7 +497,8 @@ static void reset_front_end(
 	mpcc->funcs->wait_for_idle(mpcc);
 	mi->funcs->set_blank(mi, true);
 	REG_WAIT(DCHUBP_CNTL[fe_idx], HUBP_NO_OUTSTANDING_REQ, 1, 20000, 200000);
-	disable_clocks(dc->hwseq, fe_idx);
+	REG_UPDATE(HUBP_CLK_CNTL[fe_idx], HUBP_CLOCK_ENABLE, 0);
+	REG_UPDATE(DPP_CONTROL[fe_idx], DPP_CLOCK_ENABLE, 0);
 
 	xfm->funcs->transform_reset(xfm);
 
@@ -1803,8 +1776,8 @@ static void set_plane_config(
 	program_gamut_remap(pipe_ctx);
 }
 
-static void dcn10_config_stereo_parameters(struct core_stream *stream,\
-										   struct crtc_stereo_flags *flags)
+static void dcn10_config_stereo_parameters(
+		struct core_stream *stream, struct crtc_stereo_flags *flags)
 {
 	enum view_3d_format view_format = stream->public.view_format;
 	enum dc_timing_3d_format timing_3d_format =\
@@ -1840,8 +1813,7 @@ static void dcn10_config_stereo_parameters(struct core_stream *stream,\
 	return;
 }
 
-static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx,
-								struct core_dc *dc)
+static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 {
 	struct crtc_stereo_flags flags = { 0 };
 	struct core_stream *stream = pipe_ctx->stream;
@@ -1858,10 +1830,14 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx,
 		&stream->public.timing,
 		&flags);
 
-
-
 	return;
 }
+
+static bool dcn10_dummy_display_power_gating(
+	struct core_dc *dc,
+	uint8_t controller_id,
+	struct dc_bios *dcb,
+	enum pipe_gating_control power_gating) {return true; }
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
@@ -1881,8 +1857,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.enable_stream = dce110_enable_stream,
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dce110_unblank_stream,
-	.enable_display_pipe_clock_gating = NULL, /* TODOFPGA */
-	.enable_display_power_gating = dcn10_enable_display_power_gating,
+	.enable_display_power_gating = dcn10_dummy_display_power_gating,
 	.power_down_front_end = dcn10_power_down_fe,
 	.power_on_front_end = dcn10_power_on_fe,
 	.pipe_control_lock = dcn10_pipe_control_lock,
