@@ -2492,7 +2492,7 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (IS_GEN9_BC(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		max_dc = 2;
 		mask = 0;
 	} else if (IS_GEN9_LP(dev_priv)) {
