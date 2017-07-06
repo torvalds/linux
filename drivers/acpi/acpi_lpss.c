@@ -85,6 +85,7 @@ static const struct lpss_device_desc lpss_dma_desc = {
 };
 
 struct lpss_private_data {
+	struct acpi_device *adev;
 	void __iomem *mmio_base;
 	resource_size_t mmio_size;
 	unsigned int fixed_clk_rate;
@@ -155,6 +156,12 @@ static struct pwm_lookup byt_pwm_lookup[] = {
 
 static void byt_pwm_setup(struct lpss_private_data *pdata)
 {
+	struct acpi_device *adev = pdata->adev;
+
+	/* Only call pwm_add_table for the first PWM controller */
+	if (!adev->pnp.unique_id || strcmp(adev->pnp.unique_id, "1"))
+		return;
+
 	if (!acpi_dev_present("INT33FD", NULL, -1))
 		pwm_add_table(byt_pwm_lookup, ARRAY_SIZE(byt_pwm_lookup));
 }
@@ -180,6 +187,12 @@ static struct pwm_lookup bsw_pwm_lookup[] = {
 
 static void bsw_pwm_setup(struct lpss_private_data *pdata)
 {
+	struct acpi_device *adev = pdata->adev;
+
+	/* Only call pwm_add_table for the first PWM controller */
+	if (!adev->pnp.unique_id || strcmp(adev->pnp.unique_id, "1"))
+		return;
+
 	pwm_add_table(bsw_pwm_lookup, ARRAY_SIZE(bsw_pwm_lookup));
 }
 
@@ -456,6 +469,7 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 		goto err_out;
 	}
 
+	pdata->adev = adev;
 	pdata->dev_desc = dev_desc;
 
 	if (dev_desc->setup)
