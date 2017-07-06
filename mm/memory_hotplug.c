@@ -1115,11 +1115,12 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
 	if (online_type == MMOP_ONLINE_KEEP) {
 		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
 		/*
-		 * MMOP_ONLINE_KEEP inherits the current zone which is
-		 * ZONE_NORMAL by default but we might be within ZONE_MOVABLE
-		 * already.
+		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
+		 * movable zone if that is not possible (e.g. we are within
+		 * or past the existing movable zone)
 		 */
-		if (zone_intersects(movable_zone, start_pfn, nr_pages))
+		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
+					MMOP_ONLINE_KERNEL))
 			zone = movable_zone;
 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
 		zone = &pgdat->node_zones[ZONE_MOVABLE];
