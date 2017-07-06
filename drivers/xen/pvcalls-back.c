@@ -356,6 +356,27 @@ out:
 static int pvcalls_back_listen(struct xenbus_device *dev,
 			       struct xen_pvcalls_request *req)
 {
+	struct pvcalls_fedata *fedata;
+	int ret = -EINVAL;
+	struct sockpass_mapping *map;
+	struct xen_pvcalls_response *rsp;
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	down(&fedata->socket_lock);
+	map = radix_tree_lookup(&fedata->socketpass_mappings, req->u.listen.id);
+	up(&fedata->socket_lock);
+	if (map == NULL)
+		goto out;
+
+	ret = inet_listen(map->sock, req->u.listen.backlog);
+
+out:
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->cmd = req->cmd;
+	rsp->u.listen.id = req->u.listen.id;
+	rsp->ret = ret;
 	return 0;
 }
 
