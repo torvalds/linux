@@ -1608,6 +1608,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	struct neighbour *n = NULL;
 	void *daddr;
 	unsigned int step;
+	unsigned int rxq_idx;
 	unsigned int size, size6;
 	unsigned int linkspeed;
 	unsigned int rcv_winf, snd_winf;
@@ -1686,7 +1687,9 @@ static int init_act_open(struct cxgbi_sock *csk)
 	step = lldi->ntxq / lldi->nchan;
 	csk->txq_idx = cxgb4_port_idx(ndev) * step;
 	step = lldi->nrxq / lldi->nchan;
-	csk->rss_qid = lldi->rxq_ids[cxgb4_port_idx(ndev) * step];
+	rxq_idx = (cxgb4_port_idx(ndev) * step) + (cdev->rxq_idx_cntr % step);
+	cdev->rxq_idx_cntr++;
+	csk->rss_qid = lldi->rxq_ids[rxq_idx];
 	linkspeed = ((struct port_info *)netdev_priv(ndev))->link_cfg.speed;
 	csk->snd_win = cxgb4i_snd_win;
 	csk->rcv_win = cxgb4i_rcv_win;
