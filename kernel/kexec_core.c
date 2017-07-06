@@ -38,6 +38,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/compiler.h>
 #include <linux/hugetlb.h>
+#include <linux/frame.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -874,7 +875,7 @@ int kexec_load_disabled;
  * only when panic_cpu holds the current CPU number; this is the only CPU
  * which processes crash_kexec routines.
  */
-void __crash_kexec(struct pt_regs *regs)
+void __noclone __crash_kexec(struct pt_regs *regs)
 {
 	/* Take the kexec_mutex here to prevent sys_kexec_load
 	 * running on one cpu from replacing the crash kernel
@@ -896,6 +897,7 @@ void __crash_kexec(struct pt_regs *regs)
 		mutex_unlock(&kexec_mutex);
 	}
 }
+STACK_FRAME_NON_STANDARD(__crash_kexec);
 
 void crash_kexec(struct pt_regs *regs)
 {

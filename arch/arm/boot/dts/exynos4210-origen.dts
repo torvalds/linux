@@ -151,7 +151,7 @@
 		compatible = "maxim,max8997-pmic";
 		reg = <0x66>;
 		interrupt-parent = <&gpx0>;
-		interrupts = <4 0>, <3 0>;
+		interrupts = <4 IRQ_TYPE_NONE>, <3 IRQ_TYPE_NONE>;
 
 		max8997,pmic-buck1-dvs-voltage = <1350000>;
 		max8997,pmic-buck2-dvs-voltage = <1100000>;

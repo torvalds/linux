@@ -4,3 +4,5 @@ include include/uapi/asm-generic/Kbuild.asm
 genhdr-y += unistd-common.h
 genhdr-y += unistd-oabi.h
 genhdr-y += unistd-eabi.h
+
+generic-y += siginfo.h

@@ -41,31 +41,6 @@
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
 
-/*
- * Return saved PC of a blocked thread. used in kernel/sched.
- * resume in entry.S does not create a new stack frame, it
- * just stores the registers %r6-%r15 to the frame given by
- * schedule. We want to return the address of the caller of
- * schedule, so we have to walk the backchain one time to
- * find the frame schedule() store its return address.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	struct stack_frame *sf, *low, *high;
-
-	if (!tsk || !task_stack_page(tsk))
-		return 0;
-	low = task_stack_page(tsk);
-	high = (struct stack_frame *) task_pt_regs(tsk);
-	sf = (struct stack_frame *) tsk->thread.ksp;
-	if (sf <= low || sf > high)
-		return 0;
-	sf = (struct stack_frame *) sf->back_chain;
-	if (sf <= low || sf > high)
-		return 0;
-	return sf->gprs[8];
-}
-
 extern void kernel_thread_starter(void);
 
 /*

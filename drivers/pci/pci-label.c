@@ -172,7 +172,7 @@ static int dsm_get_label(struct device *dev, char *buf,
 	if (!handle)
 		return -1;
 
-	obj = acpi_evaluate_dsm(handle, pci_acpi_dsm_uuid, 0x2,
+	obj = acpi_evaluate_dsm(handle, &pci_acpi_dsm_guid, 0x2,
 				DEVICE_LABEL_DSM, NULL);
 	if (!obj)
 		return -1;
@@ -212,7 +212,7 @@ static bool device_has_dsm(struct device *dev)
 	if (!handle)
 		return false;
 
-	return !!acpi_check_dsm(handle, pci_acpi_dsm_uuid, 0x2,
+	return !!acpi_check_dsm(handle, &pci_acpi_dsm_guid, 0x2,
 				1 << DEVICE_LABEL_DSM);
 }
 

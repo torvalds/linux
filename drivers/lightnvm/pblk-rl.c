@@ -23,11 +23,35 @@ static void pblk_rl_kick_u_timer(struct pblk_rl *rl)
 	mod_timer(&rl->u_timer, jiffies + msecs_to_jiffies(5000));
 }
 
+int pblk_rl_is_limit(struct pblk_rl *rl)
+{
+	int rb_space;
+
+	rb_space = atomic_read(&rl->rb_space);
+
+	return (rb_space == 0);
+}
+
 int pblk_rl_user_may_insert(struct pblk_rl *rl, int nr_entries)
 {
 	int rb_user_cnt = atomic_read(&rl->rb_user_cnt);
+	int rb_space = atomic_read(&rl->rb_space);
 
-	return (!(rb_user_cnt + nr_entries > rl->rb_user_max));
+	if (unlikely(rb_space >= 0) && (rb_space - nr_entries < 0))
+		return NVM_IO_ERR;
+
+	if (rb_user_cnt >= rl->rb_user_max)
+		return NVM_IO_REQUEUE;
+
+	return NVM_IO_OK;
+}
+
+void pblk_rl_inserted(struct pblk_rl *rl, int nr_entries)
+{
+	int rb_space = atomic_read(&rl->rb_space);
+
+	if (unlikely(rb_space >= 0))
+		atomic_sub(nr_entries, &rl->rb_space);
 }
 
 int pblk_rl_gc_may_insert(struct pblk_rl *rl, int nr_entries)
@@ -37,7 +61,7 @@ int pblk_rl_gc_may_insert(struct pblk_rl *rl, int nr_entries)
 
 	/* If there is no user I/O let GC take over space on the write buffer */
 	rb_user_active = READ_ONCE(rl->rb_user_active);
-	return (!(rb_gc_cnt + nr_entries > rl->rb_gc_max && rb_user_active));
+	return (!(rb_gc_cnt >= rl->rb_gc_max && rb_user_active));
 }
 
 void pblk_rl_user_in(struct pblk_rl *rl, int nr_entries)
@@ -77,31 +101,30 @@ static int pblk_rl_update_rates(struct pblk_rl *rl, unsigned long max)
 	unsigned long free_blocks = pblk_rl_nr_free_blks(rl);
 
 	if (free_blocks >= rl->high) {
-		rl->rb_user_max = max - rl->rb_gc_rsv;
-		rl->rb_gc_max = rl->rb_gc_rsv;
+		rl->rb_user_max = max;
+		rl->rb_gc_max = 0;
 		rl->rb_state = PBLK_RL_HIGH;
 	} else if (free_blocks < rl->high) {
 		int shift = rl->high_pw - rl->rb_windows_pw;
 		int user_windows = free_blocks >> shift;
 		int user_max = user_windows << PBLK_MAX_REQ_ADDRS_PW;
-		int gc_max;
 
 		rl->rb_user_max = user_max;
-		gc_max = max - rl->rb_user_max;
-		rl->rb_gc_max = max(gc_max, rl->rb_gc_rsv);
+		rl->rb_gc_max = max - user_max;
 
-		if (free_blocks > rl->low)
-			rl->rb_state = PBLK_RL_MID;
-		else
-			rl->rb_state = PBLK_RL_LOW;
+		if (free_blocks <= rl->rsv_blocks) {
+			rl->rb_user_max = 0;
+			rl->rb_gc_max = max;
+		}
+
+		/* In the worst case, we will need to GC lines in the low list
+		 * (high valid sector count). If there are lines to GC on high
+		 * or mid lists, these will be prioritized
+		 */
+		rl->rb_state = PBLK_RL_LOW;
 	}
 
 	return rl->rb_state;
-}
-
-void pblk_rl_set_gc_rsc(struct pblk_rl *rl, int rsv)
-{
-	rl->rb_gc_rsv = rl->rb_gc_max = rsv;
 }
 
 void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line)
@@ -122,11 +145,15 @@ void pblk_rl_free_lines_inc(struct pblk_rl *rl, struct pblk_line *line)
 
 void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line)
 {
-	struct pblk *pblk = container_of(rl, struct pblk, rl);
 	int blk_in_line = atomic_read(&line->blk_in_line);
-	int ret;
 
 	atomic_sub(blk_in_line, &rl->free_blocks);
+}
+
+void pblk_gc_should_kick(struct pblk *pblk)
+{
+	struct pblk_rl *rl = &pblk->rl;
+	int ret;
 
 	/* Rates will not change that often - no need to lock update */
 	ret = pblk_rl_update_rates(rl, rl->rb_budget);
@@ -136,9 +163,14 @@ void pblk_rl_free_lines_dec(struct pblk_rl *rl, struct pblk_line *line)
 		pblk_gc_should_stop(pblk);
 }
 
-int pblk_rl_gc_thrs(struct pblk_rl *rl)
+int pblk_rl_high_thrs(struct pblk_rl *rl)
 {
 	return rl->high;
+}
+
+int pblk_rl_low_thrs(struct pblk_rl *rl)
+{
+	return rl->low;
 }
 
 int pblk_rl_sysfs_rate_show(struct pblk_rl *rl)
@@ -161,24 +193,36 @@ void pblk_rl_free(struct pblk_rl *rl)
 
 void pblk_rl_init(struct pblk_rl *rl, int budget)
 {
+	struct pblk *pblk = container_of(rl, struct pblk, rl);
+	struct pblk_line_meta *lm = &pblk->lm;
+	int min_blocks = lm->blk_per_line * PBLK_GC_RSV_LINE;
 	unsigned int rb_windows;
 
 	rl->high = rl->total_blocks / PBLK_USER_HIGH_THRS;
-	rl->low = rl->total_blocks / PBLK_USER_LOW_THRS;
 	rl->high_pw = get_count_order(rl->high);
+
+	rl->low = rl->total_blocks / PBLK_USER_LOW_THRS;
+	if (rl->low < min_blocks)
+		rl->low = min_blocks;
+
+	rl->rsv_blocks = min_blocks;
 
 	/* This will always be a power-of-2 */
 	rb_windows = budget / PBLK_MAX_REQ_ADDRS;
-	rl->rb_windows_pw = get_count_order(rb_windows) + 1;
+	rl->rb_windows_pw = get_count_order(rb_windows);
 
 	/* To start with, all buffer is available to user I/O writers */
 	rl->rb_budget = budget;
 	rl->rb_user_max = budget;
-	atomic_set(&rl->rb_user_cnt, 0);
 	rl->rb_gc_max = 0;
 	rl->rb_state = PBLK_RL_HIGH;
+
+	atomic_set(&rl->rb_user_cnt, 0);
 	atomic_set(&rl->rb_gc_cnt, 0);
+	atomic_set(&rl->rb_space, -1);
 
 	setup_timer(&rl->u_timer, pblk_rl_u_timer, (unsigned long)rl);
+
 	rl->rb_user_active = 0;
+	rl->rb_gc_active = 0;
 }

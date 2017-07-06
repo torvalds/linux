@@ -481,7 +481,7 @@ static int __init create_debugfs_nodes(void)
 
 	count = debugfs_create_file("count_threshold", S_IRUSR | S_IWUSR, d,
 				    &count_threshold, &count_threshold_ops);
-	if (!decay) {
+	if (!count) {
 		pr_warn("Error creating count_threshold debugfs node!\n");
 		goto err;
 	}

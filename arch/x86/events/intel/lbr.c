@@ -18,7 +18,7 @@ enum {
 	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_TIME,
 };
 
-static enum {
+static const enum {
 	LBR_EIP_FLAGS		= 1,
 	LBR_TSX			= 2,
 } lbr_desc[LBR_FORMAT_MAX_KNOWN + 1] = {
@@ -287,7 +287,7 @@ inline u64 lbr_from_signext_quirk_wr(u64 val)
 /*
  * If quirk is needed, ensure sign extension is 61 bits:
  */
-u64 lbr_from_signext_quirk_rd(u64 val)
+static u64 lbr_from_signext_quirk_rd(u64 val)
 {
 	if (static_branch_unlikely(&lbr_from_quirk_key)) {
 		/*

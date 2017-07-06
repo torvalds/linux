@@ -108,7 +108,10 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 	if (!acpi_disabled) {
 		struct pci_config_window *cfg = bridge->bus->sysdata;
 		struct acpi_device *adev = to_acpi_device(cfg->parent);
+		struct device *bus_dev = &bridge->bus->dev;
+
 		ACPI_COMPANION_SET(&bridge->dev, adev);
+		set_dev_node(bus_dev, acpi_get_node(acpi_device_handle(adev)));
 	}
 
 	return 0;

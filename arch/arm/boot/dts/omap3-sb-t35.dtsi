@@ -50,7 +50,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sb_t35_audio_amp>;
 		gpio = <&gpio2 29 GPIO_ACTIVE_LOW>;   /* gpio_61 */
-		enable-active-low;
 		regulator-always-on;
 	};
 };
@@ -90,7 +89,7 @@
 	clock-frequency = <400000>;
 
 	at24@50 {
-		compatible = "at24,24c02";
+		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x50>;
 	};

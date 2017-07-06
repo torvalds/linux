@@ -265,9 +265,13 @@ static void configure_hc(struct uhci_hcd *uhci)
 
 static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 {
-	/* If we have to ignore overcurrent events then almost by definition
-	 * we can't depend on resume-detect interrupts. */
-	if (ignore_oc)
+	/*
+	 * If we have to ignore overcurrent events then almost by definition
+	 * we can't depend on resume-detect interrupts.
+	 *
+	 * Those interrupts also don't seem to work on ASpeed SoCs.
+	 */
+	if (ignore_oc || uhci_is_aspeed(uhci))
 		return 1;
 
 	return uhci->resume_detect_interrupts_are_broken ?
@@ -383,6 +387,13 @@ __acquires(uhci->lock)
 static void start_rh(struct uhci_hcd *uhci)
 {
 	uhci->is_stopped = 0;
+
+	/*
+	 * Clear stale status bits on Aspeed as we get a stale HCH
+	 * which causes problems later on
+	 */
+	if (uhci_is_aspeed(uhci))
+		uhci_writew(uhci, uhci_readw(uhci, USBSTS), USBSTS);
 
 	/* Mark it configured and running with a 64-byte max packet.
 	 * All interrupts are enabled, even though RESUME won't do anything.

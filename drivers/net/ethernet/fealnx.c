@@ -1711,8 +1711,8 @@ static int netdev_rx(struct net_device *dev)
 					np->cur_rx->skbuff->data, pkt_len);
 				skb_put(skb, pkt_len);
 #else
-				memcpy(skb_put(skb, pkt_len),
-					np->cur_rx->skbuff->data, pkt_len);
+				skb_put_data(skb, np->cur_rx->skbuff->data,
+					     pkt_len);
 #endif
 				pci_dma_sync_single_for_device(np->pci_dev,
 							       np->cur_rx->buffer,
@@ -1821,13 +1821,12 @@ static int netdev_get_link_ksettings(struct net_device *dev,
 				     struct ethtool_link_ksettings *cmd)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&np->lock);
-	rc = mii_ethtool_get_link_ksettings(&np->mii, cmd);
+	mii_ethtool_get_link_ksettings(&np->mii, cmd);
 	spin_unlock_irq(&np->lock);
 
-	return rc;
+	return 0;
 }
 
 static int netdev_set_link_ksettings(struct net_device *dev,

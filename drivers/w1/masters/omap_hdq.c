@@ -19,8 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
+#include <linux/w1.h>
 
 #define	MOD_NAME	"OMAP_HDQ:"
 
@@ -53,7 +52,10 @@
 #define OMAP_HDQ_MAX_USER			4
 
 static DECLARE_WAIT_QUEUE_HEAD(hdq_wait_queue);
+
 static int w1_id;
+module_param(w1_id, int, S_IRUSR);
+MODULE_PARM_DESC(w1_id, "1-wire id for the slave detection in HDQ mode");
 
 struct hdq_data {
 	struct device		*dev;
@@ -74,36 +76,6 @@ struct hdq_data {
 	/* mode: 0-HDQ 1-W1 */
 	int                     mode;
 
-};
-
-static int omap_hdq_probe(struct platform_device *pdev);
-static int omap_hdq_remove(struct platform_device *pdev);
-
-static const struct of_device_id omap_hdq_dt_ids[] = {
-	{ .compatible = "ti,omap3-1w" },
-	{ .compatible = "ti,am4372-hdq" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, omap_hdq_dt_ids);
-
-static struct platform_driver omap_hdq_driver = {
-	.probe =	omap_hdq_probe,
-	.remove =	omap_hdq_remove,
-	.driver =	{
-		.name =	"omap_hdq",
-		.of_match_table = omap_hdq_dt_ids,
-	},
-};
-
-static u8 omap_w1_read_byte(void *_hdq);
-static void omap_w1_write_byte(void *_hdq, u8 byte);
-static u8 omap_w1_reset_bus(void *_hdq);
-
-
-static struct w1_bus_master omap_w1_master = {
-	.read_byte	= omap_w1_read_byte,
-	.write_byte	= omap_w1_write_byte,
-	.reset_bus	= omap_w1_reset_bus,
 };
 
 /* HDQ register I/O routines */
@@ -678,6 +650,12 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 	}
 }
 
+static struct w1_bus_master omap_w1_master = {
+	.read_byte	= omap_w1_read_byte,
+	.write_byte	= omap_w1_write_byte,
+	.reset_bus	= omap_w1_reset_bus,
+};
+
 static int omap_hdq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -787,10 +765,22 @@ static int omap_hdq_remove(struct platform_device *pdev)
 	return 0;
 }
 
-module_platform_driver(omap_hdq_driver);
+static const struct of_device_id omap_hdq_dt_ids[] = {
+	{ .compatible = "ti,omap3-1w" },
+	{ .compatible = "ti,am4372-hdq" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, omap_hdq_dt_ids);
 
-module_param(w1_id, int, S_IRUSR);
-MODULE_PARM_DESC(w1_id, "1-wire id for the slave detection in HDQ mode");
+static struct platform_driver omap_hdq_driver = {
+	.probe = omap_hdq_probe,
+	.remove = omap_hdq_remove,
+	.driver = {
+		.name =	"omap_hdq",
+		.of_match_table = omap_hdq_dt_ids,
+	},
+};
+module_platform_driver(omap_hdq_driver);
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("HDQ-1W driver Library");

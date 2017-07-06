@@ -1308,14 +1308,14 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 	char uuid[UUID_STRING_LEN + 1];
 	char *p = uuid;
 	int i;
-	const u8 *index = uuid_be_index;
+	const u8 *index = uuid_index;
 	bool uc = false;
 
 	switch (*(++fmt)) {
 	case 'L':
 		uc = true;		/* fall-through */
 	case 'l':
-		index = uuid_le_index;
+		index = guid_index;
 		break;
 	case 'B':
 		uc = true;

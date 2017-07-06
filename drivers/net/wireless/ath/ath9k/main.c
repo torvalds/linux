@@ -731,11 +731,11 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
+	ath9k_rng_start(sc);
+
 	mutex_unlock(&sc->mutex);
 
 	ath9k_ps_restore(sc);
-
-	ath9k_rng_start(sc);
 
 	return 0;
 }
@@ -826,9 +826,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	ath9k_deinit_channel_context(sc);
 
-	ath9k_rng_stop(sc);
-
 	mutex_lock(&sc->mutex);
+
+	ath9k_rng_stop(sc);
 
 	ath_cancel_work(sc);
 

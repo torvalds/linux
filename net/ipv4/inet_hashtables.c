@@ -43,7 +43,7 @@ static u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 /* This function handles inet_sock, but also timewait and request sockets
  * for IPv4/IPv6.
  */
-u32 sk_ehashfn(const struct sock *sk)
+static u32 sk_ehashfn(const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6 &&
@@ -246,7 +246,7 @@ EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 /* All sockets share common refcount, but have different destructors */
 void sock_gen_put(struct sock *sk)
 {
-	if (!atomic_dec_and_test(&sk->sk_refcnt))
+	if (!refcount_dec_and_test(&sk->sk_refcnt))
 		return;
 
 	if (sk->sk_state == TCP_TIME_WAIT)
@@ -287,7 +287,7 @@ begin:
 			continue;
 		if (likely(INET_MATCH(sk, net, acookie,
 				      saddr, daddr, ports, dif))) {
-			if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
+			if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
 				goto out;
 			if (unlikely(!INET_MATCH(sk, net, acookie,
 						 saddr, daddr, ports, dif))) {

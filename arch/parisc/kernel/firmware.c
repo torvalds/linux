@@ -957,6 +957,41 @@ int pdc_tod_read(struct pdc_tod *tod)
 }
 EXPORT_SYMBOL(pdc_tod_read);
 
+int pdc_mem_pdt_info(struct pdc_mem_retinfo *rinfo)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_MEM, PDC_MEM_MEMINFO, __pa(pdc_result), 0);
+	convert_to_wide(pdc_result);
+	memcpy(rinfo, pdc_result, sizeof(*rinfo));
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
+
+int pdc_mem_pdt_read_entries(struct pdc_mem_read_pdt *pret,
+		unsigned long *pdt_entries_ptr)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_MEM, PDC_MEM_READ_PDT, __pa(pdc_result),
+			__pa(pdc_result2));
+	if (retval == PDC_OK) {
+		convert_to_wide(pdc_result);
+		memcpy(pret, pdc_result, sizeof(*pret));
+		convert_to_wide(pdc_result2);
+		memcpy(pdt_entries_ptr, pdc_result2,
+			pret->pdt_entries * sizeof(*pdt_entries_ptr));
+	}
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
+
 /**
  * pdc_tod_set - Set the Time-Of-Day clock.
  * @sec: The number of seconds since epoch.
@@ -1379,6 +1414,79 @@ int pdc_pat_io_pci_cfg_write(unsigned long pci_addr, int pci_size, u32 val)
 	spin_lock_irqsave(&pdc_lock, flags);
 	retval = mem_pdc_call(PDC_PAT_IO, PDC_PAT_IO_PCI_CONFIG_WRITE,
 				pci_addr, pci_size, val);
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
+
+/**
+ * pdc_pat_mem_pdc_info - Retrieve information about page deallocation table
+ * @rinfo: memory pdt information
+ *
+ */
+int pdc_pat_mem_pdt_info(struct pdc_pat_mem_retinfo *rinfo)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_PD_INFO,
+			__pa(&pdc_result));
+	if (retval == PDC_OK)
+		memcpy(rinfo, &pdc_result, sizeof(*rinfo));
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
+
+/**
+ * pdc_pat_mem_read_cell_pdt - Read PDT entries from (old) PAT firmware
+ * @pret: array of PDT entries
+ * @pdt_entries_ptr: ptr to hold number of PDT entries
+ * @max_entries: maximum number of entries to be read
+ *
+ */
+int pdc_pat_mem_read_cell_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
+		unsigned long *pdt_entries_ptr, unsigned long max_entries)
+{
+	int retval;
+	unsigned long flags, entries;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	/* PDC_PAT_MEM_CELL_READ is available on early PAT machines only */
+	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_CELL_READ,
+			__pa(&pdc_result), parisc_cell_num, __pa(&pdc_result2));
+
+	if (retval == PDC_OK) {
+		/* build up return value as for PDC_PAT_MEM_PD_READ */
+		entries = min(pdc_result[0], max_entries);
+		pret->pdt_entries = entries;
+		pret->actual_count_bytes = entries * sizeof(unsigned long);
+		memcpy(pdt_entries_ptr, &pdc_result2, pret->actual_count_bytes);
+	}
+
+	spin_unlock_irqrestore(&pdc_lock, flags);
+	WARN_ON(retval == PDC_OK && pdc_result[0] > max_entries);
+
+	return retval;
+}
+/**
+ * pdc_pat_mem_read_pd_pdt - Read PDT entries from (newer) PAT firmware
+ * @pret: array of PDT entries
+ * @pdt_entries_ptr: ptr to hold number of PDT entries
+ *
+ */
+int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
+		unsigned long *pdt_entries_ptr, unsigned long count,
+		unsigned long offset)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_PD_READ,
+		__pa(&pret), __pa(pdt_entries_ptr),
+		count, offset);
 	spin_unlock_irqrestore(&pdc_lock, flags);
 
 	return retval;

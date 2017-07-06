@@ -2176,6 +2176,14 @@ unlock:
 	return err;
 }
 
+bool br_multicast_enabled(const struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	return !br->multicast_disabled;
+}
+EXPORT_SYMBOL_GPL(br_multicast_enabled);
+
 int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
 {
 	unsigned long max_delay;

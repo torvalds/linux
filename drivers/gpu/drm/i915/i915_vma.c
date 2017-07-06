@@ -650,6 +650,11 @@ int i915_vma_unbind(struct i915_vma *vma)
 				break;
 		}
 
+		if (!ret) {
+			ret = i915_gem_active_retire(&vma->last_fence,
+						     &vma->vm->i915->drm.struct_mutex);
+		}
+
 		__i915_vma_unpin(vma);
 		if (ret)
 			return ret;

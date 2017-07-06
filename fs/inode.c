@@ -146,6 +146,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	i_gid_write(inode, 0);
 	atomic_set(&inode->i_writecount, 0);
 	inode->i_size = 0;
+	inode->i_write_hint = WRITE_LIFE_NOT_SET;
 	inode->i_blocks = 0;
 	inode->i_bytes = 0;
 	inode->i_generation = 0;
@@ -1891,11 +1892,11 @@ static void __wait_on_freeing_inode(struct inode *inode)
 	wait_queue_head_t *wq;
 	DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
 	wq = bit_waitqueue(&inode->i_state, __I_NEW);
-	prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&inode_hash_lock);
 	schedule();
-	finish_wait(wq, &wait.wait);
+	finish_wait(wq, &wait.wq_entry);
 	spin_lock(&inode_hash_lock);
 }
 
@@ -2038,11 +2039,11 @@ static void __inode_dio_wait(struct inode *inode)
 	DEFINE_WAIT_BIT(q, &inode->i_state, __I_DIO_WAKEUP);
 
 	do {
-		prepare_to_wait(wq, &q.wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(wq, &q.wq_entry, TASK_UNINTERRUPTIBLE);
 		if (atomic_read(&inode->i_dio_count))
 			schedule();
 	} while (atomic_read(&inode->i_dio_count));
-	finish_wait(wq, &q.wait);
+	finish_wait(wq, &q.wq_entry);
 }
 
 /**

@@ -187,7 +187,7 @@ static struct mm_struct *get_mem_context(struct cxl_context *ctx)
 
 static bool cxl_is_segment_miss(struct cxl_context *ctx, u64 dsisr)
 {
-	if ((cxl_is_psl8(ctx->afu)) && (dsisr & CXL_PSL_DSISR_An_DS))
+	if ((cxl_is_power8() && (dsisr & CXL_PSL_DSISR_An_DS)))
 		return true;
 
 	return false;
@@ -195,15 +195,22 @@ static bool cxl_is_segment_miss(struct cxl_context *ctx, u64 dsisr)
 
 static bool cxl_is_page_fault(struct cxl_context *ctx, u64 dsisr)
 {
-	if ((cxl_is_psl8(ctx->afu)) && (dsisr & CXL_PSL_DSISR_An_DM))
+	u64 crs; /* Translation Checkout Response Status */
+
+	if ((cxl_is_power8()) && (dsisr & CXL_PSL_DSISR_An_DM))
 		return true;
 
-	if ((cxl_is_psl9(ctx->afu)) &&
-	   ((dsisr & CXL_PSL9_DSISR_An_CO_MASK) &
-		(CXL_PSL9_DSISR_An_PF_SLR | CXL_PSL9_DSISR_An_PF_RGC |
-		 CXL_PSL9_DSISR_An_PF_RGP | CXL_PSL9_DSISR_An_PF_HRH |
-		 CXL_PSL9_DSISR_An_PF_STEG)))
-		return true;
+	if (cxl_is_power9()) {
+		crs = (dsisr & CXL_PSL9_DSISR_An_CO_MASK);
+		if ((crs == CXL_PSL9_DSISR_An_PF_SLR) ||
+		    (crs == CXL_PSL9_DSISR_An_PF_RGC) ||
+		    (crs == CXL_PSL9_DSISR_An_PF_RGP) ||
+		    (crs == CXL_PSL9_DSISR_An_PF_HRH) ||
+		    (crs == CXL_PSL9_DSISR_An_PF_STEG) ||
+		    (crs == CXL_PSL9_DSISR_An_URTCH)) {
+			return true;
+		}
+	}
 
 	return false;
 }

@@ -217,7 +217,7 @@ icc_interrupt(struct IsdnCardState *cs, u_char val)
 				if (!(skb = alloc_skb(count, GFP_ATOMIC)))
 					printk(KERN_WARNING "HiSax: D receive out of memory\n");
 				else {
-					memcpy(skb_put(skb, count), cs->rcvbuf, count);
+					skb_put_data(skb, cs->rcvbuf, count);
 					skb_queue_tail(&cs->rq, skb);
 				}
 			}

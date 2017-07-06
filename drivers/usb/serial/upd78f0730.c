@@ -288,7 +288,7 @@ static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
 static speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
 {
 	const speed_t baud_rate = tty_get_baud_rate(tty);
-	const speed_t supported[] = {
+	static const speed_t supported[] = {
 		0, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 153600
 	};
 	int i;
@@ -384,7 +384,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 
 static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct upd78f0730_open_close request = {
+	static const struct upd78f0730_open_close request = {
 		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
 		.state = UPD78F0730_PORT_OPEN
 	};
@@ -402,7 +402,7 @@ static int upd78f0730_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void upd78f0730_close(struct usb_serial_port *port)
 {
-	struct upd78f0730_open_close request = {
+	static const struct upd78f0730_open_close request = {
 		.opcode = UPD78F0730_CMD_OPEN_CLOSE,
 		.state = UPD78F0730_PORT_CLOSE
 	};

@@ -84,14 +84,14 @@ static void bictcp_init(struct sock *sk)
 static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 {
 	if (ca->last_cwnd == cwnd &&
-	    (s32)(tcp_time_stamp - ca->last_time) <= HZ / 32)
+	    (s32)(tcp_jiffies32 - ca->last_time) <= HZ / 32)
 		return;
 
 	ca->last_cwnd = cwnd;
-	ca->last_time = tcp_time_stamp;
+	ca->last_time = tcp_jiffies32;
 
 	if (ca->epoch_start == 0) /* record the beginning of an epoch */
-		ca->epoch_start = tcp_time_stamp;
+		ca->epoch_start = tcp_jiffies32;
 
 	/* start off normal */
 	if (cwnd <= low_window) {

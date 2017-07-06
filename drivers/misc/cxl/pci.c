@@ -436,7 +436,7 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci
 	/* nMMU_ID Defaults to: b’000001001’*/
 	xsl_dsnctl |= ((u64)0x09 << (63-28));
 
-	if (cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+	if (!(cxl_is_power9_dd1())) {
 		/*
 		 * Used to identify CAPI packets which should be sorted into
 		 * the Non-Blocking queues by the PHB. This field should match
@@ -491,7 +491,7 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci
 	cxl_p1_write(adapter, CXL_PSL9_APCDEDTYPE, 0x40000003FFFF0000ULL);
 
 	/* Disable vc dd1 fix */
-	if ((cxl_is_power9() && cpu_has_feature(CPU_FTR_POWER9_DD1)))
+	if (cxl_is_power9_dd1())
 		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0400000000000001ULL);
 
 	return 0;
@@ -1439,8 +1439,7 @@ int cxl_pci_reset(struct cxl *adapter)
 	 * The adapter is about to be reset, so ignore errors.
 	 * Not supported on P9 DD1
 	 */
-	if ((cxl_is_power8()) ||
-	    ((cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1))))
+	if ((cxl_is_power8()) || (!(cxl_is_power9_dd1())))
 		cxl_data_cache_flush(adapter);
 
 	/* pcie_warm_reset requests a fundamental pci reset which includes a
@@ -1750,7 +1749,6 @@ static const struct cxl_service_layer_ops psl9_ops = {
 	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl9,
 	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl9,
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl9,
-	.err_irq_dump_registers = cxl_native_err_irq_dump_regs,
 	.debugfs_stop_trace = cxl_stop_trace_psl9,
 	.write_timebase_ctrl = write_timebase_ctrl_psl9,
 	.timebase_read = timebase_read_psl9,
@@ -1889,8 +1887,7 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 	 * Flush adapter datacache as its about to be removed.
 	 * Not supported on P9 DD1.
 	 */
-	if ((cxl_is_power8()) ||
-	    ((cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1))))
+	if ((cxl_is_power8()) || (!(cxl_is_power9_dd1())))
 		cxl_data_cache_flush(adapter);
 
 	cxl_deconfigure_adapter(adapter);

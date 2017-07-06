@@ -378,12 +378,6 @@ struct thread_struct {
 }
 #endif
 
-/*
- * Return saved PC of a blocked thread. For now, this is the "user" PC
- */
-#define thread_saved_pc(tsk)    \
-        ((tsk)->thread.regs? (tsk)->thread.regs->nip: 0)
-
 #define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.regs)
 
 unsigned long get_wchan(struct task_struct *p);

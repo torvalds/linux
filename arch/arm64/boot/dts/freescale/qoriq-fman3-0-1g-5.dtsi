@@ -1,0 +1,41 @@
+/*
+ * QorIQ FMan v3 1g port #5 device tree
+ *
+ * Copyright 2012-2015 Freescale Semiconductor Inc.
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+ */
+
+fman@1a00000 {
+	fman0_rx_0x0d: port@8d000 {
+		cell-index = <0xd>;
+		compatible = "fsl,fman-v3-port-rx";
+		reg = <0x8d000 0x1000>;
+	};
+
+	fman0_tx_0x2d: port@ad000 {
+		cell-index = <0x2d>;
+		compatible = "fsl,fman-v3-port-tx";
+		reg = <0xad000 0x1000>;
+	};
+
+	ethernet@ea000 {
+		cell-index = <5>;
+		compatible = "fsl,fman-memac";
+		reg = <0xea000 0x1000>;
+		fsl,fman-ports = <&fman0_rx_0x0d &fman0_tx_0x2d>;
+		ptp-timer = <&ptp_timer0>;
+		pcsphy-handle = <&pcsphy5>;
+	};
+
+	mdio@eb000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,fman-memac-mdio", "fsl,fman-xmdio";
+		reg = <0xeb000 0x1000>;
+
+		pcsphy5: ethernet-phy@0 {
+			reg = <0x0>;
+		};
+	};
+};

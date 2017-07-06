@@ -8,6 +8,7 @@
  * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Technology Group)
  * Copyright (C) 2015 Intel Corporation.
  * Copyright (C) 2015 Casey Schaufler <casey@schaufler-ca.com>
+ * Copyright (C) 2016 Mellanox Techonologies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -29,6 +30,8 @@
 #include <linux/rculist.h>
 
 /**
+ * union security_list_options - Linux Security Module hook function list
+ *
  * Security hooks for program execution operations.
  *
  * @bprm_set_creds:
@@ -193,8 +196,8 @@
  *	@value will be set to the allocated attribute value.
  *	@len will be set to the length of the value.
  *	Returns 0 if @name and @value have been successfully set,
- *		-EOPNOTSUPP if no security attribute is needed, or
- *		-ENOMEM on memory allocation failure.
+ *	-EOPNOTSUPP if no security attribute is needed, or
+ *	-ENOMEM on memory allocation failure.
  * @inode_create:
  *	Check permission to create a regular file.
  *	@dir contains inode structure of the parent of the new file.
@@ -510,8 +513,7 @@
  *	process @tsk.  Note that this hook is sometimes called from interrupt.
  *	Note that the fown_struct, @fown, is never outside the context of a
  *	struct file, so the file structure (and associated security information)
- *	can always be obtained:
- *		container_of(fown, struct file, f_owner)
+ *	can always be obtained: container_of(fown, struct file, f_owner)
  *	@tsk contains the structure of task receiving signal.
  *	@fown contains the file owner information.
  *	@sig is the signal that will be sent.  When 0, kernel sends SIGIO.
@@ -521,7 +523,7 @@
  *	to receive an open file descriptor via socket IPC.
  *	@file contains the file structure being received.
  *	Return 0 if permission is granted.
- * @file_open
+ * @file_open:
  *	Save open-time permission checking state for later use upon
  *	file_permission, and recheck access if anything has changed
  *	since inode_permission.
@@ -911,6 +913,26 @@
  *	associated with the TUN device's security structure.
  *	@security pointer to the TUN devices's security structure.
  *
+ * Security hooks for Infiniband
+ *
+ * @ib_pkey_access:
+ *	Check permission to access a pkey when modifing a QP.
+ *	@subnet_prefix the subnet prefix of the port being used.
+ *	@pkey the pkey to be accessed.
+ *	@sec pointer to a security structure.
+ * @ib_endport_manage_subnet:
+ *	Check permissions to send and receive SMPs on a end port.
+ *	@dev_name the IB device name (i.e. mlx4_0).
+ *	@port_num the port number.
+ *	@sec pointer to a security structure.
+ * @ib_alloc_security:
+ *	Allocate a security structure for Infiniband objects.
+ *	@sec pointer to a security structure pointer.
+ *	Returns 0 on success, non-zero on failure
+ * @ib_free_security:
+ *	Deallocate an Infiniband security structure.
+ *	@sec contains the security structure to be freed.
+ *
  * Security hooks for XFRM operations.
  *
  * @xfrm_policy_alloc_security:
@@ -1143,7 +1165,7 @@
  *	@sma contains the semaphore structure.  May be NULL.
  *	@cmd contains the operation to be performed.
  *	Return 0 if permission is granted.
- * @sem_semop
+ * @sem_semop:
  *	Check permissions before performing operations on members of the
  *	semaphore set @sma.  If the @alter flag is nonzero, the semaphore set
  *	may be modified.
@@ -1153,20 +1175,20 @@
  *	@alter contains the flag indicating whether changes are to be made.
  *	Return 0 if permission is granted.
  *
- * @binder_set_context_mgr
+ * @binder_set_context_mgr:
  *	Check whether @mgr is allowed to be the binder context manager.
  *	@mgr contains the task_struct for the task being registered.
  *	Return 0 if permission is granted.
- * @binder_transaction
+ * @binder_transaction:
  *	Check whether @from is allowed to invoke a binder transaction call
  *	to @to.
  *	@from contains the task_struct for the sending task.
  *	@to contains the task_struct for the receiving task.
- * @binder_transfer_binder
+ * @binder_transfer_binder:
  *	Check whether @from is allowed to transfer a binder reference to @to.
  *	@from contains the task_struct for the sending task.
  *	@to contains the task_struct for the receiving task.
- * @binder_transfer_file
+ * @binder_transfer_file:
  *	Check whether @from is allowed to transfer @file to @to.
  *	@from contains the task_struct for the sending task.
  *	@file contains the struct file being transferred.
@@ -1214,7 +1236,7 @@
  *	@cred contains the credentials to use.
  *	@ns contains the user namespace we want the capability in
  *	@cap contains the capability <include/linux/capability.h>.
- *	@audit: Whether to write an audit message or not
+ *	@audit contains whether to write an audit message or not
  *	Return 0 if the capability is granted for @tsk.
  * @syslog:
  *	Check permission before accessing the kernel message ring or changing
@@ -1336,9 +1358,7 @@
  *	@inode we wish to get the security context of.
  *	@ctx is a pointer in which to place the allocated security context.
  *	@ctxlen points to the place to put the length of @ctx.
- * This is the main security structure.
  */
-
 union security_list_options {
 	int (*binder_set_context_mgr)(struct task_struct *mgr);
 	int (*binder_transaction)(struct task_struct *from,
@@ -1388,7 +1408,9 @@ union security_list_options {
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
 	int (*sb_clone_mnt_opts)(const struct super_block *oldsb,
-					struct super_block *newsb);
+					struct super_block *newsb,
+					unsigned long kern_flags,
+					unsigned long *set_kern_flags);
 	int (*sb_parse_opts_str)(char *options, struct security_mnt_opts *opts);
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
@@ -1619,6 +1641,14 @@ union security_list_options {
 	int (*tun_dev_attach)(struct sock *sk, void *security);
 	int (*tun_dev_open)(void *security);
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_SECURITY_INFINIBAND
+	int (*ib_pkey_access)(void *sec, u64 subnet_prefix, u16 pkey);
+	int (*ib_endport_manage_subnet)(void *sec, const char *dev_name,
+					u8 port_num);
+	int (*ib_alloc_security)(void **sec);
+	void (*ib_free_security)(void *sec);
+#endif	/* CONFIG_SECURITY_INFINIBAND */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	int (*xfrm_policy_alloc_security)(struct xfrm_sec_ctx **ctxp,
@@ -1851,6 +1881,12 @@ struct security_hook_heads {
 	struct list_head tun_dev_attach;
 	struct list_head tun_dev_open;
 #endif	/* CONFIG_SECURITY_NETWORK */
+#ifdef CONFIG_SECURITY_INFINIBAND
+	struct list_head ib_pkey_access;
+	struct list_head ib_endport_manage_subnet;
+	struct list_head ib_alloc_security;
+	struct list_head ib_free_security;
+#endif	/* CONFIG_SECURITY_INFINIBAND */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	struct list_head xfrm_policy_alloc_security;
 	struct list_head xfrm_policy_clone_security;

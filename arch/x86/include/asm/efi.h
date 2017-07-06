@@ -74,7 +74,7 @@ struct efi_scratch {
 	__kernel_fpu_begin();						\
 									\
 	if (efi_scratch.use_pgd) {					\
-		efi_scratch.prev_cr3 = read_cr3();			\
+		efi_scratch.prev_cr3 = __read_cr3();			\
 		write_cr3((unsigned long)efi_scratch.efi_pgt);		\
 		__flush_tlb_all();					\
 	}								\

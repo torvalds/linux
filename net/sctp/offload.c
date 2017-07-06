@@ -35,6 +35,7 @@
 static __le32 sctp_gso_make_checksum(struct sk_buff *skb)
 {
 	skb->ip_summed = CHECKSUM_NONE;
+	skb->csum_not_inet = 0;
 	return sctp_compute_cksum(skb, skb_transport_offset(skb));
 }
 
@@ -98,6 +99,11 @@ static const struct net_offload sctp6_offload = {
 	},
 };
 
+static const struct skb_checksum_ops crc32c_csum_ops = {
+	.update  = sctp_csum_update,
+	.combine = sctp_csum_combine,
+};
+
 int __init sctp_offload_init(void)
 {
 	int ret;
@@ -110,6 +116,7 @@ int __init sctp_offload_init(void)
 	if (ret)
 		goto ipv4;
 
+	crc32c_csum_stub = &crc32c_csum_ops;
 	return ret;
 
 ipv4:

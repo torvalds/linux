@@ -1,0 +1,36 @@
+What:		/sys/class/mdio_bus/<bus>/<device>/attached_dev
+Date:		May 2017
+KernelVersion:	4.13
+Contact:	netdev@vger.kernel.org
+Description:
+		Symbolic link to the network device this PHY device is
+		attached to.
+
+What:		/sys/class/mdio_bus/<bus>/<device>/phy_has_fixups
+Date:		February 2014
+KernelVersion:	3.15
+Contact:	netdev@vger.kernel.org
+Description:
+		Boolean value indicating whether the PHY device has
+		any fixups registered against it (phy_register_fixup)
+
+What:		/sys/class/mdio_bus/<bus>/<device>/phy_id
+Date:		November 2012
+KernelVersion:	3.8
+Contact:	netdev@vger.kernel.org
+Description:
+		32-bit hexadecimal value corresponding to the PHY device's OUI,
+		model and revision number.
+
+What:		/sys/class/mdio_bus/<bus>/<device>/phy_interface
+Date:		February 2014
+KernelVersion:	3.15
+Contact:	netdev@vger.kernel.org
+Description:
+		String value indicating the PHY interface, possible
+		values are:.
+		<empty> (not available), mii, gmii, sgmii, tbi, rev-mii,
+		rmii, rgmii, rgmii-id, rgmii-rxid, rgmii-txid, rtbi, smii
+		xgmii, moca, qsgmii, trgmii, 1000base-x, 2500base-x, rxaui,
+		xaui, 10gbase-kr, unknown
+

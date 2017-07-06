@@ -30,7 +30,7 @@ static struct sk_buff *mps_qos_null_get(struct sta_info *sta)
 		return NULL;
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (struct ieee80211_hdr *) skb_put(skb, size);
+	nullfunc = skb_put(skb, size);
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_NULLFUNC);
 	ieee80211_fill_mesh_addresses(nullfunc, &fc, sta->sta.addr,
 				      sdata->vif.addr);
@@ -39,7 +39,7 @@ static struct sk_buff *mps_qos_null_get(struct sta_info *sta)
 	nullfunc->seq_ctrl = 0;
 	/* no address resolution for this frame -> set addr 1 immediately */
 	memcpy(nullfunc->addr1, sta->sta.addr, ETH_ALEN);
-	memset(skb_put(skb, 2), 0, 2); /* append QoS control field */
+	skb_put_zero(skb, 2); /* append QoS control field */
 	ieee80211_mps_set_frame_flags(sdata, sta, nullfunc);
 
 	return skb;

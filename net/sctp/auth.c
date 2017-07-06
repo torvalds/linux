@@ -63,7 +63,7 @@ void sctp_auth_key_put(struct sctp_auth_bytes *key)
 	if (!key)
 		return;
 
-	if (atomic_dec_and_test(&key->refcnt)) {
+	if (refcount_dec_and_test(&key->refcnt)) {
 		kzfree(key);
 		SCTP_DBG_OBJCNT_DEC(keys);
 	}
@@ -84,7 +84,7 @@ static struct sctp_auth_bytes *sctp_auth_create_key(__u32 key_len, gfp_t gfp)
 		return NULL;
 
 	key->len = key_len;
-	atomic_set(&key->refcnt, 1);
+	refcount_set(&key->refcnt, 1);
 	SCTP_DBG_OBJCNT_INC(keys);
 
 	return key;
@@ -538,7 +538,8 @@ struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc)
 	if (!hmacs)
 		return NULL;
 
-	n_elt = (ntohs(hmacs->param_hdr.length) - sizeof(sctp_paramhdr_t)) >> 1;
+	n_elt = (ntohs(hmacs->param_hdr.length) -
+		 sizeof(struct sctp_paramhdr)) >> 1;
 	for (i = 0; i < n_elt; i++) {
 		id = ntohs(hmacs->hmac_ids[i]);
 
@@ -589,7 +590,8 @@ int sctp_auth_asoc_verify_hmac_id(const struct sctp_association *asoc,
 		return 0;
 
 	hmacs = (struct sctp_hmac_algo_param *)asoc->c.auth_hmacs;
-	n_elt = (ntohs(hmacs->param_hdr.length) - sizeof(sctp_paramhdr_t)) >> 1;
+	n_elt = (ntohs(hmacs->param_hdr.length) -
+		 sizeof(struct sctp_paramhdr)) >> 1;
 
 	return __sctp_auth_find_hmacid(hmacs->hmac_ids, n_elt, hmac_id);
 }
@@ -612,8 +614,8 @@ void sctp_auth_asoc_set_default_hmac(struct sctp_association *asoc,
 	if (asoc->default_hmac_id)
 		return;
 
-	n_params = (ntohs(hmacs->param_hdr.length)
-				- sizeof(sctp_paramhdr_t)) >> 1;
+	n_params = (ntohs(hmacs->param_hdr.length) -
+		    sizeof(struct sctp_paramhdr)) >> 1;
 	ep = asoc->ep;
 	for (i = 0; i < n_params; i++) {
 		id = ntohs(hmacs->hmac_ids[i]);
@@ -632,7 +634,7 @@ void sctp_auth_asoc_set_default_hmac(struct sctp_association *asoc,
 
 
 /* Check to see if the given chunk is supposed to be authenticated */
-static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
+static int __sctp_auth_cid(enum sctp_cid chunk, struct sctp_chunks_param *param)
 {
 	unsigned short len;
 	int found = 0;
@@ -641,7 +643,7 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 	if (!param || param->param_hdr.length == 0)
 		return 0;
 
-	len = ntohs(param->param_hdr.length) - sizeof(sctp_paramhdr_t);
+	len = ntohs(param->param_hdr.length) - sizeof(struct sctp_paramhdr);
 
 	/* SCTP-AUTH, Section 3.2
 	 *    The chunk types for INIT, INIT-ACK, SHUTDOWN-COMPLETE and AUTH
@@ -668,7 +670,7 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 }
 
 /* Check if peer requested that this chunk is authenticated */
-int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
+int sctp_auth_send_cid(enum sctp_cid chunk, const struct sctp_association *asoc)
 {
 	if (!asoc)
 		return 0;
@@ -680,7 +682,7 @@ int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 }
 
 /* Check if we requested that peer authenticate this chunk. */
-int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
+int sctp_auth_recv_cid(enum sctp_cid chunk, const struct sctp_association *asoc)
 {
 	if (!asoc)
 		return 0;
@@ -775,7 +777,7 @@ int sctp_auth_ep_add_chunkid(struct sctp_endpoint *ep, __u8 chunk_id)
 
 	/* Check if we can add this chunk to the array */
 	param_len = ntohs(p->param_hdr.length);
-	nchunks = param_len - sizeof(sctp_paramhdr_t);
+	nchunks = param_len - sizeof(struct sctp_paramhdr);
 	if (nchunks == SCTP_NUM_CHUNK_TYPES)
 		return -EINVAL;
 
@@ -812,9 +814,11 @@ int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
 		return -EINVAL;
 
 	for (i = 0; i < hmacs->shmac_num_idents; i++)
-		ep->auth_hmacs_list->hmac_ids[i] = htons(hmacs->shmac_idents[i]);
-	ep->auth_hmacs_list->param_hdr.length = htons(sizeof(sctp_paramhdr_t) +
-				hmacs->shmac_num_idents * sizeof(__u16));
+		ep->auth_hmacs_list->hmac_ids[i] =
+				htons(hmacs->shmac_idents[i]);
+	ep->auth_hmacs_list->param_hdr.length =
+			htons(sizeof(struct sctp_paramhdr) +
+			hmacs->shmac_num_idents * sizeof(__u16));
 	return 0;
 }
 

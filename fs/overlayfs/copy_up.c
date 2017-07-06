@@ -233,7 +233,7 @@ int ovl_set_attr(struct dentry *upperdentry, struct kstat *stat)
 	return err;
 }
 
-static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_be *uuid)
+static struct ovl_fh *ovl_encode_fh(struct dentry *lower, uuid_t *uuid)
 {
 	struct ovl_fh *fh;
 	int fh_type, fh_len, dwords;
@@ -284,7 +284,6 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 			  struct dentry *upper)
 {
 	struct super_block *sb = lower->d_sb;
-	uuid_be *uuid = (uuid_be *) &sb->s_uuid;
 	const struct ovl_fh *fh = NULL;
 	int err;
 
@@ -294,8 +293,8 @@ static int ovl_set_origin(struct dentry *dentry, struct dentry *lower,
 	 * up and a pure upper inode.
 	 */
 	if (sb->s_export_op && sb->s_export_op->fh_to_dentry &&
-	    uuid_be_cmp(*uuid, NULL_UUID_BE)) {
-		fh = ovl_encode_fh(lower, uuid);
+	    !uuid_is_null(&sb->s_uuid)) {
+		fh = ovl_encode_fh(lower, &sb->s_uuid);
 		if (IS_ERR(fh))
 			return PTR_ERR(fh);
 	}
@@ -330,15 +329,9 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 		.link = link
 	};
 
-	upper = lookup_one_len(dentry->d_name.name, upperdir,
-			       dentry->d_name.len);
-	err = PTR_ERR(upper);
-	if (IS_ERR(upper))
-		goto out;
-
 	err = security_inode_copy_up(dentry, &new_creds);
 	if (err < 0)
-		goto out1;
+		goto out;
 
 	if (new_creds)
 		old_creds = override_creds(new_creds);
@@ -362,7 +355,7 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	}
 
 	if (err)
-		goto out2;
+		goto out;
 
 	if (S_ISREG(stat->mode)) {
 		struct path upperpath;
@@ -398,10 +391,23 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	/*
 	 * Store identifier of lower inode in upper inode xattr to
 	 * allow lookup of the copy up origin inode.
+	 *
+	 * Don't set origin when we are breaking the association with a lower
+	 * hard link.
 	 */
-	err = ovl_set_origin(dentry, lowerpath->dentry, temp);
-	if (err)
+	if (S_ISDIR(stat->mode) || stat->nlink == 1) {
+		err = ovl_set_origin(dentry, lowerpath->dentry, temp);
+		if (err)
+			goto out_cleanup;
+	}
+
+	upper = lookup_one_len(dentry->d_name.name, upperdir,
+			       dentry->d_name.len);
+	if (IS_ERR(upper)) {
+		err = PTR_ERR(upper);
+		upper = NULL;
 		goto out_cleanup;
+	}
 
 	if (tmpfile)
 		err = ovl_do_link(temp, udir, upper, true);
@@ -416,17 +422,15 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 
 	/* Restore timestamps on parent (best effort) */
 	ovl_set_timestamps(upperdir, pstat);
-out2:
-	dput(temp);
-out1:
-	dput(upper);
 out:
+	dput(temp);
+	dput(upper);
 	return err;
 
 out_cleanup:
 	if (!tmpfile)
 		ovl_cleanup(wdir, temp);
-	goto out2;
+	goto out;
 }
 
 /*

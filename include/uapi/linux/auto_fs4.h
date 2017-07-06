@@ -108,7 +108,7 @@ enum autofs_notify {
 /* v4 multi expire (via pipe) */
 struct autofs_packet_expire_multi {
 	struct autofs_packet_hdr hdr;
-	autofs_wqt_t wait_queue_token;
+	autofs_wqt_t wait_queue_entry_token;
 	int len;
 	char name[NAME_MAX+1];
 };
@@ -123,7 +123,7 @@ union autofs_packet_union {
 /* autofs v5 common packet struct */
 struct autofs_v5_packet {
 	struct autofs_packet_hdr hdr;
-	autofs_wqt_t wait_queue_token;
+	autofs_wqt_t wait_queue_entry_token;
 	__u32 dev;
 	__u64 ino;
 	__u32 uid;

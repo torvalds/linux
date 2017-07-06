@@ -47,7 +47,7 @@ struct ldt_struct {
 	 * allocations, but it's not worth trying to optimize.
 	 */
 	struct desc_struct *entries;
-	unsigned int size;
+	unsigned int nr_entries;
 };
 
 /*
@@ -87,11 +87,37 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 	 */
 
 	if (unlikely(ldt))
-		set_ldt(ldt->entries, ldt->size);
+		set_ldt(ldt->entries, ldt->nr_entries);
 	else
 		clear_LDT();
 #else
 	clear_LDT();
+#endif
+}
+
+static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
+{
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	/*
+	 * Load the LDT if either the old or new mm had an LDT.
+	 *
+	 * An mm will never go from having an LDT to not having an LDT.  Two
+	 * mms never share an LDT, so we don't gain anything by checking to
+	 * see whether the LDT changed.  There's also no guarantee that
+	 * prev->context.ldt actually matches LDTR, but, if LDTR is non-NULL,
+	 * then prev->context.ldt will also be non-NULL.
+	 *
+	 * If we really cared, we could optimize the case where prev == next
+	 * and we're exiting lazy mode.  Most of the time, if this happens,
+	 * we don't actually need to reload LDTR, but modify_ldt() is mostly
+	 * used by legacy code and emulators where we don't need this level of
+	 * performance.
+	 *
+	 * This uses | instead of || because it generates better code.
+	 */
+	if (unlikely((unsigned long)prev->context.ldt |
+		     (unsigned long)next->context.ldt))
+		load_mm_ldt(next);
 #endif
 
 	DEBUG_LOCKS_WARN_ON(preemptible());
@@ -99,10 +125,8 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
-#ifdef CONFIG_SMP
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
-#endif
 }
 
 static inline int init_new_context(struct task_struct *tsk,
@@ -220,18 +244,6 @@ static inline int vma_pkey(struct vm_area_struct *vma)
 }
 #endif
 
-static inline bool __pkru_allows_pkey(u16 pkey, bool write)
-{
-	u32 pkru = read_pkru();
-
-	if (!__pkru_allows_read(pkru, pkey))
-		return false;
-	if (write && !__pkru_allows_write(pkru, pkey))
-		return false;
-
-	return true;
-}
-
 /*
  * We only want to enforce protection keys on the current process
  * because we effectively have no access to PKRU for other
@@ -266,6 +278,25 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 	if (foreign || vma_is_foreign(vma))
 		return true;
 	return __pkru_allows_pkey(vma_pkey(vma), write);
+}
+
+
+/*
+ * This can be used from process context to figure out what the value of
+ * CR3 is without needing to do a (slow) __read_cr3().
+ *
+ * It's intended to be used for code like KVM that sneakily changes CR3
+ * and needs to restore it.  It needs to be used very carefully.
+ */
+static inline unsigned long __get_current_cr3_fast(void)
+{
+	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
+
+	/* For now, be very restrictive about when this can be called. */
+	VM_WARN_ON(in_nmi() || !in_atomic());
+
+	VM_BUG_ON(cr3 != __read_cr3());
+	return cr3;
 }
 
 #endif /* _ASM_X86_MMU_CONTEXT_H */

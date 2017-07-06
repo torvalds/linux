@@ -10,7 +10,8 @@ field##_show (struct device *dev, struct device_attribute *attr,	\
 {									\
 	struct macio_dev *mdev = to_macio_device (dev);			\
 	return sprintf (buf, format_string, mdev->ofdev.dev.of_node->field); \
-}
+}									\
+static DEVICE_ATTR_RO(field);
 
 static ssize_t
 compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
@@ -37,6 +38,7 @@ compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 
 	return length;
 }
+static DEVICE_ATTR_RO(compatible);
 
 static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -52,15 +54,26 @@ static ssize_t devspec_show(struct device *dev,
 	ofdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
 }
+static DEVICE_ATTR_RO(modalias);
+static DEVICE_ATTR_RO(devspec);
 
 macio_config_of_attr (name, "%s\n");
 macio_config_of_attr (type, "%s\n");
 
-struct device_attribute macio_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_RO(type),
-	__ATTR_RO(compatible),
-	__ATTR_RO(modalias),
-	__ATTR_RO(devspec),
-	__ATTR_NULL
+static struct attribute *macio_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_type.attr,
+	&dev_attr_compatible.attr,
+	&dev_attr_modalias.attr,
+	&dev_attr_devspec.attr,
+	NULL,
+};
+
+static const struct attribute_group macio_dev_group = {
+	.attrs = macio_dev_attrs,
+};
+
+const struct attribute_group *macio_dev_groups[] = {
+	&macio_dev_group,
+	NULL,
 };

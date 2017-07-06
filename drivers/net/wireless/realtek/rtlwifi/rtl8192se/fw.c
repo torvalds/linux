@@ -188,10 +188,9 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		if (!skb)
 			return false;
 		skb_reserve(skb, extra_descoffset);
-		seg_ptr = (u8 *)skb_put(skb, (u32)(frag_length -
-					extra_descoffset));
-		memcpy(seg_ptr, code_virtual_address + frag_offset,
-		       (u32)(frag_length - extra_descoffset));
+		seg_ptr = skb_put_data(skb,
+				       code_virtual_address + frag_offset,
+				       (u32)(frag_length - extra_descoffset));
 
 		tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
 		tcb_desc->queue_index = TXCMD_QUEUE;
@@ -463,7 +462,7 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 			break;
 
 		/* Clear content */
-		ph2c_buffer = (u8 *)skb_put(skb, (u32)len);
+		ph2c_buffer = skb_put(skb, (u32)len);
 		memset((ph2c_buffer + totallen + tx_desclen), 0, len);
 
 		/* CMD len */

@@ -5,6 +5,7 @@ using them to avoid name-space collisions.
 
 abcn	Abracon Corporation
 abilis	Abilis Systems
+actions	Actions Semiconductor Co., Ltd.
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
 adapteva	Adapteva, Inc.
@@ -165,6 +166,7 @@ keithkoep	Keith & Koep GmbH
 keymile	Keymile GmbH
 khadas	Khadas
 kinetic Kinetic Technologies
+kingnovel	Kingnovel Technology Co., Ltd.
 kosagi	Sutajio Ko-Usagi PTE Ltd.
 kyo	Kyocera Corporation
 lacie	LaCie
@@ -172,6 +174,7 @@ lantiq	Lantiq Semiconductor
 lego	LEGO Systems A/S
 lenovo	Lenovo Group Ltd.
 lg	LG Corporation
+libretech	Shenzhen Libre Technology Co., Ltd
 licheepi	Lichee Pi
 linaro	Linaro Limited
 linux	Linux-specific binding
@@ -331,6 +334,7 @@ tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
 tyan	Tyan Computer Corporation
+ucrobotics	uCRobotics
 udoo	Udoo
 uniwest	United Western Technologies Corp (UniWest)
 upisemi	uPI Semiconductor Corp.
@@ -356,6 +360,7 @@ xlnx	Xilinx
 xunlong	Shenzhen Xunlong Software CO.,Limited
 zarlink	Zarlink Semiconductor
 zeitec	ZEITEC Semiconductor Co., LTD.
+zidoo	Shenzhen Zidoo Technology Co., Ltd.
 zii	Zodiac Inflight Innovations
 zte	ZTE Corp.
 zyxel	ZyXEL Communications Corp.

@@ -613,6 +613,10 @@ static int omap_8250_startup(struct uart_port *port)
 	up->lsr_saved_flags = 0;
 	up->msr_saved_flags = 0;
 
+	/* Disable DMA for console UART */
+	if (uart_console(port))
+		up->dma = NULL;
+
 	if (up->dma) {
 		ret = serial8250_request_dma(up);
 		if (ret) {
@@ -782,8 +786,27 @@ unlock:
 
 static void __dma_rx_complete(void *param)
 {
-	__dma_rx_do_complete(param);
-	omap_8250_rx_dma(param);
+	struct uart_8250_port *p = param;
+	struct uart_8250_dma *dma = p->dma;
+	struct dma_tx_state     state;
+	unsigned long flags;
+
+	spin_lock_irqsave(&p->port.lock, flags);
+
+	/*
+	 * If the tx status is not DMA_COMPLETE, then this is a delayed
+	 * completion callback. A previous RX timeout flush would have
+	 * already pushed the data, so exit.
+	 */
+	if (dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state) !=
+			DMA_COMPLETE) {
+		spin_unlock_irqrestore(&p->port.lock, flags);
+		return;
+	}
+	__dma_rx_do_complete(p);
+	omap_8250_rx_dma(p);
+
+	spin_unlock_irqrestore(&p->port.lock, flags);
 }
 
 static void omap_8250_rx_dma_flush(struct uart_8250_port *p)

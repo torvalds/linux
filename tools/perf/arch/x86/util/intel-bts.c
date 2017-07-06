@@ -35,10 +35,6 @@
 #define KiB_MASK(x) (KiB(x) - 1)
 #define MiB_MASK(x) (MiB(x) - 1)
 
-#define INTEL_BTS_DFLT_SAMPLE_SIZE	KiB(4)
-
-#define INTEL_BTS_MAX_SAMPLE_SIZE	KiB(60)
-
 struct intel_bts_snapshot_ref {
 	void	*ref_buf;
 	size_t	ref_offset;

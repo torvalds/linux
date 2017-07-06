@@ -40,10 +40,6 @@
 #define KiB_MASK(x) (KiB(x) - 1)
 #define MiB_MASK(x) (MiB(x) - 1)
 
-#define INTEL_PT_DEFAULT_SAMPLE_SIZE	KiB(4)
-
-#define INTEL_PT_MAX_SAMPLE_SIZE	KiB(60)
-
 #define INTEL_PT_PSB_PERIOD_NEAR	256
 
 struct intel_pt_snapshot_ref {
@@ -196,6 +192,7 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	int psb_cyc, psb_periods, psb_period;
 	int pos = 0;
 	u64 config;
+	char c;
 
 	pos += scnprintf(buf + pos, sizeof(buf) - pos, "tsc");
 
@@ -228,6 +225,10 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 					 ",psb_period=%d", psb_period);
 		}
 	}
+
+	if (perf_pmu__scan_file(intel_pt_pmu, "format/pt", "%c", &c) == 1 &&
+	    perf_pmu__scan_file(intel_pt_pmu, "format/branch", "%c", &c) == 1)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos, ",pt,branch");
 
 	pr_debug2("%s default config: %s\n", intel_pt_pmu->name, buf);
 

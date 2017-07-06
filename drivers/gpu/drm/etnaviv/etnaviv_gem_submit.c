@@ -172,7 +172,7 @@ static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 		bool write = submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE;
-		bool explicit = !(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
+		bool explicit = !!(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
 
 		ret = etnaviv_gpu_fence_sync_obj(etnaviv_obj, context, write,
 						 explicit);

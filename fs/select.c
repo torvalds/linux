@@ -180,7 +180,7 @@ static struct poll_table_entry *poll_get_entry(struct poll_wqueues *p)
 	return table->entry++;
 }
 
-static int __pollwake(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int __pollwake(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	struct poll_wqueues *pwq = wait->private;
 	DECLARE_WAITQUEUE(dummy_wait, pwq->polling_task);
@@ -206,7 +206,7 @@ static int __pollwake(wait_queue_t *wait, unsigned mode, int sync, void *key)
 	return default_wake_function(&dummy_wait, mode, sync, key);
 }
 
-static int pollwake(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int pollwake(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	struct poll_table_entry *entry;
 

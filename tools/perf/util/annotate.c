@@ -1379,7 +1379,9 @@ static const char *annotate__norm_arch(const char *arch_name)
 	return normalize_arch((char *)arch_name);
 }
 
-int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_name, size_t privsize)
+int symbol__disassemble(struct symbol *sym, struct map *map,
+			const char *arch_name, size_t privsize,
+			struct arch **parch)
 {
 	struct dso *dso = map->dso;
 	char command[PATH_MAX * 2];
@@ -1404,6 +1406,9 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 	arch = arch__find(arch_name);
 	if (arch == NULL)
 		return -ENOTSUP;
+
+	if (parch)
+		*parch = arch;
 
 	if (arch->init) {
 		err = arch->init(arch);
@@ -1901,7 +1906,8 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	struct rb_root source_line = RB_ROOT;
 	u64 len;
 
-	if (symbol__disassemble(sym, map, perf_evsel__env_arch(evsel), 0) < 0)
+	if (symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
+				0, NULL) < 0)
 		return -1;
 
 	len = symbol__size(sym);

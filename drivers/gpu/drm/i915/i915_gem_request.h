@@ -123,7 +123,7 @@ struct drm_i915_gem_request {
 	 * It is used by the driver to then queue the request for execution.
 	 */
 	struct i915_sw_fence submit;
-	wait_queue_t submitq;
+	wait_queue_entry_t submitq;
 	wait_queue_head_t execute;
 
 	/* A list of everyone we wait upon, and everyone who waits upon us.

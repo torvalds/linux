@@ -301,13 +301,13 @@ static uint32_t ips_statupd_copperhead_memio(ips_ha_t *);
 static uint32_t ips_statupd_morpheus(ips_ha_t *);
 static ips_scb_t *ips_getscb(ips_ha_t *);
 static void ips_putq_scb_head(ips_scb_queue_t *, ips_scb_t *);
-static void ips_putq_wait_tail(ips_wait_queue_t *, struct scsi_cmnd *);
+static void ips_putq_wait_tail(ips_wait_queue_entry_t *, struct scsi_cmnd *);
 static void ips_putq_copp_tail(ips_copp_queue_t *,
 				      ips_copp_wait_item_t *);
 static ips_scb_t *ips_removeq_scb_head(ips_scb_queue_t *);
 static ips_scb_t *ips_removeq_scb(ips_scb_queue_t *, ips_scb_t *);
-static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *);
-static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_t *,
+static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_entry_t *);
+static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_entry_t *,
 					  struct scsi_cmnd *);
 static ips_copp_wait_item_t *ips_removeq_copp(ips_copp_queue_t *,
 						     ips_copp_wait_item_t *);
@@ -2871,7 +2871,7 @@ ips_removeq_scb(ips_scb_queue_t * queue, ips_scb_t * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static void ips_putq_wait_tail(ips_wait_queue_t *queue, struct scsi_cmnd *item)
+static void ips_putq_wait_tail(ips_wait_queue_entry_t *queue, struct scsi_cmnd *item)
 {
 	METHOD_TRACE("ips_putq_wait_tail", 1);
 
@@ -2902,7 +2902,7 @@ static void ips_putq_wait_tail(ips_wait_queue_t *queue, struct scsi_cmnd *item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *queue)
+static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_entry_t *queue)
 {
 	struct scsi_cmnd *item;
 
@@ -2936,7 +2936,7 @@ static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *queue)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_t *queue,
+static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_entry_t *queue,
 					  struct scsi_cmnd *item)
 {
 	struct scsi_cmnd *p;

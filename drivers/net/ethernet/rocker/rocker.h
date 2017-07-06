@@ -105,32 +105,27 @@ struct rocker_world_ops {
 	int (*port_open)(struct rocker_port *rocker_port);
 	void (*port_stop)(struct rocker_port *rocker_port);
 	int (*port_attr_stp_state_set)(struct rocker_port *rocker_port,
-				       u8 state,
-				       struct switchdev_trans *trans);
+				       u8 state);
 	int (*port_attr_bridge_flags_set)(struct rocker_port *rocker_port,
 					  unsigned long brport_flags,
 					  struct switchdev_trans *trans);
 	int (*port_attr_bridge_flags_get)(const struct rocker_port *rocker_port,
 					  unsigned long *p_brport_flags);
+	int (*port_attr_bridge_flags_support_get)(const struct rocker_port *
+						  rocker_port,
+						  unsigned long *
+						  p_brport_flags);
 	int (*port_attr_bridge_ageing_time_set)(struct rocker_port *rocker_port,
 						u32 ageing_time,
 						struct switchdev_trans *trans);
 	int (*port_obj_vlan_add)(struct rocker_port *rocker_port,
-				 const struct switchdev_obj_port_vlan *vlan,
-				 struct switchdev_trans *trans);
+				 const struct switchdev_obj_port_vlan *vlan);
 	int (*port_obj_vlan_del)(struct rocker_port *rocker_port,
 				 const struct switchdev_obj_port_vlan *vlan);
-	int (*port_obj_vlan_dump)(const struct rocker_port *rocker_port,
-				  struct switchdev_obj_port_vlan *vlan,
-				  switchdev_obj_dump_cb_t *cb);
 	int (*port_obj_fdb_add)(struct rocker_port *rocker_port,
-				const struct switchdev_obj_port_fdb *fdb,
-				struct switchdev_trans *trans);
+				u16 vid, const unsigned char *addr);
 	int (*port_obj_fdb_del)(struct rocker_port *rocker_port,
-				const struct switchdev_obj_port_fdb *fdb);
-	int (*port_obj_fdb_dump)(const struct rocker_port *rocker_port,
-				 struct switchdev_obj_port_fdb *fdb,
-				 switchdev_obj_dump_cb_t *cb);
+				u16 vid, const unsigned char *addr);
 	int (*port_master_linked)(struct rocker_port *rocker_port,
 				  struct net_device *master);
 	int (*port_master_unlinked)(struct rocker_port *rocker_port,

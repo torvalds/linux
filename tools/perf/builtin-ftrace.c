@@ -28,9 +28,19 @@
 #define DEFAULT_TRACER  "function_graph"
 
 struct perf_ftrace {
-	struct perf_evlist *evlist;
-	struct target target;
-	const char *tracer;
+	struct perf_evlist	*evlist;
+	struct target		target;
+	const char		*tracer;
+	struct list_head	filters;
+	struct list_head	notrace;
+	struct list_head	graph_funcs;
+	struct list_head	nograph_funcs;
+	int			graph_depth;
+};
+
+struct filter_entry {
+	struct list_head	list;
+	char			name[];
 };
 
 static bool done;
@@ -61,6 +71,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 	int fd, ret = -1;
 	ssize_t size = strlen(val);
 	int flags = O_WRONLY;
+	char errbuf[512];
 
 	file = get_tracing_file(name);
 	if (!file) {
@@ -75,14 +86,16 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	fd = open(file, flags);
 	if (fd < 0) {
-		pr_debug("cannot open tracing file: %s\n", name);
+		pr_debug("cannot open tracing file: %s: %s\n",
+			 name, str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out;
 	}
 
 	if (write(fd, val, size) == size)
 		ret = 0;
 	else
-		pr_debug("write '%s' to tracing/%s failed\n", val, name);
+		pr_debug("write '%s' to tracing/%s failed: %s\n",
+			 val, name, str_error_r(errno, errbuf, sizeof(errbuf)));
 
 	close(fd);
 out:
@@ -101,6 +114,7 @@ static int append_tracing_file(const char *name, const char *val)
 }
 
 static int reset_tracing_cpu(void);
+static void reset_tracing_filters(void);
 
 static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 {
@@ -116,6 +130,10 @@ static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 	if (reset_tracing_cpu() < 0)
 		return -1;
 
+	if (write_tracing_file("max_graph_depth", "0") < 0)
+		return -1;
+
+	reset_tracing_filters();
 	return 0;
 }
 
@@ -181,6 +199,68 @@ static int reset_tracing_cpu(void)
 	return ret;
 }
 
+static int __set_tracing_filter(const char *filter_file, struct list_head *funcs)
+{
+	struct filter_entry *pos;
+
+	list_for_each_entry(pos, funcs, list) {
+		if (append_tracing_file(filter_file, pos->name) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int set_tracing_filters(struct perf_ftrace *ftrace)
+{
+	int ret;
+
+	ret = __set_tracing_filter("set_ftrace_filter", &ftrace->filters);
+	if (ret < 0)
+		return ret;
+
+	ret = __set_tracing_filter("set_ftrace_notrace", &ftrace->notrace);
+	if (ret < 0)
+		return ret;
+
+	ret = __set_tracing_filter("set_graph_function", &ftrace->graph_funcs);
+	if (ret < 0)
+		return ret;
+
+	/* old kernels do not have this filter */
+	__set_tracing_filter("set_graph_notrace", &ftrace->nograph_funcs);
+
+	return ret;
+}
+
+static void reset_tracing_filters(void)
+{
+	write_tracing_file("set_ftrace_filter", " ");
+	write_tracing_file("set_ftrace_notrace", " ");
+	write_tracing_file("set_graph_function", " ");
+	write_tracing_file("set_graph_notrace", " ");
+}
+
+static int set_tracing_depth(struct perf_ftrace *ftrace)
+{
+	char buf[16];
+
+	if (ftrace->graph_depth == 0)
+		return 0;
+
+	if (ftrace->graph_depth < 0) {
+		pr_err("invalid graph depth: %d\n", ftrace->graph_depth);
+		return -1;
+	}
+
+	snprintf(buf, sizeof(buf), "%d", ftrace->graph_depth);
+
+	if (write_tracing_file("max_graph_depth", buf) < 0)
+		return -1;
+
+	return 0;
+}
+
 static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 {
 	char *trace_file;
@@ -223,10 +303,22 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		goto out_reset;
 	}
 
+	if (set_tracing_filters(ftrace) < 0) {
+		pr_err("failed to set tracing filters\n");
+		goto out_reset;
+	}
+
+	if (set_tracing_depth(ftrace) < 0) {
+		pr_err("failed to set graph depth\n");
+		goto out_reset;
+	}
+
 	if (write_tracing_file("current_tracer", ftrace->tracer) < 0) {
 		pr_err("failed to set current_tracer to %s\n", ftrace->tracer);
 		goto out_reset;
 	}
+
+	setup_pager();
 
 	trace_file = get_tracing_file("trace_pipe");
 	if (!trace_file) {
@@ -250,8 +342,6 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		pr_err("can't enable tracing\n");
 		goto out_close_fd;
 	}
-
-	setup_pager();
 
 	perf_evlist__start_workload(ftrace->evlist);
 
@@ -307,6 +397,32 @@ static int perf_ftrace_config(const char *var, const char *value, void *cb)
 	return -1;
 }
 
+static int parse_filter_func(const struct option *opt, const char *str,
+			     int unset __maybe_unused)
+{
+	struct list_head *head = opt->value;
+	struct filter_entry *entry;
+
+	entry = malloc(sizeof(*entry) + strlen(str) + 1);
+	if (entry == NULL)
+		return -ENOMEM;
+
+	strcpy(entry->name, str);
+	list_add_tail(&entry->list, head);
+
+	return 0;
+}
+
+static void delete_filter_func(struct list_head *head)
+{
+	struct filter_entry *pos, *tmp;
+
+	list_for_each_entry_safe(pos, tmp, head, list) {
+		list_del(&pos->list);
+		free(pos);
+	}
+}
+
 int cmd_ftrace(int argc, const char **argv)
 {
 	int ret;
@@ -330,8 +446,23 @@ int cmd_ftrace(int argc, const char **argv)
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &ftrace.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
+	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
+		     "trace given functions only", parse_filter_func),
+	OPT_CALLBACK('N', "notrace-funcs", &ftrace.notrace, "func",
+		     "do not trace given functions", parse_filter_func),
+	OPT_CALLBACK('G', "graph-funcs", &ftrace.graph_funcs, "func",
+		     "Set graph filter on given functions", parse_filter_func),
+	OPT_CALLBACK('g', "nograph-funcs", &ftrace.nograph_funcs, "func",
+		     "Set nograph filter on given functions", parse_filter_func),
+	OPT_INTEGER('D', "graph-depth", &ftrace.graph_depth,
+		    "Max depth for function graph tracer"),
 	OPT_END()
 	};
+
+	INIT_LIST_HEAD(&ftrace.filters);
+	INIT_LIST_HEAD(&ftrace.notrace);
+	INIT_LIST_HEAD(&ftrace.graph_funcs);
+	INIT_LIST_HEAD(&ftrace.nograph_funcs);
 
 	ret = perf_config(perf_ftrace_config, &ftrace);
 	if (ret < 0)
@@ -348,12 +479,14 @@ int cmd_ftrace(int argc, const char **argv)
 
 		target__strerror(&ftrace.target, ret, errbuf, 512);
 		pr_err("%s\n", errbuf);
-		return -EINVAL;
+		goto out_delete_filters;
 	}
 
 	ftrace.evlist = perf_evlist__new();
-	if (ftrace.evlist == NULL)
-		return -ENOMEM;
+	if (ftrace.evlist == NULL) {
+		ret = -ENOMEM;
+		goto out_delete_filters;
+	}
 
 	ret = perf_evlist__create_maps(ftrace.evlist, &ftrace.target);
 	if (ret < 0)
@@ -363,6 +496,12 @@ int cmd_ftrace(int argc, const char **argv)
 
 out_delete_evlist:
 	perf_evlist__delete(ftrace.evlist);
+
+out_delete_filters:
+	delete_filter_func(&ftrace.filters);
+	delete_filter_func(&ftrace.notrace);
+	delete_filter_func(&ftrace.graph_funcs);
+	delete_filter_func(&ftrace.nograph_funcs);
 
 	return ret;
 }

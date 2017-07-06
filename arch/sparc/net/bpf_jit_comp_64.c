@@ -802,8 +802,13 @@ static void build_prologue(struct jit_ctx *ctx)
 {
 	s32 stack_needed = BASE_STACKFRAME;
 
-	if (ctx->saw_frame_pointer || ctx->saw_tail_call)
-		stack_needed += MAX_BPF_STACK;
+	if (ctx->saw_frame_pointer || ctx->saw_tail_call) {
+		struct bpf_prog *prog = ctx->prog;
+		u32 stack_depth;
+
+		stack_depth = prog->aux->stack_depth;
+		stack_needed += round_up(stack_depth, 16);
+	}
 
 	if (ctx->saw_tail_call)
 		stack_needed += 8;
@@ -1217,7 +1222,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	}
 
 	/* tail call */
-	case BPF_JMP | BPF_CALL |BPF_X:
+	case BPF_JMP | BPF_TAIL_CALL:
 		emit_tail_call(ctx);
 		break;
 
@@ -1555,6 +1560,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	prog->bpf_func = (void *)ctx.image;
 	prog->jited = 1;
+	prog->jited_len = image_size;
 
 out_off:
 	kfree(ctx.offset);

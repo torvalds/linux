@@ -83,7 +83,7 @@
 /* Parisc type numbers. */
 #define PORT_MUX	48
 
-/* Atmel AT91 / AT32 SoC */
+/* Atmel AT91 SoC */
 #define PORT_ATMEL	49
 
 /* Macintosh Zilog type numbers */

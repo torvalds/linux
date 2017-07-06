@@ -292,6 +292,8 @@ static int per_file_stats(int id, void *ptr, void *data)
 	struct file_stats *stats = data;
 	struct i915_vma *vma;
 
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
 	stats->count++;
 	stats->total += obj->base.size;
 	if (!obj->bind_count)
@@ -476,6 +478,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		struct drm_i915_gem_request *request;
 		struct task_struct *task;
 
+		mutex_lock(&dev->struct_mutex);
+
 		memset(&stats, 0, sizeof(stats));
 		stats.file_priv = file->driver_priv;
 		spin_lock(&file->table_lock);
@@ -487,7 +491,6 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		 * still alive (e.g. get_pid(current) => fork() => exit()).
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
-		mutex_lock(&dev->struct_mutex);
 		request = list_first_entry_or_null(&file_priv->mm.request_list,
 						   struct drm_i915_gem_request,
 						   client_link);
@@ -497,6 +500,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 				PIDTYPE_PID);
 		print_file_stats(m, task ? task->comm : "<unknown>", stats);
 		rcu_read_unlock();
+
 		mutex_unlock(&dev->struct_mutex);
 	}
 	mutex_unlock(&dev->filelist_mutex);

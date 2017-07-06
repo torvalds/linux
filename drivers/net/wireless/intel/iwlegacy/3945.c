@@ -520,7 +520,7 @@ il3945_pass_packet_to_mac80211(struct il_priv *il, struct il_rx_buf *rxb,
 	 * and do not consume a full page
 	 */
 	if (len <= SMALL_PACKET_SIZE) {
-		memcpy(skb_put(skb, len), rx_hdr->payload, len);
+		skb_put_data(skb, rx_hdr->payload, len);
 	} else {
 		skb_add_rx_frag(skb, 0, rxb->page,
 				(void *)rx_hdr->payload - (void *)pkt, len,

@@ -1438,25 +1438,20 @@ static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
  */
 
 /* interface_version --------------------------------------------------- */
-static ssize_t tpacpi_driver_interface_version_show(
-				struct device_driver *drv,
-				char *buf)
+static ssize_t interface_version_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "0x%08x\n", TPACPI_SYSFS_VERSION);
 }
-
-static DRIVER_ATTR(interface_version, S_IRUGO,
-		tpacpi_driver_interface_version_show, NULL);
+static DRIVER_ATTR_RO(interface_version);
 
 /* debug_level --------------------------------------------------------- */
-static ssize_t tpacpi_driver_debug_show(struct device_driver *drv,
-						char *buf)
+static ssize_t debug_level_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "0x%04x\n", dbg_level);
 }
 
-static ssize_t tpacpi_driver_debug_store(struct device_driver *drv,
-						const char *buf, size_t count)
+static ssize_t debug_level_store(struct device_driver *drv, const char *buf,
+				 size_t count)
 {
 	unsigned long t;
 
@@ -1467,34 +1462,28 @@ static ssize_t tpacpi_driver_debug_store(struct device_driver *drv,
 
 	return count;
 }
-
-static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
-		tpacpi_driver_debug_show, tpacpi_driver_debug_store);
+static DRIVER_ATTR_RW(debug_level);
 
 /* version ------------------------------------------------------------- */
-static ssize_t tpacpi_driver_version_show(struct device_driver *drv,
-						char *buf)
+static ssize_t version_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s v%s\n",
 			TPACPI_DESC, TPACPI_VERSION);
 }
-
-static DRIVER_ATTR(version, S_IRUGO,
-		tpacpi_driver_version_show, NULL);
+static DRIVER_ATTR_RO(version);
 
 /* --------------------------------------------------------------------- */
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 
 /* wlsw_emulstate ------------------------------------------------------ */
-static ssize_t tpacpi_driver_wlsw_emulstate_show(struct device_driver *drv,
-						char *buf)
+static ssize_t wlsw_emulstate_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_wlsw_emulstate);
 }
 
-static ssize_t tpacpi_driver_wlsw_emulstate_store(struct device_driver *drv,
-						const char *buf, size_t count)
+static ssize_t wlsw_emulstate_store(struct device_driver *drv, const char *buf,
+				    size_t count)
 {
 	unsigned long t;
 
@@ -1508,22 +1497,16 @@ static ssize_t tpacpi_driver_wlsw_emulstate_store(struct device_driver *drv,
 
 	return count;
 }
-
-static DRIVER_ATTR(wlsw_emulstate, S_IWUSR | S_IRUGO,
-		tpacpi_driver_wlsw_emulstate_show,
-		tpacpi_driver_wlsw_emulstate_store);
+static DRIVER_ATTR_RW(wlsw_emulstate);
 
 /* bluetooth_emulstate ------------------------------------------------- */
-static ssize_t tpacpi_driver_bluetooth_emulstate_show(
-					struct device_driver *drv,
-					char *buf)
+static ssize_t bluetooth_emulstate_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_bluetooth_emulstate);
 }
 
-static ssize_t tpacpi_driver_bluetooth_emulstate_store(
-					struct device_driver *drv,
-					const char *buf, size_t count)
+static ssize_t bluetooth_emulstate_store(struct device_driver *drv,
+					 const char *buf, size_t count)
 {
 	unsigned long t;
 
@@ -1534,22 +1517,16 @@ static ssize_t tpacpi_driver_bluetooth_emulstate_store(
 
 	return count;
 }
-
-static DRIVER_ATTR(bluetooth_emulstate, S_IWUSR | S_IRUGO,
-		tpacpi_driver_bluetooth_emulstate_show,
-		tpacpi_driver_bluetooth_emulstate_store);
+static DRIVER_ATTR_RW(bluetooth_emulstate);
 
 /* wwan_emulstate ------------------------------------------------- */
-static ssize_t tpacpi_driver_wwan_emulstate_show(
-					struct device_driver *drv,
-					char *buf)
+static ssize_t wwan_emulstate_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_wwan_emulstate);
 }
 
-static ssize_t tpacpi_driver_wwan_emulstate_store(
-					struct device_driver *drv,
-					const char *buf, size_t count)
+static ssize_t wwan_emulstate_store(struct device_driver *drv, const char *buf,
+				    size_t count)
 {
 	unsigned long t;
 
@@ -1560,22 +1537,16 @@ static ssize_t tpacpi_driver_wwan_emulstate_store(
 
 	return count;
 }
-
-static DRIVER_ATTR(wwan_emulstate, S_IWUSR | S_IRUGO,
-		tpacpi_driver_wwan_emulstate_show,
-		tpacpi_driver_wwan_emulstate_store);
+static DRIVER_ATTR_RW(wwan_emulstate);
 
 /* uwb_emulstate ------------------------------------------------- */
-static ssize_t tpacpi_driver_uwb_emulstate_show(
-					struct device_driver *drv,
-					char *buf)
+static ssize_t uwb_emulstate_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", !!tpacpi_uwb_emulstate);
 }
 
-static ssize_t tpacpi_driver_uwb_emulstate_store(
-					struct device_driver *drv,
-					const char *buf, size_t count)
+static ssize_t uwb_emulstate_store(struct device_driver *drv, const char *buf,
+				   size_t count)
 {
 	unsigned long t;
 
@@ -1586,10 +1557,7 @@ static ssize_t tpacpi_driver_uwb_emulstate_store(
 
 	return count;
 }
-
-static DRIVER_ATTR(uwb_emulstate, S_IWUSR | S_IRUGO,
-		tpacpi_driver_uwb_emulstate_show,
-		tpacpi_driver_uwb_emulstate_store);
+static DRIVER_ATTR_RW(uwb_emulstate);
 #endif
 
 /* --------------------------------------------------------------------- */
@@ -8606,14 +8574,13 @@ static ssize_t fan_fan2_input_show(struct device *dev,
 static DEVICE_ATTR(fan2_input, S_IRUGO, fan_fan2_input_show, NULL);
 
 /* sysfs fan fan_watchdog (hwmon driver) ------------------------------- */
-static ssize_t fan_fan_watchdog_show(struct device_driver *drv,
-				     char *buf)
+static ssize_t fan_watchdog_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%u\n", fan_watchdog_maxinterval);
 }
 
-static ssize_t fan_fan_watchdog_store(struct device_driver *drv,
-				      const char *buf, size_t count)
+static ssize_t fan_watchdog_store(struct device_driver *drv, const char *buf,
+				  size_t count)
 {
 	unsigned long t;
 
@@ -8630,9 +8597,7 @@ static ssize_t fan_fan_watchdog_store(struct device_driver *drv,
 
 	return count;
 }
-
-static DRIVER_ATTR(fan_watchdog, S_IWUSR | S_IRUGO,
-		fan_fan_watchdog_show, fan_fan_watchdog_store);
+static DRIVER_ATTR_RW(fan_watchdog);
 
 /* --------------------------------------------------------------------- */
 static struct attribute *fan_attributes[] = {

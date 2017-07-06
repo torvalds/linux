@@ -6881,6 +6881,9 @@ ftrace_trace_snapshot_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	char *number;
 	int ret;
 
+	if (!tr)
+		return -ENODEV;
+
 	/* hash funcs only work with set_ftrace_filter */
 	if (!enable)
 		return -EINVAL;

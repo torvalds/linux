@@ -975,37 +975,32 @@ static void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 	spin_unlock(&mm->page_table_lock);
 }
 
-
-#ifdef CONFIG_SMP
-/* Another cpu may still have their %cr3 pointing at the pagetable, so
-   we need to repoint it somewhere else before we can unpin it. */
-static void drop_other_mm_ref(void *info)
+static void drop_mm_ref_this_cpu(void *info)
 {
 	struct mm_struct *mm = info;
-	struct mm_struct *active_mm;
 
-	active_mm = this_cpu_read(cpu_tlbstate.active_mm);
-
-	if (active_mm == mm && this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK)
+	if (this_cpu_read(cpu_tlbstate.loaded_mm) == mm)
 		leave_mm(smp_processor_id());
 
-	/* If this cpu still has a stale cr3 reference, then make sure
-	   it has been flushed. */
+	/*
+	 * If this cpu still has a stale cr3 reference, then make sure
+	 * it has been flushed.
+	 */
 	if (this_cpu_read(xen_current_cr3) == __pa(mm->pgd))
-		load_cr3(swapper_pg_dir);
+		xen_mc_flush();
 }
 
+#ifdef CONFIG_SMP
+/*
+ * Another cpu may still have their %cr3 pointing at the pagetable, so
+ * we need to repoint it somewhere else before we can unpin it.
+ */
 static void xen_drop_mm_ref(struct mm_struct *mm)
 {
 	cpumask_var_t mask;
 	unsigned cpu;
 
-	if (current->active_mm == mm) {
-		if (current->mm == mm)
-			load_cr3(swapper_pg_dir);
-		else
-			leave_mm(smp_processor_id());
-	}
+	drop_mm_ref_this_cpu(mm);
 
 	/* Get the "official" set of cpus referring to our pagetable. */
 	if (!alloc_cpumask_var(&mask, GFP_ATOMIC)) {
@@ -1013,31 +1008,31 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 			if (!cpumask_test_cpu(cpu, mm_cpumask(mm))
 			    && per_cpu(xen_current_cr3, cpu) != __pa(mm->pgd))
 				continue;
-			smp_call_function_single(cpu, drop_other_mm_ref, mm, 1);
+			smp_call_function_single(cpu, drop_mm_ref_this_cpu, mm, 1);
 		}
 		return;
 	}
 	cpumask_copy(mask, mm_cpumask(mm));
 
-	/* It's possible that a vcpu may have a stale reference to our
-	   cr3, because its in lazy mode, and it hasn't yet flushed
-	   its set of pending hypercalls yet.  In this case, we can
-	   look at its actual current cr3 value, and force it to flush
-	   if needed. */
+	/*
+	 * It's possible that a vcpu may have a stale reference to our
+	 * cr3, because its in lazy mode, and it hasn't yet flushed
+	 * its set of pending hypercalls yet.  In this case, we can
+	 * look at its actual current cr3 value, and force it to flush
+	 * if needed.
+	 */
 	for_each_online_cpu(cpu) {
 		if (per_cpu(xen_current_cr3, cpu) == __pa(mm->pgd))
 			cpumask_set_cpu(cpu, mask);
 	}
 
-	if (!cpumask_empty(mask))
-		smp_call_function_many(mask, drop_other_mm_ref, mm, 1);
+	smp_call_function_many(mask, drop_mm_ref_this_cpu, mm, 1);
 	free_cpumask_var(mask);
 }
 #else
 static void xen_drop_mm_ref(struct mm_struct *mm)
 {
-	if (current->active_mm == mm)
-		load_cr3(swapper_pg_dir);
+	drop_mm_ref_this_cpu(mm);
 }
 #endif
 
@@ -1366,8 +1361,7 @@ static void xen_flush_tlb_single(unsigned long addr)
 }
 
 static void xen_flush_tlb_others(const struct cpumask *cpus,
-				 struct mm_struct *mm, unsigned long start,
-				 unsigned long end)
+				 const struct flush_tlb_info *info)
 {
 	struct {
 		struct mmuext_op op;
@@ -1379,7 +1373,7 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	} *args;
 	struct multicall_space mcs;
 
-	trace_xen_mmu_flush_tlb_others(cpus, mm, start, end);
+	trace_xen_mmu_flush_tlb_others(cpus, info->mm, info->start, info->end);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
@@ -1393,9 +1387,10 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	cpumask_clear_cpu(smp_processor_id(), to_cpumask(args->mask));
 
 	args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
-	if (end != TLB_FLUSH_ALL && (end - start) <= PAGE_SIZE) {
+	if (info->end != TLB_FLUSH_ALL &&
+	    (info->end - info->start) <= PAGE_SIZE) {
 		args->op.cmd = MMUEXT_INVLPG_MULTI;
-		args->op.arg1.linear_addr = start;
+		args->op.arg1.linear_addr = info->start;
 	}
 
 	MULTI_mmuext_op(mcs.mc, &args->op, 1, NULL, DOMID_SELF);
@@ -1470,8 +1465,8 @@ static void xen_write_cr3(unsigned long cr3)
  * At the start of the day - when Xen launches a guest, it has already
  * built pagetables for the guest. We diligently look over them
  * in xen_setup_kernel_pagetable and graft as appropriate them in the
- * init_level4_pgt and its friends. Then when we are happy we load
- * the new init_level4_pgt - and continue on.
+ * init_top_pgt and its friends. Then when we are happy we load
+ * the new init_top_pgt - and continue on.
  *
  * The generic code starts (start_kernel) and 'init_mem_mapping' sets
  * up the rest of the pagetables. When it has completed it loads the cr3.
@@ -1914,12 +1909,12 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	pt_end = pt_base + xen_start_info->nr_pt_frames;
 
 	/* Zap identity mapping */
-	init_level4_pgt[0] = __pgd(0);
+	init_top_pgt[0] = __pgd(0);
 
 	/* Pre-constructed entries are in pfn, so convert to mfn */
 	/* L4[272] -> level3_ident_pgt  */
 	/* L4[511] -> level3_kernel_pgt */
-	convert_pfn_mfn(init_level4_pgt);
+	convert_pfn_mfn(init_top_pgt);
 
 	/* L3_i[0] -> level2_ident_pgt */
 	convert_pfn_mfn(level3_ident_pgt);
@@ -1950,10 +1945,10 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	/* Copy the initial P->M table mappings if necessary. */
 	i = pgd_index(xen_start_info->mfn_list);
 	if (i && i < pgd_index(__START_KERNEL_map))
-		init_level4_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
+		init_top_pgt[i] = ((pgd_t *)xen_start_info->pt_base)[i];
 
 	/* Make pagetable pieces RO */
-	set_page_prot(init_level4_pgt, PAGE_KERNEL_RO);
+	set_page_prot(init_top_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_ident_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_kernel_pgt, PAGE_KERNEL_RO);
 	set_page_prot(level3_user_vsyscall, PAGE_KERNEL_RO);
@@ -1964,7 +1959,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 
 	/* Pin down new L4 */
 	pin_pagetable_pfn(MMUEXT_PIN_L4_TABLE,
-			  PFN_DOWN(__pa_symbol(init_level4_pgt)));
+			  PFN_DOWN(__pa_symbol(init_top_pgt)));
 
 	/* Unpin Xen-provided one */
 	pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, PFN_DOWN(__pa(pgd)));
@@ -1974,7 +1969,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	 * attach it to, so make sure we just set kernel pgd.
 	 */
 	xen_mc_batch();
-	__xen_write_cr3(true, __pa(init_level4_pgt));
+	__xen_write_cr3(true, __pa(init_top_pgt));
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 
 	/* We can't that easily rip out L3 and L2, as the Xen pagetables are
@@ -2022,7 +2017,7 @@ static phys_addr_t __init xen_early_virt_to_phys(unsigned long vaddr)
 	pmd_t pmd;
 	pte_t pte;
 
-	pa = read_cr3();
+	pa = read_cr3_pa();
 	pgd = native_make_pgd(xen_read_phys_ulong(pa + pgd_index(vaddr) *
 						       sizeof(pgd)));
 	if (!pgd_present(pgd))
@@ -2102,7 +2097,7 @@ void __init xen_relocate_p2m(void)
 	pt_phys = pmd_phys + PFN_PHYS(n_pmd);
 	p2m_pfn = PFN_DOWN(pt_phys) + n_pt;
 
-	pgd = __va(read_cr3());
+	pgd = __va(read_cr3_pa());
 	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
 	idx_p4d = 0;
 	save_pud = n_pud;
@@ -2209,7 +2204,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 {
 	unsigned long pfn = PFN_DOWN(__pa(swapper_pg_dir));
 
-	BUG_ON(read_cr3() != __pa(initial_page_table));
+	BUG_ON(read_cr3_pa() != __pa(initial_page_table));
 	BUG_ON(cr3 != __pa(swapper_pg_dir));
 
 	/*

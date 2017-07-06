@@ -456,12 +456,13 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
  */
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 {
-	struct cyc2ns_data *data = cyc2ns_read_begin();
+	struct cyc2ns_data data;
 	unsigned long long ns;
 
-	ns = mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
+	cyc2ns_read_begin(&data);
+	ns = mul_u64_u32_shr(cyc, data.cyc2ns_mul, data.cyc2ns_shift);
+	cyc2ns_read_end();
 
-	cyc2ns_read_end(data);
 	return ns;
 }
 
@@ -470,12 +471,13 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
  */
 static inline unsigned long long ns_2_cycles(unsigned long long ns)
 {
-	struct cyc2ns_data *data = cyc2ns_read_begin();
+	struct cyc2ns_data data;
 	unsigned long long cyc;
 
-	cyc = (ns << data->cyc2ns_shift) / data->cyc2ns_mul;
+	cyc2ns_read_begin(&data);
+	cyc = (ns << data.cyc2ns_shift) / data.cyc2ns_mul;
+	cyc2ns_read_end();
 
-	cyc2ns_read_end(data);
 	return cyc;
 }
 
@@ -1121,11 +1123,9 @@ static int set_distrib_bits(struct cpumask *flush_mask, struct bau_control *bcp,
  * done.  The returned pointer is valid till preemption is re-enabled.
  */
 const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
-						struct mm_struct *mm,
-						unsigned long start,
-						unsigned long end,
-						unsigned int cpu)
+					  const struct flush_tlb_info *info)
 {
+	unsigned int cpu = smp_processor_id();
 	int locals = 0, remotes = 0, hubs = 0;
 	struct bau_desc *bau_desc;
 	struct cpumask *flush_mask;
@@ -1179,8 +1179,8 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 
 	record_send_statistics(stat, locals, hubs, remotes, bau_desc);
 
-	if (!end || (end - start) <= PAGE_SIZE)
-		address = start;
+	if (!info->end || (info->end - info->start) <= PAGE_SIZE)
+		address = info->start;
 	else
 		address = TLB_FLUSH_ALL;
 

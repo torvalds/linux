@@ -1715,7 +1715,7 @@ static int setup_slab_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (slab_sort_dimension__add(tok, sort_list) < 0) {
-			error("Unknown slab --sort key: '%s'", tok);
+			pr_err("Unknown slab --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}
@@ -1741,7 +1741,7 @@ static int setup_page_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (page_sort_dimension__add(tok, sort_list) < 0) {
-			error("Unknown page --sort key: '%s'", tok);
+			pr_err("Unknown page --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}

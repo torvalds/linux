@@ -69,17 +69,6 @@ struct exception_table_entry {
 	ASM_EXCEPTIONTABLE_ENTRY( fault_addr, except_addr + 1)
 
 /*
- * The page fault handler stores, in a per-cpu area, the following information
- * if a fixup routine is available.
- */
-struct exception_data {
-	unsigned long fault_ip;
-	unsigned long fault_gp;
-	unsigned long fault_space;
-	unsigned long fault_addr;
-};
-
-/*
  * load_sr2() preloads the space register %%sr2 - based on the value of
  * get_fs() - with either a value of 0 to access kernel space (KERNEL_DS which
  * is 0), or with the current value of %%sr3 to access user space (USER_DS)

@@ -71,7 +71,7 @@ struct dm_crypt_io {
 	struct convert_context ctx;
 
 	atomic_t io_pending;
-	int error;
+	blk_status_t error;
 	sector_t sector;
 
 	struct rb_node rb_node;
@@ -1292,7 +1292,7 @@ static void crypt_free_req(struct crypt_config *cc, void *req, struct bio *base_
 /*
  * Encrypt / decrypt data from one bio to another one (can be the same one)
  */
-static int crypt_convert(struct crypt_config *cc,
+static blk_status_t crypt_convert(struct crypt_config *cc,
 			 struct convert_context *ctx)
 {
 	unsigned int tag_offset = 0;
@@ -1343,13 +1343,13 @@ static int crypt_convert(struct crypt_config *cc,
 		 */
 		case -EBADMSG:
 			atomic_dec(&ctx->cc_pending);
-			return -EILSEQ;
+			return BLK_STS_PROTECTION;
 		/*
 		 * There was an error while processing the request.
 		 */
 		default:
 			atomic_dec(&ctx->cc_pending);
-			return -EIO;
+			return BLK_STS_IOERR;
 		}
 	}
 
@@ -1463,7 +1463,7 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->cc;
 	struct bio *base_bio = io->base_bio;
-	int error = io->error;
+	blk_status_t error = io->error;
 
 	if (!atomic_dec_and_test(&io->io_pending))
 		return;
@@ -1476,7 +1476,7 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 	else
 		kfree(io->integrity_metadata);
 
-	base_bio->bi_error = error;
+	base_bio->bi_status = error;
 	bio_endio(base_bio);
 }
 
@@ -1502,7 +1502,7 @@ static void crypt_endio(struct bio *clone)
 	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->cc;
 	unsigned rw = bio_data_dir(clone);
-	int error;
+	blk_status_t error;
 
 	/*
 	 * free the processed pages
@@ -1510,7 +1510,7 @@ static void crypt_endio(struct bio *clone)
 	if (rw == WRITE)
 		crypt_free_buffer_pages(cc, clone);
 
-	error = clone->bi_error;
+	error = clone->bi_status;
 	bio_put(clone);
 
 	if (rw == READ && !error) {
@@ -1570,7 +1570,7 @@ static void kcryptd_io_read_work(struct work_struct *work)
 
 	crypt_inc_pending(io);
 	if (kcryptd_io_read(io, GFP_NOIO))
-		io->error = -ENOMEM;
+		io->error = BLK_STS_RESOURCE;
 	crypt_dec_pending(io);
 }
 
@@ -1656,7 +1656,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	sector_t sector;
 	struct rb_node **rbp, *parent;
 
-	if (unlikely(io->error < 0)) {
+	if (unlikely(io->error)) {
 		crypt_free_buffer_pages(cc, clone);
 		bio_put(clone);
 		crypt_dec_pending(io);
@@ -1697,7 +1697,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	struct bio *clone;
 	int crypt_finished;
 	sector_t sector = io->sector;
-	int r;
+	blk_status_t r;
 
 	/*
 	 * Prevent io from disappearing until this function completes.
@@ -1707,7 +1707,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 	clone = crypt_alloc_buffer(io, io->base_bio->bi_iter.bi_size);
 	if (unlikely(!clone)) {
-		io->error = -EIO;
+		io->error = BLK_STS_IOERR;
 		goto dec;
 	}
 
@@ -1718,7 +1718,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 	crypt_inc_pending(io);
 	r = crypt_convert(cc, &io->ctx);
-	if (r < 0)
+	if (r)
 		io->error = r;
 	crypt_finished = atomic_dec_and_test(&io->ctx.cc_pending);
 
@@ -1740,7 +1740,7 @@ static void kcryptd_crypt_read_done(struct dm_crypt_io *io)
 static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 {
 	struct crypt_config *cc = io->cc;
-	int r = 0;
+	blk_status_t r;
 
 	crypt_inc_pending(io);
 
@@ -1748,7 +1748,7 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 			   io->sector);
 
 	r = crypt_convert(cc, &io->ctx);
-	if (r < 0)
+	if (r)
 		io->error = r;
 
 	if (atomic_dec_and_test(&io->ctx.cc_pending))
@@ -1781,9 +1781,9 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	if (error == -EBADMSG) {
 		DMERR_LIMIT("INTEGRITY AEAD ERROR, sector %llu",
 			    (unsigned long long)le64_to_cpu(*org_sector_of_dmreq(cc, dmreq)));
-		io->error = -EILSEQ;
+		io->error = BLK_STS_PROTECTION;
 	} else if (error < 0)
-		io->error = -EIO;
+		io->error = BLK_STS_IOERR;
 
 	crypt_free_req(cc, req_of_dmreq(cc, dmreq), io->base_bio);
 
@@ -2677,7 +2677,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	cc->bs = bioset_create(MIN_IOS, 0);
+	cc->bs = bioset_create(MIN_IOS, 0, (BIOSET_NEED_BVECS |
+					    BIOSET_NEED_RESCUER));
 	if (!cc->bs) {
 		ti->error = "Cannot allocate crypt bioset";
 		goto bad;
@@ -2795,10 +2796,10 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	 * and is aligned to this size as defined in IO hints.
 	 */
 	if (unlikely((bio->bi_iter.bi_sector & ((cc->sector_size >> SECTOR_SHIFT) - 1)) != 0))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	if (unlikely(bio->bi_iter.bi_size & (cc->sector_size - 1)))
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	io = dm_per_bio_data(bio, cc->per_bio_data_size);
 	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_iter.bi_sector));

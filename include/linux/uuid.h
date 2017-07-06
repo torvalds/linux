@@ -18,29 +18,18 @@
 
 #include <uapi/linux/uuid.h>
 
-/*
- * V1 (time-based) UUID definition [RFC 4122].
- * - the timestamp is a 60-bit value, split 32/16/12, and goes in 100ns
- *   increments since midnight 15th October 1582
- *   - add AFS_UUID_TO_UNIX_TIME to convert unix time in 100ns units to UUID
- *     time
- * - the clock sequence is a 14-bit counter to avoid duplicate times
- */
-struct uuid_v1 {
-	__be32		time_low;			/* low part of timestamp */
-	__be16		time_mid;			/* mid part of timestamp */
-	__be16		time_hi_and_version;		/* high part of timestamp and version  */
-#define UUID_TO_UNIX_TIME	0x01b21dd213814000ULL
-#define UUID_TIMEHI_MASK	0x0fff
-#define UUID_VERSION_TIME	0x1000	/* time-based UUID */
-#define UUID_VERSION_NAME	0x3000	/* name-based UUID */
-#define UUID_VERSION_RANDOM	0x4000	/* (pseudo-)random generated UUID */
-	u8		clock_seq_hi_and_reserved;	/* clock seq hi and variant */
-#define UUID_CLOCKHI_MASK	0x3f
-#define UUID_VARIANT_STD	0x80
-	u8		clock_seq_low;			/* clock seq low */
-	u8		node[6];			/* spatially unique node ID (MAC addr) */
-};
+#define UUID_SIZE 16
+
+typedef struct {
+	__u8 b[UUID_SIZE];
+} uuid_t;
+
+#define UUID_INIT(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)			\
+((uuid_t)								\
+{{ ((a) >> 24) & 0xff, ((a) >> 16) & 0xff, ((a) >> 8) & 0xff, (a) & 0xff, \
+   ((b) >> 8) & 0xff, (b) & 0xff,					\
+   ((c) >> 8) & 0xff, (c) & 0xff,					\
+   (d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7) }})
 
 /*
  * The length of a UUID string ("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
@@ -48,27 +37,73 @@ struct uuid_v1 {
  */
 #define	UUID_STRING_LEN		36
 
-static inline int uuid_le_cmp(const uuid_le u1, const uuid_le u2)
+extern const guid_t guid_null;
+extern const uuid_t uuid_null;
+
+static inline bool guid_equal(const guid_t *u1, const guid_t *u2)
 {
-	return memcmp(&u1, &u2, sizeof(uuid_le));
+	return memcmp(u1, u2, sizeof(guid_t)) == 0;
 }
 
-static inline int uuid_be_cmp(const uuid_be u1, const uuid_be u2)
+static inline void guid_copy(guid_t *dst, const guid_t *src)
 {
-	return memcmp(&u1, &u2, sizeof(uuid_be));
+	memcpy(dst, src, sizeof(guid_t));
+}
+
+static inline bool guid_is_null(const guid_t *guid)
+{
+	return guid_equal(guid, &guid_null);
+}
+
+static inline bool uuid_equal(const uuid_t *u1, const uuid_t *u2)
+{
+	return memcmp(u1, u2, sizeof(uuid_t)) == 0;
+}
+
+static inline void uuid_copy(uuid_t *dst, const uuid_t *src)
+{
+	memcpy(dst, src, sizeof(uuid_t));
+}
+
+static inline bool uuid_is_null(const uuid_t *uuid)
+{
+	return uuid_equal(uuid, &uuid_null);
 }
 
 void generate_random_uuid(unsigned char uuid[16]);
 
-extern void uuid_le_gen(uuid_le *u);
-extern void uuid_be_gen(uuid_be *u);
+extern void guid_gen(guid_t *u);
+extern void uuid_gen(uuid_t *u);
 
 bool __must_check uuid_is_valid(const char *uuid);
 
-extern const u8 uuid_le_index[16];
-extern const u8 uuid_be_index[16];
+extern const u8 guid_index[16];
+extern const u8 uuid_index[16];
 
-int uuid_le_to_bin(const char *uuid, uuid_le *u);
-int uuid_be_to_bin(const char *uuid, uuid_be *u);
+int guid_parse(const char *uuid, guid_t *u);
+int uuid_parse(const char *uuid, uuid_t *u);
+
+/* backwards compatibility, don't use in new code */
+typedef uuid_t uuid_be;
+#define UUID_BE(a, _b, c, d0, d1, d2, d3, d4, d5, d6, d7) \
+	UUID_INIT(a, _b, c, d0, d1, d2, d3, d4, d5, d6, d7)
+#define NULL_UUID_BE 							\
+	UUID_BE(0x00000000, 0x0000, 0x0000, 0x00, 0x00, 0x00, 0x00,	\
+	     0x00, 0x00, 0x00, 0x00)
+
+#define uuid_le_gen(u)		guid_gen(u)
+#define uuid_be_gen(u)		uuid_gen(u)
+#define uuid_le_to_bin(guid, u)	guid_parse(guid, u)
+#define uuid_be_to_bin(uuid, u)	uuid_parse(uuid, u)
+
+static inline int uuid_le_cmp(const guid_t u1, const guid_t u2)
+{
+	return memcmp(&u1, &u2, sizeof(guid_t));
+}
+
+static inline int uuid_be_cmp(const uuid_t u1, const uuid_t u2)
+{
+	return memcmp(&u1, &u2, sizeof(uuid_t));
+}
 
 #endif

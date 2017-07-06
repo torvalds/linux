@@ -97,7 +97,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
-	phy-reset-gpios = <&gpio3 7 0>;
+	phy-reset-gpios = <&gpio3 7 GPIO_ACTIVE_LOW>;
 	phy-mode = "rmii";
 	phy-supply = <&reg_fec_phy>;
 	status = "okay";
