@@ -444,7 +444,6 @@ static int xenon_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
-	struct xenon_priv *priv;
 	int err;
 
 	host = sdhci_pltfm_init(pdev, &sdhci_xenon_pdata,
@@ -453,7 +452,6 @@ static int xenon_probe(struct platform_device *pdev)
 		return PTR_ERR(host);
 
 	pltfm_host = sdhci_priv(host);
-	priv = sdhci_pltfm_priv(pltfm_host);
 
 	/*
 	 * Link Xenon specific mmc_host_ops function,
