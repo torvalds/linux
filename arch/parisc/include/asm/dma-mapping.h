@@ -20,8 +20,6 @@
 ** flush/purge and allocate "regular" cacheable pages for everything.
 */
 
-#define DMA_ERROR_CODE	(~(dma_addr_t)0)
-
 #ifdef CONFIG_PA11
 extern const struct dma_map_ops pcxl_dma_ops;
 extern const struct dma_map_ops pcx_dma_ops;
