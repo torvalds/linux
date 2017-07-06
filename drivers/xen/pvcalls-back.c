@@ -355,11 +355,34 @@ out_error:
 static void pvcalls_pass_sk_data_ready(struct sock *sock)
 {
 	struct sockpass_mapping *mappass = sock->sk_user_data;
+	struct pvcalls_fedata *fedata;
+	struct xen_pvcalls_response *rsp;
+	unsigned long flags;
+	int notify;
 
 	if (mappass == NULL)
 		return;
 
-	queue_work(mappass->wq, &mappass->register_work);
+	fedata = mappass->fedata;
+	spin_lock_irqsave(&mappass->copy_lock, flags);
+	if (mappass->reqcopy.cmd == PVCALLS_POLL) {
+		rsp = RING_GET_RESPONSE(&fedata->ring,
+					fedata->ring.rsp_prod_pvt++);
+		rsp->req_id = mappass->reqcopy.req_id;
+		rsp->u.poll.id = mappass->reqcopy.u.poll.id;
+		rsp->cmd = mappass->reqcopy.cmd;
+		rsp->ret = 0;
+
+		mappass->reqcopy.cmd = 0;
+		spin_unlock_irqrestore(&mappass->copy_lock, flags);
+
+		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&fedata->ring, notify);
+		if (notify)
+			notify_remote_via_irq(mappass->fedata->irq);
+	} else {
+		spin_unlock_irqrestore(&mappass->copy_lock, flags);
+		queue_work(mappass->wq, &mappass->register_work);
+	}
 }
 
 static int pvcalls_back_bind(struct xenbus_device *dev,
@@ -502,6 +525,56 @@ out_error:
 static int pvcalls_back_poll(struct xenbus_device *dev,
 			     struct xen_pvcalls_request *req)
 {
+	struct pvcalls_fedata *fedata;
+	struct sockpass_mapping *mappass;
+	struct xen_pvcalls_response *rsp;
+	struct inet_connection_sock *icsk;
+	struct request_sock_queue *queue;
+	unsigned long flags;
+	int ret;
+	bool data;
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	down(&fedata->socket_lock);
+	mappass = radix_tree_lookup(&fedata->socketpass_mappings,
+				    req->u.poll.id);
+	up(&fedata->socket_lock);
+	if (mappass == NULL)
+		return -EINVAL;
+
+	/*
+	 * Limitation of the current implementation: only support one
+	 * concurrent accept or poll call on one socket.
+	 */
+	spin_lock_irqsave(&mappass->copy_lock, flags);
+	if (mappass->reqcopy.cmd != 0) {
+		ret = -EINTR;
+		goto out;
+	}
+
+	mappass->reqcopy = *req;
+	icsk = inet_csk(mappass->sock->sk);
+	queue = &icsk->icsk_accept_queue;
+	data = queue->rskq_accept_head != NULL;
+	if (data) {
+		mappass->reqcopy.cmd = 0;
+		ret = 0;
+		goto out;
+	}
+	spin_unlock_irqrestore(&mappass->copy_lock, flags);
+
+	/* Tell the caller we don't need to send back a notification yet */
+	return -1;
+
+out:
+	spin_unlock_irqrestore(&mappass->copy_lock, flags);
+
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->cmd = req->cmd;
+	rsp->u.poll.id = req->u.poll.id;
+	rsp->ret = ret;
 	return 0;
 }
 
