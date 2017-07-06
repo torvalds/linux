@@ -10435,8 +10435,6 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 		return 1;
 	}
 
-	vmcs12->launch_state = 1;
-
 	/*
 	 * Note no nested_vmx_succeed or nested_vmx_fail here. At this point
 	 * we are no longer running L1, and VMLAUNCH/VMRESUME has not yet
@@ -10810,6 +10808,8 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	vmcs12->vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
 
 	if (!(vmcs12->vm_exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY)) {
+		vmcs12->launch_state = 1;
+
 		/* vm_entry_intr_info_field is cleared on exit. Emulate this
 		 * instead of reading the real value. */
 		vmcs12->vm_entry_intr_info_field &= ~INTR_INFO_VALID_MASK;
