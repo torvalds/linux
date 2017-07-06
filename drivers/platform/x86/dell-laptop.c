@@ -1510,7 +1510,11 @@ static void kbd_init(void)
 	ret = kbd_init_info();
 	kbd_init_tokens();
 
-	if (kbd_token_bits != 0 || ret == 0)
+	/*
+	 * Only supports keyboard backlight when it has at least two modes.
+	 */
+	if ((ret == 0 && (kbd_info.levels != 0 || kbd_mode_levels_count >= 2))
+	    || kbd_get_valid_token_counts() >= 2)
 		kbd_led_present = true;
 }
 
