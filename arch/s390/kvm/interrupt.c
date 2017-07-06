@@ -2191,6 +2191,8 @@ static int clear_io_irq(struct kvm *kvm, struct kvm_device_attr *attr)
 		return -EINVAL;
 	if (copy_from_user(&schid, (void __user *) attr->addr, sizeof(schid)))
 		return -EFAULT;
+	if (!schid)
+		return -EINVAL;
 	kfree(kvm_s390_get_io_int(kvm, isc_mask, schid));
 	/*
 	 * If userspace is conforming to the architecture, we can have at most
