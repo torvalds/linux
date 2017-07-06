@@ -873,7 +873,7 @@ static void isc_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&isc->dma_queue_lock, flags);
 }
 
-static struct vb2_ops isc_vb2_ops = {
+static const struct vb2_ops isc_vb2_ops = {
 	.queue_setup		= isc_queue_setup,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
