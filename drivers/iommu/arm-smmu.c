@@ -400,6 +400,8 @@ struct arm_smmu_device {
 
 	u32				cavium_id_base; /* Specific to Cavium */
 
+	spinlock_t			global_sync_lock;
+
 	/* IOMMU core code handle */
 	struct iommu_device		iommu;
 };
@@ -436,7 +438,7 @@ struct arm_smmu_domain {
 	struct arm_smmu_cfg		cfg;
 	enum arm_smmu_domain_stage	stage;
 	struct mutex			init_mutex; /* Protects smmu pointer */
-	spinlock_t			cb_lock; /* Serialises ATS1* ops */
+	spinlock_t			cb_lock; /* Serialises ATS1* ops and TLB syncs */
 	struct iommu_domain		domain;
 };
 
@@ -602,9 +604,12 @@ static void __arm_smmu_tlb_sync(struct arm_smmu_device *smmu,
 static void arm_smmu_tlb_sync_global(struct arm_smmu_device *smmu)
 {
 	void __iomem *base = ARM_SMMU_GR0(smmu);
+	unsigned long flags;
 
+	spin_lock_irqsave(&smmu->global_sync_lock, flags);
 	__arm_smmu_tlb_sync(smmu, base + ARM_SMMU_GR0_sTLBGSYNC,
 			    base + ARM_SMMU_GR0_sTLBGSTATUS);
+	spin_unlock_irqrestore(&smmu->global_sync_lock, flags);
 }
 
 static void arm_smmu_tlb_sync_context(void *cookie)
@@ -612,9 +617,12 @@ static void arm_smmu_tlb_sync_context(void *cookie)
 	struct arm_smmu_domain *smmu_domain = cookie;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	void __iomem *base = ARM_SMMU_CB(smmu, smmu_domain->cfg.cbndx);
+	unsigned long flags;
 
+	spin_lock_irqsave(&smmu_domain->cb_lock, flags);
 	__arm_smmu_tlb_sync(smmu, base + ARM_SMMU_CB_TLBSYNC,
 			    base + ARM_SMMU_CB_TLBSTATUS);
+	spin_unlock_irqrestore(&smmu_domain->cb_lock, flags);
 }
 
 static void arm_smmu_tlb_sync_vmid(void *cookie)
@@ -1925,6 +1933,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 
 	smmu->num_mapping_groups = size;
 	mutex_init(&smmu->stream_map_mutex);
+	spin_lock_init(&smmu->global_sync_lock);
 
 	if (smmu->version < ARM_SMMU_V2 || !(id & ID0_PTFS_NO_AARCH32)) {
 		smmu->features |= ARM_SMMU_FEAT_FMT_AARCH32_L;
