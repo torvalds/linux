@@ -1993,7 +1993,7 @@ static void init_kmem_cache_cpus(struct kmem_cache *s)
  * Remove the cpu slab
  */
 static void deactivate_slab(struct kmem_cache *s, struct page *page,
-				void *freelist)
+				void *freelist, struct kmem_cache_cpu *c)
 {
 	enum slab_modes { M_NONE, M_PARTIAL, M_FULL, M_FREE };
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
@@ -2132,6 +2132,9 @@ redo:
 		discard_slab(s, page);
 		stat(s, FREE_SLAB);
 	}
+
+	c->page = NULL;
+	c->freelist = NULL;
 }
 
 /*
@@ -2266,11 +2269,9 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 {
 	stat(s, CPUSLAB_FLUSH);
-	deactivate_slab(s, c->page, c->freelist);
+	deactivate_slab(s, c->page, c->freelist, c);
 
 	c->tid = next_tid(c->tid);
-	c->page = NULL;
-	c->freelist = NULL;
 }
 
 /*
@@ -2521,9 +2522,7 @@ redo:
 
 		if (unlikely(!node_match(page, searchnode))) {
 			stat(s, ALLOC_NODE_MISMATCH);
-			deactivate_slab(s, page, c->freelist);
-			c->page = NULL;
-			c->freelist = NULL;
+			deactivate_slab(s, page, c->freelist, c);
 			goto new_slab;
 		}
 	}
@@ -2534,9 +2533,7 @@ redo:
 	 * information when the page leaves the per-cpu allocator
 	 */
 	if (unlikely(!pfmemalloc_match(page, gfpflags))) {
-		deactivate_slab(s, page, c->freelist);
-		c->page = NULL;
-		c->freelist = NULL;
+		deactivate_slab(s, page, c->freelist, c);
 		goto new_slab;
 	}
 
@@ -2591,9 +2588,7 @@ new_slab:
 			!alloc_debug_processing(s, page, freelist, addr))
 		goto new_slab;	/* Slab failed checks. Next slab needed */
 
-	deactivate_slab(s, page, get_freepointer(s, freelist));
-	c->page = NULL;
-	c->freelist = NULL;
+	deactivate_slab(s, page, get_freepointer(s, freelist), c);
 	return freelist;
 }
 
