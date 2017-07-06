@@ -313,20 +313,20 @@ megasas_free_cmds_fusion(struct megasas_instance *instance)
 		cmd = fusion->cmd_list[i];
 		if (cmd) {
 			if (cmd->sg_frame)
-				pci_pool_free(fusion->sg_dma_pool, cmd->sg_frame,
+				dma_pool_free(fusion->sg_dma_pool, cmd->sg_frame,
 				      cmd->sg_frame_phys_addr);
 			if (cmd->sense)
-				pci_pool_free(fusion->sense_dma_pool, cmd->sense,
+				dma_pool_free(fusion->sense_dma_pool, cmd->sense,
 				      cmd->sense_phys_addr);
 		}
 	}
 
 	if (fusion->sg_dma_pool) {
-		pci_pool_destroy(fusion->sg_dma_pool);
+		dma_pool_destroy(fusion->sg_dma_pool);
 		fusion->sg_dma_pool = NULL;
 	}
 	if (fusion->sense_dma_pool) {
-		pci_pool_destroy(fusion->sense_dma_pool);
+		dma_pool_destroy(fusion->sense_dma_pool);
 		fusion->sense_dma_pool = NULL;
 	}
 
@@ -343,11 +343,11 @@ megasas_free_cmds_fusion(struct megasas_instance *instance)
 			fusion->request_alloc_sz, fusion->req_frames_desc,
 			fusion->req_frames_desc_phys);
 	if (fusion->io_request_frames)
-		pci_pool_free(fusion->io_request_frames_pool,
+		dma_pool_free(fusion->io_request_frames_pool,
 			fusion->io_request_frames,
 			fusion->io_request_frames_phys);
 	if (fusion->io_request_frames_pool) {
-		pci_pool_destroy(fusion->io_request_frames_pool);
+		dma_pool_destroy(fusion->io_request_frames_pool);
 		fusion->io_request_frames_pool = NULL;
 	}
 
@@ -376,12 +376,12 @@ static int megasas_create_sg_sense_fusion(struct megasas_instance *instance)
 
 
 	fusion->sg_dma_pool =
-			pci_pool_create("mr_sg", instance->pdev,
+			dma_pool_create("mr_sg", &instance->pdev->dev,
 				instance->max_chain_frame_sz,
 				MR_DEFAULT_NVME_PAGE_SIZE, 0);
 	/* SCSI_SENSE_BUFFERSIZE  = 96 bytes */
 	fusion->sense_dma_pool =
-			pci_pool_create("mr_sense", instance->pdev,
+			dma_pool_create("mr_sense", &instance->pdev->dev,
 				SCSI_SENSE_BUFFERSIZE, 64, 0);
 
 	if (!fusion->sense_dma_pool || !fusion->sg_dma_pool) {
@@ -395,10 +395,10 @@ static int megasas_create_sg_sense_fusion(struct megasas_instance *instance)
 	 */
 	for (i = 0; i < max_cmd; i++) {
 		cmd = fusion->cmd_list[i];
-		cmd->sg_frame = pci_pool_alloc(fusion->sg_dma_pool,
+		cmd->sg_frame = dma_pool_alloc(fusion->sg_dma_pool,
 					GFP_KERNEL, &cmd->sg_frame_phys_addr);
 
-		cmd->sense = pci_pool_alloc(fusion->sense_dma_pool,
+		cmd->sense = dma_pool_alloc(fusion->sense_dma_pool,
 					GFP_KERNEL, &cmd->sense_phys_addr);
 		if (!cmd->sg_frame || !cmd->sense) {
 			dev_err(&instance->pdev->dev,
@@ -410,7 +410,7 @@ static int megasas_create_sg_sense_fusion(struct megasas_instance *instance)
 	/* create sense buffer for the raid 1/10 fp */
 	for (i = max_cmd; i < instance->max_mpt_cmds; i++) {
 		cmd = fusion->cmd_list[i];
-		cmd->sense = pci_pool_alloc(fusion->sense_dma_pool,
+		cmd->sense = dma_pool_alloc(fusion->sense_dma_pool,
 			GFP_KERNEL, &cmd->sense_phys_addr);
 		if (!cmd->sense) {
 			dev_err(&instance->pdev->dev,
@@ -479,7 +479,7 @@ megasas_alloc_request_fusion(struct megasas_instance *instance)
 	}
 
 	fusion->io_request_frames_pool =
-			pci_pool_create("mr_ioreq", instance->pdev,
+			dma_pool_create("mr_ioreq", &instance->pdev->dev,
 				fusion->io_frames_alloc_sz, 16, 0);
 
 	if (!fusion->io_request_frames_pool) {
@@ -489,7 +489,7 @@ megasas_alloc_request_fusion(struct megasas_instance *instance)
 	}
 
 	fusion->io_request_frames =
-			pci_pool_alloc(fusion->io_request_frames_pool,
+			dma_pool_alloc(fusion->io_request_frames_pool,
 				GFP_KERNEL, &fusion->io_request_frames_phys);
 	if (!fusion->io_request_frames) {
 		dev_err(&instance->pdev->dev,
@@ -509,7 +509,7 @@ megasas_alloc_reply_fusion(struct megasas_instance *instance)
 
 	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
 	fusion->reply_frames_desc_pool =
-			pci_pool_create("mr_reply", instance->pdev,
+			dma_pool_create("mr_reply", &instance->pdev->dev,
 				fusion->reply_alloc_sz * count, 16, 0);
 
 	if (!fusion->reply_frames_desc_pool) {
@@ -519,7 +519,7 @@ megasas_alloc_reply_fusion(struct megasas_instance *instance)
 	}
 
 	fusion->reply_frames_desc[0] =
-		pci_pool_alloc(fusion->reply_frames_desc_pool,
+		dma_pool_alloc(fusion->reply_frames_desc_pool,
 			GFP_KERNEL, &fusion->reply_frames_desc_phys[0]);
 	if (!fusion->reply_frames_desc[0]) {
 		dev_err(&instance->pdev->dev,
@@ -562,8 +562,10 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 	memset(fusion->rdpq_virt, 0,
 			sizeof(struct MPI2_IOC_INIT_RDPQ_ARRAY_ENTRY) * MAX_MSIX_QUEUES_FUSION);
 	count = instance->msix_vectors > 0 ? instance->msix_vectors : 1;
-	fusion->reply_frames_desc_pool = pci_pool_create("mr_rdpq",
-							 instance->pdev, fusion->reply_alloc_sz, 16, 0);
+	fusion->reply_frames_desc_pool = dma_pool_create("mr_rdpq",
+							 &instance->pdev->dev,
+							 fusion->reply_alloc_sz,
+							 16, 0);
 
 	if (!fusion->reply_frames_desc_pool) {
 		dev_err(&instance->pdev->dev,
@@ -573,7 +575,7 @@ megasas_alloc_rdpq_fusion(struct megasas_instance *instance)
 
 	for (i = 0; i < count; i++) {
 		fusion->reply_frames_desc[i] =
-				pci_pool_alloc(fusion->reply_frames_desc_pool,
+				dma_pool_alloc(fusion->reply_frames_desc_pool,
 					GFP_KERNEL, &fusion->reply_frames_desc_phys[i]);
 		if (!fusion->reply_frames_desc[i]) {
 			dev_err(&instance->pdev->dev,
@@ -601,13 +603,13 @@ megasas_free_rdpq_fusion(struct megasas_instance *instance) {
 
 	for (i = 0; i < MAX_MSIX_QUEUES_FUSION; i++) {
 		if (fusion->reply_frames_desc[i])
-			pci_pool_free(fusion->reply_frames_desc_pool,
+			dma_pool_free(fusion->reply_frames_desc_pool,
 				fusion->reply_frames_desc[i],
 				fusion->reply_frames_desc_phys[i]);
 	}
 
 	if (fusion->reply_frames_desc_pool)
-		pci_pool_destroy(fusion->reply_frames_desc_pool);
+		dma_pool_destroy(fusion->reply_frames_desc_pool);
 
 	if (fusion->rdpq_virt)
 		pci_free_consistent(instance->pdev,
@@ -623,12 +625,12 @@ megasas_free_reply_fusion(struct megasas_instance *instance) {
 	fusion = instance->ctrl_context;
 
 	if (fusion->reply_frames_desc[0])
-		pci_pool_free(fusion->reply_frames_desc_pool,
+		dma_pool_free(fusion->reply_frames_desc_pool,
 			fusion->reply_frames_desc[0],
 			fusion->reply_frames_desc_phys[0]);
 
 	if (fusion->reply_frames_desc_pool)
-		pci_pool_destroy(fusion->reply_frames_desc_pool);
+		dma_pool_destroy(fusion->reply_frames_desc_pool);
 
 }
 

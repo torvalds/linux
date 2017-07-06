@@ -3862,19 +3862,19 @@ static void megasas_teardown_frame_pool(struct megasas_instance *instance)
 		cmd = instance->cmd_list[i];
 
 		if (cmd->frame)
-			pci_pool_free(instance->frame_dma_pool, cmd->frame,
+			dma_pool_free(instance->frame_dma_pool, cmd->frame,
 				      cmd->frame_phys_addr);
 
 		if (cmd->sense)
-			pci_pool_free(instance->sense_dma_pool, cmd->sense,
+			dma_pool_free(instance->sense_dma_pool, cmd->sense,
 				      cmd->sense_phys_addr);
 	}
 
 	/*
 	 * Now destroy the pool itself
 	 */
-	pci_pool_destroy(instance->frame_dma_pool);
-	pci_pool_destroy(instance->sense_dma_pool);
+	dma_pool_destroy(instance->frame_dma_pool);
+	dma_pool_destroy(instance->sense_dma_pool);
 
 	instance->frame_dma_pool = NULL;
 	instance->sense_dma_pool = NULL;
@@ -3925,22 +3925,23 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 	/*
 	 * Use DMA pool facility provided by PCI layer
 	 */
-	instance->frame_dma_pool = pci_pool_create("megasas frame pool",
-					instance->pdev, instance->mfi_frame_size,
-					256, 0);
+	instance->frame_dma_pool = dma_pool_create("megasas frame pool",
+					&instance->pdev->dev,
+					instance->mfi_frame_size, 256, 0);
 
 	if (!instance->frame_dma_pool) {
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "failed to setup frame pool\n");
 		return -ENOMEM;
 	}
 
-	instance->sense_dma_pool = pci_pool_create("megasas sense pool",
-						   instance->pdev, 128, 4, 0);
+	instance->sense_dma_pool = dma_pool_create("megasas sense pool",
+						   &instance->pdev->dev, 128,
+						   4, 0);
 
 	if (!instance->sense_dma_pool) {
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "failed to setup sense pool\n");
 
-		pci_pool_destroy(instance->frame_dma_pool);
+		dma_pool_destroy(instance->frame_dma_pool);
 		instance->frame_dma_pool = NULL;
 
 		return -ENOMEM;
@@ -3955,10 +3956,10 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 
 		cmd = instance->cmd_list[i];
 
-		cmd->frame = pci_pool_alloc(instance->frame_dma_pool,
+		cmd->frame = dma_pool_alloc(instance->frame_dma_pool,
 					    GFP_KERNEL, &cmd->frame_phys_addr);
 
-		cmd->sense = pci_pool_alloc(instance->sense_dma_pool,
+		cmd->sense = dma_pool_alloc(instance->sense_dma_pool,
 					    GFP_KERNEL, &cmd->sense_phys_addr);
 
 		/*
@@ -3966,7 +3967,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 		 * whatever has been allocated
 		 */
 		if (!cmd->frame || !cmd->sense) {
-			dev_printk(KERN_DEBUG, &instance->pdev->dev, "pci_pool_alloc failed\n");
+			dev_printk(KERN_DEBUG, &instance->pdev->dev, "dma_pool_alloc failed\n");
 			megasas_teardown_frame_pool(instance);
 			return -ENOMEM;
 		}
