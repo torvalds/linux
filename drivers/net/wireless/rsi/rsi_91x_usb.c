@@ -558,6 +558,77 @@ fail_tx:
 	return status;
 }
 
+static int usb_ulp_read_write(struct rsi_hw *adapter, u16 addr, u32 data,
+			      u16 len_in_bits)
+{
+	int ret;
+
+	ret = rsi_usb_master_reg_write
+			(adapter, RSI_GSPI_DATA_REG1,
+			 ((addr << 6) | ((data >> 16) & 0xffff)), 2);
+	if (ret < 0)
+		return ret;
+
+	ret = rsi_usb_master_reg_write(adapter, RSI_GSPI_DATA_REG0,
+				       (data & 0xffff), 2);
+	if (ret < 0)
+		return ret;
+
+	/* Initializing GSPI for ULP read/writes */
+	rsi_usb_master_reg_write(adapter, RSI_GSPI_CTRL_REG0,
+				 RSI_GSPI_CTRL_REG0_VALUE, 2);
+
+	ret = rsi_usb_master_reg_write(adapter, RSI_GSPI_CTRL_REG1,
+				       ((len_in_bits - 1) | RSI_GSPI_TRIG), 2);
+	if (ret < 0)
+		return ret;
+
+	msleep(20);
+
+	return 0;
+}
+
+static int rsi_reset_card(struct rsi_hw *adapter)
+{
+	int ret;
+
+	rsi_dbg(INFO_ZONE, "Resetting Card...\n");
+	rsi_usb_master_reg_write(adapter, RSI_TA_HOLD_REG, 0xE, 4);
+
+	/* This msleep will ensure Thread-Arch processor to go to hold
+	 * and any pending dma transfers to rf in device to finish.
+	 */
+	msleep(100);
+
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1,
+				 RSI_ULP_WRITE_2, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2,
+				 RSI_ULP_WRITE_0, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1,
+				 RSI_ULP_WRITE_50, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2,
+				 RSI_ULP_WRITE_0, 32);
+	if (ret < 0)
+		goto fail;
+	ret = usb_ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
+				 RSI_ULP_TIMER_ENABLE, 32);
+	if (ret < 0)
+		goto fail;
+
+	rsi_dbg(INFO_ZONE, "Reset card done\n");
+	return ret;
+
+fail:
+	rsi_dbg(ERR_ZONE, "Reset card failed\n");
+	return ret;
+}
+
 /**
  * rsi_probe() - This function is called by kernel when the driver provided
  *		 Vendor and device IDs are matched. All the initialization
@@ -641,6 +712,7 @@ static void rsi_disconnect(struct usb_interface *pfunction)
 		return;
 
 	rsi_mac80211_detach(adapter);
+	rsi_reset_card(adapter);
 	rsi_deinit_usb_interface(adapter);
 	rsi_91x_deinit(adapter);
 
