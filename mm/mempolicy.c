@@ -1669,9 +1669,9 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
 	return NULL;
 }
 
-/* Return a zonelist indicated by gfp for node representing a mempolicy */
-static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
-	int nd)
+/* Return the node id preferred by the given mempolicy, or the given id */
+static int policy_node(gfp_t gfp, struct mempolicy *policy,
+								int nd)
 {
 	if (policy->mode == MPOL_PREFERRED && !(policy->flags & MPOL_F_LOCAL))
 		nd = policy->v.preferred_node;
@@ -1684,7 +1684,7 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
 		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
 	}
 
-	return node_zonelist(nd, gfp);
+	return nd;
 }
 
 /* Do dynamic interleaving for a process */
@@ -1791,38 +1791,37 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
 
 #ifdef CONFIG_HUGETLBFS
 /*
- * huge_zonelist(@vma, @addr, @gfp_flags, @mpol)
+ * huge_node(@vma, @addr, @gfp_flags, @mpol)
  * @vma: virtual memory area whose policy is sought
  * @addr: address in @vma for shared policy lookup and interleave policy
  * @gfp_flags: for requested zone
  * @mpol: pointer to mempolicy pointer for reference counted mempolicy
  * @nodemask: pointer to nodemask pointer for MPOL_BIND nodemask
  *
- * Returns a zonelist suitable for a huge page allocation and a pointer
+ * Returns a nid suitable for a huge page allocation and a pointer
  * to the struct mempolicy for conditional unref after allocation.
  * If the effective policy is 'BIND, returns a pointer to the mempolicy's
  * @nodemask for filtering the zonelist.
  *
  * Must be protected by read_mems_allowed_begin()
  */
-struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
-				gfp_t gfp_flags, struct mempolicy **mpol,
-				nodemask_t **nodemask)
+int huge_node(struct vm_area_struct *vma, unsigned long addr, gfp_t gfp_flags,
+				struct mempolicy **mpol, nodemask_t **nodemask)
 {
-	struct zonelist *zl;
+	int nid;
 
 	*mpol = get_vma_policy(vma, addr);
 	*nodemask = NULL;	/* assume !MPOL_BIND */
 
 	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
-		zl = node_zonelist(interleave_nid(*mpol, vma, addr,
-				huge_page_shift(hstate_vma(vma))), gfp_flags);
+		nid = interleave_nid(*mpol, vma, addr,
+					huge_page_shift(hstate_vma(vma)));
 	} else {
-		zl = policy_zonelist(gfp_flags, *mpol, numa_node_id());
+		nid = policy_node(gfp_flags, *mpol, numa_node_id());
 		if ((*mpol)->mode == MPOL_BIND)
 			*nodemask = &(*mpol)->v.nodes;
 	}
-	return zl;
+	return nid;
 }
 
 /*
@@ -1924,12 +1923,10 @@ out:
 static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
 					unsigned nid)
 {
-	struct zonelist *zl;
 	struct page *page;
 
-	zl = node_zonelist(nid, gfp);
-	page = __alloc_pages(gfp, order, zl);
-	if (page && page_zone(page) == zonelist_zone(&zl->_zonerefs[0]))
+	page = __alloc_pages(gfp, order, nid);
+	if (page && page_to_nid(page) == nid)
 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
 	return page;
 }
@@ -1963,8 +1960,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 {
 	struct mempolicy *pol;
 	struct page *page;
+	int preferred_nid;
 	unsigned int cpuset_mems_cookie;
-	struct zonelist *zl;
 	nodemask_t *nmask;
 
 retry_cpuset:
@@ -2007,8 +2004,8 @@ retry_cpuset:
 	}
 
 	nmask = policy_nodemask(gfp, pol);
-	zl = policy_zonelist(gfp, pol, node);
-	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
+	preferred_nid = policy_node(gfp, pol, node);
+	page = __alloc_pages_nodemask(gfp, order, preferred_nid, nmask);
 	mpol_cond_put(pol);
 out:
 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
@@ -2055,7 +2052,7 @@ retry_cpuset:
 		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
 	else
 		page = __alloc_pages_nodemask(gfp, order,
-				policy_zonelist(gfp, pol, numa_node_id()),
+				policy_node(gfp, pol, numa_node_id()),
 				policy_nodemask(gfp, pol));
 
 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))

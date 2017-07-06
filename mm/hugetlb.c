@@ -920,6 +920,8 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
 	struct page *page = NULL;
 	struct mempolicy *mpol;
 	nodemask_t *nodemask;
+	gfp_t gfp_mask;
+	int nid;
 	struct zonelist *zonelist;
 	struct zone *zone;
 	struct zoneref *z;
@@ -940,12 +942,13 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
 
 retry_cpuset:
 	cpuset_mems_cookie = read_mems_allowed_begin();
-	zonelist = huge_zonelist(vma, address,
-					htlb_alloc_mask(h), &mpol, &nodemask);
+	gfp_mask = htlb_alloc_mask(h);
+	nid = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
+	zonelist = node_zonelist(nid, gfp_mask);
 
 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 						MAX_NR_ZONES - 1, nodemask) {
-		if (cpuset_zone_allowed(zone, htlb_alloc_mask(h))) {
+		if (cpuset_zone_allowed(zone, gfp_mask)) {
 			page = dequeue_huge_page_node(h, zone_to_nid(zone));
 			if (page) {
 				if (avoid_reserve)
@@ -1558,13 +1561,13 @@ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
 	do {
 		struct page *page;
 		struct mempolicy *mpol;
-		struct zonelist *zl;
+		int nid;
 		nodemask_t *nodemask;
 
 		cpuset_mems_cookie = read_mems_allowed_begin();
-		zl = huge_zonelist(vma, addr, gfp, &mpol, &nodemask);
+		nid = huge_node(vma, addr, gfp, &mpol, &nodemask);
 		mpol_cond_put(mpol);
-		page = __alloc_pages_nodemask(gfp, order, zl, nodemask);
+		page = __alloc_pages_nodemask(gfp, order, nid, nodemask);
 		if (page)
 			return page;
 	} while (read_mems_allowed_retry(cpuset_mems_cookie));

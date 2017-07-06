@@ -1459,11 +1459,9 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 		gfp_mask |= __GFP_HIGHMEM;
 
 	if (!nodes_empty(nmask))
-		new_page = __alloc_pages_nodemask(gfp_mask, 0,
-					node_zonelist(nid, gfp_mask), &nmask);
+		new_page = __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
 	if (!new_page)
-		new_page = __alloc_pages(gfp_mask, 0,
-					node_zonelist(nid, gfp_mask));
+		new_page = __alloc_pages(gfp_mask, 0, nid);
 
 	return new_page;
 }
