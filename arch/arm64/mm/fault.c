@@ -183,7 +183,6 @@ void show_pte(unsigned long addr)
 	pr_cont("\n");
 }
 
-#ifdef CONFIG_ARM64_HW_AFDBM
 /*
  * This function sets the access flags (dirty, accessed), as well as write
  * permission, and only to a more permissive setting.
@@ -225,7 +224,6 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 	flush_tlb_fix_spurious_fault(vma, address);
 	return 1;
 }
-#endif
 
 static bool is_el1_instruction_abort(unsigned int esr)
 {
