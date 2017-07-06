@@ -933,6 +933,84 @@ fail:
 	return 1;
 }
 
+static void ulp_read_write(struct rsi_hw *adapter, u16 addr, u32 data,
+			   u16 len_in_bits)
+{
+	rsi_sdio_master_reg_write(adapter, RSI_GSPI_DATA_REG1,
+				  ((addr << 6) | ((data >> 16) & 0xffff)), 2);
+	rsi_sdio_master_reg_write(adapter, RSI_GSPI_DATA_REG0,
+				  (data & 0xffff), 2);
+	rsi_sdio_master_reg_write(adapter, RSI_GSPI_CTRL_REG0,
+				  RSI_GSPI_CTRL_REG0_VALUE, 2);
+	rsi_sdio_master_reg_write(adapter, RSI_GSPI_CTRL_REG1,
+				  ((len_in_bits - 1) | RSI_GSPI_TRIG), 2);
+	msleep(20);
+}
+
+/*This function resets and re-initializes the chip.*/
+static void rsi_reset_chip(struct rsi_hw *adapter)
+{
+	__le32 data;
+	u8 sdio_interrupt_status = 0;
+	u8 request = 1;
+	int ret;
+
+	rsi_dbg(INFO_ZONE, "Writing disable to wakeup register\n");
+	ret =  rsi_sdio_write_register(adapter, 0, SDIO_WAKEUP_REG, &request);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Failed to write SDIO wakeup register\n", __func__);
+		return;
+	}
+	msleep(20);
+	ret =  rsi_sdio_read_register(adapter, RSI_FN1_INT_REGISTER,
+				      &sdio_interrupt_status);
+	if (ret < 0) {
+		rsi_dbg(ERR_ZONE, "%s: Failed to Read Intr Status Register\n",
+			__func__);
+		return;
+	}
+	rsi_dbg(INFO_ZONE, "%s: Intr Status Register value = %d\n",
+		__func__, sdio_interrupt_status);
+
+	/* Put Thread-Arch processor on hold */
+	if (rsi_sdio_master_access_msword(adapter, TA_BASE_ADDR)) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Unable to set ms word to common reg\n",
+			__func__);
+		return;
+	}
+
+	data = TA_HOLD_THREAD_VALUE;
+	if (rsi_sdio_write_register_multiple(adapter, TA_HOLD_THREAD_REG |
+					     RSI_SD_REQUEST_MASTER,
+					     (u8 *)&data, 4)) {
+		rsi_dbg(ERR_ZONE,
+			"%s: Unable to hold Thread-Arch processor threads\n",
+			__func__);
+		return;
+	}
+
+	/* This msleep will ensure Thread-Arch processor to go to hold
+	 * and any pending dma transfers to rf spi in device to finish.
+	 */
+	msleep(100);
+
+	ulp_read_write(adapter, RSI_ULP_RESET_REG, RSI_ULP_WRITE_0, 32);
+	ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_1, RSI_ULP_WRITE_2, 32);
+	ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_2, RSI_ULP_WRITE_0, 32);
+	ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_1, RSI_ULP_WRITE_50,
+		       32);
+	ulp_read_write(adapter, RSI_WATCH_DOG_DELAY_TIMER_2, RSI_ULP_WRITE_0,
+		       32);
+	ulp_read_write(adapter, RSI_WATCH_DOG_TIMER_ENABLE,
+		       RSI_ULP_TIMER_ENABLE, 32);
+	/* This msleep will be sufficient for the ulp
+	 * read write operations to complete for chip reset.
+	 */
+	msleep(500);
+}
+
 /**
  * rsi_disconnect() - This function performs the reverse of the probe function.
  * @pfunction: Pointer to the sdio_func structure.
@@ -956,7 +1034,7 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 	sdio_release_irq(pfunction);
 	sdio_disable_func(pfunction);
 	rsi_91x_deinit(adapter);
-	/* Resetting to take care of the case, where-in driver is re-loaded */
+	rsi_reset_chip(adapter);
 	rsi_reset_card(pfunction);
 	sdio_release_host(pfunction);
 }

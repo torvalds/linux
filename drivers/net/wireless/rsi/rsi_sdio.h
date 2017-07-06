@@ -58,6 +58,7 @@ enum sdio_interrupt_type {
 #define SDIO_READ_START_LVL                     0x000FC
 #define SDIO_READ_FIFO_CTL                      0x000FD
 #define SDIO_WRITE_FIFO_CTL                     0x000FE
+#define SDIO_WAKEUP_REG				0x000FF
 #define SDIO_FUN1_INTR_CLR_REG                  0x0008
 #define SDIO_REG_HIGH_SPEED                     0x0013
 
