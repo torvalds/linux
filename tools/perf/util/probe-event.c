@@ -2769,7 +2769,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	if (ret == -EINVAL && pev->uprobes)
 		warn_uprobe_event_compat(tev);
 	if (ret == 0 && probe_conf.cache) {
-		cache = probe_cache__new(pev->target);
+		cache = probe_cache__new(pev->target, pev->nsi);
 		if (!cache ||
 		    probe_cache__add_entry(cache, pev, tevs, ntevs) < 0 ||
 		    probe_cache__commit(cache) < 0)
@@ -3119,7 +3119,7 @@ static int find_cached_events(struct perf_probe_event *pev,
 	int ntevs = 0;
 	int ret = 0;
 
-	cache = probe_cache__new(target);
+	cache = probe_cache__new(target, pev->nsi);
 	/* Return 0 ("not found") if the target has no probe cache. */
 	if (!cache)
 		return 0;
@@ -3209,7 +3209,7 @@ static int find_probe_trace_events_from_cache(struct perf_probe_event *pev,
 		else
 			return find_cached_events(pev, tevs, pev->target);
 	}
-	cache = probe_cache__new(pev->target);
+	cache = probe_cache__new(pev->target, pev->nsi);
 	if (!cache)
 		return 0;
 

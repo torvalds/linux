@@ -534,13 +534,14 @@ char *build_id_cache__complement(const char *incomplete_sbuild_id)
 }
 
 char *build_id_cache__cachedir(const char *sbuild_id, const char *name,
-			       bool is_kallsyms, bool is_vdso)
+			       struct nsinfo *nsi, bool is_kallsyms,
+			       bool is_vdso)
 {
 	char *realname = (char *)name, *filename;
 	bool slash = is_kallsyms || is_vdso;
 
 	if (!slash) {
-		realname = realpath(name, NULL);
+		realname = nsinfo__realpath(name, nsi);
 		if (!realname)
 			return NULL;
 	}
@@ -556,13 +557,13 @@ char *build_id_cache__cachedir(const char *sbuild_id, const char *name,
 	return filename;
 }
 
-int build_id_cache__list_build_ids(const char *pathname,
+int build_id_cache__list_build_ids(const char *pathname, struct nsinfo *nsi,
 				   struct strlist **result)
 {
 	char *dir_name;
 	int ret = 0;
 
-	dir_name = build_id_cache__cachedir(NULL, pathname, false, false);
+	dir_name = build_id_cache__cachedir(NULL, pathname, nsi, false, false);
 	if (!dir_name)
 		return -ENOMEM;
 
@@ -576,16 +577,20 @@ int build_id_cache__list_build_ids(const char *pathname,
 
 #if defined(HAVE_LIBELF_SUPPORT) && defined(HAVE_GELF_GETNOTE_SUPPORT)
 static int build_id_cache__add_sdt_cache(const char *sbuild_id,
-					  const char *realname)
+					  const char *realname,
+					  struct nsinfo *nsi)
 {
 	struct probe_cache *cache;
 	int ret;
+	struct nscookie nsc;
 
-	cache = probe_cache__new(sbuild_id);
+	cache = probe_cache__new(sbuild_id, nsi);
 	if (!cache)
 		return -1;
 
+	nsinfo__mountns_enter(nsi, &nsc);
 	ret = probe_cache__scan_sdt(cache, realname);
+	nsinfo__mountns_exit(&nsc);
 	if (ret >= 0) {
 		pr_debug4("Found %d SDTs in %s\n", ret, realname);
 		if (probe_cache__commit(cache) < 0)
@@ -595,11 +600,11 @@ static int build_id_cache__add_sdt_cache(const char *sbuild_id,
 	return ret;
 }
 #else
-#define build_id_cache__add_sdt_cache(sbuild_id, realname) (0)
+#define build_id_cache__add_sdt_cache(sbuild_id, realname, nsi) (0)
 #endif
 
 int build_id_cache__add_s(const char *sbuild_id, const char *name,
-			  bool is_kallsyms, bool is_vdso)
+			  struct nsinfo *nsi, bool is_kallsyms, bool is_vdso)
 {
 	const size_t size = PATH_MAX;
 	char *realname = NULL, *filename = NULL, *dir_name = NULL,
@@ -607,13 +612,16 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 	int err = -1;
 
 	if (!is_kallsyms) {
-		realname = realpath(name, NULL);
+		if (!is_vdso)
+			realname = nsinfo__realpath(name, nsi);
+		else
+			realname = realpath(name, NULL);
 		if (!realname)
 			goto out_free;
 	}
 
-	dir_name = build_id_cache__cachedir(sbuild_id, name,
-					    is_kallsyms, is_vdso);
+	dir_name = build_id_cache__cachedir(sbuild_id, name, nsi, is_kallsyms,
+					    is_vdso);
 	if (!dir_name)
 		goto out_free;
 
@@ -634,7 +642,10 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 
 	if (access(filename, F_OK)) {
 		if (is_kallsyms) {
-			 if (copyfile("/proc/kallsyms", filename))
+			if (copyfile("/proc/kallsyms", filename))
+				goto out_free;
+		} else if (nsi && nsi->need_setns) {
+			if (copyfile_ns(name, filename, nsi))
 				goto out_free;
 		} else if (link(realname, filename) && errno != EEXIST &&
 				copyfile(name, filename))
@@ -657,7 +668,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 		err = 0;
 
 	/* Update SDT cache : error is just warned */
-	if (realname && build_id_cache__add_sdt_cache(sbuild_id, realname) < 0)
+	if (realname &&
+	    build_id_cache__add_sdt_cache(sbuild_id, realname, nsi) < 0)
 		pr_debug4("Failed to update/scan SDT cache for %s\n", realname);
 
 out_free:
@@ -670,14 +682,15 @@ out_free:
 }
 
 static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
-				 const char *name, bool is_kallsyms,
-				 bool is_vdso)
+				 const char *name, struct nsinfo *nsi,
+				 bool is_kallsyms, bool is_vdso)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 
 	build_id__sprintf(build_id, build_id_size, sbuild_id);
 
-	return build_id_cache__add_s(sbuild_id, name, is_kallsyms, is_vdso);
+	return build_id_cache__add_s(sbuild_id, name, nsi, is_kallsyms,
+				     is_vdso);
 }
 
 bool build_id_cache__cached(const char *sbuild_id)
@@ -743,7 +756,7 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine)
 		name = nm;
 	}
 	return build_id_cache__add_b(dso->build_id, sizeof(dso->build_id), name,
-				     is_kallsyms, is_vdso);
+				     dso->nsinfo, is_kallsyms, is_vdso);
 }
 
 static int __dsos__cache_build_ids(struct list_head *head,

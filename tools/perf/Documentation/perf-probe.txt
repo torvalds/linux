@@ -273,6 +273,11 @@ Add a uprobe to a target process running in a different mount namespace
 
  ./perf probe --target-ns <target pid> -x /lib64/libc.so.6 malloc
 
+Add a USDT probe to a target process running in a different mount namespace
+
+ ./perf probe --target-ns <target pid> -x /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.121-0.b13.el7_3.x86_64/jre/lib/amd64/server/libjvm.so %sdt_hotspot:thread__sleep__end
+
+
 SEE ALSO
 --------
 linkperf:perf-trace[1], linkperf:perf-record[1], linkperf:perf-buildid-cache[1]

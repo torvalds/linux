@@ -504,7 +504,14 @@ static void check_data_close(void);
  */
 static int open_dso(struct dso *dso, struct machine *machine)
 {
-	int fd = __open_dso(dso, machine);
+	int fd;
+	struct nscookie nsc;
+
+	if (dso->binary_type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		nsinfo__mountns_enter(dso->nsinfo, &nsc);
+	fd = __open_dso(dso, machine);
+	if (dso->binary_type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		nsinfo__mountns_exit(&nsc);
 
 	if (fd >= 0) {
 		dso__list_add(dso);
@@ -1302,6 +1309,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 {
 	bool have_build_id = false;
 	struct dso *pos;
+	struct nscookie nsc;
 
 	list_for_each_entry(pos, head, node) {
 		if (with_hits && !pos->hit && !dso__is_vdso(pos))
@@ -1310,11 +1318,13 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 			have_build_id = true;
 			continue;
 		}
+		nsinfo__mountns_enter(pos->nsinfo, &nsc);
 		if (filename__read_build_id(pos->long_name, pos->build_id,
 					    sizeof(pos->build_id)) > 0) {
 			have_build_id	  = true;
 			pos->has_build_id = true;
 		}
+		nsinfo__mountns_exit(&nsc);
 	}
 
 	return have_build_id;

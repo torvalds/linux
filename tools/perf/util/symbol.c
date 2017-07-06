@@ -1464,7 +1464,6 @@ static int dso__find_perf_map(char *filebuf, size_t bufsz,
 	return rc;
 }
 
-
 int dso__load(struct dso *dso, struct map *map)
 {
 	char *name;
@@ -1565,6 +1564,8 @@ int dso__load(struct dso *dso, struct map *map)
 	for (i = 0; i < DSO_BINARY_TYPE__SYMTAB_CNT; i++) {
 		struct symsrc *ss = &ss_[ss_pos];
 		bool next_slot = false;
+		bool is_reg;
+		int sirc;
 
 		enum dso_binary_type symtab_type = binary_type_symtab[i];
 
@@ -1575,12 +1576,20 @@ int dso__load(struct dso *dso, struct map *map)
 						   root_dir, name, PATH_MAX))
 			continue;
 
-		if (!is_regular_file(name))
-			continue;
+		if (symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
+			nsinfo__mountns_exit(&nsc);
 
-		/* Name is now the name of the next image to try */
-		if (symsrc__init(ss, dso, name, symtab_type) < 0)
+		is_reg = is_regular_file(name);
+		sirc = symsrc__init(ss, dso, name, symtab_type);
+
+		if (symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
+			nsinfo__mountns_enter(dso->nsinfo, &nsc);
+
+		if (!is_reg || sirc < 0) {
+			if (sirc >= 0)
+				symsrc__destroy(ss);
 			continue;
+		}
 
 		if (!syms_ss && symsrc__has_symtab(ss)) {
 			syms_ss = ss;

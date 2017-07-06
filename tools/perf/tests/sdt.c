@@ -33,7 +33,7 @@ static int build_id_cache__add_file(const char *filename)
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__add_s(sbuild_id, filename, false, false);
+	err = build_id_cache__add_s(sbuild_id, filename, NULL, false, false);
 	if (err < 0)
 		pr_debug("Failed to add build id cache of %s\n", filename);
 	return err;
@@ -54,7 +54,7 @@ static char *get_self_path(void)
 static int search_cached_probe(const char *target,
 			       const char *group, const char *event)
 {
-	struct probe_cache *cache = probe_cache__new(target);
+	struct probe_cache *cache = probe_cache__new(target, NULL);
 	int ret = 0;
 
 	if (!cache) {

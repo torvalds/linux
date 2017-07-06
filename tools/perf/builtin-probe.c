@@ -416,7 +416,7 @@ static int del_perf_probe_caches(struct strfilter *filter)
 	}
 
 	strlist__for_each_entry(nd, bidlist) {
-		cache = probe_cache__new(nd->s);
+		cache = probe_cache__new(nd->s, NULL);
 		if (!cache)
 			continue;
 		if (probe_cache__filter_purge(cache, filter) < 0 ||
