@@ -652,6 +652,11 @@ void ccp_dmaengine_unregister(struct ccp_device *ccp);
 void ccp5_debugfs_setup(struct ccp_device *ccp);
 void ccp5_debugfs_destroy(void);
 
+int ccp_dev_init(struct ccp_device *ccp);
+void ccp_dev_destroy(struct ccp_device *ccp);
+int ccp_dev_suspend(struct ccp_device *ccp, pm_message_t state);
+int ccp_dev_resume(struct ccp_device *ccp);
+
 /* Structure for computation functions that are device-specific */
 struct ccp_actions {
 	int (*aes)(struct ccp_op *);
@@ -679,6 +684,7 @@ struct ccp_vdata {
 	const unsigned int offset;
 };
 
+extern const struct ccp_vdata ccpv3_platform;
 extern const struct ccp_vdata ccpv3;
 extern const struct ccp_vdata ccpv5a;
 extern const struct ccp_vdata ccpv5b;

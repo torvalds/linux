@@ -104,19 +104,6 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 	free_irq(ccp->irq, dev);
 }
 
-static struct resource *ccp_find_mmio_area(struct ccp_device *ccp)
-{
-	struct device *dev = ccp->dev;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *ior;
-
-	ior = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (ior && (resource_size(ior) >= 0x800))
-		return ior;
-
-	return NULL;
-}
-
 static int ccp_platform_probe(struct platform_device *pdev)
 {
 	struct ccp_device *ccp;
@@ -146,7 +133,7 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	ccp->get_irq = ccp_get_irqs;
 	ccp->free_irq = ccp_free_irqs;
 
-	ior = ccp_find_mmio_area(ccp);
+	ior = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ccp->io_map = devm_ioremap_resource(dev, ior);
 	if (IS_ERR(ccp->io_map)) {
 		ret = PTR_ERR(ccp->io_map);
@@ -174,7 +161,7 @@ static int ccp_platform_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, ccp);
 
-	ret = ccp->vdata->perform->init(ccp);
+	ret = ccp_dev_init(ccp);
 	if (ret)
 		goto e_err;
 
@@ -192,7 +179,7 @@ static int ccp_platform_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ccp_device *ccp = dev_get_drvdata(dev);
 
-	ccp->vdata->perform->destroy(ccp);
+	ccp_dev_destroy(ccp);
 
 	dev_notice(dev, "disabled\n");
 
@@ -205,47 +192,16 @@ static int ccp_platform_suspend(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct ccp_device *ccp = dev_get_drvdata(dev);
-	unsigned long flags;
-	unsigned int i;
 
-	spin_lock_irqsave(&ccp->cmd_lock, flags);
-
-	ccp->suspending = 1;
-
-	/* Wake all the queue kthreads to prepare for suspend */
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		wake_up_process(ccp->cmd_q[i].kthread);
-
-	spin_unlock_irqrestore(&ccp->cmd_lock, flags);
-
-	/* Wait for all queue kthreads to say they're done */
-	while (!ccp_queues_suspended(ccp))
-		wait_event_interruptible(ccp->suspend_queue,
-					 ccp_queues_suspended(ccp));
-
-	return 0;
+	return ccp_dev_suspend(ccp, state);
 }
 
 static int ccp_platform_resume(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ccp_device *ccp = dev_get_drvdata(dev);
-	unsigned long flags;
-	unsigned int i;
 
-	spin_lock_irqsave(&ccp->cmd_lock, flags);
-
-	ccp->suspending = 0;
-
-	/* Wake up all the kthreads */
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		ccp->cmd_q[i].suspended = 0;
-		wake_up_process(ccp->cmd_q[i].kthread);
-	}
-
-	spin_unlock_irqrestore(&ccp->cmd_lock, flags);
-
-	return 0;
+	return ccp_dev_resume(ccp);
 }
 #endif
 
@@ -260,7 +216,7 @@ MODULE_DEVICE_TABLE(acpi, ccp_acpi_match);
 #ifdef CONFIG_OF
 static const struct of_device_id ccp_of_match[] = {
 	{ .compatible = "amd,ccp-seattle-v1a",
-	  .data = (const void *)&ccpv3 },
+	  .data = (const void *)&ccpv3_platform },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ccp_of_match);

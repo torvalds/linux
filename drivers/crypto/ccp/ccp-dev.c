@@ -539,7 +539,68 @@ bool ccp_queues_suspended(struct ccp_device *ccp)
 
 	return ccp->cmd_q_count == suspended;
 }
+
+int ccp_dev_suspend(struct ccp_device *ccp, pm_message_t state)
+{
+	unsigned long flags;
+	unsigned int i;
+
+	spin_lock_irqsave(&ccp->cmd_lock, flags);
+
+	ccp->suspending = 1;
+
+	/* Wake all the queue kthreads to prepare for suspend */
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		wake_up_process(ccp->cmd_q[i].kthread);
+
+	spin_unlock_irqrestore(&ccp->cmd_lock, flags);
+
+	/* Wait for all queue kthreads to say they're done */
+	while (!ccp_queues_suspended(ccp))
+		wait_event_interruptible(ccp->suspend_queue,
+					 ccp_queues_suspended(ccp));
+
+	return 0;
+}
+
+int ccp_dev_resume(struct ccp_device *ccp)
+{
+	unsigned long flags;
+	unsigned int i;
+
+	spin_lock_irqsave(&ccp->cmd_lock, flags);
+
+	ccp->suspending = 0;
+
+	/* Wake up all the kthreads */
+	for (i = 0; i < ccp->cmd_q_count; i++) {
+		ccp->cmd_q[i].suspended = 0;
+		wake_up_process(ccp->cmd_q[i].kthread);
+	}
+
+	spin_unlock_irqrestore(&ccp->cmd_lock, flags);
+
+	return 0;
+}
 #endif
+
+int ccp_dev_init(struct ccp_device *ccp)
+{
+	ccp->io_regs = ccp->io_map + ccp->vdata->offset;
+
+	if (ccp->vdata->setup)
+		ccp->vdata->setup(ccp);
+
+	return ccp->vdata->perform->init(ccp);
+}
+
+void ccp_dev_destroy(struct ccp_device *ccp)
+{
+	if (!ccp)
+		return;
+
+	ccp->vdata->perform->destroy(ccp);
+}
 
 static int __init ccp_mod_init(void)
 {

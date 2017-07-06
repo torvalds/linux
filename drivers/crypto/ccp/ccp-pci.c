@@ -150,28 +150,13 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 	ccp->irq = 0;
 }
 
-static int ccp_find_mmio_area(struct ccp_device *ccp)
-{
-	struct device *dev = ccp->dev;
-	struct pci_dev *pdev = to_pci_dev(dev);
-	resource_size_t io_len;
-	unsigned long io_flags;
-
-	io_flags = pci_resource_flags(pdev, ccp->vdata->bar);
-	io_len = pci_resource_len(pdev, ccp->vdata->bar);
-	if ((io_flags & IORESOURCE_MEM) &&
-	    (io_len >= (ccp->vdata->offset + 0x800)))
-		return ccp->vdata->bar;
-
-	return -EIO;
-}
-
 static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ccp_device *ccp;
 	struct ccp_pci *ccp_pci;
 	struct device *dev = &pdev->dev;
-	unsigned int bar;
+	void __iomem * const *iomap_table;
+	int bar_mask;
 	int ret;
 
 	ret = -ENOMEM;
@@ -193,32 +178,34 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ccp->get_irq = ccp_get_irqs;
 	ccp->free_irq = ccp_free_irqs;
 
-	ret = pci_request_regions(pdev, "ccp");
+	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(dev, "pci_request_regions failed (%d)\n", ret);
+		dev_err(dev, "pcim_enable_device failed (%d)\n", ret);
 		goto e_err;
 	}
 
-	ret = pci_enable_device(pdev);
+	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM);
+	ret = pcim_iomap_regions(pdev, bar_mask, "ccp");
 	if (ret) {
-		dev_err(dev, "pci_enable_device failed (%d)\n", ret);
-		goto e_regions;
+		dev_err(dev, "pcim_iomap_regions failed (%d)\n", ret);
+		goto e_err;
+	}
+
+	iomap_table = pcim_iomap_table(pdev);
+	if (!iomap_table) {
+		dev_err(dev, "pcim_iomap_table failed\n");
+		ret = -ENOMEM;
+		goto e_err;
+	}
+
+	ccp->io_map = iomap_table[ccp->vdata->bar];
+	if (!ccp->io_map) {
+		dev_err(dev, "ioremap failed\n");
+		ret = -ENOMEM;
+		goto e_err;
 	}
 
 	pci_set_master(pdev);
-
-	ret = ccp_find_mmio_area(ccp);
-	if (ret < 0)
-		goto e_device;
-	bar = ret;
-
-	ret = -EIO;
-	ccp->io_map = pci_iomap(pdev, bar, 0);
-	if (!ccp->io_map) {
-		dev_err(dev, "pci_iomap failed\n");
-		goto e_device;
-	}
-	ccp->io_regs = ccp->io_map + ccp->vdata->offset;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
@@ -226,31 +213,19 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (ret) {
 			dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n",
 				ret);
-			goto e_iomap;
+			goto e_err;
 		}
 	}
 
 	dev_set_drvdata(dev, ccp);
 
-	if (ccp->vdata->setup)
-		ccp->vdata->setup(ccp);
-
-	ret = ccp->vdata->perform->init(ccp);
+	ret = ccp_dev_init(ccp);
 	if (ret)
-		goto e_iomap;
+		goto e_err;
 
 	dev_notice(dev, "enabled\n");
 
 	return 0;
-
-e_iomap:
-	pci_iounmap(pdev, ccp->io_map);
-
-e_device:
-	pci_disable_device(pdev);
-
-e_regions:
-	pci_release_regions(pdev);
 
 e_err:
 	dev_notice(dev, "initialization failed\n");
@@ -265,13 +240,7 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 	if (!ccp)
 		return;
 
-	ccp->vdata->perform->destroy(ccp);
-
-	pci_iounmap(pdev, ccp->io_map);
-
-	pci_disable_device(pdev);
-
-	pci_release_regions(pdev);
+	ccp_dev_destroy(ccp);
 
 	dev_notice(dev, "disabled\n");
 }
@@ -281,47 +250,16 @@ static int ccp_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct device *dev = &pdev->dev;
 	struct ccp_device *ccp = dev_get_drvdata(dev);
-	unsigned long flags;
-	unsigned int i;
 
-	spin_lock_irqsave(&ccp->cmd_lock, flags);
-
-	ccp->suspending = 1;
-
-	/* Wake all the queue kthreads to prepare for suspend */
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		wake_up_process(ccp->cmd_q[i].kthread);
-
-	spin_unlock_irqrestore(&ccp->cmd_lock, flags);
-
-	/* Wait for all queue kthreads to say they're done */
-	while (!ccp_queues_suspended(ccp))
-		wait_event_interruptible(ccp->suspend_queue,
-					 ccp_queues_suspended(ccp));
-
-	return 0;
+	return ccp_dev_suspend(ccp, state);
 }
 
 static int ccp_pci_resume(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ccp_device *ccp = dev_get_drvdata(dev);
-	unsigned long flags;
-	unsigned int i;
 
-	spin_lock_irqsave(&ccp->cmd_lock, flags);
-
-	ccp->suspending = 0;
-
-	/* Wake up all the kthreads */
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		ccp->cmd_q[i].suspended = 0;
-		wake_up_process(ccp->cmd_q[i].kthread);
-	}
-
-	spin_unlock_irqrestore(&ccp->cmd_lock, flags);
-
-	return 0;
+	return ccp_dev_resume(ccp);
 }
 #endif
 
