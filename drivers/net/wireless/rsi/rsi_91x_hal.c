@@ -149,6 +149,7 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 	extnd_size = ((uintptr_t)skb->data & 0x3);
 
 	if (tx_params->flags & INTERNAL_MGMT_PKT) {
+		skb->data[1] |= BIT(7); /* Immediate Wakeup bit*/
 		if ((extnd_size) > skb_headroom(skb)) {
 			rsi_dbg(ERR_ZONE, "%s: Unable to send pkt\n", __func__);
 			dev_kfree_skb(skb);
