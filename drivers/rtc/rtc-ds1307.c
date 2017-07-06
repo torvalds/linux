@@ -1388,14 +1388,8 @@ static int ds1307_probe(struct i2c_client *client,
  * This will guarantee the 'wakealarm' sysfs entry is available on the device,
  * if supported by the RTC.
  */
-	if (of_property_read_bool(client->dev.of_node, "wakeup-source")) {
+	if (of_property_read_bool(client->dev.of_node, "wakeup-source"))
 		ds1307_can_wakeup_device = true;
-	}
-	/* Intersil ISL12057 DT backward compatibility */
-	if (of_property_read_bool(client->dev.of_node,
-				  "isil,irq2-can-wakeup-machine")) {
-		ds1307_can_wakeup_device = true;
-	}
 #endif
 
 	switch (ds1307->type) {
