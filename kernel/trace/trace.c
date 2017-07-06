@@ -1916,7 +1916,11 @@ static int trace_save_cmdline(struct task_struct *tsk)
 {
 	unsigned pid, idx;
 
-	if (!tsk->pid || unlikely(tsk->pid > PID_MAX_DEFAULT))
+	/* treat recording of idle task as a success */
+	if (!tsk->pid)
+		return 1;
+
+	if (unlikely(tsk->pid > PID_MAX_DEFAULT))
 		return 0;
 
 	/*
