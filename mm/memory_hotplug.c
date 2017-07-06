@@ -1572,11 +1572,7 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 
 static int __init cmdline_parse_movable_node(char *p)
 {
-#ifdef CONFIG_MOVABLE_NODE
 	movable_node_enabled = true;
-#else
-	pr_warn("movable_node option not supported\n");
-#endif
 	return 0;
 }
 early_param("movable_node", cmdline_parse_movable_node);
