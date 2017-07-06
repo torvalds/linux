@@ -138,12 +138,15 @@ static int rsi_issue_sdiocommand(struct sdio_func *func,
 static void rsi_handle_interrupt(struct sdio_func *function)
 {
 	struct rsi_hw *adapter = sdio_get_drvdata(function);
+	struct rsi_91x_sdiodev *dev =
+		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 
 	if (adapter->priv->fsm_state == FSM_FW_NOT_LOADED)
 		return;
-	sdio_release_host(function);
+
+	dev->sdio_irq_task = current;
 	rsi_interrupt_handler(adapter);
-	sdio_claim_host(function);
+	dev->sdio_irq_task = NULL;
 }
 
 /**
@@ -407,14 +410,16 @@ int rsi_sdio_read_register(struct rsi_hw *adapter,
 	u8 fun_num = 0;
 	int status;
 
-	sdio_claim_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_claim_host(dev->pfunction);
 
 	if (fun_num == 0)
 		*data = sdio_f0_readb(dev->pfunction, addr, &status);
 	else
 		*data = sdio_readb(dev->pfunction, addr, &status);
 
-	sdio_release_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_release_host(dev->pfunction);
 
 	return status;
 }
@@ -438,14 +443,16 @@ int rsi_sdio_write_register(struct rsi_hw *adapter,
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	int status = 0;
 
-	sdio_claim_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_claim_host(dev->pfunction);
 
 	if (function == 0)
 		sdio_f0_writeb(dev->pfunction, *data, addr, &status);
 	else
 		sdio_writeb(dev->pfunction, *data, addr, &status);
 
-	sdio_release_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_release_host(dev->pfunction);
 
 	return status;
 }
@@ -490,11 +497,13 @@ static int rsi_sdio_read_register_multiple(struct rsi_hw *adapter,
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u32 status;
 
-	sdio_claim_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_claim_host(dev->pfunction);
 
 	status =  sdio_readsb(dev->pfunction, data, addr, count);
 
-	sdio_release_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_release_host(dev->pfunction);
 
 	if (status != 0)
 		rsi_dbg(ERR_ZONE, "%s: Synch Cmd53 read failed\n", __func__);
@@ -532,11 +541,13 @@ int rsi_sdio_write_register_multiple(struct rsi_hw *adapter,
 		dev->write_fail++;
 	}
 
-	sdio_claim_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_claim_host(dev->pfunction);
 
 	status = sdio_writesb(dev->pfunction, addr, data, count);
 
-	sdio_release_host(dev->pfunction);
+	if (likely(dev->sdio_irq_task != current))
+		sdio_release_host(dev->pfunction);
 
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s: Synch Cmd53 write failed %d\n",
