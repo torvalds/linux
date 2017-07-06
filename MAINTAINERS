@@ -1515,6 +1515,7 @@ F:	arch/arm64/boot/dts/marvell/armada*
 F:	drivers/cpufreq/mvebu-cpufreq.c
 F:	drivers/irqchip/irq-armada-370-xp.c
 F:	drivers/irqchip/irq-mvebu-*
+F:	drivers/pinctrl/mvebu/
 F:	drivers/rtc/rtc-armada38x.c
 
 ARM/Marvell Berlin SoC support
@@ -1681,7 +1682,6 @@ F:	arch/arm/mach-qcom/
 F:	arch/arm64/boot/dts/qcom/*
 F:	drivers/i2c/busses/i2c-qup.c
 F:	drivers/clk/qcom/
-F:	drivers/pinctrl/qcom/
 F:	drivers/dma/qcom/
 F:	drivers/soc/qcom/
 F:	drivers/spi/spi-qup.c
@@ -10266,6 +10266,13 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 S:	Maintained
 F:	drivers/pinctrl/intel/
+
+PIN CONTROLLER - QUALCOMM
+M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+S:	Maintained
+L:	linux-arm-msm@vger.kernel.org
+F:	Documentation/devicetree/bindings/pinctrl/qcom,*.txt
+F:	drivers/pinctrl/qcom/
 
 PIN CONTROLLER - RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>

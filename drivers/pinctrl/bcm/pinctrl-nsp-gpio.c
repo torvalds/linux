@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Broadcom Corporation
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -9,7 +9,9 @@
  * kind, whether express or implied; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ */
+
+/*
  * This file contains the Broadcom Northstar Plus (NSP) GPIO driver that
  * supports the chipCommonA GPIO controller. Basic PINCONF such as bias,
  * pull up/down, slew and drive strength are also supported in this driver.
