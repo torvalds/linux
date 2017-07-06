@@ -177,6 +177,64 @@ static void pvcalls_conn_back_read(void *opaque)
 
 static void pvcalls_conn_back_write(struct sock_mapping *map)
 {
+	struct pvcalls_data_intf *intf = map->ring;
+	struct pvcalls_data *data = &map->data;
+	struct msghdr msg;
+	struct kvec vec[2];
+	RING_IDX cons, prod, size, array_size;
+	int ret;
+
+	cons = intf->out_cons;
+	prod = intf->out_prod;
+	/* read the indexes before dealing with the data */
+	virt_mb();
+
+	array_size = XEN_FLEX_RING_SIZE(map->ring_order);
+	size = pvcalls_queued(prod, cons, array_size);
+	if (size == 0)
+		return;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_flags |= MSG_DONTWAIT;
+	msg.msg_iter.type = ITER_KVEC|READ;
+	msg.msg_iter.count = size;
+	if (pvcalls_mask(prod, array_size) > pvcalls_mask(cons, array_size)) {
+		vec[0].iov_base = data->out + pvcalls_mask(cons, array_size);
+		vec[0].iov_len = size;
+		msg.msg_iter.kvec = vec;
+		msg.msg_iter.nr_segs = 1;
+	} else {
+		vec[0].iov_base = data->out + pvcalls_mask(cons, array_size);
+		vec[0].iov_len = array_size - pvcalls_mask(cons, array_size);
+		vec[1].iov_base = data->out;
+		vec[1].iov_len = size - vec[0].iov_len;
+		msg.msg_iter.kvec = vec;
+		msg.msg_iter.nr_segs = 2;
+	}
+
+	atomic_set(&map->write, 0);
+	ret = inet_sendmsg(map->sock, &msg, size);
+	if (ret == -EAGAIN || (ret >= 0 && ret < size)) {
+		atomic_inc(&map->write);
+		atomic_inc(&map->io);
+	}
+	if (ret == -EAGAIN)
+		return;
+
+	/* write the data, then update the indexes */
+	virt_wmb();
+	if (ret < 0) {
+		intf->out_error = ret;
+	} else {
+		intf->out_error = 0;
+		intf->out_cons = cons + ret;
+		prod = intf->out_prod;
+	}
+	/* update the indexes, then notify the other end */
+	virt_wmb();
+	if (prod != cons + ret)
+		atomic_inc(&map->write);
+	notify_remote_via_irq(map->irq);
 }
 
 static void pvcalls_back_ioworker(struct work_struct *work)
@@ -847,6 +905,19 @@ static irqreturn_t pvcalls_back_event(int irq, void *dev_id)
 
 static irqreturn_t pvcalls_back_conn_event(int irq, void *sock_map)
 {
+	struct sock_mapping *map = sock_map;
+	struct pvcalls_ioworker *iow;
+
+	if (map == NULL || map->sock == NULL || map->sock->sk == NULL ||
+		map->sock->sk->sk_user_data != map)
+		return IRQ_HANDLED;
+
+	iow = &map->ioworker;
+
+	atomic_inc(&map->write);
+	atomic_inc(&map->io);
+	queue_work(iow->wq, &iow->register_work);
+
 	return IRQ_HANDLED;
 }
 
