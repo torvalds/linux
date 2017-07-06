@@ -98,6 +98,8 @@ extern struct ata_port *ata_port_alloc(struct ata_host *host);
 extern const char *sata_spd_string(unsigned int spd);
 extern int ata_port_probe(struct ata_port *ap);
 extern void __ata_port_probe(struct ata_port *ap);
+extern unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
+				      u8 page, void *buf, unsigned int sectors);
 
 #define to_ata_port(d) container_of(d, struct ata_port, tdev)
 
@@ -160,8 +162,6 @@ extern void ata_eh_about_to_do(struct ata_link *link, struct ata_device *dev,
 			       unsigned int action);
 extern void ata_eh_done(struct ata_link *link, struct ata_device *dev,
 			unsigned int action);
-extern unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
-				      u8 page, void *buf, unsigned int sectors);
 extern void ata_eh_autopsy(struct ata_port *ap);
 const char *ata_get_cmd_descript(u8 command);
 extern void ata_eh_report(struct ata_port *ap);

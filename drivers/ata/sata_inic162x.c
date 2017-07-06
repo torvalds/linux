@@ -737,7 +737,7 @@ static struct ata_port_operations inic_port_ops = {
 	.port_start		= inic_port_start,
 };
 
-static struct ata_port_info inic_port_info = {
+static const struct ata_port_info inic_port_info = {
 	.flags			= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA,
 	.pio_mask		= ATA_PIO4,
 	.mwdma_mask		= ATA_MWDMA2,

@@ -7593,6 +7593,15 @@ S:	Maintained
 F:	drivers/ata/pata_*.c
 F:	drivers/ata/ata_generic.c
 
+LIBATA PATA FARADAY FTIDE010 AND GEMINI SATA BRIDGE DRIVERS
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-ide@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/libata.git
+S:	Maintained
+F:	drivers/ata/pata_ftide010.c
+F:	drivers/ata/sata_gemini.c
+F:	drivers/ata/sata_gemini.h
+
 LIBATA SATA AHCI PLATFORM devices support
 M:	Hans de Goede <hdegoede@redhat.com>
 M:	Tejun Heo <tj@kernel.org>

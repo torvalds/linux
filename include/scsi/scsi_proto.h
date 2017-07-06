@@ -162,6 +162,7 @@
 #define VERIFY_32	      0x0a
 #define WRITE_32	      0x0b
 #define WRITE_SAME_32	      0x0d
+#define ATA_32		      0x1ff0
 
 /* Values for T10/04-262r7 */
 #define	ATA_16		      0x85	/* 16-byte pass-thru */

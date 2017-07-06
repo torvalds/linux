@@ -71,6 +71,7 @@ struct scsi_disk {
 	struct scsi_device *device;
 	struct device	dev;
 	struct gendisk	*disk;
+	struct opal_dev *opal_dev;
 #ifdef CONFIG_BLK_DEV_ZONED
 	unsigned int	nr_zones;
 	unsigned int	zone_blocks;
@@ -114,6 +115,7 @@ struct scsi_disk {
 	unsigned	rc_basis: 2;
 	unsigned	zoned: 2;
 	unsigned	urswrz : 1;
+	unsigned	security : 1;
 	unsigned	ignore_medium_access_errors : 1;
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)

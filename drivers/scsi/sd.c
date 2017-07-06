@@ -50,6 +50,7 @@
 #include <linux/string_helpers.h>
 #include <linux/async.h>
 #include <linux/slab.h>
+#include <linux/sed-opal.h>
 #include <linux/pm_runtime.h>
 #include <linux/pr.h>
 #include <linux/t10-pi.h>
@@ -642,6 +643,26 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
 	scsi_device_put(sdev);
 	mutex_unlock(&sd_ref_mutex);
 }
+
+#ifdef CONFIG_BLK_SED_OPAL
+static int sd_sec_submit(void *data, u16 spsp, u8 secp, void *buffer,
+		size_t len, bool send)
+{
+	struct scsi_device *sdev = data;
+	u8 cdb[12] = { 0, };
+	int ret;
+
+	cdb[0] = send ? SECURITY_PROTOCOL_OUT : SECURITY_PROTOCOL_IN;
+	cdb[1] = secp;
+	put_unaligned_be16(spsp, &cdb[2]);
+	put_unaligned_be32(len, &cdb[6]);
+
+	ret = scsi_execute_req(sdev, cdb,
+			send ? DMA_TO_DEVICE : DMA_FROM_DEVICE,
+			buffer, len, NULL, SD_TIMEOUT, SD_MAX_RETRIES, NULL);
+	return ret <= 0 ? ret : -EIO;
+}
+#endif /* CONFIG_BLK_SED_OPAL */
 
 static unsigned char sd_setup_protect_cmnd(struct scsi_cmnd *scmd,
 					   unsigned int dix, unsigned int dif)
@@ -1453,6 +1474,9 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 			(mode & FMODE_NDELAY) != 0);
 	if (error)
 		goto out;
+
+	if (is_sed_ioctl(cmd))
+		return sed_ioctl(sdkp->opal_dev, cmd, p);
 
 	/*
 	 * Send SCSI addressing ioctls directly to mid level, send other
@@ -3014,6 +3038,20 @@ static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
 		sdkp->ws10 = 1;
 }
 
+static void sd_read_security(struct scsi_disk *sdkp, unsigned char *buffer)
+{
+	struct scsi_device *sdev = sdkp->device;
+
+	if (!sdev->security_supported)
+		return;
+
+	if (scsi_report_opcode(sdev, buffer, SD_BUF_SIZE,
+			SECURITY_PROTOCOL_IN) == 1 &&
+	    scsi_report_opcode(sdev, buffer, SD_BUF_SIZE,
+			SECURITY_PROTOCOL_OUT) == 1)
+		sdkp->security = 1;
+}
+
 /**
  *	sd_revalidate_disk - called the first time a new disk is seen,
  *	performs disk spin up, read_capacity, etc.
@@ -3067,6 +3105,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		sd_read_cache_type(sdkp, buffer);
 		sd_read_app_tag_own(sdkp, buffer);
 		sd_read_write_same(sdkp, buffer);
+		sd_read_security(sdkp, buffer);
 	}
 
 	sdkp->first_scan = 0;
@@ -3227,6 +3266,12 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 	sd_revalidate_disk(gd);
 
+	if (sdkp->security) {
+		sdkp->opal_dev = init_opal_dev(sdp, &sd_sec_submit);
+		if (sdkp->opal_dev)
+			sd_printk(KERN_NOTICE, sdkp, "supports TCG Opal\n");
+	}
+
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
 	scsi_autopm_put_device(sdp);
@@ -3375,6 +3420,8 @@ static int sd_remove(struct device *dev)
 	sd_shutdown(dev);
 
 	sd_zbc_remove(sdkp);
+
+	free_opal_dev(sdkp->opal_dev);
 
 	blk_register_region(devt, SD_MINORS, NULL,
 			    sd_default_probe, NULL, NULL);
@@ -3528,6 +3575,7 @@ static int sd_suspend_runtime(struct device *dev)
 static int sd_resume(struct device *dev)
 {
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
+	int ret;
 
 	if (!sdkp)	/* E.g.: runtime resume at the start of sd_probe() */
 		return 0;
@@ -3536,7 +3584,10 @@ static int sd_resume(struct device *dev)
 		return 0;
 
 	sd_printk(KERN_NOTICE, sdkp, "Starting disk\n");
-	return sd_start_stop_device(sdkp, 1);
+	ret = sd_start_stop_device(sdkp, 1);
+	if (!ret)
+		opal_unlock_from_suspend(sdkp->opal_dev);
+	return ret;
 }
 
 /**
