@@ -232,6 +232,29 @@ struct drm_fb_helper {
 	 * needs to be reprobe when fbdev is in control again.
 	 */
 	bool delayed_hotplug;
+
+	/**
+	 * @deferred_setup:
+	 *
+	 * If no outputs are connected (disconnected or unknown) the FB helper
+	 * code will defer setup until at least one of the outputs shows up.
+	 * This field keeps track of the status so that setup can be retried
+	 * at every hotplug event until it succeeds eventually.
+	 *
+	 * Protected by @lock.
+	 */
+	bool deferred_setup;
+
+	/**
+	 * @preferred_bpp:
+	 *
+	 * Temporary storage for the driver's preferred BPP setting passed to
+	 * FB helper initialization. This needs to be tracked so that deferred
+	 * FB helper setup can pass this on.
+	 *
+	 * See also: @deferred_setup
+	 */
+	int preferred_bpp;
 };
 
 /**
