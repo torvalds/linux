@@ -1497,6 +1497,12 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 		of_node_put(port);
 	}
 
+	port = of_parse_phandle(np, "backlight", 0);
+	if (port && of_device_is_available(port)) {
+		component_match_add(dev, &match, compare_of, port);
+		of_node_put(port);
+	}
+
 	return component_master_add_with_match(dev, &rockchip_drm_ops, match);
 }
 

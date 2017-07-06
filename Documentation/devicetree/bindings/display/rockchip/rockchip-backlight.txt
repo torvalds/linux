@@ -1,0 +1,29 @@
+Rockchip DRM backlight device
+================================
+
+Rockchip display controller(see VOP bindings[0]) support CABC function,
+and the CABC function required using VOP self pwm to control backlight,
+This backlight device manager the backlight PWM, auto select correct
+PWM for backlight.
+
+Required properties:
+- compatible: Should be "rockchip,drm-backlight"
+
+Other properties are same to commom PWM backlight bindings[1].
+
+[0]: Documentation/devicetree/bindings/display/rockchip/rockchip-vop.txt
+[1]: Documentation/devicetree/bindings/leds/backlight/pwm-backlight.txt
+
+example:
+
+backlight {
+	compatible = "rockchip,drm-backlight";
+	pwms = <&pwm 0 5000000>;
+
+	brightness-levels = <0 4 8 16 32 64 128 255>;
+	default-brightness-level = <6>;
+
+	power-supply = <&vdd_bl_reg>;
+	enable-gpios = <&gpio 58 0>;
+};
+

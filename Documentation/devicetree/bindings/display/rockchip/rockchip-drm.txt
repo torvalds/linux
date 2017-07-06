@@ -12,6 +12,7 @@ Required properties:
   Documentation/devicetree/bindings/display/rockchip/rockchip-vop.txt
 
 Optional properties
+- backlight: spacial backlight required by cabc function.
 - clocks: include clock specifiers corresponding to entries in the
           clock-names property.
 - clock-names: optional include
@@ -25,6 +26,7 @@ example:
 display-subsystem {
 	compatible = "rockchip,display-subsystem";
 	ports = <&vopl_out>, <&vopb_out>;
+	backlight = <&backlight>
 	clocks = <&cru PLL_VPLL>, <&cru PLL_CPLL>;
 	clock-names = "hdmi-tmds-pll", "default-vop-pll";
 };

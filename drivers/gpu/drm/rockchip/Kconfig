@@ -88,3 +88,11 @@ config ROCKCHIP_DRM_TVE
 	help
 	  Choose this option to enable support for Rockchip TVE controllers.
 	  say Y to enable its driver.
+
+config ROCKCHIP_DRM_BACKLIGHT
+	tristate "Rockchip DRM Backlight"
+	depends on DRM_ROCKCHIP
+	help
+	  This selects support for Rockchip backlight manager,
+	  Vop cabc function request using vop self pwm devices, needed a
+	  unique backlight devices to manager vop and soc pwm devices.
