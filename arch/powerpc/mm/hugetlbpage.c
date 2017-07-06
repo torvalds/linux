@@ -619,11 +619,6 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 	} while (addr = next, addr != end);
 }
 
-/*
- * 64 bit book3s use generic follow_page_mask
- */
-#ifdef CONFIG_PPC_BOOK3S_64
-
 struct page *follow_huge_pd(struct vm_area_struct *vma,
 			    unsigned long address, hugepd_t hpd,
 			    int flags, int pdshift)
@@ -656,65 +651,6 @@ retry:
 	spin_unlock(ptl);
 	return page;
 }
-
-#else /* !CONFIG_PPC_BOOK3S_64 */
-
-/*
- * We are holding mmap_sem, so a parallel huge page collapse cannot run.
- * To prevent hugepage split, disable irq.
- */
-struct page *
-follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
-{
-	bool is_thp;
-	pte_t *ptep, pte;
-	unsigned shift;
-	unsigned long mask, flags;
-	struct page *page = ERR_PTR(-EINVAL);
-
-	local_irq_save(flags);
-	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &is_thp, &shift);
-	if (!ptep)
-		goto no_page;
-	pte = READ_ONCE(*ptep);
-	/*
-	 * Verify it is a huge page else bail.
-	 * Transparent hugepages are handled by generic code. We can skip them
-	 * here.
-	 */
-	if (!shift || is_thp)
-		goto no_page;
-
-	if (!pte_present(pte)) {
-		page = NULL;
-		goto no_page;
-	}
-	mask = (1UL << shift) - 1;
-	page = pte_page(pte);
-	if (page)
-		page += (address & mask) / PAGE_SIZE;
-
-no_page:
-	local_irq_restore(flags);
-	return page;
-}
-
-struct page *
-follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-		pmd_t *pmd, int write)
-{
-	BUG();
-	return NULL;
-}
-
-struct page *
-follow_huge_pud(struct mm_struct *mm, unsigned long address,
-		pud_t *pud, int write)
-{
-	BUG();
-	return NULL;
-}
-#endif
 
 static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
 				      unsigned long sz)
