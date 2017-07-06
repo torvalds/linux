@@ -62,6 +62,7 @@ struct pvcalls_ioworker {
 struct sock_mapping {
 	struct list_head list;
 	struct pvcalls_fedata *fedata;
+	struct sockpass_mapping *sockpass;
 	struct socket *sock;
 	uint64_t id;
 	grant_ref_t ref;
@@ -282,10 +283,83 @@ static int pvcalls_back_release(struct xenbus_device *dev,
 
 static void __pvcalls_back_accept(struct work_struct *work)
 {
+	struct sockpass_mapping *mappass = container_of(
+		work, struct sockpass_mapping, register_work);
+	struct sock_mapping *map;
+	struct pvcalls_ioworker *iow;
+	struct pvcalls_fedata *fedata;
+	struct socket *sock;
+	struct xen_pvcalls_response *rsp;
+	struct xen_pvcalls_request *req;
+	int notify;
+	int ret = -EINVAL;
+	unsigned long flags;
+
+	fedata = mappass->fedata;
+	/*
+	 * __pvcalls_back_accept can race against pvcalls_back_accept.
+	 * We only need to check the value of "cmd" on read. It could be
+	 * done atomically, but to simplify the code on the write side, we
+	 * use a spinlock.
+	 */
+	spin_lock_irqsave(&mappass->copy_lock, flags);
+	req = &mappass->reqcopy;
+	if (req->cmd != PVCALLS_ACCEPT) {
+		spin_unlock_irqrestore(&mappass->copy_lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&mappass->copy_lock, flags);
+
+	sock = sock_alloc();
+	if (sock == NULL)
+		goto out_error;
+	sock->type = mappass->sock->type;
+	sock->ops = mappass->sock->ops;
+
+	ret = inet_accept(mappass->sock, sock, O_NONBLOCK, true);
+	if (ret == -EAGAIN) {
+		sock_release(sock);
+		goto out_error;
+	}
+
+	map = pvcalls_new_active_socket(fedata,
+					req->u.accept.id_new,
+					req->u.accept.ref,
+					req->u.accept.evtchn,
+					sock);
+	if (!map) {
+		ret = -EFAULT;
+		sock_release(sock);
+		goto out_error;
+	}
+
+	map->sockpass = mappass;
+	iow = &map->ioworker;
+	atomic_inc(&map->read);
+	atomic_inc(&map->io);
+	queue_work(iow->wq, &iow->register_work);
+
+out_error:
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->cmd = req->cmd;
+	rsp->u.accept.id = req->u.accept.id;
+	rsp->ret = ret;
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&fedata->ring, notify);
+	if (notify)
+		notify_remote_via_irq(fedata->irq);
+
+	mappass->reqcopy.cmd = 0;
 }
 
 static void pvcalls_pass_sk_data_ready(struct sock *sock)
 {
+	struct sockpass_mapping *mappass = sock->sk_user_data;
+
+	if (mappass == NULL)
+		return;
+
+	queue_work(mappass->wq, &mappass->register_work);
 }
 
 static int pvcalls_back_bind(struct xenbus_device *dev,
@@ -383,6 +457,45 @@ out:
 static int pvcalls_back_accept(struct xenbus_device *dev,
 			       struct xen_pvcalls_request *req)
 {
+	struct pvcalls_fedata *fedata;
+	struct sockpass_mapping *mappass;
+	int ret = -EINVAL;
+	struct xen_pvcalls_response *rsp;
+	unsigned long flags;
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	down(&fedata->socket_lock);
+	mappass = radix_tree_lookup(&fedata->socketpass_mappings,
+		req->u.accept.id);
+	up(&fedata->socket_lock);
+	if (mappass == NULL)
+		goto out_error;
+
+	/*
+	 * Limitation of the current implementation: only support one
+	 * concurrent accept or poll call on one socket.
+	 */
+	spin_lock_irqsave(&mappass->copy_lock, flags);
+	if (mappass->reqcopy.cmd != 0) {
+		spin_unlock_irqrestore(&mappass->copy_lock, flags);
+		ret = -EINTR;
+		goto out_error;
+	}
+
+	mappass->reqcopy = *req;
+	spin_unlock_irqrestore(&mappass->copy_lock, flags);
+	queue_work(mappass->wq, &mappass->register_work);
+
+	/* Tell the caller we don't need to send back a notification yet */
+	return -1;
+
+out_error:
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->cmd = req->cmd;
+	rsp->u.accept.id = req->u.accept.id;
+	rsp->ret = ret;
 	return 0;
 }
 
