@@ -695,6 +695,15 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	else
 		nbio_v6_1_hdp_flush(adev);
 
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		mmhub_v1_0_initialize_power_gating(adev);
+		mmhub_v1_0_update_power_gating(adev, true);
+		break;
+	default:
+		break;
+	}
+
 	r = gfxhub_v1_0_gart_enable(adev);
 	if (r)
 		return r;

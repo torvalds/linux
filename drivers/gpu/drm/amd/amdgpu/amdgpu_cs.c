@@ -64,7 +64,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	return 0;
 }
 
-int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
+static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
@@ -497,7 +497,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 				 &e->user_invalidated) && e->user_pages) {
 
 				/* We acquired a page array, but somebody
-				 * invalidated it. Free it an try again
+				 * invalidated it. Free it and try again
 				 */
 				release_pages(e->user_pages,
 					      e->robj->tbo.ttm->num_pages,

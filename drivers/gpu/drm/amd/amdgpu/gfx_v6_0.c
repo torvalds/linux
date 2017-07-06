@@ -3535,7 +3535,9 @@ static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev)
 				mask <<= 1;
 			}
 			active_cu_number += counter;
-			ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
+			if (i < 2 && j < 2)
+				ao_cu_mask |= (ao_bitmap << (i * 16 + j * 8));
+			cu_info->ao_cu_bitmap[i][j] = ao_bitmap;
 		}
 	}
 
