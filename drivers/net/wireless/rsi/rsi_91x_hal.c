@@ -138,9 +138,9 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 	struct ieee80211_bss_conf *bss;
 	struct ieee80211_hw *hw = adapter->hw;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct rsi_mgmt_desc *mgmt_desc;
 	struct skb_info *tx_params;
 	int status = -E2BIG;
-	__le16 *msg;
 	u8 extnd_size;
 	u8 vap_id = 0;
 
@@ -176,44 +176,43 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 
 	skb_push(skb, FRAME_DESC_SZ);
 	memset(skb->data, 0, FRAME_DESC_SZ);
-	msg = (__le16 *)skb->data;
+	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
 
 	if (skb->len > MAX_MGMT_PKT_SIZE) {
 		rsi_dbg(INFO_ZONE, "%s: Dropping mgmt pkt > 512\n", __func__);
 		goto err;
 	}
 
-	msg[0] = cpu_to_le16((skb->len - FRAME_DESC_SZ) |
-			    (RSI_WIFI_MGMT_Q << 12));
-	msg[1] = cpu_to_le16(TX_DOT11_MGMT);
-	msg[2] = cpu_to_le16(MIN_802_11_HDR_LEN << 8);
-	msg[3] = cpu_to_le16(RATE_INFO_ENABLE);
-	msg[6] = cpu_to_le16(le16_to_cpu(wh->seq_ctrl) >> 4);
+	rsi_set_len_qno(&mgmt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
+			RSI_WIFI_MGMT_Q);
+	mgmt_desc->frame_type = TX_DOT11_MGMT;
+	mgmt_desc->header_len = MIN_802_11_HDR_LEN;
+	mgmt_desc->info_cap |= cpu_to_le16(RATE_INFO_ENABLE);
+	mgmt_desc->seq_ctrl = cpu_to_le16(le16_to_cpu(wh->seq_ctrl) >> 4);
 
 	if (wh->addr1[0] & BIT(0))
-		msg[3] |= cpu_to_le16(RSI_BROADCAST_PKT);
+		mgmt_desc->info_cap |= cpu_to_le16(RSI_BROADCAST_PKT);
 
 	if (common->band == NL80211_BAND_2GHZ)
-		msg[4] = cpu_to_le16(RSI_11B_MODE);
+		mgmt_desc->rate_info = RSI_11B_MODE;
 	else
-		msg[4] = cpu_to_le16((RSI_RATE_6 & 0x0f) | RSI_11G_MODE);
+		mgmt_desc->rate_info = (RSI_RATE_6 & 0x0f) | RSI_11G_MODE;
 
 	if (conf_is_ht40(conf)) {
-		msg[4] = cpu_to_le16(0xB | RSI_11G_MODE);
-		msg[5] = cpu_to_le16(0x6);
+		mgmt_desc->rate_info = 0xB | RSI_11G_MODE;
+		mgmt_desc->bbp_info = BBP_INFO_40MHZ;
 	}
 
 	/* Indicate to firmware to give cfm */
 	if ((skb->data[16] == IEEE80211_STYPE_PROBE_REQ) && (!bss->assoc)) {
-		msg[1] |= cpu_to_le16(BIT(10));
-		msg[7] = cpu_to_le16(PROBEREQ_CONFIRM);
+		mgmt_desc->misc_flags |= BIT(2);
+		mgmt_desc->cfm_frame_type = PROBEREQ_CONFIRM;
 		common->mgmt_q_block = true;
 	}
+	mgmt_desc->vap_info = vap_id << 8;
 
-	msg[7] |= cpu_to_le16(vap_id << 8);
-
-	status = adapter->host_intf_ops->write_pkt(common->priv, (u8 *)msg,
-						   skb->len);
+	status = adapter->host_intf_ops->write_pkt(common->priv,
+						   (u8 *)mgmt_desc, skb->len);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write the packet\n", __func__);
 

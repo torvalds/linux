@@ -99,6 +99,8 @@
 #define RSI_DEV_OPMODE_WIFI_ALONE	1
 #define RSI_DEV_COEX_MODE_WIFI_ALONE	1
 
+#define BBP_INFO_40MHZ 0x6
+
 struct bl_header {
 	__le32 flags;
 	__le32 image_no;
@@ -111,6 +113,21 @@ struct ta_metadata {
 	char *name;
 	unsigned int address;
 };
+
+struct rsi_mgmt_desc {
+	__le16 len_qno;
+	u8 frame_type;
+	u8 misc_flags;
+	u8 reserved1;
+	u8 header_len;
+	__le16 info_cap;
+	u8 rate_info;
+	u8 reserved2;
+	u16 bbp_info;
+	__le16 seq_ctrl;
+	u8 cfm_frame_type;
+	u8 vap_info;
+} __packed;
 
 int rsi_hal_device_init(struct rsi_hw *adapter);
 
