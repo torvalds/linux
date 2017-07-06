@@ -577,6 +577,11 @@ static int rv8803_probe(struct i2c_client *client,
 	if (flags & RV8803_FLAG_AF)
 		dev_warn(&client->dev, "An alarm maybe have been missed.\n");
 
+	rv8803->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(rv8803->rtc)) {
+		return PTR_ERR(rv8803->rtc);
+	}
+
 	if (client->irq > 0) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, rv8803_handle_irq,
@@ -592,12 +597,10 @@ static int rv8803_probe(struct i2c_client *client,
 		}
 	}
 
-	rv8803->rtc = devm_rtc_device_register(&client->dev, client->name,
-					       &rv8803_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rv8803->rtc)) {
-		dev_err(&client->dev, "unable to register the class device\n");
-		return PTR_ERR(rv8803->rtc);
-	}
+	rv8803->rtc->ops = &rv8803_rtc_ops;
+	err = rtc_register_device(rv8803->rtc);
+	if (err)
+		return err;
 
 	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
 	if (err)
