@@ -512,7 +512,7 @@ nl80211_bss_select_policy[NL80211_BSS_SELECT_ATTR_MAX + 1] = {
 static const struct nla_policy
 nl80211_nan_func_policy[NL80211_NAN_FUNC_ATTR_MAX + 1] = {
 	[NL80211_NAN_FUNC_TYPE] = { .type = NLA_U8 },
-	[NL80211_NAN_FUNC_SERVICE_ID] = { .type = NLA_BINARY,
+	[NL80211_NAN_FUNC_SERVICE_ID] = {
 				    .len = NL80211_NAN_FUNC_SERVICE_ID_LEN },
 	[NL80211_NAN_FUNC_PUBLISH_TYPE] = { .type = NLA_U8 },
 	[NL80211_NAN_FUNC_PUBLISH_BCAST] = { .type = NLA_FLAG },
