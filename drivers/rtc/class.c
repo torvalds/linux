@@ -186,6 +186,27 @@ static struct rtc_device *rtc_allocate_device(void)
 	return rtc;
 }
 
+static int rtc_device_get_id(struct device *dev)
+{
+	int of_id = -1, id = -1;
+
+	if (dev->of_node)
+		of_id = of_alias_get_id(dev->of_node, "rtc");
+	else if (dev->parent && dev->parent->of_node)
+		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
+
+	if (of_id >= 0) {
+		id = ida_simple_get(&rtc_ida, of_id, of_id + 1, GFP_KERNEL);
+		if (id < 0)
+			dev_warn(dev, "/aliases ID %d not available\n", of_id);
+	}
+
+	if (id < 0)
+		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
+
+	return id;
+}
+
 /**
  * rtc_device_register - register w/ RTC class
  * @dev: the device to register
@@ -201,27 +222,12 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 {
 	struct rtc_device *rtc;
 	struct rtc_wkalrm alrm;
-	int of_id = -1, id = -1, err;
+	int id, err;
 
-	if (dev->of_node)
-		of_id = of_alias_get_id(dev->of_node, "rtc");
-	else if (dev->parent && dev->parent->of_node)
-		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
-
-	if (of_id >= 0) {
-		id = ida_simple_get(&rtc_ida, of_id, of_id + 1,
-				    GFP_KERNEL);
-		if (id < 0)
-			dev_warn(dev, "/aliases ID %d not available\n",
-				    of_id);
-	}
-
+	id = rtc_device_get_id(dev);
 	if (id < 0) {
-		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
-		if (id < 0) {
-			err = id;
-			goto exit;
-		}
+		err = id;
+		goto exit;
 	}
 
 	rtc = rtc_allocate_device();
