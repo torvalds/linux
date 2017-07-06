@@ -39,11 +39,15 @@
 /* Define MACRO values */
 #define CSIO_HW_T5				0x5000
 #define CSIO_T5_FCOE_ASIC			0x5600
+#define CSIO_HW_T6				0x6000
+#define CSIO_T6_FCOE_ASIC			0x6600
 #define CSIO_HW_CHIP_MASK			0xF000
 
 #define T5_REGMAP_SIZE				(332 * 1024)
 #define FW_FNAME_T5				"cxgb4/t5fw.bin"
 #define FW_CFG_NAME_T5				"cxgb4/t5-config.txt"
+#define FW_FNAME_T6				"cxgb4/t6fw.bin"
+#define FW_CFG_NAME_T6				"cxgb4/t6-config.txt"
 
 #define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
 #define CHELSIO_CHIP_FPGA          0x100
@@ -51,17 +55,27 @@
 #define CHELSIO_CHIP_RELEASE(code) ((code) & 0xf)
 
 #define CHELSIO_T5		0x5
+#define CHELSIO_T6		0x6
 
 enum chip_type {
 	T5_A0 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
 	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
 	T5_FIRST_REV	= T5_A0,
 	T5_LAST_REV	= T5_A1,
+
+	T6_A0 = CHELSIO_CHIP_CODE(CHELSIO_T6, 0),
+	T6_FIRST_REV    = T6_A0,
+	T6_LAST_REV     = T6_A0,
 };
 
 static inline int csio_is_t5(uint16_t chip)
 {
 	return (chip == CSIO_HW_T5);
+}
+
+static inline int csio_is_t6(uint16_t chip)
+{
+	return (chip == CSIO_HW_T6);
 }
 
 /* Define MACRO DEFINITIONS */

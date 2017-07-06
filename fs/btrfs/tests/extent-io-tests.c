@@ -87,7 +87,7 @@ static int test_find_delalloc(u32 sectorsize)
 		return -ENOMEM;
 	}
 
-	extent_io_tree_init(&tmp, &inode->i_data);
+	extent_io_tree_init(&tmp, inode);
 
 	/*
 	 * First go through and create and mark all of our pages dirty, we pin

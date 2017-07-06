@@ -204,21 +204,22 @@ each single pin the number of required sub-nodes containing "pin" and
 maintain.
 
 For cases like this, the pin controller driver may use the pinmux helper
-property, where the pin identifier is packed with mux configuration settings
-in a single integer.
+property, where the pin identifier is provided with mux configuration settings
+in a pinmux group. A pinmux group consists of the pin identifier and mux
+settings represented as a single integer or an array of integers.
 
-The pinmux property accepts an array of integers, each of them describing
+The pinmux property accepts an array of pinmux groups, each of them describing
 a single pin multiplexing configuration.
 
 pincontroller {
 	state_0_node_a {
-		pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ...;
+		pinmux = <PINMUX_GROUP>, <PINMUX_GROUP>, ...;
 	};
 };
 
 Each individual pin controller driver bindings documentation shall specify
-how those values (pin IDs and pin multiplexing configuration) are defined and
-assembled together.
+how pin IDs and pin multiplexing configuration are defined and assembled
+together in a pinmux group.
 
 == Generic pin configuration node content ==
 
@@ -251,14 +252,20 @@ drive-push-pull		- drive actively high and low
 drive-open-drain	- drive with open drain
 drive-open-source	- drive with open source
 drive-strength		- sink or source at most X mA
-input-enable		- enable input on pin (no effect on output)
-input-disable		- disable input on pin (no effect on output)
+input-enable		- enable input on pin (no effect on output, such as
+			  enabling an input buffer)
+input-disable		- disable input on pin (no effect on output, such as
+			  disabling an input buffer)
 input-schmitt-enable	- enable schmitt-trigger mode
 input-schmitt-disable	- disable schmitt-trigger mode
 input-debounce		- debounce mode with debound time X
 power-source		- select between different power supplies
 low-power-enable	- enable low power mode
 low-power-disable	- disable low power mode
+output-disable		- disable output on a pin (such as disable an output
+			  buffer)
+output-enable		- enable output on a pin without actively driving it
+			  (such as enabling an output buffer)
 output-low		- set the pin to output mode with low level
 output-high		- set the pin to output mode with high level
 slew-rate		- set the slew rate
@@ -300,7 +307,7 @@ arguments are described below.
 - pinmux takes a list of pin IDs and mux settings as required argument. The
   specific bindings for the hardware defines:
   - How pin IDs and mux settings are defined and assembled together in a single
-    integer.
+    integer or an array of integers.
 
 - bias-pull-up, -down and -pin-default take as optional argument on hardware
   supporting it the pull strength in Ohm. bias-disable will disable the pull.

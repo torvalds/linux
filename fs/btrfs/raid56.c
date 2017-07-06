@@ -31,7 +31,7 @@
 #include <linux/hash.h>
 #include <linux/list_sort.h>
 #include <linux/raid/xor.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <asm/div64.h>
 #include "ctree.h"
 #include "extent_map.h"
@@ -218,12 +218,9 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	 * of a failing mount.
 	 */
 	table_size = sizeof(*table) + sizeof(*h) * num_entries;
-	table = kzalloc(table_size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
-	if (!table) {
-		table = vzalloc(table_size);
-		if (!table)
-			return -ENOMEM;
-	}
+	table = kvzalloc(table_size, GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
 
 	spin_lock_init(&table->cache_lock);
 	INIT_LIST_HEAD(&table->stripe_cache);
@@ -1101,10 +1098,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	}
 
 	/* put a new bio on the list */
-	bio = btrfs_io_bio_alloc(GFP_NOFS, bio_max_len >> PAGE_SHIFT?:1);
-	if (!bio)
-		return -ENOMEM;
-
+	bio = btrfs_io_bio_alloc(bio_max_len >> PAGE_SHIFT ?: 1);
 	bio->bi_iter.bi_size = 0;
 	bio->bi_bdev = stripe->dev->bdev;
 	bio->bi_iter.bi_sector = disk_start >> 9;

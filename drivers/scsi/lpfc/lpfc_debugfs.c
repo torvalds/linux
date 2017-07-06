@@ -323,7 +323,7 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 	raw_index = phba->hbq_get[i];
 	getidx = le32_to_cpu(raw_index);
 	len +=  snprintf(buf+len, size-len,
-		"entrys:%d bufcnt:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
+		"entries:%d bufcnt:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
 		hbqs->entry_count, hbqs->buffer_count, hbqs->hbqPutIdx,
 		hbqs->next_hbqPutIdx, hbqs->local_hbqGetIdx, getidx);
 
@@ -550,8 +550,6 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	struct lpfc_nodelist *ndlp;
 	unsigned char *statep;
 	struct nvme_fc_local_port *localport;
-	struct lpfc_nvme_lport *lport;
-	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_remote_port *nrport;
 
@@ -623,6 +621,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				ndlp->nlp_sid);
 		if (ndlp->nlp_type & NLP_FCP_INITIATOR)
 			len += snprintf(buf+len, size-len, "FCP_INITIATOR ");
+		if (ndlp->nlp_type & NLP_NVME_TARGET)
+			len += snprintf(buf + len,
+					size - len, "NVME_TGT sid:%d ",
+					NLP_NO_SID);
+		if (ndlp->nlp_type & NLP_NVME_INITIATOR)
+			len += snprintf(buf + len,
+					size - len, "NVME_INITIATOR ");
 		len += snprintf(buf+len, size-len, "usgmap:%x ",
 			ndlp->nlp_usg_map);
 		len += snprintf(buf+len, size-len, "refcnt:%x",
@@ -660,7 +665,6 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		goto out_exit;
 
 	spin_lock_irq(shost->host_lock);
-	lport = (struct lpfc_nvme_lport *)localport->private;
 
 	/* Port state is only one of two values for now. */
 	if (localport->port_id)
@@ -673,9 +677,12 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			localport->port_id, statep);
 
 	len += snprintf(buf + len, size - len, "\tRport List:\n");
-	list_for_each_entry(rport, &lport->rport_list, list) {
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		/* local short-hand pointer. */
-		nrport = rport->remoteport;
+		if (!ndlp->nrport)
+			continue;
+
+		nrport = ndlp->nrport->remoteport;
 
 		/* Port state is only one of two values for now. */
 		switch (nrport->port_state) {
@@ -698,26 +705,23 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				nrport->port_name);
 		len += snprintf(buf + len, size - len, "WWNN x%llx ",
 				nrport->node_name);
-		switch (nrport->port_role) {
-		case FC_PORT_ROLE_NVME_INITIATOR:
+
+		/* An NVME rport can have multiple roles. */
+		if (nrport->port_role & FC_PORT_ROLE_NVME_INITIATOR)
 			len +=  snprintf(buf + len, size - len,
-					 "NVME INITIATOR ");
-			break;
-		case FC_PORT_ROLE_NVME_TARGET:
+					 "INITIATOR ");
+		if (nrport->port_role & FC_PORT_ROLE_NVME_TARGET)
 			len +=  snprintf(buf + len, size - len,
-					 "NVME TARGET ");
-			break;
-		case FC_PORT_ROLE_NVME_DISCOVERY:
+					 "TARGET ");
+		if (nrport->port_role & FC_PORT_ROLE_NVME_DISCOVERY)
 			len +=  snprintf(buf + len, size - len,
-					 "NVME DISCOVERY ");
-			break;
-		default:
+					 "DISCSRVC ");
+		if (nrport->port_role & ~(FC_PORT_ROLE_NVME_INITIATOR |
+					  FC_PORT_ROLE_NVME_TARGET |
+					  FC_PORT_ROLE_NVME_DISCOVERY))
 			len +=  snprintf(buf + len, size - len,
 					 "UNKNOWN ROLE x%x",
 					 nrport->port_role);
-			break;
-		}
-
 		/* Terminate the string. */
 		len +=  snprintf(buf + len, size - len, "\n");
 	}
@@ -746,6 +750,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
+	uint64_t tot, data1, data2, data3;
 	int len = 0;
 	int cnt;
 
@@ -843,11 +848,21 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 			spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		}
 
+		spin_lock(&phba->sli4_hba.nvmet_ctx_get_lock);
+		spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
+		tot = phba->sli4_hba.nvmet_xri_cnt -
+			(phba->sli4_hba.nvmet_ctx_get_cnt +
+			phba->sli4_hba.nvmet_ctx_put_cnt);
+		spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
+		spin_unlock(&phba->sli4_hba.nvmet_ctx_get_lock);
+
 		len += snprintf(buf + len, size - len,
-				"IO_CTX: %08x  outstanding %08x total %08x\n",
-				phba->sli4_hba.nvmet_ctx_cnt,
+				"IO_CTX: %08x  WAIT: cur %08x tot %08x\n"
+				"CTX Outstanding %08llx\n",
+				phba->sli4_hba.nvmet_xri_cnt,
 				phba->sli4_hba.nvmet_io_wait_cnt,
-				phba->sli4_hba.nvmet_io_wait_total);
+				phba->sli4_hba.nvmet_io_wait_total,
+				tot);
 	} else {
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 			return len;
@@ -856,18 +871,22 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 				"\nNVME Lport Statistics\n");
 
 		len += snprintf(buf + len, size - len,
-				"LS: Xmt %016llx Cmpl %016llx\n",
-				phba->fc4NvmeLsRequests,
-				phba->fc4NvmeLsCmpls);
+				"LS: Xmt %016x Cmpl %016x\n",
+				atomic_read(&phba->fc4NvmeLsRequests),
+				atomic_read(&phba->fc4NvmeLsCmpls));
+
+		tot = atomic_read(&phba->fc4NvmeIoCmpls);
+		data1 = atomic_read(&phba->fc4NvmeInputRequests);
+		data2 = atomic_read(&phba->fc4NvmeOutputRequests);
+		data3 = atomic_read(&phba->fc4NvmeControlRequests);
 
 		len += snprintf(buf + len, size - len,
 				"FCP: Rd %016llx Wr %016llx IO %016llx\n",
-				phba->fc4NvmeInputRequests,
-				phba->fc4NvmeOutputRequests,
-				phba->fc4NvmeControlRequests);
+				data1, data2, data3);
 
 		len += snprintf(buf + len, size - len,
-				"    Cmpl %016llx\n", phba->fc4NvmeIoCmpls);
+				"    Cmpl %016llx Outstanding %016llx\n",
+				tot, (data1 + data2 + data3) - tot);
 	}
 
 	return len;
@@ -1949,10 +1968,6 @@ lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
 	if (nbytes > 64)
 		nbytes = 64;
 
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
-
 	memset(mybuf, 0, sizeof(mybuf));
 
 	if (copy_from_user(mybuf, buf, nbytes))
@@ -2036,10 +2051,6 @@ lpfc_debugfs_nvmektime_write(struct file *file, const char __user *buf,
 
 	if (nbytes > 64)
 		nbytes = 64;
-
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
 
 	memset(mybuf, 0, sizeof(mybuf));
 
@@ -2169,10 +2180,6 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 	if (nbytes > 64)
 		nbytes = 64;
 
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
-
 	memset(mybuf, 0, sizeof(mybuf));
 
 	if (copy_from_user(mybuf, buf, nbytes))
@@ -2280,10 +2287,6 @@ lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
 	if (nbytes > 64)
 		nbytes = 64;
 
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
-
 	memset(mybuf, 0, sizeof(mybuf));
 
 	if (copy_from_user(mybuf, buf, nbytes))
@@ -2353,10 +2356,6 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
 	char *pbuf, *step_str;
 	int i;
 	size_t bsize;
-
-	/* Protect copy from user */
-	if (!access_ok(VERIFY_READ, buf, nbytes))
-		return -EFAULT;
 
 	memset(mybuf, 0, sizeof(mybuf));
 	memset(idiag_cmd, 0, sizeof(*idiag_cmd));
@@ -3249,9 +3248,9 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"\n%s EQ info: EQ-STAT[max:x%x noE:x%x "
-			"bs:x%x proc:x%llx]\n",
+			"bs:x%x proc:x%llx eqd %d]\n",
 			eqtype, qp->q_cnt_1, qp->q_cnt_2, qp->q_cnt_3,
-			(unsigned long long)qp->q_cnt_4);
+			(unsigned long long)qp->q_cnt_4, qp->q_mode);
 	len += snprintf(pbuffer + len, LPFC_QUE_INFO_GET_BUF_SIZE - len,
 			"EQID[%02d], QE-CNT[%04d], QE-SZ[%04d], "
 			"HST-IDX[%04d], PRT-IDX[%04d], PST[%03d]",

@@ -744,7 +744,6 @@ struct vmbus_channel {
 	u32 ringbuffer_pagecount;
 	struct hv_ring_buffer_info outbound;	/* send to parent */
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
-	spinlock_t inbound_lock;
 
 	struct vmbus_close_msg close_msg;
 

@@ -554,11 +554,12 @@ int srp_reconnect_rport(struct srp_rport *rport)
 		 * invoking scsi_target_unblock() won't change the state of
 		 * these devices into running so do that explicitly.
 		 */
-		spin_lock_irq(shost->host_lock);
-		__shost_for_each_device(sdev, shost)
+		shost_for_each_device(sdev, shost) {
+			mutex_lock(&sdev->state_mutex);
 			if (sdev->sdev_state == SDEV_OFFLINE)
 				sdev->sdev_state = SDEV_RUNNING;
-		spin_unlock_irq(shost->host_lock);
+			mutex_unlock(&sdev->state_mutex);
+		}
 	} else if (rport->state == SRP_RPORT_RUNNING) {
 		/*
 		 * srp_reconnect_rport() has been invoked with fast_io_fail

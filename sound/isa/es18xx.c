@@ -369,7 +369,7 @@ static int snd_es18xx_reset_fifo(struct snd_es18xx *chip)
 	return 0;
 }
 
-static struct snd_ratnum new_clocks[2] = {
+static const struct snd_ratnum new_clocks[2] = {
 	{
 		.num = 793800,
 		.den_min = 1,
@@ -384,12 +384,12 @@ static struct snd_ratnum new_clocks[2] = {
 	}
 };
 
-static struct snd_pcm_hw_constraint_ratnums new_hw_constraints_clocks = {
+static const struct snd_pcm_hw_constraint_ratnums new_hw_constraints_clocks = {
 	.nrats = 2,
 	.rats = new_clocks,
 };
 
-static struct snd_ratnum old_clocks[2] = {
+static const struct snd_ratnum old_clocks[2] = {
 	{
 		.num = 795444,
 		.den_min = 1,
@@ -404,7 +404,7 @@ static struct snd_ratnum old_clocks[2] = {
 	}
 };
 
-static struct snd_pcm_hw_constraint_ratnums old_hw_constraints_clocks  = {
+static const struct snd_pcm_hw_constraint_ratnums old_hw_constraints_clocks  = {
 	.nrats = 2,
 	.rats = old_clocks,
 };

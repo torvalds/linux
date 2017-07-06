@@ -34,6 +34,45 @@
 /* Maximum size of data before compression */
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
+struct compressed_bio {
+	/* number of bios pending for this compressed extent */
+	refcount_t pending_bios;
+
+	/* the pages with the compressed data on them */
+	struct page **compressed_pages;
+
+	/* inode that owns this data */
+	struct inode *inode;
+
+	/* starting offset in the inode for our pages */
+	u64 start;
+
+	/* number of bytes in the inode we're working on */
+	unsigned long len;
+
+	/* number of bytes on disk */
+	unsigned long compressed_len;
+
+	/* the compression algorithm for this bio */
+	int compress_type;
+
+	/* number of compressed pages in the array */
+	unsigned long nr_pages;
+
+	/* IO errors */
+	int errors;
+	int mirror_num;
+
+	/* for reads, this is the bio we are copying the data into */
+	struct bio *orig_bio;
+
+	/*
+	 * the start of a variable length array of checksums only
+	 * used by reads
+	 */
+	u32 sums;
+};
+
 void btrfs_init_compress(void);
 void btrfs_exit_compress(void);
 
@@ -78,10 +117,7 @@ struct btrfs_compress_op {
 			      unsigned long *total_out);
 
 	int (*decompress_bio)(struct list_head *workspace,
-				 struct page **pages_in,
-				 u64 disk_start,
-				 struct bio *orig_bio,
-				 size_t srclen);
+				struct compressed_bio *cb);
 
 	int (*decompress)(struct list_head *workspace,
 			  unsigned char *data_in,

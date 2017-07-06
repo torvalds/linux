@@ -93,6 +93,8 @@
 
 #define DEFAULT_DMA_HINT_REG	0
 
+#define SBA_MAPPING_ERROR    (~(dma_addr_t)0)
+
 struct sba_device *sba_list;
 EXPORT_SYMBOL_GPL(sba_list);
 
@@ -725,7 +727,7 @@ sba_map_single(struct device *dev, void *addr, size_t size,
 
 	ioc = GET_IOC(dev);
 	if (!ioc)
-		return DMA_ERROR_CODE;
+		return SBA_MAPPING_ERROR;
 
 	/* save offset bits */
 	offset = ((dma_addr_t) (long) addr) & ~IOVP_MASK;
@@ -1083,6 +1085,11 @@ sba_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 }
 
+static int sba_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return dma_addr == SBA_MAPPING_ERROR;
+}
+
 static const struct dma_map_ops sba_ops = {
 	.dma_supported =	sba_dma_supported,
 	.alloc =		sba_alloc,
@@ -1091,6 +1098,7 @@ static const struct dma_map_ops sba_ops = {
 	.unmap_page =		sba_unmap_page,
 	.map_sg =		sba_map_sg,
 	.unmap_sg =		sba_unmap_sg,
+	.mapping_error =	sba_mapping_error,
 };
 
 

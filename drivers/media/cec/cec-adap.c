@@ -28,6 +28,8 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+#include <drm/drm_edid.h>
+
 #include "cec-priv.h"
 
 static void cec_fill_msg_report_features(struct cec_adapter *adap,
@@ -366,6 +368,8 @@ int cec_thread_func(void *_adap)
 			 * transmit should be canceled.
 			 */
 			err = wait_event_interruptible_timeout(adap->kthread_waitq,
+				(adap->needs_hpd &&
+				 (!adap->is_configured && !adap->is_configuring)) ||
 				kthread_should_stop() ||
 				(!adap->transmitting &&
 				 !list_empty(&adap->transmit_queue)),
@@ -381,7 +385,9 @@ int cec_thread_func(void *_adap)
 
 		mutex_lock(&adap->lock);
 
-		if (kthread_should_stop()) {
+		if ((adap->needs_hpd &&
+		     (!adap->is_configured && !adap->is_configuring)) ||
+		    kthread_should_stop()) {
 			cec_flush(adap);
 			goto unlock;
 		}
@@ -392,7 +398,7 @@ int cec_thread_func(void *_adap)
 			 * happen and is an indication of a faulty CEC adapter
 			 * driver, or the CEC bus is in some weird state.
 			 */
-			dprintk(0, "message %*ph timed out!\n",
+			dprintk(0, "%s: message %*ph timed out!\n", __func__,
 				adap->transmitting->msg.len,
 				adap->transmitting->msg.msg);
 			/* Just give up on this. */
@@ -468,7 +474,7 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 	struct cec_msg *msg;
 	u64 ts = ktime_get_ns();
 
-	dprintk(2, "cec_transmit_done %02x\n", status);
+	dprintk(2, "%s: status %02x\n", __func__, status);
 	mutex_lock(&adap->lock);
 	data = adap->transmitting;
 	if (!data) {
@@ -477,7 +483,8 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 		 * unplugged while the transmit is ongoing. Ignore this
 		 * transmit in that case.
 		 */
-		dprintk(1, "cec_transmit_done without an ongoing transmit!\n");
+		dprintk(1, "%s was called without an ongoing transmit!\n",
+			__func__);
 		goto unlock;
 	}
 
@@ -504,6 +511,12 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 	    !(status & (CEC_TX_STATUS_MAX_RETRIES | CEC_TX_STATUS_OK))) {
 		/* Retry this message */
 		data->attempts--;
+		if (msg->timeout)
+			dprintk(2, "retransmit: %*ph (attempts: %d, wait for 0x%02x)\n",
+				msg->len, msg->msg, data->attempts, msg->reply);
+		else
+			dprintk(2, "retransmit: %*ph (attempts: %d)\n",
+				msg->len, msg->msg, data->attempts);
 		/* Add the message in front of the transmit queue */
 		list_add(&data->list, &adap->transmit_queue);
 		adap->transmit_queue_sz++;
@@ -543,6 +556,32 @@ unlock:
 	mutex_unlock(&adap->lock);
 }
 EXPORT_SYMBOL_GPL(cec_transmit_done);
+
+void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status)
+{
+	switch (status) {
+	case CEC_TX_STATUS_OK:
+		cec_transmit_done(adap, status, 0, 0, 0, 0);
+		return;
+	case CEC_TX_STATUS_ARB_LOST:
+		cec_transmit_done(adap, status, 1, 0, 0, 0);
+		return;
+	case CEC_TX_STATUS_NACK:
+		cec_transmit_done(adap, status, 0, 1, 0, 0);
+		return;
+	case CEC_TX_STATUS_LOW_DRIVE:
+		cec_transmit_done(adap, status, 0, 0, 1, 0);
+		return;
+	case CEC_TX_STATUS_ERROR:
+		cec_transmit_done(adap, status, 0, 0, 0, 1);
+		return;
+	default:
+		/* Should never happen */
+		WARN(1, "cec-%s: invalid status 0x%02x\n", adap->name, status);
+		return;
+	}
+}
+EXPORT_SYMBOL_GPL(cec_transmit_attempt_done);
 
 /*
  * Called when waiting for a reply times out.
@@ -647,7 +686,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		return -EINVAL;
 	}
 	if (!adap->is_configured && !adap->is_configuring) {
-		if (msg->msg[0] != 0xf0) {
+		if (adap->needs_hpd || msg->msg[0] != 0xf0) {
 			dprintk(1, "%s: adapter is unconfigured\n", __func__);
 			return -ENONET;
 		}
@@ -911,7 +950,7 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
 
 	mutex_lock(&adap->lock);
-	dprintk(2, "cec_received_msg: %*ph\n", msg->len, msg->msg);
+	dprintk(2, "%s: %*ph\n", __func__, msg->len, msg->msg);
 
 	/* Check if this message was for us (directed or broadcast). */
 	if (!cec_msg_is_broadcast(msg))
@@ -1112,9 +1151,6 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 	las->log_addr[idx] = log_addr;
 	las->log_addr_mask |= 1 << log_addr;
 	adap->phys_addrs[log_addr] = adap->phys_addr;
-
-	dprintk(2, "claimed addr %d (%d)\n", log_addr,
-		las->primary_device_type[idx]);
 	return 1;
 }
 
@@ -1126,7 +1162,9 @@ static int cec_config_log_addr(struct cec_adapter *adap,
  */
 static void cec_adap_unconfigure(struct cec_adapter *adap)
 {
-	WARN_ON(adap->ops->adap_log_addr(adap, CEC_LOG_ADDR_INVALID));
+	if (!adap->needs_hpd ||
+	    adap->phys_addr != CEC_PHYS_ADDR_INVALID)
+		WARN_ON(adap->ops->adap_log_addr(adap, CEC_LOG_ADDR_INVALID));
 	adap->log_addrs.log_addr_mask = 0;
 	adap->is_configuring = false;
 	adap->is_configured = false;
@@ -1300,7 +1338,7 @@ configured:
 		/* Report Physical Address */
 		cec_msg_report_physical_addr(&msg, adap->phys_addr,
 					     las->primary_device_type[i]);
-		dprintk(2, "config: la %d pa %x.%x.%x.%x\n",
+		dprintk(1, "config: la %d pa %x.%x.%x.%x\n",
 			las->log_addr[i],
 			cec_phys_addr_exp(adap->phys_addr));
 		cec_transmit_msg_fh(adap, &msg, NULL, false);
@@ -1355,6 +1393,8 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 	if (phys_addr == adap->phys_addr || adap->devnode.unregistered)
 		return;
 
+	dprintk(1, "new physical address %x.%x.%x.%x\n",
+		cec_phys_addr_exp(phys_addr));
 	if (phys_addr == CEC_PHYS_ADDR_INVALID ||
 	    adap->phys_addr != CEC_PHYS_ADDR_INVALID) {
 		adap->phys_addr = CEC_PHYS_ADDR_INVALID;
@@ -1364,7 +1404,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 		if (adap->monitor_all_cnt)
 			WARN_ON(call_op(adap, adap_monitor_all_enable, false));
 		mutex_lock(&adap->devnode.lock);
-		if (list_empty(&adap->devnode.fhs))
+		if (adap->needs_hpd || list_empty(&adap->devnode.fhs))
 			WARN_ON(adap->ops->adap_enable(adap, false));
 		mutex_unlock(&adap->devnode.lock);
 		if (phys_addr == CEC_PHYS_ADDR_INVALID)
@@ -1372,7 +1412,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 	}
 
 	mutex_lock(&adap->devnode.lock);
-	if (list_empty(&adap->devnode.fhs) &&
+	if ((adap->needs_hpd || list_empty(&adap->devnode.fhs)) &&
 	    adap->ops->adap_enable(adap, true)) {
 		mutex_unlock(&adap->devnode.lock);
 		return;
@@ -1380,7 +1420,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 
 	if (adap->monitor_all_cnt &&
 	    call_op(adap, adap_monitor_all_enable, true)) {
-		if (list_empty(&adap->devnode.fhs))
+		if (adap->needs_hpd || list_empty(&adap->devnode.fhs))
 			WARN_ON(adap->ops->adap_enable(adap, false));
 		mutex_unlock(&adap->devnode.lock);
 		return;
@@ -1403,6 +1443,18 @@ void cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 	mutex_unlock(&adap->lock);
 }
 EXPORT_SYMBOL_GPL(cec_s_phys_addr);
+
+void cec_s_phys_addr_from_edid(struct cec_adapter *adap,
+			       const struct edid *edid)
+{
+	u16 pa = CEC_PHYS_ADDR_INVALID;
+
+	if (edid && edid->extensions)
+		pa = cec_get_edid_phys_addr((const u8 *)edid,
+				EDID_LENGTH * (edid->extensions + 1), NULL);
+	cec_s_phys_addr(adap, pa, false);
+}
+EXPORT_SYMBOL_GPL(cec_s_phys_addr_from_edid);
 
 /*
  * Called from either the ioctl or a driver to set the logical addresses.
@@ -1534,12 +1586,12 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		if (log_addrs->num_log_addrs == 2) {
 			if (!(type_mask & ((1 << CEC_LOG_ADDR_TYPE_AUDIOSYSTEM) |
 					   (1 << CEC_LOG_ADDR_TYPE_TV)))) {
-				dprintk(1, "Two LAs is only allowed for audiosystem and TV\n");
+				dprintk(1, "two LAs is only allowed for audiosystem and TV\n");
 				return -EINVAL;
 			}
 			if (!(type_mask & ((1 << CEC_LOG_ADDR_TYPE_PLAYBACK) |
 					   (1 << CEC_LOG_ADDR_TYPE_RECORD)))) {
-				dprintk(1, "An audiosystem/TV can only be combined with record or playback\n");
+				dprintk(1, "an audiosystem/TV can only be combined with record or playback\n");
 				return -EINVAL;
 			}
 		}
@@ -1653,7 +1705,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	bool from_unregistered = init_laddr == 0xf;
 	struct cec_msg tx_cec_msg = { };
 
-	dprintk(1, "cec_receive_notify: %*ph\n", msg->len, msg->msg);
+	dprintk(2, "%s: %*ph\n", __func__, msg->len, msg->msg);
 
 	/* If this is a CDC-Only device, then ignore any non-CDC messages */
 	if (cec_is_cdc_only(&adap->log_addrs) &&
@@ -1722,7 +1774,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 
 		if (!from_unregistered)
 			adap->phys_addrs[init_laddr] = pa;
-		dprintk(1, "Reported physical address %x.%x.%x.%x for logical address %d\n",
+		dprintk(1, "reported physical address %x.%x.%x.%x for logical address %d\n",
 			cec_phys_addr_exp(pa), init_laddr);
 		break;
 	}

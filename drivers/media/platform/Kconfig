@@ -74,6 +74,13 @@ config VIDEO_M32R_AR_M64278
 	  To compile this driver as a module, choose M here: the
 	  module will be called arv.
 
+config VIDEO_MUX
+	tristate "Video Multiplexer"
+	depends on OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	select REGMAP
+	help
+	  This driver provides support for N:1 video bus multiplexers.
+
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3
@@ -82,6 +89,7 @@ config VIDEO_OMAP3
 	select ARM_DMA_USE_IOMMU
 	select VIDEOBUF2_DMA_CONTIG
 	select MFD_SYSCON
+	select V4L2_FWNODE
 	---help---
 	  Driver for an OMAP 3 camera controller.
 
@@ -97,6 +105,7 @@ config VIDEO_PXA27x
 	depends on PXA27x || COMPILE_TEST
 	select VIDEOBUF2_DMA_SG
 	select SG_SPLIT
+	select V4L2_FWNODE
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
@@ -114,6 +123,19 @@ config VIDEO_S3C_CAMIF
 	  To compile this driver as a module, choose M here: the module
 	  will be called s3c-camif.
 
+config VIDEO_STM32_DCMI
+	tristate "STM32 Digital Camera Memory Interface (DCMI) support"
+	depends on VIDEO_V4L2 && OF && HAS_DMA
+	depends on ARCH_STM32 || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	---help---
+	  This module makes the STM32 Digital Camera Memory Interface (DCMI)
+	  available as a v4l2 device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called stm32-dcmi.
+
 source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
@@ -127,6 +149,7 @@ config VIDEO_TI_CAL
 	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
 	default n
 	---help---
 	  Support for the TI CAL (Camera Adaptation Layer) block
@@ -448,6 +471,20 @@ config VIDEO_TI_VPE_DEBUG
 	---help---
 	  Enable debug messages on VPE driver.
 
+config VIDEO_QCOM_VENUS
+	tristate "Qualcomm Venus V4L2 encoder/decoder driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
+	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
+	select QCOM_MDT_LOADER if (ARM || ARM64)
+	select QCOM_SCM if (ARM || ARM64)
+	select VIDEOBUF2_DMA_SG
+	select V4L2_MEM2MEM_DEV
+	---help---
+	  This is a V4L2 driver for Qualcomm Venus video accelerator
+	  hardware. It accelerates encoding and decoding operations
+	  on various Qualcomm SoCs.
+	  To compile this driver as a module choose m here.
+
 endif # V4L_MEM2MEM_DRIVERS
 
 # TI VIDEO PORT Helper Modules
@@ -521,4 +558,41 @@ config VIDEO_STI_HDMI_CEC
          CEC bus is present in the HDMI connector and enables communication
          between compatible devices.
 
+config VIDEO_STM32_HDMI_CEC
+       tristate "STMicroelectronics STM32 HDMI CEC driver"
+       depends on ARCH_STM32 || COMPILE_TEST
+       select REGMAP
+       select REGMAP_MMIO
+       select CEC_CORE
+       ---help---
+         This is a driver for STM32 interface. It uses the
+         generic CEC framework interface.
+         CEC bus is present in the HDMI connector and enables communication
+         between compatible devices.
+
 endif #CEC_PLATFORM_DRIVERS
+
+menuconfig SDR_PLATFORM_DRIVERS
+	bool "SDR platform devices"
+	depends on MEDIA_SDR_SUPPORT
+	default n
+	---help---
+	  Say Y here to enable support for platform-specific SDR Drivers.
+
+if SDR_PLATFORM_DRIVERS
+
+config VIDEO_RCAR_DRIF
+	tristate "Renesas Digitial Radio Interface (DRIF)"
+	depends on VIDEO_V4L2 && HAS_DMA
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select VIDEOBUF2_VMALLOC
+	---help---
+	  Say Y if you want to enable R-Car Gen3 DRIF support. DRIF is Digital
+	  Radio Interface that interfaces with an RF front end chip. It is a
+	  receiver of digital data which uses DMA to transfer received data to
+	  a configured location for an application to use.
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called rcar_drif.
+
+endif # SDR_PLATFORM_DRIVERS

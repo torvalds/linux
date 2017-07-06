@@ -71,7 +71,7 @@ static void maybe_release_space(struct gfs2_bufdata *bd)
 {
 	struct gfs2_glock *gl = bd->bd_gl;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_rgrpd *rgd = gl->gl_object;
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
 	unsigned int index = bd->bd_bh->b_blocknr - gl->gl_name.ln_number;
 	struct gfs2_bitmap *bi = rgd->rd_bits + index;
 
@@ -134,10 +134,8 @@ static void gfs2_log_incr_head(struct gfs2_sbd *sdp)
 	BUG_ON((sdp->sd_log_flush_head == sdp->sd_log_tail) &&
 	       (sdp->sd_log_flush_head != sdp->sd_log_head));
 
-	if (++sdp->sd_log_flush_head == sdp->sd_jdesc->jd_blocks) {
+	if (++sdp->sd_log_flush_head == sdp->sd_jdesc->jd_blocks)
 		sdp->sd_log_flush_head = 0;
-		sdp->sd_log_flush_wrapped = 1;
-	}
 }
 
 static u64 gfs2_log_bmap(struct gfs2_sbd *sdp)

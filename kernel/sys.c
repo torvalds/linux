@@ -1552,7 +1552,7 @@ static void accumulate_thread_rusage(struct task_struct *t, struct rusage *r)
 	r->ru_oublock += task_io_get_oublock(t);
 }
 
-static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
+void getrusage(struct task_struct *p, int who, struct rusage *r)
 {
 	struct task_struct *t;
 	unsigned long flags;
@@ -1626,20 +1626,16 @@ out:
 	r->ru_maxrss = maxrss * (PAGE_SIZE / 1024); /* convert pages to KBs */
 }
 
-int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
+SYSCALL_DEFINE2(getrusage, int, who, struct rusage __user *, ru)
 {
 	struct rusage r;
 
-	k_getrusage(p, who, &r);
-	return copy_to_user(ru, &r, sizeof(r)) ? -EFAULT : 0;
-}
-
-SYSCALL_DEFINE2(getrusage, int, who, struct rusage __user *, ru)
-{
 	if (who != RUSAGE_SELF && who != RUSAGE_CHILDREN &&
 	    who != RUSAGE_THREAD)
 		return -EINVAL;
-	return getrusage(current, who, ru);
+
+	getrusage(current, who, &r);
+	return copy_to_user(ru, &r, sizeof(r)) ? -EFAULT : 0;
 }
 
 #ifdef CONFIG_COMPAT
@@ -1651,7 +1647,7 @@ COMPAT_SYSCALL_DEFINE2(getrusage, int, who, struct compat_rusage __user *, ru)
 	    who != RUSAGE_THREAD)
 		return -EINVAL;
 
-	k_getrusage(current, who, &r);
+	getrusage(current, who, &r);
 	return put_compat_rusage(&r, ru);
 }
 #endif

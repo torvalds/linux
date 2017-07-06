@@ -561,92 +561,14 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	dwc_descriptor_complete(dwc, bad_desc, true);
 }
 
-/* --------------------- Cyclic DMA API extensions -------------------- */
-
-dma_addr_t dw_dma_get_src_addr(struct dma_chan *chan)
-{
-	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
-	return channel_readl(dwc, SAR);
-}
-EXPORT_SYMBOL(dw_dma_get_src_addr);
-
-dma_addr_t dw_dma_get_dst_addr(struct dma_chan *chan)
-{
-	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
-	return channel_readl(dwc, DAR);
-}
-EXPORT_SYMBOL(dw_dma_get_dst_addr);
-
-/* Called with dwc->lock held and all DMAC interrupts disabled */
-static void dwc_handle_cyclic(struct dw_dma *dw, struct dw_dma_chan *dwc,
-		u32 status_block, u32 status_err, u32 status_xfer)
-{
-	unsigned long flags;
-
-	if (status_block & dwc->mask) {
-		void (*callback)(void *param);
-		void *callback_param;
-
-		dev_vdbg(chan2dev(&dwc->chan), "new cyclic period llp 0x%08x\n",
-				channel_readl(dwc, LLP));
-		dma_writel(dw, CLEAR.BLOCK, dwc->mask);
-
-		callback = dwc->cdesc->period_callback;
-		callback_param = dwc->cdesc->period_callback_param;
-
-		if (callback)
-			callback(callback_param);
-	}
-
-	/*
-	 * Error and transfer complete are highly unlikely, and will most
-	 * likely be due to a configuration error by the user.
-	 */
-	if (unlikely(status_err & dwc->mask) ||
-			unlikely(status_xfer & dwc->mask)) {
-		unsigned int i;
-
-		dev_err(chan2dev(&dwc->chan),
-			"cyclic DMA unexpected %s interrupt, stopping DMA transfer\n",
-			status_xfer ? "xfer" : "error");
-
-		spin_lock_irqsave(&dwc->lock, flags);
-
-		dwc_dump_chan_regs(dwc);
-
-		dwc_chan_disable(dw, dwc);
-
-		/* Make sure DMA does not restart by loading a new list */
-		channel_writel(dwc, LLP, 0);
-		channel_writel(dwc, CTL_LO, 0);
-		channel_writel(dwc, CTL_HI, 0);
-
-		dma_writel(dw, CLEAR.BLOCK, dwc->mask);
-		dma_writel(dw, CLEAR.ERROR, dwc->mask);
-		dma_writel(dw, CLEAR.XFER, dwc->mask);
-
-		for (i = 0; i < dwc->cdesc->periods; i++)
-			dwc_dump_lli(dwc, dwc->cdesc->desc[i]);
-
-		spin_unlock_irqrestore(&dwc->lock, flags);
-	}
-
-	/* Re-enable interrupts */
-	channel_set_bit(dw, MASK.BLOCK, dwc->mask);
-}
-
-/* ------------------------------------------------------------------------- */
-
 static void dw_dma_tasklet(unsigned long data)
 {
 	struct dw_dma *dw = (struct dw_dma *)data;
 	struct dw_dma_chan *dwc;
-	u32 status_block;
 	u32 status_xfer;
 	u32 status_err;
 	unsigned int i;
 
-	status_block = dma_readl(dw, RAW.BLOCK);
 	status_xfer = dma_readl(dw, RAW.XFER);
 	status_err = dma_readl(dw, RAW.ERROR);
 
@@ -655,8 +577,7 @@ static void dw_dma_tasklet(unsigned long data)
 	for (i = 0; i < dw->dma.chancnt; i++) {
 		dwc = &dw->chan[i];
 		if (test_bit(DW_DMA_IS_CYCLIC, &dwc->flags))
-			dwc_handle_cyclic(dw, dwc, status_block, status_err,
-					status_xfer);
+			dev_vdbg(dw->dma.dev, "Cyclic xfer is not implemented\n");
 		else if (status_err & (1 << i))
 			dwc_handle_error(dw, dwc);
 		else if (status_xfer & (1 << i))
@@ -1264,255 +1185,6 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	dev_vdbg(chan2dev(chan), "%s: done\n", __func__);
 }
 
-/* --------------------- Cyclic DMA API extensions -------------------- */
-
-/**
- * dw_dma_cyclic_start - start the cyclic DMA transfer
- * @chan: the DMA channel to start
- *
- * Must be called with soft interrupts disabled. Returns zero on success or
- * -errno on failure.
- */
-int dw_dma_cyclic_start(struct dma_chan *chan)
-{
-	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
-	struct dw_dma		*dw = to_dw_dma(chan->device);
-	unsigned long		flags;
-
-	if (!test_bit(DW_DMA_IS_CYCLIC, &dwc->flags)) {
-		dev_err(chan2dev(&dwc->chan), "missing prep for cyclic DMA\n");
-		return -ENODEV;
-	}
-
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	/* Enable interrupts to perform cyclic transfer */
-	channel_set_bit(dw, MASK.BLOCK, dwc->mask);
-
-	dwc_dostart(dwc, dwc->cdesc->desc[0]);
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL(dw_dma_cyclic_start);
-
-/**
- * dw_dma_cyclic_stop - stop the cyclic DMA transfer
- * @chan: the DMA channel to stop
- *
- * Must be called with soft interrupts disabled.
- */
-void dw_dma_cyclic_stop(struct dma_chan *chan)
-{
-	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
-	struct dw_dma		*dw = to_dw_dma(dwc->chan.device);
-	unsigned long		flags;
-
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	dwc_chan_disable(dw, dwc);
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-}
-EXPORT_SYMBOL(dw_dma_cyclic_stop);
-
-/**
- * dw_dma_cyclic_prep - prepare the cyclic DMA transfer
- * @chan: the DMA channel to prepare
- * @buf_addr: physical DMA address where the buffer starts
- * @buf_len: total number of bytes for the entire buffer
- * @period_len: number of bytes for each period
- * @direction: transfer direction, to or from device
- *
- * Must be called before trying to start the transfer. Returns a valid struct
- * dw_cyclic_desc if successful or an ERR_PTR(-errno) if not successful.
- */
-struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
-		dma_addr_t buf_addr, size_t buf_len, size_t period_len,
-		enum dma_transfer_direction direction)
-{
-	struct dw_dma_chan		*dwc = to_dw_dma_chan(chan);
-	struct dma_slave_config		*sconfig = &dwc->dma_sconfig;
-	struct dw_cyclic_desc		*cdesc;
-	struct dw_cyclic_desc		*retval = NULL;
-	struct dw_desc			*desc;
-	struct dw_desc			*last = NULL;
-	u8				lms = DWC_LLP_LMS(dwc->dws.m_master);
-	unsigned long			was_cyclic;
-	unsigned int			reg_width;
-	unsigned int			periods;
-	unsigned int			i;
-	unsigned long			flags;
-
-	spin_lock_irqsave(&dwc->lock, flags);
-	if (dwc->nollp) {
-		spin_unlock_irqrestore(&dwc->lock, flags);
-		dev_dbg(chan2dev(&dwc->chan),
-				"channel doesn't support LLP transfers\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (!list_empty(&dwc->queue) || !list_empty(&dwc->active_list)) {
-		spin_unlock_irqrestore(&dwc->lock, flags);
-		dev_dbg(chan2dev(&dwc->chan),
-				"queue and/or active list are not empty\n");
-		return ERR_PTR(-EBUSY);
-	}
-
-	was_cyclic = test_and_set_bit(DW_DMA_IS_CYCLIC, &dwc->flags);
-	spin_unlock_irqrestore(&dwc->lock, flags);
-	if (was_cyclic) {
-		dev_dbg(chan2dev(&dwc->chan),
-				"channel already prepared for cyclic DMA\n");
-		return ERR_PTR(-EBUSY);
-	}
-
-	retval = ERR_PTR(-EINVAL);
-
-	if (unlikely(!is_slave_direction(direction)))
-		goto out_err;
-
-	dwc->direction = direction;
-
-	if (direction == DMA_MEM_TO_DEV)
-		reg_width = __ffs(sconfig->dst_addr_width);
-	else
-		reg_width = __ffs(sconfig->src_addr_width);
-
-	periods = buf_len / period_len;
-
-	/* Check for too big/unaligned periods and unaligned DMA buffer. */
-	if (period_len > (dwc->block_size << reg_width))
-		goto out_err;
-	if (unlikely(period_len & ((1 << reg_width) - 1)))
-		goto out_err;
-	if (unlikely(buf_addr & ((1 << reg_width) - 1)))
-		goto out_err;
-
-	retval = ERR_PTR(-ENOMEM);
-
-	cdesc = kzalloc(sizeof(struct dw_cyclic_desc), GFP_KERNEL);
-	if (!cdesc)
-		goto out_err;
-
-	cdesc->desc = kzalloc(sizeof(struct dw_desc *) * periods, GFP_KERNEL);
-	if (!cdesc->desc)
-		goto out_err_alloc;
-
-	for (i = 0; i < periods; i++) {
-		desc = dwc_desc_get(dwc);
-		if (!desc)
-			goto out_err_desc_get;
-
-		switch (direction) {
-		case DMA_MEM_TO_DEV:
-			lli_write(desc, dar, sconfig->dst_addr);
-			lli_write(desc, sar, buf_addr + period_len * i);
-			lli_write(desc, ctllo, (DWC_DEFAULT_CTLLO(chan)
-				| DWC_CTLL_DST_WIDTH(reg_width)
-				| DWC_CTLL_SRC_WIDTH(reg_width)
-				| DWC_CTLL_DST_FIX
-				| DWC_CTLL_SRC_INC
-				| DWC_CTLL_INT_EN));
-
-			lli_set(desc, ctllo, sconfig->device_fc ?
-					DWC_CTLL_FC(DW_DMA_FC_P_M2P) :
-					DWC_CTLL_FC(DW_DMA_FC_D_M2P));
-
-			break;
-		case DMA_DEV_TO_MEM:
-			lli_write(desc, dar, buf_addr + period_len * i);
-			lli_write(desc, sar, sconfig->src_addr);
-			lli_write(desc, ctllo, (DWC_DEFAULT_CTLLO(chan)
-				| DWC_CTLL_SRC_WIDTH(reg_width)
-				| DWC_CTLL_DST_WIDTH(reg_width)
-				| DWC_CTLL_DST_INC
-				| DWC_CTLL_SRC_FIX
-				| DWC_CTLL_INT_EN));
-
-			lli_set(desc, ctllo, sconfig->device_fc ?
-					DWC_CTLL_FC(DW_DMA_FC_P_P2M) :
-					DWC_CTLL_FC(DW_DMA_FC_D_P2M));
-
-			break;
-		default:
-			break;
-		}
-
-		lli_write(desc, ctlhi, period_len >> reg_width);
-		cdesc->desc[i] = desc;
-
-		if (last)
-			lli_write(last, llp, desc->txd.phys | lms);
-
-		last = desc;
-	}
-
-	/* Let's make a cyclic list */
-	lli_write(last, llp, cdesc->desc[0]->txd.phys | lms);
-
-	dev_dbg(chan2dev(&dwc->chan),
-			"cyclic prepared buf %pad len %zu period %zu periods %d\n",
-			&buf_addr, buf_len, period_len, periods);
-
-	cdesc->periods = periods;
-	dwc->cdesc = cdesc;
-
-	return cdesc;
-
-out_err_desc_get:
-	while (i--)
-		dwc_desc_put(dwc, cdesc->desc[i]);
-out_err_alloc:
-	kfree(cdesc);
-out_err:
-	clear_bit(DW_DMA_IS_CYCLIC, &dwc->flags);
-	return (struct dw_cyclic_desc *)retval;
-}
-EXPORT_SYMBOL(dw_dma_cyclic_prep);
-
-/**
- * dw_dma_cyclic_free - free a prepared cyclic DMA transfer
- * @chan: the DMA channel to free
- */
-void dw_dma_cyclic_free(struct dma_chan *chan)
-{
-	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
-	struct dw_dma		*dw = to_dw_dma(dwc->chan.device);
-	struct dw_cyclic_desc	*cdesc = dwc->cdesc;
-	unsigned int		i;
-	unsigned long		flags;
-
-	dev_dbg(chan2dev(&dwc->chan), "%s\n", __func__);
-
-	if (!cdesc)
-		return;
-
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	dwc_chan_disable(dw, dwc);
-
-	dma_writel(dw, CLEAR.BLOCK, dwc->mask);
-	dma_writel(dw, CLEAR.ERROR, dwc->mask);
-	dma_writel(dw, CLEAR.XFER, dwc->mask);
-
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	for (i = 0; i < cdesc->periods; i++)
-		dwc_desc_put(dwc, cdesc->desc[i]);
-
-	kfree(cdesc->desc);
-	kfree(cdesc);
-
-	dwc->cdesc = NULL;
-
-	clear_bit(DW_DMA_IS_CYCLIC, &dwc->flags);
-}
-EXPORT_SYMBOL(dw_dma_cyclic_free);
-
-/*----------------------------------------------------------------------*/
-
 int dw_dma_probe(struct dw_dma_chip *chip)
 {
 	struct dw_dma_platform_data *pdata;
@@ -1642,7 +1314,7 @@ int dw_dma_probe(struct dw_dma_chip *chip)
 		if (autocfg) {
 			unsigned int r = DW_DMA_MAX_NR_CHANNELS - i - 1;
 			void __iomem *addr = &__dw_regs(dw)->DWC_PARAMS[r];
-			unsigned int dwc_params = dma_readl_native(addr);
+			unsigned int dwc_params = readl(addr);
 
 			dev_dbg(chip->dev, "DWC_PARAMS[%d]: 0x%08x\n", i,
 					   dwc_params);

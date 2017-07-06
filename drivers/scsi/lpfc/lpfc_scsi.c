@@ -3931,7 +3931,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct Scsi_Host *shost;
 	uint32_t logit = LOG_FCP;
 
-	phba->fc4ScsiIoCmpls++;
+	atomic_inc(&phba->fc4ScsiIoCmpls);
 
 	/* Sanity check on return of outstanding command */
 	cmd = lpfc_cmd->pCmd;
@@ -4250,19 +4250,19 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 						vport->cfg_first_burst_size;
 			}
 			fcp_cmnd->fcpCntl3 = WRITE_DATA;
-			phba->fc4ScsiOutputRequests++;
+			atomic_inc(&phba->fc4ScsiOutputRequests);
 		} else {
 			iocb_cmd->ulpCommand = CMD_FCP_IREAD64_CR;
 			iocb_cmd->ulpPU = PARM_READ_CHECK;
 			fcp_cmnd->fcpCntl3 = READ_DATA;
-			phba->fc4ScsiInputRequests++;
+			atomic_inc(&phba->fc4ScsiInputRequests);
 		}
 	} else {
 		iocb_cmd->ulpCommand = CMD_FCP_ICMND64_CR;
 		iocb_cmd->un.fcpi.fcpi_parm = 0;
 		iocb_cmd->ulpPU = 0;
 		fcp_cmnd->fcpCntl3 = 0;
-		phba->fc4ScsiControlRequests++;
+		atomic_inc(&phba->fc4ScsiControlRequests);
 	}
 	if (phba->sli_rev == 3 &&
 	    !(phba->sli3_options & LPFC_SLI3_BG_ENABLED))
@@ -4640,7 +4640,16 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 				 (uint32_t)
 				 (cmnd->request->timeout / 1000));
 
-
+		switch (lpfc_cmd->fcp_cmnd->fcpCntl3) {
+		case WRITE_DATA:
+			atomic_dec(&phba->fc4ScsiOutputRequests);
+			break;
+		case READ_DATA:
+			atomic_dec(&phba->fc4ScsiInputRequests);
+			break;
+		default:
+			atomic_dec(&phba->fc4ScsiControlRequests);
+		}
 		goto out_host_busy_free_buf;
 	}
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
