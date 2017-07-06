@@ -49,6 +49,8 @@ void nsinfo__put(struct nsinfo *nsi);
 void nsinfo__mountns_enter(struct nsinfo *nsi, struct nscookie *nc);
 void nsinfo__mountns_exit(struct nscookie *nc);
 
+char *nsinfo__realpath(const char *path, struct nsinfo *nsi);
+
 static inline void __nsinfo__zput(struct nsinfo **nsip)
 {
 	if (nsip) {

@@ -11,6 +11,7 @@
 #include "event.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <limits.h>
 #include <sched.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -232,4 +233,16 @@ void nsinfo__mountns_exit(struct nscookie *nc)
 		close(nc->newns);
 		nc->newns = -1;
 	}
+}
+
+char *nsinfo__realpath(const char *path, struct nsinfo *nsi)
+{
+	char *rpath;
+	struct nscookie nsc;
+
+	nsinfo__mountns_enter(nsi, &nsc);
+	rpath = realpath(path, NULL);
+	nsinfo__mountns_exit(&nsc);
+
+	return rpath;
 }
