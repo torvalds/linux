@@ -771,22 +771,24 @@ int tsl2x7x_invoke_change(struct iio_dev *indio_dev)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	int device_status = chip->tsl2x7x_chip_status;
+	int ret;
 
 	mutex_lock(&chip->als_mutex);
 	mutex_lock(&chip->prox_mutex);
 
-	if (device_status == TSL2X7X_CHIP_WORKING)
-		tsl2x7x_chip_off(indio_dev);
+	if (device_status == TSL2X7X_CHIP_WORKING) {
+		ret = tsl2x7x_chip_off(indio_dev);
+		if (ret < 0)
+			goto unlock;
+	}
 
-	tsl2x7x_chip_on(indio_dev);
+	ret = tsl2x7x_chip_on(indio_dev);
 
-	if (device_status != TSL2X7X_CHIP_WORKING)
-		tsl2x7x_chip_off(indio_dev);
-
+unlock:
 	mutex_unlock(&chip->prox_mutex);
 	mutex_unlock(&chip->als_mutex);
 
-	return 0;
+	return ret;
 }
 
 static
@@ -965,6 +967,7 @@ static ssize_t in_illuminance0_target_input_store(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	unsigned long value;
+	int ret;
 
 	if (kstrtoul(buf, 0, &value))
 		return -EINVAL;
@@ -972,7 +975,9 @@ static ssize_t in_illuminance0_target_input_store(struct device *dev,
 	if (value)
 		chip->tsl2x7x_settings.als_cal_target = value;
 
-	tsl2x7x_invoke_change(indio_dev);
+	ret = tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	return len;
 }
@@ -1021,7 +1026,9 @@ static ssize_t in_intensity0_thresh_period_store(struct device *dev,
 	dev_info(&chip->client->dev, "%s: als persistence = %d",
 		 __func__, filter_delay);
 
-	tsl2x7x_invoke_change(indio_dev);
+	ret = tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	return IIO_VAL_INT_PLUS_MICRO;
 }
@@ -1069,7 +1076,10 @@ static ssize_t in_proximity0_thresh_period_store(struct device *dev,
 	dev_info(&chip->client->dev, "%s: prox persistence = %d",
 		 __func__, filter_delay);
 
-	tsl2x7x_invoke_change(indio_dev);
+	ret = tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
+
 
 	return IIO_VAL_INT_PLUS_MICRO;
 }
@@ -1080,6 +1090,7 @@ static ssize_t in_illuminance0_calibrate_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool value;
+	int ret;
 
 	if (strtobool(buf, &value))
 		return -EINVAL;
@@ -1087,7 +1098,9 @@ static ssize_t in_illuminance0_calibrate_store(struct device *dev,
 	if (value)
 		tsl2x7x_als_calibrate(indio_dev);
 
-	tsl2x7x_invoke_change(indio_dev);
+	ret = tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	return len;
 }
@@ -1127,7 +1140,7 @@ static ssize_t in_illuminance0_lux_table_store(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	int value[ARRAY_SIZE(chip->tsl2x7x_device_lux) * 3 + 1];
-	int n;
+	int n, ret;
 
 	get_options(buf, ARRAY_SIZE(value), value);
 
@@ -1155,7 +1168,9 @@ static ssize_t in_illuminance0_lux_table_store(struct device *dev,
 	memset(chip->tsl2x7x_device_lux, 0, sizeof(chip->tsl2x7x_device_lux));
 	memcpy(chip->tsl2x7x_device_lux, &value[1], (value[0] * 4));
 
-	tsl2x7x_invoke_change(indio_dev);
+	ret = tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	return len;
 }
@@ -1166,6 +1181,7 @@ static ssize_t in_proximity0_calibrate_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool value;
+	int ret;
 
 	if (strtobool(buf, &value))
 		return -EINVAL;
@@ -1173,7 +1189,9 @@ static ssize_t in_proximity0_calibrate_store(struct device *dev,
 	if (value)
 		tsl2x7x_prox_cal(indio_dev);
 
-	tsl2x7x_invoke_change(indio_dev);
+	ret = tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	return len;
 }
@@ -1201,6 +1219,7 @@ static int tsl2x7x_write_interrupt_config(struct iio_dev *indio_dev,
 					  int val)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
+	int ret;
 
 	if (chan->type == IIO_INTENSITY) {
 		if (val)
@@ -1214,7 +1233,9 @@ static int tsl2x7x_write_interrupt_config(struct iio_dev *indio_dev,
 			chip->tsl2x7x_settings.interrupts_en &= 0x10;
 	}
 
-	tsl2x7x_invoke_change(indio_dev);
+	ret = tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -1450,9 +1471,7 @@ static int tsl2x7x_write_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	tsl2x7x_invoke_change(indio_dev);
-
-	return 0;
+	return tsl2x7x_invoke_change(indio_dev);
 }
 
 static DEVICE_ATTR_RO(in_proximity0_calibscale_available);
