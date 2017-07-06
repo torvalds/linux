@@ -587,6 +587,13 @@ static void *display_thread_tui(void *arg)
 		.refresh	= top->delay_secs,
 	};
 
+	/* In order to read symbols from other namespaces perf to  needs to call
+	 * setns(2).  This isn't permitted if the struct_fs has multiple users.
+	 * unshare(2) the fs so that we may continue to setns into namespaces
+	 * that we're observing.
+	 */
+	unshare(CLONE_FS);
+
 	perf_top__sort_new_samples(top);
 
 	/*
@@ -627,6 +634,13 @@ static void *display_thread(void *arg)
 	struct termios save;
 	struct perf_top *top = arg;
 	int delay_msecs, c;
+
+	/* In order to read symbols from other namespaces perf to  needs to call
+	 * setns(2).  This isn't permitted if the struct_fs has multiple users.
+	 * unshare(2) the fs so that we may continue to setns into namespaces
+	 * that we're observing.
+	 */
+	unshare(CLONE_FS);
 
 	display_setup_sig();
 	pthread__unblock_sigwinch();
@@ -1206,6 +1220,7 @@ int cmd_top(int argc, const char **argv)
 		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
+	OPT_BOOLEAN(0, "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
