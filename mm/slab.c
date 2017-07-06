@@ -1425,10 +1425,10 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
 
 	nr_pages = (1 << cachep->gfporder);
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
-		add_zone_page_state(page_zone(page),
+		add_node_page_state(page_pgdat(page),
 			NR_SLAB_RECLAIMABLE, nr_pages);
 	else
-		add_zone_page_state(page_zone(page),
+		add_node_page_state(page_pgdat(page),
 			NR_SLAB_UNRECLAIMABLE, nr_pages);
 
 	__SetPageSlab(page);
@@ -1459,10 +1459,10 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
 	kmemcheck_free_shadow(page, order);
 
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
-		sub_zone_page_state(page_zone(page),
+		sub_node_page_state(page_pgdat(page),
 				NR_SLAB_RECLAIMABLE, nr_freed);
 	else
-		sub_zone_page_state(page_zone(page),
+		sub_node_page_state(page_pgdat(page),
 				NR_SLAB_UNRECLAIMABLE, nr_freed);
 
 	BUG_ON(!PageSlab(page));
