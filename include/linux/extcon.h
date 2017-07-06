@@ -215,6 +215,8 @@ extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
 extern int extcon_register_blocking_notifier(struct extcon_dev *edev,
 		unsigned int id, struct notifier_block *nb);
+extern int extcon_unregister_blocking_notifier(struct extcon_dev *edev,
+		unsigned int id, struct notifier_block *nb);
 extern int devm_extcon_register_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
@@ -244,6 +246,8 @@ extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 /* Following API get the name of extcon device. */
 extern const char *extcon_get_edev_name(struct extcon_dev *edev);
 
+extern int extcon_blocking_sync(struct extcon_dev *edev, unsigned int id,
+							bool val);
 #else /* CONFIG_EXTCON */
 static inline int extcon_get_state(struct extcon_dev *edev, unsigned int id)
 {
@@ -276,6 +280,13 @@ static inline int extcon_unregister_notifier(struct extcon_dev *edev,
 }
 
 static inline int extcon_register_blocking_notifier(struct extcon_dev *edev,
+					unsigned int id,
+					struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int extcon_unregister_blocking_notifier(struct extcon_dev *edev,
 					unsigned int id,
 					struct notifier_block *nb)
 {

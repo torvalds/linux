@@ -487,6 +487,21 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 }
 EXPORT_SYMBOL_GPL(extcon_sync);
 
+int extcon_blocking_sync(struct extcon_dev *edev, unsigned int id, bool val)
+{
+	int index;
+
+	if (!edev)
+		return -EINVAL;
+
+	index = find_cable_index_by_id(edev, id);
+	if (index < 0)
+		return index;
+
+	return blocking_notifier_call_chain(&edev->bnh[index], val, edev);
+}
+EXPORT_SYMBOL(extcon_blocking_sync);
+
 /**
  * extcon_get_state() - Get the state of an external connector.
  * @edev:	the extcon device
@@ -941,6 +956,22 @@ int extcon_register_blocking_notifier(struct extcon_dev *edev, unsigned int id,
 }
 EXPORT_SYMBOL(extcon_register_blocking_notifier);
 
+int extcon_unregister_blocking_notifier(struct extcon_dev *edev,
+			unsigned int id, struct notifier_block *nb)
+{
+	int idx;
+
+	if (!edev || !nb)
+		return -EINVAL;
+
+	idx = find_cable_index_by_id(edev, id);
+	if (idx < 0)
+		return idx;
+
+	return blocking_notifier_chain_unregister(&edev->bnh[idx], nb);
+}
+EXPORT_SYMBOL(extcon_unregister_blocking_notifier);
+
 /**
  * extcon_unregister_notifier() - Unregister a notifier block from the extcon.
  * @edev:	the extcon device
@@ -1271,6 +1302,13 @@ int extcon_dev_register(struct extcon_dev *edev)
 	edev->nh = devm_kcalloc(&edev->dev, edev->max_supported,
 				sizeof(*edev->nh), GFP_KERNEL);
 	if (!edev->nh) {
+		ret = -ENOMEM;
+		goto err_dev;
+	}
+
+	edev->bnh = devm_kzalloc(&edev->dev,
+			sizeof(*edev->bnh) * edev->max_supported, GFP_KERNEL);
+	if (!edev->bnh) {
 		ret = -ENOMEM;
 		goto err_dev;
 	}
