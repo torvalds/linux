@@ -446,6 +446,18 @@ choice
 	  benefit.
 endchoice
 
+config ARCH_WANTS_THP_SWAP
+       def_bool n
+
+config THP_SWAP
+	def_bool y
+	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP
+	help
+	  Swap transparent huge pages in one piece, without splitting.
+	  XXX: For now this only does clustered swap space allocation.
+
+	  For selection by architectures with reasonable THP sizes.
+
 config	TRANSPARENT_HUGE_PAGECACHE
 	def_bool y
 	depends on TRANSPARENT_HUGEPAGE
