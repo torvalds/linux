@@ -138,6 +138,8 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 	seq_puts(seq, "==> RSI STA DRIVER STATUS <==\n");
 	seq_puts(seq, "DRIVER_FSM_STATE: ");
 
+	BUILD_BUG_ON(ARRAY_SIZE(fsm_state) != NUM_FSM_STATES);
+
 	if (common->fsm_state <= FSM_MAC_INIT_DONE)
 		seq_printf(seq, "%s", fsm_state[common->fsm_state]);
 
