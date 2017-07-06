@@ -96,8 +96,34 @@ static int pvcalls_back_release_active(struct xenbus_device *dev,
 				       struct pvcalls_fedata *fedata,
 				       struct sock_mapping *map);
 
+static void pvcalls_conn_back_read(void *opaque)
+{
+}
+
+static void pvcalls_conn_back_write(struct sock_mapping *map)
+{
+}
+
 static void pvcalls_back_ioworker(struct work_struct *work)
 {
+	struct pvcalls_ioworker *ioworker = container_of(work,
+		struct pvcalls_ioworker, register_work);
+	struct sock_mapping *map = container_of(ioworker, struct sock_mapping,
+		ioworker);
+
+	while (atomic_read(&map->io) > 0) {
+		if (atomic_read(&map->release) > 0) {
+			atomic_set(&map->release, 0);
+			return;
+		}
+
+		if (atomic_read(&map->read) > 0)
+			pvcalls_conn_back_read(map);
+		if (atomic_read(&map->write) > 0)
+			pvcalls_conn_back_write(map);
+
+		atomic_dec(&map->io);
+	}
 }
 
 static int pvcalls_back_socket(struct xenbus_device *dev,
