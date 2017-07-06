@@ -1,5 +1,5 @@
 /*
- * AMD Cryptographic Coprocessor (CCP) driver
+ * AMD Secure Processor device driver
  *
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
@@ -28,35 +28,35 @@
 
 #define MSIX_VECTORS			2
 
-struct ccp_pci {
+struct sp_pci {
 	int msix_count;
 	struct msix_entry msix_entry[MSIX_VECTORS];
 };
 
-static int ccp_get_msix_irqs(struct sp_device *sp)
+static int sp_get_msix_irqs(struct sp_device *sp)
 {
-	struct ccp_pci *ccp_pci = sp->dev_specific;
+	struct sp_pci *sp_pci = sp->dev_specific;
 	struct device *dev = sp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int v, ret;
 
-	for (v = 0; v < ARRAY_SIZE(ccp_pci->msix_entry); v++)
-		ccp_pci->msix_entry[v].entry = v;
+	for (v = 0; v < ARRAY_SIZE(sp_pci->msix_entry); v++)
+		sp_pci->msix_entry[v].entry = v;
 
-	ret = pci_enable_msix_range(pdev, ccp_pci->msix_entry, 1, v);
+	ret = pci_enable_msix_range(pdev, sp_pci->msix_entry, 1, v);
 	if (ret < 0)
 		return ret;
 
-	ccp_pci->msix_count = ret;
+	sp_pci->msix_count = ret;
 	sp->use_tasklet = true;
 
-	sp->psp_irq = ccp_pci->msix_entry[0].vector;
-	sp->ccp_irq = (ccp_pci->msix_count > 1) ? ccp_pci->msix_entry[1].vector
-					       : ccp_pci->msix_entry[0].vector;
+	sp->psp_irq = sp_pci->msix_entry[0].vector;
+	sp->ccp_irq = (sp_pci->msix_count > 1) ? sp_pci->msix_entry[1].vector
+					       : sp_pci->msix_entry[0].vector;
 	return 0;
 }
 
-static int ccp_get_msi_irq(struct sp_device *sp)
+static int sp_get_msi_irq(struct sp_device *sp)
 {
 	struct device *dev = sp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -72,18 +72,18 @@ static int ccp_get_msi_irq(struct sp_device *sp)
 	return 0;
 }
 
-static int ccp_get_irqs(struct sp_device *sp)
+static int sp_get_irqs(struct sp_device *sp)
 {
 	struct device *dev = sp->dev;
 	int ret;
 
-	ret = ccp_get_msix_irqs(sp);
+	ret = sp_get_msix_irqs(sp);
 	if (!ret)
 		return 0;
 
 	/* Couldn't get MSI-X vectors, try MSI */
 	dev_notice(dev, "could not enable MSI-X (%d), trying MSI\n", ret);
-	ret = ccp_get_msi_irq(sp);
+	ret = sp_get_msi_irq(sp);
 	if (!ret)
 		return 0;
 
@@ -93,13 +93,13 @@ static int ccp_get_irqs(struct sp_device *sp)
 	return ret;
 }
 
-static void ccp_free_irqs(struct sp_device *sp)
+static void sp_free_irqs(struct sp_device *sp)
 {
-	struct ccp_pci *ccp_pci = sp->dev_specific;
+	struct sp_pci *sp_pci = sp->dev_specific;
 	struct device *dev = sp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 
-	if (ccp_pci->msix_count)
+	if (sp_pci->msix_count)
 		pci_disable_msix(pdev);
 	else if (sp->psp_irq)
 		pci_disable_msi(pdev);
@@ -108,10 +108,10 @@ static void ccp_free_irqs(struct sp_device *sp)
 	sp->psp_irq = 0;
 }
 
-static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int sp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct sp_device *sp;
-	struct ccp_pci *ccp_pci;
+	struct sp_pci *sp_pci;
 	struct device *dev = &pdev->dev;
 	void __iomem * const *iomap_table;
 	int bar_mask;
@@ -122,11 +122,11 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!sp)
 		goto e_err;
 
-	ccp_pci = devm_kzalloc(dev, sizeof(*ccp_pci), GFP_KERNEL);
-	if (!ccp_pci)
+	sp_pci = devm_kzalloc(dev, sizeof(*sp_pci), GFP_KERNEL);
+	if (!sp_pci)
 		goto e_err;
 
-	sp->dev_specific = ccp_pci;
+	sp->dev_specific = sp_pci;
 	sp->dev_vdata = (struct sp_dev_vdata *)id->driver_data;
 	if (!sp->dev_vdata) {
 		ret = -ENODEV;
@@ -161,7 +161,7 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto e_err;
 	}
 
-	ret = ccp_get_irqs(sp);
+	ret = sp_get_irqs(sp);
 	if (ret)
 		goto e_err;
 
@@ -192,7 +192,7 @@ e_err:
 	return ret;
 }
 
-static void ccp_pci_remove(struct pci_dev *pdev)
+static void sp_pci_remove(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
@@ -202,13 +202,13 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 
 	sp_destroy(sp);
 
-	ccp_free_irqs(sp);
+	sp_free_irqs(sp);
 
 	dev_notice(dev, "disabled\n");
 }
 
 #ifdef CONFIG_PM
-static int ccp_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int sp_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
@@ -216,7 +216,7 @@ static int ccp_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	return sp_suspend(sp, state);
 }
 
-static int ccp_pci_resume(struct pci_dev *pdev)
+static int sp_pci_resume(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
@@ -245,32 +245,32 @@ static const struct sp_dev_vdata dev_vdata[] = {
 #endif
 	},
 };
-static const struct pci_device_id ccp_pci_table[] = {
+static const struct pci_device_id sp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&dev_vdata[0] },
 	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&dev_vdata[1] },
 	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&dev_vdata[2] },
 	/* Last entry must be zero */
 	{ 0, }
 };
-MODULE_DEVICE_TABLE(pci, ccp_pci_table);
+MODULE_DEVICE_TABLE(pci, sp_pci_table);
 
-static struct pci_driver ccp_pci_driver = {
+static struct pci_driver sp_pci_driver = {
 	.name = "ccp",
-	.id_table = ccp_pci_table,
-	.probe = ccp_pci_probe,
-	.remove = ccp_pci_remove,
+	.id_table = sp_pci_table,
+	.probe = sp_pci_probe,
+	.remove = sp_pci_remove,
 #ifdef CONFIG_PM
-	.suspend = ccp_pci_suspend,
-	.resume = ccp_pci_resume,
+	.suspend = sp_pci_suspend,
+	.resume = sp_pci_resume,
 #endif
 };
 
-int ccp_pci_init(void)
+int sp_pci_init(void)
 {
-	return pci_register_driver(&ccp_pci_driver);
+	return pci_register_driver(&sp_pci_driver);
 }
 
-void ccp_pci_exit(void)
+void sp_pci_exit(void)
 {
-	pci_unregister_driver(&ccp_pci_driver);
+	pci_unregister_driver(&sp_pci_driver);
 }

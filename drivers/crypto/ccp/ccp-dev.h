@@ -626,12 +626,6 @@ struct ccp5_desc {
 	struct dword7 dw7;
 };
 
-int ccp_pci_init(void);
-void ccp_pci_exit(void);
-
-int ccp_platform_init(void);
-void ccp_platform_exit(void);
-
 void ccp_add_device(struct ccp_device *ccp);
 void ccp_del_device(struct ccp_device *ccp);
 

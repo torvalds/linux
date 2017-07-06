@@ -1,5 +1,5 @@
 /*
- * AMD Cryptographic Coprocessor (CCP) driver
+ * AMD Secure Processor device driver
  *
  * Copyright (C) 2014,2016 Advanced Micro Devices, Inc.
  *
@@ -28,41 +28,41 @@
 
 #include "ccp-dev.h"
 
-struct ccp_platform {
+struct sp_platform {
 	int coherent;
 	unsigned int irq_count;
 };
 
-static const struct acpi_device_id ccp_acpi_match[];
-static const struct of_device_id ccp_of_match[];
+static const struct acpi_device_id sp_acpi_match[];
+static const struct of_device_id sp_of_match[];
 
-static struct sp_dev_vdata *ccp_get_of_version(struct platform_device *pdev)
+static struct sp_dev_vdata *sp_get_of_version(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
 	const struct of_device_id *match;
 
-	match = of_match_node(ccp_of_match, pdev->dev.of_node);
+	match = of_match_node(sp_of_match, pdev->dev.of_node);
 	if (match && match->data)
 		return (struct sp_dev_vdata *)match->data;
 #endif
 	return NULL;
 }
 
-static struct sp_dev_vdata *ccp_get_acpi_version(struct platform_device *pdev)
+static struct sp_dev_vdata *sp_get_acpi_version(struct platform_device *pdev)
 {
 #ifdef CONFIG_ACPI
 	const struct acpi_device_id *match;
 
-	match = acpi_match_device(ccp_acpi_match, &pdev->dev);
+	match = acpi_match_device(sp_acpi_match, &pdev->dev);
 	if (match && match->driver_data)
 		return (struct sp_dev_vdata *)match->driver_data;
 #endif
 	return NULL;
 }
 
-static int ccp_get_irqs(struct sp_device *sp)
+static int sp_get_irqs(struct sp_device *sp)
 {
-	struct ccp_platform *ccp_platform = sp->dev_specific;
+	struct sp_platform *sp_platform = sp->dev_specific;
 	struct device *dev = sp->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	unsigned int i, count;
@@ -75,7 +75,7 @@ static int ccp_get_irqs(struct sp_device *sp)
 			count++;
 	}
 
-	ccp_platform->irq_count = count;
+	sp_platform->irq_count = count;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
@@ -99,10 +99,10 @@ static int ccp_get_irqs(struct sp_device *sp)
 	return 0;
 }
 
-static int ccp_platform_probe(struct platform_device *pdev)
+static int sp_platform_probe(struct platform_device *pdev)
 {
 	struct sp_device *sp;
-	struct ccp_platform *ccp_platform;
+	struct sp_platform *sp_platform;
 	struct device *dev = &pdev->dev;
 	enum dev_dma_attr attr;
 	struct resource *ior;
@@ -113,13 +113,13 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	if (!sp)
 		goto e_err;
 
-	ccp_platform = devm_kzalloc(dev, sizeof(*ccp_platform), GFP_KERNEL);
-	if (!ccp_platform)
+	sp_platform = devm_kzalloc(dev, sizeof(*sp_platform), GFP_KERNEL);
+	if (!sp_platform)
 		goto e_err;
 
-	sp->dev_specific = ccp_platform;
-	sp->dev_vdata = pdev->dev.of_node ? ccp_get_of_version(pdev)
-					 : ccp_get_acpi_version(pdev);
+	sp->dev_specific = sp_platform;
+	sp->dev_vdata = pdev->dev.of_node ? sp_get_of_version(pdev)
+					 : sp_get_acpi_version(pdev);
 	if (!sp->dev_vdata) {
 		ret = -ENODEV;
 		dev_err(dev, "missing driver data\n");
@@ -139,8 +139,8 @@ static int ccp_platform_probe(struct platform_device *pdev)
 		goto e_err;
 	}
 
-	ccp_platform->coherent = (attr == DEV_DMA_COHERENT);
-	if (ccp_platform->coherent)
+	sp_platform->coherent = (attr == DEV_DMA_COHERENT);
+	if (sp_platform->coherent)
 		sp->axcache = CACHE_WB_NO_ALLOC;
 	else
 		sp->axcache = CACHE_NONE;
@@ -151,7 +151,7 @@ static int ccp_platform_probe(struct platform_device *pdev)
 		goto e_err;
 	}
 
-	ret = ccp_get_irqs(sp);
+	ret = sp_get_irqs(sp);
 	if (ret)
 		goto e_err;
 
@@ -170,7 +170,7 @@ e_err:
 	return ret;
 }
 
-static int ccp_platform_remove(struct platform_device *pdev)
+static int sp_platform_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
@@ -183,7 +183,7 @@ static int ccp_platform_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int ccp_platform_suspend(struct platform_device *pdev,
+static int sp_platform_suspend(struct platform_device *pdev,
 				pm_message_t state)
 {
 	struct device *dev = &pdev->dev;
@@ -192,7 +192,7 @@ static int ccp_platform_suspend(struct platform_device *pdev,
 	return sp_suspend(sp, state);
 }
 
-static int ccp_platform_resume(struct platform_device *pdev)
+static int sp_platform_resume(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
@@ -211,46 +211,46 @@ static const struct sp_dev_vdata dev_vdata[] = {
 };
 
 #ifdef CONFIG_ACPI
-static const struct acpi_device_id ccp_acpi_match[] = {
+static const struct acpi_device_id sp_acpi_match[] = {
 	{ "AMDI0C00", (kernel_ulong_t)&dev_vdata[0] },
 	{ },
 };
-MODULE_DEVICE_TABLE(acpi, ccp_acpi_match);
+MODULE_DEVICE_TABLE(acpi, sp_acpi_match);
 #endif
 
 #ifdef CONFIG_OF
-static const struct of_device_id ccp_of_match[] = {
+static const struct of_device_id sp_of_match[] = {
 	{ .compatible = "amd,ccp-seattle-v1a",
 	  .data = (const void *)&dev_vdata[0] },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, ccp_of_match);
+MODULE_DEVICE_TABLE(of, sp_of_match);
 #endif
 
-static struct platform_driver ccp_platform_driver = {
+static struct platform_driver sp_platform_driver = {
 	.driver = {
 		.name = "ccp",
 #ifdef CONFIG_ACPI
-		.acpi_match_table = ccp_acpi_match,
+		.acpi_match_table = sp_acpi_match,
 #endif
 #ifdef CONFIG_OF
-		.of_match_table = ccp_of_match,
+		.of_match_table = sp_of_match,
 #endif
 	},
-	.probe = ccp_platform_probe,
-	.remove = ccp_platform_remove,
+	.probe = sp_platform_probe,
+	.remove = sp_platform_remove,
 #ifdef CONFIG_PM
-	.suspend = ccp_platform_suspend,
-	.resume = ccp_platform_resume,
+	.suspend = sp_platform_suspend,
+	.resume = sp_platform_resume,
 #endif
 };
 
-int ccp_platform_init(void)
+int sp_platform_init(void)
 {
-	return platform_driver_register(&ccp_platform_driver);
+	return platform_driver_register(&sp_platform_driver);
 }
 
-void ccp_platform_exit(void)
+void sp_platform_exit(void)
 {
-	platform_driver_unregister(&ccp_platform_driver);
+	platform_driver_unregister(&sp_platform_driver);
 }
