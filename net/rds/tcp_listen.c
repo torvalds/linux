@@ -129,7 +129,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	if (!sock) /* module unload or netns delete in progress */
 		return -ENETUNREACH;
 
-	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
+	ret = sock_create_lite(sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
 			       &new_sock);
 	if (ret)
