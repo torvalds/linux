@@ -303,6 +303,15 @@
 			connect = <&vopb_out_dsi>;
 		};
 
+		route_dsi1: route-dsi1 {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "fullscreen";
+			charge_logo,mode = "center";
+			connect = <&vopl_out_dsi1>;
+		};
+
 		route_edp: route-edp {
 			status = "disabled";
 			logo,uboot = "logo.bmp";
