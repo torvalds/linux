@@ -168,6 +168,44 @@ void __meminit mminit_validate_memmodel_limits(unsigned long *start_pfn,
 	}
 }
 
+/*
+ * There are a number of times that we loop over NR_MEM_SECTIONS,
+ * looking for section_present() on each.  But, when we have very
+ * large physical address spaces, NR_MEM_SECTIONS can also be
+ * very large which makes the loops quite long.
+ *
+ * Keeping track of this gives us an easy way to break out of
+ * those loops early.
+ */
+int __highest_present_section_nr;
+static void section_mark_present(struct mem_section *ms)
+{
+	int section_nr = __section_nr(ms);
+
+	if (section_nr > __highest_present_section_nr)
+		__highest_present_section_nr = section_nr;
+
+	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+}
+
+static inline int next_present_section_nr(int section_nr)
+{
+	do {
+		section_nr++;
+		if (present_section_nr(section_nr))
+			return section_nr;
+	} while ((section_nr < NR_MEM_SECTIONS) &&
+		 (section_nr <= __highest_present_section_nr));
+
+	return -1;
+}
+#define for_each_present_section_nr(start, section_nr)		\
+	for (section_nr = next_present_section_nr(start-1);	\
+	     ((section_nr >= 0) &&				\
+	      (section_nr < NR_MEM_SECTIONS) &&			\
+	      (section_nr <= __highest_present_section_nr));	\
+	     section_nr = next_present_section_nr(section_nr))
+
 /* Record a memory area against a node. */
 void __init memory_present(int nid, unsigned long start, unsigned long end)
 {
@@ -183,9 +221,10 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
 		set_section_nid(section, nid);
 
 		ms = __nr_to_section(section);
-		if (!ms->section_mem_map)
-			ms->section_mem_map = sparse_encode_early_nid(nid) |
-							SECTION_MARKED_PRESENT;
+		if (!ms->section_mem_map) {
+			ms->section_mem_map = sparse_encode_early_nid(nid);
+			section_mark_present(ms);
+		}
 	}
 }
 
@@ -476,23 +515,19 @@ static void __init alloc_usemap_and_memmap(void (*alloc_func)
 	int nodeid_begin = 0;
 	unsigned long pnum_begin = 0;
 
-	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+	for_each_present_section_nr(0, pnum) {
 		struct mem_section *ms;
 
-		if (!present_section_nr(pnum))
-			continue;
 		ms = __nr_to_section(pnum);
 		nodeid_begin = sparse_early_nid(ms);
 		pnum_begin = pnum;
 		break;
 	}
 	map_count = 1;
-	for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
+	for_each_present_section_nr(pnum_begin + 1, pnum) {
 		struct mem_section *ms;
 		int nodeid;
 
-		if (!present_section_nr(pnum))
-			continue;
 		ms = __nr_to_section(pnum);
 		nodeid = sparse_early_nid(ms);
 		if (nodeid == nodeid_begin) {
@@ -561,10 +596,7 @@ void __init sparse_init(void)
 							(void *)map_map);
 #endif
 
-	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
-		if (!present_section_nr(pnum))
-			continue;
-
+	for_each_present_section_nr(0, pnum) {
 		usemap = usemap_map[pnum];
 		if (!usemap)
 			continue;
@@ -722,7 +754,7 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn)
 
 	memset(memmap, 0, sizeof(struct page) * PAGES_PER_SECTION);
 
-	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+	section_mark_present(ms);
 
 	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
 
