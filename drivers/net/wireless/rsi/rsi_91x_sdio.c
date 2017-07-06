@@ -1026,17 +1026,26 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 		return;
 
 	dev = (struct rsi_91x_sdiodev *)adapter->rsi_dev;
-
-	dev->write_fail = 2;
-	rsi_mac80211_detach(adapter);
-
 	sdio_claim_host(pfunction);
 	sdio_release_irq(pfunction);
-	sdio_disable_func(pfunction);
-	rsi_91x_deinit(adapter);
-	rsi_reset_chip(adapter);
-	rsi_reset_card(pfunction);
 	sdio_release_host(pfunction);
+	mdelay(10);
+
+	rsi_mac80211_detach(adapter);
+	mdelay(10);
+
+	/* Reset Chip */
+	rsi_reset_chip(adapter);
+
+	/* Resetting to take care of the case, where-in driver is re-loaded */
+	sdio_claim_host(pfunction);
+	rsi_reset_card(pfunction);
+	sdio_disable_func(pfunction);
+	sdio_release_host(pfunction);
+	dev->write_fail = 2;
+	rsi_91x_deinit(adapter);
+	rsi_dbg(ERR_ZONE, "##### RSI SDIO device disconnected #####\n");
+
 }
 
 #ifdef CONFIG_PM
