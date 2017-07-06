@@ -1939,7 +1939,7 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 		 * pci bus space for an I/O. The DMA buffer includes the
 		 * number of SGE's necessary to support the sg_tablesize.
 		 */
-		lpfc_ncmd->data = pci_pool_alloc(phba->lpfc_sg_dma_buf_pool,
+		lpfc_ncmd->data = dma_pool_alloc(phba->lpfc_sg_dma_buf_pool,
 						 GFP_KERNEL,
 						 &lpfc_ncmd->dma_handle);
 		if (!lpfc_ncmd->data) {
@@ -1950,7 +1950,7 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
-			pci_pool_free(phba->lpfc_sg_dma_buf_pool,
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
 			kfree(lpfc_ncmd);
 			break;
@@ -1961,7 +1961,7 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 		/* Allocate iotag for lpfc_ncmd->cur_iocbq. */
 		iotag = lpfc_sli_next_iotag(phba, pwqeq);
 		if (iotag == 0) {
-			pci_pool_free(phba->lpfc_sg_dma_buf_pool,
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
 			kfree(lpfc_ncmd);
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,

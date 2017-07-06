@@ -3275,7 +3275,7 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list_put,
 				 list) {
 		list_del(&sb->list);
-		pci_pool_free(phba->lpfc_sg_dma_buf_pool, sb->data,
+		dma_pool_free(phba->lpfc_sg_dma_buf_pool, sb->data,
 			      sb->dma_handle);
 		kfree(sb);
 		phba->total_scsi_bufs--;
@@ -3286,7 +3286,7 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list_get,
 				 list) {
 		list_del(&sb->list);
-		pci_pool_free(phba->lpfc_sg_dma_buf_pool, sb->data,
+		dma_pool_free(phba->lpfc_sg_dma_buf_pool, sb->data,
 			      sb->dma_handle);
 		kfree(sb);
 		phba->total_scsi_bufs--;
@@ -3317,7 +3317,7 @@ lpfc_nvme_free(struct lpfc_hba *phba)
 	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
 				 &phba->lpfc_nvme_buf_list_put, list) {
 		list_del(&lpfc_ncmd->list);
-		pci_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
+		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
 			      lpfc_ncmd->dma_handle);
 		kfree(lpfc_ncmd);
 		phba->total_nvme_bufs--;
@@ -3328,7 +3328,7 @@ lpfc_nvme_free(struct lpfc_hba *phba)
 	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
 				 &phba->lpfc_nvme_buf_list_get, list) {
 		list_del(&lpfc_ncmd->list);
-		pci_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
+		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
 			      lpfc_ncmd->dma_handle);
 		kfree(lpfc_ncmd);
 		phba->total_nvme_bufs--;
@@ -3640,7 +3640,7 @@ lpfc_sli4_scsi_sgl_update(struct lpfc_hba *phba)
 			list_remove_head(&scsi_sgl_list, psb,
 					 struct lpfc_scsi_buf, list);
 			if (psb) {
-				pci_pool_free(phba->lpfc_sg_dma_buf_pool,
+				dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 					      psb->data, psb->dma_handle);
 				kfree(psb);
 			}
@@ -3774,7 +3774,7 @@ lpfc_sli4_nvme_sgl_update(struct lpfc_hba *phba)
 			list_remove_head(&nvme_sgl_list, lpfc_ncmd,
 					 struct lpfc_nvme_buf, list);
 			if (lpfc_ncmd) {
-				pci_pool_free(phba->lpfc_sg_dma_buf_pool,
+				dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 					      lpfc_ncmd->data,
 					      lpfc_ncmd->dma_handle);
 				kfree(lpfc_ncmd);
@@ -6846,8 +6846,8 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	if (phba->nvmet_support) {
 		/* Only 1 vport (pport) will support NVME target */
 		if (phba->txrdy_payload_pool == NULL) {
-			phba->txrdy_payload_pool = pci_pool_create(
-				"txrdy_pool", phba->pcidev,
+			phba->txrdy_payload_pool = dma_pool_create(
+				"txrdy_pool", &phba->pcidev->dev,
 				TXRDY_PAYLOAD_LEN, 16, 0);
 			if (phba->txrdy_payload_pool) {
 				phba->targetport = NULL;

@@ -175,7 +175,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	unsigned long iflag;
 
 	if (ctxp->txrdy) {
-		pci_pool_free(phba->txrdy_payload_pool, ctxp->txrdy,
+		dma_pool_free(phba->txrdy_payload_pool, ctxp->txrdy,
 			      ctxp->txrdy_phys);
 		ctxp->txrdy = NULL;
 		ctxp->txrdy_phys = 0;
@@ -1909,7 +1909,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 
 	case NVMET_FCOP_WRITEDATA:
 		/* Words 0 - 2 : The first sg segment */
-		txrdy = pci_pool_alloc(phba->txrdy_payload_pool,
+		txrdy = dma_pool_alloc(phba->txrdy_payload_pool,
 				       GFP_KERNEL, &physaddr);
 		if (!txrdy) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,

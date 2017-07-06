@@ -17051,7 +17051,7 @@ lpfc_sli4_mds_loopback_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *pcmd = cmdiocb->context2;
 
 	if (pcmd && pcmd->virt)
-		pci_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
+		dma_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
 	kfree(pcmd);
 	lpfc_sli_release_iocbq(phba, cmdiocb);
 }
@@ -17079,7 +17079,7 @@ lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 	/* Allocate buffer for command payload */
 	pcmd = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (pcmd)
-		pcmd->virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
+		pcmd->virt = dma_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
 					    &pcmd->phys);
 	if (!pcmd || !pcmd->virt)
 		goto exit;
@@ -17128,7 +17128,7 @@ exit:
 	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"2023 Unable to process MDS loopback frame\n");
 	if (pcmd && pcmd->virt)
-		pci_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
+		dma_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
 	kfree(pcmd);
 	lpfc_sli_release_iocbq(phba, iocbq);
 	lpfc_in_buf_free(phba, &dmabuf->dbuf);
