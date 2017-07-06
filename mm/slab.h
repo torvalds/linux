@@ -285,10 +285,10 @@ static __always_inline int memcg_charge_slab(struct page *page,
 	if (ret)
 		return ret;
 
-	memcg_kmem_update_page_stat(page,
-			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
-			NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
-			1 << order);
+	mod_memcg_page_state(page,
+			     (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+			     NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+			     1 << order);
 	return 0;
 }
 
@@ -298,10 +298,10 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 	if (!memcg_kmem_enabled())
 		return;
 
-	memcg_kmem_update_page_stat(page,
-			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
-			NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
-			-(1 << order));
+	mod_memcg_page_state(page,
+			     (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+			     NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
+			     -(1 << order));
 	memcg_kmem_uncharge(page, order);
 }
 
