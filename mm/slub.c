@@ -2303,7 +2303,7 @@ static bool has_cpu_slab(int cpu, void *info)
 	struct kmem_cache *s = info;
 	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
 
-	return c->page || c->partial;
+	return c->page || slub_percpu_partial(c);
 }
 
 static void flush_all(struct kmem_cache *s)
@@ -2565,9 +2565,9 @@ load_freelist:
 
 new_slab:
 
-	if (c->partial) {
-		page = c->page = c->partial;
-		c->partial = page->next;
+	if (slub_percpu_partial(c)) {
+		page = c->page = slub_percpu_partial(c);
+		slub_set_percpu_partial(c, page);
 		stat(s, CPU_PARTIAL_ALLOC);
 		goto redo;
 	}
@@ -4754,7 +4754,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 			total += x;
 			nodes[node] += x;
 
-			page = READ_ONCE(c->partial);
+			page = slub_percpu_partial_read_once(c);
 			if (page) {
 				node = page_to_nid(page);
 				if (flags & SO_TOTAL)
@@ -4982,7 +4982,9 @@ static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
 	int len;
 
 	for_each_online_cpu(cpu) {
-		struct page *page = per_cpu_ptr(s->cpu_slab, cpu)->partial;
+		struct page *page;
+
+		page = slub_percpu_partial(per_cpu_ptr(s->cpu_slab, cpu));
 
 		if (page) {
 			pages += page->pages;
@@ -4994,7 +4996,9 @@ static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
 
 #ifdef CONFIG_SMP
 	for_each_online_cpu(cpu) {
-		struct page *page = per_cpu_ptr(s->cpu_slab, cpu) ->partial;
+		struct page *page;
+
+		page = slub_percpu_partial(per_cpu_ptr(s->cpu_slab, cpu));
 
 		if (page && len < PAGE_SIZE - 20)
 			len += sprintf(buf + len, " C%d=%d(%d)", cpu,
