@@ -1672,7 +1672,7 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	enum pipe pipe = power_well->id;
+	enum pipe pipe = PIPE_A;
 	bool enabled;
 	u32 state, ctrl;
 
@@ -1702,7 +1702,7 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well,
 				    bool enable)
 {
-	enum pipe pipe = power_well->id;
+	enum pipe pipe = PIPE_A;
 	u32 state;
 	u32 ctrl;
 
@@ -1735,7 +1735,7 @@ out:
 static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->id != PIPE_A);
+	WARN_ON_ONCE(power_well->id != CHV_DISP_PW_PIPE_A);
 
 	chv_set_pipe_power_well(dev_priv, power_well, true);
 
@@ -1745,7 +1745,7 @@ static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
 static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 					struct i915_power_well *power_well)
 {
-	WARN_ON_ONCE(power_well->id != PIPE_A);
+	WARN_ON_ONCE(power_well->id != CHV_DISP_PW_PIPE_A);
 
 	vlv_display_power_well_deinit(dev_priv);
 
@@ -2184,7 +2184,7 @@ static struct i915_power_well chv_power_wells[] = {
 		 * required for any pipe to work.
 		 */
 		.domains = CHV_DISPLAY_POWER_DOMAINS,
-		.id = PIPE_A,
+		.id = CHV_DISP_PW_PIPE_A,
 		.ops = &chv_pipe_power_well_ops,
 	},
 	{

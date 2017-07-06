@@ -1077,6 +1077,8 @@ enum punit_power_well {
 	PUNIT_POWER_WELL_DPIO_RX0		= 10,
 	PUNIT_POWER_WELL_DPIO_RX1		= 11,
 	PUNIT_POWER_WELL_DPIO_CMN_D		= 12,
+	/*  - custom power well */
+	CHV_DISP_PW_PIPE_A,			/* 13 */
 
 	/* Not actual bit groups. Used as IDs for lookup_power_well() */
 	PUNIT_POWER_WELL_ALWAYS_ON,
