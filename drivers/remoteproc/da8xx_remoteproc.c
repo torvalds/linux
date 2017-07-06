@@ -137,6 +137,7 @@ static int da8xx_rproc_stop(struct rproc *rproc)
 {
 	struct da8xx_rproc *drproc = rproc->priv;
 
+	davinci_clk_reset_assert(drproc->dsp_clk);
 	clk_disable(drproc->dsp_clk);
 
 	return 0;
@@ -156,22 +157,6 @@ static const struct rproc_ops da8xx_rproc_ops = {
 	.stop = da8xx_rproc_stop,
 	.kick = da8xx_rproc_kick,
 };
-
-static int reset_assert(struct device *dev)
-{
-	struct clk *dsp_clk;
-
-	dsp_clk = clk_get(dev, NULL);
-	if (IS_ERR(dsp_clk)) {
-		dev_err(dev, "clk_get error: %ld\n", PTR_ERR(dsp_clk));
-		return PTR_ERR(dsp_clk);
-	}
-
-	davinci_clk_reset_assert(dsp_clk);
-	clk_put(dsp_clk);
-
-	return 0;
-}
 
 static int da8xx_rproc_probe(struct platform_device *pdev)
 {
@@ -223,6 +208,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 
 	drproc = rproc->priv;
 	drproc->rproc = rproc;
+	drproc->dsp_clk = dsp_clk;
 	rproc->has_iommu = false;
 
 	platform_set_drvdata(pdev, rproc);
@@ -241,7 +227,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	 * *not* in reset, but da8xx_rproc_start() needs the DSP to be
 	 * held in reset at the time it is called.
 	 */
-	ret = reset_assert(dev);
+	ret = davinci_clk_reset_assert(drproc->dsp_clk);
 	if (ret)
 		goto free_rproc;
 
@@ -250,7 +236,6 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 	drproc->ack_fxn = irq_data->chip->irq_ack;
 	drproc->irq_data = irq_data;
 	drproc->irq = irq;
-	drproc->dsp_clk = dsp_clk;
 
 	ret = rproc_add(rproc);
 	if (ret) {
@@ -268,19 +253,8 @@ free_rproc:
 
 static int da8xx_rproc_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
-
-	/*
-	 * It's important to place the DSP in reset before going away,
-	 * since a subsequent insmod of this module may enable the DSP's
-	 * clock before its program/boot-address has been loaded and
-	 * before this module's probe has had a chance to reset the DSP.
-	 * Without the reset, the DSP can lockup permanently when it
-	 * begins executing garbage.
-	 */
-	reset_assert(dev);
 
 	/*
 	 * The devm subsystem might end up releasing things before
