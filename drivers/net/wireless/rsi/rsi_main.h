@@ -37,6 +37,7 @@ enum RSI_FSM_STATES {
 	FSM_COMMON_DEV_PARAMS_SENT,
 	FSM_BOOT_PARAMS_SENT,
 	FSM_EEPROM_READ_MAC_ADDR,
+	FSM_EEPROM_READ_RF_TYPE,
 	FSM_RESET_MAC_SENT,
 	FSM_RADIO_CAPS_SENT,
 	FSM_BB_RF_PROG_SENT,
@@ -177,6 +178,7 @@ struct rsi_common {
 
 	/* Channel/band related */
 	u8 band;
+	u8 num_supp_bands;
 	u8 channel_width;
 
 	u16 rts_threshold;
@@ -230,6 +232,19 @@ enum host_intf {
 	RSI_HOST_INTF_USB
 };
 
+struct eepromrw_info {
+	u32 offset;
+	u32 length;
+	u8  write;
+	u16 eeprom_erase;
+	u8 data[480];
+};
+
+struct eeprom_read {
+	u16 length;
+	u16 off_set;
+};
+
 struct rsi_hw {
 	struct rsi_common *priv;
 	u8 device_model;
@@ -252,6 +267,7 @@ struct rsi_hw {
 	struct timer_list bl_cmd_timer;
 	bool blcmd_timer_expired;
 	u32 flash_capacity;
+	struct eepromrw_info eeprom;
 	u8 dfs_region;
 	void *rsi_dev;
 	struct rsi_host_intf_ops *host_intf_ops;

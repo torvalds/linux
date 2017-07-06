@@ -43,6 +43,7 @@
 #define WLAN_HOST_MODE_LEN              0x04
 #define WLAN_FW_VERSION_LEN             0x08
 #define MAGIC_WORD                      0x5A
+#define WLAN_EEPROM_RFTYPE_ADDR		424
 
 /* Receive Frame Types */
 #define TA_CONFIRM_TYPE                 0x01
@@ -192,7 +193,7 @@ enum cmd_frame_type {
 	AUTO_RATE_IND,
 	BOOTUP_PARAMS_REQUEST,
 	VAP_CAPABILITIES,
-	EEPROM_READ_TYPE ,
+	EEPROM_READ,
 	EEPROM_WRITE,
 	GPIO_PIN_CONFIG ,
 	SET_RX_FILTER,
@@ -351,6 +352,22 @@ struct rsi_config_vals {
 	u8 region_code;
 	u8 antenna_sel_val;
 	u8 reserved2[16];
+} __packed;
+
+/* Packet info flags */
+#define RSI_EEPROM_HDR_SIZE_OFFSET		8
+#define RSI_EEPROM_HDR_SIZE_MASK		0x300
+#define RSI_EEPROM_LEN_OFFSET			20
+#define RSI_EEPROM_LEN_MASK			0xFFF00000
+
+struct rsi_eeprom_read_frame {
+	__le16 len_qno;
+	u8 pkt_type;
+	u8 misc_flags;
+	__le32 pkt_info;
+	__le32 eeprom_offset;
+	__le16 delay_ms;
+	__le16 reserved3;
 } __packed;
 
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)

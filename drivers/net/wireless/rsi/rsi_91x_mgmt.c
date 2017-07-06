@@ -1276,7 +1276,8 @@ void rsi_inform_bss_status(struct rsi_common *common,
  */
 static int rsi_eeprom_read(struct rsi_common *common)
 {
-	struct rsi_mac_frame *mgmt_frame;
+	struct rsi_eeprom_read_frame *mgmt_frame;
+	struct rsi_hw *adapter = common->priv;
 	struct sk_buff *skb;
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending EEPROM read req frame\n", __func__);
@@ -1289,18 +1290,21 @@ static int rsi_eeprom_read(struct rsi_common *common)
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
-	mgmt_frame = (struct rsi_mac_frame *)skb->data;
+	mgmt_frame = (struct rsi_eeprom_read_frame *)skb->data;
 
 	/* FrameType */
-	mgmt_frame->desc_word[1] = cpu_to_le16(EEPROM_READ_TYPE);
-	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	rsi_set_len_qno(&mgmt_frame->len_qno, 0, RSI_WIFI_MGMT_Q);
+	mgmt_frame->pkt_type = EEPROM_READ;
+
 	/* Number of bytes to read */
-	mgmt_frame->desc_word[3] = cpu_to_le16(ETH_ALEN +
-					       WLAN_MAC_MAGIC_WORD_LEN +
-					       WLAN_HOST_MODE_LEN +
-					       WLAN_FW_VERSION_LEN);
+	mgmt_frame->pkt_info =
+		cpu_to_le32((adapter->eeprom.length << RSI_EEPROM_LEN_OFFSET) &
+			    RSI_EEPROM_LEN_MASK);
+	mgmt_frame->pkt_info |= cpu_to_le32((3 << RSI_EEPROM_HDR_SIZE_OFFSET) &
+					    RSI_EEPROM_HDR_SIZE_MASK);
+
 	/* Address to read */
-	mgmt_frame->desc_word[4] = cpu_to_le16(WLAN_MAC_EEPROM_ADDR);
+	mgmt_frame->eeprom_offset = cpu_to_le32(adapter->eeprom.offset);
 
 	skb_put(skb, FRAME_DESC_SZ);
 
@@ -1426,19 +1430,25 @@ int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				      u8 *msg)
 {
+	struct rsi_hw *adapter = common->priv;
 	u8 sub_type = (msg[15] & 0xff);
+	u16 msg_len = ((u16 *)msg)[0] & 0xfff;
+	u8 offset;
 
 	switch (sub_type) {
 	case BOOTUP_PARAMS_REQUEST:
 		rsi_dbg(FSM_ZONE, "%s: Boot up params confirm received\n",
 			__func__);
 		if (common->fsm_state == FSM_BOOT_PARAMS_SENT) {
+			adapter->eeprom.length = (IEEE80211_ADDR_LEN +
+						  WLAN_MAC_MAGIC_WORD_LEN +
+						  WLAN_HOST_MODE_LEN);
+			adapter->eeprom.offset = WLAN_MAC_EEPROM_ADDR;
 			if (rsi_eeprom_read(common)) {
 				common->fsm_state = FSM_CARD_NOT_READY;
 				goto out;
-			} else {
-				common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 			}
+			common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 		} else {
 			rsi_dbg(INFO_ZONE,
 				"%s: Received bootup params cfm in %d state\n",
@@ -1447,30 +1457,52 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 		}
 		break;
 
-	case EEPROM_READ_TYPE:
+	case EEPROM_READ:
+		rsi_dbg(FSM_ZONE, "EEPROM READ confirm received\n");
+		if (msg_len <= 0) {
+			rsi_dbg(FSM_ZONE,
+				"%s: [EEPROM_READ] Invalid len %d\n",
+				__func__, msg_len);
+			goto out;
+		}
+		if (msg[16] != MAGIC_WORD) {
+			rsi_dbg(FSM_ZONE,
+				"%s: [EEPROM_READ] Invalid token\n", __func__);
+			common->fsm_state = FSM_CARD_NOT_READY;
+			goto out;
+		}
 		if (common->fsm_state == FSM_EEPROM_READ_MAC_ADDR) {
-			if (msg[16] == MAGIC_WORD) {
-				u8 offset = (FRAME_DESC_SZ + WLAN_HOST_MODE_LEN
-					     + WLAN_MAC_MAGIC_WORD_LEN);
-				memcpy(common->mac_addr,
-				       &msg[offset],
-				       ETH_ALEN);
-				memcpy(&common->fw_ver,
-				       &msg[offset + ETH_ALEN],
-				       sizeof(struct version_info));
-
-			} else {
+			offset = (FRAME_DESC_SZ + WLAN_HOST_MODE_LEN +
+				  WLAN_MAC_MAGIC_WORD_LEN);
+			memcpy(common->mac_addr, &msg[offset], ETH_ALEN);
+			adapter->eeprom.length =
+				((WLAN_MAC_MAGIC_WORD_LEN + 3) & (~3));
+			adapter->eeprom.offset = WLAN_EEPROM_RFTYPE_ADDR;
+			if (rsi_eeprom_read(common)) {
+				rsi_dbg(ERR_ZONE,
+					"%s: Failed reading RF band\n",
+					__func__);
 				common->fsm_state = FSM_CARD_NOT_READY;
-				break;
+				goto out;
+			}
+			common->fsm_state = FSM_EEPROM_READ_RF_TYPE;
+		} else if (common->fsm_state == FSM_EEPROM_READ_RF_TYPE) {
+			if ((msg[17] & 0x3) == 0x3) {
+				rsi_dbg(INIT_ZONE, "Dual band supported\n");
+				common->band = NL80211_BAND_5GHZ;
+				common->num_supp_bands = 2;
+			} else if ((msg[17] & 0x3) == 0x1) {
+				rsi_dbg(INIT_ZONE,
+					"Only 2.4Ghz band supported\n");
+				common->band = NL80211_BAND_2GHZ;
+				common->num_supp_bands = 1;
 			}
 			if (rsi_send_reset_mac(common))
 				goto out;
-			else
-				common->fsm_state = FSM_RESET_MAC_SENT;
+			common->fsm_state = FSM_RESET_MAC_SENT;
 		} else {
-			rsi_dbg(ERR_ZONE,
-				"%s: Received eeprom mac addr in %d state\n",
-				__func__, common->fsm_state);
+			rsi_dbg(ERR_ZONE, "%s: Invalid EEPROM read type\n",
+				__func__);
 			return 0;
 		}
 		break;

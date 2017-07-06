@@ -130,6 +130,7 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 		"FSM_COMMON_DEV_PARAMS_SENT",
 		"FSM_BOOT_PARAMS_SENT",
 		"FSM_EEPROM_READ_MAC_ADDR",
+		"FSM_EEPROM_READ_RF_TYPE",
 		"FSM_RESET_MAC_SENT",
 		"FSM_RADIO_CAPS_SENT",
 		"FSM_BB_RF_PROG_SENT",
