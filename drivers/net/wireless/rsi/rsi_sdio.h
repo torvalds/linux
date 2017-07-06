@@ -41,6 +41,7 @@ enum sdio_interrupt_type {
 #define PKT_BUFF_FULL                           1
 #define PKT_MGMT_BUFF_FULL                      2
 #define MSDU_PKT_PENDING                        3
+#define RECV_NUM_BLOCKS                         4
 /* Interrupt Bit Related Macros */
 #define PKT_BUFF_AVAILABLE                      1
 #define FW_ASSERT_IND                           2

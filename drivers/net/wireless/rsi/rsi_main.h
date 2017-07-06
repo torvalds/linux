@@ -275,6 +275,7 @@ struct rsi_hw {
 	bool blcmd_timer_expired;
 	u32 flash_capacity;
 	struct eepromrw_info eeprom;
+	u32 interrupt_status;
 	u8 dfs_region;
 	void *rsi_dev;
 	struct rsi_host_intf_ops *host_intf_ops;
