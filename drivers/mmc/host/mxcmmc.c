@@ -681,6 +681,9 @@ static void mxcmci_data_done(struct mxcmci_host *host, unsigned int stat)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
+	if (data_error)
+		return;
+
 	mxcmci_read_response(host, stat);
 	host->cmd = NULL;
 
