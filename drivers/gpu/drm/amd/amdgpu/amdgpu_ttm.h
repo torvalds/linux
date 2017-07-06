@@ -80,5 +80,6 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);
 int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem);
+int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
 
 #endif
