@@ -1367,13 +1367,14 @@ struct page *stable_node_dup(struct stable_node **_stable_node_dup,
 		put_page(_tree_page);
 	}
 
-	/*
-	 * nr is relevant only if prune_stale_stable_nodes is true,
-	 * otherwise we may break the loop at nr == 1 even if there
-	 * are multiple entries.
-	 */
-	if (prune_stale_stable_nodes && found) {
-		if (nr == 1) {
+	if (found) {
+		/*
+		 * nr is counting all dups in the chain only if
+		 * prune_stale_stable_nodes is true, otherwise we may
+		 * break the loop at nr == 1 even if there are
+		 * multiple entries.
+		 */
+		if (prune_stale_stable_nodes && nr == 1) {
 			/*
 			 * If there's not just one entry it would
 			 * corrupt memory, better BUG_ON. In KSM
@@ -1404,12 +1405,22 @@ struct page *stable_node_dup(struct stable_node **_stable_node_dup,
 			 * time.
 			 */
 			stable_node = NULL;
-		} else if (__is_page_sharing_candidate(found, 1)) {
+		} else if (stable_node->hlist.first != &found->hlist_dup &&
+			   __is_page_sharing_candidate(found, 1)) {
 			/*
-			 * Refile our candidate at the head
-			 * after the prune if our candidate
-			 * can accept one more future sharing
-			 * in addition to the one underway.
+			 * If the found stable_node dup can accept one
+			 * more future merge (in addition to the one
+			 * that is underway) and is not at the head of
+			 * the chain, put it there so next search will
+			 * be quicker in the !prune_stale_stable_nodes
+			 * case.
+			 *
+			 * NOTE: it would be inaccurate to use nr > 1
+			 * instead of checking the hlist.first pointer
+			 * directly, because in the
+			 * prune_stale_stable_nodes case "nr" isn't
+			 * the position of the found dup in the chain,
+			 * but the total number of dups in the chain.
 			 */
 			hlist_del(&found->hlist_dup);
 			hlist_add_head(&found->hlist_dup,
