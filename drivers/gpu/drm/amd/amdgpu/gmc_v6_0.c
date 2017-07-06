@@ -228,7 +228,6 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 		mc->mc_vram_size = 0xFFC0000000ULL;
 	}
 	amdgpu_vram_location(adev, &adev->mc, base);
-	adev->mc.gtt_base_align = 0;
 	amdgpu_gtt_location(adev, mc);
 }
 

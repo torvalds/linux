@@ -696,8 +696,8 @@ void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc)
 {
 	u64 size_af, size_bf;
 
-	size_af = ((adev->mc.mc_mask - mc->vram_end) + mc->gtt_base_align) & ~mc->gtt_base_align;
-	size_bf = mc->vram_start & ~mc->gtt_base_align;
+	size_af = adev->mc.mc_mask - mc->vram_end;
+	size_bf = mc->vram_start;
 	if (size_bf > size_af) {
 		if (mc->gtt_size > size_bf) {
 			dev_warn(adev->dev, "limiting GTT\n");
@@ -709,7 +709,7 @@ void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc)
 			dev_warn(adev->dev, "limiting GTT\n");
 			mc->gtt_size = size_af;
 		}
-		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
+		mc->gtt_start = mc->vram_end + 1;
 	}
 	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
 	dev_info(adev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",

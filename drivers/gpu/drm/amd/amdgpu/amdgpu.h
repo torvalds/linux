@@ -564,7 +564,6 @@ struct amdgpu_mc {
 	unsigned		vram_width;
 	u64			real_vram_size;
 	int			vram_mtrr;
-	u64                     gtt_base_align;
 	u64                     mc_mask;
 	const struct firmware   *fw;	/* MC firmware */
 	uint32_t                fw_version;

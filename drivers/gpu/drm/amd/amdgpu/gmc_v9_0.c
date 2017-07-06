@@ -420,7 +420,6 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	if (!amdgpu_sriov_vf(adev))
 		base = mmhub_v1_0_get_fb_location(adev);
 	amdgpu_vram_location(adev, &adev->mc, base);
-	adev->mc.gtt_base_align = 0;
 	amdgpu_gtt_location(adev, mc);
 	/* base offset of vram pages */
 	if (adev->flags & AMD_IS_APU)
