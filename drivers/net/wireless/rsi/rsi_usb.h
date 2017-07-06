@@ -33,8 +33,8 @@
 
 #define MAX_RX_URBS                  1
 #define MAX_BULK_EP                  8
-#define MGMT_EP                      1
-#define DATA_EP                      2
+#define WLAN_EP                      1
+#define BT_EP                        2
 
 #define RSI_USB_BUF_SIZE	     4096
 
