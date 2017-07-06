@@ -150,6 +150,7 @@ static SIMPLE_DEV_PM_OPS(rtc_class_dev_pm_ops, rtc_suspend, rtc_resume);
 #define RTC_CLASS_DEV_PM_OPS	NULL
 #endif
 
+/* Ensure the caller will set the id before releasing the device */
 static struct rtc_device *rtc_allocate_device(void)
 {
 	struct rtc_device *rtc;
@@ -371,6 +372,89 @@ void devm_rtc_device_unregister(struct device *dev, struct rtc_device *rtc)
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_rtc_device_unregister);
+
+static void devm_rtc_release_device(struct device *dev, void *res)
+{
+	struct rtc_device *rtc = *(struct rtc_device **)res;
+
+	if (rtc->registered)
+		rtc_device_unregister(rtc);
+	else
+		put_device(&rtc->dev);
+}
+
+struct rtc_device *devm_rtc_allocate_device(struct device *dev)
+{
+	struct rtc_device **ptr, *rtc;
+	int id, err;
+
+	id = rtc_device_get_id(dev);
+	if (id < 0)
+		return ERR_PTR(id);
+
+	ptr = devres_alloc(devm_rtc_release_device, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr) {
+		err = -ENOMEM;
+		goto exit_ida;
+	}
+
+	rtc = rtc_allocate_device();
+	if (!rtc) {
+		err = -ENOMEM;
+		goto exit_devres;
+	}
+
+	*ptr = rtc;
+	devres_add(dev, ptr);
+
+	rtc->id = id;
+	rtc->dev.parent = dev;
+	dev_set_name(&rtc->dev, "rtc%d", id);
+
+	return rtc;
+
+exit_devres:
+	devres_free(ptr);
+exit_ida:
+	ida_simple_remove(&rtc_ida, id);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(devm_rtc_allocate_device);
+
+int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
+{
+	struct rtc_wkalrm alrm;
+	int err;
+
+	if (!rtc->ops)
+		return -EINVAL;
+
+	rtc->owner = owner;
+
+	/* Check to see if there is an ALARM already set in hw */
+	err = __rtc_read_alarm(rtc, &alrm);
+	if (!err && !rtc_valid_tm(&alrm.time))
+		rtc_initialize_alarm(rtc, &alrm);
+
+	rtc_dev_prepare(rtc);
+
+	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
+	if (err)
+		dev_warn(rtc->dev.parent, "failed to add char device %d:%d\n",
+			 MAJOR(rtc->dev.devt), rtc->id);
+	else
+		dev_dbg(rtc->dev.parent, "char device (%d:%d)\n",
+			MAJOR(rtc->dev.devt), rtc->id);
+
+	rtc_proc_add_device(rtc);
+
+	rtc->registered = true;
+	dev_info(rtc->dev.parent, "registered as %s\n",
+		 dev_name(&rtc->dev));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__rtc_register_device);
 
 static int __init rtc_init(void)
 {
