@@ -5,7 +5,7 @@
 #include <sys/mman.h>
 #include <sys/user.h>
 #define __FRAME_OFFSETS
-#include <asm/ptrace.h>
+#include <linux/ptrace.h>
 #include <asm/types.h>
 
 #ifdef __i386__
