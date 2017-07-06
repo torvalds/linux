@@ -118,7 +118,7 @@ struct ds1307 {
 	u8			offset; /* register's offset */
 	u8			regs[11];
 	u16			nvram_offset;
-	struct bin_attribute	*nvram;
+	struct nvmem_config	nvmem_cfg;
 	enum ds_type		type;
 	unsigned long		flags;
 #define HAS_NVRAM	0		/* bit 0 == sysfs file active */
@@ -895,42 +895,23 @@ static const struct rtc_class_ops mcp794xx_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-static ssize_t
-ds1307_nvram_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
+static int ds1307_nvram_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
 {
-	struct ds1307		*ds1307;
-	int			result;
+	struct ds1307 *ds1307 = priv;
 
-	ds1307 = dev_get_drvdata(kobj_to_dev(kobj));
-
-	result = regmap_bulk_read(ds1307->regmap, ds1307->nvram_offset + off,
-				  buf, count);
-	if (result)
-		dev_err(ds1307->dev, "%s error %d\n", "nvram read", result);
-	return result;
+	return regmap_bulk_read(ds1307->regmap, ds1307->nvram_offset + offset,
+				val, bytes);
 }
 
-static ssize_t
-ds1307_nvram_write(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
+static int ds1307_nvram_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
 {
-	struct ds1307		*ds1307;
-	int			result;
+	struct ds1307 *ds1307 = priv;
 
-	ds1307 = dev_get_drvdata(kobj_to_dev(kobj));
-
-	result = regmap_bulk_write(ds1307->regmap, ds1307->nvram_offset + off,
-				   buf, count);
-	if (result) {
-		dev_err(ds1307->dev, "%s error %d\n", "nvram write", result);
-		return result;
-	}
-	return count;
+	return regmap_bulk_write(ds1307->regmap, ds1307->nvram_offset + offset,
+				 val, bytes);
 }
-
 
 /*----------------------------------------------------------------------*/
 
@@ -1704,37 +1685,17 @@ read_rtc:
 	}
 
 	if (chip->nvram_size) {
+		ds1307->nvmem_cfg.name = "ds1307_nvram";
+		ds1307->nvmem_cfg.word_size = 1;
+		ds1307->nvmem_cfg.stride = 1;
+		ds1307->nvmem_cfg.size = chip->nvram_size;
+		ds1307->nvmem_cfg.reg_read = ds1307_nvram_read;
+		ds1307->nvmem_cfg.reg_write = ds1307_nvram_write;
+		ds1307->nvmem_cfg.priv = ds1307;
+		ds1307->nvram_offset = chip->nvram_offset;
 
-		ds1307->nvram = devm_kzalloc(ds1307->dev,
-					sizeof(struct bin_attribute),
-					GFP_KERNEL);
-		if (!ds1307->nvram) {
-			dev_err(ds1307->dev,
-				"cannot allocate memory for nvram sysfs\n");
-		} else {
-
-			ds1307->nvram->attr.name = "nvram";
-			ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
-
-			sysfs_bin_attr_init(ds1307->nvram);
-
-			ds1307->nvram->read = ds1307_nvram_read;
-			ds1307->nvram->write = ds1307_nvram_write;
-			ds1307->nvram->size = chip->nvram_size;
-			ds1307->nvram_offset = chip->nvram_offset;
-
-			err = sysfs_create_bin_file(&ds1307->dev->kobj,
-						    ds1307->nvram);
-			if (err) {
-				dev_err(ds1307->dev,
-					"unable to create sysfs file: %s\n",
-					ds1307->nvram->attr.name);
-			} else {
-				set_bit(HAS_NVRAM, &ds1307->flags);
-				dev_info(ds1307->dev, "%zu bytes nvram\n",
-					 ds1307->nvram->size);
-			}
-		}
+		ds1307->rtc->nvmem_config = &ds1307->nvmem_cfg;
+		ds1307->rtc->nvram_old_abi = true;
 	}
 
 	ds1307->rtc->ops = rtc_ops;
@@ -1753,11 +1714,6 @@ exit:
 
 static int ds1307_remove(struct i2c_client *client)
 {
-	struct ds1307 *ds1307 = i2c_get_clientdata(client);
-
-	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags))
-		sysfs_remove_bin_file(&ds1307->dev->kobj, ds1307->nvram);
-
 	return 0;
 }
 
