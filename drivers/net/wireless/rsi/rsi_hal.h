@@ -129,6 +129,19 @@ struct rsi_mgmt_desc {
 	u8 vap_info;
 } __packed;
 
+struct rsi_data_desc {
+	__le16 len_qno;
+	u16 reserved;
+	u8 xtend_desc_size;
+	u8 header_len;
+	__le16 frame_info;
+	__le16 rate_info;
+	__le16 bbp_info;
+	__le16 mac_flags;
+	u8 qid_tid;
+	u8 sta_id;
+} __packed;
+
 int rsi_hal_device_init(struct rsi_hw *adapter);
 
 #endif

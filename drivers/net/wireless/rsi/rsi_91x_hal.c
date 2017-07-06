@@ -123,10 +123,10 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss;
+	struct rsi_data_desc *data_desc;
 	int status;
 	u8 ieee80211_size = MIN_802_11_HDR_LEN;
 	u8 extnd_size;
-	__le16 *frame_desc;
 	u16 seq_num;
 
 	info = IEEE80211_SKB_CB(skb);
@@ -150,12 +150,12 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	}
 
 	skb_push(skb, (FRAME_DESC_SZ + extnd_size));
-	frame_desc = (__le16 *)&skb->data[0];
-	memset((u8 *)frame_desc, 0, FRAME_DESC_SZ);
+	data_desc = (struct rsi_data_desc *)skb->data;
+	memset(data_desc, 0, sizeof(*data_desc));
 
 	if (ieee80211_is_data_qos(tmp_hdr->frame_control)) {
 		ieee80211_size += 2;
-		frame_desc[6] |= cpu_to_le16(BIT(12));
+		data_desc->mac_flags |= cpu_to_le16(RSI_QOS_ENABLE);
 	}
 
 	if ((!(info->flags & IEEE80211_TX_INTFL_DONT_ENCRYPT)) &&
@@ -164,35 +164,34 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 			ieee80211_size += 4;
 		else
 			ieee80211_size += 8;
-		frame_desc[6] |= cpu_to_le16(BIT(15));
+		data_desc->mac_flags |= cpu_to_le16(RSI_ENCRYPT_PKT);
 	}
+	rsi_set_len_qno(&data_desc->len_qno, (skb->len - FRAME_DESC_SZ),
+			RSI_WIFI_DATA_Q);
+	data_desc->header_len = ieee80211_size;
+	data_desc->xtend_desc_size = extnd_size;
 
-	frame_desc[0] = cpu_to_le16((skb->len - FRAME_DESC_SZ) |
-				    (RSI_WIFI_DATA_Q << 12));
-	frame_desc[2] = cpu_to_le16((extnd_size) | (ieee80211_size) << 8);
-
-	if (common->min_rate != 0xffff) {
+	if (common->min_rate != RSI_RATE_AUTO) {
 		/* Send fixed rate */
-		frame_desc[3] = cpu_to_le16(RATE_INFO_ENABLE);
-		frame_desc[4] = cpu_to_le16(common->min_rate);
+		data_desc->frame_info = cpu_to_le16(RATE_INFO_ENABLE);
+		data_desc->rate_info = cpu_to_le16(common->min_rate);
 
 		if (conf_is_ht40(&common->priv->hw->conf))
-			frame_desc[5] = cpu_to_le16(FULL40M_ENABLE);
+			data_desc->bbp_info = cpu_to_le16(FULL40M_ENABLE);
 
 		if (common->vif_info[0].sgi) {
 			if (common->min_rate & 0x100) /* Only MCS rates */
-				frame_desc[4] |=
+				data_desc->rate_info |=
 					cpu_to_le16(ENABLE_SHORTGI_RATE);
 		}
-
 	}
 
-	frame_desc[6] |= cpu_to_le16(seq_num & 0xfff);
-	frame_desc[7] = cpu_to_le16(((tx_params->tid & 0xf) << 4) |
-				    (skb->priority & 0xf) |
-				    (tx_params->sta_id << 8));
+	data_desc->mac_flags = cpu_to_le16(seq_num & 0xfff);
+	data_desc->qid_tid = ((skb->priority & 0xf) |
+			      ((tx_params->tid & 0xf) << 4));
+	data_desc->sta_id = tx_params->sta_id;
 
-	status = adapter->host_intf_ops->write_pkt(common->priv, skb->data,
+	status = adapter->host_intf_ops->write_pkt(adapter, skb->data,
 						   skb->len);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write pkt\n",
@@ -200,7 +199,7 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 
 err:
 	++common->tx_stats.total_tx_pkt_freed[skb->priority];
-	rsi_indicate_tx_status(common->priv, skb, status);
+	rsi_indicate_tx_status(adapter, skb, status);
 	return status;
 }
 

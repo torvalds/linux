@@ -64,6 +64,8 @@
 #define RATE_INFO_ENABLE                BIT(0)
 #define RSI_BROADCAST_PKT               BIT(9)
 #define RSI_DESC_REQUIRE_CFM_TO_HOST	BIT(2)
+#define RSI_QOS_ENABLE			BIT(12)
+#define RSI_ENCRYPT_PKT			BIT(15)
 
 #define UPPER_20_ENABLE                 (0x2 << 12)
 #define LOWER_20_ENABLE                 (0x4 << 12)
@@ -122,6 +124,7 @@
 #define RSI_RATE_MCS6                   0x106
 #define RSI_RATE_MCS7                   0x107
 #define RSI_RATE_MCS7_SG                0x307
+#define RSI_RATE_AUTO			0xffff
 
 #define BW_20MHZ                        0
 #define BW_40MHZ                        1
