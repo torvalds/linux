@@ -40,7 +40,8 @@ struct ccp_pci {
 
 static int ccp_get_msix_irqs(struct ccp_device *ccp)
 {
-	struct ccp_pci *ccp_pci = ccp->dev_specific;
+	struct sp_device *sp = ccp->sp;
+	struct ccp_pci *ccp_pci = sp->dev_specific;
 	struct device *dev = ccp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct msix_entry msix_entry[MSIX_VECTORS];
@@ -58,11 +59,11 @@ static int ccp_get_msix_irqs(struct ccp_device *ccp)
 	for (v = 0; v < ccp_pci->msix_count; v++) {
 		/* Set the interrupt names and request the irqs */
 		snprintf(ccp_pci->msix[v].name, name_len, "%s-%u",
-			 ccp->name, v);
+			 sp->name, v);
 		ccp_pci->msix[v].vector = msix_entry[v].vector;
 		ret = request_irq(ccp_pci->msix[v].vector,
 				  ccp->vdata->perform->irqhandler,
-				  0, ccp_pci->msix[v].name, dev);
+				  0, ccp_pci->msix[v].name, ccp);
 		if (ret) {
 			dev_notice(dev, "unable to allocate MSI-X IRQ (%d)\n",
 				   ret);
@@ -86,6 +87,7 @@ e_irq:
 
 static int ccp_get_msi_irq(struct ccp_device *ccp)
 {
+	struct sp_device *sp = ccp->sp;
 	struct device *dev = ccp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
@@ -96,7 +98,7 @@ static int ccp_get_msi_irq(struct ccp_device *ccp)
 
 	ccp->irq = pdev->irq;
 	ret = request_irq(ccp->irq, ccp->vdata->perform->irqhandler, 0,
-			  ccp->name, dev);
+			  sp->name, ccp);
 	if (ret) {
 		dev_notice(dev, "unable to allocate MSI IRQ (%d)\n", ret);
 		goto e_msi;
@@ -134,17 +136,18 @@ static int ccp_get_irqs(struct ccp_device *ccp)
 
 static void ccp_free_irqs(struct ccp_device *ccp)
 {
-	struct ccp_pci *ccp_pci = ccp->dev_specific;
+	struct sp_device *sp = ccp->sp;
+	struct ccp_pci *ccp_pci = sp->dev_specific;
 	struct device *dev = ccp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (ccp_pci->msix_count) {
 		while (ccp_pci->msix_count--)
 			free_irq(ccp_pci->msix[ccp_pci->msix_count].vector,
-				 dev);
+				 ccp);
 		pci_disable_msix(pdev);
 	} else if (ccp->irq) {
-		free_irq(ccp->irq, dev);
+		free_irq(ccp->irq, ccp);
 		pci_disable_msi(pdev);
 	}
 	ccp->irq = 0;
@@ -152,7 +155,7 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 
 static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct ccp_device *ccp;
+	struct sp_device *sp;
 	struct ccp_pci *ccp_pci;
 	struct device *dev = &pdev->dev;
 	void __iomem * const *iomap_table;
@@ -160,23 +163,23 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int ret;
 
 	ret = -ENOMEM;
-	ccp = ccp_alloc_struct(dev);
-	if (!ccp)
+	sp = sp_alloc_struct(dev);
+	if (!sp)
 		goto e_err;
 
 	ccp_pci = devm_kzalloc(dev, sizeof(*ccp_pci), GFP_KERNEL);
 	if (!ccp_pci)
 		goto e_err;
 
-	ccp->dev_specific = ccp_pci;
-	ccp->vdata = (struct ccp_vdata *)id->driver_data;
-	if (!ccp->vdata || !ccp->vdata->version) {
+	sp->dev_specific = ccp_pci;
+	sp->dev_vdata = (struct sp_dev_vdata *)id->driver_data;
+	if (!sp->dev_vdata) {
 		ret = -ENODEV;
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
-	ccp->get_irq = ccp_get_irqs;
-	ccp->free_irq = ccp_free_irqs;
+	sp->get_irq = ccp_get_irqs;
+	sp->free_irq = ccp_free_irqs;
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
@@ -198,8 +201,8 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto e_err;
 	}
 
-	ccp->io_map = iomap_table[ccp->vdata->bar];
-	if (!ccp->io_map) {
+	sp->io_map = iomap_table[sp->dev_vdata->bar];
+	if (!sp->io_map) {
 		dev_err(dev, "ioremap failed\n");
 		ret = -ENOMEM;
 		goto e_err;
@@ -217,9 +220,9 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
-	dev_set_drvdata(dev, ccp);
+	dev_set_drvdata(dev, sp);
 
-	ret = ccp_dev_init(ccp);
+	ret = sp_init(sp);
 	if (ret)
 		goto e_err;
 
@@ -235,12 +238,12 @@ e_err:
 static void ccp_pci_remove(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
+	struct sp_device *sp = dev_get_drvdata(dev);
 
-	if (!ccp)
+	if (!sp)
 		return;
 
-	ccp_dev_destroy(ccp);
+	sp_destroy(sp);
 
 	dev_notice(dev, "disabled\n");
 }
@@ -249,24 +252,44 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 static int ccp_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct device *dev = &pdev->dev;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
+	struct sp_device *sp = dev_get_drvdata(dev);
 
-	return ccp_dev_suspend(ccp, state);
+	return sp_suspend(sp, state);
 }
 
 static int ccp_pci_resume(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
+	struct sp_device *sp = dev_get_drvdata(dev);
 
-	return ccp_dev_resume(ccp);
+	return sp_resume(sp);
 }
 #endif
 
+static const struct sp_dev_vdata dev_vdata[] = {
+	{
+		.bar = 2,
+#ifdef CONFIG_CRYPTO_DEV_SP_CCP
+		.ccp_vdata = &ccpv3,
+#endif
+	},
+	{
+		.bar = 2,
+#ifdef CONFIG_CRYPTO_DEV_SP_CCP
+		.ccp_vdata = &ccpv5a,
+#endif
+	},
+	{
+		.bar = 2,
+#ifdef CONFIG_CRYPTO_DEV_SP_CCP
+		.ccp_vdata = &ccpv5b,
+#endif
+	},
+};
 static const struct pci_device_id ccp_pci_table[] = {
-	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&ccpv3 },
-	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&ccpv5a },
-	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&ccpv5b },
+	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&dev_vdata[0] },
+	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&dev_vdata[1] },
+	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&dev_vdata[2] },
 	/* Last entry must be zero */
 	{ 0, }
 };

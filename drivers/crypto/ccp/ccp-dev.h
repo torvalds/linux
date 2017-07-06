@@ -27,6 +27,8 @@
 #include <linux/irqreturn.h>
 #include <linux/dmaengine.h>
 
+#include "sp-dev.h"
+
 #define MAX_CCP_NAME_LEN		16
 #define MAX_DMAPOOL_NAME_LEN		32
 
@@ -344,6 +346,7 @@ struct ccp_device {
 	char rngname[MAX_CCP_NAME_LEN];
 
 	struct device *dev;
+	struct sp_device *sp;
 
 	/* Bus specific device information
 	 */
@@ -362,7 +365,6 @@ struct ccp_device {
 	 *   them.
 	 */
 	struct mutex req_mutex ____cacheline_aligned;
-	void __iomem *io_map;
 	void __iomem *io_regs;
 
 	/* Master lists that all cmds are queued on. Because there can be
@@ -637,7 +639,7 @@ void ccp_del_device(struct ccp_device *ccp);
 
 extern void ccp_log_error(struct ccp_device *, int);
 
-struct ccp_device *ccp_alloc_struct(struct device *dev);
+struct ccp_device *ccp_alloc_struct(struct sp_device *sp);
 bool ccp_queues_suspended(struct ccp_device *ccp);
 int ccp_cmd_queue_thread(void *data);
 int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait);
@@ -651,11 +653,6 @@ void ccp_dmaengine_unregister(struct ccp_device *ccp);
 
 void ccp5_debugfs_setup(struct ccp_device *ccp);
 void ccp5_debugfs_destroy(void);
-
-int ccp_dev_init(struct ccp_device *ccp);
-void ccp_dev_destroy(struct ccp_device *ccp);
-int ccp_dev_suspend(struct ccp_device *ccp, pm_message_t state);
-int ccp_dev_resume(struct ccp_device *ccp);
 
 /* Structure for computation functions that are device-specific */
 struct ccp_actions {
@@ -672,16 +669,6 @@ struct ccp_actions {
 	int (*init)(struct ccp_device *);
 	void (*destroy)(struct ccp_device *);
 	irqreturn_t (*irqhandler)(int, void *);
-};
-
-/* Structure to hold CCP version-specific values */
-struct ccp_vdata {
-	const unsigned int version;
-	const unsigned int dma_chan_attr;
-	void (*setup)(struct ccp_device *);
-	const struct ccp_actions *perform;
-	const unsigned int bar;
-	const unsigned int offset;
 };
 
 extern const struct ccp_vdata ccpv3_platform;

@@ -540,11 +540,11 @@ config CRYPTO_DEV_ATMEL_ECC
 	  will be called atmel-ecc.
 
 config CRYPTO_DEV_CCP
-	bool "Support for AMD Cryptographic Coprocessor"
+	bool "Support for AMD Secure Processor"
 	depends on ((X86 && PCI) || (ARM64 && (OF_ADDRESS || ACPI))) && HAS_IOMEM
 	help
-	  The AMD Cryptographic Coprocessor provides hardware offload support
-	  for encryption, hashing and related operations.
+	  The AMD Secure Processor provides support for the Cryptographic Coprocessor
+	  (CCP) and the Platform Security Processor (PSP) devices.
 
 if CRYPTO_DEV_CCP
 	source "drivers/crypto/ccp/Kconfig"

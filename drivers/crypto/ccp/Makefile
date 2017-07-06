@@ -1,9 +1,9 @@
 obj-$(CONFIG_CRYPTO_DEV_CCP_DD) += ccp.o
-ccp-objs := ccp-dev.o \
+ccp-objs  := sp-dev.o ccp-platform.o
+ccp-$(CONFIG_CRYPTO_DEV_SP_CCP) += ccp-dev.o \
 	    ccp-ops.o \
 	    ccp-dev-v3.o \
 	    ccp-dev-v5.o \
-	    ccp-platform.o \
 	    ccp-dmaengine.o \
 	    ccp-debugfs.o
 ccp-$(CONFIG_PCI) += ccp-pci.o

@@ -359,8 +359,7 @@ static void ccp_irq_bh(unsigned long data)
 
 static irqreturn_t ccp_irq_handler(int irq, void *data)
 {
-	struct device *dev = data;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
+	struct ccp_device *ccp = (struct ccp_device *)data;
 
 	ccp_disable_queue_interrupts(ccp);
 	if (ccp->use_tasklet)
@@ -597,6 +596,5 @@ const struct ccp_vdata ccpv3 = {
 	.version = CCP_VERSION(3, 0),
 	.setup = NULL,
 	.perform = &ccp3_actions,
-	.bar = 2,
 	.offset = 0x20000,
 };

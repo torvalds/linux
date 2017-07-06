@@ -23,8 +23,7 @@
 struct ccp_device;
 struct ccp_cmd;
 
-#if defined(CONFIG_CRYPTO_DEV_CCP_DD) || \
-	defined(CONFIG_CRYPTO_DEV_CCP_DD_MODULE)
+#if defined(CONFIG_CRYPTO_DEV_SP_CCP)
 
 /**
  * ccp_present - check if a CCP device is present
@@ -70,7 +69,7 @@ unsigned int ccp_version(void);
  */
 int ccp_enqueue_cmd(struct ccp_cmd *cmd);
 
-#else /* CONFIG_CRYPTO_DEV_CCP_DD is not enabled */
+#else /* CONFIG_CRYPTO_DEV_CCP_SP_DEV is not enabled */
 
 static inline int ccp_present(void)
 {
@@ -87,7 +86,7 @@ static inline int ccp_enqueue_cmd(struct ccp_cmd *cmd)
 	return -ENODEV;
 }
 
-#endif /* CONFIG_CRYPTO_DEV_CCP_DD */
+#endif /* CONFIG_CRYPTO_DEV_SP_CCP */
 
 
 /***** AES engine *****/

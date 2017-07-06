@@ -111,13 +111,6 @@ static LIST_HEAD(ccp_units);
 static DEFINE_SPINLOCK(ccp_rr_lock);
 static struct ccp_device *ccp_rr;
 
-/* Ever-increasing value to produce unique unit numbers */
-static atomic_t ccp_unit_ordinal;
-static unsigned int ccp_increment_unit_ordinal(void)
-{
-	return atomic_inc_return(&ccp_unit_ordinal);
-}
-
 /**
  * ccp_add_device - add a CCP device to the list
  *
@@ -465,14 +458,17 @@ int ccp_cmd_queue_thread(void *data)
  *
  * @dev: device struct of the CCP
  */
-struct ccp_device *ccp_alloc_struct(struct device *dev)
+struct ccp_device *ccp_alloc_struct(struct sp_device *sp)
 {
+	struct device *dev = sp->dev;
 	struct ccp_device *ccp;
 
 	ccp = devm_kzalloc(dev, sizeof(*ccp), GFP_KERNEL);
 	if (!ccp)
 		return NULL;
 	ccp->dev = dev;
+	ccp->sp = sp;
+	ccp->axcache = sp->axcache;
 
 	INIT_LIST_HEAD(&ccp->cmd);
 	INIT_LIST_HEAD(&ccp->backlog);
@@ -487,9 +483,8 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 	init_waitqueue_head(&ccp->sb_queue);
 	init_waitqueue_head(&ccp->suspend_queue);
 
-	ccp->ord = ccp_increment_unit_ordinal();
-	snprintf(ccp->name, MAX_CCP_NAME_LEN, "ccp-%u", ccp->ord);
-	snprintf(ccp->rngname, MAX_CCP_NAME_LEN, "ccp-%u-rng", ccp->ord);
+	snprintf(ccp->name, MAX_CCP_NAME_LEN, "ccp-%u", sp->ord);
+	snprintf(ccp->rngname, MAX_CCP_NAME_LEN, "ccp-%u-rng", sp->ord);
 
 	return ccp;
 }
@@ -540,8 +535,9 @@ bool ccp_queues_suspended(struct ccp_device *ccp)
 	return ccp->cmd_q_count == suspended;
 }
 
-int ccp_dev_suspend(struct ccp_device *ccp, pm_message_t state)
+int ccp_dev_suspend(struct sp_device *sp, pm_message_t state)
 {
+	struct ccp_device *ccp = sp->ccp_data;
 	unsigned long flags;
 	unsigned int i;
 
@@ -563,8 +559,9 @@ int ccp_dev_suspend(struct ccp_device *ccp, pm_message_t state)
 	return 0;
 }
 
-int ccp_dev_resume(struct ccp_device *ccp)
+int ccp_dev_resume(struct sp_device *sp)
 {
+	struct ccp_device *ccp = sp->ccp_data;
 	unsigned long flags;
 	unsigned int i;
 
@@ -584,71 +581,54 @@ int ccp_dev_resume(struct ccp_device *ccp)
 }
 #endif
 
-int ccp_dev_init(struct ccp_device *ccp)
+int ccp_dev_init(struct sp_device *sp)
 {
-	ccp->io_regs = ccp->io_map + ccp->vdata->offset;
+	struct device *dev = sp->dev;
+	struct ccp_device *ccp;
+	int ret;
 
+	ret = -ENOMEM;
+	ccp = ccp_alloc_struct(sp);
+	if (!ccp)
+		goto e_err;
+	sp->ccp_data = ccp;
+
+	ccp->vdata = (struct ccp_vdata *)sp->dev_vdata->ccp_vdata;
+	if (!ccp->vdata || !ccp->vdata->version) {
+		ret = -ENODEV;
+		dev_err(dev, "missing driver data\n");
+		goto e_err;
+	}
+
+	ccp->get_irq = sp->get_irq;
+	ccp->free_irq = sp->free_irq;
+
+	ccp->io_regs = sp->io_map + ccp->vdata->offset;
 	if (ccp->vdata->setup)
 		ccp->vdata->setup(ccp);
 
-	return ccp->vdata->perform->init(ccp);
+	ret = ccp->vdata->perform->init(ccp);
+	if (ret)
+		goto e_err;
+
+	dev_notice(dev, "ccp enabled\n");
+
+	return 0;
+
+e_err:
+	sp->ccp_data = NULL;
+
+	dev_notice(dev, "ccp initialization failed\n");
+
+	return ret;
 }
 
-void ccp_dev_destroy(struct ccp_device *ccp)
+void ccp_dev_destroy(struct sp_device *sp)
 {
+	struct ccp_device *ccp = sp->ccp_data;
+
 	if (!ccp)
 		return;
 
 	ccp->vdata->perform->destroy(ccp);
 }
-
-static int __init ccp_mod_init(void)
-{
-#ifdef CONFIG_X86
-	int ret;
-
-	ret = ccp_pci_init();
-	if (ret)
-		return ret;
-
-	/* Don't leave the driver loaded if init failed */
-	if (ccp_present() != 0) {
-		ccp_pci_exit();
-		return -ENODEV;
-	}
-
-	return 0;
-#endif
-
-#ifdef CONFIG_ARM64
-	int ret;
-
-	ret = ccp_platform_init();
-	if (ret)
-		return ret;
-
-	/* Don't leave the driver loaded if init failed */
-	if (ccp_present() != 0) {
-		ccp_platform_exit();
-		return -ENODEV;
-	}
-
-	return 0;
-#endif
-
-	return -ENODEV;
-}
-
-static void __exit ccp_mod_exit(void)
-{
-#ifdef CONFIG_X86
-	ccp_pci_exit();
-#endif
-
-#ifdef CONFIG_ARM64
-	ccp_platform_exit();
-#endif
-}
-
-module_init(ccp_mod_init);
-module_exit(ccp_mod_exit);

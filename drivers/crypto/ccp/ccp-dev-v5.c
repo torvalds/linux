@@ -769,8 +769,7 @@ static void ccp5_irq_bh(unsigned long data)
 
 static irqreturn_t ccp5_irq_handler(int irq, void *data)
 {
-	struct device *dev = data;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
+	struct ccp_device *ccp = (struct ccp_device *)data;
 
 	ccp5_disable_queue_interrupts(ccp);
 	ccp->total_interrupts++;
@@ -1113,7 +1112,6 @@ const struct ccp_vdata ccpv5a = {
 	.version = CCP_VERSION(5, 0),
 	.setup = ccp5_config,
 	.perform = &ccp5_actions,
-	.bar = 2,
 	.offset = 0x0,
 };
 
@@ -1122,6 +1120,5 @@ const struct ccp_vdata ccpv5b = {
 	.dma_chan_attr = DMA_PRIVATE,
 	.setup = ccp5other_config,
 	.perform = &ccp5_actions,
-	.bar = 2,
 	.offset = 0x0,
 };
