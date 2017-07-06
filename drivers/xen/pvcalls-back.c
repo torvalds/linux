@@ -33,9 +33,91 @@ struct pvcalls_back_global {
 	struct semaphore frontends_lock;
 } pvcalls_back_global;
 
+/*
+ * Per-frontend data structure. It contains pointers to the command
+ * ring, its event channel, a list of active sockets and a tree of
+ * passive sockets.
+ */
+struct pvcalls_fedata {
+	struct list_head list;
+	struct xenbus_device *dev;
+	struct xen_pvcalls_sring *sring;
+	struct xen_pvcalls_back_ring ring;
+	int irq;
+	struct list_head socket_mappings;
+	struct radix_tree_root socketpass_mappings;
+	struct semaphore socket_lock;
+};
+
+static irqreturn_t pvcalls_back_event(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
 static int backend_connect(struct xenbus_device *dev)
 {
+	int err, evtchn;
+	grant_ref_t ring_ref;
+	struct pvcalls_fedata *fedata = NULL;
+
+	fedata = kzalloc(sizeof(struct pvcalls_fedata), GFP_KERNEL);
+	if (!fedata)
+		return -ENOMEM;
+
+	fedata->irq = -1;
+	err = xenbus_scanf(XBT_NIL, dev->otherend, "port", "%u",
+			   &evtchn);
+	if (err != 1) {
+		err = -EINVAL;
+		xenbus_dev_fatal(dev, err, "reading %s/event-channel",
+				 dev->otherend);
+		goto error;
+	}
+
+	err = xenbus_scanf(XBT_NIL, dev->otherend, "ring-ref", "%u", &ring_ref);
+	if (err != 1) {
+		err = -EINVAL;
+		xenbus_dev_fatal(dev, err, "reading %s/ring-ref",
+				 dev->otherend);
+		goto error;
+	}
+
+	err = bind_interdomain_evtchn_to_irq(dev->otherend_id, evtchn);
+	if (err < 0)
+		goto error;
+	fedata->irq = err;
+
+	err = request_threaded_irq(fedata->irq, NULL, pvcalls_back_event,
+				   IRQF_ONESHOT, "pvcalls-back", dev);
+	if (err < 0)
+		goto error;
+
+	err = xenbus_map_ring_valloc(dev, &ring_ref, 1,
+				     (void **)&fedata->sring);
+	if (err < 0)
+		goto error;
+
+	BACK_RING_INIT(&fedata->ring, fedata->sring, XEN_PAGE_SIZE * 1);
+	fedata->dev = dev;
+
+	INIT_LIST_HEAD(&fedata->socket_mappings);
+	INIT_RADIX_TREE(&fedata->socketpass_mappings, GFP_KERNEL);
+	sema_init(&fedata->socket_lock, 1);
+	dev_set_drvdata(&dev->dev, fedata);
+
+	down(&pvcalls_back_global.frontends_lock);
+	list_add_tail(&fedata->list, &pvcalls_back_global.frontends);
+	up(&pvcalls_back_global.frontends_lock);
+
 	return 0;
+
+ error:
+	if (fedata->irq >= 0)
+		unbind_from_irqhandler(fedata->irq, dev);
+	if (fedata->sring != NULL)
+		xenbus_unmap_ring_vfree(dev, fedata->sring);
+	kfree(fedata);
+	return err;
 }
 
 static int backend_disconnect(struct xenbus_device *dev)
