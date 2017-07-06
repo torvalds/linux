@@ -1125,6 +1125,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		    !PageSwapCache(page)) {
 			if (!(sc->gfp_mask & __GFP_IO))
 				goto keep_locked;
+			/* cannot split THP, skip it */
+			if (PageTransHuge(page) &&
+			    !can_split_huge_page(page, NULL))
+				goto activate_locked;
 			if (!add_to_swap(page)) {
 				if (!PageTransHuge(page))
 					goto activate_locked;
