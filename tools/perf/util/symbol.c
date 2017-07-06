@@ -19,7 +19,6 @@
 #include "strlist.h"
 #include "intlist.h"
 #include "namespaces.h"
-#include "vdso.h"
 #include "header.h"
 #include "path.h"
 #include "sane_ctype.h"
@@ -1327,14 +1326,15 @@ int dso__load_kallsyms(struct dso *dso, const char *filename,
 	return __dso__load_kallsyms(dso, filename, map, false);
 }
 
-static int dso__load_perf_map(struct dso *dso, struct map *map)
+static int dso__load_perf_map(const char *map_path, struct dso *dso,
+			      struct map *map)
 {
 	char *line = NULL;
 	size_t n;
 	FILE *file;
 	int nr_syms = 0;
 
-	file = fopen(dso->long_name, "r");
+	file = fopen(map_path, "r");
 	if (file == NULL)
 		goto out_failure;
 
@@ -1426,6 +1426,45 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 	}
 }
 
+/* Checks for the existence of the perf-<pid>.map file in two different
+ * locations.  First, if the process is a separate mount namespace, check in
+ * that namespace using the pid of the innermost pid namespace.  If's not in a
+ * namespace, or the file can't be found there, try in the mount namespace of
+ * the tracing process using our view of its pid.
+ */
+static int dso__find_perf_map(char *filebuf, size_t bufsz,
+			      struct nsinfo **nsip)
+{
+	struct nscookie nsc;
+	struct nsinfo *nsi;
+	struct nsinfo *nnsi;
+	int rc = -1;
+
+	nsi = *nsip;
+
+	if (nsi->need_setns) {
+		snprintf(filebuf, bufsz, "/tmp/perf-%d.map", nsi->nstgid);
+		nsinfo__mountns_enter(nsi, &nsc);
+		rc = access(filebuf, R_OK);
+		nsinfo__mountns_exit(&nsc);
+		if (rc == 0)
+			return rc;
+	}
+
+	nnsi = nsinfo__copy(nsi);
+	if (nnsi) {
+		nsinfo__put(nsi);
+
+		nnsi->need_setns = false;
+		snprintf(filebuf, bufsz, "/tmp/perf-%d.map", nnsi->tgid);
+		*nsip = nnsi;
+		rc = 0;
+	}
+
+	return rc;
+}
+
+
 int dso__load(struct dso *dso, struct map *map)
 {
 	char *name;
@@ -1437,17 +1476,22 @@ int dso__load(struct dso *dso, struct map *map)
 	struct symsrc ss_[2];
 	struct symsrc *syms_ss = NULL, *runtime_ss = NULL;
 	bool kmod;
+	bool perfmap;
 	unsigned char build_id[BUILD_ID_SIZE];
 	struct nscookie nsc;
+	char newmapname[PATH_MAX];
+	const char *map_path = dso->long_name;
+
+	perfmap = strncmp(dso->name, "/tmp/perf-", 10) == 0;
+	if (perfmap) {
+		if (dso->nsinfo && (dso__find_perf_map(newmapname,
+		    sizeof(newmapname), &dso->nsinfo) == 0)) {
+			map_path = newmapname;
+		}
+	}
 
 	nsinfo__mountns_enter(dso->nsinfo, &nsc);
 	pthread_mutex_lock(&dso->lock);
-
-	/* The vdso files always live in the host container, so don't go looking
-	 * for them in the container's mount namespace.
-	 */
-	if (dso__is_vdso(dso))
-		nsinfo__mountns_exit(&nsc);
 
 	/* check again under the dso->lock */
 	if (dso__loaded(dso, map->type)) {
@@ -1471,19 +1515,19 @@ int dso__load(struct dso *dso, struct map *map)
 
 	dso->adjust_symbols = 0;
 
-	if (strncmp(dso->name, "/tmp/perf-", 10) == 0) {
+	if (perfmap) {
 		struct stat st;
 
-		if (lstat(dso->name, &st) < 0)
+		if (lstat(map_path, &st) < 0)
 			goto out;
 
 		if (!symbol_conf.force && st.st_uid && (st.st_uid != geteuid())) {
 			pr_warning("File %s not owned by current user or root, "
-				   "ignoring it (use -f to override).\n", dso->name);
+				   "ignoring it (use -f to override).\n", map_path);
 			goto out;
 		}
 
-		ret = dso__load_perf_map(dso, map);
+		ret = dso__load_perf_map(map_path, dso, map);
 		dso->symtab_type = ret > 0 ? DSO_BINARY_TYPE__JAVA_JIT :
 					     DSO_BINARY_TYPE__NOT_FOUND;
 		goto out;

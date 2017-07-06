@@ -40,18 +40,23 @@ void namespaces__free(struct namespaces *namespaces)
 	free(namespaces);
 }
 
-void nsinfo__init(struct nsinfo *nsi)
+int nsinfo__init(struct nsinfo *nsi)
 {
 	char oldns[PATH_MAX];
+	char spath[PATH_MAX];
 	char *newns = NULL;
+	char *statln = NULL;
 	struct stat old_stat;
 	struct stat new_stat;
+	FILE *f = NULL;
+	size_t linesz = 0;
+	int rv = -1;
 
 	if (snprintf(oldns, PATH_MAX, "/proc/self/ns/mnt") >= PATH_MAX)
-		return;
+		return rv;
 
 	if (asprintf(&newns, "/proc/%d/ns/mnt", nsi->pid) == -1)
-		return;
+		return rv;
 
 	if (stat(oldns, &old_stat) < 0)
 		goto out;
@@ -68,22 +73,87 @@ void nsinfo__init(struct nsinfo *nsi)
 		newns = NULL;
 	}
 
+	/* If we're dealing with a process that is in a different PID namespace,
+	 * attempt to work out the innermost tgid for the process.
+	 */
+	if (snprintf(spath, PATH_MAX, "/proc/%d/status", nsi->pid) >= PATH_MAX)
+		goto out;
+
+	f = fopen(spath, "r");
+	if (f == NULL)
+		goto out;
+
+	while (getline(&statln, &linesz, f) != -1) {
+		/* Use tgid if CONFIG_PID_NS is not defined. */
+		if (strstr(statln, "Tgid:") != NULL) {
+			nsi->tgid = (pid_t)strtol(strrchr(statln, '\t'),
+						     NULL, 10);
+			nsi->nstgid = nsi->tgid;
+		}
+
+		if (strstr(statln, "NStgid:") != NULL) {
+			nsi->nstgid = (pid_t)strtol(strrchr(statln, '\t'),
+						     NULL, 10);
+			break;
+		}
+	}
+	rv = 0;
+
 out:
+	if (f != NULL)
+		(void) fclose(f);
+	free(statln);
 	free(newns);
+	return rv;
 }
 
 struct nsinfo *nsinfo__new(pid_t pid)
 {
-	struct nsinfo *nsi = calloc(1, sizeof(*nsi));
+	struct nsinfo *nsi;
 
+	if (pid == 0)
+		return NULL;
+
+	nsi = calloc(1, sizeof(*nsi));
 	if (nsi != NULL) {
 		nsi->pid = pid;
+		nsi->tgid = pid;
+		nsi->nstgid = pid;
 		nsi->need_setns = false;
-		nsinfo__init(nsi);
+		/* Init may fail if the process exits while we're trying to look
+		 * at its proc information.  In that case, save the pid but
+		 * don't try to enter the namespace.
+		 */
+		if (nsinfo__init(nsi) == -1)
+			nsi->need_setns = false;
+
 		refcount_set(&nsi->refcnt, 1);
 	}
 
 	return nsi;
+}
+
+struct nsinfo *nsinfo__copy(struct nsinfo *nsi)
+{
+	struct nsinfo *nnsi;
+
+	nnsi = calloc(1, sizeof(*nnsi));
+	if (nnsi != NULL) {
+		nnsi->pid = nsi->pid;
+		nnsi->tgid = nsi->tgid;
+		nnsi->nstgid = nsi->nstgid;
+		nnsi->need_setns = nsi->need_setns;
+		if (nsi->mntns_path) {
+			nnsi->mntns_path = strdup(nsi->mntns_path);
+			if (!nnsi->mntns_path) {
+				free(nnsi);
+				return NULL;
+			}
+		}
+		refcount_set(&nnsi->refcnt, 1);
+	}
+
+	return nnsi;
 }
 
 void nsinfo__delete(struct nsinfo *nsi)
@@ -105,7 +175,8 @@ void nsinfo__put(struct nsinfo *nsi)
 		nsinfo__delete(nsi);
 }
 
-void nsinfo__mountns_enter(struct nsinfo *nsi, struct nscookie *nc)
+void nsinfo__mountns_enter(struct nsinfo *nsi,
+				  struct nscookie *nc)
 {
 	char curpath[PATH_MAX];
 	int oldns = -1;

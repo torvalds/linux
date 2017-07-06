@@ -26,6 +26,8 @@ void namespaces__free(struct namespaces *namespaces);
 
 struct nsinfo {
 	pid_t			pid;
+	pid_t			tgid;
+	pid_t			nstgid;
 	bool			need_setns;
 	char			*mntns_path;
 	refcount_t		refcnt;
@@ -36,8 +38,9 @@ struct nscookie {
 	int			newns;
 };
 
-void nsinfo__init(struct nsinfo *nsi);
+int nsinfo__init(struct nsinfo *nsi);
 struct nsinfo *nsinfo__new(pid_t pid);
+struct nsinfo *nsinfo__copy(struct nsinfo *nsi);
 void nsinfo__delete(struct nsinfo *nsi);
 
 struct nsinfo *nsinfo__get(struct nsinfo *nsi);

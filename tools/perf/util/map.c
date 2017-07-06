@@ -146,11 +146,13 @@ void map__init(struct map *map, enum map_type type,
 }
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
-		     u64 pgoff, u32 pid, u32 d_maj, u32 d_min, u64 ino,
+		     u64 pgoff, u32 d_maj, u32 d_min, u64 ino,
 		     u64 ino_gen, u32 prot, u32 flags, char *filename,
 		     enum map_type type, struct thread *thread)
 {
 	struct map *map = malloc(sizeof(*map));
+	struct nsinfo *nsi = NULL;
+	struct nsinfo *nnsi;
 
 	if (map != NULL) {
 		char newfilename[PATH_MAX];
@@ -168,9 +170,11 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		map->ino_generation = ino_gen;
 		map->prot = prot;
 		map->flags = flags;
+		nsi = nsinfo__get(thread->nsinfo);
 
-		if ((anon || no_dso) && type == MAP__FUNCTION) {
-			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", pid);
+		if ((anon || no_dso) && nsi && type == MAP__FUNCTION) {
+			snprintf(newfilename, sizeof(newfilename),
+				 "/tmp/perf-%d.map", nsi->pid);
 			filename = newfilename;
 		}
 
@@ -180,6 +184,16 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		}
 
 		if (vdso) {
+			/* The vdso maps are always on the host and not the
+			 * container.  Ensure that we don't use setns to look
+			 * them up.
+			 */
+			nnsi = nsinfo__copy(nsi);
+			if (nnsi) {
+				nsinfo__put(nsi);
+				nnsi->need_setns = false;
+				nsi = nnsi;
+			}
 			pgoff = 0;
 			dso = machine__findnew_vdso(machine, thread);
 		} else
@@ -201,11 +215,12 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			if (type != MAP__FUNCTION)
 				dso__set_loaded(dso, map->type);
 		}
-		dso->nsinfo = nsinfo__get(thread->nsinfo);
+		dso->nsinfo = nsi;
 		dso__put(dso);
 	}
 	return map;
 out_delete:
+	nsinfo__put(nsi);
 	free(map);
 	return NULL;
 }
