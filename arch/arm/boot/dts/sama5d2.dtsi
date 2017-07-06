@@ -416,6 +416,17 @@
 				};
 			};
 
+			isc: isc@f0008000 {
+				compatible = "atmel,sama5d2-isc";
+				reg = <0xf0008000 0x4000>;
+				interrupts = <46 IRQ_TYPE_LEVEL_HIGH 5>;
+				clocks = <&isc_clk>, <&iscck>, <&isc_gclk>;
+				clock-names = "hclock", "iscck", "gck";
+				#clock-cells = <0>;
+				clock-output-names = "isc-mck";
+				status = "disabled";
+			};
+
 			ramc0: ramc@f000c000 {
 				compatible = "atmel,sama5d3-ddramc";
 				reg = <0xf000c000 0x200>;
@@ -923,6 +934,11 @@
 						#clock-cells = <0>;
 						reg = <38>;
 						atmel,clk-output-range = <0 83000000>;
+					};
+
+					isc_gclk: isc_gclk {
+						#clock-cells = <0>;
+						reg = <46>;
 					};
 
 					pdmic_gclk: pdmic_gclk {
