@@ -150,6 +150,41 @@ static SIMPLE_DEV_PM_OPS(rtc_class_dev_pm_ops, rtc_suspend, rtc_resume);
 #define RTC_CLASS_DEV_PM_OPS	NULL
 #endif
 
+static struct rtc_device *rtc_allocate_device(void)
+{
+	struct rtc_device *rtc;
+
+	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	if (!rtc)
+		return NULL;
+
+	device_initialize(&rtc->dev);
+
+	rtc->irq_freq = 1;
+	rtc->max_user_freq = 64;
+	rtc->dev.class = rtc_class;
+	rtc->dev.groups = rtc_get_dev_attribute_groups();
+	rtc->dev.release = rtc_device_release;
+
+	mutex_init(&rtc->ops_lock);
+	spin_lock_init(&rtc->irq_lock);
+	spin_lock_init(&rtc->irq_task_lock);
+	init_waitqueue_head(&rtc->irq_queue);
+
+	/* Init timerqueue */
+	timerqueue_init_head(&rtc->timerqueue);
+	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
+	/* Init aie timer */
+	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
+	/* Init uie timer */
+	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
+	/* Init pie timer */
+	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	rtc->pie_timer.function = rtc_pie_update_irq;
+	rtc->pie_enabled = 0;
+
+	return rtc;
+}
 
 /**
  * rtc_device_register - register w/ RTC class
@@ -189,40 +224,16 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 		}
 	}
 
-	rtc = kzalloc(sizeof(struct rtc_device), GFP_KERNEL);
-	if (rtc == NULL) {
+	rtc = rtc_allocate_device();
+	if (!rtc) {
 		err = -ENOMEM;
 		goto exit_ida;
 	}
 
-	device_initialize(&rtc->dev);
-
 	rtc->id = id;
 	rtc->ops = ops;
 	rtc->owner = owner;
-	rtc->irq_freq = 1;
-	rtc->max_user_freq = 64;
 	rtc->dev.parent = dev;
-	rtc->dev.class = rtc_class;
-	rtc->dev.groups = rtc_get_dev_attribute_groups();
-	rtc->dev.release = rtc_device_release;
-
-	mutex_init(&rtc->ops_lock);
-	spin_lock_init(&rtc->irq_lock);
-	spin_lock_init(&rtc->irq_task_lock);
-	init_waitqueue_head(&rtc->irq_queue);
-
-	/* Init timerqueue */
-	timerqueue_init_head(&rtc->timerqueue);
-	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
-	/* Init aie timer */
-	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
-	/* Init uie timer */
-	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
-	/* Init pie timer */
-	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	rtc->pie_timer.function = rtc_pie_update_irq;
-	rtc->pie_enabled = 0;
 
 	dev_set_name(&rtc->dev, "rtc%d", id);
 
