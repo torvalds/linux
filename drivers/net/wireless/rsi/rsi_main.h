@@ -181,6 +181,8 @@ struct rsi_common {
 	struct mutex mutex;
 	/* Mutex used between tx/rx threads */
 	struct mutex tx_rxlock;
+	/* Mutex used for rx thread */
+	struct mutex rx_lock;
 	u8 endpoint;
 
 	/* Channel/band related */
