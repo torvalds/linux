@@ -931,12 +931,10 @@ static ssize_t do_iter_write(struct file *file, struct iov_iter *iter,
 	if (ret < 0)
 		return ret;
 
-	file_start_write(file);
 	if (file->f_op->write_iter)
 		ret = do_iter_readv_writev(file, iter, pos, WRITE, flags);
 	else
 		ret = do_loop_readv_writev(file, iter, pos, WRITE, flags);
-	file_end_write(file);
 	if (ret > 0)
 		fsnotify_modify(file);
 	return ret;
@@ -979,7 +977,9 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 
 	ret = import_iovec(WRITE, vec, vlen, ARRAY_SIZE(iovstack), &iov, &iter);
 	if (ret >= 0) {
+		file_start_write(file);
 		ret = do_iter_write(file, &iter, pos, flags);
+		file_end_write(file);
 		kfree(iov);
 	}
 	return ret;
@@ -1247,7 +1247,9 @@ static size_t compat_writev(struct file *file,
 
 	ret = compat_import_iovec(WRITE, vec, vlen, UIO_FASTIOV, &iov, &iter);
 	if (ret >= 0) {
+		file_start_write(file);
 		ret = do_iter_write(file, &iter, pos, flags);
+		file_end_write(file);
 		kfree(iov);
 	}
 	if (ret > 0)
