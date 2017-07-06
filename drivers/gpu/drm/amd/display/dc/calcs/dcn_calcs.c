@@ -1226,28 +1226,13 @@ unsigned int dcn_find_dcfclk_suits_all(
 void dcn_bw_update_from_pplib(struct core_dc *dc)
 {
 	struct dc_context *ctx = dc->ctx;
-	struct dm_pp_clock_levels_with_latency clks = {0};
-	struct dm_pp_clock_levels_with_voltage clks2 = {0};
+	struct dm_pp_clock_levels_with_voltage clks = {0};
 
 	kernel_fpu_begin();
 
+	/* TODO: This is not the proper way to obtain fabric_and_dram_bandwidth, should be min(fclk, memclk) */
+
 	if (dm_pp_get_clock_levels_by_type_with_voltage(
-				ctx, DM_PP_CLOCK_TYPE_DISPLAY_CLK, &clks2) &&
-				clks2.num_levels >= 3) {
-		dc->dcn_soc.max_dispclk_vmin0p65 = clks2.data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc.max_dispclk_vmid0p72 = clks2.data[clks2.num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc.max_dispclk_vnom0p8 = clks2.data[clks2.num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc.max_dispclk_vmax0p9 = clks2.data[clks2.num_levels - 1].clocks_in_khz / 1000.0;
-	} else
-		BREAK_TO_DEBUGGER();
-/*
-	if (dm_pp_get_clock_levels_by_type_with_latency(
-			ctx, DM_PP_CLOCK_TYPE_MEMORY_CLK, &clks) &&
-			clks.num_levels != 0) {
-			//this  is to get DRAM data_rate
-		//FabricAndDRAMBandwidth = min(64*FCLK , Data rate * single_Channel_Width * number of channels);
-	}*/
-	if (dm_pp_get_clock_levels_by_type_with_latency(
 			ctx, DM_PP_CLOCK_TYPE_FCLK, &clks) &&
 			clks.num_levels != 0) {
 		ASSERT(clks.num_levels >= 3);
@@ -1265,7 +1250,7 @@ void dcn_bw_update_from_pplib(struct core_dc *dc)
 				(clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
-	if (dm_pp_get_clock_levels_by_type_with_latency(
+	if (dm_pp_get_clock_levels_by_type_with_voltage(
 				ctx, DM_PP_CLOCK_TYPE_DCFCLK, &clks) &&
 				clks.num_levels >= 3) {
 		dc->dcn_soc.dcfclkv_min0p65 = clks.data[0].clocks_in_khz / 1000.0;
@@ -1274,30 +1259,7 @@ void dcn_bw_update_from_pplib(struct core_dc *dc)
 		dc->dcn_soc.dcfclkv_max0p9 = clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
-	if (dm_pp_get_clock_levels_by_type_with_voltage(
-				ctx, DM_PP_CLOCK_TYPE_DISPLAYPHYCLK, &clks2) &&
-				clks2.num_levels >= 3) {
-		dc->dcn_soc.phyclkv_min0p65 = clks2.data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc.phyclkv_mid0p72 = clks2.data[clks2.num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc.phyclkv_nom0p8 = clks2.data[clks2.num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc.phyclkv_max0p9 = clks2.data[clks2.num_levels - 1].clocks_in_khz / 1000.0;
-	} else
-		BREAK_TO_DEBUGGER();
-	if (dm_pp_get_clock_levels_by_type_with_latency(
-				ctx, DM_PP_CLOCK_TYPE_DPPCLK, &clks) &&
-				clks.num_levels >= 3) {
-		dc->dcn_soc.max_dppclk_vmin0p65 = clks.data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc.max_dppclk_vmid0p72 = clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc.max_dppclk_vnom0p8 = clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc.max_dppclk_vmax0p9 = clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0;
-	}
 
-	if (dm_pp_get_clock_levels_by_type_with_latency(
-				ctx, DM_PP_CLOCK_TYPE_SOCCLK, &clks) &&
-				clks.num_levels >= 3) {
-		dc->dcn_soc.socclk = clks.data[0].clocks_in_khz / 1000.0;
-	} else
-			BREAK_TO_DEBUGGER();
 	kernel_fpu_end();
 }
 
