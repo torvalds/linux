@@ -131,7 +131,8 @@ struct rsi_mgmt_desc {
 
 struct rsi_data_desc {
 	__le16 len_qno;
-	u16 reserved;
+	u8 cfm_frame_type;
+	u8 misc_flags;
 	u8 xtend_desc_size;
 	u8 header_len;
 	__le16 frame_info;
