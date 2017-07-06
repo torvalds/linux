@@ -54,14 +54,7 @@ static void kirin_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct kirin_drm_private *priv = dev->dev_private;
 
-	if (priv->fbdev) {
-		drm_fbdev_cma_hotplug_event(priv->fbdev);
-	} else {
-		priv->fbdev = drm_fbdev_cma_init(dev, 32,
-						 dev->mode_config.num_connector);
-		if (IS_ERR(priv->fbdev))
-			priv->fbdev = NULL;
-	}
+	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
 #endif
 
@@ -128,11 +121,18 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(dev);
 
-	/* force detection after connectors init */
-	(void)drm_helper_hpd_irq_event(dev);
+	priv->fbdev = drm_fbdev_cma_init(dev, 32,
+					 dev->mode_config.num_connector);
+	if (IS_ERR(priv->fbdev)) {
+		DRM_ERROR("failed to initialize fbdev.\n");
+		ret = PTR_ERR(priv->fbdev);
+		goto err_cleanup_poll;
+	}
 
 	return 0;
 
+err_cleanup_poll:
+	drm_kms_helper_poll_fini(dev);
 err_unbind_all:
 	component_unbind_all(dev->dev, dev);
 err_dc_cleanup:
