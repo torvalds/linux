@@ -68,6 +68,7 @@ struct rv8803_data {
 	struct mutex flags_lock;
 	u8 ctrl;
 	enum rv8803_type type;
+	struct nvmem_config nvmem_cfg;
 };
 
 static int rv8803_read_reg(const struct i2c_client *client, u8 reg)
@@ -460,47 +461,31 @@ static int rv8803_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static ssize_t rv8803_nvram_write(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *attr,
-				  char *buf, loff_t off, size_t count)
+static int rv8803_nvram_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct i2c_client *client = to_i2c_client(dev);
 	int ret;
 
-	ret = rv8803_write_reg(client, RV8803_RAM, buf[0]);
+	ret = rv8803_write_reg(priv, RV8803_RAM, *(u8 *)val);
 	if (ret)
 		return ret;
 
-	return 1;
+	return 0;
 }
 
-static ssize_t rv8803_nvram_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *attr,
-				 char *buf, loff_t off, size_t count)
+static int rv8803_nvram_read(void *priv, unsigned int offset,
+			     void *val, size_t bytes)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct i2c_client *client = to_i2c_client(dev);
 	int ret;
 
-	ret = rv8803_read_reg(client, RV8803_RAM);
+	ret = rv8803_read_reg(priv, RV8803_RAM);
 	if (ret < 0)
 		return ret;
 
-	buf[0] = ret;
+	*(u8 *)val = ret;
 
-	return 1;
+	return 0;
 }
-
-static struct bin_attribute rv8803_nvram_attr = {
-	.attr = {
-		.name = "nvram",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.size = 1,
-	.read = rv8803_nvram_read,
-	.write = rv8803_nvram_write,
-};
 
 static struct rtc_class_ops rv8803_rtc_ops = {
 	.read_time = rv8803_get_time,
@@ -597,7 +582,17 @@ static int rv8803_probe(struct i2c_client *client,
 		}
 	}
 
+	rv8803->nvmem_cfg.name = "rv8803_nvram",
+	rv8803->nvmem_cfg.word_size = 1,
+	rv8803->nvmem_cfg.stride = 1,
+	rv8803->nvmem_cfg.size = 1,
+	rv8803->nvmem_cfg.reg_read = rv8803_nvram_read,
+	rv8803->nvmem_cfg.reg_write = rv8803_nvram_write,
+	rv8803->nvmem_cfg.priv = client;
+
 	rv8803->rtc->ops = &rv8803_rtc_ops;
+	rv8803->rtc->nvmem_config = &rv8803->nvmem_cfg;
+	rv8803->rtc->nvram_old_abi = true;
 	err = rtc_register_device(rv8803->rtc);
 	if (err)
 		return err;
@@ -612,10 +607,6 @@ static int rv8803_probe(struct i2c_client *client,
 		return err;
 	}
 
-	err = device_create_bin_file(&client->dev, &rv8803_nvram_attr);
-	if (err)
-		return err;
-
 	rv8803->rtc->max_user_freq = 1;
 
 	return 0;
@@ -623,8 +614,6 @@ static int rv8803_probe(struct i2c_client *client,
 
 static int rv8803_remove(struct i2c_client *client)
 {
-	device_remove_bin_file(&client->dev, &rv8803_nvram_attr);
-
 	return 0;
 }
 
