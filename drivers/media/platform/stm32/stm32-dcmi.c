@@ -662,7 +662,7 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 		dcmi->errors_count, dcmi->buffers_count);
 }
 
-static struct vb2_ops dcmi_video_qops = {
+static const struct vb2_ops dcmi_video_qops = {
 	.queue_setup		= dcmi_queue_setup,
 	.buf_init		= dcmi_buf_init,
 	.buf_prepare		= dcmi_buf_prepare,
