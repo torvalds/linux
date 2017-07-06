@@ -590,16 +590,6 @@ config LEDS_KTD2692
 
 	  Say Y to enable this driver.
 
-config LEDS_SEAD3
-	tristate "LED support for the MIPS SEAD 3 board"
-	depends on LEDS_CLASS && MIPS_SEAD3
-	help
-	  Say Y here to include support for the FLED and PLED LEDs on SEAD3 eval
-	  boards.
-
-	  This driver can also be built as a module. If so the module
-	  will be called leds-sead3.
-
 config LEDS_IS31FL319X
 	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
 	depends on LEDS_CLASS && I2C && OF
@@ -650,14 +640,6 @@ config LEDS_SYSCON
 	  This option enabled support for the LEDs on syscon type
 	  devices. This will only work with device tree enabled
 	  devices.
-
-config LEDS_VERSATILE
-	tristate "LED support for the ARM Versatile and RealView"
-	depends on ARCH_REALVIEW || ARCH_VERSATILE
-	depends on LEDS_CLASS
-	help
-	  This option enabled support for the LEDs on the ARM Versatile
-	  and RealView boards. Say Y to enabled these.
 
 config LEDS_PM8058
 	tristate "LED Support for the Qualcomm PM8058 PMIC"
