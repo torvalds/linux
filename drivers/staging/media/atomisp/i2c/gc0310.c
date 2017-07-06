@@ -1453,7 +1453,7 @@ out_free:
 	return ret;
 }
 
-static struct acpi_device_id gc0310_acpi_match[] = {
+static const struct acpi_device_id gc0310_acpi_match[] = {
 	{"XXGC0310"},
 	{"INT0310"},
 	{},
