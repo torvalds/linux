@@ -32,6 +32,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -42,7 +43,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -239,13 +240,11 @@ static struct isc_format isc_formats[] = {
 
 	{ V4L2_PIX_FMT_YUV420, 0x0, 12,
 	  ISC_PFE_CFG0_BPS_EIGHT, ISC_BAY_CFG_BGBG, ISC_RLP_CFG_MODE_YYCC,
-	  ISC_DCFG_IMODE_YC420P | ISC_DCFG_YMBSIZE_BEATS8 |
-	  ISC_DCFG_CMBSIZE_BEATS8, ISC_DCTRL_DVIEW_PLANAR, 0x7fb,
+	  ISC_DCFG_IMODE_YC420P, ISC_DCTRL_DVIEW_PLANAR, 0x7fb,
 	  false, false },
 	{ V4L2_PIX_FMT_YUV422P, 0x0, 16,
 	  ISC_PFE_CFG0_BPS_EIGHT, ISC_BAY_CFG_BGBG, ISC_RLP_CFG_MODE_YYCC,
-	  ISC_DCFG_IMODE_YC422P | ISC_DCFG_YMBSIZE_BEATS8 |
-	  ISC_DCFG_CMBSIZE_BEATS8, ISC_DCTRL_DVIEW_PLANAR, 0x3fb,
+	  ISC_DCFG_IMODE_YC422P, ISC_DCTRL_DVIEW_PLANAR, 0x3fb,
 	  false, false },
 	{ V4L2_PIX_FMT_RGB565, MEDIA_BUS_FMT_RGB565_2X8_LE, 16,
 	  ISC_PFE_CFG0_BPS_EIGHT, ISC_BAY_CFG_BGBG, ISC_RLP_CFG_MODE_RGB565,
@@ -700,8 +699,10 @@ static void isc_set_histogram(struct isc_device *isc)
 }
 
 static inline void isc_get_param(const struct isc_format *fmt,
-				     u32 *rlp_mode, u32 *dcfg_imode)
+				  u32 *rlp_mode, u32 *dcfg)
 {
+	*dcfg = ISC_DCFG_YMBSIZE_BEATS8;
+
 	switch (fmt->fourcc) {
 	case V4L2_PIX_FMT_SBGGR10:
 	case V4L2_PIX_FMT_SGBRG10:
@@ -712,11 +713,11 @@ static inline void isc_get_param(const struct isc_format *fmt,
 	case V4L2_PIX_FMT_SGRBG12:
 	case V4L2_PIX_FMT_SRGGB12:
 		*rlp_mode = fmt->reg_rlp_mode;
-		*dcfg_imode = fmt->reg_dcfg_imode;
+		*dcfg |= fmt->reg_dcfg_imode;
 		break;
 	default:
 		*rlp_mode = ISC_RLP_CFG_MODE_DAT8;
-		*dcfg_imode = ISC_DCFG_IMODE_PACKED8;
+		*dcfg |= ISC_DCFG_IMODE_PACKED8;
 		break;
 	}
 }
@@ -726,18 +727,19 @@ static int isc_configure(struct isc_device *isc)
 	struct regmap *regmap = isc->regmap;
 	const struct isc_format *current_fmt = isc->current_fmt;
 	struct isc_subdev_entity *subdev = isc->current_subdev;
-	u32 pfe_cfg0, rlp_mode, dcfg_imode, mask, pipeline;
+	u32 pfe_cfg0, rlp_mode, dcfg, mask, pipeline;
 
 	if (sensor_is_preferred(current_fmt)) {
 		pfe_cfg0 = current_fmt->reg_bps;
 		pipeline = 0x0;
-		isc_get_param(current_fmt, &rlp_mode, &dcfg_imode);
+		isc_get_param(current_fmt, &rlp_mode, &dcfg);
 		isc->ctrls.hist_stat = HIST_INIT;
 	} else {
 		pfe_cfg0  = isc->raw_fmt->reg_bps;
 		pipeline = current_fmt->pipeline;
 		rlp_mode = current_fmt->reg_rlp_mode;
-		dcfg_imode = current_fmt->reg_dcfg_imode;
+		dcfg = current_fmt->reg_dcfg_imode | ISC_DCFG_YMBSIZE_BEATS8 |
+		       ISC_DCFG_CMBSIZE_BEATS8;
 	}
 
 	pfe_cfg0  |= subdev->pfe_cfg0 | ISC_PFE_CFG0_MODE_PROGRESSIVE;
@@ -750,7 +752,7 @@ static int isc_configure(struct isc_device *isc)
 	regmap_update_bits(regmap, ISC_RLP_CFG, ISC_RLP_CFG_MODE_MASK,
 			   rlp_mode);
 
-	regmap_update_bits(regmap, ISC_DCFG, ISC_DCFG_IMODE_MASK, dcfg_imode);
+	regmap_write(regmap, ISC_DCFG, dcfg);
 
 	/* Set the pipeline */
 	isc_set_pipeline(isc, pipeline);
@@ -1684,7 +1686,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 {
 	struct device_node *np = dev->of_node;
 	struct device_node *epn = NULL, *rem;
-	struct v4l2_of_endpoint v4l2_epn;
+	struct v4l2_fwnode_endpoint v4l2_epn;
 	struct isc_subdev_entity *subdev_entity;
 	unsigned int flags;
 	int ret;
@@ -1703,7 +1705,8 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 			continue;
 		}
 
-		ret = v4l2_of_parse_endpoint(epn, &v4l2_epn);
+		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(epn),
+						 &v4l2_epn);
 		if (ret) {
 			of_node_put(rem);
 			ret = -EINVAL;
@@ -1738,8 +1741,9 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 		if (flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
 			subdev_entity->pfe_cfg0 |= ISC_PFE_CFG0_PPOL_LOW;
 
-		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_OF;
-		subdev_entity->asd->match.of.node = rem;
+		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
+		subdev_entity->asd->match.fwnode.fwnode =
+			of_fwnode_handle(rem);
 		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
 	}
 

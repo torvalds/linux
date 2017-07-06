@@ -51,7 +51,7 @@ static int debug;
 #define dprintk(arg...) do {	\
 	if (debug)		\
 		printk(arg);	\
-	} while (0)
+} while (0)
 
 /* Register values to initialise the demod, defaults to VSB */
 static struct init_tab {
@@ -410,7 +410,7 @@ static int s5h1411_set_if_freq(struct dvb_frontend *fe, int KHz)
 	default:
 		dprintk("%s(%d KHz) Invalid, defaulting to 5380\n",
 			__func__, KHz);
-		/* no break, need to continue */
+		/* fall through */
 	case 5380:
 	case 44000:
 		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x38, 0x1be4);

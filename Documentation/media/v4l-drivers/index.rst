@@ -42,6 +42,7 @@ For more details see the file COPYING in the source distribution of Linux.
 	davinci-vpbe
 	fimc
 	ivtv
+	max2175
 	meye
 	omap3isp
 	omap4_camera

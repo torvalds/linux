@@ -486,14 +486,17 @@ EXPORT_SYMBOL(ir_raw_encode_scancode);
 /*
  * Used to (un)register raw event clients
  */
-int ir_raw_event_register(struct rc_dev *dev)
+int ir_raw_event_prepare(struct rc_dev *dev)
 {
-	int rc;
-	struct ir_raw_handler *handler;
-	struct task_struct *thread;
+	static bool raw_init; /* 'false' default value, raw decoders loaded? */
 
 	if (!dev)
 		return -EINVAL;
+
+	if (!raw_init) {
+		request_module("ir-lirc-codec");
+		raw_init = true;
+	}
 
 	dev->raw = kzalloc(sizeof(*dev->raw), GFP_KERNEL);
 	if (!dev->raw)
@@ -503,6 +506,14 @@ int ir_raw_event_register(struct rc_dev *dev)
 	dev->change_protocol = change_protocol;
 	INIT_KFIFO(dev->raw->kfifo);
 
+	return 0;
+}
+
+int ir_raw_event_register(struct rc_dev *dev)
+{
+	struct ir_raw_handler *handler;
+	struct task_struct *thread;
+
 	/*
 	 * raw transmitters do not need any event registration
 	 * because the event is coming from userspace
@@ -511,10 +522,8 @@ int ir_raw_event_register(struct rc_dev *dev)
 		thread = kthread_run(ir_raw_event_thread, dev->raw, "rc%u",
 				     dev->minor);
 
-		if (IS_ERR(thread)) {
-			rc = PTR_ERR(thread);
-			goto out;
-		}
+		if (IS_ERR(thread))
+			return PTR_ERR(thread);
 
 		dev->raw->thread = thread;
 	}
@@ -527,11 +536,15 @@ int ir_raw_event_register(struct rc_dev *dev)
 	mutex_unlock(&ir_raw_handler_lock);
 
 	return 0;
+}
 
-out:
+void ir_raw_event_free(struct rc_dev *dev)
+{
+	if (!dev)
+		return;
+
 	kfree(dev->raw);
 	dev->raw = NULL;
-	return rc;
 }
 
 void ir_raw_event_unregister(struct rc_dev *dev)
@@ -550,8 +563,7 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 			handler->raw_unregister(dev);
 	mutex_unlock(&ir_raw_handler_lock);
 
-	kfree(dev->raw);
-	dev->raw = NULL;
+	ir_raw_event_free(dev);
 }
 
 /*

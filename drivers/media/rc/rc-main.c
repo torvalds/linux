@@ -15,7 +15,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <media/rc-core.h>
-#include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -934,8 +933,8 @@ static bool lirc_is_present(void)
  * It returns the protocol names of supported protocols.
  * Enabled protocols are printed in brackets.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_protocols and show_protocols.
  */
 static ssize_t show_protocols(struct device *device,
 			      struct device_attribute *mattr, char *buf)
@@ -944,13 +943,6 @@ static ssize_t show_protocols(struct device *device,
 	u64 allowed, enabled;
 	char *tmp = buf;
 	int i;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1106,8 +1098,8 @@ static void ir_raw_load_modules(u64 *protocols)
  * See parse_protocol_change() for the valid commands.
  * Returns @len on success or a negative error code.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_protocols and show_protocols.
  */
 static ssize_t store_protocols(struct device *device,
 			       struct device_attribute *mattr,
@@ -1118,13 +1110,6 @@ static ssize_t store_protocols(struct device *device,
 	struct rc_scancode_filter *filter;
 	u64 old_protocols, new_protocols;
 	ssize_t rc;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	IR_dprintk(1, "Normal protocol change requested\n");
 	current_protocols = &dev->enabled_protocols;
@@ -1200,7 +1185,7 @@ out:
  * Bits of the filter value corresponding to set bits in the filter mask are
  * compared against input scancodes and non-matching scancodes are discarded.
  *
- * dev->lock is taken to guard against races between device registration,
+ * dev->lock is taken to guard against races between
  * store_filter and show_filter.
  */
 static ssize_t show_filter(struct device *device,
@@ -1211,13 +1196,6 @@ static ssize_t show_filter(struct device *device,
 	struct rc_filter_attribute *fattr = to_rc_filter_attr(attr);
 	struct rc_scancode_filter *filter;
 	u32 val;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1251,7 +1229,7 @@ static ssize_t show_filter(struct device *device,
  * Bits of the filter value corresponding to set bits in the filter mask are
  * compared against input scancodes and non-matching scancodes are discarded.
  *
- * dev->lock is taken to guard against races between device registration,
+ * dev->lock is taken to guard against races between
  * store_filter and show_filter.
  */
 static ssize_t store_filter(struct device *device,
@@ -1264,13 +1242,6 @@ static ssize_t store_filter(struct device *device,
 	int ret;
 	unsigned long val;
 	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
@@ -1372,8 +1343,8 @@ static const char * const proto_variant_names[] = {
  * It returns the protocol names of supported protocols.
  * The enabled protocols are printed in brackets.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_wakeup_protocols and show_wakeup_protocols.
  */
 static ssize_t show_wakeup_protocols(struct device *device,
 				     struct device_attribute *mattr,
@@ -1384,13 +1355,6 @@ static ssize_t show_wakeup_protocols(struct device *device,
 	enum rc_type enabled;
 	char *tmp = buf;
 	int i;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1431,8 +1395,8 @@ static ssize_t show_wakeup_protocols(struct device *device,
  * It is trigged by writing to /sys/class/rc/rc?/wakeup_protocols.
  * Returns @len on success or a negative error code.
  *
- * dev->lock is taken to guard against races between device
- * registration, store_protocols and show_protocols.
+ * dev->lock is taken to guard against races between
+ * store_wakeup_protocols and show_wakeup_protocols.
  */
 static ssize_t store_wakeup_protocols(struct device *device,
 				      struct device_attribute *mattr,
@@ -1443,13 +1407,6 @@ static ssize_t store_wakeup_protocols(struct device *device,
 	ssize_t rc;
 	u64 allowed;
 	int i;
-
-	/* Device is being removed */
-	if (!dev)
-		return -EINVAL;
-
-	if (!atomic_read(&dev->initialized))
-		return -ERESTARTSYS;
 
 	mutex_lock(&dev->lock);
 
@@ -1663,7 +1620,7 @@ struct rc_dev *devm_rc_allocate_device(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_rc_allocate_device);
 
-static int rc_setup_rx_device(struct rc_dev *dev)
+static int rc_prepare_rx_device(struct rc_dev *dev)
 {
 	int rc;
 	struct rc_map *rc_map;
@@ -1703,6 +1660,28 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	if (dev->close)
 		dev->input_dev->close = ir_close;
 
+	dev->input_dev->dev.parent = &dev->dev;
+	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
+	dev->input_dev->phys = dev->input_phys;
+	dev->input_dev->name = dev->input_name;
+
+	return 0;
+
+out_table:
+	ir_free_table(&dev->rc_map);
+
+	return rc;
+}
+
+static int rc_setup_rx_device(struct rc_dev *dev)
+{
+	int rc;
+
+	/* rc_open will be called here */
+	rc = input_register_device(dev->input_dev);
+	if (rc)
+		return rc;
+
 	/*
 	 * Default delay of 250ms is too short for some protocols, especially
 	 * since the timeout is currently set to 250ms. Increase it to 500ms,
@@ -1718,38 +1697,24 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 	 */
 	dev->input_dev->rep[REP_PERIOD] = 125;
 
-	dev->input_dev->dev.parent = &dev->dev;
-	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
-	dev->input_dev->phys = dev->input_phys;
-	dev->input_dev->name = dev->input_name;
-
-	/* rc_open will be called here */
-	rc = input_register_device(dev->input_dev);
-	if (rc)
-		goto out_table;
-
 	return 0;
-
-out_table:
-	ir_free_table(&dev->rc_map);
-
-	return rc;
 }
 
 static void rc_free_rx_device(struct rc_dev *dev)
 {
-	if (!dev || dev->driver_type == RC_DRIVER_IR_RAW_TX)
+	if (!dev)
 		return;
 
-	ir_free_table(&dev->rc_map);
+	if (dev->input_dev) {
+		input_unregister_device(dev->input_dev);
+		dev->input_dev = NULL;
+	}
 
-	input_unregister_device(dev->input_dev);
-	dev->input_dev = NULL;
+	ir_free_table(&dev->rc_map);
 }
 
 int rc_register_device(struct rc_dev *dev)
 {
-	static bool raw_init; /* 'false' default value, raw decoders loaded? */
 	const char *path;
 	int attr = 0;
 	int minor;
@@ -1765,7 +1730,6 @@ int rc_register_device(struct rc_dev *dev)
 	dev->minor = minor;
 	dev_set_name(&dev->dev, "rc%u", dev->minor);
 	dev_set_drvdata(&dev->dev, dev);
-	atomic_set(&dev->initialized, 0);
 
 	dev->dev.groups = dev->sysfs_groups;
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
@@ -1776,34 +1740,40 @@ int rc_register_device(struct rc_dev *dev)
 		dev->sysfs_groups[attr++] = &rc_dev_wakeup_filter_attr_grp;
 	dev->sysfs_groups[attr++] = NULL;
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW ||
+	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
+		rc = ir_raw_event_prepare(dev);
+		if (rc < 0)
+			goto out_minor;
+	}
+
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		rc = rc_prepare_rx_device(dev);
+		if (rc)
+			goto out_raw;
+	}
+
 	rc = device_add(&dev->dev);
 	if (rc)
-		goto out_unlock;
+		goto out_rx_free;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
 		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
-	if (dev->driver_type == RC_DRIVER_IR_RAW ||
-	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
-		if (!raw_init) {
-			request_module_nowait("ir-lirc-codec");
-			raw_init = true;
-		}
-		rc = ir_raw_event_register(dev);
-		if (rc < 0)
-			goto out_dev;
-	}
-
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
 		rc = rc_setup_rx_device(dev);
 		if (rc)
-			goto out_raw;
+			goto out_dev;
 	}
 
-	/* Allow the RC sysfs nodes to be accessible */
-	atomic_set(&dev->initialized, 1);
+	if (dev->driver_type == RC_DRIVER_IR_RAW ||
+	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
+		rc = ir_raw_event_register(dev);
+		if (rc < 0)
+			goto out_rx;
+	}
 
 	IR_dprintk(1, "Registered rc%u (driver: %s)\n",
 		   dev->minor,
@@ -1811,11 +1781,15 @@ int rc_register_device(struct rc_dev *dev)
 
 	return 0;
 
-out_raw:
-	ir_raw_event_unregister(dev);
+out_rx:
+	rc_free_rx_device(dev);
 out_dev:
 	device_del(&dev->dev);
-out_unlock:
+out_rx_free:
+	ir_free_table(&dev->rc_map);
+out_raw:
+	ir_raw_event_free(dev);
+out_minor:
 	ida_simple_remove(&rc_ida, minor);
 	return rc;
 }
