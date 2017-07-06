@@ -53,6 +53,7 @@ static enum dso_binary_type binary_type_symtab[] = {
 	DSO_BINARY_TYPE__JAVA_JIT,
 	DSO_BINARY_TYPE__DEBUGLINK,
 	DSO_BINARY_TYPE__BUILD_ID_CACHE,
+	DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO,
 	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
 	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
 	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
@@ -1418,6 +1419,7 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 		return kmod && dso->symtab_type == type;
 
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
 		return true;
 
 	case DSO_BINARY_TYPE__NOT_FOUND:
@@ -1565,9 +1567,13 @@ int dso__load(struct dso *dso, struct map *map)
 		struct symsrc *ss = &ss_[ss_pos];
 		bool next_slot = false;
 		bool is_reg;
+		bool nsexit;
 		int sirc;
 
 		enum dso_binary_type symtab_type = binary_type_symtab[i];
+
+		nsexit = (symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE ||
+		    symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO);
 
 		if (!dso__is_compatible_symtab_type(dso, kmod, symtab_type))
 			continue;
@@ -1576,13 +1582,13 @@ int dso__load(struct dso *dso, struct map *map)
 						   root_dir, name, PATH_MAX))
 			continue;
 
-		if (symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		if (nsexit)
 			nsinfo__mountns_exit(&nsc);
 
 		is_reg = is_regular_file(name);
 		sirc = symsrc__init(ss, dso, name, symtab_type);
 
-		if (symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		if (nsexit)
 			nsinfo__mountns_enter(dso->nsinfo, &nsc);
 
 		if (!is_reg || sirc < 0) {
@@ -1724,7 +1730,7 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map)
 	}
 
 	if (!symbol_conf.ignore_vmlinux_buildid)
-		filename = dso__build_id_filename(dso, NULL, 0);
+		filename = dso__build_id_filename(dso, NULL, 0, false);
 	if (filename != NULL) {
 		err = dso__load_vmlinux(dso, map, filename, true);
 		if (err > 0)

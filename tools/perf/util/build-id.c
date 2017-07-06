@@ -243,12 +243,15 @@ static bool build_id_cache__valid_id(char *sbuild_id)
 	return result;
 }
 
-static const char *build_id_cache__basename(bool is_kallsyms, bool is_vdso)
+static const char *build_id_cache__basename(bool is_kallsyms, bool is_vdso,
+					    bool is_debug)
 {
-	return is_kallsyms ? "kallsyms" : (is_vdso ? "vdso" : "elf");
+	return is_kallsyms ? "kallsyms" : (is_vdso ? "vdso" : (is_debug ?
+	    "debug" : "elf"));
 }
 
-char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
+char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
+			     bool is_debug)
 {
 	bool is_kallsyms = dso__is_kallsyms((struct dso *)dso);
 	bool is_vdso = dso__is_vdso((struct dso *)dso);
@@ -270,7 +273,8 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 		ret = asnprintf(&bf, size, "%s", linkname);
 	else
 		ret = asnprintf(&bf, size, "%s/%s", linkname,
-			 build_id_cache__basename(is_kallsyms, is_vdso));
+			 build_id_cache__basename(is_kallsyms, is_vdso,
+						  is_debug));
 	if (ret < 0 || (!alloc && size < (unsigned int)ret))
 		bf = NULL;
 	free(linkname);
@@ -603,12 +607,40 @@ static int build_id_cache__add_sdt_cache(const char *sbuild_id,
 #define build_id_cache__add_sdt_cache(sbuild_id, realname, nsi) (0)
 #endif
 
+static char *build_id_cache__find_debug(const char *sbuild_id,
+					struct nsinfo *nsi)
+{
+	char *realname = NULL;
+	char *debugfile;
+	struct nscookie nsc;
+	size_t len = 0;
+
+	debugfile = calloc(1, PATH_MAX);
+	if (!debugfile)
+		goto out;
+
+	len = __symbol__join_symfs(debugfile, PATH_MAX,
+				   "/usr/lib/debug/.build-id/");
+	snprintf(debugfile + len, PATH_MAX - len, "%.2s/%s.debug", sbuild_id,
+		 sbuild_id + 2);
+
+	nsinfo__mountns_enter(nsi, &nsc);
+	realname = realpath(debugfile, NULL);
+	if (realname && access(realname, R_OK))
+		zfree(&realname);
+	nsinfo__mountns_exit(&nsc);
+out:
+	free(debugfile);
+	return realname;
+}
+
 int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			  struct nsinfo *nsi, bool is_kallsyms, bool is_vdso)
 {
 	const size_t size = PATH_MAX;
 	char *realname = NULL, *filename = NULL, *dir_name = NULL,
 	     *linkname = zalloc(size), *tmp;
+	char *debugfile = NULL;
 	int err = -1;
 
 	if (!is_kallsyms) {
@@ -635,7 +667,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 
 	/* Save the allocated buildid dirname */
 	if (asprintf(&filename, "%s/%s", dir_name,
-		     build_id_cache__basename(is_kallsyms, is_vdso)) < 0) {
+		     build_id_cache__basename(is_kallsyms, is_vdso,
+		     false)) < 0) {
 		filename = NULL;
 		goto out_free;
 	}
@@ -650,6 +683,34 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 		} else if (link(realname, filename) && errno != EEXIST &&
 				copyfile(name, filename))
 			goto out_free;
+	}
+
+	/* Some binaries are stripped, but have .debug files with their symbol
+	 * table.  Check to see if we can locate one of those, since the elf
+	 * file itself may not be very useful to users of our tools without a
+	 * symtab.
+	 */
+	if (!is_kallsyms && !is_vdso &&
+	    strncmp(".ko", name + strlen(name) - 3, 3)) {
+		debugfile = build_id_cache__find_debug(sbuild_id, nsi);
+		if (debugfile) {
+			zfree(&filename);
+			if (asprintf(&filename, "%s/%s", dir_name,
+			    build_id_cache__basename(false, false, true)) < 0) {
+				filename = NULL;
+				goto out_free;
+			}
+			if (access(filename, F_OK)) {
+				if (nsi && nsi->need_setns) {
+					if (copyfile_ns(debugfile, filename,
+							nsi))
+						goto out_free;
+				} else if (link(debugfile, filename) &&
+						errno != EEXIST &&
+						copyfile(debugfile, filename))
+					goto out_free;
+			}
+		}
 	}
 
 	if (!build_id_cache__linkname(sbuild_id, linkname, size))
@@ -676,6 +737,7 @@ out_free:
 	if (!is_kallsyms)
 		free(realname);
 	free(filename);
+	free(debugfile);
 	free(dir_name);
 	free(linkname);
 	return err;

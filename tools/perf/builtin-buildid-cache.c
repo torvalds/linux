@@ -243,7 +243,7 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 	char filename[PATH_MAX];
 	u8 build_id[BUILD_ID_SIZE];
 
-	if (dso__build_id_filename(dso, filename, sizeof(filename)) &&
+	if (dso__build_id_filename(dso, filename, sizeof(filename), false) &&
 	    filename__read_build_id(filename, build_id,
 				    sizeof(build_id)) != sizeof(build_id)) {
 		if (errno == ENOENT)
