@@ -168,16 +168,12 @@ void ks_dw_pcie_msi_clear_irq(struct pcie_port *pp, int irq)
 
 static void ks_dw_pcie_msi_irq_mask(struct irq_data *d)
 {
-	struct keystone_pcie *ks_pcie;
 	struct msi_desc *msi;
 	struct pcie_port *pp;
-	struct dw_pcie *pci;
 	u32 offset;
 
 	msi = irq_data_get_msi_desc(d);
 	pp = (struct pcie_port *) msi_desc_to_pci_sysdata(msi);
-	pci = to_dw_pcie_from_pp(pp);
-	ks_pcie = to_keystone_pcie(pci);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 
 	/* Mask the end point if PVM implemented */
@@ -191,16 +187,12 @@ static void ks_dw_pcie_msi_irq_mask(struct irq_data *d)
 
 static void ks_dw_pcie_msi_irq_unmask(struct irq_data *d)
 {
-	struct keystone_pcie *ks_pcie;
 	struct msi_desc *msi;
 	struct pcie_port *pp;
-	struct dw_pcie *pci;
 	u32 offset;
 
 	msi = irq_data_get_msi_desc(d);
 	pp = (struct pcie_port *) msi_desc_to_pci_sysdata(msi);
-	pci = to_dw_pcie_from_pp(pp);
-	ks_pcie = to_keystone_pcie(pci);
 	offset = d->irq - irq_linear_revmap(pp->irq_domain, 0);
 
 	/* Mask the end point if PVM implemented */
