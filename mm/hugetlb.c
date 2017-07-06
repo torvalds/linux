@@ -867,7 +867,7 @@ static void enqueue_huge_page(struct hstate *h, struct page *page)
 	h->free_huge_pages_node[nid]++;
 }
 
-static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+static struct page *dequeue_huge_page_node_exact(struct hstate *h, int nid)
 {
 	struct page *page;
 
@@ -885,6 +885,22 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
 	h->free_huge_pages--;
 	h->free_huge_pages_node[nid]--;
 	return page;
+}
+
+static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+{
+	struct page *page;
+	int node;
+
+	if (nid != NUMA_NO_NODE)
+		return dequeue_huge_page_node_exact(h, nid);
+
+	for_each_online_node(node) {
+		page = dequeue_huge_page_node_exact(h, node);
+		if (page)
+			return page;
+	}
+	return NULL;
 }
 
 /* Movability of hugepages depends on migration support. */

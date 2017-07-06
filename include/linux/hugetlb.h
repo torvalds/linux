@@ -466,7 +466,11 @@ extern int dissolve_free_huge_pages(unsigned long start_pfn,
 static inline bool hugepage_migration_supported(struct hstate *h)
 {
 #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-	return huge_page_shift(h) == PMD_SHIFT;
+	if ((huge_page_shift(h) == PMD_SHIFT) ||
+		(huge_page_shift(h) == PGDIR_SHIFT))
+		return true;
+	else
+		return false;
 #else
 	return false;
 #endif
@@ -518,6 +522,11 @@ struct hstate {};
 #define vma_mmu_pagesize(v) PAGE_SIZE
 #define huge_page_order(h) 0
 #define huge_page_shift(h) PAGE_SHIFT
+static inline bool hstate_is_gigantic(struct hstate *h)
+{
+	return false;
+}
+
 static inline unsigned int pages_per_huge_page(struct hstate *h)
 {
 	return 1;
