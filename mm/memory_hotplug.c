@@ -1028,7 +1028,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages, 
 {
 	struct pglist_data *pgdat = NODE_DATA(nid);
 	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
-	struct zone *normal_zone =  &pgdat->node_zones[ZONE_NORMAL];
+	struct zone *default_zone = default_zone_for_pfn(nid, pfn, nr_pages);
 
 	/*
 	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
@@ -1042,7 +1042,7 @@ bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages, 
 			return true;
 		return movable_zone->zone_start_pfn >= pfn + nr_pages;
 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
-		return zone_end_pfn(normal_zone) <= pfn;
+		return zone_end_pfn(default_zone) <= pfn;
 	}
 
 	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
@@ -1103,6 +1103,27 @@ void move_pfn_range_to_zone(struct zone *zone,
 }
 
 /*
+ * Returns a default kernel memory zone for the given pfn range.
+ * If no kernel zone covers this pfn range it will automatically go
+ * to the ZONE_NORMAL.
+ */
+struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+		unsigned long nr_pages)
+{
+	struct pglist_data *pgdat = NODE_DATA(nid);
+	int zid;
+
+	for (zid = 0; zid <= ZONE_NORMAL; zid++) {
+		struct zone *zone = &pgdat->node_zones[zid];
+
+		if (zone_intersects(zone, start_pfn, nr_pages))
+			return zone;
+	}
+
+	return &pgdat->node_zones[ZONE_NORMAL];
+}
+
+/*
  * Associates the given pfn range with the given node and the zone appropriate
  * for the given online type.
  */
@@ -1110,7 +1131,7 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
 		unsigned long start_pfn, unsigned long nr_pages)
 {
 	struct pglist_data *pgdat = NODE_DATA(nid);
-	struct zone *zone = &pgdat->node_zones[ZONE_NORMAL];
+	struct zone *zone = default_zone_for_pfn(nid, start_pfn, nr_pages);
 
 	if (online_type == MMOP_ONLINE_KEEP) {
 		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];

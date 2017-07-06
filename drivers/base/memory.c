@@ -419,7 +419,7 @@ static ssize_t show_valid_zones(struct device *dev,
 
 	nid = pfn_to_nid(start_pfn);
 	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL)) {
-		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_NORMAL].name);
+		strcat(buf, default_zone_for_pfn(nid, start_pfn, nr_pages)->name);
 		append = true;
 	}
 
