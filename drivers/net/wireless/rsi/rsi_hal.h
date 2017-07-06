@@ -118,14 +118,14 @@ struct rsi_mgmt_desc {
 	__le16 len_qno;
 	u8 frame_type;
 	u8 misc_flags;
-	u8 reserved1;
+	u8 xtend_desc_size;
 	u8 header_len;
-	__le16 info_cap;
+	__le16 frame_info;
 	u8 rate_info;
-	u8 reserved2;
-	u16 bbp_info;
+	u8 reserved1;
+	__le16 bbp_info;
 	__le16 seq_ctrl;
-	u8 cfm_frame_type;
+	u8 reserved2;
 	u8 vap_info;
 } __packed;
 

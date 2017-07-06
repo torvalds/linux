@@ -105,6 +105,7 @@ struct skb_info {
 	u16 channel;
 	s8 tid;
 	s8 sta_id;
+	u8 internal_hdr_size;
 };
 
 enum edca_queue {
@@ -156,6 +157,12 @@ struct cqm_info {
 	s8 last_cqm_event_rssi;
 	int rssi_thold;
 	u32 rssi_hyst;
+};
+
+struct xtended_desc {
+	u8 confirm_frame_type;
+	u8 retry_cnt;
+	u16 reserved;
 };
 
 struct rsi_hw;
