@@ -115,7 +115,7 @@ static int compat_mga_dma_bootstrap(struct file *file, unsigned int cmd,
 				    unsigned long arg)
 {
 	drm_mga_dma_bootstrap32_t dma_bootstrap32;
-	drm_mga_dma_bootstrap_t __user dma_bootstrap;
+	drm_mga_dma_bootstrap_t dma_bootstrap;
 	int err;
 
 	if (copy_from_user(&dma_bootstrap32, (void __user *)arg,
