@@ -169,20 +169,6 @@ static void intel_power_well_put(struct drm_i915_private *dev_priv,
 		intel_power_well_disable(dev_priv, power_well);
 }
 
-/*
- * We should only use the power well if we explicitly asked the hardware to
- * enable it, so check if it's enabled and also check if we've requested it to
- * be enabled.
- */
-static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	enum i915_power_well_id id = power_well->id;
-	u32 mask = HSW_PWR_WELL_CTL_REQ(id) | HSW_PWR_WELL_CTL_STATE(id);
-
-	return (I915_READ(HSW_PWR_WELL_DRIVER) & mask) == mask;
-}
-
 /**
  * __intel_display_power_is_enabled - unlocked check for a power domain
  * @dev_priv: i915 device instance
@@ -420,6 +406,20 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	val = I915_READ(HSW_PWR_WELL_DRIVER);
 	I915_WRITE(HSW_PWR_WELL_DRIVER, val & ~HSW_PWR_WELL_CTL_REQ(id));
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
+}
+
+/*
+ * We should only use the power well if we explicitly asked the hardware to
+ * enable it, so check if it's enabled and also check if we've requested it to
+ * be enabled.
+ */
+static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
+				   struct i915_power_well *power_well)
+{
+	enum i915_power_well_id id = power_well->id;
+	u32 mask = HSW_PWR_WELL_CTL_REQ(id) | HSW_PWR_WELL_CTL_STATE(id);
+
+	return (I915_READ(HSW_PWR_WELL_DRIVER) & mask) == mask;
 }
 
 #define SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
