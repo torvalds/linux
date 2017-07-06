@@ -643,7 +643,7 @@ find_fw_domain(struct drm_i915_private *dev_priv, u32 offset)
 	{ .start = (s), .end = (e), .domains = (d) }
 
 #define HAS_FWTABLE(dev_priv) \
-	(IS_GEN9(dev_priv) || \
+	(INTEL_GEN(dev_priv) >= 9 || \
 	 IS_CHERRYVIEW(dev_priv) || \
 	 IS_VALLEYVIEW(dev_priv))
 
@@ -1072,7 +1072,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 		dev_priv->uncore.fw_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
 	}
 
-	if (IS_GEN9(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
