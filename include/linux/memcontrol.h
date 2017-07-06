@@ -582,8 +582,11 @@ static inline void count_memcg_event_mm(struct mm_struct *mm,
 
 	rcu_read_lock();
 	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-	if (likely(memcg))
+	if (likely(memcg)) {
 		this_cpu_inc(memcg->stat->events[idx]);
+		if (idx == OOM_KILL)
+			cgroup_file_notify(&memcg->events_file);
+	}
 	rcu_read_unlock();
 }
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

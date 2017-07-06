@@ -852,13 +852,25 @@ PAGE_SIZE multiple when read back.
 
 		The number of times the cgroup's memory usage was
 		about to go over the max boundary.  If direct reclaim
-		fails to bring it down, the OOM killer is invoked.
+		fails to bring it down, the cgroup goes to OOM state.
 
 	  oom
 
-		The number of times the OOM killer has been invoked in
-		the cgroup.  This may not exactly match the number of
-		processes killed but should generally be close.
+		The number of time the cgroup's memory usage was
+		reached the limit and allocation was about to fail.
+
+		Depending on context result could be invocation of OOM
+		killer and retrying allocation or failing alloction.
+
+		Failed allocation in its turn could be returned into
+		userspace as -ENOMEM or siletly ignored in cases like
+		disk readahead.	 For now OOM in memory cgroup kills
+		tasks iff shortage has happened inside page fault.
+
+	  oom_kill
+
+		The number of processes belonging to this cgroup
+		killed by any kind of OOM killer.
 
   memory.stat
 
