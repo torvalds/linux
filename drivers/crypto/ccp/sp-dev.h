@@ -68,9 +68,15 @@ struct sp_device {
 	unsigned int axcache;
 
 	bool irq_registered;
+	bool use_tasklet;
 
-	int (*get_irq)(struct ccp_device *ccp);
-	void (*free_irq)(struct ccp_device *ccp);
+	unsigned int ccp_irq;
+	irq_handler_t ccp_irq_handler;
+	void *ccp_irq_data;
+
+	unsigned int psp_irq;
+	irq_handler_t psp_irq_handler;
+	void *psp_irq_data;
 
 	void *ccp_data;
 	void *psp_data;
@@ -90,6 +96,12 @@ struct sp_device *sp_get_master(void);
 
 int sp_suspend(struct sp_device *sp, pm_message_t state);
 int sp_resume(struct sp_device *sp);
+int sp_request_ccp_irq(struct sp_device *sp, irq_handler_t handler,
+		       const char *name, void *data);
+void sp_free_ccp_irq(struct sp_device *sp, void *data);
+int sp_request_psp_irq(struct sp_device *sp, irq_handler_t handler,
+		       const char *name, void *data);
+void sp_free_psp_irq(struct sp_device *sp, void *data);
 
 #ifdef CONFIG_CRYPTO_DEV_SP_CCP
 

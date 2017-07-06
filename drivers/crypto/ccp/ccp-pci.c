@@ -28,67 +28,37 @@
 
 #define MSIX_VECTORS			2
 
-struct ccp_msix {
-	u32 vector;
-	char name[16];
-};
-
 struct ccp_pci {
 	int msix_count;
-	struct ccp_msix msix[MSIX_VECTORS];
+	struct msix_entry msix_entry[MSIX_VECTORS];
 };
 
-static int ccp_get_msix_irqs(struct ccp_device *ccp)
+static int ccp_get_msix_irqs(struct sp_device *sp)
 {
-	struct sp_device *sp = ccp->sp;
 	struct ccp_pci *ccp_pci = sp->dev_specific;
-	struct device *dev = ccp->dev;
+	struct device *dev = sp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct msix_entry msix_entry[MSIX_VECTORS];
-	unsigned int name_len = sizeof(ccp_pci->msix[0].name) - 1;
 	int v, ret;
 
-	for (v = 0; v < ARRAY_SIZE(msix_entry); v++)
-		msix_entry[v].entry = v;
+	for (v = 0; v < ARRAY_SIZE(ccp_pci->msix_entry); v++)
+		ccp_pci->msix_entry[v].entry = v;
 
-	ret = pci_enable_msix_range(pdev, msix_entry, 1, v);
+	ret = pci_enable_msix_range(pdev, ccp_pci->msix_entry, 1, v);
 	if (ret < 0)
 		return ret;
 
 	ccp_pci->msix_count = ret;
-	for (v = 0; v < ccp_pci->msix_count; v++) {
-		/* Set the interrupt names and request the irqs */
-		snprintf(ccp_pci->msix[v].name, name_len, "%s-%u",
-			 sp->name, v);
-		ccp_pci->msix[v].vector = msix_entry[v].vector;
-		ret = request_irq(ccp_pci->msix[v].vector,
-				  ccp->vdata->perform->irqhandler,
-				  0, ccp_pci->msix[v].name, ccp);
-		if (ret) {
-			dev_notice(dev, "unable to allocate MSI-X IRQ (%d)\n",
-				   ret);
-			goto e_irq;
-		}
-	}
-	ccp->use_tasklet = true;
+	sp->use_tasklet = true;
 
+	sp->psp_irq = ccp_pci->msix_entry[0].vector;
+	sp->ccp_irq = (ccp_pci->msix_count > 1) ? ccp_pci->msix_entry[1].vector
+					       : ccp_pci->msix_entry[0].vector;
 	return 0;
-
-e_irq:
-	while (v--)
-		free_irq(ccp_pci->msix[v].vector, dev);
-
-	pci_disable_msix(pdev);
-
-	ccp_pci->msix_count = 0;
-
-	return ret;
 }
 
-static int ccp_get_msi_irq(struct ccp_device *ccp)
+static int ccp_get_msi_irq(struct sp_device *sp)
 {
-	struct sp_device *sp = ccp->sp;
-	struct device *dev = ccp->dev;
+	struct device *dev = sp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
 
@@ -96,35 +66,24 @@ static int ccp_get_msi_irq(struct ccp_device *ccp)
 	if (ret)
 		return ret;
 
-	ccp->irq = pdev->irq;
-	ret = request_irq(ccp->irq, ccp->vdata->perform->irqhandler, 0,
-			  sp->name, ccp);
-	if (ret) {
-		dev_notice(dev, "unable to allocate MSI IRQ (%d)\n", ret);
-		goto e_msi;
-	}
-	ccp->use_tasklet = true;
+	sp->ccp_irq = pdev->irq;
+	sp->psp_irq = pdev->irq;
 
 	return 0;
-
-e_msi:
-	pci_disable_msi(pdev);
-
-	return ret;
 }
 
-static int ccp_get_irqs(struct ccp_device *ccp)
+static int ccp_get_irqs(struct sp_device *sp)
 {
-	struct device *dev = ccp->dev;
+	struct device *dev = sp->dev;
 	int ret;
 
-	ret = ccp_get_msix_irqs(ccp);
+	ret = ccp_get_msix_irqs(sp);
 	if (!ret)
 		return 0;
 
 	/* Couldn't get MSI-X vectors, try MSI */
 	dev_notice(dev, "could not enable MSI-X (%d), trying MSI\n", ret);
-	ret = ccp_get_msi_irq(ccp);
+	ret = ccp_get_msi_irq(sp);
 	if (!ret)
 		return 0;
 
@@ -134,23 +93,19 @@ static int ccp_get_irqs(struct ccp_device *ccp)
 	return ret;
 }
 
-static void ccp_free_irqs(struct ccp_device *ccp)
+static void ccp_free_irqs(struct sp_device *sp)
 {
-	struct sp_device *sp = ccp->sp;
 	struct ccp_pci *ccp_pci = sp->dev_specific;
-	struct device *dev = ccp->dev;
+	struct device *dev = sp->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
 
-	if (ccp_pci->msix_count) {
-		while (ccp_pci->msix_count--)
-			free_irq(ccp_pci->msix[ccp_pci->msix_count].vector,
-				 ccp);
+	if (ccp_pci->msix_count)
 		pci_disable_msix(pdev);
-	} else if (ccp->irq) {
-		free_irq(ccp->irq, ccp);
+	else if (sp->psp_irq)
 		pci_disable_msi(pdev);
-	}
-	ccp->irq = 0;
+
+	sp->ccp_irq = 0;
+	sp->psp_irq = 0;
 }
 
 static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -178,8 +133,6 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
-	sp->get_irq = ccp_get_irqs;
-	sp->free_irq = ccp_free_irqs;
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
@@ -207,6 +160,10 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ret = -ENOMEM;
 		goto e_err;
 	}
+
+	ret = ccp_get_irqs(sp);
+	if (ret)
+		goto e_err;
 
 	pci_set_master(pdev);
 
@@ -244,6 +201,8 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 		return;
 
 	sp_destroy(sp);
+
+	ccp_free_irqs(sp);
 
 	dev_notice(dev, "disabled\n");
 }

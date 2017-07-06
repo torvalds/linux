@@ -30,6 +30,7 @@
 
 struct ccp_platform {
 	int coherent;
+	unsigned int irq_count;
 };
 
 static const struct acpi_device_id ccp_acpi_match[];
@@ -59,11 +60,22 @@ static struct sp_dev_vdata *ccp_get_acpi_version(struct platform_device *pdev)
 	return NULL;
 }
 
-static int ccp_get_irq(struct ccp_device *ccp)
+static int ccp_get_irqs(struct sp_device *sp)
 {
-	struct device *dev = ccp->dev;
+	struct ccp_platform *ccp_platform = sp->dev_specific;
+	struct device *dev = sp->dev;
 	struct platform_device *pdev = to_platform_device(dev);
+	unsigned int i, count;
 	int ret;
+
+	for (i = 0, count = 0; i < pdev->num_resources; i++) {
+		struct resource *res = &pdev->resource[i];
+
+		if (resource_type(res) == IORESOURCE_IRQ)
+			count++;
+	}
+
+	ccp_platform->irq_count = count;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
@@ -71,35 +83,20 @@ static int ccp_get_irq(struct ccp_device *ccp)
 		return ret;
 	}
 
-	ccp->irq = ret;
-	ret = request_irq(ccp->irq, ccp->vdata->perform->irqhandler, 0,
-			  ccp->name, ccp);
-	if (ret) {
-		dev_notice(dev, "unable to allocate IRQ (%d)\n", ret);
-		return ret;
+	sp->psp_irq = ret;
+	if (count == 1) {
+		sp->ccp_irq = ret;
+	} else {
+		ret = platform_get_irq(pdev, 1);
+		if (ret < 0) {
+			dev_notice(dev, "unable to get IRQ (%d)\n", ret);
+			return ret;
+		}
+
+		sp->ccp_irq = ret;
 	}
 
 	return 0;
-}
-
-static int ccp_get_irqs(struct ccp_device *ccp)
-{
-	struct device *dev = ccp->dev;
-	int ret;
-
-	ret = ccp_get_irq(ccp);
-	if (!ret)
-		return 0;
-
-	/* Couldn't get an interrupt */
-	dev_notice(dev, "could not enable interrupts (%d)\n", ret);
-
-	return ret;
-}
-
-static void ccp_free_irqs(struct ccp_device *ccp)
-{
-	free_irq(ccp->irq, ccp);
 }
 
 static int ccp_platform_probe(struct platform_device *pdev)
@@ -128,8 +125,6 @@ static int ccp_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
-	sp->get_irq = ccp_get_irqs;
-	sp->free_irq = ccp_free_irqs;
 
 	ior = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sp->io_map = devm_ioremap_resource(dev, ior);
@@ -155,6 +150,10 @@ static int ccp_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
 		goto e_err;
 	}
+
+	ret = ccp_get_irqs(sp);
+	if (ret)
+		goto e_err;
 
 	dev_set_drvdata(dev, sp);
 

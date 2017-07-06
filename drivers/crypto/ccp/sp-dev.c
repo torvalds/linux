@@ -64,6 +64,113 @@ static void sp_del_device(struct sp_device *sp)
 	write_unlock_irqrestore(&sp_unit_lock, flags);
 }
 
+static irqreturn_t sp_irq_handler(int irq, void *data)
+{
+	struct sp_device *sp = data;
+
+	if (sp->ccp_irq_handler)
+		sp->ccp_irq_handler(irq, sp->ccp_irq_data);
+
+	if (sp->psp_irq_handler)
+		sp->psp_irq_handler(irq, sp->psp_irq_data);
+
+	return IRQ_HANDLED;
+}
+
+int sp_request_ccp_irq(struct sp_device *sp, irq_handler_t handler,
+		       const char *name, void *data)
+{
+	int ret;
+
+	if ((sp->psp_irq == sp->ccp_irq) && sp->dev_vdata->psp_vdata) {
+		/* Need a common routine to manage all interrupts */
+		sp->ccp_irq_data = data;
+		sp->ccp_irq_handler = handler;
+
+		if (!sp->irq_registered) {
+			ret = request_irq(sp->ccp_irq, sp_irq_handler, 0,
+					  sp->name, sp);
+			if (ret)
+				return ret;
+
+			sp->irq_registered = true;
+		}
+	} else {
+		/* Each sub-device can manage it's own interrupt */
+		ret = request_irq(sp->ccp_irq, handler, 0, name, data);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int sp_request_psp_irq(struct sp_device *sp, irq_handler_t handler,
+		       const char *name, void *data)
+{
+	int ret;
+
+	if ((sp->psp_irq == sp->ccp_irq) && sp->dev_vdata->ccp_vdata) {
+		/* Need a common routine to manage all interrupts */
+		sp->psp_irq_data = data;
+		sp->psp_irq_handler = handler;
+
+		if (!sp->irq_registered) {
+			ret = request_irq(sp->psp_irq, sp_irq_handler, 0,
+					  sp->name, sp);
+			if (ret)
+				return ret;
+
+			sp->irq_registered = true;
+		}
+	} else {
+		/* Each sub-device can manage it's own interrupt */
+		ret = request_irq(sp->psp_irq, handler, 0, name, data);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+void sp_free_ccp_irq(struct sp_device *sp, void *data)
+{
+	if ((sp->psp_irq == sp->ccp_irq) && sp->dev_vdata->psp_vdata) {
+		/* Using common routine to manage all interrupts */
+		if (!sp->psp_irq_handler) {
+			/* Nothing else using it, so free it */
+			free_irq(sp->ccp_irq, sp);
+
+			sp->irq_registered = false;
+		}
+
+		sp->ccp_irq_handler = NULL;
+		sp->ccp_irq_data = NULL;
+	} else {
+		/* Each sub-device can manage it's own interrupt */
+		free_irq(sp->ccp_irq, data);
+	}
+}
+
+void sp_free_psp_irq(struct sp_device *sp, void *data)
+{
+	if ((sp->psp_irq == sp->ccp_irq) && sp->dev_vdata->ccp_vdata) {
+		/* Using common routine to manage all interrupts */
+		if (!sp->ccp_irq_handler) {
+			/* Nothing else using it, so free it */
+			free_irq(sp->psp_irq, sp);
+
+			sp->irq_registered = false;
+		}
+
+		sp->psp_irq_handler = NULL;
+		sp->psp_irq_data = NULL;
+	} else {
+		/* Each sub-device can manage it's own interrupt */
+		free_irq(sp->psp_irq, data);
+	}
+}
+
 /**
  * sp_alloc_struct - allocate and initialize the sp_device struct
  *

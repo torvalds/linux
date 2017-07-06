@@ -600,8 +600,7 @@ int ccp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	ccp->get_irq = sp->get_irq;
-	ccp->free_irq = sp->free_irq;
+	ccp->use_tasklet = sp->use_tasklet;
 
 	ccp->io_regs = sp->io_map + ccp->vdata->offset;
 	if (ccp->vdata->setup)

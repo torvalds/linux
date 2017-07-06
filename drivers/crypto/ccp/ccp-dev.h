@@ -351,8 +351,6 @@ struct ccp_device {
 	/* Bus specific device information
 	 */
 	void *dev_specific;
-	int (*get_irq)(struct ccp_device *ccp);
-	void (*free_irq)(struct ccp_device *ccp);
 	unsigned int qim;
 	unsigned int irq;
 	bool use_tasklet;
