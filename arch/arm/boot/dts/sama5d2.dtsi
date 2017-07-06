@@ -954,6 +954,28 @@
 				};
 			};
 
+			qspi0: spi@f0020000 {
+				compatible = "atmel,sama5d2-qspi";
+				reg = <0xf0020000 0x100>, <0xd0000000 0x08000000>;
+				reg-names = "qspi_base", "qspi_mmap";
+				interrupts = <52 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&qspi0_clk>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			qspi1: spi@f0024000 {
+				compatible = "atmel,sama5d2-qspi";
+				reg = <0xf0024000 0x100>, <0xd8000000 0x08000000>;
+				reg-names = "qspi_base", "qspi_mmap";
+				interrupts = <53 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&qspi1_clk>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			sha@f0028000 {
 				compatible = "atmel,at91sam9g46-sha";
 				reg = <0xf0028000 0x100>;
