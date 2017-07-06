@@ -293,7 +293,12 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_init);
 
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	put_pid(vcpu->pid);
+	/*
+	 * no need for rcu_read_lock as VCPU_RUN is the only place that
+	 * will change the vcpu->pid pointer and on uninit all file
+	 * descriptors are already gone.
+	 */
+	put_pid(rcu_dereference_protected(vcpu->pid, 1));
 	kvm_arch_vcpu_uninit(vcpu);
 	free_page((unsigned long)vcpu->run);
 }
@@ -2551,13 +2556,14 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	if (r)
 		return r;
 	switch (ioctl) {
-	case KVM_RUN:
+	case KVM_RUN: {
+		struct pid *oldpid;
 		r = -EINVAL;
 		if (arg)
 			goto out;
-		if (unlikely(vcpu->pid != current->pids[PIDTYPE_PID].pid)) {
+		oldpid = rcu_access_pointer(vcpu->pid);
+		if (unlikely(oldpid != current->pids[PIDTYPE_PID].pid)) {
 			/* The thread running this VCPU changed. */
-			struct pid *oldpid = vcpu->pid;
 			struct pid *newpid = get_task_pid(current, PIDTYPE_PID);
 
 			rcu_assign_pointer(vcpu->pid, newpid);
@@ -2568,6 +2574,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		r = kvm_arch_vcpu_ioctl_run(vcpu, vcpu->run);
 		trace_kvm_userspace_exit(vcpu->run->exit_reason, r);
 		break;
+	}
 	case KVM_GET_REGS: {
 		struct kvm_regs *kvm_regs;
 
