@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/nvmem-provider.h>
 #include <uapi/linux/rtc.h>
 
 extern int rtc_month_days(unsigned int month, unsigned int year);
@@ -143,6 +144,12 @@ struct rtc_device {
 	int uie_unsupported;
 
 	bool registered;
+
+	struct nvmem_config *nvmem_config;
+	struct nvmem_device *nvmem;
+	/* Old ABI support */
+	bool nvram_old_abi;
+	struct bin_attribute *nvram;
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	struct work_struct uie_task;

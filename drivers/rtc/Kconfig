@@ -77,6 +77,14 @@ config RTC_DEBUG
 	  Say yes here to enable debugging support in the RTC framework
 	  and individual RTC drivers.
 
+config RTC_NVMEM
+	bool "RTC non volatile storage support"
+	select NVMEM
+	default RTC_CLASS
+	help
+	  Say yes here to add support for the non volatile (often battery
+	  backed) storage present on RTCs.
+
 comment "RTC interfaces"
 
 config RTC_INTF_SYSFS

@@ -164,6 +164,8 @@ offset		 The amount which the rtc clock has been adjusted in firmware.
 		 which are added to or removed from the rtc's base clock per
 		 billion ticks. A positive value makes a day pass more slowly,
 		 longer, and a negative value makes a day pass more quickly.
+*/nvmem		 The non volatile storage exported as a raw file, as described
+		 in Documentation/nvmem/nvmem.txt
 ================ ==============================================================
 
 IOCTL interface

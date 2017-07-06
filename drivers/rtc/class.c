@@ -290,6 +290,8 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
+	rtc_nvmem_unregister(rtc);
+
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
@@ -447,6 +449,8 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 			MAJOR(rtc->dev.devt), rtc->id);
 
 	rtc_proc_add_device(rtc);
+
+	rtc_nvmem_register(rtc);
 
 	rtc->registered = true;
 	dev_info(rtc->dev.parent, "registered as %s\n",
