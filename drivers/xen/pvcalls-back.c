@@ -12,12 +12,17 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/inet.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/radix-tree.h>
 #include <linux/module.h>
 #include <linux/semaphore.h>
 #include <linux/wait.h>
+#include <net/sock.h>
+#include <net/inet_common.h>
+#include <net/inet_connection_sock.h>
+#include <net/request_sock.h>
 
 #include <xen/events.h>
 #include <xen/grant_table.h>
@@ -52,6 +57,28 @@ struct pvcalls_fedata {
 static int pvcalls_back_socket(struct xenbus_device *dev,
 		struct xen_pvcalls_request *req)
 {
+	struct pvcalls_fedata *fedata;
+	int ret;
+	struct xen_pvcalls_response *rsp;
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	if (req->u.socket.domain != AF_INET ||
+	    req->u.socket.type != SOCK_STREAM ||
+	    (req->u.socket.protocol != IPPROTO_IP &&
+	     req->u.socket.protocol != AF_INET))
+		ret = -EAFNOSUPPORT;
+	else
+		ret = 0;
+
+	/* leave the actual socket allocation for later */
+
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->cmd = req->cmd;
+	rsp->u.socket.id = req->u.socket.id;
+	rsp->ret = ret;
+
 	return 0;
 }
 
