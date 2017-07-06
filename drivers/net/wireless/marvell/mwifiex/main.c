@@ -667,8 +667,11 @@ done:
 		release_firmware(adapter->firmware);
 		adapter->firmware = NULL;
 	}
-	if (init_failed)
+	if (init_failed) {
+		if (adapter->irq_wakeup >= 0)
+			device_init_wakeup(adapter->dev, false);
 		mwifiex_free_adapter(adapter);
+	}
 	/* Tell all current and future waiters we're finished */
 	complete_all(fw_done);
 
@@ -1668,6 +1671,8 @@ err_registerdev:
 		mwifiex_free_cmd_buffers(adapter);
 	}
 err_kmalloc:
+	if (adapter->irq_wakeup >= 0)
+		device_init_wakeup(adapter->dev, false);
 	mwifiex_free_adapter(adapter);
 
 err_init_sw:
