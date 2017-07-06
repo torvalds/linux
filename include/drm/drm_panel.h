@@ -143,6 +143,7 @@ void drm_panel_remove(struct drm_panel *panel);
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector);
 int drm_panel_detach(struct drm_panel *panel);
 
+struct drm_panel *drm_find_panel_by_connector(struct drm_connector *connector);
 #ifdef CONFIG_OF
 struct drm_panel *of_drm_find_panel(struct device_node *np);
 #else
