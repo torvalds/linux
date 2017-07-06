@@ -272,12 +272,80 @@ static int pvcalls_back_release_active(struct xenbus_device *dev,
 				       struct pvcalls_fedata *fedata,
 				       struct sock_mapping *map)
 {
+	disable_irq(map->irq);
+	if (map->sock->sk != NULL) {
+		write_lock_bh(&map->sock->sk->sk_callback_lock);
+		map->sock->sk->sk_user_data = NULL;
+		map->sock->sk->sk_data_ready = map->saved_data_ready;
+		write_unlock_bh(&map->sock->sk->sk_callback_lock);
+	}
+
+	atomic_set(&map->release, 1);
+	flush_work(&map->ioworker.register_work);
+
+	xenbus_unmap_ring_vfree(dev, map->bytes);
+	xenbus_unmap_ring_vfree(dev, (void *)map->ring);
+	unbind_from_irqhandler(map->irq, map);
+
+	sock_release(map->sock);
+	kfree(map);
+
+	return 0;
+}
+
+static int pvcalls_back_release_passive(struct xenbus_device *dev,
+					struct pvcalls_fedata *fedata,
+					struct sockpass_mapping *mappass)
+{
+	if (mappass->sock->sk != NULL) {
+		write_lock_bh(&mappass->sock->sk->sk_callback_lock);
+		mappass->sock->sk->sk_user_data = NULL;
+		mappass->sock->sk->sk_data_ready = mappass->saved_data_ready;
+		write_unlock_bh(&mappass->sock->sk->sk_callback_lock);
+	}
+	sock_release(mappass->sock);
+	flush_workqueue(mappass->wq);
+	destroy_workqueue(mappass->wq);
+	kfree(mappass);
+
 	return 0;
 }
 
 static int pvcalls_back_release(struct xenbus_device *dev,
 				struct xen_pvcalls_request *req)
 {
+	struct pvcalls_fedata *fedata;
+	struct sock_mapping *map, *n;
+	struct sockpass_mapping *mappass;
+	int ret = 0;
+	struct xen_pvcalls_response *rsp;
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	down(&fedata->socket_lock);
+	list_for_each_entry_safe(map, n, &fedata->socket_mappings, list) {
+		if (map->id == req->u.release.id) {
+			list_del(&map->list);
+			up(&fedata->socket_lock);
+			ret = pvcalls_back_release_active(dev, fedata, map);
+			goto out;
+		}
+	}
+	mappass = radix_tree_lookup(&fedata->socketpass_mappings,
+				    req->u.release.id);
+	if (mappass != NULL) {
+		radix_tree_delete(&fedata->socketpass_mappings, mappass->id);
+		up(&fedata->socket_lock);
+		ret = pvcalls_back_release_passive(dev, fedata, mappass);
+	} else
+		up(&fedata->socket_lock);
+
+out:
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->u.release.id = req->u.release.id;
+	rsp->cmd = req->cmd;
+	rsp->ret = ret;
 	return 0;
 }
 
