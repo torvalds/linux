@@ -78,6 +78,18 @@ struct sock_mapping {
 	struct pvcalls_ioworker ioworker;
 };
 
+struct sockpass_mapping {
+	struct list_head list;
+	struct pvcalls_fedata *fedata;
+	struct socket *sock;
+	uint64_t id;
+	struct xen_pvcalls_request reqcopy;
+	spinlock_t copy_lock;
+	struct workqueue_struct *wq;
+	struct work_struct register_work;
+	void (*saved_data_ready)(struct sock *sk);
+};
+
 static irqreturn_t pvcalls_back_conn_event(int irq, void *sock_map);
 static int pvcalls_back_release_active(struct xenbus_device *dev,
 				       struct pvcalls_fedata *fedata,
@@ -268,9 +280,76 @@ static int pvcalls_back_release(struct xenbus_device *dev,
 	return 0;
 }
 
+static void __pvcalls_back_accept(struct work_struct *work)
+{
+}
+
+static void pvcalls_pass_sk_data_ready(struct sock *sock)
+{
+}
+
 static int pvcalls_back_bind(struct xenbus_device *dev,
 			     struct xen_pvcalls_request *req)
 {
+	struct pvcalls_fedata *fedata;
+	int ret;
+	struct sockpass_mapping *map;
+	struct xen_pvcalls_response *rsp;
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (map == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	INIT_WORK(&map->register_work, __pvcalls_back_accept);
+	spin_lock_init(&map->copy_lock);
+	map->wq = alloc_workqueue("pvcalls_wq", WQ_UNBOUND, 1);
+	if (!map->wq) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = sock_create(AF_INET, SOCK_STREAM, 0, &map->sock);
+	if (ret < 0)
+		goto out;
+
+	ret = inet_bind(map->sock, (struct sockaddr *)&req->u.bind.addr,
+			req->u.bind.len);
+	if (ret < 0)
+		goto out;
+
+	map->fedata = fedata;
+	map->id = req->u.bind.id;
+
+	down(&fedata->socket_lock);
+	ret = radix_tree_insert(&fedata->socketpass_mappings, map->id,
+				map);
+	up(&fedata->socket_lock);
+	if (ret)
+		goto out;
+
+	write_lock_bh(&map->sock->sk->sk_callback_lock);
+	map->saved_data_ready = map->sock->sk->sk_data_ready;
+	map->sock->sk->sk_user_data = map;
+	map->sock->sk->sk_data_ready = pvcalls_pass_sk_data_ready;
+	write_unlock_bh(&map->sock->sk->sk_callback_lock);
+
+out:
+	if (ret) {
+		if (map && map->sock)
+			sock_release(map->sock);
+		if (map && map->wq)
+			destroy_workqueue(map->wq);
+		kfree(map);
+	}
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->cmd = req->cmd;
+	rsp->u.bind.id = req->u.bind.id;
+	rsp->ret = ret;
 	return 0;
 }
 
