@@ -913,33 +913,22 @@ bool dc_enable_stereo(
 	return ret;
 }
 
-/* TODO operate on validation set (or something like it) */
-bool dc_commit_context(struct dc *dc, struct validate_context *context)
+
+/*
+ * Applies given context to HW and copy it into current context.
+ * It's up to the user to release the src context afterwards.
+ */
+static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *context)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	struct dc_bios *dcb = core_dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct pipe_ctx *pipe;
 	int i, j, k, l;
+	const struct dc_stream *dc_streams[MAX_STREAMS] = {0};
 
-	if (!context)
-		dm_logger_write(core_dc->ctx->logger, LOG_ERROR,
-				"%s: dc_commit_context with no context!\n",
-				__func__);
-
-	if (false == context_changed(core_dc, context))
-		return DC_OK;
-
-	dm_logger_write(core_dc->ctx->logger, LOG_DC, "%s: %d streams\n",
-				__func__, context->stream_count);
-
-	for (i = 0; i < context->stream_count; i++) {
-		const struct dc_stream *stream = &context->streams[i]->public;
-
-		dc_stream_log(stream,
-				core_dc->ctx->logger,
-				LOG_DC);
-	}
+	for (i = 0; i < context->stream_count; i++)
+		dc_streams[i] =  &context->streams[i]->public;
 
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		core_dc->hwss.enable_accelerated_mode(core_dc);
@@ -981,10 +970,38 @@ bool dc_commit_context(struct dc *dc, struct validate_context *context)
 				context->streams[i]->public.timing.pix_clk_khz);
 	}
 
+	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
+
 	dc_resource_validate_ctx_copy_construct(context, core_dc->current_context);
 
 	return (result == DC_OK);
 }
+
+bool dc_commit_context(struct dc *dc, struct validate_context *context)
+{
+	enum dc_status result = DC_ERROR_UNEXPECTED;
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	int i;
+
+	if (false == context_changed(core_dc, context))
+		return DC_OK;
+
+	dm_logger_write(core_dc->ctx->logger, LOG_DC, "%s: %d streams\n",
+				__func__, context->stream_count);
+
+	for (i = 0; i < context->stream_count; i++) {
+		const struct dc_stream *stream = &context->streams[i]->public;
+
+		dc_stream_log(stream,
+				core_dc->ctx->logger,
+				LOG_DC);
+	}
+
+	result = dc_commit_context_no_check(dc, context);
+
+	return (result == DC_OK);
+}
+
 
 bool dc_commit_streams(
 	struct dc *dc,
@@ -992,11 +1009,10 @@ bool dc_commit_streams(
 	uint8_t stream_count)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct dc_bios *dcb = core_dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 	struct dc_validation_set set[MAX_STREAMS] = { {0, {0} } };
-	int i, j;
+	int i;
 
 	if (false == streams_changed(core_dc, streams, stream_count))
 		return DC_OK;
@@ -1039,43 +1055,10 @@ bool dc_commit_streams(
 		goto fail;
 	}
 
-	if (!dcb->funcs->is_accelerated_mode(dcb)) {
-		core_dc->hwss.enable_accelerated_mode(core_dc);
-	}
+	result = dc_commit_context_no_check(dc, context);
 
-	if (result == DC_OK) {
-		result = core_dc->hwss.apply_ctx_to_hw(core_dc, context);
-	}
-
-	program_timing_sync(core_dc, context);
-
-	for (i = 0; i < context->stream_count; i++) {
-		const struct core_sink *sink = context->streams[i]->sink;
-
-		for (j = 0; j < context->stream_status[i].surface_count; j++) {
-			struct core_surface *surface =
-					DC_SURFACE_TO_CORE(context->stream_status[i].surfaces[j]);
-
-			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
-		}
-
-		CONN_MSG_MODE(sink->link, "{%ux%u, %ux%u@%u, %ux%u@%uKhz}",
-				context->streams[i]->public.src.width,
-				context->streams[i]->public.src.height,
-				context->streams[i]->public.timing.h_addressable,
-				context->streams[i]->public.timing.v_addressable,
-				context->streams[i]->public.timing.pix_clk_khz * 1000 /
-					context->streams[i]->public.timing.h_total /
-					context->streams[i]->public.timing.v_total, // Refresh rate
-				context->streams[i]->public.timing.h_total,
-				context->streams[i]->public.timing.v_total,
-				context->streams[i]->public.timing.pix_clk_khz);
-	}
-	dc_enable_stereo(dc, context, streams, stream_count);
-	dc_resource_validate_ctx_destruct(core_dc->current_context);
-	dm_free(core_dc->current_context);
-
-	core_dc->current_context = context;
+	dc_resource_validate_ctx_destruct(context);
+	dm_free(context);
 
 	return (result == DC_OK);
 
