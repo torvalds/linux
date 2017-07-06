@@ -1222,10 +1222,12 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 
-	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_ENABLE_REQUEST)
-		vgpu_vreg(vgpu, offset) |= HSW_PWR_WELL_STATE_ENABLED;
+	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_CTL_REQ(HSW_DISP_PW_GLOBAL))
+		vgpu_vreg(vgpu, offset) |=
+			HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
 	else
-		vgpu_vreg(vgpu, offset) &= ~HSW_PWR_WELL_STATE_ENABLED;
+		vgpu_vreg(vgpu, offset) &=
+			~HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
 	return 0;
 }
 

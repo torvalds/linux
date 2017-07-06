@@ -1140,9 +1140,6 @@ enum i915_power_well_id {
 	I915_DISP_PW_ALWAYS_ON = 20,
 };
 
-#define SKL_POWER_WELL_STATE(pw) (1 << ((pw) * 2))
-#define SKL_POWER_WELL_REQ(pw) (1 << (((pw) * 2) + 1))
-
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
 #define   PUNIT_PWRGT_MASK(power_well)		(3 << ((power_well) * 2))
@@ -8016,8 +8013,9 @@ enum {
 #define HSW_PWR_WELL_DRIVER			_MMIO(0x45404) /* CTL2 */
 #define HSW_PWR_WELL_KVMR			_MMIO(0x45408) /* CTL3 */
 #define HSW_PWR_WELL_DEBUG			_MMIO(0x4540C) /* CTL4 */
-#define   HSW_PWR_WELL_ENABLE_REQUEST		(1<<31)
-#define   HSW_PWR_WELL_STATE_ENABLED		(1<<30)
+#define _HSW_PW_SHIFT(pw)			((pw) * 2)
+#define   HSW_PWR_WELL_CTL_REQ(pw)		(1 << (_HSW_PW_SHIFT(pw) + 1))
+#define   HSW_PWR_WELL_CTL_STATE(pw)		(1 << _HSW_PW_SHIFT(pw))
 #define HSW_PWR_WELL_CTL5			_MMIO(0x45410)
 #define   HSW_PWR_WELL_ENABLE_SINGLE_STEP	(1<<31)
 #define   HSW_PWR_WELL_PWR_GATE_OVERRIDE	(1<<20)
