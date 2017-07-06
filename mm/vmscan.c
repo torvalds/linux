@@ -708,7 +708,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
 		mem_cgroup_swapout(page, swap);
 		__delete_from_swap_cache(page);
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
-		swapcache_free(swap);
+		put_swap_page(page, swap);
 	} else {
 		void (*freepage)(struct page *);
 		void *shadow = NULL;

@@ -1148,7 +1148,7 @@ void swap_free(swp_entry_t entry)
 /*
  * Called after dropping swapcache to decrease refcnt to swap entries.
  */
-void swapcache_free(swp_entry_t entry)
+static void swapcache_free(swp_entry_t entry)
 {
 	struct swap_info_struct *p;
 
@@ -1160,7 +1160,7 @@ void swapcache_free(swp_entry_t entry)
 }
 
 #ifdef CONFIG_THP_SWAP
-void swapcache_free_cluster(swp_entry_t entry)
+static void swapcache_free_cluster(swp_entry_t entry)
 {
 	unsigned long offset = swp_offset(entry);
 	unsigned long idx = offset / SWAPFILE_CLUSTER;
@@ -1184,7 +1184,19 @@ void swapcache_free_cluster(swp_entry_t entry)
 	swap_free_cluster(si, idx);
 	spin_unlock(&si->lock);
 }
+#else
+static inline void swapcache_free_cluster(swp_entry_t entry)
+{
+}
 #endif /* CONFIG_THP_SWAP */
+
+void put_swap_page(struct page *page, swp_entry_t entry)
+{
+	if (!PageTransHuge(page))
+		swapcache_free(entry);
+	else
+		swapcache_free_cluster(entry);
+}
 
 void swapcache_free_entries(swp_entry_t *entries, int n)
 {

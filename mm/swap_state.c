@@ -231,10 +231,7 @@ retry:
 	return 1;
 
 fail_free:
-	if (PageTransHuge(page))
-		swapcache_free_cluster(entry);
-	else
-		swapcache_free(entry);
+	put_swap_page(page, entry);
 fail:
 	if (PageTransHuge(page) && !split_huge_page_to_list(page, list))
 		goto retry;
@@ -259,11 +256,7 @@ void delete_from_swap_cache(struct page *page)
 	__delete_from_swap_cache(page);
 	spin_unlock_irq(&address_space->tree_lock);
 
-	if (PageTransHuge(page))
-		swapcache_free_cluster(entry);
-	else
-		swapcache_free(entry);
-
+	put_swap_page(page, entry);
 	page_ref_sub(page, hpage_nr_pages(page));
 }
 
@@ -415,7 +408,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
 		 * clear SWAP_HAS_CACHE flag.
 		 */
-		swapcache_free(entry);
+		put_swap_page(new_page, entry);
 	} while (err != -ENOMEM);
 
 	if (new_page)

@@ -1327,7 +1327,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 
 	mutex_unlock(&shmem_swaplist_mutex);
 free_swap:
-	swapcache_free(swap);
+	put_swap_page(page, swap);
 redirty:
 	set_page_dirty(page);
 	if (wbc->for_reclaim)

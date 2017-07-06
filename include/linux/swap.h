@@ -387,6 +387,7 @@ static inline long get_nr_swap_pages(void)
 
 extern void si_swapinfo(struct sysinfo *);
 extern swp_entry_t get_swap_page(struct page *page);
+extern void put_swap_page(struct page *page, swp_entry_t entry);
 extern swp_entry_t get_swap_page_of_type(int);
 extern int get_swap_pages(int n, bool cluster, swp_entry_t swp_entries[]);
 extern int add_swap_count_continuation(swp_entry_t, gfp_t);
@@ -394,7 +395,6 @@ extern void swap_shmem_alloc(swp_entry_t);
 extern int swap_duplicate(swp_entry_t);
 extern int swapcache_prepare(swp_entry_t);
 extern void swap_free(swp_entry_t);
-extern void swapcache_free(swp_entry_t);
 extern void swapcache_free_entries(swp_entry_t *entries, int n);
 extern int free_swap_and_cache(swp_entry_t);
 extern int swap_type_of(dev_t, sector_t, struct block_device **);
@@ -453,7 +453,7 @@ static inline void swap_free(swp_entry_t swp)
 {
 }
 
-static inline void swapcache_free(swp_entry_t swp)
+static inline void put_swap_page(struct page *page, swp_entry_t swp)
 {
 }
 
@@ -575,14 +575,6 @@ static inline long mem_cgroup_get_nr_swap_pages(struct mem_cgroup *memcg)
 static inline bool mem_cgroup_swap_full(struct page *page)
 {
 	return vm_swap_full();
-}
-#endif
-
-#ifdef CONFIG_THP_SWAP
-extern void swapcache_free_cluster(swp_entry_t entry);
-#else
-static inline void swapcache_free_cluster(swp_entry_t entry)
-{
 }
 #endif
 
