@@ -686,7 +686,8 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 		}
 	}
 
-	mdelay(3);	/* Power-on settling time */
+	/* Power-on settling time */
+	usleep_range(3000, 3500);
 
 	/*
 	 * NOW enable the ADC
@@ -853,7 +854,7 @@ static void tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 
 	/*gather the samples*/
 	for (i = 0; i < chip->tsl2x7x_settings.prox_max_samples_cal; i++) {
-		mdelay(15);
+		usleep_range(15000, 17500);
 		tsl2x7x_get_prox(indio_dev);
 		prox_history[i] = chip->prox_data;
 		dev_info(&chip->client->dev, "2 i=%d prox data= %d\n",
