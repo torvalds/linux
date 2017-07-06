@@ -1313,14 +1313,14 @@ bool is_page_sharing_candidate(struct stable_node *stable_node)
 	return __is_page_sharing_candidate(stable_node, 0);
 }
 
-static struct stable_node *stable_node_dup(struct stable_node **_stable_node,
-					   struct page **tree_page,
-					   struct rb_root *root,
-					   bool prune_stale_stable_nodes)
+struct page *stable_node_dup(struct stable_node **_stable_node_dup,
+			     struct stable_node **_stable_node,
+			     struct rb_root *root,
+			     bool prune_stale_stable_nodes)
 {
 	struct stable_node *dup, *found = NULL, *stable_node = *_stable_node;
 	struct hlist_node *hlist_safe;
-	struct page *_tree_page;
+	struct page *_tree_page, *tree_page = NULL;
 	int nr = 0;
 	int found_rmap_hlist_len;
 
@@ -1353,14 +1353,14 @@ static struct stable_node *stable_node_dup(struct stable_node **_stable_node,
 			if (!found ||
 			    dup->rmap_hlist_len > found_rmap_hlist_len) {
 				if (found)
-					put_page(*tree_page);
+					put_page(tree_page);
 				found = dup;
 				found_rmap_hlist_len = found->rmap_hlist_len;
-				*tree_page = _tree_page;
+				tree_page = _tree_page;
 
+				/* skip put_page for found dup */
 				if (!prune_stale_stable_nodes)
 					break;
-				/* skip put_page */
 				continue;
 			}
 		}
@@ -1417,7 +1417,8 @@ static struct stable_node *stable_node_dup(struct stable_node **_stable_node,
 		}
 	}
 
-	return found;
+	*_stable_node_dup = found;
+	return tree_page;
 }
 
 static struct stable_node *stable_node_dup_any(struct stable_node *stable_node,
@@ -1433,35 +1434,60 @@ static struct stable_node *stable_node_dup_any(struct stable_node *stable_node,
 			   typeof(*stable_node), hlist_dup);
 }
 
-static struct stable_node *__stable_node_chain(struct stable_node **_stable_node,
-					       struct page **tree_page,
-					       struct rb_root *root,
-					       bool prune_stale_stable_nodes)
+/*
+ * Like for get_ksm_page, this function can free the *_stable_node and
+ * *_stable_node_dup if the returned tree_page is NULL.
+ *
+ * It can also free and overwrite *_stable_node with the found
+ * stable_node_dup if the chain is collapsed (in which case
+ * *_stable_node will be equal to *_stable_node_dup like if the chain
+ * never existed). It's up to the caller to verify tree_page is not
+ * NULL before dereferencing *_stable_node or *_stable_node_dup.
+ *
+ * *_stable_node_dup is really a second output parameter of this
+ * function and will be overwritten in all cases, the caller doesn't
+ * need to initialize it.
+ */
+static struct page *__stable_node_chain(struct stable_node **_stable_node_dup,
+					struct stable_node **_stable_node,
+					struct rb_root *root,
+					bool prune_stale_stable_nodes)
 {
 	struct stable_node *stable_node = *_stable_node;
 	if (!is_stable_node_chain(stable_node)) {
 		if (is_page_sharing_candidate(stable_node)) {
-			*tree_page = get_ksm_page(stable_node, false);
-			return stable_node;
+			*_stable_node_dup = stable_node;
+			return get_ksm_page(stable_node, false);
 		}
+		/*
+		 * _stable_node_dup set to NULL means the stable_node
+		 * reached the ksm_max_page_sharing limit.
+		 */
+		*_stable_node_dup = NULL;
 		return NULL;
 	}
-	return stable_node_dup(_stable_node, tree_page, root,
+	return stable_node_dup(_stable_node_dup, _stable_node, root,
 			       prune_stale_stable_nodes);
 }
 
-static __always_inline struct stable_node *chain_prune(struct stable_node **s_n,
-						       struct page **t_p,
-						       struct rb_root *root)
+static __always_inline struct page *chain_prune(struct stable_node **s_n_d,
+						struct stable_node **s_n,
+						struct rb_root *root)
 {
-	return __stable_node_chain(s_n, t_p, root, true);
+	return __stable_node_chain(s_n_d, s_n, root, true);
 }
 
-static __always_inline struct stable_node *chain(struct stable_node *s_n,
-						 struct page **t_p,
-						 struct rb_root *root)
+static __always_inline struct page *chain(struct stable_node **s_n_d,
+					  struct stable_node *s_n,
+					  struct rb_root *root)
 {
-	return __stable_node_chain(&s_n, t_p, root, false);
+	struct stable_node *old_stable_node = s_n;
+	struct page *tree_page;
+
+	tree_page = __stable_node_chain(s_n_d, &s_n, root, false);
+	/* not pruning dups so s_n cannot have changed */
+	VM_BUG_ON(s_n != old_stable_node);
+	return tree_page;
 }
 
 /*
@@ -1502,7 +1528,7 @@ again:
 		cond_resched();
 		stable_node = rb_entry(*new, struct stable_node, node);
 		stable_node_any = NULL;
-		stable_node_dup = chain_prune(&stable_node, &tree_page, root);
+		tree_page = chain_prune(&stable_node_dup, &stable_node,	root);
 		/*
 		 * NOTE: stable_node may have been freed by
 		 * chain_prune() if the returned stable_node_dup is
@@ -1743,7 +1769,7 @@ again:
 		cond_resched();
 		stable_node = rb_entry(*new, struct stable_node, node);
 		stable_node_any = NULL;
-		stable_node_dup = chain(stable_node, &tree_page, root);
+		tree_page = chain(&stable_node_dup, stable_node, root);
 		if (!stable_node_dup) {
 			/*
 			 * Either all stable_node dups were full in
