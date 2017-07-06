@@ -54,6 +54,39 @@ struct pvcalls_fedata {
 	struct semaphore socket_lock;
 };
 
+struct pvcalls_ioworker {
+	struct work_struct register_work;
+	struct workqueue_struct *wq;
+};
+
+struct sock_mapping {
+	struct list_head list;
+	struct pvcalls_fedata *fedata;
+	struct socket *sock;
+	uint64_t id;
+	grant_ref_t ref;
+	struct pvcalls_data_intf *ring;
+	void *bytes;
+	struct pvcalls_data data;
+	uint32_t ring_order;
+	int irq;
+	atomic_t read;
+	atomic_t write;
+	atomic_t io;
+	atomic_t release;
+	void (*saved_data_ready)(struct sock *sk);
+	struct pvcalls_ioworker ioworker;
+};
+
+static irqreturn_t pvcalls_back_conn_event(int irq, void *sock_map);
+static int pvcalls_back_release_active(struct xenbus_device *dev,
+				       struct pvcalls_fedata *fedata,
+				       struct sock_mapping *map);
+
+static void pvcalls_back_ioworker(struct work_struct *work)
+{
+}
+
 static int pvcalls_back_socket(struct xenbus_device *dev,
 		struct xen_pvcalls_request *req)
 {
@@ -82,8 +115,149 @@ static int pvcalls_back_socket(struct xenbus_device *dev,
 	return 0;
 }
 
+static void pvcalls_sk_state_change(struct sock *sock)
+{
+	struct sock_mapping *map = sock->sk_user_data;
+	struct pvcalls_data_intf *intf;
+
+	if (map == NULL)
+		return;
+
+	intf = map->ring;
+	intf->in_error = -ENOTCONN;
+	notify_remote_via_irq(map->irq);
+}
+
+static void pvcalls_sk_data_ready(struct sock *sock)
+{
+}
+
+static struct sock_mapping *pvcalls_new_active_socket(
+		struct pvcalls_fedata *fedata,
+		uint64_t id,
+		grant_ref_t ref,
+		uint32_t evtchn,
+		struct socket *sock)
+{
+	int ret;
+	struct sock_mapping *map;
+	void *page;
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (map == NULL)
+		return NULL;
+
+	map->fedata = fedata;
+	map->sock = sock;
+	map->id = id;
+	map->ref = ref;
+
+	ret = xenbus_map_ring_valloc(fedata->dev, &ref, 1, &page);
+	if (ret < 0)
+		goto out;
+	map->ring = page;
+	map->ring_order = map->ring->ring_order;
+	/* first read the order, then map the data ring */
+	virt_rmb();
+	if (map->ring_order > MAX_RING_ORDER) {
+		pr_warn("%s frontend requested ring_order %u, which is > MAX (%u)\n",
+				__func__, map->ring_order, MAX_RING_ORDER);
+		goto out;
+	}
+	ret = xenbus_map_ring_valloc(fedata->dev, map->ring->ref,
+				     (1 << map->ring_order), &page);
+	if (ret < 0)
+		goto out;
+	map->bytes = page;
+
+	ret = bind_interdomain_evtchn_to_irqhandler(fedata->dev->otherend_id,
+						    evtchn,
+						    pvcalls_back_conn_event,
+						    0,
+						    "pvcalls-backend",
+						    map);
+	if (ret < 0)
+		goto out;
+	map->irq = ret;
+
+	map->data.in = map->bytes;
+	map->data.out = map->bytes + XEN_FLEX_RING_SIZE(map->ring_order);
+
+	map->ioworker.wq = alloc_workqueue("pvcalls_io", WQ_UNBOUND, 1);
+	if (!map->ioworker.wq)
+		goto out;
+	atomic_set(&map->io, 1);
+	INIT_WORK(&map->ioworker.register_work,	pvcalls_back_ioworker);
+
+	down(&fedata->socket_lock);
+	list_add_tail(&map->list, &fedata->socket_mappings);
+	up(&fedata->socket_lock);
+
+	write_lock_bh(&map->sock->sk->sk_callback_lock);
+	map->saved_data_ready = map->sock->sk->sk_data_ready;
+	map->sock->sk->sk_user_data = map;
+	map->sock->sk->sk_data_ready = pvcalls_sk_data_ready;
+	map->sock->sk->sk_state_change = pvcalls_sk_state_change;
+	write_unlock_bh(&map->sock->sk->sk_callback_lock);
+
+	return map;
+out:
+	down(&fedata->socket_lock);
+	list_del(&map->list);
+	pvcalls_back_release_active(fedata->dev, fedata, map);
+	up(&fedata->socket_lock);
+	return NULL;
+}
+
 static int pvcalls_back_connect(struct xenbus_device *dev,
 				struct xen_pvcalls_request *req)
+{
+	struct pvcalls_fedata *fedata;
+	int ret = -EINVAL;
+	struct socket *sock;
+	struct sock_mapping *map;
+	struct xen_pvcalls_response *rsp;
+	struct sockaddr *sa = (struct sockaddr *)&req->u.connect.addr;
+
+	fedata = dev_get_drvdata(&dev->dev);
+
+	if (req->u.connect.len < sizeof(sa->sa_family) ||
+	    req->u.connect.len > sizeof(req->u.connect.addr) ||
+	    sa->sa_family != AF_INET)
+		goto out;
+
+	ret = sock_create(AF_INET, SOCK_STREAM, 0, &sock);
+	if (ret < 0)
+		goto out;
+	ret = inet_stream_connect(sock, sa, req->u.connect.len, 0);
+	if (ret < 0) {
+		sock_release(sock);
+		goto out;
+	}
+
+	map = pvcalls_new_active_socket(fedata,
+					req->u.connect.id,
+					req->u.connect.ref,
+					req->u.connect.evtchn,
+					sock);
+	if (!map) {
+		ret = -EFAULT;
+		sock_release(map->sock);
+	}
+
+out:
+	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
+	rsp->req_id = req->req_id;
+	rsp->cmd = req->cmd;
+	rsp->u.connect.id = req->u.connect.id;
+	rsp->ret = ret;
+
+	return 0;
+}
+
+static int pvcalls_back_release_active(struct xenbus_device *dev,
+				       struct pvcalls_fedata *fedata,
+				       struct sock_mapping *map)
 {
 	return 0;
 }
@@ -203,6 +377,11 @@ static irqreturn_t pvcalls_back_event(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	pvcalls_back_work(fedata);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t pvcalls_back_conn_event(int irq, void *sock_map)
+{
 	return IRQ_HANDLED;
 }
 
