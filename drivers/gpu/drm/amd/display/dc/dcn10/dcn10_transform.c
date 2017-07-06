@@ -171,8 +171,8 @@ static enum dscl_mode_sel get_dscl_mode(
 			&& data->format <= PIXEL_FORMAT_VIDEO_END)
 		ycbcr = true;
 
-	if (data->format == PIXEL_FORMAT_420BPP12 ||
-			data->format == PIXEL_FORMAT_420BPP15)
+	if (data->format == PIXEL_FORMAT_420BPP8 ||
+			data->format == PIXEL_FORMAT_420BPP10)
 		format420 = true;
 
 	if (data->ratios.horz.value == one
@@ -579,8 +579,8 @@ static enum lb_memory_config find_lb_memory_config(const struct scaler_data *scl
 			&& is_lb_conf_valid(ceil_vratio_c, num_part_c, vtaps_c))
 		return LB_MEMORY_CONFIG_2;
 
-	if (scl_data->format == PIXEL_FORMAT_420BPP12
-			|| scl_data->format == PIXEL_FORMAT_420BPP15) {
+	if (scl_data->format == PIXEL_FORMAT_420BPP8
+			|| scl_data->format == PIXEL_FORMAT_420BPP10) {
 		calc_lb_num_partitions(
 				scl_data, LB_MEMORY_CONFIG_3, &num_part_y, &num_part_c);
 
@@ -675,7 +675,8 @@ static void transform_set_recout(
 			 RECOUT_WIDTH, recout->width,
 		/* Number of RECOUT vertical lines */
 			 RECOUT_HEIGHT, recout->height
-			 - xfm->base.ctx->dc->debug.surface_visual_confirm * 2);
+			 - xfm->base.ctx->dc->debug.surface_visual_confirm * 4 *
+			 (xfm->base.inst + 1));
 }
 
 static void transform_set_manual_ratio_init(
@@ -1038,12 +1039,14 @@ static struct transform_funcs dcn10_transform_funcs = {
 bool dcn10_transform_construct(
 	struct dcn10_transform *xfm,
 	struct dc_context *ctx,
+	uint32_t inst,
 	const struct dcn_transform_registers *tf_regs,
 	const struct dcn_transform_shift *tf_shift,
 	const struct dcn_transform_mask *tf_mask)
 {
 	xfm->base.ctx = ctx;
 
+	xfm->base.inst = inst;
 	xfm->base.funcs = &dcn10_transform_funcs;
 
 	xfm->tf_regs = tf_regs;

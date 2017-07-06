@@ -1390,6 +1390,42 @@ static bool is_rgb_cspace(enum dc_color_space output_color_space)
 	}
 }
 
+static void dcn10_get_surface_visual_confirm_color(
+		const struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+
+	switch (pipe_ctx->scl_data.format) {
+	case PIXEL_FORMAT_ARGB8888:
+		/* set boarder color to red */
+		color->color_r_cr = color_value;
+		break;
+
+	case PIXEL_FORMAT_ARGB2101010:
+		/* set boarder color to blue */
+		color->color_b_cb = color_value;
+		break;
+	case PIXEL_FORMAT_420BPP8:
+		/* set boarder color to green */
+		color->color_g_y = color_value;
+		break;
+	case PIXEL_FORMAT_420BPP10:
+		/* set boarder color to yellow */
+		color->color_g_y = color_value;
+		color->color_r_cr = color_value;
+		break;
+	case PIXEL_FORMAT_FP16:
+		/* set boarder color to white */
+		color->color_r_cr = color_value;
+		color->color_b_cb = color_value;
+		color->color_g_y = color_value;
+		break;
+	default:
+		break;
+	}
+}
+
 static void update_dchubp_dpp(
 	struct core_dc *dc,
 	struct pipe_ctx *pipe_ctx,
@@ -1462,8 +1498,13 @@ static void update_dchubp_dpp(
 					&& per_pixel_alpha;
 	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
 
-	color_space_to_black_color(
-		dc, pipe_ctx->stream->public.output_color_space, &black_color);
+	if (dc->public.debug.surface_visual_confirm) {
+		dcn10_get_surface_visual_confirm_color(pipe_ctx, &black_color);
+	} else {
+		color_space_to_black_color(
+			dc, pipe_ctx->stream->public.output_color_space,
+			&black_color);
+	}
 	pipe_ctx->mpcc->funcs->set_bg_color(pipe_ctx->mpcc, &black_color);
 
 	pipe_ctx->scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;

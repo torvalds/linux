@@ -399,11 +399,11 @@ static enum pixel_format convert_pixel_format_to_dalsurface(
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
-		dal_pixel_format = PIXEL_FORMAT_420BPP12;
+		dal_pixel_format = PIXEL_FORMAT_420BPP8;
 		break;
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
-		dal_pixel_format = PIXEL_FORMAT_420BPP15;
+		dal_pixel_format = PIXEL_FORMAT_420BPP10;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	default:
@@ -433,8 +433,8 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	struct scaler_data *data = &pipe_ctx->scl_data;
 	struct rect surf_src = surface->src_rect;
 	struct rect clip = { 0 };
-	int vpc_div = (data->format == PIXEL_FORMAT_420BPP12
-			|| data->format == PIXEL_FORMAT_420BPP15) ? 2 : 1;
+	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
+			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
 	bool pri_split = pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->surface == pipe_ctx->surface;
 	bool sec_split = pipe_ctx->top_pipe &&
@@ -637,8 +637,8 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->scl_data.ratios.horz_c = pipe_ctx->scl_data.ratios.horz;
 	pipe_ctx->scl_data.ratios.vert_c = pipe_ctx->scl_data.ratios.vert;
 
-	if (pipe_ctx->scl_data.format == PIXEL_FORMAT_420BPP12
-			|| pipe_ctx->scl_data.format == PIXEL_FORMAT_420BPP15) {
+	if (pipe_ctx->scl_data.format == PIXEL_FORMAT_420BPP8
+			|| pipe_ctx->scl_data.format == PIXEL_FORMAT_420BPP10) {
 		pipe_ctx->scl_data.ratios.horz_c.value /= 2;
 		pipe_ctx->scl_data.ratios.vert_c.value /= 2;
 	}
@@ -648,8 +648,8 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 {
 	struct scaler_data *data = &pipe_ctx->scl_data;
 	struct rect src = pipe_ctx->surface->public.src_rect;
-	int vpc_div = (data->format == PIXEL_FORMAT_420BPP12
-			|| data->format == PIXEL_FORMAT_420BPP15) ? 2 : 1;
+	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
+			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
 
 
 	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||

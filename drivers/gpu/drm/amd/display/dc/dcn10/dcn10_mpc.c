@@ -25,6 +25,7 @@
 
 #include "reg_helper.h"
 #include "dcn10_mpc.h"
+#include "dc.h"
 
 #define REG(reg)\
 	mpcc10->mpcc_regs->reg
@@ -85,6 +86,8 @@ static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
 			BLND_PP_ALPHA : BLND_GLOBAL_ALPHA;
 	int mpcc_mode = cfg->bot_mpcc_id != 0xf ?
 				MODE_BLEND : MODE_TOP_ONLY;
+	bool blend_active_only = cfg->top_of_tree &&
+			!mpcc->ctx->dc->debug.surface_visual_confirm;
 
 	REG_SET(MPCC_OPP_ID, 0,
 		MPCC_OPP_ID, cfg->opp_id);
@@ -99,7 +102,7 @@ static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
 		MPCC_MODE, mpcc_mode,
 		MPCC_ALPHA_BLND_MODE, alpha_blnd_mode,
 		MPCC_ALPHA_MULTIPLIED_MODE, cfg->pre_multiplied_alpha,
-		MPCC_BLND_ACTIVE_OVERLAP_ONLY, cfg->top_of_tree);
+		MPCC_BLND_ACTIVE_OVERLAP_ONLY, blend_active_only);
 
 	if (cfg->top_of_tree) {
 		if (cfg->opp_id != 0xf)

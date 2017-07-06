@@ -413,6 +413,7 @@ struct dcn10_transform {
 
 bool dcn10_transform_construct(struct dcn10_transform *xfm110,
 	struct dc_context *ctx,
+	uint32_t inst,
 	const struct dcn_transform_registers *tf_regs,
 	const struct dcn_transform_shift *tf_shift,
 	const struct dcn_transform_mask *tf_mask);

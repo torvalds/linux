@@ -465,7 +465,7 @@ static struct transform *dcn10_transform_create(
 	if (!transform)
 		return NULL;
 
-	if (dcn10_transform_construct(transform, ctx,
+	if (dcn10_transform_construct(transform, ctx, inst,
 			&tf_regs[inst], &tf_shift, &tf_mask))
 		return &transform->base;
 

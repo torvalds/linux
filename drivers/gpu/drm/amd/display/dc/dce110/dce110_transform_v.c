@@ -59,7 +59,7 @@ static void calculate_viewport(
 	chroma_viewport->height = luma_viewport->height;
 	chroma_viewport->width = luma_viewport->width;
 
-	if (scl_data->format == PIXEL_FORMAT_420BPP12) {
+	if (scl_data->format == PIXEL_FORMAT_420BPP8) {
 		luma_viewport->height += luma_viewport->height % 2;
 		luma_viewport->width += luma_viewport->width % 2;
 		/*for 420 video chroma is 1/4 the area of luma, scaled
@@ -184,7 +184,7 @@ static bool setup_scaling_configuration(
 		set_reg_field_value(value, 1, SCLV_MODE, SCL_MODE_C);
 		set_reg_field_value(value, 1, SCLV_MODE, SCL_PSCL_EN_C);
 		is_scaling_needed = true;
-	} else if (data->format != PIXEL_FORMAT_420BPP12) {
+	} else if (data->format != PIXEL_FORMAT_420BPP8) {
 		set_reg_field_value(
 			value,
 			get_reg_field_value(value, SCLV_MODE, SCL_MODE),
