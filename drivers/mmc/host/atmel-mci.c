@@ -1083,7 +1083,6 @@ static u32
 atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 {
 	u32 iflags, tmp;
-	unsigned int sg_len;
 	int i;
 
 	data->error = -EINPROGRESS;
@@ -1108,8 +1107,8 @@ atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 
 	/* Configure PDC */
 	host->data_size = data->blocks * data->blksz;
-	sg_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len,
-			    mmc_get_dma_dir(data));
+	dma_map_sg(&host->pdev->dev, data->sg, data->sg_len,
+		   mmc_get_dma_dir(data));
 
 	if ((!host->caps.has_rwproof)
 	    && (host->data->flags & MMC_DATA_WRITE)) {
