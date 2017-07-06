@@ -30,9 +30,38 @@ struct memory_block;
 extern struct node *node_devices[];
 typedef  void (*node_registration_func_t)(struct node *);
 
+#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_NUMA)
+extern int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages);
+#else
+static inline int link_mem_sections(int nid, unsigned long start_pfn, unsigned long nr_pages)
+{
+	return 0;
+}
+#endif
+
 extern void unregister_node(struct node *node);
 #ifdef CONFIG_NUMA
-extern int register_one_node(int nid);
+/* Core of the node registration - only memory hotplug should use this */
+extern int __register_one_node(int nid);
+
+/* Registers an online node */
+static inline int register_one_node(int nid)
+{
+	int error = 0;
+
+	if (node_online(nid)) {
+		struct pglist_data *pgdat = NODE_DATA(nid);
+
+		error = __register_one_node(nid);
+		if (error)
+			return error;
+		/* link memory sections under this node */
+		error = link_mem_sections(nid, pgdat->node_start_pfn, pgdat->node_spanned_pages);
+	}
+
+	return error;
+}
+
 extern void unregister_one_node(int nid);
 extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
 extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
@@ -46,6 +75,10 @@ extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
 					 node_registration_func_t unregister);
 #endif
 #else
+static inline int __register_one_node(int nid)
+{
+	return 0;
+}
 static inline int register_one_node(int nid)
 {
 	return 0;
