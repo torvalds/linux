@@ -1188,6 +1188,30 @@ static bool update_checksum(struct kmemleak_object *object)
 }
 
 /*
+ * Update an object's references. object->lock must be held by the caller.
+ */
+static void update_refs(struct kmemleak_object *object)
+{
+	if (!color_white(object)) {
+		/* non-orphan, ignored or new */
+		return;
+	}
+
+	/*
+	 * Increase the object's reference count (number of pointers to the
+	 * memory block). If this count reaches the required minimum, the
+	 * object's color will become gray and it will be added to the
+	 * gray_list.
+	 */
+	object->count++;
+	if (color_gray(object)) {
+		/* put_object() called when removing from gray_list */
+		WARN_ON(!get_object(object));
+		list_add_tail(&object->gray_list, &gray_list);
+	}
+}
+
+/*
  * Memory scanning is a long process and it needs to be interruptable. This
  * function checks whether such interrupt condition occurred.
  */
@@ -1259,24 +1283,7 @@ static void scan_block(void *_start, void *_end,
 		 * enclosed by scan_mutex.
 		 */
 		spin_lock_nested(&object->lock, SINGLE_DEPTH_NESTING);
-		if (!color_white(object)) {
-			/* non-orphan, ignored or new */
-			spin_unlock(&object->lock);
-			continue;
-		}
-
-		/*
-		 * Increase the object's reference count (number of pointers
-		 * to the memory block). If this count reaches the required
-		 * minimum, the object's color will become gray and it will be
-		 * added to the gray_list.
-		 */
-		object->count++;
-		if (color_gray(object)) {
-			/* put_object() called when removing from gray_list */
-			WARN_ON(!get_object(object));
-			list_add_tail(&object->gray_list, &gray_list);
-		}
+		update_refs(object);
 		spin_unlock(&object->lock);
 	}
 	read_unlock_irqrestore(&kmemleak_lock, flags);
