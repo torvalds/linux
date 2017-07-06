@@ -358,13 +358,25 @@ struct fscrypt_key {
 #define SYNC_FILE_RANGE_WRITE		2
 #define SYNC_FILE_RANGE_WAIT_AFTER	4
 
-/* flags for preadv2/pwritev2: */
-#define RWF_HIPRI			0x00000001 /* high priority request, poll if possible */
-#define RWF_DSYNC			0x00000002 /* per-IO O_DSYNC */
-#define RWF_SYNC			0x00000004 /* per-IO O_SYNC */
-#define RWF_NOWAIT			0x00000008 /* per-IO, return -EAGAIN if operation would block */
+/*
+ * Flags for preadv2/pwritev2:
+ */
 
-#define RWF_SUPPORTED			(RWF_HIPRI | RWF_DSYNC | RWF_SYNC |\
-					 RWF_NOWAIT)
+typedef int __bitwise __kernel_rwf_t;
+
+/* high priority request, poll if possible */
+#define RWF_HIPRI	((__force __kernel_rwf_t)0x00000001)
+
+/* per-IO O_DSYNC */
+#define RWF_DSYNC	((__force __kernel_rwf_t)0x00000002)
+
+/* per-IO O_SYNC */
+#define RWF_SYNC	((__force __kernel_rwf_t)0x00000004)
+
+/* per-IO, return -EAGAIN if operation would block */
+#define RWF_NOWAIT	((__force __kernel_rwf_t)0x00000008)
+
+/* mask of flags supported by the kernel */
+#define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_NOWAIT)
 
 #endif /* _UAPI_LINUX_FS_H */
