@@ -859,11 +859,14 @@ config CGROUP_BPF
 	  inet sockets.
 
 config CGROUP_DEBUG
-	bool "Example controller"
+	bool "Debug controller"
 	default n
+	depends on DEBUG_KERNEL
 	help
 	  This option enables a simple controller that exports
-	  debugging information about the cgroups framework.
+	  debugging information about the cgroups framework. This
+	  controller is for control cgroup debugging only. Its
+	  interfaces are not stable.
 
 	  Say N.
 
