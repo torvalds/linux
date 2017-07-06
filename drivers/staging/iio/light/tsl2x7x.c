@@ -1218,78 +1218,101 @@ static int tsl2x7x_write_interrupt_config(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int tsl2x7x_write_thresh(struct iio_dev *indio_dev,
-				const struct iio_chan_spec *chan,
-				enum iio_event_type type,
-				enum iio_event_direction dir,
-				enum iio_event_info info,
-				int val, int val2)
+static int tsl2x7x_write_event_value(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir,
+				     enum iio_event_info info,
+				     int val, int val2)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
+	int ret = -EINVAL;
 
-	if (chan->type == IIO_INTENSITY) {
-		switch (dir) {
-		case IIO_EV_DIR_RISING:
-			chip->tsl2x7x_settings.als_thresh_high = val;
-			break;
-		case IIO_EV_DIR_FALLING:
-			chip->tsl2x7x_settings.als_thresh_low = val;
-			break;
-		default:
-			return -EINVAL;
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		if (chan->type == IIO_INTENSITY) {
+			switch (dir) {
+			case IIO_EV_DIR_RISING:
+				chip->tsl2x7x_settings.als_thresh_high = val;
+				ret = 0;
+				break;
+			case IIO_EV_DIR_FALLING:
+				chip->tsl2x7x_settings.als_thresh_low = val;
+				ret = 0;
+				break;
+			default:
+				break;
+			}
+		} else {
+			switch (dir) {
+			case IIO_EV_DIR_RISING:
+				chip->tsl2x7x_settings.prox_thres_high = val;
+				ret = 0;
+				break;
+			case IIO_EV_DIR_FALLING:
+				chip->tsl2x7x_settings.prox_thres_low = val;
+				ret = 0;
+				break;
+			default:
+				break;
+			}
 		}
-	} else {
-		switch (dir) {
-		case IIO_EV_DIR_RISING:
-			chip->tsl2x7x_settings.prox_thres_high = val;
-			break;
-		case IIO_EV_DIR_FALLING:
-			chip->tsl2x7x_settings.prox_thres_low = val;
-			break;
-		default:
-			return -EINVAL;
-		}
+		break;
+	default:
+		break;
 	}
 
-	tsl2x7x_invoke_change(indio_dev);
+	if (ret < 0)
+		return ret;
 
-	return 0;
+	return tsl2x7x_invoke_change(indio_dev);
 }
 
-static int tsl2x7x_read_thresh(struct iio_dev *indio_dev,
-			       const struct iio_chan_spec *chan,
-			       enum iio_event_type type,
-			       enum iio_event_direction dir,
-				   enum iio_event_info info,
-			       int *val, int *val2)
+static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir,
+				    enum iio_event_info info,
+				    int *val, int *val2)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
+	int ret = -EINVAL;
 
-	if (chan->type == IIO_INTENSITY) {
-		switch (dir) {
-		case IIO_EV_DIR_RISING:
-			*val = chip->tsl2x7x_settings.als_thresh_high;
-			break;
-		case IIO_EV_DIR_FALLING:
-			*val = chip->tsl2x7x_settings.als_thresh_low;
-			break;
-		default:
-			return -EINVAL;
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		if (chan->type == IIO_INTENSITY) {
+			switch (dir) {
+			case IIO_EV_DIR_RISING:
+				*val = chip->tsl2x7x_settings.als_thresh_high;
+				ret = IIO_VAL_INT;
+				break;
+			case IIO_EV_DIR_FALLING:
+				*val = chip->tsl2x7x_settings.als_thresh_low;
+				ret = IIO_VAL_INT;
+				break;
+			default:
+				break;
+			}
+		} else {
+			switch (dir) {
+			case IIO_EV_DIR_RISING:
+				*val = chip->tsl2x7x_settings.prox_thres_high;
+				ret = IIO_VAL_INT;
+				break;
+			case IIO_EV_DIR_FALLING:
+				*val = chip->tsl2x7x_settings.prox_thres_low;
+				ret = IIO_VAL_INT;
+				break;
+			default:
+				break;
+			}
 		}
-	} else {
-		switch (dir) {
-		case IIO_EV_DIR_RISING:
-			*val = chip->tsl2x7x_settings.prox_thres_high;
-			break;
-		case IIO_EV_DIR_FALLING:
-			*val = chip->tsl2x7x_settings.prox_thres_low;
-			break;
-		default:
-			return -EINVAL;
-		}
+		break;
+	default:
+		break;
 	}
 
-	return IIO_VAL_INT;
+	return ret;
 }
 
 static int tsl2x7x_read_raw(struct iio_dev *indio_dev,
@@ -1614,8 +1637,8 @@ static const struct iio_info tsl2X7X_device_info[] = {
 		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_thresh,
-		.write_event_value = &tsl2x7x_write_thresh,
+		.read_event_value = &tsl2x7x_read_event_value,
+		.write_event_value = &tsl2x7x_write_event_value,
 		.read_event_config = &tsl2x7x_read_interrupt_config,
 		.write_event_config = &tsl2x7x_write_interrupt_config,
 	},
@@ -1625,8 +1648,8 @@ static const struct iio_info tsl2X7X_device_info[] = {
 		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_thresh,
-		.write_event_value = &tsl2x7x_write_thresh,
+		.read_event_value = &tsl2x7x_read_event_value,
+		.write_event_value = &tsl2x7x_write_event_value,
 		.read_event_config = &tsl2x7x_read_interrupt_config,
 		.write_event_config = &tsl2x7x_write_interrupt_config,
 	},
@@ -1636,8 +1659,8 @@ static const struct iio_info tsl2X7X_device_info[] = {
 		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_thresh,
-		.write_event_value = &tsl2x7x_write_thresh,
+		.read_event_value = &tsl2x7x_read_event_value,
+		.write_event_value = &tsl2x7x_write_event_value,
 		.read_event_config = &tsl2x7x_read_interrupt_config,
 		.write_event_config = &tsl2x7x_write_interrupt_config,
 	},
@@ -1647,8 +1670,8 @@ static const struct iio_info tsl2X7X_device_info[] = {
 		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_thresh,
-		.write_event_value = &tsl2x7x_write_thresh,
+		.read_event_value = &tsl2x7x_read_event_value,
+		.write_event_value = &tsl2x7x_write_event_value,
 		.read_event_config = &tsl2x7x_read_interrupt_config,
 		.write_event_config = &tsl2x7x_write_interrupt_config,
 	},
@@ -1658,8 +1681,8 @@ static const struct iio_info tsl2X7X_device_info[] = {
 		.driver_module = THIS_MODULE,
 		.read_raw = &tsl2x7x_read_raw,
 		.write_raw = &tsl2x7x_write_raw,
-		.read_event_value = &tsl2x7x_read_thresh,
-		.write_event_value = &tsl2x7x_write_thresh,
+		.read_event_value = &tsl2x7x_read_event_value,
+		.write_event_value = &tsl2x7x_write_event_value,
 		.read_event_config = &tsl2x7x_read_interrupt_config,
 		.write_event_config = &tsl2x7x_write_interrupt_config,
 	},
