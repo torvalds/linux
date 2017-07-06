@@ -1582,9 +1582,10 @@ static void nvme_free_host_mem(struct nvme_dev *dev)
 static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
 {
 	struct nvme_host_mem_buf_desc *descs;
-	u32 chunk_size, max_entries, i = 0;
+	u32 chunk_size, max_entries;
+	int i = 0;
 	void **bufs;
-	u64 size, tmp;
+	u64 size = 0, tmp;
 
 	/* start big and work our way down */
 	chunk_size = min(preferred, (u64)PAGE_SIZE << MAX_ORDER);
