@@ -963,19 +963,19 @@ static void skl_power_well_disable(struct drm_i915_private *dev_priv,
 static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_init(dev_priv, power_well->data);
+	bxt_ddi_phy_init(dev_priv, power_well->bxt.phy);
 }
 
 static void bxt_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_uninit(dev_priv, power_well->data);
+	bxt_ddi_phy_uninit(dev_priv, power_well->bxt.phy);
 }
 
 static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	return bxt_ddi_phy_is_enabled(dev_priv, power_well->data);
+	return bxt_ddi_phy_is_enabled(dev_priv, power_well->bxt.phy);
 }
 
 static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
@@ -984,16 +984,16 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_A);
 	if (power_well->count > 0)
-		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+		bxt_ddi_phy_verify_state(dev_priv, power_well->bxt.phy);
 
 	power_well = lookup_power_well(dev_priv, BXT_DPIO_CMN_BC);
 	if (power_well->count > 0)
-		bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+		bxt_ddi_phy_verify_state(dev_priv, power_well->bxt.phy);
 
 	if (IS_GEMINILAKE(dev_priv)) {
 		power_well = lookup_power_well(dev_priv, GLK_DPIO_CMN_C);
 		if (power_well->count > 0)
-			bxt_ddi_phy_verify_state(dev_priv, power_well->data);
+			bxt_ddi_phy_verify_state(dev_priv, power_well->bxt.phy);
 	}
 }
 
@@ -2315,14 +2315,14 @@ static struct i915_power_well bxt_power_wells[] = {
 		.domains = BXT_DPIO_CMN_A_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_A,
-		.data = DPIO_PHY1,
+		.bxt.phy = DPIO_PHY1,
 	},
 	{
 		.name = "dpio-common-bc",
 		.domains = BXT_DPIO_CMN_BC_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_BC,
-		.data = DPIO_PHY0,
+		.bxt.phy = DPIO_PHY0,
 	},
 };
 
@@ -2358,21 +2358,21 @@ static struct i915_power_well glk_power_wells[] = {
 		.domains = GLK_DPIO_CMN_A_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_A,
-		.data = DPIO_PHY1,
+		.bxt.phy = DPIO_PHY1,
 	},
 	{
 		.name = "dpio-common-b",
 		.domains = GLK_DPIO_CMN_B_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_BC,
-		.data = DPIO_PHY0,
+		.bxt.phy = DPIO_PHY0,
 	},
 	{
 		.name = "dpio-common-c",
 		.domains = GLK_DPIO_CMN_C_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = GLK_DPIO_CMN_C,
-		.data = DPIO_PHY2,
+		.bxt.phy = DPIO_PHY2,
 	},
 	{
 		.name = "AUX A",
