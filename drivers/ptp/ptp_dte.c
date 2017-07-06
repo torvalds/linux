@@ -40,7 +40,7 @@
 #define DTE_WRAP_AROUND_NSEC_SHIFT 44
 
 /* 44 bits NCO */
-#define DTE_NCO_MAX_NS	0xFFFFFFFFFFF
+#define DTE_NCO_MAX_NS	0xFFFFFFFFFFFLL
 
 /* 125MHz with 3.29 reg cfg */
 #define DTE_PPB_ADJ(ppb) (u32)(div64_u64((((u64)abs(ppb) * BIT(28)) +\
