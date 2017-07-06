@@ -7180,6 +7180,21 @@ static unsigned long __init arch_reserved_kernel_pages(void)
 #endif
 
 /*
+ * Adaptive scale is meant to reduce sizes of hash tables on large memory
+ * machines. As memory size is increased the scale is also increased but at
+ * slower pace.  Starting from ADAPT_SCALE_BASE (64G), every time memory
+ * quadruples the scale is increased by one, which means the size of hash table
+ * only doubles, instead of quadrupling as well.
+ * Because 32-bit systems cannot have large physical memory, where this scaling
+ * makes sense, it is disabled on such platforms.
+ */
+#if __BITS_PER_LONG > 32
+#define ADAPT_SCALE_BASE	(64ul << 30)
+#define ADAPT_SCALE_SHIFT	2
+#define ADAPT_SCALE_NPAGES	(ADAPT_SCALE_BASE >> PAGE_SHIFT)
+#endif
+
+/*
  * allocate a large system hash table from bootmem
  * - it is assumed that the hash table must contain an exact power-of-2
  *   quantity of entries
@@ -7209,6 +7224,16 @@ void *__init alloc_large_system_hash(const char *tablename,
 		/* It isn't necessary when PAGE_SIZE >= 1MB */
 		if (PAGE_SHIFT < 20)
 			numentries = round_up(numentries, (1<<20)/PAGE_SIZE);
+
+#if __BITS_PER_LONG > 32
+		if (!high_limit) {
+			unsigned long adapt;
+
+			for (adapt = ADAPT_SCALE_NPAGES; adapt < numentries;
+			     adapt <<= ADAPT_SCALE_SHIFT)
+				scale++;
+		}
+#endif
 
 		/* limit to 1 bucket per 2^scale bytes of low memory */
 		if (scale > PAGE_SHIFT)
