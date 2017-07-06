@@ -143,7 +143,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	helper->fb = fb;
 
 	fbi->par = helper;
-	fbi->flags = FBINFO_DEFAULT;
 	fbi->fbops = &msm_fb_ops;
 
 	strcpy(fbi->fix.id, "msm");

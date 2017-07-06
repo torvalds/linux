@@ -210,7 +210,6 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "mgadrmfb");
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &mgag200fb_ops;
 
 	/* setup aperture base/size for vesafb takeover */

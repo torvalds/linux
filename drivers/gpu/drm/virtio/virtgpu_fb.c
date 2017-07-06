@@ -273,7 +273,6 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	vfbdev->helper.fb = fb;
 
 	strcpy(info->fix.id, "virtiodrmfb");
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &virtio_gpufb_ops;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 

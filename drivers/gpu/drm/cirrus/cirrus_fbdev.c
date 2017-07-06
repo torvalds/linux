@@ -215,7 +215,6 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "cirrusdrmfb");
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &cirrusfb_ops;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);

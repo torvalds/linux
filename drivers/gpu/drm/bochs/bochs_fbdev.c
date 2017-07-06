@@ -118,7 +118,6 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "bochsdrmfb");
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &bochsfb_ops;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);

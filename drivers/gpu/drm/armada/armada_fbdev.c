@@ -81,7 +81,6 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 
 	strlcpy(info->fix.id, "armada-drmfb", sizeof(info->fix.id));
 	info->par = fbh;
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &armada_fb_ops;
 	info->fix.smem_start = obj->phys_addr;
 	info->fix.smem_len = obj->obj.size;
