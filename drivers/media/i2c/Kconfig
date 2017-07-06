@@ -204,6 +204,18 @@ config VIDEO_ADV7183
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7183.
 
+config VIDEO_ADV748X
+	tristate "Analog Devices ADV748x decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on OF
+	select REGMAP_I2C
+	---help---
+	  V4L2 subdevice driver for the Analog Devices
+	  ADV7481 and ADV7482 HDMI/Analog video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv748x.
+
 config VIDEO_ADV7604
 	tristate "Analog Devices ADV7604 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
