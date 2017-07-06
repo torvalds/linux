@@ -292,6 +292,7 @@
 	IPP_SF(CNVC_CFG0_FORMAT_CONTROL, OUTPUT_FP, mask_sh)
 
 #define IPP_DCN10_REG_FIELD_LIST(type) \
+	type CM_DGAM_CONFIG_STATUS; \
 	type CM_ICSC_MODE; \
 	type CM_ICSC_C11; \
 	type CM_ICSC_C12; \

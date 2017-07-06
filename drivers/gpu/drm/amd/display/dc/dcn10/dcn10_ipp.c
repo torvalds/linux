@@ -69,7 +69,7 @@ enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_COMA
 };
 
-static void dcn10_program_input_csc(
+static void ippn10_program_input_csc(
 		struct input_pixel_processor *ipp,
 		enum dc_color_space color_space,
 		enum dcn10_input_csc_select select)
@@ -159,7 +159,7 @@ static void dcn10_program_input_csc(
 }
 
 /*program de gamma RAM B*/
-static void dcn10_ipp_program_degamma_lutb_settings(
+static void ippn10_program_degamma_lutb_settings(
 		struct input_pixel_processor *ipp,
 		const struct pwl_params *params)
 {
@@ -266,7 +266,7 @@ static void dcn10_ipp_program_degamma_lutb_settings(
 }
 
 /*program de gamma RAM A*/
-static void dcn10_ipp_program_degamma_luta_settings(
+static void ippn10_program_degamma_luta_settings(
 		struct input_pixel_processor *ipp,
 		const struct pwl_params *params)
 {
@@ -372,7 +372,7 @@ static void dcn10_ipp_program_degamma_luta_settings(
 		CM_DGAM_RAMA_EXP_REGION15_NUM_SEGMENTS, curve[1].segments_num);
 }
 
-static void ipp_power_on_degamma_lut(
+static void ippn10_power_on_degamma_lut(
 	struct input_pixel_processor *ipp,
 	bool power_on)
 {
@@ -383,7 +383,7 @@ static void ipp_power_on_degamma_lut(
 
 }
 
-static void ipp_program_degamma_lut(
+static void ippn10_program_degamma_lut(
 		struct input_pixel_processor *ipp,
 		const struct pwl_result_data *rgb,
 		uint32_t num,
@@ -410,25 +410,19 @@ static void ipp_program_degamma_lut(
 				CM_DGAM_LUT_DATA, rgb[i].delta_green_reg);
 		REG_SET(CM_DGAM_LUT_DATA, 0,
 				CM_DGAM_LUT_DATA, rgb[i].delta_blue_reg);
-
 	}
-
 }
 
-static void dcn10_ipp_enable_cm_block(
+static void ippn10_enable_cm_block(
 		struct input_pixel_processor *ipp)
 {
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
 
 	REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 1);
-	if (ippn10->ipp_mask->CM_BYPASS_EN)
-		REG_UPDATE(CM_CONTROL, CM_BYPASS_EN, 0);
-	else
-		REG_UPDATE(CM_CONTROL, CM_BYPASS, 0);
+	REG_UPDATE(CM_CONTROL, CM_BYPASS_EN, 0);
 }
 
-
-static void dcn10_ipp_full_bypass(struct input_pixel_processor *ipp)
+static void ippn10_full_bypass(struct input_pixel_processor *ipp)
 {
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
 
@@ -450,12 +444,12 @@ static void dcn10_ipp_full_bypass(struct input_pixel_processor *ipp)
 	REG_SET(CM_IGAM_CONTROL, 0, CM_IGAM_LUT_MODE, 0);
 }
 
-static void dcn10_ipp_set_degamma(
+static void ippn10_set_degamma(
 		struct input_pixel_processor *ipp,
 		enum ipp_degamma_mode mode)
 {
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
-	dcn10_ipp_enable_cm_block(ipp);
+	ippn10_enable_cm_block(ipp);
 
 	switch (mode) {
 	case IPP_DEGAMMA_MODE_BYPASS:
@@ -474,7 +468,7 @@ static void dcn10_ipp_set_degamma(
 	}
 }
 
-static bool dcn10_cursor_program_control(
+static bool ippn10_cursor_program_control(
 		struct dcn10_ipp *ippn10,
 		bool pixel_data_invert,
 		enum dc_cursor_color_format color_format)
@@ -520,7 +514,7 @@ enum cursor_lines_per_chunk {
 	CURSOR_LINE_PER_CHUNK_16
 };
 
-static enum cursor_pitch dcn10_get_cursor_pitch(
+static enum cursor_pitch ippn10_get_cursor_pitch(
 		unsigned int pitch)
 {
 	enum cursor_pitch hw_pitch;
@@ -544,7 +538,7 @@ static enum cursor_pitch dcn10_get_cursor_pitch(
 	return hw_pitch;
 }
 
-static enum cursor_lines_per_chunk dcn10_get_lines_per_chunk(
+static enum cursor_lines_per_chunk ippn10_get_lines_per_chunk(
 		unsigned int cur_width,
 		enum dc_cursor_color_format format)
 {
@@ -565,13 +559,13 @@ static enum cursor_lines_per_chunk dcn10_get_lines_per_chunk(
 	return line_per_chunk;
 }
 
-static void dcn10_cursor_set_attributes(
+static void ippn10_cursor_set_attributes(
 		struct input_pixel_processor *ipp,
 		const struct dc_cursor_attributes *attr)
 {
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
-	enum cursor_pitch hw_pitch = dcn10_get_cursor_pitch(attr->pitch);
-	enum cursor_lines_per_chunk lpc = dcn10_get_lines_per_chunk(
+	enum cursor_pitch hw_pitch = ippn10_get_cursor_pitch(attr->pitch);
+	enum cursor_lines_per_chunk lpc = ippn10_get_lines_per_chunk(
 			attr->width, attr->color_format);
 
 	ippn10->curs_attr = *attr;
@@ -590,12 +584,12 @@ static void dcn10_cursor_set_attributes(
 			CURSOR_PITCH, hw_pitch,
 			CURSOR_LINES_PER_CHUNK, lpc);
 
-	dcn10_cursor_program_control(ippn10,
+	ippn10_cursor_program_control(ippn10,
 			attr->attribute_flags.bits.INVERT_PIXEL_DATA,
 			attr->color_format);
 }
 
-static void dcn10_cursor_set_position(
+static void ippn10_cursor_set_position(
 		struct input_pixel_processor *ipp,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param)
@@ -632,7 +626,7 @@ static void dcn10_cursor_set_position(
 		cur_en = 0;  /* not visible beyond left edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
-		dcn10_cursor_set_attributes(ipp, &ippn10->curs_attr);
+		ippn10_cursor_set_attributes(ipp, &ippn10->curs_attr);
 	REG_UPDATE(CURSOR_CONTROL,
 			CURSOR_ENABLE, cur_en);
 	REG_UPDATE(CURSOR0_CONTROL,
@@ -658,7 +652,7 @@ enum pixel_format_description {
 
 };
 
-static void dcn10_setup_format_flags(enum surface_pixel_format input_format,\
+static void ippn10_setup_format_flags(enum surface_pixel_format input_format,\
 						enum pixel_format_description *fmt)
 {
 
@@ -671,7 +665,7 @@ static void dcn10_setup_format_flags(enum surface_pixel_format input_format,\
 		*fmt = PIXEL_FORMAT_FIXED;
 }
 
-static void dcn10_ipp_set_degamma_format_float(struct input_pixel_processor *ipp,
+static void ippn10_set_degamma_format_float(struct input_pixel_processor *ipp,
 		bool is_float)
 {
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
@@ -686,7 +680,7 @@ static void dcn10_ipp_set_degamma_format_float(struct input_pixel_processor *ipp
 }
 
 
-static void dcn10_ipp_cnv_setup (
+static void ippn10_cnv_setup (
 		struct input_pixel_processor *ipp,
 		enum surface_pixel_format input_format,
 		enum expansion_mode mode,
@@ -701,7 +695,7 @@ static void dcn10_ipp_cnv_setup (
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
 	bool force_disable_cursor = false;
 
-	dcn10_setup_format_flags(input_format, &fmt);
+	ippn10_setup_format_flags(input_format, &fmt);
 	alpha_en = 1;
 	pixel_format = 0;
 	color_space = COLOR_SPACE_SRGB;
@@ -729,7 +723,7 @@ static void dcn10_ipp_cnv_setup (
 		break;
 	}
 
-	dcn10_ipp_set_degamma_format_float(ipp, is_float);
+	ippn10_set_degamma_format_float(ipp, is_float);
 
 	switch (input_format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
@@ -787,7 +781,7 @@ static void dcn10_ipp_cnv_setup (
 			CNVC_SURFACE_PIXEL_FORMAT, pixel_format);
 	REG_UPDATE(FORMAT_CONTROL, ALPHA_EN, alpha_en);
 
-	dcn10_program_input_csc(ipp, color_space, select);
+	ippn10_program_input_csc(ipp, color_space, select);
 
 	if (force_disable_cursor) {
 		REG_UPDATE(CURSOR_CONTROL,
@@ -798,7 +792,7 @@ static void dcn10_ipp_cnv_setup (
 }
 
 
-static bool dcn10_degamma_ram_inuse(struct input_pixel_processor *ipp,
+static bool ippn10_degamma_ram_inuse(struct input_pixel_processor *ipp,
 							bool *ram_a_inuse)
 {
 	bool ret = false;
@@ -818,7 +812,7 @@ static bool dcn10_degamma_ram_inuse(struct input_pixel_processor *ipp,
 	return ret;
 }
 
-static bool dcn10_ingamma_ram_inuse(struct input_pixel_processor *ipp,
+static bool ippn10_ingamma_ram_inuse(struct input_pixel_processor *ipp,
 							bool *ram_a_inuse)
 {
 	bool in_use = false;
@@ -840,7 +834,7 @@ static bool dcn10_ingamma_ram_inuse(struct input_pixel_processor *ipp,
 	return in_use;
 }
 
-static void dcn10_degamma_ram_select(struct input_pixel_processor *ipp,
+static void ippn10_degamma_ram_select(struct input_pixel_processor *ipp,
 							bool use_ram_a)
 {
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
@@ -852,22 +846,22 @@ static void dcn10_degamma_ram_select(struct input_pixel_processor *ipp,
 
 }
 
-static void dcn10_ipp_set_degamma_pwl(struct input_pixel_processor *ipp,
+static void ippn10_set_degamma_pwl(struct input_pixel_processor *ipp,
 								 const struct pwl_params *params)
 {
 	bool is_ram_a = true;
 
-	ipp_power_on_degamma_lut(ipp, true);
-	dcn10_ipp_enable_cm_block(ipp);
-	dcn10_degamma_ram_inuse(ipp, &is_ram_a);
+	ippn10_power_on_degamma_lut(ipp, true);
+	ippn10_enable_cm_block(ipp);
+	ippn10_degamma_ram_inuse(ipp, &is_ram_a);
 	if (is_ram_a == true)
-		dcn10_ipp_program_degamma_lutb_settings(ipp, params);
+		ippn10_program_degamma_lutb_settings(ipp, params);
 	else
-		dcn10_ipp_program_degamma_luta_settings(ipp, params);
+		ippn10_program_degamma_luta_settings(ipp, params);
 
-	ipp_program_degamma_lut(ipp, params->rgb_resulted,
+	ippn10_program_degamma_lut(ipp, params->rgb_resulted,
 							params->hw_points_num, !is_ram_a);
-	dcn10_degamma_ram_select(ipp, !is_ram_a);
+	ippn10_degamma_ram_select(ipp, !is_ram_a);
 }
 
 /*
@@ -879,7 +873,7 @@ static void dcn10_ipp_set_degamma_pwl(struct input_pixel_processor *ipp,
  * In the future, this function should support additional input gamma methods,
  * such as piecewise linear mapping, and input gamma bypass.
  */
-void dcn10_ipp_program_input_lut(
+static void ippn10_program_input_lut(
 		struct input_pixel_processor *ipp,
 		const struct dc_gamma *gamma)
 {
@@ -889,9 +883,9 @@ void dcn10_ipp_program_input_lut(
 	uint32_t ram_num;
 	// Power on LUT memory.
 	REG_SET(CM_MEM_PWR_CTRL, 0, SHARED_MEM_PWR_DIS, 1);
-	dcn10_ipp_enable_cm_block(ipp);
+	ippn10_enable_cm_block(ipp);
 	// Determine whether to use RAM A or RAM B
-	dcn10_ingamma_ram_inuse(ipp, &rama_occupied);
+	ippn10_ingamma_ram_inuse(ipp, &rama_occupied);
 	if (!rama_occupied)
 		REG_UPDATE(CM_IGAM_LUT_RW_CONTROL, CM_IGAM_LUT_SEL, 0);
 	else
@@ -936,13 +930,13 @@ static void dcn10_ipp_destroy(struct input_pixel_processor **ipp)
 }
 
 static const struct ipp_funcs dcn10_ipp_funcs = {
-	.ipp_cursor_set_attributes	= dcn10_cursor_set_attributes,
-	.ipp_cursor_set_position	= dcn10_cursor_set_position,
-	.ipp_set_degamma		= dcn10_ipp_set_degamma,
-	.ipp_program_input_lut 		= dcn10_ipp_program_input_lut,
-	.ipp_full_bypass		= dcn10_ipp_full_bypass,
-	.ipp_setup			= dcn10_ipp_cnv_setup,
-	.ipp_program_degamma_pwl	= dcn10_ipp_set_degamma_pwl,
+	.ipp_cursor_set_attributes	= ippn10_cursor_set_attributes,
+	.ipp_cursor_set_position	= ippn10_cursor_set_position,
+	.ipp_set_degamma		= ippn10_set_degamma,
+	.ipp_program_input_lut		= ippn10_program_input_lut,
+	.ipp_full_bypass		= ippn10_full_bypass,
+	.ipp_setup			= ippn10_cnv_setup,
+	.ipp_program_degamma_pwl	= ippn10_set_degamma_pwl,
 	.ipp_destroy			= dcn10_ipp_destroy
 };
 
@@ -962,3 +956,4 @@ void dcn10_ipp_construct(
 	ippn10->ipp_shift = ipp_shift;
 	ippn10->ipp_mask = ipp_mask;
 }
+
