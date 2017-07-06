@@ -2026,6 +2026,21 @@ static struct i2c_device_id tsl2x7x_idtable[] = {
 
 MODULE_DEVICE_TABLE(i2c, tsl2x7x_idtable);
 
+static const struct of_device_id tsl2x7x_of_match[] = {
+	{ .compatible = "amstaos,tsl2571" },
+	{ .compatible = "amstaos,tsl2671" },
+	{ .compatible = "amstaos,tmd2671" },
+	{ .compatible = "amstaos,tsl2771" },
+	{ .compatible = "amstaos,tmd2771" },
+	{ .compatible = "amstaos,tsl2572" },
+	{ .compatible = "amstaos,tsl2672" },
+	{ .compatible = "amstaos,tmd2672" },
+	{ .compatible = "amstaos,tsl2772" },
+	{ .compatible = "amstaos,tmd2772" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, tsl2x7x_of_match);
+
 static const struct dev_pm_ops tsl2x7x_pm_ops = {
 	.suspend = tsl2x7x_suspend,
 	.resume  = tsl2x7x_resume,
@@ -2035,6 +2050,7 @@ static const struct dev_pm_ops tsl2x7x_pm_ops = {
 static struct i2c_driver tsl2x7x_driver = {
 	.driver = {
 		.name = "tsl2x7x",
+		.of_match_table = tsl2x7x_of_match,
 		.pm = &tsl2x7x_pm_ops,
 	},
 	.id_table = tsl2x7x_idtable,
