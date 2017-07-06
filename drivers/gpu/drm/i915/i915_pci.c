@@ -449,6 +449,7 @@ static const struct intel_device_info intel_cannonlake_info = {
 	.gen = 10,
 	.ddb_size = 1024,
 	.has_csr = 1,
+	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
 };
 
 /*

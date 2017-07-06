@@ -615,7 +615,7 @@ void intel_color_init(struct drm_crtc *crtc)
 		   IS_BROXTON(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = broadwell_load_luts;
-	} else if (IS_GEMINILAKE(dev_priv)) {
+	} else if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = glk_load_luts;
 	} else {
