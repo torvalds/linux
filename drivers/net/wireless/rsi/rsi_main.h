@@ -179,8 +179,8 @@ struct rsi_common {
 	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 1];
 	/* Mutex declaration */
 	struct mutex mutex;
-	/* Mutex used between tx/rx threads */
-	struct mutex tx_rxlock;
+	/* Mutex used for tx thread */
+	struct mutex tx_lock;
 	/* Mutex used for rx thread */
 	struct mutex rx_lock;
 	u8 endpoint;

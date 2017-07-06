@@ -268,11 +268,11 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			break;
 		}
 
-		mutex_lock(&common->tx_rxlock);
+		mutex_lock(&common->tx_lock);
 
 		status = adapter->check_hw_queue_status(adapter, q_num);
 		if ((status <= 0)) {
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->tx_lock);
 			break;
 		}
 
@@ -287,7 +287,7 @@ void rsi_core_qos_processor(struct rsi_common *common)
 		skb = rsi_core_dequeue_pkt(common, q_num);
 		if (skb == NULL) {
 			rsi_dbg(ERR_ZONE, "skb null\n");
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->tx_lock);
 			break;
 		}
 
@@ -297,14 +297,14 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			status = rsi_send_data_pkt(common, skb);
 
 		if (status) {
-			mutex_unlock(&common->tx_rxlock);
+			mutex_unlock(&common->tx_lock);
 			break;
 		}
 
 		common->tx_stats.total_tx_pkt_send[q_num]++;
 
 		tstamp_2 = jiffies;
-		mutex_unlock(&common->tx_rxlock);
+		mutex_unlock(&common->tx_lock);
 
 		if (time_after(tstamp_2, tstamp_1 + (300 * HZ) / 1000))
 			schedule();

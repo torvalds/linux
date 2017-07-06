@@ -220,7 +220,7 @@ struct rsi_hw *rsi_91x_init(void)
 
 	rsi_init_event(&common->tx_thread.event);
 	mutex_init(&common->mutex);
-	mutex_init(&common->tx_rxlock);
+	mutex_init(&common->tx_lock);
 	mutex_init(&common->rx_lock);
 
 	if (rsi_create_kthread(common,
