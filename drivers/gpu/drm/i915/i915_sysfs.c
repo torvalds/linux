@@ -253,7 +253,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
 		u32 rpstat = I915_READ(GEN6_RPSTAT1);
-		if (IS_GEN9(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 9)
 			ret = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
 		else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 			ret = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
