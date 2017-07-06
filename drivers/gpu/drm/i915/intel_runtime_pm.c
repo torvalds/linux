@@ -396,30 +396,26 @@ static void gen9_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 		      !!(reqs & 1), !!(reqs & 2), !!(reqs & 4), !!(reqs & 8));
 }
 
-static void hsw_set_power_well(struct drm_i915_private *dev_priv,
-			       struct i915_power_well *power_well, bool enable)
+static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
+				  struct i915_power_well *power_well)
 {
-	uint32_t tmp;
+	I915_WRITE(HSW_PWR_WELL_DRIVER, HSW_PWR_WELL_ENABLE_REQUEST);
 
-	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
+	if (intel_wait_for_register(dev_priv,
+				    HSW_PWR_WELL_DRIVER,
+				    HSW_PWR_WELL_STATE_ENABLED,
+				    HSW_PWR_WELL_STATE_ENABLED,
+				    20))
+		DRM_ERROR("Timeout enabling power well\n");
+	hsw_power_well_post_enable(dev_priv);
+}
 
-	if (enable) {
-		I915_WRITE(HSW_PWR_WELL_DRIVER, HSW_PWR_WELL_ENABLE_REQUEST);
-
-		DRM_DEBUG_KMS("Enabling power well\n");
-		if (intel_wait_for_register(dev_priv,
-					    HSW_PWR_WELL_DRIVER,
-					    HSW_PWR_WELL_STATE_ENABLED,
-					    HSW_PWR_WELL_STATE_ENABLED,
-					    20))
-			DRM_ERROR("Timeout enabling power well\n");
-		hsw_power_well_post_enable(dev_priv);
-	} else {
-		hsw_power_well_pre_disable(dev_priv);
-		I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
-		POSTING_READ(HSW_PWR_WELL_DRIVER);
-		DRM_DEBUG_KMS("Requesting to disable the power well\n");
-	}
+static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
+				   struct i915_power_well *power_well)
+{
+	hsw_power_well_pre_disable(dev_priv);
+	I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
+	POSTING_READ(HSW_PWR_WELL_DRIVER);
 }
 
 #define SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
@@ -887,18 +883,6 @@ static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				   HSW_PWR_WELL_ENABLE_REQUEST);
 		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
 	}
-}
-
-static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
-				  struct i915_power_well *power_well)
-{
-	hsw_set_power_well(dev_priv, power_well, true);
-}
-
-static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	hsw_set_power_well(dev_priv, power_well, false);
 }
 
 static bool skl_power_well_enabled(struct drm_i915_private *dev_priv,
