@@ -468,6 +468,7 @@ static bool zram_same_page_write(struct zram *zram, u32 index,
 		zram_slot_unlock(zram, index);
 
 		atomic64_inc(&zram->stats.same_pages);
+		atomic64_inc(&zram->stats.pages_stored);
 		return true;
 	}
 	kunmap_atomic(mem);
@@ -523,6 +524,7 @@ static void zram_free_page(struct zram *zram, size_t index)
 		zram_clear_flag(zram, index, ZRAM_SAME);
 		zram_set_element(zram, index, 0);
 		atomic64_dec(&zram->stats.same_pages);
+		atomic64_dec(&zram->stats.pages_stored);
 		return;
 	}
 
