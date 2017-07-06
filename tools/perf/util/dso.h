@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include "map.h"
+#include "namespaces.h"
 #include "build-id.h"
 
 enum dso_binary_type {
@@ -187,6 +188,7 @@ struct dso {
 		void	 *priv;
 		u64	 db_id;
 	};
+	struct nsinfo	*nsinfo;
 	refcount_t	 refcnt;
 	char		 name[0];
 };

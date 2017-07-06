@@ -16,6 +16,7 @@
 #include "machine.h"
 #include <linux/string.h>
 #include "srcline.h"
+#include "namespaces.h"
 #include "unwind.h"
 
 static void __maps__insert(struct maps *maps, struct map *map);
@@ -200,6 +201,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			if (type != MAP__FUNCTION)
 				dso__set_loaded(dso, map->type);
 		}
+		dso->nsinfo = nsinfo__get(thread->nsinfo);
 		dso__put(dso);
 	}
 	return map;

@@ -18,6 +18,8 @@
 #include "symbol.h"
 #include "strlist.h"
 #include "intlist.h"
+#include "namespaces.h"
+#include "vdso.h"
 #include "header.h"
 #include "path.h"
 #include "sane_ctype.h"
@@ -1436,8 +1438,16 @@ int dso__load(struct dso *dso, struct map *map)
 	struct symsrc *syms_ss = NULL, *runtime_ss = NULL;
 	bool kmod;
 	unsigned char build_id[BUILD_ID_SIZE];
+	struct nscookie nsc;
 
+	nsinfo__mountns_enter(dso->nsinfo, &nsc);
 	pthread_mutex_lock(&dso->lock);
+
+	/* The vdso files always live in the host container, so don't go looking
+	 * for them in the container's mount namespace.
+	 */
+	if (dso__is_vdso(dso))
+		nsinfo__mountns_exit(&nsc);
 
 	/* check again under the dso->lock */
 	if (dso__loaded(dso, map->type)) {
@@ -1584,6 +1594,7 @@ out_free:
 out:
 	dso__set_loaded(dso, map->type);
 	pthread_mutex_unlock(&dso->lock);
+	nsinfo__mountns_exit(&nsc);
 
 	return ret;
 }
