@@ -357,6 +357,17 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 }
 struct mem_cgroup *mem_cgroup_from_id(unsigned short id);
 
+static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
+{
+	struct mem_cgroup_per_node *mz;
+
+	if (mem_cgroup_disabled())
+		return NULL;
+
+	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	return mz->memcg;
+}
+
 /**
  * parent_mem_cgroup - find the accounting parent of a memcg
  * @memcg: memcg whose parent to find
@@ -546,8 +557,23 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
 						gfp_t gfp_mask,
 						unsigned long *total_scanned);
 
-static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
-					     enum vm_event_item idx)
+static inline void count_memcg_events(struct mem_cgroup *memcg,
+				      enum vm_event_item idx,
+				      unsigned long count)
+{
+	if (!mem_cgroup_disabled())
+		this_cpu_add(memcg->stat->events[idx], count);
+}
+
+static inline void count_memcg_page_event(struct page *page,
+					  enum memcg_stat_item idx)
+{
+	if (page->mem_cgroup)
+		count_memcg_events(page->mem_cgroup, idx, 1);
+}
+
+static inline void count_memcg_event_mm(struct mm_struct *mm,
+					enum vm_event_item idx)
 {
 	struct mem_cgroup *memcg;
 
@@ -675,6 +701,11 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
 	return NULL;
 }
 
+static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
+{
+	return NULL;
+}
+
 static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 {
 	return true;
@@ -789,8 +820,19 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head)
 {
 }
 
+static inline void count_memcg_events(struct mem_cgroup *memcg,
+				      enum vm_event_item idx,
+				      unsigned long count)
+{
+}
+
+static inline void count_memcg_page_event(struct page *page,
+					  enum memcg_stat_item idx)
+{
+}
+
 static inline
-void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+void count_memcg_event_mm(struct mm_struct *mm, enum vm_event_item idx)
 {
 }
 #endif /* CONFIG_MEMCG */

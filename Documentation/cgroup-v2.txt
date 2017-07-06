@@ -956,6 +956,34 @@ PAGE_SIZE multiple when read back.
 
 		Number of times a shadow node has been reclaimed
 
+	  pgrefill
+
+		Amount of scanned pages (in an active LRU list)
+
+	  pgscan
+
+		Amount of scanned pages (in an inactive LRU list)
+
+	  pgsteal
+
+		Amount of reclaimed pages
+
+	  pgactivate
+
+		Amount of pages moved to the active LRU list
+
+	  pgdeactivate
+
+		Amount of pages moved to the inactive LRU lis
+
+	  pglazyfree
+
+		Amount of pages postponed to be freed under memory pressure
+
+	  pglazyfreed
+
+		Amount of reclaimed lazyfree pages
+
   memory.swap.current
 
 	A read-only single value file which exists on non-root

@@ -5230,6 +5230,16 @@ static int memory_stat_show(struct seq_file *m, void *v)
 	seq_printf(m, "pgfault %lu\n", events[PGFAULT]);
 	seq_printf(m, "pgmajfault %lu\n", events[PGMAJFAULT]);
 
+	seq_printf(m, "pgrefill %lu\n", events[PGREFILL]);
+	seq_printf(m, "pgscan %lu\n", events[PGSCAN_KSWAPD] +
+		   events[PGSCAN_DIRECT]);
+	seq_printf(m, "pgsteal %lu\n", events[PGSTEAL_KSWAPD] +
+		   events[PGSTEAL_DIRECT]);
+	seq_printf(m, "pgactivate %lu\n", events[PGACTIVATE]);
+	seq_printf(m, "pgdeactivate %lu\n", events[PGDEACTIVATE]);
+	seq_printf(m, "pglazyfree %lu\n", events[PGLAZYFREE]);
+	seq_printf(m, "pglazyfreed %lu\n", events[PGLAZYFREED]);
+
 	seq_printf(m, "workingset_refault %lu\n",
 		   stat[WORKINGSET_REFAULT]);
 	seq_printf(m, "workingset_activate %lu\n",

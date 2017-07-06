@@ -1294,6 +1294,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			}
 
 			count_vm_event(PGLAZYFREED);
+			count_memcg_page_event(page, PGLAZYFREED);
 		} else if (!mapping || !__remove_mapping(mapping, page, true))
 			goto keep_locked;
 		/*
@@ -1323,6 +1324,7 @@ activate_locked:
 		if (!PageMlocked(page)) {
 			SetPageActive(page);
 			pgactivate++;
+			count_memcg_page_event(page, PGACTIVATE);
 		}
 keep_locked:
 		unlock_page(page);
@@ -1762,11 +1764,16 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
 	reclaim_stat->recent_scanned[file] += nr_taken;
 
-	if (global_reclaim(sc)) {
-		if (current_is_kswapd())
+	if (current_is_kswapd()) {
+		if (global_reclaim(sc))
 			__count_vm_events(PGSCAN_KSWAPD, nr_scanned);
-		else
+		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_KSWAPD,
+				   nr_scanned);
+	} else {
+		if (global_reclaim(sc))
 			__count_vm_events(PGSCAN_DIRECT, nr_scanned);
+		count_memcg_events(lruvec_memcg(lruvec), PGSCAN_DIRECT,
+				   nr_scanned);
 	}
 	spin_unlock_irq(&pgdat->lru_lock);
 
@@ -1778,11 +1785,16 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 
 	spin_lock_irq(&pgdat->lru_lock);
 
-	if (global_reclaim(sc)) {
-		if (current_is_kswapd())
+	if (current_is_kswapd()) {
+		if (global_reclaim(sc))
 			__count_vm_events(PGSTEAL_KSWAPD, nr_reclaimed);
-		else
+		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_KSWAPD,
+				   nr_reclaimed);
+	} else {
+		if (global_reclaim(sc))
 			__count_vm_events(PGSTEAL_DIRECT, nr_reclaimed);
+		count_memcg_events(lruvec_memcg(lruvec), PGSTEAL_DIRECT,
+				   nr_reclaimed);
 	}
 
 	putback_inactive_pages(lruvec, &page_list);
@@ -1927,8 +1939,11 @@ static unsigned move_active_pages_to_lru(struct lruvec *lruvec,
 		}
 	}
 
-	if (!is_active_lru(lru))
+	if (!is_active_lru(lru)) {
 		__count_vm_events(PGDEACTIVATE, nr_moved);
+		count_memcg_events(lruvec_memcg(lruvec), PGDEACTIVATE,
+				   nr_moved);
+	}
 
 	return nr_moved;
 }
@@ -1966,6 +1981,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	reclaim_stat->recent_scanned[file] += nr_taken;
 
 	__count_vm_events(PGREFILL, nr_scanned);
+	count_memcg_events(lruvec_memcg(lruvec), PGREFILL, nr_scanned);
 
 	spin_unlock_irq(&pgdat->lru_lock);
 
