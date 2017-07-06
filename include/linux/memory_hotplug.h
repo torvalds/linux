@@ -115,6 +115,12 @@ extern void __online_page_free(struct page *page);
 extern int try_online_node(int nid);
 
 extern bool memhp_auto_online;
+/* If movable_node boot option specified */
+extern bool movable_node_enabled;
+static inline bool movable_node_is_enabled(void)
+{
+	return movable_node_enabled;
+}
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 extern bool is_pageblock_removable_nolock(struct page *page);
@@ -266,6 +272,10 @@ static inline void put_online_mems(void) {}
 static inline void mem_hotplug_begin(void) {}
 static inline void mem_hotplug_done(void) {}
 
+static inline bool movable_node_is_enabled(void)
+{
+	return false;
+}
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
