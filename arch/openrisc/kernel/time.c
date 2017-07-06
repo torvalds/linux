@@ -27,8 +27,14 @@
 
 #include <asm/cpuinfo.h>
 
-static int openrisc_timer_set_next_event(unsigned long delta,
-					 struct clock_event_device *dev)
+/* Test the timer ticks to count, used in sync routine */
+inline void openrisc_timer_set(unsigned long count)
+{
+	mtspr(SPR_TTCR, count);
+}
+
+/* Set the timer to trigger in delta cycles */
+inline void openrisc_timer_set_next(unsigned long delta)
 {
 	u32 c;
 
@@ -44,7 +50,12 @@ static int openrisc_timer_set_next_event(unsigned long delta,
 	 * Keep timer in continuous mode always.
 	 */
 	mtspr(SPR_TTMR, SPR_TTMR_CR | SPR_TTMR_IE | c);
+}
 
+static int openrisc_timer_set_next_event(unsigned long delta,
+					 struct clock_event_device *dev)
+{
+	openrisc_timer_set_next(delta);
 	return 0;
 }
 

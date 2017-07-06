@@ -100,6 +100,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		pr_crit("CPU%u: failed to start\n", cpu);
 		return -EIO;
 	}
+	synchronise_count_master(cpu);
 
 	return 0;
 }
@@ -128,6 +129,8 @@ asmlinkage __init void secondary_start_kernel(void)
 	 */
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
+
+	synchronise_count_slave(cpu);
 
 	local_irq_enable();
 
