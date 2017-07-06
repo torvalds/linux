@@ -612,11 +612,6 @@ static int rv8803_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int rv8803_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id rv8803_id[] = {
 	{ "rv8803", rv_8803 },
 	{ "rx8900", rx_8900 },
@@ -643,7 +638,6 @@ static struct i2c_driver rv8803_driver = {
 		.of_match_table = of_match_ptr(rv8803_of_match),
 	},
 	.probe		= rv8803_probe,
-	.remove		= rv8803_remove,
 	.id_table	= rv8803_id,
 };
 module_i2c_driver(rv8803_driver);
