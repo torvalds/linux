@@ -1392,14 +1392,18 @@ static struct stable_node *stable_node_dup(struct stable_node **_stable_node,
 			ksm_stable_node_chains--;
 			ksm_stable_node_dups--;
 			/*
-			 * NOTE: the caller depends on the
-			 * *_stable_node to become NULL if the chain
-			 * was collapsed. Enforce that if anything
-			 * uses a stale (freed) stable_node chain a
-			 * visible crash will materialize (instead of
-			 * an use after free).
+			 * NOTE: the caller depends on the stable_node
+			 * to be equal to stable_node_dup if the chain
+			 * was collapsed.
 			 */
-			*_stable_node = stable_node = NULL;
+			*_stable_node = found;
+			/*
+			 * Just for robustneess as stable_node is
+			 * otherwise left as a stable pointer, the
+			 * compiler shall optimize it away at build
+			 * time.
+			 */
+			stable_node = NULL;
 		} else if (__is_page_sharing_candidate(found, 1)) {
 			/*
 			 * Refile our candidate at the head
@@ -1505,7 +1509,11 @@ again:
 		 * not NULL. stable_node_dup may have been inserted in
 		 * the rbtree instead as a regular stable_node (in
 		 * order to collapse the stable_node chain if a single
-		 * stable_node dup was found in it).
+		 * stable_node dup was found in it). In such case the
+		 * stable_node is overwritten by the calleee to point
+		 * to the stable_node_dup that was collapsed in the
+		 * stable rbtree and stable_node will be equal to
+		 * stable_node_dup like if the chain never existed.
 		 */
 		if (!stable_node_dup) {
 			/*
@@ -1623,15 +1631,13 @@ out:
 replace:
 	/*
 	 * If stable_node was a chain and chain_prune collapsed it,
-	 * stable_node will be NULL here. In that case the
-	 * stable_node_dup is the regular stable_node that has
-	 * replaced the chain. If stable_node is not NULL and equal to
-	 * stable_node_dup there was no chain and stable_node_dup is
-	 * the regular stable_node in the stable rbtree. Otherwise
-	 * stable_node is the chain and stable_node_dup is the dup to
-	 * replace.
+	 * stable_node has been updated to be the new regular
+	 * stable_node. A collapse of the chain is indistinguishable
+	 * from the case there was no chain in the stable
+	 * rbtree. Otherwise stable_node is the chain and
+	 * stable_node_dup is the dup to replace.
 	 */
-	if (!stable_node || stable_node_dup == stable_node) {
+	if (stable_node_dup == stable_node) {
 		VM_BUG_ON(is_stable_node_chain(stable_node_dup));
 		VM_BUG_ON(is_stable_node_dup(stable_node_dup));
 		/* there is no chain */
@@ -1676,13 +1682,13 @@ chain_append:
 		stable_node_dup = stable_node_any;
 	/*
 	 * If stable_node was a chain and chain_prune collapsed it,
-	 * stable_node will be NULL here. In that case the
-	 * stable_node_dup is the regular stable_node that has
-	 * replaced the chain. If stable_node is not NULL and equal to
-	 * stable_node_dup there was no chain and stable_node_dup is
-	 * the regular stable_node in the stable rbtree.
+	 * stable_node has been updated to be the new regular
+	 * stable_node. A collapse of the chain is indistinguishable
+	 * from the case there was no chain in the stable
+	 * rbtree. Otherwise stable_node is the chain and
+	 * stable_node_dup is the dup to replace.
 	 */
-	if (!stable_node || stable_node_dup == stable_node) {
+	if (stable_node_dup == stable_node) {
 		VM_BUG_ON(is_stable_node_chain(stable_node_dup));
 		VM_BUG_ON(is_stable_node_dup(stable_node_dup));
 		/* chain is missing so create it */
