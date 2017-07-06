@@ -974,7 +974,7 @@ static const struct dev_pm_ops lm3554_pm_ops = {
 	.resume = lm3554_resume,
 };
 
-static struct acpi_device_id lm3554_acpi_match[] = {
+static const struct acpi_device_id lm3554_acpi_match[] = {
 	{ "INTCF1C" },
 	{},
 };
