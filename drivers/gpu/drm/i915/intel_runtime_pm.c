@@ -852,13 +852,8 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		skl_power_well_pre_disable(dev_priv, power_well);
 
 	if (enable) {
-		if (!enable_requested) {
-			WARN((tmp & state_mask) &&
-				!I915_READ(HSW_PWR_WELL_BIOS),
-				"Invalid for power well status to be enabled, unless done by the BIOS, \
-				when request is to disable!\n");
+		if (!enable_requested)
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
-		}
 
 		if (!is_enabled) {
 			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
