@@ -257,6 +257,7 @@ config USB_MV_U3D
 
 config USB_SNP_CORE
 	depends on (USB_AMD5536UDC || USB_SNP_UDC_PLAT)
+	depends on HAS_DMA
 	tristate
 	help
 	  This enables core driver support for Synopsys USB 2.0 Device
@@ -271,7 +272,7 @@ config USB_SNP_CORE
 
 config USB_SNP_UDC_PLAT
 	tristate "Synopsys USB 2.0 Device controller"
-	depends on (USB_GADGET && OF)
+	depends on USB_GADGET && OF && HAS_DMA
 	select USB_GADGET_DUALSPEED
 	select USB_SNP_CORE
 	default ARCH_BCM_IPROC
