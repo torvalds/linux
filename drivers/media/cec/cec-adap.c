@@ -630,9 +630,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	msg->tx_nack_cnt = 0;
 	msg->tx_low_drive_cnt = 0;
 	msg->tx_error_cnt = 0;
-	msg->sequence = ++adap->sequence;
-	if (!msg->sequence)
-		msg->sequence = ++adap->sequence;
+	msg->sequence = 0;
 
 	if (msg->reply && msg->timeout == 0) {
 		/* Make sure the timeout isn't 0. */
@@ -671,6 +669,9 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 			msg->tx_status = CEC_TX_STATUS_NACK |
 					 CEC_TX_STATUS_MAX_RETRIES;
 			msg->tx_nack_cnt = 1;
+			msg->sequence = ++adap->sequence;
+			if (!msg->sequence)
+				msg->sequence = ++adap->sequence;
 			return 0;
 		}
 	}
@@ -704,6 +705,10 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
+	msg->sequence = ++adap->sequence;
+	if (!msg->sequence)
+		msg->sequence = ++adap->sequence;
 
 	if (msg->len > 1 && msg->msg[1] == CEC_MSG_CDC_MESSAGE) {
 		msg->msg[2] = adap->phys_addr >> 8;
