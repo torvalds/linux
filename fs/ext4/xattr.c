@@ -830,11 +830,10 @@ static void ext4_xattr_inode_free_quota(struct inode *inode, size_t len)
 	dquot_free_inode(inode);
 }
 
-static int __ext4_xattr_set_credits(struct inode *inode,
-				    struct buffer_head *block_bh,
-				    size_t value_len)
+int __ext4_xattr_set_credits(struct super_block *sb, struct inode *inode,
+			     struct buffer_head *block_bh, size_t value_len,
+			     bool is_create)
 {
-	struct super_block *sb = inode->i_sb;
 	int credits;
 	int blocks;
 
@@ -860,7 +859,7 @@ static int __ext4_xattr_set_credits(struct inode *inode,
 	 * In case of inline data, we may push out the data to a block,
 	 * so we need to reserve credits for this eventuality
 	 */
-	if (ext4_has_inline_data(inode))
+	if (inode && ext4_has_inline_data(inode))
 		credits += ext4_writepage_trans_blocks(inode) + 1;
 
 	/* We are done if ea_inode feature is not enabled. */
@@ -882,19 +881,23 @@ static int __ext4_xattr_set_credits(struct inode *inode,
 	/* Blocks themselves. */
 	credits += blocks;
 
-	/* Dereference ea_inode holding old xattr value.
-	 * Old ea_inode, inode map, block bitmap, group descriptor.
-	 */
-	credits += 4;
+	if (!is_create) {
+		/* Dereference ea_inode holding old xattr value.
+		 * Old ea_inode, inode map, block bitmap, group descriptor.
+		 */
+		credits += 4;
 
-	/* Data blocks for old ea_inode. */
-	blocks = XATTR_SIZE_MAX >> sb->s_blocksize_bits;
+		/* Data blocks for old ea_inode. */
+		blocks = XATTR_SIZE_MAX >> sb->s_blocksize_bits;
 
-	/* Indirection block or one level of extent tree for old ea_inode. */
-	blocks += 1;
+		/* Indirection block or one level of extent tree for old
+		 * ea_inode.
+		 */
+		blocks += 1;
 
-	/* Block bitmap and group descriptor updates for each block. */
-	credits += blocks * 2;
+		/* Block bitmap and group descriptor updates for each block. */
+		credits += blocks * 2;
+	}
 
 	/* We may need to clone the existing xattr block in which case we need
 	 * to increment ref counts for existing ea_inodes referenced by it.
@@ -2263,7 +2266,9 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 			goto cleanup;
 		}
 
-		credits = __ext4_xattr_set_credits(inode, bh, value_len);
+		credits = __ext4_xattr_set_credits(inode->i_sb, inode, bh,
+						   value_len,
+						   flags & XATTR_CREATE);
 		brelse(bh);
 
 		if (!ext4_handle_has_enough_credits(handle, credits)) {
@@ -2370,7 +2375,8 @@ cleanup:
 	return error;
 }
 
-int ext4_xattr_set_credits(struct inode *inode, size_t value_len, int *credits)
+int ext4_xattr_set_credits(struct inode *inode, size_t value_len,
+			   bool is_create, int *credits)
 {
 	struct buffer_head *bh;
 	int err;
@@ -2386,7 +2392,8 @@ int ext4_xattr_set_credits(struct inode *inode, size_t value_len, int *credits)
 	if (IS_ERR(bh)) {
 		err = PTR_ERR(bh);
 	} else {
-		*credits = __ext4_xattr_set_credits(inode, bh, value_len);
+		*credits = __ext4_xattr_set_credits(inode->i_sb, inode, bh,
+						    value_len, is_create);
 		brelse(bh);
 		err = 0;
 	}
@@ -2417,7 +2424,8 @@ ext4_xattr_set(struct inode *inode, int name_index, const char *name,
 		return error;
 
 retry:
-	error = ext4_xattr_set_credits(inode, value_len, &credits);
+	error = ext4_xattr_set_credits(inode, value_len, flags & XATTR_CREATE,
+				       &credits);
 	if (error)
 		return error;
 

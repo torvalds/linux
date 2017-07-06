@@ -1194,7 +1194,8 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
 	if (res)
 		return res;
 retry:
-	res = ext4_xattr_set_credits(inode, len, &credits);
+	res = ext4_xattr_set_credits(inode, len, false /* is_create */,
+				     &credits);
 	if (res)
 		return res;
 

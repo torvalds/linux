@@ -766,11 +766,13 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 	if (!dir || !dir->i_nlink)
 		return ERR_PTR(-EPERM);
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+	sb = dir->i_sb;
+	sbi = EXT4_SB(sb);
+
+	if (unlikely(ext4_forced_shutdown(sbi)))
 		return ERR_PTR(-EIO);
 
-	if ((ext4_encrypted_inode(dir) ||
-	     DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb))) &&
+	if ((ext4_encrypted_inode(dir) || DUMMY_ENCRYPTION_ENABLED(sbi)) &&
 	    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)) &&
 	    !(i_flags & EXT4_EA_INODE_FL)) {
 		err = fscrypt_get_encryption_info(dir);
@@ -778,19 +780,55 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 			return ERR_PTR(err);
 		if (!fscrypt_has_encryption_key(dir))
 			return ERR_PTR(-ENOKEY);
-		if (!handle)
-			nblocks += EXT4_DATA_TRANS_BLOCKS(dir->i_sb);
 		encrypt = 1;
 	}
 
-	sb = dir->i_sb;
+	if (!handle && sbi->s_journal && !(i_flags & EXT4_EA_INODE_FL)) {
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
+		struct posix_acl *p = get_acl(dir, ACL_TYPE_DEFAULT);
+
+		if (p) {
+			int acl_size = p->a_count * sizeof(ext4_acl_entry);
+
+			nblocks += (S_ISDIR(mode) ? 2 : 1) *
+				__ext4_xattr_set_credits(sb, NULL /* inode */,
+					NULL /* block_bh */, acl_size,
+					true /* is_create */);
+			posix_acl_release(p);
+		}
+#endif
+
+#ifdef CONFIG_SECURITY
+		{
+			int num_security_xattrs = 1;
+
+#ifdef CONFIG_INTEGRITY
+			num_security_xattrs++;
+#endif
+			/*
+			 * We assume that security xattrs are never
+			 * more than 1k.  In practice they are under
+			 * 128 bytes.
+			 */
+			nblocks += num_security_xattrs *
+				__ext4_xattr_set_credits(sb, NULL /* inode */,
+					NULL /* block_bh */, 1024,
+					true /* is_create */);
+		}
+#endif
+		if (encrypt)
+			nblocks += __ext4_xattr_set_credits(sb,
+					NULL /* inode */, NULL /* block_bh */,
+					FSCRYPT_SET_CONTEXT_MAX_SIZE,
+					true /* is_create */);
+	}
+
 	ngroups = ext4_get_groups_count(sb);
 	trace_ext4_request_inode(dir, mode);
 	inode = new_inode(sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	ei = EXT4_I(inode);
-	sbi = EXT4_SB(sb);
 
 	/*
 	 * Initialize owners and quota early so that we don't have to account
