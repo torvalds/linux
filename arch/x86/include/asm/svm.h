@@ -120,6 +120,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define AVIC_ENABLE_MASK (1 << AVIC_ENABLE_SHIFT)
 
 #define LBR_CTL_ENABLE_MASK BIT_ULL(0)
+#define VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK BIT_ULL(1)
 
 #define SVM_INTERRUPT_SHADOW_MASK 1
 
