@@ -1183,7 +1183,7 @@ out_free:
 	return ret;
 }
 
-static struct acpi_device_id gc2235_acpi_match[] = {
+static const struct acpi_device_id gc2235_acpi_match[] = {
 	{ "INT33F8" },
 	{},
 };
