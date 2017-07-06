@@ -1928,7 +1928,7 @@ static int mt9m114_probe(struct i2c_client *client,
 
 MODULE_DEVICE_TABLE(i2c, mt9m114_id);
 
-static struct acpi_device_id mt9m114_acpi_match[] = {
+static const struct acpi_device_id mt9m114_acpi_match[] = {
 	{ "INT33F0" },
 	{ "CRMT1040" },
 	{},
