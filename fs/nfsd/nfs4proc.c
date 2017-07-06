@@ -1578,7 +1578,7 @@ static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 	return nfs_ok;
 }
 
-static inline const struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
+const struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
 {
 	return &nfsd4_ops[op->opnum];
 }
@@ -1651,7 +1651,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	struct nfsd4_op	*op;
-	const struct nfsd4_operation *opdesc;
 	struct nfsd4_compound_state *cstate = &resp->cstate;
 	struct svc_fh *current_fh = &cstate->current_fh;
 	struct svc_fh *save_fh = &cstate->save_fh;
@@ -1704,15 +1703,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 			goto encode_op;
 		}
 
-		opdesc = OPDESC(op);
-
 		if (!current_fh->fh_dentry) {
-			if (!(opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
+			if (!(op->opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
 				op->status = nfserr_nofilehandle;
 				goto encode_op;
 			}
 		} else if (current_fh->fh_export->ex_fslocs.migrated &&
-			  !(opdesc->op_flags & ALLOWED_ON_ABSENT_FS)) {
+			  !(op->opdesc->op_flags & ALLOWED_ON_ABSENT_FS)) {
 			op->status = nfserr_moved;
 			goto encode_op;
 		}
@@ -1720,12 +1717,12 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 		fh_clear_wcc(current_fh);
 
 		/* If op is non-idempotent */
-		if (opdesc->op_flags & OP_MODIFIES_SOMETHING) {
+		if (op->opdesc->op_flags & OP_MODIFIES_SOMETHING) {
 			/*
 			 * Don't execute this op if we couldn't encode a
 			 * succesful reply:
 			 */
-			u32 plen = opdesc->op_rsize_bop(rqstp, op);
+			u32 plen = op->opdesc->op_rsize_bop(rqstp, op);
 			/*
 			 * Plus if there's another operation, make sure
 			 * we'll have space to at least encode an error:
@@ -1738,9 +1735,9 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 		if (op->status)
 			goto encode_op;
 
-		if (opdesc->op_get_currentstateid)
-			opdesc->op_get_currentstateid(cstate, &op->u);
-		op->status = opdesc->op_func(rqstp, cstate, &op->u);
+		if (op->opdesc->op_get_currentstateid)
+			op->opdesc->op_get_currentstateid(cstate, &op->u);
+		op->status = op->opdesc->op_func(rqstp, cstate, &op->u);
 
 		/* Only from SEQUENCE */
 		if (cstate->status == nfserr_replay_cache) {
@@ -1749,10 +1746,10 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 			goto out;
 		}
 		if (!op->status) {
-			if (opdesc->op_set_currentstateid)
-				opdesc->op_set_currentstateid(cstate, &op->u);
+			if (op->opdesc->op_set_currentstateid)
+				op->opdesc->op_set_currentstateid(cstate, &op->u);
 
-			if (opdesc->op_flags & OP_CLEAR_STATEID)
+			if (op->opdesc->op_flags & OP_CLEAR_STATEID)
 				clear_current_stateid(cstate);
 
 			if (need_wrongsec_check(rqstp))

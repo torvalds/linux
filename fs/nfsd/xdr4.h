@@ -538,6 +538,7 @@ struct nfsd4_seek {
 
 struct nfsd4_op {
 	int					opnum;
+	const struct nfsd4_operation *		opdesc;
 	__be32					status;
 	union nfsd4_op_u {
 		struct nfsd4_access		access;
@@ -661,6 +662,7 @@ static inline bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
 	return argp->opcnt == resp->opcnt;
 }
 
+const struct nfsd4_operation *OPDESC(struct nfsd4_op *op);
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op);
 void warn_on_nonidempotent_op(struct nfsd4_op *op);
 
