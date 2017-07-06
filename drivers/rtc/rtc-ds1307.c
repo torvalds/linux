@@ -1712,11 +1712,6 @@ exit:
 	return err;
 }
 
-static int ds1307_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static struct i2c_driver ds1307_driver = {
 	.driver = {
 		.name	= "rtc-ds1307",
@@ -1724,7 +1719,6 @@ static struct i2c_driver ds1307_driver = {
 		.acpi_match_table = ACPI_PTR(ds1307_acpi_ids),
 	},
 	.probe		= ds1307_probe,
-	.remove		= ds1307_remove,
 	.id_table	= ds1307_id,
 };
 
