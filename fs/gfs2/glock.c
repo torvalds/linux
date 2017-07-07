@@ -80,9 +80,9 @@ static struct rhashtable_params ht_parms = {
 
 static struct rhashtable gl_hash_table;
 
-void gfs2_glock_free(struct gfs2_glock *gl)
+static void gfs2_glock_dealloc(struct rcu_head *rcu)
 {
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct gfs2_glock *gl = container_of(rcu, struct gfs2_glock, gl_rcu);
 
 	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
 		kmem_cache_free(gfs2_glock_aspace_cachep, gl);
@@ -90,6 +90,13 @@ void gfs2_glock_free(struct gfs2_glock *gl)
 		kfree(gl->gl_lksb.sb_lvbptr);
 		kmem_cache_free(gfs2_glock_cachep, gl);
 	}
+}
+
+void gfs2_glock_free(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+
+	call_rcu(&gl->gl_rcu, gfs2_glock_dealloc);
 	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
 		wake_up(&sdp->sd_glock_wait);
 }
