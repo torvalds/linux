@@ -319,14 +319,29 @@ static int acp_hw_init(void *handle)
 		return -ENOMEM;
 	}
 
-	i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
+	switch (adev->asic_type) {
+	case CHIP_STONEY:
+		i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
+		break;
+	default:
+		i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
+	}
 	i2s_pdata[0].cap = DWC_I2S_PLAY;
 	i2s_pdata[0].snd_rates = SNDRV_PCM_RATE_8000_96000;
 	i2s_pdata[0].i2s_reg_comp1 = ACP_I2S_COMP1_PLAY_REG_OFFSET;
 	i2s_pdata[0].i2s_reg_comp2 = ACP_I2S_COMP2_PLAY_REG_OFFSET;
+	switch (adev->asic_type) {
+	case CHIP_STONEY:
+		i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			DW_I2S_QUIRK_COMP_PARAM1 |
+			DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
+		break;
+	default:
+		i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			DW_I2S_QUIRK_COMP_PARAM1;
+	}
 
-	i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
-				DW_I2S_QUIRK_COMP_PARAM1;
 	i2s_pdata[1].cap = DWC_I2S_RECORD;
 	i2s_pdata[1].snd_rates = SNDRV_PCM_RATE_8000_96000;
 	i2s_pdata[1].i2s_reg_comp1 = ACP_I2S_COMP1_CAP_REG_OFFSET;
