@@ -679,8 +679,8 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	if (init_srcu_struct(&kvm->irq_srcu))
 		goto out_err_no_irq_srcu;
 	for (i = 0; i < KVM_NR_BUSES; i++) {
-		kvm->buses[i] = kzalloc(sizeof(struct kvm_io_bus),
-					GFP_KERNEL);
+		rcu_assign_pointer(kvm->buses[i],
+			kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL));
 		if (!kvm->buses[i])
 			goto out_err;
 	}
@@ -705,7 +705,7 @@ out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
-		kfree(kvm->buses[i]);
+		kfree(rcu_access_pointer(kvm->buses[i]));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
 		kvm_free_memslots(kvm, kvm->memslots[i]);
 	kvm_arch_free_vm(kvm);
@@ -740,8 +740,11 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
 	for (i = 0; i < KVM_NR_BUSES; i++) {
-		if (kvm->buses[i])
-			kvm_io_bus_destroy(kvm->buses[i]);
+		struct kvm_io_bus *bus;
+
+		bus = rcu_dereference_protected(kvm->buses[i], 1);
+		if (bus)
+			kvm_io_bus_destroy(bus);
 		kvm->buses[i] = NULL;
 	}
 	kvm_coalesced_mmio_free(kvm);
@@ -3570,7 +3573,7 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 {
 	struct kvm_io_bus *new_bus, *bus;
 
-	bus = kvm->buses[bus_idx];
+	bus = kvm_get_bus(kvm, bus_idx);
 	if (!bus)
 		return -ENOMEM;
 
@@ -3599,7 +3602,7 @@ void kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	int i;
 	struct kvm_io_bus *new_bus, *bus;
 
-	bus = kvm->buses[bus_idx];
+	bus = kvm_get_bus(kvm, bus_idx);
 	if (!bus)
 		return;
 
