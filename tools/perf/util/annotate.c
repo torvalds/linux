@@ -517,6 +517,11 @@ bool ins__is_ret(const struct ins *ins)
 	return ins->ops == &ret_ops;
 }
 
+bool ins__is_lock(const struct ins *ins)
+{
+	return ins->ops == &lock_ops;
+}
+
 static int ins__key_cmp(const void *name, const void *insp)
 {
 	const struct ins *ins = insp;

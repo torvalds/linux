@@ -738,6 +738,35 @@ void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
 		__ui_browser__line_arrow_down(browser, column, start, end);
 }
 
+void ui_browser__mark_fused(struct ui_browser *browser, unsigned int column,
+			    unsigned int row, bool arrow_down)
+{
+	unsigned int end_row;
+
+	if (row >= browser->top_idx)
+		end_row = row - browser->top_idx;
+	else
+		return;
+
+	SLsmg_set_char_set(1);
+
+	if (arrow_down) {
+		ui_browser__gotorc(browser, end_row, column - 1);
+		SLsmg_write_char(SLSMG_ULCORN_CHAR);
+		ui_browser__gotorc(browser, end_row, column);
+		SLsmg_draw_hline(2);
+		ui_browser__gotorc(browser, end_row + 1, column - 1);
+		SLsmg_write_char(SLSMG_LTEE_CHAR);
+	} else {
+		ui_browser__gotorc(browser, end_row, column - 1);
+		SLsmg_write_char(SLSMG_LTEE_CHAR);
+		ui_browser__gotorc(browser, end_row, column);
+		SLsmg_draw_hline(2);
+	}
+
+	SLsmg_set_char_set(0);
+}
+
 void ui_browser__init(void)
 {
 	int i = 0;
