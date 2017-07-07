@@ -1141,6 +1141,13 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		}
 	}
 
+	if (amdgpu_gtt_size != -1 && amdgpu_gtt_size < 32) {
+		/* gtt size must be greater or equal to 32M */
+		dev_warn(adev->dev, "gtt size (%d) too small\n",
+				 amdgpu_gtt_size);
+		amdgpu_gtt_size = -1;
+	}
+
 	amdgpu_check_vm_size(adev);
 
 	amdgpu_check_block_size(adev);

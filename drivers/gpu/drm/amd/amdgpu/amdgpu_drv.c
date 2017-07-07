@@ -75,6 +75,7 @@
 
 int amdgpu_vram_limit = 0;
 int amdgpu_gart_size = -1; /* auto */
+int amdgpu_gtt_size = -1; /* auto */
 int amdgpu_moverate = -1; /* auto */
 int amdgpu_benchmarking = 0;
 int amdgpu_testing = 0;
@@ -122,6 +123,9 @@ module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
 
 MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc., -1 = auto)");
 module_param_named(gartsize, amdgpu_gart_size, int, 0600);
+
+MODULE_PARM_DESC(gttsize, "Size of the GTT domain in megabytes (-1 = auto)");
+module_param_named(gttsize, amdgpu_gtt_size, int, 0600);
 
 MODULE_PARM_DESC(moverate, "Maximum buffer migration rate in MB/s. (32, 64, etc., -1=auto, 0=1=disabled)");
 module_param_named(moverate, amdgpu_moverate, int, 0600);

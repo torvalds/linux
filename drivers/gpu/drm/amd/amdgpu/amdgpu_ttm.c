@@ -1097,6 +1097,7 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 
 int amdgpu_ttm_init(struct amdgpu_device *adev)
 {
+	uint64_t gtt_size;
 	int r;
 
 	r = amdgpu_ttm_global_init(adev);
@@ -1143,14 +1144,19 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	}
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned) (adev->mc.real_vram_size / (1024 * 1024)));
-	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_TT,
-				adev->mc.gart_size >> PAGE_SHIFT);
+
+	if (amdgpu_gtt_size == -1)
+		gtt_size = max((AMDGPU_DEFAULT_GTT_SIZE_MB << 20),
+			       adev->mc.mc_vram_size);
+	else
+		gtt_size = (uint64_t)amdgpu_gtt_size << 20;
+	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_TT, gtt_size >> PAGE_SHIFT);
 	if (r) {
 		DRM_ERROR("Failed initializing GTT heap.\n");
 		return r;
 	}
 	DRM_INFO("amdgpu: %uM of GTT memory ready.\n",
-		 (unsigned)(adev->mc.gart_size / (1024 * 1024)));
+		 (unsigned)(gtt_size / (1024 * 1024)));
 
 	adev->gds.mem.total_size = adev->gds.mem.total_size << AMDGPU_GDS_SHIFT;
 	adev->gds.mem.gfx_partition_size = adev->gds.mem.gfx_partition_size << AMDGPU_GDS_SHIFT;
