@@ -216,6 +216,19 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
 	return i;
 }
 
+static void armada_drm_plane_work_call(struct armada_crtc *dcrtc,
+	struct armada_plane_work *work,
+	void (*fn)(struct armada_crtc *, struct armada_plane_work *))
+{
+	struct armada_plane *dplane = drm_to_armada_plane(work->plane);
+
+	if (fn)
+		fn(dcrtc, work);
+	drm_crtc_vblank_put(&dcrtc->crtc);
+
+	wake_up(&dplane->frame_wait);
+}
+
 static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
 	struct drm_plane *plane)
 {
@@ -223,12 +236,8 @@ static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work = xchg(&dplane->work, NULL);
 
 	/* Handle any pending frame work. */
-	if (work) {
-		work->fn(dcrtc, work);
-		drm_crtc_vblank_put(&dcrtc->crtc);
-	}
-
-	wake_up(&dplane->frame_wait);
+	if (work)
+		armada_drm_plane_work_call(dcrtc, work, work->fn);
 }
 
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
@@ -261,7 +270,7 @@ void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work = xchg(&dplane->work, NULL);
 
 	if (work)
-		drm_crtc_vblank_put(&dcrtc->crtc);
+		armada_drm_plane_work_call(dcrtc, work, work->cancel);
 }
 
 static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
