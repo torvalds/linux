@@ -9,6 +9,7 @@
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
 #include "../../util/config.h"
+#include "../../util/evlist.h"
 #include <inttypes.h>
 #include <pthread.h>
 #include <linux/kernel.h>
@@ -1074,7 +1075,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	}
 
 	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
-				  sizeof_bdl, &browser.arch);
+				  sizeof_bdl, &browser.arch,
+				  perf_evsel__env_cpuid(evsel));
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));

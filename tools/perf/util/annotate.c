@@ -47,7 +47,12 @@ struct arch {
 	bool		sorted_instructions;
 	bool		initialized;
 	void		*priv;
+	unsigned int	model;
+	unsigned int	family;
 	int		(*init)(struct arch *arch);
+	bool		(*ins_is_fused)(struct arch *arch, const char *ins1,
+					const char *ins2);
+	int		(*cpuid_parse)(struct arch *arch, char *cpuid);
 	struct		{
 		char comment_char;
 		char skip_functions_char;
@@ -129,6 +134,8 @@ static struct arch architectures[] = {
 		.name = "x86",
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
+		.ins_is_fused = x86__ins_is_fused,
+		.cpuid_parse = x86__cpuid_parse,
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -169,6 +176,14 @@ int ins__scnprintf(struct ins *ins, char *bf, size_t size,
 		return ins->ops->scnprintf(ins, bf, size, ops);
 
 	return ins__raw_scnprintf(ins, bf, size, ops);
+}
+
+bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2)
+{
+	if (!arch || !arch->ins_is_fused)
+		return false;
+
+	return arch->ins_is_fused(arch, ins1, ins2);
 }
 
 static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
@@ -1381,7 +1396,7 @@ static const char *annotate__norm_arch(const char *arch_name)
 
 int symbol__disassemble(struct symbol *sym, struct map *map,
 			const char *arch_name, size_t privsize,
-			struct arch **parch)
+			struct arch **parch, char *cpuid)
 {
 	struct dso *dso = map->dso;
 	char command[PATH_MAX * 2];
@@ -1417,6 +1432,9 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 			return err;
 		}
 	}
+
+	if (arch->cpuid_parse && cpuid)
+		arch->cpuid_parse(arch, cpuid);
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),
@@ -1907,7 +1925,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	u64 len;
 
 	if (symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
-				0, NULL) < 0)
+				0, NULL, NULL) < 0)
 		return -1;
 
 	len = symbol__size(sym);

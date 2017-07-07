@@ -169,7 +169,7 @@ static int symbol__gtk_annotate(struct symbol *sym, struct map *map,
 		return -1;
 
 	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
-				  0, NULL);
+				  0, NULL, NULL);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));

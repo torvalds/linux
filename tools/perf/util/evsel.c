@@ -2610,3 +2610,10 @@ char *perf_evsel__env_arch(struct perf_evsel *evsel)
 		return evsel->evlist->env->arch;
 	return NULL;
 }
+
+char *perf_evsel__env_cpuid(struct perf_evsel *evsel)
+{
+	if (evsel && evsel->evlist && evsel->evlist->env)
+		return evsel->evlist->env->cpuid;
+	return NULL;
+}
