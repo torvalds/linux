@@ -21,6 +21,10 @@
 	compatible = "qcom,ipq4019";
 
 	soc {
+		rng@22000 {
+			status = "ok";
+		};
+
 		pinctrl@1000000 {
 			serial_pins: serial_pinmux {
 				mux {
