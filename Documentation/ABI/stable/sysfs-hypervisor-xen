@@ -1,0 +1,119 @@
+What:		/sys/hypervisor/compilation/compile_date
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Contains the build time stamp of the Xen hypervisor
+		Might return "<denied>" in case of special security settings
+		in the hypervisor.
+
+What:		/sys/hypervisor/compilation/compiled_by
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Contains information who built the Xen hypervisor
+		Might return "<denied>" in case of special security settings
+		in the hypervisor.
+
+What:		/sys/hypervisor/compilation/compiler
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Compiler which was used to build the Xen hypervisor
+		Might return "<denied>" in case of special security settings
+		in the hypervisor.
+
+What:		/sys/hypervisor/properties/capabilities
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Space separated list of supported guest system types. Each type
+		is in the format: <class>-<major>.<minor>-<arch>
+		With:
+			<class>: "xen" -- x86: paravirtualized, arm: standard
+				 "hvm" -- x86 only: fully virtualized
+			<major>: major guest interface version
+			<minor>: minor guest interface version
+			<arch>:  architecture, e.g.:
+				 "x86_32": 32 bit x86 guest without PAE
+				 "x86_32p": 32 bit x86 guest with PAE
+				 "x86_64": 64 bit x86 guest
+				 "armv7l": 32 bit arm guest
+				 "aarch64": 64 bit arm guest
+
+What:		/sys/hypervisor/properties/changeset
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Changeset of the hypervisor (git commit)
+		Might return "<denied>" in case of special security settings
+		in the hypervisor.
+
+What:		/sys/hypervisor/properties/features
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Features the Xen hypervisor supports for the guest as defined
+		in include/xen/interface/features.h printed as a hex value.
+
+What:		/sys/hypervisor/properties/pagesize
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Default page size of the hypervisor printed as a hex value.
+		Might return "0" in case of special security settings
+		in the hypervisor.
+
+What:		/sys/hypervisor/properties/virtual_start
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Virtual address of the hypervisor as a hex value.
+
+What:		/sys/hypervisor/type
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		Type of hypervisor:
+		"xen": Xen hypervisor
+
+What:		/sys/hypervisor/uuid
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		UUID of the guest as known to the Xen hypervisor.
+
+What:		/sys/hypervisor/version/extra
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		The Xen version is in the format <major>.<minor><extra>
+		This is the <extra> part of it.
+		Might return "<denied>" in case of special security settings
+		in the hypervisor.
+
+What:		/sys/hypervisor/version/major
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		The Xen version is in the format <major>.<minor><extra>
+		This is the <major> part of it.
+
+What:		/sys/hypervisor/version/minor
+Date:		March 2009
+KernelVersion:	2.6.30
+Contact:	xen-devel@lists.xenproject.org
+Description:	If running under Xen:
+		The Xen version is in the format <major>.<minor><extra>
+		This is the <minor> part of it.
