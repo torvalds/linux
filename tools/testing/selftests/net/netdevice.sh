@@ -178,7 +178,7 @@ if [ "$(id -u)" -ne 0 ];then
 	exit 0
 fi
 
-ip -Version 2>/dev/null >/dev/null
+ip link show 2>/dev/null >/dev/null
 if [ $? -ne 0 ];then
 	echo "SKIP: Could not run test without the ip tool"
 	exit 0
