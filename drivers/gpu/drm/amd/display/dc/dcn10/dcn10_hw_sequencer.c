@@ -64,17 +64,13 @@ static void enable_dppclk(
 			plane_id,
 			dppclk_div);
 
-	if (dppclk_div) {
-		/* 1/2 DISPCLK*/
+	if (hws->shifts->DPPCLK_RATE_CONTROL)
 		REG_UPDATE_2(DPP_CONTROL[plane_id],
-			DPPCLK_RATE_CONTROL, 1,
+			DPPCLK_RATE_CONTROL, dppclk_div,
 			DPP_CLOCK_ENABLE, 1);
-	} else {
-		/* DISPCLK */
-		REG_UPDATE_2(DPP_CONTROL[plane_id],
-			DPPCLK_RATE_CONTROL, 0,
+	else
+		REG_UPDATE(DPP_CONTROL[plane_id],
 			DPP_CLOCK_ENABLE, 1);
-	}
 }
 
 static void enable_power_gating_plane(
