@@ -1412,6 +1412,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	}
 
 	dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
+	dst_buf->field = src_buf->field;
 	dst_buf->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 	dst_buf->flags |=
 		src_buf->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
@@ -2154,6 +2155,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		dst_buf->sequence = ctx->osequence++;
 
+		dst_buf->field = V4L2_FIELD_NONE;
 		dst_buf->flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 					     V4L2_BUF_FLAG_PFRAME |
 					     V4L2_BUF_FLAG_BFRAME);
