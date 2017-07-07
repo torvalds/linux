@@ -335,6 +335,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				maj = ((pvr >> 8) & 0xFF) - 1;
 				min = pvr & 0xFF;
 				break;
+			case 0x004e: /* POWER9 bits 12-15 give chip type */
+				maj = (pvr >> 8) & 0x0F;
+				min = pvr & 0xFF;
+				break;
 			default:
 				maj = (pvr >> 8) & 0xFF;
 				min = pvr & 0xFF;
