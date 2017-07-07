@@ -80,11 +80,12 @@ static void armada_ovl_retire_fb(struct armada_ovl_plane *dplane,
 
 /* === Plane support === */
 static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
-	struct armada_plane *plane, struct armada_plane_work *work)
+	struct armada_plane_work *work)
 {
-	struct armada_ovl_plane *dplane = container_of(plane, struct armada_ovl_plane, base);
+	struct armada_ovl_plane *dplane = container_of(work->plane,
+					struct armada_ovl_plane, base.base);
 
-	trace_armada_ovl_plane_work(&dcrtc->crtc, &plane->base);
+	trace_armada_ovl_plane_work(&dcrtc->crtc, work->plane);
 
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
 	armada_ovl_retire_fb(dplane, NULL);
@@ -252,8 +253,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 	if (idx) {
 		armada_reg_queue_end(dplane->vbl.regs, idx);
-		armada_drm_plane_work_queue(dcrtc, &dplane->base,
-					    &dplane->vbl.work);
+		/* Queue it for update on the next interrupt if we are enabled */
+		armada_drm_plane_work_queue(dcrtc, &dplane->vbl.work);
 	}
 	return 0;
 }
@@ -454,6 +455,7 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 		return ret;
 	}
 
+	dplane->vbl.work.plane = &dplane->base.base;
 	dplane->vbl.work.fn = armada_ovl_plane_work;
 
 	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,

@@ -36,9 +36,8 @@ struct armada_plane;
 struct armada_variant;
 
 struct armada_plane_work {
-	void			(*fn)(struct armada_crtc *,
-				      struct armada_plane *,
-				      struct armada_plane_work *);
+	void (*fn)(struct armada_crtc *, struct armada_plane_work *);
+	struct drm_plane *plane;
 };
 
 struct armada_plane_state {
@@ -60,7 +59,7 @@ struct armada_plane {
 
 int armada_drm_plane_init(struct armada_plane *plane);
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
-	struct armada_plane *plane, struct armada_plane_work *work);
+	struct armada_plane_work *work);
 int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
 void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 	struct armada_plane *plane);

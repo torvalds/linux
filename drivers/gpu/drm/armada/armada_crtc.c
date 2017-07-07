@@ -224,7 +224,7 @@ static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
 
 	/* Handle any pending frame work. */
 	if (work) {
-		work->fn(dcrtc, dplane, work);
+		work->fn(dcrtc, work);
 		drm_crtc_vblank_put(&dcrtc->crtc);
 	}
 
@@ -232,8 +232,9 @@ static void armada_drm_plane_work_run(struct armada_crtc *dcrtc,
 }
 
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
-	struct armada_plane *plane, struct armada_plane_work *work)
+	struct armada_plane_work *work)
 {
+	struct armada_plane *plane = drm_to_armada_plane(work->plane);
 	int ret;
 
 	ret = drm_crtc_vblank_get(&dcrtc->crtc);
@@ -263,16 +264,8 @@ void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 		drm_crtc_vblank_put(&dcrtc->crtc);
 }
 
-static int armada_drm_crtc_queue_frame_work(struct armada_crtc *dcrtc,
-	struct armada_frame_work *work)
-{
-	struct armada_plane *plane = drm_to_armada_plane(dcrtc->crtc.primary);
-
-	return armada_drm_plane_work_queue(dcrtc, plane, &work->work);
-}
-
 static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
-	struct armada_plane *plane, struct armada_plane_work *work)
+	struct armada_plane_work *work)
 {
 	struct armada_frame_work *fwork = container_of(work, struct armada_frame_work, work);
 	struct drm_device *dev = dcrtc->crtc.dev;
@@ -293,7 +286,8 @@ static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 	kfree(fwork);
 }
 
-static struct armada_frame_work *armada_drm_crtc_alloc_frame_work(void)
+static struct armada_frame_work *
+armada_drm_crtc_alloc_frame_work(struct drm_plane *plane)
 {
 	struct armada_frame_work *work;
 	int i = 0;
@@ -302,6 +296,7 @@ static struct armada_frame_work *armada_drm_crtc_alloc_frame_work(void)
 	if (!work)
 		return NULL;
 
+	work->work.plane = plane;
 	work->work.fn = armada_drm_crtc_complete_frame_work;
 	armada_reg_queue_end(work->regs, i);
 
@@ -322,11 +317,11 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 		return;
 	}
 
-	work = armada_drm_crtc_alloc_frame_work();
+	work = armada_drm_crtc_alloc_frame_work(dcrtc->crtc.primary);
 	if (work) {
 		work->old_fb = fb;
 
-		if (armada_drm_crtc_queue_frame_work(dcrtc, work) == 0)
+		if (armada_drm_plane_work_queue(dcrtc, work) == 0)
 			return;
 
 		kfree(work);
@@ -1044,7 +1039,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	if (fb->format != crtc->primary->fb->format)
 		return -EINVAL;
 
-	work = armada_drm_crtc_alloc_frame_work();
+	work = armada_drm_crtc_alloc_frame_work(dcrtc->crtc.primary);
 	if (!work)
 		return -ENOMEM;
 
@@ -1061,7 +1056,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	 */
 	drm_framebuffer_get(fb);
 
-	ret = armada_drm_crtc_queue_frame_work(dcrtc, work);
+	ret = armada_drm_plane_work_queue(dcrtc, work);
 	if (ret) {
 		/* Undo our reference above */
 		drm_framebuffer_put(fb);
