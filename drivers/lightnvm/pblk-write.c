@@ -39,9 +39,7 @@ static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 
 	ret = pblk_rb_sync_advance(&pblk->rwb, c_ctx->nr_valid);
 
-	if (rqd->meta_list)
-		nvm_dev_dma_free(dev->parent, rqd->meta_list,
-							rqd->dma_meta_list);
+	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 
 	bio_put(rqd->bio);
 	pblk_free_rqd(pblk, rqd, WRITE);
@@ -223,9 +221,6 @@ static int pblk_alloc_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 							&rqd->dma_meta_list);
 	if (!rqd->meta_list)
 		return -ENOMEM;
-
-	if (unlikely(nr_secs == 1))
-		return 0;
 
 	rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size;
 	rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size;
