@@ -402,8 +402,7 @@ asmlinkage long compat_sys_wait4(compat_pid_t pid,
 
 #define BITS_PER_COMPAT_LONG    (8*sizeof(compat_long_t))
 
-#define BITS_TO_COMPAT_LONGS(bits) \
-	(((bits)+BITS_PER_COMPAT_LONG-1)/BITS_PER_COMPAT_LONG)
+#define BITS_TO_COMPAT_LONGS(bits) DIV_ROUND_UP(bits, BITS_PER_COMPAT_LONG)
 
 long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size);
