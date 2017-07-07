@@ -348,6 +348,15 @@ default behavior is always set to 0.
     - ``echo 1 > /sys/module/debug_core/parameters/kgdbreboot``
     - Enter the debugger on reboot notify.
 
+Kernel parameter: ``nokaslr``
+-----------------------------
+
+If the architecture that you are using enable KASLR by default,
+you should consider turning it off.  KASLR randomizes the
+virtual address where the kernel image is mapped and confuse
+gdb which resolve kernel symbol address from symbol table
+of vmlinux.
+
 Using kdb
 =========
 
@@ -358,7 +367,7 @@ This is a quick example of how to use kdb.
 
 1. Configure kgdboc at boot using kernel parameters::
 
-	console=ttyS0,115200 kgdboc=ttyS0,115200
+	console=ttyS0,115200 kgdboc=ttyS0,115200 nokaslr
 
    OR
 
