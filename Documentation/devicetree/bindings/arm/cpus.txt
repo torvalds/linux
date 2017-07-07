@@ -6,9 +6,9 @@ The device tree allows to describe the layout of CPUs in a system through
 the "cpus" node, which in turn contains a number of subnodes (ie "cpu")
 defining properties for every cpu.
 
-Bindings for CPU nodes follow the ePAPR v1.1 standard, available from:
+Bindings for CPU nodes follow the Devicetree Specification, available from:
 
-https://www.power.org/documentation/epapr-version-1-1/
+https://www.devicetree.org/specifications/
 
 with updates for 32-bit and 64-bit ARM systems provided in this document.
 
@@ -16,8 +16,8 @@ with updates for 32-bit and 64-bit ARM systems provided in this document.
 Convention used in this document
 ================================
 
-This document follows the conventions described in the ePAPR v1.1, with
-the addition:
+This document follows the conventions described in the Devicetree
+Specification, with the addition:
 
 - square brackets define bitfields, eg reg[7:0] value of the bitfield in
   the reg property contained in bits 7 down to 0
@@ -26,8 +26,9 @@ the addition:
 cpus and cpu node bindings definition
 =====================================
 
-The ARM architecture, in accordance with the ePAPR, requires the cpus and cpu
-nodes to be present and contain the properties described below.
+The ARM architecture, in accordance with the Devicetree Specification,
+requires the cpus and cpu nodes to be present and contain the properties
+described below.
 
 - cpus node
 

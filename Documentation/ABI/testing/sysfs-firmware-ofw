@@ -1,6 +1,6 @@
 What:		/sys/firmware/devicetree/*
 Date:		November 2013
-Contact:	Grant Likely <grant.likely@linaro.org>
+Contact:	Grant Likely <grant.likely@arm.com>, devicetree@vger.kernel.org
 Description:
 		When using OpenFirmware or a Flattened Device Tree to enumerate
 		hardware, the device tree structure will be exposed in this
@@ -26,3 +26,27 @@ Description:
 		name plus address). Properties are represented as files
 		in the directory. The contents of each file is the exact
 		binary data from the device tree.
+
+What:		/sys/firmware/fdt
+Date:		February 2015
+KernelVersion:	3.19
+Contact:	Frank Rowand <frowand.list@gmail.com>, devicetree@vger.kernel.org
+Description:
+		Exports the FDT blob that was passed to the kernel by
+		the bootloader. This allows userland applications such
+		as kexec to access the raw binary. This blob is also
+		useful when debugging since it contains any changes
+		made to the blob by the bootloader.
+
+		The fact that this node does not reside under
+		/sys/firmware/device-tree is deliberate: FDT is also used
+		on arm64 UEFI/ACPI systems to communicate just the UEFI
+		and ACPI entry points, but the FDT is never unflattened
+		and used to configure the system.
+
+		A CRC32 checksum is calculated over the entire FDT
+		blob, and verified at late_initcall time. The sysfs
+		entry is instantiated only if the checksum is valid,
+		i.e., if the FDT blob has not been modified in the mean
+		time. Otherwise, a warning is printed.
+Users:		kexec, debugging
