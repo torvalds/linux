@@ -117,4 +117,30 @@ static inline void v4l2_fill_mbus_format(struct v4l2_mbus_framefmt *mbus_fmt,
 	mbus_fmt->code = code;
 }
 
+static inline void v4l2_fill_pix_format_mplane(
+				struct v4l2_pix_format_mplane *pix_mp_fmt,
+				const struct v4l2_mbus_framefmt *mbus_fmt)
+{
+	pix_mp_fmt->width = mbus_fmt->width;
+	pix_mp_fmt->height = mbus_fmt->height;
+	pix_mp_fmt->field = mbus_fmt->field;
+	pix_mp_fmt->colorspace = mbus_fmt->colorspace;
+	pix_mp_fmt->ycbcr_enc = mbus_fmt->ycbcr_enc;
+	pix_mp_fmt->quantization = mbus_fmt->quantization;
+	pix_mp_fmt->xfer_func = mbus_fmt->xfer_func;
+}
+
+static inline void v4l2_fill_mbus_format_mplane(
+				struct v4l2_mbus_framefmt *mbus_fmt,
+				const struct v4l2_pix_format_mplane *pix_mp_fmt)
+{
+	mbus_fmt->width = pix_mp_fmt->width;
+	mbus_fmt->height = pix_mp_fmt->height;
+	mbus_fmt->field = pix_mp_fmt->field;
+	mbus_fmt->colorspace = pix_mp_fmt->colorspace;
+	mbus_fmt->ycbcr_enc = pix_mp_fmt->ycbcr_enc;
+	mbus_fmt->quantization = pix_mp_fmt->quantization;
+	mbus_fmt->xfer_func = pix_mp_fmt->xfer_func;
+}
+
 #endif
