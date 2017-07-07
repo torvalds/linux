@@ -40,7 +40,7 @@ struct  dc_stream;
 
 struct dm_plane_state {
 	struct drm_plane_state base;
-	struct dc_surface *dc_surface;
+	struct dc_surface *surface;
 };
 
 struct dm_crtc_state {
