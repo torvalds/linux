@@ -4813,6 +4813,11 @@ static int spu_dt_read(struct platform_device *pdev)
 	int err;
 
 	match = of_match_device(of_match_ptr(bcm_spu_dt_ids), dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Failed to match device\n");
+		return -ENODEV;
+	}
+
 	matched_spu_type = match->data;
 
 	if (iproc_priv.spu.num_spu > 1) {
