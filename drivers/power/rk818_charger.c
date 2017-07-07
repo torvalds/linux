@@ -926,6 +926,9 @@ static void rk818_cg_irq_delay_work(struct work_struct *work)
 		CG_INFO("pmic: plug in\n");
 		cg->plugin_trigger = 0;
 		rk_send_wakeup_key();
+		if (cg->pdata->extcon)
+			queue_delayed_work(cg->usb_charger_wq, &cg->usb_work,
+					   msecs_to_jiffies(10));
 	} else if (cg->plugout_trigger) {
 		CG_INFO("pmic: plug out\n");
 		cg->plugout_trigger = 0;
