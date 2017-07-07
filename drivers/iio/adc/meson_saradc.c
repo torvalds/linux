@@ -915,6 +915,11 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	init_completion(&priv->done);
 
 	match = of_match_device(meson_sar_adc_of_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "failed to match device\n");
+		return -ENODEV;
+	}
+
 	priv->data = match->data;
 
 	indio_dev->name = priv->data->name;
