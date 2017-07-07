@@ -8,7 +8,7 @@
 # Released under the terms of the GPL v2.
 
 usage() { # errno [message]
-[ "$2" ] && echo $2
+[ ! -z "$2" ] && echo $2
 echo "Usage: ftracetest [options] [testcase(s)] [testcase-directory(s)]"
 echo " Options:"
 echo "		-h|--help  Show help message"
@@ -50,7 +50,7 @@ parse_opts() { # opts
   local OPT_TEST_CASES=
   local OPT_TEST_DIR=
 
-  while [ "$1" ]; do
+  while [ ! -z "$1" ]; do
     case "$1" in
     --help|-h)
       usage 0
@@ -96,7 +96,7 @@ parse_opts() { # opts
     ;;
     esac
   done
-  if [ "$OPT_TEST_CASES" ]; then
+  if [ ! -z "$OPT_TEST_CASES" ]; then
     TEST_CASES=$OPT_TEST_CASES
   fi
 }
