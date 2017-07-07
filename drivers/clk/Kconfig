@@ -126,6 +126,15 @@ config COMMON_CLK_CS2000_CP
 	help
 	  If you say yes here you get support for the CS2000 clock multiplier.
 
+config COMMON_CLK_GEMINI
+	bool "Clock driver for Cortina Systems Gemini SoC"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	select MFD_SYSCON
+	select RESET_CONTROLLER
+	---help---
+	  This driver supports the SoC clocks on the Cortina Systems Gemini
+	  platform, also known as SL3516 or CS3516.
+
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
 	depends on MFD_SEC_CORE || COMPILE_TEST
@@ -163,13 +172,6 @@ config COMMON_CLK_XGENE
 	depends on ARM64 || COMPILE_TEST
 	---help---
 	  Sypport for the APM X-Gene SoC reference, PLL, and device clocks.
-
-config COMMON_CLK_KEYSTONE
-	tristate "Clock drivers for Keystone based SOCs"
-	depends on (ARCH_KEYSTONE || COMPILE_TEST) && OF
-	---help---
-          Supports clock drivers for Keystone based SOCs. These SOCs have local
-	  a power sleep control module that gate the clock to the IPs and PLLs.
 
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
@@ -219,6 +221,7 @@ config COMMON_CLK_VC5
 
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
+source "drivers/clk/keystone/Kconfig"
 source "drivers/clk/mediatek/Kconfig"
 source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mvebu/Kconfig"

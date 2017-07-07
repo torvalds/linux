@@ -2,17 +2,27 @@
 
 Required properties:
 
-- compatible : Should be "marvell,orion-gpio", "marvell,mv78200-gpio"
-  or "marvell,armadaxp-gpio". "marvell,orion-gpio" should be used for
-  Orion, Kirkwood, Dove, Discovery (except MV78200) and Armada
-  370. "marvell,mv78200-gpio" should be used for the Discovery
-  MV78200. "marvel,armadaxp-gpio" should be used for all Armada XP
-  SoCs (MV78230, MV78260, MV78460).
+- compatible : Should be "marvell,orion-gpio", "marvell,mv78200-gpio",
+  "marvell,armadaxp-gpio" or "marvell,armada-8k-gpio".
+
+    "marvell,orion-gpio" should be used for Orion, Kirkwood, Dove,
+    Discovery (except MV78200) and Armada 370. "marvell,mv78200-gpio"
+    should be used for the Discovery MV78200.
+
+    "marvel,armadaxp-gpio" should be used for all Armada XP SoCs
+    (MV78230, MV78260, MV78460).
+
+    "marvell,armada-8k-gpio" should be used for the Armada 7K and 8K
+    SoCs (either from AP or CP), see
+    Documentation/devicetree/bindings/arm/marvell/cp110-system-controller0.txt
+    and
+    Documentation/devicetree/bindings/arm/marvell/ap806-system-controller.txt
+    for specific details about the offset property.
 
 - reg: Address and length of the register set for the device. Only one
   entry is expected, except for the "marvell,armadaxp-gpio" variant
   for which two entries are expected: one for the general registers,
-  one for the per-cpu registers.
+  one for the per-cpu registers. Not used for marvell,armada-8k-gpio.
 
 - interrupts: The list of interrupts that are used for all the pins
   managed by this GPIO bank. There can be more than one interrupt
