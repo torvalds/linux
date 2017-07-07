@@ -7,4 +7,4 @@ TEST_STR=$(( $ORIG + 1 ))
 
 . ./common_tests
 
-exit $rc
+exit_test

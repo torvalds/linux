@@ -2,6 +2,7 @@
 # description: Kretprobe dynamic event with maxactive
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
+grep -q 'r\[maxactive\]' README || exit_unsupported # this is older version
 
 echo > kprobe_events
 

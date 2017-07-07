@@ -7337,9 +7337,10 @@ KERNEL SELFTEST FRAMEWORK
 M:	Shuah Khan <shuahkh@osg.samsung.com>
 M:	Shuah Khan <shuah@kernel.org>
 L:	linux-kselftest@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/shuah/linux-kselftest
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shuah/linux-kselftest.git
 S:	Maintained
-F:	tools/testing/selftests
+F:	tools/testing/selftests/
+F:	Documentation/dev-tools/kselftest*
 
 KERNEL VIRTUAL MACHINE (KVM)
 M:	Paolo Bonzini <pbonzini@redhat.com>
@@ -11740,6 +11741,7 @@ F:	kernel/seccomp.c
 F:	include/uapi/linux/seccomp.h
 F:	include/linux/seccomp.h
 F:	tools/testing/selftests/seccomp/*
+F:	tools/testing/selftests/kselftest_harness.h
 F:	Documentation/userspace-api/seccomp_filter.rst
 K:	\bsecure_computing
 K:	\bTIF_SECCOMP\b
