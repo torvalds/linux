@@ -293,6 +293,21 @@ static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 	kfree(fwork);
 }
 
+static struct armada_frame_work *armada_drm_crtc_alloc_frame_work(void)
+{
+	struct armada_frame_work *work;
+	int i = 0;
+
+	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	if (!work)
+		return NULL;
+
+	work->work.fn = armada_drm_crtc_complete_frame_work;
+	armada_reg_queue_end(work->regs, i);
+
+	return work;
+}
+
 static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 	struct drm_framebuffer *fb, bool force)
 {
@@ -307,13 +322,9 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 		return;
 	}
 
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	work = armada_drm_crtc_alloc_frame_work();
 	if (work) {
-		int i = 0;
-		work->work.fn = armada_drm_crtc_complete_frame_work;
-		work->event = NULL;
 		work->old_fb = fb;
-		armada_reg_queue_end(work->regs, i);
 
 		if (armada_drm_crtc_queue_frame_work(dcrtc, work) == 0)
 			return;
@@ -1033,11 +1044,10 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	if (fb->format != crtc->primary->fb->format)
 		return -EINVAL;
 
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	work = armada_drm_crtc_alloc_frame_work();
 	if (!work)
 		return -ENOMEM;
 
-	work->work.fn = armada_drm_crtc_complete_frame_work;
 	work->event = event;
 	work->old_fb = dcrtc->crtc.primary->fb;
 
