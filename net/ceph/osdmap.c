@@ -1400,7 +1400,7 @@ static struct ceph_pg_mapping *__decode_pg_upmap_items(void **p, void *end,
 		return ERR_PTR(-EINVAL);
 
 	ceph_decode_need(p, end, 2 * len * sizeof(u32), e_inval);
-	pg = kzalloc(sizeof(*pg) + 2 * len * sizeof(u32), GFP_NOIO);
+	pg = alloc_pg_mapping(2 * len * sizeof(u32));
 	if (!pg)
 		return ERR_PTR(-ENOMEM);
 
