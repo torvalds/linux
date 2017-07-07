@@ -910,7 +910,7 @@ static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
 				   enum i915_cache_level cache_level,
 				   u32 unused)
 {
-	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vma->vm);
+	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct sgt_dma iter = {
 		.sg = vma->pages->sgl,
 		.dma = sg_dma_address(iter.sg),
@@ -2242,7 +2242,7 @@ static void bxt_vtd_ggtt_insert_entries__BKL(struct i915_address_space *vm,
 					     enum i915_cache_level level,
 					     u32 unused)
 {
-	struct insert_entries arg = { vma->vm, vma, level };
+	struct insert_entries arg = { vm, vma, level };
 
 	stop_machine(bxt_vtd_ggtt_insert_entries__cb, &arg, NULL);
 }
