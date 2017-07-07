@@ -703,6 +703,8 @@ static u32 coda_supported_firmwares[] = {
 	CODA_FIRMWARE_VERNUM(CODA_DX6, 2, 2, 5),
 	CODA_FIRMWARE_VERNUM(CODA_7541, 1, 4, 50),
 	CODA_FIRMWARE_VERNUM(CODA_960, 2, 1, 5),
+	CODA_FIRMWARE_VERNUM(CODA_960, 2, 3, 10),
+	CODA_FIRMWARE_VERNUM(CODA_960, 3, 1, 1),
 };
 
 static bool coda_firmware_supported(u32 vernum)
