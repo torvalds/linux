@@ -1508,7 +1508,7 @@ static int rt5663_v2_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 {
 	struct rt5663_priv *rt5663 = snd_soc_codec_get_drvdata(codec);
-	int val, i = 0, sleep_time[5] = {300, 150, 100, 50, 30};
+	int val, i = 0;
 
 	dev_dbg(codec->dev, "%s jack_insert:%d\n", __func__, jack_insert);
 
@@ -1543,17 +1543,22 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			RT5663_IRQ_POW_SAV_MASK, RT5663_IRQ_POW_SAV_EN);
 		snd_soc_update_bits(codec, RT5663_IRQ_1,
 			RT5663_EN_IRQ_JD1_MASK, RT5663_EN_IRQ_JD1_EN);
-		while (i < 5) {
-			msleep(sleep_time[i]);
-			val = snd_soc_read(codec, RT5663_EM_JACK_TYPE_2) &
-				0x0003;
-			dev_dbg(codec->dev, "%s: MX-00e7 val=%x sleep %d\n",
-				__func__, val, sleep_time[i]);
-			i++;
-			if (val == 0x1 || val == 0x2 || val == 0x3)
+
+		while (true) {
+			regmap_read(rt5663->regmap, RT5663_INT_ST_2, &val);
+			if (!(val & 0x80))
+				usleep_range(10000, 10005);
+			else
 				break;
+
+			if (i > 200)
+				break;
+			i++;
 		}
+
+		val = snd_soc_read(codec, RT5663_EM_JACK_TYPE_2) & 0x0003;
 		dev_dbg(codec->dev, "%s val = %d\n", __func__, val);
+
 		switch (val) {
 		case 1:
 		case 2:
