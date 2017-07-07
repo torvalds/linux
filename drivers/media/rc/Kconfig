@@ -399,6 +399,17 @@ config IR_GPIO_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
 
+config IR_GPIO_TX
+	tristate "GPIO IR Bit Banging Transmitter"
+	depends on RC_CORE
+	depends on LIRC
+	---help---
+	   Say Y if you want to a GPIO based IR transmitter. This is a
+	   bit banging driver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called gpio-ir-tx.
+
 config RC_ST
 	tristate "ST remote control receiver"
 	depends on RC_CORE

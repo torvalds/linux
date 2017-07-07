@@ -5769,6 +5769,12 @@ S:	Maintained
 F:	Documentation/acpi/gpio-properties.txt
 F:	drivers/gpio/gpiolib-acpi.c
 
+GPIO IR Transmitter
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/gpio-ir-tx.c
+
 GPIO MOCKUP DRIVER
 M:	Bamvor Jian Zhang <bamvor.zhangjian@linaro.org>
 L:	linux-gpio@vger.kernel.org
