@@ -1054,8 +1054,9 @@ static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 {
 	unsigned long orphan_num = sbi->im[ORPHAN_INO].ino_num;
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
+	unsigned long flags;
 
-	spin_lock(&sbi->cp_lock);
+	spin_lock_irqsave(&sbi->cp_lock, flags);
 
 	if ((cpc->reason & CP_UMOUNT) &&
 			le32_to_cpu(ckpt->cp_pack_total_block_count) >
@@ -1086,14 +1087,14 @@ static void update_ckpt_flags(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	/* set this flag to activate crc|cp_ver for recovery */
 	__set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG);
 
-	spin_unlock(&sbi->cp_lock);
+	spin_unlock_irqrestore(&sbi->cp_lock, flags);
 }
 
 static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
-	unsigned long orphan_num = sbi->im[ORPHAN_INO].ino_num;
+	unsigned long orphan_num = sbi->im[ORPHAN_INO].ino_num, flags;
 	block_t start_blk;
 	unsigned int data_sum_blocks, orphan_blocks;
 	__u32 crc32 = 0;
@@ -1135,12 +1136,12 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* 2 cp  + n data seg summary + orphan inode blocks */
 	data_sum_blocks = npages_for_summary_flush(sbi, false);
-	spin_lock(&sbi->cp_lock);
+	spin_lock_irqsave(&sbi->cp_lock, flags);
 	if (data_sum_blocks < NR_CURSEG_DATA_TYPE)
 		__set_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
 	else
 		__clear_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
-	spin_unlock(&sbi->cp_lock);
+	spin_unlock_irqrestore(&sbi->cp_lock, flags);
 
 	orphan_blocks = GET_ORPHAN_BLOCKS(orphan_num);
 	ckpt->cp_pack_start_sum = cpu_to_le32(1 + cp_payload_blks +
