@@ -1888,12 +1888,12 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(pre_handler_kretprobe);
 
-bool __weak arch_function_offset_within_entry(unsigned long offset)
+bool __weak arch_kprobe_on_func_entry(unsigned long offset)
 {
 	return !offset;
 }
 
-bool function_offset_within_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset)
+bool kprobe_on_func_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset)
 {
 	kprobe_opcode_t *kp_addr = _kprobe_addr(addr, sym, offset);
 
@@ -1901,7 +1901,7 @@ bool function_offset_within_entry(kprobe_opcode_t *addr, const char *sym, unsign
 		return false;
 
 	if (!kallsyms_lookup_size_offset((unsigned long)kp_addr, NULL, &offset) ||
-						!arch_function_offset_within_entry(offset))
+						!arch_kprobe_on_func_entry(offset))
 		return false;
 
 	return true;
@@ -1914,7 +1914,7 @@ int register_kretprobe(struct kretprobe *rp)
 	int i;
 	void *addr;
 
-	if (!function_offset_within_entry(rp->kp.addr, rp->kp.symbol_name, rp->kp.offset))
+	if (!kprobe_on_func_entry(rp->kp.addr, rp->kp.symbol_name, rp->kp.offset))
 		return -EINVAL;
 
 	if (kretprobe_blacklist_size) {
