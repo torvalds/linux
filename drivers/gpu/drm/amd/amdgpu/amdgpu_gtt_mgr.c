@@ -42,6 +42,7 @@ struct amdgpu_gtt_mgr {
 static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 			       unsigned long p_size)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr;
 	uint64_t start, size;
 
@@ -50,7 +51,7 @@ static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 		return -ENOMEM;
 
 	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
-	size = p_size - start;
+	size = (adev->mc.gart_size >> PAGE_SHIFT) - start;
 	drm_mm_init(&mgr->mm, start, size);
 	spin_lock_init(&mgr->lock);
 	mgr->available = p_size;
@@ -112,6 +113,7 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr = man->priv;
 	struct drm_mm_node *node = mem->mm_node;
 	enum drm_mm_insert_mode mode;
@@ -129,7 +131,7 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 	if (place && place->lpfn)
 		lpfn = place->lpfn;
 	else
-		lpfn = man->size;
+		lpfn = adev->gart.num_cpu_pages;
 
 	mode = DRM_MM_INSERT_BEST;
 	if (place && place->flags & TTM_PL_FLAG_TOPDOWN)
