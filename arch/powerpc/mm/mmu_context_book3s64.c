@@ -138,6 +138,14 @@ static int radix__init_new_context(struct mm_struct *mm)
 	rts_field = radix__get_tree_size();
 	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
 
+	/*
+	 * Order the above store with subsequent update of the PID
+	 * register (at which point HW can start loading/caching
+	 * the entry) and the corresponding load by the MMU from
+	 * the L2 cache.
+	 */
+	asm volatile("ptesync;isync" : : : "memory");
+
 	mm->context.npu_context = NULL;
 
 	return index;
