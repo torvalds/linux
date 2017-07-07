@@ -1006,7 +1006,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			break;
 		}
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_SLICE_MODE);
-		value = ctx->params.gop_size & CODA_GOP_SIZE_MASK;
+		value = ctx->params.gop_size;
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_GOP_SIZE);
 	}
 
@@ -1250,7 +1250,8 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	force_ipicture = ctx->params.force_ipicture;
 	if (force_ipicture)
 		ctx->params.force_ipicture = false;
-	else if ((src_buf->sequence % ctx->params.gop_size) == 0)
+	else if (ctx->params.gop_size != 0 &&
+		 (src_buf->sequence % ctx->params.gop_size) == 0)
 		force_ipicture = 1;
 
 	/*
