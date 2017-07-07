@@ -225,8 +225,10 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		card = devm_kzalloc(&pdev->dev, sizeof(struct com20020_dev),
 				    GFP_KERNEL);
-		if (!card)
-			return -ENOMEM;
+		if (!card) {
+			ret = -ENOMEM;
+			goto out_port;
+		}
 
 		card->index = i;
 		card->pci_priv = priv;
