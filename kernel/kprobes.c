@@ -1795,10 +1795,14 @@ int register_jprobe(struct jprobe *jp)
 	unsigned long addr, offset;
 	struct kprobe *kp = &jp->kp;
 
-	/* Verify probepoint is a function entry point */
+	/*
+	 * Verify probepoint as well as the jprobe handler are
+	 * valid function entry points.
+	 */
 	addr = arch_deref_entry_point(jp->entry);
 
-	if (kallsyms_lookup_size_offset(addr, NULL, &offset) && offset == 0) {
+	if (kallsyms_lookup_size_offset(addr, NULL, &offset) && offset == 0 &&
+	    kprobe_on_func_entry(kp->addr, kp->symbol_name, kp->offset)) {
 		kp->pre_handler = setjmp_pre_handler;
 		kp->break_handler = longjmp_break_handler;
 		return register_kprobe(kp);
