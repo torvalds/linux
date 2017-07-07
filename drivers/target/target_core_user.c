@@ -1418,19 +1418,14 @@ free_skb:
 	return ret;
 }
 
-static int tcmu_configure_device(struct se_device *dev)
+static int tcmu_update_uio_info(struct tcmu_dev *udev)
 {
-	struct tcmu_dev *udev = TCMU_DEV(dev);
 	struct tcmu_hba *hba = udev->hba->hba_ptr;
 	struct uio_info *info;
-	struct tcmu_mailbox *mb;
-	size_t size;
-	size_t used;
-	int ret = 0;
+	size_t size, used;
 	char *str;
 
 	info = &udev->uio_info;
-
 	size = snprintf(NULL, 0, "tcm-user/%u/%s/%s", hba->host_id, udev->name,
 			udev->dev_config);
 	size += 1; /* for \0 */
@@ -1439,11 +1434,26 @@ static int tcmu_configure_device(struct se_device *dev)
 		return -ENOMEM;
 
 	used = snprintf(str, size, "tcm-user/%u/%s", hba->host_id, udev->name);
-
 	if (udev->dev_config[0])
 		snprintf(str + used, size - used, "/%s", udev->dev_config);
 
 	info->name = str;
+
+	return 0;
+}
+
+static int tcmu_configure_device(struct se_device *dev)
+{
+	struct tcmu_dev *udev = TCMU_DEV(dev);
+	struct uio_info *info;
+	struct tcmu_mailbox *mb;
+	int ret = 0;
+
+	ret = tcmu_update_uio_info(udev);
+	if (ret)
+		return ret;
+
+	info = &udev->uio_info;
 
 	udev->mb_addr = vzalloc(CMDR_SIZE);
 	if (!udev->mb_addr) {
@@ -1786,6 +1796,12 @@ static ssize_t tcmu_dev_config_store(struct config_item *item, const char *page,
 			pr_err("Unable to reconfigure device\n");
 			return ret;
 		}
+		strlcpy(udev->dev_config, page, TCMU_CONFIG_LEN);
+
+		ret = tcmu_update_uio_info(udev);
+		if (ret)
+			return ret;
+		return count;
 	}
 	strlcpy(udev->dev_config, page, TCMU_CONFIG_LEN);
 
