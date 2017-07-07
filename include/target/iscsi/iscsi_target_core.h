@@ -64,6 +64,14 @@
 #define TA_DEFAULT_FABRIC_PROT_TYPE	0
 /* TPG status needs to be enabled to return sendtargets discovery endpoint info */
 #define TA_DEFAULT_TPG_ENABLED_SENDTARGETS 1
+/*
+ * Used to control the sending of keys with optional to respond state bit,
+ * as a workaround for non RFC compliant initiators,that do not propose,
+ * nor respond to specific keys required for login to complete.
+ *
+ * See iscsi_check_proposer_for_optional_reply() for more details.
+ */
+#define TA_DEFAULT_LOGIN_KEYS_WORKAROUND 1
 
 #define ISCSI_IOV_DATA_BUFFER		5
 
@@ -766,6 +774,7 @@ struct iscsi_tpg_attrib {
 	u8			t10_pi;
 	u32			fabric_prot_type;
 	u32			tpg_enabled_sendtargets;
+	u32			login_keys_workaround;
 	struct iscsi_portal_group *tpg;
 };
 

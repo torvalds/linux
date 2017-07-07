@@ -802,6 +802,7 @@ DEF_TPG_ATTRIB(default_erl);
 DEF_TPG_ATTRIB(t10_pi);
 DEF_TPG_ATTRIB(fabric_prot_type);
 DEF_TPG_ATTRIB(tpg_enabled_sendtargets);
+DEF_TPG_ATTRIB(login_keys_workaround);
 
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_attr_authentication,
@@ -817,6 +818,7 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_attr_t10_pi,
 	&iscsi_tpg_attrib_attr_fabric_prot_type,
 	&iscsi_tpg_attrib_attr_tpg_enabled_sendtargets,
+	&iscsi_tpg_attrib_attr_login_keys_workaround,
 	NULL,
 };
 
