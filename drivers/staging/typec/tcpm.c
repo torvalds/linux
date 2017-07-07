@@ -1015,8 +1015,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, const __le32 *payload, int cnt,
 			if (port->data_role == TYPEC_DEVICE &&
 			    port->nr_snk_vdo) {
 				for (i = 0; i <  port->nr_snk_vdo; i++)
-					response[i + 1]
-						= cpu_to_le32(port->snk_vdo[i]);
+					response[i + 1] = port->snk_vdo[i];
 				rlen = port->nr_snk_vdo + 1;
 			}
 			break;
