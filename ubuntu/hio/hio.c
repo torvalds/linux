@@ -2111,7 +2111,7 @@ static inline int ssd_bio_has_discard(struct bio *bio)
 #ifndef SSD_TRIM
 	return 0;
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
-	return bio_op(bio) & REQ_OP_DISCARD;
+	return bio_op(bio) == REQ_OP_DISCARD;
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36))
 	return bio->bi_rw & REQ_DISCARD;
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32))
@@ -2124,7 +2124,7 @@ static inline int ssd_bio_has_discard(struct bio *bio)
 static inline int ssd_bio_has_flush(struct bio *bio)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
-	return bio_op(bio) & REQ_OP_FLUSH;
+	return bio_op(bio) == REQ_OP_FLUSH;
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37))
 	return bio->bi_rw & REQ_FLUSH;
 #else
