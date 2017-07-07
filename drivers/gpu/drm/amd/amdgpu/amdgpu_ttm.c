@@ -158,7 +158,7 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		break;
 	case TTM_PL_TT:
 		man->func = &amdgpu_gtt_mgr_func;
-		man->gpu_offset = adev->mc.gtt_start;
+		man->gpu_offset = adev->mc.gart_start;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
@@ -1144,13 +1144,13 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned) (adev->mc.real_vram_size / (1024 * 1024)));
 	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_TT,
-				adev->mc.gtt_size >> PAGE_SHIFT);
+				adev->mc.gart_size >> PAGE_SHIFT);
 	if (r) {
 		DRM_ERROR("Failed initializing GTT heap.\n");
 		return r;
 	}
 	DRM_INFO("amdgpu: %uM of GTT memory ready.\n",
-		 (unsigned)(adev->mc.gtt_size / (1024 * 1024)));
+		 (unsigned)(adev->mc.gart_size / (1024 * 1024)));
 
 	adev->gds.mem.total_size = adev->gds.mem.total_size << AMDGPU_GDS_SHIFT;
 	adev->gds.mem.gfx_partition_size = adev->gds.mem.gfx_partition_size << AMDGPU_GDS_SHIFT;
@@ -1279,7 +1279,7 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
 	       AMDGPU_GTT_MAX_TRANSFER_SIZE * 8);
 
-	*addr = adev->mc.gtt_start;
+	*addr = adev->mc.gart_start;
 	*addr += (u64)window * AMDGPU_GTT_MAX_TRANSFER_SIZE *
 		AMDGPU_GPU_PAGE_SIZE;
 
@@ -1645,7 +1645,7 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 				  adev, &amdgpu_ttm_gtt_fops);
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
-	i_size_write(ent->d_inode, adev->mc.gtt_size);
+	i_size_write(ent->d_inode, adev->mc.gart_size);
 	adev->mman.gtt = ent;
 
 #endif
