@@ -1507,7 +1507,7 @@ static struct attribute *rc_dev_protocol_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rc_dev_protocol_attr_grp = {
+static const struct attribute_group rc_dev_protocol_attr_grp = {
 	.attrs	= rc_dev_protocol_attrs,
 };
 
@@ -1517,7 +1517,7 @@ static struct attribute *rc_dev_filter_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rc_dev_filter_attr_grp = {
+static const struct attribute_group rc_dev_filter_attr_grp = {
 	.attrs	= rc_dev_filter_attrs,
 };
 
@@ -1528,7 +1528,7 @@ static struct attribute *rc_dev_wakeup_filter_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rc_dev_wakeup_filter_attr_grp = {
+static const struct attribute_group rc_dev_wakeup_filter_attr_grp = {
 	.attrs	= rc_dev_wakeup_filter_attrs,
 };
 
