@@ -303,7 +303,7 @@
 			#size-cells = <1>;
 			atmel,smc = <&hsmc>;
 			reg = <0x10000000 0x10000000
-			       0x40000000 0x30000000>;
+			       0x60000000 0x30000000>;
 			ranges = <0x0 0x0 0x10000000 0x10000000
 				  0x1 0x0 0x60000000 0x10000000
 				  0x2 0x0 0x70000000 0x10000000
@@ -1050,16 +1050,16 @@
 			hsmc: hsmc@f8014000 {
 				compatible = "atmel,sama5d2-smc", "syscon", "simple-mfd";
 				reg = <0xf8014000 0x1000>;
-				interrupts = <5 IRQ_TYPE_LEVEL_HIGH 6>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 6>;
 				clocks = <&hsmc_clk>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges;
 
-				pmecc: ecc-engine@ffffc070 {
+				pmecc: ecc-engine@f8014070 {
 					compatible = "atmel,sama5d2-pmecc";
-					reg = <0xffffc070 0x490>,
-					      <0xffffc500 0x100>;
+					reg = <0xf8014070 0x490>,
+					      <0xf8014500 0x100>;
 				};
 			};
 
