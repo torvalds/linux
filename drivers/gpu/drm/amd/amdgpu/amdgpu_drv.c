@@ -74,7 +74,7 @@
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
-int amdgpu_gart_size = -1; /* auto */
+unsigned amdgpu_gart_size = 256;
 int amdgpu_gtt_size = -1; /* auto */
 int amdgpu_moverate = -1; /* auto */
 int amdgpu_benchmarking = 0;
@@ -121,8 +121,8 @@ int amdgpu_lbpw = -1;
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
 
-MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc., -1 = auto)");
-module_param_named(gartsize, amdgpu_gart_size, int, 0600);
+MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc.)");
+module_param_named(gartsize, amdgpu_gart_size, uint, 0600);
 
 MODULE_PARM_DESC(gttsize, "Size of the GTT domain in megabytes (-1 = auto)");
 module_param_named(gttsize, amdgpu_gtt_size, int, 0600);

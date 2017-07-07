@@ -75,7 +75,7 @@
  */
 extern int amdgpu_modeset;
 extern int amdgpu_vram_limit;
-extern int amdgpu_gart_size;
+extern unsigned amdgpu_gart_size;
 extern int amdgpu_gtt_size;
 extern int amdgpu_moverate;
 extern int amdgpu_benchmarking;

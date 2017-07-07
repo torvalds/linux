@@ -1132,13 +1132,11 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		amdgpu_sched_jobs = roundup_pow_of_two(amdgpu_sched_jobs);
 	}
 
-	if (amdgpu_gart_size != -1) {
-		/* gtt size must be greater or equal to 32M */
-		if (amdgpu_gart_size < 32) {
-			dev_warn(adev->dev, "gart size (%d) too small\n",
-				 amdgpu_gart_size);
-			amdgpu_gart_size = -1;
-		}
+	if (amdgpu_gart_size < 32) {
+		/* gart size must be greater or equal to 32M */
+		dev_warn(adev->dev, "gart size (%d) too small\n",
+			 amdgpu_gart_size);
+		amdgpu_gart_size = 32;
 	}
 
 	if (amdgpu_gtt_size != -1 && amdgpu_gtt_size < 32) {

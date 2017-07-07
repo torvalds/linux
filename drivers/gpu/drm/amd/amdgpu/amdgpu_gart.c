@@ -65,14 +65,7 @@
  */
 void amdgpu_gart_set_defaults(struct amdgpu_device *adev)
 {
-	/* unless the user had overridden it, set the gart
-	 * size equal to the 1024 or vram, whichever is larger.
-	 */
-	if (amdgpu_gart_size == -1)
-		adev->mc.gart_size = max((AMDGPU_DEFAULT_GTT_SIZE_MB << 20),
-					adev->mc.mc_vram_size);
-	else
-		adev->mc.gart_size = (uint64_t)amdgpu_gart_size << 20;
+	adev->mc.gart_size = (uint64_t)amdgpu_gart_size << 20;
 }
 
 /**
