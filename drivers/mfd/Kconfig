@@ -1607,6 +1607,12 @@ config MFD_STW481X
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
 
+config MFD_UPBOARD_FPGA
+	tristate "Support for the UP board FPGA"
+	select MFD_CORE
+	help
+	  Select this option to enable the UP and UP^2 on-board FPGA.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 

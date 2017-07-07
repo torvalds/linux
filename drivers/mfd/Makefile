@@ -212,3 +212,5 @@ obj-$(CONFIG_MFD_MT6397)	+= mt6397-core.o
 obj-$(CONFIG_MFD_INTEL_VUPORT)	+= intel-vuport.o
 
 obj-$(CONFIG_MFD_ALTERA_A10SR)	+= altera-a10sr.o
+
+obj-$(CONFIG_MFD_UPBOARD_FPGA)  += upboard-fpga.o
