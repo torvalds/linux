@@ -1771,24 +1771,13 @@ unsigned long __weak arch_deref_entry_point(void *entry)
 
 int register_jprobes(struct jprobe **jps, int num)
 {
-	struct jprobe *jp;
 	int ret = 0, i;
 
 	if (num <= 0)
 		return -EINVAL;
-	for (i = 0; i < num; i++) {
-		unsigned long addr, offset;
-		jp = jps[i];
-		addr = arch_deref_entry_point(jp->entry);
 
-		/* Verify probepoint is a function entry point */
-		if (kallsyms_lookup_size_offset(addr, NULL, &offset) &&
-		    offset == 0) {
-			jp->kp.pre_handler = setjmp_pre_handler;
-			jp->kp.break_handler = longjmp_break_handler;
-			ret = register_kprobe(&jp->kp);
-		} else
-			ret = -EINVAL;
+	for (i = 0; i < num; i++) {
+		ret = register_jprobe(jps[i]);
 
 		if (ret < 0) {
 			if (i > 0)
@@ -1796,13 +1785,26 @@ int register_jprobes(struct jprobe **jps, int num)
 			break;
 		}
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_jprobes);
 
 int register_jprobe(struct jprobe *jp)
 {
-	return register_jprobes(&jp, 1);
+	unsigned long addr, offset;
+	struct kprobe *kp = &jp->kp;
+
+	/* Verify probepoint is a function entry point */
+	addr = arch_deref_entry_point(jp->entry);
+
+	if (kallsyms_lookup_size_offset(addr, NULL, &offset) && offset == 0) {
+		kp->pre_handler = setjmp_pre_handler;
+		kp->break_handler = longjmp_break_handler;
+		return register_kprobe(kp);
+	}
+
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(register_jprobe);
 
