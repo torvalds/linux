@@ -304,11 +304,9 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	usleep_range(10, 20);
 	reset_control_deassert(crypto_info->rst);
 
-	err = devm_add_action(dev, rk_crypto_action, crypto_info);
-	if (err) {
-		reset_control_assert(crypto_info->rst);
+	err = devm_add_action_or_reset(dev, rk_crypto_action, crypto_info);
+	if (err)
 		goto err_crypto;
-	}
 
 	spin_lock_init(&crypto_info->lock);
 

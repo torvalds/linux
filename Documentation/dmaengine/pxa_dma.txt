@@ -29,7 +29,7 @@ Constraints
 
   d) Bandwidth guarantee
      The PXA architecture has 4 levels of DMAs priorities : high, normal, low.
-     The high prorities get twice as much bandwidth as the normal, which get twice
+     The high priorities get twice as much bandwidth as the normal, which get twice
      as much as the low priorities.
      A driver should be able to request a priority, especially the real-time
      ones such as pxa_camera with (big) throughputs.

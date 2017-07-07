@@ -240,6 +240,7 @@
 #define PRID_REV_VR4130		0x0080
 #define PRID_REV_34K_V1_0_2	0x0022
 #define PRID_REV_LOONGSON1B	0x0020
+#define PRID_REV_LOONGSON1C	0x0020	/* Same as Loongson-1B */
 #define PRID_REV_LOONGSON2E	0x0002
 #define PRID_REV_LOONGSON2F	0x0003
 #define PRID_REV_LOONGSON3A_R1	0x0005
@@ -414,6 +415,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_GUESTCTL2	MBIT_ULL(50)	/* CPU has VZ GuestCtl2 register */
 #define MIPS_CPU_GUESTID	MBIT_ULL(51)	/* CPU uses VZ ASE GuestID feature */
 #define MIPS_CPU_DRG		MBIT_ULL(52)	/* CPU has VZ Direct Root to Guest (DRG) */
+#define MIPS_CPU_UFR		MBIT_ULL(53)	/* CPU supports User mode FR switching */
 
 /*
  * CPU ASE encodings

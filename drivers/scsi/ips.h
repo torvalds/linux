@@ -51,7 +51,7 @@
    #define _IPS_H_
 
 #include <linux/nmi.h>
-   #include <asm/uaccess.h>
+#include <linux/uaccess.h>
    #include <asm/io.h>
 
    /*
@@ -989,7 +989,7 @@ typedef struct ips_wait_queue {
 	struct scsi_cmnd *head;
 	struct scsi_cmnd *tail;
 	int count;
-} ips_wait_queue_t;
+} ips_wait_queue_entry_t;
 
 typedef struct ips_copp_wait_item {
 	struct scsi_cmnd *scsi_cmd;
@@ -1035,7 +1035,7 @@ typedef struct ips_ha {
    ips_stat_t         sp;                 /* Status packer pointer      */
    struct ips_scb    *scbs;               /* Array of all CCBS          */
    struct ips_scb    *scb_freelist;       /* SCB free list              */
-   ips_wait_queue_t   scb_waitlist;       /* Pending SCB list           */
+   ips_wait_queue_entry_t   scb_waitlist;       /* Pending SCB list           */
    ips_copp_queue_t   copp_waitlist;      /* Pending PT list            */
    ips_scb_queue_t    scb_activelist;     /* Active SCB list            */
    IPS_IO_CMD        *dummy;              /* dummy command              */

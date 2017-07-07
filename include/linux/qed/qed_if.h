@@ -1,10 +1,33 @@
 /* QLogic qed NIC Driver
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * Copyright (c) 2015 QLogic Corporation
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_IF_H
@@ -36,7 +59,6 @@ enum dcbx_protocol_type {
 
 #define QED_ROCE_PROTOCOL_INDEX (3)
 
-#ifdef CONFIG_DCB
 #define QED_LLDP_CHASSIS_ID_STAT_LEN 4
 #define QED_LLDP_PORT_ID_STAT_LEN 4
 #define QED_DCBX_MAX_APP_PROTOCOL 32
@@ -122,6 +144,7 @@ struct qed_dcbx_operational_params {
 	bool enabled;
 	bool ieee;
 	bool cee;
+	bool local;
 	u32 err;
 };
 
@@ -132,7 +155,11 @@ struct qed_dcbx_get {
 	struct qed_dcbx_remote_params remote;
 	struct qed_dcbx_admin_params local;
 };
-#endif
+
+enum qed_nvm_images {
+	QED_NVM_IMAGE_ISCSI_CFG,
+	QED_NVM_IMAGE_FCOE_CFG,
+};
 
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
@@ -146,6 +173,7 @@ enum qed_led_mode {
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
 
 #define QED_COALESCE_MAX 0xFF
+#define QED_DEFAULT_RX_USECS 12
 
 /* forward */
 struct qed_dev;
@@ -156,6 +184,48 @@ struct qed_eth_pf_params {
 	 * to update_pf_params routine invoked before slowpath start
 	 */
 	u16 num_cons;
+
+	/* per-VF number of CIDs */
+	u8 num_vf_cons;
+#define ETH_PF_PARAMS_VF_CONS_DEFAULT	(32)
+
+	/* To enable arfs, previous to HW-init a positive number needs to be
+	 * set [as filters require allocated searcher ILT memory].
+	 * This will set the maximal number of configured steering-filters.
+	 */
+	u32 num_arfs_filters;
+};
+
+struct qed_fcoe_pf_params {
+	/* The following parameters are used during protocol-init */
+	u64 glbl_q_params_addr;
+	u64 bdq_pbl_base_addr[2];
+
+	/* The following parameters are used during HW-init
+	 * and these parameters need to be passed as arguments
+	 * to update_pf_params routine invoked before slowpath start
+	 */
+	u16 num_cons;
+	u16 num_tasks;
+
+	/* The following parameters are used during protocol-init */
+	u16 sq_num_pbl_pages;
+
+	u16 cq_num_entries;
+	u16 cmdq_num_entries;
+	u16 rq_buffer_log_size;
+	u16 mtu;
+	u16 dummy_icid;
+	u16 bdq_xoff_threshold[2];
+	u16 bdq_xon_threshold[2];
+	u16 rq_buffer_size;
+	u8 num_cqs;		/* num of global CQs */
+	u8 log_page_size;
+	u8 gl_rq_pi;
+	u8 gl_cmd_pi;
+	u8 debug_mode;
+	u8 is_target;
+	u8 bdq_pbl_num_entries[2];
 };
 
 /* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
@@ -165,6 +235,7 @@ struct qed_iscsi_pf_params {
 	u32 max_cwnd;
 	u16 cq_num_entries;
 	u16 cmdq_num_entries;
+	u32 two_msl_timer;
 	u16 dup_ack_threshold;
 	u16 tx_sws_timer;
 	u16 min_rto;
@@ -208,7 +279,6 @@ struct qed_rdma_pf_params {
 	 * the doorbell BAR).
 	 */
 	u32 min_dpis;		/* number of requested DPIs */
-	u32 num_mrs;		/* number of requested memory regions */
 	u32 num_qps;		/* number of requested Queue Pairs */
 	u32 num_srqs;		/* number of requested SRQ */
 	u8 roce_edpm_mode;	/* see QED_ROCE_EDPM_MODE_ENABLE */
@@ -220,6 +290,7 @@ struct qed_rdma_pf_params {
 
 struct qed_pf_params {
 	struct qed_eth_pf_params eth_pf_params;
+	struct qed_fcoe_pf_params fcoe_pf_params;
 	struct qed_iscsi_pf_params iscsi_pf_params;
 	struct qed_rdma_pf_params rdma_pf_params;
 };
@@ -244,6 +315,11 @@ struct qed_sb_info {
 	struct qed_dev		*cdev;
 };
 
+enum qed_dev_type {
+	QED_DEV_TYPE_BB,
+	QED_DEV_TYPE_AH,
+};
+
 struct qed_dev_info {
 	unsigned long	pci_mem_start;
 	unsigned long	pci_mem_end;
@@ -261,21 +337,52 @@ struct qed_dev_info {
 
 	/* MFW version */
 	u32		mfw_rev;
+#define QED_MFW_VERSION_0_MASK		0x000000FF
+#define QED_MFW_VERSION_0_OFFSET	0
+#define QED_MFW_VERSION_1_MASK		0x0000FF00
+#define QED_MFW_VERSION_1_OFFSET	8
+#define QED_MFW_VERSION_2_MASK		0x00FF0000
+#define QED_MFW_VERSION_2_OFFSET	16
+#define QED_MFW_VERSION_3_MASK		0xFF000000
+#define QED_MFW_VERSION_3_OFFSET	24
 
 	u32		flash_size;
 	u8		mf_mode;
 	bool		tx_switching;
 	bool		rdma_supported;
+	u16		mtu;
+
+	bool wol_support;
+
+	/* MBI version */
+	u32 mbi_version;
+#define QED_MBI_VERSION_0_MASK		0x000000FF
+#define QED_MBI_VERSION_0_OFFSET	0
+#define QED_MBI_VERSION_1_MASK		0x0000FF00
+#define QED_MBI_VERSION_1_OFFSET	8
+#define QED_MBI_VERSION_2_MASK		0x00FF0000
+#define QED_MBI_VERSION_2_OFFSET	16
+
+	enum qed_dev_type dev_type;
+
+	/* Output parameters for qede */
+	bool		vxlan_enable;
+	bool		gre_enable;
+	bool		geneve_enable;
+
+	u8		abs_pf_id;
 };
 
 enum qed_sb_type {
 	QED_SB_TYPE_L2_QUEUE,
 	QED_SB_TYPE_CNQ,
+	QED_SB_TYPE_STORAGE,
 };
 
 enum qed_protocol {
 	QED_PROTOCOL_ETH,
 	QED_PROTOCOL_ISCSI,
+	QED_PROTOCOL_FCOE,
 };
 
 enum qed_link_mode_bits {
@@ -360,8 +467,10 @@ struct qed_int_info {
 };
 
 struct qed_common_cb_ops {
+	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
 	void	(*link_update)(void			*dev,
 			       struct qed_link_output	*link);
+	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 };
 
 struct qed_selftest_ops {
@@ -400,6 +509,15 @@ struct qed_selftest_ops {
  * @return 0 on success, error otherwise.
  */
 	int (*selftest_clock)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_nvram - Perform nvram test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_nvram) (struct qed_dev *cdev);
 };
 
 struct qed_common_ops {
@@ -413,9 +531,7 @@ struct qed_common_ops {
 	int		(*set_power_state)(struct qed_dev *cdev,
 					   pci_power_t state);
 
-	void		(*set_id)(struct qed_dev *cdev,
-				  char name[],
-				  char ver_str[]);
+	void (*set_name) (struct qed_dev *cdev, char name[]);
 
 	/* Client drivers need to make this call before slowpath_start.
 	 * PF params required for the call before slowpath_start is
@@ -456,6 +572,10 @@ struct qed_common_ops {
 
 	void		(*simd_handler_clean)(struct qed_dev *cdev,
 					      int index);
+	int (*dbg_grc)(struct qed_dev *cdev,
+		       void *buffer, u32 *num_dumped_bytes);
+
+	int (*dbg_grc_size)(struct qed_dev *cdev);
 
 	int (*dbg_all_data) (struct qed_dev *cdev, void *buffer);
 
@@ -514,10 +634,24 @@ struct qed_common_ops {
 				       enum qed_chain_cnt_type cnt_type,
 				       u32 num_elems,
 				       size_t elem_size,
-				       struct qed_chain *p_chain);
+				       struct qed_chain *p_chain,
+				       struct qed_chain_ext_pbl *ext_pbl);
 
 	void		(*chain_free)(struct qed_dev *cdev,
 				      struct qed_chain *p_chain);
+
+/**
+ * @brief nvm_get_image - reads an entire image from nvram
+ *
+ * @param cdev
+ * @param type - type of the request nvram image
+ * @param buf - preallocated buffer to fill with the image
+ * @param len - length of the allocated buffer
+ *
+ * @return 0 on success, error otherwise
+ */
+	int (*nvm_get_image)(struct qed_dev *cdev,
+			     enum qed_nvm_images type, u8 *buf, u16 len);
 
 /**
  * @brief get_coalesce - Get coalesce parameters in usec
@@ -541,7 +675,7 @@ struct qed_common_ops {
  * @return 0 on success, error otherwise.
  */
 	int (*set_coalesce)(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u8 qid, u16 sb_id);
+			    u16 qid, u16 sb_id);
 
 /**
  * @brief set_led - Configure LED mode
@@ -553,6 +687,41 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+
+/**
+ * @brief update_drv_state - API to inform the change in the driver state.
+ *
+ * @param cdev
+ * @param active
+ *
+ */
+	int (*update_drv_state)(struct qed_dev *cdev, bool active);
+
+/**
+ * @brief update_mac - API to inform the change in the mac address
+ *
+ * @param cdev
+ * @param mac
+ *
+ */
+	int (*update_mac)(struct qed_dev *cdev, u8 *mac);
+
+/**
+ * @brief update_mtu - API to inform the change in the mtu
+ *
+ * @param cdev
+ * @param mtu
+ *
+ */
+	int (*update_mtu)(struct qed_dev *cdev, u16 mtu);
+
+/**
+ * @brief update_wol - update of changes in the WoL configuration
+ *
+ * @param cdev
+ * @param enabled - true iff WoL should be enabled.
+ */
+	int (*update_wol) (struct qed_dev *cdev, bool enabled);
 };
 
 #define MASK_FIELD(_name, _value) \
@@ -571,11 +740,13 @@ struct qed_common_ops {
 	(((value) >> (name ## _SHIFT)) & name ## _MASK)
 
 /* Debug print definitions */
-#define DP_ERR(cdev, fmt, ...)						     \
-		pr_err("[%s:%d(%s)]" fmt,				     \
-		       __func__, __LINE__,				     \
-		       DP_NAME(cdev) ? DP_NAME(cdev) : "",		     \
-		       ## __VA_ARGS__)					     \
+#define DP_ERR(cdev, fmt, ...)					\
+	do {							\
+		pr_err("[%s:%d(%s)]" fmt,			\
+		       __func__, __LINE__,			\
+		       DP_NAME(cdev) ? DP_NAME(cdev) : "",	\
+		       ## __VA_ARGS__);				\
+	} while (0)
 
 #define DP_NOTICE(cdev, fmt, ...)				      \
 	do {							      \
@@ -642,7 +813,7 @@ enum qed_mf_mode {
 	QED_MF_NPAR,
 };
 
-struct qed_eth_stats {
+struct qed_eth_stats_common {
 	u64	no_buff_discards;
 	u64	packet_too_big_discard;
 	u64	ttl0_discard;
@@ -674,11 +845,6 @@ struct qed_eth_stats {
 	u64	rx_256_to_511_byte_packets;
 	u64	rx_512_to_1023_byte_packets;
 	u64	rx_1024_to_1518_byte_packets;
-	u64	rx_1519_to_1522_byte_packets;
-	u64	rx_1519_to_2047_byte_packets;
-	u64	rx_2048_to_4095_byte_packets;
-	u64	rx_4096_to_9216_byte_packets;
-	u64	rx_9217_to_16383_byte_packets;
 	u64	rx_crc_errors;
 	u64	rx_mac_crtl_frames;
 	u64	rx_pause_frames;
@@ -695,14 +861,8 @@ struct qed_eth_stats {
 	u64	tx_256_to_511_byte_packets;
 	u64	tx_512_to_1023_byte_packets;
 	u64	tx_1024_to_1518_byte_packets;
-	u64	tx_1519_to_2047_byte_packets;
-	u64	tx_2048_to_4095_byte_packets;
-	u64	tx_4096_to_9216_byte_packets;
-	u64	tx_9217_to_16383_byte_packets;
 	u64	tx_pause_frames;
 	u64	tx_pfc_frames;
-	u64	tx_lpi_entry_count;
-	u64	tx_total_collisions;
 	u64	brb_truncates;
 	u64	brb_discards;
 	u64	rx_mac_bytes;
@@ -717,15 +877,49 @@ struct qed_eth_stats {
 	u64	tx_mac_ctrl_frames;
 };
 
+struct qed_eth_stats_bb {
+	u64 rx_1519_to_1522_byte_packets;
+	u64 rx_1519_to_2047_byte_packets;
+	u64 rx_2048_to_4095_byte_packets;
+	u64 rx_4096_to_9216_byte_packets;
+	u64 rx_9217_to_16383_byte_packets;
+	u64 tx_1519_to_2047_byte_packets;
+	u64 tx_2048_to_4095_byte_packets;
+	u64 tx_4096_to_9216_byte_packets;
+	u64 tx_9217_to_16383_byte_packets;
+	u64 tx_lpi_entry_count;
+	u64 tx_total_collisions;
+};
+
+struct qed_eth_stats_ah {
+	u64 rx_1519_to_max_byte_packets;
+	u64 tx_1519_to_max_byte_packets;
+};
+
+struct qed_eth_stats {
+	struct qed_eth_stats_common common;
+
+	union {
+		struct qed_eth_stats_bb bb;
+		struct qed_eth_stats_ah ah;
+	};
+};
+
 #define QED_SB_IDX              0x0002
 
 #define RX_PI           0
 #define TX_PI(tc)       (RX_PI + 1 + tc)
 
 struct qed_sb_cnt_info {
-	int	sb_cnt;
-	int	sb_iov_cnt;
-	int	sb_free_blk;
+	/* Original, current, and free SBs for PF */
+	int orig;
+	int cnt;
+	int free_cnt;
+
+	/* Original, current and free SBS for child VFs */
+	int iov_orig;
+	int iov_cnt;
+	int free_cnt_iov;
 };
 
 static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)

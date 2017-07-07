@@ -34,6 +34,15 @@ struct vgic_register_region {
 				  gpa_t addr, unsigned int len,
 				  unsigned long val);
 	};
+	unsigned long (*uaccess_read)(struct kvm_vcpu *vcpu, gpa_t addr,
+				      unsigned int len);
+	union {
+		void (*uaccess_write)(struct kvm_vcpu *vcpu, gpa_t addr,
+				      unsigned int len, unsigned long val);
+		int (*uaccess_its_write)(struct kvm *kvm, struct vgic_its *its,
+					 gpa_t addr, unsigned int len,
+					 unsigned long val);
+	};
 };
 
 extern struct kvm_io_device_ops kvm_io_gic_ops;
@@ -50,15 +59,15 @@ extern struct kvm_io_device_ops kvm_io_gic_ops;
 #define VGIC_ADDR_IRQ_MASK(bits) (((bits) * 1024 / 8) - 1)
 
 /*
- * (addr & mask) gives us the byte offset for the INT ID, so we want to
- * divide this with 'bytes per irq' to get the INT ID, which is given
- * by '(bits) / 8'.  But we do this with fixed-point-arithmetic and
- * take advantage of the fact that division by a fraction equals
- * multiplication with the inverted fraction, and scale up both the
- * numerator and denominator with 8 to support at most 64 bits per IRQ:
+ * (addr & mask) gives us the _byte_ offset for the INT ID.
+ * We multiply this by 8 the get the _bit_ offset, then divide this by
+ * the number of bits to learn the actual INT ID.
+ * But instead of a division (which requires a "long long div" implementation),
+ * we shift by the binary logarithm of <bits>.
+ * This assumes that <bits> is a power of two.
  */
 #define VGIC_ADDR_TO_INTID(addr, bits)  (((addr) & VGIC_ADDR_IRQ_MASK(bits)) * \
-					64 / (bits) / 8)
+					8 >> ilog2(bits))
 
 /*
  * Some VGIC registers store per-IRQ information, with a different number
@@ -66,7 +75,7 @@ extern struct kvm_io_device_ops kvm_io_gic_ops;
  * The _WITH_LENGTH version instantiates registers with a fixed length
  * and is mutually exclusive with the _PER_IRQ version.
  */
-#define REGISTER_DESC_WITH_BITS_PER_IRQ(off, rd, wr, bpi, acc)		\
+#define REGISTER_DESC_WITH_BITS_PER_IRQ(off, rd, wr, ur, uw, bpi, acc)	\
 	{								\
 		.reg_offset = off,					\
 		.bits_per_irq = bpi,					\
@@ -74,6 +83,8 @@ extern struct kvm_io_device_ops kvm_io_gic_ops;
 		.access_flags = acc,					\
 		.read = rd,						\
 		.write = wr,						\
+		.uaccess_read = ur,					\
+		.uaccess_write = uw,					\
 	}
 
 #define REGISTER_DESC_WITH_LENGTH(off, rd, wr, length, acc)		\
@@ -84,6 +95,18 @@ extern struct kvm_io_device_ops kvm_io_gic_ops;
 		.access_flags = acc,					\
 		.read = rd,						\
 		.write = wr,						\
+	}
+
+#define REGISTER_DESC_WITH_LENGTH_UACCESS(off, rd, wr, urd, uwr, length, acc) \
+	{								\
+		.reg_offset = off,					\
+		.bits_per_irq = 0,					\
+		.len = length,						\
+		.access_flags = acc,					\
+		.read = rd,						\
+		.write = wr,						\
+		.uaccess_read = urd,					\
+		.uaccess_write = uwr,					\
 	}
 
 int kvm_vgic_register_mmio_region(struct kvm *kvm, struct kvm_vcpu *vcpu,
@@ -144,6 +167,14 @@ void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 			     gpa_t addr, unsigned int len,
 			     unsigned long val);
 
+void vgic_mmio_uaccess_write_cactive(struct kvm_vcpu *vcpu,
+				     gpa_t addr, unsigned int len,
+				     unsigned long val);
+
+void vgic_mmio_uaccess_write_sactive(struct kvm_vcpu *vcpu,
+				     gpa_t addr, unsigned int len,
+				     unsigned long val);
+
 unsigned long vgic_mmio_read_priority(struct kvm_vcpu *vcpu,
 				      gpa_t addr, unsigned int len);
 
@@ -158,6 +189,14 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 			    gpa_t addr, unsigned int len,
 			    unsigned long val);
 
+int vgic_uaccess(struct kvm_vcpu *vcpu, struct vgic_io_device *dev,
+		 bool is_write, int offset, u32 *val);
+
+u64 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid);
+
+void vgic_write_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid,
+				    const u64 val);
+
 unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev);
 
 unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev);
@@ -167,5 +206,10 @@ u64 vgic_sanitise_inner_cacheability(u64 reg);
 u64 vgic_sanitise_shareability(u64 reg);
 u64 vgic_sanitise_field(u64 reg, u64 field_mask, int field_shift,
 			u64 (*sanitise_fn)(u64));
+
+/* Find the proper register handler entry given a certain address offset */
+const struct vgic_register_region *
+vgic_find_mmio_region(const struct vgic_register_region *regions,
+		      int nr_regions, unsigned int offset);
 
 #endif

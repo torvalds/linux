@@ -83,7 +83,6 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	 */
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->entry = entry;
 
 	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DMA)) {
 		dma_addr_t skb_dma;
@@ -306,13 +305,12 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_sta *sta_priv = NULL;
+	u8 density = 0;
 
 	if (sta) {
-		txdesc->u.ht.mpdu_density =
-		    sta->ht_cap.ampdu_density;
-
 		sta_priv = sta_to_rt2x00_sta(sta);
 		txdesc->u.ht.wcid = sta_priv->wcid;
+		density = sta->ht_cap.ampdu_density;
 	}
 
 	/*
@@ -345,8 +343,6 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		return;
 	}
 
-	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
-
 	/*
 	 * Only one STBC stream is supported for now.
 	 */
@@ -358,8 +354,11 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	 * frames that are intended to probe a specific tx rate.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU &&
-	    !(tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE))
+	    !(tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)) {
 		__set_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags);
+		txdesc->u.ht.mpdu_density = density;
+		txdesc->u.ht.ba_size = 7; /* FIXME: What value is needed? */
+	}
 
 	/*
 	 * Set 40Mhz mode if necessary (for legacy rates this will
@@ -373,15 +372,16 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Determine IFS values
-	 * - Use TXOP_BACKOFF for management frames except beacons
+	 * - Use TXOP_BACKOFF for probe and management frames except beacons
 	 * - Use TXOP_SIFS for fragment bursts
 	 * - Use TXOP_HTTXOP for everything else
 	 *
 	 * Note: rt2800 devices won't use CTS protection (if used)
 	 * for frames not transmitted with TXOP_HTTXOP
 	 */
-	if (ieee80211_is_mgmt(hdr->frame_control) &&
-	    !ieee80211_is_beacon(hdr->frame_control))
+	if ((ieee80211_is_mgmt(hdr->frame_control) &&
+	     !ieee80211_is_beacon(hdr->frame_control)) ||
+	    (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE))
 		txdesc->u.ht.txop = TXOP_BACKOFF;
 	else if (!(tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT))
 		txdesc->u.ht.txop = TXOP_SIFS;
@@ -544,7 +544,7 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	 * All processing on the frame has been completed, this means
 	 * it is now ready to be dumped to userspace through debugfs.
 	 */
-	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry->skb);
+	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry);
 }
 
 static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
@@ -689,7 +689,6 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 		goto out;
 	}
 
-	skbdesc->entry = entry;
 	entry->skb = skb;
 
 	/*
@@ -774,7 +773,6 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	skbdesc = get_skb_frame_desc(intf->beacon->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->entry = intf->beacon;
 
 	/*
 	 * Send beacon to hardware.

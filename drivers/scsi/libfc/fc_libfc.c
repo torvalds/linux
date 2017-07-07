@@ -178,7 +178,7 @@ void fc_fill_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
 		fill = -fr_len(fp) & 3;
 		if (fill) {
 			/* TODO, this may be a problem with fragmented skb */
-			memset(skb_put(fp_skb(fp), fill), 0, fill);
+			skb_put_zero(fp_skb(fp), fill);
 			f_ctl |= fill;
 		}
 		fr_eof(fp) = FC_EOF_T;
@@ -226,7 +226,7 @@ void fc_fill_reply_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
 
 	sp = fr_seq(in_fp);
 	if (sp)
-		fr_seq(fp) = fr_dev(in_fp)->tt.seq_start_next(sp);
+		fr_seq(fp) = fc_seq_start_next(sp);
 	fc_fill_hdr(fp, in_fp, r_ctl, FC_FCTL_RESP, 0, parm_offset);
 }
 EXPORT_SYMBOL(fc_fill_reply_hdr);

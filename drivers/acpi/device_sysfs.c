@@ -52,7 +52,7 @@ struct acpi_data_node_attr {
 
 static ssize_t data_node_show_path(struct acpi_data_node *dn, char *buf)
 {
-	return acpi_object_path(dn->handle, buf);
+	return dn->handle ? acpi_object_path(dn->handle, buf) : 0;
 }
 
 DATA_NODE_ATTR(path);
@@ -105,10 +105,10 @@ static void acpi_expose_nondev_subnodes(struct kobject *kobj,
 		init_completion(&dn->kobj_done);
 		ret = kobject_init_and_add(&dn->kobj, &acpi_data_node_ktype,
 					   kobj, "%s", dn->name);
-		if (ret)
-			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
-		else
+		if (!ret)
 			acpi_expose_nondev_subnodes(&dn->kobj, &dn->data);
+		else if (dn->handle)
+			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
 	}
 }
 

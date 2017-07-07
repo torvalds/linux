@@ -759,7 +759,7 @@ static void solo_enc_buf_finish(struct vb2_buffer *vb)
 	}
 }
 
-static struct vb2_ops solo_enc_video_qops = {
+static const struct vb2_ops solo_enc_video_qops = {
 	.queue_setup	= solo_enc_queue_setup,
 	.buf_queue	= solo_enc_buf_queue,
 	.buf_finish	= solo_enc_buf_finish,
@@ -1140,14 +1140,13 @@ static int solo_subscribe_event(struct v4l2_fh *fh,
 {
 
 	switch (sub->type) {
-	case V4L2_EVENT_CTRL:
-		return v4l2_ctrl_subscribe_event(fh, sub);
 	case V4L2_EVENT_MOTION_DET:
 		/* Allow for up to 30 events (1 second for NTSC) to be
 		 * stored. */
 		return v4l2_event_subscribe(fh, sub, 30, NULL);
+	default:
+		return v4l2_ctrl_subscribe_event(fh, sub);
 	}
-	return -EINVAL;
 }
 
 static const struct v4l2_file_operations solo_enc_fops = {

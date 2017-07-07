@@ -15,11 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #ifndef __SMIAPP_H_
@@ -35,8 +30,6 @@
 #define SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_CLOCK	0
 #define SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE	1
 #define SMIAPP_CSI_SIGNALLING_MODE_CSI2			2
-
-#define SMIAPP_NO_XSHUTDOWN	-1
 
 /*
  * Sometimes due to board layout considerations the camera module can be
@@ -57,7 +50,7 @@ struct smiapp_flash_strobe_parms {
 	u8 trigger;
 };
 
-struct smiapp_platform_data {
+struct smiapp_hwconfig {
 	/*
 	 * Change the cci address if i2c_addr_alt is set.
 	 * Both default and alternate cci addr need to be present
@@ -75,9 +68,6 @@ struct smiapp_platform_data {
 	enum smiapp_module_board_orient module_board_orient;
 
 	struct smiapp_flash_strobe_parms *strobe_setup;
-
-	int (*set_xclk)(struct v4l2_subdev *sd, int hz);
-	int32_t xshutdown;		/* gpio or SMIAPP_NO_XSHUTDOWN */
 };
 
 #endif /* __SMIAPP_H_  */

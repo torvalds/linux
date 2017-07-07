@@ -9,14 +9,41 @@
  * contain the entire properly aligned running kernel image.
  *
  */
+
+/*
+ * isspace() in linux/ctype.h is expected by next_args() to filter
+ * out "space/lf/tab". While boot/ctype.h conflicts with linux/ctype.h,
+ * since isdigit() is implemented in both of them. Hence disable it
+ * here.
+ */
+#define BOOT_CTYPE_H
+
+/*
+ * _ctype[] in lib/ctype.c is needed by isspace() of linux/ctype.h.
+ * While both lib/ctype.c and lib/cmdline.c will bring EXPORT_SYMBOL
+ * which is meaningless and will cause compiling error in some cases.
+ * So do not include linux/export.h and define EXPORT_SYMBOL(sym)
+ * as empty.
+ */
+#define _LINUX_EXPORT_H
+#define EXPORT_SYMBOL(sym)
+
 #include "misc.h"
 #include "error.h"
+#include "../string.h"
 
 #include <generated/compile.h>
 #include <linux/module.h>
 #include <linux/uts.h>
 #include <linux/utsname.h>
+#include <linux/ctype.h>
 #include <generated/utsrelease.h>
+
+/* Macros used by the included decompressor code below. */
+#define STATIC
+#include <linux/decompress/mm.h>
+
+extern unsigned long get_cmd_line_ptr(void);
 
 /* Simplified build-specific string for starting entropy. */
 static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
@@ -52,15 +79,27 @@ static unsigned long get_boot_seed(void)
 #include "../../lib/kaslr.c"
 
 struct mem_vector {
-	unsigned long start;
-	unsigned long size;
+	unsigned long long start;
+	unsigned long long size;
 };
+
+/* Only supporting at most 4 unusable memmap regions with kaslr */
+#define MAX_MEMMAP_REGIONS	4
+
+static bool memmap_too_large;
+
+
+/* Store memory limit specified by "mem=nn[KMG]" or "memmap=nn[KMG]" */
+unsigned long long mem_limit = ULLONG_MAX;
+
 
 enum mem_avoid_index {
 	MEM_AVOID_ZO_RANGE = 0,
 	MEM_AVOID_INITRD,
 	MEM_AVOID_CMDLINE,
 	MEM_AVOID_BOOTPARAMS,
+	MEM_AVOID_MEMMAP_BEGIN,
+	MEM_AVOID_MEMMAP_END = MEM_AVOID_MEMMAP_BEGIN + MAX_MEMMAP_REGIONS - 1,
 	MEM_AVOID_MAX,
 };
 
@@ -75,6 +114,145 @@ static bool mem_overlaps(struct mem_vector *one, struct mem_vector *two)
 	if (one->start >= two->start + two->size)
 		return false;
 	return true;
+}
+
+char *skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return (char *)str;
+}
+#include "../../../../lib/ctype.c"
+#include "../../../../lib/cmdline.c"
+
+static int
+parse_memmap(char *p, unsigned long long *start, unsigned long long *size)
+{
+	char *oldp;
+
+	if (!p)
+		return -EINVAL;
+
+	/* We don't care about this option here */
+	if (!strncmp(p, "exactmap", 8))
+		return -EINVAL;
+
+	oldp = p;
+	*size = memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
+
+	switch (*p) {
+	case '#':
+	case '$':
+	case '!':
+		*start = memparse(p + 1, &p);
+		return 0;
+	case '@':
+		/* memmap=nn@ss specifies usable region, should be skipped */
+		*size = 0;
+		/* Fall through */
+	default:
+		/*
+		 * If w/o offset, only size specified, memmap=nn[KMG] has the
+		 * same behaviour as mem=nn[KMG]. It limits the max address
+		 * system can use. Region above the limit should be avoided.
+		 */
+		*start = 0;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static void mem_avoid_memmap(char *str)
+{
+	static int i;
+	int rc;
+
+	if (i >= MAX_MEMMAP_REGIONS)
+		return;
+
+	while (str && (i < MAX_MEMMAP_REGIONS)) {
+		int rc;
+		unsigned long long start, size;
+		char *k = strchr(str, ',');
+
+		if (k)
+			*k++ = 0;
+
+		rc = parse_memmap(str, &start, &size);
+		if (rc < 0)
+			break;
+		str = k;
+
+		if (start == 0) {
+			/* Store the specified memory limit if size > 0 */
+			if (size > 0)
+				mem_limit = size;
+
+			continue;
+		}
+
+		mem_avoid[MEM_AVOID_MEMMAP_BEGIN + i].start = start;
+		mem_avoid[MEM_AVOID_MEMMAP_BEGIN + i].size = size;
+		i++;
+	}
+
+	/* More than 4 memmaps, fail kaslr */
+	if ((i >= MAX_MEMMAP_REGIONS) && str)
+		memmap_too_large = true;
+}
+
+static int handle_mem_memmap(void)
+{
+	char *args = (char *)get_cmd_line_ptr();
+	size_t len = strlen((char *)args);
+	char *tmp_cmdline;
+	char *param, *val;
+	u64 mem_size;
+
+	if (!strstr(args, "memmap=") && !strstr(args, "mem="))
+		return 0;
+
+	tmp_cmdline = malloc(len + 1);
+	if (!tmp_cmdline )
+		error("Failed to allocate space for tmp_cmdline");
+
+	memcpy(tmp_cmdline, args, len);
+	tmp_cmdline[len] = 0;
+	args = tmp_cmdline;
+
+	/* Chew leading spaces */
+	args = skip_spaces(args);
+
+	while (*args) {
+		args = next_arg(args, &param, &val);
+		/* Stop at -- */
+		if (!val && strcmp(param, "--") == 0) {
+			warn("Only '--' specified in cmdline");
+			free(tmp_cmdline);
+			return -1;
+		}
+
+		if (!strcmp(param, "memmap")) {
+			mem_avoid_memmap(val);
+		} else if (!strcmp(param, "mem")) {
+			char *p = val;
+
+			if (!strcmp(p, "nopentium"))
+				continue;
+			mem_size = memparse(p, &p);
+			if (mem_size == 0) {
+				free(tmp_cmdline);
+				return -EINVAL;
+			}
+			mem_limit = mem_size;
+		}
+	}
+
+	free(tmp_cmdline);
+	return 0;
 }
 
 /*
@@ -197,6 +375,9 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 
 	/* We don't need to set a mapping for setup_data. */
 
+	/* Mark the memmap regions we need to avoid */
+	handle_mem_memmap();
+
 #ifdef CONFIG_X86_VERBOSE_BOOTUP
 	/* Make sure video RAM can be used. */
 	add_identity_map(0, PMD_SIZE);
@@ -298,16 +479,17 @@ static unsigned long slots_fetch_random(void)
 	return 0;
 }
 
-static void process_e820_entry(struct e820entry *entry,
+static void process_e820_entry(struct boot_e820_entry *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {
 	struct mem_vector region, overlap;
 	struct slot_area slot_area;
-	unsigned long start_orig;
+	unsigned long start_orig, end;
+	struct boot_e820_entry cur_entry;
 
 	/* Skip non-RAM entries. */
-	if (entry->type != E820_RAM)
+	if (entry->type != E820_TYPE_RAM)
 		return;
 
 	/* On 32-bit, ignore entries entirely above our maximum. */
@@ -318,8 +500,15 @@ static void process_e820_entry(struct e820entry *entry,
 	if (entry->addr + entry->size < minimum)
 		return;
 
-	region.start = entry->addr;
-	region.size = entry->size;
+	/* Ignore entries above memory limit */
+	end = min(entry->size + entry->addr, mem_limit);
+	if (entry->addr >= end)
+		return;
+	cur_entry.addr = entry->addr;
+	cur_entry.size = end - entry->addr;
+
+	region.start = cur_entry.addr;
+	region.size = cur_entry.size;
 
 	/* Give up if slot area array is full. */
 	while (slot_area_index < MAX_SLOT_AREA) {
@@ -333,7 +522,7 @@ static void process_e820_entry(struct e820entry *entry,
 		region.start = ALIGN(region.start, CONFIG_PHYSICAL_ALIGN);
 
 		/* Did we raise the address above this e820 region? */
-		if (region.start > entry->addr + entry->size)
+		if (region.start > cur_entry.addr + cur_entry.size)
 			return;
 
 		/* Reduce size by any delta from the original address. */
@@ -379,12 +568,18 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 	int i;
 	unsigned long addr;
 
+	/* Check if we had too many memmaps. */
+	if (memmap_too_large) {
+		debug_putstr("Aborted e820 scan (more than 4 memmap= args)!\n");
+		return 0;
+	}
+
 	/* Make sure minimum is aligned. */
 	minimum = ALIGN(minimum, CONFIG_PHYSICAL_ALIGN);
 
 	/* Verify potential e820 positions, appending to slots list. */
 	for (i = 0; i < boot_params->e820_entries; i++) {
-		process_e820_entry(&boot_params->e820_map[i], minimum,
+		process_e820_entry(&boot_params->e820_table[i], minimum,
 				   image_size);
 		if (slot_area_index == MAX_SLOT_AREA) {
 			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
@@ -430,9 +625,6 @@ void choose_random_location(unsigned long input,
 {
 	unsigned long random_addr, min_addr;
 
-	/* By default, keep output position unchanged. */
-	*virt_addr = *output;
-
 	if (cmdline_find_option_bool("nokaslr")) {
 		warn("KASLR disabled: 'nokaslr' on cmdline.");
 		return;
@@ -456,17 +648,24 @@ void choose_random_location(unsigned long input,
 	/* Walk e820 and find a random address. */
 	random_addr = find_random_phys_addr(min_addr, output_size);
 	if (!random_addr) {
-		warn("KASLR disabled: could not find suitable E820 region!");
+		warn("Physical KASLR disabled: no suitable memory region!");
 	} else {
 		/* Update the new physical address location. */
 		if (*output != random_addr) {
 			add_identity_map(random_addr, output_size);
 			*output = random_addr;
 		}
+
+		/*
+		 * This loads the identity mapping page table.
+		 * This should only be done if a new physical address
+		 * is found for the kernel, otherwise we should keep
+		 * the old page table to make it be like the "nokaslr"
+		 * case.
+		 */
+		finalize_identity_maps();
 	}
 
-	/* This actually loads the identity pagetable on x86_64. */
-	finalize_identity_maps();
 
 	/* Pick random virtual address starting from LOAD_PHYSICAL_ADDR. */
 	if (IS_ENABLED(CONFIG_X86_64))

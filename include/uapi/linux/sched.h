@@ -47,5 +47,6 @@
  * For the sched_{set,get}attr() calls
  */
 #define SCHED_FLAG_RESET_ON_FORK	0x01
+#define SCHED_FLAG_RECLAIM		0x02
 
 #endif /* _UAPI_LINUX_SCHED_H */

@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -395,14 +396,14 @@ static const char * const rt5514_dmic_src[] = {
 	"DMIC1", "DMIC2"
 };
 
-static const SOC_ENUM_SINGLE_DECL(
+static SOC_ENUM_SINGLE_DECL(
 	rt5514_stereo1_dmic_enum, RT5514_DIG_SOURCE_CTRL,
 	RT5514_AD0_DMIC_INPUT_SEL_SFT, rt5514_dmic_src);
 
 static const struct snd_kcontrol_new rt5514_sto1_dmic_mux =
 	SOC_DAPM_ENUM("Stereo1 DMIC Source", rt5514_stereo1_dmic_enum);
 
-static const SOC_ENUM_SINGLE_DECL(
+static SOC_ENUM_SINGLE_DECL(
 	rt5514_stereo2_dmic_enum, RT5514_DIG_SOURCE_CTRL,
 	RT5514_AD1_DMIC_INPUT_SEL_SFT, rt5514_dmic_src);
 
@@ -451,6 +452,9 @@ static int rt5514_set_dmic_clk(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(rt5514->regmap, RT5514_CLK_CTRL1,
 			RT5514_CLK_DMIC_OUT_SEL_MASK,
 			idx << RT5514_CLK_DMIC_OUT_SEL_SFT);
+
+	if (rt5514->pdata.dmic_init_delay)
+		msleep(rt5514->pdata.dmic_init_delay);
 
 	return idx;
 }
@@ -903,9 +907,23 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	if (rx_mask || tx_mask)
 		val |= RT5514_TDM_MODE;
 
-	if (slots == 4)
+	switch (slots) {
+	case 4:
 		val |= RT5514_TDMSLOT_SEL_RX_4CH | RT5514_TDMSLOT_SEL_TX_4CH;
+		break;
 
+	case 6:
+		val |= RT5514_TDMSLOT_SEL_RX_6CH | RT5514_TDMSLOT_SEL_TX_6CH;
+		break;
+
+	case 8:
+		val |= RT5514_TDMSLOT_SEL_RX_8CH | RT5514_TDMSLOT_SEL_TX_8CH;
+		break;
+
+	case 2:
+	default:
+		break;
+	}
 
 	switch (slot_width) {
 	case 20:
@@ -914,6 +932,10 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	case 24:
 		val |= RT5514_CH_LEN_RX_24 | RT5514_CH_LEN_TX_24;
+		break;
+
+	case 25:
+		val |= RT5514_TDM_MODE2;
 		break;
 
 	case 32:
@@ -927,7 +949,8 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	regmap_update_bits(rt5514->regmap, RT5514_I2S_CTRL1, RT5514_TDM_MODE |
 		RT5514_TDMSLOT_SEL_RX_MASK | RT5514_TDMSLOT_SEL_TX_MASK |
-		RT5514_CH_LEN_RX_MASK | RT5514_CH_LEN_TX_MASK, val);
+		RT5514_CH_LEN_RX_MASK | RT5514_CH_LEN_TX_MASK |
+		RT5514_TDM_MODE2, val);
 
 	return 0;
 }
@@ -1073,12 +1096,44 @@ static const struct of_device_id rt5514_of_match[] = {
 MODULE_DEVICE_TABLE(of, rt5514_of_match);
 #endif
 
+#ifdef CONFIG_ACPI
+static struct acpi_device_id rt5514_acpi_match[] = {
+	{ "10EC5514", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, rt5514_acpi_match);
+#endif
+
+static int rt5514_parse_dt(struct rt5514_priv *rt5514, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,dmic-init-delay-ms",
+		&rt5514->pdata.dmic_init_delay);
+
+	return 0;
+}
+
+static __maybe_unused int rt5514_i2c_resume(struct device *dev)
+{
+	struct rt5514_priv *rt5514 = dev_get_drvdata(dev);
+	unsigned int val;
+
+	/*
+	 * Add a bogus read to avoid rt5514's confusion after s2r in case it
+	 * saw glitches on the i2c lines and thought the other side sent a
+	 * start bit.
+	 */
+	regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
+
+	return 0;
+}
+
 static int rt5514_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
+	struct rt5514_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5514_priv *rt5514;
 	int ret;
-	unsigned int val;
+	unsigned int val = ~0;
 
 	rt5514 = devm_kzalloc(&i2c->dev, sizeof(struct rt5514_priv),
 				GFP_KERNEL);
@@ -1086,6 +1141,11 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5514);
+
+	if (pdata)
+		rt5514->pdata = *pdata;
+	else if (i2c->dev.of_node)
+		rt5514_parse_dt(rt5514, &i2c->dev);
 
 	rt5514->i2c_regmap = devm_regmap_init_i2c(i2c, &rt5514_i2c_regmap);
 	if (IS_ERR(rt5514->i2c_regmap)) {
@@ -1103,8 +1163,16 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
-	if (val != RT5514_DEVICE_ID) {
+	/*
+	 * The rt5514 can get confused if the i2c lines glitch together, as
+	 * can happen at bootup as regulators are turned off and on.  If it's
+	 * in this glitched state the first i2c read will fail, so we'll give
+	 * it one change to retry.
+	 */
+	ret = regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
+	if (ret || val != RT5514_DEVICE_ID)
+		ret = regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
+	if (ret || val != RT5514_DEVICE_ID) {
 		dev_err(&i2c->dev,
 			"Device with ID register %x is not rt5514\n", val);
 		return -ENODEV;
@@ -1132,10 +1200,16 @@ static int rt5514_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-struct i2c_driver rt5514_i2c_driver = {
+static const struct dev_pm_ops rt5514_i2_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, rt5514_i2c_resume)
+};
+
+static struct i2c_driver rt5514_i2c_driver = {
 	.driver = {
 		.name = "rt5514",
+		.acpi_match_table = ACPI_PTR(rt5514_acpi_match),
 		.of_match_table = of_match_ptr(rt5514_of_match),
+		.pm = &rt5514_i2_pm_ops,
 	},
 	.probe = rt5514_i2c_probe,
 	.remove   = rt5514_i2c_remove,

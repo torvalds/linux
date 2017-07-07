@@ -262,7 +262,6 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	pkt_type = hci_skb_pkt_type(skb);
 	len = hst->st_write(skb);
 	if (len < 0) {
-		kfree_skb(skb);
 		BT_ERR("ST write failed (%ld)", len);
 		/* Try Again, would only fail if UART has gone bad */
 		return -EAGAIN;
@@ -310,7 +309,7 @@ static int bt_ti_probe(struct platform_device *pdev)
 	BT_DBG("HCI device registered (hdev %p)", hdev);
 
 	dev_set_drvdata(&pdev->dev, hst);
-	return err;
+	return 0;
 }
 
 static int bt_ti_remove(struct platform_device *pdev)

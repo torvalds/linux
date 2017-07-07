@@ -1,7 +1,9 @@
 #ifndef __PERF_EVLIST_H
 #define __PERF_EVLIST_H 1
 
-#include <linux/atomic.h>
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <linux/refcount.h>
 #include <linux/list.h>
 #include <api/fd/array.h>
 #include <stdio.h>
@@ -10,6 +12,7 @@
 #include "evsel.h"
 #include "util.h"
 #include "auxtrace.h"
+#include <signal.h>
 #include <unistd.h>
 
 struct pollfd;
@@ -29,10 +32,10 @@ struct perf_mmap {
 	void		 *base;
 	int		 mask;
 	int		 fd;
-	atomic_t	 refcnt;
+	refcount_t	 refcnt;
 	u64		 prev;
 	struct auxtrace_mmap auxtrace_mmap;
-	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
+	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __aligned(8);
 };
 
 static inline size_t
@@ -217,6 +220,8 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		      bool overwrite);
 void perf_evlist__munmap(struct perf_evlist *evlist);
+
+size_t perf_evlist__mmap_size(unsigned long pages);
 
 void perf_evlist__disable(struct perf_evlist *evlist);
 void perf_evlist__enable(struct perf_evlist *evlist);

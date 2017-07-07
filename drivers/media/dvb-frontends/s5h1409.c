@@ -321,8 +321,8 @@ static int s5h1409_writereg(struct s5h1409_state *state, u8 reg, u16 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, "
-		       "ret == %i)\n", __func__, reg, data, ret);
+		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, ret == %i)\n",
+		       __func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -949,7 +949,7 @@ static void s5h1409_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1409_ops;
+static const struct dvb_frontend_ops s5h1409_ops;
 
 struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 				    struct i2c_adapter *i2c)
@@ -995,7 +995,7 @@ error:
 }
 EXPORT_SYMBOL(s5h1409_attach);
 
-static struct dvb_frontend_ops s5h1409_ops = {
+static const struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Samsung S5H1409 QAM/8VSB Frontend",

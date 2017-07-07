@@ -641,7 +641,6 @@ struct ath6kl_vif {
 	u32 txe_intvl;
 	u16 bg_scan_period;
 	u8 assoc_bss_dtim_period;
-	struct net_device_stats net_stats;
 	struct target_stats target_stats;
 	struct wmi_connect_cmd profile;
 	u16 rsn_capab;

@@ -3,5 +3,8 @@
  *
  * This file is released under the GPLv2
  */
-#include <asm-generic/device.h>
+struct dev_archdata {
+};
 
+struct pdev_archdata {
+};

@@ -174,7 +174,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	if (scrtc->started)
 		return;
 
-	format = shmob_drm_format_info(crtc->primary->fb->pixel_format);
+	format = shmob_drm_format_info(crtc->primary->fb->format->format);
 	if (WARN_ON(format == NULL))
 		return;
 
@@ -376,10 +376,10 @@ static int shmob_drm_crtc_mode_set(struct drm_crtc *crtc,
 	const struct shmob_drm_format_info *format;
 	void *cache;
 
-	format = shmob_drm_format_info(crtc->primary->fb->pixel_format);
+	format = shmob_drm_format_info(crtc->primary->fb->format->format);
 	if (format == NULL) {
 		dev_dbg(sdev->dev, "mode_set: unsupported format %08x\n",
-			crtc->primary->fb->pixel_format);
+			crtc->primary->fb->format->format);
 		return -EINVAL;
 	}
 
@@ -449,7 +449,8 @@ void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc)
 static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
 				    struct drm_pending_vblank_event *event,
-				    uint32_t page_flip_flags)
+				    uint32_t page_flip_flags,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct shmob_drm_crtc *scrtc = to_shmob_crtc(crtc);
 	struct drm_device *dev = scrtc->crtc.dev;
@@ -476,10 +477,45 @@ static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void shmob_drm_crtc_enable_vblank(struct shmob_drm_device *sdev,
+					 bool enable)
+{
+	unsigned long flags;
+	u32 ldintr;
+
+	/* Be careful not to acknowledge any pending interrupt. */
+	spin_lock_irqsave(&sdev->irq_lock, flags);
+	ldintr = lcdc_read(sdev, LDINTR) | LDINTR_STATUS_MASK;
+	if (enable)
+		ldintr |= LDINTR_VEE;
+	else
+		ldintr &= ~LDINTR_VEE;
+	lcdc_write(sdev, LDINTR, ldintr);
+	spin_unlock_irqrestore(&sdev->irq_lock, flags);
+}
+
+static int shmob_drm_enable_vblank(struct drm_crtc *crtc)
+{
+	struct shmob_drm_device *sdev = crtc->dev->dev_private;
+
+	shmob_drm_crtc_enable_vblank(sdev, true);
+
+	return 0;
+}
+
+static void shmob_drm_disable_vblank(struct drm_crtc *crtc)
+{
+	struct shmob_drm_device *sdev = crtc->dev->dev_private;
+
+	shmob_drm_crtc_enable_vblank(sdev, false);
+}
+
 static const struct drm_crtc_funcs crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_crtc_helper_set_config,
 	.page_flip = shmob_drm_crtc_page_flip,
+	.enable_vblank = shmob_drm_enable_vblank,
+	.disable_vblank = shmob_drm_disable_vblank,
 };
 
 int shmob_drm_crtc_create(struct shmob_drm_device *sdev)
@@ -594,22 +630,6 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 	return 0;
 }
 
-void shmob_drm_crtc_enable_vblank(struct shmob_drm_device *sdev, bool enable)
-{
-	unsigned long flags;
-	u32 ldintr;
-
-	/* Be careful not to acknowledge any pending interrupt. */
-	spin_lock_irqsave(&sdev->irq_lock, flags);
-	ldintr = lcdc_read(sdev, LDINTR) | LDINTR_STATUS_MASK;
-	if (enable)
-		ldintr |= LDINTR_VEE;
-	else
-		ldintr &= ~LDINTR_VEE;
-	lcdc_write(sdev, LDINTR, ldintr);
-	spin_unlock_irqrestore(&sdev->irq_lock, flags);
-}
-
 /* -----------------------------------------------------------------------------
  * Connector
  */
@@ -669,15 +689,8 @@ static void shmob_drm_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static enum drm_connector_status
-shmob_drm_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static const struct drm_connector_funcs connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = shmob_drm_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = shmob_drm_connector_destroy,
 };
@@ -699,13 +712,10 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 		return ret;
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
-	ret = drm_connector_register(connector);
-	if (ret < 0)
-		goto err_cleanup;
 
 	ret = shmob_drm_backlight_init(&sdev->connector);
 	if (ret < 0)
-		goto err_sysfs;
+		goto err_cleanup;
 
 	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
@@ -719,8 +729,6 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 
 err_backlight:
 	shmob_drm_backlight_exit(&sdev->connector);
-err_sysfs:
-	drm_connector_unregister(connector);
 err_cleanup:
 	drm_connector_cleanup(connector);
 	return ret;

@@ -108,13 +108,12 @@ int picolcd_init_cir(struct picolcd_data *data, struct hid_report *report)
 	struct rc_dev *rdev;
 	int ret = 0;
 
-	rdev = rc_allocate_device();
+	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rdev)
 		return -ENOMEM;
 
 	rdev->priv             = data;
-	rdev->driver_type      = RC_DRIVER_IR_RAW;
-	rdev->allowed_protocols = RC_BIT_ALL;
+	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	rdev->open             = picolcd_cir_open;
 	rdev->close            = picolcd_cir_close;
 	rdev->input_name       = data->hdev->name;

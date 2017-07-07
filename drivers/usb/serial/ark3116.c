@@ -99,10 +99,17 @@ static int ark3116_read_reg(struct usb_serial *serial,
 				 usb_rcvctrlpipe(serial->dev, 0),
 				 0xfe, 0xc0, 0, reg,
 				 buf, 1, ARK_TIMEOUT);
-	if (result < 0)
+	if (result < 1) {
+		dev_err(&serial->interface->dev,
+				"failed to read register %u: %d\n",
+				reg, result);
+		if (result >= 0)
+			result = -EIO;
+
 		return result;
-	else
-		return buf[0];
+	}
+
+	return buf[0];
 }
 
 static inline int calc_divisor(int bps)
@@ -113,25 +120,6 @@ static inline int calc_divisor(int bps)
 	 * Crystal is 12MHz, probably because of USB, but we divide by 4?
 	 */
 	return (12000000 + 2*bps) / (4*bps);
-}
-
-static int ark3116_attach(struct usb_serial *serial)
-{
-	/* make sure we have our end-points */
-	if ((serial->num_bulk_in == 0) ||
-	    (serial->num_bulk_out == 0) ||
-	    (serial->num_interrupt_in == 0)) {
-		dev_err(&serial->dev->dev,
-			"%s - missing endpoint - "
-			"bulk in: %d, bulk out: %d, int in %d\n",
-			KBUILD_MODNAME,
-			serial->num_bulk_in,
-			serial->num_bulk_out,
-			serial->num_interrupt_in);
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 static int ark3116_port_probe(struct usb_serial_port *port)
@@ -186,10 +174,8 @@ static int ark3116_port_probe(struct usb_serial_port *port)
 	if (priv->irda)
 		ark3116_write_reg(serial, 0x9, 0);
 
-	dev_info(&serial->dev->dev,
-		"%s using %s mode\n",
-		KBUILD_MODNAME,
-		priv->irda ? "IrDA" : "RS232");
+	dev_info(&port->dev, "using %s mode\n", priv->irda ? "IrDA" : "RS232");
+
 	return 0;
 }
 
@@ -325,9 +311,8 @@ static void ark3116_set_termios(struct tty_struct *tty,
 
 	/* check for software flow control */
 	if (I_IXOFF(tty) || I_IXON(tty)) {
-		dev_warn(&serial->dev->dev,
-			 "%s: don't know how to do software flow control\n",
-			 KBUILD_MODNAME);
+		dev_warn(&port->dev,
+				"software flow control not implemented\n");
 	}
 
 	/* Don't rewrite B0 */
@@ -346,8 +331,8 @@ static void ark3116_close(struct usb_serial_port *port)
 	ark3116_write_reg(serial, UART_IER, 0);
 
 	usb_serial_generic_close(port);
-	if (serial->num_interrupt_in)
-		usb_kill_urb(port->interrupt_in_urb);
+
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -366,23 +351,29 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_dbg(&port->dev,
 			"%s - usb_serial_generic_open failed: %d\n",
 			__func__, result);
-		goto err_out;
+		goto err_free;
 	}
 
 	/* remove any data still left: also clears error state */
 	ark3116_read_reg(serial, UART_RX, buf);
 
 	/* read modem status */
-	priv->msr = ark3116_read_reg(serial, UART_MSR, buf);
+	result = ark3116_read_reg(serial, UART_MSR, buf);
+	if (result < 0)
+		goto err_close;
+	priv->msr = *buf;
+
 	/* read line status */
-	priv->lsr = ark3116_read_reg(serial, UART_LSR, buf);
+	result = ark3116_read_reg(serial, UART_LSR, buf);
+	if (result < 0)
+		goto err_close;
+	priv->lsr = *buf;
 
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
 		dev_err(&port->dev, "submit irq_in urb failed %d\n",
 			result);
-		ark3116_close(port);
-		goto err_out;
+		goto err_close;
 	}
 
 	/* activate interrupts */
@@ -395,8 +386,15 @@ static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		ark3116_set_termios(tty, port, NULL);
 
-err_out:
 	kfree(buf);
+
+	return 0;
+
+err_close:
+	usb_serial_generic_close(port);
+err_free:
+	kfree(buf);
+
 	return result;
 }
 
@@ -602,9 +600,8 @@ static void ark3116_read_int_callback(struct urb *urb)
 
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
-		dev_err(&urb->dev->dev,
-			"%s - Error %d submitting interrupt urb\n",
-			__func__, result);
+		dev_err(&port->dev, "failed to resubmit interrupt urb: %d\n",
+			result);
 }
 
 
@@ -661,7 +658,9 @@ static struct usb_serial_driver ark3116_device = {
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
-	.attach =		ark3116_attach,
+	.num_bulk_in =		1,
+	.num_bulk_out =		1,
+	.num_interrupt_in =	1,
 	.port_probe =		ark3116_port_probe,
 	.port_remove =		ark3116_port_remove,
 	.set_termios =		ark3116_set_termios,

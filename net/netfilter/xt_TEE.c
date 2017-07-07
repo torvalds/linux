@@ -33,7 +33,7 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_tee_tginfo *info = par->targinfo;
 	int oif = info->priv ? info->priv->oif : 0;
 
-	nf_dup_ipv4(par->net, skb, par->hooknum, &info->gw.in, oif);
+	nf_dup_ipv4(xt_net(par), skb, xt_hooknum(par), &info->gw.in, oif);
 
 	return XT_CONTINUE;
 }
@@ -45,7 +45,7 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	const struct xt_tee_tginfo *info = par->targinfo;
 	int oif = info->priv ? info->priv->oif : 0;
 
-	nf_dup_ipv6(par->net, skb, par->hooknum, &info->gw.in6, oif);
+	nf_dup_ipv6(xt_net(par), skb, xt_hooknum(par), &info->gw.in6, oif);
 
 	return XT_CONTINUE;
 }
@@ -133,6 +133,7 @@ static struct xt_target tee_tg_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV4,
 		.target     = tee_tg4,
 		.targetsize = sizeof(struct xt_tee_tginfo),
+		.usersize   = offsetof(struct xt_tee_tginfo, priv),
 		.checkentry = tee_tg_check,
 		.destroy    = tee_tg_destroy,
 		.me         = THIS_MODULE,
@@ -144,6 +145,7 @@ static struct xt_target tee_tg_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV6,
 		.target     = tee_tg6,
 		.targetsize = sizeof(struct xt_tee_tginfo),
+		.usersize   = offsetof(struct xt_tee_tginfo, priv),
 		.checkentry = tee_tg_check,
 		.destroy    = tee_tg_destroy,
 		.me         = THIS_MODULE,

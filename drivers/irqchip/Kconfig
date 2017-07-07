@@ -39,7 +39,6 @@ config ARM_GIC_V3_ITS
 	bool
 	depends on PCI
 	depends on PCI_MSI
-	select ACPI_IORT if ACPI
 
 config ARM_NVIC
 	bool
@@ -115,6 +114,12 @@ config DW_APB_ICTL
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config FARADAY_FTINTC010
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
 config HISILICON_IRQ_MBIGEN
 	bool
 	select ARM_GIC_V3
@@ -128,7 +133,9 @@ config IMGPDC_IRQ
 config IRQ_MIPS_CPU
 	bool
 	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_IPI if SYS_SUPPORTS_MULTITHREADING
 	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY if GENERIC_IRQ_IPI
 
 config CLPS711X_IRQCHIP
 	bool
@@ -158,8 +165,8 @@ config PIC32_EVIC
 	select IRQ_DOMAIN
 
 config JCORE_AIC
-	bool "J-Core integrated AIC"
-	depends on OF && (SUPERH || COMPILE_TEST)
+	bool "J-Core integrated AIC" if COMPILE_TEST
+	depends on OF
 	select IRQ_DOMAIN
 	help
 	  Support for the J-Core integrated AIC.
@@ -211,6 +218,10 @@ config XTENSA_MX
 	bool
 	select IRQ_DOMAIN
 
+config XILINX_INTC
+	bool
+	select IRQ_DOMAIN
+
 config IRQ_CROSSBAR
 	bool
 	help
@@ -256,8 +267,15 @@ config IRQ_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
 
+config MVEBU_GICP
+	bool
+
+config MVEBU_ICU
+	bool
+
 config MVEBU_ODMI
 	bool
+	select GENERIC_MSI_IRQ_DOMAIN
 
 config MVEBU_PIC
 	bool
@@ -279,3 +297,12 @@ config EZNPS_GIC
 config STM32_EXTI
 	bool
 	select IRQ_DOMAIN
+
+config QCOM_IRQ_COMBINER
+	bool "QCOM IRQ combiner support"
+	depends on ARCH_QCOM && ACPI
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say yes here to add support for the IRQ combiner devices embedded
+	  in Qualcomm Technologies chips.

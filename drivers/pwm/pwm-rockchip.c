@@ -191,6 +191,28 @@ static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
+static int rockchip_pwm_enable(struct pwm_chip *chip,
+			 struct pwm_device *pwm,
+			 bool enable,
+			 enum pwm_polarity polarity)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	int ret;
+
+	if (enable) {
+		ret = clk_enable(pc->clk);
+		if (ret)
+			return ret;
+	}
+
+	pc->data->set_enable(chip, pwm, enable, polarity);
+
+	if (!enable)
+		clk_disable(pc->clk);
+
+	return 0;
+}
+
 static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			      struct pwm_state *state)
 {
@@ -207,22 +229,26 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return ret;
 
 	if (state->polarity != curstate.polarity && enabled) {
-		pc->data->set_enable(chip, pwm, false, state->polarity);
+		ret = rockchip_pwm_enable(chip, pwm, false, state->polarity);
+		if (ret)
+			goto out;
 		enabled = false;
 	}
 
 	ret = rockchip_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (ret) {
 		if (enabled != curstate.enabled)
-			pc->data->set_enable(chip, pwm, !enabled,
-					     state->polarity);
-
+			rockchip_pwm_enable(chip, pwm, !enabled,
+				      state->polarity);
 		goto out;
 	}
 
-	if (state->enabled != enabled)
-		pc->data->set_enable(chip, pwm, state->enabled,
-				     state->polarity);
+	if (state->enabled != enabled) {
+		ret = rockchip_pwm_enable(chip, pwm, state->enabled,
+				    state->polarity);
+		if (ret)
+			goto out;
+	}
 
 	/*
 	 * Update the state with the real hardware, which can differ a bit

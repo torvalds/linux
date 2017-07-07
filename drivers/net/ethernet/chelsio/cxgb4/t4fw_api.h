@@ -100,8 +100,10 @@ enum fw_wr_opcodes {
 	FW_RI_RECV_WR                  = 0x17,
 	FW_RI_BIND_MW_WR               = 0x18,
 	FW_RI_FR_NSMR_WR               = 0x19,
+	FW_RI_FR_NSMR_TPTE_WR	       = 0x20,
 	FW_RI_INV_LSTAG_WR             = 0x1a,
 	FW_ISCSI_TX_DATA_WR	       = 0x45,
+	FW_PTP_TX_PKT_WR               = 0x46,
 	FW_CRYPTO_LOOKASIDE_WR         = 0X6d,
 	FW_LASTC2E_WR                  = 0x70
 };
@@ -684,6 +686,7 @@ enum fw_cmd_opcodes {
 	FW_SCHED_CMD                   = 0x24,
 	FW_DEVLOG_CMD                  = 0x25,
 	FW_CLIP_CMD                    = 0x28,
+	FW_PTP_CMD                     = 0x3e,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -1121,6 +1124,8 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_MAXIRD_ADAPTER = 0x14, /* max supported adap IRD */
 	FW_PARAMS_PARAM_DEV_ULPTX_MEMWRITE_DSGL = 0x17,
 	FW_PARAMS_PARAM_DEV_FWCACHE = 0x18,
+	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
+	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
 };
 
 /*
@@ -1165,7 +1170,8 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_START = 0x2D,
 	FW_PARAMS_PARAM_PFVF_ACTIVE_FILTER_END = 0x2E,
 	FW_PARAMS_PARAM_PFVF_ETHOFLD_END = 0x30,
-	FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP = 0x31
+	FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP = 0x31,
+	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x32
 };
 
 /*
@@ -2260,9 +2266,9 @@ enum fw_port_cap {
 	FW_PORT_CAP_ANEG		= 0x0100,
 	FW_PORT_CAP_MDIX		= 0x0200,
 	FW_PORT_CAP_MDIAUTO		= 0x0400,
-	FW_PORT_CAP_FEC			= 0x0800,
-	FW_PORT_CAP_TECHKR		= 0x1000,
-	FW_PORT_CAP_TECHKX4		= 0x2000,
+	FW_PORT_CAP_FEC_RS		= 0x0800,
+	FW_PORT_CAP_FEC_BASER_RS	= 0x1000,
+	FW_PORT_CAP_FEC_RESERVED	= 0x2000,
 	FW_PORT_CAP_802_3_PAUSE		= 0x4000,
 	FW_PORT_CAP_802_3_ASM_DIR	= 0x8000,
 };
@@ -2569,6 +2575,7 @@ enum fw_port_type {
 	FW_PORT_TYPE_CR_QSFP,
 	FW_PORT_TYPE_CR2_QSFP,
 	FW_PORT_TYPE_SFP28,
+	FW_PORT_TYPE_KR_SFP28,
 
 	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_M
 };
@@ -2796,6 +2803,54 @@ struct fw_port_lb_stats_cmd {
 		} all;
 	} u;
 };
+
+enum fw_ptp_subop {
+	/* none */
+	FW_PTP_SC_INIT_TIMER            = 0x00,
+	FW_PTP_SC_TX_TYPE               = 0x01,
+	/* init */
+	FW_PTP_SC_RXTIME_STAMP          = 0x08,
+	FW_PTP_SC_RDRX_TYPE             = 0x09,
+	/* ts */
+	FW_PTP_SC_ADJ_FREQ              = 0x10,
+	FW_PTP_SC_ADJ_TIME              = 0x11,
+	FW_PTP_SC_ADJ_FTIME             = 0x12,
+	FW_PTP_SC_WALL_CLOCK            = 0x13,
+	FW_PTP_SC_GET_TIME              = 0x14,
+	FW_PTP_SC_SET_TIME              = 0x15,
+};
+
+struct fw_ptp_cmd {
+	__be32 op_to_portid;
+	__be32 retval_len16;
+	union fw_ptp {
+		struct fw_ptp_sc {
+			__u8   sc;
+			__u8   r3[7];
+		} scmd;
+		struct fw_ptp_init {
+			__u8   sc;
+			__u8   txchan;
+			__be16 absid;
+			__be16 mode;
+			__be16 r3;
+		} init;
+		struct fw_ptp_ts {
+			__u8   sc;
+			__u8   sign;
+			__be16 r3;
+			__be32 ppb;
+			__be64 tm;
+		} ts;
+	} u;
+	__be64 r3;
+};
+
+#define FW_PTP_CMD_PORTID_S             0
+#define FW_PTP_CMD_PORTID_M             0xf
+#define FW_PTP_CMD_PORTID_V(x)          ((x) << FW_PTP_CMD_PORTID_S)
+#define FW_PTP_CMD_PORTID_G(x)          \
+	(((x) >> FW_PTP_CMD_PORTID_S) & FW_PTP_CMD_PORTID_M)
 
 struct fw_rss_ind_tbl_cmd {
 	__be32 op_to_viid;
@@ -3083,6 +3138,10 @@ struct fw_debug_cmd {
 #define FW_DEBUG_CMD_TYPE_M	0xff
 #define FW_DEBUG_CMD_TYPE_G(x)	\
 	(((x) >> FW_DEBUG_CMD_TYPE_S) & FW_DEBUG_CMD_TYPE_M)
+
+enum pcie_fw_eval {
+	PCIE_FW_EVAL_CRASH = 0,
+};
 
 #define PCIE_FW_ERR_S		31
 #define PCIE_FW_ERR_V(x)	((x) << PCIE_FW_ERR_S)
@@ -3382,6 +3441,14 @@ struct fw_crypto_lookaside_wr {
 	((x) << FW_CRYPTO_LOOKASIDE_WR_IV_S)
 #define FW_CRYPTO_LOOKASIDE_WR_IV_G(x) \
 	(((x) >> FW_CRYPTO_LOOKASIDE_WR_IV_S) & FW_CRYPTO_LOOKASIDE_WR_IV_M)
+
+#define FW_CRYPTO_LOOKASIDE_WR_FQIDX_S   15
+#define FW_CRYPTO_LOOKASIDE_WR_FQIDX_M   0xff
+#define FW_CRYPTO_LOOKASIDE_WR_FQIDX_V(x) \
+	((x) << FW_CRYPTO_LOOKASIDE_WR_FQIDX_S)
+#define FW_CRYPTO_LOOKASIDE_WR_FQIDX_G(x) \
+	(((x) >> FW_CRYPTO_LOOKASIDE_WR_FQIDX_S) & \
+	 FW_CRYPTO_LOOKASIDE_WR_FQIDX_M)
 
 #define FW_CRYPTO_LOOKASIDE_WR_TX_CH_S 10
 #define FW_CRYPTO_LOOKASIDE_WR_TX_CH_M 0x3

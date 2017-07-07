@@ -367,8 +367,8 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	af_recover_cfg = devm_kzalloc(isp->dev, sizeof(*af_recover_cfg),
 				      GFP_KERNEL);
 	if (!af_recover_cfg) {
-		dev_err(af->isp->dev, "AF: cannot allocate memory for recover "
-				      "configuration.\n");
+		dev_err(af->isp->dev,
+			"AF: cannot allocate memory for recover configuration.\n");
 		return -ENOMEM;
 	}
 
@@ -379,8 +379,8 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	af_recover_cfg->paxel.v_cnt = OMAP3ISP_AF_PAXEL_VERTICAL_COUNT_MIN;
 	af_recover_cfg->paxel.line_inc = OMAP3ISP_AF_PAXEL_INCREMENT_MIN;
 	if (h3a_af_validate_params(af, af_recover_cfg)) {
-		dev_err(af->isp->dev, "AF: recover configuration is "
-				      "invalid.\n");
+		dev_err(af->isp->dev,
+			"AF: recover configuration is invalid.\n");
 		return -EINVAL;
 	}
 

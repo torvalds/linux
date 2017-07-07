@@ -4,6 +4,7 @@
  */
 #include "lkdtm.h"
 #include <linux/slab.h>
+#include <linux/sched.h>
 
 /*
  * This tries to stay within the next largest power-of-2 kmalloc cache

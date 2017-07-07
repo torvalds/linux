@@ -35,7 +35,8 @@ static struct simplefb_format supported_formats[] = {
 static void arc_pgu_set_pxl_fmt(struct drm_crtc *crtc)
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
-	uint32_t pixel_format = crtc->primary->state->fb->pixel_format;
+	const struct drm_framebuffer *fb = crtc->primary->state->fb;
+	uint32_t pixel_format = fb->format->format;
 	struct simplefb_format *format = NULL;
 	int i;
 
@@ -183,8 +184,6 @@ static void arc_pgu_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs arc_pgu_plane_helper_funcs = {
-	.prepare_fb = NULL,
-	.cleanup_fb = NULL,
 	.atomic_update = arc_pgu_plane_atomic_update,
 };
 

@@ -86,6 +86,7 @@ __spitfire_cee_trap_continue:
 	 rd		%pc, %g7
 
 	ba,a,pt		%xcc, 2f
+	 nop
 
 1:	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7

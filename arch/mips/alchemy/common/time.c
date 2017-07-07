@@ -44,7 +44,7 @@
 /* 32kHz clock enabled and detected */
 #define CNTR_OK (SYS_CNTRL_E0 | SYS_CNTRL_32S)
 
-static cycle_t au1x_counter1_read(struct clocksource *cs)
+static u64 au1x_counter1_read(struct clocksource *cs)
 {
 	return alchemy_rdsys(AU1000_SYS_RTCREAD);
 }
@@ -138,7 +138,9 @@ static int __init alchemy_time_init(unsigned int m2int)
 	cd->shift = 32;
 	cd->mult = div_sc(32768, NSEC_PER_SEC, cd->shift);
 	cd->max_delta_ns = clockevent_delta2ns(0xffffffff, cd);
-	cd->min_delta_ns = clockevent_delta2ns(9, cd);	/* ~0.28ms */
+	cd->max_delta_ticks = 0xffffffff;
+	cd->min_delta_ns = clockevent_delta2ns(9, cd);
+	cd->min_delta_ticks = 9;	/* ~0.28ms */
 	clockevents_register_device(cd);
 	setup_irq(m2int, &au1x_rtcmatch2_irqaction);
 

@@ -85,6 +85,8 @@ int bpf__strerror_setup_stdout(struct perf_evlist *evlist, int err,
 			       char *buf, size_t size);
 
 #else
+#include <errno.h>
+
 static inline struct bpf_object *
 bpf__prepare_load(const char *filename __maybe_unused,
 		  bool source __maybe_unused)

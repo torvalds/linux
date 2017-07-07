@@ -124,7 +124,7 @@ gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 	}
 }
 
-static int
+int
 gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 {
 	struct gf100_ram *ram = gf100_ram(base);
@@ -404,7 +404,7 @@ gf100_ram_calc(struct nvkm_ram *base, u32 freq)
 	return 0;
 }
 
-static int
+int
 gf100_ram_prog(struct nvkm_ram *base)
 {
 	struct gf100_ram *ram = gf100_ram(base);
@@ -413,14 +413,12 @@ gf100_ram_prog(struct nvkm_ram *base)
 	return 0;
 }
 
-static void
+void
 gf100_ram_tidy(struct nvkm_ram *base)
 {
 	struct gf100_ram *ram = gf100_ram(base);
 	ram_exec(&ram->fuc, false);
 }
-
-extern const u8 gf100_pte_storage_type_map[256];
 
 void
 gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
@@ -447,7 +445,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 {
 	struct nvkm_ltc *ltc = ram->fb->subdev.device->ltc;
 	struct nvkm_mm *mm = &ram->vram;
-	struct nvkm_mm_node *r;
+	struct nvkm_mm_node **node, *r;
 	struct nvkm_mem *mem;
 	int type = (memtype & 0x0ff);
 	int back = (memtype & 0x800);
@@ -464,7 +462,6 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	if (!mem)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&mem->regions);
 	mem->size = size;
 
 	mutex_lock(&ram->fb->subdev.mutex);
@@ -480,6 +477,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	}
 	mem->memtype = type;
 
+	node = &mem->mem;
 	do {
 		if (back)
 			ret = nvkm_mm_tail(mm, 0, 1, size, ncmin, align, &r);
@@ -491,18 +489,18 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 			return ret;
 		}
 
-		list_add_tail(&r->rl_entry, &mem->regions);
+		*node = r;
+		node = &r->next;
 		size -= r->length;
 	} while (size);
 	mutex_unlock(&ram->fb->subdev.mutex);
 
-	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
-	mem->offset = (u64)r->offset << NVKM_RAM_MM_SHIFT;
+	mem->offset = (u64)mem->mem->offset << NVKM_RAM_MM_SHIFT;
 	*pmem = mem;
 	return 0;
 }
 
-static int
+int
 gf100_ram_init(struct nvkm_ram *base)
 {
 	static const u8  train0[] = {
@@ -545,88 +543,107 @@ gf100_ram_init(struct nvkm_ram *base)
 	return 0;
 }
 
-static const struct nvkm_ram_func
-gf100_ram_func = {
-	.init = gf100_ram_init,
-	.get = gf100_ram_get,
-	.put = gf100_ram_put,
-	.calc = gf100_ram_calc,
-	.prog = gf100_ram_prog,
-	.tidy = gf100_ram_tidy,
-};
+u32
+gf100_ram_probe_fbpa_amount(struct nvkm_device *device, int fbpa)
+{
+	return nvkm_rd32(device, 0x11020c + (fbpa * 0x1000));
+}
+
+u32
+gf100_ram_probe_fbp_amount(const struct nvkm_ram_func *func, u32 fbpao,
+			   struct nvkm_device *device, int fbp, int *pltcs)
+{
+	if (!(fbpao & BIT(fbp))) {
+		*pltcs = 1;
+		return func->probe_fbpa_amount(device, fbp);
+	}
+	return 0;
+}
+
+u32
+gf100_ram_probe_fbp(const struct nvkm_ram_func *func,
+		    struct nvkm_device *device, int fbp, int *pltcs)
+{
+	u32 fbpao = nvkm_rd32(device, 0x022554);
+	return func->probe_fbp_amount(func, fbpao, device, fbp, pltcs);
+}
 
 int
 gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
-	       u32 maskaddr, struct nvkm_ram *ram)
+	       struct nvkm_ram *ram)
 {
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_bios *bios = device->bios;
 	const u32 rsvd_head = ( 256 * 1024); /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024); /* vbios etc */
-	u32 parts = nvkm_rd32(device, 0x022438);
-	u32 pmask = nvkm_rd32(device, maskaddr);
-	u64 bsize = (u64)nvkm_rd32(device, 0x10f20c) << 20;
-	u64 psize, size = 0;
 	enum nvkm_ram_type type = nvkm_fb_bios_memtype(bios);
-	bool uniform = true;
-	int ret, i;
+	u32 fbps = nvkm_rd32(device, 0x022438);
+	u64 total = 0, lcomm = ~0, lower, ubase, usize;
+	int ret, fbp, ltcs, ltcn = 0;
 
-	nvkm_debug(subdev, "100800: %08x\n", nvkm_rd32(device, 0x100800));
-	nvkm_debug(subdev, "parts %08x mask %08x\n", parts, pmask);
-
-	/* read amount of vram attached to each memory controller */
-	for (i = 0; i < parts; i++) {
-		if (pmask & (1 << i))
-			continue;
-
-		psize = (u64)nvkm_rd32(device, 0x11020c + (i * 0x1000)) << 20;
-		if (psize != bsize) {
-			if (psize < bsize)
-				bsize = psize;
-			uniform = false;
+	nvkm_debug(subdev, "%d FBP(s)\n", fbps);
+	for (fbp = 0; fbp < fbps; fbp++) {
+		u32 size = func->probe_fbp(func, device, fbp, &ltcs);
+		if (size) {
+			nvkm_debug(subdev, "FBP %d: %4d MiB, %d LTC(s)\n",
+				   fbp, size, ltcs);
+			lcomm  = min(lcomm, (u64)(size / ltcs) << 20);
+			total += (u64) size << 20;
+			ltcn  += ltcs;
+		} else {
+			nvkm_debug(subdev, "FBP %d: disabled\n", fbp);
 		}
-
-		nvkm_debug(subdev, "%d: %d MiB\n", i, (u32)(psize >> 20));
-		size += psize;
 	}
 
-	ret = nvkm_ram_ctor(func, fb, type, size, 0, ram);
+	lower = lcomm * ltcn;
+	ubase = lcomm + func->upper;
+	usize = total - lower;
+
+	nvkm_debug(subdev, "Lower: %4lld MiB @ %010llx\n", lower >> 20, 0ULL);
+	nvkm_debug(subdev, "Upper: %4lld MiB @ %010llx\n", usize >> 20, ubase);
+	nvkm_debug(subdev, "Total: %4lld MiB\n", total >> 20);
+
+	ret = nvkm_ram_ctor(func, fb, type, total, 0, ram);
 	if (ret)
 		return ret;
 
 	nvkm_mm_fini(&ram->vram);
 
-	/* if all controllers have the same amount attached, there's no holes */
-	if (uniform) {
+	/* Some GPUs are in what's known as a "mixed memory" configuration.
+	 *
+	 * This is either where some FBPs have more memory than the others,
+	 * or where LTCs have been disabled on a FBP.
+	 */
+	if (lower != total) {
+		/* The common memory amount is addressed normally. */
 		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
-				   (size - rsvd_head - rsvd_tail) >>
-				   NVKM_RAM_MM_SHIFT, 1);
-		if (ret)
-			return ret;
-	} else {
-		/* otherwise, address lowest common amount from 0GiB */
-		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
-				   ((bsize * parts) - rsvd_head) >>
-				   NVKM_RAM_MM_SHIFT, 1);
+				   (lower - rsvd_head) >> NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
 
-		/* and the rest starting from (8GiB + common_size) */
-		ret = nvkm_mm_init(&ram->vram, (0x0200000000ULL + bsize) >>
-				   NVKM_RAM_MM_SHIFT,
-				   (size - (bsize * parts) - rsvd_tail) >>
+		/* And the rest is much higher in the physical address
+		 * space, and may not be usable for certain operations.
+		 */
+		ret = nvkm_mm_init(&ram->vram, ubase >> NVKM_RAM_MM_SHIFT,
+				   (usize - rsvd_tail) >> NVKM_RAM_MM_SHIFT, 1);
+		if (ret)
+			return ret;
+	} else {
+		/* GPUs without mixed-memory are a lot nicer... */
+		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+				   (total - rsvd_head - rsvd_tail) >>
 				   NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
 	}
 
-	ram->ranks = (nvkm_rd32(device, 0x10f200) & 0x00000004) ? 2 : 1;
 	return 0;
 }
 
 int
-gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+gf100_ram_new_(const struct nvkm_ram_func *func,
+	       struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
 	struct nvkm_subdev *subdev = &fb->subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
@@ -637,7 +654,7 @@ gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 		return -ENOMEM;
 	*pram = &ram->base;
 
-	ret = gf100_ram_ctor(&gf100_ram_func, fb, 0x022554, &ram->base);
+	ret = gf100_ram_ctor(func, fb, &ram->base);
 	if (ret)
 		return ret;
 
@@ -712,4 +729,24 @@ gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 
 	ram->fuc.r_0x13d8f4 = ramfuc_reg(0x13d8f4);
 	return 0;
+}
+
+static const struct nvkm_ram_func
+gf100_ram = {
+	.upper = 0x0200000000,
+	.probe_fbp = gf100_ram_probe_fbp,
+	.probe_fbp_amount = gf100_ram_probe_fbp_amount,
+	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
+	.init = gf100_ram_init,
+	.get = gf100_ram_get,
+	.put = gf100_ram_put,
+	.calc = gf100_ram_calc,
+	.prog = gf100_ram_prog,
+	.tidy = gf100_ram_tidy,
+};
+
+int
+gf100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+{
+	return gf100_ram_new_(&gf100_ram, fb, pram);
 }

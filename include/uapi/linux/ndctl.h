@@ -21,14 +21,16 @@ struct nd_cmd_smart {
 } __packed;
 
 #define ND_SMART_HEALTH_VALID	(1 << 0)
-#define ND_SMART_TEMP_VALID 	(1 << 1)
-#define ND_SMART_SPARES_VALID	(1 << 2)
-#define ND_SMART_ALARM_VALID	(1 << 3)
-#define ND_SMART_USED_VALID	(1 << 4)
-#define ND_SMART_SHUTDOWN_VALID	(1 << 5)
-#define ND_SMART_VENDOR_VALID	(1 << 6)
-#define ND_SMART_TEMP_TRIP	(1 << 0)
-#define ND_SMART_SPARE_TRIP	(1 << 1)
+#define ND_SMART_SPARES_VALID	(1 << 1)
+#define ND_SMART_USED_VALID	(1 << 2)
+#define ND_SMART_TEMP_VALID 	(1 << 3)
+#define ND_SMART_CTEMP_VALID 	(1 << 4)
+#define ND_SMART_ALARM_VALID	(1 << 9)
+#define ND_SMART_SHUTDOWN_VALID	(1 << 10)
+#define ND_SMART_VENDOR_VALID	(1 << 11)
+#define ND_SMART_SPARE_TRIP	(1 << 0)
+#define ND_SMART_TEMP_TRIP	(1 << 1)
+#define ND_SMART_CTEMP_TRIP	(1 << 2)
 #define ND_SMART_NON_CRITICAL_HEALTH	(1 << 0)
 #define ND_SMART_CRITICAL_HEALTH	(1 << 1)
 #define ND_SMART_FATAL_HEALTH		(1 << 2)
@@ -37,14 +39,15 @@ struct nd_smart_payload {
 	__u32 flags;
 	__u8 reserved0[4];
 	__u8 health;
-	__u16 temperature;
 	__u8 spares;
-	__u8 alarm_flags;
 	__u8 life_used;
+	__u8 alarm_flags;
+	__u16 temperature;
+	__u16 ctrl_temperature;
+	__u8 reserved1[15];
 	__u8 shutdown_state;
-	__u8 reserved1;
 	__u32 vendor_size;
-	__u8 vendor_data[108];
+	__u8 vendor_data[92];
 } __packed;
 
 struct nd_cmd_smart_threshold {
@@ -53,7 +56,8 @@ struct nd_cmd_smart_threshold {
 } __packed;
 
 struct nd_smart_threshold_payload {
-	__u16 alarm_control;
+	__u8 alarm_control;
+	__u8 reserved0;
 	__u16 temperature;
 	__u8 spares;
 	__u8 reserved[3];
@@ -101,7 +105,8 @@ struct nd_cmd_ars_cap {
 	__u32 status;
 	__u32 max_ars_out;
 	__u32 clear_err_unit;
-	__u32 reserved;
+	__u16 flags;
+	__u16 reserved;
 } __packed;
 
 struct nd_cmd_ars_start {
@@ -140,6 +145,43 @@ struct nd_cmd_clear_error {
 	__u64 cleared;
 } __packed;
 
+struct nd_cmd_trans_spa {
+	__u64 spa;
+	__u32 status;
+	__u8  flags;
+	__u8  _reserved[3];
+	__u64 trans_length;
+	__u32 num_nvdimms;
+	struct nd_nvdimm_device {
+		__u32 nfit_device_handle;
+		__u32 _reserved;
+		__u64 dpa;
+	} __packed devices[0];
+
+} __packed;
+
+struct nd_cmd_ars_err_inj {
+	__u64 err_inj_spa_range_base;
+	__u64 err_inj_spa_range_length;
+	__u8  err_inj_options;
+	__u32 status;
+} __packed;
+
+struct nd_cmd_ars_err_inj_clr {
+	__u64 err_inj_clr_spa_range_base;
+	__u64 err_inj_clr_spa_range_length;
+	__u32 status;
+} __packed;
+
+struct nd_cmd_ars_err_inj_stat {
+	__u32 status;
+	__u32 inj_err_rec_count;
+	struct nd_error_stat_query_record {
+		__u64 err_inj_stat_spa_range_base;
+		__u64 err_inj_stat_spa_range_length;
+	} __packed record[0];
+} __packed;
+
 enum {
 	ND_CMD_IMPLEMENTED = 0,
 
@@ -165,6 +207,8 @@ enum {
 enum {
 	ND_ARS_VOLATILE = 1,
 	ND_ARS_PERSISTENT = 2,
+	ND_ARS_RETURN_PREV_DATA = 1 << 1,
+	ND_CONFIG_LOCKED = 1,
 };
 
 static inline const char *nvdimm_bus_cmd_name(unsigned cmd)
@@ -174,6 +218,7 @@ static inline const char *nvdimm_bus_cmd_name(unsigned cmd)
 		[ND_CMD_ARS_START] = "ars_start",
 		[ND_CMD_ARS_STATUS] = "ars_status",
 		[ND_CMD_CLEAR_ERROR] = "clear_error",
+		[ND_CMD_CALL] = "cmd_call",
 	};
 
 	if (cmd < ARRAY_SIZE(names) && names[cmd])

@@ -95,12 +95,12 @@
  * @pwr_state: current power state
  * @ops: client callbacks
  * @id: client identifier. Determining the id requires the handler,
- * 	so gpus are initially assigned VGA_SWITCHEROO_UNKNOWN_ID
- * 	and later given their true id in vga_switcheroo_enable()
+ *	so gpus are initially assigned VGA_SWITCHEROO_UNKNOWN_ID
+ *	and later given their true id in vga_switcheroo_enable()
  * @active: whether the outputs are currently switched to this client
  * @driver_power_control: whether power state is controlled by the driver's
- * 	runtime pm. If true, writing ON and OFF to the vga_switcheroo debugfs
- * 	interface is a no-op so as not to interfere with runtime pm
+ *	runtime pm. If true, writing ON and OFF to the vga_switcheroo debugfs
+ *	interface is a no-op so as not to interfere with runtime pm
  * @list: client list
  *
  * Registered client. A client can be either a GPU or an audio device on a GPU.
@@ -126,13 +126,13 @@ static DEFINE_MUTEX(vgasr_mutex);
 /**
  * struct vgasr_priv - vga_switcheroo private data
  * @active: whether vga_switcheroo is enabled.
- * 	Prerequisite is the registration of two GPUs and a handler
+ *	Prerequisite is the registration of two GPUs and a handler
  * @delayed_switch_active: whether a delayed switch is pending
  * @delayed_client_id: client to which a delayed switch is pending
  * @debugfs_root: directory for vga_switcheroo debugfs interface
  * @switch_file: file for vga_switcheroo debugfs interface
  * @registered_clients: number of registered GPUs
- * 	(counting only vga clients, not audio clients)
+ *	(counting only vga clients, not audio clients)
  * @clients: list of registered clients
  * @handler: registered handler
  * @handler_flags: flags of registered handler
@@ -214,8 +214,9 @@ static void vga_switcheroo_enable(void)
  *
  * Return: 0 on success, -EINVAL if a handler was already registered.
  */
-int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler,
-				    enum vga_switcheroo_handler_flags_t handler_flags)
+int vga_switcheroo_register_handler(
+			  const struct vga_switcheroo_handler *handler,
+			  enum vga_switcheroo_handler_flags_t handler_flags)
 {
 	mutex_lock(&vgasr_mutex);
 	if (vgasr_priv.handler) {
@@ -305,7 +306,7 @@ static int register_client(struct pci_dev *pdev,
  * @pdev: client pci device
  * @ops: client callbacks
  * @driver_power_control: whether power state is controlled by the driver's
- * 	runtime pm
+ *	runtime pm
  *
  * Register vga client (GPU). Enable vga_switcheroo if another GPU and a
  * handler have already registered. The power state of the client is assumed
@@ -337,8 +338,8 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * Return: 0 on success, -ENOMEM on memory allocation error.
  */
 int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
-					 const struct vga_switcheroo_client_ops *ops,
-					 enum vga_switcheroo_client_id id)
+			const struct vga_switcheroo_client_ops *ops,
+			enum vga_switcheroo_client_id id)
 {
 	return register_client(pdev, ops, id | ID_BIT_AUDIO, false, false);
 }
@@ -1084,7 +1085,8 @@ static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 	int ret;
 
 	/* we need to check if we have to switch back on the video
-	   device so the audio device can come back */
+	 * device so the audio device can come back
+	 */
 	mutex_lock(&vgasr_mutex);
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		if (PCI_SLOT(client->pdev->devfn) == PCI_SLOT(pdev->devfn) &&
@@ -1112,7 +1114,7 @@ static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 
 /**
  * vga_switcheroo_init_domain_pm_optimus_hdmi_audio() - helper for driver
- * 	power control
+ *	power control
  * @dev: audio client device
  * @domain: power domain
  *

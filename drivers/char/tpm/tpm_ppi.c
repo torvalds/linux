@@ -32,20 +32,16 @@
 #define PPI_VS_REQ_START	128
 #define PPI_VS_REQ_END		255
 
-static const u8 tpm_ppi_uuid[] = {
-	0xA6, 0xFA, 0xDD, 0x3D,
-	0x1B, 0x36,
-	0xB4, 0x4E,
-	0xA4, 0x24,
-	0x8D, 0x10, 0x08, 0x9D, 0x16, 0x53
-};
+static const guid_t tpm_ppi_guid =
+	GUID_INIT(0x3DDDFAA6, 0x361B, 0x4EB4,
+		  0xA4, 0x24, 0x8D, 0x10, 0x08, 0x9D, 0x16, 0x53);
 
 static inline union acpi_object *
 tpm_eval_dsm(acpi_handle ppi_handle, int func, acpi_object_type type,
 	     union acpi_object *argv4)
 {
 	BUG_ON(!ppi_handle);
-	return acpi_evaluate_dsm_typed(ppi_handle, tpm_ppi_uuid,
+	return acpi_evaluate_dsm_typed(ppi_handle, &tpm_ppi_guid,
 				       TPM_PPI_REVISION_ID,
 				       func, argv4, type);
 }
@@ -107,7 +103,7 @@ static ssize_t tpm_store_ppi_request(struct device *dev,
 	 * is updated with function index from SUBREQ to SUBREQ2 since PPI
 	 * version 1.1
 	 */
-	if (acpi_check_dsm(chip->acpi_dev_handle, tpm_ppi_uuid,
+	if (acpi_check_dsm(chip->acpi_dev_handle, &tpm_ppi_guid,
 			   TPM_PPI_REVISION_ID, 1 << TPM_PPI_FN_SUBREQ2))
 		func = TPM_PPI_FN_SUBREQ2;
 
@@ -268,7 +264,7 @@ static ssize_t show_ppi_operations(acpi_handle dev_handle, char *buf, u32 start,
 		"User not required",
 	};
 
-	if (!acpi_check_dsm(dev_handle, tpm_ppi_uuid, TPM_PPI_REVISION_ID,
+	if (!acpi_check_dsm(dev_handle, &tpm_ppi_guid, TPM_PPI_REVISION_ID,
 			    1 << TPM_PPI_FN_GETOPR))
 		return -EPERM;
 
@@ -341,12 +337,12 @@ void tpm_add_ppi(struct tpm_chip *chip)
 	if (!chip->acpi_dev_handle)
 		return;
 
-	if (!acpi_check_dsm(chip->acpi_dev_handle, tpm_ppi_uuid,
+	if (!acpi_check_dsm(chip->acpi_dev_handle, &tpm_ppi_guid,
 			    TPM_PPI_REVISION_ID, 1 << TPM_PPI_FN_VERSION))
 		return;
 
 	/* Cache PPI version string. */
-	obj = acpi_evaluate_dsm_typed(chip->acpi_dev_handle, tpm_ppi_uuid,
+	obj = acpi_evaluate_dsm_typed(chip->acpi_dev_handle, &tpm_ppi_guid,
 				      TPM_PPI_REVISION_ID, TPM_PPI_FN_VERSION,
 				      NULL, ACPI_TYPE_STRING);
 	if (obj) {

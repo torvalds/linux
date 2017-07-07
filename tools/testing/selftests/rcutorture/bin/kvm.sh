@@ -296,13 +296,11 @@ if test -d .git
 then
 	git status >> $resdir/$ds/testid.txt
 	git rev-parse HEAD >> $resdir/$ds/testid.txt
-	if ! git diff HEAD > $T/git-diff 2>&1
-	then
-		cp $T/git-diff $resdir/$ds
-	fi
+	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
 awk < $T/cfgcpu.pack \
+	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
 	-v CONFIGDIR="$CONFIGFRAG/" \
 	-v KVM="$KVM" \
 	-v ncpus=$cpus \
@@ -375,6 +373,10 @@ function dump(first, pastlast, batchnum)
 		njitter = ncpus;
 	else
 		njitter = ja[1];
+	if (TORTURE_BUILDONLY && njitter != 0) {
+		njitter = 0;
+		print "echo Build-only run, so suppressing jitter >> " rd "/log"
+	}
 	for (j = 0; j < njitter; j++)
 		print "jitter.sh " j " " dur " " ja[2] " " ja[3] "&"
 	print "wait"

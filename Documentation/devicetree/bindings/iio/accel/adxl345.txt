@@ -1,0 +1,38 @@
+Analog Devices ADXL345 3-Axis, +/-(2g/4g/8g/16g) Digital Accelerometer
+
+http://www.analog.com/en/products/mems/accelerometers/adxl345.html
+
+Required properties:
+ - compatible : should be "adi,adxl345"
+ - reg : the I2C address or SPI chip select number of the sensor
+
+Required properties for SPI bus usage:
+ - spi-max-frequency : set maximum clock frequency, must be 5000000
+ - spi-cpol and spi-cpha : must be defined for adxl345 to enable SPI mode 3
+
+Optional properties:
+ - interrupt-parent : phandle to the parent interrupt controller as documented
+   in Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+ - interrupts: interrupt mapping for IRQ as documented in
+   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+
+Example for a I2C device node:
+
+	accelerometer@2a {
+		compatible = "adi,adxl345";
+		reg = <0x53>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+Example for a SPI device node:
+
+	accelerometer@0 {
+		compatible = "adi,adxl345";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+		spi-cpol;
+		spi-cpha;
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	};

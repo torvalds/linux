@@ -20,8 +20,8 @@ Synopsis
     #include <unistd.h>
 
 
-.. cpp:function:: ssize_t write( int fd, void *buf, size_t count )
-
+.. c:function:: ssize_t write( int fd, void *buf, size_t count )
+    :name: lirc-write
 
 Arguments
 =========
@@ -30,8 +30,10 @@ Arguments
     File descriptor returned by ``open()``.
 
 ``buf``
-``count``
+    Buffer with data to be written
 
+``count``
+    Number of bytes at the buffer
 
 Description
 ===========
@@ -40,13 +42,16 @@ Description
 referenced by the file descriptor ``fd`` from the buffer starting at
 ``buf``.
 
-The data written to the chardev is a pulse/space sequence of integer
-values. Pulses and spaces are only marked implicitly by their position.
-The data must start and end with a pulse, therefore, the data must
-always include an uneven number of samples. The write function must
-block until the data has been transmitted by the hardware. If more data
-is provided than the hardware can send, the driver returns ``EINVAL``.
+The exact format of the data depends on what mode a driver uses, use
+:ref:`lirc_get_features` to get the supported mode.
 
+When in :ref:`LIRC_MODE_PULSE <lirc-mode-PULSE>` mode, the data written to
+the chardev is a pulse/space sequence of integer values. Pulses and spaces
+are only marked implicitly by their position. The data must start and end
+with a pulse, therefore, the data must always include an uneven number of
+samples. The write function must block until the data has been transmitted
+by the hardware. If more data is provided than the hardware can send, the
+driver returns ``EINVAL``.
 
 Return Value
 ============

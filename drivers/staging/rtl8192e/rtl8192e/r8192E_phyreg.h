@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #ifndef _R819XU_PHYREG_H
 #define _R819XU_PHYREG_H
 
@@ -692,7 +692,7 @@
  * #define bRxPath4		0x08
  * #define bTxPath1		0x10
  * #define bTxPath2		0x20
-*/
+ */
 #define bHTDetect		0x100
 #define bCFOEn			0x10000
 #define bCFOValue		0xfff00000

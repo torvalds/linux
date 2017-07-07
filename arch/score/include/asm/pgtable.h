@@ -2,6 +2,7 @@
 #define _ASM_SCORE_PGTABLE_H
 
 #include <linux/const.h>
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 
 #include <asm/fixmap.h>

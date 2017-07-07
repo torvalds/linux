@@ -246,7 +246,7 @@ static int strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				} else {
 					strp->rx_interrupted = 1;
 				}
-				strp_parser_err(strp, err, desc);
+				strp_parser_err(strp, len, desc);
 				break;
 			} else if (len > strp->sk->sk_rcvbuf) {
 				/* Message length exceeds maximum allowed */
@@ -504,6 +504,7 @@ static int __init strp_mod_init(void)
 
 static void __exit strp_mod_exit(void)
 {
+	destroy_workqueue(strp_wq);
 }
 module_init(strp_mod_init);
 module_exit(strp_mod_exit);

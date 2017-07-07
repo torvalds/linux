@@ -193,11 +193,11 @@ module_exit(n411_exit);
 
 module_param(nosplash, uint, 0);
 MODULE_PARM_DESC(nosplash, "Disable doing the splash screen");
-module_param(dio_addr, ulong, 0);
+module_param_hw(dio_addr, ulong, ioport, 0);
 MODULE_PARM_DESC(dio_addr, "IO address for data, eg: 0x480");
-module_param(cio_addr, ulong, 0);
+module_param_hw(cio_addr, ulong, ioport, 0);
 MODULE_PARM_DESC(cio_addr, "IO address for control, eg: 0x400");
-module_param(c2io_addr, ulong, 0);
+module_param_hw(c2io_addr, ulong, ioport, 0);
 MODULE_PARM_DESC(c2io_addr, "IO address for secondary control, eg: 0x408");
 module_param(splashval, ulong, 0);
 MODULE_PARM_DESC(splashval, "Splash pattern: 0x00 is black, 0x01 is white");

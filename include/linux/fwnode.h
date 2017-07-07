@@ -17,13 +17,26 @@ enum fwnode_type {
 	FWNODE_OF,
 	FWNODE_ACPI,
 	FWNODE_ACPI_DATA,
+	FWNODE_ACPI_STATIC,
 	FWNODE_PDATA,
-	FWNODE_IRQCHIP,
+	FWNODE_IRQCHIP
 };
 
 struct fwnode_handle {
 	enum fwnode_type type;
 	struct fwnode_handle *secondary;
+};
+
+/**
+ * struct fwnode_endpoint - Fwnode graph endpoint
+ * @port: Port number
+ * @id: Endpoint id
+ * @local_fwnode: reference to the related fwnode
+ */
+struct fwnode_endpoint {
+	unsigned int port;
+	unsigned int id;
+	const struct fwnode_handle *local_fwnode;
 };
 
 #endif

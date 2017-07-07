@@ -312,7 +312,8 @@ ATTRIBUTE_GROUPS(srom_dev);
 
 static char *srom_devnode(struct device *dev, umode_t *mode)
 {
-	*mode = S_IRUGO | S_IWUSR;
+	if (mode)
+		*mode = 0644;
 	return kasprintf(GFP_KERNEL, "srom/%s", dev_name(dev));
 }
 

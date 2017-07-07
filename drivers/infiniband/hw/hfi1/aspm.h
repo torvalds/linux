@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -229,14 +229,17 @@ static inline void aspm_ctx_timer_function(unsigned long data)
 	spin_unlock_irqrestore(&rcd->aspm_lock, flags);
 }
 
-/* Disable interrupt processing for verbs contexts when PSM contexts are open */
+/*
+ * Disable interrupt processing for verbs contexts when PSM or VNIC contexts
+ * are open.
+ */
 static inline void aspm_disable_all(struct hfi1_devdata *dd)
 {
 	struct hfi1_ctxtdata *rcd;
 	unsigned long flags;
 	unsigned i;
 
-	for (i = 0; i < dd->first_user_ctxt; i++) {
+	for (i = 0; i < dd->first_dyn_alloc_ctxt; i++) {
 		rcd = dd->rcd[i];
 		del_timer_sync(&rcd->aspm_timer);
 		spin_lock_irqsave(&rcd->aspm_lock, flags);
@@ -260,7 +263,7 @@ static inline void aspm_enable_all(struct hfi1_devdata *dd)
 	if (aspm_mode != ASPM_MODE_DYNAMIC)
 		return;
 
-	for (i = 0; i < dd->first_user_ctxt; i++) {
+	for (i = 0; i < dd->first_dyn_alloc_ctxt; i++) {
 		rcd = dd->rcd[i];
 		spin_lock_irqsave(&rcd->aspm_lock, flags);
 		rcd->aspm_intr_enable = true;
@@ -276,7 +279,7 @@ static inline void aspm_ctx_init(struct hfi1_ctxtdata *rcd)
 		    (unsigned long)rcd);
 	rcd->aspm_intr_supported = rcd->dd->aspm_supported &&
 		aspm_mode == ASPM_MODE_DYNAMIC &&
-		rcd->ctxt < rcd->dd->first_user_ctxt;
+		rcd->ctxt < rcd->dd->first_dyn_alloc_ctxt;
 }
 
 static inline void aspm_init(struct hfi1_devdata *dd)
@@ -286,7 +289,7 @@ static inline void aspm_init(struct hfi1_devdata *dd)
 	spin_lock_init(&dd->aspm_lock);
 	dd->aspm_supported = aspm_hw_l1_supported(dd);
 
-	for (i = 0; i < dd->first_user_ctxt; i++)
+	for (i = 0; i < dd->first_dyn_alloc_ctxt; i++)
 		aspm_ctx_init(dd->rcd[i]);
 
 	/* Start with ASPM disabled */

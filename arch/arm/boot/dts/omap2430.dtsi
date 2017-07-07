@@ -38,6 +38,7 @@
 				reg = <0x2000 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				#pinctrl-cells = <1>;
 				ranges = <0 0x2000 0x1000>;
 
 				omap2430_pmx: pinmux@30 {
@@ -46,6 +47,7 @@
 					reg = <0x30 0x0154>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <8>;
 					pinctrl-single,function-mask = <0x3f>;
 				};

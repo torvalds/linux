@@ -77,6 +77,8 @@ SECTIONS
 #endif
 	} :kernel
 
+	__head_end = .;
+
 	/*
 	 * If the build dies here, it's likely code in head_64.S is referencing
 	 * labels it can't reach, and the linker inserting stubs without the
@@ -94,8 +96,17 @@ SECTIONS
 	 * detected, and will result in a crash at boot due to offsets being
 	 * wrong.
 	 */
+#ifdef CONFIG_PPC64
+	/*
+	 * BLOCK(0) overrides the default output section alignment because
+	 * this needs to start right after .head.text in order for fixed
+	 * section placement to work.
+	 */
+	.text BLOCK(0) : AT(ADDR(.text) - LOAD_OFFSET) {
+#else
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		ALIGN_FUNCTION();
+#endif
 		/* careful! __ftr_alt_* sections need to be close to .text */
 		*(.text .fixup __ftr_alt_* .ref.text)
 		SCHED_TEXT
@@ -302,6 +313,8 @@ SECTIONS
 	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
 		NOSAVE_DATA
 	}
+
+	BUG_TABLE
 
 	. = ALIGN(PAGE_SIZE);
 	_edata  =  .;

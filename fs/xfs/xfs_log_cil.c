@@ -30,6 +30,9 @@
 #include "xfs_trans_priv.h"
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
+#include "xfs_trace.h"
+
+struct workqueue_struct *xfs_discard_wq;
 
 /*
  * Allocate a new ticket. Failing to get a new ticket makes it really hard to
@@ -491,6 +494,75 @@ xlog_cil_free_logvec(
 	}
 }
 
+static void
+xlog_discard_endio_work(
+	struct work_struct	*work)
+{
+	struct xfs_cil_ctx	*ctx =
+		container_of(work, struct xfs_cil_ctx, discard_endio_work);
+	struct xfs_mount	*mp = ctx->cil->xc_log->l_mp;
+
+	xfs_extent_busy_clear(mp, &ctx->busy_extents, false);
+	kmem_free(ctx);
+}
+
+/*
+ * Queue up the actual completion to a thread to avoid IRQ-safe locking for
+ * pagb_lock.  Note that we need a unbounded workqueue, otherwise we might
+ * get the execution delayed up to 30 seconds for weird reasons.
+ */
+static void
+xlog_discard_endio(
+	struct bio		*bio)
+{
+	struct xfs_cil_ctx	*ctx = bio->bi_private;
+
+	INIT_WORK(&ctx->discard_endio_work, xlog_discard_endio_work);
+	queue_work(xfs_discard_wq, &ctx->discard_endio_work);
+}
+
+static void
+xlog_discard_busy_extents(
+	struct xfs_mount	*mp,
+	struct xfs_cil_ctx	*ctx)
+{
+	struct list_head	*list = &ctx->busy_extents;
+	struct xfs_extent_busy	*busyp;
+	struct bio		*bio = NULL;
+	struct blk_plug		plug;
+	int			error = 0;
+
+	ASSERT(mp->m_flags & XFS_MOUNT_DISCARD);
+
+	blk_start_plug(&plug);
+	list_for_each_entry(busyp, list, list) {
+		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
+					 busyp->length);
+
+		error = __blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
+				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
+				XFS_FSB_TO_BB(mp, busyp->length),
+				GFP_NOFS, 0, &bio);
+		if (error && error != -EOPNOTSUPP) {
+			xfs_info(mp,
+	 "discard failed for extent [0x%llx,%u], error %d",
+				 (unsigned long long)busyp->bno,
+				 busyp->length,
+				 error);
+			break;
+		}
+	}
+
+	if (bio) {
+		bio->bi_private = ctx;
+		bio->bi_end_io = xlog_discard_endio;
+		submit_bio(bio);
+	} else {
+		xlog_discard_endio_work(&ctx->discard_endio_work);
+	}
+	blk_finish_plug(&plug);
+}
+
 /*
  * Mark all items committed and clear busy extents. We free the log vector
  * chains in a separate pass so that we unpin the log items as quickly as
@@ -525,14 +597,10 @@ xlog_cil_committed(
 
 	xlog_cil_free_logvec(ctx->lv_chain);
 
-	if (!list_empty(&ctx->busy_extents)) {
-		ASSERT(mp->m_flags & XFS_MOUNT_DISCARD);
-
-		xfs_discard_extents(mp, &ctx->busy_extents);
-		xfs_extent_busy_clear(mp, &ctx->busy_extents, false);
-	}
-
-	kmem_free(ctx);
+	if (!list_empty(&ctx->busy_extents))
+		xlog_discard_busy_extents(mp, ctx);
+	else
+		kmem_free(ctx);
 }
 
 /*

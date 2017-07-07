@@ -10,7 +10,7 @@ config SH_DEVICE_TREE
 	bool "Board Described by Device Tree"
 	select OF
 	select OF_EARLY_FLATTREE
-	select CLKSRC_OF
+	select TIMER_OF
 	select COMMON_CLK
 	select GENERIC_CALIBRATE_DELAY
 	help
@@ -21,6 +21,16 @@ config SH_DEVICE_TREE
 	  time, only boards based on the open-hardware J-Core processors
 	  have sufficient driver coverage to use this option; do not
 	  select it if you are using original SuperH hardware.
+
+config SH_JCORE_SOC
+	bool "J-Core SoC"
+	depends on SH_DEVICE_TREE && (CPU_SH2 || CPU_J2)
+	select CLKSRC_JCORE_PIT
+	select JCORE_AIC
+	default y if CPU_J2
+	help
+	  Select this option to include drivers core components of the
+	  J-Core SoC, including interrupt controllers and timers.
 
 config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"

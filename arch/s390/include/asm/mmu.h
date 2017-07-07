@@ -22,6 +22,8 @@ typedef struct {
 	unsigned int has_pgste:1;
 	/* The mmu context uses storage keys. */
 	unsigned int use_skey:1;
+	/* The mmu context uses CMMA. */
+	unsigned int use_cmma:1;
 } mm_context_t;
 
 #define INIT_MM_CONTEXT(name)						   \

@@ -42,11 +42,7 @@ extern int __cpu_logical_map[NR_CPUS];
 #define SMP_CALL_FUNCTION	0x2
 /* Octeon - Tell another core to flush its icache */
 #define SMP_ICACHE_FLUSH	0x4
-/* Used by kexec crashdump to save all cpu's state */
-#define SMP_DUMP		0x8
-#define SMP_ASK_C0COUNT		0x10
-
-extern cpumask_t cpu_callin_map;
+#define SMP_ASK_C0COUNT		0x8
 
 /* Mask of CPUs which are currently definitely operating coherently */
 extern cpumask_t cpu_coherent_mask;
@@ -85,6 +81,20 @@ static inline void __cpu_die(unsigned int cpu)
 extern void play_dead(void);
 #endif
 
+/*
+ * This function will set up the necessary IPIs for Linux to communicate
+ * with the CPUs in mask.
+ * Return 0 on success.
+ */
+int mips_smp_ipi_allocate(const struct cpumask *mask);
+
+/*
+ * This function will free up IPIs allocated with mips_smp_ipi_allocate to the
+ * CPUs in mask, which must be a subset of the IPIs that have been configured.
+ * Return 0 on success.
+ */
+int mips_smp_ipi_free(const struct cpumask *mask);
+
 static inline void arch_send_call_function_single_ipi(int cpu)
 {
 	extern struct plat_smp_ops *mp_ops;	/* private */
@@ -99,8 +109,4 @@ static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
 }
 
-#if defined(CONFIG_KEXEC)
-extern void (*dump_ipi_function_ptr)(void *);
-void dump_send_ipi(void (*dump_ipi_callback)(void *));
-#endif
 #endif /* __ASM_SMP_H */

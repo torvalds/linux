@@ -1,7 +1,7 @@
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <sys/types.h>
@@ -187,7 +187,7 @@ struct dso {
 		void	 *priv;
 		u64	 db_id;
 	};
-	atomic_t	 refcnt;
+	refcount_t	 refcnt;
 	char		 name[0];
 };
 
@@ -244,6 +244,12 @@ bool is_supported_compression(const char *ext);
 bool is_kernel_module(const char *pathname, int cpumode);
 bool decompress_to_file(const char *ext, const char *filename, int output_fd);
 bool dso__needs_decompress(struct dso *dso);
+int dso__decompress_kmodule_fd(struct dso *dso, const char *name);
+int dso__decompress_kmodule_path(struct dso *dso, const char *name,
+				 char *pathname, size_t len);
+
+#define KMOD_DECOMP_NAME  "/tmp/perf-kmod-XXXXXX"
+#define KMOD_DECOMP_LEN   sizeof(KMOD_DECOMP_NAME)
 
 struct kmod_path {
 	char *name;
@@ -258,6 +264,9 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 #define kmod_path__parse(__m, __p)      __kmod_path__parse(__m, __p, false, false)
 #define kmod_path__parse_name(__m, __p) __kmod_path__parse(__m, __p, true , false)
 #define kmod_path__parse_ext(__m, __p)  __kmod_path__parse(__m, __p, false, true)
+
+void dso__set_module_info(struct dso *dso, struct kmod_path *m,
+			  struct machine *machine);
 
 /*
  * The dso__data_* external interface provides following functions:

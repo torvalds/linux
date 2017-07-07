@@ -21,14 +21,18 @@
 #include <asm/cachectl.h>
 #include <asm/setup.h>
 
+#ifdef CONFIG_ISA_ARCV2
+#define USE_RGN_FLSH	1
+#endif
+
 static int l2_line_sz;
-int ioc_exists;
-volatile int slc_enable = 1, ioc_enable = 1;
+static int ioc_exists;
+int slc_enable = 1, ioc_enable = 1;
 unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
 unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
 void (*_cache_line_loop_ic_fn)(phys_addr_t paddr, unsigned long vaddr,
-			       unsigned long sz, const int cacheop);
+			       unsigned long sz, const int op, const int full_page);
 
 void (*__dma_cache_wback_inv)(phys_addr_t start, unsigned long sz);
 void (*__dma_cache_inv)(phys_addr_t start, unsigned long sz);
@@ -40,7 +44,7 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	struct cpuinfo_arc_cache *p;
 
 #define PR_CACHE(p, cfg, str)						\
-	if (!(p)->ver)							\
+	if (!(p)->line_len)						\
 		n += scnprintf(buf + n, len - n, str"\t\t: N/A\n");	\
 	else								\
 		n += scnprintf(buf + n, len - n,			\
@@ -53,18 +57,15 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
-	if (!is_isa_arcv2())
-                return buf;
-
 	p = &cpuinfo_arc700[c].slc;
-	if (p->ver)
+	if (p->line_len)
 		n += scnprintf(buf + n, len - n,
 			       "SLC\t\t: %uK, %uB Line%s\n",
 			       p->sz_k, p->line_len, IS_USED_RUN(slc_enable));
 
-	if (ioc_exists)
-		n += scnprintf(buf + n, len - n, "IOC\t\t:%s\n",
-				IS_DISABLED_RUN(ioc_enable));
+	n += scnprintf(buf + n, len - n, "Peripherals\t: %#lx%s%s\n",
+		       perip_base,
+		       IS_AVAIL3(ioc_exists, ioc_enable, ", IO-Coherency "));
 
 	return buf;
 }
@@ -107,14 +108,15 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 	READ_BCR(ARC_REG_SLC_BCR, sbcr);
 	if (sbcr.ver) {
 		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
-		p_slc->ver = sbcr.ver;
 		p_slc->sz_k = 128 << slc_cfg.sz;
 		l2_line_sz = p_slc->line_len = (slc_cfg.lsz == 0) ? 128 : 64;
 	}
 
 	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
-	if (cbcr.c && ioc_enable)
+	if (cbcr.c)
 		ioc_exists = 1;
+	else
+		ioc_enable = 0;
 
 	/* HS 2.0 didn't have AUX_VOL */
 	if (cpuinfo_arc700[cpu].core.family > 0x51) {
@@ -153,7 +155,6 @@ void read_decode_cache_bcr(void)
 
 	p_ic->line_len = 8 << ibcr.line_len;
 	p_ic->sz_k = 1 << (ibcr.sz - 1);
-	p_ic->ver = ibcr.ver;
 	p_ic->vipt = 1;
 	p_ic->alias = p_ic->sz_k/p_ic->assoc/TO_KB(PAGE_SIZE) > 1;
 
@@ -177,7 +178,6 @@ dc_chk:
 
 	p_dc->line_len = 16 << dbcr.line_len;
 	p_dc->sz_k = 1 << (dbcr.sz - 1);
-	p_dc->ver = dbcr.ver;
 
 slc_chk:
 	if (is_isa_arcv2())
@@ -237,11 +237,10 @@ slc_chk:
 
 static inline
 void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int op)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd;
 	int num_lines;
-	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
 	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
@@ -275,15 +274,18 @@ void __cache_line_loop_v2(phys_addr_t paddr, unsigned long vaddr,
 
 /*
  * For ARC700 MMUv3 I-cache and D-cache flushes
- * Also reused for HS38 aliasing I-cache configuration
+ *  - ARC700 programming model requires paddr and vaddr be passed in seperate
+ *    AUX registers (*_IV*L and *_PTAG respectively) irrespective of whether the
+ *    caches actually alias or not.
+ * -  For HS38, only the aliasing I-cache configuration uses the PTAG reg
+ *    (non aliasing I-cache version doesn't; while D-cache can't possibly alias)
  */
 static inline
 void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int op)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd, aux_tag;
 	int num_lines;
-	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
 	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
@@ -334,6 +336,8 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
 	}
 }
 
+#ifndef USE_RGN_FLSH
+
 /*
  * In HS38x (MMU v4), I-cache is VIPT (can alias), D-cache is PIPT
  * Here's how cache ops are implemented
@@ -349,17 +353,16 @@ void __cache_line_loop_v3(phys_addr_t paddr, unsigned long vaddr,
  */
 static inline
 void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
-			  unsigned long sz, const int cacheop)
+			  unsigned long sz, const int op, const int full_page)
 {
 	unsigned int aux_cmd;
 	int num_lines;
-	const int full_page_op = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
-	if (cacheop == OP_INV_IC) {
+	if (op == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
 	} else {
 		/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
-		aux_cmd = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
+		aux_cmd = op & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	}
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
@@ -368,7 +371,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	 *  -@paddr will be cache-line aligned already (being page aligned)
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
-	if (!full_page_op) {
+	if (!full_page) {
 		sz += paddr & ~CACHE_LINE_MASK;
 		paddr &= CACHE_LINE_MASK;
 	}
@@ -381,7 +384,7 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	 *   - (and needs to be written before the lower 32 bits)
 	 */
 	if (is_pae40_enabled()) {
-		if (cacheop == OP_INV_IC)
+		if (op == OP_INV_IC)
 			/*
 			 * Non aliasing I-cache in HS38,
 			 * aliasing I-cache handled in __cache_line_loop_v3()
@@ -397,6 +400,55 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
 	}
 }
 
+#else
+
+/*
+ * optimized flush operation which takes a region as opposed to iterating per line
+ */
+static inline
+void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
+			  unsigned long sz, const int op, const int full_page)
+{
+	unsigned int s, e;
+
+	/* Only for Non aliasing I-cache in HS38 */
+	if (op == OP_INV_IC) {
+		s = ARC_REG_IC_IVIR;
+		e = ARC_REG_IC_ENDR;
+	} else {
+		s = ARC_REG_DC_STARTR;
+		e = ARC_REG_DC_ENDR;
+	}
+
+	if (!full_page) {
+		/* for any leading gap between @paddr and start of cache line */
+		sz += paddr & ~CACHE_LINE_MASK;
+		paddr &= CACHE_LINE_MASK;
+
+		/*
+		 *  account for any trailing gap to end of cache line
+		 *  this is equivalent to DIV_ROUND_UP() in line ops above
+		 */
+		sz += L1_CACHE_BYTES - 1;
+	}
+
+	if (is_pae40_enabled()) {
+		/* TBD: check if crossing 4TB boundary */
+		if (op == OP_INV_IC)
+			write_aux_reg(ARC_REG_IC_PTAG_HI, (u64)paddr >> 32);
+		else
+			write_aux_reg(ARC_REG_DC_PTAG_HI, (u64)paddr >> 32);
+	}
+
+	/* ENDR needs to be set ahead of START */
+	write_aux_reg(e, paddr + sz);	/* ENDR is exclusive */
+	write_aux_reg(s, paddr);
+
+	/* caller waits on DC_CTRL.FS */
+}
+
+#endif
+
 #if (CONFIG_ARC_MMU_VER < 3)
 #define __cache_line_loop	__cache_line_loop_v2
 #elif (CONFIG_ARC_MMU_VER == 3)
@@ -411,6 +463,11 @@ void __cache_line_loop_v4(phys_addr_t paddr, unsigned long vaddr,
  * Machine specific helpers for Entire D-Cache or Per Line ops
  */
 
+#ifndef USE_RGN_FLSH
+/*
+ * this version avoids extra read/write of DC_CTRL for flush or invalid ops
+ * in the non region flush regime (such as for ARCompact)
+ */
 static inline void __before_dc_op(const int op)
 {
 	if (op == OP_FLUSH_N_INV) {
@@ -423,6 +480,32 @@ static inline void __before_dc_op(const int op)
 		write_aux_reg(ctl, read_aux_reg(ctl) | DC_CTRL_INV_MODE_FLUSH);
 	}
 }
+
+#else
+
+static inline void __before_dc_op(const int op)
+{
+	const unsigned int ctl = ARC_REG_DC_CTRL;
+	unsigned int val = read_aux_reg(ctl);
+
+	if (op == OP_FLUSH_N_INV) {
+		val |= DC_CTRL_INV_MODE_FLUSH;
+	}
+
+	if (op != OP_INV_IC) {
+		/*
+		 * Flush / Invalidate is provided by DC_CTRL.RNG_OP 0 or 1
+		 * combined Flush-n-invalidate uses DC_CTRL.IM = 1 set above
+		 */
+		val &= ~DC_CTRL_RGN_OP_MSK;
+		if (op & OP_INV)
+			val |= DC_CTRL_RGN_OP_INV;
+	}
+	write_aux_reg(ctl, val);
+}
+
+#endif
+
 
 static inline void __after_dc_op(const int op)
 {
@@ -462,6 +545,21 @@ static inline void __dc_entire_op(const int op)
 	__after_dc_op(op);
 }
 
+static inline void __dc_disable(void)
+{
+	const int r = ARC_REG_DC_CTRL;
+
+	__dc_entire_op(OP_FLUSH_N_INV);
+	write_aux_reg(r, read_aux_reg(r) | DC_CTRL_DIS);
+}
+
+static void __dc_enable(void)
+{
+	const int r = ARC_REG_DC_CTRL;
+
+	write_aux_reg(r, read_aux_reg(r) & ~DC_CTRL_DIS);
+}
+
 /* For kernel mappings cache operation: index is same as paddr */
 #define __dc_line_op_k(p, sz, op)	__dc_line_op(p, p, sz, op)
 
@@ -471,13 +569,14 @@ static inline void __dc_entire_op(const int op)
 static inline void __dc_line_op(phys_addr_t paddr, unsigned long vaddr,
 				unsigned long sz, const int op)
 {
+	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 	unsigned long flags;
 
 	local_irq_save(flags);
 
 	__before_dc_op(op);
 
-	__cache_line_loop(paddr, vaddr, sz, op);
+	__cache_line_loop(paddr, vaddr, sz, op, full_page);
 
 	__after_dc_op(op);
 
@@ -487,6 +586,8 @@ static inline void __dc_line_op(phys_addr_t paddr, unsigned long vaddr,
 #else
 
 #define __dc_entire_op(op)
+#define __dc_disable()
+#define __dc_enable()
 #define __dc_line_op(paddr, vaddr, sz, op)
 #define __dc_line_op_k(paddr, sz, op)
 
@@ -504,10 +605,11 @@ static inline void
 __ic_line_inv_vaddr_local(phys_addr_t paddr, unsigned long vaddr,
 			  unsigned long sz)
 {
+	const int full_page = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	(*_cache_line_loop_ic_fn)(paddr, vaddr, sz, OP_INV_IC);
+	(*_cache_line_loop_ic_fn)(paddr, vaddr, sz, OP_INV_IC, full_page);
 	local_irq_restore(flags);
 }
 
@@ -599,6 +701,43 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 
 	spin_unlock_irqrestore(&lock, flags);
 #endif
+}
+
+noinline static void slc_entire_op(const int op)
+{
+	unsigned int ctrl, r = ARC_REG_SLC_CTRL;
+
+	ctrl = read_aux_reg(r);
+
+	if (!(op & OP_FLUSH))		/* i.e. OP_INV */
+		ctrl &= ~SLC_CTRL_IM;	/* clear IM: Disable flush before Inv */
+	else
+		ctrl |= SLC_CTRL_IM;
+
+	write_aux_reg(r, ctrl);
+
+	write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
+
+	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
+	read_aux_reg(r);
+
+	/* Important to wait for flush to complete */
+	while (read_aux_reg(r) & SLC_CTRL_BUSY);
+}
+
+static inline void arc_slc_disable(void)
+{
+	const int r = ARC_REG_SLC_CTRL;
+
+	slc_entire_op(OP_FLUSH_N_INV);
+	write_aux_reg(r, read_aux_reg(r) | SLC_CTRL_DIS);
+}
+
+static inline void arc_slc_enable(void)
+{
+	const int r = ARC_REG_SLC_CTRL;
+
+	write_aux_reg(r, read_aux_reg(r) & ~SLC_CTRL_DIS);
 }
 
 /***********************************************************
@@ -927,35 +1066,64 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
 	return 0;
 }
 
-void arc_cache_init(void)
+/*
+ * IO-Coherency (IOC) setup rules:
+ *
+ * 1. Needs to be at system level, so only once by Master core
+ *    Non-Masters need not be accessing caches at that time
+ *    - They are either HALT_ON_RESET and kick started much later or
+ *    - if run on reset, need to ensure that arc_platform_smp_wait_to_boot()
+ *      doesn't perturb caches or coherency unit
+ *
+ * 2. caches (L1 and SLC) need to be purged (flush+inv) before setting up IOC,
+ *    otherwise any straggler data might behave strangely post IOC enabling
+ *
+ * 3. All Caches need to be disabled when setting up IOC to elide any in-flight
+ *    Coherency transactions
+ */
+noinline void __init arc_ioc_setup(void)
 {
-	unsigned int __maybe_unused cpu = smp_processor_id();
-	char str[256];
+	unsigned int ap_sz;
 
-	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
+	/* Flush + invalidate + disable L1 dcache */
+	__dc_disable();
+
+	/* Flush + invalidate SLC */
+	if (read_aux_reg(ARC_REG_SLC_BCR))
+		slc_entire_op(OP_FLUSH_N_INV);
+
+	/* IOC Aperture start: TDB: handle non default CONFIG_LINUX_LINK_BASE */
+	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
 
 	/*
-	 * Only master CPU needs to execute rest of function:
-	 *  - Assume SMP so all cores will have same cache config so
-	 *    any geomtry checks will be same for all
-	 *  - IOC setup / dma callbacks only need to be setup once
+	 * IOC Aperture size:
+	 *   decoded as 2 ^ (SIZE + 2) KB: so setting 0x11 implies 512M
+	 * TBD: fix for PGU + 1GB of low mem
+	 * TBD: fix for PAE
 	 */
-	if (cpu)
-		return;
+	ap_sz = order_base_2(arc_get_mem_sz()/1024) - 2;
+	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, ap_sz);
+
+	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
+	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
+
+	/* Re-enable L1 dcache */
+	__dc_enable();
+}
+
+void __init arc_cache_init_master(void)
+{
+	unsigned int __maybe_unused cpu = smp_processor_id();
 
 	if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE)) {
 		struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
 
-		if (!ic->ver)
+		if (!ic->line_len)
 			panic("cache support enabled but non-existent cache\n");
 
 		if (ic->line_len != L1_CACHE_BYTES)
 			panic("ICache line [%d] != kernel Config [%d]",
 			      ic->line_len, L1_CACHE_BYTES);
-
-		if (ic->ver != CONFIG_ARC_MMU_VER)
-			panic("Cache ver [%d] doesn't match MMU ver [%d]\n",
-			      ic->ver, CONFIG_ARC_MMU_VER);
 
 		/*
 		 * In MMU v4 (HS38x) the aliasing icache config uses IVIL/PTAG
@@ -970,7 +1138,7 @@ void arc_cache_init(void)
 	if (IS_ENABLED(CONFIG_ARC_HAS_DCACHE)) {
 		struct cpuinfo_arc_cache *dc = &cpuinfo_arc700[cpu].dcache;
 
-		if (!dc->ver)
+		if (!dc->line_len)
 			panic("cache support enabled but non-existent cache\n");
 
 		if (dc->line_len != L1_CACHE_BYTES)
@@ -980,38 +1148,27 @@ void arc_cache_init(void)
 		/* check for D-Cache aliasing on ARCompact: ARCv2 has PIPT */
 		if (is_isa_arcompact()) {
 			int handled = IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
+			int num_colors = dc->sz_k/dc->assoc/TO_KB(PAGE_SIZE);
 
-			if (dc->alias && !handled)
-				panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
-			else if (!dc->alias && handled)
+			if (dc->alias) {
+				if (!handled)
+					panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+				if (CACHE_COLORS_NUM != num_colors)
+					panic("CACHE_COLORS_NUM not optimized for config\n");
+			} else if (!dc->alias && handled) {
 				panic("Disable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+			}
 		}
 	}
 
-	if (is_isa_arcv2() && l2_line_sz && !slc_enable) {
+	/* Note that SLC disable not formally supported till HS 3.0 */
+	if (is_isa_arcv2() && l2_line_sz && !slc_enable)
+		arc_slc_disable();
 
-		/* IM set : flush before invalidate */
-		write_aux_reg(ARC_REG_SLC_CTRL,
-			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_IM);
+	if (is_isa_arcv2() && ioc_enable)
+		arc_ioc_setup();
 
-		write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
-
-		/* Important to wait for flush to complete */
-		while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
-		write_aux_reg(ARC_REG_SLC_CTRL,
-			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_DISABLE);
-	}
-
-	if (is_isa_arcv2() && ioc_exists) {
-		/* IO coherency base - 0x8z */
-		write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
-		/* IO coherency aperture size - 512Mb: 0x8z-0xAz */
-		write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, 0x11);
-		/* Enable partial writes */
-		write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
-		/* Enable IO coherency */
-		write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
-
+	if (is_isa_arcv2() && ioc_enable) {
 		__dma_cache_wback_inv = __dma_cache_wback_inv_ioc;
 		__dma_cache_inv = __dma_cache_inv_ioc;
 		__dma_cache_wback = __dma_cache_wback_ioc;
@@ -1024,4 +1181,21 @@ void arc_cache_init(void)
 		__dma_cache_inv = __dma_cache_inv_l1;
 		__dma_cache_wback = __dma_cache_wback_l1;
 	}
+}
+
+void __ref arc_cache_init(void)
+{
+	unsigned int __maybe_unused cpu = smp_processor_id();
+	char str[256];
+
+	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
+
+	/*
+	 * Only master CPU needs to execute rest of function:
+	 *  - Assume SMP so all cores will have same cache config so
+	 *    any geomtry checks will be same for all
+	 *  - IOC setup / dma callbacks only need to be setup once
+	 */
+	if (!cpu)
+		arc_cache_init_master();
 }

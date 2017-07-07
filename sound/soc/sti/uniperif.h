@@ -1299,6 +1299,7 @@ struct uniperif {
 	int ver; /* IP version, used by register access macros */
 	struct regmap_field *clk_sel;
 	struct regmap_field *valid_sel;
+	spinlock_t irq_lock; /* use to prevent race condition with IRQ */
 
 	/* capabilities */
 	const struct snd_pcm_hardware *hw;
@@ -1396,6 +1397,8 @@ static inline int sti_uniperiph_get_unip_tdm_frame_size(struct uniperif *uni)
 {
 	return (uni->tdm_slot.slots * uni->tdm_slot.slot_width / 8);
 }
+
+int  sti_uniperiph_reset(struct uniperif *uni);
 
 int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots,

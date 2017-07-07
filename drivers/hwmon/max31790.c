@@ -268,10 +268,12 @@ static int max31790_read_pwm(struct device *dev, u32 attr, int channel,
 			     long *val)
 {
 	struct max31790_data *data = max31790_update_device(dev);
-	u8 fan_config = data->fan_config[channel];
+	u8 fan_config;
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);
+
+	fan_config = data->fan_config[channel];
 
 	switch (attr) {
 	case hwmon_pwm_input:
@@ -309,7 +311,7 @@ static int max31790_write_pwm(struct device *dev, u32 attr, int channel,
 		data->pwm[channel] = val << 8;
 		err = i2c_smbus_write_word_swapped(client,
 						   MAX31790_REG_PWMOUT(channel),
-						   val);
+						   data->pwm[channel]);
 		break;
 	case hwmon_pwm_enable:
 		fan_config = data->fan_config[channel];

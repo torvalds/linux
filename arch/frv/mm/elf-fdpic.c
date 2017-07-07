@@ -10,6 +10,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/elf-fdpic.h>
@@ -74,7 +75,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(current->mm, addr);
 		if (TASK_SIZE - len >= addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			goto success;
 	}
 

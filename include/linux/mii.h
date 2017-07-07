@@ -31,7 +31,11 @@ struct mii_if_info {
 extern int mii_link_ok (struct mii_if_info *mii);
 extern int mii_nway_restart (struct mii_if_info *mii);
 extern int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd);
+extern void mii_ethtool_get_link_ksettings(
+	struct mii_if_info *mii, struct ethtool_link_ksettings *cmd);
 extern int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd);
+extern int mii_ethtool_set_link_ksettings(
+	struct mii_if_info *mii, const struct ethtool_link_ksettings *cmd);
 extern int mii_check_gmii_support(struct mii_if_info *mii);
 extern void mii_check_link (struct mii_if_info *mii);
 extern unsigned int mii_check_media (struct mii_if_info *mii,

@@ -11,7 +11,9 @@
 #include <linux/string.h>
 #include <linux/utsname.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/kmsg_dump.h>
+
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
@@ -53,12 +55,6 @@ struct cpuinfo_um boot_cpu_data = {
 union thread_union cpu0_irqstack
 	__attribute__((__section__(".data..init_irqstack"))) =
 		{ INIT_THREAD_INFO(init_task) };
-
-unsigned long thread_saved_pc(struct task_struct *task)
-{
-	/* FIXME: Need to look up userspace_pid by cpu */
-	return os_process_pc(userspace_pid[0]);
-}
 
 /* Changed in setup_arch, which is called in early boot */
 static char host_info[(__NEW_UTS_LEN + 1) * 5];
@@ -336,11 +332,17 @@ int __init linux_main(int argc, char **argv)
 	return start_uml();
 }
 
+int __init __weak read_initrd(void)
+{
+	return 0;
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	stack_protections((unsigned long) &init_thread_info);
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
 	mem_total_pages(physmem_size, iomem_size, highmem);
+	read_initrd();
 
 	paging_init();
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);

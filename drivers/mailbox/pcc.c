@@ -65,6 +65,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <acpi/pcc.h>
 
 #include "mailbox.h"
 
@@ -202,7 +203,7 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 		struct acpi_pcct_hw_reduced_type2 *pcct2_ss = chan->con_priv;
 		u32 id = chan - pcc_mbox_channels;
 
-		doorbell_ack = &pcct2_ss->doorbell_ack_register;
+		doorbell_ack = &pcct2_ss->platform_ack_register;
 		doorbell_ack_preserve = pcct2_ss->ack_preserve_mask;
 		doorbell_ack_write = pcct2_ss->ack_write_mask;
 
@@ -267,6 +268,8 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 	if (chan->txdone_method == TXDONE_BY_POLL && cl->knows_txdone)
 		chan->txdone_method |= TXDONE_BY_ACK;
 
+	spin_unlock_irqrestore(&chan->lock, flags);
+
 	if (pcc_doorbell_irq[subspace_id] > 0) {
 		int rc;
 
@@ -275,11 +278,10 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 		if (unlikely(rc)) {
 			dev_err(dev, "failed to register PCC interrupt %d\n",
 				pcc_doorbell_irq[subspace_id]);
+			pcc_mbox_free_channel(chan);
 			chan = ERR_PTR(rc);
 		}
 	}
-
-	spin_unlock_irqrestore(&chan->lock, flags);
 
 	return chan;
 }
@@ -304,19 +306,18 @@ void pcc_mbox_free_channel(struct mbox_chan *chan)
 		return;
 	}
 
+	if (pcc_doorbell_irq[id] > 0)
+		devm_free_irq(chan->mbox->dev, pcc_doorbell_irq[id], chan);
+
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->cl = NULL;
 	chan->active_req = NULL;
 	if (chan->txdone_method == (TXDONE_BY_POLL | TXDONE_BY_ACK))
 		chan->txdone_method = TXDONE_BY_POLL;
 
-	if (pcc_doorbell_irq[id] > 0)
-		devm_free_irq(chan->mbox->dev, pcc_doorbell_irq[id], chan);
-
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
 EXPORT_SYMBOL_GPL(pcc_mbox_free_channel);
-
 
 /**
  * pcc_send_data - Called from Mailbox Controller code. Used
@@ -415,11 +416,11 @@ static int parse_pcc_subspace(struct acpi_subtable_header *header,
 static int pcc_parse_subspace_irq(int id,
 				  struct acpi_pcct_hw_reduced *pcct_ss)
 {
-	pcc_doorbell_irq[id] = pcc_map_interrupt(pcct_ss->doorbell_interrupt,
+	pcc_doorbell_irq[id] = pcc_map_interrupt(pcct_ss->platform_interrupt,
 						 (u32)pcct_ss->flags);
 	if (pcc_doorbell_irq[id] <= 0) {
 		pr_err("PCC GSI %d not registered\n",
-		       pcct_ss->doorbell_interrupt);
+		       pcct_ss->platform_interrupt);
 		return -EINVAL;
 	}
 
@@ -428,8 +429,8 @@ static int pcc_parse_subspace_irq(int id,
 		struct acpi_pcct_hw_reduced_type2 *pcct2_ss = (void *)pcct_ss;
 
 		pcc_doorbell_ack_vaddr[id] = acpi_os_ioremap(
-				pcct2_ss->doorbell_ack_register.address,
-				pcct2_ss->doorbell_ack_register.bit_width / 8);
+				pcct2_ss->platform_ack_register.address,
+				pcct2_ss->platform_ack_register.bit_width / 8);
 		if (!pcc_doorbell_ack_vaddr[id]) {
 			pr_err("Failed to ioremap PCC ACK register\n");
 			return -ENOMEM;
@@ -446,7 +447,6 @@ static int pcc_parse_subspace_irq(int id,
  */
 static int __init acpi_pcc_probe(void)
 {
-	acpi_size pcct_tbl_header_size;
 	struct acpi_table_header *pcct_tbl;
 	struct acpi_subtable_header *pcct_entry;
 	struct acpi_table_pcct *acpi_pcct_tbl;
@@ -455,9 +455,7 @@ static int __init acpi_pcc_probe(void)
 	acpi_status status = AE_OK;
 
 	/* Search for PCCT */
-	status = acpi_get_table_with_size(ACPI_SIG_PCCT, 0,
-			&pcct_tbl,
-			&pcct_tbl_header_size);
+	status = acpi_get_table(ACPI_SIG_PCCT, 0, &pcct_tbl);
 
 	if (ACPI_FAILURE(status) || !pcct_tbl) {
 		pr_warn("PCCT header not found.\n");

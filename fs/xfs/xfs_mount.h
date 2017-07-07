@@ -124,10 +124,13 @@ typedef struct xfs_mount {
 	uint			m_inobt_mnr[2];	/* min inobt btree records */
 	uint			m_rmap_mxr[2];	/* max rmap btree records */
 	uint			m_rmap_mnr[2];	/* min rmap btree records */
+	uint			m_refc_mxr[2];	/* max refc btree records */
+	uint			m_refc_mnr[2];	/* min refc btree records */
 	uint			m_ag_maxlevels;	/* XFS_AG_MAXLEVELS */
 	uint			m_bm_maxlevels[2]; /* XFS_BM_MAXLEVELS */
 	uint			m_in_maxlevels;	/* max inobt btree levels. */
 	uint			m_rmap_maxlevels; /* max rmap btree levels */
+	uint			m_refc_maxlevels; /* max refcount btree level */
 	xfs_extlen_t		m_ag_prealloc_blocks; /* reserved ag blocks */
 	uint			m_alloc_set_aside; /* space we can't use */
 	uint			m_ag_max_usable; /* max space per AG */
@@ -137,6 +140,7 @@ typedef struct xfs_mount {
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
 	__uint64_t		m_flags;	/* global mount flags */
+	bool			m_inotbt_nores; /* no per-AG finobt resv. */
 	int			m_ialloc_inos;	/* inodes in inode allocation */
 	int			m_ialloc_blks;	/* blocks in inode allocation */
 	int			m_ialloc_min_blks;/* min blocks in sparse inode
@@ -161,6 +165,8 @@ typedef struct xfs_mount {
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
 	struct delayed_work	m_eofblocks_work; /* background eof blocks
 						     trimming */
+	struct delayed_work	m_cowblocks_work; /* background cow blocks
+						     trimming */
 	bool			m_update_sb;	/* sb needs update in mount */
 	int64_t			m_low_space[XFS_LOWSP_MAX];
 						/* low free space thresholds */
@@ -177,6 +183,7 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
 	struct workqueue_struct *m_eofblocks_workqueue;
+	struct workqueue_struct	*m_sync_workqueue;
 
 	/*
 	 * Generation of the filesysyem layout.  This is incremented by each
@@ -194,11 +201,12 @@ typedef struct xfs_mount {
 	/*
 	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
 	 * block killing in the event of failed writes. When enabled, all
-	 * buffered writes are forced to fail. All delalloc blocks in the range
-	 * of the write (including pre-existing delalloc blocks!) are tossed as
-	 * part of the write failure error handling sequence.
+	 * buffered writes are silenty dropped and handled as if they failed.
+	 * All delalloc blocks in the range of the write (including pre-existing
+	 * delalloc blocks!) are tossed as part of the write failure error
+	 * handling sequence.
 	 */
-	bool			m_fail_writes;
+	bool			m_drop_writes;
 #endif
 } xfs_mount_t;
 
@@ -305,7 +313,7 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 static inline xfs_agnumber_t
 xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 {
-	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
+	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	do_div(ld, mp->m_sb.sb_agblocks);
 	return (xfs_agnumber_t) ld;
 }
@@ -313,19 +321,19 @@ xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 static inline xfs_agblock_t
 xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 {
-	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
+	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
 
 #ifdef DEBUG
 static inline bool
-xfs_mp_fail_writes(struct xfs_mount *mp)
+xfs_mp_drop_writes(struct xfs_mount *mp)
 {
-	return mp->m_fail_writes;
+	return mp->m_drop_writes;
 }
 #else
 static inline bool
-xfs_mp_fail_writes(struct xfs_mount *mp)
+xfs_mp_drop_writes(struct xfs_mount *mp)
 {
 	return 0;
 }
@@ -378,6 +386,8 @@ typedef struct xfs_perag {
 	xfs_agino_t	pagl_rightrec;
 	spinlock_t	pagb_lock;	/* lock for pagb_tree */
 	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
+	unsigned int	pagb_gen;	/* generation count for pagb_tree */
+	wait_queue_head_t pagb_wait;	/* woken when pagb_gen changes */
 
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 
@@ -388,8 +398,8 @@ typedef struct xfs_perag {
 	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
 
 	/* buffer cache index */
-	spinlock_t	pag_buf_lock;	/* lock for pag_buf_tree */
-	struct rb_root	pag_buf_tree;	/* ordered tree of active buffers */
+	spinlock_t	pag_buf_lock;	/* lock for pag_buf_hash */
+	struct rhashtable pag_buf_hash;
 
 	/* for rcu-safe freeing */
 	struct rcu_head	rcu_head;
@@ -399,6 +409,9 @@ typedef struct xfs_perag {
 	struct xfs_ag_resv	pag_meta_resv;
 	/* Blocks reserved for just AGFL-based metadata. */
 	struct xfs_ag_resv	pag_agfl_resv;
+
+	/* reference count */
+	__uint8_t		pagf_refcount_level;
 } xfs_perag_t;
 
 static inline struct xfs_ag_resv *
@@ -415,6 +428,9 @@ xfs_perag_resv(
 		return NULL;
 	}
 }
+
+int xfs_buf_hash_init(xfs_perag_t *pag);
+void xfs_buf_hash_destroy(xfs_perag_t *pag);
 
 extern void	xfs_uuid_table_free(void);
 extern int	xfs_log_sbcount(xfs_mount_t *);

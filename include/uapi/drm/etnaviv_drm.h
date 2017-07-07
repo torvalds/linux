@@ -154,6 +154,12 @@ struct drm_etnaviv_gem_submit_bo {
  * one or more cmdstream buffers.  This allows for conditional execution
  * (context-restore), and IB buffers needed for per tile/bin draw cmds.
  */
+#define ETNA_SUBMIT_NO_IMPLICIT         0x0001
+#define ETNA_SUBMIT_FENCE_FD_IN         0x0002
+#define ETNA_SUBMIT_FENCE_FD_OUT        0x0004
+#define ETNA_SUBMIT_FLAGS		(ETNA_SUBMIT_NO_IMPLICIT | \
+					 ETNA_SUBMIT_FENCE_FD_IN | \
+					 ETNA_SUBMIT_FENCE_FD_OUT)
 #define ETNA_PIPE_3D      0x00
 #define ETNA_PIPE_2D      0x01
 #define ETNA_PIPE_VG      0x02
@@ -167,6 +173,8 @@ struct drm_etnaviv_gem_submit {
 	__u64 bos;            /* in, ptr to array of submit_bo's */
 	__u64 relocs;         /* in, ptr to array of submit_reloc's */
 	__u64 stream;         /* in, ptr to cmdstream */
+	__u32 flags;          /* in, mask of ETNA_SUBMIT_x */
+	__s32 fence_fd;       /* in/out, fence fd (see ETNA_SUBMIT_FENCE_FD_x) */
 };
 
 /* The normal way to synchronize with the GPU is just to CPU_PREP on

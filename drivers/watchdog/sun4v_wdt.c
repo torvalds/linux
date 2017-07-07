@@ -77,7 +77,7 @@ static const struct watchdog_info sun4v_wdt_ident = {
 	.firmware_version = 0,
 };
 
-static struct watchdog_ops sun4v_wdt_ops = {
+static const struct watchdog_ops sun4v_wdt_ops = {
 	.owner =	THIS_MODULE,
 	.start =	sun4v_wdt_ping,
 	.stop =		sun4v_wdt_stop,

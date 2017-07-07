@@ -66,10 +66,15 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_lif *lif = to_lif(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&lif->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&lif->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
@@ -79,11 +84,12 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&lif->entity, config, fmt->pad);
 
 	if (fmt->pad == LIF_PAD_SOURCE) {
-		/* The LIF source format is always identical to its sink
+		/*
+		 * The LIF source format is always identical to its sink
 		 * format.
 		 */
 		fmt->format = *format;
-		return 0;
+		goto done;
 	}
 
 	format->code = fmt->format.code;
@@ -101,7 +107,9 @@ static int lif_set_format(struct v4l2_subdev *subdev,
 					    LIF_PAD_SOURCE);
 	*format = fmt->format;
 
-	return 0;
+done:
+	mutex_unlock(&lif->entity.lock);
+	return ret;
 }
 
 static const struct v4l2_subdev_pad_ops lif_pad_ops = {
@@ -122,7 +130,8 @@ static const struct v4l2_subdev_ops lif_ops = {
 
 static void lif_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	const struct v4l2_mbus_framefmt *format;
 	struct vsp1_lif *lif = to_lif(&entity->subdev);
@@ -130,7 +139,7 @@ static void lif_configure(struct vsp1_entity *entity,
 	unsigned int obth = 400;
 	unsigned int lbth = 200;
 
-	if (!full)
+	if (params != VSP1_ENTITY_PARAMS_INIT)
 		return;
 
 	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
@@ -168,7 +177,8 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 	lif->entity.ops = &lif_entity_ops;
 	lif->entity.type = VSP1_ENTITY_LIF;
 
-	/* The LIF is never exposed to userspace, but media entity registration
+	/*
+	 * The LIF is never exposed to userspace, but media entity registration
 	 * requires a function to be set. Use PROC_VIDEO_PIXEL_FORMATTER just to
 	 * avoid triggering a WARN_ON(), the value won't be seen anywhere.
 	 */

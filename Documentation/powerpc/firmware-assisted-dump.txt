@@ -55,10 +55,14 @@ as follows:
          booted with restricted memory. By default, the boot memory
          size will be the larger of 5% of system RAM or 256MB.
          Alternatively, user can also specify boot memory size
-         through boot parameter 'fadump_reserve_mem=' which will
-         override the default calculated size. Use this option
-         if default boot memory size is not sufficient for second
-         kernel to boot successfully.
+         through boot parameter 'crashkernel=' which will override
+         the default calculated size. Use this option if default
+         boot memory size is not sufficient for second kernel to
+         boot successfully. For syntax of crashkernel= parameter,
+         refer to Documentation/kdump/kdump.txt. If any offset is
+         provided in crashkernel= parameter, it will be ignored
+         as fadump reserves memory at end of RAM for boot memory
+         dump preservation in case of a crash.
 
 -- After the low memory (boot memory) area has been saved, the
    firmware will reset PCI and other hardware state.  It will
@@ -105,21 +109,21 @@ memory is held.
 
 If there is no waiting dump data, then only the memory required
 to hold CPU state, HPTE region, boot memory dump and elfcore
-header, is reserved at the top of memory (see Fig. 1). This area
-is *not* released: this region will be kept permanently reserved,
-so that it can act as a receptacle for a copy of the boot memory
-content in addition to CPU state and HPTE region, in the case a
-crash does occur.
+header, is usually reserved at an offset greater than boot memory
+size (see Fig. 1). This area is *not* released: this region will
+be kept permanently reserved, so that it can act as a receptacle
+for a copy of the boot memory content in addition to CPU state
+and HPTE region, in the case a crash does occur.
 
   o Memory Reservation during first kernel
 
-  Low memory                                        Top of memory
+  Low memory                                         Top of memory
   0      boot memory size                                       |
-  |           |                       |<--Reserved dump area -->|
-  V           V                       |   Permanent Reservation V
-  +-----------+----------/ /----------+---+----+-----------+----+
-  |           |                       |CPU|HPTE|  DUMP     |ELF |
-  +-----------+----------/ /----------+---+----+-----------+----+
+  |           |                |<--Reserved dump area -->|      |
+  V           V                |   Permanent Reservation |      V
+  +-----------+----------/ /---+---+----+-----------+----+------+
+  |           |                |CPU|HPTE|  DUMP     |ELF |      |
+  +-----------+----------/ /---+---+----+-----------+----+------+
         |                                           ^
         |                                           |
         \                                           /
@@ -135,12 +139,12 @@ crash does occur.
   0      boot memory size                                       |
   |           |<------------- Reserved dump area ----------- -->|
   V           V                                                 V
-  +-----------+----------/ /----------+---+----+-----------+----+
-  |           |                       |CPU|HPTE|  DUMP     |ELF |
-  +-----------+----------/ /----------+---+----+-----------+----+
-        |                                                    |
-        V                                                    V
-   Used by second                                    /proc/vmcore
+  +-----------+----------/ /---+---+----+-----------+----+------+
+  |           |                |CPU|HPTE|  DUMP     |ELF |      |
+  +-----------+----------/ /---+---+----+-----------+----+------+
+        |                                              |
+        V                                              V
+   Used by second                                /proc/vmcore
    kernel to boot
                    Fig. 2
 
@@ -158,13 +162,16 @@ How to enable firmware-assisted dump (fadump):
 
 1. Set config option CONFIG_FA_DUMP=y and build kernel.
 2. Boot into linux kernel with 'fadump=on' kernel cmdline option.
-3. Optionally, user can also set 'fadump_reserve_mem=' kernel cmdline
+3. Optionally, user can also set 'crashkernel=' kernel cmdline
    to specify size of the memory to reserve for boot memory dump
    preservation.
 
-NOTE: If firmware-assisted dump fails to reserve memory then it will
-   fallback to existing kdump mechanism if 'crashkernel=' option
-   is set at kernel cmdline.
+NOTE: 1. 'fadump_reserve_mem=' parameter has been deprecated. Instead
+         use 'crashkernel=' to specify size of the memory to reserve
+         for boot memory dump preservation.
+      2. If firmware-assisted dump fails to reserve memory then it
+         will fallback to existing kdump mechanism if 'crashkernel='
+         option is set at kernel cmdline.
 
 Sysfs/debugfs files:
 ------------

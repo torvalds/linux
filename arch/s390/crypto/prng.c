@@ -20,8 +20,10 @@
 #include <linux/cpufeature.h>
 #include <linux/random.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/timex.h>
 #include <asm/cpacf.h>
 
@@ -79,7 +81,7 @@ struct prng_ws_s {
 	u64 byte_counter;
 };
 
-struct ppno_ws_s {
+struct prno_ws_s {
 	u32 res;
 	u32 reseed_counter;
 	u64 stream_bytes;
@@ -91,7 +93,7 @@ struct prng_data_s {
 	struct mutex mutex;
 	union {
 		struct prng_ws_s prngws;
-		struct ppno_ws_s ppnows;
+		struct prno_ws_s prnows;
 	};
 	u8 *buf;
 	u32 rest;
@@ -110,22 +112,30 @@ static const u8 initial_parm_block[32] __initconst = {
 
 /*** helper functions ***/
 
+/*
+ * generate_entropy:
+ * This algorithm produces 64 bytes of entropy data based on 1024
+ * individual stckf() invocations assuming that each stckf() value
+ * contributes 0.25 bits of entropy. So the caller gets 256 bit
+ * entropy per 64 byte or 4 bits entropy per byte.
+ */
 static int generate_entropy(u8 *ebuf, size_t nbytes)
 {
 	int n, ret = 0;
-	u8 *pg, *h, hash[32];
+	u8 *pg, *h, hash[64];
 
-	pg = (u8 *) __get_free_page(GFP_KERNEL);
+	/* allocate 2 pages */
+	pg = (u8 *) __get_free_pages(GFP_KERNEL, 1);
 	if (!pg) {
 		prng_errorflag = PRNG_GEN_ENTROPY_FAILED;
 		return -ENOMEM;
 	}
 
 	while (nbytes) {
-		/* fill page with urandom bytes */
-		get_random_bytes(pg, PAGE_SIZE);
-		/* exor page with stckf values */
-		for (n = 0; n < PAGE_SIZE / sizeof(u64); n++) {
+		/* fill pages with urandom bytes */
+		get_random_bytes(pg, 2*PAGE_SIZE);
+		/* exor pages with 1024 stckf values */
+		for (n = 0; n < 2 * PAGE_SIZE / sizeof(u64); n++) {
 			u64 *p = ((u64 *)pg) + n;
 			*p ^= get_tod_clock_fast();
 		}
@@ -134,8 +144,8 @@ static int generate_entropy(u8 *ebuf, size_t nbytes)
 			h = hash;
 		else
 			h = ebuf;
-		/* generate sha256 from this page */
-		cpacf_kimd(CPACF_KIMD_SHA_256, h, pg, PAGE_SIZE);
+		/* hash over the filled pages */
+		cpacf_kimd(CPACF_KIMD_SHA_512, h, pg, 2*PAGE_SIZE);
 		if (n < sizeof(hash))
 			memcpy(ebuf, hash, n);
 		ret += n;
@@ -143,7 +153,7 @@ static int generate_entropy(u8 *ebuf, size_t nbytes)
 		nbytes -= n;
 	}
 
-	free_page((unsigned long)pg);
+	free_pages((unsigned long)pg, 1);
 	return ret;
 }
 
@@ -296,12 +306,12 @@ static int __init prng_sha512_selftest(void)
 		0x36, 0x8c, 0x5a, 0x9f, 0x7a, 0x4b, 0x3e, 0xe2 };
 
 	u8 buf[sizeof(random)];
-	struct ppno_ws_s ws;
+	struct prno_ws_s ws;
 
 	memset(&ws, 0, sizeof(ws));
 
 	/* initial seed */
-	cpacf_ppno(CPACF_PPNO_SHA512_DRNG_SEED,
+	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
 		   &ws, NULL, 0, seed, sizeof(seed));
 
 	/* check working states V and C */
@@ -314,9 +324,9 @@ static int __init prng_sha512_selftest(void)
 	}
 
 	/* generate random bytes */
-	cpacf_ppno(CPACF_PPNO_SHA512_DRNG_GEN,
+	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
 		   &ws, buf, sizeof(buf), NULL, 0);
-	cpacf_ppno(CPACF_PPNO_SHA512_DRNG_GEN,
+	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
 		   &ws, buf, sizeof(buf), NULL, 0);
 
 	/* check against expected data */
@@ -334,7 +344,7 @@ static int __init prng_sha512_selftest(void)
 static int __init prng_sha512_instantiate(void)
 {
 	int ret, datalen;
-	u8 seed[64];
+	u8 seed[64 + 32 + 16];
 
 	pr_debug("prng runs in SHA-512 mode "
 		 "with chunksize=%d and reseed_limit=%u\n",
@@ -357,23 +367,23 @@ static int __init prng_sha512_instantiate(void)
 	if (ret)
 		goto outfree;
 
-	/* generate initial seed bytestring, first 48 bytes of entropy */
-	ret = generate_entropy(seed, 48);
-	if (ret != 48)
+	/* generate initial seed bytestring, with 256 + 128 bits entropy */
+	ret = generate_entropy(seed, 64 + 32);
+	if (ret != 64 + 32)
 		goto outfree;
 	/* followed by 16 bytes of unique nonce */
-	get_tod_clock_ext(seed + 48);
+	get_tod_clock_ext(seed + 64 + 32);
 
-	/* initial seed of the ppno drng */
-	cpacf_ppno(CPACF_PPNO_SHA512_DRNG_SEED,
-		   &prng_data->ppnows, NULL, 0, seed, sizeof(seed));
+	/* initial seed of the prno drng */
+	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
+		   &prng_data->prnows, NULL, 0, seed, sizeof(seed));
 
 	/* if fips mode is enabled, generate a first block of random
 	   bytes for the FIPS 140-2 Conditional Self Test */
 	if (fips_enabled) {
 		prng_data->prev = prng_data->buf + prng_chunk_size;
-		cpacf_ppno(CPACF_PPNO_SHA512_DRNG_GEN,
-			   &prng_data->ppnows,
+		cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
+			   &prng_data->prnows,
 			   prng_data->prev, prng_chunk_size, NULL, 0);
 	}
 
@@ -395,16 +405,16 @@ static void prng_sha512_deinstantiate(void)
 static int prng_sha512_reseed(void)
 {
 	int ret;
-	u8 seed[32];
+	u8 seed[64];
 
-	/* generate 32 bytes of fresh entropy */
+	/* fetch 256 bits of fresh entropy */
 	ret = generate_entropy(seed, sizeof(seed));
 	if (ret != sizeof(seed))
 		return ret;
 
-	/* do a reseed of the ppno drng with this bytestring */
-	cpacf_ppno(CPACF_PPNO_SHA512_DRNG_SEED,
-		   &prng_data->ppnows, NULL, 0, seed, sizeof(seed));
+	/* do a reseed of the prno drng with this bytestring */
+	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
+		   &prng_data->prnows, NULL, 0, seed, sizeof(seed));
 
 	return 0;
 }
@@ -415,15 +425,15 @@ static int prng_sha512_generate(u8 *buf, size_t nbytes)
 	int ret;
 
 	/* reseed needed ? */
-	if (prng_data->ppnows.reseed_counter > prng_reseed_limit) {
+	if (prng_data->prnows.reseed_counter > prng_reseed_limit) {
 		ret = prng_sha512_reseed();
 		if (ret)
 			return ret;
 	}
 
-	/* PPNO generate */
-	cpacf_ppno(CPACF_PPNO_SHA512_DRNG_GEN,
-		   &prng_data->ppnows, buf, nbytes, NULL, 0);
+	/* PRNO generate */
+	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
+		   &prng_data->prnows, buf, nbytes, NULL, 0);
 
 	/* FIPS 140-2 Conditional Self Test */
 	if (fips_enabled) {
@@ -507,8 +517,10 @@ static ssize_t prng_tdes_read(struct file *file, char __user *ubuf,
 		prng_data->prngws.byte_counter += n;
 		prng_data->prngws.reseed_counter += n;
 
-		if (copy_to_user(ubuf, prng_data->buf, chunk))
-			return -EFAULT;
+		if (copy_to_user(ubuf, prng_data->buf, chunk)) {
+			ret = -EFAULT;
+			break;
+		}
 
 		nbytes -= chunk;
 		ret += chunk;
@@ -641,7 +653,7 @@ static ssize_t prng_counter_show(struct device *dev,
 	if (mutex_lock_interruptible(&prng_data->mutex))
 		return -ERESTARTSYS;
 	if (prng_mode == PRNG_MODE_SHA512)
-		counter = prng_data->ppnows.stream_bytes;
+		counter = prng_data->prnows.stream_bytes;
 	else
 		counter = prng_data->prngws.byte_counter;
 	mutex_unlock(&prng_data->mutex);
@@ -762,8 +774,8 @@ static int __init prng_init(void)
 
 	/* choose prng mode */
 	if (prng_mode != PRNG_MODE_TDES) {
-		/* check for MSA5 support for PPNO operations */
-		if (!cpacf_query_func(CPACF_PPNO, CPACF_PPNO_SHA512_DRNG_GEN)) {
+		/* check for MSA5 support for PRNO operations */
+		if (!cpacf_query_func(CPACF_PRNO, CPACF_PRNO_SHA512_DRNG_GEN)) {
 			if (prng_mode == PRNG_MODE_SHA512) {
 				pr_err("The prng module cannot "
 				       "start in SHA-512 mode\n");

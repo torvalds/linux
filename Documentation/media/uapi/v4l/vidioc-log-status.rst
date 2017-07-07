@@ -15,12 +15,15 @@ VIDIOC_LOG_STATUS - Log driver status information
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request )
+.. c:function:: int ioctl( int fd, VIDIOC_LOG_STATUS)
+    :name: VIDIOC_LOG_STATUS
 
 
 Arguments
 =========
 
+``fd``
+    File descriptor returned by :ref:`open() <func-open>`.
 
 
 Description

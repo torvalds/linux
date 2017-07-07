@@ -1,10 +1,35 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2016  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
+
 #ifndef _COMMON_HSI_H
 #define _COMMON_HSI_H
 #include <linux/types.h>
@@ -13,6 +38,8 @@
 #include <linux/slab.h>
 
 /* dma_addr_t manip */
+#define PTR_LO(x)               ((u32)(((uintptr_t)(x)) & 0xffffffff))
+#define PTR_HI(x)               ((u32)((((uintptr_t)(x)) >> 16) >> 16))
 #define DMA_LO_LE(x)		cpu_to_le32(lower_32_bits(x))
 #define DMA_HI_LE(x)		cpu_to_le32(upper_32_bits(x))
 #define DMA_REGPAIR_LE(x, val)	do { \
@@ -37,6 +64,7 @@
 #define COMMON_QUEUE_ENTRY_MAX_BYTE_SIZE        64
 
 #define ISCSI_CDU_TASK_SEG_TYPE       0
+#define FCOE_CDU_TASK_SEG_TYPE        0
 #define RDMA_CDU_TASK_SEG_TYPE        1
 
 #define FW_ASSERT_GENERAL_ATTN_IDX    32
@@ -70,12 +98,12 @@
 
 #define CORE_SPQE_PAGE_SIZE_BYTES	4096
 
-#define MAX_NUM_LL2_RX_QUEUES		32
-#define MAX_NUM_LL2_TX_STATS_COUNTERS	32
+#define MAX_NUM_LL2_RX_QUEUES		48
+#define MAX_NUM_LL2_TX_STATS_COUNTERS	48
 
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	10
-#define FW_REVISION_VERSION	10
+#define FW_MINOR_VERSION	20
+#define FW_REVISION_VERSION	0
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/
@@ -155,12 +183,23 @@
 
 #define CDU_VF_FL_SEG_TYPE_OFFSET_REG_TYPE_SHIFT	(12)
 #define CDU_VF_FL_SEG_TYPE_OFFSET_REG_OFFSET_MASK	(0xfff)
+
+#define CDU_CONTEXT_VALIDATION_CFG_ENABLE_SHIFT			(0)
+#define CDU_CONTEXT_VALIDATION_CFG_VALIDATION_TYPE_SHIFT	(1)
+#define CDU_CONTEXT_VALIDATION_CFG_USE_TYPE			(2)
+#define CDU_CONTEXT_VALIDATION_CFG_USE_REGION			(3)
+#define CDU_CONTEXT_VALIDATION_CFG_USE_CID			(4)
+#define CDU_CONTEXT_VALIDATION_CFG_USE_ACTIVE			(5)
+
 /*****************/
 /* DQ CONSTANTS  */
 /*****************/
 
 /* DEMS */
 #define DQ_DEMS_LEGACY			0
+#define DQ_DEMS_TOE_MORE_TO_SEND	3
+#define DQ_DEMS_TOE_LOCAL_ADV_WND	4
+#define DQ_DEMS_ROCE_CQ_CONS		7
 
 /* XCM agg val selection */
 #define DQ_XCM_AGG_VAL_SEL_WORD2  0
@@ -180,11 +219,17 @@
 #define	DQ_XCM_ETH_TX_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
 #define	DQ_XCM_ETH_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
 #define	DQ_XCM_ETH_GO_TO_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD5
+#define DQ_XCM_FCOE_SQ_CONS_CMD             DQ_XCM_AGG_VAL_SEL_WORD3
+#define DQ_XCM_FCOE_SQ_PROD_CMD             DQ_XCM_AGG_VAL_SEL_WORD4
+#define DQ_XCM_FCOE_X_FERQ_PROD_CMD         DQ_XCM_AGG_VAL_SEL_WORD5
 #define DQ_XCM_ISCSI_SQ_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
 #define DQ_XCM_ISCSI_SQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
 #define DQ_XCM_ISCSI_MORE_TO_SEND_SEQ_CMD DQ_XCM_AGG_VAL_SEL_REG3
 #define DQ_XCM_ISCSI_EXP_STAT_SN_CMD	DQ_XCM_AGG_VAL_SEL_REG6
 #define DQ_XCM_ROCE_SQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define DQ_XCM_TOE_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define DQ_XCM_TOE_MORE_TO_SEND_SEQ_CMD	DQ_XCM_AGG_VAL_SEL_REG3
+#define DQ_XCM_TOE_LOCAL_ADV_WND_SEQ_CMD DQ_XCM_AGG_VAL_SEL_REG4
 
 /* UCM agg val selection (HW) */
 #define	DQ_UCM_AGG_VAL_SEL_WORD0	0
@@ -236,9 +281,12 @@
 #define DQ_XCM_ETH_TERMINATE_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
 #define DQ_XCM_ETH_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 #define DQ_XCM_ETH_TPH_EN_CMD		BIT(DQ_XCM_AGG_FLG_SHIFT_CF23)
+#define DQ_XCM_FCOE_SLOW_PATH_CMD           BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 #define DQ_XCM_ISCSI_DQ_FLUSH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
 #define DQ_XCM_ISCSI_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 #define DQ_XCM_ISCSI_PROC_ONLY_CLEANUP_CMD BIT(DQ_XCM_AGG_FLG_SHIFT_CF23)
+#define DQ_XCM_TOE_DQ_FLUSH_CMD		BIT(DQ_XCM_AGG_FLG_SHIFT_CF19)
+#define DQ_XCM_TOE_SLOW_PATH_CMD	BIT(DQ_XCM_AGG_FLG_SHIFT_CF22)
 
 /* UCM agg counter flag selection (HW) */
 #define	DQ_UCM_AGG_FLG_SHIFT_CF0	0
@@ -255,6 +303,9 @@
 #define DQ_UCM_ETH_PMD_RX_ARM_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
 #define DQ_UCM_ROCE_CQ_ARM_SE_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF4)
 #define DQ_UCM_ROCE_CQ_ARM_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
+#define DQ_UCM_TOE_TIMER_STOP_ALL_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF3)
+#define DQ_UCM_TOE_SLOW_PATH_CF_CMD	BIT(DQ_UCM_AGG_FLG_SHIFT_CF4)
+#define DQ_UCM_TOE_DQ_CF_CMD		BIT(DQ_UCM_AGG_FLG_SHIFT_CF5)
 
 /* TCM agg counter flag selection (HW) */
 #define DQ_TCM_AGG_FLG_SHIFT_CF0	0
@@ -266,8 +317,14 @@
 #define DQ_TCM_AGG_FLG_SHIFT_CF6	6
 #define DQ_TCM_AGG_FLG_SHIFT_CF7	7
 /* TCM agg counter flag selection (FW) */
+#define DQ_TCM_FCOE_FLUSH_Q0_CMD            BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
+#define DQ_TCM_FCOE_DUMMY_TIMER_CMD         BIT(DQ_TCM_AGG_FLG_SHIFT_CF2)
+#define DQ_TCM_FCOE_TIMER_STOP_ALL_CMD      BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
 #define DQ_TCM_ISCSI_FLUSH_Q0_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
 #define DQ_TCM_ISCSI_TIMER_STOP_ALL_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
+#define DQ_TCM_TOE_FLUSH_Q0_CMD		BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
+#define DQ_TCM_TOE_TIMER_STOP_ALL_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF3)
+#define DQ_TCM_IWARP_POST_RQ_CF_CMD	BIT(DQ_TCM_AGG_FLG_SHIFT_CF1)
 
 /* PWM address mapping */
 #define DQ_PWM_OFFSET_DPM_BASE	0x0
@@ -410,7 +467,6 @@
 #define PXP_BAR_DQ	1
 
 /* PTT and GTT */
-#define PXP_NUM_PF_WINDOWS		12
 #define PXP_PER_PF_ENTRY_SIZE		8
 #define PXP_NUM_GLOBAL_WINDOWS		243
 #define PXP_GLOBAL_ENTRY_SIZE		4
@@ -435,6 +491,7 @@
 #define PXP_PF_ME_OPAQUE_ADDR		0x1f8
 #define PXP_PF_ME_CONCRETE_ADDR		0x1fc
 
+#define PXP_NUM_PF_WINDOWS	12
 #define PXP_EXTERNAL_BAR_PF_WINDOW_START	0x1000
 #define PXP_EXTERNAL_BAR_PF_WINDOW_NUM		PXP_NUM_PF_WINDOWS
 #define PXP_EXTERNAL_BAR_PF_WINDOW_SINGLE_SIZE	0x1000
@@ -571,16 +628,21 @@
 /*****************/
 /* PRM CONSTANTS */
 /*****************/
-#define PRM_DMA_PAD_BYTES_NUM	2
-/******************/
-/* SDMs CONSTANTS */
-/******************/
-#define SDM_OP_GEN_TRIG_NONE	0
-#define SDM_OP_GEN_TRIG_WAKE_THREAD	1
-#define SDM_OP_GEN_TRIG_AGG_INT	2
-#define SDM_OP_GEN_TRIG_LOADER	4
-#define SDM_OP_GEN_TRIG_INDICATE_ERROR	6
-#define SDM_OP_GEN_TRIG_RELEASE_THREAD	7
+#define PRM_DMA_PAD_BYTES_NUM  2
+/*****************/
+/* SDMs CONSTANTS  */
+/*****************/
+
+#define SDM_OP_GEN_TRIG_NONE                    0
+#define SDM_OP_GEN_TRIG_WAKE_THREAD             1
+#define SDM_OP_GEN_TRIG_AGG_INT                 2
+#define SDM_OP_GEN_TRIG_LOADER                  4
+#define SDM_OP_GEN_TRIG_INDICATE_ERROR  6
+#define SDM_OP_GEN_TRIG_INC_ORDER_CNT   9
+
+/********************/
+/* Completion types */
+/********************/
 
 #define SDM_COMP_TYPE_NONE              0
 #define SDM_COMP_TYPE_WAKE_THREAD       1
@@ -591,10 +653,11 @@
 #define SDM_COMP_TYPE_INDICATE_ERROR    6
 #define SDM_COMP_TYPE_RELEASE_THREAD    7
 #define SDM_COMP_TYPE_RAM               8
+#define SDM_COMP_TYPE_INC_ORDER_CNT     9
 
-/******************/
-/* PBF CONSTANTS  */
-/******************/
+/*****************/
+/* PBF Constants */
+/*****************/
 
 /* Number of PBF command queue lines. Each line is 32B. */
 #define PBF_MAX_CMD_LINES 3328
@@ -656,6 +719,16 @@ struct iscsi_eqe_data {
 #define ISCSI_EQE_DATA_RESERVED0_SHIFT			7
 };
 
+struct rdma_eqe_destroy_qp {
+	__le32 cid;
+	u8 reserved[4];
+};
+
+union rdma_eqe_data {
+	struct regpair async_handle;
+	struct rdma_eqe_destroy_qp rdma_destroy_qp_data;
+};
+
 struct malicious_vf_eqe_data {
 	u8 vf_id;
 	u8 err_id;
@@ -672,9 +745,9 @@ union event_ring_data {
 	u8 bytes[8];
 	struct vf_pf_channel_eqe_data vf_pf_channel;
 	struct iscsi_eqe_data iscsi_info;
+	union rdma_eqe_data rdma_data;
 	struct malicious_vf_eqe_data malicious_vf;
 	struct initial_cleanup_eqe_data vf_init_cleanup;
-	struct regpair roce_handle;
 };
 
 /* Event Ring Entry */
@@ -703,11 +776,11 @@ enum mf_mode {
 /* Per-protocol connection types */
 enum protocol_type {
 	PROTOCOLID_ISCSI,
-	PROTOCOLID_RESERVED2,
+	PROTOCOLID_FCOE,
 	PROTOCOLID_ROCE,
 	PROTOCOLID_CORE,
 	PROTOCOLID_ETH,
-	PROTOCOLID_RESERVED4,
+	PROTOCOLID_IWARP,
 	PROTOCOLID_RESERVED5,
 	PROTOCOLID_PREROCE,
 	PROTOCOLID_COMMON,
@@ -804,7 +877,7 @@ enum db_dest {
 /* Enum of doorbell DPM types */
 enum db_dpm_type {
 	DPM_LEGACY,
-	DPM_ROCE,
+	DPM_RDMA,
 	DPM_L2_INLINE,
 	DPM_L2_BD,
 	MAX_DB_DPM_TYPE
@@ -827,8 +900,8 @@ struct db_l2_dpm_data {
 #define DB_L2_DPM_DATA_RESERVED0_SHIFT 27
 #define DB_L2_DPM_DATA_SGE_NUM_MASK	0x7
 #define DB_L2_DPM_DATA_SGE_NUM_SHIFT	28
-#define DB_L2_DPM_DATA_RESERVED1_MASK	0x1
-#define DB_L2_DPM_DATA_RESERVED1_SHIFT 31
+#define DB_L2_DPM_DATA_GFS_SRC_EN_MASK	0x1
+#define DB_L2_DPM_DATA_GFS_SRC_EN_SHIFT	31
 };
 
 /* Structure for SGE in a DPM doorbell of type DPM_L2_BD */
@@ -874,31 +947,33 @@ struct db_pwm_addr {
 };
 
 /* Parameters to RoCE firmware, passed in EDPM doorbell */
-struct db_roce_dpm_params {
+struct db_rdma_dpm_params {
 	__le32 params;
-#define DB_ROCE_DPM_PARAMS_SIZE_MASK		0x3F
-#define DB_ROCE_DPM_PARAMS_SIZE_SHIFT		0
-#define DB_ROCE_DPM_PARAMS_DPM_TYPE_MASK	0x3
-#define DB_ROCE_DPM_PARAMS_DPM_TYPE_SHIFT	6
-#define DB_ROCE_DPM_PARAMS_OPCODE_MASK		0xFF
-#define DB_ROCE_DPM_PARAMS_OPCODE_SHIFT		8
-#define DB_ROCE_DPM_PARAMS_WQE_SIZE_MASK	0x7FF
-#define DB_ROCE_DPM_PARAMS_WQE_SIZE_SHIFT	16
-#define DB_ROCE_DPM_PARAMS_RESERVED0_MASK	0x1
-#define DB_ROCE_DPM_PARAMS_RESERVED0_SHIFT	27
-#define DB_ROCE_DPM_PARAMS_COMPLETION_FLG_MASK	0x1
-#define DB_ROCE_DPM_PARAMS_COMPLETION_FLG_SHIFT 28
-#define DB_ROCE_DPM_PARAMS_S_FLG_MASK		0x1
-#define DB_ROCE_DPM_PARAMS_S_FLG_SHIFT		29
-#define DB_ROCE_DPM_PARAMS_RESERVED1_MASK	0x3
-#define DB_ROCE_DPM_PARAMS_RESERVED1_SHIFT	30
+#define DB_RDMA_DPM_PARAMS_SIZE_MASK		0x3F
+#define DB_RDMA_DPM_PARAMS_SIZE_SHIFT		0
+#define DB_RDMA_DPM_PARAMS_DPM_TYPE_MASK	0x3
+#define DB_RDMA_DPM_PARAMS_DPM_TYPE_SHIFT	6
+#define DB_RDMA_DPM_PARAMS_OPCODE_MASK		0xFF
+#define DB_RDMA_DPM_PARAMS_OPCODE_SHIFT		8
+#define DB_RDMA_DPM_PARAMS_WQE_SIZE_MASK	0x7FF
+#define DB_RDMA_DPM_PARAMS_WQE_SIZE_SHIFT	16
+#define DB_RDMA_DPM_PARAMS_RESERVED0_MASK	0x1
+#define DB_RDMA_DPM_PARAMS_RESERVED0_SHIFT	27
+#define DB_RDMA_DPM_PARAMS_COMPLETION_FLG_MASK	0x1
+#define DB_RDMA_DPM_PARAMS_COMPLETION_FLG_SHIFT 28
+#define DB_RDMA_DPM_PARAMS_S_FLG_MASK		0x1
+#define DB_RDMA_DPM_PARAMS_S_FLG_SHIFT		29
+#define DB_RDMA_DPM_PARAMS_RESERVED1_MASK	0x1
+#define DB_RDMA_DPM_PARAMS_RESERVED1_SHIFT	30
+#define DB_RDMA_DPM_PARAMS_CONN_TYPE_IS_IWARP_MASK	0x1
+#define DB_RDMA_DPM_PARAMS_CONN_TYPE_IS_IWARP_SHIFT	31
 };
 
 /* Structure for doorbell data, in ROCE DPM mode, for 1st db in a DPM burst */
-struct db_roce_dpm_data {
+struct db_rdma_dpm_data {
 	__le16 icid;
 	__le16 prod_val;
-	struct db_roce_dpm_params params;
+	struct db_rdma_dpm_params params;
 };
 
 /* Igu interrupt command */
@@ -967,6 +1042,42 @@ struct parsing_and_err_flags {
 #define PARSING_AND_ERR_FLAGS_TUNNELL4CHKSMWASCALCULATED_SHIFT 14
 #define PARSING_AND_ERR_FLAGS_TUNNELL4CHKSMERROR_MASK          0x1
 #define PARSING_AND_ERR_FLAGS_TUNNELL4CHKSMERROR_SHIFT         15
+};
+
+struct parsing_err_flags {
+	__le16 flags;
+#define PARSING_ERR_FLAGS_MAC_ERROR_MASK				0x1
+#define PARSING_ERR_FLAGS_MAC_ERROR_SHIFT				0
+#define PARSING_ERR_FLAGS_TRUNC_ERROR_MASK				0x1
+#define PARSING_ERR_FLAGS_TRUNC_ERROR_SHIFT				1
+#define PARSING_ERR_FLAGS_PKT_TOO_SMALL_MASK				0x1
+#define PARSING_ERR_FLAGS_PKT_TOO_SMALL_SHIFT				2
+#define PARSING_ERR_FLAGS_ANY_HDR_MISSING_TAG_MASK			0x1
+#define PARSING_ERR_FLAGS_ANY_HDR_MISSING_TAG_SHIFT			3
+#define PARSING_ERR_FLAGS_ANY_HDR_IP_VER_MISMTCH_MASK			0x1
+#define PARSING_ERR_FLAGS_ANY_HDR_IP_VER_MISMTCH_SHIFT			4
+#define PARSING_ERR_FLAGS_ANY_HDR_IP_V4_HDR_LEN_TOO_SMALL_MASK		0x1
+#define PARSING_ERR_FLAGS_ANY_HDR_IP_V4_HDR_LEN_TOO_SMALL_SHIFT		5
+#define PARSING_ERR_FLAGS_ANY_HDR_IP_BAD_TOTAL_LEN_MASK			0x1
+#define PARSING_ERR_FLAGS_ANY_HDR_IP_BAD_TOTAL_LEN_SHIFT		6
+#define PARSING_ERR_FLAGS_IP_V4_CHKSM_ERROR_MASK			0x1
+#define PARSING_ERR_FLAGS_IP_V4_CHKSM_ERROR_SHIFT			7
+#define PARSING_ERR_FLAGS_ANY_HDR_L4_IP_LEN_MISMTCH_MASK		0x1
+#define PARSING_ERR_FLAGS_ANY_HDR_L4_IP_LEN_MISMTCH_SHIFT		8
+#define PARSING_ERR_FLAGS_ZERO_UDP_IP_V6_CHKSM_MASK			0x1
+#define PARSING_ERR_FLAGS_ZERO_UDP_IP_V6_CHKSM_SHIFT			9
+#define PARSING_ERR_FLAGS_INNER_L4_CHKSM_ERROR_MASK			0x1
+#define PARSING_ERR_FLAGS_INNER_L4_CHKSM_ERROR_SHIFT			10
+#define PARSING_ERR_FLAGS_ANY_HDR_ZERO_TTL_OR_HOP_LIM_MASK		0x1
+#define PARSING_ERR_FLAGS_ANY_HDR_ZERO_TTL_OR_HOP_LIM_SHIFT		11
+#define PARSING_ERR_FLAGS_NON_8021Q_TAG_EXISTS_IN_BOTH_HDRS_MASK	0x1
+#define PARSING_ERR_FLAGS_NON_8021Q_TAG_EXISTS_IN_BOTH_HDRS_SHIFT	12
+#define PARSING_ERR_FLAGS_GENEVE_OPTION_OVERSIZED_MASK			0x1
+#define PARSING_ERR_FLAGS_GENEVE_OPTION_OVERSIZED_SHIFT			13
+#define PARSING_ERR_FLAGS_TUNNEL_IP_V4_CHKSM_ERROR_MASK			0x1
+#define PARSING_ERR_FLAGS_TUNNEL_IP_V4_CHKSM_ERROR_SHIFT		14
+#define PARSING_ERR_FLAGS_TUNNEL_L4_CHKSM_ERROR_MASK			0x1
+#define PARSING_ERR_FLAGS_TUNNEL_L4_CHKSM_ERROR_SHIFT			15
 };
 
 struct pb_context {
@@ -1231,39 +1342,56 @@ struct tdif_task_context {
 
 struct timers_context {
 	__le32 logical_client_0;
-#define TIMERS_CONTEXT_EXPIRATIONTIMELC0_MASK     0xFFFFFFF
-#define TIMERS_CONTEXT_EXPIRATIONTIMELC0_SHIFT    0
-#define TIMERS_CONTEXT_VALIDLC0_MASK              0x1
-#define TIMERS_CONTEXT_VALIDLC0_SHIFT             28
-#define TIMERS_CONTEXT_ACTIVELC0_MASK             0x1
-#define TIMERS_CONTEXT_ACTIVELC0_SHIFT            29
-#define TIMERS_CONTEXT_RESERVED0_MASK             0x3
-#define TIMERS_CONTEXT_RESERVED0_SHIFT            30
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC0_MASK	0x7FFFFFF
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC0_SHIFT	0
+#define TIMERS_CONTEXT_RESERVED0_MASK		0x1
+#define TIMERS_CONTEXT_RESERVED0_SHIFT		27
+#define TIMERS_CONTEXT_VALIDLC0_MASK		0x1
+#define TIMERS_CONTEXT_VALIDLC0_SHIFT		28
+#define TIMERS_CONTEXT_ACTIVELC0_MASK		0x1
+#define TIMERS_CONTEXT_ACTIVELC0_SHIFT		29
+#define TIMERS_CONTEXT_RESERVED1_MASK		0x3
+#define TIMERS_CONTEXT_RESERVED1_SHIFT		30
 	__le32 logical_client_1;
-#define TIMERS_CONTEXT_EXPIRATIONTIMELC1_MASK     0xFFFFFFF
-#define TIMERS_CONTEXT_EXPIRATIONTIMELC1_SHIFT    0
-#define TIMERS_CONTEXT_VALIDLC1_MASK              0x1
-#define TIMERS_CONTEXT_VALIDLC1_SHIFT             28
-#define TIMERS_CONTEXT_ACTIVELC1_MASK             0x1
-#define TIMERS_CONTEXT_ACTIVELC1_SHIFT            29
-#define TIMERS_CONTEXT_RESERVED1_MASK             0x3
-#define TIMERS_CONTEXT_RESERVED1_SHIFT            30
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC1_MASK	0x7FFFFFF
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC1_SHIFT	0
+#define TIMERS_CONTEXT_RESERVED2_MASK		0x1
+#define TIMERS_CONTEXT_RESERVED2_SHIFT		27
+#define TIMERS_CONTEXT_VALIDLC1_MASK		0x1
+#define TIMERS_CONTEXT_VALIDLC1_SHIFT		28
+#define TIMERS_CONTEXT_ACTIVELC1_MASK		0x1
+#define TIMERS_CONTEXT_ACTIVELC1_SHIFT		29
+#define TIMERS_CONTEXT_RESERVED3_MASK		0x3
+#define TIMERS_CONTEXT_RESERVED3_SHIFT		30
 	__le32 logical_client_2;
-#define TIMERS_CONTEXT_EXPIRATIONTIMELC2_MASK     0xFFFFFFF
-#define TIMERS_CONTEXT_EXPIRATIONTIMELC2_SHIFT    0
-#define TIMERS_CONTEXT_VALIDLC2_MASK              0x1
-#define TIMERS_CONTEXT_VALIDLC2_SHIFT             28
-#define TIMERS_CONTEXT_ACTIVELC2_MASK             0x1
-#define TIMERS_CONTEXT_ACTIVELC2_SHIFT            29
-#define TIMERS_CONTEXT_RESERVED2_MASK             0x3
-#define TIMERS_CONTEXT_RESERVED2_SHIFT            30
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC2_MASK	0x7FFFFFF
+#define TIMERS_CONTEXT_EXPIRATIONTIMELC2_SHIFT	0
+#define TIMERS_CONTEXT_RESERVED4_MASK		0x1
+#define TIMERS_CONTEXT_RESERVED4_SHIFT		27
+#define TIMERS_CONTEXT_VALIDLC2_MASK		0x1
+#define TIMERS_CONTEXT_VALIDLC2_SHIFT		28
+#define TIMERS_CONTEXT_ACTIVELC2_MASK		0x1
+#define TIMERS_CONTEXT_ACTIVELC2_SHIFT		29
+#define TIMERS_CONTEXT_RESERVED5_MASK		0x3
+#define TIMERS_CONTEXT_RESERVED5_SHIFT		30
 	__le32 host_expiration_fields;
-#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALUE_MASK  0xFFFFFFF
-#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALUE_SHIFT 0
-#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALID_MASK  0x1
-#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALID_SHIFT 28
-#define TIMERS_CONTEXT_RESERVED3_MASK             0x7
-#define TIMERS_CONTEXT_RESERVED3_SHIFT            29
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALUE_MASK	0x7FFFFFF
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALUE_SHIFT	0
+#define TIMERS_CONTEXT_RESERVED6_MASK			0x1
+#define TIMERS_CONTEXT_RESERVED6_SHIFT			27
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALID_MASK	0x1
+#define TIMERS_CONTEXT_HOSTEXPRIRATIONVALID_SHIFT	 28
+#define TIMERS_CONTEXT_RESERVED7_MASK			0x7
+#define TIMERS_CONTEXT_RESERVED7_SHIFT			29
 };
+
+enum tunnel_next_protocol {
+	e_unknown = 0,
+	e_l2 = 1,
+	e_ipv4 = 2,
+	e_ipv6 = 3,
+	MAX_TUNNEL_NEXT_PROTOCOL
+};
+
 #endif /* __COMMON_HSI__ */
 #endif

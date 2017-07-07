@@ -84,7 +84,6 @@ union ks8851_tx_hdr {
  * @rc_ier: Cached copy of KS_IER.
  * @rc_ccr: Cached copy of KS_CCR.
  * @rc_rxqcr: Cached copy of KS_RXQCR.
- * @eeprom_size: Companion eeprom size in Bytes, 0 if no eeprom
  * @eeprom: 93CX6 EEPROM state for accessing on-board EEPROM.
  * @vdd_reg:	Optional regulator supplying the chip
  * @vdd_io: Optional digital power supply for IO
@@ -120,7 +119,6 @@ struct ks8851_net {
 	u16			rc_ier;
 	u16			rc_rxqcr;
 	u16			rc_ccr;
-	u16			eeprom_size;
 
 	struct mii_if_info	mii;
 	struct ks8851_rxctrl	rxctrl;
@@ -214,25 +212,6 @@ static void ks8851_wrreg8(struct ks8851_net *ks, unsigned reg, unsigned val)
 }
 
 /**
- * ks8851_rx_1msg - select whether to use one or two messages for spi read
- * @ks: The device structure
- *
- * Return whether to generate a single message with a tx and rx buffer
- * supplied to spi_sync(), or alternatively send the tx and rx buffers
- * as separate messages.
- *
- * Depending on the hardware in use, a single message may be more efficient
- * on interrupts or work done by the driver.
- *
- * This currently always returns true until we add some per-device data passed
- * from the platform code to specify which mode is better.
- */
-static inline bool ks8851_rx_1msg(struct ks8851_net *ks)
-{
-	return true;
-}
-
-/**
  * ks8851_rdreg - issue read register command and return the data
  * @ks: The device state
  * @op: The register address and byte enables in message format.
@@ -253,14 +232,7 @@ static void ks8851_rdreg(struct ks8851_net *ks, unsigned op,
 
 	txb[0] = cpu_to_le16(op | KS_SPIOP_RD);
 
-	if (ks8851_rx_1msg(ks)) {
-		msg = &ks->spi_msg1;
-		xfer = &ks->spi_xfer1;
-
-		xfer->tx_buf = txb;
-		xfer->rx_buf = trx;
-		xfer->len = rxl + 2;
-	} else {
+	if (ks->spidev->master->flags & SPI_MASTER_HALF_DUPLEX) {
 		msg = &ks->spi_msg2;
 		xfer = ks->spi_xfer2;
 
@@ -272,15 +244,22 @@ static void ks8851_rdreg(struct ks8851_net *ks, unsigned op,
 		xfer->tx_buf = NULL;
 		xfer->rx_buf = trx;
 		xfer->len = rxl;
+	} else {
+		msg = &ks->spi_msg1;
+		xfer = &ks->spi_xfer1;
+
+		xfer->tx_buf = txb;
+		xfer->rx_buf = trx;
+		xfer->len = rxl + 2;
 	}
 
 	ret = spi_sync(ks->spidev, msg);
 	if (ret < 0)
 		netdev_err(ks->netdev, "read: spi_sync() failed\n");
-	else if (ks8851_rx_1msg(ks))
-		memcpy(rxb, trx + 2, rxl);
-	else
+	else if (ks->spidev->master->flags & SPI_MASTER_HALF_DUPLEX)
 		memcpy(rxb, trx, rxl);
+	else
+		memcpy(rxb, trx + 2, rxl);
 }
 
 /**
@@ -1063,7 +1042,6 @@ static const struct net_device_ops ks8851_netdev_ops = {
 	.ndo_start_xmit		= ks8851_start_xmit,
 	.ndo_set_mac_address	= ks8851_set_mac_address,
 	.ndo_set_rx_mode	= ks8851_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -1089,16 +1067,21 @@ static void ks8851_set_msglevel(struct net_device *dev, u32 to)
 	ks->msg_enable = to;
 }
 
-static int ks8851_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ks8851_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
-	return mii_ethtool_gset(&ks->mii, cmd);
+
+	mii_ethtool_get_link_ksettings(&ks->mii, cmd);
+
+	return 0;
 }
 
-static int ks8851_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ks8851_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
-	return mii_ethtool_sset(&ks->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&ks->mii, cmd);
 }
 
 static u32 ks8851_get_link(struct net_device *dev)
@@ -1254,13 +1237,13 @@ static const struct ethtool_ops ks8851_ethtool_ops = {
 	.get_drvinfo	= ks8851_get_drvinfo,
 	.get_msglevel	= ks8851_get_msglevel,
 	.set_msglevel	= ks8851_set_msglevel,
-	.get_settings	= ks8851_get_settings,
-	.set_settings	= ks8851_set_settings,
 	.get_link	= ks8851_get_link,
 	.nway_reset	= ks8851_nway_reset,
 	.get_eeprom_len	= ks8851_get_eeprom_len,
 	.get_eeprom	= ks8851_get_eeprom,
 	.set_eeprom	= ks8851_set_eeprom,
+	.get_link_ksettings = ks8851_get_link_ksettings,
+	.set_link_ksettings = ks8851_set_link_ksettings,
 };
 
 /* MII interface controls */
@@ -1533,11 +1516,6 @@ static int ks8851_probe(struct spi_device *spi)
 
 	/* cache the contents of the CCR register for EEPROM, etc. */
 	ks->rc_ccr = ks8851_rdreg16(ks, KS_CCR);
-
-	if (ks->rc_ccr & CCR_EEPROM)
-		ks->eeprom_size = 128;
-	else
-		ks->eeprom_size = 0;
 
 	ks8851_read_selftest(ks);
 	ks8851_init_mac(ks);

@@ -19,9 +19,11 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #include "sun4i_backend.h"
+#include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sun4i_tcon.h"
 
@@ -161,10 +163,10 @@ struct tv_mode {
 	bool		dac3_en;
 	bool		dac_bit25_en;
 
-	struct color_gains		*color_gains;
-	struct burst_levels		*burst_levels;
-	struct video_levels		*video_levels;
-	struct resync_parameters	*resync_params;
+	const struct color_gains	*color_gains;
+	const struct burst_levels	*burst_levels;
+	const struct video_levels	*video_levels;
+	const struct resync_parameters	*resync_params;
 };
 
 struct sun4i_tv {
@@ -178,39 +180,39 @@ struct sun4i_tv {
 	struct sun4i_drv	*drv;
 };
 
-struct video_levels ntsc_video_levels = {
+static const struct video_levels ntsc_video_levels = {
 	.black = 282,	.blank = 240,
 };
 
-struct video_levels pal_video_levels = {
+static const struct video_levels pal_video_levels = {
 	.black = 252,	.blank = 252,
 };
 
-struct burst_levels ntsc_burst_levels = {
+static const struct burst_levels ntsc_burst_levels = {
 	.cb = 79,	.cr = 0,
 };
 
-struct burst_levels pal_burst_levels = {
+static const struct burst_levels pal_burst_levels = {
 	.cb = 40,	.cr = 40,
 };
 
-struct color_gains ntsc_color_gains = {
+static const struct color_gains ntsc_color_gains = {
 	.cb = 160,	.cr = 160,
 };
 
-struct color_gains pal_color_gains = {
+static const struct color_gains pal_color_gains = {
 	.cb = 224,	.cr = 224,
 };
 
-struct resync_parameters ntsc_resync_parameters = {
+static const struct resync_parameters ntsc_resync_parameters = {
 	.field = false,	.line = 14,	.pixel = 12,
 };
 
-struct resync_parameters pal_resync_parameters = {
+static const struct resync_parameters pal_resync_parameters = {
 	.field = true,	.line = 13,	.pixel = 12,
 };
 
-struct tv_mode tv_modes[] = {
+static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "NTSC",
 		.mode		= SUN4I_TVE_CFG0_RES_480i,
@@ -289,13 +291,13 @@ drm_connector_to_sun4i_tv(struct drm_connector *connector)
  * So far, it doesn't seem to be preserved when the mode is passed by
  * to mode_set for some reason.
  */
-static struct tv_mode *sun4i_tv_find_tv_by_mode(struct drm_display_mode *mode)
+static const struct tv_mode *sun4i_tv_find_tv_by_mode(const struct drm_display_mode *mode)
 {
 	int i;
 
 	/* First try to identify the mode by name */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
-		struct tv_mode *tv_mode = &tv_modes[i];
+		const struct tv_mode *tv_mode = &tv_modes[i];
 
 		DRM_DEBUG_DRIVER("Comparing mode %s vs %s",
 				 mode->name, tv_mode->name);
@@ -306,7 +308,7 @@ static struct tv_mode *sun4i_tv_find_tv_by_mode(struct drm_display_mode *mode)
 
 	/* Then by number of lines */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
-		struct tv_mode *tv_mode = &tv_modes[i];
+		const struct tv_mode *tv_mode = &tv_modes[i];
 
 		DRM_DEBUG_DRIVER("Comparing mode %s vs %s (X: %d vs %d)",
 				 mode->name, tv_mode->name,
@@ -319,7 +321,7 @@ static struct tv_mode *sun4i_tv_find_tv_by_mode(struct drm_display_mode *mode)
 	return NULL;
 }
 
-static void sun4i_tv_mode_to_drm_mode(struct tv_mode *tv_mode,
+static void sun4i_tv_mode_to_drm_mode(const struct tv_mode *tv_mode,
 				      struct drm_display_mode *mode)
 {
 	DRM_DEBUG_DRIVER("Creating mode %s\n", mode->name);
@@ -349,8 +351,9 @@ static int sun4i_tv_atomic_check(struct drm_encoder *encoder,
 static void sun4i_tv_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
-	struct sun4i_drv *drv = tv->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
+	struct sun4i_tcon *tcon = crtc->tcon;
+	struct sun4i_backend *backend = crtc->backend;
 
 	DRM_DEBUG_DRIVER("Disabling the TV Output\n");
 
@@ -359,18 +362,19 @@ static void sun4i_tv_disable(struct drm_encoder *encoder)
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
 			   SUN4I_TVE_EN_ENABLE,
 			   0);
-	sun4i_backend_disable_color_correction(drv->backend);
+	sun4i_backend_disable_color_correction(backend);
 }
 
 static void sun4i_tv_enable(struct drm_encoder *encoder)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
-	struct sun4i_drv *drv = tv->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
+	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
+	struct sun4i_tcon *tcon = crtc->tcon;
+	struct sun4i_backend *backend = crtc->backend;
 
 	DRM_DEBUG_DRIVER("Enabling the TV Output\n");
 
-	sun4i_backend_apply_color_correction(drv->backend);
+	sun4i_backend_apply_color_correction(backend);
 
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
 			   SUN4I_TVE_EN_ENABLE,
@@ -384,9 +388,9 @@ static void sun4i_tv_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *adjusted_mode)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
-	struct sun4i_drv *drv = tv->drv;
-	struct sun4i_tcon *tcon = drv->tcon;
-	struct tv_mode *tv_mode = sun4i_tv_find_tv_by_mode(mode);
+	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
+	struct sun4i_tcon *tcon = crtc->tcon;
+	const struct tv_mode *tv_mode = sun4i_tv_find_tv_by_mode(mode);
 
 	sun4i_tcon1_mode_set(tcon, mode);
 
@@ -507,8 +511,14 @@ static int sun4i_tv_comp_get_modes(struct drm_connector *connector)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
-		struct drm_display_mode *mode = drm_mode_create(connector->dev);
-		struct tv_mode *tv_mode = &tv_modes[i];
+		struct drm_display_mode *mode;
+		const struct tv_mode *tv_mode = &tv_modes[i];
+
+		mode = drm_mode_create(connector->dev);
+		if (!mode) {
+			DRM_ERROR("Failed to create a new display mode\n");
+			return 0;
+		}
 
 		strcpy(mode->name, tv_mode->name);
 
@@ -531,12 +541,6 @@ static struct drm_connector_helper_funcs sun4i_tv_comp_connector_helper_funcs = 
 	.mode_valid	= sun4i_tv_comp_mode_valid,
 };
 
-static enum drm_connector_status
-sun4i_tv_comp_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void
 sun4i_tv_comp_connector_destroy(struct drm_connector *connector)
 {
@@ -545,7 +549,6 @@ sun4i_tv_comp_connector_destroy(struct drm_connector *connector)
 
 static struct drm_connector_funcs sun4i_tv_comp_connector_funcs = {
 	.dpms			= drm_atomic_helper_connector_dpms,
-	.detect			= sun4i_tv_comp_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= sun4i_tv_comp_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,
@@ -624,7 +627,12 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 		goto err_disable_clk;
 	}
 
-	tv->encoder.possible_crtcs = BIT(0);
+	tv->encoder.possible_crtcs = drm_of_find_possible_crtcs(drm,
+								dev->of_node);
+	if (!tv->encoder.possible_crtcs) {
+		ret = -EPROBE_DEFER;
+		goto err_disable_clk;
+	}
 
 	drm_connector_helper_add(&tv->connector,
 				 &sun4i_tv_comp_connector_helper_funcs);
@@ -661,7 +669,7 @@ static void sun4i_tv_unbind(struct device *dev, struct device *master,
 	clk_disable_unprepare(tv->clk);
 }
 
-static struct component_ops sun4i_tv_ops = {
+static const struct component_ops sun4i_tv_ops = {
 	.bind	= sun4i_tv_bind,
 	.unbind	= sun4i_tv_unbind,
 };

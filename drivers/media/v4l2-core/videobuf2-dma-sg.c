@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/refcount.h>
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -46,7 +47,7 @@ struct vb2_dma_sg_buf {
 	struct sg_table			*dma_sgt;
 	size_t				size;
 	unsigned int			num_pages;
-	atomic_t			refcount;
+	refcount_t			refcount;
 	struct vb2_vmarea_handler	handler;
 
 	struct dma_buf_attachment	*db_attach;
@@ -104,11 +105,12 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	int ret;
 	int num_pages;
 
-	if (WARN_ON(dev == NULL))
-		return NULL;
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
+
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->vaddr = NULL;
 	buf->dma_dir = dma_dir;
@@ -118,8 +120,8 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	buf->num_pages = size >> PAGE_SHIFT;
 	buf->dma_sgt = &buf->sg_table;
 
-	buf->pages = kzalloc(buf->num_pages * sizeof(struct page *),
-			     GFP_KERNEL);
+	buf->pages = kvmalloc_array(buf->num_pages, sizeof(struct page *),
+				    GFP_KERNEL | __GFP_ZERO);
 	if (!buf->pages)
 		goto fail_pages_array_alloc;
 
@@ -149,7 +151,7 @@ static void *vb2_dma_sg_alloc(struct device *dev, unsigned long dma_attrs,
 	buf->handler.put = vb2_dma_sg_put;
 	buf->handler.arg = buf;
 
-	atomic_inc(&buf->refcount);
+	refcount_set(&buf->refcount, 1);
 
 	dprintk(1, "%s: Allocated buffer of %d pages\n",
 		__func__, buf->num_pages);
@@ -163,10 +165,10 @@ fail_table_alloc:
 	while (num_pages--)
 		__free_page(buf->pages[num_pages]);
 fail_pages_alloc:
-	kfree(buf->pages);
+	kvfree(buf->pages);
 fail_pages_array_alloc:
 	kfree(buf);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void vb2_dma_sg_put(void *buf_priv)
@@ -175,7 +177,7 @@ static void vb2_dma_sg_put(void *buf_priv)
 	struct sg_table *sgt = &buf->sg_table;
 	int i = buf->num_pages;
 
-	if (atomic_dec_and_test(&buf->refcount)) {
+	if (refcount_dec_and_test(&buf->refcount)) {
 		dprintk(1, "%s: Freeing buffer of %d pages\n", __func__,
 			buf->num_pages);
 		dma_unmap_sg_attrs(buf->dev, sgt->sgl, sgt->orig_nents,
@@ -185,7 +187,7 @@ static void vb2_dma_sg_put(void *buf_priv)
 		sg_free_table(buf->dma_sgt);
 		while (--i >= 0)
 			__free_page(buf->pages[i]);
-		kfree(buf->pages);
+		kvfree(buf->pages);
 		put_device(buf->dev);
 		kfree(buf);
 	}
@@ -224,9 +226,12 @@ static void *vb2_dma_sg_get_userptr(struct device *dev, unsigned long vaddr,
 	struct sg_table *sgt;
 	struct frame_vector *vec;
 
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
+
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->vaddr = NULL;
 	buf->dev = dev;
@@ -266,7 +271,7 @@ userptr_fail_sgtable:
 	vb2_destroy_framevec(vec);
 userptr_fail_pfnvec:
 	kfree(buf);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 /*
@@ -316,7 +321,7 @@ static unsigned int vb2_dma_sg_num_users(void *buf_priv)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
 
-	return atomic_read(&buf->refcount);
+	return refcount_read(&buf->refcount);
 }
 
 static int vb2_dma_sg_mmap(void *buf_priv, struct vm_area_struct *vma)
@@ -500,8 +505,8 @@ static struct dma_buf_ops vb2_dma_sg_dmabuf_ops = {
 	.detach = vb2_dma_sg_dmabuf_ops_detach,
 	.map_dma_buf = vb2_dma_sg_dmabuf_ops_map,
 	.unmap_dma_buf = vb2_dma_sg_dmabuf_ops_unmap,
-	.kmap = vb2_dma_sg_dmabuf_ops_kmap,
-	.kmap_atomic = vb2_dma_sg_dmabuf_ops_kmap,
+	.map = vb2_dma_sg_dmabuf_ops_kmap,
+	.map_atomic = vb2_dma_sg_dmabuf_ops_kmap,
 	.vmap = vb2_dma_sg_dmabuf_ops_vmap,
 	.mmap = vb2_dma_sg_dmabuf_ops_mmap,
 	.release = vb2_dma_sg_dmabuf_ops_release,
@@ -526,7 +531,7 @@ static struct dma_buf *vb2_dma_sg_get_dmabuf(void *buf_priv, unsigned long flags
 		return NULL;
 
 	/* dmabuf keeps reference to vb2 buffer */
-	atomic_inc(&buf->refcount);
+	refcount_inc(&buf->refcount);
 
 	return dbuf;
 }
@@ -605,6 +610,9 @@ static void *vb2_dma_sg_attach_dmabuf(struct device *dev, struct dma_buf *dbuf,
 {
 	struct vb2_dma_sg_buf *buf;
 	struct dma_buf_attachment *dba;
+
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
 
 	if (dbuf->size < size)
 		return ERR_PTR(-EFAULT);

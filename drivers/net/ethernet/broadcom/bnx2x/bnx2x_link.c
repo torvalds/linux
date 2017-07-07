@@ -34,12 +34,6 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 					     u8 dev_addr, u16 addr, u8 byte_cnt,
 					     u8 *o_buf, u8);
 /********************************************************/
-#define ETH_HLEN			14
-/* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
-#define ETH_OVREHEAD			(ETH_HLEN + 8 + 8)
-#define ETH_MIN_PACKET_SIZE		60
-#define ETH_MAX_PACKET_SIZE		1500
-#define ETH_MAX_JUMBO_PACKET_SIZE	9600
 #define MDIO_ACCESS_TIMEOUT		1000
 #define WC_LANE_MAX			4
 #define I2C_SWITCH_WIDTH		2
@@ -1917,7 +1911,7 @@ static int bnx2x_emac_enable(struct link_params *params,
 	/* Enable emac for jumbo packets */
 	EMAC_WR(bp, EMAC_REG_EMAC_RX_MTU_SIZE,
 		(EMAC_RX_MTU_SIZE_JUMBO_ENA |
-		 (ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD)));
+		 (ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD)));
 
 	/* Strip CRC */
 	REG_WR(bp, NIG_REG_NIG_INGRESS_EMAC0_NO_CRC + port*4, 0x1);
@@ -2314,19 +2308,19 @@ static int bnx2x_bmac1_enable(struct link_params *params,
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_BMAC_CONTROL, wb_data, 2);
 
 	/* Set rx mtu */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_RX_MAX_SIZE, wb_data, 2);
 
 	bnx2x_update_pfc_bmac1(params, vars);
 
 	/* Set tx mtu */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_TX_MAX_SIZE, wb_data, 2);
 
 	/* Set cnt max size */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_CNT_MAX_SIZE, wb_data, 2);
 
@@ -2384,18 +2378,18 @@ static int bnx2x_bmac2_enable(struct link_params *params,
 	udelay(30);
 
 	/* Set RX MTU */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_MAX_SIZE, wb_data, 2);
 	udelay(30);
 
 	/* Set TX MTU */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_MAX_SIZE, wb_data, 2);
 	udelay(30);
 	/* Set cnt max size */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD - 2;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD - 2;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_CNT_MAX_SIZE, wb_data, 2);
 	udelay(30);
@@ -2516,7 +2510,7 @@ static int bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
 
 	} else {
 		u32 thresh = (ETH_MAX_JUMBO_PACKET_SIZE +
-			      ETH_OVREHEAD)/16;
+			      ETH_OVERHEAD)/16;
 		REG_WR(bp, PBF_REG_P0_PAUSE_ENABLE + port*4, 0);
 		/* Update threshold */
 		REG_WR(bp, PBF_REG_P0_ARB_THRSH + port*4, thresh);
@@ -6167,103 +6161,40 @@ static void bnx2x_link_int_ack(struct link_params *params,
 	}
 }
 
+static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
+{
+	str[0] = '\0';
+	(*len)--;
+	return 0;
+}
+
 static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
 {
-	u8 *str_ptr = str;
-	u32 mask = 0xf0000000;
-	u8 shift = 8*4;
-	u8 digit;
-	u8 remove_leading_zeros = 1;
+	u16 ret;
+
 	if (*len < 10) {
 		/* Need more than 10chars for this format */
-		*str_ptr = '\0';
-		(*len)--;
+		bnx2x_null_format_ver(num, str, len);
 		return -EINVAL;
 	}
-	while (shift > 0) {
 
-		shift -= 4;
-		digit = ((num & mask) >> shift);
-		if (digit == 0 && remove_leading_zeros) {
-			*str_ptr = '0';
-		} else {
-			if (digit < 0xa)
-				*str_ptr = digit + '0';
-			else
-				*str_ptr = digit - 0xa + 'a';
-
-			remove_leading_zeros = 0;
-			str_ptr++;
-			(*len)--;
-		}
-		mask = mask >> 4;
-		if (shift == 4*4) {
-			if (remove_leading_zeros) {
-				str_ptr++;
-				(*len)--;
-			}
-			*str_ptr = '.';
-			str_ptr++;
-			(*len)--;
-			remove_leading_zeros = 1;
-		}
-	}
-	if (remove_leading_zeros)
-		(*len)--;
+	ret = scnprintf(str, *len, "%hx.%hx", num >> 16, num);
+	*len -= ret;
 	return 0;
 }
 
 static int bnx2x_3_seq_format_ver(u32 num, u8 *str, u16 *len)
 {
-	u8 *str_ptr = str;
-	u32 mask = 0x00f00000;
-	u8 shift = 8*3;
-	u8 digit;
-	u8 remove_leading_zeros = 1;
+	u16 ret;
 
 	if (*len < 10) {
 		/* Need more than 10chars for this format */
-		*str_ptr = '\0';
-		(*len)--;
+		bnx2x_null_format_ver(num, str, len);
 		return -EINVAL;
 	}
 
-	while (shift > 0) {
-		shift -= 4;
-		digit = ((num & mask) >> shift);
-		if (digit == 0 && remove_leading_zeros) {
-			*str_ptr = '0';
-		} else {
-			if (digit < 0xa)
-				*str_ptr = digit + '0';
-			else
-				*str_ptr = digit - 0xa + 'a';
-
-			remove_leading_zeros = 0;
-			str_ptr++;
-			(*len)--;
-		}
-		mask = mask >> 4;
-		if ((shift == 4*4) || (shift == 4*2)) {
-			if (remove_leading_zeros) {
-				str_ptr++;
-				(*len)--;
-			}
-			*str_ptr = '.';
-			str_ptr++;
-			(*len)--;
-			remove_leading_zeros = 1;
-		}
-	}
-	if (remove_leading_zeros)
-		(*len)--;
-	return 0;
-}
-
-static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
-{
-	str[0] = '\0';
-	(*len)--;
+	ret = scnprintf(str, *len, "%hhx.%hhx.%hhx", num >> 16, num >> 8, num);
+	*len -= ret;
 	return 0;
 }
 
@@ -6963,7 +6894,7 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 			 * hence its link is expected to be down
 			 * - SECOND_PHY means that first phy should not be able
 			 * to link up by itself (using configuration)
-			 * - DEFAULT should be overriden during initialiazation
+			 * - DEFAULT should be overridden during initialization
 			 */
 				DP(NETIF_MSG_LINK, "Invalid link indication"
 					   "mpc=0x%x. DISABLING LINK !!!\n",
@@ -10687,22 +10618,19 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 
 static int bnx2x_8485x_format_ver(u32 raw_ver, u8 *str, u16 *len)
 {
-	int status = 0;
 	u32 num;
 
 	num = ((raw_ver & 0xF80) >> 7) << 16 | ((raw_ver & 0x7F) << 8) |
 	      ((raw_ver & 0xF000) >> 12);
-	status = bnx2x_3_seq_format_ver(num, str, len);
-	return status;
+	return bnx2x_3_seq_format_ver(num, str, len);
 }
 
 static int bnx2x_848xx_format_ver(u32 raw_ver, u8 *str, u16 *len)
 {
-	int status = 0;
 	u32 spirom_ver;
+
 	spirom_ver = ((raw_ver & 0xF80) >> 7) << 16 | (raw_ver & 0x7F);
-	status = bnx2x_format_ver(spirom_ver, str, len);
-	return status;
+	return bnx2x_format_ver(spirom_ver, str, len);
 }
 
 static void bnx2x_8481_hw_reset(struct bnx2x_phy *phy,
@@ -12553,13 +12481,12 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 static int bnx2x_populate_phy(struct bnx2x *bp, u8 phy_index, u32 shmem_base,
 			      u32 shmem2_base, u8 port, struct bnx2x_phy *phy)
 {
-	int status = 0;
 	phy->type = PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN;
 	if (phy_index == INT_PHY)
 		return bnx2x_populate_int_phy(bp, shmem_base, port, phy);
-	status = bnx2x_populate_ext_phy(bp, phy_index, shmem_base, shmem2_base,
+
+	return bnx2x_populate_ext_phy(bp, phy_index, shmem_base, shmem2_base,
 					port, phy);
-	return status;
 }
 
 static void bnx2x_phy_def_cfg(struct link_params *params,

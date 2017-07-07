@@ -29,16 +29,6 @@ enum scsi_timeouts {
  */
 #define SCAN_WILD_CARD	~0
 
-#ifdef CONFIG_ACPI
-struct acpi_bus_type;
-
-extern int
-scsi_register_acpi_bus_type(struct acpi_bus_type *bus);
-
-extern void
-scsi_unregister_acpi_bus_type(struct acpi_bus_type *bus);
-#endif
-
 /** scsi_status_is_good - check the status return.
  *
  * @status: the status passed up from the driver (including host and

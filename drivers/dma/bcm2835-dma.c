@@ -251,8 +251,11 @@ static void bcm2835_dma_create_cb_set_length(
 	 */
 
 	/* have we filled in period_length yet? */
-	if (*total_len + control_block->length < period_len)
+	if (*total_len + control_block->length < period_len) {
+		/* update number of bytes in this period so far */
+		*total_len += control_block->length;
 		return;
+	}
 
 	/* calculate the length that remains to reach period_length */
 	control_block->length = period_len - *total_len;

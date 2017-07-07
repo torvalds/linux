@@ -2,12 +2,12 @@
 
 generic-y += bitsperlong.h
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += current.h
 generic-y += early_ioremap.h
 generic-y += emergency-restart.h
 generic-y += errno.h
 generic-y += exec.h
+generic-y += extable.h
 generic-y += ioctl.h
 generic-y += ipcbuf.h
 generic-y += irq_regs.h
@@ -28,7 +28,6 @@ generic-y += segment.h
 generic-y += sembuf.h
 generic-y += serial.h
 generic-y += shmbuf.h
-generic-y += siginfo.h
 generic-y += simd.h
 generic-y += sizes.h
 generic-y += socket.h
@@ -38,3 +37,6 @@ generic-y += termios.h
 generic-y += timex.h
 generic-y += trace_clock.h
 generic-y += unaligned.h
+
+generated-y += mach-types.h
+generated-y += unistd-nr.h

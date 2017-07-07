@@ -21,7 +21,7 @@ static void TsInactTimeout(unsigned long data)
  *   input:  unsigned long	 data		//acturally we send TX_TS_RECORD or RX_TS_RECORD to these timer
  *  return:  NULL
  *  notice:
-********************************************************************************************************************/
+ ********************************************************************************************************************/
 static void RxPktPendingTimeout(unsigned long data)
 {
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
@@ -31,59 +31,51 @@ static void RxPktPendingTimeout(unsigned long data)
 
 	//u32 flags = 0;
 	unsigned long flags = 0;
-	struct ieee80211_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
 	u8 index = 0;
 	bool bPktInBuf = false;
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"==================>%s()\n",__func__);
-	if(pRxTs->RxTimeoutIndicateSeq != 0xffff)
-	{
+	if(pRxTs->RxTimeoutIndicateSeq != 0xffff) {
 		// Indicate the pending packets sequentially according to SeqNum until meet the gap.
-		while(!list_empty(&pRxTs->RxPendingPktList))
-		{
+		while(!list_empty(&pRxTs->RxPendingPktList)) {
 			pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTs->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
 			if(index == 0)
 				pRxTs->RxIndicateSeq = pReorderEntry->SeqNum;
 
 			if( SN_LESS(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq) ||
-				SN_EQUAL(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq)	)
-			{
+				SN_EQUAL(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq)	) {
 				list_del_init(&pReorderEntry->List);
 
 				if(SN_EQUAL(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq))
 					pRxTs->RxIndicateSeq = (pRxTs->RxIndicateSeq + 1) % 4096;
 
 				IEEE80211_DEBUG(IEEE80211_DL_REORDER,"RxPktPendingTimeout(): IndicateSeq: %d\n", pReorderEntry->SeqNum);
-				stats_IndicateArray[index] = pReorderEntry->prxb;
+				ieee->stats_IndicateArray[index] = pReorderEntry->prxb;
 				index++;
 
 				list_add_tail(&pReorderEntry->List, &ieee->RxReorder_Unused_List);
-			}
-			else
-			{
+			} else {
 				bPktInBuf = true;
 				break;
 			}
 		}
 	}
 
-	if(index>0)
-	{
+	if(index>0) {
 		// Set RxTimeoutIndicateSeq to 0xffff to indicate no pending packets in buffer now.
 		pRxTs->RxTimeoutIndicateSeq = 0xffff;
 
 		// Indicate packets
-		if(index > REORDER_WIN_SIZE){
+		if(index > REORDER_WIN_SIZE) {
 			IEEE80211_DEBUG(IEEE80211_DL_ERR, "RxReorderIndicatePacket(): Rx Reorder buffer full!! \n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 			return;
 		}
-		ieee80211_indicate_packets(ieee, stats_IndicateArray, index);
+		ieee80211_indicate_packets(ieee, ieee->stats_IndicateArray, index);
 	}
 
-	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff))
-	{
+	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff)) {
 		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
 		mod_timer(&pRxTs->RxPktPendingTimer,
 			  jiffies + msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime));
@@ -96,7 +88,7 @@ static void RxPktPendingTimeout(unsigned long data)
  *   input:  unsigned long	 data		//acturally we send TX_TS_RECORD or RX_TS_RECORD to these timer
  *  return:  NULL
  *  notice:
-********************************************************************************************************************/
+ ********************************************************************************************************************/
 static void TsAddBaProcess(unsigned long data)
 {
 	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
@@ -148,8 +140,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 	INIT_LIST_HEAD(&ieee->Tx_TS_Pending_List);
 	INIT_LIST_HEAD(&ieee->Tx_TS_Unused_List);
 
-	for(count = 0; count < TOTAL_TS_NUM; count++)
-	{
+	for(count = 0; count < TOTAL_TS_NUM; count++) {
 		//
 		pTxTS->num = count;
 		// The timers for the operation of Traffic Stream and Block Ack.
@@ -173,8 +164,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 	INIT_LIST_HEAD(&ieee->Rx_TS_Admit_List);
 	INIT_LIST_HEAD(&ieee->Rx_TS_Pending_List);
 	INIT_LIST_HEAD(&ieee->Rx_TS_Unused_List);
-	for(count = 0; count < TOTAL_TS_NUM; count++)
-	{
+	for(count = 0; count < TOTAL_TS_NUM; count++) {
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
 		setup_timer(&pRxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
@@ -192,15 +182,13 @@ void TSInitialize(struct ieee80211_device *ieee)
 	// Initialize unused Rx Reorder List.
 	INIT_LIST_HEAD(&ieee->RxReorder_Unused_List);
 //#ifdef TO_DO_LIST
-	for(count = 0; count < REORDER_ENTRY_NUM; count++)
-	{
+	for(count = 0; count < REORDER_ENTRY_NUM; count++) {
 		list_add_tail( &pRxReorderEntry->List,&ieee->RxReorder_Unused_List);
 		if(count == (REORDER_ENTRY_NUM-1))
 			break;
 		pRxReorderEntry = &ieee->RxReorderEntry[count+1];
 	}
 //#endif
-
 }
 
 static void AdmitTS(struct ieee80211_device *ieee,
@@ -224,36 +212,25 @@ static PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee,
 	bool				search_dir[4] = {0};
 	struct list_head		*psearch_list; //FIXME
 	PTS_COMMON_INFO	pRet = NULL;
-	if(ieee->iw_mode == IW_MODE_MASTER) //ap mode
-	{
-		if(TxRxSelect == TX_DIR)
-		{
+	if(ieee->iw_mode == IW_MODE_MASTER) { //ap mode
+		if(TxRxSelect == TX_DIR) {
 			search_dir[DIR_DOWN] = true;
 			search_dir[DIR_BI_DIR]= true;
-		}
-		else
-		{
+		} else {
 			search_dir[DIR_UP]	= true;
 			search_dir[DIR_BI_DIR]= true;
 		}
-	}
-	else if(ieee->iw_mode == IW_MODE_ADHOC)
-	{
+	} else if(ieee->iw_mode == IW_MODE_ADHOC) {
 		if(TxRxSelect == TX_DIR)
 			search_dir[DIR_UP]	= true;
 		else
 			search_dir[DIR_DOWN] = true;
-	}
-	else
-	{
-		if(TxRxSelect == TX_DIR)
-		{
+	} else {
+		if(TxRxSelect == TX_DIR) {
 			search_dir[DIR_UP]	= true;
 			search_dir[DIR_BI_DIR]= true;
 			search_dir[DIR_DIRECT]= true;
-		}
-		else
-		{
+		} else {
 			search_dir[DIR_DOWN] = true;
 			search_dir[DIR_BI_DIR]= true;
 			search_dir[DIR_DIRECT]= true;
@@ -266,28 +243,24 @@ static PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee,
 		psearch_list = &ieee->Rx_TS_Admit_List;
 
 	//for(dir = DIR_UP; dir <= DIR_BI_DIR; dir++)
-	for(dir = 0; dir <= DIR_BI_DIR; dir++)
-	{
+	for(dir = 0; dir <= DIR_BI_DIR; dir++) {
 		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, List){
 	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.f.TSInfo.field.ucTSID, pRet->TSpec.f.TSInfo.field.ucDirection);
 			if (memcmp(pRet->Addr, Addr, 6) == 0)
 				if (pRet->TSpec.f.TSInfo.field.ucTSID == TID)
-					if(pRet->TSpec.f.TSInfo.field.ucDirection == dir)
-					{
+					if(pRet->TSpec.f.TSInfo.field.ucDirection == dir) {
 	//					printk("Bingo! got it\n");
 						break;
 					}
-
 		}
 		if(&pRet->List  != psearch_list)
 			break;
 	}
 
-	if(&pRet->List  != psearch_list){
+	if(&pRet->List  != psearch_list)
 		return pRet ;
-	}
 	else
 		return NULL;
 }
@@ -328,25 +301,21 @@ bool GetTs(
 	// We do not build any TS for Broadcast or Multicast stream.
 	// So reject these kinds of search here.
 	//
-	if (is_multicast_ether_addr(Addr))
-	{
+	if (is_multicast_ether_addr(Addr)) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "get TS for Broadcast or Multicast\n");
 		return false;
 	}
 
-	if (ieee->current_network.qos_data.supported == 0)
+	if (ieee->current_network.qos_data.supported == 0) {
 		UP = 0;
-	else
-	{
+	} else {
 		// In WMM case: we use 4 TID only
-		if (!IsACValid(TID))
-		{
+		if (!IsACValid(TID)) {
 			IEEE80211_DEBUG(IEEE80211_DL_ERR, " in %s(), TID(%d) is not valid\n", __func__, TID);
 			return false;
 		}
 
-		switch (TID)
-		{
+		switch (TID) {
 		case 0:
 		case 3:
 			UP = 0;
@@ -374,18 +343,13 @@ bool GetTs(
 			Addr,
 			UP,
 			TxRxSelect);
-	if(*ppTS != NULL)
-	{
+	if(*ppTS != NULL) {
 		return true;
-	}
-	else
-	{
+	} else {
 		if (!bAddNewTs) {
 			IEEE80211_DEBUG(IEEE80211_DL_TS, "add new TS failed(tid:%d)\n", UP);
 			return false;
-		}
-		else
-		{
+		} else {
 			//
 			// Create a new Traffic stream for current Tx/Rx
 			// This is for EDCA and WMM to add a new TS.
@@ -407,16 +371,13 @@ bool GetTs(
 								((TxRxSelect==TX_DIR)?DIR_DOWN:DIR_UP):
 								((TxRxSelect==TX_DIR)?DIR_UP:DIR_DOWN);
 			IEEE80211_DEBUG(IEEE80211_DL_TS, "to add Ts\n");
-			if(!list_empty(pUnusedList))
-			{
+			if(!list_empty(pUnusedList)) {
 				(*ppTS) = list_entry(pUnusedList->next, TS_COMMON_INFO, List);
 				list_del_init(&(*ppTS)->List);
-				if(TxRxSelect==TX_DIR)
-				{
+				if(TxRxSelect==TX_DIR) {
 					PTX_TS_RECORD tmp = container_of(*ppTS, TX_TS_RECORD, TsCommonInfo);
 					ResetTxTsEntry(tmp);
-				}
-				else{
+				} else {
 					PRX_TS_RECORD tmp = container_of(*ppTS, RX_TS_RECORD, TsCommonInfo);
 					ResetRxTsEntry(tmp);
 				}
@@ -439,9 +400,7 @@ bool GetTs(
 				// if there is DirectLink, we need to do additional operation here!!
 
 				return true;
-			}
-			else
-			{
+			} else {
 				IEEE80211_DEBUG(IEEE80211_DL_ERR, "in function %s() There is not enough TS record to be used!!", __func__);
 				return false;
 			}
@@ -458,16 +417,14 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
 	del_timer_sync(&pTs->InactTimer);
 	TsInitDelBA(ieee, pTs, TxRxSelect);
 
-	if(TxRxSelect == RX_DIR)
-	{
+	if(TxRxSelect == RX_DIR) {
 //#ifdef TO_DO_LIST
 		PRX_REORDER_ENTRY	pRxReorderEntry;
 		PRX_TS_RECORD		pRxTS = (PRX_TS_RECORD)pTs;
 		if(timer_pending(&pRxTS->RxPktPendingTimer))
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
 
-		while(!list_empty(&pRxTS->RxPendingPktList))
-		{
+		while(!list_empty(&pRxTS->RxPendingPktList)) {
 			spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 			//pRxReorderEntry = list_entry(&pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
 			pRxReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
@@ -475,14 +432,13 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
 			{
 				int i = 0;
 				struct ieee80211_rxb *prxb = pRxReorderEntry->prxb;
-				if (unlikely(!prxb))
-				{
+				if (unlikely(!prxb)) {
 					spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 					return;
 				}
-				for(i =0; i < prxb->nr_subframes; i++) {
+				for(i =0; i < prxb->nr_subframes; i++)
 					dev_kfree_skb(prxb->subframes[i]);
-				}
+
 				kfree(prxb);
 				prxb = NULL;
 			}
@@ -491,9 +447,7 @@ static void RemoveTsEntry(struct ieee80211_device *ieee, PTS_COMMON_INFO pTs,
 		}
 
 //#endif
-	}
-	else
-	{
+	} else {
 		PTX_TS_RECORD pTxTS = (PTX_TS_RECORD)pTs;
 		del_timer_sync(&pTxTS->TsAddBaTimer);
 	}
@@ -504,20 +458,16 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 	PTS_COMMON_INFO	pTS, pTmpTS;
 
 	printk("===========>RemovePeerTS,%pM\n", Addr);
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
-	{
-		if (memcmp(pTS->Addr, Addr, 6) == 0)
-		{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List) {
+		if (memcmp(pTS->Addr, Addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, TX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Tx_TS_Unused_List);
 		}
 	}
 
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, List)
-	{
-		if (memcmp(pTS->Addr, Addr, 6) == 0)
-		{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, List) {
+		if (memcmp(pTS->Addr, Addr, 6) == 0) {
 			printk("====>remove Tx_TS_admin_list\n");
 			RemoveTsEntry(ieee, pTS, TX_DIR);
 			list_del_init(&pTS->List);
@@ -525,20 +475,16 @@ void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 		}
 	}
 
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Pending_List, List)
-	{
-		if (memcmp(pTS->Addr, Addr, 6) == 0)
-		{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Pending_List, List) {
+		if (memcmp(pTS->Addr, Addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, RX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 		}
 	}
 
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Admit_List, List)
-	{
-		if (memcmp(pTS->Addr, Addr, 6) == 0)
-		{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Admit_List, List) {
+		if (memcmp(pTS->Addr, Addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, RX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
@@ -550,29 +496,25 @@ void RemoveAllTS(struct ieee80211_device *ieee)
 {
 	PTS_COMMON_INFO pTS, pTmpTS;
 
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
-	{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List) {
 		RemoveTsEntry(ieee, pTS, TX_DIR);
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Tx_TS_Unused_List);
 	}
 
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, List)
-	{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, List) {
 		RemoveTsEntry(ieee, pTS, TX_DIR);
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Tx_TS_Unused_List);
 	}
 
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Pending_List, List)
-	{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Pending_List, List) {
 		RemoveTsEntry(ieee, pTS, RX_DIR);
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 	}
 
-	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Admit_List, List)
-	{
+	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Admit_List, List) {
 		RemoveTsEntry(ieee, pTS, RX_DIR);
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
@@ -581,21 +523,17 @@ void RemoveAllTS(struct ieee80211_device *ieee)
 
 void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTS)
 {
-	if(!pTxTS->bAddBaReqInProgress)
-	{
+	if(!pTxTS->bAddBaReqInProgress) {
 		pTxTS->bAddBaReqInProgress = true;
-		if(pTxTS->bAddBaReqDelayed)
-		{
+		if(pTxTS->bAddBaReqDelayed)	{
 			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer,
 				  jiffies + msecs_to_jiffies(TS_ADDBA_DELAY));
-		}
-		else
-		{
+		} else {
 			IEEE80211_DEBUG(IEEE80211_DL_BA,"TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies+10); //set 10 ticks
 		}
-	}
-	else
+	} else {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __func__);
+	}
 }

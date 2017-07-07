@@ -419,6 +419,7 @@ static struct dmi_system_id pch_uart_dmi_table[] = {
 		},
 		(void *)MINNOW_UARTCLK,
 	},
+	{ }
 };
 
 /* Return UART clock, checking for board specific clocks. */
@@ -877,8 +878,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 	sg_dma_len(sg) = priv->trigger_level;
 
 	sg_set_page(&priv->sg_rx, virt_to_page(priv->rx_buf_virt),
-		     sg_dma_len(sg), (unsigned long)priv->rx_buf_virt &
-		     ~PAGE_MASK);
+		     sg_dma_len(sg), offset_in_page(priv->rx_buf_virt));
 
 	sg_dma_address(sg) = priv->rx_buf_dma;
 

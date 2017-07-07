@@ -8,7 +8,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/mfd/abx500.h>
 
 static LIST_HEAD(abx500_list);
@@ -150,7 +151,3 @@ int abx500_startup_irq_enabled(struct device *dev, unsigned int irq)
 		return -ENOTSUPP;
 }
 EXPORT_SYMBOL(abx500_startup_irq_enabled);
-
-MODULE_AUTHOR("Mattias Wallin <mattias.wallin@stericsson.com>");
-MODULE_DESCRIPTION("ABX500 core driver");
-MODULE_LICENSE("GPL");

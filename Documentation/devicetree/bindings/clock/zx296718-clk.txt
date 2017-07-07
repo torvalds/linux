@@ -13,6 +13,9 @@ Required properties:
 	"zte,zx296718-lsp1crm":
 		zx296718 device level clock selection and gating
 
+	"zte,zx296718-audiocrm":
+		zx296718 audio clock selection, divider and gating
+
 - reg: Address and length of the register set
 
 The clock consumer should specify the desired clock by having the clock

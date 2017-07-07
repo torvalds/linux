@@ -15,10 +15,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * --
  *
  * Common functions for media-related drivers to register and unregister media
@@ -75,8 +71,9 @@ struct media_file_operations {
  * @cdev:	struct cdev pointer character device
  * @parent:	parent device
  * @minor:	device node minor number
- * @flags:	flags, combination of the MEDIA_FLAG_* constants
- * @release:	release callback called at the end of media_devnode_release()
+ * @flags:	flags, combination of the ``MEDIA_FLAG_*`` constants
+ * @release:	release callback called at the end of ``media_devnode_release()``
+ *		routine at media-device.c.
  *
  * This structure represents a media-related device node.
  *

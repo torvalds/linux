@@ -12,6 +12,7 @@
  */
 #include <asm/asm.h>
 #include <asm/cachectl.h>
+#include <asm/export.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
@@ -72,6 +73,7 @@ LEAF(resume)
  * Save a thread's fp context.
  */
 LEAF(_save_fp)
+EXPORT_SYMBOL(_save_fp)
 	fpu_save_single a0, t1			# clobbers t1
 	jr	ra
 	END(_save_fp)

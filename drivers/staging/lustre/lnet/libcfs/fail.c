@@ -46,7 +46,7 @@ EXPORT_SYMBOL(cfs_race_waitq);
 int cfs_race_state;
 EXPORT_SYMBOL(cfs_race_state);
 
-int __cfs_fail_check_set(__u32 id, __u32 value, int set)
+int __cfs_fail_check_set(u32 id, u32 value, int set)
 {
 	static atomic_t cfs_fail_count = ATOMIC_INIT(0);
 
@@ -113,6 +113,7 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 		break;
 	case CFS_FAIL_LOC_RESET:
 		cfs_fail_loc = value;
+		atomic_set(&cfs_fail_count, 0);
 		break;
 	default:
 		LASSERTF(0, "called with bad set %u\n", set);
@@ -123,7 +124,7 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 }
 EXPORT_SYMBOL(__cfs_fail_check_set);
 
-int __cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
+int __cfs_fail_timeout_set(u32 id, u32 value, int ms, int set)
 {
 	int ret;
 

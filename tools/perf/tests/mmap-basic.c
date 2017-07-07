@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 
@@ -7,6 +9,7 @@
 #include "cpumap.h"
 #include "tests.h"
 #include <linux/err.h>
+#include <linux/kernel.h>
 
 /*
  * This test will generate random numbers of calls to some getpid syscalls,

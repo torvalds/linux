@@ -28,8 +28,8 @@
  */
 extern const struct v4l2_dv_timings v4l2_dv_timings_presets[];
 
-/*
- * v4l2_check_dv_timings_fnc - timings check callback
+/**
+ * typedef v4l2_check_dv_timings_fnc - timings check callback
  *
  * @t: the v4l2_dv_timings struct.
  * @handle: a handle from the driver.
@@ -101,12 +101,22 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 			      void *fnc_handle);
 
 /**
+ * v4l2_find_dv_timings_cea861_vic() - find timings based on CEA-861 VIC
+ * @t:		the timings data.
+ * @vic:	CEA-861 VIC code
+ *
+ * On success it will fill in @t with the found timings and it returns true.
+ * On failure it will return false.
+ */
+bool v4l2_find_dv_timings_cea861_vic(struct v4l2_dv_timings *t, u8 vic);
+
+/**
  * v4l2_match_dv_timings() - do two timings match?
  *
  * @measured:	  the measured timings data.
  * @standard:	  the timings according to the standard.
  * @pclock_delta: maximum delta in Hz between standard->pixelclock and
- * 		the measured timings.
+ *		the measured timings.
  * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
  * match.
  *
@@ -184,6 +194,14 @@ bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
  * "Horizontal and Vertical Screen Size or Aspect Ratio"
  */
 struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait);
+
+/**
+ * v4l2_dv_timings_aspect_ratio - calculate the aspect ratio based on the
+ *	v4l2_dv_timings information.
+ *
+ * @t: the timings data.
+ */
+struct v4l2_fract v4l2_dv_timings_aspect_ratio(const struct v4l2_dv_timings *t);
 
 /*
  * reduce_fps - check if conditions for reduced fps are true.

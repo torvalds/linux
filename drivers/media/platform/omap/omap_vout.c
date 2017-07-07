@@ -214,7 +214,7 @@ static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
 	if (!vec)
 		return -ENOMEM;
 
-	ret = get_vaddr_frames(virtp, 1, true, false, vec);
+	ret = get_vaddr_frames(virtp, 1, FOLL_WRITE, vec);
 	if (ret != 1) {
 		frame_vector_destroy(vec);
 		return -EINVAL;
@@ -408,8 +408,8 @@ static int omapvid_setup_overlay(struct omap_vout_device *vout,
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"%s enable=%d addr=%pad width=%d\n height=%d color_mode=%d\n"
 		"rotation=%d mirror=%d posx=%d posy=%d out_width = %d \n"
-		"out_height=%d rotation_type=%d screen_width=%d\n",
-		__func__, ovl->is_enabled(ovl), &info.paddr, info.width, info.height,
+		"out_height=%d rotation_type=%d screen_width=%d\n", __func__,
+		ovl->is_enabled(ovl), &info.paddr, info.width, info.height,
 		info.color_mode, info.rotation, info.mirror, info.pos_x,
 		info.pos_y, info.out_width, info.out_height, info.rotation_type,
 		info.screen_width);
@@ -791,7 +791,8 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 		dma_addr = dma_map_single(vout->vid_dev->v4l2_dev.dev, (void *) addr,
 				size, DMA_TO_DEVICE);
 		if (dma_mapping_error(vout->vid_dev->v4l2_dev.dev, dma_addr))
-			v4l2_err(&vout->vid_dev->v4l2_dev, "dma_map_single failed\n");
+			v4l2_err(&vout->vid_dev->v4l2_dev,
+				 "dma_map_single failed\n");
 
 		vout->queued_buf_addr[vb->i] = (u8 *)vout->buf_phy_addr[vb->i];
 	}
@@ -1247,36 +1248,33 @@ static int vidioc_g_fmt_vid_overlay(struct file *file, void *fh,
 	return 0;
 }
 
-static int vidioc_cropcap(struct file *file, void *fh,
-		struct v4l2_cropcap *cropcap)
+static int vidioc_g_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	struct omap_vout_device *vout = fh;
 	struct v4l2_pix_format *pix = &vout->pix;
 
-	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
-	/* Width and height are always even */
-	cropcap->bounds.width = pix->width & ~1;
-	cropcap->bounds.height = pix->height & ~1;
-
-	omap_vout_default_crop(&vout->pix, &vout->fbuf, &cropcap->defrect);
-	cropcap->pixelaspect.numerator = 1;
-	cropcap->pixelaspect.denominator = 1;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		sel->r = vout->crop;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		omap_vout_default_crop(&vout->pix, &vout->fbuf, &sel->r);
+		break;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		/* Width and height are always even */
+		sel->r.width = pix->width & ~1;
+		sel->r.height = pix->height & ~1;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static int vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
-{
-	struct omap_vout_device *vout = fh;
-
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		return -EINVAL;
-	crop->c = vout->crop;
-	return 0;
-}
-
-static int vidioc_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
+static int vidioc_s_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	int ret = -EINVAL;
 	struct omap_vout_device *vout = fh;
@@ -1284,6 +1282,12 @@ static int vidioc_s_crop(struct file *file, void *fh, const struct v4l2_crop *cr
 	struct omap_overlay *ovl;
 	struct omap_video_timings *timing;
 	struct omap_dss_device *dssdev;
+
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	if (vout->streaming)
 		return -EBUSY;
@@ -1309,9 +1313,8 @@ static int vidioc_s_crop(struct file *file, void *fh, const struct v4l2_crop *cr
 		vout->fbuf.fmt.width = timing->x_res;
 	}
 
-	if (crop->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		ret = omap_vout_new_crop(&vout->pix, &vout->crop, &vout->win,
-				&vout->fbuf, &crop->c);
+	ret = omap_vout_new_crop(&vout->pix, &vout->crop, &vout->win,
+				 &vout->fbuf, &sel->r);
 
 s_crop_err:
 	mutex_unlock(&vout->lock);
@@ -1655,8 +1658,8 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 	/* Turn of the pipeline */
 	ret = omapvid_apply_changes(vout);
 	if (ret)
-		v4l2_err(&vout->vid_dev->v4l2_dev, "failed to change mode in"
-				" streamoff\n");
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			 "failed to change mode in streamoff\n");
 
 	INIT_LIST_HEAD(&vout->dma_queue);
 	ret = videobuf_streamoff(&vout->vbq);
@@ -1780,9 +1783,8 @@ static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 	.vidioc_try_fmt_vid_out_overlay		= vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_out_overlay		= vidioc_s_fmt_vid_overlay,
 	.vidioc_g_fmt_vid_out_overlay		= vidioc_g_fmt_vid_overlay,
-	.vidioc_cropcap				= vidioc_cropcap,
-	.vidioc_g_crop				= vidioc_g_crop,
-	.vidioc_s_crop				= vidioc_s_crop,
+	.vidioc_g_selection			= vidioc_g_selection,
+	.vidioc_s_selection			= vidioc_s_selection,
 	.vidioc_reqbufs				= vidioc_reqbufs,
 	.vidioc_querybuf			= vidioc_querybuf,
 	.vidioc_qbuf				= vidioc_qbuf,
@@ -1857,8 +1859,8 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vfd = vout->vfd = video_device_alloc();
 
 	if (!vfd) {
-		printk(KERN_ERR VOUT_NAME ": could not allocate"
-				" video device struct\n");
+		printk(KERN_ERR VOUT_NAME
+		       ": could not allocate video device struct\n");
 		v4l2_ctrl_handler_free(hdl);
 		return -ENOMEM;
 	}
@@ -1983,16 +1985,17 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		 */
 		vfd = vout->vfd;
 		if (video_register_device(vfd, VFL_TYPE_GRABBER, -1) < 0) {
-			dev_err(&pdev->dev, ": Could not register "
-					"Video for Linux device\n");
+			dev_err(&pdev->dev,
+				": Could not register Video for Linux device\n");
 			vfd->minor = -1;
 			ret = -ENODEV;
 			goto error2;
 		}
 		video_set_drvdata(vfd, vout);
 
-		dev_info(&pdev->dev, ": registered and initialized"
-				" video device %d\n", vfd->minor);
+		dev_info(&pdev->dev,
+			 ": registered and initialized video device %d\n",
+			 vfd->minor);
 		if (k == (pdev->num_resources - 1))
 			return 0;
 

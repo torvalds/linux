@@ -31,7 +31,20 @@
 #define VSS_MINOR  0
 #define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MINOR)
 
-#define VSS_USERSPACE_TIMEOUT (msecs_to_jiffies(10 * 1000))
+#define VSS_VER_COUNT 1
+static const int vss_versions[] = {
+	VSS_VERSION
+};
+
+#define FW_VER_COUNT 1
+static const int fw_versions[] = {
+	UTIL_FW_VERSION
+};
+
+/*
+ * Timeout values are based on expecations from host
+ */
+#define VSS_FREEZE_TIMEOUT (15 * 60)
 
 /*
  * Global state maintained for transaction that is being processed. For a class
@@ -120,7 +133,7 @@ static int vss_handle_handshake(struct hv_vss_msg *vss_msg)
 	default:
 		return -EINVAL;
 	}
-	pr_debug("VSS: userspace daemon ver. %d connected\n", dm_reg_value);
+	pr_info("VSS: userspace daemon ver. %d connected\n", dm_reg_value);
 	return 0;
 }
 
@@ -128,8 +141,10 @@ static int vss_on_msg(void *msg, int len)
 {
 	struct hv_vss_msg *vss_msg = (struct hv_vss_msg *)msg;
 
-	if (len != sizeof(*vss_msg))
+	if (len != sizeof(*vss_msg)) {
+		pr_debug("VSS: Message size does not match length\n");
 		return -EINVAL;
+	}
 
 	if (vss_msg->vss_hdr.operation == VSS_OP_REGISTER ||
 	    vss_msg->vss_hdr.operation == VSS_OP_REGISTER1) {
@@ -137,8 +152,11 @@ static int vss_on_msg(void *msg, int len)
 		 * Don't process registration messages if we're in the middle
 		 * of a transaction processing.
 		 */
-		if (vss_transaction.state > HVUTIL_READY)
+		if (vss_transaction.state > HVUTIL_READY) {
+			pr_debug("VSS: Got unexpected registration request\n");
 			return -EINVAL;
+		}
+
 		return vss_handle_handshake(vss_msg);
 	} else if (vss_transaction.state == HVUTIL_USERSPACE_REQ) {
 		vss_transaction.state = HVUTIL_USERSPACE_RECV;
@@ -155,7 +173,7 @@ static int vss_on_msg(void *msg, int len)
 		}
 	} else {
 		/* This is a spurious call! */
-		pr_warn("VSS: Transaction not active\n");
+		pr_debug("VSS: Transaction not active\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -168,8 +186,10 @@ static void vss_send_op(void)
 	struct hv_vss_msg *vss_msg;
 
 	/* The transaction state is wrong. */
-	if (vss_transaction.state != HVUTIL_HOSTMSG_RECEIVED)
+	if (vss_transaction.state != HVUTIL_HOSTMSG_RECEIVED) {
+		pr_debug("VSS: Unexpected attempt to send to daemon\n");
 		return;
+	}
 
 	vss_msg = kzalloc(sizeof(*vss_msg), GFP_KERNEL);
 	if (!vss_msg)
@@ -179,7 +199,8 @@ static void vss_send_op(void)
 
 	vss_transaction.state = HVUTIL_USERSPACE_REQ;
 
-	schedule_delayed_work(&vss_timeout_work, VSS_USERSPACE_TIMEOUT);
+	schedule_delayed_work(&vss_timeout_work, op == VSS_OP_FREEZE ?
+			VSS_FREEZE_TIMEOUT * HZ : HV_UTIL_TIMEOUT * HZ);
 
 	rc = hvutil_transport_send(hvt, vss_msg, sizeof(*vss_msg), NULL);
 	if (rc) {
@@ -191,8 +212,6 @@ static void vss_send_op(void)
 	}
 
 	kfree(vss_msg);
-
-	return;
 }
 
 static void vss_handle_request(struct work_struct *dummy)
@@ -210,9 +229,13 @@ static void vss_handle_request(struct work_struct *dummy)
 	case VSS_OP_HOT_BACKUP:
 		if (vss_transaction.state < HVUTIL_READY) {
 			/* Userspace is not registered yet */
+			pr_debug("VSS: Not ready for request.\n");
 			vss_respond_to_host(HV_E_FAIL);
 			return;
 		}
+
+		pr_debug("VSS: Received request for op code: %d\n",
+			vss_transaction.msg->vss_hdr.operation);
 		vss_transaction.state = HVUTIL_HOSTMSG_RECEIVED;
 		vss_send_op();
 		return;
@@ -278,10 +301,9 @@ void hv_vss_onchannelcallback(void *context)
 	u32 recvlen;
 	u64 requestid;
 	struct hv_vss_msg *vss_msg;
-
+	int vss_srv_version;
 
 	struct icmsg_hdr *icmsghdrp;
-	struct icmsg_negotiate *negop = NULL;
 
 	if (vss_transaction.state > HVUTIL_READY)
 		return;
@@ -294,9 +316,15 @@ void hv_vss_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, UTIL_FW_VERSION,
-				 VSS_VERSION);
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
+				 recv_buffer, fw_versions, FW_VER_COUNT,
+				 vss_versions, VSS_VER_COUNT,
+				 NULL, &vss_srv_version)) {
+
+				pr_info("VSS IC version %d.%d\n",
+					vss_srv_version >> 16,
+					vss_srv_version & 0xFFFF);
+			}
 		} else {
 			vss_msg = (struct hv_vss_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +
@@ -353,8 +381,10 @@ hv_vss_init(struct hv_util_service *srv)
 
 	hvt = hvutil_transport_init(vss_devname, CN_VSS_IDX, CN_VSS_VAL,
 				    vss_on_msg, vss_on_reset);
-	if (!hvt)
+	if (!hvt) {
+		pr_warn("VSS: Failed to initialize transport\n");
 		return -EFAULT;
+	}
 
 	return 0;
 }

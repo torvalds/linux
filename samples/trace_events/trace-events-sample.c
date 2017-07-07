@@ -33,7 +33,7 @@ static void simple_thread_func(int cnt)
 
 	/* Silly tracepoints */
 	trace_foo_bar("hello", cnt, array, random_strings[len],
-		      tsk_cpus_allowed(current));
+		      &current->cpus_allowed);
 
 	trace_foo_with_template_simple("HELLO", cnt);
 
@@ -79,7 +79,7 @@ static int simple_thread_fn(void *arg)
 
 static DEFINE_MUTEX(thread_mutex);
 
-void foo_bar_reg(void)
+int foo_bar_reg(void)
 {
 	pr_info("Starting thread for foo_bar_fn\n");
 	/*
@@ -90,6 +90,7 @@ void foo_bar_reg(void)
 	mutex_lock(&thread_mutex);
 	simple_tsk_fn = kthread_run(simple_thread_fn, NULL, "event-sample-fn");
 	mutex_unlock(&thread_mutex);
+	return 0;
 }
 
 void foo_bar_unreg(void)

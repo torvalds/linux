@@ -182,24 +182,8 @@ void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
 }
 EXPORT_SYMBOL_GPL(xen_destroy_contiguous_region);
 
-struct dma_map_ops *xen_dma_ops;
+const struct dma_map_ops *xen_dma_ops;
 EXPORT_SYMBOL(xen_dma_ops);
-
-static struct dma_map_ops xen_swiotlb_dma_ops = {
-	.mapping_error = xen_swiotlb_dma_mapping_error,
-	.alloc = xen_swiotlb_alloc_coherent,
-	.free = xen_swiotlb_free_coherent,
-	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,
-	.sync_single_for_device = xen_swiotlb_sync_single_for_device,
-	.sync_sg_for_cpu = xen_swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device = xen_swiotlb_sync_sg_for_device,
-	.map_sg = xen_swiotlb_map_sg_attrs,
-	.unmap_sg = xen_swiotlb_unmap_sg_attrs,
-	.map_page = xen_swiotlb_map_page,
-	.unmap_page = xen_swiotlb_unmap_page,
-	.dma_supported = xen_swiotlb_dma_supported,
-	.set_dma_mask = xen_swiotlb_set_dma_mask,
-};
 
 int __init xen_mm_init(void)
 {

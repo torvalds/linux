@@ -62,7 +62,7 @@ D_h	.req	x14
 	sub	count, count, tmp2
 	/*
 	* Copy the leading memory data from src to dst in an increasing
-	* address order.By this way,the risk of overwritting the source
+	* address order.By this way,the risk of overwriting the source
 	* memory data is eliminated when the distance between src and
 	* dst is less than 16. The memory accesses here are alignment.
 	*/

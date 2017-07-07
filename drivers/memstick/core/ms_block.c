@@ -1921,12 +1921,13 @@ static void msb_io_work(struct work_struct *work)
 		spin_lock_irqsave(&msb->q_lock, flags);
 
 		if (len)
-			if (!__blk_end_request(msb->req, 0, len))
+			if (!__blk_end_request(msb->req, BLK_STS_OK, len))
 				msb->req = NULL;
 
 		if (error && msb->req) {
+			blk_status_t ret = errno_to_blk_status(error);
 			dbg_verbose("IO: ending one sector of the request with error");
-			if (!__blk_end_request(msb->req, error, msb->page_size))
+			if (!__blk_end_request(msb->req, ret, msb->page_size))
 				msb->req = NULL;
 		}
 
@@ -2000,16 +2001,6 @@ static int msb_bd_getgeo(struct block_device *bdev,
 	return 0;
 }
 
-static int msb_prepare_req(struct request_queue *q, struct request *req)
-{
-	if (req->cmd_type != REQ_TYPE_FS) {
-		blk_dump_rq_flags(req, "MS unsupported request");
-		return BLKPREP_KILL;
-	}
-	req->cmd_flags |= REQ_DONTPREP;
-	return BLKPREP_OK;
-}
-
 static void msb_submit_req(struct request_queue *q)
 {
 	struct memstick_dev *card = q->queuedata;
@@ -2024,7 +2015,7 @@ static void msb_submit_req(struct request_queue *q)
 		WARN_ON(!msb->io_queue_stopped);
 
 		while ((req = blk_fetch_request(q)) != NULL)
-			__blk_end_request_all(req, -ENODEV);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		return;
 	}
 
@@ -2132,7 +2123,6 @@ static int msb_init_disk(struct memstick_dev *card)
 	}
 
 	msb->queue->queuedata = card;
-	blk_queue_prep_rq(msb->queue, msb_prepare_req);
 
 	blk_queue_bounce_limit(msb->queue, limit);
 	blk_queue_max_hw_sectors(msb->queue, MS_BLOCK_MAX_PAGES);

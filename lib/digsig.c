@@ -85,7 +85,7 @@ static int digsig_verify_rsa(struct key *key,
 	struct pubkey_hdr *pkh;
 
 	down_read(&key->sem);
-	ukp = user_key_payload(key);
+	ukp = user_key_payload_locked(key);
 
 	if (ukp->datalen < sizeof(*pkh))
 		goto err1;

@@ -15,7 +15,7 @@
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
-#include "reboot-mode.h"
+#include <linux/reboot-mode.h>
 
 struct syscon_reboot_mode {
 	struct regmap *map;
@@ -74,6 +74,7 @@ static const struct of_device_id syscon_reboot_mode_of_match[] = {
 	{ .compatible = "syscon-reboot-mode" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, syscon_reboot_mode_of_match);
 
 static struct platform_driver syscon_reboot_mode_driver = {
 	.probe = syscon_reboot_mode_probe,

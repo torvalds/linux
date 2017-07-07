@@ -45,7 +45,7 @@ Required Properties:
 Optional Properties:
 - reg-names: In addition to the required properties, the following are optional
   - "efuse-address"	- Contains efuse base address used to pick up ABB info.
-  - "ldo-address"	- Contains address of ABB LDO overide register address.
+  - "ldo-address"	- Contains address of ABB LDO override register.
 	"efuse-address" is required for this.
 - ti,ldovbb-vset-mask	- Required if ldo-address is set, mask for LDO override
 	register to provide override vset value.

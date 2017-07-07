@@ -14,12 +14,33 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pcieport_if.h>
+#include "../pci.h"
 
 struct dpc_dev {
 	struct pcie_device	*dev;
 	struct work_struct	work;
 	int			cap_pos;
+	bool			rp;
 };
+
+static int dpc_wait_rp_inactive(struct dpc_dev *dpc)
+{
+	unsigned long timeout = jiffies + HZ;
+	struct pci_dev *pdev = dpc->dev->port;
+	u16 status;
+
+	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_STATUS, &status);
+	while (status & PCI_EXP_DPC_RP_BUSY &&
+					!time_after(jiffies, timeout)) {
+		msleep(10);
+		pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_STATUS, &status);
+	}
+	if (status & PCI_EXP_DPC_RP_BUSY) {
+		dev_warn(&pdev->dev, "DPC root port still busy\n");
+		return -EBUSY;
+	}
+	return 0;
+}
 
 static void dpc_wait_link_inactive(struct pci_dev *pdev)
 {
@@ -33,7 +54,7 @@ static void dpc_wait_link_inactive(struct pci_dev *pdev)
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
 	}
 	if (lnk_status & PCI_EXP_LNKSTA_DLLLA)
-		dev_warn(&pdev->dev, "Link state not disabled for DPC event");
+		dev_warn(&pdev->dev, "Link state not disabled for DPC event\n");
 }
 
 static void interrupt_event_handler(struct work_struct *work)
@@ -46,12 +67,18 @@ static void interrupt_event_handler(struct work_struct *work)
 	list_for_each_entry_safe_reverse(dev, temp, &parent->devices,
 					 bus_list) {
 		pci_dev_get(dev);
+		pci_dev_set_disconnected(dev, NULL);
+		if (pci_has_subordinate(dev))
+			pci_walk_bus(dev->subordinate,
+				     pci_dev_set_disconnected, NULL);
 		pci_stop_and_remove_bus_device(dev);
 		pci_dev_put(dev);
 	}
 	pci_unlock_rescan_remove();
 
 	dpc_wait_link_inactive(pdev);
+	if (dpc->rp && dpc_wait_rp_inactive(dpc))
+		return;
 	pci_write_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_STATUS,
 		PCI_EXP_DPC_STATUS_TRIGGER | PCI_EXP_DPC_STATUS_INTERRUPT);
 }
@@ -73,11 +100,15 @@ static irqreturn_t dpc_irq(int irq, void *context)
 
 	if (status & PCI_EXP_DPC_STATUS_TRIGGER) {
 		u16 reason = (status >> 1) & 0x3;
+		u16 ext_reason = (status >> 5) & 0x3;
 
-		dev_warn(&dpc->dev->device, "DPC %s triggered, remove downstream devices\n",
+		dev_warn(&dpc->dev->device, "DPC %s detected, remove downstream devices\n",
 			 (reason == 0) ? "unmasked uncorrectable error" :
 			 (reason == 1) ? "ERR_NONFATAL" :
-			 (reason == 2) ? "ERR_FATAL" : "extended error");
+			 (reason == 2) ? "ERR_FATAL" :
+			 (ext_reason == 0) ? "RP PIO error" :
+			 (ext_reason == 1) ? "software trigger" :
+					     "reserved error");
 		schedule_work(&dpc->work);
 	}
 	return IRQ_HANDLED;
@@ -110,6 +141,8 @@ static int dpc_probe(struct pcie_device *dev)
 
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CAP, &cap);
 	pci_read_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, &ctl);
+
+	dpc->rp = (cap & PCI_EXP_DPC_CAP_RP_EXT);
 
 	ctl |= PCI_EXP_DPC_CTL_EN_NONFATAL | PCI_EXP_DPC_CTL_INT_EN;
 	pci_write_config_word(pdev, dpc->cap_pos + PCI_EXP_DPC_CTL, ctl);

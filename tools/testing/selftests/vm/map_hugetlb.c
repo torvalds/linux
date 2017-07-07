@@ -62,7 +62,7 @@ int main(void)
 	void *addr;
 	int ret;
 
-	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, 0, 0);
+	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, -1, 0);
 	if (addr == MAP_FAILED) {
 		perror("mmap");
 		exit(1);

@@ -60,7 +60,7 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sn/types.h>
 #include <asm/sn/ioc3.h>
 #include <asm/pci/bridge.h>
@@ -914,7 +914,7 @@ static void ioc3_alloc_rings(struct net_device *dev)
 
 			skb = ioc3_alloc_skb(RX_BUF_ALLOC_SIZE, GFP_ATOMIC);
 			if (!skb) {
-				show_free_areas(0);
+				show_free_areas(0, NULL);
 				continue;
 			}
 
@@ -1225,7 +1225,6 @@ static const struct net_device_ops ioc3_netdev_ops = {
 	.ndo_do_ioctl		= ioc3_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ioc3_set_mac_address,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1559,25 +1558,26 @@ static void ioc3_get_drvinfo (struct net_device *dev,
 	strlcpy(info->bus_info, pci_name(ip->pdev), sizeof(info->bus_info));
 }
 
-static int ioc3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ioc3_get_link_ksettings(struct net_device *dev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&ip->ioc3_lock);
-	rc = mii_ethtool_gset(&ip->mii, cmd);
+	mii_ethtool_get_link_ksettings(&ip->mii, cmd);
 	spin_unlock_irq(&ip->ioc3_lock);
 
-	return rc;
+	return 0;
 }
 
-static int ioc3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ioc3_set_link_ksettings(struct net_device *dev,
+				   const struct ethtool_link_ksettings *cmd)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 	int rc;
 
 	spin_lock_irq(&ip->ioc3_lock);
-	rc = mii_ethtool_sset(&ip->mii, cmd);
+	rc = mii_ethtool_set_link_ksettings(&ip->mii, cmd);
 	spin_unlock_irq(&ip->ioc3_lock);
 
 	return rc;
@@ -1609,10 +1609,10 @@ static u32 ioc3_get_link(struct net_device *dev)
 
 static const struct ethtool_ops ioc3_ethtool_ops = {
 	.get_drvinfo		= ioc3_get_drvinfo,
-	.get_settings		= ioc3_get_settings,
-	.set_settings		= ioc3_set_settings,
 	.nway_reset		= ioc3_nway_reset,
 	.get_link		= ioc3_get_link,
+	.get_link_ksettings	= ioc3_get_link_ksettings,
+	.set_link_ksettings	= ioc3_set_link_ksettings,
 };
 
 static int ioc3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

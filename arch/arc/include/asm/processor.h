@@ -60,14 +60,11 @@ struct task_struct;
 #ifndef CONFIG_EZNPS_MTM_EXT
 
 #define cpu_relax()		barrier()
-#define cpu_relax_lowlatency()	cpu_relax()
 
 #else
 
 #define cpu_relax()     \
 	__asm__ __volatile__ (".word %0" : : "i"(CTOP_INST_SCHD_RW) : "memory")
-
-#define cpu_relax_lowlatency()	barrier()
 
 #endif
 
@@ -88,8 +85,6 @@ struct task_struct;
 
 #define TSK_K_BLINK(tsk)	TSK_K_REG(tsk, 4)
 #define TSK_K_FP(tsk)		TSK_K_REG(tsk, 0)
-
-#define thread_saved_pc(tsk)	TSK_K_BLINK(tsk)
 
 extern void start_thread(struct pt_regs * regs, unsigned long pc,
 			 unsigned long usp);

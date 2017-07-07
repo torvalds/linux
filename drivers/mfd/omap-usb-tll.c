@@ -373,12 +373,13 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 			} else if (pdata->port_mode[i] ==
 					OMAP_EHCI_PORT_MODE_TLL) {
 				/*
-				 * Disable AutoIdle, BitStuffing
-				 * and use SDR Mode
+				 * Disable UTMI AutoIdle, BitStuffing
+				 * and use SDR Mode. Enable ULPI AutoIdle.
 				 */
 				reg &= ~(OMAP_TLL_CHANNEL_CONF_UTMIAUTOIDLE
-					| OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF
 					| OMAP_TLL_CHANNEL_CONF_ULPIDDRMODE);
+				reg |= OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF;
+				reg |= OMAP_TLL_CHANNEL_CONF_ULPI_ULPIAUTOIDLE;
 			} else if (pdata->port_mode[i] ==
 					OMAP_EHCI_PORT_MODE_HSIC) {
 				/*

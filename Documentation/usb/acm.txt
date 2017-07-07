@@ -64,7 +64,7 @@ minicom, ppp and mgetty with them.
 
 2. Verifying that it works
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-  The first step would be to check /proc/bus/usb/devices, it should look
+  The first step would be to check /sys/kernel/debug/usb/devices, it should look
 like this:
 
 T:  Bus=01 Lev=00 Prnt=00 Port=00 Cnt=00 Dev#=  1 Spd=12  MxCh= 2

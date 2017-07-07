@@ -192,10 +192,10 @@ void drm_panel_remove(struct drm_panel *panel);
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector);
 int drm_panel_detach(struct drm_panel *panel);
 
-#ifdef CONFIG_OF
-struct drm_panel *of_drm_find_panel(struct device_node *np);
+#if defined(CONFIG_OF) && defined(CONFIG_DRM_PANEL)
+struct drm_panel *of_drm_find_panel(const struct device_node *np);
 #else
-static inline struct drm_panel *of_drm_find_panel(struct device_node *np)
+static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
 	return NULL;
 }

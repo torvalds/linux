@@ -24,19 +24,21 @@
 
 #include "comedidev.h"
 
-struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *);
+struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev);
 
-int comedi_pcmcia_enable(struct comedi_device *,
-			 int (*conf_check)(struct pcmcia_device *, void *));
-void comedi_pcmcia_disable(struct comedi_device *);
+int comedi_pcmcia_enable(struct comedi_device *dev,
+			 int (*conf_check)(struct pcmcia_device *p_dev,
+					   void *priv_data));
+void comedi_pcmcia_disable(struct comedi_device *dev);
 
-int comedi_pcmcia_auto_config(struct pcmcia_device *, struct comedi_driver *);
-void comedi_pcmcia_auto_unconfig(struct pcmcia_device *);
+int comedi_pcmcia_auto_config(struct pcmcia_device *link,
+			      struct comedi_driver *driver);
+void comedi_pcmcia_auto_unconfig(struct pcmcia_device *link);
 
-int comedi_pcmcia_driver_register(struct comedi_driver *,
-				  struct pcmcia_driver *);
-void comedi_pcmcia_driver_unregister(struct comedi_driver *,
-				     struct pcmcia_driver *);
+int comedi_pcmcia_driver_register(struct comedi_driver *comedi_driver,
+				  struct pcmcia_driver *pcmcia_driver);
+void comedi_pcmcia_driver_unregister(struct comedi_driver *comedi_driver,
+				     struct pcmcia_driver *pcmcia_driver);
 
 /**
  * module_comedi_pcmcia_driver() - Helper macro for registering a comedi

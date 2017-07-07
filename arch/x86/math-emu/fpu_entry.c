@@ -27,7 +27,7 @@
 #include <linux/signal.h>
 #include <linux/regset.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/user.h>
 #include <asm/fpu/internal.h>

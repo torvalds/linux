@@ -61,53 +61,7 @@ enum {
 	BFA_TRC_HAL_IOCFC_CB	= 5,
 };
 
-/*
- * Macro to define a new BFA module
- */
-#define BFA_MODULE(__mod)						\
-	static void bfa_ ## __mod ## _meminfo(				\
-			struct bfa_iocfc_cfg_s *cfg,			\
-			struct bfa_meminfo_s *meminfo,			\
-			struct bfa_s *bfa);				\
-	static void bfa_ ## __mod ## _attach(struct bfa_s *bfa,		\
-			void *bfad, struct bfa_iocfc_cfg_s *cfg,	\
-			struct bfa_pcidev_s *pcidev);      \
-	static void bfa_ ## __mod ## _detach(struct bfa_s *bfa);      \
-	static void bfa_ ## __mod ## _start(struct bfa_s *bfa);      \
-	static void bfa_ ## __mod ## _stop(struct bfa_s *bfa);      \
-	static void bfa_ ## __mod ## _iocdisable(struct bfa_s *bfa);      \
-									\
-	extern struct bfa_module_s hal_mod_ ## __mod;			\
-	struct bfa_module_s hal_mod_ ## __mod = {			\
-		bfa_ ## __mod ## _meminfo,				\
-		bfa_ ## __mod ## _attach,				\
-		bfa_ ## __mod ## _detach,				\
-		bfa_ ## __mod ## _start,				\
-		bfa_ ## __mod ## _stop,					\
-		bfa_ ## __mod ## _iocdisable,				\
-	}
-
 #define BFA_CACHELINE_SZ	(256)
-
-/*
- * Structure used to interact between different BFA sub modules
- *
- * Each sub module needs to implement only the entry points relevant to it (and
- * can leave entry points as NULL)
- */
-struct bfa_module_s {
-	void (*meminfo) (struct bfa_iocfc_cfg_s *cfg,
-			 struct bfa_meminfo_s *meminfo,
-			 struct bfa_s *bfa);
-	void (*attach) (struct bfa_s *bfa, void *bfad,
-			struct bfa_iocfc_cfg_s *cfg,
-			struct bfa_pcidev_s *pcidev);
-	void (*detach) (struct bfa_s *bfa);
-	void (*start) (struct bfa_s *bfa);
-	void (*stop) (struct bfa_s *bfa);
-	void (*iocdisable) (struct bfa_s *bfa);
-};
-
 
 struct bfa_s {
 	void			*bfad;		/*  BFA driver instance    */
@@ -127,14 +81,51 @@ struct bfa_s {
 };
 
 extern bfa_boolean_t bfa_auto_recover;
-extern struct bfa_module_s hal_mod_fcdiag;
-extern struct bfa_module_s hal_mod_sgpg;
-extern struct bfa_module_s hal_mod_fcport;
-extern struct bfa_module_s hal_mod_fcxp;
-extern struct bfa_module_s hal_mod_lps;
-extern struct bfa_module_s hal_mod_uf;
-extern struct bfa_module_s hal_mod_rport;
-extern struct bfa_module_s hal_mod_fcp;
-extern struct bfa_module_s hal_mod_dconf;
+
+void bfa_dconf_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *);
+void bfa_dconf_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		  struct bfa_s *);
+void bfa_dconf_iocdisable(struct bfa_s *);
+void bfa_fcp_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *,
+		struct bfa_pcidev_s *);
+void bfa_fcp_iocdisable(struct bfa_s *bfa);
+void bfa_fcp_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		struct bfa_s *);
+void bfa_fcpim_iocdisable(struct bfa_fcp_mod_s *);
+void bfa_fcport_start(struct bfa_s *);
+void bfa_fcport_iocdisable(struct bfa_s *);
+void bfa_fcport_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		   struct bfa_s *);
+void bfa_fcport_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *,
+		struct bfa_pcidev_s *);
+void bfa_fcxp_iocdisable(struct bfa_s *);
+void bfa_fcxp_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		struct bfa_s *);
+void bfa_fcxp_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *,
+		struct bfa_pcidev_s *);
+void bfa_fcdiag_iocdisable(struct bfa_s *);
+void bfa_fcdiag_attach(struct bfa_s *bfa, void *, struct bfa_iocfc_cfg_s *,
+		struct bfa_pcidev_s *);
+void bfa_ioim_lm_init(struct bfa_s *);
+void bfa_lps_iocdisable(struct bfa_s *bfa);
+void bfa_lps_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		struct bfa_s *);
+void bfa_lps_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *,
+	struct bfa_pcidev_s *);
+void bfa_rport_iocdisable(struct bfa_s *bfa);
+void bfa_rport_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		struct bfa_s *);
+void bfa_rport_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *,
+		struct bfa_pcidev_s *);
+void bfa_sgpg_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		struct bfa_s *);
+void bfa_sgpg_attach(struct bfa_s *, void *bfad, struct bfa_iocfc_cfg_s *,
+		struct bfa_pcidev_s *);
+void bfa_uf_iocdisable(struct bfa_s *);
+void bfa_uf_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
+		struct bfa_s *);
+void bfa_uf_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *,
+		struct bfa_pcidev_s *);
+void bfa_uf_start(struct bfa_s *);
 
 #endif /* __BFA_MODULES_H__ */

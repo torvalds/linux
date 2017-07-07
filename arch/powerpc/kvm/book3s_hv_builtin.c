@@ -23,11 +23,32 @@
 #include <asm/kvm_book3s.h>
 #include <asm/archrandom.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/dbell.h>
 #include <asm/cputhreads.h>
 #include <asm/io.h>
+#include <asm/opal.h>
+#include <asm/smp.h>
 
 #define KVM_CMA_CHUNK_ORDER	18
+
+#include "book3s_xics.h"
+#include "book3s_xive.h"
+
+/*
+ * The XIVE module will populate these when it loads
+ */
+unsigned long (*__xive_vm_h_xirr)(struct kvm_vcpu *vcpu);
+unsigned long (*__xive_vm_h_ipoll)(struct kvm_vcpu *vcpu, unsigned long server);
+int (*__xive_vm_h_ipi)(struct kvm_vcpu *vcpu, unsigned long server,
+		       unsigned long mfrr);
+int (*__xive_vm_h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr);
+int (*__xive_vm_h_eoi)(struct kvm_vcpu *vcpu, unsigned long xirr);
+EXPORT_SYMBOL_GPL(__xive_vm_h_xirr);
+EXPORT_SYMBOL_GPL(__xive_vm_h_ipoll);
+EXPORT_SYMBOL_GPL(__xive_vm_h_ipi);
+EXPORT_SYMBOL_GPL(__xive_vm_h_cppr);
+EXPORT_SYMBOL_GPL(__xive_vm_h_eoi);
 
 /*
  * Hash page table alignment on newer cpus(CPU_FTR_ARCH_206)
@@ -50,19 +71,20 @@ static int __init early_parse_kvm_cma_resv(char *p)
 }
 early_param("kvm_cma_resv_ratio", early_parse_kvm_cma_resv);
 
-struct page *kvm_alloc_hpt(unsigned long nr_pages)
+struct page *kvm_alloc_hpt_cma(unsigned long nr_pages)
 {
 	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
-	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES));
+	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES),
+			 GFP_KERNEL);
 }
-EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
+EXPORT_SYMBOL_GPL(kvm_alloc_hpt_cma);
 
-void kvm_release_hpt(struct page *page, unsigned long nr_pages)
+void kvm_free_hpt_cma(struct page *page, unsigned long nr_pages)
 {
 	cma_release(kvm_cma, page, nr_pages);
 }
-EXPORT_SYMBOL_GPL(kvm_release_hpt);
+EXPORT_SYMBOL_GPL(kvm_free_hpt_cma);
 
 /**
  * kvm_cma_reserve() - reserve area for kvm hash pagetable
@@ -97,7 +119,8 @@ void __init kvm_cma_reserve(void)
 			 (unsigned long)selected_size / SZ_1M);
 		align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
 		cma_declare_contiguous(0, selected_size, 0, align_size,
-			KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, false, &kvm_cma);
+			KVM_CMA_CHUNK_ORDER - PAGE_SHIFT, false, "kvm_cma",
+			&kvm_cma);
 	}
 }
 
@@ -184,41 +207,55 @@ EXPORT_SYMBOL_GPL(kvmppc_hwrng_present);
 
 long kvmppc_h_random(struct kvm_vcpu *vcpu)
 {
-	if (powernv_get_random_real_mode(&vcpu->arch.gpr[4]))
+	int r;
+
+	/* Only need to do the expensive mfmsr() on radix */
+	if (kvm_is_radix(vcpu->kvm) && (mfmsr() & MSR_IR))
+		r = powernv_get_random_long(&vcpu->arch.gpr[4]);
+	else
+		r = powernv_get_random_real_mode(&vcpu->arch.gpr[4]);
+	if (r)
 		return H_SUCCESS;
 
 	return H_HARDWARE;
 }
 
-static inline void rm_writeb(unsigned long paddr, u8 val)
-{
-	__asm__ __volatile__("stbcix %0,0,%1"
-		: : "r" (val), "r" (paddr) : "memory");
-}
-
 /*
  * Send an interrupt or message to another CPU.
- * This can only be called in real mode.
  * The caller needs to include any barrier needed to order writes
  * to memory vs. the IPI/message.
  */
 void kvmhv_rm_send_ipi(int cpu)
 {
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
+	unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 
-	/* On POWER8 for IPIs to threads in the same core, use msgsnd */
+	/* On POWER9 we can use msgsnd for any destination cpu. */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		msg |= get_hard_smp_processor_id(cpu);
+		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+		return;
+	}
+
+	/* On POWER8 for IPIs to threads in the same core, use msgsnd. */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
 	    cpu_first_thread_sibling(cpu) ==
 	    cpu_first_thread_sibling(raw_smp_processor_id())) {
-		unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 		msg |= cpu_thread_in_core(cpu);
 		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
 		return;
 	}
 
+	/* We should never reach this */
+	if (WARN_ON_ONCE(xive_enabled()))
+	    return;
+
 	/* Else poke the target with an IPI */
 	xics_phys = paca[cpu].kvm_hstate.xics_phys;
-	rm_writeb(xics_phys + XICS_MFRR, IPI_PRIORITY);
+	if (xics_phys)
+		__raw_rm_writeb(IPI_PRIORITY, xics_phys + XICS_MFRR);
+	else
+		opal_int_set_mfrr(get_hard_smp_processor_id(cpu), IPI_PRIORITY);
 }
 
 /*
@@ -270,7 +307,7 @@ void kvmhv_commence_exit(int trap)
 		return;
 
 	for (i = 0; i < MAX_SUBCORES; ++i) {
-		vc = sip->master_vcs[i];
+		vc = sip->vc[i];
 		if (!vc)
 			break;
 		do {
@@ -329,7 +366,7 @@ static struct kvmppc_irq_map *get_irqmap(struct kvmppc_passthru_irqmap *pimap,
  * saved a copy of the XIRR in the PACA, it will be picked up by
  * the host ICP driver.
  */
-static int kvmppc_check_passthru(u32 xisr, __be32 xirr)
+static int kvmppc_check_passthru(u32 xisr, __be32 xirr, bool *again)
 {
 	struct kvmppc_passthru_irqmap *pimap;
 	struct kvmppc_irq_map *irq_map;
@@ -348,11 +385,11 @@ static int kvmppc_check_passthru(u32 xisr, __be32 xirr)
 	/* We're handling this interrupt, generic code doesn't need to */
 	local_paca->kvm_hstate.saved_xirr = 0;
 
-	return kvmppc_deliver_irq_passthru(vcpu, xirr, irq_map, pimap);
+	return kvmppc_deliver_irq_passthru(vcpu, xirr, irq_map, pimap, again);
 }
 
 #else
-static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr)
+static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr, bool *again)
 {
 	return 1;
 }
@@ -367,14 +404,37 @@ static inline int kvmppc_check_passthru(u32 xisr, __be32 xirr)
  *	-1 if there was a guest wakeup IPI (which has now been cleared)
  *	-2 if there is PCI passthrough external interrupt that was handled
  */
+static long kvmppc_read_one_intr(bool *again);
 
 long kvmppc_read_intr(void)
 {
-	unsigned long xics_phys;
+	long ret = 0;
+	long rc;
+	bool again;
+
+	if (xive_enabled())
+		return 1;
+
+	do {
+		again = false;
+		rc = kvmppc_read_one_intr(&again);
+		if (rc && (ret == 0 || rc > ret))
+			ret = rc;
+	} while (again);
+	return ret;
+}
+
+static long kvmppc_read_one_intr(bool *again)
+{
+	void __iomem *xics_phys;
 	u32 h_xirr;
 	__be32 xirr;
 	u32 xisr;
 	u8 host_ipi;
+	int64_t rc;
+
+	if (xive_enabled())
+		return 1;
 
 	/* see if a host IPI is pending */
 	host_ipi = local_paca->kvm_hstate.host_ipi;
@@ -383,7 +443,12 @@ long kvmppc_read_intr(void)
 
 	/* Now read the interrupt from the ICP */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
-	if (unlikely(!xics_phys))
+	rc = 0;
+	if (!xics_phys)
+		rc = opal_int_get_xirr(&xirr, false);
+	else
+		xirr = __raw_rm_readl(xics_phys + XICS_XIRR);
+	if (rc < 0)
 		return 1;
 
 	/*
@@ -392,7 +457,6 @@ long kvmppc_read_intr(void)
 	 * host endian. Note that xirr is the value read from the
 	 * XIRR register, while h_xirr is the host endian version.
 	 */
-	xirr = _lwzcix(xics_phys + XICS_XIRR);
 	h_xirr = be32_to_cpu(xirr);
 	local_paca->kvm_hstate.saved_xirr = h_xirr;
 	xisr = h_xirr & 0xffffff;
@@ -411,8 +475,17 @@ long kvmppc_read_intr(void)
 	 * If it is an IPI, clear the MFRR and EOI it.
 	 */
 	if (xisr == XICS_IPI) {
-		_stbcix(xics_phys + XICS_MFRR, 0xff);
-		_stwcix(xics_phys + XICS_XIRR, xirr);
+		rc = 0;
+		if (xics_phys) {
+			__raw_rm_writeb(0xff, xics_phys + XICS_MFRR);
+			__raw_rm_writel(xirr, xics_phys + XICS_XIRR);
+		} else {
+			opal_int_set_mfrr(hard_smp_processor_id(), 0xff);
+			rc = opal_int_eoi(h_xirr);
+		}
+		/* If rc > 0, there is another interrupt pending */
+		*again = rc > 0;
+
 		/*
 		 * Need to ensure side effects of above stores
 		 * complete before proceeding.
@@ -429,7 +502,12 @@ long kvmppc_read_intr(void)
 			/* We raced with the host,
 			 * we need to resend that IPI, bummer
 			 */
-			_stbcix(xics_phys + XICS_MFRR, IPI_PRIORITY);
+			if (xics_phys)
+				__raw_rm_writeb(IPI_PRIORITY,
+						xics_phys + XICS_MFRR);
+			else
+				opal_int_set_mfrr(hard_smp_processor_id(),
+						  IPI_PRIORITY);
 			/* Let side effects complete */
 			smp_mb();
 			return 1;
@@ -440,5 +518,86 @@ long kvmppc_read_intr(void)
 		return -1;
 	}
 
-	return kvmppc_check_passthru(xisr, xirr);
+	return kvmppc_check_passthru(xisr, xirr, again);
 }
+
+#ifdef CONFIG_KVM_XICS
+static inline bool is_rm(void)
+{
+	return !(mfmsr() & MSR_DR);
+}
+
+unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_xirr(vcpu);
+		if (unlikely(!__xive_vm_h_xirr))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_xirr(vcpu);
+	} else
+		return xics_rm_h_xirr(vcpu);
+}
+
+unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.gpr[5] = get_tb();
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_xirr(vcpu);
+		if (unlikely(!__xive_vm_h_xirr))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_xirr(vcpu);
+	} else
+		return xics_rm_h_xirr(vcpu);
+}
+
+unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_ipoll(vcpu, server);
+		if (unlikely(!__xive_vm_h_ipoll))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_ipoll(vcpu, server);
+	} else
+		return H_TOO_HARD;
+}
+
+int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
+		    unsigned long mfrr)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_ipi(vcpu, server, mfrr);
+		if (unlikely(!__xive_vm_h_ipi))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_ipi(vcpu, server, mfrr);
+	} else
+		return xics_rm_h_ipi(vcpu, server, mfrr);
+}
+
+int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_cppr(vcpu, cppr);
+		if (unlikely(!__xive_vm_h_cppr))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_cppr(vcpu, cppr);
+	} else
+		return xics_rm_h_cppr(vcpu, cppr);
+}
+
+int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+{
+	if (xive_enabled()) {
+		if (is_rm())
+			return xive_rm_h_eoi(vcpu, xirr);
+		if (unlikely(!__xive_vm_h_eoi))
+			return H_NOT_AVAILABLE;
+		return __xive_vm_h_eoi(vcpu, xirr);
+	} else
+		return xics_rm_h_eoi(vcpu, xirr);
+}
+#endif /* CONFIG_KVM_XICS */

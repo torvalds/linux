@@ -31,6 +31,9 @@
 #define AUDIO_SYNC_CLK_I2S3 0x4ac
 #define AUDIO_SYNC_CLK_I2S4 0x4b0
 #define AUDIO_SYNC_CLK_SPDIF 0x4b4
+#define AUDIO_SYNC_CLK_DMIC1 0x560
+#define AUDIO_SYNC_CLK_DMIC2 0x564
+#define AUDIO_SYNC_CLK_DMIC3 0x6b8
 
 #define AUDIO_SYNC_DOUBLER 0x49c
 
@@ -91,8 +94,14 @@ struct tegra_audio2x_clk_initdata {
 
 static DEFINE_SPINLOCK(clk_doubler_lock);
 
-static const char *mux_audio_sync_clk[] = { "spdif_in_sync", "i2s0_sync",
-	"i2s1_sync", "i2s2_sync", "i2s3_sync", "i2s4_sync", "vimclk_sync",
+static const char * const mux_audio_sync_clk[] = { "spdif_in_sync",
+	"i2s0_sync", "i2s1_sync", "i2s2_sync", "i2s3_sync", "i2s4_sync",
+	"pll_a_out0", "vimclk_sync",
+};
+
+static const char * const mux_dmic_sync_clk[] = { "unused", "i2s0_sync",
+	"i2s1_sync", "i2s2_sync", "i2s3_sync", "i2s4_sync", "pll_a_out0",
+	"vimclk_sync",
 };
 
 static struct tegra_sync_source_initdata sync_source_clks[] __initdata = {
@@ -114,6 +123,12 @@ static struct tegra_audio_clk_initdata audio_clks[] = {
 	AUDIO(spdif, AUDIO_SYNC_CLK_SPDIF),
 };
 
+static struct tegra_audio_clk_initdata dmic_clks[] = {
+	AUDIO(dmic1_sync_clk, AUDIO_SYNC_CLK_DMIC1),
+	AUDIO(dmic2_sync_clk, AUDIO_SYNC_CLK_DMIC2),
+	AUDIO(dmic3_sync_clk, AUDIO_SYNC_CLK_DMIC3),
+};
+
 static struct tegra_audio2x_clk_initdata audio2x_clks[] = {
 	AUDIO2X(audio0, 113, 24),
 	AUDIO2X(audio1, 114, 25),
@@ -122,6 +137,41 @@ static struct tegra_audio2x_clk_initdata audio2x_clks[] = {
 	AUDIO2X(audio4, 117, 28),
 	AUDIO2X(spdif, 118, 29),
 };
+
+static void __init tegra_audio_sync_clk_init(void __iomem *clk_base,
+				      struct tegra_clk *tegra_clks,
+				      struct tegra_audio_clk_initdata *sync,
+				      int num_sync_clks,
+				      const char * const *mux_names,
+				      int num_mux_inputs)
+{
+	struct clk *clk;
+	struct clk **dt_clk;
+	struct tegra_audio_clk_initdata *data;
+	int i;
+
+	for (i = 0, data = sync; i < num_sync_clks; i++, data++) {
+		dt_clk = tegra_lookup_dt_id(data->mux_clk_id, tegra_clks);
+		if (!dt_clk)
+			continue;
+
+		clk = clk_register_mux(NULL, data->mux_name, mux_names,
+					num_mux_inputs,
+					CLK_SET_RATE_NO_REPARENT,
+					clk_base + data->offset, 0, 3, 0,
+					NULL);
+		*dt_clk = clk;
+
+		dt_clk = tegra_lookup_dt_id(data->gate_clk_id, tegra_clks);
+		if (!dt_clk)
+			continue;
+
+		clk = clk_register_gate(NULL, data->gate_name, data->mux_name,
+					0, clk_base + data->offset, 4,
+					CLK_GATE_SET_TO_DISABLE, NULL);
+		*dt_clk = clk;
+	}
+}
 
 void __init tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
@@ -176,30 +226,17 @@ void __init tegra_audio_clk_init(void __iomem *clk_base,
 		*dt_clk = clk;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(audio_clks); i++) {
-		struct tegra_audio_clk_initdata *data;
+	tegra_audio_sync_clk_init(clk_base, tegra_clks, audio_clks,
+				  ARRAY_SIZE(audio_clks), mux_audio_sync_clk,
+				  ARRAY_SIZE(mux_audio_sync_clk));
 
-		data = &audio_clks[i];
-		dt_clk = tegra_lookup_dt_id(data->mux_clk_id, tegra_clks);
+	/* make sure the DMIC sync clocks have a valid parent */
+	for (i = 0; i < ARRAY_SIZE(dmic_clks); i++)
+		writel_relaxed(1, clk_base + dmic_clks[i].offset);
 
-		if (!dt_clk)
-			continue;
-		clk = clk_register_mux(NULL, data->mux_name, mux_audio_sync_clk,
-					ARRAY_SIZE(mux_audio_sync_clk),
-					CLK_SET_RATE_NO_REPARENT,
-					clk_base + data->offset, 0, 3, 0,
-					NULL);
-		*dt_clk = clk;
-
-		dt_clk = tegra_lookup_dt_id(data->gate_clk_id, tegra_clks);
-		if (!dt_clk)
-			continue;
-
-		clk = clk_register_gate(NULL, data->gate_name, data->mux_name,
-					0, clk_base + data->offset, 4,
-					CLK_GATE_SET_TO_DISABLE, NULL);
-		*dt_clk = clk;
-	}
+	tegra_audio_sync_clk_init(clk_base, tegra_clks, dmic_clks,
+				  ARRAY_SIZE(dmic_clks), mux_dmic_sync_clk,
+				  ARRAY_SIZE(mux_dmic_sync_clk));
 
 	for (i = 0; i < ARRAY_SIZE(audio2x_clks); i++) {
 		struct tegra_audio2x_clk_initdata *data;

@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/signal.h>
@@ -34,7 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/anon_inodes.h>
 #include <linux/device.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/mman.h>
 #include <linux/atomic.h>
@@ -42,6 +42,7 @@
 #include <linux/seq_file.h>
 #include <linux/compat.h>
 #include <linux/rculist.h>
+#include <net/busy_poll.h>
 
 /*
  * LOCKING:
@@ -224,6 +225,11 @@ struct eventpoll {
 	/* used to optimize loop detection check */
 	int visited;
 	struct list_head visited_list_link;
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	/* used to track busy poll napi_id */
+	unsigned int napi_id;
+#endif
 };
 
 /* Wait structure used by the poll hooks */
@@ -238,7 +244,7 @@ struct eppoll_entry {
 	 * Wait queue item that will be linked to the target file wait
 	 * queue head.
 	 */
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	/* The wait queue head that linked the "wait" wait queue item */
 	wait_queue_head_t *whead;
@@ -341,13 +347,13 @@ static inline int ep_is_linked(struct list_head *p)
 	return !list_empty(p);
 }
 
-static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_t *p)
+static inline struct eppoll_entry *ep_pwq_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait);
 }
 
 /* Get the "struct epitem" from a wait queue pointer */
-static inline struct epitem *ep_item_from_wait(wait_queue_t *p)
+static inline struct epitem *ep_item_from_wait(wait_queue_entry_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait)->base;
 }
@@ -382,6 +388,77 @@ static void ep_nested_calls_init(struct nested_calls *ncalls)
 static inline int ep_events_available(struct eventpoll *ep)
 {
 	return !list_empty(&ep->rdllist) || ep->ovflist != EP_UNACTIVE_PTR;
+}
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static bool ep_busy_loop_end(void *p, unsigned long start_time)
+{
+	struct eventpoll *ep = p;
+
+	return ep_events_available(ep) || busy_loop_timeout(start_time);
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
+
+/*
+ * Busy poll if globally on and supporting sockets found && no events,
+ * busy loop will return if need_resched or ep_events_available.
+ *
+ * we must do our busy polling with irqs enabled
+ */
+static void ep_busy_loop(struct eventpoll *ep, int nonblock)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int napi_id = READ_ONCE(ep->napi_id);
+
+	if ((napi_id >= MIN_NAPI_ID) && net_busy_loop_on())
+		napi_busy_loop(napi_id, nonblock ? NULL : ep_busy_loop_end, ep);
+#endif
+}
+
+static inline void ep_reset_busy_poll_napi_id(struct eventpoll *ep)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	if (ep->napi_id)
+		ep->napi_id = 0;
+#endif
+}
+
+/*
+ * Set epoll busy poll NAPI ID from sk.
+ */
+static inline void ep_set_busy_poll_napi_id(struct epitem *epi)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	struct eventpoll *ep;
+	unsigned int napi_id;
+	struct socket *sock;
+	struct sock *sk;
+	int err;
+
+	if (!net_busy_loop_on())
+		return;
+
+	sock = sock_from_file(epi->ffd.file, &err);
+	if (!sock)
+		return;
+
+	sk = sock->sk;
+	if (!sk)
+		return;
+
+	napi_id = READ_ONCE(sk->sk_napi_id);
+	ep = epi->ep;
+
+	/* Non-NAPI IDs can be rejected
+	 *	or
+	 * Nothing to do if we already have this ID
+	 */
+	if (napi_id < MIN_NAPI_ID || napi_id == ep->napi_id)
+		return;
+
+	/* record NAPI ID for use in next busy poll */
+	ep->napi_id = napi_id;
+#endif
 }
 
 /**
@@ -1001,7 +1078,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
  * mechanism. It is called by the stored file descriptors when they
  * have events to report.
  */
-static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	int pwake = 0;
 	unsigned long flags;
@@ -1017,10 +1094,12 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 		 * can't use __remove_wait_queue(). whead->lock is held by
 		 * the caller.
 		 */
-		list_del_init(&wait->task_list);
+		list_del_init(&wait->entry);
 	}
 
 	spin_lock_irqsave(&ep->lock, flags);
+
+	ep_set_busy_poll_napi_id(epi);
 
 	/*
 	 * If the event mask does not contain any poll(2) event, we consider the
@@ -1363,6 +1442,9 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 	/* We have to drop the new item inside our item list to keep track of it */
 	spin_lock_irqsave(&ep->lock, flags);
 
+	/* record NAPI ID of new item if present */
+	ep_set_busy_poll_napi_id(epi);
+
 	/* If the file is already "ready" we drop it inside the ready list */
 	if ((revents & event->events) && !ep_is_linked(&epi->rdllink)) {
 		list_add_tail(&epi->rdllink, &ep->rdllist);
@@ -1617,7 +1699,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	int res = 0, eavail, timed_out = 0;
 	unsigned long flags;
 	u64 slack = 0;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	ktime_t expires, *to = NULL;
 
 	if (timeout > 0) {
@@ -1637,9 +1719,20 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	}
 
 fetch_events:
+
+	if (!ep_events_available(ep))
+		ep_busy_loop(ep, timed_out);
+
 	spin_lock_irqsave(&ep->lock, flags);
 
 	if (!ep_events_available(ep)) {
+		/*
+		 * Busy poll timed out.  Drop NAPI ID for now, we can add
+		 * it back in when we have moved a socket with a valid NAPI
+		 * ID onto the ready list.
+		 */
+		ep_reset_busy_poll_napi_id(ep);
+
 		/*
 		 * We don't have any available event to return to the caller.
 		 * We need to sleep here, and we will be wake up by
@@ -1895,7 +1988,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	 * so EPOLLEXCLUSIVE is not allowed for a EPOLL_CTL_MOD operation.
 	 * Also, we do not currently supported nested exclusive wakeups.
 	 */
-	if (epds.events & EPOLLEXCLUSIVE) {
+	if (ep_op_has_event(op) && (epds.events & EPOLLEXCLUSIVE)) {
 		if (op == EPOLL_CTL_MOD)
 			goto error_tgt_fput;
 		if (op == EPOLL_CTL_ADD && (is_file_epoll(tf.file) ||

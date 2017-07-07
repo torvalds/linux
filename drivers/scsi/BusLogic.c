@@ -3009,7 +3009,7 @@ static int blogic_hostreset(struct scsi_cmnd *SCpnt)
 
 	spin_lock_irq(SCpnt->device->host->host_lock);
 
-	blogic_inc_count(&stats->adatper_reset_req);
+	blogic_inc_count(&stats->adapter_reset_req);
 
 	rc = blogic_resetadapter(adapter, false);
 	spin_unlock_irq(SCpnt->device->host->host_lock);
@@ -3560,8 +3560,16 @@ Target	Requested Completed  Requested Completed  Requested Completed\n\
 		struct blogic_tgt_flags *tgt_flags = &adapter->tgt_flags[tgt];
 		if (!tgt_flags->tgt_exists)
 			continue;
-		seq_printf(m, "\
-  %2d	 %5d %5d %5d    %5d %5d %5d	   %5d %5d %5d\n", tgt, tgt_stats[tgt].aborts_request, tgt_stats[tgt].aborts_tried, tgt_stats[tgt].aborts_done, tgt_stats[tgt].bdr_request, tgt_stats[tgt].bdr_tried, tgt_stats[tgt].bdr_done, tgt_stats[tgt].adatper_reset_req, tgt_stats[tgt].adapter_reset_attempt, tgt_stats[tgt].adapter_reset_done);
+		seq_printf(m, "  %2d	 %5d %5d %5d    %5d %5d %5d	   %5d %5d %5d\n",
+			   tgt, tgt_stats[tgt].aborts_request,
+			   tgt_stats[tgt].aborts_tried,
+			   tgt_stats[tgt].aborts_done,
+			   tgt_stats[tgt].bdr_request,
+			   tgt_stats[tgt].bdr_tried,
+			   tgt_stats[tgt].bdr_done,
+			   tgt_stats[tgt].adapter_reset_req,
+			   tgt_stats[tgt].adapter_reset_attempt,
+			   tgt_stats[tgt].adapter_reset_done);
 	}
 	seq_printf(m, "\nExternal Host Adapter Resets: %d\n", adapter->ext_resets);
 	seq_printf(m, "Host Adapter Internal Errors: %d\n", adapter->adapter_intern_errors);

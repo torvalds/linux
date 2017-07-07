@@ -1,0 +1,20 @@
+Device-Tree bindings for Mediatek random number generator
+found in Mediatek SoC family
+
+Required properties:
+- compatible	    : Should be
+			"mediatek,mt7622-rng", 	"mediatek,mt7623-rng" : for MT7622
+			"mediatek,mt7623-rng" : for MT7623
+- clocks	    : list of clock specifiers, corresponding to
+		      entries in clock-names property;
+- clock-names	    : Should contain "rng" entries;
+- reg 		    : Specifies base physical address and size of the registers
+
+Example:
+
+rng: rng@1020f000 {
+	compatible = "mediatek,mt7623-rng";
+	reg = <0 0x1020f000 0 0x1000>;
+	clocks = <&infracfg CLK_INFRA_TRNG>;
+	clock-names = "rng";
+};

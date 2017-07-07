@@ -65,10 +65,11 @@ static unsigned int ci_irq_enable;
 module_param(ci_irq_enable, int, 0644);
 MODULE_PARM_DESC(ci_irq_enable, "Enable IRQ from CAM");
 
-#define ci_dbg_print(args...) \
+#define ci_dbg_print(fmt, args...) \
 	do { \
 		if (ci_dbg) \
-			printk(KERN_DEBUG args); \
+			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			       __func__, ##args); \
 	} while (0)
 
 #define ci_irq_flags() (ci_irq_enable ? NETUP_IRQ_IRQAM : 0)
@@ -135,8 +136,7 @@ static int netup_write_i2c(struct i2c_adapter *i2c_adap, u8 addr, u8 reg,
 	};
 
 	if (1 + len > sizeof(buffer)) {
-		printk(KERN_WARNING
-		       "%s: i2c wr reg=%04x: len=%d is too big!\n",
+		pr_warn("%s: i2c wr reg=%04x: len=%d is too big!\n",
 		       KBUILD_MODNAME, reg, len);
 		return -EINVAL;
 	}
@@ -365,11 +365,8 @@ static void netup_read_ci_status(struct work_struct *work)
 		if (ret != 0)
 			return;
 
-		ci_dbg_print("%s: Slot Status Addr=[0x%04x], "
-				"Reg=[0x%02x], data=%02x, "
-				"TS config = %02x\n", __func__,
-				state->ci_i2c_addr, 0, buf[0],
-				buf[0]);
+		ci_dbg_print("%s: Slot Status Addr=[0x%04x], Reg=[0x%02x], data=%02x, TS config = %02x\n",
+			     __func__,	state->ci_i2c_addr, 0, buf[0], buf[0]);
 
 
 		if (buf[0] & 1)

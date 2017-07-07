@@ -31,6 +31,7 @@
 #include "atom.h"
 #include "atom-bits.h"
 #include "atombios_encoders.h"
+#include "atombios_crtc.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
@@ -164,7 +165,7 @@ void amdgpu_atombios_crtc_powergate(struct drm_crtc *crtc, int state)
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	int index = GetIndexIntoMasterTable(COMMAND, EnableDispPowerGating);
-	ENABLE_DISP_POWER_GATING_PARAMETERS_V2_1 args;
+	ENABLE_DISP_POWER_GATING_PS_ALLOCATION args;
 
 	memset(&args, 0, sizeof(args));
 
@@ -177,7 +178,7 @@ void amdgpu_atombios_crtc_powergate(struct drm_crtc *crtc, int state)
 void amdgpu_atombios_crtc_powergate_init(struct amdgpu_device *adev)
 {
 	int index = GetIndexIntoMasterTable(COMMAND, EnableDispPowerGating);
-	ENABLE_DISP_POWER_GATING_PARAMETERS_V2_1 args;
+	ENABLE_DISP_POWER_GATING_PS_ALLOCATION args;
 
 	memset(&args, 0, sizeof(args));
 
@@ -497,7 +498,13 @@ void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
 			 * SetPixelClock provides the dividers
 			 */
 			args.v6.ulDispEngClkFreq = cpu_to_le32(dispclk);
-			args.v6.ucPpll = ATOM_EXT_PLL1;
+			if (adev->asic_type == CHIP_TAHITI ||
+			    adev->asic_type == CHIP_PITCAIRN ||
+			    adev->asic_type == CHIP_VERDE ||
+			    adev->asic_type == CHIP_OLAND)
+				args.v6.ucPpll = ATOM_PPLL0;
+			else
+				args.v6.ucPpll = ATOM_EXT_PLL1;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d %d\n", frev, crev);

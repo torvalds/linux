@@ -34,7 +34,7 @@ static void switch_idt(void *arg)
 	local_irq_restore(flags);
 }
 
-void trace_irq_vector_regfunc(void)
+int trace_irq_vector_regfunc(void)
 {
 	mutex_lock(&irq_vector_mutex);
 	if (!trace_irq_vector_refcount) {
@@ -44,6 +44,7 @@ void trace_irq_vector_regfunc(void)
 	}
 	trace_irq_vector_refcount++;
 	mutex_unlock(&irq_vector_mutex);
+	return 0;
 }
 
 void trace_irq_vector_unregfunc(void)

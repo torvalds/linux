@@ -281,7 +281,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 	}
 
 	if (value < 1 || value > 65535) {
-		wl1271_warning("dyanmic_ps_timeout is not in valid range");
+		wl1271_warning("dynamic_ps_timeout is not in valid range");
 		return -ERANGE;
 	}
 
@@ -1149,15 +1149,9 @@ static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
 	part.mem.start = *ppos;
 	part.mem.size = bytes;
 
-	buf = kmalloc(bytes, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = copy_from_user(buf, user_buf, bytes);
-	if (ret) {
-		ret = -EFAULT;
-		goto err_out;
-	}
+	buf = memdup_user(user_buf, bytes);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	mutex_lock(&wl->mutex);
 
@@ -1197,7 +1191,6 @@ skip_write:
 	if (ret == 0)
 		*ppos += bytes;
 
-err_out:
 	kfree(buf);
 
 	return ((ret == 0) ? bytes : ret);
@@ -1249,7 +1242,7 @@ static ssize_t fw_logger_write(struct file *file,
 	}
 
 	if (wl->conf.fwlog.output == 0) {
-		wl1271_warning("iligal opperation - fw logger disabled by default, please change mode via wlconf");
+		wl1271_warning("invalid operation - fw logger disabled by default, please change mode via wlconf");
 		return -EINVAL;
 	}
 

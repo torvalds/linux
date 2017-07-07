@@ -154,6 +154,12 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 
 	p += scnprintf(p,
 		       bufsz+buf-p,
+		       "target %uus interval %uus ecn %s\n",
+		       codel_time_to_us(sta->cparams.target),
+		       codel_time_to_us(sta->cparams.interval),
+		       sta->cparams.ecn ? "yes" : "no");
+	p += scnprintf(p,
+		       bufsz+buf-p,
 		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets\n");
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
@@ -199,13 +205,18 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 		       "TID\t\tRX\tDTKN\tSSN\t\tTX\tDTKN\tpending\n");
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		bool tid_rx_valid;
+
 		tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[i]);
 		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[i]);
+		tid_rx_valid = test_bit(i, sta->ampdu_mlme.agg_session_valid);
 
 		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x", !!tid_rx);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
+			       tid_rx_valid);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				tid_rx ? tid_rx->dialog_token : 0);
+			       tid_rx_valid ?
+					sta->ampdu_mlme.tid_rx_token[i] : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
 				tid_rx ? tid_rx->ssn : 0);
 
@@ -517,6 +528,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 		return;
 
 	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD(num_ps_buf_frames);
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);

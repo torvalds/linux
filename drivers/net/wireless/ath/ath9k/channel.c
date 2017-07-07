@@ -118,8 +118,11 @@ void ath_chanctx_init(struct ath_softc *sc)
 		INIT_LIST_HEAD(&ctx->vifs);
 		ctx->txpower = ATH_TXPOWER_MAX;
 		ctx->flush_timeout = HZ / 5; /* 200ms */
-		for (j = 0; j < ARRAY_SIZE(ctx->acq); j++)
-			INIT_LIST_HEAD(&ctx->acq[j]);
+		for (j = 0; j < ARRAY_SIZE(ctx->acq); j++) {
+			INIT_LIST_HEAD(&ctx->acq[j].acq_new);
+			INIT_LIST_HEAD(&ctx->acq[j].acq_old);
+			spin_lock_init(&ctx->acq[j].lock);
+		}
 	}
 }
 
@@ -1002,7 +1005,7 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 		info->flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	if (req->ie_len)
-		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
+		skb_put_data(skb, req->ie, req->ie_len);
 
 	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
 
@@ -1010,7 +1013,6 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 		goto error;
 
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
-	txctl.force_channel = true;
 	if (ath_tx_start(sc->hw, skb, &txctl))
 		goto error;
 
@@ -1133,7 +1135,6 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 	memset(&txctl, 0, sizeof(txctl));
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
 	txctl.sta = sta;
-	txctl.force_channel = true;
 	if (ath_tx_start(sc->hw, skb, &txctl)) {
 		ieee80211_free_txskb(sc->hw, skb);
 		return false;
@@ -1347,8 +1348,11 @@ void ath9k_offchannel_init(struct ath_softc *sc)
 	ctx->txpower = ATH_TXPOWER_MAX;
 	cfg80211_chandef_create(&ctx->chandef, chan, NL80211_CHAN_HT20);
 
-	for (i = 0; i < ARRAY_SIZE(ctx->acq); i++)
-		INIT_LIST_HEAD(&ctx->acq[i]);
+	for (i = 0; i < ARRAY_SIZE(ctx->acq); i++) {
+		INIT_LIST_HEAD(&ctx->acq[i].acq_new);
+		INIT_LIST_HEAD(&ctx->acq[i].acq_old);
+		spin_lock_init(&ctx->acq[i].lock);
+	}
 
 	sc->offchannel.chan.offchannel = true;
 }
@@ -1517,13 +1521,11 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	noa_desc = !!avp->offchannel_duration + !!avp->noa_duration;
 	noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc) * noa_desc;
 
-	hdr = skb_put(skb, sizeof(noa_ie_hdr));
-	memcpy(hdr, noa_ie_hdr, sizeof(noa_ie_hdr));
+	hdr = skb_put_data(skb, noa_ie_hdr, sizeof(noa_ie_hdr));
 	hdr[1] = sizeof(noa_ie_hdr) + noa_len - 2;
 	hdr[7] = noa_len;
 
-	noa = (void *) skb_put(skb, noa_len);
-	memset(noa, 0, noa_len);
+	noa = skb_put_zero(skb, noa_len);
 
 	noa->index = avp->noa_index;
 	noa->oppps_ctwindow = ath9k_get_ctwin(sc, avp);

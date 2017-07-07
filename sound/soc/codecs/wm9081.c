@@ -1304,7 +1304,6 @@ static const struct regmap_config wm9081_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-#if IS_ENABLED(CONFIG_I2C)
 static int wm9081_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1384,7 +1383,6 @@ static struct i2c_driver wm9081_i2c_driver = {
 	.remove =   wm9081_i2c_remove,
 	.id_table = wm9081_i2c_id,
 };
-#endif
 
 module_i2c_driver(wm9081_i2c_driver);
 

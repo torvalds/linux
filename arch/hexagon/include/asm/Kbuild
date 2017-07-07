@@ -1,17 +1,14 @@
-
-header-y += ucontext.h
-
 generic-y += auxvec.h
 generic-y += barrier.h
 generic-y += bug.h
 generic-y += bugs.h
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += current.h
 generic-y += device.h
 generic-y += div64.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += extable.h
 generic-y += fb.h
 generic-y += fcntl.h
 generic-y += ftrace.h
@@ -44,7 +41,6 @@ generic-y += sembuf.h
 generic-y += serial.h
 generic-y += shmbuf.h
 generic-y += shmparam.h
-generic-y += siginfo.h
 generic-y += sizes.h
 generic-y += socket.h
 generic-y += sockios.h
@@ -60,3 +56,4 @@ generic-y += unaligned.h
 generic-y += vga.h
 generic-y += word-at-a-time.h
 generic-y += xor.h
+generic-y += kprobes.h

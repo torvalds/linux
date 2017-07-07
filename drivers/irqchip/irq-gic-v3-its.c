@@ -16,12 +16,13 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/bitmap.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/dma-iommu.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
-#include <linux/acpi_iort.h>
 #include <linux/log2.h>
 #include <linux/mm.h>
 #include <linux/msi.h>
@@ -36,7 +37,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-v3.h>
 
-#include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/exception.h>
 
@@ -161,7 +161,7 @@ struct its_cmd_desc {
 			struct its_device *dev;
 			u32 phys_id;
 			u32 event_id;
-		} its_mapvi_cmd;
+		} its_mapti_cmd;
 
 		struct {
 			struct its_device *dev;
@@ -193,58 +193,56 @@ struct its_cmd_block {
 typedef struct its_collection *(*its_cmd_builder_t)(struct its_cmd_block *,
 						    struct its_cmd_desc *);
 
+static void its_mask_encode(u64 *raw_cmd, u64 val, int h, int l)
+{
+	u64 mask = GENMASK_ULL(h, l);
+	*raw_cmd &= ~mask;
+	*raw_cmd |= (val << l) & mask;
+}
+
 static void its_encode_cmd(struct its_cmd_block *cmd, u8 cmd_nr)
 {
-	cmd->raw_cmd[0] &= ~0xffUL;
-	cmd->raw_cmd[0] |= cmd_nr;
+	its_mask_encode(&cmd->raw_cmd[0], cmd_nr, 7, 0);
 }
 
 static void its_encode_devid(struct its_cmd_block *cmd, u32 devid)
 {
-	cmd->raw_cmd[0] &= BIT_ULL(32) - 1;
-	cmd->raw_cmd[0] |= ((u64)devid) << 32;
+	its_mask_encode(&cmd->raw_cmd[0], devid, 63, 32);
 }
 
 static void its_encode_event_id(struct its_cmd_block *cmd, u32 id)
 {
-	cmd->raw_cmd[1] &= ~0xffffffffUL;
-	cmd->raw_cmd[1] |= id;
+	its_mask_encode(&cmd->raw_cmd[1], id, 31, 0);
 }
 
 static void its_encode_phys_id(struct its_cmd_block *cmd, u32 phys_id)
 {
-	cmd->raw_cmd[1] &= 0xffffffffUL;
-	cmd->raw_cmd[1] |= ((u64)phys_id) << 32;
+	its_mask_encode(&cmd->raw_cmd[1], phys_id, 63, 32);
 }
 
 static void its_encode_size(struct its_cmd_block *cmd, u8 size)
 {
-	cmd->raw_cmd[1] &= ~0x1fUL;
-	cmd->raw_cmd[1] |= size & 0x1f;
+	its_mask_encode(&cmd->raw_cmd[1], size, 4, 0);
 }
 
 static void its_encode_itt(struct its_cmd_block *cmd, u64 itt_addr)
 {
-	cmd->raw_cmd[2] &= ~0xffffffffffffUL;
-	cmd->raw_cmd[2] |= itt_addr & 0xffffffffff00UL;
+	its_mask_encode(&cmd->raw_cmd[2], itt_addr >> 8, 50, 8);
 }
 
 static void its_encode_valid(struct its_cmd_block *cmd, int valid)
 {
-	cmd->raw_cmd[2] &= ~(1UL << 63);
-	cmd->raw_cmd[2] |= ((u64)!!valid) << 63;
+	its_mask_encode(&cmd->raw_cmd[2], !!valid, 63, 63);
 }
 
 static void its_encode_target(struct its_cmd_block *cmd, u64 target_addr)
 {
-	cmd->raw_cmd[2] &= ~(0xffffffffUL << 16);
-	cmd->raw_cmd[2] |= (target_addr & (0xffffffffUL << 16));
+	its_mask_encode(&cmd->raw_cmd[2], target_addr >> 16, 50, 16);
 }
 
 static void its_encode_collection(struct its_cmd_block *cmd, u16 col)
 {
-	cmd->raw_cmd[2] &= ~0xffffUL;
-	cmd->raw_cmd[2] |= col;
+	its_mask_encode(&cmd->raw_cmd[2], col, 15, 0);
 }
 
 static inline void its_fixup_cmd(struct its_cmd_block *cmd)
@@ -289,18 +287,18 @@ static struct its_collection *its_build_mapc_cmd(struct its_cmd_block *cmd,
 	return desc->its_mapc_cmd.col;
 }
 
-static struct its_collection *its_build_mapvi_cmd(struct its_cmd_block *cmd,
+static struct its_collection *its_build_mapti_cmd(struct its_cmd_block *cmd,
 						  struct its_cmd_desc *desc)
 {
 	struct its_collection *col;
 
-	col = dev_event_to_col(desc->its_mapvi_cmd.dev,
-			       desc->its_mapvi_cmd.event_id);
+	col = dev_event_to_col(desc->its_mapti_cmd.dev,
+			       desc->its_mapti_cmd.event_id);
 
-	its_encode_cmd(cmd, GITS_CMD_MAPVI);
-	its_encode_devid(cmd, desc->its_mapvi_cmd.dev->device_id);
-	its_encode_event_id(cmd, desc->its_mapvi_cmd.event_id);
-	its_encode_phys_id(cmd, desc->its_mapvi_cmd.phys_id);
+	its_encode_cmd(cmd, GITS_CMD_MAPTI);
+	its_encode_devid(cmd, desc->its_mapti_cmd.dev->device_id);
+	its_encode_event_id(cmd, desc->its_mapti_cmd.event_id);
+	its_encode_phys_id(cmd, desc->its_mapti_cmd.phys_id);
 	its_encode_collection(cmd, col->col_id);
 
 	its_fixup_cmd(cmd);
@@ -413,6 +411,12 @@ static struct its_cmd_block *its_allocate_entry(struct its_node *its)
 	if (its->cmd_write == (its->cmd_base + ITS_CMD_QUEUE_NR_ENTRIES))
 		its->cmd_write = its->cmd_base;
 
+	/* Clear command  */
+	cmd->raw_cmd[0] = 0;
+	cmd->raw_cmd[1] = 0;
+	cmd->raw_cmd[2] = 0;
+	cmd->raw_cmd[3] = 0;
+
 	return cmd;
 }
 
@@ -432,7 +436,7 @@ static void its_flush_cmd(struct its_node *its, struct its_cmd_block *cmd)
 	 * the ITS.
 	 */
 	if (its->flags & ITS_FLAGS_CMDQ_NEEDS_FLUSHING)
-		__flush_dcache_area(cmd, sizeof(*cmd));
+		gic_flush_dcache_to_poc(cmd, sizeof(*cmd));
 	else
 		dsb(ishst);
 }
@@ -531,15 +535,15 @@ static void its_send_mapc(struct its_node *its, struct its_collection *col,
 	its_send_single_command(its, its_build_mapc_cmd, &desc);
 }
 
-static void its_send_mapvi(struct its_device *dev, u32 irq_id, u32 id)
+static void its_send_mapti(struct its_device *dev, u32 irq_id, u32 id)
 {
 	struct its_cmd_desc desc;
 
-	desc.its_mapvi_cmd.dev = dev;
-	desc.its_mapvi_cmd.phys_id = irq_id;
-	desc.its_mapvi_cmd.event_id = id;
+	desc.its_mapti_cmd.dev = dev;
+	desc.its_mapti_cmd.phys_id = irq_id;
+	desc.its_mapti_cmd.event_id = id;
 
-	its_send_single_command(dev->its, its_build_mapvi_cmd, &desc);
+	its_send_single_command(dev->its, its_build_mapti_cmd, &desc);
 }
 
 static void its_send_movi(struct its_device *dev,
@@ -601,7 +605,7 @@ static void lpi_set_config(struct irq_data *d, bool enable)
 	 * Humpf...
 	 */
 	if (gic_rdists->flags & RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING)
-		__flush_dcache_area(cfg, sizeof(*cfg));
+		gic_flush_dcache_to_poc(cfg, sizeof(*cfg));
 	else
 		dsb(ishst);
 	its_send_inv(its_dev, id);
@@ -640,9 +644,12 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	target_col = &its_dev->its->collections[cpu];
-	its_send_movi(its_dev, target_col, id);
-	its_dev->event_map.col_map[id] = cpu;
+	/* don't set the affinity when the target cpu is same as current one */
+	if (cpu != its_dev->event_map.col_map[id]) {
+		target_col = &its_dev->its->collections[cpu];
+		its_send_movi(its_dev, target_col, id);
+		its_dev->event_map.col_map[id] = cpu;
+	}
 
 	return IRQ_SET_MASK_OK_DONE;
 }
@@ -656,9 +663,11 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	its = its_dev->its;
 	addr = its->phys_base + GITS_TRANSLATER;
 
-	msg->address_lo		= addr & ((1UL << 32) - 1);
-	msg->address_hi		= addr >> 32;
+	msg->address_lo		= lower_32_bits(addr);
+	msg->address_hi		= upper_32_bits(addr);
 	msg->data		= its_get_event_id(d);
+
+	iommu_dma_map_msi_msg(d->irq, msg);
 }
 
 static struct irq_chip its_irq_chip = {
@@ -682,9 +691,11 @@ static struct irq_chip its_irq_chip = {
  */
 #define IRQS_PER_CHUNK_SHIFT	5
 #define IRQS_PER_CHUNK		(1 << IRQS_PER_CHUNK_SHIFT)
+#define ITS_MAX_LPI_NRBITS	16 /* 64K LPIs */
 
 static unsigned long *lpi_bitmap;
 static u32 lpi_chunks;
+static u32 lpi_id_bits;
 static DEFINE_SPINLOCK(lpi_lock);
 
 static int its_lpi_to_chunk(int lpi)
@@ -780,17 +791,13 @@ static void its_lpi_free(struct event_lpi_map *map)
 }
 
 /*
- * We allocate 64kB for PROPBASE. That gives us at most 64K LPIs to
+ * We allocate memory for PROPBASE to cover 2 ^ lpi_id_bits LPIs to
  * deal with (one configuration byte per interrupt). PENDBASE has to
  * be 64kB aligned (one bit per LPI, plus 8192 bits for SPI/PPI/SGI).
  */
-#define LPI_PROPBASE_SZ		SZ_64K
-#define LPI_PENDBASE_SZ		(LPI_PROPBASE_SZ / 8 + SZ_1K)
-
-/*
- * This is how many bits of ID we need, including the useless ones.
- */
-#define LPI_NRBITS		ilog2(LPI_PROPBASE_SZ + SZ_8K)
+#define LPI_NRBITS		lpi_id_bits
+#define LPI_PROPBASE_SZ		ALIGN(BIT(LPI_NRBITS), SZ_64K)
+#define LPI_PENDBASE_SZ		ALIGN(BIT(LPI_NRBITS) / 8, SZ_64K)
 
 #define LPI_PROP_DEFAULT_PRIO	0xa0
 
@@ -798,6 +805,7 @@ static int __init its_alloc_lpi_tables(void)
 {
 	phys_addr_t paddr;
 
+	lpi_id_bits = min_t(u32, gic_rdists->id_bits, ITS_MAX_LPI_NRBITS);
 	gic_rdists->prop_page = alloc_pages(GFP_NOWAIT,
 					   get_order(LPI_PROPBASE_SZ));
 	if (!gic_rdists->prop_page) {
@@ -814,15 +822,15 @@ static int __init its_alloc_lpi_tables(void)
 	       LPI_PROPBASE_SZ);
 
 	/* Make sure the GIC will observe the written configuration */
-	__flush_dcache_area(page_address(gic_rdists->prop_page), LPI_PROPBASE_SZ);
+	gic_flush_dcache_to_poc(page_address(gic_rdists->prop_page), LPI_PROPBASE_SZ);
 
-	return 0;
+	return its_lpi_init(lpi_id_bits);
 }
 
 static const char *its_base_type_string[] = {
 	[GITS_BASER_TYPE_DEVICE]	= "Devices",
 	[GITS_BASER_TYPE_VCPU]		= "Virtual CPUs",
-	[GITS_BASER_TYPE_CPU]		= "Physical CPUs",
+	[GITS_BASER_TYPE_RESERVED3]	= "Reserved (3)",
 	[GITS_BASER_TYPE_COLLECTION]	= "Interrupt Collections",
 	[GITS_BASER_TYPE_RESERVED5] 	= "Reserved (5)",
 	[GITS_BASER_TYPE_RESERVED6] 	= "Reserved (6)",
@@ -833,7 +841,7 @@ static u64 its_read_baser(struct its_node *its, struct its_baser *baser)
 {
 	u32 idx = baser - its->tables;
 
-	return readq_relaxed(its->base + GITS_BASER + (idx << 3));
+	return gits_read_baser(its->base + GITS_BASER + (idx << 3));
 }
 
 static void its_write_baser(struct its_node *its, struct its_baser *baser,
@@ -841,7 +849,7 @@ static void its_write_baser(struct its_node *its, struct its_baser *baser,
 {
 	u32 idx = baser - its->tables;
 
-	writeq_relaxed(val, its->base + GITS_BASER + (idx << 3));
+	gits_write_baser(val, its->base + GITS_BASER + (idx << 3));
 	baser->val = its_read_baser(its, baser);
 }
 
@@ -907,7 +915,7 @@ retry_baser:
 		shr = tmp & GITS_BASER_SHAREABILITY_MASK;
 		if (!shr) {
 			cache = GITS_BASER_nC;
-			__flush_dcache_area(base, PAGE_ORDER_TO_SIZE(order));
+			gic_flush_dcache_to_poc(base, PAGE_ORDER_TO_SIZE(order));
 		}
 		goto retry_baser;
 	}
@@ -932,9 +940,9 @@ retry_baser:
 	}
 
 	if (val != tmp) {
-		pr_err("ITS@%pa: %s doesn't stick: %lx %lx\n",
+		pr_err("ITS@%pa: %s doesn't stick: %llx %llx\n",
 		       &its->phys_base, its_base_type_string[type],
-		       (unsigned long) val, (unsigned long) tmp);
+		       val, tmp);
 		free_pages((unsigned long)base, order);
 		return -ENXIO;
 	}
@@ -945,7 +953,7 @@ retry_baser:
 	tmp = indirect ? GITS_LVL1_ENTRY_SIZE : esz;
 
 	pr_info("ITS@%pa: allocated %d %s @%lx (%s, esz %d, psz %dK, shr %d)\n",
-		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / tmp),
+		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / (int)tmp),
 		its_base_type_string[type],
 		(unsigned long)virt_to_phys(base),
 		indirect ? "indirect" : "flat", (int)esz,
@@ -958,7 +966,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 				   u32 psz, u32 *order)
 {
 	u64 esz = GITS_BASER_ENTRY_SIZE(its_read_baser(its, baser));
-	u64 val = GITS_BASER_InnerShareable | GITS_BASER_WaWb;
+	u64 val = GITS_BASER_InnerShareable | GITS_BASER_RaWaWb;
 	u32 ids = its->device_ids;
 	u32 new_order = *order;
 	bool indirect = false;
@@ -980,7 +988,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 			 * which is reported by ITS hardware times lvl1 table
 			 * entry size.
 			 */
-			ids -= ilog2(psz / esz);
+			ids -= ilog2(psz / (int)esz);
 			esz = GITS_LVL1_ENTRY_SIZE;
 		}
 	}
@@ -995,7 +1003,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 	new_order = max_t(u32, get_order(esz << ids), new_order);
 	if (new_order >= MAX_ORDER) {
 		new_order = MAX_ORDER - 1;
-		ids = ilog2(PAGE_ORDER_TO_SIZE(new_order) / esz);
+		ids = ilog2(PAGE_ORDER_TO_SIZE(new_order) / (int)esz);
 		pr_warn("ITS@%pa: Device Table too large, reduce ids %u->%u\n",
 			&its->phys_base, its->device_ids, ids);
 	}
@@ -1020,10 +1028,10 @@ static void its_free_tables(struct its_node *its)
 
 static int its_alloc_tables(struct its_node *its)
 {
-	u64 typer = readq_relaxed(its->base + GITS_TYPER);
+	u64 typer = gic_read_typer(its->base + GITS_TYPER);
 	u32 ids = GITS_TYPER_DEVBITS(typer);
 	u64 shr = GITS_BASER_InnerShareable;
-	u64 cache = GITS_BASER_WaWb;
+	u64 cache = GITS_BASER_RaWaWb;
 	u32 psz = SZ_64K;
 	int err, i;
 
@@ -1091,7 +1099,7 @@ static void its_cpu_init_lpis(void)
 		 * hence the 'max(LPI_PENDBASE_SZ, SZ_64K)' below.
 		 */
 		pend_page = alloc_pages(GFP_NOWAIT | __GFP_ZERO,
-					get_order(max(LPI_PENDBASE_SZ, SZ_64K)));
+					get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
 		if (!pend_page) {
 			pr_err("Failed to allocate PENDBASE for CPU%d\n",
 			       smp_processor_id());
@@ -1099,7 +1107,7 @@ static void its_cpu_init_lpis(void)
 		}
 
 		/* Make sure the GIC will observe the zero-ed page */
-		__flush_dcache_area(page_address(pend_page), LPI_PENDBASE_SZ);
+		gic_flush_dcache_to_poc(page_address(pend_page), LPI_PENDBASE_SZ);
 
 		paddr = page_to_phys(pend_page);
 		pr_info("CPU%d: using LPI pending table @%pa\n",
@@ -1120,11 +1128,11 @@ static void its_cpu_init_lpis(void)
 	/* set PROPBASE */
 	val = (page_to_phys(gic_rdists->prop_page) |
 	       GICR_PROPBASER_InnerShareable |
-	       GICR_PROPBASER_WaWb |
+	       GICR_PROPBASER_RaWaWb |
 	       ((LPI_NRBITS - 1) & GICR_PROPBASER_IDBITS_MASK));
 
-	writeq_relaxed(val, rbase + GICR_PROPBASER);
-	tmp = readq_relaxed(rbase + GICR_PROPBASER);
+	gicr_write_propbaser(val, rbase + GICR_PROPBASER);
+	tmp = gicr_read_propbaser(rbase + GICR_PROPBASER);
 
 	if ((tmp ^ val) & GICR_PROPBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GICR_PROPBASER_SHAREABILITY_MASK)) {
@@ -1136,7 +1144,7 @@ static void its_cpu_init_lpis(void)
 			val &= ~(GICR_PROPBASER_SHAREABILITY_MASK |
 				 GICR_PROPBASER_CACHEABILITY_MASK);
 			val |= GICR_PROPBASER_nC;
-			writeq_relaxed(val, rbase + GICR_PROPBASER);
+			gicr_write_propbaser(val, rbase + GICR_PROPBASER);
 		}
 		pr_info_once("GIC: using cache flushing for LPI property table\n");
 		gic_rdists->flags |= RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING;
@@ -1145,10 +1153,10 @@ static void its_cpu_init_lpis(void)
 	/* set PENDBASE */
 	val = (page_to_phys(pend_page) |
 	       GICR_PENDBASER_InnerShareable |
-	       GICR_PENDBASER_WaWb);
+	       GICR_PENDBASER_RaWaWb);
 
-	writeq_relaxed(val, rbase + GICR_PENDBASER);
-	tmp = readq_relaxed(rbase + GICR_PENDBASER);
+	gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
+	tmp = gicr_read_pendbaser(rbase + GICR_PENDBASER);
 
 	if (!(tmp & GICR_PENDBASER_SHAREABILITY_MASK)) {
 		/*
@@ -1158,7 +1166,7 @@ static void its_cpu_init_lpis(void)
 		val &= ~(GICR_PENDBASER_SHAREABILITY_MASK |
 			 GICR_PENDBASER_CACHEABILITY_MASK);
 		val |= GICR_PENDBASER_nC;
-		writeq_relaxed(val, rbase + GICR_PENDBASER);
+		gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
 	}
 
 	/* Enable LPIs */
@@ -1195,7 +1203,7 @@ static void its_cpu_init_collection(void)
 		 * We now have to bind each collection to its target
 		 * redistributor.
 		 */
-		if (readq_relaxed(its->base + GITS_TYPER) & GITS_TYPER_PTA) {
+		if (gic_read_typer(its->base + GITS_TYPER) & GITS_TYPER_PTA) {
 			/*
 			 * This ITS wants the physical address of the
 			 * redistributor.
@@ -1205,7 +1213,7 @@ static void its_cpu_init_collection(void)
 			/*
 			 * This ITS wants a linear CPU number.
 			 */
-			target = readq_relaxed(gic_data_rdist_rd_base() + GICR_TYPER);
+			target = gic_read_typer(gic_data_rdist_rd_base() + GICR_TYPER);
 			target = GICR_TYPER_CPU_NUMBER(target) << 16;
 		}
 
@@ -1284,13 +1292,13 @@ static bool its_alloc_device_table(struct its_node *its, u32 dev_id)
 
 		/* Flush Lvl2 table to PoC if hw doesn't support coherency */
 		if (!(baser->val & GITS_BASER_SHAREABILITY_MASK))
-			__flush_dcache_area(page_address(page), baser->psz);
+			gic_flush_dcache_to_poc(page_address(page), baser->psz);
 
 		table[idx] = cpu_to_le64(page_to_phys(page) | GITS_BASER_VALID);
 
 		/* Flush Lvl1 entry to PoC if hw doesn't support coherency */
 		if (!(baser->val & GITS_BASER_SHAREABILITY_MASK))
-			__flush_dcache_area(table + idx, GITS_LVL1_ENTRY_SIZE);
+			gic_flush_dcache_to_poc(table + idx, GITS_LVL1_ENTRY_SIZE);
 
 		/* Ensure updated table contents are visible to ITS hardware */
 		dsb(sy);
@@ -1337,7 +1345,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 		return NULL;
 	}
 
-	__flush_dcache_area(itt, sz);
+	gic_flush_dcache_to_poc(itt, sz);
 
 	dev->its = its;
 	dev->itt = itt;
@@ -1496,7 +1504,7 @@ static void its_irq_domain_activate(struct irq_domain *domain,
 	its_dev->event_map.col_map[event] = cpumask_first(cpu_mask);
 
 	/* Map the GIC IRQ and event to the device */
-	its_send_mapvi(its_dev, d->hwirq, event);
+	its_send_mapti(its_dev, d->hwirq, event);
 }
 
 static void its_irq_domain_deactivate(struct irq_domain *domain,
@@ -1595,6 +1603,14 @@ static void __maybe_unused its_enable_quirk_cavium_23144(void *data)
 	its->flags |= ITS_FLAGS_WORKAROUND_CAVIUM_23144;
 }
 
+static void __maybe_unused its_enable_quirk_qdf2400_e0065(void *data)
+{
+	struct its_node *its = data;
+
+	/* On QDF2400, the size of the ITE is 16Bytes */
+	its->ite_size = 16;
+}
+
 static const struct gic_quirk its_quirks[] = {
 #ifdef CONFIG_CAVIUM_ERRATUM_22375
 	{
@@ -1610,6 +1626,14 @@ static const struct gic_quirk its_quirks[] = {
 		.iidr	= 0xa100034c,	/* ThunderX pass 1.x */
 		.mask	= 0xffff0fff,
 		.init	= its_enable_quirk_cavium_23144,
+	},
+#endif
+#ifdef CONFIG_QCOM_QDF2400_ERRATUM_0065
+	{
+		.desc	= "ITS: QDF2400 erratum 0065",
+		.iidr	= 0x00001070, /* QDF2400 ITS rev 1.x */
+		.mask	= 0xffffffff,
+		.init	= its_enable_quirk_qdf2400_e0065,
 	},
 #endif
 	{
@@ -1639,7 +1663,8 @@ static int its_init_domain(struct fwnode_handle *handle, struct its_node *its)
 	}
 
 	inner_domain->parent = its_parent;
-	inner_domain->bus_token = DOMAIN_BUS_NEXUS;
+	irq_domain_update_bus_token(inner_domain, DOMAIN_BUS_NEXUS);
+	inner_domain->flags |= IRQ_DOMAIN_FLAG_MSI_REMAP;
 	info->ops = &its_msi_domain_ops;
 	info->data = its;
 	inner_domain->host_data = info;
@@ -1688,10 +1713,11 @@ static int __init its_probe_one(struct resource *res,
 	INIT_LIST_HEAD(&its->its_device_list);
 	its->base = its_base;
 	its->phys_base = res->start;
-	its->ite_size = ((readl_relaxed(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
+	its->ite_size = ((gic_read_typer(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
 	its->numa_node = numa_node;
 
-	its->cmd_base = kzalloc(ITS_CMD_QUEUE_SZ, GFP_KERNEL);
+	its->cmd_base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						get_order(ITS_CMD_QUEUE_SZ));
 	if (!its->cmd_base) {
 		err = -ENOMEM;
 		goto out_free_its;
@@ -1709,13 +1735,13 @@ static int __init its_probe_one(struct resource *res,
 		goto out_free_tables;
 
 	baser = (virt_to_phys(its->cmd_base)	|
-		 GITS_CBASER_WaWb		|
+		 GITS_CBASER_RaWaWb		|
 		 GITS_CBASER_InnerShareable	|
 		 (ITS_CMD_QUEUE_SZ / SZ_4K - 1)	|
 		 GITS_CBASER_VALID);
 
-	writeq_relaxed(baser, its->base + GITS_CBASER);
-	tmp = readq_relaxed(its->base + GITS_CBASER);
+	gits_write_cbaser(baser, its->base + GITS_CBASER);
+	tmp = gits_read_cbaser(its->base + GITS_CBASER);
 
 	if ((tmp ^ baser) & GITS_CBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GITS_CBASER_SHAREABILITY_MASK)) {
@@ -1727,13 +1753,13 @@ static int __init its_probe_one(struct resource *res,
 			baser &= ~(GITS_CBASER_SHAREABILITY_MASK |
 				   GITS_CBASER_CACHEABILITY_MASK);
 			baser |= GITS_CBASER_nC;
-			writeq_relaxed(baser, its->base + GITS_CBASER);
+			gits_write_cbaser(baser, its->base + GITS_CBASER);
 		}
 		pr_info("ITS: using cache flushing for cmd queue\n");
 		its->flags |= ITS_FLAGS_CMDQ_NEEDS_FLUSHING;
 	}
 
-	writeq_relaxed(0, its->base + GITS_CWRITER);
+	gits_write_cwriter(0, its->base + GITS_CWRITER);
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
 	err = its_init_domain(handle, its);
@@ -1749,7 +1775,7 @@ static int __init its_probe_one(struct resource *res,
 out_free_tables:
 	its_free_tables(its);
 out_free_cmd:
-	kfree(its->cmd_base);
+	free_pages((unsigned long)its->cmd_base, get_order(ITS_CMD_QUEUE_SZ));
 out_free_its:
 	kfree(its);
 out_unmap:
@@ -1760,7 +1786,7 @@ out_unmap:
 
 static bool gic_rdists_supports_plpis(void)
 {
-	return !!(readl_relaxed(gic_data_rdist_rd_base() + GICR_TYPER) & GICR_TYPER_PLPIS);
+	return !!(gic_read_typer(gic_data_rdist_rd_base() + GICR_TYPER) & GICR_TYPER_PLPIS);
 }
 
 int its_cpu_init(void)
@@ -1777,7 +1803,7 @@ int its_cpu_init(void)
 	return 0;
 }
 
-static struct of_device_id its_device_id[] = {
+static const struct of_device_id its_device_id[] = {
 	{	.compatible	= "arm,gic-v3-its",	},
 	{},
 };
@@ -1809,6 +1835,78 @@ static int __init its_of_probe(struct device_node *node)
 
 #define ACPI_GICV3_ITS_MEM_SIZE (SZ_128K)
 
+#if defined(CONFIG_ACPI_NUMA) && (ACPI_CA_VERSION >= 0x20170531)
+struct its_srat_map {
+	/* numa node id */
+	u32	numa_node;
+	/* GIC ITS ID */
+	u32	its_id;
+};
+
+static struct its_srat_map its_srat_maps[MAX_NUMNODES] __initdata;
+static int its_in_srat __initdata;
+
+static int __init acpi_get_its_numa_node(u32 its_id)
+{
+	int i;
+
+	for (i = 0; i < its_in_srat; i++) {
+		if (its_id == its_srat_maps[i].its_id)
+			return its_srat_maps[i].numa_node;
+	}
+	return NUMA_NO_NODE;
+}
+
+static int __init gic_acpi_parse_srat_its(struct acpi_subtable_header *header,
+			 const unsigned long end)
+{
+	int node;
+	struct acpi_srat_gic_its_affinity *its_affinity;
+
+	its_affinity = (struct acpi_srat_gic_its_affinity *)header;
+	if (!its_affinity)
+		return -EINVAL;
+
+	if (its_affinity->header.length < sizeof(*its_affinity)) {
+		pr_err("SRAT: Invalid header length %d in ITS affinity\n",
+			its_affinity->header.length);
+		return -EINVAL;
+	}
+
+	if (its_in_srat >= MAX_NUMNODES) {
+		pr_err("SRAT: ITS affinity exceeding max count[%d]\n",
+				MAX_NUMNODES);
+		return -EINVAL;
+	}
+
+	node = acpi_map_pxm_to_node(its_affinity->proximity_domain);
+
+	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+		pr_err("SRAT: Invalid NUMA node %d in ITS affinity\n", node);
+		return 0;
+	}
+
+	its_srat_maps[its_in_srat].numa_node = node;
+	its_srat_maps[its_in_srat].its_id = its_affinity->its_id;
+	its_in_srat++;
+	pr_info("SRAT: PXM %d -> ITS %d -> Node %d\n",
+		its_affinity->proximity_domain, its_affinity->its_id, node);
+
+	return 0;
+}
+
+static void __init acpi_table_parse_srat_its(void)
+{
+	acpi_table_parse_entries(ACPI_SIG_SRAT,
+			sizeof(struct acpi_table_srat),
+			ACPI_SRAT_TYPE_GIC_ITS_AFFINITY,
+			gic_acpi_parse_srat_its, 0);
+}
+#else
+static void __init acpi_table_parse_srat_its(void)	{ }
+static int __init acpi_get_its_numa_node(u32 its_id) { return NUMA_NO_NODE; }
+#endif
+
 static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
 					  const unsigned long end)
 {
@@ -1837,7 +1935,8 @@ static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
 		goto dom_err;
 	}
 
-	err = its_probe_one(&res, dom_handle, NUMA_NO_NODE);
+	err = its_probe_one(&res, dom_handle,
+			acpi_get_its_numa_node(its_entry->translation_id));
 	if (!err)
 		return 0;
 
@@ -1849,6 +1948,7 @@ dom_err:
 
 static void __init its_acpi_probe(void)
 {
+	acpi_table_parse_srat_its();
 	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_TRANSLATOR,
 			      gic_acpi_parse_madt_its, 0);
 }
@@ -1874,8 +1974,5 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	}
 
 	gic_rdists = rdists;
-	its_alloc_lpi_tables();
-	its_lpi_init(rdists->id_bits);
-
-	return 0;
+	return its_alloc_lpi_tables();
 }

@@ -300,10 +300,6 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 static void check_local_dest(struct hsr_priv *hsr, struct sk_buff *skb,
 			     struct hsr_frame_info *frame)
 {
-	struct net_device *master_dev;
-
-	master_dev = hsr_port_get_hsr(hsr, HSR_PT_MASTER)->dev;
-
 	if (hsr_addr_is_self(hsr, eth_hdr(skb)->h_dest)) {
 		frame->is_local_exclusive = true;
 		skb->pkt_type = PACKET_HOST;
@@ -328,8 +324,7 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 	unsigned long irqflags;
 
 	frame->is_supervision = is_supervision_frame(port->hsr, skb);
-	frame->node_src = hsr_get_node(&port->hsr->node_db, skb,
-				       frame->is_supervision);
+	frame->node_src = hsr_get_node(port, skb, frame->is_supervision);
 	if (frame->node_src == NULL)
 		return -1; /* Unknown node and !is_supervision, or no mem */
 

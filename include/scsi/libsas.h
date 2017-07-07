@@ -415,9 +415,9 @@ struct sas_ha_struct {
 				* their siblings when forming wide ports */
 
 	/* LLDD calls these to notify the class of an event. */
-	void (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
-	void (*notify_port_event)(struct asd_sas_phy *, enum port_event);
-	void (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
+	int (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
+	int (*notify_port_event)(struct asd_sas_phy *, enum port_event);
+	int (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
 
 	void *lldd_ha;		  /* not touched by sas class code */
 
@@ -693,7 +693,6 @@ extern int sas_bios_param(struct scsi_device *,
 			  sector_t capacity, int *hsc);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
-extern void sas_domain_release_transport(struct scsi_transport_template *);
 
 int  sas_discover_root_expander(struct domain_device *);
 

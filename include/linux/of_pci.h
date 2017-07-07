@@ -16,7 +16,11 @@ int of_pci_get_devfn(struct device_node *np);
 int of_irq_parse_and_map_pci(const struct pci_dev *dev, u8 slot, u8 pin);
 int of_pci_parse_bus_range(struct device_node *node, struct resource *res);
 int of_get_pci_domain_nr(struct device_node *node);
+int of_pci_get_max_link_speed(struct device_node *node);
 void of_pci_check_probe_only(void);
+int of_pci_map_rid(struct device_node *np, u32 rid,
+		   const char *map_name, const char *map_mask_name,
+		   struct device_node **target, u32 *id_out);
 #else
 static inline int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq)
 {
@@ -52,6 +56,19 @@ of_get_pci_domain_nr(struct device_node *node)
 	return -1;
 }
 
+static inline int of_pci_map_rid(struct device_node *np, u32 rid,
+			const char *map_name, const char *map_mask_name,
+			struct device_node **target, u32 *id_out)
+{
+	return -EINVAL;
+}
+
+static inline int
+of_pci_get_max_link_speed(struct device_node *node)
+{
+	return -EINVAL;
+}
+
 static inline void of_pci_check_probe_only(void) { }
 #endif
 
@@ -66,17 +83,6 @@ static inline int of_pci_get_host_bridge_resources(struct device_node *dev,
 {
 	return -EINVAL;
 }
-#endif
-
-#if defined(CONFIG_OF) && defined(CONFIG_PCI_MSI)
-int of_pci_msi_chip_add(struct msi_controller *chip);
-void of_pci_msi_chip_remove(struct msi_controller *chip);
-struct msi_controller *of_pci_find_msi_chip_by_node(struct device_node *of_node);
-#else
-static inline int of_pci_msi_chip_add(struct msi_controller *chip) { return -EINVAL; }
-static inline void of_pci_msi_chip_remove(struct msi_controller *chip) { }
-static inline struct msi_controller *
-of_pci_find_msi_chip_by_node(struct device_node *of_node) { return NULL; }
 #endif
 
 #endif

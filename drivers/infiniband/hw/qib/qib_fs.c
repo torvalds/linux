@@ -64,7 +64,7 @@ static int qibfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode->i_uid = GLOBAL_ROOT_UID;
 	inode->i_gid = GLOBAL_ROOT_GID;
 	inode->i_blocks = 0;
-	inode->i_atime = CURRENT_TIME;
+	inode->i_atime = current_time(inode);
 	inode->i_mtime = inode->i_atime;
 	inode->i_ctime = inode->i_atime;
 	inode->i_private = data;
@@ -512,7 +512,7 @@ static int qibfs_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned long flags;
 	int ret;
 
-	static struct tree_descr files[] = {
+	static const struct tree_descr files[] = {
 		[2] = {"driver_stats", &driver_ops[0], S_IRUGO},
 		[3] = {"driver_stats_names", &driver_ops[1], S_IRUGO},
 		{""},

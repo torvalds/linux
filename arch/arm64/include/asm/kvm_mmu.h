@@ -47,7 +47,7 @@
  * If the page is in the bottom half, we have to use the top half. If
  * the page is in the top half, we have to use the bottom half:
  *
- * T = __virt_to_phys(__hyp_idmap_text_start)
+ * T = __pa_symbol(__hyp_idmap_text_start)
  * if (T & BIT(VA_BITS - 1))
  *	HYP_VA_MIN = 0  //idmap in upper half
  * else
@@ -108,7 +108,7 @@ alternative_else_nop_endif
 #else
 
 #include <asm/pgalloc.h>
-#include <asm/cachetype.h>
+#include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
@@ -128,7 +128,7 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 	return v;
 }
 
-#define kern_hyp_va(v) 	(typeof(v))(__kern_hyp_va((unsigned long)(v)))
+#define kern_hyp_va(v) 	((typeof(v))(__kern_hyp_va((unsigned long)(v))))
 
 /*
  * We currently only support a 40bit IPA.
@@ -155,7 +155,6 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 
 phys_addr_t kvm_mmu_get_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
-phys_addr_t kvm_get_idmap_start(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
@@ -236,20 +235,19 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 
 static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
 					       kvm_pfn_t pfn,
-					       unsigned long size,
-					       bool ipa_uncached)
+					       unsigned long size)
 {
 	void *va = page_address(pfn_to_page(pfn));
 
-	if (!vcpu_has_cache_enabled(vcpu) || ipa_uncached)
-		kvm_flush_dcache_to_poc(va, size);
+	kvm_flush_dcache_to_poc(va, size);
 
-	if (!icache_is_aliasing()) {		/* PIPT */
-		flush_icache_range((unsigned long)va,
-				   (unsigned long)va + size);
-	} else if (!icache_is_aivivt()) {	/* non ASID-tagged VIVT */
+	if (icache_is_aliasing()) {
 		/* any kind of VIPT cache */
 		__flush_icache_all();
+	} else if (is_kernel_in_hyp_mode() || !icache_is_vpipt()) {
+		/* PIPT or VPIPT at EL2 (see comment in __kvm_tlb_flush_vmid_ipa) */
+		flush_icache_range((unsigned long)va,
+				   (unsigned long)va + size);
 	}
 }
 
@@ -271,7 +269,7 @@ static inline void __kvm_flush_dcache_pud(pud_t pud)
 	kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
 }
 
-#define kvm_virt_to_phys(x)		__virt_to_phys((unsigned long)(x))
+#define kvm_virt_to_phys(x)		__pa_symbol(x)
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
@@ -309,7 +307,7 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 
 static inline unsigned int kvm_get_vmid_bits(void)
 {
-	int reg = read_system_reg(SYS_ID_AA64MMFR1_EL1);
+	int reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
 
 	return (cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
 }

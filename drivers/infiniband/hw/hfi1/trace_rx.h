@@ -253,66 +253,6 @@ TRACE_EVENT(hfi1_mmu_invalidate,
 		      )
 	    );
 
-#define SNOOP_PRN \
-	"slid %.4x dlid %.4x qpn 0x%.6x opcode 0x%.2x,%s " \
-	"svc lvl %d pkey 0x%.4x [header = %d bytes] [data = %d bytes]"
-
-TRACE_EVENT(snoop_capture,
-	    TP_PROTO(struct hfi1_devdata *dd,
-		     int hdr_len,
-		     struct ib_header *hdr,
-		     int data_len,
-		     void *data),
-	    TP_ARGS(dd, hdr_len, hdr, data_len, data),
-	    TP_STRUCT__entry(
-			     DD_DEV_ENTRY(dd)
-			     __field(u16, slid)
-			     __field(u16, dlid)
-			     __field(u32, qpn)
-			     __field(u8, opcode)
-			     __field(u8, sl)
-			     __field(u16, pkey)
-			     __field(u32, hdr_len)
-			     __field(u32, data_len)
-			     __field(u8, lnh)
-			     __dynamic_array(u8, raw_hdr, hdr_len)
-			     __dynamic_array(u8, raw_pkt, data_len)
-			     ),
-	    TP_fast_assign(
-		struct ib_other_headers *ohdr;
-
-		__entry->lnh = (u8)(be16_to_cpu(hdr->lrh[0]) & 3);
-		if (__entry->lnh == HFI1_LRH_BTH)
-		ohdr = &hdr->u.oth;
-		else
-		ohdr = &hdr->u.l.oth;
-		DD_DEV_ASSIGN(dd);
-		__entry->slid = be16_to_cpu(hdr->lrh[3]);
-		__entry->dlid = be16_to_cpu(hdr->lrh[1]);
-		__entry->qpn = be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
-		__entry->opcode = (be32_to_cpu(ohdr->bth[0]) >> 24) & 0xff;
-		__entry->sl = (u8)(be16_to_cpu(hdr->lrh[0]) >> 4) & 0xf;
-		__entry->pkey =	be32_to_cpu(ohdr->bth[0]) & 0xffff;
-		__entry->hdr_len = hdr_len;
-		__entry->data_len = data_len;
-		memcpy(__get_dynamic_array(raw_hdr), hdr, hdr_len);
-		memcpy(__get_dynamic_array(raw_pkt), data, data_len);
-		),
-	    TP_printk(
-		"[%s] " SNOOP_PRN,
-		__get_str(dev),
-		__entry->slid,
-		__entry->dlid,
-		__entry->qpn,
-		__entry->opcode,
-		show_ib_opcode(__entry->opcode),
-		__entry->sl,
-		__entry->pkey,
-		__entry->hdr_len,
-		__entry->data_len
-		)
-);
-
 #endif /* __HFI1_TRACE_RX_H */
 
 #undef TRACE_INCLUDE_PATH

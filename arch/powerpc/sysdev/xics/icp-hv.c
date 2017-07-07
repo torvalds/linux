@@ -138,7 +138,7 @@ static void icp_hv_set_cpu_priority(unsigned char cppr)
 
 #ifdef CONFIG_SMP
 
-static void icp_hv_cause_ipi(int cpu, unsigned long data)
+static void icp_hv_cause_ipi(int cpu)
 {
 	icp_hv_set_qirr(cpu, IPI_PRIORITY);
 }

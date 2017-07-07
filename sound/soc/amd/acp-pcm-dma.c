@@ -89,7 +89,7 @@ static void acp_reg_write(u32 val, void __iomem *acp_mmio, u32 reg)
 	writel(val, acp_mmio + (reg * 4));
 }
 
-/* Configure a given dma channel parameters - enable/disble,
+/* Configure a given dma channel parameters - enable/disable,
  * number of descriptors, priority
  */
 static void config_acp_dma_channel(void __iomem *acp_mmio, u8 ch_num,
@@ -506,7 +506,7 @@ static int acp_init(void __iomem *acp_mmio)
 	return 0;
 }
 
-/* Deintialize ACP */
+/* Deinitialize ACP */
 static int acp_deinit(void __iomem *acp_mmio)
 {
 	u32 val;
@@ -670,12 +670,9 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 {
 	int status;
 	uint64_t size;
-	struct snd_dma_buffer *dma_buffer;
 	struct page *pg;
 	struct snd_pcm_runtime *runtime;
 	struct audio_substream_data *rtd;
-
-	dma_buffer = &substream->dma_buffer;
 
 	runtime = substream->runtime;
 	rtd = runtime->private_data;

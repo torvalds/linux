@@ -11,24 +11,56 @@ in AArch64 Linux.
 The kernel configures the translation tables so that translations made
 via TTBR0 (i.e. userspace mappings) have the top byte (bits 63:56) of
 the virtual address ignored by the translation hardware. This frees up
-this byte for application use, with the following caveats:
+this byte for application use.
 
-	(1) The kernel requires that all user addresses passed to EL1
-	    are tagged with tag 0x00. This means that any syscall
-	    parameters containing user virtual addresses *must* have
-	    their top byte cleared before trapping to the kernel.
 
-	(2) Non-zero tags are not preserved when delivering signals.
-	    This means that signal handlers in applications making use
-	    of tags cannot rely on the tag information for user virtual
-	    addresses being maintained for fields inside siginfo_t.
-	    One exception to this rule is for signals raised in response
-	    to watchpoint debug exceptions, where the tag information
-	    will be preserved.
+Passing tagged addresses to the kernel
+--------------------------------------
 
-	(3) Special care should be taken when using tagged pointers,
-	    since it is likely that C compilers will not hazard two
-	    virtual addresses differing only in the upper byte.
+All interpretation of userspace memory addresses by the kernel assumes
+an address tag of 0x00.
+
+This includes, but is not limited to, addresses found in:
+
+ - pointer arguments to system calls, including pointers in structures
+   passed to system calls,
+
+ - the stack pointer (sp), e.g. when interpreting it to deliver a
+   signal,
+
+ - the frame pointer (x29) and frame records, e.g. when interpreting
+   them to generate a backtrace or call graph.
+
+Using non-zero address tags in any of these locations may result in an
+error code being returned, a (fatal) signal being raised, or other modes
+of failure.
+
+For these reasons, passing non-zero address tags to the kernel via
+system calls is forbidden, and using a non-zero address tag for sp is
+strongly discouraged.
+
+Programs maintaining a frame pointer and frame records that use non-zero
+address tags may suffer impaired or inaccurate debug and profiling
+visibility.
+
+
+Preserving tags
+---------------
+
+Non-zero tags are not preserved when delivering signals. This means that
+signal handlers in applications making use of tags cannot rely on the
+tag information for user virtual addresses being maintained for fields
+inside siginfo_t. One exception to this rule is for signals raised in
+response to watchpoint debug exceptions, where the tag information will
+be preserved.
 
 The architecture prevents the use of a tagged PC, so the upper byte will
 be set to a sign-extension of bit 55 on exception return.
+
+
+Other considerations
+--------------------
+
+Special care should be taken when using tagged pointers, since it is
+likely that C compilers will not hazard two virtual addresses differing
+only in the upper byte.

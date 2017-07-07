@@ -72,7 +72,7 @@
 #define MAX_THREADS		32
 #define MAX_TEST_SIZE		SZ_1M
 #define MAX_SRCS		32
-#define DMA_OUT_RESOURCE_TO	50
+#define DMA_OUT_RESOURCE_TO	msecs_to_jiffies(50)
 #define DMA_RETRIES		20
 #define SZ_4G			(1ULL << 32)
 #define MAX_SEG_ORDER		20 /* no larger than 1M for kmalloc buffer */
@@ -90,11 +90,11 @@ MODULE_PARM_DESC(max_mw_size, "Limit size of large memory windows");
 
 static unsigned int seg_order = 19; /* 512K */
 module_param(seg_order, uint, 0644);
-MODULE_PARM_DESC(seg_order, "size order [n^2] of buffer segment for testing");
+MODULE_PARM_DESC(seg_order, "size order [2^n] of buffer segment for testing");
 
 static unsigned int run_order = 32; /* 4G */
 module_param(run_order, uint, 0644);
-MODULE_PARM_DESC(run_order, "size order [n^2] of total data to transfer");
+MODULE_PARM_DESC(run_order, "size order [2^n] of total data to transfer");
 
 static bool use_dma; /* default to 0 */
 module_param(use_dma, bool, 0644);
@@ -264,6 +264,8 @@ static ssize_t perf_copy(struct pthr_ctx *pctx, char __iomem *dst,
 	cookie = dmaengine_submit(txd);
 	if (dma_submit_error(cookie))
 		goto err_set_unmap;
+
+	dmaengine_unmap_put(unmap);
 
 	atomic_inc(&pctx->dma_sync);
 	dma_async_issue_pending(chan);
@@ -589,7 +591,7 @@ static ssize_t debugfs_run_read(struct file *filp, char __user *ubuf,
 		return -ENOMEM;
 
 	if (mutex_is_locked(&perf->run_mutex)) {
-		out_off = snprintf(buf, 64, "running\n");
+		out_off = scnprintf(buf, 64, "running\n");
 		goto read_from_buf;
 	}
 
@@ -600,14 +602,14 @@ static ssize_t debugfs_run_read(struct file *filp, char __user *ubuf,
 			break;
 
 		if (pctx->status) {
-			out_off += snprintf(buf + out_off, 1024 - out_off,
+			out_off += scnprintf(buf + out_off, 1024 - out_off,
 					    "%d: error %d\n", i,
 					    pctx->status);
 			continue;
 		}
 
 		rate = div64_u64(pctx->copied, pctx->diff_us);
-		out_off += snprintf(buf + out_off, 1024 - out_off,
+		out_off += scnprintf(buf + out_off, 1024 - out_off,
 			"%d: copied %llu bytes in %llu usecs, %llu MBytes/s\n",
 			i, pctx->copied, pctx->diff_us, rate);
 	}

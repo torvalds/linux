@@ -65,22 +65,22 @@ dep-cmd = $(if $(wildcard $(fixdep)),                                           
            printf '\# cannot find fixdep (%s)\n' $(fixdep) > $(dot-target).cmd; \
            printf '\# using basic dep data\n\n' >> $(dot-target).cmd;           \
            cat $(depfile) >> $(dot-target).cmd;                                 \
-           printf '%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)
+           printf '\n%s\n' 'cmd_$@ := $(make-cmd)' >> $(dot-target).cmd)
 
 ###
 # if_changed_dep  - execute command if any prerequisite is newer than
 #                   target, or command line has changed and update
 #                   dependencies in the cmd file
 if_changed_dep = $(if $(strip $(any-prereq) $(arg-check)),         \
-	@set -e;                                                   \
-	$(echo-cmd) $(cmd_$(1)) && $(dep-cmd))
+                  @set -e;                                         \
+                  $(echo-cmd) $(cmd_$(1)) && $(dep-cmd))
 
 # if_changed      - execute command if any prerequisite is newer than
 #                   target, or command line has changed
-if_changed = $(if $(strip $(any-prereq) $(arg-check)),             \
-	@set -e;                                                   \
-	$(echo-cmd) $(cmd_$(1));                                   \
-	printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd)
+if_changed = $(if $(strip $(any-prereq) $(arg-check)),                   \
+              @set -e;                                                   \
+              $(echo-cmd) $(cmd_$(1));                                   \
+              printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd)
 
 ###
 # C flags to be used in rule definitions, includes:
@@ -89,4 +89,12 @@ if_changed = $(if $(strip $(any-prereq) $(arg-check)),             \
 # - per target C flags
 # - per object C flags
 # - BUILD_STR macro to allow '-D"$(variable)"' constructs
-c_flags = -Wp,-MD,$(depfile),-MT,$@ $(CFLAGS) -D"BUILD_STR(s)=\#s" $(CFLAGS_$(basetarget).o) $(CFLAGS_$(obj))
+c_flags_1 = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CFLAGS) -D"BUILD_STR(s)=\#s" $(CFLAGS_$(basetarget).o) $(CFLAGS_$(obj))
+c_flags_2 = $(filter-out $(CFLAGS_REMOVE_$(basetarget).o), $(c_flags_1))
+c_flags   = $(filter-out $(CFLAGS_REMOVE_$(obj)), $(c_flags_2))
+cxx_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CXXFLAGS) -D"BUILD_STR(s)=\#s" $(CXXFLAGS_$(basetarget).o) $(CXXFLAGS_$(obj))
+
+###
+## HOSTCC C flags
+
+host_c_flags = -Wp,-MD,$(depfile) -Wp,-MT,$@ $(CHOSTFLAGS) -D"BUILD_STR(s)=\#s" $(CHOSTFLAGS_$(basetarget).o) $(CHOSTFLAGS_$(obj))

@@ -8,17 +8,17 @@ enum cpuhp_state {
 	CPUHP_CREATE_THREADS,
 	CPUHP_PERF_PREPARE,
 	CPUHP_PERF_X86_PREPARE,
-	CPUHP_PERF_X86_UNCORE_PREP,
 	CPUHP_PERF_X86_AMD_UNCORE_PREP,
-	CPUHP_PERF_X86_RAPL_PREP,
 	CPUHP_PERF_BFIN,
 	CPUHP_PERF_POWER,
 	CPUHP_PERF_SUPERH,
 	CPUHP_X86_HPET_DEAD,
 	CPUHP_X86_APB_DEAD,
+	CPUHP_X86_MCE_DEAD,
 	CPUHP_VIRT_NET_DEAD,
 	CPUHP_SLUB_DEAD,
 	CPUHP_MM_WRITEBACK_DEAD,
+	CPUHP_MM_VMSTAT_DEAD,
 	CPUHP_SOFTIRQ_DEAD,
 	CPUHP_NET_MVNETA_DEAD,
 	CPUHP_CPUIDLE_DEAD,
@@ -26,10 +26,21 @@ enum cpuhp_state {
 	CPUHP_ARM_OMAP_WAKE_DEAD,
 	CPUHP_IRQ_POLL_DEAD,
 	CPUHP_BLOCK_SOFTIRQ_DEAD,
-	CPUHP_VIRT_SCSI_DEAD,
 	CPUHP_ACPI_CPUDRV_DEAD,
 	CPUHP_S390_PFAULT_DEAD,
 	CPUHP_BLK_MQ_DEAD,
+	CPUHP_FS_BUFF_DEAD,
+	CPUHP_PRINTK_DEAD,
+	CPUHP_MM_MEMCQ_DEAD,
+	CPUHP_PERCPU_CNT_DEAD,
+	CPUHP_RADIX_DEAD,
+	CPUHP_PAGE_ALLOC_DEAD,
+	CPUHP_NET_DEV_DEAD,
+	CPUHP_PCI_XGENE_DEAD,
+	CPUHP_IOMMU_INTEL_DEAD,
+	CPUHP_LUSTRE_CFS_DEAD,
+	CPUHP_SCSI_BNX2FC_DEAD,
+	CPUHP_SCSI_BNX2I_DEAD,
 	CPUHP_WORKQUEUE_PREP,
 	CPUHP_POWER_NUMA_PREPARE,
 	CPUHP_HRTIMERS_PREPARE,
@@ -45,26 +56,32 @@ enum cpuhp_state {
 	CPUHP_POWERPC_MMU_CTX_PREPARE,
 	CPUHP_XEN_PREPARE,
 	CPUHP_XEN_EVTCHN_PREPARE,
-	CPUHP_NOTIFY_PREPARE,
 	CPUHP_ARM_SHMOBILE_SCU_PREPARE,
 	CPUHP_SH_SH3X_PREPARE,
-	CPUHP_BLK_MQ_PREPARE,
+	CPUHP_NET_FLOW_PREPARE,
+	CPUHP_TOPOLOGY_PREPARE,
+	CPUHP_NET_IUCV_PREPARE,
+	CPUHP_ARM_BL_PREPARE,
+	CPUHP_TRACE_RB_PREPARE,
+	CPUHP_MM_ZS_PREPARE,
+	CPUHP_MM_ZSWP_MEM_PREPARE,
+	CPUHP_MM_ZSWP_POOL_PREPARE,
+	CPUHP_KVM_PPC_BOOK3S_PREPARE,
+	CPUHP_ZCOMP_PREPARE,
 	CPUHP_TIMERS_DEAD,
-	CPUHP_NOTF_ERR_INJ_PREPARE,
 	CPUHP_MIPS_SOC_PREPARE,
+	CPUHP_BP_PREPARE_DYN,
+	CPUHP_BP_PREPARE_DYN_END		= CPUHP_BP_PREPARE_DYN + 20,
 	CPUHP_BRINGUP_CPU,
 	CPUHP_AP_IDLE_DEAD,
 	CPUHP_AP_OFFLINE,
 	CPUHP_AP_SCHED_STARTING,
 	CPUHP_AP_RCUTREE_DYING,
 	CPUHP_AP_IRQ_GIC_STARTING,
-	CPUHP_AP_IRQ_GICV3_STARTING,
 	CPUHP_AP_IRQ_HIP04_STARTING,
 	CPUHP_AP_IRQ_ARMADA_XP_STARTING,
-	CPUHP_AP_IRQ_ARMADA_CASC_STARTING,
 	CPUHP_AP_IRQ_BCM2836_STARTING,
 	CPUHP_AP_ARM_MVEBU_COHERENCY,
-	CPUHP_AP_PERF_X86_UNCORE_STARTING,
 	CPUHP_AP_PERF_X86_AMD_UNCORE_STARTING,
 	CPUHP_AP_PERF_X86_STARTING,
 	CPUHP_AP_PERF_X86_AMD_IBS_STARTING,
@@ -76,11 +93,12 @@ enum cpuhp_state {
 	CPUHP_AP_ARM_VFP_STARTING,
 	CPUHP_AP_ARM64_DEBUG_MONITORS_STARTING,
 	CPUHP_AP_PERF_ARM_HW_BREAKPOINT_STARTING,
+	CPUHP_AP_PERF_ARM_ACPI_STARTING,
 	CPUHP_AP_PERF_ARM_STARTING,
 	CPUHP_AP_ARM_L2X0_STARTING,
 	CPUHP_AP_ARM_ARCH_TIMER_STARTING,
 	CPUHP_AP_ARM_GLOBAL_TIMER_STARTING,
-	CPUHP_AP_DUMMY_TIMER_STARTING,
+	CPUHP_AP_JCORE_TIMER_STARTING,
 	CPUHP_AP_EXYNOS4_MCT_TIMER_STARTING,
 	CPUHP_AP_ARM_TWD_STARTING,
 	CPUHP_AP_METAG_TIMER_STARTING,
@@ -93,9 +111,10 @@ enum cpuhp_state {
 	CPUHP_AP_KVM_ARM_VGIC_INIT_STARTING,
 	CPUHP_AP_KVM_ARM_VGIC_STARTING,
 	CPUHP_AP_KVM_ARM_TIMER_STARTING,
+	/* Must be the last timer callback */
+	CPUHP_AP_DUMMY_TIMER_STARTING,
 	CPUHP_AP_ARM_XEN_STARTING,
 	CPUHP_AP_ARM_CORESIGHT_STARTING,
-	CPUHP_AP_ARM_CORESIGHT4_STARTING,
 	CPUHP_AP_ARM64_ISNDEP_STARTING,
 	CPUHP_AP_SMPCFD_DYING,
 	CPUHP_AP_X86_TBOOT_DYING,
@@ -104,6 +123,7 @@ enum cpuhp_state {
 	CPUHP_AP_ONLINE_IDLE,
 	CPUHP_AP_SMPBOOT_THREADS,
 	CPUHP_AP_X86_VDSO_VMA_ONLINE,
+	CPUHP_AP_IRQ_AFFINITY_ONLINE,
 	CPUHP_AP_PERF_ONLINE,
 	CPUHP_AP_PERF_X86_ONLINE,
 	CPUHP_AP_PERF_X86_UNCORE_ONLINE,
@@ -117,9 +137,10 @@ enum cpuhp_state {
 	CPUHP_AP_PERF_ARM_CCI_ONLINE,
 	CPUHP_AP_PERF_ARM_CCN_ONLINE,
 	CPUHP_AP_PERF_ARM_L2X0_ONLINE,
+	CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
+	CPUHP_AP_PERF_ARM_QCOM_L3_ONLINE,
 	CPUHP_AP_WORKQUEUE_ONLINE,
 	CPUHP_AP_RCUTREE_ONLINE,
-	CPUHP_AP_NOTIFY_ONLINE,
 	CPUHP_AP_ONLINE_DYN,
 	CPUHP_AP_ONLINE_DYN_END		= CPUHP_AP_ONLINE_DYN + 30,
 	CPUHP_AP_X86_HPET_ONLINE,
@@ -132,6 +153,11 @@ int __cpuhp_setup_state(enum cpuhp_state state,	const char *name, bool invoke,
 			int (*startup)(unsigned int cpu),
 			int (*teardown)(unsigned int cpu), bool multi_instance);
 
+int __cpuhp_setup_state_cpuslocked(enum cpuhp_state state, const char *name,
+				   bool invoke,
+				   int (*startup)(unsigned int cpu),
+				   int (*teardown)(unsigned int cpu),
+				   bool multi_instance);
 /**
  * cpuhp_setup_state - Setup hotplug state callbacks with calling the callbacks
  * @state:	The state for which the calls are installed
@@ -148,6 +174,15 @@ static inline int cpuhp_setup_state(enum cpuhp_state state,
 				    int (*teardown)(unsigned int cpu))
 {
 	return __cpuhp_setup_state(state, name, true, startup, teardown, false);
+}
+
+static inline int cpuhp_setup_state_cpuslocked(enum cpuhp_state state,
+					       const char *name,
+					       int (*startup)(unsigned int cpu),
+					       int (*teardown)(unsigned int cpu))
+{
+	return __cpuhp_setup_state_cpuslocked(state, name, true, startup,
+					      teardown, false);
 }
 
 /**
@@ -168,6 +203,15 @@ static inline int cpuhp_setup_state_nocalls(enum cpuhp_state state,
 {
 	return __cpuhp_setup_state(state, name, false, startup, teardown,
 				   false);
+}
+
+static inline int cpuhp_setup_state_nocalls_cpuslocked(enum cpuhp_state state,
+						     const char *name,
+						     int (*startup)(unsigned int cpu),
+						     int (*teardown)(unsigned int cpu))
+{
+	return __cpuhp_setup_state_cpuslocked(state, name, false, startup,
+					    teardown, false);
 }
 
 /**
@@ -196,6 +240,8 @@ static inline int cpuhp_setup_state_multi(enum cpuhp_state state,
 
 int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_node *node,
 			       bool invoke);
+int __cpuhp_state_add_instance_cpuslocked(enum cpuhp_state state,
+					  struct hlist_node *node, bool invoke);
 
 /**
  * cpuhp_state_add_instance - Add an instance for a state and invoke startup
@@ -228,7 +274,15 @@ static inline int cpuhp_state_add_instance_nocalls(enum cpuhp_state state,
 	return __cpuhp_state_add_instance(state, node, false);
 }
 
+static inline int
+cpuhp_state_add_instance_nocalls_cpuslocked(enum cpuhp_state state,
+					    struct hlist_node *node)
+{
+	return __cpuhp_state_add_instance_cpuslocked(state, node, false);
+}
+
 void __cpuhp_remove_state(enum cpuhp_state state, bool invoke);
+void __cpuhp_remove_state_cpuslocked(enum cpuhp_state state, bool invoke);
 
 /**
  * cpuhp_remove_state - Remove hotplug state callbacks and invoke the teardown
@@ -250,6 +304,11 @@ static inline void cpuhp_remove_state(enum cpuhp_state state)
 static inline void cpuhp_remove_state_nocalls(enum cpuhp_state state)
 {
 	__cpuhp_remove_state(state, false);
+}
+
+static inline void cpuhp_remove_state_nocalls_cpuslocked(enum cpuhp_state state)
+{
+	__cpuhp_remove_state_cpuslocked(state, false);
 }
 
 /**

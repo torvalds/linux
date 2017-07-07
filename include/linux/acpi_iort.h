@@ -23,6 +23,9 @@
 #include <linux/fwnode.h>
 #include <linux/irqdomain.h>
 
+#define IORT_IRQ_MASK(irq)		(irq & 0xffffffffULL)
+#define IORT_IRQ_TRIGGER_MASK(irq)	((irq >> 32) & 0xffffffffULL)
+
 int iort_register_domain_token(int trans_id, struct fwnode_handle *fw_node);
 void iort_deregister_domain_token(int trans_id);
 struct fwnode_handle *iort_find_domain_token(int trans_id);
@@ -30,12 +33,23 @@ struct fwnode_handle *iort_find_domain_token(int trans_id);
 void acpi_iort_init(void);
 u32 iort_msi_map_rid(struct device *dev, u32 req_id);
 struct irq_domain *iort_get_device_domain(struct device *dev, u32 req_id);
+void acpi_configure_pmsi_domain(struct device *dev);
+int iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id);
+/* IOMMU interface */
+void iort_set_dma_mask(struct device *dev);
+const struct iommu_ops *iort_iommu_configure(struct device *dev);
 #else
 static inline void acpi_iort_init(void) { }
 static inline u32 iort_msi_map_rid(struct device *dev, u32 req_id)
 { return req_id; }
 static inline struct irq_domain *iort_get_device_domain(struct device *dev,
 							u32 req_id)
+{ return NULL; }
+static inline void acpi_configure_pmsi_domain(struct device *dev) { }
+/* IOMMU interface */
+static inline void iort_set_dma_mask(struct device *dev) { }
+static inline
+const struct iommu_ops *iort_iommu_configure(struct device *dev)
 { return NULL; }
 #endif
 

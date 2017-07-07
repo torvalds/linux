@@ -26,7 +26,7 @@
 static u32 sched_clock_multiplier;
 #define SCHED_CLOCK_SHIFT 16
 
-static cycle_t tsc_read(struct clocksource *cs)
+static u64 tsc_read(struct clocksource *cs)
 {
 	return get_cycles();
 }

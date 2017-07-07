@@ -14,6 +14,14 @@
 #include <linux/types.h>
 #include <linux/iio/common/st_sensors.h>
 
+enum st_press_type {
+	LPS001WP,
+	LPS25H,
+	LPS331AP,
+	LPS22HB,
+	ST_PRESS_MAX,
+};
+
 #define LPS001WP_PRESS_DEV_NAME		"lps001wp"
 #define LPS25H_PRESS_DEV_NAME		"lps25h"
 #define LPS331AP_PRESS_DEV_NAME		"lps331ap"

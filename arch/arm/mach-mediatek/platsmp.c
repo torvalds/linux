@@ -122,7 +122,7 @@ static void __init __mtk_smp_prepare_cpus(unsigned int max_cpus, int trustzone)
 	 * write the address of slave startup address into the system-wide
 	 * jump register
 	 */
-	writel_relaxed(virt_to_phys(secondary_startup_arm),
+	writel_relaxed(__pa_symbol(secondary_startup_arm),
 			mtk_smp_base + mtk_smp_info->jump_reg);
 }
 

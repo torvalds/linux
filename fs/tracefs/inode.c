@@ -133,7 +133,7 @@ static struct inode *tracefs_get_inode(struct super_block *sb)
 	struct inode *inode = new_inode(sb);
 	if (inode) {
 		inode->i_ino = get_next_ino();
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	}
 	return inode;
 }
@@ -266,7 +266,7 @@ static const struct super_operations tracefs_super_operations = {
 
 static int trace_fill_super(struct super_block *sb, void *data, int silent)
 {
-	static struct tree_descr trace_files[] = {{""}};
+	static const struct tree_descr trace_files[] = {{""}};
 	struct tracefs_fs_info *fsi;
 	int err;
 

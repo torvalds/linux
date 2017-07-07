@@ -21,9 +21,9 @@ void __init cyclone_setup(void)
 
 static void __iomem *cyclone_mc;
 
-static cycle_t read_cyclone(struct clocksource *cs)
+static u64 read_cyclone(struct clocksource *cs)
 {
-	return (cycle_t)readq((void __iomem *)cyclone_mc);
+	return (u64)readq((void __iomem *)cyclone_mc);
 }
 
 static struct clocksource clocksource_cyclone = {

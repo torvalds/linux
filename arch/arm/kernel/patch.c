@@ -24,9 +24,9 @@ static void __kprobes *patch_map(void *addr, int fixmap, unsigned long *flags)
 	bool module = !core_kernel_text(uintaddr);
 	struct page *page;
 
-	if (module && IS_ENABLED(CONFIG_DEBUG_SET_MODULE_RONX))
+	if (module && IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
 		page = vmalloc_to_page(addr);
-	else if (!module && IS_ENABLED(CONFIG_DEBUG_RODATA))
+	else if (!module && IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
 		page = virt_to_page(addr);
 	else
 		return addr;
@@ -124,5 +124,5 @@ void __kprobes patch_text(void *addr, unsigned int insn)
 		.insn = insn,
 	};
 
-	stop_machine(patch_text_stop_machine, &patch, NULL);
+	stop_machine_cpuslocked(patch_text_stop_machine, &patch, NULL);
 }

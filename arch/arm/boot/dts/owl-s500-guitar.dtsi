@@ -1,0 +1,22 @@
+/*
+ * LeMaker Guitar SoM
+ *
+ * Copyright (c) 2016-2017 Andreas Färber
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+#include "owl-s500.dtsi"
+
+/ {
+	compatible = "lemaker,guitar", "actions,s500";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x40000000>;
+	};
+};
+
+&timer {
+	clocks = <&hosc>;
+};

@@ -124,7 +124,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	int ret, i, myslot = -1;
 	u32 val;
 	void __iomem *local_pci_cfg_base;
-	struct pci_bus *bus;
+	struct pci_bus *bus, *child;
 	LIST_HEAD(pci_res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -138,7 +138,8 @@ static int versatile_pci_probe(struct platform_device *pdev)
 		return PTR_ERR(versatile_cfg_base[0]);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	versatile_cfg_base[1] = devm_ioremap_resource(&pdev->dev, res);
+	versatile_cfg_base[1] = devm_pci_remap_cfg_resource(&pdev->dev,
+							    res);
 	if (IS_ERR(versatile_cfg_base[1]))
 		return PTR_ERR(versatile_cfg_base[1]);
 
@@ -204,6 +205,8 @@ static int versatile_pci_probe(struct platform_device *pdev)
 
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 	pci_assign_unassigned_bus_resources(bus);
+	list_for_each_entry(child, &bus->children, node)
+		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 
 	return 0;
@@ -219,6 +222,7 @@ static struct platform_driver versatile_pci_driver = {
 	.driver = {
 		.name = "versatile-pci",
 		.of_match_table = versatile_pci_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = versatile_pci_probe,
 };

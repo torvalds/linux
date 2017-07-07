@@ -413,7 +413,7 @@
 /* RSCFDnRPGACCr */
 #define RCANFD_C_RPGACC(r)		(0x1900 + (0x04 * (r)))
 
-/* CAN FD mode specific regsiter map */
+/* CAN FD mode specific register map */
 
 /* RSCFDnCFDCmXXX -> RCANFD_F_XXX(m) */
 #define RCANFD_F_DCFG(m)		(0x0500 + (0x20 * (m)))
@@ -1512,7 +1512,7 @@ static int rcar_canfd_rx_poll(struct napi_struct *napi, int quota)
 
 	/* All packets processed */
 	if (num_pkts < quota) {
-		napi_complete(napi);
+		napi_complete_done(napi, num_pkts);
 		/* Enable Rx FIFO interrupts */
 		rcar_canfd_set_bit(priv->base, RCANFD_RFCC(ridx),
 				   RCANFD_RFCC_RFIE);

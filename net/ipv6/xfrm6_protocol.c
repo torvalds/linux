@@ -162,9 +162,8 @@ static const struct inet6_protocol ipcomp6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
-static struct xfrm_input_afinfo xfrm6_input_afinfo = {
+static const struct xfrm_input_afinfo xfrm6_input_afinfo = {
 	.family		=	AF_INET6,
-	.owner		=	THIS_MODULE,
 	.callback	=	xfrm6_rcv_cb,
 };
 

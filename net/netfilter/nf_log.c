@@ -13,8 +13,10 @@
 /* Internal logging interface, which relies on the real
    LOG target modules */
 
-#define NF_LOG_PREFIXLEN		128
 #define NFLOGGER_NAME_LEN		64
+
+int sysctl_nf_log_all_netns __read_mostly;
+EXPORT_SYMBOL(sysctl_nf_log_all_netns);
 
 static struct nf_logger __rcu *loggers[NFPROTO_NUMPROTO][NF_LOG_TYPE_MAX] __read_mostly;
 static DEFINE_MUTEX(nf_log_mutex);
@@ -69,7 +71,6 @@ void nf_log_unset(struct net *net, const struct nf_logger *logger)
 			RCU_INIT_POINTER(net->nf.nf_loggers[i], NULL);
 	}
 	mutex_unlock(&nf_log_mutex);
-	synchronize_rcu();
 }
 EXPORT_SYMBOL(nf_log_unset);
 
@@ -374,13 +375,13 @@ static int seq_show(struct seq_file *s, void *v)
 		logger = nft_log_dereference(loggers[*pos][i]);
 		seq_printf(s, "%s", logger->name);
 		if (i == 0 && loggers[*pos][i + 1] != NULL)
-			seq_printf(s, ",");
+			seq_puts(s, ",");
 
 		if (seq_has_overflowed(s))
 			return -ENOSPC;
 	}
 
-	seq_printf(s, ")\n");
+	seq_puts(s, ")\n");
 
 	if (seq_has_overflowed(s))
 		return -ENOSPC;
@@ -414,6 +415,18 @@ static const struct file_operations nflog_file_ops = {
 #ifdef CONFIG_SYSCTL
 static char nf_log_sysctl_fnames[NFPROTO_NUMPROTO-NFPROTO_UNSPEC][3];
 static struct ctl_table nf_log_sysctl_table[NFPROTO_NUMPROTO+1];
+static struct ctl_table_header *nf_log_sysctl_fhdr;
+
+static struct ctl_table nf_log_sysctl_ftable[] = {
+	{
+		.procname	= "nf_log_all_netns",
+		.data		= &sysctl_nf_log_all_netns,
+		.maxlen		= sizeof(sysctl_nf_log_all_netns),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{ }
+};
 
 static int nf_log_proc_dostring(struct ctl_table *table, int write,
 			 void __user *buffer, size_t *lenp, loff_t *ppos)
@@ -483,6 +496,10 @@ static int netfilter_log_sysctl_init(struct net *net)
 			nf_log_sysctl_table[i].extra1 =
 				(void *)(unsigned long) i;
 		}
+		nf_log_sysctl_fhdr = register_net_sysctl(net, "net/netfilter",
+							 nf_log_sysctl_ftable);
+		if (!nf_log_sysctl_fhdr)
+			goto err_freg;
 	}
 
 	for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
@@ -499,6 +516,9 @@ static int netfilter_log_sysctl_init(struct net *net)
 err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
+	else
+		unregister_net_sysctl_table(nf_log_sysctl_fhdr);
+err_freg:
 err_alloc:
 	return -ENOMEM;
 }
@@ -511,6 +531,8 @@ static void netfilter_log_sysctl_exit(struct net *net)
 	unregister_net_sysctl_table(net->nf.nf_log_dir_header);
 	if (!net_eq(net, &init_net))
 		kfree(table);
+	else
+		unregister_net_sysctl_table(nf_log_sysctl_fhdr);
 }
 #else
 static int netfilter_log_sysctl_init(struct net *net)

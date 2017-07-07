@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/wait.h>
 #include <sound/asound.h>
 
 #define snd_kcontrol_chip(kcontrol) ((kcontrol)->private_data)

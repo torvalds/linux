@@ -331,6 +331,7 @@ struct xilinx_dma_tx_descriptor {
  * @seg_v: Statically allocated segments base
  * @cyclic_seg_v: Statically allocated segment base for cyclic transfers
  * @start_transfer: Differentiate b/w DMA IP's transfer
+ * @stop_transfer: Differentiate b/w DMA IP's quiesce
  */
 struct xilinx_dma_chan {
 	struct xilinx_dma_device *xdev;
@@ -361,6 +362,7 @@ struct xilinx_dma_chan {
 	struct xilinx_axidma_tx_segment *seg_v;
 	struct xilinx_axidma_tx_segment *cyclic_seg_v;
 	void (*start_transfer)(struct xilinx_dma_chan *chan);
+	int (*stop_transfer)(struct xilinx_dma_chan *chan);
 	u16 tdest;
 };
 
@@ -946,26 +948,32 @@ static bool xilinx_dma_is_idle(struct xilinx_dma_chan *chan)
 }
 
 /**
- * xilinx_dma_halt - Halt DMA channel
+ * xilinx_dma_stop_transfer - Halt DMA channel
  * @chan: Driver specific DMA channel
  */
-static void xilinx_dma_halt(struct xilinx_dma_chan *chan)
+static int xilinx_dma_stop_transfer(struct xilinx_dma_chan *chan)
 {
-	int err;
 	u32 val;
 
 	dma_ctrl_clr(chan, XILINX_DMA_REG_DMACR, XILINX_DMA_DMACR_RUNSTOP);
 
 	/* Wait for the hardware to halt */
-	err = xilinx_dma_poll_timeout(chan, XILINX_DMA_REG_DMASR, val,
-				      (val & XILINX_DMA_DMASR_HALTED), 0,
-				      XILINX_DMA_LOOP_COUNT);
+	return xilinx_dma_poll_timeout(chan, XILINX_DMA_REG_DMASR, val,
+				       val & XILINX_DMA_DMASR_HALTED, 0,
+				       XILINX_DMA_LOOP_COUNT);
+}
 
-	if (err) {
-		dev_err(chan->dev, "Cannot stop channel %p: %x\n",
-			chan, dma_ctrl_read(chan, XILINX_DMA_REG_DMASR));
-		chan->err = true;
-	}
+/**
+ * xilinx_cdma_stop_transfer - Wait for the current transfer to complete
+ * @chan: Driver specific DMA channel
+ */
+static int xilinx_cdma_stop_transfer(struct xilinx_dma_chan *chan)
+{
+	u32 val;
+
+	return xilinx_dma_poll_timeout(chan, XILINX_DMA_REG_DMASR, val,
+				       val & XILINX_DMA_DMASR_IDLE, 0,
+				       XILINX_DMA_LOOP_COUNT);
 }
 
 /**
@@ -1653,7 +1661,7 @@ xilinx_cdma_prep_memcpy(struct dma_chan *dchan, dma_addr_t dma_dst,
 {
 	struct xilinx_dma_chan *chan = to_xilinx_chan(dchan);
 	struct xilinx_dma_tx_descriptor *desc;
-	struct xilinx_cdma_tx_segment *segment, *prev;
+	struct xilinx_cdma_tx_segment *segment;
 	struct xilinx_cdma_desc_hw *hw;
 
 	if (!len || len > XILINX_DMA_MAX_TRANS_LEN)
@@ -1680,21 +1688,11 @@ xilinx_cdma_prep_memcpy(struct dma_chan *dchan, dma_addr_t dma_dst,
 		hw->dest_addr_msb = upper_32_bits(dma_dst);
 	}
 
-	/* Fill the previous next descriptor with current */
-	prev = list_last_entry(&desc->segments,
-			       struct xilinx_cdma_tx_segment, node);
-	prev->hw.next_desc = segment->phys;
-
 	/* Insert the segment into the descriptor segments list. */
 	list_add_tail(&segment->node, &desc->segments);
 
-	prev = segment;
-
-	/* Link the last hardware descriptor with the first. */
-	segment = list_first_entry(&desc->segments,
-				struct xilinx_cdma_tx_segment, node);
 	desc->async_tx.phys = segment->phys;
-	prev->hw.next_desc = segment->phys;
+	hw->next_desc = segment->phys;
 
 	return &desc->async_tx;
 
@@ -2003,12 +2001,17 @@ static int xilinx_dma_terminate_all(struct dma_chan *dchan)
 {
 	struct xilinx_dma_chan *chan = to_xilinx_chan(dchan);
 	u32 reg;
+	int err;
 
 	if (chan->cyclic)
 		xilinx_dma_chan_reset(chan);
 
-	/* Halt the DMA engine */
-	xilinx_dma_halt(chan);
+	err = chan->stop_transfer(chan);
+	if (err) {
+		dev_err(chan->dev, "Cannot stop channel %p: %x\n",
+			chan, dma_ctrl_read(chan, XILINX_DMA_REG_DMASR));
+		chan->err = true;
+	}
 
 	/* Remove and free all of the descriptors in the lists */
 	xilinx_dma_free_descriptors(chan);
@@ -2397,12 +2400,16 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 		return err;
 	}
 
-	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA)
+	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		chan->start_transfer = xilinx_dma_start_transfer;
-	else if (xdev->dma_config->dmatype == XDMA_TYPE_CDMA)
+		chan->stop_transfer = xilinx_dma_stop_transfer;
+	} else if (xdev->dma_config->dmatype == XDMA_TYPE_CDMA) {
 		chan->start_transfer = xilinx_cdma_start_transfer;
-	else
+		chan->stop_transfer = xilinx_cdma_stop_transfer;
+	} else {
 		chan->start_transfer = xilinx_vdma_start_transfer;
+		chan->stop_transfer = xilinx_dma_stop_transfer;
+	}
 
 	/* Initialize the tasklet */
 	tasklet_init(&chan->tasklet, xilinx_dma_do_tasklet,

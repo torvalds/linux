@@ -7,7 +7,10 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/compiler.h>
+#include <linux/kernel.h>
 #include <babeltrace/ctf-writer/writer.h>
 #include <babeltrace/ctf-writer/clock.h>
 #include <babeltrace/ctf-writer/stream.h>
@@ -27,6 +30,7 @@
 #include "evsel.h"
 #include "machine.h"
 #include "config.h"
+#include "sane_ctype.h"
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
@@ -1440,10 +1444,8 @@ static int convert__config(const char *var, const char *value, void *cb)
 {
 	struct convert *c = cb;
 
-	if (!strcmp(var, "convert.queue-size")) {
-		c->queue_size = perf_config_u64(var, value);
-		return 0;
-	}
+	if (!strcmp(var, "convert.queue-size"))
+		return perf_config_u64(&c->queue_size, var, value);
 
 	return 0;
 }
@@ -1468,12 +1470,13 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 			.lost            = perf_event__process_lost,
 			.tracing_data    = perf_event__process_tracing_data,
 			.build_id        = perf_event__process_build_id,
+			.namespaces      = perf_event__process_namespaces,
 			.ordered_events  = true,
 			.ordering_requires_timestamps = true,
 		},
 	};
 	struct ctf_writer *cw = &c.writer;
-	int err = -1;
+	int err;
 
 	if (opts->all) {
 		c.tool.comm = process_comm_event;
@@ -1481,12 +1484,15 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 		c.tool.fork = process_fork_event;
 	}
 
-	perf_config(convert__config, &c);
+	err = perf_config(convert__config, &c);
+	if (err)
+		return err;
 
 	/* CTF writer */
 	if (ctf_writer__init(cw, path))
 		return -1;
 
+	err = -1;
 	/* perf.data session */
 	session = perf_session__new(&file, 0, &c.tool);
 	if (!session)

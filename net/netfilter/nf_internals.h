@@ -11,15 +11,10 @@
 #define NFDEBUG(format, args...)
 #endif
 
-
-/* core.c */
-unsigned int nf_iterate(struct sk_buff *skb, struct nf_hook_state *state,
-			struct nf_hook_entry **entryp);
-
 /* nf_queue.c */
 int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
-	     unsigned int queuenum);
-void nf_queue_nf_hook_drop(struct net *net, const struct nf_hook_entry *entry);
+	     struct nf_hook_entry **entryp, unsigned int verdict);
+unsigned int nf_queue_nf_hook_drop(struct net *net);
 int __init netfilter_queue_init(void);
 
 /* nf_log.c */

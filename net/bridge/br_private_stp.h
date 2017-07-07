@@ -61,6 +61,7 @@ void br_received_tcn_bpdu(struct net_bridge_port *p);
 void br_transmit_config(struct net_bridge_port *p);
 void br_transmit_tcn(struct net_bridge *br);
 void br_topology_change_detection(struct net_bridge *br);
+void __br_set_topology_change(struct net_bridge *br, unsigned char val);
 
 /* br_stp_bpdu.c */
 void br_send_config_bpdu(struct net_bridge_port *, struct br_config_bpdu *);

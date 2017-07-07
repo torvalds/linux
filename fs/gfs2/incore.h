@@ -203,9 +203,13 @@ enum {
 	DFL_DLM_RECOVERY	= 6,
 };
 
+/*
+ * We are using struct lm_lockname as an rhashtable key.  Avoid holes within
+ * the struct; padding at the end is fine.
+ */
 struct lm_lockname {
-	struct gfs2_sbd *ln_sbd;
 	u64 ln_number;
+	struct gfs2_sbd *ln_sbd;
 	unsigned int ln_type;
 };
 
@@ -332,7 +336,6 @@ enum {
 };
 
 struct gfs2_glock {
-	struct hlist_bl_node gl_list;
 	unsigned long gl_flags;		/* GLF_... */
 	struct lm_lockname gl_name;
 
@@ -382,6 +385,7 @@ enum {
 	GIF_SW_PAGED		= 3,
 	GIF_ORDERED		= 4,
 	GIF_FREE_VFS_INODE      = 5,
+	GIF_GLOP_PENDING	= 6,
 };
 
 struct gfs2_inode {
@@ -470,15 +474,19 @@ struct gfs2_quota_data {
 	struct rcu_head qd_rcu;
 };
 
+enum {
+	TR_TOUCHED = 1,
+	TR_ATTACHED = 2,
+	TR_ALLOCED = 3,
+};
+
 struct gfs2_trans {
 	unsigned long tr_ip;
 
 	unsigned int tr_blocks;
 	unsigned int tr_revokes;
 	unsigned int tr_reserved;
-	unsigned int tr_touched:1;
-	unsigned int tr_attached:1;
-	unsigned int tr_alloced:1;
+	unsigned long tr_flags;
 
 	unsigned int tr_num_buf_new;
 	unsigned int tr_num_databuf_new;
@@ -794,6 +802,7 @@ struct gfs2_sbd {
 	atomic_t sd_log_thresh1;
 	atomic_t sd_log_thresh2;
 	atomic_t sd_log_blks_free;
+	atomic_t sd_log_blks_needed;
 	wait_queue_head_t sd_log_waitq;
 	wait_queue_head_t sd_logd_waitq;
 
@@ -806,13 +815,11 @@ struct gfs2_sbd {
 	atomic_t sd_log_in_flight;
 	struct bio *sd_log_bio;
 	wait_queue_head_t sd_log_flush_wait;
-	int sd_log_error;
 
 	atomic_t sd_reserving_log;
 	wait_queue_head_t sd_reserving_log_wait;
 
 	unsigned int sd_log_flush_head;
-	u64 sd_log_flush_wrapped;
 
 	spinlock_t sd_ail_lock;
 	struct list_head sd_ail1_list;
@@ -848,6 +855,8 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 	this_cpu_ptr(sdp->sd_lkstats)->lkstats[gl->gl_name.ln_type].stats[which]++;
 	preempt_enable();
 }
+
+extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
 
 #endif /* __INCORE_DOT_H__ */
 

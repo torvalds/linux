@@ -1,11 +1,14 @@
-* Amlogic Meson8b Clock and Reset Unit
+* Amlogic Meson8, Meson8b and Meson8m2 Clock and Reset Unit
 
-The Amlogic Meson8b clock controller generates and supplies clock to various
-controllers within the SoC.
+The Amlogic Meson8 / Meson8b / Meson8m2 clock controller generates and
+supplies clock to various controllers within the SoC.
 
 Required Properties:
 
-- compatible: should be "amlogic,meson8b-clkc"
+- compatible: must be one of:
+	- "amlogic,meson8-clkc" for Meson8 (S802) SoCs
+	- "amlogic,meson8b-clkc" for Meson8 (S805) SoCs
+	- "amlogic,meson8m2-clkc" for Meson8m2 (S812) SoCs
 - reg: it must be composed by two tuples:
 	0) physical base address of the xtal register and length of memory
 	   mapped region.

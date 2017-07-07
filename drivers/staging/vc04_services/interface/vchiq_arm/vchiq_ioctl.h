@@ -50,7 +50,7 @@ typedef struct {
 typedef struct {
 	unsigned int handle;
 	unsigned int count;
-	const VCHIQ_ELEMENT_T *elements;
+	const struct vchiq_element *elements;
 } VCHIQ_QUEUE_MESSAGE_T;
 
 typedef struct {

@@ -49,56 +49,6 @@ static struct ep93xxfb_mach_info __initdata simone_fb_info = {
 #define MMC_CARD_DETECT_GPIO EP93XX_GPIO_LINE_EGPIO0
 
 /*
- * Up to v1.3, the Sim.One used SFRMOUT as SD card chip select, but this goes
- * low between multi-message command blocks. From v1.4, it uses a GPIO instead.
- * v1.3 parts will still work, since the signal on SFRMOUT is automatic.
- */
-#define MMC_CHIP_SELECT_GPIO EP93XX_GPIO_LINE_EGPIO1
-
-/*
- * MMC SPI chip select GPIO handling. If you are using SFRMOUT (SFRM1) signal,
- * you can leave these empty and pass NULL as .controller_data.
- */
-
-static int simone_mmc_spi_setup(struct spi_device *spi)
-{
-	unsigned int gpio = MMC_CHIP_SELECT_GPIO;
-	int err;
-
-	err = gpio_request(gpio, spi->modalias);
-	if (err)
-		return err;
-
-	err = gpio_direction_output(gpio, 1);
-	if (err) {
-		gpio_free(gpio);
-		return err;
-	}
-
-	return 0;
-}
-
-static void simone_mmc_spi_cleanup(struct spi_device *spi)
-{
-	unsigned int gpio = MMC_CHIP_SELECT_GPIO;
-
-	gpio_set_value(gpio, 1);
-	gpio_direction_input(gpio);
-	gpio_free(gpio);
-}
-
-static void simone_mmc_spi_cs_control(struct spi_device *spi, int value)
-{
-	gpio_set_value(MMC_CHIP_SELECT_GPIO, value);
-}
-
-static struct ep93xx_spi_chip_ops simone_mmc_spi_ops = {
-	.setup		= simone_mmc_spi_setup,
-	.cleanup	= simone_mmc_spi_cleanup,
-	.cs_control	= simone_mmc_spi_cs_control,
-};
-
-/*
  * MMC card detection GPIO setup.
  */
 
@@ -152,7 +102,6 @@ static struct mmc_spi_platform_data simone_mmc_spi_data = {
 static struct spi_board_info simone_spi_devices[] __initdata = {
 	{
 		.modalias		= "mmc_spi",
-		.controller_data	= &simone_mmc_spi_ops,
 		.platform_data		= &simone_mmc_spi_data,
 		/*
 		 * We use 10 MHz even though the maximum is 3.7 MHz. The driver
@@ -165,8 +114,18 @@ static struct spi_board_info simone_spi_devices[] __initdata = {
 	},
 };
 
+/*
+ * Up to v1.3, the Sim.One used SFRMOUT as SD card chip select, but this goes
+ * low between multi-message command blocks. From v1.4, it uses a GPIO instead.
+ * v1.3 parts will still work, since the signal on SFRMOUT is automatic.
+ */
+static int simone_spi_chipselects[] __initdata = {
+	EP93XX_GPIO_LINE_EGPIO1,
+};
+
 static struct ep93xx_spi_info simone_spi_info __initdata = {
-	.num_chipselect	= ARRAY_SIZE(simone_spi_devices),
+	.chipselect	= simone_spi_chipselects,
+	.num_chipselect	= ARRAY_SIZE(simone_spi_chipselects),
 	.use_dma = 1,
 };
 

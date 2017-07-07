@@ -272,6 +272,10 @@
 	vdd_pll-supply = <&ldo8_reg>;
 };
 
+&hdmicec {
+	status = "okay";
+};
+
 &i2c_0 {
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
@@ -523,6 +527,7 @@
 	status = "okay";
 };
 
+/* eMMC flash */
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;
@@ -536,6 +541,7 @@
 	cap-mmc-highspeed;
 };
 
+/* uSD card */
 &mmc_2 {
 	status = "okay";
 	num-slots = <1>;
@@ -553,6 +559,8 @@
 /*
  * On Snow we've got SIP WiFi and so can keep drive strengths low to
  * reduce EMI.
+ *
+ * WiFi SDIO module
  */
 &mmc_3 {
 	status = "okay";

@@ -25,9 +25,11 @@
 ACPI_MODULE_NAME("platform");
 
 static const struct acpi_device_id forbidden_id_list[] = {
-	{"PNP0000", 0},	/* PIC */
-	{"PNP0100", 0},	/* Timer */
-	{"PNP0200", 0},	/* AT DMA Controller */
+	{"PNP0000",  0},	/* PIC */
+	{"PNP0100",  0},	/* Timer */
+	{"PNP0200",  0},	/* AT DMA Controller */
+	{"ACPI0009", 0},	/* IOxAPIC */
+	{"ACPI000A", 0},	/* IOAPIC */
 	{"", 0},
 };
 
@@ -50,6 +52,7 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 /**
  * acpi_create_platform_device - Create platform device for ACPI device node
  * @adev: ACPI device node to create a platform device for.
+ * @properties: Optional collection of build-in properties.
  *
  * Check if the given @adev can be represented as a platform device and, if
  * that's the case, create and register a platform device, populate its common
@@ -57,7 +60,8 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
  *
  * Name of the platform device will be the same as @adev's.
  */
-struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
+struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
+					struct property_entry *properties)
 {
 	struct platform_device *pdev = NULL;
 	struct platform_device_info pdevinfo;
@@ -106,6 +110,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
+	pdevinfo.properties = properties;
 
 	if (acpi_dma_supported(adev))
 		pdevinfo.dma_mask = DMA_BIT_MASK(32);
@@ -116,11 +121,14 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	if (IS_ERR(pdev))
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
 			PTR_ERR(pdev));
-	else
+	else {
+		set_dev_node(&pdev->dev, acpi_get_node(adev->handle));
 		dev_dbg(&adev->dev, "created platform device %s\n",
 			dev_name(&pdev->dev));
+	}
 
 	kfree(resources);
+
 	return pdev;
 }
 EXPORT_SYMBOL_GPL(acpi_create_platform_device);

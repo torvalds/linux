@@ -48,7 +48,6 @@
 #include <linux/bootmem.h>
 
 #include <asm/irqdomain.h>
-#include <asm/idle.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/cpu.h>
@@ -1108,12 +1107,12 @@ int mp_map_gsi_to_irq(u32 gsi, unsigned int flags, struct irq_alloc_info *info)
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0)
-		return -1;
+		return -ENODEV;
 
 	pin = mp_find_ioapic_pin(ioapic, gsi);
 	idx = find_irq_entry(ioapic, pin, mp_INT);
 	if ((flags & IOAPIC_MAP_CHECK) && idx < 0)
-		return -1;
+		return -ENODEV;
 
 	return mp_map_pin_to_irq(gsi, idx, ioapic, pin, flags, info);
 }
@@ -1200,28 +1199,6 @@ out:
 EXPORT_SYMBOL(IO_APIC_get_PCI_irq_vector);
 
 static struct irq_chip ioapic_chip, ioapic_ir_chip;
-
-#ifdef CONFIG_X86_32
-static inline int IO_APIC_irq_trigger(int irq)
-{
-	int apic, idx, pin;
-
-	for_each_ioapic_pin(apic, pin) {
-		idx = find_irq_entry(apic, pin, mp_INT);
-		if ((idx != -1) && (irq == pin_2_irq(idx, apic, pin, 0)))
-			return irq_trigger(idx);
-	}
-	/*
-         * nonexistent IRQs are edge default
-         */
-	return 0;
-}
-#else
-static inline int IO_APIC_irq_trigger(int irq)
-{
-	return 1;
-}
-#endif
 
 static void __init setup_IO_APIC_irqs(void)
 {
@@ -1876,6 +1853,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_eoi		= ioapic_ack_level,
 	.irq_set_affinity	= ioapic_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -1887,6 +1865,7 @@ static struct irq_chip ioapic_ir_chip __read_mostly = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_eoi		= ioapic_ir_ack_level,
 	.irq_set_affinity	= ioapic_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -2116,6 +2095,7 @@ static inline void __init check_timer(void)
 			if (idx != -1 && irq_trigger(idx))
 				unmask_ioapic_irq(irq_get_chip_data(0));
 		}
+		irq_domain_deactivate_irq(irq_data);
 		irq_domain_activate_irq(irq_data);
 		if (timer_irq_works()) {
 			if (disable_timer_pin_1 > 0)
@@ -2137,6 +2117,7 @@ static inline void __init check_timer(void)
 		 * legacy devices should be connected to IO APIC #0
 		 */
 		replace_pin_at_irq_node(data, node, apic1, pin1, apic2, pin2);
+		irq_domain_deactivate_irq(irq_data);
 		irq_domain_activate_irq(irq_data);
 		legacy_pic->unmask(0);
 		if (timer_irq_works()) {
@@ -2220,6 +2201,8 @@ static int mp_irqdomain_create(int ioapic)
 	struct ioapic *ip = &ioapics[ioapic];
 	struct ioapic_domain_cfg *cfg = &ip->irqdomain_cfg;
 	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(ioapic);
+	struct fwnode_handle *fn;
+	char *name = "IO-APIC";
 
 	if (cfg->type == IOAPIC_DOMAIN_INVALID)
 		return 0;
@@ -2230,9 +2213,25 @@ static int mp_irqdomain_create(int ioapic)
 	parent = irq_remapping_get_ir_irq_domain(&info);
 	if (!parent)
 		parent = x86_vector_domain;
+	else
+		name = "IO-APIC-IR";
 
-	ip->irqdomain = irq_domain_add_linear(cfg->dev, hwirqs, cfg->ops,
-					      (void *)(long)ioapic);
+	/* Handle device tree enumerated APICs proper */
+	if (cfg->dev) {
+		fn = of_node_to_fwnode(cfg->dev);
+	} else {
+		fn = irq_domain_alloc_named_id_fwnode(name, ioapic);
+		if (!fn)
+			return -ENOMEM;
+	}
+
+	ip->irqdomain = irq_domain_create_linear(fn, hwirqs, cfg->ops,
+						 (void *)(long)ioapic);
+
+	/* Release fw handle if it was allocated above */
+	if (!cfg->dev)
+		irq_domain_free_fwnode(fn);
+
 	if (!ip->irqdomain)
 		return -ENOMEM;
 

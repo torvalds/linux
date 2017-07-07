@@ -50,8 +50,8 @@ int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk("%s: writereg error (reg == 0x%02x, val == 0x%04x, "
-		       "ret == %i)\n", __func__, reg, data, ret);
+		printk("%s: writereg error (reg == 0x%02x, val == 0x%04x, ret == %i)\n",
+		       __func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -234,6 +234,7 @@ int au8522_init(struct dvb_frontend *fe)
 	   chip, so that when it gets powered back up it won't think
 	   that it is already tuned */
 	state->current_frequency = 0;
+	state->current_modulation = VSB_8;
 
 	au8522_writereg(state, 0xa4, 1 << 5);
 

@@ -317,7 +317,8 @@ Amd7930_empty_Dfifo(struct IsdnCardState *cs, int flag)
 							debugl1(cs, "%s", cs->dlog);
 						}
 						/* moves received data in sk-buffer */
-						memcpy(skb_put(skb, cs->rcvidx), cs->rcvbuf, cs->rcvidx);
+						skb_put_data(skb, cs->rcvbuf,
+							     cs->rcvidx);
 						skb_queue_tail(&cs->rq, skb);
 					}
 				}
@@ -789,7 +790,5 @@ void Amd7930_init(struct IsdnCardState *cs)
 void setup_Amd7930(struct IsdnCardState *cs)
 {
 	INIT_WORK(&cs->tqueue, Amd7930_bh);
-	cs->dbusytimer.function = (void *) dbusy_timer_handler;
-	cs->dbusytimer.data = (long) cs;
-	init_timer(&cs->dbusytimer);
+	setup_timer(&cs->dbusytimer, (void *)dbusy_timer_handler, (long)cs);
 }

@@ -319,21 +319,7 @@ struct tps65912 {
 	struct regmap_irq_chip_data *irq_data;
 };
 
-static const struct regmap_range tps65912_yes_ranges[] = {
-	regmap_reg_range(TPS65912_INT_STS, TPS65912_GPIO5),
-};
-
-static const struct regmap_access_table tps65912_volatile_table = {
-	.yes_ranges = tps65912_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tps65912_yes_ranges),
-};
-
-static const struct regmap_config tps65912_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
-	.volatile_table = &tps65912_volatile_table,
-};
+extern const struct regmap_config tps65912_regmap_config;
 
 int tps65912_device_init(struct tps65912 *tps);
 int tps65912_device_exit(struct tps65912 *tps);

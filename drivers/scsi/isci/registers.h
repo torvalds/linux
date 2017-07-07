@@ -652,7 +652,7 @@ struct scu_iit_entry {
 
 
 /*
- * TODO: Where is the SAS_LNKTOV regsiter?
+ * TODO: Where is the SAS_LNKTOV register?
  * TODO: Where is the SAS_PHYTOV register? */
 
 #define SCU_SAS_TRANSMIT_IDENTIFICATION_SMP_TARGET_SHIFT            (1)
@@ -1827,7 +1827,7 @@ struct scu_peg_registers {
 };
 
 /**
- * struct scu_registers - SCU regsiters including both PEG registers if we turn
+ * struct scu_registers - SCU registers including both PEG registers if we turn
  *    on that compile option. All of these registers are in the memory mapped
  *    space returned from BAR1.
  *

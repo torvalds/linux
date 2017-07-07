@@ -51,7 +51,8 @@ enum htt_h2t_msg_type { /* host-to-target */
 	HTT_H2T_MSG_TYPE_FRAG_DESC_BANK_CFG = 6,
 
 	/* This command is used for sending management frames in HTT < 3.0.
-	 * HTT >= 3.0 uses TX_FRM for everything. */
+	 * HTT >= 3.0 uses TX_FRM for everything.
+	 */
 	HTT_H2T_MSG_TYPE_MGMT_TX            = 7,
 	HTT_H2T_MSG_TYPE_TX_FETCH_RESP      = 11,
 
@@ -419,6 +420,7 @@ enum htt_10_4_t2h_msg_type {
 	HTT_10_4_T2H_MSG_TYPE_STATS_NOUPLOAD         = 0x18,
 	/* 0x19 to 0x2f are reserved */
 	HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND     = 0x30,
+	HTT_10_4_T2H_MSG_TYPE_PEER_STATS	     = 0x31,
 	/* keep this last */
 	HTT_10_4_T2H_NUM_MSGS
 };
@@ -453,6 +455,7 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_TX_FETCH_IND,
 	HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM,
 	HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
+	HTT_T2H_MSG_TYPE_PEER_STATS,
 	/* keep this last */
 	HTT_T2H_NUM_MSGS
 };
@@ -908,7 +911,8 @@ struct htt_rx_test {
 
 	/* payload consists of 2 lists:
 	 *  a) num_ints * sizeof(__le32)
-	 *  b) num_chars * sizeof(u8) aligned to 4bytes */
+	 *  b) num_chars * sizeof(u8) aligned to 4bytes
+	 */
 	u8 payload[0];
 } __packed;
 
@@ -1305,7 +1309,8 @@ struct htt_frag_desc_bank_id {
 } __packed;
 
 /* real is 16 but it wouldn't fit in the max htt message size
- * so we use a conservatively safe value for now */
+ * so we use a conservatively safe value for now
+ */
 #define HTT_FRAG_DESC_BANK_MAX 4
 
 #define HTT_FRAG_DESC_BANK_CFG_INFO_PDEV_ID_MASK		0x03
@@ -1470,6 +1475,28 @@ struct htt_channel_change {
 	__le32 phymode;
 } __packed;
 
+struct htt_per_peer_tx_stats_ind {
+	__le32	succ_bytes;
+	__le32  retry_bytes;
+	__le32  failed_bytes;
+	u8	ratecode;
+	u8	flags;
+	__le16	peer_id;
+	__le16  succ_pkts;
+	__le16	retry_pkts;
+	__le16	failed_pkts;
+	__le16	tx_duration;
+	__le32	reserved1;
+	__le32	reserved2;
+} __packed;
+
+struct htt_peer_tx_stats {
+	u8 num_ppdu;
+	u8 ppdu_len;
+	u8 version;
+	u8 payload[0];
+} __packed;
+
 union htt_rx_pn_t {
 	/* WEP: 24-bit PN */
 	u32 pn24;
@@ -1521,6 +1548,7 @@ struct htt_resp {
 		struct htt_tx_fetch_confirm tx_fetch_confirm;
 		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
 		struct htt_channel_change chan_change;
+		struct htt_peer_tx_stats peer_tx_stats;
 	};
 } __packed;
 
@@ -1611,7 +1639,7 @@ struct ath10k_htt {
 		int size;
 
 		/* size - 1 */
-		unsigned size_mask;
+		unsigned int size_mask;
 
 		/* how many rx buffers to keep in the ring */
 		int fill_level;
@@ -1632,7 +1660,7 @@ struct ath10k_htt {
 
 		/* where HTT SW has processed bufs filled by rx MAC DMA */
 		struct {
-			unsigned msdu_payld;
+			unsigned int msdu_payld;
 		} sw_rd_idx;
 
 		/*
@@ -1659,12 +1687,14 @@ struct ath10k_htt {
 	DECLARE_KFIFO_PTR(txdone_fifo, struct htt_tx_done);
 
 	/* set if host-fw communication goes haywire
-	 * used to avoid further failures */
+	 * used to avoid further failures
+	 */
 	bool rx_confused;
 	atomic_t num_mpdus_ready;
 
 	/* This is used to group tx/rx completions separately and process them
-	 * in batches to reduce cache stalls */
+	 * in batches to reduce cache stalls
+	 */
 	struct sk_buff_head rx_compl_q;
 	struct sk_buff_head rx_in_ord_compl_q;
 	struct sk_buff_head tx_fetch_ind_q;
@@ -1692,17 +1722,21 @@ struct ath10k_htt {
 		enum htt_tx_mode_switch_mode mode;
 		enum htt_q_depth_type type;
 	} tx_q_state;
+
+	bool tx_mem_allocated;
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
 
 /* This structure layout is programmed via rx ring setup
  * so that FW knows how to transfer the rx descriptor to the host.
- * Buffers like this are placed on the rx ring. */
+ * Buffers like this are placed on the rx ring.
+ */
 struct htt_rx_desc {
 	union {
 		/* This field is filled on the host using the msdu buffer
-		 * from htt_rx_indication */
+		 * from htt_rx_indication
+		 */
 		struct fw_rx_desc_base fw_desc;
 		u32 pad;
 	} __packed;
@@ -1733,7 +1767,8 @@ struct htt_rx_desc {
 #define HTT_RX_MSDU_SIZE (HTT_RX_BUF_SIZE - (int)sizeof(struct htt_rx_desc))
 
 /* Refill a bunch of RX buffers for each refill round so that FW/HW can handle
- * aggregated traffic more nicely. */
+ * aggregated traffic more nicely.
+ */
 #define ATH10K_HTT_MAX_NUM_REFILL 100
 
 /*
@@ -1754,7 +1789,9 @@ int ath10k_htt_connect(struct ath10k_htt *htt);
 int ath10k_htt_init(struct ath10k *ar);
 int ath10k_htt_setup(struct ath10k_htt *htt);
 
-int ath10k_htt_tx_alloc(struct ath10k_htt *htt);
+int ath10k_htt_tx_start(struct ath10k_htt *htt);
+void ath10k_htt_tx_stop(struct ath10k_htt *htt);
+void ath10k_htt_tx_destroy(struct ath10k_htt *htt);
 void ath10k_htt_tx_free(struct ath10k_htt *htt);
 
 int ath10k_htt_rx_alloc(struct ath10k_htt *htt);
@@ -1791,7 +1828,7 @@ int ath10k_htt_tx_mgmt_inc_pending(struct ath10k_htt *htt, bool is_mgmt,
 
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
-int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);
+int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu);
 int ath10k_htt_tx(struct ath10k_htt *htt,
 		  enum ath10k_hw_txrx_mode txmode,
 		  struct sk_buff *msdu);

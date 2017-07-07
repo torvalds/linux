@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/sched/signal.h>
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
@@ -419,10 +420,6 @@ again:
 
 	vc4_flush_caches(dev);
 
-	/* Disable the binner's pre-loaded overflow memory address */
-	V3D_WRITE(V3D_BPOA, 0);
-	V3D_WRITE(V3D_BPOS, 0);
-
 	/* Either put the job in the binner if it uses the binner, or
 	 * immediately move it to the to-be-rendered queue.
 	 */
@@ -471,6 +468,11 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 	list_for_each_entry(bo, &exec->unref_list, unref_head) {
 		bo->seqno = seqno;
 	}
+
+	for (i = 0; i < exec->rcl_write_bo_count; i++) {
+		bo = to_vc4_bo(&exec->rcl_write_bo[i]->base);
+		bo->write_seqno = seqno;
+	}
 }
 
 /* Queues a struct vc4_exec_info for execution.  If no job is
@@ -510,9 +512,18 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec)
 }
 
 /**
- * Looks up a bunch of GEM handles for BOs and stores the array for
- * use in the command validator that actually writes relocated
- * addresses pointing to them.
+ * vc4_cl_lookup_bos() - Sets up exec->bo[] with the GEM objects
+ * referenced by the job.
+ * @dev: DRM device
+ * @file_priv: DRM file for this fd
+ * @exec: V3D job being set up
+ *
+ * The command validator needs to reference BOs by their index within
+ * the submitted job's BO list.  This does the validation of the job's
+ * BO list and reference counting for the lifetime of the job.
+ *
+ * Note that this function doesn't need to unreference the BOs on
+ * failure, because that will happen at vc4_complete_exec() time.
  */
 static int
 vc4_cl_lookup_bos(struct drm_device *dev,
@@ -543,14 +554,15 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 
 	handles = drm_malloc_ab(exec->bo_count, sizeof(uint32_t));
 	if (!handles) {
+		ret = -ENOMEM;
 		DRM_ERROR("Failed to allocate incoming GEM handles\n");
 		goto fail;
 	}
 
-	ret = copy_from_user(handles,
-			     (void __user *)(uintptr_t)args->bo_handles,
-			     exec->bo_count * sizeof(uint32_t));
-	if (ret) {
+	if (copy_from_user(handles,
+			   (void __user *)(uintptr_t)args->bo_handles,
+			   exec->bo_count * sizeof(uint32_t))) {
+		ret = -EFAULT;
 		DRM_ERROR("Failed to copy in GEM handles\n");
 		goto fail;
 	}
@@ -592,12 +604,14 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 					  args->shader_rec_count);
 	struct vc4_bo *bo;
 
-	if (uniforms_offset < shader_rec_offset ||
+	if (shader_rec_offset < args->bin_cl_size ||
+	    uniforms_offset < shader_rec_offset ||
 	    exec_size < uniforms_offset ||
 	    args->shader_rec_count >= (UINT_MAX /
 					  sizeof(struct vc4_shader_state)) ||
 	    temp_size < exec_size) {
 		DRM_ERROR("overflow in exec arguments\n");
+		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -673,6 +687,14 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 		goto fail;
 
 	ret = vc4_validate_shader_recs(dev, exec);
+	if (ret)
+		goto fail;
+
+	/* Block waiting on any previous rendering into the CS's VBO,
+	 * IB, or textures, so that pixels are actually written by the
+	 * time we try to read them.
+	 */
+	ret = vc4_wait_for_seqno(dev, exec->bin_dep_seqno, ~0ull, true);
 
 fail:
 	drm_free_large(temp);
@@ -699,8 +721,10 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	}
 
 	mutex_lock(&vc4->power_lock);
-	if (--vc4->power_refcount == 0)
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+	if (--vc4->power_refcount == 0) {
+		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
+		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+	}
 	mutex_unlock(&vc4->power_lock);
 
 	kfree(exec);
@@ -832,9 +856,16 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * Submits a command list to the VC4.
+ * vc4_submit_cl_ioctl() - Submits a job (frame) to the VC4.
+ * @dev: DRM device
+ * @data: ioctl argument
+ * @file_priv: DRM file for this fd
  *
- * This is what is called batchbuffer emitting on other hardware.
+ * This is the main entrypoint for userspace to submit a 3D frame to
+ * the GPU.  Userspace provides the binner command list (if
+ * applicable), and the kernel sets up the render command list to draw
+ * to the framebuffer described in the ioctl, using the command lists
+ * that the 3D engine's binner will produce.
  */
 int
 vc4_submit_cl_ioctl(struct drm_device *dev, void *data,

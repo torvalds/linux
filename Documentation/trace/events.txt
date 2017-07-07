@@ -189,16 +189,13 @@ And for string fields they are:
 
 ==, !=, ~
 
-The glob (~) only accepts a wild card character (*) at the start and or
-end of the string. For example:
+The glob (~) accepts a wild card character (*,?) and character classes
+([). For example:
 
   prev_comm ~ "*sh"
   prev_comm ~ "sh*"
   prev_comm ~ "*sh*"
-
-But does not allow for it to be within the string:
-
-  prev_comm ~ "ba*sh"   <-- is invalid
+  prev_comm ~ "ba*sh"
 
 5.2 Setting filters
 -------------------

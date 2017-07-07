@@ -24,6 +24,8 @@
 #include "fwil_types.h"
 #include "p2p.h"
 
+#define BRCMF_SCAN_IE_LEN_MAX		2048
+
 #define WL_NUM_SCAN_MAX			10
 #define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048
@@ -113,6 +115,12 @@ struct brcmf_cfg80211_security {
 	u32 cipher_group;
 };
 
+enum brcmf_profile_fwsup {
+	BRCMF_PROFILE_FWSUP_NONE,
+	BRCMF_PROFILE_FWSUP_PSK,
+	BRCMF_PROFILE_FWSUP_1X
+};
+
 /**
  * struct brcmf_cfg80211_profile - profile information.
  *
@@ -124,6 +132,7 @@ struct brcmf_cfg80211_profile {
 	u8 bssid[ETH_ALEN];
 	struct brcmf_cfg80211_security sec;
 	struct brcmf_wsec_key key[BRCMF_MAX_DEFAULT_KEYS];
+	enum brcmf_profile_fwsup use_fwsup;
 };
 
 /**
@@ -131,16 +140,20 @@ struct brcmf_cfg80211_profile {
  *
  * @BRCMF_VIF_STATUS_READY: ready for operation.
  * @BRCMF_VIF_STATUS_CONNECTING: connect/join in progress.
- * @BRCMF_VIF_STATUS_CONNECTED: connected/joined succesfully.
+ * @BRCMF_VIF_STATUS_CONNECTED: connected/joined successfully.
  * @BRCMF_VIF_STATUS_DISCONNECTING: disconnect/disable in progress.
  * @BRCMF_VIF_STATUS_AP_CREATED: AP operation started.
+ * @BRCMF_VIF_STATUS_EAP_SUCCUSS: EAPOL handshake successful.
+ * @BRCMF_VIF_STATUS_ASSOC_SUCCESS: successful SET_SSID received.
  */
 enum brcmf_vif_status {
 	BRCMF_VIF_STATUS_READY,
 	BRCMF_VIF_STATUS_CONNECTING,
 	BRCMF_VIF_STATUS_CONNECTED,
 	BRCMF_VIF_STATUS_DISCONNECTING,
-	BRCMF_VIF_STATUS_AP_CREATED
+	BRCMF_VIF_STATUS_AP_CREATED,
+	BRCMF_VIF_STATUS_EAP_SUCCESS,
+	BRCMF_VIF_STATUS_ASSOC_SUCCESS,
 };
 
 /**
@@ -271,7 +284,7 @@ struct brcmf_cfg80211_wowl {
  * @pub: common driver information.
  * @channel: current channel.
  * @active_scan: current scan mode.
- * @sched_escan: e-scan for scheduled scan support running.
+ * @int_escan_map: bucket map for which internal e-scan is done.
  * @ibss_starter: indicates this sta is ibss starter.
  * @pwr_save: indicate whether dongle to support power save mode.
  * @dongle_up: indicate whether dongle up or not.
@@ -287,6 +300,7 @@ struct brcmf_cfg80211_wowl {
  * @vif_cnt: number of vif instances.
  * @vif_event: vif event signalling.
  * @wowl: wowl related information.
+ * @pno: information of pno module.
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
@@ -303,7 +317,7 @@ struct brcmf_cfg80211_info {
 	struct brcmf_pub *pub;
 	u32 channel;
 	bool active_scan;
-	bool sched_escan;
+	u32 int_escan_map;
 	bool ibss_starter;
 	bool pwr_save;
 	bool dongle_up;
@@ -320,6 +334,7 @@ struct brcmf_cfg80211_info {
 	struct brcmu_d11inf d11inf;
 	struct brcmf_assoclist_le assoclist;
 	struct brcmf_cfg80211_wowl wowl;
+	struct brcmf_pno_info *pno;
 };
 
 /**
@@ -396,8 +411,6 @@ void brcmf_free_vif(struct brcmf_cfg80211_vif *vif);
 s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 			  const u8 *vndr_ie_buf, u32 vndr_ie_len);
 s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif);
-const struct brcmf_tlv *
-brcmf_parse_tlvs(const void *buf, int buflen, uint key);
 u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
 			struct ieee80211_channel *ch);
 bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg,

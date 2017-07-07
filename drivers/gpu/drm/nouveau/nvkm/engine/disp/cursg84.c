@@ -33,5 +33,5 @@ g84_disp_curs_oclass = {
 	.base.maxver = 0,
 	.ctor = nv50_disp_curs_new,
 	.func = &nv50_disp_pioc_func,
-	.chid = 7,
+	.chid = { 7, 7 },
 };

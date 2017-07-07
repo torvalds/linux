@@ -7,7 +7,7 @@
  * Copyright (c) 2005, Devicescape Software, Inc.
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright (c) 2016 Intel Deutschland GmbH
+ * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -185,6 +185,8 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 
 /* number of user priorities 802.11 uses */
 #define IEEE80211_NUM_UPS		8
+/* number of ACs */
+#define IEEE80211_NUM_ACS		4
 
 #define IEEE80211_QOS_CTL_LEN		2
 /* 1d tag mask */
@@ -1041,8 +1043,9 @@ struct ieee80211_mgmt {
 	} u;
 } __packed __aligned(2);
 
-/* Supported Rates value encodings in 802.11n-2009 7.3.2.2 */
+/* Supported rates membership selectors */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
+#define BSS_MEMBERSHIP_SELECTOR_VHT_PHY	126
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
@@ -1408,6 +1411,8 @@ struct ieee80211_ht_operation {
 #define		IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED	3
 #define IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT		0x0004
 #define IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT		0x0010
+#define IEEE80211_HT_OP_MODE_CCFS2_SHIFT		5
+#define IEEE80211_HT_OP_MODE_CCFS2_MASK			0x1fe0
 
 /* for stbc_param */
 #define IEEE80211_HT_STBC_PARAM_DUAL_BEACON		0x0040
@@ -1522,14 +1527,14 @@ enum ieee80211_vht_chanwidth {
  * This structure is the "VHT operation element" as
  * described in 802.11ac D3.0 8.4.2.161
  * @chan_width: Operating channel width
+ * @center_freq_seg0_idx: center freq segment 0 index
  * @center_freq_seg1_idx: center freq segment 1 index
- * @center_freq_seg2_idx: center freq segment 2 index
  * @basic_mcs_set: VHT Basic MCS rate set
  */
 struct ieee80211_vht_operation {
 	u8 chan_width;
+	u8 center_freq_seg0_idx;
 	u8 center_freq_seg1_idx;
-	u8 center_freq_seg2_idx;
 	__le16 basic_mcs_set;
 } __packed;
 
@@ -1576,6 +1581,9 @@ struct ieee80211_vht_operation {
 #define WLAN_AUTH_SHARED_KEY 1
 #define WLAN_AUTH_FT 2
 #define WLAN_AUTH_SAE 3
+#define WLAN_AUTH_FILS_SK 4
+#define WLAN_AUTH_FILS_SK_PFS 5
+#define WLAN_AUTH_FILS_PK 6
 #define WLAN_AUTH_LEAP 128
 
 #define WLAN_AUTH_CHALLENGE_LEN 128
@@ -1715,6 +1723,9 @@ enum ieee80211_statuscode {
 	WLAN_STATUS_REJECT_DSE_BAND = 96,
 	WLAN_STATUS_DENIED_WITH_SUGGESTED_BAND_AND_CHANNEL = 99,
 	WLAN_STATUS_DENIED_DUE_TO_SPECTRUM_MANAGEMENT = 103,
+	/* 802.11ai */
+	WLAN_STATUS_FILS_AUTHENTICATION_FAILURE = 108,
+	WLAN_STATUS_UNKNOWN_AUTHENTICATION_SERVER = 109,
 };
 
 
@@ -1960,6 +1971,26 @@ enum ieee80211_eid {
 
 	WLAN_EID_VENDOR_SPECIFIC = 221,
 	WLAN_EID_QOS_PARAMETER = 222,
+	WLAN_EID_CAG_NUMBER = 237,
+	WLAN_EID_AP_CSN = 239,
+	WLAN_EID_FILS_INDICATION = 240,
+	WLAN_EID_DILS = 241,
+	WLAN_EID_FRAGMENT = 242,
+	WLAN_EID_EXTENSION = 255
+};
+
+/* Element ID Extensions for Element ID 255 */
+enum ieee80211_eid_ext {
+	WLAN_EID_EXT_ASSOC_DELAY_INFO = 1,
+	WLAN_EID_EXT_FILS_REQ_PARAMS = 2,
+	WLAN_EID_EXT_FILS_KEY_CONFIRM = 3,
+	WLAN_EID_EXT_FILS_SESSION = 4,
+	WLAN_EID_EXT_FILS_HLP_CONTAINER = 5,
+	WLAN_EID_EXT_FILS_IP_ADDR_ASSIGN = 6,
+	WLAN_EID_EXT_KEY_DELIVERY = 7,
+	WLAN_EID_EXT_FILS_WRAPPED_DATA = 8,
+	WLAN_EID_EXT_FILS_PUBLIC_KEY = 12,
+	WLAN_EID_EXT_FILS_NONCE = 13,
 };
 
 /* Action category code */
@@ -2073,10 +2104,52 @@ enum ieee80211_key_len {
 #define IEEE80211_GCMP_MIC_LEN		16
 #define IEEE80211_GCMP_PN_LEN		6
 
-/* Public action codes */
+#define FILS_NONCE_LEN			16
+#define FILS_MAX_KEK_LEN		64
+
+#define FILS_ERP_MAX_USERNAME_LEN	16
+#define FILS_ERP_MAX_REALM_LEN		253
+#define FILS_ERP_MAX_RRK_LEN		64
+
+#define PMK_MAX_LEN			48
+
+/* Public action codes (IEEE Std 802.11-2016, 9.6.8.1, Table 9-307) */
 enum ieee80211_pub_actioncode {
+	WLAN_PUB_ACTION_20_40_BSS_COEX = 0,
+	WLAN_PUB_ACTION_DSE_ENABLEMENT = 1,
+	WLAN_PUB_ACTION_DSE_DEENABLEMENT = 2,
+	WLAN_PUB_ACTION_DSE_REG_LOC_ANN = 3,
 	WLAN_PUB_ACTION_EXT_CHANSW_ANN = 4,
+	WLAN_PUB_ACTION_DSE_MSMT_REQ = 5,
+	WLAN_PUB_ACTION_DSE_MSMT_RESP = 6,
+	WLAN_PUB_ACTION_MSMT_PILOT = 7,
+	WLAN_PUB_ACTION_DSE_PC = 8,
+	WLAN_PUB_ACTION_VENDOR_SPECIFIC = 9,
+	WLAN_PUB_ACTION_GAS_INITIAL_REQ = 10,
+	WLAN_PUB_ACTION_GAS_INITIAL_RESP = 11,
+	WLAN_PUB_ACTION_GAS_COMEBACK_REQ = 12,
+	WLAN_PUB_ACTION_GAS_COMEBACK_RESP = 13,
 	WLAN_PUB_ACTION_TDLS_DISCOVER_RES = 14,
+	WLAN_PUB_ACTION_LOC_TRACK_NOTI = 15,
+	WLAN_PUB_ACTION_QAB_REQUEST_FRAME = 16,
+	WLAN_PUB_ACTION_QAB_RESPONSE_FRAME = 17,
+	WLAN_PUB_ACTION_QMF_POLICY = 18,
+	WLAN_PUB_ACTION_QMF_POLICY_CHANGE = 19,
+	WLAN_PUB_ACTION_QLOAD_REQUEST = 20,
+	WLAN_PUB_ACTION_QLOAD_REPORT = 21,
+	WLAN_PUB_ACTION_HCCA_TXOP_ADVERT = 22,
+	WLAN_PUB_ACTION_HCCA_TXOP_RESPONSE = 23,
+	WLAN_PUB_ACTION_PUBLIC_KEY = 24,
+	WLAN_PUB_ACTION_CHANNEL_AVAIL_QUERY = 25,
+	WLAN_PUB_ACTION_CHANNEL_SCHEDULE_MGMT = 26,
+	WLAN_PUB_ACTION_CONTACT_VERI_SIGNAL = 27,
+	WLAN_PUB_ACTION_GDD_ENABLEMENT_REQ = 28,
+	WLAN_PUB_ACTION_GDD_ENABLEMENT_RESP = 29,
+	WLAN_PUB_ACTION_NETWORK_CHANNEL_CONTROL = 30,
+	WLAN_PUB_ACTION_WHITE_SPACE_MAP_ANN = 31,
+	WLAN_PUB_ACTION_FTM_REQUEST = 32,
+	WLAN_PUB_ACTION_FTM = 33,
+	WLAN_PUB_ACTION_FILS_DISCOVERY = 34,
 };
 
 /* TDLS action codes */
@@ -2137,37 +2210,37 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
 
 /**
- * enum - mesh synchronization method identifier
+ * enum ieee80211_mesh_sync_method - mesh synchronization method identifier
  *
  * @IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET: the default synchronization method
  * @IEEE80211_SYNC_METHOD_VENDOR: a vendor specific synchronization method
  *	that will be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_sync_method {
 	IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET = 1,
 	IEEE80211_SYNC_METHOD_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection protocol identifier
+ * enum ieee80211_mesh_path_protocol - mesh path selection protocol identifier
  *
  * @IEEE80211_PATH_PROTOCOL_HWMP: the default path selection protocol
  * @IEEE80211_PATH_PROTOCOL_VENDOR: a vendor specific protocol that will
  *	be specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_protocol {
 	IEEE80211_PATH_PROTOCOL_HWMP = 1,
 	IEEE80211_PATH_PROTOCOL_VENDOR = 255,
 };
 
 /**
- * enum - mesh path selection metric identifier
+ * enum ieee80211_mesh_path_metric - mesh path selection metric identifier
  *
  * @IEEE80211_PATH_METRIC_AIRTIME: the default path selection metric
  * @IEEE80211_PATH_METRIC_VENDOR: a vendor specific metric that will be
  *	specified in a vendor specific information element
  */
-enum {
+enum ieee80211_mesh_path_metric {
 	IEEE80211_PATH_METRIC_AIRTIME = 1,
 	IEEE80211_PATH_METRIC_VENDOR = 255,
 };
@@ -2276,6 +2349,32 @@ struct ieee80211_timeout_interval_ie {
 	__le32 value;
 } __packed;
 
+/**
+ * enum ieee80211_idle_options - BSS idle options
+ * @WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE: the station should send an RSN
+ *	protected frame to the AP to reset the idle timer at the AP for
+ *	the station.
+ */
+enum ieee80211_idle_options {
+	WLAN_IDLE_OPTIONS_PROTECTED_KEEP_ALIVE = BIT(0),
+};
+
+/**
+ * struct ieee80211_bss_max_idle_period_ie
+ *
+ * This structure refers to "BSS Max idle period element"
+ *
+ * @max_idle_period: indicates the time period during which a station can
+ *	refrain from transmitting frames to its associated AP without being
+ *	disassociated. In units of 1000 TUs.
+ * @idle_options: indicates the options associated with the BSS idle capability
+ *	as specified in &enum ieee80211_idle_options.
+ */
+struct ieee80211_bss_max_idle_period_ie {
+	__le16 max_idle_period;
+	u8 idle_options;
+} __packed;
+
 /* BACK action code */
 enum ieee80211_back_actioncode {
 	WLAN_ACTION_ADDBA_REQ = 0,
@@ -2296,35 +2395,49 @@ enum ieee80211_sa_query_action {
 };
 
 
-/* cipher suite selectors */
-#define WLAN_CIPHER_SUITE_USE_GROUP	0x000FAC00
-#define WLAN_CIPHER_SUITE_WEP40		0x000FAC01
-#define WLAN_CIPHER_SUITE_TKIP		0x000FAC02
-/* reserved: 				0x000FAC03 */
-#define WLAN_CIPHER_SUITE_CCMP		0x000FAC04
-#define WLAN_CIPHER_SUITE_WEP104	0x000FAC05
-#define WLAN_CIPHER_SUITE_AES_CMAC	0x000FAC06
-#define WLAN_CIPHER_SUITE_GCMP		0x000FAC08
-#define WLAN_CIPHER_SUITE_GCMP_256	0x000FAC09
-#define WLAN_CIPHER_SUITE_CCMP_256	0x000FAC0A
-#define WLAN_CIPHER_SUITE_BIP_GMAC_128	0x000FAC0B
-#define WLAN_CIPHER_SUITE_BIP_GMAC_256	0x000FAC0C
-#define WLAN_CIPHER_SUITE_BIP_CMAC_256	0x000FAC0D
+#define SUITE(oui, id)	(((oui) << 8) | (id))
 
-#define WLAN_CIPHER_SUITE_SMS4		0x00147201
+/* cipher suite selectors */
+#define WLAN_CIPHER_SUITE_USE_GROUP	SUITE(0x000FAC, 0)
+#define WLAN_CIPHER_SUITE_WEP40		SUITE(0x000FAC, 1)
+#define WLAN_CIPHER_SUITE_TKIP		SUITE(0x000FAC, 2)
+/* reserved: 				SUITE(0x000FAC, 3) */
+#define WLAN_CIPHER_SUITE_CCMP		SUITE(0x000FAC, 4)
+#define WLAN_CIPHER_SUITE_WEP104	SUITE(0x000FAC, 5)
+#define WLAN_CIPHER_SUITE_AES_CMAC	SUITE(0x000FAC, 6)
+#define WLAN_CIPHER_SUITE_GCMP		SUITE(0x000FAC, 8)
+#define WLAN_CIPHER_SUITE_GCMP_256	SUITE(0x000FAC, 9)
+#define WLAN_CIPHER_SUITE_CCMP_256	SUITE(0x000FAC, 10)
+#define WLAN_CIPHER_SUITE_BIP_GMAC_128	SUITE(0x000FAC, 11)
+#define WLAN_CIPHER_SUITE_BIP_GMAC_256	SUITE(0x000FAC, 12)
+#define WLAN_CIPHER_SUITE_BIP_CMAC_256	SUITE(0x000FAC, 13)
+
+#define WLAN_CIPHER_SUITE_SMS4		SUITE(0x001472, 1)
 
 /* AKM suite selectors */
-#define WLAN_AKM_SUITE_8021X		0x000FAC01
-#define WLAN_AKM_SUITE_PSK		0x000FAC02
-#define WLAN_AKM_SUITE_8021X_SHA256	0x000FAC05
-#define WLAN_AKM_SUITE_PSK_SHA256	0x000FAC06
-#define WLAN_AKM_SUITE_TDLS		0x000FAC07
-#define WLAN_AKM_SUITE_SAE		0x000FAC08
-#define WLAN_AKM_SUITE_FT_OVER_SAE	0x000FAC09
+#define WLAN_AKM_SUITE_8021X			SUITE(0x000FAC, 1)
+#define WLAN_AKM_SUITE_PSK			SUITE(0x000FAC, 2)
+#define WLAN_AKM_SUITE_FT_8021X			SUITE(0x000FAC, 3)
+#define WLAN_AKM_SUITE_FT_PSK			SUITE(0x000FAC, 4)
+#define WLAN_AKM_SUITE_8021X_SHA256		SUITE(0x000FAC, 5)
+#define WLAN_AKM_SUITE_PSK_SHA256		SUITE(0x000FAC, 6)
+#define WLAN_AKM_SUITE_TDLS			SUITE(0x000FAC, 7)
+#define WLAN_AKM_SUITE_SAE			SUITE(0x000FAC, 8)
+#define WLAN_AKM_SUITE_FT_OVER_SAE		SUITE(0x000FAC, 9)
+#define WLAN_AKM_SUITE_8021X_SUITE_B		SUITE(0x000FAC, 11)
+#define WLAN_AKM_SUITE_8021X_SUITE_B_192	SUITE(0x000FAC, 12)
+#define WLAN_AKM_SUITE_FILS_SHA256		SUITE(0x000FAC, 14)
+#define WLAN_AKM_SUITE_FILS_SHA384		SUITE(0x000FAC, 15)
+#define WLAN_AKM_SUITE_FT_FILS_SHA256		SUITE(0x000FAC, 16)
+#define WLAN_AKM_SUITE_FT_FILS_SHA384		SUITE(0x000FAC, 17)
 
 #define WLAN_MAX_KEY_LEN		32
 
+#define WLAN_PMK_NAME_LEN		16
 #define WLAN_PMKID_LEN			16
+#define WLAN_PMK_LEN_EAP_LEAP		16
+#define WLAN_PMK_LEN			32
+#define WLAN_PMK_LEN_SUITE_B_192	48
 
 #define WLAN_OUI_WFA			0x506f9a
 #define WLAN_OUI_TYPE_WFA_P2P		9

@@ -527,7 +527,7 @@ static void bdisp_stop_streaming(struct vb2_queue *q)
 	pm_runtime_put(ctx->bdisp_dev->dev);
 }
 
-static struct vb2_ops bdisp_qops = {
+static const struct vb2_ops bdisp_qops = {
 	.queue_setup     = bdisp_queue_setup,
 	.buf_prepare     = bdisp_buf_prepare,
 	.buf_queue       = bdisp_buf_queue,
@@ -632,8 +632,8 @@ static int bdisp_open(struct file *file)
 
 error_ctrls:
 	bdisp_ctrls_delete(ctx);
-error_fh:
 	v4l2_fh_del(&ctx->fh);
+error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	bdisp_hw_free_nodes(ctx);
 mem_ctx:
@@ -1337,6 +1337,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "failed to get IRQ resource\n");
+		ret = -EINVAL;
 		goto err_clk;
 	}
 

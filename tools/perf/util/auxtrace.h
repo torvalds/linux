@@ -17,6 +17,7 @@
 #define __PERF_AUXTRACE_H
 
 #include <sys/types.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <linux/list.h>
@@ -58,6 +59,8 @@ enum itrace_period_type {
  * @instructions: whether to synthesize 'instructions' events
  * @branches: whether to synthesize 'branches' events
  * @transactions: whether to synthesize events for transactions
+ * @ptwrites: whether to synthesize events for ptwrites
+ * @pwr_events: whether to synthesize power events
  * @errors: whether to synthesize decoder error events
  * @dont_decode: whether to skip decoding entirely
  * @log: write a decoding log
@@ -71,6 +74,7 @@ enum itrace_period_type {
  * @period: 'instructions' events period
  * @period_type: 'instructions' events period type
  * @initial_skip: skip N events at the beginning.
+ * @cpu_bitmap: CPUs for which to synthesize events, or NULL for all
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -78,6 +82,8 @@ struct itrace_synth_opts {
 	bool			instructions;
 	bool			branches;
 	bool			transactions;
+	bool			ptwrites;
+	bool			pwr_events;
 	bool			errors;
 	bool			dont_decode;
 	bool			log;
@@ -91,6 +97,7 @@ struct itrace_synth_opts {
 	unsigned long long	period;
 	enum itrace_period_type	period_type;
 	unsigned long		initial_skip;
+	unsigned long		*cpu_bitmap;
 };
 
 /**

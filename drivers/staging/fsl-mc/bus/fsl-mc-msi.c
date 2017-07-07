@@ -1,7 +1,7 @@
 /*
  * Freescale Management Complex (MC) bus driver MSI support
  *
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -16,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
-#include "../include/mc-bus.h"
+#include "fsl-mc-private.h"
 
 /*
  * Generate a unique ID identifying the interrupt (only used within the MSI
@@ -169,7 +169,7 @@ struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 
 	domain = msi_create_irq_domain(fwnode, info, parent);
 	if (domain)
-		domain->bus_token = DOMAIN_BUS_FSL_MC_MSI;
+		irq_domain_update_bus_token(domain, DOMAIN_BUS_FSL_MC_MSI);
 
 	return domain;
 }

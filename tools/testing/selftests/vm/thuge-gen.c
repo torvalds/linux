@@ -146,7 +146,7 @@ void test_mmap(unsigned long size, unsigned flags)
 
 	before = read_free(size);
 	map = mmap(NULL, size*NUM_PAGES, PROT_READ|PROT_WRITE,
-			MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|flags, 0, 0);
+			MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB|flags, -1, 0);
 
 	if (map == (char *)-1) err("mmap");
 	memset(map, 0xff, size*NUM_PAGES);

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -49,7 +49,6 @@
 #include "hfi.h"
 #include "mad.h"
 #include "trace.h"
-#include "affinity.h"
 
 /*
  * Start of per-port congestion control structures and support code
@@ -197,7 +196,8 @@ static const struct sysfs_ops port_cc_sysfs_ops = {
 };
 
 static struct attribute *port_cc_default_attributes[] = {
-	&cc_prescan_attr.attr
+	&cc_prescan_attr.attr,
+	NULL
 };
 
 static struct kobj_type port_cc_ktype = {
@@ -543,7 +543,7 @@ static ssize_t show_nctxts(struct device *device,
 	 * give a more accurate picture of total contexts available.
 	 */
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 min(dd->num_rcv_contexts - dd->first_user_ctxt,
+			 min(dd->num_rcv_contexts - dd->first_dyn_alloc_ctxt,
 			     (u32)dd->sc_sizes[SC_USER].count));
 }
 
@@ -623,27 +623,6 @@ static ssize_t show_tempsense(struct device *device,
 	return ret;
 }
 
-static ssize_t show_sdma_affinity(struct device *device,
-				  struct device_attribute *attr, char *buf)
-{
-	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
-	struct hfi1_devdata *dd = dd_from_dev(dev);
-
-	return hfi1_get_sdma_affinity(dd, buf);
-}
-
-static ssize_t store_sdma_affinity(struct device *device,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	struct hfi1_ibdev *dev =
-		container_of(device, struct hfi1_ibdev, rdi.ibdev.dev);
-	struct hfi1_devdata *dd = dd_from_dev(dev);
-
-	return hfi1_set_sdma_affinity(dd, buf, count);
-}
-
 /*
  * end of per-unit (or driver, in some cases, but replicated
  * per unit) functions
@@ -658,8 +637,6 @@ static DEVICE_ATTR(serial, S_IRUGO, show_serial, NULL);
 static DEVICE_ATTR(boardversion, S_IRUGO, show_boardversion, NULL);
 static DEVICE_ATTR(tempsense, S_IRUGO, show_tempsense, NULL);
 static DEVICE_ATTR(chip_reset, S_IWUSR, NULL, store_chip_reset);
-static DEVICE_ATTR(sdma_affinity, S_IWUSR | S_IRUGO, show_sdma_affinity,
-		   store_sdma_affinity);
 
 static struct device_attribute *hfi1_attributes[] = {
 	&dev_attr_hw_rev,
@@ -670,7 +647,6 @@ static struct device_attribute *hfi1_attributes[] = {
 	&dev_attr_boardversion,
 	&dev_attr_tempsense,
 	&dev_attr_chip_reset,
-	&dev_attr_sdma_affinity,
 };
 
 int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,

@@ -34,7 +34,7 @@ void vivid_cec_bus_free_work(struct vivid_dev *dev)
 		cancel_delayed_work_sync(&cw->work);
 		spin_lock(&dev->cec_slock);
 		list_del(&cw->list);
-		cec_transmit_done(cw->adap, CEC_TX_STATUS_LOW_DRIVE, 0, 0, 1, 0);
+		cec_transmit_attempt_done(cw->adap, CEC_TX_STATUS_LOW_DRIVE);
 		kfree(cw);
 	}
 	spin_unlock(&dev->cec_slock);
@@ -84,7 +84,7 @@ static void vivid_cec_xfer_done_worker(struct work_struct *work)
 	dev->cec_xfer_start_jiffies = 0;
 	list_del(&cw->list);
 	spin_unlock(&dev->cec_slock);
-	cec_transmit_done(cw->adap, cw->tx_status, 0, valid_dest ? 0 : 1, 0, 0);
+	cec_transmit_attempt_done(cw->adap, cw->tx_status);
 
 	/* Broadcast message */
 	if (adap != dev->cec_rx_adap)
@@ -105,7 +105,7 @@ static void vivid_cec_xfer_try_worker(struct work_struct *work)
 	if (dev->cec_xfer_time_jiffies) {
 		list_del(&cw->list);
 		spin_unlock(&dev->cec_slock);
-		cec_transmit_done(cw->adap, CEC_TX_STATUS_ARB_LOST, 1, 0, 0, 0);
+		cec_transmit_attempt_done(cw->adap, CEC_TX_STATUS_ARB_LOST);
 		kfree(cw);
 	} else {
 		INIT_DELAYED_WORK(&cw->work, vivid_cec_xfer_done_worker);
@@ -135,7 +135,7 @@ static int vivid_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 static int vivid_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				   u32 signal_free_time, struct cec_msg *msg)
 {
-	struct vivid_dev *dev = adap->priv;
+	struct vivid_dev *dev = cec_get_drvdata(adap);
 	struct vivid_cec_work *cw = kzalloc(sizeof(*cw), GFP_KERNEL);
 	long delta_jiffies = 0;
 
@@ -166,7 +166,7 @@ static int vivid_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 {
-	struct vivid_dev *dev = adap->priv;
+	struct vivid_dev *dev = cec_get_drvdata(adap);
 	struct cec_msg reply;
 	u8 dest = cec_msg_destination(msg);
 	u8 disp_ctl;
@@ -216,7 +216,6 @@ static const struct cec_adap_ops vivid_cec_adap_ops = {
 
 struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 					 unsigned int idx,
-					 struct device *parent,
 					 bool is_source)
 {
 	char name[sizeof(dev->vid_out_dev.name) + 2];
@@ -227,5 +226,5 @@ struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 		 is_source ? dev->vid_out_dev.name : dev->vid_cap_dev.name,
 		 idx);
 	return cec_allocate_adapter(&vivid_cec_adap_ops, dev,
-		name, caps, 1, parent);
+		name, caps, 1);
 }

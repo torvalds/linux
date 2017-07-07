@@ -205,11 +205,15 @@ void __init omap2xxx_check_revision(void)
 
 #define OMAP3_SHOW_FEATURE(feat)		\
 	if (omap3_has_ ##feat())		\
-		printk(#feat" ");
+		n += scnprintf(buf + n, sizeof(buf) - n, #feat " ");
 
 static void __init omap3_cpuinfo(void)
 {
 	const char *cpu_name;
+	char buf[64];
+	int n = 0;
+
+	memset(buf, 0, sizeof(buf));
 
 	/*
 	 * OMAP3430 and OMAP3530 are assumed to be same.
@@ -219,7 +223,15 @@ static void __init omap3_cpuinfo(void)
 	 * and CPU class bits.
 	 */
 	if (soc_is_omap3630()) {
-		cpu_name = "OMAP3630";
+		if (omap3_has_iva() && omap3_has_sgx()) {
+			cpu_name = (omap3_has_isp()) ? "OMAP3630/DM3730" : "OMAP3621";
+		} else if (omap3_has_iva()) {
+			cpu_name = "DM3725";
+		} else if (omap3_has_sgx()) {
+			cpu_name = "OMAP3615/AM3715";
+		} else {
+			cpu_name = (omap3_has_isp()) ? "AM3703" : "OMAP3611";
+		}
 	} else if (soc_is_am35xx()) {
 		cpu_name = (omap3_has_sgx()) ? "AM3517" : "AM3505";
 	} else if (soc_is_ti816x()) {
@@ -241,10 +253,10 @@ static void __init omap3_cpuinfo(void)
 		cpu_name = "OMAP3503";
 	}
 
-	sprintf(soc_name, "%s", cpu_name);
+	scnprintf(soc_name, sizeof(soc_name), "%s", cpu_name);
 
 	/* Print verbose information */
-	pr_info("%s %s (", soc_name, soc_rev);
+	n += scnprintf(buf, sizeof(buf) - n, "%s %s (", soc_name, soc_rev);
 
 	OMAP3_SHOW_FEATURE(l2cache);
 	OMAP3_SHOW_FEATURE(iva);
@@ -252,8 +264,10 @@ static void __init omap3_cpuinfo(void)
 	OMAP3_SHOW_FEATURE(neon);
 	OMAP3_SHOW_FEATURE(isp);
 	OMAP3_SHOW_FEATURE(192mhz_clk);
-
-	printk(")\n");
+	if (*(buf + n - 1) == ' ')
+		n--;
+	n += scnprintf(buf + n, sizeof(buf) - n, ")\n");
+	pr_info("%s", buf);
 }
 
 #define OMAP3_CHECK_FEATURE(status,feat)				\

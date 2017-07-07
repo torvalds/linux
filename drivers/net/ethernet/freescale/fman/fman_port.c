@@ -62,6 +62,7 @@
 
 #define BMI_PORT_REGS_OFFSET				0
 #define QMI_PORT_REGS_OFFSET				0x400
+#define HWP_PORT_REGS_OFFSET				0x800
 
 /* Default values */
 #define DFLT_PORT_BUFFER_PREFIX_CONTEXT_DATA_ALIGN		\
@@ -182,7 +183,7 @@
 #define NIA_ENG_BMI					0x00500000
 #define NIA_ENG_QMI_ENQ					0x00540000
 #define NIA_ENG_QMI_DEQ					0x00580000
-
+#define NIA_ENG_HWP					0x00440000
 #define NIA_BMI_AC_ENQ_FRAME				0x00000002
 #define NIA_BMI_AC_TX_RELEASE				0x000002C0
 #define NIA_BMI_AC_RELEASE				0x000000C0
@@ -317,6 +318,19 @@ struct fman_port_qmi_regs {
 	u32 fmqm_pndcc;		/* PortID n Dequeue Confirm Counter */
 };
 
+#define HWP_HXS_COUNT 16
+#define HWP_HXS_PHE_REPORT 0x00000800
+#define HWP_HXS_PCAC_PSTAT 0x00000100
+#define HWP_HXS_PCAC_PSTOP 0x00000001
+struct fman_port_hwp_regs {
+	struct {
+		u32 ssa; /* Soft Sequence Attachment */
+		u32 lcv; /* Line-up Enable Confirmation Mask */
+	} pmda[HWP_HXS_COUNT]; /* Parse Memory Direct Access Registers */
+	u32 reserved080[(0x3f8 - 0x080) / 4]; /* (0x080-0x3f7) */
+	u32 fmpr_pcac; /* Configuration Access Control */
+};
+
 /* QMI dequeue prefetch modes */
 enum fman_port_deq_prefetch {
 	FMAN_PORT_DEQ_NO_PREFETCH, /* No prefetch mode */
@@ -436,6 +450,7 @@ struct fman_port {
 
 	union fman_port_bmi_regs __iomem *bmi_regs;
 	struct fman_port_qmi_regs __iomem *qmi_regs;
+	struct fman_port_hwp_regs __iomem *hwp_regs;
 
 	struct fman_sp_buffer_offsets buffer_offsets;
 
@@ -521,8 +536,11 @@ static int init_bmi_rx(struct fman_port *port)
 	/* NIA */
 	tmp = (u32)cfg->rx_fd_bits << BMI_NEXT_ENG_FD_BITS_SHIFT;
 
-	tmp |= NIA_ENG_BMI | NIA_BMI_AC_ENQ_FRAME;
+	tmp |= NIA_ENG_HWP;
 	iowrite32be(tmp, &regs->fmbm_rfne);
+
+	/* Parser Next Engine NIA */
+	iowrite32be(NIA_ENG_BMI | NIA_BMI_AC_ENQ_FRAME, &regs->fmbm_rfpne);
 
 	/* Enqueue NIA */
 	iowrite32be(NIA_ENG_QMI_ENQ | NIA_ORDER_RESTOR, &regs->fmbm_rfene);
@@ -665,6 +683,50 @@ static int init_qmi(struct fman_port *port)
 	return 0;
 }
 
+static void stop_port_hwp(struct fman_port *port)
+{
+	struct fman_port_hwp_regs __iomem *regs = port->hwp_regs;
+	int cnt = 100;
+
+	iowrite32be(HWP_HXS_PCAC_PSTOP, &regs->fmpr_pcac);
+
+	while (cnt-- > 0 &&
+	       (ioread32be(&regs->fmpr_pcac) & HWP_HXS_PCAC_PSTAT))
+		udelay(10);
+	if (!cnt)
+		pr_err("Timeout stopping HW Parser\n");
+}
+
+static void start_port_hwp(struct fman_port *port)
+{
+	struct fman_port_hwp_regs __iomem *regs = port->hwp_regs;
+	int cnt = 100;
+
+	iowrite32be(0, &regs->fmpr_pcac);
+
+	while (cnt-- > 0 &&
+	       !(ioread32be(&regs->fmpr_pcac) & HWP_HXS_PCAC_PSTAT))
+		udelay(10);
+	if (!cnt)
+		pr_err("Timeout starting HW Parser\n");
+}
+
+static void init_hwp(struct fman_port *port)
+{
+	struct fman_port_hwp_regs __iomem *regs = port->hwp_regs;
+	int i;
+
+	stop_port_hwp(port);
+
+	for (i = 0; i < HWP_HXS_COUNT; i++) {
+		/* enable HXS error reporting into FD[STATUS] PHE */
+		iowrite32be(0x00000000, &regs->pmda[i].ssa);
+		iowrite32be(0xffffffff, &regs->pmda[i].lcv);
+	}
+
+	start_port_hwp(port);
+}
+
 static int init(struct fman_port *port)
 {
 	int err;
@@ -673,6 +735,8 @@ static int init(struct fman_port *port)
 	switch (port->port_type) {
 	case FMAN_PORT_TYPE_RX:
 		err = init_bmi_rx(port);
+		if (!err)
+			init_hwp(port);
 		break;
 	case FMAN_PORT_TYPE_TX:
 		err = init_bmi_tx(port);
@@ -686,7 +750,8 @@ static int init(struct fman_port *port)
 
 	/* Init QMI registers */
 	err = init_qmi(port);
-	return err;
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -1247,7 +1312,7 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 	/* Allocate the FM driver's parameters structure */
 	port->cfg = kzalloc(sizeof(*port->cfg), GFP_KERNEL);
 	if (!port->cfg)
-		goto err_params;
+		return -EINVAL;
 
 	/* Initialize FM port parameters which will be kept by the driver */
 	port->port_type = port->dts_params.type;
@@ -1276,6 +1341,7 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 	/* set memory map pointers */
 	port->bmi_regs = base_addr + BMI_PORT_REGS_OFFSET;
 	port->qmi_regs = base_addr + QMI_PORT_REGS_OFFSET;
+	port->hwp_regs = base_addr + HWP_PORT_REGS_OFFSET;
 
 	port->max_frame_length = DFLT_PORT_MAX_FRAME_LENGTH;
 	/* resource distribution. */
@@ -1327,8 +1393,6 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 
 err_port_cfg:
 	kfree(port->cfg);
-err_params:
-	kfree(port);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(fman_port_config);
@@ -1477,7 +1541,8 @@ EXPORT_SYMBOL(fman_port_cfg_buf_prefix_content);
  */
 int fman_port_disable(struct fman_port *port)
 {
-	u32 __iomem *bmi_cfg_reg, *bmi_status_reg, tmp;
+	u32 __iomem *bmi_cfg_reg, *bmi_status_reg;
+	u32 tmp;
 	bool rx_port, failure = false;
 	int count;
 
@@ -1553,7 +1618,8 @@ EXPORT_SYMBOL(fman_port_disable);
  */
 int fman_port_enable(struct fman_port *port)
 {
-	u32 __iomem *bmi_cfg_reg, tmp;
+	u32 __iomem *bmi_cfg_reg;
+	u32 tmp;
 	bool rx_port;
 
 	if (!is_init_done(port->cfg))
@@ -1623,7 +1689,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 	struct device_node *fm_node, *port_node;
 	struct resource res;
 	struct resource *dev_res;
-	const u32 *u32_prop;
+	u32 val;
 	int err = 0, lenp;
 	enum fman_port_type port_type;
 	u16 port_speed;
@@ -1652,28 +1718,20 @@ static int fman_port_probe(struct platform_device *of_dev)
 		goto return_err;
 	}
 
-	u32_prop = (const u32 *)of_get_property(port_node, "cell-index", &lenp);
-	if (!u32_prop) {
-		dev_err(port->dev, "%s: of_get_property(%s, cell-index) failed\n",
+	err = of_property_read_u32(port_node, "cell-index", &val);
+	if (err) {
+		dev_err(port->dev, "%s: reading cell-index for %s failed\n",
 			__func__, port_node->full_name);
 		err = -EINVAL;
 		goto return_err;
 	}
-	if (WARN_ON(lenp != sizeof(u32))) {
-		err = -EINVAL;
-		goto return_err;
-	}
-	port_id = (u8)fdt32_to_cpu(u32_prop[0]);
-
+	port_id = (u8)val;
 	port->dts_params.id = port_id;
 
 	if (of_device_is_compatible(port_node, "fsl,fman-v3-port-tx")) {
 		port_type = FMAN_PORT_TYPE_TX;
 		port_speed = 1000;
-		u32_prop = (const u32 *)of_get_property(port_node,
-							"fsl,fman-10g-port",
-							&lenp);
-		if (u32_prop)
+		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
 	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-tx")) {
@@ -1686,9 +1744,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 	} else if (of_device_is_compatible(port_node, "fsl,fman-v3-port-rx")) {
 		port_type = FMAN_PORT_TYPE_RX;
 		port_speed = 1000;
-		u32_prop = (const u32 *)of_get_property(port_node,
-						  "fsl,fman-10g-port", &lenp);
-		if (u32_prop)
+		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
 	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-rx")) {
@@ -1743,7 +1799,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 
 	port->dts_params.base_addr = devm_ioremap(port->dev, res.start,
 						  resource_size(&res));
-	if (port->dts_params.base_addr == 0)
+	if (!port->dts_params.base_addr)
 		dev_err(port->dev, "%s: devm_ioremap() failed\n", __func__);
 
 	dev_set_drvdata(&of_dev->dev, port);
@@ -1775,4 +1831,25 @@ static struct platform_driver fman_port_driver = {
 	.probe = fman_port_probe,
 };
 
-builtin_platform_driver(fman_port_driver);
+static int __init fman_port_load(void)
+{
+	int err;
+
+	pr_debug("FSL DPAA FMan driver\n");
+
+	err = platform_driver_register(&fman_port_driver);
+	if (err < 0)
+		pr_err("Error, platform_driver_register() = %d\n", err);
+
+	return err;
+}
+module_init(fman_port_load);
+
+static void __exit fman_port_unload(void)
+{
+	platform_driver_unregister(&fman_port_driver);
+}
+module_exit(fman_port_unload);
+
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("Freescale DPAA Frame Manager Port driver");

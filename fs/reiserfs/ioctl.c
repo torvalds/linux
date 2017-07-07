@@ -47,7 +47,6 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		flags = REISERFS_I(inode)->i_attrs;
-		i_attrs_to_sd_attrs(inode, (__u16 *) & flags);
 		err = put_user(flags, (int __user *)arg);
 		break;
 	case REISERFS_IOC_SETFLAGS:{
@@ -94,7 +93,7 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			}
 			sd_attrs_to_i_attrs(flags, inode);
 			REISERFS_I(inode)->i_attrs = flags;
-			inode->i_ctime = CURRENT_TIME_SEC;
+			inode->i_ctime = current_time(inode);
 			mark_inode_dirty(inode);
 setflags_out:
 			mnt_drop_write_file(filp);
@@ -115,7 +114,7 @@ setflags_out:
 			err = -EFAULT;
 			goto setversion_out;
 		}
-		inode->i_ctime = CURRENT_TIME_SEC;
+		inode->i_ctime = current_time(inode);
 		mark_inode_dirty(inode);
 setversion_out:
 		mnt_drop_write_file(filp);

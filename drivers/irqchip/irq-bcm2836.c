@@ -245,7 +245,7 @@ bcm2836_arm_irqchip_smp_init(void)
 #ifdef CONFIG_SMP
 	/* Unmask IPIs to the boot CPU. */
 	cpuhp_setup_state(CPUHP_AP_IRQ_BCM2836_STARTING,
-			  "AP_IRQ_BCM2836_STARTING", bcm2836_cpu_starting,
+			  "irqchip/bcm2836:starting", bcm2836_cpu_starting,
 			  bcm2836_cpu_dying);
 
 	set_smp_cross_call(bcm2836_arm_irqchip_send_ipi);

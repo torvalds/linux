@@ -82,28 +82,7 @@ static struct mei_cl_driver pn544_driver = {
 	.remove = pn544_mei_remove,
 };
 
-static int pn544_mei_init(void)
-{
-	int r;
-
-	pr_debug(DRIVER_DESC ": %s\n", __func__);
-
-	r = mei_cldev_driver_register(&pn544_driver);
-	if (r) {
-		pr_err(PN544_DRIVER_NAME ": driver registration failed\n");
-		return r;
-	}
-
-	return 0;
-}
-
-static void pn544_mei_exit(void)
-{
-	mei_cldev_driver_unregister(&pn544_driver);
-}
-
-module_init(pn544_mei_init);
-module_exit(pn544_mei_exit);
+module_mei_cl_driver(pn544_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

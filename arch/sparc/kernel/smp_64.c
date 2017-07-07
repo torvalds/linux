@@ -5,7 +5,8 @@
 
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/hotplug.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/threads.h>
@@ -43,7 +44,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/oplib.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/starfire.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>
@@ -63,9 +64,13 @@ cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 cpumask_t cpu_core_sib_map[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = CPU_MASK_NONE };
 
+cpumask_t cpu_core_sib_cache_map[NR_CPUS] __read_mostly = {
+	[0 ... NR_CPUS - 1] = CPU_MASK_NONE };
+
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(cpu_core_map);
 EXPORT_SYMBOL(cpu_core_sib_map);
+EXPORT_SYMBOL(cpu_core_sib_cache_map);
 
 static cpumask_t smp_commenced_mask;
 
@@ -118,7 +123,7 @@ void smp_callin(void)
 	current_thread_info()->new_child = 0;
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	/* inform the notifiers about the new cpu */
@@ -959,37 +964,6 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	preempt_enable();
 }
 
-void __irq_entry smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
-{
-	struct mm_struct *mm;
-	unsigned long flags;
-
-	clear_softint(1 << irq);
-
-	/* See if we need to allocate a new TLB context because
-	 * the version of the one we are using is now out of date.
-	 */
-	mm = current->active_mm;
-	if (unlikely(!mm || (mm == &init_mm)))
-		return;
-
-	spin_lock_irqsave(&mm->context.lock, flags);
-
-	if (unlikely(!CTX_VALID(mm->context)))
-		get_new_mmu_context(mm);
-
-	spin_unlock_irqrestore(&mm->context.lock, flags);
-
-	load_secondary_context(mm);
-	__flush_tlb_mm(CTX_HWBITS(mm->context),
-		       SECONDARY_CONTEXT);
-}
-
-void smp_new_mmu_context_version(void)
-{
-	smp_cross_call(&xcall_new_mmu_context_version, 0, 0, 0);
-}
-
 #ifdef CONFIG_KGDB
 void kgdb_roundup_cpus(unsigned long flags)
 {
@@ -1265,6 +1239,10 @@ void smp_fill_in_sib_core_maps(void)
 		unsigned int j;
 
 		for_each_present_cpu(j)  {
+			if (cpu_data(i).max_cache_id ==
+			    cpu_data(j).max_cache_id)
+				cpumask_set_cpu(j, &cpu_core_sib_cache_map[i]);
+
 			if (cpu_data(i).sock_id == cpu_data(j).sock_id)
 				cpumask_set_cpu(j, &cpu_core_sib_map[i]);
 		}
@@ -1435,6 +1413,7 @@ void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)
 
 static void stop_this_cpu(void *dummy)
 {
+	set_cpu_online(smp_processor_id(), false);
 	prom_stopself();
 }
 
@@ -1443,9 +1422,15 @@ void smp_send_stop(void)
 	int cpu;
 
 	if (tlb_type == hypervisor) {
+		int this_cpu = smp_processor_id();
+#ifdef CONFIG_SERIAL_SUNHV
+		sunhv_migrate_hvcons_irq(this_cpu);
+#endif
 		for_each_online_cpu(cpu) {
-			if (cpu == smp_processor_id())
+			if (cpu == this_cpu)
 				continue;
+
+			set_cpu_online(cpu, false);
 #ifdef CONFIG_SUN_LDOMS
 			if (ldom_domaining_enabled) {
 				unsigned long hv_err;

@@ -49,6 +49,9 @@ temperature) and throttle appropriate devices.
 	.bind: bind the thermal zone device with a thermal cooling device.
 	.unbind: unbind the thermal zone device with a thermal cooling device.
 	.get_temp: get the current temperature of the thermal zone.
+	.set_trips: set the trip points window. Whenever the current temperature
+		    is updated, the trip points immediately below and above the
+		    current temperature are found.
 	.get_mode: get the current mode (enabled/disabled) of the thermal zone.
 	    - "enabled" means the kernel thermal management is enabled.
 	    - "disabled" will prevent kernel thermal driver action upon trip points
@@ -95,6 +98,10 @@ temperature) and throttle appropriate devices.
 			get_temp:	a pointer to a function that reads the
 					sensor temperature. This is mandatory
 					callback provided by sensor driver.
+			set_trips:      a pointer to a function that sets a
+					temperature window. When this window is
+					left the driver must inform the thermal
+					core via thermal_zone_device_update.
 			get_trend: 	a pointer to a function that reads the
 					sensor temperature trend.
 			set_emul_temp:	a pointer to a function that sets
@@ -139,6 +146,18 @@ temperature) and throttle appropriate devices.
 	section 1.1.4 is applicable here.
 	Normally this function will not need to be called and the resource
 	management code will ensure that the resource is freed.
+
+1.1.7 int thermal_zone_get_slope(struct thermal_zone_device *tz)
+
+	This interface is used to read the slope attribute value
+	for the thermal zone device, which might be useful for platform
+	drivers for temperature calculations.
+
+1.1.8 int thermal_zone_get_offset(struct thermal_zone_device *tz)
+
+	This interface is used to read the offset attribute value
+	for the thermal zone device, which might be useful for platform
+	drivers for temperature calculations.
 
 1.2 thermal cooling device interface
 1.2.1 struct thermal_cooling_device *thermal_cooling_device_register(char *name,
@@ -563,3 +582,24 @@ platform data is provided, this uses the step_wise throttling policy.
 This function serves as an arbitrator to set the state of a cooling
 device. It sets the cooling device to the deepest cooling state if
 possible.
+
+6. thermal_emergency_poweroff:
+
+On an event of critical trip temperature crossing. Thermal framework
+allows the system to shutdown gracefully by calling orderly_poweroff().
+In the event of a failure of orderly_poweroff() to shut down the system
+we are in danger of keeping the system alive at undesirably high
+temperatures. To mitigate this high risk scenario we program a work
+queue to fire after a pre-determined number of seconds to start
+an emergency shutdown of the device using the kernel_power_off()
+function. In case kernel_power_off() fails then finally
+emergency_restart() is called in the worst case.
+
+The delay should be carefully profiled so as to give adequate time for
+orderly_poweroff(). In case of failure of an orderly_poweroff() the
+emergency poweroff kicks in after the delay has elapsed and shuts down
+the system.
+
+If set to 0 emergency poweroff will not be supported. So a carefully
+profiled non-zero positive value is a must for emergerncy poweroff to be
+triggered.

@@ -196,6 +196,14 @@ static inline u64 rd_reg64(void __iomem *reg)
 #define caam_dma_to_cpu(value) caam32_to_cpu(value)
 #endif /* CONFIG_ARCH_DMA_ADDR_T_64BIT  */
 
+#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
+#define cpu_to_caam_dma64(value) \
+		(((u64)cpu_to_caam32(lower_32_bits(value)) << 32) | \
+		 (u64)cpu_to_caam32(upper_32_bits(value)))
+#else
+#define cpu_to_caam_dma64(value) cpu_to_caam64(value)
+#endif
+
 /*
  * jr_outentry
  * Represents each entry in a JobR output ring

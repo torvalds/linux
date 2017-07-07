@@ -186,6 +186,12 @@
 #define KPROBES_TRAP(lvl) TRAP_ARG(bad_trap, lvl)
 #endif
 
+#ifdef CONFIG_UPROBES
+#define UPROBES_TRAP(lvl) TRAP_ARG(uprobe_trap, lvl)
+#else
+#define UPROBES_TRAP(lvl) TRAP_ARG(bad_trap, lvl)
+#endif
+
 #ifdef CONFIG_KGDB
 #define KGDB_TRAP(lvl) TRAP_IRQ(kgdb_trap, lvl)
 #else

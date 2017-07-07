@@ -128,6 +128,7 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 	struct vsp1_sru *sru = to_sru(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
 
 	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fse->which);
 	if (!config)
@@ -135,8 +136,12 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 
 	format = vsp1_entity_get_pad_format(&sru->entity, config, SRU_PAD_SINK);
 
-	if (fse->index || fse->code != format->code)
-		return -EINVAL;
+	mutex_lock(&sru->entity.lock);
+
+	if (fse->index || fse->code != format->code) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	if (fse->pad == SRU_PAD_SINK) {
 		fse->min_width = SRU_MIN_SIZE;
@@ -156,7 +161,9 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 		}
 	}
 
-	return 0;
+done:
+	mutex_unlock(&sru->entity.lock);
+	return ret;
 }
 
 static void sru_try_format(struct vsp1_sru *sru,
@@ -184,7 +191,8 @@ static void sru_try_format(struct vsp1_sru *sru,
 						    SRU_PAD_SINK);
 		fmt->code = format->code;
 
-		/* We can upscale by 2 in both direction, but not independently.
+		/*
+		 * We can upscale by 2 in both direction, but not independently.
 		 * Compare the input and output rectangles areas (avoiding
 		 * integer overflows on the output): if the requested output
 		 * area is larger than 1.5^2 the input area upscale by two,
@@ -217,10 +225,15 @@ static int sru_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_sru *sru = to_sru(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&sru->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&sru->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	sru_try_format(sru, config, fmt->pad, &fmt->format);
 
@@ -236,7 +249,9 @@ static int sru_set_format(struct v4l2_subdev *subdev,
 		sru_try_format(sru, config, SRU_PAD_SOURCE, format);
 	}
 
-	return 0;
+done:
+	mutex_unlock(&sru->entity.lock);
+	return ret;
 }
 
 static const struct v4l2_subdev_pad_ops sru_pad_ops = {
@@ -257,7 +272,8 @@ static const struct v4l2_subdev_ops sru_ops = {
 
 static void sru_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	const struct vsp1_sru_param *param;
 	struct vsp1_sru *sru = to_sru(&entity->subdev);
@@ -265,7 +281,7 @@ static void sru_configure(struct vsp1_entity *entity,
 	struct v4l2_mbus_framefmt *output;
 	u32 ctrl0;
 
-	if (!full)
+	if (params != VSP1_ENTITY_PARAMS_INIT)
 		return;
 
 	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
@@ -291,8 +307,27 @@ static void sru_configure(struct vsp1_entity *entity,
 	vsp1_sru_write(sru, dl, VI6_SRU_CTRL2, param->ctrl2);
 }
 
+static unsigned int sru_max_width(struct vsp1_entity *entity,
+				  struct vsp1_pipeline *pipe)
+{
+	struct vsp1_sru *sru = to_sru(&entity->subdev);
+	struct v4l2_mbus_framefmt *input;
+	struct v4l2_mbus_framefmt *output;
+
+	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					   SRU_PAD_SINK);
+	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
+					    SRU_PAD_SOURCE);
+
+	if (input->width != output->width)
+		return 512;
+	else
+		return 256;
+}
+
 static const struct vsp1_entity_operations sru_entity_ops = {
 	.configure = sru_configure,
+	.max_width = sru_max_width,
 };
 
 /* -----------------------------------------------------------------------------

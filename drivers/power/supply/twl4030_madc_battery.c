@@ -17,7 +17,6 @@
 #include <linux/power_supply.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
-#include <linux/i2c/twl4030-madc.h>
 #include <linux/power/twl4030_madc_battery.h>
 #include <linux/iio/consumer.h>
 

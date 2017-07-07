@@ -50,13 +50,14 @@
 
 struct receiver {
 	struct hlist_node list;
-	struct rcu_head rcu;
 	canid_t can_id;
 	canid_t mask;
 	unsigned long matches;
 	void (*func)(struct sk_buff *, void *);
 	void *data;
 	char *ident;
+	struct sock *sk;
+	struct rcu_head rcu;
 };
 
 #define CAN_SFF_RCV_ARRAY_SZ (1 << CAN_SFF_ID_BITS)
@@ -109,18 +110,9 @@ struct s_pstats {
 	unsigned long rcv_entries_max;
 };
 
-/* receive filters subscribed for 'all' CAN devices */
-extern struct dev_rcv_lists can_rx_alldev_list;
-
 /* function prototypes for the CAN networklayer procfs (proc.c) */
-void can_init_proc(void);
-void can_remove_proc(void);
+void can_init_proc(struct net *net);
+void can_remove_proc(struct net *net);
 void can_stat_update(unsigned long data);
-
-/* structures and variables from af_can.c needed in proc.c for reading */
-extern struct timer_list can_stattimer;    /* timer for statistics update */
-extern struct s_stats    can_stats;        /* packet statistics */
-extern struct s_pstats   can_pstats;       /* receive list statistics */
-extern struct hlist_head can_rx_dev_list;  /* rx dispatcher structures */
 
 #endif /* AF_CAN_H */

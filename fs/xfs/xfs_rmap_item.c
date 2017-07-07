@@ -243,6 +243,7 @@ void
 xfs_rui_release(
 	struct xfs_rui_log_item	*ruip)
 {
+	ASSERT(atomic_read(&ruip->rui_refcount) > 0);
 	if (atomic_dec_and_test(&ruip->rui_refcount)) {
 		xfs_trans_ail_remove(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_rui_item_free(ruip);
@@ -441,8 +442,11 @@ xfs_rui_recover(
 				   XFS_FSB_TO_DADDR(mp, rmap->me_startblock));
 		switch (rmap->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
 		case XFS_RMAP_EXTENT_MAP:
+		case XFS_RMAP_EXTENT_MAP_SHARED:
 		case XFS_RMAP_EXTENT_UNMAP:
+		case XFS_RMAP_EXTENT_UNMAP_SHARED:
 		case XFS_RMAP_EXTENT_CONVERT:
+		case XFS_RMAP_EXTENT_CONVERT_SHARED:
 		case XFS_RMAP_EXTENT_ALLOC:
 		case XFS_RMAP_EXTENT_FREE:
 			op_ok = true;
@@ -481,11 +485,20 @@ xfs_rui_recover(
 		case XFS_RMAP_EXTENT_MAP:
 			type = XFS_RMAP_MAP;
 			break;
+		case XFS_RMAP_EXTENT_MAP_SHARED:
+			type = XFS_RMAP_MAP_SHARED;
+			break;
 		case XFS_RMAP_EXTENT_UNMAP:
 			type = XFS_RMAP_UNMAP;
 			break;
+		case XFS_RMAP_EXTENT_UNMAP_SHARED:
+			type = XFS_RMAP_UNMAP_SHARED;
+			break;
 		case XFS_RMAP_EXTENT_CONVERT:
 			type = XFS_RMAP_CONVERT;
+			break;
+		case XFS_RMAP_EXTENT_CONVERT_SHARED:
+			type = XFS_RMAP_CONVERT_SHARED;
 			break;
 		case XFS_RMAP_EXTENT_ALLOC:
 			type = XFS_RMAP_ALLOC;

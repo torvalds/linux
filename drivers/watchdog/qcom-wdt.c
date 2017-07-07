@@ -209,7 +209,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.parent = &pdev->dev;
 	wdt->layout = regs;
 
-	if (readl(wdt->base + WDT_STS) & 1)
+	if (readl(wdt_addr(wdt, WDT_STS)) & 1)
 		wdt->wdd.bootstatus = WDIOF_CARDRESET;
 
 	/*

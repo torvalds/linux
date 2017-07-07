@@ -59,7 +59,7 @@ Any property defined as part of the core regulator binding can also be used.
 
 Continuous Voltage With Enable GPIO Example:
 	pwm_regulator {
-		compatible = "pwm-regulator;
+		compatible = "pwm-regulator";
 		pwms = <&pwm1 0 8448 0>;
 		enable-gpios = <&gpio0 23 GPIO_ACTIVE_HIGH>;
 		regulator-min-microvolt = <1016000>;
@@ -76,7 +76,7 @@ Continuous Voltage With Enable GPIO Example:
 
 Voltage Table Example:
 	pwm_regulator {
-		compatible = "pwm-regulator;
+		compatible = "pwm-regulator";
 		pwms = <&pwm1 0 8448 0>;
 		regulator-min-microvolt = <1016000>;
 		regulator-max-microvolt = <1114000>;

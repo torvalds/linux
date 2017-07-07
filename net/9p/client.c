@@ -32,7 +32,7 @@
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <linux/uio.h>
 #include <net/9p/9p.h>
@@ -592,9 +592,8 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 		ename = &req->rc->sdata[req->rc->offset];
 		if (len > inline_len) {
 			/* We have error in external buffer */
-			err = copy_from_iter(ename + inline_len,
-					     len - inline_len, uidata);
-			if (err != len - inline_len) {
+			if (!copy_from_iter_full(ename + inline_len,
+					     len - inline_len, uidata)) {
 				err = -EFAULT;
 				goto out_err;
 			}
@@ -1101,7 +1100,7 @@ void p9_client_begin_disconnect(struct p9_client *clnt)
 EXPORT_SYMBOL(p9_client_begin_disconnect);
 
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
-	char *uname, kuid_t n_uname, char *aname)
+	const char *uname, kuid_t n_uname, const char *aname)
 {
 	int err = 0;
 	struct p9_req_t *req;
@@ -1149,7 +1148,7 @@ error:
 EXPORT_SYMBOL(p9_client_attach);
 
 struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
-		char **wnames, int clone)
+		const unsigned char * const *wnames, int clone)
 {
 	int err;
 	struct p9_client *clnt;
@@ -1271,7 +1270,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_open);
 
-int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
+int p9_client_create_dotl(struct p9_fid *ofid, const char *name, u32 flags, u32 mode,
 		kgid_t gid, struct p9_qid *qid)
 {
 	int err = 0;
@@ -1316,7 +1315,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_create_dotl);
 
-int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
+int p9_client_fcreate(struct p9_fid *fid, const char *name, u32 perm, int mode,
 		     char *extension)
 {
 	int err;
@@ -1361,8 +1360,8 @@ error:
 }
 EXPORT_SYMBOL(p9_client_fcreate);
 
-int p9_client_symlink(struct p9_fid *dfid, char *name, char *symtgt, kgid_t gid,
-		struct p9_qid *qid)
+int p9_client_symlink(struct p9_fid *dfid, const char *name,
+		const char *symtgt, kgid_t gid, struct p9_qid *qid)
 {
 	int err = 0;
 	struct p9_client *clnt;
@@ -1395,7 +1394,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_symlink);
 
-int p9_client_link(struct p9_fid *dfid, struct p9_fid *oldfid, char *newname)
+int p9_client_link(struct p9_fid *dfid, struct p9_fid *oldfid, const char *newname)
 {
 	struct p9_client *clnt;
 	struct p9_req_t *req;
@@ -2101,6 +2100,10 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 		trace_9p_protocol_dump(clnt, req->rc);
 		goto free_and_error;
 	}
+	if (rsize < count) {
+		pr_err("bogus RREADDIR count (%d > %d)\n", count, rsize);
+		count = rsize;
+	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RREADDIR count %d\n", count);
 
@@ -2117,7 +2120,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_readdir);
 
-int p9_client_mknod_dotl(struct p9_fid *fid, char *name, int mode,
+int p9_client_mknod_dotl(struct p9_fid *fid, const char *name, int mode,
 			dev_t rdev, kgid_t gid, struct p9_qid *qid)
 {
 	int err;
@@ -2148,7 +2151,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_mknod_dotl);
 
-int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
+int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
 				kgid_t gid, struct p9_qid *qid)
 {
 	int err;

@@ -40,6 +40,7 @@
 /* This is used to register protocols. */
 struct net_protocol {
 	void			(*early_demux)(struct sk_buff *skb);
+	void                    (*early_demux_handler)(struct sk_buff *skb);
 	int			(*handler)(struct sk_buff *skb);
 	void			(*err_handler)(struct sk_buff *skb, u32 info);
 	unsigned int		no_policy:1,
@@ -54,7 +55,7 @@ struct net_protocol {
 #if IS_ENABLED(CONFIG_IPV6)
 struct inet6_protocol {
 	void	(*early_demux)(struct sk_buff *skb);
-
+	void    (*early_demux_handler)(struct sk_buff *skb);
 	int	(*handler)(struct sk_buff *skb);
 
 	void	(*err_handler)(struct sk_buff *skb,
@@ -92,12 +93,12 @@ struct inet_protosw {
 #define INET_PROTOSW_PERMANENT 0x02  /* Permanent protocols are unremovable. */
 #define INET_PROTOSW_ICSK      0x04  /* Is this an inet_connection_sock? */
 
-extern const struct net_protocol __rcu *inet_protos[MAX_INET_PROTOS];
+extern struct net_protocol __rcu *inet_protos[MAX_INET_PROTOS];
 extern const struct net_offload __rcu *inet_offloads[MAX_INET_PROTOS];
 extern const struct net_offload __rcu *inet6_offloads[MAX_INET_PROTOS];
 
 #if IS_ENABLED(CONFIG_IPV6)
-extern const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS];
+extern struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS];
 #endif
 
 int inet_add_protocol(const struct net_protocol *prot, unsigned char num);

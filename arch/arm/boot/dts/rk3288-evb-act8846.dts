@@ -47,7 +47,7 @@
 	vcc_lcd: vcc-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio7 3 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio7 RK_PA3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_en>;
 		regulator-name = "vcc_lcd";
@@ -57,7 +57,7 @@
 	vcc_wl: vcc-wl {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio7 9 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio7 RK_PB1 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_pwr>;
 		regulator-name = "vcc_wl";
@@ -96,7 +96,7 @@
 		reg = <0x51>;
 
 		interrupt-parent = <&gpio0>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PA4 IRQ_TYPE_EDGE_FALLING>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;

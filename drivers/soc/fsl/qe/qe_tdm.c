@@ -99,7 +99,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	utdm->tdm_port = val;
 	ut_info->uf_info.tdm_num = utdm->tdm_port;
 
-	if (of_get_property(np, "fsl,tdm-internal-loopback", NULL))
+	if (of_property_read_bool(np, "fsl,tdm-internal-loopback"))
 		utdm->tdm_mode = TDM_INTERNAL_LOOPBACK;
 	else
 		utdm->tdm_mode = TDM_NORMAL;
@@ -167,7 +167,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	}
 
 	if (siram_init_flag == 0) {
-		memset_io(utdm->siram, 0,  res->end - res->start + 1);
+		memset_io(utdm->siram, 0,  resource_size(res));
 		siram_init_flag = 1;
 	}
 
@@ -177,6 +177,7 @@ err_miss_siram_property:
 	devm_iounmap(&pdev->dev, utdm->si_regs);
 	return ret;
 }
+EXPORT_SYMBOL(ucc_of_parse_tdm);
 
 void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 {
@@ -274,3 +275,4 @@ void ucc_tdm_init(struct ucc_tdm *utdm, struct ucc_tdm_info *ut_info)
 		break;
 	}
 }
+EXPORT_SYMBOL(ucc_tdm_init);

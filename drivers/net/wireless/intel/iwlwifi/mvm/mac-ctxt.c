@@ -216,7 +216,8 @@ u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif)
 			qmask |= BIT(vif->hw_queue[ac]);
 	}
 
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_ADHOC)
 		qmask |= BIT(vif->cab_queue);
 
 	return qmask;
@@ -256,7 +257,7 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	};
 
 	if (iwl_mvm_is_dqa_supported(mvm))
-		data.used_hw_queues |= BIT(IWL_MVM_DQA_CMD_QUEUE);
+		data.used_hw_queues |= BIT(IWL_MVM_DQA_GCAST_QUEUE);
 	else
 		data.used_hw_queues |= BIT(IWL_MVM_CMD_QUEUE);
 
@@ -266,6 +267,14 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_iface_hw_queues_iter, &data);
+
+	/*
+	 * for DQA, the hw_queue in mac80211 is never really used for
+	 * real traffic (only the few queue IDs covered above), so
+	 * we can reuse the real HW queue IDs the stations use
+	 */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		return data.used_hw_queues;
 
 	/* don't assign the same hw queues as TDLS stations */
 	ieee80211_iterate_stations_atomic(mvm->hw,
@@ -343,7 +352,7 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.found_vif = false,
 	};
 	u32 ac;
-	int ret, i;
+	int ret, i, queue_limit;
 	unsigned long used_hw_queues;
 
 	/*
@@ -429,17 +438,29 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 	}
 
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		/*
+		 * queues in mac80211 almost entirely independent of
+		 * the ones here - no real limit
+		 */
+		queue_limit = IEEE80211_MAX_QUEUES;
+		BUILD_BUG_ON(IEEE80211_MAX_QUEUES >
+			     BITS_PER_BYTE *
+			     sizeof(mvm->hw_queue_to_mac80211[0]));
+	} else {
+		/* need to not use too many in this case */
+		queue_limit = mvm->first_agg_queue;
+	}
+
 	/*
 	 * Find available queues, and allocate them to the ACs. When in
 	 * DQA-mode they aren't really used, and this is done only so the
 	 * mac80211 ieee80211_check_queues() function won't fail
 	 */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		u8 queue = find_first_zero_bit(&used_hw_queues,
-					       mvm->first_agg_queue);
+		u8 queue = find_first_zero_bit(&used_hw_queues, queue_limit);
 
-		if (!iwl_mvm_is_dqa_supported(mvm) &&
-		    queue >= mvm->first_agg_queue) {
+		if (queue >= queue_limit) {
 			IWL_ERR(mvm, "Failed to allocate queue\n");
 			ret = -EIO;
 			goto exit_fail;
@@ -466,13 +487,19 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 			queue = IWL_MVM_DQA_GCAST_QUEUE;
 		}
 
+		/*
+		 * For TVQM this will be overwritten later with the FW assigned
+		 * queue value (when queue is enabled).
+		 */
+		mvmvif->cab_queue = queue;
 		vif->cab_queue = queue;
 	} else {
 		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 	}
 
-	mvmvif->bcast_sta.sta_id = IWL_MVM_STATION_COUNT;
-	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+	mvmvif->bcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->mcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
 
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)
 		mvmvif->smps_requests[i] = IEEE80211_SMPS_AUTOMATIC;
@@ -499,23 +526,21 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (ret)
 		return ret;
 
+	/* If DQA is supported - queues will be enabled when needed */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		return 0;
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		if (!iwl_mvm_is_dqa_supported(mvm))
-			iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-					      IWL_MVM_OFFCHANNEL_QUEUE,
-					      IWL_MVM_TX_FIFO_VO, 0,
-					      wdg_timeout);
+		iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
+				      IWL_MVM_OFFCHANNEL_QUEUE,
+				      IWL_MVM_TX_FIFO_VO, 0, wdg_timeout);
 		break;
 	case NL80211_IFTYPE_AP:
 		iwl_mvm_enable_ac_txq(mvm, vif->cab_queue, vif->cab_queue,
 				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
 		/* fall through */
 	default:
-		/* If DQA is supported - queues will be enabled when needed */
-		if (iwl_mvm_is_dqa_supported(mvm))
-			break;
-
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
 					      vif->hw_queue[ac],
@@ -533,38 +558,26 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	/*
+	 * If DQA is supported - queues were already disabled, since in
+	 * DQA-mode the queues are a property of the STA and not of the
+	 * vif, and at this point the STA was already deleted
+	 */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		return;
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		if (!iwl_mvm_is_dqa_supported(mvm))
-			iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-					    IWL_MVM_OFFCHANNEL_QUEUE,
-					    IWL_MAX_TID_COUNT, 0);
-		else
-			iwl_mvm_disable_txq(mvm,
-					    IWL_MVM_DQA_P2P_DEVICE_QUEUE,
-					    vif->hw_queue[0], IWL_MAX_TID_COUNT,
-					    0);
+		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
+				    IWL_MVM_OFFCHANNEL_QUEUE,
+				    IWL_MAX_TID_COUNT, 0);
 
 		break;
 	case NL80211_IFTYPE_AP:
 		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
 				    IWL_MAX_TID_COUNT, 0);
-
-		if (iwl_mvm_is_dqa_supported(mvm))
-			iwl_mvm_disable_txq(mvm,
-					    IWL_MVM_DQA_AP_PROBE_RESP_QUEUE,
-					    vif->hw_queue[0], IWL_MAX_TID_COUNT,
-					    0);
 		/* fall through */
 	default:
-		/*
-		 * If DQA is supported - queues were already disabled, since in
-		 * DQA-mode the queues are a property of the STA and not of the
-		 * vif, and at this point the STA was already deleted
-		 */
-		if (iwl_mvm_is_dqa_supported(mvm))
-			break;
-
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac],
 					    vif->hw_queue[ac],
@@ -853,6 +866,8 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 			cpu_to_le64(vif->bss_conf.sync_tsf + dtim_offs);
 		ctxt_sta->dtim_time =
 			cpu_to_le32(vif->bss_conf.sync_device_ts + dtim_offs);
+		ctxt_sta->assoc_beacon_arrive_time =
+			cpu_to_le32(vif->bss_conf.sync_device_ts);
 
 		IWL_DEBUG_INFO(mvm, "DTIM TBTT is 0x%llx/0x%x, offset %d\n",
 			       le64_to_cpu(ctxt_sta->dtim_tsf),
@@ -899,9 +914,11 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, NULL, action);
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
-			tfd_queue_msk |= BIT(vif->hw_queue[i]);
+	if (!iwl_mvm_is_dqa_supported(mvm)) {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
+				tfd_queue_msk |= BIT(vif->hw_queue[i]);
+	}
 
 	cmd.filter_flags = cpu_to_le32(MAC_FILTER_IN_PROMISC |
 				       MAC_FILTER_IN_CONTROL_AND_MGMT |
@@ -912,7 +929,7 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 
 	/* Allocate sniffer station */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->snif_sta, tfd_queue_msk,
-				       vif->type);
+				       vif->type, IWL_STA_GENERAL_PURPOSE);
 	if (ret)
 		return ret;
 
@@ -991,7 +1008,7 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_device(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_mac_ctxt_set_tim(struct iwl_mvm *mvm,
-				     struct iwl_mac_beacon_cmd_v6 *beacon_cmd,
+				     __le32 *tim_index, __le32 *tim_size,
 				     u8 *beacon, u32 frame_size)
 {
 	u32 tim_idx;
@@ -1008,8 +1025,8 @@ static void iwl_mvm_mac_ctxt_set_tim(struct iwl_mvm *mvm,
 
 	/* If TIM field was found, set variables */
 	if ((tim_idx < (frame_size - 1)) && (beacon[tim_idx] == WLAN_EID_TIM)) {
-		beacon_cmd->tim_idx = cpu_to_le32(tim_idx);
-		beacon_cmd->tim_size = cpu_to_le32((u32)beacon[tim_idx+1]);
+		*tim_index = cpu_to_le32(tim_idx);
+		*tim_size = cpu_to_le32((u32)beacon[tim_idx + 1]);
 	} else {
 		IWL_WARN(mvm, "Unable to find TIM Element in beacon\n");
 	}
@@ -1043,8 +1060,9 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 	};
 	union {
 		struct iwl_mac_beacon_cmd_v6 beacon_cmd_v6;
-		struct iwl_mac_beacon_cmd beacon_cmd;
+		struct iwl_mac_beacon_cmd_v7 beacon_cmd;
 	} u = {};
+	struct iwl_mac_beacon_cmd beacon_cmd = {};
 	struct ieee80211_tx_info *info;
 	u32 beacon_skb_len;
 	u32 rate, tx_flags;
@@ -1053,6 +1071,46 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 		return -EINVAL;
 
 	beacon_skb_len = beacon->len;
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD)) {
+		u32 csa_offset, ecsa_offset;
+
+		csa_offset = iwl_mvm_find_ie_offset(beacon->data,
+						    WLAN_EID_CHANNEL_SWITCH,
+						    beacon_skb_len);
+		ecsa_offset =
+			iwl_mvm_find_ie_offset(beacon->data,
+					       WLAN_EID_EXT_CHANSWITCH_ANN,
+					       beacon_skb_len);
+
+		if (iwl_mvm_has_new_tx_api(mvm)) {
+			beacon_cmd.data.template_id =
+				cpu_to_le32((u32)mvmvif->id);
+			beacon_cmd.data.ecsa_offset = cpu_to_le32(ecsa_offset);
+			beacon_cmd.data.csa_offset = cpu_to_le32(csa_offset);
+			beacon_cmd.byte_cnt = cpu_to_le16((u16)beacon_skb_len);
+			if (vif->type == NL80211_IFTYPE_AP)
+				iwl_mvm_mac_ctxt_set_tim(mvm,
+							 &beacon_cmd.data.tim_idx,
+							 &beacon_cmd.data.tim_size,
+							 beacon->data,
+							 beacon_skb_len);
+			cmd.len[0] = sizeof(beacon_cmd);
+			cmd.data[0] = &beacon_cmd;
+			goto send;
+
+		} else {
+			u.beacon_cmd.data.ecsa_offset =
+				cpu_to_le32(ecsa_offset);
+			u.beacon_cmd.data.csa_offset = cpu_to_le32(csa_offset);
+			cmd.len[0] = sizeof(u.beacon_cmd);
+			cmd.data[0] = &u;
+		}
+	} else {
+		cmd.len[0] = sizeof(u.beacon_cmd_v6);
+		cmd.data[0] = &u;
+	}
 
 	/* TODO: for now the beacon template id is set to be the mac context id.
 	 * Might be better to handle it as another resource ... */
@@ -1092,29 +1150,13 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 
 	/* Set up TX beacon command fields */
 	if (vif->type == NL80211_IFTYPE_AP)
-		iwl_mvm_mac_ctxt_set_tim(mvm, &u.beacon_cmd_v6,
+		iwl_mvm_mac_ctxt_set_tim(mvm, &u.beacon_cmd_v6.tim_idx,
+					 &u.beacon_cmd_v6.tim_size,
 					 beacon->data,
 					 beacon_skb_len);
 
+send:
 	/* Submit command */
-
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD)) {
-		u.beacon_cmd.csa_offset =
-			cpu_to_le32(iwl_mvm_find_ie_offset(beacon->data,
-						    WLAN_EID_CHANNEL_SWITCH,
-						    beacon_skb_len));
-		u.beacon_cmd.ecsa_offset =
-			cpu_to_le32(iwl_mvm_find_ie_offset(beacon->data,
-						    WLAN_EID_EXT_CHANSWITCH_ANN,
-						    beacon_skb_len));
-
-		cmd.len[0] = sizeof(u.beacon_cmd);
-	} else {
-		cmd.len[0] = sizeof(u.beacon_cmd_v6);
-	}
-
-	cmd.data[0] = &u;
 	cmd.dataflags[0] = 0;
 	cmd.len[1] = beacon_skb_len;
 	cmd.data[1] = beacon->data;
@@ -1208,7 +1250,9 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 		cpu_to_le32(iwl_mvm_reciprocal(vif->bss_conf.beacon_int *
 					       vif->bss_conf.dtim_period));
 
-	ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
+	if (!fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_STA_TYPE))
+		ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
 
 	/*
 	 * Only set the beacon time when the MAC is being added, when we
@@ -1428,14 +1472,17 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	struct iwl_mvm_tx_resp *beacon_notify_hdr;
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
+	struct agg_tx_status *agg_status;
 	u16 status;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
+	mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 
-	status = le16_to_cpu(beacon_notify_hdr->status.status) & TX_STATUS_MSK;
+	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
+	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
 	IWL_DEBUG_RX(mvm,
 		     "beacon status %#x retries:%d tsf:0x%16llX gp2:0x%X rate:%d\n",
 		     status, beacon_notify_hdr->failure_frame,
@@ -1565,14 +1612,14 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	rx_status.flag |= RX_FLAG_MACTIME_PLCP_START;
 	rx_status.device_timestamp = le32_to_cpu(sb->system_time);
 	rx_status.band =
-		(sb->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
+		(sb->band & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
 				NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 	rx_status.freq =
 		ieee80211_channel_to_frequency(le16_to_cpu(sb->channel),
 					       rx_status.band);
 
 	/* copy the data */
-	memcpy(skb_put(skb, size), sb->data, size);
+	skb_put_data(skb, sb->data, size);
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 	/* pass it as regular rx to mac80211 */
@@ -1608,9 +1655,9 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_INFO(mvm, "Channel Switch Started Notification\n");
 
-	queue_delayed_work(system_wq, &mvm->cs_tx_unblock_dwork,
-			   msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
-					    csa_vif->bss_conf.beacon_int));
+	schedule_delayed_work(&mvm->cs_tx_unblock_dwork,
+			      msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
+					       csa_vif->bss_conf.beacon_int));
 
 	ieee80211_csa_finish(csa_vif);
 

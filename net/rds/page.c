@@ -45,35 +45,6 @@ struct rds_page_remainder {
 static
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rds_page_remainder, rds_page_remainders);
 
-/*
- * returns 0 on success or -errno on failure.
- *
- * We don't have to worry about flush_dcache_page() as this only works
- * with private pages.  If, say, we were to do directed receive to pinned
- * user pages we'd have to worry more about cache coherence.  (Though
- * the flush_dcache_page() in get_user_pages() would probably be enough).
- */
-int rds_page_copy_user(struct page *page, unsigned long offset,
-		       void __user *ptr, unsigned long bytes,
-		       int to_user)
-{
-	unsigned long ret;
-	void *addr;
-
-	addr = kmap(page);
-	if (to_user) {
-		rds_stats_add(s_copy_to_user, bytes);
-		ret = copy_to_user(ptr, addr + offset, bytes);
-	} else {
-		rds_stats_add(s_copy_from_user, bytes);
-		ret = copy_from_user(addr + offset, ptr, bytes);
-	}
-	kunmap(page);
-
-	return ret ? -EFAULT : 0;
-}
-EXPORT_SYMBOL_GPL(rds_page_copy_user);
-
 /**
  * rds_page_remainder_alloc - build up regions of a message.
  *

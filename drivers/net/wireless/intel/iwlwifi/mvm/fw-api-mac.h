@@ -64,15 +64,18 @@
 #define __fw_api_mac_h__
 
 /*
- * The first MAC indices (starting from 0)
- * are available to the driver, AUX follows
+ * The first MAC indices (starting from 0) are available to the driver,
+ * AUX indices follows - 1 for non-CDB, 2 for CDB.
  */
 #define MAC_INDEX_AUX		4
 #define MAC_INDEX_MIN_DRIVER	0
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
-#define NUM_MAC_INDEX		(MAC_INDEX_AUX + 1)
+#define NUM_MAC_INDEX		(NUM_MAC_INDEX_DRIVER + 1)
+#define NUM_MAC_INDEX_CDB	(NUM_MAC_INDEX_DRIVER + 2)
 
-#define IWL_MVM_STATION_COUNT	16
+#define IWL_MVM_STATION_COUNT		16
+#define IWL_MVM_INVALID_STA		0xFF
+
 #define IWL_MVM_TDLS_STA_COUNT	4
 
 enum iwl_ac {
@@ -154,7 +157,8 @@ enum iwl_tsf_id {
  * @bi_reciprocal: 2^32 / bi
  * @dtim_interval: dtim transmit time in TU
  * @dtim_reciprocal: 2^32 / dtim_interval
- * @mcast_qid: queue ID for multicast traffic
+ * @mcast_qid: queue ID for multicast traffic.
+ *	NOTE: obsolete from VER2 and on
  * @beacon_template: beacon template ID
  */
 struct iwl_mac_data_ap {
@@ -166,7 +170,7 @@ struct iwl_mac_data_ap {
 	__le32 dtim_reciprocal;
 	__le32 mcast_qid;
 	__le32 beacon_template;
-} __packed; /* AP_MAC_DATA_API_S_VER_1 */
+} __packed; /* AP_MAC_DATA_API_S_VER_2 */
 
 /**
  * struct iwl_mac_data_ibss - configuration data for IBSS MAC context
@@ -195,6 +199,7 @@ struct iwl_mac_data_ibss {
  * @dtim_reciprocal: 2^32 / dtim_interval , applicable only when associated
  * @listen_interval: in beacon intervals, applicable only when associated
  * @assoc_id: unique ID assigned by the AP during association
+ * @assoc_beacon_arrive_time: TSF of first beacon after association
  */
 struct iwl_mac_data_sta {
 	__le32 is_assoc;
@@ -325,19 +330,20 @@ struct iwl_ac_qos {
  * ( MAC_CONTEXT_CMD = 0x28 )
  * @id_and_color: ID and color of the MAC
  * @action: action to perform, one of FW_CTXT_ACTION_*
- * @mac_type: one of FW_MAC_TYPE_*
- * @tsd_id: TSF HW timer, one of TSF_ID_*
+ * @mac_type: one of &enum iwl_mac_types
+ * @tsf_id: TSF HW timer, one of &enum iwl_tsf_id
  * @node_addr: MAC address
+ * @reserved_for_node_addr: reserved
  * @bssid_addr: BSSID
+ * @reserved_for_bssid_addr: reserved
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
- * @protection_flags: combination of MAC_PROT_FLG_FLAG_*
+ * @protection_flags: combination of &enum iwl_mac_protection_flags
  * @cck_short_preamble: 0x20 for enabling short preamble, 0 otherwise
  * @short_slot: 0x10 for enabling short slots, 0 otherwise
- * @filter_flags: combination of MAC_FILTER_*
- * @qos_flags: from MAC_QOS_FLG_*
+ * @filter_flags: combination of &enum iwl_mac_filter_flags
+ * @qos_flags: from &enum iwl_mac_qos_flags
  * @ac: one iwl_mac_qos configuration for each AC
- * @mac_specific: one of struct iwl_mac_data_*, according to mac_type
  */
 struct iwl_mac_ctx_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */

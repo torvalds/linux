@@ -10,6 +10,7 @@
 #include <linux/efi.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
 #include <video/vga.h>
@@ -50,9 +51,9 @@ static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		return 1;
 
 	if (regno < 16) {
-		red   >>= 8;
-		green >>= 8;
-		blue  >>= 8;
+		red   >>= 16 - info->var.red.length;
+		green >>= 16 - info->var.green.length;
+		blue  >>= 16 - info->var.blue.length;
 		((u32 *)(info->pseudo_palette))[regno] =
 			(red   << info->var.red.offset)   |
 			(green << info->var.green.offset) |
@@ -118,6 +119,33 @@ static inline bool fb_base_is_valid(void)
 	return false;
 }
 
+#define efifb_attr_decl(name, fmt)					\
+static ssize_t name##_show(struct device *dev,				\
+			   struct device_attribute *attr,		\
+			   char *buf)					\
+{									\
+	return sprintf(buf, fmt "\n", (screen_info.lfb_##name));	\
+}									\
+static DEVICE_ATTR_RO(name)
+
+efifb_attr_decl(base, "0x%x");
+efifb_attr_decl(linelength, "%u");
+efifb_attr_decl(height, "%u");
+efifb_attr_decl(width, "%u");
+efifb_attr_decl(depth, "%u");
+
+static struct attribute *efifb_attrs[] = {
+	&dev_attr_base.attr,
+	&dev_attr_linelength.attr,
+	&dev_attr_width.attr,
+	&dev_attr_height.attr,
+	&dev_attr_depth.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(efifb);
+
+static bool pci_dev_disabled;	/* FB base matches BAR of a disabled device */
+
 static int efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
@@ -127,7 +155,7 @@ static int efifb_probe(struct platform_device *dev)
 	unsigned int size_total;
 	char *option = NULL;
 
-	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EFI)
+	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EFI || pci_dev_disabled)
 		return -ENODEV;
 
 	if (fb_get_options("efifb", &option))
@@ -205,14 +233,13 @@ static int efifb_probe(struct platform_device *dev)
 	} else {
 		/* We cannot make this fatal. Sometimes this comes from magic
 		   spaces our resource handlers simply don't know about */
-		printk(KERN_WARNING
-		       "efifb: cannot reserve video memory at 0x%lx\n",
+		pr_warn("efifb: cannot reserve video memory at 0x%lx\n",
 			efifb_fix.smem_start);
 	}
 
 	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (!info) {
-		printk(KERN_ERR "efifb: cannot allocate framebuffer\n");
+		pr_err("efifb: cannot allocate framebuffer\n");
 		err = -ENOMEM;
 		goto err_release_mem;
 	}
@@ -230,16 +257,15 @@ static int efifb_probe(struct platform_device *dev)
 
 	info->screen_base = ioremap_wc(efifb_fix.smem_start, efifb_fix.smem_len);
 	if (!info->screen_base) {
-		printk(KERN_ERR "efifb: abort, cannot ioremap video memory "
-				"0x%x @ 0x%lx\n",
+		pr_err("efifb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
 			efifb_fix.smem_len, efifb_fix.smem_start);
 		err = -EIO;
 		goto err_release_fb;
 	}
 
-	printk(KERN_INFO "efifb: framebuffer at 0x%lx, using %dk, total %dk\n",
+	pr_info("efifb: framebuffer at 0x%lx, using %dk, total %dk\n",
 	       efifb_fix.smem_start, size_remap/1024, size_total/1024);
-	printk(KERN_INFO "efifb: mode is %dx%dx%d, linelength=%d, pages=%d\n",
+	pr_info("efifb: mode is %dx%dx%d, linelength=%d, pages=%d\n",
 	       efifb_defined.xres, efifb_defined.yres,
 	       efifb_defined.bits_per_pixel, efifb_fix.line_length,
 	       screen_info.pages);
@@ -247,7 +273,7 @@ static int efifb_probe(struct platform_device *dev)
 	efifb_defined.xres_virtual = efifb_defined.xres;
 	efifb_defined.yres_virtual = efifb_fix.smem_len /
 					efifb_fix.line_length;
-	printk(KERN_INFO "efifb: scrolling: redraw\n");
+	pr_info("efifb: scrolling: redraw\n");
 	efifb_defined.yres_virtual = efifb_defined.yres;
 
 	/* some dummy values for timing to make fbset happy */
@@ -265,7 +291,7 @@ static int efifb_probe(struct platform_device *dev)
 	efifb_defined.transp.offset = screen_info.rsvd_pos;
 	efifb_defined.transp.length = screen_info.rsvd_size;
 
-	printk(KERN_INFO "efifb: %s: "
+	pr_info("efifb: %s: "
 	       "size=%d:%d:%d:%d, shift=%d:%d:%d:%d\n",
 	       "Truecolor",
 	       screen_info.rsvd_size,
@@ -285,12 +311,19 @@ static int efifb_probe(struct platform_device *dev)
 	info->fix = efifb_fix;
 	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE;
 
-	if ((err = fb_alloc_cmap(&info->cmap, 256, 0)) < 0) {
-		printk(KERN_ERR "efifb: cannot allocate colormap\n");
+	err = sysfs_create_groups(&dev->dev.kobj, efifb_groups);
+	if (err) {
+		pr_err("efifb: cannot add sysfs attrs\n");
 		goto err_unmap;
 	}
-	if ((err = register_framebuffer(info)) < 0) {
-		printk(KERN_ERR "efifb: cannot register framebuffer\n");
+	err = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (err < 0) {
+		pr_err("efifb: cannot allocate colormap\n");
+		goto err_groups;
+	}
+	err = register_framebuffer(info);
+	if (err < 0) {
+		pr_err("efifb: cannot register framebuffer\n");
 		goto err_fb_dealoc;
 	}
 	fb_info(info, "%s frame buffer device\n", info->fix.id);
@@ -298,6 +331,8 @@ static int efifb_probe(struct platform_device *dev)
 
 err_fb_dealoc:
 	fb_dealloc_cmap(&info->cmap);
+err_groups:
+	sysfs_remove_groups(&dev->dev.kobj, efifb_groups);
 err_unmap:
 	iounmap(info->screen_base);
 err_release_fb:
@@ -313,6 +348,7 @@ static int efifb_remove(struct platform_device *pdev)
 	struct fb_info *info = platform_get_drvdata(pdev);
 
 	unregister_framebuffer(info);
+	sysfs_remove_groups(&pdev->dev.kobj, efifb_groups);
 	framebuffer_release(info);
 
 	return 0;
@@ -327,3 +363,64 @@ static struct platform_driver efifb_driver = {
 };
 
 builtin_platform_driver(efifb_driver);
+
+#if defined(CONFIG_PCI) && !defined(CONFIG_X86)
+
+static bool pci_bar_found;	/* did we find a BAR matching the efifb base? */
+
+static void claim_efifb_bar(struct pci_dev *dev, int idx)
+{
+	u16 word;
+
+	pci_bar_found = true;
+
+	pci_read_config_word(dev, PCI_COMMAND, &word);
+	if (!(word & PCI_COMMAND_MEMORY)) {
+		pci_dev_disabled = true;
+		dev_err(&dev->dev,
+			"BAR %d: assigned to efifb but device is disabled!\n",
+			idx);
+		return;
+	}
+
+	if (pci_claim_resource(dev, idx)) {
+		pci_dev_disabled = true;
+		dev_err(&dev->dev,
+			"BAR %d: failed to claim resource for efifb!\n", idx);
+		return;
+	}
+
+	dev_info(&dev->dev, "BAR %d: assigned to efifb\n", idx);
+}
+
+static void efifb_fixup_resources(struct pci_dev *dev)
+{
+	u64 base = screen_info.lfb_base;
+	u64 size = screen_info.lfb_size;
+	int i;
+
+	if (pci_bar_found || screen_info.orig_video_isVGA != VIDEO_TYPE_EFI)
+		return;
+
+	if (screen_info.capabilities & VIDEO_CAPABILITY_64BIT_BASE)
+		base |= (u64)screen_info.ext_lfb_base << 32;
+
+	if (!base)
+		return;
+
+	for (i = 0; i < PCI_STD_RESOURCE_END; i++) {
+		struct resource *res = &dev->resource[i];
+
+		if (!(res->flags & IORESOURCE_MEM))
+			continue;
+
+		if (res->start <= base && res->end >= base + size - 1) {
+			claim_efifb_bar(dev, i);
+			break;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY,
+			       16, efifb_fixup_resources);
+
+#endif

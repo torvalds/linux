@@ -161,7 +161,7 @@ static int ltc3676_of_parse_cb(struct device_node *np,
 }
 
 /* SW1, SW2, SW3, SW4 linear 0.8V-3.3V with scalar via R1/R2 feeback res */
-static struct regulator_ops ltc3676_linear_regulator_ops = {
+static const struct regulator_ops ltc3676_linear_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -173,11 +173,11 @@ static struct regulator_ops ltc3676_linear_regulator_ops = {
 };
 
 /* LDO1 always on fixed 0.8V-3.3V via scalar via R1/R2 feeback res */
-static struct regulator_ops ltc3676_fixed_standby_regulator_ops = {
+static const struct regulator_ops ltc3676_fixed_standby_regulator_ops = {
 };
 
 /* LDO2, LDO3 fixed (LDO2 has external scalar via R1/R2 feedback res) */
-static struct regulator_ops ltc3676_fixed_regulator_ops = {
+static const struct regulator_ops ltc3676_fixed_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -406,9 +406,16 @@ static const struct i2c_device_id ltc3676_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc3676_i2c_id);
 
+static const struct of_device_id ltc3676_of_match[] = {
+	{ .compatible = "lltc,ltc3676" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ltc3676_of_match);
+
 static struct i2c_driver ltc3676_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.of_match_table = of_match_ptr(ltc3676_of_match),
 	},
 	.probe = ltc3676_regulator_probe,
 	.id_table = ltc3676_i2c_id,

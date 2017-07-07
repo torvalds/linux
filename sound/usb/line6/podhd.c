@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2011 Stefan Hajnoczi <stefanha@gmail.com>
  * Copyright (C) 2015 Andrej Krutak <dev@andree.sk>
+ * Copyright (C) 2017 Hans P. Moller <hmoller@uc.cl>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -37,7 +38,8 @@ enum {
 	LINE6_PODHD500_0,
 	LINE6_PODHD500_1,
 	LINE6_PODX3,
-	LINE6_PODX3LIVE
+	LINE6_PODX3LIVE,
+	LINE6_PODHD500X
 };
 
 struct usb_line6_podhd {
@@ -153,6 +155,7 @@ static struct line6_pcm_properties podx3_pcm_properties = {
 			    .rats = &podhd_ratden},
 	.bytes_per_channel = 3 /* SNDRV_PCM_FMTBIT_S24_3LE */
 };
+static struct usb_driver podhd_driver;
 
 static void podhd_startup_start_workqueue(unsigned long data);
 static void podhd_startup_workqueue(struct work_struct *work);
@@ -290,9 +293,15 @@ static void podhd_disconnect(struct usb_line6 *line6)
 {
 	struct usb_line6_podhd *pod = (struct usb_line6_podhd *)line6;
 
-	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL) {
+	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL_INFO) {
+		struct usb_interface *intf;
+
 		del_timer_sync(&pod->startup_timer);
 		cancel_work_sync(&pod->startup_work);
+
+		intf = usb_ifnum_to_if(line6->usbdev,
+					pod->line6.properties->ctrl_if);
+		usb_driver_release_interface(&podhd_driver, intf);
 	}
 }
 
@@ -304,10 +313,29 @@ static int podhd_init(struct usb_line6 *line6,
 {
 	int err;
 	struct usb_line6_podhd *pod = (struct usb_line6_podhd *) line6;
+	struct usb_interface *intf;
 
 	line6->disconnect = podhd_disconnect;
 
 	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL) {
+		/* claim the data interface */
+		intf = usb_ifnum_to_if(line6->usbdev,
+					pod->line6.properties->ctrl_if);
+		if (!intf) {
+			dev_err(pod->line6.ifcdev, "interface %d not found\n",
+				pod->line6.properties->ctrl_if);
+			return -ENODEV;
+		}
+
+		err = usb_driver_claim_interface(&podhd_driver, intf, NULL);
+		if (err != 0) {
+			dev_err(pod->line6.ifcdev, "can't claim interface %d, error %d\n",
+				pod->line6.properties->ctrl_if, err);
+			return err;
+		}
+	}
+
+	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL_INFO) {
 		/* create sysfs entries: */
 		err = snd_card_add_dev_attr(line6->card, &podhd_dev_attr_group);
 		if (err < 0)
@@ -317,13 +345,14 @@ static int podhd_init(struct usb_line6 *line6,
 	if (pod->line6.properties->capabilities & LINE6_CAP_PCM) {
 		/* initialize PCM subsystem: */
 		err = line6_init_pcm(line6,
-			(id->driver_info == LINE6_PODX3) ? &podx3_pcm_properties :
+			(id->driver_info == LINE6_PODX3 ||
+			id->driver_info == LINE6_PODX3LIVE) ? &podx3_pcm_properties :
 			&podhd_pcm_properties);
 		if (err < 0)
 			return err;
 	}
 
-	if (!(pod->line6.properties->capabilities & LINE6_CAP_CONTROL)) {
+	if (!(pod->line6.properties->capabilities & LINE6_CAP_CONTROL_INFO)) {
 		/* register USB audio system directly */
 		return podhd_startup_finalize(pod);
 	}
@@ -347,6 +376,7 @@ static const struct usb_device_id podhd_id_table[] = {
 	{ LINE6_IF_NUM(0x414D, 1), .driver_info = LINE6_PODHD500_1 },
 	{ LINE6_IF_NUM(0x414A, 0), .driver_info = LINE6_PODX3 },
 	{ LINE6_IF_NUM(0x414B, 0), .driver_info = LINE6_PODX3LIVE },
+	{ LINE6_IF_NUM(0x4159, 0), .driver_info = LINE6_PODHD500X },
 	{}
 };
 
@@ -400,22 +430,36 @@ static const struct line6_properties podhd_properties_table[] = {
 	[LINE6_PODX3] = {
 		.id = "PODX3",
 		.name = "POD X3",
-		.capabilities	= LINE6_CAP_CONTROL
+		.capabilities	= LINE6_CAP_CONTROL | LINE6_CAP_CONTROL_INFO
 				| LINE6_CAP_PCM | LINE6_CAP_HWMON | LINE6_CAP_IN_NEEDS_OUT,
 		.altsetting = 1,
 		.ep_ctrl_r = 0x81,
 		.ep_ctrl_w = 0x01,
+		.ctrl_if = 1,
 		.ep_audio_r = 0x86,
 		.ep_audio_w = 0x02,
 	},
 	[LINE6_PODX3LIVE] = {
 		.id = "PODX3LIVE",
 		.name = "POD X3 LIVE",
-		.capabilities	= LINE6_CAP_CONTROL
+		.capabilities	= LINE6_CAP_CONTROL | LINE6_CAP_CONTROL_INFO
 				| LINE6_CAP_PCM | LINE6_CAP_HWMON | LINE6_CAP_IN_NEEDS_OUT,
 		.altsetting = 1,
 		.ep_ctrl_r = 0x81,
 		.ep_ctrl_w = 0x01,
+		.ctrl_if = 1,
+		.ep_audio_r = 0x86,
+		.ep_audio_w = 0x02,
+	},
+	[LINE6_PODHD500X] = {
+		.id = "PODHD500X",
+		.name = "POD HD500X",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM | LINE6_CAP_HWMON,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x81,
+		.ep_ctrl_w = 0x01,
+		.ctrl_if = 1,
 		.ep_audio_r = 0x86,
 		.ep_audio_w = 0x02,
 	},

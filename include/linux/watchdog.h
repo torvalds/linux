@@ -19,6 +19,7 @@
 struct watchdog_ops;
 struct watchdog_device;
 struct watchdog_core_data;
+struct watchdog_governor;
 
 /** struct watchdog_ops - The watchdog-devices operations
  *
@@ -28,6 +29,7 @@ struct watchdog_core_data;
  * @ping:	The routine that sends a keepalive ping to the watchdog device.
  * @status:	The routine that shows the status of the watchdog device.
  * @set_timeout:The routine for setting the watchdog devices timeout value (in seconds).
+ * @set_pretimeout:The routine for setting the watchdog devices pretimeout.
  * @get_timeleft:The routine that gets the time left before a reset (in seconds).
  * @restart:	The routine for restarting the machine.
  * @ioctl:	The routines that handles extra ioctl calls.
@@ -46,6 +48,7 @@ struct watchdog_ops {
 	int (*ping)(struct watchdog_device *);
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
+	int (*set_pretimeout)(struct watchdog_device *, unsigned int);
 	unsigned int (*get_timeleft)(struct watchdog_device *);
 	int (*restart)(struct watchdog_device *, unsigned long, void *);
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
@@ -59,8 +62,10 @@ struct watchdog_ops {
  *		watchdog device.
  * @info:	Pointer to a watchdog_info structure.
  * @ops:	Pointer to the list of watchdog operations.
+ * @gov:	Pointer to watchdog pretimeout governor.
  * @bootstatus:	Status of the watchdog device at boot.
  * @timeout:	The watchdog devices timeout value (in seconds).
+ * @pretimeout: The watchdog devices pre_timeout value.
  * @min_timeout:The watchdog devices minimum timeout value (in seconds).
  * @max_timeout:The watchdog devices maximum timeout value (in seconds)
  *		as configurable from user space. Only relevant if
@@ -94,8 +99,10 @@ struct watchdog_device {
 	const struct attribute_group **groups;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
+	const struct watchdog_governor *gov;
 	unsigned int bootstatus;
 	unsigned int timeout;
+	unsigned int pretimeout;
 	unsigned int min_timeout;
 	unsigned int max_timeout;
 	unsigned int min_hw_heartbeat_ms;
@@ -110,6 +117,7 @@ struct watchdog_device {
 #define WDOG_NO_WAY_OUT		1	/* Is 'nowayout' feature set ? */
 #define WDOG_STOP_ON_REBOOT	2	/* Should be stopped on reboot */
 #define WDOG_HW_RUNNING		3	/* True if HW watchdog running */
+#define WDOG_STOP_ON_UNREGISTER	4	/* Should be stopped on unregister */
 	struct list_head deferred;
 };
 
@@ -144,6 +152,12 @@ static inline void watchdog_stop_on_reboot(struct watchdog_device *wdd)
 	set_bit(WDOG_STOP_ON_REBOOT, &wdd->status);
 }
 
+/* Use the following function to stop the watchdog when unregistering it */
+static inline void watchdog_stop_on_unregister(struct watchdog_device *wdd)
+{
+	set_bit(WDOG_STOP_ON_UNREGISTER, &wdd->status);
+}
+
 /* Use the following function to check if a timeout value is invalid */
 static inline bool watchdog_timeout_invalid(struct watchdog_device *wdd, unsigned int t)
 {
@@ -163,6 +177,13 @@ static inline bool watchdog_timeout_invalid(struct watchdog_device *wdd, unsigne
 		 t > wdd->max_timeout);
 }
 
+/* Use the following function to check if a pretimeout value is invalid */
+static inline bool watchdog_pretimeout_invalid(struct watchdog_device *wdd,
+					       unsigned int t)
+{
+	return t && wdd->timeout && t >= wdd->timeout;
+}
+
 /* Use the following functions to manipulate watchdog driver specific data */
 static inline void watchdog_set_drvdata(struct watchdog_device *wdd, void *data)
 {
@@ -173,6 +194,16 @@ static inline void *watchdog_get_drvdata(struct watchdog_device *wdd)
 {
 	return wdd->driver_data;
 }
+
+/* Use the following functions to report watchdog pretimeout event */
+#if IS_ENABLED(CONFIG_WATCHDOG_PRETIMEOUT_GOV)
+void watchdog_notify_pretimeout(struct watchdog_device *wdd);
+#else
+static inline void watchdog_notify_pretimeout(struct watchdog_device *wdd)
+{
+	pr_alert("watchdog%d: pretimeout event\n", wdd->id);
+}
+#endif
 
 /* drivers/watchdog/watchdog_core.c */
 void watchdog_set_restart_priority(struct watchdog_device *wdd, int priority);

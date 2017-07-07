@@ -23,7 +23,7 @@
 #include <linux/file.h>
 #include <linux/ipc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/segment.h>
 
 asmlinkage long

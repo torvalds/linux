@@ -820,7 +820,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		    mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT)
 			break;
 		rcu_read_lock();
-		sta = sta_info_get(sdata, mgmt->da);
+		sta = sta_info_get_bss(sdata, mgmt->da);
 		rcu_read_unlock();
 		if (!sta)
 			return -ENOLINK;
@@ -885,8 +885,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	data = skb_put(skb, params->len);
-	memcpy(data, params->buf, params->len);
+	data = skb_put_data(skb, params->buf, params->len);
 
 	/* Update CSA counters */
 	if (sdata->vif.csa_active &&

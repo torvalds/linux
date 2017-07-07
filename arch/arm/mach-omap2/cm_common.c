@@ -32,10 +32,10 @@ static struct cm_ll_data null_cm_ll_data;
 static struct cm_ll_data *cm_ll_data = &null_cm_ll_data;
 
 /* cm_base: base virtual address of the CM IP block */
-void __iomem *cm_base;
+struct omap_domain_base cm_base;
 
 /* cm2_base: base virtual address of the CM2 IP block (OMAP44xx only) */
-void __iomem *cm2_base;
+struct omap_domain_base cm2_base;
 
 #define CM_NO_CLOCKS		0x1
 #define CM_SINGLE_INSTANCE	0x2
@@ -49,8 +49,8 @@ void __iomem *cm2_base;
  */
 void __init omap2_set_globals_cm(void __iomem *cm, void __iomem *cm2)
 {
-	cm_base = cm;
-	cm2_base = cm2;
+	cm_base.va = cm;
+	cm2_base.va = cm2;
 }
 
 /**
@@ -65,7 +65,7 @@ void __init omap2_set_globals_cm(void __iomem *cm, void __iomem *cm2)
  * or 0 upon success.  XXX This function is only needed until absolute
  * register addresses are removed from the OMAP struct clk records.
  */
-int cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
+int cm_split_idlest_reg(struct clk_omap_reg *idlest_reg, s16 *prcm_inst,
 			u8 *idlest_reg_id)
 {
 	if (!cm_ll_data->split_idlest_reg) {
@@ -315,27 +315,34 @@ int __init omap2_cm_base_init(void)
 	struct device_node *np;
 	const struct of_device_id *match;
 	struct omap_prcm_init_data *data;
-	void __iomem *mem;
+	struct resource res;
+	int ret;
+	struct omap_domain_base *mem = NULL;
 
 	for_each_matching_node_and_match(np, omap_cm_dt_match_table, &match) {
 		data = (struct omap_prcm_init_data *)match->data;
 
-		mem = of_iomap(np, 0);
-		if (!mem)
-			return -ENOMEM;
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			return ret;
 
 		if (data->index == TI_CLKM_CM)
-			cm_base = mem + data->offset;
+			mem = &cm_base;
 
 		if (data->index == TI_CLKM_CM2)
-			cm2_base = mem + data->offset;
+			mem = &cm2_base;
 
-		data->mem = mem;
+		data->mem = ioremap(res.start, resource_size(&res));
+
+		if (mem) {
+			mem->pa = res.start + data->offset;
+			mem->va = data->mem + data->offset;
+		}
 
 		data->np = np;
 
 		if (data->init && (data->flags & CM_SINGLE_INSTANCE ||
-				   (cm_base && cm2_base)))
+				   (cm_base.va && cm2_base.va)))
 			data->init(data);
 	}
 

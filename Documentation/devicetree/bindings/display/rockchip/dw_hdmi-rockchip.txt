@@ -1,24 +1,39 @@
-Rockchip specific extensions to the Synopsys Designware HDMI
-================================
+Rockchip DWC HDMI TX Encoder
+============================
+
+The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
+with a companion PHY IP.
+
+These DT bindings follow the Synopsys DWC HDMI TX bindings defined in
+Documentation/devicetree/bindings/display/bridge/dw_hdmi.txt with the
+following device-specific properties.
+
 
 Required properties:
-- compatible: "rockchip,rk3288-dw-hdmi";
-- reg: Physical base address and length of the controller's registers.
-- clocks: phandle to hdmi iahb and isfr clocks.
-- clock-names: should be "iahb" "isfr"
-- rockchip,grf: this soc should set GRF regs to mux vopl/vopb.
+
+- compatible: Shall contain "rockchip,rk3288-dw-hdmi".
+- reg: See dw_hdmi.txt.
+- reg-io-width: See dw_hdmi.txt. Shall be 4.
 - interrupts: HDMI interrupt number
-- ports: contain a port node with endpoint definitions as defined in
-  Documentation/devicetree/bindings/media/video-interfaces.txt. For
-  vopb,set the reg = <0> and set the reg = <1> for vopl.
-- reg-io-width: the width of the reg:1,4, the value should be 4 on
-  rk3288 platform
+- clocks: See dw_hdmi.txt.
+- clock-names: Shall contain "iahb" and "isfr" as defined in dw_hdmi.txt.
+- ports: See dw_hdmi.txt. The DWC HDMI shall have a single port numbered 0
+  corresponding to the video input of the controller. The port shall have two
+  endpoints, numbered 0 and 1, connected respectively to the vopb and vopl.
+- rockchip,grf: Shall reference the GRF to mux vopl/vopb.
 
 Optional properties
-- ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
-- clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec"
+
+- ddc-i2c-bus: The HDMI DDC bus can be connected to either a system I2C master
+  or the functionally-reduced I2C master contained in the DWC HDMI. When
+  connected to a system I2C master this property contains a phandle to that
+  I2C master controller.
+- clock-names: See dw_hdmi.txt. The "cec" clock is optional.
+- clock-names: May contain "cec" as defined in dw_hdmi.txt.
+
 
 Example:
+
 hdmi: hdmi@ff980000 {
 	compatible = "rockchip,rk3288-dw-hdmi";
 	reg = <0xff980000 0x20000>;

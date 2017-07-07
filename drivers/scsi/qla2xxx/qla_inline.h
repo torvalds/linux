@@ -129,28 +129,16 @@ qla2x00_clear_loop_id(fc_port_t *fcport) {
 }
 
 static inline void
-qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp,
-	struct qla_tgt_cmd *tc)
+qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 {
-	struct dsd_dma *dsd_ptr, *tdsd_ptr;
-	struct crc_context *ctx;
-
-	if (sp)
-		ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
-	else if (tc)
-		ctx = (struct crc_context *)tc->ctx;
-	else {
-		BUG();
-		return;
-	}
+	struct dsd_dma *dsd, *tdsd;
 
 	/* clean up allocated prev pool */
-	list_for_each_entry_safe(dsd_ptr, tdsd_ptr,
-	    &ctx->dsd_list, list) {
-		dma_pool_free(ha->dl_dma_pool, dsd_ptr->dsd_addr,
-		    dsd_ptr->dsd_list_dma);
-		list_del(&dsd_ptr->list);
-		kfree(dsd_ptr);
+	list_for_each_entry_safe(dsd, tdsd, &ctx->dsd_list, list) {
+		dma_pool_free(ha->dl_dma_pool, dsd->dsd_addr,
+		    dsd->dsd_list_dma);
+		list_del(&dsd->list);
+		kfree(dsd);
 	}
 	INIT_LIST_HEAD(&ctx->dsd_list);
 }
@@ -166,8 +154,8 @@ qla2x00_set_fcport_state(fc_port_t *fcport, int state)
 	/* Don't print state transitions during initial allocation of fcport */
 	if (old_state && old_state != state) {
 		ql_dbg(ql_dbg_disc, fcport->vha, 0x207d,
-		    "FCPort state transitioned from %s to %s - "
-		    "portid=%02x%02x%02x.\n",
+		    "FCPort %8phC state transitioned from %s to %s - "
+			"portid=%02x%02x%02x.\n", fcport->port_name,
 		    port_state_str[old_state], port_state_str[state],
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa);
@@ -216,23 +204,55 @@ qla2x00_reset_active(scsi_qla_host_t *vha)
 }
 
 static inline srb_t *
-qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
+qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
-	struct qla_hw_data *ha = vha->hw;
 	uint8_t bail;
 
-	QLA_VHA_MARK_BUSY(vha, bail);
+	QLA_QPAIR_MARK_BUSY(qpair, bail);
 	if (unlikely(bail))
 		return NULL;
 
-	sp = mempool_alloc(ha->srb_mempool, flag);
+	sp = mempool_alloc(qpair->srb_mempool, flag);
 	if (!sp)
 		goto done;
 
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->iocbs = 1;
+	sp->vha = qpair->vha;
+done:
+	if (!sp)
+		QLA_QPAIR_MARK_NOT_BUSY(qpair);
+	return sp;
+}
+
+static inline void
+qla2xxx_rel_qpair_sp(struct qla_qpair *qpair, srb_t *sp)
+{
+	mempool_free(sp, qpair->srb_mempool);
+	QLA_QPAIR_MARK_NOT_BUSY(qpair);
+}
+
+static inline srb_t *
+qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
+{
+	srb_t *sp = NULL;
+	uint8_t bail;
+
+	QLA_VHA_MARK_BUSY(vha, bail);
+	if (unlikely(bail))
+		return NULL;
+
+	sp = mempool_alloc(vha->hw->srb_mempool, flag);
+	if (!sp)
+		goto done;
+
+	memset(sp, 0, sizeof(*sp));
+	sp->fcport = fcport;
+	sp->cmd_type = TYPE_SRB;
+	sp->iocbs = 1;
+	sp->vha = vha;
 done:
 	if (!sp)
 		QLA_VHA_MARK_NOT_BUSY(vha);
@@ -240,10 +260,10 @@ done:
 }
 
 static inline void
-qla2x00_rel_sp(scsi_qla_host_t *vha, srb_t *sp)
+qla2x00_rel_sp(srb_t *sp)
 {
-	mempool_free(sp, vha->hw->srb_mempool);
-	QLA_VHA_MARK_NOT_BUSY(vha);
+	QLA_VHA_MARK_NOT_BUSY(sp->vha);
+	mempool_free(sp, sp->vha->hw->srb_mempool);
 }
 
 static inline void
@@ -255,8 +275,7 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
-	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
-	    (sp->type == SRB_FXIOCB_DCMD))
+	if (IS_QLAFX00(sp->vha->hw) && (sp->type == SRB_FXIOCB_DCMD))
 		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
 	if (sp->type == SRB_ELS_DCMD)
 		init_completion(&sp->u.iocb_cmd.u.els_logo.comp);
@@ -288,4 +307,63 @@ qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t retry_delay)
 	if (retry_delay)
 		fcport->retry_delay_timestamp = jiffies +
 		    (retry_delay * HZ / 10);
+}
+
+static inline bool
+qla_is_exch_offld_enabled(struct scsi_qla_host *vha)
+{
+	if (qla_ini_mode_enabled(vha) &&
+	    (ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else if (qla_tgt_mode_enabled(vha) &&
+	    (ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else if (qla_dual_mode_enabled(vha) &&
+	    ((ql2xiniexchg + ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else
+		return false;
+}
+
+static inline void
+qla_cpu_update(struct qla_qpair *qpair, uint16_t cpuid)
+{
+	qpair->cpuid = cpuid;
+
+	if (!list_empty(&qpair->hints_list)) {
+		struct qla_qpair_hint *h;
+
+		list_for_each_entry(h, &qpair->hints_list, hint_elem)
+			h->cpuid = qpair->cpuid;
+	}
+}
+
+static inline struct qla_qpair_hint *
+qla_qpair_to_hint(struct qla_tgt *tgt, struct qla_qpair *qpair)
+{
+	struct qla_qpair_hint *h;
+	u16 i;
+
+	for (i = 0; i < tgt->ha->max_qpairs + 1; i++) {
+		h = &tgt->qphints[i];
+		if (h->qpair == qpair)
+			return h;
+	}
+
+	return NULL;
+}
+
+static inline void
+qla_83xx_start_iocbs(struct qla_qpair *qpair)
+{
+	struct req_que *req = qpair->req;
+
+	req->ring_index++;
+	if (req->ring_index == req->length) {
+		req->ring_index = 0;
+		req->ring_ptr = req->ring;
+	} else
+		req->ring_ptr++;
+
+	WRT_REG_DWORD(req->req_q_in, req->ring_index);
 }

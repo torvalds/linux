@@ -19,18 +19,28 @@
 #ifndef __LINUX_IOMMU_H
 #define __LINUX_IOMMU_H
 
+#include <linux/scatterlist.h>
+#include <linux/device.h>
+#include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/types.h>
-#include <linux/scatterlist.h>
-#include <trace/events/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
 #define IOMMU_CACHE	(1 << 2) /* DMA cache coherency */
 #define IOMMU_NOEXEC	(1 << 3)
 #define IOMMU_MMIO	(1 << 4) /* e.g. things like MSI doorbells */
+/*
+ * Where the bus hardware includes a privilege level as part of its access type
+ * markings, and certain devices are capable of issuing transactions marked as
+ * either 'supervisor' or 'user', the IOMMU_PRIV flag requests that the other
+ * given permission flags only apply to accesses at the higher privilege level,
+ * and that unprivileged transactions should have as little access as possible.
+ * This would usually imply the same permissions as kernel mappings on the CPU,
+ * if the IOMMU page table format is equivalent.
+ */
+#define IOMMU_PRIV	(1 << 5)
 
 struct iommu_ops;
 struct iommu_group;
@@ -117,18 +127,32 @@ enum iommu_attr {
 	DOMAIN_ATTR_MAX,
 };
 
+/* These are the possible reserved region types */
+enum iommu_resv_type {
+	/* Memory regions which must be mapped 1:1 at all times */
+	IOMMU_RESV_DIRECT,
+	/* Arbitrary "never map this or give it to a device" address ranges */
+	IOMMU_RESV_RESERVED,
+	/* Hardware MSI region (untranslated) */
+	IOMMU_RESV_MSI,
+	/* Software-managed MSI translation window */
+	IOMMU_RESV_SW_MSI,
+};
+
 /**
- * struct iommu_dm_region - descriptor for a direct mapped memory region
+ * struct iommu_resv_region - descriptor for a reserved memory region
  * @list: Linked list pointers
  * @start: System physical start address of the region
  * @length: Length of the region in bytes
  * @prot: IOMMU Protection flags (READ/WRITE/...)
+ * @type: Type of the reserved region
  */
-struct iommu_dm_region {
+struct iommu_resv_region {
 	struct list_head	list;
 	phys_addr_t		start;
 	size_t			length;
 	int			prot;
+	enum iommu_resv_type	type;
 };
 
 #ifdef CONFIG_IOMMU_API
@@ -150,9 +174,9 @@ struct iommu_dm_region {
  * @device_group: find iommu group for a particular device
  * @domain_get_attr: Query domain attributes
  * @domain_set_attr: Change domain attributes
- * @get_dm_regions: Request list of direct mapping requirements for a device
- * @put_dm_regions: Free list of direct mapping requirements for a device
- * @apply_dm_region: Temporary helper call-back for iova reserved ranges
+ * @get_resv_regions: Request list of reserved regions for a device
+ * @put_resv_regions: Free list of reserved regions for a device
+ * @apply_resv_region: Temporary helper call-back for iova reserved ranges
  * @domain_window_enable: Configure and enable a particular window for a domain
  * @domain_window_disable: Disable a particular window for a domain
  * @domain_set_windows: Set the number of windows for a domain
@@ -184,11 +208,12 @@ struct iommu_ops {
 	int (*domain_set_attr)(struct iommu_domain *domain,
 			       enum iommu_attr attr, void *data);
 
-	/* Request/Free a list of direct mapping requirements for a device */
-	void (*get_dm_regions)(struct device *dev, struct list_head *list);
-	void (*put_dm_regions)(struct device *dev, struct list_head *list);
-	void (*apply_dm_region)(struct device *dev, struct iommu_domain *domain,
-				struct iommu_dm_region *region);
+	/* Request/Free a list of reserved regions for a device */
+	void (*get_resv_regions)(struct device *dev, struct list_head *list);
+	void (*put_resv_regions)(struct device *dev, struct list_head *list);
+	void (*apply_resv_region)(struct device *dev,
+				  struct iommu_domain *domain,
+				  struct iommu_resv_region *region);
 
 	/* Window handling functions */
 	int (*domain_window_enable)(struct iommu_domain *domain, u32 wnd_nr,
@@ -203,6 +228,42 @@ struct iommu_ops {
 
 	unsigned long pgsize_bitmap;
 };
+
+/**
+ * struct iommu_device - IOMMU core representation of one IOMMU hardware
+ *			 instance
+ * @list: Used by the iommu-core to keep a list of registered iommus
+ * @ops: iommu-ops for talking to this iommu
+ * @dev: struct device for sysfs handling
+ */
+struct iommu_device {
+	struct list_head list;
+	const struct iommu_ops *ops;
+	struct fwnode_handle *fwnode;
+	struct device dev;
+};
+
+int  iommu_device_register(struct iommu_device *iommu);
+void iommu_device_unregister(struct iommu_device *iommu);
+int  iommu_device_sysfs_add(struct iommu_device *iommu,
+			    struct device *parent,
+			    const struct attribute_group **groups,
+			    const char *fmt, ...) __printf(4, 5);
+void iommu_device_sysfs_remove(struct iommu_device *iommu);
+int  iommu_device_link(struct iommu_device   *iommu, struct device *link);
+void iommu_device_unlink(struct iommu_device *iommu, struct device *link);
+
+static inline void iommu_device_set_ops(struct iommu_device *iommu,
+					const struct iommu_ops *ops)
+{
+	iommu->ops = ops;
+}
+
+static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
+					   struct fwnode_handle *fwnode)
+{
+	iommu->fwnode = fwnode;
+}
 
 #define IOMMU_GROUP_NOTIFY_ADD_DEVICE		1 /* Device added */
 #define IOMMU_GROUP_NOTIFY_DEL_DEVICE		2 /* Pre Device removed */
@@ -233,9 +294,14 @@ extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t io
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
 			iommu_fault_handler_t handler, void *token);
 
-extern void iommu_get_dm_regions(struct device *dev, struct list_head *list);
-extern void iommu_put_dm_regions(struct device *dev, struct list_head *list);
+extern void iommu_get_resv_regions(struct device *dev, struct list_head *list);
+extern void iommu_put_resv_regions(struct device *dev, struct list_head *list);
 extern int iommu_request_dm_for_dev(struct device *dev);
+extern struct iommu_resv_region *
+iommu_alloc_resv_region(phys_addr_t start, size_t length, int prot,
+			enum iommu_resv_type type);
+extern int iommu_get_group_resv_regions(struct iommu_group *group,
+					struct list_head *head);
 
 extern int iommu_attach_group(struct iommu_domain *domain,
 			      struct iommu_group *group);
@@ -253,6 +319,7 @@ extern void iommu_group_remove_device(struct device *dev);
 extern int iommu_group_for_each_dev(struct iommu_group *group, void *data,
 				    int (*fn)(struct device *, void *));
 extern struct iommu_group *iommu_group_get(struct device *dev);
+extern struct iommu_group *iommu_group_ref_get(struct iommu_group *group);
 extern void iommu_group_put(struct iommu_group *group);
 extern int iommu_group_register_notifier(struct iommu_group *group,
 					 struct notifier_block *nb);
@@ -266,58 +333,15 @@ extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
-struct device *iommu_device_create(struct device *parent, void *drvdata,
-				   const struct attribute_group **groups,
-				   const char *fmt, ...) __printf(4, 5);
-void iommu_device_destroy(struct device *dev);
-int iommu_device_link(struct device *dev, struct device *link);
-void iommu_device_unlink(struct device *dev, struct device *link);
 
 /* Window handling function prototypes */
 extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 				      phys_addr_t offset, u64 size,
 				      int prot);
 extern void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr);
-/**
- * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
- * @domain: the iommu domain where the fault has happened
- * @dev: the device where the fault has happened
- * @iova: the faulting address
- * @flags: mmu fault flags (e.g. IOMMU_FAULT_READ/IOMMU_FAULT_WRITE/...)
- *
- * This function should be called by the low-level IOMMU implementations
- * whenever IOMMU faults happen, to allow high-level users, that are
- * interested in such events, to know about them.
- *
- * This event may be useful for several possible use cases:
- * - mere logging of the event
- * - dynamic TLB/PTE loading
- * - if restarting of the faulting device is required
- *
- * Returns 0 on success and an appropriate error code otherwise (if dynamic
- * PTE/TLB loading will one day be supported, implementations will be able
- * to tell whether it succeeded or not according to this return value).
- *
- * Specifically, -ENOSYS is returned if a fault handler isn't installed
- * (though fault handlers can also return -ENOSYS, in case they want to
- * elicit the default behavior of the IOMMU drivers).
- */
-static inline int report_iommu_fault(struct iommu_domain *domain,
-		struct device *dev, unsigned long iova, int flags)
-{
-	int ret = -ENOSYS;
 
-	/*
-	 * if upper layers showed interest and installed a fault handler,
-	 * invoke it.
-	 */
-	if (domain->handler)
-		ret = domain->handler(domain, dev, iova, flags,
-						domain->handler_token);
-
-	trace_io_page_fault(dev, iova, flags);
-	return ret;
-}
+extern int report_iommu_fault(struct iommu_domain *domain, struct device *dev,
+			      unsigned long iova, int flags);
 
 static inline size_t iommu_map_sg(struct iommu_domain *domain,
 				  unsigned long iova, struct scatterlist *sg,
@@ -331,10 +355,34 @@ extern struct iommu_group *pci_device_group(struct device *dev);
 /* Generic device grouping function */
 extern struct iommu_group *generic_device_group(struct device *dev);
 
+/**
+ * struct iommu_fwspec - per-device IOMMU instance data
+ * @ops: ops for this device's IOMMU
+ * @iommu_fwnode: firmware handle for this device's IOMMU
+ * @iommu_priv: IOMMU driver private data for this device
+ * @num_ids: number of associated device IDs
+ * @ids: IDs which this device may present to the IOMMU
+ */
+struct iommu_fwspec {
+	const struct iommu_ops	*ops;
+	struct fwnode_handle	*iommu_fwnode;
+	void			*iommu_priv;
+	unsigned int		num_ids;
+	u32			ids[1];
+};
+
+int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
+		      const struct iommu_ops *ops);
+void iommu_fwspec_free(struct device *dev);
+int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids);
+const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode);
+
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
 struct iommu_group {};
+struct iommu_fwspec {};
+struct iommu_device {};
 
 static inline bool iommu_present(struct bus_type *bus)
 {
@@ -417,14 +465,20 @@ static inline void iommu_set_fault_handler(struct iommu_domain *domain,
 {
 }
 
-static inline void iommu_get_dm_regions(struct device *dev,
+static inline void iommu_get_resv_regions(struct device *dev,
 					struct list_head *list)
 {
 }
 
-static inline void iommu_put_dm_regions(struct device *dev,
+static inline void iommu_put_resv_regions(struct device *dev,
 					struct list_head *list)
 {
+}
+
+static inline int iommu_get_group_resv_regions(struct iommu_group *group,
+					       struct list_head *head)
+{
+	return -ENODEV;
 }
 
 static inline int iommu_request_dm_for_dev(struct device *dev)
@@ -520,15 +574,34 @@ static inline int iommu_domain_set_attr(struct iommu_domain *domain,
 	return -EINVAL;
 }
 
-static inline struct device *iommu_device_create(struct device *parent,
-					void *drvdata,
-					const struct attribute_group **groups,
-					const char *fmt, ...)
+static inline int  iommu_device_register(struct iommu_device *iommu)
 {
-	return ERR_PTR(-ENODEV);
+	return -ENODEV;
 }
 
-static inline void iommu_device_destroy(struct device *dev)
+static inline void iommu_device_set_ops(struct iommu_device *iommu,
+					const struct iommu_ops *ops)
+{
+}
+
+static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
+					   struct fwnode_handle *fwnode)
+{
+}
+
+static inline void iommu_device_unregister(struct iommu_device *iommu)
+{
+}
+
+static inline int  iommu_device_sysfs_add(struct iommu_device *iommu,
+					  struct device *parent,
+					  const struct attribute_group **groups,
+					  const char *fmt, ...)
+{
+	return -ENODEV;
+}
+
+static inline void iommu_device_sysfs_remove(struct iommu_device *iommu)
 {
 }
 
@@ -539,6 +612,29 @@ static inline int iommu_device_link(struct device *dev, struct device *link)
 
 static inline void iommu_device_unlink(struct device *dev, struct device *link)
 {
+}
+
+static inline int iommu_fwspec_init(struct device *dev,
+				    struct fwnode_handle *iommu_fwnode,
+				    const struct iommu_ops *ops)
+{
+	return -ENODEV;
+}
+
+static inline void iommu_fwspec_free(struct device *dev)
+{
+}
+
+static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
+				       int num_ids)
+{
+	return -ENODEV;
+}
+
+static inline
+const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_IOMMU_API */

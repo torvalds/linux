@@ -670,7 +670,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_deauth++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -685,7 +685,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_disassoc++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -695,7 +695,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_link_lost++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -793,7 +793,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_BG_SCAN_STOPPED:
 		dev_dbg(adapter->dev, "event: BGS_STOPPED\n");
-		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+		cfg80211_sched_scan_stopped(priv->wdev.wiphy, 0);
 		if (priv->sched_scanning)
 			priv->sched_scanning = false;
 		break;
@@ -824,7 +824,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_RSSI_LOW:
 		cfg80211_cqm_rssi_notify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
-					 GFP_KERNEL);
+					 0, GFP_KERNEL);
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
 				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_LOW_RECVD;
@@ -839,7 +839,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_RSSI_HIGH:
 		cfg80211_cqm_rssi_notify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
-					 GFP_KERNEL);
+					 0, GFP_KERNEL);
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
 				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_HIGH_RECVD;
@@ -923,7 +923,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					      adapter->event_body);
 		break;
 	case EVENT_AMSDU_AGGR_CTRL:
-		ctrl = le16_to_cpu(*(__le16 *)adapter->event_body);
+		ctrl = get_unaligned_le16(adapter->event_body);
 		mwifiex_dbg(adapter, EVENT,
 			    "event: AMSDU_AGGR_CTRL %d\n", ctrl);
 
@@ -1008,6 +1008,10 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_11n_rxba_sync_event(priv, adapter->event_body,
 					    adapter->event_skb->len -
 					    sizeof(eventcause));
+		break;
+	/* Debugging event; not used, but let's not print an ERROR for it. */
+	case EVENT_UNKNOWN_DEBUG:
+		mwifiex_dbg(adapter, EVENT, "event: debug\n");
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR, "event: unknown event id: %#x\n",

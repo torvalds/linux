@@ -50,11 +50,12 @@ static void vgem_gem_free_object(struct drm_gem_object *obj)
 	kfree(vgem_obj);
 }
 
-static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int vgem_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_vgem_gem_object *obj = vma->vm_private_data;
 	/* We don't use vmf->pgoff since that has the fake offset */
-	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+	unsigned long vaddr = vmf->address;
 	struct page *page;
 
 	page = shmem_read_mapping_page(file_inode(obj->base.filp)->i_mapping,
@@ -103,7 +104,7 @@ static int vgem_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-static void vgem_preclose(struct drm_device *dev, struct drm_file *file)
+static void vgem_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct vgem_file *vfile = file->driver_priv;
 
@@ -287,7 +288,7 @@ static int vgem_prime_mmap(struct drm_gem_object *obj,
 	if (!obj->filp)
 		return -ENODEV;
 
-	ret = obj->filp->f_op->mmap(obj->filp, vma);
+	ret = call_mmap(obj->filp, vma);
 	if (ret)
 		return ret;
 
@@ -302,7 +303,7 @@ static int vgem_prime_mmap(struct drm_gem_object *obj,
 static struct drm_driver vgem_driver = {
 	.driver_features		= DRIVER_GEM | DRIVER_PRIME,
 	.open				= vgem_open,
-	.preclose			= vgem_preclose,
+	.postclose			= vgem_postclose,
 	.gem_free_object_unlocked	= vgem_gem_free_object,
 	.gem_vm_ops			= &vgem_gem_vm_ops,
 	.ioctls				= vgem_ioctls,
@@ -334,8 +335,8 @@ static int __init vgem_init(void)
 	int ret;
 
 	vgem_device = drm_dev_alloc(&vgem_driver, NULL);
-	if (!vgem_device) {
-		ret = -ENOMEM;
+	if (IS_ERR(vgem_device)) {
+		ret = PTR_ERR(vgem_device);
 		goto out;
 	}
 

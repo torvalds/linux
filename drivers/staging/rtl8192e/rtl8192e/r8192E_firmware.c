@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 
 #include "rtl_core.h"
 #include "r8192E_hw.h"
@@ -202,7 +202,5 @@ bool rtl92e_init_fw(struct net_device *dev)
 
 download_firmware_fail:
 	netdev_err(dev, "%s: Failed to initialize firmware.\n", __func__);
-	rt_status = false;
-	return rt_status;
-
+	return false;
 }

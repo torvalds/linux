@@ -115,7 +115,7 @@ inline void sha256_init_digest(uint32_t *digest)
 }
 
 inline uint32_t sha256_pad(uint8_t padblock[SHA256_BLOCK_SIZE * 2],
-			 uint32_t total_len)
+			 uint64_t total_len)
 {
 	uint32_t i = total_len & (SHA256_BLOCK_SIZE - 1);
 

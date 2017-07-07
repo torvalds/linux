@@ -19,7 +19,6 @@
 #include <linux/jiffies.h>
 #include "client.h"
 #include "hw-ish.h"
-#include "utils.h"
 #include "hbm.h"
 
 /* For FW reset flow */
@@ -310,6 +309,7 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 						((uint32_t)tv_utc.tv_usec);
 		ts_format.ts1_source = HOST_SYSTEM_TIME_USEC;
 		ts_format.ts2_source = HOST_UTC_TIME_USEC;
+		ts_format.reserved = 0;
 
 		time_update.primary_host_time = usec_system;
 		time_update.secondary_host_time = usec_utc;
@@ -427,6 +427,59 @@ static int ipc_send_mng_msg(struct ishtp_device *dev, uint32_t msg_code,
 		sizeof(uint32_t) + size);
 }
 
+#define WAIT_FOR_FW_RDY			0x1
+#define WAIT_FOR_INPUT_RDY		0x2
+
+/**
+ * timed_wait_for_timeout() - wait special event with timeout
+ * @dev: ISHTP device pointer
+ * @condition: indicate the condition for waiting
+ * @timeinc: time slice for every wait cycle, in ms
+ * @timeout: time in ms for timeout
+ *
+ * This function will check special event to be ready in a loop, the loop
+ * period is specificd in timeinc. Wait timeout will causes failure.
+ *
+ * Return: 0 for success else failure code
+ */
+static int timed_wait_for_timeout(struct ishtp_device *dev, int condition,
+				unsigned int timeinc, unsigned int timeout)
+{
+	bool complete = false;
+	int ret;
+
+	do {
+		if (condition == WAIT_FOR_FW_RDY) {
+			complete = ishtp_fw_is_ready(dev);
+		} else if (condition == WAIT_FOR_INPUT_RDY) {
+			complete = ish_is_input_ready(dev);
+		} else {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (!complete) {
+			unsigned long left_time;
+
+			left_time = msleep_interruptible(timeinc);
+			timeout -= (timeinc - left_time);
+		}
+	} while (!complete && timeout > 0);
+
+	if (complete)
+		ret = 0;
+	else
+		ret = -EBUSY;
+
+out:
+	return ret;
+}
+
+#define TIME_SLICE_FOR_FW_RDY_MS		100
+#define TIME_SLICE_FOR_INPUT_RDY_MS		100
+#define TIMEOUT_FOR_FW_RDY_MS			2000
+#define TIMEOUT_FOR_INPUT_RDY_MS		2000
+
 /**
  * ish_fw_reset_handler() - FW reset handler
  * @dev: ishtp device pointer
@@ -456,8 +509,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	ishtp_reset_handler(dev);
 
 	if (!ish_is_input_ready(dev))
-		timed_wait_for_timeout(WAIT_FOR_SEND_SLICE,
-			ish_is_input_ready(dev), (2 * HZ));
+		timed_wait_for_timeout(dev, WAIT_FOR_INPUT_RDY,
+			TIME_SLICE_FOR_INPUT_RDY_MS, TIMEOUT_FOR_INPUT_RDY_MS);
 
 	/* ISH FW is dead */
 	if (!ish_is_input_ready(dev))
@@ -472,8 +525,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 			 sizeof(uint32_t));
 
 	/* Wait for ISH FW'es ILUP and ISHTP_READY */
-	timed_wait_for_timeout(WAIT_FOR_SEND_SLICE, ishtp_fw_is_ready(dev),
-		(2 * HZ));
+	timed_wait_for_timeout(dev, WAIT_FOR_FW_RDY,
+			TIME_SLICE_FOR_FW_RDY_MS, TIMEOUT_FOR_FW_RDY_MS);
 	if (!ishtp_fw_is_ready(dev)) {
 		/* ISH FW is dead */
 		uint32_t	ish_status;
@@ -486,6 +539,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	}
 	return	0;
 }
+
+#define TIMEOUT_FOR_HW_RDY_MS			300
 
 /**
  * ish_fw_reset_work_fn() - FW reset worker function
@@ -500,7 +555,7 @@ static void fw_reset_work_fn(struct work_struct *unused)
 	rv = ish_fw_reset_handler(ishtp_dev);
 	if (!rv) {
 		/* ISH is ILUP & ISHTP-ready. Restart ISHTP */
-		schedule_timeout(HZ / 3);
+		msleep_interruptible(TIMEOUT_FOR_HW_RDY_MS);
 		ishtp_dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
@@ -638,6 +693,58 @@ eoi:
 }
 
 /**
+ * ish_disable_dma() - disable dma communication between host and ISHFW
+ * @dev: ishtp device pointer
+ *
+ * Clear the dma enable bit and wait for dma inactive.
+ *
+ * Return: 0 for success else error code.
+ */
+static int ish_disable_dma(struct ishtp_device *dev)
+{
+	unsigned int	dma_delay;
+
+	/* Clear the dma enable bit */
+	ish_reg_write(dev, IPC_REG_ISH_RMP2, 0);
+
+	/* wait for dma inactive */
+	for (dma_delay = 0; dma_delay < MAX_DMA_DELAY &&
+		_ish_read_fw_sts_reg(dev) & (IPC_ISH_IN_DMA);
+		dma_delay += 5)
+		mdelay(5);
+
+	if (dma_delay >= MAX_DMA_DELAY) {
+		dev_err(dev->devc,
+			"Wait for DMA inactive timeout\n");
+		return	-EBUSY;
+	}
+
+	return 0;
+}
+
+/**
+ * ish_wakeup() - wakeup ishfw from waiting-for-host state
+ * @dev: ishtp device pointer
+ *
+ * Set the dma enable bit and send a void message to FW,
+ * it wil wakeup FW from waiting-for-host state.
+ */
+static void ish_wakeup(struct ishtp_device *dev)
+{
+	/* Set dma enable bit */
+	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
+
+	/*
+	 * Send 0 IPC message so that ISH FW wakes up if it was already
+	 * asleep.
+	 */
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
+
+	/* Flush writes to doorbell and REMAP2 */
+	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
+}
+
+/**
  * _ish_hw_reset() - HW reset
  * @dev: ishtp device pointer
  *
@@ -649,7 +756,6 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 {
 	struct pci_dev *pdev = dev->pdev;
 	int	rv;
-	unsigned int	dma_delay;
 	uint16_t csr;
 
 	if (!pdev)
@@ -664,15 +770,8 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 		return	-EINVAL;
 	}
 
-	/* Now trigger reset to FW */
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, 0);
-
-	for (dma_delay = 0; dma_delay < MAX_DMA_DELAY &&
-		_ish_read_fw_sts_reg(dev) & (IPC_ISH_IN_DMA);
-		dma_delay += 5)
-		mdelay(5);
-
-	if (dma_delay >= MAX_DMA_DELAY) {
+	/* Disable dma communication between FW and host */
+	if (ish_disable_dma(dev)) {
 		dev_err(&pdev->dev,
 			"Can't reset - stuck with DMA in-progress\n");
 		return	-EBUSY;
@@ -690,16 +789,8 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	csr |= PCI_D0;
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
-
-	/*
-	 * Send 0 IPC message so that ISH FW wakes up if it was already
-	 * asleep
-	 */
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
-
-	/* Flush writes to doorbell and REMAP2 */
-	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
+	/* Now we can enable ISH DMA operation and wakeup ISHFW */
+	ish_wakeup(dev);
 
 	return	0;
 }
@@ -758,16 +849,9 @@ static int _ish_ipc_reset(struct ishtp_device *dev)
 int ish_hw_start(struct ishtp_device *dev)
 {
 	ish_set_host_rdy(dev);
-	/* After that we can enable ISH DMA operation */
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
 
-	/*
-	 * Send 0 IPC message so that ISH FW wakes up if it was already
-	 * asleep
-	 */
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
-	/* Flush write to doorbell */
-	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
+	/* After that we can enable ISH DMA operation and wakeup ISHFW */
+	ish_wakeup(dev);
 
 	set_host_ready(dev);
 
@@ -876,6 +960,21 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
  */
 void	ish_device_disable(struct ishtp_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
+
+	if (!pdev)
+		return;
+
+	/* Disable dma communication between FW and host */
+	if (ish_disable_dma(dev)) {
+		dev_err(&pdev->dev,
+			"Can't reset - stuck with DMA in-progress\n");
+		return;
+	}
+
+	/* Put ISH to D3hot state for power saving */
+	pci_set_power_state(pdev, PCI_D3hot);
+
 	dev->dev_state = ISHTP_DEV_DISABLED;
 	ish_clr_host_rdy(dev);
 }

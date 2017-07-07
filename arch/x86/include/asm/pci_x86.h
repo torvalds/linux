@@ -4,6 +4,8 @@
  *	(c) 1999 Martin Mares <mj@ucw.cz>
  */
 
+#include <linux/ioport.h>
+
 #undef DEBUG
 
 #ifdef DEBUG

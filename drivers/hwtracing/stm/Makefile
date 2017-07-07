@@ -6,6 +6,8 @@ obj-$(CONFIG_STM_DUMMY)	+= dummy_stm.o
 
 obj-$(CONFIG_STM_SOURCE_CONSOLE)	+= stm_console.o
 obj-$(CONFIG_STM_SOURCE_HEARTBEAT)	+= stm_heartbeat.o
+obj-$(CONFIG_STM_SOURCE_FTRACE)		+= stm_ftrace.o
 
 stm_console-y		:= console.o
 stm_heartbeat-y		:= heartbeat.o
+stm_ftrace-y		:= ftrace.o

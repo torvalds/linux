@@ -54,42 +54,47 @@
 #endif
 
 #ifdef	DEBUG
-#define	DB_PR(flag,a,b,c)	{ if (flag) printf(a,b,c) ; }
+#define	DB_PR(flag, fmt, ...)						\
+	do { if (flag) printf(fmt "\n", ##__VA_ARGS__); } while (0)
 #else
-#define	DB_PR(flag,a,b,c)
+#define	DB_PR(flag, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
+
 #endif
 
 #ifdef DEBUG_BRD
-#define DB_ECM(a,b,c)		DB_PR((smc->debug.d_smt&1),a,b,c)
-#define DB_ECMN(n,a,b,c)	DB_PR((smc->debug.d_ecm >=(n)),a,b,c)
-#define DB_RMT(a,b,c)		DB_PR((smc->debug.d_smt&2),a,b,c)
-#define DB_RMTN(n,a,b,c)	DB_PR((smc->debug.d_rmt >=(n)),a,b,c)
-#define DB_CFM(a,b,c)		DB_PR((smc->debug.d_smt&4),a,b,c)
-#define DB_CFMN(n,a,b,c)	DB_PR((smc->debug.d_cfm >=(n)),a,b,c)
-#define DB_PCM(a,b,c)		DB_PR((smc->debug.d_smt&8),a,b,c)
-#define DB_PCMN(n,a,b,c)	DB_PR((smc->debug.d_pcm >=(n)),a,b,c)
-#define DB_SMT(a,b,c)		DB_PR((smc->debug.d_smtf),a,b,c)
-#define DB_SMTN(n,a,b,c)	DB_PR((smc->debug.d_smtf >=(n)),a,b,c)
-#define DB_SBA(a,b,c)		DB_PR((smc->debug.d_sba),a,b,c)
-#define DB_SBAN(n,a,b,c)	DB_PR((smc->debug.d_sba >=(n)),a,b,c)
-#define DB_ESS(a,b,c)		DB_PR((smc->debug.d_ess),a,b,c)
-#define DB_ESSN(n,a,b,c)	DB_PR((smc->debug.d_ess >=(n)),a,b,c)
+#define DB_TEST (smc->debug)
 #else
-#define DB_ECM(a,b,c)		DB_PR((debug.d_smt&1),a,b,c)
-#define DB_ECMN(n,a,b,c)	DB_PR((debug.d_ecm >=(n)),a,b,c)
-#define DB_RMT(a,b,c)		DB_PR((debug.d_smt&2),a,b,c)
-#define DB_RMTN(n,a,b,c)	DB_PR((debug.d_rmt >=(n)),a,b,c)
-#define DB_CFM(a,b,c)		DB_PR((debug.d_smt&4),a,b,c)
-#define DB_CFMN(n,a,b,c)	DB_PR((debug.d_cfm >=(n)),a,b,c)
-#define DB_PCM(a,b,c)		DB_PR((debug.d_smt&8),a,b,c)
-#define DB_PCMN(n,a,b,c)	DB_PR((debug.d_pcm >=(n)),a,b,c)
-#define DB_SMT(a,b,c)		DB_PR((debug.d_smtf),a,b,c)
-#define DB_SMTN(n,a,b,c)	DB_PR((debug.d_smtf >=(n)),a,b,c)
-#define DB_SBA(a,b,c)		DB_PR((debug.d_sba),a,b,c)
-#define DB_SBAN(n,a,b,c)	DB_PR((debug.d_sba >=(n)),a,b,c)
-#define DB_ESS(a,b,c)		DB_PR((debug.d_ess),a,b,c)
-#define DB_ESSN(n,a,b,c)	DB_PR((debug.d_ess >=(n)),a,b,c)
+#define DB_TEST (debug)
 #endif
+
+#define DB_ECM(fmt, ...)						\
+	DB_PR((DB_TEST).d_smt & 1, fmt, ##__VA_ARGS__)
+#define DB_ECMN(n, fmt, ...)						\
+	DB_PR((DB_TEST).d_ecm >= (n), fmt, ##__VA_ARGS__)
+#define DB_RMT(fmt, ...)						\
+	DB_PR((DB_TEST).d_smt & 2, fmt, ##__VA_ARGS__)
+#define DB_RMTN(n, fmt, ...)						\
+	DB_PR((DB_TEST).d_rmt >= (n), fmt, ##__VA_ARGS__)
+#define DB_CFM(fmt, ...)						\
+	DB_PR((DB_TEST).d_smt & 4, fmt, ##__VA_ARGS__)
+#define DB_CFMN(n, fmt, ...)						\
+	DB_PR((DB_TEST).d_cfm >= (n), fmt, ##__VA_ARGS__)
+#define DB_PCM(fmt, ...)						\
+	DB_PR((DB_TEST).d_smt & 8, fmt, ##__VA_ARGS__)
+#define DB_PCMN(n, fmt, ...)						\
+	DB_PR((DB_TEST).d_pcm >= (n), fmt, ##__VA_ARGS__)
+#define DB_SMT(fmt, ...)						\
+	DB_PR((DB_TEST).d_smtf, fmt, ##__VA_ARGS__)
+#define DB_SMTN(n, fmt, ...)						\
+	DB_PR((DB_TEST).d_smtf >= (n), fmt, ##__VA_ARGS__)
+#define DB_SBA(fmt, ...)						\
+	DB_PR((DB_TEST).d_sba, fmt, ##__VA_ARGS__)
+#define DB_SBAN(n, fmt, ...)						\
+	DB_PR((DB_TEST).d_sba >= (n), fmt, ##__VA_ARGS__)
+#define DB_ESS(fmt, ...)						\
+	DB_PR((DB_TEST).d_ess, fmt, ##__VA_ARGS__)
+#define DB_ESSN(n, fmt, ...)						\
+	DB_PR((DB_TEST).d_ess >= (n), fmt, ##__VA_ARGS__)
 
 #ifndef	SS_NOT_DS
 #define	SK_LOC_DECL(type,var)	type var
@@ -640,8 +645,8 @@ void dump_smt(struct s_smc *smc, struct smt_header *sm, char *text);
 #define	dump_smt(smc,sm,text)
 #endif
 
-#ifdef	DEBUG
 char* addr_to_string(struct fddi_addr *addr);
+#ifdef	DEBUG
 void dump_hex(char *p, int len);
 #endif
 

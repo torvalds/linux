@@ -115,7 +115,6 @@ int t3_l2t_send_slow(struct t3cdev *dev, struct sk_buff *skb,
 		     struct l2t_entry *e);
 void t3_l2t_send_event(struct t3cdev *dev, struct l2t_entry *e);
 struct l2t_data *t3_init_l2t(unsigned int l2t_capacity);
-void t3_free_l2t(struct l2t_data *d);
 
 int cxgb3_ofld_send(struct t3cdev *dev, struct sk_buff *skb);
 

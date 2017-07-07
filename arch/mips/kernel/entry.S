@@ -11,6 +11,7 @@
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/compiler.h>
+#include <asm/irqflags.h>
 #include <asm/regdef.h>
 #include <asm/mipsregs.h>
 #include <asm/stackframe.h>
@@ -47,11 +48,6 @@ resume_userspace:
 	local_irq_disable		# make sure we dont miss an
 					# interrupt setting need_resched
 					# between sampling and return
-#ifdef CONFIG_MIPSR2_TO_R6_EMULATOR
-	lw	k0, TI_R2_EMUL_RET($28)
-	bnez	k0, restore_all_from_r2_emul
-#endif
-
 	LONG_L	a2, TI_FLAGS($28)	# current->work
 	andi	t0, a2, _TIF_WORK_MASK	# (ignoring syscall_trace)
 	bnez	t0, work_pending
@@ -120,23 +116,11 @@ restore_partial:		# restore partial frame
 	RESTORE_SP_AND_RET
 	.set	at
 
-#ifdef CONFIG_MIPSR2_TO_R6_EMULATOR
-restore_all_from_r2_emul:			# restore full frame
-	.set	noat
-	sw	zero, TI_R2_EMUL_RET($28)	# reset it
-	RESTORE_TEMP
-	RESTORE_AT
-	RESTORE_STATIC
-	RESTORE_SOME
-	LONG_L	sp, PT_R29(sp)
-	eretnc
-	.set	at
-#endif
-
 work_pending:
 	andi	t0, a2, _TIF_NEED_RESCHED # a2 is preloaded with TI_FLAGS
 	beqz	t0, work_notifysig
 work_resched:
+	TRACE_IRQS_OFF
 	jal	schedule
 
 	local_irq_disable		# make sure need_resched and
@@ -173,6 +157,7 @@ syscall_exit_work:
 	beqz	t0, work_pending	# trace bit set?
 	local_irq_enable		# could let syscall_trace_leave()
 					# call schedule() instead
+	TRACE_IRQS_ON
 	move	a0, sp
 	jal	syscall_trace_leave
 	b	resume_userspace

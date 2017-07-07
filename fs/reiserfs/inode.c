@@ -19,6 +19,7 @@
 #include <linux/quotaops.h>
 #include <linux/swap.h>
 #include <linux/uio.h>
+#include <linux/bio.h>
 
 int reiserfs_commit_write(struct file *f, struct page *page,
 			  unsigned from, unsigned to);
@@ -524,7 +525,7 @@ static int reiserfs_get_blocks_direct_io(struct inode *inode,
 	 * referenced in convert_tail_for_hole() that may be called from
 	 * reiserfs_get_block()
 	 */
-	bh_result->b_size = (1 << inode->i_blkbits);
+	bh_result->b_size = i_blocksize(inode);
 
 	ret = reiserfs_get_block(inode, iblock, bh_result,
 				 create | GET_BLOCK_NO_DANGLE);
@@ -1374,7 +1375,6 @@ static void init_inode(struct inode *inode, struct treepath *path)
 static void inode2sd(void *sd, struct inode *inode, loff_t size)
 {
 	struct stat_data *sd_v2 = (struct stat_data *)sd;
-	__u16 flags;
 
 	set_sd_v2_mode(sd_v2, inode->i_mode);
 	set_sd_v2_nlink(sd_v2, inode->i_nlink);
@@ -1389,9 +1389,7 @@ static void inode2sd(void *sd, struct inode *inode, loff_t size)
 		set_sd_v2_rdev(sd_v2, new_encode_dev(inode->i_rdev));
 	else
 		set_sd_v2_generation(sd_v2, inode->i_generation);
-	flags = REISERFS_I(inode)->i_attrs;
-	i_attrs_to_sd_attrs(inode, &flags);
-	set_sd_v2_attrs(sd_v2, flags);
+	set_sd_v2_attrs(sd_v2, REISERFS_I(inode)->i_attrs);
 }
 
 /* used to copy inode's fields to old stat data */
@@ -2001,11 +1999,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	/* uid and gid must already be set by the caller for quota init */
 
-	/* symlink cannot be immutable or append only, right? */
-	if (S_ISLNK(inode->i_mode))
-		inode->i_flags &= ~(S_IMMUTABLE | S_APPEND);
-
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	inode->i_size = i_size;
 	inode->i_blocks = 0;
 	inode->i_bytes = 0;
@@ -3094,28 +3088,6 @@ void sd_attrs_to_i_attrs(__u16 sd_attrs, struct inode *inode)
 	}
 }
 
-void i_attrs_to_sd_attrs(struct inode *inode, __u16 * sd_attrs)
-{
-	if (reiserfs_attrs(inode->i_sb)) {
-		if (inode->i_flags & S_IMMUTABLE)
-			*sd_attrs |= REISERFS_IMMUTABLE_FL;
-		else
-			*sd_attrs &= ~REISERFS_IMMUTABLE_FL;
-		if (inode->i_flags & S_SYNC)
-			*sd_attrs |= REISERFS_SYNC_FL;
-		else
-			*sd_attrs &= ~REISERFS_SYNC_FL;
-		if (inode->i_flags & S_NOATIME)
-			*sd_attrs |= REISERFS_NOATIME_FL;
-		else
-			*sd_attrs &= ~REISERFS_NOATIME_FL;
-		if (REISERFS_I(inode)->i_flags & i_nopack_mask)
-			*sd_attrs |= REISERFS_NOTAIL_FL;
-		else
-			*sd_attrs &= ~REISERFS_NOTAIL_FL;
-	}
-}
-
 /*
  * decide if this buffer needs to stay around for data logging or ordered
  * write purposes
@@ -3312,7 +3284,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	unsigned int ia_valid;
 	int error;
 
-	error = inode_change_ok(inode, attr);
+	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
 

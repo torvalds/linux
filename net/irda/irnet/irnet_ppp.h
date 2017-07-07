@@ -15,12 +15,9 @@
 /***************************** INCLUDES *****************************/
 
 #include "irnet.h"		/* Module global include */
+#include <linux/miscdevice.h>
 
 /************************ CONSTANTS & MACROS ************************/
-
-/* /dev/irnet file constants */
-#define IRNET_MAJOR	10	/* Misc range */
-#define IRNET_MINOR	187	/* Official allocation */
 
 /* IrNET control channel stuff */
 #define IRNET_MAX_COMMAND	256	/* Max length of a command line */
@@ -111,9 +108,9 @@ static const struct file_operations irnet_device_fops =
 /* Structure so that the misc major (drivers/char/misc.c) take care of us... */
 static struct miscdevice irnet_misc_device =
 {
-	IRNET_MINOR,
-	"irnet",
-	&irnet_device_fops
+	.minor = IRNET_MINOR,
+	.name = "irnet",
+	.fops = &irnet_device_fops
 };
 
 #endif /* IRNET_PPP_H */

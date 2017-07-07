@@ -20,51 +20,17 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/errno.h>
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "power_state.h"
-#include "pp_acpi.h"
-#include "amd_acpi.h"
-#include "pp_debug.h"
 
 #define PHM_FUNC_CHECK(hw) \
 	do {							\
 		if ((hw) == NULL || (hw)->hwmgr_func == NULL)	\
 			return -EINVAL;				\
 	} while (0)
-
-void phm_init_dynamic_caps(struct pp_hwmgr *hwmgr)
-{
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableVoltageTransition);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableEngineTransition);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMemoryTransition);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMGClockGating);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMGCGTSSM);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableLSClockGating);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_Force3DClockSupport);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableLightSleep);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableMCLS);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisablePowerGating);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableDPM);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DisableSMUUVDHandshake);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_ThermalAutoThrottling);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_NoOD5Support);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UserMaxClockForMultiDisplays);
-
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VpuRecoveryInProgress);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UVDDPM);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VCEDPM);
-
-	if (acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST) &&
-		acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION))
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
-}
 
 bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr)
 {
@@ -147,7 +113,7 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 				NULL, NULL);
 	}
 
-	enabled = ret == 0 ? true : false;
+	enabled = ret == 0;
 
 	cgs_notify_dpm_enabled(hwmgr->device, enabled);
 
@@ -180,12 +146,28 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level)
 {
+	int ret = 0;
+
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->force_dpm_level != NULL)
-		return hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
+	if (hwmgr->hwmgr_func->force_dpm_level != NULL) {
+		ret = hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
+		if (ret)
+			return ret;
 
-	return 0;
+		if (hwmgr->hwmgr_func->set_power_profile_state) {
+			if (hwmgr->current_power_profile == AMD_PP_GFX_PROFILE)
+				ret = hwmgr->hwmgr_func->set_power_profile_state(
+						hwmgr,
+						&hwmgr->gfx_power_profile);
+			else if (hwmgr->current_power_profile == AMD_PP_COMPUTE_PROFILE)
+				ret = hwmgr->hwmgr_func->set_power_profile_state(
+						hwmgr,
+						&hwmgr->compute_power_profile);
+		}
+	}
+
+	return ret;
 }
 
 int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
@@ -242,6 +224,19 @@ int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 	}
 	return 0;
 }
+
+int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+		PHM_PlatformCaps_TablelessHardwareInterface)) {
+		if (NULL != hwmgr->hwmgr_func->disable_clock_power_gating)
+			return hwmgr->hwmgr_func->disable_clock_power_gating(hwmgr);
+	}
+	return 0;
+}
+
 
 int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
@@ -306,7 +301,7 @@ bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hw
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration == NULL)
-		return -EINVAL;
+		return false;
 
 	return hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration(hwmgr);
 }
@@ -448,6 +443,55 @@ int phm_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, s
 
 }
 
+int phm_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_clock_by_type_with_latency == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_clock_by_type_with_latency(hwmgr, type, clocks);
+
+}
+
+int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_clock_by_type_with_voltage == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_clock_by_type_with_voltage(hwmgr, type, clocks);
+
+}
+
+int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
+		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr,
+			wm_with_clock_ranges);
+}
+
+int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
+		struct pp_display_clock_request *clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->display_clock_voltage_request)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->display_clock_voltage_request(hwmgr, clock);
+}
+
 int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks)
 {
 	PHM_FUNC_CHECK(hwmgr);
@@ -456,4 +500,14 @@ int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_i
 		return -EINVAL;
 
 	return hwmgr->hwmgr_func->get_max_high_clocks(hwmgr, clocks);
+}
+
+int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->disable_smc_firmware_ctf == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->disable_smc_firmware_ctf(hwmgr);
 }

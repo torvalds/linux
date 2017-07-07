@@ -272,7 +272,7 @@ static void ipu_irq_handler(struct irq_desc *desc)
 	u32 status;
 	int i, line;
 
-	for (i = IPU_IRQ_NR_FN_BANKS; i < IPU_IRQ_NR_BANKS; i++) {
+	for (i = 0; i < IPU_IRQ_NR_BANKS; i++) {
 		struct ipu_irq_bank *bank = irq_bank + i;
 
 		raw_spin_lock(&bank_lock);

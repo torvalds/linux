@@ -25,7 +25,7 @@
 
 #include <core/tegra.h>
 
-const struct cvb_coef gm20b_cvb_coef[] = {
+static const struct cvb_coef gm20b_cvb_coef[] = {
 	/* KHz,             c0,      c1,   c2 */
 	/*  76800 */ { 1786666,  -85625, 1632 },
 	/* 153600 */ { 1846729,  -87525, 1632 },
@@ -58,7 +58,7 @@ static const struct cvb_coef gm20b_na_cvb_coef[] = {
 	/* 998400 */ { 1316991, 8144, -940, 808, -21583, 226 },
 };
 
-const u32 speedo_to_vmin[] = {
+static const u32 speedo_to_vmin[] = {
 	/*   0,      1,      2,      3,      4, */
 	950000, 840000, 818750, 840000, 810000,
 };

@@ -109,15 +109,18 @@ static int frv_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 		int nents, enum dma_data_direction direction,
 		unsigned long attrs)
 {
-	int i;
 	struct scatterlist *sg;
+	int i;
+
+	BUG_ON(direction == DMA_NONE);
+
+	if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
+		return nents;
 
 	for_each_sg(sglist, sg, nents, i) {
 		frv_cache_wback_inv(sg_dma_address(sg),
 				    sg_dma_address(sg) + sg_dma_len(sg));
 	}
-
-	BUG_ON(direction == DMA_NONE);
 
 	return nents;
 }
@@ -127,7 +130,10 @@ static dma_addr_t frv_dma_map_page(struct device *dev, struct page *page,
 		enum dma_data_direction direction, unsigned long attrs)
 {
 	BUG_ON(direction == DMA_NONE);
-	flush_dcache_page(page);
+
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		flush_dcache_page(page);
+
 	return (dma_addr_t) page_to_phys(page) + offset;
 }
 
@@ -158,7 +164,7 @@ static int frv_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 
-struct dma_map_ops frv_dma_ops = {
+const struct dma_map_ops frv_dma_ops = {
 	.alloc			= frv_dma_alloc,
 	.free			= frv_dma_free,
 	.map_page		= frv_dma_map_page,

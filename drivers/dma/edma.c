@@ -1628,6 +1628,7 @@ static int edma_alloc_chan_resources(struct dma_chan *chan)
 	if (echan->slot[0] < 0) {
 		dev_err(dev, "Entry slot allocation failed for channel %u\n",
 			EDMA_CHAN_SLOT(echan->ch_num));
+		ret = echan->slot[0];
 		goto err_slot;
 	}
 
@@ -2449,6 +2450,9 @@ static int edma_pm_resume(struct device *dev)
 	struct edma_chan *echan = ecc->slave_chans;
 	int i;
 	s8 (*queue_priority_mapping)[2];
+
+	/* re initialize dummy slot to dummy param set */
+	edma_write_slot(ecc, ecc->dummy_slot, &dummy_paramset);
 
 	queue_priority_mapping = ecc->info->queue_priority_mapping;
 

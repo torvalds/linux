@@ -1,7 +1,7 @@
 /*
  * RTL8XXXU mac80211 USB driver - 8723b specific subdriver
  *
- * Copyright (c) 2014 - 2016 Jes Sorensen <Jes.Sorensen@redhat.com>
+ * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
  * Portions, notably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
@@ -1497,6 +1497,10 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	struct h2c_cmd h2c;
 	u32 val32;
 	u8 val8;
+
+	val32 = rtl8xxxu_read32(priv, REG_RX_WAIT_CCA);
+	val32 |= (BIT(22) | BIT(23));
+	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
 
 	/*
 	 * No indication anywhere as to what 0x0790 does. The 2 antenna

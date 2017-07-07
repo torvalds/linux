@@ -1,15 +1,22 @@
-Binding for TO CDCE925 programmable I2C clock synthesizers.
+Binding for TI CDCE913/925/937/949 programmable I2C clock synthesizers.
 
 Reference
 This binding uses the common clock binding[1].
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
-[2] http://www.ti.com/product/cdce925
+[2] http://www.ti.com/product/cdce913
+[3] http://www.ti.com/product/cdce925
+[4] http://www.ti.com/product/cdce937
+[5] http://www.ti.com/product/cdce949
 
 The driver provides clock sources for each output Y1 through Y5.
 
 Required properties:
- - compatible: Shall be "ti,cdce925"
+ - compatible: Shall be one of the following:
+	- "ti,cdce913": 1-PLL, 3 Outputs
+	- "ti,cdce925": 2-PLL, 5 Outputs
+	- "ti,cdce937": 3-PLL, 7 Outputs
+	- "ti,cdce949": 4-PLL, 9 Outputs
  - reg: I2C device address.
  - clocks: Points to a fixed parent clock that provides the input frequency.
  - #clock-cells: From common clock bindings: Shall be 1.
@@ -18,7 +25,7 @@ Optional properties:
  - xtal-load-pf: Crystal load-capacitor value to fine-tune performance on a
                  board, or to compensate for external influences.
 
-For both PLL1 and PLL2 an optional child node can be used to specify spread
+For all PLL1, PLL2, ... an optional child node can be used to specify spread
 spectrum clocking parameters for a board.
   - spread-spectrum: SSC mode as defined in the data sheet.
   - spread-spectrum-center: Use "centered" mode instead of "max" mode. When

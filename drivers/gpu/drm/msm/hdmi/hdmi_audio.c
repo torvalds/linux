@@ -18,13 +18,6 @@
 #include <linux/hdmi.h>
 #include "hdmi.h"
 
-
-/* Supported HDMI Audio channels */
-#define MSM_HDMI_AUDIO_CHANNEL_2		0
-#define MSM_HDMI_AUDIO_CHANNEL_4		1
-#define MSM_HDMI_AUDIO_CHANNEL_6		2
-#define MSM_HDMI_AUDIO_CHANNEL_8		3
-
 /* maps MSM_HDMI_AUDIO_CHANNEL_n consts used by audio driver to # of channels: */
 static int nchannels[] = { 2, 4, 6, 8 };
 

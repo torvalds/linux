@@ -384,9 +384,6 @@ static int lp8788_update_charger_params(struct platform_device *pdev,
 	for (i = 0; i < pdata->num_chg_params; i++) {
 		param = pdata->chg_params + i;
 
-		if (!param)
-			continue;
-
 		if (lp8788_is_valid_charger_register(param->addr)) {
 			ret = lp8788_write_byte(lp, param->addr, param->val);
 			if (ret)
@@ -654,7 +651,7 @@ static ssize_t lp8788_show_eoc_time(struct device *dev,
 {
 	struct lp8788_charger *pchg = dev_get_drvdata(dev);
 	char *stime[] = { "400ms", "5min", "10min", "15min",
-			"20min", "25min", "30min" "No timeout" };
+			"20min", "25min", "30min", "No timeout" };
 	u8 val;
 
 	lp8788_read_byte(pchg->lp, LP8788_CHG_EOC, &val);

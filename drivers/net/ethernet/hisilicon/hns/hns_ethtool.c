@@ -146,11 +146,11 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 
 	/* When there is no phy, autoneg is off. */
 	cmd->base.autoneg = false;
-	cmd->base.cmd = speed;
+	cmd->base.speed = speed;
 	cmd->base.duplex = duplex;
 
 	if (net_dev->phydev)
-		(void)phy_ethtool_ksettings_get(net_dev->phydev, cmd);
+		phy_ethtool_ksettings_get(net_dev->phydev, cmd);
 
 	link_stat = hns_nic_get_link(net_dev);
 	if (!link_stat) {
@@ -259,55 +259,27 @@ static const char hns_nic_test_strs[][ETH_GSTRING_LEN] = {
 
 static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 {
-#define COPPER_CONTROL_REG 0
-#define PHY_POWER_DOWN BIT(11)
-#define PHY_LOOP_BACK BIT(14)
-	u16 val = 0;
-
-	if (phy_dev->is_c45) /* c45 branch adding for XGE PHY */
-		return -ENOTSUPP;
+	int err;
 
 	if (en) {
-		/* speed : 1000M */
-		phy_write(phy_dev, HNS_PHY_PAGE_REG, 2);
-		phy_write(phy_dev, 21, 0x1046);
+		/* Doing phy loopback in offline state, phy resuming is
+		 * needed to power up the device.
+		 */
+		err = phy_resume(phy_dev);
+		if (err)
+			goto out;
 
-		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
-		/* Force Master */
-		phy_write(phy_dev, 9, 0x1F00);
-
-		/* Soft-reset */
-		phy_write(phy_dev, 0, 0x9140);
-		/* If autoneg disabled,two soft-reset operations */
-		phy_write(phy_dev, 0, 0x9140);
-
-		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0xFA);
-
-		/* Default is 0x0400 */
-		phy_write(phy_dev, 1, 0x418);
-
-		/* Force 1000M Link, Default is 0x0200 */
-		phy_write(phy_dev, 7, 0x20C);
-		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
-
-		/* Enable PHY loop-back */
-		val = phy_read(phy_dev, COPPER_CONTROL_REG);
-		val |= PHY_LOOP_BACK;
-		val &= ~PHY_POWER_DOWN;
-		phy_write(phy_dev, COPPER_CONTROL_REG, val);
+		err = phy_loopback(phy_dev, true);
 	} else {
-		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0xFA);
-		phy_write(phy_dev, 1, 0x400);
-		phy_write(phy_dev, 7, 0x200);
-		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
-		phy_write(phy_dev, 9, 0xF00);
+		err = phy_loopback(phy_dev, false);
+		if (err)
+			goto out;
 
-		val = phy_read(phy_dev, COPPER_CONTROL_REG);
-		val &= ~PHY_LOOP_BACK;
-		val |= PHY_POWER_DOWN;
-		phy_write(phy_dev, COPPER_CONTROL_REG, val);
+		err = phy_suspend(phy_dev);
 	}
-	return 0;
+
+out:
+	return err;
 }
 
 static int __lb_setup(struct net_device *ndev,
@@ -320,10 +292,9 @@ static int __lb_setup(struct net_device *ndev,
 
 	switch (loop) {
 	case MAC_INTERNALLOOP_PHY:
-		if ((phy_dev) && (!phy_dev->is_c45)) {
-			ret = hns_nic_config_phy_loopback(phy_dev, 0x1);
-			ret |= h->dev->ops->set_loopback(h, loop, 0x1);
-		}
+		ret = hns_nic_config_phy_loopback(phy_dev, 0x1);
+		if (!ret)
+			ret = h->dev->ops->set_loopback(h, loop, 0x1);
 		break;
 	case MAC_INTERNALLOOP_MAC:
 		if ((h->dev->ops->set_loopback) &&
@@ -334,17 +305,17 @@ static int __lb_setup(struct net_device *ndev,
 		if (h->dev->ops->set_loopback)
 			ret = h->dev->ops->set_loopback(h, loop, 0x1);
 		break;
+	case MAC_LOOP_PHY_NONE:
+		ret = hns_nic_config_phy_loopback(phy_dev, 0x0);
 	case MAC_LOOP_NONE:
-		if ((phy_dev) && (!phy_dev->is_c45))
-			ret |= hns_nic_config_phy_loopback(phy_dev, 0x0);
-
-		if (h->dev->ops->set_loopback) {
+		if (!ret && h->dev->ops->set_loopback) {
 			if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
-				ret |= h->dev->ops->set_loopback(h,
+				ret = h->dev->ops->set_loopback(h,
 					MAC_INTERNALLOOP_MAC, 0x0);
 
-			ret |= h->dev->ops->set_loopback(h,
-				MAC_INTERNALLOOP_SERDES, 0x0);
+			if (!ret)
+				ret = h->dev->ops->set_loopback(h,
+					MAC_INTERNALLOOP_SERDES, 0x0);
 		}
 		break;
 	default:
@@ -352,6 +323,13 @@ static int __lb_setup(struct net_device *ndev,
 		break;
 	}
 
+	if (!ret) {
+		if (loop == MAC_LOOP_NONE)
+			h->dev->ops->set_promisc_mode(
+				h, ndev->flags & IFF_PROMISC);
+		else
+			h->dev->ops->set_promisc_mode(h, 1);
+	}
 	return ret;
 }
 
@@ -563,13 +541,16 @@ static int __lb_run_test(struct net_device *ndev,
 	return ret_val;
 }
 
-static int __lb_down(struct net_device *ndev)
+static int __lb_down(struct net_device *ndev, enum hnae_loop loop)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
 	int ret;
 
-	ret = __lb_setup(ndev, MAC_LOOP_NONE);
+	if (loop == MAC_INTERNALLOOP_PHY)
+		ret = __lb_setup(ndev, MAC_LOOP_PHY_NONE);
+	else
+		ret = __lb_setup(ndev, MAC_LOOP_NONE);
 	if (ret)
 		netdev_err(ndev, "%s: __lb_setup return error(%d)!\n",
 			   __func__,
@@ -625,7 +606,8 @@ static void hns_nic_self_test(struct net_device *ndev,
 			if (!data[test_index]) {
 				data[test_index] = __lb_run_test(
 					ndev, (enum hnae_loop)st_param[i][0]);
-				(void)__lb_down(ndev);
+				(void)__lb_down(ndev,
+						(enum hnae_loop)st_param[i][0]);
 			}
 
 			if (data[test_index])
@@ -757,14 +739,14 @@ static int hns_get_coalesce(struct net_device *net_dev,
 	ec->use_adaptive_tx_coalesce = 1;
 
 	if ((!ops->get_coalesce_usecs) ||
-	    (!ops->get_rx_max_coalesced_frames))
+	    (!ops->get_max_coalesced_frames))
 		return -ESRCH;
 
 	ops->get_coalesce_usecs(priv->ae_handle,
 					&ec->tx_coalesce_usecs,
 					&ec->rx_coalesce_usecs);
 
-	ops->get_rx_max_coalesced_frames(
+	ops->get_max_coalesced_frames(
 		priv->ae_handle,
 		&ec->tx_max_coalesced_frames,
 		&ec->rx_max_coalesced_frames);
@@ -794,30 +776,28 @@ static int hns_set_coalesce(struct net_device *net_dev,
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
-	int ret;
+	int rc1, rc2;
 
 	ops = priv->ae_handle->dev->ops;
 
 	if (ec->tx_coalesce_usecs != ec->rx_coalesce_usecs)
 		return -EINVAL;
 
-	if (ec->rx_max_coalesced_frames != ec->tx_max_coalesced_frames)
-		return -EINVAL;
-
 	if ((!ops->set_coalesce_usecs) ||
 	    (!ops->set_coalesce_frames))
 		return -ESRCH;
 
-	ret = ops->set_coalesce_usecs(priv->ae_handle,
+	rc1 = ops->set_coalesce_usecs(priv->ae_handle,
 				      ec->rx_coalesce_usecs);
-	if (ret)
-		return ret;
 
-	ret = ops->set_coalesce_frames(
-		priv->ae_handle,
-		ec->rx_max_coalesced_frames);
+	rc2 = ops->set_coalesce_frames(priv->ae_handle,
+				       ec->tx_max_coalesced_frames,
+				       ec->rx_max_coalesced_frames);
 
-	return ret;
+	if (rc1 || rc2)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
@@ -1171,7 +1151,8 @@ static int hns_nic_nway_reset(struct net_device *netdev)
 	struct phy_device *phy = netdev->phydev;
 
 	if (netif_running(netdev)) {
-		if (phy)
+		/* if autoneg is disabled, don't restart auto-negotiation */
+		if (phy && phy->autoneg == AUTONEG_ENABLE)
 			ret = genphy_restart_aneg(phy);
 	}
 
@@ -1245,12 +1226,10 @@ hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
 
 	ops = priv->ae_handle->dev->ops;
 
-	/* currently hfunc can only be Toeplitz hash */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP) {
+		netdev_err(netdev, "Invalid hfunc!\n");
 		return -EOPNOTSUPP;
-	if (!indir)
-		return 0;
+	}
 
 	return ops->set_rss(priv->ae_handle, indir, key, hfunc);
 }

@@ -29,7 +29,7 @@
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -39,6 +39,7 @@
 #include <asm/sections.h>
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
+#include <asm/set_memory.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
 
@@ -80,6 +81,7 @@ void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long pgd_type, asce_bits;
+	psw_t psw;
 
 	init_mm.pgd = swapper_pg_dir;
 	if (VMALLOC_END > (1UL << 42)) {
@@ -99,7 +101,10 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
-	__arch_local_irq_stosm(0x04);
+	psw.mask = __extract_psw();
+	psw_bits(psw).dat = 1;
+	psw_bits(psw).as = PSW_BITS_AS_HOME;
+	__load_psw_mask(psw.mask);
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
@@ -137,6 +142,9 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
+	__set_memory((unsigned long) _sinittext,
+		     (_einittext - _sinittext) >> PAGE_SHIFT,
+		     SET_MEMORY_RW | SET_MEMORY_NX);
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 
@@ -148,45 +156,6 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
-{
-	unsigned long normal_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
-	unsigned long dma_end_pfn = PFN_DOWN(MAX_DMA_ADDRESS);
-	unsigned long start_pfn = PFN_DOWN(start);
-	unsigned long size_pages = PFN_DOWN(size);
-	unsigned long nr_pages;
-	int rc, zone_enum;
-
-	rc = vmem_add_mapping(start, size);
-	if (rc)
-		return rc;
-
-	while (size_pages > 0) {
-		if (start_pfn < dma_end_pfn) {
-			nr_pages = (start_pfn + size_pages > dma_end_pfn) ?
-				   dma_end_pfn - start_pfn : size_pages;
-			zone_enum = ZONE_DMA;
-		} else if (start_pfn < normal_end_pfn) {
-			nr_pages = (start_pfn + size_pages > normal_end_pfn) ?
-				   normal_end_pfn - start_pfn : size_pages;
-			zone_enum = ZONE_NORMAL;
-		} else {
-			nr_pages = size_pages;
-			zone_enum = ZONE_MOVABLE;
-		}
-		rc = __add_pages(nid, NODE_DATA(nid)->node_zones + zone_enum,
-				 start_pfn, size_pages);
-		if (rc)
-			break;
-		start_pfn += nr_pages;
-		size_pages -= nr_pages;
-	}
-	if (rc)
-		vmem_remove_mapping(start, size);
-	return rc;
-}
-
 unsigned long memory_block_size_bytes(void)
 {
 	/*
@@ -194,6 +163,23 @@ unsigned long memory_block_size_bytes(void)
 	 * or equal than the memory increment size.
 	 */
 	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
+{
+	unsigned long start_pfn = PFN_DOWN(start);
+	unsigned long size_pages = PFN_DOWN(size);
+	int rc;
+
+	rc = vmem_add_mapping(start, size);
+	if (rc)
+		return rc;
+
+	rc = __add_pages(nid, start_pfn, size_pages, want_memblock);
+	if (rc)
+		vmem_remove_mapping(start, size);
+	return rc;
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE

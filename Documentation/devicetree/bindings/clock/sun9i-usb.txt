@@ -1,0 +1,24 @@
+Allwinner A80 USB Clock Control Binding
+---------------------------------------
+
+Required properties :
+- compatible: must contain one of the following compatibles:
+		- "allwinner,sun9i-a80-usb-clocks"
+
+- reg: Must contain the registers base address and length
+- clocks: phandle to the clocks feeding the USB subsystem. Two are needed:
+  - "bus": the bus clock for the whole USB subsystem
+  - "hosc": the high frequency oscillator (usually at 24MHz)
+- clock-names: Must contain the clock names described just above
+- #clock-cells : must contain 1
+- #reset-cells : must contain 1
+
+Example:
+usb_clocks: clock@a08000 {
+	compatible = "allwinner,sun9i-a80-usb-clks";
+	reg = <0x00a08000 0x8>;
+	clocks = <&ccu CLK_BUS_USB>, <&osc24M>;
+	clock-names = "bus", "hosc";
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};

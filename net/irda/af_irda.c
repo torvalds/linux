@@ -46,13 +46,14 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/net.h>
 #include <linux/irda.h>
 #include <linux/poll.h>
 
 #include <asm/ioctls.h>		/* TIOCOUTQ, TIOCINQ */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/sock.h>
 #include <net/tcp_states.h>
@@ -827,7 +828,8 @@ out:
  *    Wait for incoming connection
  *
  */
-static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
+static int irda_accept(struct socket *sock, struct socket *newsock, int flags,
+		       bool kern)
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *new, *self = irda_sk(sk);
@@ -835,7 +837,7 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	struct sk_buff *skb = NULL;
 	int err;
 
-	err = irda_create(sock_net(sk), newsock, sk->sk_protocol, 0);
+	err = irda_create(sock_net(sk), newsock, sk->sk_protocol, kern);
 	if (err)
 		return err;
 
@@ -1899,16 +1901,10 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, optlen)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, optlen);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2030,16 +2026,10 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, optlen)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, optlen);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2315,16 +2305,10 @@ bed:
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, len)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, len);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2379,16 +2363,10 @@ bed:
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, len)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, len);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 

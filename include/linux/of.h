@@ -148,16 +148,28 @@ extern raw_spinlock_t devtree_lock;
 #ifdef CONFIG_OF
 void of_core_init(void);
 
-static inline bool is_of_node(struct fwnode_handle *fwnode)
+static inline bool is_of_node(const struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_OF;
 }
 
-static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
-{
-	return is_of_node(fwnode) ?
-		container_of(fwnode, struct device_node, fwnode) : NULL;
-}
+#define to_of_node(__fwnode)						\
+	({								\
+		typeof(__fwnode) __to_of_node_fwnode = (__fwnode);	\
+									\
+		is_of_node(__to_of_node_fwnode) ?			\
+			container_of(__to_of_node_fwnode,		\
+				     struct device_node, fwnode) :	\
+			NULL;						\
+	})
+
+#define of_fwnode_handle(node)						\
+	({								\
+		typeof(node) __of_fwnode_handle_node = (node);		\
+									\
+		__of_fwnode_handle_node ?				\
+			&__of_fwnode_handle_node->fwnode : NULL;	\
+	})
 
 static inline bool of_have_populated_dt(void)
 {
@@ -280,6 +292,7 @@ extern struct device_node *of_get_child_by_name(const struct device_node *node,
 
 /* cache lookup */
 extern struct device_node *of_find_next_cache_node(const struct device_node *);
+extern int of_find_last_cache_level(unsigned int cpu);
 extern struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name);
 
@@ -291,6 +304,9 @@ extern int of_property_count_elems_of_size(const struct device_node *np,
 extern int of_property_read_u32_index(const struct device_node *np,
 				       const char *propname,
 				       u32 index, u32 *out_value);
+extern int of_property_read_u64_index(const struct device_node *np,
+				       const char *propname,
+				       u32 index, u64 *out_value);
 extern int of_property_read_variable_u8_array(const struct device_node *np,
 					const char *propname, u8 *out_values,
 					size_t sz_min, size_t sz_max);
@@ -527,12 +543,12 @@ static inline void of_core_init(void)
 {
 }
 
-static inline bool is_of_node(struct fwnode_handle *fwnode)
+static inline bool is_of_node(const struct fwnode_handle *fwnode)
 {
 	return false;
 }
 
-static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
+static inline struct device_node *to_of_node(const struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
@@ -601,6 +617,8 @@ static inline struct device_node *of_find_node_with_property(
 	return NULL;
 }
 
+#define of_fwnode_handle(node) NULL
+
 static inline bool of_have_populated_dt(void)
 {
 	return false;
@@ -615,6 +633,12 @@ static inline struct device_node *of_get_child_by_name(
 
 static inline int of_device_is_compatible(const struct device_node *device,
 					  const char *name)
+{
+	return 0;
+}
+
+static inline  int of_device_compatible_match(struct device_node *device,
+					      const char *const *compat)
 {
 	return 0;
 }
@@ -1266,12 +1290,27 @@ static inline bool of_device_is_system_power_controller(const struct device_node
  * Overlay support
  */
 
+enum of_overlay_notify_action {
+	OF_OVERLAY_PRE_APPLY,
+	OF_OVERLAY_POST_APPLY,
+	OF_OVERLAY_PRE_REMOVE,
+	OF_OVERLAY_POST_REMOVE,
+};
+
+struct of_overlay_notify_data {
+	struct device_node *overlay;
+	struct device_node *target;
+};
+
 #ifdef CONFIG_OF_OVERLAY
 
 /* ID based overlays; the API for external users */
 int of_overlay_create(struct device_node *tree);
 int of_overlay_destroy(int id);
 int of_overlay_destroy_all(void);
+
+int of_overlay_notifier_register(struct notifier_block *nb);
+int of_overlay_notifier_unregister(struct notifier_block *nb);
 
 #else
 
@@ -1288,6 +1327,16 @@ static inline int of_overlay_destroy(int id)
 static inline int of_overlay_destroy_all(void)
 {
 	return -ENOTSUPP;
+}
+
+static inline int of_overlay_notifier_register(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int of_overlay_notifier_unregister(struct notifier_block *nb)
+{
+	return 0;
 }
 
 #endif

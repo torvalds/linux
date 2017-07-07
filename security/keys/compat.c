@@ -133,8 +133,13 @@ COMPAT_SYSCALL_DEFINE5(keyctl, u32, option,
 		return keyctl_get_persistent(arg2, arg3);
 
 	case KEYCTL_DH_COMPUTE:
-		return keyctl_dh_compute(compat_ptr(arg2), compat_ptr(arg3),
-					 arg4, compat_ptr(arg5));
+		return compat_keyctl_dh_compute(compat_ptr(arg2),
+						compat_ptr(arg3),
+						arg4, compat_ptr(arg5));
+
+	case KEYCTL_RESTRICT_KEYRING:
+		return keyctl_restrict_keyring(arg2, compat_ptr(arg3),
+					       compat_ptr(arg4));
 
 	default:
 		return -EOPNOTSUPP;

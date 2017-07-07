@@ -19,6 +19,7 @@
 #ifndef __IEEE802154_I_H
 #define __IEEE802154_I_H
 
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/hrtimer.h>
 #include <net/cfg802154.h>

@@ -114,7 +114,6 @@ static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inod
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
 	struct orangefs_kernel_op_s *new_op = NULL;
-	struct iov_iter saved = *iter;
 	int buffer_index = -1;
 	ssize_t ret;
 
@@ -193,7 +192,7 @@ populate_shared_memory:
 		orangefs_bufmap_put(buffer_index);
 		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
-			*iter = saved;
+			iov_iter_revert(iter, total_size);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s:going to repopulate_shared_memory.\n",
 			     __func__);
@@ -384,7 +383,7 @@ out:
 			file_accessed(file);
 		} else {
 			SetMtimeFlag(orangefs_inode);
-			inode->i_mtime = CURRENT_TIME;
+			inode->i_mtime = current_time(inode);
 			mark_inode_dirty_sync(inode);
 		}
 	}
@@ -475,7 +474,8 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 
 	/* Make sure generic_write_checks sees an up to date inode size. */
 	if (file->f_flags & O_APPEND) {
-		rc = orangefs_inode_getattr(file->f_mapping->host, 0, 1);
+		rc = orangefs_inode_getattr(file->f_mapping->host, 0, 1,
+		    STATX_SIZE);
 		if (rc == -ESTALE)
 			rc = -EIO;
 		if (rc) {
@@ -611,8 +611,8 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 static int orangefs_file_release(struct inode *inode, struct file *file)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "orangefs_file_release: called on %s\n",
-		     file->f_path.dentry->d_name.name);
+		     "orangefs_file_release: called on %pD\n",
+		     file);
 
 	orangefs_flush_inode(inode);
 
@@ -621,9 +621,9 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
-	if (file->f_path.dentry->d_inode &&
-	    file->f_path.dentry->d_inode->i_mapping &&
-	    mapping_nrpages(&file->f_path.dentry->d_inode->i_data)) {
+	if (file_inode(file) &&
+	    file_inode(file)->i_mapping &&
+	    mapping_nrpages(&file_inode(file)->i_data)) {
 		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "calling flush_racache on %pU\n",
@@ -632,7 +632,7 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "flush_racache finished\n");
 		}
-		truncate_inode_pages(file->f_path.dentry->d_inode->i_mapping,
+		truncate_inode_pages(file_inode(file)->i_mapping,
 				     0);
 	}
 	return 0;
@@ -648,7 +648,7 @@ static int orangefs_fsync(struct file *file,
 {
 	int ret = -EINVAL;
 	struct orangefs_inode_s *orangefs_inode =
-		ORANGEFS_I(file->f_path.dentry->d_inode);
+		ORANGEFS_I(file_inode(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
 
 	/* required call */
@@ -661,7 +661,7 @@ static int orangefs_fsync(struct file *file,
 
 	ret = service_operation(new_op,
 			"orangefs_fsync",
-			get_interruptible_flag(file->f_path.dentry->d_inode));
+			get_interruptible_flag(file_inode(file)));
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_fsync got return value of %d\n",
@@ -669,7 +669,7 @@ static int orangefs_fsync(struct file *file,
 
 	op_release(new_op);
 
-	orangefs_flush_inode(file->f_path.dentry->d_inode);
+	orangefs_flush_inode(file_inode(file));
 	return ret;
 }
 
@@ -693,7 +693,8 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 		 * NOTE: We are only interested in file size here,
 		 * so we set mask accordingly.
 		 */
-		ret = orangefs_inode_getattr(file->f_mapping->host, 0, 1);
+		ret = orangefs_inode_getattr(file->f_mapping->host, 0, 1,
+		    STATX_SIZE);
 		if (ret == -ESTALE)
 			ret = -EIO;
 		if (ret) {
@@ -724,7 +725,7 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int rc = -EINVAL;
 
-	if (ORANGEFS_SB(filp->f_inode->i_sb)->flags & ORANGEFS_OPT_LOCAL_LOCK) {
+	if (ORANGEFS_SB(file_inode(filp)->i_sb)->flags & ORANGEFS_OPT_LOCAL_LOCK) {
 		if (cmd == F_GETLK) {
 			rc = 0;
 			posix_test_lock(filp, fl);

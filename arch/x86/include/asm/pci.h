@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/scatterlist.h>
 #include <asm/io.h>
+#include <asm/pat.h>
 #include <asm/x86_init.h>
 
 #ifdef __KERNEL__
@@ -76,14 +77,8 @@ static inline bool is_vmd(struct pci_bus *bus)
 
 extern unsigned int pcibios_assign_all_busses(void);
 extern int pci_legacy_init(void);
-# ifdef CONFIG_ACPI
-#  define x86_default_pci_init pci_acpi_init
-# else
-#  define x86_default_pci_init pci_legacy_init
-# endif
 #else
-# define pcibios_assign_all_busses()	0
-# define x86_default_pci_init		NULL
+static inline int pcibios_assign_all_busses(void) { return 0; }
 #endif
 
 extern unsigned long pci_mem_start;
@@ -102,10 +97,8 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 
 
 #define HAVE_PCI_MMAP
-extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			       enum pci_mmap_state mmap_state,
-			       int write_combine);
-
+#define arch_can_pci_mmap_wc()	pat_enabled()
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE
 
 #ifdef CONFIG_PCI
 extern void early_quirks(void);

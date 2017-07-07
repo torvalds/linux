@@ -104,7 +104,7 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 			if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
 				ide_finish_cmd(drive, cmd, stat);
 			else
-				ide_complete_rq(drive, 0,
+				ide_complete_rq(drive, BLK_STS_OK,
 						blk_rq_sectors(cmd->rq) << 9);
 			return ide_stopped;
 		}
@@ -490,7 +490,7 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 * make sure request is sane
 	 */
 	if (hwif->rq)
-		hwif->rq->errors = 0;
+		scsi_req(hwif->rq)->result = 0;
 	return ret;
 }
 

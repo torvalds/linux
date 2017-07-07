@@ -13,8 +13,8 @@
 #include "imx28-m28.dtsi"
 
 / {
-	model = "DENX M28EVK";
-	compatible = "denx,m28evk", "fsl,imx28";
+	model = "Aries/DENX M28EVK";
+	compatible = "aries,m28evk", "denx,m28evk", "fsl,imx28";
 
 	apb@80000000 {
 		apbh@80000000 {

@@ -230,11 +230,11 @@ static void exynos5420_pmu_init(void)
 	pmu_raw_writel(EXYNOS5420_USE_STANDBY_WFI_ALL, S5P_CENTRAL_SEQ_OPTION);
 
 	value  = pmu_raw_readl(EXYNOS_L2_OPTION(0));
-	value &= ~EXYNOS5_USE_RETENTION;
+	value &= ~EXYNOS_L2_USE_RETENTION;
 	pmu_raw_writel(value, EXYNOS_L2_OPTION(0));
 
 	value = pmu_raw_readl(EXYNOS_L2_OPTION(1));
-	value &= ~EXYNOS5_USE_RETENTION;
+	value &= ~EXYNOS_L2_USE_RETENTION;
 	pmu_raw_writel(value, EXYNOS_L2_OPTION(1));
 
 	/*

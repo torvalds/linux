@@ -2288,9 +2288,7 @@ restart:
 
 		while (q.ptr != NULL) {
 			union ehci_shadow temp;
-			int live;
 
-			live = HC_IS_RUNNING(oxu_to_hcd(oxu)->state);
 			switch (type) {
 			case Q_TYPE_QH:
 				/* handle any completions */
@@ -2710,7 +2708,7 @@ static int oxu_run(struct usb_hcd *hcd)
 
 	/* hcc_params controls whether oxu->regs->segment must (!!!)
 	 * be used; it constrains QH/ITD/SITD and QTD locations.
-	 * pci_pool consistent memory always uses segment zero.
+	 * dma_pool consistent memory always uses segment zero.
 	 * streaming mappings for I/O buffers, like pci_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *

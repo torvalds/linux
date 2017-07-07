@@ -231,7 +231,7 @@ s32 nf_ct_seq_offset(const struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_ct_seq_offset);
 
-static struct nf_ct_ext_type nf_ct_seqadj_extend __read_mostly = {
+static const struct nf_ct_ext_type nf_ct_seqadj_extend = {
 	.len	= sizeof(struct nf_conn_seqadj),
 	.align	= __alignof__(struct nf_conn_seqadj),
 	.id	= NF_CT_EXT_SEQADJ,

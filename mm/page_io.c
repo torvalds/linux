@@ -45,7 +45,7 @@ void end_swap_bio_write(struct bio *bio)
 {
 	struct page *page = bio->bi_io_vec[0].bv_page;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		SetPageError(page);
 		/*
 		 * We failed to write the page out to swap-space.
@@ -118,7 +118,7 @@ static void end_swap_bio_read(struct bio *bio)
 {
 	struct page *page = bio->bi_io_vec[0].bv_page;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		SetPageError(page);
 		ClearPageUptodate(page);
 		pr_alert("Read-error on swap-device (%u:%u:%llu)\n",
@@ -320,10 +320,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		ret = -ENOMEM;
 		goto out;
 	}
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		bio_set_op_attrs(bio, REQ_OP_WRITE, REQ_SYNC);
-	else
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
 	count_vm_event(PSWPOUT);
 	set_page_writeback(page);
 	unlock_page(page);

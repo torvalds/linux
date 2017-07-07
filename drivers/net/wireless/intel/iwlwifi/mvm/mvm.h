@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,9 +79,9 @@
 
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
-#include "iwl-notif-wait.h"
+#include "fw/notif-wait.h"
 #include "iwl-eeprom-parse.h"
-#include "iwl-fw-file.h"
+#include "fw/file.h"
 #include "iwl-config.h"
 #include "sta.h"
 #include "fw-api.h"
@@ -380,6 +380,8 @@ struct iwl_mvm_vif {
 	bool associated;
 	u8 ap_assoc_sta_count;
 
+	u16 cab_queue;
+
 	bool uploaded;
 	bool ap_ibss_active;
 	bool pm_enabled;
@@ -407,6 +409,7 @@ struct iwl_mvm_vif {
 	struct iwl_mvm_time_event_data hs_time_event_data;
 
 	struct iwl_mvm_int_sta bcast_sta;
+	struct iwl_mvm_int_sta mcast_sta;
 
 	/*
 	 * Assigned while mac80211 has the interface in a channel context,
@@ -603,10 +606,15 @@ enum iwl_mvm_tdls_cs_state {
 	IWL_MVM_TDLS_SW_ACTIVE,
 };
 
+#define MAX_NUM_LMAC 2
 struct iwl_mvm_shared_mem_cfg {
+	int num_lmacs;
 	int num_txfifo_entries;
-	u32 txfifo_size[TX_FIFO_MAX_NUM];
-	u32 rxfifo_size[RX_FIFO_MAX_NUM];
+	struct {
+		u32 txfifo_size[TX_FIFO_MAX_NUM];
+		u32 rxfifo1_size;
+	} lmac[MAX_NUM_LMAC];
+	u32 rxfifo2_size;
 	u32 internal_txfifo_addr;
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
@@ -625,6 +633,7 @@ struct iwl_mvm_shared_mem_cfg {
  * @reorder_timer: timer for frames are in the reorder buffer. For AMSDU
  *	it is the time of last received sub-frame
  * @removed: prevent timer re-arming
+ * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
  * @mvm: mvm pointer, needed for frame timer context
  */
@@ -640,6 +649,7 @@ struct iwl_mvm_reorder_buffer {
 	unsigned long reorder_time[IEEE80211_MAX_AMPDU_BUF];
 	struct timer_list reorder_timer;
 	bool removed;
+	bool valid;
 	spinlock_t lock;
 	struct iwl_mvm *mvm;
 } ____cacheline_aligned_in_smp;
@@ -707,7 +717,24 @@ enum iwl_mvm_queue_status {
 };
 
 #define IWL_MVM_DQA_QUEUE_TIMEOUT	(5 * HZ)
+#define IWL_MVM_INVALID_QUEUE		0xFFFF
+
 #define IWL_MVM_NUM_CIPHERS             10
+
+#ifdef CONFIG_ACPI
+#define IWL_MVM_SAR_TABLE_SIZE		10
+#define IWL_MVM_SAR_PROFILE_NUM		4
+#define IWL_MVM_GEO_TABLE_SIZE		6
+
+struct iwl_mvm_sar_profile {
+	bool enabled;
+	u8 table[IWL_MVM_SAR_TABLE_SIZE];
+};
+
+struct iwl_mvm_geo_profile {
+	u8 values[IWL_MVM_GEO_TABLE_SIZE];
+};
+#endif
 
 struct iwl_mvm {
 	/* for logger access */
@@ -727,6 +754,8 @@ struct iwl_mvm {
 
 	struct work_struct roc_done_wk;
 
+	unsigned long init_status;
+
 	unsigned long status;
 
 	u32 queue_sync_cookie;
@@ -738,9 +767,9 @@ struct iwl_mvm {
 	struct iwl_mvm_vif *bf_allowed_vif;
 
 	enum iwl_ucode_type cur_ucode;
-	bool ucode_loaded;
+	bool hw_registered;
 	bool calibrating;
-	u32 error_event_table;
+	u32 error_event_table[2];
 	u32 log_event_table;
 	u32 umac_error_event_table;
 	bool support_umac_log;
@@ -751,7 +780,10 @@ struct iwl_mvm {
 
 	struct iwl_notif_wait_data notif_wait;
 
-	struct mvm_statistics_rx rx_stats;
+	union {
+		struct mvm_statistics_rx_v3 rx_stats_v3;
+		struct mvm_statistics_rx rx_stats;
+	};
 
 	struct {
 		u64 rx_time;
@@ -760,9 +792,9 @@ struct iwl_mvm {
 		u64 on_time_scan;
 	} radio_stats, accu_radio_stats;
 
+	u16 hw_queue_to_mac80211[IWL_MAX_TVQM_QUEUES];
+
 	struct {
-		/* Map to HW queue */
-		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
 		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 		bool reserved; /* Is this the TXQ reserved for a STA */
@@ -892,7 +924,7 @@ struct iwl_mvm {
 	u8 vif_count;
 
 	/* -1 for always, 0 for never, >0 for that many times */
-	s8 restart_fw;
+	s8 fw_restart;
 	u8 fw_dbg_conf;
 	struct delayed_work fw_dump_wk;
 	const struct iwl_mvm_dump_desc *fw_dump_desc;
@@ -937,6 +969,7 @@ struct iwl_mvm {
 	/* sync d0i3_tx queue and IWL_MVM_STATUS_IN_D0I3 status flag */
 	spinlock_t d0i3_tx_lock;
 	wait_queue_head_t d0i3_exit_waitq;
+	wait_queue_head_t rx_sync_waitq;
 
 	/* BT-Coex */
 	struct iwl_bt_coex_profile_notif last_bt_notif;
@@ -973,7 +1006,10 @@ struct iwl_mvm {
 #endif
 
 	/* Tx queues */
-	u8 aux_queue;
+	u16 aux_queue;
+	u16 probe_queue;
+	u16 p2p_dev_queue;
+
 	u8 first_agg_queue;
 	u8 last_agg_queue;
 
@@ -987,6 +1023,9 @@ struct iwl_mvm {
 
 	/* system time of last beacon (for AP/GO interface) */
 	u32 ap_last_beacon_gp2;
+
+	/* indicates that we transmitted the last beacon */
+	bool ibss_manager;
 
 	bool lar_regdom_set;
 	enum iwl_mcc_source mcc_src;
@@ -1016,7 +1055,7 @@ struct iwl_mvm {
 		} peer;
 	} tdls_cs;
 
-	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
+	struct iwl_mvm_shared_mem_cfg smem_cfg;
 
 	u32 ciphers[IWL_MVM_NUM_CIPHERS];
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
@@ -1033,6 +1072,10 @@ struct iwl_mvm {
 	bool drop_bcn_ap_mode;
 
 	struct delayed_work cs_tx_unblock_dwork;
+#ifdef CONFIG_ACPI
+	struct iwl_mvm_sar_profile sar_profiles[IWL_MVM_SAR_PROFILE_NUM];
+	struct iwl_mvm_geo_profile geo_profiles[IWL_NUM_GEO_PROFILES];
+#endif
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1042,6 +1085,18 @@ struct iwl_mvm {
 #define IWL_MAC80211_GET_MVM(_hw)			\
 	IWL_OP_MODE_GET_MVM((struct iwl_op_mode *)((_hw)->priv))
 
+/**
+ * enum iwl_mvm_status - MVM status bits
+ * @IWL_MVM_STATUS_HW_RFKILL: HW RF-kill is asserted
+ * @IWL_MVM_STATUS_HW_CTKILL: CT-kill is active
+ * @IWL_MVM_STATUS_ROC_RUNNING: remain-on-channel is running
+ * @IWL_MVM_STATUS_IN_HW_RESTART: HW restart is active
+ * @IWL_MVM_STATUS_IN_D0I3: NIC is in D0i3
+ * @IWL_MVM_STATUS_ROC_AUX_RUNNING: AUX remain-on-channel is running
+ * @IWL_MVM_STATUS_D3_RECONFIG: D3 reconfiguration is being done
+ * @IWL_MVM_STATUS_DUMPING_FW_LOG: FW log is being dumped
+ * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
+ */
 enum iwl_mvm_status {
 	IWL_MVM_STATUS_HW_RFKILL,
 	IWL_MVM_STATUS_HW_CTKILL,
@@ -1051,6 +1106,15 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 	IWL_MVM_STATUS_D3_RECONFIG,
 	IWL_MVM_STATUS_DUMPING_FW_LOG,
+	IWL_MVM_STATUS_FIRMWARE_RUNNING,
+};
+
+/* Keep track of completed init configuration */
+enum iwl_mvm_init_status {
+	IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE = BIT(0),
+	IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE = BIT(1),
+	IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE = BIT(2),
+	IWL_MVM_INIT_STATUS_TOF_INIT_COMPLETE = BIT(3),
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
@@ -1062,6 +1126,11 @@ static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
 static inline bool iwl_mvm_is_radio_hw_killed(struct iwl_mvm *mvm)
 {
 	return test_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
+}
+
+static inline bool iwl_mvm_firmware_running(struct iwl_mvm *mvm)
+{
+	return test_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 }
 
 /* Must be called with rcu_read_lock() held and it can only be
@@ -1111,9 +1180,8 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
 {
-	/* Make sure DQA isn't allowed in driver until feature is complete */
-	return false && fw_has_capa(&mvm->fw->ucode_capa,
-				    IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
 }
 
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
@@ -1154,7 +1222,7 @@ static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM
 	 */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+	if (mvm->cfg->ext_nvm)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;
@@ -1215,6 +1283,36 @@ static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
 {
 	/* TODO - replace with TLV once defined */
 	return mvm->trans->cfg->use_tfh;
+}
+
+static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
+{
+	/*
+	 * TODO:
+	 * The issue of how to determine CDB APIs and usage is still not fully
+	 * defined.
+	 * There is a compilation for CDB and non-CDB FW, but there may
+	 * be also runtime check.
+	 * For now there is a TLV for checking compilation mode, but a
+	 * runtime check will also have to be here - once defined.
+	 */
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_CDB_SUPPORT);
+}
+
+static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_NEW_RX_STATS);
+}
+
+static inline struct agg_tx_status *
+iwl_mvm_get_agg_status(struct iwl_mvm *mvm, void *tx_resp)
+{
+	if (iwl_mvm_has_new_tx_api(mvm))
+		return &((struct iwl_mvm_tx_resp *)tx_resp)->status;
+	else
+		return ((struct iwl_mvm_tx_resp_v3 *)tx_resp)->status;
 }
 
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
@@ -1296,6 +1394,10 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status);
 static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags);
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal, u32 flags);
+int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id,
+			   u16 tids, u32 flags);
+
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
 
 static inline void iwl_mvm_set_tx_cmd_ccmp(struct ieee80211_tx_info *info,
@@ -1322,7 +1424,9 @@ void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic);
+int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm);
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
+int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm);
 
 static inline u8 iwl_mvm_get_valid_tx_ant(struct iwl_mvm *mvm)
 {
@@ -1374,6 +1478,8 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			    int queue);
 void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_mfu_assert_dump_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 				   struct iwl_rx_cmd_buffer *rxb);
@@ -1418,6 +1524,7 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 				    struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_mu_mimo_grp_notif(struct iwl_mvm *mvm,
 			       struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_sta_pm_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_window_status_notif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
@@ -1582,7 +1689,7 @@ int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode);
 int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm);
 
 /* BT Coex */
-int iwl_send_bt_init_conf(struct iwl_mvm *mvm);
+int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm);
 void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -1649,15 +1756,18 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 }
 
 /* hw scheduler queue config */
-void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+bool iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
 			unsigned int wdg_timeout);
+int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
+			    u8 sta_id, u8 tid, unsigned int timeout);
+
 /*
  * Disable a TXQ.
  * Note that in non-DQA mode the %mac80211_queue and %tid params are ignored.
  */
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			 u8 tid, u8 flags);
+int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u8 tid, u8 flags);
 int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
 
 /* Return a bitmask with all the hw supported queues, except for the
@@ -1665,8 +1775,11 @@ int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
  */
 static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 {
+	u32 cmd_queue = iwl_mvm_is_dqa_supported(mvm) ? IWL_MVM_DQA_CMD_QUEUE :
+		IWL_MVM_CMD_QUEUE;
+
 	return ((BIT(mvm->cfg->base_params->num_of_queues) - 1) &
-		~BIT(IWL_MVM_CMD_QUEUE));
+		~BIT(cmd_queue));
 }
 
 static inline
@@ -1685,7 +1798,10 @@ void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 {
-	mvm->ucode_loaded = false;
+	if (!iwl_mvm_has_new_tx_api(mvm))
+		iwl_free_fw_paging(mvm);
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+	mvm->fw_dbg_conf = FW_DBG_INVALID;
 	iwl_trans_stop_device(mvm->trans);
 }
 
@@ -1764,6 +1880,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     u32 size);
 void iwl_mvm_reorder_timer_expired(unsigned long data);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
+bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
 void iwl_mvm_inactivity_check(struct iwl_mvm *mvm);
 
@@ -1779,5 +1896,22 @@ int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
 			 enum iwl_lqm_cmd_operatrions operation,
 			 u32 duration, u32 timeout);
 bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
+
+#ifdef CONFIG_ACPI
+int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
+int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
+#else
+static inline
+int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
+{
+	return -ENOENT;
+}
+
+static inline
+int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+#endif /* CONFIG_ACPI */
 
 #endif /* __IWL_MVM_H__ */

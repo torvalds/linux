@@ -25,7 +25,7 @@
 
 #define GACT_TAB_MASK	15
 
-static int gact_net_id;
+static unsigned int gact_net_id;
 static struct tc_action_ops act_gact_ops;
 
 #ifdef CONFIG_GACT_PROB
@@ -73,7 +73,7 @@ static int tcf_gact_init(struct net *net, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, gact_policy);
+	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, gact_policy, NULL);
 	if (err < 0)
 		return err;
 

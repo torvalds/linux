@@ -722,9 +722,6 @@ int tgec_free(struct fman_mac *tgec)
 {
 	free_init_resources(tgec);
 
-	if (tgec->cfg)
-		tgec->cfg = NULL;
-
 	kfree(tgec->cfg);
 	kfree(tgec);
 

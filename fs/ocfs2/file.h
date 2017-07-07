@@ -68,8 +68,8 @@ int ocfs2_zero_extend(struct inode *inode, struct buffer_head *di_bh,
 int ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 		u32 clusters_to_add, int mark_unwritten);
 int ocfs2_setattr(struct dentry *dentry, struct iattr *attr);
-int ocfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		  struct kstat *stat);
+int ocfs2_getattr(const struct path *path, struct kstat *stat,
+		  u32 request_mask, unsigned int flags);
 int ocfs2_permission(struct inode *inode, int mask);
 
 int ocfs2_should_update_atime(struct inode *inode,
@@ -82,4 +82,7 @@ int ocfs2_change_file_space(struct file *file, unsigned int cmd,
 
 int ocfs2_check_range_for_refcount(struct inode *inode, loff_t pos,
 				   size_t count);
+int ocfs2_remove_inode_range(struct inode *inode,
+			     struct buffer_head *di_bh, u64 byte_start,
+			     u64 byte_len);
 #endif /* OCFS2_FILE_H */

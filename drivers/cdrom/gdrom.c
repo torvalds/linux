@@ -481,7 +481,7 @@ static int gdrom_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
 	return -EINVAL;
 }
 
-static struct cdrom_device_ops gdrom_ops = {
+static const struct cdrom_device_ops gdrom_ops = {
 	.open			= gdrom_open,
 	.release		= gdrom_release,
 	.drive_status		= gdrom_drivestatus,
@@ -489,9 +489,9 @@ static struct cdrom_device_ops gdrom_ops = {
 	.get_last_session	= gdrom_get_last_session,
 	.reset			= gdrom_hardreset,
 	.audio_ioctl		= gdrom_audio_ioctl,
+	.generic_packet		= cdrom_dummy_generic_packet,
 	.capability		= CDC_MULTI_SESSION | CDC_MEDIA_CHANGED |
 				  CDC_RESET | CDC_DRIVE_STATUS | CDC_CD_R,
-	.n_minors		= 1,
 };
 
 static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
@@ -583,7 +583,8 @@ static int gdrom_set_interrupt_handlers(void)
  */
 static void gdrom_readdisk_dma(struct work_struct *work)
 {
-	int err, block, block_cnt;
+	int block, block_cnt;
+	blk_status_t err;
 	struct packet_command *read_command;
 	struct list_head *elem, *next;
 	struct request *req;
@@ -641,7 +642,7 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		__raw_writeb(1, GDROM_DMA_STATUS_REG);
 		wait_event_interruptible_timeout(request_queue,
 			gd.transfer == 0, GDROM_DEFAULT_TIMEOUT);
-		err = gd.transfer ? -EIO : 0;
+		err = gd.transfer ? BLK_STS_IOERR : BLK_STS_OK;
 		gd.transfer = 0;
 		gd.pending = 0;
 		/* now seek to take the request spinlock
@@ -659,23 +660,24 @@ static void gdrom_request(struct request_queue *rq)
 	struct request *req;
 
 	while ((req = blk_fetch_request(rq)) != NULL) {
-		if (req->cmd_type != REQ_TYPE_FS) {
-			printk(KERN_DEBUG "gdrom: Non-fs request ignored\n");
-			__blk_end_request_all(req, -EIO);
-			continue;
-		}
-		if (rq_data_dir(req) != READ) {
+		switch (req_op(req)) {
+		case REQ_OP_READ:
+			/*
+			 * Add to list of deferred work and then schedule
+			 * workqueue.
+			 */
+			list_add_tail(&req->queuelist, &gdrom_deferred);
+			schedule_work(&work);
+			break;
+		case REQ_OP_WRITE:
 			pr_notice("Read only device - write request ignored\n");
-			__blk_end_request_all(req, -EIO);
-			continue;
+			__blk_end_request_all(req, BLK_STS_IOERR);
+			break;
+		default:
+			printk(KERN_DEBUG "gdrom: Non-fs request ignored\n");
+			__blk_end_request_all(req, BLK_STS_IOERR);
+			break;
 		}
-
-		/*
-		 * Add to list of deferred work and then schedule
-		 * workqueue.
-		 */
-		list_add_tail(&req->queuelist, &gdrom_deferred);
-		schedule_work(&work);
 	}
 }
 
@@ -807,16 +809,21 @@ static int probe_gdrom(struct platform_device *devptr)
 	if (err)
 		goto probe_fail_cmdirq_register;
 	gd.gdrom_rq = blk_init_queue(gdrom_request, &gdrom_lock);
-	if (!gd.gdrom_rq)
+	if (!gd.gdrom_rq) {
+		err = -ENOMEM;
 		goto probe_fail_requestq;
+	}
+	blk_queue_bounce_limit(gd.gdrom_rq, BLK_BOUNCE_HIGH);
 
 	err = probe_gdrom_setupqueue();
 	if (err)
 		goto probe_fail_toc;
 
 	gd.toc = kzalloc(sizeof(struct gdromtoc), GFP_KERNEL);
-	if (!gd.toc)
+	if (!gd.toc) {
+		err = -ENOMEM;
 		goto probe_fail_toc;
+	}
 	add_disk(gd.disk);
 	return 0;
 

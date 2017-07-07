@@ -237,6 +237,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		bne,pt			%xcc, user_rtt_fill_32bit
 		 wrpr			%g1, %cwp
 		ba,a,pt			%xcc, user_rtt_fill_64bit
+		 nop
 
 user_rtt_fill_fixup_dax:
 		ba,pt	%xcc, user_rtt_fill_fixup_common

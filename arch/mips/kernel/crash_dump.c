@@ -1,7 +1,7 @@
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/crash_dump.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
 
 static void *kdump_buf_page;

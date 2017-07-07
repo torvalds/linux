@@ -502,9 +502,6 @@ int intel_lpss_suspend(struct device *dev)
 	for (i = 0; i < LPSS_PRIV_REG_COUNT; i++)
 		lpss->priv_ctx[i] = readl(lpss->priv + i * 4);
 
-	/* Put the device into reset state */
-	writel(0, lpss->priv + LPSS_PRIV_RESETS);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_lpss_suspend);

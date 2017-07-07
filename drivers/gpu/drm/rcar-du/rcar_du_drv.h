@@ -38,7 +38,6 @@ struct rcar_du_lvdsenc;
 /*
  * struct rcar_du_output_routing - Output routing specification
  * @possible_crtcs: bitmask of possible CRTCs for the output
- * @encoder_type: DRM type of the internal encoder associated with the output
  * @port: device tree port number corresponding to this output route
  *
  * The DU has 5 possible outputs (DPAD0/1, LVDS0/1, TCON). Output routing data
@@ -47,7 +46,6 @@ struct rcar_du_lvdsenc;
  */
 struct rcar_du_output_routing {
 	unsigned int possible_crtcs;
-	unsigned int encoder_type;
 	unsigned int port;
 };
 
@@ -67,6 +65,7 @@ struct rcar_du_device_info {
 	unsigned int num_crtcs;
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 	unsigned int num_lvds;
+	unsigned int dpll_ch;
 };
 
 #define RCAR_DU_MAX_CRTCS		4
@@ -98,11 +97,6 @@ struct rcar_du_device {
 	unsigned int vspd1_sink;
 
 	struct rcar_du_lvdsenc *lvds[RCAR_DU_MAX_LVDS];
-
-	struct {
-		wait_queue_head_t wait;
-		u32 pending;
-	} commit;
 };
 
 static inline bool rcar_du_has(struct rcar_du_device *rcdu,

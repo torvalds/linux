@@ -105,7 +105,7 @@ struct slimpro_i2c_dev {
 	struct mbox_chan *mbox_chan;
 	struct mbox_client mbox_client;
 	struct completion rd_complete;
-	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX];
+	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX + 1]; /* dma_buffer[0] is used for length */
 	u32 *resp_msg;
 };
 
@@ -372,7 +372,7 @@ static u32 xgene_slimpro_i2c_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
-static struct i2c_algorithm xgene_slimpro_i2c_algorithm = {
+static const struct i2c_algorithm xgene_slimpro_i2c_algorithm = {
 	.smbus_xfer = xgene_slimpro_i2c_xfer,
 	.functionality = xgene_slimpro_i2c_func,
 };
@@ -415,6 +415,8 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	adapter->algo = &xgene_slimpro_i2c_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
 	adapter->dev.parent = &pdev->dev;
+	adapter->dev.of_node = pdev->dev.of_node;
+	ACPI_COMPANION_SET(&adapter->dev, ACPI_COMPANION(&pdev->dev));
 	i2c_set_adapdata(adapter, ctx);
 	rc = i2c_add_adapter(adapter);
 	if (rc) {

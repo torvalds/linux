@@ -23,8 +23,7 @@
 #ifndef _POLARIS10_PWRVIRUS_H
 #define _POLARIS10_PWRVIRUS_H
 
-#define mmSMC_IND_INDEX_11                              0x01AC
-#define mmSMC_IND_DATA_11                               0x01AD
+
 #define mmCP_HYP_MEC1_UCODE_ADDR	0xf81a
 #define mmCP_HYP_MEC1_UCODE_DATA	0xf81b
 #define mmCP_HYP_MEC2_UCODE_ADDR	0xf81c

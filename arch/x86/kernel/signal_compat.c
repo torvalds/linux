@@ -105,9 +105,6 @@ void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
 	/* Don't let flags to be set from userspace */
 	act->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
 
-	if (user_64bit_mode(current_pt_regs()))
-		return;
-
 	if (in_ia32_syscall())
 		act->sa.sa_flags |= SA_IA32_ABI;
 	if (in_x32_syscall())
@@ -154,8 +151,8 @@ int __copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from,
 
 				if (from->si_signo == SIGSEGV) {
 					if (from->si_code == SEGV_BNDERR) {
-						compat_uptr_t lower = (unsigned long)&to->si_lower;
-						compat_uptr_t upper = (unsigned long)&to->si_upper;
+						compat_uptr_t lower = (unsigned long)from->si_lower;
+						compat_uptr_t upper = (unsigned long)from->si_upper;
 						put_user_ex(lower, &to->si_lower);
 						put_user_ex(upper, &to->si_upper);
 					}

@@ -7,7 +7,11 @@
 
 #include "regs.h"
 
-struct sec4_sg_entry;
+struct sec4_sg_entry {
+	u64 ptr;
+	u32 len;
+	u32 bpid_offset;
+};
 
 /*
  * convert single dma address to h/w link table format
@@ -15,7 +19,7 @@ struct sec4_sg_entry;
 static inline void dma_to_sec4_sg_one(struct sec4_sg_entry *sec4_sg_ptr,
 				      dma_addr_t dma, u32 len, u16 offset)
 {
-	sec4_sg_ptr->ptr = cpu_to_caam_dma(dma);
+	sec4_sg_ptr->ptr = cpu_to_caam_dma64(dma);
 	sec4_sg_ptr->len = cpu_to_caam32(len);
 	sec4_sg_ptr->bpid_offset = cpu_to_caam32(offset & SEC4_SG_OFFSET_MASK);
 #ifdef DEBUG
@@ -68,15 +72,4 @@ static inline struct sec4_sg_entry *sg_to_sec4_sg_len(
 		total -= len;
 	} while (total);
 	return sec4_sg_ptr - 1;
-}
-
-/* derive number of elements in scatterlist, but return 0 for 1 */
-static inline int sg_count(struct scatterlist *sg_list, int nbytes)
-{
-	int sg_nents = sg_nents_for_len(sg_list, nbytes);
-
-	if (likely(sg_nents == 1))
-		return 0;
-
-	return sg_nents;
 }

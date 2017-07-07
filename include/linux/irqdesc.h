@@ -46,6 +46,7 @@ struct pt_regs;
  * @rcu:		rcu head for delayed free
  * @kobj:		kobject used to represent this struct in sysfs
  * @dir:		/proc/irq/ procfs entry
+ * @debugfs_file:	dentry for the debugfs file
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
@@ -87,6 +88,9 @@ struct irq_desc {
 #endif
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
+#endif
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+	struct dentry		*debugfs_file;
 #endif
 #ifdef CONFIG_SPARSE_IRQ
 	struct rcu_head		rcu;

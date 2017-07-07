@@ -137,10 +137,10 @@ EXPORT_SYMBOL(int_to_scsilun);
 bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 			  struct scsi_sense_hdr *sshdr)
 {
+	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
+
 	if (!sense_buffer || !sb_len)
 		return false;
-
-	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
 
 	sshdr->response_code = (sense_buffer[0] & 0x7f);
 

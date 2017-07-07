@@ -12,7 +12,6 @@
 #include <linux/rmi.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/irq.h>
 #include <linux/of.h>
 #include "rmi_driver.h"
 
@@ -43,8 +42,6 @@ struct rmi_spi_xport {
 
 	struct mutex page_mutex;
 	int page;
-
-	int irq;
 
 	u8 *rx_buf;
 	u8 *tx_buf;
@@ -326,41 +323,6 @@ static const struct rmi_transport_ops rmi_spi_ops = {
 	.read_block	= rmi_spi_read_block,
 };
 
-static irqreturn_t rmi_spi_irq(int irq, void *dev_id)
-{
-	struct rmi_spi_xport *rmi_spi = dev_id;
-	struct rmi_device *rmi_dev = rmi_spi->xport.rmi_dev;
-	int ret;
-
-	ret = rmi_process_interrupt_requests(rmi_dev);
-	if (ret)
-		rmi_dbg(RMI_DEBUG_XPORT, &rmi_dev->dev,
-			"Failed to process interrupt request: %d\n", ret);
-
-	return IRQ_HANDLED;
-}
-
-static int rmi_spi_init_irq(struct spi_device *spi)
-{
-	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
-	int irq_flags = irqd_get_trigger_type(irq_get_irq_data(rmi_spi->irq));
-	int ret;
-
-	if (!irq_flags)
-		irq_flags = IRQF_TRIGGER_LOW;
-
-	ret = devm_request_threaded_irq(&spi->dev, rmi_spi->irq, NULL,
-			rmi_spi_irq, irq_flags | IRQF_ONESHOT,
-			dev_name(&spi->dev), rmi_spi);
-	if (ret < 0) {
-		dev_warn(&spi->dev, "Failed to register interrupt %d\n",
-			rmi_spi->irq);
-		return ret;
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static int rmi_spi_of_probe(struct spi_device *spi,
 			struct rmi_device_platform_data *pdata)
@@ -396,12 +358,19 @@ static inline int rmi_spi_of_probe(struct spi_device *spi,
 }
 #endif
 
+static void rmi_spi_unregister_transport(void *data)
+{
+	struct rmi_spi_xport *rmi_spi = data;
+
+	rmi_unregister_transport_device(&rmi_spi->xport);
+}
+
 static int rmi_spi_probe(struct spi_device *spi)
 {
 	struct rmi_spi_xport *rmi_spi;
 	struct rmi_device_platform_data *pdata;
 	struct rmi_device_platform_data *spi_pdata = spi->dev.platform_data;
-	int retval;
+	int error;
 
 	if (spi->master->flags & SPI_MASTER_HALF_DUPLEX)
 		return -EINVAL;
@@ -414,9 +383,9 @@ static int rmi_spi_probe(struct spi_device *spi)
 	pdata = &rmi_spi->xport.pdata;
 
 	if (spi->dev.of_node) {
-		retval = rmi_spi_of_probe(spi, pdata);
-		if (retval)
-			return retval;
+		error = rmi_spi_of_probe(spi, pdata);
+		if (error)
+			return error;
 	} else if (spi_pdata) {
 		*pdata = *spi_pdata;
 	}
@@ -427,14 +396,13 @@ static int rmi_spi_probe(struct spi_device *spi)
 	if (pdata->spi_data.mode)
 		spi->mode = pdata->spi_data.mode;
 
-	retval = spi_setup(spi);
-	if (retval < 0) {
+	error = spi_setup(spi);
+	if (error < 0) {
 		dev_err(&spi->dev, "spi_setup failed!\n");
-		return retval;
+		return error;
 	}
 
-	if (spi->irq > 0)
-		rmi_spi->irq = spi->irq;
+	pdata->irq = spi->irq;
 
 	rmi_spi->spi = spi;
 	mutex_init(&rmi_spi->page_mutex);
@@ -445,39 +413,33 @@ static int rmi_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, rmi_spi);
 
-	retval = rmi_spi_manage_pools(rmi_spi, RMI_SPI_DEFAULT_XFER_BUF_SIZE);
-	if (retval)
-		return retval;
+	error = rmi_spi_manage_pools(rmi_spi, RMI_SPI_DEFAULT_XFER_BUF_SIZE);
+	if (error)
+		return error;
 
 	/*
 	 * Setting the page to zero will (a) make sure the PSR is in a
 	 * known state, and (b) make sure we can talk to the device.
 	 */
-	retval = rmi_set_page(rmi_spi, 0);
-	if (retval) {
+	error = rmi_set_page(rmi_spi, 0);
+	if (error) {
 		dev_err(&spi->dev, "Failed to set page select to 0.\n");
-		return retval;
+		return error;
 	}
 
-	retval = rmi_register_transport_device(&rmi_spi->xport);
-	if (retval) {
-		dev_err(&spi->dev, "failed to register transport.\n");
-		return retval;
+	dev_info(&spi->dev, "registering SPI-connected sensor\n");
+
+	error = rmi_register_transport_device(&rmi_spi->xport);
+	if (error) {
+		dev_err(&spi->dev, "failed to register sensor: %d\n", error);
+		return error;
 	}
 
-	retval = rmi_spi_init_irq(spi);
-	if (retval < 0)
-		return retval;
-
-	dev_info(&spi->dev, "registered RMI SPI driver\n");
-	return 0;
-}
-
-static int rmi_spi_remove(struct spi_device *spi)
-{
-	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
-
-	rmi_unregister_transport_device(&rmi_spi->xport);
+	error = devm_add_action_or_reset(&spi->dev,
+					  rmi_spi_unregister_transport,
+					  rmi_spi);
+	if (error)
+		return error;
 
 	return 0;
 }
@@ -489,17 +451,10 @@ static int rmi_spi_suspend(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev, true);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
-	disable_irq(rmi_spi->irq);
-	if (device_may_wakeup(&spi->dev)) {
-		ret = enable_irq_wake(rmi_spi->irq);
-		if (!ret)
-			dev_warn(dev, "Failed to enable irq for wake: %d\n",
-				ret);
-	}
 	return ret;
 }
 
@@ -509,15 +464,7 @@ static int rmi_spi_resume(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	enable_irq(rmi_spi->irq);
-	if (device_may_wakeup(&spi->dev)) {
-		ret = disable_irq_wake(rmi_spi->irq);
-		if (!ret)
-			dev_warn(dev, "Failed to disable irq for wake: %d\n",
-				ret);
-	}
-
-	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev, true);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
@@ -532,11 +479,9 @@ static int rmi_spi_runtime_suspend(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_suspend(rmi_spi->xport.rmi_dev, false);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
-
-	disable_irq(rmi_spi->irq);
 
 	return 0;
 }
@@ -547,9 +492,7 @@ static int rmi_spi_runtime_resume(struct device *dev)
 	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
 	int ret;
 
-	enable_irq(rmi_spi->irq);
-
-	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev);
+	ret = rmi_driver_resume(rmi_spi->xport.rmi_dev, false);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
@@ -577,7 +520,6 @@ static struct spi_driver rmi_spi_driver = {
 	},
 	.id_table	= rmi_id,
 	.probe		= rmi_spi_probe,
-	.remove		= rmi_spi_remove,
 };
 
 module_spi_driver(rmi_spi_driver);

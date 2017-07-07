@@ -9,7 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 
@@ -23,11 +23,8 @@ EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memset);
 
 EXPORT_SYMBOL(strncpy_from_user);
-EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(clear_user);
 EXPORT_SYMBOL(__clear_user);
-EXPORT_SYMBOL(__generic_copy_from_user);
-EXPORT_SYMBOL(__generic_copy_to_user);
 EXPORT_SYMBOL(strnlen_user);
 
 extern u64 __ashrdi3(u64, unsigned);

@@ -188,14 +188,16 @@ qcaspi_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *p)
 }
 
 static int
-qcaspi_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+qcaspi_get_link_ksettings(struct net_device *dev,
+			  struct ethtool_link_ksettings *cmd)
 {
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->supported = SUPPORTED_10baseT_Half;
-	ethtool_cmd_speed_set(cmd,  SPEED_10);
-	cmd->duplex = DUPLEX_HALF;
-	cmd->port = PORT_OTHER;
-	cmd->autoneg = AUTONEG_DISABLE;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 10baseT_Half);
+
+	cmd->base.speed = SPEED_10;
+	cmd->base.duplex = DUPLEX_HALF;
+	cmd->base.port = PORT_OTHER;
+	cmd->base.autoneg = AUTONEG_DISABLE;
 
 	return 0;
 }
@@ -273,6 +275,7 @@ qcaspi_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 static int
 qcaspi_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 {
+	const struct net_device_ops *ops = dev->netdev_ops;
 	struct qcaspi *qca = netdev_priv(dev);
 
 	if ((ring->rx_pending) ||
@@ -281,13 +284,13 @@ qcaspi_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 		return -EINVAL;
 
 	if (netif_running(dev))
-		qcaspi_netdev_close(dev);
+		ops->ndo_stop(dev);
 
 	qca->txr.count = max_t(u32, ring->tx_pending, TX_RING_MIN_LEN);
 	qca->txr.count = min_t(u16, qca->txr.count, TX_RING_MAX_LEN);
 
 	if (netif_running(dev))
-		qcaspi_netdev_open(dev);
+		ops->ndo_open(dev);
 
 	return 0;
 }
@@ -295,7 +298,6 @@ qcaspi_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 static const struct ethtool_ops qcaspi_ethtool_ops = {
 	.get_drvinfo = qcaspi_get_drvinfo,
 	.get_link = ethtool_op_get_link,
-	.get_settings = qcaspi_get_settings,
 	.get_ethtool_stats = qcaspi_get_ethtool_stats,
 	.get_strings = qcaspi_get_strings,
 	.get_sset_count = qcaspi_get_sset_count,
@@ -303,6 +305,7 @@ static const struct ethtool_ops qcaspi_ethtool_ops = {
 	.get_regs = qcaspi_get_regs,
 	.get_ringparam = qcaspi_get_ringparam,
 	.set_ringparam = qcaspi_set_ringparam,
+	.get_link_ksettings = qcaspi_get_link_ksettings,
 };
 
 void qcaspi_set_ethtool_ops(struct net_device *dev)

@@ -37,6 +37,7 @@ struct yeah {
 	u32 fast_count;
 
 	u32 pkts_acked;
+	u32 loss_cwnd;
 };
 
 static void tcp_yeah_init(struct sock *sk)
@@ -219,13 +220,22 @@ static u32 tcp_yeah_ssthresh(struct sock *sk)
 
 	yeah->fast_count = 0;
 	yeah->reno_count = max(yeah->reno_count>>1, 2U);
+	yeah->loss_cwnd = tp->snd_cwnd;
 
 	return max_t(int, tp->snd_cwnd - reduction, 2);
+}
+
+static u32 tcp_yeah_cwnd_undo(struct sock *sk)
+{
+	const struct yeah *yeah = inet_csk_ca(sk);
+
+	return max(tcp_sk(sk)->snd_cwnd, yeah->loss_cwnd);
 }
 
 static struct tcp_congestion_ops tcp_yeah __read_mostly = {
 	.init		= tcp_yeah_init,
 	.ssthresh	= tcp_yeah_ssthresh,
+	.undo_cwnd      = tcp_yeah_cwnd_undo,
 	.cong_avoid	= tcp_yeah_cong_avoid,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,

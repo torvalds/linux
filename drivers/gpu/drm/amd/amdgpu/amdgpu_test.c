@@ -78,7 +78,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		void *gtt_map, *vram_map;
 		void **gtt_start, **gtt_end;
 		void **vram_start, **vram_end;
-		struct fence *fence = NULL;
+		struct dma_fence *fence = NULL;
 
 		r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
@@ -111,20 +111,20 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		amdgpu_bo_kunmap(gtt_obj[i]);
 
 		r = amdgpu_copy_buffer(ring, gtt_addr, vram_addr,
-				       size, NULL, &fence);
+				       size, NULL, &fence, false);
 
 		if (r) {
 			DRM_ERROR("Failed GTT->VRAM copy %d\n", i);
 			goto out_lclean_unpin;
 		}
 
-		r = fence_wait(fence, false);
+		r = dma_fence_wait(fence, false);
 		if (r) {
 			DRM_ERROR("Failed to wait for GTT->VRAM fence %d\n", i);
 			goto out_lclean_unpin;
 		}
 
-		fence_put(fence);
+		dma_fence_put(fence);
 
 		r = amdgpu_bo_kmap(vram_obj, &vram_map);
 		if (r) {
@@ -156,20 +156,20 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		amdgpu_bo_kunmap(vram_obj);
 
 		r = amdgpu_copy_buffer(ring, vram_addr, gtt_addr,
-				       size, NULL, &fence);
+				       size, NULL, &fence, false);
 
 		if (r) {
 			DRM_ERROR("Failed VRAM->GTT copy %d\n", i);
 			goto out_lclean_unpin;
 		}
 
-		r = fence_wait(fence, false);
+		r = dma_fence_wait(fence, false);
 		if (r) {
 			DRM_ERROR("Failed to wait for VRAM->GTT fence %d\n", i);
 			goto out_lclean_unpin;
 		}
 
-		fence_put(fence);
+		dma_fence_put(fence);
 
 		r = amdgpu_bo_kmap(gtt_obj[i], &gtt_map);
 		if (r) {
@@ -216,7 +216,7 @@ out_lclean:
 			amdgpu_bo_unref(&gtt_obj[i]);
 		}
 		if (fence)
-			fence_put(fence);
+			dma_fence_put(fence);
 		break;
 	}
 
@@ -228,7 +228,7 @@ out_unref:
 out_cleanup:
 	kfree(gtt_obj);
 	if (r) {
-		printk(KERN_WARNING "Error while testing BO move.\n");
+		pr_warn("Error while testing BO move\n");
 	}
 }
 
@@ -236,83 +236,4 @@ void amdgpu_test_moves(struct amdgpu_device *adev)
 {
 	if (adev->mman.buffer_funcs)
 		amdgpu_do_test_moves(adev);
-}
-
-void amdgpu_test_ring_sync(struct amdgpu_device *adev,
-			   struct amdgpu_ring *ringA,
-			   struct amdgpu_ring *ringB)
-{
-}
-
-static void amdgpu_test_ring_sync2(struct amdgpu_device *adev,
-			    struct amdgpu_ring *ringA,
-			    struct amdgpu_ring *ringB,
-			    struct amdgpu_ring *ringC)
-{
-}
-
-static bool amdgpu_test_sync_possible(struct amdgpu_ring *ringA,
-				      struct amdgpu_ring *ringB)
-{
-	if (ringA == &ringA->adev->vce.ring[0] &&
-	    ringB == &ringB->adev->vce.ring[1])
-		return false;
-
-	return true;
-}
-
-void amdgpu_test_syncing(struct amdgpu_device *adev)
-{
-	int i, j, k;
-
-	for (i = 1; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *ringA = adev->rings[i];
-		if (!ringA || !ringA->ready)
-			continue;
-
-		for (j = 0; j < i; ++j) {
-			struct amdgpu_ring *ringB = adev->rings[j];
-			if (!ringB || !ringB->ready)
-				continue;
-
-			if (!amdgpu_test_sync_possible(ringA, ringB))
-				continue;
-
-			DRM_INFO("Testing syncing between rings %d and %d...\n", i, j);
-			amdgpu_test_ring_sync(adev, ringA, ringB);
-
-			DRM_INFO("Testing syncing between rings %d and %d...\n", j, i);
-			amdgpu_test_ring_sync(adev, ringB, ringA);
-
-			for (k = 0; k < j; ++k) {
-				struct amdgpu_ring *ringC = adev->rings[k];
-				if (!ringC || !ringC->ready)
-					continue;
-
-				if (!amdgpu_test_sync_possible(ringA, ringC))
-					continue;
-
-				if (!amdgpu_test_sync_possible(ringB, ringC))
-					continue;
-
-				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", i, j, k);
-				amdgpu_test_ring_sync2(adev, ringA, ringB, ringC);
-
-				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", i, k, j);
-				amdgpu_test_ring_sync2(adev, ringA, ringC, ringB);
-
-				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", j, i, k);
-				amdgpu_test_ring_sync2(adev, ringB, ringA, ringC);
-
-				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", j, k, i);
-				amdgpu_test_ring_sync2(adev, ringB, ringC, ringA);
-
-				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", k, i, j);
-				amdgpu_test_ring_sync2(adev, ringC, ringA, ringB);
-
-				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", k, j, i);
-				amdgpu_test_ring_sync2(adev, ringC, ringB, ringA);
-			}
-		}
-	}
 }

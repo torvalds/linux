@@ -144,11 +144,8 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	ddrclk->ddr_flag = ddr_flag;
 
 	clk = clk_register(NULL, &ddrclk->hw);
-	if (IS_ERR(clk)) {
-		pr_err("%s: could not register ddrclk %s\n", __func__,	name);
+	if (IS_ERR(clk))
 		kfree(ddrclk);
-		return NULL;
-	}
 
 	return clk;
 }

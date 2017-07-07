@@ -39,35 +39,40 @@ static unsigned int
 reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ip6t_reject_info *reject = par->targinfo;
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 
 	switch (reject->with) {
 	case IP6T_ICMP6_NO_ROUTE:
-		nf_send_unreach6(net, skb, ICMPV6_NOROUTE, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_NOROUTE, xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ADM_PROHIBITED:
-		nf_send_unreach6(net, skb, ICMPV6_ADM_PROHIBITED, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_ADM_PROHIBITED,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_NOT_NEIGHBOUR:
-		nf_send_unreach6(net, skb, ICMPV6_NOT_NEIGHBOUR, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_NOT_NEIGHBOUR,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ADDR_UNREACH:
-		nf_send_unreach6(net, skb, ICMPV6_ADDR_UNREACH, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_ADDR_UNREACH,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_PORT_UNREACH:
-		nf_send_unreach6(net, skb, ICMPV6_PORT_UNREACH, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_PORT_UNREACH,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ECHOREPLY:
 		/* Do nothing */
 		break;
 	case IP6T_TCP_RESET:
-		nf_send_reset6(net, skb, par->hooknum);
+		nf_send_reset6(net, skb, xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_POLICY_FAIL:
-		nf_send_unreach6(net, skb, ICMPV6_POLICY_FAIL, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_POLICY_FAIL, xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_REJECT_ROUTE:
-		nf_send_unreach6(net, skb, ICMPV6_REJECT_ROUTE, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_REJECT_ROUTE,
+				 xt_hooknum(par));
 		break;
 	}
 

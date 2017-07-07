@@ -10,6 +10,7 @@
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/export.h>
 
         .section        ".toc","aw"
 PPC64_CACHES:
@@ -25,8 +26,8 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	ori	r5,r5,PAGE_SIZE@l
 BEGIN_FTR_SECTION
 	ld      r10,PPC64_CACHES@toc(r2)
-	lwz	r11,DCACHEL1LOGLINESIZE(r10)	/* log2 of cache line size */
-	lwz     r12,DCACHEL1LINESIZE(r10)	/* get cache line size */
+	lwz	r11,DCACHEL1LOGBLOCKSIZE(r10)	/* log2 of cache block size */
+	lwz     r12,DCACHEL1BLOCKSIZE(r10)	/* get cache block size */
 	li	r9,0
 	srd	r8,r5,r11
 
@@ -110,3 +111,4 @@ END_FTR_SECTION_IFSET(CPU_FTR_CP_USE_DCBTZ)
 	std	r11,120(r3)
 	std	r12,128(r3)
 	blr
+EXPORT_SYMBOL(copy_page)

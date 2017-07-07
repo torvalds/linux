@@ -79,6 +79,7 @@ int strcmp(const char *cs, const char *ct);
 #define memset(s, c, n) __memset(s, c, n)
 #endif
 
+#define __HAVE_ARCH_MEMCPY_MCSAFE 1
 __must_check int memcpy_mcsafe_unrolled(void *dst, const void *src, size_t cnt);
 DECLARE_STATIC_KEY_FALSE(mcsafe_key);
 
@@ -107,6 +108,11 @@ memcpy_mcsafe(void *dst, const void *src, size_t cnt)
 		memcpy(dst, src, cnt);
 	return 0;
 }
+
+#ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
+#define __HAVE_ARCH_MEMCPY_FLUSHCACHE 1
+void memcpy_flushcache(void *dst, const void *src, size_t cnt);
+#endif
 
 #endif /* __KERNEL__ */
 

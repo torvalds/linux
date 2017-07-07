@@ -1,6 +1,16 @@
 #ifndef ISCSI_TARGET_ERL1_H
 #define ISCSI_TARGET_ERL1_H
 
+#include <linux/types.h>
+#include <scsi/iscsi_proto.h> /* itt_t */
+
+struct iscsi_cmd;
+struct iscsi_conn;
+struct iscsi_datain_req;
+struct iscsi_ooo_cmdsn;
+struct iscsi_pdu;
+struct iscsi_session;
+
 extern int iscsit_dump_data_payload(struct iscsi_conn *, u32, int);
 extern int iscsit_create_recovery_datain_values_datasequenceinorder_yes(
 			struct iscsi_cmd *, struct iscsi_datain_req *);

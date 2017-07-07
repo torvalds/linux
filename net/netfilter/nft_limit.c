@@ -17,9 +17,8 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 
-static DEFINE_SPINLOCK(limit_lock);
-
 struct nft_limit {
+	spinlock_t	lock;
 	u64		last;
 	u64		tokens;
 	u64		tokens_max;
@@ -34,7 +33,7 @@ static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
 	u64 now, tokens;
 	s64 delta;
 
-	spin_lock_bh(&limit_lock);
+	spin_lock_bh(&limit->lock);
 	now = ktime_get_ns();
 	tokens = limit->tokens + now - limit->last;
 	if (tokens > limit->tokens_max)
@@ -44,11 +43,11 @@ static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
 	delta = tokens - cost;
 	if (delta >= 0) {
 		limit->tokens = delta;
-		spin_unlock_bh(&limit_lock);
+		spin_unlock_bh(&limit->lock);
 		return limit->invert;
 	}
 	limit->tokens = tokens;
-	spin_unlock_bh(&limit_lock);
+	spin_unlock_bh(&limit->lock);
 	return !limit->invert;
 }
 
@@ -86,6 +85,7 @@ static int nft_limit_init(struct nft_limit *limit,
 			limit->invert = true;
 	}
 	limit->last = ktime_get_ns();
+	spin_lock_init(&limit->lock);
 
 	return 0;
 }

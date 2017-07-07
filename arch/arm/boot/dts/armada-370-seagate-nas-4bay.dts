@@ -28,20 +28,7 @@
 	compatible = "seagate,dart-4", "marvell,armada370", "marvell,armada-370-xp";
 
 	soc {
-		pcie-controller {
-			/* SATA AHCI controller 88SE9170 */
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-
 		internal-regs {
-			mdio {
-				phy1: ethernet-phy@1 {
-					reg = <1>;
-				};
-			};
-
 			ethernet@74000 {
 				status = "okay";
 				pinctrl-0 = <&ge1_rgmii_pins>;
@@ -131,3 +118,17 @@
 			  1300 0>;
 	};
 };
+
+&pciec {
+	/* SATA AHCI controller 88SE9170 */
+	pcie@1,0 {
+		status = "okay";
+	};
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+

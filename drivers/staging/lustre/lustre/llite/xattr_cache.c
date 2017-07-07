@@ -26,8 +26,8 @@ struct ll_xattr_entry {
 					     */
 	char			*xe_name;   /* xattr name, \0-terminated */
 	char			*xe_value;  /* xattr value */
-	unsigned		xe_namelen; /* strlen(xe_name) + 1 */
-	unsigned		xe_vallen;  /* xattr value length */
+	unsigned int		xe_namelen; /* strlen(xe_name) + 1 */
+	unsigned int		xe_vallen;  /* xattr value length */
 };
 
 static struct kmem_cache *xattr_kmem;
@@ -60,7 +60,7 @@ void ll_xattr_fini(void)
 static void ll_xattr_cache_init(struct ll_inode_info *lli)
 {
 	INIT_LIST_HEAD(&lli->lli_xattrs);
-	lli->lli_flags |= LLIF_XATTR_CACHE;
+	set_bit(LLIF_XATTR_CACHE, &lli->lli_flags);
 }
 
 /**
@@ -104,7 +104,7 @@ static int ll_xattr_cache_find(struct list_head *cache,
 static int ll_xattr_cache_add(struct list_head *cache,
 			      const char *xattr_name,
 			      const char *xattr_val,
-			      unsigned xattr_val_len)
+			      unsigned int xattr_val_len)
 {
 	struct ll_xattr_entry *xattr;
 
@@ -216,7 +216,7 @@ static int ll_xattr_cache_list(struct list_head *cache,
  */
 static int ll_xattr_cache_valid(struct ll_inode_info *lli)
 {
-	return !!(lli->lli_flags & LLIF_XATTR_CACHE);
+	return test_bit(LLIF_XATTR_CACHE, &lli->lli_flags);
 }
 
 /**
@@ -233,7 +233,8 @@ static int ll_xattr_cache_destroy_locked(struct ll_inode_info *lli)
 
 	while (ll_xattr_cache_del(&lli->lli_xattrs, NULL) == 0)
 		; /* empty loop */
-	lli->lli_flags &= ~LLIF_XATTR_CACHE;
+
+	clear_bit(LLIF_XATTR_CACHE, &lli->lli_flags);
 
 	return 0;
 }
@@ -310,7 +311,7 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 
 	if (rc < 0) {
 		CDEBUG(D_CACHE,
-		       "md_intent_lock failed with %d for fid "DFID"\n",
+		       "md_intent_lock failed with %d for fid " DFID "\n",
 		       rc, PFID(ll_inode2fid(inode)));
 		mutex_unlock(&lli->lli_xattrs_enq_lock);
 		return rc;
@@ -364,7 +365,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 	}
 
 	if (oit->it_status < 0) {
-		CDEBUG(D_CACHE, "getxattr intent returned %d for fid "DFID"\n",
+		CDEBUG(D_CACHE, "getxattr intent returned %d for fid " DFID "\n",
 		       oit->it_status, PFID(ll_inode2fid(inode)));
 		rc = oit->it_status;
 		/* xattr data is so large that we don't want to cache it */
@@ -414,6 +415,10 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 			/* Filter out ACL ACCESS since it's cached separately */
 			CDEBUG(D_CACHE, "not caching %s\n",
 			       XATTR_NAME_ACL_ACCESS);
+			rc = 0;
+		} else if (!strcmp(xdata, "security.selinux")) {
+			/* Filter out security.selinux, it is cached in slab */
+			CDEBUG(D_CACHE, "not caching security.selinux\n");
 			rc = 0;
 		} else {
 			rc = ll_xattr_cache_add(&lli->lli_xattrs, xdata, xval,

@@ -15,7 +15,7 @@ kernel.
    CONFIG_ACPI_DEBUGGER=y
    CONFIG_ACPI_DEBUGGER_USER=m
 
-   The userspace utlities can be built from the kernel source tree using
+   The userspace utilities can be built from the kernel source tree using
    the following commands:
 
    $ cd tools

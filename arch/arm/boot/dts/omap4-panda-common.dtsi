@@ -16,6 +16,7 @@
 	aliases {
 		display0 = &dvi0;
 		display1 = &hdmi0;
+		ethernet = &ethernet;
 	};
 
 	leds: leds {
@@ -520,6 +521,21 @@
 
 &usbhsehci {
 	phys = <&hsusb1_phy>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@1 {
+		compatible = "usb424,9514";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet: usbether@1 {
+			compatible = "usb424,ec00";
+			reg = <1>;
+		};
+	};
 };
 
 &dss {

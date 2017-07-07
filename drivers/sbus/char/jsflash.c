@@ -37,7 +37,7 @@
 #include <linux/string.h>
 #include <linux/genhd.h>
 #include <linux/blkdev.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/pcic.h>
@@ -183,16 +183,38 @@ static void jsfd_read(char *buf, unsigned long p, size_t togo) {
 	}
 }
 
-static void jsfd_do_request(struct request_queue *q)
+static int jsfd_queue;
+
+static struct request *jsfd_next_request(void)
+{
+	struct request_queue *q;
+	struct request *rq;
+	int old_pos = jsfd_queue;
+
+	do {
+		q = jsfd_disk[jsfd_queue]->queue;
+		if (++jsfd_queue == JSF_MAX)
+			jsfd_queue = 0;
+		if (q) {
+			rq = blk_fetch_request(q);
+			if (rq)
+				return rq;
+		}
+	} while (jsfd_queue != old_pos);
+
+	return NULL;
+}
+
+static void jsfd_request(void)
 {
 	struct request *req;
 
-	req = blk_fetch_request(q);
+	req = jsfd_next_request();
 	while (req) {
 		struct jsfd_part *jdp = req->rq_disk->private_data;
 		unsigned long offset = blk_rq_pos(req) << 9;
 		size_t len = blk_rq_cur_bytes(req);
-		int err = -EIO;
+		blk_status_t err = BLK_STS_IOERR;
 
 		if ((offset + len) > jdp->dsize)
 			goto end;
@@ -208,11 +230,16 @@ static void jsfd_do_request(struct request_queue *q)
 		}
 
 		jsfd_read(bio_data(req->bio), jdp->dbase + offset, len);
-		err = 0;
+		err = BLK_STS_OK;
 	end:
 		if (!__blk_end_request_cur(req, err))
-			req = blk_fetch_request(q);
+			req = jsfd_next_request();
 	}
+}
+
+static void jsfd_do_request(struct request_queue *q)
+{
+	jsfd_request();
 }
 
 /*
@@ -544,8 +571,6 @@ static int jsflash_init(void)
 	return 0;
 }
 
-static struct request_queue *jsf_queue;
-
 static int jsfd_init(void)
 {
 	static DEFINE_SPINLOCK(lock);
@@ -562,18 +587,17 @@ static int jsfd_init(void)
 		struct gendisk *disk = alloc_disk(1);
 		if (!disk)
 			goto out;
+		disk->queue = blk_init_queue(jsfd_do_request, &lock);
+		if (!disk->queue) {
+			put_disk(disk);
+			goto out;
+		}
+		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 		jsfd_disk[i] = disk;
 	}
 
 	if (register_blkdev(JSFD_MAJOR, "jsfd")) {
 		err = -EIO;
-		goto out;
-	}
-
-	jsf_queue = blk_init_queue(jsfd_do_request, &lock);
-	if (!jsf_queue) {
-		err = -ENOMEM;
-		unregister_blkdev(JSFD_MAJOR, "jsfd");
 		goto out;
 	}
 
@@ -589,7 +613,6 @@ static int jsfd_init(void)
 		disk->fops = &jsfd_fops;
 		set_capacity(disk, jdp->dsize >> 9);
 		disk->private_data = jdp;
-		disk->queue = jsf_queue;
 		add_disk(disk);
 		set_disk_ro(disk, 1);
 	}
@@ -619,6 +642,7 @@ static void __exit jsflash_cleanup_module(void)
 	for (i = 0; i < JSF_MAX; i++) {
 		if ((i & JSF_PART_MASK) >= JSF_NPART) continue;
 		del_gendisk(jsfd_disk[i]);
+		blk_cleanup_queue(jsfd_disk[i]->queue);
 		put_disk(jsfd_disk[i]);
 	}
 	if (jsf0.busy)
@@ -628,7 +652,6 @@ static void __exit jsflash_cleanup_module(void)
 
 	misc_deregister(&jsf_dev);
 	unregister_blkdev(JSFD_MAJOR, "jsfd");
-	blk_cleanup_queue(jsf_queue);
 }
 
 module_init(jsflash_init_module);

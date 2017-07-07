@@ -8,7 +8,7 @@
 
 struct flow_cache_percpu {
 	struct hlist_head		*hash_table;
-	int				hash_count;
+	unsigned int			hash_count;
 	u32				hash_rnd;
 	int				hash_rnd_recalc;
 	struct tasklet_struct		flush_tasklet;
@@ -17,9 +17,9 @@ struct flow_cache_percpu {
 struct flow_cache {
 	u32				hash_shift;
 	struct flow_cache_percpu __percpu *percpu;
-	struct notifier_block		hotcpu_notifier;
-	int				low_watermark;
-	int				high_watermark;
+	struct hlist_node		node;
+	unsigned int			low_watermark;
+	unsigned int			high_watermark;
 	struct timer_list		rnd_timer;
 };
 #endif	/* _NET_FLOWCACHE_H */

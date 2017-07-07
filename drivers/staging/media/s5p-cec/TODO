@@ -1,7 +1,0 @@
-This driver depends on the CEC framework, which is currently in
-staging, so therefor this driver is in staging as well.
-
-In addition, this driver requires that userspace sets the physical
-address. However, this should be passed on from the corresponding
-samsung HDMI driver. It is very annoying if userspace has to do this,
-and other than USB CEC adapters this must be handled automatically.

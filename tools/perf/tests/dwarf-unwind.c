@@ -1,5 +1,6 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"
@@ -75,8 +76,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	return strcmp((const char *) symbol, funcs[idx]);
 }
 
-__attribute__ ((noinline))
-static int unwind_thread(struct thread *thread)
+static noinline int unwind_thread(struct thread *thread)
 {
 	struct perf_sample sample;
 	unsigned long cnt = 0;
@@ -107,8 +107,7 @@ static int unwind_thread(struct thread *thread)
 
 static int global_unwind_retval = -INT_MAX;
 
-__attribute__ ((noinline))
-static int compare(void *p1, void *p2)
+static noinline int compare(void *p1, void *p2)
 {
 	/* Any possible value should be 'thread' */
 	struct thread *thread = *(struct thread **)p1;
@@ -127,8 +126,7 @@ static int compare(void *p1, void *p2)
 	return p1 - p2;
 }
 
-__attribute__ ((noinline))
-static int krava_3(struct thread *thread)
+static noinline int krava_3(struct thread *thread)
 {
 	struct thread *array[2] = {thread, thread};
 	void *fp = &bsearch;
@@ -146,14 +144,12 @@ static int krava_3(struct thread *thread)
 	return global_unwind_retval;
 }
 
-__attribute__ ((noinline))
-static int krava_2(struct thread *thread)
+static noinline int krava_2(struct thread *thread)
 {
 	return krava_3(thread);
 }
 
-__attribute__ ((noinline))
-static int krava_1(struct thread *thread)
+static noinline int krava_1(struct thread *thread)
 {
 	return krava_2(thread);
 }

@@ -275,6 +275,13 @@ static struct ctl_table sctp_net_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
+		.procname	= "reconf_enable",
+		.data		= &init_net.sctp.reconf_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "auth_enable",
 		.data		= &init_net.sctp.auth_enable,
 		.maxlen		= sizeof(int),

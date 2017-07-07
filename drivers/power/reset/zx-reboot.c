@@ -72,6 +72,7 @@ static const struct of_device_id zx_reboot_of_match[] = {
 	{ .compatible = "zte,sysctrl" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, zx_reboot_of_match);
 
 static struct platform_driver zx_reboot_driver = {
 	.probe = zx_reboot_probe,

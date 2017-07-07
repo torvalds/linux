@@ -191,10 +191,10 @@ static struct dma_buf_ops udl_dmabuf_ops = {
 	.detach			= udl_detach_dma_buf,
 	.map_dma_buf		= udl_map_dma_buf,
 	.unmap_dma_buf		= udl_unmap_dma_buf,
-	.kmap			= udl_dmabuf_kmap,
-	.kmap_atomic		= udl_dmabuf_kmap_atomic,
-	.kunmap			= udl_dmabuf_kunmap,
-	.kunmap_atomic		= udl_dmabuf_kunmap_atomic,
+	.map			= udl_dmabuf_kmap,
+	.map_atomic		= udl_dmabuf_kmap_atomic,
+	.unmap			= udl_dmabuf_kunmap,
+	.unmap_atomic		= udl_dmabuf_kunmap_atomic,
 	.mmap			= udl_dmabuf_mmap,
 	.release		= drm_gem_dmabuf_release,
 };
@@ -209,7 +209,7 @@ struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
 	exp_info.flags = flags;
 	exp_info.priv = obj;
 
-	return dma_buf_export(&exp_info);
+	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 
 static int udl_prime_create(struct drm_device *dev,

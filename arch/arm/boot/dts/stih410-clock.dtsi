@@ -208,7 +208,8 @@
 						     "clk-clust-hades",
 						     "clk-hwpe-hades",
 						     "clk-fc-hades";
-				clock-critical = <CLK_ICN_CPU>,
+				clock-critical = <CLK_PROC_STFE>,
+						 <CLK_ICN_CPU>,
 						 <CLK_TX_ICN_DMU>,
 						 <CLK_EXT2F_A9>,
 						 <CLK_ICN_LMI>,

@@ -33,24 +33,6 @@ nf_conntrack_events - BOOLEAN
 	If this option is enabled, the connection tracking code will
 	provide userspace with connection tracking events via ctnetlink.
 
-nf_conntrack_events_retry_timeout - INTEGER (seconds)
-	default 15
-
-	This option is only relevant when "reliable connection tracking
-	events" are used.  Normally, ctnetlink is "lossy", that is,
-	events are normally dropped when userspace listeners can't keep up.
-
-	Userspace can request "reliable event mode".  When this mode is
-	active, the conntrack will only be destroyed after the event was
-	delivered.  If event delivery fails, the kernel periodically
-	re-tries to send the event to userspace.
-
-	This is the maximum interval the kernel should use when re-trying
-	to deliver the destroy event.
-
-	A higher number means there will be fewer delivery retries and it
-	will take longer for a backlog to be processed.
-
 nf_conntrack_expect_max - INTEGER
 	Maximum size of expectation table.  Default value is
 	nf_conntrack_buckets / 256. Minimum is 1.
@@ -80,10 +62,13 @@ nf_conntrack_generic_timeout - INTEGER (seconds)
 	protocols.
 
 nf_conntrack_helper - BOOLEAN
-	0 - disabled
-	not 0 - enabled (default)
+	0 - disabled (default)
+	not 0 - enabled
 
 	Enable automatic conntrack helper assignment.
+	If disabled it is required to set up iptables rules to assign
+	helpers to connections.  See the CT target description in the
+	iptables-extensions(8) man page for further information.
 
 nf_conntrack_icmp_timeout - INTEGER (seconds)
 	default 30
@@ -110,6 +95,17 @@ nf_conntrack_log_invalid - INTEGER
 nf_conntrack_max - INTEGER
 	Size of connection tracking table.  Default value is
 	nf_conntrack_buckets value * 4.
+
+nf_conntrack_default_on - BOOLEAN
+	0 - don't register conntrack in new net namespaces
+	1 - register conntrack in new net namespaces (default)
+
+	This controls wheter newly created network namespaces have connection
+	tracking enabled by default.  It will be enabled automatically
+	regardless of this setting if the new net namespace requires
+	connection tracking, e.g. when NAT rules are created.
+	This setting is only visible in initial user namespace, it has no
+	effect on existing namespaces.
 
 nf_conntrack_tcp_be_liberal - BOOLEAN
 	0 - disabled (default)

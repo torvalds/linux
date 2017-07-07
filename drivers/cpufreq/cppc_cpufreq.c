@@ -80,11 +80,17 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 {
 	struct cppc_cpudata *cpu;
 	struct cpufreq_freqs freqs;
+	u32 desired_perf;
 	int ret = 0;
 
 	cpu = all_cpu_data[policy->cpu];
 
-	cpu->perf_ctrls.desired_perf = (u64)target_freq * policy->max / cppc_dmi_max_khz;
+	desired_perf = (u64)target_freq * cpu->perf_caps.highest_perf / cppc_dmi_max_khz;
+	/* Return if it is exactly the same perf */
+	if (desired_perf == cpu->perf_ctrls.desired_perf)
+		return ret;
+
+	cpu->perf_ctrls.desired_perf = desired_perf;
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 
@@ -138,10 +144,23 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cppc_dmi_max_khz = cppc_get_dmi_max_khz();
 
-	policy->min = cpu->perf_caps.lowest_perf * cppc_dmi_max_khz / cpu->perf_caps.highest_perf;
+	/*
+	 * Set min to lowest nonlinear perf to avoid any efficiency penalty (see
+	 * Section 8.4.7.1.1.5 of ACPI 6.1 spec)
+	 */
+	policy->min = cpu->perf_caps.lowest_nonlinear_perf * cppc_dmi_max_khz /
+		cpu->perf_caps.highest_perf;
 	policy->max = cppc_dmi_max_khz;
-	policy->cpuinfo.min_freq = policy->min;
-	policy->cpuinfo.max_freq = policy->max;
+
+	/*
+	 * Set cpuinfo.min_freq to Lowest to make the full range of performance
+	 * available if userspace wants to use any perf between lowest & lowest
+	 * nonlinear perf
+	 */
+	policy->cpuinfo.min_freq = cpu->perf_caps.lowest_perf * cppc_dmi_max_khz /
+		cpu->perf_caps.highest_perf;
+	policy->cpuinfo.max_freq = cppc_dmi_max_khz;
+
 	policy->cpuinfo.transition_latency = cppc_get_transition_latency(cpu_num);
 	policy->shared_type = cpu->shared_type;
 
@@ -241,3 +260,10 @@ MODULE_DESCRIPTION("CPUFreq driver based on the ACPI CPPC v5.0+ spec");
 MODULE_LICENSE("GPL");
 
 late_initcall(cppc_cpufreq_init);
+
+static const struct acpi_device_id cppc_acpi_ids[] = {
+	{ACPI_PROCESSOR_DEVICE_HID, },
+	{}
+};
+
+MODULE_DEVICE_TABLE(acpi, cppc_acpi_ids);

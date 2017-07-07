@@ -1901,7 +1901,6 @@ struct ocrdma_eth_vlan {
 	u8 smac[6];
 	__be16 eth_type;
 	__be16 vlan_tag;
-#define OCRDMA_ROCE_ETH_TYPE 0x8915
 	__be16 roce_eth_type;
 } __packed;
 
@@ -2177,10 +2176,6 @@ enum OCRDMA_DCBX_PARAM_TYPE {
 	OCRDMA_PARAMETER_TYPE_ADMIN	= 0x00,
 	OCRDMA_PARAMETER_TYPE_OPER	= 0x01,
 	OCRDMA_PARAMETER_TYPE_PEER	= 0x02
-};
-
-enum OCRDMA_DCBX_APP_PROTO {
-	OCRDMA_APP_PROTO_ROCE	= 0x8915
 };
 
 enum OCRDMA_DCBX_PROTO {

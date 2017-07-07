@@ -6,7 +6,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  publishhed by the Free Software Foundation.
  *
- *  Copyright (C) 2012 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  *  Copyright (C) 2015 Martin Schiller <mschiller@tdt.de>
  */
 
@@ -1028,7 +1028,7 @@ static const struct ltq_pin_group xrx200_grps[] = {
 	GRP_MUX("spi_cs5", SPI, xrx200_pins_spi_cs5),
 	GRP_MUX("spi_cs6", SPI, xrx200_pins_spi_cs6),
 	GRP_MUX("usif uart_rx", USIF, xrx200_pins_usif_uart_rx),
-	GRP_MUX("usif uart_rx", USIF, xrx200_pins_usif_uart_tx),
+	GRP_MUX("usif uart_tx", USIF, xrx200_pins_usif_uart_tx),
 	GRP_MUX("usif uart_rts", USIF, xrx200_pins_usif_uart_rts),
 	GRP_MUX("usif uart_cts", USIF, xrx200_pins_usif_uart_cts),
 	GRP_MUX("usif uart_dtr", USIF, xrx200_pins_usif_uart_dtr),

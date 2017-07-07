@@ -10,8 +10,7 @@ struct task_struct;
 
 /* One sem_array data structure for each set of semaphores in the system. */
 struct sem_array {
-	struct kern_ipc_perm	____cacheline_aligned_in_smp
-				sem_perm;	/* permissions .. see ipc.h */
+	struct kern_ipc_perm	sem_perm;	/* permissions .. see ipc.h */
 	time_t			sem_ctime;	/* last change time */
 	struct sem		*sem_base;	/* ptr to first semaphore in array */
 	struct list_head	pending_alter;	/* pending operations */
@@ -21,6 +20,7 @@ struct sem_array {
 	struct list_head	list_id;	/* undo requests on this array */
 	int			sem_nsems;	/* no. of semaphores in array */
 	int			complex_count;	/* pending complex operations */
+	unsigned int		use_global_lock;/* >0: global lock required */
 };
 
 #ifdef CONFIG_SYSVIPC

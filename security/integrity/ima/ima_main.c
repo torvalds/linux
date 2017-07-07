@@ -83,6 +83,7 @@ static void ima_rdwr_violation_check(struct file *file,
 				     const char **pathname)
 {
 	struct inode *inode = file_inode(file);
+	char filename[NAME_MAX];
 	fmode_t mode = file->f_mode;
 	bool send_tomtou = false, send_writers = false;
 
@@ -102,7 +103,7 @@ static void ima_rdwr_violation_check(struct file *file,
 	if (!send_tomtou && !send_writers)
 		return;
 
-	*pathname = ima_d_path(&file->f_path, pathbuf);
+	*pathname = ima_d_path(&file->f_path, pathbuf, filename);
 
 	if (send_tomtou)
 		ima_add_violation(file, *pathname, iint,
@@ -161,6 +162,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	struct integrity_iint_cache *iint = NULL;
 	struct ima_template_desc *template_desc;
 	char *pathbuf = NULL;
+	char filename[NAME_MAX];
 	const char *pathname = NULL;
 	int rc = -ENOMEM, action, must_appraise;
 	int pcr = CONFIG_IMA_MEASURE_PCR_IDX;
@@ -228,7 +230,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	if ((action & IMA_APPRAISE_SUBMASK) ||
 		    strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0)
 		/* read 'security.ima' */
-		xattr_len = ima_read_xattr(file->f_path.dentry, &xattr_value);
+		xattr_len = ima_read_xattr(file_dentry(file), &xattr_value);
 
 	hash_algo = ima_get_hash_algo(xattr_value, xattr_len);
 
@@ -239,8 +241,8 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 		goto out_digsig;
 	}
 
-	if (!pathname)	/* ima_rdwr_violation possibly pre-fetched */
-		pathname = ima_d_path(&file->f_path, &pathbuf);
+	if (!pathbuf)	/* ima_rdwr_violation possibly pre-fetched */
+		pathname = ima_d_path(&file->f_path, &pathbuf, filename);
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname,
@@ -307,7 +309,7 @@ int ima_bprm_check(struct linux_binprm *bprm)
 /**
  * ima_path_check - based on policy, collect/store measurement.
  * @file: pointer to the file to be measured
- * @mask: contains MAY_READ, MAY_WRITE or MAY_EXECUTE
+ * @mask: contains MAY_READ, MAY_WRITE, MAY_EXEC or MAY_APPEND
  *
  * Measure files based on the ima_must_measure() policy decision.
  *
@@ -317,8 +319,8 @@ int ima_bprm_check(struct linux_binprm *bprm)
 int ima_file_check(struct file *file, int mask, int opened)
 {
 	return process_measurement(file, NULL, 0,
-				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
-				   FILE_CHECK, opened);
+				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC |
+					   MAY_APPEND), FILE_CHECK, opened);
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 
@@ -418,6 +420,7 @@ static int __init init_ima(void)
 {
 	int error;
 
+	ima_init_template_list();
 	hash_setup(CONFIG_IMA_DEFAULT_HASH);
 	error = ima_init();
 	if (!error) {

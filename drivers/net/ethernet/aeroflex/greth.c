@@ -34,6 +34,7 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/of_device.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
@@ -806,7 +807,8 @@ static int greth_rx(struct net_device *dev, int limit)
 				if (netif_msg_pktdata(greth))
 					greth_print_rx_packet(phys_to_virt(dma_addr), pkt_len);
 
-				memcpy(skb_put(skb, pkt_len), phys_to_virt(dma_addr), pkt_len);
+				skb_put_data(skb, phys_to_virt(dma_addr),
+					     pkt_len);
 
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_bytes += pkt_len;
@@ -1008,7 +1010,7 @@ restart_txrx_poll:
 			spin_unlock_irqrestore(&greth->devlock, flags);
 			goto restart_txrx_poll;
 		} else {
-			__napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			spin_unlock_irqrestore(&greth->devlock, flags);
 		}
 	}
@@ -1290,15 +1292,6 @@ static int greth_mdio_probe(struct net_device *dev)
 	return 0;
 }
 
-static inline int phy_aneg_done(struct phy_device *phydev)
-{
-	int retval;
-
-	retval = phy_read(phydev, MII_BMSR);
-
-	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
-}
-
 static int greth_mdio_init(struct greth_private *greth)
 {
 	int ret;
@@ -1463,11 +1456,10 @@ static int greth_of_probe(struct platform_device *ofdev)
 			break;
 	}
 	if (i == 6) {
-		const unsigned char *addr;
-		int len;
-		addr = of_get_property(ofdev->dev.of_node, "local-mac-address",
-					&len);
-		if (addr != NULL && len == 6) {
+		const u8 *addr;
+
+		addr = of_get_mac_address(ofdev->dev.of_node);
+		if (addr) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
 		} else {

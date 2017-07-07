@@ -22,7 +22,7 @@
 
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
 
-struct dma_map_ops *dma_ops;
+const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 static int __init dma_init(void)

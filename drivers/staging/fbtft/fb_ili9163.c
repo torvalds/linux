@@ -194,7 +194,7 @@ static int set_var(struct fbtft_par *par)
 
 	/* Colorspcae */
 	if (par->bgr)
-		mactrl_data |= (1 << 2);
+		mactrl_data |= BIT(2);
 	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, mactrl_data);
 	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 	return 0;
@@ -202,7 +202,7 @@ static int set_var(struct fbtft_par *par)
 
 #ifdef GAMMA_ADJ
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int gamma_adj(struct fbtft_par *par, unsigned long *curves)
+static int gamma_adj(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x3F, 0x3F, 0x3F, 0x3F, 0x3F,

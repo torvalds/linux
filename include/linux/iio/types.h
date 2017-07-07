@@ -29,4 +29,9 @@ enum iio_event_info {
 #define IIO_VAL_FRACTIONAL 10
 #define IIO_VAL_FRACTIONAL_LOG2 11
 
+enum iio_available_type {
+	IIO_AVAIL_LIST,
+	IIO_AVAIL_RANGE,
+};
+
 #endif /* _IIO_TYPES_H_ */

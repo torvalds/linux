@@ -26,6 +26,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/log2.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
@@ -85,9 +87,6 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00queue_start_queues(rt2x00dev);
 	rt2x00link_start_tuner(rt2x00dev);
-	rt2x00link_start_agc(rt2x00dev);
-	if (rt2x00_has_cap_vco_recalibration(rt2x00dev))
-		rt2x00link_start_vcocal(rt2x00dev);
 
 	/*
 	 * Start watchdog monitoring.
@@ -110,9 +109,6 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop all queues
 	 */
-	rt2x00link_stop_agc(rt2x00dev);
-	if (rt2x00_has_cap_vco_recalibration(rt2x00dev))
-		rt2x00link_stop_vcocal(rt2x00dev);
 	rt2x00link_stop_tuner(rt2x00dev);
 	rt2x00queue_stop_queues(rt2x00dev);
 	rt2x00queue_flush_queues(rt2x00dev, true);
@@ -317,15 +313,172 @@ static inline int rt2x00lib_txdone_bar_status(struct queue_entry *entry)
 	return ret;
 }
 
+static void rt2x00lib_fill_tx_status(struct rt2x00_dev *rt2x00dev,
+				     struct ieee80211_tx_info *tx_info,
+				     struct skb_frame_desc *skbdesc,
+				     struct txdone_entry_desc *txdesc,
+				     bool success)
+{
+	u8 rate_idx, rate_flags, retry_rates;
+	int i;
+
+	rate_idx = skbdesc->tx_rate_idx;
+	rate_flags = skbdesc->tx_rate_flags;
+	retry_rates = test_bit(TXDONE_FALLBACK, &txdesc->flags) ?
+	    (txdesc->retry + 1) : 1;
+
+	/*
+	 * Initialize TX status
+	 */
+	memset(&tx_info->status, 0, sizeof(tx_info->status));
+	tx_info->status.ack_signal = 0;
+
+	/*
+	 * Frame was send with retries, hardware tried
+	 * different rates to send out the frame, at each
+	 * retry it lowered the rate 1 step except when the
+	 * lowest rate was used.
+	 */
+	for (i = 0; i < retry_rates && i < IEEE80211_TX_MAX_RATES; i++) {
+		tx_info->status.rates[i].idx = rate_idx - i;
+		tx_info->status.rates[i].flags = rate_flags;
+
+		if (rate_idx - i == 0) {
+			/*
+			 * The lowest rate (index 0) was used until the
+			 * number of max retries was reached.
+			 */
+			tx_info->status.rates[i].count = retry_rates - i;
+			i++;
+			break;
+		}
+		tx_info->status.rates[i].count = 1;
+	}
+	if (i < (IEEE80211_TX_MAX_RATES - 1))
+		tx_info->status.rates[i].idx = -1; /* terminate */
+
+	if (test_bit(TXDONE_NO_ACK_REQ, &txdesc->flags))
+		tx_info->flags |= IEEE80211_TX_CTL_NO_ACK;
+
+	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+		if (success)
+			tx_info->flags |= IEEE80211_TX_STAT_ACK;
+		else
+			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
+	}
+
+	/*
+	 * Every single frame has it's own tx status, hence report
+	 * every frame as ampdu of size 1.
+	 *
+	 * TODO: if we can find out how many frames were aggregated
+	 * by the hw we could provide the real ampdu_len to mac80211
+	 * which would allow the rc algorithm to better decide on
+	 * which rates are suitable.
+	 */
+	if (test_bit(TXDONE_AMPDU, &txdesc->flags) ||
+	    tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
+		tx_info->flags |= IEEE80211_TX_STAT_AMPDU |
+				  IEEE80211_TX_CTL_AMPDU;
+		tx_info->status.ampdu_len = 1;
+		tx_info->status.ampdu_ack_len = success ? 1 : 0;
+
+		if (!success)
+			tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+	}
+
+	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
+		if (success)
+			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
+		else
+			rt2x00dev->low_level_stats.dot11RTSFailureCount++;
+	}
+}
+
+static void rt2x00lib_clear_entry(struct rt2x00_dev *rt2x00dev,
+				  struct queue_entry *entry)
+{
+	/*
+	 * Make this entry available for reuse.
+	 */
+	entry->skb = NULL;
+	entry->flags = 0;
+
+	rt2x00dev->ops->lib->clear_entry(entry);
+
+	rt2x00queue_index_inc(entry, Q_INDEX_DONE);
+
+	/*
+	 * If the data queue was below the threshold before the txdone
+	 * handler we must make sure the packet queue in the mac80211 stack
+	 * is reenabled when the txdone handler has finished. This has to be
+	 * serialized with rt2x00mac_tx(), otherwise we can wake up queue
+	 * before it was stopped.
+	 */
+	spin_lock_bh(&entry->queue->tx_lock);
+	if (!rt2x00queue_threshold(entry->queue))
+		rt2x00queue_unpause_queue(entry->queue);
+	spin_unlock_bh(&entry->queue->tx_lock);
+}
+
+void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
+			      struct txdone_entry_desc *txdesc)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct ieee80211_tx_info txinfo = {};
+	bool success;
+
+	/*
+	 * Unmap the skb.
+	 */
+	rt2x00queue_unmap_skb(entry);
+
+	/*
+	 * Signal that the TX descriptor is no longer in the skb.
+	 */
+	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
+
+	/*
+	 * Send frame to debugfs immediately, after this call is completed
+	 * we are going to overwrite the skb->cb array.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
+
+	/*
+	 * Determine if the frame has been successfully transmitted and
+	 * remove BARs from our check list while checking for their
+	 * TX status.
+	 */
+	success =
+	    rt2x00lib_txdone_bar_status(entry) ||
+	    test_bit(TXDONE_SUCCESS, &txdesc->flags);
+
+	if (!test_bit(TXDONE_UNKNOWN, &txdesc->flags)) {
+		/*
+		 * Update TX statistics.
+		 */
+		rt2x00dev->link.qual.tx_success += success;
+		rt2x00dev->link.qual.tx_failed += !success;
+
+		rt2x00lib_fill_tx_status(rt2x00dev, &txinfo, skbdesc, txdesc,
+					 success);
+		ieee80211_tx_status_noskb(rt2x00dev->hw, skbdesc->sta, &txinfo);
+	}
+
+	dev_kfree_skb_any(entry->skb);
+	rt2x00lib_clear_entry(rt2x00dev, entry);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_txdone_nomatch);
+
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
-	unsigned int header_length, i;
-	u8 rate_idx, rate_flags, retry_rates;
 	u8 skbdesc_flags = skbdesc->flags;
+	unsigned int header_length;
 	bool success;
 
 	/*
@@ -367,7 +520,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * Send frame to debugfs immediately, after this call is completed
 	 * we are going to overwrite the skb->cb array.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
 
 	/*
 	 * Determine if the frame has been successfully transmitted and
@@ -385,73 +538,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	rt2x00dev->link.qual.tx_success += success;
 	rt2x00dev->link.qual.tx_failed += !success;
 
-	rate_idx = skbdesc->tx_rate_idx;
-	rate_flags = skbdesc->tx_rate_flags;
-	retry_rates = test_bit(TXDONE_FALLBACK, &txdesc->flags) ?
-	    (txdesc->retry + 1) : 1;
-
-	/*
-	 * Initialize TX status
-	 */
-	memset(&tx_info->status, 0, sizeof(tx_info->status));
-	tx_info->status.ack_signal = 0;
-
-	/*
-	 * Frame was send with retries, hardware tried
-	 * different rates to send out the frame, at each
-	 * retry it lowered the rate 1 step except when the
-	 * lowest rate was used.
-	 */
-	for (i = 0; i < retry_rates && i < IEEE80211_TX_MAX_RATES; i++) {
-		tx_info->status.rates[i].idx = rate_idx - i;
-		tx_info->status.rates[i].flags = rate_flags;
-
-		if (rate_idx - i == 0) {
-			/*
-			 * The lowest rate (index 0) was used until the
-			 * number of max retries was reached.
-			 */
-			tx_info->status.rates[i].count = retry_rates - i;
-			i++;
-			break;
-		}
-		tx_info->status.rates[i].count = 1;
-	}
-	if (i < (IEEE80211_TX_MAX_RATES - 1))
-		tx_info->status.rates[i].idx = -1; /* terminate */
-
-	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-		if (success)
-			tx_info->flags |= IEEE80211_TX_STAT_ACK;
-		else
-			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
-	}
-
-	/*
-	 * Every single frame has it's own tx status, hence report
-	 * every frame as ampdu of size 1.
-	 *
-	 * TODO: if we can find out how many frames were aggregated
-	 * by the hw we could provide the real ampdu_len to mac80211
-	 * which would allow the rc algorithm to better decide on
-	 * which rates are suitable.
-	 */
-	if (test_bit(TXDONE_AMPDU, &txdesc->flags) ||
-	    tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
-		tx_info->status.ampdu_len = 1;
-		tx_info->status.ampdu_ack_len = success ? 1 : 0;
-
-		if (!success)
-			tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
-	}
-
-	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
-		if (success)
-			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
-		else
-			rt2x00dev->low_level_stats.dot11RTSFailureCount++;
-	}
+	rt2x00lib_fill_tx_status(rt2x00dev, tx_info, skbdesc, txdesc, success);
 
 	/*
 	 * Only send the status report to mac80211 when it's a frame
@@ -464,30 +551,11 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 			ieee80211_tx_status(rt2x00dev->hw, entry->skb);
 		else
 			ieee80211_tx_status_ni(rt2x00dev->hw, entry->skb);
-	} else
+	} else {
 		dev_kfree_skb_any(entry->skb);
+	}
 
-	/*
-	 * Make this entry available for reuse.
-	 */
-	entry->skb = NULL;
-	entry->flags = 0;
-
-	rt2x00dev->ops->lib->clear_entry(entry);
-
-	rt2x00queue_index_inc(entry, Q_INDEX_DONE);
-
-	/*
-	 * If the data queue was below the threshold before the txdone
-	 * handler we must make sure the packet queue in the mac80211 stack
-	 * is reenabled when the txdone handler has finished. This has to be
-	 * serialized with rt2x00mac_tx(), otherwise we can wake up queue
-	 * before it was stopped.
-	 */
-	spin_lock_bh(&entry->queue->tx_lock);
-	if (!rt2x00queue_threshold(entry->queue))
-		rt2x00queue_unpause_queue(entry->queue);
-	spin_unlock_bh(&entry->queue->tx_lock);
+	rt2x00lib_clear_entry(rt2x00dev, entry);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
@@ -757,7 +825,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	rate_idx = rt2x00lib_rxdone_read_signal(rt2x00dev, &rxdesc);
 	if (rxdesc.rate_mode == RATE_MODE_HT_MIX ||
 	    rxdesc.rate_mode == RATE_MODE_HT_GREENFIELD)
-		rxdesc.flags |= RX_FLAG_HT;
+		rxdesc.encoding = RX_ENC_HT;
 
 	/*
 	 * Check if this is a beacon, and more frames have been
@@ -776,7 +844,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	 */
 	rt2x00link_update_stats(rt2x00dev, entry->skb, &rxdesc);
 	rt2x00debug_update_crypto(rt2x00dev, &rxdesc);
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry);
 
 	/*
 	 * Initialize RX status information, and send frame
@@ -797,6 +865,9 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	rx_status->rate_idx = rate_idx;
 	rx_status->signal = rxdesc.rssi;
 	rx_status->flag = rxdesc.flags;
+	rx_status->enc_flags = rxdesc.enc_flags;
+	rx_status->encoding = rxdesc.encoding;
+	rx_status->bw = rxdesc.bw;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
 	ieee80211_rx_ni(rt2x00dev->hw, entry->skb);
@@ -930,6 +1001,21 @@ static void rt2x00lib_rate(struct ieee80211_rate *entry,
 	if (rate->flags & DEV_RATE_SHORT_PREAMBLE)
 		entry->flags |= IEEE80211_RATE_SHORT_PREAMBLE;
 }
+
+void rt2x00lib_set_mac_address(struct rt2x00_dev *rt2x00dev, u8 *eeprom_mac_addr)
+{
+	const char *mac_addr;
+
+	mac_addr = of_get_mac_address(rt2x00dev->dev->of_node);
+	if (mac_addr)
+		ether_addr_copy(eeprom_mac_addr, mac_addr);
+
+	if (!is_valid_ether_addr(eeprom_mac_addr)) {
+		eth_random_addr(eeprom_mac_addr);
+		rt2x00_eeprom_dbg(rt2x00dev, "MAC: %pM\n", eeprom_mac_addr);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_set_mac_address);
 
 static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 				    struct hw_mode_spec *spec)
@@ -1302,6 +1388,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 
 	spin_lock_init(&rt2x00dev->irqmask_lock);
 	mutex_init(&rt2x00dev->csr_mutex);
+	mutex_init(&rt2x00dev->conf_mutex);
 	INIT_LIST_HEAD(&rt2x00dev->bar_list);
 	spin_lock_init(&rt2x00dev->bar_list_lock);
 
@@ -1362,13 +1449,18 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00dev->bcn->limit > 0)
 		rt2x00dev->hw->wiphy->interface_modes |=
 		    BIT(NL80211_IFTYPE_ADHOC) |
-		    BIT(NL80211_IFTYPE_AP) |
 #ifdef CONFIG_MAC80211_MESH
 		    BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
-		    BIT(NL80211_IFTYPE_WDS);
+#ifdef CONFIG_WIRELESS_WDS
+		    BIT(NL80211_IFTYPE_WDS) |
+#endif
+		    BIT(NL80211_IFTYPE_AP);
 
 	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+
+	wiphy_ext_feature_set(rt2x00dev->hw->wiphy,
+			      NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	/*
 	 * Initialize ieee80211 structure.
@@ -1422,21 +1514,6 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	cancel_work_sync(&rt2x00dev->intf_work);
 	cancel_delayed_work_sync(&rt2x00dev->autowakeup_work);
 	cancel_work_sync(&rt2x00dev->sleep_work);
-#ifdef CONFIG_RT2X00_LIB_USB
-	if (rt2x00_is_usb(rt2x00dev)) {
-		usb_kill_anchored_urbs(rt2x00dev->anchor);
-		hrtimer_cancel(&rt2x00dev->txstatus_timer);
-		cancel_work_sync(&rt2x00dev->rxdone_work);
-		cancel_work_sync(&rt2x00dev->txdone_work);
-	}
-#endif
-	if (rt2x00dev->workqueue)
-		destroy_workqueue(rt2x00dev->workqueue);
-
-	/*
-	 * Free the tx status fifo.
-	 */
-	kfifo_free(&rt2x00dev->txstatus_fifo);
 
 	/*
 	 * Kill the tx status tasklet.
@@ -1451,6 +1528,14 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 * Uninitialize device.
 	 */
 	rt2x00lib_uninitialize(rt2x00dev);
+
+	if (rt2x00dev->workqueue)
+		destroy_workqueue(rt2x00dev->workqueue);
+
+	/*
+	 * Free the tx status fifo.
+	 */
+	kfifo_free(&rt2x00dev->txstatus_fifo);
 
 	/*
 	 * Free extra components

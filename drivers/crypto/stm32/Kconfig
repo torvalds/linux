@@ -1,0 +1,7 @@
+config CRYPTO_DEV_STM32
+	tristate "Support for STM32 crypto accelerators"
+	depends on ARCH_STM32
+	select CRYPTO_HASH
+	help
+          This enables support for the CRC32 hw accelerator which can be found
+	  on STMicroelectronis STM32 SOC.

@@ -163,12 +163,11 @@ void *get_buf(unsigned *lenp, void **bufp)
 	return datap;
 }
 
-void poll_used(void)
+bool used_empty()
 {
 	unsigned head = (ring_size - 1) & guest.last_used_idx;
 
-	while (ring[head].flags & DESC_HW)
-		busy_wait();
+	return (ring[head].flags & DESC_HW);
 }
 
 void disable_call()
@@ -180,13 +179,11 @@ void disable_call()
 
 bool enable_call()
 {
-	unsigned head = (ring_size - 1) & guest.last_used_idx;
-
 	event->call_index = guest.last_used_idx;
 	/* Flush call index write */
 	/* Barrier D (for pairing) */
 	smp_mb();
-	return ring[head].flags & DESC_HW;
+	return used_empty();
 }
 
 void kick_available(void)
@@ -213,20 +210,17 @@ void disable_kick()
 
 bool enable_kick()
 {
-	unsigned head = (ring_size - 1) & host.used_idx;
-
 	event->kick_index = host.used_idx;
 	/* Barrier C (for pairing) */
 	smp_mb();
-	return !(ring[head].flags & DESC_HW);
+	return avail_empty();
 }
 
-void poll_avail(void)
+bool avail_empty()
 {
 	unsigned head = (ring_size - 1) & host.used_idx;
 
-	while (!(ring[head].flags & DESC_HW))
-		busy_wait();
+	return !(ring[head].flags & DESC_HW);
 }
 
 bool use_buf(unsigned *lenp, void **bufp)

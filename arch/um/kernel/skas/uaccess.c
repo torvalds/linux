@@ -139,16 +139,16 @@ static int copy_chunk_from_user(unsigned long from, int len, void *arg)
 	return 0;
 }
 
-long __copy_from_user(void *to, const void __user *from, unsigned long n)
+unsigned long raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (segment_eq(get_fs(), KERNEL_DS)) {
+	if (uaccess_kernel()) {
 		memcpy(to, (__force void*)from, n);
 		return 0;
 	}
 
 	return buffer_op((unsigned long) from, n, 0, copy_chunk_from_user, &to);
 }
-EXPORT_SYMBOL(__copy_from_user);
+EXPORT_SYMBOL(raw_copy_from_user);
 
 static int copy_chunk_to_user(unsigned long to, int len, void *arg)
 {
@@ -159,16 +159,16 @@ static int copy_chunk_to_user(unsigned long to, int len, void *arg)
 	return 0;
 }
 
-long __copy_to_user(void __user *to, const void *from, unsigned long n)
+unsigned long raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (segment_eq(get_fs(), KERNEL_DS)) {
+	if (uaccess_kernel()) {
 		memcpy((__force void *) to, from, n);
 		return 0;
 	}
 
 	return buffer_op((unsigned long) to, n, 1, copy_chunk_to_user, &from);
 }
-EXPORT_SYMBOL(__copy_to_user);
+EXPORT_SYMBOL(raw_copy_to_user);
 
 static int strncpy_chunk_from_user(unsigned long from, int len, void *arg)
 {
@@ -189,7 +189,7 @@ long __strncpy_from_user(char *dst, const char __user *src, long count)
 	long n;
 	char *ptr = dst;
 
-	if (segment_eq(get_fs(), KERNEL_DS)) {
+	if (uaccess_kernel()) {
 		strncpy(dst, (__force void *) src, count);
 		return strnlen(dst, count);
 	}
@@ -210,7 +210,7 @@ static int clear_chunk(unsigned long addr, int len, void *unused)
 
 unsigned long __clear_user(void __user *mem, unsigned long len)
 {
-	if (segment_eq(get_fs(), KERNEL_DS)) {
+	if (uaccess_kernel()) {
 		memset((__force void*)mem, 0, len);
 		return 0;
 	}
@@ -235,7 +235,7 @@ long __strnlen_user(const void __user *str, long len)
 {
 	int count = 0, n;
 
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (uaccess_kernel())
 		return strnlen((__force char*)str, len) + 1;
 
 	n = buffer_op((unsigned long) str, len, 0, strnlen_chunk, &count);

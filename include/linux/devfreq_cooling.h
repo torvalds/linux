@@ -20,7 +20,6 @@
 #include <linux/devfreq.h>
 #include <linux/thermal.h>
 
-#ifdef CONFIG_DEVFREQ_THERMAL
 
 /**
  * struct devfreq_cooling_power - Devfreq cooling power ops
@@ -35,13 +34,36 @@
  *			If get_dynamic_power() is NULL, then the
  *			dynamic power is calculated as
  *			@dyn_power_coeff * frequency * voltage^2
+ * @get_real_power:	When this is set, the framework uses it to ask the
+ *			device driver for the actual power.
+ *			Some devices have more sophisticated methods
+ *			(like power counters) to approximate the actual power
+ *			that they use.
+ *			This function provides more accurate data to the
+ *			thermal governor. When the driver does not provide
+ *			such function, framework just uses pre-calculated
+ *			table and scale the power by 'utilization'
+ *			(based on 'busy_time' and 'total_time' taken from
+ *			devfreq 'last_status').
+ *			The value returned by this function must be lower
+ *			or equal than the maximum power value
+ *			for the current	state
+ *			(which can be found in power_table[state]).
+ *			When this interface is used, the power_table holds
+ *			max total (static + dynamic) power value for each OPP.
  */
 struct devfreq_cooling_power {
-	unsigned long (*get_static_power)(unsigned long voltage);
-	unsigned long (*get_dynamic_power)(unsigned long freq,
+	unsigned long (*get_static_power)(struct devfreq *devfreq,
+					  unsigned long voltage);
+	unsigned long (*get_dynamic_power)(struct devfreq *devfreq,
+					   unsigned long freq,
 					   unsigned long voltage);
+	int (*get_real_power)(struct devfreq *df, u32 *power,
+			      unsigned long freq, unsigned long voltage);
 	unsigned long dyn_power_coeff;
 };
+
+#ifdef CONFIG_DEVFREQ_THERMAL
 
 struct thermal_cooling_device *
 of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,

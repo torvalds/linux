@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
+#include <linux/filter.h>
 #include <linux/compiler.h>
 
 #include <asm/sections.h>
@@ -300,10 +301,11 @@ int kallsyms_lookup_size_offset(unsigned long addr, unsigned long *symbolsize,
 				unsigned long *offset)
 {
 	char namebuf[KSYM_NAME_LEN];
+
 	if (is_ksym_addr(addr))
 		return !!get_symbol_pos(addr, symbolsize, offset);
-
-	return !!module_address_lookup(addr, symbolsize, offset, NULL, namebuf);
+	return !!module_address_lookup(addr, symbolsize, offset, NULL, namebuf) ||
+	       !!__bpf_address_lookup(addr, symbolsize, offset, namebuf);
 }
 
 /*
@@ -318,6 +320,8 @@ const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *offset,
 			    char **modname, char *namebuf)
 {
+	const char *ret;
+
 	namebuf[KSYM_NAME_LEN - 1] = 0;
 	namebuf[0] = 0;
 
@@ -333,9 +337,13 @@ const char *kallsyms_lookup(unsigned long addr,
 		return namebuf;
 	}
 
-	/* See if it's in a module. */
-	return module_address_lookup(addr, symbolsize, offset, modname,
-				     namebuf);
+	/* See if it's in a module or a BPF JITed image. */
+	ret = module_address_lookup(addr, symbolsize, offset,
+				    modname, namebuf);
+	if (!ret)
+		ret = bpf_address_lookup(addr, symbolsize,
+					 offset, modname, namebuf);
+	return ret;
 }
 
 int lookup_symbol_name(unsigned long addr, char *symname)
@@ -471,6 +479,7 @@ EXPORT_SYMBOL(__print_symbol);
 /* To avoid using get_symbol_offset for every symbol, we carry prefix along. */
 struct kallsym_iter {
 	loff_t pos;
+	loff_t pos_mod_end;
 	unsigned long value;
 	unsigned int nameoff; /* If iterating in core kernel symbols. */
 	char type;
@@ -481,11 +490,25 @@ struct kallsym_iter {
 
 static int get_ksymbol_mod(struct kallsym_iter *iter)
 {
-	if (module_get_kallsym(iter->pos - kallsyms_num_syms, &iter->value,
-				&iter->type, iter->name, iter->module_name,
-				&iter->exported) < 0)
+	int ret = module_get_kallsym(iter->pos - kallsyms_num_syms,
+				     &iter->value, &iter->type,
+				     iter->name, iter->module_name,
+				     &iter->exported);
+	if (ret < 0) {
+		iter->pos_mod_end = iter->pos;
 		return 0;
+	}
+
 	return 1;
+}
+
+static int get_ksymbol_bpf(struct kallsym_iter *iter)
+{
+	iter->module_name[0] = '\0';
+	iter->exported = 0;
+	return bpf_get_kallsym(iter->pos - iter->pos_mod_end,
+			       &iter->value, &iter->type,
+			       iter->name) < 0 ? 0 : 1;
 }
 
 /* Returns space to next name. */
@@ -508,16 +531,30 @@ static void reset_iter(struct kallsym_iter *iter, loff_t new_pos)
 	iter->name[0] = '\0';
 	iter->nameoff = get_symbol_offset(new_pos);
 	iter->pos = new_pos;
+	if (new_pos == 0)
+		iter->pos_mod_end = 0;
+}
+
+static int update_iter_mod(struct kallsym_iter *iter, loff_t pos)
+{
+	iter->pos = pos;
+
+	if (iter->pos_mod_end > 0 &&
+	    iter->pos_mod_end < iter->pos)
+		return get_ksymbol_bpf(iter);
+
+	if (!get_ksymbol_mod(iter))
+		return get_ksymbol_bpf(iter);
+
+	return 1;
 }
 
 /* Returns false if pos at or past end of file. */
 static int update_iter(struct kallsym_iter *iter, loff_t pos)
 {
 	/* Module symbols can be accessed randomly. */
-	if (pos >= kallsyms_num_syms) {
-		iter->pos = pos;
-		return get_ksymbol_mod(iter);
-	}
+	if (pos >= kallsyms_num_syms)
+		return update_iter_mod(iter, pos);
 
 	/* If we're not on the desired position, reset to new position. */
 	if (pos != iter->pos)

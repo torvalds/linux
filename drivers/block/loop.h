@@ -49,6 +49,7 @@ struct loop_device {
 	struct file *	lo_backing_file;
 	struct block_device *lo_device;
 	unsigned	lo_blocksize;
+	unsigned	lo_logical_blocksize;
 	void		*key_data; 
 
 	gfp_t		old_gfp_mask;
@@ -70,6 +71,7 @@ struct loop_cmd {
 	struct request *rq;
 	struct list_head list;
 	bool use_aio;           /* use AIO interface to handle I/O */
+	long ret;
 	struct kiocb iocb;
 };
 

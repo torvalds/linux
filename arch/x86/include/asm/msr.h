@@ -70,17 +70,24 @@ extern struct tracepoint __tracepoint_read_msr;
 extern struct tracepoint __tracepoint_write_msr;
 extern struct tracepoint __tracepoint_rdpmc;
 #define msr_tracepoint_active(t) static_key_false(&(t).key)
-extern void do_trace_write_msr(unsigned msr, u64 val, int failed);
-extern void do_trace_read_msr(unsigned msr, u64 val, int failed);
-extern void do_trace_rdpmc(unsigned msr, u64 val, int failed);
+extern void do_trace_write_msr(unsigned int msr, u64 val, int failed);
+extern void do_trace_read_msr(unsigned int msr, u64 val, int failed);
+extern void do_trace_rdpmc(unsigned int msr, u64 val, int failed);
 #else
 #define msr_tracepoint_active(t) false
-static inline void do_trace_write_msr(unsigned msr, u64 val, int failed) {}
-static inline void do_trace_read_msr(unsigned msr, u64 val, int failed) {}
-static inline void do_trace_rdpmc(unsigned msr, u64 val, int failed) {}
+static inline void do_trace_write_msr(unsigned int msr, u64 val, int failed) {}
+static inline void do_trace_read_msr(unsigned int msr, u64 val, int failed) {}
+static inline void do_trace_rdpmc(unsigned int msr, u64 val, int failed) {}
 #endif
 
-static inline unsigned long long native_read_msr(unsigned int msr)
+/*
+ * __rdmsr() and __wrmsr() are the two primitives which are the bare minimum MSR
+ * accessors and should not have any tracing or other functionality piggybacking
+ * on them - those are *purely* for accessing MSRs and nothing more. So don't even
+ * think of extending them - you will be slapped with a stinking trout or a frozen
+ * shark will reach you, wherever you are! You've been warned.
+ */
+static inline unsigned long long notrace __rdmsr(unsigned int msr)
 {
 	DECLARE_ARGS(val, low, high);
 
@@ -88,9 +95,28 @@ static inline unsigned long long native_read_msr(unsigned int msr)
 		     "2:\n"
 		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_rdmsr_unsafe)
 		     : EAX_EDX_RET(val, low, high) : "c" (msr));
-	if (msr_tracepoint_active(__tracepoint_read_msr))
-		do_trace_read_msr(msr, EAX_EDX_VAL(val, low, high), 0);
+
 	return EAX_EDX_VAL(val, low, high);
+}
+
+static inline void notrace __wrmsr(unsigned int msr, u32 low, u32 high)
+{
+	asm volatile("1: wrmsr\n"
+		     "2:\n"
+		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_wrmsr_unsafe)
+		     : : "c" (msr), "a"(low), "d" (high) : "memory");
+}
+
+static inline unsigned long long native_read_msr(unsigned int msr)
+{
+	unsigned long long val;
+
+	val = __rdmsr(msr);
+
+	if (msr_tracepoint_active(__tracepoint_read_msr))
+		do_trace_read_msr(msr, val, 0);
+
+	return val;
 }
 
 static inline unsigned long long native_read_msr_safe(unsigned int msr,
@@ -115,22 +141,21 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 }
 
 /* Can be uninlined because referenced by paravirt */
-notrace static inline void native_write_msr(unsigned int msr,
-					    unsigned low, unsigned high)
+static inline void notrace
+native_write_msr(unsigned int msr, u32 low, u32 high)
 {
-	asm volatile("1: wrmsr\n"
-		     "2:\n"
-		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_wrmsr_unsafe)
-		     : : "c" (msr), "a"(low), "d" (high) : "memory");
+	__wrmsr(msr, low, high);
+
 	if (msr_tracepoint_active(__tracepoint_write_msr))
 		do_trace_write_msr(msr, ((u64)high << 32 | low), 0);
 }
 
 /* Can be uninlined because referenced by paravirt */
-notrace static inline int native_write_msr_safe(unsigned int msr,
-					unsigned low, unsigned high)
+static inline int notrace
+native_write_msr_safe(unsigned int msr, u32 low, u32 high)
 {
 	int err;
+
 	asm volatile("2: wrmsr ; xor %[err],%[err]\n"
 		     "1:\n\t"
 		     ".section .fixup,\"ax\"\n\t"
@@ -223,7 +248,7 @@ do {								\
 	(void)((high) = (u32)(__val >> 32));			\
 } while (0)
 
-static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
+static inline void wrmsr(unsigned int msr, u32 low, u32 high)
 {
 	native_write_msr(msr, low, high);
 }
@@ -231,13 +256,13 @@ static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
 #define rdmsrl(msr, val)			\
 	((val) = native_read_msr((msr)))
 
-static inline void wrmsrl(unsigned msr, u64 val)
+static inline void wrmsrl(unsigned int msr, u64 val)
 {
 	native_write_msr(msr, (u32)(val & 0xffffffffULL), (u32)(val >> 32));
 }
 
 /* wrmsr with exception handling */
-static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
+static inline int wrmsr_safe(unsigned int msr, u32 low, u32 high)
 {
 	return native_write_msr_safe(msr, low, high);
 }
@@ -252,7 +277,7 @@ static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
 	__err;							\
 })
 
-static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
+static inline int rdmsrl_safe(unsigned int msr, unsigned long long *p)
 {
 	int err;
 
@@ -325,12 +350,12 @@ static inline int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 static inline void rdmsr_on_cpus(const struct cpumask *m, u32 msr_no,
 				struct msr *msrs)
 {
-       rdmsr_on_cpu(0, msr_no, &(msrs[0].l), &(msrs[0].h));
+	rdmsr_on_cpu(0, msr_no, &(msrs[0].l), &(msrs[0].h));
 }
 static inline void wrmsr_on_cpus(const struct cpumask *m, u32 msr_no,
 				struct msr *msrs)
 {
-       wrmsr_on_cpu(0, msr_no, msrs[0].l, msrs[0].h);
+	wrmsr_on_cpu(0, msr_no, msrs[0].l, msrs[0].h);
 }
 static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no,
 				    u32 *l, u32 *h)

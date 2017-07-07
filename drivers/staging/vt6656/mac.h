@@ -364,20 +364,21 @@ struct vnt_mac_set_key {
 	u8 key[WLAN_KEY_LEN_CCMP];
 } __packed;
 
-void vnt_mac_set_filter(struct vnt_private *, u64);
-void vnt_mac_shutdown(struct vnt_private *);
-void vnt_mac_set_bb_type(struct vnt_private *, u8);
-void vnt_mac_disable_keyentry(struct vnt_private *, u8);
-void vnt_mac_set_keyentry(struct vnt_private *, u16, u32, u32, u8 *, u8 *);
-void vnt_mac_reg_bits_off(struct vnt_private *, u8, u8);
-void vnt_mac_reg_bits_on(struct vnt_private *, u8, u8);
-void vnt_mac_write_word(struct vnt_private *, u8, u16);
-void vnt_mac_set_bssid_addr(struct vnt_private *, u8 *);
-void vnt_mac_enable_protect_mode(struct vnt_private *);
-void vnt_mac_disable_protect_mode(struct vnt_private *);
-void vnt_mac_enable_barker_preamble_mode(struct vnt_private *);
-void vnt_mac_disable_barker_preamble_mode(struct vnt_private *);
-void vnt_mac_set_beacon_interval(struct vnt_private *, u16);
-void vnt_mac_set_led(struct vnt_private *priv, u8, u8);
+void vnt_mac_set_filter(struct vnt_private *priv, u64 mc_filter);
+void vnt_mac_shutdown(struct vnt_private *priv);
+void vnt_mac_set_bb_type(struct vnt_private *priv, u8 type);
+void vnt_mac_disable_keyentry(struct vnt_private *priv, u8 entry_idx);
+void vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
+			  u32 key_idx, u8 *addr, u8 *key);
+void vnt_mac_reg_bits_off(struct vnt_private *priv, u8 reg_ofs, u8 bits);
+void vnt_mac_reg_bits_on(struct vnt_private *priv, u8 reg_ofs, u8 bits);
+void vnt_mac_write_word(struct vnt_private *priv, u8 reg_ofs, u16 word);
+void vnt_mac_set_bssid_addr(struct vnt_private *priv, u8 *addr);
+void vnt_mac_enable_protect_mode(struct vnt_private *priv);
+void vnt_mac_disable_protect_mode(struct vnt_private *priv);
+void vnt_mac_enable_barker_preamble_mode(struct vnt_private *priv);
+void vnt_mac_disable_barker_preamble_mode(struct vnt_private *priv);
+void vnt_mac_set_beacon_interval(struct vnt_private *priv, u16 interval);
+void vnt_mac_set_led(struct vnt_private *privpriv, u8 state, u8 led);
 
 #endif /* __MAC_H__ */

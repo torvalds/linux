@@ -25,6 +25,12 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	sata_refclk: fixedclock0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
 };
 
 &dm816x_pinmux {
@@ -172,4 +178,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_pins>;
 	mentor,multipoint = <0>;
+};
+
+&sata {
+	clocks = <&sysclk5_ck>, <&sata_refclk>;
 };

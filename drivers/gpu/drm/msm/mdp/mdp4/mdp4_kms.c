@@ -17,6 +17,7 @@
 
 
 #include "msm_drv.h"
+#include "msm_gem.h"
 #include "msm_mmu.h"
 #include "mdp4_kms.h"
 
@@ -159,16 +160,17 @@ static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct device *dev = mdp4_kms->dev->dev;
-	struct msm_mmu *mmu = mdp4_kms->mmu;
-
-	if (mmu) {
-		mmu->funcs->detach(mmu, iommu_ports, ARRAY_SIZE(iommu_ports));
-		mmu->funcs->destroy(mmu);
-	}
+	struct msm_gem_address_space *aspace = mdp4_kms->aspace;
 
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
 	drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+
+	if (aspace) {
+		aspace->mmu->funcs->detach(aspace->mmu,
+				iommu_ports, ARRAY_SIZE(iommu_ports));
+		msm_gem_address_space_put(aspace);
+	}
 
 	if (mdp4_kms->rpm_enabled)
 		pm_runtime_disable(dev);
@@ -223,29 +225,6 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	return 0;
 }
 
-static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
-{
-	struct device_node *endpoint, *panel_node;
-	struct device_node *np = dev->dev->of_node;
-
-	endpoint = of_graph_get_next_endpoint(np, NULL);
-	if (!endpoint) {
-		DBG("no endpoint in MDP4 to fetch LVDS panel\n");
-		return NULL;
-	}
-
-	/* don't proceed if we have an endpoint but no panel_node tied to it */
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	if (!panel_node) {
-		dev_err(dev->dev, "no valid panel node\n");
-		of_node_put(endpoint);
-		return ERR_PTR(-ENODEV);
-	}
-
-	of_node_put(endpoint);
-
-	return panel_node;
-}
 
 static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 				  int intf_type)
@@ -255,21 +234,18 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct device_node *panel_node;
-	struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
-	int i, dsi_id;
+	int dsi_id;
 	int ret;
 
 	switch (intf_type) {
 	case DRM_MODE_ENCODER_LVDS:
 		/*
-		 * bail out early if:
-		 * - there is no panel node (no need to initialize lcdc
-		 *   encoder and lvds connector), or
-		 * - panel node is a bad pointer
+		 * bail out early if there is no panel node (no need to
+		 * initialize LCDC encoder and LVDS connector)
 		 */
-		panel_node = mdp4_detect_lcdc_panel(dev);
-		if (IS_ERR_OR_NULL(panel_node))
-			return PTR_ERR(panel_node);
+		panel_node = of_graph_get_remote_node(dev->dev->of_node, 0, 0);
+		if (!panel_node)
+			return 0;
 
 		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
 		if (IS_ERR(encoder)) {
@@ -319,22 +295,19 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		if (!priv->dsi[dsi_id])
 			break;
 
-		for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
-			dsi_encs[i] = mdp4_dsi_encoder_init(dev);
-			if (IS_ERR(dsi_encs[i])) {
-				ret = PTR_ERR(dsi_encs[i]);
-				dev_err(dev->dev,
-					"failed to construct DSI encoder: %d\n",
-					ret);
-				return ret;
-			}
-
-			/* TODO: Add DMA_S later? */
-			dsi_encs[i]->possible_crtcs = 1 << DMA_P;
-			priv->encoders[priv->num_encoders++] = dsi_encs[i];
+		encoder = mdp4_dsi_encoder_init(dev);
+		if (IS_ERR(encoder)) {
+			ret = PTR_ERR(encoder);
+			dev_err(dev->dev,
+				"failed to construct DSI encoder: %d\n", ret);
+			return ret;
 		}
 
-		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		/* TODO: Add DMA_S later? */
+		encoder->possible_crtcs = 1 << DMA_P;
+		priv->encoders[priv->num_encoders++] = encoder;
+
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, encoder);
 		if (ret) {
 			dev_err(dev->dev, "failed to initialize DSI: %d\n",
 				ret);
@@ -435,11 +408,11 @@ fail:
 
 struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct mdp4_platform_config *config = mdp4_get_config(pdev);
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
-	struct msm_mmu *mmu;
+	struct msm_gem_address_space *aspace;
 	int irq, ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
@@ -530,24 +503,26 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->iommu) {
-		mmu = msm_iommu_new(&pdev->dev, config->iommu);
-		if (IS_ERR(mmu)) {
-			ret = PTR_ERR(mmu);
+		aspace = msm_gem_address_space_create(&pdev->dev,
+				config->iommu, "mdp4");
+		if (IS_ERR(aspace)) {
+			ret = PTR_ERR(aspace);
 			goto fail;
 		}
-		ret = mmu->funcs->attach(mmu, iommu_ports,
+
+		mdp4_kms->aspace = aspace;
+
+		ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret)
 			goto fail;
-
-		mdp4_kms->mmu = mmu;
 	} else {
 		dev_info(dev->dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
-		mmu = NULL;
+		aspace = NULL;
 	}
 
-	mdp4_kms->id = msm_register_mmu(dev, mmu);
+	mdp4_kms->id = msm_register_address_space(dev, aspace);
 	if (mdp4_kms->id < 0) {
 		ret = mdp4_kms->id;
 		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);
@@ -597,6 +572,10 @@ static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
 	config.max_clk = 266667000;
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
+	if (config.iommu) {
+		config.iommu->geometry.aperture_start = 0x1000;
+		config.iommu->geometry.aperture_end = 0xffffffff;
+	}
 
 	return &config;
 }

@@ -5,17 +5,12 @@
  * User space memory access functions
  */
 
-#ifdef __KERNEL__
-#include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
 #include <asm/asi.h>
 #include <asm/spitfire.h>
 #include <asm-generic/uaccess-unaligned.h>
-#endif
-
-#ifndef __ASSEMBLY__
+#include <asm/extable_64.h>
 
 #include <asm/processor.h>
 
@@ -34,9 +29,6 @@
 
 #define KERNEL_DS   ((mm_segment_t) { ASI_P })
 #define USER_DS     ((mm_segment_t) { ASI_AIUS })	/* har har har */
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 #define get_fs() ((mm_segment_t){(current_thread_info()->current_ds)})
 #define get_ds() (KERNEL_DS)
@@ -81,24 +73,6 @@ static inline int access_ok(int type, const void __user * addr, unsigned long si
 	return 1;
 }
 
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-        unsigned int insn, fixup;
-};
-
-void __ret_efault(void);
 void __retl_efault(void);
 
 /* Uh, these should become the main single-value transfer routines..
@@ -202,76 +176,29 @@ __asm__ __volatile__(							\
 
 int __get_user_bad(void);
 
-unsigned long __must_check ___copy_from_user(void *to,
+unsigned long __must_check raw_copy_from_user(void *to,
 					     const void __user *from,
 					     unsigned long size);
-unsigned long copy_from_user_fixup(void *to, const void __user *from,
-				   unsigned long size);
-static inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long size)
-{
-	unsigned long ret;
 
-	check_object_size(to, size, false);
-
-	ret = ___copy_from_user(to, from, size);
-	if (unlikely(ret))
-		ret = copy_from_user_fixup(to, from, size);
-
-	return ret;
-}
-#define __copy_from_user copy_from_user
-
-unsigned long __must_check ___copy_to_user(void __user *to,
+unsigned long __must_check raw_copy_to_user(void __user *to,
 					   const void *from,
 					   unsigned long size);
-unsigned long copy_to_user_fixup(void __user *to, const void *from,
-				 unsigned long size);
-static inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long size)
-{
-	unsigned long ret;
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
-	check_object_size(from, size, true);
-
-	ret = ___copy_to_user(to, from, size);
-	if (unlikely(ret))
-		ret = copy_to_user_fixup(to, from, size);
-	return ret;
-}
-#define __copy_to_user copy_to_user
-
-unsigned long __must_check ___copy_in_user(void __user *to,
+unsigned long __must_check raw_copy_in_user(void __user *to,
 					   const void __user *from,
 					   unsigned long size);
-unsigned long copy_in_user_fixup(void __user *to, void __user *from,
-				 unsigned long size);
-static inline unsigned long __must_check
-copy_in_user(void __user *to, void __user *from, unsigned long size)
-{
-	unsigned long ret = ___copy_in_user(to, from, size);
-
-	if (unlikely(ret))
-		ret = copy_in_user_fixup(to, from, size);
-	return ret;
-}
-#define __copy_in_user copy_in_user
 
 unsigned long __must_check __clear_user(void __user *, unsigned long);
 
 #define clear_user __clear_user
 
-__must_check long strlen_user(const char __user *str);
 __must_check long strnlen_user(const char __user *str, long n);
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
 
 struct pt_regs;
 unsigned long compute_effective_address(struct pt_regs *,
 					unsigned int insn,
 					unsigned int rd);
-
-#endif  /* __ASSEMBLY__ */
 
 #endif /* _ASM_UACCESS_H */

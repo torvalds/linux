@@ -361,7 +361,7 @@ Lrounds_16_xx:
 	ret
 ENDPROC(sha512_x4_avx2)
 
-.data
+.section	.rodata.K512_4, "a", @progbits
 .align 64
 K512_4:
 	.octa 0x428a2f98d728ae22428a2f98d728ae22,\
@@ -525,5 +525,7 @@ K512_4:
 	.octa 0x6c44198c4a4758176c44198c4a475817,\
 		0x6c44198c4a4758176c44198c4a475817
 
+.section	.rodata.cst32.PSHUFFLE_BYTE_FLIP_MASK, "aM", @progbits, 32
+.align 32
 PSHUFFLE_BYTE_FLIP_MASK: .octa 0x08090a0b0c0d0e0f0001020304050607
                          .octa 0x18191a1b1c1d1e1f1011121314151617

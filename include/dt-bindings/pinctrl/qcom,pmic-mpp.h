@@ -65,6 +65,12 @@
 #define PMA8084_MPP_S4			2
 #define PMA8084_MPP_L6			3
 
+#define PM8994_MPP_VPH			0
+/* Only supported for MPP_05-MPP_08 */
+#define PM8994_MPP_L19			1
+#define PM8994_MPP_S4			2
+#define PM8994_MPP_L12			3
+
 /*
  * Analog Input - Set the source for analog input.
  * To be used with "qcom,amux-route" property

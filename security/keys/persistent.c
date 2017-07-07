@@ -10,6 +10,8 @@
  */
 
 #include <linux/user_namespace.h>
+#include <linux/cred.h>
+
 #include "internal.h"
 
 unsigned persistent_keyring_expiry = 3 * 24 * 3600; /* Expire after 3 days of non-use */

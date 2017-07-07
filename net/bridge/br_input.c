@@ -21,6 +21,7 @@
 #include <linux/export.h>
 #include <linux/rculist.h>
 #include "br_private.h"
+#include "br_private_tunnel.h"
 
 /* Hook for brouter */
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
@@ -29,6 +30,7 @@ EXPORT_SYMBOL(br_should_route_hook);
 static int
 br_netif_receive_skb(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	br_drop_fake_rtable(skb);
 	return netif_receive_skb(skb);
 }
 
@@ -57,7 +59,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 
 	indev = skb->dev;
 	skb->dev = brdev;
-	skb = br_handle_vlan(br, vg, skb);
+	skb = br_handle_vlan(br, NULL, vg, skb);
 	if (!skb)
 		return NET_RX_DROP;
 	/* update the multicast stats if the packet is IGMP/MLD */
@@ -113,7 +115,7 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 			return;
 		}
 
-		f = __br_fdb_get(br, n->ha, vid);
+		f = br_fdb_find_rcu(br, n->ha, vid);
 		if (f && ((p->flags & BR_PROXYARP) ||
 			  (f->dst && (f->dst->flags & BR_PROXYARP_WIFI)))) {
 			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, skb->dev, tip,
@@ -188,16 +190,19 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		}
 		break;
 	case BR_PKT_UNICAST:
-		dst = __br_fdb_get(br, dest, vid);
+		dst = br_fdb_find_rcu(br, dest, vid);
 	default:
 		break;
 	}
 
 	if (dst) {
+		unsigned long now = jiffies;
+
 		if (dst->is_local)
 			return br_pass_frame_up(skb);
 
-		dst->used = jiffies;
+		if (now != dst->used)
+			dst->used = now;
 		br_forward(dst->dst, skb, local_rcv, false);
 	} else {
 		if (!mcast_hit)
@@ -261,6 +266,11 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_CONSUMED;
 
 	p = br_port_get_rcu(skb->dev);
+	if (p->flags & BR_VLAN_TUNNEL) {
+		if (br_handle_ingress_vlan_tunnel(skb, p,
+						  nbp_vlan_group_rcu(p)))
+			goto drop;
+	}
 
 	if (unlikely(is_link_local_ether_addr(dest))) {
 		u16 fwd_mask = p->br->group_fwd_mask_required;

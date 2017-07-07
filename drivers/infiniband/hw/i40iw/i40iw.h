@@ -112,9 +112,12 @@
 #define I40IW_DRV_OPT_MCAST_LOGPORT_MAP    0x00000800
 
 #define IW_HMC_OBJ_TYPE_NUM ARRAY_SIZE(iw_hmc_obj_types)
-#define IW_CFG_FPM_QP_COUNT		32768
-#define I40IW_MAX_PAGES_PER_FMR		512
-#define I40IW_MIN_PAGES_PER_FMR		1
+#define IW_CFG_FPM_QP_COUNT               32768
+#define I40IW_MAX_PAGES_PER_FMR           512
+#define I40IW_MIN_PAGES_PER_FMR           1
+#define I40IW_CQP_COMPL_RQ_WQE_FLUSHED    2
+#define I40IW_CQP_COMPL_SQ_WQE_FLUSHED    3
+#define I40IW_CQP_COMPL_RQ_SQ_WQE_FLUSHED 4
 
 #define I40IW_MTU_TO_MSS		40
 #define I40IW_DEFAULT_MSS		1460
@@ -210,6 +213,12 @@ struct i40iw_msix_vector {
 	u32 ceq_id;
 };
 
+struct l2params_work {
+	struct work_struct work;
+	struct i40iw_device *iwdev;
+	struct i40iw_l2params l2params;
+};
+
 #define I40IW_MSIX_TABLE_SIZE   65
 
 struct virtchnl_work {
@@ -227,6 +236,7 @@ struct i40iw_device {
 	struct net_device *netdev;
 	wait_queue_head_t vchnl_waitq;
 	struct i40iw_sc_dev sc_dev;
+	struct i40iw_sc_vsi vsi;
 	struct i40iw_handler *hdl;
 	struct i40e_info *ldev;
 	struct i40e_client *client;
@@ -280,7 +290,6 @@ struct i40iw_device {
 	u32 sd_type;
 	struct workqueue_struct *param_wq;
 	atomic_t params_busy;
-	u32 mss;
 	enum init_completion_state init_state;
 	u16 mac_ip_table_idx;
 	atomic_t vchnl_msgs;
@@ -297,6 +306,14 @@ struct i40iw_device {
 	u32 mr_stagmask;
 	u32 mpa_version;
 	bool dcb;
+	bool closing;
+	bool reset;
+	u32 used_pds;
+	u32 used_cqs;
+	u32 used_mrs;
+	u32 used_qps;
+	wait_queue_head_t close_wq;
+	atomic64_t use_count;
 };
 
 struct i40iw_ib_device {
@@ -498,7 +515,7 @@ u32 i40iw_initialize_hw_resources(struct i40iw_device *iwdev);
 
 int i40iw_register_rdma_device(struct i40iw_device *iwdev);
 void i40iw_port_ibevent(struct i40iw_device *iwdev);
-int i40iw_cm_disconn(struct i40iw_qp *);
+void i40iw_cm_disconn(struct i40iw_qp *iwqp);
 void i40iw_cm_disconn_worker(void *);
 int mini_cm_recv_pkt(struct i40iw_cm_core *, struct i40iw_device *,
 		     struct sk_buff *);
@@ -508,20 +525,26 @@ enum i40iw_status_code i40iw_handle_cqp_op(struct i40iw_device *iwdev,
 enum i40iw_status_code i40iw_add_mac_addr(struct i40iw_device *iwdev,
 					  u8 *mac_addr, u8 *mac_index);
 int i40iw_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *);
+void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq);
 
 void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev);
 void i40iw_add_pdusecount(struct i40iw_pd *iwpd);
+void i40iw_rem_devusecount(struct i40iw_device *iwdev);
+void i40iw_add_devusecount(struct i40iw_device *iwdev);
 void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 			struct i40iw_modify_qp_info *info, bool wait);
 
+void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev,
+			     struct i40iw_sc_qp *qp,
+			     bool suspend);
 enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  struct i40iw_cm_info *cminfo,
 					  enum i40iw_quad_entry_type etype,
 					  enum i40iw_quad_hash_manage_type mtype,
 					  void *cmnode,
 					  bool wait);
-void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf);
-void i40iw_free_sqbuf(struct i40iw_sc_dev *dev, void *bufp);
+void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf);
+void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp);
 void i40iw_free_qp_resources(struct i40iw_device *iwdev,
 			     struct i40iw_qp *iwqp,
 			     u32 qp_num);

@@ -56,6 +56,10 @@ struct lgdt3306a_config {
 
 	/* demod clock freq in MHz; 24 or 25 supported */
 	int  xtalMHz;
+
+	/* returned by driver if using i2c bus multiplexing */
+	struct dvb_frontend **fe;
+	struct i2c_adapter **i2c_adapter;
 };
 
 #if IS_REACHABLE(CONFIG_DVB_LGDT3306A)

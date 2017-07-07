@@ -5,7 +5,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define SAMPLE_BUFFER_SIZE 8192
 

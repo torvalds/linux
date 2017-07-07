@@ -33,6 +33,8 @@ enum {
 	TCA_TUNNEL_KEY_ENC_IPV6_DST,	/* struct in6_addr */
 	TCA_TUNNEL_KEY_ENC_KEY_ID,	/* be64 */
 	TCA_TUNNEL_KEY_PAD,
+	TCA_TUNNEL_KEY_ENC_DST_PORT,	/* be16 */
+	TCA_TUNNEL_KEY_NO_CSUM,		/* u8 */
 	__TCA_TUNNEL_KEY_MAX,
 };
 

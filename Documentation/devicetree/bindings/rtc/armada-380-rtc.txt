@@ -1,9 +1,11 @@
-* Real Time Clock of the Armada 38x SoCs
+* Real Time Clock of the Armada 38x/7K/8K SoCs
 
-RTC controller for the Armada 38x SoCs
+RTC controller for the Armada 38x, 7K and 8K SoCs
 
 Required properties:
-- compatible : Should be "marvell,armada-380-rtc"
+- compatible : Should be one of the following:
+	"marvell,armada-380-rtc" for Armada 38x SoC
+	"marvell,armada-8k-rtc" for Aramda 7K/8K SoCs
 - reg: a list of base address and size pairs, one for each entry in
   reg-names
 - reg names: should contain:

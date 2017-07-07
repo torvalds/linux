@@ -49,7 +49,7 @@ static void parse_dep_file(void *map, size_t len)
 	char *end = m + len;
 	char *p;
 	char s[PATH_MAX];
-	int is_target;
+	int is_target, has_target = 0;
 	int saw_any_target = 0;
 	int is_first_dep = 0;
 
@@ -67,7 +67,8 @@ static void parse_dep_file(void *map, size_t len)
 		if (is_target) {
 			/* The /next/ file is the first dependency */
 			is_first_dep = 1;
-		} else {
+			has_target = 1;
+		} else if (has_target) {
 			/* Save this token/filename */
 			memcpy(s, m, p-m);
 			s[p - m] = 0;

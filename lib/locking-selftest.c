@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
 #include <linux/irqflags.h>
+#include <linux/rtmutex.h>
 
 /*
  * Change this to 1 if you want to see the failure printouts:
@@ -46,6 +47,7 @@ __setup("debug_locks_verbose=", setup_debug_locks_verbose);
 #define LOCKTYPE_MUTEX	0x4
 #define LOCKTYPE_RWSEM	0x8
 #define LOCKTYPE_WW	0x10
+#define LOCKTYPE_RTMUTEX 0x20
 
 static struct ww_acquire_ctx t, t2;
 static struct ww_mutex o, o2, o3;
@@ -73,6 +75,15 @@ static DECLARE_RWSEM(rwsem_A);
 static DECLARE_RWSEM(rwsem_B);
 static DECLARE_RWSEM(rwsem_C);
 static DECLARE_RWSEM(rwsem_D);
+
+#ifdef CONFIG_RT_MUTEXES
+
+static DEFINE_RT_MUTEX(rtmutex_A);
+static DEFINE_RT_MUTEX(rtmutex_B);
+static DEFINE_RT_MUTEX(rtmutex_C);
+static DEFINE_RT_MUTEX(rtmutex_D);
+
+#endif
 
 /*
  * Locks that we initialize dynamically as well so that
@@ -108,6 +119,17 @@ static DECLARE_RWSEM(rwsem_Y2);
 static DECLARE_RWSEM(rwsem_Z1);
 static DECLARE_RWSEM(rwsem_Z2);
 
+#ifdef CONFIG_RT_MUTEXES
+
+static DEFINE_RT_MUTEX(rtmutex_X1);
+static DEFINE_RT_MUTEX(rtmutex_X2);
+static DEFINE_RT_MUTEX(rtmutex_Y1);
+static DEFINE_RT_MUTEX(rtmutex_Y2);
+static DEFINE_RT_MUTEX(rtmutex_Z1);
+static DEFINE_RT_MUTEX(rtmutex_Z2);
+
+#endif
+
 /*
  * non-inlined runtime initializers, to let separate locks share
  * the same lock-class:
@@ -129,6 +151,17 @@ INIT_CLASS_FUNC(Z)
 
 static void init_shared_classes(void)
 {
+#ifdef CONFIG_RT_MUTEXES
+	static struct lock_class_key rt_X, rt_Y, rt_Z;
+
+	__rt_mutex_init(&rtmutex_X1, __func__, &rt_X);
+	__rt_mutex_init(&rtmutex_X2, __func__, &rt_X);
+	__rt_mutex_init(&rtmutex_Y1, __func__, &rt_Y);
+	__rt_mutex_init(&rtmutex_Y2, __func__, &rt_Y);
+	__rt_mutex_init(&rtmutex_Z1, __func__, &rt_Z);
+	__rt_mutex_init(&rtmutex_Z2, __func__, &rt_Z);
+#endif
+
 	init_class_X(&lock_X1, &rwlock_X1, &mutex_X1, &rwsem_X1);
 	init_class_X(&lock_X2, &rwlock_X2, &mutex_X2, &rwsem_X2);
 
@@ -192,6 +225,10 @@ static void init_shared_classes(void)
 #define ML(x)			mutex_lock(&mutex_##x)
 #define MU(x)			mutex_unlock(&mutex_##x)
 #define MI(x)			mutex_init(&mutex_##x)
+
+#define RTL(x)			rt_mutex_lock(&rtmutex_##x)
+#define RTU(x)			rt_mutex_unlock(&rtmutex_##x)
+#define RTI(x)			rt_mutex_init(&rtmutex_##x)
 
 #define WSL(x)			down_write(&rwsem_##x)
 #define WSU(x)			up_write(&rwsem_##x)
@@ -263,6 +300,11 @@ GENERATE_TESTCASE(AA_mutex)
 GENERATE_TESTCASE(AA_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(AA_rsem)
+
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(AA_rtmutex);
+#endif
 
 #undef E
 
@@ -345,6 +387,11 @@ GENERATE_TESTCASE(ABBA_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(ABBA_rsem)
 
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(ABBA_rtmutex);
+#endif
+
 #undef E
 
 /*
@@ -373,6 +420,11 @@ GENERATE_TESTCASE(ABBCCA_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(ABBCCA_rsem)
 
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(ABBCCA_rtmutex);
+#endif
+
 #undef E
 
 /*
@@ -400,6 +452,11 @@ GENERATE_TESTCASE(ABCABC_mutex)
 GENERATE_TESTCASE(ABCABC_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(ABCABC_rsem)
+
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(ABCABC_rtmutex);
+#endif
 
 #undef E
 
@@ -430,6 +487,11 @@ GENERATE_TESTCASE(ABBCCDDA_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(ABBCCDDA_rsem)
 
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(ABBCCDDA_rtmutex);
+#endif
+
 #undef E
 
 /*
@@ -457,6 +519,11 @@ GENERATE_TESTCASE(ABCDBDDA_mutex)
 GENERATE_TESTCASE(ABCDBDDA_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(ABCDBDDA_rsem)
+
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(ABCDBDDA_rtmutex);
+#endif
 
 #undef E
 
@@ -486,6 +553,11 @@ GENERATE_TESTCASE(ABCDBCDA_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(ABCDBCDA_rsem)
 
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(ABCDBCDA_rtmutex);
+#endif
+
 #undef E
 
 /*
@@ -513,33 +585,10 @@ GENERATE_TESTCASE(double_unlock_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(double_unlock_rsem)
 
-#undef E
-
-/*
- * Bad unlock ordering:
- */
-#define E()					\
-						\
-	LOCK(A);				\
-	LOCK(B);				\
-	UNLOCK(A); /* fail */			\
-	UNLOCK(B);
-
-/*
- * 6 testcases:
- */
-#include "locking-selftest-spin.h"
-GENERATE_TESTCASE(bad_unlock_order_spin)
-#include "locking-selftest-wlock.h"
-GENERATE_TESTCASE(bad_unlock_order_wlock)
-#include "locking-selftest-rlock.h"
-GENERATE_TESTCASE(bad_unlock_order_rlock)
-#include "locking-selftest-mutex.h"
-GENERATE_TESTCASE(bad_unlock_order_mutex)
-#include "locking-selftest-wsem.h"
-GENERATE_TESTCASE(bad_unlock_order_wsem)
-#include "locking-selftest-rsem.h"
-GENERATE_TESTCASE(bad_unlock_order_rsem)
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(double_unlock_rtmutex);
+#endif
 
 #undef E
 
@@ -566,6 +615,11 @@ GENERATE_TESTCASE(init_held_mutex)
 GENERATE_TESTCASE(init_held_wsem)
 #include "locking-selftest-rsem.h"
 GENERATE_TESTCASE(init_held_rsem)
+
+#ifdef CONFIG_RT_MUTEXES
+#include "locking-selftest-rtmutex.h"
+GENERATE_TESTCASE(init_held_rtmutex);
+#endif
 
 #undef E
 
@@ -916,6 +970,9 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 # define I_MUTEX(x)	lockdep_reset_lock(&mutex_##x.dep_map)
 # define I_RWSEM(x)	lockdep_reset_lock(&rwsem_##x.dep_map)
 # define I_WW(x)	lockdep_reset_lock(&x.dep_map)
+#ifdef CONFIG_RT_MUTEXES
+# define I_RTMUTEX(x)	lockdep_reset_lock(&rtmutex_##x.dep_map)
+#endif
 #else
 # define I_SPINLOCK(x)
 # define I_RWLOCK(x)
@@ -924,12 +981,23 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 # define I_WW(x)
 #endif
 
+#ifndef I_RTMUTEX
+# define I_RTMUTEX(x)
+#endif
+
+#ifdef CONFIG_RT_MUTEXES
+#define I2_RTMUTEX(x)	rt_mutex_init(&rtmutex_##x)
+#else
+#define I2_RTMUTEX(x)
+#endif
+
 #define I1(x)					\
 	do {					\
 		I_SPINLOCK(x);			\
 		I_RWLOCK(x);			\
 		I_MUTEX(x);			\
 		I_RWSEM(x);			\
+		I_RTMUTEX(x);			\
 	} while (0)
 
 #define I2(x)					\
@@ -938,6 +1006,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 		rwlock_init(&rwlock_##x);	\
 		mutex_init(&mutex_##x);		\
 		init_rwsem(&rwsem_##x);		\
+		I2_RTMUTEX(x);			\
 	} while (0)
 
 static void reset_locks(void)
@@ -980,23 +1049,23 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 #ifndef CONFIG_PROVE_LOCKING
 	if (expected == FAILURE && debug_locks) {
 		expected_testcase_failures++;
-		printk("failed|");
+		pr_cont("failed|");
 	}
 	else
 #endif
 	if (debug_locks != expected) {
 		unexpected_testcase_failures++;
-		printk("FAILED|");
+		pr_cont("FAILED|");
 
 		dump_stack();
 	} else {
 		testcase_successes++;
-		printk("  ok  |");
+		pr_cont("  ok  |");
 	}
 	testcase_total++;
 
 	if (debug_locks_verbose)
-		printk(" lockclass mask: %x, debug_locks: %d, expected: %d\n",
+		pr_cont(" lockclass mask: %x, debug_locks: %d, expected: %d\n",
 			lockclass_mask, debug_locks, expected);
 	/*
 	 * Some tests (e.g. double-unlock) might corrupt the preemption
@@ -1013,6 +1082,12 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 	reset_locks();
 }
 
+#ifdef CONFIG_RT_MUTEXES
+#define dotest_rt(fn, e, m)	dotest((fn), (e), (m))
+#else
+#define dotest_rt(fn, e, m)
+#endif
+
 static inline void print_testname(const char *testname)
 {
 	printk("%33s:", testname);
@@ -1021,26 +1096,26 @@ static inline void print_testname(const char *testname)
 #define DO_TESTCASE_1(desc, name, nr)				\
 	print_testname(desc"/"#nr);				\
 	dotest(name##_##nr, SUCCESS, LOCKTYPE_RWLOCK);		\
-	printk("\n");
+	pr_cont("\n");
 
 #define DO_TESTCASE_1B(desc, name, nr)				\
 	print_testname(desc"/"#nr);				\
 	dotest(name##_##nr, FAILURE, LOCKTYPE_RWLOCK);		\
-	printk("\n");
+	pr_cont("\n");
 
 #define DO_TESTCASE_3(desc, name, nr)				\
 	print_testname(desc"/"#nr);				\
 	dotest(name##_spin_##nr, FAILURE, LOCKTYPE_SPIN);	\
 	dotest(name##_wlock_##nr, FAILURE, LOCKTYPE_RWLOCK);	\
 	dotest(name##_rlock_##nr, SUCCESS, LOCKTYPE_RWLOCK);	\
-	printk("\n");
+	pr_cont("\n");
 
 #define DO_TESTCASE_3RW(desc, name, nr)				\
 	print_testname(desc"/"#nr);				\
 	dotest(name##_spin_##nr, FAILURE, LOCKTYPE_SPIN|LOCKTYPE_RWLOCK);\
 	dotest(name##_wlock_##nr, FAILURE, LOCKTYPE_RWLOCK);	\
 	dotest(name##_rlock_##nr, SUCCESS, LOCKTYPE_RWLOCK);	\
-	printk("\n");
+	pr_cont("\n");
 
 #define DO_TESTCASE_6(desc, name)				\
 	print_testname(desc);					\
@@ -1050,7 +1125,8 @@ static inline void print_testname(const char *testname)
 	dotest(name##_mutex, FAILURE, LOCKTYPE_MUTEX);		\
 	dotest(name##_wsem, FAILURE, LOCKTYPE_RWSEM);		\
 	dotest(name##_rsem, FAILURE, LOCKTYPE_RWSEM);		\
-	printk("\n");
+	dotest_rt(name##_rtmutex, FAILURE, LOCKTYPE_RTMUTEX);	\
+	pr_cont("\n");
 
 #define DO_TESTCASE_6_SUCCESS(desc, name)			\
 	print_testname(desc);					\
@@ -1060,7 +1136,8 @@ static inline void print_testname(const char *testname)
 	dotest(name##_mutex, SUCCESS, LOCKTYPE_MUTEX);		\
 	dotest(name##_wsem, SUCCESS, LOCKTYPE_RWSEM);		\
 	dotest(name##_rsem, SUCCESS, LOCKTYPE_RWSEM);		\
-	printk("\n");
+	dotest_rt(name##_rtmutex, SUCCESS, LOCKTYPE_RTMUTEX);	\
+	pr_cont("\n");
 
 /*
  * 'read' variant: rlocks must not trigger.
@@ -1073,7 +1150,8 @@ static inline void print_testname(const char *testname)
 	dotest(name##_mutex, FAILURE, LOCKTYPE_MUTEX);		\
 	dotest(name##_wsem, FAILURE, LOCKTYPE_RWSEM);		\
 	dotest(name##_rsem, FAILURE, LOCKTYPE_RWSEM);		\
-	printk("\n");
+	dotest_rt(name##_rtmutex, FAILURE, LOCKTYPE_RTMUTEX);	\
+	pr_cont("\n");
 
 #define DO_TESTCASE_2I(desc, name, nr)				\
 	DO_TESTCASE_1("hard-"desc, name##_hard, nr);		\
@@ -1726,25 +1804,25 @@ static void ww_tests(void)
 	dotest(ww_test_fail_acquire, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_normal, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_unneeded_slow, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("ww contexts mixing");
 	dotest(ww_test_two_contexts, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_diff_class, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("finishing ww context");
 	dotest(ww_test_context_done_twice, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_context_unlock_twice, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_context_fini_early, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_context_lock_after_done, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("locking mismatches");
 	dotest(ww_test_object_unlock_twice, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_object_lock_unbalanced, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_object_lock_stale_context, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("EDEADLK handling");
 	dotest(ww_test_edeadlk_normal, SUCCESS, LOCKTYPE_WW);
@@ -1757,11 +1835,11 @@ static void ww_tests(void)
 	dotest(ww_test_edeadlk_acquire_more_edeadlk_slow, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_wrong, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_wrong_slow, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("spinlock nest unlocked");
 	dotest(ww_test_spin_nest_unlocked, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	printk("  -----------------------------------------------------\n");
 	printk("                                 |block | try  |context|\n");
@@ -1771,25 +1849,25 @@ static void ww_tests(void)
 	dotest(ww_test_context_block, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_context_try, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_context_context, SUCCESS, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("try");
 	dotest(ww_test_try_block, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_try_try, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_try_context, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("block");
 	dotest(ww_test_block_block, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_block_try, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_block_context, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("spinlock");
 	dotest(ww_test_spin_block, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_spin_try, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_spin_context, FAILURE, LOCKTYPE_WW);
-	printk("\n");
+	pr_cont("\n");
 }
 
 void locking_selftest(void)
@@ -1825,36 +1903,35 @@ void locking_selftest(void)
 	DO_TESTCASE_6R("A-B-C-D-B-C-D-A deadlock", ABCDBCDA);
 	DO_TESTCASE_6("double unlock", double_unlock);
 	DO_TESTCASE_6("initialize held", init_held);
-	DO_TESTCASE_6_SUCCESS("bad unlock order", bad_unlock_order);
 
 	printk("  --------------------------------------------------------------------------\n");
 	print_testname("recursive read-lock");
-	printk("             |");
+	pr_cont("             |");
 	dotest(rlock_AA1, SUCCESS, LOCKTYPE_RWLOCK);
-	printk("             |");
+	pr_cont("             |");
 	dotest(rsem_AA1, FAILURE, LOCKTYPE_RWSEM);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("recursive read-lock #2");
-	printk("             |");
+	pr_cont("             |");
 	dotest(rlock_AA1B, SUCCESS, LOCKTYPE_RWLOCK);
-	printk("             |");
+	pr_cont("             |");
 	dotest(rsem_AA1B, FAILURE, LOCKTYPE_RWSEM);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("mixed read-write-lock");
-	printk("             |");
+	pr_cont("             |");
 	dotest(rlock_AA2, FAILURE, LOCKTYPE_RWLOCK);
-	printk("             |");
+	pr_cont("             |");
 	dotest(rsem_AA2, FAILURE, LOCKTYPE_RWSEM);
-	printk("\n");
+	pr_cont("\n");
 
 	print_testname("mixed write-read-lock");
-	printk("             |");
+	pr_cont("             |");
 	dotest(rlock_AA3, FAILURE, LOCKTYPE_RWLOCK);
-	printk("             |");
+	pr_cont("             |");
 	dotest(rsem_AA3, FAILURE, LOCKTYPE_RWSEM);
-	printk("\n");
+	pr_cont("\n");
 
 	printk("  --------------------------------------------------------------------------\n");
 

@@ -15,6 +15,8 @@
 #define	VNET_MINTSO	 2048	/* VIO protocol's minimum TSO len */
 #define	VNET_MAXTSO	65535	/* VIO protocol's maximum TSO len */
 
+#define VNET_MAX_MTU	65535
+
 /* VNET packets are sent in buffers with the first 6 bytes skipped
  * so that after the ethernet header the IPv4/IPv6 headers are aligned
  * properly.
@@ -33,6 +35,19 @@ struct vnet_tx_entry {
 
 struct vnet;
 
+struct vnet_port_stats {
+	/* keep them all the same size */
+	u32 rx_bytes;
+	u32 tx_bytes;
+	u32 rx_packets;
+	u32 tx_packets;
+	u32 event_up;
+	u32 event_reset;
+	u32 q_placeholder;
+};
+
+#define NUM_VNET_PORT_STATS  (sizeof(struct vnet_port_stats) / sizeof(u32))
+
 /* Structure to describe a vnet-port or vsw-port in the MD.
  * If the vsw bit is set, this structure represents a vswitch
  * port, and the net_device can be found from ->dev. If the
@@ -41,6 +56,8 @@ struct vnet;
  */
 struct vnet_port {
 	struct vio_driver_state	vio;
+
+	struct vnet_port_stats stats;
 
 	struct hlist_node	hash;
 	u8			raddr[ETH_ALEN];
@@ -95,22 +112,15 @@ struct vnet_mcast_entry {
 };
 
 struct vnet {
-	/* Protects port_list and port_hash.  */
-	spinlock_t		lock;
-
+	spinlock_t		lock; /* Protects port_list and port_hash.  */
 	struct net_device	*dev;
-
 	u32			msg_enable;
-
+	u8			q_used[VNET_MAX_TXQS];
 	struct list_head	port_list;
-
 	struct hlist_head	port_hash[VNET_PORT_HASH_SIZE];
-
 	struct vnet_mcast_entry	*mcast_list;
-
 	struct list_head	list;
 	u64			local_mac;
-
 	int			nports;
 };
 
@@ -125,7 +135,6 @@ int sunvnet_close_common(struct net_device *dev);
 void sunvnet_set_rx_mode_common(struct net_device *dev, struct vnet *vp);
 int sunvnet_set_mac_addr_common(struct net_device *dev, void *p);
 void sunvnet_tx_timeout_common(struct net_device *dev);
-int sunvnet_change_mtu_common(struct net_device *dev, int new_mtu);
 int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 			   struct vnet_port *(*vnet_tx_port)
 			   (struct sk_buff *, struct net_device *));
@@ -138,6 +147,7 @@ int sunvnet_handle_attr_common(struct vio_driver_state *vio, void *arg);
 void sunvnet_handshake_complete_common(struct vio_driver_state *vio);
 int sunvnet_poll_common(struct napi_struct *napi, int budget);
 void sunvnet_port_free_tx_bufs_common(struct vnet_port *port);
+void vnet_port_reset(struct vnet_port *port);
 bool sunvnet_port_is_up_common(struct vnet_port *vnet);
 void sunvnet_port_add_txq_common(struct vnet_port *port);
 void sunvnet_port_rm_txq_common(struct vnet_port *port);

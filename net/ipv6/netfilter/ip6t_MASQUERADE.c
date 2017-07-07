@@ -24,7 +24,7 @@
 static unsigned int
 masquerade_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	return nf_nat_masquerade_ipv6(skb, par->targinfo, par->out);
+	return nf_nat_masquerade_ipv6(skb, par->targinfo, xt_out(par));
 }
 
 static int masquerade_tg6_checkentry(const struct xt_tgchk_param *par)

@@ -157,8 +157,7 @@ void hfi1_pcie_cleanup(struct pci_dev *pdev)
  * fields required to re-initialize after a chip reset, or for
  * various other purposes
  */
-int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev,
-		     const struct pci_device_id *ent)
+int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 {
 	unsigned long len;
 	resource_size_t addr;
@@ -208,8 +207,8 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev,
 	/*
 	 * Save BARs and command to rewrite after device reset.
 	 */
-	dd->pcibar0 = addr;
-	dd->pcibar1 = addr >> 32;
+	pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_0, &dd->pcibar0);
+	pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_1, &dd->pcibar1);
 	pci_read_config_dword(dd->pcidev, PCI_ROM_ADDRESS, &dd->pci_rom);
 	pci_read_config_word(dd->pcidev, PCI_COMMAND, &dd->pci_command);
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &dd->pcie_devctl);
@@ -239,36 +238,6 @@ void hfi1_pcie_ddcleanup(struct hfi1_devdata *dd)
 		iounmap(dd->rcvarray_wc);
 	if (dd->piobase)
 		iounmap(dd->piobase);
-}
-
-/*
- * Do a Function Level Reset (FLR) on the device.
- * Based on static function drivers/pci/pci.c:pcie_flr().
- */
-void hfi1_pcie_flr(struct hfi1_devdata *dd)
-{
-	int i;
-	u16 status;
-
-	/* no need to check for the capability - we know the device has it */
-
-	/* wait for Transaction Pending bit to clear, at most a few ms */
-	for (i = 0; i < 4; i++) {
-		if (i)
-			msleep((1 << (i - 1)) * 100);
-
-		pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVSTA, &status);
-		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
-	}
-
-	dd_dev_err(dd, "Transaction Pending bit is not clearing, proceeding with reset anyway\n");
-
-clear:
-	pcie_capability_set_word(dd->pcidev, PCI_EXP_DEVCTL,
-				 PCI_EXP_DEVCTL_BCR_FLR);
-	/* PCIe spec requires the function to be back within 100ms */
-	msleep(100);
 }
 
 static void msix_setup(struct hfi1_devdata *dd, int pos, u32 *msixcnt,
@@ -584,7 +553,7 @@ pci_mmio_enabled(struct pci_dev *pdev)
 		if (words == ~0ULL)
 			ret = PCI_ERS_RESULT_NEED_RESET;
 		dd_dev_info(dd,
-			    "HFI1 mmio_enabled function called, read wordscntr %Lx, returning %d\n",
+			    "HFI1 mmio_enabled function called, read wordscntr %llx, returning %d\n",
 			    words, ret);
 	}
 	return  ret;
@@ -596,15 +565,6 @@ pci_slot_reset(struct pci_dev *pdev)
 	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
 
 	dd_dev_info(dd, "HFI1 slot_reset function called, ignored\n");
-	return PCI_ERS_RESULT_CAN_RECOVER;
-}
-
-static pci_ers_result_t
-pci_link_reset(struct pci_dev *pdev)
-{
-	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
-
-	dd_dev_info(dd, "HFI1 link_reset function called, ignored\n");
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
@@ -626,7 +586,6 @@ pci_resume(struct pci_dev *pdev)
 const struct pci_error_handlers hfi1_pci_err_handler = {
 	.error_detected = pci_error_detected,
 	.mmio_enabled = pci_mmio_enabled,
-	.link_reset = pci_link_reset,
 	.slot_reset = pci_slot_reset,
 	.resume = pci_resume,
 };
@@ -674,12 +633,12 @@ MODULE_PARM_DESC(pcie_retry, "Driver will try this many times to reach requested
 
 #define UNSET_PSET 255
 #define DEFAULT_DISCRETE_PSET 2	/* discrete HFI */
-#define DEFAULT_MCP_PSET 4	/* MCP HFI */
+#define DEFAULT_MCP_PSET 6	/* MCP HFI */
 static uint pcie_pset = UNSET_PSET;
 module_param(pcie_pset, uint, S_IRUGO);
 MODULE_PARM_DESC(pcie_pset, "PCIe Eq Pset value to use, range is 0-10");
 
-static uint pcie_ctle = 1; /* discrete on, integrated off */
+static uint pcie_ctle = 3; /* discrete on, integrated on */
 module_param(pcie_ctle, uint, S_IRUGO);
 MODULE_PARM_DESC(pcie_ctle, "PCIe static CTLE mode, bit 0 - discrete on/off, bit 1 - integrated on/off");
 

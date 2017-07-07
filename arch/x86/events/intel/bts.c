@@ -63,7 +63,6 @@ struct bts_buffer {
 	unsigned int	cur_buf;
 	bool		snapshot;
 	local_t		data_size;
-	local_t		lost;
 	local_t		head;
 	unsigned long	end;
 	void		**data_pages;
@@ -199,7 +198,8 @@ static void bts_update(struct bts_ctx *bts)
 			return;
 
 		if (ds->bts_index >= ds->bts_absolute_maximum)
-			local_inc(&buf->lost);
+			perf_aux_output_flag(&bts->handle,
+			                     PERF_AUX_FLAG_TRUNCATED);
 
 		/*
 		 * old and head are always in the same physical buffer, so we
@@ -276,7 +276,7 @@ static void bts_event_start(struct perf_event *event, int flags)
 	return;
 
 fail_end_stop:
-	perf_aux_output_end(&bts->handle, 0, false);
+	perf_aux_output_end(&bts->handle, 0);
 
 fail_stop:
 	event->hw.state = PERF_HES_STOPPED;
@@ -319,9 +319,8 @@ static void bts_event_stop(struct perf_event *event, int flags)
 				bts->handle.head =
 					local_xchg(&buf->data_size,
 						   buf->nr_pages << PAGE_SHIFT);
-
-			perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0),
-					    !!local_xchg(&buf->lost, 0));
+			perf_aux_output_end(&bts->handle,
+			                    local_xchg(&buf->data_size, 0));
 		}
 
 		cpuc->ds->bts_index = bts->ds_back.bts_buffer_base;
@@ -484,8 +483,7 @@ int intel_bts_interrupt(void)
 	if (old_head == local_read(&buf->head))
 		return handled;
 
-	perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0),
-			    !!local_xchg(&buf->lost, 0));
+	perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0));
 
 	buf = perf_aux_output_begin(&bts->handle, event);
 	if (buf)
@@ -500,7 +498,7 @@ int intel_bts_interrupt(void)
 			 * cleared handle::event
 			 */
 			barrier();
-			perf_aux_output_end(&bts->handle, 0, false);
+			perf_aux_output_end(&bts->handle, 0);
 		}
 	}
 

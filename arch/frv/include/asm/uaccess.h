@@ -15,17 +15,12 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/segment.h>
 #include <asm/sections.h>
-
-#define HAVE_ARCH_UNMAPPED_AREA	/* we decide where to put mmaps */
+#include <asm/extable.h>
 
 #define __ptr(x) ((unsigned long __force *)(x))
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 /*
  * check that a range of addresses falls within the current address limit
@@ -64,26 +59,6 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 
 #define access_ok(type,addr,size) (__range_ok((void __user *)(addr), (size)) == 0)
 #define __access_ok(addr,size) (__range_ok((addr), (size)) == 0)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
-
-/* Returns 0 if exception not found and fixup otherwise.  */
-extern unsigned long search_exception_table(unsigned long);
 
 
 /*
@@ -258,22 +233,43 @@ do {							\
 /*
  *
  */
+
 #define ____force(x) (__force void *)(void __user *)(x)
 #ifdef CONFIG_MMU
 extern long __memset_user(void *dst, unsigned long count);
 extern long __memcpy_user(void *dst, const void *src, unsigned long count);
 
 #define __clear_user(dst,count)			__memset_user(____force(dst), (count))
-#define __copy_from_user_inatomic(to, from, n)	__memcpy_user((to), ____force(from), (n))
-#define __copy_to_user_inatomic(to, from, n)	__memcpy_user(____force(to), (from), (n))
 
 #else
 
 #define __clear_user(dst,count)			(memset(____force(dst), 0, (count)), 0)
-#define __copy_from_user_inatomic(to, from, n)	(memcpy((to), ____force(from), (n)), 0)
-#define __copy_to_user_inatomic(to, from, n)	(memcpy(____force(to), (from), (n)), 0)
 
 #endif
+
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+#ifdef CONFIG_MMU
+	return __memcpy_user(to, (__force const void *)from, n);
+#else
+	memcpy(to, (__force const void *)from, n);
+	return 0;
+#endif
+}
+
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+#ifdef CONFIG_MMU
+	return __memcpy_user((__force void *)to, from, n);
+#else
+	memcpy((__force void *)to, from, n);
+	return 0;
+#endif
+}
+#define INLINE_COPY_TO_USER
+#define INLINE_COPY_FROM_USER
 
 static inline unsigned long __must_check
 clear_user(void __user *to, unsigned long n)
@@ -283,43 +279,7 @@ clear_user(void __user *to, unsigned long n)
 	return n;
 }
 
-static inline unsigned long __must_check
-__copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-       might_fault();
-       return __copy_to_user_inatomic(to, from, n);
-}
-
-static inline unsigned long
-__copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-       might_fault();
-       return __copy_from_user_inatomic(to, from, n);
-}
-
-static inline long copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long ret = n;
-
-	if (likely(__access_ok(from, n)))
-		ret = __copy_from_user(to, from, n);
-
-	if (unlikely(ret != 0))
-		memset(to + (n - ret), 0, ret);
-
-	return ret;
-}
-
-static inline long copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	return likely(__access_ok(to, n)) ? __copy_to_user(to, from, n) : n;
-}
-
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern long strnlen_user(const char __user *src, long count);
-
-#define strlen_user(str) strnlen_user(str, 32767)
-
-extern unsigned long search_exception_table(unsigned long addr);
 
 #endif /* _ASM_UACCESS_H */

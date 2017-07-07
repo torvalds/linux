@@ -40,11 +40,12 @@ static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void visor_close(struct usb_serial_port *port);
 static int  visor_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
-static int  visor_calc_num_ports(struct usb_serial *serial);
+static int  visor_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds);
+static int  clie_5_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds);
 static void visor_read_int_callback(struct urb *urb);
 static int  clie_3_5_startup(struct usb_serial *serial);
-static int  treo_attach(struct usb_serial *serial);
-static int clie_5_attach(struct usb_serial *serial);
 static int palm_os_3_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 static int palm_os_4_probe(struct usb_serial *serial,
@@ -174,7 +175,6 @@ static struct usb_serial_driver handspring_device = {
 	.close =		visor_close,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
-	.attach =		treo_attach,
 	.probe =		visor_probe,
 	.calc_num_ports =	visor_calc_num_ports,
 	.read_int_callback =	visor_read_int_callback,
@@ -189,14 +189,14 @@ static struct usb_serial_driver clie_5_device = {
 	.description =		"Sony Clie 5.0",
 	.id_table =		clie_id_5_table,
 	.num_ports =		2,
+	.num_bulk_out =		2,
 	.bulk_out_size =	256,
 	.open =			visor_open,
 	.close =		visor_close,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
-	.attach =		clie_5_attach,
 	.probe =		visor_probe,
-	.calc_num_ports =	visor_calc_num_ports,
+	.calc_num_ports =	clie_5_calc_num_ports,
 	.read_int_callback =	visor_read_int_callback,
 };
 
@@ -466,14 +466,58 @@ static int visor_probe(struct usb_serial *serial,
 	return retval;
 }
 
-static int visor_calc_num_ports(struct usb_serial *serial)
+static int visor_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
+	unsigned int vid = le16_to_cpu(serial->dev->descriptor.idVendor);
 	int num_ports = (int)(long)(usb_get_serial_data(serial));
 
 	if (num_ports)
 		usb_set_serial_data(serial, NULL);
 
+	/*
+	 * Only swap the bulk endpoints for the Handspring devices with
+	 * interrupt in endpoints, which for now are the Treo devices.
+	 */
+	if (!(vid == HANDSPRING_VENDOR_ID || vid == KYOCERA_VENDOR_ID) ||
+			epds->num_interrupt_in == 0)
+		goto out;
+
+	if (epds->num_bulk_in < 2 || epds->num_interrupt_in < 2) {
+		dev_err(&serial->interface->dev, "missing endpoints\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * It appears that Treos and Kyoceras want to use the
+	 * 1st bulk in endpoint to communicate with the 2nd bulk out endpoint,
+	 * so let's swap the 1st and 2nd bulk in and interrupt endpoints.
+	 * Note that swapping the bulk out endpoints would break lots of
+	 * apps that want to communicate on the second port.
+	 */
+	swap(epds->bulk_in[0], epds->bulk_in[1]);
+	swap(epds->interrupt_in[0], epds->interrupt_in[1]);
+out:
 	return num_ports;
+}
+
+static int clie_5_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
+{
+	/*
+	 * TH55 registers 2 ports.
+	 * Communication in from the UX50/TH55 uses the first bulk-in
+	 * endpoint, while communication out to the UX50/TH55 uses the second
+	 * bulk-out endpoint.
+	 */
+
+	/*
+	 * FIXME: Should we swap the descriptors instead of using the same
+	 *        bulk-out endpoint for both ports?
+	 */
+	epds->bulk_out[0] = epds->bulk_out[1];
+
+	return serial->type->num_ports;
 }
 
 static int clie_3_5_startup(struct usb_serial *serial)
@@ -529,94 +573,6 @@ out:
 	kfree(data);
 
 	return result;
-}
-
-static int treo_attach(struct usb_serial *serial)
-{
-	struct usb_serial_port *swap_port;
-
-	/* Only do this endpoint hack for the Handspring devices with
-	 * interrupt in endpoints, which for now are the Treo devices. */
-	if (!((le16_to_cpu(serial->dev->descriptor.idVendor)
-						== HANDSPRING_VENDOR_ID) ||
-		(le16_to_cpu(serial->dev->descriptor.idVendor)
-						== KYOCERA_VENDOR_ID)) ||
-		(serial->num_interrupt_in == 0))
-		return 0;
-
-	if (serial->num_bulk_in < 2 || serial->num_interrupt_in < 2) {
-		dev_err(&serial->interface->dev, "missing endpoints\n");
-		return -ENODEV;
-	}
-
-	/*
-	* It appears that Treos and Kyoceras want to use the
-	* 1st bulk in endpoint to communicate with the 2nd bulk out endpoint,
-	* so let's swap the 1st and 2nd bulk in and interrupt endpoints.
-	* Note that swapping the bulk out endpoints would break lots of
-	* apps that want to communicate on the second port.
-	*/
-#define COPY_PORT(dest, src)						\
-	do { \
-		int i;							\
-									\
-		for (i = 0; i < ARRAY_SIZE(src->read_urbs); ++i) {	\
-			dest->read_urbs[i] = src->read_urbs[i];		\
-			dest->read_urbs[i]->context = dest;		\
-			dest->bulk_in_buffers[i] = src->bulk_in_buffers[i]; \
-		}							\
-		dest->read_urb = src->read_urb;				\
-		dest->bulk_in_endpointAddress = src->bulk_in_endpointAddress;\
-		dest->bulk_in_buffer = src->bulk_in_buffer;		\
-		dest->bulk_in_size = src->bulk_in_size;			\
-		dest->interrupt_in_urb = src->interrupt_in_urb;		\
-		dest->interrupt_in_urb->context = dest;			\
-		dest->interrupt_in_endpointAddress = \
-					src->interrupt_in_endpointAddress;\
-		dest->interrupt_in_buffer = src->interrupt_in_buffer;	\
-	} while (0);
-
-	swap_port = kmalloc(sizeof(*swap_port), GFP_KERNEL);
-	if (!swap_port)
-		return -ENOMEM;
-	COPY_PORT(swap_port, serial->port[0]);
-	COPY_PORT(serial->port[0], serial->port[1]);
-	COPY_PORT(serial->port[1], swap_port);
-	kfree(swap_port);
-
-	return 0;
-}
-
-static int clie_5_attach(struct usb_serial *serial)
-{
-	struct usb_serial_port *port;
-	unsigned int pipe;
-	int j;
-
-	/* TH55 registers 2 ports.
-	   Communication in from the UX50/TH55 uses bulk_in_endpointAddress
-	   from port 0. Communication out to the UX50/TH55 uses
-	   bulk_out_endpointAddress from port 1
-
-	   Lets do a quick and dirty mapping
-	 */
-
-	/* some sanity check */
-	if (serial->num_bulk_out < 2) {
-		dev_err(&serial->interface->dev, "missing bulk out endpoints\n");
-		return -ENODEV;
-	}
-
-	/* port 0 now uses the modified endpoint Address */
-	port = serial->port[0];
-	port->bulk_out_endpointAddress =
-				serial->port[1]->bulk_out_endpointAddress;
-
-	pipe = usb_sndbulkpipe(serial->dev, port->bulk_out_endpointAddress);
-	for (j = 0; j < ARRAY_SIZE(port->write_urbs); ++j)
-		port->write_urbs[j]->pipe = pipe;
-
-	return 0;
 }
 
 module_usb_serial_driver(serial_drivers, id_table_combined);

@@ -229,6 +229,7 @@ static void sh_vou_stream_config(struct sh_vou_device *vou_dev)
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		dataswap ^= 1;
+		/* fall through */
 	case V4L2_PIX_FMT_RGB565X:
 		row_coeff = 2;
 		break;
@@ -362,7 +363,7 @@ static void sh_vou_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&vou_dev->lock, flags);
 }
 
-static struct vb2_ops sh_vou_qops = {
+static const struct vb2_ops sh_vou_qops = {
 	.queue_setup		= sh_vou_queue_setup,
 	.buf_prepare		= sh_vou_buf_prepare,
 	.buf_queue		= sh_vou_buf_queue,
@@ -813,8 +814,9 @@ static u32 sh_vou_ntsc_mode(enum sh_vou_bus_fmt bus_fmt)
 {
 	switch (bus_fmt) {
 	default:
-		pr_warning("%s(): Invalid bus-format code %d, using default 8-bit\n",
-			   __func__, bus_fmt);
+		pr_warn("%s(): Invalid bus-format code %d, using default 8-bit\n",
+			__func__, bus_fmt);
+		/* fall through */
 	case SH_VOU_BUS_8BIT:
 		return 1;
 	case SH_VOU_BUS_16BIT:
@@ -937,7 +939,10 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 {
 	struct v4l2_rect *rect = &sel->r;
 	struct sh_vou_device *vou_dev = video_drvdata(file);
-	struct v4l2_crop sd_crop = {.type = V4L2_BUF_TYPE_VIDEO_OUTPUT};
+	struct v4l2_subdev_selection sd_sel = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.target = V4L2_SEL_TGT_COMPOSE,
+	};
 	struct v4l2_pix_format *pix = &vou_dev->pix;
 	struct sh_vou_geometry geo;
 	struct v4l2_subdev_format format = {
@@ -978,14 +983,14 @@ static int sh_vou_s_selection(struct file *file, void *fh,
 	geo.in_height = pix->height;
 
 	/* Configure the encoder one-to-one, position at 0, ignore errors */
-	sd_crop.c.width = geo.output.width;
-	sd_crop.c.height = geo.output.height;
+	sd_sel.r.width = geo.output.width;
+	sd_sel.r.height = geo.output.height;
 	/*
-	 * We first issue a S_CROP, so that the subsequent S_FMT delivers the
+	 * We first issue a S_SELECTION, so that the subsequent S_FMT delivers the
 	 * final encoder configuration.
 	 */
-	v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
-				   s_crop, &sd_crop);
+	v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,
+				   set_selection, NULL, &sd_sel);
 	format.format.width = geo.output.width;
 	format.format.height = geo.output.height;
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, pad,

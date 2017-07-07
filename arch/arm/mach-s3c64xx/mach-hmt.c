@@ -204,6 +204,7 @@ static struct s3c2410_platform_nand hmt_nand_info = {
 	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(hmt_nand_sets),
 	.sets		= hmt_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 static struct gpio_led hmt_leds[] = {

@@ -24,7 +24,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <linux/miscdevice.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/intel_ish.h>
 #include "ishtp-dev.h"
@@ -47,7 +46,8 @@ MODULE_DEVICE_TABLE(pci, ish_pci_tbl);
  *
  * Callback to direct log messages to Linux trace buffers
  */
-static void ish_event_tracer(struct ishtp_device *dev, char *format, ...)
+static __printf(2, 3)
+void ish_event_tracer(struct ishtp_device *dev, const char *format, ...)
 {
 	if (trace_ishtp_dump_enabled()) {
 		va_list args;
@@ -146,7 +146,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
 
 	/* request and enable interrupt */
-	ret = request_irq(pdev->irq, ish_irq_handler, IRQF_NO_SUSPEND,
+	ret = request_irq(pdev->irq, ish_irq_handler, IRQF_SHARED,
 			  KBUILD_MODNAME, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "ISH: request IRQ failure (%d)\n",
@@ -202,14 +202,18 @@ static void ish_remove(struct pci_dev *pdev)
 	kfree(ishtp_dev);
 }
 
+#ifdef CONFIG_PM
 static struct device *ish_resume_device;
+
+/* 50ms to get resume response */
+#define WAIT_FOR_RESUME_ACK_MS		50
 
 /**
  * ish_resume_handler() - Work function to complete resume
  * @work:	work struct
  *
  * The resume work function to complete resume function asynchronously.
- * There are two types of platforms, one where ISH is not powered off,
+ * There are two resume paths, one where ISH is not powered off,
  * in that case a simple resume message is enough, others we need
  * a reset sequence.
  */
@@ -217,20 +221,31 @@ static void ish_resume_handler(struct work_struct *work)
 {
 	struct pci_dev *pdev = to_pci_dev(ish_resume_device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
+	uint32_t fwsts;
 	int ret;
 
-	ishtp_send_resume(dev);
-
-	/* 50 ms to get resume response */
-	if (dev->resume_flag)
-		ret = wait_event_interruptible_timeout(dev->resume_wait,
-						       !dev->resume_flag,
-						       msecs_to_jiffies(50));
+	/* Get ISH FW status */
+	fwsts = IPC_GET_ISH_FWSTS(dev->ops->get_fw_status(dev));
 
 	/*
-	 * If no resume response. This platform  is not S0ix compatible
-	 * So on resume full reboot of ISH processor will happen, so
-	 * need to go through init sequence again
+	 * If currently, in ISH FW, sensor app is loaded or beyond that,
+	 * it means ISH isn't powered off, in this case, send a resume message.
+	 */
+	if (fwsts >= FWSTS_SENSOR_APP_LOADED) {
+		ishtp_send_resume(dev);
+
+		/* Waiting to get resume response */
+		if (dev->resume_flag)
+			ret = wait_event_interruptible_timeout(dev->resume_wait,
+				!dev->resume_flag,
+				msecs_to_jiffies(WAIT_FOR_RESUME_ACK_MS));
+	}
+
+	/*
+	 * If in ISH FW, sensor app isn't loaded yet, or no resume response.
+	 * That means this platform is not S0ix compatible, or something is
+	 * wrong with ISH FW. So on resume, full reboot of ISH processor will
+	 * happen, so need to go through init sequence again.
 	 */
 	if (dev->resume_flag)
 		ish_init(dev);
@@ -293,7 +308,6 @@ static int ish_resume(struct device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static const struct dev_pm_ops ish_pm_ops = {
 	.suspend = ish_suspend,
 	.resume = ish_resume,
@@ -301,7 +315,7 @@ static const struct dev_pm_ops ish_pm_ops = {
 #define ISHTP_ISH_PM_OPS	(&ish_pm_ops)
 #else
 #define ISHTP_ISH_PM_OPS	NULL
-#endif
+#endif /* CONFIG_PM */
 
 static struct pci_driver ish_driver = {
 	.name = KBUILD_MODNAME,

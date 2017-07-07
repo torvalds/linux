@@ -179,7 +179,7 @@ s16 qm_norm32(s32 op)
 	return u16extraSignBits;
 }
 
-/* This table is log2(1+(i/32)) where i=[0:1:31], in q.15 format */
+/* This table is log2(1+(i/32)) where i=[0:1:32], in q.15 format */
 static const s16 log_table[] = {
 	0,
 	1455,
@@ -212,7 +212,8 @@ static const s16 log_table[] = {
 	29717,
 	30498,
 	31267,
-	32024
+	32024,
+	32768
 };
 
 #define LOG_TABLE_SIZE 32       /* log_table size */

@@ -172,7 +172,7 @@ nv44_mpeg_intr(struct nvkm_engine *engine)
 		}
 
 		if (type == 0x00000010) {
-			if (!nv44_mpeg_mthd(subdev->device, mthd, data))
+			if (nv44_mpeg_mthd(subdev->device, mthd, data))
 				show &= ~0x01000000;
 		}
 	}

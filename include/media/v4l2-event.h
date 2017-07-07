@@ -15,11 +15,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #ifndef V4L2_EVENT_H
@@ -222,7 +217,8 @@ int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd,
 				  struct v4l2_fh *fh,
 				  struct v4l2_event_subscription *sub);
 /**
- * v4l2_src_change_event_subscribe -
+ * v4l2_src_change_event_subscribe - helper function that calls
+ * 	v4l2_event_subscribe() if the event is %V4L2_EVENT_SOURCE_CHANGE.
  *
  * @fh: pointer to struct v4l2_fh
  * @sub: pointer to &struct v4l2_event_subscription

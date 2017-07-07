@@ -30,7 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
 #include <media/drv-intf/exynos-fimc.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 #include "mipi-csis.h"
@@ -649,23 +649,23 @@ static int s5pcsis_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static struct v4l2_subdev_core_ops s5pcsis_core_ops = {
+static const struct v4l2_subdev_core_ops s5pcsis_core_ops = {
 	.s_power = s5pcsis_s_power,
 	.log_status = s5pcsis_log_status,
 };
 
-static struct v4l2_subdev_pad_ops s5pcsis_pad_ops = {
+static const struct v4l2_subdev_pad_ops s5pcsis_pad_ops = {
 	.enum_mbus_code = s5pcsis_enum_mbus_code,
 	.get_fmt = s5pcsis_get_fmt,
 	.set_fmt = s5pcsis_set_fmt,
 };
 
-static struct v4l2_subdev_video_ops s5pcsis_video_ops = {
+static const struct v4l2_subdev_video_ops s5pcsis_video_ops = {
 	.s_rx_buffer = s5pcsis_s_rx_buffer,
 	.s_stream = s5pcsis_s_stream,
 };
 
-static struct v4l2_subdev_ops s5pcsis_subdev_ops = {
+static const struct v4l2_subdev_ops s5pcsis_subdev_ops = {
 	.core = &s5pcsis_core_ops,
 	.pad = &s5pcsis_pad_ops,
 	.video = &s5pcsis_video_ops,
@@ -718,7 +718,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 			    struct csis_state *state)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct v4l2_of_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint;
 	int ret;
 
 	if (of_property_read_u32(node, "clock-frequency",
@@ -735,7 +735,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		return -EINVAL;
 	}
 	/* Get port node and validate MIPI-CSI channel id. */
-	ret = v4l2_of_parse_endpoint(node, &endpoint);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &endpoint);
 	if (ret)
 		goto err;
 
@@ -853,6 +853,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	state->format.width = S5PCSIS_DEF_PIX_WIDTH;
 	state->format.height = S5PCSIS_DEF_PIX_HEIGHT;
 
+	state->sd.entity.function = MEDIA_ENT_F_IO_V4L;
 	state->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	state->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&state->sd.entity,

@@ -37,6 +37,7 @@ DEFINE_CLK(mcfuart0, "mcfuart.0", MCF_BUSCLK);
 DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
 DEFINE_CLK(mcfuart2, "mcfuart.2", MCF_BUSCLK);
 DEFINE_CLK(mcfuart3, "mcfuart.3", MCF_BUSCLK);
+DEFINE_CLK(mcfi2c0, "imx1-i2c.0", MCF_BUSCLK);
 
 struct clk *mcf_clks[] = {
 	&clk_pll,
@@ -47,6 +48,7 @@ struct clk *mcf_clks[] = {
 	&clk_mcfuart1,
 	&clk_mcfuart2,
 	&clk_mcfuart3,
+	&clk_mcfi2c0,
 	NULL
 };
 
@@ -61,6 +63,20 @@ static void __init m54xx_uarts_init(void)
 	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD | MCF_PAR_PSC_RTS_RTS |
 		MCF_PAR_PSC_CTS_CTS, MCFGPIO_PAR_PSC2);
 	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD, MCFGPIO_PAR_PSC3);
+}
+
+/***************************************************************************/
+
+static void __init m54xx_i2c_init(void)
+{
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	u32 r;
+
+	/* set the fec/i2c/irq pin assignment register for i2c */
+	r = readl(MCF_PAR_FECI2CIRQ);
+	r |= MCF_PAR_FECI2CIRQ_SDA | MCF_PAR_FECI2CIRQ_SCL;
+	writel(r, MCF_PAR_FECI2CIRQ);
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
 
 /***************************************************************************/
@@ -86,6 +102,7 @@ void __init config_BSP(char *commandp, int size)
 	mach_reset = mcf54xx_reset;
 	mach_sched_init = hw_timer_init;
 	m54xx_uarts_init();
+	m54xx_i2c_init();
 }
 
 /***************************************************************************/

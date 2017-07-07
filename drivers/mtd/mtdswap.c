@@ -587,7 +587,7 @@ retry:
 	ret = wait_event_interruptible(wq, erase.state == MTD_ERASE_DONE ||
 					   erase.state == MTD_ERASE_FAILED);
 	if (ret) {
-		dev_err(d->dev, "Interrupted erase block %#llx erassure on %s",
+		dev_err(d->dev, "Interrupted erase block %#llx erasure on %s\n",
 			erase.addr, mtd->name);
 		return -EINTR;
 	}
@@ -1235,10 +1235,8 @@ static int mtdswap_show(struct seq_file *s, void *data)
 
 		if (root->rb_node) {
 			count[i] = d->trees[i].count;
-			min[i] = rb_entry(rb_first(root), struct swap_eb,
-					rb)->erase_count;
-			max[i] = rb_entry(rb_last(root), struct swap_eb,
-					rb)->erase_count;
+			min[i] = MTDSWAP_ECNT_MIN(root);
+			max[i] = MTDSWAP_ECNT_MAX(root);
 		} else
 			count[i] = 0;
 	}

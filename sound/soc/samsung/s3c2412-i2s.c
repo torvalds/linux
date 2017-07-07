@@ -168,19 +168,19 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 	s3c2412_i2s_pcm_stereo_in.addr = res->start + S3C2412_IISRXD;
 	s3c2412_i2s_pcm_stereo_in.filter_data = pdata->dma_capture;
 
-	ret = s3c_i2sv2_register_component(&pdev->dev, -1,
-					   &s3c2412_i2s_component,
-					   &s3c2412_i2s_dai);
-	if (ret) {
-		pr_err("failed to register the dai\n");
-		return ret;
-	}
-
 	ret = samsung_asoc_dma_platform_register(&pdev->dev,
 						 pdata->dma_filter,
 						 NULL, NULL);
-	if (ret)
+	if (ret) {
 		pr_err("failed to register the DMA: %d\n", ret);
+		return ret;
+	}
+
+	ret = s3c_i2sv2_register_component(&pdev->dev, -1,
+					   &s3c2412_i2s_component,
+					   &s3c2412_i2s_dai);
+	if (ret)
+		pr_err("failed to register the dai\n");
 
 	return ret;
 }

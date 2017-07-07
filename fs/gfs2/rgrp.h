@@ -83,5 +83,12 @@ static inline bool gfs2_rs_active(const struct gfs2_blkreserv *rs)
 	return rs && !RB_EMPTY_NODE(&rs->rs_node);
 }
 
+static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
+{
+	u64 first = rgd->rd_data0;
+	u64 last = first + rgd->rd_data;
+	return first <= block && block < last;
+}
+
 extern void check_and_update_goal(struct gfs2_inode *ip);
 #endif /* __RGRP_DOT_H__ */

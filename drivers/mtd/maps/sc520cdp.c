@@ -227,7 +227,7 @@ static void sc520cdp_setup_par(void)
 
 static int __init init_sc520cdp(void)
 {
-	int i, devices_found = 0;
+	int i, j, devices_found = 0;
 
 #ifdef REPROGRAM_PAR
 	/* reprogram PAR registers so flash appears at the desired addresses */
@@ -243,6 +243,12 @@ static int __init init_sc520cdp(void)
 
 		if (!sc520cdp_map[i].virt) {
 			printk("Failed to ioremap_nocache\n");
+			for (j = 0; j < i; j++) {
+				if (mymtd[j]) {
+					map_destroy(mymtd[j]);
+					iounmap(sc520cdp_map[j].virt);
+				}
+			}
 			return -EIO;
 		}
 

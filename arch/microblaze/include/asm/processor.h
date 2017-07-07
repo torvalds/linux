@@ -22,7 +22,6 @@
 extern const struct seq_operations cpuinfo_op;
 
 # define cpu_relax()		barrier()
-# define cpu_relax_lowlatency()	cpu_relax()
 
 #define task_pt_regs(tsk) \
 		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
@@ -69,8 +68,6 @@ struct thread_struct { };
 static inline void release_thread(struct task_struct *dead_task)
 {
 }
-
-extern unsigned long thread_saved_pc(struct task_struct *t);
 
 extern unsigned long get_wchan(struct task_struct *p);
 
@@ -121,10 +118,6 @@ struct thread_struct {
 static inline void release_thread(struct task_struct *dead_task)
 {
 }
-
-/* Return saved (kernel) PC of a blocked thread.  */
-#  define thread_saved_pc(tsk)	\
-	((tsk)->thread.regs ? (tsk)->thread.regs->r15 : 0)
 
 unsigned long get_wchan(struct task_struct *p);
 

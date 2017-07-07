@@ -19,7 +19,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 
-static struct regulator_ops rn5t618_reg_ops = {
+static const struct regulator_ops rn5t618_reg_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,

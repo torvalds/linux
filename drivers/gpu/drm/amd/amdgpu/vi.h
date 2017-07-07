@@ -24,8 +24,6 @@
 #ifndef __VI_H__
 #define __VI_H__
 
-extern const struct amd_ip_funcs vi_common_ip_funcs;
-
 void vi_srbm_select(struct amdgpu_device *adev,
 		    u32 me, u32 pipe, u32 queue, u32 vmid);
 int vi_set_ip_blocks(struct amdgpu_device *adev);

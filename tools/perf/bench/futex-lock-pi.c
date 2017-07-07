@@ -3,6 +3,7 @@
  */
 
 /* For the CLR_() macros */
+#include <string.h>
 #include <pthread.h>
 
 #include <signal.h>
@@ -48,7 +49,7 @@ static const struct option options[] = {
 };
 
 static const char * const bench_futex_lock_pi_usage[] = {
-	"perf bench futex requeue <options>",
+	"perf bench futex lock-pi <options>",
 	NULL
 };
 
@@ -75,6 +76,7 @@ static void toggle_done(int sig __maybe_unused,
 static void *workerfn(void *arg)
 {
 	struct worker *w = (struct worker *) arg;
+	unsigned long ops = w->ops;
 
 	pthread_mutex_lock(&thread_lock);
 	threads_starting--;
@@ -103,9 +105,10 @@ static void *workerfn(void *arg)
 		if (ret && !silent)
 			warn("thread %d: Could not unlock pi-lock for %p (%d)",
 			     w->tid, w->futex, ret);
-		w->ops++; /* account for thread's share of work */
+		ops++; /* account for thread's share of work */
 	}  while (!done);
 
+	w->ops = ops;
 	return NULL;
 }
 
@@ -137,8 +140,7 @@ static void create_threads(struct worker *w, pthread_attr_t thread_attr)
 	}
 }
 
-int bench_futex_lock_pi(int argc, const char **argv,
-			const char *prefix __maybe_unused)
+int bench_futex_lock_pi(int argc, const char **argv)
 {
 	int ret = 0;
 	unsigned int i;

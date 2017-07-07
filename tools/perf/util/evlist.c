@@ -8,6 +8,8 @@
  */
 #include "util.h"
 #include <api/fs/fs.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
@@ -15,12 +17,15 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
+#include "units.h"
 #include "asm/bug.h"
+#include <signal.h>
 #include <unistd.h>
 
 #include "parse-events.h"
 #include <subcmd/parse-options.h>
 
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 
 #include <linux/bitops.h>
@@ -384,15 +389,14 @@ void perf_evlist__toggle_enable(struct perf_evlist *evlist)
 static int perf_evlist__enable_event_cpu(struct perf_evlist *evlist,
 					 struct perf_evsel *evsel, int cpu)
 {
-	int thread, err;
+	int thread;
 	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (thread = 0; thread < nr_threads; thread++) {
-		err = ioctl(FD(evsel, cpu, thread),
-			    PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -403,14 +407,14 @@ static int perf_evlist__enable_event_thread(struct perf_evlist *evlist,
 					    struct perf_evsel *evsel,
 					    int thread)
 {
-	int cpu, err;
+	int cpu;
 	int nr_cpus = cpu_map__nr(evlist->cpus);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -778,7 +782,7 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *md, bool check_messu
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
-	if (!atomic_read(&md->refcnt))
+	if (!refcount_read(&md->refcnt))
 		return NULL;
 
 	head = perf_mmap__read_head(md);
@@ -795,7 +799,7 @@ perf_mmap__read_backward(struct perf_mmap *md)
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
-	if (!atomic_read(&md->refcnt))
+	if (!refcount_read(&md->refcnt))
 		return NULL;
 
 	head = perf_mmap__read_head(md);
@@ -857,7 +861,7 @@ void perf_mmap__read_catchup(struct perf_mmap *md)
 {
 	u64 head;
 
-	if (!atomic_read(&md->refcnt))
+	if (!refcount_read(&md->refcnt))
 		return;
 
 	head = perf_mmap__read_head(md);
@@ -876,14 +880,14 @@ static bool perf_mmap__empty(struct perf_mmap *md)
 
 static void perf_mmap__get(struct perf_mmap *map)
 {
-	atomic_inc(&map->refcnt);
+	refcount_inc(&map->refcnt);
 }
 
 static void perf_mmap__put(struct perf_mmap *md)
 {
-	BUG_ON(md->base && atomic_read(&md->refcnt) == 0);
+	BUG_ON(md->base && refcount_read(&md->refcnt) == 0);
 
-	if (atomic_dec_and_test(&md->refcnt))
+	if (refcount_dec_and_test(&md->refcnt))
 		perf_mmap__munmap(md);
 }
 
@@ -895,7 +899,7 @@ void perf_mmap__consume(struct perf_mmap *md, bool overwrite)
 		perf_mmap__write_tail(md, old);
 	}
 
-	if (atomic_read(&md->refcnt) == 1 && perf_mmap__empty(md))
+	if (refcount_read(&md->refcnt) == 1 && perf_mmap__empty(md))
 		perf_mmap__put(md);
 }
 
@@ -938,7 +942,7 @@ static void perf_mmap__munmap(struct perf_mmap *map)
 		munmap(map->base, perf_mmap__mmap_len(map));
 		map->base = NULL;
 		map->fd = -1;
-		atomic_set(&map->refcnt, 0);
+		refcount_set(&map->refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
@@ -975,8 +979,19 @@ static struct perf_mmap *perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 	if (!map)
 		return NULL;
 
-	for (i = 0; i < evlist->nr_mmaps; i++)
+	for (i = 0; i < evlist->nr_mmaps; i++) {
 		map[i].fd = -1;
+		/*
+		 * When the perf_mmap() call is made we grab one refcount, plus
+		 * one extra to let perf_evlist__mmap_consume() get the last
+		 * events after all real references (perf_mmap__get()) are
+		 * dropped.
+		 *
+		 * Each PERF_EVENT_IOC_SET_OUTPUT points to this mmap and
+		 * thus does perf_mmap__get() on it.
+		 */
+		refcount_set(&map[i].refcnt, 0);
+	}
 	return map;
 }
 
@@ -1002,7 +1017,7 @@ static int perf_mmap__mmap(struct perf_mmap *map,
 	 * evlist layer can't just drop it when filtering events in
 	 * perf_evlist__filter_pollfd().
 	 */
-	atomic_set(&map->refcnt, 2);
+	refcount_set(&map->refcnt, 2);
 	map->prev = 0;
 	map->mask = mp->mask;
 	map->base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
@@ -1185,7 +1200,7 @@ unsigned long perf_event_mlock_kb_in_pages(void)
 	return pages;
 }
 
-static size_t perf_evlist__mmap_size(unsigned long pages)
+size_t perf_evlist__mmap_size(unsigned long pages)
 {
 	if (pages == UINT_MAX)
 		pages = perf_event_mlock_kb_in_pages();
@@ -1225,12 +1240,16 @@ static long parse_pages_arg(const char *str, unsigned long min,
 	if (pages == 0 && min == 0) {
 		/* leave number of pages at 0 */
 	} else if (!is_power_of_2(pages)) {
+		char buf[100];
+
 		/* round pages up to next power of 2 */
 		pages = roundup_pow_of_two(pages);
 		if (!pages)
 			return -EINVAL;
-		pr_info("rounding mmap pages size to %lu bytes (%lu pages)\n",
-			pages * page_size, pages);
+
+		unit_number__scnprintf(buf, sizeof(buf), pages * page_size);
+		pr_info("rounding mmap pages size to %s (%lu pages)\n",
+			buf, pages);
 	}
 
 	if (pages > max)
@@ -1606,10 +1625,9 @@ void perf_evlist__close(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 	int ncpus = cpu_map__nr(evlist->cpus);
 	int nthreads = thread_map__nr(evlist->threads);
-	int n;
 
 	evlist__for_each_entry_reverse(evlist, evsel) {
-		n = evsel->cpus ? evsel->cpus->nr : ncpus;
+		int n = evsel->cpus ? evsel->cpus->nr : ncpus;
 		perf_evsel__close(evsel, n, nthreads);
 	}
 }
@@ -1799,7 +1817,7 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 		 */
 		ret = write(evlist->workload.cork_fd, &bf, 1);
 		if (ret < 0)
-			perror("enable to write to pipe");
+			perror("unable to write to pipe");
 
 		close(evlist->workload.cork_fd);
 		return ret;

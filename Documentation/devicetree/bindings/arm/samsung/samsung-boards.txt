@@ -15,6 +15,8 @@ Required root node properties:
 	- "samsung,xyref5260"	- for Exynos5260-based Samsung board.
 	- "samsung,smdk5410"	- for Exynos5410-based Samsung SMDK5410 eval board.
 	- "samsung,smdk5420"	- for Exynos5420-based Samsung SMDK5420 eval board.
+	- "samsung,tm2"		- for Exynos5433-based Samsung TM2 board.
+	- "samsung,tm2e"	- for Exynos5433-based Samsung TM2E board.
 	- "samsung,sd5v1"	- for Exynos5440-based Samsung board.
 	- "samsung,ssdk5440"	- for Exynos5440-based Samsung board.
 
@@ -22,6 +24,9 @@ Required root node properties:
   * FriendlyARM
 	- "friendlyarm,tiny4412"  - for Exynos4412-based FriendlyARM
 				    TINY4412 board.
+  * TOPEET
+	- "topeet,itop4412-elite" - for Exynos4412-based TOPEET
+                                    Elite base board.
 
   * Google
 	- "google,pi"		- for Exynos5800-based Google Peach Pi

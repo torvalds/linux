@@ -534,6 +534,7 @@ static const struct of_device_id of_netxbig_leds_match[] = {
 	{ .compatible = "lacie,netxbig-leds", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_netxbig_leds_match);
 #else
 static inline int
 netxbig_leds_get_of_pdata(struct device *dev,

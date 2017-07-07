@@ -7,14 +7,14 @@
  */
 
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/sysrq.h>
 
 #include <linux/consolemap.h>
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "keyboard.h"
 
@@ -433,12 +433,7 @@ do_kdgkb_ioctl(struct kbd_data *kbd, struct kbsentry __user *u_kbs,
 	case KDSKBSENT:
 		if (!perm)
 			return -EPERM;
-		len = strnlen_user(u_kbs->kb_string, sizeof(u_kbs->kb_string));
-		if (!len)
-			return -EFAULT;
-		if (len > sizeof(u_kbs->kb_string))
-			return -EINVAL;
-		p = memdup_user_nul(u_kbs->kb_string, len);
+		p = strndup_user(u_kbs->kb_string, sizeof(u_kbs->kb_string));
 		if (IS_ERR(p))
 			return PTR_ERR(p);
 		kfree(kbd->func_table[kb_func]);

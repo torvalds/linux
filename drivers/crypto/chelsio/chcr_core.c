@@ -29,6 +29,7 @@
 static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
 static atomic_t dev_count;
+static struct uld_ctx *ctx_rr;
 
 typedef int (*chcr_handler_func)(struct chcr_dev *dev, unsigned char *input);
 static int cpl_fw6_pld_handler(struct chcr_dev *dev, unsigned char *input);
@@ -42,31 +43,35 @@ static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 static struct cxgb4_uld_info chcr_uld_info = {
 	.name = DRV_MODULE_NAME,
 	.nrxq = MAX_ULD_QSETS,
+	.ntxq = MAX_ULD_QSETS,
 	.rxq_size = 1024,
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
 	.rx_handler = chcr_uld_rx_handler,
 };
 
-int assign_chcr_device(struct chcr_dev **dev)
+struct uld_ctx *assign_chcr_device(void)
 {
-	struct uld_ctx *u_ctx;
+	struct uld_ctx *u_ctx = NULL;
 
 	/*
-	 * Which device to use if multiple devices are available TODO
-	 * May be select the device based on round robin. One session
-	 * must go to the same device to maintain the ordering.
+	 * When multiple devices are present in system select
+	 * device in round-robin fashion for crypto operations
+	 * Although One session must use the same device to
+	 * maintain request-response ordering.
 	 */
-	mutex_lock(&dev_mutex); /* TODO ? */
-	u_ctx = list_first_entry(&uld_ctx_list, struct uld_ctx, entry);
-	if (!u_ctx) {
-		mutex_unlock(&dev_mutex);
-		return -ENXIO;
+	mutex_lock(&dev_mutex);
+	if (!list_empty(&uld_ctx_list)) {
+		u_ctx = ctx_rr;
+		if (list_is_last(&ctx_rr->entry, &uld_ctx_list))
+			ctx_rr = list_first_entry(&uld_ctx_list,
+						  struct uld_ctx,
+						  entry);
+		else
+			ctx_rr = list_next_entry(ctx_rr, entry);
 	}
-
-	*dev = u_ctx->dev;
 	mutex_unlock(&dev_mutex);
-	return 0;
+	return u_ctx;
 }
 
 static int chcr_dev_add(struct uld_ctx *u_ctx)
@@ -81,11 +86,27 @@ static int chcr_dev_add(struct uld_ctx *u_ctx)
 	u_ctx->dev = dev;
 	dev->u_ctx = u_ctx;
 	atomic_inc(&dev_count);
+	mutex_lock(&dev_mutex);
+	list_add_tail(&u_ctx->entry, &uld_ctx_list);
+	if (!ctx_rr)
+		ctx_rr = u_ctx;
+	mutex_unlock(&dev_mutex);
 	return 0;
 }
 
 static int chcr_dev_remove(struct uld_ctx *u_ctx)
 {
+	if (ctx_rr == u_ctx) {
+		if (list_is_last(&ctx_rr->entry, &uld_ctx_list))
+			ctx_rr = list_first_entry(&uld_ctx_list,
+						  struct uld_ctx,
+						  entry);
+		else
+			ctx_rr = list_next_entry(ctx_rr, entry);
+	}
+	list_del(&u_ctx->entry);
+	if (list_empty(&uld_ctx_list))
+		ctx_rr = NULL;
 	kfree(u_ctx->dev);
 	u_ctx->dev = NULL;
 	atomic_dec(&dev_count);
@@ -99,6 +120,7 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 	struct cpl_fw6_pld *fw6_pld;
 	u32 ack_err_status = 0;
 	int error_status = 0;
+	struct adapter *adap = padap(dev);
 
 	fw6_pld = (struct cpl_fw6_pld *)input;
 	req = (struct crypto_async_request *)(uintptr_t)be64_to_cpu(
@@ -109,14 +131,12 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 	if (ack_err_status) {
 		if (CHK_MAC_ERR_BIT(ack_err_status) ||
 		    CHK_PAD_ERR_BIT(ack_err_status))
-			error_status = -EINVAL;
+			error_status = -EBADMSG;
+		atomic_inc(&adap->chcr_stats.error);
 	}
 	/* call completion callback with failure status */
 	if (req) {
-		if (!chcr_handle_resp(req, input, error_status))
-			req->complete(req, error_status);
-		else
-			return -EINVAL;
+		error_status = chcr_handle_resp(req, input, error_status);
 	} else {
 		pr_err("Incorrect request address from the firmware\n");
 		return -EFAULT;
@@ -126,7 +146,7 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 
 int chcr_send_wr(struct sk_buff *skb)
 {
-	return cxgb4_ofld_send(skb->dev, skb);
+	return cxgb4_crypto_send(skb->dev, skb);
 }
 
 static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
@@ -139,10 +159,11 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;
 	}
+	if (!(lld->ulp_crypto & ULP_CRYPTO_LOOKASIDE)) {
+		u_ctx = ERR_PTR(-ENOMEM);
+		goto out;
+	}
 	u_ctx->lldi = *lld;
-	mutex_lock(&dev_mutex);
-	list_add_tail(&u_ctx->entry, &uld_ctx_list);
-	mutex_unlock(&dev_mutex);
 out:
 	return u_ctx;
 }
@@ -152,18 +173,17 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 {
 	struct uld_ctx *u_ctx = (struct uld_ctx *)handle;
 	struct chcr_dev *dev = u_ctx->dev;
-	const struct cpl_act_establish *rpl = (struct cpl_act_establish
-					       *)rsp;
+	const struct cpl_fw6_pld *rpl = (struct cpl_fw6_pld *)rsp;
 
-	if (rpl->ot.opcode != CPL_FW6_PLD) {
+	if (rpl->opcode != CPL_FW6_PLD) {
 		pr_err("Unsupported opcode\n");
 		return 0;
 	}
 
 	if (!pgl)
-		work_handlers[rpl->ot.opcode](dev, (unsigned char *)&rsp[1]);
+		work_handlers[rpl->opcode](dev, (unsigned char *)&rsp[1]);
 	else
-		work_handlers[rpl->ot.opcode](dev, pgl->va);
+		work_handlers[rpl->opcode](dev, pgl->va);
 	return 0;
 }
 
@@ -203,10 +223,8 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 static int __init chcr_crypto_init(void)
 {
-	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info)) {
+	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info))
 		pr_err("ULD register fail: No chcr crypto support in cxgb4");
-		return -1;
-	}
 
 	return 0;
 }

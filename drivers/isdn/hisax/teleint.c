@@ -278,9 +278,7 @@ int setup_TeleInt(struct IsdnCard *card)
 	cs->bcs[0].hw.hfc.send = NULL;
 	cs->bcs[1].hw.hfc.send = NULL;
 	cs->hw.hfc.fifosize = 7 * 1024 + 512;
-	cs->hw.hfc.timer.function = (void *) TeleInt_Timer;
-	cs->hw.hfc.timer.data = (long) cs;
-	init_timer(&cs->hw.hfc.timer);
+	setup_timer(&cs->hw.hfc.timer, (void *)TeleInt_Timer, (long)cs);
 	if (!request_region(cs->hw.hfc.addr, 2, "TeleInt isdn")) {
 		printk(KERN_WARNING
 		       "HiSax: TeleInt config port %x-%x already in use\n",

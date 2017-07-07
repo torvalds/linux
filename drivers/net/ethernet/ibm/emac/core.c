@@ -42,12 +42,13 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_net.h>
+#include <linux/of_mdio.h>
 #include <linux/slab.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 
@@ -342,6 +343,7 @@ static int emac_reset(struct emac_instance *dev)
 {
 	struct emac_regs __iomem *p = dev->emacp;
 	int n = 20;
+	bool __maybe_unused try_internal_clock = false;
 
 	DBG(dev, "reset" NL);
 
@@ -354,6 +356,7 @@ static int emac_reset(struct emac_instance *dev)
 	}
 
 #ifdef CONFIG_PPC_DCR_NATIVE
+do_retry:
 	/*
 	 * PPC460EX/GT Embedded Processor Advanced User's Manual
 	 * section 28.10.1 Mode Register 0 (EMACx_MR0) states:
@@ -361,10 +364,19 @@ static int emac_reset(struct emac_instance *dev)
 	 * of the EMAC. If none is present, select the internal clock
 	 * (SDR0_ETH_CFG[EMACx_PHY_CLK] = 1).
 	 * After a soft reset, select the external clock.
+	 *
+	 * The AR8035-A PHY Meraki MR24 does not provide a TX Clk if the
+	 * ethernet cable is not attached. This causes the reset to timeout
+	 * and the PHY detection code in emac_init_phy() is unable to
+	 * communicate and detect the AR8035-A PHY. As a result, the emac
+	 * driver bails out early and the user has no ethernet.
+	 * In order to stay compatible with existing configurations, the
+	 * driver will temporarily switch to the internal clock, after
+	 * the first reset fails.
 	 */
 	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX)) {
-		if (dev->phy_address == 0xffffffff &&
-		    dev->phy_map == 0xffffffff) {
+		if (try_internal_clock || (dev->phy_address == 0xffffffff &&
+					   dev->phy_map == 0xffffffff)) {
 			/* No PHY: select internal loop clock before reset */
 			dcri_clrset(SDR0, SDR0_ETH_CFG,
 				    0, SDR0_ETH_CFG_ECS << dev->cell_index);
@@ -382,8 +394,15 @@ static int emac_reset(struct emac_instance *dev)
 
 #ifdef CONFIG_PPC_DCR_NATIVE
 	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX)) {
-		if (dev->phy_address == 0xffffffff &&
-		    dev->phy_map == 0xffffffff) {
+		if (!n && !try_internal_clock) {
+			/* first attempt has timed out. */
+			n = 20;
+			try_internal_clock = true;
+			goto do_retry;
+		}
+
+		if (try_internal_clock || (dev->phy_address == 0xffffffff &&
+					   dev->phy_map == 0xffffffff)) {
 			/* No PHY: restore external clock source after reset */
 			dcri_clrset(SDR0, SDR0_ETH_CFG,
 				    SDR0_ETH_CFG_ECS << dev->cell_index, 0);
@@ -1098,9 +1117,6 @@ static int emac_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 	int ret = 0;
-
-	if (new_mtu < EMAC_MIN_MTU || new_mtu > dev->max_mtu)
-		return -EINVAL;
 
 	DBG(dev, "change_mtu(%d)" NL, new_mtu);
 
@@ -1931,7 +1947,7 @@ static struct net_device_stats *emac_stats(struct net_device *ndev)
 	struct emac_instance *dev = netdev_priv(ndev);
 	struct emac_stats *st = &dev->stats;
 	struct emac_error_stats *est = &dev->estats;
-	struct net_device_stats *nst = &dev->nstats;
+	struct net_device_stats *nst = &ndev->stats;
 	unsigned long flags;
 
 	DBG2(dev, "stats" NL);
@@ -1994,69 +2010,79 @@ static struct mal_commac_ops emac_commac_sg_ops = {
 };
 
 /* Ethtool support */
-static int emac_ethtool_get_settings(struct net_device *ndev,
-				     struct ethtool_cmd *cmd)
+static int emac_ethtool_get_link_ksettings(struct net_device *ndev,
+					   struct ethtool_link_ksettings *cmd)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
+	u32 supported, advertising;
 
-	cmd->supported = dev->phy.features;
-	cmd->port = PORT_MII;
-	cmd->phy_address = dev->phy.address;
-	cmd->transceiver =
-	    dev->phy.address >= 0 ? XCVR_EXTERNAL : XCVR_INTERNAL;
+	supported = dev->phy.features;
+	cmd->base.port = PORT_MII;
+	cmd->base.phy_address = dev->phy.address;
 
 	mutex_lock(&dev->link_lock);
-	cmd->advertising = dev->phy.advertising;
-	cmd->autoneg = dev->phy.autoneg;
-	cmd->speed = dev->phy.speed;
-	cmd->duplex = dev->phy.duplex;
+	advertising = dev->phy.advertising;
+	cmd->base.autoneg = dev->phy.autoneg;
+	cmd->base.speed = dev->phy.speed;
+	cmd->base.duplex = dev->phy.duplex;
 	mutex_unlock(&dev->link_lock);
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
-static int emac_ethtool_set_settings(struct net_device *ndev,
-				     struct ethtool_cmd *cmd)
+static int
+emac_ethtool_set_link_ksettings(struct net_device *ndev,
+				const struct ethtool_link_ksettings *cmd)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 	u32 f = dev->phy.features;
+	u32 advertising;
+
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
 
 	DBG(dev, "set_settings(%d, %d, %d, 0x%08x)" NL,
-	    cmd->autoneg, cmd->speed, cmd->duplex, cmd->advertising);
+	    cmd->base.autoneg, cmd->base.speed, cmd->base.duplex, advertising);
 
 	/* Basic sanity checks */
 	if (dev->phy.address < 0)
 		return -EOPNOTSUPP;
-	if (cmd->autoneg != AUTONEG_ENABLE && cmd->autoneg != AUTONEG_DISABLE)
+	if (cmd->base.autoneg != AUTONEG_ENABLE &&
+	    cmd->base.autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
-	if (cmd->autoneg == AUTONEG_ENABLE && cmd->advertising == 0)
+	if (cmd->base.autoneg == AUTONEG_ENABLE && advertising == 0)
 		return -EINVAL;
-	if (cmd->duplex != DUPLEX_HALF && cmd->duplex != DUPLEX_FULL)
+	if (cmd->base.duplex != DUPLEX_HALF && cmd->base.duplex != DUPLEX_FULL)
 		return -EINVAL;
 
-	if (cmd->autoneg == AUTONEG_DISABLE) {
-		switch (cmd->speed) {
+	if (cmd->base.autoneg == AUTONEG_DISABLE) {
+		switch (cmd->base.speed) {
 		case SPEED_10:
-			if (cmd->duplex == DUPLEX_HALF &&
+			if (cmd->base.duplex == DUPLEX_HALF &&
 			    !(f & SUPPORTED_10baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL &&
+			if (cmd->base.duplex == DUPLEX_FULL &&
 			    !(f & SUPPORTED_10baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_100:
-			if (cmd->duplex == DUPLEX_HALF &&
+			if (cmd->base.duplex == DUPLEX_HALF &&
 			    !(f & SUPPORTED_100baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL &&
+			if (cmd->base.duplex == DUPLEX_FULL &&
 			    !(f & SUPPORTED_100baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_1000:
-			if (cmd->duplex == DUPLEX_HALF &&
+			if (cmd->base.duplex == DUPLEX_HALF &&
 			    !(f & SUPPORTED_1000baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL &&
+			if (cmd->base.duplex == DUPLEX_FULL &&
 			    !(f & SUPPORTED_1000baseT_Full))
 				return -EINVAL;
 			break;
@@ -2065,8 +2091,8 @@ static int emac_ethtool_set_settings(struct net_device *ndev,
 		}
 
 		mutex_lock(&dev->link_lock);
-		dev->phy.def->ops->setup_forced(&dev->phy, cmd->speed,
-						cmd->duplex);
+		dev->phy.def->ops->setup_forced(&dev->phy, cmd->base.speed,
+						cmd->base.duplex);
 		mutex_unlock(&dev->link_lock);
 
 	} else {
@@ -2075,7 +2101,7 @@ static int emac_ethtool_set_settings(struct net_device *ndev,
 
 		mutex_lock(&dev->link_lock);
 		dev->phy.def->ops->setup_aneg(&dev->phy,
-					      (cmd->advertising & f) |
+					      (advertising & f) |
 					      (dev->phy.advertising &
 					       (ADVERTISED_Pause |
 						ADVERTISED_Asym_Pause)));
@@ -2237,8 +2263,6 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 }
 
 static const struct ethtool_ops emac_ethtool_ops = {
-	.get_settings = emac_ethtool_get_settings,
-	.set_settings = emac_ethtool_set_settings,
 	.get_drvinfo = emac_ethtool_get_drvinfo,
 
 	.get_regs_len = emac_ethtool_get_regs_len,
@@ -2254,6 +2278,8 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_ethtool_stats = emac_ethtool_get_ethtool_stats,
 
 	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = emac_ethtool_get_link_ksettings,
+	.set_link_ksettings = emac_ethtool_set_link_ksettings,
 };
 
 static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
@@ -2413,6 +2439,212 @@ static int emac_read_uint_prop(struct device_node *np, const char *name,
 	return 0;
 }
 
+static void emac_adjust_link(struct net_device *ndev)
+{
+	struct emac_instance *dev = netdev_priv(ndev);
+	struct phy_device *phy = dev->phy_dev;
+
+	dev->phy.autoneg = phy->autoneg;
+	dev->phy.speed = phy->speed;
+	dev->phy.duplex = phy->duplex;
+	dev->phy.pause = phy->pause;
+	dev->phy.asym_pause = phy->asym_pause;
+	dev->phy.advertising = phy->advertising;
+}
+
+static int emac_mii_bus_read(struct mii_bus *bus, int addr, int regnum)
+{
+	int ret = emac_mdio_read(bus->priv, addr, regnum);
+	/* This is a workaround for powered down ports/phys.
+	 * In the wild, this was seen on the Cisco Meraki MX60(W).
+	 * This hardware disables ports as part of the handoff
+	 * procedure. Accessing the ports will lead to errors
+	 * (-ETIMEDOUT, -EREMOTEIO) that do more harm than good.
+	 */
+	return ret < 0 ? 0xffff : ret;
+}
+
+static int emac_mii_bus_write(struct mii_bus *bus, int addr,
+			      int regnum, u16 val)
+{
+	emac_mdio_write(bus->priv, addr, regnum, val);
+	return 0;
+}
+
+static int emac_mii_bus_reset(struct mii_bus *bus)
+{
+	struct emac_instance *dev = netdev_priv(bus->priv);
+
+	return emac_reset(dev);
+}
+
+static int emac_mdio_phy_start_aneg(struct mii_phy *phy,
+				    struct phy_device *phy_dev)
+{
+	phy_dev->autoneg = phy->autoneg;
+	phy_dev->speed = phy->speed;
+	phy_dev->duplex = phy->duplex;
+	phy_dev->advertising = phy->advertising;
+	return phy_start_aneg(phy_dev);
+}
+
+static int emac_mdio_setup_aneg(struct mii_phy *phy, u32 advertise)
+{
+	struct net_device *ndev = phy->dev;
+	struct emac_instance *dev = netdev_priv(ndev);
+
+	phy->autoneg = AUTONEG_ENABLE;
+	phy->advertising = advertise;
+	return emac_mdio_phy_start_aneg(phy, dev->phy_dev);
+}
+
+static int emac_mdio_setup_forced(struct mii_phy *phy, int speed, int fd)
+{
+	struct net_device *ndev = phy->dev;
+	struct emac_instance *dev = netdev_priv(ndev);
+
+	phy->autoneg = AUTONEG_DISABLE;
+	phy->speed = speed;
+	phy->duplex = fd;
+	return emac_mdio_phy_start_aneg(phy, dev->phy_dev);
+}
+
+static int emac_mdio_poll_link(struct mii_phy *phy)
+{
+	struct net_device *ndev = phy->dev;
+	struct emac_instance *dev = netdev_priv(ndev);
+	int res;
+
+	res = phy_read_status(dev->phy_dev);
+	if (res) {
+		dev_err(&dev->ofdev->dev, "link update failed (%d).", res);
+		return ethtool_op_get_link(ndev);
+	}
+
+	return dev->phy_dev->link;
+}
+
+static int emac_mdio_read_link(struct mii_phy *phy)
+{
+	struct net_device *ndev = phy->dev;
+	struct emac_instance *dev = netdev_priv(ndev);
+	struct phy_device *phy_dev = dev->phy_dev;
+	int res;
+
+	res = phy_read_status(phy_dev);
+	if (res)
+		return res;
+
+	phy->speed = phy_dev->speed;
+	phy->duplex = phy_dev->duplex;
+	phy->pause = phy_dev->pause;
+	phy->asym_pause = phy_dev->asym_pause;
+	return 0;
+}
+
+static int emac_mdio_init_phy(struct mii_phy *phy)
+{
+	struct net_device *ndev = phy->dev;
+	struct emac_instance *dev = netdev_priv(ndev);
+
+	phy_start(dev->phy_dev);
+	return phy_init_hw(dev->phy_dev);
+}
+
+static const struct mii_phy_ops emac_dt_mdio_phy_ops = {
+	.init		= emac_mdio_init_phy,
+	.setup_aneg	= emac_mdio_setup_aneg,
+	.setup_forced	= emac_mdio_setup_forced,
+	.poll_link	= emac_mdio_poll_link,
+	.read_link	= emac_mdio_read_link,
+};
+
+static int emac_dt_mdio_probe(struct emac_instance *dev)
+{
+	struct device_node *mii_np;
+	int res;
+
+	mii_np = of_get_child_by_name(dev->ofdev->dev.of_node, "mdio");
+	if (!mii_np) {
+		dev_err(&dev->ofdev->dev, "no mdio definition found.");
+		return -ENODEV;
+	}
+
+	if (!of_device_is_available(mii_np)) {
+		res = -ENODEV;
+		goto put_node;
+	}
+
+	dev->mii_bus = devm_mdiobus_alloc(&dev->ofdev->dev);
+	if (!dev->mii_bus) {
+		res = -ENOMEM;
+		goto put_node;
+	}
+
+	dev->mii_bus->priv = dev->ndev;
+	dev->mii_bus->parent = dev->ndev->dev.parent;
+	dev->mii_bus->name = "emac_mdio";
+	dev->mii_bus->read = &emac_mii_bus_read;
+	dev->mii_bus->write = &emac_mii_bus_write;
+	dev->mii_bus->reset = &emac_mii_bus_reset;
+	snprintf(dev->mii_bus->id, MII_BUS_ID_SIZE, "%s", dev->ofdev->name);
+	res = of_mdiobus_register(dev->mii_bus, mii_np);
+	if (res) {
+		dev_err(&dev->ofdev->dev, "cannot register MDIO bus %s (%d)",
+			dev->mii_bus->name, res);
+	}
+
+ put_node:
+	of_node_put(mii_np);
+	return res;
+}
+
+static int emac_dt_phy_connect(struct emac_instance *dev,
+			       struct device_node *phy_handle)
+{
+	dev->phy.def = devm_kzalloc(&dev->ofdev->dev, sizeof(*dev->phy.def),
+				    GFP_KERNEL);
+	if (!dev->phy.def)
+		return -ENOMEM;
+
+	dev->phy_dev = of_phy_connect(dev->ndev, phy_handle, &emac_adjust_link,
+				      0, dev->phy_mode);
+	if (!dev->phy_dev) {
+		dev_err(&dev->ofdev->dev, "failed to connect to PHY.\n");
+		return -ENODEV;
+	}
+
+	dev->phy.def->phy_id = dev->phy_dev->drv->phy_id;
+	dev->phy.def->phy_id_mask = dev->phy_dev->drv->phy_id_mask;
+	dev->phy.def->name = dev->phy_dev->drv->name;
+	dev->phy.def->ops = &emac_dt_mdio_phy_ops;
+	dev->phy.features = dev->phy_dev->supported;
+	dev->phy.address = dev->phy_dev->mdio.addr;
+	dev->phy.mode = dev->phy_dev->interface;
+	return 0;
+}
+
+static int emac_dt_phy_probe(struct emac_instance *dev)
+{
+	struct device_node *np = dev->ofdev->dev.of_node;
+	struct device_node *phy_handle;
+	int res = 1;
+
+	phy_handle = of_parse_phandle(np, "phy-handle", 0);
+
+	if (phy_handle) {
+		res = emac_dt_mdio_probe(dev);
+		if (!res) {
+			res = emac_dt_phy_connect(dev, phy_handle);
+			if (res)
+				mdiobus_unregister(dev->mii_bus);
+		}
+	}
+
+	of_node_put(phy_handle);
+	return res;
+}
+
 static int emac_init_phy(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
@@ -2423,15 +2655,12 @@ static int emac_init_phy(struct emac_instance *dev)
 	dev->phy.dev = ndev;
 	dev->phy.mode = dev->phy_mode;
 
-	/* PHY-less configuration.
-	 * XXX I probably should move these settings to the dev tree
-	 */
-	if (dev->phy_address == 0xffffffff && dev->phy_map == 0xffffffff) {
+	/* PHY-less configuration. */
+	if ((dev->phy_address == 0xffffffff && dev->phy_map == 0xffffffff) ||
+	    of_phy_is_fixed_link(np)) {
 		emac_reset(dev);
 
-		/* PHY-less configuration.
-		 * XXX I probably should move these settings to the dev tree
-		 */
+		/* PHY-less configuration. */
 		dev->phy.address = -1;
 		dev->phy.features = SUPPORTED_MII;
 		if (emac_phy_supports_gige(dev->phy_mode))
@@ -2440,6 +2669,16 @@ static int emac_init_phy(struct emac_instance *dev)
 			dev->phy.features |= SUPPORTED_100baseT_Full;
 		dev->phy.pause = 1;
 
+		if (of_phy_is_fixed_link(np)) {
+			int res = emac_dt_mdio_probe(dev);
+
+			if (!res) {
+				res = of_phy_register_fixed_link(np);
+				if (res)
+					mdiobus_unregister(dev->mii_bus);
+			}
+			return res;
+		}
 		return 0;
 	}
 
@@ -2483,6 +2722,29 @@ static int emac_init_phy(struct emac_instance *dev)
 
 	emac_configure(dev);
 
+	if (emac_has_feature(dev, EMAC_FTR_HAS_RGMII)) {
+		int res = emac_dt_phy_probe(dev);
+
+		switch (res) {
+		case 1:
+			/* No phy-handle property configured.
+			 * Continue with the existing phy probe
+			 * and setup code.
+			 */
+			break;
+
+		case 0:
+			mutex_unlock(&emac_phy_map_lock);
+			goto init_phy;
+
+		default:
+			mutex_unlock(&emac_phy_map_lock);
+			dev_err(&dev->ofdev->dev, "failed to attach dt phy (%d).\n",
+				res);
+			return res;
+		}
+	}
+
 	if (dev->phy_address != 0xffffffff)
 		phy_map = ~(1 << dev->phy_address);
 
@@ -2510,6 +2772,7 @@ static int emac_init_phy(struct emac_instance *dev)
 		return -ENXIO;
 	}
 
+ init_phy:
 	/* Init PHY */
 	if (dev->phy.def->ops->init)
 		dev->phy.def->ops->init(&dev->phy);
@@ -2564,7 +2827,7 @@ static int emac_init_config(struct emac_instance *dev)
 	if (emac_read_uint_prop(np, "cell-index", &dev->cell_index, 1))
 		return -ENXIO;
 	if (emac_read_uint_prop(np, "max-frame-size", &dev->max_mtu, 0))
-		dev->max_mtu = 1500;
+		dev->max_mtu = ETH_DATA_LEN;
 	if (emac_read_uint_prop(np, "rx-fifo-size", &dev->rx_fifo_size, 0))
 		dev->rx_fifo_size = 2048;
 	if (emac_read_uint_prop(np, "tx-fifo-size", &dev->tx_fifo_size, 0))
@@ -2718,7 +2981,6 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= emac_set_mac_address,
 	.ndo_start_xmit		= emac_start_xmit,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static const struct net_device_ops emac_gige_netdev_ops = {
@@ -2891,6 +3153,10 @@ static int emac_probe(struct platform_device *ofdev)
 		ndev->netdev_ops = &emac_netdev_ops;
 	ndev->ethtool_ops = &emac_ethtool_ops;
 
+	/* MTU range: 46 - 1500 or whatever is in OF */
+	ndev->min_mtu = EMAC_MIN_MTU;
+	ndev->max_mtu = dev->max_mtu;
+
 	netif_carrier_off(ndev);
 
 	err = register_netdev(ndev);
@@ -2919,8 +3185,6 @@ static int emac_probe(struct platform_device *ofdev)
 	if (dev->phy.address >= 0)
 		printk("%s: found %s PHY (0x%02x)\n", ndev->name,
 		       dev->phy.def->name, dev->phy.address);
-
-	emac_dbg_register(dev);
 
 	/* Life is good */
 	return 0;
@@ -2978,13 +3242,18 @@ static int emac_remove(struct platform_device *ofdev)
 	if (emac_has_feature(dev, EMAC_FTR_HAS_ZMII))
 		zmii_detach(dev->zmii_dev, dev->zmii_port);
 
+	if (dev->phy_dev)
+		phy_disconnect(dev->phy_dev);
+
+	if (dev->mii_bus)
+		mdiobus_unregister(dev->mii_bus);
+
 	busy_phy_map &= ~(1 << dev->phy.address);
 	DBG(dev, "busy_phy_map now %#x" NL, busy_phy_map);
 
 	mal_unregister_commac(dev->mal, &dev->commac);
 	emac_put_deps(dev);
 
-	emac_dbg_unregister(dev);
 	iounmap(dev->emacp);
 
 	if (dev->wol_irq)
@@ -3067,9 +3336,6 @@ static int __init emac_init(void)
 
 	printk(KERN_INFO DRV_DESC ", version " DRV_VERSION "\n");
 
-	/* Init debug stuff */
-	emac_init_debug();
-
 	/* Build EMAC boot list */
 	emac_make_bootlist();
 
@@ -3114,7 +3380,6 @@ static void __exit emac_exit(void)
 	rgmii_exit();
 	zmii_exit();
 	mal_exit();
-	emac_fini_debug();
 
 	/* Destroy EMAC boot list */
 	for (i = 0; i < EMAC_BOOT_LIST_SIZE; i++)

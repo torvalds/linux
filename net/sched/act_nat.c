@@ -31,7 +31,7 @@
 
 #define NAT_TAB_MASK	15
 
-static int nat_net_id;
+static unsigned int nat_net_id;
 static struct tc_action_ops act_nat_ops;
 
 static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
@@ -50,7 +50,7 @@ static int tcf_nat_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_NAT_MAX, nla, nat_policy);
+	err = nla_parse_nested(tb, TCA_NAT_MAX, nla, nat_policy, NULL);
 	if (err < 0)
 		return err;
 

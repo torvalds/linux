@@ -89,7 +89,7 @@ static struct clock_event_device __percpu *msm_evt;
 
 static void __iomem *source_base;
 
-static notrace cycle_t msm_read_timer_count(struct clocksource *cs)
+static notrace u64 msm_read_timer_count(struct clocksource *cs)
 {
 	return readl_relaxed(source_base + TIMER_COUNT_VAL);
 }
@@ -182,7 +182,7 @@ static int __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
 	} else {
 		/* Install and invoke hotplug callbacks */
 		res = cpuhp_setup_state(CPUHP_AP_QCOM_TIMER_STARTING,
-					"AP_QCOM_TIMER_STARTING",
+					"clockevents/qcom/timer:starting",
 					msm_local_timer_starting_cpu,
 					msm_local_timer_dying_cpu);
 		if (res) {
@@ -254,5 +254,5 @@ static int __init msm_dt_timer_init(struct device_node *np)
 
 	return msm_timer_init(freq, 32, irq, !!percpu_offset);
 }
-CLOCKSOURCE_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
-CLOCKSOURCE_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
+TIMER_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
+TIMER_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);

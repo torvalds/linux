@@ -29,5 +29,7 @@ static inline void xmon_register_spus(struct list_head *list) { };
 extern int cpus_are_in_xmon(void);
 #endif
 
+extern void xmon_printf(const char *format, ...);
+
 #endif /* __KERNEL __ */
 #endif /* __ASM_POWERPC_XMON_H */

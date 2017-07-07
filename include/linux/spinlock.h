@@ -180,8 +180,6 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define raw_spin_lock_nested(lock, subclass) \
 	_raw_spin_lock_nested(lock, subclass)
-# define raw_spin_lock_bh_nested(lock, subclass) \
-	_raw_spin_lock_bh_nested(lock, subclass)
 
 # define raw_spin_lock_nest_lock(lock, nest_lock)			\
 	 do {								\
@@ -197,7 +195,6 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 # define raw_spin_lock_nested(lock, subclass)		\
 	_raw_spin_lock(((void)(subclass), (lock)))
 # define raw_spin_lock_nest_lock(lock, nest_lock)	_raw_spin_lock(lock)
-# define raw_spin_lock_bh_nested(lock, subclass)	_raw_spin_lock_bh(lock)
 #endif
 
 #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
@@ -317,11 +314,6 @@ do {								\
 	raw_spin_lock_nested(spinlock_check(lock), subclass);	\
 } while (0)
 
-#define spin_lock_bh_nested(lock, subclass)			\
-do {								\
-	raw_spin_lock_bh_nested(spinlock_check(lock), subclass);\
-} while (0)
-
 #define spin_lock_nest_lock(lock, nest_lock)				\
 do {									\
 	raw_spin_lock_nest_lock(spinlock_check(lock), nest_lock);	\
@@ -377,6 +369,26 @@ static __always_inline int spin_trylock_irq(spinlock_t *lock)
 	raw_spin_trylock_irqsave(spinlock_check(lock), flags); \
 })
 
+/**
+ * spin_unlock_wait - Interpose between successive critical sections
+ * @lock: the spinlock whose critical sections are to be interposed.
+ *
+ * Semantically this is equivalent to a spin_lock() immediately
+ * followed by a spin_unlock().  However, most architectures have
+ * more efficient implementations in which the spin_unlock_wait()
+ * cannot block concurrent lock acquisition, and in some cases
+ * where spin_unlock_wait() does not write to the lock variable.
+ * Nevertheless, spin_unlock_wait() can have high overhead, so if
+ * you feel the need to use it, please check to see if there is
+ * a better way to get your job done.
+ *
+ * The ordering guarantees provided by spin_unlock_wait() are:
+ *
+ * 1.  All accesses preceding the spin_unlock_wait() happen before
+ *     any accesses in later critical sections for this same lock.
+ * 2.  All accesses following the spin_unlock_wait() happen after
+ *     any accesses in earlier critical sections for this same lock.
+ */
 static __always_inline void spin_unlock_wait(spinlock_t *lock)
 {
 	raw_spin_unlock_wait(&lock->rlock);

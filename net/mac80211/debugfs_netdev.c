@@ -330,8 +330,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 		return -ENOMEM;
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	hdr = (struct ieee80211_hdr *) skb_put(skb, 24);
-	memset(hdr, 0, 24);
+	hdr = skb_put_zero(skb, 24);
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
 	switch (sdata->vif.type) {
@@ -367,7 +366,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	 * The exact contents does not matter since the recipient is required
 	 * to drop this because of the Michael MIC failure.
 	 */
-	memset(skb_put(skb, 50), 0, 50);
+	skb_put_zero(skb, 50);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_TKIP_MIC_FAILURE;
 
@@ -477,6 +476,7 @@ IEEE80211_IF_FILE_RW(tdls_wider_bw);
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.ps.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.ps.dtim_count, DEC);
+IEEE80211_IF_FILE(num_mcast_sta_vlan, u.vlan.num_mcast_sta, ATOMIC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -517,6 +517,8 @@ static ssize_t ieee80211_if_fmt_aqm(
 	return len;
 }
 IEEE80211_IF_FILE_R(aqm);
+
+IEEE80211_IF_FILE(multicast_to_unicast, u.ap.multicast_to_unicast, HEX);
 
 /* IBSS attributes */
 static ssize_t ieee80211_if_fmt_tsf(
@@ -682,6 +684,14 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
+	DEBUGFS_ADD_MODE(multicast_to_unicast, 0600);
+}
+
+static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
+{
+	/* add num_mcast_sta_vlan using name num_mcast_sta */
+	debugfs_create_file("num_mcast_sta", 0400, sdata->vif.debugfs_dir,
+			    sdata, &num_mcast_sta_vlan_ops);
 }
 
 static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
@@ -786,6 +796,9 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		break;
 	case NL80211_IFTYPE_AP:
 		add_ap_files(sdata);
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+		add_vlan_files(sdata);
 		break;
 	case NL80211_IFTYPE_WDS:
 		add_wds_files(sdata);

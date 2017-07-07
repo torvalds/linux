@@ -464,7 +464,8 @@ static int sm_ll_mutate(struct ll_disk *ll, dm_block_t b,
 		ll->nr_allocated--;
 		le32_add_cpu(&ie_disk.nr_free, 1);
 		ie_disk.none_free_before = cpu_to_le32(min(le32_to_cpu(ie_disk.none_free_before), bit));
-	}
+	} else
+		*ev = SM_NONE;
 
 	return ll->save_ie(ll, index, &ie_disk);
 }
@@ -547,7 +548,6 @@ static int metadata_ll_init_index(struct ll_disk *ll)
 	if (r < 0)
 		return r;
 
-	memcpy(dm_block_data(b), &ll->mi_le, sizeof(ll->mi_le));
 	ll->bitmap_root = dm_block_location(b);
 
 	dm_tm_unlock(ll->tm, b);
@@ -626,12 +626,18 @@ int sm_ll_open_metadata(struct ll_disk *ll, struct dm_transaction_manager *tm,
 			void *root_le, size_t len)
 {
 	int r;
-	struct disk_sm_root *smr = root_le;
+	struct disk_sm_root smr;
 
 	if (len < sizeof(struct disk_sm_root)) {
 		DMERR("sm_metadata root too small");
 		return -ENOMEM;
 	}
+
+	/*
+	 * We don't know the alignment of the root_le buffer, so need to
+	 * copy into a new structure.
+	 */
+	memcpy(&smr, root_le, sizeof(smr));
 
 	r = sm_ll_init(ll, tm);
 	if (r < 0)
@@ -644,10 +650,10 @@ int sm_ll_open_metadata(struct ll_disk *ll, struct dm_transaction_manager *tm,
 	ll->max_entries = metadata_ll_max_entries;
 	ll->commit = metadata_ll_commit;
 
-	ll->nr_blocks = le64_to_cpu(smr->nr_blocks);
-	ll->nr_allocated = le64_to_cpu(smr->nr_allocated);
-	ll->bitmap_root = le64_to_cpu(smr->bitmap_root);
-	ll->ref_count_root = le64_to_cpu(smr->ref_count_root);
+	ll->nr_blocks = le64_to_cpu(smr.nr_blocks);
+	ll->nr_allocated = le64_to_cpu(smr.nr_allocated);
+	ll->bitmap_root = le64_to_cpu(smr.bitmap_root);
+	ll->ref_count_root = le64_to_cpu(smr.ref_count_root);
 
 	return ll->open_index(ll);
 }

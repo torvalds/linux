@@ -18,12 +18,6 @@
 #include <asm/signal.h>
 #include <asm/page.h>
 
-/*
- * The sparc has no problems with write protection
- */
-#define wp_works_ok 1
-#define wp_works_ok__is_a_macro /* for versions in ksyms.c */
-
 /* Whee, this is STACK_TOP + PAGE_SIZE and the lowest kernel address too...
  * That one page is used to protect kernel from intruders, so that
  * we can make our access_ok test faster
@@ -73,9 +67,6 @@ struct thread_struct {
 	.current_ds = KERNEL_DS, \
 }
 
-/* Return saved PC of a blocked thread. */
-unsigned long thread_saved_pc(struct task_struct *t);
-
 /* Do necessary setup to start up a newly executed thread. */
 static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 				    unsigned long sp)
@@ -119,7 +110,6 @@ extern struct task_struct *last_task_used_math;
 int do_mathemu(struct pt_regs *regs, struct task_struct *fpt);
 
 #define cpu_relax()	barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 extern void (*sparc_idle)(void);
 

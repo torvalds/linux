@@ -7,11 +7,15 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/cpufeature.h>
+#include <linux/bitops.h>
 #include <linux/kernel.h>
+#include <linux/sched/mm.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/mm_types.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
+
 #include <asm/diag.h>
 #include <asm/facility.h>
 #include <asm/elf.h>
@@ -32,7 +36,7 @@ static bool machine_has_cpu_mhz;
 void __init cpu_detect_mhz_feature(void)
 {
 	if (test_facility(34) && __ecag(ECAG_CPU_ATTRIBUTE, 0) != -1UL)
-		machine_has_cpu_mhz = 1;
+		machine_has_cpu_mhz = true;
 }
 
 static void update_cpu_mhz(void *arg)
@@ -53,7 +57,7 @@ void s390_update_cpu_mhz(void)
 		on_each_cpu(update_cpu_mhz, NULL, 0);
 }
 
-void notrace cpu_relax(void)
+void notrace cpu_relax_yield(void)
 {
 	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44) {
 		diag_stat_inc(DIAG_STAT_X044);
@@ -61,7 +65,7 @@ void notrace cpu_relax(void)
 	}
 	barrier();
 }
-EXPORT_SYMBOL(cpu_relax);
+EXPORT_SYMBOL(cpu_relax_yield);
 
 /*
  * cpu_init - initializes state that is per-CPU.
@@ -73,7 +77,7 @@ void cpu_init(void)
 	get_cpu_id(id);
 	if (machine_has_cpu_mhz)
 		update_cpu_mhz(NULL);
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
@@ -88,11 +92,23 @@ int cpu_have_feature(unsigned int num)
 }
 EXPORT_SYMBOL(cpu_have_feature);
 
+static void show_facilities(struct seq_file *m)
+{
+	unsigned int bit;
+	long *facilities;
+
+	facilities = (long *)&S390_lowcore.stfle_fac_list;
+	seq_puts(m, "facilities      :");
+	for_each_set_bit_inv(bit, facilities, MAX_FACILITY_BIT)
+		seq_printf(m, " %d", bit);
+	seq_putc(m, '\n');
+}
+
 static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx"
+		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe", "gs"
 	};
 	static const char * const int_hwcap_str[] = {
 		"sie"
@@ -113,6 +129,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 		if (int_hwcap_str[i] && (int_hwcap & (1UL << i)))
 			seq_printf(m, "%s ", int_hwcap_str[i]);
 	seq_puts(m, "\n");
+	show_facilities(m);
 	show_cacheinfo(m);
 	for_each_online_cpu(cpu) {
 		struct cpuid *id = &per_cpu(cpu_info.cpu_id, cpu);

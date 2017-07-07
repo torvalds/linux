@@ -78,6 +78,8 @@ static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
 
 unsigned long vmalloc_to_phys(void *vmalloc_addr);
 
+void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
+void pgtable_cache_init(void);
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_PGTABLE_H */

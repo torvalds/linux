@@ -21,7 +21,6 @@
 #include "vsp1_dl.h"
 
 #define VSP1_DL_NUM_ENTRIES		256
-#define VSP1_DL_NUM_LISTS		3
 
 #define VSP1_DLH_INT_ENABLE		(1 << 1)
 #define VSP1_DLH_AUTO_START		(1 << 0)
@@ -71,6 +70,7 @@ struct vsp1_dl_body {
  * @dma: DMA address for the header
  * @body0: first display list body
  * @fragments: list of extra display list bodies
+ * @chain: entry in the display list partition chain
  */
 struct vsp1_dl_list {
 	struct list_head list;
@@ -81,6 +81,9 @@ struct vsp1_dl_list {
 
 	struct vsp1_dl_body body0;
 	struct list_head fragments;
+
+	bool has_chain;
+	struct list_head chain;
 };
 
 enum vsp1_dl_mode {
@@ -237,7 +240,8 @@ static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 	INIT_LIST_HEAD(&dl->fragments);
 	dl->dlm = dlm;
 
-	/* Initialize the display list body and allocate DMA memory for the body
+	/*
+	 * Initialize the display list body and allocate DMA memory for the body
 	 * and the optional header. Both are allocated together to avoid memory
 	 * fragmentation, with the header located right after the body in
 	 * memory.
@@ -262,7 +266,6 @@ static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 
 		memset(dl->header, 0, sizeof(*dl->header));
 		dl->header->lists[0].addr = dl->body0.dma;
-		dl->header->flags = VSP1_DLH_INT_ENABLE;
 	}
 
 	return dl;
@@ -293,6 +296,12 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 	if (!list_empty(&dlm->free)) {
 		dl = list_first_entry(&dlm->free, struct vsp1_dl_list, list);
 		list_del(&dl->list);
+
+		/*
+		 * The display list chain must be initialised to ensure every
+		 * display list can assert list_empty() if it is not in a chain.
+		 */
+		INIT_LIST_HEAD(&dl->chain);
 	}
 
 	spin_unlock_irqrestore(&dlm->lock, flags);
@@ -303,10 +312,24 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 /* This function must be called with the display list manager lock held.*/
 static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 {
+	struct vsp1_dl_list *dl_child;
+
 	if (!dl)
 		return;
 
-	/* We can't free fragments here as DMA memory can only be freed in
+	/*
+	 * Release any linked display-lists which were chained for a single
+	 * hardware operation.
+	 */
+	if (dl->has_chain) {
+		list_for_each_entry(dl_child, &dl->chain, chain)
+			__vsp1_dl_list_put(dl_child);
+	}
+
+	dl->has_chain = false;
+
+	/*
+	 * We can't free fragments here as DMA memory can only be freed in
 	 * interruptible context. Move all fragments to the display list
 	 * manager's list of fragments to be freed, they will be
 	 * garbage-collected by the work queue.
@@ -383,6 +406,76 @@ int vsp1_dl_list_add_fragment(struct vsp1_dl_list *dl,
 	return 0;
 }
 
+/**
+ * vsp1_dl_list_add_chain - Add a display list to a chain
+ * @head: The head display list
+ * @dl: The new display list
+ *
+ * Add a display list to an existing display list chain. The chained lists
+ * will be automatically processed by the hardware without intervention from
+ * the CPU. A display list end interrupt will only complete after the last
+ * display list in the chain has completed processing.
+ *
+ * Adding a display list to a chain passes ownership of the display list to
+ * the head display list item. The chain is released when the head dl item is
+ * put back with __vsp1_dl_list_put().
+ *
+ * Chained display lists are only usable in header mode. Attempts to add a
+ * display list to a chain in header-less mode will return an error.
+ */
+int vsp1_dl_list_add_chain(struct vsp1_dl_list *head,
+			   struct vsp1_dl_list *dl)
+{
+	/* Chained lists are only available in header mode. */
+	if (head->dlm->mode != VSP1_DL_MODE_HEADER)
+		return -EINVAL;
+
+	head->has_chain = true;
+	list_add_tail(&dl->chain, &head->chain);
+	return 0;
+}
+
+static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
+{
+	struct vsp1_dl_header_list *hdr = dl->header->lists;
+	struct vsp1_dl_body *dlb;
+	unsigned int num_lists = 0;
+
+	/*
+	 * Fill the header with the display list bodies addresses and sizes. The
+	 * address of the first body has already been filled when the display
+	 * list was allocated.
+	 */
+
+	hdr->num_bytes = dl->body0.num_entries
+		       * sizeof(*dl->header->lists);
+
+	list_for_each_entry(dlb, &dl->fragments, list) {
+		num_lists++;
+		hdr++;
+
+		hdr->addr = dlb->dma;
+		hdr->num_bytes = dlb->num_entries
+			       * sizeof(*dl->header->lists);
+	}
+
+	dl->header->num_lists = num_lists;
+
+	/*
+	 * If this display list's chain is not empty, we are on a list, where
+	 * the next item in the list is the display list entity which should be
+	 * automatically queued by the hardware.
+	 */
+	if (!list_empty(&dl->chain) && !is_last) {
+		struct vsp1_dl_list *next = list_next_entry(dl, chain);
+
+		dl->header->next_header = next->dma;
+		dl->header->flags = VSP1_DLH_AUTO_START;
+	} else {
+		dl->header->flags = VSP1_DLH_INT_ENABLE;
+	}
+}
+
 void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 {
 	struct vsp1_dl_manager *dlm = dl->dlm;
@@ -393,37 +486,34 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 	spin_lock_irqsave(&dlm->lock, flags);
 
 	if (dl->dlm->mode == VSP1_DL_MODE_HEADER) {
-		struct vsp1_dl_header_list *hdr = dl->header->lists;
-		struct vsp1_dl_body *dlb;
-		unsigned int num_lists = 0;
+		struct vsp1_dl_list *dl_child;
 
-		/* Fill the header with the display list bodies addresses and
-		 * sizes. The address of the first body has already been filled
-		 * when the display list was allocated.
-		 *
+		/*
 		 * In header mode the caller guarantees that the hardware is
 		 * idle at this point.
 		 */
-		hdr->num_bytes = dl->body0.num_entries
-			       * sizeof(*dl->header->lists);
 
-		list_for_each_entry(dlb, &dl->fragments, list) {
-			num_lists++;
-			hdr++;
+		/* Fill the header for the head and chained display lists. */
+		vsp1_dl_list_fill_header(dl, list_empty(&dl->chain));
 
-			hdr->addr = dlb->dma;
-			hdr->num_bytes = dlb->num_entries
-				       * sizeof(*dl->header->lists);
+		list_for_each_entry(dl_child, &dl->chain, chain) {
+			bool last = list_is_last(&dl_child->chain, &dl->chain);
+
+			vsp1_dl_list_fill_header(dl_child, last);
 		}
 
-		dl->header->num_lists = num_lists;
+		/*
+		 * Commit the head display list to hardware. Chained headers
+		 * will auto-start.
+		 */
 		vsp1_write(vsp1, VI6_DL_HDR_ADDR(dlm->index), dl->dma);
 
 		dlm->active = dl;
 		goto done;
 	}
 
-	/* Once the UPD bit has been set the hardware can start processing the
+	/*
+	 * Once the UPD bit has been set the hardware can start processing the
 	 * display list at any time and we can't touch the address and size
 	 * registers. In that case mark the update as pending, it will be
 	 * queued up to the hardware by the frame end interrupt handler.
@@ -435,7 +525,8 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 		goto done;
 	}
 
-	/* Program the hardware with the display list body address and size.
+	/*
+	 * Program the hardware with the display list body address and size.
 	 * The UPD bit will be cleared by the device when the display list is
 	 * processed.
 	 */
@@ -459,7 +550,8 @@ void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
 {
 	spin_lock(&dlm->lock);
 
-	/* The display start interrupt signals the end of the display list
+	/*
+	 * The display start interrupt signals the end of the display list
 	 * processing by the device. The active display list, if any, won't be
 	 * accessed anymore and can be reused.
 	 */
@@ -478,14 +570,16 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	__vsp1_dl_list_put(dlm->active);
 	dlm->active = NULL;
 
-	/* Header mode is used for mem-to-mem pipelines only. We don't need to
+	/*
+	 * Header mode is used for mem-to-mem pipelines only. We don't need to
 	 * perform any operation as there can't be any new display list queued
 	 * in that case.
 	 */
 	if (dlm->mode == VSP1_DL_MODE_HEADER)
 		goto done;
 
-	/* The UPD bit set indicates that the commit operation raced with the
+	/*
+	 * The UPD bit set indicates that the commit operation raced with the
 	 * interrupt and occurred after the frame end event and UPD clear but
 	 * before interrupt processing. The hardware hasn't taken the update
 	 * into account yet, we'll thus skip one frame and retry.
@@ -493,7 +587,8 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	if (vsp1_read(vsp1, VI6_DL_BODY_SIZE) & VI6_DL_BODY_SIZE_UPD)
 		goto done;
 
-	/* The device starts processing the queued display list right after the
+	/*
+	 * The device starts processing the queued display list right after the
 	 * frame end interrupt. The display list thus becomes active.
 	 */
 	if (dlm->queued) {
@@ -501,7 +596,8 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 		dlm->queued = NULL;
 	}
 
-	/* Now that the UPD bit has been cleared we can queue the next display
+	/*
+	 * Now that the UPD bit has been cleared we can queue the next display
 	 * list to the hardware if one has been prepared.
 	 */
 	if (dlm->pending) {
@@ -527,7 +623,8 @@ void vsp1_dlm_setup(struct vsp1_device *vsp1)
 		 | VI6_DL_CTRL_DC2 | VI6_DL_CTRL_DC1 | VI6_DL_CTRL_DC0
 		 | VI6_DL_CTRL_DLE;
 
-	/* The DRM pipeline operates with display lists in Continuous Frame
+	/*
+	 * The DRM pipeline operates with display lists in Continuous Frame
 	 * Mode, all other pipelines use manual start.
 	 */
 	if (vsp1->drm)

@@ -9,63 +9,31 @@
 
 #include <linux/types.h>
 #include <linux/bug.h>
-
-struct timespec;
-struct compat_timespec;
+#include <linux/restart_block.h>
 
 #ifdef CONFIG_THREAD_INFO_IN_TASK
-struct thread_info {
-	unsigned long		flags;		/* low level flags */
-};
-
-#define INIT_THREAD_INFO(tsk)			\
-{						\
-	.flags		= 0,			\
-}
-#endif
-
-#ifdef CONFIG_THREAD_INFO_IN_TASK
+/*
+ * For CONFIG_THREAD_INFO_IN_TASK kernels we need <asm/current.h> for the
+ * definition of current, but for !CONFIG_THREAD_INFO_IN_TASK kernels,
+ * including <asm/current.h> can cause a circular dependency on some platforms.
+ */
+#include <asm/current.h>
 #define current_thread_info() ((struct thread_info *)current)
 #endif
 
+#include <linux/bitops.h>
+
 /*
- * System call restart block.
+ * For per-arch arch_within_stack_frames() implementations, defined in
+ * asm/thread_info.h.
  */
-struct restart_block {
-	long (*fn)(struct restart_block *);
-	union {
-		/* For futex_wait and futex_wait_requeue_pi */
-		struct {
-			u32 __user *uaddr;
-			u32 val;
-			u32 flags;
-			u32 bitset;
-			u64 time;
-			u32 __user *uaddr2;
-		} futex;
-		/* For nanosleep */
-		struct {
-			clockid_t clockid;
-			struct timespec __user *rmtp;
-#ifdef CONFIG_COMPAT
-			struct compat_timespec __user *compat_rmtp;
-#endif
-			u64 expires;
-		} nanosleep;
-		/* For poll */
-		struct {
-			struct pollfd __user *ufds;
-			int nfds;
-			int has_timeout;
-			unsigned long tv_sec;
-			unsigned long tv_nsec;
-		} poll;
-	};
+enum {
+	BAD_STACK = -1,
+	NOT_STACK = 0,
+	GOOD_FRAME,
+	GOOD_STACK,
 };
 
-extern long do_no_restart_syscall(struct restart_block *parm);
-
-#include <linux/bitops.h>
 #include <asm/thread_info.h>
 
 #ifdef __KERNEL__
@@ -144,6 +112,10 @@ static inline void check_object_size(const void *ptr, unsigned long n,
 				     bool to_user)
 { }
 #endif /* CONFIG_HARDENED_USERCOPY */
+
+#ifndef arch_setup_new_exec
+static inline void arch_setup_new_exec(void) { }
+#endif
 
 #endif	/* __KERNEL__ */
 

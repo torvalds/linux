@@ -49,6 +49,7 @@ static const pem_event_action * const uninitialize_event[] = {
 	uninitialize_display_phy_access_tasks,
 	disable_gfx_voltage_island_power_gating_tasks,
 	disable_gfx_clock_gating_tasks,
+	uninitialize_thermal_controller_tasks,
 	set_boot_state_tasks,
 	adjust_power_state_tasks,
 	disable_dynamic_state_management_tasks,
@@ -262,6 +263,8 @@ static const pem_event_action * const display_config_change_event[] = {
 	unblock_adjust_power_state_tasks,
 	set_cpu_power_state,
 	notify_hw_power_source_tasks,
+	get_2d_performance_state_tasks,
+	set_performance_state_tasks,
 	/* updateDALConfigurationTasks,
 	variBrightDisplayConfigurationChangeTasks, */
 	adjust_power_state_tasks,

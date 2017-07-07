@@ -84,10 +84,8 @@ bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev)
 
 	/* Alloc debugfs mem */
 	mem->debugfs_mem = kzalloc(OCRDMA_MAX_DBGFS_MEM, GFP_KERNEL);
-	if (!mem->debugfs_mem) {
-		pr_err("%s: stats debugfs mem allocation failed\n", __func__);
+	if (!mem->debugfs_mem)
 		return false;
-	}
 
 	return true;
 }
@@ -645,7 +643,7 @@ static ssize_t ocrdma_dbgfs_ops_write(struct file *filp,
 	struct ocrdma_stats *pstats = filp->private_data;
 	struct ocrdma_dev *dev = pstats->dev;
 
-	if (count > 32)
+	if (*ppos != 0 || count == 0 || count > sizeof(tmp_str))
 		goto err;
 
 	if (copy_from_user(tmp_str, buffer, count))

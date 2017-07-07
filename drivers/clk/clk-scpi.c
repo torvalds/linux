@@ -71,15 +71,15 @@ static const struct clk_ops scpi_clk_ops = {
 };
 
 /* find closest match to given frequency in OPP table */
-static int __scpi_dvfs_round_rate(struct scpi_clk *clk, unsigned long rate)
+static long __scpi_dvfs_round_rate(struct scpi_clk *clk, unsigned long rate)
 {
 	int idx;
-	u32 fmin = 0, fmax = ~0, ftmp;
+	unsigned long fmin = 0, fmax = ~0, ftmp;
 	const struct scpi_opp *opp = clk->info->opps;
 
 	for (idx = 0; idx < clk->info->count; idx++, opp++) {
 		ftmp = opp->freq;
-		if (ftmp >= (u32)rate) {
+		if (ftmp >= rate) {
 			if (ftmp <= fmax)
 				fmax = ftmp;
 			break;
@@ -245,10 +245,12 @@ static int scpi_clk_add(struct device *dev, struct device_node *np,
 		sclk->id = val;
 
 		err = scpi_clk_ops_init(dev, match, sclk, name);
-		if (err)
+		if (err) {
 			dev_err(dev, "failed to register clock '%s'\n", name);
-		else
-			dev_dbg(dev, "Registered clock '%s'\n", name);
+			return err;
+		}
+
+		dev_dbg(dev, "Registered clock '%s'\n", name);
 		clk_data->clk[idx] = sclk;
 	}
 
@@ -290,13 +292,15 @@ static int scpi_clocks_probe(struct platform_device *pdev)
 			of_node_put(child);
 			return ret;
 		}
-	}
-	/* Add the virtual cpufreq device */
-	cpufreq_dev = platform_device_register_simple("scpi-cpufreq",
-						      -1, NULL, 0);
-	if (IS_ERR(cpufreq_dev))
-		pr_warn("unable to register cpufreq device");
 
+		if (match->data != &scpi_dvfs_ops)
+			continue;
+		/* Add the virtual cpufreq device if it's DVFS clock provider */
+		cpufreq_dev = platform_device_register_simple("scpi-cpufreq",
+							      -1, NULL, 0);
+		if (IS_ERR(cpufreq_dev))
+			pr_warn("unable to register cpufreq device");
+	}
 	return 0;
 }
 

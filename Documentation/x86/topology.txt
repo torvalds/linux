@@ -63,6 +63,15 @@ The topology of a system is described in the units of:
     The maximum possible number of packages in the system. Helpful for per
     package facilities to preallocate per package information.
 
+  - cpu_llc_id:
+
+    A per-CPU variable containing:
+    - On Intel, the first APIC ID of the list of CPUs sharing the Last Level
+    Cache
+
+    - On AMD, the Node ID or Core Complex ID containing the Last Level
+    Cache. In general, it is a number identifying an LLC uniquely on the
+    system.
 
 * Cores:
 

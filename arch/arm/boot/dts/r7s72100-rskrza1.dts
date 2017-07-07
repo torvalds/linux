@@ -43,6 +43,10 @@
 	clock-frequency = <48000000>;
 };
 
+&rtc_x1_clk {
+	clock-frequency = <32768>;
+};
+
 &mtu2 {
 	status = "okay";
 };
@@ -54,6 +58,23 @@
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 	};
+};
+
+&sdhi1 {
+	bus-width = <4>;
+	status = "okay";
+};
+
+&ostm0 {
+	status = "okay";
+};
+
+&ostm1 {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
 };
 
 &scif2 {

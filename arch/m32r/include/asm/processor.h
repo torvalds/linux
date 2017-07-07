@@ -122,8 +122,6 @@ extern void release_thread(struct task_struct *);
 extern void copy_segments(struct task_struct *p, struct mm_struct * mm);
 extern void release_segments(struct mm_struct * mm);
 
-extern unsigned long thread_saved_pc(struct task_struct *);
-
 /* Copy and release all segment info associated with a VM */
 #define copy_segments(p, mm)  do { } while (0)
 #define release_segments(mm)  do { } while (0)
@@ -133,6 +131,5 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
 
 #define cpu_relax()	barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 #endif /* _ASM_M32R_PROCESSOR_H */

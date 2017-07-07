@@ -22,5 +22,7 @@ Interfaces
     dev-radio
     dev-rds
     dev-sdr
+    dev-touch
     dev-event
     dev-subdev
+    dev-meta

@@ -8,6 +8,7 @@
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 /* This keeps a track of which one is crashing cpu. */
 static int crashing_cpu = -1;
@@ -47,11 +48,16 @@ static void crash_shutdown_secondary(void *passed_regs)
 
 static void crash_kexec_prepare_cpus(void)
 {
+	static int cpus_stopped;
 	unsigned int msecs;
+	unsigned int ncpus;
 
-	unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
+	if (cpus_stopped)
+		return;
 
-	dump_send_ipi(crash_shutdown_secondary);
+	ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
+
+	smp_call_function(crash_shutdown_secondary, NULL, 0);
 	smp_wmb();
 
 	/*
@@ -64,6 +70,17 @@ static void crash_kexec_prepare_cpus(void)
 		cpu_relax();
 		mdelay(1);
 	}
+
+	cpus_stopped = 1;
+}
+
+/* Override the weak function in kernel/panic.c */
+void crash_smp_send_stop(void)
+{
+	if (_crash_smp_send_stop)
+		_crash_smp_send_stop();
+
+	crash_kexec_prepare_cpus();
 }
 
 #else /* !defined(CONFIG_SMP)  */

@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -26,7 +27,7 @@ struct vb2_vmalloc_buf {
 	struct frame_vector		*vec;
 	enum dma_data_direction		dma_dir;
 	unsigned long			size;
-	atomic_t			refcount;
+	refcount_t			refcount;
 	struct vb2_vmarea_handler	handler;
 	struct dma_buf			*dbuf;
 };
@@ -41,7 +42,7 @@ static void *vb2_vmalloc_alloc(struct device *dev, unsigned long attrs,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL | gfp_flags);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->size = size;
 	buf->vaddr = vmalloc_user(buf->size);
@@ -53,10 +54,10 @@ static void *vb2_vmalloc_alloc(struct device *dev, unsigned long attrs,
 	if (!buf->vaddr) {
 		pr_debug("vmalloc of size %ld failed\n", buf->size);
 		kfree(buf);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
-	atomic_inc(&buf->refcount);
+	refcount_set(&buf->refcount, 1);
 	return buf;
 }
 
@@ -64,7 +65,7 @@ static void vb2_vmalloc_put(void *buf_priv)
 {
 	struct vb2_vmalloc_buf *buf = buf_priv;
 
-	if (atomic_dec_and_test(&buf->refcount)) {
+	if (refcount_dec_and_test(&buf->refcount)) {
 		vfree(buf->vaddr);
 		kfree(buf);
 	}
@@ -77,17 +78,20 @@ static void *vb2_vmalloc_get_userptr(struct device *dev, unsigned long vaddr,
 	struct vb2_vmalloc_buf *buf;
 	struct frame_vector *vec;
 	int n_pages, offset, i;
+	int ret = -ENOMEM;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	buf->dma_dir = dma_dir;
 	offset = vaddr & ~PAGE_MASK;
 	buf->size = size;
 	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE);
-	if (IS_ERR(vec))
+	if (IS_ERR(vec)) {
+		ret = PTR_ERR(vec);
 		goto fail_pfnvec_create;
+	}
 	buf->vec = vec;
 	n_pages = frame_vector_count(vec);
 	if (frame_vector_to_pages(vec) < 0) {
@@ -117,7 +121,7 @@ fail_map:
 fail_pfnvec_create:
 	kfree(buf);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static void vb2_vmalloc_put_userptr(void *buf_priv)
@@ -148,8 +152,7 @@ static void *vb2_vmalloc_vaddr(void *buf_priv)
 	struct vb2_vmalloc_buf *buf = buf_priv;
 
 	if (!buf->vaddr) {
-		pr_err("Address of an unallocated plane requested "
-		       "or cannot map user pointer\n");
+		pr_err("Address of an unallocated plane requested or cannot map user pointer\n");
 		return NULL;
 	}
 
@@ -159,7 +162,7 @@ static void *vb2_vmalloc_vaddr(void *buf_priv)
 static unsigned int vb2_vmalloc_num_users(void *buf_priv)
 {
 	struct vb2_vmalloc_buf *buf = buf_priv;
-	return atomic_read(&buf->refcount);
+	return refcount_read(&buf->refcount);
 }
 
 static int vb2_vmalloc_mmap(void *buf_priv, struct vm_area_struct *vma)
@@ -340,8 +343,8 @@ static struct dma_buf_ops vb2_vmalloc_dmabuf_ops = {
 	.detach = vb2_vmalloc_dmabuf_ops_detach,
 	.map_dma_buf = vb2_vmalloc_dmabuf_ops_map,
 	.unmap_dma_buf = vb2_vmalloc_dmabuf_ops_unmap,
-	.kmap = vb2_vmalloc_dmabuf_ops_kmap,
-	.kmap_atomic = vb2_vmalloc_dmabuf_ops_kmap,
+	.map = vb2_vmalloc_dmabuf_ops_kmap,
+	.map_atomic = vb2_vmalloc_dmabuf_ops_kmap,
 	.vmap = vb2_vmalloc_dmabuf_ops_vmap,
 	.mmap = vb2_vmalloc_dmabuf_ops_mmap,
 	.release = vb2_vmalloc_dmabuf_ops_release,
@@ -366,7 +369,7 @@ static struct dma_buf *vb2_vmalloc_get_dmabuf(void *buf_priv, unsigned long flag
 		return NULL;
 
 	/* dmabuf keeps reference to vb2 buffer */
-	atomic_inc(&buf->refcount);
+	refcount_inc(&buf->refcount);
 
 	return dbuf;
 }

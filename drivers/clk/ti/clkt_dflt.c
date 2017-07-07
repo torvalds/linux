@@ -55,7 +55,8 @@
  * elapsed.  XXX Deprecated - should be moved into drivers for the
  * individual IP block that the IDLEST register exists in.
  */
-static int _wait_idlest_generic(struct clk_hw_omap *clk, void __iomem *reg,
+static int _wait_idlest_generic(struct clk_hw_omap *clk,
+				struct clk_omap_reg *reg,
 				u32 mask, u8 idlest, const char *name)
 {
 	int i = 0, ena = 0;
@@ -91,7 +92,7 @@ static int _wait_idlest_generic(struct clk_hw_omap *clk, void __iomem *reg,
  */
 static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 {
-	void __iomem *companion_reg, *idlest_reg;
+	struct clk_omap_reg companion_reg, idlest_reg;
 	u8 other_bit, idlest_bit, idlest_val, idlest_reg_id;
 	s16 prcm_mod;
 	int r;
@@ -99,17 +100,17 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 	/* Not all modules have multiple clocks that their IDLEST depends on */
 	if (clk->ops->find_companion) {
 		clk->ops->find_companion(clk, &companion_reg, &other_bit);
-		if (!(ti_clk_ll_ops->clk_readl(companion_reg) &
+		if (!(ti_clk_ll_ops->clk_readl(&companion_reg) &
 		      (1 << other_bit)))
 			return;
 	}
 
 	clk->ops->find_idlest(clk, &idlest_reg, &idlest_bit, &idlest_val);
-	r = ti_clk_ll_ops->cm_split_idlest_reg(idlest_reg, &prcm_mod,
+	r = ti_clk_ll_ops->cm_split_idlest_reg(&idlest_reg, &prcm_mod,
 					       &idlest_reg_id);
 	if (r) {
 		/* IDLEST register not in the CM module */
-		_wait_idlest_generic(clk, idlest_reg, (1 << idlest_bit),
+		_wait_idlest_generic(clk, &idlest_reg, (1 << idlest_bit),
 				     idlest_val, clk_hw_get_name(&clk->hw));
 	} else {
 		ti_clk_ll_ops->cm_wait_module_ready(0, prcm_mod, idlest_reg_id,
@@ -139,17 +140,17 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
  * avoid this issue, and remove the casts.  No return value.
  */
 void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
-				   void __iomem **other_reg, u8 *other_bit)
+				   struct clk_omap_reg *other_reg,
+				   u8 *other_bit)
 {
-	u32 r;
+	memcpy(other_reg, &clk->enable_reg, sizeof(*other_reg));
 
 	/*
 	 * Convert CM_ICLKEN* <-> CM_FCLKEN*.  This conversion assumes
 	 * it's just a matter of XORing the bits.
 	 */
-	r = ((__force u32)clk->enable_reg ^ (CM_FCLKEN ^ CM_ICLKEN));
+	other_reg->offset ^= (CM_FCLKEN ^ CM_ICLKEN);
 
-	*other_reg = (__force void __iomem *)r;
 	*other_bit = clk->enable_bit;
 }
 
@@ -168,13 +169,14 @@ void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
  * CM_IDLEST2).  This is not true for all modules.  No return value.
  */
 void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
-				void __iomem **idlest_reg, u8 *idlest_bit,
+				struct clk_omap_reg *idlest_reg, u8 *idlest_bit,
 				u8 *idlest_val)
 {
-	u32 r;
+	memcpy(idlest_reg, &clk->enable_reg, sizeof(*idlest_reg));
 
-	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
-	*idlest_reg = (__force void __iomem *)r;
+	idlest_reg->offset &= ~0xf0;
+	idlest_reg->offset |= 0x20;
+
 	*idlest_bit = clk->enable_bit;
 
 	/*
@@ -222,31 +224,19 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 		}
 	}
 
-	if (IS_ERR(clk->enable_reg)) {
-		pr_err("%s: %s missing enable_reg\n", __func__,
-		       clk_hw_get_name(hw));
-		ret = -EINVAL;
-		goto err;
-	}
-
 	/* FIXME should not have INVERT_ENABLE bit here */
-	v = ti_clk_ll_ops->clk_readl(clk->enable_reg);
+	v = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 	if (clk->flags & INVERT_ENABLE)
 		v &= ~(1 << clk->enable_bit);
 	else
 		v |= (1 << clk->enable_bit);
-	ti_clk_ll_ops->clk_writel(v, clk->enable_reg);
-	v = ti_clk_ll_ops->clk_readl(clk->enable_reg); /* OCP barrier */
+	ti_clk_ll_ops->clk_writel(v, &clk->enable_reg);
+	v = ti_clk_ll_ops->clk_readl(&clk->enable_reg); /* OCP barrier */
 
 	if (clk->ops && clk->ops->find_idlest)
 		_omap2_module_wait_ready(clk);
 
 	return 0;
-
-err:
-	if (clkdm_control && clk->clkdm)
-		ti_clk_ll_ops->clkdm_clk_disable(clk->clkdm, hw->clk);
-	return ret;
 }
 
 /**
@@ -264,22 +254,13 @@ void omap2_dflt_clk_disable(struct clk_hw *hw)
 	u32 v;
 
 	clk = to_clk_hw_omap(hw);
-	if (IS_ERR(clk->enable_reg)) {
-		/*
-		 * 'independent' here refers to a clock which is not
-		 * controlled by its parent.
-		 */
-		pr_err("%s: independent clock %s has no enable_reg\n",
-		       __func__, clk_hw_get_name(hw));
-		return;
-	}
 
-	v = ti_clk_ll_ops->clk_readl(clk->enable_reg);
+	v = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 	if (clk->flags & INVERT_ENABLE)
 		v |= (1 << clk->enable_bit);
 	else
 		v &= ~(1 << clk->enable_bit);
-	ti_clk_ll_ops->clk_writel(v, clk->enable_reg);
+	ti_clk_ll_ops->clk_writel(v, &clk->enable_reg);
 	/* No OCP barrier needed here since it is a disable operation */
 
 	if (!(ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) &&
@@ -300,7 +281,7 @@ int omap2_dflt_clk_is_enabled(struct clk_hw *hw)
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	u32 v;
 
-	v = ti_clk_ll_ops->clk_readl(clk->enable_reg);
+	v = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 
 	if (clk->flags & INVERT_ENABLE)
 		v ^= BIT(clk->enable_bit);

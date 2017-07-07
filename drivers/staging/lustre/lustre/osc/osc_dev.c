@@ -29,7 +29,7 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * Implementation of cl_device, cl_req for OSC layer.
+ * Implementation of cl_device, for OSC layer.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
  */
@@ -49,7 +49,6 @@ struct kmem_cache *osc_lock_kmem;
 struct kmem_cache *osc_object_kmem;
 struct kmem_cache *osc_thread_kmem;
 struct kmem_cache *osc_session_kmem;
-struct kmem_cache *osc_req_kmem;
 struct kmem_cache *osc_extent_kmem;
 struct kmem_cache *osc_quota_kmem;
 
@@ -75,11 +74,6 @@ struct lu_kmem_descr osc_caches[] = {
 		.ckd_size  = sizeof(struct osc_session)
 	},
 	{
-		.ckd_cache = &osc_req_kmem,
-		.ckd_name  = "osc_req_kmem",
-		.ckd_size  = sizeof(struct osc_req)
-	},
-	{
 		.ckd_cache = &osc_extent_kmem,
 		.ckd_name  = "osc_extent_kmem",
 		.ckd_size  = sizeof(struct osc_extent)
@@ -93,8 +87,6 @@ struct lu_kmem_descr osc_caches[] = {
 		.ckd_cache = NULL
 	}
 };
-
-struct lock_class_key osc_ast_guard_class;
 
 /*****************************************************************************
  *
@@ -178,10 +170,6 @@ static const struct lu_device_operations osc_lu_ops = {
 	.ldo_recovery_complete = NULL
 };
 
-static const struct cl_device_operations osc_cl_ops = {
-	.cdo_req_init = osc_req_init
-};
-
 static int osc_device_init(const struct lu_env *env, struct lu_device *d,
 			   const char *name, struct lu_device *next)
 {
@@ -220,7 +208,6 @@ static struct lu_device *osc_device_alloc(const struct lu_env *env,
 	cl_device_init(&od->od_cl, t);
 	d = osc2lu_dev(od);
 	d->ld_ops = &osc_lu_ops;
-	od->od_cl.cd_ops = &osc_cl_ops;
 
 	/* Setup OSC OBD */
 	obd = class_name2obd(lustre_cfg_string(cfg, 0));

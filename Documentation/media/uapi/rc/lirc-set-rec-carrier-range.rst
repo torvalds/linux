@@ -9,22 +9,20 @@ ioctl LIRC_SET_REC_CARRIER_RANGE
 Name
 ====
 
-LIRC_SET_REC_CARRIER_RANGE - Set lower bond of the carrier used to modulate
+LIRC_SET_REC_CARRIER_RANGE - Set lower bound of the carrier used to modulate
 IR receive.
 
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *frequency )
+.. c:function:: int ioctl( int fd, LIRC_SET_REC_CARRIER_RANGE, __u32 *frequency )
+    :name: LIRC_SET_REC_CARRIER_RANGE
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_SET_REC_CARRIER_RANGE
 
 ``frequency``
     Frequency of the carrier that modulates PWM data, in Hz.

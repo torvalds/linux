@@ -18,7 +18,6 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/cpu-regs.h>
-#include <asm/uaccess.h>
 #include <asm/current.h>
 
 /* Forward declaration, a strange C thing */
@@ -70,7 +69,6 @@ extern void print_cpu_info(struct mn10300_cpuinfo *);
 extern void dodgy_tsc(void);
 
 #define cpu_relax() barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /*
  * User space process size: 1.75GB (default).
@@ -133,11 +131,6 @@ static inline void start_thread(struct pt_regs *regs,
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-
-/*
- * Return saved PC of a blocked thread.
- */
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 

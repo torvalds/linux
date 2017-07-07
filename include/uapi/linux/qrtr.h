@@ -2,6 +2,7 @@
 #define _LINUX_QRTR_H
 
 #include <linux/socket.h>
+#include <linux/types.h>
 
 struct sockaddr_qrtr {
 	__kernel_sa_family_t sq_family;

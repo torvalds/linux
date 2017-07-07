@@ -27,9 +27,11 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
+#include <linux/seq_file.h>
 #include <drm/drm_dp_helper.h>
-#include <drm/drm_dp_aux_dev.h>
 #include <drm/drmP.h>
+
+#include "drm_crtc_helper_internal.h"
 
 /**
  * DOC: dp helpers
@@ -223,7 +225,7 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			err = ret;
 	}
 
-	DRM_DEBUG_KMS("too many retries, giving up\n");
+	DRM_DEBUG_KMS("Too many retries, giving up. First error: %d\n", err);
 	ret = err;
 
 unlock:
@@ -438,6 +440,179 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 }
 EXPORT_SYMBOL(drm_dp_link_configure);
 
+/**
+ * drm_dp_downstream_max_clock() - extract branch device max
+ *                                 pixel rate for legacy VGA
+ *                                 converter or max TMDS clock
+ *                                 rate for others
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Returns max clock in kHz on success or 0 if max clock not defined
+ */
+int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				const u8 port_cap[4])
+{
+	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
+	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+		DP_DETAILED_CAP_INFO_AVAILABLE;
+
+	if (!detailed_cap_info)
+		return 0;
+
+	switch (type) {
+	case DP_DS_PORT_TYPE_VGA:
+		return port_cap[1] * 8 * 1000;
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_HDMI:
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		return port_cap[1] * 2500;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_max_clock);
+
+/**
+ * drm_dp_downstream_max_bpc() - extract branch device max
+ *                               bits per component
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ *
+ * Returns max bpc on success or 0 if max bpc not defined
+ */
+int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			      const u8 port_cap[4])
+{
+	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
+	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+		DP_DETAILED_CAP_INFO_AVAILABLE;
+	int bpc;
+
+	if (!detailed_cap_info)
+		return 0;
+
+	switch (type) {
+	case DP_DS_PORT_TYPE_VGA:
+	case DP_DS_PORT_TYPE_DVI:
+	case DP_DS_PORT_TYPE_HDMI:
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		bpc = port_cap[2] & DP_DS_MAX_BPC_MASK;
+
+		switch (bpc) {
+		case DP_DS_8BPC:
+			return 8;
+		case DP_DS_10BPC:
+			return 10;
+		case DP_DS_12BPC:
+			return 12;
+		case DP_DS_16BPC:
+			return 16;
+		}
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_max_bpc);
+
+/**
+ * drm_dp_downstream_id() - identify branch device
+ * @aux: DisplayPort AUX channel
+ * @id: DisplayPort branch device id
+ *
+ * Returns branch device id on success or NULL on failure
+ */
+int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6])
+{
+	return drm_dp_dpcd_read(aux, DP_BRANCH_ID, id, 6);
+}
+EXPORT_SYMBOL(drm_dp_downstream_id);
+
+/**
+ * drm_dp_downstream_debug() - debug DP branch devices
+ * @m: pointer for debugfs file
+ * @dpcd: DisplayPort configuration data
+ * @port_cap: port capabilities
+ * @aux: DisplayPort AUX channel
+ *
+ */
+void drm_dp_downstream_debug(struct seq_file *m,
+			     const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			     const u8 port_cap[4], struct drm_dp_aux *aux)
+{
+	bool detailed_cap_info = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+				 DP_DETAILED_CAP_INFO_AVAILABLE;
+	int clk;
+	int bpc;
+	char id[6];
+	int len;
+	uint8_t rev[2];
+	int type = port_cap[0] & DP_DS_PORT_TYPE_MASK;
+	bool branch_device = dpcd[DP_DOWNSTREAMPORT_PRESENT] &
+			     DP_DWN_STRM_PORT_PRESENT;
+
+	seq_printf(m, "\tDP branch device present: %s\n",
+		   branch_device ? "yes" : "no");
+
+	if (!branch_device)
+		return;
+
+	switch (type) {
+	case DP_DS_PORT_TYPE_DP:
+		seq_puts(m, "\t\tType: DisplayPort\n");
+		break;
+	case DP_DS_PORT_TYPE_VGA:
+		seq_puts(m, "\t\tType: VGA\n");
+		break;
+	case DP_DS_PORT_TYPE_DVI:
+		seq_puts(m, "\t\tType: DVI\n");
+		break;
+	case DP_DS_PORT_TYPE_HDMI:
+		seq_puts(m, "\t\tType: HDMI\n");
+		break;
+	case DP_DS_PORT_TYPE_NON_EDID:
+		seq_puts(m, "\t\tType: others without EDID support\n");
+		break;
+	case DP_DS_PORT_TYPE_DP_DUALMODE:
+		seq_puts(m, "\t\tType: DP++\n");
+		break;
+	case DP_DS_PORT_TYPE_WIRELESS:
+		seq_puts(m, "\t\tType: Wireless\n");
+		break;
+	default:
+		seq_puts(m, "\t\tType: N/A\n");
+	}
+
+	drm_dp_downstream_id(aux, id);
+	seq_printf(m, "\t\tID: %s\n", id);
+
+	len = drm_dp_dpcd_read(aux, DP_BRANCH_HW_REV, &rev[0], 1);
+	if (len > 0)
+		seq_printf(m, "\t\tHW: %d.%d\n",
+			   (rev[0] & 0xf0) >> 4, rev[0] & 0xf);
+
+	len = drm_dp_dpcd_read(aux, DP_BRANCH_SW_REV, &rev, 2);
+	if (len > 0)
+		seq_printf(m, "\t\tSW: %d.%d\n", rev[0], rev[1]);
+
+	if (detailed_cap_info) {
+		clk = drm_dp_downstream_max_clock(dpcd, port_cap);
+
+		if (clk > 0) {
+			if (type == DP_DS_PORT_TYPE_VGA)
+				seq_printf(m, "\t\tMax dot clock: %d kHz\n", clk);
+			else
+				seq_printf(m, "\t\tMax TMDS clock: %d kHz\n", clk);
+		}
+
+		bpc = drm_dp_downstream_max_bpc(dpcd, port_cap);
+
+		if (bpc > 0)
+			seq_printf(m, "\t\tMax bpc: %d\n", bpc);
+	}
+}
+EXPORT_SYMBOL(drm_dp_downstream_debug);
+
 /*
  * I2C-over-AUX implementation
  */
@@ -550,7 +725,7 @@ MODULE_PARM_DESC(dp_aux_i2c_speed_khz,
 /*
  * Transfer a single I2C-over-AUX message and handle various error conditions,
  * retrying the transaction as appropriate.  It is assumed that the
- * aux->transfer function does not modify anything in the msg other than the
+ * &drm_dp_aux.transfer function does not modify anything in the msg other than the
  * reply field.
  *
  * Returns bytes transferred on success, or a negative error code on failure.
@@ -574,7 +749,17 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			if (ret == -EBUSY)
 				continue;
 
-			DRM_DEBUG_KMS("transaction failed: %d\n", ret);
+			/*
+			 * While timeouts can be errors, they're usually normal
+			 * behavior (for instance, when a driver tries to
+			 * communicate with a non-existant DisplayPort device).
+			 * Avoid spamming the kernel log with timeout errors.
+			 */
+			if (ret == -ETIMEDOUT)
+				DRM_DEBUG_KMS_RATELIMITED("transaction timed out\n");
+			else
+				DRM_DEBUG_KMS("transaction failed: %d\n", ret);
+
 			return ret;
 		}
 
@@ -796,6 +981,78 @@ static const struct i2c_lock_operations drm_dp_i2c_lock_ops = {
 	.unlock_bus = unlock_bus,
 };
 
+static int drm_dp_aux_get_crc(struct drm_dp_aux *aux, u8 *crc)
+{
+	u8 buf, count;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK, &buf);
+	if (ret < 0)
+		return ret;
+
+	WARN_ON(!(buf & DP_TEST_SINK_START));
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK_MISC, &buf);
+	if (ret < 0)
+		return ret;
+
+	count = buf & DP_TEST_COUNT_MASK;
+	if (count == aux->crc_count)
+		return -EAGAIN; /* No CRC yet */
+
+	aux->crc_count = count;
+
+	/*
+	 * At DP_TEST_CRC_R_CR, there's 6 bytes containing CRC data, 2 bytes
+	 * per component (RGB or CrYCb).
+	 */
+	ret = drm_dp_dpcd_read(aux, DP_TEST_CRC_R_CR, crc, 6);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static void drm_dp_aux_crc_work(struct work_struct *work)
+{
+	struct drm_dp_aux *aux = container_of(work, struct drm_dp_aux,
+					      crc_work);
+	struct drm_crtc *crtc;
+	u8 crc_bytes[6];
+	uint32_t crcs[3];
+	int ret;
+
+	if (WARN_ON(!aux->crtc))
+		return;
+
+	crtc = aux->crtc;
+	while (crtc->crc.opened) {
+		drm_crtc_wait_one_vblank(crtc);
+		if (!crtc->crc.opened)
+			break;
+
+		ret = drm_dp_aux_get_crc(aux, crc_bytes);
+		if (ret == -EAGAIN) {
+			usleep_range(1000, 2000);
+			ret = drm_dp_aux_get_crc(aux, crc_bytes);
+		}
+
+		if (ret == -EAGAIN) {
+			DRM_DEBUG_KMS("Get CRC failed after retrying: %d\n",
+				      ret);
+			continue;
+		} else if (ret) {
+			DRM_DEBUG_KMS("Failed to get a CRC: %d\n", ret);
+			continue;
+		}
+
+		crcs[0] = crc_bytes[0] | crc_bytes[1] << 8;
+		crcs[1] = crc_bytes[2] | crc_bytes[3] << 8;
+		crcs[2] = crc_bytes[4] | crc_bytes[5] << 8;
+		drm_crtc_add_crc_entry(crtc, false, 0, crcs);
+	}
+}
+
 /**
  * drm_dp_aux_init() - minimally initialise an aux channel
  * @aux: DisplayPort AUX channel
@@ -808,6 +1065,7 @@ static const struct i2c_lock_operations drm_dp_i2c_lock_ops = {
 void drm_dp_aux_init(struct drm_dp_aux *aux)
 {
 	mutex_init(&aux->hw_mutex);
+	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
 
 	aux->ddc.algo = &drm_dp_i2c_algo;
 	aux->ddc.algo_data = aux;
@@ -896,3 +1154,140 @@ int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE])
 EXPORT_SYMBOL(drm_dp_psr_setup_time);
 
 #undef PSR_SETUP_TIME
+
+/**
+ * drm_dp_start_crc() - start capture of frame CRCs
+ * @aux: DisplayPort AUX channel
+ * @crtc: CRTC displaying the frames whose CRCs are to be captured
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_start_crc(struct drm_dp_aux *aux, struct drm_crtc *crtc)
+{
+	u8 buf;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK, &buf);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_TEST_SINK, buf | DP_TEST_SINK_START);
+	if (ret < 0)
+		return ret;
+
+	aux->crc_count = 0;
+	aux->crtc = crtc;
+	schedule_work(&aux->crc_work);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_start_crc);
+
+/**
+ * drm_dp_stop_crc() - stop capture of frame CRCs
+ * @aux: DisplayPort AUX channel
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_stop_crc(struct drm_dp_aux *aux)
+{
+	u8 buf;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_TEST_SINK, &buf);
+	if (ret < 0)
+		return ret;
+
+	ret = drm_dp_dpcd_writeb(aux, DP_TEST_SINK, buf & ~DP_TEST_SINK_START);
+	if (ret < 0)
+		return ret;
+
+	flush_work(&aux->crc_work);
+	aux->crtc = NULL;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_stop_crc);
+
+struct dpcd_quirk {
+	u8 oui[3];
+	bool is_branch;
+	u32 quirks;
+};
+
+#define OUI(first, second, third) { (first), (second), (third) }
+
+static const struct dpcd_quirk dpcd_quirk_list[] = {
+	/* Analogix 7737 needs reduced M and N at HBR2 link rates */
+	{ OUI(0x00, 0x22, 0xb9), true, BIT(DP_DPCD_QUIRK_LIMITED_M_N) },
+};
+
+#undef OUI
+
+/*
+ * Get a bit mask of DPCD quirks for the sink/branch device identified by
+ * ident. The quirk data is shared but it's up to the drivers to act on the
+ * data.
+ *
+ * For now, only the OUI (first three bytes) is used, but this may be extended
+ * to device identification string and hardware/firmware revisions later.
+ */
+static u32
+drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
+{
+	const struct dpcd_quirk *quirk;
+	u32 quirks = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dpcd_quirk_list); i++) {
+		quirk = &dpcd_quirk_list[i];
+
+		if (quirk->is_branch != is_branch)
+			continue;
+
+		if (memcmp(quirk->oui, ident->oui, sizeof(ident->oui)) != 0)
+			continue;
+
+		quirks |= quirk->quirks;
+	}
+
+	return quirks;
+}
+
+/**
+ * drm_dp_read_desc - read sink/branch descriptor from DPCD
+ * @aux: DisplayPort AUX channel
+ * @desc: Device decriptor to fill from DPCD
+ * @is_branch: true for branch devices, false for sink devices
+ *
+ * Read DPCD 0x400 (sink) or 0x500 (branch) into @desc. Also debug log the
+ * identification.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
+		     bool is_branch)
+{
+	struct drm_dp_dpcd_ident *ident = &desc->ident;
+	unsigned int offset = is_branch ? DP_BRANCH_OUI : DP_SINK_OUI;
+	int ret, dev_id_len;
+
+	ret = drm_dp_dpcd_read(aux, offset, ident, sizeof(*ident));
+	if (ret < 0)
+		return ret;
+
+	desc->quirks = drm_dp_get_quirks(ident, is_branch);
+
+	dev_id_len = strnlen(ident->device_id, sizeof(ident->device_id));
+
+	DRM_DEBUG_KMS("DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
+		      is_branch ? "branch" : "sink",
+		      (int)sizeof(ident->oui), ident->oui,
+		      dev_id_len, ident->device_id,
+		      ident->hw_rev >> 4, ident->hw_rev & 0xf,
+		      ident->sw_major_rev, ident->sw_minor_rev,
+		      desc->quirks);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_read_desc);

@@ -1676,10 +1676,10 @@ bna_cb_ioceth_reset(void *arg)
 }
 
 static struct bfa_ioc_cbfn bna_ioceth_cbfn = {
-	bna_cb_ioceth_enable,
-	bna_cb_ioceth_disable,
-	bna_cb_ioceth_hbfail,
-	bna_cb_ioceth_reset
+	.enable_cbfn = bna_cb_ioceth_enable,
+	.disable_cbfn = bna_cb_ioceth_disable,
+	.hbfail_cbfn = bna_cb_ioceth_hbfail,
+	.reset_cbfn = bna_cb_ioceth_reset
 };
 
 static void bna_attr_init(struct bna_ioceth *ioceth)

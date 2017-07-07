@@ -192,7 +192,8 @@ void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 
 static void r8712_usb_read_port_complete(struct urb *purb)
 {
-	uint isevt, *pbuf;
+	uint isevt;
+	__le32 *pbuf;
 	struct recv_buf	*precvbuf = (struct recv_buf *)purb->context;
 	struct _adapter *padapter = (struct _adapter *)precvbuf->adapter;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
@@ -208,7 +209,7 @@ static void r8712_usb_read_port_complete(struct urb *purb)
 			_pkt *pskb = precvbuf->pskb;
 
 			precvbuf->transfer_len = purb->actual_length;
-			pbuf = (uint *)precvbuf->pbuf;
+			pbuf = (__le32 *)precvbuf->pbuf;
 			isevt = le32_to_cpu(*(pbuf + 1)) & 0x1ff;
 			if ((isevt & 0x1ff) == 0x1ff) {
 				r8712_rxcmd_event_hdl(padapter, pbuf);

@@ -15,15 +15,15 @@
 	};
 };
 
-&tps65917_regulators {
-	ldo2_reg: ldo2 {
-		/* LDO2_OUT --> TP1017 (UNUSED)  */
-		regulator-name = "ldo2";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-allow-bypass;
+&i2c1 {
+	tps65917: tps65917@58 {
+		reg = <0x58>;
+
+		interrupts = <GIC_SPI 2 IRQ_TYPE_NONE>;  /* IRQ_SYS_1N */
 	};
 };
+
+#include "dra72-evm-tps65917.dtsi"
 
 &hdmi {
 	vdda-supply = <&ldo3_reg>;

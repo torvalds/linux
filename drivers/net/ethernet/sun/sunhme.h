@@ -302,7 +302,7 @@
  * Always write the address first before setting the ownership
  * bits to avoid races with the hardware scanning the ring.
  */
-typedef u32 __bitwise__ hme32;
+typedef u32 __bitwise hme32;
 
 struct happy_meal_rxd {
 	hme32 rx_flags;
@@ -417,8 +417,6 @@ struct happy_meal {
 	struct sk_buff           *tx_skbs[TX_RING_SIZE];
 
 	int rx_new, tx_new, rx_old, tx_old;
-
-	struct net_device_stats	  net_stats;      /* Statistical counters              */
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	u32 (*read32)(void __iomem *);

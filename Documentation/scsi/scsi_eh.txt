@@ -70,7 +70,7 @@ with the command.
 	scmd is requeued to blk queue.
 
  - otherwise
-	scsi_eh_scmd_add(scmd, 0) is invoked for the command.  See
+	scsi_eh_scmd_add(scmd) is invoked for the command.  See
 	[1-3] for details of this function.
 
 
@@ -103,13 +103,14 @@ function
         eh_timed_out() callback did not handle the command.
 	Step #2 is taken.
 
- 2. If the host supports asynchronous completion (as indicated by the
-    no_async_abort setting in the host template) scsi_abort_command()
-    is invoked to schedule an asynchrous abort. If that fails
-    Step #3 is taken.
+ 2. scsi_abort_command() is invoked to schedule an asynchrous abort.
+    Asynchronous abort are not invoked for commands which the
+    SCSI_EH_ABORT_SCHEDULED flag is set (this indicates that the command
+    already had been aborted once, and this is a retry which failed),
+    or when the EH deadline is expired. In these case Step #3 is taken.
 
- 2. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
-    command.  See [1-3] for more information.
+ 3. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
+    command.  See [1-4] for more information.
 
 [1-3] Asynchronous command aborts
 
@@ -124,16 +125,13 @@ function
 
  scmds enter EH via scsi_eh_scmd_add(), which does the following.
 
- 1. Turns on scmd->eh_eflags as requested.  It's 0 for error
-    completions and SCSI_EH_CANCEL_CMD for timeouts.
+ 1. Links scmd->eh_entry to shost->eh_cmd_q
 
- 2. Links scmd->eh_entry to shost->eh_cmd_q
+ 2. Sets SHOST_RECOVERY bit in shost->shost_state
 
- 3. Sets SHOST_RECOVERY bit in shost->shost_state
+ 3. Increments shost->host_failed
 
- 4. Increments shost->host_failed
-
- 5. Wakes up SCSI EH thread if shost->host_busy == shost->host_failed
+ 4. Wakes up SCSI EH thread if shost->host_busy == shost->host_failed
 
  As can be seen above, once any scmd is added to shost->eh_cmd_q,
 SHOST_RECOVERY shost_state bit is turned on.  This prevents any new
@@ -249,7 +247,6 @@ scmd->allowed.
 
  1. Error completion / time out
     ACTION: scsi_eh_scmd_add() is invoked for scmd
-	- set scmd->eh_eflags
 	- add scmd to shost->eh_cmd_q
 	- set SHOST_RECOVERY
 	- shost->host_failed++
@@ -263,7 +260,6 @@ scmd->allowed.
 
  3. scmd recovered
     ACTION: scsi_eh_finish_cmd() is invoked to EH-finish scmd
-	- clear scmd->eh_eflags
 	- scsi_setup_cmd_retry()
 	- move from local eh_work_q to local eh_done_q
     LOCKING: none
@@ -455,8 +451,6 @@ except for #1 must be implemented by eh_strategy_handler().
  The following conditions must be true on exit from the handler.
 
  - shost->host_failed is zero.
-
- - Each scmd's eh_eflags field is cleared.
 
  - Each scmd is in such a state that scsi_setup_cmd_retry() on the
    scmd doesn't make any difference.

@@ -825,16 +825,21 @@ static void ftmac100_get_drvinfo(struct net_device *netdev,
 	strlcpy(info->bus_info, dev_name(&netdev->dev), sizeof(info->bus_info));
 }
 
-static int ftmac100_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+static int ftmac100_get_link_ksettings(struct net_device *netdev,
+				       struct ethtool_link_ksettings *cmd)
 {
 	struct ftmac100 *priv = netdev_priv(netdev);
-	return mii_ethtool_gset(&priv->mii, cmd);
+
+	mii_ethtool_get_link_ksettings(&priv->mii, cmd);
+
+	return 0;
 }
 
-static int ftmac100_set_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+static int ftmac100_set_link_ksettings(struct net_device *netdev,
+				       const struct ethtool_link_ksettings *cmd)
 {
 	struct ftmac100 *priv = netdev_priv(netdev);
-	return mii_ethtool_sset(&priv->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&priv->mii, cmd);
 }
 
 static int ftmac100_nway_reset(struct net_device *netdev)
@@ -850,11 +855,11 @@ static u32 ftmac100_get_link(struct net_device *netdev)
 }
 
 static const struct ethtool_ops ftmac100_ethtool_ops = {
-	.set_settings		= ftmac100_set_settings,
-	.get_settings		= ftmac100_get_settings,
 	.get_drvinfo		= ftmac100_get_drvinfo,
 	.nway_reset		= ftmac100_nway_reset,
 	.get_link		= ftmac100_get_link,
+	.get_link_ksettings	= ftmac100_get_link_ksettings,
+	.set_link_ksettings	= ftmac100_set_link_ksettings,
 };
 
 /******************************************************************************
@@ -1154,7 +1159,7 @@ err_alloc_etherdev:
 	return err;
 }
 
-static int __exit ftmac100_remove(struct platform_device *pdev)
+static int ftmac100_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct ftmac100 *priv;
@@ -1172,11 +1177,17 @@ static int __exit ftmac100_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ftmac100_of_ids[] = {
+	{ .compatible = "andestech,atmac100" },
+	{ }
+};
+
 static struct platform_driver ftmac100_driver = {
 	.probe		= ftmac100_probe,
-	.remove		= __exit_p(ftmac100_remove),
+	.remove		= ftmac100_remove,
 	.driver		= {
 		.name	= DRV_NAME,
+		.of_match_table = ftmac100_of_ids
 	},
 };
 
@@ -1200,3 +1211,4 @@ module_exit(ftmac100_exit);
 MODULE_AUTHOR("Po-Yu Chuang <ratbert@faraday-tech.com>");
 MODULE_DESCRIPTION("FTMAC100 driver");
 MODULE_LICENSE("GPL");
+MODULE_DEVICE_TABLE(of, ftmac100_of_ids);

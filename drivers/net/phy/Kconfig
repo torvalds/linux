@@ -2,20 +2,12 @@
 # PHY Layer Configuration
 #
 
-menuconfig PHYLIB
-	tristate "PHY Device support and infrastructure"
-	depends on NETDEVICES
+menuconfig MDIO_DEVICE
+	tristate "MDIO bus device drivers"
 	help
-	  Ethernet controllers are usually attached to PHY
-	  devices.  This option provides infrastructure for
-	  managing PHY devices.
+	   MDIO devices and driver infrastructure code.
 
-if PHYLIB
-
-config SWPHY
-	bool
-
-comment "MDIO bus device drivers"
+if MDIO_DEVICE
 
 config MDIO_BCM_IPROC
 	tristate "Broadcom iProc MDIO bus controller"
@@ -27,7 +19,7 @@ config MDIO_BCM_IPROC
 
 config MDIO_BCM_UNIMAC
 	tristate "Broadcom UniMAC MDIO bus controller"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF_MDIO
 	help
 	  This module provides a driver for the Broadcom UniMAC MDIO busses.
 	  This hardware can be found in the Broadcom GENET Ethernet MAC
@@ -36,6 +28,7 @@ config MDIO_BCM_UNIMAC
 
 config MDIO_BITBANG
 	tristate "Bitbanged MDIO buses"
+	depends on !(MDIO_DEVICE=y && PHYLIB=m)
 	help
 	  This module implements the MDIO bus protocol in software,
 	  for use by low level drivers that export the ability to
@@ -115,7 +108,7 @@ config MDIO_MOXART
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
 	depends on 64BIT
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && OF_MDIO
 	select MDIO_CAVIUM
 	help
 	  This module provides a driver for the Octeon and ThunderX MDIO
@@ -134,6 +127,7 @@ config MDIO_THUNDER
 	tristate "ThunderX SOCs MDIO buses"
 	depends on 64BIT
 	depends on PCI
+	depends on !(MDIO_DEVICE=y && PHYLIB=m)
 	select MDIO_CAVIUM
 	help
 	  This driver supports the MDIO interfaces found on Cavium
@@ -142,9 +136,40 @@ config MDIO_THUNDER
 
 config MDIO_XGENE
 	tristate "APM X-Gene SoC MDIO bus controller"
+	depends on ARCH_XGENE || COMPILE_TEST
 	help
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
+
+endif
+
+menuconfig PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on NETDEVICES
+	select MDIO_DEVICE
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
+
+if PHYLIB
+
+config SWPHY
+	bool
+
+config LED_TRIGGER_PHY
+	bool "Support LED triggers for tracking link state"
+	depends on LEDS_TRIGGERS
+	---help---
+	  Adds support for a set of LED trigger events per-PHY.  Link
+	  state change will trigger the events, for consumption by an
+	  LED class driver.  There are triggers for each link speed currently
+	  supported by the phy, and are of the form:
+	       <mii bus id>:<phy>:<speed>
+
+	  Where speed is in the form:
+		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
+
 
 comment "MII PHY device drivers"
 
@@ -203,12 +228,17 @@ config BROADCOM_PHY
 	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
-	  BCM5481 and BCM5482 PHYs.
+	  BCM5481, BCM54810 and BCM5482 PHYs.
 
 config CICADA_PHY
 	tristate "Cicada PHYs"
 	---help---
 	  Currently supports the cis8204
+
+config CORTINA_PHY
+	tristate "Cortina EDC CDR 10G Ethernet PHY"
+	---help---
+	  Currently supports the CS4340 phy.
 
 config DAVICOM_PHY
 	tristate "Davicom PHYs"
@@ -263,6 +293,17 @@ config MARVELL_PHY
 	---help---
 	  Currently has a driver for the 88E1011S
 
+config MARVELL_10G_PHY
+	tristate "Marvell Alaska 10Gbit PHYs"
+	---help---
+	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
+
+config MESON_GXL_PHY
+	tristate "Amlogic Meson GXL Internal PHY"
+	depends on ARCH_MESON || COMPILE_TEST
+	---help---
+	  Currently has a driver for the Amlogic Meson GXL Internal PHY
+
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	---help---
@@ -276,7 +317,7 @@ config MICROCHIP_PHY
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
-	  Currently supports the VSC8531 and VSC8541 PHYs
+	  Currently supports VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
@@ -319,13 +360,6 @@ config XILINX_GMII2RGMII
          This driver support xilinx GMII to RGMII IP core it provides
          the Reduced Gigabit Media Independent Interface(RGMII) between
          Ethernet physical media devices and the Gigabit Ethernet controller.
-
-config MDIO_XGENE
-	tristate "APM X-Gene SoC MDIO bus controller"
-	depends on ARCH_XGENE || COMPILE_TEST
-	help
-	  This module provides a driver for the MDIO busses found in the
-	  APM X-Gene SoC's.
 
 endif # PHYLIB
 

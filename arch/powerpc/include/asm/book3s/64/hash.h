@@ -6,19 +6,13 @@
  * Common bits between 4K and 64K pages in a linux-style PTE.
  * Additional bits may be defined in pgtable-hash64-*.h
  *
- * Note: We only support user read/write permissions. Supervisor always
- * have full read/write to pages above PAGE_OFFSET (pages below that
- * always use the user access permissions).
- *
- * We could create separate kernel read-only if we used the 3 PP bits
- * combinations that newer processors provide but we currently don't.
  */
-#define H_PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
 #define H_PTE_NONE_MASK		_PAGE_HPTEFLAGS
-#define H_PAGE_F_GIX_SHIFT	57
-#define H_PAGE_F_GIX		(7ul << 57)	/* HPTE index within HPTEG */
-#define H_PAGE_F_SECOND		(1ul << 60)	/* HPTE is in 2ndary HPTEG */
-#define H_PAGE_HASHPTE		(1ul << 61)	/* PTE has associated HPTE */
+#define H_PAGE_F_GIX_SHIFT	56
+#define H_PAGE_BUSY		_RPAGE_RSV1 /* software: PTE & hash are busy */
+#define H_PAGE_F_SECOND		_RPAGE_RSV2	/* HPTE is in 2ndary HPTEG */
+#define H_PAGE_F_GIX		(_RPAGE_RSV3 | _RPAGE_RSV4 | _RPAGE_RPN44)
+#define H_PAGE_HASHPTE		_RPAGE_RPN43	/* PTE has associated HPTE */
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/hash-64k.h>
@@ -33,9 +27,9 @@
 				 H_PUD_INDEX_SIZE + H_PGD_INDEX_SIZE + PAGE_SHIFT)
 #define H_PGTABLE_RANGE		(ASM_CONST(1) << H_PGTABLE_EADDR_SIZE)
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) &&  defined(CONFIG_PPC_64K_PAGES)
 /*
- * only with hash we need to use the second half of pmd page table
+ * only with hash 64k we need to use the second half of pmd page table
  * to store pointer to deposited pgtable_t
  */
 #define H_PMD_CACHE_INDEX	(H_PMD_INDEX_SIZE + 1)
@@ -201,6 +195,10 @@ extern int __meminit hash__vmemmap_create_mapping(unsigned long start,
 					      unsigned long phys);
 extern void hash__vmemmap_remove_mapping(unsigned long start,
 				     unsigned long page_size);
+
+int hash__create_section_mapping(unsigned long start, unsigned long end);
+int hash__remove_section_mapping(unsigned long start, unsigned long end);
+
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_HASH_H */

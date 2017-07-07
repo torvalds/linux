@@ -67,7 +67,7 @@ static void adc_jack_handler(struct work_struct *work)
 
 	ret = iio_read_channel_raw(data->chan, &adc_val);
 	if (ret < 0) {
-		dev_err(&data->edev->dev, "read channel() error: %d\n", ret);
+		dev_err(data->dev, "read channel() error: %d\n", ret);
 		return;
 	}
 

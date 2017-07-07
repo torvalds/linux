@@ -95,7 +95,7 @@ void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
 void kmemcheck_slab_free(struct kmem_cache *s, void *object, size_t size)
 {
 	/* TODO: RCU freeing is unsupported for now; hide false positives. */
-	if (!s->ctor && !(s->flags & SLAB_DESTROY_BY_RCU))
+	if (!s->ctor && !(s->flags & SLAB_TYPESAFE_BY_RCU))
 		kmemcheck_mark_freed(object, size);
 }
 

@@ -14,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>

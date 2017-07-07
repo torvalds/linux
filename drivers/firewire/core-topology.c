@@ -124,7 +124,7 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 	node->initiated_reset = SELF_ID_PHY_INITIATOR(sid);
 	node->port_count = port_count;
 
-	atomic_set(&node->ref_count, 1);
+	refcount_set(&node->ref_count, 1);
 	INIT_LIST_HEAD(&node->link);
 
 	return node;

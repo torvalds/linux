@@ -88,6 +88,7 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 	int ret;
 	uint32_t pitch;
 	uint32_t resid;
+	uint32_t format;
 
 	pitch = args->width * ((args->bpp + 1) / 8);
 	args->size = pitch * args->height;
@@ -98,9 +99,10 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 	if (ret)
 		goto fail;
 
+	format = virtio_gpu_translate_format(DRM_FORMAT_XRGB8888);
 	virtio_gpu_resource_id_get(vgdev, &resid);
-	virtio_gpu_cmd_create_resource(vgdev, resid,
-				       2, args->width, args->height);
+	virtio_gpu_cmd_create_resource(vgdev, resid, format,
+				       args->width, args->height);
 
 	/* attach the object to the resource */
 	obj = gem_to_virtio_gpu_obj(gobj);

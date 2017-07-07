@@ -31,9 +31,6 @@ static inline const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 #endif	/* CONFIG_OF_IOMMU */
 
-void of_iommu_set_ops(struct device_node *np, const struct iommu_ops *ops);
-const struct iommu_ops *of_iommu_get_ops(struct device_node *np);
-
 extern struct of_device_id __iommu_of_table;
 
 typedef int (*of_iommu_init_fn)(struct device_node *);

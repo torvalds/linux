@@ -175,33 +175,9 @@ static struct cs4271_platform_data vision_cs4271_data = {
 	.gpio_nreset	= EP93XX_GPIO_LINE_H(2),
 };
 
-static int vision_cs4271_hw_setup(struct spi_device *spi)
-{
-	return gpio_request_one(EP93XX_GPIO_LINE_EGPIO6,
-				GPIOF_OUT_INIT_HIGH, spi->modalias);
-}
-
-static void vision_cs4271_hw_cleanup(struct spi_device *spi)
-{
-	gpio_free(EP93XX_GPIO_LINE_EGPIO6);
-}
-
-static void vision_cs4271_hw_cs_control(struct spi_device *spi, int value)
-{
-	gpio_set_value(EP93XX_GPIO_LINE_EGPIO6, value);
-}
-
-static struct ep93xx_spi_chip_ops vision_cs4271_hw = {
-	.setup		= vision_cs4271_hw_setup,
-	.cleanup	= vision_cs4271_hw_cleanup,
-	.cs_control	= vision_cs4271_hw_cs_control,
-};
-
 /*************************************************************************
  * SPI Flash
  *************************************************************************/
-#define VISION_SPI_FLASH_CS	EP93XX_GPIO_LINE_EGPIO7
-
 static struct mtd_partition vision_spi_flash_partitions[] = {
 	{
 		.name	= "SPI bootstrap",
@@ -224,66 +200,18 @@ static struct flash_platform_data vision_spi_flash_data = {
 	.nr_parts	= ARRAY_SIZE(vision_spi_flash_partitions),
 };
 
-static int vision_spi_flash_hw_setup(struct spi_device *spi)
-{
-	return gpio_request_one(VISION_SPI_FLASH_CS, GPIOF_INIT_HIGH,
-				spi->modalias);
-}
-
-static void vision_spi_flash_hw_cleanup(struct spi_device *spi)
-{
-	gpio_free(VISION_SPI_FLASH_CS);
-}
-
-static void vision_spi_flash_hw_cs_control(struct spi_device *spi, int value)
-{
-	gpio_set_value(VISION_SPI_FLASH_CS, value);
-}
-
-static struct ep93xx_spi_chip_ops vision_spi_flash_hw = {
-	.setup		= vision_spi_flash_hw_setup,
-	.cleanup	= vision_spi_flash_hw_cleanup,
-	.cs_control	= vision_spi_flash_hw_cs_control,
-};
-
 /*************************************************************************
  * SPI SD/MMC host
  *************************************************************************/
-#define VISION_SPI_MMC_CS	EP93XX_GPIO_LINE_G(2)
-#define VISION_SPI_MMC_WP	EP93XX_GPIO_LINE_F(0)
-#define VISION_SPI_MMC_CD	EP93XX_GPIO_LINE_EGPIO15
-
 static struct mmc_spi_platform_data vision_spi_mmc_data = {
 	.detect_delay	= 100,
 	.powerup_msecs	= 100,
 	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.flags		= MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
-	.cd_gpio	= VISION_SPI_MMC_CD,
+	.cd_gpio	= EP93XX_GPIO_LINE_EGPIO15,
 	.cd_debounce	= 1,
-	.ro_gpio	= VISION_SPI_MMC_WP,
+	.ro_gpio	= EP93XX_GPIO_LINE_F(0),
 	.caps2		= MMC_CAP2_RO_ACTIVE_HIGH,
-};
-
-static int vision_spi_mmc_hw_setup(struct spi_device *spi)
-{
-	return gpio_request_one(VISION_SPI_MMC_CS, GPIOF_INIT_HIGH,
-				spi->modalias);
-}
-
-static void vision_spi_mmc_hw_cleanup(struct spi_device *spi)
-{
-	gpio_free(VISION_SPI_MMC_CS);
-}
-
-static void vision_spi_mmc_hw_cs_control(struct spi_device *spi, int value)
-{
-	gpio_set_value(VISION_SPI_MMC_CS, value);
-}
-
-static struct ep93xx_spi_chip_ops vision_spi_mmc_hw = {
-	.setup		= vision_spi_mmc_hw_setup,
-	.cleanup	= vision_spi_mmc_hw_cleanup,
-	.cs_control	= vision_spi_mmc_hw_cs_control,
 };
 
 /*************************************************************************
@@ -293,7 +221,6 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 	{
 		.modalias		= "cs4271",
 		.platform_data		= &vision_cs4271_data,
-		.controller_data	= &vision_cs4271_hw,
 		.max_speed_hz		= 6000000,
 		.bus_num		= 0,
 		.chip_select		= 0,
@@ -301,7 +228,6 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 	}, {
 		.modalias		= "sst25l",
 		.platform_data		= &vision_spi_flash_data,
-		.controller_data	= &vision_spi_flash_hw,
 		.max_speed_hz		= 20000000,
 		.bus_num		= 0,
 		.chip_select		= 1,
@@ -309,7 +235,6 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 	}, {
 		.modalias		= "mmc_spi",
 		.platform_data		= &vision_spi_mmc_data,
-		.controller_data	= &vision_spi_mmc_hw,
 		.max_speed_hz		= 20000000,
 		.bus_num		= 0,
 		.chip_select		= 2,
@@ -317,8 +242,15 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 	},
 };
 
+static int vision_spi_chipselects[] __initdata = {
+	EP93XX_GPIO_LINE_EGPIO6,
+	EP93XX_GPIO_LINE_EGPIO7,
+	EP93XX_GPIO_LINE_G(2),
+};
+
 static struct ep93xx_spi_info vision_spi_master __initdata = {
-	.num_chipselect	= ARRAY_SIZE(vision_spi_board_info),
+	.chipselect	= vision_spi_chipselects,
+	.num_chipselect	= ARRAY_SIZE(vision_spi_chipselects),
 	.use_dma	= 1,
 };
 

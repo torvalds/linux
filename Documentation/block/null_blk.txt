@@ -72,4 +72,4 @@ use_per_node_hctx=[0/1]: Default: 0
      queue for each CPU node in the system.
 
 use_lightnvm=[0/1]: Default: 0
-  Register device with LightNVM. Requires blk-mq to be used.
+  Register device with LightNVM. Requires blk-mq and CONFIG_NVM to be enabled.

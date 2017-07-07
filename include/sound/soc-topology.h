@@ -28,6 +28,8 @@ struct snd_soc_component;
 struct snd_soc_tplg_pcm_fe;
 struct snd_soc_dapm_context;
 struct snd_soc_card;
+struct snd_kcontrol_new;
+struct snd_soc_dai_link;
 
 /* object scan be loaded and unloaded in groups with identfying indexes */
 #define SND_SOC_TPLG_INDEX_ALL	0	/* ID that matches all FW objects */
@@ -53,7 +55,7 @@ struct snd_soc_dobj_control {
 
 /* dynamic widget object */
 struct snd_soc_dobj_widget {
-	unsigned int kcontrol_enum:1;	/* this widget is an enum kcontrol */
+	unsigned int kcontrol_type;	/* kcontrol type: mixer, enum, bytes */
 };
 
 /* generic dynamic object - all dynamic objects belong to this struct */
@@ -114,6 +116,9 @@ struct snd_soc_tplg_ops {
 
 	/* external widget init - used for any driver specific init */
 	int (*widget_load)(struct snd_soc_component *,
+		struct snd_soc_dapm_widget *,
+		struct snd_soc_tplg_dapm_widget *);
+	int (*widget_ready)(struct snd_soc_component *,
 		struct snd_soc_dapm_widget *,
 		struct snd_soc_tplg_dapm_widget *);
 	int (*widget_unload)(struct snd_soc_component *,

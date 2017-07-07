@@ -222,7 +222,7 @@ static int __init service_level_perf_register(void)
 }
 arch_initcall(service_level_perf_register);
 
-static int __perf_callchain_kernel(void *data, unsigned long address)
+static int __perf_callchain_kernel(void *data, unsigned long address, int reliable)
 {
 	struct perf_callchain_entry_ctx *entry = data;
 
@@ -245,6 +245,5 @@ ssize_t cpumf_events_sysfs_show(struct device *dev,
 	struct perf_pmu_events_attr *pmu_attr;
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
-	return sprintf(page, "event=0x%04llx,name=%s\n",
-		       pmu_attr->id, attr->attr.name);
+	return sprintf(page, "event=0x%04llx\n", pmu_attr->id);
 }

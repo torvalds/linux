@@ -1,0 +1,162 @@
+/*
+ * DTS File for HiSilicon Poplar Development Board
+ *
+ * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ *
+ * Released under the GPLv2 only.
+ * SPDX-License-Identifier: GPL-2.0
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "hi3798cv200.dtsi"
+
+/ {
+	model = "HiSilicon Poplar Development Board";
+	compatible = "hisilicon,hi3798cv200-poplar", "hisilicon,hi3798cv200";
+
+	aliases {
+		serial0 = &uart0;
+		serial2 = &uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user-led0 {
+			label = "USER-LED0";
+			gpios = <&gpio6 3 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+
+		user-led1 {
+			label = "USER-LED1";
+			gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "mmc0";
+			default-state = "off";
+		};
+
+		user-led2 {
+			label = "USER-LED2";
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+			default-state = "off";
+		};
+
+		user-led3 {
+			label = "USER-LED3";
+			gpios = <&gpio10 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "cpu0";
+			default-state = "off";
+		};
+	};
+};
+
+&gmac1 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy-handle = <&eth_phy1>;
+	phy-mode = "rgmii";
+	hisilicon,phy-reset-delays-us = <10000 10000 30000>;
+
+	eth_phy1: phy@3 {
+		reg = <3>;
+	};
+};
+
+&gpio1 {
+	status = "okay";
+	gpio-line-names = "LS-GPIO-E",	"",
+			  "",		"",
+			  "",		"LS-GPIO-F",
+			  "",		"LS-GPIO-J";
+};
+
+&gpio2 {
+	status = "okay";
+	gpio-line-names = "LS-GPIO-H",	"LS-GPIO-I",
+			  "LS-GPIO-L",	"LS-GPIO-G",
+			  "LS-GPIO-K",	"",
+			  "",		"";
+};
+
+&gpio3 {
+	status = "okay";
+	gpio-line-names = "",		"",
+			  "",		"",
+			  "LS-GPIO-C",	"",
+			  "",		"LS-GPIO-B";
+};
+
+&gpio4 {
+	status = "okay";
+	gpio-line-names = "",		"",
+			  "",		"",
+			  "",		"LS-GPIO-D",
+			  "",		"";
+};
+
+&gpio5 {
+	status = "okay";
+	gpio-line-names = "",		"USER-LED-1",
+			  "USER-LED-2",	"",
+			  "",		"LS-GPIO-A",
+			  "",		"";
+};
+
+&gpio6 {
+	status = "okay";
+	gpio-line-names = "",		"",
+			  "",		"USER-LED-0",
+			  "",		"",
+			  "",		"";
+};
+
+&gpio10 {
+	status = "okay";
+	gpio-line-names = "",		"",
+			  "",		"",
+			  "",		"",
+			  "USER-LED-3",	"";
+};
+
+&i2c0 {
+	status = "okay";
+	label = "LS-I2C0";
+};
+
+&i2c2 {
+	status = "okay";
+	label = "LS-I2C1";
+};
+
+&ir {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	label = "LS-SPI0";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+	label = "LS-UART0";
+};
+/* No optional LS-UART1 on Low Speed Expansion Connector. */

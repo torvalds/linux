@@ -41,9 +41,16 @@ extern "C" {
 /* 8 bpp Red */
 #define DRM_FORMAT_R8		fourcc_code('R', '8', ' ', ' ') /* [7:0] R */
 
+/* 16 bpp Red */
+#define DRM_FORMAT_R16		fourcc_code('R', '1', '6', ' ') /* [15:0] R little endian */
+
 /* 16 bpp RG */
 #define DRM_FORMAT_RG88		fourcc_code('R', 'G', '8', '8') /* [15:0] R:G 8:8 little endian */
 #define DRM_FORMAT_GR88		fourcc_code('G', 'R', '8', '8') /* [15:0] G:R 8:8 little endian */
+
+/* 32 bpp RG */
+#define DRM_FORMAT_RG1616	fourcc_code('R', 'G', '3', '2') /* [31:0] R:G 16:16 little endian */
+#define DRM_FORMAT_GR1616	fourcc_code('G', 'R', '3', '2') /* [31:0] G:R 16:16 little endian */
 
 /* 8 bpp RGB */
 #define DRM_FORMAT_RGB332	fourcc_code('R', 'G', 'B', '8') /* [7:0] R:G:B 3:3:2 */
@@ -107,6 +114,20 @@ extern "C" {
 #define DRM_FORMAT_AYUV		fourcc_code('A', 'Y', 'U', 'V') /* [31:0] A:Y:Cb:Cr 8:8:8:8 little endian */
 
 /*
+ * 2 plane RGB + A
+ * index 0 = RGB plane, same format as the corresponding non _A8 format has
+ * index 1 = A plane, [7:0] A
+ */
+#define DRM_FORMAT_XRGB8888_A8	fourcc_code('X', 'R', 'A', '8')
+#define DRM_FORMAT_XBGR8888_A8	fourcc_code('X', 'B', 'A', '8')
+#define DRM_FORMAT_RGBX8888_A8	fourcc_code('R', 'X', 'A', '8')
+#define DRM_FORMAT_BGRX8888_A8	fourcc_code('B', 'X', 'A', '8')
+#define DRM_FORMAT_RGB888_A8	fourcc_code('R', '8', 'A', '8')
+#define DRM_FORMAT_BGR888_A8	fourcc_code('B', '8', 'A', '8')
+#define DRM_FORMAT_RGB565_A8	fourcc_code('R', '5', 'A', '8')
+#define DRM_FORMAT_BGR565_A8	fourcc_code('B', '5', 'A', '8')
+
+/*
  * 2 plane YCbCr
  * index 0 = Y plane, [7:0] Y
  * index 1 = Cr:Cb plane, [15:0] Cr:Cb little endian
@@ -154,11 +175,13 @@ extern "C" {
 
 /* Vendor Ids: */
 #define DRM_FORMAT_MOD_NONE           0
+#define DRM_FORMAT_MOD_VENDOR_NONE    0
 #define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
 #define DRM_FORMAT_MOD_VENDOR_AMD     0x02
 #define DRM_FORMAT_MOD_VENDOR_NV      0x03
 #define DRM_FORMAT_MOD_VENDOR_SAMSUNG 0x04
 #define DRM_FORMAT_MOD_VENDOR_QCOM    0x05
+#define DRM_FORMAT_MOD_VENDOR_VIVANTE 0x06
 /* add more to the end as needed */
 
 #define fourcc_mod_code(vendor, val) \
@@ -171,6 +194,16 @@ extern "C" {
  * similar to the fourcc codes above. drm_fourcc.h is considered the
  * authoritative source for all of these.
  */
+
+/*
+ * Linear Layout
+ *
+ * Just plain linear layout. Note that this is different from no specifying any
+ * modifier (e.g. not setting DRM_MODE_FB_MODIFIERS in the DRM_ADDFB2 ioctl),
+ * which tells the driver to also take driver-internal information into account
+ * and so might actually result in a tiled framebuffer.
+ */
+#define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(NONE, 0)
 
 /* Intel framebuffer modifiers */
 
@@ -232,6 +265,91 @@ extern "C" {
  * For more information: see https://linuxtv.org/downloads/v4l-dvb-apis/re32.html
  */
 #define DRM_FORMAT_MOD_SAMSUNG_64_32_TILE	fourcc_mod_code(SAMSUNG, 1)
+
+/* Vivante framebuffer modifiers */
+
+/*
+ * Vivante 4x4 tiling layout
+ *
+ * This is a simple tiled layout using tiles of 4x4 pixels in a row-major
+ * layout.
+ */
+#define DRM_FORMAT_MOD_VIVANTE_TILED		fourcc_mod_code(VIVANTE, 1)
+
+/*
+ * Vivante 64x64 super-tiling layout
+ *
+ * This is a tiled layout using 64x64 pixel super-tiles, where each super-tile
+ * contains 8x4 groups of 2x4 tiles of 4x4 pixels (like above) each, all in row-
+ * major layout.
+ *
+ * For more information: see
+ * https://github.com/etnaviv/etna_viv/blob/master/doc/hardware.md#texture-tiling
+ */
+#define DRM_FORMAT_MOD_VIVANTE_SUPER_TILED	fourcc_mod_code(VIVANTE, 2)
+
+/*
+ * Vivante 4x4 tiling layout for dual-pipe
+ *
+ * Same as the 4x4 tiling layout, except every second 4x4 pixel tile starts at a
+ * different base address. Offsets from the base addresses are therefore halved
+ * compared to the non-split tiled layout.
+ */
+#define DRM_FORMAT_MOD_VIVANTE_SPLIT_TILED	fourcc_mod_code(VIVANTE, 3)
+
+/*
+ * Vivante 64x64 super-tiling layout for dual-pipe
+ *
+ * Same as the 64x64 super-tiling layout, except every second 4x4 pixel tile
+ * starts at a different base address. Offsets from the base addresses are
+ * therefore halved compared to the non-split super-tiled layout.
+ */
+#define DRM_FORMAT_MOD_VIVANTE_SPLIT_SUPER_TILED fourcc_mod_code(VIVANTE, 4)
+
+
+/* NVIDIA Tegra frame buffer modifiers */
+
+/*
+ * Some modifiers take parameters, for example the number of vertical GOBs in
+ * a block. Reserve the lower 32 bits for parameters
+ */
+#define __fourcc_mod_tegra_mode_shift 32
+#define fourcc_mod_tegra_code(val, params) \
+	fourcc_mod_code(NV, ((((__u64)val) << __fourcc_mod_tegra_mode_shift) | params))
+#define fourcc_mod_tegra_mod(m) \
+	(m & ~((1ULL << __fourcc_mod_tegra_mode_shift) - 1))
+#define fourcc_mod_tegra_param(m) \
+	(m & ((1ULL << __fourcc_mod_tegra_mode_shift) - 1))
+
+/*
+ * Tegra Tiled Layout, used by Tegra 2, 3 and 4.
+ *
+ * Pixels are arranged in simple tiles of 16 x 16 bytes.
+ */
+#define NV_FORMAT_MOD_TEGRA_TILED fourcc_mod_tegra_code(1, 0)
+
+/*
+ * Tegra 16Bx2 Block Linear layout, used by TK1/TX1
+ *
+ * Pixels are arranged in 64x8 Groups Of Bytes (GOBs). GOBs are then stacked
+ * vertically by a power of 2 (1 to 32 GOBs) to form a block.
+ *
+ * Within a GOB, data is ordered as 16B x 2 lines sectors laid in Z-shape.
+ *
+ * Parameter 'v' is the log2 encoding of the number of GOBs stacked vertically.
+ * Valid values are:
+ *
+ * 0 == ONE_GOB
+ * 1 == TWO_GOBS
+ * 2 == FOUR_GOBS
+ * 3 == EIGHT_GOBS
+ * 4 == SIXTEEN_GOBS
+ * 5 == THIRTYTWO_GOBS
+ *
+ * Chapter 20 "Pixel Memory Formats" of the Tegra X1 TRM describes this format
+ * in full detail.
+ */
+#define NV_FORMAT_MOD_TEGRA_16BX2_BLOCK(v) fourcc_mod_tegra_code(2, v)
 
 #if defined(__cplusplus)
 }

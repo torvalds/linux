@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/io.h>

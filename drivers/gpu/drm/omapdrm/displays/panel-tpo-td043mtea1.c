@@ -56,7 +56,7 @@ struct panel_drv_data {
 	struct omap_dss_device	dssdev;
 	struct omap_dss_device *in;
 
-	struct omap_video_timings videomode;
+	struct videomode vm;
 
 	int data_lines;
 
@@ -72,25 +72,27 @@ struct panel_drv_data {
 	u32 power_on_resume:1;
 };
 
-static const struct omap_video_timings tpo_td043_timings = {
-	.x_res		= 800,
-	.y_res		= 480,
+static const struct videomode tpo_td043_vm = {
+	.hactive	= 800,
+	.vactive	= 480,
 
 	.pixelclock	= 36000000,
 
-	.hsw		= 1,
-	.hfp		= 68,
-	.hbp		= 214,
+	.hsync_len	= 1,
+	.hfront_porch	= 68,
+	.hback_porch	= 214,
 
-	.vsw		= 1,
-	.vfp		= 39,
-	.vbp		= 34,
+	.vsync_len	= 1,
+	.vfront_porch	= 39,
+	.vback_porch	= 34,
 
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
-	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_POSEDGE |
+			  DISPLAY_FLAGS_PIXDATA_NEGEDGE,
+	/*
+	 * Note: According to the panel documentation:
+	 * SYNC needs to be driven on the FALLING edge
+	 */
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -378,7 +380,7 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 
 	if (ddata->data_lines)
 		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
+	in->ops.dpi->set_timings(in, &ddata->vm);
 
 	r = in->ops.dpi->enable(in);
 	if (r)
@@ -418,32 +420,32 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 }
 
 static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.dpi->set_timings(in, timings);
+	in->ops.dpi->set_timings(in, vm);
 }
 
 static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	*vm = ddata->vm;
 }
 
 static int tpo_td043_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				   struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dpi->check_timings(in, timings);
+	return in->ops.dpi->check_timings(in, vm);
 }
 
 static struct omap_dss_driver tpo_td043_ops = {
@@ -546,14 +548,14 @@ static int tpo_td043_probe(struct spi_device *spi)
 		goto err_sysfs;
 	}
 
-	ddata->videomode = tpo_td043_timings;
+	ddata->vm = tpo_td043_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
 	dssdev->driver = &tpo_td043_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->panel.vm = ddata->vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

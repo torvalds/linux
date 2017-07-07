@@ -20,8 +20,8 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/err.h>
+#include <linux/random.h>
 #include <linux/scatterlist.h>
-
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_nego.h"
 #include "iscsi_target_auth.h"

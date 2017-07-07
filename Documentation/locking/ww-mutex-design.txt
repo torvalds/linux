@@ -309,11 +309,15 @@ Design:
   normal mutex locks, which are far more common. As such there is only a small
   increase in code size if wait/wound mutexes are not used.
 
+  We maintain the following invariants for the wait list:
+  (1) Waiters with an acquire context are sorted by stamp order; waiters
+      without an acquire context are interspersed in FIFO order.
+  (2) Among waiters with contexts, only the first one can have other locks
+      acquired already (ctx->acquired > 0). Note that this waiter may come
+      after other waiters without contexts in the list.
+
   In general, not much contention is expected. The locks are typically used to
-  serialize access to resources for devices. The only way to make wakeups
-  smarter would be at the cost of adding a field to struct mutex_waiter. This
-  would add overhead to all cases where normal mutexes are used, and
-  ww_mutexes are generally less performance sensitive.
+  serialize access to resources for devices.
 
 Lockdep:
   Special care has been taken to warn for as many cases of api abuse

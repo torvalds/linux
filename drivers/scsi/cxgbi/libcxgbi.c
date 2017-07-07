@@ -223,7 +223,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *ndev,
 	struct cxgbi_device *cdev, *tmp;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		log_debug(1 << CXGBI_DBG_DEV,
@@ -256,7 +256,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *ndev,
 	struct cxgbi_device *cdev;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		pr_info("vlan dev %s -> %s.\n", vdev->name, ndev->name);
@@ -290,7 +290,7 @@ static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 	struct cxgbi_device *cdev, *tmp;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		pr_info("vlan dev %s -> %s.\n", vdev->name, ndev->name);
@@ -642,6 +642,12 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 			n->dev->name, ndev->name, mtu);
 	}
 
+	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
+		pr_info("%s interface not up.\n", ndev->name);
+		err = -ENETDOWN;
+		goto rel_neigh;
+	}
+
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);
 	if (!cdev) {
 		pr_info("dst %pI4, %s, NOT cxgbi device.\n",
@@ -735,6 +741,12 @@ static struct cxgbi_sock *cxgbi_check_route6(struct sockaddr *dst_addr)
 		goto rel_rt;
 	}
 	ndev = n->dev;
+
+	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
+		pr_info("%s interface not up.\n", ndev->name);
+		err = -ENETDOWN;
+		goto rel_rt;
+	}
 
 	if (ipv6_addr_is_multicast(&daddr6->sin6_addr)) {
 		pr_info("multi-cast route %pI6 port %u, dev %s.\n",
@@ -855,7 +867,8 @@ static void need_active_close(struct cxgbi_sock *csk)
 	log_debug(1 << CXGBI_DBG_SOCK, "csk 0x%p,%u,0x%lx,%u.\n",
 		csk, (csk)->state, (csk)->flags, (csk)->tid);
 	spin_lock_bh(&csk->lock);
-	dst_confirm(csk->dst);
+	if (csk->dst)
+		dst_confirm(csk->dst);
 	data_lost = skb_queue_len(&csk->receive_queue);
 	__skb_queue_purge(&csk->receive_queue);
 
@@ -870,7 +883,8 @@ static void need_active_close(struct cxgbi_sock *csk)
 	}
 
 	if (close_req) {
-		if (data_lost)
+		if (!cxgbi_sock_flag(csk, CTPF_LOGOUT_RSP_RCVD) ||
+		    data_lost)
 			csk->cdev->csk_send_abort_req(csk);
 		else
 			csk->cdev->csk_send_close_req(csk);
@@ -896,6 +910,7 @@ EXPORT_SYMBOL_GPL(cxgbi_sock_fail_act_open);
 void cxgbi_sock_act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 {
 	struct cxgbi_sock *csk = (struct cxgbi_sock *)skb->sk;
+	struct module *owner = csk->cdev->owner;
 
 	log_debug(1 << CXGBI_DBG_SOCK, "csk 0x%p,%u,0x%lx,%u.\n",
 		csk, (csk)->state, (csk)->flags, (csk)->tid);
@@ -906,6 +921,8 @@ void cxgbi_sock_act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
 	__kfree_skb(skb);
+
+	module_put(owner);
 }
 EXPORT_SYMBOL_GPL(cxgbi_sock_act_open_req_arp_failure);
 
@@ -1171,9 +1188,10 @@ static int cxgbi_sock_send_pdus(struct cxgbi_sock *csk, struct sk_buff *skb)
 				cxgbi_ulp_extra_len(cxgbi_skcb_ulp_mode(skb));
 		skb = next;
 	}
-done:
+
 	if (likely(skb_queue_len(&csk->write_queue)))
 		cdev->csk_push_tx_frames(csk, 1);
+done:
 	spin_unlock_bh(&csk->lock);
 	return copied;
 
@@ -1553,9 +1571,12 @@ static inline int read_pdu_skb(struct iscsi_conn *conn,
 	}
 }
 
-static int skb_read_pdu_bhs(struct iscsi_conn *conn, struct sk_buff *skb)
+static int
+skb_read_pdu_bhs(struct cxgbi_sock *csk, struct iscsi_conn *conn,
+		 struct sk_buff *skb)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+	int err;
 
 	log_debug(1 << CXGBI_DBG_PDU_RX,
 		"conn 0x%p, skb 0x%p, len %u, flag 0x%lx.\n",
@@ -1574,7 +1595,35 @@ static int skb_read_pdu_bhs(struct iscsi_conn *conn, struct sk_buff *skb)
 		return -EIO;
 	}
 
-	return read_pdu_skb(conn, skb, 0, 0);
+	if (cxgbi_skcb_test_flag(skb, SKCBF_RX_ISCSI_COMPL) &&
+	    cxgbi_skcb_test_flag(skb, SKCBF_RX_DATA_DDPD)) {
+		/* If completion flag is set and data is directly
+		 * placed in to the host memory then update
+		 * task->exp_datasn to the datasn in completion
+		 * iSCSI hdr as T6 adapter generates completion only
+		 * for the last pdu of a sequence.
+		 */
+		itt_t itt = ((struct iscsi_data *)skb->data)->itt;
+		struct iscsi_task *task = iscsi_itt_to_ctask(conn, itt);
+		u32 data_sn = be32_to_cpu(((struct iscsi_data *)
+							skb->data)->datasn);
+		if (task && task->sc) {
+			struct iscsi_tcp_task *tcp_task = task->dd_data;
+
+			tcp_task->exp_datasn = data_sn;
+		}
+	}
+
+	err = read_pdu_skb(conn, skb, 0, 0);
+	if (likely(err >= 0)) {
+		struct iscsi_hdr *hdr = (struct iscsi_hdr *)skb->data;
+		u8 opcode = hdr->opcode & ISCSI_OPCODE_MASK;
+
+		if (unlikely(opcode == ISCSI_OP_LOGOUT_RSP))
+			cxgbi_sock_set_flag(csk, CTPF_LOGOUT_RSP_RCVD);
+	}
+
+	return err;
 }
 
 static int skb_read_pdu_data(struct iscsi_conn *conn, struct sk_buff *lskb,
@@ -1627,15 +1676,15 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 		csk->rcv_wup, cdev->rx_credit_thres,
 		csk->rcv_win);
 
+	if (!cdev->rx_credit_thres)
+		return;
+
 	if (csk->state != CTP_ESTABLISHED)
 		return;
 
 	credits = csk->copied_seq - csk->rcv_wup;
 	if (unlikely(!credits))
 		return;
-	if (unlikely(cdev->rx_credit_thres == 0))
-		return;
-
 	must_send = credits + 16384 >= csk->rcv_win;
 	if (must_send || credits >= cdev->rx_credit_thres)
 		csk->rcv_wup += cdev->csk_send_rx_credits(csk, credits);
@@ -1679,7 +1728,7 @@ void cxgbi_conn_pdu_ready(struct cxgbi_sock *csk)
 			cxgbi_skcb_rx_pdulen(skb));
 
 		if (cxgbi_skcb_test_flag(skb, SKCBF_RX_COALESCED)) {
-			err = skb_read_pdu_bhs(conn, skb);
+			err = skb_read_pdu_bhs(csk, conn, skb);
 			if (err < 0) {
 				pr_err("coalesced bhs, csk 0x%p, skb 0x%p,%u, "
 					"f 0x%lx, plen %u.\n",
@@ -1697,7 +1746,7 @@ void cxgbi_conn_pdu_ready(struct cxgbi_sock *csk)
 					cxgbi_skcb_flags(skb),
 					cxgbi_skcb_rx_pdulen(skb));
 		} else {
-			err = skb_read_pdu_bhs(conn, skb);
+			err = skb_read_pdu_bhs(csk, conn, skb);
 			if (err < 0) {
 				pr_err("bhs, csk 0x%p, skb 0x%p,%u, "
 					"f 0x%lx, plen %u.\n",
@@ -1839,6 +1888,11 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 opcode)
 	tcp_task->dd_data = tdata;
 	task->hdr = NULL;
 
+	if (tdata->skb) {
+		kfree_skb(tdata->skb);
+		tdata->skb = NULL;
+	}
+
 	if (SKB_MAX_HEAD(cdev->skb_tx_rsvd) > (512 * MAX_SKB_FRAGS) &&
 	    (opcode == ISCSI_OP_SCSI_DATA_OUT ||
 	     (opcode == ISCSI_OP_SCSI_CMD &&
@@ -1856,6 +1910,7 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 opcode)
 		return -ENOMEM;
 	}
 
+	skb_get(tdata->skb);
 	skb_reserve(tdata->skb, cdev->skb_tx_rsvd);
 	task->hdr = (struct iscsi_hdr *)tdata->skb->data;
 	task->hdr_max = SKB_TX_ISCSI_PDU_HEADER_MAX; /* BHS + AHS */
@@ -2001,9 +2056,9 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 	unsigned int datalen;
 	int err;
 
-	if (!skb) {
+	if (!skb || cxgbi_skcb_test_flag(skb, SKCBF_TX_DONE)) {
 		log_debug(1 << CXGBI_DBG_ISCSI | 1 << CXGBI_DBG_PDU_TX,
-			"task 0x%p, skb NULL.\n", task);
+			"task 0x%p, skb 0x%p\n", task, skb);
 		return 0;
 	}
 
@@ -2016,7 +2071,6 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 	}
 
 	datalen = skb->data_len;
-	tdata->skb = NULL;
 
 	/* write ppod first if using ofldq to write ppod */
 	if (ttinfo->flags & CXGBI_PPOD_INFO_FLAG_VALID) {
@@ -2044,6 +2098,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 			pdulen += ISCSI_DIGEST_SIZE;
 
 		task->conn->txdata_octets += pdulen;
+		cxgbi_skcb_set_flag(skb, SKCBF_TX_DONE);
 		return 0;
 	}
 
@@ -2052,7 +2107,6 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 			"task 0x%p, skb 0x%p, len %u/%u, %d EAGAIN.\n",
 			task, skb, skb->len, skb->data_len, err);
 		/* reset skb to send when we are called again */
-		tdata->skb = skb;
 		return err;
 	}
 
@@ -2060,7 +2114,8 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *task)
 		"itt 0x%x, skb 0x%p, len %u/%u, xmit err %d.\n",
 		task->itt, skb, skb->len, skb->data_len, err);
 
-	kfree_skb(skb);
+	__kfree_skb(tdata->skb);
+	tdata->skb = NULL;
 
 	iscsi_conn_printk(KERN_ERR, task->conn, "xmit err %d.\n", err);
 	iscsi_conn_failure(task->conn, ISCSI_ERR_XMIT_FAILED);
@@ -2079,11 +2134,14 @@ void cxgbi_cleanup_task(struct iscsi_task *task)
 
 	tcp_task->dd_data = NULL;
 	/*  never reached the xmit task callout */
-	if (tdata->skb)
-		__kfree_skb(tdata->skb);
-	memset(tdata, 0, sizeof(*tdata));
+	if (tdata->skb) {
+		kfree_skb(tdata->skb);
+		tdata->skb = NULL;
+	}
 
 	task_release_itt(task, task->hdr_itt);
+	memset(tdata, 0, sizeof(*tdata));
+
 	iscsi_tcp_cleanup_task(task);
 }
 EXPORT_SYMBOL_GPL(cxgbi_cleanup_task);
@@ -2679,6 +2737,9 @@ EXPORT_SYMBOL_GPL(cxgbi_attr_is_visible);
 static int __init libcxgbi_init_module(void)
 {
 	pr_info("%s", version);
+
+	BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, cb) <
+		     sizeof(struct cxgbi_skb_cb));
 	return 0;
 }
 

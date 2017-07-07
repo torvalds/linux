@@ -1,12 +1,14 @@
 /* rtc-sun4v.c: Hypervisor based RTC for SUN4V systems.
  *
+ * Author: David S. Miller
+ * License: GPL
+ *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/rtc.h>
@@ -98,8 +100,4 @@ static struct platform_driver sun4v_rtc_driver = {
 	},
 };
 
-module_platform_driver_probe(sun4v_rtc_driver, sun4v_rtc_probe);
-
-MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
-MODULE_DESCRIPTION("SUN4V RTC driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver_probe(sun4v_rtc_driver, sun4v_rtc_probe);

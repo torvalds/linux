@@ -1,7 +1,6 @@
 #ifndef _NFNETLINK_H
 #define _NFNETLINK_H
 
-
 #include <linux/netlink.h>
 #include <linux/capability.h>
 #include <net/netlink.h>
@@ -10,13 +9,16 @@
 struct nfnl_callback {
 	int (*call)(struct net *net, struct sock *nl, struct sk_buff *skb,
 		    const struct nlmsghdr *nlh,
-		    const struct nlattr * const cda[]);
+		    const struct nlattr * const cda[],
+		    struct netlink_ext_ack *extack);
 	int (*call_rcu)(struct net *net, struct sock *nl, struct sk_buff *skb,
 			const struct nlmsghdr *nlh,
-			const struct nlattr * const cda[]);
+			const struct nlattr * const cda[],
+			struct netlink_ext_ack *extack);
 	int (*call_batch)(struct net *net, struct sock *nl, struct sk_buff *skb,
 			  const struct nlmsghdr *nlh,
-			  const struct nlattr * const cda[]);
+			  const struct nlattr * const cda[],
+			  struct netlink_ext_ack *extack);
 	const struct nla_policy *policy;	/* netlink attribute policy */
 	const u_int16_t attr_count;		/* number of nlattr's */
 };
@@ -28,6 +30,7 @@ struct nfnetlink_subsystem {
 	const struct nfnl_callback *cb;	/* callback for individual types */
 	int (*commit)(struct net *net, struct sk_buff *skb);
 	int (*abort)(struct net *net, struct sk_buff *skb);
+	bool (*valid_genid)(struct net *net, u32 genid);
 };
 
 int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n);
@@ -39,6 +42,11 @@ int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 portid,
 int nfnetlink_set_err(struct net *net, u32 portid, u32 group, int error);
 int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u32 portid,
 		      int flags);
+
+static inline u16 nfnl_msg_type(u8 subsys, u8 msg_type)
+{
+	return subsys << 8 | msg_type;
+}
 
 void nfnl_lock(__u8 subsys_id);
 void nfnl_unlock(__u8 subsys_id);

@@ -23,11 +23,6 @@ static const char * const imx31_dt_board_compat[] __initconst = {
 	NULL
 };
 
-static void __init imx31_dt_timer_init(void)
-{
-	mx31_clocks_init_dt();
-}
-
 /* FIXME: replace with DT binding */
 static const struct resource imx31_rnga_res[] __initconst = {
 	DEFINE_RES_MEM(MX31_RNGA_BASE_ADDR, SZ_16K),
@@ -43,7 +38,6 @@ DT_MACHINE_START(IMX31_DT, "Freescale i.MX31 (Device Tree Support)")
 	.map_io		= mx31_map_io,
 	.init_early	= imx31_init_early,
 	.init_irq	= mx31_init_irq,
-	.init_time	= imx31_dt_timer_init,
 	.init_machine	= imx31_dt_mach_init,
 	.dt_compat	= imx31_dt_board_compat,
 MACHINE_END

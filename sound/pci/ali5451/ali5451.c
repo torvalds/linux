@@ -1339,7 +1339,7 @@ static int snd_ali_prepare(struct snd_pcm_substream *substream)
 		rate = snd_ali_get_spdif_in_rate(codec);
 		if (rate == 0) {
 			dev_warn(codec->card->dev,
-				 "ali_capture_preapre: spdif rate detect err!\n");
+				 "ali_capture_prepare: spdif rate detect err!\n");
 			rate = 48000;
 		}
 		spin_lock_irq(&codec->reg_lock);
@@ -1602,8 +1602,8 @@ static struct snd_pcm_hardware snd_ali_modem =
 static int snd_ali_modem_open(struct snd_pcm_substream *substream, int rec,
 			      int channel)
 {
-	static unsigned int rates[] = {8000, 9600, 12000, 16000};
-	static struct snd_pcm_hw_constraint_list hw_constraint_rates = {
+	static const unsigned int rates[] = {8000, 9600, 12000, 16000};
+	static const struct snd_pcm_hw_constraint_list hw_constraint_rates = {
 		.count = ARRAY_SIZE(rates),
 		.list = rates,
 		.mask = 0,

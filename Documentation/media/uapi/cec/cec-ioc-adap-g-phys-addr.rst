@@ -17,25 +17,23 @@ CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR - Get or set the physical address
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u16 *argp )
+.. c:function:: int ioctl( int fd, CEC_ADAP_G_PHYS_ADDR, __u16 *argp )
+    :name: CEC_ADAP_G_PHYS_ADDR
+
+.. c:function:: int ioctl( int fd, CEC_ADAP_S_PHYS_ADDR, __u16 *argp )
+    :name: CEC_ADAP_S_PHYS_ADDR
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to the CEC address.
 
 Description
 ===========
-
-.. note:: This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
 
 To query the current physical address applications call
 :ref:`ioctl CEC_ADAP_G_PHYS_ADDR <CEC_ADAP_G_PHYS_ADDR>` with a pointer to a __u16 where the
@@ -80,3 +78,16 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
+
+The :ref:`ioctl CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` can return the following
+error codes:
+
+ENOTTY
+    The ``CEC_CAP_PHYS_ADDR`` capability wasn't set, so this ioctl is not supported.
+
+EBUSY
+    Another filehandle is in exclusive follower or initiator mode, or the filehandle
+    is in mode ``CEC_MODE_NO_INITIATOR``.
+
+EINVAL
+    The physical address is malformed.

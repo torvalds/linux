@@ -164,7 +164,7 @@ xfs_inode_item_format_data_fork(
 			struct xfs_bmbt_rec *p;
 
 			ASSERT(ip->i_df.if_u1.if_extents != NULL);
-			ASSERT(ip->i_df.if_bytes / sizeof(xfs_bmbt_rec_t) > 0);
+			ASSERT(xfs_iext_count(&ip->i_df) > 0);
 
 			p = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_IEXT);
 			data_bytes = xfs_iextents_copy(ip, p, XFS_DATA_FORK);
@@ -261,7 +261,7 @@ xfs_inode_item_format_attr_fork(
 		    ip->i_afp->if_bytes > 0) {
 			struct xfs_bmbt_rec *p;
 
-			ASSERT(ip->i_afp->if_bytes / sizeof(xfs_bmbt_rec_t) ==
+			ASSERT(xfs_iext_count(ip->i_afp) ==
 				ip->i_d.di_anextents);
 			ASSERT(ip->i_afp->if_u1.if_extents != NULL);
 
@@ -368,7 +368,7 @@ xfs_inode_to_log_dinode(
 		to->di_crtime.t_sec = from->di_crtime.t_sec;
 		to->di_crtime.t_nsec = from->di_crtime.t_nsec;
 		to->di_flags2 = from->di_flags2;
-
+		to->di_cowextsize = from->di_cowextsize;
 		to->di_ino = ip->i_ino;
 		to->di_lsn = lsn;
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
@@ -731,22 +731,27 @@ xfs_iflush_done(
 	 * holding the lock before removing the inode from the AIL.
 	 */
 	if (need_ail) {
-		struct xfs_log_item *log_items[need_ail];
-		int i = 0;
+		bool			mlip_changed = false;
+
+		/* this is an opencoded batch version of xfs_trans_ail_delete */
 		spin_lock(&ailp->xa_lock);
 		for (blip = lip; blip; blip = blip->li_bio_list) {
-			iip = INODE_ITEM(blip);
-			if (iip->ili_logged &&
-			    blip->li_lsn == iip->ili_flush_lsn) {
-				log_items[i++] = blip;
-			}
-			ASSERT(i <= need_ail);
+			if (INODE_ITEM(blip)->ili_logged &&
+			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn)
+				mlip_changed |= xfs_ail_delete_one(ailp, blip);
 		}
-		/* xfs_trans_ail_delete_bulk() drops the AIL lock. */
-		xfs_trans_ail_delete_bulk(ailp, log_items, i,
-					  SHUTDOWN_CORRUPT_INCORE);
-	}
 
+		if (mlip_changed) {
+			if (!XFS_FORCED_SHUTDOWN(ailp->xa_mount))
+				xlog_assign_tail_lsn_locked(ailp->xa_mount);
+			if (list_empty(&ailp->xa_ail))
+				wake_up_all(&ailp->xa_empty);
+		}
+		spin_unlock(&ailp->xa_lock);
+
+		if (mlip_changed)
+			xfs_log_space_wake(ailp->xa_mount);
+	}
 
 	/*
 	 * clean up and unlock the flush lock now we are done. We can clear the
@@ -829,9 +834,7 @@ xfs_inode_item_format_convert(
 		in_f->ilf_dsize = in_f32->ilf_dsize;
 		in_f->ilf_ino = in_f32->ilf_ino;
 		/* copy biggest field of ilf_u */
-		memcpy(in_f->ilf_u.ilfu_uuid.__u_bits,
-		       in_f32->ilf_u.ilfu_uuid.__u_bits,
-		       sizeof(uuid_t));
+		uuid_copy(&in_f->ilf_u.ilfu_uuid, &in_f32->ilf_u.ilfu_uuid);
 		in_f->ilf_blkno = in_f32->ilf_blkno;
 		in_f->ilf_len = in_f32->ilf_len;
 		in_f->ilf_boffset = in_f32->ilf_boffset;
@@ -846,9 +849,7 @@ xfs_inode_item_format_convert(
 		in_f->ilf_dsize = in_f64->ilf_dsize;
 		in_f->ilf_ino = in_f64->ilf_ino;
 		/* copy biggest field of ilf_u */
-		memcpy(in_f->ilf_u.ilfu_uuid.__u_bits,
-		       in_f64->ilf_u.ilfu_uuid.__u_bits,
-		       sizeof(uuid_t));
+		uuid_copy(&in_f->ilf_u.ilfu_uuid, &in_f64->ilf_u.ilfu_uuid);
 		in_f->ilf_blkno = in_f64->ilf_blkno;
 		in_f->ilf_len = in_f64->ilf_len;
 		in_f->ilf_boffset = in_f64->ilf_boffset;

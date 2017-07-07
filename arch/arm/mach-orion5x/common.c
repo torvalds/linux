@@ -105,7 +105,7 @@ void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 /*****************************************************************************
  * Ethernet switch
  ****************************************************************************/
-void __init orion5x_eth_switch_init(struct dsa_platform_data *d)
+void __init orion5x_eth_switch_init(struct dsa_chip_data *d)
 {
 	orion_ge00_switch_init(d);
 }

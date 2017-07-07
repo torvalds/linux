@@ -15,7 +15,8 @@ MEDIA_IOC_DEVICE_INFO - Query device information
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct media_device_info *argp )
+.. c:function:: int ioctl( int fd, MEDIA_IOC_DEVICE_INFO, struct media_device_info *argp )
+    :name: MEDIA_IOC_DEVICE_INFO
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <media-func-open>`.
-
-``request``
-    MEDIA_IOC_DEVICE_INFO
 
 ``argp``
 
@@ -35,12 +33,14 @@ Description
 
 All media devices must support the ``MEDIA_IOC_DEVICE_INFO`` ioctl. To
 query device information, applications call the ioctl with a pointer to
-a struct :ref:`media_device_info <media-device-info>`. The driver
+a struct :c:type:`media_device_info`. The driver
 fills the structure and returns the information to the application. The
 ioctl never fails.
 
 
-.. _media-device-info:
+.. c:type:: media_device_info
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct media_device_info
     :header-rows:  0

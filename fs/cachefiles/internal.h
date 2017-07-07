@@ -18,7 +18,8 @@
 
 #include <linux/fscache-cache.h>
 #include <linux/timer.h>
-#include <linux/wait.h>
+#include <linux/wait_bit.h>
+#include <linux/cred.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
 
@@ -96,7 +97,7 @@ struct cachefiles_cache {
  * backing file read tracking
  */
 struct cachefiles_one_read {
-	wait_queue_t			monitor;	/* link into monitored waitqueue */
+	wait_queue_entry_t			monitor;	/* link into monitored waitqueue */
 	struct page			*back_page;	/* backing file page we're waiting for */
 	struct page			*netfs_page;	/* netfs page we're going to fill */
 	struct fscache_retrieval	*op;		/* retrieval op covering this */
@@ -160,7 +161,8 @@ extern char *cachefiles_cook_key(const u8 *raw, int keylen, uint8_t type);
  * namei.c
  */
 extern void cachefiles_mark_object_inactive(struct cachefiles_cache *cache,
-					    struct cachefiles_object *object);
+					    struct cachefiles_object *object,
+					    blkcnt_t i_blocks);
 extern int cachefiles_delete_object(struct cachefiles_cache *cache,
 				    struct cachefiles_object *object);
 extern int cachefiles_walk_to_object(struct cachefiles_object *parent,

@@ -462,6 +462,12 @@ static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 					req->trb_head->trb_hw,
 					trb_num * sizeof(*trb_hw),
 					DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(u3d->gadget.dev.parent,
+					req->trb_head->trb_dma)) {
+			kfree(req->trb_head->trb_hw);
+			kfree(req->trb_head);
+			return -EFAULT;
+		}
 
 		req->chain = 1;
 	}
@@ -487,30 +493,32 @@ mv_u3d_start_queue(struct mv_u3d_ep *ep)
 	ret = usb_gadget_map_request(&u3d->gadget, &req->req,
 					mv_u3d_ep_dir(ep));
 	if (ret)
-		return ret;
+		goto break_processing;
 
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
 	req->trb_count = 0;
 
-	/* build trbs and push them to device queue */
-	if (!mv_u3d_req_to_trb(req)) {
-		ret = mv_u3d_queue_trb(ep, req);
-		if (ret) {
-			ep->processing = 0;
-			return ret;
-		}
-	} else {
-		ep->processing = 0;
+	/* build trbs */
+	ret = mv_u3d_req_to_trb(req);
+	if (ret) {
 		dev_err(u3d->dev, "%s, mv_u3d_req_to_trb fail\n", __func__);
-		return -ENOMEM;
+		goto break_processing;
 	}
 
+	/* and push them to device queue */
+	ret = mv_u3d_queue_trb(ep, req);
+	if (ret)
+		goto break_processing;
+
 	/* irq handler advances the queue */
-	if (req)
-		list_add_tail(&req->queue, &ep->queue);
+	list_add_tail(&req->queue, &ep->queue);
 
 	return 0;
+
+break_processing:
+	ep->processing = 0;
+	return ret;
 }
 
 static int mv_u3d_ep_enable(struct usb_ep *_ep,
@@ -987,7 +995,7 @@ static int mv_u3d_ep_set_wedge(struct usb_ep *_ep)
 	return mv_u3d_ep_set_halt_wedge(_ep, 1, 1);
 }
 
-static struct usb_ep_ops mv_u3d_ep_ops = {
+static const struct usb_ep_ops mv_u3d_ep_ops = {
 	.enable		= mv_u3d_ep_enable,
 	.disable	= mv_u3d_ep_disable,
 
@@ -1827,13 +1835,18 @@ static int mv_u3d_probe(struct platform_device *dev)
 	}
 
 	/* we will access controller register, so enable the u3d controller */
-	clk_enable(u3d->clk);
+	retval = clk_enable(u3d->clk);
+	if (retval) {
+		dev_err(&dev->dev, "clk_enable error %d\n", retval);
+		goto err_u3d_enable;
+	}
 
 	if (pdata->phy_init) {
 		retval = pdata->phy_init(u3d->phy_regs);
 		if (retval) {
 			dev_err(&dev->dev, "init phy error %d\n", retval);
-			goto err_u3d_enable;
+			clk_disable(u3d->clk);
+			goto err_phy_init;
 		}
 	}
 
@@ -1966,15 +1979,13 @@ err_alloc_trb_pool:
 	dma_free_coherent(&dev->dev, u3d->ep_context_size,
 		u3d->ep_context, u3d->ep_context_dma);
 err_alloc_ep_context:
-	if (pdata->phy_deinit)
-		pdata->phy_deinit(u3d->phy_regs);
-	clk_disable(u3d->clk);
+err_phy_init:
 err_u3d_enable:
 	iounmap(u3d->cap_regs);
 err_map_cap_regs:
 err_get_cap_regs:
-err_get_clk:
 	clk_put(u3d->clk);
+err_get_clk:
 	kfree(u3d);
 err_alloc_private:
 err_pdata:

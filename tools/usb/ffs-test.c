@@ -22,7 +22,7 @@
 /* $(CROSS_COMPILE)cc -Wall -Wextra -g -o ffs-test ffs-test.c -lpthread */
 
 
-#define _BSD_SOURCE /* for endian.h */
+#define _DEFAULT_SOURCE /* for endian.h */
 
 #include <endian.h>
 #include <errno.h>
@@ -110,16 +110,25 @@ static const struct {
 	struct usb_functionfs_descs_head_v2 header;
 	__le32 fs_count;
 	__le32 hs_count;
+	__le32 ss_count;
 	struct {
 		struct usb_interface_descriptor intf;
 		struct usb_endpoint_descriptor_no_audio sink;
 		struct usb_endpoint_descriptor_no_audio source;
 	} __attribute__((packed)) fs_descs, hs_descs;
+	struct {
+		struct usb_interface_descriptor intf;
+		struct usb_endpoint_descriptor_no_audio sink;
+		struct usb_ss_ep_comp_descriptor sink_comp;
+		struct usb_endpoint_descriptor_no_audio source;
+		struct usb_ss_ep_comp_descriptor source_comp;
+	} ss_descs;
 } __attribute__((packed)) descriptors = {
 	.header = {
 		.magic = cpu_to_le32(FUNCTIONFS_DESCRIPTORS_MAGIC_V2),
 		.flags = cpu_to_le32(FUNCTIONFS_HAS_FS_DESC |
-				     FUNCTIONFS_HAS_HS_DESC),
+				     FUNCTIONFS_HAS_HS_DESC |
+				     FUNCTIONFS_HAS_SS_DESC),
 		.length = cpu_to_le32(sizeof descriptors),
 	},
 	.fs_count = cpu_to_le32(3),
@@ -169,6 +178,45 @@ static const struct {
 			.bmAttributes = USB_ENDPOINT_XFER_BULK,
 			.wMaxPacketSize = cpu_to_le16(512),
 			.bInterval = 1, /* NAK every 1 uframe */
+		},
+	},
+	.ss_count = cpu_to_le32(5),
+	.ss_descs = {
+		.intf = {
+			.bLength = sizeof descriptors.fs_descs.intf,
+			.bDescriptorType = USB_DT_INTERFACE,
+			.bNumEndpoints = 2,
+			.bInterfaceClass = USB_CLASS_VENDOR_SPEC,
+			.iInterface = 1,
+		},
+		.sink = {
+			.bLength = sizeof descriptors.hs_descs.sink,
+			.bDescriptorType = USB_DT_ENDPOINT,
+			.bEndpointAddress = 1 | USB_DIR_IN,
+			.bmAttributes = USB_ENDPOINT_XFER_BULK,
+			.wMaxPacketSize = cpu_to_le16(1024),
+		},
+		.sink_comp = {
+			.bLength = USB_DT_SS_EP_COMP_SIZE,
+			.bDescriptorType = USB_DT_SS_ENDPOINT_COMP,
+			.bMaxBurst = 0,
+			.bmAttributes = 0,
+			.wBytesPerInterval = 0,
+		},
+		.source = {
+			.bLength = sizeof descriptors.hs_descs.source,
+			.bDescriptorType = USB_DT_ENDPOINT,
+			.bEndpointAddress = 2 | USB_DIR_OUT,
+			.bmAttributes = USB_ENDPOINT_XFER_BULK,
+			.wMaxPacketSize = cpu_to_le16(1024),
+			.bInterval = 1, /* NAK every 1 uframe */
+		},
+		.source_comp = {
+			.bLength = USB_DT_SS_EP_COMP_SIZE,
+			.bDescriptorType = USB_DT_SS_ENDPOINT_COMP,
+			.bMaxBurst = 0,
+			.bmAttributes = 0,
+			.wBytesPerInterval = 0,
 		},
 	},
 };

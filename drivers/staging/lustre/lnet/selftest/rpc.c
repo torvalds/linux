@@ -53,9 +53,9 @@ enum srpc_state {
 static struct smoketest_rpc {
 	spinlock_t	 rpc_glock;	/* global lock */
 	struct srpc_service	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
-	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
+	struct lnet_handle_eq	 rpc_lnet_eq;	/* _the_ LNet event queue */
 	enum srpc_state	 rpc_state;
-	srpc_counters_t	 rpc_counters;
+	struct srpc_counters	 rpc_counters;
 	__u64		 rpc_matchbits;	/* matchbits counter */
 } srpc_data;
 
@@ -69,14 +69,14 @@ srpc_serv_portal(int svc_id)
 /* forward ref's */
 int srpc_handle_rpc(struct swi_workitem *wi);
 
-void srpc_get_counters(srpc_counters_t *cnt)
+void srpc_get_counters(struct srpc_counters *cnt)
 {
 	spin_lock(&srpc_data.rpc_glock);
 	*cnt = srpc_data.rpc_counters;
 	spin_unlock(&srpc_data.rpc_glock);
 }
 
-void srpc_set_counters(const srpc_counters_t *cnt)
+void srpc_set_counters(const struct srpc_counters *cnt)
 {
 	spin_lock(&srpc_data.rpc_glock);
 	srpc_data.rpc_counters = *cnt;
@@ -84,14 +84,13 @@ void srpc_set_counters(const srpc_counters_t *cnt)
 }
 
 static int
-srpc_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i, int nob)
+srpc_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i, int off,
+		   int nob)
 {
-	nob = min_t(int, nob, PAGE_SIZE);
+	LASSERT(off < PAGE_SIZE);
+	LASSERT(nob > 0 && nob <= PAGE_SIZE);
 
-	LASSERT(nob > 0);
-	LASSERT(i >= 0 && i < bk->bk_niov);
-
-	bk->bk_iovs[i].bv_offset = 0;
+	bk->bk_iovs[i].bv_offset = off;
 	bk->bk_iovs[i].bv_page = pg;
 	bk->bk_iovs[i].bv_len = nob;
 	return nob;
@@ -117,7 +116,8 @@ srpc_free_bulk(struct srpc_bulk *bk)
 }
 
 struct srpc_bulk *
-srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
+srpc_alloc_bulk(int cpt, unsigned int bulk_off, unsigned int bulk_npg,
+		unsigned int bulk_len, int sink)
 {
 	struct srpc_bulk *bk;
 	int i;
@@ -148,8 +148,11 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 			return NULL;
 		}
 
-		nob = srpc_add_bulk_page(bk, pg, i, bulk_len);
+		nob = min_t(unsigned int, bulk_off + bulk_len, PAGE_SIZE) -
+		      bulk_off;
+		srpc_add_bulk_page(bk, pg, i, bulk_off, nob);
 		bulk_len -= nob;
+		bulk_off = 0;
 	}
 
 	return bk;
@@ -182,7 +185,7 @@ srpc_init_server_rpc(struct srpc_server_rpc *rpc,
 	rpc->srpc_reqstbuf = buffer;
 	rpc->srpc_peer = buffer->buf_peer;
 	rpc->srpc_self = buffer->buf_self;
-	LNetInvalidateHandle(&rpc->srpc_replymdh);
+	LNetInvalidateMDHandle(&rpc->srpc_replymdh);
 }
 
 static void
@@ -252,7 +255,7 @@ srpc_service_init(struct srpc_service *svc)
 	svc->sv_shuttingdown = 0;
 
 	svc->sv_cpt_data = cfs_percpt_alloc(lnet_cpt_table(),
-					    sizeof(*svc->sv_cpt_data));
+					    sizeof(**svc->sv_cpt_data));
 	if (!svc->sv_cpt_data)
 		return -ENOMEM;
 
@@ -352,12 +355,12 @@ srpc_remove_service(struct srpc_service *sv)
 
 static int
 srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
-		       int len, int options, lnet_process_id_t peer,
-		       lnet_handle_md_t *mdh, struct srpc_event *ev)
+		       int len, int options, struct lnet_process_id peer,
+		       struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
 	int rc;
-	lnet_md_t md;
-	lnet_handle_me_t meh;
+	struct lnet_md md;
+	struct lnet_handle_me meh;
 
 	rc = LNetMEAttach(portal, peer, matchbits, 0, LNET_UNLINK,
 			  local ? LNET_INS_LOCAL : LNET_INS_AFTER, &meh);
@@ -391,11 +394,12 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 
 static int
 srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
-		      int options, lnet_process_id_t peer, lnet_nid_t self,
-		      lnet_handle_md_t *mdh, struct srpc_event *ev)
+		      int options, struct lnet_process_id peer,
+		      lnet_nid_t self, struct lnet_handle_md *mdh,
+		      struct srpc_event *ev)
 {
 	int rc;
-	lnet_md_t md;
+	struct lnet_md md;
 
 	md.user_ptr = ev;
 	md.start = buf;
@@ -445,9 +449,9 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 
 static int
 srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
-			 lnet_handle_md_t *mdh, struct srpc_event *ev)
+			 struct lnet_handle_md *mdh, struct srpc_event *ev)
 {
-	lnet_process_id_t any = { 0 };
+	struct lnet_process_id any = { 0 };
 
 	any.nid = LNET_NID_ANY;
 	any.pid = LNET_PID_ANY;
@@ -465,7 +469,7 @@ __must_hold(&scd->scd_lock)
 	struct srpc_msg	*msg = &buf->buf_msg;
 	int rc;
 
-	LNetInvalidateHandle(&buf->buf_mdh);
+	LNetInvalidateMDHandle(&buf->buf_mdh);
 	list_add(&buf->buf_list, &scd->scd_buf_posted);
 	scd->scd_buf_nposted++;
 	spin_unlock(&scd->scd_lock);
@@ -693,7 +697,8 @@ srpc_finish_service(struct srpc_service *sv)
 
 /* called with sv->sv_lock held */
 static void
-srpc_service_recycle_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
+srpc_service_recycle_buffer(struct srpc_service_cd *scd,
+			    struct srpc_buffer *buf)
 __must_hold(&scd->scd_lock)
 {
 	if (!scd->scd_svc->sv_shuttingdown && scd->scd_buf_adjust >= 0) {
@@ -1306,7 +1311,7 @@ abort:
 }
 
 struct srpc_client_rpc *
-srpc_create_client_rpc(lnet_process_id_t peer, int service,
+srpc_create_client_rpc(struct lnet_process_id peer, int service,
 		       int nbulkiov, int bulklen,
 		       void (*rpc_done)(struct srpc_client_rpc *),
 		       void (*rpc_fini)(struct srpc_client_rpc *), void *priv)
@@ -1404,7 +1409,7 @@ srpc_send_reply(struct srpc_server_rpc *rpc)
 
 /* when in kernel always called with LNET_LOCK() held, and in thread context */
 static void
-srpc_lnet_ev_handler(lnet_event_t *ev)
+srpc_lnet_ev_handler(struct lnet_event *ev)
 {
 	struct srpc_service_cd *scd;
 	struct srpc_event *rpcev = ev->md.user_ptr;
@@ -1618,7 +1623,7 @@ srpc_startup(void)
 
 	srpc_data.rpc_state = SRPC_STATE_NI_INIT;
 
-	LNetInvalidateHandle(&srpc_data.rpc_lnet_eq);
+	LNetInvalidateEQHandle(&srpc_data.rpc_lnet_eq);
 	rc = LNetEQAlloc(0, srpc_lnet_ev_handler, &srpc_data.rpc_lnet_eq);
 	if (rc) {
 		CERROR("LNetEQAlloc() has failed: %d\n", rc);

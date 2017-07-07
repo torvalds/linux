@@ -32,7 +32,8 @@ int ovs_ct_execute(struct net *, struct sk_buff *, struct sw_flow_key *,
 		   const struct ovs_conntrack_info *);
 
 void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key);
-int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb);
+int ovs_ct_put_key(const struct sw_flow_key *swkey,
+		   const struct sw_flow_key *output, struct sk_buff *skb);
 void ovs_ct_free_action(const struct nlattr *a);
 
 #define CT_SUPPORTED_MASK (OVS_CS_F_NEW | OVS_CS_F_ESTABLISHED | \
@@ -75,13 +76,18 @@ static inline int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 static inline void ovs_ct_fill_key(const struct sk_buff *skb,
 				   struct sw_flow_key *key)
 {
-	key->ct.state = 0;
-	key->ct.zone = 0;
+	key->ct_state = 0;
+	key->ct_zone = 0;
 	key->ct.mark = 0;
 	memset(&key->ct.labels, 0, sizeof(key->ct.labels));
+	/* Clear 'ct_orig_proto' to mark the non-existence of original
+	 * direction key fields.
+	 */
+	key->ct_orig_proto = 0;
 }
 
-static inline int ovs_ct_put_key(const struct sw_flow_key *key,
+static inline int ovs_ct_put_key(const struct sw_flow_key *swkey,
+				 const struct sw_flow_key *output,
 				 struct sk_buff *skb)
 {
 	return 0;

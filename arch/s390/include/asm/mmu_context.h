@@ -8,7 +8,8 @@
 #define __S390_MMU_CONTEXT_H
 
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/mm_types.h>
 #include <asm/tlbflush.h>
 #include <asm/ctl_reg.h>
 
@@ -24,9 +25,12 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
 #ifdef CONFIG_PGSTE
-	mm->context.alloc_pgste = page_table_allocate_pgste;
+	mm->context.alloc_pgste = page_table_allocate_pgste ||
+		test_thread_flag(TIF_PGSTE) ||
+		current->mm->context.alloc_pgste;
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
+	mm->context.use_cmma = 0;
 #endif
 	switch (mm->context.asce_limit) {
 	case 1UL << 42:
@@ -63,7 +67,7 @@ static inline void set_user_asce(struct mm_struct *mm)
 	S390_lowcore.user_asce = mm->context.asce;
 	if (current->thread.mm_segment.ar4)
 		__ctl_load(S390_lowcore.user_asce, 7, 7);
-	set_cpu_flag(CIF_ASCE);
+	set_cpu_flag(CIF_ASCE_PRIMARY);
 }
 
 static inline void clear_user_asce(void)
@@ -81,7 +85,7 @@ static inline void load_kernel_asce(void)
 	__ctl_store(asce, 1, 1);
 	if (asce != S390_lowcore.kernel_asce)
 		__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	set_cpu_flag(CIF_ASCE);
+	set_cpu_flag(CIF_ASCE_PRIMARY);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
@@ -151,12 +155,6 @@ static inline void arch_bprm_mm_init(struct mm_struct *mm,
 
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 		bool write, bool execute, bool foreign)
-{
-	/* by default, allow everything */
-	return true;
-}
-
-static inline bool arch_pte_access_permitted(pte_t pte, bool write)
 {
 	/* by default, allow everything */
 	return true;

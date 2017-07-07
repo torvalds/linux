@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/notifier.h>
 #include <linux/delay.h>
 #include <linux/rtc/ds1685.h>

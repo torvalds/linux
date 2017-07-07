@@ -19,13 +19,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <asm/debug.h>
+#include <asm/debugfs.h>
 #include <asm/prom.h>
 #include <asm/scom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 const struct scom_controller *scom_controller;
 EXPORT_SYMBOL_GPL(scom_controller);

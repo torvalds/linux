@@ -16,17 +16,16 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_graph.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
 
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #include "drmP.h"
@@ -478,22 +477,10 @@ static const struct drm_connector_helper_funcs ps8622_connector_helper_funcs = {
 	.get_modes = ps8622_get_modes,
 };
 
-static enum drm_connector_status ps8622_detect(struct drm_connector *connector,
-								bool force)
-{
-	return connector_status_connected;
-}
-
-static void ps8622_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_cleanup(connector);
-}
-
 static const struct drm_connector_funcs ps8622_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = ps8622_detect,
-	.destroy = ps8622_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
@@ -549,7 +536,6 @@ static int ps8622_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *endpoint, *panel_node;
 	struct ps8622_bridge *ps8622;
 	int ret;
 
@@ -557,16 +543,9 @@ static int ps8622_probe(struct i2c_client *client,
 	if (!ps8622)
 		return -ENOMEM;
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (endpoint) {
-		panel_node = of_graph_get_remote_port_parent(endpoint);
-		if (panel_node) {
-			ps8622->panel = of_drm_find_panel(panel_node);
-			of_node_put(panel_node);
-			if (!ps8622->panel)
-				return -EPROBE_DEFER;
-		}
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &ps8622->panel, NULL);
+	if (ret)
+		return ret;
 
 	ps8622->client = client;
 

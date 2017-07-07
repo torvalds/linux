@@ -32,6 +32,7 @@ struct nvdimm_bus {
 	struct list_head poison_list;
 	struct list_head mapping_list;
 	struct mutex reconfig_mutex;
+	spinlock_t poison_lock;
 };
 
 struct nvdimm {
@@ -44,9 +45,35 @@ struct nvdimm {
 	struct resource *flush_wpq;
 };
 
+/**
+ * struct blk_alloc_info - tracking info for BLK dpa scanning
+ * @nd_mapping: blk region mapping boundaries
+ * @available: decremented in alias_dpa_busy as aliased PMEM is scanned
+ * @busy: decremented in blk_dpa_busy to account for ranges already
+ * 	  handled by alias_dpa_busy
+ * @res: alias_dpa_busy interprets this a free space range that needs to
+ * 	 be truncated to the valid BLK allocation starting DPA, blk_dpa_busy
+ * 	 treats it as a busy range that needs the aliased PMEM ranges
+ * 	 truncated.
+ */
+struct blk_alloc_info {
+	struct nd_mapping *nd_mapping;
+	resource_size_t available, busy;
+	struct resource *res;
+};
+
 bool is_nvdimm(struct device *dev);
 bool is_nd_pmem(struct device *dev);
+bool is_nd_volatile(struct device *dev);
 bool is_nd_blk(struct device *dev);
+static inline bool is_nd_region(struct device *dev)
+{
+	return is_nd_pmem(dev) || is_nd_blk(dev) || is_nd_volatile(dev);
+}
+static inline bool is_memory(struct device *dev)
+{
+	return is_nd_pmem(dev) || is_nd_volatile(dev);
+}
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);
@@ -54,7 +81,7 @@ void nvdimm_devs_exit(void);
 void nd_region_devs_exit(void);
 void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 struct nd_region;
-void nd_region_create_blk_seed(struct nd_region *nd_region);
+void nd_region_create_ns_seed(struct nd_region *nd_region);
 void nd_region_create_btt_seed(struct nd_region *nd_region);
 void nd_region_create_pfn_seed(struct nd_region *nd_region);
 void nd_region_create_dax_seed(struct nd_region *nd_region);
@@ -73,13 +100,14 @@ bool nd_is_uuid_unique(struct device *dev, u8 *uuid);
 struct nd_region;
 struct nvdimm_drvdata;
 struct nd_mapping;
+void nd_mapping_free_labels(struct nd_mapping *nd_mapping);
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, resource_size_t *overlap);
-resource_size_t nd_blk_available_dpa(struct nd_mapping *nd_mapping);
+resource_size_t nd_blk_available_dpa(struct nd_region *nd_region);
 resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
-struct nd_mapping;
+int alias_dpa_busy(struct device *dev, void *data);
 struct resource *nsblk_add_resource(struct nd_region *nd_region,
 		struct nvdimm_drvdata *ndd, struct nd_namespace_blk *nsblk,
 		resource_size_t start);

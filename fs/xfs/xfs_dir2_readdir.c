@@ -71,20 +71,10 @@ xfs_dir2_sf_getdents(
 	struct xfs_da_geometry	*geo = args->geo;
 
 	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
-	/*
-	 * Give up if the directory is way too short.
-	 */
-	if (dp->i_d.di_size < offsetof(xfs_dir2_sf_hdr_t, parent)) {
-		ASSERT(XFS_FORCED_SHUTDOWN(dp->i_mount));
-		return -EIO;
-	}
-
 	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
-
-	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
 
 	/*
 	 * If the block number in the offset is out of range, we're done.
@@ -404,6 +394,7 @@ xfs_dir2_leaf_readbuf(
 
 	/*
 	 * Do we need more readahead?
+	 * Each loop tries to process 1 full dir blk; last may be partial.
 	 */
 	blk_start_plug(&plug);
 	for (mip->ra_index = mip->ra_offset = i = 0;
@@ -414,7 +405,8 @@ xfs_dir2_leaf_readbuf(
 		 * Read-ahead a contiguous directory block.
 		 */
 		if (i > mip->ra_current &&
-		    map[mip->ra_index].br_blockcount >= geo->fsbcount) {
+		    (map[mip->ra_index].br_blockcount - mip->ra_offset) >=
+		    geo->fsbcount) {
 			xfs_dir3_data_readahead(dp,
 				map[mip->ra_index].br_startoff + mip->ra_offset,
 				XFS_FSB_TO_DADDR(dp->i_mount,
@@ -435,14 +427,19 @@ xfs_dir2_leaf_readbuf(
 		}
 
 		/*
-		 * Advance offset through the mapping table.
+		 * Advance offset through the mapping table, processing a full
+		 * dir block even if it is fragmented into several extents.
+		 * But stop if we have consumed all valid mappings, even if
+		 * it's not yet a full directory block.
 		 */
-		for (j = 0; j < geo->fsbcount; j += length ) {
+		for (j = 0;
+		     j < geo->fsbcount && mip->ra_index < mip->map_valid;
+		     j += length ) {
 			/*
 			 * The rest of this extent but not more than a dir
 			 * block.
 			 */
-			length = min_t(int, geo->fsbcount,
+			length = min_t(int, geo->fsbcount - j,
 					map[mip->ra_index].br_blockcount -
 							mip->ra_offset);
 			mip->ra_offset += length;
@@ -676,7 +673,6 @@ xfs_readdir(
 	args.dp = dp;
 	args.geo = dp->i_mount->m_dir_geo;
 
-	xfs_ilock(dp, XFS_IOLOCK_SHARED);
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
 		rval = xfs_dir2_sf_getdents(&args, ctx);
 	else if ((rval = xfs_dir2_isblock(&args, &v)))
@@ -685,7 +681,6 @@ xfs_readdir(
 		rval = xfs_dir2_block_getdents(&args, ctx);
 	else
 		rval = xfs_dir2_leaf_getdents(&args, ctx, bufsize);
-	xfs_iunlock(dp, XFS_IOLOCK_SHARED);
 
 	return rval;
 }

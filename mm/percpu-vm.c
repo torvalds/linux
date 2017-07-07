@@ -21,7 +21,6 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
 
 /**
  * pcpu_get_pages - get temp pages array
- * @chunk: chunk of interest
  *
  * Returns pointer to array of pointers to struct page which can be indexed
  * with pcpu_page_idx().  Note that there is only one array and accesses
@@ -30,7 +29,7 @@ static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
  * RETURNS:
  * Pointer to temp pages array on success.
  */
-static struct page **pcpu_get_pages(struct pcpu_chunk *chunk_alloc)
+static struct page **pcpu_get_pages(void)
 {
 	static struct page **pages;
 	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);
@@ -275,7 +274,7 @@ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
 {
 	struct page **pages;
 
-	pages = pcpu_get_pages(chunk);
+	pages = pcpu_get_pages();
 	if (!pages)
 		return -ENOMEM;
 
@@ -313,7 +312,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	 * successful population attempt so the temp pages array must
 	 * be available now.
 	 */
-	pages = pcpu_get_pages(chunk);
+	pages = pcpu_get_pages();
 	BUG_ON(!pages);
 
 	/* unmap and free */
@@ -344,12 +343,22 @@ static struct pcpu_chunk *pcpu_create_chunk(void)
 
 	chunk->data = vms;
 	chunk->base_addr = vms[0]->addr - pcpu_group_offsets[0];
+
+	pcpu_stats_chunk_alloc();
+	trace_percpu_create_chunk(chunk->base_addr);
+
 	return chunk;
 }
 
 static void pcpu_destroy_chunk(struct pcpu_chunk *chunk)
 {
-	if (chunk && chunk->data)
+	if (!chunk)
+		return;
+
+	pcpu_stats_chunk_dealloc();
+	trace_percpu_destroy_chunk(chunk->base_addr);
+
+	if (chunk->data)
 		pcpu_free_vm_areas(chunk->data, pcpu_nr_groups);
 	pcpu_free_chunk(chunk);
 }

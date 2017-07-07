@@ -32,8 +32,7 @@
 int
 xfs_break_layouts(
 	struct inode		*inode,
-	uint			*iolock,
-	bool			with_imutex)
+	uint			*iolock)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			error;
@@ -42,12 +41,8 @@ xfs_break_layouts(
 
 	while ((error = break_layout(inode, false) == -EWOULDBLOCK)) {
 		xfs_iunlock(ip, *iolock);
-		if (with_imutex && (*iolock & XFS_IOLOCK_EXCL))
-			inode_unlock(inode);
 		error = break_layout(inode, true);
 		*iolock = XFS_IOLOCK_EXCL;
-		if (with_imutex)
-			inode_lock(inode);
 		xfs_ilock(ip, *iolock);
 	}
 
@@ -111,6 +106,13 @@ xfs_fs_map_blocks(
 	 * to find it.
 	 */
 	if (XFS_IS_REALTIME_INODE(ip))
+		return -ENXIO;
+
+	/*
+	 * The pNFS block layout spec actually supports reflink like
+	 * functionality, but the Linux pNFS server doesn't implement it yet.
+	 */
+	if (xfs_is_reflink_inode(ip))
 		return -ENXIO;
 
 	/*

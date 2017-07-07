@@ -17,7 +17,7 @@ rcu_dereference.txt
 rcubarrier.txt
 	- RCU and Unloadable Modules
 rculist_nulls.txt
-	- RCU list primitives for use with SLAB_DESTROY_BY_RCU
+	- RCU list primitives for use with SLAB_TYPESAFE_BY_RCU
 rcuref.txt
 	- Reference-count design for elements of lists/arrays protected by RCU
 rcu.txt
@@ -28,8 +28,6 @@ stallwarn.txt
 	- RCU CPU stall warnings (module parameter rcu_cpu_stall_suppress)
 torture.txt
 	- RCU Torture Test Operation (CONFIG_RCU_TORTURE_TEST)
-trace.txt
-	- CONFIG_RCU_TRACE debugfs files and formats
 UP.txt
 	- RCU on Uniprocessor Systems
 whatisRCU.txt

@@ -73,6 +73,7 @@ static struct xt_match quota_mt_reg __read_mostly = {
 	.checkentry = quota_mt_check,
 	.destroy    = quota_mt_destroy,
 	.matchsize  = sizeof(struct xt_quota_info),
+	.usersize   = offsetof(struct xt_quota_info, master),
 	.me         = THIS_MODULE,
 };
 

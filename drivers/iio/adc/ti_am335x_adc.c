@@ -30,10 +30,28 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 
+#include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
+
+#define DMA_BUFFER_SIZE		SZ_2K
+
+struct tiadc_dma {
+	struct dma_slave_config	conf;
+	struct dma_chan		*chan;
+	dma_addr_t		addr;
+	dma_cookie_t		cookie;
+	u8			*buf;
+	int			current_period;
+	int			period_size;
+	u8			fifo_thresh;
+};
+
 struct tiadc_device {
 	struct ti_tscadc_dev *mfd_tscadc;
+	struct tiadc_dma dma;
 	struct mutex fifo1_lock; /* to protect fifo access */
 	int channels;
+	int total_ch_enabled;
 	u8 channel_line[8];
 	u8 channel_step[8];
 	int buffer_en_ch_steps;
@@ -151,7 +169,9 @@ static irqreturn_t tiadc_irq_h(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	unsigned int status, config;
+	unsigned int status, config, adc_fsm;
+	unsigned short count = 0;
+
 	status = tiadc_readl(adc_dev, REG_IRQSTATUS);
 
 	/*
@@ -165,6 +185,15 @@ static irqreturn_t tiadc_irq_h(int irq, void *private)
 		tiadc_writel(adc_dev, REG_CTRL, config);
 		tiadc_writel(adc_dev, REG_IRQSTATUS, IRQENB_FIFO1OVRRUN
 				| IRQENB_FIFO1UNDRFLW | IRQENB_FIFO1THRES);
+
+		/* wait for idle state.
+		 * ADC needs to finish the current conversion
+		 * before disabling the module
+		 */
+		do {
+			adc_fsm = tiadc_readl(adc_dev, REG_ADCFSM);
+		} while (adc_fsm != 0x10 && count++ < 100);
+
 		tiadc_writel(adc_dev, REG_CTRL, (config | CNTRLREG_TSCSSENB));
 		return IRQ_HANDLED;
 	} else if (status & IRQENB_FIFO1THRES) {
@@ -198,6 +227,67 @@ static irqreturn_t tiadc_worker_h(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static void tiadc_dma_rx_complete(void *param)
+{
+	struct iio_dev *indio_dev = param;
+	struct tiadc_device *adc_dev = iio_priv(indio_dev);
+	struct tiadc_dma *dma = &adc_dev->dma;
+	u8 *data;
+	int i;
+
+	data = dma->buf + dma->current_period * dma->period_size;
+	dma->current_period = 1 - dma->current_period; /* swap the buffer ID */
+
+	for (i = 0; i < dma->period_size; i += indio_dev->scan_bytes) {
+		iio_push_to_buffers(indio_dev, data);
+		data += indio_dev->scan_bytes;
+	}
+}
+
+static int tiadc_start_dma(struct iio_dev *indio_dev)
+{
+	struct tiadc_device *adc_dev = iio_priv(indio_dev);
+	struct tiadc_dma *dma = &adc_dev->dma;
+	struct dma_async_tx_descriptor *desc;
+
+	dma->current_period = 0; /* We start to fill period 0 */
+	/*
+	 * Make the fifo thresh as the multiple of total number of
+	 * channels enabled, so make sure that cyclic DMA period
+	 * length is also a multiple of total number of channels
+	 * enabled. This ensures that no invalid data is reported
+	 * to the stack via iio_push_to_buffers().
+	 */
+	dma->fifo_thresh = rounddown(FIFO1_THRESHOLD + 1,
+				     adc_dev->total_ch_enabled) - 1;
+	/* Make sure that period length is multiple of fifo thresh level */
+	dma->period_size = rounddown(DMA_BUFFER_SIZE / 2,
+				    (dma->fifo_thresh + 1) * sizeof(u16));
+
+	dma->conf.src_maxburst = dma->fifo_thresh + 1;
+	dmaengine_slave_config(dma->chan, &dma->conf);
+
+	desc = dmaengine_prep_dma_cyclic(dma->chan, dma->addr,
+					 dma->period_size * 2,
+					 dma->period_size, DMA_DEV_TO_MEM,
+					 DMA_PREP_INTERRUPT);
+	if (!desc)
+		return -EBUSY;
+
+	desc->callback = tiadc_dma_rx_complete;
+	desc->callback_param = indio_dev;
+
+	dma->cookie = dmaengine_submit(desc);
+
+	dma_async_issue_pending(dma->chan);
+
+	tiadc_writel(adc_dev, REG_FIFO1THR, dma->fifo_thresh);
+	tiadc_writel(adc_dev, REG_DMA1REQ, dma->fifo_thresh);
+	tiadc_writel(adc_dev, REG_DMAENABLE_SET, DMA_FIFO1);
+
+	return 0;
+}
+
 static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
@@ -218,20 +308,30 @@ static int tiadc_buffer_preenable(struct iio_dev *indio_dev)
 static int tiadc_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
+	struct tiadc_dma *dma = &adc_dev->dma;
+	unsigned int irq_enable;
 	unsigned int enb = 0;
 	u8 bit;
 
 	tiadc_step_config(indio_dev);
-	for_each_set_bit(bit, indio_dev->active_scan_mask, adc_dev->channels)
+	for_each_set_bit(bit, indio_dev->active_scan_mask, adc_dev->channels) {
 		enb |= (get_adc_step_bit(adc_dev, bit) << 1);
+		adc_dev->total_ch_enabled++;
+	}
 	adc_dev->buffer_en_ch_steps = enb;
+
+	if (dma->chan)
+		tiadc_start_dma(indio_dev);
 
 	am335x_tsc_se_set_cache(adc_dev->mfd_tscadc, enb);
 
 	tiadc_writel(adc_dev,  REG_IRQSTATUS, IRQENB_FIFO1THRES
 				| IRQENB_FIFO1OVRRUN | IRQENB_FIFO1UNDRFLW);
-	tiadc_writel(adc_dev,  REG_IRQENABLE, IRQENB_FIFO1THRES
-				| IRQENB_FIFO1OVRRUN);
+
+	irq_enable = IRQENB_FIFO1OVRRUN;
+	if (!dma->chan)
+		irq_enable |= IRQENB_FIFO1THRES;
+	tiadc_writel(adc_dev,  REG_IRQENABLE, irq_enable);
 
 	return 0;
 }
@@ -239,12 +339,18 @@ static int tiadc_buffer_postenable(struct iio_dev *indio_dev)
 static int tiadc_buffer_predisable(struct iio_dev *indio_dev)
 {
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
+	struct tiadc_dma *dma = &adc_dev->dma;
 	int fifo1count, i, read;
 
 	tiadc_writel(adc_dev, REG_IRQCLR, (IRQENB_FIFO1THRES |
 				IRQENB_FIFO1OVRRUN | IRQENB_FIFO1UNDRFLW));
 	am335x_tsc_se_clr(adc_dev->mfd_tscadc, adc_dev->buffer_en_ch_steps);
 	adc_dev->buffer_en_ch_steps = 0;
+	adc_dev->total_ch_enabled = 0;
+	if (dma->chan) {
+		tiadc_writel(adc_dev, REG_DMAENABLE_CLEAR, 0x2);
+		dmaengine_terminate_async(dma->chan);
+	}
 
 	/* Flush FIFO of leftover data in the time it takes to disable adc */
 	fifo1count = tiadc_readl(adc_dev, REG_FIFO1CNT);
@@ -430,6 +536,41 @@ static const struct iio_info tiadc_info = {
 	.driver_module = THIS_MODULE,
 };
 
+static int tiadc_request_dma(struct platform_device *pdev,
+			     struct tiadc_device *adc_dev)
+{
+	struct tiadc_dma	*dma = &adc_dev->dma;
+	dma_cap_mask_t		mask;
+
+	/* Default slave configuration parameters */
+	dma->conf.direction = DMA_DEV_TO_MEM;
+	dma->conf.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	dma->conf.src_addr = adc_dev->mfd_tscadc->tscadc_phys_base + REG_FIFO1;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_CYCLIC, mask);
+
+	/* Get a channel for RX */
+	dma->chan = dma_request_chan(adc_dev->mfd_tscadc->dev, "fifo1");
+	if (IS_ERR(dma->chan)) {
+		int ret = PTR_ERR(dma->chan);
+
+		dma->chan = NULL;
+		return ret;
+	}
+
+	/* RX buffer */
+	dma->buf = dma_alloc_coherent(dma->chan->device->dev, DMA_BUFFER_SIZE,
+				      &dma->addr, GFP_KERNEL);
+	if (!dma->buf)
+		goto err;
+
+	return 0;
+err:
+	dma_release_channel(dma->chan);
+	return -ENOMEM;
+}
+
 static int tiadc_parse_dt(struct platform_device *pdev,
 			  struct tiadc_device *adc_dev)
 {
@@ -473,7 +614,7 @@ static int tiadc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*indio_dev));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc_dev));
 	if (indio_dev == NULL) {
 		dev_err(&pdev->dev, "failed to allocate iio device\n");
 		return -ENOMEM;
@@ -512,8 +653,14 @@ static int tiadc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, indio_dev);
 
+	err = tiadc_request_dma(pdev, adc_dev);
+	if (err && err == -EPROBE_DEFER)
+		goto err_dma;
+
 	return 0;
 
+err_dma:
+	iio_device_unregister(indio_dev);
 err_buffer_unregister:
 	tiadc_iio_buffered_hardware_remove(indio_dev);
 err_free_channels:
@@ -525,8 +672,14 @@ static int tiadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
+	struct tiadc_dma *dma = &adc_dev->dma;
 	u32 step_en;
 
+	if (dma->chan) {
+		dma_free_coherent(dma->chan->device->dev, DMA_BUFFER_SIZE,
+				  dma->buf, dma->addr);
+		dma_release_channel(dma->chan);
+	}
 	iio_device_unregister(indio_dev);
 	tiadc_iio_buffered_hardware_remove(indio_dev);
 	tiadc_channels_remove(indio_dev);

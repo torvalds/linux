@@ -125,7 +125,7 @@ static void gmap_radix_tree_free(struct radix_tree_root *root)
 	struct radix_tree_iter iter;
 	unsigned long indices[16];
 	unsigned long index;
-	void **slot;
+	void __rcu **slot;
 	int i, nr;
 
 	/* A radix tree is freed by deleting all of its entries */
@@ -150,7 +150,7 @@ static void gmap_rmap_radix_tree_free(struct radix_tree_root *root)
 	struct radix_tree_iter iter;
 	unsigned long indices[16];
 	unsigned long index;
-	void **slot;
+	void __rcu **slot;
 	int i, nr;
 
 	/* A radix tree is freed by deleting all of its entries */
@@ -359,8 +359,8 @@ static int __gmap_unlink_by_vmaddr(struct gmap *gmap, unsigned long vmaddr)
 	spin_lock(&gmap->guest_table_lock);
 	entry = radix_tree_delete(&gmap->host_to_guest, vmaddr >> PMD_SHIFT);
 	if (entry) {
-		flush = (*entry != _SEGMENT_ENTRY_INVALID);
-		*entry = _SEGMENT_ENTRY_INVALID;
+		flush = (*entry != _SEGMENT_ENTRY_EMPTY);
+		*entry = _SEGMENT_ENTRY_EMPTY;
 	}
 	spin_unlock(&gmap->guest_table_lock);
 	return flush;
@@ -431,7 +431,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 	if ((from | to | len) & (PMD_SIZE - 1))
 		return -EINVAL;
 	if (len == 0 || from + len < from || to + len < to ||
-	    from + len - 1 > TASK_MAX_SIZE || to + len - 1 > gmap->asce_end)
+	    from + len - 1 > TASK_SIZE_MAX || to + len - 1 > gmap->asce_end)
 		return -EINVAL;
 
 	flush = 0;
@@ -537,6 +537,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	unsigned long *table;
 	spinlock_t *ptl;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	int rc;
@@ -573,7 +574,9 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	mm = gmap->mm;
 	pgd = pgd_offset(mm, vmaddr);
 	VM_BUG_ON(pgd_none(*pgd));
-	pud = pud_offset(pgd, vmaddr);
+	p4d = p4d_offset(pgd, vmaddr);
+	VM_BUG_ON(p4d_none(*p4d));
+	pud = pud_offset(p4d, vmaddr);
 	VM_BUG_ON(pud_none(*pud));
 	/* large puds cannot yet be handled */
 	if (pud_large(*pud))
@@ -589,7 +592,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		return rc;
 	ptl = pmd_lock(mm, pmd);
 	spin_lock(&gmap->guest_table_lock);
-	if (*table == _SEGMENT_ENTRY_INVALID) {
+	if (*table == _SEGMENT_ENTRY_EMPTY) {
 		rc = radix_tree_insert(&gmap->host_to_guest,
 				       vmaddr >> PMD_SHIFT, table);
 		if (!rc)
@@ -687,7 +690,7 @@ void gmap_discard(struct gmap *gmap, unsigned long from, unsigned long to)
 		/* Find vma in the parent mm */
 		vma = find_vma(gmap->mm, vmaddr);
 		size = min(to - gaddr, PMD_SIZE - (gaddr & ~PMD_MASK));
-		zap_page_range(vma, vmaddr, size, NULL);
+		zap_page_range(vma, vmaddr, size);
 	}
 	up_read(&gmap->mm->mmap_sem);
 }
@@ -1008,14 +1011,14 @@ EXPORT_SYMBOL_GPL(gmap_read_table);
 static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 				    struct gmap_rmap *rmap)
 {
-	void **slot;
+	void __rcu **slot;
 
 	BUG_ON(!gmap_is_shadow(sg));
 	slot = radix_tree_lookup_slot(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT);
 	if (slot) {
 		rmap->next = radix_tree_deref_slot_protected(slot,
 							&sg->guest_table_lock);
-		radix_tree_replace_slot(slot, rmap);
+		radix_tree_replace_slot(&sg->host_to_rmap, slot, rmap);
 	} else {
 		rmap->next = NULL;
 		radix_tree_insert(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT,
@@ -2004,20 +2007,12 @@ EXPORT_SYMBOL_GPL(gmap_shadow_page);
  * Called with sg->parent->shadow_lock.
  */
 static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
-			       unsigned long offset, pte_t *pte)
+			       unsigned long gaddr, pte_t *pte)
 {
 	struct gmap_rmap *rmap, *rnext, *head;
-	unsigned long gaddr, start, end, bits, raddr;
-	unsigned long *table;
+	unsigned long start, end, bits, raddr;
 
 	BUG_ON(!gmap_is_shadow(sg));
-	spin_lock(&sg->parent->guest_table_lock);
-	table = radix_tree_lookup(&sg->parent->host_to_guest,
-				  vmaddr >> PMD_SHIFT);
-	gaddr = table ? __gmap_segment_gaddr(table) + offset : 0;
-	spin_unlock(&sg->parent->guest_table_lock);
-	if (!table)
-		return;
 
 	spin_lock(&sg->guest_table_lock);
 	if (sg->removed) {
@@ -2076,7 +2071,7 @@ static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
 void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
 		 pte_t *pte, unsigned long bits)
 {
-	unsigned long offset, gaddr;
+	unsigned long offset, gaddr = 0;
 	unsigned long *table;
 	struct gmap *gmap, *sg, *next;
 
@@ -2084,22 +2079,23 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
 	offset = offset * (4096 / sizeof(pte_t));
 	rcu_read_lock();
 	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
-		if (!list_empty(&gmap->children) && (bits & PGSTE_VSIE_BIT)) {
-			spin_lock(&gmap->shadow_lock);
-			list_for_each_entry_safe(sg, next,
-						 &gmap->children, list)
-				gmap_shadow_notify(sg, vmaddr, offset, pte);
-			spin_unlock(&gmap->shadow_lock);
-		}
-		if (!(bits & PGSTE_IN_BIT))
-			continue;
 		spin_lock(&gmap->guest_table_lock);
 		table = radix_tree_lookup(&gmap->host_to_guest,
 					  vmaddr >> PMD_SHIFT);
 		if (table)
 			gaddr = __gmap_segment_gaddr(table) + offset;
 		spin_unlock(&gmap->guest_table_lock);
-		if (table)
+		if (!table)
+			continue;
+
+		if (!list_empty(&gmap->children) && (bits & PGSTE_VSIE_BIT)) {
+			spin_lock(&gmap->shadow_lock);
+			list_for_each_entry_safe(sg, next,
+						 &gmap->children, list)
+				gmap_shadow_notify(sg, vmaddr, gaddr, pte);
+			spin_unlock(&gmap->shadow_lock);
+		}
+		if (bits & PGSTE_IN_BIT)
 			gmap_call_notifier(gmap, gaddr, gaddr + PAGE_SIZE - 1);
 	}
 	rcu_read_unlock();

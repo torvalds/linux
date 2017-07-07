@@ -42,6 +42,21 @@
 #define HHI_VID_PLL_CNTL		0x320 /* 0xc8 offset in data sheet */
 
 /*
+ * MPLL register offeset taken from the S905 datasheet. Vendor kernel source
+ * confirm these are the same for the S805.
+ */
+#define HHI_MPLL_CNTL			0x280 /* 0xa0 offset in data sheet */
+#define HHI_MPLL_CNTL2			0x284 /* 0xa1 offset in data sheet */
+#define HHI_MPLL_CNTL3			0x288 /* 0xa2 offset in data sheet */
+#define HHI_MPLL_CNTL4			0x28C /* 0xa3 offset in data sheet */
+#define HHI_MPLL_CNTL5			0x290 /* 0xa4 offset in data sheet */
+#define HHI_MPLL_CNTL6			0x294 /* 0xa5 offset in data sheet */
+#define HHI_MPLL_CNTL7			0x298 /* 0xa6 offset in data sheet */
+#define HHI_MPLL_CNTL8			0x29C /* 0xa7 offset in data sheet */
+#define HHI_MPLL_CNTL9			0x2A0 /* 0xa8 offset in data sheet */
+#define HHI_MPLL_CNTL10			0x2A4 /* 0xa9 offset in data sheet */
+
+/*
  * CLKID index values
  *
  * These indices are entirely contrived and do not map onto the hardware.
@@ -72,20 +87,20 @@
 #define CLKID_PERIPHS		20
 #define CLKID_SPICC		21
 #define CLKID_I2C		22
-#define CLKID_SAR_ADC		23
+/* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	24
-#define CLKID_RNG0		25
+/* #define CLKID_RNG0 */
 #define CLKID_UART0		26
 #define CLKID_SDHC		27
 #define CLKID_STREAM		28
 #define CLKID_ASYNC_FIFO	29
-#define CLKID_SDIO		30
+/* #define CLKID_SDIO */
 #define CLKID_ABUF		31
 #define CLKID_HIU_IFACE		32
 #define CLKID_ASSIST_MISC	33
 #define CLKID_SPI		34
 #define CLKID_I2S_SPDIF		35
-#define CLKID_ETH		36
+/* #define CLKID_ETH */
 #define CLKID_DEMUX		37
 #define CLKID_AIU_GLUE		38
 #define CLKID_IEC958		39
@@ -99,12 +114,12 @@
 #define CLKID_AIU		47
 #define CLKID_UART1		48
 #define CLKID_G2D		49
-#define CLKID_USB0		50
-#define CLKID_USB1		51
+/* #define CLKID_USB0 */
+/* #define CLKID_USB1 */
 #define CLKID_RESET		52
 #define CLKID_NAND		53
 #define CLKID_DOS_PARSER	54
-#define CLKID_USB		55
+/* #define CLKID_USB */
 #define CLKID_VDIN1		56
 #define CLKID_AHB_ARB0		57
 #define CLKID_EFUSE		58
@@ -113,12 +128,12 @@
 #define CLKID_AHB_CTRL_BUS	61
 #define CLKID_HDMI_INTR_SYNC	62
 #define CLKID_HDMI_PCLK		63
-#define CLKID_USB1_DDR_BRIDGE	64
-#define CLKID_USB0_DDR_BRIDGE	65
+/* CLKID_USB1_DDR_BRIDGE */
+/* CLKID_USB0_DDR_BRIDGE */
 #define CLKID_MMC_PCLK		66
 #define CLKID_DVIN		67
 #define CLKID_UART2		68
-#define CLKID_SANA		69
+/* #define CLKID_SANA */
 #define CLKID_VPU_INTR		70
 #define CLKID_SEC_AHB_AHB3_BRIDGE	71
 #define CLKID_CLK81_A9		72
@@ -142,8 +157,11 @@
 #define CLKID_AO_AHB_SRAM	90
 #define CLKID_AO_AHB_BUS	91
 #define CLKID_AO_IFACE		92
+#define CLKID_MPLL0		93
+#define CLKID_MPLL1		94
+#define CLKID_MPLL2		95
 
-#define CLK_NR_CLKS		93
+#define CLK_NR_CLKS		96
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/meson8b-clkc.h>

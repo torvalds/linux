@@ -803,6 +803,7 @@ struct ath_hw {
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
 	u32 ah_flags;
+	s16 nf_override;
 
 	bool reset_power_on;
 	bool htc_reset_init;
@@ -830,7 +831,6 @@ struct ath_hw {
 	/* Calibration */
 	u32 supp_cals;
 	struct ath9k_cal_list iq_caldata;
-	struct ath9k_cal_list temp_caldata;
 	struct ath9k_cal_list adcgain_caldata;
 	struct ath9k_cal_list adcdc_caldata;
 	struct ath9k_cal_list *cal_list;

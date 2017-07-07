@@ -43,7 +43,7 @@ nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 
 	if (info->queues_total > 1) {
 		queue = nfqueue_hash(skb, queue, info->queues_total,
-				     par->family, jhash_initval);
+				     xt_family(par), jhash_initval);
 	}
 	return NF_QUEUE_NR(queue);
 }
@@ -98,7 +98,7 @@ nfqueue_tg_v3(struct sk_buff *skb, const struct xt_action_param *par)
 			queue = info->queuenum + cpu % info->queues_total;
 		} else {
 			queue = nfqueue_hash(skb, queue, info->queues_total,
-					     par->family, jhash_initval);
+					     xt_family(par), jhash_initval);
 		}
 	}
 

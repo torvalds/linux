@@ -4,6 +4,7 @@
 #include <asm/errno.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
+#include <asm/export.h>
 
 /*
  * We build a jump to memcpy_orig by default which gets NOPped out on
@@ -40,6 +41,8 @@ ENTRY(memcpy)
 	ret
 ENDPROC(memcpy)
 ENDPROC(__memcpy)
+EXPORT_SYMBOL(memcpy)
+EXPORT_SYMBOL(__memcpy)
 
 /*
  * memcpy_erms() - enhanced fast string memcpy. This is faster and
@@ -274,6 +277,7 @@ ENTRY(memcpy_mcsafe_unrolled)
 	xorq %rax, %rax
 	ret
 ENDPROC(memcpy_mcsafe_unrolled)
+EXPORT_SYMBOL_GPL(memcpy_mcsafe_unrolled)
 
 	.section .fixup, "ax"
 	/* Return -EFAULT for any failure */
@@ -286,7 +290,7 @@ ENDPROC(memcpy_mcsafe_unrolled)
 	_ASM_EXTABLE_FAULT(.L_copy_leading_bytes, .L_memcpy_mcsafe_fail)
 	_ASM_EXTABLE_FAULT(.L_cache_w0, .L_memcpy_mcsafe_fail)
 	_ASM_EXTABLE_FAULT(.L_cache_w1, .L_memcpy_mcsafe_fail)
-	_ASM_EXTABLE_FAULT(.L_cache_w3, .L_memcpy_mcsafe_fail)
+	_ASM_EXTABLE_FAULT(.L_cache_w2, .L_memcpy_mcsafe_fail)
 	_ASM_EXTABLE_FAULT(.L_cache_w3, .L_memcpy_mcsafe_fail)
 	_ASM_EXTABLE_FAULT(.L_cache_w4, .L_memcpy_mcsafe_fail)
 	_ASM_EXTABLE_FAULT(.L_cache_w5, .L_memcpy_mcsafe_fail)

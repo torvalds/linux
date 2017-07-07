@@ -171,7 +171,6 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 	struct sk_buff *skb = NULL;
 	struct ser_device *ser;
 	int ret;
-	u8 *p;
 
 	ser = tty->disc_data;
 
@@ -198,8 +197,7 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 	skb = netdev_alloc_skb(ser->dev, count+1);
 	if (skb == NULL)
 		return;
-	p = skb_put(skb, count);
-	memcpy(p, data, count);
+	skb_put_data(skb, data, count);
 
 	skb->protocol = htons(ETH_P_CAIF);
 	skb_reset_mac_header(skb);
@@ -428,7 +426,7 @@ static void caifdev_setup(struct net_device *dev)
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu = CAIF_MAX_MTU;
 	dev->priv_flags |= IFF_NO_QUEUE;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	skb_queue_head_init(&serdev->head);
 	serdev->common.link_select = CAIF_LINK_LOW_LATENCY;
 	serdev->common.use_frag = true;

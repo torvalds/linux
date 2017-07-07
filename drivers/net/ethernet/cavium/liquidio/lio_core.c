@@ -1,24 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/if_vlan.h>
 #include "liquidio_common.h"
@@ -29,6 +25,9 @@
 #include "octeon_nic.h"
 #include "octeon_main.h"
 #include "octeon_network.h"
+
+/* OOM task polling interval */
+#define LIO_OOM_POLL_INTERVAL_MS 250
 
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 {
@@ -89,13 +88,6 @@ void octeon_update_tx_completion_counters(void *buf, int reqtype,
 	}
 
 	(*pkts_compl)++;
-/*TODO, Use some other pound define to suggest
- * the fact that iqs are not tied to netdevs
- * and can take traffic from different netdevs
- * hence bql reporting is done per packet
- * than in bulk. Usage of NO_NAPI in txq completion is
- * a little confusing
- */
 	*bytes_compl += skb->len;
 }
 
@@ -135,6 +127,17 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 	struct octeon_device *oct = lio->oct_dev;
 	u8 *mac;
 
+	if (nctrl->completion && nctrl->response_code) {
+		/* Signal whoever is interested that the response code from the
+		 * firmware has arrived.
+		 */
+		WRITE_ONCE(*nctrl->response_code, nctrl->status);
+		complete(nctrl->completion);
+	}
+
+	if (nctrl->status)
+		return;
+
 	switch (nctrl->ncmd.s.cmd) {
 	case OCTNET_CMD_CHANGE_DEVFLAGS:
 	case OCTNET_CMD_SET_MULTI_LIST:
@@ -142,11 +145,20 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 
 	case OCTNET_CMD_CHANGE_MACADDR:
 		mac = ((u8 *)&nctrl->udd[0]) + 2;
-		netif_info(lio, probe, lio->netdev,
-			   "MACAddr changed to %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
-			   mac[0], mac[1],
-			   mac[2], mac[3],
-			   mac[4], mac[5]);
+		if (nctrl->ncmd.s.param1) {
+			/* vfidx is 0 based, but vf_num (param1) is 1 based */
+			int vfidx = nctrl->ncmd.s.param1 - 1;
+			bool mac_is_admin_assigned = nctrl->ncmd.s.param2;
+
+			if (mac_is_admin_assigned)
+				netif_info(lio, probe, lio->netdev,
+					   "MAC Address %pM is configured for VF %d\n",
+					   mac, vfidx);
+		} else {
+			netif_info(lio, probe, lio->netdev,
+				   " MACAddr changed to %pM\n",
+				   mac);
+		}
 		break;
 
 	case OCTNET_CMD_CHANGE_MTU:
@@ -190,9 +202,13 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 			 netdev->name);
 		break;
 
-	case OCTNET_CMD_ENABLE_VLAN_FILTER:
-		dev_info(&oct->pci_dev->dev, "%s VLAN filter enabled\n",
-			 netdev->name);
+	case OCTNET_CMD_VLAN_FILTER_CTL:
+		if (nctrl->ncmd.s.param1)
+			dev_info(&oct->pci_dev->dev,
+				 "%s VLAN filter enabled\n", netdev->name);
+		else
+			dev_info(&oct->pci_dev->dev,
+				 "%s VLAN filter disabled\n", netdev->name);
 		break;
 
 	case OCTNET_CMD_ADD_VLAN_FILTER:
@@ -262,5 +278,89 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 	default:
 		dev_err(&oct->pci_dev->dev, "%s Unknown cmd %d\n", __func__,
 			nctrl->ncmd.s.cmd);
+	}
+}
+
+void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac)
+{
+	bool macaddr_changed = false;
+	struct net_device *netdev;
+	struct lio *lio;
+
+	rtnl_lock();
+
+	netdev = oct->props[0].netdev;
+	lio = GET_LIO(netdev);
+
+	lio->linfo.macaddr_is_admin_asgnd = true;
+
+	if (!ether_addr_equal(netdev->dev_addr, mac)) {
+		macaddr_changed = true;
+		ether_addr_copy(netdev->dev_addr, mac);
+		ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, mac);
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, netdev);
+	}
+
+	rtnl_unlock();
+
+	if (macaddr_changed)
+		dev_info(&oct->pci_dev->dev,
+			 "PF changed VF's MAC address to %pM\n", mac);
+
+	/* no need to notify the firmware of the macaddr change because
+	 * the PF did that already
+	 */
+}
+
+static void octnet_poll_check_rxq_oom_status(struct work_struct *work)
+{
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct lio *lio = (struct lio *)wk->ctxptr;
+	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_droq *droq;
+	int q, q_no = 0;
+
+	if (ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
+		for (q = 0; q < lio->linfo.num_rxpciq; q++) {
+			q_no = lio->linfo.rxpciq[q].s.q_no;
+			droq = oct->droq[q_no];
+			if (!droq)
+				continue;
+			octeon_droq_check_oom(droq);
+		}
+	}
+	queue_delayed_work(lio->rxq_status_wq.wq,
+			   &lio->rxq_status_wq.wk.work,
+			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
+}
+
+int setup_rx_oom_poll_fn(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	lio->rxq_status_wq.wq = alloc_workqueue("rxq-oom-status",
+						WQ_MEM_RECLAIM, 0);
+	if (!lio->rxq_status_wq.wq) {
+		dev_err(&oct->pci_dev->dev, "unable to create cavium rxq oom status wq\n");
+		return -ENOMEM;
+	}
+	INIT_DELAYED_WORK(&lio->rxq_status_wq.wk.work,
+			  octnet_poll_check_rxq_oom_status);
+	lio->rxq_status_wq.wk.ctxptr = lio;
+	queue_delayed_work(lio->rxq_status_wq.wq,
+			   &lio->rxq_status_wq.wk.work,
+			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
+	return 0;
+}
+
+void cleanup_rx_oom_poll_fn(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	if (lio->rxq_status_wq.wq) {
+		cancel_delayed_work_sync(&lio->rxq_status_wq.wk.work);
+		flush_workqueue(lio->rxq_status_wq.wq);
+		destroy_workqueue(lio->rxq_status_wq.wq);
 	}
 }

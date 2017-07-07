@@ -229,11 +229,6 @@ typedef struct {
 	unsigned int	id;
 	unsigned int	active;
 	unsigned long	vdso_base;
-#ifdef CONFIG_PPC_MM_SLICES
-	u64 low_slices_psize;   /* SLB page size encodings */
-	u64 high_slices_psize;  /* 4 bits per slice for now */
-	u16 user_psize;         /* page size index */
-#endif
 #ifdef CONFIG_PPC_64K_PAGES
 	/* for 4K PTE fragment support */
 	void *pte_frag;

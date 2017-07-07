@@ -43,7 +43,7 @@
 #include "regression.h"
 
 static RADIX_TREE(mt_tree, GFP_KERNEL);
-static pthread_mutex_t mt_lock;
+static pthread_mutex_t mt_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct page {
 	pthread_mutex_t lock;
@@ -193,7 +193,7 @@ void regression1_test(void)
 	long arg;
 
 	/* Regression #1 */
-	printf("running regression test 1, should finish in under a minute\n");
+	printv(1, "running regression test 1, should finish in under a minute\n");
 	nr_threads = 2;
 	pthread_barrier_init(&worker_barrier, NULL, nr_threads);
 
@@ -216,5 +216,5 @@ void regression1_test(void)
 
 	free(threads);
 
-	printf("regression test 1, done\n");
+	printv(1, "regression test 1, done\n");
 }

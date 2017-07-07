@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/rtc.h>
 
 #define RV8803_I2C_TRY_COUNT		4
@@ -52,11 +53,21 @@
 #define RV8803_CTRL_TIE			BIT(4)
 #define RV8803_CTRL_UIE			BIT(5)
 
+#define RX8900_BACKUP_CTRL		0x18
+#define RX8900_FLAG_SWOFF		BIT(2)
+#define RX8900_FLAG_VDETOFF		BIT(3)
+
+enum rv8803_type {
+	rv_8803,
+	rx_8900
+};
+
 struct rv8803_data {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 	struct mutex flags_lock;
 	u8 ctrl;
+	enum rv8803_type type;
 };
 
 static int rv8803_read_reg(const struct i2c_client *client, u8 reg)
@@ -497,6 +508,35 @@ static struct rtc_class_ops rv8803_rtc_ops = {
 	.ioctl = rv8803_ioctl,
 };
 
+static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
+{
+	struct i2c_client *client = rv8803->client;
+	struct device_node *node = client->dev.of_node;
+	int err;
+	u8 flags;
+
+	if (!node)
+		return 0;
+
+	if (rv8803->type != rx_8900)
+		return 0;
+
+	err = i2c_smbus_read_byte_data(rv8803->client, RX8900_BACKUP_CTRL);
+	if (err < 0)
+		return err;
+
+	flags = ~(RX8900_FLAG_VDETOFF | RX8900_FLAG_SWOFF) & (u8)err;
+
+	if (of_property_read_bool(node, "epson,vdet-disable"))
+		flags |= RX8900_FLAG_VDETOFF;
+
+	if (of_property_read_bool(node, "trickle-diode-disable"))
+		flags |= RX8900_FLAG_SWOFF;
+
+	return i2c_smbus_write_byte_data(rv8803->client, RX8900_BACKUP_CTRL,
+					 flags);
+}
+
 static int rv8803_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -517,6 +557,11 @@ static int rv8803_probe(struct i2c_client *client,
 
 	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
+	if (client->dev.of_node)
+		rv8803->type = (enum rv8803_type)
+			of_device_get_match_data(&client->dev);
+	else
+		rv8803->type = id->driver_data;
 	i2c_set_clientdata(client, rv8803);
 
 	flags = rv8803_read_reg(client, RV8803_FLAG);
@@ -558,6 +603,12 @@ static int rv8803_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
+	err = rx8900_trickle_charger_init(rv8803);
+	if (err) {
+		dev_err(&client->dev, "failed to init charger\n");
+		return err;
+	}
+
 	err = device_create_bin_file(&client->dev, &rv8803_nvram_attr);
 	if (err)
 		return err;
@@ -575,15 +626,29 @@ static int rv8803_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rv8803_id[] = {
-	{ "rv8803", 0 },
-	{ "rx8900", 0 },
+	{ "rv8803", rv_8803 },
+	{ "rx8900", rx_8900 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rv8803_id);
 
+static const struct of_device_id rv8803_of_match[] = {
+	{
+		.compatible = "microcrystal,rv8803",
+		.data = (void *)rx_8900
+	},
+	{
+		.compatible = "epson,rx8900",
+		.data = (void *)rx_8900
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rv8803_of_match);
+
 static struct i2c_driver rv8803_driver = {
 	.driver = {
 		.name = "rtc-rv8803",
+		.of_match_table = of_match_ptr(rv8803_of_match),
 	},
 	.probe		= rv8803_probe,
 	.remove		= rv8803_remove,

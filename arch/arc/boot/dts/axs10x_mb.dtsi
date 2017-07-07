@@ -51,7 +51,7 @@
 			pguclk: pguclk {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
-				clock-frequency = <74440000>;
+				clock-frequency = <74250000>;
 			};
 		};
 
@@ -149,12 +149,13 @@
 			interrupts = <14>;
 		};
 
-		i2c@0x1e000 {
-			compatible = "snps,designware-i2c";
+		i2s: i2s@1e000 {
+			compatible = "snps,designware-i2s";
 			reg = <0x1e000 0x100>;
-			clock-frequency = <400000>;
-			clocks = <&i2cclk>;
+			clocks = <&i2sclk 0>;
+			clock-names = "i2sclk";
 			interrupts = <15>;
+			#sound-dai-cells = <0>;
 		};
 
 		i2c@0x1f000 {
@@ -174,6 +175,7 @@
 				adi,input-colorspace = "rgb";
 				adi,input-clock = "1x";
 				adi,clock-delay = <0x03>;
+				#sound-dai-cells = <0>;
 
 				ports {
 					#address-cells = <1>;
@@ -293,6 +295,18 @@
 				pgu_output: endpoint {
 					remote-endpoint = <&adv7511_input>;
 				};
+			};
+		};
+
+		sound_playback {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "AXS10x HDMI Audio";
+			simple-audio-card,format = "i2s";
+			simple-audio-card,cpu {
+				sound-dai = <&i2s>;
+			};
+			simple-audio-card,codec {
+				sound-dai = <&adv7511>;
 			};
 		};
 	};

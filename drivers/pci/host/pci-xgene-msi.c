@@ -360,16 +360,16 @@ static void xgene_msi_isr(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static enum cpuhp_state pci_xgene_online;
+
 static int xgene_msi_remove(struct platform_device *pdev)
 {
-	int virq, i;
 	struct xgene_msi *msi = platform_get_drvdata(pdev);
 
-	for (i = 0; i < NR_HW_IRQS; i++) {
-		virq = msi->msi_groups[i].gic_irq;
-		if (virq != 0)
-			irq_set_chained_handler_and_data(virq, NULL, NULL);
-	}
+	if (pci_xgene_online)
+		cpuhp_remove_state(pci_xgene_online);
+	cpuhp_remove_state(CPUHP_PCI_XGENE_DEAD);
+
 	kfree(msi->msi_groups);
 
 	kfree(msi->bitmap);
@@ -427,7 +427,7 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 	return 0;
 }
 
-static void xgene_msi_hwirq_free(unsigned int cpu)
+static int xgene_msi_hwirq_free(unsigned int cpu)
 {
 	struct xgene_msi *msi = &xgene_msi_ctrl;
 	struct xgene_msi_group *msi_group;
@@ -441,32 +441,8 @@ static void xgene_msi_hwirq_free(unsigned int cpu)
 		irq_set_chained_handler_and_data(msi_group->gic_irq, NULL,
 						 NULL);
 	}
+	return 0;
 }
-
-static int xgene_msi_cpu_callback(struct notifier_block *nfb,
-				  unsigned long action, void *hcpu)
-{
-	unsigned cpu = (unsigned long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		xgene_msi_hwirq_alloc(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		xgene_msi_hwirq_free(cpu);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block xgene_msi_cpu_notifier = {
-	.notifier_call = xgene_msi_cpu_callback,
-};
 
 static const struct of_device_id xgene_msi_match_table[] = {
 	{.compatible = "apm,xgene1-msi"},
@@ -478,7 +454,6 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int rc, irq_index;
 	struct xgene_msi *xgene_msi;
-	unsigned int cpu;
 	int virt_msir;
 	u32 msi_val, msi_idx;
 
@@ -540,28 +515,22 @@ static int xgene_msi_probe(struct platform_device *pdev)
 		}
 	}
 
-	cpu_notifier_register_begin();
-
-	for_each_online_cpu(cpu)
-		if (xgene_msi_hwirq_alloc(cpu)) {
-			dev_err(&pdev->dev, "failed to register MSI handlers\n");
-			cpu_notifier_register_done();
-			goto error;
-		}
-
-	rc = __register_hotcpu_notifier(&xgene_msi_cpu_notifier);
-	if (rc) {
-		dev_err(&pdev->dev, "failed to add CPU MSI notifier\n");
-		cpu_notifier_register_done();
-		goto error;
-	}
-
-	cpu_notifier_register_done();
+	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "pci/xgene:online",
+			       xgene_msi_hwirq_alloc, NULL);
+	if (rc < 0)
+		goto err_cpuhp;
+	pci_xgene_online = rc;
+	rc = cpuhp_setup_state(CPUHP_PCI_XGENE_DEAD, "pci/xgene:dead", NULL,
+			       xgene_msi_hwirq_free);
+	if (rc)
+		goto err_cpuhp;
 
 	dev_info(&pdev->dev, "APM X-Gene PCIe MSI driver loaded\n");
 
 	return 0;
 
+err_cpuhp:
+	dev_err(&pdev->dev, "failed to add CPU MSI notifier\n");
 error:
 	xgene_msi_remove(pdev);
 	return rc;

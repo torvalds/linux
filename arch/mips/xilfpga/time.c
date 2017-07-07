@@ -22,7 +22,7 @@ void __init plat_time_init(void)
 	struct clk *clk;
 
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 
 	np = of_get_cpu_node(0, NULL);
 	if (!np) {

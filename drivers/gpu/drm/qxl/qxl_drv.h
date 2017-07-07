@@ -31,7 +31,7 @@
  * Definitions taken from spice-protocol, plus kernel driver specific bits.
  */
 
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -43,6 +43,7 @@
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
 
 /* just for ttm_validate_buffer */
@@ -133,10 +134,6 @@ struct qxl_bo_list {
 struct qxl_crtc {
 	struct drm_crtc base;
 	int index;
-	int cur_x;
-	int cur_y;
-	int hot_spot_x;
-	int hot_spot_y;
 };
 
 struct qxl_output {
@@ -163,8 +160,6 @@ struct qxl_mman {
 };
 
 struct qxl_mode_info {
-	int num_modes;
-	struct qxl_mode *modes;
 	bool mode_config_initialized;
 
 	/* pointer to fbdev info structure */
@@ -189,7 +184,7 @@ enum {
  * spice-protocol/qxl_dev.h */
 #define QXL_MAX_RES 96
 struct qxl_release {
-	struct fence base;
+	struct dma_fence base;
 
 	int id;
 	int type;
@@ -235,15 +230,11 @@ int qxl_debugfs_add_files(struct qxl_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles);
 int qxl_debugfs_fence_init(struct qxl_device *rdev);
-void qxl_debugfs_remove_files(struct qxl_device *qdev);
 
 struct qxl_device;
 
 struct qxl_device {
-	struct device			*dev;
-	struct drm_device		*ddev;
-	struct pci_dev			*pdev;
-	unsigned long flags;
+	struct drm_device ddev;
 
 	resource_size_t vram_base, vram_size;
 	resource_size_t surfaceram_base, surfaceram_size;
@@ -334,8 +325,9 @@ __printf(2,3) void qxl_io_log(struct qxl_device *qdev, const char *fmt, ...);
 extern const struct drm_ioctl_desc qxl_ioctls[];
 extern int qxl_max_ioctl;
 
-int qxl_driver_load(struct drm_device *dev, unsigned long flags);
-int qxl_driver_unload(struct drm_device *dev);
+int qxl_device_init(struct qxl_device *qdev, struct drm_driver *drv,
+		    struct pci_dev *pdev);
+void qxl_device_fini(struct qxl_device *qdev);
 
 int qxl_modeset_init(struct qxl_device *qdev);
 void qxl_modeset_fini(struct qxl_device *qdev);
@@ -394,16 +386,11 @@ qxl_framebuffer_init(struct drm_device *dev,
 		     struct drm_gem_object *obj,
 		     const struct drm_framebuffer_funcs *funcs);
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev);
-void qxl_send_monitors_config(struct qxl_device *qdev);
 int qxl_create_monitors_object(struct qxl_device *qdev);
 int qxl_destroy_monitors_object(struct qxl_device *qdev);
 
-/* used by qxl_debugfs only */
-void qxl_crtc_set_from_monitors_config(struct qxl_device *qdev);
-void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned count);
-
 /* qxl_gem.c */
-int qxl_gem_init(struct qxl_device *qdev);
+void qxl_gem_init(struct qxl_device *qdev);
 void qxl_gem_fini(struct qxl_device *qdev);
 int qxl_gem_object_create(struct qxl_device *qdev, int size,
 			  int alignment, int initial_domain,
@@ -533,7 +520,7 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 /* debugfs */
 
 int qxl_debugfs_init(struct drm_minor *minor);
-void qxl_debugfs_takedown(struct drm_minor *minor);
+int qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 /* qxl_prime.c */
 int qxl_gem_prime_pin(struct drm_gem_object *obj);
@@ -573,6 +560,5 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo);
 struct qxl_drv_surface *
 qxl_surface_lookup(struct drm_device *dev, int surface_id);
 void qxl_surface_evict(struct qxl_device *qdev, struct qxl_bo *surf, bool freeing);
-int qxl_update_surface(struct qxl_device *qdev, struct qxl_bo *surf);
 
 #endif

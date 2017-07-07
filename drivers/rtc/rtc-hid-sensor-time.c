@@ -291,9 +291,9 @@ static int hid_time_probe(struct platform_device *pdev)
 					"hid-sensor-time", &hid_time_rtc_ops,
 					THIS_MODULE);
 
-	if (IS_ERR_OR_NULL(time_state->rtc)) {
+	if (IS_ERR(time_state->rtc)) {
 		hid_device_io_stop(hsdev->hdev);
-		ret = time_state->rtc ? PTR_ERR(time_state->rtc) : -ENODEV;
+		ret = PTR_ERR(time_state->rtc);
 		time_state->rtc = NULL;
 		dev_err(&pdev->dev, "rtc device register failed!\n");
 		goto err_rtc;

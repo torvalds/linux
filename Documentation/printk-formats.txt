@@ -275,6 +275,42 @@ struct va_format:
 
 	Passed by reference.
 
+kobjects:
+	%pO
+
+	Base specifier for kobject based structs. Must be followed with
+	character for specific type of kobject as listed below:
+
+	Device tree nodes:
+
+	%pOF[fnpPcCF]
+
+	For printing device tree nodes. The optional arguments are:
+	    f device node full_name
+	    n device node name
+	    p device node phandle
+	    P device node path spec (name + @unit)
+	    F device node flags
+	    c major compatible string
+	    C full compatible string
+	Without any arguments prints full_name (same as %pOFf)
+	The separator when using multiple arguments is ':'
+
+	Examples:
+
+	%pOF	/foo/bar@0			- Node full name
+	%pOFf	/foo/bar@0			- Same as above
+	%pOFfp	/foo/bar@0:10			- Node full name + phandle
+	%pOFfcF	/foo/bar@0:foo,device:--P-	- Node full name +
+	                                          major compatible string +
+						  node flags
+							D - dynamic
+							d - detached
+							P - Populated
+							B - Populated bus
+
+	Passed by reference.
+
 struct clk:
 
 	%pC	pll1

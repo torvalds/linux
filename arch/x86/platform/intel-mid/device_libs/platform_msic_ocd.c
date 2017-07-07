@@ -20,7 +20,6 @@
 #include <asm/intel-mid.h>
 
 #include "platform_msic.h"
-#include "platform_ipc.h"
 
 static void __init *msic_ocd_platform_data(void *info)
 {
@@ -42,8 +41,8 @@ static const struct devs_id msic_ocd_dev_id __initconst = {
 	.name = "msic_ocd",
 	.type = SFI_DEV_TYPE_IPC,
 	.delay = 1,
+	.msic = 1,
 	.get_platform_data = &msic_ocd_platform_data,
-	.device_handler = &ipc_device_handler,
 };
 
 sfi_device(msic_ocd_dev_id);

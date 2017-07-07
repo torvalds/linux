@@ -15,7 +15,7 @@ int test__python_use(int subtest __maybe_unused)
 	int ret;
 
 	if (asprintf(&cmd, "echo \"import sys ; sys.path.append('%s'); import perf\" | %s %s",
-		     PYTHONPATH, PYTHON, verbose ? "" : "2> /dev/null") < 0)
+		     PYTHONPATH, PYTHON, verbose > 0 ? "" : "2> /dev/null") < 0)
 		return -1;
 
 	ret = system(cmd) ? -1 : 0;

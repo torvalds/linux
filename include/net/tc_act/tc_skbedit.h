@@ -27,6 +27,7 @@ struct tcf_skbedit {
 	u32		flags;
 	u32		priority;
 	u32		mark;
+	u32		mask;
 	u16		queue_mapping;
 	u16		ptype;
 };

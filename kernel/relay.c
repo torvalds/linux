@@ -39,10 +39,10 @@ static void relay_file_mmap_close(struct vm_area_struct *vma)
 /*
  * fault() vm_op implementation for relay file mapping.
  */
-static int relay_buf_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int relay_buf_fault(struct vm_fault *vmf)
 {
 	struct page *page;
-	struct rchan_buf *buf = vma->vm_private_data;
+	struct rchan_buf *buf = vmf->vma->vm_private_data;
 	pgoff_t pgoff = vmf->pgoff;
 
 	if (!buf)
@@ -328,13 +328,15 @@ static struct rchan_callbacks default_channel_callbacks = {
 
 /**
  *	wakeup_readers - wake up readers waiting on a channel
- *	@data: contains the channel buffer
+ *	@work: contains the channel buffer
  *
- *	This is the timer function used to defer reader waking.
+ *	This is the function used to defer reader waking
  */
-static void wakeup_readers(unsigned long data)
+static void wakeup_readers(struct irq_work *work)
 {
-	struct rchan_buf *buf = (struct rchan_buf *)data;
+	struct rchan_buf *buf;
+
+	buf = container_of(work, struct rchan_buf, wakeup_work);
 	wake_up_interruptible(&buf->read_wait);
 }
 
@@ -352,9 +354,10 @@ static void __relay_reset(struct rchan_buf *buf, unsigned int init)
 	if (init) {
 		init_waitqueue_head(&buf->read_wait);
 		kref_init(&buf->kref);
-		setup_timer(&buf->timer, wakeup_readers, (unsigned long)buf);
-	} else
-		del_timer_sync(&buf->timer);
+		init_irq_work(&buf->wakeup_work, wakeup_readers);
+	} else {
+		irq_work_sync(&buf->wakeup_work);
+	}
 
 	buf->subbufs_produced = 0;
 	buf->subbufs_consumed = 0;
@@ -487,7 +490,7 @@ free_buf:
 static void relay_close_buf(struct rchan_buf *buf)
 {
 	buf->finalized = 1;
-	del_timer_sync(&buf->timer);
+	irq_work_sync(&buf->wakeup_work);
 	buf->chan->cb->remove_buf_file(buf->dentry);
 	kref_put(&buf->kref, relay_remove_buf);
 }
@@ -754,14 +757,15 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 			buf->early_bytes += buf->chan->subbuf_size -
 					    buf->padding[old_subbuf];
 		smp_mb();
-		if (waitqueue_active(&buf->read_wait))
+		if (waitqueue_active(&buf->read_wait)) {
 			/*
 			 * Calling wake_up_interruptible() from here
 			 * will deadlock if we happen to be logging
 			 * from the scheduler (trying to re-grab
 			 * rq->lock), so defer it.
 			 */
-			mod_timer(&buf->timer, jiffies + 1);
+			irq_work_queue(&buf->wakeup_work);
+		}
 	}
 
 	old = buf->data;
@@ -805,11 +809,11 @@ void relay_subbufs_consumed(struct rchan *chan,
 {
 	struct rchan_buf *buf;
 
-	if (!chan)
+	if (!chan || cpu >= NR_CPUS)
 		return;
 
 	buf = *per_cpu_ptr(chan->buf, cpu);
-	if (cpu >= NR_CPUS || !buf || subbufs_consumed > chan->n_subbufs)
+	if (!buf || subbufs_consumed > chan->n_subbufs)
 		return;
 
 	if (subbufs_consumed > buf->subbufs_produced - buf->subbufs_consumed)
@@ -843,7 +847,7 @@ void relay_close(struct rchan *chan)
 
 	if (chan->last_toobig)
 		printk(KERN_WARNING "relay: one or more items not logged "
-		       "[item size (%Zd) > sub-buffer size (%Zd)]\n",
+		       "[item size (%zd) > sub-buffer size (%zd)]\n",
 		       chan->last_toobig, chan->subbuf_size);
 
 	list_del(&chan->list);
@@ -1208,7 +1212,6 @@ static ssize_t subbuf_splice_actor(struct file *in,
 		.nr_pages = 0,
 		.nr_pages_max = PIPE_DEF_BUFFERS,
 		.partial = partial,
-		.flags = flags,
 		.ops = &relay_pipe_buf_ops,
 		.spd_release = relay_page_release,
 	};

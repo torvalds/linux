@@ -12,6 +12,8 @@
 #define _ARIZONA_PDATA_H
 
 #include <dt-bindings/mfd/arizona.h>
+#include <linux/regulator/arizona-ldo1.h>
+#include <linux/regulator/arizona-micsupp.h>
 
 #define ARIZONA_GPN_DIR_MASK                     0x8000  /* GPN_DIR */
 #define ARIZONA_GPN_DIR_SHIFT                        15  /* GPN_DIR */
@@ -76,13 +78,12 @@ struct arizona_micd_range {
 
 struct arizona_pdata {
 	int reset;      /** GPIO controlling /RESET, if any */
-	int ldoena;     /** GPIO controlling LODENA, if any */
 
 	/** Regulator configuration for MICVDD */
-	struct regulator_init_data *micvdd;
+	struct arizona_micsupp_pdata micvdd;
 
 	/** Regulator configuration for LDO1 */
-	struct regulator_init_data *ldo1;
+	struct arizona_ldo1_pdata ldo1;
 
 	/** If a direct 32kHz clock is provided on an MCLK specify it here */
 	int clk32k_src;

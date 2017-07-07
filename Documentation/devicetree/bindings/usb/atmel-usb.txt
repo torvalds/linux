@@ -6,9 +6,9 @@ Required properties:
  - compatible: Should be "atmel,at91rm9200-ohci" for USB controllers
    used in host mode.
  - reg: Address and length of the register set for the device
- - interrupts: Should contain ehci interrupt
+ - interrupts: Should contain ohci interrupt
  - clocks: Should reference the peripheral, host and system clocks
- - clock-names: Should contains two strings
+ - clock-names: Should contain three strings
 		"ohci_clk" for the peripheral clock
 		"hclk" for the host clock
 		"uhpck" for the system clock
@@ -35,7 +35,7 @@ Required properties:
  - reg: Address and length of the register set for the device
  - interrupts: Should contain ehci interrupt
  - clocks: Should reference the peripheral and the UTMI clocks
- - clock-names: Should contains two strings
+ - clock-names: Should contain two strings
 		"ehci_clk" for the peripheral clock
 		"usb_clk" for the UTMI clock
 
@@ -58,7 +58,7 @@ Required properties:
  - reg: Address and length of the register set for the device
  - interrupts: Should contain macb interrupt
  - clocks: Should reference the peripheral and the AHB clocks
- - clock-names: Should contains two strings
+ - clock-names: Should contain two strings
 		"pclk" for the peripheral clock
 		"hclk" for the AHB clock
 
@@ -85,7 +85,7 @@ Required properties:
  - reg: Address and length of the register set for the device
  - interrupts: Should contain usba interrupt
  - clocks: Should reference the peripheral and host clocks
- - clock-names: Should contains two strings
+ - clock-names: Should contain two strings
 		"pclk" for the peripheral clock
 		"hclk" for the host clock
  - ep childnode: To specify the number of endpoints and their properties.

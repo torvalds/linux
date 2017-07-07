@@ -113,7 +113,7 @@ static int fill_action_fields(struct adapter *adap,
 		}
 
 		/* Re-direct to specified port in hardware. */
-		if (is_tcf_mirred_redirect(a)) {
+		if (is_tcf_mirred_egress_redirect(a)) {
 			struct net_device *n_dev;
 			unsigned int i, index;
 			bool found = false;
@@ -432,35 +432,33 @@ void cxgb4_cleanup_tc_u32(struct adapter *adap)
 	for (i = 0; i < t->size; i++) {
 		struct cxgb4_link *link = &t->table[i];
 
-		t4_free_mem(link->tid_map);
+		kvfree(link->tid_map);
 	}
-	t4_free_mem(adap->tc_u32);
+	kvfree(adap->tc_u32);
 }
 
-struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap,
-					     unsigned int size)
+struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 {
+	unsigned int max_tids = adap->tids.nftids;
 	struct cxgb4_tc_u32_table *t;
 	unsigned int i;
 
-	if (!size)
+	if (!max_tids)
 		return NULL;
 
-	t = t4_alloc_mem(sizeof(*t) +
-			 (size * sizeof(struct cxgb4_link)));
+	t = kvzalloc(sizeof(*t) +
+			 (max_tids * sizeof(struct cxgb4_link)), GFP_KERNEL);
 	if (!t)
 		return NULL;
 
-	t->size = size;
+	t->size = max_tids;
 
 	for (i = 0; i < t->size; i++) {
 		struct cxgb4_link *link = &t->table[i];
 		unsigned int bmap_size;
-		unsigned int max_tids;
 
-		max_tids = adap->tids.nftids;
 		bmap_size = BITS_TO_LONGS(max_tids);
-		link->tid_map = t4_alloc_mem(sizeof(unsigned long) * bmap_size);
+		link->tid_map = kvzalloc(sizeof(unsigned long) * bmap_size, GFP_KERNEL);
 		if (!link->tid_map)
 			goto out_no_mem;
 		bitmap_zero(link->tid_map, max_tids);
@@ -473,11 +471,11 @@ out_no_mem:
 		struct cxgb4_link *link = &t->table[i];
 
 		if (link->tid_map)
-			t4_free_mem(link->tid_map);
+			kvfree(link->tid_map);
 	}
 
 	if (t)
-		t4_free_mem(t);
+		kvfree(t);
 
 	return NULL;
 }

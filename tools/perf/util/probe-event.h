@@ -1,10 +1,9 @@
 #ifndef _PROBE_EVENT_H
 #define _PROBE_EVENT_H
 
+#include <linux/compiler.h>
 #include <stdbool.h>
 #include "intlist.h"
-#include "strlist.h"
-#include "strfilter.h"
 
 /* Probe related configurations */
 struct probe_conf {
@@ -17,6 +16,8 @@ struct probe_conf {
 };
 extern struct probe_conf probe_conf;
 extern bool probe_event_dry_run;
+
+struct symbol;
 
 /* kprobe-tracer and uprobe-tracer tracing point */
 struct probe_trace_point {
@@ -105,6 +106,8 @@ struct line_range {
 	struct intlist		*line_list;	/* Visible lines */
 };
 
+struct strlist;
+
 /* List of variables */
 struct variable_list {
 	struct probe_trace_point	point;	/* Actual probepoint */
@@ -151,6 +154,9 @@ int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int show_probe_trace_events(struct perf_probe_event *pevs, int npevs);
 void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs);
+
+struct strfilter;
+
 int del_perf_probe_events(struct strfilter *filter);
 
 int show_perf_probe_event(const char *group, const char *event,
@@ -166,8 +172,7 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 			     struct symbol *sym);
 
 /* If there is no space to write, returns -E2BIG. */
-int e_snprintf(char *str, size_t size, const char *format, ...)
-	__attribute__((format(printf, 3, 4)));
+int e_snprintf(char *str, size_t size, const char *format, ...) __printf(3, 4);
 
 /* Maximum index number of event-name postfix */
 #define MAX_EVENT_INDEX	1024

@@ -15,26 +15,12 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/clk/renesas.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
 
 #include <asm/mach/arch.h>
 
 #include "common.h"
-
-#define MODEMR 0xffcc0020
-
-static void __init r8a7778_timer_init(void)
-{
-	u32 mode;
-	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
-
-	BUG_ON(!modemr);
-	mode = ioread32(modemr);
-	iounmap(modemr);
-	r8a7778_clocks_init(mode);
-}
 
 #define INT2SMSKCR0	0x82288 /* 0xfe782288 */
 #define INT2SMSKCR1	0x8228c /* 0xfe78228c */
@@ -70,6 +56,5 @@ DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
 	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
 	.init_late	= shmobile_init_late,
-	.init_time	= r8a7778_timer_init,
 	.dt_compat	= r8a7778_compat_dt,
 MACHINE_END

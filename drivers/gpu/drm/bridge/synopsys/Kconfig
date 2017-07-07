@@ -1,0 +1,24 @@
+config DRM_DW_HDMI
+	tristate
+	select DRM_KMS_HELPER
+	select REGMAP_MMIO
+
+config DRM_DW_HDMI_AHB_AUDIO
+	tristate "Synopsys Designware AHB Audio interface"
+	depends on DRM_DW_HDMI && SND
+	select SND_PCM
+	select SND_PCM_ELD
+	select SND_PCM_IEC958
+	help
+	  Support the AHB Audio interface which is part of the Synopsys
+	  Designware HDMI block.  This is used in conjunction with
+	  the i.MX6 HDMI driver.
+
+config DRM_DW_HDMI_I2S_AUDIO
+	tristate "Synopsys Designware I2S Audio interface"
+	depends on SND_SOC
+	depends on DRM_DW_HDMI
+	select SND_SOC_HDMI_CODEC
+	help
+	  Support the I2S Audio interface which is part of the Synopsys
+	  Designware HDMI block.

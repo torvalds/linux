@@ -6,6 +6,8 @@
 #include <linux/if_vlan.h>
 #include <net/sch_generic.h>
 
+#define DEFAULT_TX_QUEUE_LEN	1000
+
 struct qdisc_walker {
 	int	stop;
 	int	skip;
@@ -90,7 +92,7 @@ int unregister_qdisc(struct Qdisc_ops *qops);
 void qdisc_get_default(char *id, size_t len);
 int qdisc_set_default(const char *id);
 
-void qdisc_hash_add(struct Qdisc *q);
+void qdisc_hash_add(struct Qdisc *q, bool invisible);
 void qdisc_hash_del(struct Qdisc *q);
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
 struct Qdisc *qdisc_lookup_class(struct net_device *dev, u32 handle);
@@ -110,9 +112,6 @@ static inline void qdisc_run(struct Qdisc *q)
 	if (qdisc_run_begin(q))
 		__qdisc_run(q);
 }
-
-int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
-		struct tcf_result *res, bool compat_mode);
 
 static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
 {

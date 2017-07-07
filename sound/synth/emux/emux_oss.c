@@ -23,8 +23,6 @@
  */
 
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
-
 #include <linux/export.h>
 #include <linux/uaccess.h>
 #include <sound/core.h>
@@ -225,9 +223,9 @@ snd_emux_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 	else if (format == SNDRV_OSS_SOUNDFONT_PATCH) {
 		struct soundfont_patch_info patch;
 		if (count < (int)sizeof(patch))
-			rc = -EINVAL;
+			return -EINVAL;
 		if (copy_from_user(&patch, buf, sizeof(patch)))
-			rc = -EFAULT;
+			return -EFAULT;
 		if (patch.type >= SNDRV_SFNT_LOAD_INFO &&
 		    patch.type <= SNDRV_SFNT_PROBE_DATA)
 			rc = snd_soundfont_load(emu->sflist, buf, count, SF_CLIENT_NO(p->chset.port));
@@ -505,5 +503,3 @@ fake_event(struct snd_emux *emu, struct snd_emux_port *port, int ch, int param, 
 	ev.data.control.value = val;
 	snd_emux_event_input(&ev, 0, port, atomic, hop);
 }
-
-#endif /* CONFIG_SND_SEQUENCER_OSS */

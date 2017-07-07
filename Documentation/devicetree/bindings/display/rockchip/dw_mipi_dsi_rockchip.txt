@@ -5,16 +5,24 @@ Required properties:
 - #address-cells: Should be <1>.
 - #size-cells: Should be <0>.
 - compatible: "rockchip,rk3288-mipi-dsi", "snps,dw-mipi-dsi".
+	      "rockchip,rk3399-mipi-dsi", "snps,dw-mipi-dsi".
 - reg: Represent the physical address range of the controller.
 - interrupts: Represent the controller's interrupt to the CPU(s).
 - clocks, clock-names: Phandles to the controller's pll reference
-  clock(ref) and APB clock(pclk), as described in [1].
+  clock(ref) and APB clock(pclk). For RK3399, a phy config clock
+  (phy_cfg) and a grf clock(grf) are required. As described in [1].
 - rockchip,grf: this soc should set GRF regs to mux vopl/vopb.
 - ports: contain a port node with endpoint definitions as defined in [2].
   For vopb,set the reg = <0> and set the reg = <1> for vopl.
 
+Optional properties:
+- power-domains: a phandle to mipi dsi power domain node.
+- resets: list of phandle + reset specifier pairs, as described in [3].
+- reset-names: string reset name, must be "apb".
+
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/media/video-interfaces.txt
+[3] Documentation/devicetree/bindings/reset/reset.txt
 
 Example:
 	mipi_dsi: mipi@ff960000 {
@@ -25,6 +33,8 @@ Example:
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPI_24M>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "ref", "pclk";
+		resets = <&cru SRST_MIPIDSI0>;
+		reset-names = "apb";
 		rockchip,grf = <&grf>;
 		status = "okay";
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2010-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -19,8 +19,6 @@
 #define _NET_BATMAN_ADV_DEBUGFS_H_
 
 #include "main.h"
-
-#include <linux/kconfig.h>
 
 struct net_device;
 

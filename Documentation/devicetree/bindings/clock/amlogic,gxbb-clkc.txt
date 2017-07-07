@@ -5,7 +5,8 @@ controllers within the SoC.
 
 Required Properties:
 
-- compatible: should be "amlogic,gxbb-clkc"
+- compatible: should be "amlogic,gxbb-clkc" for GXBB SoC,
+	      or "amlogic,gxl-clkc" for GXL and GXM SoC.
 - reg: physical base address of the clock controller and length of memory
        mapped region.
 

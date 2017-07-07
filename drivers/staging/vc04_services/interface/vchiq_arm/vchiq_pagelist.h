@@ -34,20 +34,19 @@
 #ifndef VCHIQ_PAGELIST_H
 #define VCHIQ_PAGELIST_H
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 4096
-#endif
 #define CACHE_LINE_SIZE 32
 #define PAGELIST_WRITE 0
 #define PAGELIST_READ 1
 #define PAGELIST_READ_WITH_FRAGMENTS 2
 
 typedef struct pagelist_struct {
-	unsigned long length;
-	unsigned short type;
-	unsigned short offset;
-	unsigned long addrs[1];	/* N.B. 12 LSBs hold the number of following
-				   pages at consecutive addresses. */
+	u32 length;
+	u16 type;
+	u16 offset;
+	u32 addrs[1];	/* N.B. 12 LSBs hold the number
+			 * of following pages at consecutive
+			 * addresses.
+			 */
 } PAGELIST_T;
 
 typedef struct fragments_struct {

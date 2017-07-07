@@ -51,7 +51,7 @@ static inline u64 rsvd_bits(int s, int e)
 	return ((1ULL << (e - s + 1)) - 1) << s;
 }
 
-void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask);
+void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask, u64 mmio_value);
 
 void
 reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context);
@@ -74,7 +74,9 @@ enum {
 
 int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct);
 void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu);
-void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly);
+void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
+			     bool accessed_dirty);
+bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
@@ -201,4 +203,5 @@ void kvm_mmu_gfn_disallow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
 void kvm_mmu_gfn_allow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn);
+int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu);
 #endif

@@ -34,7 +34,7 @@
 #include <media/v4l2-fh.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/m32r.h>
 #include <asm/io.h>
 #include <asm/dma.h>

@@ -66,7 +66,7 @@
 #include <linux/kref.h>
 #include <linux/interval_tree.h>
 #include <linux/hashtable.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
@@ -367,7 +367,7 @@ struct radeon_fence_driver {
 };
 
 struct radeon_fence {
-	struct fence		base;
+	struct dma_fence		base;
 
 	struct radeon_device	*rdev;
 	uint64_t		seq;
@@ -375,7 +375,7 @@ struct radeon_fence {
 	unsigned		ring;
 	bool			is_vm_update;
 
-	wait_queue_t		fence_wake;
+	wait_queue_entry_t		fence_wake;
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
@@ -499,6 +499,7 @@ struct radeon_bo {
 	u32				tiling_flags;
 	u32				pitch;
 	int				surface_reg;
+	unsigned			prime_shared_count;
 	/* list of all virtual address to which this bo
 	 * is associated to
 	 */
@@ -742,10 +743,11 @@ struct radeon_flip_work {
 	struct work_struct		unpin_work;
 	struct radeon_device		*rdev;
 	int				crtc_id;
+	u32				target_vblank;
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct radeon_bo		*old_rbo;
-	struct fence			*fence;
+	struct dma_fence		*fence;
 	bool				async;
 };
 
@@ -2513,9 +2515,9 @@ void cik_mm_wdoorbell(struct radeon_device *rdev, u32 index, u32 v);
 /*
  * Cast helper
  */
-extern const struct fence_ops radeon_fence_ops;
+extern const struct dma_fence_ops radeon_fence_ops;
 
-static inline struct radeon_fence *to_radeon_fence(struct fence *f)
+static inline struct radeon_fence *to_radeon_fence(struct dma_fence *f)
 {
 	struct radeon_fence *__f = container_of(f, struct radeon_fence, base);
 
@@ -2534,7 +2536,8 @@ static inline struct radeon_fence *to_radeon_fence(struct fence *f)
 #define WREG16(reg, v) writew(v, (rdev->rmmio) + (reg))
 #define RREG32(reg) r100_mm_rreg(rdev, (reg), false)
 #define RREG32_IDX(reg) r100_mm_rreg(rdev, (reg), true)
-#define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg), false))
+#define DREG32(reg) pr_info("REGISTER: " #reg " : 0x%08X\n",	\
+			    r100_mm_rreg(rdev, (reg), false))
 #define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v), false)
 #define WREG32_IDX(reg, v) r100_mm_wreg(rdev, (reg), (v), true)
 #define REG_SET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)

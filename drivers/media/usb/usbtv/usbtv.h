@@ -38,6 +38,7 @@
 #include <linux/usb.h>
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-vmalloc.h>
 
@@ -45,6 +46,7 @@
 #define USBTV_VIDEO_ENDP	0x81
 #define USBTV_AUDIO_ENDP	0x83
 #define USBTV_BASE		0xc000
+#define USBTV_CONTROL_REG	11
 #define USBTV_REQUEST_REG	12
 
 /* Number of concurrent isochronous urbs submitted.
@@ -87,6 +89,7 @@ struct usbtv {
 
 	/* video */
 	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler ctrl;
 	struct video_device vdev;
 	struct vb2_queue vb2q;
 	struct mutex v4l2_lock;

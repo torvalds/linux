@@ -55,6 +55,7 @@
 #include <linux/module.h>
 #include <linux/omap-iommu.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -63,9 +64,9 @@
 #include <asm/dma-iommu.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mc.h>
-#include <media/v4l2-of.h>
 
 #include "isp.h"
 #include "ispreg.h"
@@ -480,8 +481,8 @@ void omap3isp_hist_dma_done(struct isp_device *isp)
 	    omap3isp_stat_pcr_busy(&isp->isp_hist)) {
 		/* Histogram cannot be enabled in this frame anymore */
 		atomic_set(&isp->isp_hist.buf_err, 1);
-		dev_dbg(isp->dev, "hist: Out of synchronization with "
-				  "CCDC. Ignoring next buffer.\n");
+		dev_dbg(isp->dev,
+			"hist: Out of synchronization with CCDC. Ignoring next buffer.\n");
 	}
 }
 
@@ -656,6 +657,10 @@ static irqreturn_t isp_isr(int irq, void *_isp)
 
 	return IRQ_HANDLED;
 }
+
+static const struct media_device_ops isp_media_ops = {
+	.link_notify = v4l2_pipeline_link_notify,
+};
 
 /* -----------------------------------------------------------------------------
  * Pipeline stream management
@@ -1680,7 +1685,7 @@ static int isp_register_entities(struct isp_device *isp)
 	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
 	isp->media_dev.hw_revision = isp->revision;
-	isp->media_dev.link_notify = v4l2_pipeline_link_notify;
+	isp->media_dev.ops = &isp_media_ops;
 	media_device_init(&isp->media_dev);
 
 	isp->v4l2_dev.mdev = &isp->media_dev;
@@ -1939,29 +1944,12 @@ static void isp_detach_iommu(struct isp_device *isp)
 {
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
-	iommu_group_remove_device(isp->dev);
 }
 
 static int isp_attach_iommu(struct isp_device *isp)
 {
 	struct dma_iommu_mapping *mapping;
-	struct iommu_group *group;
 	int ret;
-
-	/* Create a device group and add the device to it. */
-	group = iommu_group_alloc();
-	if (IS_ERR(group)) {
-		dev_err(isp->dev, "failed to allocate IOMMU group\n");
-		return PTR_ERR(group);
-	}
-
-	ret = iommu_group_add_device(group, isp->dev);
-	iommu_group_put(group);
-
-	if (ret < 0) {
-		dev_err(isp->dev, "failed to add device to IPMMU group\n");
-		return ret;
-	}
 
 	/*
 	 * Create the ARM mapping, used by the ARM DMA mapping core to allocate
@@ -2020,20 +2008,20 @@ enum isp_of_phy {
 	ISP_OF_PHY_CSIPHY2,
 };
 
-static int isp_of_parse_node(struct device *dev, struct device_node *node,
-			     struct isp_async_subdev *isd)
+static int isp_fwnode_parse(struct device *dev, struct fwnode_handle *fwnode,
+			    struct isp_async_subdev *isd)
 {
 	struct isp_bus_cfg *buscfg = &isd->bus;
-	struct v4l2_of_endpoint vep;
+	struct v4l2_fwnode_endpoint vep;
 	unsigned int i;
 	int ret;
 
-	ret = v4l2_of_parse_endpoint(node, &vep);
+	ret = v4l2_fwnode_endpoint_parse(fwnode, &vep);
 	if (ret)
 		return ret;
 
-	dev_dbg(dev, "parsing endpoint %s, interface %u\n", node->full_name,
-		vep.base.port);
+	dev_dbg(dev, "parsing endpoint %s, interface %u\n",
+		to_of_node(fwnode)->full_name, vep.base.port);
 
 	switch (vep.base.port) {
 	case ISP_OF_PHY_PARALLEL:
@@ -2090,18 +2078,18 @@ static int isp_of_parse_node(struct device *dev, struct device_node *node,
 		break;
 
 	default:
-		dev_warn(dev, "%s: invalid interface %u\n", node->full_name,
-			 vep.base.port);
+		dev_warn(dev, "%s: invalid interface %u\n",
+			 to_of_node(fwnode)->full_name, vep.base.port);
 		break;
 	}
 
 	return 0;
 }
 
-static int isp_of_parse_nodes(struct device *dev,
-			      struct v4l2_async_notifier *notifier)
+static int isp_fwnodes_parse(struct device *dev,
+			     struct v4l2_async_notifier *notifier)
 {
-	struct device_node *node = NULL;
+	struct fwnode_handle *fwnode = NULL;
 
 	notifier->subdevs = devm_kcalloc(
 		dev, ISP_MAX_SUBDEVS, sizeof(*notifier->subdevs), GFP_KERNEL);
@@ -2109,34 +2097,35 @@ static int isp_of_parse_nodes(struct device *dev,
 		return -ENOMEM;
 
 	while (notifier->num_subdevs < ISP_MAX_SUBDEVS &&
-	       (node = of_graph_get_next_endpoint(dev->of_node, node))) {
+	       (fwnode = fwnode_graph_get_next_endpoint(
+			of_fwnode_handle(dev->of_node), fwnode))) {
 		struct isp_async_subdev *isd;
 
 		isd = devm_kzalloc(dev, sizeof(*isd), GFP_KERNEL);
-		if (!isd) {
-			of_node_put(node);
-			return -ENOMEM;
-		}
+		if (!isd)
+			goto error;
 
 		notifier->subdevs[notifier->num_subdevs] = &isd->asd;
 
-		if (isp_of_parse_node(dev, node, isd)) {
-			of_node_put(node);
-			return -EINVAL;
-		}
+		if (isp_fwnode_parse(dev, fwnode, isd))
+			goto error;
 
-		isd->asd.match.of.node = of_graph_get_remote_port_parent(node);
-		of_node_put(node);
-		if (!isd->asd.match.of.node) {
+		isd->asd.match.fwnode.fwnode =
+			fwnode_graph_get_remote_port_parent(fwnode);
+		if (!isd->asd.match.fwnode.fwnode) {
 			dev_warn(dev, "bad remote port parent\n");
-			return -EINVAL;
+			goto error;
 		}
 
-		isd->asd.match_type = V4L2_ASYNC_MATCH_OF;
+		isd->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 		notifier->num_subdevs++;
 	}
 
 	return notifier->num_subdevs;
+
+error:
+	fwnode_handle_put(fwnode);
+	return -EINVAL;
 }
 
 static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
@@ -2206,8 +2195,8 @@ static int isp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "ti,phy-type",
-				   &isp->phy_type);
+	ret = fwnode_property_read_u32(of_fwnode_handle(pdev->dev.of_node),
+				       "ti,phy-type", &isp->phy_type);
 	if (ret)
 		return ret;
 
@@ -2216,12 +2205,12 @@ static int isp_probe(struct platform_device *pdev)
 	if (IS_ERR(isp->syscon))
 		return PTR_ERR(isp->syscon);
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1,
-					 &isp->syscon_offset);
+	ret = of_property_read_u32_index(pdev->dev.of_node,
+					 "syscon", 1, &isp->syscon_offset);
 	if (ret)
 		return ret;
 
-	ret = isp_of_parse_nodes(&pdev->dev, &isp->notifier);
+	ret = isp_fwnodes_parse(&pdev->dev, &isp->notifier);
 	if (ret < 0)
 		return ret;
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2014-2017  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -33,6 +33,7 @@
 #include <linux/in6.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
@@ -48,6 +49,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 #include <net/addrconf.h>
 #include <net/if_inet6.h>
 #include <net/ip.h>
@@ -59,6 +61,18 @@
 #include "packet.h"
 #include "translation-table.h"
 #include "tvlv.h"
+
+static void batadv_mcast_mla_update(struct work_struct *work);
+
+/**
+ * batadv_mcast_start_timer - schedule the multicast periodic worker
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+static void batadv_mcast_start_timer(struct batadv_priv *bat_priv)
+{
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->mcast.work,
+			   msecs_to_jiffies(BATADV_MCAST_WORK_PERIOD));
+}
 
 /**
  * batadv_mcast_get_bridge - get the bridge on top of the softif if it exists
@@ -231,18 +245,14 @@ out:
 
 /**
  * batadv_mcast_mla_list_free - free a list of multicast addresses
- * @bat_priv: the bat priv with all the soft interface information
  * @mcast_list: the list to free
  *
  * Removes and frees all items in the given mcast_list.
  */
-static void batadv_mcast_mla_list_free(struct batadv_priv *bat_priv,
-				       struct hlist_head *mcast_list)
+static void batadv_mcast_mla_list_free(struct hlist_head *mcast_list)
 {
 	struct batadv_hw_addr *mcast_entry;
 	struct hlist_node *tmp;
-
-	lockdep_assert_held(&bat_priv->tt.commit_lock);
 
 	hlist_for_each_entry_safe(mcast_entry, tmp, mcast_list, list) {
 		hlist_del(&mcast_entry->list);
@@ -259,6 +269,8 @@ static void batadv_mcast_mla_list_free(struct batadv_priv *bat_priv,
  * translation table except the ones listed in the given mcast_list.
  *
  * If mcast_list is NULL then all are retracted.
+ *
+ * Do not call outside of the mcast worker! (or cancel mcast worker first)
  */
 static void batadv_mcast_mla_tt_retract(struct batadv_priv *bat_priv,
 					struct hlist_head *mcast_list)
@@ -266,7 +278,7 @@ static void batadv_mcast_mla_tt_retract(struct batadv_priv *bat_priv,
 	struct batadv_hw_addr *mcast_entry;
 	struct hlist_node *tmp;
 
-	lockdep_assert_held(&bat_priv->tt.commit_lock);
+	WARN_ON(delayed_work_pending(&bat_priv->mcast.work));
 
 	hlist_for_each_entry_safe(mcast_entry, tmp, &bat_priv->mcast.mla_list,
 				  list) {
@@ -291,6 +303,8 @@ static void batadv_mcast_mla_tt_retract(struct batadv_priv *bat_priv,
  *
  * Adds multicast listener announcements from the given mcast_list to the
  * translation table if they have not been added yet.
+ *
+ * Do not call outside of the mcast worker! (or cancel mcast worker first)
  */
 static void batadv_mcast_mla_tt_add(struct batadv_priv *bat_priv,
 				    struct hlist_head *mcast_list)
@@ -298,7 +312,7 @@ static void batadv_mcast_mla_tt_add(struct batadv_priv *bat_priv,
 	struct batadv_hw_addr *mcast_entry;
 	struct hlist_node *tmp;
 
-	lockdep_assert_held(&bat_priv->tt.commit_lock);
+	WARN_ON(delayed_work_pending(&bat_priv->mcast.work));
 
 	if (!mcast_list)
 		return;
@@ -480,9 +494,8 @@ static bool batadv_mcast_mla_tvlv_update(struct batadv_priv *bat_priv)
 	if (!bridged)
 		goto update;
 
-#if !IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING)
-	pr_warn_once("No bridge IGMP snooping compiled - multicast optimizations disabled\n");
-#endif
+	if (!IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING))
+		pr_warn_once("No bridge IGMP snooping compiled - multicast optimizations disabled\n");
 
 	querier4.exists = br_multicast_has_querier_anywhere(dev, ETH_P_IP);
 	querier4.shadowing = br_multicast_has_querier_adjacent(dev, ETH_P_IP);
@@ -532,13 +545,18 @@ update:
 }
 
 /**
- * batadv_mcast_mla_update - update the own MLAs
+ * __batadv_mcast_mla_update - update the own MLAs
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Updates the own multicast listener announcements in the translation
  * table as well as the own, announced multicast tvlv container.
+ *
+ * Note that non-conflicting reads and writes to bat_priv->mcast.mla_list
+ * in batadv_mcast_mla_tt_retract() and batadv_mcast_mla_tt_add() are
+ * ensured by the non-parallel execution of the worker this function
+ * belongs to.
  */
-void batadv_mcast_mla_update(struct batadv_priv *bat_priv)
+static void __batadv_mcast_mla_update(struct batadv_priv *bat_priv)
 {
 	struct net_device *soft_iface = bat_priv->soft_iface;
 	struct hlist_head mcast_list = HLIST_HEAD_INIT;
@@ -560,7 +578,30 @@ update:
 	batadv_mcast_mla_tt_add(bat_priv, &mcast_list);
 
 out:
-	batadv_mcast_mla_list_free(bat_priv, &mcast_list);
+	batadv_mcast_mla_list_free(&mcast_list);
+}
+
+/**
+ * batadv_mcast_mla_update - update the own MLAs
+ * @work: kernel work struct
+ *
+ * Updates the own multicast listener announcements in the translation
+ * table as well as the own, announced multicast tvlv container.
+ *
+ * In the end, reschedules the work timer.
+ */
+static void batadv_mcast_mla_update(struct work_struct *work)
+{
+	struct delayed_work *delayed_work;
+	struct batadv_priv_mcast *priv_mcast;
+	struct batadv_priv *bat_priv;
+
+	delayed_work = to_delayed_work(work);
+	priv_mcast = container_of(delayed_work, struct batadv_priv_mcast, work);
+	bat_priv = container_of(priv_mcast, struct batadv_priv, mcast);
+
+	__batadv_mcast_mla_update(bat_priv);
+	batadv_mcast_start_timer(bat_priv);
 }
 
 /**
@@ -629,7 +670,6 @@ static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
 /**
  * batadv_mcast_is_report_ipv6 - check for MLD reports
  * @skb: the ethernet frame destined for the mesh
@@ -694,7 +734,6 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
 
 	return 0;
 }
-#endif
 
 /**
  * batadv_mcast_forw_mode_check - check for optimized forwarding potential
@@ -723,11 +762,12 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 	case ETH_P_IP:
 		return batadv_mcast_forw_mode_check_ipv4(bat_priv, skb,
 							 is_unsnoopable);
-#if IS_ENABLED(CONFIG_IPV6)
 	case ETH_P_IPV6:
+		if (!IS_ENABLED(CONFIG_IPV6))
+			return -EINVAL;
+
 		return batadv_mcast_forw_mode_check_ipv6(bat_priv, skb,
 							 is_unsnoopable);
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -1132,6 +1172,9 @@ void batadv_mcast_init(struct batadv_priv *bat_priv)
 	batadv_tvlv_handler_register(bat_priv, batadv_mcast_tvlv_ogm_handler,
 				     NULL, BATADV_TVLV_MCAST, 2,
 				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
+
+	INIT_DELAYED_WORK(&bat_priv->mcast.work, batadv_mcast_mla_update);
+	batadv_mcast_start_timer(bat_priv);
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
@@ -1243,12 +1286,13 @@ int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset)
  */
 void batadv_mcast_free(struct batadv_priv *bat_priv)
 {
+	cancel_delayed_work_sync(&bat_priv->mcast.work);
+
 	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_MCAST, 2);
 	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_MCAST, 2);
 
-	spin_lock_bh(&bat_priv->tt.commit_lock);
+	/* safely calling outside of worker, as worker was canceled above */
 	batadv_mcast_mla_tt_retract(bat_priv, NULL);
-	spin_unlock_bh(&bat_priv->tt.commit_lock);
 }
 
 /**

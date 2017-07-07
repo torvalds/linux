@@ -40,7 +40,7 @@ static void br_hello_timer_expired(unsigned long arg)
 	if (br->dev->flags & IFF_UP) {
 		br_config_bpdu_generation(br);
 
-		if (br->stp_enabled != BR_USER_STP)
+		if (br->stp_enabled == BR_KERNEL_STP)
 			mod_timer(&br->hello_timer,
 				  round_jiffies(jiffies + br->hello_time));
 	}
@@ -125,7 +125,7 @@ static void br_topology_change_timer_expired(unsigned long arg)
 	br_debug(br, "topo change timer expired\n");
 	spin_lock(&br->lock);
 	br->topology_change_detected = 0;
-	br->topology_change = 0;
+	__br_set_topology_change(br, 0);
 	spin_unlock(&br->lock);
 }
 
@@ -153,8 +153,6 @@ void br_stp_timer_init(struct net_bridge *br)
 	setup_timer(&br->topology_change_timer,
 		      br_topology_change_timer_expired,
 		      (unsigned long) br);
-
-	setup_timer(&br->gc_timer, br_fdb_cleanup, (unsigned long) br);
 }
 
 void br_stp_port_timer_init(struct net_bridge_port *p)

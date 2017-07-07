@@ -335,7 +335,7 @@ static u32 xlr_func(struct i2c_adapter *adap)
 	return (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) | I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm xlr_i2c_algo = {
+static const struct i2c_algorithm xlr_i2c_algo = {
 	.master_xfer	= xlr_i2c_xfer,
 	.functionality	= xlr_func,
 };
@@ -358,6 +358,7 @@ static const struct of_device_id xlr_i2c_dt_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, xlr_i2c_dt_ids);
 
 static int xlr_i2c_probe(struct platform_device *pdev)
 {

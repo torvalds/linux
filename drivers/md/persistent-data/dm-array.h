@@ -112,6 +112,25 @@ int dm_array_resize(struct dm_array_info *info, dm_block_t root,
 	__dm_written_to_disk(value);
 
 /*
+ * Creates a new array populated with values provided by a callback
+ * function.  This is more efficient than creating an empty array,
+ * resizing, and then setting values since that process incurs a lot of
+ * copying.
+ *
+ * Assumes 32bit values for now since it's only used by the cache hint
+ * array.
+ *
+ * info - describes the array
+ * root - the root block of the array on disk
+ * size - the number of entries in the array
+ * fn - the callback
+ * context - passed to the callback
+ */
+typedef int (*value_fn)(uint32_t index, void *value_le, void *context);
+int dm_array_new(struct dm_array_info *info, dm_block_t *root,
+		 uint32_t size, value_fn fn, void *context);
+
+/*
  * Frees a whole array.  The value_type's decrement operation will be called
  * for all values in the array
  */
@@ -160,6 +179,40 @@ int dm_array_set_value(struct dm_array_info *info, dm_block_t root,
 int dm_array_walk(struct dm_array_info *info, dm_block_t root,
 		  int (*fn)(void *context, uint64_t key, void *leaf),
 		  void *context);
+
+/*----------------------------------------------------------------*/
+
+/*
+ * Cursor api.
+ *
+ * This lets you iterate through all the entries in an array efficiently
+ * (it will preload metadata).
+ *
+ * I'm using a cursor, rather than a walk function with a callback because
+ * the cache target needs to iterate both the mapping and hint arrays in
+ * unison.
+ */
+struct dm_array_cursor {
+	struct dm_array_info *info;
+	struct dm_btree_cursor cursor;
+
+	struct dm_block *block;
+	struct array_block *ab;
+	unsigned index;
+};
+
+int dm_array_cursor_begin(struct dm_array_info *info,
+			  dm_block_t root, struct dm_array_cursor *c);
+void dm_array_cursor_end(struct dm_array_cursor *c);
+
+uint32_t dm_array_cursor_index(struct dm_array_cursor *c);
+int dm_array_cursor_next(struct dm_array_cursor *c);
+int dm_array_cursor_skip(struct dm_array_cursor *c, uint32_t count);
+
+/*
+ * value_le is only valid while the cursor points at the current value.
+ */
+void dm_array_cursor_get_value(struct dm_array_cursor *c, void **value_le);
 
 /*----------------------------------------------------------------*/
 

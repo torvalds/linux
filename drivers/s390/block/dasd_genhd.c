@@ -16,7 +16,7 @@
 #include <linux/fs.h>
 #include <linux/blkpg.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_gendisk:"

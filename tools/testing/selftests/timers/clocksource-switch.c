@@ -159,7 +159,7 @@ int main(int argv, char **argc)
 	}
 
 
-	printf("Running Asyncrhonous Switching Tests...\n");
+	printf("Running Asynchronous Switching Tests...\n");
 	pid = fork();
 	if (!pid)
 		return run_tests(60);

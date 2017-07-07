@@ -238,8 +238,9 @@ static void tonga_ih_decode_iv(struct amdgpu_device *adev,
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
 	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
 
+	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
-	entry->src_data = dw[1] & 0xfffffff;
+	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
 	entry->vm_id = (dw[2] >> 8) & 0xff;
 	entry->pas_id = (dw[2] >> 16) & 0xffff;
@@ -288,7 +289,7 @@ static int tonga_ih_sw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_ih_ring_init(adev, 4 * 1024, true);
+	r = amdgpu_ih_ring_init(adev, 64 * 1024, true);
 	if (r)
 		return r;
 
@@ -373,10 +374,10 @@ static int tonga_ih_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int tonga_ih_soft_reset(void *handle)
+static bool tonga_ih_check_soft_reset(void *handle)
 {
-	u32 srbm_soft_reset = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
 	if (tmp & SRBM_STATUS__IH_BUSY_MASK)
@@ -384,6 +385,46 @@ static int tonga_ih_soft_reset(void *handle)
 						SOFT_RESET_IH, 1);
 
 	if (srbm_soft_reset) {
+		adev->irq.srbm_soft_reset = srbm_soft_reset;
+		return true;
+	} else {
+		adev->irq.srbm_soft_reset = 0;
+		return false;
+	}
+}
+
+static int tonga_ih_pre_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->irq.srbm_soft_reset)
+		return 0;
+
+	return tonga_ih_hw_fini(adev);
+}
+
+static int tonga_ih_post_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!adev->irq.srbm_soft_reset)
+		return 0;
+
+	return tonga_ih_hw_init(adev);
+}
+
+static int tonga_ih_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	u32 srbm_soft_reset;
+
+	if (!adev->irq.srbm_soft_reset)
+		return 0;
+	srbm_soft_reset = adev->irq.srbm_soft_reset;
+
+	if (srbm_soft_reset) {
+		u32 tmp;
+
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
 		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
@@ -415,7 +456,7 @@ static int tonga_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs tonga_ih_ip_funcs = {
+static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.name = "tonga_ih",
 	.early_init = tonga_ih_early_init,
 	.late_init = NULL,
@@ -427,7 +468,10 @@ const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.resume = tonga_ih_resume,
 	.is_idle = tonga_ih_is_idle,
 	.wait_for_idle = tonga_ih_wait_for_idle,
+	.check_soft_reset = tonga_ih_check_soft_reset,
+	.pre_soft_reset = tonga_ih_pre_soft_reset,
 	.soft_reset = tonga_ih_soft_reset,
+	.post_soft_reset = tonga_ih_post_soft_reset,
 	.set_clockgating_state = tonga_ih_set_clockgating_state,
 	.set_powergating_state = tonga_ih_set_powergating_state,
 };
@@ -444,3 +488,11 @@ static void tonga_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &tonga_ih_funcs;
 }
 
+const struct amdgpu_ip_block_version tonga_ih_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_IH,
+	.major = 3,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &tonga_ih_ip_funcs,
+};

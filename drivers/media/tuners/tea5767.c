@@ -10,6 +10,8 @@
  * from their contributions on DScaler.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -370,17 +372,18 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 {
 	struct tuner_i2c_props i2c = { .adap = i2c_adap, .addr = i2c_addr };
 	unsigned char buffer[7] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 	int rc;
 
 	if ((rc = tuner_i2c_xfer_recv(&i2c, buffer, 7))< 5) {
-		printk(KERN_WARNING "It is not a TEA5767. Received %i bytes.\n", rc);
+		pr_warn("It is not a TEA5767. Received %i bytes.\n", rc);
 		return -EINVAL;
 	}
 
 	/* If all bytes are the same then it's a TV tuner and not a tea5767 */
 	if (buffer[0] == buffer[1] && buffer[0] == buffer[2] &&
 	    buffer[0] == buffer[3] && buffer[0] == buffer[4]) {
-		printk(KERN_WARNING "All bytes are equal. It is not a TEA5767\n");
+		pr_warn("All bytes are equal. It is not a TEA5767\n");
 		return -EINVAL;
 	}
 
@@ -390,7 +393,7 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	 *  Byte 5: bit 7:0 : == 0
 	 */
 	if (((buffer[3] & 0x0f) != 0x00) || (buffer[4] != 0x00)) {
-		printk(KERN_WARNING "Chip ID is not zero. It is not a TEA5767\n");
+		pr_warn("Chip ID is not zero. It is not a TEA5767\n");
 		return -EINVAL;
 	}
 
@@ -398,12 +401,10 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	return 0;
 }
 
-static int tea5767_release(struct dvb_frontend *fe)
+static void tea5767_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int tea5767_get_frequency(struct dvb_frontend *fe, u32 *frequency)
@@ -423,7 +424,7 @@ static int tea5767_set_config (struct dvb_frontend *fe, void *priv_cfg)
 	return 0;
 }
 
-static struct dvb_tuner_ops tea5767_tuner_ops = {
+static const struct dvb_tuner_ops tea5767_tuner_ops = {
 	.info = {
 		.name           = "tea5767", // Philips TEA5767HN FM Radio
 	},

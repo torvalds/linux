@@ -81,13 +81,6 @@ static int __must_check wl12xx_sdio_raw_read(struct device *child, int addr,
 
 	sdio_claim_host(func);
 
-	if (unlikely(dump)) {
-		printk(KERN_DEBUG "wlcore_sdio: READ from 0x%04x\n", addr);
-		print_hex_dump(KERN_DEBUG, "wlcore_sdio: READ ",
-				DUMP_PREFIX_OFFSET, 16, 1,
-				buf, len, false);
-	}
-
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
 		dev_dbg(child->parent, "sdio read 52 addr 0x%x, byte 0x%02x\n",
@@ -106,6 +99,13 @@ static int __must_check wl12xx_sdio_raw_read(struct device *child, int addr,
 
 	if (WARN_ON(ret))
 		dev_err(child->parent, "sdio read failed (%d)\n", ret);
+
+	if (unlikely(dump)) {
+		printk(KERN_DEBUG "wlcore_sdio: READ from 0x%04x\n", addr);
+		print_hex_dump(KERN_DEBUG, "wlcore_sdio: READ ",
+			       DUMP_PREFIX_OFFSET, 16, 1,
+			       buf, len, false);
+	}
 
 	return ret;
 }
@@ -237,6 +237,7 @@ static const struct of_device_id wlcore_sdio_of_match_table[] = {
 	{ .compatible = "ti,wl1273", .data = &wl127x_data },
 	{ .compatible = "ti,wl1281", .data = &wl128x_data },
 	{ .compatible = "ti,wl1283", .data = &wl128x_data },
+	{ .compatible = "ti,wl1285", .data = &wl128x_data },
 	{ .compatible = "ti,wl1801", .data = &wl18xx_data },
 	{ .compatible = "ti,wl1805", .data = &wl18xx_data },
 	{ .compatible = "ti,wl1807", .data = &wl18xx_data },
@@ -391,7 +392,6 @@ static void wl1271_remove(struct sdio_func *func)
 	pm_runtime_get_noresume(&func->dev);
 
 	platform_device_unregister(glue->core);
-	kfree(glue);
 }
 
 #ifdef CONFIG_PM

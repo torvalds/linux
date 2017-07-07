@@ -1,7 +1,7 @@
 #ifndef _HFI1_KERNEL_H
 #define _HFI1_KERNEL_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -54,6 +54,7 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -66,6 +67,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <rdma/ib_hdrs.h>
 #include <linux/rhashtable.h>
+#include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
 
 #include "chip_registers.h"
@@ -194,12 +196,6 @@ struct hfi1_ctxtdata {
 	void *rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
 	volatile __le64 *rcvhdrtail_kvaddr;
-	/*
-	 * Shared page for kernel to signal user processes that send buffers
-	 * need disarming.  The process should call HFI1_CMD_DISARM_BUFS
-	 * or HFI1_CMD_ACK_EVENT with IPATH_EVENT_DISARM_BUFS set.
-	 */
-	unsigned long *user_event_mask;
 	/* when waiting for rcv or pioavail */
 	wait_queue_head_t wait;
 	/* rcvhdrq size (for freeing) */
@@ -222,13 +218,12 @@ struct hfi1_ctxtdata {
 	 * (ignoring forks, dup, etc. for now)
 	 */
 	int cnt;
-	/*
-	 * how much space to leave at start of eager TID entries for
-	 * protocol use, on each TID
-	 */
-	/* instead of calculating it */
+	/* Device context index */
 	unsigned ctxt;
-	/* non-zero if ctxt is being shared. */
+	/*
+	 * non-zero if ctxt can be shared, and defines the maximum number of
+	 * sub-contexts for this device context.
+	 */
 	u16 subctxt_cnt;
 	/* non-zero if ctxt is being shared. */
 	u16 subctxt_id;
@@ -278,16 +273,18 @@ struct hfi1_ctxtdata {
 	struct hfi1_devdata *dd;
 	/* so functions that need physical port can get it easily */
 	struct hfi1_pportdata *ppd;
+	/* associated msix interrupt */
+	u32 msix_intr;
 	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
 	void *subctxt_uregbase;
 	/* An array of pages for the eager receive buffers * N */
 	void *subctxt_rcvegrbuf;
 	/* An array of pages for the eager header queue entries * N */
 	void *subctxt_rcvhdr_base;
+	/* Bitmask of in use context(s) */
+	DECLARE_BITMAP(in_use_ctxts, HFI1_MAX_SHARED_CTXTS);
 	/* The version of the library which opened this ctxt */
 	u32 userversion;
-	/* Bitmask of active slaves */
-	u32 active_slaves;
 	/* Type of packets or conditions we want to poll for */
 	u16 poll_type;
 	/* receive packet sequence counter */
@@ -337,6 +334,12 @@ struct hfi1_ctxtdata {
 	 * packets with the wrong interrupt handler.
 	 */
 	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
+
+	/* Indicates that this is vnic context */
+	bool is_vnic;
+
+	/* vnic queue index this context is mapped to */
+	u8 vnic_q_idx;
 };
 
 /*
@@ -356,36 +359,15 @@ struct hfi1_packet {
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
-	u32 hdrqtail;
-	int numpkt;
 	u16 tlen;
-	u16 hlen;
 	s16 etail;
-	u16 rsize;
+	u8 hlen;
+	u8 numpkt;
+	u8 rsize;
 	u8 updegr;
 	u8 rcv_flags;
 	u8 etype;
 };
-
-/*
- * Private data for snoop/capture support.
- */
-struct hfi1_snoop_data {
-	int mode_flag;
-	struct cdev cdev;
-	struct device *class_dev;
-	/* protect snoop data */
-	spinlock_t snoop_lock;
-	struct list_head queue;
-	wait_queue_head_t waitq;
-	void *filter_value;
-	int (*filter_callback)(void *hdr, void *data, void *value);
-	u64 dcc_cfg; /* saved value of DCC Cfg register */
-};
-
-/* snoop mode_flag values */
-#define HFI1_PORT_SNOOP_MODE     1U
-#define HFI1_PORT_CAPTURE_MODE   2U
 
 struct rvt_sge_state;
 
@@ -495,7 +477,7 @@ struct rvt_sge_state;
 #define HFI1_PART_ENFORCE_OUT	0x2
 
 /* how often we check for synthetic counter wrap around */
-#define SYNTH_CNT_TIME 2
+#define SYNTH_CNT_TIME 3
 
 /* Counter flags */
 #define CNTR_NORMAL		0x0 /* Normal counters, just read register */
@@ -511,6 +493,9 @@ struct rvt_sge_state;
 /* VLs Supported/Operational */
 #define HFI1_MIN_VLS_SUPPORTED 1
 #define HFI1_MAX_VLS_SUPPORTED 8
+
+#define HFI1_GUIDS_PER_PORT  5
+#define HFI1_PORT_GUID_INDEX 0
 
 static inline void incr_cntr64(u64 *cntr)
 {
@@ -579,11 +564,20 @@ struct hfi1_pportdata {
 	struct kobject vl2mtu_kobj;
 
 	/* PHY support */
-	u32 port_type;
 	struct qsfp_data qsfp_info;
+	/* Values for SI tuning of SerDes */
+	u32 port_type;
+	u32 tx_preset_eq;
+	u32 tx_preset_noeq;
+	u32 rx_preset;
+	u8  local_atten;
+	u8  remote_atten;
+	u8  default_atten;
+	u8  max_power_class;
 
-	/* GUID for this interface, in host order */
-	u64 guid;
+	/* GUIDs for this interface, in host order, guids[0] is a port guid */
+	u64 guids[HFI1_GUIDS_PER_PORT];
+
 	/* GUID for peer interface, in host order */
 	u64 neighbor_guid;
 
@@ -612,8 +606,6 @@ struct hfi1_pportdata {
 	/* host link state variables */
 	struct mutex hls_lock;
 	u32 host_link_state;
-
-	spinlock_t            sdma_alllock ____cacheline_aligned_in_smp;
 
 	u32 lstate;	/* logical link state */
 
@@ -819,6 +811,32 @@ struct hfi1_asic_data {
 	struct hfi1_i2c_bus *i2c_bus1;
 };
 
+/* sizes for both the QP and RSM map tables */
+#define NUM_MAP_ENTRIES	 256
+#define NUM_MAP_REGS      32
+
+/*
+ * Number of VNIC contexts used. Ensure it is less than or equal to
+ * max queues supported by VNIC (HFI1_VNIC_MAX_QUEUE).
+ */
+#define HFI1_NUM_VNIC_CTXT   8
+
+/* Number of VNIC RSM entries */
+#define NUM_VNIC_MAP_ENTRIES 8
+
+/* Virtual NIC information */
+struct hfi1_vnic_data {
+	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
+	struct kmem_cache *txreq_cache;
+	u8 num_vports;
+	struct idr vesw_idr;
+	u8 rmt_start;
+	u8 num_ctxt;
+	u32 msix_idx;
+};
+
+struct hfi1_vnic_vport_info;
+
 /* device data struct now contains only "general per-device" info.
  * fields related to a physical IB port are in a hfi1_pportdata struct.
  */
@@ -848,32 +866,29 @@ struct hfi1_devdata {
 	u8 __iomem *kregend;
 	/* physical address of chip for io_remap, etc. */
 	resource_size_t physaddr;
-	/* receive context data */
-	struct hfi1_ctxtdata **rcd;
+	/* Per VL data. Enough for all VLs but not all elements are set/used. */
+	struct per_vl_data vld[PER_VL_SEND_CONTEXTS];
 	/* send context data */
 	struct send_context_info *send_contexts;
 	/* map hardware send contexts to software index */
 	u8 *hw_to_sw;
 	/* spinlock for allocating and releasing send context resources */
 	spinlock_t sc_lock;
-	/* Per VL data. Enough for all VLs but not all elements are set/used. */
-	struct per_vl_data vld[PER_VL_SEND_CONTEXTS];
 	/* lock for pio_map */
 	spinlock_t pio_map_lock;
+	/* Send Context initialization lock. */
+	spinlock_t sc_init_lock;
+	/* lock for sdma_map */
+	spinlock_t                          sde_map_lock;
 	/* array of kernel send contexts */
 	struct send_context **kernel_send_context;
 	/* array of vl maps */
 	struct pio_vl_map __rcu *pio_map;
-	/* seqlock for sc2vl */
-	seqlock_t sc2vl_lock;
-	u64 sc2vl[4];
-	/* Send Context initialization lock. */
-	spinlock_t sc_init_lock;
+	/* default flags to last descriptor */
+	u64 default_desc1;
 
 	/* fields common to all SDMA engines */
 
-	/* default flags to last descriptor */
-	u64 default_desc1;
 	volatile __le64                    *sdma_heads_dma; /* DMA'ed by chip */
 	dma_addr_t                          sdma_heads_phys;
 	void                               *sdma_pad_dma; /* DMA'ed by chip */
@@ -884,8 +899,6 @@ struct hfi1_devdata {
 	u32                                 chip_sdma_engines;
 	/* num used */
 	u32                                 num_sdma;
-	/* lock for sdma_map */
-	spinlock_t                          sde_map_lock;
 	/* array of engines sized by num_sdma */
 	struct sdma_engine                 *per_sdma;
 	/* array of vl maps */
@@ -894,13 +907,10 @@ struct hfi1_devdata {
 	wait_queue_head_t		  sdma_unfreeze_wq;
 	atomic_t			  sdma_unfreeze_count;
 
+	u32 lcb_access_count;		/* count of LCB users */
+
 	/* common data between shared ASIC HFIs in this OS */
 	struct hfi1_asic_data *asic_data;
-
-	/* hfi1_pportdata, points to array of (physical) port-specific
-	 * data structs, indexed by pidx (0..n-1)
-	 */
-	struct hfi1_pportdata *pport;
 
 	/* mem-mapped pointer to base of PIO buffers */
 	void __iomem *piobase;
@@ -918,20 +928,13 @@ struct hfi1_devdata {
 	/* send context numbers and sizes for each type */
 	struct sc_config_sizes sc_sizes[SC_MAX];
 
-	u32 lcb_access_count;		/* count of LCB users */
-
 	char *boardname; /* human readable board info */
-
-	/* device (not port) flags, basically device capabilities */
-	u32 flags;
 
 	/* reset value */
 	u64 z_int_counter;
 	u64 z_rcv_limit;
 	u64 z_send_schedule;
-	/* percpu int_counter */
-	u64 __percpu *int_counter;
-	u64 __percpu *rcv_limit;
+
 	u64 __percpu *send_schedule;
 	/* number of receive contexts in use by the driver */
 	u32 num_rcv_contexts;
@@ -946,13 +949,15 @@ struct hfi1_devdata {
 	/* base receive interrupt timeout, in CSR units */
 	u32 rcv_intr_timeout_csr;
 
+	u32 freezelen; /* max length of freezemsg */
 	u64 __iomem *egrtidbase;
 	spinlock_t sendctrl_lock; /* protect changes to SendCtrl */
 	spinlock_t rcvctrl_lock; /* protect changes to RcvCtrl */
 	/* around rcd and (user ctxts) ctxt_cnt use (intr vs free) */
 	spinlock_t uctxt_lock; /* rcd and user context changes */
-	/* exclusive access to 8051 */
-	spinlock_t dc8051_lock;
+	struct mutex dc8051_lock; /* exclusive access to 8051 */
+	struct workqueue_struct *update_cntr_wq;
+	struct work_struct update_cntr_work;
 	/* exclusive access to 8051 memory */
 	spinlock_t dc8051_memlock;
 	int dc8051_timed_out;	/* remember if the 8051 timed out */
@@ -967,7 +972,6 @@ struct hfi1_devdata {
 	 * IB link status cheaply
 	 */
 	struct hfi1_status *status;
-	u32 freezelen; /* max length of freezemsg */
 
 	/* revision register shadow */
 	u64 revision;
@@ -995,6 +999,8 @@ struct hfi1_devdata {
 	u16 rcvegrbufsize_shift;
 	/* both sides of the PCIe link are gen3 capable */
 	u8 link_gen3_capable;
+	/* default link down value (poll/sleep) */
+	u8 link_default;
 	/* localbus width (1, 2,4,8,16,32) from config space  */
 	u32 lbus_width;
 	/* localbus speed in MHz */
@@ -1030,8 +1036,6 @@ struct hfi1_devdata {
 	u8 hfi1_id;
 	/* implementation code */
 	u8 icode;
-	/* default link down value (poll/sleep) */
-	u8 link_default;
 	/* vAU of this device */
 	u8 vau;
 	/* vCU of this device */
@@ -1041,32 +1045,31 @@ struct hfi1_devdata {
 	/* initial vl15 credits to use */
 	u16 vl15_init;
 
+	/*
+	 * Cached value for vl15buf, read during verify cap interrupt. VL15
+	 * credits are to be kept at 0 and set when handling the link-up
+	 * interrupt. This removes the possibility of receiving VL15 MAD
+	 * packets before this HFI is ready.
+	 */
+	u16 vl15buf_cached;
+
 	/* Misc small ints */
-	/* Number of physical ports available */
-	u8 num_pports;
-	/* Lowest context number which can be used by user processes */
-	u8 first_user_ctxt;
 	u8 n_krcv_queues;
 	u8 qos_shift;
-	u8 qpn_mask;
 
-	u16 rhf_offset; /* offset of RHF within receive header entry */
 	u16 irev;	/* implementation revision */
-	u16 dc8051_ver; /* 8051 firmware version */
+	u32 dc8051_ver; /* 8051 firmware version */
 
+	spinlock_t hfi1_diag_trans_lock; /* protect diag observer ops */
 	struct platform_config platform_config;
 	struct platform_config_cache pcfg_cache;
 
 	struct diag_client *diag_client;
-	spinlock_t hfi1_diag_trans_lock; /* protect diag observer ops */
-
-	u8 psxmitwait_supported;
-	/* cycle length of PS* counters in HW (in picoseconds) */
-	u16 psxmitwait_check_rate;
 
 	/* MSI-X information */
 	struct hfi1_msix_entry *msix_entries;
 	u32 num_msix_entries;
+	u32 first_dyn_msix_idx;
 
 	/* INTx information */
 	u32 requested_intx_irq;		/* did we request one? */
@@ -1076,6 +1079,9 @@ struct hfi1_devdata {
 	u64 gi_mask[CCE_NUM_INT_CSRS];
 
 	struct rcv_array_data rcv_entries;
+
+	/* cycle length of PS* counters in HW (in picoseconds) */
+	u16 psxmitwait_check_rate;
 
 	/*
 	 * 64 bit synthetic counters
@@ -1104,16 +1110,14 @@ struct hfi1_devdata {
 	char *portcntrnames;
 	size_t portcntrnameslen;
 
-	struct hfi1_snoop_data hfi1_snoop;
-
 	struct err_info_rcvport err_info_rcvport;
 	struct err_info_constraint err_info_rcv_constraint;
 	struct err_info_constraint err_info_xmit_constraint;
-	u8 err_info_uncorrectable;
-	u8 err_info_fmconfig;
 
 	atomic_t drop_packet;
 	u8 do_drop;
+	u8 err_info_uncorrectable;
+	u8 err_info_fmconfig;
 
 	/*
 	 * Software counters for the status bits defined by the
@@ -1136,54 +1140,93 @@ struct hfi1_devdata {
 	u64 sw_cce_err_status_aggregate;
 	/* Software counter that aggregates all bypass packet rcv errors */
 	u64 sw_rcv_bypass_packet_errors;
-	/* receive interrupt functions */
-	rhf_rcv_function_ptr *rhf_rcv_function_map;
+	/* receive interrupt function */
 	rhf_rcv_function_ptr normal_rhf_rcv_functions[8];
 
+	/* Save the enabled LCB error bits */
+	u64 lcb_err_en;
+
 	/*
-	 * Handlers for outgoing data so that snoop/capture does not
-	 * have to have its hooks in the send path
+	 * Capability to have different send engines simply by changing a
+	 * pointer value.
 	 */
-	send_routine process_pio_send;
+	send_routine process_pio_send ____cacheline_aligned_in_smp;
 	send_routine process_dma_send;
 	void (*pio_inline_send)(struct hfi1_devdata *dd, struct pio_buf *pbuf,
 				u64 pbc, const void *from, size_t count);
+	int (*process_vnic_dma_send)(struct hfi1_devdata *dd, u8 q_idx,
+				     struct hfi1_vnic_vport_info *vinfo,
+				     struct sk_buff *skb, u64 pbc, u8 plen);
+	/* hfi1_pportdata, points to array of (physical) port-specific
+	 * data structs, indexed by pidx (0..n-1)
+	 */
+	struct hfi1_pportdata *pport;
+	/* receive context data */
+	struct hfi1_ctxtdata **rcd;
+	u64 __percpu *int_counter;
+	/* device (not port) flags, basically device capabilities */
+	u16 flags;
+	/* Number of physical ports available */
+	u8 num_pports;
+	/* Lowest context number which can be used by user processes or VNIC */
+	u8 first_dyn_alloc_ctxt;
+	/* adding a new field here would make it part of this cacheline */
+
+	/* seqlock for sc2vl */
+	seqlock_t sc2vl_lock ____cacheline_aligned_in_smp;
+	u64 sc2vl[4];
+	/* receive interrupt functions */
+	rhf_rcv_function_ptr *rhf_rcv_function_map;
+	u64 __percpu *rcv_limit;
+	u16 rhf_offset; /* offset of RHF within receive header entry */
+	/* adding a new field here would make it part of this cacheline */
 
 	/* OUI comes from the HW. Used everywhere as 3 separate bytes. */
 	u8 oui1;
 	u8 oui2;
 	u8 oui3;
+	u8 dc_shutdown;
+
 	/* Timer and counter used to detect RcvBufOvflCnt changes */
 	struct timer_list rcverr_timer;
-	u32 rcv_ovfl_cnt;
 
 	wait_queue_head_t event_queue;
-
-	/* Save the enabled LCB error bits */
-	u64 lcb_err_en;
-	u8 dc_shutdown;
 
 	/* receive context tail dummy address */
 	__le64 *rcvhdrtail_dummy_kvaddr;
 	dma_addr_t rcvhdrtail_dummy_dma;
 
-	bool eprom_available;	/* true if EPROM is available for this device */
-	bool aspm_supported;	/* Does HW support ASPM */
-	bool aspm_enabled;	/* ASPM state: enabled/disabled */
+	u32 rcv_ovfl_cnt;
 	/* Serialize ASPM enable/disable between multiple verbs contexts */
 	spinlock_t aspm_lock;
 	/* Number of verbs contexts which have disabled ASPM */
 	atomic_t aspm_disabled_cnt;
+	/* Keeps track of user space clients */
+	atomic_t user_refcount;
+	/* Used to wait for outstanding user space clients before dev removal */
+	struct completion user_comp;
 
-	struct hfi1_affinity *affinity;
-	struct rhashtable sdma_rht;
+	bool eprom_available;	/* true if EPROM is available for this device */
+	bool aspm_supported;	/* Does HW support ASPM */
+	bool aspm_enabled;	/* ASPM state: enabled/disabled */
+	struct rhashtable *sdma_rht;
+
 	struct kobject kobj;
+
+	/* vnic data */
+	struct hfi1_vnic_data vnic;
 };
 
+static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)
+{
+	return (dd->vnic.rmt_start + spare) > NUM_MAP_ENTRIES;
+}
+
 /* 8051 firmware version helper */
-#define dc8051_ver(a, b) ((a) << 8 | (b))
-#define dc8051_ver_maj(a) ((a & 0xff00) >> 8)
-#define dc8051_ver_min(a)  (a & 0x00ff)
+#define dc8051_ver(a, b, c) ((a) << 16 | (b) << 8 | (c))
+#define dc8051_ver_maj(a) (((a) & 0xff0000) >> 16)
+#define dc8051_ver_min(a) (((a) & 0x00ff00) >> 8)
+#define dc8051_ver_patch(a) ((a) & 0x0000ff)
 
 /* f_put_tid types */
 #define PT_EXPECTED 0
@@ -1196,10 +1239,11 @@ struct mmu_rb_handler;
 
 /* Private data for file operations */
 struct hfi1_filedata {
+	struct hfi1_devdata *dd;
 	struct hfi1_ctxtdata *uctxt;
-	unsigned subctxt;
 	struct hfi1_user_sdma_comp_q *cq;
 	struct hfi1_user_sdma_pkt_q *pq;
+	u16 subctxt;
 	/* for cpu affinity; -1 if none */
 	int rec_cpu_num;
 	u32 tid_n_pinned;
@@ -1221,30 +1265,31 @@ struct hfi1_devdata *hfi1_lookup(int unit);
 extern u32 hfi1_cpulist_count;
 extern unsigned long *hfi1_cpulist;
 
-extern unsigned int snoop_drop_send;
-extern unsigned int snoop_force_capture;
-int hfi1_init(struct hfi1_devdata *, int);
-int hfi1_count_units(int *npresentp, int *nupp);
+int hfi1_init(struct hfi1_devdata *dd, int reinit);
 int hfi1_count_active_units(void);
 
-int hfi1_diag_add(struct hfi1_devdata *);
-void hfi1_diag_remove(struct hfi1_devdata *);
+int hfi1_diag_add(struct hfi1_devdata *dd);
+void hfi1_diag_remove(struct hfi1_devdata *dd);
 void handle_linkup_change(struct hfi1_devdata *dd, u32 linkup);
 
 void handle_user_interrupt(struct hfi1_ctxtdata *rcd);
 
-int hfi1_create_rcvhdrq(struct hfi1_devdata *, struct hfi1_ctxtdata *);
-int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *);
+int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
+int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd);
 int hfi1_create_ctxts(struct hfi1_devdata *dd);
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *, u32, int);
-void hfi1_init_pportdata(struct pci_dev *, struct hfi1_pportdata *,
-			 struct hfi1_devdata *, u8, u8);
-void hfi1_free_ctxtdata(struct hfi1_devdata *, struct hfi1_ctxtdata *);
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
+					   int numa);
+void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
+			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
+void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 
-int handle_receive_interrupt(struct hfi1_ctxtdata *, int);
-int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *, int);
-int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *, int);
+int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
+int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
+int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 void set_all_slowpath(struct hfi1_devdata *dd);
+void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd);
+void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd);
+void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd);
 
 extern const struct pci_device_id hfi1_pci_tbl[];
 
@@ -1264,16 +1309,24 @@ int hfi1_reset_device(int);
 /* return the driver's idea of the logical OPA port state */
 static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 {
-	return ppd->lstate; /* use the cached value */
+	/*
+	 * The driver does some processing from the time the logical
+	 * link state is at INIT to the time the SM can be notified
+	 * as such. Return IB_PORT_DOWN until the software state
+	 * is ready.
+	 */
+	if (ppd->lstate == IB_PORT_INIT && !(ppd->host_link_state & HLS_UP))
+		return IB_PORT_DOWN;
+	else
+		return ppd->lstate;
 }
 
 void receive_interrupt_work(struct work_struct *work);
 
 /* extract service channel from header and rhf */
-static inline int hdr2sc(struct ib_header *hdr, u64 rhf)
+static inline int hfi1_9B_get_sc5(struct ib_header *hdr, u64 rhf)
 {
-	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
-	       ((!!(rhf_dc_info(rhf))) << 4);
+	return ib_get_sc(hdr) | ((!!(rhf_dc_info(rhf))) << 4);
 }
 
 #define HFI1_JKEY_WIDTH       16
@@ -1529,7 +1582,7 @@ bad:
 
 u32 lrh_max_header_bytes(struct hfi1_devdata *dd);
 int mtu_to_enum(u32 mtu, int default_if_bad);
-u16 enum_to_mtu(int);
+u16 enum_to_mtu(int mtu);
 static inline int valid_ib_mtu(unsigned int mtu)
 {
 	return mtu == 256 || mtu == 512 ||
@@ -1543,27 +1596,21 @@ static inline int valid_opa_max_mtu(unsigned int mtu)
 		(valid_ib_mtu(mtu) || mtu == 8192 || mtu == 10240);
 }
 
-int set_mtu(struct hfi1_pportdata *);
+int set_mtu(struct hfi1_pportdata *ppd);
 
-int hfi1_set_lid(struct hfi1_pportdata *, u32, u8);
-void hfi1_disable_after_error(struct hfi1_devdata *);
-int hfi1_set_uevent_bits(struct hfi1_pportdata *, const int);
-int hfi1_rcvbuf_validate(u32, u8, u16 *);
+int hfi1_set_lid(struct hfi1_pportdata *ppd, u32 lid, u8 lmc);
+void hfi1_disable_after_error(struct hfi1_devdata *dd);
+int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit);
+int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encode);
 
-int fm_get_table(struct hfi1_pportdata *, int, void *);
-int fm_set_table(struct hfi1_pportdata *, int, void *);
+int fm_get_table(struct hfi1_pportdata *ppd, int which, void *t);
+int fm_set_table(struct hfi1_pportdata *ppd, int which, void *t);
 
-void set_up_vl15(struct hfi1_devdata *dd, u8 vau, u16 vl15buf);
+void set_up_vau(struct hfi1_devdata *dd, u8 vau);
+void set_up_vl15(struct hfi1_devdata *dd, u16 vl15buf);
 void reset_link_credits(struct hfi1_devdata *dd);
 void assign_remote_cm_au_table(struct hfi1_devdata *dd, u8 vcu);
 
-int snoop_recv_handler(struct hfi1_packet *packet);
-int snoop_send_dma_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
-			   u64 pbc);
-int snoop_send_pio_handler(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
-			   u64 pbc);
-void snoop_inline_pio_send(struct hfi1_devdata *dd, struct pio_buf *pbuf,
-			   u64 pbc, const void *from, size_t count);
 int set_buffer_control(struct hfi1_pportdata *ppd, struct buffer_control *bc);
 
 static inline struct hfi1_devdata *dd_from_ppd(struct hfi1_pportdata *ppd)
@@ -1600,6 +1647,11 @@ static inline struct hfi1_ibport *to_iport(struct ib_device *ibdev, u8 port)
 	return &dd->pport[pidx].ibport_data;
 }
 
+static inline struct hfi1_ibport *rcd_to_iport(struct hfi1_ctxtdata *rcd)
+{
+	return &rcd->ppd->ibport_data;
+}
+
 void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp);
 static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
@@ -1609,9 +1661,9 @@ static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	u32 bth1;
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & (HFI1_BECN_SMASK | HFI1_FECN_SMASK))) {
+	if (unlikely(bth1 & (IB_BECN_SMASK | IB_FECN_SMASK))) {
 		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
-		return bth1 & HFI1_FECN_SMASK;
+		return !!(bth1 & IB_FECN_SMASK);
 	}
 	return false;
 }
@@ -1630,6 +1682,17 @@ static inline u16 hfi1_get_pkey(struct hfi1_ibport *ibp, unsigned index)
 		ret = ppd->pkeys[index];
 
 	return ret;
+}
+
+/*
+ * Return the indexed GUID from the port GUIDs table.
+ */
+static inline __be64 get_sguid(struct hfi1_ibport *ibp, unsigned int index)
+{
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	WARN_ON(index >= HFI1_GUIDS_PER_PORT);
+	return cpu_to_be64(ppd->guids[index]);
 }
 
 /*
@@ -1664,19 +1727,19 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
 
 /* ctxt_flag bit offsets */
-		/* context has been setup */
-#define HFI1_CTXT_SETUP_DONE 1
+		/* base context has not finished initializing */
+#define HFI1_CTXT_BASE_UNINIT 1
+		/* base context initaliation failed */
+#define HFI1_CTXT_BASE_FAILED 2
 		/* waiting for a packet to arrive */
-#define HFI1_CTXT_WAITING_RCV   2
-		/* master has not finished initializing */
-#define HFI1_CTXT_MASTER_UNINIT 4
+#define HFI1_CTXT_WAITING_RCV 3
 		/* waiting for an urgent packet to arrive */
-#define HFI1_CTXT_WAITING_URG 5
+#define HFI1_CTXT_WAITING_URG 4
 
 /* free up any allocated data at closes */
-struct hfi1_devdata *hfi1_init_dd(struct pci_dev *,
-				  const struct pci_device_id *);
-void hfi1_free_devdata(struct hfi1_devdata *);
+struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
+				  const struct pci_device_id *ent);
+void hfi1_free_devdata(struct hfi1_devdata *dd);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
 /* LED beaconing functions */
@@ -1751,25 +1814,24 @@ static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 
 extern const char ib_hfi1_version[];
 
-int hfi1_device_create(struct hfi1_devdata *);
-void hfi1_device_remove(struct hfi1_devdata *);
+int hfi1_device_create(struct hfi1_devdata *dd);
+void hfi1_device_remove(struct hfi1_devdata *dd);
 
 int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 			   struct kobject *kobj);
-int hfi1_verbs_register_sysfs(struct hfi1_devdata *);
-void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *);
+int hfi1_verbs_register_sysfs(struct hfi1_devdata *dd);
+void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 /* Hook for sysfs read of QSFP */
 int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
-int hfi1_pcie_init(struct pci_dev *, const struct pci_device_id *);
-void hfi1_pcie_cleanup(struct pci_dev *);
-int hfi1_pcie_ddinit(struct hfi1_devdata *, struct pci_dev *,
-		     const struct pci_device_id *);
+int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent);
+void hfi1_pcie_cleanup(struct pci_dev *pdev);
+int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
-void hfi1_pcie_flr(struct hfi1_devdata *);
-int pcie_speeds(struct hfi1_devdata *);
-void request_msix(struct hfi1_devdata *, u32 *, struct hfi1_msix_entry *);
-void hfi1_enable_intx(struct pci_dev *);
+int pcie_speeds(struct hfi1_devdata *dd);
+void request_msix(struct hfi1_devdata *dd, u32 *nent,
+		  struct hfi1_msix_entry *entry);
+void hfi1_enable_intx(struct pci_dev *pdev);
 void restore_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);
@@ -1799,10 +1861,6 @@ int kdeth_process_expected(struct hfi1_packet *packet);
 int kdeth_process_eager(struct hfi1_packet *packet);
 int process_receive_invalid(struct hfi1_packet *packet);
 
-extern rhf_rcv_function_ptr snoop_rhf_rcv_functions[8];
-
-void update_sge(struct rvt_sge_state *ss, u32 length);
-
 /* global module parameter variables */
 extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
@@ -1827,9 +1885,6 @@ extern struct mutex hfi1_mutex;
 #define DRIVER_NAME		"hfi1"
 #define HFI1_USER_MINOR_BASE     0
 #define HFI1_TRACE_MINOR         127
-#define HFI1_DIAGPKT_MINOR       128
-#define HFI1_DIAG_MINOR_BASE     129
-#define HFI1_SNOOP_CAPTURE_BASE  200
 #define HFI1_NMINORS             255
 
 #define PCI_VENDOR_ID_INTEL 0x8086
@@ -1848,7 +1903,13 @@ extern struct mutex hfi1_mutex;
 static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 						  u16 ctxt_type)
 {
-	u64 base_sc_integrity =
+	u64 base_sc_integrity;
+
+	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+		return 0;
+
+	base_sc_integrity =
 	SEND_CTXT_CHECK_ENABLE_DISALLOW_BYPASS_BAD_PKT_LEN_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
@@ -1863,7 +1924,6 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	| SEND_CTXT_CHECK_ENABLE_CHECK_VL_MAPPING_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_OPCODE_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_SLID_SMASK
-	| SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_VL_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
@@ -1872,18 +1932,23 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	else
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
-	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 */
-		return base_sc_integrity &
-		       ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+	/* turn on send-side job key checks if !A0 */
+	if (!is_ax(dd))
+		base_sc_integrity |= SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+
 	return base_sc_integrity;
 }
 
 static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 {
-	u64 base_sdma_integrity =
+	u64 base_sdma_integrity;
+
+	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+		return 0;
+
+	base_sdma_integrity =
 	SEND_DMA_CHECK_ENABLE_DISALLOW_BYPASS_BAD_PKT_LEN_SMASK
-	| SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_TOO_LONG_IB_PACKETS_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_BAD_PKT_LEN_SMASK
@@ -1895,14 +1960,18 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	| SEND_DMA_CHECK_ENABLE_CHECK_VL_MAPPING_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_OPCODE_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_SLID_SMASK
-	| SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_VL_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
-	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 */
-		return base_sdma_integrity &
-		       ~SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+	if (!HFI1_CAP_IS_KSET(STATIC_RATE_CTRL))
+		base_sdma_integrity |=
+		SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK;
+
+	/* turn on send-side job key checks if !A0 */
+	if (!is_ax(dd))
+		base_sdma_integrity |=
+			SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+
 	return base_sdma_integrity;
 }
 
@@ -1935,6 +2004,10 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 
 #define dd_dev_info(dd, fmt, ...) \
 	dev_info(&(dd)->pcidev->dev, "%s: " fmt, \
+			get_unit_name((dd)->unit), ##__VA_ARGS__)
+
+#define dd_dev_info_ratelimited(dd, fmt, ...) \
+	dev_info_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
 			get_unit_name((dd)->unit), ##__VA_ARGS__)
 
 #define dd_dev_dbg(dd, fmt, ...) \
@@ -2001,6 +2074,12 @@ static inline u32 i2c_target(u32 target)
 static inline u32 qsfp_resource(struct hfi1_devdata *dd)
 {
 	return i2c_target(dd->hfi1_id);
+}
+
+/* Is this device integrated or discrete? */
+static inline bool is_integrated(struct hfi1_devdata *dd)
+{
+	return dd->pcidev->device == PCI_DEVICE_ID_INTEL1;
 }
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);

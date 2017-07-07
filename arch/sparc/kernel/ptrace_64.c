@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -31,7 +32,7 @@
 
 #include <asm/asi.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/psrcompat.h>
 #include <asm/visasm.h>
 #include <asm/spitfire.h>
@@ -45,6 +46,43 @@
 #include "entry.h"
 
 /* #define ALLOW_INIT_TRACING */
+
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(n, r) \
+	{.name = n, .offset = (PT_V9_##r)}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+static const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_NAME("g0", G0),
+	REG_OFFSET_NAME("g1", G1),
+	REG_OFFSET_NAME("g2", G2),
+	REG_OFFSET_NAME("g3", G3),
+	REG_OFFSET_NAME("g4", G4),
+	REG_OFFSET_NAME("g5", G5),
+	REG_OFFSET_NAME("g6", G6),
+	REG_OFFSET_NAME("g7", G7),
+
+	REG_OFFSET_NAME("i0", I0),
+	REG_OFFSET_NAME("i1", I1),
+	REG_OFFSET_NAME("i2", I2),
+	REG_OFFSET_NAME("i3", I3),
+	REG_OFFSET_NAME("i4", I4),
+	REG_OFFSET_NAME("i5", I5),
+	REG_OFFSET_NAME("i6", I6),
+	REG_OFFSET_NAME("i7", I7),
+
+	REG_OFFSET_NAME("tstate", TSTATE),
+	REG_OFFSET_NAME("pc", TPC),
+	REG_OFFSET_NAME("npc", TNPC),
+	REG_OFFSET_NAME("y", Y),
+	REG_OFFSET_NAME("lr", I7),
+
+	REG_OFFSET_END,
+};
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -127,7 +165,8 @@ static int get_from_target(struct task_struct *target, unsigned long uaddr,
 		if (copy_from_user(kbuf, (void __user *) uaddr, len))
 			return -EFAULT;
 	} else {
-		int len2 = access_process_vm(target, uaddr, kbuf, len, 0);
+		int len2 = access_process_vm(target, uaddr, kbuf, len,
+				FOLL_FORCE);
 		if (len2 != len)
 			return -EFAULT;
 	}
@@ -141,7 +180,8 @@ static int set_to_target(struct task_struct *target, unsigned long uaddr,
 		if (copy_to_user((void __user *) uaddr, kbuf, len))
 			return -EFAULT;
 	} else {
-		int len2 = access_process_vm(target, uaddr, kbuf, len, 1);
+		int len2 = access_process_vm(target, uaddr, kbuf, len,
+				FOLL_FORCE | FOLL_WRITE);
 		if (len2 != len)
 			return -EFAULT;
 	}
@@ -311,7 +351,7 @@ static int genregs64_set(struct task_struct *target,
 	}
 
 	if (!ret) {
-		unsigned long y;
+		unsigned long y = regs->y;
 
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 &y,
@@ -505,7 +545,8 @@ static int genregs32_get(struct task_struct *target,
 				if (access_process_vm(target,
 						      (unsigned long)
 						      &reg_window[pos],
-						      k, sizeof(*k), 0)
+						      k, sizeof(*k),
+						      FOLL_FORCE)
 				    != sizeof(*k))
 					return -EFAULT;
 				k++;
@@ -531,12 +572,14 @@ static int genregs32_get(struct task_struct *target,
 				if (access_process_vm(target,
 						      (unsigned long)
 						      &reg_window[pos],
-						      &reg, sizeof(reg), 0)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE)
 				    != sizeof(reg))
 					return -EFAULT;
 				if (access_process_vm(target,
 						      (unsigned long) u,
-						      &reg, sizeof(reg), 1)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE | FOLL_WRITE)
 				    != sizeof(reg))
 					return -EFAULT;
 				pos++;
@@ -615,7 +658,8 @@ static int genregs32_set(struct task_struct *target,
 						      (unsigned long)
 						      &reg_window[pos],
 						      (void *) k,
-						      sizeof(*k), 1)
+						      sizeof(*k),
+						      FOLL_FORCE | FOLL_WRITE)
 				    != sizeof(*k))
 					return -EFAULT;
 				k++;
@@ -642,13 +686,15 @@ static int genregs32_set(struct task_struct *target,
 				if (access_process_vm(target,
 						      (unsigned long)
 						      u,
-						      &reg, sizeof(reg), 0)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE)
 				    != sizeof(reg))
 					return -EFAULT;
 				if (access_process_vm(target,
 						      (unsigned long)
 						      &reg_window[pos],
-						      &reg, sizeof(reg), 1)
+						      &reg, sizeof(reg),
+						      FOLL_FORCE | FOLL_WRITE)
 				    != sizeof(reg))
 					return -EFAULT;
 				pos++;
@@ -1098,4 +1144,57 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 
 	if (test_thread_flag(TIF_NOHZ))
 		user_enter();
+}
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:	the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_offset *roff;
+
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+	return -EINVAL;
+}
+
+/**
+ * regs_within_kernel_stack() - check the address in the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @addr:	address which is checked.
+ *
+ * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
+ * If @addr is within the kernel stack, it returns true. If not, returns false.
+ */
+static inline int regs_within_kernel_stack(struct pt_regs *regs,
+					   unsigned long addr)
+{
+	unsigned long ksp = kernel_stack_pointer(regs) + STACK_BIAS;
+	return ((addr & ~(THREAD_SIZE - 1))  ==
+		(ksp & ~(THREAD_SIZE - 1)));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:	pt_regs which contains kernel stack pointer.
+ * @n:		stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specified by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long ksp = kernel_stack_pointer(regs) + STACK_BIAS;
+	unsigned long *addr = (unsigned long *)ksp;
+	addr += n;
+	if (regs_within_kernel_stack(regs, (unsigned long)addr))
+		return *addr;
+	else
+		return 0;
 }

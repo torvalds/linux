@@ -1,0 +1,46 @@
+TPS65132 regulators
+
+Required properties:
+- compatible: "ti,tps65132"
+- reg: I2C slave address
+
+Optional Subnode:
+Device supports two regulators OUTP and OUTN. A sub node within the
+   device node describe the properties of these regulators. The sub-node
+   names must be as follows:
+	-For regulator outp, the sub node name should be "outp".
+	-For regulator outn, the sub node name should be "outn".
+
+-enable-gpios:(active high, output) Regulators are controlled by the input pins.
+   If it is connected to GPIO through host system then provide the
+   gpio number as per gpio.txt.
+-active-discharge-gpios: (active high, output) Some configurations use delay mechanisms
+  on the enable pin, to keep the regulator enabled for some time after
+  the enable signal goes low. This GPIO is used to actively discharge
+  the delay mechanism. Requires specification of ti,active-discharge-time-us
+-ti,active-discharge-time-us: how long the active discharge gpio should be
+  asserted for during active discharge, in microseconds.
+
+Each regulator is defined using the standard binding for regulators.
+
+Example:
+
+	tps65132@3e {
+		compatible = "ti,tps65132";
+		reg = <0x3e>;
+
+		outp {
+			regulator-name = "outp";
+			regulator-boot-on;
+			regulator-always-on;
+			enable-gpios = <&gpio 23 0>;
+		};
+
+		outn {
+			regulator-name = "outn";
+			regulator-boot-on;
+			regulator-always-on;
+			regulator-active-discharge = <0>;
+			enable-gpios = <&gpio 40 0>;
+		};
+	};

@@ -111,3 +111,59 @@ static inline void pinmux_init_device_debugfs(struct dentry *devroot,
 }
 
 #endif
+
+#ifdef CONFIG_GENERIC_PINMUX_FUNCTIONS
+
+/**
+ * struct function_desc - generic function descriptor
+ * @name: name of the function
+ * @group_names: array of pin group names
+ * @num_group_names: number of pin group names
+ * @data: pin controller driver specific data
+ */
+struct function_desc {
+	const char *name;
+	const char **group_names;
+	int num_group_names;
+	void *data;
+};
+
+int pinmux_generic_get_function_count(struct pinctrl_dev *pctldev);
+
+const char *
+pinmux_generic_get_function_name(struct pinctrl_dev *pctldev,
+				 unsigned int selector);
+
+int pinmux_generic_get_function_groups(struct pinctrl_dev *pctldev,
+				       unsigned int selector,
+				       const char * const **groups,
+				       unsigned * const num_groups);
+
+struct function_desc *pinmux_generic_get_function(struct pinctrl_dev *pctldev,
+						  unsigned int selector);
+
+int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
+				const char *name,
+				const char **groups,
+				unsigned const num_groups,
+				void *data);
+
+int pinmux_generic_remove_function(struct pinctrl_dev *pctldev,
+				   unsigned int selector);
+
+static inline int
+pinmux_generic_remove_last_function(struct pinctrl_dev *pctldev)
+{
+	return pinmux_generic_remove_function(pctldev,
+					      pctldev->num_functions - 1);
+}
+
+void pinmux_generic_free_functions(struct pinctrl_dev *pctldev);
+
+#else
+
+static inline void pinmux_generic_free_functions(struct pinctrl_dev *pctldev)
+{
+}
+
+#endif /* CONFIG_GENERIC_PINMUX_FUNCTIONS */

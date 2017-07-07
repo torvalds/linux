@@ -16,6 +16,12 @@
 	;
 	; Now manually save: r12, sp, fp, gp, r25
 
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	PUSH	r59
+	PUSH	r58
+#endif
+
+	PUSH	r30
 	PUSH	r12
 
 	; Saving pt_regs->sp correctly requires some extra work due to the way
@@ -72,6 +78,12 @@
 	POPAX	AUX_USER_SP
 1:
 	POP	r12
+	POP	r30
+
+#ifdef CONFIG_ARC_HAS_ACCL_REGS
+	POP	r58
+	POP	r59
+#endif
 
 .endm
 

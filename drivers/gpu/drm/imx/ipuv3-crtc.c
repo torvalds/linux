@@ -21,7 +21,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
-#include <linux/fb.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -56,19 +55,48 @@ static void ipu_crtc_enable(struct drm_crtc *crtc)
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 
+	ipu_prg_enable(ipu);
 	ipu_dc_enable(ipu);
 	ipu_dc_enable_channel(ipu_crtc->dc);
 	ipu_di_enable(ipu_crtc->di);
 }
 
-static void ipu_crtc_disable(struct drm_crtc *crtc)
+static void ipu_crtc_disable_planes(struct ipu_crtc *ipu_crtc,
+				    struct drm_crtc_state *old_crtc_state)
+{
+	bool disable_partial = false;
+	bool disable_full = false;
+	struct drm_plane *plane;
+
+	drm_atomic_crtc_state_for_each_plane(plane, old_crtc_state) {
+		if (plane == &ipu_crtc->plane[0]->base)
+			disable_full = true;
+		if (&ipu_crtc->plane[1] && plane == &ipu_crtc->plane[1]->base)
+			disable_partial = true;
+	}
+
+	if (disable_partial)
+		ipu_plane_disable(ipu_crtc->plane[1], true);
+	if (disable_full)
+		ipu_plane_disable(ipu_crtc->plane[0], false);
+}
+
+static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 
 	ipu_dc_disable_channel(ipu_crtc->dc);
 	ipu_di_disable(ipu_crtc->di);
+	/*
+	 * Planes must be disabled before DC clock is removed, as otherwise the
+	 * attached IDMACs will be left in undefined state, possibly hanging
+	 * the IPU or even system.
+	 */
+	ipu_crtc_disable_planes(ipu_crtc, old_crtc_state);
 	ipu_dc_disable(ipu);
+	ipu_prg_disable(ipu);
 
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
@@ -123,6 +151,22 @@ static void imx_drm_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(to_imx_crtc_state(state));
 }
 
+static int ipu_enable_vblank(struct drm_crtc *crtc)
+{
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	enable_irq(ipu_crtc->irq);
+
+	return 0;
+}
+
+static void ipu_disable_vblank(struct drm_crtc *crtc)
+{
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+
+	disable_irq_nosync(ipu_crtc->irq);
+}
+
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = drm_crtc_cleanup,
@@ -130,13 +174,15 @@ static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.reset = imx_drm_crtc_reset,
 	.atomic_duplicate_state = imx_drm_crtc_duplicate_state,
 	.atomic_destroy_state = imx_drm_crtc_destroy_state,
+	.enable_vblank = ipu_enable_vblank,
+	.disable_vblank = ipu_disable_vblank,
 };
 
 static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 {
 	struct ipu_crtc *ipu_crtc = dev_id;
 
-	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
+	drm_crtc_handle_vblank(&ipu_crtc->base);
 
 	return IRQ_HANDLED;
 }
@@ -246,31 +292,8 @@ static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.mode_set_nofb = ipu_crtc_mode_set_nofb,
 	.atomic_check = ipu_crtc_atomic_check,
 	.atomic_begin = ipu_crtc_atomic_begin,
-	.disable = ipu_crtc_disable,
+	.atomic_disable = ipu_crtc_atomic_disable,
 	.enable = ipu_crtc_enable,
-};
-
-static int ipu_enable_vblank(struct drm_crtc *crtc)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	enable_irq(ipu_crtc->irq);
-
-	return 0;
-}
-
-static void ipu_disable_vblank(struct drm_crtc *crtc)
-{
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	disable_irq_nosync(ipu_crtc->irq);
-}
-
-static const struct imx_drm_crtc_helper_funcs ipu_crtc_helper_funcs = {
-	.enable_vblank = ipu_enable_vblank,
-	.disable_vblank = ipu_disable_vblank,
-	.crtc_funcs = &ipu_crtc_funcs,
-	.crtc_helper_funcs = &ipu_helper_funcs,
 };
 
 static void ipu_put_resources(struct ipu_crtc *ipu_crtc)
@@ -310,6 +333,7 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 	struct ipu_client_platformdata *pdata, struct drm_device *drm)
 {
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
+	struct drm_crtc *crtc = &ipu_crtc->base;
 	int dp = -EINVAL;
 	int ret;
 
@@ -329,19 +353,16 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		goto err_put_resources;
 	}
 
-	ret = imx_drm_add_crtc(drm, &ipu_crtc->base, &ipu_crtc->imx_crtc,
-			&ipu_crtc->plane[0]->base, &ipu_crtc_helper_funcs,
-			pdata->of_node);
-	if (ret) {
-		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
-		goto err_put_resources;
-	}
+	crtc->port = pdata->of_node;
+	drm_crtc_helper_add(crtc, &ipu_helper_funcs);
+	drm_crtc_init_with_planes(drm, crtc, &ipu_crtc->plane[0]->base, NULL,
+				  &ipu_crtc_funcs, NULL);
 
 	ret = ipu_plane_get_resources(ipu_crtc->plane[0]);
 	if (ret) {
 		dev_err(ipu_crtc->dev, "getting plane 0 resources failed with %d.\n",
 			ret);
-		goto err_remove_crtc;
+		goto err_put_resources;
 	}
 
 	/* If this crtc is using the DP, add an overlay plane */
@@ -379,8 +400,6 @@ err_put_plane1_res:
 		ipu_plane_put_resources(ipu_crtc->plane[1]);
 err_put_plane0_res:
 	ipu_plane_put_resources(ipu_crtc->plane[0]);
-err_remove_crtc:
-	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 err_put_resources:
 	ipu_put_resources(ipu_crtc);
 
@@ -414,8 +433,6 @@ static void ipu_drm_unbind(struct device *dev, struct device *master,
 {
 	struct ipu_crtc *ipu_crtc = dev_get_drvdata(dev);
 
-	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
-
 	ipu_put_resources(ipu_crtc);
 	if (ipu_crtc->plane[1])
 		ipu_plane_put_resources(ipu_crtc->plane[1]);
@@ -448,16 +465,10 @@ static int ipu_drm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver ipu_drm_driver = {
+struct platform_driver ipu_drm_driver = {
 	.driver = {
 		.name = "imx-ipuv3-crtc",
 	},
 	.probe = ipu_drm_probe,
 	.remove = ipu_drm_remove,
 };
-module_platform_driver(ipu_drm_driver);
-
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:imx-ipuv3-crtc");

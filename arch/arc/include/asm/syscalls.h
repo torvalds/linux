@@ -17,6 +17,7 @@ int sys_clone_wrapper(int, int, int, int, int);
 int sys_cacheflush(uint32_t, uint32_t uint32_t);
 int sys_arc_settls(void *);
 int sys_arc_gettls(void);
+int sys_arc_usr_cmpxchg(int *, int, int);
 
 #include <asm-generic/syscalls.h>
 

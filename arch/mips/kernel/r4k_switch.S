@@ -12,6 +12,7 @@
  */
 #include <asm/asm.h>
 #include <asm/cachectl.h>
+#include <asm/export.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
@@ -23,12 +24,6 @@
 
 /* preprocessor replaces the fp in ".set fp=64" with $30 otherwise */
 #undef fp
-
-/*
- * Offset to the current process status flags, the first 32 bytes of the
- * stack are not used.
- */
-#define ST_OFF (_THREAD_SIZE - 32 - PT_SIZE + PT_STATUS)
 
 #ifndef USE_ALTERNATE_RESUME_IMPL
 /*
@@ -75,6 +70,7 @@
  * Save a thread's fp context.
  */
 LEAF(_save_fp)
+EXPORT_SYMBOL(_save_fp)
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
 		defined(CONFIG_CPU_MIPS32_R6)
 	mfc0	t0, CP0_STATUS
@@ -101,6 +97,7 @@ LEAF(_restore_fp)
  * Save a thread's MSA vector context.
  */
 LEAF(_save_msa)
+EXPORT_SYMBOL(_save_msa)
 	msa_save_all	a0
 	jr	ra
 	END(_save_msa)

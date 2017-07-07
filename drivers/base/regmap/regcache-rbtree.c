@@ -81,7 +81,7 @@ static struct regcache_rbtree_node *regcache_rbtree_lookup(struct regmap *map,
 
 	node = rbtree_ctx->root.rb_node;
 	while (node) {
-		rbnode = container_of(node, struct regcache_rbtree_node, node);
+		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
 		regcache_rbtree_get_base_top_reg(map, rbnode, &base_reg,
 						 &top_reg);
 		if (reg >= base_reg && reg <= top_reg) {
@@ -108,8 +108,7 @@ static int regcache_rbtree_insert(struct regmap *map, struct rb_root *root,
 	parent = NULL;
 	new = &root->rb_node;
 	while (*new) {
-		rbnode_tmp = container_of(*new, struct regcache_rbtree_node,
-					  node);
+		rbnode_tmp = rb_entry(*new, struct regcache_rbtree_node, node);
 		/* base and top registers of the current rbnode */
 		regcache_rbtree_get_base_top_reg(map, rbnode_tmp, &base_reg_tmp,
 						 &top_reg_tmp);
@@ -152,7 +151,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 
 	for (node = rb_first(&rbtree_ctx->root); node != NULL;
 	     node = rb_next(node)) {
-		n = container_of(node, struct regcache_rbtree_node, node);
+		n = rb_entry(node, struct regcache_rbtree_node, node);
 		mem_size += sizeof(*n);
 		mem_size += (n->blklen * map->cache_word_size);
 		mem_size += BITS_TO_LONGS(n->blklen) * sizeof(long);

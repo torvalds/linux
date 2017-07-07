@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ ******************************************************************************/
 #ifndef __INC_DOT11D_H
 #define __INC_DOT11D_H
 
@@ -30,8 +30,8 @@ enum dot11d_state {
 };
 
 /**
- * struct rt_dot11d_info * @CountryIeLen: value greater than 0 if @CountryIeBuf contains
- *		  valid country information element.
+ * struct rt_dot11d_info * @CountryIeLen: value greater than 0 if
+ *		  @CountryIeBuf contains valid country information element.
  * @channel_map: holds channel values
  *		0 - invalid,
  *		1 - valid (active scan),

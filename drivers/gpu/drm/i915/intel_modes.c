@@ -25,7 +25,6 @@
 
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/fb.h>
 #include <drm/drm_edid.h>
 #include <drm/drmP.h>
 #include "intel_drv.h"

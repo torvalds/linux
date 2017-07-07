@@ -11,9 +11,8 @@
 #include <asm/processor.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
-	.section __ex_table,"a"
-	PPC_LONG_ALIGN
 	.text
 	
 /* This clears out any unused part of the destination buffer,
@@ -36,6 +35,7 @@ _GLOBAL(strncpy)
 2:	stbu	r0,1(r6)	/* clear it out if so */
 	bdnz	2b
 	blr
+EXPORT_SYMBOL(strncpy)
 
 _GLOBAL(strncmp)
 	PPC_LCMPI 0,r5,0
@@ -53,6 +53,7 @@ _GLOBAL(strncmp)
 	blr
 2:	li	r3,0
 	blr
+EXPORT_SYMBOL(strncmp)
 
 #ifdef CONFIG_PPC32
 _GLOBAL(memcmp)
@@ -68,6 +69,7 @@ _GLOBAL(memcmp)
 	blr
 2:	li	r3,0
 	blr
+EXPORT_SYMBOL(memcmp)
 #endif
 
 _GLOBAL(memchr)
@@ -82,6 +84,7 @@ _GLOBAL(memchr)
 	beqlr
 2:	li	r3,0
 	blr
+EXPORT_SYMBOL(memchr)
 
 #ifdef CONFIG_PPC32
 _GLOBAL(__clear_user)
@@ -120,9 +123,9 @@ _GLOBAL(__clear_user)
 92:	mfctr	r3
 	blr
 
-	.section __ex_table,"a"
-	PPC_LONG	11b,90b
-	PPC_LONG	1b,91b
-	PPC_LONG	8b,92b
-	.text
+	EX_TABLE(11b, 90b)
+	EX_TABLE(1b, 91b)
+	EX_TABLE(8b, 92b)
+
+EXPORT_SYMBOL(__clear_user)
 #endif

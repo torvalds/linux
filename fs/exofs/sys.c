@@ -122,7 +122,7 @@ void exofs_sysfs_dbg_print(void)
 	list_for_each_entry_safe(k_name, k_tmp, &exofs_kset->list, entry) {
 		printk(KERN_INFO "%s: name %s ref %d\n",
 			__func__, kobject_name(k_name),
-			(int)atomic_read(&k_name->kref.refcount));
+			(int)kref_read(&k_name->kref));
 	}
 #endif
 }

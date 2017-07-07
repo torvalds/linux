@@ -5,9 +5,9 @@
  * Author: Arun R Murthy <arun.murthy@stericsson.com>
  * Author: Daniel Willerud <daniel.willerud@stericsson.com>
  * Author: Johan Palsson <johan.palsson@stericsson.com>
+ * Author: M'boumba Cedric Madianga
  */
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -1054,11 +1054,7 @@ static int __init ab8500_gpadc_init(void)
 {
 	return platform_driver_register(&ab8500_gpadc_driver);
 }
-
-static void __exit ab8500_gpadc_exit(void)
-{
-	platform_driver_unregister(&ab8500_gpadc_driver);
-}
+subsys_initcall_sync(ab8500_gpadc_init);
 
 /**
  * ab8540_gpadc_get_otp() - returns OTP values
@@ -1077,14 +1073,3 @@ void ab8540_gpadc_get_otp(struct ab8500_gpadc *gpadc,
 	*ibat_l  = gpadc->cal_data[ADC_INPUT_IBAT].otp_calib_lo;
 	*ibat_h  = gpadc->cal_data[ADC_INPUT_IBAT].otp_calib_hi;
 }
-
-subsys_initcall_sync(ab8500_gpadc_init);
-module_exit(ab8500_gpadc_exit);
-
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Arun R Murthy");
-MODULE_AUTHOR("Daniel Willerud");
-MODULE_AUTHOR("Johan Palsson");
-MODULE_AUTHOR("M'boumba Cedric Madianga");
-MODULE_ALIAS("platform:ab8500_gpadc");
-MODULE_DESCRIPTION("AB8500 GPADC driver");

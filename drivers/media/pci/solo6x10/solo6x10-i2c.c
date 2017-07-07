@@ -27,6 +27,7 @@
  * thread context, ACK the interrupt, and move on. -- BenC */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 
 #include "solo6x10.h"
 
@@ -191,6 +192,7 @@ int solo_i2c_isr(struct solo_dev *solo_dev)
 		}
 
 		solo_dev->i2c_state = IIC_STATE_WRITE;
+		/* fall through */
 	case IIC_STATE_WRITE:
 		ret = solo_i2c_handle_write(solo_dev);
 		break;

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -347,7 +347,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state *walk_state,
 
 		break;
 
-	case AML_BREAK_POINT_OP:
+	case AML_BREAKPOINT_OP:
 
 		acpi_db_signal_break_point(walk_state);
 

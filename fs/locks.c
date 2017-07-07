@@ -131,12 +131,17 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/filelock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)
 #define IS_LEASE(fl)	(fl->fl_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT))
 #define IS_OFDLCK(fl)	(fl->fl_flags & FL_OFDLCK)
+
+static inline bool is_remote_lock(struct file *filp)
+{
+	return likely(!(filp->f_path.dentry->d_sb->s_flags & MS_NOREMOTELOCK));
+}
 
 static bool lease_breaking(struct file_lock *fl)
 {
@@ -806,7 +811,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 {
 	struct file_lock *cfl;
 	struct file_lock_context *ctx;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 
 	ctx = smp_load_acquire(&inode->i_flctx);
 	if (!ctx || list_empty_careful(&ctx->flc_posix)) {
@@ -1211,7 +1216,7 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 int posix_lock_file(struct file *filp, struct file_lock *fl,
 			struct file_lock *conflock)
 {
-	return posix_lock_inode(file_inode(filp), fl, conflock);
+	return posix_lock_inode(locks_inode(filp), fl, conflock);
 }
 EXPORT_SYMBOL(posix_lock_file);
 
@@ -1251,7 +1256,7 @@ static int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 int locks_mandatory_locked(struct file *file)
 {
 	int ret;
-	struct inode *inode = file_inode(file);
+	struct inode *inode = locks_inode(file);
 	struct file_lock_context *ctx;
 	struct file_lock *fl;
 
@@ -1564,7 +1569,7 @@ void lease_get_mtime(struct inode *inode, struct timespec *time)
 	}
 
 	if (has_lease)
-		*time = current_fs_time(inode->i_sb);
+		*time = current_time(inode);
 	else
 		*time = inode->i_mtime;
 }
@@ -1597,15 +1602,16 @@ EXPORT_SYMBOL(lease_get_mtime);
 int fcntl_getlease(struct file *filp)
 {
 	struct file_lock *fl;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	int type = F_UNLCK;
 	LIST_HEAD(dispose);
 
 	ctx = smp_load_acquire(&inode->i_flctx);
 	if (ctx && !list_empty_careful(&ctx->flc_lease)) {
+		percpu_down_read_preempt_disable(&file_rwsem);
 		spin_lock(&ctx->flc_lock);
-		time_out_leases(file_inode(filp), &dispose);
+		time_out_leases(inode, &dispose);
 		list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
 			if (fl->fl_file != filp)
 				continue;
@@ -1613,6 +1619,8 @@ int fcntl_getlease(struct file *filp)
 			break;
 		}
 		spin_unlock(&ctx->flc_lock);
+		percpu_up_read_preempt_enable(&file_rwsem);
+
 		locks_dispose_list(&dispose);
 	}
 	return type;
@@ -1638,7 +1646,8 @@ check_conflicting_open(const struct dentry *dentry, const long arg, int flags)
 	if (flags & FL_LAYOUT)
 		return 0;
 
-	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
+	if ((arg == F_RDLCK) &&
+	    (atomic_read(&d_real_inode(dentry)->i_writecount) > 0))
 		return -EAGAIN;
 
 	if ((arg == F_WRLCK) && ((d_count(dentry) > 1) ||
@@ -1653,7 +1662,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 {
 	struct file_lock *fl, *my_fl = NULL, *lease;
 	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = dentry->d_inode;
 	struct file_lock_context *ctx;
 	bool is_deleg = (*flp)->fl_flags & FL_DELEG;
 	int error;
@@ -1769,7 +1778,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 {
 	int error = -EAGAIN;
 	struct file_lock *fl, *victim = NULL;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	LIST_HEAD(dispose);
 
@@ -1811,7 +1820,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
 int generic_setlease(struct file *filp, long arg, struct file_lock **flp,
 			void **priv)
 {
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	int error;
 
 	if ((!uid_eq(current_fsuid(), inode->i_uid)) && !capable(CAP_LEASE))
@@ -1849,8 +1858,8 @@ EXPORT_SYMBOL(generic_setlease);
  *
  * Call this to establish a lease on the file. The "lease" argument is not
  * used for F_UNLCK requests and may be NULL. For commands that set or alter
- * an existing lease, the (*lease)->fl_lmops->lm_break operation must be set;
- * if not, this function will return -ENOLCK (and generate a scary-looking
+ * an existing lease, the ``(*lease)->fl_lmops->lm_break`` operation must be
+ * set; if not, this function will return -ENOLCK (and generate a scary-looking
  * stack trace).
  *
  * The "priv" pointer is passed directly to the lm_setup function as-is. It
@@ -1859,7 +1868,7 @@ EXPORT_SYMBOL(generic_setlease);
 int
 vfs_setlease(struct file *filp, long arg, struct file_lock **lease, void **priv)
 {
-	if (filp->f_op->setlease)
+	if (filp->f_op->setlease && is_remote_lock(filp))
 		return filp->f_op->setlease(filp, arg, lease, priv);
 	else
 		return generic_setlease(filp, arg, lease, priv);
@@ -1963,15 +1972,13 @@ EXPORT_SYMBOL(locks_lock_inode_wait);
  *	@cmd: the type of lock to apply.
  *
  *	Apply a %FL_FLOCK style lock to an open file descriptor.
- *	The @cmd can be one of
+ *	The @cmd can be one of:
  *
- *	%LOCK_SH -- a shared lock.
- *
- *	%LOCK_EX -- an exclusive lock.
- *
- *	%LOCK_UN -- remove an existing lock.
- *
- *	%LOCK_MAND -- a `mandatory' flock.  This exists to emulate Windows Share Modes.
+ *	- %LOCK_SH -- a shared lock.
+ *	- %LOCK_EX -- an exclusive lock.
+ *	- %LOCK_UN -- remove an existing lock.
+ *	- %LOCK_MAND -- a 'mandatory' flock.
+ *	  This exists to emulate Windows Share Modes.
  *
  *	%LOCK_MAND can be combined with %LOCK_READ or %LOCK_WRITE to allow other
  *	processes read and write access respectively.
@@ -2008,7 +2015,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	if (error)
 		goto out_free;
 
-	if (f.file->f_op->flock)
+	if (f.file->f_op->flock && is_remote_lock(f.file))
 		error = f.file->f_op->flock(f.file,
 					  (can_sleep) ? F_SETLKW : F_SETLK,
 					  lock);
@@ -2034,7 +2041,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
  */
 int vfs_test_lock(struct file *filp, struct file_lock *fl)
 {
-	if (filp->f_op->lock)
+	if (filp->f_op->lock && is_remote_lock(filp))
 		return filp->f_op->lock(filp, F_GETLK, fl);
 	posix_test_lock(filp, fl);
 	return 0;
@@ -2077,26 +2084,22 @@ static void posix_lock_to_flock64(struct flock64 *flock, struct file_lock *fl)
 /* Report the first existing lock that would conflict with l.
  * This implements the F_GETLK command of fcntl().
  */
-int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock __user *l)
+int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock *flock)
 {
 	struct file_lock file_lock;
-	struct flock flock;
 	int error;
 
-	error = -EFAULT;
-	if (copy_from_user(&flock, l, sizeof(flock)))
-		goto out;
 	error = -EINVAL;
-	if ((flock.l_type != F_RDLCK) && (flock.l_type != F_WRLCK))
+	if (flock->l_type != F_RDLCK && flock->l_type != F_WRLCK)
 		goto out;
 
-	error = flock_to_posix_lock(filp, &file_lock, &flock);
+	error = flock_to_posix_lock(filp, &file_lock, flock);
 	if (error)
 		goto out;
 
 	if (cmd == F_OFD_GETLK) {
 		error = -EINVAL;
-		if (flock.l_pid != 0)
+		if (flock->l_pid != 0)
 			goto out;
 
 		cmd = F_GETLK;
@@ -2108,15 +2111,12 @@ int fcntl_getlk(struct file *filp, unsigned int cmd, struct flock __user *l)
 	if (error)
 		goto out;
  
-	flock.l_type = file_lock.fl_type;
+	flock->l_type = file_lock.fl_type;
 	if (file_lock.fl_type != F_UNLCK) {
-		error = posix_lock_to_flock(&flock, &file_lock);
+		error = posix_lock_to_flock(flock, &file_lock);
 		if (error)
 			goto rel_priv;
 	}
-	error = -EFAULT;
-	if (!copy_to_user(l, &flock, sizeof(flock)))
-		error = 0;
 rel_priv:
 	locks_release_private(&file_lock);
 out:
@@ -2158,7 +2158,7 @@ out:
  */
 int vfs_lock_file(struct file *filp, unsigned int cmd, struct file_lock *fl, struct file_lock *conf)
 {
-	if (filp->f_op->lock)
+	if (filp->f_op->lock && is_remote_lock(filp))
 		return filp->f_op->lock(filp, cmd, fl);
 	else
 		return posix_lock_file(filp, fl, conf);
@@ -2209,25 +2209,15 @@ check_fmode_for_setlk(struct file_lock *fl)
  * This implements both the F_SETLK and F_SETLKW commands of fcntl().
  */
 int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
-		struct flock __user *l)
+		struct flock *flock)
 {
 	struct file_lock *file_lock = locks_alloc_lock();
-	struct flock flock;
-	struct inode *inode;
+	struct inode *inode = locks_inode(filp);
 	struct file *f;
 	int error;
 
 	if (file_lock == NULL)
 		return -ENOLCK;
-
-	inode = file_inode(filp);
-
-	/*
-	 * This might block, so we do it before checking the inode.
-	 */
-	error = -EFAULT;
-	if (copy_from_user(&flock, l, sizeof(flock)))
-		goto out;
 
 	/* Don't allow mandatory locks on files that may be memory mapped
 	 * and shared.
@@ -2237,7 +2227,7 @@ int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
 		goto out;
 	}
 
-	error = flock_to_posix_lock(filp, file_lock, &flock);
+	error = flock_to_posix_lock(filp, file_lock, flock);
 	if (error)
 		goto out;
 
@@ -2252,7 +2242,7 @@ int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case F_OFD_SETLK:
 		error = -EINVAL;
-		if (flock.l_pid != 0)
+		if (flock->l_pid != 0)
 			goto out;
 
 		cmd = F_SETLK;
@@ -2261,7 +2251,7 @@ int fcntl_setlk(unsigned int fd, struct file *filp, unsigned int cmd,
 		break;
 	case F_OFD_SETLKW:
 		error = -EINVAL;
-		if (flock.l_pid != 0)
+		if (flock->l_pid != 0)
 			goto out;
 
 		cmd = F_SETLKW;
@@ -2306,26 +2296,22 @@ out:
 /* Report the first existing lock that would conflict with l.
  * This implements the F_GETLK command of fcntl().
  */
-int fcntl_getlk64(struct file *filp, unsigned int cmd, struct flock64 __user *l)
+int fcntl_getlk64(struct file *filp, unsigned int cmd, struct flock64 *flock)
 {
 	struct file_lock file_lock;
-	struct flock64 flock;
 	int error;
 
-	error = -EFAULT;
-	if (copy_from_user(&flock, l, sizeof(flock)))
-		goto out;
 	error = -EINVAL;
-	if ((flock.l_type != F_RDLCK) && (flock.l_type != F_WRLCK))
+	if (flock->l_type != F_RDLCK && flock->l_type != F_WRLCK)
 		goto out;
 
-	error = flock64_to_posix_lock(filp, &file_lock, &flock);
+	error = flock64_to_posix_lock(filp, &file_lock, flock);
 	if (error)
 		goto out;
 
 	if (cmd == F_OFD_GETLK) {
 		error = -EINVAL;
-		if (flock.l_pid != 0)
+		if (flock->l_pid != 0)
 			goto out;
 
 		cmd = F_GETLK64;
@@ -2337,13 +2323,9 @@ int fcntl_getlk64(struct file *filp, unsigned int cmd, struct flock64 __user *l)
 	if (error)
 		goto out;
 
-	flock.l_type = file_lock.fl_type;
+	flock->l_type = file_lock.fl_type;
 	if (file_lock.fl_type != F_UNLCK)
-		posix_lock_to_flock64(&flock, &file_lock);
-
-	error = -EFAULT;
-	if (!copy_to_user(l, &flock, sizeof(flock)))
-		error = 0;
+		posix_lock_to_flock64(flock, &file_lock);
 
 	locks_release_private(&file_lock);
 out:
@@ -2354,25 +2336,15 @@ out:
  * This implements both the F_SETLK and F_SETLKW commands of fcntl().
  */
 int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
-		struct flock64 __user *l)
+		struct flock64 *flock)
 {
 	struct file_lock *file_lock = locks_alloc_lock();
-	struct flock64 flock;
-	struct inode *inode;
+	struct inode *inode = locks_inode(filp);
 	struct file *f;
 	int error;
 
 	if (file_lock == NULL)
 		return -ENOLCK;
-
-	/*
-	 * This might block, so we do it before checking the inode.
-	 */
-	error = -EFAULT;
-	if (copy_from_user(&flock, l, sizeof(flock)))
-		goto out;
-
-	inode = file_inode(filp);
 
 	/* Don't allow mandatory locks on files that may be memory mapped
 	 * and shared.
@@ -2382,7 +2354,7 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 		goto out;
 	}
 
-	error = flock64_to_posix_lock(filp, file_lock, &flock);
+	error = flock64_to_posix_lock(filp, file_lock, flock);
 	if (error)
 		goto out;
 
@@ -2397,7 +2369,7 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case F_OFD_SETLK:
 		error = -EINVAL;
-		if (flock.l_pid != 0)
+		if (flock->l_pid != 0)
 			goto out;
 
 		cmd = F_SETLK64;
@@ -2406,7 +2378,7 @@ int fcntl_setlk64(unsigned int fd, struct file *filp, unsigned int cmd,
 		break;
 	case F_OFD_SETLKW:
 		error = -EINVAL;
-		if (flock.l_pid != 0)
+		if (flock->l_pid != 0)
 			goto out;
 
 		cmd = F_SETLKW64;
@@ -2455,6 +2427,7 @@ out:
 void locks_remove_posix(struct file *filp, fl_owner_t owner)
 {
 	int error;
+	struct inode *inode = locks_inode(filp);
 	struct file_lock lock;
 	struct file_lock_context *ctx;
 
@@ -2463,7 +2436,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	 * posix_lock_file().  Another process could be setting a lock on this
 	 * file at the same time, but we wouldn't remove that lock anyway.
 	 */
-	ctx =  smp_load_acquire(&file_inode(filp)->i_flctx);
+	ctx =  smp_load_acquire(&inode->i_flctx);
 	if (!ctx || list_empty(&ctx->flc_posix))
 		return;
 
@@ -2481,7 +2454,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 
 	if (lock.fl_ops && lock.fl_ops->fl_release_private)
 		lock.fl_ops->fl_release_private(&lock);
-	trace_locks_remove_posix(file_inode(filp), &lock, error);
+	trace_locks_remove_posix(inode, &lock, error);
 }
 
 EXPORT_SYMBOL(locks_remove_posix);
@@ -2494,16 +2467,16 @@ locks_remove_flock(struct file *filp, struct file_lock_context *flctx)
 		.fl_owner = filp,
 		.fl_pid = current->tgid,
 		.fl_file = filp,
-		.fl_flags = FL_FLOCK,
+		.fl_flags = FL_FLOCK | FL_CLOSE,
 		.fl_type = F_UNLCK,
 		.fl_end = OFFSET_MAX,
 	};
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 
 	if (list_empty(&flctx->flc_flock))
 		return;
 
-	if (filp->f_op->flock)
+	if (filp->f_op->flock && is_remote_lock(filp))
 		filp->f_op->flock(filp, F_SETLKW, &fl);
 	else
 		flock_lock_inode(inode, &fl);
@@ -2522,11 +2495,14 @@ locks_remove_lease(struct file *filp, struct file_lock_context *ctx)
 	if (list_empty(&ctx->flc_lease))
 		return;
 
+	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, fl_list)
 		if (filp == fl->fl_file)
 			lease_modify(fl, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
+	percpu_up_read_preempt_enable(&file_rwsem);
+
 	locks_dispose_list(&dispose);
 }
 
@@ -2537,7 +2513,7 @@ void locks_remove_file(struct file *filp)
 {
 	struct file_lock_context *ctx;
 
-	ctx = smp_load_acquire(&file_inode(filp)->i_flctx);
+	ctx = smp_load_acquire(&locks_inode(filp)->i_flctx);
 	if (!ctx)
 		return;
 
@@ -2581,7 +2557,7 @@ EXPORT_SYMBOL(posix_unblock_lock);
  */
 int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
 {
-	if (filp->f_op->lock)
+	if (filp->f_op->lock && is_remote_lock(filp))
 		return filp->f_op->lock(filp, F_CANCELLK, fl);
 	return 0;
 }
@@ -2620,7 +2596,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 		fl_pid = fl->fl_pid;
 
 	if (fl->fl_file != NULL)
-		inode = file_inode(fl->fl_file);
+		inode = locks_inode(fl->fl_file);
 
 	seq_printf(f, "%lld:%s ", id, pfx);
 	if (IS_POSIX(fl)) {
@@ -2726,7 +2702,7 @@ static void __show_fd_locks(struct seq_file *f,
 void show_fd_locks(struct seq_file *f,
 		  struct file *filp, struct files_struct *files)
 {
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	int id = 0;
 

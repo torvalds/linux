@@ -18,7 +18,6 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/if_bridge.h>
@@ -507,7 +506,7 @@ qca8k_setup(struct dsa_switch *ds)
 		pr_warn("regmap initialization failed");
 
 	/* Initialize CPU port pad mode (xMII type, delays...) */
-	phy_mode = of_get_phy_mode(ds->ports[ds->dst->cpu_port].dn);
+	phy_mode = of_get_phy_mode(ds->dst->cpu_dp->dn);
 	if (phy_mode < 0) {
 		pr_err("Can't find phy-mode for master device\n");
 		return phy_mode;
@@ -746,17 +745,14 @@ qca8k_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 }
 
 static int
-qca8k_port_bridge_join(struct dsa_switch *ds, int port,
-		       struct net_device *bridge)
+qca8k_port_bridge_join(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	int port_mask = BIT(QCA8K_CPU_PORT);
 	int i;
 
-	priv->port_sts[port].bridge_dev = bridge;
-
 	for (i = 1; i < QCA8K_NUM_PORTS; i++) {
-		if (priv->port_sts[i].bridge_dev != bridge)
+		if (ds->ports[i].bridge_dev != br)
 			continue;
 		/* Add this port to the portvlan mask of the other ports
 		 * in the bridge
@@ -775,14 +771,13 @@ qca8k_port_bridge_join(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_port_bridge_leave(struct dsa_switch *ds, int port)
+qca8k_port_bridge_leave(struct dsa_switch *ds, int port, struct net_device *br)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	int i;
 
 	for (i = 1; i < QCA8K_NUM_PORTS; i++) {
-		if (priv->port_sts[i].bridge_dev !=
-		    priv->port_sts[port].bridge_dev)
+		if (ds->ports[i].bridge_dev != br)
 			continue;
 		/* Remove this port to the portvlan mask of the other ports
 		 * in the bridge
@@ -791,7 +786,7 @@ qca8k_port_bridge_leave(struct dsa_switch *ds, int port)
 				QCA8K_PORT_LOOKUP_CTRL(i),
 				BIT(port));
 	}
-	priv->port_sts[port].bridge_dev = NULL;
+
 	/* Set the cpu port to be the only one in the portvlan mask of
 	 * this port
 	 */
@@ -877,7 +872,7 @@ qca8k_port_fdb_del(struct dsa_switch *ds, int port,
 static int
 qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 		    struct switchdev_obj_port_fdb *fdb,
-		    int (*cb)(struct switchdev_obj *obj))
+		    switchdev_obj_dump_cb_t *cb)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	struct qca8k_fdb _fdb = { 0 };
@@ -911,7 +906,7 @@ qca8k_get_tag_protocol(struct dsa_switch *ds)
 	return DSA_TAG_PROTO_QCA;
 }
 
-static struct dsa_switch_ops qca8k_switch_ops = {
+static const struct dsa_switch_ops qca8k_switch_ops = {
 	.get_tag_protocol	= qca8k_get_tag_protocol,
 	.setup			= qca8k_setup,
 	.get_strings		= qca8k_get_strings,
@@ -954,17 +949,16 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	if (id != QCA8K_ID_QCA8337)
 		return -ENODEV;
 
-	priv->ds = devm_kzalloc(&mdiodev->dev, sizeof(*priv->ds), GFP_KERNEL);
+	priv->ds = dsa_switch_alloc(&mdiodev->dev, DSA_MAX_PORTS);
 	if (!priv->ds)
 		return -ENOMEM;
 
 	priv->ds->priv = priv;
-	priv->ds->dev = &mdiodev->dev;
 	priv->ds->ops = &qca8k_switch_ops;
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 
-	return dsa_register_switch(priv->ds, priv->ds->dev->of_node);
+	return dsa_register_switch(priv->ds);
 }
 
 static void

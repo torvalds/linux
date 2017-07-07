@@ -307,20 +307,6 @@ out:
 	return 0;
 }
 
-static struct pci_dev *pcie_find_root_port(struct pci_dev *dev)
-{
-	while (1) {
-		if (!pci_is_pcie(dev))
-			break;
-		if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
-			return dev;
-		if (!dev->bus->self)
-			break;
-		dev = dev->bus->self;
-	}
-	return NULL;
-}
-
 static int find_aer_device_iter(struct device *device, void *data)
 {
 	struct pcie_device **result = data;

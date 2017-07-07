@@ -1,12 +1,12 @@
 /*
-* This is part of the rtl8192 driver
-* released under the GPL (See file COPYING for details).
-*
-* This files contains programming code for the rtl8256
-* radio frontend.
-*
-* *Many* thanks to Realtek Corp. for their great support!
-*/
+ * This is part of the rtl8192 driver
+ * released under the GPL (See file COPYING for details).
+ *
+ * This files contains programming code for the rtl8256
+ * radio frontend.
+ *
+ * *Many* thanks to Realtek Corp. for their great support!
+ */
 
 #include "r8192U.h"
 #include "r8192U_hw.h"

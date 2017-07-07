@@ -10,7 +10,7 @@ struct nvkm_iccsense_sensor {
 	enum nvbios_extdev_type type;
 	struct i2c_adapter *i2c;
 	u8 addr;
-	u8 rail_mask;
+	u16 config;
 };
 
 struct nvkm_iccsense_rail {

@@ -39,7 +39,7 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__section(.init.text) __cold notrace
+#define __init		__section(.init.text) __cold __inittrace __latent_entropy
 #define __initdata	__section(.init.data)
 #define __initconst	__section(.init.rodata)
 #define __exitdata	__section(.exit.data)
@@ -68,14 +68,17 @@
 
 #ifdef MODULE
 #define __exitused
+#define __inittrace notrace
 #else
 #define __exitused  __used
+#define __inittrace
 #endif
 
 #define __exit          __section(.exit.text) __exitused __cold notrace
 
 /* Used for MEMORY_HOTPLUG */
-#define __meminit        __section(.meminit.text) __cold notrace
+#define __meminit        __section(.meminit.text) __cold notrace \
+						  __latent_entropy
 #define __meminitdata    __section(.meminit.data)
 #define __meminitconst   __section(.meminit.rodata)
 #define __memexit        __section(.memexit.text) __exitused __cold notrace
@@ -125,7 +128,10 @@ void prepare_namespace(void);
 void __init load_default_modules(void);
 int __init init_rootfs(void);
 
-#ifdef CONFIG_DEBUG_RODATA
+#if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
+extern bool rodata_enabled;
+#endif
+#ifdef CONFIG_STRICT_KERNEL_RWX
 void mark_rodata_ro(void);
 #endif
 
@@ -139,24 +145,8 @@ extern bool initcall_debug;
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_LTO
-/* Work around a LTO gcc problem: when there is no reference to a variable
- * in a module it will be moved to the end of the program. This causes
- * reordering of initcalls which the kernel does not like.
- * Add a dummy reference function to avoid this. The function is
- * deleted by the linker.
- */
-#define LTO_REFERENCE_INITCALL(x) \
-	; /* yes this is needed */			\
-	static __used __exit void *reference_##x(void)	\
-	{						\
-		return &x;				\
-	}
-#else
-#define LTO_REFERENCE_INITCALL(x)
-#endif
-
-/* initcalls are now grouped by functionality into separate 
+/*
+ * initcalls are now grouped by functionality into separate
  * subsections. Ordering inside the subsections is determined
  * by link order. 
  * For backwards compatibility, initcall() puts the call in 
@@ -164,12 +154,16 @@ extern bool initcall_debug;
  *
  * The `id' arg to __define_initcall() is needed so that multiple initcalls
  * can point at the same handler without causing duplicate-symbol build errors.
+ *
+ * Initcalls are run by placing pointers in initcall sections that the
+ * kernel iterates at runtime. The linker can do dead code / data elimination
+ * and remove that completely, so the initcall sections have to be marked
+ * as KEEP() in the linker script.
  */
 
 #define __define_initcall(fn, id) \
 	static initcall_t __initcall_##fn##id __used \
-	__attribute__((__section__(".initcall" #id ".init"))) = fn; \
-	LTO_REFERENCE_INITCALL(__initcall_##fn##id)
+	__attribute__((__section__(".initcall" #id ".init"))) = fn;
 
 /*
  * Early initcalls run before initializing SMP.
@@ -205,15 +199,15 @@ extern bool initcall_debug;
 
 #define __initcall(fn) device_initcall(fn)
 
-#define __exitcall(fn) \
+#define __exitcall(fn)						\
 	static exitcall_t __exitcall_##fn __exit_call = fn
 
-#define console_initcall(fn) \
-	static initcall_t __initcall_##fn \
+#define console_initcall(fn)					\
+	static initcall_t __initcall_##fn			\
 	__used __section(.con_initcall.init) = fn
 
-#define security_initcall(fn) \
-	static initcall_t __initcall_##fn \
+#define security_initcall(fn)					\
+	static initcall_t __initcall_##fn			\
 	__used __section(.security_initcall.init) = fn
 
 struct obs_kernel_param {

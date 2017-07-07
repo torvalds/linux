@@ -26,6 +26,7 @@
 #include "smb2pdu.h"
 #include "smb2proto.h"
 #include "smb2status.h"
+#include "smb2glob.h"
 
 struct status_to_posix_error {
 	__le32 smb2_status;
@@ -2449,10 +2450,10 @@ smb2_print_status(__le32 status)
 int
 map_smb2_to_linux_error(char *buf, bool log_err)
 {
-	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
+	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
 	unsigned int i;
 	int rc = -EIO;
-	__le32 smb2err = hdr->Status;
+	__le32 smb2err = shdr->Status;
 
 	if (smb2err == 0)
 		return 0;

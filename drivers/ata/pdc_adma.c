@@ -21,7 +21,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *
  *  Supports ATA disks in single-packet ADMA mode.

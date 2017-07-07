@@ -169,7 +169,7 @@ static void bigmac_stop(struct bigmac *bp)
 
 static void bigmac_get_counters(struct bigmac *bp, void __iomem *bregs)
 {
-	struct net_device_stats *stats = &bp->enet_stats;
+	struct net_device_stats *stats = &bp->dev->stats;
 
 	stats->rx_crc_errors += sbus_readl(bregs + BMAC_RCRCECTR);
 	sbus_writel(0, bregs + BMAC_RCRCECTR);
@@ -623,6 +623,7 @@ static int bigmac_init_hw(struct bigmac *bp, int from_irq)
 	void __iomem *gregs        = bp->gregs;
 	void __iomem *cregs        = bp->creg;
 	void __iomem *bregs        = bp->bregs;
+	__u32 bblk_dvma = (__u32)bp->bblock_dvma;
 	unsigned char *e = &bp->dev->dev_addr[0];
 
 	/* Latch current counters into statistics. */
@@ -671,9 +672,9 @@ static int bigmac_init_hw(struct bigmac *bp, int from_irq)
 		    bregs + BMAC_XIFCFG);
 
 	/* Tell the QEC where the ring descriptors are. */
-	sbus_writel(bp->bblock_dvma + bib_offset(be_rxd, 0),
+	sbus_writel(bblk_dvma + bib_offset(be_rxd, 0),
 		    cregs + CREG_RXDS);
-	sbus_writel(bp->bblock_dvma + bib_offset(be_txd, 0),
+	sbus_writel(bblk_dvma + bib_offset(be_txd, 0),
 		    cregs + CREG_TXDS);
 
 	/* Setup the FIFO pointers into QEC local memory. */
@@ -773,8 +774,8 @@ static void bigmac_tx(struct bigmac *bp)
 		if (this->tx_flags & TXD_OWN)
 			break;
 		skb = bp->tx_skbs[elem];
-		bp->enet_stats.tx_packets++;
-		bp->enet_stats.tx_bytes += skb->len;
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
 		dma_unmap_single(&bp->bigmac_op->dev,
 				 this->tx_addr, skb->len,
 				 DMA_TO_DEVICE);
@@ -810,12 +811,12 @@ static void bigmac_rx(struct bigmac *bp)
 
 		/* Check for errors. */
 		if (len < ETH_ZLEN) {
-			bp->enet_stats.rx_errors++;
-			bp->enet_stats.rx_length_errors++;
+			bp->dev->stats.rx_errors++;
+			bp->dev->stats.rx_length_errors++;
 
 	drop_it:
 			/* Return it to the BigMAC. */
-			bp->enet_stats.rx_dropped++;
+			bp->dev->stats.rx_dropped++;
 			this->rx_flags =
 				(RXD_OWN | ((RX_BUF_ALLOC_SIZE - 34) & RXD_LENGTH));
 			goto next;
@@ -874,8 +875,8 @@ static void bigmac_rx(struct bigmac *bp)
 		/* No checksums done by the BigMAC ;-( */
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		netif_rx(skb);
-		bp->enet_stats.rx_packets++;
-		bp->enet_stats.rx_bytes += len;
+		bp->dev->stats.rx_packets++;
+		bp->dev->stats.rx_bytes += len;
 	next:
 		elem = NEXT_RX(elem);
 		this = &rxbase[elem];
@@ -986,7 +987,7 @@ static struct net_device_stats *bigmac_get_stats(struct net_device *dev)
 	struct bigmac *bp = netdev_priv(dev);
 
 	bigmac_get_counters(bp, bp->bregs);
-	return &bp->enet_stats;
+	return &dev->stats;
 }
 
 static void bigmac_set_multicast(struct net_device *dev)
@@ -1064,7 +1065,6 @@ static const struct net_device_ops bigmac_ops = {
 	.ndo_get_stats		= bigmac_get_stats,
 	.ndo_set_rx_mode	= bigmac_set_multicast,
 	.ndo_tx_timeout		= bigmac_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

@@ -62,7 +62,7 @@ int powernv_get_random_real_mode(unsigned long *v)
 
 	rng = raw_cpu_read(powernv_rng);
 
-	*v = rng_whiten(rng, in_rm64(rng->regs_real));
+	*v = rng_whiten(rng, __raw_rm_readq(rng->regs_real));
 
 	return 1;
 }

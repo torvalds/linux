@@ -1,0 +1,37 @@
+Sitronix ST7789V RGB panel with SPI control bus
+
+Required properties:
+  - compatible: "sitronix,st7789v"
+  - reg: Chip select of the panel on the SPI bus
+  - reset-gpios: a GPIO phandle for the reset pin
+  - power-supply: phandle of the regulator that provides the supply voltage
+
+Optional properties:
+  - backlight: phandle to the backlight used
+
+The generic bindings for the SPI slaves documented in [1] also applies
+
+The device node can contain one 'port' child node with one child
+'endpoint' node, according to the bindings defined in [2]. This
+node should describe panel's video bus.
+
+[1]: Documentation/devicetree/bindings/spi/spi-bus.txt
+[2]: Documentation/devicetree/bindings/graph.txt
+
+Example:
+
+panel@0 {
+	compatible = "sitronix,st7789v";
+	reg = <0>;
+	reset-gpios = <&pio 6 11 GPIO_ACTIVE_LOW>;
+	backlight = <&pwm_bl>;
+	spi-max-frequency = <100000>;
+	spi-cpol;
+	spi-cpha;
+
+	port {
+		panel_input: endpoint {
+			remote-endpoint = <&tcon0_out_panel>;
+		};
+	};
+};

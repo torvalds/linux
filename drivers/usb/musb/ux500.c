@@ -30,7 +30,7 @@
 
 #include "musb_core.h"
 
-static struct musb_hdrc_config ux500_musb_hdrc_config = {
+static const struct musb_hdrc_config ux500_musb_hdrc_config = {
 	.multipoint	= true,
 	.dyn_fifo	= true,
 	.num_eps	= 16,

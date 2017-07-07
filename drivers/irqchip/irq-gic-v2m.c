@@ -16,6 +16,7 @@
 #define pr_fmt(fmt) "GICv2m: " fmt
 
 #include <linux/acpi.h>
+#include <linux/dma-iommu.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
@@ -108,6 +109,8 @@ static void gicv2m_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 
 	if (v2m->flags & GICV2M_NEEDS_SPI_OFFSET)
 		msg->data -= v2m->spi_offset;
+
+	iommu_dma_map_msi_msg(data->irq, msg);
 }
 
 static struct irq_chip gicv2m_irq_chip = {
@@ -277,7 +280,7 @@ static int gicv2m_allocate_domains(struct irq_domain *parent)
 		return -ENOMEM;
 	}
 
-	inner_domain->bus_token = DOMAIN_BUS_NEXUS;
+	irq_domain_update_bus_token(inner_domain, DOMAIN_BUS_NEXUS);
 	inner_domain->parent = parent;
 	pci_domain = pci_msi_create_irq_domain(v2m->fwnode,
 					       &gicv2m_msi_domain_info,

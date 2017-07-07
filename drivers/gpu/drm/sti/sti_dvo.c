@@ -17,6 +17,7 @@
 #include <drm/drm_panel.h>
 
 #include "sti_awg_utils.h"
+#include "sti_drv.h"
 #include "sti_mixer.h"
 
 /* DVO registers */
@@ -106,7 +107,7 @@ struct sti_dvo_connector {
 	container_of(x, struct sti_dvo_connector, drm_connector)
 
 #define BLANKING_LEVEL 16
-int dvo_awg_generate_code(struct sti_dvo *dvo, u8 *ram_size, u32 *ram_code)
+static int dvo_awg_generate_code(struct sti_dvo *dvo, u8 *ram_size, u32 *ram_code)
 {
 	struct drm_display_mode *mode = &dvo->mode;
 	struct dvo_config *config = dvo->config;
@@ -193,13 +194,6 @@ static int dvo_dbg_show(struct seq_file *s, void *data)
 static struct drm_info_list dvo_debugfs_files[] = {
 	{ "dvo", dvo_dbg_show, 0, NULL },
 };
-
-static void dvo_debugfs_exit(struct sti_dvo *dvo, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(dvo_debugfs_files,
-				 ARRAY_SIZE(dvo_debugfs_files),
-				 minor);
-}
 
 static int dvo_debugfs_init(struct sti_dvo *dvo, struct drm_minor *minor)
 {
@@ -477,14 +471,13 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 		return err;
 	}
 
-	err = drm_bridge_attach(drm_dev, bridge);
+	err = drm_bridge_attach(encoder, bridge, NULL);
 	if (err) {
 		DRM_ERROR("Failed to attach bridge\n");
 		return err;
 	}
 
 	dvo->bridge = bridge;
-	encoder->bridge = bridge;
 	connector->encoder = encoder;
 	dvo->encoder = encoder;
 
@@ -514,9 +507,6 @@ static void sti_dvo_unbind(struct device *dev,
 			   struct device *master, void *data)
 {
 	struct sti_dvo *dvo = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
-
-	dvo_debugfs_exit(dvo, drm_dev->primary);
 
 	drm_bridge_remove(dvo->bridge);
 }

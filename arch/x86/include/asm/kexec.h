@@ -164,6 +164,7 @@ struct kimage_arch {
 };
 #else
 struct kimage_arch {
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -210,6 +211,7 @@ struct kexec_entry64_regs {
 
 typedef void crash_vmclear_fn(void);
 extern crash_vmclear_fn __rcu *crash_vmclear_loaded_vmcss;
+extern void kdump_nmi_shootdown_cpus(void);
 
 #endif /* __ASSEMBLY__ */
 

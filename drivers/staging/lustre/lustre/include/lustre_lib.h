@@ -42,7 +42,7 @@
  * @{
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/types.h>
 #include "../../include/linux/libcfs/libcfs.h"
@@ -201,7 +201,7 @@ struct l_wait_info {
 			   sigmask(SIGALRM))
 
 /**
- * wait_queue_t of Linux (version < 2.6.34) is a FIFO list for exclusively
+ * wait_queue_entry_t of Linux (version < 2.6.34) is a FIFO list for exclusively
  * waiting threads, which is not always desirable because all threads will
  * be waken up again and again, even user only needs a few of them to be
  * active most time. This is not good for performance because cache can
@@ -228,7 +228,7 @@ struct l_wait_info {
  */
 #define __l_wait_event(wq, condition, info, ret, l_add_wait)		   \
 do {									   \
-	wait_queue_t __wait;						 \
+	wait_queue_entry_t __wait;						 \
 	long __timeout = info->lwi_timeout;			  \
 	sigset_t   __blocked;					      \
 	int   __allow_intr = info->lwi_allow_intr;			     \
@@ -349,8 +349,6 @@ do {									   \
 	struct l_wait_info lwi = { 0 };			 \
 	l_wait_event_exclusive_head(wq, condition, &lwi);       \
 })
-
-#define LIBLUSTRE_CLIENT (0)
 
 /** @} lib */
 

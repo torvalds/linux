@@ -319,6 +319,9 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 	if (has_uart4) {
 		en_uart4_mask = OMAP3630_EN_UART4_MASK;
 		grpsel_uart4_mask = OMAP3630_GRPSEL_UART4_MASK;
+	} else {
+		en_uart4_mask = 0;
+		grpsel_uart4_mask = 0;
 	}
 
 	/* Enable wakeups in PER */
@@ -673,7 +676,7 @@ static struct prm_ll_data omap3xxx_prm_ll_data = {
 int __init omap3xxx_prm_init(const struct omap_prcm_init_data *data)
 {
 	omap2_clk_legacy_provider_init(TI_CLKM_PRM,
-				       prm_base + OMAP3430_IVA2_MOD);
+				       prm_base.va + OMAP3430_IVA2_MOD);
 	if (omap3_has_io_wakeup())
 		prm_features |= PRM_HAS_IO_WAKEUP;
 
@@ -687,6 +690,8 @@ static const struct of_device_id omap3_prm_dt_match_table[] = {
 
 static int omap3xxx_prm_late_init(void)
 {
+	struct device_node *np;
+	int irq_num;
 	int ret;
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
@@ -699,16 +704,11 @@ static int omap3xxx_prm_late_init(void)
 		omap3_prcm_irq_setup.reconfigure_io_chain =
 			omap3430_pre_es3_1_reconfigure_io_chain;
 
-	if (of_have_populated_dt()) {
-		struct device_node *np;
-		int irq_num;
-
-		np = of_find_matching_node(NULL, omap3_prm_dt_match_table);
-		if (np) {
-			irq_num = of_irq_get(np, 0);
-			if (irq_num >= 0)
-				omap3_prcm_irq_setup.irq = irq_num;
-		}
+	np = of_find_matching_node(NULL, omap3_prm_dt_match_table);
+	if (np) {
+		irq_num = of_irq_get(np, 0);
+		if (irq_num >= 0)
+			omap3_prcm_irq_setup.irq = irq_num;
 	}
 
 	omap3xxx_prm_enable_io_wakeup();

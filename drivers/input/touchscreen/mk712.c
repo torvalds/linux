@@ -50,11 +50,11 @@ MODULE_DESCRIPTION("ICS MicroClock MK712 TouchScreen driver");
 MODULE_LICENSE("GPL");
 
 static unsigned int mk712_io = 0x260;	/* Also 0x200, 0x208, 0x300 */
-module_param_named(io, mk712_io, uint, 0);
+module_param_hw_named(io, mk712_io, uint, ioport, 0);
 MODULE_PARM_DESC(io, "I/O base address of MK712 touchscreen controller");
 
 static unsigned int mk712_irq = 10;	/* Also 12, 14, 15 */
-module_param_named(irq, mk712_irq, uint, 0);
+module_param_hw_named(irq, mk712_irq, uint, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ of MK712 touchscreen controller");
 
 /* eight 8-bit registers */

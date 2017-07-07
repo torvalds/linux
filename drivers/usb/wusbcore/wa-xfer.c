@@ -1203,6 +1203,7 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 				sizeof(struct wa_xfer_packet_info_hwaiso) +
 				(seg_isoc_frame_count * sizeof(__le16));
 		}
+		result = -ENOMEM;
 		seg = xfer->seg[cnt] = kmalloc(alloc_size + iso_pkt_descr_size,
 						GFP_ATOMIC);
 		if (seg == NULL)

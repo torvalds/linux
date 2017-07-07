@@ -1,6 +1,6 @@
+#include <errno.h>
 
 #ifndef REMOTE_UNWIND_LIBUNWIND
-#include <errno.h>
 #include <libunwind.h>
 #include "perf_regs.h"
 #include "../../util/unwind.h"

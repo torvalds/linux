@@ -1,7 +1,6 @@
 config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
 	depends on DRM && ROCKCHIP_IOMMU
-	depends on RESET_CONTROLLER
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
@@ -14,7 +13,7 @@ config DRM_ROCKCHIP
 	  IP found on the SoC.
 
 config ROCKCHIP_ANALOGIX_DP
-	tristate "Rockchip specific extensions for Analogix DP driver"
+	bool "Rockchip specific extensions for Analogix DP driver"
 	depends on DRM_ROCKCHIP
 	select DRM_ANALOGIX_DP
 	help
@@ -22,8 +21,19 @@ config ROCKCHIP_ANALOGIX_DP
 	  for the Analogix Core DP driver. If you want to enable DP
 	  on RK3288 based SoC, you should selet this option.
 
+config ROCKCHIP_CDN_DP
+        bool "Rockchip cdn DP"
+        depends on DRM_ROCKCHIP
+	depends on EXTCON
+	select SND_SOC_HDMI_CODEC if SND_SOC
+        help
+	  This selects support for Rockchip SoC specific extensions
+	  for the cdn DP driver. If you want to enable Dp on
+	  RK3399 based SoC, you should select this
+	  option.
+
 config ROCKCHIP_DW_HDMI
-        tristate "Rockchip specific extensions for Synopsys DW HDMI"
+        bool "Rockchip specific extensions for Synopsys DW HDMI"
         depends on DRM_ROCKCHIP
         select DRM_DW_HDMI
         help
@@ -33,7 +43,7 @@ config ROCKCHIP_DW_HDMI
 	  option.
 
 config ROCKCHIP_DW_MIPI_DSI
-	tristate "Rockchip specific extensions for Synopsys DW MIPI DSI"
+	bool "Rockchip specific extensions for Synopsys DW MIPI DSI"
 	depends on DRM_ROCKCHIP
 	select DRM_MIPI_DSI
 	help
@@ -43,7 +53,7 @@ config ROCKCHIP_DW_MIPI_DSI
 	 option.
 
 config ROCKCHIP_INNO_HDMI
-	tristate "Rockchip specific extensions for Innosilicon HDMI"
+	bool "Rockchip specific extensions for Innosilicon HDMI"
 	depends on DRM_ROCKCHIP
 	help
 	  This selects support for Rockchip SoC specific extensions

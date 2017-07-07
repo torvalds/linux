@@ -24,9 +24,7 @@ struct bio *bch_bbio_alloc(struct cache_set *c)
 	struct bbio *b = mempool_alloc(c->bio_meta, GFP_NOIO);
 	struct bio *bio = &b->bio;
 
-	bio_init(bio);
-	bio->bi_max_vecs	 = bucket_pages(c);
-	bio->bi_io_vec		 = bio->bi_inline_vecs;
+	bio_init(bio, bio->bi_inline_vecs, bucket_pages(c));
 
 	return bio;
 }
@@ -52,7 +50,7 @@ void bch_submit_bbio(struct bio *bio, struct cache_set *c,
 
 /* IO errors */
 
-void bch_count_io_errors(struct cache *ca, int error, const char *m)
+void bch_count_io_errors(struct cache *ca, blk_status_t error, const char *m)
 {
 	/*
 	 * The halflife of an error is:
@@ -105,7 +103,7 @@ void bch_count_io_errors(struct cache *ca, int error, const char *m)
 }
 
 void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
-			      int error, const char *m)
+			      blk_status_t error, const char *m)
 {
 	struct bbio *b = container_of(bio, struct bbio, bio);
 	struct cache *ca = PTR_CACHE(c, &b->key, 0);
@@ -134,7 +132,7 @@ void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
 }
 
 void bch_bbio_endio(struct cache_set *c, struct bio *bio,
-		    int error, const char *m)
+		    blk_status_t error, const char *m)
 {
 	struct closure *cl = bio->bi_private;
 

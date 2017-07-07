@@ -183,8 +183,8 @@ static inline void padlock_store_cword(struct cword *cword)
 
 /*
  * While the padlock instructions don't use FP/SSE registers, they
- * generate a spurious DNA fault when cr0.ts is '1'. These instructions
- * should be used only inside the irq_ts_save/restore() context
+ * generate a spurious DNA fault when CR0.TS is '1'.  Fortunately,
+ * the kernel doesn't use CR0.TS.
  */
 
 static inline void rep_xcrypt_ecb(const u8 *input, u8 *output, void *key,
@@ -298,24 +298,18 @@ static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
-	int ts_state;
 
 	padlock_reset_key(&ctx->cword.encrypt);
-	ts_state = irq_ts_save();
 	ecb_crypt(in, out, ctx->E, &ctx->cword.encrypt, 1);
-	irq_ts_restore(ts_state);
 	padlock_store_cword(&ctx->cword.encrypt);
 }
 
 static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
-	int ts_state;
 
 	padlock_reset_key(&ctx->cword.encrypt);
-	ts_state = irq_ts_save();
 	ecb_crypt(in, out, ctx->D, &ctx->cword.decrypt, 1);
-	irq_ts_restore(ts_state);
 	padlock_store_cword(&ctx->cword.encrypt);
 }
 
@@ -346,14 +340,12 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
-	int ts_state;
 
 	padlock_reset_key(&ctx->cword.encrypt);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
-	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		padlock_xcrypt_ecb(walk.src.virt.addr, walk.dst.virt.addr,
 				   ctx->E, &ctx->cword.encrypt,
@@ -361,7 +353,6 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
-	irq_ts_restore(ts_state);
 
 	padlock_store_cword(&ctx->cword.encrypt);
 
@@ -375,14 +366,12 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
-	int ts_state;
 
 	padlock_reset_key(&ctx->cword.decrypt);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
-	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		padlock_xcrypt_ecb(walk.src.virt.addr, walk.dst.virt.addr,
 				   ctx->D, &ctx->cword.decrypt,
@@ -390,7 +379,6 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
-	irq_ts_restore(ts_state);
 
 	padlock_store_cword(&ctx->cword.encrypt);
 
@@ -425,14 +413,12 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
-	int ts_state;
 
 	padlock_reset_key(&ctx->cword.encrypt);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
-	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		u8 *iv = padlock_xcrypt_cbc(walk.src.virt.addr,
 					    walk.dst.virt.addr, ctx->E,
@@ -442,7 +428,6 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
-	irq_ts_restore(ts_state);
 
 	padlock_store_cword(&ctx->cword.decrypt);
 
@@ -456,14 +441,12 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
-	int ts_state;
 
 	padlock_reset_key(&ctx->cword.encrypt);
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
-	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		padlock_xcrypt_cbc(walk.src.virt.addr, walk.dst.virt.addr,
 				   ctx->D, walk.iv, &ctx->cword.decrypt,
@@ -471,8 +454,6 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
-
-	irq_ts_restore(ts_state);
 
 	padlock_store_cword(&ctx->cword.encrypt);
 

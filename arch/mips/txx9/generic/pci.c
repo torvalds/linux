@@ -29,12 +29,8 @@ static int __init
 early_read_config_word(struct pci_controller *hose,
 		       int top_bus, int bus, int devfn, int offset, u16 *value)
 {
-	struct pci_dev fake_dev;
 	struct pci_bus fake_bus;
 
-	fake_dev.bus = &fake_bus;
-	fake_dev.sysdata = hose;
-	fake_dev.devfn = devfn;
 	fake_bus.number = bus;
 	fake_bus.sysdata = hose;
 	fake_bus.ops = hose->pci_ops;
@@ -45,7 +41,7 @@ early_read_config_word(struct pci_controller *hose,
 	else
 		fake_bus.parent = NULL;
 
-	return pci_read_config_word(&fake_dev, offset, value);
+	return pci_bus_read_config_word(&fake_bus, devfn, offset, value);
 }
 
 int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
@@ -59,7 +55,7 @@ int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
 	/* It seems SLC90E66 needs some time after PCI reset... */
 	mdelay(80);
 
-	printk(KERN_INFO "PCI: Checking 66MHz capabilities...\n");
+	pr_info("PCI: Checking 66MHz capabilities...\n");
 
 	for (pci_devfn = 0; pci_devfn < 0xff; pci_devfn++) {
 		if (PCI_FUNC(pci_devfn))
@@ -78,9 +74,8 @@ int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
 			early_read_config_word(hose, top_bus, current_bus,
 					       pci_devfn, PCI_STATUS, &stat);
 			if (!(stat & PCI_STATUS_66MHZ)) {
-				printk(KERN_DEBUG
-				       "PCI: %02x:%02x not 66MHz capable.\n",
-				       current_bus, pci_devfn);
+				pr_debug("PCI: %02x:%02x not 66MHz capable.\n",
+					 current_bus, pci_devfn);
 				cap66 = 0;
 				break;
 			}
@@ -213,8 +208,8 @@ txx9_alloc_pci_controller(struct pci_controller *pcic,
 
 	pcic->mem_offset = 0;	/* busaddr == physaddr */
 
-	printk(KERN_INFO "PCI: IO %pR MEM %pR\n",
-	       &pcic->mem_resource[1], &pcic->mem_resource[0]);
+	pr_info("PCI: IO %pR MEM %pR\n", &pcic->mem_resource[1],
+		&pcic->mem_resource[0]);
 
 	/* register_pci_controller() will request MEM resource */
 	release_resource(&pcic->mem_resource[0]);
@@ -223,7 +218,7 @@ txx9_alloc_pci_controller(struct pci_controller *pcic,
 	release_resource(&pcic->mem_resource[0]);
  free_and_exit:
 	kfree(new);
-	printk(KERN_ERR "PCI: Failed to allocate resources.\n");
+	pr_err("PCI: Failed to allocate resources.\n");
 	return NULL;
 }
 
@@ -264,7 +259,7 @@ static int txx9_i8259_irq_setup(int irq)
 	err = request_irq(irq, &i8259_interrupt, IRQF_SHARED,
 			  "cascade(i8259)", (void *)(long)irq);
 	if (!err)
-		printk(KERN_INFO "PCI-ISA bridge PIC (irq %d)\n", irq);
+		pr_info("PCI-ISA bridge PIC (irq %d)\n", irq);
 	return err;
 }
 
@@ -312,13 +307,13 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 	/* SMSC SLC90E66 IDE uses irq 14, 15 (default) */
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, 14);
 	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &dat);
-	printk(KERN_INFO "PCI: %s: IRQ %02x", pci_name(dev), dat);
+	pr_info("PCI: %s: IRQ %02x", pci_name(dev), dat);
 	/* enable SMSC SLC90E66 IDE */
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		pci_read_config_byte(dev, regs[i], &dat);
 		pci_write_config_byte(dev, regs[i], dat | 0x80);
 		pci_read_config_byte(dev, regs[i], &dat);
-		printk(KERN_CONT " IDETIM%d %02x", i, dat);
+		pr_cont(" IDETIM%d %02x", i, dat);
 	}
 	pci_read_config_byte(dev, 0x5c, &dat);
 	/*
@@ -333,8 +328,7 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 	dat |= 0x01;
 	pci_write_config_byte(dev, 0x5c, dat);
 	pci_read_config_byte(dev, 0x5c, &dat);
-	printk(KERN_CONT " REG5C %02x", dat);
-	printk(KERN_CONT "\n");
+	pr_cont(" REG5C %02x\n", dat);
 }
 #endif /* CONFIG_TOSHIBA_FPCIB0 */
 
@@ -356,7 +350,7 @@ static void final_fixup(struct pci_dev *dev)
 	    (bist & PCI_BIST_CAPABLE)) {
 		unsigned long timeout;
 		pci_set_power_state(dev, PCI_D0);
-		printk(KERN_INFO "PCI: %s BIST...", pci_name(dev));
+		pr_info("PCI: %s BIST...", pci_name(dev));
 		pci_write_config_byte(dev, PCI_BIST, PCI_BIST_START);
 		timeout = jiffies + HZ * 2;	/* timeout after 2 sec */
 		do {
@@ -365,9 +359,9 @@ static void final_fixup(struct pci_dev *dev)
 				break;
 		} while (bist & PCI_BIST_START);
 		if (bist & (PCI_BIST_CODE_MASK | PCI_BIST_START))
-			printk(KERN_CONT "failed. (0x%x)\n", bist);
+			pr_cont("failed. (0x%x)\n", bist);
 		else
-			printk(KERN_CONT "OK.\n");
+			pr_cont("OK.\n");
 	}
 }
 

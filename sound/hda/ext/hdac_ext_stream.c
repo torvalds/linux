@@ -128,14 +128,17 @@ void snd_hdac_ext_stream_decouple(struct hdac_ext_bus *ebus,
 {
 	struct hdac_stream *hstream = &stream->hstream;
 	struct hdac_bus *bus = &ebus->bus;
+	u32 val;
+	int mask = AZX_PPCTL_PROCEN(hstream->index);
 
 	spin_lock_irq(&bus->reg_lock);
-	if (decouple)
-		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, 0,
-				AZX_PPCTL_PROCEN(hstream->index));
-	else
-		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL,
-					AZX_PPCTL_PROCEN(hstream->index), 0);
+	val = readw(bus->ppcap + AZX_REG_PP_PPCTL) & mask;
+
+	if (decouple && !val)
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, mask, mask);
+	else if (!decouple && val)
+		snd_hdac_updatel(bus->ppcap, AZX_REG_PP_PPCTL, mask, 0);
+
 	stream->decoupled = decouple;
 	spin_unlock_irq(&bus->reg_lock);
 }

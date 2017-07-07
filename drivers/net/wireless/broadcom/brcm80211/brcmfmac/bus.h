@@ -22,9 +22,11 @@
 /* IDs of the 6 default common rings of msgbuf protocol */
 #define BRCMF_H2D_MSGRING_CONTROL_SUBMIT	0
 #define BRCMF_H2D_MSGRING_RXPOST_SUBMIT		1
+#define BRCMF_H2D_MSGRING_FLOWRING_IDSTART	2
 #define BRCMF_D2H_MSGRING_CONTROL_COMPLETE	2
 #define BRCMF_D2H_MSGRING_TX_COMPLETE		3
 #define BRCMF_D2H_MSGRING_RX_COMPLETE		4
+
 
 #define BRCMF_NROF_H2D_COMMON_MSGRINGS		2
 #define BRCMF_NROF_D2H_COMMON_MSGRINGS		3
@@ -95,16 +97,31 @@ struct brcmf_bus_ops {
  * @flowrings: commonrings which are dynamically created and destroyed for data.
  * @rx_dataoffset: if set then all rx data has this this offset.
  * @max_rxbufpost: maximum number of buffers to post for rx.
- * @nrof_flowrings: number of flowrings.
+ * @max_flowrings: maximum number of tx flow rings supported.
+ * @max_submissionrings: maximum number of submission rings(h2d) supported.
+ * @max_completionrings: maximum number of completion rings(d2h) supported.
  */
 struct brcmf_bus_msgbuf {
 	struct brcmf_commonring *commonrings[BRCMF_NROF_COMMON_MSGRINGS];
 	struct brcmf_commonring **flowrings;
 	u32 rx_dataoffset;
 	u32 max_rxbufpost;
-	u32 nrof_flowrings;
+	u16 max_flowrings;
+	u16 max_submissionrings;
+	u16 max_completionrings;
 };
 
+
+/**
+ * struct brcmf_bus_stats - bus statistic counters.
+ *
+ * @pktcowed: packets cowed for extra headroom/unorphan.
+ * @pktcow_failed: packets dropped due to failed cow-ing.
+ */
+struct brcmf_bus_stats {
+	atomic_t pktcowed;
+	atomic_t pktcow_failed;
+};
 
 /**
  * struct brcmf_bus - interface structure between common and bus layer
@@ -114,11 +131,10 @@ struct brcmf_bus_msgbuf {
  * @dev: device pointer of bus device.
  * @drvr: public driver information.
  * @state: operational state of the bus interface.
+ * @stats: statistics shared between common and bus layer.
  * @maxctl: maximum size for rxctl request message.
- * @tx_realloc: number of tx packets realloced for headroom.
- * @dstats: dongle-based statistical data.
- * @dcmd_list: bus/device specific dongle initialization commands.
  * @chip: device identifier of the dongle chip.
+ * @always_use_fws_queue: bus wants use queue also when fwsignal is inactive.
  * @wowl_supported: is wowl supported by bus driver.
  * @chiprev: revision of the dongle chip.
  */
@@ -132,8 +148,8 @@ struct brcmf_bus {
 	struct device *dev;
 	struct brcmf_pub *drvr;
 	enum brcmf_bus_state state;
+	struct brcmf_bus_stats stats;
 	uint maxctl;
-	unsigned long tx_realloc;
 	u32 chip;
 	u32 chiprev;
 	bool always_use_fws_queue;
@@ -212,9 +228,6 @@ int brcmf_bus_get_memdump(struct brcmf_bus *bus, void *data, size_t len)
  * interface functions from common layer
  */
 
-bool brcmf_c_prec_enq(struct device *dev, struct pktq *q, struct sk_buff *pkt,
-		      int prec);
-
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
 void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp, bool handle_event);
 /* Receive async event packet from firmware. Callee disposes of rxp. */
@@ -226,22 +239,16 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings);
 void brcmf_detach(struct device *dev);
 /* Indication from bus module that dongle should be reset */
 void brcmf_dev_reset(struct device *dev);
-/* Indication from bus module to change flow-control state */
-void brcmf_txflowblock(struct device *dev, bool state);
-
-/* Notify the bus has transferred the tx packet to firmware */
-void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 
 /* Configure the "global" bus state used by upper layers */
 void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);
 
-int brcmf_bus_start(struct device *dev);
+int brcmf_bus_started(struct device *dev);
 s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len);
 void brcmf_bus_add_txhdrlen(struct device *dev, uint len);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
 void brcmf_sdio_exit(void);
-void brcmf_sdio_init(void);
 void brcmf_sdio_register(void);
 #endif
 #ifdef CONFIG_BRCMFMAC_USB

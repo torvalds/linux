@@ -43,12 +43,13 @@
  ---------------------------------------------------------------------------
  Issue Date: 31/01/2006
 
- An implementation of field multiplication in Galois Field GF(128)
+ An implementation of field multiplication in Galois Field GF(2^128)
 */
 
 #ifndef _CRYPTO_GF128MUL_H
 #define _CRYPTO_GF128MUL_H
 
+#include <asm/byteorder.h>
 #include <crypto/b128ops.h>
 #include <linux/slab.h>
 
@@ -65,7 +66,7 @@
  * are left and the lsb's are right. char b[16] is an array and b[0] is
  * the first octet.
  *
- * 80000000 00000000 00000000 00000000 .... 00000000 00000000 00000000
+ * 10000000 00000000 00000000 00000000 .... 00000000 00000000 00000000
  *   b[0]     b[1]     b[2]     b[3]          b[13]    b[14]    b[15]
  *
  * Every bit is a coefficient of some power of X. We can store the bits
@@ -85,15 +86,17 @@
  * Both of the above formats are easy to implement on big-endian
  * machines.
  *
- * EME (which is patent encumbered) uses the ble format (bits are stored
- * in big endian order and the bytes in little endian). The above buffer
- * represents X^7 in this case and the primitive polynomial is b[0] = 0x87.
+ * XTS and EME (the latter of which is patent encumbered) use the ble
+ * format (bits are stored in big endian order and the bytes in little
+ * endian). The above buffer represents X^7 in this case and the
+ * primitive polynomial is b[0] = 0x87.
  *
  * The common machine word-size is smaller than 128 bits, so to make
  * an efficient implementation we must split into machine word sizes.
- * This file uses one 32bit for the moment. Machine endianness comes into
- * play. The lle format in relation to machine endianness is discussed
- * below by the original author of gf128mul Dr Brian Gladman.
+ * This implementation uses 64-bit words for the moment. Machine
+ * endianness comes into play. The lle format in relation to machine
+ * endianness is discussed below by the original author of gf128mul Dr
+ * Brian Gladman.
  *
  * Let's look at the bbe and ble format on a little endian machine.
  *
@@ -127,10 +130,10 @@
  * machines this will automatically aligned to wordsize and on a 64-bit
  * machine also.
  */
-/*	Multiply a GF128 field element by x. Field elements are held in arrays
-    of bytes in which field bits 8n..8n + 7 are held in byte[n], with lower
-    indexed bits placed in the more numerically significant bit positions
-    within bytes.
+/*	Multiply a GF(2^128) field element by x. Field elements are
+    held in arrays of bytes in which field bits 8n..8n + 7 are held in
+    byte[n], with lower indexed bits placed in the more numerically
+    significant bit positions within bytes.
 
     On little endian machines the bit indexes translate into the bit
     positions within four 32-bit words in the following way
@@ -161,8 +164,58 @@ void gf128mul_lle(be128 *a, const be128 *b);
 
 void gf128mul_bbe(be128 *a, const be128 *b);
 
-/* multiply by x in ble format, needed by XTS */
-void gf128mul_x_ble(be128 *a, const be128 *b);
+/*
+ * The following functions multiply a field element by x in
+ * the polynomial field representation.  They use 64-bit word operations
+ * to gain speed but compensate for machine endianness and hence work
+ * correctly on both styles of machine.
+ *
+ * They are defined here for performance.
+ */
+
+static inline u64 gf128mul_mask_from_bit(u64 x, int which)
+{
+	/* a constant-time version of 'x & ((u64)1 << which) ? (u64)-1 : 0' */
+	return ((s64)(x << (63 - which)) >> 63);
+}
+
+static inline void gf128mul_x_lle(be128 *r, const be128 *x)
+{
+	u64 a = be64_to_cpu(x->a);
+	u64 b = be64_to_cpu(x->b);
+
+	/* equivalent to gf128mul_table_le[(b << 7) & 0xff] << 48
+	 * (see crypto/gf128mul.c): */
+	u64 _tt = gf128mul_mask_from_bit(b, 0) & ((u64)0xe1 << 56);
+
+	r->b = cpu_to_be64((b >> 1) | (a << 63));
+	r->a = cpu_to_be64((a >> 1) ^ _tt);
+}
+
+static inline void gf128mul_x_bbe(be128 *r, const be128 *x)
+{
+	u64 a = be64_to_cpu(x->a);
+	u64 b = be64_to_cpu(x->b);
+
+	/* equivalent to gf128mul_table_be[a >> 63] (see crypto/gf128mul.c): */
+	u64 _tt = gf128mul_mask_from_bit(a, 63) & 0x87;
+
+	r->a = cpu_to_be64((a << 1) | (b >> 63));
+	r->b = cpu_to_be64((b << 1) ^ _tt);
+}
+
+/* needed by XTS */
+static inline void gf128mul_x_ble(le128 *r, const le128 *x)
+{
+	u64 a = le64_to_cpu(x->a);
+	u64 b = le64_to_cpu(x->b);
+
+	/* equivalent to gf128mul_table_be[b >> 63] (see crypto/gf128mul.c): */
+	u64 _tt = gf128mul_mask_from_bit(a, 63) & 0x87;
+
+	r->a = cpu_to_le64((a << 1) | (b >> 63));
+	r->b = cpu_to_le64((b << 1) ^ _tt);
+}
 
 /* 4k table optimization */
 
@@ -172,29 +225,28 @@ struct gf128mul_4k {
 
 struct gf128mul_4k *gf128mul_init_4k_lle(const be128 *g);
 struct gf128mul_4k *gf128mul_init_4k_bbe(const be128 *g);
-void gf128mul_4k_lle(be128 *a, struct gf128mul_4k *t);
-void gf128mul_4k_bbe(be128 *a, struct gf128mul_4k *t);
+void gf128mul_4k_lle(be128 *a, const struct gf128mul_4k *t);
+void gf128mul_4k_bbe(be128 *a, const struct gf128mul_4k *t);
 
 static inline void gf128mul_free_4k(struct gf128mul_4k *t)
 {
-	kfree(t);
+	kzfree(t);
 }
 
 
-/* 64k table optimization, implemented for lle and bbe */
+/* 64k table optimization, implemented for bbe */
 
 struct gf128mul_64k {
 	struct gf128mul_4k *t[16];
 };
 
-/* first initialize with the constant factor with which you
- * want to multiply and then call gf128_64k_lle with the other
- * factor in the first argument, the table in the second and a
- * scratch register in the third. Afterwards *a = *r. */
-struct gf128mul_64k *gf128mul_init_64k_lle(const be128 *g);
+/* First initialize with the constant factor with which you
+ * want to multiply and then call gf128mul_64k_bbe with the other
+ * factor in the first argument, and the table in the second.
+ * Afterwards, the result is stored in *a.
+ */
 struct gf128mul_64k *gf128mul_init_64k_bbe(const be128 *g);
 void gf128mul_free_64k(struct gf128mul_64k *t);
-void gf128mul_64k_lle(be128 *a, struct gf128mul_64k *t);
-void gf128mul_64k_bbe(be128 *a, struct gf128mul_64k *t);
+void gf128mul_64k_bbe(be128 *a, const struct gf128mul_64k *t);
 
 #endif /* _CRYPTO_GF128MUL_H */

@@ -2149,17 +2149,6 @@ static int pch_gbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 }
 
 /**
- * pch_gbe_get_stats - Get System Network Statistics
- * @netdev:  Network interface device structure
- * Returns:  The current stats
- */
-static struct net_device_stats *pch_gbe_get_stats(struct net_device *netdev)
-{
-	/* only return the current stats */
-	return &netdev->stats;
-}
-
-/**
  * pch_gbe_set_multi - Multicast and Promiscuous mode set
  * @netdev:   Network interface device structure
  */
@@ -2260,16 +2249,10 @@ static int pch_gbe_set_mac(struct net_device *netdev, void *addr)
 static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-	int max_frame;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	unsigned long old_rx_buffer_len = adapter->rx_buffer_len;
 	int err;
 
-	max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
-	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
-		(max_frame > PCH_GBE_MAX_JUMBO_FRAME_SIZE)) {
-		netdev_err(netdev, "Invalid MTU setting\n");
-		return -EINVAL;
-	}
 	if (max_frame <= PCH_GBE_FRAME_SIZE_2048)
 		adapter->rx_buffer_len = PCH_GBE_FRAME_SIZE_2048;
 	else if (max_frame <= PCH_GBE_FRAME_SIZE_4096)
@@ -2391,7 +2374,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 		poll_end_flag = true;
 
 	if (poll_end_flag) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		pch_gbe_irq_enable(adapter);
 	}
 
@@ -2426,7 +2409,6 @@ static const struct net_device_ops pch_gbe_netdev_ops = {
 	.ndo_open = pch_gbe_open,
 	.ndo_stop = pch_gbe_stop,
 	.ndo_start_xmit = pch_gbe_xmit_frame,
-	.ndo_get_stats = pch_gbe_get_stats,
 	.ndo_set_mac_address = pch_gbe_set_mac,
 	.ndo_tx_timeout = pch_gbe_tx_timeout,
 	.ndo_change_mtu = pch_gbe_change_mtu,
@@ -2632,6 +2614,11 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features = netdev->hw_features;
 	pch_gbe_set_ethtool_ops(netdev);
+
+	/* MTU range: 46 - 10300 */
+	netdev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	netdev->max_mtu = PCH_GBE_MAX_JUMBO_FRAME_SIZE -
+			  (ETH_HLEN + ETH_FCS_LEN);
 
 	pch_gbe_mac_load_mac_addr(&adapter->hw);
 	pch_gbe_mac_reset_hw(&adapter->hw);

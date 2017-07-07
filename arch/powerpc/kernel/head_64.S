@@ -43,6 +43,7 @@
 #include <asm/hw_irq.h>
 #include <asm/cputhreads.h>
 #include <asm/ppc-opcode.h>
+#include <asm/export.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -106,12 +107,19 @@ __secondary_hold_acknowledge:
 	 * crash_kernel region.  The loader is responsible for
 	 * observing the alignment requirement.
 	 */
+
+#ifdef CONFIG_RELOCATABLE_TEST
+#define RUN_AT_LOAD_DEFAULT 1		/* Test relocation, do not copy to 0 */
+#else
+#define RUN_AT_LOAD_DEFAULT 0x72756e30  /* "run0" -- relocate to 0 by default */
+#endif
+
 	/* Do not move this variable as kexec-tools knows about it. */
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
 DEFINE_FIXED_SYMBOL(__run_at_load)
-	.long	0x72756e30	/* "run0" -- relocate to 0 by default */
+	.long	RUN_AT_LOAD_DEFAULT
 #endif
 
 	. = 0x60
@@ -152,7 +160,7 @@ __secondary_hold:
 	cmpdi	0,r12,0
 	beq	100b
 
-#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 #ifdef CONFIG_PPC_BOOK3E
 	tovirt(r12,r12)
 #endif
@@ -213,9 +221,9 @@ booting_thread_hwid:
  */
 _GLOBAL(book3e_start_thread)
 	LOAD_REG_IMMEDIATE(r5, MSR_KERNEL)
-	cmpi	0, r3, 0
+	cmpwi	r3, 0
 	beq	10f
-	cmpi	0, r3, 1
+	cmpwi	r3, 1
 	beq	11f
 	/* If the thread id is invalid, just exit. */
 	b	13f
@@ -240,9 +248,9 @@ _GLOBAL(book3e_start_thread)
  * r3 = the thread physical id
  */
 _GLOBAL(book3e_stop_thread)
-	cmpi	0, r3, 0
+	cmpwi	r3, 0
 	beq	10f
-	cmpi	0, r3, 1
+	cmpwi	r3, 1
 	beq	10f
 	/* If the thread id is invalid, just exit. */
 	b	13f
@@ -941,7 +949,8 @@ start_here_multiplatform:
 	LOAD_REG_ADDR(r3,init_thread_union)
 
 	/* set up a stack pointer */
-	addi	r1,r3,THREAD_SIZE
+	LOAD_REG_IMMEDIATE(r1,THREAD_SIZE)
+	add	r1,r3,r1
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 
@@ -1002,3 +1011,4 @@ swapper_pg_dir:
 	.globl	empty_zero_page
 empty_zero_page:
 	.space	PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)

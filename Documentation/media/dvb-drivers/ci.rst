@@ -20,7 +20,7 @@ existing low level CI API.
 ca_zap
 ~~~~~~
 
-An userspace application, like ``ca_zap`` is required to handle encrypted
+A userspace application, like ``ca_zap`` is required to handle encrypted
 MPEG-TS streams.
 
 The ``ca_zap`` userland application is in charge of sending the

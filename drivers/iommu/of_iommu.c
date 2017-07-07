@@ -22,6 +22,7 @@
 #include <linux/limits.h>
 #include <linux/of.h>
 #include <linux/of_iommu.h>
+#include <linux/of_pci.h>
 #include <linux/slab.h>
 
 static const struct of_device_id __iommu_of_table_sentinel
@@ -95,83 +96,154 @@ int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
 }
 EXPORT_SYMBOL_GPL(of_get_dma_window);
 
-struct of_iommu_node {
-	struct list_head list;
-	struct device_node *np;
-	const struct iommu_ops *ops;
-};
-static LIST_HEAD(of_iommu_list);
-static DEFINE_SPINLOCK(of_iommu_lock);
-
-void of_iommu_set_ops(struct device_node *np, const struct iommu_ops *ops)
+static bool of_iommu_driver_present(struct device_node *np)
 {
-	struct of_iommu_node *iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
+	/*
+	 * If the IOMMU still isn't ready by the time we reach init, assume
+	 * it never will be. We don't want to defer indefinitely, nor attempt
+	 * to dereference __iommu_of_table after it's been freed.
+	 */
+	if (system_state >= SYSTEM_RUNNING)
+		return false;
 
-	if (WARN_ON(!iommu))
-		return;
-
-	of_node_get(np);
-	INIT_LIST_HEAD(&iommu->list);
-	iommu->np = np;
-	iommu->ops = ops;
-	spin_lock(&of_iommu_lock);
-	list_add_tail(&iommu->list, &of_iommu_list);
-	spin_unlock(&of_iommu_lock);
+	return of_match_node(&__iommu_of_table, np);
 }
 
-const struct iommu_ops *of_iommu_get_ops(struct device_node *np)
+static const struct iommu_ops
+*of_iommu_xlate(struct device *dev, struct of_phandle_args *iommu_spec)
 {
-	struct of_iommu_node *node;
-	const struct iommu_ops *ops = NULL;
+	const struct iommu_ops *ops;
+	struct fwnode_handle *fwnode = &iommu_spec->np->fwnode;
+	int err;
 
-	spin_lock(&of_iommu_lock);
-	list_for_each_entry(node, &of_iommu_list, list)
-		if (node->np == np) {
-			ops = node->ops;
-			break;
-		}
-	spin_unlock(&of_iommu_lock);
+	ops = iommu_ops_from_fwnode(fwnode);
+	if ((ops && !ops->of_xlate) ||
+	    !of_device_is_available(iommu_spec->np) ||
+	    (!ops && !of_iommu_driver_present(iommu_spec->np)))
+		return NULL;
+
+	err = iommu_fwspec_init(dev, &iommu_spec->np->fwnode, ops);
+	if (err)
+		return ERR_PTR(err);
+	/*
+	 * The otherwise-empty fwspec handily serves to indicate the specific
+	 * IOMMU device we're waiting for, which will be useful if we ever get
+	 * a proper probe-ordering dependency mechanism in future.
+	 */
+	if (!ops)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	err = ops->of_xlate(dev, iommu_spec);
+	if (err)
+		return ERR_PTR(err);
+
 	return ops;
 }
 
-const struct iommu_ops *of_iommu_configure(struct device *dev,
-					   struct device_node *master_np)
+static int __get_pci_rid(struct pci_dev *pdev, u16 alias, void *data)
 {
+	struct of_phandle_args *iommu_spec = data;
+
+	iommu_spec->args[0] = alias;
+	return iommu_spec->np == pdev->bus->dev.of_node;
+}
+
+static const struct iommu_ops
+*of_pci_iommu_init(struct pci_dev *pdev, struct device_node *bridge_np)
+{
+	const struct iommu_ops *ops;
 	struct of_phandle_args iommu_spec;
-	struct device_node *np;
-	const struct iommu_ops *ops = NULL;
-	int idx = 0;
+	int err;
 
 	/*
-	 * We can't do much for PCI devices without knowing how
-	 * device IDs are wired up from the PCI bus to the IOMMU.
+	 * Start by tracing the RID alias down the PCI topology as
+	 * far as the host bridge whose OF node we have...
+	 * (we're not even attempting to handle multi-alias devices yet)
 	 */
-	if (dev_is_pci(dev))
-		return NULL;
+	iommu_spec.args_count = 1;
+	iommu_spec.np = bridge_np;
+	pci_for_each_dma_alias(pdev, __get_pci_rid, &iommu_spec);
+	/*
+	 * ...then find out what that becomes once it escapes the PCI
+	 * bus into the system beyond, and which IOMMU it ends up at.
+	 */
+	iommu_spec.np = NULL;
+	err = of_pci_map_rid(bridge_np, iommu_spec.args[0], "iommu-map",
+			     "iommu-map-mask", &iommu_spec.np,
+			     iommu_spec.args);
+	if (err)
+		return err == -ENODEV ? NULL : ERR_PTR(err);
+
+	ops = of_iommu_xlate(&pdev->dev, &iommu_spec);
+
+	of_node_put(iommu_spec.np);
+	return ops;
+}
+
+static const struct iommu_ops
+*of_platform_iommu_init(struct device *dev, struct device_node *np)
+{
+	struct of_phandle_args iommu_spec;
+	const struct iommu_ops *ops = NULL;
+	int idx = 0;
 
 	/*
 	 * We don't currently walk up the tree looking for a parent IOMMU.
 	 * See the `Notes:' section of
 	 * Documentation/devicetree/bindings/iommu/iommu.txt
 	 */
-	while (!of_parse_phandle_with_args(master_np, "iommus",
-					   "#iommu-cells", idx,
-					   &iommu_spec)) {
-		np = iommu_spec.np;
-		ops = of_iommu_get_ops(np);
-
-		if (!ops || !ops->of_xlate || ops->of_xlate(dev, &iommu_spec))
-			goto err_put_node;
-
-		of_node_put(np);
+	while (!of_parse_phandle_with_args(np, "iommus", "#iommu-cells",
+					   idx, &iommu_spec)) {
+		ops = of_iommu_xlate(dev, &iommu_spec);
+		of_node_put(iommu_spec.np);
 		idx++;
+		if (IS_ERR_OR_NULL(ops))
+			break;
 	}
 
 	return ops;
+}
 
-err_put_node:
-	of_node_put(np);
-	return NULL;
+const struct iommu_ops *of_iommu_configure(struct device *dev,
+					   struct device_node *master_np)
+{
+	const struct iommu_ops *ops;
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+
+	if (!master_np)
+		return NULL;
+
+	if (fwspec) {
+		if (fwspec->ops)
+			return fwspec->ops;
+
+		/* In the deferred case, start again from scratch */
+		iommu_fwspec_free(dev);
+	}
+
+	if (dev_is_pci(dev))
+		ops = of_pci_iommu_init(to_pci_dev(dev), master_np);
+	else
+		ops = of_platform_iommu_init(dev, master_np);
+	/*
+	 * If we have reason to believe the IOMMU driver missed the initial
+	 * add_device callback for dev, replay it to get things in order.
+	 */
+	if (!IS_ERR_OR_NULL(ops) && ops->add_device &&
+	    dev->bus && !dev->iommu_group) {
+		int err = ops->add_device(dev);
+
+		if (err)
+			ops = ERR_PTR(err);
+	}
+
+	/* Ignore all other errors apart from EPROBE_DEFER */
+	if (IS_ERR(ops) && (PTR_ERR(ops) != -EPROBE_DEFER)) {
+		dev_dbg(dev, "Adding to IOMMU failed: %ld\n", PTR_ERR(ops));
+		ops = NULL;
+	}
+
+	return ops;
 }
 
 static int __init of_iommu_init(void)
@@ -182,7 +254,7 @@ static int __init of_iommu_init(void)
 	for_each_matching_node_and_match(np, matches, &match) {
 		const of_iommu_init_fn init_fn = match->data;
 
-		if (init_fn(np))
+		if (init_fn && init_fn(np))
 			pr_err("Failed to initialise IOMMU %s\n",
 				of_node_full_name(np));
 	}

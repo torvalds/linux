@@ -3,7 +3,9 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 #include <linux/slab.h>
+
 #include <asm-generic/mm_hooks.h>
 
 #include <asm/cacheflush.h>

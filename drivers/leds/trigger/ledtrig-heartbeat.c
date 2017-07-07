@@ -17,9 +17,9 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/leds.h>
 #include <linux/reboot.h>
-#include <linux/suspend.h>
 #include "../leds.h"
 
 static int panic_heartbeats;
@@ -43,6 +43,9 @@ static void led_heartbeat_function(unsigned long data)
 		return;
 	}
 
+	if (test_and_clear_bit(LED_BLINK_BRIGHTNESS_CHANGE, &led_cdev->work_flags))
+		led_cdev->blink_brightness = led_cdev->new_blink_brightness;
+
 	/* acts like an actual heart beat -- ie thump-thump-pause... */
 	switch (heartbeat_data->phase) {
 	case 0:
@@ -59,26 +62,26 @@ static void led_heartbeat_function(unsigned long data)
 		delay = msecs_to_jiffies(70);
 		heartbeat_data->phase++;
 		if (!heartbeat_data->invert)
-			brightness = led_cdev->max_brightness;
+			brightness = led_cdev->blink_brightness;
 		break;
 	case 1:
 		delay = heartbeat_data->period / 4 - msecs_to_jiffies(70);
 		heartbeat_data->phase++;
 		if (heartbeat_data->invert)
-			brightness = led_cdev->max_brightness;
+			brightness = led_cdev->blink_brightness;
 		break;
 	case 2:
 		delay = msecs_to_jiffies(70);
 		heartbeat_data->phase++;
 		if (!heartbeat_data->invert)
-			brightness = led_cdev->max_brightness;
+			brightness = led_cdev->blink_brightness;
 		break;
 	default:
 		delay = heartbeat_data->period - heartbeat_data->period / 4 -
 			msecs_to_jiffies(70);
 		heartbeat_data->phase = 0;
 		if (heartbeat_data->invert)
-			brightness = led_cdev->max_brightness;
+			brightness = led_cdev->blink_brightness;
 		break;
 	}
 
@@ -133,7 +136,10 @@ static void heartbeat_trig_activate(struct led_classdev *led_cdev)
 	setup_timer(&heartbeat_data->timer,
 		    led_heartbeat_function, (unsigned long) led_cdev);
 	heartbeat_data->phase = 0;
+	if (!led_cdev->blink_brightness)
+		led_cdev->blink_brightness = led_cdev->max_brightness;
 	led_heartbeat_function(heartbeat_data->timer.data);
+	set_bit(LED_BLINK_SW, &led_cdev->work_flags);
 	led_cdev->activated = true;
 }
 
@@ -145,6 +151,7 @@ static void heartbeat_trig_deactivate(struct led_classdev *led_cdev)
 		del_timer_sync(&heartbeat_data->timer);
 		device_remove_file(led_cdev->dev, &dev_attr_invert);
 		kfree(heartbeat_data);
+		clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
 		led_cdev->activated = false;
 	}
 }
@@ -154,30 +161,6 @@ static struct led_trigger heartbeat_led_trigger = {
 	.activate = heartbeat_trig_activate,
 	.deactivate = heartbeat_trig_deactivate,
 };
-
-static int heartbeat_pm_notifier(struct notifier_block *nb,
-				 unsigned long pm_event, void *unused)
-{
-	int rc;
-
-	switch (pm_event) {
-	case PM_SUSPEND_PREPARE:
-	case PM_HIBERNATION_PREPARE:
-	case PM_RESTORE_PREPARE:
-		led_trigger_unregister(&heartbeat_led_trigger);
-		break;
-	case PM_POST_SUSPEND:
-	case PM_POST_HIBERNATION:
-	case PM_POST_RESTORE:
-		rc = led_trigger_register(&heartbeat_led_trigger);
-		if (rc)
-			pr_err("could not re-register heartbeat trigger\n");
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_DONE;
-}
 
 static int heartbeat_reboot_notifier(struct notifier_block *nb,
 				     unsigned long code, void *unused)
@@ -192,10 +175,6 @@ static int heartbeat_panic_notifier(struct notifier_block *nb,
 	panic_heartbeats = 1;
 	return NOTIFY_DONE;
 }
-
-static struct notifier_block heartbeat_pm_nb = {
-	.notifier_call = heartbeat_pm_notifier,
-};
 
 static struct notifier_block heartbeat_reboot_nb = {
 	.notifier_call = heartbeat_reboot_notifier,
@@ -213,14 +192,12 @@ static int __init heartbeat_trig_init(void)
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &heartbeat_panic_nb);
 		register_reboot_notifier(&heartbeat_reboot_nb);
-		register_pm_notifier(&heartbeat_pm_nb);
 	}
 	return rc;
 }
 
 static void __exit heartbeat_trig_exit(void)
 {
-	unregister_pm_notifier(&heartbeat_pm_nb);
 	unregister_reboot_notifier(&heartbeat_reboot_nb);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &heartbeat_panic_nb);

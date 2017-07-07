@@ -36,7 +36,7 @@
 
 #include "cxgb3_offload.h"
 #include "iwch_provider.h"
-#include "iwch_user.h"
+#include <rdma/cxgb3-abi.h>
 #include "iwch.h"
 #include "iwch_cm.h"
 
@@ -105,7 +105,7 @@ static void iwch_db_drop_task(struct work_struct *work)
 
 static void rnic_init(struct iwch_dev *rnicp)
 {
-	PDBG("%s iwch_dev %p\n", __func__,  rnicp);
+	pr_debug("%s iwch_dev %p\n", __func__,  rnicp);
 	idr_init(&rnicp->cqidr);
 	idr_init(&rnicp->qpidr);
 	idr_init(&rnicp->mmidr);
@@ -145,12 +145,11 @@ static void open_rnic_dev(struct t3cdev *tdev)
 {
 	struct iwch_dev *rnicp;
 
-	PDBG("%s t3cdev %p\n", __func__,  tdev);
-	printk_once(KERN_INFO MOD "Chelsio T3 RDMA Driver - version %s\n",
-		       DRV_VERSION);
+	pr_debug("%s t3cdev %p\n", __func__,  tdev);
+	pr_info_once("Chelsio T3 RDMA Driver - version %s\n", DRV_VERSION);
 	rnicp = (struct iwch_dev *)ib_alloc_device(sizeof(*rnicp));
 	if (!rnicp) {
-		printk(KERN_ERR MOD "Cannot allocate ib device\n");
+		pr_err("Cannot allocate ib device\n");
 		return;
 	}
 	rnicp->rdev.ulp = rnicp;
@@ -160,7 +159,7 @@ static void open_rnic_dev(struct t3cdev *tdev)
 
 	if (cxio_rdev_open(&rnicp->rdev)) {
 		mutex_unlock(&dev_mutex);
-		printk(KERN_ERR MOD "Unable to open CXIO rdev\n");
+		pr_err("Unable to open CXIO rdev\n");
 		ib_dealloc_device(&rnicp->ibdev);
 		return;
 	}
@@ -171,18 +170,18 @@ static void open_rnic_dev(struct t3cdev *tdev)
 	mutex_unlock(&dev_mutex);
 
 	if (iwch_register_device(rnicp)) {
-		printk(KERN_ERR MOD "Unable to register device\n");
+		pr_err("Unable to register device\n");
 		close_rnic_dev(tdev);
 	}
-	printk(KERN_INFO MOD "Initialized device %s\n",
-	       pci_name(rnicp->rdev.rnic_info.pdev));
+	pr_info("Initialized device %s\n",
+		pci_name(rnicp->rdev.rnic_info.pdev));
 	return;
 }
 
 static void close_rnic_dev(struct t3cdev *tdev)
 {
 	struct iwch_dev *dev, *tmp;
-	PDBG("%s t3cdev %p\n", __func__,  tdev);
+	pr_debug("%s t3cdev %p\n", __func__,  tdev);
 	mutex_lock(&dev_mutex);
 	list_for_each_entry_safe(dev, tmp, &dev_list, entry) {
 		if (dev->rdev.t3cdev_p == tdev) {

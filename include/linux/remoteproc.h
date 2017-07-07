@@ -346,6 +346,7 @@ struct rproc_ops {
  *			a message.
  * @RPROC_RUNNING:	device is up and running
  * @RPROC_CRASHED:	device has crashed; need to start recovery
+ * @RPROC_DELETED:	device is deleted
  * @RPROC_LAST:		just keep this one at the end
  *
  * Please note that the values of these states are used as indices
@@ -359,7 +360,8 @@ enum rproc_state {
 	RPROC_SUSPENDED	= 1,
 	RPROC_RUNNING	= 2,
 	RPROC_CRASHED	= 3,
-	RPROC_LAST	= 4,
+	RPROC_DELETED	= 4,
+	RPROC_LAST	= 5,
 };
 
 /**
@@ -397,9 +399,9 @@ enum rproc_crash_type {
  * @num_traces: number of trace buffers
  * @carveouts: list of physically contiguous memory allocations
  * @mappings: list of iommu mappings we initiated, needed on shutdown
- * @firmware_loading_complete: marks e/o asynchronous firmware loading
  * @bootaddr: address of first instruction to boot rproc with (optional)
  * @rvdevs: list of remote virtio devices
+ * @subdevs: list of subdevices, to following the running state
  * @notifyids: idr for dynamically assigning rproc-wide unique notify ids
  * @index: index of this rproc device
  * @crash_handler: workqueue for handling a crash
@@ -415,7 +417,7 @@ struct rproc {
 	struct list_head node;
 	struct iommu_domain *domain;
 	const char *name;
-	const char *firmware;
+	char *firmware;
 	void *priv;
 	const struct rproc_ops *ops;
 	struct device dev;
@@ -428,9 +430,9 @@ struct rproc {
 	int num_traces;
 	struct list_head carveouts;
 	struct list_head mappings;
-	struct completion firmware_loading_complete;
 	u32 bootaddr;
 	struct list_head rvdevs;
+	struct list_head subdevs;
 	struct idr notifyids;
 	int index;
 	struct work_struct crash_handler;
@@ -442,6 +444,19 @@ struct rproc {
 	struct resource_table *cached_table;
 	bool has_iommu;
 	bool auto_boot;
+};
+
+/**
+ * struct rproc_subdev - subdevice tied to a remoteproc
+ * @node: list node related to the rproc subdevs list
+ * @probe: probe function, called as the rproc is started
+ * @remove: remove function, called as the rproc is stopped
+ */
+struct rproc_subdev {
+	struct list_head node;
+
+	int (*probe)(struct rproc_subdev *subdev);
+	void (*remove)(struct rproc_subdev *subdev);
 };
 
 /* we currently support only two vrings per rvdev */
@@ -472,6 +487,9 @@ struct rproc_vring {
 
 /**
  * struct rproc_vdev - remoteproc state for a supported virtio device
+ * @refcount: reference counter for the vdev and vring allocations
+ * @subdev: handle for registering the vdev as a rproc subdevice
+ * @id: virtio device id (as in virtio_ids.h)
  * @node: list node
  * @rproc: the rproc handle
  * @vdev: the virio device
@@ -479,6 +497,11 @@ struct rproc_vring {
  * @rsc_offset: offset of the vdev's resource entry
  */
 struct rproc_vdev {
+	struct kref refcount;
+
+	struct rproc_subdev subdev;
+
+	unsigned int id;
 	struct list_head node;
 	struct rproc *rproc;
 	struct virtio_device vdev;
@@ -510,5 +533,12 @@ static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 
 	return rvdev->rproc;
 }
+
+void rproc_add_subdev(struct rproc *rproc,
+		      struct rproc_subdev *subdev,
+		      int (*probe)(struct rproc_subdev *subdev),
+		      void (*remove)(struct rproc_subdev *subdev));
+
+void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 
 #endif /* REMOTEPROC_H */

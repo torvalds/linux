@@ -124,6 +124,12 @@ static const struct pinctrl_pin_desc meson8b_aobus_pins[] = {
 	MESON_PIN(GPIOAO_11, AO_OFF),
 	MESON_PIN(GPIOAO_12, AO_OFF),
 	MESON_PIN(GPIOAO_13, AO_OFF),
+
+	/*
+	 * The following 2 pins are not mentionned in the public datasheet
+	 * According to this datasheet, they can't be used with the gpio
+	 * interrupt controller
+	 */
 	MESON_PIN(GPIO_BSD_EN, AO_OFF),
 	MESON_PIN(GPIO_TEST_N, AO_OFF),
 };
@@ -267,8 +273,8 @@ static const unsigned int nand_ale_pins[]	= { PIN(BOOT_11, 0) };
 static const unsigned int nand_cle_pins[]	= { PIN(BOOT_12, 0) };
 static const unsigned int nand_wen_clk_pins[]	= { PIN(BOOT_13, 0) };
 static const unsigned int nand_ren_clk_pins[]	= { PIN(BOOT_14, 0) };
-static const unsigned int nand_dqs_0_pins[]	= { PIN(BOOT_15, 0) };
-static const unsigned int nand_dqs_1_pins[]	= { PIN(BOOT_18, 0) };
+static const unsigned int nand_dqs_15_pins[]	= { PIN(BOOT_15, 0) };
+static const unsigned int nand_dqs_18_pins[]	= { PIN(BOOT_18, 0) };
 
 static const unsigned int sdxc_d0_c_pins[]	= { PIN(BOOT_0, 0)};
 static const unsigned int sdxc_d13_c_pins[]	= { PIN(BOOT_1, 0), PIN(BOOT_2, 0),
@@ -527,8 +533,8 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(nand_cle,		2,	20),
 	GROUP(nand_wen_clk,	2,	19),
 	GROUP(nand_ren_clk,	2,	18),
-	GROUP(nand_dqs_0,	2,	27),
-	GROUP(nand_dqs_1,	2,	28),
+	GROUP(nand_dqs_15,	2,	27),
+	GROUP(nand_dqs_18,	2,	28),
 	GROUP(sdxc_d0_c,	4,	30),
 	GROUP(sdxc_d13_c,	4,	29),
 	GROUP(sdxc_d47_c,	4,	28),
@@ -739,8 +745,8 @@ static const char * const sdxc_c_groups[] = {
 static const char * const nand_groups[] = {
 	"nand_io", "nand_io_ce0", "nand_io_ce1",
 	"nand_io_rb0", "nand_ale", "nand_cle",
-	"nand_wen_clk", "nand_ren_clk", "nand_dqs0",
-	"nand_dqs1"
+	"nand_wen_clk", "nand_ren_clk", "nand_dqs_15",
+	"nand_dqs_18"
 };
 
 static const char * const nor_groups[] = {
@@ -881,19 +887,25 @@ static struct meson_pmx_func meson8b_aobus_functions[] = {
 };
 
 static struct meson_bank meson8b_cbus_banks[] = {
-	/*   name    first                      last                   pullen  pull    dir     out     in  */
-	BANK("X",    PIN(GPIOX_0, 0),		PIN(GPIOX_21, 0),      4,  0,  4,  0,  0,  0,  1,  0,  2,  0),
-	BANK("Y",    PIN(GPIOY_0, 0),		PIN(GPIOY_14, 0),      3,  0,  3,  0,  3,  0,  4,  0,  5,  0),
-	BANK("DV",   PIN(GPIODV_9, 0),		PIN(GPIODV_29, 0),     0,  0,  0,  0,  7,  0,  8,  0,  9,  0),
-	BANK("H",    PIN(GPIOH_0, 0),		PIN(GPIOH_9, 0),       1, 16,  1, 16,  9, 19, 10, 19, 11, 19),
-	BANK("CARD", PIN(CARD_0, 0),		PIN(CARD_6, 0),        2, 20,  2, 20,  0, 22,  1, 22,  2, 22),
-	BANK("BOOT", PIN(BOOT_0, 0),		PIN(BOOT_18, 0),       2,  0,  2,  0,  9,  0, 10,  0, 11,  0),
-	BANK("DIF",  PIN(DIF_0_P, 0),		PIN(DIF_4_N, 0),       5,  8,  5,  8, 12, 12, 13, 12, 14, 12),
+	/*   name    first                      last                irq      pullen  pull    dir     out     in  */
+	BANK("X",    PIN(GPIOX_0, 0),		PIN(GPIOX_21, 0),   97, 118, 4,  0,  4,  0,  0,  0,  1,  0,  2,  0),
+	BANK("Y",    PIN(GPIOY_0, 0),		PIN(GPIOY_14, 0),   80,  96, 3,  0,  3,  0,  3,  0,  4,  0,  5,  0),
+	BANK("DV",   PIN(GPIODV_9, 0),		PIN(GPIODV_29, 0),  59,  79, 0,  0,  0,  0,  7,  0,  8,  0,  9,  0),
+	BANK("H",    PIN(GPIOH_0, 0),		PIN(GPIOH_9, 0),    14,  23, 1, 16,  1, 16,  9, 19, 10, 19, 11, 19),
+	BANK("CARD", PIN(CARD_0, 0),		PIN(CARD_6, 0),     43,  49, 2, 20,  2, 20,  0, 22,  1, 22,  2, 22),
+	BANK("BOOT", PIN(BOOT_0, 0),		PIN(BOOT_18, 0),    24,  42, 2,  0,  2,  0,  9,  0, 10,  0, 11,  0),
+
+	/*
+	 * The following bank is not mentionned in the public datasheet
+	 * There is no information whether it can be used with the gpio
+	 * interrupt controller
+	 */
+	BANK("DIF",  PIN(DIF_0_P, 0),		PIN(DIF_4_N, 0),    -1,  -1, 5,  8,  5,  8, 12, 12, 13, 12, 14, 12),
 };
 
 static struct meson_bank meson8b_aobus_banks[] = {
-	/*   name    first                  last                      pullen  pull    dir     out     in  */
-	BANK("AO",   PIN(GPIOAO_0, AO_OFF), PIN(GPIO_TEST_N, AO_OFF), 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
+	/*   name    first                  last                      irq    pullen  pull    dir     out     in  */
+	BANK("AO",   PIN(GPIOAO_0, AO_OFF), PIN(GPIO_TEST_N, AO_OFF), 0, 13, 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
 };
 
 struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {

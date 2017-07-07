@@ -70,19 +70,23 @@ config CASSINI
 	  <http://docs.oracle.com/cd/E19113-01/giga.ether.pci/817-4341-10/817-4341-10.pdf>.
 
 config SUNVNET_COMMON
-	bool
+	tristate "Common routines to support Sun Virtual Networking"
 	depends on SUN_LDOMS
-	default y if SUN_LDOMS
+	default m
 
 config SUNVNET
 	tristate "Sun Virtual Network support"
+	default m
 	depends on SUN_LDOMS
+	depends on SUNVNET_COMMON
 	---help---
 	  Support for virtual network devices under Sun Logical Domains.
 
 config LDMVSW
 	tristate "Sun4v LDoms Virtual Switch support"
+	default m
 	depends on SUN_LDOMS
+	depends on SUNVNET_COMMON
 	---help---
 	  Support for virtual switch devices under Sun4v Logical Domains.
 	  This driver adds a network interface for every vsw-port node

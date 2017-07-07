@@ -19,6 +19,8 @@
 #include "xhci-rcar.h"
 
 /*
+* - The V3 firmware is for r8a7796 (with good performance).
+* - The V2 firmware can be used on both r8a7795 (es1.x) and r8a7796.
 * - The V2 firmware is possible to use on R-Car Gen2. However, the V2 causes
 *   performance degradation. So, this driver continues to use the V1 if R-Car
 *   Gen2.
@@ -26,6 +28,7 @@
 */
 MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V1);
 MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V2);
+MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V3);
 
 /*** Register Offset ***/
 #define RCAR_USB3_INT_ENA	0x224	/* Interrupt Enable */
@@ -92,6 +95,7 @@ static int xhci_rcar_is_gen3(struct device *dev)
 	struct device_node *node = dev->of_node;
 
 	return of_device_is_compatible(node, "renesas,xhci-r8a7795") ||
+		of_device_is_compatible(node, "renesas,xhci-r8a7796") ||
 		of_device_is_compatible(node, "renesas,rcar-gen3-xhci");
 }
 
@@ -193,4 +197,15 @@ int xhci_rcar_init_quirk(struct usb_hcd *hcd)
 		xhci->quirks |= XHCI_NO_64BIT_SUPPORT;
 
 	return xhci_rcar_download_firmware(hcd);
+}
+
+int xhci_rcar_resume_quirk(struct usb_hcd *hcd)
+{
+	int ret;
+
+	ret = xhci_rcar_download_firmware(hcd);
+	if (!ret)
+		xhci_rcar_start(hcd);
+
+	return ret;
 }

@@ -341,7 +341,7 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 			}
 			return -EIO;
 		}
-		usleep_range(1000, 1500);
+		udelay(1200);
 	}
 
 	if (id_reg)
@@ -1023,12 +1023,6 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int rc = 0;
-
-	if (mtu < P3P_MIN_MTU || mtu > P3P_MAX_MTU) {
-		dev_err(&adapter->netdev->dev, "%d bytes < mtu < %d bytes"
-			" not supported\n", P3P_MAX_MTU, P3P_MIN_MTU);
-		return -EINVAL;
-	}
 
 	rc = qlcnic_fw_cmd_set_mtu(adapter, mtu);
 

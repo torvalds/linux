@@ -32,6 +32,8 @@ struct vsp1_entity;
 struct vsp1_platform_data;
 struct vsp1_bru;
 struct vsp1_clu;
+struct vsp1_hgo;
+struct vsp1_hgt;
 struct vsp1_hsit;
 struct vsp1_lif;
 struct vsp1_lut;
@@ -50,9 +52,12 @@ struct vsp1_uds;
 #define VSP1_HAS_CLU		(1 << 4)
 #define VSP1_HAS_WPF_VFLIP	(1 << 5)
 #define VSP1_HAS_WPF_HFLIP	(1 << 6)
+#define VSP1_HAS_HGO		(1 << 7)
+#define VSP1_HAS_HGT		(1 << 8)
 
 struct vsp1_device_info {
 	u32 version;
+	const char *model;
 	unsigned int gen;
 	unsigned int features;
 	unsigned int rpf_count;
@@ -65,12 +70,15 @@ struct vsp1_device_info {
 struct vsp1_device {
 	struct device *dev;
 	const struct vsp1_device_info *info;
+	u32 version;
 
 	void __iomem *mmio;
 	struct rcar_fcp_device *fcp;
 
 	struct vsp1_bru *bru;
 	struct vsp1_clu *clu;
+	struct vsp1_hgo *hgo;
+	struct vsp1_hgt *hgt;
 	struct vsp1_hsit *hsi;
 	struct vsp1_hsit *hst;
 	struct vsp1_lif *lif;

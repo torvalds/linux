@@ -29,6 +29,9 @@ static int sdhci_brcmstb_suspend(struct device *dev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	int res;
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	res = sdhci_suspend_host(host);
 	if (res)
 		return res;
@@ -85,9 +88,6 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 		res = PTR_ERR(host);
 		goto err_clk;
 	}
-
-	/* Enable MMC_CAP2_HC_ERASE_SZ for better max discard calculations */
-	host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
 
 	sdhci_get_of_property(pdev);
 	mmc_of_parse(host->mmc);

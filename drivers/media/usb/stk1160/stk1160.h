@@ -50,6 +50,8 @@
 #define STK1160_MAX_INPUT 4
 #define STK1160_SVIDEO_INPUT 4
 
+#define STK1160_AC97_TIMEOUT 50
+
 #define STK1160_I2C_TIMEOUT 100
 
 /* TODO: Print helpers
@@ -197,11 +199,4 @@ int stk1160_read_reg_req_len(struct stk1160 *dev, u8 req, u16 reg,
 void stk1160_select_input(struct stk1160 *dev);
 
 /* Provided by stk1160-ac97.c */
-#ifdef CONFIG_VIDEO_STK1160_AC97
-int stk1160_ac97_register(struct stk1160 *dev);
-int stk1160_ac97_unregister(struct stk1160 *dev);
-#else
-static inline int stk1160_ac97_register(struct stk1160 *dev) { return 0; }
-static inline int stk1160_ac97_unregister(struct stk1160 *dev) { return 0; }
-#endif
-
+void stk1160_ac97_setup(struct stk1160 *dev);

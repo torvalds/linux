@@ -93,11 +93,6 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 		if (!crtc->state->enable)
 			continue;
 
-		/* Legacy cursor ioctls are completely unsynced, and userspace
-		 * relies on that (by doing tons of cursor updates). */
-		if (old_state->legacy_cursor_update)
-			continue;
-
 		kms->funcs->wait_for_crtc_commit_done(kms, crtc);
 	}
 }
@@ -112,13 +107,13 @@ static void complete_commit(struct msm_commit *c, bool async)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 
-	drm_atomic_helper_wait_for_fences(dev, state);
+	drm_atomic_helper_wait_for_fences(dev, state, false);
 
 	kms->funcs->prepare_commit(kms, state);
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -141,7 +136,7 @@ static void complete_commit(struct msm_commit *c, bool async)
 
 	kms->funcs->complete_commit(kms, state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	commit_destroy(c);
 }
@@ -151,20 +146,29 @@ static void commit_worker(struct work_struct *work)
 	complete_commit(container_of(work, struct msm_commit, work), true);
 }
 
+/*
+ * this func is identical to the drm_atomic_helper_check, but we keep this
+ * because we might eventually need to have a more finegrained check
+ * sequence without using the atomic helpers.
+ *
+ * In the past, we first called drm_atomic_helper_check_planes, and then
+ * drm_atomic_helper_check_modeset. We needed this because the MDP5 plane's
+ * ->atomic_check could update ->mode_changed for pixel format changes.
+ * This, however isn't needed now because if there is a pixel format change,
+ * we just assign a new hwpipe for it with a new SMP allocation. We might
+ * eventually hit a condition where we would need to do a full modeset if
+ * we run out of planes. There, we'd probably need to set mode_changed.
+ */
 int msm_atomic_check(struct drm_device *dev,
 		     struct drm_atomic_state *state)
 {
 	int ret;
 
-	/*
-	 * msm ->atomic_check can update ->mode_changed for pixel format
-	 * changes, hence must be run before we check the modeset changes.
-	 */
-	ret = drm_atomic_helper_check_planes(dev, state);
+	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
 		return ret;
 
-	ret = drm_atomic_helper_check_modeset(dev, state);
+	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
 		return ret;
 
@@ -217,8 +221,9 @@ int msm_atomic_commit(struct drm_device *dev,
 		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
 			struct drm_gem_object *obj = msm_framebuffer_bo(plane_state->fb, 0);
 			struct msm_gem_object *msm_obj = to_msm_bo(obj);
+			struct dma_fence *fence = reservation_object_get_excl_rcu(msm_obj->resv);
 
-			plane_state->fence = reservation_object_get_excl_rcu(msm_obj->resv);
+			drm_atomic_set_fence_for_plane(plane_state, fence);
 		}
 	}
 
@@ -240,6 +245,10 @@ int msm_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_helper_swap_state(state, true);
 
+	/* swap driver private state while still holding state_lock */
+	if (to_kms_state(state)->state)
+		priv->kms->funcs->swap_state(priv->kms, state);
+
 	/*
 	 * Everything below can be run asynchronously without the need to grab
 	 * any modeset locks at all under one conditions: It must be guaranteed
@@ -256,6 +265,7 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
+	drm_atomic_state_get(state);
 	if (nonblock) {
 		queue_work(priv->atomic_wq, &c->work);
 		return 0;
@@ -268,4 +278,31 @@ int msm_atomic_commit(struct drm_device *dev,
 error:
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;
+}
+
+struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev)
+{
+	struct msm_kms_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (!state || drm_atomic_state_init(dev, &state->base) < 0) {
+		kfree(state);
+		return NULL;
+	}
+
+	return &state->base;
+}
+
+void msm_atomic_state_clear(struct drm_atomic_state *s)
+{
+	struct msm_kms_state *state = to_kms_state(s);
+	drm_atomic_state_default_clear(&state->base);
+	kfree(state->state);
+	state->state = NULL;
+}
+
+void msm_atomic_state_free(struct drm_atomic_state *state)
+{
+	kfree(to_kms_state(state)->state);
+	drm_atomic_state_default_release(state);
+	kfree(state);
 }

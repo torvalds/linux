@@ -18,6 +18,8 @@
 #include <linux/bug.h>
 #include <linux/completion.h>
 #include <linux/ieee802154.h>
+#include <linux/rculist.h>
+
 #include <crypto/aead.h>
 #include <crypto/skcipher.h>
 

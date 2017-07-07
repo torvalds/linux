@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/sched/signal.h>
 #include "isdn_common.h"
 #include "isdn_tty.h"
 #ifdef CONFIG_ISDN_AUDIO
@@ -473,7 +474,7 @@ isdn_tty_senddown(modem_info *info)
 		return;
 	}
 	skb_reserve(skb, skb_res);
-	memcpy(skb_put(skb, buflen), info->port.xmit_buf, buflen);
+	skb_put_data(skb, info->port.xmit_buf, buflen);
 	info->xmit_count = 0;
 #ifdef CONFIG_ISDN_AUDIO
 	if (info->vonline & 2) {
@@ -1811,9 +1812,8 @@ isdn_tty_modem_init(void)
 		info->isdn_channel = -1;
 		info->drv_index = -1;
 		info->xmit_size = ISDN_SERIAL_XMIT_SIZE;
-		init_timer(&info->nc_timer);
-		info->nc_timer.function = isdn_tty_modem_do_ncarrier;
-		info->nc_timer.data = (unsigned long) info;
+		setup_timer(&info->nc_timer, isdn_tty_modem_do_ncarrier,
+			    (unsigned long)info);
 		skb_queue_head_init(&info->xmit_queue);
 #ifdef CONFIG_ISDN_AUDIO
 		skb_queue_head_init(&info->dtmf_queue);

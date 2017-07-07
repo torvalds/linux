@@ -73,6 +73,10 @@ OPTIONS
 	Be verbose, for instance, show the raw counts in addition to the
 	diff.
 
+-q::
+--quiet::
+	Do not show any message.  (Suppress -v)
+
 -f::
 --force::
         Don't do ownership validation.
@@ -86,8 +90,9 @@ OPTIONS
 
 -c::
 --compute::
-        Differential computation selection - delta,ratio,wdiff (default is delta).
-        See COMPARISON METHODS section for more info.
+        Differential computation selection - delta, ratio, wdiff, delta-abs
+        (default is delta-abs).  Default can be changed using diff.compute
+        config option.  See COMPARISON METHODS section for more info.
 
 -p::
 --period::
@@ -99,7 +104,11 @@ OPTIONS
 
 -o::
 --order::
-       Specify compute sorting column number.
+       Specify compute sorting column number.  0 means sorting by baseline
+       overhead and 1 (default) means sorting by computed value of column 1
+       (data from the first file other base baseline).  Values more than 1
+       can be used only if enough data files are provided.
+       The default value can be set using the diff.order config option.
 
 --percentage::
 	Determine how to display the overhead percentage of filtered entries.
@@ -180,6 +189,10 @@ with:
   - with filtering by -C, -d and/or -S, period_percent might be changed
     relative to how entries are filtered.  Use --percentage=absolute to
     prevent such fluctuation.
+
+delta-abs
+~~~~~~~~~
+Same as 'delta` method, but sort the result with the absolute values.
 
 ratio
 ~~~~~

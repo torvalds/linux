@@ -9,10 +9,12 @@ Required properties:
 
 Required nodes:
 - display: Phandle to a display node as described in
-	Documentation/devicetree/bindings/display/display-timing.txt
+	Documentation/devicetree/bindings/display/panel/display-timing.txt
 	Additional, the display node has to define properties:
 	- bits-per-pixel: Bits per pixel
 	- fsl,pcr: LCDC PCR value
+	A display node may optionally define
+	- fsl,aus-mode: boolean to enable AUS mode (only for imx21)
 
 Optional properties:
 - lcd-supply: Regulator for LCD supply voltage.

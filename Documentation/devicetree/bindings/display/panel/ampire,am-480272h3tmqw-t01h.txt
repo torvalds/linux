@@ -1,0 +1,26 @@
+Ampire AM-480272H3TMQW-T01H 4.3" WQVGA TFT LCD panel
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
+
+Required properties:
+- compatible: should be "ampire,am-480272h3tmqw-t01h"
+
+Optional properties:
+- power-supply: regulator to provide the supply voltage
+- enable-gpios: GPIO pin to enable or disable the panel
+- backlight: phandle of the backlight device attached to the panel
+
+Optional nodes:
+- Video port for RGB input.
+
+Example:
+	panel_rgb: panel-rgb {
+		compatible = "ampire,am-480272h3tmqw-t01h";
+		enable-gpios = <&gpioa 8 1>;
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&controller_out_rgb>;
+			};
+		};
+	};

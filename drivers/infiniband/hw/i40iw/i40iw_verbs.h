@@ -42,6 +42,7 @@ struct i40iw_ucontext {
 	spinlock_t cq_reg_mem_list_lock; /* memory list for cq's */
 	struct list_head qp_reg_mem_list;
 	spinlock_t qp_reg_mem_list_lock; /* memory list for qp's */
+	int abi_ver;
 };
 
 struct i40iw_pd {
@@ -92,6 +93,8 @@ struct i40iw_mr {
 	struct ib_umem *region;
 	u16 type;
 	u32 page_cnt;
+	u32 page_size;
+	u64 page_msk;
 	u32 npages;
 	u32 stag;
 	u64 length;

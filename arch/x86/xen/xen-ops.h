@@ -67,7 +67,7 @@ void xen_init_irq_ops(void);
 void xen_setup_timer(int cpu);
 void xen_setup_runstate_info(int cpu);
 void xen_teardown_timer(int cpu);
-cycle_t xen_clocksource_read(void);
+u64 xen_clocksource_read(void);
 void xen_setup_cpu_clockevents(void);
 void __init xen_init_time_ops(void);
 void __init xen_hvm_init_time_ops(void);
@@ -76,7 +76,10 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
 
 bool xen_vcpu_stolen(int vcpu);
 
-void xen_vcpu_setup(int cpu);
+extern int xen_have_vcpu_info_placement;
+
+int xen_vcpu_setup(int cpu);
+void xen_vcpu_info_reset(int cpu);
 void xen_setup_vcpu_info_placement(void);
 
 #ifdef CONFIG_SMP
@@ -146,5 +149,24 @@ __visible void xen_adjust_exception_frame(void);
 
 extern int xen_panic_handler_init(void);
 
-void xen_pvh_secondary_vcpu_init(int cpu);
+int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
+		    int (*cpu_dead_cb)(unsigned int));
+
+void xen_pin_vcpu(int cpu);
+
+void xen_emergency_restart(void);
+#ifdef CONFIG_XEN_PV
+void xen_pv_pre_suspend(void);
+void xen_pv_post_suspend(int suspend_cancelled);
+#else
+static inline void xen_pv_pre_suspend(void) {}
+static inline void xen_pv_post_suspend(int suspend_cancelled) {}
+#endif
+
+#ifdef CONFIG_XEN_PVHVM
+void xen_hvm_post_suspend(int suspend_cancelled);
+#else
+static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
+#endif
+
 #endif /* XEN_OPS_H */

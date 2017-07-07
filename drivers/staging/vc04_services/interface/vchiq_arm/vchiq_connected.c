@@ -72,7 +72,7 @@ void vchiq_add_connected_callback(VCHIQ_CONNECTED_CALLBACK_T callback)
 {
 	connected_init();
 
-	if (mutex_lock_interruptible(&g_connected_mutex) != 0)
+	if (mutex_lock_killable(&g_connected_mutex) != 0)
 		return;
 
 	if (g_connected)
@@ -107,7 +107,7 @@ void vchiq_call_connected_callbacks(void)
 
 	connected_init();
 
-	if (mutex_lock_interruptible(&g_connected_mutex) != 0)
+	if (mutex_lock_killable(&g_connected_mutex) != 0)
 		return;
 
 	for (i = 0; i <  g_num_deferred_callbacks; i++)

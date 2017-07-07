@@ -155,7 +155,7 @@ static void vp8_enc_free_work_buf(struct venc_vp8_inst *inst)
 
 	/* Buffers need to be freed by AP. */
 	for (i = 0; i < VENC_VP8_VPU_WORK_BUF_MAX; i++) {
-		if ((inst->work_bufs[i].size == 0))
+		if (inst->work_bufs[i].size == 0)
 			continue;
 		mtk_vcodec_mem_free(inst->ctx, &inst->work_bufs[i]);
 	}
@@ -172,7 +172,7 @@ static int vp8_enc_alloc_work_buf(struct venc_vp8_inst *inst)
 	mtk_vcodec_debug_enter(inst);
 
 	for (i = 0; i < VENC_VP8_VPU_WORK_BUF_MAX; i++) {
-		if ((wb[i].size == 0))
+		if (wb[i].size == 0)
 			continue;
 		/*
 		 * This 'wb' structure is set by VPU side and shared to AP for
@@ -469,16 +469,16 @@ static int vp8_enc_deinit(unsigned long handle)
 	return ret;
 }
 
-static struct venc_common_if venc_vp8_if = {
-	vp8_enc_init,
-	vp8_enc_encode,
-	vp8_enc_set_param,
-	vp8_enc_deinit,
+static const struct venc_common_if venc_vp8_if = {
+	.init = vp8_enc_init,
+	.encode = vp8_enc_encode,
+	.set_param = vp8_enc_set_param,
+	.deinit = vp8_enc_deinit,
 };
 
-struct venc_common_if *get_vp8_enc_comm_if(void);
+const struct venc_common_if *get_vp8_enc_comm_if(void);
 
-struct venc_common_if *get_vp8_enc_comm_if(void)
+const struct venc_common_if *get_vp8_enc_comm_if(void)
 {
 	return &venc_vp8_if;
 }

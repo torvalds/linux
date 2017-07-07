@@ -86,32 +86,81 @@
 #define OP_TRAP_64 2
 
 #define OP_31_XOP_TRAP      4
+#define OP_31_XOP_LDX       21
 #define OP_31_XOP_LWZX      23
+#define OP_31_XOP_LDUX      53
 #define OP_31_XOP_DCBST     54
 #define OP_31_XOP_LWZUX     55
 #define OP_31_XOP_TRAP_64   68
 #define OP_31_XOP_DCBF      86
 #define OP_31_XOP_LBZX      87
+#define OP_31_XOP_STDX      149
 #define OP_31_XOP_STWX      151
+#define OP_31_XOP_STDUX     181
+#define OP_31_XOP_STWUX     183
 #define OP_31_XOP_STBX      215
 #define OP_31_XOP_LBZUX     119
 #define OP_31_XOP_STBUX     247
 #define OP_31_XOP_LHZX      279
 #define OP_31_XOP_LHZUX     311
+#define OP_31_XOP_MSGSNDP   142
+#define OP_31_XOP_MSGCLRP   174
 #define OP_31_XOP_MFSPR     339
+#define OP_31_XOP_LWAX      341
 #define OP_31_XOP_LHAX      343
+#define OP_31_XOP_LWAUX     373
 #define OP_31_XOP_LHAUX     375
 #define OP_31_XOP_STHX      407
 #define OP_31_XOP_STHUX     439
 #define OP_31_XOP_MTSPR     467
 #define OP_31_XOP_DCBI      470
+#define OP_31_XOP_LDBRX     532
 #define OP_31_XOP_LWBRX     534
 #define OP_31_XOP_TLBSYNC   566
+#define OP_31_XOP_STDBRX    660
 #define OP_31_XOP_STWBRX    662
+#define OP_31_XOP_STFSX	    663
+#define OP_31_XOP_STFSUX    695
+#define OP_31_XOP_STFDX     727
+#define OP_31_XOP_STFDUX    759
 #define OP_31_XOP_LHBRX     790
+#define OP_31_XOP_LFIWAX    855
+#define OP_31_XOP_LFIWZX    887
 #define OP_31_XOP_STHBRX    918
+#define OP_31_XOP_STFIWX    983
+
+/* VSX Scalar Load Instructions */
+#define OP_31_XOP_LXSDX         588
+#define OP_31_XOP_LXSSPX        524
+#define OP_31_XOP_LXSIWAX       76
+#define OP_31_XOP_LXSIWZX       12
+
+/* VSX Scalar Store Instructions */
+#define OP_31_XOP_STXSDX        716
+#define OP_31_XOP_STXSSPX       652
+#define OP_31_XOP_STXSIWX       140
+
+/* VSX Vector Load Instructions */
+#define OP_31_XOP_LXVD2X        844
+#define OP_31_XOP_LXVW4X        780
+
+/* VSX Vector Load and Splat Instruction */
+#define OP_31_XOP_LXVDSX        332
+
+/* VSX Vector Store Instructions */
+#define OP_31_XOP_STXVD2X       972
+#define OP_31_XOP_STXVW4X       908
+
+#define OP_31_XOP_LFSX          535
+#define OP_31_XOP_LFSUX         567
+#define OP_31_XOP_LFDX          599
+#define OP_31_XOP_LFDUX		631
 
 #define OP_LWZ  32
+#define OP_STFS 52
+#define OP_STFSU 53
+#define OP_STFD 54
+#define OP_STFDU 55
 #define OP_LD   58
 #define OP_LWZU 33
 #define OP_LBZ  34
@@ -127,6 +176,17 @@
 #define OP_LHAU 43
 #define OP_STH  44
 #define OP_STHU 45
+#define OP_LMW  46
+#define OP_STMW 47
+#define OP_LFS  48
+#define OP_LFSU 49
+#define OP_LFD  50
+#define OP_LFDU 51
+#define OP_STFS 52
+#define OP_STFSU 53
+#define OP_STFD  54
+#define OP_STFDU 55
+#define OP_LQ    56
 
 /* sorted alphabetically */
 #define PPC_INST_BHRBE			0x7c00025c
@@ -152,14 +212,16 @@
 #define PPC_INST_LWSYNC			0x7c2004ac
 #define PPC_INST_SYNC			0x7c0004ac
 #define PPC_INST_SYNC_MASK		0xfc0007fe
+#define PPC_INST_ISYNC			0x4c00012c
 #define PPC_INST_LXVD2X			0x7c000698
 #define PPC_INST_MCRXR			0x7c000400
 #define PPC_INST_MCRXR_MASK		0xfc0007fe
 #define PPC_INST_MFSPR_PVR		0x7c1f42a6
-#define PPC_INST_MFSPR_PVR_MASK		0xfc1fffff
+#define PPC_INST_MFSPR_PVR_MASK		0xfc1ffffe
 #define PPC_INST_MFTMR			0x7c0002dc
 #define PPC_INST_MSGSND			0x7c00019c
 #define PPC_INST_MSGCLR			0x7c0001dc
+#define PPC_INST_MSGSYNC		0x7c0006ec
 #define PPC_INST_MSGSNDP		0x7c00011c
 #define PPC_INST_MTTMR			0x7c0003dc
 #define PPC_INST_NOP			0x60000000
@@ -173,13 +235,13 @@
 #define PPC_INST_RFDI			0x4c00004e
 #define PPC_INST_RFMCI			0x4c00004c
 #define PPC_INST_MFSPR_DSCR		0x7c1102a6
-#define PPC_INST_MFSPR_DSCR_MASK	0xfc1fffff
+#define PPC_INST_MFSPR_DSCR_MASK	0xfc1ffffe
 #define PPC_INST_MTSPR_DSCR		0x7c1103a6
-#define PPC_INST_MTSPR_DSCR_MASK	0xfc1fffff
+#define PPC_INST_MTSPR_DSCR_MASK	0xfc1ffffe
 #define PPC_INST_MFSPR_DSCR_USER	0x7c0302a6
-#define PPC_INST_MFSPR_DSCR_USER_MASK	0xfc1fffff
+#define PPC_INST_MFSPR_DSCR_USER_MASK	0xfc1ffffe
 #define PPC_INST_MTSPR_DSCR_USER	0x7c0303a6
-#define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1fffff
+#define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1ffffe
 #define PPC_INST_MFVSRD			0x7c000066
 #define PPC_INST_MTVSRD			0x7c000166
 #define PPC_INST_SLBFEE			0x7c0007a7
@@ -283,6 +345,13 @@
 #define PPC_INST_BRANCH_COND		0x40800000
 #define PPC_INST_LBZCIX			0x7c0006aa
 #define PPC_INST_STBCIX			0x7c0007aa
+#define PPC_INST_LWZX			0x7c00002e
+#define PPC_INST_LFSX			0x7c00042e
+#define PPC_INST_STFSX			0x7c00052e
+#define PPC_INST_LFDX			0x7c0004ae
+#define PPC_INST_STFDX			0x7c0005ae
+#define PPC_INST_LVX			0x7c0000ce
+#define PPC_INST_STVX			0x7c0001ce
 
 /* macros to insert fields into opcodes */
 #define ___PPC_RA(a)	(((a) & 0x1f) << 16)
@@ -305,6 +374,7 @@
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
 #define __PPC_WS(w)	(((w) & 0x1f) << 11)
 #define __PPC_SH(s)	__PPC_WS(s)
+#define __PPC_SH64(s)	(__PPC_SH(s) | (((s) & 0x20) >> 4))
 #define __PPC_MB(s)	(((s) & 0x1f) << 6)
 #define __PPC_ME(s)	(((s) & 0x1f) << 1)
 #define __PPC_MB64(s)	(__PPC_MB(s) | ((s) & 0x20))
@@ -336,6 +406,7 @@
 					___PPC_RB(b) | __PPC_EH(eh))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
 					___PPC_RB(b))
+#define PPC_MSGSYNC		stringify_in_c(.long PPC_INST_MSGSYNC)
 #define PPC_MSGCLR(b)		stringify_in_c(.long PPC_INST_MSGCLR | \
 					___PPC_RB(b))
 #define PPC_MSGSNDP(b)		stringify_in_c(.long PPC_INST_MSGSNDP | \
@@ -459,5 +530,6 @@
 
 #define PPC_SLBIA(IH)	stringify_in_c(.long PPC_INST_SLBIA | \
 				       ((IH & 0x7) << 21))
+#define PPC_INVALIDATE_ERAT	PPC_SLBIA(7)
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

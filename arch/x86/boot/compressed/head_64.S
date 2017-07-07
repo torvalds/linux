@@ -119,8 +119,7 @@ ENTRY(startup_32)
  */
 
 	/* Load new GDT with the 64bit segments using 32bit descriptor */
-	leal	gdt(%ebp), %eax
-	movl	%eax, gdt+2(%ebp)
+	addl	%ebp, gdt+2(%ebp)
 	lgdt	gdt(%ebp)
 
 	/* Enable PAE mode */
@@ -265,7 +264,7 @@ ENTRY(efi_pe_entry)
 	/*
 	 * Relocate efi_config->call().
 	 */
-	addq	%rbp, efi64_config+32(%rip)
+	addq	%rbp, efi64_config+40(%rip)
 
 	movq	%rax, %rdi
 	call	make_boot_params
@@ -285,7 +284,7 @@ handover_entry:
 	 * Relocate efi_config->call().
 	 */
 	movq	efi_config(%rip), %rax
-	addq	%rbp, 32(%rax)
+	addq	%rbp, 40(%rax)
 2:
 	movq	efi_config(%rip), %rdi
 	call	efi_main
@@ -346,6 +345,48 @@ preferred_addr:
 
 	/* Set up the stack */
 	leaq	boot_stack_end(%rbx), %rsp
+
+#ifdef CONFIG_X86_5LEVEL
+	/* Check if 5-level paging has already enabled */
+	movq	%cr4, %rax
+	testl	$X86_CR4_LA57, %eax
+	jnz	lvl5
+
+	/*
+	 * At this point we are in long mode with 4-level paging enabled,
+	 * but we want to enable 5-level paging.
+	 *
+	 * The problem is that we cannot do it directly. Setting LA57 in
+	 * long mode would trigger #GP. So we need to switch off long mode
+	 * first.
+	 *
+	 * NOTE: This is not going to work if bootloader put us above 4G
+	 * limit.
+	 *
+	 * The first step is go into compatibility mode.
+	 */
+
+	/* Clear additional page table */
+	leaq	lvl5_pgtable(%rbx), %rdi
+	xorq	%rax, %rax
+	movq	$(PAGE_SIZE/8), %rcx
+	rep	stosq
+
+	/*
+	 * Setup current CR3 as the first and only entry in a new top level
+	 * page table.
+	 */
+	movq	%cr3, %rdi
+	leaq	0x7 (%rdi), %rax
+	movq	%rax, lvl5_pgtable(%rbx)
+
+	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
+	pushq	$__KERNEL32_CS
+	leaq	compatible_mode(%rip), %rax
+	pushq	%rax
+	lretq
+lvl5:
+#endif
 
 	/* Zero EFLAGS */
 	pushq	$0
@@ -430,6 +471,44 @@ relocated:
 	jmp	*%rax
 
 	.code32
+#ifdef CONFIG_X86_5LEVEL
+compatible_mode:
+	/* Setup data and stack segments */
+	movl	$__KERNEL_DS, %eax
+	movl	%eax, %ds
+	movl	%eax, %ss
+
+	/* Disable paging */
+	movl	%cr0, %eax
+	btrl	$X86_CR0_PG_BIT, %eax
+	movl	%eax, %cr0
+
+	/* Point CR3 to 5-level paging */
+	leal	lvl5_pgtable(%ebx), %eax
+	movl	%eax, %cr3
+
+	/* Enable PAE and LA57 mode */
+	movl	%cr4, %eax
+	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
+	movl	%eax, %cr4
+
+	/* Calculate address we are running at */
+	call	1f
+1:	popl	%edi
+	subl	$1b, %edi
+
+	/* Prepare stack for far return to Long Mode */
+	pushl	$__KERNEL_CS
+	leal	lvl5(%edi), %eax
+	push	%eax
+
+	/* Enable paging back */
+	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
+	movl	%eax, %cr0
+
+	lret
+#endif
+
 no_longmode:
 	/* This isn't an x86-64 CPU so hang */
 1:
@@ -443,7 +522,7 @@ gdt:
 	.word	gdt_end - gdt
 	.long	gdt
 	.word	0
-	.quad	0x0000000000000000	/* NULL descriptor */
+	.quad	0x00cf9a000000ffff	/* __KERNEL32_CS */
 	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
 	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
 	.quad	0x0080890000000000	/* TS descriptor */
@@ -457,14 +536,14 @@ efi_config:
 #ifdef CONFIG_EFI_MIXED
 	.global efi32_config
 efi32_config:
-	.fill	4,8,0
+	.fill	5,8,0
 	.quad	efi64_thunk
 	.byte	0
 #endif
 
 	.global efi64_config
 efi64_config:
-	.fill	4,8,0
+	.fill	5,8,0
 	.quad	efi_call
 	.byte	1
 #endif /* CONFIG_EFI_STUB */
@@ -487,3 +566,7 @@ boot_stack_end:
 	.balign 4096
 pgtable:
 	.fill BOOT_PGT_SIZE, 1, 0
+#ifdef CONFIG_X86_5LEVEL
+lvl5_pgtable:
+	.fill PAGE_SIZE, 1, 0
+#endif

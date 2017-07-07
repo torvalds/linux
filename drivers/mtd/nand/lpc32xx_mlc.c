@@ -747,10 +747,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	 * Scan to find existance of the device and
 	 * Get the type of NAND device SMALL block or LARGE block
 	 */
-	if (nand_scan_ident(mtd, 1, NULL)) {
-		res = -ENXIO;
+	res = nand_scan_ident(mtd, 1, NULL);
+	if (res)
 		goto err_exit3;
-	}
 
 	host->dma_buf = devm_kzalloc(&pdev->dev, mtd->writesize, GFP_KERNEL);
 	if (!host->dma_buf) {
@@ -776,7 +775,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	init_completion(&host->comp_controller);
 
 	host->irq = platform_get_irq(pdev, 0);
-	if ((host->irq < 0) || (host->irq >= NR_IRQS)) {
+	if (host->irq < 0) {
 		dev_err(&pdev->dev, "failed to get platform irq\n");
 		res = -EINVAL;
 		goto err_exit3;
@@ -793,10 +792,9 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	 * Fills out all the uninitialized function pointers with the defaults
 	 * And scans for a bad block table if appropriate.
 	 */
-	if (nand_scan_tail(mtd)) {
-		res = -ENXIO;
+	res = nand_scan_tail(mtd);
+	if (res)
 		goto err_exit4;
-	}
 
 	mtd->name = DRV_NAME;
 

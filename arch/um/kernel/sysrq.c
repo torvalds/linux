@@ -11,16 +11,17 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/sysrq.h>
 #include <asm/stacktrace.h>
 #include <os.h>
 
 static void _print_addr(void *data, unsigned long address, int reliable)
 {
-	pr_info(" [<%08lx>]", address);
-	pr_cont(" %s", reliable ? "" : "? ");
-	print_symbol("%s", address);
-	pr_cont("\n");
+	pr_info(" [<%08lx>] %s%pF\n", address, reliable ? "" : "? ",
+		(void *)address);
 }
 
 static const struct stacktrace_ops stackops = {

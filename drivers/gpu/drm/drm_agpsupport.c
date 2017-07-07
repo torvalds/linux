@@ -421,6 +421,8 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 	head->base = head->agp_info.aper_base;
 	return head;
 }
+/* Only exported for i810.ko */
+EXPORT_SYMBOL(drm_agp_init);
 
 /**
  * drm_legacy_agp_clear - Clear AGP resource list
@@ -430,9 +432,7 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
  * intact so it can still be used. It is safe to call this if AGP is disabled or
  * was already removed.
  *
- * If DRIVER_MODESET is active, nothing is done to protect the modesetting
- * resources from getting destroyed. Drivers are responsible of cleaning them up
- * during device shutdown.
+ * Cleanup is only done for drivers who have DRIVER_LEGACY set.
  */
 void drm_legacy_agp_clear(struct drm_device *dev)
 {
@@ -440,7 +440,7 @@ void drm_legacy_agp_clear(struct drm_device *dev)
 
 	if (!dev->agp)
 		return;
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
 		return;
 
 	list_for_each_entry_safe(entry, tempe, &dev->agp->memory, head) {

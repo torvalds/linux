@@ -401,7 +401,7 @@ static void jdvbt90502_release(struct dvb_frontend *fe)
 }
 
 
-static struct dvb_frontend_ops jdvbt90502_ops;
+static const struct dvb_frontend_ops jdvbt90502_ops;
 
 struct dvb_frontend *jdvbt90502_attach(struct dvb_usb_device *d)
 {
@@ -432,7 +432,7 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops jdvbt90502_ops = {
+static const struct dvb_frontend_ops jdvbt90502_ops = {
 	.delsys = { SYS_ISDBT },
 	.info = {
 		.name			= "Comtech JDVBT90502 ISDB-T",

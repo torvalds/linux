@@ -188,8 +188,10 @@ enum max77693_muic_acc_type {
 	MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE,
 	MAX77693_MUIC_ADC_OPEN,
 
-	/* The below accessories have same ADC value so ADCLow and
-	   ADC1K bit is used to separate specific accessory */
+	/*
+	 * The below accessories have same ADC value so ADCLow and
+	 * ADC1K bit is used to separate specific accessory.
+	 */
 						/* ADC|VBVolot|ADCLow|ADC1K| */
 	MAX77693_MUIC_GND_USB_HOST = 0x100,	/* 0x0|      0|     0|    0| */
 	MAX77693_MUIC_GND_USB_HOST_VB = 0x104,	/* 0x0|      1|     0|    0| */
@@ -970,8 +972,10 @@ static void max77693_muic_irq_work(struct work_struct *work)
 	case MAX77693_MUIC_IRQ_INT1_ADC_LOW:
 	case MAX77693_MUIC_IRQ_INT1_ADC_ERR:
 	case MAX77693_MUIC_IRQ_INT1_ADC1K:
-		/* Handle all of accessory except for
-		   type of charger accessory */
+		/*
+		 * Handle all of accessory except for
+		 * type of charger accessory.
+		 */
 		ret = max77693_muic_adc_handler(info);
 		break;
 	case MAX77693_MUIC_IRQ_INT2_CHGTYP:

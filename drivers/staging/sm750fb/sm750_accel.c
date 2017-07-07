@@ -32,7 +32,7 @@ static inline void write_dpPort(struct lynx_accel *accel, u32 data)
 	writel(data, accel->dpPortBase);
 }
 
-void hw_de_init(struct lynx_accel *accel)
+void sm750_hw_de_init(struct lynx_accel *accel)
 {
 	/* setup 2d engine registers */
 	u32 reg, clr;
@@ -42,10 +42,11 @@ void hw_de_init(struct lynx_accel *accel)
 	/* dpr1c */
 	reg =  0x3;
 
-	clr = DE_STRETCH_FORMAT_PATTERN_XY | DE_STRETCH_FORMAT_PATTERN_Y_MASK |
-		DE_STRETCH_FORMAT_PATTERN_X_MASK |
-		DE_STRETCH_FORMAT_ADDRESSING_MASK |
-		DE_STRETCH_FORMAT_SOURCE_HEIGHT_MASK;
+	clr = DE_STRETCH_FORMAT_PATTERN_XY |
+	      DE_STRETCH_FORMAT_PATTERN_Y_MASK |
+	      DE_STRETCH_FORMAT_PATTERN_X_MASK |
+	      DE_STRETCH_FORMAT_ADDRESSING_MASK |
+	      DE_STRETCH_FORMAT_SOURCE_HEIGHT_MASK;
 
 	/* DE_STRETCH bpp format need be initialized in setMode routine */
 	write_dpr(accel, DE_STRETCH_FORMAT,
@@ -65,12 +66,13 @@ void hw_de_init(struct lynx_accel *accel)
 	write_dpr(accel, DE_CONTROL, read_dpr(accel, DE_CONTROL) & ~clr);
 }
 
-/* set2dformat only be called from setmode functions
+/*
+ * set2dformat only be called from setmode functions
  * but if you need dual framebuffer driver,need call set2dformat
  * every time you use 2d function
  */
 
-void hw_set2dformat(struct lynx_accel *accel, int fmt)
+void sm750_hw_set2dformat(struct lynx_accel *accel, int fmt)
 {
 	u32 reg;
 
@@ -82,15 +84,16 @@ void hw_set2dformat(struct lynx_accel *accel, int fmt)
 	write_dpr(accel, DE_STRETCH_FORMAT, reg);
 }
 
-int hw_fillrect(struct lynx_accel *accel,
-				u32 base, u32 pitch, u32 Bpp,
-				u32 x, u32 y, u32 width, u32 height,
-				u32 color, u32 rop)
+int sm750_hw_fillrect(struct lynx_accel *accel,
+		      u32 base, u32 pitch, u32 Bpp,
+		      u32 x, u32 y, u32 width, u32 height,
+		      u32 color, u32 rop)
 {
 	u32 deCtrl;
 
 	if (accel->de_wait() != 0) {
-		/* int time wait and always busy,seems hardware
+		/*
+		 * int time wait and always busy,seems hardware
 		 * got something error
 		 */
 		pr_debug("De engine always busy\n");
@@ -126,7 +129,7 @@ int hw_fillrect(struct lynx_accel *accel,
 	return 0;
 }
 
-int hw_copyarea(
+int sm750_hw_copyarea(
 struct lynx_accel *accel,
 unsigned int sBase,  /* Address of source: offset in frame buffer */
 unsigned int sPitch, /* Pitch value of source surface in BYTE */
@@ -142,11 +145,9 @@ unsigned int height, /* width and height of rectangle in pixel value */
 unsigned int rop2)   /* ROP value */
 {
 	unsigned int nDirection, de_ctrl;
-	int opSign;
 
 	nDirection = LEFT_TO_RIGHT;
 	/* Direction of ROP2 operation: 1 = Left to Right, (-1) = Right to Left */
-	opSign = 1;
 	de_ctrl = 0;
 
 	/* If source and destination are the same surface, need to check for overlay cases */
@@ -210,28 +211,31 @@ unsigned int rop2)   /* ROP value */
 		sy += height - 1;
 		dx += width - 1;
 		dy += height - 1;
-		opSign = (-1);
 	}
 
-	/* Note:
+	/*
+	 * Note:
 	 * DE_FOREGROUND are DE_BACKGROUND are don't care.
 	 * DE_COLOR_COMPARE and DE_COLOR_COMPARE_MAKS
 	 * are set by set deSetTransparency().
 	 */
 
-	/* 2D Source Base.
+	/*
+	 * 2D Source Base.
 	 * It is an address offset (128 bit aligned)
 	 * from the beginning of frame buffer.
 	 */
 	write_dpr(accel, DE_WINDOW_SOURCE_BASE, sBase); /* dpr40 */
 
-	/* 2D Destination Base.
+	/*
+	 * 2D Destination Base.
 	 * It is an address offset (128 bit aligned)
 	 * from the beginning of frame buffer.
 	 */
 	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase); /* dpr44 */
 
-    /* Program pitch (distance between the 1st points of two adjacent lines).
+    /*
+     * Program pitch (distance between the 1st points of two adjacent lines).
      * Note that input pitch is BYTE value, but the 2D Pitch register uses
      * pixel values. Need Byte to pixel conversion.
      */
@@ -240,7 +244,8 @@ unsigned int rop2)   /* ROP value */
 		   DE_PITCH_DESTINATION_MASK) |
 		  (sPitch / Bpp & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
-    /* Screen Window width in Pixels.
+    /*
+     * Screen Window width in Pixels.
      * 2D engine uses this value to calculate the linear address in frame buffer
      * for a given point.
      */
@@ -251,8 +256,6 @@ unsigned int rop2)   /* ROP value */
 
 	if (accel->de_wait() != 0)
 		return -1;
-
-	{
 
 	write_dpr(accel, DE_SOURCE,
 		  ((sx << DE_SOURCE_X_K1_SHIFT) & DE_SOURCE_X_K1_MASK) |
@@ -269,8 +272,6 @@ unsigned int rop2)   /* ROP value */
 		DE_CONTROL_COMMAND_BITBLT | DE_CONTROL_STATUS;
 	write_dpr(accel, DE_CONTROL, de_ctrl); /* dpr0c */
 
-	}
-
 	return 0;
 }
 
@@ -286,7 +287,7 @@ static unsigned int deGetTransparency(struct lynx_accel *accel)
 	return de_ctrl;
 }
 
-int hw_imageblit(struct lynx_accel *accel,
+int sm750_hw_imageblit(struct lynx_accel *accel,
 		 const char *pSrcbuf, /* pointer to start of source buffer in system memory */
 		 u32 srcDelta,          /* Pitch value (in bytes) of the source buffer, +ive means top down and -ive mean button up */
 		 u32 startBit, /* Mono data can start at any bit in a byte, this value should be 0 to 7 */
@@ -316,7 +317,8 @@ int hw_imageblit(struct lynx_accel *accel,
 	if (accel->de_wait() != 0)
 		return -1;
 
-	/* 2D Source Base.
+	/*
+	 * 2D Source Base.
 	 * Use 0 for HOST Blt.
 	 */
 	write_dpr(accel, DE_WINDOW_SOURCE_BASE, 0);
@@ -326,16 +328,19 @@ int hw_imageblit(struct lynx_accel *accel,
 	 * from the beginning of frame buffer.
 	 */
 	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase);
-    /* Program pitch (distance between the 1st points of two adjacent lines).
-     * Note that input pitch is BYTE value, but the 2D Pitch register uses
-     * pixel values. Need Byte to pixel conversion.
-     */
+
+	/*
+	 * Program pitch (distance between the 1st points of two adjacent
+	 * lines). Note that input pitch is BYTE value, but the 2D Pitch
+	 * register uses pixel values. Need Byte to pixel conversion.
+	 */
 	write_dpr(accel, DE_PITCH,
 		  ((dPitch / bytePerPixel << DE_PITCH_DESTINATION_SHIFT) &
 		   DE_PITCH_DESTINATION_MASK) |
 		  (dPitch / bytePerPixel & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
-	/* Screen Window width in Pixels.
+	/*
+	 * Screen Window width in Pixels.
 	 * 2D engine uses this value to calculate the linear address
 	 * in frame buffer for a given point.
 	 */
@@ -344,7 +349,8 @@ int hw_imageblit(struct lynx_accel *accel,
 		   DE_WINDOW_WIDTH_DST_MASK) |
 		  (dPitch / bytePerPixel & DE_WINDOW_WIDTH_SRC_MASK));
 
-	 /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed,
+	 /*
+	  * Note: For 2D Source in Host Write, only X_K1_MONO field is needed,
 	  * and Y_K2 field is not used.
 	  * For mono bitmap, use startBit for X_K1.
 	  */
@@ -372,7 +378,7 @@ int hw_imageblit(struct lynx_accel *accel,
 	/* Write MONO data (line by line) to 2D Engine data port */
 	for (i = 0; i < height; i++) {
 		/* For each line, send the data in chunks of 4 bytes */
-		for (j = 0; j < (ul4BytesPerScan/4); j++)
+		for (j = 0; j < (ul4BytesPerScan / 4); j++)
 			write_dpPort(accel, *(unsigned int *)(pSrcbuf + (j * 4)));
 
 		if (ulBytesRemain) {
@@ -383,6 +389,6 @@ int hw_imageblit(struct lynx_accel *accel,
 		pSrcbuf += srcDelta;
 	}
 
-	    return 0;
+	return 0;
 }
 

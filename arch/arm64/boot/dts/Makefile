@@ -1,4 +1,6 @@
+dts-dirs += actions
 dts-dirs += al
+dts-dirs += allwinner
 dts-dirs += altera
 dts-dirs += amd
 dts-dirs += amlogic
@@ -13,6 +15,7 @@ dts-dirs += marvell
 dts-dirs += mediatek
 dts-dirs += nvidia
 dts-dirs += qcom
+dts-dirs += realtek
 dts-dirs += renesas
 dts-dirs += rockchip
 dts-dirs += socionext

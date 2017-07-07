@@ -43,7 +43,7 @@ int focaltech_detect(struct psmouse *psmouse, bool set_properties)
 
 	if (set_properties) {
 		psmouse->vendor = "FocalTech";
-		psmouse->name = "FocalTech Touchpad";
+		psmouse->name = "Touchpad";
 	}
 
 	return 0;
@@ -146,8 +146,8 @@ static void focaltech_report_state(struct psmouse *psmouse)
 	}
 	input_mt_report_pointer_emulation(dev, true);
 
-	input_report_key(psmouse->dev, BTN_LEFT, state->pressed);
-	input_sync(psmouse->dev);
+	input_report_key(dev, BTN_LEFT, state->pressed);
+	input_sync(dev);
 }
 
 static void focaltech_process_touch_packet(struct psmouse *psmouse,

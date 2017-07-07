@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 #include <linux/of.h>
+#include <linux/if_vlan.h>
 
 #include "nic_reg.h"
 #include "nic.h"
@@ -64,9 +65,7 @@ struct nicpf {
 	bool			mbx_lock[MAX_NUM_VFS_SUPPORTED];
 
 	/* MSI-X */
-	bool			msix_enabled;
 	u8			num_vec;
-	struct msix_entry	*msix_entries;
 	bool			irq_allocated[NIC_PF_MSIX_VECTORS];
 	char			irq_name[NIC_PF_MSIX_VECTORS][20];
 };
@@ -260,18 +259,31 @@ static void nic_get_bgx_stats(struct nicpf *nic, struct bgx_stats_msg *bgx)
 /* Update hardware min/max frame size */
 static int nic_update_hw_frs(struct nicpf *nic, int new_frs, int vf)
 {
-	if ((new_frs > NIC_HW_MAX_FRS) || (new_frs < NIC_HW_MIN_FRS)) {
-		dev_err(&nic->pdev->dev,
-			"Invalid MTU setting from VF%d rejected, should be between %d and %d\n",
-			   vf, NIC_HW_MIN_FRS, NIC_HW_MAX_FRS);
-		return 1;
-	}
-	new_frs += ETH_HLEN;
-	if (new_frs <= nic->pkind.maxlen)
-		return 0;
+	int bgx, lmac, lmac_cnt;
+	u64 lmac_credits;
 
-	nic->pkind.maxlen = new_frs;
-	nic_reg_write(nic, NIC_PF_PKIND_0_15_CFG, *(u64 *)&nic->pkind);
+	if ((new_frs > NIC_HW_MAX_FRS) || (new_frs < NIC_HW_MIN_FRS))
+		return 1;
+
+	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac += bgx * MAX_LMAC_PER_BGX;
+
+	new_frs += VLAN_ETH_HLEN + ETH_FCS_LEN + 4;
+
+	/* Update corresponding LMAC credits */
+	lmac_cnt = bgx_get_lmac_count(nic->node, bgx);
+	lmac_credits = nic_reg_read(nic, NIC_PF_LMAC_0_7_CREDIT + (lmac * 8));
+	lmac_credits &= ~(0xFFFFFULL << 12);
+	lmac_credits |= (((((48 * 1024) / lmac_cnt) - new_frs) / 16) << 12);
+	nic_reg_write(nic, NIC_PF_LMAC_0_7_CREDIT + (lmac * 8), lmac_credits);
+
+	/* Enforce MTU in HW
+	 * This config is supported only from 88xx pass 2.0 onwards.
+	 */
+	if (!pass1_silicon(nic->pdev))
+		nic_reg_write(nic,
+			      NIC_PF_LMAC_0_7_CFG2 + (lmac * 8), new_frs);
 	return 0;
 }
 
@@ -464,7 +476,7 @@ static int nic_init_hw(struct nicpf *nic)
 
 	/* PKIND configuration */
 	nic->pkind.minlen = 0;
-	nic->pkind.maxlen = NIC_HW_MAX_FRS + ETH_HLEN;
+	nic->pkind.maxlen = NIC_HW_MAX_FRS + VLAN_ETH_HLEN + ETH_FCS_LEN + 4;
 	nic->pkind.lenerr_en = 1;
 	nic->pkind.rx_hdr = 0;
 	nic->pkind.hdr_sl = 0;
@@ -795,6 +807,15 @@ static int nic_config_loopback(struct nicpf *nic, struct set_loopback *lbk)
 
 	bgx_lmac_internal_loopback(nic->node, bgx_idx, lmac_idx, lbk->enable);
 
+	/* Enable moving average calculation.
+	 * Keep the LVL/AVG delay to HW enforced minimum so that, not too many
+	 * packets sneek in between average calculations.
+	 */
+	nic_reg_write(nic, NIC_PF_CQ_AVG_CFG,
+		      (BIT_ULL(20) | 0x2ull << 14 | 0x1));
+	nic_reg_write(nic, NIC_PF_RRM_AVG_CFG,
+		      (BIT_ULL(20) | 0x3ull << 14 | 0x1));
+
 	return 0;
 }
 
@@ -837,6 +858,7 @@ static int nic_reset_stat_counters(struct nicpf *nic,
 			nic_reg_write(nic, reg_addr, 0);
 		}
 	}
+
 	return 0;
 }
 
@@ -872,6 +894,30 @@ static void nic_enable_vf(struct nicpf *nic, int vf, bool enable)
 	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 
 	bgx_lmac_rx_tx_enable(nic->node, bgx, lmac, enable);
+}
+
+static void nic_pause_frame(struct nicpf *nic, int vf, struct pfc *cfg)
+{
+	int bgx, lmac;
+	struct pfc pfc;
+	union nic_mbx mbx = {};
+
+	if (vf >= nic->num_vf_en)
+		return;
+	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
+
+	if (cfg->get) {
+		bgx_lmac_get_pfc(nic->node, bgx, lmac, &pfc);
+		mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+		mbx.pfc.autoneg = pfc.autoneg;
+		mbx.pfc.fc_rx = pfc.fc_rx;
+		mbx.pfc.fc_tx = pfc.fc_tx;
+		nic_send_msg_to_vf(nic, vf, &mbx);
+	} else {
+		bgx_lmac_set_pfc(nic->node, bgx, lmac, cfg);
+		nic_mbx_send_ack(nic, vf);
+	}
 }
 
 /* Interrupt handler to handle mailbox messages from VFs */
@@ -1013,6 +1059,9 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 	case NIC_MBOX_MSG_RESET_STAT_COUNTER:
 		ret = nic_reset_stat_counters(nic, vf, &mbx.reset_stat);
 		break;
+	case NIC_MBOX_MSG_PFC:
+		nic_pause_frame(nic, vf, &mbx.pfc);
+		goto unlock;
 	default:
 		dev_err(&nic->pdev->dev,
 			"Invalid msg from VF%d, msg 0x%x\n", vf, mbx.msg.msg);
@@ -1037,7 +1086,7 @@ static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
 	u64 intr;
 	u8  vf, vf_per_mbx_reg = 64;
 
-	if (irq == nic->msix_entries[NIC_PF_INTR_ID_MBOX0].vector)
+	if (irq == pci_irq_vector(nic->pdev, NIC_PF_INTR_ID_MBOX0))
 		mbx = 0;
 	else
 		mbx = 1;
@@ -1056,51 +1105,13 @@ static irqreturn_t nic_mbx_intr_handler(int irq, void *nic_irq)
 	return IRQ_HANDLED;
 }
 
-static int nic_enable_msix(struct nicpf *nic)
-{
-	int i, ret;
-
-	nic->num_vec = pci_msix_vec_count(nic->pdev);
-
-	nic->msix_entries = kmalloc_array(nic->num_vec,
-					  sizeof(struct msix_entry),
-					  GFP_KERNEL);
-	if (!nic->msix_entries)
-		return -ENOMEM;
-
-	for (i = 0; i < nic->num_vec; i++)
-		nic->msix_entries[i].entry = i;
-
-	ret = pci_enable_msix(nic->pdev, nic->msix_entries, nic->num_vec);
-	if (ret) {
-		dev_err(&nic->pdev->dev,
-			"Request for #%d msix vectors failed, returned %d\n",
-			   nic->num_vec, ret);
-		kfree(nic->msix_entries);
-		return ret;
-	}
-
-	nic->msix_enabled = 1;
-	return 0;
-}
-
-static void nic_disable_msix(struct nicpf *nic)
-{
-	if (nic->msix_enabled) {
-		pci_disable_msix(nic->pdev);
-		kfree(nic->msix_entries);
-		nic->msix_enabled = 0;
-		nic->num_vec = 0;
-	}
-}
-
 static void nic_free_all_interrupts(struct nicpf *nic)
 {
 	int irq;
 
 	for (irq = 0; irq < nic->num_vec; irq++) {
 		if (nic->irq_allocated[irq])
-			free_irq(nic->msix_entries[irq].vector, nic);
+			free_irq(pci_irq_vector(nic->pdev, irq), nic);
 		nic->irq_allocated[irq] = false;
 	}
 }
@@ -1108,18 +1119,24 @@ static void nic_free_all_interrupts(struct nicpf *nic)
 static int nic_register_interrupts(struct nicpf *nic)
 {
 	int i, ret;
+	nic->num_vec = pci_msix_vec_count(nic->pdev);
 
 	/* Enable MSI-X */
-	ret = nic_enable_msix(nic);
-	if (ret)
-		return ret;
+	ret = pci_alloc_irq_vectors(nic->pdev, nic->num_vec, nic->num_vec,
+				    PCI_IRQ_MSIX);
+	if (ret < 0) {
+		dev_err(&nic->pdev->dev,
+			"Request for #%d msix vectors failed, returned %d\n",
+			   nic->num_vec, ret);
+		return 1;
+	}
 
 	/* Register mailbox interrupt handler */
 	for (i = NIC_PF_INTR_ID_MBOX0; i < nic->num_vec; i++) {
 		sprintf(nic->irq_name[i],
 			"NICPF Mbox%d", (i - NIC_PF_INTR_ID_MBOX0));
 
-		ret = request_irq(nic->msix_entries[i].vector,
+		ret = request_irq(pci_irq_vector(nic->pdev, i),
 				  nic_mbx_intr_handler, 0,
 				  nic->irq_name[i], nic);
 		if (ret)
@@ -1135,14 +1152,16 @@ static int nic_register_interrupts(struct nicpf *nic)
 fail:
 	dev_err(&nic->pdev->dev, "Request irq failed\n");
 	nic_free_all_interrupts(nic);
-	nic_disable_msix(nic);
+	pci_free_irq_vectors(nic->pdev);
+	nic->num_vec = 0;
 	return ret;
 }
 
 static void nic_unregister_interrupts(struct nicpf *nic)
 {
 	nic_free_all_interrupts(nic);
-	nic_disable_msix(nic);
+	pci_free_irq_vectors(nic->pdev);
+	nic->num_vec = 0;
 }
 
 static int nic_num_sqs_en(struct nicpf *nic, int vf_en)
@@ -1243,6 +1262,7 @@ static void nic_poll_for_link(struct work_struct *work)
 			mbx.link_status.link_up = link.link_up;
 			mbx.link_status.duplex = link.duplex;
 			mbx.link_status.speed = link.speed;
+			mbx.link_status.mac_type = link.mac_type;
 			nic_send_msg_to_vf(nic, vf, &mbx);
 		}
 	}

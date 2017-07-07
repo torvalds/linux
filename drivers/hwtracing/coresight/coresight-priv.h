@@ -76,7 +76,6 @@ enum cs_mode {
  * @nr_pages:	max number of pages granted to us
  * @offset:	offset within the current buffer
  * @data_size:	how much we collected in this run
- * @lost:	other than zero if we had a HW buffer wrap around
  * @snapshot:	is this run in snapshot mode
  * @data_pages:	a handle the ring buffer
  */
@@ -85,7 +84,6 @@ struct cs_buffers {
 	unsigned int		nr_pages;
 	unsigned long		offset;
 	local_t			data_size;
-	local_t			lost;
 	bool			snapshot;
 	void			**data_pages;
 };
@@ -111,7 +109,9 @@ static inline void CS_UNLOCK(void __iomem *addr)
 void coresight_disable_path(struct list_head *path);
 int coresight_enable_path(struct list_head *path, u32 mode);
 struct coresight_device *coresight_get_sink(struct list_head *path);
-struct list_head *coresight_build_path(struct coresight_device *csdev);
+struct coresight_device *coresight_get_enabled_sink(bool reset);
+struct list_head *coresight_build_path(struct coresight_device *csdev,
+				       struct coresight_device *sink);
 void coresight_release_path(struct list_head *path);
 
 #ifdef CONFIG_CORESIGHT_SOURCE_ETM3X

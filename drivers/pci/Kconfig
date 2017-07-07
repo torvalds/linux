@@ -86,6 +86,9 @@ config PCI_ATS
 config PCI_ECAM
 	bool
 
+config PCI_LOCKLESS_CONFIG
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
@@ -132,4 +135,7 @@ config PCI_HYPERV
           PCI devices from a PCI backend to support PCI driver domains.
 
 source "drivers/pci/hotplug/Kconfig"
+source "drivers/pci/dwc/Kconfig"
 source "drivers/pci/host/Kconfig"
+source "drivers/pci/endpoint/Kconfig"
+source "drivers/pci/switch/Kconfig"

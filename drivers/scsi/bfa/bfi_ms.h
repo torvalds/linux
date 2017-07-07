@@ -680,7 +680,7 @@ struct bfi_ioim_req_s {
 
 	/*
 	 * SG elements array within the IO request must be double word
-	 * aligned. This aligment is required to optimize SGM setup for the IO.
+	 * aligned. This alignment is required to optimize SGM setup for the IO.
 	 */
 	struct bfi_sge_s	sges[BFI_SGE_INLINE_MAX];
 	u8	io_timeout;

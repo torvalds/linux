@@ -159,9 +159,8 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			" ++OTG Interrupt: Session Request Success Status Change++\n");
 		gotgctl = dwc2_readl(hsotg->regs + GOTGCTL);
 		if (gotgctl & GOTGCTL_SESREQSCS) {
-			if (hsotg->core_params->phy_type ==
-					DWC2_PHY_TYPE_PARAM_FS
-			    && hsotg->core_params->i2c_enable > 0) {
+			if (hsotg->params.phy_type == DWC2_PHY_TYPE_PARAM_FS &&
+			    hsotg->params.i2c_enable) {
 				hsotg->srp_success = 1;
 			} else {
 				/* Clear Session Request */
@@ -317,7 +316,7 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 	dwc2_writel(GINTSTS_SESSREQINT, hsotg->regs + GINTSTS);
 
 	dev_dbg(hsotg->dev, "Session request interrupt - lx_state=%d\n",
-							hsotg->lx_state);
+		hsotg->lx_state);
 
 	if (dwc2_is_device_mode(hsotg)) {
 		if (hsotg->lx_state == DWC2_L2) {
@@ -370,7 +369,7 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 		/* Change to L0 state */
 		hsotg->lx_state = DWC2_L0;
 	} else {
-		if (hsotg->core_params->hibernation)
+		if (hsotg->params.hibernation)
 			return;
 
 		if (hsotg->lx_state != DWC2_L1) {
@@ -437,7 +436,7 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 			/* Ignore suspend request before enumeration */
 			if (!dwc2_is_device_connected(hsotg)) {
 				dev_dbg(hsotg->dev,
-						"ignore suspend request before enumeration\n");
+					"ignore suspend request before enumeration\n");
 				return;
 			}
 
@@ -445,7 +444,7 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 			if (ret) {
 				if (ret != -ENOTSUPP)
 					dev_err(hsotg->dev,
-							"enter hibernation failed\n");
+						"enter hibernation failed\n");
 				goto skip_power_saving;
 			}
 

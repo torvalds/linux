@@ -29,5 +29,5 @@ struct nvkm_fifo_chan_oclass {
 	struct nvkm_sclass base;
 };
 
-int g84_fifo_chan_ntfy(struct nvkm_fifo_chan *, u32, struct nvkm_event **);
+int gf100_fifo_chan_ntfy(struct nvkm_fifo_chan *, u32, struct nvkm_event **);
 #endif

@@ -79,6 +79,7 @@ struct amd_nb {
 
 /* The maximal number of PEBS events: */
 #define MAX_PEBS_EVENTS		8
+#define PEBS_COUNTER_MASK	((1ULL << MAX_PEBS_EVENTS) - 1)
 
 /*
  * Flags PEBS can handle without an PMI.
@@ -113,7 +114,7 @@ struct debug_store {
  * Per register state.
  */
 struct er_account {
-	raw_spinlock_t		lock;	/* per-core: protect structure */
+	raw_spinlock_t      lock;	/* per-core: protect structure */
 	u64                 config;	/* extra MSR config */
 	u64                 reg;	/* extra MSR number */
 	atomic_t            ref;	/* reference count */
@@ -561,6 +562,9 @@ struct x86_pmu {
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
 	struct attribute **cpu_events;
 
+	unsigned long	attr_freeze_on_smi;
+	struct attribute **attrs;
+
 	/*
 	 * CPU Hotplug hooks
 	 */
@@ -604,7 +608,7 @@ struct x86_pmu {
 	u64		lbr_sel_mask;		   /* LBR_SELECT valid bits */
 	const int	*lbr_sel_map;		   /* lbr_select mappings */
 	bool		lbr_double_abort;	   /* duplicated lbr aborts */
-	bool		lbr_pt_coexist;		   /* LBR may coexist with PT */
+	bool		lbr_pt_coexist;		   /* (LBR|BTS) may coexist with PT */
 
 	/*
 	 * Intel PT/LBR/BTS are exclusive

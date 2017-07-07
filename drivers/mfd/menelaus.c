@@ -1022,9 +1022,7 @@ static int menelaus_set_alarm(struct device *dev, struct rtc_wkalrm *w)
 static void menelaus_rtc_update_work(struct menelaus_chip *m)
 {
 	/* report 1/sec update */
-	local_irq_disable();
 	rtc_update_irq(m->rtc, 1, RTC_IRQF | RTC_UF);
-	local_irq_enable();
 }
 
 static int menelaus_ioctl(struct device *dev, unsigned cmd, unsigned long arg)
@@ -1086,9 +1084,7 @@ static const struct rtc_class_ops menelaus_rtc_ops = {
 static void menelaus_rtc_alarm_work(struct menelaus_chip *m)
 {
 	/* report alarm */
-	local_irq_disable();
 	rtc_update_irq(m->rtc, 1, RTC_IRQF | RTC_AF);
-	local_irq_enable();
 
 	/* then disable it; alarms are oneshot */
 	the_menelaus->rtc_control &= ~RTC_CTRL_AL_EN;

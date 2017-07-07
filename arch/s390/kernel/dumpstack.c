@@ -14,6 +14,8 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <asm/processor.h>
 #include <asm/debug.h>
 #include <asm/dis.h>
@@ -38,10 +40,10 @@ __dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
 		if (sp < low || sp > high - sizeof(*sf))
 			return sp;
 		sf = (struct stack_frame *) sp;
+		if (func(data, sf->gprs[8], 0))
+			return sp;
 		/* Follow the backchain. */
 		while (1) {
-			if (func(data, sf->gprs[8]))
-				return sp;
 			low = sp;
 			sp = sf->back_chain;
 			if (!sp)
@@ -49,6 +51,8 @@ __dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
 			if (sp <= low || sp > high - sizeof(*sf))
 				return sp;
 			sf = (struct stack_frame *) sp;
+			if (func(data, sf->gprs[8], 1))
+				return sp;
 		}
 		/* Zero backchain detected, check for interrupt frame. */
 		sp = (unsigned long) (sf + 1);
@@ -56,7 +60,7 @@ __dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
 			return sp;
 		regs = (struct pt_regs *) sp;
 		if (!user_mode(regs)) {
-			if (func(data, regs->psw.addr))
+			if (func(data, regs->psw.addr, 1))
 				return sp;
 		}
 		low = sp;
@@ -85,38 +89,19 @@ void dump_trace(dump_trace_func_t func, void *data, struct task_struct *task,
 }
 EXPORT_SYMBOL_GPL(dump_trace);
 
-struct return_address_data {
-	unsigned long address;
-	int depth;
-};
-
-static int __return_address(void *data, unsigned long address)
+static int show_address(void *data, unsigned long address, int reliable)
 {
-	struct return_address_data *rd = data;
-
-	if (rd->depth--)
-		return 0;
-	rd->address = address;
-	return 1;
-}
-
-unsigned long return_address(int depth)
-{
-	struct return_address_data rd = { .depth = depth + 2 };
-
-	dump_trace(__return_address, &rd, NULL, current_stack_pointer());
-	return rd.address;
-}
-EXPORT_SYMBOL_GPL(return_address);
-
-static int show_address(void *data, unsigned long address)
-{
-	printk("([<%016lx>] %pSR)\n", address, (void *)address);
+	if (reliable)
+		printk(" [<%016lx>] %pSR \n", address, (void *)address);
+	else
+		printk("([<%016lx>] %pSR)\n", address, (void *)address);
 	return 0;
 }
 
-static void show_trace(struct task_struct *task, unsigned long sp)
+void show_stack(struct task_struct *task, unsigned long *stack)
 {
+	unsigned long sp = (unsigned long) stack;
+
 	if (!sp)
 		sp = task ? task->thread.ksp : current_stack_pointer();
 	printk("Call Trace:\n");
@@ -124,29 +109,6 @@ static void show_trace(struct task_struct *task, unsigned long sp)
 	if (!task)
 		task = current;
 	debug_show_held_locks(task);
-}
-
-void show_stack(struct task_struct *task, unsigned long *sp)
-{
-	unsigned long *stack;
-	int i;
-
-	stack = sp;
-	if (!stack) {
-		if (!task)
-			stack = (unsigned long *)current_stack_pointer();
-		else
-			stack = (unsigned long *)task->thread.ksp;
-	}
-	for (i = 0; i < 20; i++) {
-		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
-			break;
-		if ((i * sizeof(long) % 32) == 0)
-			printk("%s       ", i == 0 ? "" : "\n");
-		printk("%016lx ", *stack++);
-	}
-	printk("\n");
-	show_trace(task, (unsigned long)sp);
 }
 
 static void show_last_breaking_event(struct pt_regs *regs)
@@ -163,13 +125,13 @@ void show_registers(struct pt_regs *regs)
 	mode = user_mode(regs) ? "User" : "Krnl";
 	printk("%s PSW : %p %p", mode, (void *)regs->psw.mask, (void *)regs->psw.addr);
 	if (!user_mode(regs))
-		printk(" (%pSR)", (void *)regs->psw.addr);
-	printk("\n");
+		pr_cont(" (%pSR)", (void *)regs->psw.addr);
+	pr_cont("\n");
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
-	       "P:%x AS:%x CC:%x PM:%x", psw->r, psw->t, psw->i, psw->e,
-	       psw->key, psw->m, psw->w, psw->p, psw->as, psw->cc, psw->pm);
-	printk(" RI:%x EA:%x", psw->ri, psw->eaba);
-	printk("\n%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
+	       "P:%x AS:%x CC:%x PM:%x", psw->per, psw->dat, psw->io, psw->ext,
+	       psw->key, psw->mcheck, psw->wait, psw->pstate, psw->as, psw->cc, psw->pm);
+	pr_cont(" RI:%x EA:%x\n", psw->ri, psw->eaba);
+	printk("%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
 	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[4], regs->gprs[5], regs->gprs[6], regs->gprs[7]);
@@ -186,7 +148,7 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 	/* Show stack backtrace if pt_regs is from kernel mode */
 	if (!user_mode(regs))
-		show_trace(NULL, regs->gprs[15]);
+		show_stack(NULL, (unsigned long *) regs->gprs[15]);
 	show_last_breaking_event(regs);
 }
 
@@ -205,14 +167,14 @@ void die(struct pt_regs *regs, const char *str)
 	printk("%s: %04x ilc:%d [#%d] ", str, regs->int_code & 0xffff,
 	       regs->int_code >> 17, ++die_counter);
 #ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
+	pr_cont("PREEMPT ");
 #endif
 #ifdef CONFIG_SMP
-	printk("SMP ");
+	pr_cont("SMP ");
 #endif
 	if (debug_pagealloc_enabled())
-		printk("DEBUG_PAGEALLOC");
-	printk("\n");
+		pr_cont("DEBUG_PAGEALLOC");
+	pr_cont("\n");
 	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
 	print_modules();
 	show_regs(regs);

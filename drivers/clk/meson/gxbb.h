@@ -71,6 +71,8 @@
 #define HHI_GP0_PLL_CNTL2		0x44 /* 0x11 offset in data sheet */
 #define HHI_GP0_PLL_CNTL3		0x48 /* 0x12 offset in data sheet */
 #define HHI_GP0_PLL_CNTL4		0x4c /* 0x13 offset in data sheet */
+#define	HHI_GP0_PLL_CNTL5		0x50 /* 0x14 offset in data sheet */
+#define	HHI_GP0_PLL_CNTL1		0x58 /* 0x16 offset in data sheet */
 
 #define HHI_XTAL_DIVN_CNTL		0xbc /* 0x2f offset in data sheet */
 #define HHI_TIMER90K			0xec /* 0x3b offset in data sheet */
@@ -169,7 +171,7 @@
  * to be exposed to client nodes in DT: include/dt-bindings/clock/gxbb-clkc.h
  */
 #define CLKID_SYS_PLL		  0
-/* CLKID_CPUCLK */
+/* ID 1 is unused (it was used by the non-existing CLKID_CPUCLK before) */
 /* CLKID_HDMI_PLL */
 #define CLKID_FIXED_PLL		  3
 /* CLKID_FCLK_DIV2 */
@@ -177,7 +179,7 @@
 /* CLKID_FCLK_DIV4 */
 #define CLKID_FCLK_DIV5		  7
 #define CLKID_FCLK_DIV7		  8
-#define CLKID_GP0_PLL		  9
+/* CLKID_GP0_PLL */
 #define CLKID_MPEG_SEL		  10
 #define CLKID_MPEG_DIV		  11
 /* CLKID_CLK81 */
@@ -189,12 +191,12 @@
 #define CLKID_ISA		  18
 #define CLKID_PL301		  19
 #define CLKID_PERIPHS		  20
-#define CLKID_SPICC		  21
+/* CLKID_SPICC */
 /* CLKID_I2C */
-#define CLKID_SAR_ADC		  23
+/* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	  24
-#define CLKID_RNG0		  25
-#define CLKID_UART0		  26
+/* CLKID_RNG0 */
+/* CLKID_UART0 */
 #define CLKID_SDHC		  27
 #define CLKID_STREAM		  28
 #define CLKID_ASYNC_FIFO	  29
@@ -204,19 +206,19 @@
 #define CLKID_ASSIST_MISC	  33
 /* CLKID_SPI */
 #define CLKID_I2S_SPDIF		  35
-#define CLKID_ETH		  36
+/* CLKID_ETH */
 #define CLKID_DEMUX		  37
-#define CLKID_AIU_GLUE		  38
-#define CLKID_IEC958		  39
-#define CLKID_I2S_OUT		  40
+/* CLKID_AIU_GLUE */
+/* CLKID_IEC958 */
+/* CLKID_I2S_OUT */
 #define CLKID_AMCLK		  41
 #define CLKID_AIFIFO2		  42
 #define CLKID_MIXER		  43
-#define CLKID_MIXER_IFACE	  44
+/* CLKID_MIXER_IFACE */
 #define CLKID_ADC		  45
 #define CLKID_BLKMV		  46
-#define CLKID_AIU		  47
-#define CLKID_UART1		  48
+/* CLKID_AIU */
+/* CLKID_UART1 */
 #define CLKID_G2D		  49
 /* CLKID_USB0 */
 /* CLKID_USB1 */
@@ -231,13 +233,13 @@
 #define CLKID_AHB_DATA_BUS	  60
 #define CLKID_AHB_CTRL_BUS	  61
 #define CLKID_HDMI_INTR_SYNC	  62
-#define CLKID_HDMI_PCLK		  63
+/* CLKID_HDMI_PCLK */
 /* CLKID_USB1_DDR_BRIDGE */
 /* CLKID_USB0_DDR_BRIDGE */
 #define CLKID_MMC_PCLK		  66
 #define CLKID_DVIN		  67
-#define CLKID_UART2		  68
-#define CLKID_SANA		  69
+/* CLKID_UART2 */
+/* #define CLKID_SANA */
 #define CLKID_VPU_INTR		  70
 #define CLKID_SEC_AHB_AHB3_BRIDGE 71
 #define CLKID_CLK81_A53		  72
@@ -245,11 +247,11 @@
 #define CLKID_VCLK2_VENCI1	  74
 #define CLKID_VCLK2_VENCP0	  75
 #define CLKID_VCLK2_VENCP1	  76
-#define CLKID_GCLK_VENCI_INT0	  77
+/* CLKID_GCLK_VENCI_INT0 */
 #define CLKID_GCLK_VENCI_INT	  78
 #define CLKID_DAC_CLK		  79
-#define CLKID_AOCLK_GATE	  80
-#define CLKID_IEC958_GATE	  81
+/* CLKID_AOCLK_GATE */
+/* CLKID_IEC958_GATE */
 #define CLKID_ENC480P		  82
 #define CLKID_RNG1		  83
 #define CLKID_GCLK_VENCI_INT1	  84
@@ -265,8 +267,28 @@
 /* CLKID_SD_EMMC_A */
 /* CLKID_SD_EMMC_B */
 /* CLKID_SD_EMMC_C */
+/* CLKID_SAR_ADC_CLK */
+/* CLKID_SAR_ADC_SEL */
+#define CLKID_SAR_ADC_DIV	  99
+/* CLKID_MALI_0_SEL */
+#define CLKID_MALI_0_DIV	 101
+/* CLKID_MALI_0	*/
+/* CLKID_MALI_1_SEL */
+#define CLKID_MALI_1_DIV	 104
+/* CLKID_MALI_1	*/
+/* CLKID_MALI	*/
+/* CLKID_CTS_AMCLK */
+#define CLKID_CTS_AMCLK_SEL	  108
+#define CLKID_CTS_AMCLK_DIV	  109
+/* CLKID_CTS_MCLK_I958 */
+#define CLKID_CTS_MCLK_I958_SEL	  111
+#define CLKID_CTS_MCLK_I958_DIV	  112
+/* CLKID_CTS_I958 */
+#define CLKID_32K_CLK		  114
+#define CLKID_32K_CLK_SEL	  115
+#define CLKID_32K_CLK_DIV	  116
 
-#define NR_CLKS			  97
+#define NR_CLKS			  117
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

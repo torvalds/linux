@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/i8042.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/i8259.h>
 #include <asm/mipsregs.h>

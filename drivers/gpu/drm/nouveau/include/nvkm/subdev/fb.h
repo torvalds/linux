@@ -29,7 +29,7 @@ struct nvkm_mem {
 	u8  page_shift;
 
 	struct nvkm_mm_node *tag;
-	struct list_head regions;
+	struct nvkm_mm_node *mem;
 	dma_addr_t *pages;
 	u32 memtype;
 	u64 offset;
@@ -89,12 +89,15 @@ int gt215_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int mcp77_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int mcp89_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gf100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gf108_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gk104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gk20a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm107_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm200_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gm20b_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gp100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
-int gp104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gp102_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gp10b_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 
 #include <subdev/bios.h>
 #include <subdev/bios/ramcfg.h>
@@ -145,6 +148,12 @@ struct nvkm_ram {
 };
 
 struct nvkm_ram_func {
+	u64 upper;
+	u32 (*probe_fbp)(const struct nvkm_ram_func *, struct nvkm_device *,
+			 int fbp, int *pltcs);
+	u32 (*probe_fbp_amount)(const struct nvkm_ram_func *, u32 fbpao,
+				struct nvkm_device *, int fbp, int *pltcs);
+	u32 (*probe_fbpa_amount)(struct nvkm_device *, int fbpa);
 	void *(*dtor)(struct nvkm_ram *);
 	int (*init)(struct nvkm_ram *);
 
@@ -156,4 +165,6 @@ struct nvkm_ram_func {
 	int (*prog)(struct nvkm_ram *);
 	void (*tidy)(struct nvkm_ram *);
 };
+
+extern const u8 gf100_pte_storage_type_map[256];
 #endif

@@ -1,13 +1,16 @@
 menuconfig THUNDERBOLT
-	tristate "Thunderbolt support for Apple devices"
+	tristate "Thunderbolt support"
 	depends on PCI
+	depends on X86 || COMPILE_TEST
+	select APPLE_PROPERTIES if EFI_STUB && X86
 	select CRC32
+	select CRYPTO
+	select CRYPTO_HASH
+	select NVMEM
 	help
-	  Cactus Ridge Thunderbolt Controller driver
-	  This driver is required if you want to hotplug Thunderbolt devices on
-	  Apple hardware.
-
-	  Device chaining is currently not supported.
+	  Thunderbolt Controller driver. This driver is required if you
+	  want to hotplug Thunderbolt devices on Apple hardware or on PCs
+	  with Intel Falcon Ridge or newer.
 
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt.

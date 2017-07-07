@@ -8,15 +8,16 @@ Video Inputs and Outputs
 
 Video inputs and outputs are physical connectors of a device. These can
 be for example RF connectors (antenna/cable), CVBS a.k.a. Composite
-Video, S-Video or RGB connectors. Video and VBI capture devices have
-inputs. Video and VBI output devices have outputs, at least one each.
-Radio devices have no video inputs or outputs.
+Video, S-Video and RGB connectors. Camera sensors are also considered to
+be a video input. Video and VBI capture devices have inputs. Video and
+VBI output devices have outputs, at least one each. Radio devices have
+no video inputs or outputs.
 
 To learn about the number and attributes of the available inputs and
 outputs applications can enumerate them with the
 :ref:`VIDIOC_ENUMINPUT` and
 :ref:`VIDIOC_ENUMOUTPUT` ioctl, respectively. The
-struct :ref:`v4l2_input <v4l2-input>` returned by the
+struct :c:type:`v4l2_input` returned by the
 :ref:`VIDIOC_ENUMINPUT` ioctl also contains signal
 :status information applicable when the current video input is queried.
 

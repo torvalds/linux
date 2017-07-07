@@ -15,10 +15,6 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include "fc0013.h"
@@ -52,11 +48,10 @@ static int fc0013_readreg(struct fc0013_priv *priv, u8 reg, u8 *val)
 	return 0;
 }
 
-static int fc0013_release(struct dvb_frontend *fe)
+static void fc0013_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int fc0013_init(struct dvb_frontend *fe)

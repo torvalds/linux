@@ -53,7 +53,10 @@ static int omap3_rom_rng_get_random(void *buf, unsigned int count)
 
 	cancel_delayed_work_sync(&idle_work);
 	if (rng_idle) {
-		clk_prepare_enable(rng_clk);
+		r = clk_prepare_enable(rng_clk);
+		if (r)
+			return r;
+
 		r = omap3_rom_rng_call(0, 0, RNG_GEN_PRNG_HW_INIT);
 		if (r != 0) {
 			clk_disable_unprepare(rng_clk);
@@ -71,12 +74,7 @@ static int omap3_rom_rng_get_random(void *buf, unsigned int count)
 	return 0;
 }
 
-static int omap3_rom_rng_data_present(struct hwrng *rng, int wait)
-{
-	return 1;
-}
-
-static int omap3_rom_rng_data_read(struct hwrng *rng, u32 *data)
+static int omap3_rom_rng_read(struct hwrng *rng, void *data, size_t max, bool w)
 {
 	int r;
 
@@ -88,12 +86,13 @@ static int omap3_rom_rng_data_read(struct hwrng *rng, u32 *data)
 
 static struct hwrng omap3_rom_rng_ops = {
 	.name		= "omap3-rom",
-	.data_present	= omap3_rom_rng_data_present,
-	.data_read	= omap3_rom_rng_data_read,
+	.read		= omap3_rom_rng_read,
 };
 
 static int omap3_rom_rng_probe(struct platform_device *pdev)
 {
+	int ret = 0;
+
 	pr_info("initializing\n");
 
 	omap3_rom_rng_call = pdev->dev.platform_data;
@@ -110,7 +109,9 @@ static int omap3_rom_rng_probe(struct platform_device *pdev)
 	}
 
 	/* Leave the RNG in reset state. */
-	clk_prepare_enable(rng_clk);
+	ret = clk_prepare_enable(rng_clk);
+	if (ret)
+		return ret;
 	omap3_rom_rng_idle(0);
 
 	return hwrng_register(&omap3_rom_rng_ops);

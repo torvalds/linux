@@ -26,6 +26,7 @@
 #include <linux/file.h>
 #include <linux/syscalls.h>
 #include <linux/cgroup.h>
+#include <linux/perf_event.h>
 
 static struct kmem_cache *nsproxy_cachep;
 
@@ -262,6 +263,8 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		goto out;
 	}
 	switch_task_namespaces(tsk, new_nsproxy);
+
+	perf_event_namespaces(tsk);
 out:
 	fput(file);
 	return err;

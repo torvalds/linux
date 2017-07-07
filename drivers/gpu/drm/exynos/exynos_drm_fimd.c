@@ -71,10 +71,10 @@
 #define TRIGCON				0x1A4
 #define TRGMODE_ENABLE			(1 << 0)
 #define SWTRGCMD_ENABLE			(1 << 1)
-/* Exynos3250, 3472, 4415, 5260 5410, 5420 and 5422 only supported. */
+/* Exynos3250, 3472, 5260 5410, 5420 and 5422 only supported. */
 #define HWTRGEN_ENABLE			(1 << 3)
 #define HWTRGMASK_ENABLE		(1 << 4)
-/* Exynos3250, 3472, 4415, 5260, 5420 and 5422 only supported. */
+/* Exynos3250, 3472, 5260, 5420 and 5422 only supported. */
 #define HWTRIGEN_PER_ENABLE		(1 << 31)
 
 /* display mode change control register except exynos4 */
@@ -125,10 +125,8 @@ static struct fimd_driver_data exynos3_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x210,
 	.lcdblk_bypass_shift = 1,
-	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
-	.has_trigger_per_te = 1,
 };
 
 static struct fimd_driver_data exynos4_fimd_driver_data = {
@@ -138,18 +136,6 @@ static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.lcdblk_bypass_shift = 1,
 	.has_shadowcon = 1,
 	.has_vtsel = 1,
-};
-
-static struct fimd_driver_data exynos4415_fimd_driver_data = {
-	.timing_base = 0x20000,
-	.lcdblk_offset = 0x210,
-	.lcdblk_vt_shift = 10,
-	.lcdblk_bypass_shift = 1,
-	.trg_type = I80_HW_TRG,
-	.has_shadowcon = 1,
-	.has_vidoutcon = 1,
-	.has_vtsel = 1,
-	.has_trigger_per_te = 1,
 };
 
 static struct fimd_driver_data exynos5_fimd_driver_data = {
@@ -198,6 +184,7 @@ struct fimd_context {
 	atomic_t			wait_vsync_event;
 	atomic_t			win_updated;
 	atomic_t			triggering;
+	u32				clkdiv;
 
 	const struct fimd_driver_data *driver_data;
 	struct drm_encoder *encoder;
@@ -211,8 +198,6 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	  .data = &exynos3_fimd_driver_data },
 	{ .compatible = "samsung,exynos4210-fimd",
 	  .data = &exynos4_fimd_driver_data },
-	{ .compatible = "samsung,exynos4415-fimd",
-	  .data = &exynos4415_fimd_driver_data },
 	{ .compatible = "samsung,exynos5250-fimd",
 	  .data = &exynos5_fimd_driver_data },
 	{ .compatible = "samsung,exynos5420-fimd",
@@ -258,7 +243,7 @@ static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 			val |= VIDINTCON0_INT_FRAME;
 
 			val &= ~VIDINTCON0_FRAMESEL0_MASK;
-			val |= VIDINTCON0_FRAMESEL0_VSYNC;
+			val |= VIDINTCON0_FRAMESEL0_FRONTPORCH;
 			val &= ~VIDINTCON0_FRAMESEL1_MASK;
 			val |= VIDINTCON0_FRAMESEL1_NONE;
 		}
@@ -389,15 +374,18 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 	pm_runtime_put(ctx->dev);
 }
 
-static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
-		const struct drm_display_mode *mode)
+
+static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
+		struct drm_crtc_state *state)
 {
-	unsigned long ideal_clk;
+	struct drm_display_mode *mode = &state->adjusted_mode;
+	struct fimd_context *ctx = crtc->ctx;
+	unsigned long ideal_clk, lcd_rate;
 	u32 clkdiv;
 
 	if (mode->clock == 0) {
-		DRM_ERROR("Mode has zero clock value.\n");
-		return 0xff;
+		DRM_INFO("Mode has zero clock value.\n");
+		return -EINVAL;
 	}
 
 	ideal_clk = mode->clock * 1000;
@@ -410,10 +398,23 @@ static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 		ideal_clk *= 2;
 	}
 
-	/* Find the clock divider value that gets us closest to ideal_clk */
-	clkdiv = DIV_ROUND_CLOSEST(clk_get_rate(ctx->lcd_clk), ideal_clk);
+	lcd_rate = clk_get_rate(ctx->lcd_clk);
+	if (2 * lcd_rate < ideal_clk) {
+		DRM_INFO("sclk_fimd clock too low(%lu) for requested pixel clock(%lu)\n",
+			 lcd_rate, ideal_clk);
+		return -EINVAL;
+	}
 
-	return (clkdiv < 0x100) ? clkdiv : 0xff;
+	/* Find the clock divider value that gets us closest to ideal_clk */
+	clkdiv = DIV_ROUND_CLOSEST(lcd_rate, ideal_clk);
+	if (clkdiv >= 0x200) {
+		DRM_INFO("requested pixel clock(%lu) too low\n", ideal_clk);
+		return -EINVAL;
+	}
+
+	ctx->clkdiv = (clkdiv < 0x100) ? clkdiv : 0xff;
+
+	return 0;
 }
 
 static void fimd_setup_trigger(struct fimd_context *ctx)
@@ -442,7 +443,7 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
 	const struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
-	u32 val, clkdiv;
+	u32 val;
 
 	if (ctx->suspended)
 		return;
@@ -543,9 +544,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	if (ctx->driver_data->has_clksel)
 		val |= VIDCON0_CLKSEL_LCD;
 
-	clkdiv = fimd_calc_clkdiv(ctx, mode);
-	if (clkdiv > 1)
-		val |= VIDCON0_CLKVAL_F(clkdiv - 1) | VIDCON0_CLKDIR;
+	if (ctx->clkdiv > 1)
+		val |= VIDCON0_CLKVAL_F(ctx->clkdiv - 1) | VIDCON0_CLKDIR;
 
 	writel(val, ctx->regs + VIDCON0);
 }
@@ -709,6 +709,8 @@ static void fimd_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < WINDOWS_NR; i++)
 		fimd_shadow_protect_win(ctx, i, false);
+
+	exynos_crtc_handle_event(crtc);
 }
 
 static void fimd_update_plane(struct exynos_drm_crtc *crtc,
@@ -722,7 +724,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->bits_per_pixel >> 3;
+	unsigned int bpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
@@ -788,7 +790,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win, fb->pixel_format, state->src.w);
+	fimd_win_set_pixfmt(ctx, win, fb->format->format, state->src.w);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)
@@ -939,14 +941,14 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.update_plane = fimd_update_plane,
 	.disable_plane = fimd_disable_plane,
 	.atomic_flush = fimd_atomic_flush,
+	.atomic_check = fimd_atomic_check,
 	.te_handler = fimd_te_handler,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 {
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
-	u32 val, clear_bit, start, start_s;
-	int win;
+	u32 val, clear_bit;
 
 	val = readl(ctx->regs + VIDINTCON1);
 
@@ -960,18 +962,6 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 
 	if (!ctx->i80_if)
 		drm_crtc_handle_vblank(&ctx->crtc->base);
-
-	for (win = 0 ; win < WINDOWS_NR ; win++) {
-		struct exynos_drm_plane *plane = &ctx->planes[win];
-
-		if (!plane->pending_fb)
-			continue;
-
-		start = readl(ctx->regs + VIDWx_BUF_START(win, 0));
-		start_s = readl(ctx->regs + VIDWx_BUF_START_S(win, 0));
-		if (start == start_s)
-			exynos_drm_crtc_finish_update(ctx->crtc, plane);
-	}
 
 	if (ctx->i80_if) {
 		/* Exits triggering mode */

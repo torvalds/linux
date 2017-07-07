@@ -64,7 +64,7 @@ void nvkm_i2c_aux_monitor(struct nvkm_i2c_aux *, bool monitor);
 int nvkm_i2c_aux_acquire(struct nvkm_i2c_aux *);
 void nvkm_i2c_aux_release(struct nvkm_i2c_aux *);
 int nvkm_i2c_aux_xfer(struct nvkm_i2c_aux *, bool retry, u8 type,
-		      u32 addr, u8 *data, u8 size);
+		      u32 addr, u8 *data, u8 *size);
 int nvkm_i2c_aux_lnk_ctl(struct nvkm_i2c_aux *, int link_nr, int link_bw,
 			 bool enhanced_framing);
 
@@ -162,9 +162,11 @@ nvkm_probe_i2c(struct i2c_adapter *adap, u8 addr)
 static inline int
 nvkm_rdaux(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
 {
+	const u8 xfer = size;
 	int ret = nvkm_i2c_aux_acquire(aux);
 	if (ret == 0) {
-		ret = nvkm_i2c_aux_xfer(aux, true, 9, addr, data, size);
+		ret = nvkm_i2c_aux_xfer(aux, true, 9, addr, data, &size);
+		WARN_ON(!ret && size != xfer);
 		nvkm_i2c_aux_release(aux);
 	}
 	return ret;
@@ -175,7 +177,7 @@ nvkm_wraux(struct nvkm_i2c_aux *aux, u32 addr, u8 *data, u8 size)
 {
 	int ret = nvkm_i2c_aux_acquire(aux);
 	if (ret == 0) {
-		ret = nvkm_i2c_aux_xfer(aux, true, 8, addr, data, size);
+		ret = nvkm_i2c_aux_xfer(aux, true, 8, addr, data, &size);
 		nvkm_i2c_aux_release(aux);
 	}
 	return ret;

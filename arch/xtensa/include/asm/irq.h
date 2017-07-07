@@ -29,7 +29,8 @@ static inline void variant_irq_disable(unsigned int irq) { }
 # define PLATFORM_NR_IRQS 0
 #endif
 #define XTENSA_NR_IRQS XCHAL_NUM_INTERRUPTS
-#define NR_IRQS (XTENSA_NR_IRQS + VARIANT_NR_IRQS + PLATFORM_NR_IRQS)
+#define NR_IRQS (XTENSA_NR_IRQS + VARIANT_NR_IRQS + PLATFORM_NR_IRQS + 1)
+#define XTENSA_PIC_LINUX_IRQ(hwirq) ((hwirq) + 1)
 
 #if VARIANT_NR_IRQS == 0
 static inline void variant_init_irq(void) { }

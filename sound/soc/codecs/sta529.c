@@ -375,9 +375,16 @@ static const struct i2c_device_id sta529_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sta529_i2c_id);
 
+static const struct of_device_id sta529_of_match[] = {
+	{ .compatible = "st,sta529", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sta529_of_match);
+
 static struct i2c_driver sta529_i2c_driver = {
 	.driver = {
 		.name = "sta529",
+		.of_match_table = sta529_of_match,
 	},
 	.probe		= sta529_i2c_probe,
 	.remove		= sta529_i2c_remove,

@@ -12,6 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/clockchips.h>
+#include <linux/clocksource.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -152,6 +153,13 @@ static irqreturn_t sun5i_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static u64 sun5i_clksrc_read(struct clocksource *clksrc)
+{
+	struct sun5i_timer_clksrc *cs = to_sun5i_timer_clksrc(clksrc);
+
+	return ~readl(cs->timer.base + TIMER_CNTVAL_LO_REG(1));
+}
+
 static int sun5i_rate_cb_clksrc(struct notifier_block *nb,
 				unsigned long event, void *data)
 {
@@ -210,8 +218,13 @@ static int __init sun5i_setup_clocksource(struct device_node *node,
 	writel(TIMER_CTL_ENABLE | TIMER_CTL_RELOAD,
 	       base + TIMER_CTL_REG(1));
 
-	ret = clocksource_mmio_init(base + TIMER_CNTVAL_LO_REG(1), node->name,
-				    rate, 340, 32, clocksource_mmio_readl_down);
+	cs->clksrc.name = node->name;
+	cs->clksrc.rating = 340;
+	cs->clksrc.read = sun5i_clksrc_read;
+	cs->clksrc.mask = CLOCKSOURCE_MASK(32);
+	cs->clksrc.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+
+	ret = clocksource_register_hz(&cs->clksrc, rate);
 	if (ret) {
 		pr_err("Couldn't register clock source.\n");
 		goto err_remove_notifier;
@@ -320,19 +333,19 @@ static int __init sun5i_timer_init(struct device_node *node)
 
 	timer_base = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(timer_base)) {
-		pr_err("Can't map registers");
+		pr_err("Can't map registers\n");
 		return PTR_ERR(timer_base);;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
-		pr_err("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		return -EINVAL;
 	}
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_err("Can't get timer clock");
+		pr_err("Can't get timer clock\n");
 		return PTR_ERR(clk);
 	}
 
@@ -346,7 +359,7 @@ static int __init sun5i_timer_init(struct device_node *node)
 
 	return sun5i_setup_clockevent(node, timer_base, clk, irq);
 }
-CLOCKSOURCE_OF_DECLARE(sun5i_a13, "allwinner,sun5i-a13-hstimer",
+TIMER_OF_DECLARE(sun5i_a13, "allwinner,sun5i-a13-hstimer",
 			   sun5i_timer_init);
-CLOCKSOURCE_OF_DECLARE(sun7i_a20, "allwinner,sun7i-a20-hstimer",
+TIMER_OF_DECLARE(sun7i_a20, "allwinner,sun7i-a20-hstimer",
 			   sun5i_timer_init);

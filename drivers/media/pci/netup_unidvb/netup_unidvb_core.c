@@ -122,7 +122,8 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma);
 
 static struct cxd2841er_config demod_config = {
 	.i2c_addr = 0xc8,
-	.xtal = SONY_XTAL_24000
+	.xtal = SONY_XTAL_24000,
+	.flags = CXD2841ER_USE_GATECTRL | CXD2841ER_ASCOT
 };
 
 static struct horus3a_config horus3a_conf = {
@@ -353,7 +354,7 @@ static void netup_unidvb_stop_streaming(struct vb2_queue *q)
 	netup_unidvb_queue_cleanup(dma);
 }
 
-static struct vb2_ops dvb_qops = {
+static const struct vb2_ops dvb_qops = {
 	.queue_setup		= netup_unidvb_queue_setup,
 	.buf_prepare		= netup_unidvb_buf_prepare,
 	.buf_queue		= netup_unidvb_buf_queue,
@@ -663,9 +664,8 @@ static int netup_unidvb_dma_init(struct netup_unidvb_dev *ndev, int num)
 	spin_lock_init(&dma->lock);
 	INIT_WORK(&dma->work, netup_unidvb_dma_worker);
 	INIT_LIST_HEAD(&dma->free_buffers);
-	dma->timeout.function = netup_unidvb_dma_timeout;
-	dma->timeout.data = (unsigned long)dma;
-	init_timer(&dma->timeout);
+	setup_timer(&dma->timeout, netup_unidvb_dma_timeout,
+		    (unsigned long)dma);
 	dma->ring_buffer_size = ndev->dma_size / 2;
 	dma->addr_virt = ndev->dma_virt + dma->ring_buffer_size * num;
 	dma->addr_phys = (dma_addr_t)((u64)ndev->dma_phys +
@@ -1030,15 +1030,4 @@ static struct pci_driver netup_unidvb_pci_driver = {
 	.resume   = NULL,
 };
 
-static int __init netup_unidvb_init(void)
-{
-	return pci_register_driver(&netup_unidvb_pci_driver);
-}
-
-static void __exit netup_unidvb_fini(void)
-{
-	pci_unregister_driver(&netup_unidvb_pci_driver);
-}
-
-module_init(netup_unidvb_init);
-module_exit(netup_unidvb_fini);
+module_pci_driver(netup_unidvb_pci_driver);

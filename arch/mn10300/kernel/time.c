@@ -10,6 +10,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>

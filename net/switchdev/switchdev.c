@@ -571,24 +571,17 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_dump);
 
-static RAW_NOTIFIER_HEAD(switchdev_notif_chain);
+static ATOMIC_NOTIFIER_HEAD(switchdev_notif_chain);
 
 /**
  *	register_switchdev_notifier - Register notifier
  *	@nb: notifier_block
  *
- *	Register switch device notifier. This should be used by code
- *	which needs to monitor events happening in particular device.
- *	Return values are same as for atomic_notifier_chain_register().
+ *	Register switch device notifier.
  */
 int register_switchdev_notifier(struct notifier_block *nb)
 {
-	int err;
-
-	rtnl_lock();
-	err = raw_notifier_chain_register(&switchdev_notif_chain, nb);
-	rtnl_unlock();
-	return err;
+	return atomic_notifier_chain_register(&switchdev_notif_chain, nb);
 }
 EXPORT_SYMBOL_GPL(register_switchdev_notifier);
 
@@ -597,16 +590,10 @@ EXPORT_SYMBOL_GPL(register_switchdev_notifier);
  *	@nb: notifier_block
  *
  *	Unregister switch device notifier.
- *	Return values are same as for atomic_notifier_chain_unregister().
  */
 int unregister_switchdev_notifier(struct notifier_block *nb)
 {
-	int err;
-
-	rtnl_lock();
-	err = raw_notifier_chain_unregister(&switchdev_notif_chain, nb);
-	rtnl_unlock();
-	return err;
+	return atomic_notifier_chain_unregister(&switchdev_notif_chain, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
 
@@ -616,21 +603,13 @@ EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
  *	@dev: port device
  *	@info: notifier information data
  *
- *	Call all network notifier blocks. This should be called by driver
- *	when it needs to propagate hardware event.
- *	Return values are same as for atomic_notifier_call_chain().
- *	rtnl_lock must be held.
+ *	Call all network notifier blocks.
  */
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 			     struct switchdev_notifier_info *info)
 {
-	int err;
-
-	ASSERT_RTNL();
-
 	info->dev = dev;
-	err = raw_notifier_call_chain(&switchdev_notif_chain, val, info);
-	return err;
+	return atomic_notifier_call_chain(&switchdev_notif_chain, val, info);
 }
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
 
@@ -771,6 +750,9 @@ int switchdev_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	u32 mask = BR_LEARNING | BR_LEARNING_SYNC | BR_FLOOD;
 	int err;
 
+	if (!netif_is_bridge_port(dev))
+		return -EOPNOTSUPP;
+
 	err = switchdev_port_attr_get(dev, &attr);
 	if (err && err != -EOPNOTSUPP)
 		return err;
@@ -826,7 +808,7 @@ static int switchdev_port_br_setlink_protinfo(struct net_device *dev,
 	int err;
 
 	err = nla_validate_nested(protinfo, IFLA_BRPORT_MAX,
-				  switchdev_port_bridge_policy);
+				  switchdev_port_bridge_policy, NULL);
 	if (err)
 		return err;
 
@@ -926,6 +908,9 @@ int switchdev_port_bridge_setlink(struct net_device *dev,
 	struct nlattr *afspec;
 	int err = 0;
 
+	if (!netif_is_bridge_port(dev))
+		return -EOPNOTSUPP;
+
 	protinfo = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg),
 				   IFLA_PROTINFO);
 	if (protinfo) {
@@ -958,6 +943,9 @@ int switchdev_port_bridge_dellink(struct net_device *dev,
 				  struct nlmsghdr *nlh, u16 flags)
 {
 	struct nlattr *afspec;
+
+	if (!netif_is_bridge_port(dev))
+		return -EOPNOTSUPP;
 
 	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg),
 				 IFLA_AF_SPEC);

@@ -22,41 +22,6 @@ Description:
 		device. The reset operation frees all the memory associated
 		with this device.
 
-What:		/sys/block/zram<id>/num_reads
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The num_reads file is read-only and specifies the number of
-		reads (failed or successful) done on this device.
-
-What:		/sys/block/zram<id>/num_writes
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The num_writes file is read-only and specifies the number of
-		writes (failed or successful) done on this device.
-
-What:		/sys/block/zram<id>/invalid_io
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The invalid_io file is read-only and specifies the number of
-		non-page-size-aligned I/O requests issued to this device.
-
-What:		/sys/block/zram<id>/failed_reads
-Date:		February 2014
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Description:
-		The failed_reads file is read-only and specifies the number of
-		failed reads happened on this device.
-
-What:		/sys/block/zram<id>/failed_writes
-Date:		February 2014
-Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Description:
-		The failed_writes file is read-only and specifies the number of
-		failed writes happened on this device.
-
 What:		/sys/block/zram<id>/max_comp_streams
 Date:		February 2014
 Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
@@ -73,74 +38,24 @@ Description:
 		available and selected compression algorithms, change
 		compression algorithm selection.
 
-What:		/sys/block/zram<id>/notify_free
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The notify_free file is read-only. Depending on device usage
-		scenario it may account a) the number of pages freed because
-		of swap slot free notifications or b) the number of pages freed
-		because of REQ_DISCARD requests sent by bio. The former ones
-		are sent to a swap block device when a swap slot is freed, which
-		implies that this disk is being used as a swap disk. The latter
-		ones are sent by filesystem mounted with discard option,
-		whenever some data blocks are getting discarded.
-
-What:		/sys/block/zram<id>/zero_pages
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The zero_pages file is read-only and specifies number of zero
-		filled pages written to this disk. No memory is allocated for
-		such pages.
-
-What:		/sys/block/zram<id>/orig_data_size
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The orig_data_size file is read-only and specifies uncompressed
-		size of data stored in this disk. This excludes zero-filled
-		pages (zero_pages) since no memory is allocated for them.
-		Unit: bytes
-
-What:		/sys/block/zram<id>/compr_data_size
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The compr_data_size file is read-only and specifies compressed
-		size of data stored in this disk. So, compression ratio can be
-		calculated using orig_data_size and this statistic.
-		Unit: bytes
-
-What:		/sys/block/zram<id>/mem_used_total
-Date:		August 2010
-Contact:	Nitin Gupta <ngupta@vflare.org>
-Description:
-		The mem_used_total file is read-only and specifies the amount
-		of memory, including allocator fragmentation and metadata
-		overhead, allocated for this disk. So, allocator space
-		efficiency can be calculated using compr_data_size and this
-		statistic.
-		Unit: bytes
-
 What:		/sys/block/zram<id>/mem_used_max
 Date:		August 2014
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
-		The mem_used_max file is read/write and specifies the amount
-		of maximum memory zram have consumed to store compressed data.
-		For resetting the value, you should write "0". Otherwise,
-		you could see -EINVAL.
+		The mem_used_max file is write-only and is used to reset
+		the counter of maximum memory zram have consumed to store
+		compressed data. For resetting the value, you should write
+		"0". Otherwise, you could see -EINVAL.
 		Unit: bytes
 
 What:		/sys/block/zram<id>/mem_limit
 Date:		August 2014
 Contact:	Minchan Kim <minchan@kernel.org>
 Description:
-		The mem_limit file is read/write and specifies the maximum
-		amount of memory ZRAM can use to store the compressed data.  The
-		limit could be changed in run time and "0" means disable the
-		limit.  No limit is the initial state.  Unit: bytes
+		The mem_limit file is write-only and specifies the maximum
+		amount of memory ZRAM can use to store the compressed data.
+		The limit could be changed in run time and "0" means disable
+		the limit. No limit is the initial state.  Unit: bytes
 
 What:		/sys/block/zram<id>/compact
 Date:		August 2015

@@ -18,6 +18,8 @@
 #include <linux/usb.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg-fsm.h>
+#include <linux/usb/otg.h>
+#include <linux/ulpi/interface.h>
 
 /******************************************************************************
  * DEFINE
@@ -52,6 +54,7 @@ enum ci_hw_regs {
 	OP_ENDPTLISTADDR,
 	OP_TTCTRL,
 	OP_BURSTSIZE,
+	OP_ULPI_VIEWPORT,
 	OP_PORTSC,
 	OP_DEVLC,
 	OP_OTGSC,
@@ -174,6 +177,7 @@ struct hw_bank {
  * @td_pool: allocation pool for transfer descriptors
  * @gadget: device side representation for peripheral controller
  * @driver: gadget driver
+ * @resume_state: save the state of gadget suspend from
  * @hw_ep_max: total number of endpoints supported by hardware
  * @ci_hw_ep: array of endpoints
  * @ep0_dir: ep0 direction
@@ -187,6 +191,8 @@ struct hw_bank {
  * @test_mode: the selected test mode
  * @platdata: platform specific information supplied by parent device
  * @vbus_active: is VBUS active
+ * @ulpi: pointer to ULPI device, if any
+ * @ulpi_ops: ULPI read/write ops for this device
  * @phy: pointer to PHY, if any
  * @usb_phy: pointer to USB PHY, if any and if using the USB PHY framework
  * @hcd: pointer to usb_hcd for ehci host driver
@@ -222,6 +228,7 @@ struct ci_hdrc {
 
 	struct usb_gadget		gadget;
 	struct usb_gadget_driver	*driver;
+	enum usb_device_state		resume_state;
 	unsigned			hw_ep_max;
 	struct ci_hw_ep			ci_hw_ep[ENDPT_MAX];
 	u32				ep0_dir;
@@ -236,6 +243,10 @@ struct ci_hdrc {
 
 	struct ci_hdrc_platform_data	*platdata;
 	int				vbus_active;
+#ifdef CONFIG_USB_CHIPIDEA_ULPI
+	struct ulpi			*ulpi;
+	struct ulpi_ops 		ulpi_ops;
+#endif
 	struct phy			*phy;
 	/* old usb_phy interface */
 	struct usb_phy			*usb_phy;
@@ -418,6 +429,16 @@ static inline bool ci_otg_is_fsm_mode(struct ci_hdrc *ci)
 #endif
 }
 
+#if IS_ENABLED(CONFIG_USB_CHIPIDEA_ULPI)
+int ci_ulpi_init(struct ci_hdrc *ci);
+void ci_ulpi_exit(struct ci_hdrc *ci);
+int ci_ulpi_resume(struct ci_hdrc *ci);
+#else
+static inline int ci_ulpi_init(struct ci_hdrc *ci) { return 0; }
+static inline void ci_ulpi_exit(struct ci_hdrc *ci) { }
+static inline int ci_ulpi_resume(struct ci_hdrc *ci) { return 0; }
+#endif
+
 u32 hw_read_intr_enable(struct ci_hdrc *ci);
 
 u32 hw_read_intr_status(struct ci_hdrc *ci);
@@ -428,8 +449,7 @@ int hw_port_test_set(struct ci_hdrc *ci, u8 mode);
 
 u8 hw_port_test_get(struct ci_hdrc *ci);
 
-int hw_wait_reg(struct ci_hdrc *ci, enum ci_hw_regs reg, u32 mask,
-				u32 value, unsigned int timeout_ms);
+void hw_phymode_configure(struct ci_hdrc *ci);
 
 void ci_platform_configure(struct ci_hdrc *ci);
 

@@ -326,7 +326,7 @@ Two parent-locked sibling muxes
 
 This is a good topology.
 
-                                   .--------.
+                                    .--------.
                    .----------.  .--| dev D1 |
                    |  parent- |--'  '--------'
                 .--|  locked  |     .--------.
@@ -350,7 +350,7 @@ Mux-locked and parent-locked sibling muxes
 
 This is a good topology.
 
-                                   .--------.
+                                    .--------.
                    .----------.  .--| dev D1 |
                    |   mux-   |--'  '--------'
                 .--|  locked  |     .--------.

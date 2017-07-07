@@ -44,18 +44,22 @@ static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 				 &regs->data[priv->sreg_key],
 				 &regs->data[priv->sreg_data],
 				 timeout, GFP_ATOMIC);
-	if (elem == NULL) {
-		if (set->size)
-			atomic_dec(&set->nelems);
-		return NULL;
-	}
+	if (elem == NULL)
+		goto err1;
 
 	ext = nft_set_elem_ext(set, elem);
 	if (priv->expr != NULL &&
 	    nft_expr_clone(nft_set_ext_expr(ext), priv->expr) < 0)
-		return NULL;
+		goto err2;
 
 	return elem;
+
+err2:
+	nft_set_elem_destroy(set, elem, false);
+err1:
+	if (set->size)
+		atomic_dec(&set->nelems);
+	return NULL;
 }
 
 static void nft_dynset_eval(const struct nft_expr *expr,
@@ -78,8 +82,7 @@ static void nft_dynset_eval(const struct nft_expr *expr,
 		    nft_set_ext_exists(ext, NFT_SET_EXT_EXPIRATION)) {
 			timeout = priv->timeout ? : set->timeout;
 			*nft_set_ext_expiration(ext) = jiffies + timeout;
-		} else if (sexpr == NULL)
-			goto out;
+		}
 
 		if (sexpr != NULL)
 			sexpr->ops->eval(sexpr, regs, pkt);
@@ -88,13 +91,14 @@ static void nft_dynset_eval(const struct nft_expr *expr,
 			regs->verdict.code = NFT_BREAK;
 		return;
 	}
-out:
+
 	if (!priv->invert)
 		regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_dynset_policy[NFTA_DYNSET_MAX + 1] = {
-	[NFTA_DYNSET_SET_NAME]	= { .type = NLA_STRING },
+	[NFTA_DYNSET_SET_NAME]	= { .type = NLA_STRING,
+				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_DYNSET_SET_ID]	= { .type = NLA_U32 },
 	[NFTA_DYNSET_OP]	= { .type = NLA_U32 },
 	[NFTA_DYNSET_SREG_KEY]	= { .type = NLA_U32 },
@@ -128,16 +132,13 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 			priv->invert = true;
 	}
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_DYNSET_SET_NAME],
-				   genmask);
-	if (IS_ERR(set)) {
-		if (tb[NFTA_DYNSET_SET_ID])
-			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_DYNSET_SET_ID],
-							genmask);
-		if (IS_ERR(set))
-			return PTR_ERR(set);
-	}
+	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_DYNSET_SET_NAME],
+			     tb[NFTA_DYNSET_SET_ID], genmask);
+	if (IS_ERR(set))
+		return PTR_ERR(set);
+
+	if (set->ops->update == NULL)
+		return -EOPNOTSUPP;
 
 	if (set->flags & NFT_SET_CONSTANT)
 		return -EBUSY;
@@ -158,7 +159,8 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_DYNSET_TIMEOUT] != NULL) {
 		if (!(set->flags & NFT_SET_TIMEOUT))
 			return -EINVAL;
-		timeout = be64_to_cpu(nla_get_be64(tb[NFTA_DYNSET_TIMEOUT]));
+		timeout = msecs_to_jiffies(be64_to_cpu(nla_get_be64(
+						tb[NFTA_DYNSET_TIMEOUT])));
 	}
 
 	priv->sreg_key = nft_parse_register(tb[NFTA_DYNSET_SREG_KEY]);
@@ -246,7 +248,8 @@ static int nft_dynset_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		goto nla_put_failure;
 	if (nla_put_string(skb, NFTA_DYNSET_SET_NAME, priv->set->name))
 		goto nla_put_failure;
-	if (nla_put_be64(skb, NFTA_DYNSET_TIMEOUT, cpu_to_be64(priv->timeout),
+	if (nla_put_be64(skb, NFTA_DYNSET_TIMEOUT,
+			 cpu_to_be64(jiffies_to_msecs(priv->timeout)),
 			 NFTA_DYNSET_PAD))
 		goto nla_put_failure;
 	if (priv->expr && nft_expr_dump(skb, NFTA_DYNSET_EXPR, priv->expr))
@@ -259,7 +262,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_dynset_type;
 static const struct nft_expr_ops nft_dynset_ops = {
 	.type		= &nft_dynset_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_dynset)),
@@ -269,20 +271,10 @@ static const struct nft_expr_ops nft_dynset_ops = {
 	.dump		= nft_dynset_dump,
 };
 
-static struct nft_expr_type nft_dynset_type __read_mostly = {
+struct nft_expr_type nft_dynset_type __read_mostly = {
 	.name		= "dynset",
 	.ops		= &nft_dynset_ops,
 	.policy		= nft_dynset_policy,
 	.maxattr	= NFTA_DYNSET_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_dynset_module_init(void)
-{
-	return nft_register_expr(&nft_dynset_type);
-}
-
-void nft_dynset_module_exit(void)
-{
-	nft_unregister_expr(&nft_dynset_type);
-}

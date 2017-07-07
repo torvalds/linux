@@ -9,4 +9,4 @@ iwlmvm-$(CONFIG_IWLWIFI_LEDS) += led.o
 iwlmvm-y += tof.o fw-dbg.o
 iwlmvm-$(CONFIG_PM) += d3.o
 
-ccflags-y += -D__CHECK_ENDIAN__ -I$(src)/../
+ccflags-y += -I$(src)/../

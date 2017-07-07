@@ -207,7 +207,7 @@ void bkey_put(struct cache_set *c, struct bkey *k);
 
 struct btree_op {
 	/* for waiting on btree reserve in btree_split() */
-	wait_queue_t		wait;
+	wait_queue_entry_t		wait;
 
 	/* Btree level at which we start taking write locks */
 	short			lock;
@@ -260,8 +260,7 @@ void bch_initial_mark_key(struct cache_set *, int, struct bkey *);
 
 static inline void wake_up_gc(struct cache_set *c)
 {
-	if (c->gc_thread)
-		wake_up_process(c->gc_thread);
+	wake_up(&c->gc_wait);
 }
 
 #define MAP_DONE	0

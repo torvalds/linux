@@ -1,0 +1,117 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_count_mode_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_noise_error_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_quadrature_mode_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_index_index_polarity_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_index_synchronous_mode_available
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Discrete set of available values for the respective counter
+		configuration are listed in this file.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_countY_count_mode
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Count mode for channel Y. Four count modes are available:
+		normal, range limit, non-recycle, and modulo-n. The preset value
+		for channel Y is used by the count mode where required.
+
+		Normal:
+			Counting is continuous in either direction.
+
+		Range Limit:
+			An upper or lower limit is set, mimicking limit switches
+			in the mechanical counterpart. The upper limit is set to
+			the preset value, while the lower limit is set to 0. The
+			counter freezes at count = preset when counting up, and
+			at count = 0 when counting down. At either of these
+			limits, the counting is resumed only when the count
+			direction is reversed.
+
+		Non-recycle:
+			Counter is disabled whenever a 24-bit count overflow or
+			underflow takes place. The counter is re-enabled when a
+			new count value is loaded to the counter via a preset
+			operation or write to raw.
+
+		Modulo-N:
+			A count boundary is set between 0 and the preset value.
+			The counter is reset to 0 at count = preset when
+			counting up, while the counter is set to the preset
+			value at count = 0 when counting down; the counter does
+			not freeze at the bundary points, but counts
+			continuously throughout.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_countY_noise_error
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read-only attribute that indicates whether excessive noise is
+		present at the channel Y count inputs in quadrature clock mode;
+		irrelevant in non-quadrature clock mode.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_countY_preset
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If the counter device supports preset registers, the preset
+		count for channel Y is provided by this attribute.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_countY_quadrature_mode
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Configure channel Y counter for non-quadrature or quadrature
+		clock mode. Selecting non-quadrature clock mode will disable
+		synchronous load mode. In quadrature clock mode, the channel Y
+		scale attribute selects the encoder phase division (scale of 1
+		selects full-cycle, scale of 0.5 selects half-cycle, scale of
+		0.25 selects quarter-cycle) processed by the channel Y counter.
+
+		Non-quadrature:
+			The filter and decoder circuit are bypassed. Encoder A
+			input serves as the count input and B as the UP/DOWN
+			direction control input, with B = 1 selecting UP Count
+			mode and B = 0 selecting Down Count mode.
+
+		Quadrature:
+			Encoder A and B inputs are digitally filtered and
+			decoded for UP/DN clock.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_countY_set_to_preset_on_index
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Whether to set channel Y counter with channel Y preset value
+		when channel Y index input is active, or continuously count.
+		Valid attribute values are boolean.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_indexY_index_polarity
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Active level of channel Y index input; irrelevant in
+		non-synchronous load mode.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_indexY_synchronous_mode
+KernelVersion:	4.10
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Configure channel Y counter for non-synchronous or synchronous
+		load mode. Synchronous load mode cannot be selected in
+		non-quadrature clock mode.
+
+		Non-synchronous:
+			A logic low level is the active level at this index
+			input. The index function (as enabled via
+			set_to_preset_on_index) is performed directly on the
+			active level of the index input.
+
+		Synchronous:
+			Intended for interfacing with encoder Index output in
+			quadrature clock mode. The active level is configured
+			via index_polarity. The index function (as enabled via
+			set_to_preset_on_index) is performed synchronously with
+			the quadrature clock on the active level of the index
+			input.

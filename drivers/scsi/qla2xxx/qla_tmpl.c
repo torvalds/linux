@@ -219,8 +219,6 @@ qla27xx_skip_entry(struct qla27xx_fwdt_entry *ent, void *buf)
 {
 	if (buf)
 		ent->hdr.driver_flags |= DRIVER_FLAG_SKIP_ENTRY;
-	ql_dbg(ql_dbg_misc + ql_dbg_verbose, NULL, 0xd011,
-	    "Skipping entry %d\n", ent->hdr.entry_type);
 }
 
 static int
@@ -371,7 +369,7 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 		goto done;
 	}
 
-	if (end <= start || start == 0 || end == 0) {
+	if (end < start || start == 0 || end == 0) {
 		ql_dbg(ql_dbg_misc, vha, 0xd023,
 		    "%s: unusable range (start=%x end=%x)\n", __func__,
 		    ent->t262.end_addr, ent->t262.start_addr);
@@ -432,6 +430,18 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 				    length * sizeof(*rsp->ring), buf, len);
 				count++;
 			}
+		}
+	} else if (QLA_TGT_MODE_ENABLED() &&
+	    ent->t263.queue_type == T263_QUEUE_TYPE_ATIO) {
+		struct qla_hw_data *ha = vha->hw;
+		struct atio *atr = ha->tgt.atio_ring;
+
+		if (atr || !buf) {
+			length = ha->tgt.atio_q_length;
+			qla27xx_insert16(0, buf, len);
+			qla27xx_insert16(length, buf, len);
+			qla27xx_insertbuf(atr, length * sizeof(*atr), buf, len);
+			count++;
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd026,
@@ -676,6 +686,18 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
+	} else if (QLA_TGT_MODE_ENABLED() &&
+	    ent->t274.queue_type == T274_QUEUE_TYPE_ATIO_SHAD) {
+		struct qla_hw_data *ha = vha->hw;
+		struct atio *atr = ha->tgt.atio_ring_ptr;
+
+		if (atr || !buf) {
+			qla27xx_insert16(0, buf, len);
+			qla27xx_insert16(1, buf, len);
+			qla27xx_insert32(ha->tgt.atio_q_in ?
+			    readl(ha->tgt.atio_q_in) : 0, buf, len);
+			count++;
+		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02f,
 		    "%s: unknown queue %x\n", __func__, ent->t274.queue_type);
@@ -794,6 +816,8 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc, vha, 0xd01a,
 	    "%s: entry count %lx\n", __func__, count);
 	while (count--) {
+		if (buf && *len >= vha->hw->fw_dump_len)
+			break;
 		if (qla27xx_find_entry(ent->hdr.entry_type)(vha, ent, buf, len))
 			break;
 		ent = qla27xx_next_entry(ent);
@@ -801,18 +825,20 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 
 	if (count)
 		ql_dbg(ql_dbg_misc, vha, 0xd018,
-		    "%s: residual count (%lx)\n", __func__, count);
+		    "%s: entry residual count (%lx)\n", __func__, count);
 
 	if (ent->hdr.entry_type != ENTRY_TYPE_TMP_END)
 		ql_dbg(ql_dbg_misc, vha, 0xd019,
-		    "%s: missing end (%lx)\n", __func__, count);
+		    "%s: missing end entry (%lx)\n", __func__, count);
 
-	ql_dbg(ql_dbg_misc, vha, 0xd01b,
-	    "%s: len=%lx\n", __func__, *len);
+	if (buf && *len != vha->hw->fw_dump_len)
+		ql_dbg(ql_dbg_misc, vha, 0xd01b,
+		    "%s: length=%#lx residual=%+ld\n",
+		    __func__, *len, vha->hw->fw_dump_len - *len);
 
 	if (buf) {
 		ql_log(ql_log_warn, vha, 0xd015,
-		    "Firmware dump saved to temp buffer (%ld/%p)\n",
+		    "Firmware dump saved to temp buffer (%lu/%p)\n",
 		    vha->host_no, vha->hw->fw_dump);
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}

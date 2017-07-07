@@ -105,26 +105,26 @@ struct tcmu_cmd_entry {
 
 	union {
 		struct {
-			uint32_t iov_cnt;
-			uint32_t iov_bidi_cnt;
-			uint32_t iov_dif_cnt;
-			uint64_t cdb_off;
-			uint64_t __pad1;
-			uint64_t __pad2;
+			__u32 iov_cnt;
+			__u32 iov_bidi_cnt;
+			__u32 iov_dif_cnt;
+			__u64 cdb_off;
+			__u64 __pad1;
+			__u64 __pad2;
 			struct iovec iov[0];
 		} req;
 		struct {
-			uint8_t scsi_status;
-			uint8_t __pad1;
-			uint16_t __pad2;
-			uint32_t __pad3;
+			__u8 scsi_status;
+			__u8 __pad1;
+			__u16 __pad2;
+			__u32 __pad3;
 			char sense_buffer[TCMU_SENSE_BUFFERSIZE];
 		} rsp;
 	};
 
 } __packed;
 
-#define TCMU_OP_ALIGN_SIZE sizeof(uint64_t)
+#define TCMU_OP_ALIGN_SIZE sizeof(__u64)
 
 enum tcmu_genl_cmd {
 	TCMU_CMD_UNSPEC,

@@ -4,27 +4,27 @@
 
 struct test arch_tests[] = {
 	{
-		.desc = "x86 rdpmc test",
+		.desc = "x86 rdpmc",
 		.func = test__rdpmc,
 	},
 	{
-		.desc = "Test converting perf time to TSC",
+		.desc = "Convert perf time to TSC",
 		.func = test__perf_time_to_tsc,
 	},
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 	{
-		.desc = "Test dwarf unwind",
+		.desc = "DWARF unwind",
 		.func = test__dwarf_unwind,
 	},
 #endif
 #ifdef HAVE_AUXTRACE_SUPPORT
 	{
-		.desc = "Test x86 instruction decoder - new instructions",
+		.desc = "x86 instruction decoder - new instructions",
 		.func = test__insn_x86,
 	},
 #endif
 	{
-		.desc = "Test intel cqm nmi context read",
+		.desc = "Intel cqm nmi context read",
 		.func = test__intel_cqm_count_nmi_context,
 	},
 	{

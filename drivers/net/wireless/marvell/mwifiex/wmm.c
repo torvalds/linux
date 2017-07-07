@@ -503,8 +503,10 @@ mwifiex_wmm_del_pkts_in_ralist_node(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb, *tmp;
 
-	skb_queue_walk_safe(&ra_list->skb_head, skb, tmp)
+	skb_queue_walk_safe(&ra_list->skb_head, skb, tmp) {
+		skb_unlink(skb, &ra_list->skb_head);
 		mwifiex_write_data_complete(adapter, skb, 0, -1);
+	}
 }
 
 /*
@@ -600,11 +602,15 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 		priv->adapter->if_ops.clean_pcie_ring(priv->adapter);
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 
-	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp)
+	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp) {
+		skb_unlink(skb, &priv->tdls_txq);
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	}
 
-	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp)
+	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp) {
+		skb_unlink(skb, &priv->bypass_txq);
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	}
 	atomic_set(&priv->adapter->bypass_tx_pending, 0);
 
 	idr_for_each(&priv->ack_status_frames, mwifiex_free_ack_frame, NULL);
@@ -667,8 +673,8 @@ void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
 
-/* This function update non-tdls peer ralist tx_pause while
- * tdls channel swithing
+/* This function updates non-tdls peer ralist tx_pause while
+ * tdls channel switching
  */
 void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
 					       u8 *mac, u8 tx_pause)
@@ -862,12 +868,8 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 			return;
 		default:
 			list_head = priv->wmm.tid_tbl_ptr[tid_down].ra_list;
-			if (!list_empty(&list_head))
-				ra_list = list_first_entry(
-					&list_head, struct mwifiex_ra_list_tbl,
-					list);
-			else
-				ra_list = NULL;
+			ra_list = list_first_entry_or_null(&list_head,
+					struct mwifiex_ra_list_tbl, list);
 			break;
 		}
 	} else {
@@ -1099,6 +1101,7 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				    &adapter->bss_prio_tbl[j].bss_prio_head,
 				    list) {
 
+try_again:
 			priv_tmp = adapter->bss_prio_tbl[j].bss_prio_cur->priv;
 
 			if (((priv_tmp->bss_mode != NL80211_IFTYPE_ADHOC) &&
@@ -1134,8 +1137,18 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 						       ra_list_spinlock,
 						       flags_ra);
 			}
-		}
 
+			if (atomic_read(&priv_tmp->wmm.tx_pkts_queued) != 0) {
+				atomic_set(&priv_tmp->wmm.highest_queued_prio,
+					   HIGH_PRIO_TID);
+				/* Iterate current private once more, since
+				 * there still exist packets in data queue
+				 */
+				goto try_again;
+			} else
+				atomic_set(&priv_tmp->wmm.highest_queued_prio,
+					   NO_PKT_PRIO_TID);
+		}
 	}
 
 	return NULL;
@@ -1328,9 +1341,11 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	skb = skb_dequeue(&ptr->skb_head);
 
 	if (adapter->data_sent || adapter->tx_lock_flag) {
+		ptr->total_pkt_count--;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 		skb_queue_tail(&adapter->tx_data_q, skb);
+		atomic_dec(&priv->wmm.tx_pkts_queued);
 		atomic_inc(&adapter->tx_queued);
 		return;
 	}
@@ -1344,13 +1359,13 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
 
+	tx_param.next_pkt_len =
+		((skb_next) ? skb_next->len +
+		 sizeof(struct txpd) : 0);
 	if (adapter->iface_type == MWIFIEX_USB) {
 		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
-						   skb, NULL);
+						   skb, &tx_param);
 	} else {
-		tx_param.next_pkt_len =
-			((skb_next) ? skb_next->len +
-			 sizeof(struct txpd) : 0);
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 						   skb, &tx_param);
 	}
@@ -1388,6 +1403,10 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	if (ret != -EBUSY) {
 		mwifiex_rotate_priolists(priv, ptr, ptr_index);
 		atomic_dec(&priv->wmm.tx_pkts_queued);
+		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
+		ptr->total_pkt_count--;
+		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
+				       ra_list_flags);
 	}
 }
 

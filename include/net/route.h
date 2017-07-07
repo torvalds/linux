@@ -113,13 +113,16 @@ struct in_device;
 int ip_rt_init(void);
 void rt_cache_flush(struct net *net);
 void rt_flush_dev(struct net_device *dev);
-struct rtable *__ip_route_output_key_hash(struct net *, struct flowi4 *flp,
-					  int mp_hash);
+struct rtable *ip_route_output_key_hash(struct net *net, struct flowi4 *flp,
+					const struct sk_buff *skb);
+struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *flp,
+					    struct fib_result *res,
+					    const struct sk_buff *skb);
 
 static inline struct rtable *__ip_route_output_key(struct net *net,
 						   struct flowi4 *flp)
 {
-	return __ip_route_output_key_hash(net, flp, -1);
+	return ip_route_output_key_hash(net, flp, NULL);
 }
 
 struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
@@ -153,7 +156,7 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi
 	flowi4_init_output(fl4, oif, sk ? sk->sk_mark : 0, tos,
 			   RT_SCOPE_UNIVERSE, proto,
 			   sk ? inet_sk_flowi_flags(sk) : 0,
-			   daddr, saddr, dport, sport);
+			   daddr, saddr, dport, sport, sock_net_uid(net, sk));
 	if (sk)
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
 	return ip_route_output_flow(net, fl4, sk);
@@ -175,6 +178,9 @@ static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 
 
 int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
 			 u8 tos, struct net_device *devin);
+int ip_route_input_rcu(struct sk_buff *skb, __be32 dst, __be32 src,
+		       u8 tos, struct net_device *devin,
+		       struct fib_result *res);
 
 static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 				 u8 tos, struct net_device *devin)
@@ -184,7 +190,9 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 	rcu_read_lock();
 	err = ip_route_input_noref(skb, dst, src, tos, devin);
 	if (!err)
-		skb_dst_force(skb);
+		skb_dst_force_safe(skb);
+	if (!skb_dst(skb))
+		err = -EINVAL;
 	rcu_read_unlock();
 
 	return err;
@@ -269,7 +277,8 @@ static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst, __be32 
 		flow_flags |= FLOWI_FLAG_ANYSRC;
 
 	flowi4_init_output(fl4, oif, sk->sk_mark, tos, RT_SCOPE_UNIVERSE,
-			   protocol, flow_flags, dst, src, dport, sport);
+			   protocol, flow_flags, dst, src, dport, sport,
+			   sk->sk_uid);
 }
 
 static inline struct rtable *ip_route_connect(struct flowi4 *fl4,

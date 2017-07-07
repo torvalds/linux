@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include <linux/module.h>
@@ -119,7 +115,7 @@ static void dvb_dummy_fe_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops;
+static const struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops;
 
 struct dvb_frontend* dvb_dummy_fe_ofdm_attach(void)
 {
@@ -136,7 +132,7 @@ struct dvb_frontend* dvb_dummy_fe_ofdm_attach(void)
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops;
+static const struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops;
 
 struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
 {
@@ -153,7 +149,7 @@ struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_qam_ops;
+static const struct dvb_frontend_ops dvb_dummy_fe_qam_ops;
 
 struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
 {
@@ -170,7 +166,7 @@ struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
+static const struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Dummy DVB-T",
@@ -201,7 +197,7 @@ static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 	.read_ucblocks = dvb_dummy_fe_read_ucblocks,
 };
 
-static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
+static const struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name			= "Dummy DVB-C",
@@ -230,7 +226,7 @@ static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 	.read_ucblocks = dvb_dummy_fe_read_ucblocks,
 };
 
-static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
+static const struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Dummy DVB-S",

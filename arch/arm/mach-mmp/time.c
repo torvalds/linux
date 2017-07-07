@@ -144,7 +144,7 @@ static struct clock_event_device ckevt = {
 	.set_state_oneshot	= timer_set_shutdown,
 };
 
-static cycle_t clksrc_read(struct clocksource *cs)
+static u64 clksrc_read(struct clocksource *cs)
 {
 	return timer_read();
 }

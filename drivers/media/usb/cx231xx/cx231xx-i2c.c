@@ -454,7 +454,7 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm cx231xx_algo = {
+static const struct i2c_algorithm cx231xx_algo = {
 	.master_xfer = cx231xx_i2c_xfer,
 	.functionality = functionality,
 };
@@ -491,20 +491,24 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 {
 	unsigned char buf;
 	int i, rc;
-	struct i2c_client client;
+	struct i2c_adapter *adap;
+	struct i2c_msg msg = {
+		.flags = I2C_M_RD,
+		.len = 1,
+		.buf = &buf,
+	};
 
 	if (!i2c_scan)
 		return;
 
 	/* Don't generate I2C errors during scan */
 	dev->i2c_scan_running = true;
-
-	memset(&client, 0, sizeof(client));
-	client.adapter = cx231xx_get_i2c_adap(dev, i2c_port);
+	adap = cx231xx_get_i2c_adap(dev, i2c_port);
 
 	for (i = 0; i < 128; i++) {
-		client.addr = i;
-		rc = i2c_master_recv(&client, &buf, 0);
+		msg.addr = i;
+		rc = i2c_transfer(adap, &msg, 1);
+
 		if (rc < 0)
 			continue;
 		dev_info(dev->dev,
@@ -576,17 +580,10 @@ int cx231xx_i2c_mux_create(struct cx231xx *dev)
 
 int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
 {
-	int rc;
-
-	rc = i2c_mux_add_adapter(dev->muxc,
-				 0,
-				 mux_no /* chan_id */,
-				 0 /* class */);
-	if (rc)
-		dev_warn(dev->dev,
-			 "i2c mux %d register FAILED\n", mux_no);
-
-	return rc;
+	return i2c_mux_add_adapter(dev->muxc,
+				   0,
+				   mux_no /* chan_id */,
+				   0 /* class */);
 }
 
 void cx231xx_i2c_mux_unregister(struct cx231xx *dev)
@@ -608,7 +605,7 @@ struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
 	case I2C_1_MUX_3:
 		return dev->muxc->adapter[1];
 	default:
-		return NULL;
+		BUG();
 	}
 }
 EXPORT_SYMBOL_GPL(cx231xx_get_i2c_adap);

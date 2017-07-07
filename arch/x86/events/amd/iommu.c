@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"perf/amd_iommu: " fmt
+
 #include <linux/perf_event.h>
 #include <linux/init.h>
 #include <linux/cpumask.h>
@@ -21,44 +23,42 @@
 
 #define COUNTER_SHIFT		16
 
-#define _GET_BANK(ev)       ((u8)(ev->hw.extra_reg.reg >> 8))
-#define _GET_CNTR(ev)       ((u8)(ev->hw.extra_reg.reg))
+/* iommu pmu conf masks */
+#define GET_CSOURCE(x)     ((x)->conf & 0xFFULL)
+#define GET_DEVID(x)       (((x)->conf >> 8)  & 0xFFFFULL)
+#define GET_DOMID(x)       (((x)->conf >> 24) & 0xFFFFULL)
+#define GET_PASID(x)       (((x)->conf >> 40) & 0xFFFFFULL)
 
-/* iommu pmu config masks */
-#define _GET_CSOURCE(ev)    ((ev->hw.config & 0xFFULL))
-#define _GET_DEVID(ev)      ((ev->hw.config >> 8)  & 0xFFFFULL)
-#define _GET_PASID(ev)      ((ev->hw.config >> 24) & 0xFFFFULL)
-#define _GET_DOMID(ev)      ((ev->hw.config >> 40) & 0xFFFFULL)
-#define _GET_DEVID_MASK(ev) ((ev->hw.extra_reg.config)  & 0xFFFFULL)
-#define _GET_PASID_MASK(ev) ((ev->hw.extra_reg.config >> 16) & 0xFFFFULL)
-#define _GET_DOMID_MASK(ev) ((ev->hw.extra_reg.config >> 32) & 0xFFFFULL)
+/* iommu pmu conf1 masks */
+#define GET_DEVID_MASK(x)  ((x)->conf1  & 0xFFFFULL)
+#define GET_DOMID_MASK(x)  (((x)->conf1 >> 16) & 0xFFFFULL)
+#define GET_PASID_MASK(x)  (((x)->conf1 >> 32) & 0xFFFFFULL)
 
-static struct perf_amd_iommu __perf_iommu;
+#define IOMMU_NAME_SIZE 16
 
 struct perf_amd_iommu {
+	struct list_head list;
 	struct pmu pmu;
+	struct amd_iommu *iommu;
+	char name[IOMMU_NAME_SIZE];
 	u8 max_banks;
 	u8 max_counters;
 	u64 cntr_assign_mask;
 	raw_spinlock_t lock;
-	const struct attribute_group *attr_groups[4];
 };
 
-#define format_group	attr_groups[0]
-#define cpumask_group	attr_groups[1]
-#define events_group	attr_groups[2]
-#define null_group	attr_groups[3]
+static LIST_HEAD(perf_amd_iommu_list);
 
 /*---------------------------------------------
  * sysfs format attributes
  *---------------------------------------------*/
 PMU_FORMAT_ATTR(csource,    "config:0-7");
 PMU_FORMAT_ATTR(devid,      "config:8-23");
-PMU_FORMAT_ATTR(pasid,      "config:24-39");
-PMU_FORMAT_ATTR(domid,      "config:40-55");
+PMU_FORMAT_ATTR(domid,      "config:24-39");
+PMU_FORMAT_ATTR(pasid,      "config:40-59");
 PMU_FORMAT_ATTR(devid_mask, "config1:0-15");
-PMU_FORMAT_ATTR(pasid_mask, "config1:16-31");
-PMU_FORMAT_ATTR(domid_mask, "config1:32-47");
+PMU_FORMAT_ATTR(domid_mask, "config1:16-31");
+PMU_FORMAT_ATTR(pasid_mask, "config1:32-51");
 
 static struct attribute *iommu_format_attrs[] = {
 	&format_attr_csource.attr,
@@ -79,6 +79,10 @@ static struct attribute_group amd_iommu_format_group = {
 /*---------------------------------------------
  * sysfs events attributes
  *---------------------------------------------*/
+static struct attribute_group amd_iommu_events_group = {
+	.name = "events",
+};
+
 struct amd_iommu_event_desc {
 	struct kobj_attribute attr;
 	const char *event;
@@ -150,30 +154,34 @@ static struct attribute_group amd_iommu_cpumask_group = {
 
 /*---------------------------------------------*/
 
-static int get_next_avail_iommu_bnk_cntr(struct perf_amd_iommu *perf_iommu)
+static int get_next_avail_iommu_bnk_cntr(struct perf_event *event)
 {
+	struct perf_amd_iommu *piommu = container_of(event->pmu, struct perf_amd_iommu, pmu);
+	int max_cntrs = piommu->max_counters;
+	int max_banks = piommu->max_banks;
+	u32 shift, bank, cntr;
 	unsigned long flags;
-	int shift, bank, cntr, retval;
-	int max_banks = perf_iommu->max_banks;
-	int max_cntrs = perf_iommu->max_counters;
+	int retval;
 
-	raw_spin_lock_irqsave(&perf_iommu->lock, flags);
+	raw_spin_lock_irqsave(&piommu->lock, flags);
 
 	for (bank = 0, shift = 0; bank < max_banks; bank++) {
 		for (cntr = 0; cntr < max_cntrs; cntr++) {
 			shift = bank + (bank*3) + cntr;
-			if (perf_iommu->cntr_assign_mask & (1ULL<<shift)) {
+			if (piommu->cntr_assign_mask & BIT_ULL(shift)) {
 				continue;
 			} else {
-				perf_iommu->cntr_assign_mask |= (1ULL<<shift);
-				retval = ((u16)((u16)bank<<8) | (u8)(cntr));
+				piommu->cntr_assign_mask |= BIT_ULL(shift);
+				event->hw.iommu_bank = bank;
+				event->hw.iommu_cntr = cntr;
+				retval = 0;
 				goto out;
 			}
 		}
 	}
 	retval = -ENOSPC;
 out:
-	raw_spin_unlock_irqrestore(&perf_iommu->lock, flags);
+	raw_spin_unlock_irqrestore(&piommu->lock, flags);
 	return retval;
 }
 
@@ -202,8 +210,6 @@ static int clear_avail_iommu_bnk_cntr(struct perf_amd_iommu *perf_iommu,
 static int perf_iommu_event_init(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	struct perf_amd_iommu *perf_iommu;
-	u64 config, config1;
 
 	/* test the event attr type check for PMU enumeration */
 	if (event->attr.type != event->pmu->type)
@@ -225,80 +231,62 @@ static int perf_iommu_event_init(struct perf_event *event)
 	if (event->cpu < 0)
 		return -EINVAL;
 
-	perf_iommu = &__perf_iommu;
-
-	if (event->pmu != &perf_iommu->pmu)
-		return -ENOENT;
-
-	if (perf_iommu) {
-		config = event->attr.config;
-		config1 = event->attr.config1;
-	} else {
-		return -EINVAL;
-	}
-
-	/* integrate with iommu base devid (0000), assume one iommu */
-	perf_iommu->max_banks =
-		amd_iommu_pc_get_max_banks(IOMMU_BASE_DEVID);
-	perf_iommu->max_counters =
-		amd_iommu_pc_get_max_counters(IOMMU_BASE_DEVID);
-	if ((perf_iommu->max_banks == 0) || (perf_iommu->max_counters == 0))
-		return -EINVAL;
-
 	/* update the hw_perf_event struct with the iommu config data */
-	hwc->config = config;
-	hwc->extra_reg.config = config1;
+	hwc->conf  = event->attr.config;
+	hwc->conf1 = event->attr.config1;
 
 	return 0;
 }
 
+static inline struct amd_iommu *perf_event_2_iommu(struct perf_event *ev)
+{
+	return (container_of(ev->pmu, struct perf_amd_iommu, pmu))->iommu;
+}
+
 static void perf_iommu_enable_event(struct perf_event *ev)
 {
-	u8 csource = _GET_CSOURCE(ev);
-	u16 devid = _GET_DEVID(ev);
+	struct amd_iommu *iommu = perf_event_2_iommu(ev);
+	struct hw_perf_event *hwc = &ev->hw;
+	u8 bank = hwc->iommu_bank;
+	u8 cntr = hwc->iommu_cntr;
 	u64 reg = 0ULL;
 
-	reg = csource;
-	amd_iommu_pc_get_set_reg_val(devid,
-			_GET_BANK(ev), _GET_CNTR(ev) ,
-			 IOMMU_PC_COUNTER_SRC_REG, &reg, true);
+	reg = GET_CSOURCE(hwc);
+	amd_iommu_pc_set_reg(iommu, bank, cntr, IOMMU_PC_COUNTER_SRC_REG, &reg);
 
-	reg = 0ULL | devid | (_GET_DEVID_MASK(ev) << 32);
+	reg = GET_DEVID_MASK(hwc);
+	reg = GET_DEVID(hwc) | (reg << 32);
 	if (reg)
-		reg |= (1UL << 31);
-	amd_iommu_pc_get_set_reg_val(devid,
-			_GET_BANK(ev), _GET_CNTR(ev) ,
-			 IOMMU_PC_DEVID_MATCH_REG, &reg, true);
+		reg |= BIT(31);
+	amd_iommu_pc_set_reg(iommu, bank, cntr, IOMMU_PC_DEVID_MATCH_REG, &reg);
 
-	reg = 0ULL | _GET_PASID(ev) | (_GET_PASID_MASK(ev) << 32);
+	reg = GET_PASID_MASK(hwc);
+	reg = GET_PASID(hwc) | (reg << 32);
 	if (reg)
-		reg |= (1UL << 31);
-	amd_iommu_pc_get_set_reg_val(devid,
-			_GET_BANK(ev), _GET_CNTR(ev) ,
-			 IOMMU_PC_PASID_MATCH_REG, &reg, true);
+		reg |= BIT(31);
+	amd_iommu_pc_set_reg(iommu, bank, cntr, IOMMU_PC_PASID_MATCH_REG, &reg);
 
-	reg = 0ULL | _GET_DOMID(ev) | (_GET_DOMID_MASK(ev) << 32);
+	reg = GET_DOMID_MASK(hwc);
+	reg = GET_DOMID(hwc) | (reg << 32);
 	if (reg)
-		reg |= (1UL << 31);
-	amd_iommu_pc_get_set_reg_val(devid,
-			_GET_BANK(ev), _GET_CNTR(ev) ,
-			 IOMMU_PC_DOMID_MATCH_REG, &reg, true);
+		reg |= BIT(31);
+	amd_iommu_pc_set_reg(iommu, bank, cntr, IOMMU_PC_DOMID_MATCH_REG, &reg);
 }
 
 static void perf_iommu_disable_event(struct perf_event *event)
 {
+	struct amd_iommu *iommu = perf_event_2_iommu(event);
+	struct hw_perf_event *hwc = &event->hw;
 	u64 reg = 0ULL;
 
-	amd_iommu_pc_get_set_reg_val(_GET_DEVID(event),
-			_GET_BANK(event), _GET_CNTR(event),
-			IOMMU_PC_COUNTER_SRC_REG, &reg, true);
+	amd_iommu_pc_set_reg(iommu, hwc->iommu_bank, hwc->iommu_cntr,
+			     IOMMU_PC_COUNTER_SRC_REG, &reg);
 }
 
 static void perf_iommu_start(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	pr_debug("perf: amd_iommu:perf_iommu_start\n");
 	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
 		return;
 
@@ -306,10 +294,11 @@ static void perf_iommu_start(struct perf_event *event, int flags)
 	hwc->state = 0;
 
 	if (flags & PERF_EF_RELOAD) {
-		u64 prev_raw_count =  local64_read(&hwc->prev_count);
-		amd_iommu_pc_get_set_reg_val(_GET_DEVID(event),
-				_GET_BANK(event), _GET_CNTR(event),
-				IOMMU_PC_COUNTER_REG, &prev_raw_count, true);
+		u64 prev_raw_count = local64_read(&hwc->prev_count);
+		struct amd_iommu *iommu = perf_event_2_iommu(event);
+
+		amd_iommu_pc_set_reg(iommu, hwc->iommu_bank, hwc->iommu_cntr,
+				     IOMMU_PC_COUNTER_REG, &prev_raw_count);
 	}
 
 	perf_iommu_enable_event(event);
@@ -319,37 +308,30 @@ static void perf_iommu_start(struct perf_event *event, int flags)
 
 static void perf_iommu_read(struct perf_event *event)
 {
-	u64 count = 0ULL;
-	u64 prev_raw_count = 0ULL;
-	u64 delta = 0ULL;
+	u64 count, prev, delta;
 	struct hw_perf_event *hwc = &event->hw;
-	pr_debug("perf: amd_iommu:perf_iommu_read\n");
+	struct amd_iommu *iommu = perf_event_2_iommu(event);
 
-	amd_iommu_pc_get_set_reg_val(_GET_DEVID(event),
-				_GET_BANK(event), _GET_CNTR(event),
-				IOMMU_PC_COUNTER_REG, &count, false);
-
-	/* IOMMU pc counter register is only 48 bits */
-	count &= 0xFFFFFFFFFFFFULL;
-
-	prev_raw_count =  local64_read(&hwc->prev_count);
-	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
-					count) != prev_raw_count)
+	if (amd_iommu_pc_get_reg(iommu, hwc->iommu_bank, hwc->iommu_cntr,
+				 IOMMU_PC_COUNTER_REG, &count))
 		return;
 
-	/* Handling 48-bit counter overflowing */
-	delta = (count << COUNTER_SHIFT) - (prev_raw_count << COUNTER_SHIFT);
+	/* IOMMU pc counter register is only 48 bits */
+	count &= GENMASK_ULL(47, 0);
+
+	prev = local64_read(&hwc->prev_count);
+	if (local64_cmpxchg(&hwc->prev_count, prev, count) != prev)
+		return;
+
+	/* Handle 48-bit counter overflow */
+	delta = (count << COUNTER_SHIFT) - (prev << COUNTER_SHIFT);
 	delta >>= COUNTER_SHIFT;
 	local64_add(delta, &event->count);
-
 }
 
 static void perf_iommu_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	u64 config;
-
-	pr_debug("perf: amd_iommu:perf_iommu_stop\n");
 
 	if (hwc->state & PERF_HES_UPTODATE)
 		return;
@@ -361,7 +343,6 @@ static void perf_iommu_stop(struct perf_event *event, int flags)
 	if (hwc->state & PERF_HES_UPTODATE)
 		return;
 
-	config = hwc->config;
 	perf_iommu_read(event);
 	hwc->state |= PERF_HES_UPTODATE;
 }
@@ -369,17 +350,12 @@ static void perf_iommu_stop(struct perf_event *event, int flags)
 static int perf_iommu_add(struct perf_event *event, int flags)
 {
 	int retval;
-	struct perf_amd_iommu *perf_iommu =
-			container_of(event->pmu, struct perf_amd_iommu, pmu);
 
-	pr_debug("perf: amd_iommu:perf_iommu_add\n");
 	event->hw.state = PERF_HES_UPTODATE | PERF_HES_STOPPED;
 
 	/* request an iommu bank/counter */
-	retval = get_next_avail_iommu_bnk_cntr(perf_iommu);
-	if (retval != -ENOSPC)
-		event->hw.extra_reg.reg = (u16)retval;
-	else
+	retval = get_next_avail_iommu_bnk_cntr(event);
+	if (retval)
 		return retval;
 
 	if (flags & PERF_EF_START)
@@ -390,115 +366,124 @@ static int perf_iommu_add(struct perf_event *event, int flags)
 
 static void perf_iommu_del(struct perf_event *event, int flags)
 {
+	struct hw_perf_event *hwc = &event->hw;
 	struct perf_amd_iommu *perf_iommu =
 			container_of(event->pmu, struct perf_amd_iommu, pmu);
 
-	pr_debug("perf: amd_iommu:perf_iommu_del\n");
 	perf_iommu_stop(event, PERF_EF_UPDATE);
 
 	/* clear the assigned iommu bank/counter */
 	clear_avail_iommu_bnk_cntr(perf_iommu,
-				     _GET_BANK(event),
-				     _GET_CNTR(event));
+				   hwc->iommu_bank, hwc->iommu_cntr);
 
 	perf_event_update_userpage(event);
 }
 
-static __init int _init_events_attrs(struct perf_amd_iommu *perf_iommu)
+static __init int _init_events_attrs(void)
 {
-	struct attribute **attrs;
-	struct attribute_group *attr_group;
 	int i = 0, j;
+	struct attribute **attrs;
 
 	while (amd_iommu_v2_event_descs[i].attr.attr.name)
 		i++;
 
-	attr_group = kzalloc(sizeof(struct attribute *)
-		* (i + 1) + sizeof(*attr_group), GFP_KERNEL);
-	if (!attr_group)
+	attrs = kzalloc(sizeof(struct attribute **) * (i + 1), GFP_KERNEL);
+	if (!attrs)
 		return -ENOMEM;
 
-	attrs = (struct attribute **)(attr_group + 1);
 	for (j = 0; j < i; j++)
 		attrs[j] = &amd_iommu_v2_event_descs[j].attr.attr;
 
-	attr_group->name = "events";
-	attr_group->attrs = attrs;
-	perf_iommu->events_group = attr_group;
-
+	amd_iommu_events_group.attrs = attrs;
 	return 0;
 }
 
-static __init void amd_iommu_pc_exit(void)
-{
-	if (__perf_iommu.events_group != NULL) {
-		kfree(__perf_iommu.events_group);
-		__perf_iommu.events_group = NULL;
-	}
-}
+const struct attribute_group *amd_iommu_attr_groups[] = {
+	&amd_iommu_format_group,
+	&amd_iommu_cpumask_group,
+	&amd_iommu_events_group,
+	NULL,
+};
 
-static __init int _init_perf_amd_iommu(
-	struct perf_amd_iommu *perf_iommu, char *name)
+static struct pmu iommu_pmu = {
+	.event_init	= perf_iommu_event_init,
+	.add		= perf_iommu_add,
+	.del		= perf_iommu_del,
+	.start		= perf_iommu_start,
+	.stop		= perf_iommu_stop,
+	.read		= perf_iommu_read,
+	.task_ctx_nr	= perf_invalid_context,
+	.attr_groups	= amd_iommu_attr_groups,
+};
+
+static __init int init_one_iommu(unsigned int idx)
 {
+	struct perf_amd_iommu *perf_iommu;
 	int ret;
+
+	perf_iommu = kzalloc(sizeof(struct perf_amd_iommu), GFP_KERNEL);
+	if (!perf_iommu)
+		return -ENOMEM;
 
 	raw_spin_lock_init(&perf_iommu->lock);
 
-	/* Init format attributes */
-	perf_iommu->format_group = &amd_iommu_format_group;
+	perf_iommu->pmu          = iommu_pmu;
+	perf_iommu->iommu        = get_amd_iommu(idx);
+	perf_iommu->max_banks    = amd_iommu_pc_get_max_banks(idx);
+	perf_iommu->max_counters = amd_iommu_pc_get_max_counters(idx);
 
-	/* Init cpumask attributes to only core 0 */
-	cpumask_set_cpu(0, &iommu_cpumask);
-	perf_iommu->cpumask_group = &amd_iommu_cpumask_group;
-
-	/* Init events attributes */
-	if (_init_events_attrs(perf_iommu) != 0)
-		pr_err("perf: amd_iommu: Only support raw events.\n");
-
-	/* Init null attributes */
-	perf_iommu->null_group = NULL;
-	perf_iommu->pmu.attr_groups = perf_iommu->attr_groups;
-
-	ret = perf_pmu_register(&perf_iommu->pmu, name, -1);
-	if (ret) {
-		pr_err("perf: amd_iommu: Failed to initialized.\n");
-		amd_iommu_pc_exit();
-	} else {
-		pr_info("perf: amd_iommu: Detected. (%d banks, %d counters/bank)\n",
-			amd_iommu_pc_get_max_banks(IOMMU_BASE_DEVID),
-			amd_iommu_pc_get_max_counters(IOMMU_BASE_DEVID));
+	if (!perf_iommu->iommu ||
+	    !perf_iommu->max_banks ||
+	    !perf_iommu->max_counters) {
+		kfree(perf_iommu);
+		return -EINVAL;
 	}
 
+	snprintf(perf_iommu->name, IOMMU_NAME_SIZE, "amd_iommu_%u", idx);
+
+	ret = perf_pmu_register(&perf_iommu->pmu, perf_iommu->name, -1);
+	if (!ret) {
+		pr_info("Detected AMD IOMMU #%d (%d banks, %d counters/bank).\n",
+			idx, perf_iommu->max_banks, perf_iommu->max_counters);
+		list_add_tail(&perf_iommu->list, &perf_amd_iommu_list);
+	} else {
+		pr_warn("Error initializing IOMMU %d.\n", idx);
+		kfree(perf_iommu);
+	}
 	return ret;
 }
 
-static struct perf_amd_iommu __perf_iommu = {
-	.pmu = {
-		.task_ctx_nr    = perf_invalid_context,
-		.event_init	= perf_iommu_event_init,
-		.add		= perf_iommu_add,
-		.del		= perf_iommu_del,
-		.start		= perf_iommu_start,
-		.stop		= perf_iommu_stop,
-		.read		= perf_iommu_read,
-	},
-	.max_banks		= 0x00,
-	.max_counters		= 0x00,
-	.cntr_assign_mask	= 0ULL,
-	.format_group		= NULL,
-	.cpumask_group		= NULL,
-	.events_group		= NULL,
-	.null_group		= NULL,
-};
-
 static __init int amd_iommu_pc_init(void)
 {
+	unsigned int i, cnt = 0;
+	int ret;
+
 	/* Make sure the IOMMU PC resource is available */
 	if (!amd_iommu_pc_supported())
 		return -ENODEV;
 
-	_init_perf_amd_iommu(&__perf_iommu, "amd_iommu");
+	ret = _init_events_attrs();
+	if (ret)
+		return ret;
 
+	/*
+	 * An IOMMU PMU is specific to an IOMMU, and can function independently.
+	 * So we go through all IOMMUs and ignore the one that fails init
+	 * unless all IOMMU are failing.
+	 */
+	for (i = 0; i < amd_iommu_get_num_iommus(); i++) {
+		ret = init_one_iommu(i);
+		if (!ret)
+			cnt++;
+	}
+
+	if (!cnt) {
+		kfree(amd_iommu_events_group.attrs);
+		return -ENODEV;
+	}
+
+	/* Init cpumask attributes to only core 0 */
+	cpumask_set_cpu(0, &iommu_cpumask);
 	return 0;
 }
 

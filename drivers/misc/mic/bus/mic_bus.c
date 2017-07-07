@@ -143,7 +143,7 @@ static void mbus_release_dev(struct device *d)
 }
 
 struct mbus_device *
-mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
+mbus_register_device(struct device *pdev, int id, const struct dma_map_ops *dma_ops,
 		     struct mbus_hw_ops *hw_ops, int index,
 		     void __iomem *mmio_va)
 {
@@ -158,7 +158,7 @@ mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 	mbdev->dev.parent = pdev;
 	mbdev->id.device = id;
 	mbdev->id.vendor = MBUS_DEV_ANY_ID;
-	mbdev->dev.archdata.dma_ops = dma_ops;
+	mbdev->dev.dma_ops = dma_ops;
 	mbdev->dev.dma_mask = &mbdev->dev.coherent_dma_mask;
 	dma_set_mask(&mbdev->dev, DMA_BIT_MASK(64));
 	mbdev->dev.release = mbus_release_dev;

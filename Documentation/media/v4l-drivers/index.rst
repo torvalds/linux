@@ -2,6 +2,8 @@
 
 .. include:: <isonum.txt>
 
+.. _v4l-drivers:
+
 ################################################
 Video4Linux (V4L)  driver-specific documentation
 ################################################
@@ -40,12 +42,15 @@ For more details see the file COPYING in the source distribution of Linux.
 	davinci-vpbe
 	fimc
 	ivtv
+	max2175
 	meye
 	omap3isp
 	omap4_camera
+	philips
 	pvrusb2
 	pxa_camera
 	radiotrack
+	rcar-fdp1
 	saa7134
 	sh_mobile_ceu_camera
 	si470x

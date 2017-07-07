@@ -14,16 +14,14 @@ LIRC_GET_LENGTH - Retrieves the code length in bits.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *length )
+.. c:function:: int ioctl( int fd, LIRC_GET_LENGTH, __u32 *length )
+    :name: LIRC_GET_LENGTH
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_GET_LENGTH
 
 ``length``
     length, in bits
@@ -32,7 +30,8 @@ Arguments
 Description
 ===========
 
-Retrieves the code length in bits (only for ``LIRC-MODE-LIRCCODE``).
+Retrieves the code length in bits (only for
+:ref:`LIRC_MODE_LIRCCODE <lirc-mode-lirccode>`).
 Reads on the device must be done in blocks matching the bit count.
 The bit could should be rounded up so that it matches full bytes.
 

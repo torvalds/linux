@@ -1,0 +1,1103 @@
+/*
+ * Google Gru (and derivatives) board device tree source
+ *
+ * Copyright 2016-2017 Google, Inc
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *  Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include <dt-bindings/input/input.h>
+#include "rk3399.dtsi"
+#include "rk3399-op1-opp.dtsi"
+
+/ {
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	/*
+	 * Power Tree
+	 *
+	 * In general an attempt is made to include all rails called out by
+	 * the schematic as long as those rails interact in some way with
+	 * the AP.  AKA:
+	 * - Rails that only connect to the EC (or devices that the EC talks to)
+	 *   are not included.
+	 * - Rails _are_ included if the rails go to the AP even if the AP
+	 *   doesn't currently care about them / they are always on.  The idea
+	 *   here is that it makes it easier to map to the schematic or extend
+	 *   later.
+	 *
+	 * If two rails are substantially the same from the AP's point of
+	 * view, though, we won't create a full fixed regulator.  We'll just
+	 * put the child rail as an alias of the parent rail.  Sometimes rails
+	 * look the same to the AP because one of these is true:
+	 * - The EC controls the enable and the EC always enables a rail as
+	 *   long as the AP is running.
+	 * - The rails are actually connected to each other by a jumper and
+	 *   the distinction is just there to add clarity/flexibility to the
+	 *   schematic.
+	 */
+
+	ppvar_sys: ppvar-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "ppvar_sys";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	pp900_ap: pp900-ap {
+		compatible = "regulator-fixed";
+		regulator-name = "pp900_ap";
+
+		/* EC turns on w/ pp900_ap_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp1200_lpddr: pp1200-lpddr {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1200_lpddr";
+
+		/* EC turns on w/ lpddr_pwr_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp1800: pp1800 {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800";
+
+		/* Always on when ppvar_sys shows power good */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp3000: pp3000 {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp3000_en>;
+
+		enable-active-high;
+		gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp3300: pp3300 {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300";
+
+		/* Always on; plain and simple */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp5000: pp5000 {
+		compatible = "regulator-fixed";
+		regulator-name = "pp5000";
+
+		/* EC turns on w/ pp5000_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	ppvar_bigcpu: ppvar-bigcpu {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_bigcpu";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm1 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ap_core_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <798674>;
+		regulator-max-microvolt = <1302172>;
+	};
+
+	ppvar_litcpu: ppvar-litcpu {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_litcpu";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm2 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ap_core_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <799065>;
+		regulator-max-microvolt = <1303738>;
+	};
+
+	ppvar_gpu: ppvar-gpu {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_gpu";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm0 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ap_core_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <785782>;
+		regulator-max-microvolt = <1217729>;
+	};
+
+	ppvar_centerlogic: ppvar-centerlogic {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_centerlogic";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm3 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ppvar_centerlogic_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <800069>;
+		regulator-max-microvolt = <1049692>;
+	};
+
+	/* Schematics call this PPVAR even though it's fixed */
+	ppvar_logic: ppvar-logic {
+		compatible = "regulator-fixed";
+		regulator-name = "ppvar_logic";
+
+		/* EC turns on w/ ppvar_logic_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	/* EC turns on w/ pp900_ddrpll_en */
+	pp900_ddrpll: pp900-ap {
+	};
+
+	/* EC turns on w/ pp900_pcie_en */
+	pp900_pcie: pp900-ap {
+	};
+
+	/* EC turns on w/ pp900_pll_en */
+	pp900_pll: pp900-ap {
+	};
+
+	/* EC turns on w/ pp900_pmu_en */
+	pp900_pmu: pp900-ap {
+	};
+
+	/* EC turns on w/ pp900_usb_en */
+	pp900_usb: pp900-ap {
+	};
+
+	/* EC turns on w/ pp1800_s0_en_l */
+	pp1800_ap_io: pp1800_emmc: pp1800_nfc: pp1800_s0: pp1800 {
+	};
+
+	/* EC turns on w/ pp1800_avdd_en_l */
+	pp1800_avdd: pp1800 {
+	};
+
+	/* EC turns on w/ pp1800_lid_en_l */
+	pp1800_lid: pp1800_mic: pp1800 {
+	};
+
+	/* EC turns on w/ lpddr_pwr_en */
+	pp1800_lpddr: pp1800 {
+	};
+
+	/* EC turns on w/ pp1800_pmu_en_l */
+	pp1800_pmu: pp1800 {
+	};
+
+	/* EC turns on w/ pp1800_usb_en_l */
+	pp1800_usb: pp1800 {
+	};
+
+	pp1500_ap_io: pp1500-ap-io {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1500_ap_io";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp1500_en>;
+
+		enable-active-high;
+		gpio = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		vin-supply = <&pp1800>;
+	};
+
+	pp1800_audio: pp1800-audio {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_audio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp1800_audio_en>;
+
+		enable-active-high;
+		gpio = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+
+		regulator-always-on;
+		regulator-boot-on;
+
+		vin-supply = <&pp1800>;
+	};
+
+	/* gpio is shared with pp3300_wifi_bt */
+	pp1800_pcie: pp1800-pcie {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_pcie";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_module_pd_l>;
+
+		enable-active-high;
+		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+
+		/*
+		 * Need to wait 1ms + ramp-up time before we can power on WiFi.
+		 * This has been approximated as 8ms total.
+		 */
+		regulator-enable-ramp-delay = <8000>;
+
+		vin-supply = <&pp1800>;
+	};
+
+	/*
+	 * This is a bit of a hack. The WiFi module should be reset at least
+	 * 1ms after its regulators have ramped up (max rampup time is ~7ms).
+	 * With some stretching of the imagination, we can call the 1.8V
+	 * regulator a supply.
+	 */
+	wlan_pd_n: wlan-pd-n {
+		compatible = "regulator-fixed";
+		regulator-name = "wlan_pd_n";
+
+		/* Note the wlan_module_reset_l pinctrl */
+		enable-active-high;
+		gpio = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+
+		vin-supply = <&pp1800_pcie>;
+	};
+
+	/* Always on; plain and simple */
+	pp3000_ap: pp3000_emmc: pp3000 {
+	};
+
+	pp3000_sd_slot: pp3000-sd-slot {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3000_sd_slot";
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_slot_pwr_en>;
+
+		enable-active-high;
+		gpio = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+
+		vin-supply = <&pp3000>;
+	};
+
+	/*
+	 * Technically, this is a small abuse of 'regulator-gpio'; this
+	 * regulator is a mux between pp1800 and pp3300. pp1800 and pp3300 are
+	 * always on though, so it is sufficient to simply control the mux
+	 * here.
+	 */
+	ppvar_sd_card_io: ppvar-sd-card-io {
+		compatible = "regulator-gpio";
+		regulator-name = "ppvar_sd_card_io";
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_io_pwr_en &sd_pwr_1800_sel>;
+
+		enable-active-high;
+		enable-gpio = <&gpio2 2 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+		states = <1800000 0x1
+			  3000000 0x0>;
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3000000>;
+	};
+
+	/* EC turns on w/ pp3300_trackpad_en_l */
+	pp3300_trackpad: pp3300-trackpad {
+	};
+
+	/* EC turns on w/ pp3300_usb_en_l */
+	pp3300_usb: pp3300 {
+	};
+
+	pp3300_disp: pp3300-disp {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_disp";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp3300_disp_en>;
+
+		enable-active-high;
+		gpio = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+
+		startup-delay-us = <2000>;
+		vin-supply = <&pp3300>;
+	};
+
+	/* gpio is shared with pp1800_pcie and pinctrl is set there */
+	pp3300_wifi_bt: pp3300-wifi-bt {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_wifi_bt";
+
+		enable-active-high;
+		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+
+		vin-supply = <&pp3300>;
+	};
+
+	/* EC turns on w/ usb_a_en */
+	pp5000_usb_a_vbus: pp5000 {
+	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_host_wake_l>;
+
+		wake-on-bt {
+			label = "Wake-on-Bluetooth";
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
+	};
+
+	max98357a: max98357a {
+		compatible = "maxim,max98357a";
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmode_en>;
+		sdmode-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		sdmode-delay = <2>;
+		#sound-dai-cells = <0>;
+		status = "okay";
+	};
+
+	sound {
+		compatible = "rockchip,rk3399-gru-sound";
+		rockchip,cpu = <&i2s0 &i2s2>;
+		rockchip,codec = <&max98357a &headsetcodec &codec>;
+	};
+};
+
+/*
+ * Set some suspend operating points to avoid OVP in suspend
+ *
+ * When we go into S3 ARM Trusted Firmware will transition our PWM regulators
+ * from wherever they're at back to the "default" operating point (whatever
+ * voltage we get when we set the PWM pins to "input").
+ *
+ * This quick transition under light load has the possibility to trigger the
+ * regulator "over voltage protection" (OVP).
+ *
+ * To make extra certain that we don't hit this OVP at suspend time, we'll
+ * transition to a voltage that's much closer to the default (~1.0 V) so that
+ * there will not be a big jump.  Technically we only need to get within 200 mV
+ * of the default voltage, but the speed here should be fast enough and we need
+ * suspend/resume to be rock solid.
+ */
+
+&cluster0_opp {
+	opp05 {
+		opp-suspend;
+	};
+};
+
+&cluster1_opp {
+	opp06 {
+		opp-suspend;
+	};
+};
+
+&cpu_l0 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_l1 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_l2 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_l3 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&ppvar_bigcpu>;
+};
+
+&cpu_b1 {
+	cpu-supply = <&ppvar_bigcpu>;
+};
+
+
+&cru {
+	assigned-clocks =
+		<&cru PLL_GPLL>, <&cru PLL_CPLL>,
+		<&cru PLL_NPLL>,
+		<&cru ACLK_PERIHP>, <&cru HCLK_PERIHP>,
+		<&cru PCLK_PERIHP>,
+		<&cru ACLK_PERILP0>, <&cru HCLK_PERILP0>,
+		<&cru PCLK_PERILP0>, <&cru ACLK_CCI>,
+		<&cru HCLK_PERILP1>, <&cru PCLK_PERILP1>;
+	assigned-clock-rates =
+		<600000000>, <800000000>,
+		<1000000000>,
+		<150000000>, <75000000>,
+		<37500000>,
+		<100000000>, <100000000>,
+		<50000000>, <800000000>,
+		<100000000>, <50000000>;
+};
+
+&emmc_phy {
+	status = "okay";
+};
+
+ap_i2c_mic: &i2c1 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	headsetcodec: rt5514@57 {
+		compatible = "realtek,rt5514";
+		reg = <0x57>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mic_int>;
+		realtek,dmic-init-delay = <20>;
+		wakeup-source;
+	};
+};
+
+ap_i2c_ts: &i2c3 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+};
+
+ap_i2c_tp: &i2c5 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	/*
+	 * Note strange pullup enable.  Apparently this avoids leakage but
+	 * still allows us to get nice 4.7K pullups for high speed i2c
+	 * transfers.  Basically we want the pullup on whenever the ap is
+	 * alive, so the "en" pin just gets set to output high.
+	 */
+	pinctrl-0 = <&i2c5_xfer &ap_i2c_tp_pu_en>;
+};
+
+ap_i2c_audio: &i2c8 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	/* These are relatively safe rise/fall times */
+	i2c-scl-falling-time-ns = <50>;
+	i2c-scl-rising-time-ns = <300>;
+
+	codec: da7219@1a {
+		compatible = "dlg,da7219";
+		reg = <0x1a>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		dlg,micbias-lvl = <2600>;
+		dlg,mic-amp-in-sel = "diff";
+		pinctrl-names = "default";
+		pinctrl-0 = <&headset_int_l>;
+		VDD-supply = <&pp1800>;
+		VDDMIC-supply = <&pp3300>;
+		VDDIO-supply = <&pp1800>;
+
+		da7219_aad {
+			dlg,adc-1bit-rpt = <1>;
+			dlg,btn-avg = <4>;
+			dlg,btn-cfg = <50>;
+			dlg,mic-det-thr = <500>;
+			dlg,jack-ins-deb = <20>;
+			dlg,jack-det-rate = "32ms_64ms";
+			dlg,jack-rem-deb = <1>;
+
+			dlg,a-d-btn-thr = <0xa>;
+			dlg,d-b-btn-thr = <0x16>;
+			dlg,b-c-btn-thr = <0x21>;
+			dlg,c-mic-btn-thr = <0x3E>;
+		};
+	};
+};
+
+&i2s0 {
+	status = "okay";
+};
+
+&i2s2 {
+	status = "okay";
+};
+
+&io_domains {
+	status = "okay";
+
+	audio-supply = <&pp1800_audio>;		/* APIO5_VDD;  3d 4a */
+	bt656-supply = <&pp1800_ap_io>;		/* APIO2_VDD;  2a 2b */
+	gpio1830-supply = <&pp3000_ap>;		/* APIO4_VDD;  4c 4d */
+	sdmmc-supply = <&ppvar_sd_card_io>;	/* SDMMC0_VDD; 4b    */
+};
+
+&pcie0 {
+	status = "okay";
+
+	ep-gpios = <&gpio2 27 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_clkreqn_cpm>, <&wifi_perst_l>;
+	vpcie3v3-supply = <&pp3300_wifi_bt>;
+	vpcie1v8-supply = <&wlan_pd_n>; /* HACK: see &wlan_pd_n */
+	vpcie0v9-supply = <&pp900_pcie>;
+
+	pci_rootport: pcie@0,0 {
+		reg = <0x83000000 0x0 0x00000000 0x0 0x00000000>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+
+		mvl_wifi: wifi@0,0 {
+			compatible = "pci1b4b,2b42";
+			reg = <0x83010000 0x0 0x00000000 0x0 0x00100000
+			       0x83010000 0x0 0x00100000 0x0 0x00100000>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_host_wake_l>;
+			wakeup-source;
+		};
+	};
+};
+
+&pcie_phy {
+	status = "okay";
+};
+
+&pmu_io_domains {
+	status = "okay";
+
+	pmu1830-supply = <&pp1800_pmu>;		/* PMUIO2_VDD */
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
+
+&sdhci {
+	/*
+	 * Signal integrity isn't great at 200 MHz and 150 MHz (DDR) gives the
+	 * same (or nearly the same) performance for all eMMC that are intended
+	 * to be used.
+	 */
+	assigned-clock-rates = <150000000>;
+
+	bus-width = <8>;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	non-removable;
+	status = "okay";
+};
+
+&sdmmc {
+	status = "okay";
+
+	/*
+	 * Note: configure "sdmmc_cd" as card detect even though it's actually
+	 * hooked to ground.  Because we specified "cd-gpios" below dw_mmc
+	 * should be ignoring card detect anyway.  Specifying the pin as
+	 * sdmmc_cd means that even if you've got GRF_SOC_CON7[12] (force_jtag)
+	 * turned on that the system will still make sure the port is
+	 * configured as SDMMC and not JTAG.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_cd_gpio
+		     &sdmmc_bus4>;
+
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cd-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	vmmc-supply = <&pp3000_sd_slot>;
+	vqmmc-supply = <&ppvar_sd_card_io>;
+};
+
+&spi1 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-1 = <&spi1_sleep>;
+
+	spiflash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+
+		/* May run faster once verified. */
+		spi-max-frequency = <10000000>;
+	};
+};
+
+&spi2 {
+	status = "okay";
+
+	wacky_spi_audio: spi2@0 {
+		compatible = "realtek,rt5514";
+		reg = <0>;
+
+		/* May run faster once verified. */
+		spi-max-frequency = <10000000>;
+	};
+};
+
+&spi5 {
+	status = "okay";
+
+	cros_ec: ec@0 {
+		compatible = "google,cros-ec-spi";
+		reg = <0>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ec_ap_int_l>;
+		spi-max-frequency = <3000000>;
+
+		i2c_tunnel: i2c-tunnel {
+			compatible = "google,cros-ec-i2c-tunnel";
+			google,remote-bus = <4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		cros_ec_pwm: ec-pwm {
+			compatible = "google,cros-ec-pwm";
+			#pwm-cells = <1>;
+		};
+	};
+};
+
+&tsadc {
+	status = "okay";
+
+	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy0_host {
+	status = "okay";
+};
+
+&u2phy1_host {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usbdrd3_0 {
+	status = "okay";
+};
+
+&usbdrd_dwc3_0 {
+	status = "okay";
+	dr_mode = "host";
+};
+
+&usbdrd3_1 {
+	status = "okay";
+};
+
+&usbdrd_dwc3_1 {
+	status = "okay";
+	dr_mode = "host";
+};
+
+#include <arm/cros-ec-keyboard.dtsi>
+#include <arm/cros-ec-sbs.dtsi>
+
+&pinctrl {
+	/*
+	 * pinctrl settings for pins that have no real owners.
+	 *
+	 * At the moment settings are identical for S0 and S3, but if we later
+	 * need to configure things differently for S3 we'll adjust here.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <
+		&ap_pwroff	/* AP will auto-assert this when in S3 */
+		&clk_32k	/* This pin is always 32k on gru boards */
+
+		/*
+		 * We want this driven low ASAP; firmware should help us, but
+		 * we can help ourselves too.
+		 */
+		&wlan_module_reset_l
+	>;
+
+	pcfg_output_low: pcfg-output-low {
+		output-low;
+	};
+
+	pcfg_output_high: pcfg-output-high {
+		output-high;
+	};
+
+	pcfg_pull_none_8ma: pcfg-pull-none-8ma {
+		bias-disable;
+		drive-strength = <8>;
+	};
+
+	backlight-enable {
+		bl_en: bl-en {
+			rockchip,pins = <1 17 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	cros-ec {
+		ec_ap_int_l: ec-ap-int-l {
+			rockchip,pins = <RK_GPIO0 1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	discrete-regulators {
+		pp1500_en: pp1500-en {
+			rockchip,pins = <RK_GPIO0 10 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		pp1800_audio_en: pp1800-audio-en {
+			rockchip,pins = <RK_GPIO0 2 RK_FUNC_GPIO
+					 &pcfg_pull_down>;
+		};
+
+		pp3300_disp_en: pp3300-disp-en {
+			rockchip,pins = <RK_GPIO4 27 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		pp3000_en: pp3000-en {
+			rockchip,pins = <RK_GPIO0 12 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		sd_io_pwr_en: sd-io-pwr-en {
+			rockchip,pins = <RK_GPIO2 2 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		sd_pwr_1800_sel: sd-pwr-1800-sel {
+			rockchip,pins = <RK_GPIO2 28 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		sd_slot_pwr_en: sd-slot-pwr-en {
+			rockchip,pins = <RK_GPIO4 29 RK_FUNC_GPIO
+					 &pcfg_pull_none>;
+		};
+
+		wlan_module_pd_l: wlan-module-pd-l {
+			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO
+					 &pcfg_pull_down>;
+		};
+	};
+
+	codec {
+		/* Has external pullup */
+		headset_int_l: headset-int-l {
+			rockchip,pins = <1 23 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		mic_int: mic-int {
+			rockchip,pins = <1 13 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	max98357a {
+		sdmode_en: sdmode-en {
+			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	pcie {
+		pcie_clkreqn_cpm: pci-clkreqn-cpm {
+			/*
+			 * Since our pcie doesn't support ClockPM(CPM), we want
+			 * to hack this as gpio, so the EP could be able to
+			 * de-assert it along and make ClockPM(CPM) work.
+			 */
+			rockchip,pins = <2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sdmmc {
+		/*
+		 * We run sdmmc at max speed; bump up drive strength.
+		 * We also have external pulls, so disable the internal ones.
+		 */
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_none_8ma>,
+				<4 9 RK_FUNC_1 &pcfg_pull_none_8ma>,
+				<4 10 RK_FUNC_1 &pcfg_pull_none_8ma>,
+				<4 11 RK_FUNC_1 &pcfg_pull_none_8ma>;
+		};
+
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins =
+				<4 12 RK_FUNC_1 &pcfg_pull_none_8ma>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins =
+				<4 13 RK_FUNC_1 &pcfg_pull_none_8ma>;
+		};
+
+		/*
+		 * In our case the official card detect is hooked to ground
+		 * to avoid getting access to JTAG just by sticking something
+		 * in the SD card slot (see the force_jtag bit in the TRM).
+		 *
+		 * We still configure it as card detect because it doesn't
+		 * hurt and dw_mmc will ignore it.  We make sure to disable
+		 * the pull though so we don't burn needless power.
+		 */
+		sdmmc_cd: sdmcc-cd {
+			rockchip,pins =
+				<0 7 RK_FUNC_1 &pcfg_pull_none>;
+		};
+
+		/* This is where we actually hook up CD; has external pull */
+		sdmmc_cd_gpio: sdmmc-cd-gpio {
+			rockchip,pins = <4 24 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	spi1 {
+		spi1_sleep: spi1-sleep {
+			/*
+			 * Pull down SPI1 CLK/CS/RX/TX during suspend, to
+			 * prevent leakage.
+			 */
+			rockchip,pins = <1 9 RK_FUNC_GPIO &pcfg_pull_down>,
+					<1 10 RK_FUNC_GPIO &pcfg_pull_down>,
+					<1 7 RK_FUNC_GPIO &pcfg_pull_down>,
+					<1 8 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	touchscreen {
+		touch_int_l: touch-int-l {
+			rockchip,pins = <3 13 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		touch_reset_l: touch-reset-l {
+			rockchip,pins = <4 26 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	trackpad {
+		ap_i2c_tp_pu_en: ap-i2c-tp-pu-en {
+			rockchip,pins = <3 12 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+
+		trackpad_int_l: trackpad-int-l {
+			rockchip,pins = <1 4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	wifi {
+		wifi_perst_l: wifi-perst-l {
+			rockchip,pins = <2 27 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		wlan_module_reset_l: wlan-module-reset-l {
+			/*
+			 * We want this driven low ASAP (As {Soon,Strongly} As
+			 * Possible), to avoid leakage through the powered-down
+			 * WiFi.
+			 */
+			rockchip,pins = <1 11 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		bt_host_wake_l: bt-host-wake-l {
+			/* Kevin has an external pull up, but Gru does not */
+			rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	write-protect {
+		ap_fw_wp: ap-fw-wp {
+			rockchip,pins = <1 18 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
