@@ -2315,8 +2315,11 @@
 			that the amount of memory usable for all allocations
 			is not too small.
 
-	movable_node	[KNL] Boot-time switch to enable the effects
-			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
+	movable_node	[KNL] Boot-time switch to make hotplugable memory
+			NUMA nodes to be movable. This means that the memory
+			of such nodes will be usable only for movable
+			allocations which rules out almost all kernel
+			allocations. Use with caution!
 
 	MTD_Partition=	[MTD]
 			Format: <name>,<region-number>,<size>,<offset>
@@ -3772,8 +3775,14 @@
 	slab_nomerge	[MM]
 			Disable merging of slabs with similar size. May be
 			necessary if there is some reason to distinguish
-			allocs to different slabs. Debug options disable
-			merging on their own.
+			allocs to different slabs, especially in hardened
+			environments where the risk of heap overflows and
+			layout control by attackers can usually be
+			frustrated by disabling merging. This will reduce
+			most of the exposure of a heap attack to a single
+			cache (risks via metadata attacks are mostly
+			unchanged). Debug options disable merging on their
+			own.
 			For more information see Documentation/vm/slub.txt.
 
 	slab_max_order=	[MM, SLAB]

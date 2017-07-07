@@ -1492,11 +1492,16 @@ EXPORT_SYMBOL(unpoison_memory);
 static struct page *new_page(struct page *p, unsigned long private, int **x)
 {
 	int nid = page_to_nid(p);
-	if (PageHuge(p))
-		return alloc_huge_page_node(page_hstate(compound_head(p)),
-						   nid);
-	else
+	if (PageHuge(p)) {
+		struct hstate *hstate = page_hstate(compound_head(p));
+
+		if (hstate_is_gigantic(hstate))
+			return alloc_huge_page_node(hstate, NUMA_NO_NODE);
+
+		return alloc_huge_page_node(hstate, nid);
+	} else {
 		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
+	}
 }
 
 /*
