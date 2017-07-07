@@ -124,6 +124,14 @@ config MAILBOX_TEST
 	  Test client to help with testing new Controller driver
 	  implementations.
 
+config QCOM_APCS_IPC
+	tristate "Qualcomm APCS IPC driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Say y here to enable support for the APCS IPC mailbox driver,
+	  providing an interface for invoking the inter-process communication
+	  signals from the application processor to other masters.
+
 config TEGRA_HSP_MBOX
 	bool "Tegra HSP (Hardware Synchronization Primitives) Driver"
 	depends on ARCH_TEGRA_186_SOC
