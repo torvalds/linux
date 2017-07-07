@@ -19,6 +19,7 @@ echo "		-vvv       Alias of -v -v -v (Show all commands immediately)"
 echo "		--fail-unsupported Treat UNSUPPORTED as a failure"
 echo "		-d|--debug Debug mode (trace all shell commands)"
 echo "		-l|--logdir <dir> Save logs on the <dir>"
+echo "		            If <dir> is -, all logs output in console only"
 exit $1
 }
 
@@ -127,14 +128,20 @@ if [ -z "$TRACING_DIR" -o ! -d "$TRACING_DIR" ]; then
 fi
 
 # Preparing logs
-LOG_FILE=$LOG_DIR/ftracetest.log
-mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
-date > $LOG_FILE
+if [ "x$LOG_DIR" = "x-" ]; then
+  LOG_FILE=
+  date
+else
+  LOG_FILE=$LOG_DIR/ftracetest.log
+  mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
+  date > $LOG_FILE
+fi
+
 prlog() { # messages
-  echo "$@" | tee -a $LOG_FILE
+  [ -z "$LOG_FILE" ] && echo "$@" || echo "$@" | tee -a $LOG_FILE
 }
 catlog() { #file
-  cat $1 | tee -a $LOG_FILE
+  [ -z "$LOG_FILE" ] && cat $1 || cat $1 | tee -a $LOG_FILE
 }
 prlog "=== Ftrace unit tests ==="
 
@@ -255,12 +262,18 @@ __run_test() { # testfile
 # Run one test case
 run_test() { # testfile
   local testname=`basename $1`
-  local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+  if [ ! -z "$LOG_FILE" ] ; then
+    local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+  else
+    local testlog=/proc/self/fd/1
+  fi
   export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
   testcase $1
   echo "execute$INSTANCE: "$1 > $testlog
   SIG_RESULT=0
-  if [ $VERBOSE -ge 3 ]; then
+  if [ -z "$LOG_FILE" ]; then
+    __run_test $1 2>&1
+  elif [ $VERBOSE -ge 3 ]; then
     __run_test $1 | tee -a $testlog 2>&1
   elif [ $VERBOSE -eq 2 ]; then
     __run_test $1 2>> $testlog | tee -a $testlog
@@ -270,7 +283,7 @@ run_test() { # testfile
   eval_result $SIG_RESULT
   if [ $? -eq 0 ]; then
     # Remove test log if the test was done as it was expected.
-    [ $KEEP_LOG -eq 0 ] && rm $testlog
+    [ $KEEP_LOG -eq 0 -a ! -z "$LOG_FILE" ] && rm $testlog
   else
     [ $VERBOSE -eq 1 -o $VERBOSE -eq 2 ] && catlog $testlog
     TOTAL_RESULT=1
