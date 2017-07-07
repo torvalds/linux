@@ -16,7 +16,7 @@
  * Copyright (C) 2005	   Peter Osterlund (petero2@telia.com)
  * Copyright (C) 2005	   Michael Hanselmann (linux-kernel@hansmi.ch)
  * Copyright (C) 2006	   Nicolas Boichat (nicolas@boichat.ch)
- * Copyright (C) 2016	   Marek Wyborski (mw@emwesoft.com)
+ * Copyright (C) 2016	   Marek Wyborski (marek.wyborski@emwesoft.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
