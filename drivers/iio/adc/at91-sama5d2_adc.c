@@ -411,7 +411,7 @@ static int at91_adc_buffer_init(struct iio_dev *indio)
 static unsigned at91_adc_startup_time(unsigned startup_time_min,
 				      unsigned adc_clk_khz)
 {
-	const unsigned startup_lookup[] = {
+	static const unsigned int startup_lookup[] = {
 		  0,   8,  16,  24,
 		 64,  80,  96, 112,
 		512, 576, 640, 704,
