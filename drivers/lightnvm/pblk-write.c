@@ -178,15 +178,12 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 {
 	struct pblk *pblk = rqd->private;
 	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	struct pblk_g_ctx *m_ctx = nvm_rq_to_pdu(rqd);
 	struct pblk_line *line = m_ctx->private;
 	struct pblk_emeta *emeta = line->emeta;
-	int pos = pblk_ppa_to_pos(geo, rqd->ppa_list[0]);
-	struct pblk_lun *rlun = &pblk->luns[pos];
 	int sync;
 
-	up(&rlun->wr_sem);
+	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
 
 	if (rqd->error) {
 		pblk_log_write_err(pblk, rqd);
@@ -203,6 +200,7 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 								pblk->close_wq);
 
 	bio_put(rqd->bio);
+	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 	pblk_free_rqd(pblk, rqd, READ);
 
 	atomic_dec(&pblk->inflight_io);
@@ -367,7 +365,6 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_emeta *emeta = meta_line->emeta;
 	struct pblk_g_ctx *m_ctx;
-	struct pblk_lun *rlun;
 	struct bio *bio;
 	struct nvm_rq *rqd;
 	void *data;
@@ -411,13 +408,6 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 			rqd->ppa_list[i] = addr_to_gen_ppa(pblk, paddr, id);
 	}
 
-	rlun = &pblk->luns[pblk_ppa_to_pos(geo, rqd->ppa_list[0])];
-	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(5000));
-	if (ret) {
-		pr_err("pblk: lun semaphore timed out (%d)\n", ret);
-		goto fail_free_bio;
-	}
-
 	emeta->mem += rq_len;
 	if (emeta->mem >= lm->emeta_len[0]) {
 		spin_lock(&l_mg->close_lock);
@@ -426,6 +416,8 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 				"pblk: corrupt meta line %d\n", meta_line->id);
 		spin_unlock(&l_mg->close_lock);
 	}
+
+	pblk_down_page(pblk, rqd->ppa_list, rqd->nr_ppas);
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
@@ -436,10 +428,13 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	return NVM_IO_OK;
 
 fail_rollback:
+	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
 	spin_lock(&l_mg->close_lock);
 	pblk_dealloc_page(pblk, meta_line, rq_ppas);
 	list_add(&meta_line->list, &meta_line->list);
 	spin_unlock(&l_mg->close_lock);
+
+	nvm_dev_dma_free(dev->parent, rqd->meta_list, rqd->dma_meta_list);
 fail_free_bio:
 	if (likely(l_mg->emeta_alloc_type == PBLK_VMALLOC_META))
 		bio_put(bio);
