@@ -24,11 +24,9 @@
  */
 
 #include "dm_services.h"
-#include "dc.h"
-#include "core_dc.h"
 #include "core_types.h"
-#include "core_status.h"
 #include "resource.h"
+#include "custom_float.h"
 #include "dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce/dce_hwseq.h"
@@ -39,11 +37,10 @@
 #include "timing_generator.h"
 #include "opp.h"
 #include "ipp.h"
-#include "dc_bios_types.h"
+#include "mpc.h"
 #include "raven1/DCN/dcn_1_0_offset.h"
 #include "raven1/DCN/dcn_1_0_sh_mask.h"
 #include "vega10/soc15ip.h"
-#include "custom_float.h"
 #include "reg_helper.h"
 
 #define CTX \
@@ -219,31 +216,15 @@ static void bios_golden_init(struct core_dc *dc)
 	}
 }
 
-/*
- * This should be done within BIOS, we are doing it for maximus only
- */
-static void dchubup_setup_timer(struct dce_hwseq *hws)
-{
-	REG_WRITE(REFCLK_CNTL, 0);
-
-	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-}
-
-static void init_hw(struct core_dc *dc)
+static void dcn10_init_hw(struct core_dc *dc)
 {
 	int i;
-	struct transform *xfm;
-	struct abm *abm;
+	struct abm *abm = dc->res_pool->abm;
 	struct dce_hwseq *hws = dc->hwseq;
 
-#if 1
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dchubup_setup_timer(dc->hwseq);
-
-		/* TODO: dchubp_map_fb_to_mc will be moved to dchub interface
-		 * between dc and kmd
-		 */
-		/*dchubp_map_fb_to_mc(dc->hwseq);*/
+		REG_WRITE(REFCLK_CNTL, 0);
+		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
 		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
 		if (!dc->public.debug.disable_clock_gate) {
@@ -259,14 +240,8 @@ static void init_hw(struct core_dc *dc)
 		return;
 	}
 	/* end of FPGA. Below if real ASIC */
-#endif
 
 	bios_golden_init(dc);
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		xfm = dc->res_pool->transforms[i];
-		xfm->funcs->transform_reset(xfm);
-	}
 
 	for (i = 0; i < dc->link_count; i++) {
 		/* Power up AND update implementation according to the
@@ -279,12 +254,12 @@ static void init_hw(struct core_dc *dc)
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg =
-				dc->res_pool->timing_generators[i];
-		struct mpcc *mpcc =
-				dc->res_pool->mpcc[i];
+		struct transform *xfm = dc->res_pool->transforms[i];
+		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+		struct mpcc *mpcc = dc->res_pool->mpcc[i];
 		struct mpcc_cfg mpcc_cfg;
 
+		xfm->funcs->transform_reset(xfm);
 		mpcc_cfg.opp_id = 0xf;
 		mpcc_cfg.top_dpp_id = 0xf;
 		mpcc_cfg.bot_mpcc_id = 0xf;
@@ -305,7 +280,6 @@ static void init_hw(struct core_dc *dc)
 		audio->funcs->hw_init(audio);
 	}
 
-	abm = dc->res_pool->abm;
 	if (abm != NULL) {
 		abm->funcs->init_backlight(abm);
 		abm->funcs->abm_init(abm);
@@ -1859,7 +1833,7 @@ static bool dcn10_dummy_display_power_gating(
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_csc_matrix = program_csc_matrix,
-	.init_hw = init_hw,
+	.init_hw = dcn10_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.set_plane_config = set_plane_config,
@@ -1888,9 +1862,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 };
 
 
-bool dcn10_hw_sequencer_construct(struct core_dc *dc)
+void dcn10_hw_sequencer_construct(struct core_dc *dc)
 {
 	dc->hwss = dcn10_funcs;
-	return true;
 }
 

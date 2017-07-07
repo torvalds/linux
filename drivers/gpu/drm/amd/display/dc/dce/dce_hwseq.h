@@ -216,6 +216,11 @@ struct dce_hwseq_registers {
 	uint32_t DCCG_GATE_DISABLE_CNTL;
 	uint32_t DCCG_GATE_DISABLE_CNTL2;
 	uint32_t DCFCLK_CNTL;
+	uint32_t MICROSECOND_TIME_BASE_DIV;
+	uint32_t MILLISECOND_TIME_BASE_DIV;
+	uint32_t DISPCLK_FREQ_CHANGE_CNTL;
+	uint32_t RBBMIF_TIMEOUT_DIS;
+	uint32_t RBBMIF_TIMEOUT_DIS_2;
 #endif
 };
  /* set field name */
@@ -378,7 +383,8 @@ struct dce_hwseq_registers {
 	type DOMAIN5_PGFSM_PWR_STATUS; \
 	type DOMAIN6_PGFSM_PWR_STATUS; \
 	type DOMAIN7_PGFSM_PWR_STATUS; \
-	type DCFCLK_GATE_DIS;
+	type DCFCLK_GATE_DIS; \
+	type DCHUBBUB_GLOBAL_TIMER_REFDIV;
 #endif
 
 struct dce_hwseq_shift {

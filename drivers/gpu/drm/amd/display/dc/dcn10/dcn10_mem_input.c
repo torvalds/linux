@@ -403,7 +403,6 @@ static void min10_program_requestor(
 		struct mem_input *mem_input,
 		struct _vcs_dpi_display_rq_regs_st *rq_regs)
 {
-
 	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 
 	REG_UPDATE(HUBPRET_CONTROL,
