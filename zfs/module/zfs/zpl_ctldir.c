@@ -380,11 +380,10 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
 {
 	struct inode *ip = path->dentry->d_inode;
-	zfs_sb_t *zsb = ITOZSB(ip);
+	zfs_sb_t *zsb = ITOZSB(path->dentry->d_inode);
 
 	ZFS_ENTER(zsb);
-	generic_fillattr(ip, stat);
-
+	generic_fillattr(path->dentry->d_inode, stat);
 	stat->nlink = stat->size = 2;
 	stat->ctime = stat->mtime = dmu_objset_snap_cmtime(zsb->z_os);
 	stat->atime = current_time(ip);

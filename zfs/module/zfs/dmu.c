@@ -49,6 +49,7 @@
 #ifdef _KERNEL
 #include <sys/vmsystm.h>
 #include <sys/zfs_znode.h>
+#include <linux/kmap_compat.h>
 #endif
 
 /*
@@ -1056,6 +1057,7 @@ dmu_bio_copy(void *arg_buf, int size, struct bio *bio, size_t bio_offset)
 	char *bv_buf;
 	int tocpy, bv_len, bv_offset;
 	int offset = 0;
+	void *paddr;
 
 	bio_for_each_segment4(bv, bvp, bio, iter) {
 
@@ -1080,14 +1082,15 @@ dmu_bio_copy(void *arg_buf, int size, struct bio *bio, size_t bio_offset)
 		tocpy = MIN(bv_len, size - offset);
 		ASSERT3S(tocpy, >=, 0);
 
-		bv_buf = page_address(bvp->bv_page) + bv_offset;
-		ASSERT3P(bv_buf, !=, NULL);
+		paddr = zfs_kmap_atomic(bvp->bv_page, KM_USER0);
+		bv_buf = paddr + bv_offset;
+		ASSERT3P(paddr, !=, NULL);
 
 		if (bio_data_dir(bio) == WRITE)
 			memcpy(arg_buf + offset, bv_buf, tocpy);
 		else
 			memcpy(bv_buf, arg_buf + offset, tocpy);
-
+		zfs_kunmap_atomic(paddr, KM_USER0);
 		offset += tocpy;
 	}
 out:

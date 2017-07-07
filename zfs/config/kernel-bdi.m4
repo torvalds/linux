@@ -16,7 +16,7 @@ AC_DEFUN([ZFS_AC_KERNEL_BDI], [
 	], [super_setup_bdi_name], [fs/super.c], [
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_SUPER_SETUP_BDI_NAME, 1,
-		    [super_setup_bdi_name() exits])
+                    [super_setup_bdi_name() exits])
 	], [
 		AC_MSG_RESULT(no)
 		AC_MSG_CHECKING(

@@ -50,7 +50,7 @@ zpl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	int zfs_flags = 0;
 	zfs_sb_t *zsb = dentry->d_sb->s_fs_info;
 
-	if (dlen(dentry) > ZFS_MAXNAMELEN)
+	if (dlen(dentry) >= ZAP_MAXNAMELEN)
 		return (ERR_PTR(-ENAMETOOLONG));
 
 	crhold(cr);

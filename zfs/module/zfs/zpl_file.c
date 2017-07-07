@@ -857,9 +857,15 @@ const struct file_operations zpl_file_operations = {
 	.release	= zpl_release,
 	.llseek		= zpl_llseek,
 #ifdef HAVE_VFS_RW_ITERATE
+#ifdef HAVE_NEW_SYNC_READ
+	.read		= new_sync_read,
+	.write		= new_sync_write,
+#endif
 	.read_iter	= zpl_iter_read,
 	.write_iter	= zpl_iter_write,
 #else
+	.read		= do_sync_read,
+	.write		= do_sync_write,
 	.aio_read	= zpl_aio_read,
 	.aio_write	= zpl_aio_write,
 #endif

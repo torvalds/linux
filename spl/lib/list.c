@@ -220,7 +220,9 @@ list_create (ListDelF f)
     l->fDel = f;
     l->count = 0;
     list_mutex_init(&l->mutex);
-    assert(l->magic = LIST_MAGIC);      /* set magic via assert abuse */
+#ifndef NDEBUG
+    l->magic = LIST_MAGIC;
+#endif
     return(l);
 }
 
@@ -238,7 +240,9 @@ list_destroy (List l)
     while (i) {
         assert(i->magic == LIST_MAGIC);
         iTmp = i->iNext;
-        assert(i->magic = ~LIST_MAGIC); /* clear magic via assert abuse */
+#ifndef NDEBUG
+        i->magic = ~LIST_MAGIC;
+#endif /* !NDEBUG */
         list_iterator_free(i);
         i = iTmp;
     }
@@ -250,7 +254,9 @@ list_destroy (List l)
         list_node_free(p);
         p = pTmp;
     }
-    assert(l->magic = ~LIST_MAGIC);     /* clear magic via assert abuse */
+#ifndef NDEBUG
+    l->magic = ~LIST_MAGIC;
+#endif /* !NDEBUG */
     list_mutex_unlock(&l->mutex);
     list_mutex_destroy(&l->mutex);
     list_free(l);
@@ -520,7 +526,9 @@ list_iterator_create (List l)
     i->prev = &l->head;
     i->iNext = l->iNext;
     l->iNext = i;
-    assert(i->magic = LIST_MAGIC);      /* set magic via assert abuse */
+#ifndef NDEBUG
+    i->magic = LIST_MAGIC;
+#endif /* !NDEBUG */
     list_mutex_unlock(&l->mutex);
     return(i);
 }
@@ -557,7 +565,9 @@ list_iterator_destroy (ListIterator i)
         }
     }
     list_mutex_unlock(&i->list->mutex);
-    assert(i->magic = ~LIST_MAGIC);     /* clear magic via assert abuse */
+#ifndef NDEBUG
+    i->magic = ~LIST_MAGIC;
+#endif /* !NDEBUG */
     list_iterator_free(i);
     return;
 }

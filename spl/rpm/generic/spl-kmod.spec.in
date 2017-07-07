@@ -53,6 +53,11 @@ BuildRequires:  %{_bindir}/kmodtool
 %endif
 %endif
 
+# LDFLAGS are not sanitized by arch/powerpc/Makefile (unlike other arches)
+%ifarch ppc ppc64 ppc64le
+%global __global_ldflags %{nil}
+%endif
+
 %if 0%{?fedora} >= 17
 %define prefix  /usr
 %endif
@@ -162,6 +167,15 @@ chmod u+x ${RPM_BUILD_ROOT}%{kmodinstdir_prefix}/*/extra/*/*/*
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Jun 12 2017 Tony Hutter <hutter2@llnl.gov> - 0.6.5.10-1
+- Linux 4.12 compat: PF_FSTRANS was removed zfsonlinux/spl#614
+- Clear PF_FSTRANS over spl_filp_fallocate() zfsonlinux/splzfsonlinux/zfs#4529
+- glibc 2.25 compat: remove assert(X=Y) zfsonlinux/spl#610
+- Linux 4.11 compat: remove stub for __put_task_struct zfsonlinux/spl#608
+- Linux 4.11 compat: add linux/sched/signal.h zfsonlinux/spl#608
+- Linux 4.11 compat: vfs_getattr() takes 4 args zfsonlinux/spl#608
+- Fix powerpc build zfsonlinux/spl#607
+- Linux 4.11 compat: set_task_state() removed zfsonlinux/spl#603
 * Fri Feb 3 2017 Brian Behlendorf <behlendorf1@llnl.gov> - 0.6.5.9-1
 - Use kernel slab for vn_cache and vn_file_cache zfsonlinux/spl#599
 - Fix splat-cred.c cred usage zfsonlinux/spl#556

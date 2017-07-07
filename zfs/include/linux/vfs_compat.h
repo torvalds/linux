@@ -79,7 +79,7 @@ static inline int
 zpl_bdi_setup(struct super_block *sb, char *name)
 {
 	return super_setup_bdi_name(sb, "%.28s-%ld", name,
-		atomic_long_inc_return(&zfs_bdi_seq));
+	    atomic_long_inc_return(&zfs_bdi_seq));
 }
 static inline void
 zpl_bdi_destroy(struct super_block *sb)

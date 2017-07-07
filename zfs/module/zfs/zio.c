@@ -139,10 +139,10 @@ zio_init(void)
 		if (arc_watch && !IS_P2ALIGNED(size, PAGESIZE))
 			continue;
 #endif
-		if (size <= 4 * SPA_MINBLOCKSIZE) {
+		if (size < PAGESIZE) {
 			align = SPA_MINBLOCKSIZE;
 		} else if (IS_P2ALIGNED(size, p2 >> 2)) {
-			align = MIN(p2 >> 2, PAGESIZE);
+			align = PAGESIZE;
 		}
 
 		if (align != 0) {

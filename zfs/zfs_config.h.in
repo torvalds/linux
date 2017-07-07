@@ -288,6 +288,9 @@
 /* mount_nodev() is available */
 #undef HAVE_MOUNT_NODEV
 
+/* new_sync_read() is available */
+#undef HAVE_NEW_SYNC_READ
+
 /* sops->nr_cached_objects() exists */
 #undef HAVE_NR_CACHED_OBJECTS
 

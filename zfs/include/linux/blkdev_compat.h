@@ -341,12 +341,12 @@ bio_set_op_attrs(struct bio *bio, unsigned rw, unsigned flags)
 static inline void
 bio_set_flush(struct bio *bio)
 {
-#if defined(WRITE_BARRIER)	/* < 2.6.37 */
-	bio_set_op_attrs(bio, 0, WRITE_BARRIER);
+#if defined(REQ_PREFLUSH)	/* >= 4.10 */
+	bio_set_op_attrs(bio, 0, REQ_PREFLUSH);
 #elif defined(WRITE_FLUSH_FUA)	/* >= 2.6.37 and <= 4.9 */
 	bio_set_op_attrs(bio, 0, WRITE_FLUSH_FUA);
-#elif defined(REQ_PREFLUSH)	/* >= 4.10 */
-	bio_set_op_attrs(bio, 0, REQ_PREFLUSH);
+#elif defined(WRITE_BARRIER)	/* < 2.6.37 */
+	bio_set_op_attrs(bio, 0, WRITE_BARRIER);
 #else
 #error	"Allowing the build will cause bio_set_flush requests to be ignored."
 	"Please file an issue report at: "
@@ -373,9 +373,6 @@ bio_set_flush(struct bio *bio)
  * in all cases but may have a performance impact for some kernels.  It
  * has the advantage of minimizing kernel specific changes in the zvol code.
  *
- * Note that 2.6.32 era kernels provide both BIO_RW_BARRIER and REQ_FLUSH,
- * where BIO_RW_BARRIER is the correct interface.  Therefore, it is important
- * that the HAVE_BIO_RW_BARRIER check occur before the REQ_FLUSH check.
  */
 static inline boolean_t
 bio_is_flush(struct bio *bio)
@@ -386,10 +383,10 @@ bio_is_flush(struct bio *bio)
 	return (bio->bi_opf & REQ_PREFLUSH);
 #elif defined(REQ_PREFLUSH) && !defined(HAVE_BIO_BI_OPF)
 	return (bio->bi_rw & REQ_PREFLUSH);
-#elif defined(HAVE_BIO_RW_BARRIER)
-	return (bio->bi_rw & (1 << BIO_RW_BARRIER));
 #elif defined(REQ_FLUSH)
 	return (bio->bi_rw & REQ_FLUSH);
+#elif defined(HAVE_BIO_RW_BARRIER)
+	return (bio->bi_rw & (1 << BIO_RW_BARRIER));
 #else
 #error	"Allowing the build will cause flush requests to be ignored. Please "
 	"file an issue report at: https://github.com/zfsonlinux/zfs/issues/new"

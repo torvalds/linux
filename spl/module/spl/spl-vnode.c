@@ -578,6 +578,9 @@ int vn_space(vnode_t *vp, int cmd, struct flock *bfp, int flag,
     offset_t offset, void *x6, void *x7)
 {
 	int error = EOPNOTSUPP;
+#ifdef FALLOC_FL_PUNCH_HOLE
+	int fstrans;
+#endif
 
 	if (cmd != F_FREESP || bfp->l_whence != 0)
 		return (EOPNOTSUPP);
@@ -588,12 +591,24 @@ int vn_space(vnode_t *vp, int cmd, struct flock *bfp, int flag,
 
 #ifdef FALLOC_FL_PUNCH_HOLE
 	/*
+	 * May enter XFS which generates a warning when PF_FSTRANS is set.
+	 * To avoid this the flag is cleared over vfs_sync() and then reset.
+	 */
+	fstrans = __spl_pf_fstrans_check();
+	if (fstrans)
+		current->flags &= ~(__SPL_PF_FSTRANS);
+
+	/*
 	 * When supported by the underlying file system preferentially
 	 * use the fallocate() callback to preallocate the space.
 	 */
 	error = -spl_filp_fallocate(vp->v_file,
 	    FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE,
 	    bfp->l_start, bfp->l_len);
+
+	if (fstrans)
+		current->flags |= __SPL_PF_FSTRANS;
+
 	if (error == 0)
 		return (0);
 #endif
