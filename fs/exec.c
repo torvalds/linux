@@ -206,8 +206,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 
 	if (write) {
 		unsigned long size = bprm->vma->vm_end - bprm->vma->vm_start;
-		unsigned long ptr_size;
-		struct rlimit *rlim;
+		unsigned long ptr_size, limit;
 
 		/*
 		 * Since the stack will hold pointers to the strings, we
@@ -236,14 +235,16 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 			return page;
 
 		/*
-		 * Limit to 1/4-th the stack size for the argv+env strings.
+		 * Limit to 1/4 of the max stack size or 3/4 of _STK_LIM
+		 * (whichever is smaller) for the argv+env strings.
 		 * This ensures that:
 		 *  - the remaining binfmt code will not run out of stack space,
 		 *  - the program will have a reasonable amount of stack left
 		 *    to work from.
 		 */
-		rlim = current->signal->rlim;
-		if (size > READ_ONCE(rlim[RLIMIT_STACK].rlim_cur) / 4)
+		limit = _STK_LIM / 4 * 3;
+		limit = min(limit, rlimit(RLIMIT_STACK) / 4);
+		if (size > limit)
 			goto fail;
 	}
 
