@@ -270,8 +270,6 @@ static int armada_ovl_plane_disable(struct drm_plane *plane,
 		return 0;
 
 	dcrtc = drm_to_armada_crtc(dplane->base.base.crtc);
-
-	armada_drm_plane_work_cancel(dcrtc, &dplane->base);
 	armada_drm_crtc_plane_disable(dcrtc, plane);
 
 	dcrtc->plane = NULL;

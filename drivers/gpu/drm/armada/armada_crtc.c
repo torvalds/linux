@@ -273,18 +273,15 @@ void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 		armada_drm_plane_work_call(dcrtc, work, work->cancel);
 }
 
-static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
+static void armada_drm_crtc_finish_frame_work(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work)
 {
 	struct armada_frame_work *fwork = container_of(work, struct armada_frame_work, work);
-	struct drm_device *dev = dcrtc->crtc.dev;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	armada_drm_crtc_update_regs(dcrtc, fwork->regs);
-	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-
 	if (fwork->event) {
+		struct drm_device *dev = dcrtc->crtc.dev;
+
 		spin_lock_irqsave(&dev->event_lock, flags);
 		drm_crtc_send_vblank_event(&dcrtc->crtc, fwork->event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -293,6 +290,19 @@ static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 	/* Finally, queue the process-half of the cleanup. */
 	__armada_drm_queue_unref_work(dcrtc->crtc.dev, fwork->old_fb);
 	kfree(fwork);
+}
+
+static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
+	struct armada_plane_work *work)
+{
+	struct armada_frame_work *fwork = container_of(work, struct armada_frame_work, work);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
+	armada_drm_crtc_update_regs(dcrtc, fwork->regs);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
+
+	armada_drm_crtc_finish_frame_work(dcrtc, work);
 }
 
 static struct armada_frame_work *
@@ -307,6 +317,7 @@ armada_drm_crtc_alloc_frame_work(struct drm_plane *plane)
 
 	work->work.plane = plane;
 	work->work.fn = armada_drm_crtc_complete_frame_work;
+	work->work.cancel = armada_drm_crtc_finish_frame_work;
 	armada_reg_queue_end(work->regs, i);
 
 	return work;
@@ -752,6 +763,7 @@ static int armada_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 	struct drm_plane *plane)
 {
+	struct armada_plane *dplane = drm_to_armada_plane(plane);
 	u32 sram_para1, dma_ctrl0_mask;
 
 	/*
@@ -774,6 +786,10 @@ void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 		sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
 		dma_ctrl0_mask = CFG_DMA_ENA;
 	}
+
+	/* Wait for any preceding work to complete, but don't wedge */
+	if (WARN_ON(!armada_drm_plane_work_wait(dplane, HZ)))
+		armada_drm_plane_work_cancel(dcrtc, dplane);
 
 	spin_lock_irq(&dcrtc->irq_lock);
 	armada_updatel(0, dma_ctrl0_mask, dcrtc->base + LCD_SPU_DMA_CTRL0);
