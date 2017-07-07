@@ -60,8 +60,8 @@ enum {
 #define BATTERY_MODE_OFFSET		0x03
 #define BATTERY_MODE_MASK		0x8000
 enum sbs_battery_mode {
-	BATTERY_MODE_AMPS,
-	BATTERY_MODE_WATTS
+	BATTERY_MODE_AMPS = 0,
+	BATTERY_MODE_WATTS = 0x8000
 };
 
 /* manufacturer access defines */
