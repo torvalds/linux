@@ -189,6 +189,12 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+};
+
 &i2c_dvfs {
 	status = "okay";
 };
