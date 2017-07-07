@@ -1175,15 +1175,11 @@ static long vfio_fops_unl_ioctl(struct file *filep,
 		ret = vfio_ioctl_set_iommu(container, arg);
 		break;
 	default:
-		down_read(&container->group_lock);
-
 		driver = container->iommu_driver;
 		data = container->iommu_data;
 
 		if (driver) /* passthrough all unrecognized ioctls */
 			ret = driver->ops->ioctl(data, cmd, arg);
-
-		up_read(&container->group_lock);
 	}
 
 	return ret;
@@ -1237,14 +1233,10 @@ static ssize_t vfio_fops_read(struct file *filep, char __user *buf,
 	struct vfio_iommu_driver *driver;
 	ssize_t ret = -EINVAL;
 
-	down_read(&container->group_lock);
-
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->read))
 		ret = driver->ops->read(container->iommu_data,
 					buf, count, ppos);
-
-	up_read(&container->group_lock);
 
 	return ret;
 }
@@ -1256,14 +1248,10 @@ static ssize_t vfio_fops_write(struct file *filep, const char __user *buf,
 	struct vfio_iommu_driver *driver;
 	ssize_t ret = -EINVAL;
 
-	down_read(&container->group_lock);
-
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->write))
 		ret = driver->ops->write(container->iommu_data,
 					 buf, count, ppos);
-
-	up_read(&container->group_lock);
 
 	return ret;
 }
@@ -1274,13 +1262,9 @@ static int vfio_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 	struct vfio_iommu_driver *driver;
 	int ret = -EINVAL;
 
-	down_read(&container->group_lock);
-
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->mmap))
 		ret = driver->ops->mmap(container->iommu_data, vma);
-
-	up_read(&container->group_lock);
 
 	return ret;
 }
@@ -1993,8 +1977,6 @@ int vfio_pin_pages(struct device *dev, unsigned long *user_pfn, int npage,
 		goto err_pin_pages;
 
 	container = group->container;
-	down_read(&container->group_lock);
-
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->pin_pages))
 		ret = driver->ops->pin_pages(container->iommu_data, user_pfn,
@@ -2002,7 +1984,6 @@ int vfio_pin_pages(struct device *dev, unsigned long *user_pfn, int npage,
 	else
 		ret = -ENOTTY;
 
-	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
 err_pin_pages:
@@ -2042,8 +2023,6 @@ int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn, int npage)
 		goto err_unpin_pages;
 
 	container = group->container;
-	down_read(&container->group_lock);
-
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->unpin_pages))
 		ret = driver->ops->unpin_pages(container->iommu_data, user_pfn,
@@ -2051,7 +2030,6 @@ int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn, int npage)
 	else
 		ret = -ENOTTY;
 
-	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
 err_unpin_pages:
@@ -2073,8 +2051,6 @@ static int vfio_register_iommu_notifier(struct vfio_group *group,
 		return -EINVAL;
 
 	container = group->container;
-	down_read(&container->group_lock);
-
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->register_notifier))
 		ret = driver->ops->register_notifier(container->iommu_data,
@@ -2082,7 +2058,6 @@ static int vfio_register_iommu_notifier(struct vfio_group *group,
 	else
 		ret = -ENOTTY;
 
-	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
 	return ret;
@@ -2100,8 +2075,6 @@ static int vfio_unregister_iommu_notifier(struct vfio_group *group,
 		return -EINVAL;
 
 	container = group->container;
-	down_read(&container->group_lock);
-
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->unregister_notifier))
 		ret = driver->ops->unregister_notifier(container->iommu_data,
@@ -2109,7 +2082,6 @@ static int vfio_unregister_iommu_notifier(struct vfio_group *group,
 	else
 		ret = -ENOTTY;
 
-	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
 	return ret;
@@ -2127,7 +2099,6 @@ static int vfio_register_group_notifier(struct vfio_group *group,
 					unsigned long *events,
 					struct notifier_block *nb)
 {
-	struct vfio_container *container;
 	int ret;
 	bool set_kvm = false;
 
@@ -2145,9 +2116,6 @@ static int vfio_register_group_notifier(struct vfio_group *group,
 	if (ret)
 		return -EINVAL;
 
-	container = group->container;
-	down_read(&container->group_lock);
-
 	ret = blocking_notifier_chain_register(&group->notifier, nb);
 
 	/*
@@ -2158,7 +2126,6 @@ static int vfio_register_group_notifier(struct vfio_group *group,
 		blocking_notifier_call_chain(&group->notifier,
 					VFIO_GROUP_NOTIFY_SET_KVM, group->kvm);
 
-	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
 	return ret;
@@ -2167,19 +2134,14 @@ static int vfio_register_group_notifier(struct vfio_group *group,
 static int vfio_unregister_group_notifier(struct vfio_group *group,
 					 struct notifier_block *nb)
 {
-	struct vfio_container *container;
 	int ret;
 
 	ret = vfio_group_add_container_user(group);
 	if (ret)
 		return -EINVAL;
 
-	container = group->container;
-	down_read(&container->group_lock);
-
 	ret = blocking_notifier_chain_unregister(&group->notifier, nb);
 
-	up_read(&container->group_lock);
 	vfio_group_try_dissolve_container(group);
 
 	return ret;
