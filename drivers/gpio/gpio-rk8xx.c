@@ -29,6 +29,10 @@
 #define RK805_OUT0_VALMASK	BIT(0)
 #define RK805_OUT1_VALMASK	BIT(1)
 
+#define RK816_FUN_MASK		BIT(2)
+#define RK816_OUT_VALMASK	BIT(3)
+#define RK816_DIR_MASK		BIT(4)
+
 struct rk8xx_gpio_reg {
 	u8 reg;
 	u8 dir_msk;
@@ -174,6 +178,15 @@ static struct rk8xx_gpio_reg rk805_gpio_reg[] = {
 	},
 };
 
+static struct rk8xx_gpio_reg rk816_gpio_reg[] = {
+	{
+		.reg = RK816_GPIO_IO_POL_REG,
+		.dir_msk = RK816_DIR_MASK,
+		.val_msk = RK816_OUT_VALMASK,
+		.fun_msk = RK816_FUN_MASK,
+	},
+};
+
 static int rk8xx_gpio_probe(struct platform_device *pdev)
 {
 	struct rk808 *rk8xx = dev_get_drvdata(pdev->dev.parent);
@@ -197,6 +210,10 @@ static int rk8xx_gpio_probe(struct platform_device *pdev)
 	case RK805_ID:
 		gi->gpio_reg = rk805_gpio_reg;
 		gi->gpio_nr = ARRAY_SIZE(rk805_gpio_reg);
+		break;
+	case RK816_ID:
+		gi->gpio_reg = rk816_gpio_reg;
+		gi->gpio_nr = ARRAY_SIZE(rk816_gpio_reg);
 		break;
 	default:
 		dev_err(&pdev->dev, "unsupported RK8XX ID %lu\n",
