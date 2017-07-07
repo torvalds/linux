@@ -1655,6 +1655,10 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 		ctx->params.codec_mode_aux = CODA_MP4_AUX_MPEG4;
 	else
 		ctx->params.codec_mode_aux = 0;
+	if (src_fourcc == V4L2_PIX_FMT_MPEG4) {
+		coda_write(dev, CODA_MP4_CLASS_MPEG4,
+			   CODA_CMD_DEC_SEQ_MP4_ASP_CLASS);
+	}
 	if (src_fourcc == V4L2_PIX_FMT_H264) {
 		if (dev->devtype->product == CODA_7541) {
 			coda_write(dev, ctx->psbuf.paddr,
