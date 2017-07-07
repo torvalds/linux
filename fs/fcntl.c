@@ -520,50 +520,50 @@ out:
 
 #ifdef CONFIG_COMPAT
 /* careful - don't use anywhere else */
-#define copy_flock_fields(from, to)		\
-	(to).l_type = (from).l_type;		\
-	(to).l_whence = (from).l_whence;	\
-	(to).l_start = (from).l_start;		\
-	(to).l_len = (from).l_len;		\
-	(to).l_pid = (from).l_pid;
+#define copy_flock_fields(dst, src)		\
+	(dst)->l_type = (src)->l_type;		\
+	(dst)->l_whence = (src)->l_whence;	\
+	(dst)->l_start = (src)->l_start;	\
+	(dst)->l_len = (src)->l_len;		\
+	(dst)->l_pid = (src)->l_pid;
 
-static int get_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
+static int get_compat_flock(struct flock *kfl, const struct compat_flock __user *ufl)
 {
 	struct compat_flock fl;
 
 	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock)))
 		return -EFAULT;
-	copy_flock_fields(*kfl, fl);
+	copy_flock_fields(kfl, &fl);
 	return 0;
 }
 
-static int get_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
+static int get_compat_flock64(struct flock *kfl, const struct compat_flock64 __user *ufl)
 {
 	struct compat_flock64 fl;
 
 	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock64)))
 		return -EFAULT;
-	copy_flock_fields(*kfl, fl);
+	copy_flock_fields(kfl, &fl);
 	return 0;
 }
 
-static int put_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
+static int put_compat_flock(const struct flock *kfl, struct compat_flock __user *ufl)
 {
 	struct compat_flock fl;
 
 	memset(&fl, 0, sizeof(struct compat_flock));
-	copy_flock_fields(fl, *kfl);
+	copy_flock_fields(&fl, kfl);
 	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock)))
 		return -EFAULT;
 	return 0;
 }
 
-static int put_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
+static int put_compat_flock64(const struct flock *kfl, struct compat_flock64 __user *ufl)
 {
 	struct compat_flock64 fl;
 
 	memset(&fl, 0, sizeof(struct compat_flock64));
-	copy_flock_fields(fl, *kfl);
+	copy_flock_fields(&fl, kfl);
 	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock64)))
 		return -EFAULT;
 	return 0;
