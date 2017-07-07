@@ -212,7 +212,7 @@ static int get_pixel_depth_val(enum lb_pixel_depth depth)
 	}
 }
 
-static void transform_set_lb(
+static void xfmn10_set_lb(
 	struct dcn10_transform *xfm,
 	const struct line_buffer_params *lb_params,
 	enum lb_memory_config mem_size_config)
@@ -622,7 +622,7 @@ void transform_set_scaler_auto_scale(
 		return;
 
 	lb_config =  find_lb_memory_config(scl_data);
-	transform_set_lb(xfm, &scl_data->lb_params, lb_config);
+	xfmn10_set_lb(xfm, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
@@ -738,7 +738,7 @@ static void transform_set_manual_ratio_init(
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */
-static void transform_set_scaler_manual_scale(
+static void xfmn10_set_scaler_manual_scale(
 	struct transform *xfm_base,
 	const struct scaler_data *scl_data)
 {
@@ -769,7 +769,7 @@ static void transform_set_scaler_manual_scale(
 		return;
 	/* LB */
 	lb_config =  find_lb_memory_config(scl_data);
-	transform_set_lb(xfm, &scl_data->lb_params, lb_config);
+	xfmn10_set_lb(xfm, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
 		return;
@@ -1027,7 +1027,7 @@ static void dcn_transform_set_gamut_remap(
 static struct transform_funcs dcn10_transform_funcs = {
 
 	.transform_reset = transform_reset,
-	.transform_set_scaler = transform_set_scaler_manual_scale,
+	.transform_set_scaler = xfmn10_set_scaler_manual_scale,
 	.transform_get_optimal_number_of_taps = transform_get_optimal_number_of_taps,
 	.transform_set_gamut_remap = dcn_transform_set_gamut_remap,
 };
