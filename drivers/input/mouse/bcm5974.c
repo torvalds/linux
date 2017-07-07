@@ -3,7 +3,6 @@
  *
  * Copyright (C) 2008	   Henrik Rydberg (rydberg@euromail.se)
  * Copyright (C) 2015      John Horan (knasher@gmail.com)
- * Copyright (C) 2016      Marek Wyborski (mw@emwesoft.com)
  *
  * The USB initialization and package decoding was made by
  * Scott Shawcroft as part of the touchd user-space driver project:
@@ -17,6 +16,7 @@
  * Copyright (C) 2005	   Peter Osterlund (petero2@telia.com)
  * Copyright (C) 2005	   Michael Hanselmann (linux-kernel@hansmi.ch)
  * Copyright (C) 2006	   Nicolas Boichat (nicolas@boichat.ch)
+ * Copyright (C) 2016      Marek Wyborski (mw@emwesoft.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -709,7 +709,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 
 		f = get_tp_finger(dev, i);
 
-		if (dev->cfg.tp_type != TYPE5) {
+		if (c->tp_type != TYPE5) {
 			if (raw2int(f->touch_major) == 0)
 				continue;
 			dev->pos[n].x = raw2int(f->abs_x);
@@ -732,7 +732,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 	input_mt_assign_slots(input, dev->slots, dev->pos, n, 0);
 
 	for (i = 0; i < n; i++) {
-		if (dev->cfg.tp_type != TYPE5)
+		if (c->tp_type != TYPE5)
 			report_finger_data(input, dev->slots[i],
 					   &dev->pos[i], dev->index[i]);
 		else
@@ -742,7 +742,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 
 	input_mt_sync_frame(input);
 
-	if (dev->cfg.tp_type != TYPE5)
+	if (c->tp_type != TYPE5)
 		report_synaptics_data(input, c, get_tp_finger(dev, 0), raw_n);
 	else
 		report_synaptics_data_type5(input, c, 
