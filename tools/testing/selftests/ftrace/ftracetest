@@ -187,7 +187,7 @@ eval_result() { # sigval
     $UNSUPPORTED)
       prlog "	[UNSUPPORTED]"
       UNSUPPORTED_CASES="$UNSUPPORTED_CASES $CASENO"
-      return 1 # this is not a bug, but the result should be reported.
+      return 0 # this is not a bug.
     ;;
     $XFAIL)
       prlog "	[XFAIL]"
