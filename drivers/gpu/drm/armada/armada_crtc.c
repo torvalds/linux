@@ -254,15 +254,13 @@ int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout)
 	return wait_event_timeout(plane->frame_wait, !plane->work, timeout);
 }
 
-struct armada_plane_work *armada_drm_plane_work_cancel(
-	struct armada_crtc *dcrtc, struct armada_plane *plane)
+void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
+	struct armada_plane *dplane)
 {
-	struct armada_plane_work *work = xchg(&plane->work, NULL);
+	struct armada_plane_work *work = xchg(&dplane->work, NULL);
 
 	if (work)
 		drm_crtc_vblank_put(&dcrtc->crtc);
-
-	return work;
 }
 
 static int armada_drm_crtc_queue_frame_work(struct armada_crtc *dcrtc,

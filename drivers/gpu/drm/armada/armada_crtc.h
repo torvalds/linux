@@ -62,8 +62,8 @@ int armada_drm_plane_init(struct armada_plane *plane);
 int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
 	struct armada_plane *plane, struct armada_plane_work *work);
 int armada_drm_plane_work_wait(struct armada_plane *plane, long timeout);
-struct armada_plane_work *armada_drm_plane_work_cancel(
-	struct armada_crtc *dcrtc, struct armada_plane *plane);
+void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
+	struct armada_plane *plane);
 void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 	int x, int y);
 
