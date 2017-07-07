@@ -143,7 +143,6 @@ typedef __u32			xfs_nlink_t;
 #define __return_address __builtin_return_address(0)
 
 #define XFS_PROJID_DEFAULT	0
-#define MAXPATHLEN	1024
 
 #define MIN(a,b)	(min(a,b))
 #define MAX(a,b)	(max(a,b))
