@@ -334,8 +334,19 @@ static int meson_aiu_i2s_dma_new(struct snd_soc_pcm_runtime *rtd)
 #define AIU_CLK_CTRL_ALRCLK_RIGHT_J		(2 << 8)
 #define AIU_CLK_CTRL_MORE_I2S_DIV_MASK		GENMASK(5, 0)
 #define AIU_CLK_CTRL_MORE_I2S_DIV(div)		(((div) - 1) << 0)
+#define AIU_CLK_CTRL_MORE_HDMI_TX_SEL_MASK     BIT(6)
+#define AIU_CLK_CTRL_MORE_HDMI_TX_I958_CLK     (0 << 6)
+#define AIU_CLK_CTRL_MORE_HDMI_TX_INT_CLK      (1 << 6)
 #define AIU_CODEC_DAC_LRCLK_CTRL_DIV_MASK	GENMASK(11, 0)
 #define AIU_CODEC_DAC_LRCLK_CTRL_DIV(div)	(((div) - 1) << 0)
+#define AIU_HDMI_CLK_DATA_CTRL_CLK_SEL_MASK    GENMASK(1, 0)
+#define AIU_HDMI_CLK_DATA_CTRL_CLK_DISABLE     (0 << 0)
+#define AIU_HDMI_CLK_DATA_CTRL_CLK_PCM         (1 << 0)
+#define AIU_HDMI_CLK_DATA_CTRL_CLK_I2S         (2 << 0)
+#define AIU_HDMI_CLK_DATA_CTRL_DATA_SEL_MASK   GENMASK(5, 4)
+#define AIU_HDMI_CLK_DATA_CTRL_DATA_MUTE       (0 << 4)
+#define AIU_HDMI_CLK_DATA_CTRL_DATA_PCM                (1 << 4)
+#define AIU_HDMI_CLK_DATA_CTRL_DATA_I2S                (2 << 4)
 #define AIU_I2S_DAC_CFG_PAYLOAD_SIZE_MASK	GENMASK(1, 0)
 #define AIU_I2S_DAC_CFG_AOCLK_32		(0 << 0)
 #define AIU_I2S_DAC_CFG_AOCLK_48		(2 << 0)
@@ -498,6 +509,17 @@ static int meson_aiu_i2s_dai_hw_params(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "Unable set to the i2s clock rates\n");
 		return ret;
 	}
+
+       /* Quick and dirty hack for HDMI */
+	regmap_update_bits(priv->core->aiu, AIU_HDMI_CLK_DATA_CTRL,
+			   AIU_HDMI_CLK_DATA_CTRL_CLK_SEL_MASK |
+			   AIU_HDMI_CLK_DATA_CTRL_DATA_SEL_MASK,
+			   AIU_HDMI_CLK_DATA_CTRL_CLK_I2S |
+			   AIU_HDMI_CLK_DATA_CTRL_DATA_I2S);
+
+	regmap_update_bits(priv->core->aiu, AIU_CLK_CTRL_MORE,
+			   AIU_CLK_CTRL_MORE_HDMI_TX_SEL_MASK,
+			   AIU_CLK_CTRL_MORE_HDMI_TX_INT_CLK);
 
 	return 0;
 }
