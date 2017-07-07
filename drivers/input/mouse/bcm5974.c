@@ -16,7 +16,7 @@
  * Copyright (C) 2005	   Peter Osterlund (petero2@telia.com)
  * Copyright (C) 2005	   Michael Hanselmann (linux-kernel@hansmi.ch)
  * Copyright (C) 2006	   Nicolas Boichat (nicolas@boichat.ch)
- * Copyright (C) 2016      Marek Wyborski (mw@emwesoft.com)
+ * Copyright (C) 2016	   Marek Wyborski (mw@emwesoft.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -260,12 +260,12 @@ struct tp_finger {
 
 /* trackpad finger structure for type5 (magic trackpad), le16-aligned */
 struct tp_finger_type5 {
-	u8 abs_x;			/* absolute x coodinate */
-	u8 abs_x_y;			/* absolute x,y coodinate */
+	u8 abs_x;		/* absolute x coodinate */
+	u8 abs_x_y;		/* absolute x,y coodinate */
 	u8 abs_y[2];		/* absolute y coodinate */
 	u8 touch_major;		/* touch area, major axis */
 	u8 touch_minor;		/* touch area, minor axis */
-	u8 size;			/* tool area, size */
+	u8 size;		/* tool area, size */
 	u8 pressure;		/* pressure on forcetouch touchpad */
 	u8 orientation_origin;	/* orientation and id */
 } __attribute__((packed,aligned(2)));
@@ -577,7 +577,7 @@ static void setup_events_to_report(struct input_dev *input_dev,
 	set_abs(input_dev, ABS_MT_TOUCH_MINOR, &cfg->w);
 
 	/* finger approach area */
-	if (cfg->tp_type != TYPE5) {	
+	if (cfg->tp_type != TYPE5) {
 		set_abs(input_dev, ABS_MT_WIDTH_MAJOR, &cfg->w);
 		set_abs(input_dev, ABS_MT_WIDTH_MINOR, &cfg->w);
 	}
@@ -736,7 +736,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 			report_finger_data(input, dev->slots[i],
 					   &dev->pos[i], dev->index[i]);
 		else
-			report_finger_data_type5(input, dev->slots[i], &dev->pos[i], 
+			report_finger_data_type5(input, dev->slots[i], &dev->pos[i],
 					(const struct tp_finger_type5 *) dev->index[i]);
 	}
 
@@ -745,7 +745,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 	if (c->tp_type != TYPE5)
 		report_synaptics_data(input, c, get_tp_finger(dev, 0), raw_n);
 	else
-		report_synaptics_data_type5(input, c, 
+		report_synaptics_data_type5(input, c,
 			(const struct tp_finger_type5*) get_tp_finger(dev, 0), raw_n);
 
 	/* later types report button events via integrated button only */
