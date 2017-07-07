@@ -284,6 +284,9 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 	child->ext_info_cache = devm_kzalloc(dev,
 					     sizeof(*child->ext_info_cache) *
 					     num_ext_info, GFP_KERNEL);
+	if (!child->ext_info_cache)
+		return -ENOMEM;
+
 	for (i = 0; i < num_ext_info; ++i) {
 		child->ext_info_cache[i].size = -1;
 
@@ -308,6 +311,9 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 
 		child->ext_info_cache[i].data = devm_kmemdup(dev, page, ret + 1,
 							     GFP_KERNEL);
+		if (!child->ext_info_cache[i].data)
+			return -ENOMEM;
+
 		child->ext_info_cache[i].data[ret] = 0;
 		child->ext_info_cache[i].size = ret;
 	}
