@@ -370,7 +370,7 @@ circumstances. This may also cause the accessed rectangle to be adjusted
 by the driver, depending on the properties of the underlying hardware.
 
 The coordinates to a step always refer to the actual size of the
-previous step. The exception to this rule is the source compose
+previous step. The exception to this rule is the sink compose
 rectangle, which refers to the sink compose bounds rectangle --- if it
 is supported by the hardware.
 
