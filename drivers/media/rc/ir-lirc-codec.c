@@ -254,7 +254,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		return 0;
 
 	case LIRC_GET_REC_RESOLUTION:
-		val = dev->rx_resolution;
+		val = dev->rx_resolution / 1000;
 		break;
 
 	case LIRC_SET_WIDEBAND_RECEIVER:
