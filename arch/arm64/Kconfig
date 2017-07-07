@@ -488,6 +488,17 @@ config CAVIUM_ERRATUM_27456
 
 	  If unsure, say Y.
 
+config CAVIUM_ERRATUM_30115
+	bool "Cavium erratum 30115: Guest may disable interrupts in host"
+	default y
+	help
+	  On ThunderX T88 pass 1.x through 2.2, T81 pass 1.0 through
+	  1.2, and T83 Pass 1.0, KVM guest execution may disable
+	  interrupts in host. Trapping both GICv3 group-0 and group-1
+	  accesses sidesteps the issue.
+
+	  If unsure, say Y.
+
 config QCOM_FALKOR_ERRATUM_1003
 	bool "Falkor E1003: Incorrect translation due to ASID change"
 	default y

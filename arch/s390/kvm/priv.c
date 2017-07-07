@@ -24,6 +24,7 @@
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include <asm/pgtable.h>
+#include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/io.h>
@@ -949,13 +950,72 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static inline int do_essa(struct kvm_vcpu *vcpu, const int orc)
+{
+	struct kvm_s390_migration_state *ms = vcpu->kvm->arch.migration_state;
+	int r1, r2, nappended, entries;
+	unsigned long gfn, hva, res, pgstev, ptev;
+	unsigned long *cbrlo;
+
+	/*
+	 * We don't need to set SD.FPF.SK to 1 here, because if we have a
+	 * machine check here we either handle it or crash
+	 */
+
+	kvm_s390_get_regs_rre(vcpu, &r1, &r2);
+	gfn = vcpu->run->s.regs.gprs[r2] >> PAGE_SHIFT;
+	hva = gfn_to_hva(vcpu->kvm, gfn);
+	entries = (vcpu->arch.sie_block->cbrlo & ~PAGE_MASK) >> 3;
+
+	if (kvm_is_error_hva(hva))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+
+	nappended = pgste_perform_essa(vcpu->kvm->mm, hva, orc, &ptev, &pgstev);
+	if (nappended < 0) {
+		res = orc ? 0x10 : 0;
+		vcpu->run->s.regs.gprs[r1] = res; /* Exception Indication */
+		return 0;
+	}
+	res = (pgstev & _PGSTE_GPS_USAGE_MASK) >> 22;
+	/*
+	 * Set the block-content state part of the result. 0 means resident, so
+	 * nothing to do if the page is valid. 2 is for preserved pages
+	 * (non-present and non-zero), and 3 for zero pages (non-present and
+	 * zero).
+	 */
+	if (ptev & _PAGE_INVALID) {
+		res |= 2;
+		if (pgstev & _PGSTE_GPS_ZERO)
+			res |= 1;
+	}
+	vcpu->run->s.regs.gprs[r1] = res;
+	/*
+	 * It is possible that all the normal 511 slots were full, in which case
+	 * we will now write in the 512th slot, which is reserved for host use.
+	 * In both cases we let the normal essa handling code process all the
+	 * slots, including the reserved one, if needed.
+	 */
+	if (nappended > 0) {
+		cbrlo = phys_to_virt(vcpu->arch.sie_block->cbrlo & PAGE_MASK);
+		cbrlo[entries] = gfn << PAGE_SHIFT;
+	}
+
+	if (orc) {
+		/* increment only if we are really flipping the bit to 1 */
+		if (!test_and_set_bit(gfn, ms->pgste_bitmap))
+			atomic64_inc(&ms->dirty_pages);
+	}
+
+	return nappended;
+}
+
 static int handle_essa(struct kvm_vcpu *vcpu)
 {
 	/* entries expected to be 1FF */
 	int entries = (vcpu->arch.sie_block->cbrlo & ~PAGE_MASK) >> 3;
 	unsigned long *cbrlo;
 	struct gmap *gmap;
-	int i;
+	int i, orc;
 
 	VCPU_EVENT(vcpu, 4, "ESSA: release %d pages", entries);
 	gmap = vcpu->arch.gmap;
@@ -965,12 +1025,45 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
-
-	if (((vcpu->arch.sie_block->ipb & 0xf0000000) >> 28) > 6)
+	/* Check for invalid operation request code */
+	orc = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
+	if (orc > ESSA_MAX)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	/* Retry the ESSA instruction */
-	kvm_s390_retry_instr(vcpu);
+	if (likely(!vcpu->kvm->arch.migration_state)) {
+		/*
+		 * CMMA is enabled in the KVM settings, but is disabled in
+		 * the SIE block and in the mm_context, and we are not doing
+		 * a migration. Enable CMMA in the mm_context.
+		 * Since we need to take a write lock to write to the context
+		 * to avoid races with storage keys handling, we check if the
+		 * value really needs to be written to; if the value is
+		 * already correct, we do nothing and avoid the lock.
+		 */
+		if (vcpu->kvm->mm->context.use_cmma == 0) {
+			down_write(&vcpu->kvm->mm->mmap_sem);
+			vcpu->kvm->mm->context.use_cmma = 1;
+			up_write(&vcpu->kvm->mm->mmap_sem);
+		}
+		/*
+		 * If we are here, we are supposed to have CMMA enabled in
+		 * the SIE block. Enabling CMMA works on a per-CPU basis,
+		 * while the context use_cmma flag is per process.
+		 * It's possible that the context flag is enabled and the
+		 * SIE flag is not, so we set the flag always; if it was
+		 * already set, nothing changes, otherwise we enable it
+		 * on this CPU too.
+		 */
+		vcpu->arch.sie_block->ecb2 |= ECB2_CMMA;
+		/* Retry the ESSA instruction */
+		kvm_s390_retry_instr(vcpu);
+	} else {
+		/* Account for the possible extra cbrl entry */
+		i = do_essa(vcpu, orc);
+		if (i < 0)
+			return i;
+		entries += i;
+	}
 	vcpu->arch.sie_block->cbrlo &= PAGE_MASK;	/* reset nceo */
 	cbrlo = phys_to_virt(vcpu->arch.sie_block->cbrlo);
 	down_read(&gmap->mm->mmap_sem);

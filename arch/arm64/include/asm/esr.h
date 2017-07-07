@@ -19,6 +19,7 @@
 #define __ASM_ESR_H
 
 #include <asm/memory.h>
+#include <asm/sysreg.h>
 
 #define ESR_ELx_EC_UNKNOWN	(0x00)
 #define ESR_ELx_EC_WFx		(0x01)
@@ -181,6 +182,29 @@
 
 #define ESR_ELx_SYS64_ISS_SYS_CNTFRQ	(ESR_ELx_SYS64_ISS_SYS_VAL(3, 3, 0, 14, 0) | \
 					 ESR_ELx_SYS64_ISS_DIR_READ)
+
+#define esr_sys64_to_sysreg(e)					\
+	sys_reg((((e) & ESR_ELx_SYS64_ISS_OP0_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_OP0_SHIFT),			\
+		(((e) & ESR_ELx_SYS64_ISS_OP1_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_OP1_SHIFT),			\
+		(((e) & ESR_ELx_SYS64_ISS_CRN_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_CRN_SHIFT),			\
+		(((e) & ESR_ELx_SYS64_ISS_CRM_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_CRM_SHIFT),			\
+		(((e) & ESR_ELx_SYS64_ISS_OP2_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_OP2_SHIFT))
+
+#define esr_cp15_to_sysreg(e)					\
+	sys_reg(3,						\
+		(((e) & ESR_ELx_SYS64_ISS_OP1_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_OP1_SHIFT),			\
+		(((e) & ESR_ELx_SYS64_ISS_CRN_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_CRN_SHIFT),			\
+		(((e) & ESR_ELx_SYS64_ISS_CRM_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_CRM_SHIFT),			\
+		(((e) & ESR_ELx_SYS64_ISS_OP2_MASK) >>		\
+		 ESR_ELx_SYS64_ISS_OP2_SHIFT))
 
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
