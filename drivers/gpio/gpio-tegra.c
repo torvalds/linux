@@ -389,7 +389,8 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 				chained_irq_exit(chip, desc);
 			}
 
-			generic_handle_irq(gpio_to_irq(gpio + pin));
+			generic_handle_irq(irq_find_mapping(tgi->irq_domain,
+							    gpio + pin));
 		}
 	}
 
