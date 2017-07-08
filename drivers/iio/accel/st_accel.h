@@ -29,6 +29,9 @@ enum st_accel_type {
 	LIS2DH12,
 	LIS3L02DQ,
 	LNG2DM,
+	H3LIS331DL,
+	LIS331DL,
+	LIS3LV02DL,
 	ST_ACCEL_MAX,
 };
 
