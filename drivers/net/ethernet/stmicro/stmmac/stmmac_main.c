@@ -1561,7 +1561,7 @@ static int alloc_dma_tx_desc_resources(struct stmmac_priv *priv)
 						    sizeof(*tx_q->tx_skbuff_dma),
 						    GFP_KERNEL);
 		if (!tx_q->tx_skbuff_dma)
-			return -ENOMEM;
+			goto err_dma_buffers;
 
 		tx_q->tx_skbuff = kmalloc_array(DMA_TX_SIZE,
 						sizeof(struct sk_buff *),
