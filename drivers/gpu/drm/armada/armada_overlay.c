@@ -239,15 +239,15 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (!dplane->base.state.changed)
 		return 0;
 
+	/* Wait for pending work to complete */
+	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
+		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
+
 	/* Just updating the position/size? */
 	if (!dplane->base.state.vsync_update) {
 		armada_ovl_plane_work(dcrtc, work);
 		return 0;
 	}
-
-	/* Wait for pending work to complete */
-	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
-		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
 
 	if (!dcrtc->plane) {
 		dcrtc->plane = plane;
