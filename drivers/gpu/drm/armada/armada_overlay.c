@@ -136,43 +136,18 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (format->num_planes == 1 && state.src.x1 >> 16 & (format->hsub - 1))
 		ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
 
-	fb_changed = plane->fb != fb ||
-		     dplane->base.state.src_x != state.src.x1 >> 16 ||
-	             dplane->base.state.src_y != state.src.y1 >> 16;
-
-	/* FIXME: overlay on an interlaced display */
-	/* Just updating the position/size? */
-	if (!fb_changed && dplane->base.state.ctrl0 == ctrl0) {
-		val = (drm_rect_height(&state.src) & 0xffff0000) |
-		       drm_rect_width(&state.src) >> 16;
-		dplane->base.state.src_hw = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_HPXL_VLN);
-
-		val = drm_rect_height(&state.dst) << 16 |
-		      drm_rect_width(&state.dst);
-		dplane->base.state.dst_hw = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DZM_HPXL_VLN);
-
-		val = state.dst.y1 << 16 | state.dst.x1;
-		dplane->base.state.dst_yx = val;
-		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_OVSA_HPXL_VLN);
-
-		return 0;
-	} else if (~dplane->base.state.ctrl0 & ctrl0 & CFG_DMA_ENA) {
+	if (~dplane->base.state.ctrl0 & ctrl0 & CFG_DMA_ENA) {
 		/* Power up the Y/U/V FIFOs on ENA 0->1 transitions */
 		armada_reg_queue_mod(work->regs, idx,
 				     0, CFG_PDWN16x66 | CFG_PDWN32x66,
 				     LCD_SPU_SRAM_PARA1);
 	}
 
-	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
-		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
+	fb_changed = plane->fb != fb ||
+		     dplane->base.state.src_x != state.src.x1 >> 16 ||
+	             dplane->base.state.src_y != state.src.y1 >> 16;
 
-	if (!dcrtc->plane) {
-		dcrtc->plane = plane;
-		armada_ovl_update_attr(&dplane->prop, dcrtc);
-	}
-
+	/* FIXME: overlay on an interlaced display */
 	if (fb_changed) {
 		u32 addrs[3];
 
@@ -243,6 +218,23 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			CFG_YUV2RGB) | CFG_DMA_ENA,
 			LCD_SPU_DMA_CTRL0);
 	}
+
+	/* Just updating the position/size? */
+	if (!fb_changed && dplane->base.state.ctrl0 == ctrl0) {
+		armada_reg_queue_end(work->regs, idx);
+		armada_ovl_plane_work(dcrtc, work);
+		return 0;
+	}
+
+	/* Wait for pending work to complete */
+	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
+		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
+
+	if (!dcrtc->plane) {
+		dcrtc->plane = plane;
+		armada_ovl_update_attr(&dplane->prop, dcrtc);
+	}
+
 	if (idx) {
 		armada_reg_queue_end(work->regs, idx);
 		/* Queue it for update on the next interrupt if we are enabled */
