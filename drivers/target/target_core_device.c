@@ -1183,7 +1183,7 @@ passthrough_parse_cdb(struct se_cmd *cmd,
 		}
 		if (cdb[0] == PERSISTENT_RESERVE_OUT) {
 			cmd->execute_cmd = target_scsi3_emulate_pr_out;
-			size = get_unaligned_be16(&cdb[7]);
+			size = get_unaligned_be32(&cdb[5]);
 			return target_cmd_size_check(cmd, size);
 		}
 

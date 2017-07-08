@@ -1307,7 +1307,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		break;
 	case PERSISTENT_RESERVE_OUT:
-		*size = get_unaligned_be16(&cdb[7]);
+		*size = get_unaligned_be32(&cdb[5]);
 		cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		break;
 	case RELEASE:
