@@ -38,6 +38,8 @@ static int flags_by_sb(int s_flags)
 		flags |= ST_SYNCHRONOUS;
 	if (s_flags & MS_MANDLOCK)
 		flags |= ST_MANDLOCK;
+	if (s_flags & MS_RDONLY)
+		flags |= ST_RDONLY;
 	return flags;
 }
 
