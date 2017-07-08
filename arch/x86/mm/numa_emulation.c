@@ -75,13 +75,15 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
 
 /*
  * Sets up nr_nodes fake nodes interleaved over physical nodes ranging from addr
- * to max_addr.  The return value is the number of nodes allocated.
+ * to max_addr.
+ *
+ * Returns zero on success or negative on error.
  */
 static int __init split_nodes_interleave(struct numa_meminfo *ei,
 					 struct numa_meminfo *pi,
 					 u64 addr, u64 max_addr, int nr_nodes)
 {
-	nodemask_t physnode_mask = NODE_MASK_NONE;
+	nodemask_t physnode_mask = numa_nodes_parsed;
 	u64 size;
 	int big;
 	int nid = 0;
@@ -115,9 +117,6 @@ static int __init split_nodes_interleave(struct numa_meminfo *ei,
 			"NUMA emulation disabled.\n");
 		return -1;
 	}
-
-	for (i = 0; i < pi->nr_blks; i++)
-		node_set(pi->blk[i].nid, physnode_mask);
 
 	/*
 	 * Continue to fill physical nodes with fake nodes until there is no
@@ -200,13 +199,15 @@ static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
 
 /*
  * Sets up fake nodes of `size' interleaved over physical nodes ranging from
- * `addr' to `max_addr'.  The return value is the number of nodes allocated.
+ * `addr' to `max_addr'.
+ *
+ * Returns zero on success or negative on error.
  */
 static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 					      struct numa_meminfo *pi,
 					      u64 addr, u64 max_addr, u64 size)
 {
-	nodemask_t physnode_mask = NODE_MASK_NONE;
+	nodemask_t physnode_mask = numa_nodes_parsed;
 	u64 min_size;
 	int nid = 0;
 	int i, ret;
@@ -230,9 +231,6 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 		size = min_size;
 	}
 	size &= FAKE_NODE_MIN_HASH_MASK;
-
-	for (i = 0; i < pi->nr_blks; i++)
-		node_set(pi->blk[i].nid, physnode_mask);
 
 	/*
 	 * Fill physical nodes with fake nodes of size until there is no memory
