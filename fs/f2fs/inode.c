@@ -373,6 +373,8 @@ void f2fs_evict_inode(struct inode *inode)
 	if (inode->i_nlink || is_bad_inode(inode))
 		goto no_delete;
 
+	dquot_initialize(inode);
+
 	remove_ino_entry(sbi, inode->i_ino, APPEND_INO);
 	remove_ino_entry(sbi, inode->i_ino, UPDATE_INO);
 
@@ -405,8 +407,11 @@ retry:
 
 	if (err)
 		update_inode_page(inode);
+	dquot_free_inode(inode);
 	sb_end_intwrite(inode->i_sb);
 no_delete:
+	dquot_drop(inode);
+
 	stat_dec_inline_xattr(inode);
 	stat_dec_inline_dir(inode);
 	stat_dec_inline_inode(inode);
