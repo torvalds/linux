@@ -1138,6 +1138,122 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.disable_vblank	= armada_drm_crtc_disable_vblank,
 };
 
+static void armada_drm_primary_update_state(struct drm_plane_state *state,
+	struct armada_regs *regs)
+{
+	struct armada_plane *dplane = drm_to_armada_plane(state->plane);
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(state->crtc);
+	struct armada_framebuffer *dfb = drm_fb_to_armada_fb(state->fb);
+	bool was_disabled;
+	unsigned int idx = 0;
+	u32 val;
+
+	val = CFG_GRA_FMT(dfb->fmt) | CFG_GRA_MOD(dfb->mod);
+	if (dfb->fmt > CFG_420)
+		val |= CFG_PALETTE_ENA;
+	if (state->visible)
+		val |= CFG_GRA_ENA;
+	if (drm_rect_width(&state->src) >> 16 != drm_rect_width(&state->dst))
+		val |= CFG_GRA_HSMOOTH;
+
+	was_disabled = !(dplane->state.ctrl0 & CFG_GRA_ENA);
+	if (was_disabled)
+		armada_reg_queue_mod(regs, idx,
+				     0, CFG_PDWN64x66, LCD_SPU_SRAM_PARA1);
+
+	dplane->state.ctrl0 = val;
+	dplane->state.src_hw = (drm_rect_height(&state->src) & 0xffff0000) |
+				drm_rect_width(&state->src) >> 16;
+	dplane->state.dst_hw = drm_rect_height(&state->dst) << 16 |
+			       drm_rect_width(&state->dst);
+	dplane->state.dst_yx = state->dst.y1 << 16 | state->dst.x1;
+
+	armada_drm_gra_plane_regs(regs + idx, &dfb->fb, &dplane->state,
+				  state->src.x1 >> 16, state->src.y1 >> 16,
+				  dcrtc->interlaced);
+
+	dplane->state.vsync_update = !was_disabled;
+	dplane->state.changed = true;
+}
+
+static int armada_drm_primary_update(struct drm_plane *plane,
+	struct drm_crtc *crtc, struct drm_framebuffer *fb,
+	int crtc_x, int crtc_y, unsigned int crtc_w, unsigned int crtc_h,
+	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
+	struct drm_modeset_acquire_ctx *ctx)
+{
+	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	struct armada_plane_work *work;
+	struct drm_plane_state state = {
+		.plane = plane,
+		.crtc = crtc,
+		.fb = fb,
+		.src_x = src_x,
+		.src_y = src_y,
+		.src_w = src_w,
+		.src_h = src_h,
+		.crtc_x = crtc_x,
+		.crtc_y = crtc_y,
+		.crtc_w = crtc_w,
+		.crtc_h = crtc_h,
+		.rotation = DRM_MODE_ROTATE_0,
+	};
+	const struct drm_rect clip = {
+		.x2 = crtc->mode.hdisplay,
+		.y2 = crtc->mode.vdisplay,
+	};
+	int ret;
+
+	ret = drm_plane_helper_check_state(&state, &clip, 0, INT_MAX, true,
+					    false);
+	if (ret)
+		return ret;
+
+	work = &dplane->works[dplane->next_work];
+	work->fn = armada_drm_crtc_complete_frame_work;
+
+	if (plane->fb != fb) {
+		/*
+		 * Take a reference on the new framebuffer - we want to
+		 * hold on to it while the hardware is displaying it.
+		 */
+		drm_framebuffer_reference(fb);
+
+		work->old_fb = plane->fb;
+	} else {
+		work->old_fb = NULL;
+	}
+
+	armada_drm_primary_update_state(&state, work->regs);
+
+	if (!dplane->state.changed)
+		return 0;
+
+	/* Wait for pending work to complete */
+	if (armada_drm_plane_work_wait(dplane, HZ / 10) == 0)
+		armada_drm_plane_work_cancel(dcrtc, dplane);
+
+	if (!dplane->state.vsync_update) {
+		work->fn(dcrtc, work);
+		if (work->old_fb)
+			drm_framebuffer_unreference(work->old_fb);
+		return 0;
+	}
+
+	/* Queue it for update on the next interrupt if we are enabled */
+	ret = armada_drm_plane_work_queue(dcrtc, work);
+	if (ret) {
+		work->fn(dcrtc, work);
+		if (work->old_fb)
+			drm_framebuffer_unreference(work->old_fb);
+	}
+
+	dplane->next_work = !dplane->next_work;
+
+	return 0;
+}
+
 int armada_drm_plane_disable(struct drm_plane *plane,
 			     struct drm_modeset_acquire_ctx *ctx)
 {
@@ -1199,7 +1315,7 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs armada_primary_plane_funcs = {
-	.update_plane	= drm_primary_helper_update,
+	.update_plane	= armada_drm_primary_update,
 	.disable_plane	= armada_drm_plane_disable,
 	.destroy	= drm_primary_helper_destroy,
 };
