@@ -571,18 +571,14 @@ static uint32_t armada_drm_crtc_calculate_csc(struct armada_crtc *dcrtc)
 	return val;
 }
 
-static void armada_drm_primary_set(struct drm_crtc *crtc,
-	struct drm_plane *plane, int x, int y)
+static void armada_drm_gra_plane_regs(struct armada_regs *regs,
+	struct drm_framebuffer *fb, struct armada_plane_state *state,
+	int x, int y, bool interlaced)
 {
-	struct armada_plane_state *state = &drm_to_armada_plane(plane)->state;
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_regs regs[8];
-	bool interlaced = dcrtc->interlaced;
-	unsigned i;
+	unsigned int i;
 	u32 ctrl0;
 
-	i = armada_drm_crtc_calc_fb(plane->fb, x, y, regs, interlaced);
-
+	i = armada_drm_crtc_calc_fb(fb, x, y, regs, interlaced);
 	armada_reg_queue_set(regs, i, state->dst_yx, LCD_SPU_GRA_OVSA_HPXL_VLN);
 	armada_reg_queue_set(regs, i, state->src_hw, LCD_SPU_GRA_HPXL_VLN);
 	armada_reg_queue_set(regs, i, state->dst_hw, LCD_SPU_GZM_HPXL_VLN);
@@ -598,6 +594,17 @@ static void armada_drm_primary_set(struct drm_crtc *crtc,
 			     CFG_GRA_HSMOOTH | CFG_GRA_ENA,
 			     LCD_SPU_DMA_CTRL0);
 	armada_reg_queue_end(regs, i);
+}
+
+static void armada_drm_primary_set(struct drm_crtc *crtc,
+	struct drm_plane *plane, int x, int y)
+{
+	struct armada_plane_state *state = &drm_to_armada_plane(plane)->state;
+	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
+	struct armada_regs regs[8];
+	bool interlaced = dcrtc->interlaced;
+
+	armada_drm_gra_plane_regs(regs, plane->fb, state, x, y, interlaced);
 	armada_drm_crtc_update_regs(dcrtc, regs);
 }
 
