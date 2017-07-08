@@ -140,11 +140,6 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		     dplane->base.state.src_x != state.src.x1 >> 16 ||
 	             dplane->base.state.src_y != state.src.y1 >> 16;
 
-	if (!dcrtc->plane) {
-		dcrtc->plane = plane;
-		armada_ovl_update_attr(&dplane->prop, dcrtc);
-	}
-
 	/* FIXME: overlay on an interlaced display */
 	/* Just updating the position/size? */
 	if (!fb_changed && dplane->base.state.ctrl0 == ctrl0) {
@@ -172,6 +167,11 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
 		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
+
+	if (!dcrtc->plane) {
+		dcrtc->plane = plane;
+		armada_ovl_update_attr(&dplane->prop, dcrtc);
+	}
 
 	if (fb_changed) {
 		u32 addrs[3];
@@ -255,17 +255,6 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	return 0;
 }
 
-static int armada_ovl_plane_disable(struct drm_plane *plane,
-				    struct drm_modeset_acquire_ctx *ctx)
-{
-	armada_drm_plane_disable(plane, ctx);
-
-	if (plane->crtc)
-		drm_to_armada_crtc(plane->crtc)->plane = NULL;
-
-	return 0;
-}
-
 static void armada_ovl_plane_destroy(struct drm_plane *plane)
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
@@ -345,7 +334,7 @@ static int armada_ovl_plane_set_property(struct drm_plane *plane,
 
 static const struct drm_plane_funcs armada_ovl_plane_funcs = {
 	.update_plane	= armada_ovl_plane_update,
-	.disable_plane	= armada_ovl_plane_disable,
+	.disable_plane	= armada_drm_plane_disable,
 	.destroy	= armada_ovl_plane_destroy,
 	.set_property	= armada_ovl_plane_set_property,
 };

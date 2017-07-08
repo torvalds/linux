@@ -293,6 +293,19 @@ static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 }
 
+static void armada_drm_crtc_complete_disable_work(struct armada_crtc *dcrtc,
+	struct armada_plane_work *work)
+{
+	unsigned long flags;
+
+	if (dcrtc->plane == work->plane)
+		dcrtc->plane = NULL;
+
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
+	armada_drm_crtc_update_regs(dcrtc, work->regs);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
+}
+
 static struct armada_plane_work *
 armada_drm_crtc_alloc_plane_work(struct drm_plane *plane)
 {
@@ -392,8 +405,11 @@ static void armada_drm_crtc_prepare(struct drm_crtc *crtc)
 	 * the new mode parameters.
 	 */
 	plane = dcrtc->plane;
-	if (plane)
+	if (plane) {
 		drm_plane_force_disable(plane);
+		WARN_ON(!armada_drm_plane_work_wait(drm_to_armada_plane(plane),
+						    HZ));
+	}
 }
 
 /* The mode_config.mutex will be held for this call */
@@ -1120,28 +1136,22 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 {
 	struct armada_plane *dplane = drm_to_armada_plane(plane);
 	struct armada_crtc *dcrtc;
+	struct armada_plane_work *work;
+	unsigned int idx = 0;
 	u32 sram_para1, enable_mask;
 
 	if (!plane->crtc)
 		return 0;
 
 	/*
-	 * Drop our reference on any framebuffer attached to this plane.
-	 * We don't need to NULL this out as drm_plane_force_disable(),
-	 * and __setplane_internal() will do so for an overlay plane, and
-	 * __drm_helper_disable_unused_functions() will do so for the
-	 * primary plane.
+	 * Arrange to power down most RAMs and FIFOs if this is the primary
+	 * plane, otherwise just the YUV FIFOs for the overlay plane.
 	 */
-	if (plane->fb)
-		drm_framebuffer_put(plane->fb);
-
-	/* Power down most RAMs and FIFOs if this is the primary plane */
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
 		sram_para1 = CFG_PDWN256x32 | CFG_PDWN256x24 | CFG_PDWN256x8 |
 			     CFG_PDWN32x32 | CFG_PDWN64x66;
 		enable_mask = CFG_GRA_ENA;
 	} else {
-		/* Power down the Y/U/V FIFOs */
 		sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
 		enable_mask = CFG_DMA_ENA;
 	}
@@ -1150,14 +1160,33 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 
 	dcrtc = drm_to_armada_crtc(plane->crtc);
 
+	/*
+	 * Try to disable the plane and drop our ref on the framebuffer
+	 * at the next frame update. If we fail for any reason, disable
+	 * the plane immediately.
+	 */
+	work = &dplane->works[dplane->next_work];
+	work->fn = armada_drm_crtc_complete_disable_work;
+	work->cancel = armada_drm_crtc_complete_disable_work;
+	work->old_fb = plane->fb;
+
+	armada_reg_queue_mod(work->regs, idx,
+			     0, enable_mask, LCD_SPU_DMA_CTRL0);
+	armada_reg_queue_mod(work->regs, idx,
+			     sram_para1, 0, LCD_SPU_SRAM_PARA1);
+	armada_reg_queue_end(work->regs, idx);
+
 	/* Wait for any preceding work to complete, but don't wedge */
 	if (WARN_ON(!armada_drm_plane_work_wait(dplane, HZ)))
 		armada_drm_plane_work_cancel(dcrtc, dplane);
 
-	spin_lock_irq(&dcrtc->irq_lock);
-	armada_updatel(0, enable_mask, dcrtc->base + LCD_SPU_DMA_CTRL0);
-	armada_updatel(sram_para1, 0, dcrtc->base + LCD_SPU_SRAM_PARA1);
-	spin_unlock_irq(&dcrtc->irq_lock);
+	if (armada_drm_plane_work_queue(dcrtc, work)) {
+		work->fn(dcrtc, work);
+		if (work->old_fb)
+			drm_framebuffer_unreference(work->old_fb);
+	}
+
+	dplane->next_work = !dplane->next_work;
 
 	return 0;
 }
