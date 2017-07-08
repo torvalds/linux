@@ -169,8 +169,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		/* Now check if cursor is an interrupt-controller and if it is
 		 * then we are done
 		 */
-		if (of_get_property(ipar, "interrupt-controller", NULL) !=
-				NULL) {
+		if (of_property_read_bool(ipar, "interrupt-controller")) {
 			pr_debug(" -> got it !\n");
 			return 0;
 		}
@@ -508,7 +507,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 	INIT_LIST_HEAD(&intc_parent_list);
 
 	for_each_matching_node_and_match(np, matches, &match) {
-		if (!of_find_property(np, "interrupt-controller", NULL) ||
+		if (!of_property_read_bool(np, "interrupt-controller") ||
 				!of_device_is_available(np))
 			continue;
 
