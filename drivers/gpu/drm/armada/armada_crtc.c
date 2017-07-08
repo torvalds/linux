@@ -1128,7 +1128,7 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 {
 	struct armada_plane *dplane = drm_to_armada_plane(plane);
 	struct armada_crtc *dcrtc;
-	u32 sram_para1, dma_ctrl0_mask;
+	u32 sram_para1, enable_mask;
 
 	if (!plane->crtc)
 		return 0;
@@ -1147,12 +1147,14 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
 		sram_para1 = CFG_PDWN256x32 | CFG_PDWN256x24 | CFG_PDWN256x8 |
 			     CFG_PDWN32x32 | CFG_PDWN64x66;
-		dma_ctrl0_mask = CFG_GRA_ENA;
+		enable_mask = CFG_GRA_ENA;
 	} else {
 		/* Power down the Y/U/V FIFOs */
 		sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
-		dma_ctrl0_mask = CFG_DMA_ENA;
+		enable_mask = CFG_DMA_ENA;
 	}
+
+	dplane->state.ctrl0 &= ~enable_mask;
 
 	dcrtc = drm_to_armada_crtc(plane->crtc);
 
@@ -1161,7 +1163,7 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 		armada_drm_plane_work_cancel(dcrtc, dplane);
 
 	spin_lock_irq(&dcrtc->irq_lock);
-	armada_updatel(0, dma_ctrl0_mask, dcrtc->base + LCD_SPU_DMA_CTRL0);
+	armada_updatel(0, enable_mask, dcrtc->base + LCD_SPU_DMA_CTRL0);
 	spin_unlock_irq(&dcrtc->irq_lock);
 
 	armada_updatel(sram_para1, 0, dcrtc->base + LCD_SPU_SRAM_PARA1);

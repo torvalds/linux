@@ -270,8 +270,6 @@ static int armada_ovl_plane_disable(struct drm_plane *plane,
 	if (dplane->base.base.crtc)
 		drm_to_armada_crtc(dplane->base.base.crtc)->plane = NULL;
 
-	dplane->base.state.ctrl0 = 0;
-
 	fb = xchg(&dplane->old_fb, NULL);
 	if (fb)
 		drm_framebuffer_put(fb);
