@@ -1040,10 +1040,9 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	if (unlikely(!inc_valid_node_count(sbi, dn->inode, !ofs))) {
-		err = -ENOSPC;
+	if (unlikely((err = inc_valid_node_count(sbi, dn->inode, !ofs))))
 		goto fail;
-	}
+
 #ifdef CONFIG_F2FS_CHECK_FS
 	get_node_info(sbi, dn->nid, &new_ni);
 	f2fs_bug_on(sbi, new_ni.blk_addr != NULL_ADDR);
@@ -2210,7 +2209,7 @@ recover_xnid:
 	/* 2: update xattr nid in inode */
 	remove_free_nid(sbi, new_xnid);
 	f2fs_i_xnid_write(inode, new_xnid);
-	if (unlikely(!inc_valid_node_count(sbi, inode, false)))
+	if (unlikely(inc_valid_node_count(sbi, inode, false)))
 		f2fs_bug_on(sbi, 1);
 	update_inode_page(inode);
 
@@ -2268,7 +2267,7 @@ retry:
 	new_ni = old_ni;
 	new_ni.ino = ino;
 
-	if (unlikely(!inc_valid_node_count(sbi, NULL, true)))
+	if (unlikely(inc_valid_node_count(sbi, NULL, true)))
 		WARN_ON(1);
 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
 	inc_valid_inode_count(sbi);
