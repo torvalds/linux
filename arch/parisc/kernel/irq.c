@@ -413,6 +413,10 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	if (regs->sr[7])
 		return;
 
+	/* exit if already in panic */
+	if (sysctl_panic_on_stackoverflow < 0)
+		return;
+
 	/* calculate kernel stack usage */
 	stack_usage = sp - stack_start;
 #ifdef CONFIG_IRQSTACKS
@@ -454,8 +458,10 @@ check_kernel_stack:
 #ifdef CONFIG_IRQSTACKS
 panic_check:
 #endif
-	if (sysctl_panic_on_stackoverflow)
+	if (sysctl_panic_on_stackoverflow) {
+		sysctl_panic_on_stackoverflow = -1; /* disable further checks */
 		panic("low stack detected by irq handler - check messages\n");
+	}
 #endif
 }
 
