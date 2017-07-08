@@ -777,8 +777,6 @@ static void nokia_bluetooth_serdev_remove(struct serdev_device *serdev)
 	cancel_work_sync(&hu->write_work);
 
 	hu->proto->close(hu);
-
-	pm_runtime_disable(&btdev->serdev->dev);
 }
 
 static int nokia_bluetooth_runtime_suspend(struct device *dev)
