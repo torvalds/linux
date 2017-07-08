@@ -280,6 +280,22 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 	return 0;
 }
 
+int __init setup_emu2phys_nid(int *dfl_phys_nid)
+{
+	int i, max_emu_nid = 0;
+
+	*dfl_phys_nid = NUMA_NO_NODE;
+	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++) {
+		if (emu_nid_to_phys[i] != NUMA_NO_NODE) {
+			max_emu_nid = i;
+			if (*dfl_phys_nid == NUMA_NO_NODE)
+				*dfl_phys_nid = emu_nid_to_phys[i];
+		}
+	}
+
+	return max_emu_nid;
+}
+
 /**
  * numa_emulation - Emulate NUMA nodes
  * @numa_meminfo: NUMA configuration to massage
@@ -376,19 +392,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	 * Determine the max emulated nid and the default phys nid to use
 	 * for unmapped nodes.
 	 */
-	max_emu_nid = 0;
-	dfl_phys_nid = NUMA_NO_NODE;
-	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++) {
-		if (emu_nid_to_phys[i] != NUMA_NO_NODE) {
-			max_emu_nid = i;
-			if (dfl_phys_nid == NUMA_NO_NODE)
-				dfl_phys_nid = emu_nid_to_phys[i];
-		}
-	}
-	if (dfl_phys_nid == NUMA_NO_NODE) {
-		pr_warning("NUMA: Warning: can't determine default physical node, disabling emulation\n");
-		goto no_emu;
-	}
+	max_emu_nid = setup_emu2phys_nid(&dfl_phys_nid);
 
 	/* commit */
 	*numa_meminfo = ei;
