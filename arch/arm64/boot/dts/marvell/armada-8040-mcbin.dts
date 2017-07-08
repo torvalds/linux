@@ -121,6 +121,36 @@
 	status = "okay";
 };
 
+&cpm_i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpm_i2c1_pins>;
+	status = "okay";
+
+	i2c-switch@70 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+
+		sfpp0_i2c: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+		sfpp1_i2c: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+		sfp_1g_i2c: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+		};
+	};
+};
+
 &cpm_mdio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&cpm_ge_mdio_pins>;
@@ -135,6 +165,10 @@
 	cpm_ge_mdio_pins: ge-mdio-pins {
 		marvell,pins = "mpp32", "mpp34";
 		marvell,function = "ge";
+	};
+	cpm_i2c1_pins: i2c1-pins {
+		marvell,pins = "mpp35", "mpp36";
+		marvell,function = "i2c1";
 	};
 	cpm_i2c0_pins: i2c0-pins {
 		marvell,pins = "mpp37", "mpp38";
