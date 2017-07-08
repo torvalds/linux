@@ -39,6 +39,7 @@ struct armada_plane_work {
 	void (*fn)(struct armada_crtc *, struct armada_plane_work *);
 	void (*cancel)(struct armada_crtc *, struct armada_plane_work *);
 	struct drm_plane *plane;
+	struct drm_framebuffer *old_fb;
 };
 
 struct armada_plane_state {

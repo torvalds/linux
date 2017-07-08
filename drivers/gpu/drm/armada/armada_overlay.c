@@ -32,7 +32,6 @@ struct armada_ovl_plane_properties {
 
 struct armada_ovl_plane {
 	struct armada_plane base;
-	struct drm_framebuffer *old_fb;
 	struct {
 		struct armada_plane_work work;
 		struct armada_regs regs[13];
@@ -67,17 +66,6 @@ armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
 	spin_unlock_irq(&dcrtc->irq_lock);
 }
 
-static void armada_ovl_retire_fb(struct armada_ovl_plane *dplane,
-	struct drm_framebuffer *fb)
-{
-	struct drm_framebuffer *old_fb;
-
-	old_fb = xchg(&dplane->old_fb, fb);
-
-	if (old_fb)
-		armada_drm_queue_unref_work(dplane->base.base.dev, old_fb);
-}
-
 /* === Plane support === */
 static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work)
@@ -91,8 +79,6 @@ static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
 	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-
-	armada_ovl_retire_fb(dplane, NULL);
 }
 
 static int
@@ -196,8 +182,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		 */
 		drm_framebuffer_get(fb);
 
-		if (plane->fb)
-			armada_ovl_retire_fb(dplane, plane->fb);
+		dplane->vbl.work.old_fb = plane->fb;
 
 		dplane->base.state.src_y = src_y = src.y1 >> 16;
 		dplane->base.state.src_x = src_x = src.x1 >> 16;
@@ -223,6 +208,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		val = fb->pitches[1] << 16 | fb->pitches[2];
 		armada_reg_queue_set(dplane->vbl.regs, idx, val,
 				     LCD_SPU_DMA_PITCH_UV);
+	} else {
+		dplane->vbl.work.old_fb = NULL;
 	}
 
 	val = (drm_rect_height(&src) & 0xffff0000) | drm_rect_width(&src) >> 16;
@@ -266,17 +253,10 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 static int armada_ovl_plane_disable(struct drm_plane *plane,
 				    struct drm_modeset_acquire_ctx *ctx)
 {
-	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
-	struct drm_framebuffer *fb;
-
 	armada_drm_plane_disable(plane, ctx);
 
-	if (dplane->base.base.crtc)
-		drm_to_armada_crtc(dplane->base.base.crtc)->plane = NULL;
-
-	fb = xchg(&dplane->old_fb, NULL);
-	if (fb)
-		drm_framebuffer_put(fb);
+	if (plane->crtc)
+		drm_to_armada_crtc(plane->crtc)->plane = NULL;
 
 	return 0;
 }

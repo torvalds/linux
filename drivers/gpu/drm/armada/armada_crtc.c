@@ -24,7 +24,6 @@ struct armada_frame_work {
 	struct armada_plane_work work;
 	struct drm_pending_vblank_event *event;
 	struct armada_regs regs[4];
-	struct drm_framebuffer *old_fb;
 };
 
 enum csc_mode {
@@ -221,10 +220,15 @@ static void armada_drm_plane_work_call(struct armada_crtc *dcrtc,
 	void (*fn)(struct armada_crtc *, struct armada_plane_work *))
 {
 	struct armada_plane *dplane = drm_to_armada_plane(work->plane);
+	struct drm_framebuffer *fb = work->old_fb;
 
 	if (fn)
 		fn(dcrtc, work);
 	drm_crtc_vblank_put(&dcrtc->crtc);
+
+	/* Finally, queue the process-half of the cleanup. */
+	if (fb)
+		armada_drm_queue_unref_work(dcrtc->crtc.dev, fb);
 
 	wake_up(&dplane->frame_wait);
 }
@@ -287,8 +291,6 @@ static void armada_drm_crtc_finish_frame_work(struct armada_crtc *dcrtc,
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
-	/* Finally, queue the process-half of the cleanup. */
-	__armada_drm_queue_unref_work(dcrtc->crtc.dev, fwork->old_fb);
 	kfree(fwork);
 }
 
@@ -339,7 +341,7 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 
 	work = armada_drm_crtc_alloc_frame_work(dcrtc->crtc.primary);
 	if (work) {
-		work->old_fb = fb;
+		work->work.old_fb = fb;
 
 		if (armada_drm_plane_work_queue(dcrtc, &work->work) == 0)
 			return;
@@ -1031,7 +1033,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	work->event = event;
-	work->old_fb = dcrtc->crtc.primary->fb;
+	work->work.old_fb = dcrtc->crtc.primary->fb;
 
 	i = armada_drm_crtc_calc_fb(fb, crtc->x, crtc->y, work->regs,
 				    dcrtc->interlaced);
