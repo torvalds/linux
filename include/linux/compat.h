@@ -27,7 +27,7 @@
 #endif
 
 #ifndef __SC_DELOUSE
-#define __SC_DELOUSE(t,v) ((t)(unsigned long)(v))
+#define __SC_DELOUSE(t,v) ((__force t)(unsigned long)(v))
 #endif
 
 #define COMPAT_SYSCALL_DEFINE0(name) \
