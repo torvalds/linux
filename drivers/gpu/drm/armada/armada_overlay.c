@@ -120,11 +120,11 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	ctrl0 = CFG_DMA_FMT(drm_fb_to_armada_fb(fb)->fmt) |
 		CFG_DMA_MOD(drm_fb_to_armada_fb(fb)->mod) |
-		CFG_CBSH_ENA | CFG_DMA_HSMOOTH | CFG_DMA_ENA;
-
-	/* Does the position/size result in nothing to display? */
-	if (!visible)
-		ctrl0 &= ~CFG_DMA_ENA;
+		CFG_CBSH_ENA;
+	if (visible)
+		ctrl0 |= CFG_DMA_ENA;
+	if (drm_rect_width(&src) >> 16 != drm_rect_width(&dest))
+		ctrl0 |= CFG_DMA_HSMOOTH;
 
 	/*
 	 * Shifting a YUV packed format image by one pixel causes the U/V

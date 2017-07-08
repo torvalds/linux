@@ -583,7 +583,8 @@ static void armada_drm_primary_set(struct drm_crtc *crtc,
 	armada_reg_queue_mod(regs, i, ctrl0, CFG_GRAFORMAT |
 			     CFG_GRA_MOD(CFG_SWAPRB | CFG_SWAPUV |
 					 CFG_SWAPYU | CFG_YUV2RGB) |
-			     CFG_PALETTE_ENA | CFG_GRA_FTOGGLE,
+			     CFG_PALETTE_ENA | CFG_GRA_FTOGGLE |
+			     CFG_GRA_HSMOOTH | CFG_GRA_ENA,
 			     LCD_SPU_DMA_CTRL0);
 	armada_reg_queue_end(regs, i);
 	armada_drm_crtc_update_regs(dcrtc, regs);
@@ -605,7 +606,7 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 
 	interlaced = !!(adj->flags & DRM_MODE_FLAG_INTERLACE);
 
-	val = CFG_GRA_ENA | CFG_GRA_HSMOOTH;
+	val = CFG_GRA_ENA;
 	val |= CFG_GRA_FMT(drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->fmt);
 	val |= CFG_GRA_MOD(drm_fb_to_armada_fb(dcrtc->crtc.primary->fb)->mod);
 
