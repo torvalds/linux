@@ -52,6 +52,8 @@ struct armada_plane_state {
 	u32 dst_hw;
 	u32 dst_yx;
 	u32 ctrl0;
+	bool changed;
+	bool vsync_update;
 };
 
 struct armada_plane {
