@@ -38,6 +38,7 @@ struct armada_variant;
 struct armada_plane_work {
 	void (*fn)(struct armada_crtc *, struct armada_plane_work *);
 	void (*cancel)(struct armada_crtc *, struct armada_plane_work *);
+	bool need_kfree;
 	struct drm_plane *plane;
 	struct drm_framebuffer *old_fb;
 	struct drm_pending_vblank_event *event;
@@ -56,6 +57,8 @@ struct armada_plane_state {
 struct armada_plane {
 	struct drm_plane	base;
 	wait_queue_head_t	frame_wait;
+	bool			next_work;
+	struct armada_plane_work works[2];
 	struct armada_plane_work *work;
 	struct armada_plane_state state;
 };

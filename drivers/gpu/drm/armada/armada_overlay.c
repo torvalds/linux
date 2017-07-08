@@ -32,7 +32,6 @@ struct armada_ovl_plane_properties {
 
 struct armada_ovl_plane {
 	struct armada_plane base;
-	struct armada_plane_work work;
 	struct armada_ovl_plane_properties prop;
 };
 #define drm_to_armada_ovl_plane(p) \
@@ -85,7 +84,7 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_plane_work *work = &dplane->work;
+	struct armada_plane_work *work;
 	const struct drm_format_info *format;
 	struct drm_plane_state state = {
 		.plane = plane,
@@ -118,6 +117,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 					    false);
 	if (ret)
 		return ret;
+
+	work = &dplane->base.works[dplane->base.next_work];
 
 	ctrl0 = CFG_DMA_FMT(drm_fb_to_armada_fb(fb)->fmt) |
 		CFG_DMA_MOD(drm_fb_to_armada_fb(fb)->mod) |
@@ -248,6 +249,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		ret = armada_drm_plane_work_queue(dcrtc, work);
 		if (ret)
 			DRM_ERROR("failed to queue plane work: %d\n", ret);
+
+		dplane->base.next_work = !dplane->base.next_work;
 	}
 	return 0;
 }
@@ -434,8 +437,8 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 		return ret;
 	}
 
-	dplane->work.plane = &dplane->base.base;
-	dplane->work.fn = armada_ovl_plane_work;
+	dplane->base.works[0].fn = armada_ovl_plane_work;
+	dplane->base.works[1].fn = armada_ovl_plane_work;
 
 	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,
 				       &armada_ovl_plane_funcs,

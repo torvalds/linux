@@ -214,13 +214,15 @@ static void armada_drm_plane_work_call(struct armada_crtc *dcrtc,
 	void (*fn)(struct armada_crtc *, struct armada_plane_work *))
 {
 	struct armada_plane *dplane = drm_to_armada_plane(work->plane);
-	struct drm_pending_vblank_event *event = work->event;
-	struct drm_framebuffer *fb = work->old_fb;
+	struct drm_pending_vblank_event *event;
+	struct drm_framebuffer *fb;
 
 	if (fn)
 		fn(dcrtc, work);
 	drm_crtc_vblank_put(&dcrtc->crtc);
 
+	event = work->event;
+	fb = work->old_fb;
 	if (event || fb) {
 		struct drm_device *dev = dcrtc->crtc.dev;
 		unsigned long flags;
@@ -232,6 +234,9 @@ static void armada_drm_plane_work_call(struct armada_crtc *dcrtc,
 			__armada_drm_queue_unref_work(dev, fb);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
+
+	if (work->need_kfree)
+		kfree(work);
 
 	wake_up(&dplane->frame_wait);
 }
@@ -278,12 +283,6 @@ void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 		armada_drm_plane_work_call(dcrtc, work, work->cancel);
 }
 
-static void armada_drm_crtc_finish_frame_work(struct armada_crtc *dcrtc,
-	struct armada_plane_work *work)
-{
-	kfree(work);
-}
-
 static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work)
 {
@@ -292,8 +291,6 @@ static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 	armada_drm_crtc_update_regs(dcrtc, work->regs);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-
-	armada_drm_crtc_finish_frame_work(dcrtc, work);
 }
 
 static struct armada_plane_work *
@@ -308,7 +305,7 @@ armada_drm_crtc_alloc_plane_work(struct drm_plane *plane)
 
 	work->plane = plane;
 	work->fn = armada_drm_crtc_complete_frame_work;
-	work->cancel = armada_drm_crtc_finish_frame_work;
+	work->need_kfree = true;
 	armada_reg_queue_end(work->regs, i);
 
 	return work;
@@ -1173,6 +1170,11 @@ static const struct drm_plane_funcs armada_primary_plane_funcs = {
 
 int armada_drm_plane_init(struct armada_plane *plane)
 {
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(plane->works); i++)
+		plane->works[i].plane = &plane->base;
+
 	init_waitqueue_head(&plane->frame_wait);
 
 	return 0;
