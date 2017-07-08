@@ -395,6 +395,13 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	/* commit */
 	*numa_meminfo = ei;
 
+	/* Make sure numa_nodes_parsed only contains emulated nodes */
+	nodes_clear(numa_nodes_parsed);
+	for (i = 0; i < ARRAY_SIZE(ei.blk); i++)
+		if (ei.blk[i].start != ei.blk[i].end &&
+		    ei.blk[i].nid != NUMA_NO_NODE)
+			node_set(ei.blk[i].nid, numa_nodes_parsed);
+
 	/*
 	 * Transform __apicid_to_node table to use emulated nids by
 	 * reverse-mapping phys_nid.  The maps should always exist but fall
