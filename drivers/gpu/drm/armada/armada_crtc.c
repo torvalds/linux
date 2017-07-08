@@ -20,11 +20,6 @@
 #include "armada_hw.h"
 #include "armada_trace.h"
 
-struct armada_frame_work {
-	struct armada_plane_work work;
-	struct armada_regs regs[4];
-};
-
 enum csc_mode {
 	CSC_AUTO = 0,
 	CSC_YUV_CCIR601 = 1,
@@ -288,37 +283,34 @@ void armada_drm_plane_work_cancel(struct armada_crtc *dcrtc,
 static void armada_drm_crtc_finish_frame_work(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work)
 {
-	struct armada_frame_work *fwork = container_of(work, struct armada_frame_work, work);
-
-	kfree(fwork);
+	kfree(work);
 }
 
 static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 	struct armada_plane_work *work)
 {
-	struct armada_frame_work *fwork = container_of(work, struct armada_frame_work, work);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	armada_drm_crtc_update_regs(dcrtc, fwork->regs);
+	armada_drm_crtc_update_regs(dcrtc, work->regs);
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 
 	armada_drm_crtc_finish_frame_work(dcrtc, work);
 }
 
-static struct armada_frame_work *
-armada_drm_crtc_alloc_frame_work(struct drm_plane *plane)
+static struct armada_plane_work *
+armada_drm_crtc_alloc_plane_work(struct drm_plane *plane)
 {
-	struct armada_frame_work *work;
+	struct armada_plane_work *work;
 	int i = 0;
 
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
 		return NULL;
 
-	work->work.plane = plane;
-	work->work.fn = armada_drm_crtc_complete_frame_work;
-	work->work.cancel = armada_drm_crtc_finish_frame_work;
+	work->plane = plane;
+	work->fn = armada_drm_crtc_complete_frame_work;
+	work->cancel = armada_drm_crtc_finish_frame_work;
 	armada_reg_queue_end(work->regs, i);
 
 	return work;
@@ -327,7 +319,7 @@ armada_drm_crtc_alloc_frame_work(struct drm_plane *plane)
 static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 	struct drm_framebuffer *fb, bool force)
 {
-	struct armada_frame_work *work;
+	struct armada_plane_work *work;
 
 	if (!fb)
 		return;
@@ -338,11 +330,11 @@ static void armada_drm_crtc_finish_fb(struct armada_crtc *dcrtc,
 		return;
 	}
 
-	work = armada_drm_crtc_alloc_frame_work(dcrtc->crtc.primary);
+	work = armada_drm_crtc_alloc_plane_work(dcrtc->crtc.primary);
 	if (work) {
-		work->work.old_fb = fb;
+		work->old_fb = fb;
 
-		if (armada_drm_plane_work_queue(dcrtc, &work->work) == 0)
+		if (armada_drm_plane_work_queue(dcrtc, work) == 0)
 			return;
 
 		kfree(work);
@@ -1019,7 +1011,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_frame_work *work;
+	struct armada_plane_work *work;
 	unsigned i;
 	int ret;
 
@@ -1027,12 +1019,12 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	if (fb->format != crtc->primary->fb->format)
 		return -EINVAL;
 
-	work = armada_drm_crtc_alloc_frame_work(dcrtc->crtc.primary);
+	work = armada_drm_crtc_alloc_plane_work(dcrtc->crtc.primary);
 	if (!work)
 		return -ENOMEM;
 
-	work->work.event = event;
-	work->work.old_fb = dcrtc->crtc.primary->fb;
+	work->event = event;
+	work->old_fb = dcrtc->crtc.primary->fb;
 
 	i = armada_drm_crtc_calc_fb(fb, crtc->x, crtc->y, work->regs,
 				    dcrtc->interlaced);
@@ -1044,7 +1036,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	 */
 	drm_framebuffer_get(fb);
 
-	ret = armada_drm_plane_work_queue(dcrtc, &work->work);
+	ret = armada_drm_plane_work_queue(dcrtc, work);
 	if (ret) {
 		/* Undo our reference above */
 		drm_framebuffer_put(fb);
