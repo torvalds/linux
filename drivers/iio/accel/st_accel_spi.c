@@ -31,6 +31,10 @@ static const struct of_device_id st_accel_of_match[] = {
 		.data = LIS3LV02DL_ACCEL_DEV_NAME,
 	},
 	{
+		.compatible = "st,lis3lv02dl-accel",
+		.data = LIS3LV02DL_ACCEL_DEV_NAME,
+	},
+	{
 		.compatible = "st,lis3dh-accel",
 		.data = LIS3DH_ACCEL_DEV_NAME,
 	},
@@ -69,6 +73,14 @@ static const struct of_device_id st_accel_of_match[] = {
 	{
 		.compatible = "st,lng2dm-accel",
 		.data = LNG2DM_ACCEL_DEV_NAME,
+	},
+	{
+		.compatible = "st,h3lis331dl-accel",
+		.data = H3LIS331DL_DRIVER_NAME,
+	},
+	{
+		.compatible = "st,lis331dl-accel",
+		.data = LIS331DL_ACCEL_DEV_NAME,
 	},
 	{}
 };
@@ -118,6 +130,9 @@ static const struct spi_device_id st_accel_id_table[] = {
 	{ LIS2DH12_ACCEL_DEV_NAME },
 	{ LIS3L02DQ_ACCEL_DEV_NAME },
 	{ LNG2DM_ACCEL_DEV_NAME },
+	{ H3LIS331DL_DRIVER_NAME },
+	{ LIS331DL_ACCEL_DEV_NAME },
+	{ LIS3LV02DL_ACCEL_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_accel_id_table);
