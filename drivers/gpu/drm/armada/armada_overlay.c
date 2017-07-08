@@ -87,17 +87,19 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_plane_work *work = &dplane->work;
 	const struct drm_format_info *format;
-	struct drm_rect src = {
-		.x1 = src_x,
-		.y1 = src_y,
-		.x2 = src_x + src_w,
-		.y2 = src_y + src_h,
-	};
-	struct drm_rect dest = {
-		.x1 = crtc_x,
-		.y1 = crtc_y,
-		.x2 = crtc_x + crtc_w,
-		.y2 = crtc_y + crtc_h,
+	struct drm_plane_state state = {
+		.plane = plane,
+		.crtc = crtc,
+		.fb = fb,
+		.src_x = src_x,
+		.src_y = src_y,
+		.src_w = src_w,
+		.src_h = src_h,
+		.crtc_x = crtc_x,
+		.crtc_y = crtc_y,
+		.crtc_w = crtc_w,
+		.crtc_h = crtc_h,
+		.rotation = DRM_MODE_ROTATE_0,
 	};
 	const struct drm_rect clip = {
 		.x2 = crtc->mode.hdisplay,
@@ -105,25 +107,24 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	};
 	uint32_t val, ctrl0;
 	unsigned idx = 0;
-	bool visible, fb_changed;
+	bool fb_changed;
 	int ret;
 
 	trace_armada_ovl_plane_update(plane, crtc, fb,
 				 crtc_x, crtc_y, crtc_w, crtc_h,
 				 src_x, src_y, src_w, src_h);
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb, &src, &dest, &clip,
-					    DRM_MODE_ROTATE_0,
-					    0, INT_MAX, true, false, &visible);
+	ret = drm_plane_helper_check_state(&state, &clip, 0, INT_MAX, true,
+					    false);
 	if (ret)
 		return ret;
 
 	ctrl0 = CFG_DMA_FMT(drm_fb_to_armada_fb(fb)->fmt) |
 		CFG_DMA_MOD(drm_fb_to_armada_fb(fb)->mod) |
 		CFG_CBSH_ENA;
-	if (visible)
+	if (state.visible)
 		ctrl0 |= CFG_DMA_ENA;
-	if (drm_rect_width(&src) >> 16 != drm_rect_width(&dest))
+	if (drm_rect_width(&state.src) >> 16 != drm_rect_width(&state.dst))
 		ctrl0 |= CFG_DMA_HSMOOTH;
 
 	/*
@@ -131,12 +132,12 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * planes to swap.  Compensate for it by also toggling the UV swap.
 	 */
 	format = fb->format;
-	if (format->num_planes == 1 && src.x1 >> 16 & (format->hsub - 1))
+	if (format->num_planes == 1 && state.src.x1 >> 16 & (format->hsub - 1))
 		ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
 
 	fb_changed = plane->fb != fb ||
-		     dplane->base.state.src_x != src.x1 >> 16 ||
-	             dplane->base.state.src_y != src.y1 >> 16;
+		     dplane->base.state.src_x != state.src.x1 >> 16 ||
+	             dplane->base.state.src_y != state.src.y1 >> 16;
 
 	if (!dcrtc->plane) {
 		dcrtc->plane = plane;
@@ -146,16 +147,17 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	/* FIXME: overlay on an interlaced display */
 	/* Just updating the position/size? */
 	if (!fb_changed && dplane->base.state.ctrl0 == ctrl0) {
-		val = (drm_rect_height(&src) & 0xffff0000) |
-		      drm_rect_width(&src) >> 16;
+		val = (drm_rect_height(&state.src) & 0xffff0000) |
+		       drm_rect_width(&state.src) >> 16;
 		dplane->base.state.src_hw = val;
 		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_HPXL_VLN);
 
-		val = drm_rect_height(&dest) << 16 | drm_rect_width(&dest);
+		val = drm_rect_height(&state.dst) << 16 |
+		      drm_rect_width(&state.dst);
 		dplane->base.state.dst_hw = val;
 		writel_relaxed(val, dcrtc->base + LCD_SPU_DZM_HPXL_VLN);
 
-		val = dest.y1 << 16 | dest.x1;
+		val = state.dst.y1 << 16 | state.dst.x1;
 		dplane->base.state.dst_yx = val;
 		writel_relaxed(val, dcrtc->base + LCD_SPU_DMA_OVSA_HPXL_VLN);
 
@@ -181,8 +183,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 		work->old_fb = plane->fb;
 
-		dplane->base.state.src_y = src_y = src.y1 >> 16;
-		dplane->base.state.src_x = src_x = src.x1 >> 16;
+		dplane->base.state.src_y = src_y = state.src.y1 >> 16;
+		dplane->base.state.src_x = src_x = state.src.x1 >> 16;
 
 		armada_drm_plane_calc_addrs(addrs, fb, src_x, src_y);
 
@@ -209,21 +211,22 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		work->old_fb = NULL;
 	}
 
-	val = (drm_rect_height(&src) & 0xffff0000) | drm_rect_width(&src) >> 16;
+	val = (drm_rect_height(&state.src) & 0xffff0000) |
+	       drm_rect_width(&state.src) >> 16;
 	if (dplane->base.state.src_hw != val) {
 		dplane->base.state.src_hw = val;
 		armada_reg_queue_set(work->regs, idx, val,
 				     LCD_SPU_DMA_HPXL_VLN);
 	}
 
-	val = drm_rect_height(&dest) << 16 | drm_rect_width(&dest);
+	val = drm_rect_height(&state.dst) << 16 | drm_rect_width(&state.dst);
 	if (dplane->base.state.dst_hw != val) {
 		dplane->base.state.dst_hw = val;
 		armada_reg_queue_set(work->regs, idx, val,
 				     LCD_SPU_DZM_HPXL_VLN);
 	}
 
-	val = dest.y1 << 16 | dest.x1;
+	val = state.dst.y1 << 16 | state.dst.x1;
 	if (dplane->base.state.dst_yx != val) {
 		dplane->base.state.dst_yx = val;
 		armada_reg_queue_set(work->regs, idx, val,
