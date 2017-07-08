@@ -245,7 +245,9 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (idx) {
 		armada_reg_queue_end(work->regs, idx);
 		/* Queue it for update on the next interrupt if we are enabled */
-		armada_drm_plane_work_queue(dcrtc, work);
+		ret = armada_drm_plane_work_queue(dcrtc, work);
+		if (ret)
+			DRM_ERROR("failed to queue plane work: %d\n", ret);
 	}
 	return 0;
 }

@@ -254,10 +254,8 @@ int armada_drm_plane_work_queue(struct armada_crtc *dcrtc,
 	int ret;
 
 	ret = drm_crtc_vblank_get(&dcrtc->crtc);
-	if (ret) {
-		DRM_ERROR("failed to acquire vblank counter\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = cmpxchg(&plane->work, NULL, work) ? -EBUSY : 0;
 	if (ret)
