@@ -1123,11 +1123,15 @@ static const struct drm_crtc_funcs armada_crtc_funcs = {
 	.disable_vblank	= armada_drm_crtc_disable_vblank,
 };
 
-void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
-	struct drm_plane *plane)
+int armada_drm_plane_disable(struct drm_plane *plane,
+			     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_plane *dplane = drm_to_armada_plane(plane);
+	struct armada_crtc *dcrtc;
 	u32 sram_para1, dma_ctrl0_mask;
+
+	if (!plane->crtc)
+		return 0;
 
 	/*
 	 * Drop our reference on any framebuffer attached to this plane.
@@ -1150,6 +1154,8 @@ void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 		dma_ctrl0_mask = CFG_DMA_ENA;
 	}
 
+	dcrtc = drm_to_armada_crtc(plane->crtc);
+
 	/* Wait for any preceding work to complete, but don't wedge */
 	if (WARN_ON(!armada_drm_plane_work_wait(dplane, HZ)))
 		armada_drm_plane_work_cancel(dcrtc, dplane);
@@ -1159,22 +1165,13 @@ void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 	spin_unlock_irq(&dcrtc->irq_lock);
 
 	armada_updatel(sram_para1, 0, dcrtc->base + LCD_SPU_SRAM_PARA1);
-}
 
-static int armada_drm_primary_disable(struct drm_plane *plane,
-				      struct drm_modeset_acquire_ctx *ctx)
-{
-	if (plane->crtc) {
-		struct armada_crtc *dcrtc = drm_to_armada_crtc(plane->crtc);
-
-		armada_drm_crtc_plane_disable(dcrtc, plane);
-	}
 	return 0;
 }
 
 static const struct drm_plane_funcs armada_primary_plane_funcs = {
 	.update_plane	= drm_primary_helper_update,
-	.disable_plane	= armada_drm_primary_disable,
+	.disable_plane	= armada_drm_plane_disable,
 	.destroy	= drm_primary_helper_destroy,
 };
 

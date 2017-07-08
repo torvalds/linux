@@ -264,15 +264,12 @@ static int armada_ovl_plane_disable(struct drm_plane *plane,
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct drm_framebuffer *fb;
-	struct armada_crtc *dcrtc;
 
-	if (!dplane->base.base.crtc)
-		return 0;
+	armada_drm_plane_disable(plane, ctx);
 
-	dcrtc = drm_to_armada_crtc(dplane->base.base.crtc);
-	armada_drm_crtc_plane_disable(dcrtc, plane);
+	if (dplane->base.base.crtc)
+		drm_to_armada_crtc(dplane->base.base.crtc)->plane = NULL;
 
-	dcrtc->plane = NULL;
 	dplane->base.state.ctrl0 = 0;
 
 	fb = xchg(&dplane->old_fb, NULL);
