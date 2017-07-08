@@ -162,8 +162,9 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		return 0;
 	} else if (~dplane->base.state.ctrl0 & ctrl0 & CFG_DMA_ENA) {
 		/* Power up the Y/U/V FIFOs on ENA 0->1 transitions */
-		armada_updatel(0, CFG_PDWN16x66 | CFG_PDWN32x66,
-			       dcrtc->base + LCD_SPU_SRAM_PARA1);
+		armada_reg_queue_mod(work->regs, idx,
+				     0, CFG_PDWN16x66 | CFG_PDWN32x66,
+				     LCD_SPU_SRAM_PARA1);
 	}
 
 	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)

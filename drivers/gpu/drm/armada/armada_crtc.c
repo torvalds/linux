@@ -657,8 +657,6 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	/* Now compute the divider for real */
 	dcrtc->variant->compute_clock(dcrtc, adj, &sclk);
 
-	/* Ensure graphic fifo is enabled */
-	armada_reg_queue_mod(regs, i, 0, CFG_PDWN64x66, LCD_SPU_SRAM_PARA1);
 	armada_reg_queue_set(regs, i, sclk, LCD_CFG_SCLK_DIV);
 
 	if (interlaced ^ dcrtc->interlaced) {
@@ -670,6 +668,9 @@ static int armada_drm_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	spin_lock_irqsave(&dcrtc->irq_lock, flags);
+
+	/* Ensure graphic fifo is enabled */
+	armada_reg_queue_mod(regs, i, 0, CFG_PDWN64x66, LCD_SPU_SRAM_PARA1);
 
 	/* Even interlaced/progressive frame */
 	dcrtc->v[1].spu_v_h_total = adj->crtc_vtotal << 16 |
@@ -869,9 +870,11 @@ static int armada_drm_crtc_cursor_update(struct armada_crtc *dcrtc, bool reload)
 		return 0;
 	}
 
+	spin_lock_irq(&dcrtc->irq_lock);
 	para1 = readl_relaxed(dcrtc->base + LCD_SPU_SRAM_PARA1);
 	armada_updatel(CFG_CSB_256x32, CFG_CSB_256x32 | CFG_PDWN256x32,
 		       dcrtc->base + LCD_SPU_SRAM_PARA1);
+	spin_unlock_irq(&dcrtc->irq_lock);
 
 	/*
 	 * Initialize the transparency if the SRAM was powered down.
@@ -1157,9 +1160,8 @@ int armada_drm_plane_disable(struct drm_plane *plane,
 
 	spin_lock_irq(&dcrtc->irq_lock);
 	armada_updatel(0, enable_mask, dcrtc->base + LCD_SPU_DMA_CTRL0);
-	spin_unlock_irq(&dcrtc->irq_lock);
-
 	armada_updatel(sram_para1, 0, dcrtc->base + LCD_SPU_SRAM_PARA1);
+	spin_unlock_irq(&dcrtc->irq_lock);
 
 	return 0;
 }
