@@ -3585,7 +3585,7 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 	if (cmd->data_length < 24) {
 		pr_warn("SPC-PR: Received PR OUT parameter list"
 			" length too small: %u\n", cmd->data_length);
-		return TCM_INVALID_PARAMETER_LIST;
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
 	}
 
 	/*
@@ -3629,7 +3629,7 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 	/*
 	 * SPEC_I_PT=1 is only valid for Service action: REGISTER
 	 */
-	if (spec_i_pt && ((cdb[1] & 0x1f) != PRO_REGISTER))
+	if (spec_i_pt && (sa != PRO_REGISTER))
 		return TCM_INVALID_PARAMETER_LIST;
 
 	/*
@@ -3641,11 +3641,11 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 	 * the sense key set to ILLEGAL REQUEST, and the additional sense
 	 * code set to PARAMETER LIST LENGTH ERROR.
 	 */
-	if (!spec_i_pt && ((cdb[1] & 0x1f) != PRO_REGISTER_AND_MOVE) &&
+	if (!spec_i_pt && (sa != PRO_REGISTER_AND_MOVE) &&
 	    (cmd->data_length != 24)) {
 		pr_warn("SPC-PR: Received PR OUT illegal parameter"
 			" list length: %u\n", cmd->data_length);
-		return TCM_INVALID_PARAMETER_LIST;
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
 	}
 
 	/*
@@ -3685,7 +3685,7 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 		break;
 	default:
 		pr_err("Unknown PERSISTENT_RESERVE_OUT service"
-			" action: 0x%02x\n", cdb[1] & 0x1f);
+			" action: 0x%02x\n", sa);
 		return TCM_INVALID_CDB_FIELD;
 	}
 
