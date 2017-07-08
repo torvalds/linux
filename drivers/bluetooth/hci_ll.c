@@ -742,14 +742,8 @@ static int hci_ti_probe(struct serdev_device *serdev)
 static void hci_ti_remove(struct serdev_device *serdev)
 {
 	struct ll_device *lldev = serdev_device_get_drvdata(serdev);
-	struct hci_uart *hu = &lldev->hu;
-	struct hci_dev *hdev = hu->hdev;
 
-	cancel_work_sync(&hu->write_work);
-
-	hci_unregister_dev(hdev);
-	hci_free_dev(hdev);
-	hu->proto->close(hu);
+	hci_uart_unregister_device(&lldev->hu);
 }
 
 static const struct of_device_id hci_ti_of_match[] = {
