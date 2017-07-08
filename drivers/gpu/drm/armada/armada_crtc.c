@@ -471,11 +471,11 @@ static void armada_drm_crtc_irq(struct armada_crtc *dcrtc, u32 stat)
 	if (stat & VSYNC_IRQ)
 		drm_crtc_handle_vblank(&dcrtc->crtc);
 
-	spin_lock(&dcrtc->irq_lock);
 	ovl_plane = dcrtc->plane;
 	if (ovl_plane)
 		armada_drm_plane_work_run(dcrtc, ovl_plane);
 
+	spin_lock(&dcrtc->irq_lock);
 	if (stat & GRA_FRAME_IRQ && dcrtc->interlaced) {
 		int i = stat & GRA_FRAME_IRQ0 ? 0 : 1;
 		uint32_t val;

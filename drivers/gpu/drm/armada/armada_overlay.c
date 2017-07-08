@@ -84,10 +84,14 @@ static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
 {
 	struct armada_ovl_plane *dplane = container_of(work->plane,
 					struct armada_ovl_plane, base.base);
+	unsigned long flags;
 
 	trace_armada_ovl_plane_work(&dcrtc->crtc, work->plane);
 
+	spin_lock_irqsave(&dcrtc->irq_lock, flags);
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
+	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
+
 	armada_ovl_retire_fb(dplane, NULL);
 }
 
