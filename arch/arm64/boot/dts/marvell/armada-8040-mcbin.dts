@@ -161,6 +161,15 @@
 	};
 };
 
+&cpm_pcie0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpm_pcie_pins>;
+	num-lanes = <4>;
+	num-viewport = <8>;
+	reset-gpio = <&cpm_gpio1 20 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
 &cpm_pinctrl {
 	cpm_ge_mdio_pins: ge-mdio-pins {
 		marvell,pins = "mpp32", "mpp34";
@@ -176,6 +185,10 @@
 	};
 	cpm_xhci_vbus_pins: xhci0-vbus-pins {
 		marvell,pins = "mpp47";
+		marvell,function = "gpio";
+	};
+	cpm_pcie_pins: pcie-pins {
+		marvell,pins = "mpp52";
 		marvell,function = "gpio";
 	};
 	cpm_sdhci_pins: sdhci-pins {
