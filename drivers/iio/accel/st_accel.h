@@ -35,7 +35,7 @@ enum st_accel_type {
 	ST_ACCEL_MAX,
 };
 
-#define H3LIS331DL_DRIVER_NAME		"h3lis331dl_accel"
+#define H3LIS331DL_ACCEL_DEV_NAME	"h3lis331dl_accel"
 #define LIS3LV02DL_ACCEL_DEV_NAME	"lis3lv02dl_accel"
 #define LSM303DLHC_ACCEL_DEV_NAME	"lsm303dlhc_accel"
 #define LIS3DH_ACCEL_DEV_NAME		"lis3dh"
