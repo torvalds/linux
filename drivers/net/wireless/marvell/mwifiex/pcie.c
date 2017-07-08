@@ -346,7 +346,36 @@ static const struct pci_device_id mwifiex_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, mwifiex_ids);
 
-static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
+/*
+ * Cleanup all software without cleaning anything related to PCIe and HW.
+ */
+static void mwifiex_pcie_reset_prepare(struct pci_dev *pdev)
+{
+	struct pcie_service_card *card = pci_get_drvdata(pdev);
+	struct mwifiex_adapter *adapter = card->adapter;
+
+	if (!adapter) {
+		dev_err(&pdev->dev, "%s: adapter structure is not valid\n",
+			__func__);
+		return;
+	}
+
+	mwifiex_dbg(adapter, INFO,
+		    "%s: vendor=0x%4.04x device=0x%4.04x rev=%d Pre-FLR\n",
+		    __func__, pdev->vendor, pdev->device, pdev->revision);
+
+	mwifiex_shutdown_sw(adapter);
+	clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
+	clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
+	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
+}
+
+/*
+ * Kernel stores and restores PCIe function context before and after performing
+ * FLR respectively. Reconfigure the software and firmware including firmware
+ * redownload.
+ */
+static void mwifiex_pcie_reset_done(struct pci_dev *pdev)
 {
 	struct pcie_service_card *card = pci_get_drvdata(pdev);
 	struct mwifiex_adapter *adapter = card->adapter;
@@ -359,35 +388,19 @@ static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 	}
 
 	mwifiex_dbg(adapter, INFO,
-		    "%s: vendor=0x%4.04x device=0x%4.04x rev=%d %s\n",
-		    __func__, pdev->vendor, pdev->device,
-		    pdev->revision,
-		    prepare ? "Pre-FLR" : "Post-FLR");
+		    "%s: vendor=0x%4.04x device=0x%4.04x rev=%d Post-FLR\n",
+		    __func__, pdev->vendor, pdev->device, pdev->revision);
 
-	if (prepare) {
-		/* Kernel would be performing FLR after this notification.
-		 * Cleanup all software without cleaning anything related to
-		 * PCIe and HW.
-		 */
-		mwifiex_shutdown_sw(adapter);
-		clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &card->work_flags);
-		clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &card->work_flags);
-	} else {
-		/* Kernel stores and restores PCIe function context before and
-		 * after performing FLR respectively. Reconfigure the software
-		 * and firmware including firmware redownload
-		 */
-		ret = mwifiex_reinit_sw(adapter);
-		if (ret) {
-			dev_err(&pdev->dev, "reinit failed: %d\n", ret);
-			return;
-		}
-	}
-	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
+	ret = mwifiex_reinit_sw(adapter);
+	if (ret)
+		dev_err(&pdev->dev, "reinit failed: %d\n", ret);
+	else
+		mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 }
 
-static const struct pci_error_handlers mwifiex_pcie_err_handler[] = {
-		{ .reset_notify = mwifiex_pcie_reset_notify, },
+static const struct pci_error_handlers mwifiex_pcie_err_handler = {
+	.reset_prepare		= mwifiex_pcie_reset_prepare,
+	.reset_done		= mwifiex_pcie_reset_done,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -408,7 +421,7 @@ static struct pci_driver __refdata mwifiex_pcie = {
 	},
 #endif
 	.shutdown = mwifiex_pcie_shutdown,
-	.err_handler = mwifiex_pcie_err_handler,
+	.err_handler = &mwifiex_pcie_err_handler,
 };
 
 /*

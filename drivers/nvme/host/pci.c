@@ -2303,14 +2303,16 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return result;
 }
 
-static void nvme_reset_notify(struct pci_dev *pdev, bool prepare)
+static void nvme_reset_prepare(struct pci_dev *pdev)
 {
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
+	nvme_dev_disable(dev, false);
+}
 
-	if (prepare)
-		nvme_dev_disable(dev, false);
-	else
-		nvme_reset_ctrl(&dev->ctrl);
+static void nvme_reset_done(struct pci_dev *pdev)
+{
+	struct nvme_dev *dev = pci_get_drvdata(pdev);
+	nvme_reset_ctrl(&dev->ctrl);
 }
 
 static void nvme_shutdown(struct pci_dev *pdev)
@@ -2434,7 +2436,8 @@ static const struct pci_error_handlers nvme_err_handler = {
 	.error_detected	= nvme_error_detected,
 	.slot_reset	= nvme_slot_reset,
 	.resume		= nvme_error_resume,
-	.reset_notify	= nvme_reset_notify,
+	.reset_prepare	= nvme_reset_prepare,
+	.reset_done	= nvme_reset_done,
 };
 
 static const struct pci_device_id nvme_id_table[] = {

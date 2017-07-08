@@ -162,7 +162,7 @@ struct pcie_port {
 	struct resource		*mem;
 	struct resource		*busn;
 	int			irq;
-	struct dw_pcie_host_ops	*ops;
+	const struct dw_pcie_host_ops *ops;
 	int			msi_irq;
 	struct irq_domain	*irq_domain;
 	unsigned long		msi_data;
