@@ -361,23 +361,17 @@ copy_msqid_from_user(struct msqid64_ds *out, void __user *buf, int version)
  * NOTE: no locks must be held, the rwsem is taken inside this function.
  */
 static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
-		       struct msqid_ds __user *buf, int version)
+			struct msqid64_ds *msqid64)
 {
 	struct kern_ipc_perm *ipcp;
-	struct msqid64_ds uninitialized_var(msqid64);
 	struct msg_queue *msq;
 	int err;
-
-	if (cmd == IPC_SET) {
-		if (copy_msqid_from_user(&msqid64, buf, version))
-			return -EFAULT;
-	}
 
 	down_write(&msg_ids(ns).rwsem);
 	rcu_read_lock();
 
 	ipcp = ipcctl_pre_down_nolock(ns, &msg_ids(ns), msqid, cmd,
-				      &msqid64.msg_perm, msqid64.msg_qbytes);
+				      &msqid64->msg_perm, msqid64->msg_qbytes);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
 		goto out_unlock1;
@@ -399,18 +393,18 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 	{
 		DEFINE_WAKE_Q(wake_q);
 
-		if (msqid64.msg_qbytes > ns->msg_ctlmnb &&
+		if (msqid64->msg_qbytes > ns->msg_ctlmnb &&
 		    !capable(CAP_SYS_RESOURCE)) {
 			err = -EPERM;
 			goto out_unlock1;
 		}
 
 		ipc_lock_object(&msq->q_perm);
-		err = ipc_update_perm(&msqid64.msg_perm, ipcp);
+		err = ipc_update_perm(&msqid64->msg_perm, ipcp);
 		if (err)
 			goto out_unlock0;
 
-		msq->q_qbytes = msqid64.msg_qbytes;
+		msq->q_qbytes = msqid64->msg_qbytes;
 
 		msq->q_ctime = get_seconds();
 		/*
@@ -442,111 +436,89 @@ out_up:
 	return err;
 }
 
-static int msgctl_nolock(struct ipc_namespace *ns, int msqid,
-			 int cmd, int version, void __user *buf)
+static int msgctl_info(struct ipc_namespace *ns, int msqid,
+			 int cmd, struct msginfo *msginfo)
+{
+	int err;
+	int max_id;
+
+	/*
+	 * We must not return kernel stack data.
+	 * due to padding, it's not enough
+	 * to set all member fields.
+	 */
+	err = security_msg_queue_msgctl(NULL, cmd);
+	if (err)
+		return err;
+
+	memset(msginfo, 0, sizeof(*msginfo));
+	msginfo->msgmni = ns->msg_ctlmni;
+	msginfo->msgmax = ns->msg_ctlmax;
+	msginfo->msgmnb = ns->msg_ctlmnb;
+	msginfo->msgssz = MSGSSZ;
+	msginfo->msgseg = MSGSEG;
+	down_read(&msg_ids(ns).rwsem);
+	if (cmd == MSG_INFO) {
+		msginfo->msgpool = msg_ids(ns).in_use;
+		msginfo->msgmap = atomic_read(&ns->msg_hdrs);
+		msginfo->msgtql = atomic_read(&ns->msg_bytes);
+	} else {
+		msginfo->msgmap = MSGMAP;
+		msginfo->msgpool = MSGPOOL;
+		msginfo->msgtql = MSGTQL;
+	}
+	max_id = ipc_get_maxid(&msg_ids(ns));
+	up_read(&msg_ids(ns).rwsem);
+	return (max_id < 0) ? 0 : max_id;
+}
+
+static int msgctl_stat(struct ipc_namespace *ns, int msqid,
+			 int cmd, struct msqid64_ds *p)
 {
 	int err;
 	struct msg_queue *msq;
+	int success_return;
 
-	switch (cmd) {
-	case IPC_INFO:
-	case MSG_INFO:
-	{
-		struct msginfo msginfo;
-		int max_id;
+	memset(p, 0, sizeof(*p));
 
-		if (!buf)
-			return -EFAULT;
-
-		/*
-		 * We must not return kernel stack data.
-		 * due to padding, it's not enough
-		 * to set all member fields.
-		 */
-		err = security_msg_queue_msgctl(NULL, cmd);
-		if (err)
-			return err;
-
-		memset(&msginfo, 0, sizeof(msginfo));
-		msginfo.msgmni = ns->msg_ctlmni;
-		msginfo.msgmax = ns->msg_ctlmax;
-		msginfo.msgmnb = ns->msg_ctlmnb;
-		msginfo.msgssz = MSGSSZ;
-		msginfo.msgseg = MSGSEG;
-		down_read(&msg_ids(ns).rwsem);
-		if (cmd == MSG_INFO) {
-			msginfo.msgpool = msg_ids(ns).in_use;
-			msginfo.msgmap = atomic_read(&ns->msg_hdrs);
-			msginfo.msgtql = atomic_read(&ns->msg_bytes);
-		} else {
-			msginfo.msgmap = MSGMAP;
-			msginfo.msgpool = MSGPOOL;
-			msginfo.msgtql = MSGTQL;
-		}
-		max_id = ipc_get_maxid(&msg_ids(ns));
-		up_read(&msg_ids(ns).rwsem);
-		if (copy_to_user(buf, &msginfo, sizeof(struct msginfo)))
-			return -EFAULT;
-		return (max_id < 0) ? 0 : max_id;
-	}
-
-	case MSG_STAT:
-	case IPC_STAT:
-	{
-		struct msqid64_ds tbuf;
-		int success_return;
-
-		if (!buf)
-			return -EFAULT;
-
-		memset(&tbuf, 0, sizeof(tbuf));
-
-		rcu_read_lock();
-		if (cmd == MSG_STAT) {
-			msq = msq_obtain_object(ns, msqid);
-			if (IS_ERR(msq)) {
-				err = PTR_ERR(msq);
-				goto out_unlock;
-			}
-			success_return = msq->q_perm.id;
-		} else {
-			msq = msq_obtain_object_check(ns, msqid);
-			if (IS_ERR(msq)) {
-				err = PTR_ERR(msq);
-				goto out_unlock;
-			}
-			success_return = 0;
-		}
-
-		err = -EACCES;
-		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
+	rcu_read_lock();
+	if (cmd == MSG_STAT) {
+		msq = msq_obtain_object(ns, msqid);
+		if (IS_ERR(msq)) {
+			err = PTR_ERR(msq);
 			goto out_unlock;
-
-		err = security_msg_queue_msgctl(msq, cmd);
-		if (err)
+		}
+		success_return = msq->q_perm.id;
+	} else {
+		msq = msq_obtain_object_check(ns, msqid);
+		if (IS_ERR(msq)) {
+			err = PTR_ERR(msq);
 			goto out_unlock;
-
-		kernel_to_ipc64_perm(&msq->q_perm, &tbuf.msg_perm);
-		tbuf.msg_stime  = msq->q_stime;
-		tbuf.msg_rtime  = msq->q_rtime;
-		tbuf.msg_ctime  = msq->q_ctime;
-		tbuf.msg_cbytes = msq->q_cbytes;
-		tbuf.msg_qnum   = msq->q_qnum;
-		tbuf.msg_qbytes = msq->q_qbytes;
-		tbuf.msg_lspid  = msq->q_lspid;
-		tbuf.msg_lrpid  = msq->q_lrpid;
-		rcu_read_unlock();
-
-		if (copy_msqid_to_user(buf, &tbuf, version))
-			return -EFAULT;
-		return success_return;
+		}
+		success_return = 0;
 	}
 
-	default:
-		return -EINVAL;
-	}
+	err = -EACCES;
+	if (ipcperms(ns, &msq->q_perm, S_IRUGO))
+		goto out_unlock;
 
-	return err;
+	err = security_msg_queue_msgctl(msq, cmd);
+	if (err)
+		goto out_unlock;
+
+	kernel_to_ipc64_perm(&msq->q_perm, &p->msg_perm);
+	p->msg_stime  = msq->q_stime;
+	p->msg_rtime  = msq->q_rtime;
+	p->msg_ctime  = msq->q_ctime;
+	p->msg_cbytes = msq->q_cbytes;
+	p->msg_qnum   = msq->q_qnum;
+	p->msg_qbytes = msq->q_qbytes;
+	p->msg_lspid  = msq->q_lspid;
+	p->msg_lrpid  = msq->q_lrpid;
+	rcu_read_unlock();
+
+	return success_return;
+
 out_unlock:
 	rcu_read_unlock();
 	return err;
@@ -556,6 +528,8 @@ SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 {
 	int version;
 	struct ipc_namespace *ns;
+	struct msqid64_ds msqid64;
+	int err;
 
 	if (msqid < 0 || cmd < 0)
 		return -EINVAL;
@@ -565,13 +539,29 @@ SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 
 	switch (cmd) {
 	case IPC_INFO:
-	case MSG_INFO:
+	case MSG_INFO: {
+		struct msginfo msginfo;
+		err = msgctl_info(ns, msqid, cmd, &msginfo);
+		if (err < 0)
+			return err;
+		if (copy_to_user(buf, &msginfo, sizeof(struct msginfo)))
+			err = -EFAULT;
+		return err;
+	}
 	case MSG_STAT:	/* msqid is an index rather than a msg queue id */
 	case IPC_STAT:
-		return msgctl_nolock(ns, msqid, cmd, version, buf);
+		err = msgctl_stat(ns, msqid, cmd, &msqid64);
+		if (err < 0)
+			return err;
+		if (copy_msqid_to_user(buf, &msqid64, version))
+			err = -EFAULT;
+		return err;
 	case IPC_SET:
+		if (copy_msqid_from_user(&msqid64, buf, version))
+			return -EFAULT;
+		/* fallthru */
 	case IPC_RMID:
-		return msgctl_down(ns, msqid, cmd, buf, version);
+		return msgctl_down(ns, msqid, cmd, &msqid64);
 	default:
 		return  -EINVAL;
 	}
