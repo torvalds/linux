@@ -52,14 +52,8 @@ genhdr-files  := $(filter-out $(header-files), $(genhdr-files))
 install-file  := $(installdir)/.install
 check-file    := $(installdir)/.check
 
-# generic-y list all files an architecture uses from asm-generic
-# Use this to build a list of headers which require a wrapper
-generic-files := $(notdir $(wildcard $(srctree)/include/uapi/asm-generic/*.h))
-wrapper-files := $(filter $(generic-files), $(generic-y))
-wrapper-files := $(filter-out $(header-files), $(wrapper-files))
-
 # all headers files for this dir
-all-files     := $(header-files) $(genhdr-files) $(wrapper-files)
+all-files     := $(header-files) $(genhdr-files)
 output-files  := $(addprefix $(installdir)/, $(all-files))
 
 ifneq ($(mandatory-y),)
@@ -83,9 +77,6 @@ quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
       cmd_install = \
         $(CONFIG_SHELL) $< $(installdir) $(srcdir) $(header-files); \
         $(CONFIG_SHELL) $< $(installdir) $(gendir) $(genhdr-files); \
-        for F in $(wrapper-files); do                                   \
-                echo "\#include <asm-generic/$$F>" > $(installdir)/$$F;    \
-        done;                                                           \
         touch $@
 
 quiet_cmd_remove = REMOVE  $(unwanted)
