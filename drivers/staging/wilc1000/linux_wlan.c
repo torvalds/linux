@@ -283,7 +283,8 @@ int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 
 static int linux_wlan_txq_task(void *vp)
 {
-	int ret, txq_count;
+	int ret;
+	u32 txq_count;
 	struct wilc_vif *vif;
 	struct wilc *wl;
 	struct net_device *dev = vp;
