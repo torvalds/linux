@@ -479,7 +479,7 @@ static unsigned long slots_fetch_random(void)
 	return 0;
 }
 
-static void process_e820_entry(struct mem_vector *entry,
+static void process_mem_region(struct mem_vector *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {
@@ -517,7 +517,7 @@ static void process_e820_entry(struct mem_vector *entry,
 		/* Potentially raise address to meet alignment needs. */
 		region.start = ALIGN(region.start, CONFIG_PHYSICAL_ALIGN);
 
-		/* Did we raise the address above this e820 region? */
+		/* Did we raise the address above the passed in memory entry? */
 		if (region.start > cur_entry.start + cur_entry.size)
 			return;
 
@@ -573,7 +573,7 @@ static void process_e820_entries(unsigned long minimum,
 			continue;
 		region.start = entry->addr;
 		region.size = entry->size;
-		process_e820_entry(&region, minimum, image_size);
+		process_mem_region(&region, minimum, image_size);
 		if (slot_area_index == MAX_SLOT_AREA) {
 			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
 			break;
