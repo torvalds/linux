@@ -135,7 +135,7 @@ struct ion_heap_ops {
 /**
  * heap flags - flags between the heaps and core ion code
  */
-#define ION_HEAP_FLAG_DEFER_FREE (1 << 0)
+#define ION_HEAP_FLAG_DEFER_FREE BIT(0)
 
 /**
  * private flags - flags internal to ion
@@ -146,7 +146,7 @@ struct ion_heap_ops {
  * any buffer storage that came from the system allocator will be
  * returned to the system allocator.
  */
-#define ION_PRIV_FLAG_SHRINKER_FREE (1 << 0)
+#define ION_PRIV_FLAG_SHRINKER_FREE BIT(0)
 
 /**
  * struct ion_heap - represents a heap in the system
