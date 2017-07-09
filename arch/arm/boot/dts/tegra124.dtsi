@@ -87,6 +87,7 @@
 		clocks = <&tegra_car TEGRA124_CLK_HOST1X>;
 		resets = <&tegra_car 28>;
 		reset-names = "host1x";
+		iommus = <&mc TEGRA_SWGROUP_HC>;
 
 		#address-cells = <2>;
 		#size-cells = <2>;
