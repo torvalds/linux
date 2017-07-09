@@ -1177,12 +1177,12 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	switch (keylen) {
-		case AES_KEYSIZE_128:
-		case AES_KEYSIZE_192:
-		case AES_KEYSIZE_256:
-			break;
-		default:
-			return -EINVAL;
+	case AES_KEYSIZE_128:
+	case AES_KEYSIZE_192:
+	case AES_KEYSIZE_256:
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	ctx->key_params.keylen = keylen;
@@ -1265,12 +1265,12 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 	ctx->is_hmac = true;
 
 	switch (keylen) {
-		case AES_KEYSIZE_128:
-		case AES_KEYSIZE_192:
-		case AES_KEYSIZE_256:
-			break;
-		default:
-			return -EINVAL;
+	case AES_KEYSIZE_128:
+	case AES_KEYSIZE_192:
+	case AES_KEYSIZE_256:
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	ctx->key_params.keylen = keylen;
