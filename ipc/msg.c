@@ -591,22 +591,14 @@ static int copy_compat_msqid_from_user(struct msqid64_ds *out, void __user *buf,
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
 		struct compat_msqid64_ds *p = buf;
-		struct compat_ipc64_perm v;
-		if (copy_from_user(&v, &p->msg_perm, sizeof(v)))
+		if (get_compat_ipc64_perm(&out->msg_perm, &p->msg_perm))
 			return -EFAULT;
-		out->msg_perm.uid = v.uid;
-		out->msg_perm.gid = v.gid;
-		out->msg_perm.mode = v.mode;
 		if (get_user(out->msg_qbytes, &p->msg_qbytes))
 			return -EFAULT;
 	} else {
 		struct compat_msqid_ds *p = buf;
-		struct compat_ipc_perm v;
-		if (copy_from_user(&v, &p->msg_perm, sizeof(v)))
+		if (get_compat_ipc_perm(&out->msg_perm, &p->msg_perm))
 			return -EFAULT;
-		out->msg_perm.uid = v.uid;
-		out->msg_perm.gid = v.gid;
-		out->msg_perm.mode = v.mode;
 		if (get_user(out->msg_qbytes, &p->msg_qbytes))
 			return -EFAULT;
 	}
@@ -619,13 +611,7 @@ static int copy_compat_msqid_to_user(void __user *buf, struct msqid64_ds *in,
 	if (version == IPC_64) {
 		struct compat_msqid64_ds v;
 		memset(&v, 0, sizeof(v));
-		v.msg_perm.key = in->msg_perm.key;
-		v.msg_perm.uid = in->msg_perm.uid;
-		v.msg_perm.gid = in->msg_perm.gid;
-		v.msg_perm.cuid = in->msg_perm.cuid;
-		v.msg_perm.cgid = in->msg_perm.cgid;
-		v.msg_perm.mode = in->msg_perm.mode;
-		v.msg_perm.seq = in->msg_perm.seq;
+		to_compat_ipc64_perm(&v.msg_perm, &in->msg_perm);
 		v.msg_stime = in->msg_stime;
 		v.msg_rtime = in->msg_rtime;
 		v.msg_ctime = in->msg_ctime;
@@ -638,13 +624,7 @@ static int copy_compat_msqid_to_user(void __user *buf, struct msqid64_ds *in,
 	} else {
 		struct compat_msqid_ds v;
 		memset(&v, 0, sizeof(v));
-		v.msg_perm.key = in->msg_perm.key;
-		SET_UID(v.msg_perm.uid, in->msg_perm.uid);
-		SET_GID(v.msg_perm.gid, in->msg_perm.gid);
-		SET_UID(v.msg_perm.cuid, in->msg_perm.cuid);
-		SET_GID(v.msg_perm.cgid, in->msg_perm.cgid);
-		v.msg_perm.mode = in->msg_perm.mode;
-		v.msg_perm.seq = in->msg_perm.seq;
+		to_compat_ipc_perm(&v.msg_perm, &in->msg_perm);
 		v.msg_stime = in->msg_stime;
 		v.msg_rtime = in->msg_rtime;
 		v.msg_ctime = in->msg_ctime;

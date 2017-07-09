@@ -1161,13 +1161,7 @@ static int copy_compat_shmid_to_user(void __user *buf, struct shmid64_ds *in,
 	if (version == IPC_64) {
 		struct compat_shmid64_ds v;
 		memset(&v, 0, sizeof(v));
-		v.shm_perm.key = in->shm_perm.key;
-		v.shm_perm.uid = in->shm_perm.uid;
-		v.shm_perm.gid = in->shm_perm.gid;
-		v.shm_perm.cuid = in->shm_perm.cuid;
-		v.shm_perm.cgid = in->shm_perm.cgid;
-		v.shm_perm.mode = in->shm_perm.mode;
-		v.shm_perm.seq = in->shm_perm.seq;
+		to_compat_ipc64_perm(&v.shm_perm, &in->shm_perm);
 		v.shm_atime = in->shm_atime;
 		v.shm_dtime = in->shm_dtime;
 		v.shm_ctime = in->shm_ctime;
@@ -1179,13 +1173,8 @@ static int copy_compat_shmid_to_user(void __user *buf, struct shmid64_ds *in,
 	} else {
 		struct compat_shmid_ds v;
 		memset(&v, 0, sizeof(v));
+		to_compat_ipc_perm(&v.shm_perm, &in->shm_perm);
 		v.shm_perm.key = in->shm_perm.key;
-		SET_UID(v.shm_perm.uid, in->shm_perm.uid);
-		SET_GID(v.shm_perm.gid, in->shm_perm.gid);
-		SET_UID(v.shm_perm.cuid, in->shm_perm.cuid);
-		SET_GID(v.shm_perm.cgid, in->shm_perm.cgid);
-		v.shm_perm.mode = in->shm_perm.mode;
-		v.shm_perm.seq = in->shm_perm.seq;
 		v.shm_atime = in->shm_atime;
 		v.shm_dtime = in->shm_dtime;
 		v.shm_ctime = in->shm_ctime;
@@ -1203,22 +1192,11 @@ static int copy_compat_shmid_from_user(struct shmid64_ds *out, void __user *buf,
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
 		struct compat_shmid64_ds *p = buf;
-		struct compat_ipc64_perm v;
-		if (copy_from_user(&v, &p->shm_perm, sizeof(v)))
-			return -EFAULT;
-		out->shm_perm.uid = v.uid;
-		out->shm_perm.gid = v.gid;
-		out->shm_perm.mode = v.mode;
+		return get_compat_ipc64_perm(&out->shm_perm, &p->shm_perm);
 	} else {
 		struct compat_shmid_ds *p = buf;
-		struct compat_ipc_perm v;
-		if (copy_from_user(&v, &p->shm_perm, sizeof(v)))
-			return -EFAULT;
-		out->shm_perm.uid = v.uid;
-		out->shm_perm.gid = v.gid;
-		out->shm_perm.mode = v.mode;
+		return get_compat_ipc_perm(&out->shm_perm, &p->shm_perm);
 	}
-	return 0;
 }
 
 COMPAT_SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, void __user *, uptr)
