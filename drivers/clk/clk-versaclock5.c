@@ -541,6 +541,9 @@ static unsigned char vc5_clk_out_get_parent(struct clk_hw *hw)
 	regmap_read(vc5->regmap, VC5_OUT_DIV_CONTROL(hwdata->num), &src);
 	src &= mask;
 
+	if (src == 0)	/* Input mux set to DISABLED */
+		return 0;
+
 	if ((src & fodclkmask) == VC5_OUT_DIV_CONTROL_EN_FOD)
 		return 0;
 
