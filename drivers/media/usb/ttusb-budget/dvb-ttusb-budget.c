@@ -1640,7 +1640,7 @@ static void frontend_init(struct ttusb* ttusb)
 
 
 
-static struct i2c_algorithm ttusb_dec_algo = {
+static const struct i2c_algorithm ttusb_dec_algo = {
 	.master_xfer	= master_xfer,
 	.functionality	= functionality,
 };
