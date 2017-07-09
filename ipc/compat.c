@@ -34,11 +34,6 @@
 
 #include "util.h"
 
-struct compat_msgbuf {
-	compat_long_t mtype;
-	char mtext[1];
-};
-
 int get_compat_ipc64_perm(struct ipc64_perm *to,
 			  struct compat_ipc64_perm __user *from)
 {
@@ -83,38 +78,6 @@ void to_compat_ipc_perm(struct compat_ipc_perm *to, struct ipc64_perm *from)
 	SET_GID(to->cgid, from->cgid);
 	to->mode = from->mode;
 	to->seq = from->seq;
-}
-
-static long compat_do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bufsz)
-{
-	struct compat_msgbuf __user *msgp = dest;
-	size_t msgsz;
-
-	if (put_user(msg->m_type, &msgp->mtype))
-		return -EFAULT;
-
-	msgsz = (bufsz > msg->m_ts) ? msg->m_ts : bufsz;
-	if (store_msg(msgp->mtext, msg, msgsz))
-		return -EFAULT;
-	return msgsz;
-}
-
-COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
-		       compat_ssize_t, msgsz, int, msgflg)
-{
-	struct compat_msgbuf __user *up = compat_ptr(msgp);
-	compat_long_t mtype;
-
-	if (get_user(mtype, &up->mtype))
-		return -EFAULT;
-	return do_msgsnd(msqid, mtype, up->mtext, (ssize_t)msgsz, msgflg);
-}
-
-COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
-		       compat_ssize_t, msgsz, compat_long_t, msgtyp, int, msgflg)
-{
-	return do_msgrcv(msqid, compat_ptr(msgp), (ssize_t)msgsz, (long)msgtyp,
-			 msgflg, compat_do_msg_fill);
 }
 
 #ifndef COMPAT_SHMLBA

@@ -730,7 +730,7 @@ static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg,
 	return 0;
 }
 
-long do_msgsnd(int msqid, long mtype, void __user *mtext,
+static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		size_t msgsz, int msgflg)
 {
 	struct msg_queue *msq;
@@ -853,6 +853,25 @@ SYSCALL_DEFINE4(msgsnd, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
 	return do_msgsnd(msqid, mtype, msgp->mtext, msgsz, msgflg);
 }
 
+#ifdef CONFIG_COMPAT
+
+struct compat_msgbuf {
+	compat_long_t mtype;
+	char mtext[1];
+};
+
+COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
+		       compat_ssize_t, msgsz, int, msgflg)
+{
+	struct compat_msgbuf __user *up = compat_ptr(msgp);
+	compat_long_t mtype;
+
+	if (get_user(mtype, &up->mtype))
+		return -EFAULT;
+	return do_msgsnd(msqid, mtype, up->mtext, (ssize_t)msgsz, msgflg);
+}
+#endif
+
 static inline int convert_mode(long *msgtyp, int msgflg)
 {
 	if (msgflg & MSG_COPY)
@@ -949,7 +968,7 @@ static struct msg_msg *find_msg(struct msg_queue *msq, long *msgtyp, int mode)
 	return found ?: ERR_PTR(-EAGAIN);
 }
 
-long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgflg,
+static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgflg,
 	       long (*msg_handler)(void __user *, struct msg_msg *, size_t))
 {
 	int mode;
@@ -1113,6 +1132,28 @@ SYSCALL_DEFINE5(msgrcv, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
 	return do_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg, do_msg_fill);
 }
 
+#ifdef CONFIG_COMPAT
+static long compat_do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bufsz)
+{
+	struct compat_msgbuf __user *msgp = dest;
+	size_t msgsz;
+
+	if (put_user(msg->m_type, &msgp->mtype))
+		return -EFAULT;
+
+	msgsz = (bufsz > msg->m_ts) ? msg->m_ts : bufsz;
+	if (store_msg(msgp->mtext, msg, msgsz))
+		return -EFAULT;
+	return msgsz;
+}
+
+COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
+		       compat_ssize_t, msgsz, compat_long_t, msgtyp, int, msgflg)
+{
+	return do_msgrcv(msqid, compat_ptr(msgp), (ssize_t)msgsz, (long)msgtyp,
+			 msgflg, compat_do_msg_fill);
+}
+#endif
 
 void msg_init_ns(struct ipc_namespace *ns)
 {
