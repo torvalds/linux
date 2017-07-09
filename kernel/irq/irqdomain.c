@@ -1,5 +1,6 @@
 #define pr_fmt(fmt)  "irq: " fmt
 
+#include <linux/acpi.h>
 #include <linux/debugfs.h>
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
@@ -155,6 +156,21 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 			domain->name = fwid->name;
 			break;
 		}
+#ifdef CONFIG_ACPI
+	} else if (is_acpi_device_node(fwnode)) {
+		struct acpi_buffer buf = {
+			.length = ACPI_ALLOCATE_BUFFER,
+		};
+		acpi_handle handle;
+
+		handle = acpi_device_handle(to_acpi_device_node(fwnode));
+		if (acpi_get_name(handle, ACPI_FULL_PATHNAME, &buf) == AE_OK) {
+			domain->name = buf.pointer;
+			domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
+		}
+
+		domain->fwnode = fwnode;
+#endif
 	} else if (of_node) {
 		char *name;
 
@@ -1667,8 +1683,7 @@ static void debugfs_add_domain_dir(struct irq_domain *d)
 
 static void debugfs_remove_domain_dir(struct irq_domain *d)
 {
-	if (d->debugfs_file)
-		debugfs_remove(d->debugfs_file);
+	debugfs_remove(d->debugfs_file);
 }
 
 void __init irq_domain_debugfs_init(struct dentry *root)
