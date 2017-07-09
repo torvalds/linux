@@ -520,7 +520,7 @@ static void vc5_clk_out_unprepare(struct clk_hw *hw)
 	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 
-	/* Enable the clock buffer */
+	/* Disable the clock buffer */
 	regmap_update_bits(vc5->regmap, VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
 			   VC5_CLK_OUTPUT_CFG1_EN_CLKBUF, 0);
 }
