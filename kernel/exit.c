@@ -1590,9 +1590,6 @@ static long kernel_waitid(int which, pid_t upid, struct waitid_info *infop,
 	wo.wo_rusage	= ru;
 	ret = do_wait(&wo);
 
-	if (ret > 0)
-		ret = 0;
-
 	put_pid(pid);
 	return ret;
 }
@@ -1603,6 +1600,11 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	struct rusage r;
 	struct waitid_info info = {.status = 0};
 	long err = kernel_waitid(which, upid, &info, options, ru ? &r : NULL);
+	int signo = 0;
+	if (err > 0) {
+		signo = SIGCHLD;
+		err = 0;
+	}
 
 	if (!err) {
 		if (ru && copy_to_user(ru, &r, sizeof(struct rusage)))
@@ -1612,7 +1614,7 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 		return err;
 
 	user_access_begin();
-	unsafe_put_user(err ? 0 : SIGCHLD, &infop->si_signo, Efault);
+	unsafe_put_user(signo, &infop->si_signo, Efault);
 	unsafe_put_user(0, &infop->si_errno, Efault);
 	unsafe_put_user((short)info.cause, &infop->si_code, Efault);
 	unsafe_put_user(info.pid, &infop->si_pid, Efault);
@@ -1714,6 +1716,11 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 	struct rusage ru;
 	struct waitid_info info = {.status = 0};
 	long err = kernel_waitid(which, pid, &info, options, uru ? &ru : NULL);
+	int signo = 0;
+	if (err > 0) {
+		signo = SIGCHLD;
+		err = 0;
+	}
 
 	if (!err && uru) {
 		/* kernel_waitid() overwrites everything in ru */
@@ -1729,7 +1736,7 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 		return err;
 
 	user_access_begin();
-	unsafe_put_user(err ? 0 : SIGCHLD, &infop->si_signo, Efault);
+	unsafe_put_user(signo, &infop->si_signo, Efault);
 	unsafe_put_user(0, &infop->si_errno, Efault);
 	unsafe_put_user((short)info.cause, &infop->si_code, Efault);
 	unsafe_put_user(info.pid, &infop->si_pid, Efault);
