@@ -1,0 +1,31 @@
+Device-Tree bindings for Rockchip RK618 MFD driver
+
+Required properties:
+ - compatible: value should be one of the following:
+   "rockchip,rk618"
+ - reg: I2C device address.
+ - clocks: phandle to the clkin clock provider
+ - clock-names: Must be "clkin"
+ - reset-gpios: a GPIO spec for the reset pin
+
+Optional properties:
+ - power-supply: regulator to provide the supply voltage
+ - enable-gpios: a GPIO spec for the enable pin
+
+Example:
+
+&i2c5 {
+	status = "okay";
+
+	rk618: rk618@50 {
+		compatible = "rockchip,rk618";
+		reg = <0x50>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&i2s_8ch_mclk &lcdc_lcdc &state_video_phy_ttl>;
+		pinctrl-1 = <&lcdc_gpio>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "clkin";
+		reset-gpios = <&gpio3 14 GPIO_ACTIVE_LOW>;
+	};
+};
+

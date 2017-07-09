@@ -778,6 +778,16 @@ config MFD_RC5T583
 	  Additional drivers must be enabled in order to use the
 	  different functionality of the device.
 
+config MFD_RK618
+	tristate "Rockchip RK618 MFD Driver"
+	depends on I2C
+	depends on OF
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  if you say yes here you get support for the RK618 from Rockchip.
+
 config MFD_RK808
 	tristate "Rockchip RK808 Power Management chip"
 	depends on I2C && OF
