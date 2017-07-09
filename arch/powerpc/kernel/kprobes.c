@@ -217,7 +217,7 @@ static nokprobe_inline void set_current_kprobe(struct kprobe *p, struct pt_regs 
 	kcb->kprobe_saved_msr = regs->msr;
 }
 
-bool arch_function_offset_within_entry(unsigned long offset)
+bool arch_kprobe_on_func_entry(unsigned long offset)
 {
 #ifdef PPC64_ELF_ABI_v2
 #ifdef CONFIG_KPROBES_ON_FTRACE
