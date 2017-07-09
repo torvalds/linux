@@ -39,7 +39,6 @@ int ssi_fips_get_state(enum cc_fips_state_t *p_state)
 
 	return rc;
 }
-
 EXPORT_SYMBOL(ssi_fips_get_state);
 
 /*
@@ -57,5 +56,4 @@ int ssi_fips_get_error(enum cc_fips_error *p_err)
 
 	return rc;
 }
-
 EXPORT_SYMBOL(ssi_fips_get_error);
