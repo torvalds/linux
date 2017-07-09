@@ -275,7 +275,7 @@ int mlx5_fpga_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
 	unsigned int i;
-	u32 *data;
+	__be32 *data;
 	u32 count;
 	u64 addr;
 	int ret;
@@ -290,7 +290,7 @@ int mlx5_fpga_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
 
 	count = mlx5_fpga_ipsec_counters_count(mdev);
 
-	data = kzalloc(sizeof(u32) * count * 2, GFP_KERNEL);
+	data = kzalloc(sizeof(*data) * count * 2, GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto out;
