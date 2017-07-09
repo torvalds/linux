@@ -567,6 +567,139 @@ SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 	}
 }
 
+#ifdef CONFIG_COMPAT
+
+struct compat_msqid_ds {
+	struct compat_ipc_perm msg_perm;
+	compat_uptr_t msg_first;
+	compat_uptr_t msg_last;
+	compat_time_t msg_stime;
+	compat_time_t msg_rtime;
+	compat_time_t msg_ctime;
+	compat_ulong_t msg_lcbytes;
+	compat_ulong_t msg_lqbytes;
+	unsigned short msg_cbytes;
+	unsigned short msg_qnum;
+	unsigned short msg_qbytes;
+	compat_ipc_pid_t msg_lspid;
+	compat_ipc_pid_t msg_lrpid;
+};
+
+static int copy_compat_msqid_from_user(struct msqid64_ds *out, void __user *buf,
+					int version)
+{
+	memset(out, 0, sizeof(*out));
+	if (version == IPC_64) {
+		struct compat_msqid64_ds *p = buf;
+		struct compat_ipc64_perm v;
+		if (copy_from_user(&v, &p->msg_perm, sizeof(v)))
+			return -EFAULT;
+		out->msg_perm.uid = v.uid;
+		out->msg_perm.gid = v.gid;
+		out->msg_perm.mode = v.mode;
+		if (get_user(out->msg_qbytes, &p->msg_qbytes))
+			return -EFAULT;
+	} else {
+		struct compat_msqid_ds *p = buf;
+		struct compat_ipc_perm v;
+		if (copy_from_user(&v, &p->msg_perm, sizeof(v)))
+			return -EFAULT;
+		out->msg_perm.uid = v.uid;
+		out->msg_perm.gid = v.gid;
+		out->msg_perm.mode = v.mode;
+		if (get_user(out->msg_qbytes, &p->msg_qbytes))
+			return -EFAULT;
+	}
+	return 0;
+}
+
+static int copy_compat_msqid_to_user(void __user *buf, struct msqid64_ds *in,
+					int version)
+{
+	if (version == IPC_64) {
+		struct compat_msqid64_ds v;
+		memset(&v, 0, sizeof(v));
+		v.msg_perm.key = in->msg_perm.key;
+		v.msg_perm.uid = in->msg_perm.uid;
+		v.msg_perm.gid = in->msg_perm.gid;
+		v.msg_perm.cuid = in->msg_perm.cuid;
+		v.msg_perm.cgid = in->msg_perm.cgid;
+		v.msg_perm.mode = in->msg_perm.mode;
+		v.msg_perm.seq = in->msg_perm.seq;
+		v.msg_stime = in->msg_stime;
+		v.msg_rtime = in->msg_rtime;
+		v.msg_ctime = in->msg_ctime;
+		v.msg_cbytes = in->msg_cbytes;
+		v.msg_qnum = in->msg_qnum;
+		v.msg_qbytes = in->msg_qbytes;
+		v.msg_lspid = in->msg_lspid;
+		v.msg_lrpid = in->msg_lrpid;
+		return copy_to_user(buf, &v, sizeof(v));
+	} else {
+		struct compat_msqid_ds v;
+		memset(&v, 0, sizeof(v));
+		v.msg_perm.key = in->msg_perm.key;
+		SET_UID(v.msg_perm.uid, in->msg_perm.uid);
+		SET_GID(v.msg_perm.gid, in->msg_perm.gid);
+		SET_UID(v.msg_perm.cuid, in->msg_perm.cuid);
+		SET_GID(v.msg_perm.cgid, in->msg_perm.cgid);
+		v.msg_perm.mode = in->msg_perm.mode;
+		v.msg_perm.seq = in->msg_perm.seq;
+		v.msg_stime = in->msg_stime;
+		v.msg_rtime = in->msg_rtime;
+		v.msg_ctime = in->msg_ctime;
+		v.msg_cbytes = in->msg_cbytes;
+		v.msg_qnum = in->msg_qnum;
+		v.msg_qbytes = in->msg_qbytes;
+		v.msg_lspid = in->msg_lspid;
+		v.msg_lrpid = in->msg_lrpid;
+		return copy_to_user(buf, &v, sizeof(v));
+	}
+}
+
+COMPAT_SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, void __user *, uptr)
+{
+	struct ipc_namespace *ns;
+	int err;
+	struct msqid64_ds msqid64;
+	int version = compat_ipc_parse_version(&cmd);
+
+	ns = current->nsproxy->ipc_ns;
+
+	if (msqid < 0 || cmd < 0)
+		return -EINVAL;
+
+	switch (cmd & (~IPC_64)) {
+	case IPC_INFO:
+	case MSG_INFO: {
+		struct msginfo msginfo;
+		err = msgctl_info(ns, msqid, cmd, &msginfo);
+		if (err < 0)
+			return err;
+		if (copy_to_user(uptr, &msginfo, sizeof(struct msginfo)))
+			err = -EFAULT;
+		return err;
+	}
+	case IPC_STAT:
+	case MSG_STAT:
+		err = msgctl_stat(ns, msqid, cmd, &msqid64);
+		if (err < 0)
+			return err;
+		if (copy_compat_msqid_to_user(uptr, &msqid64, version))
+			err = -EFAULT;
+		return err;
+	case IPC_SET:
+		if (copy_compat_msqid_from_user(&msqid64, uptr, version))
+			return -EFAULT;
+		/* fallthru */
+	case IPC_RMID:
+		return msgctl_down(ns, msqid, cmd, &msqid64);
+	default:
+		return -EINVAL;
+	}
+}
+#endif
+
 static int testmsg(struct msg_msg *msg, long type, int mode)
 {
 	switch (mode) {
