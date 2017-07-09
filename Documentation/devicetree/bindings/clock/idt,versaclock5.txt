@@ -8,6 +8,7 @@ generators providing from 3 to 12 output clocks.
 Required properties:
 - compatible:	shall be one of
 		"idt,5p49v5923"
+		"idt,5p49v5925"
 		"idt,5p49v5933"
 		"idt,5p49v5935"
 		"idt,5p49v6901"
@@ -15,6 +16,7 @@ Required properties:
 - #clock-cells:	from common clock binding; shall be set to 1.
 - clocks:	from common clock binding; list of parent clock handles,
 		- 5p49v5923 and
+		  5p49v5925 and
 		  5p49v6901: (required) either or both of XTAL or CLKIN
 					reference clock.
 		- 5p49v5933 and
@@ -23,6 +25,7 @@ Required properties:
 					clock.
 - clock-names:	from common clock binding; clock input names, can be
 		- 5p49v5923 and
+		  5p49v5925 and
 		  5p49v6901: (required) either or both of "xin", "clkin".
 		- 5p49v5933 and
 		- 5p49v5935: (optional) property not present or "clkin".
@@ -42,6 +45,7 @@ clock specifier, the following mapping applies:
 	1 -- OUT1
 	2 -- OUT4
 
+5P49V5925 and
 5P49V5935:
 	0 -- OUT0_SEL_I2CB
 	1 -- OUT1
