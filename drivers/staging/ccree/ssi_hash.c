@@ -602,7 +602,8 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 		return 0;
 	}
 
-	if (unlikely(rc = ssi_buffer_mgr_map_hash_request_update(ctx->drvdata, state, src, nbytes, block_size))) {
+	rc = ssi_buffer_mgr_map_hash_request_update(ctx->drvdata, state, src, nbytes, block_size);
+	if (unlikely(rc)) {
 		if (rc == 1) {
 			SSI_LOG_DEBUG(" data size not require HW update %x\n",
 				     nbytes);
@@ -1404,7 +1405,8 @@ static int ssi_mac_update(struct ahash_request *req)
 
 	state->xcbc_count++;
 
-	if (unlikely(rc = ssi_buffer_mgr_map_hash_request_update(ctx->drvdata, state, req->src, req->nbytes, block_size))) {
+	rc = ssi_buffer_mgr_map_hash_request_update(ctx->drvdata, state, req->src, req->nbytes, block_size);
+	if (unlikely(rc)) {
 		if (rc == 1) {
 			SSI_LOG_DEBUG(" data size not require HW update %x\n",
 				     req->nbytes);
