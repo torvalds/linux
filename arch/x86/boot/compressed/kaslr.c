@@ -488,10 +488,6 @@ static void process_e820_entry(struct boot_e820_entry *entry,
 	unsigned long start_orig, end;
 	struct boot_e820_entry cur_entry;
 
-	/* Skip non-RAM entries. */
-	if (entry->type != E820_TYPE_RAM)
-		return;
-
 	/* On 32-bit, ignore entries entirely above our maximum. */
 	if (IS_ENABLED(CONFIG_X86_32) && entry->addr >= KERNEL_IMAGE_SIZE)
 		return;
@@ -562,12 +558,29 @@ static void process_e820_entry(struct boot_e820_entry *entry,
 	}
 }
 
+static void process_e820_entries(unsigned long minimum,
+				 unsigned long image_size)
+{
+	int i;
+	struct boot_e820_entry *entry;
+
+	/* Verify potential e820 positions, appending to slots list. */
+	for (i = 0; i < boot_params->e820_entries; i++) {
+		entry = &boot_params->e820_table[i];
+		/* Skip non-RAM entries. */
+		if (entry->type != E820_TYPE_RAM)
+			continue;
+		process_e820_entry(entry, minimum, image_size);
+		if (slot_area_index == MAX_SLOT_AREA) {
+			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
+			break;
+		}
+	}
+}
+
 static unsigned long find_random_phys_addr(unsigned long minimum,
 					   unsigned long image_size)
 {
-	int i;
-	unsigned long addr;
-
 	/* Check if we had too many memmaps. */
 	if (memmap_too_large) {
 		debug_putstr("Aborted e820 scan (more than 4 memmap= args)!\n");
@@ -577,16 +590,7 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 	/* Make sure minimum is aligned. */
 	minimum = ALIGN(minimum, CONFIG_PHYSICAL_ALIGN);
 
-	/* Verify potential e820 positions, appending to slots list. */
-	for (i = 0; i < boot_params->e820_entries; i++) {
-		process_e820_entry(&boot_params->e820_table[i], minimum,
-				   image_size);
-		if (slot_area_index == MAX_SLOT_AREA) {
-			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
-			break;
-		}
-	}
-
+	process_e820_entries(minimum, image_size);
 	return slots_fetch_random();
 }
 
