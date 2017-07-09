@@ -1725,8 +1725,7 @@ int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata)
 	struct buff_mgr_handle *buff_mgr_handle;
 	struct device *dev = &drvdata->plat_dev->dev;
 
-	buff_mgr_handle = (struct buff_mgr_handle *)
-		kmalloc(sizeof(struct buff_mgr_handle), GFP_KERNEL);
+	buff_mgr_handle = kmalloc(sizeof(struct buff_mgr_handle), GFP_KERNEL);
 	if (!buff_mgr_handle)
 		return -ENOMEM;
 
