@@ -75,9 +75,11 @@ static inline void signal_compat_build_tests(void)
 	CHECK_CSI_SIZE  (_sigchld, 5*sizeof(int));
 	CHECK_SI_SIZE   (_sigchld, 8*sizeof(int));
 
+#ifdef CONFIG_X86_X32_ABI
 	CHECK_CSI_OFFSET(_sigchld_x32);
 	CHECK_CSI_SIZE  (_sigchld_x32, 7*sizeof(int));
 	/* no _sigchld_x32 in the generic siginfo_t */
+#endif
 
 	CHECK_CSI_OFFSET(_sigfault);
 	CHECK_CSI_SIZE  (_sigfault, 4*sizeof(int));
@@ -169,9 +171,11 @@ int __copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from,
 				if (!x32_ABI) {
 					put_user_ex(from->si_utime, &to->si_utime);
 					put_user_ex(from->si_stime, &to->si_stime);
+#ifdef CONFIG_X86_X32_ABI
 				} else {
 					put_user_ex(from->si_utime, &to->_sifields._sigchld_x32._utime);
 					put_user_ex(from->si_stime, &to->_sifields._sigchld_x32._stime);
+#endif
 				}
 				put_user_ex(from->si_status, &to->si_status);
 				/* FALL THROUGH */
