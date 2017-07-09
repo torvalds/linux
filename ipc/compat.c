@@ -80,22 +80,6 @@ void to_compat_ipc_perm(struct compat_ipc_perm *to, struct ipc64_perm *from)
 	to->seq = from->seq;
 }
 
-#ifndef COMPAT_SHMLBA
-#define COMPAT_SHMLBA	SHMLBA
-#endif
-
-COMPAT_SYSCALL_DEFINE3(shmat, int, shmid, compat_uptr_t, shmaddr, int, shmflg)
-{
-	unsigned long ret;
-	long err;
-
-	err = do_shmat(shmid, compat_ptr(shmaddr), shmflg, &ret, COMPAT_SHMLBA);
-	if (err)
-		return err;
-	force_successful_syscall_return();
-	return (long)ret;
-}
-
 COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
 		       unsigned, nsops,
 		       const struct compat_timespec __user *, timeout)
