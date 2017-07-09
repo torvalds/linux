@@ -410,7 +410,7 @@ static void ghes_handle_memory_failure(struct acpi_hest_generic_data *gdata, int
 		flags = 0;
 
 	if (flags != -1)
-		memory_failure_queue(pfn, 0, flags);
+		memory_failure_queue(pfn, flags);
 #endif
 }
 
