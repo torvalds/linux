@@ -39,214 +39,55 @@ struct compat_msgbuf {
 	char mtext[1];
 };
 
-struct compat_semid_ds {
-	struct compat_ipc_perm sem_perm;
-	compat_time_t sem_otime;
-	compat_time_t sem_ctime;
-	compat_uptr_t sem_base;
-	compat_uptr_t sem_pending;
-	compat_uptr_t sem_pending_last;
-	compat_uptr_t undo;
-	unsigned short sem_nsems;
-};
-
 struct compat_ipc_kludge {
 	compat_uptr_t msgp;
 	compat_long_t msgtyp;
 };
 
-static inline int __compat_ipc_parse_version(int *cmd)
+int get_compat_ipc64_perm(struct ipc64_perm *to,
+			  struct compat_ipc64_perm __user *from)
 {
-#ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
-	int version = *cmd & IPC_64;
-
-	/* this is tricky: architectures that have support for the old
-	 * ipc structures in 64 bit binaries need to have IPC_64 set
-	 * in cmd, the others need to have it cleared */
-#ifndef ipc_parse_version
-	*cmd |= IPC_64;
-#else
-	*cmd &= ~IPC_64;
-#endif
-	return version;
-#else
-	/* With the asm-generic APIs, we always use the 64-bit versions. */
-	return IPC_64;
-#endif
-}
-
-static inline int __get_compat_ipc64_perm(struct ipc64_perm *p64,
-					  struct compat_ipc64_perm __user *up64)
-{
-	int err;
-
-	err  = __get_user(p64->uid, &up64->uid);
-	err |= __get_user(p64->gid, &up64->gid);
-	err |= __get_user(p64->mode, &up64->mode);
-	return err;
-}
-
-static inline int __get_compat_ipc_perm(struct ipc64_perm *p,
-					struct compat_ipc_perm __user *up)
-{
-	int err;
-
-	err  = __get_user(p->uid, &up->uid);
-	err |= __get_user(p->gid, &up->gid);
-	err |= __get_user(p->mode, &up->mode);
-	return err;
-}
-
-static inline int __put_compat_ipc64_perm(struct ipc64_perm *p64,
-					  struct compat_ipc64_perm __user *up64)
-{
-	int err;
-
-	err  = __put_user(p64->key, &up64->key);
-	err |= __put_user(p64->uid, &up64->uid);
-	err |= __put_user(p64->gid, &up64->gid);
-	err |= __put_user(p64->cuid, &up64->cuid);
-	err |= __put_user(p64->cgid, &up64->cgid);
-	err |= __put_user(p64->mode, &up64->mode);
-	err |= __put_user(p64->seq, &up64->seq);
-	return err;
-}
-
-static inline int __put_compat_ipc_perm(struct ipc64_perm *p,
-					struct compat_ipc_perm __user *uip)
-{
-	int err;
-	__compat_uid_t u;
-	__compat_gid_t g;
-
-	err  = __put_user(p->key, &uip->key);
-	SET_UID(u, p->uid);
-	err |= __put_user(u, &uip->uid);
-	SET_GID(g, p->gid);
-	err |= __put_user(g, &uip->gid);
-	SET_UID(u, p->cuid);
-	err |= __put_user(u, &uip->cuid);
-	SET_GID(g, p->cgid);
-	err |= __put_user(g, &uip->cgid);
-	err |= __put_user(p->mode, &uip->mode);
-	err |= __put_user(p->seq, &uip->seq);
-	return err;
-}
-
-static inline int get_compat_semid64_ds(struct semid64_ds *sem64,
-					struct compat_semid64_ds __user *up64)
-{
-	if (!access_ok(VERIFY_READ, up64, sizeof(*up64)))
+	struct compat_ipc64_perm v;
+	if (copy_from_user(&v, from, sizeof(v)))
 		return -EFAULT;
-	return __get_compat_ipc64_perm(&sem64->sem_perm, &up64->sem_perm);
+	to->uid = v.uid;
+	to->gid = v.gid;
+	to->mode = v.mode;
+	return 0;
 }
 
-static inline int get_compat_semid_ds(struct semid64_ds *s,
-				      struct compat_semid_ds __user *up)
+int get_compat_ipc_perm(struct ipc64_perm *to,
+			struct compat_ipc_perm __user *from)
 {
-	if (!access_ok(VERIFY_READ, up, sizeof(*up)))
+	struct compat_ipc_perm v;
+	if (copy_from_user(&v, from, sizeof(v)))
 		return -EFAULT;
-	return __get_compat_ipc_perm(&s->sem_perm, &up->sem_perm);
+	to->uid = v.uid;
+	to->gid = v.gid;
+	to->mode = v.mode;
+	return 0;
 }
 
-static inline int put_compat_semid64_ds(struct semid64_ds *sem64,
-					struct compat_semid64_ds __user *up64)
+void to_compat_ipc64_perm(struct compat_ipc64_perm *to, struct ipc64_perm *from)
 {
-	int err;
-
-	if (!access_ok(VERIFY_WRITE, up64, sizeof(*up64)))
-		return -EFAULT;
-	err  = __put_compat_ipc64_perm(&sem64->sem_perm, &up64->sem_perm);
-	err |= __put_user(sem64->sem_otime, &up64->sem_otime);
-	err |= __put_user(sem64->sem_ctime, &up64->sem_ctime);
-	err |= __put_user(sem64->sem_nsems, &up64->sem_nsems);
-	return err;
+	to->key = from->key;
+	to->uid = from->uid;
+	to->gid = from->gid;
+	to->cuid = from->cuid;
+	to->cgid = from->cgid;
+	to->mode = from->mode;
+	to->seq = from->seq;
 }
 
-static inline int put_compat_semid_ds(struct semid64_ds *s,
-				      struct compat_semid_ds __user *up)
+void to_compat_ipc_perm(struct compat_ipc_perm *to, struct ipc64_perm *from)
 {
-	int err;
-
-	if (!access_ok(VERIFY_WRITE, up, sizeof(*up)))
-		return -EFAULT;
-	err  = __put_compat_ipc_perm(&s->sem_perm, &up->sem_perm);
-	err |= __put_user(s->sem_otime, &up->sem_otime);
-	err |= __put_user(s->sem_ctime, &up->sem_ctime);
-	err |= __put_user(s->sem_nsems, &up->sem_nsems);
-	return err;
-}
-
-static long do_compat_semctl(int first, int second, int third, u32 pad)
-{
-	unsigned long fourth;
-	int err, err2;
-	struct semid64_ds sem64;
-	struct semid64_ds __user *up64;
-	int version = __compat_ipc_parse_version(&third);
-
-	memset(&sem64, 0, sizeof(sem64));
-
-	if ((third & (~IPC_64)) == SETVAL)
-#ifdef __BIG_ENDIAN
-		fourth = (unsigned long)pad << 32;
-#else
-		fourth = pad;
-#endif
-	else
-		fourth = (unsigned long)compat_ptr(pad);
-	switch (third & (~IPC_64)) {
-	case IPC_INFO:
-	case IPC_RMID:
-	case SEM_INFO:
-	case GETVAL:
-	case GETPID:
-	case GETNCNT:
-	case GETZCNT:
-	case GETALL:
-	case SETVAL:
-	case SETALL:
-		err = sys_semctl(first, second, third, fourth);
-		break;
-
-	case IPC_STAT:
-	case SEM_STAT:
-		up64 = compat_alloc_user_space(sizeof(sem64));
-		fourth = (unsigned long)up64;
-		err = sys_semctl(first, second, third, fourth);
-		if (err < 0)
-			break;
-		if (copy_from_user(&sem64, up64, sizeof(sem64)))
-			err2 = -EFAULT;
-		else if (version == IPC_64)
-			err2 = put_compat_semid64_ds(&sem64, compat_ptr(pad));
-		else
-			err2 = put_compat_semid_ds(&sem64, compat_ptr(pad));
-		if (err2)
-			err = -EFAULT;
-		break;
-
-	case IPC_SET:
-		if (version == IPC_64)
-			err = get_compat_semid64_ds(&sem64, compat_ptr(pad));
-		else
-			err = get_compat_semid_ds(&sem64, compat_ptr(pad));
-
-		up64 = compat_alloc_user_space(sizeof(sem64));
-		if (copy_to_user(up64, &sem64, sizeof(sem64)))
-			err = -EFAULT;
-		if (err)
-			break;
-
-		fourth = (unsigned long)up64;
-		err = sys_semctl(first, second, third, fourth);
-		break;
-
-	default:
-		err = -EINVAL;
-		break;
-	}
-	return err;
+	to->key = from->key;
+	SET_UID(to->uid, from->uid);
+	SET_GID(to->gid, from->gid);
+	SET_UID(to->cuid, from->cuid);
+	SET_GID(to->cgid, from->cgid);
+	to->mode = from->mode;
+	to->seq = from->seq;
 }
 
 static long compat_do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bufsz)
@@ -291,7 +132,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 			return -EINVAL;
 		if (get_user(pad, (u32 __user *) compat_ptr(ptr)))
 			return -EFAULT;
-		return do_compat_semctl(first, second, third, pad);
+		return compat_sys_semctl(first, second, third, pad);
 
 	case MSGSND: {
 		struct compat_msgbuf __user *up = compat_ptr(ptr);
@@ -351,11 +192,6 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 	return -ENOSYS;
 }
 #endif
-
-COMPAT_SYSCALL_DEFINE4(semctl, int, semid, int, semnum, int, cmd, int, arg)
-{
-	return do_compat_semctl(semid, semnum, cmd, arg);
-}
 
 COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
 		       compat_ssize_t, msgsz, int, msgflg)

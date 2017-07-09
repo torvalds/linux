@@ -204,6 +204,12 @@ struct compat_ipc_perm {
 	unsigned short seq;
 };
 
+void to_compat_ipc_perm(struct compat_ipc_perm *, struct ipc64_perm *);
+void to_compat_ipc64_perm(struct compat_ipc64_perm *, struct ipc64_perm *);
+int get_compat_ipc_perm(struct ipc64_perm *, struct compat_ipc_perm __user *);
+int get_compat_ipc64_perm(struct ipc64_perm *,
+			  struct compat_ipc64_perm __user *);
+
 static inline int compat_ipc_parse_version(int *cmd)
 {
 #ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
