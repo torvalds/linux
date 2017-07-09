@@ -270,8 +270,7 @@ static const FipsGcmData FipsGcmDataTable[] = {
 static inline enum cc_fips_error
 FIPS_CipherToFipsError(enum drv_cipher_mode mode, bool is_aes)
 {
-	switch (mode)
-	{
+	switch (mode) {
 	case DRV_CIPHER_ECB:
 		return is_aes ? CC_REE_FIPS_ERROR_AES_ECB_PUT : CC_REE_FIPS_ERROR_DES_ECB_PUT;
 	case DRV_CIPHER_CBC:
@@ -422,8 +421,7 @@ ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffe
 	dma_addr_t din_dma_addr = dma_coherent_buffer + offsetof(struct fips_cipher_ctx, din);
 	dma_addr_t dout_dma_addr = dma_coherent_buffer + offsetof(struct fips_cipher_ctx, dout);
 
-	for (i = 0; i < FIPS_CIPHER_NUM_OF_TESTS; ++i)
-	{
+	for (i = 0; i < FIPS_CIPHER_NUM_OF_TESTS; ++i) {
 		FipsCipherData *cipherData = (FipsCipherData *)&FipsCipherDataTable[i];
 		int rc = 0;
 		size_t iv_size = cipherData->isAes ? NIST_AES_IV_SIZE : NIST_TDES_IV_SIZE;
@@ -447,21 +445,18 @@ ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffe
 					      din_dma_addr,
 					      dout_dma_addr,
 					      cipherData->dataInSize);
-		if (rc != 0)
-		{
+		if (rc != 0) {
 			FIPS_LOG("ssi_cipher_fips_run_test %d returned error - rc = %d \n", i, rc);
 			error = FIPS_CipherToFipsError(cipherData->oprMode, cipherData->isAes);
 			break;
 		}
 
 		/* compare actual dout to expected */
-		if (memcmp(virt_ctx->dout, cipherData->dataOut, cipherData->dataInSize) != 0)
-		{
+		if (memcmp(virt_ctx->dout, cipherData->dataOut, cipherData->dataInSize) != 0) {
 			FIPS_LOG("dout comparison error %d - oprMode=%d, isAes=%d\n", i, cipherData->oprMode, cipherData->isAes);
 			FIPS_LOG("  i  expected   received \n");
 			FIPS_LOG("  i  0x%08x 0x%08x  (size=%d) \n", (size_t)cipherData->dataOut, (size_t)virt_ctx->dout, cipherData->dataInSize);
-			for (i = 0; i < cipherData->dataInSize; ++i)
-			{
+			for (i = 0; i < cipherData->dataInSize; ++i) {
 				FIPS_LOG("  %d    0x%02x     0x%02x \n", i, cipherData->dataOut[i], virt_ctx->dout[i]);
 			}
 
@@ -548,8 +543,7 @@ ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 	dma_addr_t din_dma_addr = dma_coherent_buffer + offsetof(struct fips_cmac_ctx, din);
 	dma_addr_t mac_res_dma_addr = dma_coherent_buffer + offsetof(struct fips_cmac_ctx, mac_res);
 
-	for (i = 0; i < FIPS_CMAC_NUM_OF_TESTS; ++i)
-	{
+	for (i = 0; i < FIPS_CMAC_NUM_OF_TESTS; ++i) {
 		FipsCmacData *cmac_data = (FipsCmacData *)&FipsCmacDataTable[i];
 		int rc = 0;
 
@@ -569,21 +563,18 @@ ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 					    cmac_data->data_in_size,
 					    mac_res_dma_addr,
 					    cmac_data->mac_res_size);
-		if (rc != 0)
-		{
+		if (rc != 0) {
 			FIPS_LOG("ssi_cmac_fips_run_test %d returned error - rc = %d \n", i, rc);
 			error = CC_REE_FIPS_ERROR_AES_CMAC_PUT;
 			break;
 		}
 
 		/* compare actual mac result to expected */
-		if (memcmp(virt_ctx->mac_res, cmac_data->mac_res, cmac_data->mac_res_size) != 0)
-		{
+		if (memcmp(virt_ctx->mac_res, cmac_data->mac_res, cmac_data->mac_res_size) != 0) {
 			FIPS_LOG("comparison error %d - digest_size=%d \n", i, cmac_data->mac_res_size);
 			FIPS_LOG("  i  expected   received \n");
 			FIPS_LOG("  i  0x%08x 0x%08x \n", (size_t)cmac_data->mac_res, (size_t)virt_ctx->mac_res);
-			for (i = 0; i < cmac_data->mac_res_size; ++i)
-			{
+			for (i = 0; i < cmac_data->mac_res_size; ++i) {
 				FIPS_LOG("  %d    0x%02x     0x%02x \n", i, cmac_data->mac_res[i], virt_ctx->mac_res[i]);
 			}
 
@@ -693,8 +684,7 @@ ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 	dma_addr_t din_dma_addr = dma_coherent_buffer + offsetof(struct fips_hash_ctx, din);
 	dma_addr_t mac_res_dma_addr = dma_coherent_buffer + offsetof(struct fips_hash_ctx, mac_res);
 
-	for (i = 0; i < FIPS_HASH_NUM_OF_TESTS; ++i)
-	{
+	for (i = 0; i < FIPS_HASH_NUM_OF_TESTS; ++i) {
 		FipsHashData *hash_data = (FipsHashData *)&FipsHashDataTable[i];
 		int rc = 0;
 		enum drv_hash_hw_mode hw_mode = 0;
@@ -744,21 +734,18 @@ ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 					    hw_mode,
 					    digest_size,
 					    inter_digestsize);
-		if (rc != 0)
-		{
+		if (rc != 0) {
 			FIPS_LOG("ssi_hash_fips_run_test %d returned error - rc = %d \n", i, rc);
 			error = FIPS_HashToFipsError(hash_data->hash_mode);
 			break;
 		}
 
 		/* compare actual mac result to expected */
-		if (memcmp(virt_ctx->mac_res, hash_data->mac_res, digest_size) != 0)
-		{
+		if (memcmp(virt_ctx->mac_res, hash_data->mac_res, digest_size) != 0) {
 			FIPS_LOG("comparison error %d - hash_mode=%d digest_size=%d \n", i, hash_data->hash_mode, digest_size);
 			FIPS_LOG("  i  expected   received \n");
 			FIPS_LOG("  i  0x%08x 0x%08x \n", (size_t)hash_data->mac_res, (size_t)virt_ctx->mac_res);
-			for (i = 0; i < digest_size; ++i)
-			{
+			for (i = 0; i < digest_size; ++i) {
 				FIPS_LOG("  %d    0x%02x     0x%02x \n", i, hash_data->mac_res[i], virt_ctx->mac_res[i]);
 			}
 
@@ -1010,8 +997,7 @@ ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 	dma_addr_t din_dma_addr = dma_coherent_buffer + offsetof(struct fips_hmac_ctx, din);
 	dma_addr_t mac_res_dma_addr = dma_coherent_buffer + offsetof(struct fips_hmac_ctx, mac_res);
 
-	for (i = 0; i < FIPS_HMAC_NUM_OF_TESTS; ++i)
-	{
+	for (i = 0; i < FIPS_HMAC_NUM_OF_TESTS; ++i) {
 		FipsHmacData *hmac_data = (FipsHmacData *)&FipsHmacDataTable[i];
 		int rc = 0;
 		enum drv_hash_hw_mode hw_mode = 0;
@@ -1074,21 +1060,18 @@ ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer,
 					    k0_dma_addr,
 					    tmp_digest_dma_addr,
 					    digest_bytes_len_dma_addr);
-		if (rc != 0)
-		{
+		if (rc != 0) {
 			FIPS_LOG("ssi_hmac_fips_run_test %d returned error - rc = %d \n", i, rc);
 			error = FIPS_HmacToFipsError(hmac_data->hash_mode);
 			break;
 		}
 
 		/* compare actual mac result to expected */
-		if (memcmp(virt_ctx->mac_res, hmac_data->mac_res, digest_size) != 0)
-		{
+		if (memcmp(virt_ctx->mac_res, hmac_data->mac_res, digest_size) != 0) {
 			FIPS_LOG("comparison error %d - hash_mode=%d digest_size=%d \n", i, hmac_data->hash_mode, digest_size);
 			FIPS_LOG("  i  expected   received \n");
 			FIPS_LOG("  i  0x%08x 0x%08x \n", (size_t)hmac_data->mac_res, (size_t)virt_ctx->mac_res);
-			for (i = 0; i < digest_size; ++i)
-			{
+			for (i = 0; i < digest_size; ++i) {
 				FIPS_LOG("  %d    0x%02x     0x%02x \n", i, hmac_data->mac_res[i], virt_ctx->mac_res[i]);
 			}
 
@@ -1251,8 +1234,7 @@ ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 	dma_addr_t dout_dma_addr = dma_coherent_buffer + offsetof(struct fips_ccm_ctx, dout);
 	dma_addr_t mac_res_dma_addr = dma_coherent_buffer + offsetof(struct fips_ccm_ctx, mac_res);
 
-	for (i = 0; i < FIPS_CCM_NUM_OF_TESTS; ++i)
-	{
+	for (i = 0; i < FIPS_CCM_NUM_OF_TESTS; ++i) {
 		FipsCcmData *ccmData = (FipsCcmData *)&FipsCcmDataTable[i];
 		int rc = 0;
 
@@ -1294,29 +1276,25 @@ ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 					   ccmData->dataInSize,
 					   dout_dma_addr,
 					   mac_res_dma_addr);
-		if (rc != 0)
-		{
+		if (rc != 0) {
 			FIPS_LOG("ssi_ccm_fips_run_test %d returned error - rc = %d \n", i, rc);
 			error = CC_REE_FIPS_ERROR_AESCCM_PUT;
 			break;
 		}
 
 		/* compare actual dout to expected */
-		if (memcmp(virt_ctx->dout, ccmData->dataOut, ccmData->dataInSize) != 0)
-		{
+		if (memcmp(virt_ctx->dout, ccmData->dataOut, ccmData->dataInSize) != 0) {
 			FIPS_LOG("dout comparison error %d - size=%d \n", i, ccmData->dataInSize);
 			error = CC_REE_FIPS_ERROR_AESCCM_PUT;
 			break;
 		}
 
 		/* compare actual mac result to expected */
-		if (memcmp(virt_ctx->mac_res, ccmData->macResOut, ccmData->tagSize) != 0)
-		{
+		if (memcmp(virt_ctx->mac_res, ccmData->macResOut, ccmData->tagSize) != 0) {
 			FIPS_LOG("mac_res comparison error %d - mac_size=%d \n", i, ccmData->tagSize);
 			FIPS_LOG("  i  expected   received \n");
 			FIPS_LOG("  i  0x%08x 0x%08x \n", (size_t)ccmData->macResOut, (size_t)virt_ctx->mac_res);
-			for (i = 0; i < ccmData->tagSize; ++i)
-			{
+			for (i = 0; i < ccmData->tagSize; ++i) {
 				FIPS_LOG("  %d    0x%02x     0x%02x \n", i, ccmData->macResOut[i], virt_ctx->mac_res[i]);
 			}
 
@@ -1546,8 +1524,7 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 	dma_addr_t iv_inc1_dma_addr = dma_coherent_buffer + offsetof(struct fips_gcm_ctx, iv_inc1);
 	dma_addr_t iv_inc2_dma_addr = dma_coherent_buffer + offsetof(struct fips_gcm_ctx, iv_inc2);
 
-	for (i = 0; i < FIPS_GCM_NUM_OF_TESTS; ++i)
-	{
+	for (i = 0; i < FIPS_GCM_NUM_OF_TESTS; ++i) {
 		FipsGcmData *gcmData = (FipsGcmData *)&FipsGcmDataTable[i];
 		int rc = 0;
 
@@ -1593,8 +1570,7 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 					   gcmData->dataInSize,
 					   dout_dma_addr,
 					   mac_res_dma_addr);
-		if (rc != 0)
-		{
+		if (rc != 0) {
 			FIPS_LOG("ssi_gcm_fips_run_test %d returned error - rc = %d \n", i, rc);
 			error = CC_REE_FIPS_ERROR_AESGCM_PUT;
 			break;
@@ -1602,13 +1578,11 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 
 		if (gcmData->direction == DRV_CRYPTO_DIRECTION_ENCRYPT) {
 			/* compare actual dout to expected */
-			if (memcmp(virt_ctx->dout, gcmData->dataOut, gcmData->dataInSize) != 0)
-			{
+			if (memcmp(virt_ctx->dout, gcmData->dataOut, gcmData->dataInSize) != 0) {
 				FIPS_LOG("dout comparison error %d - size=%d \n", i, gcmData->dataInSize);
 				FIPS_LOG("  i  expected   received \n");
 				FIPS_LOG("  i  0x%08x 0x%08x \n", (size_t)gcmData->dataOut, (size_t)virt_ctx->dout);
-				for (i = 0; i < gcmData->dataInSize; ++i)
-				{
+				for (i = 0; i < gcmData->dataInSize; ++i) {
 					FIPS_LOG("  %d    0x%02x     0x%02x \n", i, gcmData->dataOut[i], virt_ctx->dout[i]);
 				}
 
@@ -1618,16 +1592,13 @@ ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, 
 		}
 
 		/* compare actual mac result to expected */
-		if (memcmp(virt_ctx->mac_res, gcmData->macResOut, gcmData->tagSize) != 0)
-		{
+		if (memcmp(virt_ctx->mac_res, gcmData->macResOut, gcmData->tagSize) != 0) {
 			FIPS_LOG("mac_res comparison error %d - mac_size=%d \n", i, gcmData->tagSize);
 			FIPS_LOG("  i  expected   received \n");
 			FIPS_LOG("  i  0x%08x 0x%08x \n", (size_t)gcmData->macResOut, (size_t)virt_ctx->mac_res);
-			for (i = 0; i < gcmData->tagSize; ++i)
-			{
+			for (i = 0; i < gcmData->tagSize; ++i) {
 				FIPS_LOG("  %d    0x%02x     0x%02x \n", i, gcmData->macResOut[i], virt_ctx->mac_res[i]);
 			}
-
 			error = CC_REE_FIPS_ERROR_AESGCM_PUT;
 			break;
 		}

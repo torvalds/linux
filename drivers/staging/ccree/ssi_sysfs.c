@@ -40,8 +40,7 @@ struct stat_name {
 	const char *stat_phase_name[MAX_STAT_PHASES];
 };
 
-static struct stat_name stat_name_db[MAX_STAT_OP_TYPES] =
-{
+static struct stat_name stat_name_db[MAX_STAT_OP_TYPES] = {
 	{
 		/* STAT_OP_TYPE_NULL */
 		.op_type_name = "NULL",

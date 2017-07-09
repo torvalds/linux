@@ -68,7 +68,8 @@ struct ssi_ablkcipher_ctx {
 
 static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __iomem *cc_base);
 
-static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size) {
+static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size)
+{
 	switch (ctx_p->flow_mode) {
 	case S_DIN_to_AES:
 		switch (size) {
@@ -108,7 +109,8 @@ static int validate_keys_sizes(struct ssi_ablkcipher_ctx *ctx_p, u32 size) {
 	return -EINVAL;
 }
 
-static int validate_data_size(struct ssi_ablkcipher_ctx *ctx_p, unsigned int size) {
+static int validate_data_size(struct ssi_ablkcipher_ctx *ctx_p, unsigned int size)
+{
 	switch (ctx_p->flow_mode) {
 	case S_DIN_to_AES:
 		switch (ctx_p->cipher_mode) {

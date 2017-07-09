@@ -696,8 +696,7 @@ void ssi_buffer_mgr_unmap_aead_request(
 	}
 	if (drvdata->coherent &&
 	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
-	    likely(req->src == req->dst))
-	{
+	    likely(req->src == req->dst)) {
 		u32 size_to_skip = req->assoclen;
 
 		if (areq_ctx->is_gcm4543)
@@ -1134,8 +1133,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		sg_index += areq_ctx->srcSgl->length;
 		src_mapped_nents--;
 	}
-	if (unlikely(src_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES))
-	{
+	if (unlikely(src_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES)) {
 		SSI_LOG_ERR("Too many fragments. current %d max %d\n",
 				src_mapped_nents, LLI_MAX_NUM_OF_DATA_ENTRIES);
 			return -ENOMEM;
@@ -1177,8 +1175,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		sg_index += areq_ctx->dstSgl->length;
 		dst_mapped_nents--;
 	}
-	if (unlikely(dst_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES))
-	{
+	if (unlikely(dst_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES)) {
 		SSI_LOG_ERR("Too many fragments. current %d max %d\n",
 			    dst_mapped_nents, LLI_MAX_NUM_OF_DATA_ENTRIES);
 		return -ENOMEM;
@@ -1274,8 +1271,7 @@ int ssi_buffer_mgr_map_aead_request(
 
 	if (drvdata->coherent &&
 	    (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT) &&
-	    likely(req->src == req->dst))
-	{
+	    likely(req->src == req->dst)) {
 		u32 size_to_skip = req->assoclen;
 
 		if (is_gcm4543)

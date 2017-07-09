@@ -2366,7 +2366,8 @@ int ssi_hash_free(struct ssi_drvdata *drvdata)
 
 static void ssi_hash_create_xcbc_setup(struct ahash_request *areq,
 				  struct cc_hw_desc desc[],
-				  unsigned int *seq_size) {
+				  unsigned int *seq_size)
+{
 	unsigned int idx = *seq_size;
 	struct ahash_req_ctx *state = ahash_request_ctx(areq);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);

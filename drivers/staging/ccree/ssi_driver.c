@@ -301,13 +301,10 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto init_cc_res_err;
 
 	if (!new_drvdata->plat_dev->dev.dma_mask)
-	{
 		new_drvdata->plat_dev->dev.dma_mask = &new_drvdata->plat_dev->dev.coherent_dma_mask;
-	}
+
 	if (!new_drvdata->plat_dev->dev.coherent_dma_mask)
-	{
 		new_drvdata->plat_dev->dev.coherent_dma_mask = DMA_BIT_MASK(DMA_BIT_MASK_LEN);
-	}
 
 	/* Verify correct mapping */
 	signature_val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_SIGNATURE));
