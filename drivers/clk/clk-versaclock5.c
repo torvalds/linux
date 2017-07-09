@@ -507,6 +507,25 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 {
 	struct vc5_hw_data *hwdata = container_of(hw, struct vc5_hw_data, hw);
 	struct vc5_driver_data *vc5 = hwdata->vc5;
+	const u8 mask = VC5_OUT_DIV_CONTROL_SELB_NORM |
+			VC5_OUT_DIV_CONTROL_SEL_EXT |
+			VC5_OUT_DIV_CONTROL_EN_FOD;
+	unsigned int src;
+	int ret;
+
+	/*
+	 * If the input mux is disabled, enable it first and
+	 * select source from matching FOD.
+	 */
+	regmap_read(vc5->regmap, VC5_OUT_DIV_CONTROL(hwdata->num), &src);
+	if ((src & mask) == 0) {
+		src = VC5_OUT_DIV_CONTROL_RESET | VC5_OUT_DIV_CONTROL_EN_FOD;
+		ret = regmap_update_bits(vc5->regmap,
+					 VC5_OUT_DIV_CONTROL(hwdata->num),
+					 mask | VC5_OUT_DIV_CONTROL_RESET, src);
+		if (ret)
+			return ret;
+	}
 
 	/* Enable the clock buffer */
 	regmap_update_bits(vc5->regmap, VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
