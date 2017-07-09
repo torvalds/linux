@@ -12,6 +12,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "../internal.h"
@@ -20,6 +21,10 @@
  * Some ACPI devices are hidden (status == 0x0) in recent BIOS-es because
  * some recent Windows drivers bind to one device but poke at multiple
  * devices at the same time, so the others get hidden.
+ *
+ * Some BIOS-es (temporarily) hide specific APCI devices to work around Windows
+ * driver bugs. We use DMI matching to match known cases of this.
+ *
  * We work around this by always reporting ACPI_STA_DEFAULT for these
  * devices. Note this MUST only be done for devices where this is safe.
  *
@@ -31,14 +36,16 @@
 struct always_present_id {
 	struct acpi_device_id hid[2];
 	struct x86_cpu_id cpu_ids[2];
+	struct dmi_system_id dmi_ids[2]; /* Optional */
 	const char *uid;
 };
 
 #define ICPU(model)	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, }
 
-#define ENTRY(hid, uid, cpu_models) {					\
+#define ENTRY(hid, uid, cpu_models, dmi...) {				\
 	{ { hid, }, {} },						\
 	{ cpu_models, {} },						\
+	{ { .matches = dmi }, {} },					\
 	uid,								\
 }
 
@@ -47,13 +54,13 @@ static const struct always_present_id always_present_ids[] = {
 	 * Bay / Cherry Trail PWM directly poked by GPU driver in win10,
 	 * but Linux uses a separate PWM driver, harmless if not used.
 	 */
-	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT1)),
-	ENTRY("80862288", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT)),
+	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT1), {}),
+	ENTRY("80862288", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 	/*
 	 * The INT0002 device is necessary to clear wakeup interrupt sources
 	 * on Cherry Trail devices, without it we get nobody cared IRQ msgs.
 	 */
-	ENTRY("INT0002", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT)),
+	ENTRY("INT0002", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
 };
 
 bool acpi_device_always_present(struct acpi_device *adev)
@@ -74,6 +81,10 @@ bool acpi_device_always_present(struct acpi_device *adev)
 			continue;
 
 		if (!x86_match_cpu(always_present_ids[i].cpu_ids))
+			continue;
+
+		if (always_present_ids[i].dmi_ids[0].matches[0].slot &&
+		    !dmi_check_system(always_present_ids[i].dmi_ids))
 			continue;
 
 		if (old_status != ACPI_STA_DEFAULT) /* Log only once */
