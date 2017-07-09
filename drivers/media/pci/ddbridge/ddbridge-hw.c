@@ -297,3 +297,15 @@ const struct ddb_info ddb_c2t2i_8 = {
 	.ts_quirks = TS_QUIRK_SERIAL,
 	.tempmon_irq = 24,
 };
+
+/****************************************************************************/
+
+const struct ddb_info ddb_s2_48 = {
+	.type     = DDB_OCTOPUS_MAX,
+	.name     = "Digital Devices MAX S8 4/8",
+	.regmap   = &octopus_map,
+	.port_num = 4,
+	.i2c_mask = 0x01,
+	.board_control = 1,
+	.tempmon_irq = 24,
+};

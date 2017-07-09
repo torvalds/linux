@@ -313,6 +313,7 @@ static const struct pci_device_id ddb_id_table[] = {
 	DDB_DEVICE(0x0006, 0x0031, ddb_ctv7),
 	DDB_DEVICE(0x0006, 0x0032, ddb_ctv7),
 	DDB_DEVICE(0x0006, 0x0033, ddb_ctv7),
+	DDB_DEVICE(0x0007, 0x0023, ddb_s2_48),
 	DDB_DEVICE(0x0008, 0x0034, ddb_ct2_8),
 	DDB_DEVICE(0x0008, 0x0035, ddb_c2t2_8),
 	DDB_DEVICE(0x0008, 0x0036, ddb_isdbt_8),

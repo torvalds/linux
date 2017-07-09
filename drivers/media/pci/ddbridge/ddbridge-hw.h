@@ -49,4 +49,8 @@ extern const struct ddb_info ddb_isdbt_8;
 extern const struct ddb_info ddb_c2t2i_v0_8;
 extern const struct ddb_info ddb_c2t2i_8;
 
+/****************************************************************************/
+
+extern const struct ddb_info ddb_s2_48;
+
 #endif /* _DDBRIDGE_HW_H */

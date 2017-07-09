@@ -37,6 +37,7 @@
 #include "ddbridge.h"
 #include "ddbridge-i2c.h"
 #include "ddbridge-regs.h"
+#include "ddbridge-maxs8.h"
 #include "ddbridge-io.h"
 
 #include "tda18271c2dd.h"
@@ -1424,8 +1425,9 @@ static int dvb_input_attach(struct ddb_input *input)
 	dvb->fe = dvb->fe2 = NULL;
 	switch (port->type) {
 	case DDB_TUNER_MXL5XX:
-		dev_notice(port->dev->dev, "MaxLinear MxL5xx not supported\n");
-		return -ENODEV;
+		if (fe_attach_mxl5xx(input) < 0)
+			return -ENODEV;
+		break;
 	case DDB_TUNER_DVBS_ST:
 		if (demod_attach_stv0900(input, 0) < 0)
 			return -ENODEV;
@@ -1767,6 +1769,17 @@ static void ddb_port_probe(struct ddb_port *port)
 	    dev->link[l].info->i2c_mask == 1) {
 		port->name = "NO TAB";
 		port->class = DDB_PORT_NONE;
+		return;
+	}
+
+	if (dev->link[l].info->type == DDB_OCTOPUS_MAX) {
+		port->name = "DUAL DVB-S2 MAX";
+		port->type_name = "MXL5XX";
+		port->class = DDB_PORT_TUNER;
+		port->type = DDB_TUNER_MXL5XX;
+		if (port->i2c)
+			ddbwritel(dev, I2C_SPEED_400,
+				  port->i2c->regs + I2C_TIMING);
 		return;
 	}
 
@@ -2531,6 +2544,20 @@ static int ddb_port_match_i2c(struct ddb_port *port)
 	return 0;
 }
 
+static int ddb_port_match_link_i2c(struct ddb_port *port)
+{
+	struct ddb *dev = port->dev;
+	u32 i;
+
+	for (i = 0; i < dev->i2c_num; i++) {
+		if (dev->i2c[i].link == port->lnr) {
+			port->i2c = &dev->i2c[i];
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void ddb_ports_init(struct ddb *dev)
 {
 	u32 i, l, p;
@@ -2555,7 +2582,11 @@ void ddb_ports_init(struct ddb *dev)
 			port->obr = ci_bitrate;
 			mutex_init(&port->i2c_gate_lock);
 
-			ddb_port_match_i2c(port);
+			if (!ddb_port_match_i2c(port)) {
+				if (info->type == DDB_OCTOPUS_MAX)
+					ddb_port_match_link_i2c(port);
+			}
+
 			ddb_port_probe(port);
 
 			port->dvb[0].adap = &dev->adap[2 * p];
@@ -2603,6 +2634,7 @@ void ddb_ports_init(struct ddb *dev)
 				ddb_input_init(port, 2 * i + 1, 1, 2 * i + 1);
 				ddb_output_init(port, i);
 				break;
+			case DDB_OCTOPUS_MAX:
 			case DDB_OCTOPUS_MAX_CT:
 				ddb_input_init(port, 2 * i, 0, 2 * p);
 				ddb_input_init(port, 2 * i + 1, 1, 2 * p + 1);
@@ -3202,6 +3234,15 @@ static ssize_t regmap_show(struct device *device,
 	return sprintf(buf, "0x%08X\n", dev->link[0].ids.regmapid);
 }
 
+static ssize_t fmode_show(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	int num = attr->attr.name[5] - 0x30;
+	struct ddb *dev = dev_get_drvdata(device);
+
+	return sprintf(buf, "%u\n", dev->link[num].lnb.fmode);
+}
+
 static ssize_t devid_show(struct device *device,
 			  struct device_attribute *attr, char *buf)
 {
@@ -3209,6 +3250,21 @@ static ssize_t devid_show(struct device *device,
 	struct ddb *dev = dev_get_drvdata(device);
 
 	return sprintf(buf, "%08x\n", dev->link[num].ids.devid);
+}
+
+static ssize_t fmode_store(struct device *device, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct ddb *dev = dev_get_drvdata(device);
+	int num = attr->attr.name[5] - 0x30;
+	unsigned int val;
+
+	if (sscanf(buf, "%u\n", &val) != 1)
+		return -EINVAL;
+	if (val > 3)
+		return -EINVAL;
+	lnb_init_fmode(dev, &dev->link[num], val);
+	return count;
 }
 
 static struct device_attribute ddb_attrs[] = {
@@ -3220,6 +3276,10 @@ static struct device_attribute ddb_attrs[] = {
 	__ATTR(gap1, 0664, gap_show, gap_store),
 	__ATTR(gap2, 0664, gap_show, gap_store),
 	__ATTR(gap3, 0664, gap_show, gap_store),
+	__ATTR(fmode0, 0664, fmode_show, fmode_store),
+	__ATTR(fmode1, 0664, fmode_show, fmode_store),
+	__ATTR(fmode2, 0664, fmode_show, fmode_store),
+	__ATTR(fmode3, 0664, fmode_show, fmode_store),
 	__ATTR_MRO(devid0, devid_show),
 	__ATTR_MRO(devid1, devid_show),
 	__ATTR_MRO(devid2, devid_show),
@@ -3509,6 +3569,7 @@ static int ddb_init_boards(struct ddb *dev)
 
 int ddb_init(struct ddb *dev)
 {
+	mutex_init(&dev->link[0].lnb.lock);
 	mutex_init(&dev->link[0].flash_mutex);
 	if (no_init) {
 		ddb_device_create(dev);
