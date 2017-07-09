@@ -61,6 +61,15 @@ static const struct always_present_id always_present_ids[] = {
 	 * on Cherry Trail devices, without it we get nobody cared IRQ msgs.
 	 */
 	ENTRY("INT0002", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
+	/*
+	 * On the Dell Venue 11 Pro 7130 the DSDT hides the touchscreen ACPI
+	 * device until a certain time after _SB.PCI0.GFX0.LCD.LCD1._ON gets
+	 * called has passed *and* _STA has been called at least 3 times since.
+	 */
+	ENTRY("SYNA7500", "1", ICPU(INTEL_FAM6_HASWELL_ULT), {
+		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Venue 11 Pro 7130"),
+	      }),
 };
 
 bool acpi_device_always_present(struct acpi_device *adev)
