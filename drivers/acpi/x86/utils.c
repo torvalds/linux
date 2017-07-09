@@ -70,6 +70,19 @@ static const struct always_present_id always_present_ids[] = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Venue 11 Pro 7130"),
 	      }),
+	/*
+	 * The GPD win BIOS dated 20170320 has disabled the accelerometer, the
+	 * drivers sometimes cause crashes under Windows and this is how the
+	 * manufacturer has solved this :| Note that the the DMI data is less
+	 * generic then it seems, a board_vendor of "AMI Corporation" is quite
+	 * rare and a board_name of "Default String" also is rare.
+	 */
+	ENTRY("KIOX000A", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+		DMI_MATCH(DMI_BOARD_NAME, "Default string"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
+		DMI_MATCH(DMI_BIOS_DATE, "03/20/2017")
+	      }),
 };
 
 bool acpi_device_always_present(struct acpi_device *adev)
