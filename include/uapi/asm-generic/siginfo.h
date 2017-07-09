@@ -48,8 +48,13 @@ typedef union sigval {
 
 typedef struct siginfo {
 	int si_signo;
+#ifndef __ARCH_HAS_SWAPPED_SIGINFO
 	int si_errno;
 	int si_code;
+#else
+	int si_code;
+	int si_errno;
+#endif
 
 	union {
 		int _pad[SI_PAD_SIZE];
