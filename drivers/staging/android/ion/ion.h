@@ -226,8 +226,8 @@ int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
 int ion_alloc(size_t len,
-				unsigned int heap_id_mask,
-				unsigned int flags);
+	      unsigned int heap_id_mask,
+	      unsigned int flags);
 
 /**
  * ion_heap_init_shrinker
@@ -291,7 +291,7 @@ size_t ion_heap_freelist_drain(struct ion_heap *heap, size_t size);
  * flag.
  */
 size_t ion_heap_freelist_shrink(struct ion_heap *heap,
-					size_t size);
+				size_t size);
 
 /**
  * ion_heap_freelist_size - returns the size of the freelist in bytes
@@ -352,7 +352,7 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
  * returns the number of items freed in pages
  */
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
-			  int nr_to_scan);
+			 int nr_to_scan);
 
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
