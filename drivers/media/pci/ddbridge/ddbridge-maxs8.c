@@ -187,11 +187,12 @@ static int max_set_input_unlocked(struct dvb_frontend *fe, int in)
 		return -EINVAL;
 	if (dvb->input != in) {
 		u32 bit = (1ULL << input->nr);
-		u32 obit = dev->link[port->lnr].lnb.voltage[dvb->input] & bit;
+		u32 obit =
+			dev->link[port->lnr].lnb.voltage[dvb->input & 3] & bit;
 
-		dev->link[port->lnr].lnb.voltage[dvb->input] &= ~bit;
+		dev->link[port->lnr].lnb.voltage[dvb->input & 3] &= ~bit;
 		dvb->input = in;
-		dev->link[port->lnr].lnb.voltage[dvb->input] |= obit;
+		dev->link[port->lnr].lnb.voltage[dvb->input & 3] |= obit;
 	}
 	res = dvb->set_input(fe, in);
 	return res;
