@@ -79,13 +79,3 @@ void to_compat_ipc_perm(struct compat_ipc_perm *to, struct ipc64_perm *from)
 	to->mode = from->mode;
 	to->seq = from->seq;
 }
-
-COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
-		       unsigned, nsops,
-		       const struct compat_timespec __user *, timeout)
-{
-	struct timespec __user *ts64;
-	if (compat_convert_timespec(&ts64, timeout))
-		return -EFAULT;
-	return sys_semtimedop(semid, tsems, nsops, ts64);
-}

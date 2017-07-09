@@ -1855,8 +1855,8 @@ out:
 	return un;
 }
 
-SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
-		unsigned, nsops, const struct timespec __user *, timeout)
+static long do_semtimedop(int semid, struct sembuf __user *tsops,
+		unsigned nsops, const struct timespec *timeout)
 {
 	int error = -EINVAL;
 	struct sem_array *sma;
@@ -1887,17 +1887,12 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 	}
 
 	if (timeout) {
-		struct timespec _timeout;
-		if (copy_from_user(&_timeout, timeout, sizeof(*timeout))) {
-			error = -EFAULT;
-			goto out_free;
-		}
-		if (_timeout.tv_sec < 0 || _timeout.tv_nsec < 0 ||
-			_timeout.tv_nsec >= 1000000000L) {
+		if (timeout->tv_sec < 0 || timeout->tv_nsec < 0 ||
+			timeout->tv_nsec >= 1000000000L) {
 			error = -EINVAL;
 			goto out_free;
 		}
-		jiffies_left = timespec_to_jiffies(&_timeout);
+		jiffies_left = timespec_to_jiffies(timeout);
 	}
 
 	max = 0;
@@ -2112,10 +2107,37 @@ out_free:
 	return error;
 }
 
+SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+		unsigned, nsops, const struct timespec __user *, timeout)
+{
+	if (timeout) {
+		struct timespec ts;
+		if (copy_from_user(&ts, timeout, sizeof(*timeout)))
+			return -EFAULT;
+		return do_semtimedop(semid, tsops, nsops, &ts);
+	}
+	return do_semtimedop(semid, tsops, nsops, NULL);
+}
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
+		       unsigned, nsops,
+		       const struct compat_timespec __user *, timeout)
+{
+	if (timeout) {
+		struct timespec ts;
+		if (compat_get_timespec(&ts, timeout))
+			return -EFAULT;
+		return do_semtimedop(semid, tsems, nsops, &ts);
+	}
+	return do_semtimedop(semid, tsems, nsops, NULL);
+}
+#endif
+
 SYSCALL_DEFINE3(semop, int, semid, struct sembuf __user *, tsops,
 		unsigned, nsops)
 {
-	return sys_semtimedop(semid, tsops, nsops, NULL);
+	return do_semtimedop(semid, tsops, nsops, NULL);
 }
 
 /* If CLONE_SYSVSEM is set, establish sharing of SEM_UNDO state between
