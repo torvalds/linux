@@ -326,7 +326,7 @@ static u32 cafe_smbus_func(struct i2c_adapter *adapter)
 	       I2C_FUNC_SMBUS_WRITE_BYTE_DATA;
 }
 
-static struct i2c_algorithm cafe_smbus_algo = {
+static const struct i2c_algorithm cafe_smbus_algo = {
 	.smbus_xfer = cafe_smbus_xfer,
 	.functionality = cafe_smbus_func
 };
