@@ -150,7 +150,7 @@ static inline int ssi_buffer_mgr_render_buff_to_mlli(
 	u32 **mlli_entry_pp)
 {
 	u32 *mlli_entry_p = *mlli_entry_pp;
-	u32 new_nents;;
+	u32 new_nents;
 
 	/* Verify there is no memory overflow*/
 	new_nents = (*curr_nents + buff_size / CC_MAX_MLLI_ENTRY_SIZE + 1);
