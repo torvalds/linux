@@ -3090,7 +3090,7 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 {
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	int ret;
+	int ret = 0;
 
 	switch (state->activedemod) {
 	case demod_ter:
@@ -3100,7 +3100,7 @@ static int stv0367ddb_read_status(struct dvb_frontend *fe,
 		ret = stv0367cab_read_status(fe, status);
 		break;
 	default:
-		return 0;
+		break;
 	}
 
 	/* stop and report on *_read_status failure */
@@ -3138,7 +3138,7 @@ static int stv0367ddb_get_frontend(struct dvb_frontend *fe,
 		break;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int stv0367ddb_sleep(struct dvb_frontend *fe)
