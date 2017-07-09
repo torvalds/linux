@@ -1637,9 +1637,9 @@ static __latent_entropy struct task_struct *copy_process(
 	prev_cputime_init(&p->prev_cputime);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-	seqcount_init(&p->vtime_seqcount);
-	p->vtime_snap = 0;
-	p->vtime_snap_whence = VTIME_INACTIVE;
+	seqcount_init(&p->vtime.seqcount);
+	p->vtime.starttime = 0;
+	p->vtime.state = VTIME_INACTIVE;
 #endif
 
 #if defined(SPLIT_RSS_COUNTING)
