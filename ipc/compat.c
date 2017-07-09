@@ -39,11 +39,6 @@ struct compat_msgbuf {
 	char mtext[1];
 };
 
-struct compat_ipc_kludge {
-	compat_uptr_t msgp;
-	compat_long_t msgtyp;
-};
-
 int get_compat_ipc64_perm(struct ipc64_perm *to,
 			  struct compat_ipc64_perm __user *from)
 {
@@ -104,95 +99,6 @@ static long compat_do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bu
 	return msgsz;
 }
 
-#ifndef COMPAT_SHMLBA
-#define COMPAT_SHMLBA	SHMLBA
-#endif
-
-#ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
-COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
-	u32, third, compat_uptr_t, ptr, u32, fifth)
-{
-	int version;
-	u32 pad;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	switch (call) {
-	case SEMOP:
-		/* struct sembuf is the same on 32 and 64bit :)) */
-		return sys_semtimedop(first, compat_ptr(ptr), second, NULL);
-	case SEMTIMEDOP:
-		return compat_sys_semtimedop(first, compat_ptr(ptr), second,
-						compat_ptr(fifth));
-	case SEMGET:
-		return sys_semget(first, second, third);
-	case SEMCTL:
-		if (!ptr)
-			return -EINVAL;
-		if (get_user(pad, (u32 __user *) compat_ptr(ptr)))
-			return -EFAULT;
-		return compat_sys_semctl(first, second, third, pad);
-
-	case MSGSND: {
-		struct compat_msgbuf __user *up = compat_ptr(ptr);
-		compat_long_t type;
-
-		if (first < 0 || second < 0)
-			return -EINVAL;
-
-		if (get_user(type, &up->mtype))
-			return -EFAULT;
-
-		return do_msgsnd(first, type, up->mtext, second, third);
-	}
-	case MSGRCV: {
-		void __user *uptr = compat_ptr(ptr);
-
-		if (first < 0 || second < 0)
-			return -EINVAL;
-
-		if (!version) {
-			struct compat_ipc_kludge ipck;
-			if (!uptr)
-				return -EINVAL;
-			if (copy_from_user(&ipck, uptr, sizeof(ipck)))
-				return -EFAULT;
-			uptr = compat_ptr(ipck.msgp);
-			fifth = ipck.msgtyp;
-		}
-		return do_msgrcv(first, uptr, second, (s32)fifth, third,
-				 compat_do_msg_fill);
-	}
-	case MSGGET:
-		return sys_msgget(first, second);
-	case MSGCTL:
-		return compat_sys_msgctl(first, second, compat_ptr(ptr));
-
-	case SHMAT: {
-		int err;
-		unsigned long raddr;
-
-		if (version == 1)
-			return -EINVAL;
-		err = do_shmat(first, compat_ptr(ptr), second, &raddr,
-			       COMPAT_SHMLBA);
-		if (err < 0)
-			return err;
-		return put_user(raddr, (compat_ulong_t *)compat_ptr(third));
-	}
-	case SHMDT:
-		return sys_shmdt(compat_ptr(ptr));
-	case SHMGET:
-		return sys_shmget(first, (unsigned)second, third);
-	case SHMCTL:
-		return compat_sys_shmctl(first, second, compat_ptr(ptr));
-	}
-
-	return -ENOSYS;
-}
-#endif
-
 COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
 		       compat_ssize_t, msgsz, int, msgflg)
 {
@@ -210,6 +116,10 @@ COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
 	return do_msgrcv(msqid, compat_ptr(msgp), (ssize_t)msgsz, (long)msgtyp,
 			 msgflg, compat_do_msg_fill);
 }
+
+#ifndef COMPAT_SHMLBA
+#define COMPAT_SHMLBA	SHMLBA
+#endif
 
 COMPAT_SYSCALL_DEFINE3(shmat, int, shmid, compat_uptr_t, shmaddr, int, shmflg)
 {
