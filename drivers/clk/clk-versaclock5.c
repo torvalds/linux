@@ -426,6 +426,10 @@ static unsigned long vc5_fod_recalc_rate(struct clk_hw *hw,
 	div_frc = (od_frc[0] << 22) | (od_frc[1] << 14) |
 		  (od_frc[2] << 6) | (od_frc[3] >> 2);
 
+	/* Avoid division by zero if the output is not configured. */
+	if (div_int == 0 && div_frc == 0)
+		return 0;
+
 	/* The PLL divider has 12 integer bits and 30 fractional bits */
 	return div64_u64((u64)f_in << 24ULL, ((u64)div_int << 24ULL) + div_frc);
 }
