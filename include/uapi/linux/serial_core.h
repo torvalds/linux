@@ -70,6 +70,7 @@
 #define PORT_CLPS711X	33
 #define PORT_SA1100	34
 #define PORT_UART00	35
+#define PORT_OWL	36
 #define PORT_21285	37
 
 /* Sparc type numbers.  */
