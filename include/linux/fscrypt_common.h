@@ -77,7 +77,7 @@ struct fscrypt_operations {
 	const char *key_prefix;
 	int (*get_context)(struct inode *, void *, size_t);
 	int (*set_context)(struct inode *, const void *, size_t, void *);
-	int (*dummy_context)(struct inode *);
+	bool (*dummy_context)(struct inode *);
 	bool (*is_encrypted)(struct inode *);
 	bool (*empty_dir)(struct inode *);
 	unsigned (*max_namelen)(struct inode *);
@@ -91,14 +91,18 @@ static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
 	return false;
 }
 
-static inline bool fscrypt_valid_contents_enc_mode(u32 mode)
+static inline bool fscrypt_valid_enc_modes(u32 contents_mode,
+					u32 filenames_mode)
 {
-	return (mode == FS_ENCRYPTION_MODE_AES_256_XTS);
-}
+	if (contents_mode == FS_ENCRYPTION_MODE_AES_128_CBC &&
+	    filenames_mode == FS_ENCRYPTION_MODE_AES_128_CTS)
+		return true;
 
-static inline bool fscrypt_valid_filenames_enc_mode(u32 mode)
-{
-	return (mode == FS_ENCRYPTION_MODE_AES_256_CTS);
+	if (contents_mode == FS_ENCRYPTION_MODE_AES_256_XTS &&
+	    filenames_mode == FS_ENCRYPTION_MODE_AES_256_CTS)
+		return true;
+
+	return false;
 }
 
 static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
