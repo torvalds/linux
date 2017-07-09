@@ -191,4 +191,28 @@ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			const struct ipc_ops *ops, struct ipc_params *params);
 void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+struct compat_ipc_perm {
+	key_t key;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
+	compat_mode_t mode;
+	unsigned short seq;
+};
+
+static inline int compat_ipc_parse_version(int *cmd)
+{
+#ifdef	CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+	int version = *cmd & IPC_64;
+	*cmd &= ~IPC_64;
+	return version;
+#else
+	return IPC_64;
+#endif
+}
+#endif
 #endif

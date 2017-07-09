@@ -1030,7 +1030,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 {
 	int err, version;
 	struct ipc_namespace *ns;
-	struct shmid64_ds tbuf;
+	struct shmid64_ds sem64;
 
 	if (cmd < 0 || shmid < 0)
 		return -EINVAL;
@@ -1059,18 +1059,19 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 	}
 	case SHM_STAT:
 	case IPC_STAT: {
-		err = shmctl_stat(ns, shmid, cmd, &tbuf);
+		err = shmctl_stat(ns, shmid, cmd, &sem64);
 		if (err < 0)
 			return err;
-		if (copy_shmid_to_user(buf, &tbuf, version))
+		if (copy_shmid_to_user(buf, &sem64, version))
 			err = -EFAULT;
 		return err;
 	}
 	case IPC_SET:
-		if (copy_shmid_from_user(&tbuf, buf, version))
+		if (copy_shmid_from_user(&sem64, buf, version))
 			return -EFAULT;
+		/* fallthru */
 	case IPC_RMID:
-		return shmctl_down(ns, shmid, cmd, &tbuf);
+		return shmctl_down(ns, shmid, cmd, &sem64);
 	case SHM_LOCK:
 	case SHM_UNLOCK:
 		return shmctl_do_lock(ns, shmid, cmd);
@@ -1078,6 +1079,204 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 		return -EINVAL;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+
+struct compat_shmid_ds {
+	struct compat_ipc_perm shm_perm;
+	int shm_segsz;
+	compat_time_t shm_atime;
+	compat_time_t shm_dtime;
+	compat_time_t shm_ctime;
+	compat_ipc_pid_t shm_cpid;
+	compat_ipc_pid_t shm_lpid;
+	unsigned short shm_nattch;
+	unsigned short shm_unused;
+	compat_uptr_t shm_unused2;
+	compat_uptr_t shm_unused3;
+};
+
+struct compat_shminfo64 {
+	compat_ulong_t shmmax;
+	compat_ulong_t shmmin;
+	compat_ulong_t shmmni;
+	compat_ulong_t shmseg;
+	compat_ulong_t shmall;
+	compat_ulong_t __unused1;
+	compat_ulong_t __unused2;
+	compat_ulong_t __unused3;
+	compat_ulong_t __unused4;
+};
+
+struct compat_shm_info {
+	compat_int_t used_ids;
+	compat_ulong_t shm_tot, shm_rss, shm_swp;
+	compat_ulong_t swap_attempts, swap_successes;
+};
+
+static int copy_compat_shminfo_to_user(void __user *buf, struct shminfo64 *in,
+					int version)
+{
+	if (in->shmmax > INT_MAX)
+		in->shmmax = INT_MAX;
+	if (version == IPC_64) {
+		struct compat_shminfo64 info;
+		memset(&info, 0, sizeof(info));
+		info.shmmax = in->shmmax;
+		info.shmmin = in->shmmin;
+		info.shmmni = in->shmmni;
+		info.shmseg = in->shmseg;
+		info.shmall = in->shmall;
+		return copy_to_user(buf, &info, sizeof(info));
+	} else {
+		struct shminfo info;
+		memset(&info, 0, sizeof(info));
+		info.shmmax = in->shmmax;
+		info.shmmin = in->shmmin;
+		info.shmmni = in->shmmni;
+		info.shmseg = in->shmseg;
+		info.shmall = in->shmall;
+		return copy_to_user(buf, &info, sizeof(info));
+	}
+}
+
+static int put_compat_shm_info(struct shm_info *ip,
+				struct compat_shm_info __user *uip)
+{
+	struct compat_shm_info info;
+
+	memset(&info, 0, sizeof(info));
+	info.used_ids = ip->used_ids;
+	info.shm_tot = ip->shm_tot;
+	info.shm_rss = ip->shm_rss;
+	info.shm_swp = ip->shm_swp;
+	info.swap_attempts = ip->swap_attempts;
+	info.swap_successes = ip->swap_successes;
+	return copy_to_user(up, &info, sizeof(info));
+}
+
+static int copy_compat_shmid_to_user(void __user *buf, struct shmid64_ds *in,
+					int version)
+{
+	if (version == IPC_64) {
+		struct compat_shmid64_ds v;
+		memset(&v, 0, sizeof(v));
+		v.shm_perm.key = in->shm_perm.key;
+		v.shm_perm.uid = in->shm_perm.uid;
+		v.shm_perm.gid = in->shm_perm.gid;
+		v.shm_perm.cuid = in->shm_perm.cuid;
+		v.shm_perm.cgid = in->shm_perm.cgid;
+		v.shm_perm.mode = in->shm_perm.mode;
+		v.shm_perm.seq = in->shm_perm.seq;
+		v.shm_atime = in->shm_atime;
+		v.shm_dtime = in->shm_dtime;
+		v.shm_ctime = in->shm_ctime;
+		v.shm_segsz = in->shm_segsz;
+		v.shm_nattch = in->shm_nattch;
+		v.shm_cpid = in->shm_cpid;
+		v.shm_lpid = in->shm_lpid;
+		return copy_to_user(buf, &v, sizeof(v));
+	} else {
+		struct compat_shmid_ds v;
+		memset(&v, 0, sizeof(v));
+		v.shm_perm.key = in->shm_perm.key;
+		SET_UID(v.shm_perm.uid, in->shm_perm.uid);
+		SET_GID(v.shm_perm.gid, in->shm_perm.gid);
+		SET_UID(v.shm_perm.cuid, in->shm_perm.cuid);
+		SET_GID(v.shm_perm.cgid, in->shm_perm.cgid);
+		v.shm_perm.mode = in->shm_perm.mode;
+		v.shm_perm.seq = in->shm_perm.seq;
+		v.shm_atime = in->shm_atime;
+		v.shm_dtime = in->shm_dtime;
+		v.shm_ctime = in->shm_ctime;
+		v.shm_segsz = in->shm_segsz;
+		v.shm_nattch = in->shm_nattch;
+		v.shm_cpid = in->shm_cpid;
+		v.shm_lpid = in->shm_lpid;
+		return copy_to_user(buf, &v, sizeof(v));
+	}
+}
+
+static int copy_compat_shmid_from_user(struct shmid64_ds *out, void __user *buf,
+					int version)
+{
+	memset(out, 0, sizeof(*out));
+	if (version == IPC_64) {
+		struct compat_shmid64_ds *p = buf;
+		struct compat_ipc64_perm v;
+		if (copy_from_user(&v, &p->shm_perm, sizeof(v)))
+			return -EFAULT;
+		out->shm_perm.uid = v.uid;
+		out->shm_perm.gid = v.gid;
+		out->shm_perm.mode = v.mode;
+	} else {
+		struct compat_shmid_ds *p = buf;
+		struct compat_ipc_perm v;
+		if (copy_from_user(&v, &p->shm_perm, sizeof(v)))
+			return -EFAULT;
+		out->shm_perm.uid = v.uid;
+		out->shm_perm.gid = v.gid;
+		out->shm_perm.mode = v.mode;
+	}
+	return 0;
+}
+
+COMPAT_SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, void __user *, uptr)
+{
+	struct ipc_namespace *ns;
+	struct shmid64_ds sem64;
+	int version = compat_ipc_parse_version(&cmd);
+	int err;
+
+	ns = current->nsproxy->ipc_ns;
+
+	if (cmd < 0 || shmid < 0)
+		return -EINVAL;
+
+	switch (cmd) {
+	case IPC_INFO: {
+		struct shminfo64 shminfo;
+		err = shmctl_ipc_info(ns, &shminfo);
+		if (err < 0)
+			return err;
+		if (copy_compat_shminfo_to_user(uptr, &shminfo, version))
+			err = -EFAULT;
+		return err;
+	}
+	case SHM_INFO: {
+		struct shm_info shm_info;
+		err = shmctl_shm_info(ns, &shm_info);
+		if (err < 0)
+			return err;
+		if (put_compat_shm_info(&shm_info, uptr))
+			err = -EFAULT;
+		return err;
+	}
+	case IPC_STAT:
+	case SHM_STAT:
+		err = shmctl_stat(ns, shmid, cmd, &sem64);
+		if (err < 0)
+			return err;
+		if (copy_compat_shmid_to_user(&sem64, uptr, version))
+			err = -EFAULT;
+		return err;
+
+	case IPC_SET:
+		if (copy_compat_shmid_from_user(&sem64, uptr, version))
+			return -EFAULT;
+		/* fallthru */
+	case IPC_RMID:
+		return shmctl_down(ns, shmid, cmd, &sem64);
+	case SHM_LOCK:
+	case SHM_UNLOCK:
+		return shmctl_do_lock(ns, shmid, cmd);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return err;
+}
+#endif
 
 /*
  * Fix shmaddr, allocate descriptor, map shm, add attach descriptor to lists.
