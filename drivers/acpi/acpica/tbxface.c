@@ -369,6 +369,10 @@ void acpi_put_table(struct acpi_table_header *table)
 
 	ACPI_FUNCTION_TRACE(acpi_put_table);
 
+	if (!table) {
+		return_VOID;
+	}
+
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
 	/* Walk the root table list */
