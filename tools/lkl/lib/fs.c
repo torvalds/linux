@@ -74,7 +74,7 @@ static int get_node_with_prefix(const char *path, const char *prefix,
 	return ret;
 }
 
-static int encode_dev_from_sysfs(const char *sysfs_path, uint32_t *pdevid)
+int lkl_encode_dev_from_sysfs(const char *sysfs_path, uint32_t *pdevid)
 {
 	int ret;
 	long fd;
@@ -191,7 +191,7 @@ int lkl_get_virtio_blkdev(int disk_id, unsigned int part, uint32_t *pdevid)
 	if (ret)
 		return ret;
 
-	return encode_dev_from_sysfs(sysfs_path, pdevid);
+	return lkl_encode_dev_from_sysfs(sysfs_path, pdevid);
 }
 
 long lkl_mount_dev(unsigned int disk_id, unsigned int part,
