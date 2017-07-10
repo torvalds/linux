@@ -87,6 +87,11 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 				  target_node->object);
 	}
 
+	/* Ensure that the target node is valid */
+	if (!target_node) {
+		return_ACPI_STATUS(AE_NULL_OBJECT);
+	}
+
 	/*
 	 * For objects that can never change (i.e., the NS node will
 	 * permanently point to the same object), we can simply attach
