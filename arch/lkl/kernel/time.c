@@ -24,7 +24,7 @@ void __udelay(unsigned long usecs)
 
 void __const_udelay(unsigned long xloops)
 {
-	__udelay(xloops / 5);
+	__udelay(xloops / 0x10c7ul);
 }
 
 void calibrate_delay(void)
