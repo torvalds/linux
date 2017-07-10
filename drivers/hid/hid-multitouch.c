@@ -44,6 +44,7 @@
 #include <linux/slab.h>
 #include <linux/input/mt.h>
 #include <linux/string.h>
+#include <linux/timer.h>
 
 
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
@@ -54,27 +55,32 @@ MODULE_LICENSE("GPL");
 #include "hid-ids.h"
 
 /* quirks to control the device */
-#define MT_QUIRK_NOT_SEEN_MEANS_UP	(1 << 0)
-#define MT_QUIRK_SLOT_IS_CONTACTID	(1 << 1)
-#define MT_QUIRK_CYPRESS		(1 << 2)
-#define MT_QUIRK_SLOT_IS_CONTACTNUMBER	(1 << 3)
-#define MT_QUIRK_ALWAYS_VALID		(1 << 4)
-#define MT_QUIRK_VALID_IS_INRANGE	(1 << 5)
-#define MT_QUIRK_VALID_IS_CONFIDENCE	(1 << 6)
-#define MT_QUIRK_CONFIDENCE		(1 << 7)
-#define MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE	(1 << 8)
-#define MT_QUIRK_NO_AREA		(1 << 9)
-#define MT_QUIRK_IGNORE_DUPLICATES	(1 << 10)
-#define MT_QUIRK_HOVERING		(1 << 11)
-#define MT_QUIRK_CONTACT_CNT_ACCURATE	(1 << 12)
-#define MT_QUIRK_FORCE_GET_FEATURE	(1 << 13)
-#define MT_QUIRK_FIX_CONST_CONTACT_ID	(1 << 14)
-#define MT_QUIRK_TOUCH_SIZE_SCALING	(1 << 15)
+#define MT_QUIRK_NOT_SEEN_MEANS_UP	BIT(0)
+#define MT_QUIRK_SLOT_IS_CONTACTID	BIT(1)
+#define MT_QUIRK_CYPRESS		BIT(2)
+#define MT_QUIRK_SLOT_IS_CONTACTNUMBER	BIT(3)
+#define MT_QUIRK_ALWAYS_VALID		BIT(4)
+#define MT_QUIRK_VALID_IS_INRANGE	BIT(5)
+#define MT_QUIRK_VALID_IS_CONFIDENCE	BIT(6)
+#define MT_QUIRK_CONFIDENCE		BIT(7)
+#define MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE	BIT(8)
+#define MT_QUIRK_NO_AREA		BIT(9)
+#define MT_QUIRK_IGNORE_DUPLICATES	BIT(10)
+#define MT_QUIRK_HOVERING		BIT(11)
+#define MT_QUIRK_CONTACT_CNT_ACCURATE	BIT(12)
+#define MT_QUIRK_FORCE_GET_FEATURE	BIT(13)
+#define MT_QUIRK_FIX_CONST_CONTACT_ID	BIT(14)
+#define MT_QUIRK_TOUCH_SIZE_SCALING	BIT(15)
+#define MT_QUIRK_STICKY_FINGERS		BIT(16)
 
 #define MT_INPUTMODE_TOUCHSCREEN	0x02
 #define MT_INPUTMODE_TOUCHPAD		0x03
 
 #define MT_BUTTONTYPE_CLICKPAD		0
+
+#define MT_IO_FLAGS_RUNNING		0
+#define MT_IO_FLAGS_ACTIVE_SLOTS	1
+#define MT_IO_FLAGS_PENDING_SLOTS	2
 
 struct mt_slot {
 	__s32 x, y, cx, cy, p, w, h;
@@ -104,8 +110,10 @@ struct mt_fields {
 struct mt_device {
 	struct mt_slot curdata;	/* placeholder of incoming data */
 	struct mt_class mtclass;	/* our mt device class */
+	struct timer_list release_timer;	/* to release sticky fingers */
 	struct mt_fields *fields;	/* temporary placeholder for storing the
 					   multitouch fields */
+	unsigned long mt_io_flags;	/* mt flags (MT_IO_FLAGS_*) */
 	int cc_index;	/* contact count field index in the report */
 	int cc_value_index;	/* contact count value index in the field */
 	unsigned last_slot_field;	/* the last field of a slot */
@@ -148,6 +156,7 @@ static void mt_post_parse(struct mt_device *td);
 /* reserved					0x0011 */
 #define MT_CLS_WIN_8				0x0012
 #define MT_CLS_EXPORT_ALL_INPUTS		0x0013
+#define MT_CLS_WIN_8_DUAL			0x0014
 
 /* vendor specific classes */
 #define MT_CLS_3M				0x0101
@@ -161,6 +170,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_GENERALTOUCH_PWT_TENFINGERS	0x0109
 #define MT_CLS_LG				0x010a
 #define MT_CLS_VTL				0x0110
+#define MT_CLS_GOOGLE				0x0111
 
 #define MT_DEFAULT_MAXCONTACT	10
 #define MT_MAX_MAXCONTACT	250
@@ -212,9 +222,16 @@ static struct mt_class mt_classes[] = {
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_IGNORE_DUPLICATES |
 			MT_QUIRK_HOVERING |
-			MT_QUIRK_CONTACT_CNT_ACCURATE },
+			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_STICKY_FINGERS },
 	{ .name = MT_CLS_EXPORT_ALL_INPUTS,
 		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_CONTACT_CNT_ACCURATE,
+		.export_all_inputs = true },
+	{ .name = MT_CLS_WIN_8_DUAL,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_IGNORE_DUPLICATES |
+			MT_QUIRK_HOVERING |
 			MT_QUIRK_CONTACT_CNT_ACCURATE,
 		.export_all_inputs = true },
 
@@ -277,6 +294,12 @@ static struct mt_class mt_classes[] = {
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
 			MT_QUIRK_FORCE_GET_FEATURE,
+	},
+	{ .name = MT_CLS_GOOGLE,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_SLOT_IS_CONTACTID |
+			MT_QUIRK_HOVERING
 	},
 	{ }
 };
@@ -512,7 +535,8 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			mt_store_field(usage, td, hi);
 			return 1;
 		case HID_DG_CONFIDENCE:
-			if (cls->name == MT_CLS_WIN_8 &&
+			if ((cls->name == MT_CLS_WIN_8 ||
+				cls->name == MT_CLS_WIN_8_DUAL) &&
 				field->application == HID_DG_TOUCHPAD)
 				cls->quirks |= MT_QUIRK_CONFIDENCE;
 			mt_store_field(usage, td, hi);
@@ -579,7 +603,8 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		 * MS PTP spec says that external buttons left and right have
 		 * usages 2 and 3.
 		 */
-		if (cls->name == MT_CLS_WIN_8 &&
+		if ((cls->name == MT_CLS_WIN_8 ||
+			cls->name == MT_CLS_WIN_8_DUAL) &&
 		    field->application == HID_DG_TOUCHPAD &&
 		    (usage->hid & HID_USAGE) > 1)
 			code--;
@@ -682,6 +707,8 @@ static void mt_complete_slot(struct mt_device *td, struct input_dev *input)
 			input_event(input, EV_ABS, ABS_MT_PRESSURE, s->p);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+
+			set_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags);
 		}
 	}
 
@@ -697,6 +724,11 @@ static void mt_sync_frame(struct mt_device *td, struct input_dev *input)
 	input_mt_sync_frame(input);
 	input_sync(input);
 	td->num_received = 0;
+	if (test_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags))
+		set_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags);
+	else
+		clear_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags);
+	clear_bit(MT_IO_FLAGS_ACTIVE_SLOTS, &td->mt_io_flags);
 }
 
 static int mt_touch_event(struct hid_device *hid, struct hid_field *field,
@@ -788,6 +820,10 @@ static void mt_touch_report(struct hid_device *hid, struct hid_report *report)
 	unsigned count;
 	int r, n;
 
+	/* sticky fingers release in progress, abort */
+	if (test_and_set_bit(MT_IO_FLAGS_RUNNING, &td->mt_io_flags))
+		return;
+
 	/*
 	 * Includes multi-packet support where subsequent
 	 * packets are sent with zero contactcount.
@@ -813,6 +849,34 @@ static void mt_touch_report(struct hid_device *hid, struct hid_report *report)
 
 	if (td->num_received >= td->num_expected)
 		mt_sync_frame(td, report->field[0]->hidinput->input);
+
+	/*
+	 * Windows 8 specs says 2 things:
+	 * - once a contact has been reported, it has to be reported in each
+	 *   subsequent report
+	 * - the report rate when fingers are present has to be at least
+	 *   the refresh rate of the screen, 60 or 120 Hz
+	 *
+	 * I interprete this that the specification forces a report rate of
+	 * at least 60 Hz for a touchscreen to be certified.
+	 * Which means that if we do not get a report whithin 16 ms, either
+	 * something wrong happens, either the touchscreen forgets to send
+	 * a release. Taking a reasonable margin allows to remove issues
+	 * with USB communication or the load of the machine.
+	 *
+	 * Given that Win 8 devices are forced to send a release, this will
+	 * only affect laggish machines and the ones that have a firmware
+	 * defect.
+	 */
+	if (td->mtclass.quirks & MT_QUIRK_STICKY_FINGERS) {
+		if (test_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags))
+			mod_timer(&td->release_timer,
+				  jiffies + msecs_to_jiffies(100));
+		else
+			del_timer(&td->release_timer);
+	}
+
+	clear_bit(MT_IO_FLAGS_RUNNING, &td->mt_io_flags);
 }
 
 static int mt_touch_input_configured(struct hid_device *hdev,
@@ -1124,6 +1188,47 @@ static void mt_fix_const_fields(struct hid_device *hdev, unsigned int usage)
 	}
 }
 
+static void mt_release_contacts(struct hid_device *hid)
+{
+	struct hid_input *hidinput;
+	struct mt_device *td = hid_get_drvdata(hid);
+
+	list_for_each_entry(hidinput, &hid->inputs, list) {
+		struct input_dev *input_dev = hidinput->input;
+		struct input_mt *mt = input_dev->mt;
+		int i;
+
+		if (mt) {
+			for (i = 0; i < mt->num_slots; i++) {
+				input_mt_slot(input_dev, i);
+				input_mt_report_slot_state(input_dev,
+							   MT_TOOL_FINGER,
+							   false);
+			}
+			input_mt_sync_frame(input_dev);
+			input_sync(input_dev);
+		}
+	}
+
+	td->num_received = 0;
+}
+
+static void mt_expired_timeout(unsigned long arg)
+{
+	struct hid_device *hdev = (void *)arg;
+	struct mt_device *td = hid_get_drvdata(hdev);
+
+	/*
+	 * An input report came in just before we release the sticky fingers,
+	 * it will take care of the sticky fingers.
+	 */
+	if (test_and_set_bit(MT_IO_FLAGS_RUNNING, &td->mt_io_flags))
+		return;
+	if (test_bit(MT_IO_FLAGS_PENDING_SLOTS, &td->mt_io_flags))
+		mt_release_contacts(hdev);
+	clear_bit(MT_IO_FLAGS_RUNNING, &td->mt_io_flags);
+}
+
 static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret, i;
@@ -1193,6 +1298,8 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 */
 	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
+	setup_timer(&td->release_timer, mt_expired_timeout, (long)hdev);
+
 	ret = hid_parse(hdev);
 	if (ret != 0)
 		return ret;
@@ -1220,28 +1327,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 }
 
 #ifdef CONFIG_PM
-static void mt_release_contacts(struct hid_device *hid)
-{
-	struct hid_input *hidinput;
-
-	list_for_each_entry(hidinput, &hid->inputs, list) {
-		struct input_dev *input_dev = hidinput->input;
-		struct input_mt *mt = input_dev->mt;
-		int i;
-
-		if (mt) {
-			for (i = 0; i < mt->num_slots; i++) {
-				input_mt_slot(input_dev, i);
-				input_mt_report_slot_state(input_dev,
-							   MT_TOOL_FINGER,
-							   false);
-			}
-			input_mt_sync_frame(input_dev);
-			input_sync(input_dev);
-		}
-	}
-}
-
 static int mt_reset_resume(struct hid_device *hdev)
 {
 	mt_release_contacts(hdev);
@@ -1266,6 +1351,8 @@ static void mt_remove(struct hid_device *hdev)
 {
 	struct mt_device *td = hid_get_drvdata(hdev);
 
+	del_timer_sync(&td->release_timer);
+
 	sysfs_remove_group(&hdev->dev.kobj, &mt_attribute_group);
 	hid_hw_stop(hdev);
 	hdev->quirks = td->initial_quirks;
@@ -1289,6 +1376,16 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_3M,
 		MT_USB_DEVICE(USB_VENDOR_ID_3M,
 			USB_DEVICE_ID_3M3266) },
+
+	/* Alps devices */
+	{ .driver_data = MT_CLS_WIN_8_DUAL,
+		HID_DEVICE(BUS_I2C, HID_GROUP_MULTITOUCH_WIN_8,
+			USB_VENDOR_ID_ALPS_JP,
+			HID_DEVICE_ID_ALPS_U1_DUAL_PTP) },
+	{ .driver_data = MT_CLS_WIN_8_DUAL,
+		HID_DEVICE(BUS_I2C, HID_GROUP_MULTITOUCH_WIN_8,
+			USB_VENDOR_ID_ALPS_JP,
+			HID_DEVICE_ID_ALPS_U1_DUAL_3BTN_PTP) },
 
 	/* Anton devices */
 	{ .driver_data = MT_CLS_EXPORT_ALL_INPUTS,
@@ -1568,6 +1665,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
 			USB_DEVICE_ID_XIROKU_CSR2) },
+
+	/* Google MT devices */
+	{ .driver_data = MT_CLS_GOOGLE,
+		HID_DEVICE(HID_BUS_ANY, HID_GROUP_ANY, USB_VENDOR_ID_GOOGLE,
+			USB_DEVICE_ID_GOOGLE_TOUCH_ROSE) },
 
 	/* Generic MT device */
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_MULTITOUCH, HID_ANY_ID, HID_ANY_ID) },
