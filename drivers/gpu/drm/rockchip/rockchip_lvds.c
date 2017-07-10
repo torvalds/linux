@@ -427,11 +427,28 @@ static enum drm_mode_status rockchip_lvds_connector_mode_valid(
 	return MODE_OK;
 }
 
+static int rockchip_lvds_loader_protect(struct drm_connector *connector,
+					bool on)
+{
+	struct rockchip_lvds *lvds = connector_to_lvds(connector);
+
+	if (lvds->panel)
+		drm_panel_loader_protect(lvds->panel, on);
+
+	if (on)
+		pm_runtime_get_sync(lvds->dev);
+	else
+		pm_runtime_put(lvds->dev);
+
+	return 0;
+}
+
 static
 struct drm_connector_helper_funcs rockchip_lvds_connector_helper_funcs = {
 	.get_modes = rockchip_lvds_connector_get_modes,
 	.mode_valid = rockchip_lvds_connector_mode_valid,
 	.best_encoder = rockchip_lvds_connector_best_encoder,
+	.loader_protect = rockchip_lvds_loader_protect,
 };
 
 static void rockchip_lvds_encoder_dpms(struct drm_encoder *encoder, int mode)
