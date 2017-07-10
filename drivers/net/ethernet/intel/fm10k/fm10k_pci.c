@@ -153,7 +153,15 @@ static void fm10k_service_timer(unsigned long data)
 	fm10k_service_event_schedule(interface);
 }
 
-static void fm10k_prepare_for_reset(struct fm10k_intfc *interface)
+/**
+ * fm10k_prepare_for_reset - Prepare the driver and device for a pending reset
+ * @interface: fm10k private data structure
+ *
+ * This function prepares for a device reset by shutting as much down as we
+ * can. It does nothing and returns false if __FM10K_RESETTING was already set
+ * prior to calling this function. It returns true if it actually did work.
+ */
+static bool fm10k_prepare_for_reset(struct fm10k_intfc *interface)
 {
 	struct net_device *netdev = interface->netdev;
 
@@ -162,8 +170,9 @@ static void fm10k_prepare_for_reset(struct fm10k_intfc *interface)
 	/* put off any impending NetWatchDogTimeout */
 	netif_trans_update(netdev);
 
-	while (test_and_set_bit(__FM10K_RESETTING, interface->state))
-		usleep_range(1000, 2000);
+	/* Nothing to do if a reset is already in progress */
+	if (test_and_set_bit(__FM10K_RESETTING, interface->state))
+		return false;
 
 	rtnl_lock();
 
@@ -181,6 +190,8 @@ static void fm10k_prepare_for_reset(struct fm10k_intfc *interface)
 	interface->last_reset = jiffies + (10 * HZ);
 
 	rtnl_unlock();
+
+	return true;
 }
 
 static int fm10k_handle_reset(struct fm10k_intfc *interface)
@@ -188,6 +199,8 @@ static int fm10k_handle_reset(struct fm10k_intfc *interface)
 	struct net_device *netdev = interface->netdev;
 	struct fm10k_hw *hw = &interface->hw;
 	int err;
+
+	WARN_ON(!test_bit(__FM10K_RESETTING, interface->state));
 
 	rtnl_lock();
 
@@ -267,51 +280,75 @@ static void fm10k_detach_subtask(struct fm10k_intfc *interface)
 	struct net_device *netdev = interface->netdev;
 	u32 __iomem *hw_addr;
 	u32 value;
+	int err;
 
-	/* do nothing if device is still present or hw_addr is set */
+	/* do nothing if netdev is still present or hw_addr is set */
 	if (netif_device_present(netdev) || interface->hw.hw_addr)
 		return;
+
+	/* We've lost the PCIe register space, and can no longer access the
+	 * device. Shut everything except the detach subtask down and prepare
+	 * to reset the device in case we recover. If we actually prepare for
+	 * reset, indicate that we're detached.
+	 */
+	if (fm10k_prepare_for_reset(interface))
+		set_bit(__FM10K_RESET_DETACHED, interface->state);
 
 	/* check the real address space to see if we've recovered */
 	hw_addr = READ_ONCE(interface->uc_addr);
 	value = readl(hw_addr);
 	if (~value) {
+		/* Make sure the reset was initiated because we detached,
+		 * otherwise we might race with a different reset flow.
+		 */
+		if (!test_and_clear_bit(__FM10K_RESET_DETACHED,
+					interface->state))
+			return;
+
+		/* Restore the hardware address */
 		interface->hw.hw_addr = interface->uc_addr;
+
+		/* PCIe link has been restored, and the device is active
+		 * again. Restore everything and reset the device.
+		 */
+		err = fm10k_handle_reset(interface);
+		if (err) {
+			netdev_err(netdev, "Unable to reset device: %d\n", err);
+			interface->hw.hw_addr = NULL;
+			return;
+		}
+
+		/* Re-attach the netdev */
 		netif_device_attach(netdev);
-		set_bit(FM10K_FLAG_RESET_REQUESTED, interface->flags);
 		netdev_warn(netdev, "PCIe link restored, device now attached\n");
 		return;
 	}
-
-	rtnl_lock();
-
-	if (netif_running(netdev))
-		dev_close(netdev);
-
-	rtnl_unlock();
 }
 
-static void fm10k_reinit(struct fm10k_intfc *interface)
+static void fm10k_reset_subtask(struct fm10k_intfc *interface)
 {
 	int err;
 
-	fm10k_prepare_for_reset(interface);
+	if (!test_and_clear_bit(FM10K_FLAG_RESET_REQUESTED,
+				interface->flags))
+		return;
+
+	/* If another thread has already prepared to reset the device, we
+	 * should not attempt to handle a reset here, since we'd race with
+	 * that thread. This may happen if we suspend the device or if the
+	 * PCIe link is lost. In this case, we'll just ignore the RESET
+	 * request, as it will (eventually) be taken care of when the thread
+	 * which actually started the reset is finished.
+	 */
+	if (!fm10k_prepare_for_reset(interface))
+		return;
+
+	netdev_err(interface->netdev, "Reset interface\n");
 
 	err = fm10k_handle_reset(interface);
 	if (err)
 		dev_err(&interface->pdev->dev,
 			"fm10k_handle_reset failed: %d\n", err);
-}
-
-static void fm10k_reset_subtask(struct fm10k_intfc *interface)
-{
-	if (!test_and_clear_bit(FM10K_FLAG_RESET_REQUESTED,
-				interface->flags))
-		return;
-
-	netdev_err(interface->netdev, "Reset interface\n");
-
-	fm10k_reinit(interface);
 }
 
 /**
@@ -381,6 +418,10 @@ static void fm10k_watchdog_update_host_state(struct fm10k_intfc *interface)
  **/
 static void fm10k_mbx_subtask(struct fm10k_intfc *interface)
 {
+	/* If we're resetting, bail out */
+	if (test_bit(__FM10K_RESETTING, interface->state))
+		return;
+
 	/* process upstream mailbox and update device state */
 	fm10k_watchdog_update_host_state(interface);
 
@@ -630,9 +671,11 @@ static void fm10k_service_task(struct work_struct *work)
 
 	interface = container_of(work, struct fm10k_intfc, service_task);
 
+	/* Check whether we're detached first */
+	fm10k_detach_subtask(interface);
+
 	/* tasks run even when interface is down */
 	fm10k_mbx_subtask(interface);
-	fm10k_detach_subtask(interface);
 	fm10k_reset_subtask(interface);
 
 	/* tasks only run when interface is up */
@@ -2177,13 +2220,21 @@ static void fm10k_prepare_suspend(struct fm10k_intfc *interface)
 	 */
 	fm10k_stop_service_event(interface);
 
-	fm10k_prepare_for_reset(interface);
+	if (fm10k_prepare_for_reset(interface))
+		set_bit(__FM10K_RESET_SUSPENDED, interface->state);
 }
 
 static int fm10k_handle_resume(struct fm10k_intfc *interface)
 {
 	struct fm10k_hw *hw = &interface->hw;
 	int err;
+
+	/* Even if we didn't properly prepare for reset in
+	 * fm10k_prepare_suspend, we'll attempt to resume anyways.
+	 */
+	if (!test_and_clear_bit(__FM10K_RESET_SUSPENDED, interface->state))
+		dev_warn(&interface->pdev->dev,
+			 "Device was shut down as part of suspend... Attempting to recover\n");
 
 	/* reset statistics starting values */
 	hw->mac.ops.rebind_hw_stats(hw, &interface->stats);
