@@ -35,10 +35,133 @@ static s32 fm10k_iov_msg_error(struct fm10k_hw *hw, u32 **results,
 	return fm10k_tlv_msg_error(hw, results, mbx);
 }
 
+/**
+ *  fm10k_iov_msg_queue_mac_vlan - Message handler for MAC/VLAN request from VF
+ *  @hw: Pointer to hardware structure
+ *  @results: Pointer array to message, results[0] is pointer to message
+ *  @mbx: Pointer to mailbox information structure
+ *
+ *  This function is a custom handler for MAC/VLAN requests from the VF. The
+ *  assumption is that it is acceptable to directly hand off the message from
+ *  the VF to the PF's switch manager. However, we use a MAC/VLAN message
+ *  queue to avoid overloading the mailbox when a large number of requests
+ *  come in.
+ **/
+static s32 fm10k_iov_msg_queue_mac_vlan(struct fm10k_hw *hw, u32 **results,
+					struct fm10k_mbx_info *mbx)
+{
+	struct fm10k_vf_info *vf_info = (struct fm10k_vf_info *)mbx;
+	struct fm10k_intfc *interface = hw->back;
+	u8 mac[ETH_ALEN];
+	u32 *result;
+	int err = 0;
+	bool set;
+	u16 vlan;
+	u32 vid;
+
+	/* we shouldn't be updating rules on a disabled interface */
+	if (!FM10K_VF_FLAG_ENABLED(vf_info))
+		err = FM10K_ERR_PARAM;
+
+	if (!err && !!results[FM10K_MAC_VLAN_MSG_VLAN]) {
+		result = results[FM10K_MAC_VLAN_MSG_VLAN];
+
+		/* record VLAN id requested */
+		err = fm10k_tlv_attr_get_u32(result, &vid);
+		if (err)
+			return err;
+
+		set = !(vid & FM10K_VLAN_CLEAR);
+		vid &= ~FM10K_VLAN_CLEAR;
+
+		/* if the length field has been set, this is a multi-bit
+		 * update request. For multi-bit requests, simply disallow
+		 * them when the pf_vid has been set. In this case, the PF
+		 * should have already cleared the VLAN_TABLE, and if we
+		 * allowed them, it could allow a rogue VF to receive traffic
+		 * on a VLAN it was not assigned. In the single-bit case, we
+		 * need to modify requests for VLAN 0 to use the default PF or
+		 * SW vid when assigned.
+		 */
+
+		if (vid >> 16) {
+			/* prevent multi-bit requests when PF has
+			 * administratively set the VLAN for this VF
+			 */
+			if (vf_info->pf_vid)
+				return FM10K_ERR_PARAM;
+		} else {
+			err = fm10k_iov_select_vid(vf_info, (u16)vid);
+			if (err < 0)
+				return err;
+
+			vid = err;
+		}
+
+		/* update VSI info for VF in regards to VLAN table */
+		err = hw->mac.ops.update_vlan(hw, vid, vf_info->vsi, set);
+	}
+
+	if (!err && !!results[FM10K_MAC_VLAN_MSG_MAC]) {
+		result = results[FM10K_MAC_VLAN_MSG_MAC];
+
+		/* record unicast MAC address requested */
+		err = fm10k_tlv_attr_get_mac_vlan(result, mac, &vlan);
+		if (err)
+			return err;
+
+		/* block attempts to set MAC for a locked device */
+		if (is_valid_ether_addr(vf_info->mac) &&
+		    !ether_addr_equal(mac, vf_info->mac))
+			return FM10K_ERR_PARAM;
+
+		set = !(vlan & FM10K_VLAN_CLEAR);
+		vlan &= ~FM10K_VLAN_CLEAR;
+
+		err = fm10k_iov_select_vid(vf_info, vlan);
+		if (err < 0)
+			return err;
+
+		vlan = (u16)err;
+
+		/* Add this request to the MAC/VLAN queue */
+		err = fm10k_queue_mac_request(interface, vf_info->glort,
+					      mac, vlan, set);
+	}
+
+	if (!err && !!results[FM10K_MAC_VLAN_MSG_MULTICAST]) {
+		result = results[FM10K_MAC_VLAN_MSG_MULTICAST];
+
+		/* record multicast MAC address requested */
+		err = fm10k_tlv_attr_get_mac_vlan(result, mac, &vlan);
+		if (err)
+			return err;
+
+		/* verify that the VF is allowed to request multicast */
+		if (!(vf_info->vf_flags & FM10K_VF_FLAG_MULTI_ENABLED))
+			return FM10K_ERR_PARAM;
+
+		set = !(vlan & FM10K_VLAN_CLEAR);
+		vlan &= ~FM10K_VLAN_CLEAR;
+
+		err = fm10k_iov_select_vid(vf_info, vlan);
+		if (err < 0)
+			return err;
+
+		vlan = (u16)err;
+
+		/* Add this request to the MAC/VLAN queue */
+		err = fm10k_queue_mac_request(interface, vf_info->glort,
+					      mac, vlan, set);
+	}
+
+	return err;
+}
+
 static const struct fm10k_msg_data iov_mbx_data[] = {
 	FM10K_TLV_MSG_TEST_HANDLER(fm10k_tlv_msg_test),
 	FM10K_VF_MSG_MSIX_HANDLER(fm10k_iov_msg_msix_pf),
-	FM10K_VF_MSG_MAC_VLAN_HANDLER(fm10k_iov_msg_mac_vlan_pf),
+	FM10K_VF_MSG_MAC_VLAN_HANDLER(fm10k_iov_msg_queue_mac_vlan),
 	FM10K_VF_MSG_LPORT_STATE_HANDLER(fm10k_iov_msg_lport_state_pf),
 	FM10K_TLV_MSG_ERROR_HANDLER(fm10k_iov_msg_error),
 };
@@ -126,8 +249,10 @@ process_mbx:
 		hw->mbx.ops.process(hw, &hw->mbx);
 
 		/* verify port mapping is valid, if not reset port */
-		if (vf_info->vf_flags && !fm10k_glort_valid_pf(hw, glort))
+		if (vf_info->vf_flags && !fm10k_glort_valid_pf(hw, glort)) {
 			hw->iov.ops.reset_lport(hw, vf_info);
+			fm10k_clear_macvlan_queue(interface, glort, false);
+		}
 
 		/* reset VFs that have mailbox timed out */
 		if (!mbx->timeout) {
@@ -190,6 +315,7 @@ void fm10k_iov_suspend(struct pci_dev *pdev)
 
 		hw->iov.ops.reset_resources(hw, vf_info);
 		hw->iov.ops.reset_lport(hw, vf_info);
+		fm10k_clear_macvlan_queue(interface, vf_info->glort, false);
 	}
 }
 
@@ -413,6 +539,8 @@ static inline void fm10k_reset_vf_info(struct fm10k_intfc *interface,
 
 	/* disable LPORT for this VF which clears switch rules */
 	hw->iov.ops.reset_lport(hw, vf_info);
+
+	fm10k_clear_macvlan_queue(interface, vf_info->glort, false);
 
 	/* assign new MAC+VLAN for this VF */
 	hw->iov.ops.assign_default_mac_vlan(hw, vf_info);
