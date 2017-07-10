@@ -404,10 +404,6 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 		error = dock_notify(adev, src);
 	} else if (adev->flags.hotplug_notify) {
 		error = acpi_generic_hotplug_event(adev, src);
-		if (error == -EPERM) {
-			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
-			goto err_out;
-		}
 	} else {
 		int (*notify)(struct acpi_device *, u32);
 
@@ -423,8 +419,20 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 		else
 			goto out;
 	}
-	if (!error)
+	switch (error) {
+	case 0:
 		ost_code = ACPI_OST_SC_SUCCESS;
+		break;
+	case -EPERM:
+		ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
+		break;
+	case -EBUSY:
+		ost_code = ACPI_OST_SC_DEVICE_BUSY;
+		break;
+	default:
+		ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+		break;
+	}
 
  err_out:
 	acpi_evaluate_ost(adev->handle, src, ost_code, NULL);
