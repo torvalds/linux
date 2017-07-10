@@ -838,6 +838,7 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	struct ipoib_mcast *mcast, *tmcast;
 	unsigned long flags;
 
+	mutex_lock(&priv->mcast_mutex);
 	ipoib_dbg_mcast(priv, "flushing multicast list\n");
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -865,6 +866,7 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 			wait_for_completion(&mcast->done);
 
 	ipoib_mcast_remove_list(&remove_list);
+	mutex_unlock(&priv->mcast_mutex);
 }
 
 static int ipoib_mcast_addr_is_valid(const u8 *addr, const u8 *broadcast)
