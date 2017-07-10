@@ -94,7 +94,8 @@ static IMG_INT32 devfreq_target(struct device *dev, long unsigned *requested_fre
 	IMG_UINT32		ui32Freq, ui32CurFreq, ui32Volt, ui32CurVolt;
 	struct OPP_STRUCT	*opp;
 
-	if (!psDVFSDevice->bEnabled)
+
+	if (!psDVFSDevice->bEnabled && !IsSystemStatePowered(gpsDeviceNode))
 	{
 		return 0;
 	}

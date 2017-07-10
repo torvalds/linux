@@ -167,6 +167,29 @@ static IMG_BOOL _IsSystemStatePowered(PVRSRV_SYS_POWER_STATE eSystemPowerState)
 	return (eSystemPowerState == PVRSRV_SYS_POWER_STATE_ON);
 }
 
+/*!
+******************************************************************************
+
+ @Function	IsSystemStatePowered
+
+ @Description	Tests whether a given system state represents powered-up.
+
+ @Return	IMG_BOOL
+
+******************************************************************************/
+IMG_EXPORT
+IMG_BOOL IsSystemStatePowered(PVRSRV_DEVICE_NODE *psDeviceNode)
+{
+	OSLockAcquire(psDeviceNode->hPowerLock);
+	if (_IsSystemStatePowered(psDeviceNode->eCurrentSysPowerState))
+	{
+		OSLockRelease(psDeviceNode->hPowerLock);
+		return IMG_TRUE;
+	}
+	OSLockRelease(psDeviceNode->hPowerLock);
+	return IMG_FALSE;
+}
+
 
 /*!
 ******************************************************************************

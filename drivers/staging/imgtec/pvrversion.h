@@ -121,6 +121,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * N 5.05
  *		1. If freq is equal,but voltage is changed,we also set the new voltage.
  *		2. Only give a warnning when initialize simple power model failed.
+ * N 5.06
+ *		Rebuild ko.
+ * N 5.11
+ *		Even in suspend mode,we still set the gpu clk.
+ * N 5.12
+ *		1. Fix PVRSRVDevicePreClockSpeedChange failed.
+ *		2. Apply PP_fix_KM patch from IMG.
  */
 
 #define PVR_STR(X) #X
@@ -148,5 +155,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
 
 //chenli:define rockchip version
-#define RKVERSION                   "KM N 5.05"
+#define RKVERSION                   "Rogue N 5.12"
 #endif /* _PVRVERSION_H_ */
