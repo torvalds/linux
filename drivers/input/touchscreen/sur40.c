@@ -374,10 +374,13 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		/*
 		 * Sanity check. when video data is also being retrieved, the
 		 * packet ID will usually increase in the middle of a series
-		 * instead of at the end.
-		 */
+		 * instead of at the end. However, the data is still consistent,
+		 * so the packet ID is probably just valid for the first packet
+		 * in a series.
+
 		if (packet_id != le32_to_cpu(header->packet_id))
 			dev_dbg(sur40->dev, "packet ID mismatch\n");
+		 */
 
 		packet_blobs = result / sizeof(struct sur40_blob);
 		dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);
