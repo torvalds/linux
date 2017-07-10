@@ -643,8 +643,12 @@ int fm10k_close(struct net_device *netdev)
 static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
+	int num_tx_queues = READ_ONCE(interface->num_tx_queues);
 	unsigned int r_idx = skb->queue_mapping;
 	int err;
+
+	if (!num_tx_queues)
+		return NETDEV_TX_BUSY;
 
 	if ((skb->protocol == htons(ETH_P_8021Q)) &&
 	    !skb_vlan_tag_present(skb)) {
@@ -698,8 +702,8 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		__skb_put(skb, pad_len);
 	}
 
-	if (r_idx >= interface->num_tx_queues)
-		r_idx %= interface->num_tx_queues;
+	if (r_idx >= num_tx_queues)
+		r_idx %= num_tx_queues;
 
 	err = fm10k_xmit_frame_ring(skb, interface->tx_ring[r_idx]);
 
