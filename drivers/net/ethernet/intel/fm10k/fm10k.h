@@ -276,7 +276,6 @@ enum fm10k_state_t {
 	__FM10K_SERVICE_SCHED,
 	__FM10K_SERVICE_REQUEST,
 	__FM10K_SERVICE_DISABLE,
-	__FM10K_MBX_LOCK,
 	__FM10K_LINK_DOWN,
 	__FM10K_UPDATING_STATS,
 	/* This value must be last and determines the BITMAP size */
@@ -346,6 +345,8 @@ struct fm10k_intfc {
 
 	struct fm10k_hw_stats stats;
 	struct fm10k_hw hw;
+	/* Mailbox lock */
+	spinlock_t mbx_lock;
 	u32 __iomem *uc_addr;
 	u32 __iomem *sw_addr;
 	u16 msg_enable;
@@ -386,23 +387,17 @@ struct fm10k_intfc {
 
 static inline void fm10k_mbx_lock(struct fm10k_intfc *interface)
 {
-	/* busy loop if we cannot obtain the lock as some calls
-	 * such as ndo_set_rx_mode may be made in atomic context
-	 */
-	while (test_and_set_bit(__FM10K_MBX_LOCK, interface->state))
-		udelay(20);
+	spin_lock(&interface->mbx_lock);
 }
 
 static inline void fm10k_mbx_unlock(struct fm10k_intfc *interface)
 {
-	/* flush memory to make sure state is correct */
-	smp_mb__before_atomic();
-	clear_bit(__FM10K_MBX_LOCK, interface->state);
+	spin_unlock(&interface->mbx_lock);
 }
 
 static inline int fm10k_mbx_trylock(struct fm10k_intfc *interface)
 {
-	return !test_and_set_bit(__FM10K_MBX_LOCK, interface->state);
+	return spin_trylock(&interface->mbx_lock);
 }
 
 /* fm10k_test_staterr - test bits in Rx descriptor status and error fields */

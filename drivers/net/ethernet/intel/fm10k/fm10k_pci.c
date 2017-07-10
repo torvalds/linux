@@ -1921,6 +1921,9 @@ static int fm10k_sw_init(struct fm10k_intfc *interface,
 	netdev_rss_key_fill(rss_key, sizeof(rss_key));
 	memcpy(interface->rssrk, rss_key, sizeof(rss_key));
 
+	/* Initialize the mailbox lock */
+	spin_lock_init(&interface->mbx_lock);
+
 	/* Start off interface as being down */
 	set_bit(__FM10K_DOWN, interface->state);
 	set_bit(__FM10K_UPDATING_STATS, interface->state);
