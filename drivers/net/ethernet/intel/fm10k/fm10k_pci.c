@@ -1544,7 +1544,7 @@ int fm10k_qv_request_irq(struct fm10k_intfc *interface)
 	struct net_device *dev = interface->netdev;
 	struct fm10k_hw *hw = &interface->hw;
 	struct msix_entry *entry;
-	int ri = 0, ti = 0;
+	unsigned int ri = 0, ti = 0;
 	int vector, err;
 
 	entry = &interface->msix_entries[NON_Q_VECTORS(hw)];
@@ -1554,15 +1554,15 @@ int fm10k_qv_request_irq(struct fm10k_intfc *interface)
 
 		/* name the vector */
 		if (q_vector->tx.count && q_vector->rx.count) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "%s-TxRx-%d", dev->name, ri++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "%s-TxRx-%u", dev->name, ri++);
 			ti++;
 		} else if (q_vector->rx.count) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "%s-rx-%d", dev->name, ri++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "%s-rx-%u", dev->name, ri++);
 		} else if (q_vector->tx.count) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "%s-tx-%d", dev->name, ti++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "%s-tx-%u", dev->name, ti++);
 		} else {
 			/* skip this unused q_vector */
 			continue;
