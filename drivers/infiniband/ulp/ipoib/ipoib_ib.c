@@ -256,6 +256,8 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	++dev->stats.rx_packets;
 	dev->stats.rx_bytes += skb->len;
+	if (skb->pkt_type == PACKET_MULTICAST)
+		dev->stats.multicast++;
 
 	skb->dev = dev;
 	if ((dev->features & NETIF_F_RXCSUM) &&
