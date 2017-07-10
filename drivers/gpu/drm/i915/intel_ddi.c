@@ -1979,9 +1979,12 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
 	if ((intel_dp) && (type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP)) {
 		width = intel_dp->lane_count;
 		rate = intel_dp->link_rate;
-	} else {
+	} else if (type == INTEL_OUTPUT_HDMI) {
 		width = 4;
 		/* Rate is always < than 6GHz for HDMI */
+	} else {
+		MISSING_CASE(type);
+		return;
 	}
 
 	/*
