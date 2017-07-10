@@ -33,6 +33,7 @@
 #include <linux/notifier.h>
 #include <linux/topology.h>
 #include <linux/profile.h>
+#include <linux/processor.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -112,7 +113,8 @@ int smp_generic_cpu_bootable(unsigned int nr)
 #ifdef CONFIG_PPC64
 int smp_generic_kick_cpu(int nr)
 {
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= nr_cpu_ids)
+		return -EINVAL;
 
 	/*
 	 * The processor is currently spinning, waiting for the
@@ -766,8 +768,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		smp_ops->give_timebase();
 
 	/* Wait until cpu puts itself in the online & active maps */
-	while (!cpu_online(cpu))
-		cpu_relax();
+	spin_until_cond(cpu_online(cpu));
 
 	return 0;
 }

@@ -200,11 +200,6 @@ static inline long strnlen_user(const char __user *src, long n)
 	return __strnlen_user(src, n);
 }
 
-static inline long strlen_user(const char __user *src)
-{
-	return strnlen_user(src, 32767);
-}
-
 /*
  * Zero Userspace
  */

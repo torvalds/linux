@@ -2076,6 +2076,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 {
 	struct net *net = sock_net(in_skb->sk);
 	u32 portid = NETLINK_CB(in_skb).portid;
+	u32 in_label = LABEL_NOT_SPECIFIED;
 	struct nlattr *tb[RTA_MAX + 1];
 	u32 labels[MAX_NEW_LABELS];
 	struct mpls_shim_hdr *hdr;
@@ -2086,9 +2087,8 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	struct mpls_nh *nh;
-	int err = -EINVAL;
-	u32 in_label;
 	u8 n_labels;
+	int err;
 
 	err = nlmsg_parse(in_nlh, sizeof(*rtm), tb, RTA_MAX,
 			  rtm_mpls_policy, extack);
@@ -2101,11 +2101,15 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 		u8 label_count;
 
 		if (nla_get_labels(tb[RTA_DST], 1, &label_count,
-				   &in_label, extack))
+				   &in_label, extack)) {
+			err = -EINVAL;
 			goto errout;
+		}
 
-		if (in_label < MPLS_LABEL_FIRST_UNRESERVED)
+		if (!mpls_label_ok(net, in_label, extack)) {
+			err = -EINVAL;
 			goto errout;
+		}
 	}
 
 	rt = mpls_route_input_rcu(net, in_label);

@@ -23,7 +23,7 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "cikd.h"
 #include "ppsmc.h"

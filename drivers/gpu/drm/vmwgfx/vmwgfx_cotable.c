@@ -30,9 +30,10 @@
  * whenever the backing MOB is evicted.
  */
 
+#include <drm/ttm/ttm_placement.h>
+
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
-#include <ttm/ttm_placement.h>
 #include "vmwgfx_so.h"
 
 /**

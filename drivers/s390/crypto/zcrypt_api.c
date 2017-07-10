@@ -94,7 +94,7 @@ static inline int zcrypt_process_rescan(void)
 		atomic_set(&zcrypt_rescan_req, 0);
 		atomic_inc(&zcrypt_rescan_count);
 		ap_bus_force_rescan();
-		ZCRYPT_DBF(DBF_INFO, "rescan count=%07d",
+		ZCRYPT_DBF(DBF_INFO, "rescan count=%07d\n",
 			   atomic_inc_return(&zcrypt_rescan_count));
 		return 1;
 	}
@@ -822,7 +822,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_rsa_modexpo(&mex);
 			} while (rc == -EAGAIN);
 		if (rc) {
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSAMODEXPO rc=%d", rc);
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSAMODEXPO rc=%d\n", rc);
 			return rc;
 		}
 		return put_user(mex.outputdatalength, &umex->outputdatalength);
@@ -841,7 +841,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_rsa_crt(&crt);
 			} while (rc == -EAGAIN);
 		if (rc) {
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSACRT rc=%d", rc);
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSACRT rc=%d\n", rc);
 			return rc;
 		}
 		return put_user(crt.outputdatalength, &ucrt->outputdatalength);
@@ -860,7 +860,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_send_cprb(&xcRB);
 			} while (rc == -EAGAIN);
 		if (rc)
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d", rc);
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d\n", rc);
 		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
 			return -EFAULT;
 		return rc;
@@ -879,7 +879,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_send_ep11_cprb(&xcrb);
 			} while (rc == -EAGAIN);
 		if (rc)
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d", rc);
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d\n", rc);
 		if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 			return -EFAULT;
 		return rc;

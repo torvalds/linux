@@ -31,7 +31,7 @@ you probably needn't concern yourself with isdn4k-utils.
 ====================== ===============  ========================================
 GNU C                  3.2              gcc --version
 GNU make               3.81             make --version
-binutils               2.12             ld -v
+binutils               2.20             ld -v
 util-linux             2.10o            fdformat --version
 module-init-tools      0.9.10           depmod -V
 e2fsprogs              1.41.4           e2fsck -V
@@ -75,10 +75,9 @@ You will need GNU make 3.81 or later to build the kernel.
 Binutils
 --------
 
-Linux on IA-32 has recently switched from using ``as86`` to using ``gas`` for
-assembling the 16-bit boot code, removing the need for ``as86`` to compile
-your kernel.  This change does, however, mean that you need a recent
-release of binutils.
+The build system has, as of 4.13, switched to using thin archives (`ar T`)
+rather than incremental linking (`ld -r`) for built-in.o intermediate steps.
+This requires binutils 2.20 or newer.
 
 Perl
 ----

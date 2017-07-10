@@ -2229,6 +2229,7 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 	kfree(names);
 	kfree(callbacks);
 	kfree(vqs);
+	kfree(ctx);
 
 	return 0;
 

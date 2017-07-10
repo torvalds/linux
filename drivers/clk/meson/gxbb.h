@@ -171,7 +171,7 @@
  * to be exposed to client nodes in DT: include/dt-bindings/clock/gxbb-clkc.h
  */
 #define CLKID_SYS_PLL		  0
-#define CLKID_CPUCLK		  1
+/* ID 1 is unused (it was used by the non-existing CLKID_CPUCLK before) */
 /* CLKID_HDMI_PLL */
 #define CLKID_FIXED_PLL		  3
 /* CLKID_FCLK_DIV2 */
@@ -284,8 +284,11 @@
 #define CLKID_CTS_MCLK_I958_SEL	  111
 #define CLKID_CTS_MCLK_I958_DIV	  112
 /* CLKID_CTS_I958 */
+#define CLKID_32K_CLK		  114
+#define CLKID_32K_CLK_SEL	  115
+#define CLKID_32K_CLK_DIV	  116
 
-#define NR_CLKS			  114
+#define NR_CLKS			  117
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>

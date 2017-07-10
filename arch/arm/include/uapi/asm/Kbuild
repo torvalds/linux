@@ -1,8 +1,8 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
-genhdr-y += unistd-common.h
-genhdr-y += unistd-oabi.h
-genhdr-y += unistd-eabi.h
+generated-y += unistd-common.h
+generated-y += unistd-oabi.h
+generated-y += unistd-eabi.h
 
 generic-y += siginfo.h

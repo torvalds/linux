@@ -1371,6 +1371,12 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 		func = insn->func;
 
+		if (func && insn->ignore) {
+			WARN_FUNC("BUG: why am I validating an ignored function?",
+				  sec, insn->offset);
+			return -1;
+		}
+
 		if (insn->visited) {
 			if (!!insn_state_match(insn, &state))
 				return 1;
@@ -1426,16 +1432,19 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 		case INSN_JUMP_CONDITIONAL:
 		case INSN_JUMP_UNCONDITIONAL:
-			if (insn->jump_dest) {
+			if (insn->jump_dest &&
+			    (!func || !insn->jump_dest->func ||
+			     func == insn->jump_dest->func)) {
 				ret = validate_branch(file, insn->jump_dest,
 						      state);
 				if (ret)
 					return 1;
+
 			} else if (func && has_modified_stack_frame(&state)) {
 				WARN_FUNC("sibling call from callable instruction with modified stack frame",
 					  sec, insn->offset);
 				return 1;
-			} /* else it's a sibling call */
+			}
 
 			if (insn->type == INSN_JUMP_UNCONDITIONAL)
 				return 0;

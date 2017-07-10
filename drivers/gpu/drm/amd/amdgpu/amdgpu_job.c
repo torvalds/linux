@@ -36,7 +36,11 @@ static void amdgpu_job_timedout(struct amd_sched_job *s_job)
 		  job->base.sched->name,
 		  atomic_read(&job->ring->fence_drv.last_seq),
 		  job->ring->fence_drv.sync_seq);
-	amdgpu_gpu_reset(job->adev);
+
+	if (amdgpu_sriov_vf(job->adev))
+		amdgpu_sriov_gpu_reset(job->adev, job);
+	else
+		amdgpu_gpu_reset(job->adev);
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
@@ -57,9 +61,10 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
-	(*job)->need_pipeline_sync = false;
 
 	amdgpu_sync_create(&(*job)->sync);
+	amdgpu_sync_create(&(*job)->dep_sync);
+	amdgpu_sync_create(&(*job)->sched_sync);
 
 	return 0;
 }
@@ -98,6 +103,8 @@ static void amdgpu_job_free_cb(struct amd_sched_job *s_job)
 
 	dma_fence_put(job->fence);
 	amdgpu_sync_free(&job->sync);
+	amdgpu_sync_free(&job->dep_sync);
+	amdgpu_sync_free(&job->sched_sync);
 	kfree(job);
 }
 
@@ -107,6 +114,8 @@ void amdgpu_job_free(struct amdgpu_job *job)
 
 	dma_fence_put(job->fence);
 	amdgpu_sync_free(&job->sync);
+	amdgpu_sync_free(&job->dep_sync);
+	amdgpu_sync_free(&job->sched_sync);
 	kfree(job);
 }
 
@@ -138,11 +147,18 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
 	struct amdgpu_vm *vm = job->vm;
 
-	struct dma_fence *fence = amdgpu_sync_get_fence(&job->sync);
+	struct dma_fence *fence = amdgpu_sync_get_fence(&job->dep_sync);
+	int r;
 
+	if (amd_sched_dependency_optimized(fence, sched_job->s_entity)) {
+		r = amdgpu_sync_fence(job->adev, &job->sched_sync, fence);
+		if (r)
+			DRM_ERROR("Error adding fence to sync (%d)\n", r);
+	}
+	if (!fence)
+		fence = amdgpu_sync_get_fence(&job->sync);
 	while (fence == NULL && vm && !job->vm_id) {
 		struct amdgpu_ring *ring = job->ring;
-		int r;
 
 		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
 				      &job->base.s_fence->finished,
@@ -153,9 +169,6 @@ static struct dma_fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 		fence = amdgpu_sync_get_fence(&job->sync);
 	}
 
-	if (amd_sched_dependency_optimized(fence, sched_job->s_entity))
-		job->need_pipeline_sync = true;
-
 	return fence;
 }
 
@@ -163,6 +176,7 @@ static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 {
 	struct dma_fence *fence = NULL;
 	struct amdgpu_job *job;
+	struct amdgpu_fpriv *fpriv = NULL;
 	int r;
 
 	if (!sched_job) {
@@ -174,10 +188,16 @@ static struct dma_fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	BUG_ON(amdgpu_sync_peek_fence(&job->sync, NULL));
 
 	trace_amdgpu_sched_run_job(job);
-	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job, &fence);
-	if (r)
-		DRM_ERROR("Error scheduling IBs (%d)\n", r);
-
+	if (job->vm)
+		fpriv = container_of(job->vm, struct amdgpu_fpriv, vm);
+	/* skip ib schedule when vram is lost */
+	if (fpriv && amdgpu_kms_vram_lost(job->adev, fpriv))
+		DRM_ERROR("Skip scheduling IBs!\n");
+	else {
+		r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs, job, &fence);
+		if (r)
+			DRM_ERROR("Error scheduling IBs (%d)\n", r);
+	}
 	/* if gpu reset, hw fence will be replaced here */
 	dma_fence_put(job->fence);
 	job->fence = dma_fence_get(fence);

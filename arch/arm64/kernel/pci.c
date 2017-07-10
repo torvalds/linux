@@ -39,20 +39,18 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 	return res->start;
 }
 
+#ifdef CONFIG_ACPI
 /*
  * Try to assign the IRQ number when probing a new device
  */
 int pcibios_alloc_irq(struct pci_dev *dev)
 {
-	if (acpi_disabled)
-		dev->irq = of_irq_parse_and_map_pci(dev, 0, 0);
-#ifdef CONFIG_ACPI
-	else
-		return acpi_pci_irq_enable(dev);
-#endif
+	if (!acpi_disabled)
+		acpi_pci_irq_enable(dev);
 
 	return 0;
 }
+#endif
 
 /*
  * raw_pci_read/write - Platform-specific PCI config space access.

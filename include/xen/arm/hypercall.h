@@ -39,6 +39,8 @@
 #include <xen/interface/sched.h>
 #include <xen/interface/platform.h>
 
+struct xen_dm_op_buf;
+
 long privcmd_call(unsigned call, unsigned long a1,
 		unsigned long a2, unsigned long a3,
 		unsigned long a4, unsigned long a5);
@@ -53,7 +55,8 @@ int HYPERVISOR_physdev_op(int cmd, void *arg);
 int HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args);
 int HYPERVISOR_tmem_op(void *arg);
 int HYPERVISOR_vm_assist(unsigned int cmd, unsigned int type);
-int HYPERVISOR_dm_op(domid_t domid, unsigned int nr_bufs, void *bufs);
+int HYPERVISOR_dm_op(domid_t domid, unsigned int nr_bufs,
+		     struct xen_dm_op_buf *bufs);
 int HYPERVISOR_platform_op_raw(void *arg);
 static inline int HYPERVISOR_platform_op(struct xen_platform_op *op)
 {

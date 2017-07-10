@@ -45,6 +45,22 @@
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
 
+/*
+ * Mixer color space conversion coefficient triplet.
+ * Used for CSC from RGB to YCbCr.
+ * Each coefficient is a 10-bit fixed point number with
+ * sign and no integer part, i.e.
+ * [0:8] = fractional part (representing a value y = x / 2^9)
+ * [9] = sign
+ * Negative values are encoded with two's complement.
+ */
+#define MXR_CSC_C(x) ((int)((x) * 512.0) & 0x3ff)
+#define MXR_CSC_CT(a0, a1, a2) \
+  ((MXR_CSC_C(a0) << 20) | (MXR_CSC_C(a1) << 10) | (MXR_CSC_C(a2) << 0))
+
+/* YCbCr value, used for mixer background color configuration. */
+#define MXR_YCBCR_VAL(y, cb, cr) (((y) << 16) | ((cb) << 8) | ((cr) << 0))
+
 /* The pixelformats that are natively supported by the mixer. */
 #define MXR_FORMAT_RGB565	4
 #define MXR_FORMAT_ARGB1555	5
@@ -99,7 +115,6 @@ struct mixer_context {
 	struct drm_device	*drm_dev;
 	struct exynos_drm_crtc	*crtc;
 	struct exynos_drm_plane	planes[MIXER_WIN_NR];
-	int			pipe;
 	unsigned long		flags;
 
 	struct mixer_resources	mixer_res;
@@ -382,37 +397,24 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val;
 
-	if (height == 480) {
+	switch (height) {
+	case 480:
+	case 576:
 		val = MXR_CFG_RGB601_0_255;
-	} else if (height == 576) {
-		val = MXR_CFG_RGB601_0_255;
-	} else if (height == 720) {
+		break;
+	case 720:
+	case 1080:
+	default:
 		val = MXR_CFG_RGB709_16_235;
+		/* Configure the BT.709 CSC matrix for full range RGB. */
 		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
+			MXR_CSC_CT( 0.184,  0.614,  0.063) |
+			MXR_CM_COEFF_RGB_FULL);
 		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
+			MXR_CSC_CT(-0.102, -0.338,  0.440));
 		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
-	} else if (height == 1080) {
-		val = MXR_CFG_RGB709_16_235;
-		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
-	} else {
-		val = MXR_CFG_RGB709_16_235;
-		mixer_reg_write(res, MXR_CM_COEFF_Y,
-				(1 << 30) | (94 << 20) | (314 << 10) |
-				(32 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CB,
-				(972 << 20) | (851 << 10) | (225 << 0));
-		mixer_reg_write(res, MXR_CM_COEFF_CR,
-				(225 << 20) | (820 << 10) | (1004 << 0));
+			MXR_CSC_CT( 0.440, -0.399, -0.040));
+		break;
 	}
 
 	mixer_reg_writemask(res, MXR_CFG, val, MXR_CFG_RGB_FMT_MASK);
@@ -729,10 +731,10 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	/* reset default layer priority */
 	mixer_reg_write(res, MXR_LAYER_CFG, 0);
 
-	/* setting background color */
-	mixer_reg_write(res, MXR_BG_COLOR0, 0x008080);
-	mixer_reg_write(res, MXR_BG_COLOR1, 0x008080);
-	mixer_reg_write(res, MXR_BG_COLOR2, 0x008080);
+	/* set all background colors to RGB (0,0,0) */
+	mixer_reg_write(res, MXR_BG_COLOR0, MXR_YCBCR_VAL(0, 128, 128));
+	mixer_reg_write(res, MXR_BG_COLOR1, MXR_YCBCR_VAL(0, 128, 128));
+	mixer_reg_write(res, MXR_BG_COLOR2, MXR_YCBCR_VAL(0, 128, 128));
 
 	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags)) {
 		/* configuration of Video Processor Registers */
@@ -900,7 +902,6 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 	priv = drm_dev->dev_private;
 
 	mixer_ctx->drm_dev = drm_dev;
-	mixer_ctx->pipe = priv->pipe++;
 
 	/* acquire resources: regs, irqs, clocks */
 	ret = mixer_resources_init(mixer_ctx);
@@ -918,11 +919,7 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	ret = drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
 }
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)
@@ -1158,15 +1155,14 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 			continue;
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
-					1 << ctx->pipe, &plane_configs[i]);
+					&plane_configs[i]);
 		if (ret)
 			return ret;
 	}
 
 	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					   ctx->pipe, EXYNOS_DISPLAY_TYPE_HDMI,
-					   &mixer_crtc_ops, ctx);
+			EXYNOS_DISPLAY_TYPE_HDMI, &mixer_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		mixer_ctx_remove(ctx);
 		ret = PTR_ERR(ctx->crtc);

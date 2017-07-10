@@ -22,8 +22,6 @@
 struct mdp5_plane {
 	struct drm_plane base;
 
-	spinlock_t pipe_lock;     /* protect REG_MDP5_PIPE_* registers */
-
 	uint32_t nformats;
 	uint32_t formats[32];
 };
@@ -67,11 +65,11 @@ static void mdp5_plane_install_rotation_property(struct drm_device *dev,
 		struct drm_plane *plane)
 {
 	drm_plane_create_rotation_property(plane,
-					   DRM_ROTATE_0,
-					   DRM_ROTATE_0 |
-					   DRM_ROTATE_180 |
-					   DRM_REFLECT_X |
-					   DRM_REFLECT_Y);
+					   DRM_MODE_ROTATE_0,
+					   DRM_MODE_ROTATE_0 |
+					   DRM_MODE_ROTATE_180 |
+					   DRM_MODE_REFLECT_X |
+					   DRM_MODE_REFLECT_Y);
 }
 
 /* helper to install properties which are common to planes and crtcs */
@@ -274,26 +272,28 @@ static int mdp5_plane_prepare_fb(struct drm_plane *plane,
 				 struct drm_plane_state *new_state)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_framebuffer *fb = new_state->fb;
 
 	if (!new_state->fb)
 		return 0;
 
 	DBG("%s: prepare: FB[%u]", plane->name, fb->base.id);
-	return msm_framebuffer_prepare(fb, mdp5_kms->id);
+	return msm_framebuffer_prepare(fb, kms->aspace);
 }
 
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
+	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_framebuffer *fb = old_state->fb;
 
 	if (!fb)
 		return;
 
 	DBG("%s: cleanup: FB[%u]", plane->name, fb->base.id);
-	msm_framebuffer_cleanup(fb, mdp5_kms->id);
+	msm_framebuffer_cleanup(fb, kms->aspace);
 }
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
@@ -370,14 +370,14 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			caps |= MDP_PIPE_CAP_SCALE;
 
 		rotation = drm_rotation_simplify(state->rotation,
-						 DRM_ROTATE_0 |
-						 DRM_REFLECT_X |
-						 DRM_REFLECT_Y);
+						 DRM_MODE_ROTATE_0 |
+						 DRM_MODE_REFLECT_X |
+						 DRM_MODE_REFLECT_Y);
 
-		if (rotation & DRM_REFLECT_X)
+		if (rotation & DRM_MODE_REFLECT_X)
 			caps |= MDP_PIPE_CAP_HFLIP;
 
-		if (rotation & DRM_REFLECT_Y)
+		if (rotation & DRM_MODE_REFLECT_Y)
 			caps |= MDP_PIPE_CAP_VFLIP;
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -500,6 +500,8 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			       enum mdp5_pipe pipe,
 			       struct drm_framebuffer *fb)
 {
+	struct msm_kms *kms = &mdp5_kms->base.base;
+
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_STRIDE_A(pipe),
 			MDP5_PIPE_SRC_STRIDE_A_P0(fb->pitches[0]) |
 			MDP5_PIPE_SRC_STRIDE_A_P1(fb->pitches[1]));
@@ -509,13 +511,13 @@ static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
 			MDP5_PIPE_SRC_STRIDE_B_P3(fb->pitches[3]));
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC0_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 0));
+			msm_framebuffer_iova(fb, kms->aspace, 0));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC1_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 1));
+			msm_framebuffer_iova(fb, kms->aspace, 1));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC2_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 2));
+			msm_framebuffer_iova(fb, kms->aspace, 2));
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC3_ADDR(pipe),
-			msm_framebuffer_iova(fb, mdp5_kms->id, 3));
+			msm_framebuffer_iova(fb, kms->aspace, 3));
 }
 
 /* Note: mdp5_plane->pipe_lock must be locked */
@@ -881,7 +883,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		struct drm_rect *src, struct drm_rect *dest)
 {
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *pstate = plane->state;
 	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
@@ -902,7 +903,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t src_img_w, src_img_h;
 	uint32_t src_x_r;
 	int crtc_x_r;
-	unsigned long flags;
 	int ret;
 
 	nplanes = fb->format->num_planes;
@@ -975,13 +975,11 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	DBG("scale config = %x", config);
 
 	rotation = drm_rotation_simplify(pstate->rotation,
-					 DRM_ROTATE_0 |
-					 DRM_REFLECT_X |
-					 DRM_REFLECT_Y);
-	hflip = !!(rotation & DRM_REFLECT_X);
-	vflip = !!(rotation & DRM_REFLECT_Y);
-
-	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
+					 DRM_MODE_ROTATE_0 |
+					 DRM_MODE_REFLECT_X |
+					 DRM_MODE_REFLECT_Y);
+	hflip = !!(rotation & DRM_MODE_REFLECT_X);
+	vflip = !!(rotation & DRM_MODE_REFLECT_Y);
 
 	mdp5_hwpipe_mode_set(mdp5_kms, hwpipe, fb, &step, &pe,
 			     config, hdecm, vdecm, hflip, vflip,
@@ -994,8 +992,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 				     crtc_x_r, crtc_y, crtc_w, crtc_h,
 				     src_img_w, src_img_h,
 				     src_x_r, src_y, src_w, src_h);
-
-	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
 
 	plane->fb = fb;
 
@@ -1138,8 +1134,6 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
 		ARRAY_SIZE(mdp5_plane->formats), false);
-
-	spin_lock_init(&mdp5_plane->pipe_lock);
 
 	if (type == DRM_PLANE_TYPE_CURSOR)
 		ret = drm_universal_plane_init(dev, plane, 0xff,

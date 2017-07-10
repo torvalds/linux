@@ -130,15 +130,15 @@
 				reg = <0x2f>;
 			};
 			eeprom@52 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x52>;
 			};
 			eeprom@54 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x54>;
 			};
 			eeprom@56 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x56>;
 			};
 			rtc@68 {

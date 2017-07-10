@@ -12,8 +12,8 @@
  */
 #include <linux/device.h>
 #include <linux/sizes.h>
-#include <linux/pmem.h>
 #include "nd-core.h"
+#include "pmem.h"
 #include "pfn.h"
 #include "btt.h"
 #include "nd.h"
@@ -184,6 +184,35 @@ ssize_t nd_namespace_store(struct device *dev,
 	}
 
 	ndns = to_ndns(found);
+
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+		break;
+	case NVDIMM_CCLASS_BTT:
+	case NVDIMM_CCLASS_BTT2:
+		if (!is_nd_btt(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	case NVDIMM_CCLASS_PFN:
+		if (!is_nd_pfn(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	case NVDIMM_CCLASS_DAX:
+		if (!is_nd_dax(dev)) {
+			len = -EBUSY;
+			goto out_attach;
+		}
+		break;
+	default:
+		len = -EBUSY;
+		goto out_attach;
+		break;
+	}
+
 	if (__nvdimm_namespace_capacity(ndns) < SZ_16M) {
 		dev_dbg(dev, "%s too small to host\n", name);
 		len = -ENXIO;
@@ -260,8 +289,7 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 		 * work around this collision.
 		 */
 		if (IS_ALIGNED(offset, 512) && IS_ALIGNED(size, 512)
-				&& !(flags & NVDIMM_IO_ATOMIC)
-				&& !ndns->claim) {
+				&& !(flags & NVDIMM_IO_ATOMIC)) {
 			long cleared;
 
 			cleared = nvdimm_clear_poison(&ndns->dev,
@@ -272,12 +300,12 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 				cleared /= 512;
 				badblocks_clear(&nsio->bb, sector, cleared);
 			}
-			invalidate_pmem(nsio->addr + offset, size);
+			arch_invalidate_pmem(nsio->addr + offset, size);
 		} else
 			rc = -EIO;
 	}
 
-	memcpy_to_pmem(nsio->addr + offset, buf, size);
+	memcpy_flushcache(nsio->addr + offset, buf, size);
 	nvdimm_flush(to_nd_region(ndns->dev.parent));
 
 	return rc;

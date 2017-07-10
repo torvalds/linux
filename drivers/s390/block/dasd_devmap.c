@@ -150,7 +150,7 @@ static int __init dasd_busid(char *str, int *id0, int *id1, int *devno)
 	/* Old style 0xXXXX or XXXX */
 	if (!kstrtouint(str, 16, &val)) {
 		*id0 = *id1 = 0;
-		if (val < 0 || val > 0xffff)
+		if (val > 0xffff)
 			return -EINVAL;
 		*devno = val;
 		return 0;

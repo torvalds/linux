@@ -37,8 +37,8 @@ static int arena_read_bytes(struct arena_info *arena, resource_size_t offset,
 	struct nd_btt *nd_btt = arena->nd_btt;
 	struct nd_namespace_common *ndns = nd_btt->ndns;
 
-	/* arena offsets are 4K from the base of the device */
-	offset += SZ_4K;
+	/* arena offsets may be shifted from the base of the device */
+	offset += arena->nd_btt->initial_offset;
 	return nvdimm_read_bytes(ndns, offset, buf, n, flags);
 }
 
@@ -48,8 +48,8 @@ static int arena_write_bytes(struct arena_info *arena, resource_size_t offset,
 	struct nd_btt *nd_btt = arena->nd_btt;
 	struct nd_namespace_common *ndns = nd_btt->ndns;
 
-	/* arena offsets are 4K from the base of the device */
-	offset += SZ_4K;
+	/* arena offsets may be shifted from the base of the device */
+	offset += arena->nd_btt->initial_offset;
 	return nvdimm_write_bytes(ndns, offset, buf, n, flags);
 }
 
@@ -323,7 +323,7 @@ static int btt_log_read(struct arena_info *arena, u32 lane,
 
 	old_ent = btt_log_get_old(log);
 	if (old_ent < 0 || old_ent > 1) {
-		dev_info(to_dev(arena),
+		dev_err(to_dev(arena),
 				"log corruption (%d): lane %d seq [%d, %d]\n",
 			old_ent, lane, log[0].seq, log[1].seq);
 		/* TODO set error state? */
@@ -576,8 +576,8 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 	arena->internal_lbasize = roundup(arena->external_lbasize,
 					INT_LBASIZE_ALIGNMENT);
 	arena->nfree = BTT_DEFAULT_NFREE;
-	arena->version_major = 1;
-	arena->version_minor = 1;
+	arena->version_major = btt->nd_btt->version_major;
+	arena->version_minor = btt->nd_btt->version_minor;
 
 	if (available % BTT_PG_SIZE)
 		available -= (available % BTT_PG_SIZE);
@@ -684,7 +684,7 @@ static int discover_arenas(struct btt *btt)
 				dev_info(to_dev(arena), "No existing arenas\n");
 				goto out;
 			} else {
-				dev_info(to_dev(arena),
+				dev_err(to_dev(arena),
 						"Found corrupted metadata!\n");
 				ret = -ENODEV;
 				goto out;
@@ -1227,7 +1227,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 		err = btt_do_bvec(btt, bip, bvec.bv_page, len, bvec.bv_offset,
 				  op_is_write(bio_op(bio)), iter.bi_sector);
 		if (err) {
-			dev_info(&btt->nd_btt->dev,
+			dev_err(&btt->nd_btt->dev,
 					"io error in %s sector %lld, len %d,\n",
 					(op_is_write(bio_op(bio))) ? "WRITE" :
 					"READ",
@@ -1248,10 +1248,13 @@ static int btt_rw_page(struct block_device *bdev, sector_t sector,
 		struct page *page, bool is_write)
 {
 	struct btt *btt = bdev->bd_disk->private_data;
+	int rc;
 
-	btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, is_write, sector);
-	page_endio(page, is_write, 0);
-	return 0;
+	rc = btt_do_bvec(btt, NULL, page, PAGE_SIZE, 0, is_write, sector);
+	if (rc == 0)
+		page_endio(page, is_write, 0);
+
+	return rc;
 }
 
 
@@ -1369,7 +1372,7 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 	}
 
 	if (btt->init_state != INIT_READY && nd_region->ro) {
-		dev_info(dev, "%s is read-only, unable to init btt metadata\n",
+		dev_warn(dev, "%s is read-only, unable to init btt metadata\n",
 				dev_name(&nd_region->dev));
 		return NULL;
 	} else if (btt->init_state != INIT_READY) {
@@ -1424,6 +1427,7 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 {
 	struct nd_btt *nd_btt = to_nd_btt(ndns->claim);
 	struct nd_region *nd_region;
+	struct btt_sb *btt_sb;
 	struct btt *btt;
 	size_t rawsize;
 
@@ -1432,10 +1436,21 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 		return -ENODEV;
 	}
 
-	rawsize = nvdimm_namespace_capacity(ndns) - SZ_4K;
+	btt_sb = devm_kzalloc(&nd_btt->dev, sizeof(*btt_sb), GFP_KERNEL);
+
+	/*
+	 * If this returns < 0, that is ok as it just means there wasn't
+	 * an existing BTT, and we're creating a new one. We still need to
+	 * call this as we need the version dependent fields in nd_btt to be
+	 * set correctly based on the holder class
+	 */
+	nd_btt_version(nd_btt, ndns, btt_sb);
+
+	rawsize = nvdimm_namespace_capacity(ndns) - nd_btt->initial_offset;
 	if (rawsize < ARENA_MIN_SIZE) {
 		dev_dbg(&nd_btt->dev, "%s must be at least %ld bytes\n",
-				dev_name(&ndns->dev), ARENA_MIN_SIZE + SZ_4K);
+				dev_name(&ndns->dev),
+				ARENA_MIN_SIZE + nd_btt->initial_offset);
 		return -ENXIO;
 	}
 	nd_region = to_nd_region(nd_btt->dev.parent);

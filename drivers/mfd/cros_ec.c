@@ -147,7 +147,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	}
 
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
-		err = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		err = devm_of_platform_populate(dev);
 		if (err) {
 			mfd_remove_devices(dev);
 			dev_err(dev, "Failed to register sub-devices\n");
@@ -182,6 +182,9 @@ int cros_ec_remove(struct cros_ec_device *ec_dev)
 	mfd_remove_devices(ec_dev->dev);
 
 	cros_ec_acpi_remove_gpe_handler();
+
+	if (ec_dev->irq)
+		free_irq(ec_dev->irq, ec_dev);
 
 	return 0;
 }

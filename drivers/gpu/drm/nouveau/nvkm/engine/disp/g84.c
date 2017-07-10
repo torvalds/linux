@@ -22,30 +22,20 @@
  * Authors: Ben Skeggs
  */
 #include "nv50.h"
+#include "head.h"
+#include "ior.h"
 #include "rootnv50.h"
 
 static const struct nv50_disp_func
 g84_disp = {
 	.intr = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
-	.super = nv50_disp_intr_supervisor,
+	.super = nv50_disp_super,
 	.root = &g84_disp_root_oclass,
-	.head.vblank_init = nv50_disp_vblank_init,
-	.head.vblank_fini = nv50_disp_vblank_fini,
-	.head.scanoutpos = nv50_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.external.tmds = nv50_pior_output_new,
-	.outp.external.dp = nv50_pior_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 2,
-	.sor.power = nv50_sor_power,
-	.sor.hdmi = g84_hdmi_ctrl,
-	.pior.nr = 3,
-	.pior.power = nv50_pior_power,
+	.head.new = nv50_head_new,
+	.dac = { .nr = 3, .new = nv50_dac_new },
+	.sor = { .nr = 2, .new = g84_sor_new },
+	.pior = { .nr = 3, .new = nv50_pior_new },
 };
 
 int

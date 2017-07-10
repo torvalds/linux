@@ -22,14 +22,16 @@
  * ALT2 function.
  */
 
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "drm_edid.h"
-#include "drm_panel.h"
-#include "linux/clk.h"
-#include "linux/component.h"
-#include "linux/of_graph.h"
-#include "linux/of_platform.h"
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_of.h>
+#include <drm/drm_panel.h>
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -95,7 +97,8 @@ struct vc4_dpi {
 
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct drm_panel *panel;
+	struct drm_bridge *bridge;
+	bool is_panel_bridge;
 
 	void __iomem *regs;
 
@@ -116,24 +119,6 @@ static inline struct vc4_dpi_encoder *
 to_vc4_dpi_encoder(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct vc4_dpi_encoder, base.base);
-}
-
-/* VC4 DPI connector KMS struct */
-struct vc4_dpi_connector {
-	struct drm_connector base;
-	struct vc4_dpi *dpi;
-
-	/* Since the connector is attached to just the one encoder,
-	 * this is the reference to it so we can do the best_encoder()
-	 * hook.
-	 */
-	struct drm_encoder *encoder;
-};
-
-static inline struct vc4_dpi_connector *
-to_vc4_dpi_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct vc4_dpi_connector, base);
 }
 
 #define DPI_REG(reg) { reg, #reg }
@@ -167,80 +152,6 @@ int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused)
 }
 #endif
 
-static enum drm_connector_status
-vc4_dpi_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct vc4_dpi_connector *vc4_connector =
-		to_vc4_dpi_connector(connector);
-	struct vc4_dpi *dpi = vc4_connector->dpi;
-
-	if (dpi->panel)
-		return connector_status_connected;
-	else
-		return connector_status_disconnected;
-}
-
-static void vc4_dpi_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-}
-
-static int vc4_dpi_connector_get_modes(struct drm_connector *connector)
-{
-	struct vc4_dpi_connector *vc4_connector =
-		to_vc4_dpi_connector(connector);
-	struct vc4_dpi *dpi = vc4_connector->dpi;
-
-	if (dpi->panel)
-		return drm_panel_get_modes(dpi->panel);
-
-	return 0;
-}
-
-static const struct drm_connector_funcs vc4_dpi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
-	.detect = vc4_dpi_connector_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = vc4_dpi_connector_destroy,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static const struct drm_connector_helper_funcs vc4_dpi_connector_helper_funcs = {
-	.get_modes = vc4_dpi_connector_get_modes,
-};
-
-static struct drm_connector *vc4_dpi_connector_init(struct drm_device *dev,
-						    struct vc4_dpi *dpi)
-{
-	struct drm_connector *connector = NULL;
-	struct vc4_dpi_connector *dpi_connector;
-
-	dpi_connector = devm_kzalloc(dev->dev, sizeof(*dpi_connector),
-				     GFP_KERNEL);
-	if (!dpi_connector)
-		return ERR_PTR(-ENOMEM);
-
-	connector = &dpi_connector->base;
-
-	dpi_connector->encoder = dpi->encoder;
-	dpi_connector->dpi = dpi;
-
-	drm_connector_init(dev, connector, &vc4_dpi_connector_funcs,
-			   DRM_MODE_CONNECTOR_DPI);
-	drm_connector_helper_add(connector, &vc4_dpi_connector_helper_funcs);
-
-	connector->polled = 0;
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	drm_mode_connector_attach_encoder(connector, dpi->encoder);
-
-	return connector;
-}
-
 static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
@@ -250,11 +161,7 @@ static void vc4_dpi_encoder_disable(struct drm_encoder *encoder)
 	struct vc4_dpi_encoder *vc4_encoder = to_vc4_dpi_encoder(encoder);
 	struct vc4_dpi *dpi = vc4_encoder->dpi;
 
-	drm_panel_disable(dpi->panel);
-
 	clk_disable_unprepare(dpi->pixel_clock);
-
-	drm_panel_unprepare(dpi->panel);
 }
 
 static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
@@ -264,12 +171,6 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 	struct vc4_dpi *dpi = vc4_encoder->dpi;
 	u32 dpi_c = DPI_ENABLE | DPI_OUTPUT_ENABLE_MODE;
 	int ret;
-
-	ret = drm_panel_prepare(dpi->panel);
-	if (ret) {
-		DRM_ERROR("Panel failed to prepare\n");
-		return;
-	}
 
 	if (dpi->connector->display_info.num_bus_formats) {
 		u32 bus_format = dpi->connector->display_info.bus_formats[0];
@@ -321,13 +222,6 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 	ret = clk_prepare_enable(dpi->pixel_clock);
 	if (ret)
 		DRM_ERROR("Failed to set clock rate: %d\n", ret);
-
-	ret = drm_panel_enable(dpi->panel);
-	if (ret) {
-		DRM_ERROR("Panel failed to enable\n");
-		drm_panel_unprepare(dpi->panel);
-		return;
-	}
 }
 
 static bool vc4_dpi_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -351,24 +245,34 @@ static const struct of_device_id vc4_dpi_dt_match[] = {
 	{}
 };
 
-/* Walks the OF graph to find the panel node and then asks DRM to look
- * up the panel.
+/* Sets up the next link in the display chain, whether it's a panel or
+ * a bridge.
  */
-static struct drm_panel *vc4_dpi_get_panel(struct device *dev)
+static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 {
-	struct device_node *panel_node;
-	struct device_node *np = dev->of_node;
+	struct device *dev = &dpi->pdev->dev;
 	struct drm_panel *panel;
+	int ret;
 
-	/* don't proceed if we have an endpoint but no panel_node tied to it */
-	panel_node = of_graph_get_remote_node(np, 0, 0);
-	if (!panel_node)
-		return NULL;
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
+					  &panel, &dpi->bridge);
+	if (ret) {
+		/* If nothing was connected in the DT, that's not an
+		 * error.
+		 */
+		if (ret == -ENODEV)
+			return 0;
+		else
+			return ret;
+	}
 
-	panel = of_drm_find_panel(panel_node);
-	of_node_put(panel_node);
+	if (panel) {
+		dpi->bridge = drm_panel_bridge_add(panel,
+						   DRM_MODE_CONNECTOR_DPI);
+		dpi->is_panel_bridge = true;
+	}
 
-	return panel;
+	return drm_bridge_attach(dpi->encoder, dpi->bridge, NULL);
 }
 
 static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
@@ -422,20 +326,13 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		DRM_ERROR("Failed to turn on core clock: %d\n", ret);
 
-	dpi->panel = vc4_dpi_get_panel(dev);
-
 	drm_encoder_init(drm, dpi->encoder, &vc4_dpi_encoder_funcs,
 			 DRM_MODE_ENCODER_DPI, NULL);
 	drm_encoder_helper_add(dpi->encoder, &vc4_dpi_encoder_helper_funcs);
 
-	dpi->connector = vc4_dpi_connector_init(drm, dpi);
-	if (IS_ERR(dpi->connector)) {
-		ret = PTR_ERR(dpi->connector);
+	ret = vc4_dpi_init_bridge(dpi);
+	if (ret)
 		goto err_destroy_encoder;
-	}
-
-	if (dpi->panel)
-		drm_panel_attach(dpi->panel, dpi->connector);
 
 	dev_set_drvdata(dev, dpi);
 
@@ -456,10 +353,9 @@ static void vc4_dpi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dpi *dpi = dev_get_drvdata(dev);
 
-	if (dpi->panel)
-		drm_panel_detach(dpi->panel);
+	if (dpi->is_panel_bridge)
+		drm_panel_bridge_remove(dpi->bridge);
 
-	vc4_dpi_connector_destroy(dpi->connector);
 	drm_encoder_cleanup(dpi->encoder);
 
 	clk_disable_unprepare(dpi->core_clock);

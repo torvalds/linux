@@ -46,7 +46,7 @@ static void dw_plat_pcie_host_init(struct pcie_port *pp)
 		dw_pcie_msi_init(pp);
 }
 
-static struct dw_pcie_host_ops dw_plat_pcie_host_ops = {
+static const struct dw_pcie_host_ops dw_plat_pcie_host_ops = {
 	.host_init = dw_plat_pcie_host_init,
 };
 
@@ -67,7 +67,8 @@ static int dw_plat_add_pcie_port(struct pcie_port *pp,
 
 		ret = devm_request_irq(dev, pp->msi_irq,
 					dw_plat_pcie_msi_irq_handler,
-					IRQF_SHARED, "dw-plat-pcie-msi", pp);
+					IRQF_SHARED | IRQF_NO_THREAD,
+					"dw-plat-pcie-msi", pp);
 		if (ret) {
 			dev_err(dev, "failed to request MSI IRQ\n");
 			return ret;

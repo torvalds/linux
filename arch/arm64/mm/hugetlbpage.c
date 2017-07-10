@@ -42,15 +42,13 @@ int pud_huge(pud_t pud)
 }
 
 static int find_num_contig(struct mm_struct *mm, unsigned long addr,
-			   pte_t *ptep, pte_t pte, size_t *pgsize)
+			   pte_t *ptep, size_t *pgsize)
 {
 	pgd_t *pgd = pgd_offset(mm, addr);
 	pud_t *pud;
 	pmd_t *pmd;
 
 	*pgsize = PAGE_SIZE;
-	if (!pte_cont(pte))
-		return 1;
 	pud = pud_offset(pgd, addr);
 	pmd = pmd_offset(pud, addr);
 	if ((pte_t *)pmd == ptep) {
@@ -65,15 +63,16 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	size_t pgsize;
 	int i;
-	int ncontig = find_num_contig(mm, addr, ptep, pte, &pgsize);
+	int ncontig;
 	unsigned long pfn;
 	pgprot_t hugeprot;
 
-	if (ncontig == 1) {
+	if (!pte_cont(pte)) {
 		set_pte_at(mm, addr, ptep, pte);
 		return;
 	}
 
+	ncontig = find_num_contig(mm, addr, ptep, &pgsize);
 	pfn = pte_pfn(pte);
 	hugeprot = __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
 	for (i = 0; i < ncontig; i++) {
@@ -132,7 +131,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	return pte;
 }
 
-pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_offset(struct mm_struct *mm,
+		       unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -184,21 +184,19 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 	if (pte_cont(*ptep)) {
 		int ncontig, i;
 		size_t pgsize;
-		pte_t *cpte;
 		bool is_dirty = false;
 
-		cpte = huge_pte_offset(mm, addr);
-		ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
+		ncontig = find_num_contig(mm, addr, ptep, &pgsize);
 		/* save the 1st pte to return */
-		pte = ptep_get_and_clear(mm, addr, cpte);
+		pte = ptep_get_and_clear(mm, addr, ptep);
 		for (i = 1, addr += pgsize; i < ncontig; ++i, addr += pgsize) {
 			/*
 			 * If HW_AFDBM is enabled, then the HW could
 			 * turn on the dirty bit for any of the page
 			 * in the set, so check them all.
 			 */
-			++cpte;
-			if (pte_dirty(ptep_get_and_clear(mm, addr, cpte)))
+			++ptep;
+			if (pte_dirty(ptep_get_and_clear(mm, addr, ptep)))
 				is_dirty = true;
 		}
 		if (is_dirty)
@@ -214,8 +212,6 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 			       unsigned long addr, pte_t *ptep,
 			       pte_t pte, int dirty)
 {
-	pte_t *cpte;
-
 	if (pte_cont(pte)) {
 		int ncontig, i, changed = 0;
 		size_t pgsize = 0;
@@ -225,12 +221,11 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 			__pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^
 				 pte_val(pte));
 
-		cpte = huge_pte_offset(vma->vm_mm, addr);
-		pfn = pte_pfn(*cpte);
-		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
-					  *cpte, &pgsize);
-		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize) {
-			changed |= ptep_set_access_flags(vma, addr, cpte,
+		pfn = pte_pfn(pte);
+		ncontig = find_num_contig(vma->vm_mm, addr, ptep,
+					  &pgsize);
+		for (i = 0; i < ncontig; ++i, ++ptep, addr += pgsize) {
+			changed |= ptep_set_access_flags(vma, addr, ptep,
 							pfn_pte(pfn,
 								hugeprot),
 							dirty);
@@ -247,13 +242,11 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 {
 	if (pte_cont(*ptep)) {
 		int ncontig, i;
-		pte_t *cpte;
 		size_t pgsize = 0;
 
-		cpte = huge_pte_offset(mm, addr);
-		ncontig = find_num_contig(mm, addr, cpte, *cpte, &pgsize);
-		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize)
-			ptep_set_wrprotect(mm, addr, cpte);
+		ncontig = find_num_contig(mm, addr, ptep, &pgsize);
+		for (i = 0; i < ncontig; ++i, ++ptep, addr += pgsize)
+			ptep_set_wrprotect(mm, addr, ptep);
 	} else {
 		ptep_set_wrprotect(mm, addr, ptep);
 	}
@@ -264,14 +257,12 @@ void huge_ptep_clear_flush(struct vm_area_struct *vma,
 {
 	if (pte_cont(*ptep)) {
 		int ncontig, i;
-		pte_t *cpte;
 		size_t pgsize = 0;
 
-		cpte = huge_pte_offset(vma->vm_mm, addr);
-		ncontig = find_num_contig(vma->vm_mm, addr, cpte,
-					  *cpte, &pgsize);
-		for (i = 0; i < ncontig; ++i, ++cpte, addr += pgsize)
-			ptep_clear_flush(vma, addr, cpte);
+		ncontig = find_num_contig(vma->vm_mm, addr, ptep,
+					  &pgsize);
+		for (i = 0; i < ncontig; ++i, ++ptep, addr += pgsize)
+			ptep_clear_flush(vma, addr, ptep);
 	} else {
 		ptep_clear_flush(vma, addr, ptep);
 	}

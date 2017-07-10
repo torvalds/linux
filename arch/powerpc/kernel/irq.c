@@ -322,7 +322,8 @@ bool prep_irq_for_idle(void)
 	 * First we need to hard disable to ensure no interrupt
 	 * occurs before we effectively enter the low power state
 	 */
-	hard_irq_disable();
+	__hard_irq_disable();
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 
 	/*
 	 * If anything happened while we were soft-disabled,
@@ -346,6 +347,65 @@ bool prep_irq_for_idle(void)
 	/* Tell the caller to enter the low power state */
 	return true;
 }
+
+#ifdef CONFIG_PPC_BOOK3S
+/*
+ * This is for idle sequences that return with IRQs off, but the
+ * idle state itself wakes on interrupt. Tell the irq tracer that
+ * IRQs are enabled for the duration of idle so it does not get long
+ * off times. Must be paired with fini_irq_for_idle_irqsoff.
+ */
+bool prep_irq_for_idle_irqsoff(void)
+{
+	WARN_ON(!irqs_disabled());
+
+	/*
+	 * First we need to hard disable to ensure no interrupt
+	 * occurs before we effectively enter the low power state
+	 */
+	__hard_irq_disable();
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+	/*
+	 * If anything happened while we were soft-disabled,
+	 * we return now and do not enter the low power state.
+	 */
+	if (lazy_irq_pending())
+		return false;
+
+	/* Tell lockdep we are about to re-enable */
+	trace_hardirqs_on();
+
+	return true;
+}
+
+/*
+ * Take the SRR1 wakeup reason, index into this table to find the
+ * appropriate irq_happened bit.
+ */
+static const u8 srr1_to_lazyirq[0x10] = {
+	0, 0, 0,
+	PACA_IRQ_DBELL,
+	0,
+	PACA_IRQ_DBELL,
+	PACA_IRQ_DEC,
+	0,
+	PACA_IRQ_EE,
+	PACA_IRQ_EE,
+	PACA_IRQ_HMI,
+	0, 0, 0, 0, 0 };
+
+void irq_set_pending_from_srr1(unsigned long srr1)
+{
+	unsigned int idx = (srr1 & SRR1_WAKEMASK_P8) >> 18;
+
+	/*
+	 * The 0 index (SRR1[42:45]=b0000) must always evaluate to 0,
+	 * so this can be called unconditionally with srr1 wake reason.
+	 */
+	local_paca->irq_happened |= srr1_to_lazyirq[idx];
+}
+#endif /* CONFIG_PPC_BOOK3S */
 
 /*
  * Force a replay of the external interrupt handler on this CPU.
