@@ -2189,7 +2189,15 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		DRM_INFO("GPU post is not needed\n");
 	}
 
-	if (!adev->is_atom_fw) {
+	if (adev->is_atom_fw) {
+		/* Initialize clocks */
+		r = amdgpu_atomfirmware_get_clock_info(adev);
+		if (r) {
+			dev_err(adev->dev, "amdgpu_atomfirmware_get_clock_info failed\n");
+			amdgpu_vf_error_put(AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
+			goto failed;
+		}
+	} else {
 		/* Initialize clocks */
 		r = amdgpu_atombios_get_clock_info(adev);
 		if (r) {
