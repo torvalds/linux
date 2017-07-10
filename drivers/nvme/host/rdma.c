@@ -777,7 +777,7 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl,
 	if (error)
 		goto out_cleanup_queue;
 
-	error = nvmf_reg_read64(&ctrl->ctrl, NVME_REG_CAP,
+	error = ctrl->ctrl.ops->reg_read64(&ctrl->ctrl, NVME_REG_CAP,
 			&ctrl->ctrl.cap);
 	if (error) {
 		dev_err(ctrl->ctrl.device,
