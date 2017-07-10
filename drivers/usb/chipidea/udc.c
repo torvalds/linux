@@ -944,7 +944,6 @@ isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
  */
 static int isr_setup_status_phase(struct ci_hdrc *ci)
 {
-	int retval;
 	struct ci_hw_ep *hwep;
 
 	/*
@@ -960,9 +959,7 @@ static int isr_setup_status_phase(struct ci_hdrc *ci)
 	ci->status->context = ci;
 	ci->status->complete = isr_setup_status_complete;
 
-	retval = _ep_queue(&hwep->ep, ci->status, GFP_ATOMIC);
-
-	return retval;
+	return _ep_queue(&hwep->ep, ci->status, GFP_ATOMIC);
 }
 
 /**
