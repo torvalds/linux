@@ -301,6 +301,10 @@ static void rsi_mac80211_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&common->mutex);
 	common->iface_down = true;
+
+	/* Block all rx frames */
+	rsi_send_rx_filter_frame(common, 0xffff);
+
 	mutex_unlock(&common->mutex);
 }
 
