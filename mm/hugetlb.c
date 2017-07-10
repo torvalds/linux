@@ -70,6 +70,17 @@ struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
 /* Forward declaration */
 static int hugetlb_acct_memory(struct hstate *h, long delta);
 
+static char * __init memfmt(char *buf, unsigned long n)
+{
+	if (n >= (1UL << 30))
+		sprintf(buf, "%lu GB", n >> 30);
+	else if (n >= (1UL << 20))
+		sprintf(buf, "%lu MB", n >> 20);
+	else
+		sprintf(buf, "%lu KB", n >> 10);
+	return buf;
+}
+
 static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
 {
 	bool free = (spool->count == 0) && (spool->used_hpages == 0);
@@ -2212,7 +2223,14 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 					 &node_states[N_MEMORY]))
 			break;
 	}
-	h->max_huge_pages = i;
+	if (i < h->max_huge_pages) {
+		char buf[32];
+
+		memfmt(buf, huge_page_size(h)),
+		pr_warn("HugeTLB: allocating %lu of page size %s failed.  Only allocated %lu hugepages.\n",
+			h->max_huge_pages, buf, i);
+		h->max_huge_pages = i;
+	}
 }
 
 static void __init hugetlb_init_hstates(void)
@@ -2228,17 +2246,6 @@ static void __init hugetlb_init_hstates(void)
 			hugetlb_hstate_alloc_pages(h);
 	}
 	VM_BUG_ON(minimum_order == UINT_MAX);
-}
-
-static char * __init memfmt(char *buf, unsigned long n)
-{
-	if (n >= (1UL << 30))
-		sprintf(buf, "%lu GB", n >> 30);
-	else if (n >= (1UL << 20))
-		sprintf(buf, "%lu MB", n >> 20);
-	else
-		sprintf(buf, "%lu KB", n >> 10);
-	return buf;
 }
 
 static void __init report_hugepages(void)
@@ -2808,6 +2815,11 @@ static int __init hugetlb_init(void)
 		return 0;
 
 	if (!size_to_hstate(default_hstate_size)) {
+		if (default_hstate_size != 0) {
+			pr_err("HugeTLB: unsupported default_hugepagesz %lu. Reverting to %lu\n",
+			       default_hstate_size, HPAGE_SIZE);
+		}
+
 		default_hstate_size = HPAGE_SIZE;
 		if (!size_to_hstate(default_hstate_size))
 			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
