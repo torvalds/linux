@@ -381,17 +381,25 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
 	struct mlx5e_icosq *sq = &rq->channel->icosq;
 	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_umr_wqe *wqe;
-	u8 num_wqebbs = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_BB);
+	struct mlx5e_umr_wqe *umr_wqe;
+	int cpy = offsetof(struct mlx5e_umr_wqe, inline_mtts);
 	int err;
 	u16 pi;
 	int i;
 
+	/* fill sq edge with nops to avoid wqe wrap around */
+	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
+		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
+		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+	}
+
+	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
+	memcpy(umr_wqe, &wi->umr.wqe, cpy);
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
 		err = mlx5e_page_alloc_mapped(rq, dma_info);
 		if (unlikely(err))
 			goto err_unmap;
-		wi->umr.mtt[i] = cpu_to_be64(dma_info->addr | MLX5_EN_WR);
+		umr_wqe->inline_mtts[i].ptag = cpu_to_be64(dma_info->addr | MLX5_EN_WR);
 		page_ref_add(dma_info->page, pg_strides);
 	}
 
@@ -400,21 +408,13 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 
 	rq->mpwqe.umr_in_progress = true;
 
-	/* fill sq edge with nops to avoid wqe wrap around */
-	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
-		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	}
-
-	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memcpy(wqe, &wi->umr.wqe, sizeof(*wqe));
-	wqe->ctrl.opmod_idx_opcode =
+	umr_wqe->ctrl.opmod_idx_opcode =
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			    MLX5_OPCODE_UMR);
 
 	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
-	sq->pc += num_wqebbs;
-	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &wqe->ctrl);
+	sq->pc += MLX5E_UMR_WQEBBS;
+	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &umr_wqe->ctrl);
 
 	return 0;
 
