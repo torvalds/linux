@@ -634,6 +634,12 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					    this_node->object;
 				}
 			}
+#ifdef ACPI_ASL_COMPILER
+			if (!acpi_gbl_disasm_flag &&
+			    (this_node->flags & ANOBJ_IS_EXTERNAL)) {
+				this_node->flags |= IMPLICIT_EXTERNAL;
+			}
+#endif
 		}
 
 		/* Special handling for the last segment (num_segments == 0) */
