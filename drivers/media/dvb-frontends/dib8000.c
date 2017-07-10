@@ -1880,7 +1880,7 @@ static u32 dib8096p_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm dib8096p_tuner_xfer_algo = {
+static const struct i2c_algorithm dib8096p_tuner_xfer_algo = {
 	.master_xfer = dib8096p_tuner_xfer,
 	.functionality = dib8096p_i2c_func,
 };
