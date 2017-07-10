@@ -867,7 +867,7 @@ struct acpi_parse_obj_named {
 
 /* This version is used by the iASL compiler only */
 
-#define ACPI_MAX_PARSEOP_NAME   20
+#define ACPI_MAX_PARSEOP_NAME       20
 
 struct acpi_parse_obj_asl {
 	ACPI_PARSE_COMMON union acpi_parse_object *child;
@@ -907,7 +907,7 @@ union acpi_parse_object {
 struct asl_comment_state {
 	u8 comment_type;
 	u32 spaces_before;
-	union acpi_parse_object *latest_parse_node;
+	union acpi_parse_object *latest_parse_op;
 	union acpi_parse_object *parsing_paren_brace_node;
 	u8 capture_comments;
 };
