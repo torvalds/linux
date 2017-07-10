@@ -57,7 +57,8 @@ static bool rcar_du_plane_needs_realloc(struct rcar_du_plane *plane,
 
 	cur_state = to_rcar_plane_state(plane->plane.state);
 
-	/* Lowering the number of planes doesn't strictly require reallocation
+	/*
+	 * Lowering the number of planes doesn't strictly require reallocation
 	 * as the extra hardware plane will be freed when committing, but doing
 	 * so could lead to more fragmentation.
 	 */
@@ -155,7 +156,8 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 		dev_dbg(rcdu->dev, "%s: checking plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);
 
-		/* If the plane is being disabled we don't need to go through
+		/*
+		 * If the plane is being disabled we don't need to go through
 		 * the full reallocation procedure. Just mark the hardware
 		 * plane(s) as freed.
 		 */
@@ -168,7 +170,8 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 			continue;
 		}
 
-		/* If the plane needs to be reallocated mark it as such, and
+		/*
+		 * If the plane needs to be reallocated mark it as such, and
 		 * mark the hardware plane(s) as free.
 		 */
 		if (rcar_du_plane_needs_realloc(plane, plane_state)) {
@@ -186,7 +189,8 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 	if (!needs_realloc)
 		return 0;
 
-	/* Grab all plane states for the groups that need reallocation to ensure
+	/*
+	 * Grab all plane states for the groups that need reallocation to ensure
 	 * locking and avoid racy updates. This serializes the update operation,
 	 * but there's not much we can do about it as that's the hardware
 	 * design.
@@ -211,7 +215,8 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 			if (IS_ERR(s))
 				return PTR_ERR(s);
 
-			/* If the plane has been freed in the above loop its
+			/*
+			 * If the plane has been freed in the above loop its
 			 * hardware planes must not be added to the used planes
 			 * bitmask. However, the current state doesn't reflect
 			 * the free state yet, as we've modified the new state
@@ -259,14 +264,16 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 		dev_dbg(rcdu->dev, "%s: allocating plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);
 
-		/* Skip planes that are being disabled or don't need to be
+		/*
+		 * Skip planes that are being disabled or don't need to be
 		 * reallocated.
 		 */
 		if (!plane_state->format ||
 		    !rcar_du_plane_needs_realloc(plane, plane_state))
 			continue;
 
-		/* Try to allocate the plane from the free planes currently
+		/*
+		 * Try to allocate the plane from the free planes currently
 		 * associated with the target CRTC to avoid restarting the CRTC
 		 * group and thus minimize flicker. If it fails fall back to
 		 * allocating from all free planes.
@@ -351,14 +358,16 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 		dma[1] = 0;
 	}
 
-	/* Memory pitch (expressed in pixels). Must be doubled for interlaced
+	/*
+	 * Memory pitch (expressed in pixels). Must be doubled for interlaced
 	 * operation with 32bpp formats.
 	 */
 	rcar_du_plane_write(rgrp, index, PnMWR,
 			    (interlaced && state->format->bpp == 32) ?
 			    pitch * 2 : pitch);
 
-	/* The Y position is expressed in raster line units and must be doubled
+	/*
+	 * The Y position is expressed in raster line units and must be doubled
 	 * for 32bpp formats, according to the R8A7790 datasheet. No mention of
 	 * doubling the Y position is found in the R8A7779 datasheet, but the
 	 * rule seems to apply there as well.
@@ -396,7 +405,8 @@ static void rcar_du_plane_setup_mode(struct rcar_du_group *rgrp,
 	u32 colorkey;
 	u32 pnmr;
 
-	/* The PnALPHAR register controls alpha-blending in 16bpp formats
+	/*
+	 * The PnALPHAR register controls alpha-blending in 16bpp formats
 	 * (ARGB1555 and XRGB1555).
 	 *
 	 * For ARGB, set the alpha value to 0, and enable alpha-blending when
@@ -413,7 +423,8 @@ static void rcar_du_plane_setup_mode(struct rcar_du_group *rgrp,
 
 	pnmr = PnMR_BM_MD | state->format->pnmr;
 
-	/* Disable color keying when requested. YUV formats have the
+	/*
+	 * Disable color keying when requested. YUV formats have the
 	 * PnMR_SPIM_TP_OFF bit set in their pnmr field, disabling color keying
 	 * automatically.
 	 */
@@ -457,7 +468,8 @@ static void rcar_du_plane_setup_format_gen2(struct rcar_du_group *rgrp,
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
 
-	/* Data format
+	/*
+	 * Data format
 	 *
 	 * The data format is selected by the DDDF field in PnMR and the EDF
 	 * field in DDCR4.
@@ -589,7 +601,8 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 
 	rcar_du_plane_setup(rplane);
 
-	/* Check whether the source has changed from memory to live source or
+	/*
+	 * Check whether the source has changed from memory to live source or
 	 * from live source to memory. The source has been configured by the
 	 * VSPS bit in the PnDDCR4 register. Although the datasheet states that
 	 * the bit is updated during vertical blanking, it seems that updates
@@ -726,7 +739,8 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	unsigned int i;
 	int ret;
 
-	 /* Create one primary plane per CRTC in this group and seven overlay
+	 /*
+	  * Create one primary plane per CRTC in this group and seven overlay
 	  * planes.
 	  */
 	rgrp->num_planes = rgrp->num_crtcs + 7;

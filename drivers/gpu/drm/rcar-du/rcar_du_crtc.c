@@ -168,7 +168,8 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	u32 escr;
 	u32 div;
 
-	/* Compute the clock divisor and select the internal or external dot
+	/*
+	 * Compute the clock divisor and select the internal or external dot
 	 * clock based on the requested frequency.
 	 */
 	clk = clk_get_rate(rcrtc->clock);
@@ -261,12 +262,14 @@ void rcar_du_crtc_route_output(struct drm_crtc *crtc,
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct rcar_du_device *rcdu = rcrtc->group->dev;
 
-	/* Store the route from the CRTC output to the DU output. The DU will be
+	/*
+	 * Store the route from the CRTC output to the DU output. The DU will be
 	 * configured when starting the CRTC.
 	 */
 	rcrtc->outputs |= BIT(output);
 
-	/* Store RGB routing to DPAD0, the hardware will be configured when
+	/*
+	 * Store RGB routing to DPAD0, the hardware will be configured when
 	 * starting the CRTC.
 	 */
 	if (output == RCAR_DU_OUTPUT_DPAD0)
@@ -342,7 +345,8 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 		}
 	}
 
-	/* Update the planes to display timing and dot clock generator
+	/*
+	 * Update the planes to display timing and dot clock generator
 	 * associations.
 	 *
 	 * Updating the DPTSR register requires restarting the CRTC group,
@@ -450,7 +454,8 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	/* Start with all planes disabled. */
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR, 0);
 
-	/* Select master sync mode. This enables display operation in master
+	/*
+	 * Select master sync mode. This enables display operation in master
 	 * sync mode (with the HSYNC and VSYNC signals configured as outputs and
 	 * actively driven).
 	 */
@@ -478,7 +483,8 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	if (!rcrtc->started)
 		return;
 
-	/* Disable all planes and wait for the change to take effect. This is
+	/*
+	 * Disable all planes and wait for the change to take effect. This is
 	 * required as the DSnPR registers are updated on vblank, and no vblank
 	 * will occur once the CRTC is stopped. Disabling planes when starting
 	 * the CRTC thus wouldn't be enough as it would start scanning out
@@ -491,7 +497,8 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR, 0);
 	drm_crtc_wait_one_vblank(crtc);
 
-	/* Disable vertical blanking interrupt reporting. We first need to wait
+	/*
+	 * Disable vertical blanking interrupt reporting. We first need to wait
 	 * for page flip completion before stopping the CRTC as userspace
 	 * expects page flips to eventually complete.
 	 */
@@ -502,7 +509,8 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	if (rcar_du_has(rcrtc->group->dev, RCAR_DU_FEATURE_VSP1_SOURCE))
 		rcar_du_vsp_disable(rcrtc);
 
-	/* Select switch sync mode. This stops display operation and configures
+	/*
+	 * Select switch sync mode. This stops display operation and configures
 	 * the HSYNC and VSYNC signals as inputs.
 	 */
 	rcar_du_crtc_clr_set(rcrtc, DSYSR, DSYSR_TVM_MASK, DSYSR_TVM_SWITCH);

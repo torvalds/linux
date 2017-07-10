@@ -39,7 +39,8 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 	.features = 0,
 	.num_crtcs = 2,
 	.routes = {
-		/* R8A7779 has two RGB outputs and one (currently unsupported)
+		/*
+		 * R8A7779 has two RGB outputs and one (currently unsupported)
 		 * TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -61,7 +62,8 @@ static const struct rcar_du_device_info rcar_du_r8a7790_info = {
 	.quirks = RCAR_DU_QUIRK_ALIGN_128B | RCAR_DU_QUIRK_LVDS_LANES,
 	.num_crtcs = 3,
 	.routes = {
-		/* R8A7790 has one RGB output, two LVDS outputs and one
+		/*
+		 * R8A7790 has one RGB output, two LVDS outputs and one
 		 * (currently unsupported) TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -87,7 +89,8 @@ static const struct rcar_du_device_info rcar_du_r8a7791_info = {
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
 	.routes = {
-		/* R8A779[13] has one RGB output, one LVDS output and one
+		/*
+		 * R8A779[13] has one RGB output, one LVDS output and one
 		 * (currently unsupported) TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -127,7 +130,8 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 		  | RCAR_DU_FEATURE_EXT_CTRL_REGS,
 	.num_crtcs = 2,
 	.routes = {
-		/* R8A7794 has two RGB outputs and one (currently unsupported)
+		/*
+		 * R8A7794 has two RGB outputs and one (currently unsupported)
 		 * TCON output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -149,7 +153,8 @@ static const struct rcar_du_device_info rcar_du_r8a7795_info = {
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 4,
 	.routes = {
-		/* R8A7795 has one RGB output, two HDMI outputs and one
+		/*
+		 * R8A7795 has one RGB output, two HDMI outputs and one
 		 * LVDS output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -180,7 +185,8 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 		  | RCAR_DU_FEATURE_VSP1_SOURCE,
 	.num_crtcs = 3,
 	.routes = {
-		/* R8A7796 has one RGB output, one LVDS output and one
+		/*
+		 * R8A7796 has one RGB output, one LVDS output and one
 		 * (currently unsupported) HDMI output.
 		 */
 		[RCAR_DU_OUTPUT_DPAD0] = {
@@ -341,7 +347,8 @@ static int rcar_du_probe(struct platform_device *pdev)
 
 	ddev->irq_enabled = 1;
 
-	/* Register the DRM device with the core and the connectors with
+	/*
+	 * Register the DRM device with the core and the connectors with
 	 * sysfs.
 	 */
 	ret = drm_dev_register(ddev, 0);

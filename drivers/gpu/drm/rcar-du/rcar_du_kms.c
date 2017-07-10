@@ -96,7 +96,8 @@ static const struct rcar_du_format_info rcar_du_format_infos[] = {
 		.pnmr = PnMR_SPIM_TP_OFF | PnMR_DDDF_YC,
 		.edf = PnDDCR4_EDF_NONE,
 	},
-	/* The following formats are not supported on Gen2 and thus have no
+	/*
+	 * The following formats are not supported on Gen2 and thus have no
 	 * associated .pnmr or .edf settings.
 	 */
 	{
@@ -153,7 +154,8 @@ int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 	unsigned int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 	unsigned int align;
 
-	/* The R8A7779 DU requires a 16 pixels pitch alignment as documented,
+	/*
+	 * The R8A7779 DU requires a 16 pixels pitch alignment as documented,
 	 * but the R8A7790 DU seems to require a 128 bytes pitch alignment.
 	 */
 	if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
@@ -419,7 +421,8 @@ static int rcar_du_properties_init(struct rcar_du_device *rcdu)
 	if (rcdu->props.alpha == NULL)
 		return -ENOMEM;
 
-	/* The color key is expressed as an RGB888 triplet stored in a 32-bit
+	/*
+	 * The color key is expressed as an RGB888 triplet stored in a 32-bit
 	 * integer in XRGB8888 format. Bit 24 is used as a flag to disable (0)
 	 * or enable source color keying (1).
 	 */
@@ -461,7 +464,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	if (ret < 0)
 		return ret;
 
-	/* Initialize vertical blanking interrupts handling. Start with vblank
+	/*
+	 * Initialize vertical blanking interrupts handling. Start with vblank
 	 * disabled for all CRTCs.
 	 */
 	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
@@ -481,7 +485,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->index = i;
 		rgrp->num_crtcs = min(rcdu->num_crtcs - 2 * i, 2U);
 
-		/* If we have more than one CRTCs in this group pre-associate
+		/*
+		 * If we have more than one CRTCs in this group pre-associate
 		 * the low-order planes with CRTC 0 and the high-order planes
 		 * with CRTC 1 to minimize flicker occurring when the
 		 * association is changed.
@@ -537,7 +542,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	num_encoders = ret;
 
-	/* Set the possible CRTCs and possible clones. There's always at least
+	/*
+	 * Set the possible CRTCs and possible clones. There's always at least
 	 * one way for all encoders to clone each other, set all bits in the
 	 * possible clones field.
 	 */

@@ -73,7 +73,8 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 
 	__rcar_du_plane_setup(crtc->group, &state);
 
-	/* Ensure that the plane source configuration takes effect by requesting
+	/*
+	 * Ensure that the plane source configuration takes effect by requesting
 	 * a restart of the group. See rcar_du_plane_atomic_update() for a more
 	 * detailed explanation.
 	 *
@@ -417,7 +418,8 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp)
 	if (ret < 0)
 		return ret;
 
-	 /* The VSP2D (Gen3) has 5 RPFs, but the VSP1D (Gen2) is limited to
+	 /*
+	  * The VSP2D (Gen3) has 5 RPFs, but the VSP1D (Gen2) is limited to
 	  * 4 RPFs.
 	  */
 	vsp->num_planes = rcdu->info->gen >= 3 ? 5 : 4;
