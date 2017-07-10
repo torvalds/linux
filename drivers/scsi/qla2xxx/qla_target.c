@@ -3747,7 +3747,7 @@ static struct qla_tgt_cmd *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 	h &= QLA_CMD_HANDLE_MASK;
 
 	if (h != QLA_TGT_NULL_HANDLE) {
-		if (unlikely(h > req->num_outstanding_cmds)) {
+		if (unlikely(h >= req->num_outstanding_cmds)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe052,
 			    "qla_target(%d): Wrong handle %x received\n",
 			    vha->vp_idx, handle);
