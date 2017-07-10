@@ -399,6 +399,7 @@ badkey:
  * @iv_dma: dma address of iv for checking continuity and link table
  * @qm_sg_bytes: length of dma mapped h/w link table
  * @qm_sg_dma: bus physical mapped address of h/w link table
+ * @assoclen: associated data length, in CAAM endianness
  * @assoclen_dma: bus physical mapped address of req->assoclen
  * @drv_req: driver-specific request structure
  * @sgt: the h/w link table
@@ -409,6 +410,7 @@ struct aead_edesc {
 	dma_addr_t iv_dma;
 	int qm_sg_bytes;
 	dma_addr_t qm_sg_dma;
+	unsigned int assoclen;
 	dma_addr_t assoclen_dma;
 	struct caam_drv_req drv_req;
 #define CAAM_QI_MAX_AEAD_SG						\
@@ -684,7 +686,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	edesc->drv_req.cbk = aead_done;
 	edesc->drv_req.drv_ctx = drv_ctx;
 
-	edesc->assoclen_dma = dma_map_single(qidev, &req->assoclen, 4,
+	edesc->assoclen = cpu_to_caam32(req->assoclen);
+	edesc->assoclen_dma = dma_map_single(qidev, &edesc->assoclen, 4,
 					     DMA_TO_DEVICE);
 	if (dma_mapping_error(qidev, edesc->assoclen_dma)) {
 		dev_err(qidev, "unable to map assoclen\n");
