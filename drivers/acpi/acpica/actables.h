@@ -76,7 +76,8 @@ void acpi_tb_release_temp_table(struct acpi_table_desc *table_desc);
 acpi_status acpi_tb_validate_temp_table(struct acpi_table_desc *table_desc);
 
 acpi_status
-acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc, char *signature);
+acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
+			  char *signature, u32 *table_index);
 
 u8 acpi_tb_is_table_loaded(u32 table_index);
 

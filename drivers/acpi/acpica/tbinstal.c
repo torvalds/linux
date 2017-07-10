@@ -48,54 +48,6 @@
 #define _COMPONENT          ACPI_TABLES
 ACPI_MODULE_NAME("tbinstal")
 
-/* Local prototypes */
-static u8
-acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index);
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_tb_compare_tables
- *
- * PARAMETERS:  table_desc          - Table 1 descriptor to be compared
- *              table_index         - Index of table 2 to be compared
- *
- * RETURN:      TRUE if both tables are identical.
- *
- * DESCRIPTION: This function compares a table with another table that has
- *              already been installed in the root table list.
- *
- ******************************************************************************/
-
-static u8
-acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
-{
-	acpi_status status = AE_OK;
-	u8 is_identical;
-	struct acpi_table_header *table;
-	u32 table_length;
-	u8 table_flags;
-
-	status =
-	    acpi_tb_acquire_table(&acpi_gbl_root_table_list.tables[table_index],
-				  &table, &table_length, &table_flags);
-	if (ACPI_FAILURE(status)) {
-		return (FALSE);
-	}
-
-	/*
-	 * Check for a table match on the entire table length,
-	 * not just the header.
-	 */
-	is_identical = (u8)((table_desc->length != table_length ||
-			     memcmp(table_desc->pointer, table, table_length)) ?
-			    FALSE : TRUE);
-
-	/* Release the acquired table */
-
-	acpi_tb_release_table(table, table_length, table_flags);
-	return (is_identical);
-}
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_install_table_with_override
@@ -112,7 +64,6 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
  *              table array.
  *
  ******************************************************************************/
-
 void
 acpi_tb_install_table_with_override(struct acpi_table_desc *new_table_desc,
 				    u8 override, u32 *table_index)
@@ -210,67 +161,29 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 		goto release_and_exit;
 	}
 
-	/* Validate and verify a table before installation */
-
-	status = acpi_tb_verify_temp_table(&new_table_desc, NULL);
-	if (ACPI_FAILURE(status)) {
-		goto release_and_exit;
-	}
-
 	/* Acquire the table lock */
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
-	if (acpi_gbl_enable_table_validation) {
+	/* Validate and verify a table before installation */
 
-		/* Check if table is already registered */
-
-		for (i = 0; i < acpi_gbl_root_table_list.current_table_count;
-		     ++i) {
+	status = acpi_tb_verify_temp_table(&new_table_desc, NULL, &i);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_CTRL_TERMINATE) {
 			/*
-			 * Check for a table match on the entire table length,
-			 * not just the header.
+			 * Table was unloaded, allow it to be reloaded.
+			 * As we are going to return AE_OK to the caller, we should
+			 * take the responsibility of freeing the input descriptor.
+			 * Refill the input descriptor to ensure
+			 * acpi_tb_install_table_with_override() can be called again to
+			 * indicate the re-installation.
 			 */
-			if (!acpi_tb_compare_tables(&new_table_desc, i)) {
-				continue;
-			}
-
-			/*
-			 * Note: the current mechanism does not unregister a table if it is
-			 * dynamically unloaded. The related namespace entries are deleted,
-			 * but the table remains in the root table list.
-			 *
-			 * The assumption here is that the number of different tables that
-			 * will be loaded is actually small, and there is minimal overhead
-			 * in just keeping the table in case it is needed again.
-			 *
-			 * If this assumption changes in the future (perhaps on large
-			 * machines with many table load/unload operations), tables will
-			 * need to be unregistered when they are unloaded, and slots in the
-			 * root table list should be reused when empty.
-			 */
-			if (acpi_gbl_root_table_list.tables[i].flags &
-			    ACPI_TABLE_IS_LOADED) {
-
-				/* Table is still loaded, this is an error */
-
-				status = AE_ALREADY_EXISTS;
-				goto unlock_and_exit;
-			} else {
-				/*
-				 * Table was unloaded, allow it to be reloaded.
-				 * As we are going to return AE_OK to the caller, we should
-				 * take the responsibility of freeing the input descriptor.
-				 * Refill the input descriptor to ensure
-				 * acpi_tb_install_table_with_override() can be called again to
-				 * indicate the re-installation.
-				 */
-				acpi_tb_uninstall_table(&new_table_desc);
-				(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-				*table_index = i;
-				return_ACPI_STATUS(AE_OK);
-			}
+			acpi_tb_uninstall_table(&new_table_desc);
+			(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+			*table_index = i;
+			return_ACPI_STATUS(AE_OK);
 		}
+		goto unlock_and_exit;
 	}
 
 	/* Add the table to the global root table list */
@@ -350,9 +263,11 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 
 finish_override:
 
-	/* Validate and verify a table before overriding */
-
-	status = acpi_tb_verify_temp_table(&new_table_desc, NULL);
+	/*
+	 * Validate and verify a table before overriding, no nested table
+	 * duplication check as it's too complicated and unnecessary.
+	 */
+	status = acpi_tb_verify_temp_table(&new_table_desc, NULL, NULL);
 	if (ACPI_FAILURE(status)) {
 		return;
 	}
