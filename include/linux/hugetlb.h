@@ -472,6 +472,7 @@ static inline pgoff_t basepage_index(struct page *page)
 	return __basepage_index(page);
 }
 
+extern int dissolve_free_huge_page(struct page *page);
 extern int dissolve_free_huge_pages(unsigned long start_pfn,
 				    unsigned long end_pfn);
 static inline bool hugepage_migration_supported(struct hstate *h)
@@ -550,15 +551,37 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
 {
 	return 1;
 }
-#define hstate_index_to_shift(index) 0
-#define hstate_index(h) 0
+
+static inline unsigned hstate_index_to_shift(unsigned index)
+{
+	return 0;
+}
+
+static inline int hstate_index(struct hstate *h)
+{
+	return 0;
+}
 
 static inline pgoff_t basepage_index(struct page *page)
 {
 	return page->index;
 }
-#define dissolve_free_huge_pages(s, e)	0
-#define hugepage_migration_supported(h)	false
+
+static inline int dissolve_free_huge_page(struct page *page)
+{
+	return 0;
+}
+
+static inline int dissolve_free_huge_pages(unsigned long start_pfn,
+					   unsigned long end_pfn)
+{
+	return 0;
+}
+
+static inline bool hugepage_migration_supported(struct hstate *h)
+{
+	return false;
+}
 
 static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 					   struct mm_struct *mm, pte_t *pte)

@@ -1575,11 +1575,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
 		if (ret > 0)
 			ret = -EIO;
 	} else {
-		/* overcommit hugetlb page will be freed to buddy */
-		SetPageHWPoison(page);
 		if (PageHuge(page))
-			dequeue_hwpoisoned_huge_page(hpage);
-		num_poisoned_pages_inc();
+			dissolve_free_huge_page(page);
 	}
 	return ret;
 }
