@@ -24,9 +24,6 @@
  */
 #define MAX_RSP_FQ_BACKLOG_PER_CPU	256
 
-/* Length of a single buffer in the QI driver memory cache */
-#define CAAM_QI_MEMCACHE_SIZE	512
-
 #define CAAM_QI_ENQUEUE_RETRIES	10000
 
 #define CAAM_NAPI_WEIGHT	63
