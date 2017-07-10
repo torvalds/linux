@@ -1433,7 +1433,6 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
 static struct page *new_node_page(struct page *page, unsigned long private,
 		int **result)
 {
-	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
 	int nid = page_to_nid(page);
 	nodemask_t nmask = node_states[N_MEMORY];
 
@@ -1446,15 +1445,7 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 	if (nodes_empty(nmask))
 		node_set(nid, nmask);
 
-	if (PageHuge(page))
-		return alloc_huge_page_nodemask(
-				page_hstate(compound_head(page)), &nmask);
-
-	if (PageHighMem(page)
-	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
-		gfp_mask |= __GFP_HIGHMEM;
-
-	return __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
+	return new_page_nodemask(page, nid, &nmask);
 }
 
 #define NR_OFFLINE_AT_ONCE_PAGES	(256)
