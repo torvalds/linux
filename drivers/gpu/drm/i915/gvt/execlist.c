@@ -707,9 +707,11 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	 * as there is only one pre-allocated buf-obj for shadow.
 	 */
 	if (list_empty(workload_q_head(vgpu, ring_id))) {
+		intel_runtime_pm_get(dev_priv);
 		mutex_lock(&dev_priv->drm.struct_mutex);
 		intel_gvt_scan_and_shadow_workload(workload);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
+		intel_runtime_pm_put(dev_priv);
 	}
 
 	queue_workload(workload);
