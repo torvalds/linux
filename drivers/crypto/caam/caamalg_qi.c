@@ -791,9 +791,9 @@ static void ablkcipher_done(struct caam_drv_req *drv_req, u32 status)
 	print_hex_dump(KERN_ERR, "dstiv  @" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, req->info,
 		       edesc->src_nents > 1 ? 100 : ivsize, 1);
-	dbg_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
-		    DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
-		    edesc->dst_nents > 1 ? 100 : req->nbytes, 1);
+	caam_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
+		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
+		     edesc->dst_nents > 1 ? 100 : req->nbytes, 1);
 #endif
 
 	ablkcipher_unmap(qidev, edesc, req);
