@@ -333,10 +333,42 @@ static void __init test_bitmap_u32_array_conversions(void)
 	}
 }
 
+#define __bitmap_set(a, b, c)	bitmap_set(a, b, c)
+#define __bitmap_clear(a, b, c)	bitmap_clear(a, b, c)
+
+static void noinline __init test_mem_optimisations(void)
+{
+	DECLARE_BITMAP(bmap1, 1024);
+	DECLARE_BITMAP(bmap2, 1024);
+	unsigned int start, nbits;
+
+	for (start = 0; start < 1024; start += 8) {
+		memset(bmap1, 0x5a, sizeof(bmap1));
+		memset(bmap2, 0x5a, sizeof(bmap2));
+		for (nbits = 0; nbits < 1024 - start; nbits += 8) {
+			bitmap_set(bmap1, start, nbits);
+			__bitmap_set(bmap2, start, nbits);
+			if (!bitmap_equal(bmap1, bmap2, 1024))
+				printk("set not equal %d %d\n", start, nbits);
+			if (!__bitmap_equal(bmap1, bmap2, 1024))
+				printk("set not __equal %d %d\n", start, nbits);
+
+			bitmap_clear(bmap1, start, nbits);
+			__bitmap_clear(bmap2, start, nbits);
+			if (!bitmap_equal(bmap1, bmap2, 1024))
+				printk("clear not equal %d %d\n", start, nbits);
+			if (!__bitmap_equal(bmap1, bmap2, 1024))
+				printk("clear not __equal %d %d\n", start,
+									nbits);
+		}
+	}
+}
+
 static int __init test_bitmap_init(void)
 {
 	test_zero_fill_copy();
 	test_bitmap_u32_array_conversions();
+	test_mem_optimisations();
 
 	if (failed_tests == 0)
 		pr_info("all %u tests passed\n", total_tests);
