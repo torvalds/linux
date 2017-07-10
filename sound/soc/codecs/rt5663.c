@@ -3044,7 +3044,7 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 		else
 			break;
 
-		if (count > 200)
+		if (++count > 200)
 			break;
 	}
 
