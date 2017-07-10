@@ -333,9 +333,6 @@ static void __init test_bitmap_u32_array_conversions(void)
 	}
 }
 
-#define __bitmap_set(a, b, c)	bitmap_set(a, b, c)
-#define __bitmap_clear(a, b, c)	bitmap_clear(a, b, c)
-
 static void noinline __init test_mem_optimisations(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
