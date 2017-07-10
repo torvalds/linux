@@ -664,7 +664,7 @@ struct acpi_ibft_target {
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049B, October 2015
+ * Document number: ARM DEN 0049C, May 2017
  *
  ******************************************************************************/
 
@@ -779,6 +779,8 @@ struct acpi_iort_smmu {
 #define ACPI_IORT_SMMU_V2               0x00000001	/* Generic SMMUv2 */
 #define ACPI_IORT_SMMU_CORELINK_MMU400  0x00000002	/* ARM Corelink MMU-400 */
 #define ACPI_IORT_SMMU_CORELINK_MMU500  0x00000003	/* ARM Corelink MMU-500 */
+#define ACPI_IORT_SMMU_CORELINK_MMU401  0x00000004	/* ARM Corelink MMU-401 */
+#define ACPI_IORT_SMMU_CAVIUM_THUNDERX  0x00000005	/* Cavium thunder_x SMMUv2 */
 
 /* Masks for Flags field above */
 
@@ -799,12 +801,18 @@ struct acpi_iort_smmu_v3 {
 	u32 flags;
 	u32 reserved;
 	u64 vatos_address;
-	u32 model;		/* O: generic SMMUv3 */
+	u32 model;
 	u32 event_gsiv;
 	u32 pri_gsiv;
 	u32 gerr_gsiv;
 	u32 sync_gsiv;
 };
+
+/* Values for Model field above */
+
+#define ACPI_IORT_SMMU_V3_GENERIC           0x00000000	/* Generic SMMUv3 */
+#define ACPI_IORT_SMMU_V3_HISILICON_HI161X  0x00000001	/* hi_silicon Hi161x SMMUv3 */
+#define ACPI_IORT_SMMU_V3_CAVIUM_CN99XX     0x00000002	/* Cavium CN99xx SMMUv3 */
 
 /* Masks for Flags field above */
 
