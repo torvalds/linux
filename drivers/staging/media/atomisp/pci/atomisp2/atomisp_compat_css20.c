@@ -1676,7 +1676,7 @@ int atomisp_alloc_metadata_output_buf(struct atomisp_sub_device *asd)
 				stream_info.metadata_info.size);
 		if (!asd->params.metadata_user[i]) {
 			while (--i >= 0) {
-				atomisp_kernel_free(asd->params.metadata_user[i]);
+				kvfree(asd->params.metadata_user[i]);
 				asd->params.metadata_user[i] = NULL;
 			}
 			return -ENOMEM;
@@ -1692,7 +1692,7 @@ void atomisp_free_metadata_output_buf(struct atomisp_sub_device *asd)
 
 	for (i = 0; i < ATOMISP_METADATA_TYPE_NUM; i++) {
 		if (asd->params.metadata_user[i]) {
-			atomisp_kernel_free(asd->params.metadata_user[i]);
+			kvfree(asd->params.metadata_user[i]);
 			asd->params.metadata_user[i] = NULL;
 		}
 	}
