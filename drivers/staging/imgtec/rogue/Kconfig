@@ -1,0 +1,31 @@
+config POWERVR_ROGUE_N
+	tristate "PowerVR Rogue"
+	default n
+	depends on DRM
+	help
+	  Driver for PowerVR Rogue graphics hardware.
+
+	  Say Y here if your SoC contains a PowerVR Rogue GPU. For more
+	  information, see <http://www.imgtec.com/powervr/>.
+
+config POWERVR_ROGUE_PDUMP
+	bool "Parameter dumping"
+	default n
+	depends on POWERVR_ROGUE_N
+
+config POWERVR_ROGUE_RESOURCE_INFO
+	bool "Resource info"
+	default n
+	depends on POWERVR_ROGUE_N
+	help
+	  Annotate device memory allocations with human-readable names.
+	  Requires a compatible userspace driver.
+
+config POWERVR_ROGUE_DEVICEMEM_HISTORY
+	bool "Device memory history"
+	default n
+	depends on POWERVR_ROGUE_N
+	help
+	  Provides a debugfs file containing a list of recent memory
+	  allocations for debugging purposes. Requires a compatible
+	  userspace driver.

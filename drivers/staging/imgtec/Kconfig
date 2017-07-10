@@ -1,0 +1,14 @@
+config POWERVR_ADF_FBDEV
+	tristate "ADF driver for fbdev-only systems"
+	depends on ADF
+	depends on FB
+	help
+	  Driver for systems with only fbdev video drivers.
+
+	  Say Y here if your SoC has a pre-existing fbdev driver, but
+	  no native ADF driver. This driver will wrap the fbdev driver
+	  to provide minimal compatibility with ADF.
+
+source "drivers/staging/imgtec/rogue/Kconfig"
+
+source "drivers/staging/imgtec/apollo/Kconfig"

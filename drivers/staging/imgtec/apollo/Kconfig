@@ -1,0 +1,10 @@
+config POWERVR_APOLLO
+	tristate "PowerVR Apollo test chip support"
+	depends on X86
+	default n
+
+config POWERVR_ADF_PDP
+	tristate "ADF driver for Apollo PDP"
+	default y
+	depends on ADF
+	depends on POWERVR_APOLLO
