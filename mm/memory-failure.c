@@ -1697,7 +1697,7 @@ static void soft_offline_free_page(struct page *page)
 	if (!TestSetPageHWPoison(head)) {
 		num_poisoned_pages_inc();
 		if (PageHuge(head))
-			dequeue_hwpoisoned_huge_page(head);
+			dissolve_free_huge_page(page);
 	}
 }
 
