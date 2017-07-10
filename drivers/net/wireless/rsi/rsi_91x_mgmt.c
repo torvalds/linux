@@ -1199,6 +1199,9 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 			    conf_is_ht40(&common->priv->hw->conf))
 				auto_rate->supported_rates[ii++] =
 					cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
+			else
+				auto_rate->supported_rates[ii++] =
+					cpu_to_le16(rsi_mcsrates[kk]);
 			auto_rate->supported_rates[ii] =
 				cpu_to_le16(rsi_mcsrates[kk--]);
 		}
