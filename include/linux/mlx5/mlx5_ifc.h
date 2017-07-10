@@ -1071,8 +1071,7 @@ struct mlx5_ifc_dest_format_struct_bits {
 };
 
 struct mlx5_ifc_flow_counter_list_bits {
-	u8         clear[0x1];
-	u8         num_of_counters[0xf];
+	u8         reserved_at_0[0x10];
 	u8         flow_counter_id[0x10];
 
 	u8         reserved_at_20[0x20];
