@@ -92,6 +92,7 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
 	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
 	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
 	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
+	 !test_bit(MMF_DISABLE_THP, &(__vma)->vm_mm->flags) &&		\
 	 !is_vma_temporary_stack(__vma))
 #define transparent_hugepage_use_zero_page()				\
 	(transparent_hugepage_flags &					\
