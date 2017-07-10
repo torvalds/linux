@@ -116,7 +116,6 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						vm_flags_t vm_flags);
 long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
 						long freed);
-int dequeue_hwpoisoned_huge_page(struct page *page);
 bool isolate_huge_page(struct page *page, struct list_head *list);
 void putback_active_hugepage(struct page *page);
 void free_huge_page(struct page *page);
@@ -192,10 +191,6 @@ static inline void hugetlb_show_meminfo(void)
 #define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
 				src_addr, pagep)	({ BUG(); 0; })
 #define huge_pte_offset(mm, address, sz)	0
-static inline int dequeue_hwpoisoned_huge_page(struct page *page)
-{
-	return 0;
-}
 
 static inline bool isolate_huge_page(struct page *page, struct list_head *list)
 {
