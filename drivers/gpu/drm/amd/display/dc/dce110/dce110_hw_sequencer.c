@@ -242,7 +242,7 @@ static bool dce110_set_input_transfer_func(
 	const struct core_surface *surface)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
-	const struct core_transfer_func *tf = NULL;
+	const struct dc_transfer_func *tf = NULL;
 	struct ipp_prescale_params prescale_params = { 0 };
 	bool result = true;
 
@@ -250,7 +250,7 @@ static bool dce110_set_input_transfer_func(
 		return false;
 
 	if (surface->public.in_transfer_func)
-		tf = DC_TRANSFER_FUNC_TO_CORE(surface->public.in_transfer_func);
+		tf = surface->public.in_transfer_func;
 
 	build_prescale_params(&prescale_params, surface);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
@@ -262,8 +262,8 @@ static bool dce110_set_input_transfer_func(
 		/* Default case if no input transfer function specified */
 		ipp->funcs->ipp_set_degamma(ipp,
 				IPP_DEGAMMA_MODE_HW_sRGB);
-	} else if (tf->public.type == TF_TYPE_PREDEFINED) {
-		switch (tf->public.tf) {
+	} else if (tf->type == TF_TYPE_PREDEFINED) {
+		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
 			ipp->funcs->ipp_set_degamma(ipp,
 					IPP_DEGAMMA_MODE_HW_sRGB);
@@ -283,7 +283,7 @@ static bool dce110_set_input_transfer_func(
 			result = false;
 			break;
 		}
-	} else if (tf->public.type == TF_TYPE_BYPASS) {
+	} else if (tf->type == TF_TYPE_BYPASS) {
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS - Not supported in DCE 11*/

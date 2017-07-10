@@ -45,18 +45,11 @@ struct gamma {
 	int ref_count;
 };
 
-struct transfer_func {
-	struct core_transfer_func protected;
-	int ref_count;
-};
-
 #define DC_SURFACE_TO_SURFACE(dc_surface) container_of(dc_surface, struct surface, protected.public)
 #define CORE_SURFACE_TO_SURFACE(core_surface) container_of(core_surface, struct surface, protected)
 
 #define DC_GAMMA_TO_GAMMA(dc_gamma) \
 	container_of(dc_gamma, struct gamma, protected.public)
-#define DC_TRANSFER_FUNC_TO_TRANSFER_FUNC(dc_tf) \
-	container_of(dc_tf, struct transfer_func, protected.public)
 #define CORE_GAMMA_TO_GAMMA(core_gamma) \
 	container_of(core_gamma, struct gamma, protected)
 
@@ -208,18 +201,14 @@ alloc_fail:
 	return NULL;
 }
 
-void dc_transfer_func_retain(const struct dc_transfer_func *dc_tf)
+void dc_transfer_func_retain(struct dc_transfer_func *tf)
 {
-	struct transfer_func *tf = DC_TRANSFER_FUNC_TO_TRANSFER_FUNC(dc_tf);
-
 	ASSERT(tf->ref_count > 0);
 	++tf->ref_count;
 }
 
-void dc_transfer_func_release(const struct dc_transfer_func *dc_tf)
+void dc_transfer_func_release(struct dc_transfer_func *tf)
 {
-	struct transfer_func *tf = DC_TRANSFER_FUNC_TO_TRANSFER_FUNC(dc_tf);
-
 	ASSERT(tf->ref_count > 0);
 	--tf->ref_count;
 
@@ -229,14 +218,14 @@ void dc_transfer_func_release(const struct dc_transfer_func *dc_tf)
 
 struct dc_transfer_func *dc_create_transfer_func()
 {
-	struct transfer_func *tf = dm_alloc(sizeof(*tf));
+	struct dc_transfer_func *tf = dm_alloc(sizeof(*tf));
 
 	if (tf == NULL)
 		goto alloc_fail;
 
 	++tf->ref_count;
 
-	return &tf->protected.public;
+	return tf;
 
 alloc_fail:
 	return NULL;

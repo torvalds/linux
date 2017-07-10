@@ -293,6 +293,8 @@ struct dc_transfer_func {
 	struct dc_transfer_func_distributed_points tf_pts;
 	enum dc_transfer_func_type type;
 	enum dc_transfer_func_predefined tf;
+	struct dc_context *ctx;
+	int ref_count;
 };
 
 struct dc_surface {
@@ -310,7 +312,7 @@ struct dc_surface {
 	struct dc_hdr_static_metadata hdr_static_ctx;
 
 	const struct dc_gamma *gamma_correction;
-	const struct dc_transfer_func *in_transfer_func;
+	struct dc_transfer_func *in_transfer_func;
 
 	enum dc_color_space color_space;
 	enum surface_pixel_format format;
@@ -384,8 +386,8 @@ void dc_gamma_retain(const struct dc_gamma *dc_gamma);
 void dc_gamma_release(const struct dc_gamma **dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
 
-void dc_transfer_func_retain(const struct dc_transfer_func *dc_tf);
-void dc_transfer_func_release(const struct dc_transfer_func *dc_tf);
+void dc_transfer_func_retain(struct dc_transfer_func *dc_tf);
+void dc_transfer_func_release(struct dc_transfer_func *dc_tf);
 struct dc_transfer_func *dc_create_transfer_func(void);
 
 /*
@@ -465,7 +467,7 @@ struct dc_stream {
 
 	struct freesync_context freesync_ctx;
 
-	const struct dc_transfer_func *out_transfer_func;
+	struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
 	struct csc_transform csc_color_matrix;
 

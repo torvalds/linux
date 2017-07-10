@@ -602,14 +602,14 @@ static bool dcn10_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx, const struct core_surface *surface)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
-	const struct core_transfer_func *tf = NULL;
+	const struct dc_transfer_func *tf = NULL;
 	bool result = true;
 
 	if (ipp == NULL)
 		return false;
 
 	if (surface->public.in_transfer_func)
-		tf = DC_TRANSFER_FUNC_TO_CORE(surface->public.in_transfer_func);
+		tf = surface->public.in_transfer_func;
 
 	if (surface->public.gamma_correction && dce_use_lut(surface))
 		ipp->funcs->ipp_program_input_lut(ipp,
@@ -617,8 +617,8 @@ static bool dcn10_set_input_transfer_func(
 
 	if (tf == NULL)
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
-	else if (tf->public.type == TF_TYPE_PREDEFINED) {
-		switch (tf->public.tf) {
+	else if (tf->type == TF_TYPE_PREDEFINED) {
+		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
 			ipp->funcs->ipp_set_degamma(ipp,
 					IPP_DEGAMMA_MODE_HW_sRGB);
@@ -638,7 +638,7 @@ static bool dcn10_set_input_transfer_func(
 			result = false;
 			break;
 		}
-	} else if (tf->public.type == TF_TYPE_BYPASS) {
+	} else if (tf->type == TF_TYPE_BYPASS) {
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS*/
