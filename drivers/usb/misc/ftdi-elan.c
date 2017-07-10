@@ -305,9 +305,9 @@ static int ftdi_elan_command_engine(struct usb_ftdi *ftdi);
 static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi);
 static int ftdi_elan_hcd_init(struct usb_ftdi *ftdi)
 {
-	int result;
 	if (ftdi->platform_dev.dev.parent)
 		return -EBUSY;
+
 	ftdi_elan_get_kref(ftdi);
 	ftdi->platform_data.potpg = 100;
 	ftdi->platform_data.reset = NULL;
@@ -324,8 +324,8 @@ static int ftdi_elan_hcd_init(struct usb_ftdi *ftdi)
 	request_module("u132_hcd");
 	dev_info(&ftdi->udev->dev, "registering '%s'\n",
 		 ftdi->platform_dev.name);
-	result = platform_device_register(&ftdi->platform_dev);
-	return result;
+
+	return platform_device_register(&ftdi->platform_dev);
 }
 
 static void ftdi_elan_abandon_completions(struct usb_ftdi *ftdi)
