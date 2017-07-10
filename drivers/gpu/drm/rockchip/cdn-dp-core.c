@@ -615,7 +615,6 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 {
 	struct cdn_dp_device *dp = encoder_to_dp(encoder);
 	int ret, val;
-	struct rockchip_crtc_state *state;
 
 	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
 	if (ret < 0) {
@@ -625,14 +624,10 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 
 	DRM_DEV_DEBUG_KMS(dp->dev, "vop %s output to cdn-dp\n",
 			  (ret) ? "LIT" : "BIG");
-	state = to_rockchip_crtc_state(encoder->crtc->state);
-	if (ret) {
+	if (ret)
 		val = DP_SEL_VOP_LIT | (DP_SEL_VOP_LIT << 16);
-		state->output_mode = ROCKCHIP_OUT_MODE_P888;
-	} else {
+	else
 		val = DP_SEL_VOP_LIT << 16;
-		state->output_mode = ROCKCHIP_OUT_MODE_AAAA;
-	}
 
 	ret = cdn_dp_grf_write(dp, GRF_SOC_CON9, val);
 	if (ret)

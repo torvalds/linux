@@ -152,7 +152,7 @@ static struct regmap_config meson_regmap_config = {
 	.max_register   = 0x1000,
 };
 
-static int meson_drv_bind(struct device *dev)
+static int meson_drv_bind_master(struct device *dev, bool has_components)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_drm *priv;
@@ -233,10 +233,12 @@ static int meson_drv_bind(struct device *dev)
 	if (ret)
 		goto free_drm;
 
-	ret = component_bind_all(drm->dev, drm);
-	if (ret) {
-		dev_err(drm->dev, "Couldn't bind all components\n");
-		goto free_drm;
+	if (has_components) {
+		ret = component_bind_all(drm->dev, drm);
+		if (ret) {
+			dev_err(drm->dev, "Couldn't bind all components\n");
+			goto free_drm;
+		}
 	}
 
 	ret = meson_plane_create(priv);
@@ -274,6 +276,11 @@ free_drm:
 	drm_dev_unref(drm);
 
 	return ret;
+}
+
+static int meson_drv_bind(struct device *dev)
+{
+	return meson_drv_bind_master(dev, true);
 }
 
 static void meson_drv_unbind(struct device *dev)
@@ -356,6 +363,9 @@ static int meson_drv_probe(struct platform_device *pdev)
 
 		count += meson_probe_remote(pdev, &match, np, remote);
 	}
+
+	if (count && !match)
+		return meson_drv_bind_master(&pdev->dev, false);
 
 	/* If some endpoints were found, initialize the nodes */
 	if (count) {

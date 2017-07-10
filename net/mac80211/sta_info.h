@@ -116,6 +116,8 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_STOPPING		3
 #define HT_AGG_STATE_WANT_START		4
 #define HT_AGG_STATE_WANT_STOP		5
+#define HT_AGG_STATE_START_CB		6
+#define HT_AGG_STATE_STOP_CB		7
 
 enum ieee80211_agg_stop_reason {
 	AGG_STOP_DECLINED,

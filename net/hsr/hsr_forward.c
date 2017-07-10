@@ -324,8 +324,7 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 	unsigned long irqflags;
 
 	frame->is_supervision = is_supervision_frame(port->hsr, skb);
-	frame->node_src = hsr_get_node(&port->hsr->node_db, skb,
-				       frame->is_supervision);
+	frame->node_src = hsr_get_node(port, skb, frame->is_supervision);
 	if (frame->node_src == NULL)
 		return -1; /* Unknown node and !is_supervision, or no mem */
 

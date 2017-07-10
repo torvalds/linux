@@ -6312,25 +6312,38 @@ static void handle_8051_request(struct hfi1_pportdata *ppd)
 	}
 }
 
-static void write_global_credit(struct hfi1_devdata *dd,
-				u8 vau, u16 total, u16 shared)
+/*
+ * Set up allocation unit vaulue.
+ */
+void set_up_vau(struct hfi1_devdata *dd, u8 vau)
 {
-	write_csr(dd, SEND_CM_GLOBAL_CREDIT,
-		  ((u64)total <<
-		   SEND_CM_GLOBAL_CREDIT_TOTAL_CREDIT_LIMIT_SHIFT) |
-		  ((u64)shared <<
-		   SEND_CM_GLOBAL_CREDIT_SHARED_LIMIT_SHIFT) |
-		  ((u64)vau << SEND_CM_GLOBAL_CREDIT_AU_SHIFT));
+	u64 reg = read_csr(dd, SEND_CM_GLOBAL_CREDIT);
+
+	/* do not modify other values in the register */
+	reg &= ~SEND_CM_GLOBAL_CREDIT_AU_SMASK;
+	reg |= (u64)vau << SEND_CM_GLOBAL_CREDIT_AU_SHIFT;
+	write_csr(dd, SEND_CM_GLOBAL_CREDIT, reg);
 }
 
 /*
  * Set up initial VL15 credits of the remote.  Assumes the rest of
- * the CM credit registers are zero from a previous global or credit reset .
+ * the CM credit registers are zero from a previous global or credit reset.
+ * Shared limit for VL15 will always be 0.
  */
-void set_up_vl15(struct hfi1_devdata *dd, u8 vau, u16 vl15buf)
+void set_up_vl15(struct hfi1_devdata *dd, u16 vl15buf)
 {
-	/* leave shared count at zero for both global and VL15 */
-	write_global_credit(dd, vau, vl15buf, 0);
+	u64 reg = read_csr(dd, SEND_CM_GLOBAL_CREDIT);
+
+	/* set initial values for total and shared credit limit */
+	reg &= ~(SEND_CM_GLOBAL_CREDIT_TOTAL_CREDIT_LIMIT_SMASK |
+		 SEND_CM_GLOBAL_CREDIT_SHARED_LIMIT_SMASK);
+
+	/*
+	 * Set total limit to be equal to VL15 credits.
+	 * Leave shared limit at 0.
+	 */
+	reg |= (u64)vl15buf << SEND_CM_GLOBAL_CREDIT_TOTAL_CREDIT_LIMIT_SHIFT;
+	write_csr(dd, SEND_CM_GLOBAL_CREDIT, reg);
 
 	write_csr(dd, SEND_CM_CREDIT_VL15, (u64)vl15buf
 		  << SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
@@ -6348,9 +6361,11 @@ void reset_link_credits(struct hfi1_devdata *dd)
 	for (i = 0; i < TXE_NUM_DATA_VL; i++)
 		write_csr(dd, SEND_CM_CREDIT_VL + (8 * i), 0);
 	write_csr(dd, SEND_CM_CREDIT_VL15, 0);
-	write_global_credit(dd, 0, 0, 0);
+	write_csr(dd, SEND_CM_GLOBAL_CREDIT, 0);
 	/* reset the CM block */
 	pio_send_control(dd, PSC_CM_RESET);
+	/* reset cached value */
+	dd->vl15buf_cached = 0;
 }
 
 /* convert a vCU to a CU */
@@ -6839,24 +6854,35 @@ void handle_link_up(struct work_struct *work)
 {
 	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
 						  link_up_work);
+	struct hfi1_devdata *dd = ppd->dd;
+
 	set_link_state(ppd, HLS_UP_INIT);
 
 	/* cache the read of DC_LCB_STS_ROUND_TRIP_LTP_CNT */
-	read_ltp_rtt(ppd->dd);
+	read_ltp_rtt(dd);
 	/*
 	 * OPA specifies that certain counters are cleared on a transition
 	 * to link up, so do that.
 	 */
-	clear_linkup_counters(ppd->dd);
+	clear_linkup_counters(dd);
 	/*
 	 * And (re)set link up default values.
 	 */
 	set_linkup_defaults(ppd);
 
+	/*
+	 * Set VL15 credits. Use cached value from verify cap interrupt.
+	 * In case of quick linkup or simulator, vl15 value will be set by
+	 * handle_linkup_change. VerifyCap interrupt handler will not be
+	 * called in those scenarios.
+	 */
+	if (!(quick_linkup || dd->icode == ICODE_FUNCTIONAL_SIMULATOR))
+		set_up_vl15(dd, dd->vl15buf_cached);
+
 	/* enforce link speed enabled */
 	if ((ppd->link_speed_active & ppd->link_speed_enabled) == 0) {
 		/* oops - current speed is not enabled, bounce */
-		dd_dev_err(ppd->dd,
+		dd_dev_err(dd,
 			   "Link speed active 0x%x is outside enabled 0x%x, downing link\n",
 			   ppd->link_speed_active, ppd->link_speed_enabled);
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_SPEED_POLICY, 0,
@@ -7357,7 +7383,14 @@ void handle_verify_cap(struct work_struct *work)
 	 */
 	if (vau == 0)
 		vau = 1;
-	set_up_vl15(dd, vau, vl15buf);
+	set_up_vau(dd, vau);
+
+	/*
+	 * Set VL15 credits to 0 in global credit register. Cache remote VL15
+	 * credits value and wait for link-up interrupt ot set it.
+	 */
+	set_up_vl15(dd, 0);
+	dd->vl15buf_cached = vl15buf;
 
 	/* set up the LCB CRC mode */
 	crc_mask = ppd->port_crc_mode_enabled & partner_supported_crc;

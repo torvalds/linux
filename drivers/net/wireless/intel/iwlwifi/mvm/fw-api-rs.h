@@ -307,6 +307,11 @@ enum {
 /* Bit 1-3: LQ command color. Used to match responses to LQ commands */
 #define LQ_FLAG_COLOR_POS               1
 #define LQ_FLAG_COLOR_MSK               (7 << LQ_FLAG_COLOR_POS)
+#define LQ_FLAG_COLOR_GET(_f)		(((_f) & LQ_FLAG_COLOR_MSK) >>\
+					 LQ_FLAG_COLOR_POS)
+#define LQ_FLAGS_COLOR_INC(_c)		((((_c) + 1) << LQ_FLAG_COLOR_POS) &\
+					 LQ_FLAG_COLOR_MSK)
+#define LQ_FLAG_COLOR_SET(_f, _c)	((_c) | ((_f) & ~LQ_FLAG_COLOR_MSK))
 
 /* Bit 4-5: Tx RTS BW Signalling
  * (0) No RTS BW signalling

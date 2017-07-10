@@ -1418,7 +1418,7 @@ static void mpls_ifup(struct net_device *dev, unsigned int flags)
 				continue;
 			alive++;
 			nh_flags &= ~flags;
-			WRITE_ONCE(nh->nh_flags, flags);
+			WRITE_ONCE(nh->nh_flags, nh_flags);
 		} endfor_nexthops(rt);
 
 		WRITE_ONCE(rt->rt_nhn_alive, alive);

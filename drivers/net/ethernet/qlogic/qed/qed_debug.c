@@ -2956,7 +2956,7 @@ static u32 qed_grc_dump_ctx_data(struct qed_hwfn *p_hwfn,
 				qed_wr(p_hwfn,
 				       p_ptt,
 				       s_storm_defs[storm_id].cm_ctx_wr_addr,
-				       BIT(9) | lid);
+				       (i << 9) | lid);
 				*(dump_buf + offset) = qed_rd(p_hwfn,
 							      p_ptt,
 							      rd_reg_addr);

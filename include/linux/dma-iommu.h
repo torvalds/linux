@@ -78,6 +78,7 @@ void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list);
 
 struct iommu_domain;
 struct msi_msg;
+struct device;
 
 static inline int iommu_dma_init(void)
 {

@@ -56,37 +56,12 @@ static int debug = -1;
 module_param(debug, int, S_IRUGO);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
-static void do_set_multicast(struct work_struct *w)
-{
-	struct net_device_context *ndevctx =
-		container_of(w, struct net_device_context, work);
-	struct hv_device *device_obj = ndevctx->device_ctx;
-	struct net_device *ndev = hv_get_drvdata(device_obj);
-	struct netvsc_device *nvdev = rcu_dereference(ndevctx->nvdev);
-	struct rndis_device *rdev;
-
-	if (!nvdev)
-		return;
-
-	rdev = nvdev->extension;
-	if (rdev == NULL)
-		return;
-
-	if (ndev->flags & IFF_PROMISC)
-		rndis_filter_set_packet_filter(rdev,
-			NDIS_PACKET_TYPE_PROMISCUOUS);
-	else
-		rndis_filter_set_packet_filter(rdev,
-			NDIS_PACKET_TYPE_BROADCAST |
-			NDIS_PACKET_TYPE_ALL_MULTICAST |
-			NDIS_PACKET_TYPE_DIRECTED);
-}
-
 static void netvsc_set_multicast_list(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
+	struct netvsc_device *nvdev = rtnl_dereference(net_device_ctx->nvdev);
 
-	schedule_work(&net_device_ctx->work);
+	rndis_filter_update(nvdev);
 }
 
 static int netvsc_open(struct net_device *net)
@@ -123,8 +98,6 @@ static int netvsc_close(struct net_device *net)
 
 	netif_tx_disable(net);
 
-	/* Make sure netvsc_set_multicast_list doesn't re-enable filter! */
-	cancel_work_sync(&net_device_ctx->work);
 	ret = rndis_filter_close(nvdev);
 	if (ret != 0) {
 		netdev_err(net, "unable to close device (ret %d).\n", ret);
@@ -1028,7 +1001,7 @@ static const struct {
 static int netvsc_get_sset_count(struct net_device *dev, int string_set)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *nvdev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 
 	if (!nvdev)
 		return -ENODEV;
@@ -1158,11 +1131,22 @@ netvsc_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static void netvsc_poll_controller(struct net_device *net)
+static void netvsc_poll_controller(struct net_device *dev)
 {
-	/* As netvsc_start_xmit() works synchronous we don't have to
-	 * trigger anything here.
-	 */
+	struct net_device_context *ndc = netdev_priv(dev);
+	struct netvsc_device *ndev;
+	int i;
+
+	rcu_read_lock();
+	ndev = rcu_dereference(ndc->nvdev);
+	if (ndev) {
+		for (i = 0; i < ndev->num_chn; i++) {
+			struct netvsc_channel *nvchan = &ndev->chan_table[i];
+
+			napi_schedule(&nvchan->napi);
+		}
+	}
+	rcu_read_unlock();
 }
 #endif
 
@@ -1552,7 +1536,6 @@ static int netvsc_probe(struct hv_device *dev,
 	hv_set_drvdata(dev, net);
 
 	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_link_change);
-	INIT_WORK(&net_device_ctx->work, do_set_multicast);
 
 	spin_lock_init(&net_device_ctx->lock);
 	INIT_LIST_HEAD(&net_device_ctx->reconfig_events);
@@ -1622,7 +1605,6 @@ static int netvsc_remove(struct hv_device *dev)
 	netif_device_detach(net);
 
 	cancel_delayed_work_sync(&ndev_ctx->dwork);
-	cancel_work_sync(&ndev_ctx->work);
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being

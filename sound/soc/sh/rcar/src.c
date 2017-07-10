@@ -190,11 +190,13 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	int is_play = rsnd_io_is_play(io);
 	int use_src = 0;
 	u32 fin, fout;
 	u32 ifscr, fsrate, adinr;
 	u32 cr, route;
 	u32 bsdsr, bsisr;
+	u32 i_busif, o_busif, tmp;
 	uint ratio;
 
 	if (!runtime)
@@ -270,6 +272,11 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 		break;
 	}
 
+	/* BUSIF_MODE */
+	tmp = rsnd_get_busif_shift(io, mod);
+	i_busif = ( is_play ? tmp : 0) | 1;
+	o_busif = (!is_play ? tmp : 0) | 1;
+
 	rsnd_mod_write(mod, SRC_ROUTE_MODE0, route);
 
 	rsnd_mod_write(mod, SRC_SRCIR, 1);	/* initialize */
@@ -281,8 +288,9 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_BSISR, bsisr);
 	rsnd_mod_write(mod, SRC_SRCIR, 0);	/* cancel initialize */
 
-	rsnd_mod_write(mod, SRC_I_BUSIF_MODE, 1);
-	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, 1);
+	rsnd_mod_write(mod, SRC_I_BUSIF_MODE, i_busif);
+	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, o_busif);
+
 	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, rsnd_get_dalign(mod, io));
 
 	rsnd_adg_set_src_timesel_gen2(mod, io, fin, fout);

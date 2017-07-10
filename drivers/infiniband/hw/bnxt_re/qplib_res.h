@@ -48,6 +48,10 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 
 #define HWQ_CMP(idx, hwq)	((idx) & ((hwq)->max_elements - 1))
 
+#define HWQ_FREE_SLOTS(hwq)	(hwq->max_elements - \
+				((HWQ_CMP(hwq->prod, hwq)\
+				- HWQ_CMP(hwq->cons, hwq))\
+				& (hwq->max_elements - 1)))
 enum bnxt_qplib_hwq_type {
 	HWQ_TYPE_CTX,
 	HWQ_TYPE_QUEUE,

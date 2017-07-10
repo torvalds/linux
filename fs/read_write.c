@@ -1285,7 +1285,7 @@ static size_t compat_writev(struct file *file,
 	if (!(file->f_mode & FMODE_CAN_WRITE))
 		goto out;
 
-	ret = compat_do_readv_writev(WRITE, file, vec, vlen, pos, 0);
+	ret = compat_do_readv_writev(WRITE, file, vec, vlen, pos, flags);
 
 out:
 	if (ret > 0)

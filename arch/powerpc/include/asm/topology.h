@@ -44,7 +44,21 @@ extern void __init dump_numa_cpu_topology(void);
 extern int sysfs_add_device_to_node(struct device *dev, int nid);
 extern void sysfs_remove_device_from_node(struct device *dev, int nid);
 
+static inline int early_cpu_to_node(int cpu)
+{
+	int nid;
+
+	nid = numa_cpu_lookup_table[cpu];
+
+	/*
+	 * Fall back to node 0 if nid is unset (it should be, except bugs).
+	 * This allows callers to safely do NODE_DATA(early_cpu_to_node(cpu)).
+	 */
+	return (nid < 0) ? 0 : nid;
+}
 #else
+
+static inline int early_cpu_to_node(int cpu) { return 0; }
 
 static inline void dump_numa_cpu_topology(void) {}
 

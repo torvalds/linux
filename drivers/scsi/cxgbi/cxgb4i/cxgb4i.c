@@ -1595,7 +1595,6 @@ static void release_offload_resources(struct cxgbi_sock *csk)
 		cxgbi_sock_put(csk);
 	}
 	csk->dst = NULL;
-	csk->cdev = NULL;
 }
 
 static int init_act_open(struct cxgbi_sock *csk)

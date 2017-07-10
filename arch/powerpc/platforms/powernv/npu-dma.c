@@ -75,7 +75,8 @@ struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index)
 	if (WARN_ON(!gpdev))
 		return NULL;
 
-	if (WARN_ON(!gpdev->dev.of_node))
+	/* Not all PCI devices have device-tree nodes */
+	if (!gpdev->dev.of_node)
 		return NULL;
 
 	/* Get assoicated PCI device */

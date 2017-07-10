@@ -1954,7 +1954,6 @@ static void netiucv_free_netdevice(struct net_device *dev)
 		privptr->conn = NULL; privptr->fsm = NULL;
 		/* privptr gets freed by free_netdev() */
 	}
-	free_netdev(dev);
 }
 
 /**
@@ -1972,7 +1971,8 @@ static void netiucv_setup_netdevice(struct net_device *dev)
 	dev->mtu	         = NETIUCV_MTU_DEFAULT;
 	dev->min_mtu		 = 576;
 	dev->max_mtu		 = NETIUCV_MTU_MAX;
-	dev->destructor          = netiucv_free_netdevice;
+	dev->needs_free_netdev   = true;
+	dev->priv_destructor     = netiucv_free_netdevice;
 	dev->hard_header_len     = NETIUCV_HDRLEN;
 	dev->addr_len            = 0;
 	dev->type                = ARPHRD_SLIP;

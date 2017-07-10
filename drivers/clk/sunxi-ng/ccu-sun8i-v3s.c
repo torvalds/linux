@@ -537,7 +537,7 @@ static struct ccu_reset_map sun8i_v3s_ccu_resets[] = {
 	[RST_BUS_EMAC]		=  { 0x2c0, BIT(17) },
 	[RST_BUS_HSTIMER]	=  { 0x2c0, BIT(19) },
 	[RST_BUS_SPI0]		=  { 0x2c0, BIT(20) },
-	[RST_BUS_OTG]		=  { 0x2c0, BIT(23) },
+	[RST_BUS_OTG]		=  { 0x2c0, BIT(24) },
 	[RST_BUS_EHCI0]		=  { 0x2c0, BIT(26) },
 	[RST_BUS_OHCI0]		=  { 0x2c0, BIT(29) },
 

@@ -213,7 +213,7 @@ static int tm2_touchkey_probe(struct i2c_client *client,
 	/* led device */
 	touchkey->led_dev.name = TM2_TOUCHKEY_DEV_NAME;
 	touchkey->led_dev.brightness = LED_FULL;
-	touchkey->led_dev.max_brightness = LED_FULL;
+	touchkey->led_dev.max_brightness = LED_ON;
 	touchkey->led_dev.brightness_set = tm2_touchkey_led_brightness_set;
 
 	error = devm_led_classdev_register(&client->dev, &touchkey->led_dev);

@@ -260,7 +260,7 @@ static int mirror_flush(struct dm_target *ti)
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_op = REQ_OP_WRITE,
-		.bi_op_flags = REQ_PREFLUSH,
+		.bi_op_flags = REQ_PREFLUSH | REQ_SYNC,
 		.mem.type = DM_IO_KMEM,
 		.mem.ptr.addr = NULL,
 		.client = ms->io_client,

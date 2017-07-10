@@ -169,6 +169,16 @@ void ib_mad_cleanup(void);
 int ib_sa_init(void);
 void ib_sa_cleanup(void);
 
+int ibnl_init(void);
+void ibnl_cleanup(void);
+
+/**
+ * Check if there are any listeners to the netlink group
+ * @group: the netlink group ID
+ * Returns 0 on success or a negative for no listeners.
+ */
+int ibnl_chk_listeners(unsigned int group);
+
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 			      struct netlink_callback *cb);
 int ib_nl_handle_set_timeout(struct sk_buff *skb,

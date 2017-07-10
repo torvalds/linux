@@ -907,8 +907,8 @@ static int ppl_write_empty_header(struct ppl_log *log)
 	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PAGE_SIZE));
 
 	if (!sync_page_io(rdev, rdev->ppl.sector - rdev->data_offset,
-			  PPL_HEADER_SIZE, page, REQ_OP_WRITE | REQ_FUA, 0,
-			  false)) {
+			  PPL_HEADER_SIZE, page, REQ_OP_WRITE | REQ_SYNC |
+			  REQ_FUA, 0, false)) {
 		md_error(rdev->mddev, rdev);
 		ret = -EIO;
 	}

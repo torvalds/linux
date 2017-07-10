@@ -3298,6 +3298,10 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 {
 	int ret;
 
+	/* If the device is asleep, we have no requests outstanding */
+	if (!READ_ONCE(i915->gt.awake))
+		return 0;
+
 	if (flags & I915_WAIT_LOCKED) {
 		struct i915_gem_timeline *tl;
 
