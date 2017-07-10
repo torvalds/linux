@@ -8,6 +8,7 @@
 			- "qcom,pcie-apq8064" for apq8064
 			- "qcom,pcie-apq8084" for apq8084
 			- "qcom,pcie-msm8996" for msm8996 or apq8096
+			- "qcom,pcie-ipq4019" for ipq4019
 
 - reg:
 	Usage: required
@@ -87,7 +88,7 @@
 			- "core"	Clocks the pcie hw block
 			- "phy"		Clocks the pcie PHY block
 - clock-names:
-	Usage: required for apq8084
+	Usage: required for apq8084/ipq4019
 	Value type: <stringlist>
 	Definition: Should contain the following entries
 			- "aux"		Auxiliary (AUX) clock
@@ -125,6 +126,23 @@
 	Value type: <stringlist>
 	Definition: Should contain the following entries
 			- "core" Core reset
+
+- reset-names:
+	Usage: required for ipq/apq8064
+	Value type: <stringlist>
+	Definition: Should contain the following entries
+			- "axi_m"		AXI master reset
+			- "axi_s"		AXI slave reset
+			- "pipe"		PIPE reset
+			- "axi_m_vmid"		VMID reset
+			- "axi_s_xpu"		XPU reset
+			- "parf"		PARF reset
+			- "phy"			PHY reset
+			- "axi_m_sticky"	AXI sticky reset
+			- "pipe_sticky"		PIPE sticky reset
+			- "pwr"			PWR reset
+			- "ahb"			AHB reset
+			- "phy_ahb"		PHY AHB reset
 
 - power-domains:
 	Usage: required for apq8084 and msm8996/apq8096

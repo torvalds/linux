@@ -15,9 +15,10 @@
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
  * | Mailbox commands             |       0x1199       | 0x1193		|
- * | Device Discovery             |       0x2004       | 0x2016		|
- * |                              |                    | 0x2011-0x2012, |
- * |                              |                    | 0x2099-0x20a4  |
+ * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
+ * |				  | 		       | 0x211a         |
+ * |                              |                    | 0x211c-0x2128  |
+ * |                              |                    | 0x212a-0x2130  |
  * | Queue Command and IO tracing |       0x3074       | 0x300b         |
  * |                              |                    | 0x3027-0x3028  |
  * |                              |                    | 0x303d-0x3041  |
@@ -59,10 +60,10 @@
  * |                              |                    | 0xb13c-0xb140  |
  * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc010       |		|
- * | Misc                         |       0xd301       | 0xd031-0xd0ff	|
+ * | Misc                         |       0xd302       | 0xd031-0xd0ff	|
  * |                              |                    | 0xd101-0xd1fe	|
  * |                              |                    | 0xd214-0xd2fe	|
- * | Target Mode		  |	  0xe080       |		|
+ * | Target Mode		  |	  0xe081       |		|
  * | Target Mode Management	  |	  0xf09b       | 0xf002		|
  * |                              |                    | 0xf046-0xf049  |
  * | Target Mode Task Management  |	  0x1000d      |		|
@@ -495,6 +496,50 @@ qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	memcpy(iter_reg, ha->fce, ntohl(fcec->size));
 
 	return (char *)iter_reg + ntohl(fcec->size);
+}
+
+static inline void *
+qla25xx_copy_exlogin(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+{
+	struct qla2xxx_offld_chain *c = ptr;
+
+	if (!ha->exlogin_buf)
+		return ptr;
+
+	*last_chain = &c->type;
+
+	c->type = cpu_to_be32(DUMP_CHAIN_EXLOGIN);
+	c->chain_size = cpu_to_be32(sizeof(struct qla2xxx_offld_chain) +
+	    ha->exlogin_size);
+	c->size = cpu_to_be32(ha->exlogin_size);
+	c->addr = cpu_to_be64(ha->exlogin_buf_dma);
+
+	ptr += sizeof(struct qla2xxx_offld_chain);
+	memcpy(ptr, ha->exlogin_buf, ha->exlogin_size);
+
+	return (char *)ptr + cpu_to_be32(c->size);
+}
+
+static inline void *
+qla81xx_copy_exchoffld(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+{
+	struct qla2xxx_offld_chain *c = ptr;
+
+	if (!ha->exchoffld_buf)
+		return ptr;
+
+	*last_chain = &c->type;
+
+	c->type = cpu_to_be32(DUMP_CHAIN_EXCHG);
+	c->chain_size = cpu_to_be32(sizeof(struct qla2xxx_offld_chain) +
+	    ha->exchoffld_size);
+	c->size = cpu_to_be32(ha->exchoffld_size);
+	c->addr = cpu_to_be64(ha->exchoffld_buf_dma);
+
+	ptr += sizeof(struct qla2xxx_offld_chain);
+	memcpy(ptr, ha->exchoffld_buf, ha->exchoffld_size);
+
+	return (char *)ptr + cpu_to_be32(c->size);
 }
 
 static inline void *
@@ -1606,6 +1651,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_exlogin(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= htonl(DUMP_CHAIN_LAST);
@@ -1932,6 +1978,8 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_exlogin(ha, nxt_chain, &last_chain);
+	nxt_chain = qla81xx_copy_exchoffld(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= htonl(DUMP_CHAIN_LAST);
@@ -2443,6 +2491,8 @@ copy_queue:
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
 	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	nxt_chain = qla2xxx_copy_atioqueues(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_exlogin(ha, nxt_chain, &last_chain);
+	nxt_chain = qla81xx_copy_exchoffld(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= htonl(DUMP_CHAIN_LAST);
@@ -2712,4 +2762,105 @@ ql_dump_buffer(uint32_t level, scsi_qla_host_t *vha, int32_t id,
 		print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 1,
 			       buf + cnt, min(16U, size - cnt), false);
 	}
+}
+
+/*
+ * This function is for formatting and logging log messages.
+ * It is to be used when vha is available. It formats the message
+ * and logs it to the messages file. All the messages will be logged
+ * irrespective of value of ql2xextended_error_logging.
+ * parameters:
+ * level: The level of the log messages to be printed in the
+ *        messages file.
+ * vha:   Pointer to the scsi_qla_host_t
+ * id:    This is a unique id for the level. It identifies the
+ *        part of the code from where the message originated.
+ * msg:   The message to be displayed.
+ */
+void
+ql_log_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
+    const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
+	char pbuf[128];
+
+	if (level > ql_errlev)
+		return;
+
+	if (qpair != NULL) {
+		const struct pci_dev *pdev = qpair->pdev;
+		/* <module-name> <msg-id>:<host> Message */
+		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: ",
+			QL_MSGHDR, dev_name(&(pdev->dev)), id);
+	} else {
+		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
+			QL_MSGHDR, "0000:00:00.0", id);
+	}
+	pbuf[sizeof(pbuf) - 1] = 0;
+
+	va_start(va, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &va;
+
+	switch (level) {
+	case ql_log_fatal: /* FATAL LOG */
+		pr_crit("%s%pV", pbuf, &vaf);
+		break;
+	case ql_log_warn:
+		pr_err("%s%pV", pbuf, &vaf);
+		break;
+	case ql_log_info:
+		pr_warn("%s%pV", pbuf, &vaf);
+		break;
+	default:
+		pr_info("%s%pV", pbuf, &vaf);
+		break;
+	}
+
+	va_end(va);
+}
+
+/*
+ * This function is for formatting and logging debug information.
+ * It is to be used when vha is available. It formats the message
+ * and logs it to the messages file.
+ * parameters:
+ * level: The level of the debug messages to be printed.
+ *        If ql2xextended_error_logging value is correctly set,
+ *        this message will appear in the messages file.
+ * vha:   Pointer to the scsi_qla_host_t.
+ * id:    This is a unique identifier for the level. It identifies the
+ *        part of the code from where the message originated.
+ * msg:   The message to be displayed.
+ */
+void
+ql_dbg_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
+    const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
+
+	if (!ql_mask_match(level))
+		return;
+
+	va_start(va, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &va;
+
+	if (qpair != NULL) {
+		const struct pci_dev *pdev = qpair->pdev;
+		/* <module-name> <pci-name> <msg-id>:<host> Message */
+		pr_warn("%s [%s]-%04x: %pV",
+		    QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset,
+		    &vaf);
+	} else {
+		pr_warn("%s [%s]-%04x: : %pV",
+			QL_MSGHDR, "0000:00:00.0", id + ql_dbg_offset, &vaf);
+	}
+
+	va_end(va);
+
 }

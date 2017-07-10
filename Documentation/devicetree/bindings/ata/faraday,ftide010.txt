@@ -1,0 +1,38 @@
+* Faraday Technology FTIDE010 PATA controller
+
+This controller is the first Faraday IDE interface block, used in the
+StorLink SL2312 and SL3516, later known as the Cortina Systems Gemini
+platform. The controller can do PIO modes 0 through 4, Multi-word DMA
+(MWDM)modes 0 through 2 and Ultra DMA modes 0 through 6.
+
+On the Gemini platform, this PATA block is accompanied by a PATA to
+SATA bridge in order to support SATA. This is why a phandle to that
+controller is compulsory on that platform.
+
+The timing properties are unique per-SoC, not per-board.
+
+Required properties:
+- compatible: should be one of
+  "cortina,gemini-pata", "faraday,ftide010"
+  "faraday,ftide010"
+- interrupts: interrupt for the block
+- reg: registers and size for the block
+
+Optional properties:
+- clocks: a SoC clock running the peripheral.
+- clock-names: should be set to "PCLK" for the peripheral clock.
+
+Required properties for "cortina,gemini-pata" compatible:
+- sata: a phande to the Gemini PATA to SATA bridge, see
+  cortina,gemini-sata-bridge.txt for details.
+
+Example:
+
+ata@63000000 {
+	compatible = "cortina,gemini-pata", "faraday,ftide010";
+	reg = <0x63000000 0x100>;
+	interrupts = <4 IRQ_TYPE_EDGE_RISING>;
+	clocks = <&gcc GEMINI_CLK_GATE_IDE>;
+	clock-names = "PCLK";
+	sata = <&sata>;
+};

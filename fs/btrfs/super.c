@@ -601,18 +601,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			}
 			break;
 		case Opt_alloc_start:
-			num = match_strdup(&args[0]);
-			if (num) {
-				mutex_lock(&info->chunk_mutex);
-				info->alloc_start = memparse(num, NULL);
-				mutex_unlock(&info->chunk_mutex);
-				kfree(num);
-				btrfs_info(info, "allocations start at %llu",
-					   info->alloc_start);
-			} else {
-				ret = -ENOMEM;
-				goto out;
-			}
+			btrfs_info(info,
+				"option alloc_start is obsolete, ignored");
 			break;
 		case Opt_acl:
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
@@ -1187,7 +1177,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 		return 0;
 	}
 
-	btrfs_wait_ordered_roots(fs_info, -1, 0, (u64)-1);
+	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 
 	trans = btrfs_attach_transaction_barrier(root);
 	if (IS_ERR(trans)) {
@@ -1232,8 +1222,6 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",nobarrier");
 	if (info->max_inline != BTRFS_DEFAULT_MAX_INLINE)
 		seq_printf(seq, ",max_inline=%llu", info->max_inline);
-	if (info->alloc_start != 0)
-		seq_printf(seq, ",alloc_start=%llu", info->alloc_start);
 	if (info->thread_pool_size !=  min_t(unsigned long,
 					     num_online_cpus() + 2, 8))
 		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
@@ -1716,7 +1704,6 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned long old_opts = fs_info->mount_opt;
 	unsigned long old_compress_type = fs_info->compress_type;
 	u64 old_max_inline = fs_info->max_inline;
-	u64 old_alloc_start = fs_info->alloc_start;
 	int old_thread_pool_size = fs_info->thread_pool_size;
 	unsigned int old_metadata_ratio = fs_info->metadata_ratio;
 	int ret;
@@ -1855,9 +1842,6 @@ restore:
 	fs_info->mount_opt = old_opts;
 	fs_info->compress_type = old_compress_type;
 	fs_info->max_inline = old_max_inline;
-	mutex_lock(&fs_info->chunk_mutex);
-	fs_info->alloc_start = old_alloc_start;
-	mutex_unlock(&fs_info->chunk_mutex);
 	btrfs_resize_thread_pool(fs_info,
 		old_thread_pool_size, fs_info->thread_pool_size);
 	fs_info->metadata_ratio = old_metadata_ratio;
@@ -1898,18 +1882,15 @@ static inline void btrfs_descending_sort_devices(
 static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 				       u64 *free_bytes)
 {
-	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_device_info *devices_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *device;
 	u64 skip_space;
 	u64 type;
 	u64 avail_space;
-	u64 used_space;
 	u64 min_stripe_size;
 	int min_stripes = 1, num_stripes = 1;
 	int i = 0, nr_devices;
-	int ret;
 
 	/*
 	 * We aren't under the device list lock, so this is racy-ish, but good
@@ -1927,12 +1908,12 @@ static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 	}
 
 	devices_info = kmalloc_array(nr_devices, sizeof(*devices_info),
-			       GFP_NOFS);
+			       GFP_KERNEL);
 	if (!devices_info)
 		return -ENOMEM;
 
 	/* calc min stripe number for data space allocation */
-	type = btrfs_get_alloc_profile(root, 1);
+	type = btrfs_data_alloc_profile(fs_info);
 	if (type & BTRFS_BLOCK_GROUP_RAID0) {
 		min_stripes = 2;
 		num_stripes = nr_devices;
@@ -1949,8 +1930,6 @@ static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 	else
 		min_stripe_size = BTRFS_STRIPE_LEN;
 
-	if (fs_info->alloc_start)
-		mutex_lock(&fs_devices->device_list_mutex);
 	rcu_read_lock();
 	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
 		if (!device->in_fs_metadata || !device->bdev ||
@@ -1973,34 +1952,6 @@ static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 		 */
 		skip_space = SZ_1M;
 
-		/* user can set the offset in fs_info->alloc_start. */
-		if (fs_info->alloc_start &&
-		    fs_info->alloc_start + BTRFS_STRIPE_LEN <=
-		    device->total_bytes) {
-			rcu_read_unlock();
-			skip_space = max(fs_info->alloc_start, skip_space);
-
-			/*
-			 * btrfs can not use the free space in
-			 * [0, skip_space - 1], we must subtract it from the
-			 * total. In order to implement it, we account the used
-			 * space in this range first.
-			 */
-			ret = btrfs_account_dev_extents_size(device, 0,
-							     skip_space - 1,
-							     &used_space);
-			if (ret) {
-				kfree(devices_info);
-				mutex_unlock(&fs_devices->device_list_mutex);
-				return ret;
-			}
-
-			rcu_read_lock();
-
-			/* calc the free space in [0, skip_space - 1] */
-			skip_space -= used_space;
-		}
-
 		/*
 		 * we can use the free space in [0, skip_space - 1], subtract
 		 * it from the total.
@@ -2019,8 +1970,6 @@ static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 		i++;
 	}
 	rcu_read_unlock();
-	if (fs_info->alloc_start)
-		mutex_unlock(&fs_devices->device_list_mutex);
 
 	nr_devices = i;
 
@@ -2057,10 +2006,9 @@ static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
  * multiplier to scale the sizes.
  *
  * Unused device space usage is based on simulating the chunk allocator
- * algorithm that respects the device sizes, order of allocations and the
- * 'alloc_start' value, this is a close approximation of the actual use but
- * there are other factors that may change the result (like a new metadata
- * chunk).
+ * algorithm that respects the device sizes and order of allocations.  This is
+ * a close approximation of the actual use but there are other factors that may
+ * change the result (like a new metadata chunk).
  *
  * If metadata is exhausted, f_bavail will be 0.
  */
@@ -2243,7 +2191,7 @@ static int btrfs_freeze(struct super_block *sb)
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *root = fs_info->tree_root;
 
-	fs_info->fs_frozen = 1;
+	set_bit(BTRFS_FS_FROZEN, &fs_info->flags);
 	/*
 	 * We don't need a barrier here, we'll wait for any transaction that
 	 * could be in progress on other threads (and do delayed iputs that
@@ -2262,7 +2210,9 @@ static int btrfs_freeze(struct super_block *sb)
 
 static int btrfs_unfreeze(struct super_block *sb)
 {
-	btrfs_sb(sb)->fs_frozen = 0;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+
+	clear_bit(BTRFS_FS_FROZEN, &fs_info->flags);
 	return 0;
 }
 

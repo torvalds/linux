@@ -833,6 +833,15 @@ static const struct net_device_ops hfi1_netdev_ops = {
 	.ndo_get_stats64 = hfi1_vnic_get_stats64,
 };
 
+static void hfi1_vnic_free_rn(struct net_device *netdev)
+{
+	struct hfi1_vnic_vport_info *vinfo = opa_vnic_dev_priv(netdev);
+
+	hfi1_vnic_deinit(vinfo);
+	mutex_destroy(&vinfo->lock);
+	free_netdev(netdev);
+}
+
 struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 				      u8 port_num,
 				      enum rdma_netdev_t type,
@@ -864,6 +873,7 @@ struct net_device *hfi1_vnic_alloc_rn(struct ib_device *device,
 	vinfo->num_tx_q = dd->chip_sdma_engines;
 	vinfo->num_rx_q = HFI1_NUM_VNIC_CTXT;
 	vinfo->netdev = netdev;
+	rn->free_rdma_netdev = hfi1_vnic_free_rn;
 	rn->set_id = hfi1_vnic_set_vesw_id;
 
 	netdev->features = NETIF_F_HIGHDMA | NETIF_F_SG;
@@ -891,13 +901,4 @@ init_fail:
 	mutex_destroy(&vinfo->lock);
 	free_netdev(netdev);
 	return ERR_PTR(rc);
-}
-
-void hfi1_vnic_free_rn(struct net_device *netdev)
-{
-	struct hfi1_vnic_vport_info *vinfo = opa_vnic_dev_priv(netdev);
-
-	hfi1_vnic_deinit(vinfo);
-	mutex_destroy(&vinfo->lock);
-	free_netdev(netdev);
 }

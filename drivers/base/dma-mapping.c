@@ -22,20 +22,15 @@ struct dma_devres {
 	size_t		size;
 	void		*vaddr;
 	dma_addr_t	dma_handle;
+	unsigned long	attrs;
 };
 
-static void dmam_coherent_release(struct device *dev, void *res)
+static void dmam_release(struct device *dev, void *res)
 {
 	struct dma_devres *this = res;
 
-	dma_free_coherent(dev, this->size, this->vaddr, this->dma_handle);
-}
-
-static void dmam_noncoherent_release(struct device *dev, void *res)
-{
-	struct dma_devres *this = res;
-
-	dma_free_noncoherent(dev, this->size, this->vaddr, this->dma_handle);
+	dma_free_attrs(dev, this->size, this->vaddr, this->dma_handle,
+			this->attrs);
 }
 
 static int dmam_match(struct device *dev, void *res, void *match_data)
@@ -69,7 +64,7 @@ void *dmam_alloc_coherent(struct device *dev, size_t size,
 	struct dma_devres *dr;
 	void *vaddr;
 
-	dr = devres_alloc(dmam_coherent_release, sizeof(*dr), gfp);
+	dr = devres_alloc(dmam_release, sizeof(*dr), gfp);
 	if (!dr)
 		return NULL;
 
@@ -104,35 +99,35 @@ void dmam_free_coherent(struct device *dev, size_t size, void *vaddr,
 	struct dma_devres match_data = { size, vaddr, dma_handle };
 
 	dma_free_coherent(dev, size, vaddr, dma_handle);
-	WARN_ON(devres_destroy(dev, dmam_coherent_release, dmam_match,
-			       &match_data));
+	WARN_ON(devres_destroy(dev, dmam_release, dmam_match, &match_data));
 }
 EXPORT_SYMBOL(dmam_free_coherent);
 
 /**
- * dmam_alloc_non_coherent - Managed dma_alloc_noncoherent()
+ * dmam_alloc_attrs - Managed dma_alloc_attrs()
  * @dev: Device to allocate non_coherent memory for
  * @size: Size of allocation
  * @dma_handle: Out argument for allocated DMA handle
  * @gfp: Allocation flags
+ * @attrs: Flags in the DMA_ATTR_* namespace.
  *
- * Managed dma_alloc_noncoherent().  Memory allocated using this
- * function will be automatically released on driver detach.
+ * Managed dma_alloc_attrs().  Memory allocated using this function will be
+ * automatically released on driver detach.
  *
  * RETURNS:
  * Pointer to allocated memory on success, NULL on failure.
  */
-void *dmam_alloc_noncoherent(struct device *dev, size_t size,
-			     dma_addr_t *dma_handle, gfp_t gfp)
+void *dmam_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, unsigned long attrs)
 {
 	struct dma_devres *dr;
 	void *vaddr;
 
-	dr = devres_alloc(dmam_noncoherent_release, sizeof(*dr), gfp);
+	dr = devres_alloc(dmam_release, sizeof(*dr), gfp);
 	if (!dr)
 		return NULL;
 
-	vaddr = dma_alloc_noncoherent(dev, size, dma_handle, gfp);
+	vaddr = dma_alloc_attrs(dev, size, dma_handle, gfp, attrs);
 	if (!vaddr) {
 		devres_free(dr);
 		return NULL;
@@ -141,32 +136,13 @@ void *dmam_alloc_noncoherent(struct device *dev, size_t size,
 	dr->vaddr = vaddr;
 	dr->dma_handle = *dma_handle;
 	dr->size = size;
+	dr->attrs = attrs;
 
 	devres_add(dev, dr);
 
 	return vaddr;
 }
-EXPORT_SYMBOL(dmam_alloc_noncoherent);
-
-/**
- * dmam_free_coherent - Managed dma_free_noncoherent()
- * @dev: Device to free noncoherent memory for
- * @size: Size of allocation
- * @vaddr: Virtual address of the memory to free
- * @dma_handle: DMA handle of the memory to free
- *
- * Managed dma_free_noncoherent().
- */
-void dmam_free_noncoherent(struct device *dev, size_t size, void *vaddr,
-			   dma_addr_t dma_handle)
-{
-	struct dma_devres match_data = { size, vaddr, dma_handle };
-
-	dma_free_noncoherent(dev, size, vaddr, dma_handle);
-	WARN_ON(!devres_destroy(dev, dmam_noncoherent_release, dmam_match,
-				&match_data));
-}
-EXPORT_SYMBOL(dmam_free_noncoherent);
+EXPORT_SYMBOL(dmam_alloc_attrs);
 
 #ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 
@@ -251,7 +227,7 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
 	int ret = -ENXIO;
-#if defined(CONFIG_MMU) && !defined(CONFIG_ARCH_NO_COHERENT_DMA_MMAP)
+#ifndef CONFIG_ARCH_NO_COHERENT_DMA_MMAP
 	unsigned long user_count = vma_pages(vma);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	unsigned long pfn = page_to_pfn(virt_to_page(cpu_addr));
@@ -268,7 +244,7 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 				      user_count << PAGE_SHIFT,
 				      vma->vm_page_prot);
 	}
-#endif	/* CONFIG_MMU && !CONFIG_ARCH_NO_COHERENT_DMA_MMAP */
+#endif	/* !CONFIG_ARCH_NO_COHERENT_DMA_MMAP */
 
 	return ret;
 }

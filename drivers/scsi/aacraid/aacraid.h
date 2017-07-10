@@ -97,7 +97,7 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 50792
+# define AAC_DRIVER_BUILD 50834
 # define AAC_DRIVER_BRANCH "-custom"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -415,6 +415,7 @@ struct aac_ciss_identify_pd {
  * These macros convert from physical channels to virtual channels
  */
 #define CONTAINER_CHANNEL		(0)
+#define NATIVE_CHANNEL			(1)
 #define CONTAINER_TO_CHANNEL(cont)	(CONTAINER_CHANNEL)
 #define CONTAINER_TO_ID(cont)		(cont)
 #define CONTAINER_TO_LUN(cont)		(0)
@@ -423,7 +424,6 @@ struct aac_ciss_identify_pd {
 #define PMC_DEVICE_S6	0x28b
 #define PMC_DEVICE_S7	0x28c
 #define PMC_DEVICE_S8	0x28d
-#define PMC_DEVICE_S9	0x28f
 
 #define aac_phys_to_logical(x)  ((x)+1)
 #define aac_logical_to_phys(x)  ((x)?(x)-1:0)
@@ -2377,6 +2377,7 @@ struct revision
 #define SOFT_RESET_TIME			60
 
 
+
 struct aac_common
 {
 	/*
@@ -2487,7 +2488,9 @@ struct aac_hba_info {
 #define IOP_RESET_FW_FIB_DUMP		0x00000034
 #define IOP_RESET			0x00001000
 #define IOP_RESET_ALWAYS		0x00001001
-#define RE_INIT_ADAPTER			0x000000ee
+#define RE_INIT_ADAPTER		0x000000ee
+
+#define IOP_SRC_RESET_MASK		0x00000100
 
 /*
  *	Adapter Status Register
@@ -2512,6 +2515,7 @@ struct aac_hba_info {
 
 #define	SELF_TEST_FAILED		0x00000004
 #define	MONITOR_PANIC			0x00000020
+#define	KERNEL_BOOTING			0x00000040
 #define	KERNEL_UP_AND_RUNNING		0x00000080
 #define	KERNEL_PANIC			0x00000100
 #define	FLASH_UPD_PENDING		0x00002000
@@ -2684,6 +2688,18 @@ int aac_probe_container(struct aac_dev *dev, int cid);
 int _aac_rx_init(struct aac_dev *dev);
 int aac_rx_select_comm(struct aac_dev *dev, int comm);
 int aac_rx_deliver_producer(struct fib * fib);
+
+static inline int aac_is_src(struct aac_dev *dev)
+{
+	u16 device = dev->pdev->device;
+
+	if (device == PMC_DEVICE_S6 ||
+		device == PMC_DEVICE_S7 ||
+		device == PMC_DEVICE_S8)
+		return 1;
+	return 0;
+}
+
 char * get_container_type(unsigned type);
 extern int numacb;
 extern char aac_driver_version[];

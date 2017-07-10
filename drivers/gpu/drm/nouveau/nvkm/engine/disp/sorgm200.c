@@ -21,111 +21,104 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
-#include "outpdp.h"
+#include "ior.h"
 
-#include <subdev/timer.h>
-
-static inline u32
-gm200_sor_soff(struct nvkm_output_dp *outp)
+static void
+gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 {
-	return (ffs(outp->base.info.or) - 1) * 0x800;
-}
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32  loff = nv50_sor_link(sor);
+	const u32 shift = sor->func->dp.lanes[ln] * 8;
+	u32 data[4];
 
-static inline u32
-gm200_sor_loff(struct nvkm_output_dp *outp)
-{
-	return gm200_sor_soff(outp) + !(outp->base.info.sorconf.link & 1) * 0x80;
-}
-
-void
-gm200_sor_magic(struct nvkm_output *outp)
-{
-	struct nvkm_device *device = outp->disp->engine.subdev.device;
-	const u32 soff = outp->or * 0x100;
-	const u32 data = outp->or + 1;
-	if (outp->info.sorconf.link & 1)
-		nvkm_mask(device, 0x612308 + soff, 0x0000001f, 0x00000000 | data);
-	if (outp->info.sorconf.link & 2)
-		nvkm_mask(device, 0x612388 + soff, 0x0000001f, 0x00000010 | data);
-}
-
-static inline u32
-gm200_sor_dp_lane_map(struct nvkm_device *device, u8 lane)
-{
-	return lane * 0x08;
-}
-
-static int
-gm200_sor_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = gm200_sor_soff(outp);
-	const u32 loff = gm200_sor_loff(outp);
-	u32 mask = 0, i;
-
-	for (i = 0; i < nr; i++)
-		mask |= 1 << (gm200_sor_dp_lane_map(device, i) >> 3);
-
-	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
-	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
-	nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x61c034 + soff) & 0x80000000))
-			break;
-	);
-	return 0;
-}
-
-static int
-gm200_sor_dp_drv_ctl(struct nvkm_output_dp *outp,
-		     int ln, int vs, int pe, int pc)
-{
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	struct nvkm_bios *bios = device->bios;
-	const u32 shift = gm200_sor_dp_lane_map(device, ln);
-	const u32 loff = gm200_sor_loff(outp);
-	u32 addr, data[4];
-	u8  ver, hdr, cnt, len;
-	struct nvbios_dpout info;
-	struct nvbios_dpcfg ocfg;
-
-	addr = nvbios_dpout_match(bios, outp->base.info.hasht,
-					outp->base.info.hashm,
-				  &ver, &hdr, &cnt, &len, &info);
-	if (!addr)
-		return -ENODEV;
-
-	addr = nvbios_dpcfg_match(bios, addr, pc, vs, pe,
-				  &ver, &hdr, &cnt, &len, &ocfg);
-	if (!addr)
-		return -EINVAL;
-	ocfg.tx_pu &= 0x0f;
+	pu &= 0x0f;
 
 	data[0] = nvkm_rd32(device, 0x61c118 + loff) & ~(0x000000ff << shift);
 	data[1] = nvkm_rd32(device, 0x61c120 + loff) & ~(0x000000ff << shift);
 	data[2] = nvkm_rd32(device, 0x61c130 + loff);
-	if ((data[2] & 0x00000f00) < (ocfg.tx_pu << 8) || ln == 0)
-		data[2] = (data[2] & ~0x00000f00) | (ocfg.tx_pu << 8);
-	nvkm_wr32(device, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
-	nvkm_wr32(device, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
+	if ((data[2] & 0x00000f00) < (pu << 8) || ln == 0)
+		data[2] = (data[2] & ~0x00000f00) | (pu << 8);
+	nvkm_wr32(device, 0x61c118 + loff, data[0] | (dc << shift));
+	nvkm_wr32(device, 0x61c120 + loff, data[1] | (pe << shift));
 	nvkm_wr32(device, 0x61c130 + loff, data[2]);
 	data[3] = nvkm_rd32(device, 0x61c13c + loff) & ~(0x000000ff << shift);
-	nvkm_wr32(device, 0x61c13c + loff, data[3] | (ocfg.pc << shift));
-	return 0;
+	nvkm_wr32(device, 0x61c13c + loff, data[3] | (pc << shift));
 }
 
-static const struct nvkm_output_dp_func
-gm200_sor_dp_func = {
-	.pattern = gm107_sor_dp_pattern,
-	.lnk_pwr = gm200_sor_dp_lnk_pwr,
-	.lnk_ctl = gf119_sor_dp_lnk_ctl,
-	.drv_ctl = gm200_sor_dp_drv_ctl,
-	.vcpi = gf119_sor_dp_vcpi,
+static void
+gm200_sor_route_set(struct nvkm_outp *outp, struct nvkm_ior *ior)
+{
+	struct nvkm_device *device = outp->disp->engine.subdev.device;
+	const u32 moff = __ffs(outp->info.or) * 0x100;
+	const u32  sor = ior ? ior->id + 1 : 0;
+	u32 link = ior ? (ior->asy.link == 2) : 0;
+
+	if (outp->info.sorconf.link & 1) {
+		nvkm_mask(device, 0x612308 + moff, 0x0000001f, link << 4 | sor);
+		link++;
+	}
+
+	if (outp->info.sorconf.link & 2)
+		nvkm_mask(device, 0x612388 + moff, 0x0000001f, link << 4 | sor);
+}
+
+static int
+gm200_sor_route_get(struct nvkm_outp *outp, int *link)
+{
+	struct nvkm_device *device = outp->disp->engine.subdev.device;
+	const int sublinks = outp->info.sorconf.link;
+	int lnk[2], sor[2], m, s;
+
+	for (*link = 0, m = __ffs(outp->info.or) * 2, s = 0; s < 2; m++, s++) {
+		if (sublinks & BIT(s)) {
+			u32 data = nvkm_rd32(device, 0x612308 + (m * 0x80));
+			lnk[s] = (data & 0x00000010) >> 4;
+			sor[s] = (data & 0x0000000f);
+			if (!sor[s])
+				return -1;
+			*link |= lnk[s];
+		}
+	}
+
+	if (sublinks == 3) {
+		if (sor[0] != sor[1] || WARN_ON(lnk[0] || !lnk[1]))
+			return -1;
+	}
+
+	return ((sublinks & 1) ? sor[0] : sor[1]) - 1;
+}
+
+static const struct nvkm_ior_func
+gm200_sor = {
+	.route = {
+		.get = gm200_sor_route_get,
+		.set = gm200_sor_route_set,
+	},
+	.state = gf119_sor_state,
+	.power = nv50_sor_power,
+	.clock = gf119_sor_clock,
+	.hdmi = {
+		.ctrl = gk104_hdmi_ctrl,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
+		.drive = gm200_sor_dp_drive,
+		.vcpi = gf119_sor_dp_vcpi,
+		.audio = gf119_sor_dp_audio,
+		.audio_sym = gf119_sor_dp_audio_sym,
+		.watermark = gf119_sor_dp_watermark,
+	},
+	.hda = {
+		.hpd = gf119_hda_hpd,
+		.eld = gf119_hda_eld,
+	},
 };
 
 int
-gm200_sor_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-		 struct nvkm_output **poutp)
+gm200_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_output_dp_new_(&gm200_sor_dp_func, disp, index, dcbE, poutp);
+	return gf119_sor_new_(&gm200_sor, disp, id);
 }

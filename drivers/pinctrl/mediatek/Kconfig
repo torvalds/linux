@@ -11,17 +11,10 @@ config PINCTRL_MTK
 # For ARMv7 SoCs
 config PINCTRL_MT2701
 	bool "Mediatek MT2701 pin control"
-	depends on MACH_MT2701 || COMPILE_TEST
+	depends on MACH_MT7623 || MACH_MT2701 || COMPILE_TEST
 	depends on OF
 	default MACH_MT2701
 	select PINCTRL_MTK
-
-config PINCTRL_MT7623
-	bool "Mediatek MT7623 pin control"
-	depends on MACH_MT7623 || COMPILE_TEST
-	depends on OF
-	default MACH_MT7623
-	select PINCTRL_MTK_COMMON
 
 config PINCTRL_MT8135
 	bool "Mediatek MT8135 pin control"

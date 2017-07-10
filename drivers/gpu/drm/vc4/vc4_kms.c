@@ -14,12 +14,12 @@
  * crtc, HDMI encoder).
  */
 
-#include "drm_crtc.h"
-#include "drm_atomic.h"
-#include "drm_atomic_helper.h"
-#include "drm_crtc_helper.h"
-#include "drm_plane_helper.h"
-#include "drm_fb_cma_helper.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_fb_cma_helper.h>
 #include "vc4_drv.h"
 
 static void vc4_output_poll_changed(struct drm_device *dev)
@@ -42,6 +42,10 @@ vc4_atomic_complete_commit(struct vc4_commit *c)
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
+	drm_atomic_helper_wait_for_fences(dev, state, false);
+
+	drm_atomic_helper_wait_for_dependencies(state);
+
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
 	drm_atomic_helper_commit_planes(dev, state, 0);
@@ -57,9 +61,13 @@ vc4_atomic_complete_commit(struct vc4_commit *c)
 	 */
 	state->legacy_cursor_update = false;
 
+	drm_atomic_helper_commit_hw_done(state);
+
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
+
+	drm_atomic_helper_commit_cleanup_done(state);
 
 	drm_atomic_state_put(state);
 
@@ -117,32 +125,10 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	if (!c)
 		return -ENOMEM;
 
-	/* Make sure that any outstanding modesets have finished. */
-	if (nonblock) {
-		struct drm_crtc *crtc;
-		struct drm_crtc_state *crtc_state;
-		unsigned long flags;
-		bool busy = false;
+	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	if (ret)
+		return ret;
 
-		/*
-		 * If there's an undispatched event to send then we're
-		 * obviously still busy.  If there isn't, then we can
-		 * unconditionally wait for the semaphore because it
-		 * shouldn't be contended (for long).
-		 *
-		 * This is to prevent a race where queuing a new flip
-		 * from userspace immediately on receipt of an event
-		 * beats our clean-up and returns EBUSY.
-		 */
-		spin_lock_irqsave(&dev->event_lock, flags);
-		for_each_crtc_in_state(state, crtc, crtc_state, i)
-			busy |= vc4_event_pending(crtc);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		if (busy) {
-			kfree(c);
-			return -EBUSY;
-		}
-	}
 	ret = down_interruptible(&vc4->async_modeset);
 	if (ret) {
 		kfree(c);
@@ -202,11 +188,50 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	return 0;
 }
 
+static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
+					     struct drm_file *file_priv,
+					     const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	struct drm_mode_fb_cmd2 mode_cmd_local;
+
+	/* If the user didn't specify a modifier, use the
+	 * vc4_set_tiling_ioctl() state for the BO.
+	 */
+	if (!(mode_cmd->flags & DRM_MODE_FB_MODIFIERS)) {
+		struct drm_gem_object *gem_obj;
+		struct vc4_bo *bo;
+
+		gem_obj = drm_gem_object_lookup(file_priv,
+						mode_cmd->handles[0]);
+		if (!gem_obj) {
+			DRM_ERROR("Failed to look up GEM BO %d\n",
+				  mode_cmd->handles[0]);
+			return ERR_PTR(-ENOENT);
+		}
+		bo = to_vc4_bo(gem_obj);
+
+		mode_cmd_local = *mode_cmd;
+
+		if (bo->t_format) {
+			mode_cmd_local.modifier[0] =
+				DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED;
+		} else {
+			mode_cmd_local.modifier[0] = DRM_FORMAT_MOD_NONE;
+		}
+
+		drm_gem_object_unreference_unlocked(gem_obj);
+
+		mode_cmd = &mode_cmd_local;
+	}
+
+	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+}
+
 static const struct drm_mode_config_funcs vc4_mode_funcs = {
 	.output_poll_changed = vc4_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = vc4_atomic_commit,
-	.fb_create = drm_fb_cma_create,
+	.fb_create = vc4_fb_create,
 };
 
 int vc4_kms_load(struct drm_device *dev)
@@ -230,10 +255,12 @@ int vc4_kms_load(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	vc4->fbdev = drm_fbdev_cma_init(dev, 32,
-					dev->mode_config.num_connector);
-	if (IS_ERR(vc4->fbdev))
-		vc4->fbdev = NULL;
+	if (dev->mode_config.num_connector) {
+		vc4->fbdev = drm_fbdev_cma_init(dev, 32,
+						dev->mode_config.num_connector);
+		if (IS_ERR(vc4->fbdev))
+			vc4->fbdev = NULL;
+	}
 
 	drm_kms_helper_poll_init(dev);
 

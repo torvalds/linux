@@ -146,6 +146,15 @@ config CIFS_DEBUG2
 	   option can be turned off unless you are debugging
 	   cifs problems.  If unsure, say N.
 
+config CIFS_DEBUG_DUMP_KEYS
+	bool "Dump encryption keys for offline decryption (Unsafe)"
+	depends on CIFS_DEBUG && CIFS_SMB2
+	help
+	   Enabling this will dump the encryption and decryption keys
+	   used to communicate on an encrypted share connection on the
+	   console. This allows Wireshark to decrypt and dissect
+	   encrypted network captures. Enable this carefully.
+
 config CIFS_DFS_UPCALL
 	  bool "DFS feature support"
 	  depends on CIFS && KEYS

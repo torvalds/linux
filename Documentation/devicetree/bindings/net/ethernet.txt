@@ -8,7 +8,8 @@ The following properties are common to the Ethernet controllers:
   property;
 - max-speed: number, specifies maximum speed in Mbit/s supported by the device;
 - max-frame-size: number, maximum transfer unit (IEEE defined MTU), rather than
-  the maximum frame size (there's contradiction in ePAPR).
+  the maximum frame size (there's contradiction in the Devicetree
+  Specification).
 - phy-mode: string, operation mode of the PHY interface. This is now a de-facto
   standard property; supported values are:
   * "internal"
@@ -35,9 +36,11 @@ The following properties are common to the Ethernet controllers:
   * "rxaui"
   * "xaui"
   * "10gbase-kr" (10GBASE-KR, XFI, SFI)
-- phy-connection-type: the same as "phy-mode" property but described in ePAPR;
+- phy-connection-type: the same as "phy-mode" property but described in the
+  Devicetree Specification;
 - phy-handle: phandle, specifies a reference to a node representing a PHY
-  device; this property is described in ePAPR and so preferred;
+  device; this property is described in the Devicetree Specification and so
+  preferred;
 - phy: the same as "phy-handle" property, not recommended for new bindings.
 - phy-device: the same as "phy-handle" property, not recommended for new
   bindings.

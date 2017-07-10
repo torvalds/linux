@@ -79,6 +79,10 @@ convert_sfu_char(const __u16 src_char, char *target)
 static bool
 convert_sfm_char(const __u16 src_char, char *target)
 {
+	if (src_char >= 0xF001 && src_char <= 0xF01F) {
+		*target = src_char - 0xF000;
+		return true;
+	}
 	switch (src_char) {
 	case SFM_COLON:
 		*target = ':';
@@ -417,6 +421,10 @@ static __le16 convert_to_sfm_char(char src_char, bool end_of_string)
 {
 	__le16 dest_char;
 
+	if (src_char >= 0x01 && src_char <= 0x1F) {
+		dest_char = cpu_to_le16(src_char + 0xF000);
+		return dest_char;
+	}
 	switch (src_char) {
 	case ':':
 		dest_char = cpu_to_le16(SFM_COLON);

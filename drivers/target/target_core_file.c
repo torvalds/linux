@@ -273,9 +273,9 @@ static int fd_do_rw(struct se_cmd *cmd, struct file *fd,
 
 	iov_iter_bvec(&iter, ITER_BVEC, bvec, sgl_nents, len);
 	if (is_write)
-		ret = vfs_iter_write(fd, &iter, &pos);
+		ret = vfs_iter_write(fd, &iter, &pos, 0);
 	else
-		ret = vfs_iter_read(fd, &iter, &pos);
+		ret = vfs_iter_read(fd, &iter, &pos, 0);
 
 	if (is_write) {
 		if (ret < 0 || ret != data_length) {
@@ -409,7 +409,7 @@ fd_execute_write_same(struct se_cmd *cmd)
 	}
 
 	iov_iter_bvec(&iter, ITER_BVEC, bvec, nolb, len);
-	ret = vfs_iter_write(fd_dev->fd_file, &iter, &pos);
+	ret = vfs_iter_write(fd_dev->fd_file, &iter, &pos, 0);
 
 	kfree(bvec);
 	if (ret < 0 || ret != len) {

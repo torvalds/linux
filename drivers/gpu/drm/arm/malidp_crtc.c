@@ -22,9 +22,8 @@
 #include "malidp_drv.h"
 #include "malidp_hw.h"
 
-static bool malidp_crtc_mode_fixup(struct drm_crtc *crtc,
-				   const struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode)
+static enum drm_mode_status malidp_crtc_mode_valid(struct drm_crtc *crtc,
+						   const struct drm_display_mode *mode)
 {
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
 	struct malidp_hw_device *hwdev = malidp->dev;
@@ -40,11 +39,11 @@ static bool malidp_crtc_mode_fixup(struct drm_crtc *crtc,
 		if (rate != req_rate) {
 			DRM_DEBUG_DRIVER("pxlclk doesn't support %ld Hz\n",
 					 req_rate);
-			return false;
+			return MODE_NOCLOCK;
 		}
 	}
 
-	return true;
+	return MODE_OK;
 }
 
 static void malidp_crtc_enable(struct drm_crtc *crtc)
@@ -408,7 +407,7 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs malidp_crtc_helper_funcs = {
-	.mode_fixup = malidp_crtc_mode_fixup,
+	.mode_valid = malidp_crtc_mode_valid,
 	.enable = malidp_crtc_enable,
 	.disable = malidp_crtc_disable,
 	.atomic_check = malidp_crtc_atomic_check,

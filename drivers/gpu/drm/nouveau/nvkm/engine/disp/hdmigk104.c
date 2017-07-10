@@ -21,54 +21,53 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "hdmi.h"
 
-#include <core/client.h>
-
-#include <nvif/cl5070.h>
-#include <nvif/unpack.h>
-
-int
-gk104_hdmi_ctrl(NV50_DISP_MTHD_V1)
+void
+gk104_hdmi_ctrl(struct nvkm_ior *ior, int head, bool enable, u8 max_ac_packet,
+		u8 rekey, u8 *avi, u8 avi_size, u8 *vendor, u8 vendor_size)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
-	const u32 hoff = (head * 0x800);
-	const u32 hdmi = (head * 0x400);
-	union {
-		struct nv50_disp_sor_hdmi_pwr_v0 v0;
-	} *args = data;
-	u32 ctrl;
-	int ret = -ENOSYS;
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	const u32 ctrl = 0x40000000 * enable |
+			 max_ac_packet << 16 |
+			 rekey;
+	const u32 hoff = head * 0x800;
+	const u32 hdmi = head * 0x400;
+	struct packed_hdmi_infoframe avi_infoframe;
+	struct packed_hdmi_infoframe vendor_infoframe;
 
-	nvif_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
-				   "max_ac_packet %d rekey %d\n",
-			   args->v0.version, args->v0.state,
-			   args->v0.max_ac_packet, args->v0.rekey);
-		if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
-			return -EINVAL;
-		ctrl  = 0x40000000 * !!args->v0.state;
-		ctrl |= args->v0.max_ac_packet << 16;
-		ctrl |= args->v0.rekey;
-	} else
-		return ret;
+	pack_hdmi_infoframe(&avi_infoframe, avi, avi_size);
+	pack_hdmi_infoframe(&vendor_infoframe, vendor, vendor_size);
 
 	if (!(ctrl & 0x40000000)) {
 		nvkm_mask(device, 0x616798 + hoff, 0x40000000, 0x00000000);
+		nvkm_mask(device, 0x690100 + hdmi, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x6900c0 + hdmi, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x690000 + hdmi, 0x00000001, 0x00000000);
-		return 0;
+		return;
 	}
 
 	/* AVI InfoFrame */
 	nvkm_mask(device, 0x690000 + hdmi, 0x00000001, 0x00000000);
-	nvkm_wr32(device, 0x690008 + hdmi, 0x000d0282);
-	nvkm_wr32(device, 0x69000c + hdmi, 0x0000006f);
-	nvkm_wr32(device, 0x690010 + hdmi, 0x00000000);
-	nvkm_wr32(device, 0x690014 + hdmi, 0x00000000);
-	nvkm_wr32(device, 0x690018 + hdmi, 0x00000000);
-	nvkm_mask(device, 0x690000 + hdmi, 0x00000001, 0x00000001);
+	if (avi_size) {
+		nvkm_wr32(device, 0x690008 + hdmi, avi_infoframe.header);
+		nvkm_wr32(device, 0x69000c + hdmi, avi_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x690010 + hdmi, avi_infoframe.subpack0_high);
+		nvkm_wr32(device, 0x690014 + hdmi, avi_infoframe.subpack1_low);
+		nvkm_wr32(device, 0x690018 + hdmi, avi_infoframe.subpack1_high);
+		nvkm_mask(device, 0x690000 + hdmi, 0x00000001, 0x00000001);
+	}
+
+	/* GENERIC(?) / Vendor InfoFrame? */
+	nvkm_mask(device, 0x690100 + hdmi, 0x00010001, 0x00000000);
+	if (vendor_size) {
+		nvkm_wr32(device, 0x690108 + hdmi, vendor_infoframe.header);
+		nvkm_wr32(device, 0x69010c + hdmi, vendor_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x690110 + hdmi, vendor_infoframe.subpack0_high);
+		/* Is there a second (or further?) set of subpack registers here? */
+		nvkm_mask(device, 0x690100 + hdmi, 0x00000001, 0x00000001);
+	}
+
 
 	/* ??? InfoFrame? */
 	nvkm_mask(device, 0x6900c0 + hdmi, 0x00000001, 0x00000000);
@@ -80,5 +79,4 @@ gk104_hdmi_ctrl(NV50_DISP_MTHD_V1)
 
 	/* HDMI_CTRL */
 	nvkm_mask(device, 0x616798 + hoff, 0x401f007f, ctrl);
-	return 0;
 }

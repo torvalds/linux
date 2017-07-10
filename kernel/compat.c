@@ -120,6 +120,50 @@ static int __compat_put_timespec(const struct timespec *ts, struct compat_timesp
 			__put_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
 }
 
+static int __compat_get_timespec64(struct timespec64 *ts64,
+				   const struct compat_timespec __user *cts)
+{
+	struct compat_timespec ts;
+	int ret;
+
+	ret = copy_from_user(&ts, cts, sizeof(ts));
+	if (ret)
+		return -EFAULT;
+
+	ts64->tv_sec = ts.tv_sec;
+	ts64->tv_nsec = ts.tv_nsec;
+
+	return 0;
+}
+
+static int __compat_put_timespec64(const struct timespec64 *ts64,
+				   struct compat_timespec __user *cts)
+{
+	struct compat_timespec ts = {
+		.tv_sec = ts64->tv_sec,
+		.tv_nsec = ts64->tv_nsec
+	};
+	return copy_to_user(cts, &ts, sizeof(ts)) ? -EFAULT : 0;
+}
+
+int compat_get_timespec64(struct timespec64 *ts, const void __user *uts)
+{
+	if (COMPAT_USE_64BIT_TIME)
+		return copy_from_user(ts, uts, sizeof(*ts)) ? -EFAULT : 0;
+	else
+		return __compat_get_timespec64(ts, uts);
+}
+EXPORT_SYMBOL_GPL(compat_get_timespec64);
+
+int compat_put_timespec64(const struct timespec64 *ts, void __user *uts)
+{
+	if (COMPAT_USE_64BIT_TIME)
+		return copy_to_user(uts, ts, sizeof(*ts)) ? -EFAULT : 0;
+	else
+		return __compat_put_timespec64(ts, uts);
+}
+EXPORT_SYMBOL_GPL(compat_put_timespec64);
+
 int compat_get_timeval(struct timeval *tv, const void __user *utv)
 {
 	if (COMPAT_USE_64BIT_TIME)
@@ -203,53 +247,6 @@ int put_compat_itimerval(struct compat_itimerval __user *o, const struct itimerv
 	return copy_to_user(o, &v32, sizeof(struct compat_itimerval)) ? -EFAULT : 0;
 }
 
-static compat_clock_t clock_t_to_compat_clock_t(clock_t x)
-{
-	return compat_jiffies_to_clock_t(clock_t_to_jiffies(x));
-}
-
-COMPAT_SYSCALL_DEFINE1(times, struct compat_tms __user *, tbuf)
-{
-	if (tbuf) {
-		struct tms tms;
-		struct compat_tms tmp;
-
-		do_sys_times(&tms);
-		/* Convert our struct tms to the compat version. */
-		tmp.tms_utime = clock_t_to_compat_clock_t(tms.tms_utime);
-		tmp.tms_stime = clock_t_to_compat_clock_t(tms.tms_stime);
-		tmp.tms_cutime = clock_t_to_compat_clock_t(tms.tms_cutime);
-		tmp.tms_cstime = clock_t_to_compat_clock_t(tms.tms_cstime);
-		if (copy_to_user(tbuf, &tmp, sizeof(tmp)))
-			return -EFAULT;
-	}
-	force_successful_syscall_return();
-	return compat_jiffies_to_clock_t(jiffies);
-}
-
-#ifdef __ARCH_WANT_SYS_SIGPENDING
-
-/*
- * Assumption: old_sigset_t and compat_old_sigset_t are both
- * types that can be passed to put_user()/get_user().
- */
-
-COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set)
-{
-	old_sigset_t s;
-	long ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_sigpending((old_sigset_t __user *) &s);
-	set_fs(old_fs);
-	if (ret == 0)
-		ret = put_user(s, set);
-	return ret;
-}
-
-#endif
-
 #ifdef __ARCH_WANT_SYS_SIGPROCMASK
 
 /*
@@ -304,162 +301,31 @@ COMPAT_SYSCALL_DEFINE3(sigprocmask, int, how,
 
 #endif
 
-COMPAT_SYSCALL_DEFINE2(setrlimit, unsigned int, resource,
-		       struct compat_rlimit __user *, rlim)
-{
-	struct rlimit r;
-
-	if (!access_ok(VERIFY_READ, rlim, sizeof(*rlim)) ||
-	    __get_user(r.rlim_cur, &rlim->rlim_cur) ||
-	    __get_user(r.rlim_max, &rlim->rlim_max))
-		return -EFAULT;
-
-	if (r.rlim_cur == COMPAT_RLIM_INFINITY)
-		r.rlim_cur = RLIM_INFINITY;
-	if (r.rlim_max == COMPAT_RLIM_INFINITY)
-		r.rlim_max = RLIM_INFINITY;
-	return do_prlimit(current, resource, &r, NULL);
-}
-
-#ifdef COMPAT_RLIM_OLD_INFINITY
-
-COMPAT_SYSCALL_DEFINE2(old_getrlimit, unsigned int, resource,
-		       struct compat_rlimit __user *, rlim)
-{
-	struct rlimit r;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_old_getrlimit(resource, (struct rlimit __user *)&r);
-	set_fs(old_fs);
-
-	if (!ret) {
-		if (r.rlim_cur > COMPAT_RLIM_OLD_INFINITY)
-			r.rlim_cur = COMPAT_RLIM_INFINITY;
-		if (r.rlim_max > COMPAT_RLIM_OLD_INFINITY)
-			r.rlim_max = COMPAT_RLIM_INFINITY;
-
-		if (!access_ok(VERIFY_WRITE, rlim, sizeof(*rlim)) ||
-		    __put_user(r.rlim_cur, &rlim->rlim_cur) ||
-		    __put_user(r.rlim_max, &rlim->rlim_max))
-			return -EFAULT;
-	}
-	return ret;
-}
-
-#endif
-
-COMPAT_SYSCALL_DEFINE2(getrlimit, unsigned int, resource,
-		       struct compat_rlimit __user *, rlim)
-{
-	struct rlimit r;
-	int ret;
-
-	ret = do_prlimit(current, resource, NULL, &r);
-	if (!ret) {
-		if (r.rlim_cur > COMPAT_RLIM_INFINITY)
-			r.rlim_cur = COMPAT_RLIM_INFINITY;
-		if (r.rlim_max > COMPAT_RLIM_INFINITY)
-			r.rlim_max = COMPAT_RLIM_INFINITY;
-
-		if (!access_ok(VERIFY_WRITE, rlim, sizeof(*rlim)) ||
-		    __put_user(r.rlim_cur, &rlim->rlim_cur) ||
-		    __put_user(r.rlim_max, &rlim->rlim_max))
-			return -EFAULT;
-	}
-	return ret;
-}
-
 int put_compat_rusage(const struct rusage *r, struct compat_rusage __user *ru)
 {
-	if (!access_ok(VERIFY_WRITE, ru, sizeof(*ru)) ||
-	    __put_user(r->ru_utime.tv_sec, &ru->ru_utime.tv_sec) ||
-	    __put_user(r->ru_utime.tv_usec, &ru->ru_utime.tv_usec) ||
-	    __put_user(r->ru_stime.tv_sec, &ru->ru_stime.tv_sec) ||
-	    __put_user(r->ru_stime.tv_usec, &ru->ru_stime.tv_usec) ||
-	    __put_user(r->ru_maxrss, &ru->ru_maxrss) ||
-	    __put_user(r->ru_ixrss, &ru->ru_ixrss) ||
-	    __put_user(r->ru_idrss, &ru->ru_idrss) ||
-	    __put_user(r->ru_isrss, &ru->ru_isrss) ||
-	    __put_user(r->ru_minflt, &ru->ru_minflt) ||
-	    __put_user(r->ru_majflt, &ru->ru_majflt) ||
-	    __put_user(r->ru_nswap, &ru->ru_nswap) ||
-	    __put_user(r->ru_inblock, &ru->ru_inblock) ||
-	    __put_user(r->ru_oublock, &ru->ru_oublock) ||
-	    __put_user(r->ru_msgsnd, &ru->ru_msgsnd) ||
-	    __put_user(r->ru_msgrcv, &ru->ru_msgrcv) ||
-	    __put_user(r->ru_nsignals, &ru->ru_nsignals) ||
-	    __put_user(r->ru_nvcsw, &ru->ru_nvcsw) ||
-	    __put_user(r->ru_nivcsw, &ru->ru_nivcsw))
+	struct compat_rusage r32;
+	memset(&r32, 0, sizeof(r32));
+	r32.ru_utime.tv_sec = r->ru_utime.tv_sec;
+	r32.ru_utime.tv_usec = r->ru_utime.tv_usec;
+	r32.ru_stime.tv_sec = r->ru_stime.tv_sec;
+	r32.ru_stime.tv_usec = r->ru_stime.tv_usec;
+	r32.ru_maxrss = r->ru_maxrss;
+	r32.ru_ixrss = r->ru_ixrss;
+	r32.ru_idrss = r->ru_idrss;
+	r32.ru_isrss = r->ru_isrss;
+	r32.ru_minflt = r->ru_minflt;
+	r32.ru_majflt = r->ru_majflt;
+	r32.ru_nswap = r->ru_nswap;
+	r32.ru_inblock = r->ru_inblock;
+	r32.ru_oublock = r->ru_oublock;
+	r32.ru_msgsnd = r->ru_msgsnd;
+	r32.ru_msgrcv = r->ru_msgrcv;
+	r32.ru_nsignals = r->ru_nsignals;
+	r32.ru_nvcsw = r->ru_nvcsw;
+	r32.ru_nivcsw = r->ru_nivcsw;
+	if (copy_to_user(ru, &r32, sizeof(r32)))
 		return -EFAULT;
 	return 0;
-}
-
-COMPAT_SYSCALL_DEFINE4(wait4,
-	compat_pid_t, pid,
-	compat_uint_t __user *, stat_addr,
-	int, options,
-	struct compat_rusage __user *, ru)
-{
-	if (!ru) {
-		return sys_wait4(pid, stat_addr, options, NULL);
-	} else {
-		struct rusage r;
-		int ret;
-		unsigned int status;
-		mm_segment_t old_fs = get_fs();
-
-		set_fs (KERNEL_DS);
-		ret = sys_wait4(pid,
-				(stat_addr ?
-				 (unsigned int __user *) &status : NULL),
-				options, (struct rusage __user *) &r);
-		set_fs (old_fs);
-
-		if (ret > 0) {
-			if (put_compat_rusage(&r, ru))
-				return -EFAULT;
-			if (stat_addr && put_user(status, stat_addr))
-				return -EFAULT;
-		}
-		return ret;
-	}
-}
-
-COMPAT_SYSCALL_DEFINE5(waitid,
-		int, which, compat_pid_t, pid,
-		struct compat_siginfo __user *, uinfo, int, options,
-		struct compat_rusage __user *, uru)
-{
-	siginfo_t info;
-	struct rusage ru;
-	long ret;
-	mm_segment_t old_fs = get_fs();
-
-	memset(&info, 0, sizeof(info));
-
-	set_fs(KERNEL_DS);
-	ret = sys_waitid(which, pid, (siginfo_t __user *)&info, options,
-			 uru ? (struct rusage __user *)&ru : NULL);
-	set_fs(old_fs);
-
-	if ((ret < 0) || (info.si_signo == 0))
-		return ret;
-
-	if (uru) {
-		/* sys_waitid() overwrites everything in ru */
-		if (COMPAT_USE_64BIT_TIME)
-			ret = copy_to_user(uru, &ru, sizeof(ru));
-		else
-			ret = put_compat_rusage(&ru, uru);
-		if (ret)
-			return -EFAULT;
-	}
-
-	BUG_ON(info.si_code & __SI_MASK);
-	info.si_code |= __SI_CHLD;
-	return copy_siginfo_to_user32(uinfo, &info);
 }
 
 static int compat_get_user_cpu_mask(compat_ulong_t __user *user_mask_ptr,
@@ -542,6 +408,27 @@ int put_compat_itimerspec(struct compat_itimerspec __user *dst,
 	return 0;
 }
 
+int get_compat_itimerspec64(struct itimerspec64 *its,
+			const struct compat_itimerspec __user *uits)
+{
+
+	if (__compat_get_timespec64(&its->it_interval, &uits->it_interval) ||
+	    __compat_get_timespec64(&its->it_value, &uits->it_value))
+		return -EFAULT;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(get_compat_itimerspec64);
+
+int put_compat_itimerspec64(const struct itimerspec64 *its,
+			struct compat_itimerspec __user *uits)
+{
+	if (__compat_put_timespec64(&its->it_interval, &uits->it_interval) ||
+	    __compat_put_timespec64(&its->it_value, &uits->it_value))
+		return -EFAULT;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(put_compat_itimerspec64);
+
 /*
  * We currently only need the following fields from the sigevent
  * structure: sigev_value, sigev_signo, sig_notify and (sometimes
@@ -566,84 +453,59 @@ int get_compat_sigevent(struct sigevent *event,
 long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size)
 {
-	int i, j;
-	unsigned long m;
-	compat_ulong_t um;
 	unsigned long nr_compat_longs;
 
 	/* align bitmap up to nearest compat_long_t boundary */
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
+	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
 	if (!access_ok(VERIFY_READ, umask, bitmap_size / 8))
 		return -EFAULT;
 
-	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
-
-	for (i = 0; i < BITS_TO_LONGS(bitmap_size); i++) {
-		m = 0;
-
-		for (j = 0; j < sizeof(m)/sizeof(um); j++) {
-			/*
-			 * We dont want to read past the end of the userspace
-			 * bitmap. We must however ensure the end of the
-			 * kernel bitmap is zeroed.
-			 */
-			if (nr_compat_longs) {
-				nr_compat_longs--;
-				if (__get_user(um, umask))
-					return -EFAULT;
-			} else {
-				um = 0;
-			}
-
-			umask++;
-			m |= (long)um << (j * BITS_PER_COMPAT_LONG);
-		}
-		*mask++ = m;
+	user_access_begin();
+	while (nr_compat_longs > 1) {
+		compat_ulong_t l1, l2;
+		unsafe_get_user(l1, umask++, Efault);
+		unsafe_get_user(l2, umask++, Efault);
+		*mask++ = ((unsigned long)l2 << BITS_PER_COMPAT_LONG) | l1;
+		nr_compat_longs -= 2;
 	}
-
+	if (nr_compat_longs)
+		unsafe_get_user(*mask, umask++, Efault);
+	user_access_end();
 	return 0;
+
+Efault:
+	user_access_end();
+	return -EFAULT;
 }
 
 long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 		       unsigned long bitmap_size)
 {
-	int i, j;
-	unsigned long m;
-	compat_ulong_t um;
 	unsigned long nr_compat_longs;
 
 	/* align bitmap up to nearest compat_long_t boundary */
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
+	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
 	if (!access_ok(VERIFY_WRITE, umask, bitmap_size / 8))
 		return -EFAULT;
 
-	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
-
-	for (i = 0; i < BITS_TO_LONGS(bitmap_size); i++) {
-		m = *mask++;
-
-		for (j = 0; j < sizeof(m)/sizeof(um); j++) {
-			um = m;
-
-			/*
-			 * We dont want to write past the end of the userspace
-			 * bitmap.
-			 */
-			if (nr_compat_longs) {
-				nr_compat_longs--;
-				if (__put_user(um, umask))
-					return -EFAULT;
-			}
-
-			umask++;
-			m >>= 4*sizeof(um);
-			m >>= 4*sizeof(um);
-		}
+	user_access_begin();
+	while (nr_compat_longs > 1) {
+		unsigned long m = *mask++;
+		unsafe_put_user((compat_ulong_t)m, umask++, Efault);
+		unsafe_put_user(m >> BITS_PER_COMPAT_LONG, umask++, Efault);
+		nr_compat_longs -= 2;
 	}
-
+	if (nr_compat_longs)
+		unsafe_put_user((compat_ulong_t)*mask, umask++, Efault);
+	user_access_end();
 	return 0;
+Efault:
+	user_access_end();
+	return -EFAULT;
 }
 
 void
@@ -667,38 +529,6 @@ sigset_to_compat(compat_sigset_t *compat, const sigset_t *set)
 	case 2: compat->sig[3] = (set->sig[1] >> 32); compat->sig[2] = set->sig[1];
 	case 1: compat->sig[1] = (set->sig[0] >> 32); compat->sig[0] = set->sig[0];
 	}
-}
-
-COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
-		struct compat_siginfo __user *, uinfo,
-		struct compat_timespec __user *, uts, compat_size_t, sigsetsize)
-{
-	compat_sigset_t s32;
-	sigset_t s;
-	struct timespec t;
-	siginfo_t info;
-	long ret;
-
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&s32, uthese, sizeof(compat_sigset_t)))
-		return -EFAULT;
-	sigset_from_compat(&s, &s32);
-
-	if (uts) {
-		if (compat_get_timespec(&t, uts))
-			return -EFAULT;
-	}
-
-	ret = do_sigtimedwait(&s, &info, uts ? &t : NULL);
-
-	if (ret > 0 && uinfo) {
-		if (copy_siginfo_to_user32(uinfo, &info))
-			ret = -EFAULT;
-	}
-
-	return ret;
 }
 
 #ifdef CONFIG_NUMA

@@ -50,6 +50,35 @@ static int __init xen_sysfs_type_init(void)
 	return sysfs_create_file(hypervisor_kobj, &type_attr.attr);
 }
 
+static ssize_t guest_type_show(struct hyp_sysfs_attr *attr, char *buffer)
+{
+	const char *type;
+
+	switch (xen_domain_type) {
+	case XEN_NATIVE:
+		/* ARM only. */
+		type = "Xen";
+		break;
+	case XEN_PV_DOMAIN:
+		type = "PV";
+		break;
+	case XEN_HVM_DOMAIN:
+		type = xen_pvh_domain() ? "PVH" : "HVM";
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return sprintf(buffer, "%s\n", type);
+}
+
+HYPERVISOR_ATTR_RO(guest_type);
+
+static int __init xen_sysfs_guest_type_init(void)
+{
+	return sysfs_create_file(hypervisor_kobj, &guest_type_attr.attr);
+}
+
 /* xen version attributes */
 static ssize_t major_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
@@ -327,12 +356,40 @@ static ssize_t features_show(struct hyp_sysfs_attr *attr, char *buffer)
 
 HYPERVISOR_ATTR_RO(features);
 
+static ssize_t buildid_show(struct hyp_sysfs_attr *attr, char *buffer)
+{
+	ssize_t ret;
+	struct xen_build_id *buildid;
+
+	ret = HYPERVISOR_xen_version(XENVER_build_id, NULL);
+	if (ret < 0) {
+		if (ret == -EPERM)
+			ret = sprintf(buffer, "<denied>");
+		return ret;
+	}
+
+	buildid = kmalloc(sizeof(*buildid) + ret, GFP_KERNEL);
+	if (!buildid)
+		return -ENOMEM;
+
+	buildid->len = ret;
+	ret = HYPERVISOR_xen_version(XENVER_build_id, buildid);
+	if (ret > 0)
+		ret = sprintf(buffer, "%s", buildid->buf);
+	kfree(buildid);
+
+	return ret;
+}
+
+HYPERVISOR_ATTR_RO(buildid);
+
 static struct attribute *xen_properties_attrs[] = {
 	&capabilities_attr.attr,
 	&changeset_attr.attr,
 	&virtual_start_attr.attr,
 	&pagesize_attr.attr,
 	&features_attr.attr,
+	&buildid_attr.attr,
 	NULL
 };
 
@@ -471,6 +528,9 @@ static int __init hyper_sysfs_init(void)
 	ret = xen_sysfs_type_init();
 	if (ret)
 		goto out;
+	ret = xen_sysfs_guest_type_init();
+	if (ret)
+		goto guest_type_out;
 	ret = xen_sysfs_version_init();
 	if (ret)
 		goto version_out;
@@ -502,6 +562,8 @@ uuid_out:
 comp_out:
 	sysfs_remove_group(hypervisor_kobj, &version_group);
 version_out:
+	sysfs_remove_file(hypervisor_kobj, &guest_type_attr.attr);
+guest_type_out:
 	sysfs_remove_file(hypervisor_kobj, &type_attr.attr);
 out:
 	return ret;

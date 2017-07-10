@@ -633,8 +633,8 @@ u32 xive_native_alloc_vp_block(u32 max_vcpus)
 	if (max_vcpus > (1 << order))
 		order++;
 
-	pr_info("VP block alloc, for max VCPUs %d use order %d\n",
-		max_vcpus, order);
+	pr_debug("VP block alloc, for max VCPUs %d use order %d\n",
+		 max_vcpus, order);
 
 	for (;;) {
 		rc = opal_xive_alloc_vp_block(order);

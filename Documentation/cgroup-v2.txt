@@ -149,6 +149,16 @@ during boot, before manual intervention is possible. To make testing
 and experimenting easier, the kernel parameter cgroup_no_v1= allows
 disabling controllers in v1 and make them always available in v2.
 
+cgroup v2 currently supports the following mount options.
+
+  nsdelegate
+
+	Consider cgroup namespaces as delegation boundaries.  This
+	option is system wide and can only be set on mount or modified
+	through remount from the init namespace.  The mount option is
+	ignored on non-init namespace mounts.  Please refer to the
+	Delegation section for details.
+
 
 2-2. Organizing Processes
 
@@ -308,18 +318,27 @@ file.
 
 2-5-1. Model of Delegation
 
-A cgroup can be delegated to a less privileged user by granting write
-access of the directory and its "cgroup.procs" file to the user.  Note
-that resource control interface files in a given directory control the
-distribution of the parent's resources and thus must not be delegated
-along with the directory.
+A cgroup can be delegated in two ways.  First, to a less privileged
+user by granting write access of the directory and its "cgroup.procs"
+and "cgroup.subtree_control" files to the user.  Second, if the
+"nsdelegate" mount option is set, automatically to a cgroup namespace
+on namespace creation.
 
-Once delegated, the user can build sub-hierarchy under the directory,
-organize processes as it sees fit and further distribute the resources
-it received from the parent.  The limits and other settings of all
-resource controllers are hierarchical and regardless of what happens
-in the delegated sub-hierarchy, nothing can escape the resource
-restrictions imposed by the parent.
+Because the resource control interface files in a given directory
+control the distribution of the parent's resources, the delegatee
+shouldn't be allowed to write to them.  For the first method, this is
+achieved by not granting access to these files.  For the second, the
+kernel rejects writes to all files other than "cgroup.procs" and
+"cgroup.subtree_control" on a namespace root from inside the
+namespace.
+
+The end results are equivalent for both delegation types.  Once
+delegated, the user can build sub-hierarchy under the directory,
+organize processes inside it as it sees fit and further distribute the
+resources it received from the parent.  The limits and other settings
+of all resource controllers are hierarchical and regardless of what
+happens in the delegated sub-hierarchy, nothing can escape the
+resource restrictions imposed by the parent.
 
 Currently, cgroup doesn't impose any restrictions on the number of
 cgroups in or nesting depth of a delegated sub-hierarchy; however,
@@ -329,10 +348,12 @@ this may be limited explicitly in the future.
 2-5-2. Delegation Containment
 
 A delegated sub-hierarchy is contained in the sense that processes
-can't be moved into or out of the sub-hierarchy by the delegatee.  For
-a process with a non-root euid to migrate a target process into a
-cgroup by writing its PID to the "cgroup.procs" file, the following
-conditions must be met.
+can't be moved into or out of the sub-hierarchy by the delegatee.
+
+For delegations to a less privileged user, this is achieved by
+requiring the following conditions for a process with a non-root euid
+to migrate a target process into a cgroup by writing its PID to the
+"cgroup.procs" file.
 
 - The writer must have write access to the "cgroup.procs" file.
 
@@ -358,6 +379,11 @@ file; however, the common ancestor of the source cgroup C10 and the
 destination cgroup C00 is above the points of delegation and U0 would
 not have write access to its "cgroup.procs" files and thus the write
 will be denied with -EACCES.
+
+For delegations to namespaces, containment is achieved by requiring
+that both the source and destination cgroups are reachable from the
+namespace of the process which is attempting the migration.  If either
+is not reachable, the migration is rejected with -ENOENT.
 
 
 2-6. Guidelines
@@ -826,13 +852,25 @@ PAGE_SIZE multiple when read back.
 
 		The number of times the cgroup's memory usage was
 		about to go over the max boundary.  If direct reclaim
-		fails to bring it down, the OOM killer is invoked.
+		fails to bring it down, the cgroup goes to OOM state.
 
 	  oom
 
-		The number of times the OOM killer has been invoked in
-		the cgroup.  This may not exactly match the number of
-		processes killed but should generally be close.
+		The number of time the cgroup's memory usage was
+		reached the limit and allocation was about to fail.
+
+		Depending on context result could be invocation of OOM
+		killer and retrying allocation or failing alloction.
+
+		Failed allocation in its turn could be returned into
+		userspace as -ENOMEM or siletly ignored in cases like
+		disk readahead.	 For now OOM in memory cgroup kills
+		tasks iff shortage has happened inside page fault.
+
+	  oom_kill
+
+		The number of processes belonging to this cgroup
+		killed by any kind of OOM killer.
 
   memory.stat
 
@@ -929,6 +967,34 @@ PAGE_SIZE multiple when read back.
 	  workingset_nodereclaim
 
 		Number of times a shadow node has been reclaimed
+
+	  pgrefill
+
+		Amount of scanned pages (in an active LRU list)
+
+	  pgscan
+
+		Amount of scanned pages (in an inactive LRU list)
+
+	  pgsteal
+
+		Amount of reclaimed pages
+
+	  pgactivate
+
+		Amount of pages moved to the active LRU list
+
+	  pgdeactivate
+
+		Amount of pages moved to the inactive LRU lis
+
+	  pglazyfree
+
+		Amount of pages postponed to be freed under memory pressure
+
+	  pglazyfreed
+
+		Amount of reclaimed lazyfree pages
 
   memory.swap.current
 
@@ -1413,7 +1479,7 @@ D. Deprecated v1 Core Features
 
 - Multiple hierarchies including named ones are not supported.
 
-- All mount options and remounting are not supported.
+- All v1 mount options are not supported.
 
 - The "tasks" file is removed and "cgroup.procs" is not sorted.
 

@@ -1249,12 +1249,16 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 
 	pm_runtime_get_sync(platform->dev);
 	if ((ebus_to_hbus(ebus))->ppcap) {
+		skl->platform = platform;
+
+		/* init debugfs */
+		skl->debugfs = skl_debugfs_init(skl);
+
 		ret = skl_tplg_init(platform, ebus);
 		if (ret < 0) {
 			dev_err(platform->dev, "Failed to init topology!\n");
 			return ret;
 		}
-		skl->platform = platform;
 
 		/* load the firmwares, since all is set */
 		ops = skl_get_dsp_ops(skl->pci->device);

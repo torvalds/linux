@@ -358,19 +358,19 @@ static const struct pinctrl_pin_desc imx7d_lpsr_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX7D_PAD_GPIO1_IO07),
 };
 
-static struct imx_pinctrl_soc_info imx7d_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx7d_pinctrl_info = {
 	.pins = imx7d_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx7d_pinctrl_pads),
 	.gpr_compatible = "fsl,imx7d-iomuxc-gpr",
 };
 
-static struct imx_pinctrl_soc_info imx7d_lpsr_pinctrl_info = {
+static const struct imx_pinctrl_soc_info imx7d_lpsr_pinctrl_info = {
 	.pins = imx7d_lpsr_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx7d_lpsr_pinctrl_pads),
 	.flags = ZERO_OFFSET_VALID,
 };
 
-static struct of_device_id imx7d_pinctrl_of_match[] = {
+static const struct of_device_id imx7d_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx7d-iomuxc", .data = &imx7d_pinctrl_info, },
 	{ .compatible = "fsl,imx7d-iomuxc-lpsr", .data = &imx7d_lpsr_pinctrl_info },
 	{ /* sentinel */ }

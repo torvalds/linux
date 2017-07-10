@@ -1,7 +1,7 @@
 Freescale L2 Cache Controller
 
 L2 cache is present in Freescale's QorIQ and QorIQ Qonverge platforms.
-The cache bindings explained below are ePAPR compliant
+The cache bindings explained below are Devicetree Specification compliant
 
 Required Properties:
 

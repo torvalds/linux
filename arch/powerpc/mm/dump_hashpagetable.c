@@ -335,7 +335,7 @@ static unsigned long hpte_find(struct pg_state *st, unsigned long ea, int psize)
 	unsigned long rpn, lp_bits;
 	int base_psize = 0, actual_psize = 0;
 
-	if (ea <= PAGE_OFFSET)
+	if (ea < PAGE_OFFSET)
 		return -1;
 
 	/* Look in primary table */

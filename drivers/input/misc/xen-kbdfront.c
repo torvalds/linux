@@ -135,14 +135,17 @@ static int xenkbd_probe(struct xenbus_device *dev,
 		goto error_nomem;
 
 	/* Set input abs params to match backend screen res */
-	abs = xenbus_read_unsigned(dev->otherend, "feature-abs-pointer", 0);
-	ptr_size[KPARAM_X] = xenbus_read_unsigned(dev->otherend, "width",
+	abs = xenbus_read_unsigned(dev->otherend,
+				   XENKBD_FIELD_FEAT_ABS_POINTER, 0);
+	ptr_size[KPARAM_X] = xenbus_read_unsigned(dev->otherend,
+						  XENKBD_FIELD_WIDTH,
 						  ptr_size[KPARAM_X]);
-	ptr_size[KPARAM_Y] = xenbus_read_unsigned(dev->otherend, "height",
+	ptr_size[KPARAM_Y] = xenbus_read_unsigned(dev->otherend,
+						  XENKBD_FIELD_HEIGHT,
 						  ptr_size[KPARAM_Y]);
 	if (abs) {
 		ret = xenbus_write(XBT_NIL, dev->nodename,
-				   "request-abs-pointer", "1");
+				   XENKBD_FIELD_REQ_ABS_POINTER, "1");
 		if (ret) {
 			pr_warn("xenkbd: can't request abs-pointer\n");
 			abs = 0;
@@ -271,14 +274,15 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		goto error_irqh;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "page-ref", "%lu",
+	ret = xenbus_printf(xbt, dev->nodename, XENKBD_FIELD_RING_REF, "%lu",
 			    virt_to_gfn(info->page));
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "page-gref", "%u", info->gref);
+	ret = xenbus_printf(xbt, dev->nodename, XENKBD_FIELD_RING_GREF,
+			    "%u", info->gref);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "event-channel", "%u",
+	ret = xenbus_printf(xbt, dev->nodename, XENKBD_FIELD_EVT_CHANNEL, "%u",
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
@@ -353,7 +357,7 @@ static void xenkbd_backend_changed(struct xenbus_device *dev,
 }
 
 static const struct xenbus_device_id xenkbd_ids[] = {
-	{ "vkbd" },
+	{ XENKBD_DRIVER_NAME },
 	{ "" }
 };
 
@@ -390,4 +394,4 @@ module_exit(xenkbd_cleanup);
 
 MODULE_DESCRIPTION("Xen virtual keyboard/pointer device frontend");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("xen:vkbd");
+MODULE_ALIAS("xen:" XENKBD_DRIVER_NAME);

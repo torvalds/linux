@@ -159,6 +159,7 @@ void snd_hdac_device_unregister(struct hdac_device *codec)
 	if (device_is_registered(&codec->dev)) {
 		hda_widget_sysfs_exit(codec);
 		device_del(&codec->dev);
+		snd_hdac_bus_remove_device(codec->bus, codec);
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_device_unregister);

@@ -336,7 +336,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			u32 this_len = sizeof(*di) + name_len + data_len;
 			unsigned long name_ptr = (unsigned long)(di + 1);
 
-			if (verify_dir_item(fs_info, leaf, di)) {
+			if (verify_dir_item(fs_info, leaf, slot, di)) {
 				ret = -EIO;
 				goto err;
 			}

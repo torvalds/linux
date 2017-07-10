@@ -99,10 +99,10 @@ opal_return:
 	lwz	r4,8(r1);
 	ld	r5,PPC_LR_STKOFF(r1);
 	ld	r6,PACASAVEDMSR(r13);
-	mtspr	SPRN_SRR0,r5;
-	mtspr	SPRN_SRR1,r6;
 	mtcr	r4;
-	rfid
+	mtspr	SPRN_HSRR0,r5;
+	mtspr	SPRN_HSRR1,r6;
+	hrfid
 
 opal_real_call:
 	mfcr	r11

@@ -1444,7 +1444,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, struct dir_context *ctx,
 						"g.offset (%u)\n",
 					(unsigned long long)bh->b_blocknr,
 					entries2, g.offset);
-					
+				gfs2_consist_inode(ip);
 				error = -EIO;
 				goto out_free;
 			}
@@ -1612,6 +1612,7 @@ int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
 				(unsigned long long)dip->i_no_addr,
 				dip->i_entries,
 				g.offset);
+			gfs2_consist_inode(dip);
 			error = -EIO;
 			goto out;
 		}
@@ -2031,8 +2032,8 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	gfs2_rlist_alloc(&rlist, LM_ST_EXCLUSIVE);
 
 	for (x = 0; x < rlist.rl_rgrps; x++) {
-		struct gfs2_rgrpd *rgd;
-		rgd = rlist.rl_ghs[x].gh_gl->gl_object;
+		struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(rlist.rl_ghs[x].gh_gl);
+
 		rg_blocks += rgd->rd_length;
 	}
 

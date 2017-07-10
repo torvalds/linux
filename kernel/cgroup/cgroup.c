@@ -573,6 +573,11 @@ static int css_set_count	= 1;	/* 1 for init_css_set */
 /**
  * css_set_populated - does a css_set contain any tasks?
  * @cset: target css_set
+ *
+ * css_set_populated() should be the same as !!cset->nr_tasks at steady
+ * state. However, css_set_populated() can be called while a task is being
+ * added to or removed from the linked list before the nr_tasks is
+ * properly updated. Hence, we can't just look at ->nr_tasks here.
  */
 static bool css_set_populated(struct css_set *cset)
 {
@@ -1542,10 +1547,56 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 	return len;
 }
 
+static int parse_cgroup_root_flags(char *data, unsigned int *root_flags)
+{
+	char *token;
+
+	*root_flags = 0;
+
+	if (!data)
+		return 0;
+
+	while ((token = strsep(&data, ",")) != NULL) {
+		if (!strcmp(token, "nsdelegate")) {
+			*root_flags |= CGRP_ROOT_NS_DELEGATE;
+			continue;
+		}
+
+		pr_err("cgroup2: unknown option \"%s\"\n", token);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void apply_cgroup_root_flags(unsigned int root_flags)
+{
+	if (current->nsproxy->cgroup_ns == &init_cgroup_ns) {
+		if (root_flags & CGRP_ROOT_NS_DELEGATE)
+			cgrp_dfl_root.flags |= CGRP_ROOT_NS_DELEGATE;
+		else
+			cgrp_dfl_root.flags &= ~CGRP_ROOT_NS_DELEGATE;
+	}
+}
+
+static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root)
+{
+	if (cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE)
+		seq_puts(seq, ",nsdelegate");
+	return 0;
+}
+
 static int cgroup_remount(struct kernfs_root *kf_root, int *flags, char *data)
 {
-	pr_err("remount is not allowed\n");
-	return -EINVAL;
+	unsigned int root_flags;
+	int ret;
+
+	ret = parse_cgroup_root_flags(data, &root_flags);
+	if (ret)
+		return ret;
+
+	apply_cgroup_root_flags(root_flags);
+	return 0;
 }
 
 /*
@@ -1598,6 +1649,7 @@ static void cgroup_enable_task_cg_lists(void)
 				css_set_update_populated(cset, true);
 			list_add_tail(&p->cg_list, &cset->tasks);
 			get_css_set(cset);
+			cset->nr_tasks++;
 		}
 		spin_unlock(&p->sighand->siglock);
 	} while_each_thread(g, p);
@@ -1784,6 +1836,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 {
 	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct dentry *dentry;
+	int ret;
 
 	get_cgroup_ns(ns);
 
@@ -1801,16 +1854,21 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		cgroup_enable_task_cg_lists();
 
 	if (fs_type == &cgroup2_fs_type) {
-		if (data) {
-			pr_err("cgroup2: unknown option \"%s\"\n", (char *)data);
+		unsigned int root_flags;
+
+		ret = parse_cgroup_root_flags(data, &root_flags);
+		if (ret) {
 			put_cgroup_ns(ns);
-			return ERR_PTR(-EINVAL);
+			return ERR_PTR(ret);
 		}
+
 		cgrp_dfl_visible = true;
 		cgroup_get_live(&cgrp_dfl_root.cgrp);
 
 		dentry = cgroup_do_mount(&cgroup2_fs_type, flags, &cgrp_dfl_root,
 					 CGROUP2_SUPER_MAGIC, ns);
+		if (!IS_ERR(dentry))
+			apply_cgroup_root_flags(root_flags);
 	} else {
 		dentry = cgroup1_mount(&cgroup_fs_type, flags, data,
 				       CGROUP_SUPER_MAGIC, ns);
@@ -2064,8 +2122,10 @@ static int cgroup_migrate_execute(struct cgroup_mgctx *mgctx)
 			struct css_set *to_cset = cset->mg_dst_cset;
 
 			get_css_set(to_cset);
+			to_cset->nr_tasks++;
 			css_set_move_task(task, from_cset, to_cset, true);
 			put_css_set_locked(from_cset);
+			from_cset->nr_tasks--;
 		}
 	}
 	spin_unlock_irq(&css_set_lock);
@@ -2355,27 +2415,14 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 					 struct cgroup *dst_cgrp,
 					 struct kernfs_open_file *of)
 {
-	int ret = 0;
+	struct super_block *sb = of->file->f_path.dentry->d_sb;
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
+	struct cgroup *root_cgrp = ns->root_cset->dfl_cgrp;
+	struct cgroup *src_cgrp, *com_cgrp;
+	struct inode *inode;
+	int ret;
 
-	if (cgroup_on_dfl(dst_cgrp)) {
-		struct super_block *sb = of->file->f_path.dentry->d_sb;
-		struct cgroup *cgrp;
-		struct inode *inode;
-
-		spin_lock_irq(&css_set_lock);
-		cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
-		spin_unlock_irq(&css_set_lock);
-
-		while (!cgroup_is_descendant(dst_cgrp, cgrp))
-			cgrp = cgroup_parent(cgrp);
-
-		ret = -ENOMEM;
-		inode = kernfs_get_inode(sb, cgrp->procs_file.kn);
-		if (inode) {
-			ret = inode_permission(inode, MAY_WRITE);
-			iput(inode);
-		}
-	} else {
+	if (!cgroup_on_dfl(dst_cgrp)) {
 		const struct cred *cred = current_cred();
 		const struct cred *tcred = get_task_cred(task);
 
@@ -2383,14 +2430,47 @@ static int cgroup_procs_write_permission(struct task_struct *task,
 		 * even if we're attaching all tasks in the thread group,
 		 * we only need to check permissions on one of them.
 		 */
-		if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
-		    !uid_eq(cred->euid, tcred->uid) &&
-		    !uid_eq(cred->euid, tcred->suid))
+		if (uid_eq(cred->euid, GLOBAL_ROOT_UID) ||
+		    uid_eq(cred->euid, tcred->uid) ||
+		    uid_eq(cred->euid, tcred->suid))
+			ret = 0;
+		else
 			ret = -EACCES;
+
 		put_cred(tcred);
+		return ret;
 	}
 
-	return ret;
+	/* find the source cgroup */
+	spin_lock_irq(&css_set_lock);
+	src_cgrp = task_cgroup_from_root(task, &cgrp_dfl_root);
+	spin_unlock_irq(&css_set_lock);
+
+	/* and the common ancestor */
+	com_cgrp = src_cgrp;
+	while (!cgroup_is_descendant(dst_cgrp, com_cgrp))
+		com_cgrp = cgroup_parent(com_cgrp);
+
+	/* %current should be authorized to migrate to the common ancestor */
+	inode = kernfs_get_inode(sb, com_cgrp->procs_file.kn);
+	if (!inode)
+		return -ENOMEM;
+
+	ret = inode_permission(inode, MAY_WRITE);
+	iput(inode);
+	if (ret)
+		return ret;
+
+	/*
+	 * If namespaces are delegation boundaries, %current must be able
+	 * to see both source and destination cgroups from its namespace.
+	 */
+	if ((cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE) &&
+	    (!cgroup_is_descendant(src_cgrp, root_cgrp) ||
+	     !cgroup_is_descendant(dst_cgrp, root_cgrp)))
+		return -ENOENT;
+
+	return 0;
 }
 
 /*
@@ -2954,10 +3034,22 @@ static void cgroup_file_release(struct kernfs_open_file *of)
 static ssize_t cgroup_file_write(struct kernfs_open_file *of, char *buf,
 				 size_t nbytes, loff_t off)
 {
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
 	struct cgroup *cgrp = of->kn->parent->priv;
 	struct cftype *cft = of->kn->priv;
 	struct cgroup_subsys_state *css;
 	int ret;
+
+	/*
+	 * If namespaces are delegation boundaries, disallow writes to
+	 * files in an non-init namespace root from inside the namespace
+	 * except for the files explicitly marked delegatable -
+	 * cgroup.procs and cgroup.subtree_control.
+	 */
+	if ((cgrp->root->flags & CGRP_ROOT_NS_DELEGATE) &&
+	    !(cft->flags & CFTYPE_NS_DELEGATABLE) &&
+	    ns != &init_cgroup_ns && ns->root_cset->dfl_cgrp == cgrp)
+		return -EPERM;
 
 	if (cft->write)
 		return cft->write(of, buf, nbytes, off);
@@ -3792,6 +3884,7 @@ static int cgroup_procs_show(struct seq_file *s, void *v)
 static struct cftype cgroup_base_files[] = {
 	{
 		.name = "cgroup.procs",
+		.flags = CFTYPE_NS_DELEGATABLE,
 		.file_offset = offsetof(struct cgroup, procs_file),
 		.release = cgroup_procs_release,
 		.seq_start = cgroup_procs_start,
@@ -3805,6 +3898,7 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "cgroup.subtree_control",
+		.flags = CFTYPE_NS_DELEGATABLE,
 		.seq_show = cgroup_subtree_control_show,
 		.write = cgroup_subtree_control_write,
 	},
@@ -4393,6 +4487,7 @@ int cgroup_rmdir(struct kernfs_node *kn)
 }
 
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops = {
+	.show_options		= cgroup_show_options,
 	.remount_fs		= cgroup_remount,
 	.mkdir			= cgroup_mkdir,
 	.rmdir			= cgroup_rmdir,
@@ -4789,6 +4884,7 @@ void cgroup_post_fork(struct task_struct *child)
 		cset = task_css_set(current);
 		if (list_empty(&child->cg_list)) {
 			get_css_set(cset);
+			cset->nr_tasks++;
 			css_set_move_task(child, NULL, cset, false);
 		}
 		spin_unlock_irq(&css_set_lock);
@@ -4838,6 +4934,7 @@ void cgroup_exit(struct task_struct *tsk)
 	if (!list_empty(&tsk->cg_list)) {
 		spin_lock_irq(&css_set_lock);
 		css_set_move_task(tsk, cset, NULL, false);
+		cset->nr_tasks--;
 		spin_unlock_irq(&css_set_lock);
 	} else {
 		get_css_set(cset);

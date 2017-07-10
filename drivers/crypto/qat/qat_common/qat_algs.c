@@ -686,7 +686,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 
 	blp = dma_map_single(dev, bufl, sz, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(dev, blp)))
-		goto err;
+		goto err_in;
 
 	for_each_sg(sgl, sg, n, i) {
 		int y = sg_nctr;
@@ -699,7 +699,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 						      DMA_BIDIRECTIONAL);
 		bufl->bufers[y].len = sg->length;
 		if (unlikely(dma_mapping_error(dev, bufl->bufers[y].addr)))
-			goto err;
+			goto err_in;
 		sg_nctr++;
 	}
 	bufl->num_bufs = sg_nctr;
@@ -717,10 +717,10 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		buflout = kzalloc_node(sz_out, GFP_ATOMIC,
 				       dev_to_node(&GET_DEV(inst->accel_dev)));
 		if (unlikely(!buflout))
-			goto err;
+			goto err_in;
 		bloutp = dma_map_single(dev, buflout, sz_out, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(dev, bloutp)))
-			goto err;
+			goto err_out;
 		bufers = buflout->bufers;
 		for_each_sg(sglout, sg, n, i) {
 			int y = sg_nctr;
@@ -732,7 +732,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 							sg->length,
 							DMA_BIDIRECTIONAL);
 			if (unlikely(dma_mapping_error(dev, bufers[y].addr)))
-				goto err;
+				goto err_out;
 			bufers[y].len = sg->length;
 			sg_nctr++;
 		}
@@ -747,9 +747,20 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		qat_req->buf.sz_out = 0;
 	}
 	return 0;
-err:
-	dev_err(dev, "Failed to map buf for dma\n");
-	sg_nctr = 0;
+
+err_out:
+	n = sg_nents(sglout);
+	for (i = 0; i < n; i++)
+		if (!dma_mapping_error(dev, buflout->bufers[i].addr))
+			dma_unmap_single(dev, buflout->bufers[i].addr,
+					 buflout->bufers[i].len,
+					 DMA_BIDIRECTIONAL);
+	if (!dma_mapping_error(dev, bloutp))
+		dma_unmap_single(dev, bloutp, sz_out, DMA_TO_DEVICE);
+	kfree(buflout);
+
+err_in:
+	n = sg_nents(sgl);
 	for (i = 0; i < n; i++)
 		if (!dma_mapping_error(dev, bufl->bufers[i].addr))
 			dma_unmap_single(dev, bufl->bufers[i].addr,
@@ -759,17 +770,8 @@ err:
 	if (!dma_mapping_error(dev, blp))
 		dma_unmap_single(dev, blp, sz, DMA_TO_DEVICE);
 	kfree(bufl);
-	if (sgl != sglout && buflout) {
-		n = sg_nents(sglout);
-		for (i = 0; i < n; i++)
-			if (!dma_mapping_error(dev, buflout->bufers[i].addr))
-				dma_unmap_single(dev, buflout->bufers[i].addr,
-						 buflout->bufers[i].len,
-						 DMA_BIDIRECTIONAL);
-		if (!dma_mapping_error(dev, bloutp))
-			dma_unmap_single(dev, bloutp, sz_out, DMA_TO_DEVICE);
-		kfree(buflout);
-	}
+
+	dev_err(dev, "Failed to map buf for dma\n");
 	return -ENOMEM;
 }
 

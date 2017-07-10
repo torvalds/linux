@@ -7,9 +7,9 @@ config COMMON_CLK_MESON8B
 	bool
 	depends on COMMON_CLK_AMLOGIC
 	help
-	  Support for the clock controller on AmLogic S805 devices, aka
-	  meson8b. Say Y if you want peripherals and CPU frequency scaling to
-	  work.
+	  Support for the clock controller on AmLogic S802 (Meson8),
+	  S805 (Meson8b) and S812 (Meson8m2) devices. Say Y if you
+	  want peripherals and CPU frequency scaling to work.
 
 config COMMON_CLK_GXBB
 	bool

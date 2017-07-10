@@ -1045,6 +1045,9 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		return MODE_BAD;
 	}
 
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+		clock *= 2;
+
 	if (clock < min_clock)
 		return MODE_CLOCK_LOW;
 
@@ -1320,6 +1323,13 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		funcs = &nouveau_connector_funcs;
 		break;
 	}
+
+	/* HDMI 3D support */
+	if ((disp->disp.oclass >= G82_DISP)
+	    && ((type == DRM_MODE_CONNECTOR_DisplayPort)
+		|| (type == DRM_MODE_CONNECTOR_eDP)
+		|| (type == DRM_MODE_CONNECTOR_HDMIA)))
+		connector->stereo_allowed = true;
 
 	/* defaults, will get overridden in detect() */
 	connector->interlace_allowed = false;

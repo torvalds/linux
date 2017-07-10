@@ -590,8 +590,8 @@ static int acpi_evalf(acpi_handle handle,
 			break;
 			/* add more types as needed */
 		default:
-			pr_err("acpi_evalf() called "
-			       "with invalid format character '%c'\n", c);
+			pr_err("acpi_evalf() called with invalid format character '%c'\n",
+			       c);
 			va_end(ap);
 			return 0;
 		}
@@ -619,8 +619,8 @@ static int acpi_evalf(acpi_handle handle,
 		break;
 		/* add more types as needed */
 	default:
-		pr_err("acpi_evalf() called "
-		       "with invalid format character '%c'\n", res_type);
+		pr_err("acpi_evalf() called with invalid format character '%c'\n",
+		       res_type);
 		return 0;
 	}
 
@@ -790,8 +790,8 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 			ibm->acpi->type, dispatch_acpi_notify, ibm);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_ALREADY_EXISTS) {
-			pr_notice("another device driver is already "
-				  "handling %s events\n", ibm->name);
+			pr_notice("another device driver is already handling %s events\n",
+				  ibm->name);
 		} else {
 			pr_err("acpi_install_notify_handler(%s) failed: %s\n",
 			       ibm->name, acpi_format_exception(status));
@@ -1095,8 +1095,7 @@ static void printk_deprecated_attribute(const char * const what,
 					const char * const details)
 {
 	tpacpi_log_usertask("deprecated sysfs attribute");
-	pr_warn("WARNING: sysfs attribute %s is deprecated and "
-		"will be removed. %s\n",
+	pr_warn("WARNING: sysfs attribute %s is deprecated and will be removed. %s\n",
 		what, details);
 }
 
@@ -1796,8 +1795,7 @@ static void __init tpacpi_check_outdated_fw(void)
 		 * best if the user upgrades the firmware anyway.
 		 */
 		pr_warn("WARNING: Outdated ThinkPad BIOS/EC firmware\n");
-		pr_warn("WARNING: This firmware may be missing critical bug "
-			"fixes and/or important features\n");
+		pr_warn("WARNING: This firmware may be missing critical bug fixes and/or important features\n");
 	}
 }
 
@@ -2166,8 +2164,7 @@ static int hotkey_mask_set(u32 mask)
 	 * a given event.
 	 */
 	if (!hotkey_mask_get() && !rc && (fwmask & ~hotkey_acpi_mask)) {
-		pr_notice("asked for hotkey mask 0x%08x, but "
-			  "firmware forced it to 0x%08x\n",
+		pr_notice("asked for hotkey mask 0x%08x, but firmware forced it to 0x%08x\n",
 			  fwmask, hotkey_acpi_mask);
 	}
 
@@ -2192,11 +2189,9 @@ static int hotkey_user_mask_set(const u32 mask)
 	    (mask == 0xffff || mask == 0xffffff ||
 	     mask == 0xffffffff)) {
 		tp_warned.hotkey_mask_ff = 1;
-		pr_notice("setting the hotkey mask to 0x%08x is likely "
-			  "not the best way to go about it\n", mask);
-		pr_notice("please consider using the driver defaults, "
-			  "and refer to up-to-date thinkpad-acpi "
-			  "documentation\n");
+		pr_notice("setting the hotkey mask to 0x%08x is likely not the best way to go about it\n",
+			  mask);
+		pr_notice("please consider using the driver defaults, and refer to up-to-date thinkpad-acpi documentation\n");
 	}
 
 	/* Try to enable what the user asked for, plus whatever we need.
@@ -2571,17 +2566,14 @@ static void hotkey_poll_setup(const bool may_warn)
 					NULL, TPACPI_NVRAM_KTHREAD_NAME);
 			if (IS_ERR(tpacpi_hotkey_task)) {
 				tpacpi_hotkey_task = NULL;
-				pr_err("could not create kernel thread "
-				       "for hotkey polling\n");
+				pr_err("could not create kernel thread for hotkey polling\n");
 			}
 		}
 	} else {
 		hotkey_poll_stop_sync();
 		if (may_warn && (poll_driver_mask || poll_user_mask) &&
 		    hotkey_poll_freq == 0) {
-			pr_notice("hot keys 0x%08x and/or events 0x%08x "
-				  "require polling, which is currently "
-				  "disabled\n",
+			pr_notice("hot keys 0x%08x and/or events 0x%08x require polling, which is currently disabled\n",
 				  poll_user_mask, poll_driver_mask);
 		}
 	}
@@ -2808,12 +2800,10 @@ static ssize_t hotkey_source_mask_store(struct device *dev,
 	mutex_unlock(&hotkey_mutex);
 
 	if (rc < 0)
-		pr_err("hotkey_source_mask: "
-		       "failed to update the firmware event mask!\n");
+		pr_err("hotkey_source_mask: failed to update the firmware event mask!\n");
 
 	if (r_ev)
-		pr_notice("hotkey_source_mask: "
-			  "some important events were disabled: 0x%04x\n",
+		pr_notice("hotkey_source_mask: some important events were disabled: 0x%04x\n",
 			  r_ev);
 
 	tpacpi_disclose_usertask("hotkey_source_mask", "set to 0x%08lx\n", t);
@@ -3074,8 +3064,7 @@ static void hotkey_exit(void)
 	if (((tp_features.hotkey_mask &&
 	      hotkey_mask_set(hotkey_orig_mask)) |
 	     hotkey_status_set(false)) != 0)
-		pr_err("failed to restore hot key mask "
-		       "to BIOS defaults\n");
+		pr_err("failed to restore hot key mask to BIOS defaults\n");
 }
 
 static void __init hotkey_unmap(const unsigned int scancode)
@@ -3587,11 +3576,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	 * userspace. tpacpi_detect_brightness_capabilities() must have
 	 * been called before this point  */
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor) {
-		pr_info("This ThinkPad has standard ACPI backlight "
-			"brightness control, supported by the ACPI "
-			"video driver\n");
-		pr_notice("Disabling thinkpad-acpi brightness events "
-			  "by default...\n");
+		pr_info("This ThinkPad has standard ACPI backlight brightness control, supported by the ACPI video driver\n");
+		pr_notice("Disabling thinkpad-acpi brightness events by default...\n");
 
 		/* Disable brightness up/down on Lenovo thinkpads when
 		 * ACPI is handling them, otherwise it is plain impossible
@@ -3760,7 +3746,7 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 		    TP_ACPI_HOTKEYSCAN_EXTENDED_START -
 		    TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
 			pr_info("Unhandled adaptive keyboard key: 0x%x\n",
-					scancode);
+				scancode);
 			return false;
 		}
 		keycode = hotkey_keycode_map[scancode - FIRST_ADAPTIVE_KEY +
@@ -3957,14 +3943,12 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		/* recommended action: immediate sleep/hibernate */
 		break;
 	case TP_HKEY_EV_ALARM_SENSOR_HOT:
-		pr_crit("THERMAL ALARM: "
-			"a sensor reports something is too hot!\n");
+		pr_crit("THERMAL ALARM: a sensor reports something is too hot!\n");
 		/* recommended action: warn user through gui, that */
 		/* some internal component is too hot */
 		break;
 	case TP_HKEY_EV_ALARM_SENSOR_XHOT:
-		pr_alert("THERMAL EMERGENCY: "
-			 "a sensor reports something is extremely hot!\n");
+		pr_alert("THERMAL EMERGENCY: a sensor reports something is extremely hot!\n");
 		/* recommended action: immediate sleep/hibernate */
 		break;
 	case TP_HKEY_EV_AC_CHANGED:
@@ -4089,8 +4073,8 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 		if (!known_ev) {
 			pr_notice("unhandled HKEY event 0x%04x\n", hkey);
-			pr_notice("please report the conditions when this "
-				  "event happened to %s\n", TPACPI_MAIL);
+			pr_notice("please report the conditions when this event happened to %s\n",
+				  TPACPI_MAIL);
 		}
 
 		/* netlink events */
@@ -4124,8 +4108,7 @@ static void hotkey_resume(void)
 
 	if (hotkey_status_set(true) < 0 ||
 	    hotkey_mask_set(hotkey_acpi_mask) < 0)
-		pr_err("error while attempting to reset the event "
-		       "firmware interface\n");
+		pr_err("error while attempting to reset the event firmware interface\n");
 
 	tpacpi_send_radiosw_update();
 	hotkey_tablet_mode_notify_change();
@@ -4177,12 +4160,8 @@ static void hotkey_enabledisable_warn(bool enable)
 {
 	tpacpi_log_usertask("procfs hotkey enable/disable");
 	if (!WARN((tpacpi_lifecycle == TPACPI_LIFE_RUNNING || !enable),
-		  pr_fmt("hotkey enable/disable functionality has been "
-			 "removed from the driver.  "
-			 "Hotkeys are always enabled.\n")))
-		pr_err("Please remove the hotkey=enable module "
-		       "parameter, it is deprecated.  "
-		       "Hotkeys are always enabled.\n");
+		  pr_fmt("hotkey enable/disable functionality has been removed from the driver.  Hotkeys are always enabled.\n")))
+		pr_err("Please remove the hotkey=enable module parameter, it is deprecated.  Hotkeys are always enabled.\n");
 }
 
 static int hotkey_write(char *buf)
@@ -4840,8 +4819,7 @@ static void video_exit(void)
 	dbg_printk(TPACPI_DBG_EXIT,
 		   "restoring original video autoswitch mode\n");
 	if (video_autosw_set(video_orig_autosw))
-		pr_err("error while trying to restore original "
-			"video autoswitch mode\n");
+		pr_err("error while trying to restore original video autoswitch mode\n");
 }
 
 static int video_outputsw_get(void)
@@ -5931,8 +5909,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	}
 
 #ifdef CONFIG_THINKPAD_ACPI_UNSAFE_LEDS
-	pr_notice("warning: userspace override of important "
-		  "firmware LEDs is enabled\n");
+	pr_notice("warning: userspace override of important firmware LEDs is enabled\n");
 #endif
 	return 0;
 }
@@ -5961,8 +5938,7 @@ static int led_read(struct seq_file *m)
 		}
 	}
 
-	seq_printf(m, "commands:\t"
-		       "<led> on, <led> off, <led> blink (<led> is 0-15)\n");
+	seq_printf(m, "commands:\t<led> on, <led> off, <led> blink (<led> is 0-15)\n");
 
 	return 0;
 }
@@ -6335,13 +6311,10 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 		if (ta1 == 0) {
 			/* This is sheer paranoia, but we handle it anyway */
 			if (acpi_tmp7) {
-				pr_err("ThinkPad ACPI EC access misbehaving, "
-				       "falling back to ACPI TMPx access "
-				       "mode\n");
+				pr_err("ThinkPad ACPI EC access misbehaving, falling back to ACPI TMPx access mode\n");
 				thermal_read_mode = TPACPI_THERMAL_ACPI_TMP07;
 			} else {
-				pr_err("ThinkPad ACPI EC access misbehaving, "
-				       "disabling thermal sensors access\n");
+				pr_err("ThinkPad ACPI EC access misbehaving, disabling thermal sensors access\n");
 				thermal_read_mode = TPACPI_THERMAL_NONE;
 			}
 		} else {
@@ -6820,26 +6793,20 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	if (!brightness_enable) {
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
-			   "brightness support disabled by "
-			   "module parameter\n");
+			   "brightness support disabled by module parameter\n");
 		return 1;
 	}
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor) {
 		if (brightness_enable > 1) {
-			pr_info("Standard ACPI backlight interface "
-				"available, not loading native one\n");
+			pr_info("Standard ACPI backlight interface available, not loading native one\n");
 			return 1;
 		} else if (brightness_enable == 1) {
-			pr_warn("Cannot enable backlight brightness support, "
-				"ACPI is already handling it.  Refer to the "
-				"acpi_backlight kernel parameter.\n");
+			pr_warn("Cannot enable backlight brightness support, ACPI is already handling it.  Refer to the acpi_backlight kernel parameter.\n");
 			return 1;
 		}
 	} else if (tp_features.bright_acpimode && brightness_enable > 1) {
-		pr_notice("Standard ACPI backlight interface not "
-			  "available, thinkpad_acpi native "
-			  "brightness control enabled\n");
+		pr_notice("Standard ACPI backlight interface not available, thinkpad_acpi native brightness control enabled\n");
 	}
 
 	/*
@@ -6890,10 +6857,10 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"brightness is supported\n");
 
 	if (quirks & TPACPI_BRGHT_Q_ASK) {
-		pr_notice("brightness: will use unverified default: "
-			  "brightness_mode=%d\n", brightness_mode);
-		pr_notice("brightness: please report to %s whether it works well "
-			  "or not on your ThinkPad\n", TPACPI_MAIL);
+		pr_notice("brightness: will use unverified default: brightness_mode=%d\n",
+			  brightness_mode);
+		pr_notice("brightness: please report to %s whether it works well or not on your ThinkPad\n",
+			  TPACPI_MAIL);
 	}
 
 	/* Added by mistake in early 2007.  Probably useless, but it could
@@ -6903,8 +6870,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	backlight_update_status(ibm_backlight_device);
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
-			"brightness: registering brightness hotkeys "
-			"as change notification\n");
+		    "brightness: registering brightness hotkeys as change notification\n");
 	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
 				| TP_ACPI_HKEY_BRGHTUP_MASK
 				| TP_ACPI_HKEY_BRGHTDWN_MASK);
@@ -7567,8 +7533,8 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 		return -EINVAL;
 
 	if (volume_mode == TPACPI_VOL_MODE_UCMS_STEP) {
-		pr_err("UCMS step volume mode not implemented, "
-		       "please contact %s\n", TPACPI_MAIL);
+		pr_err("UCMS step volume mode not implemented, please contact %s\n",
+		       TPACPI_MAIL);
 		return 1;
 	}
 
@@ -7581,8 +7547,7 @@ static int __init volume_init(struct ibm_init_struct *iibm)
 	 */
 	if (!alsa_enable) {
 		vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_MIXER,
-			    "ALSA mixer disabled by parameter, "
-			    "not loading volume subdriver...\n");
+			    "ALSA mixer disabled by parameter, not loading volume subdriver...\n");
 		return 1;
 	}
 
@@ -7674,12 +7639,9 @@ static int volume_read(struct seq_file *m)
 		if (volume_control_allowed) {
 			seq_printf(m, "commands:\tunmute, mute\n");
 			if (!tp_features.mixer_no_level_control) {
-				seq_printf(m,
-					       "commands:\tup, down\n");
-				seq_printf(m,
-					       "commands:\tlevel <level>"
-					       " (<level> is 0-%d)\n",
-					       TP_EC_VOLUME_MAX);
+				seq_printf(m, "commands:\tup, down\n");
+				seq_printf(m, "commands:\tlevel <level> (<level> is 0-%d)\n",
+					      TP_EC_VOLUME_MAX);
 			}
 		}
 	}
@@ -7702,10 +7664,8 @@ static int volume_write(char *buf)
 	if (!volume_control_allowed && tpacpi_lifecycle != TPACPI_LIFE_INIT) {
 		if (unlikely(!tp_warned.volume_ctrl_forbidden)) {
 			tp_warned.volume_ctrl_forbidden = 1;
-			pr_notice("Console audio control in monitor mode, "
-				  "changes are not allowed\n");
-			pr_notice("Use the volume_control=1 module parameter "
-				  "to enable volume control\n");
+			pr_notice("Console audio control in monitor mode, changes are not allowed\n");
+			pr_notice("Use the volume_control=1 module parameter to enable volume control\n");
 		}
 		return -EPERM;
 	}
@@ -7987,8 +7947,7 @@ TPACPI_HANDLE(sfan, ec, "SFAN",	/* 570 */
 static void fan_quirk1_setup(void)
 {
 	if (fan_control_initial_status == 0x07) {
-		pr_notice("fan_init: initial fan status is unknown, "
-			  "assuming it is in auto mode\n");
+		pr_notice("fan_init: initial fan status is unknown, assuming it is in auto mode\n");
 		tp_features.fan_ctrl_status_undef = 1;
 	}
 }
@@ -8385,8 +8344,8 @@ static void fan_watchdog_fire(struct work_struct *ignored)
 	pr_notice("fan watchdog: enabling fan\n");
 	rc = fan_set_enable();
 	if (rc < 0) {
-		pr_err("fan watchdog: error %d while enabling fan, "
-		       "will try again later...\n", -rc);
+		pr_err("fan watchdog: error %d while enabling fan, will try again later...\n",
+		       rc);
 		/* reschedule for later */
 		fan_watchdog_reset();
 	}
@@ -8680,8 +8639,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 					"secondary fan support enabled\n");
 			}
 		} else {
-			pr_err("ThinkPad ACPI EC access misbehaving, "
-			       "fan status and control unavailable\n");
+			pr_err("ThinkPad ACPI EC access misbehaving, fan status and control unavailable\n");
 			return 1;
 		}
 	}
@@ -8780,8 +8738,8 @@ static void fan_suspend(void)
 	fan_control_resume_level = 0;
 	rc = fan_get_status_safe(&fan_control_resume_level);
 	if (rc < 0)
-		pr_notice("failed to read fan level for later "
-			  "restore during resume: %d\n", rc);
+		pr_notice("failed to read fan level for later restore during resume: %d\n",
+			  rc);
 
 	/* if it is undefined, don't attempt to restore it.
 	 * KEEP THIS LAST */
@@ -8900,20 +8858,17 @@ static int fan_read(struct seq_file *m)
 			break;
 
 		default:
-			seq_printf(m, " (<level> is 0-7, "
-				       "auto, disengaged, full-speed)\n");
+			seq_printf(m, " (<level> is 0-7, auto, disengaged, full-speed)\n");
 			break;
 		}
 	}
 
 	if (fan_control_commands & TPACPI_FAN_CMD_ENABLE)
 		seq_printf(m, "commands:\tenable, disable\n"
-			       "commands:\twatchdog <timeout> (<timeout> "
-			       "is 0 (off), 1-120 (seconds))\n");
+			       "commands:\twatchdog <timeout> (<timeout> is 0 (off), 1-120 (seconds))\n");
 
 	if (fan_control_commands & TPACPI_FAN_CMD_SPEED)
-		seq_printf(m, "commands:\tspeed <speed>"
-			       " (<speed> is 0-65535)\n");
+		seq_printf(m, "commands:\tspeed <speed> (<speed> is 0-65535)\n");
 
 	return 0;
 }
@@ -9439,8 +9394,7 @@ static int __must_check __init get_thinkpad_model_data(
 				tp->ec_release = (ec_fw_string[4] << 8)
 						| ec_fw_string[5];
 			} else {
-				pr_notice("ThinkPad firmware release %s "
-					  "doesn't match the known patterns\n",
+				pr_notice("ThinkPad firmware release %s doesn't match the known patterns\n",
 					  ec_fw_string);
 				pr_notice("please report this to %s\n",
 					  TPACPI_MAIL);
@@ -9635,8 +9589,7 @@ MODULE_PARM_DESC(debug, "Sets debug level bit-mask");
 
 module_param(force_load, bool, 0444);
 MODULE_PARM_DESC(force_load,
-		 "Attempts to load the driver even on a "
-		 "mis-identified ThinkPad when true");
+		 "Attempts to load the driver even on a mis-identified ThinkPad when true");
 
 module_param_named(fan_control, fan_control_allowed, bool, 0444);
 MODULE_PARM_DESC(fan_control,
@@ -9644,8 +9597,7 @@ MODULE_PARM_DESC(fan_control,
 
 module_param_named(brightness_mode, brightness_mode, uint, 0444);
 MODULE_PARM_DESC(brightness_mode,
-		 "Selects brightness control strategy: "
-		 "0=auto, 1=EC, 2=UCMS, 3=EC+NVRAM");
+		 "Selects brightness control strategy: 0=auto, 1=EC, 2=UCMS, 3=EC+NVRAM");
 
 module_param(brightness_enable, uint, 0444);
 MODULE_PARM_DESC(brightness_enable,
@@ -9654,18 +9606,15 @@ MODULE_PARM_DESC(brightness_enable,
 #ifdef CONFIG_THINKPAD_ACPI_ALSA_SUPPORT
 module_param_named(volume_mode, volume_mode, uint, 0444);
 MODULE_PARM_DESC(volume_mode,
-		 "Selects volume control strategy: "
-		 "0=auto, 1=EC, 2=N/A, 3=EC+NVRAM");
+		 "Selects volume control strategy: 0=auto, 1=EC, 2=N/A, 3=EC+NVRAM");
 
 module_param_named(volume_capabilities, volume_capabilities, uint, 0444);
 MODULE_PARM_DESC(volume_capabilities,
-		 "Selects the mixer capabilites: "
-		 "0=auto, 1=volume and mute, 2=mute only");
+		 "Selects the mixer capabilites: 0=auto, 1=volume and mute, 2=mute only");
 
 module_param_named(volume_control, volume_control_allowed, bool, 0444);
 MODULE_PARM_DESC(volume_control,
-		 "Enables software override for the console audio "
-		 "control when true");
+		 "Enables software override for the console audio control when true");
 
 module_param_named(software_mute, software_mute_requested, bool, 0444);
 MODULE_PARM_DESC(software_mute,
@@ -9680,10 +9629,10 @@ module_param_named(enable, alsa_enable, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable the ALSA interface for the ACPI EC Mixer");
 #endif /* CONFIG_THINKPAD_ACPI_ALSA_SUPPORT */
 
+/* The module parameter can't be read back, that's why 0 is used here */
 #define TPACPI_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0); \
-	MODULE_PARM_DESC(feature, "Simulates thinkpad-acpi procfs command " \
-			 "at module load, see documentation")
+	MODULE_PARM_DESC(feature, "Simulates thinkpad-acpi procfs command at module load, see documentation")
 
 TPACPI_PARAM(hotkey);
 TPACPI_PARAM(bluetooth);

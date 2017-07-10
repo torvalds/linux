@@ -2081,8 +2081,9 @@ validate_and_copy_buf(unsigned int offset, unsigned int buffer_length,
 
 static int
 query_info(const unsigned int xid, struct cifs_tcon *tcon,
-	   u64 persistent_fid, u64 volatile_fid, u8 info_class,
-	   size_t output_len, size_t min_len, void *data)
+	   u64 persistent_fid, u64 volatile_fid, u8 info_class, u8 info_type,
+	   u32 additional_info, size_t output_len, size_t min_len, void **data,
+		u32 *dlen)
 {
 	struct smb2_query_info_req *req;
 	struct smb2_query_info_rsp *rsp = NULL;
@@ -2108,10 +2109,11 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	req->InfoType = SMB2_O_INFO_FILE;
+	req->InfoType = info_type;
 	req->FileInfoClass = info_class;
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	req->AdditionalInformation = cpu_to_le32(additional_info);
 	/* 4 for rfc1002 length field and 1 for Buffer */
 	req->InputBufferOffset =
 		cpu_to_le16(sizeof(struct smb2_query_info_req) - 1 - 4);
@@ -2130,24 +2132,51 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qinf_exit;
 	}
 
+	if (dlen) {
+		*dlen = le32_to_cpu(rsp->OutputBufferLength);
+		if (!*data) {
+			*data = kmalloc(*dlen, GFP_KERNEL);
+			if (!*data) {
+				cifs_dbg(VFS,
+					"Error %d allocating memory for acl\n",
+					rc);
+				*dlen = 0;
+				goto qinf_exit;
+			}
+		}
+	}
+
 	rc = validate_and_copy_buf(le16_to_cpu(rsp->OutputBufferOffset),
 				   le32_to_cpu(rsp->OutputBufferLength),
-				   &rsp->hdr, min_len, data);
+				   &rsp->hdr, min_len, *data);
 
 qinf_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }
 
-int
-SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
-		u64 persistent_fid, u64 volatile_fid,
-		struct smb2_file_all_info *data)
+int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+	u64 persistent_fid, u64 volatile_fid, struct smb2_file_all_info *data)
 {
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
-			  FILE_ALL_INFORMATION,
+			  FILE_ALL_INFORMATION, SMB2_O_INFO_FILE, 0,
 			  sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
-			  sizeof(struct smb2_file_all_info), data);
+			  sizeof(struct smb2_file_all_info), (void **)&data,
+			  NULL);
+}
+
+int
+SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid,
+		void **data, u32 *plen)
+{
+	__u32 additional_info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO;
+	*plen = 0;
+
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  0, SMB2_O_INFO_SECURITY, additional_info,
+			  SMB2_MAX_BUFFER_SIZE,
+			  sizeof(struct smb2_file_all_info), data, plen);
 }
 
 int
@@ -2155,9 +2184,10 @@ SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
 		 u64 persistent_fid, u64 volatile_fid, __le64 *uniqueid)
 {
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
-			  FILE_INTERNAL_INFORMATION,
+			  FILE_INTERNAL_INFORMATION, SMB2_O_INFO_FILE, 0,
 			  sizeof(struct smb2_file_internal_info),
-			  sizeof(struct smb2_file_internal_info), uniqueid);
+			  sizeof(struct smb2_file_internal_info),
+			  (void **)&uniqueid, NULL);
 }
 
 /*

@@ -87,7 +87,7 @@ dummy_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
  * tracing is active, only save the comm when a trace event
  * occurred.
  */
-static DEFINE_PER_CPU(bool, trace_cmdline_save);
+static DEFINE_PER_CPU(bool, trace_taskinfo_save);
 
 /*
  * Kill all tracing for good (never come back).
@@ -120,41 +120,41 @@ enum ftrace_dump_mode ftrace_dump_on_oops;
 /* When set, tracing will stop when a WARN*() is hit */
 int __disable_trace_on_warning;
 
-#ifdef CONFIG_TRACE_ENUM_MAP_FILE
-/* Map of enums to their values, for "enum_map" file */
-struct trace_enum_map_head {
+#ifdef CONFIG_TRACE_EVAL_MAP_FILE
+/* Map of enums to their values, for "eval_map" file */
+struct trace_eval_map_head {
 	struct module			*mod;
 	unsigned long			length;
 };
 
-union trace_enum_map_item;
+union trace_eval_map_item;
 
-struct trace_enum_map_tail {
+struct trace_eval_map_tail {
 	/*
 	 * "end" is first and points to NULL as it must be different
-	 * than "mod" or "enum_string"
+	 * than "mod" or "eval_string"
 	 */
-	union trace_enum_map_item	*next;
+	union trace_eval_map_item	*next;
 	const char			*end;	/* points to NULL */
 };
 
-static DEFINE_MUTEX(trace_enum_mutex);
+static DEFINE_MUTEX(trace_eval_mutex);
 
 /*
- * The trace_enum_maps are saved in an array with two extra elements,
+ * The trace_eval_maps are saved in an array with two extra elements,
  * one at the beginning, and one at the end. The beginning item contains
  * the count of the saved maps (head.length), and the module they
  * belong to if not built in (head.mod). The ending item contains a
- * pointer to the next array of saved enum_map items.
+ * pointer to the next array of saved eval_map items.
  */
-union trace_enum_map_item {
-	struct trace_enum_map		map;
-	struct trace_enum_map_head	head;
-	struct trace_enum_map_tail	tail;
+union trace_eval_map_item {
+	struct trace_eval_map		map;
+	struct trace_eval_map_head	head;
+	struct trace_eval_map_tail	tail;
 };
 
-static union trace_enum_map_item *trace_enum_maps;
-#endif /* CONFIG_TRACE_ENUM_MAP_FILE */
+static union trace_eval_map_item *trace_eval_maps;
+#endif /* CONFIG_TRACE_EVAL_MAP_FILE */
 
 static int tracing_set_tracer(struct trace_array *tr, const char *buf);
 
@@ -790,7 +790,7 @@ EXPORT_SYMBOL_GPL(tracing_on);
 static __always_inline void
 __buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *event)
 {
-	__this_cpu_write(trace_cmdline_save, true);
+	__this_cpu_write(trace_taskinfo_save, true);
 
 	/* If this is the temp buffer, we need to commit fully */
 	if (this_cpu_read(trace_buffered_event) == event) {
@@ -1141,9 +1141,9 @@ unsigned long nsecs_to_usecs(unsigned long nsecs)
 
 /*
  * TRACE_FLAGS is defined as a tuple matching bit masks with strings.
- * It uses C(a, b) where 'a' is the enum name and 'b' is the string that
+ * It uses C(a, b) where 'a' is the eval (enum) name and 'b' is the string that
  * matches it. By defining "C(a, b) b", TRACE_FLAGS becomes a list
- * of strings in the order that the enums were defined.
+ * of strings in the order that the evals (enum) were defined.
  */
 #undef C
 #define C(a, b) b
@@ -1709,6 +1709,8 @@ void tracing_reset_all_online_cpus(void)
 	}
 }
 
+static int *tgid_map;
+
 #define SAVED_CMDLINES_DEFAULT 128
 #define NO_CMDLINE_MAP UINT_MAX
 static arch_spinlock_t trace_cmdline_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -1722,7 +1724,7 @@ struct saved_cmdlines_buffer {
 static struct saved_cmdlines_buffer *savedcmd;
 
 /* temporary disable recording */
-static atomic_t trace_record_cmdline_disabled __read_mostly;
+static atomic_t trace_record_taskinfo_disabled __read_mostly;
 
 static inline char *get_saved_cmdlines(int idx)
 {
@@ -1910,8 +1912,6 @@ static void tracing_stop_tr(struct trace_array *tr)
 	raw_spin_unlock_irqrestore(&tr->start_lock, flags);
 }
 
-void trace_stop_cmdline_recording(void);
-
 static int trace_save_cmdline(struct task_struct *tsk)
 {
 	unsigned pid, idx;
@@ -1992,16 +1992,87 @@ void trace_find_cmdline(int pid, char comm[])
 	preempt_enable();
 }
 
-void tracing_record_cmdline(struct task_struct *tsk)
+int trace_find_tgid(int pid)
 {
-	if (atomic_read(&trace_record_cmdline_disabled) || !tracing_is_on())
+	if (unlikely(!tgid_map || !pid || pid > PID_MAX_DEFAULT))
+		return 0;
+
+	return tgid_map[pid];
+}
+
+static int trace_save_tgid(struct task_struct *tsk)
+{
+	if (unlikely(!tgid_map || !tsk->pid || tsk->pid > PID_MAX_DEFAULT))
+		return 0;
+
+	tgid_map[tsk->pid] = tsk->tgid;
+	return 1;
+}
+
+static bool tracing_record_taskinfo_skip(int flags)
+{
+	if (unlikely(!(flags & (TRACE_RECORD_CMDLINE | TRACE_RECORD_TGID))))
+		return true;
+	if (atomic_read(&trace_record_taskinfo_disabled) || !tracing_is_on())
+		return true;
+	if (!__this_cpu_read(trace_taskinfo_save))
+		return true;
+	return false;
+}
+
+/**
+ * tracing_record_taskinfo - record the task info of a task
+ *
+ * @task  - task to record
+ * @flags - TRACE_RECORD_CMDLINE for recording comm
+ *        - TRACE_RECORD_TGID for recording tgid
+ */
+void tracing_record_taskinfo(struct task_struct *task, int flags)
+{
+	if (tracing_record_taskinfo_skip(flags))
+		return;
+	if ((flags & TRACE_RECORD_CMDLINE) && !trace_save_cmdline(task))
+		return;
+	if ((flags & TRACE_RECORD_TGID) && !trace_save_tgid(task))
 		return;
 
-	if (!__this_cpu_read(trace_cmdline_save))
+	__this_cpu_write(trace_taskinfo_save, false);
+}
+
+/**
+ * tracing_record_taskinfo_sched_switch - record task info for sched_switch
+ *
+ * @prev - previous task during sched_switch
+ * @next - next task during sched_switch
+ * @flags - TRACE_RECORD_CMDLINE for recording comm
+ *          TRACE_RECORD_TGID for recording tgid
+ */
+void tracing_record_taskinfo_sched_switch(struct task_struct *prev,
+					  struct task_struct *next, int flags)
+{
+	if (tracing_record_taskinfo_skip(flags))
 		return;
 
-	if (trace_save_cmdline(tsk))
-		__this_cpu_write(trace_cmdline_save, false);
+	if ((flags & TRACE_RECORD_CMDLINE) &&
+	    (!trace_save_cmdline(prev) || !trace_save_cmdline(next)))
+		return;
+
+	if ((flags & TRACE_RECORD_TGID) &&
+	    (!trace_save_tgid(prev) || !trace_save_tgid(next)))
+		return;
+
+	__this_cpu_write(trace_taskinfo_save, false);
+}
+
+/* Helpers to record a specific task information */
+void tracing_record_cmdline(struct task_struct *task)
+{
+	tracing_record_taskinfo(task, TRACE_RECORD_CMDLINE);
+}
+
+void tracing_record_tgid(struct task_struct *task)
+{
+	tracing_record_taskinfo(task, TRACE_RECORD_TGID);
 }
 
 /*
@@ -3146,7 +3217,7 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 #endif
 
 	if (!iter->snapshot)
-		atomic_inc(&trace_record_cmdline_disabled);
+		atomic_inc(&trace_record_taskinfo_disabled);
 
 	if (*pos != iter->pos) {
 		iter->ent = NULL;
@@ -3191,7 +3262,7 @@ static void s_stop(struct seq_file *m, void *p)
 #endif
 
 	if (!iter->snapshot)
-		atomic_dec(&trace_record_cmdline_disabled);
+		atomic_dec(&trace_record_taskinfo_disabled);
 
 	trace_access_unlock(iter->cpu_file);
 	trace_event_read_unlock();
@@ -3248,23 +3319,29 @@ static void print_event_info(struct trace_buffer *buf, struct seq_file *m)
 	seq_puts(m, "#\n");
 }
 
-static void print_func_help_header(struct trace_buffer *buf, struct seq_file *m)
+static void print_func_help_header(struct trace_buffer *buf, struct seq_file *m,
+				   unsigned int flags)
 {
+	bool tgid = flags & TRACE_ITER_RECORD_TGID;
+
 	print_event_info(buf, m);
-	seq_puts(m, "#           TASK-PID   CPU#      TIMESTAMP  FUNCTION\n"
-		    "#              | |       |          |         |\n");
+
+	seq_printf(m, "#           TASK-PID   CPU#   %s  TIMESTAMP  FUNCTION\n", tgid ? "TGID     " : "");
+	seq_printf(m, "#              | |       |    %s     |         |\n",	 tgid ? "  |      " : "");
 }
 
-static void print_func_help_header_irq(struct trace_buffer *buf, struct seq_file *m)
+static void print_func_help_header_irq(struct trace_buffer *buf, struct seq_file *m,
+				       unsigned int flags)
 {
-	print_event_info(buf, m);
-	seq_puts(m, "#                              _-----=> irqs-off\n"
-		    "#                             / _----=> need-resched\n"
-		    "#                            | / _---=> hardirq/softirq\n"
-		    "#                            || / _--=> preempt-depth\n"
-		    "#                            ||| /     delay\n"
-		    "#           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION\n"
-		    "#              | |       |   ||||       |         |\n");
+	bool tgid = flags & TRACE_ITER_RECORD_TGID;
+
+	seq_printf(m, "#                          %s  _-----=> irqs-off\n",	    tgid ? "          " : "");
+	seq_printf(m, "#                          %s / _----=> need-resched\n",	    tgid ? "          " : "");
+	seq_printf(m, "#                          %s| / _---=> hardirq/softirq\n",  tgid ? "          " : "");
+	seq_printf(m, "#                          %s|| / _--=> preempt-depth\n",    tgid ? "          " : "");
+	seq_printf(m, "#                          %s||| /     delay\n",		    tgid ? "          " : "");
+	seq_printf(m, "#           TASK-PID   CPU#%s||||    TIMESTAMP  FUNCTION\n", tgid ? "   TGID   " : "");
+	seq_printf(m, "#              | |       | %s||||       |         |\n",	    tgid ? "     |    " : "");
 }
 
 void
@@ -3580,9 +3657,11 @@ void trace_default_header(struct seq_file *m)
 	} else {
 		if (!(trace_flags & TRACE_ITER_VERBOSE)) {
 			if (trace_flags & TRACE_ITER_IRQ_INFO)
-				print_func_help_header_irq(iter->trace_buffer, m);
+				print_func_help_header_irq(iter->trace_buffer,
+							   m, trace_flags);
 			else
-				print_func_help_header(iter->trace_buffer, m);
+				print_func_help_header(iter->trace_buffer, m,
+						       trace_flags);
 		}
 	}
 }
@@ -4238,6 +4317,18 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 	if (mask == TRACE_ITER_RECORD_CMD)
 		trace_event_enable_cmd_record(enabled);
 
+	if (mask == TRACE_ITER_RECORD_TGID) {
+		if (!tgid_map)
+			tgid_map = kzalloc((PID_MAX_DEFAULT + 1) * sizeof(*tgid_map),
+					   GFP_KERNEL);
+		if (!tgid_map) {
+			tr->trace_flags &= ~TRACE_ITER_RECORD_TGID;
+			return -ENOMEM;
+		}
+
+		trace_event_enable_tgid_record(enabled);
+	}
+
 	if (mask == TRACE_ITER_EVENT_FORK)
 		trace_event_follow_fork(tr, enabled);
 
@@ -4473,7 +4564,8 @@ static const char readme_msg[] =
 #endif
 #if defined(CONFIG_KPROBE_EVENTS) || defined(CONFIG_UPROBE_EVENTS)
 	"\t  accepts: event-definitions (one definition per line)\n"
-	"\t   Format: p|r[:[<group>/]<event>] <place> [<args>]\n"
+	"\t   Format: p[:[<group>/]<event>] <place> [<args>]\n"
+	"\t           r[maxactive][:[<group>/]<event>] <place> [<args>]\n"
 	"\t           -:[<group>/]<event>\n"
 #ifdef CONFIG_KPROBE_EVENTS
 	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
@@ -4746,11 +4838,11 @@ static const struct file_operations tracing_saved_cmdlines_size_fops = {
 	.write		= tracing_saved_cmdlines_size_write,
 };
 
-#ifdef CONFIG_TRACE_ENUM_MAP_FILE
-static union trace_enum_map_item *
-update_enum_map(union trace_enum_map_item *ptr)
+#ifdef CONFIG_TRACE_EVAL_MAP_FILE
+static union trace_eval_map_item *
+update_eval_map(union trace_eval_map_item *ptr)
 {
-	if (!ptr->map.enum_string) {
+	if (!ptr->map.eval_string) {
 		if (ptr->tail.next) {
 			ptr = ptr->tail.next;
 			/* Set ptr to the next real item (skip head) */
@@ -4761,15 +4853,15 @@ update_enum_map(union trace_enum_map_item *ptr)
 	return ptr;
 }
 
-static void *enum_map_next(struct seq_file *m, void *v, loff_t *pos)
+static void *eval_map_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	union trace_enum_map_item *ptr = v;
+	union trace_eval_map_item *ptr = v;
 
 	/*
 	 * Paranoid! If ptr points to end, we don't want to increment past it.
 	 * This really should never happen.
 	 */
-	ptr = update_enum_map(ptr);
+	ptr = update_eval_map(ptr);
 	if (WARN_ON_ONCE(!ptr))
 		return NULL;
 
@@ -4777,104 +4869,104 @@ static void *enum_map_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	ptr = update_enum_map(ptr);
+	ptr = update_eval_map(ptr);
 
 	return ptr;
 }
 
-static void *enum_map_start(struct seq_file *m, loff_t *pos)
+static void *eval_map_start(struct seq_file *m, loff_t *pos)
 {
-	union trace_enum_map_item *v;
+	union trace_eval_map_item *v;
 	loff_t l = 0;
 
-	mutex_lock(&trace_enum_mutex);
+	mutex_lock(&trace_eval_mutex);
 
-	v = trace_enum_maps;
+	v = trace_eval_maps;
 	if (v)
 		v++;
 
 	while (v && l < *pos) {
-		v = enum_map_next(m, v, &l);
+		v = eval_map_next(m, v, &l);
 	}
 
 	return v;
 }
 
-static void enum_map_stop(struct seq_file *m, void *v)
+static void eval_map_stop(struct seq_file *m, void *v)
 {
-	mutex_unlock(&trace_enum_mutex);
+	mutex_unlock(&trace_eval_mutex);
 }
 
-static int enum_map_show(struct seq_file *m, void *v)
+static int eval_map_show(struct seq_file *m, void *v)
 {
-	union trace_enum_map_item *ptr = v;
+	union trace_eval_map_item *ptr = v;
 
 	seq_printf(m, "%s %ld (%s)\n",
-		   ptr->map.enum_string, ptr->map.enum_value,
+		   ptr->map.eval_string, ptr->map.eval_value,
 		   ptr->map.system);
 
 	return 0;
 }
 
-static const struct seq_operations tracing_enum_map_seq_ops = {
-	.start		= enum_map_start,
-	.next		= enum_map_next,
-	.stop		= enum_map_stop,
-	.show		= enum_map_show,
+static const struct seq_operations tracing_eval_map_seq_ops = {
+	.start		= eval_map_start,
+	.next		= eval_map_next,
+	.stop		= eval_map_stop,
+	.show		= eval_map_show,
 };
 
-static int tracing_enum_map_open(struct inode *inode, struct file *filp)
+static int tracing_eval_map_open(struct inode *inode, struct file *filp)
 {
 	if (tracing_disabled)
 		return -ENODEV;
 
-	return seq_open(filp, &tracing_enum_map_seq_ops);
+	return seq_open(filp, &tracing_eval_map_seq_ops);
 }
 
-static const struct file_operations tracing_enum_map_fops = {
-	.open		= tracing_enum_map_open,
+static const struct file_operations tracing_eval_map_fops = {
+	.open		= tracing_eval_map_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
 
-static inline union trace_enum_map_item *
-trace_enum_jmp_to_tail(union trace_enum_map_item *ptr)
+static inline union trace_eval_map_item *
+trace_eval_jmp_to_tail(union trace_eval_map_item *ptr)
 {
 	/* Return tail of array given the head */
 	return ptr + ptr->head.length + 1;
 }
 
 static void
-trace_insert_enum_map_file(struct module *mod, struct trace_enum_map **start,
+trace_insert_eval_map_file(struct module *mod, struct trace_eval_map **start,
 			   int len)
 {
-	struct trace_enum_map **stop;
-	struct trace_enum_map **map;
-	union trace_enum_map_item *map_array;
-	union trace_enum_map_item *ptr;
+	struct trace_eval_map **stop;
+	struct trace_eval_map **map;
+	union trace_eval_map_item *map_array;
+	union trace_eval_map_item *ptr;
 
 	stop = start + len;
 
 	/*
-	 * The trace_enum_maps contains the map plus a head and tail item,
+	 * The trace_eval_maps contains the map plus a head and tail item,
 	 * where the head holds the module and length of array, and the
 	 * tail holds a pointer to the next list.
 	 */
 	map_array = kmalloc(sizeof(*map_array) * (len + 2), GFP_KERNEL);
 	if (!map_array) {
-		pr_warn("Unable to allocate trace enum mapping\n");
+		pr_warn("Unable to allocate trace eval mapping\n");
 		return;
 	}
 
-	mutex_lock(&trace_enum_mutex);
+	mutex_lock(&trace_eval_mutex);
 
-	if (!trace_enum_maps)
-		trace_enum_maps = map_array;
+	if (!trace_eval_maps)
+		trace_eval_maps = map_array;
 	else {
-		ptr = trace_enum_maps;
+		ptr = trace_eval_maps;
 		for (;;) {
-			ptr = trace_enum_jmp_to_tail(ptr);
+			ptr = trace_eval_jmp_to_tail(ptr);
 			if (!ptr->tail.next)
 				break;
 			ptr = ptr->tail.next;
@@ -4892,34 +4984,34 @@ trace_insert_enum_map_file(struct module *mod, struct trace_enum_map **start,
 	}
 	memset(map_array, 0, sizeof(*map_array));
 
-	mutex_unlock(&trace_enum_mutex);
+	mutex_unlock(&trace_eval_mutex);
 }
 
-static void trace_create_enum_file(struct dentry *d_tracer)
+static void trace_create_eval_file(struct dentry *d_tracer)
 {
-	trace_create_file("enum_map", 0444, d_tracer,
-			  NULL, &tracing_enum_map_fops);
+	trace_create_file("eval_map", 0444, d_tracer,
+			  NULL, &tracing_eval_map_fops);
 }
 
-#else /* CONFIG_TRACE_ENUM_MAP_FILE */
-static inline void trace_create_enum_file(struct dentry *d_tracer) { }
-static inline void trace_insert_enum_map_file(struct module *mod,
-			      struct trace_enum_map **start, int len) { }
-#endif /* !CONFIG_TRACE_ENUM_MAP_FILE */
+#else /* CONFIG_TRACE_EVAL_MAP_FILE */
+static inline void trace_create_eval_file(struct dentry *d_tracer) { }
+static inline void trace_insert_eval_map_file(struct module *mod,
+			      struct trace_eval_map **start, int len) { }
+#endif /* !CONFIG_TRACE_EVAL_MAP_FILE */
 
-static void trace_insert_enum_map(struct module *mod,
-				  struct trace_enum_map **start, int len)
+static void trace_insert_eval_map(struct module *mod,
+				  struct trace_eval_map **start, int len)
 {
-	struct trace_enum_map **map;
+	struct trace_eval_map **map;
 
 	if (len <= 0)
 		return;
 
 	map = start;
 
-	trace_event_enum_update(map, len);
+	trace_event_eval_update(map, len);
 
-	trace_insert_enum_map_file(mod, start, len);
+	trace_insert_eval_map_file(mod, start, len);
 }
 
 static ssize_t
@@ -6739,33 +6831,18 @@ static const struct file_operations tracing_stats_fops = {
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-int __weak ftrace_arch_read_dyn_info(char *buf, int size)
-{
-	return 0;
-}
-
 static ssize_t
 tracing_read_dyn_info(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
 {
-	static char ftrace_dyn_info_buffer[1024];
-	static DEFINE_MUTEX(dyn_info_mutex);
 	unsigned long *p = filp->private_data;
-	char *buf = ftrace_dyn_info_buffer;
-	int size = ARRAY_SIZE(ftrace_dyn_info_buffer);
+	char buf[64]; /* Not too big for a shallow stack */
 	int r;
 
-	mutex_lock(&dyn_info_mutex);
-	r = sprintf(buf, "%ld ", *p);
-
-	r += ftrace_arch_read_dyn_info(buf+r, (size-1)-r);
+	r = scnprintf(buf, 63, "%ld", *p);
 	buf[r++] = '\n';
 
-	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
-
-	mutex_unlock(&dyn_info_mutex);
-
-	return r;
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static const struct file_operations tracing_dyn_info_fops = {
@@ -7737,21 +7814,21 @@ struct dentry *tracing_init_dentry(void)
 	return NULL;
 }
 
-extern struct trace_enum_map *__start_ftrace_enum_maps[];
-extern struct trace_enum_map *__stop_ftrace_enum_maps[];
+extern struct trace_eval_map *__start_ftrace_eval_maps[];
+extern struct trace_eval_map *__stop_ftrace_eval_maps[];
 
-static void __init trace_enum_init(void)
+static void __init trace_eval_init(void)
 {
 	int len;
 
-	len = __stop_ftrace_enum_maps - __start_ftrace_enum_maps;
-	trace_insert_enum_map(NULL, __start_ftrace_enum_maps, len);
+	len = __stop_ftrace_eval_maps - __start_ftrace_eval_maps;
+	trace_insert_eval_map(NULL, __start_ftrace_eval_maps, len);
 }
 
 #ifdef CONFIG_MODULES
-static void trace_module_add_enums(struct module *mod)
+static void trace_module_add_evals(struct module *mod)
 {
-	if (!mod->num_trace_enums)
+	if (!mod->num_trace_evals)
 		return;
 
 	/*
@@ -7761,40 +7838,40 @@ static void trace_module_add_enums(struct module *mod)
 	if (trace_module_has_bad_taint(mod))
 		return;
 
-	trace_insert_enum_map(mod, mod->trace_enums, mod->num_trace_enums);
+	trace_insert_eval_map(mod, mod->trace_evals, mod->num_trace_evals);
 }
 
-#ifdef CONFIG_TRACE_ENUM_MAP_FILE
-static void trace_module_remove_enums(struct module *mod)
+#ifdef CONFIG_TRACE_EVAL_MAP_FILE
+static void trace_module_remove_evals(struct module *mod)
 {
-	union trace_enum_map_item *map;
-	union trace_enum_map_item **last = &trace_enum_maps;
+	union trace_eval_map_item *map;
+	union trace_eval_map_item **last = &trace_eval_maps;
 
-	if (!mod->num_trace_enums)
+	if (!mod->num_trace_evals)
 		return;
 
-	mutex_lock(&trace_enum_mutex);
+	mutex_lock(&trace_eval_mutex);
 
-	map = trace_enum_maps;
+	map = trace_eval_maps;
 
 	while (map) {
 		if (map->head.mod == mod)
 			break;
-		map = trace_enum_jmp_to_tail(map);
+		map = trace_eval_jmp_to_tail(map);
 		last = &map->tail.next;
 		map = map->tail.next;
 	}
 	if (!map)
 		goto out;
 
-	*last = trace_enum_jmp_to_tail(map)->tail.next;
+	*last = trace_eval_jmp_to_tail(map)->tail.next;
 	kfree(map);
  out:
-	mutex_unlock(&trace_enum_mutex);
+	mutex_unlock(&trace_eval_mutex);
 }
 #else
-static inline void trace_module_remove_enums(struct module *mod) { }
-#endif /* CONFIG_TRACE_ENUM_MAP_FILE */
+static inline void trace_module_remove_evals(struct module *mod) { }
+#endif /* CONFIG_TRACE_EVAL_MAP_FILE */
 
 static int trace_module_notify(struct notifier_block *self,
 			       unsigned long val, void *data)
@@ -7803,10 +7880,10 @@ static int trace_module_notify(struct notifier_block *self,
 
 	switch (val) {
 	case MODULE_STATE_COMING:
-		trace_module_add_enums(mod);
+		trace_module_add_evals(mod);
 		break;
 	case MODULE_STATE_GOING:
-		trace_module_remove_enums(mod);
+		trace_module_remove_evals(mod);
 		break;
 	}
 
@@ -7844,9 +7921,9 @@ static __init int tracer_init_tracefs(void)
 	trace_create_file("saved_cmdlines_size", 0644, d_tracer,
 			  NULL, &tracing_saved_cmdlines_size_fops);
 
-	trace_enum_init();
+	trace_eval_init();
 
-	trace_create_enum_file(d_tracer);
+	trace_create_eval_file(d_tracer);
 
 #ifdef CONFIG_MODULES
 	register_module_notifier(&trace_module_nb);
