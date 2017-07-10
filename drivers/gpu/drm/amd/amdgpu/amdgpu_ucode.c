@@ -197,6 +197,27 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 	}
 }
 
+void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr)
+{
+	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
+	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+
+	DRM_DEBUG("GPU_INFO\n");
+	amdgpu_ucode_print_common_hdr(hdr);
+
+	if (version_major == 1) {
+		const struct gpu_info_firmware_header_v1_0 *gpu_info_hdr =
+			container_of(hdr, struct gpu_info_firmware_header_v1_0, header);
+
+		DRM_DEBUG("version_major: %u\n",
+			  le16_to_cpu(gpu_info_hdr->version_major));
+		DRM_DEBUG("version_minor: %u\n",
+			  le16_to_cpu(gpu_info_hdr->version_minor));
+	} else {
+		DRM_ERROR("Unknown gpu_info ucode version: %u.%u\n", version_major, version_minor);
+	}
+}
+
 int amdgpu_ucode_validate(const struct firmware *fw)
 {
 	const struct common_firmware_header *hdr =
@@ -253,6 +274,15 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
+	case CHIP_RAVEN:
+#if 0
+		if (!load_type)
+			return AMDGPU_FW_LOAD_DIRECT;
+		else
+			return AMDGPU_FW_LOAD_PSP;
+#else
+		return AMDGPU_FW_LOAD_DIRECT;
+#endif
 	default:
 		DRM_ERROR("Unknow firmware load type\n");
 	}
@@ -349,7 +379,8 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 
 	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
 				amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
-				0, NULL, NULL, bo);
+				AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+				NULL, NULL, bo);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
 		goto failed;

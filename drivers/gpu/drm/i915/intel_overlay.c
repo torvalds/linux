@@ -270,7 +270,6 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	u32 *cs;
 
 	WARN_ON(overlay->active);
-	WARN_ON(IS_I830(dev_priv) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
 
 	req = alloc_request(overlay);
 	if (IS_ERR(req))

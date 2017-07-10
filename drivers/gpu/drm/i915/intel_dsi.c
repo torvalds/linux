@@ -320,10 +320,10 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 
 		if (HAS_GMCH_DISPLAY(dev_priv))
 			intel_gmch_panel_fitting(crtc, pipe_config,
-						 intel_connector->panel.fitting_mode);
+						 conn_state->scaling_mode);
 		else
 			intel_pch_panel_fitting(crtc, pipe_config,
-						intel_connector->panel.fitting_mode);
+						conn_state->scaling_mode);
 	}
 
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
@@ -346,12 +346,13 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static void glk_dsi_device_ready(struct intel_encoder *encoder)
+static bool glk_dsi_enable_io(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
-	u32 tmp, val;
+	u32 tmp;
+	bool cold_boot = false;
 
 	/* Set the MIPI mode
 	 * If MIPI_Mode is off, then writing to LP_Wake bit is not reflecting.
@@ -370,7 +371,10 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 	/* Program LP Wake */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		tmp = I915_READ(MIPI_CTRL(port));
-		tmp |= GLK_LP_WAKE;
+		if (!(I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY))
+			tmp &= ~GLK_LP_WAKE;
+		else
+			tmp |= GLK_LP_WAKE;
 		I915_WRITE(MIPI_CTRL(port), tmp);
 	}
 
@@ -382,6 +386,22 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 			DRM_ERROR("MIPIO port is powergated\n");
 	}
 
+	/* Check for cold boot scenario */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		cold_boot |= !(I915_READ(MIPI_DEVICE_READY(port)) &
+							DEVICE_READY);
+	}
+
+	return cold_boot;
+}
+
+static void glk_dsi_device_ready(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 val;
+
 	/* Wait for MIPI PHY status bit to set */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_wait_for_register(dev_priv,
@@ -391,8 +411,8 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 	}
 
 	/* Get IO out of reset */
-	tmp = I915_READ(MIPI_CTRL(PORT_A));
-	I915_WRITE(MIPI_CTRL(PORT_A), tmp | GLK_MIPIIO_RESET_RELEASED);
+	val = I915_READ(MIPI_CTRL(PORT_A));
+	I915_WRITE(MIPI_CTRL(PORT_A), val | GLK_MIPIIO_RESET_RELEASED);
 
 	/* Get IO out of Low power state*/
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -402,34 +422,34 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 			val |= DEVICE_READY;
 			I915_WRITE(MIPI_DEVICE_READY(port), val);
 			usleep_range(10, 15);
-		}
+		} else {
+			/* Enter ULPS */
+			val = I915_READ(MIPI_DEVICE_READY(port));
+			val &= ~ULPS_STATE_MASK;
+			val |= (ULPS_STATE_ENTER | DEVICE_READY);
+			I915_WRITE(MIPI_DEVICE_READY(port), val);
 
-		/* Enter ULPS */
-		val = I915_READ(MIPI_DEVICE_READY(port));
-		val &= ~ULPS_STATE_MASK;
-		val |= (ULPS_STATE_ENTER | DEVICE_READY);
-		I915_WRITE(MIPI_DEVICE_READY(port), val);
-
-		/* Wait for ULPS active */
-		if (intel_wait_for_register(dev_priv,
+			/* Wait for ULPS active */
+			if (intel_wait_for_register(dev_priv,
 				MIPI_CTRL(port), GLK_ULPS_NOT_ACTIVE, 0, 20))
-			DRM_ERROR("ULPS not active\n");
+				DRM_ERROR("ULPS not active\n");
 
-		/* Exit ULPS */
-		val = I915_READ(MIPI_DEVICE_READY(port));
-		val &= ~ULPS_STATE_MASK;
-		val |= (ULPS_STATE_EXIT | DEVICE_READY);
-		I915_WRITE(MIPI_DEVICE_READY(port), val);
+			/* Exit ULPS */
+			val = I915_READ(MIPI_DEVICE_READY(port));
+			val &= ~ULPS_STATE_MASK;
+			val |= (ULPS_STATE_EXIT | DEVICE_READY);
+			I915_WRITE(MIPI_DEVICE_READY(port), val);
 
-		/* Enter Normal Mode */
-		val = I915_READ(MIPI_DEVICE_READY(port));
-		val &= ~ULPS_STATE_MASK;
-		val |= (ULPS_STATE_NORMAL_OPERATION | DEVICE_READY);
-		I915_WRITE(MIPI_DEVICE_READY(port), val);
+			/* Enter Normal Mode */
+			val = I915_READ(MIPI_DEVICE_READY(port));
+			val &= ~ULPS_STATE_MASK;
+			val |= (ULPS_STATE_NORMAL_OPERATION | DEVICE_READY);
+			I915_WRITE(MIPI_DEVICE_READY(port), val);
 
-		tmp = I915_READ(MIPI_CTRL(port));
-		tmp &= ~GLK_LP_WAKE;
-		I915_WRITE(MIPI_CTRL(port), tmp);
+			val = I915_READ(MIPI_CTRL(port));
+			val &= ~GLK_LP_WAKE;
+			I915_WRITE(MIPI_CTRL(port), val);
+		}
 	}
 
 	/* Wait for Stop state */
@@ -770,6 +790,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 val;
+	bool glk_cold_boot = false;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -800,7 +821,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 		I915_WRITE(DSPCLK_GATE_D, val);
 	}
 
-	intel_dsi_prepare(encoder, pipe_config);
+	if (!IS_GEMINILAKE(dev_priv))
+		intel_dsi_prepare(encoder, pipe_config);
 
 	/* Power on, try both CRC pmic gpio and VBT */
 	if (intel_dsi->gpio_panel)
@@ -811,8 +833,20 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	/* Deassert reset */
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 
+	if (IS_GEMINILAKE(dev_priv)) {
+		glk_cold_boot = glk_dsi_enable_io(encoder);
+
+		/* Prepare port in cold boot(s3/s4) scenario */
+		if (glk_cold_boot)
+			intel_dsi_prepare(encoder, pipe_config);
+	}
+
 	/* Put device in ready state (LP-11) */
 	intel_dsi_device_ready(encoder);
+
+	/* Prepare port in normal boot scenario */
+	if (IS_GEMINILAKE(dev_priv) && !glk_cold_boot)
+		intel_dsi_prepare(encoder, pipe_config);
 
 	/* Send initialization commands in LP mode */
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
@@ -835,7 +869,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 		intel_dsi_port_enable(encoder);
 	}
 
-	intel_panel_enable_backlight(intel_dsi->attached_connector);
+	intel_panel_enable_backlight(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
@@ -866,7 +900,7 @@ static void intel_dsi_disable(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
-	intel_panel_disable_backlight(intel_dsi->attached_connector);
+	intel_panel_disable_backlight(old_conn_state);
 
 	/*
 	 * Disable Device ready before the port shutdown in order
@@ -1587,48 +1621,6 @@ static int intel_dsi_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
-static int intel_dsi_set_property(struct drm_connector *connector,
-				  struct drm_property *property,
-				  uint64_t val)
-{
-	struct drm_device *dev = connector->dev;
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_crtc *crtc;
-	int ret;
-
-	ret = drm_object_property_set_value(&connector->base, property, val);
-	if (ret)
-		return ret;
-
-	if (property == dev->mode_config.scaling_mode_property) {
-		if (val == DRM_MODE_SCALE_NONE) {
-			DRM_DEBUG_KMS("no scaling not supported\n");
-			return -EINVAL;
-		}
-		if (HAS_GMCH_DISPLAY(to_i915(dev)) &&
-		    val == DRM_MODE_SCALE_CENTER) {
-			DRM_DEBUG_KMS("centering not supported\n");
-			return -EINVAL;
-		}
-
-		if (intel_connector->panel.fitting_mode == val)
-			return 0;
-
-		intel_connector->panel.fitting_mode = val;
-	}
-
-	crtc = connector->state->crtc;
-	if (crtc && crtc->state->enable) {
-		/*
-		 * If the CRTC is enabled, the display will be changed
-		 * according to the new panel fitting mode.
-		 */
-		intel_crtc_restore_mode(crtc);
-	}
-
-	return 0;
-}
-
 static void intel_dsi_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
@@ -1657,6 +1649,7 @@ static const struct drm_encoder_funcs intel_dsi_funcs = {
 static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs = {
 	.get_modes = intel_dsi_get_modes,
 	.mode_valid = intel_dsi_mode_valid,
+	.atomic_check = intel_digital_connector_atomic_check,
 };
 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
@@ -1665,22 +1658,28 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dsi_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_dsi_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
+	.atomic_get_property = intel_digital_connector_atomic_get_property,
+	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
 static void intel_dsi_add_properties(struct intel_connector *connector)
 {
-	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 
 	if (connector->panel.fixed_mode) {
-		drm_mode_create_scaling_mode_property(dev);
-		drm_object_attach_property(&connector->base.base,
-					   dev->mode_config.scaling_mode_property,
-					   DRM_MODE_SCALE_ASPECT);
-		connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
+		u32 allowed_scalers;
+
+		allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
+		if (!HAS_GMCH_DISPLAY(dev_priv))
+			allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
+
+		drm_connector_attach_scaling_mode_property(&connector->base,
+								allowed_scalers);
+
+		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 	}
 }
 

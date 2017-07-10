@@ -122,12 +122,36 @@ static void i915_gem_dmabuf_kunmap_atomic(struct dma_buf *dma_buf, unsigned long
 }
 static void *i915_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
 {
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
+	struct page *page;
+
+	if (page_num >= obj->base.size >> PAGE_SHIFT)
+		return NULL;
+
+	if (!i915_gem_object_has_struct_page(obj))
+		return NULL;
+
+	if (i915_gem_object_pin_pages(obj))
+		return NULL;
+
+	/* Synchronisation is left to the caller (via .begin_cpu_access()) */
+	page = i915_gem_object_get_page(obj, page_num);
+	if (IS_ERR(page))
+		goto err_unpin;
+
+	return kmap(page);
+
+err_unpin:
+	i915_gem_object_unpin_pages(obj);
 	return NULL;
 }
 
 static void i915_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num, void *addr)
 {
+	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 
+	kunmap(virt_to_page(addr));
+	i915_gem_object_unpin_pages(obj);
 }
 
 static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)

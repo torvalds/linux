@@ -226,6 +226,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->shared_resources = *gpu_resources;
 
+	/* We only use the first MEC */
+	if (kfd->shared_resources.num_mec > 1)
+		kfd->shared_resources.num_mec = 1;
+
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
 			kfd->device_info->mqd_size_aligned;
