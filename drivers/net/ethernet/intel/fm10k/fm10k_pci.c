@@ -118,6 +118,27 @@ static void fm10k_service_event_complete(struct fm10k_intfc *interface)
 		fm10k_service_event_schedule(interface);
 }
 
+static void fm10k_stop_service_event(struct fm10k_intfc *interface)
+{
+	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
+	cancel_work_sync(&interface->service_task);
+
+	/* It's possible that cancel_work_sync stopped the service task from
+	 * running before it could actually start. In this case the
+	 * __FM10K_SERVICE_SCHED bit will never be cleared. Since we know that
+	 * the service task cannot be running at this point, we need to clear
+	 * the scheduled bit, as otherwise the service task may never be
+	 * restarted.
+	 */
+	clear_bit(__FM10K_SERVICE_SCHED, interface->state);
+}
+
+static void fm10k_start_service_event(struct fm10k_intfc *interface)
+{
+	clear_bit(__FM10K_SERVICE_DISABLE, interface->state);
+	fm10k_service_event_schedule(interface);
+}
+
 /**
  * fm10k_service_timer - Timer Call-back
  * @data: pointer to interface cast into an unsigned long
@@ -2116,8 +2137,7 @@ static void fm10k_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&interface->service_timer);
 
-	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
-	cancel_work_sync(&interface->service_task);
+	fm10k_stop_service_event(interface);
 
 	/* free netdev, this may bounce the interrupts due to setup_tc */
 	if (netdev->reg_state == NETREG_REGISTERED)
@@ -2155,8 +2175,7 @@ static void fm10k_prepare_suspend(struct fm10k_intfc *interface)
 	 * stopped. We stop the watchdog task until after we resume software
 	 * activity.
 	 */
-	set_bit(__FM10K_SERVICE_DISABLE, interface->state);
-	cancel_work_sync(&interface->service_task);
+	fm10k_stop_service_event(interface);
 
 	fm10k_prepare_for_reset(interface);
 }
@@ -2183,9 +2202,8 @@ static int fm10k_handle_resume(struct fm10k_intfc *interface)
 	interface->link_down_event = jiffies + (HZ);
 	set_bit(__FM10K_LINK_DOWN, interface->state);
 
-	/* clear the service task disable bit to allow service task to start */
-	clear_bit(__FM10K_SERVICE_DISABLE, interface->state);
-	fm10k_service_event_schedule(interface);
+	/* restart the service task */
+	fm10k_start_service_event(interface);
 
 	return err;
 }
