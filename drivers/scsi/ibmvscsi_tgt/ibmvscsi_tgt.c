@@ -42,7 +42,7 @@
 
 #include "ibmvscsi_tgt.h"
 
-#define IBMVSCSIS_VERSION	"v0.2"
+#define IBMVSCSIS_VERSION	"v0.4"
 
 #define	INITIAL_SRP_LIMIT	800
 #define	DEFAULT_MAX_SECTORS	256

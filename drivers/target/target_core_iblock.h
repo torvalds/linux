@@ -6,7 +6,7 @@
 #include <linux/refcount.h>
 #include <target/target_core_base.h>
 
-#define IBLOCK_VERSION		"4.0"
+#define IBLOCK_VERSION		"4.0.2"
 
 #define IBLOCK_MAX_CDBS		16
 #define IBLOCK_LBA_SHIFT	9

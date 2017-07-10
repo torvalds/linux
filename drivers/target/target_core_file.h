@@ -4,7 +4,7 @@
 
 #include <target/target_core_base.h>
 
-#define FD_VERSION		"4.0"
+#define FD_VERSION		"4.0.2"
 
 #define FD_MAX_DEV_NAME		256
 #define FD_MAX_DEV_PROT_NAME	FD_MAX_DEV_NAME + 16
