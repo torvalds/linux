@@ -580,10 +580,7 @@ static void __remove_zone(struct zone *zone, unsigned long start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nr_pages = PAGES_PER_SECTION;
-	int zone_type;
 	unsigned long flags;
-
-	zone_type = zone - pgdat->node_zones;
 
 	pgdat_resize_lock(zone->zone_pgdat, &flags);
 	shrink_zone_span(zone, start_pfn, start_pfn + nr_pages);
