@@ -166,6 +166,7 @@
 #define DISALLOW_BROADCAST_DATA		BIT(6)
 
 #define RSI_MPDU_DENSITY		0x8
+#define RSI_CHAN_RADAR			BIT(7)
 
 enum opmode {
 	STA_OPMODE = 1,
@@ -304,6 +305,18 @@ struct rsi_bb_rf_prog {
 	__le16 reserved4;
 	__le16 reserved5;
 	__le16 flags;
+} __packed;
+
+struct rsi_chan_config {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	u8 channel_number;
+	u8 antenna_gain_offset_2g;
+	u8 antenna_gain_offset_5g;
+	u8 channel_width;
+	__le16 tx_power;
+	u8 region_rftype;
+	u8 flags;
 } __packed;
 
 struct rsi_vap_caps {
