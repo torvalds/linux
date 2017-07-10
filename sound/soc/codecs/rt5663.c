@@ -40,6 +40,7 @@ enum {
 
 struct rt5663_priv {
 	struct snd_soc_codec *codec;
+	struct rt5663_platform_data pdata;
 	struct regmap *regmap;
 	struct delayed_work jack_detect_work;
 	struct snd_soc_jack *hs_jack;
@@ -55,6 +56,10 @@ struct rt5663_priv {
 	int pll_out;
 
 	int jack_type;
+};
+
+static const struct reg_sequence rt5663_patch_list[] = {
+	{ 0x002a, 0x8080 },
 };
 
 static const struct reg_default rt5663_v2_reg[] = {
@@ -476,7 +481,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0023, 0x0039 },
 	{ 0x0026, 0xc0c0 },
 	{ 0x0029, 0x8080 },
-	{ 0x002a, 0xa0a0 },
+	{ 0x002a, 0x8080 },
 	{ 0x002c, 0x000c },
 	{ 0x002d, 0x0000 },
 	{ 0x0040, 0x0808 },
@@ -1958,15 +1963,11 @@ static const struct snd_kcontrol_new rt5663_adda_r_mix[] = {
 static const struct snd_kcontrol_new rt5663_sto1_dac_l_mix[] = {
 	SOC_DAPM_SINGLE("DAC L Switch", RT5663_STO_DAC_MIXER,
 			RT5663_M_DAC_L1_STO_L_SHIFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC R Switch", RT5663_STO_DAC_MIXER,
-			RT5663_M_DAC_R1_STO_L_SHIFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5663_sto1_dac_r_mix[] = {
 	SOC_DAPM_SINGLE("DAC L Switch", RT5663_STO_DAC_MIXER,
 			RT5663_M_DAC_L1_STO_R_SHIFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC R Switch", RT5663_STO_DAC_MIXER,
-			RT5663_M_DAC_R1_STO_R_SHIFT, 1, 1),
 };
 
 /* Out Switch */
@@ -3126,9 +3127,20 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 	usleep_range(10000, 10005);
 }
 
+static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,dc_offset_l_manual",
+		&rt5663->pdata.dc_offset_l_manual);
+	device_property_read_u32(dev, "realtek,dc_offset_r_manual",
+		&rt5663->pdata.dc_offset_r_manual);
+
+	return 0;
+}
+
 static int rt5663_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
+	struct rt5663_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5663_priv *rt5663;
 	int ret;
 	unsigned int val;
@@ -3141,6 +3153,11 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5663);
+
+	if (pdata)
+		rt5663->pdata = *pdata;
+	else
+		rt5663_parse_dp(rt5663, &i2c->dev);
 
 	regmap = devm_regmap_init_i2c(i2c, &temp_regmap);
 	if (IS_ERR(regmap)) {
@@ -3189,6 +3206,34 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 	regcache_cache_bypass(rt5663->regmap, false);
 	regmap_write(rt5663->regmap, RT5663_RESET, 0);
 	dev_dbg(&i2c->dev, "calibrate done\n");
+
+	switch (rt5663->codec_ver) {
+	case CODEC_VER_1:
+		break;
+	case CODEC_VER_0:
+		ret = regmap_register_patch(rt5663->regmap, rt5663_patch_list,
+					    ARRAY_SIZE(rt5663_patch_list));
+		if (ret != 0)
+			dev_warn(&i2c->dev,
+				"Failed to apply regmap patch: %d\n", ret);
+		break;
+	default:
+		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+	}
+
+	if (rt5663->pdata.dc_offset_l_manual) {
+		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
+			rt5663->pdata.dc_offset_l_manual >> 16);
+		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_3,
+			rt5663->pdata.dc_offset_l_manual & 0xffff);
+	}
+
+	if (rt5663->pdata.dc_offset_r_manual) {
+		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_5,
+			rt5663->pdata.dc_offset_r_manual >> 16);
+		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_6,
+			rt5663->pdata.dc_offset_r_manual & 0xffff);
+	}
 
 	/* GPIO1 as IRQ */
 	regmap_update_bits(rt5663->regmap, RT5663_GPIO_1, RT5663_GP1_PIN_MASK,

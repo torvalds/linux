@@ -12,6 +12,11 @@ Required properties:
 
 Optional properties:
 
+- "realtek,dc_offset_l_manual"
+- "realtek,dc_offset_r_manual"
+  Based on the different PCB layout, add the manual offset value to
+  compensate the DC offset for each L and R channel.
+
 Pins on the device (for linking into audio routes) for RT5663:
 
   * IN1P
