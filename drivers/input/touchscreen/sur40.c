@@ -59,7 +59,7 @@ struct sur40_blob {
 	__le16 blob_id;
 
 	u8 action;         /* 0x02 = enter/exit, 0x03 = update (?) */
-	u8 unknown;        /* always 0x01 or 0x02 (no idea what this is?) */
+	u8 type;           /* bitmask (0x01 blob,  0x02 touch, 0x04 tag) */
 
 	__le16 bb_pos_x;   /* upper left corner of bounding box */
 	__le16 bb_pos_y;
@@ -133,11 +133,18 @@ struct sur40_image_header {
 
 /* control commands */
 #define SUR40_GET_VERSION 0xb0 /* 12 bytes string    */
-#define SUR40_UNKNOWN1    0xb3 /*  5 bytes           */
-#define SUR40_UNKNOWN2    0xc1 /* 24 bytes           */
+#define SUR40_ACCEL_CAPS  0xb3 /*  5 bytes           */
+#define SUR40_SENSOR_CAPS 0xc1 /* 24 bytes           */
+
+#define SUR40_POKE        0xc5 /* poke register byte */
+#define SUR40_PEEK        0xc4 /* 48 bytes registers */
 
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
+
+#define SUR40_BLOB	0x01
+#define SUR40_TOUCH	0x02
+#define SUR40_TAG	0x04
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -238,11 +245,11 @@ static int sur40_init(struct sur40_state *dev)
 	if (result < 0)
 		goto error;
 
-	result = sur40_command(dev, SUR40_UNKNOWN2,    0x00, buffer, 24);
+	result = sur40_command(dev, SUR40_SENSOR_CAPS, 0x00, buffer, 24);
 	if (result < 0)
 		goto error;
 
-	result = sur40_command(dev, SUR40_UNKNOWN1,    0x00, buffer,  5);
+	result = sur40_command(dev, SUR40_ACCEL_CAPS, 0x00, buffer, 5);
 	if (result < 0)
 		goto error;
 
