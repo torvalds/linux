@@ -221,6 +221,44 @@ struct rsi_mac_frame {
 	__le16 desc_word[8];
 } __packed;
 
+#define PWR_SAVE_WAKEUP_IND		BIT(0)
+#define TCP_CHECK_SUM_OFFLOAD		BIT(1)
+#define CONFIRM_REQUIRED_TO_HOST	BIT(2)
+#define ADD_DELTA_TSF			BIT(3)
+#define FETCH_RETRY_CNT_FROM_HOST_DESC	BIT(4)
+#define EOSP_INDICATION			BIT(5)
+#define REQUIRE_TSF_SYNC_CONFIRM	BIT(6)
+#define ENCAP_MGMT_PKT			BIT(7)
+
+struct rsi_cmd_desc_dword0 {
+	__le16 len_qno;
+	u8 frame_type;
+	u8 misc_flags;
+};
+
+struct rsi_cmd_desc_dword1 {
+	u8 xtend_desc_size;
+	u8 reserved1;
+	__le16 reserved2;
+};
+
+struct rsi_cmd_desc_dword2 {
+	__le32 pkt_info; /* Packet specific data */
+};
+
+struct rsi_cmd_desc_dword3 {
+	__le16 token;
+	u8 qid_tid;
+	u8 sta_id;
+};
+
+struct rsi_cmd_desc {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	struct rsi_cmd_desc_dword3 desc_dword3;
+};
+
 struct rsi_boot_params {
 	__le16 desc_word[8];
 	struct bootup_params bootup_params;
