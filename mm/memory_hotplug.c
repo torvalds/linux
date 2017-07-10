@@ -1446,14 +1446,9 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 	if (nodes_empty(nmask))
 		node_set(nid, nmask);
 
-	/*
-	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-	 * accordance with memory policy of the user process if possible. For
-	 * now as a simple work-around, we use the next node for destination.
-	 */
 	if (PageHuge(page))
-		return alloc_huge_page_node(page_hstate(compound_head(page)),
-					next_node_in(nid, nmask));
+		return alloc_huge_page_nodemask(
+				page_hstate(compound_head(page)), &nmask);
 
 	if (PageHighMem(page)
 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
