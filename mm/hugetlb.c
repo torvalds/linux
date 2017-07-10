@@ -1781,6 +1781,7 @@ retry:
 			break;
 		}
 		list_add(&page->lru, &surplus_list);
+		cond_resched();
 	}
 	allocated += i;
 
@@ -2249,6 +2250,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 		} else if (!alloc_fresh_huge_page(h,
 					 &node_states[N_MEMORY]))
 			break;
+		cond_resched();
 	}
 	if (i < h->max_huge_pages) {
 		char buf[32];
