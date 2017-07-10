@@ -363,7 +363,6 @@ void mlx5e_ipsec_build_inverse_table(void)
 {
 	u16 mss_inv;
 	u32 mss;
-	u64 n;
 
 	/* Calculate 1/x inverse table for use in GSO data path.
 	 * Using this table, we provide the IPSec accelerator with the value of
@@ -373,8 +372,7 @@ void mlx5e_ipsec_build_inverse_table(void)
 	 */
 	mlx5e_ipsec_inverse_table[1] = htons(0xFFFF);
 	for (mss = 2; mss < MAX_LSO_MSS; mss++) {
-		n = 1ULL << 32;
-		mss_inv = do_div(n, mss) >> 16;
+		mss_inv = div_u64(1ULL << 32, mss) >> 16;
 		mlx5e_ipsec_inverse_table[mss] = htons(mss_inv);
 	}
 }
