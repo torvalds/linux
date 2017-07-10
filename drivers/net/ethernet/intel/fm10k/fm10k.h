@@ -248,6 +248,29 @@ struct fm10k_udp_port {
 	__be16			port;
 };
 
+enum fm10k_macvlan_request_type {
+	FM10K_UC_MAC_REQUEST,
+	FM10K_MC_MAC_REQUEST,
+	FM10K_VLAN_REQUEST
+};
+
+struct fm10k_macvlan_request {
+	enum fm10k_macvlan_request_type type;
+	struct list_head list;
+	union {
+		struct fm10k_mac_request {
+			u8 addr[ETH_ALEN];
+			u16 glort;
+			u16 vid;
+		} mac;
+		struct fm10k_vlan_request {
+			u32 vid;
+			u8 vsi;
+		} vlan;
+	};
+	bool set;
+};
+
 /* one work queue for entire driver */
 extern struct workqueue_struct *fm10k_workqueue;
 
@@ -276,6 +299,9 @@ enum fm10k_state_t {
 	__FM10K_SERVICE_SCHED,
 	__FM10K_SERVICE_REQUEST,
 	__FM10K_SERVICE_DISABLE,
+	__FM10K_MACVLAN_SCHED,
+	__FM10K_MACVLAN_REQUEST,
+	__FM10K_MACVLAN_DISABLE,
 	__FM10K_LINK_DOWN,
 	__FM10K_UPDATING_STATS,
 	/* This value must be last and determines the BITMAP size */
@@ -367,6 +393,12 @@ struct fm10k_intfc {
 	/* UDP encapsulation port tracking information */
 	struct list_head vxlan_port;
 	struct list_head geneve_port;
+
+	/* MAC/VLAN update queue */
+	struct list_head macvlan_requests;
+	struct delayed_work macvlan_task;
+	/* MAC/VLAN update queue lock */
+	spinlock_t macvlan_lock;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbg_intfc;
@@ -487,6 +519,7 @@ void fm10k_up(struct fm10k_intfc *interface);
 void fm10k_down(struct fm10k_intfc *interface);
 void fm10k_update_stats(struct fm10k_intfc *interface);
 void fm10k_service_event_schedule(struct fm10k_intfc *interface);
+void fm10k_macvlan_schedule(struct fm10k_intfc *interface);
 void fm10k_update_rx_drop_en(struct fm10k_intfc *interface);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 void fm10k_netpoll(struct net_device *netdev);
@@ -507,6 +540,12 @@ void fm10k_reset_rx_state(struct fm10k_intfc *);
 int fm10k_setup_tc(struct net_device *dev, u8 tc);
 int fm10k_open(struct net_device *netdev);
 int fm10k_close(struct net_device *netdev);
+int fm10k_queue_vlan_request(struct fm10k_intfc *interface, u32 vid,
+			     u8 vsi, bool set);
+int fm10k_queue_mac_request(struct fm10k_intfc *interface, u16 glort,
+			    const unsigned char *addr, u16 vid, bool set);
+void fm10k_clear_macvlan_queue(struct fm10k_intfc *interface,
+			       u16 glort, bool vlans);
 
 /* Ethtool */
 void fm10k_set_ethtool_ops(struct net_device *dev);
