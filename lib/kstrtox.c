@@ -51,7 +51,7 @@ unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long
 
 	res = 0;
 	rv = 0;
-	while (*s) {
+	while (1) {
 		unsigned int val;
 
 		if ('0' <= *s && *s <= '9')
