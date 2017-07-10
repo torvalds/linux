@@ -61,6 +61,9 @@
 #include "dwc_otg_attr.h"
 
 #include "usbdev_rk.h"
+
+#define MAX_RECONNECT	6
+
 static struct gadget_wrapper {
 	dwc_otg_pcd_t *pcd;
 
@@ -1532,6 +1535,7 @@ static void dwc_phy_reconnect(struct work_struct *work)
 		dctl.b.sftdiscon = 0;
 		DWC_WRITE_REG32(&core_if->dev_if->dev_global_regs->dctl,
 				dctl.d32);
+		usleep_range(3500, 4000);
 		printk
 		    ("*******************soft connect!!!*******************\n");
 	}
@@ -1661,11 +1665,11 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 				udelay(3);
 				pldata->clock_enable(pldata, 0);
 			}
-		} else if ((_pcd->conn_en) && (_pcd->conn_status >= 0)
-			   && (_pcd->conn_status < 2)) {
+		} else if ((_pcd->conn_en) && (_pcd->conn_status >= 0) &&
+			   (_pcd->conn_status < MAX_RECONNECT)) {
 			printk("**************soft reconnect**************\n");
 			goto connect;
-		} else if (_pcd->conn_status == 2) {
+		} else if (_pcd->conn_status == MAX_RECONNECT) {
 			_pcd->conn_status++;
 
 			if (pldata->bc_detect_cb && iddig) {
