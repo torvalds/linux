@@ -12,7 +12,6 @@
 #include "intern.h"
 #include "desc_constr.h"
 #include "error.h"
-#include "sg_sw_sec4.h"
 #include "sg_sw_qm.h"
 #include "key_gen.h"
 #include "qi.h"
