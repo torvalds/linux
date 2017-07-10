@@ -381,6 +381,19 @@ struct rsi_auto_rate {
 	__le16 supported_rates[40];
 } __packed;
 
+#define QUIET_INFO_VALID	BIT(0)
+#define QUIET_ENABLE		BIT(1)
+struct rsi_block_unblock_data {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	u8 xtend_desc_size;
+	u8 host_quiet_info;
+	__le16 reserved;
+	__le16 block_q_bitmap;
+	__le16 unblock_q_bitmap;
+	__le16 token;
+	__le16 flush_q_bitmap;
+} __packed;
+
 struct qos_params {
 	__le16 cont_win_min_q;
 	__le16 cont_win_max_q;
