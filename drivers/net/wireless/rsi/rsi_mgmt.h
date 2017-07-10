@@ -70,6 +70,10 @@
 #define RSI_REKEY_PURPOSE		BIT(13)
 #define RSI_ENCRYPT_PKT			BIT(15)
 
+#define RSI_CMDDESC_40MHZ		BIT(4)
+#define RSI_CMDDESC_UPPER_20_ENABLE	BIT(5)
+#define RSI_CMDDESC_LOWER_20_ENABLE	BIT(6)
+#define RSI_CMDDESC_FULL_40_ENABLE	(BIT(5) | BIT(6))
 #define UPPER_20_ENABLE                 (0x2 << 12)
 #define LOWER_20_ENABLE                 (0x4 << 12)
 #define FULL40M_ENABLE                  0x6
@@ -317,7 +321,14 @@ struct qos_params {
 } __packed;
 
 struct rsi_radio_caps {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword0 desc_dword1;
+	u8 channel_num;
+	u8 rf_model;
+	__le16 ppe_ack_rate;
+	__le16 mode_11j;
+	u8 radio_cfg_info;
+	u8 radio_info;
 	struct qos_params qos_params[MAX_HW_QUEUES];
 	u8 num_11n_rates;
 	u8 num_11ac_rates;

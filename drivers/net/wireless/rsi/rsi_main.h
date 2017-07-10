@@ -61,10 +61,15 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define MAC_80211_HDR_FRAME_CONTROL     0
 #define WME_NUM_AC                      4
 #define NUM_SOFT_QUEUES                 5
-#define MAX_HW_QUEUES                   8
+#define MAX_HW_QUEUES                   12
 #define INVALID_QUEUE                   0xff
 #define MAX_CONTINUOUS_VO_PKTS          8
 #define MAX_CONTINUOUS_VI_PKTS          4
+
+/* Hardware queue info */
+#define BROADCAST_HW_Q			9
+#define MGMT_HW_Q			10
+#define BEACON_HW_Q			11
 
 /* Queue information */
 #define RSI_COEX_Q			0x0
