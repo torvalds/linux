@@ -665,6 +665,7 @@ struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 			    struct dentry *lowerdentry, struct dentry *index,
 			    unsigned int numlower)
 {
+	struct ovl_fs *ofs = sb->s_fs_info;
 	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
 	/* Already indexed or could be indexed on copy up? */
@@ -684,9 +685,10 @@ struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 	 * Hash non-dir that is or could be indexed by origin inode.
 	 * Hash dir that is or could be merged by origin inode.
 	 * Hash pure upper and non-indexed non-dir by upper inode.
+	 * Hash non-indexed dir by upper inode for NFS export.
 	 */
 	is_dir = S_ISDIR(realinode->i_mode);
-	if (is_dir)
+	if (is_dir && (indexed || !sb->s_export_op || !ofs->upper_mnt))
 		origin = lowerdentry;
 
 	if (upperdentry || origin) {
