@@ -224,7 +224,7 @@ static struct ov_camera_module_reg ov4689_init_tab_2688_1520_30fps[] = {
 {OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3773, 0x00},
 {OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3774, 0x51},
 {OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3776, 0xbd},
-{OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3777, 0xbd }
+{OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3777, 0xbd},
 {OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3781, 0x18},
 {OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3783, 0x25},
 {OV_CAMERA_MODULE_REG_TYPE_DATA, 0x3798, 0x1b},
@@ -934,7 +934,6 @@ MODULE_DEVICE_TABLE(i2c, ov4689_id);
 static struct i2c_driver ov4689_i2c_driver = {
 	.driver = {
 		.name = ov4689_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = ov4689_of_match
 	},
 	.probe = ov4689_probe,
