@@ -876,6 +876,7 @@ static void fm10k_tx_csum(struct fm10k_ring *tx_ring,
 	case IPPROTO_GRE:
 		if (skb->encapsulation)
 			break;
+		/* fall through */
 	default:
 		if (unlikely(net_ratelimit())) {
 			dev_warn(tx_ring->dev,
