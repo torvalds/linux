@@ -588,10 +588,10 @@ static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
 
 	/* Create a fence MW only for kernel consumers */
 	mw = bnxt_re_alloc_mw(&pd->ib_pd, IB_MW_TYPE_1, NULL);
-	if (!mw) {
+	if (IS_ERR(mw)) {
 		dev_err(rdev_to_dev(rdev),
 			"Failed to create fence-MW for PD: %p\n", pd);
-		rc = -EINVAL;
+		rc = PTR_ERR(mw);
 		goto fail;
 	}
 	fence->mw = mw;
