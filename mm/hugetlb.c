@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 #include <linux/rmap.h>
+#include <linux/string_helpers.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/jhash.h>
@@ -69,17 +70,6 @@ struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
 
 /* Forward declaration */
 static int hugetlb_acct_memory(struct hstate *h, long delta);
-
-static char * __init memfmt(char *buf, unsigned long n)
-{
-	if (n >= (1UL << 30))
-		sprintf(buf, "%lu GB", n >> 30);
-	else if (n >= (1UL << 20))
-		sprintf(buf, "%lu MB", n >> 20);
-	else
-		sprintf(buf, "%lu KB", n >> 10);
-	return buf;
-}
 
 static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
 {
@@ -2255,7 +2245,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 	if (i < h->max_huge_pages) {
 		char buf[32];
 
-		memfmt(buf, huge_page_size(h)),
+		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
 		pr_warn("HugeTLB: allocating %lu of page size %s failed.  Only allocated %lu hugepages.\n",
 			h->max_huge_pages, buf, i);
 		h->max_huge_pages = i;
@@ -2283,9 +2273,10 @@ static void __init report_hugepages(void)
 
 	for_each_hstate(h) {
 		char buf[32];
+
+		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
 		pr_info("HugeTLB registered %s page size, pre-allocated %ld pages\n",
-			memfmt(buf, huge_page_size(h)),
-			h->free_huge_pages);
+			buf, h->free_huge_pages);
 	}
 }
 
