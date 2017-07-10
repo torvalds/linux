@@ -128,6 +128,20 @@ int lkl_disk_add(struct lkl_disk *disk);
 int lkl_disk_remove(struct lkl_disk disk);
 
 /**
+ * lkl_get_virtiolkl_encode_dev_from_sysfs_blkdev - extract device id from sysfs
+ *
+ * This function returns the device id for the given sysfs dev node.
+ * The content of the node has to be in the form 'MAJOR:MINOR'.
+ * Also, this function expects an absolute path which means that sysfs
+ * already has to be mounted at the given path
+ *
+ * @sysfs_path - absolute path to the sysfs dev node
+ * @pdevid - pointer to memory where dev id will be returned
+ * @returns - 0 on success, a negative value on error
+ */
+int lkl_encode_dev_from_sysfs(const char *sysfs_path, uint32_t *pdevid);
+
+/**
  * lkl_get_virtio_blkdev - get device id of a disk (partition)
  *
  * This function returns the device id for the given disk.
