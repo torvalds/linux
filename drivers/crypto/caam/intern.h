@@ -64,12 +64,9 @@ struct caam_drv_private_jr {
  * Driver-private storage for a single CAAM block instance
  */
 struct caam_drv_private {
-
-	struct device *dev;
 #ifdef CONFIG_CAAM_QI
 	struct device *qidev;
 #endif
-	struct platform_device *pdev;
 
 	/* Physical-presence section */
 	struct caam_ctrl __iomem *ctrl; /* controller region */
