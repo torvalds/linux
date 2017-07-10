@@ -554,6 +554,39 @@ static int delete_from_lru_cache(struct page *p)
 	return -EIO;
 }
 
+static int truncate_error_page(struct page *p, unsigned long pfn,
+				struct address_space *mapping)
+{
+	int ret = MF_FAILED;
+
+	if (mapping->a_ops->error_remove_page) {
+		int err = mapping->a_ops->error_remove_page(mapping, p);
+
+		if (err != 0) {
+			pr_info("Memory failure: %#lx: Failed to punch page: %d\n",
+				pfn, err);
+		} else if (page_has_private(p) &&
+			   !try_to_release_page(p, GFP_NOIO)) {
+			pr_info("Memory failure: %#lx: failed to release buffers\n",
+				pfn);
+		} else {
+			ret = MF_RECOVERED;
+		}
+	} else {
+		/*
+		 * If the file system doesn't support it just invalidate
+		 * This fails on dirty or anything with private pages
+		 */
+		if (invalidate_inode_page(p))
+			ret = MF_RECOVERED;
+		else
+			pr_info("Memory failure: %#lx: Failed to invalidate\n",
+				pfn);
+	}
+
+	return ret;
+}
+
 /*
  * Error hit kernel page.
  * Do nothing, try to be lucky and not touch this instead. For a few cases we
@@ -578,8 +611,6 @@ static int me_unknown(struct page *p, unsigned long pfn)
  */
 static int me_pagecache_clean(struct page *p, unsigned long pfn)
 {
-	int err;
-	int ret = MF_FAILED;
 	struct address_space *mapping;
 
 	delete_from_lru_cache(p);
@@ -611,30 +642,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 	 *
 	 * Open: to take i_mutex or not for this? Right now we don't.
 	 */
-	if (mapping->a_ops->error_remove_page) {
-		err = mapping->a_ops->error_remove_page(mapping, p);
-		if (err != 0) {
-			pr_info("Memory failure: %#lx: Failed to punch page: %d\n",
-				pfn, err);
-		} else if (page_has_private(p) &&
-				!try_to_release_page(p, GFP_NOIO)) {
-			pr_info("Memory failure: %#lx: failed to release buffers\n",
-				pfn);
-		} else {
-			ret = MF_RECOVERED;
-		}
-	} else {
-		/*
-		 * If the file system doesn't support it just invalidate
-		 * This fails on dirty or anything with private pages
-		 */
-		if (invalidate_inode_page(p))
-			ret = MF_RECOVERED;
-		else
-			pr_info("Memory failure: %#lx: Failed to invalidate\n",
-				pfn);
-	}
-	return ret;
+	return truncate_error_page(p, pfn, mapping);
 }
 
 /*
@@ -740,24 +748,29 @@ static int me_huge_page(struct page *p, unsigned long pfn)
 {
 	int res = 0;
 	struct page *hpage = compound_head(p);
+	struct address_space *mapping;
 
 	if (!PageHuge(hpage))
 		return MF_DELAYED;
 
-	/*
-	 * We can safely recover from error on free or reserved (i.e.
-	 * not in-use) hugepage by dequeuing it from freelist.
-	 * To check whether a hugepage is in-use or not, we can't use
-	 * page->lru because it can be used in other hugepage operations,
-	 * such as __unmap_hugepage_range() and gather_surplus_pages().
-	 * So instead we use page_mapping() and PageAnon().
-	 */
-	if (!(page_mapping(hpage) || PageAnon(hpage))) {
-		res = dequeue_hwpoisoned_huge_page(hpage);
-		if (!res)
-			return MF_RECOVERED;
+	mapping = page_mapping(hpage);
+	if (mapping) {
+		res = truncate_error_page(hpage, pfn, mapping);
+	} else {
+		unlock_page(hpage);
+		/*
+		 * migration entry prevents later access on error anonymous
+		 * hugepage, so we can free and dissolve it into buddy to
+		 * save healthy subpages.
+		 */
+		if (PageAnon(hpage))
+			put_page(hpage);
+		dissolve_free_huge_page(p);
+		res = MF_RECOVERED;
+		lock_page(hpage);
 	}
-	return MF_DELAYED;
+
+	return res;
 }
 
 /*
@@ -856,7 +869,7 @@ static int page_action(struct page_state *ps, struct page *p,
 	count = page_count(p) - 1;
 	if (ps->action == me_swapcache_dirty && result == MF_DELAYED)
 		count--;
-	if (count != 0) {
+	if (count > 0) {
 		pr_err("Memory failure: %#lx: %s still referenced by %d users\n",
 		       pfn, action_page_types[ps->type], count);
 		result = MF_FAILED;
