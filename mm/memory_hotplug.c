@@ -934,6 +934,19 @@ struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
 	return &pgdat->node_zones[ZONE_NORMAL];
 }
 
+static inline bool movable_pfn_range(int nid, struct zone *default_zone,
+		unsigned long start_pfn, unsigned long nr_pages)
+{
+	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
+				MMOP_ONLINE_KERNEL))
+		return true;
+
+	if (!movable_node_is_enabled())
+		return false;
+
+	return !zone_intersects(default_zone, start_pfn, nr_pages);
+}
+
 /*
  * Associates the given pfn range with the given node and the zone appropriate
  * for the given online type.
@@ -949,10 +962,10 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
 		/*
 		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
 		 * movable zone if that is not possible (e.g. we are within
-		 * or past the existing movable zone)
+		 * or past the existing movable zone). movable_node overrides
+		 * this default and defaults to movable zone
 		 */
-		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
-					MMOP_ONLINE_KERNEL))
+		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
 			zone = movable_zone;
 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
 		zone = &pgdat->node_zones[ZONE_MOVABLE];
