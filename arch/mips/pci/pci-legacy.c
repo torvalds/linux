@@ -89,15 +89,15 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	pci_add_resource(&resources, hose->busn_resource);
 	bus = pci_scan_root_bus(NULL, next_busno, hose->pci_ops, hose,
 				&resources);
-	hose->bus = bus;
-
-	need_domain_info = need_domain_info || pci_domain_nr(bus);
-	set_pci_need_domain_info(hose, need_domain_info);
-
 	if (!bus) {
 		pci_free_resource_list(&resources);
 		return;
 	}
+
+	hose->bus = bus;
+
+	need_domain_info = need_domain_info || pci_domain_nr(bus);
+	set_pci_need_domain_info(hose, need_domain_info);
 
 	next_busno = bus->busn_res.end + 1;
 	/* Don't allow 8-bit bus number overflow inside the hose -
