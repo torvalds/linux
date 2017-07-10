@@ -202,7 +202,7 @@ xfs_refcountbt_init_ptr_from_cur(
 	ptr->s = agf->agf_refcount_root;
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_refcountbt_key_diff(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*key)
@@ -210,16 +210,16 @@ xfs_refcountbt_key_diff(
 	struct xfs_refcount_irec	*rec = &cur->bc_rec.rc;
 	struct xfs_refcount_key		*kp = &key->refc;
 
-	return (__int64_t)be32_to_cpu(kp->rc_startblock) - rec->rc_startblock;
+	return (int64_t)be32_to_cpu(kp->rc_startblock) - rec->rc_startblock;
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_refcountbt_diff_two_keys(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*k1,
 	union xfs_btree_key	*k2)
 {
-	return (__int64_t)be32_to_cpu(k1->refc.rc_startblock) -
+	return (int64_t)be32_to_cpu(k1->refc.rc_startblock) -
 			  be32_to_cpu(k2->refc.rc_startblock);
 }
 
@@ -285,7 +285,6 @@ const struct xfs_buf_ops xfs_refcountbt_buf_ops = {
 	.verify_write		= xfs_refcountbt_write_verify,
 };
 
-#if defined(DEBUG) || defined(XFS_WARN)
 STATIC int
 xfs_refcountbt_keys_inorder(
 	struct xfs_btree_cur	*cur,
@@ -306,7 +305,6 @@ xfs_refcountbt_recs_inorder(
 		be32_to_cpu(r1->refc.rc_blockcount) <=
 		be32_to_cpu(r2->refc.rc_startblock);
 }
-#endif
 
 static const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.rec_len		= sizeof(struct xfs_refcount_rec),
@@ -325,10 +323,8 @@ static const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.key_diff		= xfs_refcountbt_key_diff,
 	.buf_ops		= &xfs_refcountbt_buf_ops,
 	.diff_two_keys		= xfs_refcountbt_diff_two_keys,
-#if defined(DEBUG) || defined(XFS_WARN)
 	.keys_inorder		= xfs_refcountbt_keys_inorder,
 	.recs_inorder		= xfs_refcountbt_recs_inorder,
-#endif
 };
 
 /*

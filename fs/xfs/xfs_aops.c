@@ -839,7 +839,7 @@ xfs_writepage_map(
 	struct inode		*inode,
 	struct page		*page,
 	loff_t			offset,
-	__uint64_t              end_offset)
+	uint64_t              end_offset)
 {
 	LIST_HEAD(submit_list);
 	struct xfs_ioend	*ioend, *next;
@@ -994,7 +994,7 @@ xfs_do_writepage(
 	struct xfs_writepage_ctx *wpc = data;
 	struct inode		*inode = page->mapping->host;
 	loff_t			offset;
-	__uint64_t              end_offset;
+	uint64_t              end_offset;
 	pgoff_t                 end_index;
 
 	trace_xfs_writepage(inode, page, 0, 0);
