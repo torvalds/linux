@@ -229,6 +229,7 @@ struct rsi_mac_frame {
 #define EOSP_INDICATION			BIT(5)
 #define REQUIRE_TSF_SYNC_CONFIRM	BIT(6)
 #define ENCAP_MGMT_PKT			BIT(7)
+#define DESC_IMMEDIATE_WAKEUP		BIT(15)
 
 struct rsi_cmd_desc_dword0 {
 	__le16 len_qno;
