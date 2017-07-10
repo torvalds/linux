@@ -48,6 +48,7 @@ enum amd_asic_type {
 	CHIP_POLARIS11,
 	CHIP_POLARIS12,
 	CHIP_VEGA10,
+	CHIP_RAVEN,
 	CHIP_LAST,
 };
 
@@ -75,8 +76,7 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_UVD,
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
-	AMD_IP_BLOCK_TYPE_GFXHUB,
-	AMD_IP_BLOCK_TYPE_MMHUB
+	AMD_IP_BLOCK_TYPE_VCN
 };
 
 enum amd_clockgating_state {
@@ -184,6 +184,7 @@ enum amd_fan_ctrl_mode {
 #define AMD_PG_SUPPORT_SAMU			(1 << 10)
 #define AMD_PG_SUPPORT_GFX_QUICK_MG		(1 << 11)
 #define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
+#define AMD_PG_SUPPORT_MMHUB			(1 << 13)
 
 enum amd_pm_state_type {
 	/* not used for dpm */

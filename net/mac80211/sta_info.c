@@ -2155,7 +2155,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			struct ieee80211_sta_rx_stats *cpurxs;
 
 			cpurxs = per_cpu_ptr(sta->pcpu_rx_stats, cpu);
-			sinfo->rx_packets += cpurxs->dropped;
+			sinfo->rx_dropped_misc += cpurxs->dropped;
 		}
 	}
 

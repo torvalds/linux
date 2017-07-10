@@ -50,17 +50,6 @@ irqreturn_t pl111_irq(int irq, void *data)
 	return status;
 }
 
-static u32 pl111_get_fb_offset(struct drm_plane_state *pstate)
-{
-	struct drm_framebuffer *fb = pstate->fb;
-	struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(fb, 0);
-
-	return (obj->paddr +
-		fb->offsets[0] +
-		fb->format->cpp[0] * pstate->src_x +
-		fb->pitches[0] * pstate->src_y);
-}
-
 static int pl111_display_check(struct drm_simple_display_pipe *pipe,
 			       struct drm_plane_state *pstate,
 			       struct drm_crtc_state *cstate)
@@ -73,7 +62,7 @@ static int pl111_display_check(struct drm_simple_display_pipe *pipe,
 		return -EINVAL;
 
 	if (fb) {
-		u32 offset = pl111_get_fb_offset(pstate);
+		u32 offset = drm_fb_cma_get_gem_addr(fb, pstate, 0);
 
 		/* FB base address must be dword aligned. */
 		if (offset & 3)
@@ -249,7 +238,7 @@ static void pl111_display_update(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = pstate->fb;
 
 	if (fb) {
-		u32 addr = pl111_get_fb_offset(pstate);
+		u32 addr = drm_fb_cma_get_gem_addr(fb, pstate, 0);
 
 		writel(addr, priv->regs + CLCD_UBAS);
 	}

@@ -17,14 +17,12 @@
 		@ there.
 		.inst	'M' | ('Z' << 8) | (0x1310 << 16)   @ tstne r0, #0x4d000
 #else
-		mov	r0, r0
+		W(mov)	r0, r0
 #endif
 		.endm
 
 		.macro	__EFI_HEADER
 #ifdef CONFIG_EFI_STUB
-		b	__efi_start
-
 		.set	start_offset, __efi_start - start
 		.org	start + 0x3c
 		@

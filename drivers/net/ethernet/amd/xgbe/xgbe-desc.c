@@ -324,7 +324,7 @@ static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
 			      struct xgbe_ring *ring,
 			      struct xgbe_ring_data *rdata)
 {
-	int order, ret;
+	int ret;
 
 	if (!ring->rx_hdr_pa.pages) {
 		ret = xgbe_alloc_pages(pdata, &ring->rx_hdr_pa, GFP_ATOMIC, 0);
@@ -333,9 +333,8 @@ static int xgbe_map_rx_buffer(struct xgbe_prv_data *pdata,
 	}
 
 	if (!ring->rx_buf_pa.pages) {
-		order = max_t(int, PAGE_ALLOC_COSTLY_ORDER - 1, 0);
 		ret = xgbe_alloc_pages(pdata, &ring->rx_buf_pa, GFP_ATOMIC,
-				       order);
+				       PAGE_ALLOC_COSTLY_ORDER);
 		if (ret)
 			return ret;
 	}

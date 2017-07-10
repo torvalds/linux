@@ -468,13 +468,13 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 static void meson_sar_adc_clear_fifo(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int count;
+	unsigned int count, tmp;
 
 	for (count = 0; count < MESON_SAR_ADC_MAX_FIFO_SIZE; count++) {
 		if (!meson_sar_adc_get_fifo_count(indio_dev))
 			break;
 
-		regmap_read(priv->regmap, MESON_SAR_ADC_FIFO_RD, 0);
+		regmap_read(priv->regmap, MESON_SAR_ADC_FIFO_RD, &tmp);
 	}
 }
 

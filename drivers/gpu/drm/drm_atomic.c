@@ -109,9 +109,10 @@ struct drm_atomic_state *
 drm_atomic_state_alloc(struct drm_device *dev)
 {
 	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_atomic_state *state;
 
 	if (!config->funcs->atomic_state_alloc) {
+		struct drm_atomic_state *state;
+
 		state = kzalloc(sizeof(*state), GFP_KERNEL);
 		if (!state)
 			return NULL;
@@ -328,7 +329,7 @@ static s32 __user *get_out_fence_for_crtc(struct drm_atomic_state *state,
  * Zero on success, error code on failure. Cannot return -EDEADLK.
  */
 int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
-				 struct drm_display_mode *mode)
+				 const struct drm_display_mode *mode)
 {
 	struct drm_mode_modeinfo umode;
 

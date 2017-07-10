@@ -305,7 +305,7 @@ function perf_test()
 	echo "Running remote perf test $WITH DMA"
 	write_file "" $REMOTE_PERF/run
 	echo -n "  "
-	read_file $LOCAL_PERF/run
+	read_file $REMOTE_PERF/run
 	echo "  Passed"
 
 	_modprobe -r ntb_perf

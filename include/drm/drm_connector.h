@@ -30,8 +30,6 @@
 
 #include <uapi/drm/drm_mode.h>
 
-struct drm_device;
-
 struct drm_connector_helper_funcs;
 struct drm_modeset_acquire_ctx;
 struct drm_device;
@@ -1008,21 +1006,6 @@ struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
 					       char topology[8]);
 void drm_mode_put_tile_group(struct drm_device *dev,
 			     struct drm_tile_group *tg);
-
-/**
- * drm_for_each_connector - iterate over all connectors
- * @connector: the loop cursor
- * @dev: the DRM device
- *
- * Iterate over all connectors of @dev.
- *
- * WARNING:
- *
- * This iterator is not safe against hotadd/removal of connectors and is
- * deprecated. Use drm_for_each_connector_iter() instead.
- */
-#define drm_for_each_connector(connector, dev) \
-	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
 
 /**
  * struct drm_connector_list_iter - connector_list iterator

@@ -172,7 +172,7 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host->rst = devm_reset_control_get(&pdev->dev, "host1x");
 	if (IS_ERR(host->rst)) {
-		err = PTR_ERR(host->clk);
+		err = PTR_ERR(host->rst);
 		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
 		return err;
 	}
@@ -198,7 +198,8 @@ static int host1x_probe(struct platform_device *pdev)
 		host->iova_end = geometry->aperture_end;
 	}
 
-	err = host1x_channel_list_init(host);
+	err = host1x_channel_list_init(&host->channel_list,
+				       host->info->nb_channels);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize channel list\n");
 		goto fail_detach_device;
@@ -207,7 +208,7 @@ static int host1x_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(host->clk);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto fail_detach_device;
+		goto fail_free_channels;
 	}
 
 	err = reset_control_deassert(host->rst);
@@ -244,6 +245,8 @@ fail_reset_assert:
 	reset_control_assert(host->rst);
 fail_unprepare_disable:
 	clk_disable_unprepare(host->clk);
+fail_free_channels:
+	host1x_channel_list_free(&host->channel_list);
 fail_detach_device:
 	if (host->domain) {
 		put_iova_domain(&host->iova);

@@ -84,6 +84,7 @@ struct kmem_cache {
 	int red_left_pad;	/* Left redzone padding size */
 #ifdef CONFIG_SYSFS
 	struct kobject kobj;	/* For sysfs */
+	struct work_struct kobj_remove_work;
 #endif
 #ifdef CONFIG_MEMCG
 	struct memcg_cache_params memcg_params;

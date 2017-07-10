@@ -503,8 +503,8 @@ struct vc4_dsi {
 
 	struct mipi_dsi_host dsi_host;
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	struct drm_panel *panel;
+	struct drm_bridge *bridge;
+	bool is_panel_bridge;
 
 	void __iomem *regs;
 
@@ -603,18 +603,6 @@ static inline struct vc4_dsi_encoder *
 to_vc4_dsi_encoder(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct vc4_dsi_encoder, base.base);
-}
-
-/* VC4 DSI connector KMS struct */
-struct vc4_dsi_connector {
-	struct drm_connector base;
-	struct vc4_dsi *dsi;
-};
-
-static inline struct vc4_dsi_connector *
-to_vc4_dsi_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct vc4_dsi_connector, base);
 }
 
 #define DSI_REG(reg) { reg, #reg }
@@ -724,79 +712,6 @@ int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
 }
 #endif
 
-static enum drm_connector_status
-vc4_dsi_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct vc4_dsi_connector *vc4_connector =
-		to_vc4_dsi_connector(connector);
-	struct vc4_dsi *dsi = vc4_connector->dsi;
-
-	if (dsi->panel)
-		return connector_status_connected;
-	else
-		return connector_status_disconnected;
-}
-
-static void vc4_dsi_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-}
-
-static int vc4_dsi_connector_get_modes(struct drm_connector *connector)
-{
-	struct vc4_dsi_connector *vc4_connector =
-		to_vc4_dsi_connector(connector);
-	struct vc4_dsi *dsi = vc4_connector->dsi;
-
-	if (dsi->panel)
-		return drm_panel_get_modes(dsi->panel);
-
-	return 0;
-}
-
-static const struct drm_connector_funcs vc4_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
-	.detect = vc4_dsi_connector_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = vc4_dsi_connector_destroy,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static const struct drm_connector_helper_funcs vc4_dsi_connector_helper_funcs = {
-	.get_modes = vc4_dsi_connector_get_modes,
-};
-
-static struct drm_connector *vc4_dsi_connector_init(struct drm_device *dev,
-						    struct vc4_dsi *dsi)
-{
-	struct drm_connector *connector;
-	struct vc4_dsi_connector *dsi_connector;
-
-	dsi_connector = devm_kzalloc(dev->dev, sizeof(*dsi_connector),
-				     GFP_KERNEL);
-	if (!dsi_connector)
-		return ERR_PTR(-ENOMEM);
-
-	connector = &dsi_connector->base;
-
-	dsi_connector->dsi = dsi;
-
-	drm_connector_init(dev, connector, &vc4_dsi_connector_funcs,
-			   DRM_MODE_CONNECTOR_DSI);
-	drm_connector_helper_add(connector, &vc4_dsi_connector_helper_funcs);
-
-	connector->polled = 0;
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	drm_mode_connector_attach_encoder(connector, dsi->encoder);
-
-	return connector;
-}
-
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
@@ -894,11 +809,7 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
 
-	drm_panel_disable(dsi->panel);
-
 	vc4_dsi_ulps(dsi, true);
-
-	drm_panel_unprepare(dsi->panel);
 
 	clk_disable_unprepare(dsi->pll_phy_clock);
 	clk_disable_unprepare(dsi->escape_clock);
@@ -981,12 +892,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	ret = pm_runtime_get_sync(dev);
 	if (ret) {
 		DRM_ERROR("Failed to runtime PM enable on DSI%d\n", dsi->port);
-		return;
-	}
-
-	ret = drm_panel_prepare(dsi->panel);
-	if (ret) {
-		DRM_ERROR("Panel failed to prepare\n");
 		return;
 	}
 
@@ -1211,13 +1116,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		DRM_INFO("DSI regs after:\n");
 		vc4_dsi_dump_regs(dsi);
 	}
-
-	ret = drm_panel_enable(dsi->panel);
-	if (ret) {
-		DRM_ERROR("Panel failed to enable\n");
-		drm_panel_unprepare(dsi->panel);
-		return;
-	}
 }
 
 static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
@@ -1415,17 +1313,22 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 		return 0;
 	}
 
-	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (!dsi->panel)
-		return 0;
+	dsi->bridge = of_drm_find_bridge(device->dev.of_node);
+	if (!dsi->bridge) {
+		struct drm_panel *panel =
+			of_drm_find_panel(device->dev.of_node);
 
-	ret = drm_panel_attach(dsi->panel, dsi->connector);
-	if (ret != 0)
-		return ret;
+		dsi->bridge = drm_panel_bridge_add(panel,
+						   DRM_MODE_CONNECTOR_DSI);
+		if (IS_ERR(dsi->bridge)) {
+			ret = PTR_ERR(dsi->bridge);
+			dsi->bridge = NULL;
+			return ret;
+		}
+		dsi->is_panel_bridge = true;
+	}
 
-	drm_helper_hpd_irq_event(dsi->connector->dev);
-
-	return 0;
+	return drm_bridge_attach(dsi->encoder, dsi->bridge, NULL);
 }
 
 static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
@@ -1433,15 +1336,9 @@ static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
 {
 	struct vc4_dsi *dsi = host_to_dsi(host);
 
-	if (dsi->panel) {
-		int ret = drm_panel_detach(dsi->panel);
-
-		if (ret)
-			return ret;
-
-		dsi->panel = NULL;
-
-		drm_helper_hpd_irq_event(dsi->connector->dev);
+	if (dsi->is_panel_bridge) {
+		drm_panel_bridge_remove(dsi->bridge);
+		dsi->bridge = NULL;
 	}
 
 	return 0;
@@ -1708,12 +1605,6 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 			 DRM_MODE_ENCODER_DSI, NULL);
 	drm_encoder_helper_add(dsi->encoder, &vc4_dsi_encoder_helper_funcs);
 
-	dsi->connector = vc4_dsi_connector_init(drm, dsi);
-	if (IS_ERR(dsi->connector)) {
-		ret = PTR_ERR(dsi->connector);
-		goto err_destroy_encoder;
-	}
-
 	dsi->dsi_host.ops = &vc4_dsi_host_ops;
 	dsi->dsi_host.dev = dev;
 
@@ -1724,11 +1615,6 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_enable(dev);
 
 	return 0;
-
-err_destroy_encoder:
-	vc4_dsi_encoder_destroy(dsi->encoder);
-
-	return ret;
 }
 
 static void vc4_dsi_unbind(struct device *dev, struct device *master,
@@ -1740,7 +1626,7 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 
 	pm_runtime_disable(dev);
 
-	vc4_dsi_connector_destroy(dsi->connector);
+	drm_bridge_remove(dsi->bridge);
 	vc4_dsi_encoder_destroy(dsi->encoder);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);

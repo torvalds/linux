@@ -54,6 +54,8 @@ static const char *phy_speed_to_str(int speed)
 		return "5Gbps";
 	case SPEED_10000:
 		return "10Gbps";
+	case SPEED_14000:
+		return "14Gbps";
 	case SPEED_20000:
 		return "20Gbps";
 	case SPEED_25000:
@@ -241,7 +243,7 @@ static const struct phy_setting settings[] = {
  * phy_lookup_setting - lookup a PHY setting
  * @speed: speed to match
  * @duplex: duplex to match
- * @feature: allowed link modes
+ * @features: allowed link modes
  * @exact: an exact match is required
  *
  * Search the settings array for a setting that matches the speed and

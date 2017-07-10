@@ -179,13 +179,28 @@ void radeon_kfd_device_probe(struct radeon_device *rdev)
 
 void radeon_kfd_device_init(struct radeon_device *rdev)
 {
+	int i, queue, pipe, mec;
+
 	if (rdev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
 			.compute_vmid_bitmap = 0xFF00,
-
-			.first_compute_pipe = 1,
-			.compute_pipe_count = 4 - 1,
+			.num_mec = 1,
+			.num_pipe_per_mec = 4,
+			.num_queue_per_pipe = 8
 		};
+
+		bitmap_zero(gpu_resources.queue_bitmap, KGD_MAX_QUEUES);
+
+		for (i = 0; i < KGD_MAX_QUEUES; ++i) {
+			queue = i % gpu_resources.num_queue_per_pipe;
+			pipe = (i / gpu_resources.num_queue_per_pipe)
+				% gpu_resources.num_pipe_per_mec;
+			mec = (i / gpu_resources.num_queue_per_pipe)
+				/ gpu_resources.num_pipe_per_mec;
+
+			if (mec == 0 && pipe > 0)
+				set_bit(i, gpu_resources.queue_bitmap);
+		}
 
 		radeon_doorbell_get_kfd_info(rdev,
 				&gpu_resources.doorbell_physical_address,
@@ -423,18 +438,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr)
 {
-	uint32_t mec = (pipe_id / CIK_PIPE_PER_MEC) + 1;
-	uint32_t pipe = (pipe_id % CIK_PIPE_PER_MEC);
-
-	lock_srbm(kgd, mec, pipe, 0, 0);
-	write_register(kgd, CP_HPD_EOP_BASE_ADDR,
-			lower_32_bits(hpd_gpu_addr >> 8));
-	write_register(kgd, CP_HPD_EOP_BASE_ADDR_HI,
-			upper_32_bits(hpd_gpu_addr >> 8));
-	write_register(kgd, CP_HPD_EOP_VMID, 0);
-	write_register(kgd, CP_HPD_EOP_CONTROL, hpd_size);
-	unlock_srbm(kgd);
-
+	/* nothing to do here */
 	return 0;
 }
 

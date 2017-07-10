@@ -767,7 +767,7 @@ void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 		kfree(entry);
 	}
 
-	list_for_each_safe(pos, nxt, &uctx->qpids) {
+	list_for_each_safe(pos, nxt, &uctx->cqids) {
 		entry = list_entry(pos, struct c4iw_qid_list, entry);
 		list_del_init(&entry->entry);
 		kfree(entry);
@@ -880,13 +880,15 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->free_workq = create_singlethread_workqueue("iw_cxgb4_free");
 	if (!rdev->free_workq) {
 		err = -ENOMEM;
-		goto err_free_status_page;
+		goto err_free_status_page_and_wr_log;
 	}
 
 	rdev->status_page->db_off = 0;
 
 	return 0;
-err_free_status_page:
+err_free_status_page_and_wr_log:
+	if (c4iw_wr_log && rdev->wr_log)
+		kfree(rdev->wr_log);
 	free_page((unsigned long)rdev->status_page);
 destroy_ocqp_pool:
 	c4iw_ocqp_pool_destroy(rdev);
@@ -903,9 +905,11 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 {
 	destroy_workqueue(rdev->free_workq);
 	kfree(rdev->wr_log);
+	c4iw_release_dev_ucontext(rdev, &rdev->uctx);
 	free_page((unsigned long)rdev->status_page);
 	c4iw_pblpool_destroy(rdev);
 	c4iw_rqtpool_destroy(rdev);
+	c4iw_ocqp_pool_destroy(rdev);
 	c4iw_destroy_resource(&rdev->resource);
 }
 
@@ -971,7 +975,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		 devp->rdev.lldi.sge_egrstatuspagesize);
 
 	devp->rdev.hw_queue.t4_eq_status_entries =
-		devp->rdev.lldi.sge_ingpadboundary > 64 ? 2 : 1;
+		devp->rdev.lldi.sge_egrstatuspagesize / 64;
 	devp->rdev.hw_queue.t4_max_eq_size = 65520;
 	devp->rdev.hw_queue.t4_max_iq_size = 65520;
 	devp->rdev.hw_queue.t4_max_rq_size = 8192 -

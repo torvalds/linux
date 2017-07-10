@@ -777,24 +777,25 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 }
 
 /**
- * blk_release_queue: - release a &struct request_queue when it is no longer needed
- * @kobj:    the kobj belonging to the request queue to be released
+ * __blk_release_queue - release a request queue when it is no longer needed
+ * @work: pointer to the release_work member of the request queue to be released
  *
  * Description:
- *     blk_release_queue is the pair to blk_init_queue() or
- *     blk_queue_make_request().  It should be called when a request queue is
- *     being released; typically when a block device is being de-registered.
- *     Currently, its primary task it to free all the &struct request
- *     structures that were allocated to the queue and the queue itself.
+ *     blk_release_queue is the counterpart of blk_init_queue(). It should be
+ *     called when a request queue is being released; typically when a block
+ *     device is being de-registered. Its primary task it to free the queue
+ *     itself.
  *
- * Note:
+ * Notes:
  *     The low level driver must have finished any outstanding requests first
  *     via blk_cleanup_queue().
- **/
-static void blk_release_queue(struct kobject *kobj)
+ *
+ *     Although blk_release_queue() may be called with preemption disabled,
+ *     __blk_release_queue() may sleep.
+ */
+static void __blk_release_queue(struct work_struct *work)
 {
-	struct request_queue *q =
-		container_of(kobj, struct request_queue, kobj);
+	struct request_queue *q = container_of(work, typeof(*q), release_work);
 
 	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags))
 		blk_stat_remove_callback(q, q->poll_cb);
@@ -809,7 +810,7 @@ static void blk_release_queue(struct kobject *kobj)
 
 	blk_free_queue_stats(q->stats);
 
-	blk_exit_rl(&q->root_rl);
+	blk_exit_rl(q, &q->root_rl);
 
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
@@ -832,6 +833,15 @@ static void blk_release_queue(struct kobject *kobj)
 
 	ida_simple_remove(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);
+}
+
+static void blk_release_queue(struct kobject *kobj)
+{
+	struct request_queue *q =
+		container_of(kobj, struct request_queue, kobj);
+
+	INIT_WORK(&q->release_work, __blk_release_queue);
+	schedule_work(&q->release_work);
 }
 
 static const struct sysfs_ops queue_sysfs_ops = {

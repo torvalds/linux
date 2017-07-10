@@ -285,28 +285,20 @@ void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2pa
 	struct i40iw_sc_dev *dev = vsi->dev;
 	struct i40iw_sc_qp *qp = NULL;
 	bool qs_handle_change = false;
-	bool mss_change = false;
 	unsigned long flags;
 	u16 qs_handle;
 	int i;
 
-	if (vsi->mss != l2params->mss) {
-		mss_change = true;
-		vsi->mss = l2params->mss;
-	}
+	vsi->mss = l2params->mss;
 
 	i40iw_fill_qos_list(l2params->qs_handle_list);
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
 		qs_handle = l2params->qs_handle_list[i];
 		if (vsi->qos[i].qs_handle != qs_handle)
 			qs_handle_change = true;
-		else if (!mss_change)
-			continue;       /* no MSS nor qs handle change */
 		spin_lock_irqsave(&vsi->qos[i].lock, flags);
 		qp = i40iw_get_qp(&vsi->qos[i].qplist, qp);
 		while (qp) {
-			if (mss_change)
-				i40iw_qp_mss_modify(dev, qp);
 			if (qs_handle_change) {
 				qp->qs_handle = qs_handle;
 				/* issue cqp suspend command */
@@ -2395,7 +2387,6 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
 
 	set_64bit_val(wqe,
 		      8,
-		      LS_64(info->new_mss, I40IW_CQPSQ_QP_NEWMSS) |
 		      LS_64(term_len, I40IW_CQPSQ_QP_TERMLEN));
 
 	set_64bit_val(wqe, 16, qp->hw_host_ctx_pa);
@@ -2410,7 +2401,6 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
 		 LS_64(info->cq_num_valid, I40IW_CQPSQ_QP_CQNUMVALID) |
 		 LS_64(info->force_loopback, I40IW_CQPSQ_QP_FORCELOOPBACK) |
 		 LS_64(qp->qp_type, I40IW_CQPSQ_QP_QPTYPE) |
-		 LS_64(info->mss_change, I40IW_CQPSQ_QP_MSSCHANGE) |
 		 LS_64(info->static_rsrc, I40IW_CQPSQ_QP_STATRSRC) |
 		 LS_64(info->remove_hash_idx, I40IW_CQPSQ_QP_REMOVEHASHENTRY) |
 		 LS_64(term_actions, I40IW_CQPSQ_QP_TERMACT) |

@@ -721,7 +721,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	u32 set;
 
 	if (!of_device_is_compatible(mvchip->chip.of_node,
-				     "marvell,armada-370-xp-gpio"))
+				     "marvell,armada-370-gpio"))
 		return 0;
 
 	if (IS_ERR(mvchip->clk))
@@ -747,7 +747,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 		set = U32_MAX;
 	else
 		return -EINVAL;
-	writel_relaxed(0, mvebu_gpioreg_blink_counter_select(mvchip));
+	writel_relaxed(set, mvebu_gpioreg_blink_counter_select(mvchip));
 
 	mvpwm = devm_kzalloc(dev, sizeof(struct mvebu_pwm), GFP_KERNEL);
 	if (!mvpwm)
@@ -768,6 +768,13 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	mvpwm->chip.dev = dev;
 	mvpwm->chip.ops = &mvebu_pwm_ops;
 	mvpwm->chip.npwm = mvchip->chip.ngpio;
+	/*
+	 * There may already be some PWM allocated, so we can't force
+	 * mvpwm->chip.base to a fixed point like mvchip->chip.base.
+	 * So, we let pwmchip_add() do the numbering and take the next free
+	 * region.
+	 */
+	mvpwm->chip.base = -1;
 
 	spin_lock_init(&mvpwm->lock);
 
@@ -845,7 +852,7 @@ static const struct of_device_id mvebu_gpio_of_match[] = {
 		.data	    = (void *) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
 	},
 	{
-		.compatible = "marvell,armada-370-xp-gpio",
+		.compatible = "marvell,armada-370-gpio",
 		.data	    = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
 	},
 	{
@@ -1121,7 +1128,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 						 mvchip);
 	}
 
-	/* Armada 370/XP has simple PWM support for GPIO lines */
+	/* Some MVEBU SoCs have simple PWM support for GPIO lines */
 	if (IS_ENABLED(CONFIG_PWM))
 		return mvebu_pwm_probe(pdev, mvchip, id);
 

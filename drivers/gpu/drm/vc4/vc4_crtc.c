@@ -345,12 +345,16 @@ static u32 vc4_get_fifo_full_level(u32 format)
 static struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc)
 {
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
-	drm_for_each_connector(connector, crtc->dev) {
+	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->state->crtc == crtc) {
+			drm_connector_list_iter_end(&conn_iter);
 			return connector->encoder;
 		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	return NULL;
 }

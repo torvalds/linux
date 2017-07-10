@@ -1081,4 +1081,55 @@ void drm_dp_aux_unregister(struct drm_dp_aux *aux);
 int drm_dp_start_crc(struct drm_dp_aux *aux, struct drm_crtc *crtc);
 int drm_dp_stop_crc(struct drm_dp_aux *aux);
 
+struct drm_dp_dpcd_ident {
+	u8 oui[3];
+	u8 device_id[6];
+	u8 hw_rev;
+	u8 sw_major_rev;
+	u8 sw_minor_rev;
+} __packed;
+
+/**
+ * struct drm_dp_desc - DP branch/sink device descriptor
+ * @ident: DP device identification from DPCD 0x400 (sink) or 0x500 (branch).
+ * @quirks: Quirks; use drm_dp_has_quirk() to query for the quirks.
+ */
+struct drm_dp_desc {
+	struct drm_dp_dpcd_ident ident;
+	u32 quirks;
+};
+
+int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
+		     bool is_branch);
+
+/**
+ * enum drm_dp_quirk - Display Port sink/branch device specific quirks
+ *
+ * Display Port sink and branch devices in the wild have a variety of bugs, try
+ * to collect them here. The quirks are shared, but it's up to the drivers to
+ * implement workarounds for them.
+ */
+enum drm_dp_quirk {
+	/**
+	 * @DP_DPCD_QUIRK_LIMITED_M_N:
+	 *
+	 * The device requires main link attributes Mvid and Nvid to be limited
+	 * to 16 bits.
+	 */
+	DP_DPCD_QUIRK_LIMITED_M_N,
+};
+
+/**
+ * drm_dp_has_quirk() - does the DP device have a specific quirk
+ * @desc: Device decriptor filled by drm_dp_read_desc()
+ * @quirk: Quirk to query for
+ *
+ * Return true if DP device identified by @desc has @quirk.
+ */
+static inline bool
+drm_dp_has_quirk(const struct drm_dp_desc *desc, enum drm_dp_quirk quirk)
+{
+	return desc->quirks & BIT(quirk);
+}
+
 #endif /* _DRM_DP_HELPER_H_ */

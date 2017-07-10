@@ -27,6 +27,26 @@ struct bmp_header {
 	u32 size;
 } __packed;
 
+static bool efi_bgrt_addr_valid(u64 addr)
+{
+	efi_memory_desc_t *md;
+
+	for_each_efi_memory_desc(md) {
+		u64 size;
+		u64 end;
+
+		if (md->type != EFI_BOOT_SERVICES_DATA)
+			continue;
+
+		size = md->num_pages << EFI_PAGE_SHIFT;
+		end = md->phys_addr + size;
+		if (addr >= md->phys_addr && addr < end)
+			return true;
+	}
+
+	return false;
+}
+
 void __init efi_bgrt_init(struct acpi_table_header *table)
 {
 	void *image;
@@ -34,6 +54,9 @@ void __init efi_bgrt_init(struct acpi_table_header *table)
 	struct acpi_table_bgrt *bgrt = &bgrt_tab;
 
 	if (acpi_disabled)
+		return;
+
+	if (!efi_enabled(EFI_MEMMAP))
 		return;
 
 	if (table->length < sizeof(bgrt_tab)) {
@@ -62,6 +85,10 @@ void __init efi_bgrt_init(struct acpi_table_header *table)
 		goto out;
 	}
 
+	if (!efi_bgrt_addr_valid(bgrt->image_address)) {
+		pr_notice("Ignoring BGRT: invalid image address\n");
+		goto out;
+	}
 	image = early_memremap(bgrt->image_address, sizeof(bmp_header));
 	if (!image) {
 		pr_notice("Ignoring BGRT: failed to map image header memory\n");

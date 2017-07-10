@@ -982,7 +982,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
 	kfree(utf16_path);
 	if (rc) {
-		cifs_dbg(VFS, "open dir failed\n");
+		cifs_dbg(FYI, "open dir failed rc=%d\n", rc);
 		return rc;
 	}
 
@@ -992,7 +992,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_query_directory(xid, tcon, fid->persistent_fid,
 				  fid->volatile_fid, 0, srch_inf);
 	if (rc) {
-		cifs_dbg(VFS, "query directory failed\n");
+		cifs_dbg(FYI, "query directory failed rc=%d\n", rc);
 		SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
 	}
 	return rc;
@@ -1809,7 +1809,8 @@ crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 
 	sg = init_sg(rqst, sign);
 	if (!sg) {
-		cifs_dbg(VFS, "%s: Failed to init sg %d", __func__, rc);
+		cifs_dbg(VFS, "%s: Failed to init sg", __func__);
+		rc = -ENOMEM;
 		goto free_req;
 	}
 
@@ -1817,6 +1818,7 @@ crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 	iv = kzalloc(iv_len, GFP_KERNEL);
 	if (!iv) {
 		cifs_dbg(VFS, "%s: Failed to alloc IV", __func__);
+		rc = -ENOMEM;
 		goto free_sg;
 	}
 	iv[0] = 3;

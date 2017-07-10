@@ -278,7 +278,6 @@ out:
 
 static int sctp_sock_dump(struct sock *sk, void *p)
 {
-	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
 	struct sctp_comm_param *commp = p;
 	struct sk_buff *skb = commp->skb;
 	struct netlink_callback *cb = commp->cb;
@@ -287,7 +286,9 @@ static int sctp_sock_dump(struct sock *sk, void *p)
 	int err = 0;
 
 	lock_sock(sk);
-	list_for_each_entry(assoc, &ep->asocs, asocs) {
+	if (!sctp_sk(sk)->ep)
+		goto release;
+	list_for_each_entry(assoc, &sctp_sk(sk)->ep->asocs, asocs) {
 		if (cb->args[4] < cb->args[1])
 			goto next;
 

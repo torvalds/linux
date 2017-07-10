@@ -4,6 +4,44 @@ Allwinner A10 Display Pipeline
 The Allwinner A10 Display pipeline is composed of several components
 that are going to be documented below:
 
+For the input port of all components up to the TCON in the display
+pipeline, if there are multiple components, the local endpoint IDs
+must correspond to the index of the upstream block. For example, if
+the remote endpoint is Frontend 1, then the local endpoint ID must
+be 1.
+
+Conversely, for the output ports of the same group, the remote endpoint
+ID must be the index of the local hardware block. If the local backend
+is backend 1, then the remote endpoint ID must be 1.
+
+HDMI Encoder
+------------
+
+The HDMI Encoder supports the HDMI video and audio outputs, and does
+CEC. It is one end of the pipeline.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun5i-a10s-hdmi
+  - reg: base address and size of memory-mapped region
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the HDMI encoder
+    * ahb: the HDMI interface clock
+    * mod: the HDMI module clock
+    * pll-0: the first video PLL
+    * pll-1: the second video PLL
+  - clock-names: the clock names mentioned above
+  - dmas: phandles to the DMA channels used by the HDMI encoder
+    * ddc-tx: The channel for DDC transmission
+    * ddc-rx: The channel for DDC reception
+    * audio-tx: The channel used for audio transmission
+  - dma-names: the channel names mentioned above
+
+  - ports: A ports node with endpoint definitions as defined in
+    Documentation/devicetree/bindings/media/video-interfaces.txt. The
+    first port should be the input endpoint. The second should be the
+    output, usually to an HDMI connector.
+
 TV Encoder
 ----------
 
@@ -31,6 +69,7 @@ Required properties:
    * allwinner,sun6i-a31-tcon
    * allwinner,sun6i-a31s-tcon
    * allwinner,sun8i-a33-tcon
+   * allwinner,sun8i-v3s-tcon
  - reg: base address and size of memory-mapped region
  - interrupts: interrupt associated to this IP
  - clocks: phandles to the clocks feeding the TCON. Three are needed:
@@ -47,12 +86,15 @@ Required properties:
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoint, the second one the output
 
-  The output should have two endpoints. The first is the block
-  connected to the TCON channel 0 (usually a panel or a bridge), the
-  second the block connected to the TCON channel 1 (usually the TV
-  encoder)
+  The output may have multiple endpoints. The TCON has two channels,
+  usually with the first channel being used for the panels interfaces
+  (RGB, LVDS, etc.), and the second being used for the outputs that
+  require another controller (TV Encoder, HDMI, etc.). The endpoints
+  will take an extra property, allwinner,tcon-channel, to specify the
+  channel the endpoint is associated to. If that property is not
+  present, the endpoint number will be used as the channel number.
 
-On SoCs other than the A33, there is one more clock required:
+On SoCs other than the A33 and V3s, there is one more clock required:
    - 'tcon-ch1': The clock driving the TCON channel 1
 
 DRC
@@ -138,6 +180,26 @@ Required properties:
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the outputs
 
+Display Engine 2.0 Mixer
+------------------------
+
+The DE2 mixer have many functionalities, currently only layer blending is
+supported.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun8i-v3s-de2-mixer
+  - reg: base address and size of the memory-mapped region.
+  - clocks: phandles to the clocks feeding the mixer
+    * bus: the mixer interface clock
+    * mod: the mixer module clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset controllers driving the mixer
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the output
+
 
 Display Engine Pipeline
 -----------------------
@@ -148,13 +210,15 @@ extra node.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun5i-a10s-display-engine
     * allwinner,sun5i-a13-display-engine
     * allwinner,sun6i-a31-display-engine
     * allwinner,sun6i-a31s-display-engine
     * allwinner,sun8i-a33-display-engine
+    * allwinner,sun8i-v3s-display-engine
 
   - allwinner,pipelines: list of phandle to the display engine
-    frontends available.
+    frontends (DE 1.0) or mixers (DE 2.0) available.
 
 Example:
 
@@ -169,6 +233,57 @@ panel: panel {
 
 		panel_input: endpoint {
 			remote-endpoint = <&tcon0_out_panel>;
+		};
+	};
+};
+
+connector {
+	compatible = "hdmi-connector";
+	type = "a";
+
+	port {
+		hdmi_con_in: endpoint {
+			remote-endpoint = <&hdmi_out_con>;
+		};
+	};
+};
+
+hdmi: hdmi@01c16000 {
+	compatible = "allwinner,sun5i-a10s-hdmi";
+	reg = <0x01c16000 0x1000>;
+	interrupts = <58>;
+	clocks = <&ccu CLK_AHB_HDMI>, <&ccu CLK_HDMI>,
+		 <&ccu CLK_PLL_VIDEO0_2X>,
+		 <&ccu CLK_PLL_VIDEO1_2X>;
+	clock-names = "ahb", "mod", "pll-0", "pll-1";
+	dmas = <&dma SUN4I_DMA_NORMAL 16>,
+	       <&dma SUN4I_DMA_NORMAL 16>,
+	       <&dma SUN4I_DMA_DEDICATED 24>;
+	dma-names = "ddc-tx", "ddc-rx", "audio-tx";
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			hdmi_in_tcon0: endpoint {
+				remote-endpoint = <&tcon0_out_hdmi>;
+			};
+		};
+
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			hdmi_out_con: endpoint {
+				remote-endpoint = <&hdmi_con_in>;
+			};
 		};
 	};
 };

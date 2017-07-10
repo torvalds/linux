@@ -336,7 +336,8 @@ xdr_argsize_check(struct svc_rqst *rqstp, __be32 *p)
 {
 	char *cp = (char *)p;
 	struct kvec *vec = &rqstp->rq_arg.head[0];
-	return cp == (char *)vec->iov_base + vec->iov_len;
+	return cp >= (char*)vec->iov_base
+		&& cp <= (char*)vec->iov_base + vec->iov_len;
 }
 
 static inline int

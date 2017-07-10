@@ -370,10 +370,12 @@ enum {
 #define IS_KBL_LP(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x9d71)
 #define IS_KBL_H(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa2f0)
 #define IS_BXT(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x5a98)
+#define IS_BXT_T(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x1a98)
 #define IS_GLK(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0x3198)
-#define IS_SKL_PLUS(pci) (IS_SKL(pci) || IS_SKL_LP(pci) || IS_BXT(pci)) || \
-			IS_KBL(pci) || IS_KBL_LP(pci) || IS_KBL_H(pci)	|| \
-			IS_GLK(pci)
+#define IS_CFL(pci) ((pci)->vendor == 0x8086 && (pci)->device == 0xa348)
+#define IS_SKL_PLUS(pci) (IS_SKL(pci) || IS_SKL_LP(pci) || IS_BXT(pci) || \
+			  IS_BXT_T(pci) || IS_KBL(pci) || IS_KBL_LP(pci) || \
+			  IS_KBL_H(pci)	|| IS_GLK(pci) || IS_CFL(pci))
 
 static char *driver_short_names[] = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
@@ -2378,6 +2380,9 @@ static const struct pci_device_id azx_ids[] = {
 	/* Kabylake-H */
 	{ PCI_DEVICE(0x8086, 0xa2f0),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
+	/* Coffelake */
+	{ PCI_DEVICE(0x8086, 0xa348),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE},
 	/* Broxton-P(Apollolake) */
 	{ PCI_DEVICE(0x8086, 0x5a98),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },

@@ -1907,24 +1907,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static enum drm_mode_status
-dw_hdmi_connector_mode_valid(struct drm_connector *connector,
-			     struct drm_display_mode *mode)
-{
-	struct dw_hdmi *hdmi = container_of(connector,
-					   struct dw_hdmi, connector);
-	enum drm_mode_status mode_status = MODE_OK;
-
-	/* We don't support double-clocked modes */
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		return MODE_BAD;
-
-	if (hdmi->plat_data->mode_valid)
-		mode_status = hdmi->plat_data->mode_valid(connector, mode);
-
-	return mode_status;
-}
-
 static void dw_hdmi_connector_force(struct drm_connector *connector)
 {
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
@@ -1950,7 +1932,6 @@ static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
 
 static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.get_modes = dw_hdmi_connector_get_modes,
-	.mode_valid = dw_hdmi_connector_mode_valid,
 	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
@@ -1973,18 +1954,22 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
-static bool dw_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
-				      const struct drm_display_mode *orig_mode,
-				      struct drm_display_mode *mode)
+static enum drm_mode_status
+dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
+			  const struct drm_display_mode *mode)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 	struct drm_connector *connector = &hdmi->connector;
-	enum drm_mode_status status;
+	enum drm_mode_status mode_status = MODE_OK;
 
-	status = dw_hdmi_connector_mode_valid(connector, mode);
-	if (status != MODE_OK)
-		return false;
-	return true;
+	/* We don't support double-clocked modes */
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		return MODE_BAD;
+
+	if (hdmi->plat_data->mode_valid)
+		mode_status = hdmi->plat_data->mode_valid(connector, mode);
+
+	return mode_status;
 }
 
 static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
@@ -2028,7 +2013,7 @@ static const struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
 	.enable = dw_hdmi_bridge_enable,
 	.disable = dw_hdmi_bridge_disable,
 	.mode_set = dw_hdmi_bridge_mode_set,
-	.mode_fixup = dw_hdmi_bridge_mode_fixup,
+	.mode_valid = dw_hdmi_bridge_mode_valid,
 };
 
 static irqreturn_t dw_hdmi_i2c_irq(struct dw_hdmi *hdmi)

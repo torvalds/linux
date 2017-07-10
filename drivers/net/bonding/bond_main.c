@@ -4192,7 +4192,6 @@ static void bond_destructor(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
-	free_netdev(bond_dev);
 }
 
 void bond_setup(struct net_device *bond_dev)
@@ -4212,7 +4211,8 @@ void bond_setup(struct net_device *bond_dev)
 	bond_dev->netdev_ops = &bond_netdev_ops;
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
 
-	bond_dev->destructor = bond_destructor;
+	bond_dev->needs_free_netdev = true;
+	bond_dev->priv_destructor = bond_destructor;
 
 	SET_NETDEV_DEVTYPE(bond_dev, &bond_type);
 
@@ -4736,7 +4736,7 @@ int bond_create(struct net *net, const char *name)
 
 	rtnl_unlock();
 	if (res < 0)
-		bond_destructor(bond_dev);
+		free_netdev(bond_dev);
 	return res;
 }
 

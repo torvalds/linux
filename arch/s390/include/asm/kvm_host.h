@@ -541,7 +541,6 @@ struct kvm_s390_float_interrupt {
 	struct mutex ais_lock;
 	u8 simm;
 	u8 nimm;
-	int ais_enabled;
 };
 
 struct kvm_hw_wp_info_arch {

@@ -111,8 +111,8 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 					    &handle);
 
 		if (ret) {
-			state->bo_count = i - 1;
-			goto err;
+			state->bo_count = i;
+			goto err_delete_handle;
 		}
 		bo_state[i].handle = handle;
 		bo_state[i].paddr = vc4_bo->base.paddr;
@@ -124,13 +124,16 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			 state->bo_count * sizeof(*bo_state)))
 		ret = -EFAULT;
 
-	kfree(bo_state);
+err_delete_handle:
+	if (ret) {
+		for (i = 0; i < state->bo_count; i++)
+			drm_gem_handle_delete(file_priv, bo_state[i].handle);
+	}
 
 err_free:
-
 	vc4_free_hang_state(dev, kernel_state);
+	kfree(bo_state);
 
-err:
 	return ret;
 }
 

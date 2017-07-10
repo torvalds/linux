@@ -874,6 +874,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 static void vop_crtc_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	u16 hsync_len = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
@@ -966,6 +967,13 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		DRM_DEV_ERROR(vop->dev, "unsupported connector_type [%d]\n",
 			      s->output_type);
 	}
+
+	/*
+	 * if vop is not support RGB10 output, need force RGB10 to RGB888.
+	 */
+	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
+	    !(vop_data->feature & VOP_FEATURE_OUTPUT_RGB10))
+		s->output_mode = ROCKCHIP_OUT_MODE_P888;
 	VOP_CTRL_SET(vop, out_mode, s->output_mode);
 
 	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
@@ -1118,16 +1126,17 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 #ifdef CONFIG_DRM_ANALOGIX_DP
 static struct drm_connector *vop_get_edp_connector(struct vop *vop)
 {
-	struct drm_crtc *crtc = &vop->crtc;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
-	mutex_lock(&crtc->dev->mode_config.mutex);
-	drm_for_each_connector(connector, crtc->dev)
+	drm_connector_list_iter_begin(vop->drm_dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-			mutex_unlock(&crtc->dev->mode_config.mutex);
+			drm_connector_list_iter_end(&conn_iter);
 			return connector;
 		}
-	mutex_unlock(&crtc->dev->mode_config.mutex);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	return NULL;
 }

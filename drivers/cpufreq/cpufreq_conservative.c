@@ -185,8 +185,8 @@ static ssize_t store_down_threshold(struct gov_attr_set *attr_set,
 	int ret;
 	ret = sscanf(buf, "%u", &input);
 
-	/* cannot be lower than 11 otherwise freq will not fall */
-	if (ret != 1 || input < 11 || input > 100 ||
+	/* cannot be lower than 1 otherwise freq will not fall */
+	if (ret != 1 || input < 1 || input > 100 ||
 			input >= dbs_data->up_threshold)
 		return -EINVAL;
 

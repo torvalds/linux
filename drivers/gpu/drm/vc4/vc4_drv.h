@@ -148,6 +148,8 @@ struct vc4_bo {
 	 */
 	uint64_t write_seqno;
 
+	bool t_format;
+
 	/* List entry for the BO's position in either
 	 * vc4_exec_info->unref_list or vc4_dev->bo_cache.time_list
 	 */
@@ -470,6 +472,10 @@ int vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv);
 int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
+int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -532,7 +538,7 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 extern struct platform_driver vc4_hdmi_driver;
 int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
 
-/* vc4_hdmi.c */
+/* vc4_vec.c */
 extern struct platform_driver vc4_vec_driver;
 int vc4_vec_debugfs_regs(struct seq_file *m, void *unused);
 

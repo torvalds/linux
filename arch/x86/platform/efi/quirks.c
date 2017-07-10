@@ -360,6 +360,9 @@ void __init efi_free_boot_services(void)
 		free_bootmem_late(start, size);
 	}
 
+	if (!num_entries)
+		return;
+
 	new_size = efi.memmap.desc_size * num_entries;
 	new_phys = efi_memmap_alloc(num_entries);
 	if (!new_phys) {
