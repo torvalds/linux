@@ -972,7 +972,9 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	dc_resource_validate_ctx_copy_construct(context, core_dc->current_context);
+	dc_resource_validate_ctx_destruct(core_dc->current_context);
+	dm_free(core_dc->current_context);
+	core_dc->current_context = context;
 
 	return (result == DC_OK);
 }
@@ -1056,9 +1058,6 @@ bool dc_commit_streams(
 	}
 
 	result = dc_commit_context_no_check(dc, context);
-
-	dc_resource_validate_ctx_destruct(context);
-	dm_free(context);
 
 	return (result == DC_OK);
 
