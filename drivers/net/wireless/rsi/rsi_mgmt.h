@@ -294,6 +294,18 @@ struct rsi_aggr_params {
 	u8 peer_id;
 } __packed;
 
+struct rsi_bb_rf_prog {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	__le16 reserved1;
+	u8 rf_power_mode;
+	u8 reserved2;
+	u8 endpoint;
+	u8 reserved3;
+	__le16 reserved4;
+	__le16 reserved5;
+	__le16 flags;
+} __packed;
+
 struct rsi_vap_caps {
 	__le16 desc_word[8];
 	u8 mac_addr[6];
