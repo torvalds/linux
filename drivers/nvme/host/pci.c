@@ -35,7 +35,6 @@
 
 #include "nvme.h"
 
-#define NVME_Q_DEPTH		1024
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 
@@ -56,6 +55,16 @@ static unsigned int max_host_mem_size_mb = 128;
 module_param(max_host_mem_size_mb, uint, 0444);
 MODULE_PARM_DESC(max_host_mem_size_mb,
 	"Maximum Host Memory Buffer (HMB) size per controller (in MiB)");
+
+static int io_queue_depth_set(const char *val, const struct kernel_param *kp);
+static const struct kernel_param_ops io_queue_depth_ops = {
+	.set = io_queue_depth_set,
+	.get = param_get_int,
+};
+
+static int io_queue_depth = 1024;
+module_param_cb(io_queue_depth, &io_queue_depth_ops, &io_queue_depth, 0644);
+MODULE_PARM_DESC(io_queue_depth, "set io queue depth, should >= 2");
 
 struct nvme_dev;
 struct nvme_queue;
@@ -103,6 +112,17 @@ struct nvme_dev {
 	struct nvme_host_mem_buf_desc *host_mem_descs;
 	void **host_mem_desc_bufs;
 };
+
+static int io_queue_depth_set(const char *val, const struct kernel_param *kp)
+{
+	int n = 0, ret;
+
+	ret = kstrtoint(val, 10, &n);
+	if (ret != 0 || n < 2)
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
 
 static inline unsigned int sq_idx(unsigned int qid, u32 stride)
 {
@@ -1893,7 +1913,7 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	dev->ctrl.cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
 
 	dev->q_depth = min_t(int, NVME_CAP_MQES(dev->ctrl.cap) + 1,
-				NVME_Q_DEPTH);
+				io_queue_depth);
 	dev->db_stride = 1 << NVME_CAP_STRIDE(dev->ctrl.cap);
 	dev->dbs = dev->bar + 4096;
 
