@@ -222,34 +222,6 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
 	if (reload) {
-		/*
-		 * Validate the incoming table signature.
-		 *
-		 * 1) Originally, we checked the table signature for "SSDT" or "PSDT".
-		 * 2) We added support for OEMx tables, signature "OEM".
-		 * 3) Valid tables were encountered with a null signature, so we just
-		 *    gave up on validating the signature, (05/2008).
-		 * 4) We encountered non-AML tables such as the MADT, which caused
-		 *    interpreter errors and kernel faults. So now, we once again allow
-		 *    only "SSDT", "OEMx", and now, also a null signature. (05/2011).
-		 */
-		if ((new_table_desc.signature.ascii[0] != 0x00) &&
-		    (!ACPI_COMPARE_NAME
-		     (&new_table_desc.signature, ACPI_SIG_SSDT))
-		    && (strncmp(new_table_desc.signature.ascii, "OEM", 3))) {
-			ACPI_BIOS_ERROR((AE_INFO,
-					 "Table has invalid signature [%4.4s] (0x%8.8X), "
-					 "must be SSDT or OEMx",
-					 acpi_ut_valid_nameseg(new_table_desc.
-							       signature.
-							       ascii) ?
-					 new_table_desc.signature.
-					 ascii : "????",
-					 new_table_desc.signature.integer));
-
-			status = AE_BAD_SIGNATURE;
-			goto unlock_and_exit;
-		}
 
 		/* Check if table is already registered */
 
