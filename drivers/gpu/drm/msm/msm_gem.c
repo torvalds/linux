@@ -383,8 +383,10 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 		struct page **pages;
 
 		vma = add_vma(obj, aspace);
-		if (IS_ERR(vma))
-			return PTR_ERR(vma);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
+			goto unlock;
+		}
 
 		pages = get_pages(obj);
 		if (IS_ERR(pages)) {
@@ -405,7 +407,7 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 
 fail:
 	del_vma(vma);
-
+unlock:
 	mutex_unlock(&msm_obj->lock);
 	return ret;
 }
