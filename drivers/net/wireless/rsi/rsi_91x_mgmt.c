@@ -528,10 +528,11 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 				      u8 event)
 {
 	struct sk_buff *skb = NULL;
-	struct rsi_mac_frame *mgmt_frame;
+	struct rsi_aggr_params *aggr_params;
 	u8 peer_id = 0;
+	u16 frame_len = sizeof(struct rsi_aggr_params);
 
-	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	skb = dev_alloc_skb(frame_len);
 
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
@@ -539,37 +540,29 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 		return -ENOMEM;
 	}
 
-	memset(skb->data, 0, FRAME_DESC_SZ);
-	mgmt_frame = (struct rsi_mac_frame *)skb->data;
+	memset(skb->data, 0, frame_len);
+	aggr_params = (struct rsi_aggr_params *)skb->data;
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending AMPDU indication frame\n", __func__);
 
-	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
-	mgmt_frame->desc_word[1] = cpu_to_le16(AMPDU_IND);
+	rsi_set_len_qno(&aggr_params->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	aggr_params->desc_dword0.frame_type = AMPDU_IND;
 
+	aggr_params->aggr_params = tid & RSI_AGGR_PARAMS_TID_MASK;
+	aggr_params->peer_id = peer_id;
 	if (event == STA_TX_ADDBA_DONE) {
-		mgmt_frame->desc_word[4] = cpu_to_le16(ssn);
-		mgmt_frame->desc_word[5] = cpu_to_le16(buf_size);
-		mgmt_frame->desc_word[7] =
-		cpu_to_le16((tid | (START_AMPDU_AGGR << 4) | (peer_id << 8)));
+		aggr_params->seq_start = cpu_to_le16(ssn);
+		aggr_params->baw_size = cpu_to_le16(buf_size);
+		aggr_params->aggr_params |= RSI_AGGR_PARAMS_START;
 	} else if (event == STA_RX_ADDBA_DONE) {
-		mgmt_frame->desc_word[4] = cpu_to_le16(ssn);
-		mgmt_frame->desc_word[7] = cpu_to_le16(tid |
-						       (START_AMPDU_AGGR << 4) |
-						       (RX_BA_INDICATION << 5) |
-						       (peer_id << 8));
-	} else if (event == STA_TX_DELBA) {
-		mgmt_frame->desc_word[7] = cpu_to_le16(tid |
-						       (STOP_AMPDU_AGGR << 4) |
-						       (peer_id << 8));
+		aggr_params->seq_start = cpu_to_le16(ssn);
+		aggr_params->aggr_params |= (RSI_AGGR_PARAMS_START |
+					     RSI_AGGR_PARAMS_RX_AGGR);
 	} else if (event == STA_RX_DELBA) {
-		mgmt_frame->desc_word[7] = cpu_to_le16(tid |
-						       (STOP_AMPDU_AGGR << 4) |
-						       (RX_BA_INDICATION << 5) |
-						       (peer_id << 8));
+		aggr_params->aggr_params |= RSI_AGGR_PARAMS_RX_AGGR;
 	}
 
-	skb_put(skb, FRAME_DESC_SZ);
+	skb_put(skb, frame_len);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
 }

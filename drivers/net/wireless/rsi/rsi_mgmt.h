@@ -280,6 +280,20 @@ struct rsi_peer_notify {
 	__le32 sta_flags;
 } __packed;
 
+/* Aggregation params flags */
+#define RSI_AGGR_PARAMS_TID_MASK	0xf
+#define RSI_AGGR_PARAMS_START		BIT(4)
+#define RSI_AGGR_PARAMS_RX_AGGR		BIT(5)
+struct rsi_aggr_params {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword0 desc_dword1;
+	__le16 seq_start;
+	__le16 baw_size;
+	__le16 token;
+	u8 aggr_params;
+	u8 peer_id;
+} __packed;
+
 struct rsi_vap_caps {
 	__le16 desc_word[8];
 	u8 mac_addr[6];
