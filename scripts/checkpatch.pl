@@ -4940,17 +4940,17 @@ sub process {
 			foreach my $arg (@def_args) {
 			        next if ($arg =~ /\.\.\./);
 			        next if ($arg =~ /^type$/i);
-				my $tmp = $define_stmt;
-				$tmp =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\s*$arg\s*\)*\b//g;
-				$tmp =~ s/\#+\s*$arg\b//g;
-				$tmp =~ s/\b$arg\s*\#\#//g;
-				my $use_cnt = $tmp =~ s/\b$arg\b//g;
+				my $tmp_stmt = $define_stmt;
+				$tmp_stmt =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\s*$arg\s*\)*\b//g;
+				$tmp_stmt =~ s/\#+\s*$arg\b//g;
+				$tmp_stmt =~ s/\b$arg\s*\#\#//g;
+				my $use_cnt = $tmp_stmt =~ s/\b$arg\b//g;
 				if ($use_cnt > 1) {
 					CHK("MACRO_ARG_REUSE",
 					    "Macro argument reuse '$arg' - possible side-effects?\n" . "$herectx");
 				    }
 # check if any macro arguments may have other precedence issues
-				if ($define_stmt =~ m/($Operators)?\s*\b$arg\b\s*($Operators)?/m &&
+				if ($tmp_stmt =~ m/($Operators)?\s*\b$arg\b\s*($Operators)?/m &&
 				    ((defined($1) && $1 ne ',') ||
 				     (defined($2) && $2 ne ','))) {
 					CHK("MACRO_ARG_PRECEDENCE",
