@@ -1789,6 +1789,12 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->has_audio && INTEL_GEN(dev_priv) >= 9)
 		min_cdclk = max(2 * 96000, min_cdclk);
 
+	if (min_cdclk > dev_priv->max_cdclk_freq) {
+		DRM_DEBUG_KMS("required cdclk (%d kHz) exceeds max (%d kHz)\n",
+			      min_cdclk, dev_priv->max_cdclk_freq);
+		return -EINVAL;
+	}
+
 	return min_cdclk;
 }
 
@@ -1798,16 +1804,21 @@ static int intel_compute_min_cdclk(struct drm_atomic_state *state)
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
-	int min_cdclk = 0, i;
+	int min_cdclk, i;
 	enum pipe pipe;
 
 	memcpy(intel_state->min_cdclk, dev_priv->min_cdclk,
 	       sizeof(intel_state->min_cdclk));
 
-	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i)
-		intel_state->min_cdclk[i] =
-			intel_crtc_compute_min_cdclk(crtc_state);
+	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+		min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
+		if (min_cdclk < 0)
+			return min_cdclk;
 
+		intel_state->min_cdclk[i] = min_cdclk;
+	}
+
+	min_cdclk = 0;
 	for_each_pipe(dev_priv, pipe)
 		min_cdclk = max(intel_state->min_cdclk[pipe], min_cdclk);
 
@@ -1817,18 +1828,14 @@ static int intel_compute_min_cdclk(struct drm_atomic_state *state)
 static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	int min_cdclk = intel_compute_min_cdclk(state);
-	struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(state);
-	int cdclk;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	int min_cdclk, cdclk;
+
+	min_cdclk = intel_compute_min_cdclk(state);
+	if (min_cdclk < 0)
+		return min_cdclk;
 
 	cdclk = vlv_calc_cdclk(dev_priv, min_cdclk);
-
-	if (cdclk > dev_priv->max_cdclk_freq) {
-		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
-			      cdclk, dev_priv->max_cdclk_freq);
-		return -EINVAL;
-	}
 
 	intel_state->cdclk.logical.cdclk = cdclk;
 
@@ -1846,22 +1853,18 @@ static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	int min_cdclk = intel_compute_min_cdclk(state);
-	int cdclk;
+	int min_cdclk, cdclk;
+
+	min_cdclk = intel_compute_min_cdclk(state);
+	if (min_cdclk < 0)
+		return min_cdclk;
 
 	/*
 	 * FIXME should also account for plane ratio
 	 * once 64bpp pixel formats are supported.
 	 */
 	cdclk = bdw_calc_cdclk(min_cdclk);
-
-	if (cdclk > dev_priv->max_cdclk_freq) {
-		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
-			      cdclk, dev_priv->max_cdclk_freq);
-		return -EINVAL;
-	}
 
 	intel_state->cdclk.logical.cdclk = cdclk;
 
@@ -1879,10 +1882,13 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	int min_cdclk = intel_compute_min_cdclk(state);
-	int cdclk, vco;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	int min_cdclk, cdclk, vco;
+
+	min_cdclk = intel_compute_min_cdclk(state);
+	if (min_cdclk < 0)
+		return min_cdclk;
 
 	vco = intel_state->cdclk.logical.vco;
 	if (!vco)
@@ -1893,12 +1899,6 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	 * once 64bpp pixel formats are supported.
 	 */
 	cdclk = skl_calc_cdclk(min_cdclk, vco);
-
-	if (cdclk > dev_priv->max_cdclk_freq) {
-		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
-			      cdclk, dev_priv->max_cdclk_freq);
-		return -EINVAL;
-	}
 
 	intel_state->cdclk.logical.vco = vco;
 	intel_state->cdclk.logical.cdclk = cdclk;
@@ -1919,10 +1919,12 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	int min_cdclk = intel_compute_min_cdclk(state);
-	struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(state);
-	int cdclk, vco;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	int min_cdclk, cdclk, vco;
+
+	min_cdclk = intel_compute_min_cdclk(state);
+	if (min_cdclk < 0)
+		return min_cdclk;
 
 	if (IS_GEMINILAKE(dev_priv)) {
 		cdclk = glk_calc_cdclk(min_cdclk);
@@ -1930,12 +1932,6 @@ static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 	} else {
 		cdclk = bxt_calc_cdclk(min_cdclk);
 		vco = bxt_de_pll_vco(dev_priv, cdclk);
-	}
-
-	if (cdclk > dev_priv->max_cdclk_freq) {
-		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
-			      cdclk, dev_priv->max_cdclk_freq);
-		return -EINVAL;
 	}
 
 	intel_state->cdclk.logical.vco = vco;
@@ -1963,19 +1959,15 @@ static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 static int cnl_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_atomic_state *intel_state =
-		to_intel_atomic_state(state);
-	int min_cdclk = intel_compute_min_cdclk(state);
-	int cdclk, vco;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	int min_cdclk, cdclk, vco;
+
+	min_cdclk = intel_compute_min_cdclk(state);
+	if (min_cdclk < 0)
+		return min_cdclk;
 
 	cdclk = cnl_calc_cdclk(min_cdclk);
 	vco = cnl_cdclk_pll_vco(dev_priv, cdclk);
-
-	if (cdclk > dev_priv->max_cdclk_freq) {
-		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
-			      cdclk, dev_priv->max_cdclk_freq);
-		return -EINVAL;
-	}
 
 	intel_state->cdclk.logical.vco = vco;
 	intel_state->cdclk.logical.cdclk = cdclk;
