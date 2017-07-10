@@ -9716,7 +9716,7 @@ S:	Maintained
 F:	drivers/media/i2c/ov5640.c
 
 OMNIVISION OV5647 SENSOR DRIVER
-M:	Ramiro Oliveira <roliveir@synopsys.com>
+M:	Luis Oliveira <lolivei@synopsys.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
