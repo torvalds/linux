@@ -15,7 +15,8 @@
  */
 
 #include <linux/videodev2.h>
-#include <media/videobuf-dma-contig.h>
+#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 #include "cif_isp10_regs.h"
 #include "cif_isp10.h"
 #include <linux/pm_runtime.h>
@@ -157,6 +158,7 @@ static const unsigned char uvq_table_base_zigzag[] = {
 
 static struct cif_isp10_fmt cif_isp10_output_format[] = {
 /* ************* YUV422 ************* */
+// index 0
 {
 	.name		= "YUV422-Interleaved",
 	.fourcc	= V4L2_PIX_FMT_YUYV,
@@ -165,6 +167,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 1
 {
 	.name		= "YUV422-Interleaved",
 	.fourcc	= V4L2_PIX_FMT_YUYV,
@@ -173,6 +176,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 2
 {
 	.name		= "YVU422-Interleaved",
 	.fourcc	= V4L2_PIX_FMT_UYVY,
@@ -181,6 +185,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 3
 {
 	.name		= "YUV422-Planar",
 	.fourcc	= V4L2_PIX_FMT_YUV422P,
@@ -189,6 +194,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 4
 {
 	.name		= "YUV422-Semi-Planar",
 	.fourcc	= V4L2_PIX_FMT_NV16,
@@ -198,6 +204,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.overlay = false,
 },
 /* ************* YUV420 ************* */
+// index 5
 {
 	.name		= "YUV420-Planar",
 	.fourcc	= V4L2_PIX_FMT_YUV420,
@@ -206,6 +213,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 6
 {
 	.name		= "YUV420-Planar",
 	.fourcc	= V4L2_PIX_FMT_YUV420,
@@ -214,6 +222,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 7
 {
 	.name		= "YVU420-Planar",
 	.fourcc	= V4L2_PIX_FMT_YVU420,
@@ -222,6 +231,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 8
 {
 	.name		= "YUV420-Semi-Planar",
 	.fourcc	= V4L2_PIX_FMT_NV12,
@@ -230,6 +240,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 9
 {
 	.name		= "YVU420-Semi-Planar",
 	.fourcc	= V4L2_PIX_FMT_NV21,
@@ -239,6 +250,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.overlay = false,
 },
 /* ************* YUV400 ************* */
+// index 10
 {
 	.name		= "YVU400-Grey-Planar",
 	.fourcc	= V4L2_PIX_FMT_GREY,
@@ -248,6 +260,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.overlay = false,
 },
 /* ************* YUV444 ************* */
+// index 11
 {
 	.name		= "YVU444-Planar",
 	.fourcc	= V4L2_PIX_FMT_YUV444,
@@ -256,6 +269,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.rotation = false,
 	.overlay = false,
 },
+// index 12
 {
 	.name		= "YVU444-Semi-Planar",
 	.fourcc	= V4L2_PIX_FMT_NV24,
@@ -265,6 +279,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.overlay = false,
 },
 /* ************* JPEG ************* */
+// index 13
 {
 	.name		= "JPEG",
 	.fourcc	= V4L2_PIX_FMT_JPEG,
@@ -274,6 +289,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.overlay = false,
 },
 /* ************ RGB565 *********** */
+// index 14
 {
 	.name       = "RGB565",
 	.fourcc = V4L2_PIX_FMT_RGB565,
@@ -283,6 +299,7 @@ static struct cif_isp10_fmt cif_isp10_output_format[] = {
 	.overlay = false,
 },
 /* ************ SGRBG8 *********** */
+// index 15
 {
 	.name       = "SGRBG8",
 	.fourcc = V4L2_PIX_FMT_SGRBG8,
@@ -1134,6 +1151,7 @@ static int cif_isp10_img_src_select_strm_fmt(
 			img_src_width = strm_fmt_desc.min_frmsize.width;
 			img_src_height = strm_fmt_desc.min_frmsize.height;
 		}
+
 		if ((img_src_width >= target_width) &&
 			(img_src_height >= target_height)) {
 			u32 diff = abs(
@@ -1192,6 +1210,23 @@ static int cif_isp10_img_src_select_strm_fmt(
 				best_diff = diff;
 				matching_format_found = true;
 			}
+		// FIXME::GST set fomat(any@32768x32768) failed, force pass
+		} else {
+			request_strm_fmt.frm_fmt.width =
+				strm_fmt_desc.min_frmsize.width;
+			request_strm_fmt.frm_fmt.height =
+				strm_fmt_desc.min_frmsize.height;
+			request_strm_fmt.frm_fmt.std_id =
+				strm_fmt_desc.std_id;
+			request_strm_fmt.frm_fmt.pix_fmt =
+				strm_fmt_desc.pix_fmt;
+			request_strm_fmt.frm_intrvl.numerator =
+				strm_fmt_desc.min_intrvl.numerator;
+			request_strm_fmt.frm_intrvl.denominator =
+				strm_fmt_desc.min_intrvl.denominator;
+			request_strm_fmt.frm_fmt.defrect =
+				strm_fmt_desc.defrect;
+			matching_format_found = true;
 		}
 	}
 
@@ -1913,7 +1948,6 @@ static int cif_isp10_config_mipi(
 	mipi_ctrl =
 		CIF_MIPI_CTRL_NUM_LANES(
 			dev->config.cam_itf.cfg.mipi.nb_lanes - 1) |
-		CIF_MIPI_CTRL_ERR_SOT_HS_ENA |
 		CIF_MIPI_CTRL_ERR_SOT_SYNC_HS_SKIP |
 		CIF_MIPI_CTRL_SHUTDOWNLANES(shutdown_lanes) |
 		CIF_MIPI_CTRL_ERR_SOT_SYNC_HS_ENA |
@@ -2585,8 +2619,9 @@ static int cif_isp10_config_jpeg_enc(
 		break;
 	default:
 		cif_isp10_pltfrm_pr_err(NULL,
-			"format %s not supported as input for JPEG encoder\n",
-			cif_isp10_pix_fmt_string(inp_fmt->pix_fmt));
+			"format %s (%.8x) not supported as input for JPEG encoder\n",
+			cif_isp10_pix_fmt_string(inp_fmt->pix_fmt),
+			inp_fmt->pix_fmt);
 		WARN_ON(1);
 		break;
 	}
@@ -3247,7 +3282,7 @@ static int cif_isp10_config_cif(
 
 		cif_id = cif_ioread32(dev->config.base_addr + CIF_VI_ID);
 		dev->config.out_of_buffer_stall =
-				CIF_ISP10_ALWAYS_STALL_ON_NO_BUFS;
+				CIF_ISP10_ALWAYS_STALL_ON_NO_BUFS ? 1 : 0;
 
 		cif_isp10_pltfrm_pr_dbg(dev->dev,
 			"CIF_ID 0x%08x\n", cif_id);
@@ -3377,6 +3412,13 @@ static void cif_isp10_init_stream(
 	enum cif_isp10_stream_id stream_id)
 {
 	struct cif_isp10_stream *stream = NULL;
+	struct cif_isp10_frm_fmt frm_fmt;
+
+	frm_fmt.pix_fmt = CIF_YUV422I;
+	frm_fmt.width = dev->config.img_src_output.frm_fmt.width;
+	frm_fmt.height = dev->config.img_src_output.frm_fmt.height;
+	frm_fmt.stride = dev->config.img_src_output.frm_fmt.stride;
+	frm_fmt.quantization = 0;
 
 	switch (stream_id) {
 	case CIF_ISP10_STREAM_SP:
@@ -3384,6 +3426,16 @@ static void cif_isp10_init_stream(
 		dev->config.sp_config.rsz_config.ycflt_adjust = false;
 		dev->config.sp_config.rsz_config.ism_adjust = false;
 		dev->config.mi_config.sp.busy = false;
+
+		// init default formats
+		dev->config.mi_config.sp.output = frm_fmt;
+		dev->config.mi_config.sp.llength =
+			cif_isp10_calc_llength(
+			frm_fmt.width,
+			frm_fmt.stride,
+			frm_fmt.pix_fmt);
+
+		dev->sp_stream.updt_cfg = true;
 		break;
 	case CIF_ISP10_STREAM_MP:
 		stream = &dev->mp_stream;
@@ -3395,10 +3447,23 @@ static void cif_isp10_init_stream(
 		dev->config.mp_config.rsz_config.ycflt_adjust = false;
 		dev->config.mp_config.rsz_config.ism_adjust = false;
 		dev->config.mi_config.mp.busy = false;
+
+		// init default formats
+		dev->config.mi_config.mp.output = frm_fmt;
+		dev->config.mi_config.mp.output.stride = frm_fmt.stride;
+
+		dev->config.mi_config.mp.llength =
+			cif_isp10_calc_llength(
+				frm_fmt.width,
+				frm_fmt.stride,
+				frm_fmt.pix_fmt);
+
+		dev->mp_stream.updt_cfg = true;
 		break;
 	case CIF_ISP10_STREAM_DMA:
 		stream = &dev->dma_stream;
 		dev->config.mi_config.dma.busy = false;
+		dev->dma_stream.updt_cfg = false;
 		break;
 	default:
 		cif_isp10_pltfrm_pr_err(NULL,
@@ -3410,12 +3475,17 @@ static void cif_isp10_init_stream(
 	INIT_LIST_HEAD(&stream->buf_queue);
 	stream->next_buf = NULL;
 	stream->curr_buf = NULL;
-	stream->updt_cfg = false;
 	stream->stop = false;
 	stream->stall = false;
 
 	cif_isp10_pltfrm_event_clear(dev->dev, &stream->done);
-	stream->state = CIF_ISP10_STATE_INACTIVE;
+
+	if (stream->updt_cfg) {
+		stream->state = CIF_ISP10_STATE_READY;
+		cif_isp10_img_src_select_strm_fmt(dev);
+	} else {
+		stream->state = CIF_ISP10_STATE_INACTIVE;
+	}
 }
 
 static int cif_isp10_jpeg_gen_header(
@@ -3900,6 +3970,10 @@ err:
 static void cif_isp10_dma_next_buff(
 	struct cif_isp10_device *dev)
 {
+#ifdef CIF_ISP10_MODE_DMA_SG
+	struct sg_table *sgt = NULL;
+#endif
+
 	cif_isp10_pltfrm_pr_dbg(NULL, "\n");
 
 	if (!list_empty(&dev->dma_stream.buf_queue) &&
@@ -3908,12 +3982,21 @@ static void cif_isp10_dma_next_buff(
 			WARN_ON(1);
 		dev->dma_stream.curr_buf =
 			list_first_entry(&dev->dma_stream.buf_queue,
-				struct videobuf_buffer, queue);
+				struct cif_isp10_buffer, queue);
 		list_del(&dev->dma_stream.curr_buf->queue);
-		dev->dma_stream.curr_buf->state = VIDEOBUF_ACTIVE;
+
+#ifdef CIF_ISP10_MODE_DMA_CONTIG
 		dev->config.mi_config.dma.next_buff_addr =
-			videobuf_to_dma_contig(
-				dev->dma_stream.curr_buf);
+			vb2_dma_contig_plane_dma_addr(
+				&dev->dma_stream.curr_buf->vb.vb2_buf, 0);
+#endif
+
+#ifdef CIF_ISP10_MODE_DMA_SG
+		sgt = vb2_dma_sg_plane_desc(
+				&dev->dma_stream.curr_buf->vb.vb2_buf, 0);
+		dev->config.mi_config.dma.next_buff_addr =
+			sg_dma_address(sgt->sgl);
+#endif
 		cif_isp10_mi_update_buff_addr(dev,
 			CIF_ISP10_STREAM_DMA);
 		dev->config.mi_config.dma.busy = true;
@@ -3955,8 +4038,7 @@ static void cif_isp10_dma_ready(
 		cif_isp10_pltfrm_pr_err(dev->dev,
 					"dma icr err: 0x%x\n",
 					mi_mis_tmp);
-	dev->dma_stream.curr_buf->state = VIDEOBUF_DONE;
-	wake_up(&dev->dma_stream.curr_buf->done);
+	wake_up(&dev->dma_stream.curr_buf->vb.vb2_buf.vb2_queue->done_wq);
 	dev->dma_stream.curr_buf = NULL;
 	dev->config.mi_config.dma.busy = false;
 	cif_isp10_pltfrm_event_signal(dev->dev, &dev->dma_stream.done);
@@ -3967,7 +4049,17 @@ static int cif_isp10_mi_frame_end(
 	enum cif_isp10_stream_id stream_id)
 {
 	struct cif_isp10_stream *stream = NULL;
+	u32 cur_buff_addr = -1;
 	u32 *next_buff_addr = NULL;
+	struct vb2_buffer *vb2_buf;
+	dma_addr_t tmp_addr;
+#ifdef CIF_ISP10_MODE_DMA_SG
+	struct sg_table *sgt = NULL;
+	struct scatterlist *sg;
+	dma_addr_t tmp_phy_addr;
+	int i;
+#endif
+
 	CIF_ISP10_PLTFRM_MEM_IO_ADDR y_base_addr;
 	int (*update_mi)(
 		struct cif_isp10_device *dev);
@@ -4034,19 +4126,28 @@ static int cif_isp10_mi_frame_end(
 		!(dev->config.jpeg_config.enable &&
 		(stream_id == CIF_ISP10_STREAM_MP))) {
 		stream->stall = dev->config.out_of_buffer_stall;
-	} else if ((stream->next_buf) &&
-		(videobuf_to_dma_contig(stream->next_buf) !=
-			cif_ioread32(y_base_addr))) {
-		cif_isp10_pltfrm_pr_warn(dev->dev,
-			"%s buffer queue is not advancing (0x%08x/0x%08x)\n",
-			cif_isp10_stream_id_string(stream_id),
-			(stream_id & CIF_ISP10_STREAM_MP) ?
-				cif_ioread32(dev->config.base_addr +
-				CIF_MI_MP_Y_BASE_AD_INIT) :
-				cif_ioread32(dev->config.base_addr +
-				CIF_MI_SP_Y_BASE_AD_INIT),
-			cif_ioread32(y_base_addr));
-		stream->stall = true;
+	} else if ((stream->next_buf)) {
+#ifdef CIF_ISP10_MODE_DMA_CONTIG
+		tmp_addr = vb2_dma_contig_plane_dma_addr(
+			&stream->next_buf->vb.vb2_buf, 0);
+#endif
+#ifdef CIF_ISP10_MODE_DMA_SG
+		sgt = vb2_dma_sg_plane_desc(
+			&stream->next_buf->vb.vb2_buf, 0);
+		tmp_addr = sg_dma_address(sgt->sgl);
+#endif
+		if (tmp_addr != cif_ioread32(y_base_addr)) {
+			cif_isp10_pltfrm_pr_warn(dev->dev,
+				"%s buffer queue is not advancing (0x%08x/0x%08x)\n",
+				cif_isp10_stream_id_string(stream_id),
+				(stream_id & CIF_ISP10_STREAM_MP) ?
+					cif_ioread32(dev->config.base_addr +
+					CIF_MI_MP_Y_BASE_AD_INIT) :
+					cif_ioread32(dev->config.base_addr +
+					CIF_MI_SP_Y_BASE_AD_INIT),
+				cif_ioread32(y_base_addr));
+			stream->stall = true;
+		}
 	}
 
 	if (!stream->stall) {
@@ -4060,8 +4161,8 @@ static int cif_isp10_mi_frame_end(
 			(stream->next_buf)) {
 			bool wake_now;
 
-			stream->curr_buf->field_count = dev->isp_dev.frame_id;
-			stream->curr_buf->state = VIDEOBUF_DONE;
+			vb2_buf = &stream->curr_buf->vb.vb2_buf;
+			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
 			wake_now = false;
 
 			if (stream->metadata.d && dev->isp_dev.streamon) {
@@ -4069,7 +4170,7 @@ static int cif_isp10_mi_frame_end(
 
 				metadata = (struct v4l2_buffer_metadata_s *)
 					(stream->metadata.d +
-					stream->curr_buf->i *
+					stream->curr_buf->vb.vb2_buf.index *
 					CAMERA_METADATA_LEN);
 				metadata->frame_id = dev->isp_dev.frame_id;
 				metadata->frame_t.vs_t = dev->isp_dev.vs_t;
@@ -4089,7 +4190,8 @@ static int cif_isp10_mi_frame_end(
 						&dev->isp_dev;
 					work->frame_id =
 						dev->isp_dev.frame_id;
-					work->vb = stream->curr_buf;
+					work->vb =
+						&stream->curr_buf->vb.vb2_buf;
 					work->stream_id = stream->id;
 					if (!queue_work(dev->isp_dev.readout_wq,
 						(struct work_struct *)work)) {
@@ -4111,7 +4213,8 @@ static int cif_isp10_mi_frame_end(
 			if (wake_now) {
 				cif_isp10_pltfrm_pr_dbg(NULL,
 					"frame done\n");
-				wake_up(&stream->curr_buf->done);
+				vb2_buf = &stream->curr_buf->vb.vb2_buf;
+				wake_up(&vb2_buf->vb2_queue->done_wq);
 			}
 			stream->curr_buf = NULL;
 		}
@@ -4132,41 +4235,82 @@ static int cif_isp10_mi_frame_end(
 		if (!list_empty(&stream->buf_queue)) {
 			stream->next_buf =
 				list_first_entry(&stream->buf_queue,
-					struct videobuf_buffer, queue);
+					struct cif_isp10_buffer, queue);
 			list_del(&stream->next_buf->queue);
-			stream->next_buf->state = VIDEOBUF_ACTIVE;
-			*next_buff_addr = videobuf_to_dma_contig(
-				stream->next_buf);
+#ifdef CIF_ISP10_MODE_DMA_CONTIG
+			*next_buff_addr = vb2_dma_contig_plane_dma_addr(
+				&stream->next_buf->vb.vb2_buf, 0);
+#endif
+#ifdef CIF_ISP10_MODE_DMA_SG
+			sgt = vb2_dma_sg_plane_desc(
+				&stream->next_buf->vb.vb2_buf, 0);
+			*next_buff_addr = sg_dma_address(sgt->sgl);
+#endif
 		} else if (
-		!dev->config.out_of_buffer_stall ||
+		(!dev->config.out_of_buffer_stall ||
 		(dev->config.jpeg_config.enable &&
-		(stream_id == CIF_ISP10_STREAM_MP))) {
-/*
- * If mi restart after switch off for buffer is empty,
- * mi may be restart failed. So mi write data to last
- * buffer, the last buffer isn't been release to user
- * until new buffer queue;
- *
- * if
- * *next_buff_addr = CIF_ISP10_INVALID_BUFF_ADDR;
- * mi will stop;
- */
+		(stream_id == CIF_ISP10_STREAM_MP))) &&
+		(stream->curr_buf)) {
+			/*
+			 * If mi restart after switch off for buffer is empty,
+			 * mi may be restart failed. So mi write data to last
+			 * buffer, the last buffer isn't been release to user
+			 * until new buffer queue;
+			 *
+			 * if
+			 * *next_buff_addr = CIF_ISP10_INVALID_BUFF_ADDR;
+			 * mi will stop;
+			 */
+			vb2_buf = &stream->curr_buf->vb.vb2_buf;
+#ifdef CIF_ISP10_MODE_DMA_CONTIG
 			*next_buff_addr =
-			videobuf_to_dma_contig(
-			stream->curr_buf);
+				vb2_dma_contig_plane_dma_addr(vb2_buf, 0);
+#endif
+#ifdef CIF_ISP10_MODE_DMA_SG
+			sgt = vb2_dma_sg_plane_desc(vb2_buf, 0);
+			*next_buff_addr = sg_dma_address(sgt->sgl);
+#endif
 		}
 	}
 	(void)update_mi(dev);
 
 	stream->stall = false;
 
+	if (stream->curr_buf) {
+		// TODO::current vb2 buffer is null
+		if (!stream->curr_buf->vb.vb2_buf.planes[0].mem_priv) {
+			cif_isp10_pltfrm_pr_err(dev->dev,
+				"error isp buffer is null\n");
+			return 0;
+		}
+
+#ifdef CIF_ISP10_MODE_DMA_CONTIG
+		cur_buff_addr = vb2_dma_contig_plane_dma_addr
+			(&stream->curr_buf->vb.vb2_buf, 0);
+
+#endif
+#ifdef CIF_ISP10_MODE_DMA_SG
+		sgt = vb2_dma_sg_plane_desc(&stream->curr_buf->vb.vb2_buf, 0);
+		cur_buff_addr = sg_dma_address(sgt->sgl);
+
+		cif_isp10_pltfrm_pr_dbg(dev->dev,
+			"current buffer scatter list: ");
+		for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+			tmp_addr = sg_dma_address(sg);
+			tmp_phy_addr = sg_phys(sg);
+			cif_isp10_pltfrm_pr_dbg(dev->dev,
+				"dma_addr: %pad  tmp_phy: %pad length: %.8x\n",
+				&tmp_addr, &tmp_phy_addr, (int)sg_dma_len(sg));
+		}
+#endif
+	}
+
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
 		"%s curr_buff: %d, 0x%08x next_buf: %d, 0x%x\n",
 		cif_isp10_stream_id_string(stream_id),
-		(stream->curr_buf) ? stream->curr_buf->i : -1,
-		(stream->curr_buf) ? (int)videobuf_to_dma_contig
-		(stream->curr_buf) : -1,
-		(stream->next_buf) ? stream->next_buf->i : -1,
+		(stream->curr_buf) ? stream->curr_buf->vb.vb2_buf.index : -1,
+		cur_buff_addr,
+		(stream->next_buf) ? stream->next_buf->vb.vb2_buf.index : -1,
 		*next_buff_addr);
 
 	return 0;
@@ -4547,7 +4691,7 @@ static int cif_isp10_start(
 	bool start_mp)
 {
 	unsigned int ret;
-	struct videobuf_buffer *vb, *n;
+	struct vb2_buffer *vb, *n;
 
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
 		"SP state = %s, MP state = %s, DMA state = %s, img_src state = %s, start_sp = %d, start_mp = %d\n",
@@ -4612,17 +4756,16 @@ static int cif_isp10_start(
 		/* start sensor output! */
 		dev->isp_dev.frame_id = 0;
 		dev->isp_dev.frame_id_setexp = 0;
-		videobuf_queue_lock(&dev->isp_dev.vbq_stat);
+
 		list_for_each_entry_safe(
-			vb, n, &dev->isp_dev.vbq_stat.stream, queue) {
-			if (vb->state == VIDEOBUF_DONE) {
-				vb->field_count = -1;
+			vb, n, &dev->isp_dev.stat, queued_entry) {
+			if (vb->state == VB2_BUF_STATE_DONE) {
 				cif_isp10_pltfrm_pr_info(
 					dev->dev,
-					"discard vb: %d\n", vb->i);
+					"discard vb: %d\n", vb->index);
 			}
 		}
-		videobuf_queue_unlock(&dev->isp_dev.vbq_stat);
+		// spin_unlock_irq(&dev->isp_dev.lock);
 
 		mutex_lock(&dev->img_src_exps.mutex);
 		cif_isp10_img_src_ioctl(dev->img_src,
@@ -5199,7 +5342,7 @@ int cif_isp10_streamoff(
 		(dev->sp_stream.state <= CIF_ISP10_STATE_INACTIVE)) {
 		dev->isp_dev.input_width = 0;
 		dev->isp_dev.input_height = 0;
-		dev->config.isp_config.ism_config.ism_en = 0;
+		dev->config.isp_config.ism_config.ism_en = false;
 	}
 
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
@@ -5302,11 +5445,14 @@ int cif_isp10_s_fmt(
 
 	switch (stream_id) {
 	case CIF_ISP10_STREAM_SP:
-		return cif_isp10_s_fmt_sp(dev, strm_fmt, stride);
+		ret = cif_isp10_s_fmt_sp(dev, strm_fmt, stride);
+		break;
 	case CIF_ISP10_STREAM_MP:
-		return cif_isp10_s_fmt_mp(dev, strm_fmt, stride);
+		ret = cif_isp10_s_fmt_mp(dev, strm_fmt, stride);
+		break;
 	case CIF_ISP10_STREAM_DMA:
-		return cif_isp10_s_fmt_dma(dev, strm_fmt, stride);
+		ret = cif_isp10_s_fmt_dma(dev, strm_fmt, stride);
+		break;
 	default:
 		cif_isp10_pltfrm_pr_err(NULL,
 			"unknown/unsupported stream ID %d\n", stream_id);
@@ -5314,7 +5460,7 @@ int cif_isp10_s_fmt(
 		goto err;
 	}
 
-	return 0;
+	return ret;
 err:
 	cif_isp10_pltfrm_pr_err(NULL,
 		"failed with error %d\n", ret);
@@ -5485,7 +5631,6 @@ struct cif_isp10_device *cif_isp10_create(
 	if (IS_ERR_VALUE(ret))
 		goto err;
 
-	(void)cif_isp10_init(dev, CIF_ISP10_ALL_STREAMS);
 	dev->pm_state = CIF_ISP10_PM_STATE_OFF;
 	dev->sp_stream.state = CIF_ISP10_STATE_DISABLED;
 	dev->sp_stream.id = CIF_ISP10_STREAM_SP;
@@ -5494,6 +5639,8 @@ struct cif_isp10_device *cif_isp10_create(
 	dev->dma_stream.state = CIF_ISP10_STATE_DISABLED;
 	dev->dma_stream.id = CIF_ISP10_STREAM_DMA;
 	dev->config.mi_config.async_updt = 0;
+
+	(void)cif_isp10_init(dev, CIF_ISP10_ALL_STREAMS);
 	cif_isp10_pltfrm_event_init(dev->dev, &dev->dma_stream.done);
 	cif_isp10_pltfrm_event_init(dev->dev, &dev->sp_stream.done);
 	cif_isp10_pltfrm_event_init(dev->dev, &dev->mp_stream.done);
@@ -5534,9 +5681,15 @@ int cif_isp10_s_input(
 	enum cif_isp10_inp inp;
 
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
-		"setting input to %s\n",
+		"setting input to %s, [w-h]=[%d-%d], defrect=[%d-%d-%d-%d]\n",
 		cif_isp10_inp_string(
-		cif_isp10_input_index2inp(dev, input)));
+		cif_isp10_input_index2inp(dev, input)),
+		dev->config.img_src_output.frm_fmt.width,
+		dev->config.img_src_output.frm_fmt.height,
+		dev->config.img_src_output.frm_fmt.defrect.left,
+		dev->config.img_src_output.frm_fmt.defrect.top,
+		dev->config.img_src_output.frm_fmt.defrect.width,
+		dev->config.img_src_output.frm_fmt.defrect.height);
 
 	if (input >= dev->img_src_cnt + CIF_ISP10_INP_DMA_CNT()) {
 		cif_isp10_pltfrm_pr_err(NULL,
@@ -5691,7 +5844,7 @@ int cif_isp10_s_isp_metadata(
 {
 	unsigned int stream_id =
 		readout_work->stream_id;
-	struct videobuf_buffer *vb =
+	struct vb2_buffer *vb =
 		readout_work->vb;
 	struct cif_isp10_stream *strm_dev = NULL;
 	struct v4l2_buffer_metadata_s *metadata;
@@ -5713,7 +5866,7 @@ int cif_isp10_s_isp_metadata(
 	if (vb && strm_dev->metadata.d) {
 		metadata = (struct v4l2_buffer_metadata_s *)
 			(strm_dev->metadata.d +
-			vb->i * CAMERA_METADATA_LEN);
+			vb->index * CAMERA_METADATA_LEN);
 
 		metadata->frame_id = readout_work->frame_id;
 		isp_last =
@@ -5755,7 +5908,7 @@ int cif_isp10_s_isp_metadata(
 	if (vb) {
 		cif_isp10_pltfrm_pr_dbg(NULL,
 				"frame done\n");
-		wake_up(&vb->done);
+		wake_up(&vb->vb2_queue->done_wq);
 	}
 
 	return 0;
@@ -5850,7 +6003,8 @@ int cif_isp10_get_target_frm_size(
 		*target_height = dev->config.mi_config.mp.output.height;
 	} else {
 		cif_isp10_pltfrm_pr_err(dev->dev,
-			"cannot get target frame size, no path ready\n");
+			"cannot get target frame size, no path ready, state(mp[%d]-sp[%d])\n",
+			dev->mp_stream.state, dev->sp_stream.state);
 		return -EFAULT;
 	}
 	return 0;
@@ -5910,7 +6064,7 @@ err:
 int cif_isp10_calc_min_out_buff_size(
 	struct cif_isp10_device *dev,
 	enum cif_isp10_stream_id stream_id,
-	u32 *size)
+	u32 *size, bool payload)
 {
 	int ret = 0;
 	enum cif_isp10_pix_fmt pix_fmt;
@@ -5955,8 +6109,8 @@ int cif_isp10_calc_min_out_buff_size(
 		"mi_path->llength: 0x%x\n",
 		mi_path->llength);
 
-	if (CIF_ISP10_PIX_FMT_IS_RAW_BAYER(pix_fmt) &&
-		CIF_ISP10_PIX_FMT_GET_BPP(pix_fmt) > 8)
+	if ((CIF_ISP10_PIX_FMT_IS_RAW_BAYER(pix_fmt) &&
+		CIF_ISP10_PIX_FMT_GET_BPP(pix_fmt) > 8) || payload)
 		/* RAW input > 8BPP is stored with 16BPP by MI */
 		bpp = 16;
 	else

@@ -713,6 +713,9 @@ static ssize_t cif_isp10_dbgfs_reg_trace_write(
 
 	if (count > CIF_ISP10_DBGFS_BUF_SIZE) {
 		cif_isp10_pltfrm_pr_err(dev, "command line too long\n");
+		if (!in_irq())
+			spin_unlock_irqrestore(
+				&cif_isp10_reg_trace.lock, flags);
 		return -EINVAL;
 	}
 
@@ -950,6 +953,190 @@ inline u32 cif_isp10_pltfrm_read_reg(
 	return ioread32(addr);
 }
 
+#ifdef CIF_ISP10_MODE_DMA_SG
+int cif_isp10_dma_attach_device(struct cif_isp10_device *cif_isp10_dev)
+{
+	struct iommu_domain *domain = cif_isp10_dev->domain;
+	struct device *dev = cif_isp10_dev->dev;
+	int ret;
+
+	cif_isp10_pltfrm_pr_dbg(NULL, "camsys_drm_dma_attach_device\n");
+
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+	ret = iommu_attach_device(domain, dev);
+	if (ret) {
+		dev_err(dev, "Failed to attach iommu device\n");
+		return ret;
+	}
+
+	if (!common_iommu_setup_dma_ops(dev, 0x10000000, SZ_2G, domain->ops)) {
+		dev_err(dev, "Failed to set dma_ops\n");
+		iommu_detach_device(domain, dev);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+
+void cif_isp10_dma_detach_device(struct cif_isp10_device *cif_isp10_dev)
+{
+	struct iommu_domain *domain = cif_isp10_dev->domain;
+	struct device *dev = cif_isp10_dev->dev;
+
+	cif_isp10_pltfrm_pr_dbg(NULL, "camsys_drm_dma_detach_device\n");
+
+	iommu_detach_device(domain, dev);
+}
+
+int cif_isp10_drm_iommu_cb(struct device *dev,
+	struct cif_isp10_device *cif_isp10_dev,
+	bool on)
+{
+	struct cif_isp10_iommu *iommu = NULL;
+	struct cif_isp10_iommu fake_iommu;
+	struct dma_buf *dma_buffer;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	dma_addr_t dma_addr;
+	int index = 0;
+	int ret = 0;
+	struct cif_isp10_device *camsys_dev = cif_isp10_dev;
+
+	fake_iommu.client_fd = -1;
+	fake_iommu.len = 0;
+	fake_iommu.linear_addr = 0;
+	fake_iommu.map_fd = -1;
+	iommu = &fake_iommu;
+
+	if (on) {
+		/*ummap mapped fd first*/
+		int cur_mapped_cnt = camsys_dev->dma_buf_cnt;
+
+		for (index = 0; index < cur_mapped_cnt; index++) {
+			if (camsys_dev->dma_buffer[index].fd == iommu->map_fd)
+				break;
+		}
+
+		if (index != cur_mapped_cnt) {
+			attach = camsys_dev->dma_buffer[index].attach;
+			dma_buffer = camsys_dev->dma_buffer[index].dma_buffer;
+			sgt = camsys_dev->dma_buffer[index].sgt;
+			cif_isp10_pltfrm_pr_dbg(NULL,
+				"exist mapped buf,release it before map:\n");
+			cif_isp10_pltfrm_pr_dbg(NULL,
+				"attach %p,dma_buf %p,sgt %p,fd %d,index %d\n",
+				attach,
+				dma_buffer,
+				sgt,
+				iommu->map_fd,
+				index);
+			dma_buf_unmap_attachment
+				(attach,
+				sgt,
+				DMA_BIDIRECTIONAL);
+			dma_buf_detach(dma_buffer, attach);
+			dma_buf_put(dma_buffer);
+			if (camsys_dev->dma_buf_cnt == 1)
+				cif_isp10_dma_attach_device(camsys_dev);
+			camsys_dev->dma_buf_cnt--;
+			camsys_dev->dma_buffer[index].fd = -1;
+		}
+		/*get a free slot*/
+		for (index = 0; index < VB2_MAX_FRAME; index++)
+			if (camsys_dev->dma_buffer[index].fd == -1)
+				break;
+
+		if (index == VB2_MAX_FRAME)
+			return -ENOMEM;
+
+		if (camsys_dev->dma_buf_cnt == 0) {
+			ret = cif_isp10_dma_attach_device(camsys_dev);
+			if (ret)
+				return ret;
+		}
+
+		dma_buffer = dma_buf_get(iommu->map_fd);
+		if (IS_ERR(dma_buffer))
+			return PTR_ERR(dma_buffer);
+		attach = dma_buf_attach(dma_buffer, dev);
+		if (IS_ERR(attach)) {
+			dma_buf_put(dma_buffer);
+			return PTR_ERR(attach);
+		}
+		sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+		if (IS_ERR(sgt)) {
+			dma_buf_detach(dma_buffer, attach);
+			dma_buf_put(dma_buffer);
+			return PTR_ERR(sgt);
+		}
+		dma_addr = sg_dma_address(sgt->sgl);
+		camsys_dev->dma_buffer[index].dma_addr = dma_addr;
+		camsys_dev->dma_buffer[index].attach	= attach;
+		camsys_dev->dma_buffer[index].dma_buffer = dma_buffer;
+		camsys_dev->dma_buffer[index].sgt = sgt;
+		camsys_dev->dma_buffer[index].fd = iommu->map_fd;
+		iommu->linear_addr = dma_addr;
+		iommu->len = sg_dma_len(sgt->sgl);
+		camsys_dev->dma_buf_cnt++;
+
+		cif_isp10_pltfrm_pr_dbg(NULL,
+			"dma buf map: dma_addr 0x%lx\n",
+			(unsigned long)dma_addr);
+		cif_isp10_pltfrm_pr_dbg(NULL,
+			"attach %p, dma_buf %p,sgt %p,fd %d,buf_cnt %d\n",
+			attach,
+			dma_buffer,
+			sgt,
+			iommu->map_fd,
+			camsys_dev->dma_buf_cnt);
+	} else {
+		if (
+			(camsys_dev->dma_buf_cnt == 0) ||
+			(index < 0) ||
+			(index >= VB2_MAX_FRAME))
+			return -EINVAL;
+
+		for (index = 0; index < camsys_dev->dma_buf_cnt; index++) {
+			if (camsys_dev->dma_buffer[index].fd == iommu->map_fd)
+				break;
+		}
+		if (index == camsys_dev->dma_buf_cnt) {
+			cif_isp10_pltfrm_pr_warn(NULL,
+				"can't find map fd %d",
+				iommu->map_fd);
+			return -EINVAL;
+		}
+		attach = camsys_dev->dma_buffer[index].attach;
+		dma_buffer = camsys_dev->dma_buffer[index].dma_buffer;
+		sgt = camsys_dev->dma_buffer[index].sgt;
+		dma_addr = sg_dma_address(sgt->sgl);
+		cif_isp10_pltfrm_pr_dbg(NULL,
+			"dma buf unmap: dma_addr 0x%lx",
+			(unsigned long)dma_addr);
+		cif_isp10_pltfrm_pr_dbg(NULL,
+			"attach %p,dma_buf %p,sgt %p,index %d",
+			attach,
+			dma_buffer,
+			sgt,
+			index);
+		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+		dma_buf_detach(dma_buffer, attach);
+		dma_buf_put(dma_buffer);
+		if (camsys_dev->dma_buf_cnt == 1)
+			cif_isp10_dma_detach_device(camsys_dev);
+
+		camsys_dev->dma_buf_cnt--;
+		camsys_dev->dma_buffer[index].fd = -1;
+	}
+
+	return ret;
+}
+#endif
+
 int cif_isp10_pltfrm_dev_init(
 	struct cif_isp10_device *cif_isp10_dev,
 	struct device **_dev,
@@ -963,6 +1150,12 @@ int cif_isp10_pltfrm_dev_init(
 	struct resource *res;
 	void __iomem *base_addr;
 	unsigned int i, irq;
+#ifdef CIF_ISP10_MODE_DMA_SG
+	struct iommu_domain *domain;
+	struct iommu_group *group;
+	struct device_node *np;
+	int err = 0;
+#endif
 
 	dev_set_drvdata(dev, cif_isp10_dev);
 	cif_isp10_dev->dev = dev;
@@ -1005,7 +1198,11 @@ int cif_isp10_pltfrm_dev_init(
 			irq,
 			cif_isp10_pltfrm_irq_handler,
 			NULL,
+#ifdef CIF_ISP10_MODE_DMA_SG
+			0x80,
+#else
 			0,
+#endif
 			dev_driver_string(dev),
 			dev);
 	if (IS_ERR_VALUE(ret)) {
@@ -1042,6 +1239,45 @@ int cif_isp10_pltfrm_dev_init(
 
 	for (i = 0; i < ARRAY_SIZE(pdata->irq_handlers); i++)
 		pdata->irq_handlers[i].mis = -EINVAL;
+
+#ifdef CIF_ISP10_MODE_DMA_SG
+		np = of_find_node_by_name(NULL, "isp0_mmu");
+		if (!np) {
+			int index = 0;
+			/* iommu domain */
+			domain = iommu_domain_alloc(&platform_bus_type);
+			if (!domain)
+				goto err;
+
+			err = iommu_get_dma_cookie(domain);
+			if (err)
+				goto err_free_domain;
+
+			group = iommu_group_get(&pdev->dev);
+			if (!group) {
+				group = iommu_group_alloc();
+				if (IS_ERR(group)) {
+					dev_err(&pdev->dev, "Failed to allocate IOMMU group\n");
+					goto err_put_cookie;
+				}
+
+				err = iommu_group_add_device(group, &pdev->dev);
+				iommu_group_put(group);
+				if (err) {
+					dev_err(&pdev->dev, "failed to add device to IOMMU group\n");
+					goto err_put_cookie;
+				}
+			}
+			cif_isp10_dev->domain = domain;
+			cif_isp10_dev->dma_buf_cnt = 0;
+			for (index = 0; index < VB2_MAX_FRAME; index++)
+				cif_isp10_dev->dma_buffer[index].fd = -1;
+
+			cif_isp10_drm_iommu_cb(&pdev->dev, cif_isp10_dev, true);
+		} else {
+			//cif_isp10_mrv_iommu_cb();
+		}
+#endif
 
 	dev->platform_data = pdata;
 
@@ -1093,6 +1329,13 @@ int cif_isp10_pltfrm_dev_init(
 #endif
 
 	return 0;
+
+#ifdef CIF_ISP10_MODE_DMA_SG
+err_put_cookie:
+	iommu_put_dma_cookie(domain);
+err_free_domain:
+	iommu_domain_free(domain);
+#endif
 err:
 	cif_isp10_pltfrm_pr_err(NULL, "failed with error %d\n", ret);
 	if (!IS_ERR_OR_NULL(pdata))
@@ -1428,8 +1671,12 @@ err:
 }
 
 void cif_isp10_pltfrm_dev_release(
-	struct device *dev)
+	struct device *dev, struct cif_isp10_device *cif_isp10_dev)
 {
+#ifdef CIF_ISP10_MODE_DMA_SG
+		cif_isp10_drm_iommu_cb(dev, cif_isp10_dev, false);
+#endif
+
 #ifndef CONFIG_DEBUG_FS
 	{
 		struct cif_isp10_pltfrm_data *pdata =

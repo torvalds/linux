@@ -24,7 +24,29 @@
 #include <linux/platform_data/rk_isp10_platform.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-controls_rockchip.h>
+#include <media/videobuf2-v4l2.h>
+
+#include <linux/dma-iommu.h>
+#include <drm/rockchip_drm.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-buf.h>
+
 /*****************************************************************************/
+
+#if IS_ENABLED(CONFIG_VIDEOBUF2_DMA_CONTIG)
+#define CIF_ISP10_MODE_DMA_CONTIG 1
+#endif
+
+#if IS_ENABLED(CONFIG_VIDEOBUF2_DMA_SG)
+#define CIF_ISP10_MODE_DMA_SG 1
+#endif
+
+#if !defined(CIF_ISP10_MODE_DMA_CONTIG) && \
+	!defined(CIF_ISP10_MODE_DMA_SG)
+#error One of the videobuf buffer modes(COTING/SG) \
+	must be selected in the config
+#endif
+
 /* Definitions */
 
 #define CONFIG_CIF_ISP_AUTO_UPD_CFG_BUG
@@ -133,6 +155,7 @@ enum cif_isp10_cid {
 	CIF_ISP10_CID_AUTO_FPS                    = 16,
 	CIF_ISP10_CID_VBLANKING                   = 17,
 	CIF_ISP10_CID_ISO_SENSITIVITY             = 18,
+	CIF_ISP10_CID_MIN_BUFFER_FOR_CAPTURE      = 19,
 
 };
 
@@ -426,15 +449,11 @@ struct cif_isp10_mi_config {
 	struct cif_isp10_mi_path_config dma;
 };
 
-#ifdef NO_YET
 struct cif_isp10_buffer {
-	struct list_head list;
-	u32 dma_addr;
-	u32 size;
+	struct vb2_v4l2_buffer vb;
+	struct list_head queue;
+	unsigned long int size;
 };
-#else
-#define cif_isp10_buffer videobuf_buffer
-#endif
 
 struct cif_isp10_metadata_s {
 	unsigned int cnt;
@@ -447,8 +466,8 @@ struct cif_isp10_stream {
 	enum cif_isp10_state state;
 	enum cif_isp10_state saved_state;
 	struct list_head buf_queue;
-	struct videobuf_buffer *curr_buf;
-	struct videobuf_buffer *next_buf;
+	struct cif_isp10_buffer *curr_buf;
+	struct cif_isp10_buffer *next_buf;
 	bool updt_cfg;
 	bool stall;
 	bool stop;
@@ -559,6 +578,23 @@ struct cif_isp10_fmt {
 	unsigned char overlay;
 };
 
+#ifdef CIF_ISP10_MODE_DMA_SG
+struct cif_isp10_iommu {
+	int client_fd;
+	int map_fd;
+	unsigned long linear_addr;
+	unsigned long len;
+};
+
+struct cif_isp10_dma_buf {
+	struct dma_buf *dma_buffer;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	dma_addr_t dma_addr;
+	int fd;
+};
+#endif
+
 struct cif_isp10_device {
 	unsigned int dev_id;
 	CIF_ISP10_PLTFRM_DEVICE dev;
@@ -572,6 +608,13 @@ struct cif_isp10_device {
 	struct cif_isp10_img_src *img_src;
 	struct cif_isp10_img_src *img_src_array[CIF_ISP10_NUM_INPUTS];
 	unsigned int img_src_cnt;
+	struct vb2_alloc_ctx *alloc_ctx;
+
+#ifdef CIF_ISP10_MODE_DMA_SG
+	struct iommu_domain *domain;
+	struct cif_isp10_dma_buf dma_buffer[VB2_MAX_FRAME];
+	int dma_buf_cnt;
+#endif
 	struct cif_isp10_img_src_exps img_src_exps;
 
 	struct cif_isp10_config config;
@@ -607,6 +650,29 @@ struct v4l2_fmtdesc *get_cif_isp10_output_format_desc(int index);
 int get_cif_isp10_output_format_desc_size(void);
 
 /* Clean code starts from here */
+
+static inline
+struct cif_isp10_stream *to_stream_by_id(struct cif_isp10_device *dev,
+					 enum cif_isp10_stream_id id)
+{
+	if (WARN_ON(id != CIF_ISP10_STREAM_MP &&
+		id != CIF_ISP10_STREAM_SP &&
+		id != CIF_ISP10_STREAM_DMA &&
+		id != CIF_ISP10_STREAM_ISP))
+		return &dev->sp_stream;
+
+	switch (id) {
+	case CIF_ISP10_STREAM_MP:
+		return &dev->mp_stream;
+	case CIF_ISP10_STREAM_SP:
+		return &dev->sp_stream;
+	case CIF_ISP10_STREAM_DMA:
+		return &dev->dma_stream;
+	case CIF_ISP10_STREAM_ISP:
+		return NULL;
+	}
+	return NULL;
+}
 
 struct cif_isp10_device *cif_isp10_create(
 	CIF_ISP10_PLTFRM_DEVICE pdev,
@@ -683,7 +749,8 @@ const char *cif_isp10_g_input_name(
 int cif_isp10_calc_min_out_buff_size(
 	struct cif_isp10_device *dev,
 	enum cif_isp10_stream_id stream_id,
-	u32 *size);
+	u32 *size,
+	bool payload);
 
 int cif_isp10_s_ctrl(
 	struct cif_isp10_device *dev,

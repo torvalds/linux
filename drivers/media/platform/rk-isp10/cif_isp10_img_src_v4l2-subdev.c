@@ -206,6 +206,8 @@ static int cif_isp10_v4l2_cid2v4l2_cid(u32 cif_isp10_cid)
 		return V4L2_CID_HFLIP;
 	case CIF_ISP10_CID_VFLIP:
 		return V4L2_CID_VFLIP;
+	case CIF_ISP10_CID_MIN_BUFFER_FOR_CAPTURE:
+		return V4L2_CID_MIN_BUFFERS_FOR_CAPTURE;
 	default:
 		cif_isp10_pltfrm_pr_err(NULL,
 			"unknown/unsupported CIF ISP20 ID %d\n",
@@ -352,6 +354,9 @@ int cif_isp10_img_src_v4l2_subdev_g_ctrl(
 			}
 		}
 		*val = ctrl.value;
+	} else {
+		cif_isp10_pltfrm_pr_err(NULL,
+			"subdevcall got err: %d\n", ret);
 	}
 	return ret;
 }

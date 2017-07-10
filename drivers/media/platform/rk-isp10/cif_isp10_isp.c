@@ -20,8 +20,8 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/videodev2.h>
-#include <media/videobuf-core.h>
-#include <media/videobuf-vmalloc.h>	/* for ISP statistics */
+#include <media/videobuf2-core.h>
+#include <media/videobuf2-vmalloc.h>	/* for ISP statistics */
 #include <linux/io.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -314,12 +314,16 @@ static void cifisp_reg_dump(const struct cif_isp10_isp_dev *isp_dev,
 static void cifisp_reg_dump_capture(const struct cif_isp10_isp_dev *isp_dev);
 #endif
 
+static struct cif_isp10_buffer *to_cif_isp10_vb(struct vb2_v4l2_buffer *vb)
+{
+	return container_of(vb, struct cif_isp10_buffer, vb);
+}
+
 static int cifisp_module_enable(struct cif_isp10_isp_dev *isp_dev,
 	bool flag, __s32 *value, unsigned int module)
 {
 	unsigned int *curr_ens, *updates, *new_ens;
 	unsigned long lock_flags = 0;
-	int retval = 0;
 
 	spin_lock_irqsave(&isp_dev->config_lock, lock_flags);
 
@@ -353,7 +357,7 @@ static int cifisp_module_enable(struct cif_isp10_isp_dev *isp_dev,
 end:
 	spin_unlock_irqrestore(&isp_dev->config_lock, lock_flags);
 
-	return retval;
+	return 0;
 }
 
 /* ISP BP interface function */
@@ -2596,120 +2600,40 @@ static void cifisp_dpf_end(struct cif_isp10_isp_dev *isp_dev)
 		CIF_ISP_DPF_MODE);
 }
 
-/* ================================QUEUE OPS ================== */
-static int cifisp_stat_vbq_setup(struct videobuf_queue *vq,
-				 unsigned int *cnt, unsigned int *size)
-{
-	*size = sizeof(struct cifisp_stat_buffer);
-
-	return 0;
-}
-
-static void cifisp_stat_vbq_release(struct videobuf_queue *vq,
-				    struct videobuf_buffer *vb)
-{
-	CIFISP_DPRINT(CIFISP_DEBUG, "Releasing buffer entry!\n");
-
-	videobuf_waiton(vq, vb, 0, 0);
-
-	videobuf_vmalloc_free(vb);
-
-	CIFISP_DPRINT(CIFISP_DEBUG, "Releasing buffer exit!\n");
-}
-
-static int cifisp_stat_vbq_prepare(struct videobuf_queue *vq,
-				   struct videobuf_buffer *vb,
-				   enum v4l2_field field)
-{
-	int err = 0;
-
-	vb->size = sizeof(struct cifisp_stat_buffer);
-	vb->width = 0;
-	vb->height = 0;
-	vb->field = field;
-
-	if (vb->state == VIDEOBUF_NEEDS_INIT)
-		err = videobuf_iolock(vq, vb, NULL);
-
-	if (!err)
-		vb->state = VIDEOBUF_PREPARED;
-	else
-		cifisp_stat_vbq_release(vq, vb);
-
-	return err;
-}
-
-static void cifisp_stat_vbq_queue(struct videobuf_queue *vq,
-				  struct videobuf_buffer *vb)
-{
-	struct cif_isp10_isp_dev *isp_dev = vq->priv_data;
-
-	vb->state = VIDEOBUF_QUEUED;
-
-	CIFISP_DPRINT(CIFISP_DEBUG, "Queueing stat buffer!\n");
-
-	list_add_tail(&vb->queue, &isp_dev->stat);
-}
-
-/* Queue Ops */
-static struct videobuf_queue_ops cifisp_stat_qops = {
-	.buf_setup = cifisp_stat_vbq_setup,
-	.buf_prepare = cifisp_stat_vbq_prepare,
-	.buf_queue = cifisp_stat_vbq_queue,
-	.buf_release = cifisp_stat_vbq_release,
-};
-
 /* ================== IOCTL implementation ========================= */
 static int cifisp_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *p)
 {
-	struct cif_isp10_isp_dev *isp_dev =
-		video_get_drvdata(video_devdata(file));
-
 	CIFISP_DPRINT(CIFISP_DEBUG,
-		      " %s: %s: p->type %d p->count %d\n",
-		      ISP_VDEV_NAME, __func__, p->type, p->count);
-
-	return videobuf_reqbufs(&isp_dev->vbq_stat, p);
+			" %s: %s: p->type %d p->count %d\n",
+			ISP_VDEV_NAME, __func__, p->type, p->count);
+	return vb2_ioctl_reqbufs(file, priv, p);
 }
 
 static int cifisp_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct cif_isp10_isp_dev *isp_dev =
-		video_get_drvdata(video_devdata(file));
-
 	CIFISP_DPRINT(CIFISP_DEBUG,
 		      " %s: %s: p->type %d p->index %d\n",
 		      ISP_VDEV_NAME, __func__, p->type, p->index);
-
-	return videobuf_querybuf(&isp_dev->vbq_stat, p);
+	return vb2_ioctl_querybuf(file, priv, p);
 }
 
 static int cifisp_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct cif_isp10_isp_dev *isp_dev =
-		video_get_drvdata(video_devdata(file));
-
 	CIFISP_DPRINT(CIFISP_DEBUG,
 		      " %s: %s: p->type %d p->index %d\n",
 		      ISP_VDEV_NAME, __func__, p->type, p->index);
-
-	return videobuf_qbuf(&isp_dev->vbq_stat, p);
+	return vb2_ioctl_qbuf(file, priv, p);
 }
 
 /* ========================================================== */
 
 static int cifisp_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct cif_isp10_isp_dev *isp_dev =
-		video_get_drvdata(video_devdata(file));
-
 	CIFISP_DPRINT(CIFISP_DEBUG,
 		      " %s: %s: p->type %d p->index %d\n",
 		      ISP_VDEV_NAME, __func__, p->type, p->index);
-
-	return videobuf_dqbuf(&isp_dev->vbq_stat, p,
-			      file->f_flags & O_NONBLOCK);
+	return vb2_ioctl_dqbuf(file, priv, p);
 }
 
 static int cifisp_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
@@ -2717,7 +2641,7 @@ static int cifisp_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct cif_isp10_isp_dev *isp_dev =
 		video_get_drvdata(video_devdata(file));
 
-	int ret = videobuf_streamon(&isp_dev->vbq_stat);
+	int ret = vb2_ioctl_streamon(file, priv, i);
 
 	if (ret == 0)
 		isp_dev->streamon = true;
@@ -2731,13 +2655,12 @@ static int cifisp_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 /* ========================================================== */
 static int cifisp_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
+	int ret;
 	struct cif_isp10_isp_dev *isp_dev =
 		video_get_drvdata(video_devdata(file));
-	int ret;
 
 	drain_workqueue(isp_dev->readout_wq);
-
-	ret = videobuf_streamoff(&isp_dev->vbq_stat);
+	ret = vb2_ioctl_streamoff(file, priv, i);
 
 	if (ret == 0)
 		isp_dev->streamon = false;
@@ -3167,11 +3090,9 @@ static const struct v4l2_ioctl_ops cifisp_ioctl = {
 static unsigned int cifisp_poll(struct file *file,
 				struct poll_table_struct *wait)
 {
-	struct cif_isp10_isp_dev *isp_dev =
-		video_get_drvdata(video_devdata(file));
 	unsigned int ret;
 
-	ret = videobuf_poll_stream(file, &isp_dev->vbq_stat, wait);
+	ret = vb2_fop_poll(file, wait);
 
 	CIFISP_DPRINT(CIFISP_DEBUG,
 		      "Polling on vbq_stat buffer %d\n", ret);
@@ -3182,10 +3103,7 @@ static unsigned int cifisp_poll(struct file *file,
 /* ======================================================== */
 static int cifisp_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct cif_isp10_isp_dev *isp_dev =
-		video_get_drvdata(video_devdata(file));
-
-	return videobuf_mmap_mapper(&isp_dev->vbq_stat, vma);
+	return vb2_fop_mmap(file, vma);
 }
 
 /* ddl@rock-chips.com: v1.0.8 */
@@ -3225,13 +3143,9 @@ static int cifisp_open(struct file *file)
 
 static int cifisp_close(struct file *file)
 {
-	struct cif_isp10_isp_dev *isp_dev =
-		video_get_drvdata(video_devdata(file));
-
 	CIFISP_DPRINT(CIFISP_DEBUG, "cifisp_close\n");
 
-	videobuf_stop(&isp_dev->vbq_stat);
-	videobuf_mmap_free(&isp_dev->vbq_stat);
+	vb2_fop_release(file);
 
 	/* cifisp_reset(file); */
 	return 0;
@@ -3255,6 +3169,73 @@ static void cifisp_release(struct video_device *vdev)
 	CIFISP_DPRINT(CIFISP_DEBUG, "cifisp_release\n");
 	video_device_release(vdev);
 	destroy_workqueue(isp_dev->readout_wq);
+}
+
+/************************************************************/
+static int cif_isp10_vb2_queue_setup(struct vb2_queue *vq,
+			const void *parg,
+			unsigned int *count, unsigned int *num_planes,
+			unsigned int sizes[], void *alloc_ctxs[])
+{
+	sizes[0] = sizeof(struct cifisp_stat_buffer);
+	*num_planes = 1;
+
+	if (!*count)
+		*count = 2;
+
+	return 0;
+}
+
+static void cif_isp10_vb2_queue(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct cif_isp10_buffer *ispbuf = to_cif_isp10_vb(vbuf);
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct cif_isp10_isp_dev *isp_dev = vq->drv_priv;
+	unsigned long flags;
+
+	CIFISP_DPRINT(CIFISP_DEBUG, "Queueing stat buffer!\n");
+	spin_lock_irqsave(&isp_dev->irq_lock, flags);
+	list_add_tail(&ispbuf->queue, &isp_dev->stat);
+	spin_unlock_irqrestore(&isp_dev->irq_lock, flags);
+}
+
+static void cif_isp10_vb2_stop_streaming(struct vb2_queue *vq)
+{
+	struct cif_isp10_isp_dev *isp_dev = vq->drv_priv;
+	struct cif_isp10_buffer *buf, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&isp_dev->irq_lock, flags);
+	list_for_each_entry_safe(buf, tmp, &isp_dev->stat, queue) {
+		list_del_init(&buf->queue);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+	}
+	spin_unlock_irqrestore(&isp_dev->irq_lock, flags);
+}
+
+static struct vb2_ops cif_isp10_vb2_ops = {
+	.queue_setup	= cif_isp10_vb2_queue_setup,
+	.buf_queue	= cif_isp10_vb2_queue,
+	.wait_prepare	= vb2_ops_wait_prepare,
+	.wait_finish	= vb2_ops_wait_finish,
+	.stop_streaming	= cif_isp10_vb2_stop_streaming,
+};
+
+static int cif_isp10_init_vb2_queue(struct vb2_queue *q,
+	struct cif_isp10_isp_dev *isp_dev)
+{
+	memset(q, 0, sizeof(*q));
+
+	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	q->io_modes = VB2_MMAP | VB2_USERPTR;
+	q->drv_priv = isp_dev;
+	q->ops = &cif_isp10_vb2_ops;
+	q->mem_ops = &vb2_vmalloc_memops;
+	q->buf_struct_size = sizeof(struct cif_isp10_buffer);
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+
+	return vb2_queue_init(q);
 }
 
 /************************************************************/
@@ -3288,16 +3269,10 @@ int register_cifisp_device(struct cif_isp10_isp_dev *isp_dev,
 	vdev_cifisp->lock = &isp_dev->mutex;
 	vdev_cifisp->v4l2_dev = v4l2_dev;
 
-	videobuf_queue_vmalloc_init(
-		&isp_dev->vbq_stat,
-		&cifisp_stat_qops,
-		NULL,
-		&isp_dev->irq_lock,
-		V4L2_BUF_TYPE_VIDEO_CAPTURE,
-		V4L2_FIELD_NONE,
-		sizeof(struct videobuf_buffer),
-		isp_dev,
-		NULL);	/* ext_lock: NULL */
+	cif_isp10_init_vb2_queue(&isp_dev->vb2_vidq, isp_dev);
+
+	vdev_cifisp->queue = &isp_dev->vb2_vidq;
+
 
 	if (video_register_device(vdev_cifisp, VFL_TYPE_GRABBER, -1) < 0) {
 		dev_err(&vdev_cifisp->dev,
@@ -3693,7 +3668,10 @@ static void cifisp_send_measurement(
 	struct cif_isp10_isp_readout_work *meas_work)
 {
 	unsigned long lock_flags = 0;
-	struct videobuf_buffer *vb = NULL;
+	struct cif_isp10_buffer *buf = NULL;
+	struct vb2_buffer *vb = NULL;
+	void *mem_addr;
+
 	unsigned int active_meas = isp_dev->active_meas;
 	struct cifisp_stat_buffer *stat_buf;
 	struct cif_isp10_device *cif_dev =
@@ -3710,8 +3688,10 @@ static void cifisp_send_measurement(
 	}
 
 	if (!list_empty(&isp_dev->stat)) {
-		vb = list_first_entry(&isp_dev->stat,
-		struct videobuf_buffer, queue);
+		buf = list_first_entry(&isp_dev->stat,
+			struct cif_isp10_buffer, queue);
+
+		vb = &buf->vb.vb2_buf;
 	} else {
 		spin_unlock_irqrestore(&isp_dev->irq_lock, lock_flags);
 		CIFISP_DPRINT(CIFISP_DEBUG,
@@ -3720,9 +3700,11 @@ static void cifisp_send_measurement(
 	}
 
 	spin_unlock_irqrestore(&isp_dev->irq_lock, lock_flags);
-	vb->state = VIDEOBUF_ACTIVE;
+	vb->state = VB2_BUF_STATE_ACTIVE;
 
-	stat_buf = (struct cifisp_stat_buffer *)videobuf_to_vmalloc(vb);
+	mem_addr = vb->vb2_queue->mem_ops->vaddr(
+				vb->planes[0].mem_priv);
+	stat_buf = (struct cifisp_stat_buffer *)mem_addr;
 	memset(stat_buf, 0x00, sizeof(struct cifisp_stat_buffer));
 
 	if (active_meas & CIF_ISP_AWB_DONE)
@@ -3749,9 +3731,8 @@ static void cifisp_send_measurement(
 			meas_work->frame_id);
 		goto end;
 	}
+	list_del(&buf->queue);
 
-	vb->ts = isp_dev->vs_t;
-	list_del(&vb->queue);
 	spin_unlock_irqrestore(&isp_dev->irq_lock, lock_flags);
 
 	if (active_meas & CIF_ISP_AWB_DONE) {
@@ -3787,19 +3768,16 @@ static void cifisp_send_measurement(
 	}
 	isp_dev->meas_stats.g_frame_id = meas_work->frame_id;
 
-	vb->field_count = meas_work->frame_id;
-	vb->state = VIDEOBUF_DONE;
-	wake_up(&vb->done);
+	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
+	wake_up(&vb->vb2_queue->done_wq);
 
 	CIFISP_DPRINT(CIFISP_DEBUG,
-		"Measurement done(%d, %d)\n",
-		vb->field_count,
-		vb->i);
+		"Measurement done\n");
 	vb = NULL;
 end:
 
-	if (vb && (vb->state == VIDEOBUF_ACTIVE))
-		vb->state = VIDEOBUF_QUEUED;
+	if (vb && (vb->state == VB2_BUF_STATE_ACTIVE))
+		vb->state = VB2_BUF_STATE_QUEUED;
 }
 
 void cifisp_isp_readout_work(struct work_struct *work)
@@ -4332,7 +4310,7 @@ int cifisp_isp_isr(struct cif_isp10_isp_dev *isp_dev, u32 isp_mis)
 		 * Do the updates in the order of the processing flow.
 		 */
 		spin_lock(&isp_dev->config_lock);
-		if (cifisp_isp_isr_other_config(isp_dev, &time_left) == false)
+		if (!cifisp_isp_isr_other_config(isp_dev, &time_left))
 			cifisp_isp_isr_meas_config(isp_dev, &time_left);
 		spin_unlock(&isp_dev->config_lock);
 

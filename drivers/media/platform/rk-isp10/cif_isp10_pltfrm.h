@@ -159,7 +159,8 @@ int cif_isp10_pltfrm_dev_init(
 	void __iomem **reg_base_addr);
 
 void cif_isp10_pltfrm_dev_release(
-	struct device *dev);
+	struct device *dev,
+	struct cif_isp10_device *cif_isp10_dev);
 
 int cif_isp10_pltfrm_pm_set_state(
 	struct device *dev,

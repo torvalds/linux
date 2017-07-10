@@ -1,9 +1,10 @@
 config VIDEO_RK_CIF_ISP10
 	tristate "Rockchip cif isp10 camera sensors"
 	depends on VIDEO_V4L2 && I2C
+	select VIDEOBUF2_CORE
 	select VIDEOBUF_GEN
-	select VIDEOBUF_DMA_CONTIG
-	select VIDEOBUF_VMALLOC
+	select VIDEOBUF2_DMA_SG
+	select VIDEOBUF2_VMALLOC
 	default n
 
 	---help---

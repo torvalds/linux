@@ -18,7 +18,7 @@
 #define _CIF_ISP10_ISP_H
 
 #include <media/v4l2-common.h>
-#include <media/videobuf-core.h>
+#include <media/videobuf2-core.h>
 #include <media/rk-isp10-ioctl.h>
 #include <media/v4l2-controls_rockchip.h>
 
@@ -78,7 +78,6 @@ struct cif_isp10_isp_dev {
 	spinlock_t irq_lock;
 	/* ISP statistics related */
 	spinlock_t req_lock;
-	struct videobuf_queue vbq_stat;
 	struct list_head stat;
 	void __iomem *base_addr;    /* registers base address */
 
@@ -94,6 +93,8 @@ struct cif_isp10_isp_dev {
 	struct workqueue_struct *readout_wq;
 
 	unsigned int *dev_id;
+
+	struct vb2_queue vb2_vidq;
 };
 
 enum cif_isp10_isp_readout_cmd {
@@ -107,7 +108,7 @@ struct cif_isp10_isp_readout_work {
 
 	unsigned int frame_id;
 	enum cif_isp10_isp_readout_cmd readout;
-	struct videobuf_buffer *vb;
+	struct vb2_buffer *vb;
 	unsigned int stream_id;
 };
 
