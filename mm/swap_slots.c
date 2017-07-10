@@ -273,11 +273,11 @@ int free_swap_slot(swp_entry_t entry)
 {
 	struct swap_slots_cache *cache;
 
-	cache = &get_cpu_var(swp_slots);
+	cache = raw_cpu_ptr(&swp_slots);
 	if (use_swap_slot_cache && cache->slots_ret) {
 		spin_lock_irq(&cache->free_lock);
 		/* Swap slots cache may be deactivated before acquiring lock */
-		if (!use_swap_slot_cache) {
+		if (!use_swap_slot_cache || !cache->slots_ret) {
 			spin_unlock_irq(&cache->free_lock);
 			goto direct_free;
 		}
@@ -297,7 +297,6 @@ int free_swap_slot(swp_entry_t entry)
 direct_free:
 		swapcache_free_entries(&entry, 1);
 	}
-	put_cpu_var(swp_slots);
 
 	return 0;
 }

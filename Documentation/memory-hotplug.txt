@@ -282,20 +282,26 @@ offlined it is possible to change the individual block's state by writing to the
 % echo online > /sys/devices/system/memory/memoryXXX/state
 
 This onlining will not change the ZONE type of the target memory block,
-If the memory block is in ZONE_NORMAL, you can change it to ZONE_MOVABLE:
+If the memory block doesn't belong to any zone an appropriate kernel zone
+(usually ZONE_NORMAL) will be used unless movable_node kernel command line
+option is specified when ZONE_MOVABLE will be used.
+
+You can explicitly request to associate it with ZONE_MOVABLE by
 
 % echo online_movable > /sys/devices/system/memory/memoryXXX/state
 (NOTE: current limit: this memory block must be adjacent to ZONE_MOVABLE)
 
-And if the memory block is in ZONE_MOVABLE, you can change it to ZONE_NORMAL:
+Or you can explicitly request a kernel zone (usually ZONE_NORMAL) by:
 
 % echo online_kernel > /sys/devices/system/memory/memoryXXX/state
 (NOTE: current limit: this memory block must be adjacent to ZONE_NORMAL)
 
+An explicit zone onlining can fail (e.g. when the range is already within
+and existing and incompatible zone already).
+
 After this, memory block XXX's state will be 'online' and the amount of
 available memory will be increased.
 
-Currently, newly added memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA).
 This may be changed in future.
 
 

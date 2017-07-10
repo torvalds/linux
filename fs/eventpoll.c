@@ -1748,6 +1748,16 @@ fetch_events:
 			 * to TASK_INTERRUPTIBLE before doing the checks.
 			 */
 			set_current_state(TASK_INTERRUPTIBLE);
+			/*
+			 * Always short-circuit for fatal signals to allow
+			 * threads to make a timely exit without the chance of
+			 * finding more events available and fetching
+			 * repeatedly.
+			 */
+			if (fatal_signal_pending(current)) {
+				res = -EINTR;
+				break;
+			}
 			if (ep_events_available(ep) || timed_out)
 				break;
 			if (signal_pending(current)) {

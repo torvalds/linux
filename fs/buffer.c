@@ -1281,44 +1281,31 @@ static inline void check_irqs_on(void)
 }
 
 /*
- * The LRU management algorithm is dopey-but-simple.  Sorry.
+ * Install a buffer_head into this cpu's LRU.  If not already in the LRU, it is
+ * inserted at the front, and the buffer_head at the back if any is evicted.
+ * Or, if already in the LRU it is moved to the front.
  */
 static void bh_lru_install(struct buffer_head *bh)
 {
-	struct buffer_head *evictee = NULL;
+	struct buffer_head *evictee = bh;
+	struct bh_lru *b;
+	int i;
 
 	check_irqs_on();
 	bh_lru_lock();
-	if (__this_cpu_read(bh_lrus.bhs[0]) != bh) {
-		struct buffer_head *bhs[BH_LRU_SIZE];
-		int in;
-		int out = 0;
 
-		get_bh(bh);
-		bhs[out++] = bh;
-		for (in = 0; in < BH_LRU_SIZE; in++) {
-			struct buffer_head *bh2 =
-				__this_cpu_read(bh_lrus.bhs[in]);
-
-			if (bh2 == bh) {
-				__brelse(bh2);
-			} else {
-				if (out >= BH_LRU_SIZE) {
-					BUG_ON(evictee != NULL);
-					evictee = bh2;
-				} else {
-					bhs[out++] = bh2;
-				}
-			}
+	b = this_cpu_ptr(&bh_lrus);
+	for (i = 0; i < BH_LRU_SIZE; i++) {
+		swap(evictee, b->bhs[i]);
+		if (evictee == bh) {
+			bh_lru_unlock();
+			return;
 		}
-		while (out < BH_LRU_SIZE)
-			bhs[out++] = NULL;
-		memcpy(this_cpu_ptr(&bh_lrus.bhs), bhs, sizeof(bhs));
 	}
-	bh_lru_unlock();
 
-	if (evictee)
-		__brelse(evictee);
+	get_bh(bh);
+	bh_lru_unlock();
+	brelse(evictee);
 }
 
 /*
