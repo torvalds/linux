@@ -52,12 +52,14 @@ unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long
 	res = 0;
 	rv = 0;
 	while (1) {
+		unsigned int c = *s;
+		unsigned int lc = c | 0x20; /* don't tolower() this line */
 		unsigned int val;
 
-		if ('0' <= *s && *s <= '9')
-			val = *s - '0';
-		else if ('a' <= _tolower(*s) && _tolower(*s) <= 'f')
-			val = _tolower(*s) - 'a' + 10;
+		if ('0' <= c && c <= '9')
+			val = c - '0';
+		else if ('a' <= lc && lc <= 'f')
+			val = lc - 'a' + 10;
 		else
 			break;
 
