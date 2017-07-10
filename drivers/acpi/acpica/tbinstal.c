@@ -306,14 +306,10 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 	acpi_tb_install_table_with_override(&new_table_desc, override,
 					    table_index);
 
-	/* Invoke table handler if present */
+	/* Invoke table handler */
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-	if (acpi_gbl_table_handler) {
-		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_INSTALL,
-					     new_table_desc.pointer,
-					     acpi_gbl_table_handler_context);
-	}
+	acpi_tb_notify_table(ACPI_TABLE_EVENT_INSTALL, new_table_desc.pointer);
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
 unlock_and_exit:

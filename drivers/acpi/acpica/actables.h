@@ -132,6 +132,8 @@ acpi_tb_install_and_load_table(acpi_physical_address address,
 
 acpi_status acpi_tb_unload_table(u32 table_index);
 
+void acpi_tb_notify_table(u32 event, void *table);
+
 void acpi_tb_terminate(void);
 
 acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index);

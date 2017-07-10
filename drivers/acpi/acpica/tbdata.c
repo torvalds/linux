@@ -818,13 +818,9 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 		acpi_ev_update_gpes(owner_id);
 	}
 
-	/* Invoke table handler if present */
+	/* Invoke table handler */
 
-	if (acpi_gbl_table_handler) {
-		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
-					     acpi_gbl_table_handler_context);
-	}
-
+	acpi_tb_notify_table(ACPI_TABLE_EVENT_LOAD, table);
 	return_ACPI_STATUS(status);
 }
 
@@ -894,15 +890,11 @@ acpi_status acpi_tb_unload_table(u32 table_index)
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	/* Invoke table handler if present */
+	/* Invoke table handler */
 
-	if (acpi_gbl_table_handler) {
-		status = acpi_get_table_by_index(table_index, &table);
-		if (ACPI_SUCCESS(status)) {
-			(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_UNLOAD,
-						     table,
-						     acpi_gbl_table_handler_context);
-		}
+	status = acpi_get_table_by_index(table_index, &table);
+	if (ACPI_SUCCESS(status)) {
+		acpi_tb_notify_table(ACPI_TABLE_EVENT_UNLOAD, table);
 	}
 
 	/* Delete the portion of the namespace owned by this table */
@@ -918,3 +910,26 @@ acpi_status acpi_tb_unload_table(u32 table_index)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_tb_unload_table)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_notify_table
+ *
+ * PARAMETERS:  event               - Table event
+ *              table               - Validated table pointer
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Notify a table event to the users.
+ *
+ ******************************************************************************/
+
+void acpi_tb_notify_table(u32 event, void *table)
+{
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		(void)acpi_gbl_table_handler(event, table,
+					     acpi_gbl_table_handler_context);
+	}
+}
