@@ -460,10 +460,11 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 	struct rsi_peer_notify *peer_notify;
 	u16 vap_id = 0;
 	int status;
+	u16 frame_len = sizeof(struct rsi_peer_notify);
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending sta notify frame\n", __func__);
 
-	skb = dev_alloc_skb(sizeof(struct rsi_peer_notify));
+	skb = dev_alloc_skb(frame_len);
 
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
@@ -471,7 +472,7 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 		return -ENOMEM;
 	}
 
-	memset(skb->data, 0, sizeof(struct rsi_peer_notify));
+	memset(skb->data, 0, frame_len);
 	peer_notify = (struct rsi_peer_notify *)skb->data;
 
 	peer_notify->command = cpu_to_le16(opmode << 1);
@@ -489,16 +490,16 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 
 	peer_notify->command |= cpu_to_le16((aid & 0xfff) << 4);
 	ether_addr_copy(peer_notify->mac_addr, bssid);
-
+	peer_notify->mpdu_density = cpu_to_le16(RSI_MPDU_DENSITY);
 	peer_notify->sta_flags = cpu_to_le32((qos_enable) ? 1 : 0);
 
-	peer_notify->desc_word[0] =
-		cpu_to_le16((sizeof(struct rsi_peer_notify) - FRAME_DESC_SZ) |
-			    (RSI_WIFI_MGMT_Q << 12));
-	peer_notify->desc_word[1] = cpu_to_le16(PEER_NOTIFY);
-	peer_notify->desc_word[7] |= cpu_to_le16(vap_id << 8);
+	rsi_set_len_qno(&peer_notify->desc.desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ),
+			RSI_WIFI_MGMT_Q);
+	peer_notify->desc.desc_dword0.frame_type = PEER_NOTIFY;
+	peer_notify->desc.desc_dword3.sta_id = vap_id;
 
-	skb_put(skb, sizeof(struct rsi_peer_notify));
+	skb_put(skb, frame_len);
 
 	status = rsi_send_internal_mgmt_frame(common, skb);
 

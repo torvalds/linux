@@ -165,6 +165,8 @@
 #define ALLOW_CONN_PEER_MGMT_WHILE_BUF_FULL BIT(5)
 #define DISALLOW_BROADCAST_DATA		BIT(6)
 
+#define RSI_MPDU_DENSITY		0x8
+
 enum opmode {
 	STA_OPMODE = 1,
 	AP_OPMODE = 2
@@ -270,7 +272,7 @@ struct rsi_boot_params {
 } __packed;
 
 struct rsi_peer_notify {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc desc;
 	u8 mac_addr[6];
 	__le16 command;
 	__le16 mpdu_density;
