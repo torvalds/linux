@@ -3219,7 +3219,7 @@ sub process {
 		my ($stat, $cond, $line_nr_next, $remain_next, $off_next,
 		    $realline_next);
 #print "LINE<$line>\n";
-		if ($linenr >= $suppress_statement &&
+		if ($linenr > $suppress_statement &&
 		    $realcnt && $sline =~ /.\s*\S/) {
 			($stat, $cond, $line_nr_next, $remain_next, $off_next) =
 				ctx_statement_block($linenr, $realcnt, 0);
