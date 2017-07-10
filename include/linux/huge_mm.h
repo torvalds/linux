@@ -3,6 +3,8 @@
 
 #include <linux/sched/coredump.h>
 
+#include <linux/fs.h> /* only for vma_is_dax() */
+
 extern int do_huge_pmd_anonymous_page(struct vm_fault *vmf);
 extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
@@ -101,6 +103,9 @@ static inline bool transparent_hugepage_enabled(struct vm_area_struct *vma)
 		return false;
 
 	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
+		return true;
+
+	if (vma_is_dax(vma))
 		return true;
 
 	if (transparent_hugepage_flags &
