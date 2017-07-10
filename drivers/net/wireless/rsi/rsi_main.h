@@ -239,6 +239,9 @@ struct rsi_common {
 	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
+
+	u16 beacon_interval;
+	u8 dtim_cnt;
 };
 
 enum host_intf {

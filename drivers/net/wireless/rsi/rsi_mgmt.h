@@ -167,6 +167,8 @@
 
 #define RSI_MPDU_DENSITY		0x8
 #define RSI_CHAN_RADAR			BIT(7)
+#define RSI_BEACON_INTERVAL		200
+#define RSI_DTIM_COUNT			2
 
 enum opmode {
 	STA_OPMODE = 1,
@@ -320,19 +322,30 @@ struct rsi_chan_config {
 } __packed;
 
 struct rsi_vap_caps {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	u8 reserved1;
+	u8 status;
+	__le16 reserved2;
+	u8 vif_type;
+	u8 channel_bw;
+	__le16 antenna_info;
+	u8 radioid_macid;
+	u8 vap_id;
+	__le16 reserved3;
 	u8 mac_addr[6];
 	__le16 keep_alive_period;
 	u8 bssid[6];
-	__le16 reserved;
+	__le16 reserved4;
 	__le32 flags;
 	__le16 frag_threshold;
 	__le16 rts_threshold;
 	__le32 default_mgmt_rate;
-	__le32 default_ctrl_rate;
+	__le16 default_ctrl_rate;
+	__le16 ctrl_rate_flags;
 	__le32 default_data_rate;
 	__le16 beacon_interval;
 	__le16 dtim_period;
+	__le16 beacon_miss_threshold;
 } __packed;
 
 struct rsi_set_key {

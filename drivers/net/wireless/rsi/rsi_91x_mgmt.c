@@ -230,6 +230,8 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->rf_power_val = 0; /* Default 1.9V */
 	common->wlan_rf_power_mode = 0;
 	common->obm_ant_sel_val = 2;
+	common->beacon_interval = RSI_BEACON_INTERVAL;
+	common->dtim_cnt = RSI_DTIM_COUNT;
 }
 
 /**
@@ -627,59 +629,61 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_hw *hw = adapter->hw;
 	struct ieee80211_conf *conf = &hw->conf;
+	u16 frame_len = sizeof(struct rsi_vap_caps);
 	u16 vap_id = 0;
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending VAP capabilities frame\n", __func__);
 
-	skb = dev_alloc_skb(sizeof(struct rsi_vap_caps));
+	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
 		return -ENOMEM;
 	}
 
-	memset(skb->data, 0, sizeof(struct rsi_vap_caps));
+	memset(skb->data, 0, frame_len);
 	vap_caps = (struct rsi_vap_caps *)skb->data;
 
-	vap_caps->desc_word[0] = cpu_to_le16((sizeof(struct rsi_vap_caps) -
-					     FRAME_DESC_SZ) |
-					     (RSI_WIFI_MGMT_Q << 12));
-	vap_caps->desc_word[1] = cpu_to_le16(VAP_CAPABILITIES);
-	vap_caps->desc_word[2] = cpu_to_le16(vap_status << 8);
-	vap_caps->desc_word[4] = cpu_to_le16(mode |
-					     (common->channel_width << 8));
-	vap_caps->desc_word[7] = cpu_to_le16((vap_id << 8) |
-					     (common->mac_id << 4) |
-					     common->radio_id);
+	rsi_set_len_qno(&vap_caps->desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
+	vap_caps->desc_dword0.frame_type = VAP_CAPABILITIES;
+	vap_caps->status = vap_status;
+	vap_caps->vif_type = mode;
+	vap_caps->channel_bw = common->channel_width;
+	vap_caps->vap_id = vap_id;
+	vap_caps->radioid_macid = ((common->mac_id & 0xf) << 4) |
+				   (common->radio_id & 0xf);
 
 	memcpy(vap_caps->mac_addr, common->mac_addr, IEEE80211_ADDR_LEN);
 	vap_caps->keep_alive_period = cpu_to_le16(90);
 	vap_caps->frag_threshold = cpu_to_le16(IEEE80211_MAX_FRAG_THRESHOLD);
 
 	vap_caps->rts_threshold = cpu_to_le16(common->rts_threshold);
-	vap_caps->default_mgmt_rate = cpu_to_le32(RSI_RATE_6);
 
 	if (common->band == NL80211_BAND_5GHZ) {
-		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_6);
-		if (conf_is_ht40(&common->priv->hw->conf)) {
-			vap_caps->default_ctrl_rate |=
-				cpu_to_le32(FULL40M_ENABLE << 16);
-		}
+		vap_caps->default_ctrl_rate = cpu_to_le16(RSI_RATE_6);
+		vap_caps->default_mgmt_rate = cpu_to_le32(RSI_RATE_6);
 	} else {
-		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_1);
+		vap_caps->default_ctrl_rate = cpu_to_le16(RSI_RATE_1);
+		vap_caps->default_mgmt_rate = cpu_to_le32(RSI_RATE_1);
+	}
+	if (conf_is_ht40(conf)) {
 		if (conf_is_ht40_minus(conf))
-			vap_caps->default_ctrl_rate |=
-				cpu_to_le32(UPPER_20_ENABLE << 16);
+			vap_caps->ctrl_rate_flags =
+				cpu_to_le16(UPPER_20_ENABLE);
 		else if (conf_is_ht40_plus(conf))
-			vap_caps->default_ctrl_rate |=
-				cpu_to_le32(LOWER_20_ENABLE << 16);
+			vap_caps->ctrl_rate_flags =
+				cpu_to_le16(LOWER_20_ENABLE);
+		else
+			vap_caps->ctrl_rate_flags =
+				cpu_to_le16(FULL40M_ENABLE);
 	}
 
 	vap_caps->default_data_rate = 0;
-	vap_caps->beacon_interval = cpu_to_le16(200);
-	vap_caps->dtim_period = cpu_to_le16(4);
+	vap_caps->beacon_interval = cpu_to_le16(common->beacon_interval);
+	vap_caps->dtim_period = cpu_to_le16(common->dtim_cnt);
 
-	skb_put(skb, sizeof(*vap_caps));
+	skb_put(skb, frame_len);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
