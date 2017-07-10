@@ -103,7 +103,7 @@ static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (unlikely(!check_copy_size(addr, bytes, true)))
-		return bytes;
+		return 0;
 	else
 		return _copy_to_iter(addr, bytes, i);
 }
@@ -112,7 +112,7 @@ static __always_inline __must_check
 size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return bytes;
+		return 0;
 	else
 		return _copy_from_iter(addr, bytes, i);
 }
@@ -130,7 +130,7 @@ static __always_inline __must_check
 size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return bytes;
+		return 0;
 	else
 		return _copy_from_iter_nocache(addr, bytes, i);
 }
@@ -160,7 +160,7 @@ static __always_inline __must_check
 size_t copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return bytes;
+		return 0;
 	else
 		return _copy_from_iter_flushcache(addr, bytes, i);
 }
