@@ -348,8 +348,22 @@ struct rsi_vap_caps {
 	__le16 beacon_miss_threshold;
 } __packed;
 
+/* Key descriptor flags */
+#define RSI_KEY_TYPE_BROADCAST	BIT(1)
+#define RSI_WEP_KEY		BIT(2)
+#define RSI_WEP_KEY_104		BIT(3)
+#define RSI_CIPHER_WPA		BIT(4)
+#define RSI_CIPHER_TKIP		BIT(5)
+#define RSI_PROTECT_DATA_FRAMES	BIT(13)
+#define RSI_KEY_ID_MASK		0xC0
+#define RSI_KEY_ID_OFFSET	14
 struct rsi_set_key {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	__le16 key_desc;
+	__le32 bpn;
+	u8 sta_id;
+	u8 vap_id;
 	u8 key[4][32];
 	u8 tx_mic_key[8];
 	u8 rx_mic_key[8];

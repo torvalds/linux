@@ -709,39 +709,39 @@ int rsi_hal_load_key(struct rsi_common *common,
 	struct sk_buff *skb = NULL;
 	struct rsi_set_key *set_key;
 	u16 key_descriptor = 0;
+	u16 frame_len = sizeof(struct rsi_set_key);
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending load key frame\n", __func__);
 
-	skb = dev_alloc_skb(sizeof(struct rsi_set_key));
+	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
 		return -ENOMEM;
 	}
 
-	memset(skb->data, 0, sizeof(struct rsi_set_key));
+	memset(skb->data, 0, frame_len);
 	set_key = (struct rsi_set_key *)skb->data;
 
 	if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
 	    (cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		key_len += 1;
-		key_descriptor |= BIT(2);
+		key_descriptor |= RSI_WEP_KEY;
 		if (key_len >= 13)
-			key_descriptor |= BIT(3);
+			key_descriptor |= RSI_WEP_KEY_104;
 	} else if (cipher != KEY_TYPE_CLEAR) {
-		key_descriptor |= BIT(4);
+		key_descriptor |= RSI_CIPHER_WPA;
 		if (key_type == RSI_PAIRWISE_KEY)
 			key_id = 0;
 		if (cipher == WLAN_CIPHER_SUITE_TKIP)
-			key_descriptor |= BIT(5);
+			key_descriptor |= RSI_CIPHER_TKIP;
 	}
-	key_descriptor |= (key_type | BIT(13) | (key_id << 14));
+	key_descriptor |= (key_type | RSI_PROTECT_DATA_FRAMES | (key_id << 14));
 
-	set_key->desc_word[0] = cpu_to_le16((sizeof(struct rsi_set_key) -
-					    FRAME_DESC_SZ) |
-					    (RSI_WIFI_MGMT_Q << 12));
-	set_key->desc_word[1] = cpu_to_le16(SET_KEY_REQ);
-	set_key->desc_word[4] = cpu_to_le16(key_descriptor);
+	rsi_set_len_qno(&set_key->desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
+	set_key->desc_dword0.frame_type = SET_KEY_REQ;
+	set_key->key_desc = cpu_to_le16(key_descriptor);
 
 	if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
 	    (cipher == WLAN_CIPHER_SUITE_WEP104)) {
@@ -755,7 +755,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 	memcpy(set_key->tx_mic_key, &data[16], 8);
 	memcpy(set_key->rx_mic_key, &data[24], 8);
 
-	skb_put(skb, sizeof(struct rsi_set_key));
+	skb_put(skb, frame_len);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
