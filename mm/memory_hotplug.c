@@ -1436,7 +1436,15 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
 	int nid = page_to_nid(page);
 	nodemask_t nmask = node_states[N_MEMORY];
-	struct page *new_page = NULL;
+
+	/*
+	 * try to allocate from a different node but reuse this node if there
+	 * are no other online nodes to be used (e.g. we are offlining a part
+	 * of the only existing node)
+	 */
+	node_clear(nid, nmask);
+	if (nodes_empty(nmask))
+		node_set(nid, nmask);
 
 	/*
 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
@@ -1447,18 +1455,11 @@ static struct page *new_node_page(struct page *page, unsigned long private,
 		return alloc_huge_page_node(page_hstate(compound_head(page)),
 					next_node_in(nid, nmask));
 
-	node_clear(nid, nmask);
-
 	if (PageHighMem(page)
 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
 		gfp_mask |= __GFP_HIGHMEM;
 
-	if (!nodes_empty(nmask))
-		new_page = __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
-	if (!new_page)
-		new_page = __alloc_pages(gfp_mask, 0, nid);
-
-	return new_page;
+	return __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
 }
 
 #define NR_OFFLINE_AT_ONCE_PAGES	(256)
