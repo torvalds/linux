@@ -66,23 +66,21 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 		goto read_unlock;
 
 	/* read VFLRE to determine if any VFs have been reset */
-	do {
-		vflre = fm10k_read_reg(hw, FM10K_PFVFLRE(1));
-		vflre <<= 32;
-		vflre |= fm10k_read_reg(hw, FM10K_PFVFLRE(0));
+	vflre = fm10k_read_reg(hw, FM10K_PFVFLRE(1));
+	vflre <<= 32;
+	vflre |= fm10k_read_reg(hw, FM10K_PFVFLRE(0));
 
-		i = iov_data->num_vfs;
+	i = iov_data->num_vfs;
 
-		for (vflre <<= 64 - i; vflre && i--; vflre += vflre) {
-			struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
+	for (vflre <<= 64 - i; vflre && i--; vflre += vflre) {
+		struct fm10k_vf_info *vf_info = &iov_data->vf_info[i];
 
-			if (vflre >= 0)
-				continue;
+		if (vflre >= 0)
+			continue;
 
-			hw->iov.ops.reset_resources(hw, vf_info);
-			vf_info->mbx.ops.connect(hw, &vf_info->mbx);
-		}
-	} while (i != iov_data->num_vfs);
+		hw->iov.ops.reset_resources(hw, vf_info);
+		vf_info->mbx.ops.connect(hw, &vf_info->mbx);
+	}
 
 read_unlock:
 	rcu_read_unlock();
