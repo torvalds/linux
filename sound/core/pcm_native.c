@@ -238,10 +238,8 @@ static bool hw_support_mmap(struct snd_pcm_substream *substream)
 {
 	if (!(substream->runtime->hw.info & SNDRV_PCM_INFO_MMAP))
 		return false;
-	/* check architectures that return -EINVAL from dma_mmap_coherent() */
-	/* FIXME: this should be some global flag */
-#if defined(CONFIG_C6X) || defined(CONFIG_FRV) || defined(CONFIG_MN10300) ||\
-	defined(CONFIG_PARISC) || defined(CONFIG_XTENSA)
+	/* architecture supports dma_mmap_coherent()? */
+#if defined(CONFIG_ARCH_NO_COHERENT_DMA_MMAP) || !defined(CONFIG_HAS_DMA)
 	if (!substream->ops->mmap &&
 	    substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV)
 		return false;
