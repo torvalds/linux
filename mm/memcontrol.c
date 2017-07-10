@@ -631,7 +631,7 @@ static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
 	val = __this_cpu_read(memcg->stat->nr_page_events);
 	next = __this_cpu_read(memcg->stat->targets[target]);
 	/* from time_after() in jiffies.h */
-	if ((long)next - (long)val < 0) {
+	if ((long)(next - val) < 0) {
 		switch (target) {
 		case MEM_CGROUP_TARGET_THRESH:
 			next = val + THRESHOLDS_EVENTS_TARGET;
