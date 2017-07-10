@@ -3978,6 +3978,7 @@ static int
 ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 		 int reset, int enable);
 
+#ifdef CONFIG_MODULES
 static void process_mod_list(struct list_head *head, struct ftrace_ops *ops,
 			     char *mod, bool enable)
 {
@@ -4068,6 +4069,7 @@ static void process_cached_mods(const char *mod_name)
 
 	kfree(mod);
 }
+#endif
 
 /*
  * We register the module command as a template to show others how
