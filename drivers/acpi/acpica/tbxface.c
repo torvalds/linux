@@ -194,6 +194,14 @@ acpi_status ACPI_INIT_FUNCTION acpi_reallocate_root_table(void)
 		}
 	}
 
+	if (!acpi_gbl_enable_table_validation) {
+		/*
+		 * Now it's safe to do full table validation. We can do deferred
+		 * table initilization here once the flag is set.
+		 */
+		acpi_gbl_enable_table_validation = TRUE;
+	}
+
 	acpi_gbl_root_table_list.flags |= ACPI_ROOT_ALLOW_RESIZE;
 
 	status = acpi_tb_resize_root_table_list();

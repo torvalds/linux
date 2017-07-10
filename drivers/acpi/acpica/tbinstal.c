@@ -221,7 +221,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
-	if (reload) {
+	if (acpi_gbl_enable_table_validation) {
 
 		/* Check if table is already registered */
 

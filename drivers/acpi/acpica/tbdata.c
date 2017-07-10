@@ -338,7 +338,7 @@ void acpi_tb_invalidate_table(struct acpi_table_desc *table_desc)
 acpi_status acpi_tb_validate_temp_table(struct acpi_table_desc *table_desc)
 {
 
-	if (!table_desc->pointer && !acpi_gbl_verify_table_checksum) {
+	if (!table_desc->pointer && !acpi_gbl_enable_table_validation) {
 		/*
 		 * Only validates the header of the table.
 		 * Note that Length contains the size of the mapping after invoking
@@ -394,7 +394,7 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc, char *signature)
 
 	/* Verify the checksum */
 
-	if (acpi_gbl_verify_table_checksum) {
+	if (acpi_gbl_enable_table_validation) {
 		status =
 		    acpi_tb_verify_checksum(table_desc->pointer,
 					    table_desc->length);

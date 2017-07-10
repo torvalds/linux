@@ -995,9 +995,6 @@ void __init acpi_early_init(void)
 
 	printk(KERN_INFO PREFIX "Core revision %08x\n", ACPI_CA_VERSION);
 
-	/* It's safe to verify table checksums during late stage */
-	acpi_gbl_verify_table_checksum = TRUE;
-
 	/* enable workarounds, unless strict ACPI spec. compliance */
 	if (!acpi_strict)
 		acpi_gbl_enable_interpreter_slack = TRUE;
