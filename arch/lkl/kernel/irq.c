@@ -143,6 +143,7 @@ int lkl_get_free_irq(const char *user)
 	for (i = 1; i < NR_IRQS; i++) {
 		if (!irqs[i].user) {
 			irqs[i].user = user;
+			irq_set_chip_and_handler(i, &dummy_irq_chip, handle_simple_irq);
 			ret = i;
 			break;
 		}
