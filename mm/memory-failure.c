@@ -1022,9 +1022,31 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	return unmap_success;
 }
 
-static int memory_failure_hugetlb(unsigned long pfn, int trapno, int flags)
+static int identify_page_state(unsigned long pfn, struct page *p,
+				unsigned long page_flags)
 {
 	struct page_state *ps;
+
+	/*
+	 * The first check uses the current page flags which may not have any
+	 * relevant information. The second check with the saved page flags is
+	 * carried out only if the first check can't determine the page status.
+	 */
+	for (ps = error_states;; ps++)
+		if ((p->flags & ps->mask) == ps->res)
+			break;
+
+	page_flags |= (p->flags & (1UL << PG_dirty));
+
+	if (!ps->mask)
+		for (ps = error_states;; ps++)
+			if ((page_flags & ps->mask) == ps->res)
+				break;
+	return page_action(ps, p, pfn);
+}
+
+static int memory_failure_hugetlb(unsigned long pfn, int trapno, int flags)
+{
 	struct page *p = pfn_to_page(pfn);
 	struct page *head = compound_head(p);
 	int res;
@@ -1074,19 +1096,7 @@ static int memory_failure_hugetlb(unsigned long pfn, int trapno, int flags)
 		goto out;
 	}
 
-	res = -EBUSY;
-
-	for (ps = error_states;; ps++)
-		if ((p->flags & ps->mask) == ps->res)
-			break;
-
-	page_flags |= (p->flags & (1UL << PG_dirty));
-
-	if (!ps->mask)
-		for (ps = error_states;; ps++)
-			if ((page_flags & ps->mask) == ps->res)
-				break;
-	res = page_action(ps, p, pfn);
+	res = identify_page_state(pfn, p, page_flags);
 out:
 	unlock_page(head);
 	return res;
@@ -1112,7 +1122,6 @@ out:
  */
 int memory_failure(unsigned long pfn, int trapno, int flags)
 {
-	struct page_state *ps;
 	struct page *p;
 	struct page *hpage;
 	struct page *orig_head;
@@ -1273,23 +1282,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	}
 
 identify_page_state:
-	res = -EBUSY;
-	/*
-	 * The first check uses the current page flags which may not have any
-	 * relevant information. The second check with the saved page flagss is
-	 * carried out only if the first check can't determine the page status.
-	 */
-	for (ps = error_states;; ps++)
-		if ((p->flags & ps->mask) == ps->res)
-			break;
-
-	page_flags |= (p->flags & (1UL << PG_dirty));
-
-	if (!ps->mask)
-		for (ps = error_states;; ps++)
-			if ((page_flags & ps->mask) == ps->res)
-				break;
-	res = page_action(ps, p, pfn);
+	res = identify_page_state(pfn, p, page_flags);
 out:
 	unlock_page(p);
 	return res;
