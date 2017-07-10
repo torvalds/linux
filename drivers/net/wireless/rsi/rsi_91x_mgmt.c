@@ -1250,6 +1250,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			   u16 aid)
 {
 	if (status) {
+		common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
 					      RSI_IFTYPE_STATION,
 					      STA_CONNECTED,
@@ -1258,13 +1259,17 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      aid);
 		if (common->min_rate == 0xffff)
 			rsi_send_auto_rate_request(common);
+		if (!rsi_send_block_unblock_frame(common, false))
+			common->hw_data_qs_blocked = false;
 	} else {
+		common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
 					      RSI_IFTYPE_STATION,
 					      STA_DISCONNECTED,
 					      bssid,
 					      qos_enable,
 					      aid);
+		rsi_send_block_unblock_frame(common, true);
 	}
 }
 
