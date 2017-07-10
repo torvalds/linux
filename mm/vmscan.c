@@ -2228,8 +2228,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 		}
 
 		if (unlikely(pgdatfile + pgdatfree <= total_high_wmark)) {
-			scan_balance = SCAN_ANON;
-			goto out;
+			/*
+			 * Force SCAN_ANON if there are enough inactive
+			 * anonymous pages on the LRU in eligible zones.
+			 * Otherwise, the small LRU gets thrashed.
+			 */
+			if (!inactive_list_is_low(lruvec, false, memcg, sc, false) &&
+			    lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, sc->reclaim_idx)
+					>> sc->priority) {
+				scan_balance = SCAN_ANON;
+				goto out;
+			}
 		}
 	}
 
