@@ -1,5 +1,5 @@
 /* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -67,10 +67,8 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 
 	/* read VFLRE to determine if any VFs have been reset */
 	do {
-		vflre = fm10k_read_reg(hw, FM10K_PFVFLRE(0));
+		vflre = fm10k_read_reg(hw, FM10K_PFVFLRE(1));
 		vflre <<= 32;
-		vflre |= fm10k_read_reg(hw, FM10K_PFVFLRE(1));
-		vflre = (vflre << 32) | (vflre >> 32);
 		vflre |= fm10k_read_reg(hw, FM10K_PFVFLRE(0));
 
 		i = iov_data->num_vfs;
