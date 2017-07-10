@@ -55,6 +55,7 @@ struct caam_qi_pcpu_priv {
 } ____cacheline_aligned;
 
 static DEFINE_PER_CPU(struct caam_qi_pcpu_priv, pcpu_qipriv);
+static DEFINE_PER_CPU(int, last_cpu);
 
 /*
  * caam_qi_priv - CAAM QI backend private params
@@ -392,7 +393,6 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 	dma_addr_t hwdesc;
 	struct caam_drv_ctx *drv_ctx;
 	const cpumask_t *cpus = qman_affine_cpus();
-	static DEFINE_PER_CPU(int, last_cpu);
 
 	num_words = desc_len(sh_desc);
 	if (num_words > MAX_SDLEN) {
