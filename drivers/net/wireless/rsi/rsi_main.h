@@ -170,6 +170,13 @@ struct xtended_desc {
 	u16 reserved;
 };
 
+enum rsi_dfs_regions {
+	RSI_REGION_FCC = 0,
+	RSI_REGION_ETSI,
+	RSI_REGION_TELEC,
+	RSI_REGION_WORLD
+};
+
 struct rsi_hw;
 
 struct rsi_common {
@@ -287,6 +294,7 @@ struct rsi_hw {
 	struct eepromrw_info eeprom;
 	u32 interrupt_status;
 	u8 dfs_region;
+	char country[2];
 	void *rsi_dev;
 	struct rsi_host_intf_ops *host_intf_ops;
 	int (*check_hw_queue_status)(struct rsi_hw *adapter, u8 q_num);
