@@ -58,18 +58,3 @@ static inline void sg_to_sec4_sg_last(struct scatterlist *sg, int sg_count,
 	sec4_sg_ptr = sg_to_sec4_sg(sg, sg_count, sec4_sg_ptr, offset);
 	sec4_sg_ptr->len |= cpu_to_caam32(SEC4_SG_LEN_FIN);
 }
-
-static inline struct sec4_sg_entry *sg_to_sec4_sg_len(
-	struct scatterlist *sg, unsigned int total,
-	struct sec4_sg_entry *sec4_sg_ptr)
-{
-	do {
-		unsigned int len = min(sg_dma_len(sg), total);
-
-		dma_to_sec4_sg_one(sec4_sg_ptr, sg_dma_address(sg), len, 0);
-		sec4_sg_ptr++;
-		sg = sg_next(sg);
-		total -= len;
-	} while (total);
-	return sec4_sg_ptr - 1;
-}
