@@ -492,7 +492,7 @@ static int isofs_show_options(struct seq_file *m, struct dentry *root)
 
 	if (sbi->s_check)		seq_printf(m, ",check=%c", sbi->s_check);
 	if (sbi->s_mapping)		seq_printf(m, ",map=%c", sbi->s_mapping);
-	if (sbi->s_session != -1)	seq_printf(m, ",session=%u", sbi->s_session);
+	if (sbi->s_session != 255)	seq_printf(m, ",session=%u", sbi->s_session - 1);
 	if (sbi->s_sbsector != -1)	seq_printf(m, ",sbsector=%u", sbi->s_sbsector);
 
 	if (root->d_sb->s_blocksize != 1024)
