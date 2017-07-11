@@ -152,6 +152,15 @@
 	};
 };
 
+&cif_isp0 {
+	rockchip,camera-modules-attached = <&camera0>;
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
 &saradc {
 	vref-supply = <&vccadc_ref>;
 };
@@ -215,6 +224,41 @@
 		screen_max_y = <2048>;
 		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
 		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+	};
+
+	camera0: camera-module@60 {
+		status = "okay";
+		compatible = "ovti,ov7750-v4l2-i2c-subdev";
+		reg = < 0x60 >;
+		device_type = "v4l2-i2c-subdev";
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "clk_cif_out";
+
+		pinctrl-names = "rockchip,camera_default",
+			"rockchip,camera_sleep";
+		pinctrl-0 = <&cam0_default_pins>;
+		pinctrl-1 = <&cam0_sleep_pins>;
+
+		rockchip,pwr-gpio = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-mclk-name = "clk_cif_out";
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "cmk-cb0695-fv1";
+		rockchip,camera-module-len-name = "lg9569a2";
+		rockchip,camera-module-fov-h = "133.0";
+		rockchip,camera-module-fov-v = "100.1";
+		rockchip,camera-module-orientation = <0>;
+		rockchip,camera-module-iq-flip = <0>;
+		rockchip,camera-module-iq-mirror = <0>;
+		rockchip,camera-module-flip = <0>;
+		rockchip,camera-module-mirror = <0>;
+
+		rockchip,camera-module-defrect0 = <640 480 0 0 640 480>;
+		rockchip,camera-module-defrect1 = <640 480 0 0 640 480>;
+		rockchip,camera-module-defrect2 = <640 480 0 0 640 480>;
+		rockchip,camera-module-defrect3 = <640 480 0 0 640 480>;
+		rockchip,camera-module-flash-support = <0>;
+		rockchip,camera-module-mipi-dphy-index = <0>;
 	};
 };
 
