@@ -517,8 +517,13 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 {
 	struct cec_data *data;
 	struct cec_msg *msg;
+	unsigned int attempts_made = arb_lost_cnt + nack_cnt +
+				     low_drive_cnt + error_cnt;
 
 	dprintk(2, "%s: status %02x\n", __func__, status);
+	if (attempts_made < 1)
+		attempts_made = 1;
+
 	mutex_lock(&adap->lock);
 	data = adap->transmitting;
 	if (!data) {
@@ -551,10 +556,10 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 	 * the hardware didn't signal that it retried itself (by setting
 	 * CEC_TX_STATUS_MAX_RETRIES), then we will retry ourselves.
 	 */
-	if (data->attempts > 1 &&
+	if (data->attempts > attempts_made &&
 	    !(status & (CEC_TX_STATUS_MAX_RETRIES | CEC_TX_STATUS_OK))) {
 		/* Retry this message */
-		data->attempts--;
+		data->attempts -= attempts_made;
 		if (msg->timeout)
 			dprintk(2, "retransmit: %*ph (attempts: %d, wait for 0x%02x)\n",
 				msg->len, msg->msg, data->attempts, msg->reply);
