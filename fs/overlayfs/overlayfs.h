@@ -47,7 +47,8 @@ enum ovl_flag {
 /* Is the real inode encoded in fid an upper inode? */
 #define OVL_FH_FLAG_PATH_UPPER	(1 << 2)
 
-#define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN)
+#define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN | \
+			 OVL_FH_FLAG_PATH_UPPER)
 
 #if defined(__LITTLE_ENDIAN)
 #define OVL_FH_FLAG_CPU_ENDIAN 0
