@@ -29,6 +29,7 @@
 
 static struct hwrng *current_rng;
 static struct task_struct *hwrng_fill;
+/* list of registered rngs, sorted decending by quality */
 static LIST_HEAD(rng_list);
 /* Protects rng_list and current_rng */
 static DEFINE_MUTEX(rng_mutex);
@@ -417,6 +418,7 @@ int hwrng_register(struct hwrng *rng)
 {
 	int err = -EINVAL;
 	struct hwrng *old_rng, *tmp;
+	struct list_head *rng_list_ptr;
 
 	if (!rng->name || (!rng->data_read && !rng->read))
 		goto out;
@@ -432,14 +434,25 @@ int hwrng_register(struct hwrng *rng)
 	init_completion(&rng->cleanup_done);
 	complete(&rng->cleanup_done);
 
+	/* rng_list is sorted by decreasing quality */
+	list_for_each(rng_list_ptr, &rng_list) {
+		tmp = list_entry(rng_list_ptr, struct hwrng, list);
+		if (tmp->quality < rng->quality)
+			break;
+	}
+	list_add_tail(&rng->list, rng_list_ptr);
+
 	old_rng = current_rng;
 	err = 0;
-	if (!old_rng) {
+	if (!old_rng || (rng->quality > old_rng->quality)) {
+		/*
+		 * Set new rng as current as the new rng source
+		 * provides better entropy quality.
+		 */
 		err = set_current_rng(rng);
 		if (err)
 			goto out_unlock;
 	}
-	list_add_tail(&rng->list, &rng_list);
 
 	if (old_rng && !rng->init) {
 		/*
@@ -466,12 +479,12 @@ void hwrng_unregister(struct hwrng *rng)
 	list_del(&rng->list);
 	if (current_rng == rng) {
 		drop_current_rng();
+		/* rng_list is sorted by quality, use the best (=first) one */
 		if (!list_empty(&rng_list)) {
-			struct hwrng *tail;
+			struct hwrng *new_rng;
 
-			tail = list_entry(rng_list.prev, struct hwrng, list);
-
-			set_current_rng(tail);
+			new_rng = list_entry(rng_list.next, struct hwrng, list);
+			set_current_rng(new_rng);
 		}
 	}
 
