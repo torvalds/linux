@@ -33,6 +33,8 @@ enum {
 	PG_UPTODATE,		/* page group sync bit in read path */
 	PG_WB_END,		/* page group sync bit in write path */
 	PG_REMOVE,		/* page group sync bit in write path */
+	PG_CONTENDED1,		/* Is someone waiting for a lock? */
+	PG_CONTENDED2,		/* Is someone waiting for a lock? */
 };
 
 struct nfs_inode;

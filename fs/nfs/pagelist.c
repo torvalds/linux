@@ -155,9 +155,12 @@ nfs_page_group_lock(struct nfs_page *req, bool nonblock)
 	if (!test_and_set_bit(PG_HEADLOCK, &head->wb_flags))
 		return 0;
 
-	if (!nonblock)
+	if (!nonblock) {
+		set_bit(PG_CONTENDED1, &head->wb_flags);
+		smp_mb__after_atomic();
 		return wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
 				TASK_UNINTERRUPTIBLE);
+	}
 
 	return -EAGAIN;
 }
@@ -175,6 +178,10 @@ nfs_page_group_lock_wait(struct nfs_page *req)
 
 	WARN_ON_ONCE(head != head->wb_head);
 
+	if (!test_bit(PG_HEADLOCK, &head->wb_flags))
+		return;
+	set_bit(PG_CONTENDED1, &head->wb_flags);
+	smp_mb__after_atomic();
 	wait_on_bit(&head->wb_flags, PG_HEADLOCK,
 		TASK_UNINTERRUPTIBLE);
 }
@@ -193,6 +200,8 @@ nfs_page_group_unlock(struct nfs_page *req)
 	smp_mb__before_atomic();
 	clear_bit(PG_HEADLOCK, &head->wb_flags);
 	smp_mb__after_atomic();
+	if (!test_bit(PG_CONTENDED1, &head->wb_flags))
+		return;
 	wake_up_bit(&head->wb_flags, PG_HEADLOCK);
 }
 
@@ -383,6 +392,8 @@ void nfs_unlock_request(struct nfs_page *req)
 	smp_mb__before_atomic();
 	clear_bit(PG_BUSY, &req->wb_flags);
 	smp_mb__after_atomic();
+	if (!test_bit(PG_CONTENDED2, &req->wb_flags))
+		return;
 	wake_up_bit(&req->wb_flags, PG_BUSY);
 }
 
@@ -465,6 +476,10 @@ void nfs_release_request(struct nfs_page *req)
 int
 nfs_wait_on_request(struct nfs_page *req)
 {
+	if (!test_bit(PG_BUSY, &req->wb_flags))
+		return 0;
+	set_bit(PG_CONTENDED2, &req->wb_flags);
+	smp_mb__after_atomic();
 	return wait_on_bit_io(&req->wb_flags, PG_BUSY,
 			      TASK_UNINTERRUPTIBLE);
 }
