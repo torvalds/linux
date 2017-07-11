@@ -653,12 +653,35 @@ dm_atomic_state_alloc(struct drm_device *dev)
 	return &state->base;
 }
 
+static void
+dm_atomic_state_clear(struct drm_atomic_state *state)
+{
+	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
+
+	if (dm_state->context) {
+		dc_release_validate_context(dm_state->context);
+		dm_state->context = NULL;
+	}
+
+	drm_atomic_state_default_clear(state);
+}
+
+static void
+dm_atomic_state_alloc_free(struct drm_atomic_state *state)
+{
+	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
+	drm_atomic_state_default_release(state);
+	kfree(dm_state);
+}
+
 static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.fb_create = amdgpu_user_framebuffer_create,
 	.output_poll_changed = amdgpu_output_poll_changed,
 	.atomic_check = amdgpu_dm_atomic_check,
 	.atomic_commit = amdgpu_dm_atomic_commit,
 	.atomic_state_alloc = dm_atomic_state_alloc,
+	.atomic_state_clear = dm_atomic_state_clear,
+	.atomic_state_free = dm_atomic_state_alloc_free
 };
 
 static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {

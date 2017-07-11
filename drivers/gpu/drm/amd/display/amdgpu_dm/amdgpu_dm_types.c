@@ -3144,6 +3144,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		if (ret)
 			goto fail_planes;
 
+		WARN_ON(dm_state->context);
 		dm_state->context = dc_get_validate_context(dc, set, set_count);
 		if (!dm_state->context) {
 			ret = -EINVAL;
