@@ -723,7 +723,7 @@ static void rza1_gpio_set(struct gpio_chip *chip, unsigned int gpio,
 	rza1_pin_set(port, gpio, value);
 }
 
-static struct gpio_chip rza1_gpiochip_template = {
+static const struct gpio_chip rza1_gpiochip_template = {
 	.request		= rza1_gpio_request,
 	.free			= rza1_gpio_free,
 	.get_direction		= rza1_gpio_get_direction,
