@@ -2036,6 +2036,7 @@ static struct i915_power_well i830_power_wells[] = {
 		.name = "pipes",
 		.domains = I830_PIPES_POWER_DOMAINS,
 		.ops = &i830_pipes_power_well_ops,
+		.id = I830_DISP_PW_PIPES,
 	},
 };
 

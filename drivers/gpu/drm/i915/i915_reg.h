@@ -1073,6 +1073,12 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  */
 enum i915_power_well_id {
 	/*
+	 * I830
+	 *  - custom power well
+	 */
+	I830_DISP_PW_PIPES = 0,
+
+	/*
 	 * VLV/CHV
 	 *  - PUNIT_REG_PWRGT_CTRL (bit: id*2),
 	 *    PUNIT_REG_PWRGT_STATUS (bit: id*2) (PUNIT HAS v0.8)
