@@ -15,9 +15,13 @@ Required properties:
 		"rockchip,rk322x-vop";
 		"rockchip,rk3328-vop";
 
-- reg: there are two register region can configure for the device:
-  - first region: (Required) Base address and size of the controllers
-  - second region: (Optinal) Address and length of the gamma table,
+- reg: Address and length of the register set for the device.
+- reg-names: The names of register regions. contain following regions:
+  - "regs" : (Required) Base address and size of the controllers.
+  - "cabc_lut" : (Optinal) cabc function lut table registers,
+                   take care of this register's length, driver would use
+                   register's length to decide cabc lut table size.
+  - "gamma_lut" : (Optinal) gamma function lut table registers,
                    take care of this register's length, driver would use
                    register's length to decide gamma table size.
 
@@ -51,6 +55,7 @@ SoC specific DT entry:
 	vopb: vopb@ff930000 {
 		compatible = "rockchip,rk3288-vop";
 		reg = <0xff930000 0x19c>, <0xff931000 0x1000>;
+		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP0>, <&cru DCLK_VOP0>, <&cru HCLK_VOP0>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
