@@ -1698,10 +1698,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 {
 	static char textbuf[LOG_LINE_MAX];
 	char *text = textbuf;
-	size_t text_len = 0;
+	size_t text_len;
 	enum log_flags lflags = 0;
 	unsigned long flags;
-	int printed_len = 0;
+	int printed_len;
 	bool in_sched = false;
 
 	if (level == LOGLEVEL_SCHED) {
@@ -1754,7 +1754,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	if (dict)
 		lflags |= LOG_PREFIX|LOG_NEWLINE;
 
-	printed_len += log_output(facility, level, lflags, dict, dictlen, text, text_len);
+	printed_len = log_output(facility, level, lflags, dict, dictlen, text, text_len);
 
 	logbuf_unlock_irqrestore(flags);
 
