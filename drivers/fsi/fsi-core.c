@@ -883,17 +883,16 @@ struct bus_type fsi_bus_type = {
 };
 EXPORT_SYMBOL_GPL(fsi_bus_type);
 
-static int fsi_init(void)
+static int __init fsi_init(void)
 {
 	return bus_register(&fsi_bus_type);
 }
+postcore_initcall(fsi_init);
 
 static void fsi_exit(void)
 {
 	bus_unregister(&fsi_bus_type);
 }
-
-module_init(fsi_init);
 module_exit(fsi_exit);
 module_param(discard_errors, int, 0664);
 MODULE_LICENSE("GPL");
