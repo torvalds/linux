@@ -796,24 +796,18 @@
 
 	hdmi: hdmi@ff3c0000 {
 		compatible = "rockchip,rk3328-dw-hdmi";
-		reg = <0x0 0xff3c0000 0x0 0x20000>,
-		      <0x0 0xff430000 0x0 0x10000>;
+		reg = <0x0 0xff3c0000 0x0 0x20000>;
 		reg-io-width = <4>;
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_HDMI>,
 			 <&cru SCLK_HDMI_SFC>,
-			 <&cru PCLK_HDMIPHY>,
 			 <&cru HCLK_VIO>;
 		clock-names = "iahb",
 			      "isfr",
-			      "pclk_hdmiphy",
 			      "hclk_vio";
-		#clock-cells = <0>;
-		clock-output-names = "hdmi_phy";
-		assigned-clocks = <&cru HDMIPHY>;
-		assigned-clock-parents = <&hdmi>;
+		phys = <&hdmiphy>;
+		phy-names = "hdmi_phy";
 		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&hdmi_cec &hdmii2c_xfer &hdmi_hpd>;
 		pinctrl-1 = <&i2c3_gpio>;
@@ -874,6 +868,18 @@
 		rockchip,grf = <&grf>;
 		clocks = <&cru PCLK_ACODEC>;
 		clock-names = "pclk";
+		status = "disabled";
+	};
+
+	hdmiphy: hdmiphy@ff430000 {
+		compatible = "rockchip,rk3328-hdmi-phy";
+		reg = <0x0 0xff430000 0x0 0x10000>;
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		#phy-cells = <0>;
+		clocks = <&cru PCLK_HDMIPHY>, <&xin24m>;
+		clock-names = "sysclk", "refclk";
+		#clock-cells = <0>;
+		clock-output-names = "hdmi_phy";
 		status = "disabled";
 	};
 
