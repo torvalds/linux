@@ -29,6 +29,8 @@ struct msm_framebuffer {
 };
 #define to_msm_framebuffer(x) container_of(x, struct msm_framebuffer, base)
 
+static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
+		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 
 static int msm_framebuffer_create_handle(struct drm_framebuffer *fb,
 		struct drm_file *file_priv,
@@ -162,7 +164,7 @@ out_unref:
 	return ERR_PTR(ret);
 }
 
-struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
+static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos)
 {
 	struct msm_drm_private *priv = dev->dev_private;
