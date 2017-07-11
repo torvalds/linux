@@ -394,13 +394,17 @@ int cec_thread_func(void *_adap)
 
 		if (adap->transmitting && timeout) {
 			/*
-			 * If we timeout, then log that. This really shouldn't
-			 * happen and is an indication of a faulty CEC adapter
-			 * driver, or the CEC bus is in some weird state.
+			 * If we timeout, then log that. Normally this does
+			 * not happen and it is an indication of a faulty CEC
+			 * adapter driver, or the CEC bus is in some weird
+			 * state. On rare occasions it can happen if there is
+			 * so much traffic on the bus that the adapter was
+			 * unable to transmit for CEC_XFER_TIMEOUT_MS (2.1s).
 			 */
-			dprintk(0, "%s: message %*ph timed out!\n", __func__,
+			dprintk(1, "%s: message %*ph timed out\n", __func__,
 				adap->transmitting->msg.len,
 				adap->transmitting->msg.msg);
+			adap->tx_timeouts++;
 			/* Just give up on this. */
 			cec_data_cancel(adap->transmitting);
 			goto unlock;
@@ -1951,6 +1955,11 @@ int cec_adap_status(struct seq_file *file, void *priv)
 	if (adap->monitor_all_cnt)
 		seq_printf(file, "file handles in Monitor All mode: %u\n",
 			   adap->monitor_all_cnt);
+	if (adap->tx_timeouts) {
+		seq_printf(file, "transmit timeouts: %u\n",
+			   adap->tx_timeouts);
+		adap->tx_timeouts = 0;
+	}
 	data = adap->transmitting;
 	if (data)
 		seq_printf(file, "transmitting message: %*ph (reply: %02x, timeout: %ums)\n",
