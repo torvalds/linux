@@ -1036,6 +1036,18 @@ smb2_is_status_pending(char *buf, struct TCP_Server_Info *server, int length)
 	return true;
 }
 
+static bool
+smb2_is_session_expired(char *buf)
+{
+	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+
+	if (shdr->Status != STATUS_NETWORK_SESSION_EXPIRED)
+		return false;
+
+	cifs_dbg(FYI, "Session expired\n");
+	return true;
+}
+
 static int
 smb2_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
 		     struct cifsInodeInfo *cinode)
@@ -1369,6 +1381,63 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 		return ERR_PTR(rc);
 	return pntsd;
 }
+
+#ifdef CONFIG_CIFS_ACL
+static int
+set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
+		struct inode *inode, const char *path, int aclflag)
+{
+	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	unsigned int xid;
+	int rc, access_flags = 0;
+	struct cifs_tcon *tcon;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
+	struct cifs_fid fid;
+	struct cifs_open_parms oparms;
+	__le16 *utf16_path;
+
+	cifs_dbg(FYI, "set smb3 acl for path %s\n", path);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+
+	tcon = tlink_tcon(tlink);
+	xid = get_xid();
+
+	if (backup_cred(cifs_sb))
+		oparms.create_options = CREATE_OPEN_BACKUP_INTENT;
+	else
+		oparms.create_options = 0;
+
+	if (aclflag == CIFS_ACL_OWNER || aclflag == CIFS_ACL_GROUP)
+		access_flags = WRITE_OWNER;
+	else
+		access_flags = WRITE_DAC;
+
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	oparms.tcon = tcon;
+	oparms.desired_access = access_flags;
+	oparms.disposition = FILE_OPEN;
+	oparms.path = path;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	kfree(utf16_path);
+	if (!rc) {
+		rc = SMB2_set_acl(xid, tlink_tcon(tlink), fid.persistent_fid,
+			    fid.volatile_fid, pnntsd, acllen, aclflag);
+		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	}
+
+	cifs_put_tlink(tlink);
+	free_xid(xid);
+	return rc;
+}
+#endif /* CIFS_ACL */
 
 /* Retrieve an ACL from the server */
 static struct cifs_ntsd *
@@ -2160,6 +2229,13 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		return -ENOTSUPP;
 	}
 
+	if (server->ops->is_session_expired &&
+	    server->ops->is_session_expired(buf)) {
+		cifs_reconnect(server);
+		wake_up(&server->response_q);
+		return -1;
+	}
+
 	if (server->ops->is_status_pending &&
 			server->ops->is_status_pending(buf, server, 0))
 		return -1;
@@ -2477,6 +2553,7 @@ struct smb_version_operations smb20_operations = {
 	.close_dir = smb2_close_dir,
 	.calc_smb_size = smb2_calc_size,
 	.is_status_pending = smb2_is_status_pending,
+	.is_session_expired = smb2_is_session_expired,
 	.oplock_response = smb2_oplock_response,
 	.queryfs = smb2_queryfs,
 	.mand_lock = smb2_mand_lock,
@@ -2498,7 +2575,7 @@ struct smb_version_operations smb20_operations = {
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
 	.get_acl_by_fid = get_smb2_acl_by_fid,
-/*	.set_acl = set_smb3_acl, */
+	.set_acl = set_smb2_acl,
 #endif /* CIFS_ACL */
 };
 
@@ -2565,6 +2642,7 @@ struct smb_version_operations smb21_operations = {
 	.close_dir = smb2_close_dir,
 	.calc_smb_size = smb2_calc_size,
 	.is_status_pending = smb2_is_status_pending,
+	.is_session_expired = smb2_is_session_expired,
 	.oplock_response = smb2_oplock_response,
 	.queryfs = smb2_queryfs,
 	.mand_lock = smb2_mand_lock,
@@ -2587,7 +2665,7 @@ struct smb_version_operations smb21_operations = {
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
 	.get_acl_by_fid = get_smb2_acl_by_fid,
-/*	.set_acl = set_smb3_acl, */
+	.set_acl = set_smb2_acl,
 #endif /* CIFS_ACL */
 };
 
@@ -2655,6 +2733,7 @@ struct smb_version_operations smb30_operations = {
 	.close_dir = smb2_close_dir,
 	.calc_smb_size = smb2_calc_size,
 	.is_status_pending = smb2_is_status_pending,
+	.is_session_expired = smb2_is_session_expired,
 	.oplock_response = smb2_oplock_response,
 	.queryfs = smb2_queryfs,
 	.mand_lock = smb2_mand_lock,
@@ -2686,7 +2765,7 @@ struct smb_version_operations smb30_operations = {
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
 	.get_acl_by_fid = get_smb2_acl_by_fid,
-/*	.set_acl = set_smb3_acl, */
+	.set_acl = set_smb2_acl,
 #endif /* CIFS_ACL */
 };
 
@@ -2755,6 +2834,7 @@ struct smb_version_operations smb311_operations = {
 	.close_dir = smb2_close_dir,
 	.calc_smb_size = smb2_calc_size,
 	.is_status_pending = smb2_is_status_pending,
+	.is_session_expired = smb2_is_session_expired,
 	.oplock_response = smb2_oplock_response,
 	.queryfs = smb2_queryfs,
 	.mand_lock = smb2_mand_lock,
