@@ -2548,6 +2548,22 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	return mask;
 }
 
+static void assert_power_well_ids_unique(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	u64 power_well_ids;
+	int i;
+
+	power_well_ids = 0;
+	for (i = 0; i < power_domains->power_well_count; i++) {
+		enum i915_power_well_id id = power_domains->power_wells[i].id;
+
+		WARN_ON(id >= sizeof(power_well_ids) * 8);
+		WARN_ON(power_well_ids & BIT_ULL(id));
+		power_well_ids |= BIT_ULL(id);
+	}
+}
+
 #define set_power_wells(power_domains, __power_wells) ({		\
 	(power_domains)->power_wells = (__power_wells);			\
 	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
@@ -2598,6 +2614,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	} else {
 		set_power_wells(power_domains, i9xx_always_on_power_well);
 	}
+
+	assert_power_well_ids_unique(dev_priv);
 
 	return 0;
 }
