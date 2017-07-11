@@ -1,7 +1,8 @@
 ROCKCHIP HDMI PHY WITH INNO IP BLOCK
 
 Required properties:
- - compatible : should be "rockchip,rk3228-hdmi-phy";
+ - compatible : "rockchip,rk3228-hdmi-phy",
+		"rockchip,rk3328-hdmi-phy";
  - reg : the address offset of register for hdmi phy configuration.
  - #phy-cells : must be 0. See ./phy-bindings.txt for details.
  - clocks and clock-names:
