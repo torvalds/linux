@@ -2261,13 +2261,13 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
  *
  * Returns:
  *
- * Always returns 0, cannot fail yet.
+ * Returns 0 on success. Can return -ERESTARTSYS when @stall is true and the
+ * waiting for the previous commits has been interrupted.
  */
 int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 				  bool stall)
 {
-	int i;
-	long ret;
+	int i, ret;
 	struct drm_connector *connector;
 	struct drm_connector_state *old_conn_state, *new_conn_state;
 	struct drm_crtc *crtc;
@@ -2290,12 +2290,11 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 			if (!commit)
 				continue;
 
-			ret = wait_for_completion_timeout(&commit->hw_done,
-							  10*HZ);
-			if (ret == 0)
-				DRM_ERROR("[CRTC:%d:%s] hw_done timed out\n",
-					  crtc->base.id, crtc->name);
+			ret = wait_for_completion_interruptible(&commit->hw_done);
 			drm_crtc_commit_put(commit);
+
+			if (ret)
+				return ret;
 		}
 	}
 
