@@ -424,6 +424,7 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 static void destruct(struct core_dc *dc)
 {
 	dc_release_validate_context(dc->current_context);
+	dc->current_context = NULL;
 
 	destroy_links(dc);
 
@@ -440,9 +441,6 @@ static void destruct(struct core_dc *dc)
 
 	if (dc->ctx->logger)
 		dal_logger_destroy(&dc->ctx->logger);
-
-	dm_free(dc->current_context);
-	dc->current_context = NULL;
 
 	dm_free(dc->ctx);
 	dc->ctx = NULL;
@@ -1656,7 +1654,6 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	if (core_dc->current_context != context) {
 		dc_release_validate_context(core_dc->current_context);
-		dc_retain_validate_context(context);
 		core_dc->current_context = context;
 	}
 	return;

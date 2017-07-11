@@ -2166,6 +2166,7 @@ void dc_resource_validate_ctx_copy_construct(
 		struct validate_context *dst_ctx)
 {
 	int i, j;
+	int ref_count = dst_ctx->ref_count;
 
 	*dst_ctx = *src_ctx;
 
@@ -2186,6 +2187,10 @@ void dc_resource_validate_ctx_copy_construct(
 			dc_surface_retain(
 				dst_ctx->stream_status[i].surfaces[j]);
 	}
+
+	/* context refcount should not be overridden */
+	dst_ctx->ref_count = ref_count;
+
 }
 
 struct clock_source *dc_resource_find_first_free_pll(
