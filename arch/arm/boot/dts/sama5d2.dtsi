@@ -1048,7 +1048,7 @@
 			};
 
 			hsmc: hsmc@f8014000 {
-				compatible = "atmel,sama5d3-smc", "syscon", "simple-mfd";
+				compatible = "atmel,sama5d2-smc", "syscon", "simple-mfd";
 				reg = <0xf8014000 0x1000>;
 				interrupts = <5 IRQ_TYPE_LEVEL_HIGH 6>;
 				clocks = <&hsmc_clk>;
