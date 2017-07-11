@@ -493,7 +493,7 @@ static const struct device_type mali_gpu_device_device_type = {
  */
 static const struct mali_gpu_device_data mali_gpu_data = {
 	.shared_mem_size = 1024 * 1024 * 1024, /* 1GB */
-	.max_job_runtime = 100, /* 100 ms */
+	.max_job_runtime = 60000, /* 60 seconds */
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
 	.gpu_cooling_ops = &rk_cooling_ops,
 #endif
