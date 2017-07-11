@@ -22,8 +22,27 @@ While most I/O devices on a s390 system are typically driven through the
 channel I/O mechanism described here, there are various other methods
 (like the diag interface). These are out of the scope of this document.
 
+The s390 common I/O layer also provides access to some devices that are
+not strictly considered I/O devices. They are considered here as well,
+although they are not the focus of this document.
+
 Some additional information can also be found in the kernel source under
 Documentation/s390/driver-model.txt.
+
+The css bus
+===========
+
+The css bus contains the subchannels available on the system. They fall
+into several categories:
+
+* Standard I/O subchannels, for use by the system. They have a child
+  device on the ccw bus and are described below.
+* I/O subchannels bound to the vfio-ccw driver. See
+  Documentation/s390/vfio-ccw.txt.
+* Message subchannels. No Linux driver currently exists.
+* CHSC subchannels (at most one). The chsc subchannel driver can be used
+  to send asynchronous chsc commands.
+* eADM subchannels. Used for talking to storage class memory.
 
 The ccw bus
 ===========
