@@ -620,16 +620,6 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 0;
 }
 
-static int mt_touch_input_mapped(struct hid_device *hdev, struct hid_input *hi,
-		struct hid_field *field, struct hid_usage *usage,
-		unsigned long **bit, int *max)
-{
-	if (usage->type == EV_KEY || usage->type == EV_ABS)
-		set_bit(usage->type, hi->input->evbit);
-
-	return -1;
-}
-
 static int mt_compute_slot(struct mt_device *td, struct input_dev *input)
 {
 	__s32 quirks = td->mtclass.quirks;
@@ -969,8 +959,10 @@ static int mt_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		return 0;
 
 	if (field->application == HID_DG_TOUCHSCREEN ||
-	    field->application == HID_DG_TOUCHPAD)
-		return mt_touch_input_mapped(hdev, hi, field, usage, bit, max);
+	    field->application == HID_DG_TOUCHPAD) {
+		/* We own these mappings, tell hid-input to ignore them */
+		return -1;
+	}
 
 	/* let hid-core decide for the others */
 	return 0;
