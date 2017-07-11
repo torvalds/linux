@@ -129,7 +129,7 @@ uint32_t generic_reg_get(const struct dc_context *ctx,
 uint32_t generic_reg_wait(const struct dc_context *ctx,
 	uint32_t addr, uint32_t shift, uint32_t mask, uint32_t condition_value,
 	unsigned int delay_between_poll_us, unsigned int time_out_num_tries,
-	const char *func_name)
+	const char *func_name, int line)
 {
 	uint32_t field_value;
 	uint32_t reg_val;
@@ -158,8 +158,8 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 			return reg_val;
 	}
 
-	dm_error("REG_WAIT timeout %dus * %d tries - %s\n",
-			delay_between_poll_us, time_out_num_tries, func_name);
+	dm_error("REG_WAIT timeout %dus * %d tries - %s line:%d\n",
+			delay_between_poll_us, time_out_num_tries, func_name, line);
 
 	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
 		BREAK_TO_DEBUGGER();

@@ -188,7 +188,7 @@
 #define REG_WAIT(reg_name, field, val, delay_between_poll_us, max_try)	\
 		generic_reg_wait(CTX, \
 				REG(reg_name), FN(reg_name, field), val,\
-				delay_between_poll_us, max_try, __func__)
+				delay_between_poll_us, max_try, __func__, __LINE__)
 
 /* macro to update (read, modify, write) register fields
  */
