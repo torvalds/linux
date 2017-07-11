@@ -93,6 +93,7 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 
 	bo = container_of(tbo, struct amdgpu_bo, tbo);
 
+	amdgpu_bo_kunmap(bo);
 	amdgpu_update_memory_usage(adev, &bo->tbo.mem, NULL);
 
 	drm_gem_object_release(&bo->gem_base);
@@ -930,6 +931,8 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 
 	abo = container_of(bo, struct amdgpu_bo, tbo);
 	amdgpu_vm_bo_invalidate(adev, abo);
+
+	amdgpu_bo_kunmap(abo);
 
 	/* remember the eviction */
 	if (evict)
