@@ -4123,6 +4123,10 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 			goto err_cleanup;
 	}
 
+	ret = drm_atomic_helper_swap_state(state, true);
+	if (ret)
+		goto err_cleanup;
+
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		struct nv50_wndw_atom *asyw = nv50_wndw_atom(plane_state);
 		struct nv50_wndw *wndw = nv50_wndw(plane);
@@ -4136,7 +4140,6 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 		}
 	}
 
-	drm_atomic_helper_swap_state(state, true);
 	drm_atomic_state_get(state);
 
 	if (nonblock)
