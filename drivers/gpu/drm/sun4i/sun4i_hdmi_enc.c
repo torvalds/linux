@@ -197,6 +197,7 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 			 hdmi->hdmi_monitor ? "an HDMI" : "a DVI");
 
 	drm_mode_connector_update_edid_property(connector, edid);
+	cec_s_phys_addr_from_edid(hdmi->cec_adap, edid);
 	ret = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
@@ -215,8 +216,10 @@ sun4i_hdmi_connector_detect(struct drm_connector *connector, bool force)
 
 	if (readl_poll_timeout(hdmi->base + SUN4I_HDMI_HPD_REG, reg,
 			       reg & SUN4I_HDMI_HPD_HIGH,
-			       0, 500000))
+			       0, 500000)) {
+		cec_phys_addr_invalidate(hdmi->cec_adap);
 		return connector_status_disconnected;
+	}
 
 	return connector_status_connected;
 }
@@ -230,6 +233,40 @@ static const struct drm_connector_funcs sun4i_hdmi_connector_funcs = {
 	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
 };
+
+#ifdef CONFIG_DRM_SUN4I_HDMI_CEC
+static bool sun4i_hdmi_cec_pin_read(struct cec_adapter *adap)
+{
+	struct sun4i_hdmi *hdmi = cec_get_drvdata(adap);
+
+	return readl(hdmi->base + SUN4I_HDMI_CEC) & SUN4I_HDMI_CEC_RX;
+}
+
+static void sun4i_hdmi_cec_pin_low(struct cec_adapter *adap)
+{
+	struct sun4i_hdmi *hdmi = cec_get_drvdata(adap);
+
+	/* Start driving the CEC pin low */
+	writel(SUN4I_HDMI_CEC_ENABLE, hdmi->base + SUN4I_HDMI_CEC);
+}
+
+static void sun4i_hdmi_cec_pin_high(struct cec_adapter *adap)
+{
+	struct sun4i_hdmi *hdmi = cec_get_drvdata(adap);
+
+	/*
+	 * Stop driving the CEC pin, the pull up will take over
+	 * unless another CEC device is driving the pin low.
+	 */
+	writel(0, hdmi->base + SUN4I_HDMI_CEC);
+}
+
+static const struct cec_pin_ops sun4i_hdmi_cec_pin_ops = {
+	.read = sun4i_hdmi_cec_pin_read,
+	.low = sun4i_hdmi_cec_pin_low,
+	.high = sun4i_hdmi_cec_pin_high,
+};
+#endif
 
 static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 			   void *data)
@@ -348,6 +385,17 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 		goto err_del_i2c_adapter;
 	}
 
+#ifdef CONFIG_DRM_SUN4I_HDMI_CEC
+	hdmi->cec_adap = cec_pin_allocate_adapter(&sun4i_hdmi_cec_pin_ops,
+		hdmi, "sun4i", CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
+		CEC_CAP_PASSTHROUGH | CEC_CAP_RC);
+	ret = PTR_ERR_OR_ZERO(hdmi->cec_adap);
+	if (ret < 0)
+		goto err_cleanup_connector;
+	writel(readl(hdmi->base + SUN4I_HDMI_CEC) & ~SUN4I_HDMI_CEC_TX,
+	       hdmi->base + SUN4I_HDMI_CEC);
+#endif
+
 	drm_connector_helper_add(&hdmi->connector,
 				 &sun4i_hdmi_connector_helper_funcs);
 	ret = drm_connector_init(drm, &hdmi->connector,
@@ -363,11 +411,15 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
 		DRM_CONNECTOR_POLL_DISCONNECT;
 
+	ret = cec_register_adapter(hdmi->cec_adap, dev);
+	if (ret < 0)
+		goto err_cleanup_connector;
 	drm_mode_connector_attach_encoder(&hdmi->connector, &hdmi->encoder);
 
 	return 0;
 
 err_cleanup_connector:
+	cec_delete_adapter(hdmi->cec_adap);
 	drm_encoder_cleanup(&hdmi->encoder);
 err_del_i2c_adapter:
 	i2c_del_adapter(hdmi->i2c);
@@ -379,6 +431,7 @@ static void sun4i_hdmi_unbind(struct device *dev, struct device *master,
 {
 	struct sun4i_hdmi *hdmi = dev_get_drvdata(dev);
 
+	cec_unregister_adapter(hdmi->cec_adap);
 	drm_connector_cleanup(&hdmi->connector);
 	drm_encoder_cleanup(&hdmi->encoder);
 	i2c_del_adapter(hdmi->i2c);

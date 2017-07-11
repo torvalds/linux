@@ -15,6 +15,8 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 
+#include <media/cec.h>
+
 #define SUN4I_HDMI_CTRL_REG		0x004
 #define SUN4I_HDMI_CTRL_ENABLE			BIT(31)
 
@@ -85,6 +87,11 @@
 #define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT(n)	(((n) & 1) << 21)
 #define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_MASK	BIT(21)
 #define SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_SHIFT	21
+
+#define SUN4I_HDMI_CEC			0x214
+#define SUN4I_HDMI_CEC_ENABLE			BIT(11)
+#define SUN4I_HDMI_CEC_TX			BIT(9)
+#define SUN4I_HDMI_CEC_RX			BIT(8)
 
 #define SUN4I_HDMI_PKT_CTRL_REG(n)	(0x2f0 + (4 * (n)))
 #define SUN4I_HDMI_PKT_CTRL_TYPE(n, t)		((t) << (((n) % 4) * 4))
@@ -172,6 +179,7 @@ struct sun4i_hdmi {
 	struct sun4i_drv	*drv;
 
 	bool			hdmi_monitor;
+	struct cec_adapter	*cec_adap;
 };
 
 int sun4i_ddc_create(struct sun4i_hdmi *hdmi, struct clk *clk);
