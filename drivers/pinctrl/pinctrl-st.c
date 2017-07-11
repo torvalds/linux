@@ -1442,7 +1442,7 @@ static void st_gpio_irqmux_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static struct gpio_chip st_gpio_template = {
+static const struct gpio_chip st_gpio_template = {
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.get			= st_gpio_get,
