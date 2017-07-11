@@ -1098,6 +1098,12 @@ enum i915_power_well_id {
 	CHV_DISP_PW_PIPE_A,			/* 13 */
 
 	/*
+	 * HSW/BDW
+	 *  - HSW_PWR_WELL_DRIVER (status bit: id*2, req bit: id*2+1)
+	 */
+	HSW_DISP_PW_GLOBAL = 15,
+
+	/*
 	 * GEN9+
 	 *  - HSW_PWR_WELL_DRIVER (status bit: id*2, req bit: id*2+1)
 	 */
