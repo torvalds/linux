@@ -1593,9 +1593,11 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 	}
 
 done:
-	pdata->asd_sizes[0] = i;
-	pdata->subdev_count = i;
-	pdata->card_name = "DA850/OMAP-L138 Video Capture";
+	if (pdata) {
+		pdata->asd_sizes[0] = i;
+		pdata->subdev_count = i;
+		pdata->card_name = "DA850/OMAP-L138 Video Capture";
+	}
 
 	return pdata;
 }
