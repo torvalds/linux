@@ -469,6 +469,7 @@ END(irq_entries_start)
 	DEBUG_ENTRY_ASSERT_IRQS_OFF
 	movq	%rsp, \old_rsp
 	incl	PER_CPU_VAR(irq_count)
+	jnz	.Lirq_stack_push_old_rsp_\@
 
 	/*
 	 * Right now, if we just incremented irq_count to zero, we've
@@ -478,9 +479,30 @@ END(irq_entries_start)
 	 * it must be *extremely* careful to limit its stack usage.  This
 	 * could include kprobes and a hypothetical future IST-less #DB
 	 * handler.
+	 *
+	 * The OOPS unwinder relies on the word at the top of the IRQ
+	 * stack linking back to the previous RSP for the entire time we're
+	 * on the IRQ stack.  For this to work reliably, we need to write
+	 * it before we actually move ourselves to the IRQ stack.
 	 */
 
-	cmovzq	PER_CPU_VAR(irq_stack_ptr), %rsp
+	movq	\old_rsp, PER_CPU_VAR(irq_stack_union + IRQ_STACK_SIZE - 8)
+	movq	PER_CPU_VAR(irq_stack_ptr), %rsp
+
+#ifdef CONFIG_DEBUG_ENTRY
+	/*
+	 * If the first movq above becomes wrong due to IRQ stack layout
+	 * changes, the only way we'll notice is if we try to unwind right
+	 * here.  Assert that we set up the stack right to catch this type
+	 * of bug quickly.
+	 */
+	cmpq	-8(%rsp), \old_rsp
+	je	.Lirq_stack_okay\@
+	ud2
+	.Lirq_stack_okay\@:
+#endif
+
+.Lirq_stack_push_old_rsp_\@:
 	pushq	\old_rsp
 .endm
 
