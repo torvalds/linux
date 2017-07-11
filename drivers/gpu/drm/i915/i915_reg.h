@@ -8023,11 +8023,17 @@ enum {
 #define HSW_PWR_WELL_CTL6			_MMIO(0x45414)
 
 /* SKL Fuse Status */
+enum skl_power_gate {
+	SKL_PG0,
+	SKL_PG1,
+	SKL_PG2,
+};
+
 #define SKL_FUSE_STATUS				_MMIO(0x42000)
-#define  SKL_FUSE_DOWNLOAD_STATUS              (1<<31)
-#define  SKL_FUSE_PG0_DIST_STATUS              (1<<27)
-#define  SKL_FUSE_PG1_DIST_STATUS              (1<<26)
-#define  SKL_FUSE_PG2_DIST_STATUS              (1<<25)
+#define  SKL_FUSE_DOWNLOAD_STATUS		(1<<31)
+/* PG0 (HW control->no power well ID), PG1..PG2 (SKL_DISP_PW1..SKL_DISP_PW2) */
+#define  SKL_PW_TO_PG(pw)			((pw) - SKL_DISP_PW_1 + SKL_PG1)
+#define  SKL_FUSE_PG_DIST_STATUS(pg)		(1 << (27 - (pg)))
 
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400

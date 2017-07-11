@@ -400,15 +400,42 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 		      !!(reqs & 1), !!(reqs & 2), !!(reqs & 4), !!(reqs & 8));
 }
 
+static void gen9_wait_for_power_well_fuses(struct drm_i915_private *dev_priv,
+					   enum skl_power_gate pg)
+{
+	/* Timeout 5us for PG#0, for other PGs 1us */
+	WARN_ON(intel_wait_for_register(dev_priv, SKL_FUSE_STATUS,
+					SKL_FUSE_PG_DIST_STATUS(pg),
+					SKL_FUSE_PG_DIST_STATUS(pg), 1));
+}
+
 static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 				  struct i915_power_well *power_well)
 {
 	enum i915_power_well_id id = power_well->id;
+	bool wait_fuses = power_well->hsw.has_fuses;
+	enum skl_power_gate pg;
 	u32 val;
+
+	if (wait_fuses) {
+		pg = SKL_PW_TO_PG(id);
+		/*
+		 * For PW1 we have to wait both for the PW0/PG0 fuse state
+		 * before enabling the power well and PW1/PG1's own fuse
+		 * state after the enabling. For all other power wells with
+		 * fuses we only have to wait for that PW/PG's fuse state
+		 * after the enabling.
+		 */
+		if (pg == SKL_PG1)
+			gen9_wait_for_power_well_fuses(dev_priv, SKL_PG0);
+	}
 
 	val = I915_READ(HSW_PWR_WELL_DRIVER);
 	I915_WRITE(HSW_PWR_WELL_DRIVER, val | HSW_PWR_WELL_CTL_REQ(id));
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
+
+	if (wait_fuses)
+		gen9_wait_for_power_well_fuses(dev_priv, pg);
 
 	hsw_power_well_post_enable(dev_priv, power_well->hsw.irq_pipe_mask,
 				   power_well->hsw.has_vga);
@@ -810,15 +837,15 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	case SKL_DISP_PW_1:
 		if (intel_wait_for_register(dev_priv,
 					    SKL_FUSE_STATUS,
-					    SKL_FUSE_PG0_DIST_STATUS,
-					    SKL_FUSE_PG0_DIST_STATUS,
+					    SKL_FUSE_PG_DIST_STATUS(SKL_PG0),
+					    SKL_FUSE_PG_DIST_STATUS(SKL_PG0),
 					    1)) {
 			DRM_ERROR("PG0 not enabled\n");
 			return;
 		}
 		break;
 	case SKL_DISP_PW_2:
-		if (!(fuse_status & SKL_FUSE_PG1_DIST_STATUS)) {
+		if (!(fuse_status & SKL_FUSE_PG_DIST_STATUS(SKL_PG1))) {
 			DRM_ERROR("PG1 in disabled state\n");
 			return;
 		}
@@ -863,15 +890,15 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 		if (power_well->id == SKL_DISP_PW_1) {
 			if (intel_wait_for_register(dev_priv,
 						    SKL_FUSE_STATUS,
-						    SKL_FUSE_PG1_DIST_STATUS,
-						    SKL_FUSE_PG1_DIST_STATUS,
+						    SKL_FUSE_PG_DIST_STATUS(SKL_PG1),
+						    SKL_FUSE_PG_DIST_STATUS(SKL_PG1),
 						    1))
 				DRM_ERROR("PG1 distributing status timeout\n");
 		} else if (power_well->id == SKL_DISP_PW_2) {
 			if (intel_wait_for_register(dev_priv,
 						    SKL_FUSE_STATUS,
-						    SKL_FUSE_PG2_DIST_STATUS,
-						    SKL_FUSE_PG2_DIST_STATUS,
+						    SKL_FUSE_PG_DIST_STATUS(SKL_PG2),
+						    SKL_FUSE_PG_DIST_STATUS(SKL_PG2),
 						    1))
 				DRM_ERROR("PG2 distributing status timeout\n");
 		}
