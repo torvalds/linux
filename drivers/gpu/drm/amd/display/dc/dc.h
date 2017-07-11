@@ -643,6 +643,10 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		struct dc_stream_update *stream_update,
 		const struct dc_stream_status *stream_status);
 
+
+void dc_retain_validate_context(struct validate_context *context);
+void dc_release_validate_context(struct validate_context *context);
+
 /*******************************************************************************
  * Link Interfaces
  ******************************************************************************/

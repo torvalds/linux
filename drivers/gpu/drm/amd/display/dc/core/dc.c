@@ -423,7 +423,7 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 
 static void destruct(struct core_dc *dc)
 {
-	dc_resource_validate_ctx_destruct(dc->current_context);
+	dc_release_validate_context(dc->current_context);
 
 	destroy_links(dc);
 
@@ -466,6 +466,8 @@ static bool construct(struct core_dc *dc,
 		dm_error("%s: failed to create validate ctx\n", __func__);
 		goto val_ctx_fail;
 	}
+
+	dc->current_context->ref_count++;
 
 	dc_ctx->cgs_device = init_params->cgs_device;
 	dc_ctx->driver_context = init_params->driver;
@@ -683,6 +685,8 @@ struct validate_context *dc_get_validate_context(
 	if (context == NULL)
 		goto context_alloc_fail;
 
+	++context->ref_count;
+
 	if (!is_validation_required(core_dc, set, set_count)) {
 		dc_resource_validate_ctx_copy_construct(core_dc->current_context, context);
 		return context;
@@ -698,8 +702,7 @@ context_alloc_fail:
 				__func__,
 				result);
 
-		dc_resource_validate_ctx_destruct(context);
-		dm_free(context);
+		dc_release_validate_context(context);
 		context = NULL;
 	}
 
@@ -720,6 +723,8 @@ bool dc_validate_resources(
 	if (context == NULL)
 		goto context_alloc_fail;
 
+	++context->ref_count;
+
 	result = core_dc->res_pool->funcs->validate_with_context(
 				core_dc, set, set_count, context, NULL);
 
@@ -731,8 +736,7 @@ context_alloc_fail:
 				result);
 	}
 
-	dc_resource_validate_ctx_destruct(context);
-	dm_free(context);
+	dc_release_validate_context(context);
 	context = NULL;
 
 	return result == DC_OK;
@@ -750,11 +754,12 @@ bool dc_validate_guaranteed(
 	if (context == NULL)
 		goto context_alloc_fail;
 
+	++context->ref_count;
+
 	result = core_dc->res_pool->funcs->validate_guaranteed(
 					core_dc, stream, context);
 
-	dc_resource_validate_ctx_destruct(context);
-	dm_free(context);
+	dc_release_validate_context(context);
 
 context_alloc_fail:
 	if (result != DC_OK) {
@@ -972,8 +977,10 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
-	dc_resource_validate_ctx_destruct(core_dc->current_context);
-	dm_free(core_dc->current_context);
+	dc_release_validate_context(core_dc->current_context);
+
+	dc_retain_validate_context(context);
+
 	core_dc->current_context = context;
 
 	return (result == DC_OK);
@@ -1045,6 +1052,8 @@ bool dc_commit_streams(
 	if (context == NULL)
 		goto context_alloc_fail;
 
+	++context->ref_count;
+
 	result = core_dc->res_pool->funcs->validate_with_context(
 			core_dc, set, stream_count, context, core_dc->current_context);
 	if (result != DC_OK){
@@ -1053,7 +1062,6 @@ bool dc_commit_streams(
 					__func__,
 					result);
 		BREAK_TO_DEBUGGER();
-		dc_resource_validate_ctx_destruct(context);
 		goto fail;
 	}
 
@@ -1062,7 +1070,7 @@ bool dc_commit_streams(
 	return (result == DC_OK);
 
 fail:
-	dm_free(context);
+	dc_release_validate_context(context);
 
 context_alloc_fail:
 	return (result == DC_OK);
@@ -1153,6 +1161,23 @@ bool dc_commit_surfaces_to_stream(
 
 	dm_free(stream_update);
 	return true;
+}
+
+void dc_retain_validate_context(struct validate_context *context)
+{
+	ASSERT(context->ref_count > 0);
+	++context->ref_count;
+}
+
+void dc_release_validate_context(struct validate_context *context)
+{
+	ASSERT(context->ref_count > 0);
+	--context->ref_count;
+
+	if (context->ref_count == 0) {
+		dc_resource_validate_ctx_destruct(context);
+		dm_free(context);
+	}
 }
 
 static bool is_surface_in_context(
@@ -1341,6 +1366,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	enum surface_update_type update_type;
 	const struct dc_stream_status *stream_status;
 	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
+	struct dc_context *dc_ctx = core_dc->ctx;
 
 	stream_status = dc_stream_get_status(dc_stream);
 	ASSERT(stream_status);
@@ -1403,6 +1429,11 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		/* initialize scratch memory for building context */
 		context = dm_alloc(sizeof(*context));
+		if (context == NULL)
+				goto context_alloc_fail;
+
+		++context->ref_count;
+
 		dc_resource_validate_ctx_copy_construct(
 				core_dc->current_context, context);
 
@@ -1624,16 +1655,17 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	}
 
 	if (core_dc->current_context != context) {
-		dc_resource_validate_ctx_destruct(core_dc->current_context);
-		dm_free(core_dc->current_context);
-
+		dc_release_validate_context(core_dc->current_context);
+		dc_retain_validate_context(context);
 		core_dc->current_context = context;
 	}
 	return;
 
 fail:
-	dc_resource_validate_ctx_destruct(context);
-	dm_free(context);
+	dc_release_validate_context(context);
+
+context_alloc_fail:
+	DC_ERROR("Failed to allocate new validate context!\n");
 }
 
 uint8_t dc_get_current_stream_count(const struct dc *dc)

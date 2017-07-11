@@ -361,6 +361,8 @@ struct validate_context {
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
+
+	int ref_count;
 };
 
 #endif /* _CORE_TYPES_H_ */
