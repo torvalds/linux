@@ -71,7 +71,7 @@
 #include "ssi_ivgen.h"
 #include "ssi_sram_mgr.h"
 #include "ssi_pm.h"
-#include "ssi_fips_local.h"
+#include "ssi_fips.h"
 
 #ifdef DX_DUMP_BYTES
 void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
@@ -397,6 +397,12 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		SSI_LOG_ERR("ssi_aead_alloc failed\n");
 		goto init_cc_res_err;
 	}
+
+	/* If we got here and FIPS mode is enabled
+	 * it means all FIPS test passed, so let TEE
+	 * know we're good.
+	 */
+	cc_set_ree_fips_status(new_drvdata, true);
 
 	return 0;
 

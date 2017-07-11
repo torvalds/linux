@@ -30,7 +30,6 @@
 #include "ssi_sysfs.h"
 #include "ssi_hash.h"
 #include "ssi_sram_mgr.h"
-#include "ssi_fips_local.h"
 
 #define SSI_MAX_AHASH_SEQ_LEN 12
 #define SSI_MAX_HASH_OPAD_TMP_KEYS_SIZE MAX(SSI_MAX_HASH_BLCK_SIZE, 3 * AES_BLOCK_SIZE)
@@ -431,8 +430,6 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 
 	SSI_LOG_DEBUG("===== %s-digest (%d) ====\n", is_hmac ? "hmac" : "hash", nbytes);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
-
 	if (unlikely(ssi_hash_map_request(dev, state, ctx) != 0)) {
 		SSI_LOG_ERR("map_ahash_source() failed\n");
 		return -ENOMEM;
@@ -596,7 +593,6 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 	SSI_LOG_DEBUG("===== %s-update (%d) ====\n", ctx->is_hmac ?
 					"hmac" : "hash", nbytes);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	if (nbytes == 0) {
 		/* no real updates required */
 		return 0;
@@ -693,8 +689,6 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 	int rc;
 
 	SSI_LOG_DEBUG("===== %s-finup (%d) ====\n", is_hmac ? "hmac" : "hash", nbytes);
-
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1) != 0)) {
 		SSI_LOG_ERR("map_ahash_request_final() failed\n");
@@ -830,8 +824,6 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 
 	SSI_LOG_DEBUG("===== %s-final (%d) ====\n", is_hmac ? "hmac" : "hash", nbytes);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
-
 	if (unlikely(ssi_buffer_mgr_map_hash_request_final(ctx->drvdata, state, src, nbytes, 0) != 0)) {
 		SSI_LOG_ERR("map_ahash_request_final() failed\n");
 		return -ENOMEM;
@@ -965,7 +957,6 @@ static int ssi_hash_init(struct ahash_req_ctx *state, struct ssi_hash_ctx *ctx)
 
 	state->xcbc_count = 0;
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	ssi_hash_map_request(dev, state, ctx);
 
 	return 0;
@@ -987,7 +978,6 @@ static int ssi_hash_setkey(void *hash,
 
 	 SSI_LOG_DEBUG("ssi_hash_setkey: start keylen: %d", keylen);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	ctx = crypto_ahash_ctx(((struct crypto_ahash *)hash));
 	blocksize = crypto_tfm_alg_blocksize(&((struct crypto_ahash *)hash)->base);
 	digestsize = crypto_ahash_digestsize(((struct crypto_ahash *)hash));
@@ -1174,7 +1164,6 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 
 	SSI_LOG_DEBUG("===== setkey (%d) ====\n", keylen);
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	switch (keylen) {
 	case AES_KEYSIZE_128:
@@ -1260,7 +1249,6 @@ static int ssi_cmac_setkey(struct crypto_ahash *ahash,
 	struct ssi_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 
 	SSI_LOG_DEBUG("===== setkey (%d) ====\n", keylen);
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	ctx->is_hmac = true;
 
@@ -1365,7 +1353,6 @@ static int ssi_ahash_cra_init(struct crypto_tfm *tfm)
 	struct ssi_hash_alg *ssi_alg =
 			container_of(ahash_alg, struct ssi_hash_alg, ahash_alg);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				sizeof(struct ahash_req_ctx));
 
@@ -1397,7 +1384,6 @@ static int ssi_mac_update(struct ahash_request *req)
 	int rc;
 	u32 idx = 0;
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	if (req->nbytes == 0) {
 		/* no real updates required */
 		return 0;
@@ -1462,7 +1448,6 @@ static int ssi_mac_final(struct ahash_request *req)
 	u32 rem_cnt = state->buff_index ? state->buff1_cnt :
 			state->buff0_cnt;
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
 		keySize = CC_AES_128_BIT_KEY_SIZE;
 		keyLen  = CC_AES_128_BIT_KEY_SIZE;
@@ -1571,7 +1556,6 @@ static int ssi_mac_finup(struct ahash_request *req)
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	SSI_LOG_DEBUG("===== finup xcbc(%d) ====\n", req->nbytes);
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	if (state->xcbc_count > 0 && req->nbytes == 0) {
 		SSI_LOG_DEBUG("No data to update. Call to fdx_mac_final \n");
 		return ssi_mac_final(req);
@@ -1643,7 +1627,6 @@ static int ssi_mac_digest(struct ahash_request *req)
 	int rc;
 
 	SSI_LOG_DEBUG("===== -digest mac (%d) ====\n",  req->nbytes);
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	if (unlikely(ssi_hash_map_request(dev, state, ctx) != 0)) {
 		SSI_LOG_ERR("map_ahash_source() failed\n");
@@ -1766,8 +1749,6 @@ static int ssi_ahash_export(struct ahash_request *req, void *out)
 				state->buff0_cnt;
 	const u32 tmp = CC_EXPORT_MAGIC;
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
-
 	memcpy(out, &tmp, sizeof(u32));
 	out += sizeof(u32);
 
@@ -1806,8 +1787,6 @@ static int ssi_ahash_import(struct ahash_request *req, const void *in)
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	u32 tmp;
 	int rc;
-
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	memcpy(&tmp, in, sizeof(u32));
 	if (tmp != CC_EXPORT_MAGIC) {

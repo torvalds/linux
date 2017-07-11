@@ -23,6 +23,7 @@
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 #include <crypto/des.h>
+#include <crypto/xts.h>
 
 #include "ssi_config.h"
 #include "ssi_driver.h"
@@ -31,7 +32,6 @@
 #include "ssi_cipher.h"
 #include "ssi_request_mgr.h"
 #include "ssi_sysfs.h"
-#include "ssi_fips_local.h"
 
 #define MAX_ABLKCIPHER_SEQ_LEN 6
 
@@ -188,7 +188,6 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 	SSI_LOG_DEBUG("Initializing context @%p for %s\n", ctx_p,
 						crypto_tfm_alg_name(tfm));
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	ctx_p->cipher_mode = ssi_alg->cipher_mode;
 	ctx_p->flow_mode = ssi_alg->flow_mode;
 	ctx_p->drvdata = ssi_alg->drvdata;
@@ -265,9 +264,8 @@ static const u8 zero_buff[] = {	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 /* The function verifies that tdes keys are not weak.*/
-static int ssi_fips_verify_3des_keys(const u8 *key, unsigned int keylen)
+static int ssi_verify_3des_keys(const u8 *key, unsigned int keylen)
 {
-#ifdef CCREE_FIPS_SUPPORT
 	struct tdes_keys *tdes_key = (struct tdes_keys *)key;
 
 	/* verify key1 != key2 and key3 != key2*/
@@ -275,21 +273,6 @@ static int ssi_fips_verify_3des_keys(const u8 *key, unsigned int keylen)
 		      (memcmp((u8 *)tdes_key->key3, (u8 *)tdes_key->key2, sizeof(tdes_key->key3)) == 0))) {
 		return -ENOEXEC;
 	}
-#endif /* CCREE_FIPS_SUPPORT */
-
-	return 0;
-}
-
-/* The function verifies that xts keys are not weak.*/
-static int ssi_fips_verify_xts_keys(const u8 *key, unsigned int keylen)
-{
-#ifdef CCREE_FIPS_SUPPORT
-	/* Weak key is define as key that its first half (128/256 lsb) equals its second half (128/256 msb) */
-	int singleKeySize = keylen >> 1;
-
-	if (unlikely(memcmp(key, &key[singleKeySize], singleKeySize) == 0))
-		return -ENOEXEC;
-#endif /* CCREE_FIPS_SUPPORT */
 
 	return 0;
 }
@@ -321,8 +304,6 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	SSI_LOG_DEBUG("Setting key in context @%p for %s. keylen=%u\n",
 		ctx_p, crypto_tfm_alg_name(tfm), keylen);
 	dump_byte_array("key", (u8 *)key, keylen);
-
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	SSI_LOG_DEBUG("ssi_blkcipher_setkey: after FIPS check");
 
@@ -385,13 +366,13 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		}
 	}
 	if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) &&
-	    ssi_fips_verify_xts_keys(key, keylen) != 0) {
+	    xts_check_key(tfm, key, keylen) != 0) {
 		SSI_LOG_DEBUG("ssi_blkcipher_setkey: weak XTS key");
 		return -EINVAL;
 	}
 	if ((ctx_p->flow_mode == S_DIN_to_DES) &&
 	    (keylen == DES3_EDE_KEY_SIZE) &&
-	    ssi_fips_verify_3des_keys(key, keylen) != 0) {
+	    ssi_verify_3des_keys(key, keylen) != 0) {
 		SSI_LOG_DEBUG("ssi_blkcipher_setkey: weak 3DES key");
 		return -EINVAL;
 	}
@@ -754,7 +735,6 @@ static int ssi_blkcipher_process(
 		((direction == DRV_CRYPTO_DIRECTION_ENCRYPT) ? "Encrypt" : "Decrypt"),
 		     areq, info, nbytes);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	/* STAT_PHASE_0: Init and sanity checks */
 
 	/* TODO: check data length according to mode */
@@ -854,8 +834,6 @@ static void ssi_ablkcipher_complete(struct device *dev, void *ssi_req, void __io
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
 	struct ssi_ablkcipher_ctx *ctx_p = crypto_ablkcipher_ctx(tfm);
 	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
-
-	CHECK_AND_RETURN_VOID_UPON_FIPS_ERROR();
 
 	ssi_blkcipher_complete(dev, ctx_p, req_ctx, areq->dst, areq->src,
 			       ivsize, areq, cc_base);

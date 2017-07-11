@@ -36,7 +36,6 @@
 #include "ssi_hash.h"
 #include "ssi_sysfs.h"
 #include "ssi_sram_mgr.h"
-#include "ssi_fips_local.h"
 
 #define template_aead	template_u.aead
 
@@ -145,8 +144,6 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 	struct ssi_crypto_alg *ssi_alg =
 			container_of(alg, struct ssi_crypto_alg, aead_alg);
 	SSI_LOG_DEBUG("Initializing context @%p for %s\n", ctx, crypto_tfm_alg_name(&(tfm->base)));
-
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	/* Initialize modes in instance */
 	ctx->cipher_mode = ssi_alg->cipher_mode;
@@ -538,7 +535,6 @@ ssi_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	SSI_LOG_DEBUG("Setting key in context @%p for %s. key=%p keylen=%u\n",
 		ctx, crypto_tfm_alg_name(crypto_aead_tfm(tfm)), key, keylen);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	/* STAT_PHASE_0: Init and sanity checks */
 
 	if (ctx->auth_mode != DRV_HASH_NULL) { /* authenc() alg. */
@@ -654,7 +650,6 @@ static int ssi_aead_setauthsize(
 {
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(authenc);
 
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 	/* Unsupported auth. sizes */
 	if ((authsize == 0) ||
 	    (authsize > crypto_aead_maxauthsize(authenc))) {
@@ -1946,7 +1941,6 @@ static int ssi_aead_process(struct aead_request *req, enum drv_crypto_direction 
 	SSI_LOG_DEBUG("%s context=%p req=%p iv=%p src=%p src_ofs=%d dst=%p dst_ofs=%d cryptolen=%d\n",
 		((direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ? "Encrypt" : "Decrypt"), ctx, req, req->iv,
 		sg_virt(req->src), req->src->offset, sg_virt(req->dst), req->dst->offset, req->cryptlen);
-	CHECK_AND_RETURN_UPON_FIPS_ERROR();
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
