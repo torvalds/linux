@@ -375,8 +375,8 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 				 * and use SDR Mode
 				 */
 				reg &= ~(OMAP_TLL_CHANNEL_CONF_UTMIAUTOIDLE
-					| OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF
 					| OMAP_TLL_CHANNEL_CONF_ULPIDDRMODE);
+				reg |= OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF;
 			} else if (pdata->port_mode[i] ==
 					OMAP_EHCI_PORT_MODE_HSIC) {
 				/*

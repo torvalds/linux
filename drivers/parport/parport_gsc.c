@@ -293,7 +293,7 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 		p->irq = PARPORT_IRQ_NONE;
 	}
 	if (p->irq != PARPORT_IRQ_NONE) {
-		printk(", irq %d", p->irq);
+		pr_cont(", irq %d", p->irq);
 
 		if (p->dma == PARPORT_DMA_AUTO) {
 			p->dma = PARPORT_DMA_NONE;
@@ -303,8 +303,8 @@ struct parport *parport_gsc_probe_port(unsigned long base,
                                            is mandatory (see above) */
 		p->dma = PARPORT_DMA_NONE;
 
-	printk(" [");
-#define printmode(x) {if(p->modes&PARPORT_MODE_##x){printk("%s%s",f?",":"",#x);f++;}}
+	pr_cont(" [");
+#define printmode(x) {if(p->modes&PARPORT_MODE_##x){pr_cont("%s%s",f?",":"",#x);f++;}}
 	{
 		int f = 0;
 		printmode(PCSPP);
@@ -315,7 +315,7 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 //		printmode(DMA);
 	}
 #undef printmode
-	printk("]\n");
+	pr_cont("]\n");
 
 	if (p->irq != PARPORT_IRQ_NONE) {
 		if (request_irq (p->irq, parport_irq_handler,

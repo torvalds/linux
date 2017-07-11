@@ -117,7 +117,7 @@ struct usb_dmac {
 #define USB_DMASWR			0x0008
 #define USB_DMASWR_SWR			(1 << 0)
 #define USB_DMAOR			0x0060
-#define USB_DMAOR_AE			(1 << 2)
+#define USB_DMAOR_AE			(1 << 1)
 #define USB_DMAOR_DME			(1 << 0)
 
 #define USB_DMASAR			0x0000

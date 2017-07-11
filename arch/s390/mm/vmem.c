@@ -372,7 +372,7 @@ void __init vmem_map_init(void)
 	ro_end = (unsigned long)&_eshared & PAGE_MASK;
 	for_each_memblock(memory, reg) {
 		start = reg->base;
-		end = reg->base + reg->size - 1;
+		end = reg->base + reg->size;
 		if (start >= ro_end || end <= ro_start)
 			vmem_add_mem(start, end - start, 0);
 		else if (start >= ro_start && end <= ro_end)

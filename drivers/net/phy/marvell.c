@@ -822,8 +822,6 @@ static int marvell_read_status(struct phy_device *phydev)
 		phydev->lp_advertising = mii_stat1000_to_ethtool_lpa_t(lpagb) |
 					 mii_lpa_to_ethtool_lpa_t(lpa);
 
-		lpa &= adv;
-
 		if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
 			phydev->duplex = DUPLEX_FULL;
 		else

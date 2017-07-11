@@ -36,7 +36,7 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 
 	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
 			   md->num_pages << EFI_PAGE_SHIFT,
-			   __pgprot(prot_val | PTE_NG));
+			   __pgprot(prot_val | PTE_NG), true);
 	return 0;
 }
 

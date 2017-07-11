@@ -16,6 +16,22 @@
 
 #include "efistub.h"
 
+#define EFI_DT_ADDR_CELLS_DEFAULT 2
+#define EFI_DT_SIZE_CELLS_DEFAULT 2
+
+static void fdt_update_cell_size(efi_system_table_t *sys_table, void *fdt)
+{
+	int offset;
+
+	offset = fdt_path_offset(fdt, "/");
+	/* Set the #address-cells and #size-cells values for an empty tree */
+
+	fdt_setprop_u32(fdt, offset, "#address-cells",
+			EFI_DT_ADDR_CELLS_DEFAULT);
+
+	fdt_setprop_u32(fdt, offset, "#size-cells", EFI_DT_SIZE_CELLS_DEFAULT);
+}
+
 efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 			unsigned long orig_fdt_size,
 			void *fdt, int new_fdt_size, char *cmdline_ptr,
@@ -45,10 +61,18 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 		}
 	}
 
-	if (orig_fdt)
+	if (orig_fdt) {
 		status = fdt_open_into(orig_fdt, fdt, new_fdt_size);
-	else
+	} else {
 		status = fdt_create_empty_tree(fdt, new_fdt_size);
+		if (status == 0) {
+			/*
+			 * Any failure from the following function is non
+			 * critical
+			 */
+			fdt_update_cell_size(sys_table, fdt);
+		}
+	}
 
 	if (status != 0)
 		goto fdt_set_fail;

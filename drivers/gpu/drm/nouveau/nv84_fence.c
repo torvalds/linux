@@ -121,8 +121,10 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 	}
 
 	nouveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
+	mutex_lock(&priv->mutex);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma_gart);
 	nouveau_bo_vma_del(priv->bo, &fctx->vma);
+	mutex_unlock(&priv->mutex);
 	nouveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
 	nouveau_fence_context_free(&fctx->base);
@@ -148,11 +150,13 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sync32 = nv84_fence_sync32;
 	fctx->base.sequence = nv84_fence_read(chan);
 
+	mutex_lock(&priv->mutex);
 	ret = nouveau_bo_vma_add(priv->bo, cli->vm, &fctx->vma);
 	if (ret == 0) {
 		ret = nouveau_bo_vma_add(priv->bo_gart, cli->vm,
 					&fctx->vma_gart);
 	}
+	mutex_unlock(&priv->mutex);
 
 	/* map display semaphore buffers into channel's vm */
 	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
@@ -231,6 +235,8 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.contexts = fifo->nr;
 	priv->base.context_base = fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
+
+	mutex_init(&priv->mutex);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
 	domain = drm->device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :

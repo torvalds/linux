@@ -1103,7 +1103,7 @@ int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
 	int ret = 0;
 	struct buffer_head *head, *bh, *wait[2], **wait_bh = wait;
 	unsigned int block_end, block_start;
-	unsigned int bsize = 1 << inode->i_blkbits;
+	unsigned int bsize = i_blocksize(inode);
 
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, bsize, 0);

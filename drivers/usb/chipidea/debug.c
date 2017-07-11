@@ -295,7 +295,8 @@ static int ci_role_show(struct seq_file *s, void *data)
 {
 	struct ci_hdrc *ci = s->private;
 
-	seq_printf(s, "%s\n", ci_role(ci)->name);
+	if (ci->role != CI_ROLE_END)
+		seq_printf(s, "%s\n", ci_role(ci)->name);
 
 	return 0;
 }

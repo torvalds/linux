@@ -313,7 +313,8 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	if (nvif_unpack(argv->v0, 0, 0, true)) {
 		/* block access to objects not created via this interface */
 		owner = argv->v0.owner;
-		if (argv->v0.object == 0ULL)
+		if (argv->v0.object == 0ULL &&
+		    argv->v0.type != NVIF_IOCTL_V0_DEL)
 			argv->v0.owner = NVDRM_OBJECT_ANY; /* except client */
 		else
 			argv->v0.owner = NVDRM_OBJECT_USIF;
