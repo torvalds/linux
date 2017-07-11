@@ -493,6 +493,18 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+
+	if (hdmi->phy) {
+		if (drm_match_cea_mode(&crtc_state->mode) > 94 &&
+		    crtc_state->mode.crtc_clock > 340000 &&
+		    !(crtc_state->mode.flags & DRM_MODE_FLAG_420_MASK)) {
+			crtc_state->mode.flags |= DRM_MODE_FLAG_420;
+			phy_set_bus_width(hdmi->phy, 4);
+		} else {
+			phy_set_bus_width(hdmi->phy, 8);
+		}
+	}
 
 	if (crtc_state->mode.flags & DRM_MODE_FLAG_420_MASK) {
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;

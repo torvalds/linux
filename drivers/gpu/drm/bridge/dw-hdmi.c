@@ -2019,6 +2019,13 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 		hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 0;
 	}
 
+	if ((hdmi->dev_type == RK3328_HDMI ||
+	     hdmi->dev_type == RK3228_HDMI) &&
+	    drm_match_cea_mode(mode) > 94 &&
+	    mode->crtc_clock > 340000 &&
+	    !(mode->flags & DRM_MODE_FLAG_420_MASK))
+		mode->flags |= DRM_MODE_FLAG_420;
+
 	if (mode->flags & DRM_MODE_FLAG_420_MASK) {
 		hdmi->hdmi_data.enc_in_bus_format =
 			MEDIA_BUS_FMT_UYYVYY8_0_5X24;
