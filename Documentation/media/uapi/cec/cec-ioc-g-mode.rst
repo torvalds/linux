@@ -149,13 +149,28 @@ Available follower modes are:
 	code. You cannot become a follower if :ref:`CEC_CAP_TRANSMIT <CEC-CAP-TRANSMIT>`
 	is not set or if :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>` was specified,
 	the ``EINVAL`` error code is returned in that case.
+    * .. _`CEC-MODE-MONITOR-PIN`:
+
+      - ``CEC_MODE_MONITOR_PIN``
+      - 0xd0
+      - Put the file descriptor into pin monitoring mode. Can only be used in
+	combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`,
+	otherwise the ``EINVAL`` error code will be returned.
+	This mode requires that the :ref:`CEC_CAP_MONITOR_PIN <CEC-CAP-MONITOR-PIN>`
+	capability is set, otherwise the ``EINVAL`` error code is returned.
+	While in pin monitoring mode this file descriptor can receive the
+	``CEC_EVENT_PIN_LOW`` and ``CEC_EVENT_PIN_HIGH`` events to see the
+	low-level CEC pin transitions. This is very useful for debugging.
+	This mode is only allowed if the process has the ``CAP_NET_ADMIN``
+	capability. If that is not set, then the ``EPERM`` error code is returned.
     * .. _`CEC-MODE-MONITOR`:
 
       - ``CEC_MODE_MONITOR``
       - 0xe0
       - Put the file descriptor into monitor mode. Can only be used in
-	combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`, otherwise EINVAL error
-	code will be returned. In monitor mode all messages this CEC
+	combination with :ref:`CEC_MODE_NO_INITIATOR <CEC-MODE-NO-INITIATOR>`,i
+	otherwise the ``EINVAL`` error code will be returned.
+	In monitor mode all messages this CEC
 	device transmits and all messages it receives (both broadcast
 	messages and directed messages for one its logical addresses) will
 	be reported. This is very useful for debugging. This is only

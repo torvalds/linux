@@ -121,6 +121,13 @@ returns the information to the application. The ioctl never fails.
         high. This makes it impossible to use CEC to wake up displays that
 	set the HPD pin low when in standby mode, but keep the CEC bus
 	alive.
+    * .. _`CEC-CAP-MONITOR-PIN`:
+
+      - ``CEC_CAP_MONITOR_PIN``
+      - 0x00000080
+      - The CEC hardware can monitor CEC pin changes from low to high voltage
+        and vice versa. When in pin monitoring mode the application will
+	receive ``CEC_EVENT_PIN_LOW`` and ``CEC_EVENT_PIN_HIGH`` events.
 
 
 

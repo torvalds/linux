@@ -146,6 +146,20 @@ it is guaranteed that the state did change in between the two events.
       - 2
       - Generated if one or more CEC messages were lost because the
 	application didn't dequeue CEC messages fast enough.
+    * .. _`CEC-EVENT-PIN-LOW`:
+
+      - ``CEC_EVENT_PIN_LOW``
+      - 3
+      - Generated if the CEC pin goes from a high voltage to a low voltage.
+        Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set.
+    * .. _`CEC-EVENT-PIN-HIGH`:
+
+      - ``CEC_EVENT_PIN_HIGH``
+      - 4
+      - Generated if the CEC pin goes from a low voltage to a high voltage.
+        Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set.
 
 
 .. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
@@ -165,6 +179,12 @@ it is guaranteed that the state did change in between the two events.
 	opened. See the table above for which events do this. This allows
 	applications to learn the initial state of the CEC adapter at
 	open() time.
+    * .. _`CEC-EVENT-FL-DROPPED-EVENTS`:
+
+      - ``CEC_EVENT_FL_DROPPED_EVENTS``
+      - 2
+      - Set if one or more events of the given event type have been dropped.
+        This is an indication that the application cannot keep up.
 
 
 
