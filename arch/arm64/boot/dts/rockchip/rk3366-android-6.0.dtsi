@@ -1,0 +1,180 @@
+/*
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include <dt-bindings/display/rk_fb.h>
+#include <dt-bindings/display/mipi_dsi.h>
+
+/ {
+	compatible = "rockchip,android-6.0", "rockchip,rk3366";
+
+	fb: fb {
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <DUAL>;
+		status = "disabled";
+	};
+
+	rk_screen: screen {
+		compatible = "rockchip,screen";
+		status = "disabled";
+	};
+
+	vop_lite: vop@ff8f0000 {
+		compatible = "rockchip,rk3366-lcdc-lite";
+		rockchip,grf = <&grf>;
+		rockchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0x0 0xff8f0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP_LITE>, <&cru DCLK_VOP_LITE>,
+			 <&cru HCLK_VOP_LITE>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
+		resets = <&cru SRST_VOP1_AXI>, <&cru SRST_VOP1_DCLK>,
+			 <&cru SRST_VOP1_AHB>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+	};
+
+	vopl_mmu: vopl-mmu {
+		dbgname = "vop";
+		compatible = "rockchip,vopl_mmu";
+		reg = <0x0 0xff8f0f00 0x0 0x100>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vopl_mmu";
+		status = "disabled";
+	};
+
+	vop_big: vop@ff930000 {
+		compatible = "rockchip,rk3366-lcdc-big";
+		rockchip,grf = <&grf>;
+		rockchip,prop = <PRMRY>;
+		rockchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0x0 0xff930000 0x0 0x23f0>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP_FULL>, <&cru DCLK_VOP_FULL>,
+			 <&cru HCLK_VOP_FULL>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
+		resets = <&cru SRST_VOP0_AXI>, <&cru SRST_VOP0_DCLK>,
+			 <&cru SRST_VOP0_AHB>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+	};
+
+	rk_fb_vopb_mmu: vopb-mmu {
+		dbgname = "vop";
+		compatible = "rockchip,vopb_mmu";
+		reg = <0x0 0xff932400 0x0 0x100>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vop_mmu";
+		status = "disabled";
+	};
+
+	iep_mmu: iep-mmu {
+		dbgname = "iep";
+		compatible = "rockchip,iep_mmu";
+		reg = <0x0 0xff900800 0x0 0x100>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+		status = "disabled";
+	};
+
+	vpu_mmu: vpu_mmu {
+		dbgname = "vpu";
+		compatible = "rockchip,vpu_mmu";
+		reg = <0x0 0xff9a0800 0x0 0x100>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		status = "disabled";
+	};
+
+	vdec_mmu: vdec_mmu {
+		dbgname = "vdec";
+		compatible = "rockchip,vdec_mmu";
+		reg = <0x0 0xff9b0480 0x0 0x40>,
+		      <0x0 0xff9b04c0 0x0 0x40>;
+		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vdec_mmu";
+		status = "disabled";
+	};
+
+	dsihost0: mipi@ff960000 {
+		compatible = "rockchip,rk3366-dsi";
+		rockchip,prop = <0>;
+		reg = <0x0 0xff960000 0x0 0x4000>, <0x0 0xff968000 0x0 0x4000>;
+		reg-names = "mipi_dsi_host" ,"mipi_dsi_phy";
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX>,
+			 <&cru PCLK_MIPI_DSI0>;
+		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host";
+		status = "disabled";
+	};
+
+	lvds: lvds@ff968000 {
+		compatible = "rockchip,rk3366-lvds";
+		rockchip,grf = <&grf>;
+		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff9600a0 0x0 0x20>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		clocks = <&cru PCLK_DPHYTX>, <&cru PCLK_MIPI_DSI0>;
+		clock-names = "pclk_lvds", "pclk_lvds_ctl";
+		status = "disabled";
+	};
+
+	hdmi: hdmi@ff980000 {
+		compatible = "rockchip,rk3366-hdmi";
+		reg = <0x0 0xff980000 0x0 0x20000>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_HDMI_CTRL>,
+			 <&cru SCLK_HDMI_HDCP>,
+			 <&cru SCLK_HDMI_CEC>,
+			 <&cru DCLK_HDMIPHY>;
+		clock-names = "pclk_hdmi",
+			      "hdcp_clk_hdmi",
+			      "cec_clk_hdmi",
+			      "dclk_hdmi_phy";
+		resets = <&cru SRST_HDMI>;
+		reset-names = "hdmi";
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&hdmii2c_xfer &hdmi_cec>;
+		pinctrl-1 = <&i2c5_gpio>;
+		status = "disabled";
+	};
+};

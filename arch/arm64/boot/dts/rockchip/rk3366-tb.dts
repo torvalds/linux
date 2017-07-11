@@ -43,6 +43,7 @@
 /dts-v1/;
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3366.dtsi"
+#include "rk3366-android-6.0.dtsi"
 
 / {
 	model = "Rockchip SDK tb board";
