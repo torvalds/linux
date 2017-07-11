@@ -4,6 +4,7 @@
 #include <linux/mm.h>
 #include <linux/mempolicy.h>
 #include <linux/migrate_mode.h>
+#include <linux/hugetlb.h>
 
 typedef struct page *new_page_t(struct page *page, unsigned long private,
 				int **reason);
@@ -29,6 +30,21 @@ enum migrate_reason {
 
 /* In mm/debug.c; also keep sync with include/trace/events/migrate.h */
 extern char *migrate_reason_names[MR_TYPES];
+
+static inline struct page *new_page_nodemask(struct page *page,
+				int preferred_nid, nodemask_t *nodemask)
+{
+	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+
+	if (PageHuge(page))
+		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+				preferred_nid, nodemask);
+
+	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+		gfp_mask |= __GFP_HIGHMEM;
+
+	return __alloc_pages_nodemask(gfp_mask, 0, preferred_nid, nodemask);
+}
 
 #ifdef CONFIG_MIGRATION
 

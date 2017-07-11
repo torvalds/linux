@@ -851,6 +851,16 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
 	return MIGRATEPAGE_SUCCESS;
 }
 
+static int hugetlbfs_error_remove_page(struct address_space *mapping,
+				struct page *page)
+{
+	struct inode *inode = mapping->host;
+
+	remove_huge_page(page);
+	hugetlb_fix_reserve_counts(inode);
+	return 0;
+}
+
 static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
@@ -966,6 +976,7 @@ static const struct address_space_operations hugetlbfs_aops = {
 	.write_end	= hugetlbfs_write_end,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,
 	.migratepage    = hugetlbfs_migrate_page,
+	.error_remove_page	= hugetlbfs_error_remove_page,
 };
 
 

@@ -180,7 +180,6 @@ static int xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 }
 
 static DEFINE_IDA(proc_inum_ida);
-static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
 
 #define PROC_DYNAMIC_FIRST 0xF0000000U
 
@@ -190,37 +189,20 @@ static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
  */
 int proc_alloc_inum(unsigned int *inum)
 {
-	unsigned int i;
-	int error;
+	int i;
 
-retry:
-	if (!ida_pre_get(&proc_inum_ida, GFP_KERNEL))
-		return -ENOMEM;
+	i = ida_simple_get(&proc_inum_ida, 0, UINT_MAX - PROC_DYNAMIC_FIRST + 1,
+			   GFP_KERNEL);
+	if (i < 0)
+		return i;
 
-	spin_lock_irq(&proc_inum_lock);
-	error = ida_get_new(&proc_inum_ida, &i);
-	spin_unlock_irq(&proc_inum_lock);
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error)
-		return error;
-
-	if (i > UINT_MAX - PROC_DYNAMIC_FIRST) {
-		spin_lock_irq(&proc_inum_lock);
-		ida_remove(&proc_inum_ida, i);
-		spin_unlock_irq(&proc_inum_lock);
-		return -ENOSPC;
-	}
-	*inum = PROC_DYNAMIC_FIRST + i;
+	*inum = PROC_DYNAMIC_FIRST + (unsigned int)i;
 	return 0;
 }
 
 void proc_free_inum(unsigned int inum)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&proc_inum_lock, flags);
-	ida_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
-	spin_unlock_irqrestore(&proc_inum_lock, flags);
+	ida_simple_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
 }
 
 /*

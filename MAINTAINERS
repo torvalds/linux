@@ -10559,6 +10559,17 @@ W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
 F:	drivers/net/wireless/intersil/prism54/
 
+PROC SYSCTL
+M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
+M:	Kees Cook <keescook@chromium.org>
+L:	linux-kernel@vger.kernel.org
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+F:	fs/proc/proc_sysctl.c
+F:	include/linux/sysctl.h
+F:	kernel/sysctl.c
+F:	tools/testing/selftests/sysctl/
+
 PS3 NETWORK SUPPORT
 M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
