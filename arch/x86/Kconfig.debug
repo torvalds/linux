@@ -305,8 +305,6 @@ config DEBUG_ENTRY
 	  Some of these sanity checks may slow down kernel entries and
 	  exits or otherwise impact performance.
 
-	  This is currently used to help test NMI code.
-
 	  If unsure, say N.
 
 config DEBUG_NMI_SELFTEST

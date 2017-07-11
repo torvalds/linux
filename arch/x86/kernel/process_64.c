@@ -279,6 +279,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
 	unsigned prev_fsindex, prev_gsindex;
 
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
+		     this_cpu_read(irq_count) != -1);
+
 	switch_fpu_prepare(prev_fpu, cpu);
 
 	/* We must save %fs and %gs before load_TLS() because
