@@ -244,5 +244,13 @@
 			interrupt-names = "macirq";
 			status = "disabled";
 		};
+
+		ahb_sram: sram@d9000000 {
+			compatible = "mmio-sram";
+			reg = <0xd9000000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xd9000000 0x20000>;
+		};
 	};
 }; /* end of / */
