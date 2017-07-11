@@ -107,6 +107,7 @@ your driver:
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
 		void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
+		void (*adap_free)(struct cec_adapter *adap);
 
 		/* High-level callbacks */
 		...
@@ -183,6 +184,14 @@ To log the current CEC hardware status:
 
 This optional callback can be used to show the status of the CEC hardware.
 The status is available through debugfs: cat /sys/kernel/debug/cec/cecX/status
+
+To free any resources when the adapter is deleted:
+
+.. c:function::
+	void (*adap_free)(struct cec_adapter *adap);
+
+This optional callback can be used to free any resources that might have been
+allocated by the driver. It's called from cec_delete_adapter.
 
 
 Your adapter driver will also have to react to events (typically interrupt
