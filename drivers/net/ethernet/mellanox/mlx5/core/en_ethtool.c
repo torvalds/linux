@@ -987,24 +987,27 @@ static u8 get_connector_port(u32 eth_proto, u8 connector_type)
 	if (connector_type && connector_type < MLX5E_CONNECTOR_TYPE_NUMBER)
 		return ptys2connector_type[connector_type];
 
-	if (eth_proto & (MLX5E_PROT_MASK(MLX5E_10GBASE_SR)
-			 | MLX5E_PROT_MASK(MLX5E_40GBASE_SR4)
-			 | MLX5E_PROT_MASK(MLX5E_100GBASE_SR4)
-			 | MLX5E_PROT_MASK(MLX5E_1000BASE_CX_SGMII))) {
-			return PORT_FIBRE;
+	if (eth_proto &
+	    (MLX5E_PROT_MASK(MLX5E_10GBASE_SR)   |
+	     MLX5E_PROT_MASK(MLX5E_40GBASE_SR4)  |
+	     MLX5E_PROT_MASK(MLX5E_100GBASE_SR4) |
+	     MLX5E_PROT_MASK(MLX5E_1000BASE_CX_SGMII))) {
+		return PORT_FIBRE;
 	}
 
-	if (eth_proto & (MLX5E_PROT_MASK(MLX5E_40GBASE_CR4)
-			 | MLX5E_PROT_MASK(MLX5E_10GBASE_CR)
-			 | MLX5E_PROT_MASK(MLX5E_100GBASE_CR4))) {
-			return PORT_DA;
+	if (eth_proto &
+	    (MLX5E_PROT_MASK(MLX5E_40GBASE_CR4) |
+	     MLX5E_PROT_MASK(MLX5E_10GBASE_CR)  |
+	     MLX5E_PROT_MASK(MLX5E_100GBASE_CR4))) {
+		return PORT_DA;
 	}
 
-	if (eth_proto & (MLX5E_PROT_MASK(MLX5E_10GBASE_KX4)
-			 | MLX5E_PROT_MASK(MLX5E_10GBASE_KR)
-			 | MLX5E_PROT_MASK(MLX5E_40GBASE_KR4)
-			 | MLX5E_PROT_MASK(MLX5E_100GBASE_KR4))) {
-			return PORT_NONE;
+	if (eth_proto &
+	    (MLX5E_PROT_MASK(MLX5E_10GBASE_KX4) |
+	     MLX5E_PROT_MASK(MLX5E_10GBASE_KR)  |
+	     MLX5E_PROT_MASK(MLX5E_40GBASE_KR4) |
+	     MLX5E_PROT_MASK(MLX5E_100GBASE_KR4))) {
+		return PORT_NONE;
 	}
 
 	return PORT_OTHER;
