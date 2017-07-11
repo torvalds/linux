@@ -471,12 +471,12 @@ unlock:
 /*
  * Called by the CEC adapter if a transmit finished.
  */
-void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
-		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt)
+void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
+			  u8 arb_lost_cnt, u8 nack_cnt, u8 low_drive_cnt,
+			  u8 error_cnt, ktime_t ts)
 {
 	struct cec_data *data;
 	struct cec_msg *msg;
-	u64 ts = ktime_get_ns();
 
 	dprintk(2, "%s: status %02x\n", __func__, status);
 	mutex_lock(&adap->lock);
@@ -496,7 +496,7 @@ void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 
 	/* Drivers must fill in the status! */
 	WARN_ON(status == 0);
-	msg->tx_ts = ts;
+	msg->tx_ts = ktime_to_ns(ts);
 	msg->tx_status |= status;
 	msg->tx_arb_lost_cnt += arb_lost_cnt;
 	msg->tx_nack_cnt += nack_cnt;
@@ -559,25 +559,26 @@ wake_thread:
 unlock:
 	mutex_unlock(&adap->lock);
 }
-EXPORT_SYMBOL_GPL(cec_transmit_done);
+EXPORT_SYMBOL_GPL(cec_transmit_done_ts);
 
-void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status)
+void cec_transmit_attempt_done_ts(struct cec_adapter *adap,
+				  u8 status, ktime_t ts)
 {
 	switch (status) {
 	case CEC_TX_STATUS_OK:
-		cec_transmit_done(adap, status, 0, 0, 0, 0);
+		cec_transmit_done_ts(adap, status, 0, 0, 0, 0, ts);
 		return;
 	case CEC_TX_STATUS_ARB_LOST:
-		cec_transmit_done(adap, status, 1, 0, 0, 0);
+		cec_transmit_done_ts(adap, status, 1, 0, 0, 0, ts);
 		return;
 	case CEC_TX_STATUS_NACK:
-		cec_transmit_done(adap, status, 0, 1, 0, 0);
+		cec_transmit_done_ts(adap, status, 0, 1, 0, 0, ts);
 		return;
 	case CEC_TX_STATUS_LOW_DRIVE:
-		cec_transmit_done(adap, status, 0, 0, 1, 0);
+		cec_transmit_done_ts(adap, status, 0, 0, 1, 0, ts);
 		return;
 	case CEC_TX_STATUS_ERROR:
-		cec_transmit_done(adap, status, 0, 0, 0, 1);
+		cec_transmit_done_ts(adap, status, 0, 0, 0, 1, ts);
 		return;
 	default:
 		/* Should never happen */
@@ -585,7 +586,7 @@ void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status)
 		return;
 	}
 }
-EXPORT_SYMBOL_GPL(cec_transmit_attempt_done);
+EXPORT_SYMBOL_GPL(cec_transmit_attempt_done_ts);
 
 /*
  * Called when waiting for a reply times out.
@@ -721,7 +722,8 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 
 	if (msg->timeout)
 		dprintk(2, "%s: %*ph (wait for 0x%02x%s)\n",
-			__func__, msg->len, msg->msg, msg->reply, !block ? ", nb" : "");
+			__func__, msg->len, msg->msg, msg->reply,
+			!block ? ", nb" : "");
 	else
 		dprintk(2, "%s: %*ph%s\n",
 			__func__, msg->len, msg->msg, !block ? " (nb)" : "");
@@ -918,7 +920,8 @@ static const u8 cec_msg_size[256] = {
 };
 
 /* Called by the CEC adapter if a message is received */
-void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
+void cec_received_msg_ts(struct cec_adapter *adap,
+			 struct cec_msg *msg, ktime_t ts)
 {
 	struct cec_data *data;
 	u8 msg_init = cec_msg_initiator(msg);
@@ -946,7 +949,7 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	    cec_has_log_addr(adap, msg_init))
 		return;
 
-	msg->rx_ts = ktime_get_ns();
+	msg->rx_ts = ktime_to_ns(ts);
 	msg->rx_status = CEC_RX_STATUS_OK;
 	msg->sequence = msg->reply = msg->timeout = 0;
 	msg->tx_status = 0;
@@ -1111,7 +1114,7 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	 */
 	cec_receive_notify(adap, msg, is_reply);
 }
-EXPORT_SYMBOL_GPL(cec_received_msg);
+EXPORT_SYMBOL_GPL(cec_received_msg_ts);
 
 /* Logical Address Handling */
 

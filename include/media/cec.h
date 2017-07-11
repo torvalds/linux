@@ -228,15 +228,39 @@ int cec_transmit_msg(struct cec_adapter *adap, struct cec_msg *msg,
 		     bool block);
 
 /* Called by the adapter */
-void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
-		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt);
+void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
+			  u8 arb_lost_cnt, u8 nack_cnt, u8 low_drive_cnt,
+			  u8 error_cnt, ktime_t ts);
+
+static inline void cec_transmit_done(struct cec_adapter *adap, u8 status,
+				     u8 arb_lost_cnt, u8 nack_cnt,
+				     u8 low_drive_cnt, u8 error_cnt)
+{
+	cec_transmit_done_ts(adap, status, arb_lost_cnt, nack_cnt,
+			     low_drive_cnt, error_cnt, ktime_get());
+}
 /*
  * Simplified version of cec_transmit_done for hardware that doesn't retry
  * failed transmits. So this is always just one attempt in which case
  * the status is sufficient.
  */
-void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status);
-void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg);
+void cec_transmit_attempt_done_ts(struct cec_adapter *adap,
+				  u8 status, ktime_t ts);
+
+static inline void cec_transmit_attempt_done(struct cec_adapter *adap,
+					     u8 status)
+{
+	cec_transmit_attempt_done_ts(adap, status, ktime_get());
+}
+
+void cec_received_msg_ts(struct cec_adapter *adap,
+			 struct cec_msg *msg, ktime_t ts);
+
+static inline void cec_received_msg(struct cec_adapter *adap,
+				    struct cec_msg *msg)
+{
+	cec_received_msg_ts(adap, msg, ktime_get());
+}
 
 /**
  * cec_get_edid_phys_addr() - find and return the physical address
