@@ -3082,7 +3082,7 @@ static const unsigned int msiof3_ss2_e_pins[] = {
 	RCAR_GP_PIN(2, 0),
 };
 static const unsigned int msiof3_ss2_e_mux[] = {
-	MSIOF3_SS1_E_MARK,
+	MSIOF3_SS2_E_MARK,
 };
 static const unsigned int msiof3_txd_e_pins[] = {
 	/* TXD */
