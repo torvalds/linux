@@ -1088,7 +1088,7 @@
 	cif_isp0: cif_isp@ff910000 {
 		compatible = "rockchip,rk3288-cif-isp";
 		rockchip,grf = <&grf>;
-		reg = <0x0 0xff910000 0x0 0x10000>, <0x0 0xff968000 0x0 0x4000>;
+		reg = <0x0 0xff910000 0x0 0x4000>, <0x0 0xff968000 0x0 0x4000>;
 		reg-names = "register", "csihost-register";
 		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
 			<&cru SCLK_ISP>, <&cru SCLK_ISP_JPE>,
@@ -1102,6 +1102,9 @@
 		reset-names = "rst_isp";
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif_isp10_irq";
+		power-domains = <&power RK3288_PD_VIO>;
+		rockchip,isp,iommu-enable = <1>;
+		iommus = <&isp_mmu>;
 		status = "disabled";
 	};
 
