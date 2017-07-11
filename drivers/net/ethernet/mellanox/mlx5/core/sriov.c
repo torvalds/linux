@@ -71,7 +71,6 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 		sriov->vfs_ctx[vf].enabled = 1;
 		sriov->enabled_vfs++;
 		mlx5_core_dbg(dev, "successfully enabled VF* %d\n", vf);
-
 	}
 
 	return 0;

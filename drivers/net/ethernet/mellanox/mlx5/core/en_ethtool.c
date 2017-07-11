@@ -176,7 +176,6 @@ static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
 
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 {
-
 	switch (sset) {
 	case ETH_SS_STATS:
 		return NUM_SW_COUNTERS +
