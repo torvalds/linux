@@ -177,6 +177,7 @@ struct cec_adapter {
 	bool is_configuring;
 	bool is_configured;
 	u32 monitor_all_cnt;
+	u32 monitor_pin_cnt;
 	u32 follower_cnt;
 	struct cec_fh *cec_follower;
 	struct cec_fh *cec_initiator;
@@ -270,6 +271,16 @@ static inline void cec_received_msg(struct cec_adapter *adap,
 {
 	cec_received_msg_ts(adap, msg, ktime_get());
 }
+
+/**
+ * cec_queue_pin_event() - queue a pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
 
 /**
  * cec_get_edid_phys_addr() - find and return the physical address

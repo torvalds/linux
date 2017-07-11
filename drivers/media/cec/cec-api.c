@@ -370,6 +370,10 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 	    !(adap->capabilities & CEC_CAP_MONITOR_ALL))
 		return -EINVAL;
 
+	if (mode_follower == CEC_MODE_MONITOR_PIN &&
+	    !(adap->capabilities & CEC_CAP_MONITOR_PIN))
+		return -EINVAL;
+
 	/* Follower modes should always be able to send CEC messages */
 	if ((mode_initiator == CEC_MODE_NO_INITIATOR ||
 	     !(adap->capabilities & CEC_CAP_TRANSMIT)) &&
@@ -378,11 +382,11 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 		return -EINVAL;
 
 	/* Monitor modes require CEC_MODE_NO_INITIATOR */
-	if (mode_initiator && mode_follower >= CEC_MODE_MONITOR)
+	if (mode_initiator && mode_follower >= CEC_MODE_MONITOR_PIN)
 		return -EINVAL;
 
 	/* Monitor modes require CAP_NET_ADMIN */
-	if (mode_follower >= CEC_MODE_MONITOR && !capable(CAP_NET_ADMIN))
+	if (mode_follower >= CEC_MODE_MONITOR_PIN && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
 	mutex_lock(&adap->lock);
@@ -421,8 +425,13 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 
 	if (fh->mode_follower == CEC_MODE_FOLLOWER)
 		adap->follower_cnt--;
+	if (fh->mode_follower == CEC_MODE_MONITOR_PIN)
+		adap->monitor_pin_cnt--;
 	if (mode_follower == CEC_MODE_FOLLOWER)
 		adap->follower_cnt++;
+	if (mode_follower == CEC_MODE_MONITOR_PIN) {
+		adap->monitor_pin_cnt++;
+	}
 	if (mode_follower == CEC_MODE_EXCL_FOLLOWER ||
 	    mode_follower == CEC_MODE_EXCL_FOLLOWER_PASSTHRU) {
 		adap->passthrough =
@@ -566,6 +575,8 @@ static int cec_release(struct inode *inode, struct file *filp)
 	}
 	if (fh->mode_follower == CEC_MODE_FOLLOWER)
 		adap->follower_cnt--;
+	if (fh->mode_follower == CEC_MODE_MONITOR_PIN)
+		adap->monitor_pin_cnt--;
 	if (fh->mode_follower == CEC_MODE_MONITOR_ALL)
 		cec_monitor_all_cnt_dec(adap);
 	mutex_unlock(&adap->lock);

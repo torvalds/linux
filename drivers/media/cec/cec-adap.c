@@ -153,6 +153,22 @@ static void cec_queue_event(struct cec_adapter *adap,
 	mutex_unlock(&adap->devnode.lock);
 }
 
+/* Notify userspace that the CEC pin changed state at the given time. */
+void cec_queue_pin_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+{
+	struct cec_event ev = {
+		.event = is_high ? CEC_EVENT_PIN_HIGH : CEC_EVENT_PIN_LOW,
+	};
+	struct cec_fh *fh;
+
+	mutex_lock(&adap->devnode.lock);
+	list_for_each_entry(fh, &adap->devnode.fhs, list)
+		if (fh->mode_follower == CEC_MODE_MONITOR_PIN)
+			cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
+	mutex_unlock(&adap->devnode.lock);
+}
+EXPORT_SYMBOL_GPL(cec_queue_pin_event);
+
 /*
  * Queue a new message for this filehandle.
  *
