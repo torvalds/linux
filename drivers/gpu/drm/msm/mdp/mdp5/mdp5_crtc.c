@@ -536,7 +536,7 @@ static bool is_fullscreen(struct drm_crtc_state *cstate,
 		((pstate->crtc_y + pstate->crtc_h) >= cstate->mode.vdisplay);
 }
 
-enum mdp_mixer_stage_id get_start_stage(struct drm_crtc *crtc,
+static enum mdp_mixer_stage_id get_start_stage(struct drm_crtc *crtc,
 					struct drm_crtc_state *new_crtc_state,
 					struct drm_plane_state *bpstate)
 {
