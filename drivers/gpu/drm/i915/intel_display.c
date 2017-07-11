@@ -13271,7 +13271,15 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (INTEL_GEN(dev_priv) < 9)
 		state->legacy_cursor_update = false;
 
-	drm_atomic_helper_swap_state(state, true);
+	ret = drm_atomic_helper_swap_state(state, true);
+	if (ret) {
+		i915_sw_fence_commit(&intel_state->commit_ready);
+
+		mutex_lock(&dev->struct_mutex);
+		drm_atomic_helper_cleanup_planes(dev, state);
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
 	dev_priv->wm.distrust_bios_wm = false;
 	intel_shared_dpll_swap_state(state);
 	intel_atomic_track_fbs(state);
