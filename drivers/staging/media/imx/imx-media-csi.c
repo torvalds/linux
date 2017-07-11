@@ -122,11 +122,11 @@ static inline struct csi_priv *sd_to_dev(struct v4l2_subdev *sdev)
 
 static void csi_idmac_put_ipu_resources(struct csi_priv *priv)
 {
-	if (!IS_ERR_OR_NULL(priv->idmac_ch))
+	if (priv->idmac_ch)
 		ipu_idmac_put(priv->idmac_ch);
 	priv->idmac_ch = NULL;
 
-	if (!IS_ERR_OR_NULL(priv->smfc))
+	if (priv->smfc)
 		ipu_smfc_put(priv->smfc);
 	priv->smfc = NULL;
 }
@@ -134,23 +134,27 @@ static void csi_idmac_put_ipu_resources(struct csi_priv *priv)
 static int csi_idmac_get_ipu_resources(struct csi_priv *priv)
 {
 	int ch_num, ret;
+	struct ipu_smfc *smfc;
+	struct ipuv3_channel *idmac_ch;
 
 	ch_num = IPUV3_CHANNEL_CSI0 + priv->smfc_id;
 
-	priv->smfc = ipu_smfc_get(priv->ipu, ch_num);
-	if (IS_ERR(priv->smfc)) {
+	smfc = ipu_smfc_get(priv->ipu, ch_num);
+	if (IS_ERR(smfc)) {
 		v4l2_err(&priv->sd, "failed to get SMFC\n");
-		ret = PTR_ERR(priv->smfc);
+		ret = PTR_ERR(smfc);
 		goto out;
 	}
+	priv->smfc = smfc;
 
-	priv->idmac_ch = ipu_idmac_get(priv->ipu, ch_num);
-	if (IS_ERR(priv->idmac_ch)) {
+	idmac_ch = ipu_idmac_get(priv->ipu, ch_num);
+	if (IS_ERR(idmac_ch)) {
 		v4l2_err(&priv->sd, "could not get IDMAC channel %u\n",
 			 ch_num);
-		ret = PTR_ERR(priv->idmac_ch);
+		ret = PTR_ERR(idmac_ch);
 		goto out;
 	}
+	priv->idmac_ch = idmac_ch;
 
 	return 0;
 out:
@@ -1585,6 +1589,7 @@ static int csi_unsubscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 static int csi_registered(struct v4l2_subdev *sd)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
+	struct ipu_csi *csi;
 	int i, ret;
 	u32 code;
 
@@ -1592,11 +1597,12 @@ static int csi_registered(struct v4l2_subdev *sd)
 	priv->md = dev_get_drvdata(sd->v4l2_dev->dev);
 
 	/* get handle to IPU CSI */
-	priv->csi = ipu_csi_get(priv->ipu, priv->csi_id);
-	if (IS_ERR(priv->csi)) {
+	csi = ipu_csi_get(priv->ipu, priv->csi_id);
+	if (IS_ERR(csi)) {
 		v4l2_err(&priv->sd, "failed to get CSI%d\n", priv->csi_id);
-		return PTR_ERR(priv->csi);
+		return PTR_ERR(csi);
 	}
+	priv->csi = csi;
 
 	for (i = 0; i < CSI_NUM_PADS; i++) {
 		priv->pad[i].flags = (i == CSI_SINK_PAD) ?
@@ -1665,7 +1671,7 @@ static void csi_unregistered(struct v4l2_subdev *sd)
 	if (priv->fim)
 		imx_media_fim_free(priv->fim);
 
-	if (!IS_ERR_OR_NULL(priv->csi))
+	if (priv->csi)
 		ipu_csi_put(priv->csi);
 }
 
