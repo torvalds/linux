@@ -992,10 +992,6 @@ static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
 					i, value, flags);
 		addr += incr;
 	}
-
-	/* Flush HDP */
-	mb();
-	amdgpu_gart_flush_gpu_tlb(params->adev, 0);
 }
 
 static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
@@ -1237,6 +1233,12 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 	r = amdgpu_vm_update_level(adev, vm, &vm->root, 0);
 	if (r)
 		amdgpu_vm_invalidate_level(&vm->root);
+
+	if (vm->use_cpu_for_update) {
+		/* Flush HDP */
+		mb();
+		amdgpu_gart_flush_gpu_tlb(adev, 0);
+	}
 
 	return r;
 }
@@ -1744,6 +1746,12 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	if (clear)
 		list_add(&bo_va->vm_status, &vm->cleared);
 	spin_unlock(&vm->status_lock);
+
+	if (vm->use_cpu_for_update) {
+		/* Flush HDP */
+		mb();
+		amdgpu_gart_flush_gpu_tlb(adev, 0);
+	}
 
 	return 0;
 }
