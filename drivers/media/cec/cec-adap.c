@@ -78,42 +78,62 @@ static unsigned int cec_log_addr2dev(const struct cec_adapter *adap, u8 log_addr
  * Queue a new event for this filehandle. If ts == 0, then set it
  * to the current time.
  *
- * The two events that are currently defined do not need to keep track
- * of intermediate events, so no actual queue of events is needed,
- * instead just store the latest state and the total number of lost
- * messages.
- *
- * Should new events be added in the future that require intermediate
- * results to be queued as well, then a proper queue data structure is
- * required. But until then, just keep it simple.
+ * We keep a queue of at most max_event events where max_event differs
+ * per event. If the queue becomes full, then drop the oldest event and
+ * keep track of how many events we've dropped.
  */
 void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
-	struct cec_event *ev = &fh->events[new_ev->event - 1];
+	static const u8 max_events[CEC_NUM_EVENTS] = {
+		1, 1, 64, 64,
+	};
+	struct cec_event_entry *entry;
+	unsigned int ev_idx = new_ev->event - 1;
+
+	if (WARN_ON(ev_idx >= ARRAY_SIZE(fh->events)))
+		return;
 
 	if (ts == 0)
 		ts = ktime_get_ns();
 
 	mutex_lock(&fh->lock);
-	if (new_ev->event == CEC_EVENT_LOST_MSGS &&
-	    fh->pending_events & (1 << new_ev->event)) {
-		/*
-		 * If there is already a lost_msgs event, then just
-		 * update the lost_msgs count. This effectively
-		 * merges the old and new events into one.
-		 */
-		ev->lost_msgs.lost_msgs += new_ev->lost_msgs.lost_msgs;
-		goto unlock;
-	}
+	if (ev_idx < CEC_NUM_CORE_EVENTS)
+		entry = &fh->core_events[ev_idx];
+	else
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (entry) {
+		if (new_ev->event == CEC_EVENT_LOST_MSGS &&
+		    fh->queued_events[ev_idx]) {
+			entry->ev.lost_msgs.lost_msgs +=
+				new_ev->lost_msgs.lost_msgs;
+			goto unlock;
+		}
+		entry->ev = *new_ev;
+		entry->ev.ts = ts;
 
-	/*
-	 * Intermediate states are not interesting, so just
-	 * overwrite any older event.
-	 */
-	*ev = *new_ev;
-	ev->ts = ts;
-	fh->pending_events |= 1 << new_ev->event;
+		if (fh->queued_events[ev_idx] < max_events[ev_idx]) {
+			/* Add new msg at the end of the queue */
+			list_add_tail(&entry->list, &fh->events[ev_idx]);
+			fh->queued_events[ev_idx]++;
+			fh->total_queued_events++;
+			goto unlock;
+		}
+
+		if (ev_idx >= CEC_NUM_CORE_EVENTS) {
+			list_add_tail(&entry->list, &fh->events[ev_idx]);
+			/* drop the oldest event */
+			entry = list_first_entry(&fh->events[ev_idx],
+						 struct cec_event_entry, list);
+			list_del(&entry->list);
+			kfree(entry);
+		}
+	}
+	/* Mark that events were lost */
+	entry = list_first_entry_or_null(&fh->events[ev_idx],
+					 struct cec_event_entry, list);
+	if (entry)
+		entry->ev.flags |= CEC_EVENT_FL_DROPPED_EVENTS;
 
 unlock:
 	mutex_unlock(&fh->lock);
@@ -134,46 +154,50 @@ static void cec_queue_event(struct cec_adapter *adap,
 }
 
 /*
- * Queue a new message for this filehandle. If there is no more room
- * in the queue, then send the LOST_MSGS event instead.
+ * Queue a new message for this filehandle.
+ *
+ * We keep a queue of at most CEC_MAX_MSG_RX_QUEUE_SZ messages. If the
+ * queue becomes full, then drop the oldest message and keep track
+ * of how many messages we've dropped.
  */
 static void cec_queue_msg_fh(struct cec_fh *fh, const struct cec_msg *msg)
 {
-	static const struct cec_event ev_lost_msg = {
-		.ts = 0,
+	static const struct cec_event ev_lost_msgs = {
 		.event = CEC_EVENT_LOST_MSGS,
-		.flags = 0,
-		{
-			.lost_msgs.lost_msgs = 1,
-		},
+		.lost_msgs.lost_msgs = 1,
 	};
 	struct cec_msg_entry *entry;
 
 	mutex_lock(&fh->lock);
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		goto lost_msgs;
+	if (entry) {
+		entry->msg = *msg;
+		/* Add new msg at the end of the queue */
+		list_add_tail(&entry->list, &fh->msgs);
 
-	entry->msg = *msg;
-	/* Add new msg at the end of the queue */
-	list_add_tail(&entry->list, &fh->msgs);
+		if (fh->queued_msgs < CEC_MAX_MSG_RX_QUEUE_SZ) {
+			/* All is fine if there is enough room */
+			fh->queued_msgs++;
+			mutex_unlock(&fh->lock);
+			wake_up_interruptible(&fh->wait);
+			return;
+		}
+
+		/*
+		 * if the message queue is full, then drop the oldest one and
+		 * send a lost message event.
+		 */
+		entry = list_first_entry(&fh->msgs, struct cec_msg_entry, list);
+		list_del(&entry->list);
+		kfree(entry);
+	}
+	mutex_unlock(&fh->lock);
 
 	/*
-	 * if the queue now has more than CEC_MAX_MSG_RX_QUEUE_SZ
-	 * messages, drop the oldest one and send a lost message event.
+	 * We lost a message, either because kmalloc failed or the queue
+	 * was full.
 	 */
-	if (fh->queued_msgs == CEC_MAX_MSG_RX_QUEUE_SZ) {
-		list_del(&entry->list);
-		goto lost_msgs;
-	}
-	fh->queued_msgs++;
-	mutex_unlock(&fh->lock);
-	wake_up_interruptible(&fh->wait);
-	return;
-
-lost_msgs:
-	mutex_unlock(&fh->lock);
-	cec_queue_event_fh(fh, &ev_lost_msg, 0);
+	cec_queue_event_fh(fh, &ev_lost_msgs, ktime_get_ns());
 }
 
 /*

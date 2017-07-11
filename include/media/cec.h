@@ -81,7 +81,13 @@ struct cec_msg_entry {
 	struct cec_msg		msg;
 };
 
-#define CEC_NUM_EVENTS		CEC_EVENT_LOST_MSGS
+struct cec_event_entry {
+	struct list_head	list;
+	struct cec_event	ev;
+};
+
+#define CEC_NUM_CORE_EVENTS 2
+#define CEC_NUM_EVENTS CEC_EVENT_PIN_HIGH
 
 struct cec_fh {
 	struct list_head	list;
@@ -92,9 +98,11 @@ struct cec_fh {
 
 	/* Events */
 	wait_queue_head_t	wait;
-	unsigned int		pending_events;
-	struct cec_event	events[CEC_NUM_EVENTS];
 	struct mutex		lock;
+	struct list_head	events[CEC_NUM_EVENTS]; /* queued events */
+	u8			queued_events[CEC_NUM_EVENTS];
+	unsigned int		total_queued_events;
+	struct cec_event_entry	core_events[CEC_NUM_CORE_EVENTS];
 	struct list_head	msgs; /* queued messages */
 	unsigned int		queued_msgs;
 };
