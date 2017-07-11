@@ -1510,10 +1510,8 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 
 	if (!nonblock) {
 		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
-		if (ret) {
-			drm_atomic_helper_cleanup_planes(dev, state);
-			return ret;
-		}
+		if (ret)
+			goto err;
 	}
 
 	/*
@@ -1522,7 +1520,9 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(state, true);
+	ret = drm_atomic_helper_swap_state(state, true);
+	if (ret)
+		goto err;
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -1551,6 +1551,10 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 		commit_tail(state);
 
 	return 0;
+
+err:
+	drm_atomic_helper_cleanup_planes(dev, state);
+	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit);
 
@@ -2228,14 +2232,14 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
 /**
  * drm_atomic_helper_swap_state - store atomic state into current sw state
  * @state: atomic state
- * @stall: stall for proceeding commits
+ * @stall: stall for preceeding commits
  *
  * This function stores the atomic state into the current state pointers in all
  * driver objects. It should be called after all failing steps have been done
  * and succeeded, but before the actual hardware state is committed.
  *
  * For cleanup and error recovery the current state for all changed objects will
- * be swaped into @state.
+ * be swapped into @state.
  *
  * With that sequence it fits perfectly into the plane prepare/cleanup sequence:
  *
@@ -2254,8 +2258,12 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
  * the &drm_plane.state, &drm_crtc.state or &drm_connector.state pointer. With
  * the current atomic helpers this is almost always the case, since the helpers
  * don't pass the right state structures to the callbacks.
+ *
+ * Returns:
+ *
+ * Always returns 0, cannot fail yet.
  */
-void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
+int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 				  bool stall)
 {
 	int i;
@@ -2339,6 +2347,8 @@ void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		state->private_objs[i].state = old_obj_state;
 		obj->state = new_obj_state;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_helper_swap_state);
 
