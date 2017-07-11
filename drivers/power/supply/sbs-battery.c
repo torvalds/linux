@@ -14,6 +14,7 @@
  * more details.
  */
 
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -526,6 +527,8 @@ static enum sbs_battery_mode sbs_set_battery_mode(struct i2c_client *client,
 	ret = sbs_write_word_data(client, BATTERY_MODE_OFFSET, ret);
 	if (ret < 0)
 		return ret;
+
+	usleep_range(1000, 2000);
 
 	return original_val & BATTERY_MODE_MASK;
 }
