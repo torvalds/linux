@@ -2399,7 +2399,7 @@ nfs_access_calc_mask(u32 access_result)
 
 void nfs_access_set_mask(struct nfs_access_entry *entry, u32 access_result)
 {
-	entry->mask = nfs_access_calc_mask(access_result);
+	entry->mask = access_result;
 }
 EXPORT_SYMBOL_GPL(nfs_access_set_mask);
 
@@ -2407,6 +2407,7 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 {
 	struct nfs_access_entry cache;
 	bool may_block = (mask & MAY_NOT_BLOCK) == 0;
+	int cache_mask;
 	int status;
 
 	trace_nfs_access_enter(inode);
@@ -2422,7 +2423,8 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 		goto out;
 
 	/* Be clever: ask server to check for all possible rights */
-	cache.mask = MAY_EXEC | MAY_WRITE | MAY_READ;
+	cache.mask = NFS_MAY_LOOKUP | NFS_MAY_EXECUTE
+		     | NFS_MAY_WRITE | NFS_MAY_READ;
 	cache.cred = cred;
 	cache.jiffies = jiffies;
 	status = NFS_PROTO(inode)->access(inode, &cache);
@@ -2436,7 +2438,8 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 	}
 	nfs_access_add_cache(inode, &cache);
 out_cached:
-	if ((mask & ~cache.mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) != 0)
+	cache_mask = nfs_access_calc_mask(cache.mask);
+	if ((mask & ~cache_mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) != 0)
 		status = -EACCES;
 out:
 	trace_nfs_access_exit(inode, status);
