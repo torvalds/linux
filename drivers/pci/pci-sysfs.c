@@ -1735,7 +1735,7 @@ const struct attribute_group *pcie_dev_groups[] = {
 	NULL,
 };
 
-static struct attribute_group pci_dev_hp_attr_group = {
+static const struct attribute_group pci_dev_hp_attr_group = {
 	.attrs = pci_dev_hp_attrs,
 	.is_visible = pci_dev_hp_attrs_are_visible,
 };
@@ -1759,23 +1759,23 @@ static umode_t sriov_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static struct attribute_group sriov_dev_attr_group = {
+static const struct attribute_group sriov_dev_attr_group = {
 	.attrs = sriov_dev_attrs,
 	.is_visible = sriov_attrs_are_visible,
 };
 #endif /* CONFIG_PCI_IOV */
 
-static struct attribute_group pci_dev_attr_group = {
+static const struct attribute_group pci_dev_attr_group = {
 	.attrs = pci_dev_dev_attrs,
 	.is_visible = pci_dev_attrs_are_visible,
 };
 
-static struct attribute_group pci_bridge_attr_group = {
+static const struct attribute_group pci_bridge_attr_group = {
 	.attrs = pci_bridge_attrs,
 	.is_visible = pci_bridge_attrs_are_visible,
 };
 
-static struct attribute_group pcie_dev_attr_group = {
+static const struct attribute_group pcie_dev_attr_group = {
 	.attrs = pcie_dev_attrs,
 	.is_visible = pcie_dev_attrs_are_visible,
 };
