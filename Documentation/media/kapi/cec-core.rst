@@ -345,3 +345,34 @@ log_addrs->num_log_addrs set to 0. The block argument is ignored when
 unconfiguring. This function will just return if the physical address is
 invalid. Once the physical address becomes valid, then the framework will
 attempt to claim these logical addresses.
+
+CEC Pin framework
+-----------------
+
+Most CEC hardware operates on full CEC messages where the software provides
+the message and the hardware handles the low-level CEC protocol. But some
+hardware only drives the CEC pin and software has to handle the low-level
+CEC protocol. The CEC pin framework was created to handle such devices.
+
+Note that due to the close-to-realtime requirements it can never be guaranteed
+to work 100%. This framework uses highres timers internally, but if a
+timer goes off too late by more than 300 microseconds wrong results can
+occur. In reality it appears to be fairly reliable.
+
+One advantage of this low-level implementation is that it can be used as
+a cheap CEC analyser, especially if interrupts can be used to detect
+CEC pin transitions from low to high or vice versa.
+
+.. kernel-doc:: include/media/cec-pin.h
+
+CEC Notifier framework
+-----------------
+
+Most drm HDMI implementations have an integrated CEC implementation and no
+notifier support is needed. But some have independent CEC implementations
+that have their own driver. This could be an IP block for an SoC or a
+completely separate chip that deals with the CEC pin. For those cases a
+drm driver can install a notifier and use the notifier to inform the
+CEC driver about changes in the physical address.
+
+.. kernel-doc:: include/media/cec-notifier.h
