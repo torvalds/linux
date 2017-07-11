@@ -22,6 +22,7 @@ struct vm86;
 #include <asm/nops.h>
 #include <asm/special_insns.h>
 #include <asm/fpu/types.h>
+#include <asm/unwind_hints.h>
 
 #include <linux/personality.h>
 #include <linux/cache.h>
@@ -684,6 +685,7 @@ static inline void sync_core(void)
 	unsigned int tmp;
 
 	asm volatile (
+		UNWIND_HINT_SAVE
 		"mov %%ss, %0\n\t"
 		"pushq %q0\n\t"
 		"pushq %%rsp\n\t"
@@ -693,6 +695,7 @@ static inline void sync_core(void)
 		"pushq %q0\n\t"
 		"pushq $1f\n\t"
 		"iretq\n\t"
+		UNWIND_HINT_RESTORE
 		"1:"
 		: "=&r" (tmp), "+r" (__sp) : : "cc", "memory");
 #endif
