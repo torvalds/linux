@@ -19,7 +19,6 @@
 #include <drm/drm_fb_helper.h>
 
 #include "msm_drv.h"
-#include "msm_gem.h"
 #include "msm_kms.h"
 
 extern int msm_gem_mmap_obj(struct drm_gem_object *obj,
@@ -77,42 +76,22 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb = NULL;
 	struct drm_gem_object *bo;
 	struct fb_info *fbi = NULL;
-	struct drm_mode_fb_cmd2 mode_cmd = {0};
 	uint64_t paddr;
-	int ret, size;
+	uint32_t format;
+	int ret, pitch;
+
+	format = drm_mode_legacy_fb_format(sizes->surface_bpp, sizes->surface_depth);
 
 	DBG("create fbdev: %dx%d@%d (%dx%d)", sizes->surface_width,
 			sizes->surface_height, sizes->surface_bpp,
 			sizes->fb_width, sizes->fb_height);
 
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-			sizes->surface_depth);
+	pitch = align_pitch(sizes->surface_width, sizes->surface_bpp);
+	fb = msm_alloc_stolen_fb(dev, sizes->surface_width,
+			sizes->surface_height, pitch, format);
 
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-
-	mode_cmd.pitches[0] = align_pitch(
-			mode_cmd.width, sizes->surface_bpp);
-
-	/* allocate backing bo */
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
-	bo = msm_gem_new(dev, size, MSM_BO_SCANOUT |
-			MSM_BO_WC | MSM_BO_STOLEN);
-	if (IS_ERR(bo)) {
-		ret = PTR_ERR(bo);
-		bo = NULL;
-		dev_err(dev->dev, "failed to allocate buffer object: %d\n", ret);
-		goto fail;
-	}
-
-	fb = msm_framebuffer_init(dev, &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");
-		/* note: if fb creation failed, we can't rely on fb destroy
-		 * to unref the bo:
-		 */
-		drm_gem_object_unreference_unlocked(bo);
 		ret = PTR_ERR(fb);
 		goto fail;
 	}
