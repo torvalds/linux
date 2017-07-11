@@ -927,7 +927,7 @@
 	};
 
 	vin0: video@e6ef0000 {
-		compatible = "renesas,vin-r8a7790";
+		compatible = "renesas,vin-r8a7790", "renesas,rcar-gen2-vin";
 		reg = <0 0xe6ef0000 0 0x1000>;
 		interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp8_clks R8A7790_CLK_VIN0>;
@@ -936,7 +936,7 @@
 	};
 
 	vin1: video@e6ef1000 {
-		compatible = "renesas,vin-r8a7790";
+		compatible = "renesas,vin-r8a7790", "renesas,rcar-gen2-vin";
 		reg = <0 0xe6ef1000 0 0x1000>;
 		interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp8_clks R8A7790_CLK_VIN1>;
@@ -945,7 +945,7 @@
 	};
 
 	vin2: video@e6ef2000 {
-		compatible = "renesas,vin-r8a7790";
+		compatible = "renesas,vin-r8a7790", "renesas,rcar-gen2-vin";
 		reg = <0 0xe6ef2000 0 0x1000>;
 		interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp8_clks R8A7790_CLK_VIN2>;
@@ -954,7 +954,7 @@
 	};
 
 	vin3: video@e6ef3000 {
-		compatible = "renesas,vin-r8a7790";
+		compatible = "renesas,vin-r8a7790", "renesas,rcar-gen2-vin";
 		reg = <0 0xe6ef3000 0 0x1000>;
 		interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp8_clks R8A7790_CLK_VIN3>;
