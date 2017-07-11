@@ -121,10 +121,15 @@ ccw group devices
 Generic interfaces
 ==================
 
-Some interfaces are available to other drivers that do not necessarily
-have anything to do with the busses described above, but still are
-indirectly using basic infrastructure in the common I/O layer. One
-example is the support for adapter interrupts.
+The following section contains interfaces in use not only by drivers
+dealing with ccw devices, but drivers for various other s390 hardware
+as well.
+
+Adapter interrupts
+------------------
+
+The common I/O layer provides helper functions for dealing with adapter
+interrupts and interrupt vectors.
 
 .. kernel-doc:: drivers/s390/cio/airq.c
    :export:
