@@ -2886,7 +2886,7 @@ static int bnx2x_test_nvram_tbl(struct bnx2x *bp,
 
 static int bnx2x_test_nvram(struct bnx2x *bp)
 {
-	const struct crc_pair nvram_tbl[] = {
+	static const struct crc_pair nvram_tbl[] = {
 		{     0,  0x14 }, /* bootstrap */
 		{  0x14,  0xec }, /* dir */
 		{ 0x100, 0x350 }, /* manuf_info */
@@ -2895,7 +2895,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x708,  0x70 }, /* manuf_key_info */
 		{     0,     0 }
 	};
-	const struct crc_pair nvram_tbl2[] = {
+	static const struct crc_pair nvram_tbl2[] = {
 		{ 0x7e8, 0x350 }, /* manuf_info2 */
 		{ 0xb38,  0xf0 }, /* feature_info */
 		{     0,     0 }
