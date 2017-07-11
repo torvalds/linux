@@ -404,8 +404,15 @@ static int rsi_usb_master_reg_read(struct rsi_hw *adapter, u32 reg,
 {
 	struct usb_device *usbdev =
 		((struct rsi_91x_usbdev *)adapter->rsi_dev)->usbdev;
+	u16 temp;
+	int ret;
 
-	return rsi_usb_reg_read(usbdev, reg, (u16 *)value, len);
+	ret = rsi_usb_reg_read(usbdev, reg, &temp, len);
+	if (ret < 0)
+		return ret;
+	*value = temp;
+
+	return 0;
 }
 
 static int rsi_usb_master_reg_write(struct rsi_hw *adapter,
