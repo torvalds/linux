@@ -317,7 +317,7 @@ static struct attribute *fujitsu_pf_attributes[] = {
 	NULL
 };
 
-static struct attribute_group fujitsu_pf_attribute_group = {
+static const struct attribute_group fujitsu_pf_attribute_group = {
 	.attrs = fujitsu_pf_attributes
 };
 
