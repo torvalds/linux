@@ -988,7 +988,7 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	file_lost_pino(old_inode);
 	up_write(&F2FS_I(old_inode)->i_sem);
 
-	old_dir->i_ctime = CURRENT_TIME;
+	old_dir->i_ctime = current_time(old_dir);
 	if (old_nlink) {
 		down_write(&F2FS_I(old_dir)->i_sem);
 		f2fs_i_links_write(old_dir, old_nlink > 0);
@@ -1003,7 +1003,7 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	file_lost_pino(new_inode);
 	up_write(&F2FS_I(new_inode)->i_sem);
 
-	new_dir->i_ctime = CURRENT_TIME;
+	new_dir->i_ctime = current_time(new_dir);
 	if (new_nlink) {
 		down_write(&F2FS_I(new_dir)->i_sem);
 		f2fs_i_links_write(new_dir, new_nlink > 0);
