@@ -36,8 +36,8 @@ const char *objname;
 static bool nofp;
 struct cfi_state initial_func_cfi;
 
-static struct instruction *find_insn(struct objtool_file *file,
-				     struct section *sec, unsigned long offset)
+struct instruction *find_insn(struct objtool_file *file,
+			      struct section *sec, unsigned long offset)
 {
 	struct instruction *insn;
 
@@ -258,6 +258,11 @@ static int decode_instructions(struct objtool_file *file)
 
 		if (!(sec->sh.sh_flags & SHF_EXECINSTR))
 			continue;
+
+		if (strcmp(sec->name, ".altinstr_replacement") &&
+		    strcmp(sec->name, ".altinstr_aux") &&
+		    strncmp(sec->name, ".discard.", 9))
+			sec->text = true;
 
 		for (offset = 0; offset < sec->len; offset += insn->len) {
 			insn = malloc(sizeof(*insn));
@@ -947,6 +952,30 @@ static bool has_valid_stack_frame(struct insn_state *state)
 	return false;
 }
 
+static int update_insn_state_regs(struct instruction *insn, struct insn_state *state)
+{
+	struct cfi_reg *cfa = &state->cfa;
+	struct stack_op *op = &insn->stack_op;
+
+	if (cfa->base != CFI_SP)
+		return 0;
+
+	/* push */
+	if (op->dest.type == OP_DEST_PUSH)
+		cfa->offset += 8;
+
+	/* pop */
+	if (op->src.type == OP_SRC_POP)
+		cfa->offset -= 8;
+
+	/* add immediate to sp */
+	if (op->dest.type == OP_DEST_REG && op->src.type == OP_SRC_ADD &&
+	    op->dest.reg == CFI_SP && op->src.reg == CFI_SP)
+		cfa->offset -= op->src.offset;
+
+	return 0;
+}
+
 static void save_reg(struct insn_state *state, unsigned char reg, int base,
 		     int offset)
 {
@@ -1031,6 +1060,9 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		}
 		return 0;
 	}
+
+	if (state->type == ORC_TYPE_REGS || state->type == ORC_TYPE_REGS_IRET)
+		return update_insn_state_regs(insn, state);
 
 	switch (op->dest.type) {
 
@@ -1323,6 +1355,10 @@ static bool insn_state_match(struct instruction *insn, struct insn_state *state)
 			break;
 		}
 
+	} else if (state1->type != state2->type) {
+		WARN_FUNC("stack state mismatch: type1=%d type2=%d",
+			  insn->sec, insn->offset, state1->type, state2->type);
+
 	} else if (state1->drap != state2->drap ||
 		 (state1->drap && state1->drap_reg != state2->drap_reg)) {
 		WARN_FUNC("stack state mismatch: drap1=%d(%d) drap2=%d(%d)",
@@ -1613,7 +1649,7 @@ static void cleanup(struct objtool_file *file)
 	elf_close(file->elf);
 }
 
-int check(const char *_objname, bool _nofp)
+int check(const char *_objname, bool _nofp, bool orc)
 {
 	struct objtool_file file;
 	int ret, warnings = 0;
@@ -1621,7 +1657,7 @@ int check(const char *_objname, bool _nofp)
 	objname = _objname;
 	nofp = _nofp;
 
-	file.elf = elf_open(objname);
+	file.elf = elf_open(objname, orc ? O_RDWR : O_RDONLY);
 	if (!file.elf)
 		return 1;
 
@@ -1652,6 +1688,20 @@ int check(const char *_objname, bool _nofp)
 		if (ret < 0)
 			goto out;
 		warnings += ret;
+	}
+
+	if (orc) {
+		ret = create_orc(&file);
+		if (ret < 0)
+			goto out;
+
+		ret = create_orc_sections(&file);
+		if (ret < 0)
+			goto out;
+
+		ret = elf_write(file.elf);
+		if (ret < 0)
+			goto out;
 	}
 
 out:

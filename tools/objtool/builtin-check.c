@@ -52,5 +52,5 @@ int cmd_check(int argc, const char **argv)
 
 	objname = argv[0];
 
-	return check(objname, nofp);
+	return check(objname, nofp, false);
 }
