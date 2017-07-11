@@ -207,6 +207,10 @@
 	status = "okay";
 };
 
+&hdmiphy {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 
