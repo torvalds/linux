@@ -546,7 +546,7 @@ static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return pinctrl_gpio_direction_output(chip->base + offset);
 }
 
-static struct gpio_chip wmt_gpio_chip = {
+static const struct gpio_chip wmt_gpio_chip = {
 	.label = "gpio-wmt",
 	.owner = THIS_MODULE,
 	.request = gpiochip_generic_request,
