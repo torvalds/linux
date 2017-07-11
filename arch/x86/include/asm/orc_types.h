@@ -88,7 +88,7 @@ struct orc_entry {
 	unsigned	sp_reg:4;
 	unsigned	bp_reg:4;
 	unsigned	type:2;
-} __packed;
+};
 
 /*
  * This struct is used by asm and inline asm code to manually annotate the

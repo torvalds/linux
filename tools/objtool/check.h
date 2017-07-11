@@ -43,7 +43,7 @@ struct instruction {
 	unsigned int len;
 	unsigned char type;
 	unsigned long immediate;
-	bool alt_group, visited, dead_end, ignore;
+	bool alt_group, visited, dead_end, ignore, hint, save, restore;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct list_head alts;
@@ -58,7 +58,7 @@ struct objtool_file {
 	struct list_head insn_list;
 	DECLARE_HASHTABLE(insn_hash, 16);
 	struct section *rodata, *whitelist;
-	bool ignore_unreachables, c_file;
+	bool ignore_unreachables, c_file, hints;
 };
 
 int check(const char *objname, bool nofp, bool orc);
