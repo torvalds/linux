@@ -2375,16 +2375,31 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 }
 EXPORT_SYMBOL_GPL(nfs_access_add_cache);
 
+#define NFS_MAY_READ (NFS4_ACCESS_READ)
+#define NFS_MAY_WRITE (NFS4_ACCESS_MODIFY | \
+		NFS4_ACCESS_EXTEND | \
+		NFS4_ACCESS_DELETE)
+#define NFS_MAY_LOOKUP (NFS4_ACCESS_LOOKUP)
+#define NFS_MAY_EXECUTE (NFS4_ACCESS_EXECUTE)
+static int
+nfs_access_calc_mask(u32 access_result)
+{
+	int mask = 0;
+
+	if (access_result & NFS_MAY_READ)
+		mask |= MAY_READ;
+	if (access_result & NFS_MAY_WRITE)
+		mask |= MAY_WRITE;
+	if (access_result & NFS_MAY_LOOKUP)
+		mask |= MAY_EXEC;
+	if (access_result & NFS_MAY_EXECUTE)
+		mask |= MAY_EXEC;
+	return mask;
+}
+
 void nfs_access_set_mask(struct nfs_access_entry *entry, u32 access_result)
 {
-	entry->mask = 0;
-	if (access_result & NFS4_ACCESS_READ)
-		entry->mask |= MAY_READ;
-	if (access_result &
-	    (NFS4_ACCESS_MODIFY | NFS4_ACCESS_EXTEND | NFS4_ACCESS_DELETE))
-		entry->mask |= MAY_WRITE;
-	if (access_result & (NFS4_ACCESS_LOOKUP|NFS4_ACCESS_EXECUTE))
-		entry->mask |= MAY_EXEC;
+	entry->mask = nfs_access_calc_mask(access_result);
 }
 EXPORT_SYMBOL_GPL(nfs_access_set_mask);
 
