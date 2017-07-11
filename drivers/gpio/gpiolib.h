@@ -219,7 +219,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 /*
  * Return the GPIO number of the passed descriptor relative to its chip
  */
-static int __maybe_unused gpio_chip_hwgpio(const struct gpio_desc *desc)
+static inline int gpio_chip_hwgpio(const struct gpio_desc *desc)
 {
 	return desc - &desc->gdev->descs[0];
 }
