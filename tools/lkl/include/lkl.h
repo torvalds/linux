@@ -428,7 +428,7 @@ struct lkl_netdev *lkl_netdev_macvtap_create(const char *path, int offload);
  * If you run the program from shell script, make sure you ignore SIGTSTP by
  * "trap '' TSTP" in the shell script.
  */
-void lkl_register_dbg_handler();
+void lkl_register_dbg_handler(void);
 
 /**
  * lkl_add_neighbor - add a permanent arp entry
