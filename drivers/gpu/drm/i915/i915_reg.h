@@ -1063,9 +1063,20 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DP_SSS_RESET(pipe)			_DP_SSS(0x2, (pipe))
 #define   DP_SSS_PWR_GATE(pipe)			_DP_SSS(0x3, (pipe))
 
-/* See the PUNIT HAS v0.8 for the below bits */
-enum punit_power_well {
-	/* These numbers are fixed and must match the position of the pw bits */
+/**
+ * i915_power_well_id:
+ *
+ * Platform specific IDs used to look up power wells and - except for custom
+ * power wells - to define request/status register flag bit positions. As such
+ * the set of IDs on a given platform must be unique and except for custom
+ * power wells their value must stay fixed.
+ */
+enum i915_power_well_id {
+	/*
+	 * VLV/CHV
+	 *  - PUNIT_REG_PWRGT_CTRL (bit: id*2),
+	 *    PUNIT_REG_PWRGT_STATUS (bit: id*2) (PUNIT HAS v0.8)
+	 */
 	PUNIT_POWER_WELL_RENDER			= 0,
 	PUNIT_POWER_WELL_MEDIA			= 1,
 	PUNIT_POWER_WELL_DISP2D			= 3,
@@ -1080,13 +1091,11 @@ enum punit_power_well {
 	/*  - custom power well */
 	CHV_DISP_PW_PIPE_A,			/* 13 */
 
-	/* Not actual bit groups. Used as IDs for lookup_power_well() */
-	PUNIT_POWER_WELL_ALWAYS_ON,
-};
-
-enum skl_disp_power_wells {
-	/* These numbers are fixed and must match the position of the pw bits */
-	SKL_DISP_PW_MISC_IO,
+	/*
+	 * GEN9+
+	 *  - HSW_PWR_WELL_DRIVER (status bit: id*2, req bit: id*2+1)
+	 */
+	SKL_DISP_PW_MISC_IO = 0,
 	SKL_DISP_PW_DDI_A_E,
 	GLK_DISP_PW_DDI_A = SKL_DISP_PW_DDI_A_E,
 	CNL_DISP_PW_DDI_A = SKL_DISP_PW_DDI_A_E,
@@ -1105,13 +1114,18 @@ enum skl_disp_power_wells {
 	SKL_DISP_PW_1 = 14,
 	SKL_DISP_PW_2,
 
-	/* Not actual bit groups. Used as IDs for lookup_power_well() */
-	SKL_DISP_PW_ALWAYS_ON,
+	/* - custom power wells */
 	SKL_DISP_PW_DC_OFF,
-
 	BXT_DPIO_CMN_A,
 	BXT_DPIO_CMN_BC,
-	GLK_DPIO_CMN_C,
+	GLK_DPIO_CMN_C,			/* 19 */
+
+	/*
+	 * Multiple platforms.
+	 * Must start following the highest ID of any platform.
+	 * - custom power wells
+	 */
+	I915_DISP_PW_ALWAYS_ON = 20,
 };
 
 #define SKL_POWER_WELL_STATE(pw) (1 << ((pw) * 2))

@@ -1383,7 +1383,7 @@ struct i915_power_well {
 	bool hw_enabled;
 	u64 domains;
 	/* unique identifier for this power well */
-	unsigned long id;
+	enum i915_power_well_id id;
 	/*
 	 * Arbitraty data associated with this power well. Platform and power
 	 * well specific.
