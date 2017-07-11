@@ -887,7 +887,9 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			break;
 		}
 
-		if (!write)
+		if (write)
+			size = min_t(u64, size, fsc->mount_options->wsize);
+		else
 			size = min_t(u64, size, fsc->mount_options->rsize);
 
 		len = size;

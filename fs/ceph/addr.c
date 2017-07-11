@@ -779,10 +779,8 @@ static int ceph_writepages_start(struct address_space *mapping,
 		mapping_set_error(mapping, -EIO);
 		return -EIO; /* we're in a forced umount, don't write! */
 	}
-	if (fsc->mount_options->wsize && fsc->mount_options->wsize < wsize)
+	if (fsc->mount_options->wsize < wsize)
 		wsize = fsc->mount_options->wsize;
-	if (wsize < PAGE_SIZE)
-		wsize = PAGE_SIZE;
 	max_pages_ever = wsize >> PAGE_SHIFT;
 
 	pagevec_init(&pvec, 0);
