@@ -539,14 +539,13 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 		dc->commit.pending = true;
 	spin_unlock(&dc->commit.wait.lock);
 
-	if (ret) {
-		kfree(commit);
-		goto error;
-	}
+	if (ret)
+		goto err_free;
 
-	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(state, true);
+	/* We have our own synchronization through the commit lock. */
+	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
+	/* Swap state succeeded, this is the point of no return. */
 	drm_atomic_state_get(state);
 	if (async)
 		queue_work(dc->wq, &commit->work);
@@ -555,6 +554,8 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 
 	return 0;
 
+err_free:
+	kfree(commit);
 error:
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;
