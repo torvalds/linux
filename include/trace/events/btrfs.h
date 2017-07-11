@@ -1011,15 +1011,14 @@ TRACE_EVENT(btrfs_trigger_flush,
 TRACE_EVENT(btrfs_flush_space,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 flags, u64 num_bytes,
-		 u64 orig_bytes, int state, int ret),
+		 int state, int ret),
 
-	TP_ARGS(fs_info, flags, num_bytes, orig_bytes, state, ret),
+	TP_ARGS(fs_info, flags, num_bytes, state, ret),
 
 	TP_STRUCT__entry(
 		__array(	u8,	fsid,	BTRFS_UUID_SIZE	)
 		__field(	u64,	flags			)
 		__field(	u64,	num_bytes		)
-		__field(	u64,	orig_bytes		)
 		__field(	int,	state			)
 		__field(	int,	ret			)
 	),
@@ -1028,19 +1027,17 @@ TRACE_EVENT(btrfs_flush_space,
 		memcpy(__entry->fsid, fs_info->fsid, BTRFS_UUID_SIZE);
 		__entry->flags		=	flags;
 		__entry->num_bytes	=	num_bytes;
-		__entry->orig_bytes	=	orig_bytes;
 		__entry->state		=	state;
 		__entry->ret		=	ret;
 	),
 
-	TP_printk("%pU: state=%d(%s) flags=%llu(%s) num_bytes=%llu "
-		  "orig_bytes=%llu ret=%d", __entry->fsid, __entry->state,
+	TP_printk("%pU: state=%d(%s) flags=%llu(%s) num_bytes=%llu ret=%d",
+		  __entry->fsid, __entry->state,
 		  show_flush_state(__entry->state),
 		  (unsigned long long)__entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
 				BTRFS_GROUP_FLAGS),
-		  (unsigned long long)__entry->num_bytes,
-		  (unsigned long long)__entry->orig_bytes, __entry->ret)
+		  (unsigned long long)__entry->num_bytes, __entry->ret)
 );
 
 DECLARE_EVENT_CLASS(btrfs__reserved_extent,
