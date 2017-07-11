@@ -453,6 +453,10 @@ static int new_lockspace(const char *name, const char *cluster,
 			*ops_result = 0;
 	}
 
+	if (!cluster)
+		log_print("dlm cluster name '%s' is being used without an application provided cluster name",
+			  dlm_config.ci_cluster_name);
+
 	if (dlm_config.ci_recover_callbacks && cluster &&
 	    strncmp(cluster, dlm_config.ci_cluster_name, DLM_LOCKSPACE_LEN)) {
 		log_print("dlm cluster name '%s' does not match "
