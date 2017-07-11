@@ -313,38 +313,6 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv,
 		gen8_irq_power_well_pre_disable(dev_priv, irq_pipe_mask);
 }
 
-static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
-				       struct i915_power_well *power_well)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-
-	/*
-	 * After we re-enable the power well, if we touch VGA register 0x3d5
-	 * we'll get unclaimed register interrupts. This stops after we write
-	 * anything to the VGA MSR register. The vgacon module uses this
-	 * register all the time, so if we unbind our driver and, as a
-	 * consequence, bind vgacon, we'll get stuck in an infinite loop at
-	 * console_unlock(). So make here we touch the VGA MSR register, making
-	 * sure vgacon can keep working normally without triggering interrupts
-	 * and error messages.
-	 */
-	if (power_well->id == SKL_DISP_PW_2) {
-		vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-		outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
-		vga_put(pdev, VGA_RSRC_LEGACY_IO);
-
-		gen8_irq_power_well_post_enable(dev_priv,
-						1 << PIPE_C | 1 << PIPE_B);
-	}
-}
-
-static void skl_power_well_pre_disable(struct drm_i915_private *dev_priv,
-				       struct i915_power_well *power_well)
-{
-	if (power_well->id == SKL_DISP_PW_2)
-		gen8_irq_power_well_pre_disable(dev_priv,
-						1 << PIPE_C | 1 << PIPE_B);
-}
 
 static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
@@ -823,91 +791,6 @@ void skl_disable_dc6(struct drm_i915_private *dev_priv)
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
-static void skl_set_power_well(struct drm_i915_private *dev_priv,
-			       struct i915_power_well *power_well, bool enable)
-{
-	uint32_t tmp, fuse_status;
-	uint32_t req_mask, state_mask;
-	bool check_fuse_status = false;
-
-	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
-	fuse_status = I915_READ(SKL_FUSE_STATUS);
-
-	switch (power_well->id) {
-	case SKL_DISP_PW_1:
-		if (intel_wait_for_register(dev_priv,
-					    SKL_FUSE_STATUS,
-					    SKL_FUSE_PG_DIST_STATUS(SKL_PG0),
-					    SKL_FUSE_PG_DIST_STATUS(SKL_PG0),
-					    1)) {
-			DRM_ERROR("PG0 not enabled\n");
-			return;
-		}
-		break;
-	case SKL_DISP_PW_2:
-		if (!(fuse_status & SKL_FUSE_PG_DIST_STATUS(SKL_PG1))) {
-			DRM_ERROR("PG1 in disabled state\n");
-			return;
-		}
-		break;
-	case SKL_DISP_PW_MISC_IO:
-	case SKL_DISP_PW_DDI_A_E: /* GLK_DISP_PW_DDI_A, CNL_DISP_PW_DDI_A */
-	case SKL_DISP_PW_DDI_B:
-	case SKL_DISP_PW_DDI_C:
-	case SKL_DISP_PW_DDI_D:
-	case GLK_DISP_PW_AUX_A: /* CNL_DISP_PW_AUX_A */
-	case GLK_DISP_PW_AUX_B: /* CNL_DISP_PW_AUX_B */
-	case GLK_DISP_PW_AUX_C: /* CNL_DISP_PW_AUX_C */
-	case CNL_DISP_PW_AUX_D:
-		break;
-	default:
-		WARN(1, "Unknown power well %u\n", power_well->id);
-		return;
-	}
-
-	req_mask = HSW_PWR_WELL_CTL_REQ(power_well->id);
-	state_mask = HSW_PWR_WELL_CTL_STATE(power_well->id);
-
-	if (!enable)
-		skl_power_well_pre_disable(dev_priv, power_well);
-
-	if (enable) {
-		I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
-
-		DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
-		check_fuse_status = true;
-
-		hsw_wait_for_power_well_enable(dev_priv, power_well);
-	} else {
-		I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
-		POSTING_READ(HSW_PWR_WELL_DRIVER);
-		DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
-
-		hsw_wait_for_power_well_disable(dev_priv, power_well);
-	}
-
-	if (check_fuse_status) {
-		if (power_well->id == SKL_DISP_PW_1) {
-			if (intel_wait_for_register(dev_priv,
-						    SKL_FUSE_STATUS,
-						    SKL_FUSE_PG_DIST_STATUS(SKL_PG1),
-						    SKL_FUSE_PG_DIST_STATUS(SKL_PG1),
-						    1))
-				DRM_ERROR("PG1 distributing status timeout\n");
-		} else if (power_well->id == SKL_DISP_PW_2) {
-			if (intel_wait_for_register(dev_priv,
-						    SKL_FUSE_STATUS,
-						    SKL_FUSE_PG_DIST_STATUS(SKL_PG2),
-						    SKL_FUSE_PG_DIST_STATUS(SKL_PG2),
-						    1))
-				DRM_ERROR("PG2 distributing status timeout\n");
-		}
-	}
-
-	if (enable)
-		skl_power_well_post_enable(dev_priv, power_well);
-}
-
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
@@ -923,43 +806,6 @@ static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 			I915_WRITE(HSW_PWR_WELL_DRIVER, drv_req | mask);
 		I915_WRITE(HSW_PWR_WELL_BIOS, bios_req & ~mask);
 	}
-}
-
-static bool skl_power_well_enabled(struct drm_i915_private *dev_priv,
-					struct i915_power_well *power_well)
-{
-	uint32_t mask = HSW_PWR_WELL_CTL_REQ(power_well->id) |
-			HSW_PWR_WELL_CTL_STATE(power_well->id);
-
-	return (I915_READ(HSW_PWR_WELL_DRIVER) & mask) == mask;
-}
-
-static void skl_power_well_sync_hw(struct drm_i915_private *dev_priv,
-				struct i915_power_well *power_well)
-{
-	uint32_t mask = HSW_PWR_WELL_CTL_REQ(power_well->id);
-	uint32_t bios_req = I915_READ(HSW_PWR_WELL_BIOS);
-
-	/* Take over the request bit if set by BIOS. */
-	if (bios_req & mask) {
-		uint32_t drv_req = I915_READ(HSW_PWR_WELL_DRIVER);
-
-		if (!(drv_req & mask))
-			I915_WRITE(HSW_PWR_WELL_DRIVER, drv_req | mask);
-		I915_WRITE(HSW_PWR_WELL_BIOS, bios_req & ~mask);
-	}
-}
-
-static void skl_power_well_enable(struct drm_i915_private *dev_priv,
-				struct i915_power_well *power_well)
-{
-	skl_set_power_well(dev_priv, power_well, true);
-}
-
-static void skl_power_well_disable(struct drm_i915_private *dev_priv,
-				struct i915_power_well *power_well)
-{
-	skl_set_power_well(dev_priv, power_well, false);
 }
 
 static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
@@ -2049,13 +1895,6 @@ static const struct i915_power_well_ops hsw_power_well_ops = {
 	.is_enabled = hsw_power_well_enabled,
 };
 
-static const struct i915_power_well_ops skl_power_well_ops = {
-	.sync_hw = skl_power_well_sync_hw,
-	.enable = skl_power_well_enable,
-	.disable = skl_power_well_disable,
-	.is_enabled = skl_power_well_enabled,
-};
-
 static const struct i915_power_well_ops gen9_dc_off_power_well_ops = {
 	.sync_hw = i9xx_power_well_sync_hw_noop,
 	.enable = gen9_dc_off_power_well_enable,
@@ -2241,14 +2080,15 @@ static struct i915_power_well skl_power_wells[] = {
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
 		.domains = 0,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "MISC IO power well",
 		/* Handled by the DMC firmware */
 		.domains = 0,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_MISC_IO,
 	},
 	{
@@ -2260,31 +2100,34 @@ static struct i915_power_well skl_power_wells[] = {
 	{
 		.name = "power well 2",
 		.domains = SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
+		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+		.hsw.has_vga = true,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "DDI A/E IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_A_E_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_A_E,
 	},
 	{
 		.name = "DDI B IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_B_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
 	},
 	{
 		.name = "DDI C IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_C_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
 	},
 	{
 		.name = "DDI D IO power well",
 		.domains = SKL_DISPLAY_DDI_IO_D_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_D,
 	},
 };
@@ -2300,8 +2143,9 @@ static struct i915_power_well bxt_power_wells[] = {
 	{
 		.name = "power well 1",
 		.domains = 0,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "DC off",
@@ -2312,8 +2156,11 @@ static struct i915_power_well bxt_power_wells[] = {
 	{
 		.name = "power well 2",
 		.domains = BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
+		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+		.hsw.has_vga = true,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "dpio-common-a",
@@ -2343,8 +2190,9 @@ static struct i915_power_well glk_power_wells[] = {
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
 		.domains = 0,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "DC off",
@@ -2355,8 +2203,11 @@ static struct i915_power_well glk_power_wells[] = {
 	{
 		.name = "power well 2",
 		.domains = GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
+		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+		.hsw.has_vga = true,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "dpio-common-a",
@@ -2382,37 +2233,37 @@ static struct i915_power_well glk_power_wells[] = {
 	{
 		.name = "AUX A",
 		.domains = GLK_DISPLAY_AUX_A_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_AUX_A,
 	},
 	{
 		.name = "AUX B",
 		.domains = GLK_DISPLAY_AUX_B_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_AUX_B,
 	},
 	{
 		.name = "AUX C",
 		.domains = GLK_DISPLAY_AUX_C_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_AUX_C,
 	},
 	{
 		.name = "DDI A IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_A_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = GLK_DISP_PW_DDI_A,
 	},
 	{
 		.name = "DDI B IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_B_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
 	},
 	{
 		.name = "DDI C IO power well",
 		.domains = GLK_DISPLAY_DDI_IO_C_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
 	},
 };
@@ -2429,31 +2280,32 @@ static struct i915_power_well cnl_power_wells[] = {
 		.name = "power well 1",
 		/* Handled by the DMC firmware */
 		.domains = 0,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "AUX A",
 		.domains = CNL_DISPLAY_AUX_A_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_A,
 	},
 	{
 		.name = "AUX B",
 		.domains = CNL_DISPLAY_AUX_B_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_B,
 	},
 	{
 		.name = "AUX C",
 		.domains = CNL_DISPLAY_AUX_C_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_C,
 	},
 	{
 		.name = "AUX D",
 		.domains = CNL_DISPLAY_AUX_D_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_AUX_D,
 	},
 	{
@@ -2465,31 +2317,34 @@ static struct i915_power_well cnl_power_wells[] = {
 	{
 		.name = "power well 2",
 		.domains = CNL_DISPLAY_POWERWELL_2_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
+		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+		.hsw.has_vga = true,
+		.hsw.has_fuses = true,
 	},
 	{
 		.name = "DDI A IO power well",
 		.domains = CNL_DISPLAY_DDI_A_IO_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = CNL_DISP_PW_DDI_A,
 	},
 	{
 		.name = "DDI B IO power well",
 		.domains = CNL_DISPLAY_DDI_B_IO_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_B,
 	},
 	{
 		.name = "DDI C IO power well",
 		.domains = CNL_DISPLAY_DDI_C_IO_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_C,
 	},
 	{
 		.name = "DDI D IO power well",
 		.domains = CNL_DISPLAY_DDI_D_IO_POWER_DOMAINS,
-		.ops = &skl_power_well_ops,
+		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_DDI_D,
 	},
 };
