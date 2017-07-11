@@ -996,13 +996,14 @@ static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
 	amdgpu_gart_flush_gpu_tlb(params->adev, 0);
 }
 
-static int amdgpu_vm_bo_wait(struct amdgpu_device *adev, struct amdgpu_bo *bo)
+static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			     void *owner)
 {
 	struct amdgpu_sync sync;
 	int r;
 
 	amdgpu_sync_create(&sync);
-	amdgpu_sync_resv(adev, &sync, bo->tbo.resv, AMDGPU_FENCE_OWNER_VM);
+	amdgpu_sync_resv(adev, &sync, vm->root.bo->tbo.resv, owner);
 	r = amdgpu_sync_wait(&sync, true);
 	amdgpu_sync_free(&sync);
 
@@ -1048,7 +1049,7 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 		r = amdgpu_bo_kmap(parent->bo, (void **)&pd_addr);
 		if (r)
 			return r;
-		r = amdgpu_vm_bo_wait(adev, parent->bo);
+		r = amdgpu_vm_wait_pd(adev, vm, AMDGPU_FENCE_OWNER_VM);
 		if (unlikely(r)) {
 			amdgpu_bo_kunmap(parent->bo);
 			return r;
@@ -1445,6 +1446,10 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	params.vm = vm;
 	params.src = src;
 
+	/* sync to everything on unmapping */
+	if (!(flags & AMDGPU_PTE_VALID))
+		owner = AMDGPU_FENCE_OWNER_UNDEFINED;
+
 	if (vm->use_cpu_for_update) {
 		/* params.src is used as flag to indicate system Memory */
 		if (pages_addr)
@@ -1453,7 +1458,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		/* Wait for PT BOs to be free. PTs share the same resv. object
 		 * as the root PD BO
 		 */
-		r = amdgpu_vm_bo_wait(adev, vm->root.bo);
+		r = amdgpu_vm_wait_pd(adev, vm, owner);
 		if (unlikely(r))
 			return r;
 
@@ -1464,10 +1469,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	}
 
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
-
-	/* sync to everything on unmapping */
-	if (!(flags & AMDGPU_PTE_VALID))
-		owner = AMDGPU_FENCE_OWNER_UNDEFINED;
 
 	nptes = last - start + 1;
 
