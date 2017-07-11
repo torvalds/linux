@@ -563,7 +563,7 @@ static int scatter_data_area(struct tcmu_dev *udev,
 			to_offset = get_block_offset_user(udev, dbi,
 					block_remaining);
 			offset = DATA_BLOCK_SIZE - block_remaining;
-			to = (void *)(unsigned long)to + offset;
+			to += offset;
 
 			if (*iov_cnt != 0 &&
 			    to_offset == iov_tail(udev, *iov)) {
@@ -636,7 +636,7 @@ static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 			copy_bytes = min_t(size_t, sg_remaining,
 					block_remaining);
 			offset = DATA_BLOCK_SIZE - block_remaining;
-			from = (void *)(unsigned long)from + offset;
+			from += offset;
 			tcmu_flush_dcache_range(from, copy_bytes);
 			memcpy(to + sg->length - sg_remaining, from,
 					copy_bytes);
@@ -840,10 +840,9 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	}
 
 	entry = (void *) mb + CMDR_OFF + cmd_head;
+	memset(entry, 0, command_size);
 	tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_CMD);
 	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
-	entry->hdr.kflags = 0;
-	entry->hdr.uflags = 0;
 
 	/* Handle allocating space from the data area */
 	tcmu_cmd_reset_dbi_cur(tcmu_cmd);
@@ -862,11 +861,10 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	entry->req.iov_cnt = iov_cnt;
-	entry->req.iov_dif_cnt = 0;
 
 	/* Handle BIDI commands */
+	iov_cnt = 0;
 	if (se_cmd->se_cmd_flags & SCF_BIDI) {
-		iov_cnt = 0;
 		iov++;
 		ret = scatter_data_area(udev, tcmu_cmd,
 					se_cmd->t_bidi_data_sg,
@@ -879,8 +877,8 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 			pr_err("tcmu: alloc and scatter bidi data failed\n");
 			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
-		entry->req.iov_bidi_cnt = iov_cnt;
 	}
+	entry->req.iov_bidi_cnt = iov_cnt;
 
 	/*
 	 * Recalaulate the command's base size and size according
