@@ -136,12 +136,6 @@
 		status = "disabled";
 	};
 
-	wdt: watchdog@9900 {
-		compatible = "amlogic,meson8b-wdt";
-		reg = <0x9900 0x8>;
-		interrupts = <0 0 1>;
-	};
-
 	pinctrl_cbus: pinctrl@9880 {
 		compatible = "amlogic,meson8b-cbus-pinctrl";
 		reg = <0x9880 0x10>;
@@ -235,4 +229,8 @@
 	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
 	clock-names = "usb_general", "usb";
 	resets = <&reset RESET_USB_OTG>;
+};
+
+&wdt {
+	compatible = "amlogic,meson8b-wdt";
 };
