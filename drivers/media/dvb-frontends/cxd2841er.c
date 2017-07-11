@@ -487,6 +487,8 @@ static int cxd2841er_sleep_tc_to_shutdown(struct cxd2841er_priv *priv);
 
 static int cxd2841er_shutdown_to_sleep_tc(struct cxd2841er_priv *priv);
 
+static int cxd2841er_sleep_tc(struct dvb_frontend *fe);
+
 static int cxd2841er_retune_active(struct cxd2841er_priv *priv,
 				   struct dtv_frontend_properties *p)
 {
@@ -3378,6 +3380,14 @@ static int cxd2841er_set_frontend_tc(struct dvb_frontend *fe)
 	if (priv->flags & CXD2841ER_EARLY_TUNE)
 		cxd2841er_tuner_set(fe);
 
+	/* deconfigure/put demod to sleep on delsys switch if active */
+	if (priv->state == STATE_ACTIVE_TC &&
+	    priv->system != p->delivery_system) {
+		dev_dbg(&priv->i2c->dev, "%s(): old_delsys=%d, new_delsys=%d -> sleep\n",
+			 __func__, priv->system, p->delivery_system);
+		cxd2841er_sleep_tc(fe);
+	}
+
 	if (p->delivery_system == SYS_DVBT) {
 		priv->system = SYS_DVBT;
 		switch (priv->state) {
@@ -3594,6 +3604,7 @@ static int cxd2841er_sleep_tc(struct dvb_frontend *fe)
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+
 	if (priv->state == STATE_ACTIVE_TC) {
 		switch (priv->system) {
 		case SYS_DVBT:
@@ -3619,7 +3630,17 @@ static int cxd2841er_sleep_tc(struct dvb_frontend *fe)
 			__func__, priv->state);
 		return -EINVAL;
 	}
-	cxd2841er_sleep_tc_to_shutdown(priv);
+	return 0;
+}
+
+static int cxd2841er_shutdown_tc(struct dvb_frontend *fe)
+{
+	struct cxd2841er_priv *priv = fe->demodulator_priv;
+
+	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+
+	if (!cxd2841er_sleep_tc(fe))
+		cxd2841er_sleep_tc_to_shutdown(priv);
 	return 0;
 }
 
@@ -3968,7 +3989,7 @@ static struct dvb_frontend_ops cxd2841er_t_c_ops = {
 		.symbol_rate_max = 11700000
 	},
 	.init = cxd2841er_init_tc,
-	.sleep = cxd2841er_sleep_tc,
+	.sleep = cxd2841er_shutdown_tc,
 	.release = cxd2841er_release,
 	.set_frontend = cxd2841er_set_frontend_tc,
 	.get_frontend = cxd2841er_get_frontend,
