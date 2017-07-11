@@ -326,7 +326,7 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 static unsigned long hdmi_codec_spk_mask_from_alloc(int spk_alloc)
 {
 	int i;
-	const unsigned long hdmi_codec_eld_spk_alloc_bits[] = {
+	static const unsigned long hdmi_codec_eld_spk_alloc_bits[] = {
 		[0] = FL | FR, [1] = LFE, [2] = FC, [3] = RL | RR,
 		[4] = RC, [5] = FLC | FRC, [6] = RLC | RRC,
 	};
