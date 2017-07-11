@@ -1117,6 +1117,7 @@ struct bnxt {
 	unsigned long		state;
 #define BNXT_STATE_OPEN		0
 #define BNXT_STATE_IN_SP_TASK	1
+#define BNXT_STATE_READ_STATS	2
 
 	struct bnxt_irq	*irq_tbl;
 	int			total_irqs;

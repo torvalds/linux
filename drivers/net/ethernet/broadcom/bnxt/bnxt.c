@@ -6279,6 +6279,12 @@ static int bnxt_open(struct net_device *dev)
 	return __bnxt_open_nic(bp, true, true);
 }
 
+static bool bnxt_drv_busy(struct bnxt *bp)
+{
+	return (test_bit(BNXT_STATE_IN_SP_TASK, &bp->state) ||
+		test_bit(BNXT_STATE_READ_STATS, &bp->state));
+}
+
 int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -6297,7 +6303,7 @@ int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 
 	clear_bit(BNXT_STATE_OPEN, &bp->state);
 	smp_mb__after_atomic();
-	while (test_bit(BNXT_STATE_IN_SP_TASK, &bp->state))
+	while (bnxt_drv_busy(bp))
 		msleep(20);
 
 	/* Flush rings and and disable interrupts */
@@ -6358,8 +6364,15 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	u32 i;
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (!bp->bnapi)
+	set_bit(BNXT_STATE_READ_STATS, &bp->state);
+	/* Make sure bnxt_close_nic() sees that we are reading stats before
+	 * we check the BNXT_STATE_OPEN flag.
+	 */
+	smp_mb__after_atomic();
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
+		clear_bit(BNXT_STATE_READ_STATS, &bp->state);
 		return;
+	}
 
 	/* TODO check if we need to synchronize with bnxt_close path */
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -6406,6 +6419,7 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_fifo_errors = le64_to_cpu(tx->tx_fifo_underruns);
 		stats->tx_errors = le64_to_cpu(tx->tx_err);
 	}
+	clear_bit(BNXT_STATE_READ_STATS, &bp->state);
 }
 
 static bool bnxt_mc_list_updated(struct bnxt *bp, u32 *rx_mask)
