@@ -982,6 +982,8 @@ static void amdgpu_vm_cpu_set_ptes(struct amdgpu_pte_update_params *params,
 	unsigned int i;
 	uint64_t value;
 
+	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags);
+
 	for (i = 0; i < count; i++) {
 		value = params->pages_addr ?
 			amdgpu_vm_map_gart(params->pages_addr, addr) :
