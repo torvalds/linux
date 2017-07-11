@@ -422,7 +422,7 @@ static int amdgpu_vm_grab_reserved_vmid_locked(struct amdgpu_vm *vm,
 	struct dma_fence *updates = sync->last_vm_update;
 	int r = 0;
 	struct dma_fence *flushed, *tmp;
-	bool needs_flush = false;
+	bool needs_flush = vm->use_cpu_for_update;
 
 	flushed  = id->flushed_updates;
 	if ((amdgpu_vm_had_gpu_reset(adev, id)) ||
@@ -543,11 +543,11 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	}
 	kfree(fences);
 
-	job->vm_needs_flush = false;
+	job->vm_needs_flush = vm->use_cpu_for_update;
 	/* Check if we can use a VMID already assigned to this VM */
 	list_for_each_entry_reverse(id, &id_mgr->ids_lru, list) {
 		struct dma_fence *flushed;
-		bool needs_flush = false;
+		bool needs_flush = vm->use_cpu_for_update;
 
 		/* Check all the prerequisites to using this VMID */
 		if (amdgpu_vm_had_gpu_reset(adev, id))
