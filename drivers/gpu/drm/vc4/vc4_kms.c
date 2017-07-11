@@ -126,7 +126,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(state, true);
+	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
