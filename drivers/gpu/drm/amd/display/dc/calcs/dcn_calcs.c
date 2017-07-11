@@ -37,8 +37,8 @@
 /* Defaults from spreadsheet rev#247 */
 const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		/* latencies */
-		.sr_exit_time = 17, /*us*/
-		.sr_enter_plus_exit_time = 19, /*us*/
+		.sr_exit_time = 13, /*us*/
+		.sr_enter_plus_exit_time = 15, /*us*/
 		.urgent_latency = 4, /*us*/
 		.dram_clock_change_latency = 17, /*us*/
 		.write_back_latency = 12, /*us*/
