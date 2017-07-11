@@ -455,13 +455,9 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	if (rc == 0)
 		goto out;
 
-	if (fsc->mount_options->rsize >= PAGE_SIZE)
-		max = (fsc->mount_options->rsize + PAGE_SIZE - 1)
-			>> PAGE_SHIFT;
-
-	dout("readpages %p file %p nr_pages %d max %d\n", inode,
-		file, nr_pages,
-	     max);
+	max = fsc->mount_options->rsize >> PAGE_SHIFT;
+	dout("readpages %p file %p nr_pages %d max %d\n",
+	     inode, file, nr_pages, max);
 	while (!list_empty(page_list)) {
 		rc = start_read(inode, page_list, max);
 		if (rc < 0)

@@ -887,6 +887,9 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			break;
 		}
 
+		if (!write)
+			size = min_t(u64, size, fsc->mount_options->rsize);
+
 		len = size;
 		pages = dio_get_pages_alloc(iter, len, &start, &num_pages);
 		if (IS_ERR(pages)) {
