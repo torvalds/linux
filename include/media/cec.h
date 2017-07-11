@@ -61,6 +61,7 @@ struct cec_devnode {
 
 struct cec_adapter;
 struct cec_data;
+struct cec_pin;
 
 struct cec_data {
 	struct list_head list;
@@ -188,6 +189,9 @@ struct cec_adapter {
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
+#endif
+#ifdef CONFIG_CEC_PIN
+	struct cec_pin *pin;
 #endif
 
 	struct dentry *cec_dir;

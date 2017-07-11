@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 
+#include <media/cec-pin.h>
 #include "cec-priv.h"
 
 static inline struct cec_devnode *cec_devnode_data(struct file *filp)
@@ -430,6 +431,15 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 	if (mode_follower == CEC_MODE_FOLLOWER)
 		adap->follower_cnt++;
 	if (mode_follower == CEC_MODE_MONITOR_PIN) {
+#ifdef CONFIG_CEC_PIN
+		struct cec_event ev = {
+			.flags = CEC_EVENT_FL_INITIAL_STATE,
+		};
+
+		ev.event = adap->pin->cur_value ? CEC_EVENT_PIN_HIGH :
+						  CEC_EVENT_PIN_LOW;
+		cec_queue_event_fh(fh, &ev, 0);
+#endif
 		adap->monitor_pin_cnt++;
 	}
 	if (mode_follower == CEC_MODE_EXCL_FOLLOWER ||
