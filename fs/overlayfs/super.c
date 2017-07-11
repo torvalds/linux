@@ -1090,6 +1090,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	else
 		sb->s_d_op = &ovl_dentry_operations;
 
+	err = -ENOMEM;
 	ufs->creator_cred = cred = prepare_creds();
 	if (!cred)
 		goto out_put_indexdir;
