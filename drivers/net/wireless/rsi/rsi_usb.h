@@ -37,6 +37,7 @@
 #define BT_EP                        2
 
 #define RSI_USB_BUF_SIZE	     4096
+#define RSI_USB_CTRL_BUF_SIZE	     0x04
 
 struct rsi_91x_usbdev {
 	struct rsi_thread rx_thread;

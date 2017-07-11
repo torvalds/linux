@@ -162,7 +162,7 @@ static int rsi_usb_reg_read(struct usb_device *usbdev,
 	u8 *buf;
 	int status = -ENOMEM;
 
-	buf  = kmalloc(0x04, GFP_KERNEL);
+	buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return status;
 
@@ -204,7 +204,7 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 	u8 *usb_reg_buf;
 	int status = -ENOMEM;
 
-	usb_reg_buf  = kmalloc(0x04, GFP_KERNEL);
+	usb_reg_buf  = kmalloc(RSI_USB_CTRL_BUF_SIZE, GFP_KERNEL);
 	if (!usb_reg_buf)
 		return status;
 
