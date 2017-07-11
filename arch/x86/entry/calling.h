@@ -1,4 +1,5 @@
 #include <linux/jump_label.h>
+#include <asm/unwind_hints.h>
 
 /*
 
@@ -112,6 +113,7 @@ For 32-bit we have the following conventions - kernel is built with
 	movq %rdx, 12*8+\offset(%rsp)
 	movq %rsi, 13*8+\offset(%rsp)
 	movq %rdi, 14*8+\offset(%rsp)
+	UNWIND_HINT_REGS offset=\offset extra=0
 	.endm
 	.macro SAVE_C_REGS offset=0
 	SAVE_C_REGS_HELPER \offset, 1, 1, 1, 1
@@ -136,6 +138,7 @@ For 32-bit we have the following conventions - kernel is built with
 	movq %r12, 3*8+\offset(%rsp)
 	movq %rbp, 4*8+\offset(%rsp)
 	movq %rbx, 5*8+\offset(%rsp)
+	UNWIND_HINT_REGS offset=\offset
 	.endm
 
 	.macro RESTORE_EXTRA_REGS offset=0
@@ -145,6 +148,7 @@ For 32-bit we have the following conventions - kernel is built with
 	movq 3*8+\offset(%rsp), %r12
 	movq 4*8+\offset(%rsp), %rbp
 	movq 5*8+\offset(%rsp), %rbx
+	UNWIND_HINT_REGS offset=\offset extra=0
 	.endm
 
 	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
@@ -167,6 +171,7 @@ For 32-bit we have the following conventions - kernel is built with
 	.endif
 	movq 13*8(%rsp), %rsi
 	movq 14*8(%rsp), %rdi
+	UNWIND_HINT_IRET_REGS offset=16*8
 	.endm
 	.macro RESTORE_C_REGS
 	RESTORE_C_REGS_HELPER 1,1,1,1,1
