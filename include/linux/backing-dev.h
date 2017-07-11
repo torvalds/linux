@@ -104,22 +104,9 @@ static inline s64 wb_stat(struct bdi_writeback *wb, enum wb_stat_item item)
 	return percpu_counter_read_positive(&wb->stat[item]);
 }
 
-static inline s64 __wb_stat_sum(struct bdi_writeback *wb,
-				enum wb_stat_item item)
-{
-	return percpu_counter_sum_positive(&wb->stat[item]);
-}
-
 static inline s64 wb_stat_sum(struct bdi_writeback *wb, enum wb_stat_item item)
 {
-	s64 sum;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	sum = __wb_stat_sum(wb, item);
-	local_irq_restore(flags);
-
-	return sum;
+	return percpu_counter_sum_positive(&wb->stat[item]);
 }
 
 extern void wb_writeout_inc(struct bdi_writeback *wb);

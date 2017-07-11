@@ -271,7 +271,7 @@ struct xfs_bmap_intent {
 int	xfs_bmap_finish_one(struct xfs_trans *tp, struct xfs_defer_ops *dfops,
 		struct xfs_inode *ip, enum xfs_bmap_intent_type type,
 		int whichfork, xfs_fileoff_t startoff, xfs_fsblock_t startblock,
-		xfs_filblks_t blockcount, xfs_exntst_t state);
+		xfs_filblks_t *blockcount, xfs_exntst_t state);
 int	xfs_bmap_map_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
 		struct xfs_inode *ip, struct xfs_bmbt_irec *imap);
 int	xfs_bmap_unmap_extent(struct xfs_mount *mp, struct xfs_defer_ops *dfops,

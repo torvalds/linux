@@ -3319,9 +3319,10 @@ F:	Documentation/devicetree/bindings/input/touchscreen/chipone_icn8318.txt
 F:	drivers/input/touchscreen/chipone_icn8318.c
 
 CHROME HARDWARE PLATFORM SUPPORT
+M:	Benson Leung <bleung@chromium.org>
 M:	Olof Johansson <olof@lixom.net>
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/olof/chrome-platform.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bleung/chrome-platform.git
 F:	drivers/platform/chrome/
 
 CISCO VIC ETHERNET NIC DRIVER
@@ -10558,6 +10559,17 @@ L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
 F:	drivers/net/wireless/intersil/prism54/
+
+PROC SYSCTL
+M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
+M:	Kees Cook <keescook@chromium.org>
+L:	linux-kernel@vger.kernel.org
+L:	linux-fsdevel@vger.kernel.org
+S:	Maintained
+F:	fs/proc/proc_sysctl.c
+F:	include/linux/sysctl.h
+F:	kernel/sysctl.c
+F:	tools/testing/selftests/sysctl/
 
 PS3 NETWORK SUPPORT
 M:	Geoff Levand <geoff@infradead.org>

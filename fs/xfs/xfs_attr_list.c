@@ -230,7 +230,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	bp = NULL;
 	if (cursor->blkno > 0) {
-		error = xfs_da3_node_read(NULL, dp, cursor->blkno, -1,
+		error = xfs_da3_node_read(context->tp, dp, cursor->blkno, -1,
 					      &bp, XFS_ATTR_FORK);
 		if ((error != 0) && (error != -EFSCORRUPTED))
 			return error;
@@ -242,7 +242,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			case XFS_DA_NODE_MAGIC:
 			case XFS_DA3_NODE_MAGIC:
 				trace_xfs_attr_list_wrong_blk(context);
-				xfs_trans_brelse(NULL, bp);
+				xfs_trans_brelse(context->tp, bp);
 				bp = NULL;
 				break;
 			case XFS_ATTR_LEAF_MAGIC:
@@ -254,18 +254,18 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				if (cursor->hashval > be32_to_cpu(
 						entries[leafhdr.count - 1].hashval)) {
 					trace_xfs_attr_list_wrong_blk(context);
-					xfs_trans_brelse(NULL, bp);
+					xfs_trans_brelse(context->tp, bp);
 					bp = NULL;
 				} else if (cursor->hashval <= be32_to_cpu(
 						entries[0].hashval)) {
 					trace_xfs_attr_list_wrong_blk(context);
-					xfs_trans_brelse(NULL, bp);
+					xfs_trans_brelse(context->tp, bp);
 					bp = NULL;
 				}
 				break;
 			default:
 				trace_xfs_attr_list_wrong_blk(context);
-				xfs_trans_brelse(NULL, bp);
+				xfs_trans_brelse(context->tp, bp);
 				bp = NULL;
 			}
 		}
@@ -279,9 +279,9 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	if (bp == NULL) {
 		cursor->blkno = 0;
 		for (;;) {
-			__uint16_t magic;
+			uint16_t magic;
 
-			error = xfs_da3_node_read(NULL, dp,
+			error = xfs_da3_node_read(context->tp, dp,
 						      cursor->blkno, -1, &bp,
 						      XFS_ATTR_FORK);
 			if (error)
@@ -297,7 +297,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 						     XFS_ERRLEVEL_LOW,
 						     context->dp->i_mount,
 						     node);
-				xfs_trans_brelse(NULL, bp);
+				xfs_trans_brelse(context->tp, bp);
 				return -EFSCORRUPTED;
 			}
 
@@ -313,10 +313,10 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				}
 			}
 			if (i == nodehdr.count) {
-				xfs_trans_brelse(NULL, bp);
+				xfs_trans_brelse(context->tp, bp);
 				return 0;
 			}
-			xfs_trans_brelse(NULL, bp);
+			xfs_trans_brelse(context->tp, bp);
 		}
 	}
 	ASSERT(bp != NULL);
@@ -333,12 +333,12 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 		if (context->seen_enough || leafhdr.forw == 0)
 			break;
 		cursor->blkno = leafhdr.forw;
-		xfs_trans_brelse(NULL, bp);
-		error = xfs_attr3_leaf_read(NULL, dp, cursor->blkno, -1, &bp);
+		xfs_trans_brelse(context->tp, bp);
+		error = xfs_attr3_leaf_read(context->tp, dp, cursor->blkno, -1, &bp);
 		if (error)
 			return error;
 	}
-	xfs_trans_brelse(NULL, bp);
+	xfs_trans_brelse(context->tp, bp);
 	return 0;
 }
 
@@ -448,13 +448,31 @@ xfs_attr_leaf_list(xfs_attr_list_context_t *context)
 	trace_xfs_attr_leaf_list(context);
 
 	context->cursor->blkno = 0;
-	error = xfs_attr3_leaf_read(NULL, context->dp, 0, -1, &bp);
+	error = xfs_attr3_leaf_read(context->tp, context->dp, 0, -1, &bp);
 	if (error)
 		return error;
 
 	xfs_attr3_leaf_list_int(bp, context);
-	xfs_trans_brelse(NULL, bp);
+	xfs_trans_brelse(context->tp, bp);
 	return 0;
+}
+
+int
+xfs_attr_list_int_ilocked(
+	struct xfs_attr_list_context	*context)
+{
+	struct xfs_inode		*dp = context->dp;
+
+	/*
+	 * Decide on what work routines to call based on the inode size.
+	 */
+	if (!xfs_inode_hasattr(dp))
+		return 0;
+	else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
+		return xfs_attr_shortform_list(context);
+	else if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
+		return xfs_attr_leaf_list(context);
+	return xfs_attr_node_list(context);
 }
 
 int
@@ -470,19 +488,8 @@ xfs_attr_list_int(
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return -EIO;
 
-	/*
-	 * Decide on what work routines to call based on the inode size.
-	 */
 	lock_mode = xfs_ilock_attr_map_shared(dp);
-	if (!xfs_inode_hasattr(dp)) {
-		error = 0;
-	} else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
-		error = xfs_attr_shortform_list(context);
-	} else if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
-		error = xfs_attr_leaf_list(context);
-	} else {
-		error = xfs_attr_node_list(context);
-	}
+	error = xfs_attr_list_int_ilocked(context);
 	xfs_iunlock(dp, lock_mode);
 	return error;
 }
