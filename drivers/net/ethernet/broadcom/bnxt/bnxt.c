@@ -6918,15 +6918,12 @@ static void bnxt_sp_task(struct work_struct *work)
 }
 
 /* Under rtnl_lock */
-int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs, int tx_xdp)
+int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
+		       int tx_xdp)
 {
 	int max_rx, max_tx, tx_sets = 1;
 	int tx_rings_needed;
-	bool sh = true;
 	int rc;
-
-	if (!(bp->flags & BNXT_FLAG_SHARED_RINGS))
-		sh = false;
 
 	if (tcs)
 		tx_sets = tcs;
@@ -7135,7 +7132,7 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 		sh = true;
 
 	rc = bnxt_reserve_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
-				tc, bp->tx_nr_rings_xdp);
+				sh, tc, bp->tx_nr_rings_xdp);
 	if (rc)
 		return rc;
 
