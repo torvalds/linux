@@ -2703,21 +2703,11 @@ static const struct file_operations dw_hdmi_ctrl_fops = {
 static int dw_hdmi_phy_show(struct seq_file *s, void *v)
 {
 	struct dw_hdmi *hdmi = s->private;
-	u32 i, total, val;
-
-	if (hdmi->dev_type == RK3228_HDMI)
-		return 0;
+	u32 i, val;
 
 	seq_puts(s, "\n>>>hdmi_phy reg\n");
-	if (hdmi->dev_type != RK3328_HDMI)
-		total = 0x28;
-	else
-		total = 0x100;
-	for (i = 0; i < total; i++) {
-		if (hdmi->dev_type != RK3328_HDMI)
-			val = hdmi_phy_i2c_read(hdmi, i);
-		else
-			val = hdmi->phy.ops->read(hdmi, hdmi->phy.data, i);
+	for (i = 0; i < 0x28; i++) {
+		val = hdmi_phy_i2c_read(hdmi, i);
 		seq_printf(s, "regs %02x val %04x\n", i, val);
 	}
 	return 0;
@@ -2747,10 +2737,7 @@ dw_hdmi_phy_write(struct file *file, const char __user *buf,
 	}
 	dev_info(hdmi->dev, "/*******hdmi phy register config******/");
 	dev_info(hdmi->dev, "\n reg=%x val=%x\n", reg, val);
-	if (hdmi->dev_type != RK3328_HDMI)
-		dw_hdmi_phy_i2c_write(hdmi, val, reg);
-	else
-		hdmi->phy.ops->write(hdmi, hdmi->phy.data, val, reg);
+	dw_hdmi_phy_i2c_write(hdmi, val, reg);
 	return count;
 }
 
@@ -2772,8 +2759,11 @@ static void dw_hdmi_register_debugfs(struct device *dev, struct dw_hdmi *hdmi)
 	}
 	debugfs_create_file("ctrl", 0400, hdmi->debugfs_dir,
 			    hdmi, &dw_hdmi_ctrl_fops);
-	debugfs_create_file("phy", 0400, hdmi->debugfs_dir,
-			    hdmi, &dw_hdmi_phy_fops);
+
+	if (hdmi->dev_type != RK3228_HDMI &&
+	    hdmi->dev_type != RK3328_HDMI)
+		debugfs_create_file("phy", 0400, hdmi->debugfs_dir,
+				    hdmi, &dw_hdmi_phy_fops);
 }
 
 static void dw_hdmi_register_hdcp(struct device *dev, struct dw_hdmi *hdmi,

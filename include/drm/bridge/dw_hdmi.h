@@ -134,8 +134,6 @@ struct dw_hdmi_phy_ops {
 		    struct drm_display_mode *mode);
 	void (*disable)(struct dw_hdmi *hdmi, void *data);
 	enum drm_connector_status (*read_hpd)(struct dw_hdmi *hdmi, void *data);
-	int (*read)(struct dw_hdmi *hdmi, void *data, int offset);
-	void (*write)(struct dw_hdmi *hdmi, void *data, int val, int offset);
 };
 
 struct dw_hdmi_plat_data {
