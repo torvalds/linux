@@ -108,6 +108,20 @@
 				status = "disabled";
 			};
 
+			pwm_ab: pwm@8550 {
+				compatible = "amlogic,meson-pwm";
+				reg = <0x8550 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
+			pwm_cd: pwm@8650 {
+				compatible = "amlogic,meson-pwm";
+				reg = <0x8650 0x10>;
+				#pwm-cells = <3>;
+				status = "disabled";
+			};
+
 			saradc: adc@8680 {
 				compatible = "amlogic,meson-saradc";
 				reg = <0x8680 0x34>;
