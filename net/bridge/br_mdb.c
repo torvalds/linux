@@ -323,7 +323,8 @@ static void __br_mdb_notify(struct net_device *dev, struct net_bridge_port *p,
 			__mdb_entry_to_br_ip(entry, &complete_info->ip);
 			mdb.obj.complete_priv = complete_info;
 			mdb.obj.complete = br_mdb_complete;
-			switchdev_port_obj_add(port_dev, &mdb.obj);
+			if (switchdev_port_obj_add(port_dev, &mdb.obj))
+				kfree(complete_info);
 		}
 	} else if (port_dev && type == RTM_DELMDB) {
 		switchdev_port_obj_del(port_dev, &mdb.obj);
