@@ -14,19 +14,18 @@
  * more details.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/power_supply.h>
-#include <linux/i2c.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
 #include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
-#include <linux/stat.h>
-
 #include <linux/power/sbs-battery.h>
+#include <linux/power_supply.h>
+#include <linux/slab.h>
+#include <linux/stat.h>
 
 enum {
 	REG_MANUFACTURER_DATA,
