@@ -100,7 +100,12 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(state, true);
+	err = drm_atomic_helper_swap_state(state, true);
+	if (err) {
+		mutex_unlock(&tegra->commit.lock);
+		drm_atomic_helper_cleanup_planes(drm, state);
+		return err;
+	}
 
 	drm_atomic_state_get(state);
 	if (nonblock)
