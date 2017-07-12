@@ -54,6 +54,8 @@ struct rockchip_lvds_soc_data {
 	int grf_soc_con6;
 	int grf_soc_con7;
 	int grf_soc_con15;
+
+	bool has_vop_sel;
 };
 
 struct rockchip_lvds {
@@ -215,7 +217,7 @@ static int rk3288_lvds_poweron(struct rockchip_lvds *lvds)
 	return 0;
 }
 
-static int rk3368_lvds_poweron(struct rockchip_lvds *lvds)
+static int rk336x_lvds_poweron(struct rockchip_lvds *lvds)
 {
 	u32 delay_times = 20;
 
@@ -255,7 +257,7 @@ static int rk3368_lvds_poweron(struct rockchip_lvds *lvds)
 	return 0;
 }
 
-static void rk3368_output_ttl(struct rockchip_lvds *lvds)
+static void rk336x_output_ttl(struct rockchip_lvds *lvds)
 {
 	u32 val = 0;
 
@@ -270,10 +272,10 @@ static void rk3368_output_ttl(struct rockchip_lvds *lvds)
 		v_MSB_SEL(1) | v_DIG_INTER_RST(1);
 	lvds_writel(lvds, MIPIPHY_REGE0, val);
 
-	rk3368_lvds_poweron(lvds);
+	rk336x_lvds_poweron(lvds);
 }
 
-static void rk3368_output_lvds(struct rockchip_lvds *lvds)
+static void rk336x_output_lvds(struct rockchip_lvds *lvds)
 {
 	/* digital internal disable */
 	lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(0));
@@ -289,16 +291,16 @@ static void rk3368_output_lvds(struct rockchip_lvds *lvds)
 		     m_MSB_SEL | m_DIG_INTER_RST,
 		     v_MSB_SEL(1) | v_DIG_INTER_RST(1));
 
-	rk3368_lvds_poweron(lvds);
+	rk336x_lvds_poweron(lvds);
 	lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(1));
 }
 
-static int rk3368_lvds_output(struct rockchip_lvds *lvds)
+static int rk336x_lvds_output(struct rockchip_lvds *lvds)
 {
 	if (lvds->output == DISPLAY_OUTPUT_RGB)
-		rk3368_output_ttl(lvds);
+		rk336x_output_ttl(lvds);
 	else
-		rk3368_output_lvds(lvds);
+		rk336x_output_lvds(lvds);
 	return 0;
 }
 
@@ -328,8 +330,8 @@ static int rockchip_lvds_poweron(struct rockchip_lvds *lvds)
 	}
 	if (LVDS_CHIP(lvds) == RK3288_LVDS)
 		rk3288_lvds_poweron(lvds);
-	else if (LVDS_CHIP(lvds) == RK3368_LVDS)
-		rk3368_lvds_output(lvds);
+	else if (LVDS_CHIP(lvds) == RK336X_LVDS)
+		rk336x_lvds_output(lvds);
 
 	return 0;
 }
@@ -353,8 +355,8 @@ static void rockchip_lvds_poweroff(struct rockchip_lvds *lvds)
 		pm_runtime_put(lvds->dev);
 		if (lvds->pclk)
 			clk_disable(lvds->pclk);
-	} else if (LVDS_CHIP(lvds) == RK3368_LVDS) {
-		val = v_RK3368_LVDSMODE_EN(0) | v_RK3368_MIPIPHY_TTL_EN(0);
+	} else if (LVDS_CHIP(lvds) == RK336X_LVDS) {
+		val = v_RK336X_LVDSMODE_EN(0) | v_RK336X_MIPIPHY_TTL_EN(0);
 		ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con7, val);
 		if (ret != 0) {
 			dev_err(lvds->dev, "Could not write to GRF: %d\n", ret);
@@ -513,7 +515,7 @@ static void rockchip_lvds_encoder_mode_set(struct drm_encoder *encoder,
 			dev_err(lvds->dev, "Could not write to GRF: %d\n", ret);
 			return;
 		}
-	} else if (LVDS_CHIP(lvds) == RK3368_LVDS) {
+	} else if (LVDS_CHIP(lvds) == RK336X_LVDS) {
 		if (lvds->output == DISPLAY_OUTPUT_RGB) {
 			/* iomux to lcdc */
 			if (lvds->pins && !IS_ERR(lvds->pins->default_state))
@@ -522,10 +524,10 @@ static void rockchip_lvds_encoder_mode_set(struct drm_encoder *encoder,
 
 			lvds_dsi_writel(lvds, 0x0, 0x4);/*set clock lane enable*/
 			/* enable lvds mode */
-			val = v_RK3368_LVDSMODE_EN(0) |
-				v_RK3368_MIPIPHY_TTL_EN(1) |
-				v_RK3368_MIPIPHY_LANE0_EN(1) |
-				v_RK3368_MIPIDPI_FORCEX_EN(1);
+			val = v_RK336X_LVDSMODE_EN(0) |
+				v_RK336X_MIPIPHY_TTL_EN(1) |
+				v_RK336X_MIPIPHY_LANE0_EN(1) |
+				v_RK336X_MIPIDPI_FORCEX_EN(1);
 			ret = regmap_write(lvds->grf,
 					   lvds->soc_data->grf_soc_con7, val);
 			if (ret != 0) {
@@ -533,7 +535,7 @@ static void rockchip_lvds_encoder_mode_set(struct drm_encoder *encoder,
 					"Could not write to GRF: %d\n", ret);
 				return;
 			}
-			val = v_RK3368_FORCE_JETAG(0);
+			val = v_RK336X_FORCE_JETAG(0);
 			ret = regmap_write(lvds->grf,
 					   lvds->soc_data->grf_soc_con15, val);
 			if (ret != 0) {
@@ -543,13 +545,14 @@ static void rockchip_lvds_encoder_mode_set(struct drm_encoder *encoder,
 			}
 		} else if (lvds->output == DISPLAY_OUTPUT_LVDS) {
 			/* enable lvds mode */
-			val = v_RK3368_LVDSMODE_EN(1) | v_RK3368_MIPIPHY_TTL_EN(0);
+			val = v_RK336X_LVDSMODE_EN(1) |
+			      v_RK336X_MIPIPHY_TTL_EN(0);
 			/* config lvds_format */
-			val |= v_RK3368_LVDS_OUTPUT_FORMAT(lvds->format);
+			val |= v_RK336X_LVDS_OUTPUT_FORMAT(lvds->format);
 			/* LSB receive mode */
-			val |= v_RK3368_LVDS_MSBSEL(LVDS_MSB_D7);
-			val |= v_RK3368_MIPIPHY_LANE0_EN(1) |
-			       v_RK3368_MIPIDPI_FORCEX_EN(1);
+			val |= v_RK336X_LVDS_MSBSEL(LVDS_MSB_D7);
+			val |= v_RK336X_MIPIPHY_LANE0_EN(1) |
+			       v_RK336X_MIPIDPI_FORCEX_EN(1);
 			ret = regmap_write(lvds->grf,
 					   lvds->soc_data->grf_soc_con7, val);
 			if (ret != 0) {
@@ -567,6 +570,9 @@ static int rockchip_lvds_set_vop_source(struct rockchip_lvds *lvds,
 	u32 val;
 	int ret;
 
+	if (!lvds->soc_data->has_vop_sel)
+		return 0;
+
 	ret = drm_of_encoder_active_endpoint_id(lvds->dev->of_node, encoder);
 	if (ret < 0)
 		return ret;
@@ -581,7 +587,14 @@ static int rockchip_lvds_set_vop_source(struct rockchip_lvds *lvds,
 		ret = regmap_write(lvds->grf, lvds->soc_data->grf_soc_con6, val);
 		if (ret < 0)
 			return ret;
+	} else {
+		if (ret)
+			val = RK3366_LVDS_VOP_SEL_LIT;
+		else
+			val = RK3366_LVDS_VOP_SEL_BIG;
+		regmap_write(lvds->grf, RK3366_GRF_SOC_CON0, val);
 	}
+
 	return 0;
 }
 
@@ -637,14 +650,21 @@ static struct rockchip_lvds_soc_data rk3288_lvds_data = {
 	.chip_type = RK3288_LVDS,
 	.grf_soc_con6 = 0x025c,
 	.grf_soc_con7 = 0x0260,
+	.has_vop_sel = true,
 };
 
-static struct rockchip_lvds_soc_data rk33xx_lvds_data = {
-	.chip_type = RK3368_LVDS,
-	.grf_soc_con5  = 0x0414,
-	.grf_soc_con6  = 0x0418,
-	.grf_soc_con7  = 0x041c,
-	.grf_soc_con15 = 0x043c,
+static struct rockchip_lvds_soc_data rk3366_lvds_data = {
+	.chip_type = RK336X_LVDS,
+	.grf_soc_con7  = RK3366_GRF_SOC_CON5,
+	.grf_soc_con15 = RK3366_GRF_SOC_CON6,
+	.has_vop_sel = true,
+};
+
+static struct rockchip_lvds_soc_data rk3368_lvds_data = {
+	.chip_type = RK336X_LVDS,
+	.grf_soc_con7  = RK3368_GRF_SOC_CON7,
+	.grf_soc_con15 = RK3368_GRF_SOC_CON15,
+	.has_vop_sel = false,
 };
 
 static const struct of_device_id rockchip_lvds_dt_ids[] = {
@@ -653,8 +673,12 @@ static const struct of_device_id rockchip_lvds_dt_ids[] = {
 		.data = &rk3288_lvds_data
 	},
 	{
-		.compatible = "rockchip,rk33xx-lvds",
-		.data = &rk33xx_lvds_data
+		.compatible = "rockchip,rk3366-lvds",
+		.data = &rk3366_lvds_data
+	},
+	{
+		.compatible = "rockchip,rk3368-lvds",
+		.data = &rk3368_lvds_data
 	},
 	{}
 };
@@ -830,7 +854,7 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 		lvds->regs = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(lvds->regs))
 			return PTR_ERR(lvds->regs);
-	} else if (LVDS_CHIP(lvds) == RK3368_LVDS) {
+	} else if (LVDS_CHIP(lvds) == RK336X_LVDS) {
 		/* lvds regs on MIPIPHY_REG */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "mipi_lvds_phy");

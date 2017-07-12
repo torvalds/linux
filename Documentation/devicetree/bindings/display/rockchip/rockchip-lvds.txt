@@ -4,7 +4,8 @@ Rockchip RK3288 LVDS interface
 Required properties:
 - compatible: matching the soc type, one of
 	- "rockchip,rk3288-lvds";
-	- "rockchip,rk33xx-lvds";
+	- "rockchip,rk3366-lvds";
+	- "rockchip,rk3368-lvds";
 
 - reg: physical base address of the controller and length
 	of memory mapped region.
@@ -90,7 +91,7 @@ For Rockchip RK3288:
 For Rockchip RK3368:
 
 	lvds: lvds@ff968000 {
-		compatible = "rockchip,rk33xx-lvds";
+		compatible = "rockchip,rk3368-lvds";
 		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff9600a0 0x0 0x20>;
 		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
 		clocks = <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;

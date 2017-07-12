@@ -89,6 +89,15 @@
 
 #define RK3288_LVDS_SOC_CON6_SEL_VOP_LIT	BIT(3)
 
+#define RK3366_GRF_SOC_CON0	0x0400
+#define RK3366_LVDS_VOP_SEL_LIT	(BITS_MASK(1, 1, 0) | BITS_EN(1, 0))
+#define RK3366_LVDS_VOP_SEL_BIG	(BITS_MASK(0, 1, 0) | BITS_EN(1, 0))
+#define RK3366_GRF_SOC_CON5	0x0414
+#define RK3366_GRF_SOC_CON6	0x0418
+
+#define RK3368_GRF_SOC_CON7	0x041c
+#define RK3368_GRF_SOC_CON15	0x043c
+
 #define LVDS_FMT_MASK				(0x07 << 16)
 #define LVDS_MSB				BIT(3)
 #define LVDS_DUAL				BIT(4)
@@ -169,13 +178,13 @@
 #define v_LANE1_EN(x)		BITS_MASK(x, 1, 6)
 #define v_LANE0_EN(x)		BITS_MASK(x, 1, 7)
 
-#define v_RK3368_LVDS_OUTPUT_FORMAT(x)	(BITS_MASK(x, 3, 13) | BITS_EN(3, 13))
-#define v_RK3368_LVDS_MSBSEL(x)		(BITS_MASK(x, 1, 11) | BITS_EN(1, 11))
-#define v_RK3368_LVDSMODE_EN(x)		(BITS_MASK(x, 1, 12) | BITS_EN(1, 12))
-#define v_RK3368_MIPIPHY_TTL_EN(x)	(BITS_MASK(x, 1, 15) | BITS_EN(1, 15))
-#define v_RK3368_MIPIPHY_LANE0_EN(x)	(BITS_MASK(x, 1, 5) | BITS_EN(1, 5))
-#define v_RK3368_MIPIDPI_FORCEX_EN(x)	(BITS_MASK(x, 1, 6) | BITS_EN(1, 6))
-#define v_RK3368_FORCE_JETAG(x)		(BITS_MASK(x, 1, 13) | BITS_EN(1, 13))
+#define v_RK336X_LVDS_OUTPUT_FORMAT(x)	(BITS_MASK(x, 3, 13) | BITS_EN(3, 13))
+#define v_RK336X_LVDS_MSBSEL(x)		(BITS_MASK(x, 1, 11) | BITS_EN(1, 11))
+#define v_RK336X_LVDSMODE_EN(x)		(BITS_MASK(x, 1, 12) | BITS_EN(1, 12))
+#define v_RK336X_MIPIPHY_TTL_EN(x)	(BITS_MASK(x, 1, 15) | BITS_EN(1, 15))
+#define v_RK336X_MIPIPHY_LANE0_EN(x)	(BITS_MASK(x, 1, 5) | BITS_EN(1, 5))
+#define v_RK336X_MIPIDPI_FORCEX_EN(x)	(BITS_MASK(x, 1, 6) | BITS_EN(1, 6))
+#define v_RK336X_FORCE_JETAG(x)		(BITS_MASK(x, 1, 13) | BITS_EN(1, 13))
 
 enum {
 	LVDS_MSB_D0 = 0,
@@ -184,7 +193,7 @@ enum {
 
 enum rockchip_lvds_sub_devtype {
 	RK3288_LVDS,
-	RK3368_LVDS,
+	RK336X_LVDS,
 };
 
 #endif /* _ROCKCHIP_LVDS_ */
