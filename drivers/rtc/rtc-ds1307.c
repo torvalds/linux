@@ -1312,7 +1312,7 @@ static int ds1307_probe(struct i2c_client *client,
 	int			err = -ENODEV;
 	int			tmp, wday;
 	const struct chip_desc	*chip;
-	bool			want_irq = false;
+	bool			want_irq;
 	bool			ds1307_can_wakeup_device = false;
 	unsigned char		*buf;
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
@@ -1358,6 +1358,8 @@ static int ds1307_probe(struct i2c_client *client,
 		ds1307->type = acpi_id->driver_data;
 	}
 
+	want_irq = client->irq > 0 && chip->alarm;
+
 	if (!pdata)
 		trickle_charger_setup = ds1307_trickle_init(ds1307, chip);
 	else if (pdata->trickle_charger_setup)
@@ -1383,7 +1385,8 @@ static int ds1307_probe(struct i2c_client *client,
  * This will guarantee the 'wakealarm' sysfs entry is available on the device,
  * if supported by the RTC.
  */
-	if (of_property_read_bool(client->dev.of_node, "wakeup-source"))
+	if (chip->alarm && of_property_read_bool(client->dev.of_node,
+						 "wakeup-source"))
 		ds1307_can_wakeup_device = true;
 #endif
 
@@ -1409,12 +1412,9 @@ static int ds1307_probe(struct i2c_client *client,
 		 * For some variants, be sure alarms can trigger when we're
 		 * running on Vbackup (BBSQI/BBSQW)
 		 */
-		if (chip->alarm && (client->irq > 0 ||
-				    ds1307_can_wakeup_device)) {
+		if (want_irq || ds1307_can_wakeup_device) {
 			ds1307->regs[0] |= DS1337_BIT_INTCN | chip->bbsqi_bit;
 			ds1307->regs[0] &= ~(DS1337_BIT_A2IE | DS1337_BIT_A1IE);
-
-			want_irq = true;
 		}
 
 		regmap_write(ds1307->regmap, DS1337_REG_CONTROL,
@@ -1493,21 +1493,16 @@ static int ds1307_probe(struct i2c_client *client,
 	case rx_8130:
 		ds1307->offset = 0x10; /* Seconds starts at 0x10 */
 		rtc_ops = &rx8130_rtc_ops;
-		if (chip->alarm && client->irq > 0) {
+		if (want_irq)
 			irq_handler = rx8130_irq;
-			want_irq = true;
-		}
 		break;
 	case ds_1388:
 		ds1307->offset = 1; /* Seconds starts at 1 */
 		break;
 	case mcp794xx:
 		rtc_ops = &mcp794xx_rtc_ops;
-		if (chip->alarm && (client->irq > 0 ||
-				    ds1307_can_wakeup_device)) {
+		if (want_irq || ds1307_can_wakeup_device)
 			irq_handler = mcp794xx_irq;
-			want_irq = true;
-		}
 		break;
 	default:
 		break;
@@ -1639,7 +1634,7 @@ read_rtc:
 				   MCP794XX_REG_WEEKDAY_WDAY_MASK,
 				   tm.tm_wday + 1);
 
-	if (want_irq) {
+	if (want_irq || ds1307_can_wakeup_device) {
 		device_set_wakeup_capable(ds1307->dev, true);
 		set_bit(HAS_ALARM, &ds1307->flags);
 	}
@@ -1649,9 +1644,7 @@ read_rtc:
 		return PTR_ERR(ds1307->rtc);
 	}
 
-	if (ds1307_can_wakeup_device && client->irq <= 0) {
-		/* Disable request for an IRQ */
-		want_irq = false;
+	if (ds1307_can_wakeup_device && !want_irq) {
 		dev_info(ds1307->dev,
 			 "'wakeup-source' is set, request for an IRQ is disabled!\n");
 		/* We cannot support UIE mode if we do not have an IRQ line */
