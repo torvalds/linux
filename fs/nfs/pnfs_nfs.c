@@ -159,13 +159,18 @@ void pnfs_generic_recover_commit_reqs(struct list_head *dst,
 {
 	struct pnfs_commit_bucket *b;
 	struct pnfs_layout_segment *freeme;
+	int nwritten;
 	int i;
 
 	lockdep_assert_held(&cinfo->inode->i_lock);
 restart:
 	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
-		if (pnfs_generic_transfer_commit_list(&b->written, dst,
-						      cinfo, 0)) {
+		nwritten = pnfs_generic_transfer_commit_list(&b->written,
+				dst, cinfo, 0);
+		if (!nwritten)
+			continue;
+		cinfo->ds->nwritten -= nwritten;
+		if (list_empty(&b->written)) {
 			freeme = b->wlseg;
 			b->wlseg = NULL;
 			spin_unlock(&cinfo->inode->i_lock);
@@ -174,7 +179,6 @@ restart:
 			goto restart;
 		}
 	}
-	cinfo->ds->nwritten = 0;
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_recover_commit_reqs);
 
