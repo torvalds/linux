@@ -132,7 +132,7 @@ static struct msg_queue *msg_alloc(void)
 static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	struct msg_queue *msq;
-	int id, retval;
+	int retval;
 	key_t key = params->key;
 	int msgflg = params->flg;
 
@@ -160,10 +160,10 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	INIT_LIST_HEAD(&msq->q_senders);
 
 	/* ipc_addid() locks msq upon success. */
-	id = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
-	if (id < 0) {
-		ipc_rcu_putref(&msq->q_perm, msg_rcu_free);
-		return id;
+	retval = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
+	if (retval < 0) {
+		call_rcu(&msq->q_perm.rcu, msg_rcu_free);
+		return retval;
 	}
 
 	ipc_unlock_object(&msq->q_perm);
