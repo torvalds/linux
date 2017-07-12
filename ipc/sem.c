@@ -451,6 +451,25 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
 	ipc_rmid(&sem_ids(ns), &s->sem_perm);
 }
 
+static struct sem_array *sem_alloc(size_t nsems)
+{
+	struct sem_array *sma;
+	size_t size;
+
+	if (nsems > (INT_MAX - sizeof(*sma)) / sizeof(sma->sems[0]))
+		return NULL;
+
+	size = sizeof(*sma) + nsems * sizeof(sma->sems[0]);
+	sma = kvmalloc(size, GFP_KERNEL);
+	if (unlikely(!sma))
+		return NULL;
+
+	memset(sma, 0, size);
+	atomic_set(&sma->sem_perm.refcount, 1);
+
+	return sma;
+}
+
 /**
  * newary - Create a new semaphore set
  * @ns: namespace
@@ -463,7 +482,6 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	int id;
 	int retval;
 	struct sem_array *sma;
-	int size;
 	key_t key = params->key;
 	int nsems = params->u.nsems;
 	int semflg = params->flg;
@@ -474,10 +492,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	if (ns->used_sems + nsems > ns->sc_semmns)
 		return -ENOSPC;
 
-	BUILD_BUG_ON(offsetof(struct sem_array, sem_perm) != 0);
-
-	size = sizeof(*sma) + nsems * sizeof(sma->sems[0]);
-	sma = container_of(ipc_rcu_alloc(size), struct sem_array, sem_perm);
+	sma = sem_alloc(nsems);
 	if (!sma)
 		return -ENOMEM;
 
