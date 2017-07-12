@@ -453,7 +453,8 @@ extern int portal_rotor;
 int lnet_lib_init(void);
 void lnet_lib_exit(void);
 
-int lnet_notify(struct lnet_ni *ni, lnet_nid_t peer, int alive, unsigned long when);
+int lnet_notify(struct lnet_ni *ni, lnet_nid_t peer, int alive,
+		unsigned long when);
 void lnet_notify_locked(struct lnet_peer *lp, int notifylnd, int alive,
 			unsigned long when);
 int lnet_add_route(__u32 net, __u32 hops, lnet_nid_t gateway_nid,
