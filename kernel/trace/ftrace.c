@@ -3950,7 +3950,7 @@ static int cache_mod(struct trace_array *tr,
 				continue;
 
 			/* no func matches all */
-			if (!func || strcmp(func, "*") == 0 ||
+			if (strcmp(func, "*") == 0 ||
 			    (ftrace_mod->func &&
 			     strcmp(ftrace_mod->func, func) == 0)) {
 				ret = 0;
