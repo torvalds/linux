@@ -394,27 +394,6 @@ void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 	ipcp->deleted = true;
 }
 
-/**
- * ipc_rcu_alloc - allocate ipc space
- * @size: size desired
- *
- * Allocate memory for an ipc object.
- * The first member must be struct kern_ipc_perm.
- */
-struct kern_ipc_perm *ipc_rcu_alloc(int size)
-{
-	/*
-	 * We prepend the allocation with the rcu struct
-	 */
-	struct kern_ipc_perm *out = kvmalloc(size, GFP_KERNEL);
-	if (unlikely(!out))
-		return NULL;
-
-	memset(out, 0, size);
-	atomic_set(&out->refcount, 1);
-	return out;
-}
-
 int ipc_rcu_getref(struct kern_ipc_perm *ptr)
 {
 	return atomic_inc_not_zero(&ptr->refcount);
