@@ -724,6 +724,7 @@ update_isoc_urb_state(dwc_otg_hcd_t *hcd,
 		frame_desc->status = 0;
 		frame_desc->actual_length =
 		    get_actual_xfer_length(hc, hc_regs, qtd, halt_status, NULL);
+		urb->actual_length += frame_desc->actual_length;
 
 		/* non DWORD-aligned buffer case handling. */
 		if (hc->align_buff && frame_desc->actual_length && hc->ep_is_in) {
@@ -752,6 +753,7 @@ update_isoc_urb_state(dwc_otg_hcd_t *hcd,
 		frame_desc->status = -DWC_E_PROTOCOL;
 		frame_desc->actual_length =
 		    get_actual_xfer_length(hc, hc_regs, qtd, halt_status, NULL);
+		urb->actual_length += frame_desc->actual_length;
 
 		/* non DWORD-aligned buffer case handling. */
 		if (hc->align_buff && frame_desc->actual_length && hc->ep_is_in) {
