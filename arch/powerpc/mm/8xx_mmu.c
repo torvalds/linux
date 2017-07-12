@@ -65,7 +65,7 @@ unsigned long p_block_mapped(phys_addr_t pa)
 void __init MMU_init_hw(void)
 {
 	/* PIN up to the 3 first 8Mb after IMMR in DTLB table */
-#ifdef CONFIG_PIN_TLB
+#ifdef CONFIG_PIN_TLB_DATA
 	unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
 	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY;
 #ifdef CONFIG_PIN_TLB_IMMR
@@ -103,6 +103,9 @@ static void mmu_mapin_immr(void)
 extern unsigned int DTLBMiss_jmp;
 #endif
 extern unsigned int DTLBMiss_cmp, FixupDAR_cmp;
+#ifndef CONFIG_PIN_TLB_TEXT
+extern unsigned int ITLBMiss_cmp;
+#endif
 
 void mmu_patch_cmp_limit(unsigned int *addr, unsigned long mapped)
 {
@@ -122,6 +125,9 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 		mmu_mapin_immr();
 #ifndef CONFIG_PIN_TLB_IMMR
 		patch_instruction(&DTLBMiss_jmp, PPC_INST_NOP);
+#endif
+#ifndef CONFIG_PIN_TLB_TEXT
+		mmu_patch_cmp_limit(&ITLBMiss_cmp, 0);
 #endif
 	} else {
 		mapped = top & ~(LARGE_PAGE_SIZE_8M - 1);

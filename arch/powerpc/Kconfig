@@ -1178,8 +1178,18 @@ config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
 	depends on ADVANCED_OPTIONS && PPC_8xx
 
+config PIN_TLB_DATA
+	bool "Pinned TLB for DATA"
+	depends on PIN_TLB
+	default y
+
 config PIN_TLB_IMMR
 	bool "Pinned TLB for IMMR"
+	depends on PIN_TLB
+	default y
+
+config PIN_TLB_TEXT
+	bool "Pinned TLB for TEXT"
 	depends on PIN_TLB
 	default y
 endmenu
