@@ -95,13 +95,18 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
 	ipc_rmid(&msg_ids(ns), &s->q_perm);
 }
 
+static void __msg_free(struct msg_queue *msq)
+{
+	kvfree(msq);
+}
+
 static void msg_rcu_free(struct rcu_head *head)
 {
 	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
 	struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
 
 	security_msg_queue_free(msq);
-	ipc_rcu_free(head);
+	__msg_free(msq);
 }
 
 /**
@@ -131,7 +136,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_perm.security = NULL;
 	retval = security_msg_queue_alloc(msq);
 	if (retval) {
-		ipc_rcu_putref(&msq->q_perm, ipc_rcu_free);
+		__msg_free(msq);
 		return retval;
 	}
 
