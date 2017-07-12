@@ -819,7 +819,8 @@ a knob to globally and forcibly turn jump optimization (see section
 is allowed (ON). If you echo "0" to this file or set
 "debug.kprobes_optimization" to 0 via sysctl, all optimized probes will be
 unoptimized, and any new probes registered after that will not be optimized.
- Note that this knob *changes* the optimized state. This means that optimized
+
+Note that this knob *changes* the optimized state. This means that optimized
 probes (marked [OPTIMIZED]) will be unoptimized ([OPTIMIZED] tag will be
 removed). If the knob is turned on, they will be optimized again.
 
