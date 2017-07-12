@@ -2410,6 +2410,8 @@ rcu_report_qs_rnp(unsigned long mask, struct rcu_state *rsp,
 			return;
 		}
 		WARN_ON_ONCE(oldmask); /* Any child must be all zeroed! */
+		WARN_ON_ONCE(rnp->level != rcu_num_lvls - 1 &&
+			     rcu_preempt_blocked_readers_cgp(rnp));
 		rnp->qsmask &= ~mask;
 		trace_rcu_quiescent_state_report(rsp->name, rnp->gpnum,
 						 mask, rnp->qsmask, rnp->level,
