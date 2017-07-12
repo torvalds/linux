@@ -112,8 +112,10 @@ void dp_disable_link_phy(struct core_link *link, enum signal_type signal)
 	if (!link->wa_flags.dp_keep_receiver_powered)
 		dp_receiver_power_ctrl(link, false);
 
-	if (signal == SIGNAL_TYPE_EDP)
+	if (signal == SIGNAL_TYPE_EDP) {
 		link->link_enc->funcs->backlight_control(link->link_enc, false);
+		link->link_enc->funcs->power_control(link->link_enc, false);
+	}
 
 	link->link_enc->funcs->disable_output(link->link_enc, signal);
 
