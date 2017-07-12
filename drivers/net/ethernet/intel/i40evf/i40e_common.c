@@ -333,9 +333,9 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 			len = buf_len;
 		/* write the full 16-byte chunks */
 		if (hw->debug_mask & mask) {
-			char prefix[20];
+			char prefix[27];
 
-			snprintf(prefix, 20,
+			snprintf(prefix, sizeof(prefix),
 				 "i40evf %02x:%02x.%x: \t0x",
 				 hw->bus.bus_id,
 				 hw->bus.device,
