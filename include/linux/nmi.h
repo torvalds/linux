@@ -11,13 +11,21 @@
 #endif
 
 #ifdef CONFIG_LOCKUP_DETECTOR
+void lockup_detector_init(void);
+#else
+static inline void lockup_detector_init(void)
+{
+}
+#endif
+
+#ifdef CONFIG_SOFTLOCKUP_DETECTOR
 extern void touch_softlockup_watchdog_sched(void);
 extern void touch_softlockup_watchdog(void);
 extern void touch_softlockup_watchdog_sync(void);
 extern void touch_all_softlockup_watchdogs(void);
 extern unsigned int  softlockup_panic;
-extern unsigned int  hardlockup_panic;
-void lockup_detector_init(void);
+extern int soft_watchdog_enabled;
+extern atomic_t watchdog_park_in_progress;
 #else
 static inline void touch_softlockup_watchdog_sched(void)
 {
@@ -29,9 +37,6 @@ static inline void touch_softlockup_watchdog_sync(void)
 {
 }
 static inline void touch_all_softlockup_watchdogs(void)
-{
-}
-static inline void lockup_detector_init(void)
 {
 }
 #endif
@@ -63,14 +68,17 @@ static inline void reset_hung_task_detector(void)
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR)
 extern void hardlockup_detector_disable(void);
+extern unsigned int hardlockup_panic;
 #else
 static inline void hardlockup_detector_disable(void) {}
 #endif
 
-#if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HAVE_NMI_WATCHDOG)
+#if defined(CONFIG_HARDLOCKUP_DETECTOR_PERF)
 extern void arch_touch_nmi_watchdog(void);
 #else
+#if !defined(CONFIG_HAVE_NMI_WATCHDOG)
 static inline void arch_touch_nmi_watchdog(void) {}
+#endif
 #endif
 
 /**
@@ -141,15 +149,18 @@ static inline bool trigger_single_cpu_backtrace(int cpu)
 }
 #endif
 
-#ifdef CONFIG_LOCKUP_DETECTOR
+#ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
 u64 hw_nmi_get_sample_period(int watchdog_thresh);
+#endif
+
+#ifdef CONFIG_LOCKUP_DETECTOR
 extern int nmi_watchdog_enabled;
-extern int soft_watchdog_enabled;
 extern int watchdog_user_enabled;
 extern int watchdog_thresh;
 extern unsigned long watchdog_enabled;
+extern struct cpumask watchdog_cpumask;
 extern unsigned long *watchdog_cpumask_bits;
-extern atomic_t watchdog_park_in_progress;
+extern int __read_mostly watchdog_suspended;
 #ifdef CONFIG_SMP
 extern int sysctl_softlockup_all_cpu_backtrace;
 extern int sysctl_hardlockup_all_cpu_backtrace;
