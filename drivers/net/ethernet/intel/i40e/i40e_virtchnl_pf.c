@@ -1758,7 +1758,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 		}
 	} else {
 		aq_ret = i40e_aq_set_vsi_unicast_promiscuous(hw, vsi->seid,
-							     allmulti, NULL,
+							     alluni, NULL,
 							     true);
 		aq_err = pf->hw.aq.asq_last_status;
 		if (aq_ret) {
