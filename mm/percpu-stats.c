@@ -29,65 +29,85 @@ static int cmpint(const void *a, const void *b)
 }
 
 /*
- * Iterates over all chunks to find the max # of map entries used.
+ * Iterates over all chunks to find the max nr_alloc entries.
  */
-static int find_max_map_used(void)
+static int find_max_nr_alloc(void)
 {
 	struct pcpu_chunk *chunk;
-	int slot, max_map_used;
+	int slot, max_nr_alloc;
 
-	max_map_used = 0;
+	max_nr_alloc = 0;
 	for (slot = 0; slot < pcpu_nr_slots; slot++)
 		list_for_each_entry(chunk, &pcpu_slot[slot], list)
-			max_map_used = max(max_map_used, chunk->map_used);
+			max_nr_alloc = max(max_nr_alloc, chunk->nr_alloc);
 
-	return max_map_used;
+	return max_nr_alloc;
 }
 
 /*
  * Prints out chunk state. Fragmentation is considered between
  * the beginning of the chunk to the last allocation.
+ *
+ * All statistics are in bytes unless stated otherwise.
  */
 static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 			    int *buffer)
 {
-	int i, s_index, e_index, last_alloc, alloc_sign, as_len;
+	int i, last_alloc, as_len, start, end;
 	int *alloc_sizes, *p;
 	/* statistics */
 	int sum_frag = 0, max_frag = 0;
 	int cur_min_alloc = 0, cur_med_alloc = 0, cur_max_alloc = 0;
 
 	alloc_sizes = buffer;
-	s_index = (chunk->start_offset) ? 1 : 0;
-	e_index = chunk->map_used - ((chunk->end_offset) ? 1 : 0);
 
-	/* find last allocation */
-	last_alloc = -1;
-	for (i = e_index - 1; i >= s_index; i--) {
-		if (chunk->map[i] & 1) {
-			last_alloc = i;
-			break;
+	/*
+	 * find_last_bit returns the start value if nothing found.
+	 * Therefore, we must determine if it is a failure of find_last_bit
+	 * and set the appropriate value.
+	 */
+	last_alloc = find_last_bit(chunk->alloc_map,
+				   pcpu_chunk_map_bits(chunk) -
+				   chunk->end_offset / PCPU_MIN_ALLOC_SIZE - 1);
+	last_alloc = test_bit(last_alloc, chunk->alloc_map) ?
+		     last_alloc + 1 : 0;
+
+	as_len = 0;
+	start = chunk->start_offset;
+
+	/*
+	 * If a bit is set in the allocation map, the bound_map identifies
+	 * where the allocation ends.  If the allocation is not set, the
+	 * bound_map does not identify free areas as it is only kept accurate
+	 * on allocation, not free.
+	 *
+	 * Positive values are allocations and negative values are free
+	 * fragments.
+	 */
+	while (start < last_alloc) {
+		if (test_bit(start, chunk->alloc_map)) {
+			end = find_next_bit(chunk->bound_map, last_alloc,
+					    start + 1);
+			alloc_sizes[as_len] = 1;
+		} else {
+			end = find_next_bit(chunk->alloc_map, last_alloc,
+					    start + 1);
+			alloc_sizes[as_len] = -1;
 		}
+
+		alloc_sizes[as_len++] *= (end - start) * PCPU_MIN_ALLOC_SIZE;
+
+		start = end;
 	}
 
-	/* if the chunk is not empty - ignoring reserve */
-	if (last_alloc >= s_index) {
-		as_len = last_alloc + 1 - s_index;
+	/*
+	 * The negative values are free fragments and thus sorting gives the
+	 * free fragments at the beginning in largest first order.
+	 */
+	if (as_len > 0) {
+		sort(alloc_sizes, as_len, sizeof(int), cmpint, NULL);
 
-		/*
-		 * Iterate through chunk map computing size info.
-		 * The first bit is overloaded to be a used flag.
-		 * negative = free space, positive = allocated
-		 */
-		for (i = 0, p = chunk->map + s_index; i < as_len; i++, p++) {
-			alloc_sign = (*p & 1) ? 1 : -1;
-			alloc_sizes[i] = alloc_sign *
-				((p[1] & ~1) - (p[0] & ~1));
-		}
-
-		sort(alloc_sizes, as_len, sizeof(chunk->map[0]), cmpint, NULL);
-
-		/* Iterate through the unallocated fragements. */
+		/* iterate through the unallocated fragments */
 		for (i = 0, p = alloc_sizes; *p < 0 && i < as_len; i++, p++) {
 			sum_frag -= *p;
 			max_frag = max(max_frag, -1 * (*p));
@@ -101,8 +121,8 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 	P("nr_alloc", chunk->nr_alloc);
 	P("max_alloc_size", chunk->max_alloc_size);
 	P("empty_pop_pages", chunk->nr_empty_pop_pages);
-	P("free_size", chunk->free_size);
-	P("contig_hint", chunk->contig_hint);
+	P("free_bytes", chunk->free_bytes);
+	P("contig_bytes", chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
 	P("sum_frag", sum_frag);
 	P("max_frag", max_frag);
 	P("cur_min_alloc", cur_min_alloc);
@@ -114,22 +134,23 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 static int percpu_stats_show(struct seq_file *m, void *v)
 {
 	struct pcpu_chunk *chunk;
-	int slot, max_map_used;
+	int slot, max_nr_alloc;
 	int *buffer;
 
 alloc_buffer:
 	spin_lock_irq(&pcpu_lock);
-	max_map_used = find_max_map_used();
+	max_nr_alloc = find_max_nr_alloc();
 	spin_unlock_irq(&pcpu_lock);
 
-	buffer = vmalloc(max_map_used * sizeof(pcpu_first_chunk->map[0]));
+	/* there can be at most this many free and allocated fragments */
+	buffer = vmalloc((2 * max_nr_alloc + 1) * sizeof(int));
 	if (!buffer)
 		return -ENOMEM;
 
 	spin_lock_irq(&pcpu_lock);
 
 	/* if the buffer allocated earlier is too small */
-	if (max_map_used < find_max_map_used()) {
+	if (max_nr_alloc < find_max_nr_alloc()) {
 		spin_unlock_irq(&pcpu_lock);
 		vfree(buffer);
 		goto alloc_buffer;
