@@ -174,6 +174,16 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		},
 	},
 	{
+		/* Ployer Momo7w (same hardware as the Trekstor ST70416-6) */
+		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Shenzhen PLOYER"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MOMO7W"),
+			/* Exact match, different versions need different fw */
+			DMI_MATCH(DMI_BIOS_VERSION, "MOMO.G.WI71C.MABMRBA02"),
+		},
+	},
+	{
 		/* GP-electronic T701 */
 		.driver_data = (void *)&gp_electronic_t701_data,
 		.matches = {
