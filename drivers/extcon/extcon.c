@@ -37,7 +37,6 @@
 #include "extcon.h"
 
 #define SUPPORTED_CABLE_MAX	32
-#define CABLE_NAME_MAX		30
 
 struct __extcon_info {
 	unsigned int type;
