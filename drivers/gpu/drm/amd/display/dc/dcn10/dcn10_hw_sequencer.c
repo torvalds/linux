@@ -500,8 +500,10 @@ static void reset_front_end(
 			HUBP_CLOCK_ENABLE, 0);
 	REG_UPDATE(DPP_CONTROL[fe_idx],
 			DPP_CLOCK_ENABLE, 0);
-	REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
-			OPP_PIPE_CLOCK_EN, 0);
+
+	if (mpcc_cfg.top_of_tree)
+		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
+				OPP_PIPE_CLOCK_EN, 0);
 
 	xfm->funcs->transform_reset(xfm);
 
@@ -1584,7 +1586,7 @@ static void dcn10_apply_ctx_for_surface(
 	int i;
 
 	/* reset unused mpcc */
-	/*for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_context->res_ctx.pipe_ctx[i];
@@ -1593,7 +1595,12 @@ static void dcn10_apply_ctx_for_surface(
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
 			struct mpcc_cfg mpcc_cfg;
 
-			mpcc_cfg.opp_id = 0xf;
+			if (!old_pipe_ctx->top_pipe) {
+				ASSERT(0);
+				continue;
+			}
+
+			mpcc_cfg.opp_id = old_pipe_ctx->mpcc->opp_id;
 			mpcc_cfg.top_dpp_id = 0xf;
 			mpcc_cfg.bot_mpcc_id = 0xf;
 			mpcc_cfg.top_of_tree = !old_pipe_ctx->top_pipe;
@@ -1607,7 +1614,7 @@ static void dcn10_apply_ctx_for_surface(
 					"Reset mpcc for pipe %d\n",
 					old_pipe_ctx->pipe_idx);
 		}
-	}*/
+	}
 
 	if (!surface)
 		return;
