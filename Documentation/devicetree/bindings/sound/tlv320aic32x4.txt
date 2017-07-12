@@ -3,7 +3,9 @@ Texas Instruments - tlv320aic32x4 Codec module
 The tlv320aic32x4 serial control bus communicates through I2C protocols
 
 Required properties:
- - compatible: Should be "ti,tlv320aic32x4"
+ - compatible - "string" - One of:
+	"ti,tlv320aic32x4" TLV320AIC3204
+	"ti,tlv320aic32x6" TLV320AIC3206, TLV320AIC3256
  - reg: I2C slave address
  - supply-*: Required supply regulators are:
     "iov" - digital IO power supply
