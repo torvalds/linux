@@ -274,10 +274,9 @@ struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 
 	/* Now consume following elements while they are contiguous */
 	while (parser->range + parser->np <= parser->end) {
-		u32 flags, pci_space;
+		u32 flags;
 		u64 pci_addr, cpu_addr, size;
 
-		pci_space = be32_to_cpup(parser->range);
 		flags = of_bus_pci_get_flags(parser->range);
 		pci_addr = of_read_number(parser->range + 1, ns);
 		cpu_addr = of_translate_address(parser->node,
