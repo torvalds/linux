@@ -1835,7 +1835,7 @@ static int __init its_of_probe(struct device_node *node)
 
 #define ACPI_GICV3_ITS_MEM_SIZE (SZ_128K)
 
-#if defined(CONFIG_ACPI_NUMA) && (ACPI_CA_VERSION >= 0x20170531)
+#ifdef CONFIG_ACPI_NUMA
 struct its_srat_map {
 	/* numa node id */
 	u32	numa_node;
