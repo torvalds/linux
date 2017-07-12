@@ -109,6 +109,19 @@ static void msg_rcu_free(struct rcu_head *head)
 	__msg_free(msq);
 }
 
+static struct msg_queue *msg_alloc(void)
+{
+	struct msg_queue *msq;
+
+	msq = kvmalloc(sizeof(*msq), GFP_KERNEL);
+	if (unlikely(!msq))
+		return NULL;
+
+	atomic_set(&msq->q_perm.refcount, 1);
+
+	return msq;
+}
+
 /**
  * newque - Create a new msg queue
  * @ns: namespace
@@ -123,10 +136,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	key_t key = params->key;
 	int msgflg = params->flg;
 
-	BUILD_BUG_ON(offsetof(struct msg_queue, q_perm) != 0);
-
-	msq = container_of(ipc_rcu_alloc(sizeof(*msq)), struct msg_queue,
-				q_perm);
+	msq = msg_alloc();
 	if (!msq)
 		return -ENOMEM;
 
