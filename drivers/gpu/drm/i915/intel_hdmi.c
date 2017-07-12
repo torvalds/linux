@@ -1321,7 +1321,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 	if (crtc_state->output_types != 1 << INTEL_OUTPUT_HDMI)
 		return false;
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
+	for_each_new_connector_in_state(state, connector, connector_state, i) {
 		const struct drm_display_info *info = &connector->display_info;
 
 		if (connector_state->crtc != crtc_state->base.crtc)
