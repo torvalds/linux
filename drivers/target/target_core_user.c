@@ -563,8 +563,6 @@ static int scatter_data_area(struct tcmu_dev *udev,
 					block_remaining);
 			to_offset = get_block_offset_user(udev, dbi,
 					block_remaining);
-			offset = DATA_BLOCK_SIZE - block_remaining;
-			to += offset;
 
 			if (*iov_cnt != 0 &&
 			    to_offset == iov_tail(*iov)) {
@@ -575,8 +573,10 @@ static int scatter_data_area(struct tcmu_dev *udev,
 				(*iov)->iov_len = copy_bytes;
 			}
 			if (copy_data) {
-				memcpy(to, from + sg->length - sg_remaining,
-					copy_bytes);
+				offset = DATA_BLOCK_SIZE - block_remaining;
+				memcpy(to + offset,
+				       from + sg->length - sg_remaining,
+				       copy_bytes);
 				tcmu_flush_dcache_range(to, copy_bytes);
 			}
 			sg_remaining -= copy_bytes;
@@ -637,9 +637,8 @@ static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 			copy_bytes = min_t(size_t, sg_remaining,
 					block_remaining);
 			offset = DATA_BLOCK_SIZE - block_remaining;
-			from += offset;
 			tcmu_flush_dcache_range(from, copy_bytes);
-			memcpy(to + sg->length - sg_remaining, from,
+			memcpy(to + sg->length - sg_remaining, from + offset,
 					copy_bytes);
 
 			sg_remaining -= copy_bytes;
