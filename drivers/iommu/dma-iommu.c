@@ -316,7 +316,7 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		 * If we have devices with different DMA masks, move the free
 		 * area cache limit down for the benefit of the smaller one.
 		 */
-		iovad->dma_32bit_pfn = min(end_pfn, iovad->dma_32bit_pfn);
+		iovad->dma_32bit_pfn = min(end_pfn + 1, iovad->dma_32bit_pfn);
 
 		return 0;
 	}

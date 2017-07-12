@@ -20,6 +20,7 @@
 
 #define pr_fmt(fmt)	"arm-lpae io-pgtable: " fmt
 
+#include <linux/atomic.h>
 #include <linux/iommu.h>
 #include <linux/kernel.h>
 #include <linux/sizes.h>
@@ -99,6 +100,8 @@
 #define ARM_LPAE_PTE_ATTR_HI_MASK	(((arm_lpae_iopte)6) << 52)
 #define ARM_LPAE_PTE_ATTR_MASK		(ARM_LPAE_PTE_ATTR_LO_MASK |	\
 					 ARM_LPAE_PTE_ATTR_HI_MASK)
+/* Software bit for solving coherency races */
+#define ARM_LPAE_PTE_SW_SYNC		(((arm_lpae_iopte)1) << 55)
 
 /* Stage-1 PTE */
 #define ARM_LPAE_PTE_AP_UNPRIV		(((arm_lpae_iopte)1) << 6)
@@ -217,7 +220,7 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	if (!pages)
 		return NULL;
 
-	if (!selftest_running) {
+	if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA)) {
 		dma = dma_map_single(dev, pages, size, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, dma))
 			goto out_free;
@@ -243,10 +246,17 @@ out_free:
 static void __arm_lpae_free_pages(void *pages, size_t size,
 				  struct io_pgtable_cfg *cfg)
 {
-	if (!selftest_running)
+	if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA))
 		dma_unmap_single(cfg->iommu_dev, __arm_lpae_dma_addr(pages),
 				 size, DMA_TO_DEVICE);
 	free_pages_exact(pages, size);
+}
+
+static void __arm_lpae_sync_pte(arm_lpae_iopte *ptep,
+				struct io_pgtable_cfg *cfg)
+{
+	dma_sync_single_for_device(cfg->iommu_dev, __arm_lpae_dma_addr(ptep),
+				   sizeof(*ptep), DMA_TO_DEVICE);
 }
 
 static void __arm_lpae_set_pte(arm_lpae_iopte *ptep, arm_lpae_iopte pte,
@@ -254,29 +264,46 @@ static void __arm_lpae_set_pte(arm_lpae_iopte *ptep, arm_lpae_iopte pte,
 {
 	*ptep = pte;
 
-	if (!selftest_running)
-		dma_sync_single_for_device(cfg->iommu_dev,
-					   __arm_lpae_dma_addr(ptep),
-					   sizeof(pte), DMA_TO_DEVICE);
+	if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA))
+		__arm_lpae_sync_pte(ptep, cfg);
 }
 
 static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 			    unsigned long iova, size_t size, int lvl,
 			    arm_lpae_iopte *ptep);
 
+static void __arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
+				phys_addr_t paddr, arm_lpae_iopte prot,
+				int lvl, arm_lpae_iopte *ptep)
+{
+	arm_lpae_iopte pte = prot;
+
+	if (data->iop.cfg.quirks & IO_PGTABLE_QUIRK_ARM_NS)
+		pte |= ARM_LPAE_PTE_NS;
+
+	if (lvl == ARM_LPAE_MAX_LEVELS - 1)
+		pte |= ARM_LPAE_PTE_TYPE_PAGE;
+	else
+		pte |= ARM_LPAE_PTE_TYPE_BLOCK;
+
+	pte |= ARM_LPAE_PTE_AF | ARM_LPAE_PTE_SH_IS;
+	pte |= pfn_to_iopte(paddr >> data->pg_shift, data);
+
+	__arm_lpae_set_pte(ptep, pte, &data->iop.cfg);
+}
+
 static int arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 			     unsigned long iova, phys_addr_t paddr,
 			     arm_lpae_iopte prot, int lvl,
 			     arm_lpae_iopte *ptep)
 {
-	arm_lpae_iopte pte = prot;
-	struct io_pgtable_cfg *cfg = &data->iop.cfg;
+	arm_lpae_iopte pte = *ptep;
 
-	if (iopte_leaf(*ptep, lvl)) {
+	if (iopte_leaf(pte, lvl)) {
 		/* We require an unmap first */
 		WARN_ON(!selftest_running);
 		return -EEXIST;
-	} else if (iopte_type(*ptep, lvl) == ARM_LPAE_PTE_TYPE_TABLE) {
+	} else if (iopte_type(pte, lvl) == ARM_LPAE_PTE_TYPE_TABLE) {
 		/*
 		 * We need to unmap and free the old table before
 		 * overwriting it with a block entry.
@@ -289,19 +316,40 @@ static int arm_lpae_init_pte(struct arm_lpae_io_pgtable *data,
 			return -EINVAL;
 	}
 
-	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
-		pte |= ARM_LPAE_PTE_NS;
-
-	if (lvl == ARM_LPAE_MAX_LEVELS - 1)
-		pte |= ARM_LPAE_PTE_TYPE_PAGE;
-	else
-		pte |= ARM_LPAE_PTE_TYPE_BLOCK;
-
-	pte |= ARM_LPAE_PTE_AF | ARM_LPAE_PTE_SH_IS;
-	pte |= pfn_to_iopte(paddr >> data->pg_shift, data);
-
-	__arm_lpae_set_pte(ptep, pte, cfg);
+	__arm_lpae_init_pte(data, paddr, prot, lvl, ptep);
 	return 0;
+}
+
+static arm_lpae_iopte arm_lpae_install_table(arm_lpae_iopte *table,
+					     arm_lpae_iopte *ptep,
+					     arm_lpae_iopte curr,
+					     struct io_pgtable_cfg *cfg)
+{
+	arm_lpae_iopte old, new;
+
+	new = __pa(table) | ARM_LPAE_PTE_TYPE_TABLE;
+	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
+		new |= ARM_LPAE_PTE_NSTABLE;
+
+	/*
+	 * Ensure the table itself is visible before its PTE can be.
+	 * Whilst we could get away with cmpxchg64_release below, this
+	 * doesn't have any ordering semantics when !CONFIG_SMP.
+	 */
+	dma_wmb();
+
+	old = cmpxchg64_relaxed(ptep, curr, new);
+
+	if ((cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA) ||
+	    (old & ARM_LPAE_PTE_SW_SYNC))
+		return old;
+
+	/* Even if it's not ours, there's no point waiting; just kick it */
+	__arm_lpae_sync_pte(ptep, cfg);
+	if (old == curr)
+		WRITE_ONCE(*ptep, new | ARM_LPAE_PTE_SW_SYNC);
+
+	return old;
 }
 
 static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
@@ -310,6 +358,7 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 {
 	arm_lpae_iopte *cptep, pte;
 	size_t block_size = ARM_LPAE_BLOCK_SIZE(lvl, data);
+	size_t tblsz = ARM_LPAE_GRANULE(data);
 	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 
 	/* Find our entry at the current level */
@@ -324,20 +373,23 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 		return -EINVAL;
 
 	/* Grab a pointer to the next level */
-	pte = *ptep;
+	pte = READ_ONCE(*ptep);
 	if (!pte) {
-		cptep = __arm_lpae_alloc_pages(ARM_LPAE_GRANULE(data),
-					       GFP_ATOMIC, cfg);
+		cptep = __arm_lpae_alloc_pages(tblsz, GFP_ATOMIC, cfg);
 		if (!cptep)
 			return -ENOMEM;
 
-		pte = __pa(cptep) | ARM_LPAE_PTE_TYPE_TABLE;
-		if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS)
-			pte |= ARM_LPAE_PTE_NSTABLE;
-		__arm_lpae_set_pte(ptep, pte, cfg);
-	} else if (!iopte_leaf(pte, lvl)) {
+		pte = arm_lpae_install_table(cptep, ptep, 0, cfg);
+		if (pte)
+			__arm_lpae_free_pages(cptep, tblsz, cfg);
+	} else if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA) &&
+		   !(pte & ARM_LPAE_PTE_SW_SYNC)) {
+		__arm_lpae_sync_pte(ptep, cfg);
+	}
+
+	if (pte && !iopte_leaf(pte, lvl)) {
 		cptep = iopte_deref(pte, data);
-	} else {
+	} else if (pte) {
 		/* We require an unmap first */
 		WARN_ON(!selftest_running);
 		return -EEXIST;
@@ -452,40 +504,55 @@ static void arm_lpae_free_pgtable(struct io_pgtable *iop)
 
 static int arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 				    unsigned long iova, size_t size,
-				    arm_lpae_iopte prot, int lvl,
-				    arm_lpae_iopte *ptep, size_t blk_size)
+				    arm_lpae_iopte blk_pte, int lvl,
+				    arm_lpae_iopte *ptep)
 {
-	unsigned long blk_start, blk_end;
+	struct io_pgtable_cfg *cfg = &data->iop.cfg;
+	arm_lpae_iopte pte, *tablep;
 	phys_addr_t blk_paddr;
-	arm_lpae_iopte table = 0;
+	size_t tablesz = ARM_LPAE_GRANULE(data);
+	size_t split_sz = ARM_LPAE_BLOCK_SIZE(lvl, data);
+	int i, unmap_idx = -1;
 
-	blk_start = iova & ~(blk_size - 1);
-	blk_end = blk_start + blk_size;
-	blk_paddr = iopte_to_pfn(*ptep, data) << data->pg_shift;
+	if (WARN_ON(lvl == ARM_LPAE_MAX_LEVELS))
+		return 0;
 
-	for (; blk_start < blk_end; blk_start += size, blk_paddr += size) {
-		arm_lpae_iopte *tablep;
+	tablep = __arm_lpae_alloc_pages(tablesz, GFP_ATOMIC, cfg);
+	if (!tablep)
+		return 0; /* Bytes unmapped */
 
+	if (size == split_sz)
+		unmap_idx = ARM_LPAE_LVL_IDX(iova, lvl, data);
+
+	blk_paddr = iopte_to_pfn(blk_pte, data) << data->pg_shift;
+	pte = iopte_prot(blk_pte);
+
+	for (i = 0; i < tablesz / sizeof(pte); i++, blk_paddr += split_sz) {
 		/* Unmap! */
-		if (blk_start == iova)
+		if (i == unmap_idx)
 			continue;
 
-		/* __arm_lpae_map expects a pointer to the start of the table */
-		tablep = &table - ARM_LPAE_LVL_IDX(blk_start, lvl, data);
-		if (__arm_lpae_map(data, blk_start, blk_paddr, size, prot, lvl,
-				   tablep) < 0) {
-			if (table) {
-				/* Free the table we allocated */
-				tablep = iopte_deref(table, data);
-				__arm_lpae_free_pgtable(data, lvl + 1, tablep);
-			}
-			return 0; /* Bytes unmapped */
-		}
+		__arm_lpae_init_pte(data, blk_paddr, pte, lvl, &tablep[i]);
 	}
 
-	__arm_lpae_set_pte(ptep, table, &data->iop.cfg);
-	iova &= ~(blk_size - 1);
-	io_pgtable_tlb_add_flush(&data->iop, iova, blk_size, blk_size, true);
+	pte = arm_lpae_install_table(tablep, ptep, blk_pte, cfg);
+	if (pte != blk_pte) {
+		__arm_lpae_free_pages(tablep, tablesz, cfg);
+		/*
+		 * We may race against someone unmapping another part of this
+		 * block, but anything else is invalid. We can't misinterpret
+		 * a page entry here since we're never at the last level.
+		 */
+		if (iopte_type(pte, lvl - 1) != ARM_LPAE_PTE_TYPE_TABLE)
+			return 0;
+
+		tablep = iopte_deref(pte, data);
+	}
+
+	if (unmap_idx < 0)
+		return __arm_lpae_unmap(data, iova, size, lvl, tablep);
+
+	io_pgtable_tlb_add_flush(&data->iop, iova, size, size, true);
 	return size;
 }
 
@@ -495,19 +562,18 @@ static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 {
 	arm_lpae_iopte pte;
 	struct io_pgtable *iop = &data->iop;
-	size_t blk_size = ARM_LPAE_BLOCK_SIZE(lvl, data);
 
 	/* Something went horribly wrong and we ran out of page table */
 	if (WARN_ON(lvl == ARM_LPAE_MAX_LEVELS))
 		return 0;
 
 	ptep += ARM_LPAE_LVL_IDX(iova, lvl, data);
-	pte = *ptep;
+	pte = READ_ONCE(*ptep);
 	if (WARN_ON(!pte))
 		return 0;
 
 	/* If the size matches this level, we're in the right place */
-	if (size == blk_size) {
+	if (size == ARM_LPAE_BLOCK_SIZE(lvl, data)) {
 		__arm_lpae_set_pte(ptep, 0, &iop->cfg);
 
 		if (!iopte_leaf(pte, lvl)) {
@@ -527,9 +593,8 @@ static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 		 * Insert a table at the next level to map the old region,
 		 * minus the part we want to unmap
 		 */
-		return arm_lpae_split_blk_unmap(data, iova, size,
-						iopte_prot(pte), lvl, ptep,
-						blk_size);
+		return arm_lpae_split_blk_unmap(data, iova, size, pte,
+						lvl + 1, ptep);
 	}
 
 	/* Keep on walkin' */
@@ -565,7 +630,8 @@ static phys_addr_t arm_lpae_iova_to_phys(struct io_pgtable_ops *ops,
 			return 0;
 
 		/* Grab the IOPTE we're interested in */
-		pte = *(ptep + ARM_LPAE_LVL_IDX(iova, lvl, data));
+		ptep += ARM_LPAE_LVL_IDX(iova, lvl, data);
+		pte = READ_ONCE(*ptep);
 
 		/* Valid entry? */
 		if (!pte)
@@ -673,7 +739,7 @@ arm_64_lpae_alloc_pgtable_s1(struct io_pgtable_cfg *cfg, void *cookie)
 	u64 reg;
 	struct arm_lpae_io_pgtable *data;
 
-	if (cfg->quirks & ~IO_PGTABLE_QUIRK_ARM_NS)
+	if (cfg->quirks & ~(IO_PGTABLE_QUIRK_ARM_NS | IO_PGTABLE_QUIRK_NO_DMA))
 		return NULL;
 
 	data = arm_lpae_alloc_pgtable(cfg);
@@ -762,7 +828,7 @@ arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 	struct arm_lpae_io_pgtable *data;
 
 	/* The NS quirk doesn't apply at stage 2 */
-	if (cfg->quirks)
+	if (cfg->quirks & ~IO_PGTABLE_QUIRK_NO_DMA)
 		return NULL;
 
 	data = arm_lpae_alloc_pgtable(cfg);
@@ -1066,6 +1132,7 @@ static int __init arm_lpae_do_selftests(void)
 	struct io_pgtable_cfg cfg = {
 		.tlb = &dummy_tlb_ops,
 		.oas = 48,
+		.quirks = IO_PGTABLE_QUIRK_NO_DMA,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(pgsize); ++i) {
