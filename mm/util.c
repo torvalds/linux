@@ -339,7 +339,7 @@ EXPORT_SYMBOL(vm_mmap);
  * Uses kmalloc to get the memory but if the allocation fails then falls back
  * to the vmalloc allocator. Use kvfree for freeing the memory.
  *
- * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_REPEAT
+ * Reclaim modifiers - __GFP_NORETRY and __GFP_NOFAIL are not supported. __GFP_RETRY_MAYFAIL
  * is supported only for large (>32kB) allocations, and it should be used only if
  * kmalloc is preferable to the vmalloc fallback, due to visible performance drawbacks.
  *
@@ -367,11 +367,11 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 		kmalloc_flags |= __GFP_NOWARN;
 
 		/*
-		 * We have to override __GFP_REPEAT by __GFP_NORETRY for !costly
+		 * We have to override __GFP_RETRY_MAYFAIL by __GFP_NORETRY for !costly
 		 * requests because there is no other way to tell the allocator
 		 * that we want to fail rather than retry endlessly.
 		 */
-		if (!(kmalloc_flags & __GFP_REPEAT) ||
+		if (!(kmalloc_flags & __GFP_RETRY_MAYFAIL) ||
 				(size <= PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER))
 			kmalloc_flags |= __GFP_NORETRY;
 	}
