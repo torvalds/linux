@@ -979,7 +979,6 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	u16 pvid = mlxsw_sp_port_pvid_determine(mlxsw_sp_port, vid, is_pvid);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-	struct mlxsw_sp_bridge_vlan *bridge_vlan;
 	u16 old_pvid = mlxsw_sp_port->pvid;
 	int err;
 
@@ -999,8 +998,6 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_port_vlan_bridge_join(mlxsw_sp_port_vlan, bridge_port);
 	if (err)
 		goto err_port_vlan_bridge_join;
-
-	bridge_vlan = mlxsw_sp_bridge_vlan_find(bridge_port, vid);
 
 	return 0;
 
@@ -1919,6 +1916,8 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
+		if (!switchdev_work->fdb_info.addr)
+			goto err_addr_alloc;
 		ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
 				fdb_info->addr);
 		/* Take a reference on the device. This can be either
@@ -1935,6 +1934,10 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 	mlxsw_core_schedule_work(&switchdev_work->work);
 
 	return NOTIFY_DONE;
+
+err_addr_alloc:
+	kfree(switchdev_work);
+	return NOTIFY_BAD;
 }
 
 static struct notifier_block mlxsw_sp_switchdev_notifier = {
