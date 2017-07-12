@@ -499,7 +499,7 @@ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 		dma_async_issue_pending(rs->dma_tx.ch);
 	}
 
-	return 0;
+	return 1;
 }
 
 static void rockchip_spi_config(struct rockchip_spi *rs)
