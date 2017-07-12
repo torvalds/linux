@@ -21,6 +21,7 @@
 DEFINE_MUTEX(kernfs_mutex);
 static DEFINE_SPINLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
 static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by rename_lock */
+static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
@@ -533,7 +534,9 @@ void kernfs_put(struct kernfs_node *kn)
 		simple_xattrs_free(&kn->iattr->xattrs);
 	}
 	kfree(kn->iattr);
-	ida_simple_remove(&root->ino_ida, kn->ino);
+	spin_lock(&kernfs_idr_lock);
+	idr_remove(&root->ino_idr, kn->ino);
+	spin_unlock(&kernfs_idr_lock);
 	kmem_cache_free(kernfs_node_cache, kn);
 
 	kn = parent;
@@ -542,7 +545,7 @@ void kernfs_put(struct kernfs_node *kn)
 			goto repeat;
 	} else {
 		/* just released the root kn, free @root too */
-		ida_destroy(&root->ino_ida);
+		idr_destroy(&root->ino_idr);
 		kfree(root);
 	}
 }
@@ -630,7 +633,11 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (!kn)
 		goto err_out1;
 
-	ret = ida_simple_get(&root->ino_ida, 1, 0, GFP_KERNEL);
+	idr_preload(GFP_KERNEL);
+	spin_lock(&kernfs_idr_lock);
+	ret = idr_alloc(&root->ino_idr, kn, 1, 0, GFP_ATOMIC);
+	spin_unlock(&kernfs_idr_lock);
+	idr_preload_end();
 	if (ret < 0)
 		goto err_out2;
 	kn->ino = ret;
@@ -875,13 +882,13 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	ida_init(&root->ino_ida);
+	idr_init(&root->ino_idr);
 	INIT_LIST_HEAD(&root->supers);
 
 	kn = __kernfs_new_node(root, "", S_IFDIR | S_IRUGO | S_IXUGO,
 			       KERNFS_DIR);
 	if (!kn) {
-		ida_destroy(&root->ino_ida);
+		idr_destroy(&root->ino_idr);
 		kfree(root);
 		return ERR_PTR(-ENOMEM);
 	}

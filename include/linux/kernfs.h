@@ -163,7 +163,7 @@ struct kernfs_root {
 	unsigned int		flags;	/* KERNFS_ROOT_* flags */
 
 	/* private fields, do not use outside kernfs proper */
-	struct ida		ino_ida;
+	struct idr		ino_idr;
 	struct kernfs_syscall_ops *syscall_ops;
 
 	/* list of kernfs_super_info of this root, protected by kernfs_mutex */
