@@ -1266,11 +1266,11 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
 void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
 					  struct drm_atomic_state *old_state)
 {
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *unused;
 	struct drm_crtc *crtc;
 	int i;
 
-	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
+	for_each_crtc_in_state(old_state, crtc, unused, i) {
 		struct drm_crtc_commit *commit = old_state->crtcs[i].commit;
 		int ret;
 
