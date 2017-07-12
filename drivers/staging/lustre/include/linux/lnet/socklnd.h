@@ -76,7 +76,8 @@ struct ksock_msg {
 	__u64	ksm_zc_cookies[2];	/* Zero-Copy request/ACK cookie */
 	union {
 		struct ksock_lnet_msg lnetmsg; /* lnet message, it's empty if
-					  * it's NOOP */
+						* it's NOOP
+						*/
 	} WIRE_ATTR ksm_u;
 } WIRE_ATTR;
 
