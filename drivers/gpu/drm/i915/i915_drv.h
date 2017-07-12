@@ -1392,6 +1392,12 @@ struct i915_power_well {
 		struct {
 			enum dpio_phy phy;
 		} bxt;
+		struct {
+			/* Mask of pipes whose IRQ logic is backed by the pw */
+			u8 irq_pipe_mask;
+			/* The pw is backing the VGA functionality */
+			bool has_vga:1;
+		} hsw;
 	};
 	const struct i915_power_well_ops *ops;
 };

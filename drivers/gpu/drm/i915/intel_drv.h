@@ -1230,9 +1230,9 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
-				     unsigned int pipe_mask);
+				     u8 pipe_mask);
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
-				     unsigned int pipe_mask);
+				     u8 pipe_mask);
 void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
 void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);

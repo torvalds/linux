@@ -281,7 +281,8 @@ void intel_display_set_init_power(struct drm_i915_private *dev_priv,
  * to be enabled, and it will only be disabled if none of the registers is
  * requesting it to be enabled.
  */
-static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
+static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv,
+				       u8 irq_pipe_mask, bool has_vga)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
@@ -295,20 +296,21 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	 * sure vgacon can keep working normally without triggering interrupts
 	 * and error messages.
 	 */
-	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
-	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
-	vga_put(pdev, VGA_RSRC_LEGACY_IO);
+	if (has_vga) {
+		vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
+		outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
+		vga_put(pdev, VGA_RSRC_LEGACY_IO);
+	}
 
-	if (IS_BROADWELL(dev_priv))
-		gen8_irq_power_well_post_enable(dev_priv,
-						1 << PIPE_C | 1 << PIPE_B);
+	if (irq_pipe_mask)
+		gen8_irq_power_well_post_enable(dev_priv, irq_pipe_mask);
 }
 
-static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv)
+static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv,
+				       u8 irq_pipe_mask)
 {
-	if (IS_BROADWELL(dev_priv))
-		gen8_irq_power_well_pre_disable(dev_priv,
-						1 << PIPE_C | 1 << PIPE_B);
+	if (irq_pipe_mask)
+		gen8_irq_power_well_pre_disable(dev_priv, irq_pipe_mask);
 }
 
 static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
@@ -413,7 +415,9 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 				    HSW_PWR_WELL_CTL_STATE(id),
 				    20))
 		DRM_ERROR("Timeout enabling power well\n");
-	hsw_power_well_post_enable(dev_priv);
+
+	hsw_power_well_post_enable(dev_priv, power_well->hsw.irq_pipe_mask,
+				   power_well->hsw.has_vga);
 }
 
 static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
@@ -422,7 +426,8 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	enum i915_power_well_id id = power_well->id;
 	u32 val;
 
-	hsw_power_well_pre_disable(dev_priv);
+	hsw_power_well_pre_disable(dev_priv, power_well->hsw.irq_pipe_mask);
+
 	val = I915_READ(HSW_PWR_WELL_DRIVER);
 	I915_WRITE(HSW_PWR_WELL_DRIVER, val & ~HSW_PWR_WELL_CTL_REQ(id));
 	POSTING_READ(HSW_PWR_WELL_DRIVER);
@@ -2057,6 +2062,7 @@ static struct i915_power_well hsw_power_wells[] = {
 		.domains = HSW_DISPLAY_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = HSW_DISP_PW_GLOBAL,
+		.hsw.has_vga = true,
 	},
 };
 
@@ -2073,6 +2079,8 @@ static struct i915_power_well bdw_power_wells[] = {
 		.domains = BDW_DISPLAY_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = HSW_DISP_PW_GLOBAL,
+		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+		.hsw.has_vga = true,
 	},
 };
 

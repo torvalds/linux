@@ -3038,7 +3038,7 @@ static void gen8_irq_reset(struct drm_device *dev)
 }
 
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
-				     unsigned int pipe_mask)
+				     u8 pipe_mask)
 {
 	uint32_t extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
 	enum pipe pipe;
@@ -3052,7 +3052,7 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 }
 
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
-				     unsigned int pipe_mask)
+				     u8 pipe_mask)
 {
 	enum pipe pipe;
 
