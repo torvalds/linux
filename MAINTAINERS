@@ -1139,6 +1139,18 @@ F:	arch/arm/mach-aspeed/
 F:	arch/arm/boot/dts/aspeed-*
 F:	drivers/*/*aspeed*
 
+ARM/ASPEED I2C DRIVER
+M:	Brendan Higgins <brendanhiggins@google.com>
+R:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
+R:	Joel Stanley <joel@jms.id.au>
+L:	linux-i2c@vger.kernel.org
+L:	openbmc@lists.ozlabs.org
+S:	Maintained
+F:	drivers/irqchip/irq-aspeed-i2c-ic.c
+F:	drivers/i2c/busses/i2c-aspeed.c
+F:	Documentation/devicetree/bindings/interrupt-controller/aspeed,ast2400-i2c-ic.txt
+F:	Documentation/devicetree/bindings/i2c/i2c-aspeed.txt
+
 ARM/ATMEL AT91RM9200, AT91SAM9 AND SAMA5 SOC SUPPORT
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 M:	Alexandre Belloni <alexandre.belloni@free-electrons.com>
@@ -6382,6 +6394,7 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-i2c@vger.kernel.org
 L:	linux-acpi@vger.kernel.org
 S:	Maintained
+F:	drivers/i2c/i2c-core-acpi.c
 
 I2C-TAOS-EVM DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
