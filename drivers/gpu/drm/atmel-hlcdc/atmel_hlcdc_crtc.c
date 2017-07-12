@@ -237,7 +237,7 @@ static int atmel_hlcdc_crtc_select_output_mode(struct drm_crtc_state *state)
 
 	crtc = drm_crtc_to_atmel_hlcdc_crtc(state->crtc);
 
-	for_each_connector_in_state(state->state, connector, cstate, i) {
+	for_each_new_connector_in_state(state->state, connector, cstate, i) {
 		struct drm_display_info *info = &connector->display_info;
 		unsigned int supported_fmts = 0;
 		int j;
