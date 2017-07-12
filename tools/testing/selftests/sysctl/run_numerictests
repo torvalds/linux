@@ -1,7 +1,7 @@
 #!/bin/sh
 
-SYSCTL="/proc/sys"
-TARGET="${SYSCTL}/vm/swappiness"
+SYSCTL="/proc/sys/debug/test_sysctl/"
+TARGET="${SYSCTL}/int_0001"
 ORIG=$(cat "${TARGET}")
 TEST_STR=$(( $ORIG + 1 ))
 

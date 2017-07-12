@@ -1785,6 +1785,17 @@ config TEST_FIRMWARE
 
 	  If unsure, say N.
 
+config TEST_SYSCTL
+	tristate "sysctl test driver"
+	default n
+	depends on PROC_SYSCTL
+	help
+	  This builds the "test_sysctl" module. This driver enables to test the
+	  proc sysctl interfaces available to drivers safely without affecting
+	  production knobs which might alter system functionality.
+
+	  If unsure, say N.
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	default n

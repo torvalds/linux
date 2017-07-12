@@ -1,7 +1,7 @@
 #!/bin/sh
 
-SYSCTL="/proc/sys"
-TARGET="${SYSCTL}/kernel/domainname"
+SYSCTL="/proc/sys/debug/test_sysctl/"
+TARGET="${SYSCTL}/string_0001"
 ORIG=$(cat "${TARGET}")
 TEST_STR="Testing sysctl"
 
