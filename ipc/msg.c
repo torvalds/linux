@@ -95,29 +95,13 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
 	ipc_rmid(&msg_ids(ns), &s->q_perm);
 }
 
-static void __msg_free(struct msg_queue *msq)
-{
-	kvfree(msq);
-}
-
 static void msg_rcu_free(struct rcu_head *head)
 {
 	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
 	struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
 
 	security_msg_queue_free(msq);
-	__msg_free(msq);
-}
-
-static struct msg_queue *msg_alloc(void)
-{
-	struct msg_queue *msq;
-
-	msq = kvmalloc(sizeof(*msq), GFP_KERNEL);
-	if (unlikely(!msq))
-		return NULL;
-
-	return msq;
+	kvfree(msq);
 }
 
 /**
@@ -134,8 +118,8 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	key_t key = params->key;
 	int msgflg = params->flg;
 
-	msq = msg_alloc();
-	if (!msq)
+	msq = kvmalloc(sizeof(*msq), GFP_KERNEL);
+	if (unlikely(!msq))
 		return -ENOMEM;
 
 	msq->q_perm.mode = msgflg & S_IRWXUGO;
@@ -144,7 +128,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_perm.security = NULL;
 	retval = security_msg_queue_alloc(msq);
 	if (retval) {
-		__msg_free(msq);
+		kvfree(msq);
 		return retval;
 	}
 
