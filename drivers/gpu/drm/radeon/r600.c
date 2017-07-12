@@ -3945,7 +3945,7 @@ static void r600_irq_ack(struct radeon_device *rdev)
 			WREG32(DC_HPD5_INT_CONTROL, tmp);
 		}
 		if (rdev->irq.stat_regs.r600.disp_int_cont2 & DC_HPD6_INTERRUPT) {
-			tmp = RREG32(DC_HPD5_INT_CONTROL);
+			tmp = RREG32(DC_HPD6_INT_CONTROL);
 			tmp |= DC_HPDx_INT_ACK;
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
 		}

@@ -174,19 +174,6 @@ int check_caller_access_to_name(struct inode *parent_node, const struct qstr *na
 	return 1;
 }
 
-/* This function is used when file opening. The open flags must be
- * checked before calling check_caller_access_to_name()
- */
-int open_flags_to_access_mode(int open_flags)
-{
-	if ((open_flags & O_ACCMODE) == O_RDONLY)
-		return 0; /* R_OK */
-	if ((open_flags & O_ACCMODE) == O_WRONLY)
-		return 1; /* W_OK */
-	/* Probably O_RDRW, but treat as default to be safe */
-		return 1; /* R_OK | W_OK */
-}
-
 static struct hashtable_entry *alloc_hashtable_entry(const struct qstr *key,
 		appid_t value)
 {

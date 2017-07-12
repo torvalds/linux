@@ -108,16 +108,14 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					   (int)sfe->namelen,
 					   (int)sfe->valuelen,
 					   &sfe->nameval[sfe->namelen]);
-
+			if (error)
+				return error;
 			/*
 			 * Either search callback finished early or
 			 * didn't fit it all in the buffer after all.
 			 */
 			if (context->seen_enough)
 				break;
-
-			if (error)
-				return error;
 			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
 		}
 		trace_xfs_attr_list_sf_all(context);
@@ -581,7 +579,7 @@ xfs_attr_put_listent(
 		trace_xfs_attr_list_full(context);
 		alist->al_more = 1;
 		context->seen_enough = 1;
-		return 1;
+		return 0;
 	}
 
 	aep = (attrlist_ent_t *)&context->alist[context->firstu];
