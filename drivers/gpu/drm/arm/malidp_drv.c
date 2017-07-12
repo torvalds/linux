@@ -225,7 +225,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		malidp_atomic_commit_update_gamma(crtc, old_crtc_state);
 		malidp_atomic_commit_update_coloradj(crtc, old_crtc_state);
 		malidp_atomic_commit_se_config(crtc, old_crtc_state);
