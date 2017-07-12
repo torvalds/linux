@@ -187,6 +187,7 @@ static void pnfs_generic_retry_commit(struct nfs_commit_info *cinfo, int idx)
 	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
 	struct pnfs_commit_bucket *bucket;
 	struct pnfs_layout_segment *freeme;
+	struct list_head *pos;
 	LIST_HEAD(pages);
 	int i;
 
@@ -197,6 +198,8 @@ static void pnfs_generic_retry_commit(struct nfs_commit_info *cinfo, int idx)
 			continue;
 		freeme = bucket->clseg;
 		bucket->clseg = NULL;
+		list_for_each(pos, &bucket->committing)
+			cinfo->ds->ncommitting--;
 		list_splice_init(&bucket->committing, &pages);
 		spin_unlock(&cinfo->inode->i_lock);
 		nfs_retry_commit(&pages, freeme, cinfo, i);
@@ -247,9 +250,12 @@ void pnfs_fetch_commit_bucket_list(struct list_head *pages,
 		struct nfs_commit_info *cinfo)
 {
 	struct pnfs_commit_bucket *bucket;
+	struct list_head *pos;
 
 	bucket = &cinfo->ds->buckets[data->ds_commit_index];
 	spin_lock(&cinfo->inode->i_lock);
+	list_for_each(pos, &bucket->committing)
+		cinfo->ds->ncommitting--;
 	list_splice_init(&bucket->committing, pages);
 	data->lseg = bucket->clseg;
 	bucket->clseg = NULL;
@@ -334,7 +340,6 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		}
 	}
 out:
-	cinfo->ds->ncommitting = 0;
 	return PNFS_ATTEMPTED;
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_commit_pagelist);
