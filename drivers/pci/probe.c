@@ -1745,21 +1745,50 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	 */
 }
 
-static void pci_configure_extended_tags(struct pci_dev *dev)
+int pci_configure_extended_tags(struct pci_dev *dev, void *ign)
 {
-	u32 dev_cap;
+	struct pci_host_bridge *host;
+	u32 cap;
+	u16 ctl;
 	int ret;
 
 	if (!pci_is_pcie(dev))
-		return;
+		return 0;
 
-	ret = pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &dev_cap);
+	ret = pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &cap);
 	if (ret)
-		return;
+		return 0;
 
-	if (dev_cap & PCI_EXP_DEVCAP_EXT_TAG)
+	if (!(cap & PCI_EXP_DEVCAP_EXT_TAG))
+		return 0;
+
+	ret = pcie_capability_read_word(dev, PCI_EXP_DEVCTL, &ctl);
+	if (ret)
+		return 0;
+
+	host = pci_find_host_bridge(dev->bus);
+	if (!host)
+		return 0;
+
+	/*
+	 * If some device in the hierarchy doesn't handle Extended Tags
+	 * correctly, make sure they're disabled.
+	 */
+	if (host->no_ext_tags) {
+		if (ctl & PCI_EXP_DEVCTL_EXT_TAG) {
+			dev_info(&dev->dev, "disabling Extended Tags\n");
+			pcie_capability_clear_word(dev, PCI_EXP_DEVCTL,
+						   PCI_EXP_DEVCTL_EXT_TAG);
+		}
+		return 0;
+	}
+
+	if (!(ctl & PCI_EXP_DEVCTL_EXT_TAG)) {
+		dev_info(&dev->dev, "enabling Extended Tags\n");
 		pcie_capability_set_word(dev, PCI_EXP_DEVCTL,
 					 PCI_EXP_DEVCTL_EXT_TAG);
+	}
+	return 0;
 }
 
 static void pci_configure_device(struct pci_dev *dev)
@@ -1768,7 +1797,7 @@ static void pci_configure_device(struct pci_dev *dev)
 	int ret;
 
 	pci_configure_mps(dev);
-	pci_configure_extended_tags(dev);
+	pci_configure_extended_tags(dev, NULL);
 
 	memset(&hpp, 0, sizeof(hpp));
 	ret = pci_get_hp_params(dev, &hpp);
