@@ -1288,13 +1288,16 @@ static void prepare_write_message(struct ceph_connection *con)
 		m->hdr.seq = cpu_to_le64(++con->out_seq);
 		m->needs_out_seq = false;
 	}
-	WARN_ON(m->data_length != le32_to_cpu(m->hdr.data_len));
+
+	if (con->ops->reencode_message)
+		con->ops->reencode_message(m);
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%zd\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
 	     le32_to_cpu(m->hdr.front_len), le32_to_cpu(m->hdr.middle_len),
 	     m->data_length);
-	BUG_ON(le32_to_cpu(m->hdr.front_len) != m->front.iov_len);
+	WARN_ON(m->front.iov_len != le32_to_cpu(m->hdr.front_len));
+	WARN_ON(m->data_length != le32_to_cpu(m->hdr.data_len));
 
 	/* tag + hdr + front + middle */
 	con_out_kvec_add(con, sizeof (tag_msg), &tag_msg);
@@ -2033,8 +2036,7 @@ static int process_connect(struct ceph_connection *con)
 {
 	u64 sup_feat = from_msgr(con->msgr)->supported_features;
 	u64 req_feat = from_msgr(con->msgr)->required_features;
-	u64 server_feat = ceph_sanitize_features(
-				le64_to_cpu(con->in_reply.features));
+	u64 server_feat = le64_to_cpu(con->in_reply.features);
 	int ret;
 
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
