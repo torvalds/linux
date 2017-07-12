@@ -543,9 +543,9 @@ static void i40evf_irq_affinity_release(struct kref *ref) {}
 static int
 i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 {
-	int vector, err, q_vectors;
-	int rx_int_idx = 0, tx_int_idx = 0;
-	int irq_num;
+	unsigned int vector, q_vectors;
+	unsigned int rx_int_idx = 0, tx_int_idx = 0;
+	int irq_num, err;
 
 	i40evf_irq_disable(adapter);
 	/* Decrement for Other and TCP Timer vectors */
@@ -556,18 +556,15 @@ i40evf_request_traffic_irqs(struct i40evf_adapter *adapter, char *basename)
 		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
 
 		if (q_vector->tx.ring && q_vector->rx.ring) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "i40evf-%s-%s-%d", basename,
-				 "TxRx", rx_int_idx++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "i40evf-%s-TxRx-%d", basename, rx_int_idx++);
 			tx_int_idx++;
 		} else if (q_vector->rx.ring) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "i40evf-%s-%s-%d", basename,
-				 "rx", rx_int_idx++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "i40evf-%s-rx-%d", basename, rx_int_idx++);
 		} else if (q_vector->tx.ring) {
-			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
-				 "i40evf-%s-%s-%d", basename,
-				 "tx", tx_int_idx++);
+			snprintf(q_vector->name, sizeof(q_vector->name),
+				 "i40evf-%s-tx-%d", basename, tx_int_idx++);
 		} else {
 			/* skip this unused q_vector */
 			continue;

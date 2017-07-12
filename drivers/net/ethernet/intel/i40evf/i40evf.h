@@ -121,7 +121,7 @@ struct i40e_q_vector {
 #define ITR_COUNTDOWN_START 100
 	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	int v_idx;	/* vector index in list */
-	char name[IFNAMSIZ + 9];
+	char name[IFNAMSIZ + 15];
 	bool arm_wb_state;
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
