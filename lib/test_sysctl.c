@@ -43,12 +43,16 @@ struct test_sysctl_data {
 	int int_0001;
 	int int_0002;
 
+	unsigned int uint_0001;
+
 	char string_0001[65];
 };
 
 static struct test_sysctl_data test_data = {
 	.int_0001 = 60,
 	.int_0002 = 1,
+
+	.uint_0001 = 314,
 
 	.string_0001 = "(none)",
 };
@@ -70,6 +74,13 @@ static struct ctl_table test_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "uint_0001",
+		.data		= &test_data.uint_0001,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec,
 	},
 	{
 		.procname	= "string_0001",

@@ -32,6 +32,7 @@ TEST_FILE=$(mktemp)
 ALL_TESTS="0001:1:1"
 ALL_TESTS="$ALL_TESTS 0002:1:1"
 ALL_TESTS="$ALL_TESTS 0003:1:1"
+ALL_TESTS="$ALL_TESTS 0004:1:1"
 
 test_modprobe()
 {
@@ -86,6 +87,9 @@ function check_production_sysctl_writes_strict()
 	if [ -z $INT_MAX ]; then
 		INT_MAX=$(getconf INT_MAX)
 	fi
+	if [ -z $UINT_MAX ]; then
+		UINT_MAX=$(getconf UINT_MAX)
+	fi
 }
 
 test_reqs()
@@ -128,6 +132,9 @@ reset_vals()
 			;;
 		int_0002)
 			VAL="1"
+			;;
+		uint_0001)
+			VAL="314"
 			;;
 		string_0001)
 			VAL="(none)"
@@ -345,6 +352,49 @@ run_limit_digit_int()
 	test_rc
 }
 
+# You are using an unsigned int
+run_limit_digit_uint()
+{
+	echo -n "Testing UINT_MAX works ..."
+	reset_vals
+	TEST_STR="$UINT_MAX"
+	echo -n $TEST_STR > $TARGET
+
+	if ! verify "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+
+	echo -n "Testing UINT_MAX + 1 will fail as expected..."
+	reset_vals
+	TEST_STR=$(($UINT_MAX+1))
+	echo -n $TEST_STR > $TARGET 2> /dev/null
+
+	if verify "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+
+	echo -n "Testing negative values will not work as expected ..."
+	reset_vals
+	TEST_STR="-3"
+	echo -n $TEST_STR > $TARGET 2> /dev/null
+
+	if verify "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+}
+
 run_stringtests()
 {
 	echo -n "Writing entire sysctl in short writes ... "
@@ -450,6 +500,18 @@ sysctl_test_0003()
 	run_limit_digit_int
 }
 
+sysctl_test_0004()
+{
+	TARGET="${SYSCTL}/uint_0001"
+	reset_vals
+	ORIG=$(cat "${TARGET}")
+	TEST_STR=$(( $ORIG + 1 ))
+
+	run_numerictests
+	run_limit_digit
+	run_limit_digit_uint
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -461,6 +523,7 @@ list_tests()
 	echo "0001 x $(get_test_count 0001) - tests proc_dointvec_minmax()"
 	echo "0002 x $(get_test_count 0002) - tests proc_dostring()"
 	echo "0003 x $(get_test_count 0003) - tests proc_dointvec()"
+	echo "0004 x $(get_test_count 0004) - tests proc_douintvec()"
 }
 
 test_reqs
