@@ -1077,6 +1077,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 	return epir;
 }
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
 static struct epitem *ep_find_tfd(struct eventpoll *ep, int tfd, unsigned long toff)
 {
 	struct rb_node *rbp;
@@ -1118,6 +1119,7 @@ struct file *get_epoll_tfile_raw_ptr(struct file *file, int tfd,
 
 	return file_raw;
 }
+#endif /* CONFIG_CHECKPOINT_RESTORE */
 
 /*
  * This is the callback that is passed to the wait queue wakeup
