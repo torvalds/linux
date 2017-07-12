@@ -159,10 +159,16 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
  */
 static int amdgpu_vm_validate_level(struct amdgpu_vm_pt *parent,
 				    int (*validate)(void *, struct amdgpu_bo *),
-				    void *param)
+				    void *param, bool use_cpu_for_update)
 {
 	unsigned i;
 	int r;
+
+	if (use_cpu_for_update) {
+		r = amdgpu_bo_kmap(parent->bo, NULL);
+		if (r)
+			return r;
+	}
 
 	if (!parent->entries)
 		return 0;
@@ -181,7 +187,8 @@ static int amdgpu_vm_validate_level(struct amdgpu_vm_pt *parent,
 		 * Recurse into the sub directory. This is harmless because we
 		 * have only a maximum of 5 layers.
 		 */
-		r = amdgpu_vm_validate_level(entry, validate, param);
+		r = amdgpu_vm_validate_level(entry, validate, param,
+					     use_cpu_for_update);
 		if (r)
 			return r;
 	}
@@ -212,7 +219,8 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (num_evictions == vm->last_eviction_counter)
 		return 0;
 
-	return amdgpu_vm_validate_level(&vm->root, validate, param);
+	return amdgpu_vm_validate_level(&vm->root, validate, param,
+					vm->use_cpu_for_update);
 }
 
 /**
@@ -328,6 +336,14 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 					     NULL, resv, &pt);
 			if (r)
 				return r;
+
+			if (vm->use_cpu_for_update) {
+				r = amdgpu_bo_kmap(pt, NULL);
+				if (r) {
+					amdgpu_bo_unref(&pt);
+					return r;
+				}
+			}
 
 			/* Keep a reference to the root directory to avoid
 			* freeing them up in the wrong order.
@@ -1043,14 +1059,11 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 	shadow = parent->bo->shadow;
 
 	if (vm->use_cpu_for_update) {
-		r = amdgpu_bo_kmap(parent->bo, (void **)&pd_addr);
-		if (r)
-			return r;
+		pd_addr = (unsigned long)parent->bo->kptr;
 		r = amdgpu_vm_wait_pd(adev, vm, AMDGPU_FENCE_OWNER_VM);
-		if (unlikely(r)) {
-			amdgpu_bo_kunmap(parent->bo);
+		if (unlikely(r))
 			return r;
-		}
+
 		params.func = amdgpu_vm_cpu_set_ptes;
 	} else {
 		if (shadow) {
@@ -1145,28 +1158,29 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 			    count, incr, AMDGPU_PTE_VALID);
 	}
 
-	if (params.func == amdgpu_vm_cpu_set_ptes)
-		amdgpu_bo_kunmap(parent->bo);
-	else if (params.ib->length_dw == 0) {
-		amdgpu_job_free(job);
-	} else {
-		amdgpu_ring_pad_ib(ring, params.ib);
-		amdgpu_sync_resv(adev, &job->sync, parent->bo->tbo.resv,
-				 AMDGPU_FENCE_OWNER_VM);
-		if (shadow)
-			amdgpu_sync_resv(adev, &job->sync, shadow->tbo.resv,
+	if (!vm->use_cpu_for_update) {
+		if (params.ib->length_dw == 0) {
+			amdgpu_job_free(job);
+		} else {
+			amdgpu_ring_pad_ib(ring, params.ib);
+			amdgpu_sync_resv(adev, &job->sync, parent->bo->tbo.resv,
 					 AMDGPU_FENCE_OWNER_VM);
+			if (shadow)
+				amdgpu_sync_resv(adev, &job->sync,
+						 shadow->tbo.resv,
+						 AMDGPU_FENCE_OWNER_VM);
 
-		WARN_ON(params.ib->length_dw > ndw);
-		r = amdgpu_job_submit(job, ring, &vm->entity,
-				AMDGPU_FENCE_OWNER_VM, &fence);
-		if (r)
-			goto error_free;
+			WARN_ON(params.ib->length_dw > ndw);
+			r = amdgpu_job_submit(job, ring, &vm->entity,
+					AMDGPU_FENCE_OWNER_VM, &fence);
+			if (r)
+				goto error_free;
 
-		amdgpu_bo_fence(parent->bo, fence, true);
-		dma_fence_put(vm->last_dir_update);
-		vm->last_dir_update = dma_fence_get(fence);
-		dma_fence_put(fence);
+			amdgpu_bo_fence(parent->bo, fence, true);
+			dma_fence_put(vm->last_dir_update);
+			vm->last_dir_update = dma_fence_get(fence);
+			dma_fence_put(fence);
+		}
 	}
 	/*
 	 * Recurse into the subdirectories. This recursion is harmless because
@@ -1292,7 +1306,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	uint64_t addr, pe_start;
 	struct amdgpu_bo *pt;
 	unsigned nptes;
-	int r;
 	bool use_cpu_update = (params->func == amdgpu_vm_cpu_set_ptes);
 
 
@@ -1310,9 +1323,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
 
 		if (use_cpu_update) {
-			r = amdgpu_bo_kmap(pt, (void *)&pe_start);
-			if (r)
-				return r;
+			pe_start = (unsigned long)pt->kptr;
 		} else {
 			if (pt->shadow) {
 				pe_start = amdgpu_bo_gpu_offset(pt->shadow);
@@ -1328,9 +1339,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			     AMDGPU_GPU_PAGE_SIZE, flags);
 
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
-
-		if (use_cpu_update)
-			amdgpu_bo_kunmap(pt);
 	}
 
 	return 0;
@@ -2458,6 +2466,13 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		goto error_free_root;
 
 	vm->last_eviction_counter = atomic64_read(&adev->num_evictions);
+
+	if (vm->use_cpu_for_update) {
+		r = amdgpu_bo_kmap(vm->root.bo, NULL);
+		if (r)
+			goto error_free_root;
+	}
+
 	amdgpu_bo_unreserve(vm->root.bo);
 
 	return 0;
