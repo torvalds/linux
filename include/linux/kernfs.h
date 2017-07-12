@@ -69,6 +69,12 @@ enum kernfs_root_flag {
 	 * following flag enables that behavior.
 	 */
 	KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK	= 0x0002,
+
+	/*
+	 * The filesystem supports exportfs operation, so userspace can use
+	 * fhandle to access nodes of the fs.
+	 */
+	KERNFS_ROOT_SUPPORT_EXPORTOP		= 0x0004,
 };
 
 /* type-specific structures for kernfs_node union members */
@@ -98,6 +104,12 @@ struct kernfs_elem_attr {
 /* represent a kernfs node */
 union kernfs_node_id {
 	struct {
+		/*
+		 * blktrace will export this struct as a simplified 'struct
+		 * fid' (which is a big data struction), so userspace can use
+		 * it to find kernfs node. The layout must match the first two
+		 * fields of 'struct fid' exactly.
+		 */
 		u32		ino;
 		u32		generation;
 	};

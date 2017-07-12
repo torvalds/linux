@@ -16,6 +16,7 @@
 #include <linux/pagemap.h>
 #include <linux/namei.h>
 #include <linux/seq_file.h>
+#include <linux/exportfs.h>
 
 #include "kernfs-internal.h"
 
@@ -62,6 +63,59 @@ const struct super_operations kernfs_sops = {
 	.remount_fs	= kernfs_sop_remount_fs,
 	.show_options	= kernfs_sop_show_options,
 	.show_path	= kernfs_sop_show_path,
+};
+
+static struct inode *kernfs_fh_get_inode(struct super_block *sb,
+		u64 ino, u32 generation)
+{
+	struct kernfs_super_info *info = kernfs_info(sb);
+	struct inode *inode;
+	struct kernfs_node *kn;
+
+	if (ino == 0)
+		return ERR_PTR(-ESTALE);
+
+	kn = kernfs_find_and_get_node_by_ino(info->root, ino);
+	if (!kn)
+		return ERR_PTR(-ESTALE);
+	inode = kernfs_get_inode(sb, kn);
+	kernfs_put(kn);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	if (generation && inode->i_generation != generation) {
+		/* we didn't find the right inode.. */
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+	return inode;
+}
+
+static struct dentry *kernfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
+		int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    kernfs_fh_get_inode);
+}
+
+static struct dentry *kernfs_fh_to_parent(struct super_block *sb, struct fid *fid,
+		int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    kernfs_fh_get_inode);
+}
+
+static struct dentry *kernfs_get_parent_dentry(struct dentry *child)
+{
+	struct kernfs_node *kn = kernfs_dentry_node(child);
+
+	return d_obtain_alias(kernfs_get_inode(child->d_sb, kn->parent));
+}
+
+static const struct export_operations kernfs_export_ops = {
+	.fh_to_dentry	= kernfs_fh_to_dentry,
+	.fh_to_parent	= kernfs_fh_to_parent,
+	.get_parent	= kernfs_get_parent_dentry,
 };
 
 /**
@@ -159,6 +213,8 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 	sb->s_magic = magic;
 	sb->s_op = &kernfs_sops;
 	sb->s_xattr = kernfs_xattr_handlers;
+	if (info->root->flags & KERNFS_ROOT_SUPPORT_EXPORTOP)
+		sb->s_export_op = &kernfs_export_ops;
 	sb->s_time_gran = 1;
 
 	/* get root inode, initialize and unlock it */
