@@ -977,7 +977,6 @@ EXPORT_SYMBOL_GPL(__find_linux_pte_or_hugepte);
 int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
-	unsigned long mask;
 	unsigned long pte_end;
 	struct page *head, *page;
 	pte_t pte;
@@ -988,18 +987,10 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 		end = pte_end;
 
 	pte = READ_ONCE(*ptep);
-	mask = _PAGE_PRESENT | _PAGE_READ;
 
-	/*
-	 * On some CPUs like the 8xx, _PAGE_RW hence _PAGE_WRITE is defined
-	 * as 0 and _PAGE_RO has to be set when a page is not writable
-	 */
-	if (write)
-		mask |= _PAGE_WRITE;
-	else
-		mask |= _PAGE_RO;
-
-	if ((pte_val(pte) & mask) != mask)
+	if (!pte_present(pte) || !pte_read(pte))
+		return 0;
+	if (write && !pte_write(pte))
 		return 0;
 
 	/* hugepages are never "special" */

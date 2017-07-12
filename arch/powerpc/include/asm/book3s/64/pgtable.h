@@ -410,6 +410,11 @@ static inline int pte_write(pte_t pte)
 	return __pte_write(pte) || pte_savedwrite(pte);
 }
 
+static inline int pte_read(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_READ));
+}
+
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
