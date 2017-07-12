@@ -116,7 +116,6 @@ enum ds_type {
 
 struct ds1307 {
 	u8			regs[11];
-	u16			nvram_offset;
 	struct nvmem_config	nvmem_cfg;
 	enum ds_type		type;
 	unsigned long		flags;
@@ -918,8 +917,9 @@ static int ds1307_nvram_read(void *priv, unsigned int offset, void *val,
 			     size_t bytes)
 {
 	struct ds1307 *ds1307 = priv;
+	const struct chip_desc *chip = &chips[ds1307->type];
 
-	return regmap_bulk_read(ds1307->regmap, ds1307->nvram_offset + offset,
+	return regmap_bulk_read(ds1307->regmap, chip->nvram_offset + offset,
 				val, bytes);
 }
 
@@ -927,8 +927,9 @@ static int ds1307_nvram_write(void *priv, unsigned int offset, void *val,
 			      size_t bytes)
 {
 	struct ds1307 *ds1307 = priv;
+	const struct chip_desc *chip = &chips[ds1307->type];
 
-	return regmap_bulk_write(ds1307->regmap, ds1307->nvram_offset + offset,
+	return regmap_bulk_write(ds1307->regmap, chip->nvram_offset + offset,
 				 val, bytes);
 }
 
@@ -1673,7 +1674,6 @@ read_rtc:
 		ds1307->nvmem_cfg.reg_read = ds1307_nvram_read;
 		ds1307->nvmem_cfg.reg_write = ds1307_nvram_write;
 		ds1307->nvmem_cfg.priv = ds1307;
-		ds1307->nvram_offset = chip->nvram_offset;
 
 		ds1307->rtc->nvmem_config = &ds1307->nvmem_cfg;
 		ds1307->rtc->nvram_old_abi = true;
