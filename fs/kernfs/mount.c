@@ -330,7 +330,16 @@ struct super_block *kernfs_pin_sb(struct kernfs_root *root, const void *ns)
 
 void __init kernfs_init(void)
 {
+
+	/*
+	 * the slab is freed in RCU context, so kernfs_find_and_get_node_by_ino
+	 * can access the slab lock free. This could introduce stale nodes,
+	 * please see how kernfs_find_and_get_node_by_ino filters out stale
+	 * nodes.
+	 */
 	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
 					      sizeof(struct kernfs_node),
-					      0, SLAB_PANIC, NULL);
+					      0,
+					      SLAB_PANIC | SLAB_TYPESAFE_BY_RCU,
+					      NULL);
 }
