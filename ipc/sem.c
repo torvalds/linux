@@ -1368,7 +1368,8 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 			}
 			sem_unlock(sma, -1);
 			rcu_read_unlock();
-			sem_io = ipc_alloc(sizeof(ushort)*nsems);
+			sem_io = kvmalloc_array(nsems, sizeof(ushort),
+						GFP_KERNEL);
 			if (sem_io == NULL) {
 				ipc_rcu_putref(&sma->sem_perm, sem_rcu_free);
 				return -ENOMEM;
@@ -1402,7 +1403,8 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		rcu_read_unlock();
 
 		if (nsems > SEMMSL_FAST) {
-			sem_io = ipc_alloc(sizeof(ushort)*nsems);
+			sem_io = kvmalloc_array(nsems, sizeof(ushort),
+						GFP_KERNEL);
 			if (sem_io == NULL) {
 				ipc_rcu_putref(&sma->sem_perm, sem_rcu_free);
 				return -ENOMEM;
@@ -1480,7 +1482,7 @@ out_rcu_wakeup:
 	wake_up_q(&wake_q);
 out_free:
 	if (sem_io != fast_sem_io)
-		ipc_free(sem_io);
+		kvfree(sem_io);
 	return err;
 }
 

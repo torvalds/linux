@@ -107,12 +107,6 @@ void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
 /* must be called with ipcp locked */
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
 
-/* for rare, potentially huge allocations.
- * both function can sleep
- */
-void *ipc_alloc(int size);
-void ipc_free(void *ptr);
-
 /*
  * For allocation that need to be freed by RCU.
  * Objects are reference counted, they start with reference count 1.
