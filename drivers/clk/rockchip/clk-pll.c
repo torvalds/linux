@@ -1049,6 +1049,9 @@ static unsigned long rockchip_rk3399_pll_recalc_rate(struct clk_hw *hw,
 	struct rockchip_pll_rate_table cur;
 	u64 rate64 = prate;
 
+	if (pll->sel && pll->scaling)
+		return pll->scaling;
+
 	rockchip_rk3399_pll_get_params(pll, &cur);
 
 	rate64 *= cur.fbdiv;
@@ -1145,6 +1148,7 @@ static int rockchip_rk3399_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
 	const struct rockchip_pll_rate_table *rate;
 	unsigned long old_rate = rockchip_rk3399_pll_recalc_rate(hw, prate);
+	int ret;
 
 	pr_debug("%s: changing %s from %lu to %lu with a parent rate of %lu\n",
 		 __func__, __clk_get_name(hw->clk), old_rate, drate, prate);
@@ -1157,7 +1161,11 @@ static int rockchip_rk3399_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 		return -EINVAL;
 	}
 
-	return rockchip_rk3399_pll_set_params(pll, rate);
+	ret = rockchip_rk3399_pll_set_params(pll, rate);
+	if (ret)
+		pll->scaling = 0;
+
+	return ret;
 }
 
 static int rockchip_rk3399_pll_enable(struct clk_hw *hw)
