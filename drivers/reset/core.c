@@ -280,9 +280,6 @@ int reset_control_assert(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_assert(rstc_to_array(rstc));
 
-	if (!rstc->rcdev->ops->assert)
-		return -ENOTSUPP;
-
 	if (rstc->shared) {
 		if (WARN_ON(atomic_read(&rstc->triggered_count) != 0))
 			return -EINVAL;
@@ -292,6 +289,21 @@ int reset_control_assert(struct reset_control *rstc)
 
 		if (atomic_dec_return(&rstc->deassert_count) != 0)
 			return 0;
+
+		/*
+		 * Shared reset controls allow the reset line to be in any state
+		 * after this call, so doing nothing is a valid option.
+		 */
+		if (!rstc->rcdev->ops->assert)
+			return 0;
+	} else {
+		/*
+		 * If the reset controller does not implement .assert(), there
+		 * is no way to guarantee that the reset line is asserted after
+		 * this call.
+		 */
+		if (!rstc->rcdev->ops->assert)
+			return -ENOTSUPP;
 	}
 
 	return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
@@ -321,9 +333,6 @@ int reset_control_deassert(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_deassert(rstc_to_array(rstc));
 
-	if (!rstc->rcdev->ops->deassert)
-		return -ENOTSUPP;
-
 	if (rstc->shared) {
 		if (WARN_ON(atomic_read(&rstc->triggered_count) != 0))
 			return -EINVAL;
@@ -331,6 +340,16 @@ int reset_control_deassert(struct reset_control *rstc)
 		if (atomic_inc_return(&rstc->deassert_count) != 1)
 			return 0;
 	}
+
+	/*
+	 * If the reset controller does not implement .deassert(), we assume
+	 * that it handles self-deasserting reset lines via .reset(). In that
+	 * case, the reset lines are deasserted by default. If that is not the
+	 * case, the reset controller driver should implement .deassert() and
+	 * return -ENOTSUPP.
+	 */
+	if (!rstc->rcdev->ops->deassert)
+		return 0;
 
 	return rstc->rcdev->ops->deassert(rstc->rcdev, rstc->id);
 }
