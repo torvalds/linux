@@ -1661,7 +1661,8 @@ static void set_avi_info_frame(
 
 	/* C0, C1 : Colorimetry */
 	if (color_space == COLOR_SPACE_YCBCR709 ||
-			color_space == COLOR_SPACE_YCBCR709_LIMITED)
+			color_space == COLOR_SPACE_YCBCR709_LIMITED ||
+			color_space == COLOR_SPACE_2020_YCBCR)
 		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU709;
 	else if (color_space == COLOR_SPACE_YCBCR601 ||
 			color_space == COLOR_SPACE_YCBCR601_LIMITED)
