@@ -573,6 +573,10 @@ static void tgn10_lock(struct timing_generator *tg)
 			OTG_MASTER_UPDATE_LOCK_SEL, tg->inst);
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 1);
+
+	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+			UPDATE_LOCK_STATUS, 1,
+			1, 100);
 }
 
 static void tgn10_unlock(struct timing_generator *tg)

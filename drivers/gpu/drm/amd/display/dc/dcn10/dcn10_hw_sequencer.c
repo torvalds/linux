@@ -283,13 +283,11 @@ static void init_hw(struct core_dc *dc)
 				dc->res_pool->mpcc[i];
 		struct mpcc_cfg mpcc_cfg;
 
-		tg->funcs->lock(tg);
 		mpcc_cfg.opp_id = 0xf;
 		mpcc_cfg.top_dpp_id = 0xf;
 		mpcc_cfg.bot_mpcc_id = 0xf;
 		mpcc_cfg.top_of_tree = true;
 		mpcc->funcs->set(mpcc, &mpcc_cfg);
-		tg->funcs->unlock(tg);
 
 		tg->funcs->disable_vga(tg);
 		/* Blank controller using driver code instead of
