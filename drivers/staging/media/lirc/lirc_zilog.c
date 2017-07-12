@@ -1249,7 +1249,7 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		break;
 	case LIRC_GET_REC_MODE:
 		if (!(features & LIRC_CAN_REC_MASK))
-			return -ENOSYS;
+			return -ENOTTY;
 
 		result = put_user(LIRC_REC2MODE
 				  (features & LIRC_CAN_REC_MASK),
@@ -1257,21 +1257,21 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		break;
 	case LIRC_SET_REC_MODE:
 		if (!(features & LIRC_CAN_REC_MASK))
-			return -ENOSYS;
+			return -ENOTTY;
 
 		result = get_user(mode, uptr);
 		if (!result && !(LIRC_MODE2REC(mode) & features))
-			result = -EINVAL;
+			result = -ENOTTY;
 		break;
 	case LIRC_GET_SEND_MODE:
 		if (!(features & LIRC_CAN_SEND_MASK))
-			return -ENOSYS;
+			return -ENOTTY;
 
 		result = put_user(LIRC_MODE_PULSE, uptr);
 		break;
 	case LIRC_SET_SEND_MODE:
 		if (!(features & LIRC_CAN_SEND_MASK))
-			return -ENOSYS;
+			return -ENOTTY;
 
 		result = get_user(mode, uptr);
 		if (!result && mode != LIRC_MODE_PULSE)
