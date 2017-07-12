@@ -19,7 +19,7 @@
 				     CRASH_CORE_NOTE_NAME_BYTES +	\
 				     CRASH_CORE_NOTE_DESC_BYTES)
 
-#define VMCOREINFO_BYTES	   (4096)
+#define VMCOREINFO_BYTES	   PAGE_SIZE
 #define VMCOREINFO_NOTE_NAME	   "VMCOREINFO"
 #define VMCOREINFO_NOTE_NAME_BYTES ALIGN(sizeof(VMCOREINFO_NOTE_NAME), 4)
 #define VMCOREINFO_NOTE_SIZE	   ((CRASH_CORE_NOTE_HEAD_BYTES * 2) +	\
@@ -56,7 +56,7 @@ phys_addr_t paddr_vmcoreinfo_note(void);
 #define VMCOREINFO_CONFIG(name) \
 	vmcoreinfo_append_str("CONFIG_%s=y\n", #name)
 
-extern u32 vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
+extern u32 *vmcoreinfo_note;
 extern size_t vmcoreinfo_size;
 extern size_t vmcoreinfo_max_size;
 
