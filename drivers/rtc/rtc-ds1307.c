@@ -141,7 +141,6 @@ struct chip_desc {
 	u8			century_bit;
 	u8			bbsqi_bit;
 	u16			trickle_charger_reg;
-	u8			trickle_charger_setup;
 	u8			(*do_trickle_setup)(struct ds1307 *, uint32_t,
 						    bool);
 };
@@ -941,23 +940,23 @@ static u8 do_trickle_setup_ds1339(struct ds1307 *ds1307,
 	return setup;
 }
 
-static void ds1307_trickle_init(struct ds1307 *ds1307,
-				struct chip_desc *chip)
+static u8 ds1307_trickle_init(struct ds1307 *ds1307,
+			      struct chip_desc *chip)
 {
-	uint32_t ohms = 0;
+	uint32_t ohms;
 	bool diode = true;
 
 	if (!chip->do_trickle_setup)
-		goto out;
+		return 0;
+
 	if (device_property_read_u32(ds1307->dev, "trickle-resistor-ohms",
 				     &ohms))
-		goto out;
+		return 0;
+
 	if (device_property_read_bool(ds1307->dev, "trickle-diode-disable"))
 		diode = false;
-	chip->trickle_charger_setup = chip->do_trickle_setup(ds1307,
-							     ohms, diode);
-out:
-	return;
+
+	return chip->do_trickle_setup(ds1307, ohms, diode);
 }
 
 /*----------------------------------------------------------------------*/
@@ -1319,6 +1318,7 @@ static int ds1307_probe(struct i2c_client *client,
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct rtc_time		tm;
 	unsigned long		timestamp;
+	u8			trickle_charger_setup = 0;
 
 	irq_handler_t	irq_handler = ds1307_irq;
 
@@ -1359,18 +1359,17 @@ static int ds1307_probe(struct i2c_client *client,
 	}
 
 	if (!pdata)
-		ds1307_trickle_init(ds1307, chip);
+		trickle_charger_setup = ds1307_trickle_init(ds1307, chip);
 	else if (pdata->trickle_charger_setup)
-		chip->trickle_charger_setup = pdata->trickle_charger_setup;
+		trickle_charger_setup = pdata->trickle_charger_setup;
 
-	if (chip->trickle_charger_setup && chip->trickle_charger_reg) {
+	if (trickle_charger_setup && chip->trickle_charger_reg) {
+		trickle_charger_setup |= DS13XX_TRICKLE_CHARGER_MAGIC;
 		dev_dbg(ds1307->dev,
 			"writing trickle charger info 0x%x to 0x%x\n",
-		    DS13XX_TRICKLE_CHARGER_MAGIC | chip->trickle_charger_setup,
-		    chip->trickle_charger_reg);
+			trickle_charger_setup, chip->trickle_charger_reg);
 		regmap_write(ds1307->regmap, chip->trickle_charger_reg,
-		    DS13XX_TRICKLE_CHARGER_MAGIC |
-		    chip->trickle_charger_setup);
+			     trickle_charger_setup);
 	}
 
 	buf = ds1307->regs;
