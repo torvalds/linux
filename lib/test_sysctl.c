@@ -42,6 +42,7 @@ static int i_one_hundred = 100;
 struct test_sysctl_data {
 	int int_0001;
 	int int_0002;
+	int int_0003[4];
 
 	unsigned int uint_0001;
 
@@ -51,6 +52,11 @@ struct test_sysctl_data {
 static struct test_sysctl_data test_data = {
 	.int_0001 = 60,
 	.int_0002 = 1,
+
+	.int_0003[0] = 0,
+	.int_0003[1] = 1,
+	.int_0003[2] = 2,
+	.int_0003[3] = 3,
 
 	.uint_0001 = 314,
 
@@ -72,6 +78,13 @@ static struct ctl_table test_table[] = {
 		.procname	= "int_0002",
 		.data		= &test_data.int_0002,
 		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "int_0003",
+		.data		= &test_data.int_0003,
+		.maxlen		= sizeof(test_data.int_0003),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},

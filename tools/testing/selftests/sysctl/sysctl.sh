@@ -33,6 +33,7 @@ ALL_TESTS="0001:1:1"
 ALL_TESTS="$ALL_TESTS 0002:1:1"
 ALL_TESTS="$ALL_TESTS 0003:1:1"
 ALL_TESTS="$ALL_TESTS 0004:1:1"
+ALL_TESTS="$ALL_TESTS 0005:3:1"
 
 test_modprobe()
 {
@@ -108,6 +109,10 @@ test_reqs()
 		echo "$0: You need getconf installed"
 		exit 1
 	fi
+	if ! which diff 2> /dev/null > /dev/null; then
+		echo "$0: You need diff installed"
+		exit 1
+	fi
 }
 
 function load_req_mod()
@@ -165,6 +170,12 @@ verify()
 		return 1
 	fi
 	return 0
+}
+
+verify_diff_w()
+{
+	echo "$TEST_STR" | diff -q -w -u - $1
+	return $?
 }
 
 test_rc()
@@ -352,6 +363,74 @@ run_limit_digit_int()
 	test_rc
 }
 
+# You used an int array
+run_limit_digit_int_array()
+{
+	echo -n "Testing array works as expected ... "
+	TEST_STR="4 3 2 1"
+	echo -n $TEST_STR > $TARGET
+
+	if ! verify_diff_w "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+
+	echo -n "Testing skipping trailing array elements works ... "
+	# Do not reset_vals, carry on the values from the last test.
+	# If we only echo in two digits the last two are left intact
+	TEST_STR="100 101"
+	echo -n $TEST_STR > $TARGET
+	# After we echo in, to help diff we need to set on TEST_STR what
+	# we expect the result to be.
+	TEST_STR="100 101 2 1"
+
+	if ! verify_diff_w "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+
+	echo -n "Testing PAGE_SIZE limit on array works ... "
+	# Do not reset_vals, carry on the values from the last test.
+	# Even if you use an int array, you are still restricted to
+	# MAX_DIGITS, this is a known limitation. Test limit works.
+	LIMIT=$((MAX_DIGITS -1))
+	TEST_STR="9"
+	(perl -e 'print " " x '$LIMIT';'; echo "${TEST_STR}") | \
+		dd of="${TARGET}" 2>/dev/null
+
+	TEST_STR="9 101 2 1"
+	if ! verify_diff_w "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+
+	echo -n "Testing exceeding PAGE_SIZE limit fails as expected ... "
+	# Do not reset_vals, carry on the values from the last test.
+	# Now go over limit.
+	LIMIT=$((MAX_DIGITS))
+	TEST_STR="7"
+	(perl -e 'print " " x '$LIMIT';'; echo "${TEST_STR}") | \
+		dd of="${TARGET}" 2>/dev/null
+
+	TEST_STR="7 101 2 1"
+	if verify_diff_w "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+}
+
 # You are using an unsigned int
 run_limit_digit_uint()
 {
@@ -512,6 +591,15 @@ sysctl_test_0004()
 	run_limit_digit_uint
 }
 
+sysctl_test_0005()
+{
+	TARGET="${SYSCTL}/int_0003"
+	reset_vals
+	ORIG=$(cat "${TARGET}")
+
+	run_limit_digit_int_array
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -524,6 +612,7 @@ list_tests()
 	echo "0002 x $(get_test_count 0002) - tests proc_dostring()"
 	echo "0003 x $(get_test_count 0003) - tests proc_dointvec()"
 	echo "0004 x $(get_test_count 0004) - tests proc_douintvec()"
+	echo "0005 x $(get_test_count 0005) - tests proc_douintvec() array"
 }
 
 test_reqs
