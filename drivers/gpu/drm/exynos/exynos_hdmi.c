@@ -1501,8 +1501,6 @@ static void hdmi_disable(struct drm_encoder *encoder)
 	 */
 	cancel_delayed_work(&hdata->hotplug_work);
 	cec_notifier_set_phys_addr(hdata->notifier, CEC_PHYS_ADDR_INVALID);
-
-	hdmiphy_disable(hdata);
 }
 
 static const struct drm_encoder_helper_funcs exynos_hdmi_encoder_helper_funcs = {
