@@ -1013,8 +1013,7 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state, void *obj,
 	struct __drm_private_objs_state *arr;
 
 	for (i = 0; i < state->num_private_objs; i++)
-		if (obj == state->private_objs[i].obj &&
-		    state->private_objs[i].obj_state)
+		if (obj == state->private_objs[i].obj)
 			return state->private_objs[i].obj_state;
 
 	num_objs = state->num_private_objs + 1;
