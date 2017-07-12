@@ -979,7 +979,6 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	u16 pvid = mlxsw_sp_port_pvid_determine(mlxsw_sp_port, vid, is_pvid);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-	struct mlxsw_sp_bridge_vlan *bridge_vlan;
 	u16 old_pvid = mlxsw_sp_port->pvid;
 	int err;
 
@@ -999,8 +998,6 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_port_vlan_bridge_join(mlxsw_sp_port_vlan, bridge_port);
 	if (err)
 		goto err_port_vlan_bridge_join;
-
-	bridge_vlan = mlxsw_sp_bridge_vlan_find(bridge_port, vid);
 
 	return 0;
 
