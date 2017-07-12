@@ -154,7 +154,8 @@ static void trace_note_time(struct blk_trace *bt)
 	local_irq_restore(flags);
 }
 
-void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
+void __trace_note_message(struct blk_trace *bt, struct blkcg *blkcg,
+	const char *fmt, ...)
 {
 	int n;
 	va_list args;
@@ -178,7 +179,14 @@ void __trace_note_message(struct blk_trace *bt, const char *fmt, ...)
 	n = vscnprintf(buf, BLK_TN_MAX_MSG, fmt, args);
 	va_end(args);
 
+	if (!(blk_tracer_flags.val & TRACE_BLK_OPT_CGROUP))
+		blkcg = NULL;
+#ifdef CONFIG_BLK_CGROUP
+	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n,
+		blkcg ? cgroup_get_kernfs_id(blkcg->css.cgroup) : NULL);
+#else
 	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n, NULL);
+#endif
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(__trace_note_message);
@@ -375,7 +383,7 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 		return PTR_ERR(msg);
 
 	bt = filp->private_data;
-	__trace_note_message(bt, "%s", msg);
+	__trace_note_message(bt, NULL, "%s", msg);
 	kfree(msg);
 
 	return count;

@@ -656,20 +656,17 @@ static inline void cfqg_put(struct cfq_group *cfqg)
 }
 
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	do {			\
-	char __pbuf[128];						\
-									\
-	blkg_path(cfqg_to_blkg((cfqq)->cfqg), __pbuf, sizeof(__pbuf));	\
-	blk_add_trace_msg((cfqd)->queue, "cfq%d%c%c %s " fmt, (cfqq)->pid, \
+	blk_add_cgroup_trace_msg((cfqd)->queue,				\
+			cfqg_to_blkg((cfqq)->cfqg)->blkcg,		\
+			"cfq%d%c%c " fmt, (cfqq)->pid,			\
 			cfq_cfqq_sync((cfqq)) ? 'S' : 'A',		\
 			cfqq_type((cfqq)) == SYNC_NOIDLE_WORKLOAD ? 'N' : ' ',\
-			  __pbuf, ##args);				\
+			  ##args);					\
 } while (0)
 
 #define cfq_log_cfqg(cfqd, cfqg, fmt, args...)	do {			\
-	char __pbuf[128];						\
-									\
-	blkg_path(cfqg_to_blkg(cfqg), __pbuf, sizeof(__pbuf));		\
-	blk_add_trace_msg((cfqd)->queue, "%s " fmt, __pbuf, ##args);	\
+	blk_add_cgroup_trace_msg((cfqd)->queue,				\
+			cfqg_to_blkg(cfqg)->blkcg, fmt, ##args);	\
 } while (0)
 
 static inline void cfqg_stats_update_io_add(struct cfq_group *cfqg,

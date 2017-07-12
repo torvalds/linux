@@ -917,13 +917,16 @@ void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...)	do {			\
-	blk_add_trace_msg((bfqd)->queue, "bfq%d%c %s " fmt, (bfqq)->pid,\
-			bfq_bfqq_sync((bfqq)) ? 'S' : 'A',		\
-			bfqq_group(bfqq)->blkg_path, ##args);		\
+	blk_add_cgroup_trace_msg((bfqd)->queue,				\
+			bfqg_to_blkg(bfqq_group(bfqq))->blkcg,		\
+			"bfq%d%c " fmt, (bfqq)->pid,			\
+			bfq_bfqq_sync((bfqq)) ? 'S' : 'A', ##args);	\
 } while (0)
 
-#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	\
-	blk_add_trace_msg((bfqd)->queue, "%s " fmt, (bfqg)->blkg_path, ##args)
+#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	do {			\
+	blk_add_cgroup_trace_msg((bfqd)->queue,				\
+		bfqg_to_blkg(bfqg)->blkcg, fmt, ##args);		\
+} while (0)
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
 
