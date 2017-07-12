@@ -48,12 +48,14 @@ static __cacheline_aligned_in_smp DEFINE_SPINLOCK(running_trace_lock);
 /* Select an alternative, minimalistic output than the original one */
 #define TRACE_BLK_OPT_CLASSIC	0x1
 #define TRACE_BLK_OPT_CGROUP	0x2
+#define TRACE_BLK_OPT_CGNAME	0x4
 
 static struct tracer_opt blk_tracer_opts[] = {
 	/* Default disable the minimalistic output */
 	{ TRACER_OPT(blk_classic, TRACE_BLK_OPT_CLASSIC) },
 #ifdef CONFIG_BLK_CGROUP
 	{ TRACER_OPT(blk_cgroup, TRACE_BLK_OPT_CGROUP) },
+	{ TRACER_OPT(blk_cgname, TRACE_BLK_OPT_CGNAME) },
 #endif
 	{ }
 };
@@ -1213,7 +1215,17 @@ static void blk_log_action(struct trace_iterator *iter, const char *act,
 	if (has_cg) {
 		const union kernfs_node_id *id = cgid_start(iter->ent);
 
-		trace_seq_printf(&iter->seq, "%3d,%-3d %x,%-x %2s %3s ",
+		if (blk_tracer_flags.val & TRACE_BLK_OPT_CGNAME) {
+			char blkcg_name_buf[NAME_MAX + 1] = "<...>";
+
+			cgroup_path_from_kernfs_id(id, blkcg_name_buf,
+				sizeof(blkcg_name_buf));
+			trace_seq_printf(&iter->seq, "%3d,%-3d %s %2s %3s ",
+				 MAJOR(t->device), MINOR(t->device),
+				 blkcg_name_buf, act, rwbs);
+		} else
+			trace_seq_printf(&iter->seq,
+				 "%3d,%-3d %x,%-x %2s %3s ",
 				 MAJOR(t->device), MINOR(t->device),
 				 id->ino, id->generation, act, rwbs);
 	} else
