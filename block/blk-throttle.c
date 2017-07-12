@@ -2104,14 +2104,9 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
 {
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	int ret;
-
-	ret = bio_associate_current(bio);
-	if (ret == 0 || ret == -EBUSY)
+	if (bio->bi_css)
 		bio->bi_cg_private = tg;
 	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
-#else
-	bio_associate_current(bio);
 #endif
 }
 
