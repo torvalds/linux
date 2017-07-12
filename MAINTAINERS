@@ -2481,7 +2481,7 @@ Q:	https://patchwork.open-mesh.org/project/batman/list/
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-net-batman-adv
 F:	Documentation/ABI/testing/sysfs-class-net-mesh
-F:	Documentation/networking/batman-adv.txt
+F:	Documentation/networking/batman-adv.rst
 F:	include/uapi/linux/batman_adv.h
 F:	net/batman-adv/
 
