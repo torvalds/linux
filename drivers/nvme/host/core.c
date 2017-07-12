@@ -312,7 +312,7 @@ static int nvme_toggle_streams(struct nvme_ctrl *ctrl, bool enable)
 	memset(&c, 0, sizeof(c));
 
 	c.directive.opcode = nvme_admin_directive_send;
-	c.directive.nsid = cpu_to_le32(0xffffffff);
+	c.directive.nsid = cpu_to_le32(NVME_NSID_ALL);
 	c.directive.doper = NVME_DIR_SND_ID_OP_ENABLE;
 	c.directive.dtype = NVME_DIR_IDENTIFY;
 	c.directive.tdtype = NVME_DIR_STREAMS;
@@ -362,7 +362,7 @@ static int nvme_configure_directives(struct nvme_ctrl *ctrl)
 	if (ret)
 		return ret;
 
-	ret = nvme_get_stream_params(ctrl, &s, 0xffffffff);
+	ret = nvme_get_stream_params(ctrl, &s, NVME_NSID_ALL);
 	if (ret)
 		return ret;
 
@@ -2563,7 +2563,7 @@ static void nvme_get_fw_slot_info(struct nvme_ctrl *ctrl)
 		return;
 
 	c.common.opcode = nvme_admin_get_log_page;
-	c.common.nsid = cpu_to_le32(0xffffffff);
+	c.common.nsid = cpu_to_le32(NVME_NSID_ALL);
 	c.common.cdw10[0] = nvme_get_log_dw10(NVME_LOG_FW_SLOT, sizeof(*log));
 
 	if (!nvme_submit_sync_cmd(ctrl->admin_q, &c, log, sizeof(*log)))
