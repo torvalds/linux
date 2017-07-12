@@ -1867,6 +1867,7 @@ mlxsw_sp_nexthop_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	nh_grp->gateway = fi->fib_nh->nh_scope == RT_SCOPE_LINK;
 	nh_grp->count = fi->fib_nhs;
 	nh_grp->key.fi = fi;
+	fib_info_hold(fi);
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
 		fib_nh = &fi->fib_nh[i];
@@ -1886,6 +1887,7 @@ err_nexthop_init:
 		nh = &nh_grp->nexthops[i];
 		mlxsw_sp_nexthop_fini(mlxsw_sp, nh);
 	}
+	fib_info_put(nh_grp->key.fi);
 	kfree(nh_grp);
 	return ERR_PTR(err);
 }
@@ -1904,6 +1906,7 @@ mlxsw_sp_nexthop_group_destroy(struct mlxsw_sp *mlxsw_sp,
 	}
 	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh_grp);
 	WARN_ON_ONCE(nh_grp->adj_index_valid);
+	fib_info_put(nh_grp->key.fi);
 	kfree(nh_grp);
 }
 
