@@ -1176,7 +1176,8 @@ config CONSISTENT_SIZE
 
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
-	depends on ADVANCED_OPTIONS && PPC_8xx
+	depends on ADVANCED_OPTIONS && PPC_8xx && \
+		   !DEBUG_PAGEALLOC && !STRICT_KERNEL_RWX
 
 config PIN_TLB_DATA
 	bool "Pinned TLB for DATA"
