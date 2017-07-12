@@ -477,8 +477,13 @@ static void reset_front_end(
 	if (mpcc->opp_id == 0xf)
 		return;
 
-	mi->funcs->dcc_control(mi, false, false);
 	tg->funcs->lock(tg);
+
+	mi->funcs->dcc_control(mi, false, false);
+	mi->funcs->set_blank(mi, true);
+	REG_WAIT(DCHUBP_CNTL[fe_idx],
+			HUBP_NO_OUTSTANDING_REQ, 1,
+			1, 200);
 
 	mpcc_cfg.opp_id = 0xf;
 	mpcc_cfg.top_dpp_id = 0xf;
@@ -491,8 +496,7 @@ static void reset_front_end(
 	REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
 
 	mpcc->funcs->wait_for_idle(mpcc);
-	mi->funcs->set_blank(mi, true);
-	REG_WAIT(DCHUBP_CNTL[fe_idx], HUBP_NO_OUTSTANDING_REQ, 1, 20000, 200000);
+
 	REG_UPDATE(HUBP_CLK_CNTL[fe_idx], HUBP_CLOCK_ENABLE, 0);
 	REG_UPDATE(DPP_CONTROL[fe_idx], DPP_CLOCK_ENABLE, 0);
 

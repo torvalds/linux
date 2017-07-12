@@ -117,7 +117,9 @@ static void dcn10_mpcc_wait_idle(struct mpcc *mpcc)
 {
 	struct dcn10_mpcc *mpcc10 = TO_DCN10_MPCC(mpcc);
 
-	REG_WAIT(MPCC_STATUS, MPCC_BUSY, 0, 1000, 1000);
+	REG_WAIT(MPCC_STATUS,
+			MPCC_BUSY, 0,
+			1000, 1000);
 }
 
 
