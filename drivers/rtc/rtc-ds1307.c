@@ -147,7 +147,7 @@ struct chip_desc {
 
 static u8 do_trickle_setup_ds1339(struct ds1307 *, uint32_t ohms, bool diode);
 
-static struct chip_desc chips[last_ds_type] = {
+static const struct chip_desc chips[last_ds_type] = {
 	[ds_1307] = {
 		.nvram_offset	= 8,
 		.nvram_size	= 56,
@@ -941,7 +941,7 @@ static u8 do_trickle_setup_ds1339(struct ds1307 *ds1307,
 }
 
 static u8 ds1307_trickle_init(struct ds1307 *ds1307,
-			      struct chip_desc *chip)
+			      const struct chip_desc *chip)
 {
 	uint32_t ohms;
 	bool diode = true;
@@ -1311,7 +1311,7 @@ static int ds1307_probe(struct i2c_client *client,
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
 	int			tmp, wday;
-	struct chip_desc	*chip;
+	const struct chip_desc	*chip;
 	bool			want_irq = false;
 	bool			ds1307_can_wakeup_device = false;
 	unsigned char		*buf;
