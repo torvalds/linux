@@ -67,7 +67,8 @@ static void mlx5e_timestamp_overflow(struct work_struct *work)
 	write_lock_irqsave(&tstamp->lock, flags);
 	timecounter_read(&tstamp->clock);
 	write_unlock_irqrestore(&tstamp->lock, flags);
-	schedule_delayed_work(&tstamp->overflow_work, tstamp->overflow_period);
+	schedule_delayed_work(&tstamp->overflow_work,
+			      msecs_to_jiffies(tstamp->overflow_period * 1000));
 }
 
 int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr)
