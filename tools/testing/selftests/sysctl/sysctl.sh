@@ -75,6 +75,13 @@ function check_production_sysctl_writes_strict()
 			echo "1" > ${WRITES_STRICT}
 		fi
 	fi
+
+	if [ -z $PAGE_SIZE ]; then
+		PAGE_SIZE=$(getconf PAGESIZE)
+	fi
+	if [ -z $MAX_DIGITS ]; then
+		MAX_DIGITS=$(($PAGE_SIZE/8))
+	fi
 }
 
 test_reqs()
@@ -89,6 +96,10 @@ test_reqs()
 		echo "$0: You need perl installed"
 		exit 1
 	fi
+	if ! which getconf 2> /dev/null > /dev/null; then
+		echo "$0: You need getconf installed"
+		exit 1
+	fi
 }
 
 function load_req_mod()
@@ -101,6 +112,23 @@ function load_req_mod()
 			exit
 		fi
 	fi
+}
+
+reset_vals()
+{
+	VAL=""
+	TRIGGER=$(basename ${TARGET})
+	case "$TRIGGER" in
+		int_0001)
+			VAL="60"
+			;;
+		string_0001)
+			VAL="(none)"
+			;;
+		*)
+			;;
+	esac
+	echo -n $VAL > $TARGET
 }
 
 set_orig()
@@ -229,7 +257,42 @@ run_numerictests()
 	else
 		echo "ok"
 	fi
+	test_rc
+}
 
+# Your test must accept digits 3 and 4 to use this
+run_limit_digit()
+{
+	echo -n "Checking ignoring spaces up to PAGE_SIZE works on write ..."
+	reset_vals
+
+	LIMIT=$((MAX_DIGITS -1))
+	TEST_STR="3"
+	(perl -e 'print " " x '$LIMIT';'; echo "${TEST_STR}") | \
+		dd of="${TARGET}" 2>/dev/null
+
+	if ! verify "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
+	test_rc
+
+	echo -n "Checking passing PAGE_SIZE of spaces fails on write ..."
+	reset_vals
+
+	LIMIT=$((MAX_DIGITS))
+	TEST_STR="4"
+	(perl -e 'print " " x '$LIMIT';'; echo "${TEST_STR}") | \
+		dd of="${TARGET}" 2>/dev/null
+
+	if verify "${TARGET}"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+	fi
 	test_rc
 }
 
@@ -305,15 +368,18 @@ run_stringtests()
 sysctl_test_0001()
 {
 	TARGET="${SYSCTL}/int_0001"
+	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR=$(( $ORIG + 1 ))
 
 	run_numerictests
+	run_limit_digit
 }
 
 sysctl_test_0002()
 {
 	TARGET="${SYSCTL}/string_0001"
+	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR="Testing sysctl"
 	# Only string sysctls support seeking/appending.
