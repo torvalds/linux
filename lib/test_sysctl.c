@@ -41,11 +41,15 @@ static int i_one_hundred = 100;
 
 struct test_sysctl_data {
 	int int_0001;
+	int int_0002;
+
 	char string_0001[65];
 };
 
 static struct test_sysctl_data test_data = {
 	.int_0001 = 60,
+	.int_0002 = 1,
+
 	.string_0001 = "(none)",
 };
 
@@ -59,6 +63,13 @@ static struct ctl_table test_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
+	},
+	{
+		.procname	= "int_0002",
+		.data		= &test_data.int_0002,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "string_0001",
