@@ -518,6 +518,46 @@ static int xenon_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int xenon_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
+
+	ret = sdhci_suspend_host(host);
+	if (ret)
+		return ret;
+
+	clk_disable_unprepare(pltfm_host->clk);
+	return ret;
+}
+
+static int xenon_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
+
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		return ret;
+
+	/*
+	 * If SoCs power off the entire Xenon, registers setting will
+	 * be lost.
+	 * Re-configure Xenon specific register to enable current SDHC
+	 */
+	ret = xenon_sdhc_prepare(host);
+	if (ret)
+		return ret;
+
+	return sdhci_resume_host(host);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(xenon_pmops, xenon_suspend, xenon_resume);
+
 static const struct of_device_id sdhci_xenon_dt_ids[] = {
 	{ .compatible = "marvell,armada-ap806-sdhci",},
 	{ .compatible = "marvell,armada-cp110-sdhci",},
@@ -530,7 +570,7 @@ static struct platform_driver sdhci_xenon_driver = {
 	.driver	= {
 		.name	= "xenon-sdhci",
 		.of_match_table = sdhci_xenon_dt_ids,
-		.pm = &sdhci_pltfm_pmops,
+		.pm = &xenon_pmops,
 	},
 	.probe	= xenon_probe,
 	.remove	= xenon_remove,
