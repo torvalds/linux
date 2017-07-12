@@ -327,7 +327,7 @@
 		status = "disabled";
 	};
 
-	sdmmc: rksdmmc@ff400000 {
+	sdmmc: dwmmc@ff400000 {
 		compatible = "rockchip,rk3366-dw-mshc","rockchip,rk3288-dw-mshc";
 		clock-freq-min-max = <400000 150000000>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
@@ -339,7 +339,7 @@
 		status = "disabled";
 	};
 
-	sdio: rksdmmc@ff410000 {
+	sdio: dwmmc@ff410000 {
 		compatible = "rockchip,rk3366-dw-mshc","rockchip,rk3288-dw-mshc";
 		clock-freq-min-max = <400000 150000000>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO0>,
@@ -351,7 +351,7 @@
 		status = "disabled";
 	};
 
-	emmc: rksdmmc@ff420000 {
+	emmc: dwmmc@ff420000 {
 		compatible = "rockchip,rk3366-dw-mshc","rockchip,rk3288-dw-mshc";
 		clock-freq-min-max = <400000 150000000>;
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
