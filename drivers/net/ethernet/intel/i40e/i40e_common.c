@@ -2529,6 +2529,10 @@ i40e_status i40e_update_link_info(struct i40e_hw *hw)
 		if (status)
 			return status;
 
+		hw->phy.link_info.req_fec_info =
+			abilities.fec_cfg_curr_mod_ext_info &
+			(I40E_AQ_REQUEST_FEC_KR | I40E_AQ_REQUEST_FEC_RS);
+
 		memcpy(hw->phy.link_info.module_type, &abilities.module_type,
 		       sizeof(hw->phy.link_info.module_type));
 	}
