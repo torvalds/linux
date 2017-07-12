@@ -110,6 +110,7 @@ struct dw_mci_dma_slave {
  * @irq_flags: The flags to be passed to request_irq.
  * @irq: The irq value to be passed to request_irq.
  * @sdio_id0: Number of slot0 in the SDIO interrupt registers.
+ * @cto_timer: Timer for broken command transfer over scheme.
  * @dto_timer: Timer for broken data transfer over scheme.
  *
  * Locking
@@ -220,6 +221,7 @@ struct dw_mci {
 	int			sdio_id0;
 
 	struct timer_list       cmd11_timer;
+	struct timer_list       cto_timer;
 	struct timer_list       dto_timer;
 };
 
