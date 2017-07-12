@@ -34,6 +34,8 @@
 
 #define RK3288_GRF_SOC_CON6		0x025C
 #define RK3288_HDMI_LCDC_SEL		BIT(4)
+#define RK3366_GRF_SOC_CON0		0x0400
+#define RK3366_HDMI_LCDC_SEL		BIT(1)
 #define RK3399_GRF_SOC_CON20		0x6250
 #define RK3399_HDMI_LCDC_SEL		BIT(6)
 
@@ -57,6 +59,7 @@ struct rockchip_hdmi {
 	struct clk *vpll_clk;
 	struct clk *grf_clk;
 	struct clk *hclk_vio;
+	struct clk *dclk;
 
 	struct phy *phy;
 };
@@ -331,6 +334,16 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->hclk_vio);
 	}
 
+	hdmi->dclk = devm_clk_get(hdmi->dev, "dclk");
+	if (PTR_ERR(hdmi->dclk) == -ENOENT) {
+		hdmi->dclk = NULL;
+	} else if (PTR_ERR(hdmi->dclk) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(hdmi->dclk)) {
+		dev_err(hdmi->dev, "failed to get dclk\n");
+		return PTR_ERR(hdmi->dclk);
+	}
+
 	ret = clk_prepare_enable(hdmi->vpll_clk);
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to enable HDMI vpll: %d\n", ret);
@@ -438,6 +451,9 @@ static const struct drm_encoder_funcs dw_hdmi_rockchip_encoder_funcs = {
 
 static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 {
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+
+	clk_disable_unprepare(hdmi->dclk);
 }
 
 static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
@@ -455,10 +471,17 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	clk_set_rate(hdmi->vpll_clk,
 		     crtc->state->adjusted_mode.crtc_clock * 1000);
 
+	clk_set_rate(hdmi->dclk, crtc->state->adjusted_mode.crtc_clock * 1000);
+	clk_prepare_enable(hdmi->dclk);
+
 	switch (hdmi->dev_type) {
 	case RK3288_HDMI:
 		lcdsel_grf_reg = RK3288_GRF_SOC_CON6;
 		lcdsel_mask = RK3288_HDMI_LCDC_SEL;
+		break;
+	case RK3366_HDMI:
+		lcdsel_grf_reg = RK3366_GRF_SOC_CON0;
+		lcdsel_mask = RK3366_HDMI_LCDC_SEL;
 		break;
 	case RK3399_HDMI:
 		lcdsel_grf_reg = RK3399_GRF_SOC_CON20;
@@ -466,7 +489,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 		break;
 	default:
 		return;
-	};
+	}
 
 	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
 	if (mux)
@@ -553,6 +576,14 @@ static const struct dw_hdmi_plat_data rk3328_hdmi_drv_data = {
 	.dev_type   = RK3328_HDMI,
 };
 
+static const struct dw_hdmi_plat_data rk3366_hdmi_drv_data = {
+	.mode_valid = dw_hdmi_rockchip_mode_valid,
+	.mpll_cfg   = rockchip_mpll_cfg,
+	.cur_ctr    = rockchip_cur_ctr,
+	.phy_config = rockchip_phy_config,
+	.dev_type   = RK3366_HDMI,
+};
+
 static const struct dw_hdmi_plat_data rk3368_hdmi_drv_data = {
 	.mode_valid = dw_hdmi_rockchip_mode_valid,
 	.mpll_cfg   = rockchip_mpll_cfg,
@@ -579,6 +610,10 @@ static const struct of_device_id dw_hdmi_rockchip_dt_ids[] = {
 	{
 	  .compatible = "rockchip,rk3328-dw-hdmi",
 	  .data = &rk3328_hdmi_drv_data
+	},
+	{
+	 .compatible = "rockchip,rk3366-dw-hdmi",
+	 .data = &rk3366_hdmi_drv_data
 	},
 	{
 	 .compatible = "rockchip,rk3368-dw-hdmi",

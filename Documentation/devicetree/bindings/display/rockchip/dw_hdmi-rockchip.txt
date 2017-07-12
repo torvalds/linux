@@ -5,6 +5,7 @@ Required properties:
 - compatible: "rockchip,rk3228-dw-hdmi",
 	      "rockchip,rk3288-dw-hdmi",
 	      "rockchip,rk3328-dw-hdmi",
+	      "rockchip,rk3366-dw-hdmi",
 	      "rockchip,rk3368-dw-hdmi",
 	      "rockchip,rk3399-dw-hdmi";
 - reg: Physical base address and length of the controller's registers.
@@ -23,6 +24,7 @@ Optional properties
 - clocks, clock-names: phandle to the HDMI CEC clock, name should be "cec",
 		       phandle to the VPLL clock, name should be "vpll",
 		       phandle to the GRF clock, name should be "grf".
+		       phandle to the HDMI-PHY dclk, name should be "dclk".
 - rockchip,phy-table: the parameter table of hdmi phy configuration.
 - phys: phandle to third party HDMI PHY node
 - phy-names: the string "hdmi_phy" when is found in a node, along with "phys"
