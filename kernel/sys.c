@@ -1362,7 +1362,7 @@ COMPAT_SYSCALL_DEFINE2(getrlimit, unsigned int, resource,
 
 	ret = do_prlimit(current, resource, NULL, &r);
 	if (!ret) {
-		struct rlimit r32;
+		struct compat_rlimit r32;
 		if (r.rlim_cur > COMPAT_RLIM_INFINITY)
 			r32.rlim_cur = COMPAT_RLIM_INFINITY;
 		else
