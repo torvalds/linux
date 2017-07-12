@@ -15,8 +15,11 @@
 
 /* vmcoreinfo stuff */
 static unsigned char *vmcoreinfo_data;
-size_t vmcoreinfo_size;
+static size_t vmcoreinfo_size;
 u32 *vmcoreinfo_note;
+
+/* trusted vmcoreinfo, e.g. we can make a copy in the crash memory */
+static unsigned char *vmcoreinfo_data_safecopy;
 
 /*
  * parsing the "crashkernel" commandline
@@ -323,10 +326,22 @@ static void update_vmcoreinfo_note(void)
 	final_note(buf);
 }
 
+void crash_update_vmcoreinfo_safecopy(void *ptr)
+{
+	if (ptr)
+		memcpy(ptr, vmcoreinfo_data, vmcoreinfo_size);
+
+	vmcoreinfo_data_safecopy = ptr;
+}
+
 void crash_save_vmcoreinfo(void)
 {
 	if (!vmcoreinfo_note)
 		return;
+
+	/* Use the safe copy to generate vmcoreinfo note if have */
+	if (vmcoreinfo_data_safecopy)
+		vmcoreinfo_data = vmcoreinfo_data_safecopy;
 
 	vmcoreinfo_append_str("CRASHTIME=%ld\n", get_seconds());
 	update_vmcoreinfo_note();

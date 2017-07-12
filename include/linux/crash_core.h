@@ -28,6 +28,7 @@
 
 typedef u32 note_buf_t[CRASH_CORE_NOTE_BYTES/4];
 
+void crash_update_vmcoreinfo_safecopy(void *ptr);
 void crash_save_vmcoreinfo(void);
 void arch_crash_save_vmcoreinfo(void);
 __printf(1, 2)
@@ -57,7 +58,6 @@ phys_addr_t paddr_vmcoreinfo_note(void);
 	vmcoreinfo_append_str("CONFIG_%s=y\n", #name)
 
 extern u32 *vmcoreinfo_note;
-extern size_t vmcoreinfo_size;
 
 Elf_Word *append_elf_note(Elf_Word *buf, char *name, unsigned int type,
 			  void *data, size_t data_len);
