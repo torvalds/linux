@@ -43,6 +43,13 @@
 #define LOAD_MSR_KERNEL(r, x)	li r,(x)
 #endif
 
+/*
+ * Align to 4k in order to ensure that all functions modyfing srr0/srr1
+ * fit into one page in order to not encounter a TLB miss between the
+ * modification of srr0/srr1 and the associated rfi.
+ */
+	.align	12
+
 #ifdef CONFIG_BOOKE
 	.globl	mcheck_transfer_to_handler
 mcheck_transfer_to_handler:
