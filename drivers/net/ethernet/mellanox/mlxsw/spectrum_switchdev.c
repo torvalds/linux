@@ -1916,6 +1916,8 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
+		if (!switchdev_work->fdb_info.addr)
+			goto err_addr_alloc;
 		ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
 				fdb_info->addr);
 		/* Take a reference on the device. This can be either
@@ -1932,6 +1934,10 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 	mlxsw_core_schedule_work(&switchdev_work->work);
 
 	return NOTIFY_DONE;
+
+err_addr_alloc:
+	kfree(switchdev_work);
+	return NOTIFY_BAD;
 }
 
 static struct notifier_block mlxsw_sp_switchdev_notifier = {
