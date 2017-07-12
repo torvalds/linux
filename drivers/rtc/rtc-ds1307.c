@@ -115,7 +115,6 @@ enum ds_type {
 
 
 struct ds1307 {
-	u8			offset; /* register's offset */
 	u8			regs[11];
 	u16			nvram_offset;
 	struct nvmem_config	nvmem_cfg;
@@ -136,6 +135,7 @@ struct chip_desc {
 	unsigned		alarm:1;
 	u16			nvram_offset;
 	u16			nvram_size;
+	u8			offset; /* register's offset */
 	u8			century_reg;
 	u8			century_enable_bit;
 	u8			century_bit;
@@ -208,6 +208,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		.trickle_charger_reg = 0x08,
 	},
 	[ds_1388] = {
+		.offset		= 1,
 		.trickle_charger_reg = 0x0a,
 	},
 	[ds_3231] = {
@@ -221,6 +222,7 @@ static const struct chip_desc chips[last_ds_type] = {
 		/* this is battery backed SRAM */
 		.nvram_offset	= 0x20,
 		.nvram_size	= 4,	/* 32bit (4 word x 8 bit) */
+		.offset		= 0x10,
 		.irq_handler = rx8130_irq,
 		.rtc_ops = &rx8130_rtc_ops,
 	},
@@ -387,7 +389,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	const struct chip_desc *chip = &chips[ds1307->type];
 
 	/* read the RTC date and time registers all at once */
-	ret = regmap_bulk_read(ds1307->regmap, ds1307->offset, ds1307->regs, 7);
+	ret = regmap_bulk_read(ds1307->regmap, chip->offset, ds1307->regs, 7);
 	if (ret) {
 		dev_err(dev, "%s error %d\n", "read", ret);
 		return ret;
@@ -479,7 +481,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 
 	dev_dbg(dev, "%s: %7ph\n", "write", buf);
 
-	result = regmap_bulk_write(ds1307->regmap, ds1307->offset, buf, 7);
+	result = regmap_bulk_write(ds1307->regmap, chip->offset, buf, 7);
 	if (result) {
 		dev_err(dev, "%s error %d\n", "write", result);
 		return result;
@@ -1502,19 +1504,13 @@ static int ds1307_probe(struct i2c_client *client,
 				     DS1307_REG_HOUR << 4 | 0x08, hour);
 		}
 		break;
-	case rx_8130:
-		ds1307->offset = 0x10; /* Seconds starts at 0x10 */
-		break;
-	case ds_1388:
-		ds1307->offset = 1; /* Seconds starts at 1 */
-		break;
 	default:
 		break;
 	}
 
 read_rtc:
 	/* read RTC registers */
-	err = regmap_bulk_read(ds1307->regmap, ds1307->offset, buf, 8);
+	err = regmap_bulk_read(ds1307->regmap, chip->offset, buf, 8);
 	if (err) {
 		dev_dbg(ds1307->dev, "read error %d\n", err);
 		goto exit;
@@ -1615,7 +1611,7 @@ read_rtc:
 			tmp = 0;
 		if (ds1307->regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
 			tmp += 12;
-		regmap_write(ds1307->regmap, ds1307->offset + DS1307_REG_HOUR,
+		regmap_write(ds1307->regmap, chip->offset + DS1307_REG_HOUR,
 			     bin2bcd(tmp));
 	}
 
