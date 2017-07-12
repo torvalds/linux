@@ -117,8 +117,6 @@ static struct msg_queue *msg_alloc(void)
 	if (unlikely(!msq))
 		return NULL;
 
-	atomic_set(&msq->q_perm.refcount, 1);
-
 	return msq;
 }
 

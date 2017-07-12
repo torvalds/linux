@@ -526,8 +526,6 @@ static struct shmid_kernel *shm_alloc(void)
 	if (unlikely(!shp))
 		return NULL;
 
-	atomic_set(&shp->shm_perm.refcount, 1);
-
 	return shp;
 }
 

@@ -465,7 +465,6 @@ static struct sem_array *sem_alloc(size_t nsems)
 		return NULL;
 
 	memset(sma, 0, size);
-	atomic_set(&sma->sem_perm.refcount, 1);
 
 	return sma;
 }
