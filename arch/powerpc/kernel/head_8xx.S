@@ -50,16 +50,9 @@
 	mtspr	spr, reg
 #endif
 
-/* Macro to test if an address is a kernel address */
 #if CONFIG_TASK_SIZE <= 0x80000000 && CONFIG_PAGE_OFFSET >= 0x80000000
-#define IS_KERNEL(tmp, addr)		\
-	andis.	tmp, addr, 0x8000	/* Address >= 0x80000000 */
-#define BRANCH_UNLESS_KERNEL(label)	beq	label
-#else
-#define IS_KERNEL(tmp, addr)		\
-	rlwinm	tmp, addr, 16, 16, 31;	\
-	cmpli	cr0, tmp, PAGE_OFFSET >> 16
-#define BRANCH_UNLESS_KERNEL(label)	blt	label
+/* By simply checking Address >= 0x80000000, we know if its a kernel address */
+#define SIMPLE_KERNEL_ADDRESS		1
 #endif
 
 
@@ -346,11 +339,20 @@ InstructionTLBMiss:
 	mfcr	r3
 #endif
 #if defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC)
-	IS_KERNEL(r11, r10)
+#ifdef SIMPLE_KERNEL_ADDRESS
+	andis.	r11, r10, 0x8000	/* Address >= 0x80000000 */
+#else
+	rlwinm	r11, r10, 16, 0xfff8
+	cmpli	cr0, r11, PAGE_OFFSET@h
+#endif
 #endif
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 #if defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC)
-	BRANCH_UNLESS_KERNEL(3f)
+#ifdef SIMPLE_KERNEL_ADDRESS
+	beq+	3f
+#else
+	blt+	3f
+#endif
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
 #endif
@@ -704,9 +706,10 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	/* fetch instruction from memory. */
 	mfspr	r10, SPRN_SRR0
-	IS_KERNEL(r11, r10)
+	rlwinm	r11, r10, 16, 0xfff8
+	cmpli	cr0, r11, PAGE_OFFSET@h
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
-	BRANCH_UNLESS_KERNEL(3f)
+	blt+	3f
 	rlwinm	r11, r10, 16, 0xfff8
 _ENTRY(FixupDAR_cmp)
 	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
