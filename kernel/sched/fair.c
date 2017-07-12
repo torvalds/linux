@@ -5597,7 +5597,9 @@ static inline int __energy_diff(struct energy_env *eenv)
 #ifdef CONFIG_SCHED_TUNE
 
 struct target_nrg schedtune_target_nrg;
+#ifdef CONFIG_CGROUP_SCHEDTUNE
 extern bool schedtune_initialized;
+#endif
 /*
  * System energy normalization
  * Returns the normalized value, in the range [0..SCHED_CAPACITY_SCALE],
@@ -5608,9 +5610,11 @@ normalize_energy(int energy_diff)
 {
 	u32 normalized_nrg;
 
+#ifdef CONFIG_CGROUP_SCHEDTUNE
 	/* during early setup, we don't know the extents */
 	if (unlikely(!schedtune_initialized))
 		return energy_diff < 0 ? -1 : 1 ;
+#endif
 
 #ifdef CONFIG_SCHED_DEBUG
 	{
