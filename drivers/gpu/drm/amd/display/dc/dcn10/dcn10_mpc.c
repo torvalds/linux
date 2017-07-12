@@ -68,14 +68,12 @@ static void set_output_mux(struct dcn10_mpcc *mpcc10, int opp_id, int mpcc_id)
 {
 	ASSERT(mpcc10->base.opp_id == 0xf || opp_id == mpcc10->base.opp_id);
 	mpcc10->base.opp_id = opp_id;
-	REG_UPDATE(OPP_PIPE_CONTROL[opp_id], OPP_PIPE_CLOCK_EN, 1);
 	REG_SET(MUX[opp_id], 0, MPC_OUT_MUX, mpcc_id);
 }
 
 static void reset_output_mux(struct dcn10_mpcc *mpcc10)
 {
 	REG_SET(MUX[mpcc10->base.opp_id], 0, MPC_OUT_MUX, 0xf);
-	REG_UPDATE(OPP_PIPE_CONTROL[mpcc10->base.opp_id], OPP_PIPE_CLOCK_EN, 0);
 	mpcc10->base.opp_id = 0xf;
 }
 

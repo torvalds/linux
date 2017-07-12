@@ -472,9 +472,10 @@ static void reset_front_end(
 	struct transform *xfm = dc->res_pool->transforms[fe_idx];
 	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
 	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
+	unsigned int opp_id = mpcc->opp_id;
 
 	/*Already reset*/
-	if (mpcc->opp_id == 0xf)
+	if (opp_id == 0xf)
 		return;
 
 	tg->funcs->lock(tg);
@@ -497,8 +498,12 @@ static void reset_front_end(
 
 	mpcc->funcs->wait_for_idle(mpcc);
 
-	REG_UPDATE(HUBP_CLK_CNTL[fe_idx], HUBP_CLOCK_ENABLE, 0);
-	REG_UPDATE(DPP_CONTROL[fe_idx], DPP_CLOCK_ENABLE, 0);
+	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
+			HUBP_CLOCK_ENABLE, 0);
+	REG_UPDATE(DPP_CONTROL[fe_idx],
+			DPP_CLOCK_ENABLE, 0);
+	REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
+			OPP_PIPE_CLOCK_EN, 0);
 
 	xfm->funcs->transform_reset(xfm);
 
@@ -1211,7 +1216,12 @@ static void dcn10_power_on_fe(
 		pipe_ctx->pipe_idx);
 
 	/* enable DCFCLK current DCHUB */
-	REG_UPDATE(HUBP_CLK_CNTL[pipe_ctx->pipe_idx], HUBP_CLOCK_ENABLE, 1);
+	REG_UPDATE(HUBP_CLK_CNTL[pipe_ctx->pipe_idx],
+			HUBP_CLOCK_ENABLE, 1);
+
+	/* make sure OPP_PIPE_CLOCK_EN = 1 */
+	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->tg->inst],
+			OPP_PIPE_CLOCK_EN, 1);
 
 	if (dc_surface) {
 		dm_logger_write(dc->ctx->logger, LOG_DC,

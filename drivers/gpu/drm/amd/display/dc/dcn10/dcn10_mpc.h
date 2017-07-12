@@ -33,8 +33,7 @@
 #define MAX_OPP 6
 
 #define MPC_COMMON_REG_LIST_DCN1_0(inst) \
-	SRII(MUX, MPC_OUT, inst),\
-	SRII(OPP_PIPE_CONTROL, OPP_PIPE, inst)
+	SRII(MUX, MPC_OUT, inst)
 
 #define MPCC_COMMON_REG_LIST_DCN1_0(inst) \
 	SRI(MPCC_TOP_SEL, MPCC, inst),\
@@ -56,7 +55,6 @@ struct dcn_mpcc_registers {
 	uint32_t MPCC_BG_G_Y;
 	uint32_t MPCC_BG_R_CR;
 	uint32_t MPCC_BG_B_CB;
-	uint32_t OPP_PIPE_CONTROL[MAX_OPP];
 	uint32_t MUX[MAX_OPP];
 };
 
@@ -73,8 +71,7 @@ struct dcn_mpcc_registers {
 	SF(MPCC0_MPCC_BG_G_Y, MPCC_BG_G_Y, mask_sh),\
 	SF(MPCC0_MPCC_BG_R_CR, MPCC_BG_R_CR, mask_sh),\
 	SF(MPCC0_MPCC_BG_B_CB, MPCC_BG_B_CB, mask_sh),\
-	SF(MPC_OUT0_MUX, MPC_OUT_MUX, mask_sh),\
-	SF(OPP_PIPE0_OPP_PIPE_CONTROL, OPP_PIPE_CLOCK_EN, mask_sh)
+	SF(MPC_OUT0_MUX, MPC_OUT_MUX, mask_sh)
 
 #define MPCC_REG_FIELD_LIST(type) \
 	type MPCC_TOP_SEL;\
@@ -90,7 +87,6 @@ struct dcn_mpcc_registers {
 	type MPCC_BG_R_CR;\
 	type MPCC_BG_B_CB;\
 	type MPC_OUT_MUX;\
-	type OPP_PIPE_CLOCK_EN;\
 
 struct dcn_mpcc_shift {
 	MPCC_REG_FIELD_LIST(uint8_t)
