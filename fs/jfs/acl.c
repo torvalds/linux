@@ -108,19 +108,26 @@ int jfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	int rc;
 	tid_t tid;
+	int update_mode = 0;
+	umode_t mode = inode->i_mode;
 
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&JFS_IP(inode)->commit_mutex);
 	if (type == ACL_TYPE_ACCESS && acl) {
-		rc = posix_acl_update_mode(inode, &inode->i_mode, &acl);
+		rc = posix_acl_update_mode(inode, &mode, &acl);
 		if (rc)
 			goto end_tx;
-		inode->i_ctime = current_time(inode);
-		mark_inode_dirty(inode);
+		update_mode = 1;
 	}
 	rc = __jfs_set_acl(tid, inode, type, acl);
-	if (!rc)
+	if (!rc) {
+		if (update_mode) {
+			inode->i_mode = mode;
+			inode->i_ctime = current_time(inode);
+			mark_inode_dirty(inode);
+		}
 		rc = txCommit(tid, 1, &inode, 0);
+	}
 end_tx:
 	txEnd(tid);
 	mutex_unlock(&JFS_IP(inode)->commit_mutex);
