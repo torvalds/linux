@@ -48,11 +48,11 @@ static void mtk_atomic_schedule(struct mtk_drm_private *private,
 static void mtk_atomic_wait_for_fences(struct drm_atomic_state *state)
 {
 	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *new_plane_state;
 	int i;
 
-	for_each_plane_in_state(state, plane, plane_state, i)
-		mtk_fb_wait(plane->state->fb);
+	for_each_new_plane_in_state(state, plane, new_plane_state, i)
+		mtk_fb_wait(new_plane_state->fb);
 }
 
 static void mtk_atomic_complete(struct mtk_drm_private *private,
