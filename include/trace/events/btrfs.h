@@ -26,6 +26,7 @@ struct btrfs_work;
 struct __btrfs_workqueue;
 struct btrfs_qgroup_extent_record;
 struct btrfs_qgroup;
+struct prelim_ref;
 
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
@@ -1634,6 +1635,63 @@ TRACE_EVENT(qgroup_meta_reserve,
 
 	TP_printk_btrfs("refroot=%llu(%s) diff=%lld",
 		show_root_type(__entry->refroot), __entry->diff)
+);
+
+DECLARE_EVENT_CLASS(btrfs__prelim_ref,
+	TP_PROTO(const struct btrfs_fs_info *fs_info,
+		 const struct prelim_ref *oldref,
+		 const struct prelim_ref *newref, u64 tree_size),
+	TP_ARGS(fs_info, newref, oldref, tree_size),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,  root_id		)
+		__field(	u64,  objectid		)
+		__field(	 u8,  type		)
+		__field(	u64,  offset		)
+		__field(	int,  level		)
+		__field(	int,  old_count		)
+		__field(	u64,  parent		)
+		__field(	u64,  bytenr		)
+		__field(	int,  mod_count		)
+		__field(	u64,  tree_size		)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->root_id	= oldref->root_id;
+		__entry->objectid	= oldref->key_for_search.objectid;
+		__entry->type		= oldref->key_for_search.type;
+		__entry->offset		= oldref->key_for_search.offset;
+		__entry->level		= oldref->level;
+		__entry->old_count	= oldref->count;
+		__entry->parent		= oldref->parent;
+		__entry->bytenr		= oldref->wanted_disk_byte;
+		__entry->mod_count	= newref ? newref->count : 0;
+		__entry->tree_size	= tree_size;
+	),
+
+	TP_printk_btrfs("root_id=%llu key=[%llu,%u,%llu] level=%d count=[%d+%d=%d] parent=%llu wanted_disk_byte=%llu nodes=%llu",
+			(unsigned long long)__entry->root_id,
+			(unsigned long long)__entry->objectid, __entry->type,
+			(unsigned long long)__entry->offset, __entry->level,
+			__entry->old_count, __entry->mod_count,
+			__entry->old_count + __entry->mod_count,
+			(unsigned long long)__entry->parent,
+			(unsigned long long)__entry->bytenr,
+			(unsigned long long)__entry->tree_size)
+);
+
+DEFINE_EVENT(btrfs__prelim_ref, btrfs_prelim_ref_merge,
+	TP_PROTO(const struct btrfs_fs_info *fs_info,
+		 const struct prelim_ref *oldref,
+		 const struct prelim_ref *newref, u64 tree_size),
+	TP_ARGS(fs_info, oldref, newref, tree_size)
+);
+
+DEFINE_EVENT(btrfs__prelim_ref, btrfs_prelim_ref_insert,
+	TP_PROTO(const struct btrfs_fs_info *fs_info,
+		 const struct prelim_ref *oldref,
+		 const struct prelim_ref *newref, u64 tree_size),
+	TP_ARGS(fs_info, oldref, newref, tree_size)
 );
 
 #endif /* _TRACE_BTRFS_H */

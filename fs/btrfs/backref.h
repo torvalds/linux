@@ -72,4 +72,16 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr);
 
 int __init btrfs_prelim_ref_init(void);
 void btrfs_prelim_ref_exit(void);
+
+struct prelim_ref {
+	struct rb_node rbnode;
+	u64 root_id;
+	struct btrfs_key key_for_search;
+	int level;
+	int count;
+	struct extent_inode_elem *inode_list;
+	u64 parent;
+	u64 wanted_disk_byte;
+};
+
 #endif
