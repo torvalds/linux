@@ -142,6 +142,7 @@ struct nvme_ctrl {
 	u16 cntlid;
 
 	u32 ctrl_config;
+	u16 mtfa;
 	u32 queue_count;
 
 	u64 cap;
@@ -167,6 +168,7 @@ struct nvme_ctrl {
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
 	struct delayed_work ka_work;
+	struct work_struct fw_act_work;
 
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
