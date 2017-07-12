@@ -33,17 +33,11 @@ static inline time64_t rtc_tm_sub(struct rtc_time *lhs, struct rtc_time *rhs)
 	return rtc_tm_to_time64(lhs) - rtc_tm_to_time64(rhs);
 }
 
-/**
- * Deprecated. Use rtc_time64_to_tm().
- */
 static inline void rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
 {
 	rtc_time64_to_tm(time, tm);
 }
 
-/**
- * Deprecated. Use rtc_tm_to_time64().
- */
 static inline int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
 {
 	*time = rtc_tm_to_time64(tm);
