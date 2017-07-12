@@ -1337,15 +1337,17 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
 				 u8 *guid)
 {
-	static u8 zero_guid[16];
+	u64 salt;
 
-	if (!memcmp(guid, zero_guid, 16)) {
-		u64 salt = get_jiffies_64();
-		memcpy(&guid[0], &salt, sizeof(u64));
-		memcpy(&guid[8], &salt, sizeof(u64));
-		return false;
-	}
-	return true;
+	if (memchr_inv(guid, 0, 16))
+		return true;
+
+	salt = get_jiffies_64();
+
+	memcpy(&guid[0], &salt, sizeof(u64));
+	memcpy(&guid[8], &salt, sizeof(u64));
+
+	return false;
 }
 
 #if 0
