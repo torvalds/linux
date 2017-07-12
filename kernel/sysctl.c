@@ -2175,19 +2175,18 @@ static int do_proc_dointvec_conv(bool *negp, unsigned long *lvalp,
 	return 0;
 }
 
-static int do_proc_douintvec_conv(bool *negp, unsigned long *lvalp,
-				 int *valp,
-				 int write, void *data)
+static int do_proc_douintvec_conv(unsigned long *lvalp,
+				  unsigned int *valp,
+				  int write, void *data)
 {
 	if (write) {
-		if (*negp)
+		if (*lvalp > UINT_MAX)
 			return -EINVAL;
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
 		*valp = *lvalp;
 	} else {
 		unsigned int val = *valp;
-		*negp = false;
 		*lvalp = (unsigned long)val;
 	}
 	return 0;
@@ -2287,6 +2286,146 @@ static int do_proc_dointvec(struct ctl_table *table, int write,
 			buffer, lenp, ppos, conv, data);
 }
 
+static int do_proc_douintvec_w(unsigned int *tbl_data,
+			       struct ctl_table *table,
+			       void __user *buffer,
+			       size_t *lenp, loff_t *ppos,
+			       int (*conv)(unsigned long *lvalp,
+					   unsigned int *valp,
+					   int write, void *data),
+			       void *data)
+{
+	unsigned long lval;
+	int err = 0;
+	size_t left;
+	bool neg;
+	char *kbuf = NULL, *p;
+
+	left = *lenp;
+
+	if (proc_first_pos_non_zero_ignore(ppos, table))
+		goto bail_early;
+
+	if (left > PAGE_SIZE - 1)
+		left = PAGE_SIZE - 1;
+
+	p = kbuf = memdup_user_nul(buffer, left);
+	if (IS_ERR(kbuf))
+		return -EINVAL;
+
+	left -= proc_skip_spaces(&p);
+	if (!left) {
+		err = -EINVAL;
+		goto out_free;
+	}
+
+	err = proc_get_long(&p, &left, &lval, &neg,
+			     proc_wspace_sep,
+			     sizeof(proc_wspace_sep), NULL);
+	if (err || neg) {
+		err = -EINVAL;
+		goto out_free;
+	}
+
+	if (conv(&lval, tbl_data, 1, data)) {
+		err = -EINVAL;
+		goto out_free;
+	}
+
+	if (!err && left)
+		left -= proc_skip_spaces(&p);
+
+out_free:
+	kfree(kbuf);
+	if (err)
+		return -EINVAL;
+
+	return 0;
+
+	/* This is in keeping with old __do_proc_dointvec() */
+bail_early:
+	*ppos += *lenp;
+	return err;
+}
+
+static int do_proc_douintvec_r(unsigned int *tbl_data, void __user *buffer,
+			       size_t *lenp, loff_t *ppos,
+			       int (*conv)(unsigned long *lvalp,
+					   unsigned int *valp,
+					   int write, void *data),
+			       void *data)
+{
+	unsigned long lval;
+	int err = 0;
+	size_t left;
+
+	left = *lenp;
+
+	if (conv(&lval, tbl_data, 0, data)) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = proc_put_long(&buffer, &left, lval, false);
+	if (err || !left)
+		goto out;
+
+	err = proc_put_char(&buffer, &left, '\n');
+
+out:
+	*lenp -= left;
+	*ppos += *lenp;
+
+	return err;
+}
+
+static int __do_proc_douintvec(void *tbl_data, struct ctl_table *table,
+			       int write, void __user *buffer,
+			       size_t *lenp, loff_t *ppos,
+			       int (*conv)(unsigned long *lvalp,
+					   unsigned int *valp,
+					   int write, void *data),
+			       void *data)
+{
+	unsigned int *i, vleft;
+
+	if (!tbl_data || !table->maxlen || !*lenp || (*ppos && !write)) {
+		*lenp = 0;
+		return 0;
+	}
+
+	i = (unsigned int *) tbl_data;
+	vleft = table->maxlen / sizeof(*i);
+
+	/*
+	 * Arrays are not supported, keep this simple. *Do not* add
+	 * support for them.
+	 */
+	if (vleft != 1) {
+		*lenp = 0;
+		return -EINVAL;
+	}
+
+	if (!conv)
+		conv = do_proc_douintvec_conv;
+
+	if (write)
+		return do_proc_douintvec_w(i, table, buffer, lenp, ppos,
+					   conv, data);
+	return do_proc_douintvec_r(i, buffer, lenp, ppos, conv, data);
+}
+
+static int do_proc_douintvec(struct ctl_table *table, int write,
+			     void __user *buffer, size_t *lenp, loff_t *ppos,
+			     int (*conv)(unsigned long *lvalp,
+					 unsigned int *valp,
+					 int write, void *data),
+			     void *data)
+{
+	return __do_proc_douintvec(table->data, table, write,
+				   buffer, lenp, ppos, conv, data);
+}
+
 /**
  * proc_dointvec - read a vector of integers
  * @table: the sysctl table
@@ -2322,8 +2461,8 @@ int proc_dointvec(struct ctl_table *table, int write,
 int proc_douintvec(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_dointvec(table, write, buffer, lenp, ppos,
-				do_proc_douintvec_conv, NULL);
+	return do_proc_douintvec(table, write, buffer, lenp, ppos,
+				 do_proc_douintvec_conv, NULL);
 }
 
 /*
