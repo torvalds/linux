@@ -20,6 +20,8 @@ Optional properties:
  - reset-gpios: Reset-GPIO phandle with args as described in gpio/gpio.txt
  - clocks/clock-names: Clock named 'mclk' for the master clock of the codec.
    See clock/clock-bindings.txt for information about the detailed format.
+ - aic32x4-gpio-func - <array of 5 int>
+	- Types are defined in include/sound/tlv320aic32x4.h
 
 
 Example:
@@ -29,4 +31,11 @@ codec: tlv320aic32x4@18 {
 	reg = <0x18>;
 	clocks = <&clks 201>;
 	clock-names = "mclk";
+	aic32x4-gpio-func= <
+			0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
+			0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
+			0x04 /* MFP3 AIC32X4_MFP3_GPIO_ENABLED */
+			0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
+			0x08 /* MFP5 AIC32X4_MFP5_GPIO_INPUT */
+		>;
 };
