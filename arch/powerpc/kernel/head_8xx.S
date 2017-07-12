@@ -465,23 +465,23 @@ DataStoreTLBMiss:
 	 * kernel page tables.
 	 */
 	mfspr	r10, SPRN_MD_EPN
-	rlwinm	r10, r10, 16, 0xfff8
-	cmpli	cr0, r10, PAGE_OFFSET@h
+	rlwinm	r11, r10, 16, 0xfff8
+	cmpli	cr0, r11, PAGE_OFFSET@h
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 	blt+	3f
+	rlwinm	r11, r10, 16, 0xfff8
 #ifndef CONFIG_PIN_TLB_IMMR
-	cmpli	cr0, r10, VIRT_IMMR_BASE@h
+	cmpli	cr0, r11, VIRT_IMMR_BASE@h
 #endif
 _ENTRY(DTLBMiss_cmp)
-	cmpli	cr7, r10, (PAGE_OFFSET + 0x1800000)@h
-	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
+	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
 #ifndef CONFIG_PIN_TLB_IMMR
 _ENTRY(DTLBMiss_jmp)
 	beq-	DTLBMissIMMR
 #endif
 	blt	cr7, DTLBMissLinear
+	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
-	mfspr	r10, SPRN_MD_EPN
 
 	/* Insert level 1 index */
 	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
@@ -702,7 +702,7 @@ DTLBMissLinear:
 	/* Set 8M byte page and mark it valid */
 	li	r11, MD_PS8MEG | MD_SVALID
 	MTSPR_CPU6(SPRN_MD_TWC, r11, r3)
-	rlwinm	r10, r10, 16, 0x0f800000	/* 8xx supports max 256Mb RAM */
+	rlwinm	r10, r10, 0, 0x0f800000	/* 8xx supports max 256Mb RAM */
 	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
 			  _PAGE_PRESENT
 	MTSPR_CPU6(SPRN_MD_RPN, r10, r11)	/* Update TLB entry */
