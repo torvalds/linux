@@ -46,6 +46,8 @@
 
 #include "armada-8040.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Marvell 8040 MACHIATOBin";
 	compatible = "marvell,armada8040-mcbin", "marvell,armada8040",
@@ -77,11 +79,13 @@
 
 	v_5v0_usb3_hst_vbus: regulator-usb3-vbus0 {
 		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&cpm_gpio2 15 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cpm_xhci_vbus_pins>;
 		regulator-name = "v_5v0_usb3_hst_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		/* actually GPIO controlled, but 8k has no GPIO support yet */
-		regulator-always-on;
 		status = "okay";
 	};
 
@@ -135,6 +139,10 @@
 	cpm_i2c0_pins: i2c0-pins {
 		marvell,pins = "mpp37", "mpp38";
 		marvell,function = "i2c0";
+	};
+	cpm_xhci_vbus_pins: xhci0-vbus-pins {
+		marvell,pins = "mpp47";
+		marvell,function = "gpio";
 	};
 	cpm_sdhci_pins: sdhci-pins {
 		marvell,pins = "mpp55", "mpp56", "mpp57", "mpp58", "mpp59",
