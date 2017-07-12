@@ -6,6 +6,9 @@
 
 #include <linux/sched.h>
 #include <asm/irq.h>
+#if defined(CONFIG_HAVE_NMI_WATCHDOG)
+#include <asm/nmi.h>
+#endif
 
 #ifdef CONFIG_LOCKUP_DETECTOR
 extern void touch_softlockup_watchdog_sched(void);
@@ -58,6 +61,18 @@ static inline void reset_hung_task_detector(void)
 #define NMI_WATCHDOG_ENABLED      (1 << NMI_WATCHDOG_ENABLED_BIT)
 #define SOFT_WATCHDOG_ENABLED     (1 << SOFT_WATCHDOG_ENABLED_BIT)
 
+#if defined(CONFIG_HARDLOCKUP_DETECTOR)
+extern void hardlockup_detector_disable(void);
+#else
+static inline void hardlockup_detector_disable(void) {}
+#endif
+
+#if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HAVE_NMI_WATCHDOG)
+extern void arch_touch_nmi_watchdog(void);
+#else
+static inline void arch_touch_nmi_watchdog(void) {}
+#endif
+
 /**
  * touch_nmi_watchdog - restart NMI watchdog timeout.
  * 
@@ -65,21 +80,11 @@ static inline void reset_hung_task_detector(void)
  * may be used to reset the timeout - for code which intentionally
  * disables interrupts for a long time. This call is stateless.
  */
-#if defined(CONFIG_HAVE_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
-#include <asm/nmi.h>
-extern void touch_nmi_watchdog(void);
-#else
 static inline void touch_nmi_watchdog(void)
 {
+	arch_touch_nmi_watchdog();
 	touch_softlockup_watchdog();
 }
-#endif
-
-#if defined(CONFIG_HARDLOCKUP_DETECTOR)
-extern void hardlockup_detector_disable(void);
-#else
-static inline void hardlockup_detector_disable(void) {}
-#endif
 
 /*
  * Create trigger_all_cpu_backtrace() out of the arch-provided
