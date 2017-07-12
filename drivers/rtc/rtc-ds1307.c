@@ -140,12 +140,15 @@ struct chip_desc {
 	u8			century_enable_bit;
 	u8			century_bit;
 	u8			bbsqi_bit;
+	irq_handler_t		irq_handler;
 	u16			trickle_charger_reg;
 	u8			(*do_trickle_setup)(struct ds1307 *, uint32_t,
 						    bool);
 };
 
 static u8 do_trickle_setup_ds1339(struct ds1307 *, uint32_t ohms, bool diode);
+static irqreturn_t rx8130_irq(int irq, void *dev_id);
+static irqreturn_t mcp794xx_irq(int irq, void *dev_id);
 
 static const struct chip_desc chips[last_ds_type] = {
 	[ds_1307] = {
@@ -193,12 +196,14 @@ static const struct chip_desc chips[last_ds_type] = {
 		/* this is battery backed SRAM */
 		.nvram_offset	= 0x20,
 		.nvram_size	= 4,	/* 32bit (4 word x 8 bit) */
+		.irq_handler = rx8130_irq,
 	},
 	[mcp794xx] = {
 		.alarm		= 1,
 		/* this is battery backed SRAM */
 		.nvram_offset	= 0x20,
 		.nvram_size	= 0x40,
+		.irq_handler = mcp794xx_irq,
 	},
 };
 
@@ -1320,8 +1325,6 @@ static int ds1307_probe(struct i2c_client *client,
 	unsigned long		timestamp;
 	u8			trickle_charger_setup = 0;
 
-	irq_handler_t	irq_handler = ds1307_irq;
-
 	const struct rtc_class_ops *rtc_ops = &ds13xx_rtc_ops;
 
 	ds1307 = devm_kzalloc(&client->dev, sizeof(struct ds1307), GFP_KERNEL);
@@ -1493,16 +1496,12 @@ static int ds1307_probe(struct i2c_client *client,
 	case rx_8130:
 		ds1307->offset = 0x10; /* Seconds starts at 0x10 */
 		rtc_ops = &rx8130_rtc_ops;
-		if (want_irq)
-			irq_handler = rx8130_irq;
 		break;
 	case ds_1388:
 		ds1307->offset = 1; /* Seconds starts at 1 */
 		break;
 	case mcp794xx:
 		rtc_ops = &mcp794xx_rtc_ops;
-		if (want_irq || ds1307_can_wakeup_device)
-			irq_handler = mcp794xx_irq;
 		break;
 	default:
 		break;
@@ -1652,8 +1651,8 @@ read_rtc:
 	}
 
 	if (want_irq) {
-		err = devm_request_threaded_irq(ds1307->dev,
-						client->irq, NULL, irq_handler,
+		err = devm_request_threaded_irq(ds1307->dev, client->irq, NULL,
+						chip->irq_handler ?: ds1307_irq,
 						IRQF_SHARED | IRQF_ONESHOT,
 						ds1307->name, ds1307);
 		if (err) {
