@@ -661,6 +661,7 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id inno_mipi_dphy_of_match[] = {
+	{ .compatible = "rockchip,rk3366-mipi-dphy", },
 	{ .compatible = "rockchip,rk3368-mipi-dphy", },
 	{ /* Sentinel */ }
 };

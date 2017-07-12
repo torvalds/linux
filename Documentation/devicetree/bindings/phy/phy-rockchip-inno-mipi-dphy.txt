@@ -1,7 +1,9 @@
 ROCKCHIP MIPI DPHY WITH INNO IP BLOCK
 
 Required properties:
- - compatible : should be "rockchip,rk3368-mipi-dphy";
+ - compatible : must be one of:
+	"rockchip,rk3366-mipi-dphy";
+	"rockchip,rk3368-mipi-dphy";
  - reg : the address offset of register for mipi-dphy configuration.
  - #phy-cells : must be 0. See ./phy-bindings.txt for details.
  - clocks and clock-names:
