@@ -70,6 +70,13 @@ struct kernfs_super_info {
 };
 #define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
 
+static inline struct kernfs_node *kernfs_dentry_node(struct dentry *dentry)
+{
+	if (d_really_is_negative(dentry))
+		return NULL;
+	return d_inode(dentry)->i_private;
+}
+
 extern const struct super_operations kernfs_sops;
 extern struct kmem_cache *kernfs_node_cache;
 

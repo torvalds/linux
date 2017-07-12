@@ -33,7 +33,7 @@ static int kernfs_sop_remount_fs(struct super_block *sb, int *flags, char *data)
 
 static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 {
-	struct kernfs_root *root = kernfs_root(dentry->d_fsdata);
+	struct kernfs_root *root = kernfs_root(kernfs_dentry_node(dentry));
 	struct kernfs_syscall_ops *scops = root->syscall_ops;
 
 	if (scops && scops->show_options)
@@ -43,7 +43,7 @@ static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 
 static int kernfs_sop_show_path(struct seq_file *sf, struct dentry *dentry)
 {
-	struct kernfs_node *node = dentry->d_fsdata;
+	struct kernfs_node *node = kernfs_dentry_node(dentry);
 	struct kernfs_root *root = kernfs_root(node);
 	struct kernfs_syscall_ops *scops = root->syscall_ops;
 
@@ -176,8 +176,6 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 		pr_debug("%s: could not get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
-	kernfs_get(info->root->kn);
-	root->d_fsdata = info->root->kn;
 	sb->s_root = root;
 	sb->s_d_op = &kernfs_dops;
 	return 0;
@@ -283,7 +281,6 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 void kernfs_kill_sb(struct super_block *sb)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
-	struct kernfs_node *root_kn = sb->s_root->d_fsdata;
 
 	mutex_lock(&kernfs_mutex);
 	list_del(&info->node);
@@ -295,7 +292,6 @@ void kernfs_kill_sb(struct super_block *sb)
 	 */
 	kill_anon_super(sb);
 	kfree(info);
-	kernfs_put(root_kn);
 }
 
 /**
