@@ -684,15 +684,10 @@ void ipoib_mcast_start_thread(struct net_device *dev)
 int ipoib_mcast_stop_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-	unsigned long flags;
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
 
-	spin_lock_irqsave(&priv->lock, flags);
-	cancel_delayed_work(&priv->mcast_task);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	flush_workqueue(priv->wq);
+	cancel_delayed_work_sync(&priv->mcast_task);
 
 	return 0;
 }
