@@ -87,7 +87,7 @@ void __init MMU_init_hw(void)
 #endif
 }
 
-static void mmu_mapin_immr(void)
+static void __init mmu_mapin_immr(void)
 {
 	unsigned long p = PHYS_IMMR_BASE;
 	unsigned long v = VIRT_IMMR_BASE;
@@ -107,7 +107,7 @@ extern unsigned int DTLBMiss_cmp, FixupDAR_cmp;
 extern unsigned int ITLBMiss_cmp;
 #endif
 
-void mmu_patch_cmp_limit(unsigned int *addr, unsigned long mapped)
+static void __init mmu_patch_cmp_limit(unsigned int *addr, unsigned long mapped)
 {
 	unsigned int instr = *addr;
 
@@ -151,8 +151,8 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	return mapped;
 }
 
-void setup_initial_memory_limit(phys_addr_t first_memblock_base,
-				phys_addr_t first_memblock_size)
+void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				       phys_addr_t first_memblock_size)
 {
 	/* We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors
