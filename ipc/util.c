@@ -429,13 +429,6 @@ void ipc_rcu_putref(struct kern_ipc_perm *ptr,
 	call_rcu(&ptr->rcu, func);
 }
 
-void ipc_rcu_free(struct rcu_head *h)
-{
-	struct kern_ipc_perm *ptr = container_of(h, struct kern_ipc_perm, rcu);
-
-	kvfree(ptr);
-}
-
 /**
  * ipcperms - check ipc permissions
  * @ns: ipc namespace
