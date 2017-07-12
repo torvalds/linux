@@ -130,6 +130,12 @@ EXPORT_SYMBOL_GPL(kvm_rebooting);
 
 static bool largepages_enabled = true;
 
+#define KVM_EVENT_CREATE_VM 0
+#define KVM_EVENT_DESTROY_VM 1
+static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm);
+static unsigned long long kvm_createvm_count;
+static unsigned long long kvm_active_vms;
+
 bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
 {
 	if (pfn_valid(pfn))
@@ -740,6 +746,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	int i;
 	struct mm_struct *mm = kvm->mm;
 
+	kvm_uevent_notify_change(KVM_EVENT_DESTROY_VM, kvm);
 	kvm_destroy_vm_debugfs(kvm);
 	kvm_arch_sync_events(kvm);
 	spin_lock(&kvm_lock);
@@ -3220,6 +3227,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 		fput(file);
 		return -ENOMEM;
 	}
+	kvm_uevent_notify_change(KVM_EVENT_CREATE_VM, kvm);
 
 	fd_install(r, file);
 	return r;
@@ -3871,6 +3879,67 @@ static const struct file_operations *stat_fops[] = {
 	[KVM_STAT_VCPU] = &vcpu_stat_fops,
 	[KVM_STAT_VM]   = &vm_stat_fops,
 };
+
+static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
+{
+	struct kobj_uevent_env *env;
+	char *tmp, *pathbuf = NULL;
+	unsigned long long created, active;
+
+	if (!kvm_dev.this_device || !kvm)
+		return;
+
+	spin_lock(&kvm_lock);
+	if (type == KVM_EVENT_CREATE_VM) {
+		kvm_createvm_count++;
+		kvm_active_vms++;
+	} else if (type == KVM_EVENT_DESTROY_VM) {
+		kvm_active_vms--;
+	}
+	created = kvm_createvm_count;
+	active = kvm_active_vms;
+	spin_unlock(&kvm_lock);
+
+	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	if (!env)
+		return;
+
+	add_uevent_var(env, "CREATED=%llu", created);
+	add_uevent_var(env, "COUNT=%llu", active);
+
+	if (type == KVM_EVENT_CREATE_VM)
+		add_uevent_var(env, "EVENT=create");
+	else if (type == KVM_EVENT_DESTROY_VM)
+		add_uevent_var(env, "EVENT=destroy");
+
+	if (kvm->debugfs_dentry) {
+		char p[ITOA_MAX_LEN];
+
+		snprintf(p, sizeof(p), "%s", kvm->debugfs_dentry->d_name.name);
+		tmp = strchrnul(p + 1, '-');
+		*tmp = '\0';
+		add_uevent_var(env, "PID=%s", p);
+		pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+		if (pathbuf) {
+			/* sizeof counts the final '\0' */
+			int len = sizeof("STATS_PATH=") - 1;
+			const char *pvar = "STATS_PATH=";
+
+			tmp = dentry_path_raw(kvm->debugfs_dentry,
+					      pathbuf + len,
+					      PATH_MAX - len);
+			if (!IS_ERR(tmp)) {
+				memcpy(tmp - len, pvar, len);
+				env->envp[env->envp_idx++] = tmp - len;
+			}
+		}
+	}
+	/* no need for checks, since we are adding at most only 5 keys */
+	env->envp[env->envp_idx++] = NULL;
+	kobject_uevent_env(&kvm_dev.this_device->kobj, KOBJ_CHANGE, env->envp);
+	kfree(env);
+	kfree(pathbuf);
+}
 
 static int kvm_init_debug(void)
 {
