@@ -258,18 +258,13 @@ static void merge_queues(struct sem_array *sma)
 	}
 }
 
-static void __sem_free(struct sem_array *sma)
-{
-	kvfree(sma);
-}
-
 static void sem_rcu_free(struct rcu_head *head)
 {
 	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
 	struct sem_array *sma = container_of(p, struct sem_array, sem_perm);
 
 	security_sem_free(sma);
-	__sem_free(sma);
+	kvfree(sma);
 }
 
 /*
@@ -500,7 +495,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	sma->sem_perm.security = NULL;
 	retval = security_sem_alloc(sma);
 	if (retval) {
-		__sem_free(sma);
+		kvfree(sma);
 		return retval;
 	}
 
