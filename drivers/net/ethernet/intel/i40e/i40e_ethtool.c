@@ -2194,13 +2194,28 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 			       int queue)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	u16 intrl_reg, cur_rx_itr, cur_tx_itr;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	u16 intrl_reg;
 	int i;
 
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
 		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
+
+	if (queue < 0) {
+		cur_rx_itr = vsi->rx_rings[0]->rx_itr_setting;
+		cur_tx_itr = vsi->tx_rings[0]->tx_itr_setting;
+	} else if (queue < vsi->num_queue_pairs) {
+		cur_rx_itr = vsi->rx_rings[queue]->rx_itr_setting;
+		cur_tx_itr = vsi->tx_rings[queue]->tx_itr_setting;
+	} else {
+		netif_info(pf, drv, netdev, "Invalid queue value, queue range is 0 - %d\n",
+			   vsi->num_queue_pairs - 1);
+		return -EINVAL;
+	}
+
+	cur_tx_itr &= ~I40E_ITR_DYNAMIC;
+	cur_rx_itr &= ~I40E_ITR_DYNAMIC;
 
 	/* tx_coalesce_usecs_high is ignored, use rx-usecs-high instead */
 	if (ec->tx_coalesce_usecs_high != vsi->int_rate_limit) {
@@ -2214,14 +2229,33 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (ec->rx_coalesce_usecs == 0) {
-		if (ec->use_adaptive_rx_coalesce)
-			netif_info(pf, drv, netdev, "rx-usecs=0, need to disable adaptive-rx for a complete disable\n");
-	} else if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		   (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
-			netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
-			return -EINVAL;
+	if (ec->rx_coalesce_usecs != cur_rx_itr &&
+	    ec->use_adaptive_rx_coalesce) {
+		netif_info(pf, drv, netdev, "RX interrupt moderation cannot be changed if adaptive-rx is enabled.\n");
+		return -EINVAL;
 	}
+
+	if (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
+		return -EINVAL;
+	}
+
+	if (ec->tx_coalesce_usecs != cur_tx_itr &&
+	    ec->use_adaptive_tx_coalesce) {
+		netif_info(pf, drv, netdev, "TX interrupt moderation cannot be changed if adaptive-tx is enabled.\n");
+		return -EINVAL;
+	}
+
+	if (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1)) {
+		netif_info(pf, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
+		return -EINVAL;
+	}
+
+	if (ec->use_adaptive_rx_coalesce && !cur_rx_itr)
+		ec->rx_coalesce_usecs = I40E_MIN_ITR << 1;
+
+	if (ec->use_adaptive_tx_coalesce && !cur_tx_itr)
+		ec->tx_coalesce_usecs = I40E_MIN_ITR << 1;
 
 	intrl_reg = i40e_intrl_usec_to_reg(ec->rx_coalesce_usecs_high);
 	vsi->int_rate_limit = INTRL_REG_TO_USEC(intrl_reg);
@@ -2230,27 +2264,14 @@ static int __i40e_set_coalesce(struct net_device *netdev,
 			   vsi->int_rate_limit);
 	}
 
-	if (ec->tx_coalesce_usecs == 0) {
-		if (ec->use_adaptive_tx_coalesce)
-			netif_info(pf, drv, netdev, "tx-usecs=0, need to disable adaptive-tx for a complete disable\n");
-	} else if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
-		   (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
-			netif_info(pf, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
-			return -EINVAL;
-	}
-
 	/* rx and tx usecs has per queue value. If user doesn't specify the queue,
 	 * apply to all queues.
 	 */
 	if (queue < 0) {
 		for (i = 0; i < vsi->num_queue_pairs; i++)
 			i40e_set_itr_per_queue(vsi, ec, i);
-	} else if (queue < vsi->num_queue_pairs) {
-		i40e_set_itr_per_queue(vsi, ec, queue);
 	} else {
-		netif_info(pf, drv, netdev, "Invalid queue value, queue range is 0 - %d\n",
-			   vsi->num_queue_pairs - 1);
-		return -EINVAL;
+		i40e_set_itr_per_queue(vsi, ec, queue);
 	}
 
 	return 0;
