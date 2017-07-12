@@ -518,6 +518,19 @@ static const struct vm_operations_struct shm_vm_ops = {
 #endif
 };
 
+static struct shmid_kernel *shm_alloc(void)
+{
+	struct shmid_kernel *shp;
+
+	shp = kvmalloc(sizeof(*shp), GFP_KERNEL);
+	if (unlikely(!shp))
+		return NULL;
+
+	atomic_set(&shp->shm_perm.refcount, 1);
+
+	return shp;
+}
+
 /**
  * newseg - Create a new shared memory segment
  * @ns: namespace
@@ -548,10 +561,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 			ns->shm_tot + numpages > ns->shm_ctlall)
 		return -ENOSPC;
 
-	BUILD_BUG_ON(offsetof(struct shmid_kernel, shm_perm) != 0);
-
-	shp = container_of(ipc_rcu_alloc(sizeof(*shp)), struct shmid_kernel,
-				shm_perm);
+	shp = shm_alloc();
 	if (!shp)
 		return -ENOMEM;
 
