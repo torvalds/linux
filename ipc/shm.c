@@ -172,11 +172,6 @@ static inline void shm_lock_by_ptr(struct shmid_kernel *ipcp)
 	ipc_lock_object(&ipcp->shm_perm);
 }
 
-static void __shm_free(struct shmid_kernel *shp)
-{
-	kvfree(shp);
-}
-
 static void shm_rcu_free(struct rcu_head *head)
 {
 	struct kern_ipc_perm *ptr = container_of(head, struct kern_ipc_perm,
@@ -184,7 +179,7 @@ static void shm_rcu_free(struct rcu_head *head)
 	struct shmid_kernel *shp = container_of(ptr, struct shmid_kernel,
 							shm_perm);
 	security_shm_free(shp);
-	__shm_free(shp);
+	kvfree(shp);
 }
 
 static inline void shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *s)
@@ -518,17 +513,6 @@ static const struct vm_operations_struct shm_vm_ops = {
 #endif
 };
 
-static struct shmid_kernel *shm_alloc(void)
-{
-	struct shmid_kernel *shp;
-
-	shp = kvmalloc(sizeof(*shp), GFP_KERNEL);
-	if (unlikely(!shp))
-		return NULL;
-
-	return shp;
-}
-
 /**
  * newseg - Create a new shared memory segment
  * @ns: namespace
@@ -558,8 +542,8 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 			ns->shm_tot + numpages > ns->shm_ctlall)
 		return -ENOSPC;
 
-	shp = shm_alloc();
-	if (!shp)
+	shp = kvmalloc(sizeof(*shp), GFP_KERNEL);
+	if (unlikely(!shp))
 		return -ENOMEM;
 
 	shp->shm_perm.key = key;
@@ -569,7 +553,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	shp->shm_perm.security = NULL;
 	error = security_shm_alloc(shp);
 	if (error) {
-		__shm_free(shp);
+		kvfree(shp);
 		return error;
 	}
 
