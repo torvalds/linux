@@ -114,6 +114,10 @@ int __read_mostly watchdog_suspended;
 /*
  * These functions can be overridden if an architecture implements its
  * own hardlockup detector.
+ *
+ * watchdog_nmi_enable/disable can be implemented to start and stop when
+ * softlockup watchdog threads start and stop. The arch must select the
+ * SOFTLOCKUP_DETECTOR Kconfig.
  */
 int __weak watchdog_nmi_enable(unsigned int cpu)
 {
@@ -122,6 +126,22 @@ int __weak watchdog_nmi_enable(unsigned int cpu)
 void __weak watchdog_nmi_disable(unsigned int cpu)
 {
 }
+
+/*
+ * watchdog_nmi_reconfigure can be implemented to be notified after any
+ * watchdog configuration change. The arch hardlockup watchdog should
+ * respond to the following variables:
+ * - nmi_watchdog_enabled
+ * - watchdog_thresh
+ * - watchdog_cpumask
+ * - sysctl_hardlockup_all_cpu_backtrace
+ * - hardlockup_panic
+ * - watchdog_suspended
+ */
+void __weak watchdog_nmi_reconfigure(void)
+{
+}
+
 
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 
@@ -600,6 +620,14 @@ static void watchdog_disable_all_cpus(void)
 	}
 }
 
+#ifdef CONFIG_SYSCTL
+static int watchdog_update_cpus(void)
+{
+	return smpboot_update_cpumask_percpu_thread(
+		    &watchdog_threads, &watchdog_cpumask);
+}
+#endif
+
 #else /* SOFTLOCKUP */
 static int watchdog_park_threads(void)
 {
@@ -618,6 +646,13 @@ static int watchdog_enable_all_cpus(void)
 static void watchdog_disable_all_cpus(void)
 {
 }
+
+#ifdef CONFIG_SYSCTL
+static int watchdog_update_cpus(void)
+{
+	return 0;
+}
+#endif
 
 static void set_sample_period(void)
 {
@@ -651,6 +686,8 @@ int lockup_detector_suspend(void)
 		watchdog_enabled = 0;
 	}
 
+	watchdog_nmi_reconfigure();
+
 	mutex_unlock(&watchdog_proc_mutex);
 
 	return ret;
@@ -670,6 +707,8 @@ void lockup_detector_resume(void)
 	 */
 	if (watchdog_running && !watchdog_suspended)
 		watchdog_unpark_threads();
+
+	watchdog_nmi_reconfigure();
 
 	mutex_unlock(&watchdog_proc_mutex);
 	put_online_cpus();
@@ -695,6 +734,8 @@ static int proc_watchdog_update(void)
 		err = watchdog_enable_all_cpus();
 	else
 		watchdog_disable_all_cpus();
+
+	watchdog_nmi_reconfigure();
 
 	return err;
 
@@ -881,12 +922,11 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 			 * a temporary cpumask, so we are likely not in a
 			 * position to do much else to make things better.
 			 */
-#ifdef CONFIG_SOFTLOCKUP_DETECTOR
-			if (smpboot_update_cpumask_percpu_thread(
-				    &watchdog_threads, &watchdog_cpumask) != 0)
+			if (watchdog_update_cpus() != 0)
 				pr_err("cpumask update failed\n");
-#endif
 		}
+
+		watchdog_nmi_reconfigure();
 	}
 out:
 	mutex_unlock(&watchdog_proc_mutex);
