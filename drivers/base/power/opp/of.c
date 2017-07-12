@@ -539,8 +539,12 @@ int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 
 		ret = dev_pm_opp_of_add_table(cpu_dev);
 		if (ret) {
-			pr_err("%s: couldn't find opp table for cpu:%d, %d\n",
-			       __func__, cpu, ret);
+			/*
+			 * OPP may get registered dynamically, don't print error
+			 * message here.
+			 */
+			pr_debug("%s: couldn't find opp table for cpu:%d, %d\n",
+				 __func__, cpu, ret);
 
 			/* Free all other OPPs */
 			dev_pm_opp_of_cpumask_remove_table(cpumask);
