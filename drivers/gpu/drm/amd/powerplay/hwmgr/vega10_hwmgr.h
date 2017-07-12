@@ -434,6 +434,10 @@ struct vega10_hwmgr {
 #define PPVEGA10_VEGA10UCLKCLKAVERAGEALPHA_DFLT      25 /* 10% * 255 = 25 */
 #define PPVEGA10_VEGA10GFXACTIVITYAVERAGEALPHA_DFLT  25 /* 10% * 255 = 25 */
 
+#define VEGA10_UMD_PSTATE_GFXCLK_LEVEL         0x3
+#define VEGA10_UMD_PSTATE_SOCCLK_LEVEL         0x3
+#define VEGA10_UMD_PSTATE_MCLK_LEVEL           0x2
+
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern int tonga_get_mc_microcode_version (struct pp_hwmgr *hwmgr);
