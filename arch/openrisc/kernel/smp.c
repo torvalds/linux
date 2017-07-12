@@ -128,6 +128,7 @@ asmlinkage __init void secondary_start_kernel(void)
 
 	local_irq_enable();
 
+	preempt_disable();
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
