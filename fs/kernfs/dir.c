@@ -539,7 +539,7 @@ void kernfs_put(struct kernfs_node *kn)
 	}
 	kfree(kn->iattr);
 	spin_lock(&kernfs_idr_lock);
-	idr_remove(&root->ino_idr, kn->ino);
+	idr_remove(&root->ino_idr, kn->id.ino);
 	spin_unlock(&kernfs_idr_lock);
 	kmem_cache_free(kernfs_node_cache, kn);
 
@@ -645,8 +645,8 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	idr_preload_end();
 	if (ret < 0)
 		goto err_out2;
-	kn->ino = ret;
-	kn->generation = gen;
+	kn->id.ino = ret;
+	kn->id.generation = gen;
 
 	/*
 	 * set ino first. This barrier is paired with atomic_inc_not_zero in
@@ -721,7 +721,7 @@ struct kernfs_node *kernfs_find_and_get_node_by_ino(struct kernfs_root *root,
 	 * before 'count'. So if 'count' is uptodate, 'ino' should be uptodate,
 	 * hence we can use 'ino' to filter stale node.
 	 */
-	if (kn->ino != ino)
+	if (kn->id.ino != ino)
 		goto out;
 	rcu_read_unlock();
 
@@ -1654,7 +1654,7 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 		const char *name = pos->name;
 		unsigned int type = dt_type(pos);
 		int len = strlen(name);
-		ino_t ino = pos->ino;
+		ino_t ino = pos->id.ino;
 
 		ctx->pos = pos->hash;
 		file->private_data = pos;
