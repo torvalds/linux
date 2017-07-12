@@ -743,6 +743,14 @@ void ipoib_mcast_remove_list(struct list_head *remove_list)
 {
 	struct ipoib_mcast *mcast, *tmcast;
 
+	/*
+	 * make sure the in-flight joins have finished before we attempt
+	 * to leave
+	 */
+	list_for_each_entry_safe(mcast, tmcast, remove_list, list)
+		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
+			wait_for_completion(&mcast->done);
+
 	list_for_each_entry_safe(mcast, tmcast, remove_list, list) {
 		ipoib_mcast_leave(mcast->dev, mcast);
 		ipoib_mcast_free(mcast);
@@ -851,14 +859,6 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/*
-	 * make sure the in-flight joins have finished before we attempt
-	 * to leave
-	 */
-	list_for_each_entry_safe(mcast, tmcast, &remove_list, list)
-		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
-			wait_for_completion(&mcast->done);
 
 	ipoib_mcast_remove_list(&remove_list);
 	mutex_unlock(&priv->mcast_mutex);
@@ -978,14 +978,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	spin_unlock(&priv->lock);
 	netif_addr_unlock(dev);
 	local_irq_restore(flags);
-
-	/*
-	 * make sure the in-flight joins have finished before we attempt
-	 * to leave
-	 */
-	list_for_each_entry_safe(mcast, tmcast, &remove_list, list)
-		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
-			wait_for_completion(&mcast->done);
 
 	ipoib_mcast_remove_list(&remove_list);
 
