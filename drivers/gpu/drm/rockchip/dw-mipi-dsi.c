@@ -35,6 +35,9 @@
 #define RK3288_DSI0_SEL_VOP_LIT		BIT(6)
 #define RK3288_DSI1_SEL_VOP_LIT		BIT(9)
 
+#define RK3366_GRF_SOC_CON0		0x0400
+#define RK3366_DSI_SEL_VOP_LIT		BIT(2)
+
 #define RK3399_GRF_SOC_CON19		0x6250
 #define RK3399_DSI0_SEL_VOP_LIT		BIT(0)
 #define RK3399_DSI1_SEL_VOP_LIT		BIT(4)
@@ -1162,6 +1165,19 @@ static struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_drv_data = {
 	.has_vop_sel = true,
 };
 
+static struct dw_mipi_dsi_plat_data rk3366_mipi_dsi_drv_data = {
+	.dsi0_en_bit = RK3366_DSI_SEL_VOP_LIT,
+	.grf_switch_reg = RK3366_GRF_SOC_CON0,
+	.max_data_lanes = 4,
+	.max_bit_rate_per_lane = 1000000000,
+	.has_vop_sel = true,
+};
+
+static struct dw_mipi_dsi_plat_data rk3368_mipi_dsi_drv_data = {
+	.max_data_lanes = 4,
+	.max_bit_rate_per_lane = 1000000000,
+};
+
 static struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_drv_data = {
 	.dsi0_en_bit = RK3399_DSI0_SEL_VOP_LIT,
 	.dsi1_en_bit = RK3399_DSI1_SEL_VOP_LIT,
@@ -1173,21 +1189,19 @@ static struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_drv_data = {
 	.has_vop_sel = true,
 };
 
-static struct dw_mipi_dsi_plat_data rk3368_mipi_dsi_drv_data = {
-	.max_data_lanes = 4,
-	.max_bit_rate_per_lane = 1000000000,
-};
-
 static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	{
 	 .compatible = "rockchip,rk3288-mipi-dsi",
 	 .data = &rk3288_mipi_dsi_drv_data,
-	},{
-	 .compatible = "rockchip,rk3399-mipi-dsi",
-	 .data = &rk3399_mipi_dsi_drv_data,
+	}, {
+	 .compatible = "rockchip,rk3366-mipi-dsi",
+	 .data = &rk3366_mipi_dsi_drv_data,
 	}, {
 	 .compatible = "rockchip,rk3368-mipi-dsi",
 	 .data = &rk3368_mipi_dsi_drv_data,
+	}, {
+	 .compatible = "rockchip,rk3399-mipi-dsi",
+	 .data = &rk3399_mipi_dsi_drv_data,
 	},
 	{ /* sentinel */ }
 };
