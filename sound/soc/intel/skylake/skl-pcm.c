@@ -628,7 +628,7 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops skl_pcm_dai_ops = {
+static const struct snd_soc_dai_ops skl_pcm_dai_ops = {
 	.startup = skl_pcm_open,
 	.shutdown = skl_pcm_close,
 	.prepare = skl_pcm_prepare,
@@ -637,15 +637,15 @@ static struct snd_soc_dai_ops skl_pcm_dai_ops = {
 	.trigger = skl_pcm_trigger,
 };
 
-static struct snd_soc_dai_ops skl_dmic_dai_ops = {
+static const struct snd_soc_dai_ops skl_dmic_dai_ops = {
 	.hw_params = skl_be_hw_params,
 };
 
-static struct snd_soc_dai_ops skl_be_ssp_dai_ops = {
+static const struct snd_soc_dai_ops skl_be_ssp_dai_ops = {
 	.hw_params = skl_be_hw_params,
 };
 
-static struct snd_soc_dai_ops skl_link_dai_ops = {
+static const struct snd_soc_dai_ops skl_link_dai_ops = {
 	.prepare = skl_link_pcm_prepare,
 	.hw_params = skl_link_hw_params,
 	.hw_free = skl_link_hw_free,
