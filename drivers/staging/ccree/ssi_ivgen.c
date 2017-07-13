@@ -158,7 +158,7 @@ int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
 void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
 {
 	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
-	struct device *device = &(drvdata->plat_dev->dev);
+	struct device *device = &drvdata->plat_dev->dev;
 
 	if (!ivgen_ctx)
 		return;

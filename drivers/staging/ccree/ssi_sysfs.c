@@ -257,7 +257,7 @@ void update_host_stat(unsigned int op_type, unsigned int phase, cycles_t result)
 	unsigned long flags;
 
 	spin_lock_irqsave(&stat_lock, flags);
-	update_db(&(stat_host_db[op_type][phase]), (unsigned int)result);
+	update_db(&stat_host_db[op_type][phase], (unsigned int)result);
 	spin_unlock_irqrestore(&stat_lock, flags);
 }
 
@@ -266,7 +266,7 @@ void update_cc_stat(
 	unsigned int phase,
 	unsigned int elapsed_cycles)
 {
-	update_db(&(stat_cc_db[op_type][phase]), elapsed_cycles);
+	update_db(&stat_cc_db[op_type][phase], elapsed_cycles);
 }
 
 void display_all_stat_db(void)
@@ -388,7 +388,7 @@ static int sys_init_dir(struct sys_dir *sys_dir, struct ssi_drvdata *drvdata,
 
 	/* initialize attributes list */
 	for (i = 0; i < num_of_attrs; ++i)
-		sys_dir->sys_dir_attr_list[i] = &(attrs[i].attr);
+		sys_dir->sys_dir_attr_list[i] = &attrs[i].attr;
 
 	/* last list entry should be NULL */
 	sys_dir->sys_dir_attr_list[num_of_attrs] = NULL;
@@ -396,7 +396,7 @@ static int sys_init_dir(struct sys_dir *sys_dir, struct ssi_drvdata *drvdata,
 	sys_dir->sys_dir_attr_group.attrs = sys_dir->sys_dir_attr_list;
 
 	return sysfs_create_group(sys_dir->sys_dir_kobj,
-			&(sys_dir->sys_dir_attr_group));
+			&sys_dir->sys_dir_attr_group);
 }
 
 static void sys_free_dir(struct sys_dir *sys_dir)

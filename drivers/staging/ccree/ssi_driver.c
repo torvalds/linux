@@ -327,7 +327,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 #ifdef ENABLE_CC_SYSFS
-	rc = ssi_sysfs_init(&(plat_dev->dev.kobj), new_drvdata);
+	rc = ssi_sysfs_init(&plat_dev->dev.kobj, new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("init_stat_db failed\n");
 		goto init_cc_res_err;

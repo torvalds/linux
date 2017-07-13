@@ -92,7 +92,7 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 
 	SSI_LOG_DEBUG("Clearing context @%p for %s\n",
-		crypto_aead_ctx(tfm), crypto_tfm_alg_name(&(tfm->base)));
+		crypto_aead_ctx(tfm), crypto_tfm_alg_name(&tfm->base));
 
 	dev = &ctx->drvdata->plat_dev->dev;
 	/* Unmap enckey buffer */
@@ -143,7 +143,7 @@ static int ssi_aead_init(struct crypto_aead *tfm)
 	struct ssi_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct ssi_crypto_alg *ssi_alg =
 			container_of(alg, struct ssi_crypto_alg, aead_alg);
-	SSI_LOG_DEBUG("Initializing context @%p for %s\n", ctx, crypto_tfm_alg_name(&(tfm->base)));
+	SSI_LOG_DEBUG("Initializing context @%p for %s\n", ctx, crypto_tfm_alg_name(&tfm->base));
 
 	/* Initialize modes in instance */
 	ctx->cipher_mode = ssi_alg->cipher_mode;

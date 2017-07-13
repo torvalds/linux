@@ -221,7 +221,7 @@ static int ssi_buffer_mgr_generate_mlli(
 	/* Allocate memory from the pointed pool */
 	mlli_params->mlli_virt_addr = dma_pool_alloc(
 			mlli_params->curr_pool, GFP_KERNEL,
-			&(mlli_params->mlli_dma_addr));
+			&mlli_params->mlli_dma_addr);
 	if (unlikely(!mlli_params->mlli_virt_addr)) {
 		SSI_LOG_ERR("dma_pool_alloc() failed\n");
 		rc = -ENOMEM;
@@ -249,7 +249,7 @@ static int ssi_buffer_mgr_generate_mlli(
 			/*Calculate the current MLLI table length for the
 			 *length field in the descriptor
 			 */
-			*(sg_data->mlli_nents[i]) +=
+			*sg_data->mlli_nents[i] +=
 				(total_nents - prev_total_nents);
 			prev_total_nents = total_nents;
 		}
@@ -1176,7 +1176,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 
 		rc = ssi_buffer_mgr_map_scatterlist(dev, req->dst, size_for_map,
 						    DMA_BIDIRECTIONAL,
-						    &(areq_ctx->dst.nents),
+						    &areq_ctx->dst.nents,
 						    LLI_MAX_NUM_OF_DATA_ENTRIES,
 						    &dst_last_bytes,
 						    &dst_mapped_nents);
@@ -1407,7 +1407,7 @@ int ssi_buffer_mgr_map_aead_request(
 	if (is_gcm4543)
 		size_to_map += crypto_aead_ivsize(tfm);
 	rc = ssi_buffer_mgr_map_scatterlist(dev, req->src,
-					    size_to_map, DMA_BIDIRECTIONAL, &(areq_ctx->src.nents),
+					    size_to_map, DMA_BIDIRECTIONAL, &areq_ctx->src.nents,
 					    LLI_MAX_NUM_OF_ASSOC_DATA_ENTRIES + LLI_MAX_NUM_OF_DATA_ENTRIES, &dummy, &mapped_nents);
 	if (unlikely(rc != 0)) {
 		rc = -ENOMEM;

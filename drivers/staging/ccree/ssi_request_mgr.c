@@ -317,7 +317,7 @@ int send_request(
 	if (!is_dout) {
 		init_completion(&ssi_req->seq_compl);
 		ssi_req->user_cb = request_mgr_complete;
-		ssi_req->user_arg = &(ssi_req->seq_compl);
+		ssi_req->user_arg = &ssi_req->seq_compl;
 		total_seq_len++;
 	}
 
