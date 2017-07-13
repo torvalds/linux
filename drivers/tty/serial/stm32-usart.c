@@ -518,7 +518,7 @@ static void stm32_set_termios(struct uart_port *port, struct ktermios *termios,
 	port->status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS);
 	if (cflag & CRTSCTS) {
 		port->status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
-		cr3 |= USART_CR3_CTSE;
+		cr3 |= USART_CR3_CTSE | USART_CR3_RTSE;
 	}
 
 	usartdiv = DIV_ROUND_CLOSEST(port->uartclk, baud);
