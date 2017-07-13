@@ -1308,8 +1308,6 @@ static int __must_check __add_reloc_root(struct btrfs_root *root)
 		btrfs_panic(fs_info, -EEXIST,
 			    "Duplicate root found for start=%llu while inserting into relocation tree",
 			    node->bytenr);
-		kfree(node);
-		return -EEXIST;
 	}
 
 	list_add_tail(&root->root_list, &rc->reloc_roots);
