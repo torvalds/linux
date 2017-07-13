@@ -111,14 +111,13 @@ static void stm32_receive_chars(struct uart_port *port, bool threaded)
 	unsigned long c;
 	u32 sr;
 	char flag;
-	static int last_res = RX_BUF_L;
 
 	if (port->irq_wake)
 		pm_wakeup_event(tport->tty->dev, 0);
 
-	while (stm32_pending_rx(port, &sr, &last_res, threaded)) {
+	while (stm32_pending_rx(port, &sr, &stm32_port->last_res, threaded)) {
 		sr |= USART_SR_DUMMY_RX;
-		c = stm32_get_char(port, &sr, &last_res);
+		c = stm32_get_char(port, &sr, &stm32_port->last_res);
 		flag = TTY_NORMAL;
 		port->icount.rx++;
 
@@ -694,8 +693,10 @@ static struct stm32_port *stm32_of_get_stm32_port(struct platform_device *pdev)
 		return NULL;
 
 	id = of_alias_get_id(np, "serial");
-	if (id < 0)
-		id = 0;
+	if (id < 0) {
+		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", id);
+		return NULL;
+	}
 
 	if (WARN_ON(id >= STM32_MAX_PORTS))
 		return NULL;
@@ -703,6 +704,7 @@ static struct stm32_port *stm32_of_get_stm32_port(struct platform_device *pdev)
 	stm32_ports[id].hw_flow_control = of_property_read_bool(np,
 							"st,hw-flow-ctrl");
 	stm32_ports[id].port.line = id;
+	stm32_ports[id].last_res = RX_BUF_L;
 	return &stm32_ports[id];
 }
 
