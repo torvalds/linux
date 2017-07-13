@@ -711,6 +711,27 @@ static int recvs_pending(struct net_device *dev)
 	return pending;
 }
 
+static void check_qp_movement_and_print(struct ipoib_dev_priv *priv,
+					struct ib_qp *qp,
+					enum ib_qp_state new_state)
+{
+	struct ib_qp_attr qp_attr;
+	struct ib_qp_init_attr query_init_attr;
+	int ret;
+
+	ret = ib_query_qp(qp, &qp_attr, IB_QP_STATE, &query_init_attr);
+	if (ret) {
+		ipoib_warn(priv, "%s: Failed to query QP\n", __func__);
+		return;
+	}
+	/* print according to the new-state and the previous state.*/
+	if (new_state == IB_QPS_ERR && qp_attr.qp_state == IB_QPS_RESET)
+		ipoib_dbg(priv, "Failed modify QP, IB_QPS_RESET to IB_QPS_ERR, acceptable\n");
+	else
+		ipoib_warn(priv, "Failed to modify QP to state: %d from state: %d\n",
+			   new_state, qp_attr.qp_state);
+}
+
 int ipoib_ib_dev_stop_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
@@ -730,7 +751,7 @@ int ipoib_ib_dev_stop_default(struct net_device *dev)
 	 */
 	qp_attr.qp_state = IB_QPS_ERR;
 	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
-		ipoib_warn(priv, "Failed to modify QP to ERROR state\n");
+		check_qp_movement_and_print(priv, priv->qp, IB_QPS_ERR);
 
 	/* Wait for all sends and receives to complete */
 	begin = jiffies;
