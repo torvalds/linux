@@ -338,7 +338,7 @@ static void crush_finalize(struct crush_map *c)
 static struct crush_map *crush_decode(void *pbyval, void *end)
 {
 	struct crush_map *c;
-	int err = -EINVAL;
+	int err;
 	int i, j;
 	void **p = &pbyval;
 	void *start = pbyval;
@@ -407,7 +407,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			size = sizeof(struct crush_bucket_straw2);
 			break;
 		default:
-			err = -EINVAL;
 			goto bad;
 		}
 		BUG_ON(size == 0);
@@ -439,31 +438,31 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			err = crush_decode_uniform_bucket(p, end,
 				  (struct crush_bucket_uniform *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_LIST:
 			err = crush_decode_list_bucket(p, end,
 			       (struct crush_bucket_list *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_TREE:
 			err = crush_decode_tree_bucket(p, end,
 				(struct crush_bucket_tree *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_STRAW:
 			err = crush_decode_straw_bucket(p, end,
 				(struct crush_bucket_straw *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_STRAW2:
 			err = crush_decode_straw2_bucket(p, end,
 				(struct crush_bucket_straw2 *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		}
 	}
@@ -474,7 +473,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		u32 yes;
 		struct crush_rule *r;
 
-		err = -EINVAL;
 		ceph_decode_32_safe(p, end, yes, bad);
 		if (!yes) {
 			dout("crush_decode NO rule %d off %x %p to %p\n",
@@ -489,7 +487,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		/* len */
 		ceph_decode_32_safe(p, end, yes, bad);
 #if BITS_PER_LONG == 32
-		err = -EINVAL;
 		if (yes > (ULONG_MAX - sizeof(*r))
 			  / sizeof(struct crush_rule_step))
 			goto bad;
@@ -557,7 +554,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	if (*p != end) {
 		err = decode_choose_args(p, end, c);
 		if (err)
-			goto bad;
+			goto fail;
 	}
 
 done:
@@ -567,10 +564,14 @@ done:
 
 badmem:
 	err = -ENOMEM;
-bad:
+fail:
 	dout("crush_decode fail %d\n", err);
 	crush_destroy(c);
 	return ERR_PTR(err);
+
+bad:
+	err = -EINVAL;
+	goto fail;
 }
 
 int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs)
