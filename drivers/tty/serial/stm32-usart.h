@@ -206,7 +206,7 @@ struct stm32_usart_info stm32f7_info = {
 #define USART_ICR_CMCF		BIT(17)		/* F7 */
 
 #define STM32_SERIAL_NAME "ttyS"
-#define STM32_MAX_PORTS 6
+#define STM32_MAX_PORTS 8
 
 #define RX_BUF_L 200		 /* dma rx buffer length     */
 #define RX_BUF_P RX_BUF_L	 /* dma rx buffer period     */
