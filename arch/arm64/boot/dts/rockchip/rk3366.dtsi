@@ -1007,8 +1007,8 @@
 		compatible = "rockchip,rk3366-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x4000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_MIPI_DSI0>;
-		clock-names = "pclk";
+		clocks = <&cru PCLK_MIPI_DSI0>, <&mipi_dphy>;
+		clock-names = "pclk", "hs_clk";
 		resets = <&cru SRST_MIPIDSI0>;
 		reset-names = "apb";
 		phys = <&mipi_dphy>;
@@ -1041,6 +1041,8 @@
 		reg = <0x0 0xff968000 0x0 0x4000>;
 		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX>;
 		clock-names = "ref", "pclk";
+		clock-output-names = "mipi_dphy_pll";
+		#clock-cells = <0>;
 		resets = <&cru SRST_MIPIDPHYTX>;
 		reset-names = "apb";
 		#phy-cells = <0>;
