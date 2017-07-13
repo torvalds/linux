@@ -168,11 +168,21 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static void copy_and_pad(char *dst, int dst_len, const char *src, int src_len)
+{
+	int len = min(src_len, dst_len);
+
+	memcpy(dst, src, len);
+	if (dst_len > len)
+		memset(dst + len, ' ', dst_len - len);
+}
+
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvme_id_ctrl *id;
 	u16 status = 0;
+	const char model[] = "Linux";
 
 	id = kzalloc(sizeof(*id), GFP_KERNEL);
 	if (!id) {
@@ -184,8 +194,10 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->vid = 0;
 	id->ssvid = 0;
 
-	memset(id->sn, ' ', sizeof(id->sn));
-	snprintf(id->sn, sizeof(id->sn), "%llx", ctrl->subsys->serial);
+	bin2hex(id->sn, &ctrl->subsys->serial,
+		min(sizeof(ctrl->subsys->serial), sizeof(id->sn) / 2));
+	copy_and_pad(id->mn, sizeof(id->mn), model, sizeof(model) - 1);
+	copy_and_pad(id->fr, sizeof(id->fr), UTS_RELEASE, strlen(UTS_RELEASE));
 
 	memset(id->mn, ' ', sizeof(id->mn));
 	strncpy((char *)id->mn, "Linux", sizeof(id->mn));
