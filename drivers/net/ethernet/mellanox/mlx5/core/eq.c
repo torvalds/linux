@@ -585,7 +585,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		 name, pci_name(dev->pdev));
 
 	eq->eqn = MLX5_GET(create_eq_out, out, eq_number);
-	eq->irqn = priv->msix_arr[vecidx].vector;
+	eq->irqn = pci_irq_vector(dev->pdev, vecidx);
 	eq->dev = dev;
 	eq->doorbell = priv->uar->map + MLX5_EQ_DOORBEL_OFFSET;
 	err = request_irq(eq->irqn, handler, 0,
@@ -620,7 +620,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	return 0;
 
 err_irq:
-	free_irq(priv->msix_arr[vecidx].vector, eq);
+	free_irq(eq->irqn, eq);
 
 err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
@@ -660,11 +660,6 @@ int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_destroy_unmap_eq);
-
-u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx)
-{
-	return dev->priv.msix_arr[MLX5_EQ_VEC_ASYNC].vector;
-}
 
 int mlx5_eq_init(struct mlx5_core_dev *dev)
 {

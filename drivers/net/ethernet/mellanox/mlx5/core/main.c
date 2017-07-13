@@ -312,13 +312,12 @@ static void release_bar(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 }
 
-static int mlx5_enable_msix(struct mlx5_core_dev *dev)
+static int mlx5_alloc_irq_vectors(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_eq_table *table = &priv->eq_table;
 	int num_eqs = 1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int nvec;
-	int i;
 
 	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
 	       MLX5_EQ_VEC_COMP_BASE;
@@ -326,17 +325,13 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
 		return -ENOMEM;
 
-	priv->msix_arr = kcalloc(nvec, sizeof(*priv->msix_arr), GFP_KERNEL);
-
 	priv->irq_info = kcalloc(nvec, sizeof(*priv->irq_info), GFP_KERNEL);
-	if (!priv->msix_arr || !priv->irq_info)
+	if (!priv->irq_info)
 		goto err_free_msix;
 
-	for (i = 0; i < nvec; i++)
-		priv->msix_arr[i].entry = i;
-
-	nvec = pci_enable_msix_range(dev->pdev, priv->msix_arr,
-				     MLX5_EQ_VEC_COMP_BASE + 1, nvec);
+	nvec = pci_alloc_irq_vectors(dev->pdev,
+			MLX5_EQ_VEC_COMP_BASE + 1, nvec,
+			PCI_IRQ_MSIX);
 	if (nvec < 0)
 		return nvec;
 
@@ -346,17 +341,15 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 
 err_free_msix:
 	kfree(priv->irq_info);
-	kfree(priv->msix_arr);
 	return -ENOMEM;
 }
 
-static void mlx5_disable_msix(struct mlx5_core_dev *dev)
+static void mlx5_free_irq_vectors(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
-	pci_disable_msix(dev->pdev);
+	pci_free_irq_vectors(dev->pdev);
 	kfree(priv->irq_info);
-	kfree(priv->msix_arr);
 }
 
 struct mlx5_reg_host_endianness {
@@ -615,8 +608,7 @@ u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev)
 static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
 	struct mlx5_priv *priv  = &mdev->priv;
-	struct msix_entry *msix = priv->msix_arr;
-	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
+	int irq = pci_irq_vector(mdev->pdev, MLX5_EQ_VEC_COMP_BASE + i);
 
 	if (!zalloc_cpumask_var(&priv->irq_info[i].mask, GFP_KERNEL)) {
 		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
@@ -636,8 +628,7 @@ static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 static void mlx5_irq_clear_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
 	struct mlx5_priv *priv  = &mdev->priv;
-	struct msix_entry *msix = priv->msix_arr;
-	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
+	int irq = pci_irq_vector(mdev->pdev, MLX5_EQ_VEC_COMP_BASE + i);
 
 	irq_set_affinity_hint(irq, NULL);
 	free_cpumask_var(priv->irq_info[i].mask);
@@ -760,8 +751,8 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 		}
 
 #ifdef CONFIG_RFS_ACCEL
-		irq_cpu_rmap_add(dev->rmap,
-				 dev->priv.msix_arr[i + MLX5_EQ_VEC_COMP_BASE].vector);
+		irq_cpu_rmap_add(dev->rmap, pci_irq_vector(dev->pdev,
+				 MLX5_EQ_VEC_COMP_BASE + i));
 #endif
 		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(dev, eq,
@@ -1119,9 +1110,9 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_stop_poll;
 	}
 
-	err = mlx5_enable_msix(dev);
+	err = mlx5_alloc_irq_vectors(dev);
 	if (err) {
-		dev_err(&pdev->dev, "enable msix failed\n");
+		dev_err(&pdev->dev, "alloc irq vectors failed\n");
 		goto err_cleanup_once;
 	}
 
@@ -1220,7 +1211,7 @@ err_put_uars:
 	mlx5_put_uars_page(dev, priv->uar);
 
 err_disable_msix:
-	mlx5_disable_msix(dev);
+	mlx5_free_irq_vectors(dev);
 
 err_cleanup_once:
 	if (boot)
@@ -1287,7 +1278,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
 	mlx5_put_uars_page(dev, priv->uar);
-	mlx5_disable_msix(dev);
+	mlx5_free_irq_vectors(dev);
 	if (cleanup)
 		mlx5_cleanup_once(dev);
 	mlx5_stop_health_poll(dev);
