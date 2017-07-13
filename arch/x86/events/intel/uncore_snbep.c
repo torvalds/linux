@@ -3492,6 +3492,26 @@ static struct intel_uncore_type skx_uncore_irp = {
 	.format_group		= &skx_uncore_format_group,
 };
 
+static struct attribute *skx_uncore_pcu_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	&format_attr_occ_invert.attr,
+	&format_attr_occ_edge_det.attr,
+	&format_attr_filter_band0.attr,
+	&format_attr_filter_band1.attr,
+	&format_attr_filter_band2.attr,
+	&format_attr_filter_band3.attr,
+	NULL,
+};
+
+static struct attribute_group skx_uncore_pcu_format_group = {
+	.name = "format",
+	.attrs = skx_uncore_pcu_formats_attr,
+};
+
 static struct intel_uncore_ops skx_uncore_pcu_ops = {
 	IVBEP_UNCORE_MSR_OPS_COMMON_INIT(),
 	.hw_config		= hswep_pcu_hw_config,
@@ -3510,7 +3530,7 @@ static struct intel_uncore_type skx_uncore_pcu = {
 	.box_ctl		= HSWEP_PCU_MSR_PMON_BOX_CTL,
 	.num_shared_regs	= 1,
 	.ops			= &skx_uncore_pcu_ops,
-	.format_group		= &snbep_uncore_pcu_format_group,
+	.format_group		= &skx_uncore_pcu_format_group,
 };
 
 static struct intel_uncore_type *skx_msr_uncores[] = {
