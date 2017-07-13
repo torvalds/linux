@@ -7,6 +7,8 @@
 #ifndef _ROCKCHIP_DRM_GEM_H
 #define _ROCKCHIP_DRM_GEM_H
 
+#include <linux/dma-direction.h>
+
 #define to_rockchip_obj(x) container_of(x, struct rockchip_gem_object, base)
 
 struct rockchip_gem_object {
@@ -50,4 +52,10 @@ void rockchip_gem_free_object(struct drm_gem_object *obj);
 int rockchip_gem_dumb_create(struct drm_file *file_priv,
 			     struct drm_device *dev,
 			     struct drm_mode_create_dumb *args);
+
+int rockchip_gem_prime_begin_cpu_access(struct drm_gem_object *obj,
+					enum dma_data_direction dir);
+
+int rockchip_gem_prime_end_cpu_access(struct drm_gem_object *obj,
+				      enum dma_data_direction dir);
 #endif /* _ROCKCHIP_DRM_GEM_H */
