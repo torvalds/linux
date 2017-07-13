@@ -1902,6 +1902,7 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 		goto err;
 
 	if (udata == NULL) {
+		status = -ENOMEM;
 		srq->rqe_wr_id_tbl = kzalloc(sizeof(u64) * srq->rq.max_cnt,
 			    GFP_KERNEL);
 		if (srq->rqe_wr_id_tbl == NULL)
