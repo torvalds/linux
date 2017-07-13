@@ -352,19 +352,6 @@ static int max_mbps_to_testdin(unsigned int max_mbps)
 	return -EINVAL;
 }
 
-/*
- * The controller should generate 2 frames before
- * preparing the peripheral.
- */
-static void dw_mipi_dsi_wait_for_two_frames(struct dw_mipi_dsi *dsi)
-{
-	int refresh, two_frames;
-
-	refresh = drm_mode_vrefresh(&dsi->mode);
-	two_frames = DIV_ROUND_UP(MSEC_PER_SEC, refresh) * 2;
-	msleep(two_frames);
-}
-
 static inline struct dw_mipi_dsi *host_to_dsi(struct mipi_dsi_host *host)
 {
 	return container_of(host, struct dw_mipi_dsi, dsi_host);
@@ -905,18 +892,29 @@ static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
+static void rockchip_dsi_grf_config(struct dw_mipi_dsi *dsi, int vop_id)
 {
-	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->pdata;
-	int mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node, encoder);
-	int ret;
-	u32 val;
+	int val = 0;
 
+	if (vop_id)
+		val = pdata->dsi0_en_bit | (pdata->dsi0_en_bit << 16);
+	else
+		val = pdata->dsi0_en_bit << 16;
+
+	regmap_write(dsi->grf_regmap, pdata->grf_switch_reg, val);
+
+	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (vop_id) ? "LIT" : "BIG");
+}
+
+static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
+{
 	if (clk_prepare_enable(dsi->pclk)) {
 		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
 		return;
 	}
+
+	pm_runtime_get_sync(dsi->dev);
 
 	if (dsi->rst) {
 		/* MIPI DSI APB software reset request. */
@@ -926,22 +924,21 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 		udelay(10);
 	}
 
-	pm_runtime_get_sync(dsi->dev);
-
-	phy_power_on(dsi->phy);
-
 	if (dsi->phy) {
+		phy_power_on(dsi->phy);
+
 		/*
 		 * If using the third party PHY, we get the lane
 		 * rate information from PHY.
 		 */
 		dsi->lane_mbps = phy_get_bus_width(dsi->phy);
 	} else {
-		ret = dw_mipi_dsi_get_lane_bps(dsi);
-		if (ret < 0)
-			return;
+		dw_mipi_dsi_get_lane_bps(dsi);
 	}
+}
 
+static void rockchip_dsi_host_init(struct dw_mipi_dsi *dsi)
+{
 	dw_mipi_dsi_init(dsi);
 	dw_mipi_dsi_dpi_config(dsi, &dsi->mode);
 	dw_mipi_dsi_packet_handler_config(dsi);
@@ -953,33 +950,38 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	dw_mipi_dsi_dphy_timing_config(dsi);
 	dw_mipi_dsi_dphy_interface_config(dsi);
 	dw_mipi_dsi_clear_err(dsi);
-	if (drm_panel_prepare(dsi->panel))
-		dev_err(dsi->dev, "failed to prepare panel\n");
+}
 
-	if (pdata->grf_dsi0_mode_reg)
-		regmap_write(dsi->grf_regmap, pdata->grf_dsi0_mode_reg,
-			     pdata->grf_dsi0_mode);
+static void rockchip_dsi_init(struct dw_mipi_dsi *dsi)
+{
+	rockchip_dsi_pre_init(dsi);
+	rockchip_dsi_host_init(dsi);
+	dw_mipi_dsi_phy_init(dsi);
+}
 
-	if (!dsi->phy)
-		dw_mipi_dsi_phy_init(dsi);
-
-	dw_mipi_dsi_wait_for_two_frames(dsi);
-
+static void rockchip_dsi_enable(struct dw_mipi_dsi *dsi)
+{
 	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_VID_MODE);
-	drm_panel_enable(dsi->panel);
-
 	clk_disable_unprepare(dsi->pclk);
+}
 
-	if (!pdata->has_vop_sel)
-		return;
+static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
+{
+	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+	int vop_id;
 
-	if (mux)
-		val = pdata->dsi0_en_bit | (pdata->dsi0_en_bit << 16);
-	else
-		val = pdata->dsi0_en_bit << 16;
+	vop_id = drm_of_encoder_active_endpoint_id(dsi->dev->of_node, encoder);
 
-	regmap_write(dsi->grf_regmap, pdata->grf_switch_reg, val);
-	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
+	rockchip_dsi_grf_config(dsi, vop_id);
+	rockchip_dsi_init(dsi);
+
+	if (dsi->panel)
+		drm_panel_prepare(dsi->panel);
+
+	rockchip_dsi_enable(dsi);
+
+	if (dsi->panel)
+		drm_panel_enable(dsi->panel);
 }
 
 static int
