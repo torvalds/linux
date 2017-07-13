@@ -163,7 +163,7 @@ static inline u32 mlx5e_decompress_cqes_start(struct mlx5e_rq *rq,
 
 static inline bool mlx5e_page_is_reserved(struct page *page)
 {
-	return page_is_pfmemalloc(page) || page_to_nid(page) != numa_node_id();
+	return page_is_pfmemalloc(page) || page_to_nid(page) != numa_mem_id();
 }
 
 static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq,
@@ -177,8 +177,10 @@ static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq,
 		return false;
 	}
 
-	if (unlikely(page_is_pfmemalloc(dma_info->page)))
+	if (unlikely(mlx5e_page_is_reserved(dma_info->page))) {
+		rq->stats.cache_waive++;
 		return false;
+	}
 
 	cache->page_cache[cache->tail] = *dma_info;
 	cache->tail = tail_next;
