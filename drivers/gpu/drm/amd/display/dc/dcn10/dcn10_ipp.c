@@ -418,7 +418,6 @@ static void ippn10_enable_cm_block(
 {
 	struct dcn10_ipp *ippn10 = TO_DCN10_IPP(ipp);
 
-	REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 1);
 	REG_UPDATE(CM_CONTROL, CM_BYPASS_EN, 0);
 }
 
