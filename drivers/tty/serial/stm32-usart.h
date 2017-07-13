@@ -26,6 +26,7 @@ struct stm32_usart_config {
 	u8 uart_enable_bit; /* USART_CR1_UE */
 	bool has_7bits_data;
 	bool has_wakeup;
+	bool has_fifo;
 };
 
 struct stm32_usart_info {
@@ -94,6 +95,7 @@ struct stm32_usart_info stm32h7_info = {
 		.uart_enable_bit = 0,
 		.has_7bits_data = true,
 		.has_wakeup = true,
+		.has_fifo = true,
 	}
 };
 
@@ -159,6 +161,7 @@ struct stm32_usart_info stm32h7_info = {
 #define USART_CR1_EOBIE		BIT(27)		/* F7 */
 #define USART_CR1_M1		BIT(28)		/* F7 */
 #define USART_CR1_IE_MASK	(GENMASK(8, 4) | BIT(14) | BIT(26) | BIT(27))
+#define USART_CR1_FIFOEN	BIT(29)		/* H7 */
 
 /* USART_CR2 */
 #define USART_CR2_ADD_MASK	GENMASK(3, 0)	/* F4 */
@@ -253,6 +256,7 @@ struct stm32_port {
 	int last_res;
 	bool tx_dma_busy;	 /* dma tx busy               */
 	bool hw_flow_control;
+	bool fifoen;
 	int wakeirq;
 };
 

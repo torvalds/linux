@@ -468,6 +468,8 @@ static int stm32_startup(struct uart_port *port)
 	}
 
 	val = USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE;
+	if (stm32_port->fifoen)
+		val |= USART_CR1_FIFOEN;
 	stm32_set_bits(port, ofs->cr1, val);
 
 	return 0;
@@ -482,6 +484,8 @@ static void stm32_shutdown(struct uart_port *port)
 
 	val = USART_CR1_TXEIE | USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE;
 	val |= BIT(cfg->uart_enable_bit);
+	if (stm32_port->fifoen)
+		val |= USART_CR1_FIFOEN;
 	stm32_clr_bits(port, ofs->cr1, val);
 
 	dev_pm_clear_wake_irq(port->dev);
@@ -512,6 +516,8 @@ static void stm32_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	cr1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE;
 	cr1 |= BIT(cfg->uart_enable_bit);
+	if (stm32_port->fifoen)
+		cr1 |= USART_CR1_FIFOEN;
 	cr2 = 0;
 	cr3 = 0;
 
@@ -676,6 +682,7 @@ static int stm32_init_port(struct stm32_port *stm32port,
 	port->dev	= &pdev->dev;
 	port->irq	= platform_get_irq(pdev, 0);
 	stm32port->wakeirq = platform_get_irq(pdev, 1);
+	stm32port->fifoen = stm32port->info->cfg.has_fifo;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	port->membase = devm_ioremap_resource(&pdev->dev, res);
