@@ -407,9 +407,9 @@ static DEFINE_STRARRAY(whences);
 
 static const char *fcntl_cmds[] = {
 	"DUPFD", "GETFD", "SETFD", "GETFL", "SETFL", "GETLK", "SETLK",
-	"SETLKW", "SETOWN", "GETOWN", "SETSIG", "GETSIG", "F_GETLK64",
-	"F_SETLK64", "F_SETLKW64", "F_SETOWN_EX", "F_GETOWN_EX",
-	"F_GETOWNER_UIDS",
+	"SETLKW", "SETOWN", "GETOWN", "SETSIG", "GETSIG", "GETLK64",
+	"SETLK64", "SETLKW64", "SETOWN_EX", "GETOWN_EX",
+	"GETOWNER_UIDS",
 };
 static DEFINE_STRARRAY(fcntl_cmds);
 
