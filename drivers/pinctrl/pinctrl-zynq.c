@@ -45,7 +45,7 @@
  * @syscon:		Syscon regmap
  * @pctrl_offset:	Offset for pinctrl into the @syscon space
  * @groups:		Pingroups
- * @ngroupos:		Number of @groups
+ * @ngroups:		Number of @groups
  * @funcs:		Pinmux functions
  * @nfuncs:		Number of @funcs
  */
