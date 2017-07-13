@@ -346,6 +346,8 @@
 		dsi,lanes = <4>;
 		delay,prepare = <120>;
 		delay,enable = <120>;
+		delay,reset = <20>;
+		delay,init = <20>;
 		status = "okay";
 
 		disp_timings: display-timings {
