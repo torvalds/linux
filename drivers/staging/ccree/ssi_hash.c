@@ -967,7 +967,7 @@ static int ssi_hash_setkey(void *hash,
 			   unsigned int keylen,
 			   bool synchronize)
 {
-	unsigned int hmacPadConst[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
+	unsigned int hmac_pad_const[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
 	struct ssi_crypto_req ssi_req = {};
 	struct ssi_hash_ctx *ctx = NULL;
 	int blocksize = 0;
@@ -1108,7 +1108,7 @@ static int ssi_hash_setkey(void *hash,
 
 		/* Prepare ipad key */
 		hw_desc_init(&desc[idx]);
-		set_xor_val(&desc[idx], hmacPadConst[i]);
+		set_xor_val(&desc[idx], hmac_pad_const[i]);
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
 		set_flow_mode(&desc[idx], S_DIN_to_HASH);
 		set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
@@ -1441,18 +1441,19 @@ static int ssi_mac_final(struct ahash_request *req)
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	int idx = 0;
 	int rc = 0;
-	u32 keySize, keyLen;
+	u32 key_size, key_len;
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 
 	u32 rem_cnt = state->buff_index ? state->buff1_cnt :
 			state->buff0_cnt;
 
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
-		keySize = CC_AES_128_BIT_KEY_SIZE;
-		keyLen  = CC_AES_128_BIT_KEY_SIZE;
+		key_size = CC_AES_128_BIT_KEY_SIZE;
+		key_len  = CC_AES_128_BIT_KEY_SIZE;
 	} else {
-		keySize = (ctx->key_params.keylen == 24) ? AES_MAX_KEY_SIZE : ctx->key_params.keylen;
-		keyLen =  ctx->key_params.keylen;
+		key_size = (ctx->key_params.keylen == 24) ? AES_MAX_KEY_SIZE :
+			ctx->key_params.keylen;
+		key_len =  ctx->key_params.keylen;
 	}
 
 	SSI_LOG_DEBUG("===== final  xcbc reminder (%d) ====\n", rem_cnt);
@@ -1478,8 +1479,8 @@ static int ssi_mac_final(struct ahash_request *req)
 		set_cipher_config0(&desc[idx], DRV_CRYPTO_DIRECTION_DECRYPT);
 		set_din_type(&desc[idx], DMA_DLLI,
 			     (ctx->opad_tmp_keys_dma_addr +
-			      XCBC_MAC_K1_OFFSET), keySize, NS_BIT);
-		set_key_size_aes(&desc[idx], keyLen);
+			      XCBC_MAC_K1_OFFSET), key_size, NS_BIT);
+		set_key_size_aes(&desc[idx], key_len);
 		set_flow_mode(&desc[idx], S_DIN_to_AES);
 		set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 		idx++;
@@ -1508,7 +1509,7 @@ static int ssi_mac_final(struct ahash_request *req)
 	if (state->xcbc_count == 0) {
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
-		set_key_size_aes(&desc[idx], keyLen);
+		set_key_size_aes(&desc[idx], key_len);
 		set_cmac_size0_mode(&desc[idx]);
 		set_flow_mode(&desc[idx], S_DIN_to_AES);
 		idx++;
@@ -1621,7 +1622,7 @@ static int ssi_mac_digest(struct ahash_request *req)
 	u32 digestsize = crypto_ahash_digestsize(tfm);
 	struct ssi_crypto_req ssi_req = {};
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
-	u32 keyLen;
+	u32 key_len;
 	int idx = 0;
 	int rc;
 
@@ -1646,17 +1647,17 @@ static int ssi_mac_digest(struct ahash_request *req)
 	ssi_req.user_arg = (void *)req;
 
 	if (ctx->hw_mode == DRV_CIPHER_XCBC_MAC) {
-		keyLen = CC_AES_128_BIT_KEY_SIZE;
+		key_len = CC_AES_128_BIT_KEY_SIZE;
 		ssi_hash_create_xcbc_setup(req, desc, &idx);
 	} else {
-		keyLen = ctx->key_params.keylen;
+		key_len = ctx->key_params.keylen;
 		ssi_hash_create_cmac_setup(req, desc, &idx);
 	}
 
 	if (req->nbytes == 0) {
 		hw_desc_init(&desc[idx]);
 		set_cipher_mode(&desc[idx], ctx->hw_mode);
-		set_key_size_aes(&desc[idx], keyLen);
+		set_key_size_aes(&desc[idx], key_len);
 		set_cmac_size0_mode(&desc[idx]);
 		set_flow_mode(&desc[idx], S_DIN_to_AES);
 		idx++;

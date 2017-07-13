@@ -308,7 +308,7 @@ static int xcbc_setkey(struct cc_hw_desc *desc, struct ssi_aead_ctx *ctx)
 
 static int hmac_setkey(struct cc_hw_desc *desc, struct ssi_aead_ctx *ctx)
 {
-	unsigned int hmacPadConst[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
+	unsigned int hmac_pad_const[2] = { HMAC_IPAD_CONST, HMAC_OPAD_CONST };
 	unsigned int digest_ofs = 0;
 	unsigned int hash_mode = (ctx->auth_mode == DRV_HASH_SHA1) ?
 			DRV_HASH_HW_SHA1 : DRV_HASH_HW_SHA256;
@@ -342,7 +342,7 @@ static int hmac_setkey(struct cc_hw_desc *desc, struct ssi_aead_ctx *ctx)
 
 		/* Prepare ipad key */
 		hw_desc_init(&desc[idx]);
-		set_xor_val(&desc[idx], hmacPadConst[i]);
+		set_xor_val(&desc[idx], hmac_pad_const[i]);
 		set_cipher_mode(&desc[idx], hash_mode);
 		set_flow_mode(&desc[idx], S_DIN_to_HASH);
 		set_setup_mode(&desc[idx], SETUP_LOAD_STATE1);
@@ -1380,27 +1380,27 @@ data_size_err:
 }
 
 #if SSI_CC_HAS_AES_CCM
-static unsigned int format_ccm_a0(u8 *pA0Buff, u32 headerSize)
+static unsigned int format_ccm_a0(u8 *pa0_buff, u32 header_size)
 {
 	unsigned int len = 0;
 
-	if (headerSize == 0)
+	if (header_size == 0)
 		return 0;
 
-	if (headerSize < ((1UL << 16) - (1UL << 8))) {
+	if (header_size < ((1UL << 16) - (1UL << 8))) {
 		len = 2;
 
-		pA0Buff[0] = (headerSize >> 8) & 0xFF;
-		pA0Buff[1] = headerSize & 0xFF;
+		pa0_buff[0] = (header_size >> 8) & 0xFF;
+		pa0_buff[1] = header_size & 0xFF;
 	} else {
 		len = 6;
 
-		pA0Buff[0] = 0xFF;
-		pA0Buff[1] = 0xFE;
-		pA0Buff[2] = (headerSize >> 24) & 0xFF;
-		pA0Buff[3] = (headerSize >> 16) & 0xFF;
-		pA0Buff[4] = (headerSize >> 8) & 0xFF;
-		pA0Buff[5] = headerSize & 0xFF;
+		pa0_buff[0] = 0xFF;
+		pa0_buff[1] = 0xFE;
+		pa0_buff[2] = (header_size >> 24) & 0xFF;
+		pa0_buff[3] = (header_size >> 16) & 0xFF;
+		pa0_buff[4] = (header_size >> 8) & 0xFF;
+		pa0_buff[5] = header_size & 0xFF;
 	}
 
 	return len;

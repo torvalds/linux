@@ -182,8 +182,8 @@ static inline int ssi_buffer_mgr_render_buff_to_mlli(
 }
 
 static inline int ssi_buffer_mgr_render_scatterlist_to_mlli(
-	struct scatterlist *sgl, u32 sgl_data_len, u32 sglOffset, u32 *curr_nents,
-	u32 **mlli_entry_pp)
+	struct scatterlist *sgl, u32 sgl_data_len, u32 sgl_offset,
+	u32 *curr_nents, u32 **mlli_entry_pp)
 {
 	struct scatterlist *curr_sgl = sgl;
 	u32 *mlli_entry_p = *mlli_entry_pp;
@@ -192,16 +192,17 @@ static inline int ssi_buffer_mgr_render_scatterlist_to_mlli(
 	for ( ; (curr_sgl) && (sgl_data_len != 0);
 	      curr_sgl = sg_next(curr_sgl)) {
 		u32 entry_data_len =
-			(sgl_data_len > sg_dma_len(curr_sgl) - sglOffset) ?
-				sg_dma_len(curr_sgl) - sglOffset : sgl_data_len;
+			(sgl_data_len > sg_dma_len(curr_sgl) - sgl_offset) ?
+				sg_dma_len(curr_sgl) - sgl_offset :
+				sgl_data_len;
 		sgl_data_len -= entry_data_len;
 		rc = ssi_buffer_mgr_render_buff_to_mlli(
-			sg_dma_address(curr_sgl) + sglOffset, entry_data_len, curr_nents,
-			&mlli_entry_p);
+			sg_dma_address(curr_sgl) + sgl_offset, entry_data_len,
+			curr_nents, &mlli_entry_p);
 		if (rc != 0)
 			return rc;
 
-		sglOffset = 0;
+		sgl_offset = 0;
 	}
 	*mlli_entry_pp = mlli_entry_p;
 	return 0;
