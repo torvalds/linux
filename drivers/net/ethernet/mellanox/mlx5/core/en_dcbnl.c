@@ -754,6 +754,9 @@ void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
 {
 	struct mlx5e_dcbx *dcbx = &priv->dcbx;
 
+	if (!MLX5_CAP_GEN(priv->mdev, qos))
+		return;
+
 	if (MLX5_CAP_GEN(priv->mdev, dcbx))
 		mlx5e_dcbnl_query_dcbx_mode(priv, &dcbx->mode);
 
