@@ -16,6 +16,7 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
@@ -160,6 +161,8 @@ struct inno_hdmi_phy_drv_data;
 struct inno_hdmi_phy {
 	struct device *dev;
 	struct regmap *regmap;
+
+	int irq;
 
 	struct phy *phy;
 	struct clk *sysclk;
@@ -365,6 +368,48 @@ static u32 inno_hdmi_phy_get_tmdsclk(struct inno_hdmi_phy *inno, int rate)
 	}
 
 	return tmdsclk;
+}
+
+static irqreturn_t inno_hdmi_phy_hardirq(int irq, void *dev_id)
+{
+	struct inno_hdmi_phy *inno = dev_id;
+	int intr_stat1, intr_stat2, intr_stat3;
+
+	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3228)
+		return IRQ_NONE;
+
+	intr_stat1 = inno_read(inno, 0x04);
+	intr_stat2 = inno_read(inno, 0x06);
+	intr_stat3 = inno_read(inno, 0x08);
+
+	if (intr_stat1)
+		inno_write(inno, 0x04, intr_stat1);
+	if (intr_stat2)
+		inno_write(inno, 0x06, intr_stat2);
+	if (intr_stat3)
+		inno_write(inno, 0x08, intr_stat3);
+
+	if (intr_stat1 || intr_stat2 || intr_stat3)
+		return IRQ_WAKE_THREAD;
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t inno_hdmi_phy_irq(int irq, void *dev_id)
+{
+	struct inno_hdmi_phy *inno = dev_id;
+
+	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3228)
+		return IRQ_NONE;
+	/* set pdata_en to 0 */
+	inno_update_bits(inno, 0x02, 1, 0);
+
+	udelay(10);
+
+	/* set pdata_en to 1 */
+	inno_update_bits(inno, 0x02, 1, 1);
+
+	return IRQ_HANDLED;
 }
 
 static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -850,6 +895,9 @@ inno_hdmi_phy_rk3328_power_on(struct inno_hdmi_phy *inno,
 	/* set pdata_en to 1 */
 	inno_update_bits(inno, 0x02, 1, 1);
 
+	/* Enable PHY IRQ */
+	inno_write(inno, 0x05, 0x22);
+	inno_write(inno, 0x07, 0x22);
 	return 0;
 }
 
@@ -861,6 +909,10 @@ static void inno_hdmi_phy_rk3328_power_off(struct inno_hdmi_phy *inno)
 	inno_update_bits(inno, 0xb0, 4, 0);
 	/* Power off post pll */
 	inno_update_bits(inno, 0xaa, 1, 1);
+
+	/* Disable PHY IRQ */
+	inno_write(inno, 0x05, 0);
+	inno_write(inno, 0x07, 0);
 }
 
 static void inno_hdmi_phy_rk3328_init(struct inno_hdmi_phy *inno)
@@ -1129,8 +1181,19 @@ static int inno_hdmi_phy_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_register;
 
+	inno->irq = platform_get_irq(pdev, 0);
+	if (inno->irq > 0) {
+		ret = devm_request_threaded_irq(inno->dev, inno->irq,
+						inno_hdmi_phy_hardirq,
+						inno_hdmi_phy_irq, IRQF_SHARED,
+						dev_name(inno->dev), inno);
+		if (ret)
+			goto err_irq;
+	}
 	return 0;
 
+err_irq:
+	of_clk_del_provider(pdev->dev.of_node);
 err_register:
 	devm_of_phy_provider_unregister(dev, phy_provider);
 err_provider:
