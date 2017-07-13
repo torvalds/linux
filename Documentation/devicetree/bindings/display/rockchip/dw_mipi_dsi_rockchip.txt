@@ -18,9 +18,11 @@ Required properties:
   For vopb,set the reg = <0> and set the reg = <1> for vopl.
 
 Optional properties
-- clocks, clock-names: phandle to the mipi dsi phy config clock, name should be
-  "phy_cfg".phandle to the mipi dsi phy reference clock, name should be 'ref'.
-- phys: phandle to third party MIPI PHY node
+- clocks, clock-names:
+  phandle to the SNPS-PHY config clock, name should be "phy_cfg".
+  phandle to the SNPS-PHY PLL reference clock, name should be "ref".
+  phandle to the Non-SNPS PHY high speed clock, name should be "hs_clk".
+- phys: phandle to Non-SNPS PHY node
 - phy-names: the string "mipi_dphy" when is found in a node, along with "phys"
   attribute, provides phandle to MIPI PHY node
 - resets : phandle to the reset of MIPI DSI APB Clock.
@@ -79,34 +81,21 @@ For Rockchip RK3288:
 
 For Rockchip RK3368:
 
-mipi_dsi_host: mipi-dsi-host@ff960000 {
-	compatible = "rockchip,rk3368-mipi-dsi";
-	phys = <&mipi_dphy>;
-	phy-names = "mipi_dphy";
-	resets = <&cru SRST_MIPIDSI0>;
-	reset-names = "apb";
-	...
+	dsi: dsi@ff960000 {
+		compatible = "rockchip,rk3368-mipi-dsi";
+		clocks = <&cru PCLK_MIPI_DSI0>, <&mipi_dphy>;
+		clock-names = "pclk", "hs_clk";
+		phys = <&mipi_dphy>;
+		phy-names = "mipi_dphy";
+		resets = <&cru SRST_MIPIDSI0>;
+		reset-names = "apb";
+		...
 
-	ports@1 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <1>;
-
-		mipi_in: port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			mipi_in_vop: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&vop_out_mipi>;
+		ports {
+			port {
+				dsi_in_vop: endpoint {
+					remote-endpoint = <&vop_out_dsi>;
+				};
 			};
 		};
 	};
-
-	dsi_panel: panel@0 {
-		compatible = "simple-panel-dsi";
-		reg = <0>;
-		dsi,lanes = <4>;
-		...
-	};
-};

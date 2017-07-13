@@ -295,28 +295,35 @@ struct dw_mipi_dsi_plat_data {
 					   struct drm_display_mode *mode);
 };
 
+struct mipi_dphy {
+	/* SNPS PHY */
+	struct clk *cfg_clk;
+	struct clk *ref_clk;
+	u16 input_div;
+	u16 feedback_div;
+
+	/* Non-SNPS PHY */
+	struct phy *phy;
+	struct clk *hs_clk;
+};
+
 struct dw_mipi_dsi {
 	struct drm_encoder encoder;
 	struct drm_connector connector;
 	struct mipi_dsi_host dsi_host;
-	struct phy *phy;
+	struct mipi_dphy dphy;
 	struct drm_panel *panel;
 	struct device *dev;
 	struct regmap *grf_regmap;
 	struct reset_control *rst;
 	void __iomem *base;
-
-	struct clk *pllref_clk;
 	struct clk *pclk;
-	struct clk *phy_cfg_clk;
 
 	unsigned long mode_flags;
 	unsigned int lane_mbps; /* per lane */
 	u32 channel;
 	u32 lanes;
 	u32 format;
-	u16 input_div;
-	u16 feedback_div;
 	struct drm_display_mode mode;
 
 	const struct dw_mipi_dsi_plat_data *pdata;
@@ -468,8 +475,8 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 
 	dsi_write(dsi, DSI_PWR_UP, POWERUP);
 
-	if (!IS_ERR(dsi->phy_cfg_clk)) {
-		ret = clk_prepare_enable(dsi->phy_cfg_clk);
+	if (!IS_ERR(dsi->dphy.cfg_clk)) {
+		ret = clk_prepare_enable(dsi->dphy.cfg_clk);
 		if (ret) {
 			dev_err(dsi->dev, "Failed to enable phy_cfg_clk\n");
 			return ret;
@@ -487,11 +494,11 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 
 	dw_mipi_dsi_phy_write(dsi, 0x44, HSFREQRANGE_SEL(testdin));
 
-	dw_mipi_dsi_phy_write(dsi, 0x17, INPUT_DIVIDER(dsi->input_div));
-	dw_mipi_dsi_phy_write(dsi, 0x18, LOOP_DIV_LOW_SEL(dsi->feedback_div) |
-					 LOW_PROGRAM_EN);
-	dw_mipi_dsi_phy_write(dsi, 0x18, LOOP_DIV_HIGH_SEL(dsi->feedback_div) |
-					 HIGH_PROGRAM_EN);
+	dw_mipi_dsi_phy_write(dsi, 0x17, INPUT_DIVIDER(dsi->dphy.input_div));
+	val = LOOP_DIV_LOW_SEL(dsi->dphy.feedback_div) | LOW_PROGRAM_EN;
+	dw_mipi_dsi_phy_write(dsi, 0x18, val);
+	val = LOOP_DIV_HIGH_SEL(dsi->dphy.feedback_div) | HIGH_PROGRAM_EN;
+	dw_mipi_dsi_phy_write(dsi, 0x18, val);
 	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
 
 	dw_mipi_dsi_phy_write(dsi, 0x20, POWER_CONTROL | INTERNAL_REG_CURRENT |
@@ -530,25 +537,27 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 			"failed to wait for phy clk lane stop state\n");
 
 phy_init_end:
-	if (!IS_ERR(dsi->phy_cfg_clk))
-		clk_disable_unprepare(dsi->phy_cfg_clk);
+	if (!IS_ERR(dsi->dphy.cfg_clk))
+		clk_disable_unprepare(dsi->dphy.cfg_clk);
 
 	return ret;
 }
 
-static int rockchip_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
+static unsigned long rockchip_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
 {
 	int bpp;
 	unsigned long mpclk, tmp;
 	unsigned int target_mbps = 1000;
 	unsigned int value;
 	struct device_node *np = dsi->dev->of_node;
-	unsigned int max_mbps = dptdin_map[ARRAY_SIZE(dptdin_map) - 1].max_mbps;
+	unsigned int max_mbps;
 	int lanes;
 
 	/* optional override of the desired bandwidth */
 	if (!of_property_read_u32(np, "rockchip,lane-rate", &value))
 		return value;
+
+	max_mbps = dsi->pdata->max_bit_rate_per_lane / USEC_PER_SEC;
 
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
 	if (bpp < 0) {
@@ -569,18 +578,18 @@ static int rockchip_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
 			dev_err(dsi->dev, "DPHY clock frequency is out of range\n");
 	}
 
-	return target_mbps;
+	return target_mbps * USEC_PER_SEC;
 }
 
-static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
+static unsigned long dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi,
+					      unsigned long rate)
 {
 	unsigned int i, pre;
 	unsigned long pllref, tmp;
-	unsigned int m = 1, n = 1, target_mbps;
+	unsigned int m = 1, n = 1;
+	unsigned long target_mbps = rate / USEC_PER_SEC;
 
-	target_mbps = rockchip_dsi_calc_bandwidth(dsi);
-
-	pllref = DIV_ROUND_UP(clk_get_rate(dsi->pllref_clk), USEC_PER_SEC);
+	pllref = DIV_ROUND_UP(clk_get_rate(dsi->dphy.ref_clk), USEC_PER_SEC);
 	tmp = pllref;
 
 	for (i = 1; i < 6; i++) {
@@ -594,11 +603,10 @@ static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
 			break;
 	}
 
-	dsi->lane_mbps = pllref / n * m;
-	dsi->input_div = n;
-	dsi->feedback_div = m;
+	dsi->dphy.input_div = n;
+	dsi->dphy.feedback_div = m;
 
-	return 0;
+	return (pllref * m / n) * USEC_PER_SEC;
 }
 
 static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
@@ -911,8 +919,10 @@ static void rockchip_dsi_disable(struct dw_mipi_dsi *dsi)
 
 	/* phy */
 	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
-	if (dsi->phy)
-		phy_power_off(dsi->phy);
+	if (dsi->dphy.phy) {
+		clk_disable_unprepare(dsi->dphy.hs_clk);
+		phy_power_off(dsi->dphy.phy);
+	}
 
 	pm_runtime_put(dsi->dev);
 	clk_disable_unprepare(dsi->pclk);
@@ -961,12 +971,15 @@ static void rockchip_dsi_grf_config(struct dw_mipi_dsi *dsi, int vop_id)
 
 static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 {
+	unsigned long bw, rate;
+	int ret;
+
 	if (clk_prepare_enable(dsi->pclk)) {
 		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
 		return;
 	}
 
-	if (clk_prepare_enable(dsi->pllref_clk)) {
+	if (clk_prepare_enable(dsi->dphy.ref_clk)) {
 		dev_err(dsi->dev, "Failed to enable pllref_clk\n");
 		return;
 	}
@@ -981,17 +994,27 @@ static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 		udelay(10);
 	}
 
-	if (dsi->phy) {
-		phy_power_on(dsi->phy);
+	bw = rockchip_dsi_calc_bandwidth(dsi);
 
-		/*
-		 * If using the third party PHY, we get the lane
-		 * rate information from PHY.
-		 */
-		dsi->lane_mbps = phy_get_bus_width(dsi->phy);
+	if (dsi->dphy.phy) {
+		rate = clk_round_rate(dsi->dphy.hs_clk, bw);
+		ret = clk_set_rate(dsi->dphy.hs_clk, rate);
+		if (ret) {
+			dev_err(dsi->dev, "failed to set hs clock rate: %lu\n",
+				rate);
+			return;
+		}
+
+		clk_prepare_enable(dsi->dphy.hs_clk);
+		phy_power_on(dsi->dphy.phy);
 	} else {
-		dw_mipi_dsi_get_lane_bps(dsi);
+		rate = dw_mipi_dsi_get_lane_bps(dsi, bw);
 	}
+
+	dsi->lane_mbps = rate / USEC_PER_SEC;
+
+	dev_info(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
+		 dsi->lane_mbps, dsi->lanes);
 }
 
 static void rockchip_dsi_host_init(struct dw_mipi_dsi *dsi)
@@ -1021,7 +1044,7 @@ static void rockchip_dsi_enable(struct dw_mipi_dsi *dsi)
 {
 	dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
 	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
-	clk_disable_unprepare(dsi->pllref_clk);
+	clk_disable_unprepare(dsi->dphy.ref_clk);
 	clk_disable_unprepare(dsi->pclk);
 }
 
@@ -1328,18 +1351,6 @@ static int rockchip_dsi_clk_get(struct dw_mipi_dsi *dsi)
 		return ret;
 	}
 
-	dsi->pllref_clk = devm_clk_get(dev, "ref");
-	if (IS_ERR(dsi->pllref_clk)) {
-		dev_info(dev, "No PHY reference clock specified\n");
-		dsi->pllref_clk = NULL;
-	}
-
-	dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
-	if (IS_ERR(dsi->phy_cfg_clk)) {
-		dev_info(dev, "No PHY APB clock specified\n");
-		dsi->phy_cfg_clk = NULL;
-	}
-
 	return 0;
 }
 
@@ -1348,11 +1359,41 @@ static int rockchip_dsi_dphy_parse(struct dw_mipi_dsi *dsi)
 	struct device *dev = dsi->dev;
 	int ret;
 
-	dsi->phy = devm_phy_optional_get(dev, "mipi_dphy");
-	if (IS_ERR(dsi->phy)) {
-		ret = PTR_ERR(dsi->phy);
+	dsi->dphy.phy = devm_phy_optional_get(dev, "mipi_dphy");
+	if (IS_ERR(dsi->dphy.phy)) {
+		ret = PTR_ERR(dsi->dphy.phy);
 		dev_err(dev, "failed to get mipi dphy: %d\n", ret);
 		return ret;
+	}
+
+	if (dsi->dphy.phy) {
+		dev_dbg(dev, "Use Non-SNPS PHY\n");
+
+		dsi->dphy.hs_clk = devm_clk_get(dev, "hs_clk");
+		if (IS_ERR(dsi->dphy.hs_clk)) {
+			dev_err(dev, "failed to get PHY high-speed clock\n");
+			return PTR_ERR(dsi->dphy.hs_clk);
+		}
+	} else {
+		dev_dbg(dev, "Use SNPS PHY\n");
+
+		dsi->dphy.ref_clk = devm_clk_get(dev, "ref");
+		if (IS_ERR(dsi->dphy.ref_clk)) {
+			dev_err(dev, "failed to get PHY reference clock\n");
+			return PTR_ERR(dsi->dphy.ref_clk);
+		}
+
+		/* Check if cfg_clk provided */
+		dsi->dphy.cfg_clk = devm_clk_get(dev, "phy_cfg");
+		if (IS_ERR(dsi->dphy.cfg_clk)) {
+			if (PTR_ERR(dsi->dphy.cfg_clk) != -ENOENT) {
+				dev_err(dev, "failed to get PHY config clk\n");
+				return PTR_ERR(dsi->dphy.cfg_clk);
+			}
+
+			/* Otherwise mark the cfg_clk pointer to NULL */
+			dsi->dphy.cfg_clk = NULL;
+		}
 	}
 
 	return 0;
