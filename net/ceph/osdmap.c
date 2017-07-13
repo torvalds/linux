@@ -1544,7 +1544,7 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	if (struct_v >= 3) {
 		/* erasure_code_profiles */
 		ceph_decode_skip_map_of_map(p, end, string, string, string,
-					    bad);
+					    e_inval);
 	}
 
 	if (struct_v >= 4) {
@@ -1825,9 +1825,9 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	if (struct_v >= 3) {
 		/* new_erasure_code_profiles */
 		ceph_decode_skip_map_of_map(p, end, string, string, string,
-					    bad);
+					    e_inval);
 		/* old_erasure_code_profiles */
-		ceph_decode_skip_set(p, end, string, bad);
+		ceph_decode_skip_set(p, end, string, e_inval);
 	}
 
 	if (struct_v >= 4) {
