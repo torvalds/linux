@@ -120,7 +120,11 @@ static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
  */
 static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
 {
-	return bo->tbo.mem.mem_type != TTM_PL_SYSTEM;
+	switch (bo->tbo.mem.mem_type) {
+	case TTM_PL_TT: return amdgpu_ttm_is_bound(bo->tbo.ttm);
+	case TTM_PL_VRAM: return true;
+	default: return false;
+	}
 }
 
 int amdgpu_bo_create(struct amdgpu_device *adev,
