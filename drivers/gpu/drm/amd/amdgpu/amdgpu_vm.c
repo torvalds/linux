@@ -1044,8 +1044,7 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 	params.adev = adev;
 	shadow = parent->bo->shadow;
 
-	WARN_ON(vm->use_cpu_for_update && shadow);
-	if (vm->use_cpu_for_update && !shadow) {
+	if (vm->use_cpu_for_update) {
 		r = amdgpu_bo_kmap(parent->bo, (void **)&pd_addr);
 		if (r)
 			return r;
@@ -1310,9 +1309,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			r = amdgpu_bo_kmap(pt, (void *)&pe_start);
 			if (r)
 				return r;
-
-			WARN_ONCE(pt->shadow,
-				  "CPU VM update doesn't support shadow pages");
 		} else {
 			if (pt->shadow) {
 				pe_start = amdgpu_bo_gpu_offset(pt->shadow);
