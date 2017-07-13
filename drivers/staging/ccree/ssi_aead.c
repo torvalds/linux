@@ -252,8 +252,8 @@ static void ssi_aead_complete(struct device *dev, void *ssi_req, void __iomem *c
 	} else { /*ENCRYPT*/
 		if (unlikely(areq_ctx->is_icv_fragmented))
 			ssi_buffer_mgr_copy_scatterlist_portion(
-				areq_ctx->mac_buf, areq_ctx->dstSgl, areq->cryptlen + areq_ctx->dstOffset,
-				areq->cryptlen + areq_ctx->dstOffset + ctx->authsize, SSI_SG_FROM_BUF);
+				areq_ctx->mac_buf, areq_ctx->dst_sgl, areq->cryptlen + areq_ctx->dst_offset,
+				areq->cryptlen + areq_ctx->dst_offset + ctx->authsize, SSI_SG_FROM_BUF);
 
 		/* If an IV was generated, copy it back to the user provided buffer. */
 		if (areq_ctx->backup_giv) {
@@ -777,11 +777,11 @@ ssi_aead_process_authenc_data_desc(
 	{
 		struct scatterlist *cipher =
 			(direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
-			areq_ctx->dstSgl : areq_ctx->srcSgl;
+			areq_ctx->dst_sgl : areq_ctx->src_sgl;
 
 		unsigned int offset =
 			(direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
-			areq_ctx->dstOffset : areq_ctx->srcOffset;
+			areq_ctx->dst_offset : areq_ctx->src_offset;
 		SSI_LOG_DEBUG("AUTHENC: SRC/DST buffer type DLLI\n");
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI,
@@ -843,11 +843,11 @@ ssi_aead_process_cipher_data_desc(
 		SSI_LOG_DEBUG("CIPHER: SRC/DST buffer type DLLI\n");
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI,
-			     (sg_dma_address(areq_ctx->srcSgl) +
-			      areq_ctx->srcOffset), areq_ctx->cryptlen, NS_BIT);
+			     (sg_dma_address(areq_ctx->src_sgl) +
+			      areq_ctx->src_offset), areq_ctx->cryptlen, NS_BIT);
 		set_dout_dlli(&desc[idx],
-			      (sg_dma_address(areq_ctx->dstSgl) +
-			       areq_ctx->dstOffset),
+			      (sg_dma_address(areq_ctx->dst_sgl) +
+			       areq_ctx->dst_offset),
 			      areq_ctx->cryptlen, NS_BIT, 0);
 		set_flow_mode(&desc[idx], flow_mode);
 		break;
@@ -1879,7 +1879,7 @@ static inline void ssi_aead_dump_gcm(
 
 	dump_byte_array("mac_buf", req_ctx->mac_buf, AES_BLOCK_SIZE);
 
-	dump_byte_array("gcm_len_block", req_ctx->gcm_len_block.lenA, AES_BLOCK_SIZE);
+	dump_byte_array("gcm_len_block", req_ctx->gcm_len_block.len_a, AES_BLOCK_SIZE);
 
 	if (req->src && req->cryptlen)
 		dump_byte_array("req->src", sg_virt(req->src), req->cryptlen + req->assoclen);
@@ -1918,16 +1918,16 @@ static int config_gcm_context(struct aead_request *req)
 		__be64 temp64;
 
 		temp64 = cpu_to_be64(req->assoclen * 8);
-		memcpy(&req_ctx->gcm_len_block.lenA, &temp64, sizeof(temp64));
+		memcpy(&req_ctx->gcm_len_block.len_a, &temp64, sizeof(temp64));
 		temp64 = cpu_to_be64(cryptlen * 8);
-		memcpy(&req_ctx->gcm_len_block.lenC, &temp64, 8);
+		memcpy(&req_ctx->gcm_len_block.len_c, &temp64, 8);
 	} else { //rfc4543=>  all data(AAD,IV,Plain) are considered additional data that is nothing is encrypted.
 		__be64 temp64;
 
 		temp64 = cpu_to_be64((req->assoclen + GCM_BLOCK_RFC4_IV_SIZE + cryptlen) * 8);
-		memcpy(&req_ctx->gcm_len_block.lenA, &temp64, sizeof(temp64));
+		memcpy(&req_ctx->gcm_len_block.len_a, &temp64, sizeof(temp64));
 		temp64 = 0;
-		memcpy(&req_ctx->gcm_len_block.lenC, &temp64, 8);
+		memcpy(&req_ctx->gcm_len_block.len_c, &temp64, 8);
 	}
 
 	return 0;

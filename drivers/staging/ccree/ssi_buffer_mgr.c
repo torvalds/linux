@@ -915,26 +915,26 @@ static inline void ssi_buffer_mgr_prepare_aead_data_dlli(
 	if (likely(req->src == req->dst)) {
 		/*INPLACE*/
 		areq_ctx->icv_dma_addr = sg_dma_address(
-			areq_ctx->srcSgl) +
+			areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
 		areq_ctx->icv_virt_addr = sg_virt(
-			areq_ctx->srcSgl) +
+			areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
 	} else if (direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
 		/*NON-INPLACE and DECRYPT*/
 		areq_ctx->icv_dma_addr = sg_dma_address(
-			areq_ctx->srcSgl) +
+			areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
 		areq_ctx->icv_virt_addr = sg_virt(
-			areq_ctx->srcSgl) +
+			areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
 	} else {
 		/*NON-INPLACE and ENCRYPT*/
 		areq_ctx->icv_dma_addr = sg_dma_address(
-			areq_ctx->dstSgl) +
+			areq_ctx->dst_sgl) +
 			(*dst_last_bytes - authsize);
 		areq_ctx->icv_virt_addr = sg_virt(
-			areq_ctx->dstSgl) +
+			areq_ctx->dst_sgl) +
 			(*dst_last_bytes - authsize);
 	}
 }
@@ -956,13 +956,13 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 		/*INPLACE*/
 		ssi_buffer_mgr_add_scatterlist_entry(sg_data,
 						     areq_ctx->src.nents,
-						     areq_ctx->srcSgl,
+						     areq_ctx->src_sgl,
 						     areq_ctx->cryptlen,
-						     areq_ctx->srcOffset,
+						     areq_ctx->src_offset,
 						     is_last_table,
 						     &areq_ctx->src.mlli_nents);
 
-		icv_nents = ssi_buffer_mgr_get_aead_icv_nents(areq_ctx->srcSgl,
+		icv_nents = ssi_buffer_mgr_get_aead_icv_nents(areq_ctx->src_sgl,
 							      areq_ctx->src.nents,
 							      authsize,
 							      *src_last_bytes,
@@ -1004,10 +1004,10 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 		} else { /* Contig. ICV */
 			/*Should hanlde if the sg is not contig.*/
 			areq_ctx->icv_dma_addr = sg_dma_address(
-				&areq_ctx->srcSgl[areq_ctx->src.nents - 1]) +
+				&areq_ctx->src_sgl[areq_ctx->src.nents - 1]) +
 				(*src_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(
-				&areq_ctx->srcSgl[areq_ctx->src.nents - 1]) +
+				&areq_ctx->src_sgl[areq_ctx->src.nents - 1]) +
 				(*src_last_bytes - authsize);
 		}
 
@@ -1015,20 +1015,20 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 		/*NON-INPLACE and DECRYPT*/
 		ssi_buffer_mgr_add_scatterlist_entry(sg_data,
 						     areq_ctx->src.nents,
-						     areq_ctx->srcSgl,
+						     areq_ctx->src_sgl,
 						     areq_ctx->cryptlen,
-						     areq_ctx->srcOffset,
+						     areq_ctx->src_offset,
 						     is_last_table,
 						     &areq_ctx->src.mlli_nents);
 		ssi_buffer_mgr_add_scatterlist_entry(sg_data,
 						     areq_ctx->dst.nents,
-						     areq_ctx->dstSgl,
+						     areq_ctx->dst_sgl,
 						     areq_ctx->cryptlen,
-						     areq_ctx->dstOffset,
+						     areq_ctx->dst_offset,
 						     is_last_table,
 						     &areq_ctx->dst.mlli_nents);
 
-		icv_nents = ssi_buffer_mgr_get_aead_icv_nents(areq_ctx->srcSgl,
+		icv_nents = ssi_buffer_mgr_get_aead_icv_nents(areq_ctx->src_sgl,
 							      areq_ctx->src.nents,
 							      authsize,
 							      *src_last_bytes,
@@ -1056,10 +1056,10 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 		} else { /* Contig. ICV */
 			/*Should hanlde if the sg is not contig.*/
 			areq_ctx->icv_dma_addr = sg_dma_address(
-				&areq_ctx->srcSgl[areq_ctx->src.nents - 1]) +
+				&areq_ctx->src_sgl[areq_ctx->src.nents - 1]) +
 				(*src_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(
-				&areq_ctx->srcSgl[areq_ctx->src.nents - 1]) +
+				&areq_ctx->src_sgl[areq_ctx->src.nents - 1]) +
 				(*src_last_bytes - authsize);
 		}
 
@@ -1067,20 +1067,20 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 		/*NON-INPLACE and ENCRYPT*/
 		ssi_buffer_mgr_add_scatterlist_entry(sg_data,
 						     areq_ctx->dst.nents,
-						     areq_ctx->dstSgl,
+						     areq_ctx->dst_sgl,
 						     areq_ctx->cryptlen,
-						     areq_ctx->dstOffset,
+						     areq_ctx->dst_offset,
 						     is_last_table,
 						     &areq_ctx->dst.mlli_nents);
 		ssi_buffer_mgr_add_scatterlist_entry(sg_data,
 						     areq_ctx->src.nents,
-						     areq_ctx->srcSgl,
+						     areq_ctx->src_sgl,
 						     areq_ctx->cryptlen,
-						     areq_ctx->srcOffset,
+						     areq_ctx->src_offset,
 						     is_last_table,
 						     &areq_ctx->src.mlli_nents);
 
-		icv_nents = ssi_buffer_mgr_get_aead_icv_nents(areq_ctx->dstSgl,
+		icv_nents = ssi_buffer_mgr_get_aead_icv_nents(areq_ctx->dst_sgl,
 							      areq_ctx->dst.nents,
 							      authsize,
 							      *dst_last_bytes,
@@ -1093,10 +1093,10 @@ static inline int ssi_buffer_mgr_prepare_aead_data_mlli(
 		if (likely(!areq_ctx->is_icv_fragmented)) {
 			/* Contig. ICV */
 			areq_ctx->icv_dma_addr = sg_dma_address(
-				&areq_ctx->dstSgl[areq_ctx->dst.nents - 1]) +
+				&areq_ctx->dst_sgl[areq_ctx->dst.nents - 1]) +
 				(*dst_last_bytes - authsize);
 			areq_ctx->icv_virt_addr = sg_virt(
-				&areq_ctx->dstSgl[areq_ctx->dst.nents - 1]) +
+				&areq_ctx->dst_sgl[areq_ctx->dst.nents - 1]) +
 				(*dst_last_bytes - authsize);
 		} else {
 			areq_ctx->icv_dma_addr = areq_ctx->mac_buf_dma_addr;
@@ -1138,25 +1138,25 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		rc = -EINVAL;
 		goto chain_data_exit;
 	}
-	areq_ctx->srcSgl = req->src;
-	areq_ctx->dstSgl = req->dst;
+	areq_ctx->src_sgl = req->src;
+	areq_ctx->dst_sgl = req->dst;
 
 	if (is_gcm4543)
 		size_for_map += crypto_aead_ivsize(tfm);
 
 	size_for_map += (direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ? authsize : 0;
 	src_mapped_nents = ssi_buffer_mgr_get_sgl_nents(req->src, size_for_map, &src_last_bytes, &chained);
-	sg_index = areq_ctx->srcSgl->length;
+	sg_index = areq_ctx->src_sgl->length;
 	//check where the data starts
 	while (sg_index <= size_to_skip) {
-		offset -= areq_ctx->srcSgl->length;
-		areq_ctx->srcSgl = sg_next(areq_ctx->srcSgl);
+		offset -= areq_ctx->src_sgl->length;
+		areq_ctx->src_sgl = sg_next(areq_ctx->src_sgl);
 		//if have reached the end of the sgl, then this is unexpected
-		if (!areq_ctx->srcSgl) {
+		if (!areq_ctx->src_sgl) {
 			SSI_LOG_ERR("reached end of sg list. unexpected\n");
 			BUG();
 		}
-		sg_index += areq_ctx->srcSgl->length;
+		sg_index += areq_ctx->src_sgl->length;
 		src_mapped_nents--;
 	}
 	if (unlikely(src_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES)) {
@@ -1167,7 +1167,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 
 	areq_ctx->src.nents = src_mapped_nents;
 
-	areq_ctx->srcOffset = offset;
+	areq_ctx->src_offset = offset;
 
 	if (req->src != req->dst) {
 		size_for_map = req->assoclen + req->cryptlen;
@@ -1188,19 +1188,19 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 	}
 
 	dst_mapped_nents = ssi_buffer_mgr_get_sgl_nents(req->dst, size_for_map, &dst_last_bytes, &chained);
-	sg_index = areq_ctx->dstSgl->length;
+	sg_index = areq_ctx->dst_sgl->length;
 	offset = size_to_skip;
 
 	//check where the data starts
 	while (sg_index <= size_to_skip) {
-		offset -= areq_ctx->dstSgl->length;
-		areq_ctx->dstSgl = sg_next(areq_ctx->dstSgl);
+		offset -= areq_ctx->dst_sgl->length;
+		areq_ctx->dst_sgl = sg_next(areq_ctx->dst_sgl);
 		//if have reached the end of the sgl, then this is unexpected
-		if (!areq_ctx->dstSgl) {
+		if (!areq_ctx->dst_sgl) {
 			SSI_LOG_ERR("reached end of sg list. unexpected\n");
 			BUG();
 		}
-		sg_index += areq_ctx->dstSgl->length;
+		sg_index += areq_ctx->dst_sgl->length;
 		dst_mapped_nents--;
 	}
 	if (unlikely(dst_mapped_nents > LLI_MAX_NUM_OF_DATA_ENTRIES)) {
@@ -1209,7 +1209,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		return -ENOMEM;
 	}
 	areq_ctx->dst.nents = dst_mapped_nents;
-	areq_ctx->dstOffset = offset;
+	areq_ctx->dst_offset = offset;
 	if ((src_mapped_nents > 1) ||
 	    (dst_mapped_nents  > 1) ||
 	    do_chain) {
