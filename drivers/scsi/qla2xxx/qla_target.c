@@ -1874,36 +1874,13 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	struct abts_recv_from_24xx *abts, struct fc_port *sess)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct se_session *se_sess = sess->se_sess;
 	struct qla_tgt_mgmt_cmd *mcmd;
-	struct qla_tgt_cmd *cmd;
-	struct se_cmd *se_cmd;
 	int rc;
-	bool found_lun = false;
-	unsigned long flags;
 
-	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
-	list_for_each_entry(se_cmd, &se_sess->sess_cmd_list, se_cmd_list) {
-		if (se_cmd->tag == abts->exchange_addr_to_abort) {
-			found_lun = true;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
-
-	/* cmd not in LIO lists, look in qla list */
-	if (!found_lun) {
-		if (abort_cmd_for_tag(vha, abts->exchange_addr_to_abort)) {
-			/* send TASK_ABORT response immediately */
-			qlt_24xx_send_abts_resp(ha->base_qpair, abts,
-			    FCP_TMF_CMPL, false);
-			return 0;
-		} else {
-			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf081,
-			    "unable to find cmd in driver or LIO for tag 0x%x\n",
-			    abts->exchange_addr_to_abort);
-			return -ENOENT;
-		}
+	if (abort_cmd_for_tag(vha, abts->exchange_addr_to_abort)) {
+		/* send TASK_ABORT response immediately */
+		qlt_24xx_send_abts_resp(ha->base_qpair, abts, FCP_TMF_CMPL, false);
+		return 0;
 	}
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00f,
@@ -1919,14 +1896,17 @@ static int __qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	}
 	memset(mcmd, 0, sizeof(*mcmd));
 
-	cmd = container_of(se_cmd, struct qla_tgt_cmd, se_cmd);
 	mcmd->sess = sess;
 	memcpy(&mcmd->orig_iocb.abts, abts, sizeof(mcmd->orig_iocb.abts));
 	mcmd->reset_count = ha->base_qpair->chip_reset;
 	mcmd->tmr_func = QLA_TGT_ABTS;
 	mcmd->qpair = ha->base_qpair;
 
-	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, cmd->unpacked_lun, mcmd->tmr_func,
+	/*
+	 * LUN is looked up by target-core internally based on the passed
+	 * abts->exchange_addr_to_abort tag.
+	 */
+	rc = ha->tgt.tgt_ops->handle_tmr(mcmd, 0, mcmd->tmr_func,
 	    abts->exchange_addr_to_abort);
 	if (rc != 0) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf052,
