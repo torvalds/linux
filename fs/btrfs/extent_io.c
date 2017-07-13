@@ -2452,6 +2452,7 @@ static void end_bio_extent_writepage(struct bio *bio)
 	u64 end;
 	int i;
 
+	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 		struct inode *inode = page->mapping->host;
@@ -2522,6 +2523,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 	int ret;
 	int i;
 
+	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 		struct inode *inode = page->mapping->host;
@@ -3675,6 +3677,7 @@ static void end_bio_extent_buffer_writepage(struct bio *bio)
 	struct extent_buffer *eb;
 	int i, done;
 
+	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 
