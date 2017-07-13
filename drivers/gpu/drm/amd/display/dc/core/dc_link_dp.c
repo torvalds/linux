@@ -731,7 +731,7 @@ static enum hw_dp_training_pattern get_supported_tp(struct core_link *link)
 	return HW_DP_TRAINING_PATTERN_2;
 }
 
-static bool perform_channel_equalization_sequence(
+static enum link_training_result perform_channel_equalization_sequence(
 	struct core_link *link,
 	struct link_training_settings *lt_settings)
 {
@@ -777,19 +777,19 @@ static bool perform_channel_equalization_sequence(
 
 		/* 5. check CR done*/
 		if (!is_cr_done(lane_count, dpcd_lane_status))
-			return false;
+			return LINK_TRAINING_EQ_FAIL_CR;
 
 		/* 6. check CHEQ done*/
 		if (is_ch_eq_done(lane_count,
 			dpcd_lane_status,
 			&dpcd_lane_status_updated))
-			return true;
+			return LINK_TRAINING_SUCCESS;
 
 		/* 7. update VS/PE/PC2 in lt_settings*/
 		update_drive_settings(lt_settings, req_settings);
 	}
 
-	return false;
+	return LINK_TRAINING_EQ_FAIL_EQ;
 
 }
 
@@ -943,18 +943,17 @@ static inline bool perform_link_training_int(
 	return status;
 }
 
-bool dc_link_dp_perform_link_training(
+enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern)
 {
+	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	struct core_link *core_link = DC_LINK_TO_CORE(link);
-	bool status;
 
 	char *link_rate = "Unknown";
 	struct link_training_settings lt_settings;
 
-	status = false;
 	memset(&lt_settings, '\0', sizeof(lt_settings));
 
 	lt_settings.link_settings.link_rate = link_setting->link_rate;
@@ -976,16 +975,23 @@ bool dc_link_dp_perform_link_training(
 
 	/* 2. perform link training (set link training done
 	 *  to false is done as well)*/
-	if (perform_clock_recovery_sequence(core_link, &lt_settings)) {
-
-		if (perform_channel_equalization_sequence(core_link,
-				&lt_settings))
-			status = true;
+	if (!perform_clock_recovery_sequence(core_link, &lt_settings)) {
+		status = LINK_TRAINING_CR_FAIL;
+	} else {
+		status = perform_channel_equalization_sequence(core_link,
+				&lt_settings);
 	}
 
-	if (status || !skip_video_pattern)
-		status = perform_link_training_int(core_link,
-				&lt_settings, status);
+	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern) {
+		if (!perform_link_training_int(core_link,
+				&lt_settings,
+				status == LINK_TRAINING_SUCCESS)) {
+			/* the next link training setting in this case
+			 * would be the same as CR failure case.
+			 */
+			status = LINK_TRAINING_CR_FAIL;
+		}
+	}
 
 	/* 6. print status message*/
 	switch (lt_settings.link_settings.link_rate) {
@@ -1013,7 +1019,9 @@ bool dc_link_dp_perform_link_training(
 	CONN_MSG_LT(core_link, "%sx%d %s VS=%d, PE=%d",
 			link_rate,
 			lt_settings.link_settings.lane_count,
-			status ? "pass" : "fail",
+			(status ==  LINK_TRAINING_SUCCESS) ? "pass" :
+			((status == LINK_TRAINING_CR_FAIL) ? "CR failed" :
+			"EQ failed"),
 			lt_settings.lane_settings[0].VOLTAGE_SWING,
 			lt_settings.lane_settings[0].PRE_EMPHASIS);
 
@@ -1035,7 +1043,7 @@ bool perform_link_training_with_retries(
 		if (dc_link_dp_perform_link_training(
 				&link->public,
 				link_setting,
-				skip_video_pattern))
+				skip_video_pattern) == LINK_TRAINING_SUCCESS)
 			return true;
 
 		msleep(delay_between_attempts);
@@ -1066,15 +1074,6 @@ static const struct dc_link_settings *get_link_training_fallback_table(
 	struct core_link *link, uint32_t i)
 {
 	return &link_training_fallback_table[i];
-}
-
-static bool exceeded_limit_link_setting(
-	const struct dc_link_settings *link_setting,
-	const struct dc_link_settings *limit_link_setting)
-{
-	return (link_setting->lane_count * link_setting->link_rate
-		 > limit_link_setting->lane_count * limit_link_setting->link_rate ?
-				 true : false);
 }
 
 static struct dc_link_settings get_max_link_cap(struct core_link *link)
@@ -1109,13 +1108,15 @@ bool dp_hbr_verify_link_cap(
 	struct dc_link_settings *known_limit_link_setting)
 {
 	struct dc_link_settings max_link_cap = {0};
+	struct dc_link_settings cur_link_setting = {0};
+	struct dc_link_settings *cur = &cur_link_setting;
+	struct dc_link_settings initial_link_settings = {0};
 	bool success;
 	bool skip_link_training;
-	const struct dc_link_settings *cur;
 	bool skip_video_pattern;
-	uint32_t i;
 	struct clock_source *dp_cs;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
+	enum link_training_result status;
 
 	success = false;
 	skip_link_training = false;
@@ -1142,19 +1143,16 @@ bool dp_hbr_verify_link_cap(
 		ASSERT(dp_cs);
 	}
 
-	for (i = 0; i < get_link_training_fallback_table_len(link) &&
-		!success; i++) {
-		cur = get_link_training_fallback_table(link, i);
-
-		if (known_limit_link_setting->lane_count != LANE_COUNT_UNKNOWN &&
-			exceeded_limit_link_setting(cur,
-					known_limit_link_setting))
-			continue;
-
-		if (!is_link_setting_supported(cur, &max_link_cap))
-			continue;
-
+	/* link training starts with the maximum common settings
+	 * supported by both sink and ASIC.
+	 */
+	initial_link_settings = get_common_supported_link_settings(
+			*known_limit_link_setting,
+			max_link_cap);
+	cur_link_setting = initial_link_settings;
+	do {
 		skip_video_pattern = true;
+
 		if (cur->link_rate == LINK_RATE_LOW)
 			skip_video_pattern = false;
 
@@ -1167,10 +1165,12 @@ bool dp_hbr_verify_link_cap(
 		if (skip_link_training)
 			success = true;
 		else {
-			success = dc_link_dp_perform_link_training(
+			status = dc_link_dp_perform_link_training(
 							&link->public,
 							cur,
 							skip_video_pattern);
+			if (status == LINK_TRAINING_SUCCESS)
+				success = true;
 		}
 
 		if (success)
@@ -1181,7 +1181,8 @@ bool dp_hbr_verify_link_cap(
 		 * based on the actual mode we're driving
 		 */
 		dp_disable_link_phy(link, link->public.connector_signal);
-	}
+	} while (!success && decide_fallback_link_setting(
+			initial_link_settings, cur, status));
 
 	/* Link Training failed for all Link Settings
 	 *  (Lane Count is still unknown)
@@ -1200,6 +1201,160 @@ bool dp_hbr_verify_link_cap(
 	link->public.max_link_setting = link->public.verified_link_cap;
 
 	return success;
+}
+
+struct dc_link_settings get_common_supported_link_settings (
+		struct dc_link_settings link_setting_a,
+		struct dc_link_settings link_setting_b)
+{
+	struct dc_link_settings link_settings = {0};
+
+	link_settings.lane_count =
+		(link_setting_a.lane_count <=
+			link_setting_b.lane_count) ?
+			link_setting_a.lane_count :
+			link_setting_b.lane_count;
+	link_settings.link_rate =
+		(link_setting_a.link_rate <=
+			link_setting_b.link_rate) ?
+			link_setting_a.link_rate :
+			link_setting_b.link_rate;
+	link_settings.link_spread = LINK_SPREAD_DISABLED;
+
+	/* in DP compliance test, DPR-120 may have
+	 * a random value in its MAX_LINK_BW dpcd field.
+	 * We map it to the maximum supported link rate that
+	 * is smaller than MAX_LINK_BW in this case.
+	 */
+	if (link_settings.link_rate > LINK_RATE_HIGH3) {
+		link_settings.link_rate = LINK_RATE_HIGH3;
+	} else if (link_settings.link_rate < LINK_RATE_HIGH3
+			&& link_settings.link_rate > LINK_RATE_HIGH2) {
+		link_settings.link_rate = LINK_RATE_HIGH2;
+	} else if (link_settings.link_rate < LINK_RATE_HIGH2
+			&& link_settings.link_rate > LINK_RATE_HIGH) {
+		link_settings.link_rate = LINK_RATE_HIGH;
+	} else if (link_settings.link_rate < LINK_RATE_HIGH
+			&& link_settings.link_rate > LINK_RATE_LOW) {
+		link_settings.link_rate = LINK_RATE_LOW;
+	} else if (link_settings.link_rate < LINK_RATE_LOW) {
+		link_settings.link_rate = LINK_RATE_UNKNOWN;
+	}
+
+	return link_settings;
+}
+
+bool reached_minimum_lane_count(enum dc_lane_count lane_count)
+{
+	return lane_count <= LANE_COUNT_ONE;
+}
+
+bool reached_minimum_link_rate(enum dc_link_rate link_rate)
+{
+	return link_rate <= LINK_RATE_LOW;
+}
+
+enum dc_lane_count reduce_lane_count(enum dc_lane_count lane_count)
+{
+	switch (lane_count) {
+	case LANE_COUNT_FOUR:
+		return LANE_COUNT_TWO;
+	case LANE_COUNT_TWO:
+		return LANE_COUNT_ONE;
+	case LANE_COUNT_ONE:
+		return LANE_COUNT_UNKNOWN;
+	default:
+		return LANE_COUNT_UNKNOWN;
+	}
+}
+
+enum dc_link_rate reduce_link_rate(enum dc_link_rate link_rate)
+{
+	switch (link_rate) {
+	case LINK_RATE_HIGH3:
+		return LINK_RATE_HIGH2;
+	case LINK_RATE_HIGH2:
+		return LINK_RATE_HIGH;
+	case LINK_RATE_HIGH:
+		return LINK_RATE_LOW;
+	case LINK_RATE_LOW:
+		return LINK_RATE_UNKNOWN;
+	default:
+		return LINK_RATE_UNKNOWN;
+	}
+}
+
+/*
+ * function: set link rate and lane count fallback based
+ * on current link setting and last link training result
+ * return value:
+ *			true - link setting could be set
+ *			false - has reached minimum setting
+ *					and no further fallback could be done
+ */
+bool decide_fallback_link_setting(
+		struct dc_link_settings initial_link_settings,
+		struct dc_link_settings *current_link_setting,
+		enum link_training_result training_result)
+{
+	if (!current_link_setting)
+		return false;
+
+	switch (training_result) {
+	case LINK_TRAINING_CR_FAIL:
+	{
+		if (!reached_minimum_link_rate
+				(current_link_setting->link_rate)) {
+			current_link_setting->link_rate =
+				reduce_link_rate(
+					current_link_setting->link_rate);
+		} else if (!reached_minimum_lane_count
+				(current_link_setting->lane_count)) {
+			current_link_setting->link_rate =
+				initial_link_settings.link_rate;
+			current_link_setting->lane_count =
+				reduce_lane_count(
+					current_link_setting->lane_count);
+		} else {
+			return false;
+		}
+		break;
+	}
+	case LINK_TRAINING_EQ_FAIL_EQ:
+	{
+		if (!reached_minimum_lane_count
+				(current_link_setting->lane_count)) {
+			current_link_setting->lane_count =
+				reduce_lane_count(
+					current_link_setting->lane_count);
+		} else if (!reached_minimum_link_rate
+				(current_link_setting->link_rate)) {
+			current_link_setting->lane_count =
+				initial_link_settings.lane_count;
+			current_link_setting->link_rate =
+				reduce_link_rate(
+					current_link_setting->link_rate);
+		} else {
+			return false;
+		}
+		break;
+	}
+	case LINK_TRAINING_EQ_FAIL_CR:
+	{
+		if (!reached_minimum_link_rate
+				(current_link_setting->link_rate)) {
+			current_link_setting->link_rate =
+				reduce_link_rate(
+					current_link_setting->link_rate);
+		} else {
+			return false;
+		}
+		break;
+	}
+	default:
+		return false;
+	}
+	return true;
 }
 
 static uint32_t bandwidth_in_kbps_from_timing(

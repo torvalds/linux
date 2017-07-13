@@ -56,6 +56,15 @@ enum {
 	LINK_RATE_REF_FREQ_IN_KHZ = 27000 /*27MHz*/
 };
 
+enum link_training_result {
+	LINK_TRAINING_SUCCESS,
+	LINK_TRAINING_CR_FAIL,
+	/* CR DONE bit is cleared during EQ step */
+	LINK_TRAINING_EQ_FAIL_CR,
+	/* other failure during EQ step */
+	LINK_TRAINING_EQ_FAIL_EQ,
+};
+
 struct link_training_settings {
 	struct dc_link_settings link_settings;
 	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];

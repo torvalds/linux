@@ -37,6 +37,14 @@ bool dp_hbr_verify_link_cap(
 	struct core_link *link,
 	struct dc_link_settings *known_limit_link_setting);
 
+bool decide_fallback_link_setting(struct dc_link_settings link_setting_init,
+		struct dc_link_settings *link_setting_current,
+		enum link_training_result training_result);
+
+struct dc_link_settings get_common_supported_link_settings (
+		struct dc_link_settings link_setting_a,
+		struct dc_link_settings link_setting_b);
+
 bool dp_validate_mode_timing(
 	struct core_link *link,
 	const struct dc_crtc_timing *timing);

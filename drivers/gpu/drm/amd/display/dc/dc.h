@@ -777,7 +777,7 @@ void dc_link_dp_set_drive_settings(
 	const struct dc_link *link,
 	struct link_training_settings *lt_settings);
 
-bool dc_link_dp_perform_link_training(
+enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern);
