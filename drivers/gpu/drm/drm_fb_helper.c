@@ -1195,27 +1195,6 @@ void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
 }
 EXPORT_SYMBOL(drm_fb_helper_set_suspend_unlocked);
 
-static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
-		     u16 blue, u16 regno, struct fb_info *info)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_framebuffer *fb = fb_helper->fb;
-
-	/*
-	 * The driver really shouldn't advertise pseudo/directcolor
-	 * visuals if it can't deal with the palette.
-	 */
-	if (WARN_ON(!fb_helper->funcs->gamma_set ||
-		    !fb_helper->funcs->gamma_get))
-		return -EINVAL;
-
-	WARN_ON(fb->format->cpp[0] != 1);
-
-	fb_helper->funcs->gamma_set(crtc, red, green, blue, regno);
-
-	return 0;
-}
-
 static int setcmap_pseudo_palette(struct fb_cmap *cmap, struct fb_info *info)
 {
 	u32 *palette = (u32 *)info->pseudo_palette;
@@ -1248,56 +1227,21 @@ static int setcmap_pseudo_palette(struct fb_cmap *cmap, struct fb_info *info)
 	return 0;
 }
 
-/**
- * drm_fb_helper_setcmap - implementation for &fb_ops.fb_setcmap
- * @cmap: cmap to set
- * @info: fbdev registered by the helper
- */
-int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
+static int setcmap_legacy(struct fb_cmap *cmap, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
-	const struct drm_crtc_helper_funcs *crtc_funcs;
-	u16 *red, *green, *blue, *transp;
 	struct drm_crtc *crtc;
 	u16 *r, *g, *b;
-	int i, j, rc = 0;
-	int start;
+	int i, ret = 0;
 
-	if (oops_in_progress)
-		return -EBUSY;
-
-	mutex_lock(&fb_helper->lock);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
-		mutex_unlock(&fb_helper->lock);
-		return -EBUSY;
-	}
-
-	drm_modeset_lock_all(dev);
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
-		rc = setcmap_pseudo_palette(cmap, info);
-		goto out;
-	}
-
+	drm_modeset_lock_all(fb_helper->dev);
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		crtc = fb_helper->crtc_info[i].mode_set.crtc;
-		crtc_funcs = crtc->helper_private;
+		if (!crtc->funcs->gamma_set || !crtc->gamma_size)
+			return -EINVAL;
 
-		red = cmap->red;
-		green = cmap->green;
-		blue = cmap->blue;
-		transp = cmap->transp;
-		start = cmap->start;
-
-		if (!crtc->gamma_size) {
-			rc = -EINVAL;
-			goto out;
-		}
-
-		if (cmap->start + cmap->len > crtc->gamma_size) {
-			rc = -EINVAL;
-			goto out;
-		}
+		if (cmap->start + cmap->len > crtc->gamma_size)
+			return -EINVAL;
 
 		r = crtc->gamma_store;
 		g = r + crtc->gamma_size;
@@ -1307,27 +1251,172 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		memcpy(g + cmap->start, cmap->green, cmap->len * sizeof(*g));
 		memcpy(b + cmap->start, cmap->blue, cmap->len * sizeof(*b));
 
-		for (j = 0; j < cmap->len; j++) {
-			u16 hred, hgreen, hblue, htransp = 0xffff;
-
-			hred = *red++;
-			hgreen = *green++;
-			hblue = *blue++;
-
-			if (transp)
-				htransp = *transp++;
-
-			rc = setcolreg(crtc, hred, hgreen, hblue, start++, info);
-			if (rc)
-				goto out;
-		}
-		if (crtc_funcs->load_lut)
-			crtc_funcs->load_lut(crtc);
+		ret = crtc->funcs->gamma_set(crtc, r, g, b,
+					     crtc->gamma_size, NULL);
+		if (ret)
+			return ret;
 	}
- out:
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(fb_helper->dev);
+
+	return ret;
+}
+
+static struct drm_property_blob *setcmap_new_gamma_lut(struct drm_crtc *crtc,
+						       struct fb_cmap *cmap)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_property_blob *gamma_lut;
+	struct drm_color_lut *lut;
+	int size = crtc->gamma_size;
+	int i;
+
+	if (!size || cmap->start + cmap->len > size)
+		return ERR_PTR(-EINVAL);
+
+	gamma_lut = drm_property_create_blob(dev, sizeof(*lut) * size, NULL);
+	if (IS_ERR(gamma_lut))
+		return gamma_lut;
+
+	lut = (struct drm_color_lut *)gamma_lut->data;
+	if (cmap->start || cmap->len != size) {
+		u16 *r = crtc->gamma_store;
+		u16 *g = r + crtc->gamma_size;
+		u16 *b = g + crtc->gamma_size;
+
+		for (i = 0; i < cmap->start; i++) {
+			lut[i].red = r[i];
+			lut[i].green = g[i];
+			lut[i].blue = b[i];
+		}
+		for (i = cmap->start + cmap->len; i < size; i++) {
+			lut[i].red = r[i];
+			lut[i].green = g[i];
+			lut[i].blue = b[i];
+		}
+	}
+
+	for (i = 0; i < cmap->len; i++) {
+		lut[cmap->start + i].red = cmap->red[i];
+		lut[cmap->start + i].green = cmap->green[i];
+		lut[cmap->start + i].blue = cmap->blue[i];
+	}
+
+	return gamma_lut;
+}
+
+static int setcmap_atomic(struct fb_cmap *cmap, struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	struct drm_property_blob *gamma_lut = NULL;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_crtc_state *crtc_state;
+	struct drm_atomic_state *state;
+	struct drm_crtc *crtc;
+	u16 *r, *g, *b;
+	int i, ret = 0;
+	bool replaced;
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state) {
+		ret = -ENOMEM;
+		goto out_ctx;
+	}
+
+	state->acquire_ctx = &ctx;
+retry:
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
+
+		if (!gamma_lut)
+			gamma_lut = setcmap_new_gamma_lut(crtc, cmap);
+		if (IS_ERR(gamma_lut)) {
+			ret = PTR_ERR(gamma_lut);
+			gamma_lut = NULL;
+			goto out_state;
+		}
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state)) {
+			ret = PTR_ERR(crtc_state);
+			goto out_state;
+		}
+
+		replaced  = drm_property_replace_blob(&crtc_state->degamma_lut,
+						      NULL);
+		replaced |= drm_property_replace_blob(&crtc_state->ctm, NULL);
+		replaced |= drm_property_replace_blob(&crtc_state->gamma_lut,
+						      gamma_lut);
+		crtc_state->color_mgmt_changed |= replaced;
+	}
+
+	ret = drm_atomic_commit(state);
+	if (ret)
+		goto out_state;
+
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		crtc = fb_helper->crtc_info[i].mode_set.crtc;
+
+		r = crtc->gamma_store;
+		g = r + crtc->gamma_size;
+		b = g + crtc->gamma_size;
+
+		memcpy(r + cmap->start, cmap->red, cmap->len * sizeof(*r));
+		memcpy(g + cmap->start, cmap->green, cmap->len * sizeof(*g));
+		memcpy(b + cmap->start, cmap->blue, cmap->len * sizeof(*b));
+	}
+
+out_state:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_property_blob_put(gamma_lut);
+	drm_atomic_state_put(state);
+out_ctx:
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	return ret;
+
+backoff:
+	drm_atomic_state_clear(state);
+	drm_modeset_backoff(&ctx);
+	goto retry;
+}
+
+/**
+ * drm_fb_helper_setcmap - implementation for &fb_ops.fb_setcmap
+ * @cmap: cmap to set
+ * @info: fbdev registered by the helper
+ */
+int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	int ret;
+
+	if (oops_in_progress)
+		return -EBUSY;
+
+	mutex_lock(&fb_helper->lock);
+
+	if (!drm_fb_helper_is_bound(fb_helper)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR)
+		ret = setcmap_pseudo_palette(cmap, info);
+	else if (drm_drv_uses_atomic_modeset(fb_helper->dev))
+		ret = setcmap_atomic(cmap, info);
+	else
+		ret = setcmap_legacy(cmap, info);
+
+out:
 	mutex_unlock(&fb_helper->lock);
-	return rc;
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_setcmap);
 
