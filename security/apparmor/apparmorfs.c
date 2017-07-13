@@ -248,8 +248,10 @@ static struct dentry *aafs_create(const char *name, umode_t mode,
 
 	inode_lock(dir);
 	dentry = lookup_one_len(name, parent, strlen(name));
-	if (IS_ERR(dentry))
+	if (IS_ERR(dentry)) {
+		error = PTR_ERR(dentry);
 		goto fail_lock;
+	}
 
 	if (d_really_is_positive(dentry)) {
 		error = -EEXIST;
