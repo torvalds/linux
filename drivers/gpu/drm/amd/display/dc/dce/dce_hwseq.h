@@ -170,7 +170,12 @@
 	SR(DIO_MEM_PWR_CTRL), \
 	SR(DCCG_GATE_DISABLE_CNTL), \
 	SR(DCCG_GATE_DISABLE_CNTL2), \
-	SR(DCFCLK_CNTL)
+	SR(DCFCLK_CNTL),\
+	SR(DCFCLK_CNTL), \
+	SR(D1VGA_CONTROL), \
+	SR(D2VGA_CONTROL), \
+	SR(D3VGA_CONTROL), \
+	SR(D4VGA_CONTROL)
 #endif
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -236,6 +241,10 @@ struct dce_hwseq_registers {
 	uint32_t MPC_CRC_RESULT_GB;
 	uint32_t MPC_CRC_RESULT_C;
 	uint32_t MPC_CRC_RESULT_AR;
+	uint32_t D1VGA_CONTROL;
+	uint32_t D2VGA_CONTROL;
+	uint32_t D3VGA_CONTROL;
+	uint32_t D4VGA_CONTROL;
 #endif
 };
  /* set field name */

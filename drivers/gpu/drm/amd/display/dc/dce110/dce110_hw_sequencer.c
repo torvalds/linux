@@ -1198,7 +1198,8 @@ static void disable_vga_and_power_gate_all_controllers(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		tg = dc->res_pool->timing_generators[i];
 
-		tg->funcs->disable_vga(tg);
+		if (tg->funcs->disable_vga)
+			tg->funcs->disable_vga(tg);
 
 		/* Enable CLOCK gating for each pipe BEFORE controller
 		 * powergating. */

@@ -163,6 +163,15 @@ static void enable_power_gating_plane(
 	REG_UPDATE(DOMAIN7_PG_CONFIG, DOMAIN7_POWER_FORCEON, force_on);
 }
 
+static void disable_vga(
+	struct dce_hwseq *hws)
+{
+	REG_WRITE(D1VGA_CONTROL, 0);
+	REG_WRITE(D2VGA_CONTROL, 0);
+	REG_WRITE(D3VGA_CONTROL, 0);
+	REG_WRITE(D4VGA_CONTROL, 0);
+}
+
 static void dpp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dpp_inst,
@@ -312,6 +321,8 @@ static void dcn10_init_hw(struct core_dc *dc)
 
 	bios_golden_init(dc);
 
+	disable_vga(dc->hwseq);
+
 	for (i = 0; i < dc->link_count; i++) {
 		/* Power up AND update implementation according to the
 		 * required signal (which may be different from the
@@ -335,7 +346,6 @@ static void dcn10_init_hw(struct core_dc *dc)
 		mpcc_cfg.top_of_tree = true;
 		mpcc->funcs->set(mpcc, &mpcc_cfg);
 
-		tg->funcs->disable_vga(tg);
 		/* Blank controller using driver code instead of
 		 * command table.
 		 */
