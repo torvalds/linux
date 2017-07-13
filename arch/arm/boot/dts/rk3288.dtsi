@@ -129,6 +129,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "cpu_leakage";
+
 		opp-126000000 {
 			opp-hz = /bits/ 64 <126000000>;
 			opp-microvolt = <900000>;
