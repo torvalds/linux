@@ -3333,8 +3333,8 @@ static struct extra_reg skx_uncore_cha_extra_regs[] = {
 	SNBEP_CBO_EVENT_EXTRA_REG(0x0534, 0xffff, 0x4),
 	SNBEP_CBO_EVENT_EXTRA_REG(0x0934, 0xffff, 0x4),
 	SNBEP_CBO_EVENT_EXTRA_REG(0x1134, 0xffff, 0x4),
-	SNBEP_CBO_EVENT_EXTRA_REG(0x2134, 0xffff, 0x4),
-	SNBEP_CBO_EVENT_EXTRA_REG(0x8134, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x3134, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x9134, 0xffff, 0x4),
 };
 
 static u64 skx_cha_filter_mask(int fields)
