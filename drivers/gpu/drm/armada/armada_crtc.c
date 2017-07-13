@@ -334,16 +334,6 @@ static void armada_drm_vblank_off(struct armada_crtc *dcrtc)
 	armada_drm_plane_work_run(dcrtc, dcrtc->crtc.primary);
 }
 
-void armada_drm_crtc_gamma_set(struct drm_crtc *crtc, u16 r, u16 g, u16 b,
-	int idx)
-{
-}
-
-void armada_drm_crtc_gamma_get(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-	int idx)
-{
-}
-
 /* The mode_config.mutex will be held for this call */
 static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
 {
