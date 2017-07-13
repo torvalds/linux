@@ -1991,7 +1991,7 @@ out_status:
  *	};
  */
 int nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
-		       int plus)
+		       bool plus)
 {
 	struct nfs_entry old = *entry;
 	__be32 *p;

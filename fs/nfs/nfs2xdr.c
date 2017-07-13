@@ -939,7 +939,7 @@ static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
  *	};
  */
 int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
-		       int plus)
+		       bool plus)
 {
 	__be32 *p;
 	int error;
