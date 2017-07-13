@@ -366,10 +366,14 @@ void kill_dax(struct dax_device *dax_dev)
 	spin_lock(&dax_host_lock);
 	hlist_del_init(&dax_dev->list);
 	spin_unlock(&dax_host_lock);
-
-	dax_dev->private = NULL;
 }
 EXPORT_SYMBOL_GPL(kill_dax);
+
+void run_dax(struct dax_device *dax_dev)
+{
+	set_bit(DAXDEV_ALIVE, &dax_dev->flags);
+}
+EXPORT_SYMBOL_GPL(run_dax);
 
 static struct inode *dax_alloc_inode(struct super_block *sb)
 {
@@ -585,6 +589,8 @@ EXPORT_SYMBOL_GPL(dax_inode);
 
 void *dax_get_private(struct dax_device *dax_dev)
 {
+	if (!test_bit(DAXDEV_ALIVE, &dax_dev->flags))
+		return NULL;
 	return dax_dev->private;
 }
 EXPORT_SYMBOL_GPL(dax_get_private);
@@ -598,7 +604,7 @@ static void init_once(void *_dax_dev)
 	inode_init_once(inode);
 }
 
-static int __dax_fs_init(void)
+static int dax_fs_init(void)
 {
 	int rc;
 
@@ -630,35 +636,45 @@ static int __dax_fs_init(void)
 	return rc;
 }
 
-static void __dax_fs_exit(void)
+static void dax_fs_exit(void)
 {
 	kern_unmount(dax_mnt);
 	unregister_filesystem(&dax_fs_type);
 	kmem_cache_destroy(dax_cache);
 }
 
-static int __init dax_fs_init(void)
+static int __init dax_core_init(void)
 {
 	int rc;
 
-	rc = __dax_fs_init();
+	rc = dax_fs_init();
 	if (rc)
 		return rc;
 
 	rc = alloc_chrdev_region(&dax_devt, 0, MINORMASK+1, "dax");
 	if (rc)
-		__dax_fs_exit();
-	return rc;
+		goto err_chrdev;
+
+	rc = dax_bus_init();
+	if (rc)
+		goto err_bus;
+	return 0;
+
+err_bus:
+	unregister_chrdev_region(dax_devt, MINORMASK+1);
+err_chrdev:
+	dax_fs_exit();
+	return 0;
 }
 
-static void __exit dax_fs_exit(void)
+static void __exit dax_core_exit(void)
 {
 	unregister_chrdev_region(dax_devt, MINORMASK+1);
 	ida_destroy(&dax_minor_ida);
-	__dax_fs_exit();
+	dax_fs_exit();
 }
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL v2");
-subsys_initcall(dax_fs_init);
-module_exit(dax_fs_exit);
+subsys_initcall(dax_core_init);
+module_exit(dax_core_exit);

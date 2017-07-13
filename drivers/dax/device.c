@@ -13,8 +13,6 @@
 #include "dax-private.h"
 #include "bus.h"
 
-static struct class *dax_class;
-
 static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 		const char *func)
 {
@@ -404,93 +402,64 @@ static const struct file_operations dax_fops = {
 	.mmap_supported_flags = MAP_SYNC,
 };
 
-static void dev_dax_release(struct device *dev)
+static void dev_dax_cdev_del(void *cdev)
 {
-	struct dev_dax *dev_dax = to_dev_dax(dev);
-	struct dax_region *dax_region = dev_dax->region;
-	struct dax_device *dax_dev = dev_dax->dax_dev;
-
-	dax_region_put(dax_region);
-	put_dax(dax_dev);
-	kfree(dev_dax);
+	cdev_del(cdev);
 }
 
-struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id)
+static void dev_dax_kill(void *dev_dax)
 {
-	struct device *parent = dax_region->dev;
-	struct dax_device *dax_dev;
-	struct dev_dax *dev_dax;
+	kill_dev_dax(dev_dax);
+}
+
+static int dev_dax_probe(struct device *dev)
+{
+	struct dev_dax *dev_dax = to_dev_dax(dev);
+	struct dax_device *dax_dev = dev_dax->dax_dev;
 	struct inode *inode;
-	struct device *dev;
 	struct cdev *cdev;
 	int rc;
-
-	dev_dax = kzalloc(sizeof(*dev_dax), GFP_KERNEL);
-	if (!dev_dax)
-		return ERR_PTR(-ENOMEM);
-
-	/*
-	 * No 'host' or dax_operations since there is no access to this
-	 * device outside of mmap of the resulting character device.
-	 */
-	dax_dev = alloc_dax(dev_dax, NULL, NULL);
-	if (!dax_dev) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	/* from here on we're committed to teardown via dax_dev_release() */
-	dev = &dev_dax->dev;
-	device_initialize(dev);
 
 	inode = dax_inode(dax_dev);
 	cdev = inode->i_cdev;
 	cdev_init(cdev, &dax_fops);
-	cdev->owner = parent->driver->owner;
-
-	dev_dax->dax_dev = dax_dev;
-	dev_dax->region = dax_region;
-	kref_get(&dax_region->kref);
-
-	dev->devt = inode->i_rdev;
-	dev->class = dax_class;
-	dev->parent = parent;
-	dev->groups = dax_attribute_groups;
-	dev->release = dev_dax_release;
-	dev_set_name(dev, "dax%d.%d", dax_region->id, id);
-
-	rc = cdev_device_add(cdev, dev);
-	if (rc) {
-		kill_dev_dax(dev_dax);
-		put_device(dev);
-		return ERR_PTR(rc);
-	}
-
-	rc = devm_add_action_or_reset(dax_region->dev, unregister_dev_dax, dev);
+	cdev->owner = dev->driver->owner;
+	cdev_set_parent(cdev, &dev->kobj);
+	rc = cdev_add(cdev, dev->devt, 1);
 	if (rc)
-		return ERR_PTR(rc);
+		return rc;
 
-	return dev_dax;
+	rc = devm_add_action_or_reset(dev, dev_dax_cdev_del, cdev);
+	if (rc)
+		return rc;
 
- err:
-	kfree(dev_dax);
-
-	return ERR_PTR(rc);
+	run_dax(dax_dev);
+	return devm_add_action_or_reset(dev, dev_dax_kill, dev_dax);
 }
-EXPORT_SYMBOL_GPL(devm_create_dev_dax);
+
+static int dev_dax_remove(struct device *dev)
+{
+	/* all probe actions are unwound by devm */
+	return 0;
+}
+
+static struct device_driver device_dax_driver = {
+	.probe = dev_dax_probe,
+	.remove = dev_dax_remove,
+};
 
 static int __init dax_init(void)
 {
-	dax_class = class_create(THIS_MODULE, "dax");
-	return PTR_ERR_OR_ZERO(dax_class);
+	return dax_driver_register(&device_dax_driver);
 }
 
 static void __exit dax_exit(void)
 {
-	class_destroy(dax_class);
+	driver_unregister(&device_dax_driver);
 }
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL v2");
-subsys_initcall(dax_init);
+module_init(dax_init);
 module_exit(dax_exit);
+MODULE_ALIAS_DAX_DEVICE(0);

@@ -6,6 +6,33 @@
 #include "dax-private.h"
 #include "bus.h"
 
+static int dax_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	/*
+	 * We only ever expect to handle device-dax instances, i.e. the
+	 * @type argument to MODULE_ALIAS_DAX_DEVICE() is always zero
+	 */
+	return add_uevent_var(env, "MODALIAS=" DAX_DEVICE_MODALIAS_FMT, 0);
+}
+
+static int dax_bus_match(struct device *dev, struct device_driver *drv);
+
+static struct bus_type dax_bus_type = {
+	.name = "dax",
+	.uevent = dax_bus_uevent,
+	.match = dax_bus_match,
+};
+
+static int dax_bus_match(struct device *dev, struct device_driver *drv)
+{
+	/*
+	 * The drivers that can register on the 'dax' bus are private to
+	 * drivers/dax/ so any device and driver on the bus always
+	 * match.
+	 */
+	return 1;
+}
+
 /*
  * Rely on the fact that drvdata is set before the attributes are
  * registered, and that the attributes are unregistered before drvdata
@@ -142,11 +169,10 @@ static const struct attribute_group dev_dax_attribute_group = {
 	.attrs = dev_dax_attributes,
 };
 
-const struct attribute_group *dax_attribute_groups[] = {
+static const struct attribute_group *dax_attribute_groups[] = {
 	&dev_dax_attribute_group,
 	NULL,
 };
-EXPORT_SYMBOL_GPL(dax_attribute_groups);
 
 void kill_dev_dax(struct dev_dax *dev_dax)
 {
@@ -158,17 +184,108 @@ void kill_dev_dax(struct dev_dax *dev_dax)
 }
 EXPORT_SYMBOL_GPL(kill_dev_dax);
 
-void unregister_dev_dax(void *dev)
+static void dev_dax_release(struct device *dev)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
+	struct dax_region *dax_region = dev_dax->region;
 	struct dax_device *dax_dev = dev_dax->dax_dev;
-	struct inode *inode = dax_inode(dax_dev);
-	struct cdev *cdev = inode->i_cdev;
 
-	dev_dbg(dev, "trace\n");
+	dax_region_put(dax_region);
+	put_dax(dax_dev);
+	kfree(dev_dax);
+}
+
+static void unregister_dev_dax(void *dev)
+{
+	struct dev_dax *dev_dax = to_dev_dax(dev);
+
+	dev_dbg(dev, "%s\n", __func__);
 
 	kill_dev_dax(dev_dax);
-	cdev_device_del(cdev, dev);
+	device_del(dev);
 	put_device(dev);
 }
-EXPORT_SYMBOL_GPL(unregister_dev_dax);
+
+struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id)
+{
+	struct device *parent = dax_region->dev;
+	struct dax_device *dax_dev;
+	struct dev_dax *dev_dax;
+	struct inode *inode;
+	struct device *dev;
+	int rc = -ENOMEM;
+
+	if (id < 0)
+		return ERR_PTR(-EINVAL);
+
+	dev_dax = kzalloc(sizeof(*dev_dax), GFP_KERNEL);
+	if (!dev_dax)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * No 'host' or dax_operations since there is no access to this
+	 * device outside of mmap of the resulting character device.
+	 */
+	dax_dev = alloc_dax(dev_dax, NULL, NULL);
+	if (!dax_dev)
+		goto err;
+
+	/* a device_dax instance is dead while the driver is not attached */
+	kill_dax(dax_dev);
+
+	/* from here on we're committed to teardown via dax_dev_release() */
+	dev = &dev_dax->dev;
+	device_initialize(dev);
+
+	dev_dax->dax_dev = dax_dev;
+	dev_dax->region = dax_region;
+	kref_get(&dax_region->kref);
+
+	inode = dax_inode(dax_dev);
+	dev->devt = inode->i_rdev;
+	dev->bus = &dax_bus_type;
+	dev->parent = parent;
+	dev->groups = dax_attribute_groups;
+	dev->release = dev_dax_release;
+	dev_set_name(dev, "dax%d.%d", dax_region->id, id);
+
+	rc = device_add(dev);
+	if (rc) {
+		kill_dev_dax(dev_dax);
+		put_device(dev);
+		return ERR_PTR(rc);
+	}
+
+	rc = devm_add_action_or_reset(dax_region->dev, unregister_dev_dax, dev);
+	if (rc)
+		return ERR_PTR(rc);
+
+	return dev_dax;
+
+ err:
+	kfree(dev_dax);
+
+	return ERR_PTR(rc);
+}
+EXPORT_SYMBOL_GPL(devm_create_dev_dax);
+
+int __dax_driver_register(struct device_driver *drv,
+		struct module *module, const char *mod_name)
+{
+	drv->owner = module;
+	drv->name = mod_name;
+	drv->mod_name = mod_name;
+	drv->bus = &dax_bus_type;
+	return driver_register(drv);
+}
+EXPORT_SYMBOL_GPL(__dax_driver_register);
+
+int __init dax_bus_init(void)
+{
+	return bus_register(&dax_bus_type);
+}
+
+void __exit dax_bus_exit(void)
+{
+	bus_unregister(&dax_bus_type);
+}
