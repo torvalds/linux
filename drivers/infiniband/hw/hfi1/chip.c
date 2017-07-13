@@ -7330,7 +7330,7 @@ void handle_verify_cap(struct work_struct *work)
 	struct hfi1_devdata *dd = ppd->dd;
 	u64 reg;
 	u8 power_management;
-	u8 continious;
+	u8 continuous;
 	u8 vcu;
 	u8 vau;
 	u8 z;
@@ -7349,7 +7349,7 @@ void handle_verify_cap(struct work_struct *work)
 	lcb_shutdown(dd, 0);
 	adjust_lcb_for_fpga_serdes(dd);
 
-	read_vc_remote_phy(dd, &power_management, &continious);
+	read_vc_remote_phy(dd, &power_management, &continuous);
 	read_vc_remote_fabric(dd, &vau, &z, &vcu, &vl15buf,
 			      &partner_supported_crc);
 	read_vc_remote_link_width(dd, &remote_tx_rate, &link_widths);
@@ -7363,7 +7363,7 @@ void handle_verify_cap(struct work_struct *work)
 	get_link_widths(dd, &active_tx, &active_rx);
 	dd_dev_info(dd,
 		    "Peer PHY: power management 0x%x, continuous updates 0x%x\n",
-		    (int)power_management, (int)continious);
+		    (int)power_management, (int)continuous);
 	dd_dev_info(dd,
 		    "Peer Fabric: vAU %d, Z %d, vCU %d, vl15 credits 0x%x, CRC sizes 0x%x\n",
 		    (int)vau, (int)z, (int)vcu, (int)vl15buf,
