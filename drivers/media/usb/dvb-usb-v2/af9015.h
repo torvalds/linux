@@ -21,6 +21,7 @@
 #define AF9015_H
 
 #include <linux/hash.h>
+#include <linux/regmap.h>
 #include "dvb_usb.h"
 #include "af9013.h"
 #include "dvb-pll.h"
@@ -100,6 +101,7 @@ enum af9015_ir_mode {
 
 #define BUF_LEN 63
 struct af9015_state {
+	struct regmap *regmap;
 	u8 buf[BUF_LEN]; /* bulk USB control message */
 	u8 ir_mode;
 	u8 rc_repeat;
