@@ -296,7 +296,7 @@ static int stm32_crc_remove(struct platform_device *pdev)
 	list_del(&crc->list);
 	spin_unlock(&crc_list.lock);
 
-	crypto_unregister_shash(algs);
+	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 
 	clk_disable_unprepare(crc->clk);
 
