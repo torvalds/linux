@@ -63,6 +63,7 @@
 __bzero_begin:
 
 	.globl	__bzero
+	.type	__bzero,#function
 	.globl	memset
 	EXPORT_SYMBOL(__bzero)
 	EXPORT_SYMBOL(memset)

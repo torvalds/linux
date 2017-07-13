@@ -1164,18 +1164,24 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 
 	memset(acc, 0, sizeof(*acc));
 
-	if (iod->rqstdatalen < sizeof(struct fcnvme_ls_cr_assoc_rqst))
+	/*
+	 * FC-NVME spec changes. There are initiators sending different
+	 * lengths as padding sizes for Create Association Cmd descriptor
+	 * was incorrect.
+	 * Accept anything of "minimum" length. Assume format per 1.15
+	 * spec (with HOSTID reduced to 16 bytes), ignore how long the
+	 * trailing pad length is.
+	 */
+	if (iod->rqstdatalen < FCNVME_LSDESC_CRA_RQST_MINLEN)
 		ret = VERR_CR_ASSOC_LEN;
-	else if (rqst->desc_list_len !=
-			fcnvme_lsdesc_len(
-				sizeof(struct fcnvme_ls_cr_assoc_rqst)))
+	else if (rqst->desc_list_len <
+			cpu_to_be32(FCNVME_LSDESC_CRA_RQST_MIN_LISTLEN))
 		ret = VERR_CR_ASSOC_RQST_LEN;
 	else if (rqst->assoc_cmd.desc_tag !=
 			cpu_to_be32(FCNVME_LSDESC_CREATE_ASSOC_CMD))
 		ret = VERR_CR_ASSOC_CMD;
-	else if (rqst->assoc_cmd.desc_len !=
-			fcnvme_lsdesc_len(
-				sizeof(struct fcnvme_lsdesc_cr_assoc_cmd)))
+	else if (rqst->assoc_cmd.desc_len <
+			cpu_to_be32(FCNVME_LSDESC_CRA_CMD_DESC_MIN_DESCLEN))
 		ret = VERR_CR_ASSOC_CMD_LEN;
 	else if (!rqst->assoc_cmd.ersp_ratio ||
 		 (be16_to_cpu(rqst->assoc_cmd.ersp_ratio) >=

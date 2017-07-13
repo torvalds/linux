@@ -205,7 +205,7 @@ static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
 	handle_size = (sizeof(struct mdesc_handle) -
 		       sizeof(struct mdesc_hdr) +
 		       mdesc_size);
-	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_REPEAT);
+	base = kmalloc(handle_size + 15, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!base)
 		return NULL;
 

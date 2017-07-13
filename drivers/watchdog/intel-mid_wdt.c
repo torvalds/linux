@@ -147,8 +147,21 @@ static int mid_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Make sure the watchdog is not running */
-	wdt_stop(wdt_dev);
+	/*
+	 * The firmware followed by U-Boot leaves the watchdog running
+	 * with the default threshold which may vary. When we get here
+	 * we should make a decision to prevent any side effects before
+	 * user space daemon will take care of it. The best option,
+	 * taking into consideration that there is no way to read values
+	 * back from hardware, is to enforce watchdog being run with
+	 * deterministic values.
+	 */
+	ret = wdt_start(wdt_dev);
+	if (ret)
+		return ret;
+
+	/* Make sure the watchdog is serviced */
+	set_bit(WDOG_HW_RUNNING, &wdt_dev->status);
 
 	ret = devm_watchdog_register_device(&pdev->dev, wdt_dev);
 	if (ret) {

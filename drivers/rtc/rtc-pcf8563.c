@@ -606,7 +606,7 @@ static int pcf8563_probe(struct i2c_client *client,
 		err = devm_request_threaded_irq(&client->dev, client->irq,
 				NULL, pcf8563_irq,
 				IRQF_SHARED|IRQF_ONESHOT|IRQF_TRIGGER_FALLING,
-				pcf8563->rtc->name, client);
+				pcf8563_driver.driver.name, client);
 		if (err) {
 			dev_err(&client->dev, "unable to request IRQ %d\n",
 								client->irq);

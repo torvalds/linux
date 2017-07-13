@@ -3483,11 +3483,17 @@ static void bfq_update_wr_data(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 			}
 		}
 	}
-	/* Update weight both if it must be raised and if it must be lowered */
+	/*
+	 * To improve latency (for this or other queues), immediately
+	 * update weight both if it must be raised and if it must be
+	 * lowered. Since, entity may be on some active tree here, and
+	 * might have a pending change of its ioprio class, invoke
+	 * next function with the last parameter unset (see the
+	 * comments on the function).
+	 */
 	if ((entity->weight > entity->orig_weight) != (bfqq->wr_coeff > 1))
-		__bfq_entity_update_weight_prio(
-			bfq_entity_service_tree(entity),
-			entity);
+		__bfq_entity_update_weight_prio(bfq_entity_service_tree(entity),
+						entity, false);
 }
 
 /*

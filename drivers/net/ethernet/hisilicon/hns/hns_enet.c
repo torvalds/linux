@@ -1378,13 +1378,20 @@ void hns_nic_net_reset(struct net_device *ndev)
 void hns_nic_net_reinit(struct net_device *netdev)
 {
 	struct hns_nic_priv *priv = netdev_priv(netdev);
+	enum hnae_port_type type = priv->ae_handle->port_type;
 
 	netif_trans_update(priv->netdev);
 	while (test_and_set_bit(NIC_STATE_REINITING, &priv->state))
 		usleep_range(1000, 2000);
 
 	hns_nic_net_down(netdev);
-	hns_nic_net_reset(netdev);
+
+	/* Only do hns_nic_net_reset in debug mode
+	 * because of hardware limitation.
+	 */
+	if (type == HNAE_PORT_DEBUG)
+		hns_nic_net_reset(netdev);
+
 	(void)hns_nic_net_up(netdev);
 	clear_bit(NIC_STATE_REINITING, &priv->state);
 }
@@ -1997,13 +2004,8 @@ static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 	rtnl_lock();
 	/* put off any impending NetWatchDogTimeout */
 	netif_trans_update(priv->netdev);
+	hns_nic_net_reinit(priv->netdev);
 
-	if (type == HNAE_PORT_DEBUG) {
-		hns_nic_net_reinit(priv->netdev);
-	} else {
-		netif_carrier_off(priv->netdev);
-		netif_tx_disable(priv->netdev);
-	}
 	rtnl_unlock();
 }
 

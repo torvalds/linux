@@ -694,10 +694,28 @@ struct bfq_service_tree *bfq_entity_service_tree(struct bfq_entity *entity)
 	return sched_data->service_tree + idx;
 }
 
-
+/*
+ * Update weight and priority of entity. If update_class_too is true,
+ * then update the ioprio_class of entity too.
+ *
+ * The reason why the update of ioprio_class is controlled through the
+ * last parameter is as follows. Changing the ioprio class of an
+ * entity implies changing the destination service trees for that
+ * entity. If such a change occurred when the entity is already on one
+ * of the service trees for its previous class, then the state of the
+ * entity would become more complex: none of the new possible service
+ * trees for the entity, according to bfq_entity_service_tree(), would
+ * match any of the possible service trees on which the entity
+ * is. Complex operations involving these trees, such as entity
+ * activations and deactivations, should take into account this
+ * additional complexity.  To avoid this issue, this function is
+ * invoked with update_class_too unset in the points in the code where
+ * entity may happen to be on some tree.
+ */
 struct bfq_service_tree *
 __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
-				struct bfq_entity *entity)
+				struct bfq_entity *entity,
+				bool update_class_too)
 {
 	struct bfq_service_tree *new_st = old_st;
 
@@ -739,9 +757,15 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 				  bfq_weight_to_ioprio(entity->orig_weight);
 		}
 
-		if (bfqq)
+		if (bfqq && update_class_too)
 			bfqq->ioprio_class = bfqq->new_ioprio_class;
-		entity->prio_changed = 0;
+
+		/*
+		 * Reset prio_changed only if the ioprio_class change
+		 * is not pending any longer.
+		 */
+		if (!bfqq || bfqq->ioprio_class == bfqq->new_ioprio_class)
+			entity->prio_changed = 0;
 
 		/*
 		 * NOTE: here we may be changing the weight too early,
@@ -867,7 +891,12 @@ static void bfq_update_fin_time_enqueue(struct bfq_entity *entity,
 {
 	struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 
-	st = __bfq_entity_update_weight_prio(st, entity);
+	/*
+	 * When this function is invoked, entity is not in any service
+	 * tree, then it is safe to invoke next function with the last
+	 * parameter set (see the comments on the function).
+	 */
+	st = __bfq_entity_update_weight_prio(st, entity, true);
 	bfq_calc_finish(entity, entity->budget);
 
 	/*

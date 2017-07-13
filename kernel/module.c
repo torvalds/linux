@@ -300,6 +300,7 @@ int unregister_module_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL(unregister_module_notifier);
 
 struct load_info {
+	const char *name;
 	Elf_Ehdr *hdr;
 	unsigned long len;
 	Elf_Shdr *sechdrs;
@@ -600,7 +601,7 @@ static struct module *find_module_all(const char *name, size_t len,
 
 	module_assert_mutex_or_preempt();
 
-	list_for_each_entry(mod, &modules, list) {
+	list_for_each_entry_rcu(mod, &modules, list) {
 		if (!even_unformed && mod->state == MODULE_STATE_UNFORMED)
 			continue;
 		if (strlen(mod->name) == len && !memcmp(mod->name, name, len))
@@ -1273,12 +1274,13 @@ static u32 resolve_rel_crc(const s32 *crc)
 	return *(u32 *)((void *)crc + *crc);
 }
 
-static int check_version(Elf_Shdr *sechdrs,
-			 unsigned int versindex,
+static int check_version(const struct load_info *info,
 			 const char *symname,
 			 struct module *mod,
 			 const s32 *crc)
 {
+	Elf_Shdr *sechdrs = info->sechdrs;
+	unsigned int versindex = info->index.vers;
 	unsigned int i, num_versions;
 	struct modversion_info *versions;
 
@@ -1312,17 +1314,16 @@ static int check_version(Elf_Shdr *sechdrs,
 	}
 
 	/* Broken toolchain. Warn once, then let it go.. */
-	pr_warn_once("%s: no symbol version for %s\n", mod->name, symname);
+	pr_warn_once("%s: no symbol version for %s\n", info->name, symname);
 	return 1;
 
 bad_version:
 	pr_warn("%s: disagrees about version of symbol %s\n",
-	       mod->name, symname);
+	       info->name, symname);
 	return 0;
 }
 
-static inline int check_modstruct_version(Elf_Shdr *sechdrs,
-					  unsigned int versindex,
+static inline int check_modstruct_version(const struct load_info *info,
 					  struct module *mod)
 {
 	const s32 *crc;
@@ -1338,8 +1339,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 		BUG();
 	}
 	preempt_enable();
-	return check_version(sechdrs, versindex,
-			     VMLINUX_SYMBOL_STR(module_layout), mod, crc);
+	return check_version(info, VMLINUX_SYMBOL_STR(module_layout),
+			     mod, crc);
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
@@ -1353,8 +1354,7 @@ static inline int same_magic(const char *amagic, const char *bmagic,
 	return strcmp(amagic, bmagic) == 0;
 }
 #else
-static inline int check_version(Elf_Shdr *sechdrs,
-				unsigned int versindex,
+static inline int check_version(const struct load_info *info,
 				const char *symname,
 				struct module *mod,
 				const s32 *crc)
@@ -1362,8 +1362,7 @@ static inline int check_version(Elf_Shdr *sechdrs,
 	return 1;
 }
 
-static inline int check_modstruct_version(Elf_Shdr *sechdrs,
-					  unsigned int versindex,
+static inline int check_modstruct_version(const struct load_info *info,
 					  struct module *mod)
 {
 	return 1;
@@ -1399,7 +1398,7 @@ static const struct kernel_symbol *resolve_symbol(struct module *mod,
 	if (!sym)
 		goto unlock;
 
-	if (!check_version(info->sechdrs, info->index.vers, name, mod, crc)) {
+	if (!check_version(info, name, mod, crc)) {
 		sym = ERR_PTR(-EINVAL);
 		goto getname;
 	}
@@ -1662,21 +1661,6 @@ static inline void remove_notes_attrs(struct module *mod)
 }
 #endif /* CONFIG_KALLSYMS */
 
-static void add_usage_links(struct module *mod)
-{
-#ifdef CONFIG_MODULE_UNLOAD
-	struct module_use *use;
-	int nowarn;
-
-	mutex_lock(&module_mutex);
-	list_for_each_entry(use, &mod->target_list, target_list) {
-		nowarn = sysfs_create_link(use->target->holders_dir,
-					   &mod->mkobj.kobj, mod->name);
-	}
-	mutex_unlock(&module_mutex);
-#endif
-}
-
 static void del_usage_links(struct module *mod)
 {
 #ifdef CONFIG_MODULE_UNLOAD
@@ -1687,6 +1671,26 @@ static void del_usage_links(struct module *mod)
 		sysfs_remove_link(use->target->holders_dir, mod->name);
 	mutex_unlock(&module_mutex);
 #endif
+}
+
+static int add_usage_links(struct module *mod)
+{
+	int ret = 0;
+#ifdef CONFIG_MODULE_UNLOAD
+	struct module_use *use;
+
+	mutex_lock(&module_mutex);
+	list_for_each_entry(use, &mod->target_list, target_list) {
+		ret = sysfs_create_link(use->target->holders_dir,
+					&mod->mkobj.kobj, mod->name);
+		if (ret)
+			break;
+	}
+	mutex_unlock(&module_mutex);
+	if (ret)
+		del_usage_links(mod);
+#endif
+	return ret;
 }
 
 static int module_add_modinfo_attrs(struct module *mod)
@@ -1797,13 +1801,18 @@ static int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out_unreg_param;
 
-	add_usage_links(mod);
+	err = add_usage_links(mod);
+	if (err)
+		goto out_unreg_modinfo_attrs;
+
 	add_sect_attrs(mod, info);
 	add_notes_attrs(mod, info);
 
 	kobject_uevent(&mod->mkobj.kobj, KOBJ_ADD);
 	return 0;
 
+out_unreg_modinfo_attrs:
+	module_remove_modinfo_attrs(mod);
 out_unreg_param:
 	module_param_sysfs_remove(mod);
 out_unreg_holders:
@@ -2910,9 +2919,15 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 		info->index.vers = 0; /* Pretend no __versions section! */
 	else
 		info->index.vers = find_sec(info, "__versions");
-	info->index.info = find_sec(info, ".modinfo");
-	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
+
+	info->index.info = find_sec(info, ".modinfo");
+	if (!info->index.info)
+		info->name = "(missing .modinfo section)";
+	else
+		info->name = get_modinfo(info, "name");
+	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
+
 	return 0;
 }
 
@@ -2952,21 +2967,29 @@ static struct module *setup_load_info(struct load_info *info, int flags)
 
 	info->index.mod = find_sec(info, ".gnu.linkonce.this_module");
 	if (!info->index.mod) {
-		pr_warn("No module found in object\n");
+		pr_warn("%s: No module found in object\n",
+			info->name ?: "(missing .modinfo name field)");
 		return ERR_PTR(-ENOEXEC);
 	}
 	/* This is temporary: point mod into copy of data. */
 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
 
+	/*
+	 * If we didn't load the .modinfo 'name' field, fall back to
+	 * on-disk struct mod 'name' field.
+	 */
+	if (!info->name)
+		info->name = mod->name;
+
 	if (info->index.sym == 0) {
-		pr_warn("%s: module has no symbols (stripped?)\n", mod->name);
+		pr_warn("%s: module has no symbols (stripped?)\n", info->name);
 		return ERR_PTR(-ENOEXEC);
 	}
 
 	info->index.pcpu = find_pcpusec(info);
 
 	/* Check module struct version now, before we try to use module. */
-	if (!check_modstruct_version(info->sechdrs, info->index.vers, mod))
+	if (!check_modstruct_version(info, mod))
 		return ERR_PTR(-ENOEXEC);
 
 	return mod;
@@ -2987,7 +3010,7 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 			return err;
 	} else if (!same_magic(modmagic, vermagic, info->index.vers)) {
 		pr_err("%s: version magic '%s' should be '%s'\n",
-		       mod->name, modmagic, vermagic);
+		       info->name, modmagic, vermagic);
 		return -ENOEXEC;
 	}
 
@@ -3237,7 +3260,7 @@ int __weak module_frob_arch_sections(Elf_Ehdr *hdr,
 
 /* module_blacklist is a comma-separated list of module names */
 static char *module_blacklist;
-static bool blacklisted(char *module_name)
+static bool blacklisted(const char *module_name)
 {
 	const char *p;
 	size_t len;
@@ -3267,7 +3290,7 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 	if (IS_ERR(mod))
 		return mod;
 
-	if (blacklisted(mod->name))
+	if (blacklisted(info->name))
 		return ERR_PTR(-EPERM);
 
 	err = check_modinfo(mod, info, flags);

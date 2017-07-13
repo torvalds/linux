@@ -1916,7 +1916,11 @@ static int trace_save_cmdline(struct task_struct *tsk)
 {
 	unsigned pid, idx;
 
-	if (!tsk->pid || unlikely(tsk->pid > PID_MAX_DEFAULT))
+	/* treat recording of idle task as a success */
+	if (!tsk->pid)
+		return 1;
+
+	if (unlikely(tsk->pid > PID_MAX_DEFAULT))
 		return 0;
 
 	/*
@@ -2002,7 +2006,11 @@ int trace_find_tgid(int pid)
 
 static int trace_save_tgid(struct task_struct *tsk)
 {
-	if (unlikely(!tgid_map || !tsk->pid || tsk->pid > PID_MAX_DEFAULT))
+	/* treat recording of idle task as a success */
+	if (!tsk->pid)
+		return 1;
+
+	if (unlikely(!tgid_map || tsk->pid > PID_MAX_DEFAULT))
 		return 0;
 
 	tgid_map[tsk->pid] = tsk->tgid;
@@ -2029,11 +2037,20 @@ static bool tracing_record_taskinfo_skip(int flags)
  */
 void tracing_record_taskinfo(struct task_struct *task, int flags)
 {
+	bool done;
+
 	if (tracing_record_taskinfo_skip(flags))
 		return;
-	if ((flags & TRACE_RECORD_CMDLINE) && !trace_save_cmdline(task))
-		return;
-	if ((flags & TRACE_RECORD_TGID) && !trace_save_tgid(task))
+
+	/*
+	 * Record as much task information as possible. If some fail, continue
+	 * to try to record the others.
+	 */
+	done = !(flags & TRACE_RECORD_CMDLINE) || trace_save_cmdline(task);
+	done &= !(flags & TRACE_RECORD_TGID) || trace_save_tgid(task);
+
+	/* If recording any information failed, retry again soon. */
+	if (!done)
 		return;
 
 	__this_cpu_write(trace_taskinfo_save, false);
@@ -2050,15 +2067,22 @@ void tracing_record_taskinfo(struct task_struct *task, int flags)
 void tracing_record_taskinfo_sched_switch(struct task_struct *prev,
 					  struct task_struct *next, int flags)
 {
+	bool done;
+
 	if (tracing_record_taskinfo_skip(flags))
 		return;
 
-	if ((flags & TRACE_RECORD_CMDLINE) &&
-	    (!trace_save_cmdline(prev) || !trace_save_cmdline(next)))
-		return;
+	/*
+	 * Record as much task information as possible. If some fail, continue
+	 * to try to record the others.
+	 */
+	done  = !(flags & TRACE_RECORD_CMDLINE) || trace_save_cmdline(prev);
+	done &= !(flags & TRACE_RECORD_CMDLINE) || trace_save_cmdline(next);
+	done &= !(flags & TRACE_RECORD_TGID) || trace_save_tgid(prev);
+	done &= !(flags & TRACE_RECORD_TGID) || trace_save_tgid(next);
 
-	if ((flags & TRACE_RECORD_TGID) &&
-	    (!trace_save_tgid(prev) || !trace_save_tgid(next)))
+	/* If recording any information failed, retry again soon. */
+	if (!done)
 		return;
 
 	__this_cpu_write(trace_taskinfo_save, false);
@@ -3334,14 +3358,23 @@ static void print_func_help_header_irq(struct trace_buffer *buf, struct seq_file
 				       unsigned int flags)
 {
 	bool tgid = flags & TRACE_ITER_RECORD_TGID;
+	const char tgid_space[] = "          ";
+	const char space[] = "  ";
 
-	seq_printf(m, "#                          %s  _-----=> irqs-off\n",	    tgid ? "          " : "");
-	seq_printf(m, "#                          %s / _----=> need-resched\n",	    tgid ? "          " : "");
-	seq_printf(m, "#                          %s| / _---=> hardirq/softirq\n",  tgid ? "          " : "");
-	seq_printf(m, "#                          %s|| / _--=> preempt-depth\n",    tgid ? "          " : "");
-	seq_printf(m, "#                          %s||| /     delay\n",		    tgid ? "          " : "");
-	seq_printf(m, "#           TASK-PID   CPU#%s||||    TIMESTAMP  FUNCTION\n", tgid ? "   TGID   " : "");
-	seq_printf(m, "#              | |       | %s||||       |         |\n",	    tgid ? "     |    " : "");
+	seq_printf(m, "#                          %s  _-----=> irqs-off\n",
+		   tgid ? tgid_space : space);
+	seq_printf(m, "#                          %s / _----=> need-resched\n",
+		   tgid ? tgid_space : space);
+	seq_printf(m, "#                          %s| / _---=> hardirq/softirq\n",
+		   tgid ? tgid_space : space);
+	seq_printf(m, "#                          %s|| / _--=> preempt-depth\n",
+		   tgid ? tgid_space : space);
+	seq_printf(m, "#                          %s||| /     delay\n",
+		   tgid ? tgid_space : space);
+	seq_printf(m, "#           TASK-PID   CPU#%s||||    TIMESTAMP  FUNCTION\n",
+		   tgid ? "   TGID   " : space);
+	seq_printf(m, "#              | |       | %s||||       |         |\n",
+		   tgid ? "     |    " : space);
 }
 
 void
@@ -4687,6 +4720,76 @@ static const struct file_operations tracing_readme_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_readme_read,
 	.llseek		= generic_file_llseek,
+};
+
+static void *saved_tgids_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	int *ptr = v;
+
+	if (*pos || m->count)
+		ptr++;
+
+	(*pos)++;
+
+	for (; ptr <= &tgid_map[PID_MAX_DEFAULT]; ptr++) {
+		if (trace_find_tgid(*ptr))
+			return ptr;
+	}
+
+	return NULL;
+}
+
+static void *saved_tgids_start(struct seq_file *m, loff_t *pos)
+{
+	void *v;
+	loff_t l = 0;
+
+	if (!tgid_map)
+		return NULL;
+
+	v = &tgid_map[0];
+	while (l <= *pos) {
+		v = saved_tgids_next(m, v, &l);
+		if (!v)
+			return NULL;
+	}
+
+	return v;
+}
+
+static void saved_tgids_stop(struct seq_file *m, void *v)
+{
+}
+
+static int saved_tgids_show(struct seq_file *m, void *v)
+{
+	int pid = (int *)v - tgid_map;
+
+	seq_printf(m, "%d %d\n", pid, trace_find_tgid(pid));
+	return 0;
+}
+
+static const struct seq_operations tracing_saved_tgids_seq_ops = {
+	.start		= saved_tgids_start,
+	.stop		= saved_tgids_stop,
+	.next		= saved_tgids_next,
+	.show		= saved_tgids_show,
+};
+
+static int tracing_saved_tgids_open(struct inode *inode, struct file *filp)
+{
+	if (tracing_disabled)
+		return -ENODEV;
+
+	return seq_open(filp, &tracing_saved_tgids_seq_ops);
+}
+
+
+static const struct file_operations tracing_saved_tgids_fops = {
+	.open		= tracing_saved_tgids_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 
 static void *saved_cmdlines_next(struct seq_file *m, void *v, loff_t *pos)
@@ -7920,6 +8023,9 @@ static __init int tracer_init_tracefs(void)
 
 	trace_create_file("saved_cmdlines_size", 0644, d_tracer,
 			  NULL, &tracing_saved_cmdlines_size_fops);
+
+	trace_create_file("saved_tgids", 0444, d_tracer,
+			NULL, &tracing_saved_tgids_fops);
 
 	trace_eval_init();
 

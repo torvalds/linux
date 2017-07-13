@@ -1876,8 +1876,8 @@ There are some more advanced barrier functions:
      This makes sure that the death mark on the object is perceived to be set
      *before* the reference counter is decremented.
 
-     See Documentation/atomic_ops.txt for more information.  See the "Atomic
-     operations" subsection for information on where to use these.
+     See Documentation/core-api/atomic_ops.rst for more information.  See the
+     "Atomic operations" subsection for information on where to use these.
 
 
  (*) lockless_dereference();
@@ -2584,7 +2584,7 @@ situations because on some CPUs the atomic instructions used imply full memory
 barriers, and so barrier instructions are superfluous in conjunction with them,
 and in such cases the special barrier primitives will be no-ops.
 
-See Documentation/atomic_ops.txt for more information.
+See Documentation/core-api/atomic_ops.rst for more information.
 
 
 ACCESSING DEVICES

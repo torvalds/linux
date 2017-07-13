@@ -42,7 +42,7 @@ requirements you pass the flag GFP_DMA to kmalloc.
 
 Unfortunately the memory available for ISA DMA is scarce so unless you
 allocate the memory during boot-up it's a good idea to also pass
-__GFP_REPEAT and __GFP_NOWARN to make the allocator try a bit harder.
+__GFP_RETRY_MAYFAIL and __GFP_NOWARN to make the allocator try a bit harder.
 
 (This scarcity also means that you should allocate the buffer as
 early as possible and not release it until the driver is unloaded.)

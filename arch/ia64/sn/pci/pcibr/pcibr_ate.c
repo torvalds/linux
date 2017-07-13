@@ -140,7 +140,7 @@ static inline u64 __iomem *pcibr_ate_addr(struct pcibus_info *pcibus_info,
 /*
  * Update the ate.
  */
-void inline
+inline void
 ate_write(struct pcibus_info *pcibus_info, int ate_index, int count,
 	  volatile u64 ate)
 {

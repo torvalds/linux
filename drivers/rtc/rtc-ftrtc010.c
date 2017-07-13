@@ -1,5 +1,5 @@
 /*
- *  Gemini OnChip RTC
+ *  Faraday Technology FTRTC010 driver
  *
  *  Copyright (C) 2009 Janos Laube <janos.dev@gmail.com>
  *
@@ -26,33 +26,36 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/clk.h>
 
-#define DRV_NAME        "rtc-gemini"
+#define DRV_NAME        "rtc-ftrtc010"
 
 MODULE_AUTHOR("Hans Ulli Kroll <ulli.kroll@googlemail.com>");
 MODULE_DESCRIPTION("RTC driver for Gemini SoC");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
 
-struct gemini_rtc {
+struct ftrtc010_rtc {
 	struct rtc_device	*rtc_dev;
 	void __iomem		*rtc_base;
 	int			rtc_irq;
+	struct clk		*pclk;
+	struct clk		*extclk;
 };
 
-enum gemini_rtc_offsets {
-	GEMINI_RTC_SECOND	= 0x00,
-	GEMINI_RTC_MINUTE	= 0x04,
-	GEMINI_RTC_HOUR		= 0x08,
-	GEMINI_RTC_DAYS		= 0x0C,
-	GEMINI_RTC_ALARM_SECOND	= 0x10,
-	GEMINI_RTC_ALARM_MINUTE	= 0x14,
-	GEMINI_RTC_ALARM_HOUR	= 0x18,
-	GEMINI_RTC_RECORD	= 0x1C,
-	GEMINI_RTC_CR		= 0x20
+enum ftrtc010_rtc_offsets {
+	FTRTC010_RTC_SECOND		= 0x00,
+	FTRTC010_RTC_MINUTE		= 0x04,
+	FTRTC010_RTC_HOUR		= 0x08,
+	FTRTC010_RTC_DAYS		= 0x0C,
+	FTRTC010_RTC_ALARM_SECOND	= 0x10,
+	FTRTC010_RTC_ALARM_MINUTE	= 0x14,
+	FTRTC010_RTC_ALARM_HOUR		= 0x18,
+	FTRTC010_RTC_RECORD		= 0x1C,
+	FTRTC010_RTC_CR			= 0x20,
 };
 
-static irqreturn_t gemini_rtc_interrupt(int irq, void *dev)
+static irqreturn_t ftrtc010_rtc_interrupt(int irq, void *dev)
 {
 	return IRQ_HANDLED;
 }
@@ -66,18 +69,18 @@ static irqreturn_t gemini_rtc_interrupt(int irq, void *dev)
  * the same thing, without the rtc-lib.c calls.
  */
 
-static int gemini_rtc_read_time(struct device *dev, struct rtc_time *tm)
+static int ftrtc010_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct gemini_rtc *rtc = dev_get_drvdata(dev);
+	struct ftrtc010_rtc *rtc = dev_get_drvdata(dev);
 
 	unsigned int  days, hour, min, sec;
 	unsigned long offset, time;
 
-	sec  = readl(rtc->rtc_base + GEMINI_RTC_SECOND);
-	min  = readl(rtc->rtc_base + GEMINI_RTC_MINUTE);
-	hour = readl(rtc->rtc_base + GEMINI_RTC_HOUR);
-	days = readl(rtc->rtc_base + GEMINI_RTC_DAYS);
-	offset = readl(rtc->rtc_base + GEMINI_RTC_RECORD);
+	sec  = readl(rtc->rtc_base + FTRTC010_RTC_SECOND);
+	min  = readl(rtc->rtc_base + FTRTC010_RTC_MINUTE);
+	hour = readl(rtc->rtc_base + FTRTC010_RTC_HOUR);
+	days = readl(rtc->rtc_base + FTRTC010_RTC_DAYS);
+	offset = readl(rtc->rtc_base + FTRTC010_RTC_RECORD);
 
 	time = offset + days * 86400 + hour * 3600 + min * 60 + sec;
 
@@ -86,9 +89,9 @@ static int gemini_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int gemini_rtc_set_time(struct device *dev, struct rtc_time *tm)
+static int ftrtc010_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct gemini_rtc *rtc = dev_get_drvdata(dev);
+	struct ftrtc010_rtc *rtc = dev_get_drvdata(dev);
 	unsigned int sec, min, hour, day;
 	unsigned long offset, time;
 
@@ -97,27 +100,27 @@ static int gemini_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	rtc_tm_to_time(tm, &time);
 
-	sec = readl(rtc->rtc_base + GEMINI_RTC_SECOND);
-	min = readl(rtc->rtc_base + GEMINI_RTC_MINUTE);
-	hour = readl(rtc->rtc_base + GEMINI_RTC_HOUR);
-	day = readl(rtc->rtc_base + GEMINI_RTC_DAYS);
+	sec = readl(rtc->rtc_base + FTRTC010_RTC_SECOND);
+	min = readl(rtc->rtc_base + FTRTC010_RTC_MINUTE);
+	hour = readl(rtc->rtc_base + FTRTC010_RTC_HOUR);
+	day = readl(rtc->rtc_base + FTRTC010_RTC_DAYS);
 
 	offset = time - (day * 86400 + hour * 3600 + min * 60 + sec);
 
-	writel(offset, rtc->rtc_base + GEMINI_RTC_RECORD);
-	writel(0x01, rtc->rtc_base + GEMINI_RTC_CR);
+	writel(offset, rtc->rtc_base + FTRTC010_RTC_RECORD);
+	writel(0x01, rtc->rtc_base + FTRTC010_RTC_CR);
 
 	return 0;
 }
 
-static const struct rtc_class_ops gemini_rtc_ops = {
-	.read_time     = gemini_rtc_read_time,
-	.set_time      = gemini_rtc_set_time,
+static const struct rtc_class_ops ftrtc010_rtc_ops = {
+	.read_time     = ftrtc010_rtc_read_time,
+	.set_time      = ftrtc010_rtc_set_time,
 };
 
-static int gemini_rtc_probe(struct platform_device *pdev)
+static int ftrtc010_rtc_probe(struct platform_device *pdev)
 {
-	struct gemini_rtc *rtc;
+	struct ftrtc010_rtc *rtc;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret;
@@ -126,6 +129,27 @@ static int gemini_rtc_probe(struct platform_device *pdev)
 	if (unlikely(!rtc))
 		return -ENOMEM;
 	platform_set_drvdata(pdev, rtc);
+
+	rtc->pclk = devm_clk_get(dev, "PCLK");
+	if (IS_ERR(rtc->pclk)) {
+		dev_err(dev, "could not get PCLK\n");
+	} else {
+		ret = clk_prepare_enable(rtc->pclk);
+		if (ret) {
+			dev_err(dev, "failed to enable PCLK\n");
+			return ret;
+		}
+	}
+	rtc->extclk = devm_clk_get(dev, "EXTCLK");
+	if (IS_ERR(rtc->extclk)) {
+		dev_err(dev, "could not get EXTCLK\n");
+	} else {
+		ret = clk_prepare_enable(rtc->extclk);
+		if (ret) {
+			dev_err(dev, "failed to enable EXTCLK\n");
+			return ret;
+		}
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)
@@ -142,38 +166,43 @@ static int gemini_rtc_probe(struct platform_device *pdev)
 	if (!rtc->rtc_base)
 		return -ENOMEM;
 
-	ret = devm_request_irq(dev, rtc->rtc_irq, gemini_rtc_interrupt,
+	ret = devm_request_irq(dev, rtc->rtc_irq, ftrtc010_rtc_interrupt,
 			       IRQF_SHARED, pdev->name, dev);
 	if (unlikely(ret))
 		return ret;
 
 	rtc->rtc_dev = rtc_device_register(pdev->name, dev,
-					   &gemini_rtc_ops, THIS_MODULE);
+					   &ftrtc010_rtc_ops, THIS_MODULE);
 	return PTR_ERR_OR_ZERO(rtc->rtc_dev);
 }
 
-static int gemini_rtc_remove(struct platform_device *pdev)
+static int ftrtc010_rtc_remove(struct platform_device *pdev)
 {
-	struct gemini_rtc *rtc = platform_get_drvdata(pdev);
+	struct ftrtc010_rtc *rtc = platform_get_drvdata(pdev);
 
+	if (!IS_ERR(rtc->extclk))
+		clk_disable_unprepare(rtc->extclk);
+	if (!IS_ERR(rtc->pclk))
+		clk_disable_unprepare(rtc->pclk);
 	rtc_device_unregister(rtc->rtc_dev);
 
 	return 0;
 }
 
-static const struct of_device_id gemini_rtc_dt_match[] = {
+static const struct of_device_id ftrtc010_rtc_dt_match[] = {
 	{ .compatible = "cortina,gemini-rtc" },
+	{ .compatible = "faraday,ftrtc010" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, gemini_rtc_dt_match);
+MODULE_DEVICE_TABLE(of, ftrtc010_rtc_dt_match);
 
-static struct platform_driver gemini_rtc_driver = {
+static struct platform_driver ftrtc010_rtc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
-		.of_match_table = gemini_rtc_dt_match,
+		.of_match_table = ftrtc010_rtc_dt_match,
 	},
-	.probe		= gemini_rtc_probe,
-	.remove		= gemini_rtc_remove,
+	.probe		= ftrtc010_rtc_probe,
+	.remove		= ftrtc010_rtc_remove,
 };
 
-module_platform_driver_probe(gemini_rtc_driver, gemini_rtc_probe);
+module_platform_driver_probe(ftrtc010_rtc_driver, ftrtc010_rtc_probe);

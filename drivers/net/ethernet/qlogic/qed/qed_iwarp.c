@@ -575,7 +575,7 @@ qed_iwarp_print_tcp_ramrod(struct qed_hwfn *p_hwfn,
 
 	if (p_tcp_ramrod->tcp.ip_version == TCP_IPV4) {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
-			   "local_ip=%pI4h:%x, remote_ip=%pI4h%x, vlan=%x\n",
+			   "local_ip=%pI4h:%x, remote_ip=%pI4h:%x, vlan=%x\n",
 			   p_tcp_ramrod->tcp.local_ip,
 			   p_tcp_ramrod->tcp.local_port,
 			   p_tcp_ramrod->tcp.remote_ip,
@@ -583,7 +583,7 @@ qed_iwarp_print_tcp_ramrod(struct qed_hwfn *p_hwfn,
 			   p_tcp_ramrod->tcp.vlan_id);
 	} else {
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
-			   "local_ip=%pI6h:%x, remote_ip=%pI6h:%x, vlan=%x\n",
+			   "local_ip=%pI6:%x, remote_ip=%pI6:%x, vlan=%x\n",
 			   p_tcp_ramrod->tcp.local_ip,
 			   p_tcp_ramrod->tcp.local_port,
 			   p_tcp_ramrod->tcp.remote_ip,
@@ -1519,7 +1519,7 @@ qed_iwarp_print_cm_info(struct qed_hwfn *p_hwfn,
 			   cm_info->vlan);
 	else
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA,
-			   "remote_ip %pI6h:%x, local_ip %pI6h:%x vlan=%x\n",
+			   "remote_ip %pI6:%x, local_ip %pI6:%x vlan=%x\n",
 			   cm_info->remote_ip, cm_info->remote_port,
 			   cm_info->local_ip, cm_info->local_port,
 			   cm_info->vlan);

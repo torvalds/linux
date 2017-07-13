@@ -243,9 +243,6 @@ fallback:
 void bio_uninit(struct bio *bio)
 {
 	bio_disassociate_task(bio);
-
-	if (bio_integrity(bio))
-		bio_integrity_free(bio);
 }
 EXPORT_SYMBOL(bio_uninit);
 
@@ -1813,6 +1810,8 @@ void bio_endio(struct bio *bio)
 again:
 	if (!bio_remaining_done(bio))
 		return;
+	if (!bio_integrity_endio(bio))
+		return;
 
 	/*
 	 * Need to have a real endio function for chained bios, otherwise
@@ -1834,6 +1833,8 @@ again:
 	}
 
 	blk_throtl_bio_endio(bio);
+	/* release cgroup info */
+	bio_uninit(bio);
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
 }
@@ -1868,7 +1869,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	split->bi_iter.bi_size = sectors << 9;
 
 	if (bio_integrity(split))
-		bio_integrity_trim(split, 0, sectors);
+		bio_integrity_trim(split);
 
 	bio_advance(bio, split->bi_iter.bi_size);
 
@@ -1900,6 +1901,10 @@ void bio_trim(struct bio *bio, int offset, int size)
 	bio_advance(bio, offset << 9);
 
 	bio->bi_iter.bi_size = size;
+
+	if (bio_integrity(bio))
+		bio_integrity_trim(bio);
+
 }
 EXPORT_SYMBOL_GPL(bio_trim);
 
