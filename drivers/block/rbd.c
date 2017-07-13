@@ -3435,7 +3435,7 @@ static void rbd_acquire_lock(struct work_struct *work)
 	struct rbd_device *rbd_dev = container_of(to_delayed_work(work),
 					    struct rbd_device, lock_dwork);
 	enum rbd_lock_state lock_state;
-	int ret;
+	int ret = 0;
 
 	dout("%s rbd_dev %p\n", __func__, rbd_dev);
 again:
