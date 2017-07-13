@@ -1651,7 +1651,8 @@ encode_restorefh(struct xdr_stream *xdr, struct compound_hdr *hdr)
 }
 
 static void
-encode_setacl(struct xdr_stream *xdr, struct nfs_setaclargs *arg, struct compound_hdr *hdr)
+encode_setacl(struct xdr_stream *xdr, const struct nfs_setaclargs *arg,
+		struct compound_hdr *hdr)
 {
 	__be32 *p;
 
@@ -1735,7 +1736,7 @@ static void encode_secinfo(struct xdr_stream *xdr, const struct qstr *name, stru
 #if defined(CONFIG_NFS_V4_1)
 /* NFSv4.1 operations */
 static void encode_bind_conn_to_session(struct xdr_stream *xdr,
-				   struct nfs41_bind_conn_to_session_args *args,
+				   const struct nfs41_bind_conn_to_session_args *args,
 				   struct compound_hdr *hdr)
 {
 	__be32 *p;
@@ -1748,7 +1749,7 @@ static void encode_bind_conn_to_session(struct xdr_stream *xdr,
 	*p = (args->use_conn_in_rdma_mode) ? cpu_to_be32(1) : cpu_to_be32(0);
 }
 
-static void encode_op_map(struct xdr_stream *xdr, struct nfs4_op_map *op_map)
+static void encode_op_map(struct xdr_stream *xdr, const struct nfs4_op_map *op_map)
 {
 	unsigned int i;
 	encode_uint32(xdr, NFS4_OP_MAP_NUM_WORDS);
@@ -1757,7 +1758,7 @@ static void encode_op_map(struct xdr_stream *xdr, struct nfs4_op_map *op_map)
 }
 
 static void encode_exchange_id(struct xdr_stream *xdr,
-			       struct nfs41_exchange_id_args *args,
+			       const struct nfs41_exchange_id_args *args,
 			       struct compound_hdr *hdr)
 {
 	__be32 *p;
@@ -1809,7 +1810,7 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 }
 
 static void encode_create_session(struct xdr_stream *xdr,
-				  struct nfs41_create_session_args *args,
+				  const struct nfs41_create_session_args *args,
 				  struct compound_hdr *hdr)
 {
 	__be32 *p;
@@ -1862,7 +1863,7 @@ static void encode_create_session(struct xdr_stream *xdr,
 }
 
 static void encode_destroy_session(struct xdr_stream *xdr,
-				   struct nfs4_session *session,
+				   const struct nfs4_session *session,
 				   struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_DESTROY_SESSION, decode_destroy_session_maxsz, hdr);
@@ -1878,7 +1879,7 @@ static void encode_destroy_clientid(struct xdr_stream *xdr,
 }
 
 static void encode_reclaim_complete(struct xdr_stream *xdr,
-				    struct nfs41_reclaim_complete_args *args,
+				    const struct nfs41_reclaim_complete_args *args,
 				    struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_RECLAIM_COMPLETE, decode_reclaim_complete_maxsz, hdr);
@@ -1974,7 +1975,7 @@ encode_layoutget(struct xdr_stream *xdr,
 static int
 encode_layoutcommit(struct xdr_stream *xdr,
 		    struct inode *inode,
-		    struct nfs4_layoutcommit_args *args,
+		    const struct nfs4_layoutcommit_args *args,
 		    struct compound_hdr *hdr)
 {
 	__be32 *p;
@@ -2044,7 +2045,7 @@ encode_secinfo_no_name(struct xdr_stream *xdr,
 }
 
 static void encode_test_stateid(struct xdr_stream *xdr,
-				struct nfs41_test_stateid_args *args,
+				const struct nfs41_test_stateid_args *args,
 				struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_TEST_STATEID, decode_test_stateid_maxsz, hdr);
@@ -2053,7 +2054,7 @@ static void encode_test_stateid(struct xdr_stream *xdr,
 }
 
 static void encode_free_stateid(struct xdr_stream *xdr,
-				struct nfs41_free_stateid_args *args,
+				const struct nfs41_free_stateid_args *args,
 				struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_FREE_STATEID, decode_free_stateid_maxsz, hdr);
@@ -2086,8 +2087,9 @@ static u32 nfs4_xdr_minorversion(const struct nfs4_sequence_args *args)
  * Encode an ACCESS request
  */
 static void nfs4_xdr_enc_access(struct rpc_rqst *req, struct xdr_stream *xdr,
-				const struct nfs4_accessargs *args)
+				const void *data)
 {
+	const struct nfs4_accessargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2104,8 +2106,9 @@ static void nfs4_xdr_enc_access(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode LOOKUP request
  */
 static void nfs4_xdr_enc_lookup(struct rpc_rqst *req, struct xdr_stream *xdr,
-				const struct nfs4_lookup_arg *args)
+				const void *data)
 {
+	const struct nfs4_lookup_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2124,8 +2127,9 @@ static void nfs4_xdr_enc_lookup(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static void nfs4_xdr_enc_lookup_root(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     const struct nfs4_lookup_root_arg *args)
+				     const void *data)
 {
+	const struct nfs4_lookup_root_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2142,8 +2146,9 @@ static void nfs4_xdr_enc_lookup_root(struct rpc_rqst *req,
  * Encode REMOVE request
  */
 static void nfs4_xdr_enc_remove(struct rpc_rqst *req, struct xdr_stream *xdr,
-				const struct nfs_removeargs *args)
+				const void *data)
 {
+	const struct nfs_removeargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2159,8 +2164,9 @@ static void nfs4_xdr_enc_remove(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode RENAME request
  */
 static void nfs4_xdr_enc_rename(struct rpc_rqst *req, struct xdr_stream *xdr,
-				const struct nfs_renameargs *args)
+				const void *data)
 {
+	const struct nfs_renameargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2178,8 +2184,9 @@ static void nfs4_xdr_enc_rename(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode LINK request
  */
 static void nfs4_xdr_enc_link(struct rpc_rqst *req, struct xdr_stream *xdr,
-			     const struct nfs4_link_arg *args)
+			      const void *data)
 {
+	const struct nfs4_link_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2199,8 +2206,9 @@ static void nfs4_xdr_enc_link(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode CREATE request
  */
 static void nfs4_xdr_enc_create(struct rpc_rqst *req, struct xdr_stream *xdr,
-				const struct nfs4_create_arg *args)
+				const void *data)
 {
+	const struct nfs4_create_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2218,8 +2226,10 @@ static void nfs4_xdr_enc_create(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode SYMLINK request
  */
 static void nfs4_xdr_enc_symlink(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 const struct nfs4_create_arg *args)
+				 const void *data)
 {
+	const struct nfs4_create_arg *args = data;
+
 	nfs4_xdr_enc_create(req, xdr, args);
 }
 
@@ -2227,8 +2237,9 @@ static void nfs4_xdr_enc_symlink(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode GETATTR request
  */
 static void nfs4_xdr_enc_getattr(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 const struct nfs4_getattr_arg *args)
+				 const void *data)
 {
+	const struct nfs4_getattr_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2244,8 +2255,9 @@ static void nfs4_xdr_enc_getattr(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode a CLOSE request
  */
 static void nfs4_xdr_enc_close(struct rpc_rqst *req, struct xdr_stream *xdr,
-			       struct nfs_closeargs *args)
+			       const void *data)
 {
+	const struct nfs_closeargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2265,8 +2277,9 @@ static void nfs4_xdr_enc_close(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode an OPEN request
  */
 static void nfs4_xdr_enc_open(struct rpc_rqst *req, struct xdr_stream *xdr,
-			      struct nfs_openargs *args)
+			      const void *data)
 {
+	const struct nfs_openargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2287,8 +2300,9 @@ static void nfs4_xdr_enc_open(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static void nfs4_xdr_enc_open_confirm(struct rpc_rqst *req,
 				      struct xdr_stream *xdr,
-				      struct nfs_open_confirmargs *args)
+				      const void *data)
 {
+	const struct nfs_open_confirmargs *args = data;
 	struct compound_hdr hdr = {
 		.nops   = 0,
 	};
@@ -2304,8 +2318,9 @@ static void nfs4_xdr_enc_open_confirm(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_open_noattr(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     struct nfs_openargs *args)
+				     const void *data)
 {
+	const struct nfs_openargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2325,8 +2340,9 @@ static void nfs4_xdr_enc_open_noattr(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_open_downgrade(struct rpc_rqst *req,
 					struct xdr_stream *xdr,
-					struct nfs_closeargs *args)
+					const void *data)
 {
+	const struct nfs_closeargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2344,8 +2360,9 @@ static void nfs4_xdr_enc_open_downgrade(struct rpc_rqst *req,
  * Encode a LOCK request
  */
 static void nfs4_xdr_enc_lock(struct rpc_rqst *req, struct xdr_stream *xdr,
-			      struct nfs_lock_args *args)
+			      const void *data)
 {
+	const struct nfs_lock_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2361,8 +2378,9 @@ static void nfs4_xdr_enc_lock(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode a LOCKT request
  */
 static void nfs4_xdr_enc_lockt(struct rpc_rqst *req, struct xdr_stream *xdr,
-			       struct nfs_lockt_args *args)
+			       const void *data)
 {
+	const struct nfs_lockt_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2378,8 +2396,9 @@ static void nfs4_xdr_enc_lockt(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode a LOCKU request
  */
 static void nfs4_xdr_enc_locku(struct rpc_rqst *req, struct xdr_stream *xdr,
-			       struct nfs_locku_args *args)
+			       const void *data)
 {
+	const struct nfs_locku_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2393,8 +2412,9 @@ static void nfs4_xdr_enc_locku(struct rpc_rqst *req, struct xdr_stream *xdr,
 
 static void nfs4_xdr_enc_release_lockowner(struct rpc_rqst *req,
 					   struct xdr_stream *xdr,
-					struct nfs_release_lockowner_args *args)
+					   const void *data)
 {
+	const struct nfs_release_lockowner_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = 0,
 	};
@@ -2408,8 +2428,9 @@ static void nfs4_xdr_enc_release_lockowner(struct rpc_rqst *req,
  * Encode a READLINK request
  */
 static void nfs4_xdr_enc_readlink(struct rpc_rqst *req, struct xdr_stream *xdr,
-				  const struct nfs4_readlink *args)
+				  const void *data)
 {
+	const struct nfs4_readlink *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2428,8 +2449,9 @@ static void nfs4_xdr_enc_readlink(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode a READDIR request
  */
 static void nfs4_xdr_enc_readdir(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 const struct nfs4_readdir_arg *args)
+				 const void *data)
 {
+	const struct nfs4_readdir_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2451,8 +2473,9 @@ static void nfs4_xdr_enc_readdir(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode a READ request
  */
 static void nfs4_xdr_enc_read(struct rpc_rqst *req, struct xdr_stream *xdr,
-			      struct nfs_pgio_args *args)
+			      const void *data)
 {
+	const struct nfs_pgio_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2472,8 +2495,9 @@ static void nfs4_xdr_enc_read(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode an SETATTR request
  */
 static void nfs4_xdr_enc_setattr(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 struct nfs_setattrargs *args)
+				 const void *data)
 {
+	const struct nfs_setattrargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2490,8 +2514,9 @@ static void nfs4_xdr_enc_setattr(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode a GETACL request
  */
 static void nfs4_xdr_enc_getacl(struct rpc_rqst *req, struct xdr_stream *xdr,
-				struct nfs_getaclargs *args)
+				const void *data)
 {
+	const struct nfs_getaclargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2513,8 +2538,9 @@ static void nfs4_xdr_enc_getacl(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Encode a WRITE request
  */
 static void nfs4_xdr_enc_write(struct rpc_rqst *req, struct xdr_stream *xdr,
-			       struct nfs_pgio_args *args)
+			       const void *data)
 {
+	const struct nfs_pgio_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2533,8 +2559,9 @@ static void nfs4_xdr_enc_write(struct rpc_rqst *req, struct xdr_stream *xdr,
  *  a COMMIT request
  */
 static void nfs4_xdr_enc_commit(struct rpc_rqst *req, struct xdr_stream *xdr,
-				struct nfs_commitargs *args)
+				const void *data)
 {
+	const struct nfs_commitargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2550,8 +2577,9 @@ static void nfs4_xdr_enc_commit(struct rpc_rqst *req, struct xdr_stream *xdr,
  * FSINFO request
  */
 static void nfs4_xdr_enc_fsinfo(struct rpc_rqst *req, struct xdr_stream *xdr,
-				struct nfs4_fsinfo_arg *args)
+				const void *data)
 {
+	const struct nfs4_fsinfo_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2567,8 +2595,9 @@ static void nfs4_xdr_enc_fsinfo(struct rpc_rqst *req, struct xdr_stream *xdr,
  * a PATHCONF request
  */
 static void nfs4_xdr_enc_pathconf(struct rpc_rqst *req, struct xdr_stream *xdr,
-				  const struct nfs4_pathconf_arg *args)
+				  const void *data)
 {
+	const struct nfs4_pathconf_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2585,8 +2614,9 @@ static void nfs4_xdr_enc_pathconf(struct rpc_rqst *req, struct xdr_stream *xdr,
  * a STATFS request
  */
 static void nfs4_xdr_enc_statfs(struct rpc_rqst *req, struct xdr_stream *xdr,
-				const struct nfs4_statfs_arg *args)
+				const void *data)
 {
+	const struct nfs4_statfs_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2604,8 +2634,9 @@ static void nfs4_xdr_enc_statfs(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static void nfs4_xdr_enc_server_caps(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     struct nfs4_server_caps_arg *args)
+				     const void *data)
 {
+	const struct nfs4_server_caps_arg *args = data;
 	const u32 *bitmask = args->bitmask;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
@@ -2622,8 +2653,10 @@ static void nfs4_xdr_enc_server_caps(struct rpc_rqst *req,
  * a RENEW request
  */
 static void nfs4_xdr_enc_renew(struct rpc_rqst *req, struct xdr_stream *xdr,
-			       struct nfs_client *clp)
+			       const void *data)
+
 {
+	const struct nfs_client *clp = data;
 	struct compound_hdr hdr = {
 		.nops	= 0,
 	};
@@ -2638,8 +2671,9 @@ static void nfs4_xdr_enc_renew(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static void nfs4_xdr_enc_setclientid(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     struct nfs4_setclientid *sc)
+				     const void *data)
 {
+	const struct nfs4_setclientid *sc = data;
 	struct compound_hdr hdr = {
 		.nops	= 0,
 	};
@@ -2654,8 +2688,9 @@ static void nfs4_xdr_enc_setclientid(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_setclientid_confirm(struct rpc_rqst *req,
 					     struct xdr_stream *xdr,
-					     struct nfs4_setclientid_res *arg)
+					     const void *data)
 {
+	const struct nfs4_setclientid_res *arg = data;
 	struct compound_hdr hdr = {
 		.nops	= 0,
 	};
@@ -2670,8 +2705,9 @@ static void nfs4_xdr_enc_setclientid_confirm(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_delegreturn(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     const struct nfs4_delegreturnargs *args)
+				     const void *data)
 {
+	const struct nfs4_delegreturnargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2692,8 +2728,9 @@ static void nfs4_xdr_enc_delegreturn(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_fs_locations(struct rpc_rqst *req,
 				      struct xdr_stream *xdr,
-				      struct nfs4_fs_locations_arg *args)
+				      const void *data)
 {
+	const struct nfs4_fs_locations_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2715,8 +2752,8 @@ static void nfs4_xdr_enc_fs_locations(struct rpc_rqst *req,
 	}
 
 	/* Set up reply kvec to capture returned fs_locations array. */
-	xdr_inline_pages(&req->rq_rcv_buf, replen << 2, &args->page,
-			0, PAGE_SIZE);
+	xdr_inline_pages(&req->rq_rcv_buf, replen << 2,
+			 (struct page **)&args->page, 0, PAGE_SIZE);
 	encode_nops(&hdr);
 }
 
@@ -2725,8 +2762,9 @@ static void nfs4_xdr_enc_fs_locations(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_secinfo(struct rpc_rqst *req,
 				struct xdr_stream *xdr,
-				struct nfs4_secinfo_arg *args)
+				const void *data)
 {
+	const struct nfs4_secinfo_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2743,8 +2781,9 @@ static void nfs4_xdr_enc_secinfo(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_fsid_present(struct rpc_rqst *req,
 				      struct xdr_stream *xdr,
-				      struct nfs4_fsid_present_arg *args)
+				      const void *data)
 {
+	const struct nfs4_fsid_present_arg *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2764,8 +2803,9 @@ static void nfs4_xdr_enc_fsid_present(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_bind_conn_to_session(struct rpc_rqst *req,
 				struct xdr_stream *xdr,
-				struct nfs41_bind_conn_to_session_args *args)
+				const void *data)
 {
+	const struct nfs41_bind_conn_to_session_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = args->client->cl_mvops->minor_version,
 	};
@@ -2780,8 +2820,9 @@ static void nfs4_xdr_enc_bind_conn_to_session(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_exchange_id(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     struct nfs41_exchange_id_args *args)
+				     const void *data)
 {
+	const struct nfs41_exchange_id_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = args->client->cl_mvops->minor_version,
 	};
@@ -2796,8 +2837,9 @@ static void nfs4_xdr_enc_exchange_id(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_create_session(struct rpc_rqst *req,
 					struct xdr_stream *xdr,
-					struct nfs41_create_session_args *args)
+					const void *data)
 {
+	const struct nfs41_create_session_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = args->client->cl_mvops->minor_version,
 	};
@@ -2812,8 +2854,9 @@ static void nfs4_xdr_enc_create_session(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_destroy_session(struct rpc_rqst *req,
 					 struct xdr_stream *xdr,
-					 struct nfs4_session *session)
+					 const void *data)
 {
+	const struct nfs4_session *session = data;
 	struct compound_hdr hdr = {
 		.minorversion = session->clp->cl_mvops->minor_version,
 	};
@@ -2828,8 +2871,9 @@ static void nfs4_xdr_enc_destroy_session(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_destroy_clientid(struct rpc_rqst *req,
 					 struct xdr_stream *xdr,
-					 struct nfs_client *clp)
+					 const void *data)
 {
+	const struct nfs_client *clp = data;
 	struct compound_hdr hdr = {
 		.minorversion = clp->cl_mvops->minor_version,
 	};
@@ -2843,8 +2887,9 @@ static void nfs4_xdr_enc_destroy_clientid(struct rpc_rqst *req,
  * a SEQUENCE request
  */
 static void nfs4_xdr_enc_sequence(struct rpc_rqst *req, struct xdr_stream *xdr,
-				  struct nfs4_sequence_args *args)
+				  const void *data)
 {
+	const struct nfs4_sequence_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(args),
 	};
@@ -2859,8 +2904,9 @@ static void nfs4_xdr_enc_sequence(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static void nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req,
 					struct xdr_stream *xdr,
-					struct nfs4_get_lease_time_args *args)
+					const void *data)
 {
+	const struct nfs4_get_lease_time_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->la_seq_args),
 	};
@@ -2878,8 +2924,9 @@ static void nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_reclaim_complete(struct rpc_rqst *req,
 					  struct xdr_stream *xdr,
-				struct nfs41_reclaim_complete_args *args)
+					  const void *data)
 {
+	const struct nfs41_reclaim_complete_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args)
 	};
@@ -2895,8 +2942,9 @@ static void nfs4_xdr_enc_reclaim_complete(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req,
 				       struct xdr_stream *xdr,
-				       struct nfs4_getdeviceinfo_args *args)
+				       const void *data)
 {
+	const struct nfs4_getdeviceinfo_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2919,8 +2967,9 @@ static void nfs4_xdr_enc_getdeviceinfo(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_layoutget(struct rpc_rqst *req,
 				   struct xdr_stream *xdr,
-				   struct nfs4_layoutget_args *args)
+				   const void *data)
 {
+	const struct nfs4_layoutget_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2941,8 +2990,9 @@ static void nfs4_xdr_enc_layoutget(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_layoutcommit(struct rpc_rqst *req,
 				      struct xdr_stream *xdr,
-				      struct nfs4_layoutcommit_args *args)
+				      const void *priv)
 {
+	const struct nfs4_layoutcommit_args *args = priv;
 	struct nfs4_layoutcommit_data *data =
 		container_of(args, struct nfs4_layoutcommit_data, args);
 	struct compound_hdr hdr = {
@@ -2962,8 +3012,9 @@ static void nfs4_xdr_enc_layoutcommit(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_layoutreturn(struct rpc_rqst *req,
 				      struct xdr_stream *xdr,
-				      struct nfs4_layoutreturn_args *args)
+				      const void *data)
 {
+	const struct nfs4_layoutreturn_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2978,10 +3029,11 @@ static void nfs4_xdr_enc_layoutreturn(struct rpc_rqst *req,
 /*
  * Encode SECINFO_NO_NAME request
  */
-static int nfs4_xdr_enc_secinfo_no_name(struct rpc_rqst *req,
+static void nfs4_xdr_enc_secinfo_no_name(struct rpc_rqst *req,
 					struct xdr_stream *xdr,
-					struct nfs41_secinfo_no_name_args *args)
+					const void *data)
 {
+	const struct nfs41_secinfo_no_name_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -2991,7 +3043,6 @@ static int nfs4_xdr_enc_secinfo_no_name(struct rpc_rqst *req,
 	encode_putrootfh(xdr, &hdr);
 	encode_secinfo_no_name(xdr, args, &hdr);
 	encode_nops(&hdr);
-	return 0;
 }
 
 /*
@@ -2999,8 +3050,9 @@ static int nfs4_xdr_enc_secinfo_no_name(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_test_stateid(struct rpc_rqst *req,
 				      struct xdr_stream *xdr,
-				      struct nfs41_test_stateid_args *args)
+				      const void *data)
 {
+	const struct nfs41_test_stateid_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -3016,8 +3068,9 @@ static void nfs4_xdr_enc_test_stateid(struct rpc_rqst *req,
  */
 static void nfs4_xdr_enc_free_stateid(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     struct nfs41_free_stateid_args *args)
+				     const void *data)
 {
+	const struct nfs41_free_stateid_args *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -6101,8 +6154,9 @@ int decode_layoutreturn(struct xdr_stream *xdr,
  */
 static int nfs4_xdr_dec_open_downgrade(struct rpc_rqst *rqstp,
 				       struct xdr_stream *xdr,
-				       struct nfs_closeres *res)
+				       void *data)
 {
+	struct nfs_closeres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6130,8 +6184,9 @@ out:
  * Decode ACCESS response
  */
 static int nfs4_xdr_dec_access(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			       struct nfs4_accessres *res)
+			       void *data)
 {
+	struct nfs4_accessres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6156,8 +6211,9 @@ out:
  * Decode LOOKUP response
  */
 static int nfs4_xdr_dec_lookup(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			       struct nfs4_lookup_res *res)
+			       void *data)
 {
+	struct nfs4_lookup_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6186,8 +6242,9 @@ out:
  */
 static int nfs4_xdr_dec_lookup_root(struct rpc_rqst *rqstp,
 				    struct xdr_stream *xdr,
-				    struct nfs4_lookup_res *res)
+				    void *data)
 {
+	struct nfs4_lookup_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6212,8 +6269,9 @@ out:
  * Decode REMOVE response
  */
 static int nfs4_xdr_dec_remove(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			       struct nfs_removeres *res)
+			       void *data)
 {
+	struct nfs_removeres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6235,8 +6293,9 @@ out:
  * Decode RENAME response
  */
 static int nfs4_xdr_dec_rename(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			       struct nfs_renameres *res)
+			       void *data)
 {
+	struct nfs_renameres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6264,8 +6323,9 @@ out:
  * Decode LINK response
  */
 static int nfs4_xdr_dec_link(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			     struct nfs4_link_res *res)
+			     void *data)
 {
+	struct nfs4_link_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6303,8 +6363,9 @@ out:
  * Decode CREATE response
  */
 static int nfs4_xdr_dec_create(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			       struct nfs4_create_res *res)
+			       void *data)
 {
+	struct nfs4_create_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6332,7 +6393,7 @@ out:
  * Decode SYMLINK response
  */
 static int nfs4_xdr_dec_symlink(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-				struct nfs4_create_res *res)
+				void *res)
 {
 	return nfs4_xdr_dec_create(rqstp, xdr, res);
 }
@@ -6341,8 +6402,9 @@ static int nfs4_xdr_dec_symlink(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
  * Decode GETATTR response
  */
 static int nfs4_xdr_dec_getattr(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-				struct nfs4_getattr_res *res)
+				void *data)
 {
+	struct nfs4_getattr_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6364,8 +6426,9 @@ out:
  * Encode an SETACL request
  */
 static void nfs4_xdr_enc_setacl(struct rpc_rqst *req, struct xdr_stream *xdr,
-				struct nfs_setaclargs *args)
+				const void *data)
 {
+	const struct nfs_setaclargs *args = data;
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
@@ -6382,8 +6445,9 @@ static void nfs4_xdr_enc_setacl(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static int
 nfs4_xdr_dec_setacl(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-		    struct nfs_setaclres *res)
+		    void *data)
 {
+	struct nfs_setaclres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6406,8 +6470,9 @@ out:
  */
 static int
 nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-		    struct nfs_getaclres *res)
+		    void *data)
 {
+	struct nfs_getaclres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6434,8 +6499,9 @@ out:
  * Decode CLOSE response
  */
 static int nfs4_xdr_dec_close(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			      struct nfs_closeres *res)
+			      void *data)
 {
+	struct nfs_closeres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6468,8 +6534,9 @@ out:
  * Decode OPEN response
  */
 static int nfs4_xdr_dec_open(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			     struct nfs_openres *res)
+			     void *data)
 {
+	struct nfs_openres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6500,8 +6567,9 @@ out:
  */
 static int nfs4_xdr_dec_open_confirm(struct rpc_rqst *rqstp,
 				     struct xdr_stream *xdr,
-				     struct nfs_open_confirmres *res)
+				     void *data)
 {
+	struct nfs_open_confirmres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6521,8 +6589,9 @@ out:
  */
 static int nfs4_xdr_dec_open_noattr(struct rpc_rqst *rqstp,
 				    struct xdr_stream *xdr,
-				    struct nfs_openres *res)
+				    void *data)
 {
+	struct nfs_openres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6550,8 +6619,9 @@ out:
  */
 static int nfs4_xdr_dec_setattr(struct rpc_rqst *rqstp,
 				struct xdr_stream *xdr,
-				struct nfs_setattrres *res)
+				void *data)
 {
+	struct nfs_setattrres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6576,8 +6646,9 @@ out:
  * Decode LOCK response
  */
 static int nfs4_xdr_dec_lock(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			     struct nfs_lock_res *res)
+			     void *data)
 {
+	struct nfs_lock_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6599,8 +6670,9 @@ out:
  * Decode LOCKT response
  */
 static int nfs4_xdr_dec_lockt(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			      struct nfs_lockt_res *res)
+			      void *data)
 {
+	struct nfs_lockt_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6622,8 +6694,9 @@ out:
  * Decode LOCKU response
  */
 static int nfs4_xdr_dec_locku(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			      struct nfs_locku_res *res)
+			      void *data)
 {
+	struct nfs_locku_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6658,8 +6731,9 @@ static int nfs4_xdr_dec_release_lockowner(struct rpc_rqst *rqstp,
  */
 static int nfs4_xdr_dec_readlink(struct rpc_rqst *rqstp,
 				 struct xdr_stream *xdr,
-				 struct nfs4_readlink_res *res)
+				 void *data)
 {
+	struct nfs4_readlink_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6681,8 +6755,9 @@ out:
  * Decode READDIR response
  */
 static int nfs4_xdr_dec_readdir(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-				struct nfs4_readdir_res *res)
+				void *data)
 {
+	struct nfs4_readdir_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6704,8 +6779,9 @@ out:
  * Decode Read response
  */
 static int nfs4_xdr_dec_read(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			     struct nfs_pgio_res *res)
+			     void *data)
 {
+	struct nfs_pgio_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6730,8 +6806,9 @@ out:
  * Decode WRITE response
  */
 static int nfs4_xdr_dec_write(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			      struct nfs_pgio_res *res)
+			      void *data)
 {
+	struct nfs_pgio_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6760,8 +6837,9 @@ out:
  * Decode COMMIT response
  */
 static int nfs4_xdr_dec_commit(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
-			       struct nfs_commitres *res)
+			       void *data)
 {
+	struct nfs_commitres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6784,8 +6862,9 @@ out:
  * Decode FSINFO response
  */
 static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, struct xdr_stream *xdr,
-			       struct nfs4_fsinfo_res *res)
+			       void *data)
 {
+	struct nfs4_fsinfo_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6803,8 +6882,9 @@ static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Decode PATHCONF response
  */
 static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 struct nfs4_pathconf_res *res)
+				 void *data)
 {
+	struct nfs4_pathconf_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6822,8 +6902,9 @@ static int nfs4_xdr_dec_pathconf(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Decode STATFS response
  */
 static int nfs4_xdr_dec_statfs(struct rpc_rqst *req, struct xdr_stream *xdr,
-			       struct nfs4_statfs_res *res)
+			       void *data)
 {
+	struct nfs4_statfs_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6842,8 +6923,9 @@ static int nfs4_xdr_dec_statfs(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static int nfs4_xdr_dec_server_caps(struct rpc_rqst *req,
 				    struct xdr_stream *xdr,
-				    struct nfs4_server_caps_res *res)
+				    void *data)
 {
+	struct nfs4_server_caps_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6881,8 +6963,9 @@ static int nfs4_xdr_dec_renew(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
  */
 static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req,
 				    struct xdr_stream *xdr,
-				    struct nfs4_setclientid_res *res)
+				    void *data)
 {
+	struct nfs4_setclientid_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6896,7 +6979,8 @@ static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req,
  * Decode SETCLIENTID_CONFIRM response
  */
 static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req,
-					    struct xdr_stream *xdr)
+					    struct xdr_stream *xdr,
+					    void *data)
 {
 	struct compound_hdr hdr;
 	int status;
@@ -6912,8 +6996,9 @@ static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req,
  */
 static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp,
 				    struct xdr_stream *xdr,
-				    struct nfs4_delegreturnres *res)
+				    void *data)
 {
+	struct nfs4_delegreturnres *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6947,8 +7032,9 @@ out:
  */
 static int nfs4_xdr_dec_fs_locations(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     struct nfs4_fs_locations_res *res)
+				     void *data)
 {
+	struct nfs4_fs_locations_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -6990,8 +7076,9 @@ out:
  */
 static int nfs4_xdr_dec_secinfo(struct rpc_rqst *rqstp,
 				struct xdr_stream *xdr,
-				struct nfs4_secinfo_res *res)
+				void *data)
 {
+	struct nfs4_secinfo_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7014,8 +7101,9 @@ out:
  */
 static int nfs4_xdr_dec_fsid_present(struct rpc_rqst *rqstp,
 				     struct xdr_stream *xdr,
-				     struct nfs4_fsid_present_res *res)
+				     void *data)
 {
+	struct nfs4_fsid_present_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7075,7 +7163,7 @@ static int nfs4_xdr_dec_exchange_id(struct rpc_rqst *rqstp,
  */
 static int nfs4_xdr_dec_create_session(struct rpc_rqst *rqstp,
 				       struct xdr_stream *xdr,
-				       struct nfs41_create_session_res *res)
+				       void *res)
 {
 	struct compound_hdr hdr;
 	int status;
@@ -7123,7 +7211,7 @@ static int nfs4_xdr_dec_destroy_clientid(struct rpc_rqst *rqstp,
  */
 static int nfs4_xdr_dec_sequence(struct rpc_rqst *rqstp,
 				 struct xdr_stream *xdr,
-				 struct nfs4_sequence_res *res)
+				 void *res)
 {
 	struct compound_hdr hdr;
 	int status;
@@ -7139,8 +7227,9 @@ static int nfs4_xdr_dec_sequence(struct rpc_rqst *rqstp,
  */
 static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp,
 				       struct xdr_stream *xdr,
-				       struct nfs4_get_lease_time_res *res)
+				       void *data)
 {
+	struct nfs4_get_lease_time_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7159,8 +7248,9 @@ static int nfs4_xdr_dec_get_lease_time(struct rpc_rqst *rqstp,
  */
 static int nfs4_xdr_dec_reclaim_complete(struct rpc_rqst *rqstp,
 					 struct xdr_stream *xdr,
-					 struct nfs41_reclaim_complete_res *res)
+					 void *data)
 {
+	struct nfs41_reclaim_complete_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7177,8 +7267,9 @@ static int nfs4_xdr_dec_reclaim_complete(struct rpc_rqst *rqstp,
  */
 static int nfs4_xdr_dec_getdeviceinfo(struct rpc_rqst *rqstp,
 				      struct xdr_stream *xdr,
-				      struct nfs4_getdeviceinfo_res *res)
+				      void *data)
 {
+	struct nfs4_getdeviceinfo_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7198,8 +7289,9 @@ out:
  */
 static int nfs4_xdr_dec_layoutget(struct rpc_rqst *rqstp,
 				  struct xdr_stream *xdr,
-				  struct nfs4_layoutget_res *res)
+				  void *data)
 {
+	struct nfs4_layoutget_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7222,8 +7314,9 @@ out:
  */
 static int nfs4_xdr_dec_layoutreturn(struct rpc_rqst *rqstp,
 				     struct xdr_stream *xdr,
-				     struct nfs4_layoutreturn_res *res)
+				     void *data)
 {
+	struct nfs4_layoutreturn_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7246,8 +7339,9 @@ out:
  */
 static int nfs4_xdr_dec_layoutcommit(struct rpc_rqst *rqstp,
 				     struct xdr_stream *xdr,
-				     struct nfs4_layoutcommit_res *res)
+				     void *data)
 {
+	struct nfs4_layoutcommit_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7273,8 +7367,9 @@ out:
  */
 static int nfs4_xdr_dec_secinfo_no_name(struct rpc_rqst *rqstp,
 					struct xdr_stream *xdr,
-					struct nfs4_secinfo_res *res)
+					void *data)
 {
+	struct nfs4_secinfo_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7297,8 +7392,9 @@ out:
  */
 static int nfs4_xdr_dec_test_stateid(struct rpc_rqst *rqstp,
 				     struct xdr_stream *xdr,
-				     struct nfs41_test_stateid_res *res)
+				     void *data)
 {
+	struct nfs41_test_stateid_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7318,8 +7414,9 @@ out:
  */
 static int nfs4_xdr_dec_free_stateid(struct rpc_rqst *rqstp,
 				     struct xdr_stream *xdr,
-				     struct nfs41_free_stateid_res *res)
+				     void *data)
 {
+	struct nfs41_free_stateid_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -7484,8 +7581,8 @@ nfs4_stat_to_errno(int stat)
 #define PROC(proc, argtype, restype)				\
 [NFSPROC4_CLNT_##proc] = {					\
 	.p_proc   = NFSPROC4_COMPOUND,				\
-	.p_encode = (kxdreproc_t)nfs4_xdr_##argtype,		\
-	.p_decode = (kxdrdproc_t)nfs4_xdr_##restype,		\
+	.p_encode = nfs4_xdr_##argtype,				\
+	.p_decode = nfs4_xdr_##restype,				\
 	.p_arglen = NFS4_##argtype##_sz,			\
 	.p_replen = NFS4_##restype##_sz,			\
 	.p_statidx = NFSPROC4_CLNT_##proc,			\
@@ -7497,7 +7594,7 @@ nfs4_stat_to_errno(int stat)
 	.p_name = #proc,	\
 }
 
-struct rpc_procinfo	nfs4_procedures[] = {
+const struct rpc_procinfo nfs4_procedures[] = {
 	PROC(READ,		enc_read,		dec_read),
 	PROC(WRITE,		enc_write,		dec_write),
 	PROC(COMMIT,		enc_commit,		dec_commit),
@@ -7564,10 +7661,12 @@ struct rpc_procinfo	nfs4_procedures[] = {
 #endif /* CONFIG_NFS_V4_2 */
 };
 
+static unsigned int nfs_version4_counts[ARRAY_SIZE(nfs4_procedures)];
 const struct rpc_version nfs_version4 = {
 	.number			= 4,
 	.nrprocs		= ARRAY_SIZE(nfs4_procedures),
-	.procs			= nfs4_procedures
+	.procs			= nfs4_procedures,
+	.counts			= nfs_version4_counts,
 };
 
 /*
