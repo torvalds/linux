@@ -64,6 +64,10 @@
 # define O_CLOEXEC		02000000
 #endif
 
+#ifndef F_LINUX_SPECIFIC_BASE
+# define F_LINUX_SPECIFIC_BASE	1024
+#endif
+
 struct trace {
 	struct perf_tool	tool;
 	struct syscalltbl	*sctbl;
@@ -317,6 +321,38 @@ static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
 
 #define SCA_STRARRAY syscall_arg__scnprintf_strarray
 
+struct strarrays {
+	int		nr_entries;
+	struct strarray **entries;
+};
+
+#define DEFINE_STRARRAYS(array) struct strarrays strarrays__##array = { \
+	.nr_entries = ARRAY_SIZE(array), \
+	.entries = array, \
+}
+
+static size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
+					       struct syscall_arg *arg)
+{
+	struct strarrays *sas = arg->parm;
+	int i;
+
+	for (i = 0; i < sas->nr_entries; ++i) {
+		struct strarray *sa = sas->entries[i];
+		int idx = arg->val - sa->offset;
+
+		if (idx >= 0 && idx < sa->nr_entries) {
+			if (sa->entries[idx] == NULL)
+				break;
+			return scnprintf(bf, size, "%s", sa->entries[idx]);
+		}
+	}
+
+	return scnprintf(bf, size, "%d", arg->val);
+}
+
+#define SCA_STRARRAYS syscall_arg__scnprintf_strarrays
+
 #if defined(__i386__) || defined(__x86_64__)
 /*
  * FIXME: Make this available to all arches as soon as the ioctl beautifier
@@ -412,6 +448,20 @@ static const char *fcntl_cmds[] = {
 	"GETOWNER_UIDS",
 };
 static DEFINE_STRARRAY(fcntl_cmds);
+
+static const char *fcntl_linux_specific_cmds[] = {
+	"SETLEASE", "GETLEASE", "NOTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
+	"SETPIPE_SZ", "GETPIPE_SZ", "ADD_SEALS", "GET_SEALS",
+};
+
+static DEFINE_STRARRAY_OFFSET(fcntl_linux_specific_cmds, F_LINUX_SPECIFIC_BASE);
+
+static struct strarray *fcntl_cmds_arrays[] = {
+	&strarray__fcntl_cmds,
+	&strarray__fcntl_linux_specific_cmds,
+};
+
+static DEFINE_STRARRAYS(fcntl_cmds_arrays);
 
 static const char *rlimit_resources[] = {
 	"CPU", "FSIZE", "DATA", "STACK", "CORE", "RSS", "NPROC", "NOFILE",
@@ -613,8 +663,8 @@ static struct syscall_fmt {
 	{ .name	    = "fchownat",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_FDAT, /* fd */ }, },
 	{ .name	    = "fcntl",	    .errmsg = true,
-	  .arg_scnprintf = { [1] = SCA_STRARRAY, /* cmd */ },
-	  .arg_parm	 = { [1] = &strarray__fcntl_cmds, /* cmd */ }, },
+	  .arg_scnprintf = { [1] = SCA_STRARRAYS, /* cmd */ },
+	  .arg_parm	 = { [1] = &strarrays__fcntl_cmds_arrays, /* cmd */ }, },
 	{ .name	    = "fdatasync",  .errmsg = true, },
 	{ .name	    = "flock",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_FLOCK, /* cmd */ }, },
@@ -1356,7 +1406,8 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
  			 */
 			if (val == 0 &&
 			    !(sc->arg_scnprintf &&
-			      sc->arg_scnprintf[arg.idx] == SCA_STRARRAY &&
+			      (sc->arg_scnprintf[arg.idx] == SCA_STRARRAY ||
+			       sc->arg_scnprintf[arg.idx] == SCA_STRARRAYS) &&
 			      sc->arg_parm[arg.idx]))
 				continue;
 
