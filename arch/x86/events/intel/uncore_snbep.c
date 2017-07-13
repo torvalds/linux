@@ -3332,6 +3332,8 @@ static struct extra_reg skx_uncore_cha_extra_regs[] = {
 	SNBEP_CBO_EVENT_EXTRA_REG(0x1134, 0xffff, 0x4),
 	SNBEP_CBO_EVENT_EXTRA_REG(0x3134, 0xffff, 0x4),
 	SNBEP_CBO_EVENT_EXTRA_REG(0x9134, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x35, 0xff, 0x8),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x36, 0xff, 0x8),
 };
 
 static u64 skx_cha_filter_mask(int fields)
@@ -3344,6 +3346,17 @@ static u64 skx_cha_filter_mask(int fields)
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_LINK;
 	if (fields & 0x4)
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_STATE;
+	if (fields & 0x8) {
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_REM;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_LOC;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_ALL_OPC;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NM;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NOT_NM;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_OPC0;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_OPC1;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NC;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_ISOC;
+	}
 	return mask;
 }
 
