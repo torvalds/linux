@@ -179,15 +179,15 @@ struct extcon_dev;
 extern int extcon_dev_register(struct extcon_dev *edev);
 extern void extcon_dev_unregister(struct extcon_dev *edev);
 extern int devm_extcon_dev_register(struct device *dev,
-				    struct extcon_dev *edev);
+				struct extcon_dev *edev);
 extern void devm_extcon_dev_unregister(struct device *dev,
-				       struct extcon_dev *edev);
+				struct extcon_dev *edev);
 
 /* Following APIs allocate/free the memory of the extcon device. */
 extern struct extcon_dev *extcon_dev_allocate(const unsigned int *cable);
 extern void extcon_dev_free(struct extcon_dev *edev);
 extern struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-						   const unsigned int *cable);
+				const unsigned int *cable);
 extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 
 /* Synchronize the state and property value for each external connector. */
@@ -199,7 +199,7 @@ extern int extcon_sync(struct extcon_dev *edev, unsigned int id);
  */
 extern int extcon_get_state(struct extcon_dev *edev, unsigned int id);
 extern int extcon_set_state(struct extcon_dev *edev, unsigned int id,
-				   bool state);
+				bool state);
 extern int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
 				bool state);
 
@@ -236,9 +236,9 @@ extern int extcon_set_property_capability(struct extcon_dev *edev,
  *			for all supported external connectors of the extcon.
  */
 extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
-				    struct notifier_block *nb);
+				struct notifier_block *nb);
 extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
-				    struct notifier_block *nb);
+				struct notifier_block *nb);
 extern int devm_extcon_register_notifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb);
@@ -276,13 +276,13 @@ static inline int extcon_dev_register(struct extcon_dev *edev)
 static inline void extcon_dev_unregister(struct extcon_dev *edev) { }
 
 static inline int devm_extcon_dev_register(struct device *dev,
-					   struct extcon_dev *edev)
+				struct extcon_dev *edev)
 {
 	return -EINVAL;
 }
 
 static inline void devm_extcon_dev_unregister(struct device *dev,
-					      struct extcon_dev *edev) { }
+				struct extcon_dev *edev) { }
 
 static inline struct extcon_dev *extcon_dev_allocate(const unsigned int *cable)
 {
@@ -292,7 +292,7 @@ static inline struct extcon_dev *extcon_dev_allocate(const unsigned int *cable)
 static inline void extcon_dev_free(struct extcon_dev *edev) { }
 
 static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-						const unsigned int *cable)
+				const unsigned int *cable)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -323,47 +323,45 @@ static inline int extcon_sync(struct extcon_dev *edev, unsigned int id)
 }
 
 static inline int extcon_get_property(struct extcon_dev *edev, unsigned int id,
-					unsigned int prop,
-					union extcon_property_value *prop_val)
+				unsigned int prop,
+				union extcon_property_value *prop_val)
 {
 	return 0;
 }
 static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
-					unsigned int prop,
-					union extcon_property_value prop_val)
+				unsigned int prop,
+				union extcon_property_value prop_val)
 {
 	return 0;
 }
 
 static inline int extcon_set_property_sync(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop,
-					union extcon_property_value prop_val)
+				unsigned int id, unsigned int prop,
+				union extcon_property_value prop_val)
 {
 	return 0;
 }
 
 static inline int extcon_get_property_capability(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop)
+				unsigned int id, unsigned int prop)
 {
 	return 0;
 }
 
 static inline int extcon_set_property_capability(struct extcon_dev *edev,
-					unsigned int id, unsigned int prop)
+				unsigned int id, unsigned int prop)
 {
 	return 0;
 }
 
 static inline int extcon_register_notifier(struct extcon_dev *edev,
-					unsigned int id,
-					struct notifier_block *nb)
+				unsigned int id, struct notifier_block *nb)
 {
 	return 0;
 }
 
 static inline int extcon_unregister_notifier(struct extcon_dev *edev,
-					unsigned int id,
-					struct notifier_block *nb)
+				unsigned int id, struct notifier_block *nb)
 {
 	return 0;
 }
@@ -381,11 +379,11 @@ static inline  void devm_extcon_unregister_notifier(struct device *dev,
 
 static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
-							    int index)
+				int index)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -403,14 +401,13 @@ struct extcon_specific_cable_nb {
 };
 
 static inline int extcon_register_interest(struct extcon_specific_cable_nb *obj,
-			const char *extcon_name, const char *cable_name,
-			struct notifier_block *nb)
+				const char *extcon_name, const char *cable_name,
+				struct notifier_block *nb)
 {
 	return -EINVAL;
 }
 
-static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
-						    *obj)
+static inline int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 {
 	return -EINVAL;
 }
