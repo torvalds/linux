@@ -1201,9 +1201,9 @@
 				remote-endpoint = <&edp_in_vopb>;
 			};
 
-			vopb_out_mipi: endpoint@2 {
+			vopb_out_dsi0: endpoint@2 {
 				reg = <2>;
-				remote-endpoint = <&mipi_in_vopb>;
+				remote-endpoint = <&dsi0_in_vopb>;
 			};
 
 			vopb_out_lvds: endpoint@3 {
@@ -1251,9 +1251,9 @@
 				remote-endpoint = <&edp_in_vopl>;
 			};
 
-			vopl_out_mipi: endpoint@2 {
+			vopl_out_dsi0: endpoint@2 {
 				reg = <2>;
-				remote-endpoint = <&mipi_in_vopl>;
+				remote-endpoint = <&dsi0_in_vopl>;
 			};
 
 			vopl_out_lvds: endpoint@3 {
@@ -1276,7 +1276,7 @@
 		status = "disabled";
 	};
 
-	mipi_dsi: mipi@ff960000 {
+	dsi0: dsi@ff960000 {
 		compatible = "rockchip,rk3288-mipi-dsi", "snps,dw-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x4000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -1289,16 +1289,16 @@
 		status = "disabled";
 
 		ports {
-			mipi_in: port {
+			dsi0_in: port {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				mipi_in_vopb: endpoint@0 {
+				dsi0_in_vopb: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vopb_out_mipi>;
+					remote-endpoint = <&vopb_out_dsi0>;
 				};
-				mipi_in_vopl: endpoint@1 {
+				dsi0_in_vopl: endpoint@1 {
 					reg = <1>;
-					remote-endpoint = <&vopl_out_mipi>;
+					remote-endpoint = <&vopl_out_dsi0>;
 				};
 			};
 		};

@@ -332,7 +332,7 @@
 	power-supply = <&vcc_lcd>;
 };
 
-&mipi_dsi {
+&dsi0 {
 	status = "okay";
 
 	panel: panel {
@@ -370,7 +370,7 @@
 	};
 };
 
-&route_mipi {
+&route_dsi0 {
 	status = "okay";
 };
 

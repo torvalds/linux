@@ -206,13 +206,13 @@
 				connect = <&vopb_out_edp>;
 			};
 
-			route_mipi: route-mipi {
+			route_dsi0: route-dsi0 {
 				status = "disabled";
 				logo,uboot = "logo.bmp";
 				logo,kernel = "logo_kernel.bmp";
 				logo,mode = "center";
 				charge_logo,mode = "center";
-				connect = <&vopb_out_mipi>;
+				connect = <&vopb_out_dsi0>;
 			};
 		};
 	};
@@ -389,10 +389,10 @@
 	status = "okay";
 };
 
-&mipi_dsi {
+&dsi0 {
 	ports {
-		mipi_in: port {
-			mipi_in_vopl: endpoint@1 {
+		dsi0_in: port {
+			dsi0_in_vopl: endpoint@1 {
 				status = "disabled";
 			};
 		};
