@@ -2083,12 +2083,12 @@ static void detach_ulds(struct adapter *adap)
 
 	mutex_lock(&uld_mutex);
 	list_del(&adap->list_node);
+
 	for (i = 0; i < CXGB4_ULD_MAX; i++)
-		if (adap->uld && adap->uld[i].handle) {
+		if (adap->uld && adap->uld[i].handle)
 			adap->uld[i].state_change(adap->uld[i].handle,
 					     CXGB4_STATE_DETACH);
-			adap->uld[i].handle = NULL;
-		}
+
 	if (netevent_registered && list_empty(&adapter_list)) {
 		unregister_netevent_notifier(&cxgb4_netevent_nb);
 		netevent_registered = false;
@@ -5303,8 +5303,10 @@ static void remove_one(struct pci_dev *pdev)
 		 */
 		destroy_workqueue(adapter->workq);
 
-		if (is_uld(adapter))
+		if (is_uld(adapter)) {
 			detach_ulds(adapter);
+			t4_uld_clean_up(adapter);
+		}
 
 		disable_interrupts(adapter);
 
@@ -5385,7 +5387,11 @@ static void shutdown_one(struct pci_dev *pdev)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
 				cxgb_close(adapter->port[i]);
 
-		t4_uld_clean_up(adapter);
+		if (is_uld(adapter)) {
+			detach_ulds(adapter);
+			t4_uld_clean_up(adapter);
+		}
+
 		disable_interrupts(adapter);
 		disable_msi(adapter);
 
