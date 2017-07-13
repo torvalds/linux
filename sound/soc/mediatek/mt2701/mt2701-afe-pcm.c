@@ -595,7 +595,7 @@ static const struct snd_soc_dai_ops mt2701_afe_i2s_ops = {
 };
 
 /* MRG BE DAIs */
-static struct snd_soc_dai_ops mt2701_btmrg_ops = {
+static const struct snd_soc_dai_ops mt2701_btmrg_ops = {
 	.startup = mt2701_btmrg_startup,
 	.shutdown = mt2701_btmrg_shutdown,
 	.hw_params = mt2701_btmrg_hw_params,
