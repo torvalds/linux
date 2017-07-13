@@ -993,7 +993,7 @@ static int medusa_l1_getprocattr(struct task_struct *p, char *name, char **value
 	return -EINVAL;
 }
 
-static int medusa_l1_setprocattr(struct task_struct *p, char *name, void *value,
+static int medusa_l1_setprocattr(const char *name, void *value,
 			size_t size)
 {
 	return -EINVAL;
@@ -1369,7 +1369,7 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(task_getscheduler, medusa_l1_task_getscheduler),
 	LSM_HOOK_INIT(task_movememory, medusa_l1_task_movememory),
 	LSM_HOOK_INIT(task_kill, medusa_l1_task_kill),
-	LSM_HOOK_INIT(task_wait, medusa_l1_task_wait),
+	//LSM_HOOK_INIT(task_wait, medusa_l1_task_wait),
 	LSM_HOOK_INIT(task_prctl, medusa_l1_task_prctl),
 	LSM_HOOK_INIT(task_to_inode, medusa_l1_task_to_inode),
 
@@ -1529,7 +1529,7 @@ static int __init medusa_l1_init(void)
 	if (!security_module_enable("medusa"))
 		return 0;
 	
-	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks));
+	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks), "medusa");
 	printk("medusa: l1 registered with the kernel\n");
     
     security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));

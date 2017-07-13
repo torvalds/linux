@@ -11,6 +11,9 @@
 #define _MEDUSA_L1_TASK_H
 
 //#include <linux/config.h>
+#include <linux/capability.h>
+#include <linux/cred.h>
+#include <linux/sched/task.h>
 #include <linux/kernel.h>
 #include <asm/syscall.h>
 #include <linux/sys.h>

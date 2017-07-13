@@ -127,7 +127,7 @@ static int __init medusa_l0_init(void)
     INIT_LIST_HEAD(&l0_cred_list.list);
     
     printk("medusa: l0 registered with the kernel");
-    security_add_hooks(medusa_l0_hooks, ARRAY_SIZE(medusa_l0_hooks));
+    security_add_hooks(medusa_l0_hooks, ARRAY_SIZE(medusa_l0_hooks), "medusa");
     return 0;
 }
 
