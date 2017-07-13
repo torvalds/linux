@@ -601,7 +601,7 @@ static inline void __wb_writeout_inc(struct bdi_writeback *wb)
 {
 	struct wb_domain *cgdom;
 
-	__inc_wb_stat(wb, WB_WRITTEN);
+	inc_wb_stat(wb, WB_WRITTEN);
 	wb_domain_writeout_inc(&global_wb_domain, &wb->completions,
 			       wb->bdi->max_prop_frac);
 
@@ -2435,8 +2435,8 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 		__inc_lruvec_page_state(page, NR_FILE_DIRTY);
 		__inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
 		__inc_node_page_state(page, NR_DIRTIED);
-		__inc_wb_stat(wb, WB_RECLAIMABLE);
-		__inc_wb_stat(wb, WB_DIRTIED);
+		inc_wb_stat(wb, WB_RECLAIMABLE);
+		inc_wb_stat(wb, WB_DIRTIED);
 		task_io_account_write(PAGE_SIZE);
 		current->nr_dirtied++;
 		this_cpu_inc(bdp_ratelimits);
@@ -2741,7 +2741,7 @@ int test_clear_page_writeback(struct page *page)
 			if (bdi_cap_account_writeback(bdi)) {
 				struct bdi_writeback *wb = inode_to_wb(inode);
 
-				__dec_wb_stat(wb, WB_WRITEBACK);
+				dec_wb_stat(wb, WB_WRITEBACK);
 				__wb_writeout_inc(wb);
 			}
 		}
@@ -2786,7 +2786,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
 						page_index(page),
 						PAGECACHE_TAG_WRITEBACK);
 			if (bdi_cap_account_writeback(bdi))
-				__inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
+				inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
 
 			/*
 			 * We can come through here when swapping anonymous

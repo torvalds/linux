@@ -2693,8 +2693,8 @@ EXPORT_SYMBOL_GPL(xen_destroy_contiguous_region);
 phys_addr_t paddr_vmcoreinfo_note(void)
 {
 	if (xen_pv_domain())
-		return virt_to_machine(&vmcoreinfo_note).maddr;
+		return virt_to_machine(vmcoreinfo_note).maddr;
 	else
-		return __pa_symbol(&vmcoreinfo_note);
+		return __pa(vmcoreinfo_note);
 }
 #endif /* CONFIG_KEXEC_CORE */
