@@ -11,8 +11,9 @@ Required properties:
 	  configuration
 	- the "ref" clock is used to get the rate of the reference clock
 	  provided to the PHY module
- - rockchip,dsi-panel : phandle to MIPI DSI panel node, used to get the display
-			timing of the panel provided to the PHY module.
+ - clock-output-names: from common clock binding.
+	See ../clocks/clock-bindings.txt for details.
+ - #clock-cells : from common clock binding; shall be set to 0.
 
 Optional properties
  - resets : phandle to the reset of MIPI DSI PHY APB clock.
@@ -22,25 +23,25 @@ Example:
 
 For Rockchip RK3368
 
-mipi_dphy: mipi-dphy@ff968000 {
-	compatible = "rockchip,rk3368-mipi-dphy";
-	reg = <0x0 0xff968000 0x0 0x4000>;
-	#phy-cells = <0>;
-	clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>;
-	clock-names = "ref", "pclk";
-	resets = <&cru SRST_MIPIDPHYTX>;
-	reset-names = "apb";
-	rockchip,dsi-panel = <&dsi_panel>;
-};
+	mipi_dphy: mipi-dphy@ff968000 {
+		compatible = "rockchip,rk3368-mipi-dphy";
+		reg = <0x0 0xff968000 0x0 0x4000>;
+		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>;
+		clock-names = "ref", "pclk";
+		clock-output-names = "mipi_dphy_pll";
+		#clock-cells = <0>;
+		resets = <&cru SRST_MIPIDPHYTX>;
+		reset-names = "apb";
+		#phy-cells = <0>;
+	};
 
 Then the PHY can be used in other nodes such as:
 
-mipi-dsi-host@ff960000 {
-	phys = <&mipi_dphy>;
-	phy-names = "mipi_dphy";
-
-	dsi_panel: panel {
-		dsi,lanes = 4;
+	dsi@ff960000 {
+		...
+		clocks = <&cru PCLK_MIPI_DSI0>, <&mipi_dphy>;
+		clock-names = "pclk", "hs_clk";
+		phys = <&mipi_dphy>;
+		phy-names = "mipi_dphy";
 		...
 	};
-};
