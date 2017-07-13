@@ -1561,7 +1561,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 	 */
 
 	ether_addr_copy(rec.address, inf->info.authreq.sta_addr);
-	rec.status = P80211ENUM_status_unspec_failure;
+	rec.status = cpu_to_le16(P80211ENUM_status_unspec_failure);
 
 	/*
 	 * Authenticate based on the access mode.
@@ -1578,7 +1578,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 		for (i = 0; i < hw->authlist.cnt; i++)
 			if (ether_addr_equal(rec.address,
 					     hw->authlist.addr[i])) {
-				rec.status = P80211ENUM_status_successful;
+				rec.status = cpu_to_le16(P80211ENUM_status_successful);
 				break;
 			}
 
@@ -1590,7 +1590,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 		 * Allow all authentications.
 		 */
 
-		rec.status = P80211ENUM_status_successful;
+		rec.status = cpu_to_le16(P80211ENUM_status_successful);
 		break;
 
 	case WLAN_ACCESS_ALLOW:
@@ -1615,7 +1615,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 
 		for (i = 0; i < cnt; i++, addr += ETH_ALEN)
 			if (ether_addr_equal(rec.address, addr)) {
-				rec.status = P80211ENUM_status_successful;
+				rec.status = cpu_to_le16(P80211ENUM_status_successful);
 				break;
 			}
 
@@ -1641,11 +1641,11 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 			addr = hw->deny.addr1[0];
 		}
 
-		rec.status = P80211ENUM_status_successful;
+		rec.status = cpu_to_le16(P80211ENUM_status_successful);
 
 		for (i = 0; i < cnt; i++, addr += ETH_ALEN)
 			if (ether_addr_equal(rec.address, addr)) {
-				rec.status = P80211ENUM_status_unspec_failure;
+				rec.status = cpu_to_le16(P80211ENUM_status_unspec_failure);
 				break;
 			}
 
@@ -1663,7 +1663,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 
 	added = 0;
 
-	if (rec.status == P80211ENUM_status_successful) {
+	if (rec.status == cpu_to_le16(P80211ENUM_status_successful)) {
 		for (i = 0; i < hw->authlist.cnt; i++)
 			if (ether_addr_equal(rec.address,
 					     hw->authlist.addr[i]))
@@ -1671,7 +1671,7 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 
 		if (i >= hw->authlist.cnt) {
 			if (hw->authlist.cnt >= WLAN_AUTH_MAX) {
-				rec.status = P80211ENUM_status_ap_full;
+				rec.status = cpu_to_le16(P80211ENUM_status_ap_full);
 			} else {
 				ether_addr_copy(
 					hw->authlist.addr[hw->authlist.cnt],
@@ -1688,7 +1688,6 @@ static void prism2sta_inf_authreq_defer(struct wlandevice *wlandev,
 	 * it was added.
 	 */
 
-	rec.status = cpu_to_le16(rec.status);
 	rec.algorithm = inf->info.authreq.algorithm;
 
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_AUTHENTICATESTA,

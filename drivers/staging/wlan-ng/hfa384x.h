@@ -413,8 +413,8 @@ struct hfa384x_join_request_data {
 /*-- Configuration Record: authenticateStation (data portion only) --*/
 struct hfa384x_authenticate_station_data {
 	u8 address[ETH_ALEN];
-	u16 status;
-	u16 algorithm;
+	__le16 status;
+	__le16 algorithm;
 } __packed;
 
 /*-- Configuration Record: WPAData       (data portion only) --*/
@@ -733,7 +733,7 @@ struct hfa384x_assoc_status {
 
 struct hfa384x_auth_request {
 	u8 sta_addr[ETH_ALEN];
-	u16 algorithm;
+	__le16 algorithm;
 } __packed;
 
 /*--  Unsolicited Frame, MAC Mgmt: PSUserCount (AP Only) --*/
