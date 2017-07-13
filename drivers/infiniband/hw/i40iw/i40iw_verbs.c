@@ -1168,8 +1168,10 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 		memset(&req, 0, sizeof(req));
 		iwcq->user_mode = true;
 		ucontext = to_ucontext(context);
-		if (ib_copy_from_udata(&req, udata, sizeof(struct i40iw_create_cq_req)))
+		if (ib_copy_from_udata(&req, udata, sizeof(struct i40iw_create_cq_req))) {
+			err_code = -EFAULT;
 			goto cq_free_resources;
+		}
 
 		spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
 		iwpbl = i40iw_get_pbl((unsigned long)req.user_cq_buffer,
