@@ -244,12 +244,12 @@
 		vcc4-supply = <&vcc_sys>;
 		vcc6-supply = <&vcc_sys>;
 		vcc7-supply = <&vcc_sys>;
-		vcc8-supply = <&vcc_18>;
-		vcc9-supply = <&vcc_io>;
-		vcc10-supply = <&vcc_io>;
+		vcc8-supply = <&vcc_io>;
+		vcc9-supply = <&vcc_sys>;
+		vcc10-supply = <&vcc_sys>;
 		vcc11-supply = <&vcc_sys>;
 		vcc12-supply = <&vcc_io>;
-		vddio-supply = <&vccio_pmu>;
+		vddio-supply = <&vcc_io>;
 
 		regulators {
 			vdd_cpu: DCDC_REG1 {
@@ -297,24 +297,24 @@
 				};
 			};
 
-			vccio_pmu: LDO_REG1 {
+			vcc18_flash: LDO_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-name = "vccio_pmu";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcc18_flash";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
-			vcc_tp: LDO_REG2 {
+			vcca_33: LDO_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc_tp";
+				regulator-name = "vcca_33";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -332,15 +332,15 @@
 				};
 			};
 
-			vcca_codec: LDO_REG4 {
+			vcca_18: LDO_REG4 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcca_codec";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-name = "vcca_18";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
@@ -392,19 +392,19 @@
 				};
 			};
 
-			vcc_wl: SWITCH_REG1 {
+			vcc_sd: SWITCH_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-name = "vcc_wl";
+				regulator-name = "vcc_sd";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
 			};
 
-			vcc_lcd: SWITCH_REG2 {
+			vcc_lan: SWITCH_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-name = "vcc_lcd";
+				regulator-name = "vcc_lan";
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -425,10 +425,14 @@
 &io_domains {
 	status = "ok";
 
-	audio-supply = <&vcc_io>;
-	gpio30-supply = <&vcc_io>;
-	gpio1830-supply = <&vcc_io>;
-	wifi-supply = <&vcc_wl>;
+	dvp-supply = <&vcc_18>;		/* DVPIO_VDD */
+	flash0-supply = <&vcc18_flash>;	/* FLASH0_VDD (emmc) */
+	sdcard-supply = <&vccio_sd>;	/* SDMMC0_VDD (sdmmc) */
+
+	audio-supply = <&vcc_io>;	/* APIO3_VDD */
+	gpio30-supply = <&vcc_io>;	/* APIO1_VDD */
+	gpio1830-supply = <&vcc_io>;	/* APIO4_VDD (gpujtag) */
+	wifi-supply = <&vcc_io>;	/* APIO2_VDD (sdio0) */
 };
 
 &sdio0 {
@@ -627,6 +631,27 @@
 
 &gpu {
 	logic-supply = <&vdd_gpu>;
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_ARMOFF
+		| RKPM_SLP_PMU_PLLS_PWRDN
+		| RKPM_SLP_PMU_PMUALIVE_32K
+		| RKPM_SLP_SFT_PLLS_DEEP
+		| RKPM_SLP_PMU_DIS_OSC
+		| RKPM_SLP_SFT_PD_NBSCUS
+		)
+	>;
+	rockchip,wakeup-config = <
+		(0
+		| RKPM_GPIO_WKUP_EN
+		| RKPM_USB_WKUP_EN
+		| RKPM_CLUSTER_L_WKUP_EN
+		)
+	>;
 };
 
 &pwm3 {
