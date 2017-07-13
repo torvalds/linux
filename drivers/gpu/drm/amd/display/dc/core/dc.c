@@ -1120,11 +1120,13 @@ bool dc_commit_surfaces_to_stream(
 
 	stream_update->src = dc_stream->src;
 	stream_update->dst = dc_stream->dst;
+	stream_update->out_transfer_func = dc_stream->out_transfer_func;
 
 	for (i = 0; i < new_surface_count; i++) {
 		updates[i].surface = new_surfaces[i];
 		updates[i].gamma =
 			(struct dc_gamma *)new_surfaces[i]->gamma_correction;
+		updates[i].in_transfer_func = new_surfaces[i]->in_transfer_func;
 		flip_addr[i].address = new_surfaces[i]->address;
 		flip_addr[i].flip_immediate = new_surfaces[i]->flip_immediate;
 		plane_info[i].color_space = new_surfaces[i]->color_space;
