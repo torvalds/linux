@@ -4175,7 +4175,6 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	struct ata_link *link;
 	struct ata_device *dev;
 	unsigned long flags;
-	int rc = 0;
 
 	/* are we resuming? */
 	spin_lock_irqsave(ap->lock, flags);
@@ -4202,7 +4201,7 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	ata_acpi_set_state(ap, ap->pm_mesg);
 
 	if (ap->ops->port_resume)
-		rc = ap->ops->port_resume(ap);
+		ap->ops->port_resume(ap);
 
 	/* tell ACPI that we're resuming */
 	ata_acpi_on_resume(ap);
