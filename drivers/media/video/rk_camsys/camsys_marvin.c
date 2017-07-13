@@ -928,7 +928,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	int err = 0;
 	camsys_mrv_clk_t *mrv_clk = NULL;
 	struct resource register_res;
-	struct iommu_domain *domain;
+	struct iommu_domain *domain = NULL;
 	struct iommu_group *group;
 	struct device_node *np;
 
@@ -1105,8 +1105,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	mrv_clk->in_on = false;
 	mrv_clk->out_on = 0;
 
-	np = of_find_node_by_name(NULL, "isp0_mmu");
-	if (!np) {
+	np = of_parse_phandle(pdev->dev.of_node, "iommus", 0);
+	if (np) {
 		int index = 0;
 		/* iommu domain */
 		domain = iommu_domain_alloc(&platform_bus_type);
@@ -1174,9 +1174,11 @@ misc_register_failed:
 	if (!IS_ERR_OR_NULL(camsys_dev->miscdev.this_device))
 		misc_deregister(&camsys_dev->miscdev);
 err_put_cookie:
-	iommu_put_dma_cookie(domain);
+	if (domain)
+		iommu_put_dma_cookie(domain);
 err_free_domain:
-	iommu_domain_free(domain);
+	if (domain)
+		iommu_domain_free(domain);
 clk_failed:
 	if (mrv_clk != NULL) {
 		if (!IS_ERR_OR_NULL(mrv_clk->pd_isp))

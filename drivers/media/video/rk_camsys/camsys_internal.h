@@ -168,8 +168,12 @@
 	1) delete node in irqpool list when thread disconnect.
 *v0.0x22.1:
 	1) gpio0_D is unavailable on rk3288 with current pinctrl driver.
+*v0.0x22.2:
+	1) modify the condition of DRM iommu, which makes code  more readable
+	by using of_parse_phandle to check whether the "iommus" phandle exists
+	in the isp device node.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 1)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 2)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
