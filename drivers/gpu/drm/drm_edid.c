@@ -4439,6 +4439,13 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	quirks = edid_get_quirks(edid);
 
 	/*
+	 * CEA-861-F adds ycbcr capability map block, for HDMI 2.0 sinks.
+	 * To avoid multiple parsing of same block, lets parse that map
+	 * from sink info, before parsing CEA modes.
+	 */
+	drm_add_display_info(connector, edid);
+
+	/*
 	 * EDID spec says modes should be preferred in this order:
 	 * - preferred detailed mode
 	 * - other detailed modes from base block
@@ -4464,8 +4471,6 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
-
-	drm_add_display_info(connector, edid);
 
 	if (quirks & EDID_QUIRK_FORCE_6BPC)
 		connector->display_info.bpc = 6;
