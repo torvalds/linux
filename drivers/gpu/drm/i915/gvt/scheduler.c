@@ -174,15 +174,6 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
-		/* If the status is -EINPROGRESS means this workload
-		 * doesn't meet any issue during dispatching so when
-		 * get the SCHEDULE_OUT set the status to be zero for
-		 * good. If the status is NOT -EINPROGRESS means there
-		 * is something wrong happened during dispatching and
-		 * the status should not be set to zero
-		 */
-		if (workload->status == -EINPROGRESS)
-			workload->status = 0;
 		atomic_set(&workload->shadow_ctx_active, 0);
 		break;
 	default:
@@ -427,6 +418,18 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 		wait_event(workload->shadow_ctx_status_wq,
 			   !atomic_read(&workload->shadow_ctx_active));
 
+		/* If this request caused GPU hang, req->fence.error will
+		 * be set to -EIO. Use -EIO to set workload status so
+		 * that when this request caused GPU hang, didn't trigger
+		 * context switch interrupt to guest.
+		 */
+		if (likely(workload->status == -EINPROGRESS)) {
+			if (workload->req->fence.error == -EIO)
+				workload->status = -EIO;
+			else
+				workload->status = 0;
+		}
+
 		i915_gem_request_put(fetch_and_zero(&workload->req));
 
 		if (!workload->status && !vgpu->resetting) {
@@ -464,8 +467,6 @@ struct workload_thread_param {
 	int ring_id;
 };
 
-static DEFINE_MUTEX(scheduler_mutex);
-
 static int workload_thread(void *priv)
 {
 	struct workload_thread_param *p = (struct workload_thread_param *)priv;
@@ -496,8 +497,6 @@ static int workload_thread(void *priv)
 
 		if (!workload)
 			break;
-
-		mutex_lock(&scheduler_mutex);
 
 		gvt_dbg_sched("ring id %d next workload %p vgpu %d\n",
 				workload->ring_id, workload,
@@ -537,9 +536,6 @@ complete:
 					FORCEWAKE_ALL);
 
 		intel_runtime_pm_put(gvt->dev_priv);
-
-		mutex_unlock(&scheduler_mutex);
-
 	}
 	return 0;
 }

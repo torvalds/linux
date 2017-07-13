@@ -1802,7 +1802,7 @@ enum skl_disp_power_wells {
 #define   POST_CURSOR_2(x)		((x) << 6)
 #define   POST_CURSOR_2_MASK		(0x3F << 6)
 #define   CURSOR_COEFF(x)		((x) << 0)
-#define   CURSOR_COEFF_MASK		(0x3F << 6)
+#define   CURSOR_COEFF_MASK		(0x3F << 0)
 
 #define _CNL_PORT_TX_DW5_GRP_AE		0x162354
 #define _CNL_PORT_TX_DW5_GRP_B		0x1623D4
