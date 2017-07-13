@@ -63,15 +63,18 @@ static inline void ast_load_palette_index(struct ast_private *ast,
 static void ast_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
-	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
+	u16 *r, *g, *b;
 	int i;
 
 	if (!crtc->enabled)
 		return;
 
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
+
 	for (i = 0; i < 256; i++)
-		ast_load_palette_index(ast, i, ast_crtc->lut_r[i],
-				       ast_crtc->lut_g[i], ast_crtc->lut_b[i]);
+		ast_load_palette_index(ast, i, *r++ >> 8, *g++ >> 8, *b++ >> 8);
 }
 
 static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mode *mode,
@@ -633,7 +636,6 @@ static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.mode_set = ast_crtc_mode_set,
 	.mode_set_base = ast_crtc_mode_set_base,
 	.disable = ast_crtc_disable,
-	.load_lut = ast_crtc_load_lut,
 	.prepare = ast_crtc_prepare,
 	.commit = ast_crtc_commit,
 
@@ -648,15 +650,6 @@ static int ast_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 			      u16 *blue, uint32_t size,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
-	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
-	int i;
-
-	/* userspace palettes are always correct as is */
-	for (i = 0; i < size; i++) {
-		ast_crtc->lut_r[i] = red[i] >> 8;
-		ast_crtc->lut_g[i] = green[i] >> 8;
-		ast_crtc->lut_b[i] = blue[i] >> 8;
-	}
 	ast_crtc_load_lut(crtc);
 
 	return 0;
@@ -681,7 +674,6 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 static int ast_crtc_init(struct drm_device *dev)
 {
 	struct ast_crtc *crtc;
-	int i;
 
 	crtc = kzalloc(sizeof(struct ast_crtc), GFP_KERNEL);
 	if (!crtc)
@@ -690,12 +682,6 @@ static int ast_crtc_init(struct drm_device *dev)
 	drm_crtc_init(dev, &crtc->base, &ast_crtc_funcs);
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 	drm_crtc_helper_add(&crtc->base, &ast_crtc_helper_funcs);
-
-	for (i = 0; i < 256; i++) {
-		crtc->lut_r[i] = i;
-		crtc->lut_g[i] = i;
-		crtc->lut_b[i] = i;
-	}
 	return 0;
 }
 
