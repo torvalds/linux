@@ -351,7 +351,6 @@ DEFINE_UNCORE_FORMAT_ATTR(filter_cid, filter_cid, "config1:5");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link, filter_link, "config1:5-8");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link2, filter_link, "config1:6-8");
 DEFINE_UNCORE_FORMAT_ATTR(filter_link3, filter_link, "config1:12");
-DEFINE_UNCORE_FORMAT_ATTR(filter_link4, filter_link, "config1:9-12");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nid, filter_nid, "config1:10-17");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nid2, filter_nid, "config1:32-47");
 DEFINE_UNCORE_FORMAT_ATTR(filter_state, filter_state, "config1:18-22");
@@ -3302,7 +3301,6 @@ static struct attribute *skx_uncore_cha_formats_attr[] = {
 	&format_attr_inv.attr,
 	&format_attr_thresh8.attr,
 	&format_attr_filter_tid4.attr,
-	&format_attr_filter_link4.attr,
 	&format_attr_filter_state5.attr,
 	&format_attr_filter_rem.attr,
 	&format_attr_filter_loc.attr,
@@ -3312,7 +3310,6 @@ static struct attribute *skx_uncore_cha_formats_attr[] = {
 	&format_attr_filter_opc_0.attr,
 	&format_attr_filter_opc_1.attr,
 	&format_attr_filter_nc.attr,
-	&format_attr_filter_c6.attr,
 	&format_attr_filter_isoc.attr,
 	NULL,
 };
