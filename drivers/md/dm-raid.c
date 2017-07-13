@@ -2541,11 +2541,6 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	if (!freshest)
 		return 0;
 
-	if (validate_raid_redundancy(rs)) {
-		rs->ti->error = "Insufficient redundancy to activate array";
-		return -EINVAL;
-	}
-
 	/*
 	 * Validation of the freshest device provides the source of
 	 * validation for the remaining devices.
@@ -2553,6 +2548,11 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	rs->ti->error = "Unable to assemble array: Invalid superblocks";
 	if (super_validate(rs, freshest))
 		return -EINVAL;
+
+	if (validate_raid_redundancy(rs)) {
+		rs->ti->error = "Insufficient redundancy to activate array";
+		return -EINVAL;
+	}
 
 	rdev_for_each(rdev, mddev)
 		if (!test_bit(Journal, &rdev->flags) &&
