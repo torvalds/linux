@@ -764,13 +764,18 @@ nv_crtc_gamma_load(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct rgb { uint8_t r, g, b; } __attribute__((packed)) *rgbs;
+	u16 *r, *g, *b;
 	int i;
 
 	rgbs = (struct rgb *)nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index].DAC;
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
+
 	for (i = 0; i < 256; i++) {
-		rgbs[i].r = nv_crtc->lut.r[i] >> 8;
-		rgbs[i].g = nv_crtc->lut.g[i] >> 8;
-		rgbs[i].b = nv_crtc->lut.b[i] >> 8;
+		rgbs[i].r = *r++ >> 8;
+		rgbs[i].g = *g++ >> 8;
+		rgbs[i].b = *b++ >> 8;
 	}
 
 	nouveau_hw_load_state_palette(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
@@ -792,13 +797,6 @@ nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	int i;
-
-	for (i = 0; i < size; i++) {
-		nv_crtc->lut.r[i] = r[i];
-		nv_crtc->lut.g[i] = g[i];
-		nv_crtc->lut.b[i] = b[i];
-	}
 
 	/* We need to know the depth before we upload, but it's possible to
 	 * get called before a framebuffer is bound.  If this is the case,
@@ -1095,7 +1093,6 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.mode_set = nv_crtc_mode_set,
 	.mode_set_base = nv04_crtc_mode_set_base,
 	.mode_set_base_atomic = nv04_crtc_mode_set_base_atomic,
-	.load_lut = nv_crtc_gamma_load,
 	.disable = nv_crtc_disable,
 };
 
@@ -1103,17 +1100,12 @@ int
 nv04_crtc_create(struct drm_device *dev, int crtc_num)
 {
 	struct nouveau_crtc *nv_crtc;
-	int ret, i;
+	int ret;
 
 	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
 	if (!nv_crtc)
 		return -ENOMEM;
 
-	for (i = 0; i < 256; i++) {
-		nv_crtc->lut.r[i] = i << 8;
-		nv_crtc->lut.g[i] = i << 8;
-		nv_crtc->lut.b[i] = i << 8;
-	}
 	nv_crtc->lut.depth = 0;
 
 	nv_crtc->index = crtc_num;

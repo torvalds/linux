@@ -2205,28 +2205,29 @@ nv50_head_lut_load(struct drm_crtc *crtc)
 	struct nv50_disp *disp = nv50_disp(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
+	u16 *r, *g, *b;
 	int i;
 
-	for (i = 0; i < 256; i++) {
-		u16 r = nv_crtc->lut.r[i] >> 2;
-		u16 g = nv_crtc->lut.g[i] >> 2;
-		u16 b = nv_crtc->lut.b[i] >> 2;
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
 
+	for (i = 0; i < 256; i++) {
 		if (disp->disp->oclass < GF110_DISP) {
-			writew(r + 0x0000, lut + (i * 0x08) + 0);
-			writew(g + 0x0000, lut + (i * 0x08) + 2);
-			writew(b + 0x0000, lut + (i * 0x08) + 4);
+			writew((*r++ >> 2) + 0x0000, lut + (i * 0x08) + 0);
+			writew((*g++ >> 2) + 0x0000, lut + (i * 0x08) + 2);
+			writew((*b++ >> 2) + 0x0000, lut + (i * 0x08) + 4);
 		} else {
-			writew(r + 0x6000, lut + (i * 0x20) + 0);
-			writew(g + 0x6000, lut + (i * 0x20) + 2);
-			writew(b + 0x6000, lut + (i * 0x20) + 4);
+			/* 0x6000 interferes with the 14-bit color??? */
+			writew((*r++ >> 2) + 0x6000, lut + (i * 0x20) + 0);
+			writew((*g++ >> 2) + 0x6000, lut + (i * 0x20) + 2);
+			writew((*b++ >> 2) + 0x6000, lut + (i * 0x20) + 4);
 		}
 	}
 }
 
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
-	.load_lut = nv50_head_lut_load,
 	.atomic_check = nv50_head_atomic_check,
 };
 
@@ -2235,15 +2236,6 @@ nv50_head_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		    uint32_t size,
 		    struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	u32 i;
-
-	for (i = 0; i < size; i++) {
-		nv_crtc->lut.r[i] = r[i];
-		nv_crtc->lut.g[i] = g[i];
-		nv_crtc->lut.b[i] = b[i];
-	}
-
 	nv50_head_lut_load(crtc);
 	return 0;
 }
@@ -2341,19 +2333,13 @@ nv50_head_create(struct drm_device *dev, int index)
 	struct nv50_base *base;
 	struct nv50_curs *curs;
 	struct drm_crtc *crtc;
-	int ret, i;
+	int ret;
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (!head)
 		return -ENOMEM;
 
 	head->base.index = index;
-	for (i = 0; i < 256; i++) {
-		head->base.lut.r[i] = i << 8;
-		head->base.lut.g[i] = i << 8;
-		head->base.lut.b[i] = i << 8;
-	}
-
 	ret = nv50_base_new(drm, head, &base);
 	if (ret == 0)
 		ret = nv50_curs_new(drm, head, &curs);
