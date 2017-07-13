@@ -659,6 +659,7 @@ static int ext2_get_blocks(struct inode *inode,
 				 */
 				err = -EAGAIN;
 				count = 0;
+				partial = chain + depth - 1;
 				break;
 			}
 			blk = le32_to_cpu(*(chain[depth-1].p + count));
