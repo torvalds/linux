@@ -165,6 +165,14 @@ static int amdgpu_vm_validate_level(struct amdgpu_vm_pt *parent,
 	unsigned i;
 	int r;
 
+	if (parent->bo->shadow) {
+		struct amdgpu_bo *shadow = parent->bo->shadow;
+
+		r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
+		if (r)
+			return r;
+	}
+
 	if (use_cpu_for_update) {
 		r = amdgpu_bo_kmap(parent->bo, NULL);
 		if (r)
@@ -1038,11 +1046,6 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 
 		params.func = amdgpu_vm_cpu_set_ptes;
 	} else {
-		if (shadow) {
-			r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
-			if (r)
-				return r;
-		}
 		ring = container_of(vm->entity.sched, struct amdgpu_ring,
 				    sched);
 
@@ -1077,15 +1080,6 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 
 		if (bo == NULL)
 			continue;
-
-		if (bo->shadow) {
-			struct amdgpu_bo *pt_shadow = bo->shadow;
-
-			r = amdgpu_ttm_bind(&pt_shadow->tbo,
-					    &pt_shadow->tbo.mem);
-			if (r)
-				return r;
-		}
 
 		pt = amdgpu_bo_gpu_offset(bo);
 		pt = amdgpu_gart_get_vm_pde(adev, pt);
