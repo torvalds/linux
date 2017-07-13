@@ -419,7 +419,7 @@ int nfp_flower_metadata_init(struct nfp_app *app)
 	return 0;
 
 err_free_last_used:
-	kfree(priv->stats_ids.free_list.buf);
+	kfree(priv->mask_ids.last_used);
 err_free_mask_id:
 	kfree(priv->mask_ids.mask_id_free_list.buf);
 	return -ENOMEM;

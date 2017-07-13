@@ -134,6 +134,22 @@ use the boot option:
 	fail_futex=
 	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
 
+o proc entries
+
+- /proc/self/task/<current-tid>/fail-nth:
+
+	Write to this file of integer N makes N-th call in the current task fail
+	(N is 0-based). Read from this file returns a single char 'Y' or 'N'
+	that says if the fault setup with a previous write to this file was
+	injected or not, and disables the fault if it wasn't yet injected.
+	Note that this file enables all types of faults (slab, futex, etc).
+	This setting takes precedence over all other generic debugfs settings
+	like probability, interval, times, etc. But per-capability settings
+	(e.g. fail_futex/ignore-private) take precedence over it.
+
+	This feature is intended for systematic testing of faults in a single
+	system call. See an example below.
+
 How to add new fault injection capability
 -----------------------------------------
 
@@ -278,3 +294,65 @@ allocation failure.
 	# env FAILCMD_TYPE=fail_page_alloc \
 		./tools/testing/fault-injection/failcmd.sh --times=100 \
                 -- make -C tools/testing/selftests/ run_tests
+
+Systematic faults using fail-nth
+---------------------------------
+
+The following code systematically faults 0-th, 1-st, 2-nd and so on
+capabilities in the socketpair() system call.
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/syscall.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
+int main()
+{
+	int i, err, res, fail_nth, fds[2];
+	char buf[128];
+
+	system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
+	sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
+	fail_nth = open(buf, O_RDWR);
+	for (i = 0;; i++) {
+		sprintf(buf, "%d", i);
+		write(fail_nth, buf, strlen(buf));
+		res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
+		err = errno;
+		read(fail_nth, buf, 1);
+		if (res == 0) {
+			close(fds[0]);
+			close(fds[1]);
+		}
+		printf("%d-th fault %c: res=%d/%d\n", i, buf[0], res, err);
+		if (buf[0] != 'Y')
+			break;
+	}
+	return 0;
+}
+
+An example output:
+
+0-th fault Y: res=-1/23
+1-th fault Y: res=-1/23
+2-th fault Y: res=-1/23
+3-th fault Y: res=-1/12
+4-th fault Y: res=-1/12
+5-th fault Y: res=-1/23
+6-th fault Y: res=-1/23
+7-th fault Y: res=-1/23
+8-th fault Y: res=-1/12
+9-th fault Y: res=-1/12
+10-th fault Y: res=-1/12
+11-th fault Y: res=-1/12
+12-th fault Y: res=-1/12
+13-th fault Y: res=-1/12
+14-th fault Y: res=-1/12
+15-th fault Y: res=-1/12
+16-th fault N: res=0/12

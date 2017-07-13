@@ -134,7 +134,7 @@ static ssize_t vmcoreinfo_show(struct kobject *kobj,
 {
 	phys_addr_t vmcore_base = paddr_vmcoreinfo_note();
 	return sprintf(buf, "%pa %x\n", &vmcore_base,
-		       (unsigned int)sizeof(vmcoreinfo_note));
+			(unsigned int)VMCOREINFO_NOTE_SIZE);
 }
 KERNEL_ATTR_RO(vmcoreinfo);
 

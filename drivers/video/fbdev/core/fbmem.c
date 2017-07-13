@@ -1483,7 +1483,7 @@ __releases(&info->lock)
 	return 0;
 }
 
-#ifdef CONFIG_FB_PROVIDE_GET_FB_UNMAPPED_AREA
+#if defined(CONFIG_FB_PROVIDE_GET_FB_UNMAPPED_AREA) && !defined(CONFIG_MMU)
 unsigned long get_fb_unmapped_area(struct file *filp,
 				   unsigned long addr, unsigned long len,
 				   unsigned long pgoff, unsigned long flags)
@@ -1510,7 +1510,8 @@ static const struct file_operations fb_fops = {
 	.open =		fb_open,
 	.release =	fb_release,
 #if defined(HAVE_ARCH_FB_UNMAPPED_AREA) || \
-    defined(CONFIG_FB_PROVIDE_GET_FB_UNMAPPED_AREA)
+	(defined(CONFIG_FB_PROVIDE_GET_FB_UNMAPPED_AREA) && \
+	 !defined(CONFIG_MMU))
 	.get_unmapped_area = get_fb_unmapped_area,
 #endif
 #ifdef CONFIG_FB_DEFERRED_IO

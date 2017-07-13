@@ -45,8 +45,6 @@
 
 #include <trace/events/module.h>
 
-extern int max_threads;
-
 #define CAP_BSET	(void *)1
 #define CAP_PI		(void *)2
 
@@ -56,6 +54,20 @@ static DEFINE_SPINLOCK(umh_sysctl_lock);
 static DECLARE_RWSEM(umhelper_sem);
 
 #ifdef CONFIG_MODULES
+/*
+ * Assuming:
+ *
+ * threads = div64_u64((u64) totalram_pages * (u64) PAGE_SIZE,
+ *		       (u64) THREAD_SIZE * 8UL);
+ *
+ * If you need less than 50 threads would mean we're dealing with systems
+ * smaller than 3200 pages. This assuems you are capable of having ~13M memory,
+ * and this would only be an be an upper limit, after which the OOM killer
+ * would take effect. Systems like these are very unlikely if modules are
+ * enabled.
+ */
+#define MAX_KMOD_CONCURRENT 50
+static atomic_t kmod_concurrent_max = ATOMIC_INIT(MAX_KMOD_CONCURRENT);
 
 /*
 	modprobe_path is set via /proc/sys.
@@ -127,10 +139,7 @@ int __request_module(bool wait, const char *fmt, ...)
 {
 	va_list args;
 	char module_name[MODULE_NAME_LEN];
-	unsigned int max_modprobes;
 	int ret;
-	static atomic_t kmod_concurrent = ATOMIC_INIT(0);
-#define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
 	static int kmod_loop_msg;
 
 	/*
@@ -154,21 +163,7 @@ int __request_module(bool wait, const char *fmt, ...)
 	if (ret)
 		return ret;
 
-	/* If modprobe needs a service that is in a module, we get a recursive
-	 * loop.  Limit the number of running kmod threads to max_threads/2 or
-	 * MAX_KMOD_CONCURRENT, whichever is the smaller.  A cleaner method
-	 * would be to run the parents of this process, counting how many times
-	 * kmod was invoked.  That would mean accessing the internals of the
-	 * process tables to get the command line, proc_pid_cmdline is static
-	 * and it is not worth changing the proc code just to handle this case. 
-	 * KAO.
-	 *
-	 * "trace the ppid" is simple, but will fail if someone's
-	 * parent exits.  I think this is as good as it gets. --RR
-	 */
-	max_modprobes = min(max_threads/2, MAX_KMOD_CONCURRENT);
-	atomic_inc(&kmod_concurrent);
-	if (atomic_read(&kmod_concurrent) > max_modprobes) {
+	if (atomic_dec_if_positive(&kmod_concurrent_max) < 0) {
 		/* We may be blaming an innocent here, but unlikely */
 		if (kmod_loop_msg < 5) {
 			printk(KERN_ERR
@@ -176,7 +171,6 @@ int __request_module(bool wait, const char *fmt, ...)
 			       module_name);
 			kmod_loop_msg++;
 		}
-		atomic_dec(&kmod_concurrent);
 		return -ENOMEM;
 	}
 
@@ -184,10 +178,12 @@ int __request_module(bool wait, const char *fmt, ...)
 
 	ret = call_modprobe(module_name, wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);
 
-	atomic_dec(&kmod_concurrent);
+	atomic_inc(&kmod_concurrent_max);
+
 	return ret;
 }
 EXPORT_SYMBOL(__request_module);
+
 #endif /* CONFIG_MODULES */
 
 static void call_usermodehelper_freeinfo(struct subprocess_info *info)

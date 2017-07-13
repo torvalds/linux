@@ -51,7 +51,7 @@ static void peaq_wmi_poll(struct input_polled_dev *dev)
 		return;
 	}
 
-	if (peaq_ignore_events_counter && --peaq_ignore_events_counter > 0)
+	if (peaq_ignore_events_counter && --peaq_ignore_events_counter >= 0)
 		return;
 
 	if (obj.integer.value) {

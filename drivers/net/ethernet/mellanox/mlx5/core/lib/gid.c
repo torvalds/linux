@@ -34,6 +34,7 @@
 #include <linux/etherdevice.h>
 #include <linux/idr.h>
 #include "mlx5_core.h"
+#include "lib/mlx5.h"
 
 void mlx5_init_reserved_gids(struct mlx5_core_dev *dev)
 {
