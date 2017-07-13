@@ -229,7 +229,7 @@ static int panel_simple_dsi_send_cmds(struct panel_simple *panel,
 			return -EINVAL;
 		}
 
-		if (err)
+		if (err < 0)
 			dev_err(panel->dev, "failed to write dcs cmd: %d\n",
 				err);
 
@@ -428,6 +428,12 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->reset_gpio)
 		gpiod_direction_output(p->reset_gpio, 0);
 
+	if (p->on_cmds) {
+		err = panel_simple_dsi_send_cmds(p, p->on_cmds);
+		if (err)
+			dev_err(p->dev, "failed to send on cmds\n");
+	}
+
 	p->prepared = true;
 
 	return 0;
@@ -436,16 +442,9 @@ static int panel_simple_prepare(struct drm_panel *panel)
 static int panel_simple_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
-	int err;
 
 	if (p->enabled)
 		return 0;
-
-	if (p->on_cmds) {
-		err = panel_simple_dsi_send_cmds(p, p->on_cmds);
-		if (err)
-			dev_err(p->dev, "failed to send on cmds\n");
-	}
 
 	if (p->desc && p->desc->delay.enable)
 		msleep(p->desc->delay.enable);
