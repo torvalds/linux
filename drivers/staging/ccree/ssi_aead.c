@@ -1863,8 +1863,9 @@ static inline void ssi_aead_dump_gcm(
 		SSI_LOG_DEBUG("%s\n", title);
 	}
 
-	SSI_LOG_DEBUG("cipher_mode %d, authsize %d, enc_keylen %d, assoclen %d, cryptlen %d\n", \
-				 ctx->cipher_mode, ctx->authsize, ctx->enc_keylen, req->assoclen, req_ctx->cryptlen);
+	SSI_LOG_DEBUG("cipher_mode %d, authsize %d, enc_keylen %d, assoclen %d, cryptlen %d\n",
+		      ctx->cipher_mode, ctx->authsize, ctx->enc_keylen,
+		      req->assoclen, req_ctx->cryptlen);
 
 	if (ctx->enckey)
 		dump_byte_array("mac key", ctx->enckey, 16);
