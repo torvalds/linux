@@ -143,7 +143,7 @@ struct ctl_table_header
 	struct ctl_table_set *set;
 	struct ctl_dir *parent;
 	struct ctl_node *node;
-	struct list_head inodes; /* head for proc_inode->sysctl_inodes */
+	struct hlist_head inodes; /* head for proc_inode->sysctl_inodes */
 };
 
 struct ctl_dir {
