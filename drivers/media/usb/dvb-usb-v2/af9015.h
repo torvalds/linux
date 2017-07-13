@@ -34,19 +34,6 @@
 
 #define AF9015_FIRMWARE "dvb-usb-af9015.fw"
 
-/* Windows driver uses packet count 21 for USB1.1 and 348 for USB2.0.
-   We use smaller - about 1/4 from the original, 5 and 87. */
-#define TS_PACKET_SIZE            188
-
-#define TS_USB20_PACKET_COUNT      87
-#define TS_USB20_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB20_PACKET_COUNT)
-
-#define TS_USB11_PACKET_COUNT       5
-#define TS_USB11_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB11_PACKET_COUNT)
-
-#define TS_USB20_MAX_PACKET_SIZE  512
-#define TS_USB11_MAX_PACKET_SIZE   64
-
 #define AF9015_I2C_EEPROM  0x50
 #define AF9015_I2C_DEMOD   0x1c
 #define AF9015_USB_TIMEOUT 2000
@@ -128,6 +115,7 @@ struct af9015_state {
 	struct af9013_platform_data af9013_pdata[2];
 	struct i2c_client *demod_i2c_client[2];
 	u8 af9013_i2c_addr[2];
+	bool usb_ts_if_configured[2];
 
 	/* for demod callback override */
 	int (*set_frontend[2]) (struct dvb_frontend *fe);
