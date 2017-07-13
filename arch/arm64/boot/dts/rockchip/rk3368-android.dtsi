@@ -141,13 +141,13 @@
 
 	memory-region = <&drm_logo>;
 	route {
-		route_mipi: route-mipi {
+		route_dsi: route-dsi {
 			status = "disabled";
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vop_out_mipi>;
+			connect = <&vop_out_dsi>;
 		};
 
 		route_edp: route-edp {

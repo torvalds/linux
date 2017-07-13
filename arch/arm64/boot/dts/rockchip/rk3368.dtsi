@@ -1381,9 +1381,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			vop_out_mipi: endpoint@0 {
+			vop_out_dsi: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&mipi_in_vop>;
+				remote-endpoint = <&dsi_in_vop>;
 			};
 
 			vop_out_edp: endpoint@1 {
@@ -1421,7 +1421,7 @@
 		status = "disabled";
 	};
 
-	mipi_dsi_host: mipi-dsi-host@ff960000 {
+	dsi: dsi@ff960000 {
 		compatible = "rockchip,rk3368-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x4000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
@@ -1439,8 +1439,8 @@
 
 		ports {
 			port {
-				mipi_in_vop: endpoint {
-					remote-endpoint = <&vop_out_mipi>;
+				dsi_in_vop: endpoint {
+					remote-endpoint = <&vop_out_dsi>;
 				};
 			};
 		};

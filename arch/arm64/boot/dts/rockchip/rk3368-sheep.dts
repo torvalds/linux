@@ -585,7 +585,7 @@
 	status = "okay";
 };
 
-&mipi_dsi_host {
+&dsi {
 	status = "okay";
 
 	dsi_panel: panel@0 {
@@ -593,13 +593,14 @@
 		reg = <0>;
 		backlight = <&backlight>;
 		enable-gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+
 		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
-		delay,prepare = <120>;
-		status = "okay";
 
-		disp_timings: display-timings {
+		delay,prepare = <120>;
+
+		display-timings {
 			native-mode = <&timing0>;
 
 			timing0: timing0 {
@@ -626,7 +627,7 @@
 	status = "okay";
 };
 
-&route_mipi {
+&route_dsi {
 	status = "okay";
 };
 
