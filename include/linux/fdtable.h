@@ -41,7 +41,7 @@ static inline bool fd_is_open(unsigned int fd, const struct fdtable *fdt)
 }
 
 /*
- * Open file table structure
+ * Open file table structure，可能被多个process共享，如何避免冲突
  */
 struct files_struct {
   /*

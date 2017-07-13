@@ -18,37 +18,48 @@ typedef unsigned long sigset_t;
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 
+/*
+	处理动作:
+	A 缺省的动作是终止进程
+	B 缺省的动作是忽略此信号 
+	C 缺省的动作是终止进程并进行内核映像转储（dump core）
+	D 缺省的动作是停止进程
+	E 信号不能被捕获
+	F 信号不能被忽略
+*/
+/* 信号也叫软中断，是进程间通信的一种方式, 信号只是用来通知某进程发
+** 生了什么事件，并不给该进程传递任何数据 */
 
-#define SIGHUP		 1
-#define SIGINT		 2
-#define SIGQUIT		 3
-#define SIGILL		 4
-#define SIGTRAP		 5
-#define SIGABRT		 6
-#define SIGIOT		 6
-#define SIGBUS		 7
-#define SIGFPE		 8
-#define SIGKILL		 9
-#define SIGUSR1		10
-#define SIGSEGV		11
-#define SIGUSR2		12
-#define SIGPIPE		13
-#define SIGALRM		14
-#define SIGTERM		15
-#define SIGSTKFLT	16
-#define SIGCHLD		17
-#define SIGCONT		18
-#define SIGSTOP		19
-#define SIGTSTP		20
-#define SIGTTIN		21
-#define SIGTTOU		22
-#define SIGURG		23
-#define SIGXCPU		24
-#define SIGXFSZ		25
-#define SIGVTALRM	26
-#define SIGPROF		27
-#define SIGWINCH	28
-#define SIGIO		29
+#define SIGHUP		 1	/* (A)		终端挂起或者控制进程终止			*/
+#define SIGINT		 2	/* (A)		键盘中断（如break键被按下）		*/
+#define SIGQUIT		 3	/* (C)		键盘的退出键被按下					*/
+#define SIGILL		 4	/* (C)		非法指令*/
+#define SIGTRAP		 5	/* ()		*/
+#define SIGABRT		 6	/* (C)		由abort(3)发出的退出指令*/
+#define SIGIOT		 6	/* ()*/
+#define SIGBUS		 7	/* ()*/
+#define SIGFPE		 8	/* (C)		浮点异常 */
+#define SIGKILL		 9	/* (AEF)	Kill信号 */
+#define SIGUSR1		10	/* ()*/
+#define SIGSEGV		11	/* (C)		无效的内存引用*/
+#define SIGUSR2		12	/* ()*/
+#define SIGPIPE		13	/* (A)		管道破裂: 写一个没有读端口的管道 */
+#define SIGALRM		14	/* (A)		由alarm(2)发出的信号*/
+#define SIGTERM		15	/* (A)		终止信号*/
+#define SIGSTKFLT	16	/* ()*/
+#define SIGCHLD		17	/* (B)		子进程结束信号 */
+#define SIGCONT		18	/* ()*/
+#define SIGSTOP		19	/* ()*/
+#define SIGTSTP		20	/* ()*/
+#define SIGTTIN		21	/* ()*/
+#define SIGTTOU		22	/* ()*/
+#define SIGURG		23	/* ()*/
+#define SIGXCPU		24	/* ()*/
+#define SIGXFSZ		25	/* ()*/
+#define SIGVTALRM	26	/* ()*/
+#define SIGPROF		27	/* ()*/
+#define SIGWINCH	28	/* ()*/
+#define SIGIO		29	/* ()*/
 #define SIGPOLL		SIGIO
 /*
 #define SIGLOST		29

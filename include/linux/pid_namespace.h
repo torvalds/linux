@@ -35,7 +35,7 @@ struct pid_namespace {
 	unsigned int nr_hashed;
 	struct task_struct *child_reaper;
 	struct kmem_cache *pid_cachep;
-	unsigned int level;
+	unsigned int level;	/* 继承等级，表明上面有几层parent */
 	struct pid_namespace *parent;
 #ifdef CONFIG_PROC_FS
 	struct vfsmount *proc_mnt;

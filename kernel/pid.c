@@ -42,7 +42,7 @@
 
 #define pid_hashfn(nr, ns)	\
 	hash_long((unsigned long)nr + (unsigned long)ns, pidhash_shift)
-static struct hlist_head *pid_hash;
+static struct hlist_head *pid_hash;	/* 用于指定命名空间中查找对应pid关联的struct pid */
 static unsigned int pidhash_shift = 4;
 struct pid init_struct_pid = INIT_STRUCT_PID;
 

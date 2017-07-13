@@ -3,6 +3,7 @@
 
 #include <linux/rculist.h>
 
+/* 注意，不包括TGID(线程组Id)，因为它仅仅是线程组长ID而已 */
 enum pid_type
 {
 	PIDTYPE_PID,
@@ -49,19 +50,19 @@ enum pid_type
 
 struct upid {
 	/* Try to keep pid_chain in the same cacheline as nr for find_vpid */
-	int nr;
-	struct pid_namespace *ns;
+	int nr;	/* 数字id */
+	struct pid_namespace *ns; /* 数字id对应的namespace */
 	struct hlist_node pid_chain;
 };
 
 struct pid
 {
 	atomic_t count;
-	unsigned int level;
+	unsigned int level; /* 可以看到该process的namespace命名空间数目，即它的深度 */
 	/* lists of tasks that use this pid */
-	struct hlist_head tasks[PIDTYPE_MAX];
+	struct hlist_head tasks[PIDTYPE_MAX];	/* 多个task_struct可以共享一个Id(比如PGID)，就是链在这里 */
 	struct rcu_head rcu;
-	struct upid numbers[1];
+	struct upid numbers[1];	/* 每个数组项对应一个命名空间 */
 };
 
 extern struct pid init_struct_pid;
