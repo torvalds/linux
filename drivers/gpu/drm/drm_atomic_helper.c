@@ -3776,12 +3776,12 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 				       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_atomic_state *state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_property_blob *blob = NULL;
 	struct drm_color_lut *blob_data;
 	int i, ret = 0;
+	bool replaced;
 
 	state = drm_atomic_state_alloc(crtc->dev);
 	if (!state)
@@ -3812,20 +3812,10 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 	}
 
 	/* Reset DEGAMMA_LUT and CTM properties. */
-	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
-			config->degamma_lut_property, 0);
-	if (ret)
-		goto fail;
-
-	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
-			config->ctm_property, 0);
-	if (ret)
-		goto fail;
-
-	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
-			config->gamma_lut_property, blob->base.id);
-	if (ret)
-		goto fail;
+	replaced  = drm_property_replace_blob(&crtc_state->degamma_lut, NULL);
+	replaced |= drm_property_replace_blob(&crtc_state->ctm, NULL);
+	replaced |= drm_property_replace_blob(&crtc_state->gamma_lut, blob);
+	crtc_state->color_mgmt_changed |= replaced;
 
 	ret = drm_atomic_commit(state);
 
