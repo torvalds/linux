@@ -2717,7 +2717,8 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define VIDEO_BLOCK     0x02
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
-#define VIDEO_CAPABILITY_BLOCK	0x07
+#define USE_EXTENDED_TAG 0x07
+#define EXT_VIDEO_CAPABILITY_BLOCK 0x00
 #define VIDEO_DATA_BLOCK_420	0x0E
 #define VIDEO_CAP_BLOCK_420	0x0F
 #define EDID_BASIC_AUDIO	(1 << 6)
@@ -3431,15 +3432,15 @@ cea_db_payload_len(const u8 *db)
 }
 
 static int
-cea_db_tag(const u8 *db)
-{
-	return db[0] >> 5;
-}
-
-static int
 cea_db_extended_tag(const u8 *db)
 {
 	return db[1];
+}
+
+static int
+cea_db_tag(const u8 *db)
+{
+	return db[0] >> 5;
 }
 
 static int
@@ -3495,7 +3496,7 @@ static bool cea_db_is_hdmi_vsdb(const u8 *db)
 
 static bool cea_db_is_hdmi_vdb420(const u8 *db)
 {
-	if (cea_db_tag(db) != VIDEO_CAPABILITY_BLOCK)
+	if (cea_db_tag(db) != USE_EXTENDED_TAG)
 		return false;
 
 	if (cea_db_extended_tag(db) != VIDEO_DATA_BLOCK_420)
@@ -3506,7 +3507,7 @@ static bool cea_db_is_hdmi_vdb420(const u8 *db)
 
 static bool cea_db_is_hdmi_vcb420(const u8 *db)
 {
-	if (cea_db_tag(db) != VIDEO_CAPABILITY_BLOCK)
+	if (cea_db_tag(db) != USE_EXTENDED_TAG)
 		return false;
 
 	if (cea_db_extended_tag(db) != VIDEO_CAP_BLOCK_420)
@@ -4052,8 +4053,10 @@ bool drm_rgb_quant_range_selectable(struct edid *edid)
 		return false;
 
 	for_each_cea_db(edid_ext, i, start, end) {
-		if (cea_db_tag(&edid_ext[i]) == VIDEO_CAPABILITY_BLOCK &&
-		    cea_db_payload_len(&edid_ext[i]) == 2) {
+		if (cea_db_tag(&edid_ext[i]) == USE_EXTENDED_TAG &&
+		    cea_db_payload_len(&edid_ext[i]) == 2 &&
+		    cea_db_extended_tag(&edid_ext[i]) ==
+			EXT_VIDEO_CAPABILITY_BLOCK) {
 			DRM_DEBUG_KMS("CEA VCDB 0x%02x\n", edid_ext[i + 2]);
 			return edid_ext[i + 2] & EDID_CEA_VCDB_QS;
 		}
