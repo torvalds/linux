@@ -101,4 +101,12 @@ int rockchip_gem_cpu_acquire_ioctl(struct drm_device *dev, void* data,
 int rockchip_gem_cpu_release_ioctl(struct drm_device *dev, void* data,
 				   struct drm_file *file_priv);
 
+int rockchip_gem_prime_begin_cpu_access(struct drm_gem_object *obj,
+					size_t start, size_t len,
+					enum dma_data_direction dir);
+
+void rockchip_gem_prime_end_cpu_access(struct drm_gem_object *obj,
+				       size_t start, size_t len,
+				       enum dma_data_direction dir);
+
 #endif /* _ROCKCHIP_DRM_GEM_H */

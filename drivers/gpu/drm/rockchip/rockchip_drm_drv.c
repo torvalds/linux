@@ -1273,6 +1273,8 @@ static struct drm_driver rockchip_drm_driver = {
 	.gem_prime_vmap		= rockchip_gem_prime_vmap,
 	.gem_prime_vunmap	= rockchip_gem_prime_vunmap,
 	.gem_prime_mmap		= rockchip_gem_mmap_buf,
+	.gem_prime_begin_cpu_access = rockchip_gem_prime_begin_cpu_access,
+	.gem_prime_end_cpu_access = rockchip_gem_prime_end_cpu_access,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init		= rockchip_drm_debugfs_init,
 	.debugfs_cleanup	= rockchip_drm_debugfs_cleanup,
