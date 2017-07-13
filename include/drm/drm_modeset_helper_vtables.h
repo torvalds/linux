@@ -267,22 +267,6 @@ struct drm_crtc_helper_funcs {
 				    enum mode_set_atomic);
 
 	/**
-	 * @load_lut:
-	 *
-	 * Load a LUT prepared with the &drm_fb_helper_funcs.gamma_set vfunc.
-	 *
-	 * This callback is optional and is only used by the fbdev emulation
-	 * helpers.
-	 *
-	 * FIXME:
-	 *
-	 * This callback is functionally redundant with the core gamma table
-	 * support and simply exists because the fbdev hasn't yet been
-	 * refactored to use the core gamma table interfaces.
-	 */
-	void (*load_lut)(struct drm_crtc *crtc);
-
-	/**
 	 * @disable:
 	 *
 	 * This callback should be used to disable the CRTC. With the atomic

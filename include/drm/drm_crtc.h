@@ -358,14 +358,6 @@ struct drm_crtc_funcs {
 	 * drm_crtc_enable_color_mgmt(), which then supports the legacy gamma
 	 * interface through the drm_atomic_helper_legacy_gamma_set()
 	 * compatibility implementation.
-	 *
-	 * NOTE:
-	 *
-	 * Drivers that support gamma tables and also fbdev emulation through
-	 * the provided helper library need to take care to fill out the gamma
-	 * hooks for both. Currently there's a bit an unfortunate duplication
-	 * going on, which should eventually be unified to just one set of
-	 * hooks.
 	 */
 	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 			 uint32_t size,
