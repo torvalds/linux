@@ -1572,7 +1572,7 @@ static int config_ccm_adata(struct aead_request *req)
 
 	/* taken from crypto/ccm.c */
 	/* 2 <= L <= 8, so 1 <= L' <= 7. */
-	if (2 > l || l > 8) {
+	if (l < 2 || l > 8) {
 		SSI_LOG_ERR("illegal iv value %X\n", req->iv[0]);
 		return -EINVAL;
 	}
