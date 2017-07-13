@@ -52,7 +52,7 @@ static int sun4i_hdmi_setup_avi_infoframes(struct sun4i_hdmi *hdmi,
 	u8 buffer[17];
 	int i, ret;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
 	if (ret < 0) {
 		DRM_ERROR("Failed to get infoframes from mode\n");
 		return ret;
