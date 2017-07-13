@@ -1232,7 +1232,7 @@ static umode_t samsung_sysfs_is_visible(struct kobject *kobj,
 	return ok ? attr->mode : 0;
 }
 
-static struct attribute_group platform_attribute_group = {
+static const struct attribute_group platform_attribute_group = {
 	.is_visible = samsung_sysfs_is_visible,
 	.attrs = platform_attributes
 };
