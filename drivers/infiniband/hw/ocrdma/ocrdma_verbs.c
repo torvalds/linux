@@ -744,7 +744,8 @@ err:
 	if (is_uctx_pd) {
 		ocrdma_release_ucontext_pd(uctx);
 	} else {
-		status = _ocrdma_dealloc_pd(dev, pd);
+		if (_ocrdma_dealloc_pd(dev, pd))
+			pr_err("%s: _ocrdma_dealloc_pd() failed\n", __func__);
 	}
 exit:
 	return ERR_PTR(status);
