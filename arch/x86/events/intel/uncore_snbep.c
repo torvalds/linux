@@ -316,7 +316,7 @@
 #define SKX_UPI_PCI_PMON_CTL0		0x350
 #define SKX_UPI_PCI_PMON_CTR0		0x318
 #define SKX_UPI_PCI_PMON_BOX_CTL	0x378
-#define SKX_PMON_CTL_UMASK_EXT		0xff
+#define SKX_UPI_CTL_UMASK_EXT		0xffefff
 
 /* SKX M2M */
 #define SKX_M2M_PCI_PMON_CTL0		0x228
@@ -328,7 +328,7 @@ DEFINE_UNCORE_FORMAT_ATTR(event2, event, "config:0-6");
 DEFINE_UNCORE_FORMAT_ATTR(event_ext, event, "config:0-7,21");
 DEFINE_UNCORE_FORMAT_ATTR(use_occ_ctr, use_occ_ctr, "config:7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
-DEFINE_UNCORE_FORMAT_ATTR(umask_ext, umask, "config:8-15,32-39");
+DEFINE_UNCORE_FORMAT_ATTR(umask_ext, umask, "config:8-15,32-43,45-55");
 DEFINE_UNCORE_FORMAT_ATTR(qor, qor, "config:16");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(tid_en, tid_en, "config:19");
@@ -3603,8 +3603,8 @@ static struct intel_uncore_type skx_uncore_upi = {
 	.perf_ctr_bits	= 48,
 	.perf_ctr	= SKX_UPI_PCI_PMON_CTR0,
 	.event_ctl	= SKX_UPI_PCI_PMON_CTL0,
-	.event_mask	= SNBEP_QPI_PCI_PMON_RAW_EVENT_MASK,
-	.event_mask_ext = SKX_PMON_CTL_UMASK_EXT,
+	.event_mask	= SNBEP_PMON_RAW_EVENT_MASK,
+	.event_mask_ext = SKX_UPI_CTL_UMASK_EXT,
 	.box_ctl	= SKX_UPI_PCI_PMON_BOX_CTL,
 	.ops		= &skx_upi_uncore_pci_ops,
 	.format_group	= &skx_upi_uncore_format_group,
