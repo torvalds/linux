@@ -487,10 +487,9 @@ lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 				   sizeof(struct list_head)))
 			return -EFAULT;
 
-		if (tmp.next == head_up)
-			return 0;
-
 		next = tmp.next;
+		if (next == head_up)
+			return 0;
 
 		ent = list_entry(next, struct lstcon_rpc_ent, rpe_link);
 
