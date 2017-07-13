@@ -1033,6 +1033,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 		.flags = CMD_WANT_SKB,
 	};
 	int ret, qid;
+	u32 wr_ptr;
 
 	txq = kzalloc(sizeof(*txq), GFP_KERNEL);
 	if (!txq)
@@ -1073,6 +1074,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	rsp = (void *)hcmd.resp_pkt->data;
 	qid = le16_to_cpu(rsp->queue_number);
+	wr_ptr = le16_to_cpu(rsp->write_pointer);
 
 	if (qid >= ARRAY_SIZE(trans_pcie->txq)) {
 		WARN_ONCE(1, "queue index %d unsupported", qid);
@@ -1088,10 +1090,11 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	txq->id = qid;
 	trans_pcie->txq[qid] = txq;
+	wr_ptr &= (TFD_QUEUE_SIZE_MAX - 1);
 
 	/* Place first TFD at index corresponding to start sequence number */
-	txq->read_ptr = le16_to_cpu(rsp->write_pointer);
-	txq->write_ptr = le16_to_cpu(rsp->write_pointer);
+	txq->read_ptr = wr_ptr;
+	txq->write_ptr = wr_ptr;
 	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
 			   (txq->write_ptr) | (qid << 16));
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);
