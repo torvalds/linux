@@ -40,7 +40,6 @@ static int timeout_base_ns[] = {
 static int timeout_us;
 static bool nobau = true;
 static int nobau_perm;
-static cycles_t congested_cycles;
 
 /* tunables: */
 static int max_concurr		= MAX_BAU_CONCURRENT;
@@ -829,10 +828,10 @@ static void record_send_stats(cycles_t time1, cycles_t time2,
 		if ((completion_status == FLUSH_COMPLETE) && (try == 1)) {
 			bcp->period_requests++;
 			bcp->period_time += elapsed;
-			if ((elapsed > congested_cycles) &&
+			if ((elapsed > usec_2_cycles(bcp->cong_response_us)) &&
 			    (bcp->period_requests > bcp->cong_reps) &&
 			    ((bcp->period_time / bcp->period_requests) >
-							congested_cycles)) {
+					usec_2_cycles(bcp->cong_response_us))) {
 				stat->s_congested++;
 				disable_for_period(bcp, stat);
 			}
@@ -2228,7 +2227,6 @@ static int __init uv_bau_init(void)
 	}
 
 	nuvhubs = uv_num_possible_blades();
-	congested_cycles = usec_2_cycles(congested_respns_us);
 
 	uv_base_pnode = 0x7fffffff;
 	for (uvhub = 0; uvhub < nuvhubs; uvhub++) {
