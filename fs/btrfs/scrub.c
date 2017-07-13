@@ -3869,8 +3869,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			ro_set = 0;
 		} else {
 			btrfs_warn(fs_info,
-				   "failed setting block group ro, ret=%d\n",
-				   ret);
+				   "failed setting block group ro: %d", ret);
 			btrfs_put_block_group(cache);
 			break;
 		}

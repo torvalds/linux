@@ -2646,7 +2646,7 @@ out:
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		btrfs_err(fs_info,
-			  "fail to start transaction for status update: %d\n",
+			  "fail to start transaction for status update: %d",
 			  err);
 		goto done;
 	}

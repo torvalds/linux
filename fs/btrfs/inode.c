@@ -8017,7 +8017,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 	bio_set_op_attrs(bio, REQ_OP_READ, read_mode);
 
 	btrfs_debug(BTRFS_I(inode)->root->fs_info,
-		    "Repair DIO Read Error: submitting new dio read[%#x] to this_mirror=%d, in_validation=%d\n",
+		    "repair DIO read error: submitting new dio read[%#x] to this_mirror=%d, in_validation=%d",
 		    read_mode, failrec->this_mirror, failrec->in_validation);
 
 	ret = submit_dio_repair_bio(inode, bio, failrec->this_mirror);
