@@ -22,7 +22,7 @@
 		reg = <0x80000000 0x20000000>;
 	};
 
-	backlight {
+	backlight_display: backlight-display {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
@@ -81,6 +81,7 @@
 
 	panel {
 		compatible = "innolux,at043tn24";
+		backlight = <&backlight_display>;
 
 		port {
 			panel_in: endpoint {
