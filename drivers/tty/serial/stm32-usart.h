@@ -25,6 +25,7 @@ struct stm32_usart_offsets {
 struct stm32_usart_config {
 	u8 uart_enable_bit; /* USART_CR1_UE */
 	bool has_7bits_data;
+	bool has_wakeup;
 };
 
 struct stm32_usart_info {
@@ -75,6 +76,27 @@ struct stm32_usart_info stm32f7_info = {
 	}
 };
 
+struct stm32_usart_info stm32h7_info = {
+	.ofs = {
+		.cr1	= 0x00,
+		.cr2	= 0x04,
+		.cr3	= 0x08,
+		.brr	= 0x0c,
+		.gtpr	= 0x10,
+		.rtor	= 0x14,
+		.rqr	= 0x18,
+		.isr	= 0x1c,
+		.icr	= 0x20,
+		.rdr	= 0x24,
+		.tdr	= 0x28,
+	},
+	.cfg = {
+		.uart_enable_bit = 0,
+		.has_7bits_data = true,
+		.has_wakeup = true,
+	}
+};
+
 /* USART_SR (F4) / USART_ISR (F7) */
 #define USART_SR_PE		BIT(0)
 #define USART_SR_FE		BIT(1)
@@ -94,6 +116,7 @@ struct stm32_usart_info stm32f7_info = {
 #define USART_SR_BUSY		BIT(16)		/* F7 */
 #define USART_SR_CMF		BIT(17)		/* F7 */
 #define USART_SR_SBKF		BIT(18)		/* F7 */
+#define USART_SR_WUF		BIT(20)		/* H7 */
 #define USART_SR_TEACK		BIT(21)		/* F7 */
 #define USART_SR_ERR_MASK	(USART_SR_LBD | USART_SR_ORE | \
 				 USART_SR_FE | USART_SR_PE)
@@ -114,6 +137,7 @@ struct stm32_usart_info stm32f7_info = {
 /* USART_CR1 */
 #define USART_CR1_SBK		BIT(0)
 #define USART_CR1_RWU		BIT(1)		/* F4 */
+#define USART_CR1_UESM		BIT(1)		/* H7 */
 #define USART_CR1_RE		BIT(2)
 #define USART_CR1_TE		BIT(3)
 #define USART_CR1_IDLEIE	BIT(4)
@@ -176,6 +200,9 @@ struct stm32_usart_info stm32f7_info = {
 #define USART_CR3_DEM		BIT(14)		/* F7 */
 #define USART_CR3_DEP		BIT(15)		/* F7 */
 #define USART_CR3_SCARCNT_MASK	GENMASK(19, 17)	/* F7 */
+#define USART_CR3_WUS_MASK	GENMASK(21, 20)	/* H7 */
+#define USART_CR3_WUS_START_BIT	BIT(21)		/* H7 */
+#define USART_CR3_WUFIE		BIT(22)		/* H7 */
 
 /* USART_GTPR */
 #define USART_GTPR_PSC_MASK	GENMASK(7, 0)
@@ -204,6 +231,7 @@ struct stm32_usart_info stm32f7_info = {
 #define USART_ICR_RTOCF		BIT(11)		/* F7 */
 #define USART_ICR_EOBCF		BIT(12)		/* F7 */
 #define USART_ICR_CMCF		BIT(17)		/* F7 */
+#define USART_ICR_WUCF		BIT(20)		/* H7 */
 
 #define STM32_SERIAL_NAME "ttyS"
 #define STM32_MAX_PORTS 8
@@ -225,6 +253,7 @@ struct stm32_port {
 	int last_res;
 	bool tx_dma_busy;	 /* dma tx busy               */
 	bool hw_flow_control;
+	int wakeirq;
 };
 
 static struct stm32_port stm32_ports[STM32_MAX_PORTS];

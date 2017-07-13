@@ -26,6 +26,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/spinlock.h>
@@ -326,6 +327,10 @@ static irqreturn_t stm32_interrupt(int irq, void *ptr)
 
 	sr = readl_relaxed(port->membase + ofs->isr);
 
+	if ((sr & USART_SR_WUF) && (ofs->icr != UNDEF_REG))
+		writel_relaxed(USART_ICR_WUCF,
+			       port->membase + ofs->icr);
+
 	if ((sr & USART_SR_RXNE) && !(stm32_port->rx_ch))
 		stm32_receive_chars(port, false);
 
@@ -442,6 +447,7 @@ static int stm32_startup(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	struct stm32_usart_config *cfg = &stm32_port->info->cfg;
 	const char *name = to_platform_device(port->dev)->name;
 	u32 val;
 	int ret;
@@ -451,6 +457,15 @@ static int stm32_startup(struct uart_port *port)
 				   IRQF_NO_SUSPEND, name, port);
 	if (ret)
 		return ret;
+
+	if (cfg->has_wakeup && stm32_port->wakeirq >= 0) {
+		ret = dev_pm_set_dedicated_wake_irq(port->dev,
+						    stm32_port->wakeirq);
+		if (ret) {
+			free_irq(port->irq, port);
+			return ret;
+		}
+	}
 
 	val = USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE;
 	stm32_set_bits(port, ofs->cr1, val);
@@ -469,6 +484,7 @@ static void stm32_shutdown(struct uart_port *port)
 	val |= BIT(cfg->uart_enable_bit);
 	stm32_clr_bits(port, ofs->cr1, val);
 
+	dev_pm_clear_wake_irq(port->dev);
 	free_irq(port->irq, port);
 }
 
@@ -659,6 +675,7 @@ static int stm32_init_port(struct stm32_port *stm32port,
 	port->ops	= &stm32_uart_ops;
 	port->dev	= &pdev->dev;
 	port->irq	= platform_get_irq(pdev, 0);
+	stm32port->wakeirq = platform_get_irq(pdev, 1);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	port->membase = devm_ioremap_resource(&pdev->dev, res);
@@ -716,6 +733,8 @@ static const struct of_device_id stm32_match[] = {
 	{ .compatible = "st,stm32-uart", .data = &stm32f4_info},
 	{ .compatible = "st,stm32f7-usart", .data = &stm32f7_info},
 	{ .compatible = "st,stm32f7-uart", .data = &stm32f7_info},
+	{ .compatible = "st,stm32h7-usart", .data = &stm32h7_info},
+	{ .compatible = "st,stm32h7-uart", .data = &stm32h7_info},
 	{},
 };
 
@@ -865,9 +884,15 @@ static int stm32_serial_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (stm32port->info->cfg.has_wakeup && stm32port->wakeirq >= 0) {
+		ret = device_init_wakeup(&pdev->dev, true);
+		if (ret)
+			goto err_uninit;
+	}
+
 	ret = uart_add_one_port(&stm32_usart_driver, &stm32port->port);
 	if (ret)
-		goto err_uninit;
+		goto err_nowup;
 
 	ret = stm32_of_dma_rx_probe(stm32port, pdev);
 	if (ret)
@@ -881,6 +906,10 @@ static int stm32_serial_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_nowup:
+	if (stm32port->info->cfg.has_wakeup && stm32port->wakeirq >= 0)
+		device_init_wakeup(&pdev->dev, false);
+
 err_uninit:
 	clk_disable_unprepare(stm32port->clk);
 
@@ -892,6 +921,7 @@ static int stm32_serial_remove(struct platform_device *pdev)
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	struct stm32_usart_config *cfg = &stm32_port->info->cfg;
 
 	stm32_clr_bits(port, ofs->cr3, USART_CR3_DMAR);
 
@@ -912,6 +942,9 @@ static int stm32_serial_remove(struct platform_device *pdev)
 		dma_free_coherent(&pdev->dev,
 				  TX_BUF_L, stm32_port->tx_buf,
 				  stm32_port->tx_dma_buf);
+
+	if (cfg->has_wakeup && stm32_port->wakeirq >= 0)
+		device_init_wakeup(&pdev->dev, false);
 
 	clk_disable_unprepare(stm32_port->clk);
 
@@ -1018,11 +1051,66 @@ static struct uart_driver stm32_usart_driver = {
 	.cons		= STM32_SERIAL_CONSOLE,
 };
 
+#ifdef CONFIG_PM_SLEEP
+static void stm32_serial_enable_wakeup(struct uart_port *port, bool enable)
+{
+	struct stm32_port *stm32_port = to_stm32_port(port);
+	struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	struct stm32_usart_config *cfg = &stm32_port->info->cfg;
+	u32 val;
+
+	if (!cfg->has_wakeup || stm32_port->wakeirq < 0)
+		return;
+
+	if (enable) {
+		stm32_clr_bits(port, ofs->cr1, BIT(cfg->uart_enable_bit));
+		stm32_set_bits(port, ofs->cr1, USART_CR1_UESM);
+		val = readl_relaxed(port->membase + ofs->cr3);
+		val &= ~USART_CR3_WUS_MASK;
+		/* Enable Wake up interrupt from low power on start bit */
+		val |= USART_CR3_WUS_START_BIT | USART_CR3_WUFIE;
+		writel_relaxed(val, port->membase + ofs->cr3);
+		stm32_set_bits(port, ofs->cr1, BIT(cfg->uart_enable_bit));
+	} else {
+		stm32_clr_bits(port, ofs->cr1, USART_CR1_UESM);
+	}
+}
+
+static int stm32_serial_suspend(struct device *dev)
+{
+	struct uart_port *port = dev_get_drvdata(dev);
+
+	uart_suspend_port(&stm32_usart_driver, port);
+
+	if (device_may_wakeup(dev))
+		stm32_serial_enable_wakeup(port, true);
+	else
+		stm32_serial_enable_wakeup(port, false);
+
+	return 0;
+}
+
+static int stm32_serial_resume(struct device *dev)
+{
+	struct uart_port *port = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		stm32_serial_enable_wakeup(port, false);
+
+	return uart_resume_port(&stm32_usart_driver, port);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops stm32_serial_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(stm32_serial_suspend, stm32_serial_resume)
+};
+
 static struct platform_driver stm32_serial_driver = {
 	.probe		= stm32_serial_probe,
 	.remove		= stm32_serial_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
+		.pm	= &stm32_serial_pm_ops,
 		.of_match_table = of_match_ptr(stm32_match),
 	},
 };
