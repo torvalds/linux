@@ -2061,7 +2061,10 @@ static int isp_fwnode_parse(struct device *dev, struct fwnode_handle *fwnode,
 			buscfg->bus.csi2.lanecfg.clk.pol,
 			buscfg->bus.csi2.lanecfg.clk.pos);
 
-		for (i = 0; i < ISP_CSIPHY2_NUM_DATA_LANES; i++) {
+		buscfg->bus.csi2.num_data_lanes =
+			vep.bus.mipi_csi2.num_data_lanes;
+
+		for (i = 0; i < buscfg->bus.csi2.num_data_lanes; i++) {
 			buscfg->bus.csi2.lanecfg.data[i].pos =
 				vep.bus.mipi_csi2.data_lanes[i];
 			buscfg->bus.csi2.lanecfg.data[i].pol =

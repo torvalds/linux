@@ -169,7 +169,7 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	struct isp_bus_cfg *buscfg = pipe->external->host_priv;
 	struct isp_csiphy_lanes_cfg *lanes;
 	int csi2_ddrclk_khz;
-	unsigned int used_lanes = 0;
+	unsigned int num_data_lanes, used_lanes = 0;
 	unsigned int i;
 	u32 reg;
 
@@ -181,13 +181,19 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	}
 
 	if (buscfg->interface == ISP_INTERFACE_CCP2B_PHY1
-	    || buscfg->interface == ISP_INTERFACE_CCP2B_PHY2)
+	    || buscfg->interface == ISP_INTERFACE_CCP2B_PHY2) {
 		lanes = &buscfg->bus.ccp2.lanecfg;
-	else
+		num_data_lanes = 1;
+	} else {
 		lanes = &buscfg->bus.csi2.lanecfg;
+		num_data_lanes = buscfg->bus.csi2.num_data_lanes;
+	}
+
+	if (num_data_lanes > phy->num_data_lanes)
+		return -EINVAL;
 
 	/* Clock and data lanes verification */
-	for (i = 0; i < phy->num_data_lanes; i++) {
+	for (i = 0; i < num_data_lanes; i++) {
 		if (lanes->data[i].pol > 1 || lanes->data[i].pos > 3)
 			return -EINVAL;
 
@@ -243,7 +249,7 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	/* DPHY lane configuration */
 	reg = isp_reg_readl(csi2->isp, phy->cfg_regs, ISPCSI2_PHY_CFG);
 
-	for (i = 0; i < phy->num_data_lanes; i++) {
+	for (i = 0; i < num_data_lanes; i++) {
 		reg &= ~(ISPCSI2_PHY_CFG_DATA_POL_MASK(i + 1) |
 			 ISPCSI2_PHY_CFG_DATA_POSITION_MASK(i + 1));
 		reg |= (lanes->data[i].pol <<

@@ -114,10 +114,13 @@ struct isp_ccp2_cfg {
 /**
  * struct isp_csi2_cfg - CSI2 interface configuration
  * @crc: Enable the cyclic redundancy check
+ * @lanecfg: CSI-2 lane configuration
+ * @num_data_lanes: The number of data lanes in use
  */
 struct isp_csi2_cfg {
 	unsigned crc:1;
 	struct isp_csiphy_lanes_cfg lanecfg;
+	u8 num_data_lanes;
 };
 
 struct isp_bus_cfg {
