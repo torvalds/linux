@@ -614,14 +614,14 @@ ssi_blkcipher_create_data_desc(
 		break;
 #endif /*SSI_CC_HAS_MULTI2*/
 	default:
-		SSI_LOG_ERR("invalid flow mode, flow_mode = %d \n", flow_mode);
+		SSI_LOG_ERR("invalid flow mode, flow_mode = %d\n", flow_mode);
 		return;
 	}
 	/* Process */
 	if (likely(req_ctx->dma_buf_type == SSI_DMA_BUF_DLLI)) {
-		SSI_LOG_DEBUG(" data params addr %pad length 0x%X \n",
+		SSI_LOG_DEBUG(" data params addr %pad length 0x%X\n",
 			      sg_dma_address(src), nbytes);
-		SSI_LOG_DEBUG(" data params addr %pad length 0x%X \n",
+		SSI_LOG_DEBUG(" data params addr %pad length 0x%X\n",
 			      sg_dma_address(dst), nbytes);
 		hw_desc_init(&desc[*seq_size]);
 		set_din_type(&desc[*seq_size], DMA_DLLI, sg_dma_address(src),

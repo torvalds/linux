@@ -1557,7 +1557,7 @@ static int ssi_mac_finup(struct ahash_request *req)
 
 	SSI_LOG_DEBUG("===== finup xcbc(%d) ====\n", req->nbytes);
 	if (state->xcbc_count > 0 && req->nbytes == 0) {
-		SSI_LOG_DEBUG("No data to update. Call to fdx_mac_final \n");
+		SSI_LOG_DEBUG("No data to update. Call to fdx_mac_final\n");
 		return ssi_mac_final(req);
 	}
 
