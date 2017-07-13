@@ -495,7 +495,3 @@
 &vpu_service {
 	status = "okay";
 };
-
-&tve {
-	status = "okay";
-};
