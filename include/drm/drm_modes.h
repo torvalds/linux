@@ -80,6 +80,7 @@ struct videomode;
  * @MODE_ONE_SIZE: only one resolution is supported
  * @MODE_NO_REDUCED: monitor doesn't accept reduced blanking
  * @MODE_NO_STEREO: stereo modes not supported
+ * @MODE_NO_420: ycbcr 420 modes not supported
  * @MODE_STALE: mode has become stale
  * @MODE_BAD: unspecified reason
  * @MODE_ERROR: error condition
@@ -124,6 +125,7 @@ enum drm_mode_status {
 	MODE_ONE_SIZE,
 	MODE_NO_REDUCED,
 	MODE_NO_STEREO,
+	MODE_NO_420,
 	MODE_STALE = -3,
 	MODE_BAD = -2,
 	MODE_ERROR = -1
@@ -496,6 +498,9 @@ bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
 enum drm_mode_status drm_mode_validate_basic(const struct drm_display_mode *mode);
 enum drm_mode_status drm_mode_validate_size(const struct drm_display_mode *mode,
 					    int maxX, int maxY);
+enum drm_mode_status
+drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
+			   struct drm_connector *connector);
 void drm_mode_prune_invalid(struct drm_device *dev,
 			    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);

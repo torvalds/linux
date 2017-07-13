@@ -1083,6 +1083,34 @@ drm_mode_validate_size(const struct drm_display_mode *mode,
 }
 EXPORT_SYMBOL(drm_mode_validate_size);
 
+/**
+ * drm_mode_validate_ycbcr420 - add 'ycbcr420-only' modes only when allowed
+ * @mode: mode to check
+ * @connector: drm connector under action
+ *
+ * This function is a helper which can be used to filter out any YCBCR420
+ * only mode, when the source doesn't support it.
+ *
+ * Returns:
+ * The mode status
+ */
+enum drm_mode_status
+drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
+			   struct drm_connector *connector)
+{
+	u8 vic = drm_match_cea_mode(mode);
+	enum drm_mode_status status = MODE_OK;
+	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+
+	if (test_bit(vic, hdmi->y420_vdb_modes)) {
+		if (!connector->ycbcr_420_allowed)
+			status = MODE_NO_420;
+	}
+
+	return status;
+}
+EXPORT_SYMBOL(drm_mode_validate_ycbcr420);
+
 #define MODE_STATUS(status) [MODE_ ## status + 3] = #status
 
 static const char * const drm_mode_status_names[] = {
@@ -1122,6 +1150,7 @@ static const char * const drm_mode_status_names[] = {
 	MODE_STATUS(ONE_SIZE),
 	MODE_STATUS(NO_REDUCED),
 	MODE_STATUS(NO_STEREO),
+	MODE_STATUS(NO_420),
 	MODE_STATUS(STALE),
 	MODE_STATUS(BAD),
 	MODE_STATUS(ERROR),
