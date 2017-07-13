@@ -411,34 +411,6 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_set_mode_prop_for_crtc);
 
-/**
- * drm_atomic_replace_property_blob - replace a blob property
- * @blob: a pointer to the member blob to be replaced
- * @new_blob: the new blob to replace with
- * @replaced: whether the blob has been replaced
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-static void
-drm_atomic_replace_property_blob(struct drm_property_blob **blob,
-				 struct drm_property_blob *new_blob,
-				 bool *replaced)
-{
-	struct drm_property_blob *old_blob = *blob;
-
-	if (old_blob == new_blob)
-		return;
-
-	drm_property_blob_put(old_blob);
-	if (new_blob)
-		drm_property_blob_get(new_blob);
-	*blob = new_blob;
-	*replaced = true;
-
-	return;
-}
-
 static int
 drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 					 struct drm_property_blob **blob,
@@ -459,7 +431,7 @@ drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 		}
 	}
 
-	drm_atomic_replace_property_blob(blob, new_blob, replaced);
+	*replaced |= drm_property_replace_blob(blob, new_blob);
 	drm_property_blob_put(new_blob);
 
 	return 0;
