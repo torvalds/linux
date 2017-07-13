@@ -678,8 +678,10 @@ static int stm32_init_port(struct stm32_port *stm32port,
 		return ret;
 
 	stm32port->port.uartclk = clk_get_rate(stm32port->clk);
-	if (!stm32port->port.uartclk)
+	if (!stm32port->port.uartclk) {
+		clk_disable_unprepare(stm32port->clk);
 		ret = -EINVAL;
+	}
 
 	return ret;
 }
@@ -865,7 +867,7 @@ static int stm32_serial_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(&stm32_usart_driver, &stm32port->port);
 	if (ret)
-		return ret;
+		goto err_uninit;
 
 	ret = stm32_of_dma_rx_probe(stm32port, pdev);
 	if (ret)
@@ -878,6 +880,11 @@ static int stm32_serial_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &stm32port->port);
 
 	return 0;
+
+err_uninit:
+	clk_disable_unprepare(stm32port->clk);
+
+	return ret;
 }
 
 static int stm32_serial_remove(struct platform_device *pdev)
