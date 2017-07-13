@@ -70,6 +70,10 @@ struct panel_desc {
 	} size;
 
 	/**
+	 * @reset: the time (in milliseconds) indicates the delay time
+	 *         after the panel to operate reset gpio
+	 * @init: the time (in milliseconds) that it takes for the panel to
+	 *           power on and dsi host can send command to panel
 	 * @prepare: the time (in milliseconds) that it takes for the panel to
 	 *           become ready and start receiving video data
 	 * @enable: the time (in milliseconds) that it takes for the panel to
@@ -81,6 +85,8 @@ struct panel_desc {
 	 *             to power itself down completely
 	 */
 	struct {
+		unsigned int reset;
+		unsigned int init;
 		unsigned int prepare;
 		unsigned int enable;
 		unsigned int disable;
@@ -105,7 +111,6 @@ struct panel_simple {
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *reset_gpio;
-	unsigned int reset_delay;
 
 	struct dsi_panel_cmds *on_cmds;
 	struct dsi_panel_cmds *off_cmds;
@@ -422,11 +427,14 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->reset_gpio)
 		gpiod_direction_output(p->reset_gpio, 1);
 
-	if (p->reset_delay)
-		msleep(p->reset_delay);
+	if (p->desc && p->desc->delay.reset)
+		msleep(p->desc->delay.reset);
 
 	if (p->reset_gpio)
 		gpiod_direction_output(p->reset_gpio, 0);
+
+	if (p->desc && p->desc->delay.init)
+		msleep(p->desc->delay.init);
 
 	if (p->on_cmds) {
 		err = panel_simple_dsi_send_cmds(p, p->on_cmds);
@@ -540,6 +548,10 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		of_desc->delay.disable = val;
 	if (!of_property_read_u32(dev->of_node, "delay,unprepare", &val))
 		of_desc->delay.unprepare = val;
+	if (!of_property_read_u32(dev->of_node, "delay,reset", &val))
+		of_desc->delay.reset = val;
+	if (!of_property_read_u32(dev->of_node, "delay,init", &val))
+		of_desc->delay.init = val;
 
 	panel->enabled = false;
 	panel->prepared = false;
@@ -1960,9 +1972,6 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 
 	if (!of_property_read_u32(dsi->dev.of_node, "dsi,lanes", &val))
 		dsi->lanes = val;
-
-	if (!of_property_read_u32(dsi->dev.of_node, "reset-delay-ms", &val))
-		panel->reset_delay = val;
 
 	data = of_get_property(dsi->dev.of_node, "panel-init-sequence", &len);
 	if (data) {
