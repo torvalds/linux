@@ -4085,6 +4085,16 @@ bool drm_rgb_quant_range_selectable(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 
+static void drm_parse_ycbcr420_deep_color_info(struct drm_connector *connector,
+					       const u8 *db)
+{
+	u8 dc_mask;
+	struct drm_hdmi_info *hdmi = &connector->display_info.hdmi;
+
+	dc_mask = db[7] & DRM_EDID_YCBCR420_DC_MASK;
+	hdmi->y420_dc_modes |= dc_mask;
+}
+
 static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
 				 const u8 *hf_vsdb)
 {
@@ -4125,6 +4135,8 @@ static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
 				scdc->scrambling.low_rates = true;
 		}
 	}
+
+	drm_parse_ycbcr420_deep_color_info(connector, hf_vsdb);
 }
 
 static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
