@@ -8017,10 +8017,6 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 	isector >>= inode->i_sb->s_blocksize_bits;
 	bio = btrfs_create_repair_bio(inode, failed_bio, failrec, page,
 				pgoff, isector, repair_endio, repair_arg);
-	if (!bio) {
-		free_io_failure(failure_tree, io_tree, failrec);
-		return -EIO;
-	}
 	bio_set_op_attrs(bio, REQ_OP_READ, read_mode);
 
 	btrfs_debug(BTRFS_I(inode)->root->fs_info,

@@ -2394,10 +2394,6 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 				      start - page_offset(page),
 				      (int)phy_offset, failed_bio->bi_end_io,
 				      NULL);
-	if (!bio) {
-		free_io_failure(failure_tree, tree, failrec);
-		return -EIO;
-	}
 	bio_set_op_attrs(bio, REQ_OP_READ, read_mode);
 
 	btrfs_debug(btrfs_sb(inode->i_sb),
