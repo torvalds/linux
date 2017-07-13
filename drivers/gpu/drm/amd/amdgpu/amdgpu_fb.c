@@ -311,31 +311,7 @@ static int amdgpu_fbdev_destroy(struct drm_device *dev, struct amdgpu_fbdev *rfb
 	return 0;
 }
 
-/** Sets the color ramps on behalf of fbcon */
-static void amdgpu_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				      u16 blue, int regno)
-{
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-
-	amdgpu_crtc->lut_r[regno] = red >> 6;
-	amdgpu_crtc->lut_g[regno] = green >> 6;
-	amdgpu_crtc->lut_b[regno] = blue >> 6;
-}
-
-/** Gets the color ramps on behalf of fbcon */
-static void amdgpu_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				      u16 *blue, int regno)
-{
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-
-	*red = amdgpu_crtc->lut_r[regno] << 6;
-	*green = amdgpu_crtc->lut_g[regno] << 6;
-	*blue = amdgpu_crtc->lut_b[regno] << 6;
-}
-
 static const struct drm_fb_helper_funcs amdgpu_fb_helper_funcs = {
-	.gamma_set = amdgpu_crtc_fb_gamma_set,
-	.gamma_get = amdgpu_crtc_fb_gamma_get,
 	.fb_probe = amdgpufb_create,
 };
 
