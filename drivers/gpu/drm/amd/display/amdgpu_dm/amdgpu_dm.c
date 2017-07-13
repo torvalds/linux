@@ -508,6 +508,7 @@ static int dm_suspend(void *handle)
 
 	amdgpu_dm_irq_suspend(adev);
 
+	WARN_ON(adev->dm.cached_state);
 	adev->dm.cached_state = drm_atomic_helper_suspend(adev->ddev);
 
 	dc_set_power_state(
@@ -606,6 +607,9 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev )
 			crtc_state->active_changed = true;
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
+
+	drm_atomic_state_put(adev->dm.cached_state);
+	adev->dm.cached_state = NULL;
 
 	amdgpu_dm_irq_resume_late(adev);
 
