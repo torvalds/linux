@@ -3974,6 +3974,12 @@ M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
 F:	drivers/platform/x86/dell-wmi.c
 
+DENALI NAND DRIVER
+M:	Masahiro Yamada <yamada.masahiro@socionext.com>
+L:	linux-mtd@lists.infradead.org
+S:	Supported
+F:	drivers/mtd/nand/denali*
+
 DESIGNWARE USB2 DRD IP DRIVER
 M:	John Youn <johnyoun@synopsys.com>
 L:	linux-usb@vger.kernel.org
@@ -12464,7 +12470,8 @@ M:	Marek Vasut <marek.vasut@gmail.com>
 L:	linux-mtd@lists.infradead.org
 W:	http://www.linux-mtd.infradead.org/
 Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
-T:	git git://github.com/spi-nor/linux.git
+T:	git git://git.infradead.org/linux-mtd.git spi-nor/fixes
+T:	git git://git.infradead.org/l2-mtd.git spi-nor/next
 S:	Maintained
 F:	drivers/mtd/spi-nor/
 F:	include/linux/mtd/spi-nor.h
