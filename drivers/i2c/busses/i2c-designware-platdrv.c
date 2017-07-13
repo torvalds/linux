@@ -319,7 +319,8 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	if (dev->clk_freq != 100000 && dev->clk_freq != 400000
 	    && dev->clk_freq != 1000000 && dev->clk_freq != 3400000) {
 		dev_err(&pdev->dev,
-			"Only 100kHz, 400kHz, 1MHz and 3.4MHz supported");
+			"%d Hz is unsupported, only 100kHz, 400kHz, 1MHz and 3.4MHz are supported\n",
+			dev->clk_freq);
 		ret = -EINVAL;
 		goto exit_reset;
 	}
