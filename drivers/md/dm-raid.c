@@ -564,9 +564,10 @@ static const char *raid10_md_layout_to_format(int layout)
 	if (__raid10_near_copies(layout) > 1)
 		return "near";
 
-	WARN_ON(__raid10_far_copies(layout) < 2);
+	if (__raid10_far_copies(layout) > 1)
+		return "far";
 
-	return "far";
+	return "unknown";
 }
 
 /* Return md raid10 algorithm for @name */
