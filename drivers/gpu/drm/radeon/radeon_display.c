@@ -42,6 +42,7 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	u16 *r, *g, *b;
 	int i;
 
 	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
@@ -60,11 +61,14 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(AVIVO_DC_LUT_WRITE_EN_MASK, 0x0000003f);
 
 	WREG8(AVIVO_DC_LUT_RW_INDEX, 0);
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
 	for (i = 0; i < 256; i++) {
 		WREG32(AVIVO_DC_LUT_30_COLOR,
-			     (radeon_crtc->lut_r[i] << 20) |
-			     (radeon_crtc->lut_g[i] << 10) |
-			     (radeon_crtc->lut_b[i] << 0));
+		       ((*r++ & 0xffc0) << 14) |
+		       ((*g++ & 0xffc0) << 4) |
+		       (*b++ >> 6));
 	}
 
 	/* Only change bit 0 of LUT_SEL, other bits are set elsewhere */
@@ -76,6 +80,7 @@ static void dce4_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	u16 *r, *g, *b;
 	int i;
 
 	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
@@ -93,11 +98,14 @@ static void dce4_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(EVERGREEN_DC_LUT_WRITE_EN_MASK + radeon_crtc->crtc_offset, 0x00000007);
 
 	WREG32(EVERGREEN_DC_LUT_RW_INDEX + radeon_crtc->crtc_offset, 0);
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
 	for (i = 0; i < 256; i++) {
 		WREG32(EVERGREEN_DC_LUT_30_COLOR + radeon_crtc->crtc_offset,
-		       (radeon_crtc->lut_r[i] << 20) |
-		       (radeon_crtc->lut_g[i] << 10) |
-		       (radeon_crtc->lut_b[i] << 0));
+		       ((*r++ & 0xffc0) << 14) |
+		       ((*g++ & 0xffc0) << 4) |
+		       (*b++ >> 6));
 	}
 }
 
@@ -106,6 +114,7 @@ static void dce5_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	u16 *r, *g, *b;
 	int i;
 
 	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
@@ -135,11 +144,14 @@ static void dce5_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(EVERGREEN_DC_LUT_WRITE_EN_MASK + radeon_crtc->crtc_offset, 0x00000007);
 
 	WREG32(EVERGREEN_DC_LUT_RW_INDEX + radeon_crtc->crtc_offset, 0);
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
 	for (i = 0; i < 256; i++) {
 		WREG32(EVERGREEN_DC_LUT_30_COLOR + radeon_crtc->crtc_offset,
-		       (radeon_crtc->lut_r[i] << 20) |
-		       (radeon_crtc->lut_g[i] << 10) |
-		       (radeon_crtc->lut_b[i] << 0));
+		       ((*r++ & 0xffc0) << 14) |
+		       ((*g++ & 0xffc0) << 4) |
+		       (*b++ >> 6));
 	}
 
 	WREG32(NI_DEGAMMA_CONTROL + radeon_crtc->crtc_offset,
@@ -172,6 +184,7 @@ static void legacy_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	u16 *r, *g, *b;
 	int i;
 	uint32_t dac2_cntl;
 
@@ -183,11 +196,14 @@ static void legacy_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(RADEON_DAC_CNTL2, dac2_cntl);
 
 	WREG8(RADEON_PALETTE_INDEX, 0);
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
 	for (i = 0; i < 256; i++) {
 		WREG32(RADEON_PALETTE_30_DATA,
-			     (radeon_crtc->lut_r[i] << 20) |
-			     (radeon_crtc->lut_g[i] << 10) |
-			     (radeon_crtc->lut_b[i] << 0));
+		       ((*r++ & 0xffc0) << 14) |
+		       ((*g++ & 0xffc0) << 4) |
+		       (*b++ >> 6));
 	}
 }
 
@@ -209,41 +225,10 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 		legacy_crtc_load_lut(crtc);
 }
 
-/** Sets the color ramps on behalf of fbcon */
-void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			      u16 blue, int regno)
-{
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-
-	radeon_crtc->lut_r[regno] = red >> 6;
-	radeon_crtc->lut_g[regno] = green >> 6;
-	radeon_crtc->lut_b[regno] = blue >> 6;
-}
-
-/** Gets the color ramps on behalf of fbcon */
-void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, int regno)
-{
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-
-	*red = radeon_crtc->lut_r[regno] << 6;
-	*green = radeon_crtc->lut_g[regno] << 6;
-	*blue = radeon_crtc->lut_b[regno] << 6;
-}
-
 static int radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 				 u16 *blue, uint32_t size,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i;
-
-	/* userspace palettes are always correct as is */
-	for (i = 0; i < size; i++) {
-		radeon_crtc->lut_r[i] = red[i] >> 6;
-		radeon_crtc->lut_g[i] = green[i] >> 6;
-		radeon_crtc->lut_b[i] = blue[i] >> 6;
-	}
 	radeon_crtc_load_lut(crtc);
 
 	return 0;
