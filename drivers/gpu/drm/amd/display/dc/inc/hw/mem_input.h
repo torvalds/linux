@@ -89,6 +89,10 @@ struct mem_input_funcs {
 
 	void (*dcc_control)(struct mem_input *mem_input, bool enable,
 			bool independent_64b_blks);
+	void (*mem_program_viewport)(
+			struct mem_input *mem_input,
+			const struct rect *viewport,
+			const struct rect *viewport_c);
 #endif
 
 	void (*mem_input_program_display_marks)(

@@ -1057,6 +1057,41 @@ static void min10_program_pte_vm(struct mem_input *mem_input,
 			SYSTEM_ACCESS_MODE, 3);
 }
 
+static void min_set_viewport(
+               struct mem_input *mem_input,
+               const struct rect *viewport,
+               const struct rect *viewport_c)
+{
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+
+       REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION, 0,
+                       PRI_VIEWPORT_WIDTH, viewport->width,
+                       PRI_VIEWPORT_HEIGHT, viewport->height);
+
+       REG_SET_2(DCSURF_PRI_VIEWPORT_START, 0,
+                       PRI_VIEWPORT_X_START, viewport->x,
+                       PRI_VIEWPORT_Y_START, viewport->y);
+
+       /*for stereo*/
+       REG_SET_2(DCSURF_SEC_VIEWPORT_DIMENSION, 0,
+                               SEC_VIEWPORT_WIDTH, viewport->width,
+                               SEC_VIEWPORT_HEIGHT, viewport->height);
+
+       REG_SET_2(DCSURF_SEC_VIEWPORT_START, 0,
+                               SEC_VIEWPORT_X_START, viewport->x,
+                               SEC_VIEWPORT_Y_START, viewport->y);
+
+       /* DC supports NV12 only at the moment */
+       REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION_C, 0,
+                       PRI_VIEWPORT_WIDTH_C, viewport_c->width,
+                       PRI_VIEWPORT_HEIGHT_C, viewport_c->height);
+
+       REG_SET_2(DCSURF_PRI_VIEWPORT_START_C, 0,
+                       PRI_VIEWPORT_X_START_C, viewport_c->x,
+                       PRI_VIEWPORT_Y_START_C, viewport_c->y);
+}
+
+
 static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.mem_input_program_display_marks = min10_program_display_marks,
 	.mem_input_program_surface_flip_and_addr =
@@ -1070,8 +1105,8 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.mem_input_program_pte_vm = min10_program_pte_vm,
 	.set_blank = min10_set_blank,
 	.dcc_control = min10_dcc_control,
+	.mem_program_viewport = min_set_viewport,
 };
-
 
 /*****************************************/
 /* Constructor, Destructor               */

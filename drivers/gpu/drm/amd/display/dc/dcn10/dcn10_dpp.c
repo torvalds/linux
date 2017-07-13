@@ -452,37 +452,6 @@ static void dpp_set_scl_filter(
 	}
 }
 
-static void dpp_set_viewport(
-		struct dcn10_dpp *xfm,
-		const struct rect *viewport,
-		const struct rect *viewport_c)
-{
-	REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION, 0,
-			PRI_VIEWPORT_WIDTH, viewport->width,
-			PRI_VIEWPORT_HEIGHT, viewport->height);
-
-	REG_SET_2(DCSURF_PRI_VIEWPORT_START, 0,
-			PRI_VIEWPORT_X_START, viewport->x,
-			PRI_VIEWPORT_Y_START, viewport->y);
-
-	/*for stereo*/
-	REG_SET_2(DCSURF_SEC_VIEWPORT_DIMENSION, 0,
-				SEC_VIEWPORT_WIDTH, viewport->width,
-				SEC_VIEWPORT_HEIGHT, viewport->height);
-
-	REG_SET_2(DCSURF_SEC_VIEWPORT_START, 0,
-				SEC_VIEWPORT_X_START, viewport->x,
-				SEC_VIEWPORT_Y_START, viewport->y);
-
-	/* DC supports NV12 only at the moment */
-	REG_SET_2(DCSURF_PRI_VIEWPORT_DIMENSION_C, 0,
-			PRI_VIEWPORT_WIDTH_C, viewport_c->width,
-			PRI_VIEWPORT_HEIGHT_C, viewport_c->height);
-
-	REG_SET_2(DCSURF_PRI_VIEWPORT_START_C, 0,
-			PRI_VIEWPORT_X_START_C, viewport_c->x,
-			PRI_VIEWPORT_Y_START_C, viewport_c->y);
-}
 
 static int get_lb_depth_bpc(enum lb_pixel_depth depth)
 {
@@ -615,8 +584,6 @@ void dpp_set_scaler_auto_scale(
 	dpp_set_otg_blank(xfm, scl_data);
 
 	REG_UPDATE(SCL_MODE, DSCL_MODE, dscl_mode);
-
-	dpp_set_viewport(xfm, &scl_data->viewport, &scl_data->viewport_c);
 
 	if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
 		return;
@@ -761,9 +728,6 @@ static void dpp_set_scaler_manual_scale(
 
 	/* SCL mode */
 	REG_UPDATE(SCL_MODE, DSCL_MODE, dscl_mode);
-
-	/* Viewport */
-	dpp_set_viewport(xfm, &scl_data->viewport, &scl_data->viewport_c);
 
 	if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
 		return;

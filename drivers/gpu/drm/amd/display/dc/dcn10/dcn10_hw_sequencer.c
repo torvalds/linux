@@ -1470,6 +1470,8 @@ static void update_dchubp_dpp(
 	/* scaler configuration */
 	pipe_ctx->xfm->funcs->transform_set_scaler(
 			pipe_ctx->xfm, &pipe_ctx->scl_data);
+	mi->funcs->mem_program_viewport(mi,
+			&pipe_ctx->scl_data.viewport, &pipe_ctx->scl_data.viewport_c);
 
 	/*gamut remap*/
 	program_gamut_remap(pipe_ctx);
