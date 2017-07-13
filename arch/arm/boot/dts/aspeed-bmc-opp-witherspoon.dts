@@ -42,6 +42,18 @@
 			gpios = <&gpio ASPEED_GPIO(J, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(J, 2)>;
 		};
+
+		ps0-presence {
+			label = "ps0-presence";
+			gpios = <&gpio ASPEED_GPIO(P, 7) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(P, 7)>;
+		};
+
+		ps1-presence {
+			label = "ps1-presence";
+			gpios = <&gpio ASPEED_GPIO(N, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(N, 0)>;
+		};
 	};
 
 	gpio-keys-polled {
