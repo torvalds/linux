@@ -16,6 +16,15 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 
+/* private routines between core files */
+struct dax_device;
+struct dax_device *inode_dax(struct inode *inode);
+struct inode *dax_inode(struct dax_device *dax_dev);
+
+/* temporary until devm_create_dax_dev moves to bus.c */
+extern const struct attribute_group *dax_attribute_groups[];
+void unregister_dev_dax(void *dev);
+
 /**
  * struct dax_region - mapping infrastructure for dax devices
  * @id: kernel-wide unique region for a memory range
@@ -45,4 +54,9 @@ struct dev_dax {
 	struct dax_device *dax_dev;
 	struct device dev;
 };
+
+static inline struct dev_dax *to_dev_dax(struct device *dev)
+{
+	return container_of(dev, struct dev_dax, dev);
+}
 #endif

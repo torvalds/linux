@@ -16,7 +16,7 @@
 #include <linux/pfn_t.h>
 #include "../nvdimm/pfn.h"
 #include "../nvdimm/nd.h"
-#include "device-dax.h"
+#include "bus.h"
 
 struct dax_pmem {
 	struct device *dev;
