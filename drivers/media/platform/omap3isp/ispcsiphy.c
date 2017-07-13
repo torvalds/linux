@@ -292,13 +292,16 @@ int omap3isp_csiphy_acquire(struct isp_csiphy *phy)
 	if (rval < 0)
 		goto done;
 
-	rval = csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_ON);
-	if (rval) {
-		regulator_disable(phy->vdd);
-		goto done;
+	if (phy->isp->revision == ISP_REVISION_15_0) {
+		rval = csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_ON);
+		if (rval) {
+			regulator_disable(phy->vdd);
+			goto done;
+		}
+
+		csiphy_power_autoswitch_enable(phy, true);
 	}
 
-	csiphy_power_autoswitch_enable(phy, true);
 	phy->phy_in_use = 1;
 
 done:
@@ -317,8 +320,10 @@ void omap3isp_csiphy_release(struct isp_csiphy *phy)
 
 		csiphy_routing_cfg(phy, buscfg->interface, false,
 				   buscfg->bus.ccp2.phy_layer);
-		csiphy_power_autoswitch_enable(phy, false);
-		csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_OFF);
+		if (phy->isp->revision == ISP_REVISION_15_0) {
+			csiphy_power_autoswitch_enable(phy, false);
+			csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_OFF);
+		}
 		regulator_disable(phy->vdd);
 		phy->phy_in_use = 0;
 	}
