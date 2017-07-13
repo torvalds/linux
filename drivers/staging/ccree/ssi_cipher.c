@@ -209,9 +209,9 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 			    max_key_buf_size, ctx_p->user.key);
 		return -ENOMEM;
 	}
-	SSI_LOG_DEBUG("Mapped key %u B at va=%pK to dma=0x%llX\n",
+	SSI_LOG_DEBUG("Mapped key %u B at va=%pK to dma=%pad\n",
 		      max_key_buf_size, ctx_p->user.key,
-		      (unsigned long long)ctx_p->user.key_dma_addr);
+		      ctx_p->user.key_dma_addr);
 
 	if (ctx_p->cipher_mode == DRV_CIPHER_ESSIV) {
 		/* Alloc hash tfm for essiv */
@@ -243,8 +243,8 @@ static void ssi_blkcipher_exit(struct crypto_tfm *tfm)
 	/* Unmap key buffer */
 	dma_unmap_single(dev, ctx_p->user.key_dma_addr, max_key_buf_size,
 			 DMA_TO_DEVICE);
-	SSI_LOG_DEBUG("Unmapped key buffer key_dma_addr=0x%llX\n",
-		      (unsigned long long)ctx_p->user.key_dma_addr);
+	SSI_LOG_DEBUG("Unmapped key buffer key_dma_addr=%pad\n",
+		      ctx_p->user.key_dma_addr);
 
 	/* Free key buffer in context */
 	kfree(ctx_p->user.key);
@@ -619,10 +619,10 @@ ssi_blkcipher_create_data_desc(
 	}
 	/* Process */
 	if (likely(req_ctx->dma_buf_type == SSI_DMA_BUF_DLLI)) {
-		SSI_LOG_DEBUG(" data params addr 0x%llX length 0x%X \n",
-			      (unsigned long long)sg_dma_address(src), nbytes);
-		SSI_LOG_DEBUG(" data params addr 0x%llX length 0x%X \n",
-			      (unsigned long long)sg_dma_address(dst), nbytes);
+		SSI_LOG_DEBUG(" data params addr %pad length 0x%X \n",
+			      sg_dma_address(src), nbytes);
+		SSI_LOG_DEBUG(" data params addr %pad length 0x%X \n",
+			      sg_dma_address(dst), nbytes);
 		hw_desc_init(&desc[*seq_size]);
 		set_din_type(&desc[*seq_size], DMA_DLLI, sg_dma_address(src),
 			     nbytes, NS_BIT);
@@ -635,9 +635,9 @@ ssi_blkcipher_create_data_desc(
 		(*seq_size)++;
 	} else {
 		/* bypass */
-		SSI_LOG_DEBUG(" bypass params addr 0x%llX "
+		SSI_LOG_DEBUG(" bypass params addr %pad "
 			     "length 0x%X addr 0x%08X\n",
-			(unsigned long long)req_ctx->mlli_params.mlli_dma_addr,
+			req_ctx->mlli_params.mlli_dma_addr,
 			req_ctx->mlli_params.mlli_len,
 			(unsigned int)ctx_p->drvdata->mlli_sram_addr);
 		hw_desc_init(&desc[*seq_size]);

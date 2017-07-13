@@ -250,10 +250,10 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		rc = -ENODEV;
 		goto init_cc_res_err;
 	}
-	SSI_LOG_DEBUG("Got MEM resource (%s): start=0x%llX end=0x%llX\n",
+	SSI_LOG_DEBUG("Got MEM resource (%s): start=%pad end=%pad\n",
 		      new_drvdata->res_mem->name,
-		      (unsigned long long)new_drvdata->res_mem->start,
-		      (unsigned long long)new_drvdata->res_mem->end);
+		      new_drvdata->res_mem->start,
+		      new_drvdata->res_mem->end);
 	/* Map registers space */
 	req_mem_cc_regs = request_mem_region(new_drvdata->res_mem->start, resource_size(new_drvdata->res_mem), "arm_cc7x_regs");
 	if (unlikely(!req_mem_cc_regs)) {

@@ -259,9 +259,9 @@ static int ssi_buffer_mgr_generate_mlli(
 	mlli_params->mlli_len = (total_nents * LLI_ENTRY_BYTE_SIZE);
 
 	SSI_LOG_DEBUG("MLLI params: "
-		     "virt_addr=%pK dma_addr=0x%llX mlli_len=0x%X\n",
+		     "virt_addr=%pK dma_addr=%pad mlli_len=0x%X\n",
 		   mlli_params->mlli_virt_addr,
-		   (unsigned long long)mlli_params->mlli_dma_addr,
+		   mlli_params->mlli_dma_addr,
 		   mlli_params->mlli_len);
 
 build_mlli_exit:
@@ -275,9 +275,9 @@ static inline void ssi_buffer_mgr_add_buffer_entry(
 {
 	unsigned int index = sgl_data->num_of_buffers;
 
-	SSI_LOG_DEBUG("index=%u single_buff=0x%llX "
+	SSI_LOG_DEBUG("index=%u single_buff=%pad "
 		     "buffer_len=0x%08X is_last=%d\n",
-		     index, (unsigned long long)buffer_dma, buffer_len, is_last_entry);
+		     index, buffer_dma, buffer_len, is_last_entry);
 	sgl_data->nents[index] = 1;
 	sgl_data->entry[index].buffer_dma = buffer_dma;
 	sgl_data->offset[index] = 0;
@@ -358,10 +358,10 @@ static int ssi_buffer_mgr_map_scatterlist(
 			SSI_LOG_ERR("dma_map_sg() single buffer failed\n");
 			return -ENOMEM;
 		}
-		SSI_LOG_DEBUG("Mapped sg: dma_address=0x%llX "
+		SSI_LOG_DEBUG("Mapped sg: dma_address=%pad "
 			     "page=%p addr=%pK offset=%u "
 			     "length=%u\n",
-			     (unsigned long long)sg_dma_address(sg),
+			     sg_dma_address(sg),
 			     sg_page(sg),
 			     sg_virt(sg),
 			     sg->offset, sg->length);
@@ -422,10 +422,10 @@ ssi_aead_handle_config_buf(struct device *dev,
 			   "config buffer failed\n");
 			return -ENOMEM;
 	}
-	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=0x%llX "
+	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=%pad "
 		     "page=%p addr=%pK "
 		     "offset=%u length=%u\n",
-		     (unsigned long long)sg_dma_address(&areq_ctx->ccm_adata_sg),
+		     sg_dma_address(&areq_ctx->ccm_adata_sg),
 		     sg_page(&areq_ctx->ccm_adata_sg),
 		     sg_virt(&areq_ctx->ccm_adata_sg),
 		     areq_ctx->ccm_adata_sg.offset,
@@ -455,10 +455,10 @@ static inline int ssi_ahash_handle_curr_buf(struct device *dev,
 			   "src buffer failed\n");
 			return -ENOMEM;
 	}
-	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=0x%llX "
+	SSI_LOG_DEBUG("Mapped curr_buff: dma_address=%pad "
 		     "page=%p addr=%pK "
 		     "offset=%u length=%u\n",
-		     (unsigned long long)sg_dma_address(areq_ctx->buff_sg),
+		     sg_dma_address(areq_ctx->buff_sg),
 		     sg_page(areq_ctx->buff_sg),
 		     sg_virt(areq_ctx->buff_sg),
 		     areq_ctx->buff_sg->offset,
@@ -482,8 +482,8 @@ void ssi_buffer_mgr_unmap_blkcipher_request(
 	struct blkcipher_req_ctx *req_ctx = (struct blkcipher_req_ctx *)ctx;
 
 	if (likely(req_ctx->gen_ctx.iv_dma_addr != 0)) {
-		SSI_LOG_DEBUG("Unmapped iv: iv_dma_addr=0x%llX iv_size=%u\n",
-			      (unsigned long long)req_ctx->gen_ctx.iv_dma_addr,
+		SSI_LOG_DEBUG("Unmapped iv: iv_dma_addr=%pad iv_size=%u\n",
+			      req_ctx->gen_ctx.iv_dma_addr,
 			      ivsize);
 		dma_unmap_single(dev, req_ctx->gen_ctx.iv_dma_addr,
 				 ivsize,
@@ -542,9 +542,9 @@ int ssi_buffer_mgr_map_blkcipher_request(
 				   "for DMA failed\n", ivsize, info);
 			return -ENOMEM;
 		}
-		SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=0x%llX\n",
+		SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=%pad\n",
 			      ivsize, info,
-			      (unsigned long long)req_ctx->gen_ctx.iv_dma_addr);
+			      req_ctx->gen_ctx.iv_dma_addr);
 	} else {
 		req_ctx->gen_ctx.iv_dma_addr = 0;
 	}
@@ -673,8 +673,8 @@ void ssi_buffer_mgr_unmap_aead_request(
 	 *allocated and should be released
 	 */
 	if (areq_ctx->mlli_params.curr_pool) {
-		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%08llX virt=%pK\n",
-			      (unsigned long long)areq_ctx->mlli_params.mlli_dma_addr,
+		SSI_LOG_DEBUG("free MLLI buffer: dma=%pad virt=%pK\n",
+			      areq_ctx->mlli_params.mlli_dma_addr,
 			      areq_ctx->mlli_params.mlli_virt_addr);
 		dma_pool_free(areq_ctx->mlli_params.curr_pool,
 			      areq_ctx->mlli_params.mlli_virt_addr,
@@ -791,9 +791,9 @@ static inline int ssi_buffer_mgr_aead_chain_iv(
 		goto chain_iv_exit;
 	}
 
-	SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=0x%llX\n",
+	SSI_LOG_DEBUG("Mapped iv %u B at va=%pK to dma=%pad\n",
 		      hw_iv_size, req->iv,
-		      (unsigned long long)areq_ctx->gen_ctx.iv_dma_addr);
+		      areq_ctx->gen_ctx.iv_dma_addr);
 	if (do_chain && areq_ctx->plaintext_authenticate_only) {  // TODO: what about CTR?? ask Ron
 		struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 		unsigned int iv_size_to_authenc = crypto_aead_ivsize(tfm);
@@ -1716,8 +1716,8 @@ void ssi_buffer_mgr_unmap_hash_request(
 	 *allocated and should be released
 	 */
 	if (areq_ctx->mlli_params.curr_pool) {
-		SSI_LOG_DEBUG("free MLLI buffer: dma=0x%llX virt=%pK\n",
-			      (unsigned long long)areq_ctx->mlli_params.mlli_dma_addr,
+		SSI_LOG_DEBUG("free MLLI buffer: dma=%pad virt=%pK\n",
+			      areq_ctx->mlli_params.mlli_dma_addr,
 			      areq_ctx->mlli_params.mlli_virt_addr);
 		dma_pool_free(areq_ctx->mlli_params.curr_pool,
 			      areq_ctx->mlli_params.mlli_virt_addr,
@@ -1725,9 +1725,9 @@ void ssi_buffer_mgr_unmap_hash_request(
 	}
 
 	if ((src) && likely(areq_ctx->in_nents != 0)) {
-		SSI_LOG_DEBUG("Unmapped sg src: virt=%pK dma=0x%llX len=0x%X\n",
+		SSI_LOG_DEBUG("Unmapped sg src: virt=%pK dma=%pad len=0x%X\n",
 			      sg_virt(src),
-			      (unsigned long long)sg_dma_address(src),
+			      sg_dma_address(src),
 			      sg_dma_len(src));
 		dma_unmap_sg(dev, src,
 			     areq_ctx->in_nents, DMA_TO_DEVICE);
@@ -1735,9 +1735,9 @@ void ssi_buffer_mgr_unmap_hash_request(
 
 	if (*prev_len != 0) {
 		SSI_LOG_DEBUG("Unmapped buffer: areq_ctx->buff_sg=%pK"
-			     " dma=0x%llX len 0x%X\n",
+			     " dma=%pad len 0x%X\n",
 				sg_virt(areq_ctx->buff_sg),
-				(unsigned long long)sg_dma_address(areq_ctx->buff_sg),
+				sg_dma_address(areq_ctx->buff_sg),
 				sg_dma_len(areq_ctx->buff_sg));
 		dma_unmap_sg(dev, areq_ctx->buff_sg, 1, DMA_TO_DEVICE);
 		if (!do_revert) {

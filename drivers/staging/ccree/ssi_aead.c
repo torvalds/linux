@@ -102,8 +102,8 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 	/* Unmap enckey buffer */
 	if (ctx->enckey) {
 		dma_free_coherent(dev, AES_MAX_KEY_SIZE, ctx->enckey, ctx->enckey_dma_addr);
-		SSI_LOG_DEBUG("Freed enckey DMA buffer enckey_dma_addr=0x%llX\n",
-			(unsigned long long)ctx->enckey_dma_addr);
+		SSI_LOG_DEBUG("Freed enckey DMA buffer enckey_dma_addr=%pad\n",
+			      ctx->enckey_dma_addr);
 		ctx->enckey_dma_addr = 0;
 		ctx->enckey = NULL;
 	}
@@ -116,8 +116,8 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 					  xcbc->xcbc_keys,
 					  xcbc->xcbc_keys_dma_addr);
 		}
-		SSI_LOG_DEBUG("Freed xcbc_keys DMA buffer xcbc_keys_dma_addr=0x%llX\n",
-			      (unsigned long long)xcbc->xcbc_keys_dma_addr);
+		SSI_LOG_DEBUG("Freed xcbc_keys DMA buffer xcbc_keys_dma_addr=%pad\n",
+			      xcbc->xcbc_keys_dma_addr);
 		xcbc->xcbc_keys_dma_addr = 0;
 		xcbc->xcbc_keys = NULL;
 	} else if (ctx->auth_mode != DRV_HASH_NULL) { /* HMAC auth. */
@@ -127,8 +127,8 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 			dma_free_coherent(dev, 2 * MAX_HMAC_DIGEST_SIZE,
 					  hmac->ipad_opad,
 					  hmac->ipad_opad_dma_addr);
-			SSI_LOG_DEBUG("Freed ipad_opad DMA buffer ipad_opad_dma_addr=0x%llX\n",
-				      (unsigned long long)hmac->ipad_opad_dma_addr);
+			SSI_LOG_DEBUG("Freed ipad_opad DMA buffer ipad_opad_dma_addr=%pad\n",
+				      hmac->ipad_opad_dma_addr);
 			hmac->ipad_opad_dma_addr = 0;
 			hmac->ipad_opad = NULL;
 		}
@@ -136,8 +136,8 @@ static void ssi_aead_exit(struct crypto_aead *tfm)
 			dma_free_coherent(dev, MAX_HMAC_BLOCK_SIZE,
 					  hmac->padded_authkey,
 					  hmac->padded_authkey_dma_addr);
-			SSI_LOG_DEBUG("Freed padded_authkey DMA buffer padded_authkey_dma_addr=0x%llX\n",
-				(unsigned long long)hmac->padded_authkey_dma_addr);
+			SSI_LOG_DEBUG("Freed padded_authkey DMA buffer padded_authkey_dma_addr=%pad\n",
+				      hmac->padded_authkey_dma_addr);
 			hmac->padded_authkey_dma_addr = 0;
 			hmac->padded_authkey = NULL;
 		}
