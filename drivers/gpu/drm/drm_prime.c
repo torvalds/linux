@@ -483,6 +483,30 @@ int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_mmap);
 
+static int drm_gem_dmabuf_begin_cpu_access(struct dma_buf *dma_buf,
+					   enum dma_data_direction dir)
+{
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	if (!dev->driver->gem_prime_begin_cpu_access)
+		return -EINVAL;
+
+	return dev->driver->gem_prime_begin_cpu_access(obj, dir);
+}
+
+static int drm_gem_dmabuf_end_cpu_access(struct dma_buf *dma_buf,
+					  enum dma_data_direction dir)
+{
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	if (!dev->driver->gem_prime_end_cpu_access)
+		return -EINVAL;
+
+	return dev->driver->gem_prime_end_cpu_access(obj, dir);
+}
+
 static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 	.attach = drm_gem_map_attach,
 	.detach = drm_gem_map_detach,
@@ -494,6 +518,8 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 	.mmap = drm_gem_dmabuf_mmap,
 	.vmap = drm_gem_dmabuf_vmap,
 	.vunmap = drm_gem_dmabuf_vunmap,
+	.begin_cpu_access = drm_gem_dmabuf_begin_cpu_access,
+	.end_cpu_access = drm_gem_dmabuf_end_cpu_access,
 };
 
 /**
