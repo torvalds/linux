@@ -1432,6 +1432,8 @@ static int tcmu_update_uio_info(struct tcmu_dev *udev)
 	if (udev->dev_config[0])
 		snprintf(str + used, size - used, "/%s", udev->dev_config);
 
+	/* If the old string exists, free it */
+	kfree(info->name);
 	info->name = str;
 
 	return 0;
