@@ -28,6 +28,38 @@ The ReST markups currently used by the Documentation/ files are meant to be
 built with ``Sphinx`` version 1.3 or upper. If you're desiring to build
 PDF outputs, it is recommended to use version 1.4.6 or upper.
 
+Most distributions are shipped with Sphinx, but its toolchain is fragile,
+and it is not uncommon that upgrading it or some other Python packages
+on your machine would cause the documentation build to break.
+
+A way to get rid of that is to use a different version than the one shipped
+on your distributions. In order to do that, it is recommended to install
+Sphinx inside a virtual environment, using ``virtualenv-3``
+or ``virtualenv``, depending on how your distribution packaged Python 3.
+
+.. note::
+
+   #) Sphinx versions below 1.5 don't work properly with Python's
+      docutils version 0.13.1 or upper. So, if you're willing to use
+      those versions, you should run ``pip install 'docutils==0.12'``.
+
+   #) It is recommended to use the RTD theme for html output. Depending
+      on the Sphinx version, it should be installed  in separate,
+      with ``pip install sphinx_rtd_theme``.
+
+In summary, if you want to install Sphinx version 1.4.9, you should do::
+
+       $ virtualenv sphinx_1.4
+       $ . sphinx_1.4/bin/activate
+       (sphinx_1.4) $ pip install 'docutils==0.12'
+       (sphinx_1.4) $ pip install 'Sphinx==1.4.9'
+       (sphinx_1.4) $ pip install sphinx_rtd_theme
+
+After running ``. sphinx_1.4/bin/activate``, the prompt will change,
+in order to indicate that you're using the new environment. If you
+open a new shell, you need to rerun this command to enter again at
+the virtual environment before building the documentation.
+
 .. note::
 
   Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
