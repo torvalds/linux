@@ -706,6 +706,7 @@ static const struct msm_pinctrl_soc_data ipq4019_pinctrl = {
 	.groups = ipq4019_groups,
 	.ngroups = ARRAY_SIZE(ipq4019_groups),
 	.ngpios = 100,
+	.pull_no_keeper = true,
 };
 
 static int ipq4019_pinctrl_probe(struct platform_device *pdev)
