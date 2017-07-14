@@ -529,11 +529,6 @@
  *
  * Security hooks for task operations.
  *
- * @task_create:
- *	Check permission before creating a child process.  See the clone(2)
- *	manual page for definitions of the @clone_flags.
- *	@clone_flags contains the flags indicating what should be shared.
- *	Return 0 if permission is granted.
  * @task_alloc:
  *	@task task being allocated.
  *	@clone_flags contains the flags indicating what should be shared.
@@ -1509,7 +1504,6 @@ union security_list_options {
 	int (*file_receive)(struct file *file);
 	int (*file_open)(struct file *file, const struct cred *cred);
 
-	int (*task_create)(unsigned long clone_flags);
 	int (*task_alloc)(struct task_struct *task, unsigned long clone_flags);
 	void (*task_free)(struct task_struct *task);
 	int (*cred_alloc_blank)(struct cred *cred, gfp_t gfp);
@@ -1784,7 +1778,6 @@ struct security_hook_heads {
 	struct list_head file_send_sigiotask;
 	struct list_head file_receive;
 	struct list_head file_open;
-	struct list_head task_create;
 	struct list_head task_alloc;
 	struct list_head task_free;
 	struct list_head cred_alloc_blank;
