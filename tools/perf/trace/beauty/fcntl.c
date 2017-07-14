@@ -7,7 +7,13 @@
  */
 
 #include "trace/beauty/beauty.h"
+#include <linux/kernel.h>
 #include <uapi/linux/fcntl.h>
+
+static size_t fcntl__scnprintf_getfd(unsigned long val, char *bf, size_t size)
+{
+	return scnprintf(bf, size, "%s", val ? "CLOEXEC" : "0");
+}
 
 size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_arg *arg)
 {
@@ -15,11 +21,14 @@ size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_ar
 		syscall_arg__set_ret_scnprintf(arg, open__scnprintf_flags);
 		goto mask_arg;
 	}
+	if (arg->val == F_GETFD) {
+		syscall_arg__set_ret_scnprintf(arg, fcntl__scnprintf_getfd);
+		goto mask_arg;
+	}
 	/*
 	 * Some commands ignore the third fcntl argument, "arg", so mask it
 	 */
-	if (arg->val == F_GETFD	   ||
-	    arg->val == F_GETOWN   || arg->val == F_GET_SEALS ||
+	if (arg->val == F_GETOWN   || arg->val == F_GET_SEALS ||
 	    arg->val == F_GETLEASE || arg->val == F_GETSIG) {
 mask_arg:
 		arg->mask |= (1 << 2);
@@ -31,6 +40,9 @@ mask_arg:
 size_t syscall_arg__scnprintf_fcntl_arg(char *bf, size_t size, struct syscall_arg *arg)
 {
 	int cmd = syscall_arg__val(arg, 1);
+
+	if (cmd == F_SETFD)
+		return fcntl__scnprintf_getfd(arg->val, bf, size);
 
 	if (cmd == F_SETFL)
 		return open__scnprintf_flags(arg->val, bf, size);
