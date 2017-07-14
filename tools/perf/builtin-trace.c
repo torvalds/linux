@@ -402,6 +402,11 @@ size_t syscall_arg__scnprintf_int(char *bf, size_t size, struct syscall_arg *arg
 	return scnprintf(bf, size, "%d", arg->val);
 }
 
+size_t syscall_arg__scnprintf_long(char *bf, size_t size, struct syscall_arg *arg)
+{
+	return scnprintf(bf, size, "%ld", arg->val);
+}
+
 static const char *bpf_cmd[] = {
 	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
 	"MAP_GET_NEXT_KEY", "PROG_LOAD",
