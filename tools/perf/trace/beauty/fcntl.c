@@ -15,14 +15,19 @@ static size_t fcntl__scnprintf_getfd(unsigned long val, char *bf, size_t size)
 	return scnprintf(bf, size, "%s", val ? "CLOEXEC" : "0");
 }
 
+static size_t syscall_arg__scnprintf_fcntl_getfd(char *bf, size_t size, struct syscall_arg *arg)
+{
+	return fcntl__scnprintf_getfd(arg->val, bf, size);
+}
+
 size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_arg *arg)
 {
 	if (arg->val == F_GETFL) {
-		syscall_arg__set_ret_scnprintf(arg, open__scnprintf_flags);
+		syscall_arg__set_ret_scnprintf(arg, syscall_arg__scnprintf_open_flags);
 		goto mask_arg;
 	}
 	if (arg->val == F_GETFD) {
-		syscall_arg__set_ret_scnprintf(arg, fcntl__scnprintf_getfd);
+		syscall_arg__set_ret_scnprintf(arg, syscall_arg__scnprintf_fcntl_getfd);
 		goto mask_arg;
 	}
 	/*

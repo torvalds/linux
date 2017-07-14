@@ -73,7 +73,7 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 	return printed;
 }
 
-static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size, struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size, struct syscall_arg *arg)
 {
 	int flags = arg->val;
 
@@ -82,6 +82,3 @@ static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size, struct sy
 
 	return open__scnprintf_flags(flags, bf, size);
 }
-
-
-#define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags

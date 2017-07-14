@@ -918,7 +918,7 @@ struct thread_trace {
 	unsigned long	  pfmaj, pfmin;
 	char		  *entry_str;
 	double		  runtime_ms;
-	size_t		  (*ret_scnprintf)(unsigned long value, char *bf, size_t size);
+	size_t		  (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
         struct {
 		unsigned long ptr;
 		short int     entry_str_pos;
@@ -971,7 +971,7 @@ fail:
 
 
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
-				    size_t (*ret_scnprintf)(unsigned long val, char *bf, size_t size))
+				    size_t (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg))
 {
 	struct thread_trace *ttrace = thread__priv(arg->thread);
 
@@ -1726,7 +1726,12 @@ signed_print:
 		fprintf(trace->output, ") = 0 Timeout");
 	else if (ttrace->ret_scnprintf) {
 		char bf[1024];
-		ttrace->ret_scnprintf(ret, bf, sizeof(bf));
+		struct syscall_arg arg = {
+			.val	= ret,
+			.thread	= thread,
+			.trace	= trace,
+		};
+		ttrace->ret_scnprintf(bf, sizeof(bf), &arg);
 		ttrace->ret_scnprintf = NULL;
 		fprintf(trace->output, ") = %s", bf);
 	} else if (sc->fmt->hexret)
