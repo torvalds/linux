@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, 2017, The Linux Foundation. All rights reserved.
  */
 
 #ifndef __QCOM_CLK_REGMAP_DIVIDER_H__
@@ -10,10 +10,12 @@
 #include "clk-regmap.h"
 
 struct clk_regmap_div {
-	u32			reg;
-	u32			shift;
-	u32			width;
-	struct clk_regmap	clkr;
+	u32				reg;
+	u32				shift;
+	u32				width;
+	u32				flags;
+	const struct clk_div_table	*table;
+	struct clk_regmap		clkr;
 };
 
 extern const struct clk_ops clk_regmap_div_ops;
