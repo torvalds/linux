@@ -1058,6 +1058,11 @@ struct intel_fbc {
 	bool underrun_detected;
 	struct work_struct underrun_work;
 
+	/*
+	 * Due to the atomic rules we can't access some structures without the
+	 * appropriate locking, so we cache information here in order to avoid
+	 * these problems.
+	 */
 	struct intel_fbc_state_cache {
 		struct i915_vma *vma;
 
@@ -1079,6 +1084,13 @@ struct intel_fbc {
 		} fb;
 	} state_cache;
 
+	/*
+	 * This structure contains everything that's relevant to program the
+	 * hardware registers. When we want to figure out if we need to disable
+	 * and re-enable FBC for a new configuration we just check if there's
+	 * something different in the struct. The genx_fbc_activate functions
+	 * are supposed to read from it in order to program the registers.
+	 */
 	struct intel_fbc_reg_params {
 		struct i915_vma *vma;
 
