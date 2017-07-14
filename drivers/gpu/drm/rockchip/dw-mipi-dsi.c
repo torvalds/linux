@@ -719,12 +719,6 @@ static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 	}
 }
 
-static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
-{
-	dsi_write(dsi, DSI_PWR_UP, RESET);
-	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
-}
-
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 {
 	dsi_write(dsi, DSI_PWR_UP, RESET);
@@ -868,32 +862,44 @@ static void dw_mipi_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	drm_mode_copy(&dsi->mode, adjusted_mode);
 }
 
-static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
+static void rockchip_dsi_pre_disable(struct dw_mipi_dsi *dsi)
 {
-	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-
-	drm_panel_disable(dsi->panel);
-
 	if (clk_prepare_enable(dsi->pclk)) {
 		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
 		return;
 	}
 
 	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_CMD_MODE);
-	drm_panel_unprepare(dsi->panel);
-	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_VID_MODE);
+}
 
-	/*
-	 * This is necessary to make sure the peripheral will be driven
-	 * normally when the display is enabled again later.
-	 */
-	msleep(120);
+static void rockchip_dsi_disable(struct dw_mipi_dsi *dsi)
+{
+	/* host */
+	dsi_write(dsi, DSI_LPCLK_CTRL, 0);
+	dsi_write(dsi, DSI_PWR_UP, RESET);
 
-	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_CMD_MODE);
-	dw_mipi_dsi_disable(dsi);
-	phy_power_off(dsi->phy);
+	/* phy */
+	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
+	if (dsi->phy)
+		phy_power_off(dsi->phy);
+
 	pm_runtime_put(dsi->dev);
 	clk_disable_unprepare(dsi->pclk);
+}
+
+static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
+{
+	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+
+	if (dsi->panel)
+		drm_panel_disable(dsi->panel);
+
+	rockchip_dsi_pre_disable(dsi);
+
+	if (dsi->panel)
+		drm_panel_unprepare(dsi->panel);
+
+	rockchip_dsi_disable(dsi);
 }
 
 static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
