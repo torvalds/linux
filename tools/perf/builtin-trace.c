@@ -392,21 +392,15 @@ static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 
 #define SCA_CLOSE_FD syscall_arg__scnprintf_close_fd
 
-static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
-					 struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_hex(char *bf, size_t size, struct syscall_arg *arg)
 {
 	return scnprintf(bf, size, "%#lx", arg->val);
 }
 
-#define SCA_HEX syscall_arg__scnprintf_hex
-
-static size_t syscall_arg__scnprintf_int(char *bf, size_t size,
-					 struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_int(char *bf, size_t size, struct syscall_arg *arg)
 {
 	return scnprintf(bf, size, "%d", arg->val);
 }
-
-#define SCA_INT syscall_arg__scnprintf_int
 
 static const char *bpf_cmd[] = {
 	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
