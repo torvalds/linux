@@ -1263,6 +1263,25 @@ static int __init init_tsc_clocksource(void)
  */
 device_initcall(init_tsc_clocksource);
 
+void __init tsc_early_delay_calibrate(void)
+{
+	unsigned long lpj;
+
+	if (!boot_cpu_has(X86_FEATURE_TSC))
+		return;
+
+	cpu_khz = x86_platform.calibrate_cpu();
+	tsc_khz = x86_platform.calibrate_tsc();
+
+	tsc_khz = tsc_khz ? : cpu_khz;
+	if (!tsc_khz)
+		return;
+
+	lpj = tsc_khz * 1000;
+	do_div(lpj, HZ);
+	loops_per_jiffy = lpj;
+}
+
 void __init tsc_init(void)
 {
 	u64 lpj, cyc;
