@@ -1,6 +1,5 @@
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3328-evb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3366-fpga.dtb
-dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3366-tb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3366-sheep.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-evb-act8846.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-geekbox.dtb
