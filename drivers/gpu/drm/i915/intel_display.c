@@ -9555,7 +9555,16 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	 * On some platforms writing CURCNTR first will also
 	 * cause CURPOS to be armed by the CURBASE write.
 	 * Without the CURCNTR write the CURPOS write would
-	 * arm itself.
+	 * arm itself. Thus we always start the full update
+	 * with a CURCNTR write.
+	 *
+	 * On other platforms CURPOS always requires the
+	 * CURBASE write to arm the update. Additonally
+	 * a write to any of the cursor register will cancel
+	 * an already armed cursor update. Thus leaving out
+	 * the CURBASE write after CURPOS could lead to a
+	 * cursor that doesn't appear to move, or even change
+	 * shape. Thus we always write CURBASE.
 	 *
 	 * CURCNTR and CUR_FBC_CTL are always
 	 * armed by the CURBASE write only.
@@ -9574,6 +9583,7 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 		plane->cursor.cntl = cntl;
 	} else {
 		I915_WRITE_FW(CURPOS(pipe), pos);
+		I915_WRITE_FW(CURBASE(pipe), base);
 	}
 
 	POSTING_READ_FW(CURBASE(pipe));
