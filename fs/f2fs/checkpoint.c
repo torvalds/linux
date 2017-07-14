@@ -880,6 +880,7 @@ int sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type)
 	struct inode *inode;
 	struct f2fs_inode_info *fi;
 	bool is_dir = (type == DIR_INODE);
+	unsigned long ino = 0;
 
 	trace_f2fs_sync_dirty_inodes_enter(sbi->sb, is_dir,
 				get_pages(sbi, is_dir ?
@@ -902,8 +903,17 @@ retry:
 	inode = igrab(&fi->vfs_inode);
 	spin_unlock(&sbi->inode_lock[type]);
 	if (inode) {
+		unsigned long cur_ino = inode->i_ino;
+
 		filemap_fdatawrite(inode->i_mapping);
 		iput(inode);
+		/* We need to give cpu to another writers. */
+		if (ino == cur_ino) {
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
+			cond_resched();
+		} else {
+			ino = cur_ino;
+		}
 	} else {
 		/*
 		 * We should submit bio, since it exists several
