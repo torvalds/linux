@@ -319,8 +319,8 @@ struct dw_mipi_dsi {
 };
 
 enum dw_mipi_dsi_mode {
-	DW_MIPI_DSI_CMD_MODE,
-	DW_MIPI_DSI_VID_MODE,
+	DSI_COMMAND_MODE,
+	DSI_VIDEO_MODE,
 };
 
 struct dphy_pll_testdin_map {
@@ -707,16 +707,10 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 				 enum dw_mipi_dsi_mode mode)
 {
-	if (mode == DW_MIPI_DSI_CMD_MODE) {
-		dsi_write(dsi, DSI_PWR_UP, RESET);
+	if (mode == DSI_COMMAND_MODE)
 		dsi_write(dsi, DSI_MODE_CFG, ENABLE_CMD_MODE);
-		dsi_write(dsi, DSI_PWR_UP, POWERUP);
-	} else {
-		dsi_write(dsi, DSI_PWR_UP, RESET);
+	else
 		dsi_write(dsi, DSI_MODE_CFG, ENABLE_VIDEO_MODE);
-		dw_mipi_dsi_video_mode_config(dsi);
-		dsi_write(dsi, DSI_PWR_UP, POWERUP);
-	}
 }
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
@@ -776,7 +770,6 @@ static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
 {
 	dsi_write(dsi, DSI_TO_CNT_CFG, HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
 	dsi_write(dsi, DSI_BTA_TO_CNT, 0xd00);
-	dsi_write(dsi, DSI_MODE_CFG, ENABLE_CMD_MODE);
 }
 
 /* Get lane byte clock cycles. */
@@ -869,7 +862,7 @@ static void rockchip_dsi_pre_disable(struct dw_mipi_dsi *dsi)
 		return;
 	}
 
-	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_CMD_MODE);
+	dw_mipi_dsi_set_mode(dsi, DSI_COMMAND_MODE);
 }
 
 static void rockchip_dsi_disable(struct dw_mipi_dsi *dsi)
@@ -962,6 +955,7 @@ static void rockchip_dsi_host_init(struct dw_mipi_dsi *dsi)
 	dw_mipi_dsi_video_mode_config(dsi);
 	dw_mipi_dsi_video_packet_config(dsi, &dsi->mode);
 	dw_mipi_dsi_command_mode_config(dsi);
+	dw_mipi_dsi_set_mode(dsi, DSI_COMMAND_MODE);
 	dw_mipi_dsi_line_timer_config(dsi);
 	dw_mipi_dsi_vertical_timing_config(dsi);
 	dw_mipi_dsi_dphy_timing_config(dsi);
@@ -978,7 +972,7 @@ static void rockchip_dsi_init(struct dw_mipi_dsi *dsi)
 
 static void rockchip_dsi_enable(struct dw_mipi_dsi *dsi)
 {
-	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_VID_MODE);
+	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
 	clk_disable_unprepare(dsi->pclk);
 }
 
