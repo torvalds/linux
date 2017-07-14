@@ -46,6 +46,11 @@ static void min10_set_blank(struct mem_input *mem_input, bool blank)
 	REG_UPDATE_2(DCHUBP_CNTL,
 			HUBP_BLANK_EN, blank_en,
 			HUBP_TTU_DISABLE, blank_en);
+
+	if (blank)
+		REG_WAIT(DCHUBP_CNTL,
+				HUBP_NO_OUTSTANDING_REQ, 1,
+				1, 200);
 }
 
 static void min10_vready_workaround(struct mem_input *mem_input,

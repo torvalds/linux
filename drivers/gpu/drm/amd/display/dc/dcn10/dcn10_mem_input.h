@@ -304,6 +304,7 @@ struct dcn_mi_registers {
 #define MI_MASK_SH_LIST_DCN(mask_sh)\
 	MI_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	MI_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
+	MI_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	MI_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_PIPES, mask_sh),\
 	MI_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_BANKS, mask_sh),\
 	MI_SF(HUBP0_DCSURF_ADDR_CONFIG, PIPE_INTERLEAVE, mask_sh),\
@@ -463,6 +464,7 @@ struct dcn_mi_registers {
 #define DCN_MI_REG_FIELD_LIST(type) \
 	type HUBP_BLANK_EN;\
 	type HUBP_TTU_DISABLE;\
+	type HUBP_NO_OUTSTANDING_REQ;\
 	type NUM_PIPES;\
 	type NUM_BANKS;\
 	type PIPE_INTERLEAVE;\

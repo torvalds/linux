@@ -436,14 +436,33 @@ static void reset_back_end_for_pipe(
 					pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
 }
 
+static void plane_atomic_stop(
+		struct core_dc *dc,
+		int fe_idx)
+{
+	struct mpcc_cfg mpcc_cfg;
+	struct mem_input *mi = dc->res_pool->mis[fe_idx];
+	struct transform *xfm = dc->res_pool->transforms[fe_idx];
+	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
+	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
+
+	mi->funcs->dcc_control(mi, false, false);
+
+	mpcc_cfg.opp_id = 0xf;
+	mpcc_cfg.top_dpp_id = 0xf;
+	mpcc_cfg.bot_mpcc_id = 0xf;
+	mpcc_cfg.top_of_tree = tg->inst == mpcc->inst;
+	mpcc->funcs->set(mpcc, &mpcc_cfg);
+
+	xfm->funcs->transform_reset(xfm);
+}
+
 static void reset_front_end(
 		struct core_dc *dc,
 		int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct mpcc_cfg mpcc_cfg;
 	struct mem_input *mi = dc->res_pool->mis[fe_idx];
-	struct transform *xfm = dc->res_pool->transforms[fe_idx];
 	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
 	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
 	unsigned int opp_id = mpcc->opp_id;
@@ -454,17 +473,7 @@ static void reset_front_end(
 
 	tg->funcs->lock(tg);
 
-	mi->funcs->dcc_control(mi, false, false);
-	mi->funcs->set_blank(mi, true);
-	REG_WAIT(DCHUBP_CNTL[fe_idx],
-			HUBP_NO_OUTSTANDING_REQ, 1,
-			1, 200);
-
-	mpcc_cfg.opp_id = 0xf;
-	mpcc_cfg.top_dpp_id = 0xf;
-	mpcc_cfg.bot_mpcc_id = 0xf;
-	mpcc_cfg.top_of_tree = tg->inst == mpcc->inst;
-	mpcc->funcs->set(mpcc, &mpcc_cfg);
+	plane_atomic_stop(dc, fe_idx);
 
 	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
 	tg->funcs->unlock(tg);
@@ -472,16 +481,16 @@ static void reset_front_end(
 
 	mpcc->funcs->wait_for_idle(mpcc);
 
+	mi->funcs->set_blank(mi, true);
+
 	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
 			HUBP_CLOCK_ENABLE, 0);
 	REG_UPDATE(DPP_CONTROL[fe_idx],
 			DPP_CLOCK_ENABLE, 0);
 
-	if (mpcc_cfg.top_of_tree)
+	if (tg->inst == mpcc->inst)
 		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
-
-	xfm->funcs->transform_reset(xfm);
 
 	dm_logger_write(dc->ctx->logger, LOG_DC,
 					"Reset front end %d\n",
