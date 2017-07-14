@@ -18,6 +18,9 @@
 #define O_TMPFILE	020000000
 #endif
 
+#undef O_LARGEFILE
+#define O_LARGEFILE	00100000
+
 size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 {
 	int printed = 0;
