@@ -21,3 +21,21 @@ size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_ar
 
 	return syscall_arg__scnprintf_strarrays(bf, size, arg);
 }
+
+size_t syscall_arg__scnprintf_fcntl_arg(char *bf, size_t size, struct syscall_arg *arg)
+{
+	int cmd = syscall_arg__val(arg, 1);
+
+	/*
+	 * We still don't grab the contents of pointers on entry or exit,
+	 * so just print them as hex numbers
+	 */
+	if (cmd == F_SETLK || cmd == F_SETLKW || cmd == F_GETLK ||
+	    cmd == F_OFD_SETLK || cmd == F_OFD_SETLKW || cmd == F_OFD_GETLK ||
+	    cmd == F_GETOWN_EX || cmd == F_SETOWN_EX ||
+	    cmd == F_GET_RW_HINT || cmd == F_SET_RW_HINT ||
+	    cmd == F_GET_FILE_RW_HINT || cmd == F_SET_FILE_RW_HINT)
+		return syscall_arg__scnprintf_hex(bf, size, arg);
+
+	return syscall_arg__scnprintf_long(bf, size, arg);
+}
