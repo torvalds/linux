@@ -2712,7 +2712,7 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	/* 2. Enable Comp */
 	val = I915_READ(CHICKEN_MISC_2);
-	val &= ~COMP_PWR_DOWN;
+	val &= ~CNL_COMP_PWR_DOWN;
 	I915_WRITE(CHICKEN_MISC_2, val);
 
 	val = I915_READ(CNL_PORT_COMP_DW3);
@@ -2786,7 +2786,7 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	/* 5. Disable Comp */
 	val = I915_READ(CHICKEN_MISC_2);
-	val |= COMP_PWR_DOWN;
+	val |= CNL_COMP_PWR_DOWN;
 	I915_WRITE(CHICKEN_MISC_2, val);
 }
 
