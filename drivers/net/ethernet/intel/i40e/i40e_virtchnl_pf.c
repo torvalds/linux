@@ -815,6 +815,14 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 	 */
 	clear_bit(I40E_VF_STATE_INIT, &vf->vf_states);
 
+	/* It's possible the VF had requeuested more queues than the default so
+	 * do the accounting here when we're about to free them.
+	 */
+	if (vf->num_queue_pairs > I40E_DEFAULT_QUEUES_PER_VF) {
+		pf->queues_left += vf->num_queue_pairs -
+				   I40E_DEFAULT_QUEUES_PER_VF;
+	}
+
 	/* free vsi & disconnect it from the parent uplink */
 	if (vf->lan_vsi_idx) {
 		i40e_vsi_release(pf->vsi[vf->lan_vsi_idx]);
@@ -868,11 +876,26 @@ static int i40e_alloc_vf_res(struct i40e_vf *vf)
 	int total_queue_pairs = 0;
 	int ret;
 
+	if (vf->num_req_queues &&
+	    vf->num_req_queues <= pf->queues_left + I40E_DEFAULT_QUEUES_PER_VF)
+		pf->num_vf_qps = vf->num_req_queues;
+	else
+		pf->num_vf_qps = I40E_DEFAULT_QUEUES_PER_VF;
+
 	/* allocate hw vsi context & associated resources */
 	ret = i40e_alloc_vsi_res(vf, I40E_VSI_SRIOV);
 	if (ret)
 		goto error_alloc;
 	total_queue_pairs += pf->vsi[vf->lan_vsi_idx]->alloc_queue_pairs;
+
+	/* We account for each VF to get a default number of queue pairs.  If
+	 * the VF has now requested more, we need to account for that to make
+	 * certain we never request more queues than we actually have left in
+	 * HW.
+	 */
+	if (total_queue_pairs > I40E_DEFAULT_QUEUES_PER_VF)
+		pf->queues_left -=
+			total_queue_pairs - I40E_DEFAULT_QUEUES_PER_VF;
 
 	if (vf->trusted)
 		set_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
@@ -1579,6 +1602,9 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 					VIRTCHNL_VF_OFFLOAD_WB_ON_ITR;
 	}
 
+	if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_REQ_QUEUES)
+		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_REQ_QUEUES;
+
 	vfres->num_vsis = num_vsis;
 	vfres->num_queue_pairs = vf->num_queue_pairs;
 	vfres->max_vectors = pf->hw.func_caps.num_msix_vectors_vf;
@@ -1984,6 +2010,52 @@ error_param:
 	/* send the response to the VF */
 	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_DISABLE_QUEUES,
 				       aq_ret);
+}
+
+/**
+ * i40e_vc_request_queues_msg
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * VFs get a default number of queues but can use this message to request a
+ * different number.  Will respond with either the number requested or the
+ * maximum we can support.
+ **/
+static int i40e_vc_request_queues_msg(struct i40e_vf *vf, u8 *msg, int msglen)
+{
+	struct virtchnl_vf_res_request *vfres =
+		(struct virtchnl_vf_res_request *)msg;
+	int req_pairs = vfres->num_queue_pairs;
+	int cur_pairs = vf->num_queue_pairs;
+	struct i40e_pf *pf = vf->pf;
+
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states))
+		return -EINVAL;
+
+	if (req_pairs <= 0) {
+		dev_err(&pf->pdev->dev,
+			"VF %d tried to request %d queues.  Ignoring.\n",
+			vf->vf_id, req_pairs);
+	} else if (req_pairs > I40E_MAX_VF_QUEUES) {
+		dev_err(&pf->pdev->dev,
+			"VF %d tried to request more than %d queues.\n",
+			vf->vf_id,
+			I40E_MAX_VF_QUEUES);
+		vfres->num_queue_pairs = I40E_MAX_VF_QUEUES;
+	} else if (req_pairs - cur_pairs > pf->queues_left) {
+		dev_warn(&pf->pdev->dev,
+			 "VF %d requested %d more queues, but only %d left.\n",
+			 vf->vf_id,
+			 req_pairs - cur_pairs,
+			 pf->queues_left);
+		vfres->num_queue_pairs = pf->queues_left + cur_pairs;
+	} else {
+		vf->num_req_queues = req_pairs;
+	}
+
+	return i40e_vc_send_msg_to_vf(vf, VIRTCHNL_OP_REQUEST_QUEUES, 0,
+				      (u8 *)vfres, sizeof(vfres));
 }
 
 /**
@@ -2707,6 +2779,9 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
 		ret = i40e_vc_disable_vlan_stripping(vf, msg, msglen);
+		break;
+	case VIRTCHNL_OP_REQUEST_QUEUES:
+		ret = i40e_vc_request_queues_msg(vf, msg, msglen);
 		break;
 
 	case VIRTCHNL_OP_UNKNOWN:
