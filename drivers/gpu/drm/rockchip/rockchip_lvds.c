@@ -342,15 +342,14 @@ static void rockchip_lvds_poweroff(struct rockchip_lvds *lvds)
 	u32 val;
 
 	if (LVDS_CHIP(lvds) == RK3288_LVDS) {
-		ret = regmap_write(lvds->grf,
-				   lvds->soc_data->grf_soc_con7, 0xffff8000);
-		if (ret != 0)
-			dev_err(lvds->dev, "Could not write to GRF: %d\n", ret);
-
 		writel(RK3288_LVDS_CFG_REG21_TX_DISABLE,
 		       lvds->regs + RK3288_LVDS_CFG_REG21);
 		writel(RK3288_LVDS_CFG_REGC_PLL_DISABLE,
 		       lvds->regs + RK3288_LVDS_CFG_REGC);
+		ret = regmap_write(lvds->grf,
+				   lvds->soc_data->grf_soc_con7, 0xffff8000);
+		if (ret != 0)
+			dev_err(lvds->dev, "Could not write to GRF: %d\n", ret);
 
 		pm_runtime_put(lvds->dev);
 		if (lvds->pclk)
