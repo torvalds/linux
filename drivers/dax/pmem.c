@@ -129,8 +129,7 @@ static int dax_pmem_probe(struct device *dev)
 	if (!dax_region)
 		return -ENOMEM;
 
-	/* TODO: support for subdividing a dax region... */
-	dev_dax = devm_create_dev_dax(dax_region, id, &res, 1);
+	dev_dax = devm_create_dev_dax(dax_region, id);
 
 	/* child dev_dax instances now own the lifetime of the dax_region */
 	dax_region_put(dax_region);

@@ -151,11 +151,7 @@ static ssize_t size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
-	unsigned long long size = 0;
-	int i;
-
-	for (i = 0; i < dev_dax->num_resources; i++)
-		size += resource_size(&dev_dax->res[i]);
+	unsigned long long size = resource_size(&dev_dax->region->res);
 
 	return sprintf(buf, "%llu\n", size);
 }
@@ -224,21 +220,11 @@ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 __weak phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
 		unsigned long size)
 {
-	struct resource *res;
-	/* gcc-4.6.3-nolibc for i386 complains that this is uninitialized */
-	phys_addr_t uninitialized_var(phys);
-	int i;
+	struct resource *res = &dev_dax->region->res;
+	phys_addr_t phys;
 
-	for (i = 0; i < dev_dax->num_resources; i++) {
-		res = &dev_dax->res[i];
-		phys = pgoff * PAGE_SIZE + res->start;
-		if (phys >= res->start && phys <= res->end)
-			break;
-		pgoff -= PHYS_PFN(resource_size(res));
-	}
-
-	if (i < dev_dax->num_resources) {
-		res = &dev_dax->res[i];
+	phys = pgoff * PAGE_SIZE + res->start;
+	if (phys >= res->start && phys <= res->end) {
 		if (phys + size - 1 <= res->end)
 			return phys;
 	}
@@ -608,8 +594,7 @@ static void unregister_dev_dax(void *dev)
 	put_device(dev);
 }
 
-struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
-		int id, struct resource *res, int count)
+struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id)
 {
 	struct device *parent = dax_region->dev;
 	struct dax_device *dax_dev;
@@ -617,28 +602,11 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	struct inode *inode;
 	struct device *dev;
 	struct cdev *cdev;
-	int rc, i;
+	int rc;
 
-	if (!count)
-		return ERR_PTR(-EINVAL);
-
-	dev_dax = kzalloc(struct_size(dev_dax, res, count), GFP_KERNEL);
+	dev_dax = kzalloc(sizeof(*dev_dax), GFP_KERNEL);
 	if (!dev_dax)
 		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < count; i++) {
-		if (!IS_ALIGNED(res[i].start, dax_region->align)
-				|| !IS_ALIGNED(resource_size(&res[i]),
-					dax_region->align)) {
-			rc = -EINVAL;
-			break;
-		}
-		dev_dax->res[i].start = res[i].start;
-		dev_dax->res[i].end = res[i].end;
-	}
-
-	if (i < count)
-		goto err;
 
 	/*
 	 * No 'host' or dax_operations since there is no access to this
@@ -659,7 +627,6 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	cdev_init(cdev, &dax_fops);
 	cdev->owner = parent->driver->owner;
 
-	dev_dax->num_resources = count;
 	dev_dax->dax_dev = dax_dev;
 	dev_dax->region = dax_region;
 	kref_get(&dax_region->kref);

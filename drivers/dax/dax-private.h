@@ -39,14 +39,10 @@ struct dax_region {
  * @region - parent region
  * @dax_dev - core dax functionality
  * @dev - device core
- * @num_resources - number of physical address extents in this device
- * @res - array of physical address ranges
  */
 struct dev_dax {
 	struct dax_region *region;
 	struct dax_device *dax_dev;
 	struct device dev;
-	int num_resources;
-	struct resource res[0];
 };
 #endif

@@ -17,20 +17,11 @@
 phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
 		unsigned long size)
 {
-	struct resource *res;
+	struct resource *res = &dev_dax->region->res;
 	phys_addr_t addr;
-	int i;
 
-	for (i = 0; i < dev_dax->num_resources; i++) {
-		res = &dev_dax->res[i];
-		addr = pgoff * PAGE_SIZE + res->start;
-		if (addr >= res->start && addr <= res->end)
-			break;
-		pgoff -= PHYS_PFN(resource_size(res));
-	}
-
-	if (i < dev_dax->num_resources) {
-		res = &dev_dax->res[i];
+	addr = pgoff * PAGE_SIZE + res->start;
+	if (addr >= res->start && addr <= res->end) {
 		if (addr + size - 1 <= res->end) {
 			if (get_nfit_res(addr)) {
 				struct page *page;
@@ -44,6 +35,5 @@ phys_addr_t dax_pgoff_to_phys(struct dev_dax *dev_dax, pgoff_t pgoff,
 				return addr;
 		}
 	}
-
 	return -1;
 }
