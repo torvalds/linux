@@ -51,6 +51,12 @@ MODULE_PARM_DESC(loopback,
 		 "is checked to match tx_buf after the spi_message "	\
 		 "is executed");
 
+int loop_req;
+module_param(loop_req, int, 0);
+MODULE_PARM_DESC(loop_req,
+		 "if set controller will be asked to enable test loop mode. " \
+		 "If controller supported it, MISO and MOSI will be connected");
+
 /* run only a specific test */
 int run_only_test = -1;
 module_param(run_only_test, int, 0);
@@ -312,6 +318,16 @@ static struct spi_test spi_tests[] = {
 static int spi_loopback_test_probe(struct spi_device *spi)
 {
 	int ret;
+
+	if (loop_req) {
+		spi->mode = SPI_LOOP | spi->mode;
+		ret = spi_setup(spi);
+		if (ret) {
+			dev_err(&spi->dev, "SPI setup with SPI_LOOP failed (%d)\n",
+				ret);
+			return ret;
+		}
+	}
 
 	dev_info(&spi->dev, "Executing spi-loopback-tests\n");
 
