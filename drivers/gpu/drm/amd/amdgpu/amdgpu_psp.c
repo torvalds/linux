@@ -98,9 +98,8 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	int i;
 	struct amdgpu_device *adev = psp->adev;
 
-	val = RREG32(reg_index);
-
 	for (i = 0; i < adev->usec_timeout; i++) {
+		val = RREG32(reg_index);
 		if (check_changed) {
 			if (val != reg_val)
 				return 0;
