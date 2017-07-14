@@ -33,6 +33,7 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 		flags &= ~O_##n; \
 	}
 
+	P_FLAG(RDWR);
 	P_FLAG(APPEND);
 	P_FLAG(ASYNC);
 	P_FLAG(CLOEXEC);
@@ -53,7 +54,6 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 #ifdef O_PATH
 	P_FLAG(PATH);
 #endif
-	P_FLAG(RDWR);
 #ifdef O_DSYNC
 	if ((flags & O_SYNC) == O_SYNC)
 		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", "SYNC");
