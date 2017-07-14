@@ -2650,9 +2650,8 @@ void __init console_init(void)
  * makes it difficult to diagnose problems that occur during this time.
  *
  * To mitigate this problem somewhat, only unregister consoles whose memory
- * intersects with the init section. Note that code exists elsewhere to get
- * rid of the boot console as soon as the proper console shows up, so there
- * won't be side-effects from postponing the removal.
+ * intersects with the init section. Note that all other boot consoles will
+ * get unregistred when the real preferred console is registered.
  */
 static int __init printk_late_init(void)
 {
@@ -2660,16 +2659,15 @@ static int __init printk_late_init(void)
 	int ret;
 
 	for_each_console(con) {
-		if (!keep_bootcon && con->flags & CON_BOOT) {
+		if ((con->flags & CON_BOOT) &&
+		    init_section_intersects(con, sizeof(*con))) {
 			/*
-			 * Make sure to unregister boot consoles whose data
-			 * resides in the init section before the init section
-			 * is discarded. Boot consoles whose data will stick
-			 * around will automatically be unregistered when the
-			 * proper console replaces them.
+			 * Please, consider moving the reported consoles out
+			 * of the init section.
 			 */
-			if (init_section_intersects(con, sizeof(*con)))
-				unregister_console(con);
+			pr_warn("bootconsole [%s%d] uses init memory and must be disabled even before the real one is ready\n",
+				con->name, con->index);
+			unregister_console(con);
 		}
 	}
 	ret = cpuhp_setup_state_nocalls(CPUHP_PRINTK_DEAD, "printk:dead", NULL,
