@@ -458,7 +458,7 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		}
 	}
 
-	while (!uart_circ_empty(xmit) &&
+	while (!uart_circ_empty(xmit) && !sport->dma_is_txing &&
 	       !(readl(sport->port.membase + uts_reg(sport)) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
