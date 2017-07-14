@@ -1360,7 +1360,8 @@ static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
 	struct task_struct *task;
-	int err, n;
+	int err;
+	unsigned int n;
 
 	task = get_proc_task(file_inode(file));
 	if (!task)
@@ -1368,12 +1369,10 @@ static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
 	put_task_struct(task);
 	if (task != current)
 		return -EPERM;
-	err = kstrtoint_from_user(buf, count, 0, &n);
+	err = kstrtouint_from_user(buf, count, 0, &n);
 	if (err)
 		return err;
-	if (n < 0 || n == INT_MAX)
-		return -EINVAL;
-	current->fail_nth = n + 1;
+	current->fail_nth = n;
 	return count;
 }
 
