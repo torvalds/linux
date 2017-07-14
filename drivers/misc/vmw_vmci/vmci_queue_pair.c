@@ -129,20 +129,6 @@
  * *_MEM state, and vice versa.
  */
 
-/*
- * VMCIMemcpy{To,From}QueueFunc() prototypes.  Functions of these
- * types are passed around to enqueue and dequeue routines.  Note that
- * often the functions passed are simply wrappers around memcpy
- * itself.
- *
- * Note: In order for the memcpy typedefs to be compatible with the VMKernel,
- * there's an unused last parameter for the hosted side.  In
- * ESX, that parameter holds a buffer type.
- */
-typedef int vmci_memcpy_to_queue_func(struct vmci_queue *queue,
-				      u64 queue_offset, const void *src,
-				      size_t src_offset, size_t size);
-
 /* The Kernel specific component of the struct vmci_queue structure. */
 struct vmci_queue_kern_if {
 	struct mutex __mutex;	/* Protects the queue. */
@@ -348,11 +334,10 @@ static void *qp_alloc_queue(u64 size, u32 flags)
  * by traversing the offset -> page translation structure for the queue.
  * Assumes that offset + size does not wrap around in the queue.
  */
-static int __qp_memcpy_to_queue(struct vmci_queue *queue,
-				u64 queue_offset,
-				const void *src,
-				size_t size,
-				bool is_iovec)
+static int qp_memcpy_to_queue_iter(struct vmci_queue *queue,
+				  u64 queue_offset,
+				  struct iov_iter *from,
+				  size_t size)
 {
 	struct vmci_queue_kern_if *kernel_if = queue->kernel_if;
 	size_t bytes_copied = 0;
@@ -377,23 +362,12 @@ static int __qp_memcpy_to_queue(struct vmci_queue *queue,
 		else
 			to_copy = size - bytes_copied;
 
-		if (is_iovec) {
-			struct msghdr *msg = (struct msghdr *)src;
-			int err;
-
-			/* The iovec will track bytes_copied internally. */
-			err = memcpy_from_msg((u8 *)va + page_offset,
-					      msg, to_copy);
-			if (err != 0) {
-				if (kernel_if->host)
-					kunmap(kernel_if->u.h.page[page_index]);
-				return VMCI_ERROR_INVALID_ARGS;
-			}
-		} else {
-			memcpy((u8 *)va + page_offset,
-			       (u8 *)src + bytes_copied, to_copy);
+		if (!copy_from_iter_full((u8 *)va + page_offset, to_copy,
+					 from)) {
+			if (kernel_if->host)
+				kunmap(kernel_if->u.h.page[page_index]);
+			return VMCI_ERROR_INVALID_ARGS;
 		}
-
 		bytes_copied += to_copy;
 		if (kernel_if->host)
 			kunmap(kernel_if->u.h.page[page_index]);
@@ -552,30 +526,6 @@ static int qp_populate_ppn_set(u8 *call_buf, const struct ppn_set *ppn_set)
 	       ppn_set->num_consume_pages * sizeof(*ppn_set->consume_ppns));
 
 	return VMCI_SUCCESS;
-}
-
-static int qp_memcpy_to_queue(struct vmci_queue *queue,
-			      u64 queue_offset,
-			      const void *src, size_t src_offset, size_t size)
-{
-	return __qp_memcpy_to_queue(queue, queue_offset,
-				    (u8 *)src + src_offset, size, false);
-}
-
-/*
- * Copies from a given iovec from a VMCI Queue.
- */
-static int qp_memcpy_to_queue_iov(struct vmci_queue *queue,
-				  u64 queue_offset,
-				  const void *msg,
-				  size_t src_offset, size_t size)
-{
-
-	/*
-	 * We ignore src_offset because src is really a struct iovec * and will
-	 * maintain offset internally.
-	 */
-	return __qp_memcpy_to_queue(queue, queue_offset, msg, size, true);
 }
 
 /*
@@ -2590,12 +2540,11 @@ static bool qp_wait_for_ready_queue(struct vmci_qp *qpair)
 static ssize_t qp_enqueue_locked(struct vmci_queue *produce_q,
 				 struct vmci_queue *consume_q,
 				 const u64 produce_q_size,
-				 const void *buf,
-				 size_t buf_size,
-				 vmci_memcpy_to_queue_func memcpy_to_queue)
+				 struct iov_iter *from)
 {
 	s64 free_space;
 	u64 tail;
+	size_t buf_size = iov_iter_count(from);
 	size_t written;
 	ssize_t result;
 
@@ -2615,15 +2564,15 @@ static ssize_t qp_enqueue_locked(struct vmci_queue *produce_q,
 	written = (size_t) (free_space > buf_size ? buf_size : free_space);
 	tail = vmci_q_header_producer_tail(produce_q->q_header);
 	if (likely(tail + written < produce_q_size)) {
-		result = memcpy_to_queue(produce_q, tail, buf, 0, written);
+		result = qp_memcpy_to_queue_iter(produce_q, tail, from, written);
 	} else {
 		/* Tail pointer wraps around. */
 
 		const size_t tmp = (size_t) (produce_q_size - tail);
 
-		result = memcpy_to_queue(produce_q, tail, buf, 0, tmp);
+		result = qp_memcpy_to_queue_iter(produce_q, tail, from, tmp);
 		if (result >= VMCI_SUCCESS)
-			result = memcpy_to_queue(produce_q, 0, buf, tmp,
+			result = qp_memcpy_to_queue_iter(produce_q, 0, from,
 						 written - tmp);
 	}
 
@@ -3078,9 +3027,13 @@ ssize_t vmci_qpair_enqueue(struct vmci_qp *qpair,
 			   int buf_type)
 {
 	ssize_t result;
+	struct iov_iter from;
+	struct kvec v = {.iov_base = (void *)buf, .iov_len = buf_size};
 
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
+
+	iov_iter_kvec(&from, WRITE | ITER_KVEC, &v, 1, buf_size);
 
 	qp_lock(qpair);
 
@@ -3088,8 +3041,7 @@ ssize_t vmci_qpair_enqueue(struct vmci_qp *qpair,
 		result = qp_enqueue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->produce_q_size,
-					   buf, buf_size,
-					   qp_memcpy_to_queue);
+					   &from);
 
 		if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY &&
 		    !qp_wait_for_ready_queue(qpair))
@@ -3219,8 +3171,7 @@ ssize_t vmci_qpair_enquev(struct vmci_qp *qpair,
 		result = qp_enqueue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->produce_q_size,
-					   msg, msg_data_left(msg),
-					   qp_memcpy_to_queue_iov);
+					   &msg->msg_iter);
 
 		if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY &&
 		    !qp_wait_for_ready_queue(qpair))
