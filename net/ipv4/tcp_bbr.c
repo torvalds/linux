@@ -837,7 +837,6 @@ static void bbr_init(struct sock *sk)
 
 	minmax_reset(&bbr->bw, bbr->rtt_cnt, 0);  /* init max bw to 0 */
 
-	sk->sk_pacing_rate = 0;		/* force an update of sk_pacing_rate */
 	bbr_init_pacing_rate_from_rtt(sk);
 
 	bbr->restore_cwnd = 0;
