@@ -101,7 +101,6 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 	if (adev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
 			.compute_vmid_bitmap = 0xFF00,
-			.num_mec = adev->gfx.mec.num_mec,
 			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
 			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe
 		};
