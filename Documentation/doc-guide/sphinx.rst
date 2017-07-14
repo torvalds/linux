@@ -60,14 +60,6 @@ in order to indicate that you're using the new environment. If you
 open a new shell, you need to rerun this command to enter again at
 the virtual environment before building the documentation.
 
-.. note::
-
-  Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
-  version 3.14159265. Depending on the distribution, you may also need to
-  install a series of ``texlive`` packages that provide the minimal set of
-  functionalities required for ``XeLaTex`` to work. For PDF output you'll also
-  need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
-
 Image output
 ------------
 
@@ -79,6 +71,19 @@ For it to work, you need to install both GraphViz and ImageMagick
 packages. If those packages are not installed, the build system will
 still build the documentation, but won't include any images at the
 output.
+
+PDF and LaTeX builds
+--------------------
+
+Such builds are currently supported only with Sphinx versions 1.4 and 1.5.
+
+Currently, it is not possible to do pdf builds with Sphinx version 1.6.
+
+For PDF and LaTeX output, you'll also need ``XeLaTeX`` version 3.14159265.
+
+Depending on the distribution, you may also need to install a series of
+``texlive`` packages that provide the minimal set of functionalities
+required for ``XeLaTex`` to work.
 
 Sphinx Build
 ============
