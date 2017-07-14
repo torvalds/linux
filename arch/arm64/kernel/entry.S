@@ -72,6 +72,48 @@
 	.macro kernel_ventry	label
 	.align 7
 	sub	sp, sp, #S_FRAME_SIZE
+#ifdef CONFIG_VMAP_STACK
+	/*
+	 * Test whether the SP has overflowed, without corrupting a GPR.
+	 * Task and IRQ stacks are aligned to (1 << THREAD_SHIFT).
+	 */
+	add	sp, sp, x0			// sp' = sp + x0
+	sub	x0, sp, x0			// x0' = sp' - x0 = (sp + x0) - x0 = sp
+	tbnz	x0, #THREAD_SHIFT, 0f
+	sub	x0, sp, x0			// x0'' = sp' - x0' = (sp + x0) - sp = x0
+	sub	sp, sp, x0			// sp'' = sp' - x0 = (sp + x0) - x0 = sp
+	b	\label
+
+0:
+	/*
+	 * Either we've just detected an overflow, or we've taken an exception
+	 * while on the overflow stack. Either way, we won't return to
+	 * userspace, and can clobber EL0 registers to free up GPRs.
+	 */
+
+	/* Stash the original SP (minus S_FRAME_SIZE) in tpidr_el0. */
+	msr	tpidr_el0, x0
+
+	/* Recover the original x0 value and stash it in tpidrro_el0 */
+	sub	x0, sp, x0
+	msr	tpidrro_el0, x0
+
+	/* Switch to the overflow stack */
+	adr_this_cpu sp, overflow_stack + OVERFLOW_STACK_SIZE, x0
+
+	/*
+	 * Check whether we were already on the overflow stack. This may happen
+	 * after panic() re-enables interrupts.
+	 */
+	mrs	x0, tpidr_el0			// sp of interrupted context
+	sub	x0, sp, x0			// delta with top of overflow stack
+	tst	x0, #~(OVERFLOW_STACK_SIZE - 1)	// within range?
+	b.ne	__bad_stack			// no? -> bad stack pointer
+
+	/* We were already on the overflow stack. Restore sp/x0 and carry on. */
+	sub	sp, sp, x0
+	mrs	x0, tpidrro_el0
+#endif
 	b	\label
 	.endm
 
@@ -351,6 +393,34 @@ ENTRY(vectors)
 	kernel_ventry	el0_error_invalid		// Error 32-bit EL0
 #endif
 END(vectors)
+
+#ifdef CONFIG_VMAP_STACK
+	/*
+	 * We detected an overflow in kernel_ventry, which switched to the
+	 * overflow stack. Stash the exception regs, and head to our overflow
+	 * handler.
+	 */
+__bad_stack:
+	/* Restore the original x0 value */
+	mrs	x0, tpidrro_el0
+
+	/*
+	 * Store the original GPRs to the new stack. The orginal SP (minus
+	 * S_FRAME_SIZE) was stashed in tpidr_el0 by kernel_ventry.
+	 */
+	sub	sp, sp, #S_FRAME_SIZE
+	kernel_entry 1
+	mrs	x0, tpidr_el0
+	add	x0, x0, #S_FRAME_SIZE
+	str	x0, [sp, #S_SP]
+
+	/* Stash the regs for handle_bad_stack */
+	mov	x0, sp
+
+	/* Time to die */
+	bl	handle_bad_stack
+	ASM_BUG()
+#endif /* CONFIG_VMAP_STACK */
 
 /*
  * Invalid mode handlers

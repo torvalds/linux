@@ -133,6 +133,8 @@
 
 #define IRQ_STACK_SIZE		THREAD_SIZE
 
+#define OVERFLOW_STACK_SIZE	SZ_4K
+
 /*
  * Alignment of kernel segments (e.g. .text, .data).
  */

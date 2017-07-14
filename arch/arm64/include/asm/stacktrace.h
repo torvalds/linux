@@ -57,6 +57,20 @@ static inline bool on_task_stack(struct task_struct *tsk, unsigned long sp)
 	return (low <= sp && sp < high);
 }
 
+#ifdef CONFIG_VMAP_STACK
+DECLARE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack);
+
+static inline bool on_overflow_stack(unsigned long sp)
+{
+	unsigned long low = (unsigned long)raw_cpu_ptr(overflow_stack);
+	unsigned long high = low + OVERFLOW_STACK_SIZE;
+
+	return (low <= sp && sp < high);
+}
+#else
+static inline bool on_overflow_stack(unsigned long sp) { return false; }
+#endif
+
 /*
  * We can only safely access per-cpu stacks from current in a non-preemptible
  * context.
@@ -68,6 +82,8 @@ static inline bool on_accessible_stack(struct task_struct *tsk, unsigned long sp
 	if (tsk != current || preemptible())
 		return false;
 	if (on_irq_stack(sp))
+		return true;
+	if (on_overflow_stack(sp))
 		return true;
 
 	return false;
