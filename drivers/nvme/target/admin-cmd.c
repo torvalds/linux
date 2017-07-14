@@ -185,7 +185,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->ssvid = 0;
 
 	memset(id->sn, ' ', sizeof(id->sn));
-	snprintf(id->sn, sizeof(id->sn), "%llx", ctrl->serial);
+	snprintf(id->sn, sizeof(id->sn), "%llx", ctrl->subsys->serial);
 
 	memset(id->mn, ' ', sizeof(id->mn));
 	strncpy((char *)id->mn, "Linux", sizeof(id->mn));
