@@ -202,17 +202,6 @@ void __read_overflow2(void) __compiletime_error("detected read beyond size of ob
 void __write_overflow(void) __compiletime_error("detected write beyond size of object passed as 1st parameter");
 
 #if !defined(__NO_FORTIFY) && defined(__OPTIMIZE__) && defined(CONFIG_FORTIFY_SOURCE)
-__FORTIFY_INLINE char *strcpy(char *p, const char *q)
-{
-	size_t p_size = __builtin_object_size(p, 0);
-	size_t q_size = __builtin_object_size(q, 0);
-	if (p_size == (size_t)-1 && q_size == (size_t)-1)
-		return __builtin_strcpy(p, q);
-	if (strscpy(p, q, p_size < q_size ? p_size : q_size) < 0)
-		fortify_panic(__func__);
-	return p;
-}
-
 __FORTIFY_INLINE char *strncpy(char *p, const char *q, __kernel_size_t size)
 {
 	size_t p_size = __builtin_object_size(p, 0);
@@ -391,6 +380,18 @@ __FORTIFY_INLINE void *kmemdup(const void *p, size_t size, gfp_t gfp)
 		fortify_panic(__func__);
 	return __real_kmemdup(p, size, gfp);
 }
+
+/* defined after fortified strlen and memcpy to reuse them */
+__FORTIFY_INLINE char *strcpy(char *p, const char *q)
+{
+	size_t p_size = __builtin_object_size(p, 0);
+	size_t q_size = __builtin_object_size(q, 0);
+	if (p_size == (size_t)-1 && q_size == (size_t)-1)
+		return __builtin_strcpy(p, q);
+	memcpy(p, q, strlen(q) + 1);
+	return p;
+}
+
 #endif
 
 #endif /* _LINUX_STRING_H_ */
