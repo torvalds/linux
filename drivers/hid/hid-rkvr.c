@@ -850,15 +850,15 @@ static int rkvr_hid_read(struct rkvr_iio_hw_device *hdev, int reg, unsigned char
 	struct hid_device *hid = container_of(hdev->dev, struct hid_device, dev);
 	unsigned char report_number = reg;
 	unsigned char report_type = HID_REGR_REPORT;
-	char buf[1 + sizeof(data) * len];
-	int readlen = 1 + sizeof(data) * len;
+	char buf[1 + sizeof(*data) * len];
+	int readlen = 1 + sizeof(*data) * len;
 	int ret;
 
 	ret = hid_hw_raw_request(hid, report_number, (unsigned char *)buf, readlen, report_type, HID_REQ_GET_REPORT);
 	if (ret != readlen) {
 		hid_err(hid, "id_hw_raw_request fail\n");
 	} else {
-		memcpy(data, &buf[1], sizeof(data) * len);
+		memcpy(data, &buf[1], sizeof(*data) * len);
 	}
 
 	return 0;
