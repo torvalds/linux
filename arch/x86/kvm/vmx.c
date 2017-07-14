@@ -2422,12 +2422,23 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
  * KVM wants to inject page-faults which it got to the guest. This function
  * checks whether in a nested guest, we need to inject them to L1 or L2.
  */
-static int nested_vmx_check_exception(struct kvm_vcpu *vcpu, unsigned nr)
+static int nested_vmx_check_exception(struct kvm_vcpu *vcpu)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	unsigned int nr = vcpu->arch.exception.nr;
 
-	if (!(vmcs12->exception_bitmap & (1u << nr)))
+	if (!((vmcs12->exception_bitmap & (1u << nr)) ||
+		(nr == PF_VECTOR && vcpu->arch.exception.nested_apf)))
 		return 0;
+
+	if (vcpu->arch.exception.nested_apf) {
+		vmcs_write32(VM_EXIT_INTR_ERROR_CODE, vcpu->arch.exception.error_code);
+		nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
+			PF_VECTOR | INTR_TYPE_HARD_EXCEPTION |
+			INTR_INFO_DELIVER_CODE_MASK | INTR_INFO_VALID_MASK,
+			vcpu->arch.apf.nested_apf_token);
+		return 1;
+	}
 
 	nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
 			  vmcs_read32(VM_EXIT_INTR_INFO),
@@ -2445,7 +2456,7 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu)
 	u32 intr_info = nr | INTR_INFO_VALID_MASK;
 
 	if (!reinject && is_guest_mode(vcpu) &&
-	    nested_vmx_check_exception(vcpu, nr))
+	    nested_vmx_check_exception(vcpu))
 		return;
 
 	if (has_error_code) {

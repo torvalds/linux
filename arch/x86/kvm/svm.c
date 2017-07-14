@@ -2423,15 +2423,19 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 	if (!is_guest_mode(&svm->vcpu))
 		return 0;
 
+	vmexit = nested_svm_intercept(svm);
+	if (vmexit != NESTED_EXIT_DONE)
+		return 0;
+
 	svm->vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + nr;
 	svm->vmcb->control.exit_code_hi = 0;
 	svm->vmcb->control.exit_info_1 = error_code;
-	svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
+	if (svm->vcpu.arch.exception.nested_apf)
+		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.apf.nested_apf_token;
+	else
+		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
 
-	vmexit = nested_svm_intercept(svm);
-	if (vmexit == NESTED_EXIT_DONE)
-		svm->nested.exit_required = true;
-
+	svm->nested.exit_required = true;
 	return vmexit;
 }
 
@@ -2653,7 +2657,7 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 		}
 		/* async page fault always cause vmexit */
 		else if ((exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR) &&
-			 svm->vcpu.arch.apf.host_apf_reason != 0)
+			 svm->vcpu.arch.exception.nested_apf != 0)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
