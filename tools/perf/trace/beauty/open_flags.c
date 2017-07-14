@@ -14,13 +14,9 @@
 #define O_NOATIME	01000000
 #endif
 
-static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
-					       struct syscall_arg *arg)
+size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 {
-	int printed = 0, flags = arg->val;
-
-	if (!(flags & O_CREAT))
-		arg->mask |= 1 << (arg->idx + 1); /* Mask the mode parm */
+	int printed = 0;
 
 	if (flags == 0)
 		return scnprintf(bf, size, "RDONLY");
@@ -67,5 +63,16 @@ static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 
 	return printed;
 }
+
+static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size, struct syscall_arg *arg)
+{
+	int flags = arg->val;
+
+	if (!(flags & O_CREAT))
+		arg->mask |= 1 << (arg->idx + 1); /* Mask the mode parm */
+
+	return open__scnprintf_flags(flags, bf, size);
+}
+
 
 #define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags

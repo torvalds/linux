@@ -52,4 +52,6 @@ size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_
 size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STATX_MASK syscall_arg__scnprintf_statx_mask
 
+size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size);
+
 #endif /* _PERF_TRACE_BEAUTY_H */
