@@ -4584,12 +4584,6 @@ static int btrfs_cmp_device_info(const void *a, const void *b)
 	return 0;
 }
 
-static u32 find_raid56_stripe_len(u32 data_devices, u32 dev_stripe_target)
-{
-	/* TODO allow them to set a preferred stripe size */
-	return SZ_64K;
-}
-
 static void check_raid56_incompat_flag(struct btrfs_fs_info *info, u64 type)
 {
 	if (!(type & BTRFS_BLOCK_GROUP_RAID56_MASK))
@@ -4632,7 +4626,6 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	u64 max_chunk_size;
 	u64 stripe_size;
 	u64 num_bytes;
-	u64 raid_stripe_len = BTRFS_STRIPE_LEN;
 	int ndevs;
 	int i;
 	int j;
@@ -4767,16 +4760,11 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	 */
 	data_stripes = num_stripes / ncopies;
 
-	if (type & BTRFS_BLOCK_GROUP_RAID5) {
-		raid_stripe_len = find_raid56_stripe_len(ndevs - 1,
-							 info->stripesize);
+	if (type & BTRFS_BLOCK_GROUP_RAID5)
 		data_stripes = num_stripes - 1;
-	}
-	if (type & BTRFS_BLOCK_GROUP_RAID6) {
-		raid_stripe_len = find_raid56_stripe_len(ndevs - 2,
-							 info->stripesize);
+
+	if (type & BTRFS_BLOCK_GROUP_RAID6)
 		data_stripes = num_stripes - 2;
-	}
 
 	/*
 	 * Use the number of data stripes to figure out how big this chunk
@@ -4801,8 +4789,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	stripe_size = div_u64(stripe_size, dev_stripes);
 
 	/* align to BTRFS_STRIPE_LEN */
-	stripe_size = div64_u64(stripe_size, raid_stripe_len);
-	stripe_size *= raid_stripe_len;
+	stripe_size = round_down(stripe_size, BTRFS_STRIPE_LEN);
 
 	map = kmalloc(map_lookup_size(num_stripes), GFP_NOFS);
 	if (!map) {
@@ -4820,9 +4807,9 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		}
 	}
 	map->sector_size = info->sectorsize;
-	map->stripe_len = raid_stripe_len;
-	map->io_align = raid_stripe_len;
-	map->io_width = raid_stripe_len;
+	map->stripe_len = BTRFS_STRIPE_LEN;
+	map->io_align = BTRFS_STRIPE_LEN;
+	map->io_width = BTRFS_STRIPE_LEN;
 	map->type = type;
 	map->sub_stripes = sub_stripes;
 
