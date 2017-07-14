@@ -4098,9 +4098,12 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 	rt5665->lrck[dai->id] = params_rate(params);
 	pre_div = rl6231_get_clk_info(rt5665->sysclk, rt5665->lrck[dai->id]);
 	if (pre_div < 0) {
-		dev_err(codec->dev, "Unsupported clock setting %d for DAI %d\n",
-			rt5665->lrck[dai->id], dai->id);
-		return -EINVAL;
+		dev_warn(codec->dev, "Force using PLL");
+		snd_soc_codec_set_pll(codec, 0, RT5665_PLL1_S_MCLK,
+			rt5665->sysclk,	rt5665->lrck[dai->id] * 512);
+		snd_soc_codec_set_sysclk(codec, RT5665_SCLK_S_PLL1, 0,
+			rt5665->lrck[dai->id] * 512, 0);
+		pre_div = 1;
 	}
 	frame_size = snd_soc_params_to_frame_size(params);
 	if (frame_size < 0) {
