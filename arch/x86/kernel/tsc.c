@@ -812,13 +812,13 @@ unsigned long native_calibrate_cpu(void)
 	return tsc_pit_min;
 }
 
-int recalibrate_cpu_khz(void)
+void recalibrate_cpu_khz(void)
 {
 #ifndef CONFIG_SMP
 	unsigned long cpu_khz_old = cpu_khz;
 
 	if (!boot_cpu_has(X86_FEATURE_TSC))
-		return -ENODEV;
+		return;
 
 	cpu_khz = x86_platform.calibrate_cpu();
 	tsc_khz = x86_platform.calibrate_tsc();
@@ -828,10 +828,6 @@ int recalibrate_cpu_khz(void)
 		cpu_khz = tsc_khz;
 	cpu_data(0).loops_per_jiffy = cpufreq_scale(cpu_data(0).loops_per_jiffy,
 						    cpu_khz_old, cpu_khz);
-
-	return 0;
-#else
-	return -ENODEV;
 #endif
 }
 
