@@ -15,6 +15,9 @@ struct syscall_arg {
 	u8	      mask;
 };
 
+size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_STRARRAYS syscall_arg__scnprintf_strarrays
+
 size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STATX_FLAGS syscall_arg__scnprintf_statx_flags
 

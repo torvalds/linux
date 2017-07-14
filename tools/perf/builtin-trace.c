@@ -331,8 +331,8 @@ struct strarrays {
 	.entries = array, \
 }
 
-static size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
-					       struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
+					struct syscall_arg *arg)
 {
 	struct strarrays *sas = arg->parm;
 	int i;
@@ -350,8 +350,6 @@ static size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
 
 	return scnprintf(bf, size, "%d", arg->val);
 }
-
-#define SCA_STRARRAYS syscall_arg__scnprintf_strarrays
 
 #if defined(__i386__) || defined(__x86_64__)
 /*
