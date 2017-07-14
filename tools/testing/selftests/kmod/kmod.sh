@@ -59,28 +59,8 @@ ALL_TESTS="$ALL_TESTS 0004:1:1"
 ALL_TESTS="$ALL_TESTS 0005:10:1"
 ALL_TESTS="$ALL_TESTS 0006:10:1"
 ALL_TESTS="$ALL_TESTS 0007:5:1"
-
-# Disabled tests:
-#
-# 0008 x 150 -  multithreaded - push kmod_concurrent over max_modprobes for request_module()"
-# Current best-effort failure interpretation:
-# Enough module requests get loaded in place fast enough to reach over the
-# max_modprobes limit and trigger a failure -- before we're even able to
-# start processing pending requests.
-ALL_TESTS="$ALL_TESTS 0008:150:0"
-
-# 0009 x 150 - multithreaded - push kmod_concurrent over max_modprobes for get_fs_type()"
-# Current best-effort failure interpretation:
-#
-# get_fs_type() requests modules using aliases as such the optimization in
-# place today to look for already loaded modules will not take effect and
-# we end up requesting a new module to load, this bumps the kmod_concurrent,
-# and in certain circumstances can lead to pushing the kmod_concurrent over
-# the max_modprobe limit.
-#
-# This test fails much easier than test 0008 since the alias optimizations
-# are not in place.
-ALL_TESTS="$ALL_TESTS 0009:150:0"
+ALL_TESTS="$ALL_TESTS 0008:150:1"
+ALL_TESTS="$ALL_TESTS 0009:150:1"
 
 test_modprobe()
 {
