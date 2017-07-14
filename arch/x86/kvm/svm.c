@@ -194,7 +194,6 @@ struct vcpu_svm {
 
 	unsigned int3_injected;
 	unsigned long int3_rip;
-	u32 apf_reason;
 
 	/* cached guest cpuid flags for faster access */
 	bool nrips_enabled	: 1;
@@ -2122,34 +2121,11 @@ static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 static int pf_interception(struct vcpu_svm *svm)
 {
 	u64 fault_address = svm->vmcb->control.exit_info_2;
-	u64 error_code;
-	int r = 1;
+	u64 error_code = svm->vmcb->control.exit_info_1;
 
-	switch (svm->apf_reason) {
-	default:
-		error_code = svm->vmcb->control.exit_info_1;
-
-		trace_kvm_page_fault(fault_address, error_code);
-		if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
-			kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
-		r = kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code,
+	return kvm_handle_page_fault(&svm->vcpu, error_code, fault_address,
 			svm->vmcb->control.insn_bytes,
-			svm->vmcb->control.insn_len);
-		break;
-	case KVM_PV_REASON_PAGE_NOT_PRESENT:
-		svm->apf_reason = 0;
-		local_irq_disable();
-		kvm_async_pf_task_wait(fault_address);
-		local_irq_enable();
-		break;
-	case KVM_PV_REASON_PAGE_READY:
-		svm->apf_reason = 0;
-		local_irq_disable();
-		kvm_async_pf_task_wake(fault_address);
-		local_irq_enable();
-		break;
-	}
-	return r;
+			svm->vmcb->control.insn_len, !npt_enabled);
 }
 
 static int db_interception(struct vcpu_svm *svm)
@@ -2630,7 +2606,7 @@ static int nested_svm_exit_special(struct vcpu_svm *svm)
 		break;
 	case SVM_EXIT_EXCP_BASE + PF_VECTOR:
 		/* When we're shadowing, trap PFs, but not async PF */
-		if (!npt_enabled && svm->apf_reason == 0)
+		if (!npt_enabled && svm->vcpu.arch.apf.host_apf_reason == 0)
 			return NESTED_EXIT_HOST;
 		break;
 	default:
@@ -2677,7 +2653,7 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 		}
 		/* async page fault always cause vmexit */
 		else if ((exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR) &&
-			 svm->apf_reason != 0)
+			 svm->vcpu.arch.apf.host_apf_reason != 0)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
@@ -4998,7 +4974,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/* if exit due to PF check for async PF */
 	if (svm->vmcb->control.exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR)
-		svm->apf_reason = kvm_read_and_reset_pf_reason();
+		svm->vcpu.arch.apf.host_apf_reason = kvm_read_and_reset_pf_reason();
 
 	if (npt_enabled) {
 		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);

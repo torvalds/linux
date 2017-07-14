@@ -5698,14 +5698,11 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 	}
 
 	if (is_page_fault(intr_info)) {
-		/* EPT won't cause page fault directly */
-		BUG_ON(enable_ept);
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
-		trace_kvm_page_fault(cr2, error_code);
-
-		if (kvm_event_needs_reinjection(vcpu))
-			kvm_mmu_unprotect_page_virt(vcpu, cr2);
-		return kvm_mmu_page_fault(vcpu, cr2, error_code, NULL, 0);
+		/* EPT won't cause page fault directly */
+		WARN_ON_ONCE(!vcpu->arch.apf.host_apf_reason && enable_ept);
+		return kvm_handle_page_fault(vcpu, error_code, cr2, NULL, 0,
+				true);
 	}
 
 	ex_no = intr_info & INTR_INFO_VECTOR_MASK;
@@ -8642,6 +8639,10 @@ static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 	if (!(vmx->exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY))
 		exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	vmx->exit_intr_info = exit_intr_info;
+
+	/* if exit due to PF check for async PF */
+	if (is_page_fault(exit_intr_info))
+		vmx->vcpu.arch.apf.host_apf_reason = kvm_read_and_reset_pf_reason();
 
 	/* Handle machine checks before interrupts are enabled */
 	if (basic_exit_reason == EXIT_REASON_MCE_DURING_VMENTRY ||

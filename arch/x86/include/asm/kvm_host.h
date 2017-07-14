@@ -650,6 +650,7 @@ struct kvm_vcpu_arch {
 		u64 msr_val;
 		u32 id;
 		bool send_user_only;
+		u32 host_apf_reason;
 	} apf;
 
 	/* OSVW MSRs (AMD only) */

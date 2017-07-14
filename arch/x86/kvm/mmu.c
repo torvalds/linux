@@ -46,6 +46,7 @@
 #include <asm/io.h>
 #include <asm/vmx.h>
 #include <asm/kvm_page_track.h>
+#include "trace.h"
 
 /*
  * When setting this variable to true it enables Two-Dimensional-Paging
@@ -3779,6 +3780,38 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 	*pfn = __gfn_to_pfn_memslot(slot, gfn, false, NULL, write, writable);
 	return false;
 }
+
+int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
+				u64 fault_address, char *insn, int insn_len,
+				bool need_unprotect)
+{
+	int r = 1;
+
+	switch (vcpu->arch.apf.host_apf_reason) {
+	default:
+		trace_kvm_page_fault(fault_address, error_code);
+
+		if (need_unprotect && kvm_event_needs_reinjection(vcpu))
+			kvm_mmu_unprotect_page_virt(vcpu, fault_address);
+		r = kvm_mmu_page_fault(vcpu, fault_address, error_code, insn,
+				insn_len);
+		break;
+	case KVM_PV_REASON_PAGE_NOT_PRESENT:
+		vcpu->arch.apf.host_apf_reason = 0;
+		local_irq_disable();
+		kvm_async_pf_task_wait(fault_address);
+		local_irq_enable();
+		break;
+	case KVM_PV_REASON_PAGE_READY:
+		vcpu->arch.apf.host_apf_reason = 0;
+		local_irq_disable();
+		kvm_async_pf_task_wake(fault_address);
+		local_irq_enable();
+		break;
+	}
+	return r;
+}
+EXPORT_SYMBOL_GPL(kvm_handle_page_fault);
 
 static bool
 check_hugepage_cache_consistency(struct kvm_vcpu *vcpu, gfn_t gfn, int level)
