@@ -695,7 +695,7 @@
 &dsi {
 	status = "okay";
 
-	panel: panel@0 {
+	panel@0 {
 		compatible = "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
@@ -744,7 +744,6 @@
 
 &mipi_dphy {
 	status = "okay";
-	rockchip,dsi-panel = <&panel>;
 };
 
 &dwc_control_usb {

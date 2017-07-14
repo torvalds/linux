@@ -678,7 +678,7 @@
 &dsi {
 	status = "okay";
 
-	dsi_panel: panel@0 {
+	panel@0 {
 		compatible = "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
@@ -713,7 +713,6 @@
 };
 
 &mipi_dphy {
-	rockchip,dsi-panel = <&dsi_panel>;
 	status = "okay";
 };
 
