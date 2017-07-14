@@ -1026,7 +1026,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	/* check that server granted subset of flags we asked for. */
 	if ((ocd->ocd_connect_flags & imp->imp_connect_flags_orig) !=
 	    ocd->ocd_connect_flags) {
-		CERROR("%s: Server didn't granted asked subset of flags: asked=%#llx grranted=%#llx\n",
+		CERROR("%s: Server didn't grant the asked for subset of flags: asked=%#llx granted=%#llx\n",
 		       imp->imp_obd->obd_name, imp->imp_connect_flags_orig,
 		       ocd->ocd_connect_flags);
 		rc = -EPROTO;
