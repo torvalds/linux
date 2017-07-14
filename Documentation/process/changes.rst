@@ -309,18 +309,8 @@ Kernel documentation
 Sphinx
 ------
 
-The ReST markups currently used by the Documentation/ files are meant to be
-built with ``Sphinx`` version 1.3 or upper. If you're desiring to build
-PDF outputs, it is recommended to use version 1.4.6 or upper.
-
-.. note::
-
-  Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
-  version 3.14159265. Depending on the distribution, you may also need to
-  install a series of ``texlive`` packages that provide the minimal set of
-  functionalities required for ``XeLaTex`` to work. For PDF output you'll also
-  need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
-
+Please see :ref:`sphinx_install` in ``Documentation/doc-guide/sphinx.rst``
+for details about Sphinx requirements.
 
 Getting updated software
 ========================

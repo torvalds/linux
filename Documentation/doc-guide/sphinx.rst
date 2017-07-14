@@ -19,6 +19,23 @@ Finally, there are thousands of plain text documentation files scattered around
 ``Documentation``. Some of these will likely be converted to reStructuredText
 over time, but the bulk of them will remain in plain text.
 
+.. _sphinx_install:
+
+Sphinx Install
+==============
+
+The ReST markups currently used by the Documentation/ files are meant to be
+built with ``Sphinx`` version 1.3 or upper. If you're desiring to build
+PDF outputs, it is recommended to use version 1.4.6 or upper.
+
+.. note::
+
+  Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
+  version 3.14159265. Depending on the distribution, you may also need to
+  install a series of ``texlive`` packages that provide the minimal set of
+  functionalities required for ``XeLaTex`` to work. For PDF output you'll also
+  need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
+
 Sphinx Build
 ============
 
