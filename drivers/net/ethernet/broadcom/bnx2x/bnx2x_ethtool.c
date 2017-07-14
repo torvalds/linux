@@ -3162,7 +3162,8 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 		if (is_multi(bp)) {
 			for_each_eth_queue(bp, i) {
 				memset(queue_name, 0, sizeof(queue_name));
-				sprintf(queue_name, "%d", i);
+				snprintf(queue_name, sizeof(queue_name),
+					 "%d", i);
 				for (j = 0; j < BNX2X_NUM_Q_STATS; j++)
 					snprintf(buf + (k + j)*ETH_GSTRING_LEN,
 						ETH_GSTRING_LEN,
