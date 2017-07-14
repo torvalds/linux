@@ -23,18 +23,11 @@
 
 #include <linux/compiler.h>
 
-#ifdef CONFIG_ARM64_4K_PAGES
-#define THREAD_SIZE_ORDER	2
-#elif defined(CONFIG_ARM64_16K_PAGES)
-#define THREAD_SIZE_ORDER	0
-#endif
-
-#define THREAD_SIZE		16384
-
 #ifndef __ASSEMBLY__
 
 struct task_struct;
 
+#include <asm/memory.h>
 #include <asm/stack_pointer.h>
 #include <asm/types.h>
 
