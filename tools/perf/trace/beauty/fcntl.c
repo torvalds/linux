@@ -30,6 +30,10 @@ size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_ar
 		syscall_arg__set_ret_scnprintf(arg, syscall_arg__scnprintf_fcntl_getfd);
 		goto mask_arg;
 	}
+	if (arg->val == F_DUPFD_CLOEXEC || arg->val == F_DUPFD) {
+		syscall_arg__set_ret_scnprintf(arg, syscall_arg__scnprintf_fd);
+		goto out;
+	}
 	/*
 	 * Some commands ignore the third fcntl argument, "arg", so mask it
 	 */
@@ -38,7 +42,7 @@ size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_ar
 mask_arg:
 		arg->mask |= (1 << 2);
 	}
-
+out:
 	return syscall_arg__scnprintf_strarrays(bf, size, arg);
 }
 
