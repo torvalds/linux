@@ -2483,27 +2483,6 @@ static const struct file_operations fops = {
 };
 
 
-static struct i915_gem_context *
-lookup_context(struct drm_i915_private *dev_priv,
-	       struct drm_i915_file_private *file_priv,
-	       u32 ctx_user_handle)
-{
-	struct i915_gem_context *ctx;
-	int ret;
-
-	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ctx = i915_gem_context_lookup(file_priv, ctx_user_handle);
-	if (!IS_ERR(ctx))
-		i915_gem_context_get(ctx);
-
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	return ctx;
-}
-
 /**
  * i915_perf_open_ioctl_locked - DRM ioctl() for userspace to open a stream FD
  * @dev_priv: i915 device instance
@@ -2545,12 +2524,11 @@ i915_perf_open_ioctl_locked(struct drm_i915_private *dev_priv,
 		u32 ctx_handle = props->ctx_handle;
 		struct drm_i915_file_private *file_priv = file->driver_priv;
 
-		specific_ctx = lookup_context(dev_priv, file_priv, ctx_handle);
-		if (IS_ERR(specific_ctx)) {
-			ret = PTR_ERR(specific_ctx);
-			if (ret != -EINTR)
-				DRM_DEBUG("Failed to look up context with ID %u for opening perf stream\n",
-					  ctx_handle);
+		specific_ctx = i915_gem_context_lookup(file_priv, ctx_handle);
+		if (!specific_ctx) {
+			DRM_DEBUG("Failed to look up context with ID %u for opening perf stream\n",
+				  ctx_handle);
+			ret = -ENOENT;
 			goto err;
 		}
 	}
