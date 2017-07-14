@@ -136,7 +136,8 @@ use the boot option:
 
 o proc entries
 
-- /proc/self/task/<current-tid>/fail-nth:
+- /proc/<pid>/fail-nth:
+- /proc/self/task/<tid>/fail-nth:
 
 	Write to this file of integer N makes N-th call in the task fail.
 	Read from this file returns a integer value. A value of '0' indicates
