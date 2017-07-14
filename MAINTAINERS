@@ -2516,10 +2516,10 @@ S:	Supported
 F:	drivers/media/platform/sti/delta
 
 BEFS FILE SYSTEM
-M:	Luis de Bethencourt <luisbg@osg.samsung.com>
+M:	Luis de Bethencourt <luisbg@kernel.org>
 M:	Salah Triki <salah.triki@gmail.com>
 S:	Maintained
-T:	git git://github.com/luisbg/linux-befs.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/luisbg/linux-befs.git
 F:	Documentation/filesystems/befs.txt
 F:	fs/befs/
 
