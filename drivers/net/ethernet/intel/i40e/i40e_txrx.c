@@ -2369,7 +2369,6 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
-		const cpumask_t *aff_mask = &q_vector->affinity_mask;
 		int cpu_id = smp_processor_id();
 
 		/* It is possible that the interrupt affinity has changed but,
@@ -2379,15 +2378,22 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 		 * continue to poll, otherwise we must stop polling so the
 		 * interrupt can move to the correct cpu.
 		 */
-		if (likely(cpumask_test_cpu(cpu_id, aff_mask) ||
-			   !(vsi->back->flags & I40E_FLAG_MSIX_ENABLED))) {
-tx_only:
-			if (arm_wb) {
-				q_vector->tx.ring[0].tx_stats.tx_force_wb++;
-				i40e_enable_wb_on_itr(vsi, q_vector);
-			}
-			return budget;
+		if (!cpumask_test_cpu(cpu_id, &q_vector->affinity_mask)) {
+			/* Tell napi that we are done polling */
+			napi_complete_done(napi, work_done);
+
+			/* Force an interrupt */
+			i40e_force_wb(vsi, q_vector);
+
+			/* Return budget-1 so that polling stops */
+			return budget - 1;
 		}
+tx_only:
+		if (arm_wb) {
+			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
+			i40e_enable_wb_on_itr(vsi, q_vector);
+		}
+		return budget;
 	}
 
 	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
@@ -2396,14 +2402,7 @@ tx_only:
 	/* Work is done so exit the polling mode and re-enable the interrupt */
 	napi_complete_done(napi, work_done);
 
-	/* If we're prematurely stopping polling to fix the interrupt
-	 * affinity we want to make sure polling starts back up so we
-	 * issue a call to i40e_force_wb which triggers a SW interrupt.
-	 */
-	if (!clean_complete)
-		i40e_force_wb(vsi, q_vector);
-	else
-		i40e_update_enable_itr(vsi, q_vector);
+	i40e_update_enable_itr(vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }
