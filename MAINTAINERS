@@ -9381,6 +9381,12 @@ F:	include/linux/ntb.h
 F:	include/linux/ntb_transport.h
 F:	tools/testing/selftests/ntb/
 
+NTB IDT DRIVER
+M:	Serge Semin <fancer.lancer@gmail.com>
+L:	linux-ntb@googlegroups.com
+S:	Supported
+F:	drivers/ntb/hw/idt/
+
 NTB INTEL DRIVER
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
