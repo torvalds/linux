@@ -4338,3 +4338,12 @@ This capability enables a newer version of Hyper-V Synthetic interrupt
 controller (SynIC).  The only difference with KVM_CAP_HYPERV_SYNIC is that KVM
 doesn't clear SynIC message and event flags pages when they are enabled by
 writing to the respective MSRs.
+
+8.12 KVM_CAP_HYPERV_VP_INDEX
+
+Architectures: x86
+
+This capability indicates that userspace can load HV_X64_MSR_VP_INDEX msr.  Its
+value is used to denote the target vcpu for a SynIC interrupt.  For
+compatibilty, KVM initializes this msr to KVM's internal vcpu index.  When this
+capability is absent, userspace can still query this msr's value.

@@ -928,6 +928,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_PPC_FWNMI 146
 #define KVM_CAP_PPC_SMT_POSSIBLE 147
 #define KVM_CAP_HYPERV_SYNIC2 148
+#define KVM_CAP_HYPERV_VP_INDEX 149
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
