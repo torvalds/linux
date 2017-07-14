@@ -893,11 +893,22 @@
 	iep: iep@ff900000 {
 		compatible = "rockchip,iep";
 		iommu_enabled = <1>;
+		iommus = <&iep_mmu>;
 		reg = <0x0 0xff900000 0x0 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk_iep", "hclk_iep";
+		allocator = <1>;
 		version = <2>;
+		status = "disabled";
+	};
+
+	iep_mmu: iommu@ff900800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff900800 0x0 0x100>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+		#iommu-cells = <0>;
 		status = "disabled";
 	};
 
@@ -1015,6 +1026,7 @@
 		compatible = "rockchip,vpu_service";
 		rockchip,grf = <&grf>;
 		iommu_enabled = <1>;
+		iommus = <&vpu_mmu>;
 		reg = <0x0 0xff9a0000 0x0 0x800>;
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
@@ -1025,12 +1037,26 @@
 		reset-names = "video_h", "video_a";
 		name = "vpu_service";
 		dev_mode = <0>;
+		/* 0 means ion, 1 means drm */
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	vpu_mmu: iommu@ff9a0800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff9a0800 0x0 0x100>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
 		status = "disabled";
 	};
 
 	rkvdec: rkvdec@ff9b0000 {
 		compatible = "rockchip,rkvdec";
 		rockchip,grf = <&grf>;
+		iommus = <&vdec_mmu>;
 		iommu_enabled = <1>;
 		reg = <0x0 0xff9b0000 0x0 0x400>;
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
@@ -1041,6 +1067,20 @@
 		reset-names = "video_h", "video_a";
 		dev_mode = <2>;
 		name = "rkvdec";
+		/* 0 means ion, 1 means drm */
+		allocator = <1>;
+		status = "disabled";
+	};
+
+	vdec_mmu: iommu@ff9b0480 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff9b0480 0x0 0x40>,
+			<0x0 0xff9b04c0 0x0 0x40>;
+		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vdec_mmu";
+		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
 		status = "disabled";
 	};
 

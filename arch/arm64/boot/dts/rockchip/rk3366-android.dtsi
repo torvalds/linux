@@ -83,10 +83,34 @@
 	};
 };
 
+&iep_mmu {
+	status = "okay";
+};
+
+&iep {
+	status = "okay";
+};
+
+&rkvdec {
+	status = "okay";
+};
+
+&vdec_mmu {
+	status = "okay";
+};
+
 &vopb_mmu {
 	status = "okay";
 };
 
 &vopb {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
+&vpu {
 	status = "okay";
 };
