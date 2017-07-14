@@ -211,6 +211,30 @@ function create_bond {
 
 	echo $'\nBond name:' $bondname
 
+	if [ $distro == ubuntu ]
+	then
+		local mainfn=$cfgdir/interfaces
+		local s="^[ \t]*(auto|iface|mapping|allow-.*)[ \t]+${bondname}"
+
+		grep -E "$s" $mainfn
+		if [ $? -eq 0 ]
+		then
+			echo "WARNING: ${bondname} has been configured already"
+			return
+		fi
+	elif [ $distro == redhat ] || [ $distro == suse ]
+	then
+		local fn=$cfgdir/ifcfg-$bondname
+		if [ -f $fn ]
+		then
+			echo "WARNING: ${bondname} has been configured already"
+			return
+		fi
+	else
+		echo "Unsupported Distro: ${distro}"
+		return
+	fi
+
 	echo configuring $primary
 	create_eth_cfg_pri_$distro $primary $bondname
 
@@ -219,8 +243,6 @@ function create_bond {
 
 	echo creating: $bondname with primary slave: $primary
 	create_bond_cfg_$distro $bondname $primary $secondary
-
-	let bondcnt=bondcnt+1
 }
 
 for (( i=0; i < $eth_cnt-1; i++ ))
@@ -228,5 +250,6 @@ do
         if [ -n "${list_match[$i]}" ]
         then
 		create_bond ${list_eth[$i]} ${list_match[$i]}
+		let bondcnt=bondcnt+1
         fi
 done
