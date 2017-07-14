@@ -43,6 +43,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include "rk3288-dram-default-timing.dtsi"
+#include <dt-bindings/display/media-bus-format.h>
 
 / {
 	chosen {
@@ -213,6 +214,15 @@
 				logo,mode = "center";
 				charge_logo,mode = "center";
 				connect = <&vopb_out_dsi0>;
+			};
+
+			route_lvds: route-lvds {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vopb_out_lvds>;
 			};
 		};
 	};

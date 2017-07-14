@@ -59,6 +59,16 @@
 		};
 	};
 
+	lvds_panel: lvds-panel {
+		status = "disabled";
+		pinctrl-0 = <&lcd_cs>;
+		ports {
+			panel_in_lvds: endpoint {
+				remote-endpoint = <&lvds_out_panel>;
+			};
+		};
+	};
+
 	sound: sound {
 		status = "disabled";
 		compatible = "simple-audio-card";
@@ -96,13 +106,6 @@
 				sound-dai = <&hdmi>;
 			};
 		};
-	};
-
-	lvds_panel: lvds_panel {
-		compatible ="auo,b101ew05","simple-panel";
-		enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&lcd_cs>;
-		status = "disabled";
 	};
 
 	ext_gmac: external-gmac-clock {
@@ -414,11 +417,19 @@
 };
 
 &lvds {
-	rockchip,data-mapping = "jeida";
-	rockchip,data-width = <24>;
-	rockchip,output = "lvds";
-	rockchip,panel = <&lvds_panel>;
 	status = "disabled";
+	ports {
+		lvds_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lvds_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_lvds>;
+			};
+		};
+	};
 };
 
 &vopb {
