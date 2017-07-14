@@ -939,9 +939,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			vopb_out_mipi: endpoint@0 {
+			vopb_out_dsi: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&mipi_in_vopb>;
+				remote-endpoint = <&dsi_in_vopb>;
 			};
 
 			vopb_out_lvds: endpoint@1 {
@@ -959,7 +959,7 @@
 		clock-names = "pclk";
 		resets = <&cru SRST_MIPIDSI0>;
 		reset-names = "apb";
-		phys = <&video_phy>;
+		phys = <&mipi_dphy>;
 		phy-names = "mipi_dphy";
 		//power-domains = <&power RK3366_PD_VIO>;
 		rockchip,grf = <&grf>;
@@ -972,15 +972,15 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				mipi_in_vopb: endpoint@0 {
+				dsi_in_vopb: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vopb_out_mipi>;
+					remote-endpoint = <&vopb_out_dsi>;
 				};
 			};
 		};
 	};
 
-	video_phy: video-phy@ff968000 {
+	mipi_dphy: mipi-dphy@ff968000 {
 		compatible = "rockchip,rk3366-mipi-dphy";
 		reg = <0x0 0xff968000 0x0 0x4000>;
 		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX>;

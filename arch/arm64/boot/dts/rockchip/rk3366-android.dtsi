@@ -39,8 +39,6 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <dt-bindings/display/drm_mipi_dsi.h>
-#include <dt-bindings/display/media-bus-format.h>
 
 / {
 	compatible = "rockchip,android", "rockchip,rk3366";
@@ -63,12 +61,12 @@
 	memory-region = <&drm_logo>;
 
 	route {
-		route_mipi: route-mipi {
+		route_dsi: route-dsi {
 			logo,uboot = "logo.bmp";
 			logo,kernel = "logo_kernel.bmp";
 			logo,mode = "center";
 			charge_logo,mode = "center";
-			connect = <&vopb_out_mipi>;
+			connect = <&vopb_out_dsi>;
 			status = "disabled";
 		};
 

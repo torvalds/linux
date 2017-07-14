@@ -738,11 +738,11 @@
 	status = "okay";
 };
 
-&route_mipi {
+&route_dsi {
 	status = "okay";
 };
 
-&video_phy {
+&mipi_dphy {
 	status = "okay";
 	rockchip,dsi-panel = <&panel>;
 };
