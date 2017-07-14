@@ -167,7 +167,7 @@ Here are some specific guidelines for the kernel documentation:
 the C domain
 ------------
 
-The `Sphinx C Domain`_ (name c) is suited for documentation of C API. E.g. a
+The **Sphinx C Domain** (name c) is suited for documentation of C API. E.g. a
 function prototype:
 
 .. code-block:: rst
