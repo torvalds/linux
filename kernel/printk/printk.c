@@ -2659,8 +2659,16 @@ static int __init printk_late_init(void)
 	int ret;
 
 	for_each_console(con) {
-		if ((con->flags & CON_BOOT) &&
-		    init_section_intersects(con, sizeof(*con))) {
+		if (!(con->flags & CON_BOOT))
+			continue;
+
+		/* Check addresses that might be used for enabled consoles. */
+		if (init_section_intersects(con, sizeof(*con)) ||
+		    init_section_contains(con->write, 0) ||
+		    init_section_contains(con->read, 0) ||
+		    init_section_contains(con->device, 0) ||
+		    init_section_contains(con->unblank, 0) ||
+		    init_section_contains(con->data, 0)) {
 			/*
 			 * Please, consider moving the reported consoles out
 			 * of the init section.
