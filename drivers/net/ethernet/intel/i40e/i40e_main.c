@@ -2874,22 +2874,15 @@ static void i40e_vsi_free_rx_resources(struct i40e_vsi *vsi)
 static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 {
 	struct i40e_vsi *vsi = ring->vsi;
-	cpumask_var_t mask;
 
 	if (!ring->q_vector || !ring->netdev)
 		return;
 
-	/* Single TC mode enable XPS */
-	if (vsi->tc_config.numtc <= 1) {
-		if (!test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state))
-			netif_set_xps_queue(ring->netdev,
-					    &ring->q_vector->affinity_mask,
-					    ring->queue_index);
-	} else if (alloc_cpumask_var(&mask, GFP_KERNEL)) {
-		/* Disable XPS to allow selection based on TC */
-		bitmap_zero(cpumask_bits(mask), nr_cpumask_bits);
-		netif_set_xps_queue(ring->netdev, mask, ring->queue_index);
-		free_cpumask_var(mask);
+	if ((vsi->tc_config.numtc <= 1) &&
+	    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state)) {
+		netif_set_xps_queue(ring->netdev,
+				    &ring->q_vector->affinity_mask,
+				    ring->queue_index);
 	}
 
 	/* schedule our worker thread which will take care of
