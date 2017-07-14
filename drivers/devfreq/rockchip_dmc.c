@@ -661,8 +661,8 @@ static int rk3288_dmc_init(struct platform_device *pdev,
 	dmc_clk = devm_clk_get(dev, "dmc_clk");
 	if (IS_ERR(dmc_clk)) {
 		dev_err(dev, "Cannot get the clk dmc_clk\n");
-		return PTR_ERR(pclk_phy);
-	};
+		return PTR_ERR(dmc_clk);
+	}
 	ret = clk_prepare_enable(dmc_clk);
 	if (ret < 0) {
 		dev_err(dev, "failed to prepare/enable dmc_clk\n");
@@ -673,17 +673,17 @@ static int rk3288_dmc_init(struct platform_device *pdev,
 	if (IS_ERR(pclk_phy)) {
 		dev_err(dev, "Cannot get the clk pclk_phy0\n");
 		return PTR_ERR(pclk_phy);
-	};
+	}
 	ret = clk_prepare_enable(pclk_phy);
 	if (ret < 0) {
 		dev_err(dev, "failed to prepare/enable pclk_phy0\n");
 		return ret;
 	}
 	pclk_upctl = devm_clk_get(dev, "pclk_upctl0");
-	if (IS_ERR(pclk_phy)) {
+	if (IS_ERR(pclk_upctl)) {
 		dev_err(dev, "Cannot get the clk pclk_upctl0\n");
 		return PTR_ERR(pclk_upctl);
-	};
+	}
 	ret = clk_prepare_enable(pclk_upctl);
 	if (ret < 0) {
 		dev_err(dev, "failed to prepare/enable pclk_upctl1\n");
@@ -694,17 +694,17 @@ static int rk3288_dmc_init(struct platform_device *pdev,
 	if (IS_ERR(pclk_phy)) {
 		dev_err(dev, "Cannot get the clk pclk_phy1\n");
 		return PTR_ERR(pclk_phy);
-	};
+	}
 	ret = clk_prepare_enable(pclk_phy);
 	if (ret < 0) {
 		dev_err(dev, "failed to prepare/enable pclk_phy1\n");
 		return ret;
 	}
 	pclk_upctl = devm_clk_get(dev, "pclk_upctl1");
-	if (IS_ERR(pclk_phy)) {
+	if (IS_ERR(pclk_upctl)) {
 		dev_err(dev, "Cannot get the clk pclk_upctl1\n");
 		return PTR_ERR(pclk_upctl);
-	};
+	}
 	ret = clk_prepare_enable(pclk_upctl);
 	if (ret < 0) {
 		dev_err(dev, "failed to prepare/enable pclk_upctl1\n");
@@ -763,17 +763,17 @@ static int rk3368_dmc_init(struct platform_device *pdev,
 	if (IS_ERR(pclk_phy)) {
 		dev_err(dev, "Cannot get the clk pclk_phy\n");
 		return PTR_ERR(pclk_phy);
-	};
+	}
 	ret = clk_prepare_enable(pclk_phy);
 	if (ret < 0) {
 		dev_err(dev, "failed to prepare/enable pclk_phy\n");
 		return ret;
 	}
 	pclk_upctl = devm_clk_get(dev, "pclk_upctl");
-	if (IS_ERR(pclk_phy)) {
+	if (IS_ERR(pclk_upctl)) {
 		dev_err(dev, "Cannot get the clk pclk_upctl\n");
 		return PTR_ERR(pclk_upctl);
-	};
+	}
 	ret = clk_prepare_enable(pclk_upctl);
 	if (ret < 0) {
 		dev_err(dev, "failed to prepare/enable pclk_upctl\n");
@@ -1019,7 +1019,7 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 			break;
 		default:
 			break;
-		};
+		}
 	}
 
 	return 0;
@@ -1394,7 +1394,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	if (IS_ERR(data->dmc_clk)) {
 		dev_err(dev, "Cannot get the clk dmc_clk\n");
 		return PTR_ERR(data->dmc_clk);
-	};
+	}
 
 	data->edev = devfreq_event_get_edev_by_phandle(dev, 0);
 	if (IS_ERR(data->edev))
