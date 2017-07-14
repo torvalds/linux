@@ -43,6 +43,9 @@ size_t syscall_arg__scnprintf_int(char *bf, size_t size, struct syscall_arg *arg
 size_t syscall_arg__scnprintf_long(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_LONG syscall_arg__scnprintf_long
 
+size_t syscall_arg__scnprintf_pid(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_PID syscall_arg__scnprintf_pid
+
 size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_FCNTL_CMD syscall_arg__scnprintf_fcntl_cmd
 
