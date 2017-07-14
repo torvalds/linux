@@ -66,6 +66,7 @@ static int psp_sw_init(void *handle)
 		psp->init_microcode = psp_v10_0_init_microcode;
 		psp->prep_cmd_buf = psp_v10_0_prep_cmd_buf;
 		psp->ring_init = psp_v10_0_ring_init;
+		psp->ring_create = psp_v10_0_ring_create;
 		psp->cmd_submit = psp_v10_0_cmd_submit;
 		psp->compare_sram_data = psp_v10_0_compare_sram_data;
 		break;
