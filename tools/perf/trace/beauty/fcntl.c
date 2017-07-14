@@ -32,6 +32,8 @@ size_t syscall_arg__scnprintf_fcntl_arg(char *bf, size_t size, struct syscall_ar
 {
 	int cmd = syscall_arg__val(arg, 1);
 
+	if (cmd == F_SETFL)
+		return open__scnprintf_flags(arg->val, bf, size);
 	/*
 	 * We still don't grab the contents of pointers on entry or exit,
 	 * so just print them as hex numbers
