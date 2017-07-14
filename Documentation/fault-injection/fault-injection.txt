@@ -139,9 +139,9 @@ o proc entries
 - /proc/self/task/<current-tid>/fail-nth:
 
 	Write to this file of integer N makes N-th call in the task fail.
-	Read from this file returns a single char 'Y' or 'N'
-	that says if the fault setup with a previous write to this file was
-	injected or not, and disables the fault if it wasn't yet injected.
+	Read from this file returns a integer value. A value of '0' indicates
+	that the fault setup with a previous write to this file was injected.
+	A positive integer N indicates that the fault wasn't yet injected.
 	Note that this file enables all types of faults (slab, futex, etc).
 	This setting takes precedence over all other generic debugfs settings
 	like probability, interval, times, etc. But per-capability settings
@@ -325,13 +325,14 @@ int main()
 		write(fail_nth, buf, strlen(buf));
 		res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
 		err = errno;
-		read(fail_nth, buf, 1);
+		pread(fail_nth, buf, sizeof(buf), 0);
 		if (res == 0) {
 			close(fds[0]);
 			close(fds[1]);
 		}
-		printf("%d-th fault %c: res=%d/%d\n", i, buf[0], res, err);
-		if (buf[0] != 'Y')
+		printf("%d-th fault %c: res=%d/%d\n", i, atoi(buf) ? 'N' : 'Y',
+			res, err);
+		if (atoi(buf))
 			break;
 	}
 	return 0;

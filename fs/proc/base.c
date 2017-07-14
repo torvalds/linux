@@ -1380,7 +1380,8 @@ static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *ppos)
 {
 	struct task_struct *task;
-	int err;
+	char numbuf[PROC_NUMBUF];
+	ssize_t len;
 
 	task = get_proc_task(file_inode(file));
 	if (!task)
@@ -1388,13 +1389,10 @@ static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
 	put_task_struct(task);
 	if (task != current)
 		return -EPERM;
-	if (count < 1)
-		return -EINVAL;
-	err = put_user((char)(current->fail_nth ? 'N' : 'Y'), buf);
-	if (err)
-		return err;
-	current->fail_nth = 0;
-	return 1;
+	len = snprintf(numbuf, sizeof(numbuf), "%u\n", task->fail_nth);
+	len = simple_read_from_buffer(buf, count, ppos, numbuf, len);
+
+	return len;
 }
 
 static const struct file_operations proc_fail_nth_operations = {
