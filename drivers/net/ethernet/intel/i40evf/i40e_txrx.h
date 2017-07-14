@@ -425,7 +425,6 @@ enum i40e_latency_range {
 	I40E_LOWEST_LATENCY = 0,
 	I40E_LOW_LATENCY = 1,
 	I40E_BULK_LATENCY = 2,
-	I40E_ULTRA_LATENCY = 3,
 };
 
 struct i40e_ring_container {
