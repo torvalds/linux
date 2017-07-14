@@ -650,7 +650,7 @@ out_unlock:
 
 CONFIGFS_ATTR(nvmet_subsys_, attr_allow_any_host);
 
-static ssize_t nvmet_subsys_version_show(struct config_item *item,
+static ssize_t nvmet_subsys_attr_version_show(struct config_item *item,
 					      char *page)
 {
 	struct nvmet_subsys *subsys = to_subsys(item);
@@ -666,7 +666,7 @@ static ssize_t nvmet_subsys_version_show(struct config_item *item,
 				(int)NVME_MINOR(subsys->ver));
 }
 
-static ssize_t nvmet_subsys_version_store(struct config_item *item,
+static ssize_t nvmet_subsys_attr_version_store(struct config_item *item,
 					       const char *page, size_t count)
 {
 	struct nvmet_subsys *subsys = to_subsys(item);
@@ -684,11 +684,11 @@ static ssize_t nvmet_subsys_version_store(struct config_item *item,
 
 	return count;
 }
-CONFIGFS_ATTR(nvmet_subsys_, version);
+CONFIGFS_ATTR(nvmet_subsys_, attr_version);
 
 static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_allow_any_host,
-	&nvmet_subsys_attr_version,
+	&nvmet_subsys_attr_attr_version,
 	NULL,
 };
 
