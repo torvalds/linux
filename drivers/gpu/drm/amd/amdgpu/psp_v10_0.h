@@ -34,6 +34,8 @@ extern int psp_v10_0_ring_init(struct psp_context *psp,
 			      enum psp_ring_type ring_type);
 extern int psp_v10_0_ring_create(struct psp_context *psp,
 				 enum psp_ring_type ring_type);
+extern int psp_v10_0_ring_destroy(struct psp_context *psp,
+				  enum psp_ring_type ring_type);
 extern int psp_v10_0_cmd_submit(struct psp_context *psp,
 			       struct amdgpu_firmware_info *ucode,
 			       uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
