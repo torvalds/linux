@@ -143,6 +143,17 @@ struct drm_hdmi_info {
 	 * upto 128 VICs;
 	 */
 	unsigned long y420_vdb_modes[BITS_TO_LONGS(128)];
+
+	/**
+	 * @y420_cmdb_modes: bitmap of modes which can support ycbcr420
+	 * output also, along with normal HDMI outputs. There are total 107
+	 * VICs defined by CEA-861-F spec, so the size is 128 bits to map upto
+	 * 128 VICs;
+	 */
+	unsigned long y420_cmdb_modes[BITS_TO_LONGS(128)];
+
+	/** @y420_cmdb_map: bitmap of SVD index, to extraxt vcb modes */
+	u64 y420_cmdb_map;
 };
 
 /**
@@ -206,6 +217,7 @@ struct drm_display_info {
 #define DRM_COLOR_FORMAT_RGB444		(1<<0)
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
+#define DRM_COLOR_FORMAT_YCRCB420	(1<<3)
 
 	/**
 	 * @color_formats: HDMI Color formats, selects between RGB and YCrCb
