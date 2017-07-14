@@ -68,6 +68,18 @@ the virtual environment before building the documentation.
   functionalities required for ``XeLaTex`` to work. For PDF output you'll also
   need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
 
+Image output
+------------
+
+The kernel documentation build system contains an extension that
+handles images on both GraphViz and SVG formats (see
+:ref:`sphinx_kfigure`).
+
+For it to work, you need to install both GraphViz and ImageMagick
+packages. If those packages are not installed, the build system will
+still build the documentation, but won't include any images at the
+output.
+
 Sphinx Build
 ============
 
@@ -278,6 +290,7 @@ Rendered as:
 
         - column 3
 
+.. _sphinx_kfigure:
 
 Figures & Images
 ================
