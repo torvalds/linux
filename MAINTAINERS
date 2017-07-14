@@ -7560,6 +7560,8 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	kernel/kmod.c
 F:	include/linux/kmod.h
+F:	lib/test_kmod.c
+F:	tools/testing/selftests/kmod/
 
 KPROBES
 M:	Ananth N Mavinakayanahalli <ananth@linux.vnet.ibm.com>
