@@ -801,11 +801,12 @@ static void dasd_profile_end(struct dasd_block *block,
 			     struct dasd_ccw_req *cqr,
 			     struct request *req)
 {
-	long strtime, irqtime, endtime, tottime;	/* in microseconds */
-	long tottimeps, sectors;
+	unsigned long strtime, irqtime, endtime, tottime;
+	unsigned long tottimeps, sectors;
 	struct dasd_device *device;
 	int sectors_ind, tottime_ind, tottimeps_ind, strtime_ind;
 	int irqtime_ind, irqtimeps_ind, endtime_ind;
+	struct dasd_profile_info *data;
 
 	device = cqr->startdev;
 	if (!(dasd_global_profile_level ||
@@ -835,6 +836,11 @@ static void dasd_profile_end(struct dasd_block *block,
 
 	spin_lock(&dasd_global_profile.lock);
 	if (dasd_global_profile.data) {
+		data = dasd_global_profile.data;
+		data->dasd_sum_times += tottime;
+		data->dasd_sum_time_str += strtime;
+		data->dasd_sum_time_irq += irqtime;
+		data->dasd_sum_time_end += endtime;
 		dasd_profile_end_add_data(dasd_global_profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
@@ -847,7 +853,12 @@ static void dasd_profile_end(struct dasd_block *block,
 	spin_unlock(&dasd_global_profile.lock);
 
 	spin_lock(&block->profile.lock);
-	if (block->profile.data)
+	if (block->profile.data) {
+		data = block->profile.data;
+		data->dasd_sum_times += tottime;
+		data->dasd_sum_time_str += strtime;
+		data->dasd_sum_time_irq += irqtime;
+		data->dasd_sum_time_end += endtime;
 		dasd_profile_end_add_data(block->profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
@@ -856,10 +867,16 @@ static void dasd_profile_end(struct dasd_block *block,
 					  tottimeps_ind, strtime_ind,
 					  irqtime_ind, irqtimeps_ind,
 					  endtime_ind);
+	}
 	spin_unlock(&block->profile.lock);
 
 	spin_lock(&device->profile.lock);
-	if (device->profile.data)
+	if (device->profile.data) {
+		data = device->profile.data;
+		data->dasd_sum_times += tottime;
+		data->dasd_sum_time_str += strtime;
+		data->dasd_sum_time_irq += irqtime;
+		data->dasd_sum_time_end += endtime;
 		dasd_profile_end_add_data(device->profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
@@ -868,6 +885,7 @@ static void dasd_profile_end(struct dasd_block *block,
 					  tottimeps_ind, strtime_ind,
 					  irqtime_ind, irqtimeps_ind,
 					  endtime_ind);
+	}
 	spin_unlock(&device->profile.lock);
 }
 
@@ -989,6 +1007,14 @@ static void dasd_stats_seq_print(struct seq_file *m,
 	seq_printf(m, "total_sectors %u\n", data->dasd_io_sects);
 	seq_printf(m, "total_pav %u\n", data->dasd_io_alias);
 	seq_printf(m, "total_hpf %u\n", data->dasd_io_tpm);
+	seq_printf(m, "avg_total %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_times / data->dasd_io_reqs : 0UL);
+	seq_printf(m, "avg_build_to_ssch %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_time_str / data->dasd_io_reqs : 0UL);
+	seq_printf(m, "avg_ssch_to_irq %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_time_irq / data->dasd_io_reqs : 0UL);
+	seq_printf(m, "avg_irq_to_end %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_time_end / data->dasd_io_reqs : 0UL);
 	seq_puts(m, "histogram_sectors ");
 	dasd_stats_array(m, data->dasd_io_secs);
 	seq_puts(m, "histogram_io_times ");

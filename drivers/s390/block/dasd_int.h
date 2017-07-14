@@ -454,6 +454,10 @@ struct dasd_profile_info {
 	unsigned int dasd_read_time2[32];  /* hist. of time from start to irq */
 	unsigned int dasd_read_time3[32];  /* hist. of time from irq to end */
 	unsigned int dasd_read_nr_req[32]; /* hist. of # of requests in chanq */
+	unsigned long dasd_sum_times;	   /* sum of request times */
+	unsigned long dasd_sum_time_str;   /* sum of time from build to start */
+	unsigned long dasd_sum_time_irq;   /* sum of time from start to irq */
+	unsigned long dasd_sum_time_end;   /* sum of time from irq to end */
 };
 
 struct dasd_profile {
