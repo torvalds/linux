@@ -970,7 +970,7 @@ struct MPT3SAS_ADAPTER {
 	u8		id;
 	int		cpu_count;
 	char		name[MPT_NAME_LENGTH];
-	char		driver_name[MPT_NAME_LENGTH];
+	char		driver_name[MPT_NAME_LENGTH - 8];
 	char		tmp_string[MPT_STRING_LENGTH];
 	struct pci_dev	*pdev;
 	Mpi2SystemInterfaceRegs_t __iomem *chip;
