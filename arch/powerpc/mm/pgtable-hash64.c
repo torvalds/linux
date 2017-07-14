@@ -460,4 +460,16 @@ void hash__mark_rodata_ro(void)
 
 	WARN_ON(!hash__change_memory_range(start, end, PP_RXXX));
 }
+
+void hash__mark_initmem_nx(void)
+{
+	unsigned long start, end, pp;
+
+	start = (unsigned long)__init_begin;
+	end = (unsigned long)__init_end;
+
+	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL));
+
+	WARN_ON(!hash__change_memory_range(start, end, pp));
+}
 #endif

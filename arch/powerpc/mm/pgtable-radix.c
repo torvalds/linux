@@ -162,6 +162,14 @@ void radix__mark_rodata_ro(void)
 
 	radix__change_memory_range(start, end, _PAGE_WRITE);
 }
+
+void radix__mark_initmem_nx(void)
+{
+	unsigned long start = (unsigned long)__init_begin;
+	unsigned long end = (unsigned long)__init_end;
+
+	radix__change_memory_range(start, end, _PAGE_EXEC);
+}
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
 static inline void __meminit print_mapping(unsigned long start,
