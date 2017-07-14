@@ -112,7 +112,8 @@ struct bbr {
 		cwnd_gain:10,	/* current gain for setting cwnd */
 		full_bw_cnt:3,	/* number of rounds without large bw gains */
 		cycle_idx:3,	/* current index in pacing_gain cycle array */
-		unused_b:6;
+		has_seen_rtt:1, /* have we seen an RTT sample yet? */
+		unused_b:5;
 	u32	prior_cwnd;	/* prior cwnd upon entering loss recovery */
 	u32	full_bw;	/* recent bw, to estimate if pipe is full */
 };
@@ -225,11 +226,13 @@ static u32 bbr_bw_to_pacing_rate(struct sock *sk, u32 bw, int gain)
 static void bbr_init_pacing_rate_from_rtt(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct bbr *bbr = inet_csk_ca(sk);
 	u64 bw;
 	u32 rtt_us;
 
 	if (tp->srtt_us) {		/* any RTT sample yet? */
 		rtt_us = max(tp->srtt_us >> 3, 1U);
+		bbr->has_seen_rtt = 1;
 	} else {			 /* no RTT sample yet */
 		rtt_us = USEC_PER_MSEC;	 /* use nominal default RTT */
 	}
@@ -247,8 +250,12 @@ static void bbr_init_pacing_rate_from_rtt(struct sock *sk)
  */
 static void bbr_set_pacing_rate(struct sock *sk, u32 bw, int gain)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct bbr *bbr = inet_csk_ca(sk);
 	u32 rate = bbr_bw_to_pacing_rate(sk, bw, gain);
 
+	if (unlikely(!bbr->has_seen_rtt && tp->srtt_us))
+		bbr_init_pacing_rate_from_rtt(sk);
 	if (bbr_full_bw_reached(sk) || rate > sk->sk_pacing_rate)
 		sk->sk_pacing_rate = rate;
 }
@@ -837,6 +844,7 @@ static void bbr_init(struct sock *sk)
 
 	minmax_reset(&bbr->bw, bbr->rtt_cnt, 0);  /* init max bw to 0 */
 
+	bbr->has_seen_rtt = 0;
 	bbr_init_pacing_rate_from_rtt(sk);
 
 	bbr->restore_cwnd = 0;
