@@ -1459,7 +1459,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 	 * to read. However, if the array is not writable the user loses
 	 * the updated relocation values.
 	 */
-	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(urelocs))))
+	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(*urelocs))))
 		return -EFAULT;
 
 	do {
