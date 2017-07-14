@@ -110,7 +110,6 @@ int psp_v10_0_prep_cmd_buf(struct amdgpu_firmware_info *ucode, struct psp_gfx_cm
 int psp_v10_0_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 {
 	int ret = 0;
-	unsigned int psp_ring_reg = 0;
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
 
@@ -128,25 +127,6 @@ int psp_v10_0_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 	if (ret) {
 		ring->ring_size = 0;
 		return ret;
-	}
-
-	/* Write low address of the ring to C2PMSG_69 */
-	psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_69, psp_ring_reg);
-	/* Write high address of the ring to C2PMSG_70 */
-	psp_ring_reg = upper_32_bits(ring->ring_mem_mc_addr);
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_70, psp_ring_reg);
-	/* Write size of ring to C2PMSG_71 */
-	psp_ring_reg = ring->ring_size;
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_71, psp_ring_reg);
-	/* Write the ring initialization command to C2PMSG_64 */
-	psp_ring_reg = ring_type;
-	psp_ring_reg = psp_ring_reg << 16;
-	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64, psp_ring_reg);
-	/* Wait for response flag (bit 31) in C2PMSG_64 */
-	psp_ring_reg = 0;
-	while ((psp_ring_reg & 0x80000000) == 0) {
-		psp_ring_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_64);
 	}
 
 	return 0;
