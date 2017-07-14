@@ -12065,6 +12065,10 @@ static int i40e_suspend(struct device *dev)
 
 	set_bit(__I40E_DOWN, pf->state);
 
+	/* Ensure service task will not be running */
+	del_timer_sync(&pf->service_timer);
+	cancel_work_sync(&pf->service_task);
+
 	if (pf->wol_en && (pf->hw_features & I40E_HW_WOL_MC_MAGIC_PKT_WAKE))
 		i40e_enable_mc_magic_wake(pf);
 
@@ -12096,6 +12100,10 @@ static int i40e_resume(struct device *dev)
 
 	/* Clear suspended state last after everything is recovered */
 	clear_bit(__I40E_SUSPENDED, pf->state);
+
+	/* Restart the service task */
+	mod_timer(&pf->service_timer,
+		  round_jiffies(jiffies + pf->service_timer_period));
 
 	return 0;
 }
