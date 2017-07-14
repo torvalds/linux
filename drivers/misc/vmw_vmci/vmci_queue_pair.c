@@ -441,13 +441,11 @@ static int __qp_memcpy_from_queue(void *dest,
 			to_copy = size - bytes_copied;
 
 		if (is_iovec) {
-			struct msghdr *msg = dest;
+			struct iov_iter *to = dest;
 			int err;
 
-			/* The iovec will track bytes_copied internally. */
-			err = memcpy_to_msg(msg, (u8 *)va + page_offset,
-					     to_copy);
-			if (err != 0) {
+			err = copy_to_iter((u8 *)va + page_offset, to_copy, to);
+			if (err != to_copy) {
 				if (kernel_if->host)
 					kunmap(kernel_if->u.h.page[page_index]);
 				return VMCI_ERROR_INVALID_ARGS;
@@ -575,15 +573,6 @@ static int qp_memcpy_to_queue(struct vmci_queue *queue,
 {
 	return __qp_memcpy_to_queue(queue, queue_offset,
 				    (u8 *)src + src_offset, size, false);
-}
-
-static int qp_memcpy_from_queue(void *dest,
-				size_t dest_offset,
-				const struct vmci_queue *queue,
-				u64 queue_offset, size_t size)
-{
-	return __qp_memcpy_from_queue((u8 *)dest + dest_offset,
-				      queue, queue_offset, size, false);
 }
 
 /*
@@ -3159,9 +3148,13 @@ ssize_t vmci_qpair_dequeue(struct vmci_qp *qpair,
 			   int buf_type)
 {
 	ssize_t result;
+	struct iov_iter to;
+	struct kvec v = {.iov_base = buf, .iov_len = buf_size};
 
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
+
+	iov_iter_kvec(&to, READ | ITER_KVEC, &v, 1, buf_size);
 
 	qp_lock(qpair);
 
@@ -3169,8 +3162,8 @@ ssize_t vmci_qpair_dequeue(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   buf, buf_size,
-					   qp_memcpy_from_queue, true);
+					   &to, buf_size,
+					   qp_memcpy_from_queue_iov, true);
 
 		if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY &&
 		    !qp_wait_for_ready_queue(qpair))
@@ -3200,10 +3193,14 @@ ssize_t vmci_qpair_peek(struct vmci_qp *qpair,
 			size_t buf_size,
 			int buf_type)
 {
+	struct iov_iter to;
+	struct kvec v = {.iov_base = buf, .iov_len = buf_size};
 	ssize_t result;
 
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
+
+	iov_iter_kvec(&to, READ | ITER_KVEC, &v, 1, buf_size);
 
 	qp_lock(qpair);
 
@@ -3211,8 +3208,8 @@ ssize_t vmci_qpair_peek(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   buf, buf_size,
-					   qp_memcpy_from_queue, false);
+					   &to, buf_size,
+					   qp_memcpy_from_queue_iov, false);
 
 		if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY &&
 		    !qp_wait_for_ready_queue(qpair))
@@ -3295,7 +3292,7 @@ ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   msg, msg_data_left(msg),
+					   &msg->msg_iter, msg_data_left(msg),
 					   qp_memcpy_from_queue_iov,
 					   true);
 
@@ -3339,7 +3336,7 @@ ssize_t vmci_qpair_peekv(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   msg, msg_data_left(msg),
+					   &msg->msg_iter, msg_data_left(msg),
 					   qp_memcpy_from_queue_iov,
 					   false);
 
