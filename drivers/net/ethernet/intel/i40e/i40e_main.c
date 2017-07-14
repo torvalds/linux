@@ -9884,13 +9884,15 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 			 */
 			ret = i40e_vsi_config_tc(vsi, enabled_tc);
 			if (ret) {
+				/* Single TC condition is not fatal,
+				 * message and continue
+				 */
 				dev_info(&pf->pdev->dev,
 					 "failed to configure TCs for main VSI tc_map 0x%08x, err %s aq_err %s\n",
 					 enabled_tc,
 					 i40e_stat_str(&pf->hw, ret),
 					 i40e_aq_str(&pf->hw,
 						    pf->hw.aq.asq_last_status));
-				ret = -ENOENT;
 			}
 		}
 		break;
