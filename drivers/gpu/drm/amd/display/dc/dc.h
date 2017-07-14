@@ -160,6 +160,7 @@ struct dc_config {
 
 struct dc_debug {
 	bool surface_visual_confirm;
+	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
 	bool timing_trace;

@@ -77,6 +77,24 @@ static void reset_output_mux(struct dcn10_mpcc *mpcc10)
 	mpcc10->base.opp_id = 0xf;
 }
 
+static void assert_mpcc_idle_before_connect(struct dcn10_mpcc *mpcc10)
+{
+	unsigned int top_sel;
+	unsigned int mpcc_busy, mpcc_idle, mpcc_status;
+
+	REG_GET(MPCC_TOP_SEL,
+			MPCC_TOP_SEL, &top_sel);
+
+	if (top_sel == 0xf) {
+		mpcc_status = REG_GET_2(MPCC_STATUS,
+				MPCC_BUSY, &mpcc_busy,
+				MPCC_IDLE, &mpcc_idle);
+
+		ASSERT(mpcc_busy == 0);
+		ASSERT(mpcc_idle == 1);
+	}
+}
+
 static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
 {
 	struct dcn10_mpcc *mpcc10 = TO_DCN10_MPCC(mpcc);
@@ -86,6 +104,9 @@ static void dcn10_mpcc_set(struct mpcc *mpcc, struct mpcc_cfg *cfg)
 				MODE_BLEND : MODE_TOP_ONLY;
 	bool blend_active_only = cfg->top_of_tree &&
 			!mpcc->ctx->dc->debug.surface_visual_confirm;
+
+	if (mpcc->ctx->dc->debug.sanity_checks)
+		assert_mpcc_idle_before_connect(mpcc10);
 
 	REG_SET(MPCC_OPP_ID, 0,
 		MPCC_OPP_ID, cfg->opp_id);

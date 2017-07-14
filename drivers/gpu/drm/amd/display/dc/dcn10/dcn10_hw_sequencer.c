@@ -52,6 +52,75 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
+
+static void verify_allow_pstate_change_high(
+	struct dce_hwseq *hws)
+{
+	/* pstate latency is ~20us so if we wait over 40us and pstate allow
+	 * still not asserted, we are probably stuck and going to hang
+	 */
+	static unsigned int pstate_wait_timeout_us = 40;
+	static unsigned int max_sampled_pstate_wait_us; /* data collection */
+	static bool forced_pstate_allow; /* help with revert wa */
+
+	unsigned int debug_index = 0x7;
+	unsigned int debug_data;
+	unsigned int force_allow_pstate = 0x30;
+	unsigned int i;
+
+	if (forced_pstate_allow) {
+		/* we hacked to force pstate allow to prevent hang last time
+		 * we verify_allow_pstate_change_high.  so disable force
+		 * here so we can check status
+		 */
+		REG_WRITE(DCHUBBUB_ARB_DRAM_STATE_CNTL, 0);
+		forced_pstate_allow = false;
+	}
+
+	/* description "3-0:   Pipe0 cursor0 QOS
+	 * 7-4:   Pipe1 cursor0 QOS
+	 * 11-8:  Pipe2 cursor0 QOS
+	 * 15-12: Pipe3 cursor0 QOS
+	 * 16:    Pipe0 Plane0 Allow Pstate Change
+	 * 17:    Pipe1 Plane0 Allow Pstate Change
+	 * 18:    Pipe2 Plane0 Allow Pstate Change
+	 * 19:    Pipe3 Plane0 Allow Pstate Change
+	 * 20:    Pipe0 Plane1 Allow Pstate Change
+	 * 21:    Pipe1 Plane1 Allow Pstate Change
+	 * 22:    Pipe2 Plane1 Allow Pstate Change
+	 * 23:    Pipe3 Plane1 Allow Pstate Change
+	 * 24:    Pipe0 cursor0 Allow Pstate Change
+	 * 25:    Pipe1 cursor0 Allow Pstate Change
+	 * 26:    Pipe2 cursor0 Allow Pstate Change
+	 * 27:    Pipe3 cursor0 Allow Pstate Change
+	 * 28:    WB0 Allow Pstate Change
+	 * 29:    WB1 Allow Pstate Change
+	 * 30:    Arbiter's allow_pstate_change
+	 * 31:    SOC pstate change request
+	 */
+
+	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, debug_index);
+
+	for (i = 0; i < pstate_wait_timeout_us; i++) {
+		debug_data = REG_READ(DCHUBBUB_TEST_DEBUG_DATA);
+
+		if (debug_data & (1 << 30))
+			return;
+
+		if (max_sampled_pstate_wait_us < i)
+			max_sampled_pstate_wait_us = i;
+
+		udelay(1);
+	}
+
+	/* force pstate allow to prevent system hang
+	 * and break to debugger to investigate
+	 */
+	REG_WRITE(DCHUBBUB_ARB_DRAM_STATE_CNTL, force_allow_pstate);
+	forced_pstate_allow = true;
+	BREAK_TO_DEBUGGER();
+}
+
 static void enable_dppclk(
 	struct dce_hwseq *hws,
 	uint8_t plane_id,
@@ -477,11 +546,18 @@ static void reset_front_end(
 
 	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
 	tg->funcs->unlock(tg);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
+
 	REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
 
 	mpcc->funcs->wait_for_idle(mpcc);
 
 	mi->funcs->set_blank(mi, true);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
 
 	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
 			HUBP_CLOCK_ENABLE, 0);
@@ -495,6 +571,9 @@ static void reset_front_end(
 	dm_logger_write(dc->ctx->logger, LOG_DC,
 					"Reset front end %d\n",
 					fe_idx);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
 }
 
 static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
@@ -511,6 +590,9 @@ static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
 			IP_REQUEST_EN, 0);
 	dm_logger_write(dc->ctx->logger, LOG_DC,
 			"Power gated front end %d\n", fe_idx);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
 }
 
 static void reset_hw_ctx_wrap(
@@ -995,10 +1077,16 @@ static void dcn10_pipe_control_lock(
 	if (pipe->top_pipe)
 		return;
 
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
+
 	if (lock)
 		pipe->tg->funcs->lock(pipe->tg);
 	else
 		pipe->tg->funcs->unlock(pipe->tg);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
 }
 
 static bool wait_for_reset_trigger_to_occur(
@@ -1516,6 +1604,12 @@ static void program_all_pipe_in_tree(
 		/* watermark is for all pipes */
 		pipe_ctx->mi->funcs->program_watermarks(
 				pipe_ctx->mi, &context->bw.dcn.watermarks, ref_clk_mhz);
+
+		if (dc->public.debug.sanity_checks) {
+			/* pstate stuck check after watermark update */
+			verify_allow_pstate_change_high(dc->hwseq);
+		}
+
 		pipe_ctx->tg->funcs->lock(pipe_ctx->tg);
 
 		pipe_ctx->tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
@@ -1532,6 +1626,11 @@ static void program_all_pipe_in_tree(
 	if (pipe_ctx->surface != NULL) {
 		dcn10_power_on_fe(dc, pipe_ctx, context);
 		update_dchubp_dpp(dc, pipe_ctx, context);
+	}
+
+	if (dc->public.debug.sanity_checks) {
+		/* pstate stuck check after each pipe is programmed */
+		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
 	if (pipe_ctx->bottom_pipe != NULL)
@@ -1572,6 +1671,9 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
+
 	/* reset unused mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -1602,6 +1704,10 @@ static void dcn10_apply_ctx_for_surface(
 			mpcc_cfg.bot_mpcc_id = 0xf;
 			mpcc_cfg.top_of_tree = !old_pipe_ctx->top_pipe;
 			old_pipe_ctx->mpcc->funcs->set(old_pipe_ctx->mpcc, &mpcc_cfg);
+
+			if (dc->public.debug.sanity_checks)
+				verify_allow_pstate_change_high(dc->hwseq);
+
 			/*
 			 * the mpcc is the only thing that keeps track of the mpcc
 			 * mapping for reset front end right now. Might need some
@@ -1679,6 +1785,9 @@ static void dcn10_apply_ctx_for_surface(
 			context->bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns,
 			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
 			);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
 }
 
 static void dcn10_set_bandwidth(
@@ -1738,6 +1847,8 @@ static void dcn10_set_bandwidth(
 				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
 	}
 	dcn10_pplib_apply_display_requirements(dc, context);
+
+	/* need to fix this function.  not doing the right thing here */
 }
 
 static void set_drr(struct pipe_ctx **pipe_ctx,
@@ -1866,7 +1977,44 @@ static bool dcn10_dummy_display_power_gating(
 	struct core_dc *dc,
 	uint8_t controller_id,
 	struct dc_bios *dcb,
-	enum pipe_gating_control power_gating) {return true; }
+	enum pipe_gating_control power_gating)
+{
+	return true;
+}
+
+void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
+{
+	struct core_surface *surface = pipe_ctx->surface;
+	struct timing_generator *tg = pipe_ctx->tg;
+
+	if (surface->ctx->dc->debug.sanity_checks) {
+		struct core_dc *dc = DC_TO_CORE(surface->ctx->dc);
+
+		verify_allow_pstate_change_high(dc->hwseq);
+	}
+
+	if (surface == NULL)
+		return;
+
+	surface->status.is_flip_pending =
+			pipe_ctx->mi->funcs->mem_input_is_flip_pending(
+					pipe_ctx->mi);
+
+	/* DCN we read INUSE address in MI, do we still need this wa? */
+	if (surface->status.is_flip_pending &&
+			!surface->public.visible) {
+		pipe_ctx->mi->current_address =
+				pipe_ctx->mi->request_address;
+		BREAK_TO_DEBUGGER();
+	}
+
+	surface->status.current_address = pipe_ctx->mi->current_address;
+	if (pipe_ctx->mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+			tg->funcs->is_stereo_left_eye) {
+		surface->status.is_right_eye =
+				!tg->funcs->is_stereo_left_eye(pipe_ctx->tg);
+	}
+}
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
@@ -1876,7 +2024,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.set_plane_config = set_plane_config,
 	.update_plane_addr = update_plane_addr,
-	.update_pending_status = dce110_update_pending_status,
+	.update_pending_status = dcn10_update_pending_status,
 	.set_input_transfer_func = dcn10_set_input_transfer_func,
 	.set_output_transfer_func = dcn10_set_output_transfer_func,
 	.power_down = dce110_power_down,
