@@ -209,6 +209,34 @@ static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 	smp_mb__after_atomic();
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void genpd_update_accounting(struct generic_pm_domain *genpd)
+{
+	ktime_t delta, now;
+
+	now = ktime_get();
+	delta = ktime_sub(now, genpd->accounting_time);
+
+	/*
+	 * If genpd->status is active, it means we are just
+	 * out of off and so update the idle time and vice
+	 * versa.
+	 */
+	if (genpd->status == GPD_STATE_ACTIVE) {
+		int state_idx = genpd->state_idx;
+
+		genpd->states[state_idx].idle_time =
+			ktime_add(genpd->states[state_idx].idle_time, delta);
+	} else {
+		genpd->on_time = ktime_add(genpd->on_time, delta);
+	}
+
+	genpd->accounting_time = now;
+}
+#else
+static inline void genpd_update_accounting(struct generic_pm_domain *genpd) {}
+#endif
+
 static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 {
 	unsigned int state_idx = genpd->state_idx;
@@ -361,6 +389,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	}
 
 	genpd->status = GPD_STATE_POWER_OFF;
+	genpd_update_accounting(genpd);
 
 	list_for_each_entry(link, &genpd->slave_links, slave_node) {
 		genpd_sd_counter_dec(link->master);
@@ -413,6 +442,8 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 		goto err;
 
 	genpd->status = GPD_STATE_ACTIVE;
+	genpd_update_accounting(genpd);
+
 	return 0;
 
  err:
@@ -1540,6 +1571,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->max_off_time_changed = true;
 	genpd->provider = NULL;
 	genpd->has_provider = false;
+	genpd->accounting_time = ktime_get();
 	genpd->domain.ops.runtime_suspend = genpd_runtime_suspend;
 	genpd->domain.ops.runtime_resume = genpd_runtime_resume;
 	genpd->domain.ops.prepare = pm_genpd_prepare;
