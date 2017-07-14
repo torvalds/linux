@@ -2243,6 +2243,12 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	int idx = q_vector->v_idx;
 	int rx_itr_setting, tx_itr_setting;
 
+	/* If we don't have MSIX, then we only need to re-enable icr0 */
+	if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED)) {
+		i40e_irq_dynamic_enable_icr0(vsi->back, false);
+		return;
+	}
+
 	vector = (q_vector->v_idx + vsi->base_vector);
 
 	/* avoid dynamic calculation if in countdown mode OR if
@@ -2396,8 +2402,6 @@ tx_only:
 	 */
 	if (!clean_complete)
 		i40e_force_wb(vsi, q_vector);
-	else if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED))
-		i40e_irq_dynamic_enable_icr0(vsi->back, false);
 	else
 		i40e_update_enable_itr(vsi, q_vector);
 
