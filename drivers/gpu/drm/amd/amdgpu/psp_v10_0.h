@@ -27,6 +27,7 @@
 
 #include "amdgpu_psp.h"
 
+extern int psp_v10_0_init_microcode(struct psp_context *psp);
 extern int psp_v10_0_prep_cmd_buf(struct amdgpu_firmware_info *ucode,
 				 struct psp_gfx_cmd_resp *cmd);
 extern int psp_v10_0_ring_init(struct psp_context *psp,
