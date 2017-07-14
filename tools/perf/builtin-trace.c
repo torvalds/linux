@@ -908,6 +908,8 @@ static size_t fprintf_duration(unsigned long t, bool calculated, FILE *fp)
  * filename.ptr: The filename char pointer that will be vfs_getname'd
  * filename.entry_str_pos: Where to insert the string translated from
  *                         filename.ptr by the vfs_getname tracepoint/kprobe.
+ * ret_scnprintf: syscall args may set this to a different syscall return
+ *                formatter, for instance, fcntl may return fds, file flags, etc.
  */
 struct thread_trace {
 	u64		  entry_time;
@@ -916,6 +918,7 @@ struct thread_trace {
 	unsigned long	  pfmaj, pfmin;
 	char		  *entry_str;
 	double		  runtime_ms;
+	size_t		  (*ret_scnprintf)(unsigned long value, char *bf, size_t size);
         struct {
 		unsigned long ptr;
 		short int     entry_str_pos;
@@ -964,6 +967,15 @@ fail:
 	color_fprintf(fp, PERF_COLOR_RED,
 		      "WARNING: not enough memory, dropping samples!\n");
 	return NULL;
+}
+
+
+void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
+				    size_t (*ret_scnprintf)(unsigned long val, char *bf, size_t size))
+{
+	struct thread_trace *ttrace = thread__priv(arg->thread);
+
+	ttrace->ret_scnprintf = ret_scnprintf;
 }
 
 #define TRACE_PFMAJ		(1 << 0)
@@ -1390,6 +1402,14 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 {
 	size_t printed = 0;
 	unsigned long val;
+	struct thread_trace *ttrace = thread__priv(thread);
+
+	/*
+	 * Things like fcntl will set this in its 'cmd' formatter to pick the
+	 * right formatter for the return value (an fd? file flags?), which is
+	 * not needed for syscalls that always return a given type, say an fd.
+	 */
+	ttrace->ret_scnprintf = NULL;
 
 	if (sc->args != NULL) {
 		struct format_field *field;
@@ -1704,7 +1724,12 @@ signed_print:
 		fprintf(trace->output, ") = -1 %s %s", e, emsg);
 	} else if (ret == 0 && sc->fmt->timeout)
 		fprintf(trace->output, ") = 0 Timeout");
-	else if (sc->fmt->hexret)
+	else if (ttrace->ret_scnprintf) {
+		char bf[1024];
+		ttrace->ret_scnprintf(ret, bf, sizeof(bf));
+		ttrace->ret_scnprintf = NULL;
+		fprintf(trace->output, ") = %s", bf);
+	} else if (sc->fmt->hexret)
 		fprintf(trace->output, ") = %#lx", ret);
 	else if (sc->fmt->errpid) {
 		struct thread *child = machine__find_thread(trace->host, ret, ret);
