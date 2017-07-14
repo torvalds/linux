@@ -25,6 +25,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drmP.h>
 #include <video/mipi_display.h>
+#include <asm/unaligned.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
@@ -376,6 +377,56 @@ static inline u32 dsi_read(struct dw_mipi_dsi *dsi, u32 reg)
 	return readl(dsi->base + reg);
 }
 
+static int rockchip_wait_w_pld_fifo_not_full(struct dw_mipi_dsi *dsi)
+{
+	u32 sts;
+	int ret;
+
+	ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
+				 sts, !(sts & GEN_PLD_W_FULL), 10,
+				 CMD_PKT_STATUS_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(dsi->dev, "generic write payload fifo is full\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rockchip_wait_cmd_fifo_not_full(struct dw_mipi_dsi *dsi)
+{
+	u32 sts;
+	int ret;
+
+	ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
+				 sts, !(sts & GEN_CMD_FULL), 10,
+				 CMD_PKT_STATUS_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(dsi->dev, "generic write cmd fifo is full\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rockchip_wait_write_fifo_empty(struct dw_mipi_dsi *dsi)
+{
+	u32 sts;
+	u32 mask;
+	int ret;
+
+	mask = GEN_CMD_EMPTY | GEN_PLD_W_EMPTY;
+	ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
+				 sts, (sts & mask) == mask, 10,
+				 CMD_PKT_STATUS_TIMEOUT_US);
+	if (ret < 0) {
+		dev_err(dsi->dev, "generic write fifo is full\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi *dsi, u8 test_code,
 				 u8 test_data)
 {
@@ -568,113 +619,74 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
-static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 val)
+static void rockchip_set_transfer_mode(struct dw_mipi_dsi *dsi, int flags)
 {
-	int ret;
-	int sts = 0;
-
-	ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
-				 sts, !(sts & GEN_CMD_FULL), 1000,
-				 CMD_PKT_STATUS_TIMEOUT_US);
-
-	if (ret < 0) {
-		dev_err(dsi->dev, "failed to get available command FIFO\n");
-		return ret;
-	}
-
-	dsi_write(dsi, DSI_GEN_HDR, val);
-
-	ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
-				 sts, sts & (GEN_CMD_EMPTY | GEN_PLD_W_EMPTY),
-				 1000, CMD_PKT_STATUS_TIMEOUT_US);
-
-	if (ret < 0) {
-		dev_err(dsi->dev, "failed to write command FIFO\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int dw_mipi_dsi_short_write(struct dw_mipi_dsi *dsi,
-				   const struct mipi_dsi_msg *msg)
-{
-	const u16 *tx_buf = msg->tx_buf;
-	u32 val = GEN_HDATA(*tx_buf) | GEN_HTYPE(msg->type);
-
-	if (msg->tx_len > 2) {
-		dev_err(dsi->dev, "too long tx buf length %zu for short write\n",
-			msg->tx_len);
-		return -EINVAL;
-	}
-
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, val);
-}
-
-static int dw_mipi_dsi_long_write(struct dw_mipi_dsi *dsi,
-				  const struct mipi_dsi_msg *msg)
-{
-	const u32 *tx_buf = msg->tx_buf;
-	int len = msg->tx_len, pld_data_bytes = sizeof(*tx_buf), ret;
-	u32 val = GEN_HDATA(msg->tx_len) | GEN_HTYPE(msg->type);
-	u32 remainder = 0;
-	u32 sts = 0;
-
-	if (msg->tx_len < 3) {
-		dev_err(dsi->dev, "wrong tx buf length %zu for long write\n",
-			msg->tx_len);
-		return -EINVAL;
-	}
-
-	while (DIV_ROUND_UP(len, pld_data_bytes)) {
-		if (len < pld_data_bytes) {
-			memcpy(&remainder, tx_buf, len);
-			dsi_write(dsi, DSI_GEN_PLD_DATA, remainder);
-			len = 0;
-		} else {
-			dsi_write(dsi, DSI_GEN_PLD_DATA, *tx_buf);
-			tx_buf++;
-			len -= pld_data_bytes;
-		}
-
-		ret = readx_poll_timeout(readl, dsi->base + DSI_CMD_PKT_STATUS,
-					 sts, !(sts & GEN_PLD_W_FULL), 1000,
-					 CMD_PKT_STATUS_TIMEOUT_US);
-		if (ret < 0) {
-			dev_err(dsi->dev,
-				"failed to get available write payload FIFO\n");
-			return ret;
-		}
-	}
-
-	return dw_mipi_dsi_gen_pkt_hdr_write(dsi, val);
+	if (flags & MIPI_DSI_MSG_USE_LPM)
+		dsi_write(dsi, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
+	else
+		dsi_write(dsi, DSI_CMD_MODE_CFG, 0);
 }
 
 static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
 					 const struct mipi_dsi_msg *msg)
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
+	struct mipi_dsi_packet packet;
 	int ret;
+	int val;
+	int len = msg->tx_len;
 
-	switch (msg->type) {
-	case MIPI_DSI_DCS_SHORT_WRITE:
-	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
-	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
-	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
-	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
-	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
-		ret = dw_mipi_dsi_short_write(dsi, msg);
-		break;
-	case MIPI_DSI_DCS_LONG_WRITE:
-	case MIPI_DSI_GENERIC_LONG_WRITE:
-		ret = dw_mipi_dsi_long_write(dsi, msg);
-		break;
-	default:
-		dev_err(dsi->dev, "unsupported message type\n");
-		ret = -EINVAL;
+	/* create a packet to the DSI protocol */
+	ret = mipi_dsi_create_packet(&packet, msg);
+	if (ret) {
+		dev_err(dsi->dev, "failed to create packet: %d\n", ret);
+		return ret;
 	}
 
-	return ret;
+	rockchip_set_transfer_mode(dsi, msg->flags);
+
+	/* Send payload,  */
+	while (DIV_ROUND_UP(packet.payload_length, 4)) {
+		/*
+		 * Alternatively, you can always keep the FIFO
+		 * nearly full by monitoring the FIFO state until
+		 * it is not full, and then writea single word of data.
+		 * This solution is more resource consuming
+		 * but it simultaneously avoids FIFO starvation,
+		 * making it possible to use FIFO sizes smaller than
+		 * the amount of data of the longest packet to be written.
+		 */
+		ret = rockchip_wait_w_pld_fifo_not_full(dsi);
+		if (ret)
+			return ret;
+
+		if (packet.payload_length < 4) {
+			/* send residu payload */
+			val = 0;
+			memcpy(&val, packet.payload, packet.payload_length);
+			dsi_write(dsi, DSI_GEN_PLD_DATA, val);
+			packet.payload_length = 0;
+		} else {
+			val = get_unaligned_le32(packet.payload);
+			dsi_write(dsi, DSI_GEN_PLD_DATA, val);
+			packet.payload += 4;
+			packet.payload_length -= 4;
+		}
+	}
+
+	ret = rockchip_wait_cmd_fifo_not_full(dsi);
+	if (ret)
+		return ret;
+
+	/* Send packet header */
+	val = get_unaligned_le32(packet.header);
+	dsi_write(dsi, DSI_GEN_HDR, val);
+
+	ret = rockchip_wait_write_fifo_empty(dsi);
+	if (ret)
+		return ret;
+
+	return len;
 }
 
 static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
@@ -770,7 +782,6 @@ static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
 {
 	dsi_write(dsi, DSI_TO_CNT_CFG, HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
 	dsi_write(dsi, DSI_BTA_TO_CNT, 0xd00);
-	dsi_write(dsi, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
 	dsi_write(dsi, DSI_MODE_CFG, ENABLE_CMD_MODE);
 }
 
