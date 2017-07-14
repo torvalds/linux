@@ -2208,7 +2208,7 @@
 					<0 31 RK_FUNC_1 &pcfg_pull_none>,  /* DCLK */
 					<0 30 RK_FUNC_1 &pcfg_pull_none>,  /* DEN */
 					<0 28 RK_FUNC_1 &pcfg_pull_none>,  /* HSYNC */
-					<0 28 RK_FUNC_1 &pcfg_pull_none>;  /* VSYN */
+					<0 29 RK_FUNC_1 &pcfg_pull_none>;  /* VSYN */
 			};
 
 			lcdc_gpio: lcdc-gpio {
