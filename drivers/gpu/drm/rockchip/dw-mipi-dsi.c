@@ -94,9 +94,12 @@
 #define ENABLE_CMD_MODE			BIT(0)
 
 #define DSI_VID_MODE_CFG		0x38
+#define VPG_EN				BIT(16)
 #define FRAME_BTA_ACK			BIT(14)
-#define ENABLE_LOW_POWER		(0x3f << 8)
-#define ENABLE_LOW_POWER_MASK		(0x3f << 8)
+#define LP_HFP_EN			BIT(13)
+#define LP_HBP_EN			BIT(12)
+#define ENABLE_LOW_POWER		(0xf << 8)
+#define ENABLE_LOW_POWER_MASK		(0xf << 8)
 #define VID_MODE_TYPE_BURST_SYNC_PULSES	0x0
 #define VID_MODE_TYPE_BURST_SYNC_EVENTS	0x1
 #define VID_MODE_TYPE_BURST		0x2
@@ -702,7 +705,14 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 {
 	u32 val;
 
-	val = VID_MODE_TYPE_BURST | ENABLE_LOW_POWER;
+	val = LP_HFP_EN | ENABLE_LOW_POWER;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
+		val |= VID_MODE_TYPE_BURST;
+	else if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
+		val |= VID_MODE_TYPE_BURST_SYNC_PULSES;
+	else
+		val |= VID_MODE_TYPE_BURST_SYNC_EVENTS;
 
 	dsi_write(dsi, DSI_VID_MODE_CFG, val);
 }
