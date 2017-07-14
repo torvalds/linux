@@ -14,6 +14,10 @@
 #define O_NOATIME	01000000
 #endif
 
+#ifndef O_TMPFILE
+#define O_TMPFILE	020000000
+#endif
+
 size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 {
 	int printed = 0;
@@ -34,6 +38,8 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 	P_FLAG(DIRECTORY);
 	P_FLAG(EXCL);
 	P_FLAG(LARGEFILE);
+	P_FLAG(NOFOLLOW);
+	P_FLAG(TMPFILE);
 	P_FLAG(NOATIME);
 	P_FLAG(NOCTTY);
 #ifdef O_NONBLOCK
