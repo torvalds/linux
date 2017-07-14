@@ -1275,8 +1275,10 @@ static int iwl_mvm_sar_get_wgds_table(struct iwl_mvm *mvm)
 
 			entry = &wifi_pkg->package.elements[idx++];
 			if ((entry->type != ACPI_TYPE_INTEGER) ||
-			    (entry->integer.value > U8_MAX))
-				return -EINVAL;
+			    (entry->integer.value > U8_MAX)) {
+				ret = -EINVAL;
+				goto out_free;
+			}
 
 			mvm->geo_profiles[i].values[j] = entry->integer.value;
 		}
