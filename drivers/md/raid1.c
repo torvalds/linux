@@ -84,15 +84,6 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 #include "raid1-10.c"
 
 /*
- * 'strct resync_pages' stores actual pages used for doing the resync
- *  IO, and it is per-bio, so make .bi_private points to it.
- */
-static inline struct resync_pages *get_resync_pages(struct bio *bio)
-{
-	return bio->bi_private;
-}
-
-/*
  * for resync bio, r1bio pointer can be retrieved from the per-bio
  * 'struct resync_pages'.
  */
