@@ -114,6 +114,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM5102A
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
+	select SND_SOC_RT274 if I2C
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
 	select SND_SOC_RT5514 if I2C
@@ -716,10 +717,16 @@ config SND_SOC_RL6231
 
 config SND_SOC_RL6347A
 	tristate
+	default y if SND_SOC_RT274=y
 	default y if SND_SOC_RT286=y
 	default y if SND_SOC_RT298=y
+	default m if SND_SOC_RT274=m
 	default m if SND_SOC_RT286=m
 	default m if SND_SOC_RT298=m
+
+config SND_SOC_RT274
+	tristate
+	depends on I2C
 
 config SND_SOC_RT286
 	tristate
