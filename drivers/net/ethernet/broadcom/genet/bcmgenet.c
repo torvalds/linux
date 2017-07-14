@@ -1202,6 +1202,23 @@ static struct enet_cb *bcmgenet_get_txcb(struct bcmgenet_priv *priv,
 	return tx_cb_ptr;
 }
 
+static struct enet_cb *bcmgenet_put_txcb(struct bcmgenet_priv *priv,
+					 struct bcmgenet_tx_ring *ring)
+{
+	struct enet_cb *tx_cb_ptr;
+
+	tx_cb_ptr = ring->cbs;
+	tx_cb_ptr += ring->write_ptr - ring->cb_ptr;
+
+	/* Rewinding local write pointer */
+	if (ring->write_ptr == ring->cb_ptr)
+		ring->write_ptr = ring->end_ptr;
+	else
+		ring->write_ptr--;
+
+	return tx_cb_ptr;
+}
+
 /* Simple helper to free a control block's resources */
 static void bcmgenet_free_cb(struct enet_cb *cb)
 {
@@ -1380,95 +1397,6 @@ static void bcmgenet_tx_reclaim_all(struct net_device *dev)
 	bcmgenet_tx_reclaim(dev, &priv->tx_rings[DESC_INDEX]);
 }
 
-/* Transmits a single SKB (either head of a fragment or a single SKB)
- * caller must hold priv->lock
- */
-static int bcmgenet_xmit_single(struct net_device *dev,
-				struct sk_buff *skb,
-				u16 dma_desc_flags,
-				struct bcmgenet_tx_ring *ring)
-{
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device *kdev = &priv->pdev->dev;
-	struct enet_cb *tx_cb_ptr;
-	unsigned int skb_len;
-	dma_addr_t mapping;
-	u32 length_status;
-	int ret;
-
-	tx_cb_ptr = bcmgenet_get_txcb(priv, ring);
-
-	if (unlikely(!tx_cb_ptr))
-		BUG();
-
-	tx_cb_ptr->skb = skb;
-
-	skb_len = skb_headlen(skb);
-
-	mapping = dma_map_single(kdev, skb->data, skb_len, DMA_TO_DEVICE);
-	ret = dma_mapping_error(kdev, mapping);
-	if (ret) {
-		priv->mib.tx_dma_failed++;
-		netif_err(priv, tx_err, dev, "Tx DMA map failed\n");
-		dev_kfree_skb(skb);
-		return ret;
-	}
-
-	dma_unmap_addr_set(tx_cb_ptr, dma_addr, mapping);
-	dma_unmap_len_set(tx_cb_ptr, dma_len, skb_len);
-	length_status = (skb_len << DMA_BUFLENGTH_SHIFT) | dma_desc_flags |
-			(priv->hw_params->qtag_mask << DMA_TX_QTAG_SHIFT) |
-			DMA_TX_APPEND_CRC;
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		length_status |= DMA_TX_DO_CSUM;
-
-	dmadesc_set(priv, tx_cb_ptr->bd_addr, mapping, length_status);
-
-	return 0;
-}
-
-/* Transmit a SKB fragment */
-static int bcmgenet_xmit_frag(struct net_device *dev,
-			      skb_frag_t *frag,
-			      u16 dma_desc_flags,
-			      struct bcmgenet_tx_ring *ring)
-{
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device *kdev = &priv->pdev->dev;
-	struct enet_cb *tx_cb_ptr;
-	unsigned int frag_size;
-	dma_addr_t mapping;
-	int ret;
-
-	tx_cb_ptr = bcmgenet_get_txcb(priv, ring);
-
-	if (unlikely(!tx_cb_ptr))
-		BUG();
-
-	tx_cb_ptr->skb = NULL;
-
-	frag_size = skb_frag_size(frag);
-
-	mapping = skb_frag_dma_map(kdev, frag, 0, frag_size, DMA_TO_DEVICE);
-	ret = dma_mapping_error(kdev, mapping);
-	if (ret) {
-		priv->mib.tx_dma_failed++;
-		netif_err(priv, tx_err, dev, "%s: Tx DMA map failed\n",
-			  __func__);
-		return ret;
-	}
-
-	dma_unmap_addr_set(tx_cb_ptr, dma_addr, mapping);
-	dma_unmap_len_set(tx_cb_ptr, dma_len, frag_size);
-
-	dmadesc_set(priv, tx_cb_ptr->bd_addr, mapping,
-		    (frag_size << DMA_BUFLENGTH_SHIFT) | dma_desc_flags |
-		    (priv->hw_params->qtag_mask << DMA_TX_QTAG_SHIFT));
-
-	return 0;
-}
-
 /* Reallocate the SKB to put enough headroom in front of it and insert
  * the transmit checksum offsets in the descriptors
  */
@@ -1535,11 +1463,16 @@ static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
 static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct device *kdev = &priv->pdev->dev;
 	struct bcmgenet_tx_ring *ring = NULL;
+	struct enet_cb *tx_cb_ptr;
 	struct netdev_queue *txq;
 	unsigned long flags = 0;
 	int nr_frags, index;
-	u16 dma_desc_flags;
+	dma_addr_t mapping;
+	unsigned int size;
+	skb_frag_t *frag;
+	u32 len_stat;
 	int ret;
 	int i;
 
@@ -1592,27 +1525,49 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	dma_desc_flags = DMA_SOP;
-	if (nr_frags == 0)
-		dma_desc_flags |= DMA_EOP;
+	for (i = 0; i <= nr_frags; i++) {
+		tx_cb_ptr = bcmgenet_get_txcb(priv, ring);
 
-	/* Transmit single SKB or head of fragment list */
-	ret = bcmgenet_xmit_single(dev, skb, dma_desc_flags, ring);
-	if (ret) {
-		ret = NETDEV_TX_OK;
-		goto out;
-	}
+		if (unlikely(!tx_cb_ptr))
+			BUG();
 
-	/* xmit fragment */
-	for (i = 0; i < nr_frags; i++) {
-		ret = bcmgenet_xmit_frag(dev,
-					 &skb_shinfo(skb)->frags[i],
-					 (i == nr_frags - 1) ? DMA_EOP : 0,
-					 ring);
-		if (ret) {
-			ret = NETDEV_TX_OK;
-			goto out;
+		if (!i) {
+			/* Transmit single SKB or head of fragment list */
+			tx_cb_ptr->skb = skb;
+			size = skb_headlen(skb);
+			mapping = dma_map_single(kdev, skb->data, size,
+						 DMA_TO_DEVICE);
+		} else {
+			/* xmit fragment */
+			tx_cb_ptr->skb = NULL;
+			frag = &skb_shinfo(skb)->frags[i - 1];
+			size = skb_frag_size(frag);
+			mapping = skb_frag_dma_map(kdev, frag, 0, size,
+						   DMA_TO_DEVICE);
 		}
+
+		ret = dma_mapping_error(kdev, mapping);
+		if (ret) {
+			priv->mib.tx_dma_failed++;
+			netif_err(priv, tx_err, dev, "Tx DMA map failed\n");
+			ret = NETDEV_TX_OK;
+			goto out_unmap_frags;
+		}
+		dma_unmap_addr_set(tx_cb_ptr, dma_addr, mapping);
+		dma_unmap_len_set(tx_cb_ptr, dma_len, size);
+
+		len_stat = (size << DMA_BUFLENGTH_SHIFT) |
+			   (priv->hw_params->qtag_mask << DMA_TX_QTAG_SHIFT);
+
+		if (!i) {
+			len_stat |= DMA_TX_APPEND_CRC | DMA_SOP;
+			if (skb->ip_summed == CHECKSUM_PARTIAL)
+				len_stat |= DMA_TX_DO_CSUM;
+		}
+		if (i == nr_frags)
+			len_stat |= DMA_EOP;
+
+		dmadesc_set(priv, tx_cb_ptr->bd_addr, mapping, len_stat);
 	}
 
 	skb_tx_timestamp(skb);
@@ -1635,6 +1590,30 @@ out:
 	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return ret;
+
+out_unmap_frags:
+	/* Back up for failed control block mapping */
+	bcmgenet_put_txcb(priv, ring);
+
+	/* Unmap successfully mapped control blocks */
+	while (i-- > 0) {
+		tx_cb_ptr = bcmgenet_put_txcb(priv, ring);
+		if (tx_cb_ptr->skb)
+			dma_unmap_single(kdev,
+					 dma_unmap_addr(tx_cb_ptr, dma_addr),
+					 dma_unmap_len(tx_cb_ptr, dma_len),
+					 DMA_TO_DEVICE);
+		else
+			dma_unmap_page(kdev,
+				       dma_unmap_addr(tx_cb_ptr, dma_addr),
+				       dma_unmap_len(tx_cb_ptr, dma_len),
+				       DMA_TO_DEVICE);
+		dma_unmap_addr_set(tx_cb_ptr, dma_addr, 0);
+		tx_cb_ptr->skb = NULL;
+	}
+
+	dev_kfree_skb(skb);
+	goto out;
 }
 
 static struct sk_buff *bcmgenet_rx_refill(struct bcmgenet_priv *priv,
