@@ -365,11 +365,6 @@ static size_t syscall_arg__scnprintf_strhexarray(char *bf, size_t size,
 #define SCA_STRHEXARRAY syscall_arg__scnprintf_strhexarray
 #endif /* defined(__i386__) || defined(__x86_64__) */
 
-static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
-					struct syscall_arg *arg);
-
-#define SCA_FD syscall_arg__scnprintf_fd
-
 #ifndef AT_FDCWD
 #define AT_FDCWD	-100
 #endif
@@ -1057,8 +1052,7 @@ static const char *thread__fd_path(struct thread *thread, int fd,
 	return ttrace->paths.table[fd];
 }
 
-static size_t syscall_arg__scnprintf_fd(char *bf, size_t size,
-					struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_fd(char *bf, size_t size, struct syscall_arg *arg)
 {
 	int fd = arg->val;
 	size_t printed = scnprintf(bf, size, "%d", fd);
