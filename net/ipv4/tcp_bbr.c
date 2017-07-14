@@ -220,12 +220,11 @@ static u64 bbr_rate_bytes_per_sec(struct sock *sk, u64 rate, int gain)
  */
 static void bbr_set_pacing_rate(struct sock *sk, u32 bw, int gain)
 {
-	struct bbr *bbr = inet_csk_ca(sk);
 	u64 rate = bw;
 
 	rate = bbr_rate_bytes_per_sec(sk, rate, gain);
 	rate = min_t(u64, rate, sk->sk_max_pacing_rate);
-	if (bbr->mode != BBR_STARTUP || rate > sk->sk_pacing_rate)
+	if (bbr_full_bw_reached(sk) || rate > sk->sk_pacing_rate)
 		sk->sk_pacing_rate = rate;
 }
 
