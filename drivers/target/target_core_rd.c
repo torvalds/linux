@@ -339,10 +339,14 @@ static void rd_dev_call_rcu(struct rcu_head *p)
 
 static void rd_free_device(struct se_device *dev)
 {
+	call_rcu(&dev->rcu_head, rd_dev_call_rcu);
+}
+
+static void rd_destroy_device(struct se_device *dev)
+{
 	struct rd_dev *rd_dev = RD_DEV(dev);
 
 	rd_release_device_space(rd_dev);
-	call_rcu(&dev->rcu_head, rd_dev_call_rcu);
 }
 
 static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
@@ -554,7 +558,7 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 	struct rd_dev *rd_dev = RD_DEV(dev);
 	char *orig, *ptr, *opts;
 	substring_t args[MAX_OPT_ARGS];
-	int ret = 0, arg, token;
+	int arg, token;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -589,7 +593,7 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 	}
 
 	kfree(orig);
-	return (!ret) ? count : ret;
+	return count;
 }
 
 static ssize_t rd_show_configfs_dev_params(struct se_device *dev, char *b)
@@ -651,6 +655,7 @@ static const struct target_backend_ops rd_mcp_ops = {
 	.detach_hba		= rd_detach_hba,
 	.alloc_device		= rd_alloc_device,
 	.configure_device	= rd_configure_device,
+	.destroy_device		= rd_destroy_device,
 	.free_device		= rd_free_device,
 	.parse_cdb		= rd_parse_cdb,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,

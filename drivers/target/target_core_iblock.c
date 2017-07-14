@@ -86,6 +86,7 @@ static int iblock_configure_device(struct se_device *dev)
 	struct block_device *bd = NULL;
 	struct blk_integrity *bi;
 	fmode_t mode;
+	unsigned int max_write_zeroes_sectors;
 	int ret = -ENOMEM;
 
 	if (!(ib_dev->ibd_flags & IBDF_HAS_UDEV_PATH)) {
@@ -129,7 +130,11 @@ static int iblock_configure_device(struct se_device *dev)
 	 * Enable write same emulation for IBLOCK and use 0xFFFF as
 	 * the smaller WRITE_SAME(10) only has a two-byte block count.
 	 */
-	dev->dev_attrib.max_write_same_len = 0xFFFF;
+	max_write_zeroes_sectors = bdev_write_zeroes_sectors(bd);
+	if (max_write_zeroes_sectors)
+		dev->dev_attrib.max_write_same_len = max_write_zeroes_sectors;
+	else
+		dev->dev_attrib.max_write_same_len = 0xFFFF;
 
 	if (blk_queue_nonrot(q))
 		dev->dev_attrib.is_nonrot = 1;
@@ -185,14 +190,17 @@ static void iblock_dev_call_rcu(struct rcu_head *p)
 
 static void iblock_free_device(struct se_device *dev)
 {
+	call_rcu(&dev->rcu_head, iblock_dev_call_rcu);
+}
+
+static void iblock_destroy_device(struct se_device *dev)
+{
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
 	if (ib_dev->ibd_bd != NULL)
 		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
 	if (ib_dev->ibd_bio_set != NULL)
 		bioset_free(ib_dev->ibd_bio_set);
-
-	call_rcu(&dev->rcu_head, iblock_dev_call_rcu);
 }
 
 static unsigned long long iblock_emulate_read_cap_with_block_size(
@@ -415,28 +423,31 @@ iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
-iblock_execute_write_same_direct(struct block_device *bdev, struct se_cmd *cmd)
+iblock_execute_zero_out(struct block_device *bdev, struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct scatterlist *sg = &cmd->t_data_sg[0];
-	struct page *page = NULL;
-	int ret;
+	unsigned char *buf, zero = 0x00, *p = &zero;
+	int rc, ret;
 
-	if (sg->offset) {
-		page = alloc_page(GFP_KERNEL);
-		if (!page)
-			return TCM_OUT_OF_RESOURCES;
-		sg_copy_to_buffer(sg, cmd->t_data_nents, page_address(page),
-				  dev->dev_attrib.block_size);
-	}
+	buf = kmap(sg_page(sg)) + sg->offset;
+	if (!buf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	/*
+	 * Fall back to block_execute_write_same() slow-path if
+	 * incoming WRITE_SAME payload does not contain zeros.
+	 */
+	rc = memcmp(buf, p, cmd->data_length);
+	kunmap(sg_page(sg));
 
-	ret = blkdev_issue_write_same(bdev,
+	if (rc)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	ret = blkdev_issue_zeroout(bdev,
 				target_to_linux_sector(dev, cmd->t_task_lba),
 				target_to_linux_sector(dev,
 					sbc_get_write_same_sectors(cmd)),
-				GFP_KERNEL, page ? page : sg_page(sg));
-	if (page)
-		__free_page(page);
+				GFP_KERNEL, false);
 	if (ret)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
@@ -472,8 +483,10 @@ iblock_execute_write_same(struct se_cmd *cmd)
 		return TCM_INVALID_CDB_FIELD;
 	}
 
-	if (bdev_write_same(bdev))
-		return iblock_execute_write_same_direct(bdev, cmd);
+	if (bdev_write_zeroes_sectors(bdev)) {
+		if (!iblock_execute_zero_out(bdev, cmd))
+			return 0;
+	}
 
 	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
 	if (!ibr)
@@ -848,6 +861,7 @@ static const struct target_backend_ops iblock_ops = {
 	.detach_hba		= iblock_detach_hba,
 	.alloc_device		= iblock_alloc_device,
 	.configure_device	= iblock_configure_device,
+	.destroy_device		= iblock_destroy_device,
 	.free_device		= iblock_free_device,
 	.parse_cdb		= iblock_parse_cdb,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
