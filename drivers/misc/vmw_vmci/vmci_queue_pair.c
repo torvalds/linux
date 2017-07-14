@@ -3253,7 +3253,7 @@ ssize_t vmci_qpair_enquev(struct vmci_qp *qpair,
 		result = qp_enqueue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->produce_q_size,
-					   msg, iov_size,
+					   msg, msg_data_left(msg),
 					   qp_memcpy_to_queue_iov);
 
 		if (result == VMCI_ERROR_QUEUEPAIR_NOT_READY &&
@@ -3295,7 +3295,7 @@ ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   msg, iov_size,
+					   msg, msg_data_left(msg),
 					   qp_memcpy_from_queue_iov,
 					   true);
 
@@ -3339,7 +3339,7 @@ ssize_t vmci_qpair_peekv(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   msg, iov_size,
+					   msg, msg_data_left(msg),
 					   qp_memcpy_from_queue_iov,
 					   false);
 
