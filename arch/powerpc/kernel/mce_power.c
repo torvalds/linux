@@ -53,6 +53,60 @@ static void flush_tlb_206(unsigned int num_sets, unsigned int action)
 	asm volatile("ptesync" : : : "memory");
 }
 
+static void flush_tlb_300(unsigned int num_sets, unsigned int action)
+{
+	unsigned long rb;
+	unsigned int i;
+	unsigned int r;
+
+	switch (action) {
+	case TLB_INVAL_SCOPE_GLOBAL:
+		rb = TLBIEL_INVAL_SET;
+		break;
+	case TLB_INVAL_SCOPE_LPID:
+		rb = TLBIEL_INVAL_SET_LPID;
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	asm volatile("ptesync" : : : "memory");
+
+	if (early_radix_enabled())
+		r = 1;
+	else
+		r = 0;
+
+	/*
+	 * First flush table/PWC caches with set 0, then flush the
+	 * rest of the sets, partition scope. Radix must then do it
+	 * all again with process scope. Hash just has to flush
+	 * process table.
+	 */
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+			"r"(rb), "r"(0), "i"(2), "i"(0), "r"(r));
+	for (i = 1; i < num_sets; i++) {
+		unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
+
+		asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+				"r"(rb+set), "r"(0), "i"(2), "i"(0), "r"(r));
+	}
+
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+			"r"(rb), "r"(0), "i"(2), "i"(1), "r"(r));
+	if (early_radix_enabled()) {
+		for (i = 1; i < num_sets; i++) {
+			unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
+
+			asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
+				"r"(rb+set), "r"(0), "i"(2), "i"(1), "r"(r));
+		}
+	}
+
+	asm volatile("ptesync" : : : "memory");
+}
+
 /*
  * Generic routines to flush TLB on POWER processors. These routines
  * are used as flush_tlb hook in the cpu_spec.
@@ -79,7 +133,7 @@ void __flush_tlb_power9(unsigned int action)
 	else
 		num_sets = POWER9_TLB_SETS_HASH;
 
-	flush_tlb_206(num_sets, action);
+	flush_tlb_300(num_sets, action);
 }
 
 
