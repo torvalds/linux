@@ -653,6 +653,7 @@ struct kvm_vcpu_arch {
 		bool send_user_only;
 		u32 host_apf_reason;
 		unsigned long nested_apf_token;
+		bool delivery_as_pf_vmexit;
 	} apf;
 
 	/* OSVW MSRs (AMD only) */
