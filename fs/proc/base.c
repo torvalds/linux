@@ -1368,7 +1368,7 @@ static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
 	put_task_struct(task);
 	if (task != current)
 		return -EPERM;
-	err = kstrtoint_from_user(buf, count, 10, &n);
+	err = kstrtoint_from_user(buf, count, 0, &n);
 	if (err)
 		return err;
 	if (n < 0 || n == INT_MAX)
