@@ -319,6 +319,7 @@ static int afs_fill_super(struct super_block *sb,
 	sb->s_blocksize_bits	= PAGE_SHIFT;
 	sb->s_magic		= AFS_FS_MAGIC;
 	sb->s_op		= &afs_super_ops;
+	sb->s_xattr		= afs_xattr_handlers;
 	ret = super_setup_bdi(sb);
 	if (ret)
 		return ret;

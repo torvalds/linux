@@ -15,11 +15,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+
 #include "msm_drv.h"
 #include "msm_kms.h"
-
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
 
 struct msm_framebuffer {
 	struct drm_framebuffer base;
@@ -84,14 +84,15 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
  * should be fine, since only the scanout (mdpN) side of things needs
  * this, the gpu doesn't care about fb's.
  */
-int msm_framebuffer_prepare(struct drm_framebuffer *fb, int id)
+int msm_framebuffer_prepare(struct drm_framebuffer *fb,
+		struct msm_gem_address_space *aspace)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int ret, i, n = fb->format->num_planes;
 	uint64_t iova;
 
 	for (i = 0; i < n; i++) {
-		ret = msm_gem_get_iova(msm_fb->planes[i], id, &iova);
+		ret = msm_gem_get_iova(msm_fb->planes[i], aspace, &iova);
 		DBG("FB[%u]: iova[%d]: %08llx (%d)", fb->base.id, i, iova, ret);
 		if (ret)
 			return ret;
@@ -100,21 +101,23 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb, int id)
 	return 0;
 }
 
-void msm_framebuffer_cleanup(struct drm_framebuffer *fb, int id)
+void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
+		struct msm_gem_address_space *aspace)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int i, n = fb->format->num_planes;
 
 	for (i = 0; i < n; i++)
-		msm_gem_put_iova(msm_fb->planes[i], id);
+		msm_gem_put_iova(msm_fb->planes[i], aspace);
 }
 
-uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb, int id, int plane)
+uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
+		struct msm_gem_address_space *aspace, int plane)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	if (!msm_fb->planes[plane])
 		return 0;
-	return msm_gem_iova(msm_fb->planes[plane], id) + fb->offsets[plane];
+	return msm_gem_iova(msm_fb->planes[plane], aspace) + fb->offsets[plane];
 }
 
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane)

@@ -807,10 +807,8 @@ void mtrr_save_state(void)
 	if (!mtrr_enabled())
 		return;
 
-	get_online_cpus();
 	first_cpu = cpumask_first(cpu_online_mask);
 	smp_call_function_single(first_cpu, mtrr_save_fixed_ranges, NULL, 1);
-	put_online_cpus();
 }
 
 void set_mtrr_aps_delayed_init(void)

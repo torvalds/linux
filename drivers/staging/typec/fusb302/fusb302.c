@@ -1039,8 +1039,8 @@ static int fusb302_pd_send_message(struct fusb302_chip *chip,
 	}
 	/* packsym tells the FUSB302 chip that the next X bytes are payload */
 	buf[pos++] = FUSB302_TKN_PACKSYM | (len & 0x1F);
-	buf[pos++] = msg->header & 0xFF;
-	buf[pos++] = (msg->header >> 8) & 0xFF;
+	memcpy(&buf[pos], &msg->header, sizeof(msg->header));
+	pos += sizeof(msg->header);
 
 	len -= 2;
 	memcpy(&buf[pos], msg->payload, len);

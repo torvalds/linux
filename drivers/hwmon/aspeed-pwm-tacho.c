@@ -146,13 +146,25 @@
 
 #define PWM_MAX 255
 
+#define BOTH_EDGES 0x02 /* 10b */
+
 #define M_PWM_DIV_H 0x00
 #define M_PWM_DIV_L 0x05
 #define M_PWM_PERIOD 0x5F
 #define M_TACH_CLK_DIV 0x00
-#define M_TACH_MODE 0x00
-#define M_TACH_UNIT 0x1000
+/*
+ * 5:4 Type N fan tach mode selection bit:
+ * 00: falling
+ * 01: rising
+ * 10: both
+ * 11: reserved.
+ */
+#define M_TACH_MODE 0x02 /* 10b */
+#define M_TACH_UNIT 0x00c0
 #define INIT_FAN_CTRL 0xFF
+
+/* How long we sleep in us while waiting for an RPM result. */
+#define ASPEED_RPM_STATUS_SLEEP_USEC	500
 
 struct aspeed_pwm_tacho_data {
 	struct regmap *regmap;
@@ -163,6 +175,7 @@ struct aspeed_pwm_tacho_data {
 	u8 type_pwm_clock_division_h[3];
 	u8 type_pwm_clock_division_l[3];
 	u8 type_fan_tach_clock_division[3];
+	u8 type_fan_tach_mode[3];
 	u16 type_fan_tach_unit[3];
 	u8 pwm_port_type[8];
 	u8 pwm_port_fan_ctrl[8];
@@ -498,8 +511,9 @@ static u32 aspeed_get_fan_tach_ch_measure_period(struct aspeed_pwm_tacho_data
 static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tacho_data *priv,
 				      u8 fan_tach_ch)
 {
-	u32 raw_data, tach_div, clk_source, sec, val;
-	u8 fan_tach_ch_source, type;
+	u32 raw_data, tach_div, clk_source, msec, usec, val;
+	u8 fan_tach_ch_source, type, mode, both;
+	int ret;
 
 	regmap_write(priv->regmap, ASPEED_PTCR_TRIGGER, 0);
 	regmap_write(priv->regmap, ASPEED_PTCR_TRIGGER, 0x1 << fan_tach_ch);
@@ -507,16 +521,31 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tacho_data *priv,
 	fan_tach_ch_source = priv->fan_tach_ch_source[fan_tach_ch];
 	type = priv->pwm_port_type[fan_tach_ch_source];
 
-	sec = (1000 / aspeed_get_fan_tach_ch_measure_period(priv, type));
-	msleep(sec);
+	msec = (1000 / aspeed_get_fan_tach_ch_measure_period(priv, type));
+	usec = msec * 1000;
 
-	regmap_read(priv->regmap, ASPEED_PTCR_RESULT, &val);
-	if (!(val & RESULT_STATUS_MASK))
-		return -ETIMEDOUT;
+	ret = regmap_read_poll_timeout(
+		priv->regmap,
+		ASPEED_PTCR_RESULT,
+		val,
+		(val & RESULT_STATUS_MASK),
+		ASPEED_RPM_STATUS_SLEEP_USEC,
+		usec);
+
+	/* return -ETIMEDOUT if we didn't get an answer. */
+	if (ret)
+		return ret;
 
 	raw_data = val & RESULT_VALUE_MASK;
 	tach_div = priv->type_fan_tach_clock_division[type];
-	tach_div = 0x4 << (tach_div * 2);
+	/*
+	 * We need the mode to determine if the raw_data is double (from
+	 * counting both edges).
+	 */
+	mode = priv->type_fan_tach_mode[type];
+	both = (mode & BOTH_EDGES) ? 1 : 0;
+
+	tach_div = (0x4 << both) << (tach_div * 2);
 	clk_source = priv->clk_freq;
 
 	if (raw_data == 0)
@@ -702,6 +731,7 @@ static void aspeed_create_type(struct aspeed_pwm_tacho_data *priv)
 	aspeed_set_tacho_type_enable(priv->regmap, TYPEM, true);
 	priv->type_fan_tach_clock_division[TYPEM] = M_TACH_CLK_DIV;
 	priv->type_fan_tach_unit[TYPEM] = M_TACH_UNIT;
+	priv->type_fan_tach_mode[TYPEM] = M_TACH_MODE;
 	aspeed_set_tacho_type_values(priv->regmap, TYPEM, M_TACH_MODE,
 				     M_TACH_UNIT, M_TACH_CLK_DIV);
 }

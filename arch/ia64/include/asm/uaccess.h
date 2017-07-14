@@ -277,18 +277,6 @@ extern long __must_check __strncpy_from_user (char *to, const char __user *from,
 	__sfu_ret;							\
 })
 
-/* Returns: 0 if bad, string length+1 (memory size) of string if ok */
-extern unsigned long __strlen_user (const char __user *);
-
-#define strlen_user(str)				\
-({							\
-	const char __user *__su_str = (str);		\
-	unsigned long __su_ret = 0;			\
-	if (__access_ok(__su_str, 0))			\
-		__su_ret = __strlen_user(__su_str);	\
-	__su_ret;					\
-})
-
 /*
  * Returns: 0 if exception before NUL or reaching the supplied limit
  * (N), a value greater than N if the limit would be exceeded, else

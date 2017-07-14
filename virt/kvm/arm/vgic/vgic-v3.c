@@ -21,6 +21,10 @@
 
 #include "vgic.h"
 
+static bool group0_trap;
+static bool group1_trap;
+static bool common_trap;
+
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
@@ -159,15 +163,24 @@ void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr)
 void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	u32 vmcr;
 
-	/*
-	 * Ignore the FIQen bit, because GIC emulation always implies
-	 * SRE=1 which means the vFIQEn bit is also RES1.
-	 */
-	vmcr = ((vmcrp->ctlr >> ICC_CTLR_EL1_EOImode_SHIFT) <<
-		 ICH_VMCR_EOIM_SHIFT) & ICH_VMCR_EOIM_MASK;
-	vmcr |= (vmcrp->ctlr << ICH_VMCR_CBPR_SHIFT) & ICH_VMCR_CBPR_MASK;
+	if (model == KVM_DEV_TYPE_ARM_VGIC_V2) {
+		vmcr = (vmcrp->ackctl << ICH_VMCR_ACK_CTL_SHIFT) &
+			ICH_VMCR_ACK_CTL_MASK;
+		vmcr |= (vmcrp->fiqen << ICH_VMCR_FIQ_EN_SHIFT) &
+			ICH_VMCR_FIQ_EN_MASK;
+	} else {
+		/*
+		 * When emulating GICv3 on GICv3 with SRE=1 on the
+		 * VFIQEn bit is RES1 and the VAckCtl bit is RES0.
+		 */
+		vmcr = ICH_VMCR_FIQ_EN_MASK;
+	}
+
+	vmcr |= (vmcrp->cbpr << ICH_VMCR_CBPR_SHIFT) & ICH_VMCR_CBPR_MASK;
+	vmcr |= (vmcrp->eoim << ICH_VMCR_EOIM_SHIFT) & ICH_VMCR_EOIM_MASK;
 	vmcr |= (vmcrp->abpr << ICH_VMCR_BPR1_SHIFT) & ICH_VMCR_BPR1_MASK;
 	vmcr |= (vmcrp->bpr << ICH_VMCR_BPR0_SHIFT) & ICH_VMCR_BPR0_MASK;
 	vmcr |= (vmcrp->pmr << ICH_VMCR_PMR_SHIFT) & ICH_VMCR_PMR_MASK;
@@ -180,17 +193,27 @@ void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	u32 vmcr;
 
 	vmcr = cpu_if->vgic_vmcr;
 
-	/*
-	 * Ignore the FIQen bit, because GIC emulation always implies
-	 * SRE=1 which means the vFIQEn bit is also RES1.
-	 */
-	vmcrp->ctlr = ((vmcr >> ICH_VMCR_EOIM_SHIFT) <<
-			ICC_CTLR_EL1_EOImode_SHIFT) & ICC_CTLR_EL1_EOImode_MASK;
-	vmcrp->ctlr |= (vmcr & ICH_VMCR_CBPR_MASK) >> ICH_VMCR_CBPR_SHIFT;
+	if (model == KVM_DEV_TYPE_ARM_VGIC_V2) {
+		vmcrp->ackctl = (vmcr & ICH_VMCR_ACK_CTL_MASK) >>
+			ICH_VMCR_ACK_CTL_SHIFT;
+		vmcrp->fiqen = (vmcr & ICH_VMCR_FIQ_EN_MASK) >>
+			ICH_VMCR_FIQ_EN_SHIFT;
+	} else {
+		/*
+		 * When emulating GICv3 on GICv3 with SRE=1 on the
+		 * VFIQEn bit is RES1 and the VAckCtl bit is RES0.
+		 */
+		vmcrp->fiqen = 1;
+		vmcrp->ackctl = 0;
+	}
+
+	vmcrp->cbpr = (vmcr & ICH_VMCR_CBPR_MASK) >> ICH_VMCR_CBPR_SHIFT;
+	vmcrp->eoim = (vmcr & ICH_VMCR_EOIM_MASK) >> ICH_VMCR_EOIM_SHIFT;
 	vmcrp->abpr = (vmcr & ICH_VMCR_BPR1_MASK) >> ICH_VMCR_BPR1_SHIFT;
 	vmcrp->bpr  = (vmcr & ICH_VMCR_BPR0_MASK) >> ICH_VMCR_BPR0_SHIFT;
 	vmcrp->pmr  = (vmcr & ICH_VMCR_PMR_MASK) >> ICH_VMCR_PMR_SHIFT;
@@ -239,6 +262,12 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 
 	/* Get the show on the road... */
 	vgic_v3->vgic_hcr = ICH_HCR_EN;
+	if (group0_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TALL0;
+	if (group1_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TALL1;
+	if (common_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TC;
 }
 
 int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
@@ -410,6 +439,26 @@ out:
 	return ret;
 }
 
+DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
+
+static int __init early_group0_trap_cfg(char *buf)
+{
+	return strtobool(buf, &group0_trap);
+}
+early_param("kvm-arm.vgic_v3_group0_trap", early_group0_trap_cfg);
+
+static int __init early_group1_trap_cfg(char *buf)
+{
+	return strtobool(buf, &group1_trap);
+}
+early_param("kvm-arm.vgic_v3_group1_trap", early_group1_trap_cfg);
+
+static int __init early_common_trap_cfg(char *buf)
+{
+	return strtobool(buf, &common_trap);
+}
+early_param("kvm-arm.vgic_v3_common_trap", early_common_trap_cfg);
+
 /**
  * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
  * @node:	pointer to the DT node
@@ -460,6 +509,21 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 
 	if (kvm_vgic_global_state.vcpu_base == 0)
 		kvm_info("disabling GICv2 emulation\n");
+
+#ifdef CONFIG_ARM64
+	if (cpus_have_const_cap(ARM64_WORKAROUND_CAVIUM_30115)) {
+		group0_trap = true;
+		group1_trap = true;
+	}
+#endif
+
+	if (group0_trap || group1_trap || common_trap) {
+		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s], reduced performance)\n",
+			 group0_trap ? "G0" : "",
+			 group1_trap ? "G1" : "",
+			 common_trap ? "C"  : "");
+		static_branch_enable(&vgic_v3_cpuif_trap);
+	}
 
 	kvm_vgic_global_state.vctrl_base = NULL;
 	kvm_vgic_global_state.type = VGIC_V3;

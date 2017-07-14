@@ -157,7 +157,7 @@ static int s3fwrn5_i2c_read(struct s3fwrn5_i2c_phy *phy)
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, hdr_size), hdr, hdr_size);
+	skb_put_data(skb, hdr, hdr_size);
 
 	if (data_len == 0)
 		goto out;

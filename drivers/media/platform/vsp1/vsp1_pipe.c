@@ -330,10 +330,21 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe)
 
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
+	bool completed;
+
 	if (pipe == NULL)
 		return;
 
-	vsp1_dlm_irq_frame_end(pipe->output->dlm);
+	completed = vsp1_dlm_irq_frame_end(pipe->output->dlm);
+	if (!completed) {
+		/*
+		 * If the DL commit raced with the frame end interrupt, the
+		 * commit ends up being postponed by one frame. Return
+		 * immediately without calling the pipeline's frame end handler
+		 * or incrementing the sequence number.
+		 */
+		return;
+	}
 
 	if (pipe->hgo)
 		vsp1_hgo_frame_end(pipe->hgo);

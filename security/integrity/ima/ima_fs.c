@@ -323,16 +323,11 @@ static ssize_t ima_write_policy(struct file *file, const char __user *buf,
 	if (*ppos != 0)
 		goto out;
 
-	result = -ENOMEM;
-	data = kmalloc(datalen + 1, GFP_KERNEL);
-	if (!data)
+	data = memdup_user_nul(buf, datalen);
+	if (IS_ERR(data)) {
+		result = PTR_ERR(data);
 		goto out;
-
-	*(data + datalen) = '\0';
-
-	result = -EFAULT;
-	if (copy_from_user(data, buf, datalen))
-		goto out_free;
+	}
 
 	result = mutex_lock_interruptible(&ima_write_mutex);
 	if (result < 0)

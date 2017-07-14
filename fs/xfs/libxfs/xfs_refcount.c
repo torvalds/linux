@@ -784,14 +784,6 @@ xfs_refcount_merge_extents(
 }
 
 /*
- * While we're adjusting the refcounts records of an extent, we have
- * to keep an eye on the number of extents we're dirtying -- run too
- * many in a single transaction and we'll exceed the transaction's
- * reservation and crash the fs.  Each record adds 12 bytes to the
- * log (plus any key updates) so we'll conservatively assume 24 bytes
- * per record.  We must also leave space for btree splits on both ends
- * of the range and space for the CUD and a new CUI.
- *
  * XXX: This is a pretty hand-wavy estimate.  The penalty for guessing
  * true incorrectly is a shutdown FS; the penalty for guessing false
  * incorrectly is more transaction rolls than might be necessary.
@@ -813,8 +805,7 @@ xfs_refcount_still_have_space(
 	 */
 	if (cur->bc_private.a.priv.refc.nr_ops > 2 &&
 	    XFS_TEST_ERROR(false, cur->bc_mp,
-			XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE,
-			XFS_RANDOM_REFCOUNT_CONTINUE_UPDATE))
+			XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE))
 		return false;
 
 	if (cur->bc_private.a.priv.refc.nr_ops == 0)
@@ -822,7 +813,7 @@ xfs_refcount_still_have_space(
 	else if (overhead > cur->bc_tp->t_log_res)
 		return false;
 	return  cur->bc_tp->t_log_res - overhead >
-		cur->bc_private.a.priv.refc.nr_ops * 32;
+		cur->bc_private.a.priv.refc.nr_ops * XFS_REFCOUNT_ITEM_OVERHEAD;
 }
 
 /*
@@ -1076,8 +1067,7 @@ xfs_refcount_finish_one(
 			blockcount);
 
 	if (XFS_TEST_ERROR(false, mp,
-			XFS_ERRTAG_REFCOUNT_FINISH_ONE,
-			XFS_RANDOM_REFCOUNT_FINISH_ONE))
+			XFS_ERRTAG_REFCOUNT_FINISH_ONE))
 		return -EIO;
 
 	/*

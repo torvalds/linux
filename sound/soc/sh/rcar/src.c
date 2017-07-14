@@ -12,10 +12,6 @@
 
 #define SRC_NAME "src"
 
-/* SRCx_STATUS */
-#define OUF_SRCO	((1 << 12) | (1 << 13))
-#define OUF_SRCI	((1 <<  9) | (1 <<  8))
-
 /* SCU_SYSTEM_STATUS0/1 */
 #define OUF_SRC(id)	((1 << (id + 16)) | (1 << id))
 
@@ -53,20 +49,6 @@ struct rsnd_src {
  * 44.1kHz <-> +-----+		+-----+		+-------+
  * ...
  *
- */
-
-/*
- * src.c is caring...
- *
- * Gen1
- *
- * [mem] -> [SRU] -> [SSI]
- *        |--------|
- *
- * Gen2
- *
- * [mem] -> [SRC] -> [SSIU] -> [SSI]
- *        |-----------------|
  */
 
 static void rsnd_src_activation(struct rsnd_mod *mod)
@@ -190,11 +172,13 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	int is_play = rsnd_io_is_play(io);
 	int use_src = 0;
 	u32 fin, fout;
 	u32 ifscr, fsrate, adinr;
 	u32 cr, route;
 	u32 bsdsr, bsisr;
+	u32 i_busif, o_busif, tmp;
 	uint ratio;
 
 	if (!runtime)
@@ -270,6 +254,11 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 		break;
 	}
 
+	/* BUSIF_MODE */
+	tmp = rsnd_get_busif_shift(io, mod);
+	i_busif = ( is_play ? tmp : 0) | 1;
+	o_busif = (!is_play ? tmp : 0) | 1;
+
 	rsnd_mod_write(mod, SRC_ROUTE_MODE0, route);
 
 	rsnd_mod_write(mod, SRC_SRCIR, 1);	/* initialize */
@@ -281,8 +270,9 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_BSISR, bsisr);
 	rsnd_mod_write(mod, SRC_SRCIR, 0);	/* cancel initialize */
 
-	rsnd_mod_write(mod, SRC_I_BUSIF_MODE, 1);
-	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, 1);
+	rsnd_mod_write(mod, SRC_I_BUSIF_MODE, i_busif);
+	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, o_busif);
+
 	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, rsnd_get_dalign(mod, io));
 
 	rsnd_adg_set_src_timesel_gen2(mod, io, fin, fout);
@@ -507,6 +497,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate Switch" :
 			       "SRC In Rate Switch",
+			       rsnd_kctrl_accept_anytime,
 			       rsnd_src_set_convert_rate,
 			       &src->sen, 1);
 	if (ret < 0)
@@ -516,6 +507,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate" :
 			       "SRC In Rate",
+			       rsnd_kctrl_accept_runtime,
 			       rsnd_src_set_convert_rate,
 			       &src->sync, 192000);
 

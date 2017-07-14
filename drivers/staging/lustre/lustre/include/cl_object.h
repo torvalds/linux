@@ -1287,7 +1287,7 @@ do {								    \
  * @{
  */
 struct cl_page_list {
-	unsigned	     pl_nr;
+	unsigned int		 pl_nr;
 	struct list_head	   pl_pages;
 	struct task_struct	*pl_owner;
 };
@@ -1842,7 +1842,7 @@ struct cl_io {
 	/**
 	 * Number of pages owned by this IO. For invariant checking.
 	 */
-	unsigned	     ci_owned_nr;
+	unsigned int	     ci_owned_nr;
 };
 
 /** @} cl_io */

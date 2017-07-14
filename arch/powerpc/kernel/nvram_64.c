@@ -792,21 +792,17 @@ static ssize_t dev_nvram_write(struct file *file, const char __user *buf,
 	count = min_t(size_t, count, size - *ppos);
 	count = min(count, PAGE_SIZE);
 
-	ret = -ENOMEM;
-	tmp = kmalloc(count, GFP_KERNEL);
-	if (!tmp)
+	tmp = memdup_user(buf, count);
+	if (IS_ERR(tmp)) {
+		ret = PTR_ERR(tmp);
 		goto out;
-
-	ret = -EFAULT;
-	if (copy_from_user(tmp, buf, count))
-		goto out;
+	}
 
 	ret = ppc_md.nvram_write(tmp, count, ppos);
 
-out:
 	kfree(tmp);
+out:
 	return ret;
-
 }
 
 static long dev_nvram_ioctl(struct file *file, unsigned int cmd,

@@ -1069,6 +1069,12 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 			}
 		}
 
+		ret = btrfs_is_name_len_valid(eb, path->slots[0],
+			  (unsigned long)(di + 1), name_len + data_len);
+		if (!ret) {
+			ret = -EIO;
+			goto out;
+		}
 		if (name_len + data_len > buf_len) {
 			buf_len = name_len + data_len;
 			if (is_vmalloc_addr(buf)) {
@@ -1083,7 +1089,7 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 				buf = tmp;
 			}
 			if (!buf) {
-				buf = vmalloc(buf_len);
+				buf = kvmalloc(buf_len, GFP_KERNEL);
 				if (!buf) {
 					ret = -ENOMEM;
 					goto out;
@@ -2769,14 +2775,19 @@ out:
 
 struct recorded_ref {
 	struct list_head list;
-	char *dir_path;
 	char *name;
 	struct fs_path *full_path;
 	u64 dir;
 	u64 dir_gen;
-	int dir_path_len;
 	int name_len;
 };
+
+static void set_ref_path(struct recorded_ref *ref, struct fs_path *path)
+{
+	ref->full_path = path;
+	ref->name = (char *)kbasename(ref->full_path->start);
+	ref->name_len = ref->full_path->end - ref->name;
+}
 
 /*
  * We need to process new refs before deleted refs, but compare_tree gives us
@@ -2794,17 +2805,7 @@ static int __record_ref(struct list_head *head, u64 dir,
 
 	ref->dir = dir;
 	ref->dir_gen = dir_gen;
-	ref->full_path = path;
-
-	ref->name = (char *)kbasename(ref->full_path->start);
-	ref->name_len = ref->full_path->end - ref->name;
-	ref->dir_path = ref->full_path->start;
-	if (ref->name == ref->full_path->start)
-		ref->dir_path_len = 0;
-	else
-		ref->dir_path_len = ref->full_path->end -
-				ref->full_path->start - 1 - ref->name_len;
-
+	set_ref_path(ref, path);
 	list_add_tail(&ref->list, head);
 	return 0;
 }
@@ -3546,9 +3547,17 @@ static int is_ancestor(struct btrfs_root *root,
 		       struct fs_path *fs_path)
 {
 	u64 ino = ino2;
+	bool free_path = false;
+	int ret = 0;
+
+	if (!fs_path) {
+		fs_path = fs_path_alloc();
+		if (!fs_path)
+			return -ENOMEM;
+		free_path = true;
+	}
 
 	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
-		int ret;
 		u64 parent;
 		u64 parent_gen;
 
@@ -3557,13 +3566,18 @@ static int is_ancestor(struct btrfs_root *root,
 		if (ret < 0) {
 			if (ret == -ENOENT && ino == ino2)
 				ret = 0;
-			return ret;
+			goto out;
 		}
-		if (parent == ino1)
-			return parent_gen == ino1_gen ? 1 : 0;
+		if (parent == ino1) {
+			ret = parent_gen == ino1_gen ? 1 : 0;
+			goto out;
+		}
 		ino = parent;
 	}
-	return 0;
+ out:
+	if (free_path)
+		fs_path_free(fs_path);
+	return ret;
 }
 
 static int wait_for_parent_move(struct send_ctx *sctx,
@@ -3686,6 +3700,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	int is_orphan = 0;
 	u64 last_dir_ino_rm = 0;
 	bool can_rename = true;
+	bool orphanized_ancestor = false;
 
 	btrfs_debug(fs_info, "process_recorded_refs %llu", sctx->cur_ino);
 
@@ -3837,9 +3852,16 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				 * might contain the pre-orphanization name of
 				 * ow_inode, which is no longer valid.
 				 */
-				fs_path_reset(valid_path);
-				ret = get_cur_path(sctx, sctx->cur_ino,
-					   sctx->cur_inode_gen, valid_path);
+				ret = is_ancestor(sctx->parent_root,
+						  ow_inode, ow_gen,
+						  sctx->cur_ino, NULL);
+				if (ret > 0) {
+					orphanized_ancestor = true;
+					fs_path_reset(valid_path);
+					ret = get_cur_path(sctx, sctx->cur_ino,
+							   sctx->cur_inode_gen,
+							   valid_path);
+				}
 				if (ret < 0)
 					goto out;
 			} else {
@@ -3960,6 +3982,43 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 			if (ret < 0)
 				goto out;
 			if (!ret) {
+				/*
+				 * If we orphanized any ancestor before, we need
+				 * to recompute the full path for deleted names,
+				 * since any such path was computed before we
+				 * processed any references and orphanized any
+				 * ancestor inode.
+				 */
+				if (orphanized_ancestor) {
+					struct fs_path *new_path;
+
+					/*
+					 * Our reference's name member points to
+					 * its full_path member string, so we
+					 * use here a new path.
+					 */
+					new_path = fs_path_alloc();
+					if (!new_path) {
+						ret = -ENOMEM;
+						goto out;
+					}
+					ret = get_cur_path(sctx, cur->dir,
+							   cur->dir_gen,
+							   new_path);
+					if (ret < 0) {
+						fs_path_free(new_path);
+						goto out;
+					}
+					ret = fs_path_add(new_path,
+							  cur->name,
+							  cur->name_len);
+					if (ret < 0) {
+						fs_path_free(new_path);
+						goto out;
+					}
+					fs_path_free(cur->full_path);
+					set_ref_path(cur, new_path);
+				}
 				ret = send_unlink(sctx, cur->full_path);
 				if (ret < 0)
 					goto out;
@@ -6397,13 +6456,10 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 
 	alloc_size = sizeof(struct clone_root) * (arg->clone_sources_count + 1);
 
-	sctx->clone_roots = kzalloc(alloc_size, GFP_KERNEL | __GFP_NOWARN);
+	sctx->clone_roots = kzalloc(alloc_size, GFP_KERNEL);
 	if (!sctx->clone_roots) {
-		sctx->clone_roots = vzalloc(alloc_size);
-		if (!sctx->clone_roots) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	alloc_size = arg->clone_sources_count * sizeof(*arg->clone_sources);

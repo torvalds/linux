@@ -1602,8 +1602,8 @@ static struct snd_pcm_hardware snd_ali_modem =
 static int snd_ali_modem_open(struct snd_pcm_substream *substream, int rec,
 			      int channel)
 {
-	static unsigned int rates[] = {8000, 9600, 12000, 16000};
-	static struct snd_pcm_hw_constraint_list hw_constraint_rates = {
+	static const unsigned int rates[] = {8000, 9600, 12000, 16000};
+	static const struct snd_pcm_hw_constraint_list hw_constraint_rates = {
 		.count = ARRAY_SIZE(rates),
 		.list = rates,
 		.mask = 0,

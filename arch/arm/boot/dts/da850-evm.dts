@@ -82,6 +82,8 @@
 			tca6416: gpio@20 {
 				compatible = "ti,tca6416";
 				reg = <0x20>;
+				gpio-controller;
+				#gpio-cells = <2>;
 			};
 		};
 		wdt: wdt@21000 {

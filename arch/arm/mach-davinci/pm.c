@@ -153,7 +153,8 @@ int __init davinci_pm_init(void)
 	davinci_sram_suspend = sram_alloc(davinci_cpu_suspend_sz, NULL);
 	if (!davinci_sram_suspend) {
 		pr_err("PM: cannot allocate SRAM memory\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto no_sram_mem;
 	}
 
 	davinci_sram_push(davinci_sram_suspend, davinci_cpu_suspend,
@@ -161,6 +162,10 @@ int __init davinci_pm_init(void)
 
 	suspend_set_ops(&davinci_pm_ops);
 
+	return 0;
+
+no_sram_mem:
+	iounmap(pm_config.ddrpsc_reg_base);
 no_ddrpsc_mem:
 	iounmap(pm_config.ddrpll_reg_base);
 no_ddrpll_mem:

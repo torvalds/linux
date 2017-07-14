@@ -221,6 +221,9 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		netif_carrier_on(dev);
 	else
 		netif_carrier_off(dev);
+
+	if (!of_phy_is_fixed_link(mac->of_node))
+		phy_print_status(dev->phydev);
 }
 
 static int mtk_phy_connect_node(struct mtk_eth *eth, struct mtk_mac *mac,
@@ -369,28 +372,48 @@ static void mtk_mdio_cleanup(struct mtk_eth *eth)
 	mdiobus_unregister(eth->mii_bus);
 }
 
-static inline void mtk_irq_disable(struct mtk_eth *eth,
-				   unsigned reg, u32 mask)
+static inline void mtk_tx_irq_disable(struct mtk_eth *eth, u32 mask)
 {
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&eth->irq_lock, flags);
-	val = mtk_r32(eth, reg);
-	mtk_w32(eth, val & ~mask, reg);
-	spin_unlock_irqrestore(&eth->irq_lock, flags);
+	spin_lock_irqsave(&eth->tx_irq_lock, flags);
+	val = mtk_r32(eth, MTK_QDMA_INT_MASK);
+	mtk_w32(eth, val & ~mask, MTK_QDMA_INT_MASK);
+	spin_unlock_irqrestore(&eth->tx_irq_lock, flags);
 }
 
-static inline void mtk_irq_enable(struct mtk_eth *eth,
-				  unsigned reg, u32 mask)
+static inline void mtk_tx_irq_enable(struct mtk_eth *eth, u32 mask)
 {
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&eth->irq_lock, flags);
-	val = mtk_r32(eth, reg);
-	mtk_w32(eth, val | mask, reg);
-	spin_unlock_irqrestore(&eth->irq_lock, flags);
+	spin_lock_irqsave(&eth->tx_irq_lock, flags);
+	val = mtk_r32(eth, MTK_QDMA_INT_MASK);
+	mtk_w32(eth, val | mask, MTK_QDMA_INT_MASK);
+	spin_unlock_irqrestore(&eth->tx_irq_lock, flags);
+}
+
+static inline void mtk_rx_irq_disable(struct mtk_eth *eth, u32 mask)
+{
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&eth->rx_irq_lock, flags);
+	val = mtk_r32(eth, MTK_PDMA_INT_MASK);
+	mtk_w32(eth, val & ~mask, MTK_PDMA_INT_MASK);
+	spin_unlock_irqrestore(&eth->rx_irq_lock, flags);
+}
+
+static inline void mtk_rx_irq_enable(struct mtk_eth *eth, u32 mask)
+{
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&eth->rx_irq_lock, flags);
+	val = mtk_r32(eth, MTK_PDMA_INT_MASK);
+	mtk_w32(eth, val | mask, MTK_PDMA_INT_MASK);
+	spin_unlock_irqrestore(&eth->rx_irq_lock, flags);
 }
 
 static int mtk_set_mac_address(struct net_device *dev, void *p)
@@ -470,9 +493,9 @@ static void mtk_get_stats64(struct net_device *dev,
 	unsigned int start;
 
 	if (netif_running(dev) && netif_device_present(dev)) {
-		if (spin_trylock(&hw_stats->stats_lock)) {
+		if (spin_trylock_bh(&hw_stats->stats_lock)) {
 			mtk_stats_update_mac(mac);
-			spin_unlock(&hw_stats->stats_lock);
+			spin_unlock_bh(&hw_stats->stats_lock);
 		}
 	}
 
@@ -969,6 +992,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		    RX_DMA_VID(trxd.rxd3))
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       RX_DMA_VID(trxd.rxd3));
+		skb_record_rx_queue(skb, 0);
 		napi_gro_receive(napi, skb);
 
 		ring->data[idx] = new_data;
@@ -1098,7 +1122,7 @@ static int mtk_napi_tx(struct napi_struct *napi, int budget)
 		return budget;
 
 	napi_complete(napi);
-	mtk_irq_enable(eth, MTK_QDMA_INT_MASK, MTK_TX_DONE_INT);
+	mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
 
 	return tx_done;
 }
@@ -1132,7 +1156,7 @@ poll_again:
 		goto poll_again;
 	}
 	napi_complete(napi);
-	mtk_irq_enable(eth, MTK_PDMA_INT_MASK, MTK_RX_DONE_INT);
+	mtk_rx_irq_enable(eth, MTK_RX_DONE_INT);
 
 	return rx_done + budget - remain_budget;
 }
@@ -1667,7 +1691,7 @@ static irqreturn_t mtk_handle_irq_rx(int irq, void *_eth)
 
 	if (likely(napi_schedule_prep(&eth->rx_napi))) {
 		__napi_schedule(&eth->rx_napi);
-		mtk_irq_disable(eth, MTK_PDMA_INT_MASK, MTK_RX_DONE_INT);
+		mtk_rx_irq_disable(eth, MTK_RX_DONE_INT);
 	}
 
 	return IRQ_HANDLED;
@@ -1679,7 +1703,7 @@ static irqreturn_t mtk_handle_irq_tx(int irq, void *_eth)
 
 	if (likely(napi_schedule_prep(&eth->tx_napi))) {
 		__napi_schedule(&eth->tx_napi);
-		mtk_irq_disable(eth, MTK_QDMA_INT_MASK, MTK_TX_DONE_INT);
+		mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
 	}
 
 	return IRQ_HANDLED;
@@ -1691,11 +1715,11 @@ static void mtk_poll_controller(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 
-	mtk_irq_disable(eth, MTK_QDMA_INT_MASK, MTK_TX_DONE_INT);
-	mtk_irq_disable(eth, MTK_PDMA_INT_MASK, MTK_RX_DONE_INT);
+	mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
+	mtk_rx_irq_disable(eth, MTK_RX_DONE_INT);
 	mtk_handle_irq_rx(eth->irq[2], dev);
-	mtk_irq_enable(eth, MTK_QDMA_INT_MASK, MTK_TX_DONE_INT);
-	mtk_irq_enable(eth, MTK_PDMA_INT_MASK, MTK_RX_DONE_INT);
+	mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
+	mtk_rx_irq_enable(eth, MTK_RX_DONE_INT);
 }
 #endif
 
@@ -1736,8 +1760,8 @@ static int mtk_open(struct net_device *dev)
 
 		napi_enable(&eth->tx_napi);
 		napi_enable(&eth->rx_napi);
-		mtk_irq_enable(eth, MTK_QDMA_INT_MASK, MTK_TX_DONE_INT);
-		mtk_irq_enable(eth, MTK_PDMA_INT_MASK, MTK_RX_DONE_INT);
+		mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
+		mtk_rx_irq_enable(eth, MTK_RX_DONE_INT);
 	}
 	atomic_inc(&eth->dma_refcnt);
 
@@ -1782,8 +1806,8 @@ static int mtk_stop(struct net_device *dev)
 	if (!atomic_dec_and_test(&eth->dma_refcnt))
 		return 0;
 
-	mtk_irq_disable(eth, MTK_QDMA_INT_MASK, MTK_TX_DONE_INT);
-	mtk_irq_disable(eth, MTK_PDMA_INT_MASK, MTK_RX_DONE_INT);
+	mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
+	mtk_rx_irq_disable(eth, MTK_RX_DONE_INT);
 	napi_disable(&eth->tx_napi);
 	napi_disable(&eth->rx_napi);
 
@@ -1858,11 +1882,13 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	/* Enable RX VLan Offloading */
 	mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
 
+	/* enable interrupt delay for RX */
+	mtk_w32(eth, MTK_PDMA_DELAY_RX_DELAY, MTK_PDMA_DELAY_INT);
+
 	/* disable delay and normal interrupt */
 	mtk_w32(eth, 0, MTK_QDMA_DELAY_INT);
-	mtk_w32(eth, 0, MTK_PDMA_DELAY_INT);
-	mtk_irq_disable(eth, MTK_QDMA_INT_MASK, ~0);
-	mtk_irq_disable(eth, MTK_PDMA_INT_MASK, ~0);
+	mtk_tx_irq_disable(eth, ~0);
+	mtk_rx_irq_disable(eth, ~0);
 	mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
 	mtk_w32(eth, 0, MTK_RST_GL);
 
@@ -1933,8 +1959,8 @@ static void mtk_uninit(struct net_device *dev)
 	phy_disconnect(dev->phydev);
 	if (of_phy_is_fixed_link(mac->of_node))
 		of_phy_deregister_fixed_link(mac->of_node);
-	mtk_irq_disable(eth, MTK_QDMA_INT_MASK, ~0);
-	mtk_irq_disable(eth, MTK_PDMA_INT_MASK, ~0);
+	mtk_tx_irq_disable(eth, ~0);
+	mtk_rx_irq_disable(eth, ~0);
 }
 
 static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -2056,7 +2082,9 @@ static int mtk_get_link_ksettings(struct net_device *ndev,
 	if (unlikely(test_bit(MTK_RESETTING, &mac->hw->state)))
 		return -EBUSY;
 
-	return phy_ethtool_ksettings_get(ndev->phydev, cmd);
+	phy_ethtool_ksettings_get(ndev->phydev, cmd);
+
+	return 0;
 }
 
 static int mtk_set_link_ksettings(struct net_device *ndev,
@@ -2156,9 +2184,9 @@ static void mtk_get_ethtool_stats(struct net_device *dev,
 		return;
 
 	if (netif_running(dev) && netif_device_present(dev)) {
-		if (spin_trylock(&hwstats->stats_lock)) {
+		if (spin_trylock_bh(&hwstats->stats_lock)) {
 			mtk_stats_update_mac(mac);
-			spin_unlock(&hwstats->stats_lock);
+			spin_unlock_bh(&hwstats->stats_lock);
 		}
 	}
 
@@ -2373,14 +2401,9 @@ static int mtk_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct device_node *mac_np;
-	const struct of_device_id *match;
-	struct mtk_soc_data *soc;
 	struct mtk_eth *eth;
 	int err;
 	int i;
-
-	match = of_match_device(of_mtk_match, &pdev->dev);
-	soc = (struct mtk_soc_data *)match->data;
 
 	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
 	if (!eth)
@@ -2392,7 +2415,8 @@ static int mtk_probe(struct platform_device *pdev)
 		return PTR_ERR(eth->base);
 
 	spin_lock_init(&eth->page_lock);
-	spin_lock_init(&eth->irq_lock);
+	spin_lock_init(&eth->tx_irq_lock);
+	spin_lock_init(&eth->rx_irq_lock);
 
 	eth->ethsys = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 						      "mediatek,ethsys");

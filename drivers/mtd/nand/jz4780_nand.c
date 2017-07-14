@@ -205,7 +205,7 @@ static int jz4780_nand_init_ecc(struct jz4780_nand_chip *nand, struct device *de
 		return -EINVAL;
 	}
 
-	mtd->ooblayout = &nand_ooblayout_lp_ops;
+	mtd_set_ooblayout(mtd, &nand_ooblayout_lp_ops);
 
 	return 0;
 }

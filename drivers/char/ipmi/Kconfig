@@ -5,6 +5,7 @@
 menuconfig IPMI_HANDLER
        tristate 'IPMI top-level message handler'
        depends on HAS_IOMEM
+       select IPMI_DMI_DECODE if DMI
        help
          This enables the central IPMI message handler, required for IPMI
 	 to work.
@@ -15,6 +16,9 @@ menuconfig IPMI_HANDLER
          See <file:Documentation/IPMI.txt> for more details on the driver.
 
 	 If unsure, say N.
+
+config IPMI_DMI_DECODE
+       bool
 
 if IPMI_HANDLER
 

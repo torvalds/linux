@@ -91,6 +91,8 @@ static int sun4i_drv_bind(struct device *dev)
 		goto free_drm;
 	}
 	drm->dev_private = drv;
+	INIT_LIST_HEAD(&drv->engine_list);
+	INIT_LIST_HEAD(&drv->tcon_list);
 
 	ret = of_reserved_mem_device_init(dev);
 	if (ret && ret != -ENODEV) {
@@ -138,7 +140,6 @@ finish_poll:
 	sun4i_framebuffer_free(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 free_mem_region:
 	of_reserved_mem_device_release(dev);
 free_drm:
@@ -154,7 +155,6 @@ static void sun4i_drv_unbind(struct device *dev)
 	drm_kms_helper_poll_fini(drm);
 	sun4i_framebuffer_free(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 	of_reserved_mem_device_release(dev);
 	drm_dev_unref(drm);
 }
@@ -163,6 +163,11 @@ static const struct component_master_ops sun4i_drv_master_ops = {
 	.bind	= sun4i_drv_bind,
 	.unbind	= sun4i_drv_unbind,
 };
+
+static bool sun4i_drv_node_is_connector(struct device_node *node)
+{
+	return of_device_is_compatible(node, "hdmi-connector");
+}
 
 static bool sun4i_drv_node_is_frontend(struct device_node *node)
 {
@@ -176,7 +181,8 @@ static bool sun4i_drv_node_is_tcon(struct device_node *node)
 	return of_device_is_compatible(node, "allwinner,sun5i-a13-tcon") ||
 		of_device_is_compatible(node, "allwinner,sun6i-a31-tcon") ||
 		of_device_is_compatible(node, "allwinner,sun6i-a31s-tcon") ||
-		of_device_is_compatible(node, "allwinner,sun8i-a33-tcon");
+		of_device_is_compatible(node, "allwinner,sun8i-a33-tcon") ||
+		of_device_is_compatible(node, "allwinner,sun8i-v3s-tcon");
 }
 
 static int compare_of(struct device *dev, void *data)
@@ -202,6 +208,13 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 	 */
 	if (!sun4i_drv_node_is_frontend(node) &&
 	    !of_device_is_available(node))
+		return 0;
+
+	/*
+	 * The connectors will be the last nodes in our pipeline, we
+	 * can just bail out.
+	 */
+	if (sun4i_drv_node_is_connector(node))
 		return 0;
 
 	if (!sun4i_drv_node_is_frontend(node)) {
@@ -290,10 +303,12 @@ static int sun4i_drv_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sun4i_drv_of_table[] = {
+	{ .compatible = "allwinner,sun5i-a10s-display-engine" },
 	{ .compatible = "allwinner,sun5i-a13-display-engine" },
 	{ .compatible = "allwinner,sun6i-a31-display-engine" },
 	{ .compatible = "allwinner,sun6i-a31s-display-engine" },
 	{ .compatible = "allwinner,sun8i-a33-display-engine" },
+	{ .compatible = "allwinner,sun8i-v3s-display-engine" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);

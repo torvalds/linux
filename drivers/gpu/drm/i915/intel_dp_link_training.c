@@ -146,7 +146,8 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
 
-	if (intel_dp->num_sink_rates)
+	/* eDP 1.4 rate select method. */
+	if (!link_bw)
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
 				  &rate_select, 1);
 
@@ -313,6 +314,24 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp)
 void
 intel_dp_start_link_train(struct intel_dp *intel_dp)
 {
-	intel_dp_link_training_clock_recovery(intel_dp);
-	intel_dp_link_training_channel_equalization(intel_dp);
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+
+	if (!intel_dp_link_training_clock_recovery(intel_dp))
+		goto failure_handling;
+	if (!intel_dp_link_training_channel_equalization(intel_dp))
+		goto failure_handling;
+
+	DRM_DEBUG_KMS("Link Training Passed at Link Rate = %d, Lane count = %d",
+		      intel_dp->link_rate, intel_dp->lane_count);
+	return;
+
+ failure_handling:
+	DRM_DEBUG_KMS("Link Training failed at link rate = %d, lane count = %d",
+		      intel_dp->link_rate, intel_dp->lane_count);
+	if (!intel_dp_get_link_train_fallback_values(intel_dp,
+						     intel_dp->link_rate,
+						     intel_dp->lane_count))
+		/* Schedule a Hotplug Uevent to userspace to start modeset */
+		schedule_work(&intel_connector->modeset_retry_work);
+	return;
 }

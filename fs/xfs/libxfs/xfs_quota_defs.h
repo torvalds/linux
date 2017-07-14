@@ -27,8 +27,8 @@
  * they may need 64-bit accounting. Hence, 64-bit quota-counters,
  * and quota-limits. This is a waste in the common case, but hey ...
  */
-typedef __uint64_t	xfs_qcnt_t;
-typedef __uint16_t	xfs_qwarncnt_t;
+typedef uint64_t	xfs_qcnt_t;
+typedef uint16_t	xfs_qwarncnt_t;
 
 /*
  * flags for q_flags field in the dquot.
@@ -135,6 +135,8 @@ typedef __uint16_t	xfs_qwarncnt_t;
  * flags for dqalloc.
  */
 #define XFS_QMOPT_INHERIT	0x1000000
+
+#define XFS_QMOPT_NOLOCK	0x2000000 /* don't ilock during dqget */
 
 /*
  * flags to xfs_trans_mod_dquot.

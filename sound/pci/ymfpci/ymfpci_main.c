@@ -781,7 +781,7 @@ static snd_pcm_uframes_t snd_ymfpci_capture_pointer(struct snd_pcm_substream *su
 
 static void snd_ymfpci_irq_wait(struct snd_ymfpci *chip)
 {
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	int loops = 4;
 
 	while (loops-- > 0) {

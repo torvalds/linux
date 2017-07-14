@@ -624,7 +624,10 @@ static int ax88179_get_link_ksettings(struct net_device *net,
 				      struct ethtool_link_ksettings *cmd)
 {
 	struct usbnet *dev = netdev_priv(net);
-	return mii_ethtool_get_link_ksettings(&dev->mii, cmd);
+
+	mii_ethtool_get_link_ksettings(&dev->mii, cmd);
+
+	return 0;
 }
 
 static int ax88179_set_link_ksettings(struct net_device *net,
@@ -1722,6 +1725,18 @@ static const struct driver_info lenovo_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
+static const struct driver_info belkin_info = {
+	.description = "Belkin USB Ethernet Adapter",
+	.bind	= ax88179_bind,
+	.unbind = ax88179_unbind,
+	.status = ax88179_status,
+	.link_reset = ax88179_link_reset,
+	.reset	= ax88179_reset,
+	.flags	= FLAG_ETHER | FLAG_FRAMING_AX,
+	.rx_fixup = ax88179_rx_fixup,
+	.tx_fixup = ax88179_tx_fixup,
+};
+
 static const struct usb_device_id products[] = {
 {
 	/* ASIX AX88179 10/100/1000 */
@@ -1751,6 +1766,10 @@ static const struct usb_device_id products[] = {
 	/* Lenovo OneLinkDock Gigabit LAN */
 	USB_DEVICE(0x17ef, 0x304b),
 	.driver_info = (unsigned long)&lenovo_info,
+}, {
+	/* Belkin B2B128 USB 3.0 Hub + Gigabit Ethernet Adapter */
+	USB_DEVICE(0x050d, 0x0128),
+	.driver_info = (unsigned long)&belkin_info,
 },
 	{ },
 };

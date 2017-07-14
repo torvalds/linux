@@ -68,6 +68,7 @@
 static inline u32 rxe_crc32(struct rxe_dev *rxe,
 			    u32 crc, void *next, size_t len)
 {
+	u32 retval;
 	int err;
 
 	SHASH_DESC_ON_STACK(shash, rxe->tfm);
@@ -81,7 +82,9 @@ static inline u32 rxe_crc32(struct rxe_dev *rxe,
 		return crc32_le(crc, next, len);
 	}
 
-	return *(u32 *)shash_desc_ctx(shash);
+	retval = *(u32 *)shash_desc_ctx(shash);
+	barrier_data(shash_desc_ctx(shash));
+	return retval;
 }
 
 int rxe_set_mtu(struct rxe_dev *rxe, unsigned int dev_mtu);

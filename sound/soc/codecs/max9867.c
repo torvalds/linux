@@ -132,7 +132,7 @@ enum rates {
 	pcm_rate_48, max_pcm_rate,
 };
 
-struct ni_div_rates {
+static const struct ni_div_rates {
 	u32 mclk;
 	u16 ni[max_pcm_rate];
 } ni_div[] = {

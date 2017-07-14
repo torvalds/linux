@@ -342,8 +342,8 @@ static void dpaa_get_stats64(struct net_device *net_dev,
 	}
 }
 
-static int dpaa_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
-			 struct tc_to_netdev *tc)
+static int dpaa_setup_tc(struct net_device *net_dev, u32 handle,
+			 u32 chain_index, __be16 proto, struct tc_to_netdev *tc)
 {
 	struct dpaa_priv *priv = netdev_priv(net_dev);
 	u8 num_tc;
@@ -2647,7 +2647,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	priv->buf_layout[TX].priv_data_size = DPAA_TX_PRIV_DATA_SIZE; /* Tx */
 
 	/* device used for DMA mapping */
-	arch_setup_dma_ops(dev, 0, 0, NULL, false);
+	set_dma_ops(dev, get_dma_ops(&pdev->dev));
 	err = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(40));
 	if (err) {
 		dev_err(dev, "dma_coerce_mask_and_coherent() failed\n");

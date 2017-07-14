@@ -759,6 +759,12 @@ struct bfq_group {
 	/* must be the first member */
 	struct blkg_policy_data pd;
 
+	/* cached path for this blkg (see comments in bfq_bic_update_cgroup) */
+	char blkg_path[128];
+
+	/* reference counter (see comments in bfq_bic_update_cgroup) */
+	int ref;
+
 	struct bfq_entity entity;
 	struct bfq_sched_data sched_data;
 
@@ -838,7 +844,7 @@ struct bfq_group *bfq_find_set_group(struct bfq_data *bfqd,
 struct blkcg_gq *bfqg_to_blkg(struct bfq_group *bfqg);
 struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node);
-void bfqg_put(struct bfq_group *bfqg);
+void bfqg_and_blkg_put(struct bfq_group *bfqg);
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 extern struct cftype bfq_blkcg_legacy_files[];
@@ -886,7 +892,8 @@ void bfq_put_idle_entity(struct bfq_service_tree *st,
 			 struct bfq_entity *entity);
 struct bfq_service_tree *
 __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
-				struct bfq_entity *entity);
+				struct bfq_entity *entity,
+				bool update_class_too);
 void bfq_bfqq_served(struct bfq_queue *bfqq, int served);
 void bfq_bfqq_charge_time(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  unsigned long time_ms);
@@ -910,20 +917,13 @@ void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...)	do {			\
-	char __pbuf[128];						\
-									\
-	blkg_path(bfqg_to_blkg(bfqq_group(bfqq)), __pbuf, sizeof(__pbuf)); \
-	blk_add_trace_msg((bfqd)->queue, "bfq%d%c %s " fmt, (bfqq)->pid, \
+	blk_add_trace_msg((bfqd)->queue, "bfq%d%c %s " fmt, (bfqq)->pid,\
 			bfq_bfqq_sync((bfqq)) ? 'S' : 'A',		\
-			  __pbuf, ##args);				\
+			bfqq_group(bfqq)->blkg_path, ##args);		\
 } while (0)
 
-#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	do {			\
-	char __pbuf[128];						\
-									\
-	blkg_path(bfqg_to_blkg(bfqg), __pbuf, sizeof(__pbuf));		\
-	blk_add_trace_msg((bfqd)->queue, "%s " fmt, __pbuf, ##args);	\
-} while (0)
+#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	\
+	blk_add_trace_msg((bfqd)->queue, "%s " fmt, (bfqg)->blkg_path, ##args)
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
 

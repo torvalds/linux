@@ -1499,11 +1499,9 @@ err_idx:
 
 void qedi_clear_task_idx(struct qedi_ctx *qedi, int idx)
 {
-	if (!test_and_clear_bit(idx, qedi->task_idx_map)) {
+	if (!test_and_clear_bit(idx, qedi->task_idx_map))
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "FW task context, already cleared, tid=0x%x\n", idx);
-		WARN_ON(1);
-	}
 }
 
 void qedi_update_itt_map(struct qedi_ctx *qedi, u32 tid, u32 proto_itt,
@@ -1844,7 +1842,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		  qedi->mac);
 
 	sprintf(host_buf, "host_%d", qedi->shost->host_no);
-	qedi_ops->common->set_id(qedi->cdev, host_buf, QEDI_MODULE_VERSION);
+	qedi_ops->common->set_name(qedi->cdev, host_buf);
 
 	qedi_ops->register_ops(qedi->cdev, &qedi_cb_ops, qedi);
 

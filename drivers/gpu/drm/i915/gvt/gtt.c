@@ -244,15 +244,19 @@ static u64 read_pte64(struct drm_i915_private *dev_priv, unsigned long index)
 	return readq(addr);
 }
 
+static void gtt_invalidate(struct drm_i915_private *dev_priv)
+{
+	mmio_hw_access_pre(dev_priv);
+	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
+	mmio_hw_access_post(dev_priv);
+}
+
 static void write_pte64(struct drm_i915_private *dev_priv,
 		unsigned long index, u64 pte)
 {
 	void __iomem *addr = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm + index;
 
 	writeq(pte, addr);
-
-	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
-	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
 
 static inline struct intel_gvt_gtt_entry *gtt_get_entry64(void *pt,
@@ -1849,6 +1853,7 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	}
 
 	ggtt_set_shadow_entry(ggtt_mm, &m, g_gtt_index);
+	gtt_invalidate(gvt->dev_priv);
 	ggtt_set_guest_entry(ggtt_mm, &e, g_gtt_index);
 	return 0;
 }
@@ -2254,6 +2259,8 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		ret = setup_spt_oos(gvt);
 		if (ret) {
 			gvt_err("fail to initialize SPT oos\n");
+			dma_unmap_page(dev, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+			__free_page(gvt->gtt.scratch_ggtt_page);
 			return ret;
 		}
 	}
@@ -2301,8 +2308,6 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 	u32 num_entries;
 	struct intel_gvt_gtt_entry e;
 
-	intel_runtime_pm_get(dev_priv);
-
 	memset(&e, 0, sizeof(struct intel_gvt_gtt_entry));
 	e.type = GTT_TYPE_GGTT_PTE;
 	ops->set_pfn(&e, gvt->gtt.scratch_ggtt_mfn);
@@ -2318,7 +2323,7 @@ void intel_vgpu_reset_ggtt(struct intel_vgpu *vgpu)
 	for (offset = 0; offset < num_entries; offset++)
 		ops->set_entry(NULL, &e, index + offset, false, 0, vgpu);
 
-	intel_runtime_pm_put(dev_priv);
+	gtt_invalidate(dev_priv);
 }
 
 /**

@@ -135,7 +135,7 @@ static struct attribute *default_attrs[] = {
 	&trans_table.attr,
 	NULL
 };
-static struct attribute_group stats_attr_group = {
+static const struct attribute_group stats_attr_group = {
 	.attrs = default_attrs,
 	.name = "stats"
 };

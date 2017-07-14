@@ -214,9 +214,9 @@ enum mutex_trylock_recursive_enum {
  * raisins, and once those are gone this will be removed.
  *
  * Returns:
- *  MUTEX_TRYLOCK_FAILED    - trylock failed,
- *  MUTEX_TRYLOCK_SUCCESS   - lock acquired,
- *  MUTEX_TRYLOCK_RECURSIVE - we already owned the lock.
+ *  - MUTEX_TRYLOCK_FAILED    - trylock failed,
+ *  - MUTEX_TRYLOCK_SUCCESS   - lock acquired,
+ *  - MUTEX_TRYLOCK_RECURSIVE - we already owned the lock.
  */
 static inline /* __deprecated */ __must_check enum mutex_trylock_recursive_enum
 mutex_trylock_recursive(struct mutex *lock)

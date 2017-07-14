@@ -207,7 +207,7 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 static void cl_object_put_last(struct lu_env *env, struct cl_object *obj)
 {
 	struct lu_object_header *header = obj->co_lu.lo_header;
-	wait_queue_t	   waiter;
+	wait_queue_entry_t	   waiter;
 
 	if (unlikely(atomic_read(&header->loh_ref) != 1)) {
 		struct lu_site *site = obj->co_lu.lo_dev->ld_site;

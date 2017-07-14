@@ -89,11 +89,6 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		if (ret)
 			dev_err(card->dev, "failed to stop PLL: %d\n", ret);
 	} else if(SND_SOC_DAPM_EVENT_ON(event)) {
-		ret = snd_soc_dai_set_sysclk(codec_dai,
-                        DA7219_CLKSRC_MCLK, 19200000, SND_SOC_CLOCK_IN);
-		if (ret)
-			dev_err(card->dev, "can't set codec sysclk configuration\n");
-
 		ret = snd_soc_dai_set_pll(codec_dai, 0,
 			DA7219_SYSCLK_PLL_SRM, 0, DA7219_PLL_FREQ_OUT_98304);
 		if (ret)
@@ -187,7 +182,16 @@ static int broxton_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int ret;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_codec *codec = rtd->codec;
+
+	/* Configure sysclk for codec */
+	ret = snd_soc_dai_set_sysclk(codec_dai, DA7219_CLKSRC_MCLK, 19200000,
+				     SND_SOC_CLOCK_IN);
+	if (ret) {
+		dev_err(rtd->dev, "can't set codec sysclk configuration\n");
+		return ret;
+	}
 
 	/*
 	 * Headset buttons map to the google Reference headset.
@@ -238,31 +242,31 @@ static int broxton_da7219_fe_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	48000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_rates = {
+static const struct snd_pcm_hw_constraint_list constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list  = rates,
 	.mask = 0,
 };
 
-static unsigned int channels[] = {
+static const unsigned int channels[] = {
 	DUAL_CHANNEL,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_channels = {
+static const struct snd_pcm_hw_constraint_list constraints_channels = {
 	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,
 };
 
-static unsigned int channels_quad[] = {
+static const unsigned int channels_quad[] = {
 	QUAD_CHANNEL,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_channels_quad = {
+static const struct snd_pcm_hw_constraint_list constraints_channels_quad = {
 	.count = ARRAY_SIZE(channels_quad),
 	.list = channels_quad,
 	.mask = 0,

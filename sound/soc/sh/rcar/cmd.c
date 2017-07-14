@@ -31,7 +31,7 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 data;
-	u32 path[] = {
+	static const u32 path[] = {
 		[1] = 1 << 0,
 		[5] = 1 << 8,
 		[6] = 1 << 12,
@@ -71,7 +71,7 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 	} else {
 		struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 
-		u8 cmd_case[] = {
+		static const u8 cmd_case[] = {
 			[0] = 0x3,
 			[1] = 0x3,
 			[2] = 0x4,
@@ -82,6 +82,9 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 			[9] = 0x2,
 		};
 
+		if (unlikely(!src))
+			return -EIO;
+
 		data = path[rsnd_mod_id(src)] |
 			cmd_case[rsnd_mod_id(src)] << 16;
 	}
@@ -89,6 +92,7 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 	dev_dbg(dev, "ctu/mix path = 0x%08x", data);
 
 	rsnd_mod_write(mod, CMD_ROUTE_SLCT, data);
+	rsnd_mod_write(mod, CMD_BUSIF_MODE, rsnd_get_busif_shift(io, mod) | 1);
 	rsnd_mod_write(mod, CMD_BUSIF_DALIGN, rsnd_get_dalign(mod, io));
 
 	rsnd_adg_set_cmd_timsel_gen2(mod, io);

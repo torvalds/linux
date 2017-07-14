@@ -129,6 +129,8 @@ config I2C_I801
 	    Broxton (SOC)
 	    Lewisburg (PCH)
 	    Gemini Lake (SOC)
+	    Cannon Lake-H (PCH)
+	    Cannon Lake-LP (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -326,6 +328,16 @@ config I2C_POWERMAC
 
 comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
+config I2C_ASPEED
+	tristate "Aspeed I2C Controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	help
+	  If you say yes to this option, support will be included for the
+	  Aspeed I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-aspeed.
+
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
 	depends on ARCH_AT91
@@ -474,10 +486,21 @@ config I2C_DESIGNWARE_PLATFORM
 	depends on (ACPI && COMMON_CLK) || !ACPI
 	help
 	  If you say yes to this option, support will be included for the
-	  Synopsys DesignWare I2C adapter. Only master mode is supported.
+	  Synopsys DesignWare I2C adapter.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-platform.
+
+config I2C_DESIGNWARE_SLAVE
+	bool "Synopsys DesignWare Slave"
+	select I2C_SLAVE
+	depends on I2C_DESIGNWARE_PLATFORM
+	help
+	  If you say yes to this option, support will be included for the
+	  Synopsys DesignWare I2C slave adapter.
+
+	  This is not a standalone module, this module compiles together with
+	  i2c-designware-core.
 
 config I2C_DESIGNWARE_PCI
 	tristate "Synopsys DesignWare PCI"
@@ -1257,5 +1280,14 @@ config I2C_OPAL
 
 	  This driver can also be built as a module. If so, the module will be
 	  called as i2c-opal.
+
+config I2C_ZX2967
+	tristate "ZTE ZX2967 I2C support"
+	depends on ARCH_ZX
+	default y
+	help
+	  Selecting this option will add ZX2967 I2C driver.
+	  This driver can also be built as a module. If so, the module will be
+	  called i2c-zx2967.
 
 endmenu

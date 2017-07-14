@@ -397,7 +397,7 @@ static void ppl_log_endio(struct bio *bio)
 
 	pr_debug("%s: seq: %llu\n", __func__, io->seq);
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		md_error(ppl_conf->mddev, log->rdev);
 
 	list_for_each_entry_safe(sh, next, &io->stripe_list, log_list) {
@@ -1150,7 +1150,7 @@ int ppl_init_log(struct r5conf *conf)
 		goto err;
 	}
 
-	ppl_conf->bs = bioset_create(conf->raid_disks, 0);
+	ppl_conf->bs = bioset_create(conf->raid_disks, 0, 0);
 	if (!ppl_conf->bs) {
 		ret = -ENOMEM;
 		goto err;

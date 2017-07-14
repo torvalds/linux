@@ -63,7 +63,8 @@ static const struct nla_policy xt_osf_policy[OSF_ATTR_MAX + 1] = {
 
 static int xt_osf_add_callback(struct net *net, struct sock *ctnl,
 			       struct sk_buff *skb, const struct nlmsghdr *nlh,
-			       const struct nlattr * const osf_attrs[])
+			       const struct nlattr * const osf_attrs[],
+			       struct netlink_ext_ack *extack)
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *kf = NULL, *sf;
@@ -107,7 +108,8 @@ static int xt_osf_add_callback(struct net *net, struct sock *ctnl,
 static int xt_osf_remove_callback(struct net *net, struct sock *ctnl,
 				  struct sk_buff *skb,
 				  const struct nlmsghdr *nlh,
-				  const struct nlattr * const osf_attrs[])
+				  const struct nlattr * const osf_attrs[],
+				  struct netlink_ext_ack *extack)
 {
 	struct xt_osf_user_finger *f;
 	struct xt_osf_finger *sf;

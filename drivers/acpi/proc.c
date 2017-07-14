@@ -42,7 +42,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 		if (!dev->physical_node_count) {
 			seq_printf(seq, "%c%-8s\n",
-				dev->wakeup.flags.run_wake ? '*' : ' ',
+				dev->wakeup.flags.valid ? '*' : ' ',
 				device_may_wakeup(&dev->dev) ?
 					"enabled" : "disabled");
 		} else {
@@ -58,7 +58,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 					seq_printf(seq, "\t\t");
 
 				seq_printf(seq, "%c%-8s  %s:%s\n",
-					dev->wakeup.flags.run_wake ? '*' : ' ',
+					dev->wakeup.flags.valid ? '*' : ' ',
 					(device_may_wakeup(&dev->dev) ||
 					device_may_wakeup(ldev)) ?
 					"enabled" : "disabled",

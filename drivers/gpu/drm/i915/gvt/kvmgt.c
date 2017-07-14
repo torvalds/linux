@@ -232,16 +232,20 @@ static void gvt_cache_destroy(struct intel_vgpu *vgpu)
 	struct device *dev = mdev_dev(vgpu->vdev.mdev);
 	unsigned long gfn;
 
-	mutex_lock(&vgpu->vdev.cache_lock);
-	while ((node = rb_first(&vgpu->vdev.cache))) {
+	for (;;) {
+		mutex_lock(&vgpu->vdev.cache_lock);
+		node = rb_first(&vgpu->vdev.cache);
+		if (!node) {
+			mutex_unlock(&vgpu->vdev.cache_lock);
+			break;
+		}
 		dma = rb_entry(node, struct gvt_dma, node);
 		gvt_dma_unmap_iova(vgpu, dma->iova);
 		gfn = dma->gfn;
-
-		vfio_unpin_pages(dev, &gfn, 1);
 		__gvt_cache_remove_entry(vgpu, dma);
+		mutex_unlock(&vgpu->vdev.cache_lock);
+		vfio_unpin_pages(dev, &gfn, 1);
 	}
-	mutex_unlock(&vgpu->vdev.cache_lock);
 }
 
 static struct intel_vgpu_type *intel_gvt_find_vgpu_type(struct intel_gvt *gvt,

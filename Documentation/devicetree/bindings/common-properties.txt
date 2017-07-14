@@ -1,6 +1,6 @@
 Common properties
 
-The ePAPR specification does not define any properties related to hardware
+The Devicetree Specification does not define any properties related to hardware
 byteswapping, but endianness issues show up frequently in porting Linux to
 different machine types.  This document attempts to provide a consistent
 way of handling byteswapping across drivers.

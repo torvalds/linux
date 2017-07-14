@@ -673,12 +673,15 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 		musb_dma->status = MUSB_DMA_STATUS_FREE;
 		musb_dma->max_len = SZ_4M;
 
-		dc = dma_request_slave_channel(dev->parent, str);
-		if (!dc) {
-			dev_err(dev, "Failed to request %s.\n", str);
-			ret = -EPROBE_DEFER;
+		dc = dma_request_chan(dev->parent, str);
+		if (IS_ERR(dc)) {
+			ret = PTR_ERR(dc);
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "Failed to request %s: %d.\n",
+					str, ret);
 			goto err;
 		}
+
 		cppi41_channel->dc = dc;
 	}
 	return 0;

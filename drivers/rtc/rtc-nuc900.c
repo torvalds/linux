@@ -93,7 +93,7 @@ static int *check_rtc_access_enable(struct nuc900_rtc *nuc900_rtc)
 	__raw_writel(AERPOWERON, nuc900_rtc->rtc_reg + REG_RTC_AER);
 
 	while (!(__raw_readl(nuc900_rtc->rtc_reg + REG_RTC_AER) & AERRWENB)
-								&& timeout--)
+								&& --timeout)
 		mdelay(1);
 
 	if (!timeout)

@@ -97,6 +97,8 @@
 #define ENA_INTR_MODER_LEVEL_STRIDE			2
 #define ENA_INTR_BYTE_COUNT_NOT_SUPPORTED		0xFFFFFF
 
+#define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
+
 enum ena_intr_moder_level {
 	ENA_INTR_MODER_LOWEST = 0,
 	ENA_INTR_MODER_LOW,
@@ -232,7 +234,9 @@ struct ena_com_stats_admin {
 struct ena_com_admin_queue {
 	void *q_dmadev;
 	spinlock_t q_lock; /* spinlock for the admin queue */
+
 	struct ena_comp_ctx *comp_ctx;
+	u32 completion_timeout;
 	u16 q_depth;
 	struct ena_com_admin_cq cq;
 	struct ena_com_admin_sq sq;
@@ -267,6 +271,7 @@ struct ena_com_aenq {
 struct ena_com_mmio_read {
 	struct ena_admin_ena_mmio_req_read_less_resp *read_resp;
 	dma_addr_t read_resp_dma_addr;
+	u32 reg_read_to; /* in us */
 	u16 seq_num;
 	bool readless_supported;
 	/* spin lock to ensure a single outstanding read */
@@ -336,6 +341,7 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_device_attr_feature_desc dev_attr;
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
+	struct ena_admin_ena_hw_hints hw_hints;
 };
 
 struct ena_com_create_io_ctx {
@@ -414,10 +420,12 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev);
 
 /* ena_com_dev_reset - Perform device FLR to the device.
  * @ena_dev: ENA communication layer struct
+ * @reset_reason: Specify what is the trigger for the reset in case of an error.
  *
  * @return - 0 on success, negative value on failure.
  */
-int ena_com_dev_reset(struct ena_com_dev *ena_dev);
+int ena_com_dev_reset(struct ena_com_dev *ena_dev,
+		      enum ena_regs_reset_reason_types reset_reason);
 
 /* ena_com_create_io_queue - Create io queue.
  * @ena_dev: ENA communication layer struct

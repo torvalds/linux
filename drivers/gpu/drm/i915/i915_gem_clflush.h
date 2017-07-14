@@ -28,7 +28,6 @@
 struct drm_i915_private;
 struct drm_i915_gem_object;
 
-void i915_gem_clflush_init(struct drm_i915_private *i915);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 			     unsigned int flags);
 #define I915_CLFLUSH_FORCE BIT(0)

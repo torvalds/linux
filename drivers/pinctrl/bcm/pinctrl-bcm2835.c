@@ -27,7 +27,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
@@ -1048,6 +1048,10 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < BCM2835_NUM_IRQS; i++) {
 		pc->irq[i] = irq_of_parse_and_map(np, i);
 		pc->irq_group[i] = i;
+
+		if (pc->irq[i] == 0)
+			continue;
+
 		/*
 		 * Use the same handler for all groups: this is necessary
 		 * since we use one gpiochip to cover all lines - the
@@ -1075,31 +1079,17 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int bcm2835_pinctrl_remove(struct platform_device *pdev)
-{
-	struct bcm2835_pinctrl *pc = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&pc->gpio_chip);
-
-	return 0;
-}
-
 static const struct of_device_id bcm2835_pinctrl_match[] = {
 	{ .compatible = "brcm,bcm2835-gpio" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, bcm2835_pinctrl_match);
 
 static struct platform_driver bcm2835_pinctrl_driver = {
 	.probe = bcm2835_pinctrl_probe,
-	.remove = bcm2835_pinctrl_remove,
 	.driver = {
 		.name = MODULE_NAME,
 		.of_match_table = bcm2835_pinctrl_match,
+		.suppress_bind_attrs = true,
 	},
 };
-module_platform_driver(bcm2835_pinctrl_driver);
-
-MODULE_AUTHOR("Chris Boot, Simon Arlott, Stephen Warren");
-MODULE_DESCRIPTION("BCM2835 Pin control driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(bcm2835_pinctrl_driver);

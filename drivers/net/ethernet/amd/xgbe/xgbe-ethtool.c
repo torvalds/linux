@@ -247,7 +247,7 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 
 	if (pause->autoneg && (pdata->phy.autoneg != AUTONEG_ENABLE)) {
 		netdev_err(netdev,
-			   "autoneg disabled, pause autoneg not avialable\n");
+			   "autoneg disabled, pause autoneg not available\n");
 		return -EINVAL;
 	}
 

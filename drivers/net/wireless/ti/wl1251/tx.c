@@ -161,8 +161,7 @@ static int wl1251_tx_fill_hdr(struct wl1251 *wl, struct sk_buff *skb,
 		return id;
 
 	fc = *(u16 *)skb->data;
-	tx_hdr = (struct tx_double_buffer_desc *) skb_push(skb,
-							   sizeof(*tx_hdr));
+	tx_hdr = skb_push(skb, sizeof(*tx_hdr));
 
 	tx_hdr->length = cpu_to_le16(skb->len - sizeof(*tx_hdr));
 	rate = ieee80211_get_tx_rate(wl->hw, control);

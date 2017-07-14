@@ -224,20 +224,6 @@ int sparse_keymap_setup(struct input_dev *dev,
 EXPORT_SYMBOL(sparse_keymap_setup);
 
 /**
- * sparse_keymap_free - free memory allocated for sparse keymap
- * @dev: Input device using sparse keymap
- *
- * This function used to free memory allocated by sparse keymap
- * in an input device that was set up by sparse_keymap_setup().
- * Since sparse_keymap_setup() now uses a managed allocation for the
- * keymap copy, use of this function is deprecated.
- */
-void sparse_keymap_free(struct input_dev *dev)
-{
-}
-EXPORT_SYMBOL(sparse_keymap_free);
-
-/**
  * sparse_keymap_report_entry - report event corresponding to given key entry
  * @dev: Input device for which event should be reported
  * @ke: key entry describing event

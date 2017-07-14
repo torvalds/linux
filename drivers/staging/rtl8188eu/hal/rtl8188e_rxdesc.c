@@ -58,7 +58,7 @@ static void process_link_qual(struct adapter *padapter,
 }
 
 void rtl8188e_process_phy_info(struct adapter *padapter,
-		               struct recv_frame *precvframe)
+			       struct recv_frame *precvframe)
 {
 	/*  Check RSSI */
 	process_rssi(padapter, precvframe);

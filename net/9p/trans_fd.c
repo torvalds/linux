@@ -95,7 +95,7 @@ enum {
 
 struct p9_poll_wait {
 	struct p9_conn *conn;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	wait_queue_head_t *wait_addr;
 };
 
@@ -522,7 +522,7 @@ error:
 	clear_bit(Wworksched, &m->wsched);
 }
 
-static int p9_pollwake(wait_queue_t *wait, unsigned int mode, int sync, void *key)
+static int p9_pollwake(wait_queue_entry_t *wait, unsigned int mode, int sync, void *key)
 {
 	struct p9_poll_wait *pwait =
 		container_of(wait, struct p9_poll_wait, wait);

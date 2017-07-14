@@ -27,6 +27,8 @@
 #include "futextest.h"
 #include "logging.h"
 
+#define TEST_NAME "futex-wait-timeout"
+
 static long timeout_ns = 100000;	/* 100us default timeout */
 
 void usage(char *prog)
@@ -81,6 +83,6 @@ int main(int argc, char *argv[])
 		ret = RET_FAIL;
 	}
 
-	print_result(ret);
+	print_result(TEST_NAME, ret);
 	return ret;
 }

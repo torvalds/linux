@@ -1066,7 +1066,7 @@ static void ssip_pn_setup(struct net_device *dev)
 	dev->addr_len		= 1;
 	dev->tx_queue_len	= SSIP_TXQUEUE_LEN;
 
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->header_ops		= &phonet_header_ops;
 }
 

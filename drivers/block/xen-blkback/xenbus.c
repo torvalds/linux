@@ -159,7 +159,7 @@ static int xen_blkif_alloc_rings(struct xen_blkif *blkif)
 		init_waitqueue_head(&ring->shutdown_wq);
 		ring->blkif = blkif;
 		ring->st_print = jiffies;
-		xen_blkif_get(blkif);
+		ring->active = true;
 	}
 
 	return 0;
@@ -249,10 +249,12 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		struct xen_blkif_ring *ring = &blkif->rings[r];
 		unsigned int i = 0;
 
+		if (!ring->active)
+			continue;
+
 		if (ring->xenblkd) {
 			kthread_stop(ring->xenblkd);
 			wake_up(&ring->shutdown_wq);
-			ring->xenblkd = NULL;
 		}
 
 		/* The above kthread_stop() guarantees that at this point we
@@ -296,7 +298,7 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		BUG_ON(ring->free_pages_num != 0);
 		BUG_ON(ring->persistent_gnt_c != 0);
 		WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
-		xen_blkif_put(blkif);
+		ring->active = false;
 	}
 	blkif->nr_ring_pages = 0;
 	/*
@@ -312,9 +314,10 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 
 static void xen_blkif_free(struct xen_blkif *blkif)
 {
-
-	xen_blkif_disconnect(blkif);
+	WARN_ON(xen_blkif_disconnect(blkif));
 	xen_vbd_free(&blkif->vbd);
+	kfree(blkif->be->mode);
+	kfree(blkif->be);
 
 	/* Make sure everything is drained before shutting down */
 	kmem_cache_free(xen_blkif_cachep, blkif);
@@ -511,8 +514,6 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 		xen_blkif_put(be->blkif);
 	}
 
-	kfree(be->mode);
-	kfree(be);
 	return 0;
 }
 

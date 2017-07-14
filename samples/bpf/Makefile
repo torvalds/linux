@@ -36,6 +36,7 @@ hostprogs-y += lwt_len_hist
 hostprogs-y += xdp_tx_iptunnel
 hostprogs-y += test_map_in_map
 hostprogs-y += per_socket_stats_example
+hostprogs-y += load_sock_ops
 
 # Libbpf dependencies
 LIBBPF := ../../tools/lib/bpf/bpf.o
@@ -52,6 +53,7 @@ tracex3-objs := bpf_load.o $(LIBBPF) tracex3_user.o
 tracex4-objs := bpf_load.o $(LIBBPF) tracex4_user.o
 tracex5-objs := bpf_load.o $(LIBBPF) tracex5_user.o
 tracex6-objs := bpf_load.o $(LIBBPF) tracex6_user.o
+load_sock_ops-objs := bpf_load.o $(LIBBPF) load_sock_ops.o
 test_probe_write_user-objs := bpf_load.o $(LIBBPF) test_probe_write_user_user.o
 trace_output-objs := bpf_load.o $(LIBBPF) trace_output_user.o
 lathist-objs := bpf_load.o $(LIBBPF) lathist_user.o
@@ -111,6 +113,12 @@ always += lwt_len_hist_kern.o
 always += xdp_tx_iptunnel_kern.o
 always += test_map_in_map_kern.o
 always += cookie_uid_helper_example.o
+always += tcp_synrto_kern.o
+always += tcp_rwnd_kern.o
+always += tcp_bufs_kern.o
+always += tcp_cong_kern.o
+always += tcp_iw_kern.o
+always += tcp_clamp_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
 HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -130,6 +138,7 @@ HOSTLOADLIBES_tracex4 += -lelf -lrt
 HOSTLOADLIBES_tracex5 += -lelf
 HOSTLOADLIBES_tracex6 += -lelf
 HOSTLOADLIBES_test_cgrp2_sock2 += -lelf
+HOSTLOADLIBES_load_sock_ops += -lelf
 HOSTLOADLIBES_test_probe_write_user += -lelf
 HOSTLOADLIBES_trace_output += -lelf -lrt
 HOSTLOADLIBES_lathist += -lelf
@@ -160,6 +169,17 @@ clean:
 	$(MAKE) -C ../../ M=$(CURDIR) clean
 	@rm -f *~
 
+$(obj)/syscall_nrs.s:	$(src)/syscall_nrs.c
+	$(call if_changed_dep,cc_s_c)
+
+$(obj)/syscall_nrs.h:	$(obj)/syscall_nrs.s FORCE
+	$(call filechk,offsets,__SYSCALL_NRS_H__)
+
+clean-files += syscall_nrs.h
+
+FORCE:
+
+
 # Verify LLVM compiler tools are available and bpf target is supported by llc
 .PHONY: verify_cmds verify_target_bpf $(CLANG) $(LLC)
 
@@ -180,11 +200,14 @@ verify_target_bpf: verify_cmds
 
 $(src)/*.c: verify_target_bpf
 
+$(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
+
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
 # But, there is no easy way to fix it, so just exclude it since it is
 # useless for BPF samples.
 $(obj)/%.o: $(src)/%.c
-	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) \
+	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) -I$(obj) \
+		-I$(srctree)/tools/testing/selftests/bpf/ \
 		-D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
 		-Wno-compare-distinct-pointer-types \
 		-Wno-gnu-variable-sized-type-not-at-end \

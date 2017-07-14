@@ -162,6 +162,7 @@ static int acpi_topstar_remove(struct acpi_device *device)
 }
 
 static const struct acpi_device_id topstar_device_ids[] = {
+	{ "TPS0001", 0 },
 	{ "TPSACPI01", 0 },
 	{ "", 0 },
 };

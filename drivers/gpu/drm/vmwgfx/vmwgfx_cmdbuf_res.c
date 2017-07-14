@@ -321,6 +321,7 @@ void vmw_cmdbuf_res_man_destroy(struct vmw_cmdbuf_res_manager *man)
 	list_for_each_entry_safe(entry, next, &man->list, head)
 		vmw_cmdbuf_res_free(man, entry);
 
+	drm_ht_remove(&man->resources);
 	kfree(man);
 }
 

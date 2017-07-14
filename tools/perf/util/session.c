@@ -2035,7 +2035,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 
 		if (!(evsel->attr.sample_type & PERF_SAMPLE_CPU)) {
 			pr_err("File does not contain CPU events. "
-			       "Remove -c option to proceed.\n");
+			       "Remove -C option to proceed.\n");
 			return -1;
 		}
 	}

@@ -61,6 +61,7 @@ const struct inode_operations afs_dir_inode_operations = {
 	.permission	= afs_permission,
 	.getattr	= afs_getattr,
 	.setattr	= afs_setattr,
+	.listxattr	= afs_listxattr,
 };
 
 const struct dentry_operations afs_fs_dentry_operations = {

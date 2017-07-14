@@ -707,7 +707,7 @@ static int detect_choice_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new headphone_detect_choice = {
+static const struct snd_kcontrol_new headphone_detect_choice = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Headphone Detect Autoswitch",
 	.info = control_info,
@@ -717,7 +717,7 @@ static struct snd_kcontrol_new headphone_detect_choice = {
 	.private_value = 0,
 };
 
-static struct snd_kcontrol_new lineout_detect_choice = {
+static const struct snd_kcontrol_new lineout_detect_choice = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Line-Out Detect Autoswitch",
 	.info = control_info,
@@ -749,7 +749,7 @@ static int detected_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new headphone_detected = {
+static const struct snd_kcontrol_new headphone_detected = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Headphone Detected",
 	.info = control_info,
@@ -758,7 +758,7 @@ static struct snd_kcontrol_new headphone_detected = {
 	.private_value = 0,
 };
 
-static struct snd_kcontrol_new lineout_detected = {
+static const struct snd_kcontrol_new lineout_detected = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Line-Out Detected",
 	.info = control_info,

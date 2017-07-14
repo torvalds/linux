@@ -61,7 +61,7 @@
 static void vid_dbg_ctl(struct seq_file *s, int val)
 {
 	val = val >> 30;
-	seq_puts(s, "\t");
+	seq_putc(s, '\t');
 
 	if (!(val & 1))
 		seq_puts(s, "NOT ");
@@ -114,8 +114,7 @@ static int vid_dbg_show(struct seq_file *s, void *arg)
 	DBGFS_DUMP(VID_BC);
 	DBGFS_DUMP(VID_TINT);
 	DBGFS_DUMP(VID_CSAT);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 

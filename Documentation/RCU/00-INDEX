@@ -28,8 +28,6 @@ stallwarn.txt
 	- RCU CPU stall warnings (module parameter rcu_cpu_stall_suppress)
 torture.txt
 	- RCU Torture Test Operation (CONFIG_RCU_TORTURE_TEST)
-trace.txt
-	- CONFIG_RCU_TRACE debugfs files and formats
 UP.txt
 	- RCU on Uniprocessor Systems
 whatisRCU.txt

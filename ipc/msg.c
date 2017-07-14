@@ -97,11 +97,11 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
 
 static void msg_rcu_free(struct rcu_head *head)
 {
-	struct ipc_rcu *p = container_of(head, struct ipc_rcu, rcu);
-	struct msg_queue *msq = ipc_rcu_to_struct(p);
+	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
+	struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
 
 	security_msg_queue_free(msq);
-	ipc_rcu_free(head);
+	kvfree(msq);
 }
 
 /**
@@ -114,12 +114,12 @@ static void msg_rcu_free(struct rcu_head *head)
 static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 {
 	struct msg_queue *msq;
-	int id, retval;
+	int retval;
 	key_t key = params->key;
 	int msgflg = params->flg;
 
-	msq = ipc_rcu_alloc(sizeof(*msq));
-	if (!msq)
+	msq = kvmalloc(sizeof(*msq), GFP_KERNEL);
+	if (unlikely(!msq))
 		return -ENOMEM;
 
 	msq->q_perm.mode = msgflg & S_IRWXUGO;
@@ -128,7 +128,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_perm.security = NULL;
 	retval = security_msg_queue_alloc(msq);
 	if (retval) {
-		ipc_rcu_putref(msq, ipc_rcu_free);
+		kvfree(msq);
 		return retval;
 	}
 
@@ -142,10 +142,10 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	INIT_LIST_HEAD(&msq->q_senders);
 
 	/* ipc_addid() locks msq upon success. */
-	id = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
-	if (id < 0) {
-		ipc_rcu_putref(msq, msg_rcu_free);
-		return id;
+	retval = ipc_addid(&msg_ids(ns), &msq->q_perm, ns->msg_ctlmni);
+	if (retval < 0) {
+		call_rcu(&msq->q_perm.rcu, msg_rcu_free);
+		return retval;
 	}
 
 	ipc_unlock_object(&msq->q_perm);
@@ -249,7 +249,7 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 		free_msg(msg);
 	}
 	atomic_sub(msq->q_cbytes, &ns->msg_bytes);
-	ipc_rcu_putref(msq, msg_rcu_free);
+	ipc_rcu_putref(&msq->q_perm, msg_rcu_free);
 }
 
 /*
@@ -688,7 +688,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		/* enqueue the sender and prepare to block */
 		ss_add(msq, &s, msgsz);
 
-		if (!ipc_rcu_getref(msq)) {
+		if (!ipc_rcu_getref(&msq->q_perm)) {
 			err = -EIDRM;
 			goto out_unlock0;
 		}
@@ -700,7 +700,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		rcu_read_lock();
 		ipc_lock_object(&msq->q_perm);
 
-		ipc_rcu_putref(msq, msg_rcu_free);
+		ipc_rcu_putref(&msq->q_perm, msg_rcu_free);
 		/* raced with RMID? */
 		if (!ipc_valid_object(&msq->q_perm)) {
 			err = -EIDRM;

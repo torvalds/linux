@@ -43,7 +43,7 @@ static void virqfd_deactivate(struct virqfd *virqfd)
 	queue_work(vfio_irqfd_cleanup_wq, &virqfd->shutdown);
 }
 
-static int virqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int virqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	struct virqfd *virqfd = container_of(wait, struct virqfd, wait);
 	unsigned long flags = (unsigned long)key;

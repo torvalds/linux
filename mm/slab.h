@@ -274,22 +274,11 @@ static __always_inline int memcg_charge_slab(struct page *page,
 					     gfp_t gfp, int order,
 					     struct kmem_cache *s)
 {
-	int ret;
-
 	if (!memcg_kmem_enabled())
 		return 0;
 	if (is_root_cache(s))
 		return 0;
-
-	ret = memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
-	if (ret)
-		return ret;
-
-	memcg_kmem_update_page_stat(page,
-			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
-			MEMCG_SLAB_RECLAIMABLE : MEMCG_SLAB_UNRECLAIMABLE,
-			1 << order);
-	return 0;
+	return memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
 }
 
 static __always_inline void memcg_uncharge_slab(struct page *page, int order,
@@ -297,11 +286,6 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 {
 	if (!memcg_kmem_enabled())
 		return;
-
-	memcg_kmem_update_page_stat(page,
-			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
-			MEMCG_SLAB_RECLAIMABLE : MEMCG_SLAB_UNRECLAIMABLE,
-			-(1 << order));
 	memcg_kmem_uncharge(page, order);
 }
 

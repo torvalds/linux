@@ -867,7 +867,8 @@ static void need_active_close(struct cxgbi_sock *csk)
 	log_debug(1 << CXGBI_DBG_SOCK, "csk 0x%p,%u,0x%lx,%u.\n",
 		csk, (csk)->state, (csk)->flags, (csk)->tid);
 	spin_lock_bh(&csk->lock);
-	dst_confirm(csk->dst);
+	if (csk->dst)
+		dst_confirm(csk->dst);
 	data_lost = skb_queue_len(&csk->receive_queue);
 	__skb_queue_purge(&csk->receive_queue);
 
@@ -882,7 +883,8 @@ static void need_active_close(struct cxgbi_sock *csk)
 	}
 
 	if (close_req) {
-		if (data_lost)
+		if (!cxgbi_sock_flag(csk, CTPF_LOGOUT_RSP_RCVD) ||
+		    data_lost)
 			csk->cdev->csk_send_abort_req(csk);
 		else
 			csk->cdev->csk_send_close_req(csk);
@@ -1186,9 +1188,10 @@ static int cxgbi_sock_send_pdus(struct cxgbi_sock *csk, struct sk_buff *skb)
 				cxgbi_ulp_extra_len(cxgbi_skcb_ulp_mode(skb));
 		skb = next;
 	}
-done:
+
 	if (likely(skb_queue_len(&csk->write_queue)))
 		cdev->csk_push_tx_frames(csk, 1);
+done:
 	spin_unlock_bh(&csk->lock);
 	return copied;
 
@@ -1568,9 +1571,12 @@ static inline int read_pdu_skb(struct iscsi_conn *conn,
 	}
 }
 
-static int skb_read_pdu_bhs(struct iscsi_conn *conn, struct sk_buff *skb)
+static int
+skb_read_pdu_bhs(struct cxgbi_sock *csk, struct iscsi_conn *conn,
+		 struct sk_buff *skb)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+	int err;
 
 	log_debug(1 << CXGBI_DBG_PDU_RX,
 		"conn 0x%p, skb 0x%p, len %u, flag 0x%lx.\n",
@@ -1608,7 +1614,16 @@ static int skb_read_pdu_bhs(struct iscsi_conn *conn, struct sk_buff *skb)
 		}
 	}
 
-	return read_pdu_skb(conn, skb, 0, 0);
+	err = read_pdu_skb(conn, skb, 0, 0);
+	if (likely(err >= 0)) {
+		struct iscsi_hdr *hdr = (struct iscsi_hdr *)skb->data;
+		u8 opcode = hdr->opcode & ISCSI_OPCODE_MASK;
+
+		if (unlikely(opcode == ISCSI_OP_LOGOUT_RSP))
+			cxgbi_sock_set_flag(csk, CTPF_LOGOUT_RSP_RCVD);
+	}
+
+	return err;
 }
 
 static int skb_read_pdu_data(struct iscsi_conn *conn, struct sk_buff *lskb,
@@ -1713,7 +1728,7 @@ void cxgbi_conn_pdu_ready(struct cxgbi_sock *csk)
 			cxgbi_skcb_rx_pdulen(skb));
 
 		if (cxgbi_skcb_test_flag(skb, SKCBF_RX_COALESCED)) {
-			err = skb_read_pdu_bhs(conn, skb);
+			err = skb_read_pdu_bhs(csk, conn, skb);
 			if (err < 0) {
 				pr_err("coalesced bhs, csk 0x%p, skb 0x%p,%u, "
 					"f 0x%lx, plen %u.\n",
@@ -1731,7 +1746,7 @@ void cxgbi_conn_pdu_ready(struct cxgbi_sock *csk)
 					cxgbi_skcb_flags(skb),
 					cxgbi_skcb_rx_pdulen(skb));
 		} else {
-			err = skb_read_pdu_bhs(conn, skb);
+			err = skb_read_pdu_bhs(csk, conn, skb);
 			if (err < 0) {
 				pr_err("bhs, csk 0x%p, skb 0x%p,%u, "
 					"f 0x%lx, plen %u.\n",

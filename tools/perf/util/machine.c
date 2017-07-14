@@ -572,16 +572,7 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 		if (dso == NULL)
 			goto out_unlock;
 
-		if (machine__is_host(machine))
-			dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
-		else
-			dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
-
-		/* _KMODULE_COMP should be next to _KMODULE */
-		if (m->kmod && m->comp)
-			dso->symtab_type++;
-
-		dso__set_short_name(dso, strdup(m->name), true);
+		dso__set_module_info(dso, m, machine);
 		dso__set_long_name(dso, strdup(filename), true);
 	}
 
@@ -1218,10 +1209,12 @@ int machine__create_kernel_maps(struct machine *machine)
 	 */
 	map_groups__fixup_end(&machine->kmaps);
 
-	if (machine__get_running_kernel_start(machine, &name, &addr)) {
-	} else if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name, addr)) {
-		machine__destroy_kernel_maps(machine);
-		return -1;
+	if (!machine__get_running_kernel_start(machine, &name, &addr)) {
+		if (name &&
+		    maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name, addr)) {
+			machine__destroy_kernel_maps(machine);
+			return -1;
+		}
 	}
 
 	return 0;

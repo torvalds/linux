@@ -29,8 +29,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include <core/gpuobj.h>
 #include <core/option.h>
@@ -80,7 +80,7 @@ int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
 MODULE_PARM_DESC(runpm, "disable (0), force enable (1), optimus only default (-1)");
-int nouveau_runtime_pm = -1;
+static int nouveau_runtime_pm = -1;
 module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 
 static struct drm_driver driver_stub;
@@ -495,7 +495,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	nouveau_fbcon_init(dev);
 	nouveau_led_init(dev);
 
-	if (nouveau_runtime_pm != 0) {
+	if (nouveau_pmops_runtime()) {
 		pm_runtime_use_autosuspend(dev->dev);
 		pm_runtime_set_autosuspend_delay(dev->dev, 5000);
 		pm_runtime_set_active(dev->dev);
@@ -527,7 +527,7 @@ nouveau_drm_unload(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	if (nouveau_runtime_pm != 0) {
+	if (nouveau_pmops_runtime()) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
 	}
@@ -726,6 +726,14 @@ nouveau_pmops_thaw(struct device *dev)
 	return nouveau_do_resume(drm_dev, false);
 }
 
+bool
+nouveau_pmops_runtime(void)
+{
+	if (nouveau_runtime_pm == -1)
+		return nouveau_is_optimus() || nouveau_is_v1_dsm();
+	return nouveau_runtime_pm == 1;
+}
+
 static int
 nouveau_pmops_runtime_suspend(struct device *dev)
 {
@@ -733,14 +741,7 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	int ret;
 
-	if (nouveau_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
-		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+	if (!nouveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -765,8 +766,10 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	struct nvif_device *device = &nouveau_drm(drm_dev)->client.device;
 	int ret;
 
-	if (nouveau_runtime_pm == 0)
-		return -EINVAL;
+	if (!nouveau_pmops_runtime()) {
+		pm_runtime_forbid(dev);
+		return -EBUSY;
+	}
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -796,14 +799,7 @@ nouveau_pmops_runtime_idle(struct device *dev)
 	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct drm_crtc *crtc;
 
-	if (nouveau_runtime_pm == 0) {
-		pm_runtime_forbid(dev);
-		return -EBUSY;
-	}
-
-	/* are we optimus enabled? */
-	if (nouveau_runtime_pm == -1 && !nouveau_is_optimus() && !nouveau_is_v1_dsm()) {
-		DRM_DEBUG_DRIVER("failing to power off - not optimus\n");
+	if (!nouveau_pmops_runtime()) {
 		pm_runtime_forbid(dev);
 		return -EBUSY;
 	}
@@ -881,7 +877,7 @@ done:
 }
 
 static void
-nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
+nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct nouveau_cli *cli = nouveau_cli(fpriv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -897,12 +893,6 @@ nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
 	list_del(&cli->head);
 	mutex_unlock(&drm->client.mutex);
 
-}
-
-static void
-nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
-{
-	struct nouveau_cli *cli = nouveau_cli(fpriv);
 	nouveau_cli_fini(cli);
 	kfree(cli);
 	pm_runtime_mark_last_busy(dev->dev);
@@ -974,7 +964,6 @@ driver_stub = {
 	.load = nouveau_drm_load,
 	.unload = nouveau_drm_unload,
 	.open = nouveau_drm_open,
-	.preclose = nouveau_drm_preclose,
 	.postclose = nouveau_drm_postclose,
 	.lastclose = nouveau_vga_lastclose,
 
@@ -985,7 +974,7 @@ driver_stub = {
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
 	.get_scanout_position = nouveau_display_scanoutpos,
-	.get_vblank_timestamp = nouveau_display_vblstamp,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 
 	.ioctls = nouveau_ioctls,
 	.num_ioctls = ARRAY_SIZE(nouveau_ioctls),

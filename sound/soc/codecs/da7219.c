@@ -260,9 +260,9 @@ static int da7219_volsw_locked_get(struct snd_kcontrol *kcontrol,
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	mutex_lock(&da7219->lock);
+	mutex_lock(&da7219->ctrl_lock);
 	ret = snd_soc_get_volsw(kcontrol, ucontrol);
-	mutex_unlock(&da7219->lock);
+	mutex_unlock(&da7219->ctrl_lock);
 
 	return ret;
 }
@@ -274,9 +274,9 @@ static int da7219_volsw_locked_put(struct snd_kcontrol *kcontrol,
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	mutex_lock(&da7219->lock);
+	mutex_lock(&da7219->ctrl_lock);
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
-	mutex_unlock(&da7219->lock);
+	mutex_unlock(&da7219->ctrl_lock);
 
 	return ret;
 }
@@ -288,9 +288,9 @@ static int da7219_enum_locked_get(struct snd_kcontrol *kcontrol,
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	mutex_lock(&da7219->lock);
+	mutex_lock(&da7219->ctrl_lock);
 	ret = snd_soc_get_enum_double(kcontrol, ucontrol);
-	mutex_unlock(&da7219->lock);
+	mutex_unlock(&da7219->ctrl_lock);
 
 	return ret;
 }
@@ -302,9 +302,9 @@ static int da7219_enum_locked_put(struct snd_kcontrol *kcontrol,
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	mutex_lock(&da7219->lock);
+	mutex_lock(&da7219->ctrl_lock);
 	ret = snd_soc_put_enum_double(kcontrol, ucontrol);
-	mutex_unlock(&da7219->lock);
+	mutex_unlock(&da7219->ctrl_lock);
 
 	return ret;
 }
@@ -424,9 +424,9 @@ static int da7219_tonegen_freq_get(struct snd_kcontrol *kcontrol,
 	u16 val;
 	int ret;
 
-	mutex_lock(&da7219->lock);
+	mutex_lock(&da7219->ctrl_lock);
 	ret = regmap_raw_read(da7219->regmap, reg, &val, sizeof(val));
-	mutex_unlock(&da7219->lock);
+	mutex_unlock(&da7219->ctrl_lock);
 
 	if (ret)
 		return ret;
@@ -458,9 +458,9 @@ static int da7219_tonegen_freq_put(struct snd_kcontrol *kcontrol,
 	 */
 	val = cpu_to_le16(ucontrol->value.integer.value[0]);
 
-	mutex_lock(&da7219->lock);
+	mutex_lock(&da7219->ctrl_lock);
 	ret = regmap_raw_write(da7219->regmap, reg, &val, sizeof(val));
-	mutex_unlock(&da7219->lock);
+	mutex_unlock(&da7219->ctrl_lock);
 
 	return ret;
 }
@@ -801,7 +801,7 @@ static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 				++i;
 				msleep(50);
 			}
-		} while ((i < DA7219_SRM_CHECK_RETRIES) && (!srm_lock));
+		} while ((i < DA7219_SRM_CHECK_RETRIES) & (!srm_lock));
 
 		if (!srm_lock)
 			dev_warn(codec->dev, "SRM failed to lock\n");
@@ -1129,6 +1129,8 @@ static int da7219_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
+	mutex_lock(&da7219->pll_lock);
+
 	switch (clk_id) {
 	case DA7219_CLKSRC_MCLK_SQR:
 		snd_soc_update_bits(codec, DA7219_PLL_CTRL,
@@ -1141,6 +1143,7 @@ static int da7219_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		mutex_unlock(&da7219->pll_lock);
 		return -EINVAL;
 	}
 
@@ -1152,19 +1155,20 @@ static int da7219_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		if (ret) {
 			dev_err(codec_dai->dev, "Failed to set clock rate %d\n",
 				freq);
+			mutex_unlock(&da7219->pll_lock);
 			return ret;
 		}
 	}
 
 	da7219->mclk_rate = freq;
 
+	mutex_unlock(&da7219->pll_lock);
+
 	return 0;
 }
 
-static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
-			      int source, unsigned int fref, unsigned int fout)
+int da7219_set_pll(struct snd_soc_codec *codec, int source, unsigned int fout)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
 	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
 
 	u8 pll_ctrl, indiv_bits, indiv;
@@ -1235,6 +1239,20 @@ static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 			    pll_ctrl);
 
 	return 0;
+}
+
+static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+			      int source, unsigned int fref, unsigned int fout)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct da7219_priv *da7219 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	mutex_lock(&da7219->pll_lock);
+	ret = da7219_set_pll(codec, source, fout);
+	mutex_unlock(&da7219->pll_lock);
+
+	return ret;
 }
 
 static int da7219_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -1741,7 +1759,8 @@ static int da7219_probe(struct snd_soc_codec *codec)
 	unsigned int rev;
 	int ret;
 
-	mutex_init(&da7219->lock);
+	mutex_init(&da7219->ctrl_lock);
+	mutex_init(&da7219->pll_lock);
 
 	/* Regulator configuration */
 	ret = da7219_handle_supplies(codec);

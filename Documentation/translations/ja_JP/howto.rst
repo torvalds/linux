@@ -197,13 +197,6 @@ ReSTマークアップを使ったドキュメントは Documentation/outputに�
         make latexdocs
         make epubdocs
 
-現在、幾つかの DocBook形式で書かれたドキュメントは ReST形式に転換中で
-す。それらのドキュメントはDocumentation/DocBook ディレクトリに生成され、
-Postscript または man ページの形式を生成するには以下のようにします - ::
-
-        make psdocs
-        make mandocs
-
 カーネル開発者になるには
 ------------------------
 

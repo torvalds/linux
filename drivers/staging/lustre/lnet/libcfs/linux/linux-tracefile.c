@@ -57,8 +57,9 @@ int cfs_tracefile_init_arch(void)
 	memset(cfs_trace_data, 0, sizeof(cfs_trace_data));
 	for (i = 0; i < CFS_TCD_TYPE_MAX; i++) {
 		cfs_trace_data[i] =
-			kmalloc(sizeof(union cfs_trace_data_union) *
-				num_possible_cpus(), GFP_KERNEL);
+			kmalloc_array(num_possible_cpus(),
+				      sizeof(union cfs_trace_data_union),
+				      GFP_KERNEL);
 		if (!cfs_trace_data[i])
 			goto out;
 	}

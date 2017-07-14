@@ -31,7 +31,7 @@
 #include <linux/hash.h>
 #include <linux/list_sort.h>
 #include <linux/raid/xor.h>
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <asm/div64.h>
 #include "ctree.h"
 #include "extent_map.h"
@@ -218,12 +218,9 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	 * of a failing mount.
 	 */
 	table_size = sizeof(*table) + sizeof(*h) * num_entries;
-	table = kzalloc(table_size, GFP_KERNEL | __GFP_NOWARN | __GFP_REPEAT);
-	if (!table) {
-		table = vzalloc(table_size);
-		if (!table)
-			return -ENOMEM;
-	}
+	table = kvzalloc(table_size, GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
 
 	spin_lock_init(&table->cache_lock);
 	INIT_LIST_HEAD(&table->stripe_cache);
@@ -871,7 +868,7 @@ static void free_raid_bio(struct btrfs_raid_bio *rbio)
  * this frees the rbio and runs through all the bios in the
  * bio_list and calls end_io on them
  */
-static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, int err)
+static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t err)
 {
 	struct bio *cur = bio_list_get(&rbio->bio_list);
 	struct bio *next;
@@ -884,7 +881,7 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, int err)
 	while (cur) {
 		next = cur->bi_next;
 		cur->bi_next = NULL;
-		cur->bi_error = err;
+		cur->bi_status = err;
 		bio_endio(cur);
 		cur = next;
 	}
@@ -897,7 +894,7 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, int err)
 static void raid_write_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
-	int err = bio->bi_error;
+	blk_status_t err = bio->bi_status;
 	int max_errors;
 
 	if (err)
@@ -914,7 +911,7 @@ static void raid_write_end_io(struct bio *bio)
 	max_errors = (rbio->operation == BTRFS_RBIO_PARITY_SCRUB) ?
 		     0 : rbio->bbio->max_errors;
 	if (atomic_read(&rbio->error) > max_errors)
-		err = -EIO;
+		err = BLK_STS_IOERR;
 
 	rbio_orig_end_io(rbio, err);
 }
@@ -1092,7 +1089,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 		 * devices or if they are not contiguous
 		 */
 		if (last_end == disk_start && stripe->dev->bdev &&
-		    !last->bi_error &&
+		    !last->bi_status &&
 		    last->bi_bdev == stripe->dev->bdev) {
 			ret = bio_add_page(last, page, PAGE_SIZE, 0);
 			if (ret == PAGE_SIZE)
@@ -1101,10 +1098,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 	}
 
 	/* put a new bio on the list */
-	bio = btrfs_io_bio_alloc(GFP_NOFS, bio_max_len >> PAGE_SHIFT?:1);
-	if (!bio)
-		return -ENOMEM;
-
+	bio = btrfs_io_bio_alloc(bio_max_len >> PAGE_SHIFT ?: 1);
 	bio->bi_iter.bi_size = 0;
 	bio->bi_bdev = stripe->dev->bdev;
 	bio->bi_iter.bi_sector = disk_start >> 9;
@@ -1448,7 +1442,7 @@ static void raid_rmw_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
 		set_bio_pages_uptodate(bio);
@@ -1991,7 +1985,7 @@ static void raid_recover_end_io(struct bio *bio)
 	 * we only read stripe pages off the disk, set them
 	 * up to date if there were no errors
 	 */
-	if (bio->bi_error)
+	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
 		set_bio_pages_uptodate(bio);
@@ -2530,7 +2524,7 @@ static void raid56_parity_scrub_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		fail_bio_stripe(rbio, bio);
 	else
 		set_bio_pages_uptodate(bio);

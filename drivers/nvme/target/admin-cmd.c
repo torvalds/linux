@@ -336,7 +336,7 @@ out:
 
 static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 {
-	static const int buf_size = 4096;
+	static const int buf_size = NVME_IDENTIFY_DATA_SIZE;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvmet_ns *ns;
 	u32 min_nsid = le32_to_cpu(req->cmd->identify.nsid);
@@ -363,6 +363,64 @@ static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 	status = nvmet_copy_to_sgl(req, 0, list, buf_size);
 
 	kfree(list);
+out:
+	nvmet_req_complete(req, status);
+}
+
+static u16 nvmet_copy_ns_identifier(struct nvmet_req *req, u8 type, u8 len,
+				    void *id, off_t *off)
+{
+	struct nvme_ns_id_desc desc = {
+		.nidt = type,
+		.nidl = len,
+	};
+	u16 status;
+
+	status = nvmet_copy_to_sgl(req, *off, &desc, sizeof(desc));
+	if (status)
+		return status;
+	*off += sizeof(desc);
+
+	status = nvmet_copy_to_sgl(req, *off, id, len);
+	if (status)
+		return status;
+	*off += len;
+
+	return 0;
+}
+
+static void nvmet_execute_identify_desclist(struct nvmet_req *req)
+{
+	struct nvmet_ns *ns;
+	u16 status = 0;
+	off_t off = 0;
+
+	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->identify.nsid);
+	if (!ns) {
+		status = NVME_SC_INVALID_NS | NVME_SC_DNR;
+		goto out;
+	}
+
+	if (memchr_inv(&ns->uuid, 0, sizeof(ns->uuid))) {
+		status = nvmet_copy_ns_identifier(req, NVME_NIDT_UUID,
+						  NVME_NIDT_UUID_LEN,
+						  &ns->uuid, &off);
+		if (status)
+			goto out_put_ns;
+	}
+	if (memchr_inv(ns->nguid, 0, sizeof(ns->nguid))) {
+		status = nvmet_copy_ns_identifier(req, NVME_NIDT_NGUID,
+						  NVME_NIDT_NGUID_LEN,
+						  &ns->nguid, &off);
+		if (status)
+			goto out_put_ns;
+	}
+
+	if (sg_zero_buffer(req->sg, req->sg_cnt, NVME_IDENTIFY_DATA_SIZE - off,
+			off) != NVME_IDENTIFY_DATA_SIZE - off)
+		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+out_put_ns:
+	nvmet_put_namespace(ns);
 out:
 	nvmet_req_complete(req, status);
 }
@@ -504,7 +562,7 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 		}
 		break;
 	case nvme_admin_identify:
-		req->data_len = 4096;
+		req->data_len = NVME_IDENTIFY_DATA_SIZE;
 		switch (cmd->identify.cns) {
 		case NVME_ID_CNS_NS:
 			req->execute = nvmet_execute_identify_ns;
@@ -514,6 +572,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 			return 0;
 		case NVME_ID_CNS_NS_ACTIVE_LIST:
 			req->execute = nvmet_execute_identify_nslist;
+			return 0;
+		case NVME_ID_CNS_NS_DESC_LIST:
+			req->execute = nvmet_execute_identify_desclist;
 			return 0;
 		}
 		break;

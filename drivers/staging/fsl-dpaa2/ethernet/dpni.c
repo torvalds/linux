@@ -30,8 +30,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "../../fsl-mc/include/mc-sys.h"
-#include "../../fsl-mc/include/mc-cmd.h"
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include "../../fsl-mc/include/mc.h"
 #include "dpni.h"
 #include "dpni-cmd.h"
 

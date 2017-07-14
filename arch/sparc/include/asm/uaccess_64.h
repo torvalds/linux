@@ -194,7 +194,6 @@ unsigned long __must_check __clear_user(void __user *, unsigned long);
 
 #define clear_user __clear_user
 
-__must_check long strlen_user(const char __user *str);
 __must_check long strnlen_user(const char __user *str, long n);
 
 struct pt_regs;
