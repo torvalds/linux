@@ -34,10 +34,14 @@ size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_ar
 		syscall_arg__set_ret_scnprintf(arg, syscall_arg__scnprintf_fd);
 		goto out;
 	}
+	if (arg->val == F_GETOWN) {
+		syscall_arg__set_ret_scnprintf(arg, syscall_arg__scnprintf_pid);
+		goto mask_arg;
+	}
 	/*
 	 * Some commands ignore the third fcntl argument, "arg", so mask it
 	 */
-	if (arg->val == F_GETOWN   || arg->val == F_GET_SEALS ||
+	if (arg->val == F_GET_SEALS ||
 	    arg->val == F_GETLEASE || arg->val == F_GETSIG) {
 mask_arg:
 		arg->mask |= (1 << 2);
@@ -55,6 +59,9 @@ size_t syscall_arg__scnprintf_fcntl_arg(char *bf, size_t size, struct syscall_ar
 
 	if (cmd == F_SETFL)
 		return open__scnprintf_flags(arg->val, bf, size);
+
+	if (cmd == F_SETOWN)
+		return syscall_arg__scnprintf_pid(bf, size, arg);
 	/*
 	 * We still don't grab the contents of pointers on entry or exit,
 	 * so just print them as hex numbers
