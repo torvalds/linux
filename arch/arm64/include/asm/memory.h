@@ -113,6 +113,25 @@
 #define IRQ_STACK_SIZE		THREAD_SIZE
 
 /*
+ * Alignment of kernel segments (e.g. .text, .data).
+ */
+#if defined(CONFIG_DEBUG_ALIGN_RODATA)
+/*
+ *  4 KB granule:   1 level 2 entry
+ * 16 KB granule: 128 level 3 entries, with contiguous bit
+ * 64 KB granule:  32 level 3 entries, with contiguous bit
+ */
+#define SEGMENT_ALIGN			SZ_2M
+#else
+/*
+ *  4 KB granule:  16 level 3 entries, with contiguous bit
+ * 16 KB granule:   4 level 3 entries, without contiguous bit
+ * 64 KB granule:   1 level 3 entry
+ */
+#define SEGMENT_ALIGN			SZ_64K
+#endif
+
+/*
  * Memory types available.
  */
 #define MT_DEVICE_nGnRnE	0
