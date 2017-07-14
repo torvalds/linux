@@ -1597,7 +1597,8 @@ void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 extern int intel_fbdev_init(struct drm_device *dev);
 extern void intel_fbdev_initial_config_async(struct drm_device *dev);
-extern void intel_fbdev_fini(struct drm_device *dev);
+extern void intel_fbdev_unregister(struct drm_i915_private *dev_priv);
+extern void intel_fbdev_fini(struct drm_i915_private *dev_priv);
 extern void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous);
 extern void intel_fbdev_output_poll_changed(struct drm_device *dev);
 extern void intel_fbdev_restore_mode(struct drm_device *dev);
@@ -1611,7 +1612,11 @@ static inline void intel_fbdev_initial_config_async(struct drm_device *dev)
 {
 }
 
-static inline void intel_fbdev_fini(struct drm_device *dev)
+static inline void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
+{
+}
+
+static inline void intel_fbdev_fini(struct drm_i915_private *dev_priv)
 {
 }
 

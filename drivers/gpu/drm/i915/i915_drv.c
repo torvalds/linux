@@ -1241,6 +1241,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 {
+	intel_fbdev_unregister(dev_priv);
 	intel_audio_deinit(dev_priv);
 
 	intel_gpu_ips_teardown();
@@ -1373,8 +1374,6 @@ void i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-
-	intel_fbdev_fini(dev);
 
 	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");

@@ -531,8 +531,6 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 	 * trying to rectify all the possible error paths leading here.
 	 */
 
-	drm_fb_helper_unregister_fbi(&ifbdev->helper);
-
 	drm_fb_helper_fini(&ifbdev->helper);
 
 	if (ifbdev->vma) {
@@ -720,8 +718,10 @@ static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
 	if (drm_fb_helper_initial_config(&ifbdev->helper,
-					 ifbdev->preferred_bpp))
-		intel_fbdev_fini(ifbdev->helper.dev);
+					 ifbdev->preferred_bpp)) {
+		intel_fbdev_unregister(to_i915(ifbdev->helper.dev));
+		intel_fbdev_fini(to_i915(ifbdev->helper.dev));
+	}
 }
 
 void intel_fbdev_initial_config_async(struct drm_device *dev)
@@ -744,9 +744,8 @@ static void intel_fbdev_sync(struct intel_fbdev *ifbdev)
 	ifbdev->cookie = 0;
 }
 
-void intel_fbdev_fini(struct drm_device *dev)
+void intel_fbdev_unregister(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 
 	if (!ifbdev)
@@ -756,8 +755,17 @@ void intel_fbdev_fini(struct drm_device *dev)
 	if (!current_is_async())
 		intel_fbdev_sync(ifbdev);
 
+	drm_fb_helper_unregister_fbi(&ifbdev->helper);
+}
+
+void intel_fbdev_fini(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbdev *ifbdev = fetch_and_zero(&dev_priv->fbdev);
+
+	if (!ifbdev)
+		return;
+
 	intel_fbdev_destroy(ifbdev);
-	dev_priv->fbdev = NULL;
 }
 
 void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
