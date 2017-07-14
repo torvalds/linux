@@ -738,7 +738,6 @@ static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio
 
 /* for managing resync I/O pages */
 struct resync_pages {
-	unsigned	idx;	/* for get/put page from the pool */
 	void		*raid_bio;
 	struct page	*pages[RESYNC_PAGES];
 };
