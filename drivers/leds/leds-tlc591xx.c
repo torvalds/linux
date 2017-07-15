@@ -232,9 +232,8 @@ tlc591xx_probe(struct i2c_client *client,
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err)
 			return err;
-		if (reg < 0 || reg >= tlc591xx->max_leds)
-			return -EINVAL;
-		if (priv->leds[reg].active)
+		if (reg < 0 || reg >= tlc591xx->max_leds ||
+		    priv->leds[reg].active)
 			return -EINVAL;
 		priv->leds[reg].active = true;
 		priv->leds[reg].ldev.name =
