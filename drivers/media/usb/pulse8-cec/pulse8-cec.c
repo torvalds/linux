@@ -656,7 +656,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 
 	pulse8->serio = serio;
 	pulse8->adap = cec_allocate_adapter(&pulse8_cec_adap_ops, pulse8,
-		"HDMI CEC", caps, 1);
+					    dev_name(&serio->dev), caps, 1);
 	err = PTR_ERR_OR_ZERO(pulse8->adap);
 	if (err < 0)
 		goto free_device;

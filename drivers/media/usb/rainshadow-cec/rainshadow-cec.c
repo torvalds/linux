@@ -323,7 +323,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 
 	rain->serio = serio;
 	rain->adap = cec_allocate_adapter(&rain_cec_adap_ops, rain,
-		"HDMI CEC", caps, 1);
+					  dev_name(&serio->dev), caps, 1);
 	err = PTR_ERR_OR_ZERO(rain->adap);
 	if (err < 0)
 		goto free_device;
