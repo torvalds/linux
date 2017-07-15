@@ -194,7 +194,7 @@ static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
 	struct rt6_info *rt = (struct rt6_info *)dst;
 
 	return rt->rt6i_flags & RTF_ANYCAST ||
-		(rt->rt6i_dst.plen != 128 &&
+		(rt->rt6i_dst.plen < 127 &&
 		 ipv6_addr_equal(&rt->rt6i_dst.addr, daddr));
 }
 
