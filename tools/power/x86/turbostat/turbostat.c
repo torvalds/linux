@@ -2610,6 +2610,10 @@ static void signal_handler (int signal)
 		if (debug)
 			fprintf(stderr, " SIGINT\n");
 		break;
+	case SIGUSR1:
+		if (debug > 1)
+			fprintf(stderr, "SIGUSR1\n");
+		break;
 	}
 }
 
@@ -2623,6 +2627,8 @@ void setup_signal_handler(void)
 
 	if (sigaction(SIGINT, &sa, NULL) < 0)
 		err(1, "sigaction SIGINT");
+	if (sigaction(SIGUSR1, &sa, NULL) < 0)
+		err(1, "sigaction SIGUSR1");
 }
 void turbostat_loop()
 {
