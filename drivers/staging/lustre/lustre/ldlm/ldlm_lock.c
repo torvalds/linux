@@ -1029,11 +1029,11 @@ void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list)
 	if (work_list && lock->l_completion_ast)
 		ldlm_add_ast_work_item(lock, NULL, work_list);
 
-	if (res->lr_type == LDLM_PLAIN || res->lr_type == LDLM_IBITS)
+	if (res->lr_type == LDLM_PLAIN || res->lr_type == LDLM_IBITS) {
 		ldlm_grant_lock_with_skiplist(lock);
-	else if (res->lr_type == LDLM_EXTENT)
+	} else if (res->lr_type == LDLM_EXTENT) {
 		ldlm_extent_add_lock(res, lock);
-	else if (res->lr_type == LDLM_FLOCK) {
+	} else if (res->lr_type == LDLM_FLOCK) {
 		/*
 		 * We should not add locks to granted list in the following cases:
 		 * - this is an UNLOCK but not a real lock;
@@ -1045,8 +1045,9 @@ void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list)
 		    ldlm_is_test_lock(lock) || ldlm_is_flock_deadlock(lock))
 			return;
 		ldlm_resource_add_lock(res, &res->lr_granted, lock);
-	} else
+	} else {
 		LBUG();
+	}
 
 	ldlm_pool_add(&ldlm_res_to_ns(res)->ns_pool, lock);
 }

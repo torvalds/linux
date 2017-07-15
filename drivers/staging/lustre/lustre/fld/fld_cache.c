@@ -348,9 +348,10 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 
 		f_curr->fce_range.lsr_end = new_start;
 		fld_cache_entry_add(cache, f_new, &f_curr->fce_list);
-	} else
+	} else {
 		CERROR("NEW range =" DRANGE " curr = " DRANGE "\n",
 		       PRANGE(range), PRANGE(&f_curr->fce_range));
+	}
 }
 
 struct fld_cache_entry
