@@ -29,7 +29,6 @@ static const struct super_operations efivarfs_ops = {
 	.statfs = simple_statfs,
 	.drop_inode = generic_delete_inode,
 	.evict_inode = efivarfs_evict_inode,
-	.show_options = generic_show_options,
 };
 
 static struct super_block *efivarfs_sb;

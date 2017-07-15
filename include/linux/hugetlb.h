@@ -268,6 +268,9 @@ struct hugetlbfs_sb_info {
 	spinlock_t	stat_lock;
 	struct hstate *hstate;
 	struct hugepage_subpool *spool;
+	kuid_t	uid;
+	kgid_t	gid;
+	umode_t mode;
 };
 
 static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
