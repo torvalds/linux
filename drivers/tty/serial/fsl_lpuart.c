@@ -117,7 +117,7 @@
 #define UARTSFIFO_TXOF		0x02
 #define UARTSFIFO_RXUF		0x01
 
-/* 32-bit register defination */
+/* 32-bit register definition */
 #define UARTBAUD		0x00
 #define UARTSTAT		0x04
 #define UARTCTRL		0x08
@@ -521,6 +521,57 @@ static int lpuart_poll_get_char(struct uart_port *port)
 	return readb(port->membase + UARTDR);
 }
 
+static int lpuart32_poll_init(struct uart_port *port)
+{
+	unsigned long flags;
+	struct lpuart_port *sport = container_of(port, struct lpuart_port, port);
+	u32 temp;
+
+	sport->port.fifosize = 0;
+
+	spin_lock_irqsave(&sport->port.lock, flags);
+
+	/* Disable Rx & Tx */
+	writel(0, sport->port.membase + UARTCTRL);
+
+	temp = readl(sport->port.membase + UARTFIFO);
+
+	/* Enable Rx and Tx FIFO */
+	writel(temp | UARTFIFO_RXFE | UARTFIFO_TXFE,
+		   sport->port.membase + UARTFIFO);
+
+	/* flush Tx and Rx FIFO */
+	writel(UARTFIFO_TXFLUSH | UARTFIFO_RXFLUSH,
+			sport->port.membase + UARTFIFO);
+
+	/* explicitly clear RDRF */
+	if (readl(sport->port.membase + UARTSTAT) & UARTSTAT_RDRF) {
+		readl(sport->port.membase + UARTDATA);
+		writel(UARTFIFO_RXUF, sport->port.membase + UARTFIFO);
+	}
+
+	/* Enable Rx and Tx */
+	writel(UARTCTRL_RE | UARTCTRL_TE, sport->port.membase + UARTCTRL);
+	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+	return 0;
+}
+
+static void lpuart32_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	while (!(readl(port->membase + UARTSTAT) & UARTSTAT_TDRE))
+		barrier();
+
+	writel(c, port->membase + UARTDATA);
+}
+
+static int lpuart32_poll_get_char(struct uart_port *port)
+{
+	if (!(readl(port->membase + UARTSTAT) & UARTSTAT_RDRF))
+		return NO_POLL_CHAR;
+
+	return readl(port->membase + UARTDATA);
+}
 #endif
 
 static inline void lpuart_transmit_buffer(struct lpuart_port *sport)
@@ -1776,6 +1827,11 @@ static const struct uart_ops lpuart32_pops = {
 	.config_port	= lpuart_config_port,
 	.verify_port	= lpuart_verify_port,
 	.flush_buffer	= lpuart_flush_buffer,
+#if defined(CONFIG_CONSOLE_POLL)
+	.poll_init	= lpuart32_poll_init,
+	.poll_get_char	= lpuart32_poll_get_char,
+	.poll_put_char	= lpuart32_poll_put_char,
+#endif
 };
 
 static struct lpuart_port *lpuart_ports[UART_NR];
