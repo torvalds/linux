@@ -462,10 +462,12 @@ struct kvm_vcpu_hv_synic {
 	DECLARE_BITMAP(auto_eoi_bitmap, 256);
 	DECLARE_BITMAP(vec_bitmap, 256);
 	bool active;
+	bool dont_zero_synic_pages;
 };
 
 /* Hyper-V per vcpu emulation context */
 struct kvm_vcpu_hv {
+	u32 vp_index;
 	u64 hv_vapic;
 	s64 runtime_offset;
 	struct kvm_vcpu_hv_synic synic;
@@ -549,6 +551,7 @@ struct kvm_vcpu_arch {
 		bool reinject;
 		u8 nr;
 		u32 error_code;
+		u8 nested_apf;
 	} exception;
 
 	struct kvm_queued_interrupt {
@@ -649,6 +652,9 @@ struct kvm_vcpu_arch {
 		u64 msr_val;
 		u32 id;
 		bool send_user_only;
+		u32 host_apf_reason;
+		unsigned long nested_apf_token;
+		bool delivery_as_pf_vmexit;
 	} apf;
 
 	/* OSVW MSRs (AMD only) */
@@ -803,6 +809,7 @@ struct kvm_arch {
 	int audit_point;
 	#endif
 
+	bool backwards_tsc_observed;
 	bool boot_vcpu_runs_old_kvmclock;
 	u32 bsp_vcpu_id;
 
@@ -952,9 +959,7 @@ struct kvm_x86_ops {
 				unsigned char *hypercall_addr);
 	void (*set_irq)(struct kvm_vcpu *vcpu);
 	void (*set_nmi)(struct kvm_vcpu *vcpu);
-	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,
-				bool has_error_code, u32 error_code,
-				bool reinject);
+	void (*queue_exception)(struct kvm_vcpu *vcpu);
 	void (*cancel_injection)(struct kvm_vcpu *vcpu);
 	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
 	int (*nmi_allowed)(struct kvm_vcpu *vcpu);

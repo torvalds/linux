@@ -166,10 +166,11 @@ MSR_KVM_SYSTEM_TIME: 0x12
 MSR_KVM_ASYNC_PF_EN: 0x4b564d02
 	data: Bits 63-6 hold 64-byte aligned physical address of a
 	64 byte memory area which must be in guest RAM and must be
-	zeroed. Bits 5-2 are reserved and should be zero. Bit 0 is 1
+	zeroed. Bits 5-3 are reserved and should be zero. Bit 0 is 1
 	when asynchronous page faults are enabled on the vcpu 0 when
 	disabled. Bit 1 is 1 if asynchronous page faults can be injected
-	when vcpu is in cpl == 0.
+	when vcpu is in cpl == 0. Bit 2 is 1 if asynchronous page faults
+	are delivered to L1 as #PF vmexits.
 
 	First 4 byte of 64 byte memory location will be written to by
 	the hypervisor at the time of asynchronous page fault (APF)
