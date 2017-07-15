@@ -253,10 +253,10 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 {
 	bool ret;
 
-	ret = fwnode_call_int_op(fwnode, property_present, propname);
+	ret = fwnode_call_bool_op(fwnode, property_present, propname);
 	if (ret == false && !IS_ERR_OR_NULL(fwnode) &&
 	    !IS_ERR_OR_NULL(fwnode->secondary))
-		ret = fwnode_call_int_op(fwnode->secondary, property_present,
+		ret = fwnode_call_bool_op(fwnode->secondary, property_present,
 					 propname);
 	return ret;
 }
@@ -1027,7 +1027,7 @@ EXPORT_SYMBOL_GPL(fwnode_handle_put);
  */
 bool fwnode_device_is_available(struct fwnode_handle *fwnode)
 {
-	return fwnode_call_int_op(fwnode, device_is_available);
+	return fwnode_call_bool_op(fwnode, device_is_available);
 }
 EXPORT_SYMBOL_GPL(fwnode_device_is_available);
 
