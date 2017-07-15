@@ -223,6 +223,7 @@ obj-$(CONFIG_MFD_RK630)		+= rk630.o
 obj-$(CONFIG_MFD_RK630_I2C)	+= rk630-i2c.o
 obj-$(CONFIG_MFD_RK630_SPI)	+= rk630-spi.o
 obj-$(CONFIG_MFD_RK808)		+= rk808.o
+obj-$(CONFIG_MFD_RK1000)	+= rk1000-core.o
 obj-$(CONFIG_MFD_RN5T618)	+= rn5t618.o
 obj-$(CONFIG_MFD_SEC_CORE)	+= sec-core.o sec-irq.o
 obj-$(CONFIG_MFD_SYSCON)	+= syscon.o

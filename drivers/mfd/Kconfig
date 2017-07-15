@@ -1151,6 +1151,15 @@ config MFD_RK808
 	  through I2C interface. The device supports multiple sub-devices
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
 
+config MFD_RK1000
+	tristate "RK1000 CORE module support"
+	depends on I2C && OF
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  if you say yes here you get support for the RK1000, with func as
+	  TVEncoder or CODEC.
+
 config MFD_RN5T618
 	tristate "Ricoh RN5T567/618 PMIC"
 	depends on I2C
