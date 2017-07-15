@@ -222,17 +222,17 @@ static inline int cvm_enc_dec(struct ablkcipher_request *req, u32 enc)
 		return -EINPROGRESS;
 }
 
-int cvm_encrypt(struct ablkcipher_request *req)
+static int cvm_encrypt(struct ablkcipher_request *req)
 {
 	return cvm_enc_dec(req, true);
 }
 
-int cvm_decrypt(struct ablkcipher_request *req)
+static int cvm_decrypt(struct ablkcipher_request *req)
 {
 	return cvm_enc_dec(req, false);
 }
 
-int cvm_xts_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+static int cvm_xts_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		   u32 keylen)
 {
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
@@ -336,7 +336,7 @@ static int cvm_ecb_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	return cvm_setkey(cipher, key, keylen, DES3_ECB);
 }
 
-int cvm_enc_dec_init(struct crypto_tfm *tfm)
+static int cvm_enc_dec_init(struct crypto_tfm *tfm)
 {
 	struct cvm_enc_ctx *ctx = crypto_tfm_ctx(tfm);
 
