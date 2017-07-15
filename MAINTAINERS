@@ -1961,6 +1961,14 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
+ARM/TEGRA HDMI CEC SUBSYSTEM SUPPORT
+M:	Hans Verkuil <hans.verkuil@cisco.com>
+L:	linux-tegra@vger.kernel.org
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/platform/tegra-cec/
+F:	Documentation/devicetree/bindings/media/tegra-cec.txt
+
 ARM/TETON BGA MACHINE SUPPORT
 M:	"Mark F. Brown" <mark.brown314@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)

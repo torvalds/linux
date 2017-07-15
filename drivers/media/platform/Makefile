@@ -48,6 +48,8 @@ obj-$(CONFIG_VIDEO_STI_HDMI_CEC) 	+= sti/cec/
 
 obj-$(CONFIG_VIDEO_STI_DELTA)		+= sti/delta/
 
+obj-$(CONFIG_VIDEO_TEGRA_HDMI_CEC)	+= tegra-cec/
+
 obj-y 					+= stm32/
 
 obj-y                                   += blackfin/

@@ -614,6 +614,17 @@ config VIDEO_STM32_HDMI_CEC
          CEC bus is present in the HDMI connector and enables communication
          between compatible devices.
 
+config VIDEO_TEGRA_HDMI_CEC
+       tristate "Tegra HDMI CEC driver"
+       depends on ARCH_TEGRA || COMPILE_TEST
+       select CEC_CORE
+       select CEC_NOTIFIER
+       ---help---
+         This is a driver for the Tegra HDMI CEC interface. It uses the
+         generic CEC framework interface.
+         The CEC bus is present in the HDMI connector and enables communication
+         between compatible devices.
+
 endif #CEC_PLATFORM_DRIVERS
 
 menuconfig SDR_PLATFORM_DRIVERS
