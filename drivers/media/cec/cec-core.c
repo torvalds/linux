@@ -388,11 +388,8 @@ EXPORT_SYMBOL_GPL(cec_delete_adapter);
  */
 static int __init cec_devnode_init(void)
 {
-	int ret;
+	int ret = alloc_chrdev_region(&cec_dev_t, 0, CEC_NUM_DEVICES, CEC_NAME);
 
-	pr_info("Linux cec interface: v0.10\n");
-	ret = alloc_chrdev_region(&cec_dev_t, 0, CEC_NUM_DEVICES,
-				  CEC_NAME);
 	if (ret < 0) {
 		pr_warn("cec: unable to allocate major\n");
 		return ret;
