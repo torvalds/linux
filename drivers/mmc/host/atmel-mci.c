@@ -673,6 +673,7 @@ atmci_of_init(struct platform_device *pdev)
 		if (slot_id >= ATMCI_MAX_NR_SLOTS) {
 			dev_warn(&pdev->dev, "can't have more than %d slots\n",
 			         ATMCI_MAX_NR_SLOTS);
+			of_node_put(cnp);
 			break;
 		}
 
