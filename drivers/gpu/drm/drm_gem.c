@@ -826,13 +826,15 @@ drm_gem_object_put_unlocked(struct drm_gem_object *obj)
 		return;
 
 	dev = obj->dev;
-	might_lock(&dev->struct_mutex);
 
-	if (dev->driver->gem_free_object_unlocked)
+	if (dev->driver->gem_free_object_unlocked) {
 		kref_put(&obj->refcount, drm_gem_object_free);
-	else if (kref_put_mutex(&obj->refcount, drm_gem_object_free,
+	} else {
+		might_lock(&dev->struct_mutex);
+		if (kref_put_mutex(&obj->refcount, drm_gem_object_free,
 				&dev->struct_mutex))
-		mutex_unlock(&dev->struct_mutex);
+			mutex_unlock(&dev->struct_mutex);
+	}
 }
 EXPORT_SYMBOL(drm_gem_object_put_unlocked);
 
