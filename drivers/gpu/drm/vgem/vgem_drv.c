@@ -278,6 +278,7 @@ static const struct file_operations vgem_driver_fops = {
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl = drm_ioctl,
+	.compat_ioctl	= drm_compat_ioctl,
 	.release	= drm_release,
 };
 
