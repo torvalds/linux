@@ -350,9 +350,9 @@ static int faraday_pci_setup_cascaded_irq(struct faraday_pci *p)
 
 	/* All PCI IRQs cascade off this one */
 	irq = of_irq_get(intc, 0);
-	if (!irq) {
+	if (irq <= 0) {
 		dev_err(p->dev, "failed to get parent IRQ\n");
-		return -EINVAL;
+		return irq ?: -EINVAL;
 	}
 
 	p->irqdomain = irq_domain_add_linear(intc, 4,
