@@ -230,12 +230,18 @@ lr	.req	x30		// link register
 	.endm
 
 	/*
-	 * @dst: Result of per_cpu(sym, smp_processor_id())
+	 * @dst: Result of per_cpu(sym, smp_processor_id()), can be SP for
+	 *       non-module code
 	 * @sym: The name of the per-cpu variable
 	 * @tmp: scratch register
 	 */
 	.macro adr_this_cpu, dst, sym, tmp
+#ifndef MODULE
+	adrp	\tmp, \sym
+	add	\dst, \tmp, #:lo12:\sym
+#else
 	adr_l	\dst, \sym
+#endif
 	mrs	\tmp, tpidr_el1
 	add	\dst, \dst, \tmp
 	.endm
