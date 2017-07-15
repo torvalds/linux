@@ -2600,10 +2600,36 @@ int snapshot_proc_sysfs_files(void)
 	return 0;
 }
 
+int exit_requested;
+
+static void signal_handler (int signal)
+{
+	switch (signal) {
+	case SIGINT:
+		exit_requested = 1;
+		if (debug)
+			fprintf(stderr, " SIGINT\n");
+		break;
+	}
+}
+
+void setup_signal_handler(void)
+{
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof(sa));
+
+	sa.sa_handler = &signal_handler;
+
+	if (sigaction(SIGINT, &sa, NULL) < 0)
+		err(1, "sigaction SIGINT");
+}
 void turbostat_loop()
 {
 	int retval;
 	int restarted = 0;
+
+	setup_signal_handler();
 
 restart:
 	restarted++;
@@ -2646,6 +2672,8 @@ restart:
 		compute_average(EVEN_COUNTERS);
 		format_all_counters(EVEN_COUNTERS);
 		flush_output_stdout();
+		if (exit_requested)
+			break;
 		nanosleep(&interval_ts, NULL);
 		if (snapshot_proc_sysfs_files())
 			goto restart;
@@ -2665,6 +2693,8 @@ restart:
 		compute_average(ODD_COUNTERS);
 		format_all_counters(ODD_COUNTERS);
 		flush_output_stdout();
+		if (exit_requested)
+			break;
 	}
 }
 
