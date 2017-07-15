@@ -1,0 +1,24 @@
+RK1000 Multi-functional device
+
+The RK1000-CORE are RK1000 control register block.
+The chip is connected to an i2c bus.
+
+
+Required properties:
+- compatible : "rockchip,rk1000-ctl"
+- reg: I2C slave address
+- reset-gpios : the reset pin
+- clocks : phandle and clock specifier
+- clock-names : "mclk"
+
+Example:
+	rk1000-ctl@40 {
+		compatible = "rockchip,rk1000-ctl";
+		reg = <0x40>;
+		reset-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_bus>;
+		status = "okay";
+	};

@@ -1457,6 +1457,13 @@ config MFD_WM831X_SPI
 config MFD_WM8350
 	bool
 
+config MFD_RK1000
+	bool "RK1000 CORE module support"
+	select MFD_CORE
+	help
+	  if you say yes here you get support for the RK1000, with func as
+	  TVEncoder or CODEC.
+
 config MFD_WM8350_I2C
 	bool "Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
