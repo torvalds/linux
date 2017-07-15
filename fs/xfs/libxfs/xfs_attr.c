@@ -114,12 +114,14 @@ xfs_inode_hasattr(
  * Overall external interface routines.
  *========================================================================*/
 
-/* Retrieve an extended attribute and its value.  Must have iolock. */
+/* Retrieve an extended attribute and its value.  Must have ilock. */
 int
 xfs_attr_get_ilocked(
 	struct xfs_inode	*ip,
 	struct xfs_da_args	*args)
 {
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+
 	if (!xfs_inode_hasattr(ip))
 		return -ENOATTR;
 	else if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)

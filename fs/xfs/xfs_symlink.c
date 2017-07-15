@@ -61,6 +61,8 @@ xfs_readlink_bmap_ilocked(
 	int			fsblocks = 0;
 	int			offset;
 
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+
 	fsblocks = xfs_symlink_blocks(mp, pathlen);
 	error = xfs_bmapi_read(ip, 0, fsblocks, mval, &nmaps, 0);
 	if (error)
