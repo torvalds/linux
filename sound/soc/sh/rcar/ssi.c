@@ -1079,6 +1079,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1091,6 +1092,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		ssi->irq = irq_of_parse_and_map(np, 0);
 		if (!ssi->irq) {
 			ret = -EINVAL;
+			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1101,8 +1103,10 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssi), ops, clk,
 				    rsnd_ssi_get_status, RSND_MOD_SSI, i);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto rsnd_ssi_probe_done;
+		}
 
 		i++;
 	}

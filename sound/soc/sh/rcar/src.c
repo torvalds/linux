@@ -581,20 +581,24 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		src->irq = irq_of_parse_and_map(np, 0);
 		if (!src->irq) {
 			ret = -EINVAL;
+			of_node_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			of_node_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(src),
 				    &rsnd_src_ops, clk, rsnd_mod_get_status,
 				    RSND_MOD_SRC, i);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto rsnd_src_probe_done;
+		}
 
 skip:
 		i++;
