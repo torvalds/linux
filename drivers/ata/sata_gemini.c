@@ -305,7 +305,7 @@ static int gemini_sata_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct sata_gemini *sg;
-	static struct regmap *map;
+	struct regmap *map;
 	struct resource *res;
 	enum gemini_muxmode muxmode;
 	u32 gmode;
