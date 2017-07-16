@@ -2314,6 +2314,7 @@ static void __exit speakup_exit(void)
 	mutex_lock(&spk_mutex);
 	synth_release();
 	mutex_unlock(&spk_mutex);
+	spk_ttyio_unregister_ldisc();
 
 	speakup_kobj_exit();
 
@@ -2376,6 +2377,7 @@ static int __init speakup_init(void)
 	if (err)
 		goto error_kobjects;
 
+	spk_ttyio_register_ldisc();
 	synth_init(synth_name);
 	speakup_register_devsynth();
 	/*

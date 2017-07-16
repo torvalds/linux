@@ -154,12 +154,6 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	struct ktermios tmp_termios;
 	dev_t dev;
 
-	ret = tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops);
-	if (ret) {
-		pr_err("Error registering line discipline.\n");
-		return ret;
-	}
-
 	ret = get_dev_to_use(synth, &dev);
 	if (ret)
 		return ret;
@@ -196,6 +190,8 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	tty_unlock(tty);
 
 	ret = tty_set_ldisc(tty, N_SPEAKUP);
+	if (ret)
+		pr_err("speakup: Failed to set N_SPEAKUP on tty\n");
 
 	return ret;
 }
