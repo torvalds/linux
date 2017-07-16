@@ -361,10 +361,11 @@ struct f2fs_flush_device {
 /* for directory operations */
 struct f2fs_dentry_ptr {
 	struct inode *inode;
-	const void *bitmap;
+	void *bitmap;
 	struct f2fs_dir_entry *dentry;
 	__u8 (*filename)[F2FS_SLOT_LEN];
 	int max;
+	int nr_bitmap;
 };
 
 static inline void make_dentry_ptr_block(struct inode *inode,
@@ -372,6 +373,7 @@ static inline void make_dentry_ptr_block(struct inode *inode,
 {
 	d->inode = inode;
 	d->max = NR_DENTRY_IN_BLOCK;
+	d->nr_bitmap = SIZE_OF_DENTRY_BITMAP;
 	d->bitmap = &t->dentry_bitmap;
 	d->dentry = t->dentry;
 	d->filename = t->filename;
@@ -382,6 +384,7 @@ static inline void make_dentry_ptr_inline(struct inode *inode,
 {
 	d->inode = inode;
 	d->max = NR_INLINE_DENTRY;
+	d->nr_bitmap = INLINE_DENTRY_BITMAP_SIZE;
 	d->bitmap = &t->dentry_bitmap;
 	d->dentry = t->dentry;
 	d->filename = t->filename;
