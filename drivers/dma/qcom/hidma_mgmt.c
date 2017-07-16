@@ -28,7 +28,7 @@
 
 #include "hidma_mgmt.h"
 
-#define HIDMA_QOS_N_OFFSET		0x300
+#define HIDMA_QOS_N_OFFSET		0x700
 #define HIDMA_CFG_OFFSET		0x400
 #define HIDMA_MAX_BUS_REQ_LEN_OFFSET	0x41C
 #define HIDMA_MAX_XACTIONS_OFFSET	0x420
