@@ -2030,7 +2030,7 @@ static void firestream_remove_one(struct pci_dev *pdev)
 	func_exit ();
 }
 
-static struct pci_device_id firestream_pci_tbl[] = {
+static const struct pci_device_id firestream_pci_tbl[] = {
 	{ PCI_VDEVICE(FUJITSU_ME, PCI_DEVICE_ID_FUJITSU_FS50), FS_IS50},
 	{ PCI_VDEVICE(FUJITSU_ME, PCI_DEVICE_ID_FUJITSU_FS155), FS_IS155},
 	{ 0, }
