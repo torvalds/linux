@@ -188,11 +188,12 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
  */
 static unsigned long normalize_addr(unsigned long u)
 {
-#ifdef CONFIG_X86_64
-	return (signed long)(u << 16) >> 16;
-#else
-	return u;
-#endif
+	int shift;
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return u;
+
+	shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
+	return (signed long)(u << shift) >> shift;
 }
 
 /*
