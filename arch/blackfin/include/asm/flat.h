@@ -44,8 +44,7 @@ flat_get_relocate_addr (unsigned long relval)
 	return relval & 0x03ffffff; /* Mask out top 6 bits */
 }
 
-static inline int flat_set_persistent(unsigned long relval,
-				      unsigned long *persistent)
+static inline int flat_set_persistent(u32 relval, u32 *persistent)
 {
 	int type = (relval >> 26) & 7;
 	if (type == 3) {
