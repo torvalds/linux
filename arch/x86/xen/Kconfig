@@ -17,6 +17,9 @@ config XEN_PV
 	bool "Xen PV guest support"
 	default y
 	depends on XEN
+	# XEN_PV is not ready to work with 5-level paging.
+	# Changes to hypervisor are also required.
+	depends on !X86_5LEVEL
 	select XEN_HAVE_PVMMU
 	select XEN_HAVE_VPMU
 	help
@@ -75,4 +78,6 @@ config XEN_DEBUG_FS
 config XEN_PVH
 	bool "Support for running as a PVH guest"
 	depends on XEN && XEN_PVHVM && ACPI
+	# Pre-built page tables are not ready to handle 5-level paging.
+	depends on !X86_5LEVEL
 	def_bool n
