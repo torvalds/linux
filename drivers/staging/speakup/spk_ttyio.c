@@ -200,6 +200,18 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	return ret;
 }
 
+void spk_ttyio_register_ldisc(void)
+{
+	if (tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops))
+		pr_warn("speakup: Error registering line discipline. Most synths won't work.\n");
+}
+
+void spk_ttyio_unregister_ldisc(void)
+{
+	if (tty_unregister_ldisc(N_SPEAKUP))
+		pr_warn("speakup: Couldn't unregister ldisc\n");
+}
+
 static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 {
 	if (in_synth->alive && speakup_tty && speakup_tty->ops->write) {
