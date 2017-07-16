@@ -924,8 +924,6 @@ struct iwl_mvm {
 	struct iwl_bt_coex_profile_notif last_bt_notif;
 	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
 
-	u32 last_ant_isol;
-	u8 last_corun_lut;
 	u8 bt_tx_prio;
 	enum iwl_bt_force_ant_mode bt_force_ant_mode;
 
@@ -1173,13 +1171,6 @@ static inline bool iwl_mvm_is_wifi_mcc_supported(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
 	       fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC);
-}
-
-static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
-{
-	return fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_BT_COEX_PLCR) &&
-		IWL_MVM_BT_COEX_CORUNNING;
 }
 
 static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)

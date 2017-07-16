@@ -76,7 +76,6 @@ enum iwl_bt_coex_lut_type {
 	BT_COEX_INVALID_LUT = 0xff,
 }; /* BT_COEX_DECISION_LUT_INDEX_API_E_VER_1 */
 
-#define BT_COEX_CORUN_LUT_SIZE (32)
 #define BT_REDUCED_TX_POWER_BIT BIT(7)
 
 enum iwl_bt_coex_mode {
@@ -105,18 +104,6 @@ struct iwl_bt_coex_cmd {
 	__le32 mode;
 	__le32 enabled_modules;
 } __packed; /* BT_COEX_CMD_API_S_VER_6 */
-
-/**
- * struct iwl_bt_coex_corun_lut_update - bt coex update the corun lut
- * @corun_lut20: co-running 20 MHz LUT configuration
- * @corun_lut40: co-running 40 MHz LUT configuration
- *
- * The structure is used for the BT_COEX_UPDATE_CORUN_LUT command.
- */
-struct iwl_bt_coex_corun_lut_update_cmd {
-	__le32 corun_lut20[BT_COEX_CORUN_LUT_SIZE];
-	__le32 corun_lut40[BT_COEX_CORUN_LUT_SIZE];
-} __packed; /* BT_COEX_UPDATE_CORUN_LUT_API_S_VER_1 */
 
 /**
  * struct iwl_bt_coex_reduced_txp_update_cmd

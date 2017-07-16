@@ -136,12 +136,6 @@ enum iwl_legacy_cmds {
 	DBG_CFG = 0x9,
 
 	/**
-	 * @ANTENNA_COUPLING_NOTIFICATION:
-	 * Antenna coupling data, &struct iwl_mvm_antenna_coupling_notif
-	 */
-	ANTENNA_COUPLING_NOTIFICATION = 0xa,
-
-	/**
 	 * @SCAN_ITERATION_COMPLETE_UMAC:
 	 * Firmware indicates a scan iteration completed, using
 	 * &struct iwl_umac_scan_iter_complete_notif.
@@ -522,12 +516,6 @@ enum iwl_legacy_cmds {
 	 * @BT_CONFIG: &struct iwl_bt_coex_cmd
 	 */
 	BT_CONFIG = 0x9b,
-
-	/**
-	 * @BT_COEX_UPDATE_CORUN_LUT:
-	 * &struct iwl_bt_coex_corun_lut_update_cmd
-	 */
-	BT_COEX_UPDATE_CORUN_LUT = 0x5b,
 
 	/**
 	 * @BT_COEX_UPDATE_REDUCED_TXP:
