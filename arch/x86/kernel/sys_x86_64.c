@@ -120,7 +120,7 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
 	}
 
 	*begin	= get_mmap_base(1);
-	*end	= in_compat_syscall() ? tasksize_32bit() : tasksize_64bit();
+	*end	= in_compat_syscall() ? task_size_32bit() : task_size_64bit();
 }
 
 unsigned long

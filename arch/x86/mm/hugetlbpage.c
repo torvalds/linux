@@ -86,7 +86,7 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
 	info.length = len;
 	info.low_limit = get_mmap_base(1);
 	info.high_limit = in_compat_syscall() ?
-		tasksize_32bit() : tasksize_64bit();
+		task_size_32bit() : task_size_64bit();
 	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
 	info.align_offset = 0;
 	return vm_unmapped_area(&info);

@@ -304,8 +304,8 @@ static inline int mmap_is_ia32(void)
 		test_thread_flag(TIF_ADDR32));
 }
 
-extern unsigned long tasksize_32bit(void);
-extern unsigned long tasksize_64bit(void);
+extern unsigned long task_size_32bit(void);
+extern unsigned long task_size_64bit(void);
 extern unsigned long get_mmap_base(int is_legacy);
 
 #ifdef CONFIG_X86_32
