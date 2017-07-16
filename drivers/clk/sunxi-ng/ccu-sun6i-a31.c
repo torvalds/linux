@@ -195,6 +195,9 @@ static SUNXI_CCU_DIV_TABLE(axi_clk, "axi", "cpu",
 
 static const char * const ahb1_parents[] = { "osc32k", "osc24M",
 					     "axi", "pll-periph" };
+static const struct ccu_mux_var_prediv ahb1_predivs[] = {
+	{ .index = 3, .shift = 6, .width = 2 },
+};
 
 static struct ccu_div ahb1_clk = {
 	.div		= _SUNXI_CCU_DIV_FLAGS(4, 2, CLK_DIVIDER_POWER_OF_TWO),
@@ -203,11 +206,8 @@ static struct ccu_div ahb1_clk = {
 		.shift	= 12,
 		.width	= 2,
 
-		.variable_prediv	= {
-			.index	= 3,
-			.shift	= 6,
-			.width	= 2,
-		},
+		.var_predivs	= ahb1_predivs,
+		.n_var_predivs	= ARRAY_SIZE(ahb1_predivs),
 	},
 
 	.common		= {

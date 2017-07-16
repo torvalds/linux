@@ -45,7 +45,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #define NAPPING_NOVCPU	2
 
 /* Stack frame offsets for kvmppc_hv_entry */
-#define SFS			144
+#define SFS			160
 #define STACK_SLOT_TRAP		(SFS-4)
 #define STACK_SLOT_TID		(SFS-16)
 #define STACK_SLOT_PSSCR	(SFS-24)
@@ -54,6 +54,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #define STACK_SLOT_CIABR	(SFS-48)
 #define STACK_SLOT_DAWR		(SFS-56)
 #define STACK_SLOT_DAWRX	(SFS-64)
+#define STACK_SLOT_HFSCR	(SFS-72)
 
 /*
  * Call kvmppc_hv_entry in real mode.
@@ -68,6 +69,7 @@ _GLOBAL_TOC(kvmppc_hv_entry_trampoline)
 	std	r0, PPC_LR_STKOFF(r1)
 	stdu	r1, -112(r1)
 	mfmsr	r10
+	std	r10, HSTATE_HOST_MSR(r13)
 	LOAD_REG_ADDR(r5, kvmppc_call_hv_entry)
 	li	r0,MSR_RI
 	andc	r0,r10,r0
@@ -152,19 +154,20 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	stb	r0, HSTATE_HWTHREAD_REQ(r13)
 
 	/*
-	 * For external and machine check interrupts, we need
-	 * to call the Linux handler to process the interrupt.
-	 * We do that by jumping to absolute address 0x500 for
-	 * external interrupts, or the machine_check_fwnmi label
-	 * for machine checks (since firmware might have patched
-	 * the vector area at 0x200).  The [h]rfid at the end of the
-	 * handler will return to the book3s_hv_interrupts.S code.
-	 * For other interrupts we do the rfid to get back
-	 * to the book3s_hv_interrupts.S code here.
+	 * For external interrupts we need to call the Linux
+	 * handler to process the interrupt. We do that by jumping
+	 * to absolute address 0x500 for external interrupts.
+	 * The [h]rfid at the end of the handler will return to
+	 * the book3s_hv_interrupts.S code. For other interrupts
+	 * we do the rfid to get back to the book3s_hv_interrupts.S
+	 * code here.
 	 */
 	ld	r8, 112+PPC_LR_STKOFF(r1)
 	addi	r1, r1, 112
 	ld	r7, HSTATE_HOST_MSR(r13)
+
+	/* Return the trap number on this thread as the return value */
+	mr	r3, r12
 
 	/*
 	 * If we came back from the guest via a relocation-on interrupt,
@@ -175,58 +178,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	andi.	r0, r0, MSR_IR		/* in real mode? */
 	bne	.Lvirt_return
 
-	cmpwi	cr1, r12, BOOK3S_INTERRUPT_MACHINE_CHECK
-	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	beq	11f
-	cmpwi	r12, BOOK3S_INTERRUPT_H_DOORBELL
-	beq 	15f	/* Invoke the H_DOORBELL handler */
-	cmpwi	cr2, r12, BOOK3S_INTERRUPT_HMI
-	beq	cr2, 14f			/* HMI check */
-
-	/* RFI into the highmem handler, or branch to interrupt handler */
+	/* RFI into the highmem handler */
 	mfmsr	r6
 	li	r0, MSR_RI
 	andc	r6, r6, r0
 	mtmsrd	r6, 1			/* Clear RI in MSR */
 	mtsrr0	r8
 	mtsrr1	r7
-	beq	cr1, 13f		/* machine check */
 	RFI
 
-	/* On POWER7, we have external interrupts set to use HSRR0/1 */
-11:	mtspr	SPRN_HSRR0, r8
-	mtspr	SPRN_HSRR1, r7
-	ba	0x500
-
-13:	b	machine_check_fwnmi
-
-14:	mtspr	SPRN_HSRR0, r8
-	mtspr	SPRN_HSRR1, r7
-	b	hmi_exception_after_realmode
-
-15:	mtspr SPRN_HSRR0, r8
-	mtspr SPRN_HSRR1, r7
-	ba    0xe80
-
-	/* Virtual-mode return - can't get here for HMI or machine check */
+	/* Virtual-mode return */
 .Lvirt_return:
-	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	beq	16f
-	cmpwi	r12, BOOK3S_INTERRUPT_H_DOORBELL
-	beq	17f
-	andi.	r0, r7, MSR_EE		/* were interrupts hard-enabled? */
-	beq	18f
-	mtmsrd	r7, 1			/* if so then re-enable them */
-18:	mtlr	r8
+	mtlr	r8
 	blr
-
-16:	mtspr	SPRN_HSRR0, r8		/* jump to reloc-on external vector */
-	mtspr	SPRN_HSRR1, r7
-	b	exc_virt_0x4500_hardware_interrupt
-
-17:	mtspr	SPRN_HSRR0, r8
-	mtspr	SPRN_HSRR1, r7
-	b	exc_virt_0x4e80_h_doorbell
 
 kvmppc_primary_no_guest:
 	/* We handle this much like a ceded vcpu */
@@ -349,14 +313,20 @@ kvm_novcpu_exit:
  * We come in here when wakened from nap mode.
  * Relocation is off and most register values are lost.
  * r13 points to the PACA.
+ * r3 contains the SRR1 wakeup value, SRR1 is trashed.
  */
 	.globl	kvm_start_guest
 kvm_start_guest:
-
 	/* Set runlatch bit the minute you wake up from nap */
 	mfspr	r0, SPRN_CTRLF
 	ori 	r0, r0, 1
 	mtspr	SPRN_CTRLT, r0
+
+	/*
+	 * Could avoid this and pass it through in r3. For now,
+	 * code expects it to be in SRR1.
+	 */
+	mtspr	SPRN_SRR1,r3
 
 	ld	r2,PACATOC(r13)
 
@@ -476,13 +446,15 @@ kvm_no_guest:
 /*
  * We jump to pnv_wakeup_loss, which will return to the caller
  * of power7_nap in the powernv cpu offline loop.  The value we
- * put in r3 becomes the return value for power7_nap.
+ * put in r3 becomes the return value for power7_nap. pnv_wakeup_loss
+ * requires SRR1 in r12.
  */
 	li	r3, LPCR_PECE0
 	mfspr	r4, SPRN_LPCR
 	rlwimi	r4, r3, 0, LPCR_PECE0 | LPCR_PECE1
 	mtspr	SPRN_LPCR, r4
 	li	r3, 0
+	mfspr	r12,SPRN_SRR1
 	b	pnv_wakeup_loss
 
 53:	HMT_LOW
@@ -769,6 +741,8 @@ BEGIN_FTR_SECTION
 	std	r6, STACK_SLOT_PSSCR(r1)
 	std	r7, STACK_SLOT_PID(r1)
 	std	r8, STACK_SLOT_IAMR(r1)
+	mfspr	r5, SPRN_HFSCR
+	std	r5, STACK_SLOT_HFSCR(r1)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 BEGIN_FTR_SECTION
 	mfspr	r5, SPRN_CIABR
@@ -920,8 +894,10 @@ FTR_SECTION_ELSE
 	ld	r5, VCPU_TID(r4)
 	ld	r6, VCPU_PSSCR(r4)
 	oris	r6, r6, PSSCR_EC@h	/* This makes stop trap to HV */
+	ld	r7, VCPU_HFSCR(r4)
 	mtspr	SPRN_TIDR, r5
 	mtspr	SPRN_PSSCR, r6
+	mtspr	SPRN_HFSCR, r7
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 8:
 
@@ -936,7 +912,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	mftb	r7
 	subf	r3,r7,r8
 	mtspr	SPRN_DEC,r3
-	stw	r3,VCPU_DEC(r4)
+	std	r3,VCPU_DEC(r4)
 
 	ld	r5, VCPU_SPRG0(r4)
 	ld	r6, VCPU_SPRG1(r4)
@@ -1048,7 +1024,13 @@ kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
 	li	r0, BOOK3S_INTERRUPT_EXTERNAL
 	bne	cr1, 12f
 	mfspr	r0, SPRN_DEC
-	cmpwi	r0, 0
+BEGIN_FTR_SECTION
+	/* On POWER9 check whether the guest has large decrementer enabled */
+	andis.	r8, r8, LPCR_LD@h
+	bne	15f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	extsw	r0, r0
+15:	cmpdi	r0, 0
 	li	r0, BOOK3S_INTERRUPT_DECREMENTER
 	bge	5f
 
@@ -1058,6 +1040,23 @@ kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
 	mr	r9, r4
 	bl	kvmppc_msr_interrupt
 5:
+BEGIN_FTR_SECTION
+	b	fast_guest_return
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+	/* On POWER9, check for pending doorbell requests */
+	lbz	r0, VCPU_DBELL_REQ(r4)
+	cmpwi	r0, 0
+	beq	fast_guest_return
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	/* Set DPDES register so the CPU will take a doorbell interrupt */
+	li	r0, 1
+	mtspr	SPRN_DPDES, r0
+	std	r0, VCORE_DPDES(r5)
+	/* Make sure other cpus see vcore->dpdes set before dbell req clear */
+	lwsync
+	/* Clear the pending doorbell request */
+	li	r0, 0
+	stb	r0, VCPU_DBELL_REQ(r4)
 
 /*
  * Required state:
@@ -1232,6 +1231,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 	stw	r12,VCPU_TRAP(r9)
 
+	/*
+	 * Now that we have saved away SRR0/1 and HSRR0/1,
+	 * interrupts are recoverable in principle, so set MSR_RI.
+	 * This becomes important for relocation-on interrupts from
+	 * the guest, which we can get in radix mode on POWER9.
+	 */
+	li	r0, MSR_RI
+	mtmsrd	r0, 1
+
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	addi	r3, r9, VCPU_TB_RMINTR
 	mr	r4, r9
@@ -1288,6 +1296,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	beq	4f
 	b	guest_exit_cont
 3:
+	/* If it's a hypervisor facility unavailable interrupt, save HFSCR */
+	cmpwi	r12, BOOK3S_INTERRUPT_H_FAC_UNAVAIL
+	bne	14f
+	mfspr	r3, SPRN_HFSCR
+	std	r3, VCPU_HFSCR(r9)
+	b	guest_exit_cont
+14:
 	/* External interrupt ? */
 	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
 	bne+	guest_exit_cont
@@ -1475,12 +1490,18 @@ mc_cont:
 	mtspr	SPRN_SPURR,r4
 
 	/* Save DEC */
+	ld	r3, HSTATE_KVM_VCORE(r13)
 	mfspr	r5,SPRN_DEC
 	mftb	r6
+	/* On P9, if the guest has large decr enabled, don't sign extend */
+BEGIN_FTR_SECTION
+	ld	r4, VCORE_LPCR(r3)
+	andis.	r4, r4, LPCR_LD@h
+	bne	16f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	extsw	r5,r5
-	add	r5,r5,r6
+16:	add	r5,r5,r6
 	/* r5 is a guest timebase value here, convert to host TB */
-	ld	r3,HSTATE_KVM_VCORE(r13)
 	ld	r4,VCORE_TB_OFFSET(r3)
 	subf	r5,r4,r5
 	std	r5,VCPU_DEC_EXPIRES(r9)
@@ -1525,6 +1546,9 @@ FTR_SECTION_ELSE
 	rldicl	r6, r6, 4, 50		/* r6 &= PSSCR_GUEST_VIS */
 	rotldi	r6, r6, 60
 	std	r6, VCPU_PSSCR(r9)
+	/* Restore host HFSCR value */
+	ld	r7, STACK_SLOT_HFSCR(r1)
+	mtspr	SPRN_HFSCR, r7
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	/*
 	 * Restore various registers to 0, where non-zero values
@@ -2402,8 +2426,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 	mfspr	r3, SPRN_DEC
 	mfspr	r4, SPRN_HDEC
 	mftb	r5
+BEGIN_FTR_SECTION
+	/* On P9 check whether the guest has large decrementer mode enabled */
+	ld	r6, HSTATE_KVM_VCORE(r13)
+	ld	r6, VCORE_LPCR(r6)
+	andis.	r6, r6, LPCR_LD@h
+	bne	68f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	extsw	r3, r3
-	EXTEND_HDEC(r4)
+68:	EXTEND_HDEC(r4)
 	cmpd	r3, r4
 	ble	67f
 	mtspr	SPRN_DEC, r4
@@ -2589,22 +2620,32 @@ machine_check_realmode:
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	li	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
 	/*
-	 * Deliver unhandled/fatal (e.g. UE) MCE errors to guest through
-	 * machine check interrupt (set HSRR0 to 0x200). And for handled
-	 * errors (no-fatal), just go back to guest execution with current
-	 * HSRR0 instead of exiting guest. This new approach will inject
-	 * machine check to guest for fatal error causing guest to crash.
+	 * For the guest that is FWNMI capable, deliver all the MCE errors
+	 * (handled/unhandled) by exiting the guest with KVM_EXIT_NMI exit
+	 * reason. This new approach injects machine check errors in guest
+	 * address space to guest with additional information in the form
+	 * of RTAS event, thus enabling guest kernel to suitably handle
+	 * such errors.
 	 *
-	 * The old code used to return to host for unhandled errors which
-	 * was causing guest to hang with soft lockups inside guest and
-	 * makes it difficult to recover guest instance.
-	 *
+	 * For the guest that is not FWNMI capable (old QEMU) fallback
+	 * to old behaviour for backward compatibility:
+	 * Deliver unhandled/fatal (e.g. UE) MCE errors to guest either
+	 * through machine check interrupt (set HSRR0 to 0x200).
+	 * For handled errors (no-fatal), just go back to guest execution
+	 * with current HSRR0.
 	 * if we receive machine check with MSR(RI=0) then deliver it to
 	 * guest as machine check causing guest to crash.
 	 */
 	ld	r11, VCPU_MSR(r9)
 	rldicl.	r0, r11, 64-MSR_HV_LG, 63 /* check if it happened in HV mode */
 	bne	mc_cont			/* if so, exit to host */
+	/* Check if guest is capable of handling NMI exit */
+	ld	r10, VCPU_KVM(r9)
+	lbz	r10, KVM_FWNMI(r10)
+	cmpdi	r10, 1			/* FWNMI capable? */
+	beq	mc_cont			/* if so, exit with KVM_EXIT_NMI. */
+
+	/* if not, fall through for backward compatibility. */
 	andi.	r10, r11, MSR_RI	/* check for unrecoverable exception */
 	beq	1f			/* Deliver a machine check to guest */
 	ld	r10, VCPU_PC(r9)

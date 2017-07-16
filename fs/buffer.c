@@ -178,7 +178,7 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 		set_buffer_uptodate(bh);
 	} else {
 		buffer_io_error(bh, ", lost sync page write");
-		set_buffer_write_io_error(bh);
+		mark_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
 	}
 	unlock_buffer(bh);
@@ -352,8 +352,7 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 		set_buffer_uptodate(bh);
 	} else {
 		buffer_io_error(bh, ", lost async page write");
-		mapping_set_error(page->mapping, -EIO);
-		set_buffer_write_io_error(bh);
+		mark_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
 		SetPageError(page);
 	}
@@ -481,8 +480,6 @@ static void __remove_assoc_queue(struct buffer_head *bh)
 {
 	list_del_init(&bh->b_assoc_buffers);
 	WARN_ON(!bh->b_assoc_map);
-	if (buffer_write_io_error(bh))
-		set_bit(AS_EIO, &bh->b_assoc_map->flags);
 	bh->b_assoc_map = NULL;
 }
 
@@ -1181,6 +1178,17 @@ void mark_buffer_dirty(struct buffer_head *bh)
 }
 EXPORT_SYMBOL(mark_buffer_dirty);
 
+void mark_buffer_write_io_error(struct buffer_head *bh)
+{
+	set_buffer_write_io_error(bh);
+	/* FIXME: do we need to set this in both places? */
+	if (bh->b_page && bh->b_page->mapping)
+		mapping_set_error(bh->b_page->mapping, -EIO);
+	if (bh->b_assoc_map)
+		mapping_set_error(bh->b_assoc_map, -EIO);
+}
+EXPORT_SYMBOL(mark_buffer_write_io_error);
+
 /*
  * Decrement a buffer_head's reference count.  If all buffers against a page
  * have zero reference count, are clean and unlocked, and if the page is clean
@@ -1273,44 +1281,31 @@ static inline void check_irqs_on(void)
 }
 
 /*
- * The LRU management algorithm is dopey-but-simple.  Sorry.
+ * Install a buffer_head into this cpu's LRU.  If not already in the LRU, it is
+ * inserted at the front, and the buffer_head at the back if any is evicted.
+ * Or, if already in the LRU it is moved to the front.
  */
 static void bh_lru_install(struct buffer_head *bh)
 {
-	struct buffer_head *evictee = NULL;
+	struct buffer_head *evictee = bh;
+	struct bh_lru *b;
+	int i;
 
 	check_irqs_on();
 	bh_lru_lock();
-	if (__this_cpu_read(bh_lrus.bhs[0]) != bh) {
-		struct buffer_head *bhs[BH_LRU_SIZE];
-		int in;
-		int out = 0;
 
-		get_bh(bh);
-		bhs[out++] = bh;
-		for (in = 0; in < BH_LRU_SIZE; in++) {
-			struct buffer_head *bh2 =
-				__this_cpu_read(bh_lrus.bhs[in]);
-
-			if (bh2 == bh) {
-				__brelse(bh2);
-			} else {
-				if (out >= BH_LRU_SIZE) {
-					BUG_ON(evictee != NULL);
-					evictee = bh2;
-				} else {
-					bhs[out++] = bh2;
-				}
-			}
+	b = this_cpu_ptr(&bh_lrus);
+	for (i = 0; i < BH_LRU_SIZE; i++) {
+		swap(evictee, b->bhs[i]);
+		if (evictee == bh) {
+			bh_lru_unlock();
+			return;
 		}
-		while (out < BH_LRU_SIZE)
-			bhs[out++] = NULL;
-		memcpy(this_cpu_ptr(&bh_lrus.bhs), bhs, sizeof(bhs));
 	}
-	bh_lru_unlock();
 
-	if (evictee)
-		__brelse(evictee);
+	get_bh(bh);
+	bh_lru_unlock();
+	brelse(evictee);
 }
 
 /*
@@ -3023,11 +3018,11 @@ EXPORT_SYMBOL(block_write_full_page);
 sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 			    get_block_t *get_block)
 {
-	struct buffer_head tmp;
 	struct inode *inode = mapping->host;
-	tmp.b_state = 0;
-	tmp.b_blocknr = 0;
-	tmp.b_size = i_blocksize(inode);
+	struct buffer_head tmp = {
+		.b_size = i_blocksize(inode),
+	};
+
 	get_block(inode, block, &tmp, 0);
 	return tmp.b_blocknr;
 }
@@ -3282,8 +3277,6 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
 
 	bh = head;
 	do {
-		if (buffer_write_io_error(bh) && page->mapping)
-			mapping_set_error(page->mapping, -EIO);
 		if (buffer_busy(bh))
 			goto failed;
 		bh = bh->b_this_page;
@@ -3494,6 +3487,130 @@ int bh_submit_read(struct buffer_head *bh)
 	return -EIO;
 }
 EXPORT_SYMBOL(bh_submit_read);
+
+/*
+ * Seek for SEEK_DATA / SEEK_HOLE within @page, starting at @lastoff.
+ *
+ * Returns the offset within the file on success, and -ENOENT otherwise.
+ */
+static loff_t
+page_seek_hole_data(struct page *page, loff_t lastoff, int whence)
+{
+	loff_t offset = page_offset(page);
+	struct buffer_head *bh, *head;
+	bool seek_data = whence == SEEK_DATA;
+
+	if (lastoff < offset)
+		lastoff = offset;
+
+	bh = head = page_buffers(page);
+	do {
+		offset += bh->b_size;
+		if (lastoff >= offset)
+			continue;
+
+		/*
+		 * Unwritten extents that have data in the page cache covering
+		 * them can be identified by the BH_Unwritten state flag.
+		 * Pages with multiple buffers might have a mix of holes, data
+		 * and unwritten extents - any buffer with valid data in it
+		 * should have BH_Uptodate flag set on it.
+		 */
+
+		if ((buffer_unwritten(bh) || buffer_uptodate(bh)) == seek_data)
+			return lastoff;
+
+		lastoff = offset;
+	} while ((bh = bh->b_this_page) != head);
+	return -ENOENT;
+}
+
+/*
+ * Seek for SEEK_DATA / SEEK_HOLE in the page cache.
+ *
+ * Within unwritten extents, the page cache determines which parts are holes
+ * and which are data: unwritten and uptodate buffer heads count as data;
+ * everything else counts as a hole.
+ *
+ * Returns the resulting offset on successs, and -ENOENT otherwise.
+ */
+loff_t
+page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
+			  int whence)
+{
+	pgoff_t index = offset >> PAGE_SHIFT;
+	pgoff_t end = DIV_ROUND_UP(offset + length, PAGE_SIZE);
+	loff_t lastoff = offset;
+	struct pagevec pvec;
+
+	if (length <= 0)
+		return -ENOENT;
+
+	pagevec_init(&pvec, 0);
+
+	do {
+		unsigned want, nr_pages, i;
+
+		want = min_t(unsigned, end - index, PAGEVEC_SIZE);
+		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, index, want);
+		if (nr_pages == 0)
+			break;
+
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			/*
+			 * At this point, the page may be truncated or
+			 * invalidated (changing page->mapping to NULL), or
+			 * even swizzled back from swapper_space to tmpfs file
+			 * mapping.  However, page->index will not change
+			 * because we have a reference on the page.
+                         *
+			 * If current page offset is beyond where we've ended,
+			 * we've found a hole.
+                         */
+			if (whence == SEEK_HOLE &&
+			    lastoff < page_offset(page))
+				goto check_range;
+
+			/* Searching done if the page index is out of range. */
+			if (page->index >= end)
+				goto not_found;
+
+			lock_page(page);
+			if (likely(page->mapping == inode->i_mapping) &&
+			    page_has_buffers(page)) {
+				lastoff = page_seek_hole_data(page, lastoff, whence);
+				if (lastoff >= 0) {
+					unlock_page(page);
+					goto check_range;
+				}
+			}
+			unlock_page(page);
+			lastoff = page_offset(page) + PAGE_SIZE;
+		}
+
+		/* Searching done if fewer pages returned than wanted. */
+		if (nr_pages < want)
+			break;
+
+		index = pvec.pages[i - 1]->index + 1;
+		pagevec_release(&pvec);
+	} while (index < end);
+
+	/* When no page at lastoff and we are not done, we found a hole. */
+	if (whence != SEEK_HOLE)
+		goto not_found;
+
+check_range:
+	if (lastoff < offset + length)
+		goto out;
+not_found:
+	lastoff = -ENOENT;
+out:
+	pagevec_release(&pvec);
+	return lastoff;
+}
 
 void __init buffer_init(void)
 {

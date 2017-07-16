@@ -340,6 +340,11 @@ static u16 __get_link_speed(struct port *port)
 
 		default:
 			/* unknown speed value from ethtool. shouldn't happen */
+			if (slave->speed != SPEED_UNKNOWN)
+				pr_warn_once("%s: unknown ethtool speed (%d) for port %d (set it to 0)\n",
+					     slave->bond->dev->name,
+					     slave->speed,
+					     port->actor_port_number);
 			speed = 0;
 			break;
 		}
@@ -852,7 +857,7 @@ static int ad_lacpdu_send(struct port *port)
 	skb->protocol = PKT_TYPE_LACPDU;
 	skb->priority = TC_PRIO_CONTROL;
 
-	lacpdu_header = (struct lacpdu_header *)skb_put(skb, length);
+	lacpdu_header = skb_put(skb, length);
 
 	ether_addr_copy(lacpdu_header->hdr.h_dest, lacpdu_mcast_addr);
 	/* Note: source address is set to be the member's PERMANENT address,
@@ -894,7 +899,7 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 	skb->network_header = skb->mac_header + ETH_HLEN;
 	skb->protocol = PKT_TYPE_LACPDU;
 
-	marker_header = (struct bond_marker_header *)skb_put(skb, length);
+	marker_header = skb_put(skb, length);
 
 	ether_addr_copy(marker_header->hdr.h_dest, lacpdu_mcast_addr);
 	/* Note: source address is set to be the member's PERMANENT address,

@@ -257,3 +257,71 @@ int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
 		*duration = attr.test.duration;
 	return ret;
 }
+
+int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id)
+{
+	union bpf_attr attr;
+	int err;
+
+	bzero(&attr, sizeof(attr));
+	attr.start_id = start_id;
+
+	err = sys_bpf(BPF_PROG_GET_NEXT_ID, &attr, sizeof(attr));
+	if (!err)
+		*next_id = attr.next_id;
+
+	return err;
+}
+
+int bpf_map_get_next_id(__u32 start_id, __u32 *next_id)
+{
+	union bpf_attr attr;
+	int err;
+
+	bzero(&attr, sizeof(attr));
+	attr.start_id = start_id;
+
+	err = sys_bpf(BPF_MAP_GET_NEXT_ID, &attr, sizeof(attr));
+	if (!err)
+		*next_id = attr.next_id;
+
+	return err;
+}
+
+int bpf_prog_get_fd_by_id(__u32 id)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.prog_id = id;
+
+	return sys_bpf(BPF_PROG_GET_FD_BY_ID, &attr, sizeof(attr));
+}
+
+int bpf_map_get_fd_by_id(__u32 id)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+	attr.map_id = id;
+
+	return sys_bpf(BPF_MAP_GET_FD_BY_ID, &attr, sizeof(attr));
+}
+
+int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
+{
+	union bpf_attr attr;
+	int err;
+
+	bzero(&attr, sizeof(attr));
+	bzero(info, *info_len);
+	attr.info.bpf_fd = prog_fd;
+	attr.info.info_len = *info_len;
+	attr.info.info = ptr_to_u64(info);
+
+	err = sys_bpf(BPF_OBJ_GET_INFO_BY_FD, &attr, sizeof(attr));
+	if (!err)
+		*info_len = attr.info.info_len;
+
+	return err;
+}

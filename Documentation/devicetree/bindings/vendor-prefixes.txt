@@ -5,6 +5,7 @@ using them to avoid name-space collisions.
 
 abcn	Abracon Corporation
 abilis	Abilis Systems
+actions	Actions Semiconductor Co., Ltd.
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
 adapteva	Adapteva, Inc.
@@ -28,6 +29,7 @@ andestech	Andes Technology Corporation
 apm	Applied Micro Circuits Corporation (APM)
 aptina	Aptina Imaging
 arasan	Arasan Chip Systems
+arctic	Arctic Sand
 aries	Aries Embedded GmbH
 arm	ARM Ltd.
 armadeus	ARMadeus Systems SARL
@@ -44,6 +46,7 @@ avia	avia semiconductor
 avic	Shanghai AVIC Optoelectronics Co., Ltd.
 axentia	Axentia Technologies AB
 axis	Axis Communications AB
+bananapi BIPAI KEJI LIMITED
 boe	BOE Technology Group Co., Ltd.
 bosch	Bosch Sensortec GmbH
 boundary	Boundary Devices Inc.
@@ -158,6 +161,8 @@ iom	Iomega Corporation
 isee	ISEE 2007 S.L.
 isil	Intersil
 issi	Integrated Silicon Solutions Inc.
+itead	ITEAD Intelligent Systems Co.Ltd
+iwave  iWave Systems Technologies Pvt. Ltd.
 jdi	Japan Display Inc.
 jedec	JEDEC Solid State Technology Association
 karo	Ka-Ro electronics GmbH
@@ -165,6 +170,7 @@ keithkoep	Keith & Koep GmbH
 keymile	Keymile GmbH
 khadas	Khadas
 kinetic Kinetic Technologies
+kingnovel	Kingnovel Technology Co., Ltd.
 kosagi	Sutajio Ko-Usagi PTE Ltd.
 kyo	Kyocera Corporation
 lacie	LaCie
@@ -172,8 +178,10 @@ lantiq	Lantiq Semiconductor
 lego	LEGO Systems A/S
 lenovo	Lenovo Group Ltd.
 lg	LG Corporation
+libretech	Shenzhen Libre Technology Co., Ltd
 licheepi	Lichee Pi
 linaro	Linaro Limited
+linksys	Belkin International, Inc. (Linksys)
 linux	Linux-specific binding
 lltc	Linear Technology Corporation
 lsi	LSI Corp. (LSI Logic)
@@ -219,6 +227,7 @@ nexbox	Nexbox
 newhaven	Newhaven Display International
 ni	National Instruments
 nintendo	Nintendo
+nlt	NLT Technologies, Ltd.
 nokia	Nokia
 nordic	Nordic Semiconductor
 nuvoton	Nuvoton Technology Corporation
@@ -266,8 +275,10 @@ renesas	Renesas Electronics Corporation
 richtek	Richtek Technology Corporation
 ricoh	Ricoh Co. Ltd.
 rikomagic	Rikomagic Tech Corp. Ltd
+riscv	RISC-V Foundation
 rockchip	Fuzhou Rockchip Electronics Co., Ltd
 rohm	ROHM Semiconductor Co., Ltd
+roofull	Shenzhen Roofull Technology Co, Ltd
 samsung	Samsung Semiconductor
 samtec	Samtec/Softing company
 sandisk	Sandisk Corporation
@@ -331,6 +342,7 @@ tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
 tyan	Tyan Computer Corporation
+ucrobotics	uCRobotics
 udoo	Udoo
 uniwest	United Western Technologies Corp (UniWest)
 upisemi	uPI Semiconductor Corp.
@@ -356,6 +368,7 @@ xlnx	Xilinx
 xunlong	Shenzhen Xunlong Software CO.,Limited
 zarlink	Zarlink Semiconductor
 zeitec	ZEITEC Semiconductor Co., LTD.
+zidoo	Shenzhen Zidoo Technology Co., Ltd.
 zii	Zodiac Inflight Innovations
 zte	ZTE Corp.
 zyxel	ZyXEL Communications Corp.

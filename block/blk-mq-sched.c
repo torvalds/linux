@@ -515,10 +515,12 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	}
 
 	/*
-	 * Default to 256, since we don't split into sync/async like the
-	 * old code did. Additionally, this is a per-hw queue depth.
+	 * Default to double of smaller one between hw queue_depth and 128,
+	 * since we don't split into sync/async like the old code did.
+	 * Additionally, this is a per-hw queue depth.
 	 */
-	q->nr_requests = 2 * BLKDEV_MAX_RQ;
+	q->nr_requests = 2 * min_t(unsigned int, q->tag_set->queue_depth,
+				   BLKDEV_MAX_RQ);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_sched_alloc_tags(q, hctx, i);

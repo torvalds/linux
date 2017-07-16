@@ -240,10 +240,9 @@ CLOCK
 
 DMA
   dmam_alloc_coherent()
-  dmam_alloc_noncoherent()
+  dmam_alloc_attrs()
   dmam_declare_coherent_memory()
   dmam_free_coherent()
-  dmam_free_noncoherent()
   dmam_pool_create()
   dmam_pool_destroy()
 
@@ -349,6 +348,7 @@ PER-CPU MEM
   devm_free_percpu()
 
 PCI
+  devm_pci_alloc_host_bridge()  : managed PCI host bridge allocation
   devm_pci_remap_cfgspace()	: ioremap PCI configuration space
   devm_pci_remap_cfg_resource()	: ioremap PCI configuration space resource
   pcim_enable_device()		: after success, all PCI ops become managed

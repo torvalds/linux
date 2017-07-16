@@ -1,0 +1,45 @@
+STMicroelectronics STM32 Digital Camera Memory Interface (DCMI)
+
+Required properties:
+- compatible: "st,stm32-dcmi"
+- reg: physical base address and length of the registers set for the device
+- interrupts: should contain IRQ line for the DCMI
+- resets: reference to a reset controller,
+          see Documentation/devicetree/bindings/reset/st,stm32-rcc.txt
+- clocks: list of clock specifiers, corresponding to entries in
+          the clock-names property
+- clock-names: must contain "mclk", which is the DCMI peripherial clock
+- pinctrl: the pincontrol settings to configure muxing properly
+           for pins that connect to DCMI device.
+           See Documentation/devicetree/bindings/pinctrl/st,stm32-pinctrl.txt.
+- dmas: phandle to DMA controller node,
+        see Documentation/devicetree/bindings/dma/stm32-dma.txt
+- dma-names: must contain "tx", which is the transmit channel from DCMI to DMA
+
+DCMI supports a single port node with parallel bus. It should contain one
+'port' child node with child 'endpoint' node. Please refer to the bindings
+defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+	dcmi: dcmi@50050000 {
+		compatible = "st,stm32-dcmi";
+		reg = <0x50050000 0x400>;
+		interrupts = <78>;
+		resets = <&rcc STM32F4_AHB2_RESET(DCMI)>;
+		clocks = <&rcc 0 STM32F4_AHB2_CLOCK(DCMI)>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&dcmi_pins>;
+		dmas = <&dma2 1 1 0x414 0x3>;
+		dma-names = "tx";
+		port {
+			dcmi_0: endpoint {
+				remote-endpoint = <...>;
+				bus-width = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
+			};
+		};
+	};

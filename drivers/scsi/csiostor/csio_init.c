@@ -952,8 +952,9 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct csio_hw *hw;
 	struct csio_lnode *ln;
 
-	/* probe only T5 cards */
-	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)))
+	/* probe only T5 and T6 cards */
+	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)) &&
+	    !csio_is_t6((pdev->device & CSIO_HW_CHIP_MASK)))
 		return -ENODEV;
 
 	rv = csio_pci_init(pdev, &bars);
@@ -1253,3 +1254,4 @@ MODULE_LICENSE(CSIO_DRV_LICENSE);
 MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
 MODULE_FIRMWARE(FW_FNAME_T5);
+MODULE_FIRMWARE(FW_FNAME_T6);

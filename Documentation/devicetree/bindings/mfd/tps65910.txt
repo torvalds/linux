@@ -61,6 +61,10 @@ Optional properties:
   There should be 9 entries here, one for each gpio.
 - ti,system-power-controller: Telling whether or not this pmic is controlling
   the system power.
+- ti,sleep-enable: Enable SLEEP state.
+- ti,sleep-keep-therm: Keep thermal monitoring on in sleep state.
+- ti,sleep-keep-ck32k: Keep the 32KHz clock output on in sleep state.
+- ti,sleep-keep-hsclk: Keep high speed internal clock on in sleep state.
 
 Regulator Optional properties:
 - ti,regulator-ext-sleep-control: enable external sleep

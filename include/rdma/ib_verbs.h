@@ -1614,6 +1614,45 @@ struct ib_rwq_ind_table_init_attr {
 	struct ib_wq	**ind_tbl;
 };
 
+enum port_pkey_state {
+	IB_PORT_PKEY_NOT_VALID = 0,
+	IB_PORT_PKEY_VALID = 1,
+	IB_PORT_PKEY_LISTED = 2,
+};
+
+struct ib_qp_security;
+
+struct ib_port_pkey {
+	enum port_pkey_state	state;
+	u16			pkey_index;
+	u8			port_num;
+	struct list_head	qp_list;
+	struct list_head	to_error_list;
+	struct ib_qp_security  *sec;
+};
+
+struct ib_ports_pkeys {
+	struct ib_port_pkey	main;
+	struct ib_port_pkey	alt;
+};
+
+struct ib_qp_security {
+	struct ib_qp	       *qp;
+	struct ib_device       *dev;
+	/* Hold this mutex when changing port and pkey settings. */
+	struct mutex		mutex;
+	struct ib_ports_pkeys  *ports_pkeys;
+	/* A list of all open shared QP handles.  Required to enforce security
+	 * properly for all users of a shared QP.
+	 */
+	struct list_head        shared_qp_list;
+	void                   *security;
+	bool			destroying;
+	atomic_t		error_list_count;
+	struct completion	error_complete;
+	int			error_comps_pending;
+};
+
 /*
  * @max_write_sge: Maximum SGE elements per RDMA WRITE request.
  * @max_read_sge:  Maximum SGE elements per RDMA READ request.
@@ -1643,6 +1682,7 @@ struct ib_qp {
 	u32			max_read_sge;
 	enum ib_qp_type		qp_type;
 	struct ib_rwq_ind_table *rwq_ind_tbl;
+	struct ib_qp_security  *qp_sec;
 };
 
 struct ib_mr {
@@ -1891,6 +1931,7 @@ enum ib_mad_result {
 };
 
 struct ib_port_cache {
+	u64		      subnet_prefix;
 	struct ib_pkey_cache  *pkey;
 	struct ib_gid_table   *gid;
 	u8                     lmc;
@@ -1927,6 +1968,9 @@ struct rdma_netdev {
 	struct ib_device  *hca;
 	u8                 port_num;
 
+	/* cleanup function must be specified */
+	void (*free_rdma_netdev)(struct net_device *netdev);
+
 	/* control functions */
 	void (*set_id)(struct net_device *netdev, int id);
 	/* send packet */
@@ -1938,6 +1982,12 @@ struct rdma_netdev {
 			    int set_qkey, u32 qkey);
 	int (*detach_mcast)(struct net_device *dev, struct ib_device *hca,
 			    union ib_gid *gid, u16 mlid);
+};
+
+struct ib_port_pkey_list {
+	/* Lock to hold while modifying the list. */
+	spinlock_t                    list_lock;
+	struct list_head              pkey_list;
 };
 
 struct ib_device {
@@ -1962,6 +2012,8 @@ struct ib_device {
 	struct ib_port_immutable     *port_immutable;
 
 	int			      num_comp_vectors;
+
+	struct ib_port_pkey_list     *port_pkey_list;
 
 	struct iw_cm_verbs	     *iwcm;
 
@@ -2194,7 +2246,7 @@ struct ib_device {
 							   struct ib_udata *udata);
 	int                        (*destroy_rwq_ind_table)(struct ib_rwq_ind_table *wq_ind_table);
 	/**
-	 * rdma netdev operations
+	 * rdma netdev operation
 	 *
 	 * Driver implementing alloc_rdma_netdev must return -EOPNOTSUPP if it
 	 * doesn't support the specified rdma netdev type.
@@ -2206,7 +2258,6 @@ struct ib_device {
 					const char *name,
 					unsigned char name_assign_type,
 					void (*setup)(struct net_device *));
-	void (*free_rdma_netdev)(struct net_device *netdev);
 
 	struct module               *owner;
 	struct device                dev;

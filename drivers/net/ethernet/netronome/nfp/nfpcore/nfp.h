@@ -46,7 +46,9 @@
 
 /* Implemented in nfp_hwinfo.c */
 
-const char *nfp_hwinfo_lookup(struct nfp_cpp *cpp, const char *lookup);
+struct nfp_hwinfo;
+struct nfp_hwinfo *nfp_hwinfo_read(struct nfp_cpp *cpp);
+const char *nfp_hwinfo_lookup(struct nfp_hwinfo *hwinfo, const char *lookup);
 
 /* Implemented in nfp_nsp.c, low level functions */
 
@@ -64,6 +66,8 @@ int nfp_nsp_read_eth_table(struct nfp_nsp *state, void *buf, unsigned int size);
 int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 			    const void *buf, unsigned int size);
 int nfp_nsp_read_identify(struct nfp_nsp *state, void *buf, unsigned int size);
+int nfp_nsp_read_sensors(struct nfp_nsp *state, unsigned int sensor_mask,
+			 void *buf, unsigned int size);
 
 /* Implemented in nfp_resource.c */
 

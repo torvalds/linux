@@ -119,28 +119,6 @@ static void of_mdiobus_register_device(struct mii_bus *mdio,
 		child->name, addr);
 }
 
-int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
-{
-	u32 addr;
-	int ret;
-
-	ret = of_property_read_u32(np, "reg", &addr);
-	if (ret < 0) {
-		dev_err(dev, "%s has invalid PHY address\n", np->full_name);
-		return ret;
-	}
-
-	/* A PHY must have a reg property in the range [0-31] */
-	if (addr >= PHY_MAX_ADDR) {
-		dev_err(dev, "%s PHY address %i is too large\n",
-			np->full_name, addr);
-		return -EINVAL;
-	}
-
-	return addr;
-}
-EXPORT_SYMBOL(of_mdio_parse_addr);
-
 /* The following is a list of PHY compatible strings which appear in
  * some DTBs. The compatible string is never matched against a PHY
  * driver, so is pointless. We only expect devices which are not PHYs
@@ -226,7 +204,6 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
 	of_property_read_u32(np, "reset-delay-us", &mdio->reset_delay_us);
-	mdio->num_reset_gpios = of_gpio_named_count(np, "reset-gpios");
 
 	/* Register the MDIO bus */
 	rc = mdiobus_register(mdio);

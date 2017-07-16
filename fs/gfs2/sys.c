@@ -626,12 +626,12 @@ static struct attribute *tune_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group tune_group = {
+static const struct attribute_group tune_group = {
 	.name = "tune",
 	.attrs = tune_attrs,
 };
 
-static struct attribute_group lock_module_group = {
+static const struct attribute_group lock_module_group = {
 	.name = "lock_module",
 	.attrs = lock_module_attrs,
 };

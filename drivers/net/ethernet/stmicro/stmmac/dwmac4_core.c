@@ -35,15 +35,17 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 	if (hw->ps) {
 		value |= GMAC_CONFIG_TE;
 
-		if (hw->ps == SPEED_1000) {
-			value &= ~GMAC_CONFIG_PS;
-		} else {
-			value |= GMAC_CONFIG_PS;
-
-			if (hw->ps == SPEED_10)
-				value &= ~GMAC_CONFIG_FES;
-			else
-				value |= GMAC_CONFIG_FES;
+		value &= hw->link.speed_mask;
+		switch (hw->ps) {
+		case SPEED_1000:
+			value |= hw->link.speed1000;
+			break;
+		case SPEED_100:
+			value |= hw->link.speed100;
+			break;
+		case SPEED_10:
+			value |= hw->link.speed10;
+			break;
 		}
 	}
 
@@ -747,9 +749,11 @@ struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
 	if (mac->multicast_filter_bins)
 		mac->mcast_bits_log2 = ilog2(mac->multicast_filter_bins);
 
-	mac->link.port = GMAC_CONFIG_PS;
 	mac->link.duplex = GMAC_CONFIG_DM;
-	mac->link.speed = GMAC_CONFIG_FES;
+	mac->link.speed10 = GMAC_CONFIG_PS;
+	mac->link.speed100 = GMAC_CONFIG_FES | GMAC_CONFIG_PS;
+	mac->link.speed1000 = 0;
+	mac->link.speed_mask = GMAC_CONFIG_FES | GMAC_CONFIG_PS;
 	mac->mii.addr = GMAC_MDIO_ADDR;
 	mac->mii.data = GMAC_MDIO_DATA;
 	mac->mii.addr_shift = 21;

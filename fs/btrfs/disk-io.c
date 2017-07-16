@@ -89,7 +89,6 @@ struct btrfs_end_io_wq {
 	struct btrfs_fs_info *info;
 	blk_status_t status;
 	enum btrfs_wq_endio_type metadata;
-	struct list_head list;
 	struct btrfs_work work;
 };
 
@@ -118,9 +117,9 @@ void btrfs_end_io_wq_exit(void)
  * just before they are sent down the IO stack.
  */
 struct async_submit_bio {
-	struct inode *inode;
+	void *private_data;
+	struct btrfs_fs_info *fs_info;
 	struct bio *bio;
-	struct list_head list;
 	extent_submit_bio_hook_t *submit_bio_start;
 	extent_submit_bio_hook_t *submit_bio_done;
 	int mirror_num;
@@ -871,7 +870,7 @@ static void run_one_async_start(struct btrfs_work *work)
 	blk_status_t ret;
 
 	async = container_of(work, struct  async_submit_bio, work);
-	ret = async->submit_bio_start(async->inode, async->bio,
+	ret = async->submit_bio_start(async->private_data, async->bio,
 				      async->mirror_num, async->bio_flags,
 				      async->bio_offset);
 	if (ret)
@@ -885,7 +884,7 @@ static void run_one_async_done(struct btrfs_work *work)
 	int limit;
 
 	async = container_of(work, struct  async_submit_bio, work);
-	fs_info = BTRFS_I(async->inode)->root->fs_info;
+	fs_info = async->fs_info;
 
 	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
@@ -904,7 +903,7 @@ static void run_one_async_done(struct btrfs_work *work)
 		return;
 	}
 
-	async->submit_bio_done(async->inode, async->bio, async->mirror_num,
+	async->submit_bio_done(async->private_data, async->bio, async->mirror_num,
 			       async->bio_flags, async->bio_offset);
 }
 
@@ -916,11 +915,11 @@ static void run_one_async_free(struct btrfs_work *work)
 	kfree(async);
 }
 
-blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info,
-		struct inode *inode, struct bio *bio, int mirror_num,
-		unsigned long bio_flags, u64 bio_offset,
-		extent_submit_bio_hook_t *submit_bio_start,
-		extent_submit_bio_hook_t *submit_bio_done)
+blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
+				 int mirror_num, unsigned long bio_flags,
+				 u64 bio_offset, void *private_data,
+				 extent_submit_bio_hook_t *submit_bio_start,
+				 extent_submit_bio_hook_t *submit_bio_done)
 {
 	struct async_submit_bio *async;
 
@@ -928,7 +927,8 @@ blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info,
 	if (!async)
 		return BLK_STS_RESOURCE;
 
-	async->inode = inode;
+	async->private_data = private_data;
+	async->fs_info = fs_info;
 	async->bio = bio;
 	async->mirror_num = mirror_num;
 	async->submit_bio_start = submit_bio_start;
@@ -964,6 +964,7 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 	struct btrfs_root *root;
 	int i, ret = 0;
 
+	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_segment_all(bvec, bio, i) {
 		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
 		ret = csum_dirty_buffer(root->fs_info, bvec->bv_page);
@@ -974,9 +975,9 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 	return errno_to_blk_status(ret);
 }
 
-static blk_status_t __btree_submit_bio_start(struct inode *inode,
-		struct bio *bio, int mirror_num, unsigned long bio_flags,
-		u64 bio_offset)
+static blk_status_t __btree_submit_bio_start(void *private_data, struct bio *bio,
+					     int mirror_num, unsigned long bio_flags,
+					     u64 bio_offset)
 {
 	/*
 	 * when we're called for a write, we're already in the async
@@ -985,10 +986,11 @@ static blk_status_t __btree_submit_bio_start(struct inode *inode,
 	return btree_csum_one_bio(bio);
 }
 
-static blk_status_t __btree_submit_bio_done(struct inode *inode,
-		struct bio *bio, int mirror_num, unsigned long bio_flags,
-		u64 bio_offset)
+static blk_status_t __btree_submit_bio_done(void *private_data, struct bio *bio,
+					    int mirror_num, unsigned long bio_flags,
+					    u64 bio_offset)
 {
+	struct inode *inode = private_data;
 	blk_status_t ret;
 
 	/*
@@ -1014,10 +1016,11 @@ static int check_async_write(unsigned long bio_flags)
 	return 1;
 }
 
-static blk_status_t btree_submit_bio_hook(struct inode *inode, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags,
-				 u64 bio_offset)
+static blk_status_t btree_submit_bio_hook(void *private_data, struct bio *bio,
+					  int mirror_num, unsigned long bio_flags,
+					  u64 bio_offset)
 {
+	struct inode *inode = private_data;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int async = check_async_write(bio_flags);
 	blk_status_t ret;
@@ -1042,8 +1045,8 @@ static blk_status_t btree_submit_bio_hook(struct inode *inode, struct bio *bio,
 		 * kthread helpers are used to submit writes so that
 		 * checksumming can happen in parallel across all CPUs
 		 */
-		ret = btrfs_wq_submit_bio(fs_info, inode, bio, mirror_num, 0,
-					  bio_offset,
+		ret = btrfs_wq_submit_bio(fs_info, bio, mirror_num, 0,
+					  bio_offset, private_data,
 					  __btree_submit_bio_start,
 					  __btree_submit_bio_done);
 	}
@@ -1221,10 +1224,10 @@ int btrfs_write_tree_block(struct extent_buffer *buf)
 					buf->start + buf->len - 1);
 }
 
-int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
+void btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
 {
-	return filemap_fdatawait_range(buf->pages[0]->mapping,
-				       buf->start, buf->start + buf->len - 1);
+	filemap_fdatawait_range(buf->pages[0]->mapping,
+			        buf->start, buf->start + buf->len - 1);
 }
 
 struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
@@ -1254,9 +1257,9 @@ void clean_tree_block(struct btrfs_fs_info *fs_info,
 		btrfs_assert_tree_locked(buf);
 
 		if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &buf->bflags)) {
-			__percpu_counter_add(&fs_info->dirty_metadata_bytes,
-					     -buf->len,
-					     fs_info->dirty_metadata_batch);
+			percpu_counter_add_batch(&fs_info->dirty_metadata_bytes,
+						 -buf->len,
+						 fs_info->dirty_metadata_batch);
 			/* ugh, clear_extent_buffer_dirty needs to lock the page */
 			btrfs_set_lock_blocking(buf);
 			clear_extent_buffer_dirty(buf);
@@ -1346,8 +1349,7 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	root->log_transid_committed = -1;
 	root->last_log_commit = 0;
 	if (!dummy)
-		extent_io_tree_init(&root->dirty_log_pages,
-				     fs_info->btree_inode->i_mapping);
+		extent_io_tree_init(&root->dirty_log_pages, NULL);
 
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
@@ -2308,7 +2310,7 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 	inode->i_mapping->a_ops = &btree_aops;
 
 	RB_CLEAR_NODE(&BTRFS_I(inode)->rb_node);
-	extent_io_tree_init(&BTRFS_I(inode)->io_tree, inode->i_mapping);
+	extent_io_tree_init(&BTRFS_I(inode)->io_tree, inode);
 	BTRFS_I(inode)->io_tree.track_uptodate = 0;
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree);
 
@@ -2625,7 +2627,6 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
 	spin_lock_init(&fs_info->defrag_inodes_lock);
-	spin_lock_init(&fs_info->free_chunk_lock);
 	spin_lock_init(&fs_info->tree_mod_seq_lock);
 	spin_lock_init(&fs_info->super_lock);
 	spin_lock_init(&fs_info->qgroup_op_lock);
@@ -2661,12 +2662,11 @@ int open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->qgroup_op_seq, 0);
 	atomic_set(&fs_info->reada_works_cnt, 0);
 	atomic64_set(&fs_info->tree_mod_seq, 0);
-	fs_info->fs_frozen = 0;
 	fs_info->sb = sb;
 	fs_info->max_inline = BTRFS_DEFAULT_MAX_INLINE;
 	fs_info->metadata_ratio = 0;
 	fs_info->defrag_inodes = RB_ROOT;
-	fs_info->free_chunk_space = 0;
+	atomic64_set(&fs_info->free_chunk_space, 0);
 	fs_info->tree_mod_log = RB_ROOT;
 	fs_info->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
 	fs_info->avg_delayed_ref_runtime = NSEC_PER_SEC >> 6; /* div by 64 */
@@ -2703,10 +2703,8 @@ int open_ctree(struct super_block *sb,
 	fs_info->block_group_cache_tree = RB_ROOT;
 	fs_info->first_logical_byte = (u64)-1;
 
-	extent_io_tree_init(&fs_info->freed_extents[0],
-			     fs_info->btree_inode->i_mapping);
-	extent_io_tree_init(&fs_info->freed_extents[1],
-			     fs_info->btree_inode->i_mapping);
+	extent_io_tree_init(&fs_info->freed_extents[0], NULL);
+	extent_io_tree_init(&fs_info->freed_extents[1], NULL);
 	fs_info->pinned_extents = &fs_info->freed_extents[0];
 	set_bit(BTRFS_FS_BARRIER, &fs_info->flags);
 
@@ -3484,65 +3482,61 @@ static int write_dev_supers(struct btrfs_device *device,
  */
 static void btrfs_end_empty_barrier(struct bio *bio)
 {
-	if (bio->bi_private)
-		complete(bio->bi_private);
-	bio_put(bio);
+	complete(bio->bi_private);
 }
 
 /*
- * trigger flushes for one the devices.  If you pass wait == 0, the flushes are
- * sent down.  With wait == 1, it waits for the previous flush.
- *
- * any device where the flush fails with eopnotsupp are flagged as not-barrier
- * capable
+ * Submit a flush request to the device if it supports it. Error handling is
+ * done in the waiting counterpart.
  */
-static blk_status_t write_dev_flush(struct btrfs_device *device, int wait)
+static void write_dev_flush(struct btrfs_device *device)
 {
 	struct request_queue *q = bdev_get_queue(device->bdev);
-	struct bio *bio;
-	blk_status_t ret = 0;
+	struct bio *bio = device->flush_bio;
 
 	if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
-		return 0;
+		return;
 
-	if (wait) {
-		bio = device->flush_bio;
-		if (!bio)
-			return 0;
-
-		wait_for_completion(&device->flush_wait);
-
-		if (bio->bi_status) {
-			ret = bio->bi_status;
-			btrfs_dev_stat_inc_and_print(device,
-				BTRFS_DEV_STAT_FLUSH_ERRS);
-		}
-
-		/* drop the reference from the wait == 0 run */
-		bio_put(bio);
-		device->flush_bio = NULL;
-
-		return ret;
-	}
-
-	/*
-	 * one reference for us, and we leave it for the
-	 * caller
-	 */
-	device->flush_bio = NULL;
-	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
-	if (!bio)
-		return BLK_STS_RESOURCE;
-
+	bio_reset(bio);
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	bio->bi_bdev = device->bdev;
 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH;
 	init_completion(&device->flush_wait);
 	bio->bi_private = &device->flush_wait;
-	device->flush_bio = bio;
 
-	bio_get(bio);
-	btrfsic_submit_bio(bio);
+	submit_bio(bio);
+	device->flush_bio_sent = 1;
+}
+
+/*
+ * If the flush bio has been submitted by write_dev_flush, wait for it.
+ */
+static blk_status_t wait_dev_flush(struct btrfs_device *device)
+{
+	struct bio *bio = device->flush_bio;
+
+	if (!device->flush_bio_sent)
+		return 0;
+
+	device->flush_bio_sent = 0;
+	wait_for_completion_io(&device->flush_wait);
+
+	return bio->bi_status;
+}
+
+static int check_barrier_error(struct btrfs_fs_devices *fsdevs)
+{
+	int dev_flush_error = 0;
+	struct btrfs_device *dev;
+
+	list_for_each_entry_rcu(dev, &fsdevs->devices, dev_list) {
+		if (!dev->bdev || dev->last_flush_error)
+			dev_flush_error++;
+	}
+
+	if (dev_flush_error >
+	    fsdevs->fs_info->num_tolerated_disk_barrier_failures)
+		return -EIO;
 
 	return 0;
 }
@@ -3555,7 +3549,6 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 {
 	struct list_head *head;
 	struct btrfs_device *dev;
-	int errors_send = 0;
 	int errors_wait = 0;
 	blk_status_t ret;
 
@@ -3564,16 +3557,13 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (dev->missing)
 			continue;
-		if (!dev->bdev) {
-			errors_send++;
+		if (!dev->bdev)
 			continue;
-		}
 		if (!dev->in_fs_metadata || !dev->writeable)
 			continue;
 
-		ret = write_dev_flush(dev, 0);
-		if (ret)
-			errors_send++;
+		write_dev_flush(dev);
+		dev->last_flush_error = 0;
 	}
 
 	/* wait for all the barriers */
@@ -3587,13 +3577,23 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 		if (!dev->in_fs_metadata || !dev->writeable)
 			continue;
 
-		ret = write_dev_flush(dev, 1);
-		if (ret)
+		ret = wait_dev_flush(dev);
+		if (ret) {
+			dev->last_flush_error = ret;
+			btrfs_dev_stat_inc_and_print(dev,
+					BTRFS_DEV_STAT_FLUSH_ERRS);
 			errors_wait++;
+		}
 	}
-	if (errors_send > info->num_tolerated_disk_barrier_failures ||
-	    errors_wait > info->num_tolerated_disk_barrier_failures)
-		return -EIO;
+
+	if (errors_wait) {
+		/*
+		 * At some point we need the status of all disks
+		 * to arrive at the volume status. So error checking
+		 * is being pushed to a separate loop.
+		 */
+		return check_barrier_error(info->fs_devices);
+	}
 	return 0;
 }
 
@@ -4048,9 +4048,9 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 			buf->start, transid, fs_info->generation);
 	was_dirty = set_extent_buffer_dirty(buf);
 	if (!was_dirty)
-		__percpu_counter_add(&fs_info->dirty_metadata_bytes,
-				     buf->len,
-				     fs_info->dirty_metadata_batch);
+		percpu_counter_add_batch(&fs_info->dirty_metadata_bytes,
+					 buf->len,
+					 fs_info->dirty_metadata_batch);
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_header_level(buf) == 0 && check_leaf(root, buf)) {
 		btrfs_print_leaf(fs_info, buf);
@@ -4577,11 +4577,6 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 
 	cur_trans->state =TRANS_STATE_COMPLETED;
 	wake_up(&cur_trans->commit_wait);
-
-	/*
-	memset(cur_trans, 0, sizeof(*cur_trans));
-	kmem_cache_free(btrfs_transaction_cachep, cur_trans);
-	*/
 }
 
 static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
@@ -4637,6 +4632,12 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
+static struct btrfs_fs_info *btree_fs_info(void *private_data)
+{
+	struct inode *inode = private_data;
+	return btrfs_sb(inode->i_sb);
+}
+
 static const struct extent_io_ops btree_extent_io_ops = {
 	/* mandatory callbacks */
 	.submit_bio_hook = btree_submit_bio_hook,
@@ -4644,6 +4645,8 @@ static const struct extent_io_ops btree_extent_io_ops = {
 	/* note we're sharing with inode.c for the merge bio hook */
 	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_io_failed_hook = btree_io_failed_hook,
+	.set_range_writeback = btrfs_set_range_writeback,
+	.tree_fs_info = btree_fs_info,
 
 	/* optional callbacks */
 };

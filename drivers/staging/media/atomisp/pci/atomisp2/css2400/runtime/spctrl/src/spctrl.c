@@ -57,17 +57,11 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	hrt_vaddress code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
 
-	if ((sp_id >= N_SP_ID) || (spctrl_cfg == 0))
+	if ((sp_id >= N_SP_ID) || (spctrl_cfg == NULL))
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
 	spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
 
-#if defined(HRT_UNSCHED)
-	(void)init_dmem_cfg;
-	code_addr = mmgr_malloc(1);
-	if (code_addr == mmgr_NULL)
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-#else
 	init_dmem_cfg = &spctrl_cofig_info[sp_id].dmem_config;
 	init_dmem_cfg->dmem_data_addr = spctrl_cfg->dmem_data_addr;
 	init_dmem_cfg->dmem_bss_addr  = spctrl_cfg->dmem_bss_addr;
@@ -104,7 +98,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 		code_addr = mmgr_NULL;
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
-#endif
+
 	spctrl_cofig_info[sp_id].sp_entry = spctrl_cfg->sp_entry;
 	spctrl_cofig_info[sp_id].code_addr = code_addr;
 	spctrl_cofig_info[sp_id].program_name = spctrl_cfg->program_name;

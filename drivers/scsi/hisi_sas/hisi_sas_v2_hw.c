@@ -554,12 +554,6 @@ enum {
 #define DIR_TO_DEVICE 2
 #define DIR_RESERVED 3
 
-#define SATA_PROTOCOL_NONDATA		0x1
-#define SATA_PROTOCOL_PIO		0x2
-#define SATA_PROTOCOL_DMA		0x4
-#define SATA_PROTOCOL_FPDMA		0x8
-#define SATA_PROTOCOL_ATAPI		0x10
-
 #define ERR_ON_TX_PHASE(err_phase) (err_phase == 0x2 || \
 		err_phase == 0x4 || err_phase == 0x8 ||\
 		err_phase == 0x6 || err_phase == 0xa)
@@ -659,7 +653,7 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba, int *slot_idx,
 static bool sata_index_alloc_v2_hw(struct hisi_hba *hisi_hba, int *idx)
 {
 	unsigned int index;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	void *bitmap = hisi_hba->sata_dev_bitmap;
 
 	index = find_first_zero_bit(bitmap, HISI_MAX_SATA_SUPPORT_V2_HW);
@@ -695,6 +689,9 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 		if (sata_dev && (i & 1))
 			continue;
 		if (hisi_hba->devices[i].dev_type == SAS_PHY_UNUSED) {
+			int queue = i % hisi_hba->queue_count;
+			struct hisi_sas_dq *dq = &hisi_hba->dq[queue];
+
 			hisi_hba->devices[i].device_id = i;
 			sas_dev = &hisi_hba->devices[i];
 			sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
@@ -702,6 +699,7 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
 			sas_dev->sata_idx = sata_idx;
+			sas_dev->dq = dq;
 			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
@@ -756,7 +754,7 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_device *sas_dev)
 {
 	struct domain_device *device = sas_dev->sas_device;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	u64 qw0, device_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
 	struct domain_device *parent_dev = device->parent;
@@ -809,7 +807,7 @@ static void free_device_v2_hw(struct hisi_hba *hisi_hba,
 			      struct hisi_sas_device *sas_dev)
 {
 	u64 dev_id = sas_dev->device_id;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[dev_id];
 	u32 reg_val = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
 	int i;
@@ -853,7 +851,7 @@ static int reset_hw_v2_hw(struct hisi_hba *hisi_hba)
 	int i, reset_val;
 	u32 val;
 	unsigned long end_time;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 
 	/* The mask needs to be set depending on the number of phys */
 	if (hisi_hba->n_phy == 9)
@@ -989,7 +987,7 @@ static void phys_try_accept_stp_links_v2_hw(struct hisi_hba *hisi_hba)
 
 static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int i;
 
 	/* Global registers init */
@@ -1170,7 +1168,7 @@ static void set_link_timer_quirk(struct hisi_hba *hisi_hba)
 
 static int hw_init_v2_hw(struct hisi_hba *hisi_hba)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	int rc;
 
 	rc = reset_hw_v2_hw(hisi_hba);
@@ -1219,7 +1217,7 @@ static bool tx_fifo_is_empty_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 static bool axi_bus_is_idle_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	int i, max_loop = 1000;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	u32 status, axi_status, dfx_val, dfx_tx_val;
 
 	for (i = 0; i < max_loop; i++) {
@@ -1245,7 +1243,7 @@ static bool axi_bus_is_idle_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 static bool wait_io_done_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	int i, max_loop = 1000;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	u32 status, tx_dfx0;
 
 	for (i = 0; i < max_loop; i++) {
@@ -1283,7 +1281,7 @@ static bool allowed_disable_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 static void disable_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 cfg, axi_val, dfx0_val, txid_auto;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 
 	/* Close axi bus. */
 	axi_val = hisi_sas_read32(hisi_hba, AXI_MASTER_CFG_BASE +
@@ -1454,22 +1452,17 @@ static int get_wideport_bitmap_v2_hw(struct hisi_hba *hisi_hba, int port_id)
 	return bitmap;
 }
 
-/**
- * This function allocates across all queues to load balance.
- * Slots are allocated from queues in a round-robin fashion.
- *
+/*
  * The callpath to this function and upto writing the write
  * queue pointer should be safe from interruption.
  */
-static int get_free_slot_v2_hw(struct hisi_hba *hisi_hba, u32 dev_id,
-				int *q, int *s)
+static int
+get_free_slot_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_dq *dq)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
-	struct hisi_sas_dq *dq;
+	struct device *dev = hisi_hba->dev;
+	int queue = dq->id;
 	u32 r, w;
-	int queue = dev_id % hisi_hba->queue_count;
 
-	dq = &hisi_hba->dq[queue];
 	w = dq->wr_point;
 	r = hisi_sas_read32_relaxed(hisi_hba,
 				DLVRY_Q_0_RD_PTR + (queue * 0x14));
@@ -1479,16 +1472,14 @@ static int get_free_slot_v2_hw(struct hisi_hba *hisi_hba, u32 dev_id,
 		return -EAGAIN;
 	}
 
-	*q = queue;
-	*s = w;
 	return 0;
 }
 
-static void start_delivery_v2_hw(struct hisi_hba *hisi_hba)
+static void start_delivery_v2_hw(struct hisi_sas_dq *dq)
 {
-	int dlvry_queue = hisi_hba->slot_prep->dlvry_queue;
-	int dlvry_queue_slot = hisi_hba->slot_prep->dlvry_queue_slot;
-	struct hisi_sas_dq *dq = &hisi_hba->dq[dlvry_queue];
+	struct hisi_hba *hisi_hba = dq->hisi_hba;
+	int dlvry_queue = dq->slot_prep->dlvry_queue;
+	int dlvry_queue_slot = dq->slot_prep->dlvry_queue_slot;
 
 	dq->wr_point = ++dlvry_queue_slot % HISI_SAS_QUEUE_SLOTS;
 	hisi_sas_write32(hisi_hba, DLVRY_Q_0_WR_PTR + (dlvry_queue * 0x14),
@@ -1501,7 +1492,8 @@ static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 			      struct scatterlist *scatter,
 			      int n_elem)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct hisi_sas_sge_page *sge_page = hisi_sas_sge_addr_mem(slot);
+	struct device *dev = hisi_hba->dev;
 	struct scatterlist *sg;
 	int i;
 
@@ -1511,13 +1503,8 @@ static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 		return -EINVAL;
 	}
 
-	slot->sge_page = dma_pool_alloc(hisi_hba->sge_page_pool, GFP_ATOMIC,
-					&slot->sge_page_dma);
-	if (!slot->sge_page)
-		return -ENOMEM;
-
 	for_each_sg(scatter, sg, n_elem, i) {
-		struct hisi_sas_sge *entry = &slot->sge_page->sge[i];
+		struct hisi_sas_sge *entry = &sge_page->sge[i];
 
 		entry->addr = cpu_to_le64(sg_dma_address(sg));
 		entry->page_ctrl_0 = entry->page_ctrl_1 = 0;
@@ -1525,7 +1512,7 @@ static int prep_prd_sge_v2_hw(struct hisi_hba *hisi_hba,
 		entry->data_off = 0;
 	}
 
-	hdr->prd_table_addr = cpu_to_le64(slot->sge_page_dma);
+	hdr->prd_table_addr = cpu_to_le64(hisi_sas_sge_addr_dma(slot));
 
 	hdr->sg_len = cpu_to_le32(n_elem << CMD_HDR_DATA_SGL_LEN_OFF);
 
@@ -1538,7 +1525,7 @@ static int prep_smp_v2_hw(struct hisi_hba *hisi_hba,
 	struct sas_task *task = slot->task;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct domain_device *device = task->dev;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	struct hisi_sas_port *port = slot->port;
 	struct scatterlist *sg_req, *sg_resp;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
@@ -1589,7 +1576,7 @@ static int prep_smp_v2_hw(struct hisi_hba *hisi_hba,
 	hdr->transfer_tags = cpu_to_le32(slot->idx << CMD_HDR_IPTT_OFF);
 
 	hdr->cmd_table_addr = cpu_to_le64(req_dma_addr);
-	hdr->sts_buffer_addr = cpu_to_le64(slot->status_buffer_dma);
+	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
 	return 0;
 
@@ -1663,10 +1650,11 @@ static int prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	}
 
 	hdr->data_transfer_len = cpu_to_le32(task->total_xfer_len);
-	hdr->cmd_table_addr = cpu_to_le64(slot->command_table_dma);
-	hdr->sts_buffer_addr = cpu_to_le64(slot->status_buffer_dma);
+	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
+	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
-	buf_cmd = slot->command_table + sizeof(struct ssp_frame_hdr);
+	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot) +
+		sizeof(struct ssp_frame_hdr);
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 	if (!is_tmf) {
@@ -1690,20 +1678,6 @@ static int prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	}
 
 	return 0;
-}
-
-static void sata_done_v2_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
-			    struct hisi_sas_slot *slot)
-{
-	struct task_status_struct *ts = &task->task_status;
-	struct ata_task_resp *resp = (struct ata_task_resp *)ts->buf;
-	struct dev_to_host_fis *d2h = slot->status_buffer +
-				      sizeof(struct hisi_sas_err_record);
-
-	resp->frame_len = sizeof(struct dev_to_host_fis);
-	memcpy(&resp->ending_fis[0], d2h, sizeof(struct dev_to_host_fis));
-
-	ts->buf_valid_size = sizeof(*resp);
 }
 
 #define TRANS_TX_ERR	0
@@ -1907,7 +1881,8 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			   int err_phase)
 {
 	struct task_status_struct *ts = &task->task_status;
-	struct hisi_sas_err_record_v2 *err_record = slot->status_buffer;
+	struct hisi_sas_err_record_v2 *err_record =
+			hisi_sas_status_buf_addr_mem(slot);
 	u32 trans_tx_fail_type = cpu_to_le32(err_record->trans_tx_fail_type);
 	u32 trans_rx_fail_type = cpu_to_le32(err_record->trans_rx_fail_type);
 	u16 dma_tx_err_type = cpu_to_le16(err_record->dma_tx_err_type);
@@ -2198,7 +2173,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 			break;
 		}
 		}
-		sata_done_v2_hw(hisi_hba, task, slot);
+		hisi_sas_sata_done(task, slot);
 	}
 		break;
 	default:
@@ -2211,7 +2186,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	struct task_status_struct *ts;
 	struct domain_device *device;
 	enum exec_status sts;
@@ -2296,8 +2271,10 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
 	{
-		struct ssp_response_iu *iu = slot->status_buffer +
-			sizeof(struct hisi_sas_err_record);
+		struct hisi_sas_status_buffer *status_buffer =
+				hisi_sas_status_buf_addr_mem(slot);
+		struct ssp_response_iu *iu = (struct ssp_response_iu *)
+				&status_buffer->iu[0];
 
 		sas_ssp_task_response(dev, task, iu);
 		break;
@@ -2315,7 +2292,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
 			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
-		       slot->status_buffer +
+		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
 		       sg_dma_len(sg_resp));
 		kunmap_atomic(to);
@@ -2326,7 +2303,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
 	{
 		ts->stat = SAM_STAT_GOOD;
-		sata_done_v2_hw(hisi_hba, task, slot);
+		hisi_sas_sata_done(task, slot);
 		break;
 	}
 	default:
@@ -2344,85 +2321,15 @@ out:
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
+	spin_lock_irqsave(&hisi_hba->lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 	sts = ts->stat;
 
 	if (task->task_done)
 		task->task_done(task);
 
 	return sts;
-}
-
-static u8 get_ata_protocol(u8 cmd, int direction)
-{
-	switch (cmd) {
-	case ATA_CMD_FPDMA_WRITE:
-	case ATA_CMD_FPDMA_READ:
-	case ATA_CMD_FPDMA_RECV:
-	case ATA_CMD_FPDMA_SEND:
-	case ATA_CMD_NCQ_NON_DATA:
-	return SATA_PROTOCOL_FPDMA;
-
-	case ATA_CMD_DOWNLOAD_MICRO:
-	case ATA_CMD_ID_ATA:
-	case ATA_CMD_PMP_READ:
-	case ATA_CMD_READ_LOG_EXT:
-	case ATA_CMD_PIO_READ:
-	case ATA_CMD_PIO_READ_EXT:
-	case ATA_CMD_PMP_WRITE:
-	case ATA_CMD_WRITE_LOG_EXT:
-	case ATA_CMD_PIO_WRITE:
-	case ATA_CMD_PIO_WRITE_EXT:
-	return SATA_PROTOCOL_PIO;
-
-	case ATA_CMD_DSM:
-	case ATA_CMD_DOWNLOAD_MICRO_DMA:
-	case ATA_CMD_PMP_READ_DMA:
-	case ATA_CMD_PMP_WRITE_DMA:
-	case ATA_CMD_READ:
-	case ATA_CMD_READ_EXT:
-	case ATA_CMD_READ_LOG_DMA_EXT:
-	case ATA_CMD_READ_STREAM_DMA_EXT:
-	case ATA_CMD_TRUSTED_RCV_DMA:
-	case ATA_CMD_TRUSTED_SND_DMA:
-	case ATA_CMD_WRITE:
-	case ATA_CMD_WRITE_EXT:
-	case ATA_CMD_WRITE_FUA_EXT:
-	case ATA_CMD_WRITE_QUEUED:
-	case ATA_CMD_WRITE_LOG_DMA_EXT:
-	case ATA_CMD_WRITE_STREAM_DMA_EXT:
-	return SATA_PROTOCOL_DMA;
-
-	case ATA_CMD_CHK_POWER:
-	case ATA_CMD_DEV_RESET:
-	case ATA_CMD_EDD:
-	case ATA_CMD_FLUSH:
-	case ATA_CMD_FLUSH_EXT:
-	case ATA_CMD_VERIFY:
-	case ATA_CMD_VERIFY_EXT:
-	case ATA_CMD_SET_FEATURES:
-	case ATA_CMD_STANDBY:
-	case ATA_CMD_STANDBYNOW1:
-	return SATA_PROTOCOL_NONDATA;
-	default:
-		if (direction == DMA_NONE)
-			return SATA_PROTOCOL_NONDATA;
-		return SATA_PROTOCOL_PIO;
-	}
-}
-
-static int get_ncq_tag_v2_hw(struct sas_task *task, u32 *tag)
-{
-	struct ata_queued_cmd *qc = task->uldd_task;
-
-	if (qc) {
-		if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-			qc->tf.command == ATA_CMD_FPDMA_READ) {
-			*tag = qc->tag;
-			return 1;
-		}
-	}
-	return 0;
 }
 
 static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
@@ -2465,13 +2372,14 @@ static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 			(task->ata_task.fis.control & ATA_SRST))
 		dw1 |= 1 << CMD_HDR_RESET_OFF;
 
-	dw1 |= (get_ata_protocol(task->ata_task.fis.command, task->data_dir))
+	dw1 |= (hisi_sas_get_ata_protocol(
+		task->ata_task.fis.command, task->data_dir))
 		<< CMD_HDR_FRAME_TYPE_OFF;
 	dw1 |= sas_dev->device_id << CMD_HDR_DEV_ID_OFF;
 	hdr->dw1 = cpu_to_le32(dw1);
 
 	/* dw2 */
-	if (task->ata_task.use_ncq && get_ncq_tag_v2_hw(task, &hdr_tag)) {
+	if (task->ata_task.use_ncq && hisi_sas_get_ncq_tag(task, &hdr_tag)) {
 		task->ata_task.fis.sector_count |= (u8) (hdr_tag << 3);
 		dw2 |= hdr_tag << CMD_HDR_NCQ_TAG_OFF;
 	}
@@ -2490,12 +2398,11 @@ static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 			return rc;
 	}
 
-
 	hdr->data_transfer_len = cpu_to_le32(task->total_xfer_len);
-	hdr->cmd_table_addr = cpu_to_le64(slot->command_table_dma);
-	hdr->sts_buffer_addr = cpu_to_le64(slot->status_buffer_dma);
+	hdr->cmd_table_addr = cpu_to_le64(hisi_sas_cmd_hdr_addr_dma(slot));
+	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
 
-	buf_cmd = slot->command_table;
+	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot);
 
 	if (likely(!task->ata_task.device_control_reg_update))
 		task->ata_task.fis.flags |= 0x80; /* C=1: update ATA cmd reg */
@@ -2578,7 +2485,7 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	u32 port_id, link_rate, hard_phy_linkrate;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	u32 *frame_rcvd = (u32 *)sas_phy->frame_rcvd;
 	struct sas_identify_frame *id = (struct sas_identify_frame *)frame_rcvd;
 
@@ -2765,7 +2672,7 @@ static void phy_bcast_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 static irqreturn_t int_chnl_int_v2_hw(int irq_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	u32 ent_msk, ent_tmp, irq_msk;
 	int phy_no = 0;
 
@@ -2825,7 +2732,7 @@ static irqreturn_t int_chnl_int_v2_hw(int irq_no, void *p)
 static void
 one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba, u32 irq_value)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	u32 reg_val;
 
 	if (irq_value & BIT(SAS_ECC_INTR_DQE_ECC_1B_OFF)) {
@@ -2914,7 +2821,7 @@ static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 		u32 irq_value)
 {
 	u32 reg_val;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 
 	if (irq_value & BIT(SAS_ECC_INTR_DQE_ECC_MB_OFF)) {
 		reg_val = hisi_sas_read32(hisi_hba, HGC_DQE_ECC_ADDR);
@@ -3064,7 +2971,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 {
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_value, irq_msk, err_value;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 
 	irq_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK3);
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, irq_msk | 0xfffffffe);
@@ -3162,13 +3069,14 @@ static void cq_tasklet_v2_hw(unsigned long val)
 	struct hisi_sas_complete_v2_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
+	struct hisi_sas_dq *dq = &hisi_hba->dq[queue];
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
 		phys_try_accept_stp_links_v2_hw(hisi_hba);
 
 	complete_queue = hisi_hba->complete_hdr[queue];
 
-	spin_lock(&hisi_hba->lock);
+	spin_lock(&dq->lock);
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
 
@@ -3218,7 +3126,7 @@ static void cq_tasklet_v2_hw(unsigned long val)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
-	spin_unlock(&hisi_hba->lock);
+	spin_unlock(&dq->lock);
 }
 
 static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
@@ -3239,7 +3147,7 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	struct hisi_sas_phy *phy = p;
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	struct	hisi_sas_initial_fis *initial_fis;
 	struct dev_to_host_fis *fis;
 	u32 ent_tmp, ent_msk, ent_int, port_id, link_rate, hard_phy_linkrate;
@@ -3341,7 +3249,7 @@ static irq_handler_t fatal_interrupts[HISI_SAS_FATAL_INT_NR] = {
  */
 static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 {
-	struct platform_device *pdev = hisi_hba->pdev;
+	struct platform_device *pdev = hisi_hba->platform_dev;
 	struct device *dev = &pdev->dev;
 	int i, irq, rc, irq_map[128];
 
@@ -3455,7 +3363,7 @@ static int hisi_sas_v2_init(struct hisi_hba *hisi_hba)
 
 static void interrupt_disable_v2_hw(struct hisi_hba *hisi_hba)
 {
-	struct platform_device *pdev = hisi_hba->pdev;
+	struct platform_device *pdev = hisi_hba->platform_dev;
 	int i;
 
 	for (i = 0; i < hisi_hba->queue_count; i++)
@@ -3477,7 +3385,7 @@ static void interrupt_disable_v2_hw(struct hisi_hba *hisi_hba)
 
 static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct device *dev = hisi_hba->dev;
 	u32 old_state, state;
 	int rc, cnt;
 	int phy_no;

@@ -528,7 +528,7 @@ xfs_dir2_free_hdr_check(
  * Stale entries are ok.
  */
 xfs_dahash_t					/* hash value */
-xfs_dir2_leafn_lasthash(
+xfs_dir2_leaf_lasthash(
 	struct xfs_inode *dp,
 	struct xfs_buf	*bp,			/* leaf buffer */
 	int		*count)			/* count of entries in leaf */
@@ -540,7 +540,9 @@ xfs_dir2_leafn_lasthash(
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 
 	ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
-	       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
+	       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC ||
+	       leafhdr.magic == XFS_DIR2_LEAF1_MAGIC ||
+	       leafhdr.magic == XFS_DIR3_LEAF1_MAGIC);
 
 	if (count)
 		*count = leafhdr.count;
@@ -1405,8 +1407,8 @@ xfs_dir2_leafn_split(
 	/*
 	 * Update last hashval in each block since we added the name.
 	 */
-	oldblk->hashval = xfs_dir2_leafn_lasthash(dp, oldblk->bp, NULL);
-	newblk->hashval = xfs_dir2_leafn_lasthash(dp, newblk->bp, NULL);
+	oldblk->hashval = xfs_dir2_leaf_lasthash(dp, oldblk->bp, NULL);
+	newblk->hashval = xfs_dir2_leaf_lasthash(dp, newblk->bp, NULL);
 	xfs_dir3_leaf_check(dp, oldblk->bp);
 	xfs_dir3_leaf_check(dp, newblk->bp);
 	return error;

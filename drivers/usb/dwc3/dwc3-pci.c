@@ -230,7 +230,6 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	}
 
 	device_init_wakeup(dev, true);
-	device_set_run_wake(dev, true);
 	pci_set_drvdata(pci, dwc);
 	pm_runtime_put(dev);
 
@@ -310,7 +309,7 @@ static int dwc3_pci_runtime_suspend(struct device *dev)
 {
 	struct dwc3_pci		*dwc = dev_get_drvdata(dev);
 
-	if (device_run_wake(dev))
+	if (device_can_wakeup(dev))
 		return dwc3_pci_dsm(dwc, PCI_INTEL_BXT_STATE_D3);
 
 	return -EBUSY;

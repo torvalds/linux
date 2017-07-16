@@ -177,6 +177,7 @@ int qed_mcp_free(struct qed_hwfn *p_hwfn)
 	}
 
 	kfree(p_hwfn->mcp_info);
+	p_hwfn->mcp_info = NULL;
 
 	return 0;
 }
@@ -1397,6 +1398,28 @@ static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		    &param);
 }
 
+static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct public_func shmem_info;
+	u32 resp = 0, param = 0;
+
+	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info, MCP_PF_ID(p_hwfn));
+
+	p_hwfn->mcp_info->func_info.ovlan = (u16)shmem_info.ovlan_stag &
+						 FUNC_MF_CFG_OV_STAG_MASK;
+	p_hwfn->hw_info.ovlan = p_hwfn->mcp_info->func_info.ovlan;
+	if ((p_hwfn->hw_info.hw_mode & BIT(MODE_MF_SD)) &&
+	    (p_hwfn->hw_info.ovlan != QED_MCP_VLAN_UNSET)) {
+		qed_wr(p_hwfn, p_ptt,
+		       NIG_REG_LLH_FUNC_TAG_VALUE, p_hwfn->hw_info.ovlan);
+		qed_sp_pf_update_stag(p_hwfn);
+	}
+
+	/* Acknowledge the MFW */
+	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
+		    &resp, &param);
+}
+
 int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt)
 {
@@ -1451,6 +1474,10 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_BW_UPDATE:
 			qed_mcp_update_bw(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_S_TAG_UPDATE:
+			qed_mcp_update_stag(p_hwfn, p_ptt);
+			break;
 			break;
 		default:
 			DP_INFO(p_hwfn, "Unimplemented MFW message %d\n", i);
@@ -1518,6 +1545,36 @@ int qed_mcp_get_mfw_ver(struct qed_hwfn *p_hwfn,
 					      offsetof(struct public_global,
 						       running_bundle_id));
 	}
+
+	return 0;
+}
+
+int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt, u32 *p_mbi_ver)
+{
+	u32 nvm_cfg_addr, nvm_cfg1_offset, mbi_ver_addr;
+
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
+	/* Read the address of the nvm_cfg */
+	nvm_cfg_addr = qed_rd(p_hwfn, p_ptt, MISC_REG_GEN_PURP_CR0);
+	if (!nvm_cfg_addr) {
+		DP_NOTICE(p_hwfn, "Shared memory not initialized\n");
+		return -EINVAL;
+	}
+
+	/* Read the offset of nvm_cfg1 */
+	nvm_cfg1_offset = qed_rd(p_hwfn, p_ptt, nvm_cfg_addr + 4);
+
+	mbi_ver_addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
+		       offsetof(struct nvm_cfg1, glob) +
+		       offsetof(struct nvm_cfg1_glob, mbi_version);
+	*p_mbi_ver = qed_rd(p_hwfn, p_ptt,
+			    mbi_ver_addr) &
+		     (NVM_CFG1_GLOB_MBI_VERSION_0_MASK |
+		      NVM_CFG1_GLOB_MBI_VERSION_1_MASK |
+		      NVM_CFG1_GLOB_MBI_VERSION_2_MASK);
 
 	return 0;
 }
@@ -1679,10 +1736,10 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "MAC is 0 in shmem\n");
 	}
 
-	info->wwn_port = (u64)shmem_info.fcoe_wwn_port_name_upper |
-			 (((u64)shmem_info.fcoe_wwn_port_name_lower) << 32);
-	info->wwn_node = (u64)shmem_info.fcoe_wwn_node_name_upper |
-			 (((u64)shmem_info.fcoe_wwn_node_name_lower) << 32);
+	info->wwn_port = (u64)shmem_info.fcoe_wwn_port_name_lower |
+			 (((u64)shmem_info.fcoe_wwn_port_name_upper) << 32);
+	info->wwn_node = (u64)shmem_info.fcoe_wwn_node_name_lower |
+			 (((u64)shmem_info.fcoe_wwn_node_name_upper) << 32);
 
 	info->ovlan = (u16)(shmem_info.ovlan_stag & FUNC_MF_CFG_OV_STAG_MASK);
 
@@ -1770,8 +1827,9 @@ int qed_mcp_get_flash_size(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt, u8 vf_id, u8 num)
+static int
+qed_mcp_config_vf_msix_bb(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 vf_id, u8 num)
 {
 	u32 resp = 0, param = 0, rc_param = 0;
 	int rc;
@@ -1799,6 +1857,36 @@ int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
 	}
 
 	return rc;
+}
+
+static int
+qed_mcp_config_vf_msix_ah(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 num)
+{
+	u32 resp = 0, param = num, rc_param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_CFG_PF_VFS_MSIX,
+			 param, &resp, &rc_param);
+
+	if (resp != FW_MSG_CODE_DRV_CFG_PF_VFS_MSIX_DONE) {
+		DP_NOTICE(p_hwfn, "MFW failed to set MSI-X for VFs\n");
+		rc = -EINVAL;
+	} else {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Requested 0x%02x MSI-x interrupts for VFs\n", num);
+	}
+
+	return rc;
+}
+
+int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 vf_id, u8 num)
+{
+	if (QED_IS_BB(p_hwfn->cdev))
+		return qed_mcp_config_vf_msix_bb(p_hwfn, p_ptt, vf_id, num);
+	else
+		return qed_mcp_config_vf_msix_ah(p_hwfn, p_ptt, num);
 }
 
 int
@@ -2220,6 +2308,95 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 		rc = -EINVAL;
 
 	return rc;
+}
+
+static int
+qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_nvm_images image_id,
+			  struct qed_nvm_image_att *p_image_att)
+{
+	struct bist_nvm_image_att mfw_image_att;
+	enum nvm_image_type type;
+	u32 num_images, i;
+	int rc;
+
+	/* Translate image_id into MFW definitions */
+	switch (image_id) {
+	case QED_NVM_IMAGE_ISCSI_CFG:
+		type = NVM_TYPE_ISCSI_CFG;
+		break;
+	case QED_NVM_IMAGE_FCOE_CFG:
+		type = NVM_TYPE_FCOE_CFG;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unknown request of image_id %08x\n",
+			  image_id);
+		return -EINVAL;
+	}
+
+	/* Learn number of images, then traverse and see if one fits */
+	rc = qed_mcp_bist_nvm_test_get_num_images(p_hwfn, p_ptt, &num_images);
+	if (rc || !num_images)
+		return -EINVAL;
+
+	for (i = 0; i < num_images; i++) {
+		rc = qed_mcp_bist_nvm_test_get_image_att(p_hwfn, p_ptt,
+							 &mfw_image_att, i);
+		if (rc)
+			return rc;
+
+		if (type == mfw_image_att.image_type)
+			break;
+	}
+	if (i == num_images) {
+		DP_VERBOSE(p_hwfn, QED_MSG_STORAGE,
+			   "Failed to find nvram image of type %08x\n",
+			   image_id);
+		return -EINVAL;
+	}
+
+	p_image_att->start_addr = mfw_image_att.nvm_start_addr;
+	p_image_att->length = mfw_image_att.len;
+
+	return 0;
+}
+
+int qed_mcp_get_nvm_image(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_nvm_images image_id,
+			  u8 *p_buffer, u32 buffer_len)
+{
+	struct qed_nvm_image_att image_att;
+	int rc;
+
+	memset(p_buffer, 0, buffer_len);
+
+	rc = qed_mcp_get_nvm_image_att(p_hwfn, p_ptt, image_id, &image_att);
+	if (rc)
+		return rc;
+
+	/* Validate sizes - both the image's and the supplied buffer's */
+	if (image_att.length <= 4) {
+		DP_VERBOSE(p_hwfn, QED_MSG_STORAGE,
+			   "Image [%d] is too small - only %d bytes\n",
+			   image_id, image_att.length);
+		return -EINVAL;
+	}
+
+	/* Each NVM image is suffixed by CRC; Upper-layer has no need for it */
+	image_att.length -= 4;
+
+	if (image_att.length > buffer_len) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_STORAGE,
+			   "Image [%d] is too big - %08x bytes where only %08x are available\n",
+			   image_id, image_att.length, buffer_len);
+		return -ENOMEM;
+	}
+
+	return qed_mcp_nvm_read(p_hwfn->cdev, image_att.start_addr,
+				p_buffer, image_att.length);
 }
 
 static enum resource_id_enum qed_mcp_get_mfw_res_id(enum qed_resources res_id)

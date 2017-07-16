@@ -251,7 +251,7 @@ TRACE_EVENT(xfs_iext_insert,
 		  __print_flags(__entry->bmap_state, "|", XFS_BMAP_EXT_FLAGS),
 		  (long)__entry->idx,
 		  __entry->startoff,
-		  (__int64_t)__entry->startblock,
+		  (int64_t)__entry->startblock,
 		  __entry->blockcount,
 		  __entry->state,
 		  (char *)__entry->caller_ip)
@@ -295,7 +295,7 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 		  __print_flags(__entry->bmap_state, "|", XFS_BMAP_EXT_FLAGS),
 		  (long)__entry->idx,
 		  __entry->startoff,
-		  (__int64_t)__entry->startblock,
+		  (int64_t)__entry->startblock,
 		  __entry->blockcount,
 		  __entry->state,
 		  (char *)__entry->caller_ip)
@@ -367,6 +367,7 @@ DEFINE_BUF_EVENT(xfs_buf_iowait_done);
 DEFINE_BUF_EVENT(xfs_buf_delwri_queue);
 DEFINE_BUF_EVENT(xfs_buf_delwri_queued);
 DEFINE_BUF_EVENT(xfs_buf_delwri_split);
+DEFINE_BUF_EVENT(xfs_buf_delwri_pushbuf);
 DEFINE_BUF_EVENT(xfs_buf_get_uncached);
 DEFINE_BUF_EVENT(xfs_buf_item_relse);
 DEFINE_BUF_EVENT(xfs_buf_item_iodone_async);
@@ -1280,7 +1281,7 @@ DECLARE_EVENT_CLASS(xfs_imap_class,
 		  __entry->count,
 		  __print_symbolic(__entry->type, XFS_IO_TYPES),
 		  __entry->startoff,
-		  (__int64_t)__entry->startblock,
+		  (int64_t)__entry->startblock,
 		  __entry->blockcount)
 )
 
@@ -1488,25 +1489,6 @@ TRACE_EVENT(xfs_extent_busy_trim,
 		  __entry->len,
 		  __entry->tbno,
 		  __entry->tlen)
-);
-
-TRACE_EVENT(xfs_trans_commit_lsn,
-	TP_PROTO(struct xfs_trans *trans),
-	TP_ARGS(trans),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(struct xfs_trans *, tp)
-		__field(xfs_lsn_t, lsn)
-	),
-	TP_fast_assign(
-		__entry->dev = trans->t_mountp->m_super->s_dev;
-		__entry->tp = trans;
-		__entry->lsn = trans->t_commit_lsn;
-	),
-	TP_printk("dev %d:%d trans 0x%p commit_lsn 0x%llx",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->tp,
-		  __entry->lsn)
 );
 
 TRACE_EVENT(xfs_agf,
@@ -2057,7 +2039,7 @@ DECLARE_EVENT_CLASS(xfs_log_recover_buf_item_class,
 	TP_ARGS(log, buf_f),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(__int64_t, blkno)
+		__field(int64_t, blkno)
 		__field(unsigned short, len)
 		__field(unsigned short, flags)
 		__field(unsigned short, size)
@@ -2106,7 +2088,7 @@ DECLARE_EVENT_CLASS(xfs_log_recover_ino_item_class,
 		__field(int, fields)
 		__field(unsigned short, asize)
 		__field(unsigned short, dsize)
-		__field(__int64_t, blkno)
+		__field(int64_t, blkno)
 		__field(int, len)
 		__field(int, boffset)
 	),
@@ -3256,8 +3238,8 @@ DECLARE_EVENT_CLASS(xfs_fsmap_class,
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_fsblock_t, bno)
 		__field(xfs_filblks_t, len)
-		__field(__uint64_t, owner)
-		__field(__uint64_t, offset)
+		__field(uint64_t, owner)
+		__field(uint64_t, offset)
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
@@ -3297,9 +3279,9 @@ DECLARE_EVENT_CLASS(xfs_getfsmap_class,
 		__field(dev_t, keydev)
 		__field(xfs_daddr_t, block)
 		__field(xfs_daddr_t, len)
-		__field(__uint64_t, owner)
-		__field(__uint64_t, offset)
-		__field(__uint64_t, flags)
+		__field(uint64_t, owner)
+		__field(uint64_t, offset)
+		__field(uint64_t, flags)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;

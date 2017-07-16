@@ -371,10 +371,6 @@ static int xen_pv_cpu_up(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static void xen_pv_smp_cpus_done(unsigned int max_cpus)
-{
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 static int xen_pv_cpu_disable(void)
 {
@@ -469,7 +465,7 @@ static irqreturn_t xen_irq_work_interrupt(int irq, void *dev_id)
 static const struct smp_ops xen_smp_ops __initconst = {
 	.smp_prepare_boot_cpu = xen_pv_smp_prepare_boot_cpu,
 	.smp_prepare_cpus = xen_pv_smp_prepare_cpus,
-	.smp_cpus_done = xen_pv_smp_cpus_done,
+	.smp_cpus_done = xen_smp_cpus_done,
 
 	.cpu_up = xen_pv_cpu_up,
 	.cpu_die = xen_pv_cpu_die,

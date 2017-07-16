@@ -74,7 +74,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	pkt.whdr.userStatus	= 0;
 	pkt.whdr.securityIndex	= conn->security_ix;
 	pkt.whdr._rsvd		= 0;
-	pkt.whdr.serviceId	= htons(chan->last_service_id);
+	pkt.whdr.serviceId	= htons(conn->service_id);
 
 	len = sizeof(pkt.whdr);
 	switch (chan->last_type) {
@@ -208,7 +208,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	whdr.userStatus	= 0;
 	whdr.securityIndex = conn->security_ix;
 	whdr._rsvd	= 0;
-	whdr.serviceId	= htons(conn->params.service_id);
+	whdr.serviceId	= htons(conn->service_id);
 
 	word		= htonl(conn->local_abort);
 

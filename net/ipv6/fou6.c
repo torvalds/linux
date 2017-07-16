@@ -14,6 +14,8 @@
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
 
+#if IS_ENABLED(CONFIG_IPV6_FOU_TUNNEL)
+
 static void fou6_build_udp(struct sk_buff *skb, struct ip_tunnel_encap *e,
 			   struct flowi6 *fl6, u8 *protocol, __be16 sport)
 {
@@ -33,8 +35,8 @@ static void fou6_build_udp(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	*protocol = IPPROTO_UDP;
 }
 
-int fou6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
-		      u8 *protocol, struct flowi6 *fl6)
+static int fou6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			     u8 *protocol, struct flowi6 *fl6)
 {
 	__be16 sport;
 	int err;
@@ -49,10 +51,9 @@ int fou6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 
 	return 0;
 }
-EXPORT_SYMBOL(fou6_build_header);
 
-int gue6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
-		      u8 *protocol, struct flowi6 *fl6)
+static int gue6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			     u8 *protocol, struct flowi6 *fl6)
 {
 	__be16 sport;
 	int err;
@@ -67,9 +68,6 @@ int gue6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 
 	return 0;
 }
-EXPORT_SYMBOL(gue6_build_header);
-
-#if IS_ENABLED(CONFIG_IPV6_FOU_TUNNEL)
 
 static const struct ip6_tnl_encap_ops fou_ip6tun_ops = {
 	.encap_hlen = fou_encap_hlen,

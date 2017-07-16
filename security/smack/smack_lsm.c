@@ -1915,7 +1915,7 @@ static int smack_file_receive(struct file *file)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
-	if (S_ISSOCK(inode->i_mode)) {
+	if (inode->i_sb->s_magic == SOCKFS_MAGIC) {
 		sock = SOCKET_I(inode);
 		ssp = sock->sk->sk_security;
 		tsp = current_security();

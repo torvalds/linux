@@ -1820,7 +1820,7 @@ err_undo_flags:
  */
 static int __bond_release_one(struct net_device *bond_dev,
 			      struct net_device *slave_dev,
-			      bool all)
+			      bool all, bool unregister)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *oldcurrent;
@@ -1965,7 +1965,10 @@ static int __bond_release_one(struct net_device *bond_dev,
 		dev_set_mac_address(slave_dev, (struct sockaddr *)&ss);
 	}
 
-	dev_set_mtu(slave_dev, slave->original_mtu);
+	if (unregister)
+		__dev_set_mtu(slave_dev, slave->original_mtu);
+	else
+		dev_set_mtu(slave_dev, slave->original_mtu);
 
 	slave_dev->priv_flags &= ~IFF_BONDING;
 
@@ -1977,7 +1980,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 /* A wrapper used because of ndo_del_link */
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 {
-	return __bond_release_one(bond_dev, slave_dev, false);
+	return __bond_release_one(bond_dev, slave_dev, false, false);
 }
 
 /* First release a slave and then destroy the bond if no more slaves are left.
@@ -1989,7 +1992,7 @@ static int  bond_release_and_destroy(struct net_device *bond_dev,
 	struct bonding *bond = netdev_priv(bond_dev);
 	int ret;
 
-	ret = bond_release(bond_dev, slave_dev);
+	ret = __bond_release_one(bond_dev, slave_dev, false, true);
 	if (ret == 0 && !bond_has_slaves(bond)) {
 		bond_dev->priv_flags |= IFF_DISABLE_NETPOLL;
 		netdev_info(bond_dev, "Destroying bond %s\n",
@@ -3060,7 +3063,7 @@ static int bond_slave_netdev_event(unsigned long event,
 		if (bond_dev->type != ARPHRD_ETHER)
 			bond_release_and_destroy(bond_dev, slave_dev);
 		else
-			bond_release(bond_dev, slave_dev);
+			__bond_release_one(bond_dev, slave_dev, false, true);
 		break;
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
@@ -3488,7 +3491,8 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	case BOND_CHANGE_ACTIVE_OLD:
 	case SIOCBONDCHANGEACTIVE:
 		bond_opt_initstr(&newval, slave_dev->name);
-		res = __bond_opt_set(bond, BOND_OPT_ACTIVE_SLAVE, &newval);
+		res = __bond_opt_set_notify(bond, BOND_OPT_ACTIVE_SLAVE,
+					    &newval);
 		break;
 	default:
 		res = -EOPNOTSUPP;
@@ -4174,12 +4178,6 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_add_slave		= bond_enslave,
 	.ndo_del_slave		= bond_release,
 	.ndo_fix_features	= bond_fix_features,
-	.ndo_bridge_setlink	= switchdev_port_bridge_setlink,
-	.ndo_bridge_getlink	= switchdev_port_bridge_getlink,
-	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
-	.ndo_fdb_add		= switchdev_port_fdb_add,
-	.ndo_fdb_del		= switchdev_port_fdb_del,
-	.ndo_fdb_dump		= switchdev_port_fdb_dump,
 	.ndo_features_check	= passthru_features_check,
 };
 
@@ -4257,7 +4255,7 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	/* Release the bonded slaves */
 	bond_for_each_slave(bond, slave, iter)
-		__bond_release_one(bond_dev, slave->dev, true);
+		__bond_release_one(bond_dev, slave->dev, true, true);
 	netdev_info(bond_dev, "Released all slaves\n");
 
 	arr = rtnl_dereference(bond->slave_arr);

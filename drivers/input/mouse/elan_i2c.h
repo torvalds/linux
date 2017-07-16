@@ -58,7 +58,7 @@ struct elan_transport_ops {
 
 	int (*get_version)(struct i2c_client *client, bool iap, u8 *version);
 	int (*get_sm_version)(struct i2c_client *client,
-			      u8* ic_type, u8 *version);
+			      u16 *ic_type, u8 *version);
 	int (*get_checksum)(struct i2c_client *client, bool iap, u16 *csum);
 	int (*get_product_id)(struct i2c_client *client, u16 *id);
 
@@ -82,6 +82,7 @@ struct elan_transport_ops {
 	int (*get_report)(struct i2c_client *client, u8 *report);
 	int (*get_pressure_adjustment)(struct i2c_client *client,
 				       int *adjustment);
+	int (*get_pattern)(struct i2c_client *client, u8 *pattern);
 };
 
 extern const struct elan_transport_ops elan_smbus_ops, elan_i2c_ops;

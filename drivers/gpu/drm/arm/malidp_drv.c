@@ -652,7 +652,6 @@ register_fail:
 	drm_kms_helper_poll_fini(drm);
 fbdev_fail:
 	pm_runtime_get_sync(dev);
-	drm_vblank_cleanup(drm);
 vblank_fail:
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
@@ -692,7 +691,6 @@ static void malidp_unbind(struct device *dev)
 	}
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
-	drm_vblank_cleanup(drm);
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
 	component_unbind_all(dev, drm);

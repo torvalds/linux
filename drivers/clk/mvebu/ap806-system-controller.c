@@ -32,24 +32,38 @@ static struct clk_onecell_data ap806_clk_data = {
 	.clk_num = AP806_CLK_NUM,
 };
 
-static int ap806_syscon_clk_probe(struct platform_device *pdev)
+static char *ap806_unique_name(struct device *dev, struct device_node *np,
+			       char *name)
+{
+	const __be32 *reg;
+	u64 addr;
+
+	reg = of_get_property(np, "reg", NULL);
+	addr = of_translate_address(np, reg);
+	return devm_kasprintf(dev, GFP_KERNEL, "%llx-%s",
+			(unsigned long long)addr, name);
+}
+
+static int ap806_syscon_common_probe(struct platform_device *pdev,
+				     struct device_node *syscon_node)
 {
 	unsigned int freq_mode, cpuclk_freq;
 	const char *name, *fixedclk_name;
-	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct regmap *regmap;
 	u32 reg;
 	int ret;
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = syscon_node_to_regmap(syscon_node);
 	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "cannot get regmap\n");
+		dev_err(dev, "cannot get regmap\n");
 		return PTR_ERR(regmap);
 	}
 
 	ret = regmap_read(regmap, AP806_SAR_REG, &reg);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot read from regmap\n");
+		dev_err(dev, "cannot read from regmap\n");
 		return ret;
 	}
 
@@ -89,7 +103,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 		cpuclk_freq = 600;
 		break;
 	default:
-		dev_err(&pdev->dev, "invalid SAR value\n");
+		dev_err(dev, "invalid SAR value\n");
 		return -EINVAL;
 	}
 
@@ -97,18 +111,16 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	cpuclk_freq *= 1000 * 1000;
 
 	/* CPU clocks depend on the Sample At Reset configuration */
-	of_property_read_string_index(np, "clock-output-names",
-				      0, &name);
-	ap806_clks[0] = clk_register_fixed_rate(&pdev->dev, name, NULL,
+	name = ap806_unique_name(dev, syscon_node, "cpu-cluster-0");
+	ap806_clks[0] = clk_register_fixed_rate(dev, name, NULL,
 						0, cpuclk_freq);
 	if (IS_ERR(ap806_clks[0])) {
 		ret = PTR_ERR(ap806_clks[0]);
 		goto fail0;
 	}
 
-	of_property_read_string_index(np, "clock-output-names",
-				      1, &name);
-	ap806_clks[1] = clk_register_fixed_rate(&pdev->dev, name, NULL, 0,
+	name = ap806_unique_name(dev, syscon_node, "cpu-cluster-1");
+	ap806_clks[1] = clk_register_fixed_rate(dev, name, NULL, 0,
 						cpuclk_freq);
 	if (IS_ERR(ap806_clks[1])) {
 		ret = PTR_ERR(ap806_clks[1]);
@@ -116,9 +128,8 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	}
 
 	/* Fixed clock is always 1200 Mhz */
-	of_property_read_string_index(np, "clock-output-names",
-				      2, &fixedclk_name);
-	ap806_clks[2] = clk_register_fixed_rate(&pdev->dev, fixedclk_name, NULL,
+	fixedclk_name = ap806_unique_name(dev, syscon_node, "fixed");
+	ap806_clks[2] = clk_register_fixed_rate(dev, fixedclk_name, NULL,
 						0, 1200 * 1000 * 1000);
 	if (IS_ERR(ap806_clks[2])) {
 		ret = PTR_ERR(ap806_clks[2]);
@@ -126,8 +137,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	}
 
 	/* MSS Clock is fixed clock divided by 6 */
-	of_property_read_string_index(np, "clock-output-names",
-				      3, &name);
+	name = ap806_unique_name(dev, syscon_node, "mss");
 	ap806_clks[3] = clk_register_fixed_factor(NULL, name, fixedclk_name,
 						  0, 1, 6);
 	if (IS_ERR(ap806_clks[3])) {
@@ -135,20 +145,14 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 		goto fail3;
 	}
 
-	/* eMMC Clock is fixed clock divided by 3 */
-	if (of_property_read_string_index(np, "clock-output-names",
-					  4, &name)) {
-		ap806_clk_data.clk_num--;
-		dev_warn(&pdev->dev,
-			 "eMMC clock missing: update the device tree!\n");
-	} else {
-		ap806_clks[4] = clk_register_fixed_factor(NULL, name,
-							  fixedclk_name,
-							  0, 1, 3);
-		if (IS_ERR(ap806_clks[4])) {
-			ret = PTR_ERR(ap806_clks[4]);
-			goto fail4;
-		}
+	/* SDIO(/eMMC) Clock is fixed clock divided by 3 */
+	name = ap806_unique_name(dev, syscon_node, "sdio");
+	ap806_clks[4] = clk_register_fixed_factor(NULL, name,
+						  fixedclk_name,
+						  0, 1, 3);
+	if (IS_ERR(ap806_clks[4])) {
+		ret = PTR_ERR(ap806_clks[4]);
+		goto fail4;
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &ap806_clk_data);
@@ -172,17 +176,48 @@ fail0:
 	return ret;
 }
 
-static const struct of_device_id ap806_syscon_of_match[] = {
+static int ap806_syscon_legacy_probe(struct platform_device *pdev)
+{
+	dev_warn(&pdev->dev, FW_WARN "Using legacy device tree binding\n");
+	dev_warn(&pdev->dev, FW_WARN "Update your device tree:\n");
+	dev_warn(&pdev->dev, FW_WARN
+		 "This binding won't be supported in future kernel\n");
+
+	return ap806_syscon_common_probe(pdev, pdev->dev.of_node);
+
+}
+
+static int ap806_clock_probe(struct platform_device *pdev)
+{
+	return ap806_syscon_common_probe(pdev, pdev->dev.of_node->parent);
+}
+
+static const struct of_device_id ap806_syscon_legacy_of_match[] = {
 	{ .compatible = "marvell,ap806-system-controller", },
 	{ }
 };
 
-static struct platform_driver ap806_syscon_driver = {
-	.probe = ap806_syscon_clk_probe,
+static struct platform_driver ap806_syscon_legacy_driver = {
+	.probe = ap806_syscon_legacy_probe,
 	.driver		= {
 		.name	= "marvell-ap806-system-controller",
-		.of_match_table = ap806_syscon_of_match,
+		.of_match_table = ap806_syscon_legacy_of_match,
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver(ap806_syscon_driver);
+builtin_platform_driver(ap806_syscon_legacy_driver);
+
+static const struct of_device_id ap806_clock_of_match[] = {
+	{ .compatible = "marvell,ap806-clock", },
+	{ }
+};
+
+static struct platform_driver ap806_clock_driver = {
+	.probe = ap806_clock_probe,
+	.driver		= {
+		.name	= "marvell-ap806-clock",
+		.of_match_table = ap806_clock_of_match,
+		.suppress_bind_attrs = true,
+	},
+};
+builtin_platform_driver(ap806_clock_driver);

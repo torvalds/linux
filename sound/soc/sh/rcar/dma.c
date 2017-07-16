@@ -25,6 +25,7 @@
 
 struct rsnd_dmaen {
 	struct dma_chan		*chan;
+	dma_cookie_t		cookie;
 	dma_addr_t		dma_buf;
 	unsigned int		dma_len;
 	unsigned int		dma_period;
@@ -103,10 +104,6 @@ static void __rsnd_dmaen_complete(struct rsnd_mod *mod,
 	 * In Gen2 case, it are Audio-DMAC, and Audio-DMAC-peri-peri.
 	 * But, Audio-DMAC-peri-peri doesn't have interrupt,
 	 * and this driver is assuming that here.
-	 *
-	 * If Audio-DMAC-peri-peri has interrpt,
-	 * rsnd_dai_pointer_update() will be called twice,
-	 * ant it will breaks io->byte_pos
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -121,7 +118,7 @@ static void __rsnd_dmaen_complete(struct rsnd_mod *mod,
 		 */
 		rsnd_dmaen_sync(dmaen, io, dmaen->dma_cnt + 2);
 
-		elapsed = rsnd_dai_pointer_update(io, io->byte_per_period);
+		elapsed = true;
 
 		dmaen->dma_cnt++;
 	}
@@ -292,7 +289,8 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	for (i = 0; i < 2; i++)
 		rsnd_dmaen_sync(dmaen, io, i);
 
-	if (dmaengine_submit(desc) < 0) {
+	dmaen->cookie = dmaengine_submit(desc);
+	if (dmaen->cookie < 0) {
 		dev_err(dev, "dmaengine_submit() fail\n");
 		return -EIO;
 	}
@@ -348,12 +346,34 @@ static int rsnd_dmaen_attach(struct rsnd_dai_stream *io,
 	return 0;
 }
 
+static int rsnd_dmaen_pointer(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
+			      snd_pcm_uframes_t *pointer)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
+	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
+	struct dma_tx_state state;
+	enum dma_status status;
+	unsigned int pos = 0;
+
+	status = dmaengine_tx_status(dmaen->chan, dmaen->cookie, &state);
+	if (status == DMA_IN_PROGRESS || status == DMA_PAUSED) {
+		if (state.residue > 0 && state.residue <= dmaen->dma_len)
+			pos = dmaen->dma_len - state.residue;
+	}
+	*pointer = bytes_to_frames(runtime, pos);
+
+	return 0;
+}
+
 static struct rsnd_mod_ops rsnd_dmaen_ops = {
 	.name	= "audmac",
 	.nolock_start = rsnd_dmaen_nolock_start,
 	.nolock_stop  = rsnd_dmaen_nolock_stop,
 	.start	= rsnd_dmaen_start,
 	.stop	= rsnd_dmaen_stop,
+	.pointer= rsnd_dmaen_pointer,
 };
 
 /*

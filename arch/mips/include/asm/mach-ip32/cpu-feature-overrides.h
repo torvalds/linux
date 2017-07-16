@@ -29,6 +29,7 @@
 #define cpu_has_32fpr		1
 #define cpu_has_counter		1
 #define cpu_has_mips16		0
+#define cpu_has_mips16e2	0
 #define cpu_has_vce		0
 #define cpu_has_cache_cdex_s	0
 #define cpu_has_mcheck		0

@@ -720,9 +720,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	i915_reg_t high_frame, low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
-	struct intel_crtc *intel_crtc = intel_get_crtc_for_pipe(dev_priv,
-								pipe);
-	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
+	const struct drm_display_mode *mode = &dev->vblank[pipe].hwmode;
 	unsigned long irqflags;
 
 	htotal = mode->crtc_htotal;
@@ -779,12 +777,16 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	const struct drm_display_mode *mode = &crtc->base.hwmode;
+	const struct drm_display_mode *mode;
+	struct drm_vblank_crtc *vblank;
 	enum pipe pipe = crtc->pipe;
 	int position, vtotal;
 
 	if (!crtc->active)
 		return -1;
+
+	vblank = &crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	mode = &vblank->hwmode;
 
 	vtotal = mode->crtc_vtotal;
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -827,10 +829,10 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
-static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-				    unsigned int flags, int *vpos, int *hpos,
-				    ktime_t *stime, ktime_t *etime,
-				    const struct drm_display_mode *mode)
+static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+				     bool in_vblank_irq, int *vpos, int *hpos,
+				     ktime_t *stime, ktime_t *etime,
+				     const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = intel_get_crtc_for_pipe(dev_priv,
@@ -838,13 +840,12 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
-	int ret = 0;
 	unsigned long irqflags;
 
 	if (WARN_ON(!mode->crtc_clock)) {
 		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
 				 "pipe %c\n", pipe_name(pipe));
-		return 0;
+		return false;
 	}
 
 	htotal = mode->crtc_htotal;
@@ -858,8 +859,6 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		vbl_end /= 2;
 		vtotal /= 2;
 	}
-
-	ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
 
 	/*
 	 * Lock uncore.lock, as we will do multiple timing critical raw
@@ -944,11 +943,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		*hpos = position - (*vpos * htotal);
 	}
 
-	/* In vblank? */
-	if (in_vbl)
-		ret |= DRM_SCANOUTPOS_IN_VBLANK;
-
-	return ret;
+	return true;
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc)
@@ -962,37 +957,6 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
 	return position;
-}
-
-static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
-			      int *max_error,
-			      struct timeval *vblank_time,
-			      unsigned flags)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc;
-
-	if (pipe >= INTEL_INFO(dev_priv)->num_pipes) {
-		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
-	}
-
-	/* Get drm_crtc to timestamp: */
-	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	if (crtc == NULL) {
-		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
-	}
-
-	if (!crtc->base.hwmode.crtc_clock) {
-		DRM_DEBUG_KMS("crtc %u is disabled\n", pipe);
-		return -EBUSY;
-	}
-
-	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
-						     vblank_time, flags,
-						     &crtc->base.hwmode);
 }
 
 static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
@@ -1236,7 +1200,7 @@ out:
 static void ivybridge_parity_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private, l3_parity.error_work);
+		container_of(work, typeof(*dev_priv), l3_parity.error_work);
 	u32 error_status, row, bank, subbank;
 	char *parity_event[6];
 	uint32_t misccpctl;
@@ -1353,14 +1317,16 @@ static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 		ivybridge_parity_error_irq_handler(dev_priv, gt_iir);
 }
 
-static __always_inline void
+static void
 gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 {
 	bool tasklet = false;
 
 	if (iir & (GT_CONTEXT_SWITCH_INTERRUPT << test_shift)) {
-		set_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-		tasklet = true;
+		if (port_count(&engine->execlist_port[0])) {
+			__set_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+			tasklet = true;
+		}
 	}
 
 	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift)) {
@@ -2582,7 +2548,8 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			I915_WRITE(SDEIIR, iir);
 			ret = IRQ_HANDLED;
 
-			if (HAS_PCH_SPT(dev_priv) || HAS_PCH_KBP(dev_priv))
+			if (HAS_PCH_SPT(dev_priv) || HAS_PCH_KBP(dev_priv) ||
+			    HAS_PCH_CNP(dev_priv))
 				spt_irq_handler(dev_priv, iir);
 			else
 				cpt_irq_handler(dev_priv, iir);
@@ -4230,11 +4197,15 @@ static void i965_irq_uninstall(struct drm_device * dev)
 void intel_irq_init(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
+	int i;
 
 	intel_hpd_init_work(dev_priv);
 
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
+
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
+	for (i = 0; i < MAX_L3_SLICES; ++i)
+		dev_priv->l3_parity.remap_info[i] = NULL;
 
 	if (HAS_GUC_SCHED(dev_priv))
 		dev_priv->pm_guc_events = GEN9_GUC_TO_HOST_INT_EVENT;
@@ -4291,7 +4262,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
 
-	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	dev->driver->get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos;
 	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
@@ -4319,7 +4290,8 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->disable_vblank = gen8_disable_vblank;
 		if (IS_GEN9_LP(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
-		else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_KBP(dev_priv))
+		else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_KBP(dev_priv) ||
+			 HAS_PCH_CNP(dev_priv))
 			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
 		else
 			dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
@@ -4357,6 +4329,20 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	}
+}
+
+/**
+ * intel_irq_fini - deinitializes IRQ support
+ * @i915: i915 device instance
+ *
+ * This function deinitializes all the IRQ support.
+ */
+void intel_irq_fini(struct drm_i915_private *i915)
+{
+	int i;
+
+	for (i = 0; i < MAX_L3_SLICES; ++i)
+		kfree(i915->l3_parity.remap_info[i]);
 }
 
 /**

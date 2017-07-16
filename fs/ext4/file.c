@@ -364,13 +364,6 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return -EIO;
 
-	if (ext4_encrypted_inode(inode)) {
-		int err = fscrypt_get_encryption_info(inode);
-		if (err)
-			return 0;
-		if (!fscrypt_has_encryption_key(inode))
-			return -ENOKEY;
-	}
 	file_accessed(file);
 	if (IS_DAX(file_inode(file))) {
 		vma->vm_ops = &ext4_dax_vm_ops;

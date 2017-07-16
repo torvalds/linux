@@ -336,6 +336,7 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 			av7110_p2t_write(buffer1, buffer1_len,
 					 dvbdmxfilter->feed->pid,
 					 &av7110->p2t_filter[dvbdmxfilter->index]);
+		return 0;
 	default:
 		return 0;
 	}
@@ -451,8 +452,12 @@ static void debiirq(unsigned long cookie)
 
 	case DATA_CI_PUT:
 		dprintk(4, "debi DATA_CI_PUT\n");
+		xfer = TX_BUFF;
+		break;
 	case DATA_MPEG_PLAY:
 		dprintk(4, "debi DATA_MPEG_PLAY\n");
+		xfer = TX_BUFF;
+		break;
 	case DATA_BMP_LOAD:
 		dprintk(4, "debi DATA_BMP_LOAD\n");
 		xfer = TX_BUFF;

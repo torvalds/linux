@@ -415,9 +415,9 @@ struct sas_ha_struct {
 				* their siblings when forming wide ports */
 
 	/* LLDD calls these to notify the class of an event. */
-	void (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
-	void (*notify_port_event)(struct asd_sas_phy *, enum port_event);
-	void (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
+	int (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
+	int (*notify_port_event)(struct asd_sas_phy *, enum port_event);
+	int (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
 
 	void *lldd_ha;		  /* not touched by sas class code */
 

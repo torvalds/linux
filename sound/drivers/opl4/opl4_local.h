@@ -184,7 +184,7 @@ struct snd_opl4 {
 #endif
 	struct mutex access_mutex;
 
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	int used;
 
 	int seq_dev_num;

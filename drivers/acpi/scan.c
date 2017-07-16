@@ -404,10 +404,6 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 		error = dock_notify(adev, src);
 	} else if (adev->flags.hotplug_notify) {
 		error = acpi_generic_hotplug_event(adev, src);
-		if (error == -EPERM) {
-			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
-			goto err_out;
-		}
 	} else {
 		int (*notify)(struct acpi_device *, u32);
 
@@ -423,8 +419,20 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 		else
 			goto out;
 	}
-	if (!error)
+	switch (error) {
+	case 0:
 		ost_code = ACPI_OST_SC_SUCCESS;
+		break;
+	case -EPERM:
+		ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
+		break;
+	case -EBUSY:
+		ost_code = ACPI_OST_SC_DEVICE_BUSY;
+		break;
+	default:
+		ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+		break;
+	}
 
  err_out:
 	acpi_evaluate_ost(adev->handle, src, ost_code, NULL);
@@ -835,7 +843,7 @@ static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 	return err;
 }
 
-static void acpi_wakeup_gpe_init(struct acpi_device *device)
+static bool acpi_wakeup_gpe_init(struct acpi_device *device)
 {
 	static const struct acpi_device_id button_device_ids[] = {
 		{"PNP0C0C", 0},
@@ -845,13 +853,11 @@ static void acpi_wakeup_gpe_init(struct acpi_device *device)
 	};
 	struct acpi_device_wakeup *wakeup = &device->wakeup;
 	acpi_status status;
-	acpi_event_status event_status;
 
 	wakeup->flags.notifier_present = 0;
 
 	/* Power button, Lid switch always enable wakeup */
 	if (!acpi_match_device_ids(device, button_device_ids)) {
-		wakeup->flags.run_wake = 1;
 		if (!acpi_match_device_ids(device, &button_device_ids[1])) {
 			/* Do not use Lid/sleep button for S5 wakeup */
 			if (wakeup->sleep_state == ACPI_STATE_S5)
@@ -859,17 +865,12 @@ static void acpi_wakeup_gpe_init(struct acpi_device *device)
 		}
 		acpi_mark_gpe_for_wake(wakeup->gpe_device, wakeup->gpe_number);
 		device_set_wakeup_capable(&device->dev, true);
-		return;
+		return true;
 	}
 
-	acpi_setup_gpe_for_wake(device->handle, wakeup->gpe_device,
-				wakeup->gpe_number);
-	status = acpi_get_gpe_status(wakeup->gpe_device, wakeup->gpe_number,
-				     &event_status);
-	if (ACPI_FAILURE(status))
-		return;
-
-	wakeup->flags.run_wake = !!(event_status & ACPI_EVENT_FLAG_HAS_HANDLER);
+	status = acpi_setup_gpe_for_wake(device->handle, wakeup->gpe_device,
+					 wakeup->gpe_number);
+	return ACPI_SUCCESS(status);
 }
 
 static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
@@ -887,10 +888,10 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 		return;
 	}
 
-	device->wakeup.flags.valid = 1;
+	device->wakeup.flags.valid = acpi_wakeup_gpe_init(device);
 	device->wakeup.prepare_count = 0;
-	acpi_wakeup_gpe_init(device);
-	/* Call _PSW/_DSW object to disable its ability to wake the sleeping
+	/*
+	 * Call _PSW/_DSW object to disable its ability to wake the sleeping
 	 * system for the ACPI device with the _PRW object.
 	 * The _PSW object is depreciated in ACPI 3.0 and is replaced by _DSW.
 	 * So it is necessary to call _DSW object first. Only when it is not
@@ -1467,6 +1468,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
 	device->fwnode.type = FWNODE_ACPI;
+	device->fwnode.ops = &acpi_fwnode_ops;
 	acpi_set_device_status(device, sta);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
@@ -1599,13 +1601,9 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 	return 0;
 }
 
-bool acpi_device_is_present(struct acpi_device *adev)
+bool acpi_device_is_present(const struct acpi_device *adev)
 {
-	if (adev->status.present || adev->status.functional)
-		return true;
-
-	adev->flags.initialized = false;
-	return false;
+	return adev->status.present || adev->status.functional;
 }
 
 static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
@@ -1838,6 +1836,7 @@ static void acpi_bus_attach(struct acpi_device *device)
 	acpi_bus_get_status(device);
 	/* Skip devices that are not present. */
 	if (!acpi_device_is_present(device)) {
+		device->flags.initialized = false;
 		acpi_device_clear_enumerated(device);
 		device->flags.power_manageable = 0;
 		return;

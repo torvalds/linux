@@ -265,9 +265,9 @@ ia_css_translate_dvs_statistics(
 	assert(isp_stats->hor_proj != NULL);
 	assert(isp_stats->ver_proj != NULL);
 
-	IA_CSS_ENTER("hproj=%p, vproj=%p, haddr=%x, vaddr=%x",
-			host_stats->hor_proj, host_stats->ver_proj,
-			isp_stats->hor_proj, isp_stats->ver_proj);
+	IA_CSS_ENTER("hproj=%p, vproj=%p, haddr=%p, vaddr=%p",
+		     host_stats->hor_proj, host_stats->ver_proj,
+		     isp_stats->hor_proj, isp_stats->ver_proj);
 
 	hor_num_isp = host_stats->grid.aligned_height;
 	ver_num_isp = host_stats->grid.aligned_width;

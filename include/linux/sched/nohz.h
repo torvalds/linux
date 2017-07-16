@@ -2,7 +2,7 @@
 #define _LINUX_SCHED_NOHZ_H
 
 /*
- * This is the interface between the scheduler and nohz/dyntics:
+ * This is the interface between the scheduler and nohz/dynticks:
  */
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)

@@ -24,7 +24,15 @@ struct ceph_pg {
 	uint32_t seed;
 };
 
+#define CEPH_SPG_NOSHARD	-1
+
+struct ceph_spg {
+	struct ceph_pg pgid;
+	s8 shard;
+};
+
 int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs);
+int ceph_spg_compare(const struct ceph_spg *lhs, const struct ceph_spg *rhs);
 
 #define CEPH_POOL_FLAG_HASHPSPOOL	(1ULL << 0) /* hash pg seed and pool id
 						       together */
@@ -135,10 +143,14 @@ struct ceph_pg_mapping {
 		struct {
 			int len;
 			int osds[];
-		} pg_temp;
+		} pg_temp, pg_upmap;
 		struct {
 			int osd;
 		} primary_temp;
+		struct {
+			int len;
+			int from_to[][2];
+		} pg_upmap_items;
 	};
 };
 
@@ -150,12 +162,16 @@ struct ceph_osdmap {
 	u32 flags;         /* CEPH_OSDMAP_* */
 
 	u32 max_osd;       /* size of osd_state, _offload, _addr arrays */
-	u8 *osd_state;     /* CEPH_OSD_* */
+	u32 *osd_state;    /* CEPH_OSD_* */
 	u32 *osd_weight;   /* 0 = failed, 0x10000 = 100% normal */
 	struct ceph_entity_addr *osd_addr;
 
 	struct rb_root pg_temp;
 	struct rb_root primary_temp;
+
+	/* remap (post-CRUSH, pre-up) */
+	struct rb_root pg_upmap;	/* PG := raw set */
+	struct rb_root pg_upmap_items;	/* from -> to within raw set */
 
 	u32 *osd_primary_affinity;
 
@@ -187,7 +203,7 @@ static inline bool ceph_osd_is_down(struct ceph_osdmap *map, int osd)
 	return !ceph_osd_is_up(map, osd);
 }
 
-extern char *ceph_osdmap_state_str(char *str, int len, int state);
+char *ceph_osdmap_state_str(char *str, int len, u32 state);
 extern u32 ceph_get_primary_affinity(struct ceph_osdmap *map, int osd);
 
 static inline struct ceph_entity_addr *ceph_osd_addr(struct ceph_osdmap *map,
@@ -198,11 +214,13 @@ static inline struct ceph_entity_addr *ceph_osd_addr(struct ceph_osdmap *map,
 	return &map->osd_addr[osd];
 }
 
+#define CEPH_PGID_ENCODING_LEN		(1 + 8 + 4 + 4)
+
 static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 {
 	__u8 version;
 
-	if (!ceph_has_room(p, end, 1 + 8 + 4 + 4)) {
+	if (!ceph_has_room(p, end, CEPH_PGID_ENCODING_LEN)) {
 		pr_warn("incomplete pg encoding\n");
 		return -EINVAL;
 	}
@@ -240,6 +258,8 @@ static inline void ceph_osds_init(struct ceph_osds *set)
 
 void ceph_osds_copy(struct ceph_osds *dest, const struct ceph_osds *src);
 
+bool ceph_pg_is_split(const struct ceph_pg *pgid, u32 old_pg_num,
+		      u32 new_pg_num);
 bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 			  const struct ceph_osds *new_acting,
 			  const struct ceph_osds *old_up,
@@ -262,15 +282,24 @@ extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 					 u64 off, u64 len,
 					 u64 *bno, u64 *oxoff, u64 *oxlen);
 
+int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				const struct ceph_object_id *oid,
+				const struct ceph_object_locator *oloc,
+				struct ceph_pg *raw_pgid);
 int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
-			      struct ceph_object_id *oid,
-			      struct ceph_object_locator *oloc,
+			      const struct ceph_object_id *oid,
+			      const struct ceph_object_locator *oloc,
 			      struct ceph_pg *raw_pgid);
 
 void ceph_pg_to_up_acting_osds(struct ceph_osdmap *osdmap,
+			       struct ceph_pg_pool_info *pi,
 			       const struct ceph_pg *raw_pgid,
 			       struct ceph_osds *up,
 			       struct ceph_osds *acting);
+bool ceph_pg_to_primary_shard(struct ceph_osdmap *osdmap,
+			      struct ceph_pg_pool_info *pi,
+			      const struct ceph_pg *raw_pgid,
+			      struct ceph_spg *spgid);
 int ceph_pg_to_acting_primary(struct ceph_osdmap *osdmap,
 			      const struct ceph_pg *raw_pgid);
 

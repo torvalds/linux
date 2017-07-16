@@ -1303,8 +1303,6 @@ static void raid10_write_request(struct mddev *mddev, struct bio *bio,
 	sector_t sectors;
 	int max_sectors;
 
-	md_write_start(mddev, bio);
-
 	/*
 	 * Register the new request and wait if the reconstruction
 	 * thread has put up a bar for new requests.
@@ -1525,7 +1523,7 @@ static void __make_request(struct mddev *mddev, struct bio *bio, int sectors)
 		raid10_write_request(mddev, bio, r10_bio);
 }
 
-static void raid10_make_request(struct mddev *mddev, struct bio *bio)
+static bool raid10_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct r10conf *conf = mddev->private;
 	sector_t chunk_mask = (conf->geo.chunk_mask & conf->prev.chunk_mask);
@@ -1534,8 +1532,11 @@ static void raid10_make_request(struct mddev *mddev, struct bio *bio)
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
-		return;
+		return true;
 	}
+
+	if (!md_write_start(mddev, bio))
+		return false;
 
 	/*
 	 * If this request crosses a chunk boundary, we need to split
@@ -1553,6 +1554,7 @@ static void raid10_make_request(struct mddev *mddev, struct bio *bio)
 
 	/* In case raid10d snuck in to freeze_array */
 	wake_up(&conf->wait_barrier);
+	return true;
 }
 
 static void raid10_status(struct seq_file *seq, struct mddev *mddev)
@@ -3293,7 +3295,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			biolist = bio;
 			bio->bi_end_io = end_sync_read;
 			bio_set_op_attrs(bio, REQ_OP_READ, 0);
-			if (test_bit(FailFast, &conf->mirrors[d].rdev->flags))
+			if (test_bit(FailFast, &rdev->flags))
 				bio->bi_opf |= MD_FAILFAST;
 			bio->bi_iter.bi_sector = sector + rdev->data_offset;
 			bio->bi_bdev = rdev->bdev;
@@ -3305,7 +3307,6 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				continue;
 			}
 			atomic_inc(&rdev->nr_pending);
-			rcu_read_unlock();
 
 			/* Need to set up for writing to the replacement */
 			bio = r10_bio->devs[i].repl_bio;
@@ -3316,11 +3317,12 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			biolist = bio;
 			bio->bi_end_io = end_sync_write;
 			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-			if (test_bit(FailFast, &conf->mirrors[d].rdev->flags))
+			if (test_bit(FailFast, &rdev->flags))
 				bio->bi_opf |= MD_FAILFAST;
 			bio->bi_iter.bi_sector = sector + rdev->data_offset;
 			bio->bi_bdev = rdev->bdev;
 			count++;
+			rcu_read_unlock();
 		}
 
 		if (count < 2) {

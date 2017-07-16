@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -36,7 +37,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-dev.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/videobuf2-v4l2.h>
 
 /* Default to VGA resolution */
@@ -1512,8 +1513,8 @@ static int soc_of_bind(struct soc_camera_host *ici,
 	if (!info)
 		return -ENOMEM;
 
-	info->sasd.asd.match.of.node = remote;
-	info->sasd.asd.match_type = V4L2_ASYNC_MATCH_OF;
+	info->sasd.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+	info->sasd.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 	info->subdev = &info->sasd.asd;
 
 	/* Or shall this be managed by the soc-camera device? */

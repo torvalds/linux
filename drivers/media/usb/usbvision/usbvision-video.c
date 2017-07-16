@@ -1427,8 +1427,8 @@ static int usbvision_probe(struct usb_interface *intf,
 	int model, i, ret;
 
 	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
-				dev->descriptor.idVendor,
-				dev->descriptor.idProduct, ifnum);
+				le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct), ifnum);
 
 	model = devid->driver_info;
 	if (model < 0 || model >= usbvision_device_data_size) {

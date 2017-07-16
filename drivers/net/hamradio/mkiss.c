@@ -298,7 +298,7 @@ static void ax_bump(struct mkiss *ax)
 		return;
 	}
 
-	memcpy(skb_put(skb,count), ax->rbuff, count);
+	skb_put_data(skb, ax->rbuff, count);
 	skb->protocol = ax25_type_trans(skb, ax->dev);
 	netif_rx(skb);
 	ax->dev->stats.rx_packets++;

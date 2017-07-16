@@ -330,7 +330,12 @@ static void kvm_guest_cpu_init(void)
 #ifdef CONFIG_PREEMPT
 		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
 #endif
-		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa | KVM_ASYNC_PF_ENABLED);
+		pa |= KVM_ASYNC_PF_ENABLED;
+
+		/* Async page fault support for L1 hypervisor is optional */
+		if (wrmsr_safe(MSR_KVM_ASYNC_PF_EN,
+			(pa | KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT) & 0xffffffff, pa >> 32) < 0)
+			wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
 		__this_cpu_write(apf_reason.enabled, 1);
 		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
 		       smp_processor_id());

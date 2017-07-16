@@ -69,6 +69,7 @@
 #include "iwl-debug.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
+#include "iwl-csr.h"
 #include "fw-dbg.h"
 #include "mvm.h"
 #include "fw-api-rs.h"
@@ -168,11 +169,6 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 	}
 
 	pkt = cmd->resp_pkt;
-	/* Can happen if RFKILL is asserted */
-	if (!pkt) {
-		ret = 0;
-		goto out_free_resp;
-	}
 
 	resp_len = iwl_rx_packet_payload_len(pkt);
 	if (WARN_ON_ONCE(resp_len != sizeof(*resp))) {
@@ -502,6 +498,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_error_event_table table;
+	u32 val;
 
 	if (mvm->cur_ucode == IWL_UCODE_INIT) {
 		if (!base)
@@ -518,6 +515,36 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 			(mvm->cur_ucode == IWL_UCODE_INIT)
 					? "Init" : "RT");
 		return;
+	}
+
+	/* check if there is a HW error */
+	val = iwl_trans_read_mem32(trans, base);
+	if (((val & ~0xf) == 0xa5a5a5a0) || ((val & ~0xf) == 0x5a5a5a50)) {
+		int err;
+
+		IWL_ERR(trans, "HW error, resetting before reading\n");
+
+		/* reset the device */
+		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+		usleep_range(5000, 6000);
+
+		/* set INIT_DONE flag */
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+
+		/* and wait for clock stabilization */
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+			udelay(2);
+
+		err = iwl_poll_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   25000);
+		if (err < 0) {
+			IWL_DEBUG_INFO(trans,
+				       "Failed to reset the card for the dump\n");
+			return;
+		}
 	}
 
 	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
@@ -671,7 +698,13 @@ static bool iwl_mvm_update_txq_mapping(struct iwl_mvm *mvm, int queue,
 	if (mvm->queue_info[queue].hw_queue_refcount > 0)
 		enable_queue = false;
 
-	mvm->hw_queue_to_mac80211[queue] |= BIT(mac80211_queue);
+	if (mac80211_queue != IEEE80211_INVAL_HW_QUEUE) {
+		WARN(mac80211_queue >=
+		     BITS_PER_BYTE * sizeof(mvm->hw_queue_to_mac80211[0]),
+		     "cannot track mac80211 queue %d (queue %d, sta %d, tid %d)\n",
+		     mac80211_queue, queue, sta_id, tid);
+		mvm->hw_queue_to_mac80211[queue] |= BIT(mac80211_queue);
+	}
 
 	mvm->queue_info[queue].hw_queue_refcount++;
 	mvm->queue_info[queue].tid_bitmap |= BIT(tid);
@@ -730,35 +763,39 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
 	return queue;
 }
 
-void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+bool iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			u16 ssn, const struct iwl_trans_txq_scd_cfg *cfg,
 			unsigned int wdg_timeout)
 {
+	struct iwl_scd_txq_cfg_cmd cmd = {
+		.scd_queue = queue,
+		.action = SCD_CFG_ENABLE_QUEUE,
+		.window = cfg->frame_limit,
+		.sta_id = cfg->sta_id,
+		.ssn = cpu_to_le16(ssn),
+		.tx_fifo = cfg->fifo,
+		.aggregate = cfg->aggregate,
+		.tid = cfg->tid,
+	};
+	bool inc_ssn;
+
 	if (WARN_ON(iwl_mvm_has_new_tx_api(mvm)))
-		return;
+		return false;
 
 	/* Send the enabling command if we need to */
-	if (iwl_mvm_update_txq_mapping(mvm, queue, mac80211_queue,
-				       cfg->sta_id, cfg->tid)) {
-		struct iwl_scd_txq_cfg_cmd cmd = {
-			.scd_queue = queue,
-			.action = SCD_CFG_ENABLE_QUEUE,
-			.window = cfg->frame_limit,
-			.sta_id = cfg->sta_id,
-			.ssn = cpu_to_le16(ssn),
-			.tx_fifo = cfg->fifo,
-			.aggregate = cfg->aggregate,
-			.tid = cfg->tid,
-		};
+	if (!iwl_mvm_update_txq_mapping(mvm, queue, mac80211_queue,
+					cfg->sta_id, cfg->tid))
+		return false;
 
-		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL,
-					 wdg_timeout);
-		WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0,
-					  sizeof(struct iwl_scd_txq_cfg_cmd),
-					  &cmd),
-		     "Failed to configure queue %d on FIFO %d\n", queue,
-		     cfg->fifo);
-	}
+	inc_ssn = iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn,
+					   NULL, wdg_timeout);
+	if (inc_ssn)
+		le16_add_cpu(&cmd.ssn, 1);
+
+	WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd),
+	     "Failed to configure queue %d on FIFO %d\n", queue, cfg->fifo);
+
+	return inc_ssn;
 }
 
 int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
@@ -1186,7 +1223,11 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 	/* Go over all non-active TIDs, incl. IWL_MAX_TID_COUNT (for mgmt) */
 	for_each_set_bit(tid, &tid_bitmap, IWL_MAX_TID_COUNT + 1) {
 		/* If some TFDs are still queued - don't mark TID as inactive */
-		if (iwl_mvm_tid_queued(&mvmsta->tid_data[tid]))
+		if (iwl_mvm_tid_queued(mvm, &mvmsta->tid_data[tid]))
+			tid_bitmap &= ~BIT(tid);
+
+		/* Don't mark as inactive any TID that has an active BA */
+		if (mvmsta->tid_data[tid].state != IWL_AGG_OFF)
 			tid_bitmap &= ~BIT(tid);
 	}
 

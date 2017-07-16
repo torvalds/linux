@@ -214,6 +214,7 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
  * hugepmd ranges.
  */
 static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
+					 struct vm_area_struct *vma,
 					 unsigned long address,
 					 unsigned long flags,
 					 unsigned long reason)
@@ -224,7 +225,7 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
 
 	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 
-	pte = huge_pte_offset(mm, address);
+	pte = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
 	if (!pte)
 		goto out;
 
@@ -243,6 +244,7 @@ out:
 }
 #else
 static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
+					 struct vm_area_struct *vma,
 					 unsigned long address,
 					 unsigned long flags,
 					 unsigned long reason)
@@ -448,7 +450,8 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
 		must_wait = userfaultfd_must_wait(ctx, vmf->address, vmf->flags,
 						  reason);
 	else
-		must_wait = userfaultfd_huge_must_wait(ctx, vmf->address,
+		must_wait = userfaultfd_huge_must_wait(ctx, vmf->vma,
+						       vmf->address,
 						       vmf->flags, reason);
 	up_read(&mm->mmap_sem);
 
@@ -1114,11 +1117,6 @@ static ssize_t userfaultfd_read(struct file *file, char __user *buf,
 static void __wake_userfault(struct userfaultfd_ctx *ctx,
 			     struct userfaultfd_wake_range *range)
 {
-	unsigned long start, end;
-
-	start = range->start;
-	end = range->start + range->len;
-
 	spin_lock(&ctx->fault_pending_wqh.lock);
 	/* wake all in the range and autoremove */
 	if (waitqueue_active(&ctx->fault_pending_wqh))

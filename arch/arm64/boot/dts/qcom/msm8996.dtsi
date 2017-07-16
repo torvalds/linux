@@ -311,6 +311,12 @@
 			reg = <0x300000 0x90000>;
 		};
 
+		kryocc: clock-controller@6400000 {
+			compatible = "qcom,apcc-msm8996";
+			reg = <0x6400000 0x90000>;
+			#clock-cells = <1>;
+		};
+
 		blsp1_spi0: spi@07575000 {
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x07575000 0x600>;

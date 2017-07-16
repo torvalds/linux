@@ -36,6 +36,10 @@
 #include <linux/highmem.h>
 #include <crypto/hash_info.h>
 
+#ifdef CONFIG_X86
+#include <asm/intel-family.h>
+#endif
+
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
 	TPM_BUFSIZE = 4096,
@@ -170,6 +174,7 @@ enum tpm_chip_flags {
 	TPM_CHIP_FLAG_IRQ		= BIT(2),
 	TPM_CHIP_FLAG_VIRTUAL		= BIT(3),
 	TPM_CHIP_FLAG_HAVE_TIMEOUTS	= BIT(4),
+	TPM_CHIP_FLAG_ALWAYS_POWERED	= BIT(5),
 };
 
 struct tpm_bios_log {
@@ -247,7 +252,7 @@ struct tpm_output_header {
 	__be32	return_code;
 } __packed;
 
-#define TPM_TAG_RQU_COMMAND cpu_to_be16(193)
+#define TPM_TAG_RQU_COMMAND 193
 
 struct	stclear_flags_t {
 	__be16	tag;
@@ -339,17 +344,6 @@ enum tpm_sub_capabilities {
 	TPM_CAP_PROP_TIS_DURATION = 0x120,
 };
 
-struct	tpm_getcap_params_in {
-	__be32	cap;
-	__be32	subcap_size;
-	__be32	subcap;
-} __packed;
-
-struct	tpm_getcap_params_out {
-	__be32	cap_size;
-	cap_t	cap;
-} __packed;
-
 struct	tpm_readpubek_params_out {
 	u8	algorithm[4];
 	u8	encscheme[2];
@@ -374,11 +368,6 @@ struct tpm_pcrread_in {
 	__be32	pcr_idx;
 } __packed;
 
-struct tpm_pcrextend_in {
-	__be32	pcr_idx;
-	u8	hash[TPM_DIGEST_SIZE];
-} __packed;
-
 /* 128 bytes is an arbitrary cap. This could be as large as TPM_BUFSIZE - 18
  * bytes, but 128 is still a relatively large number of random bytes and
  * anything much bigger causes users of struct tpm_cmd_t to start getting
@@ -394,21 +383,13 @@ struct tpm_getrandom_in {
 	__be32 num_bytes;
 } __packed;
 
-struct tpm_startup_in {
-	__be16	startup_type;
-} __packed;
-
 typedef union {
-	struct	tpm_getcap_params_out getcap_out;
 	struct	tpm_readpubek_params_out readpubek_out;
 	u8	readpubek_out_buffer[sizeof(struct tpm_readpubek_params_out)];
-	struct	tpm_getcap_params_in getcap_in;
 	struct	tpm_pcrread_in	pcrread_in;
 	struct	tpm_pcrread_out	pcrread_out;
-	struct	tpm_pcrextend_in pcrextend_in;
 	struct	tpm_getrandom_in getrandom_in;
 	struct	tpm_getrandom_out getrandom_out;
-	struct tpm_startup_in startup_in;
 } tpm_cmd_params;
 
 struct tpm_cmd_t {
@@ -525,6 +506,7 @@ extern struct idr dev_nums_idr;
 
 enum tpm_transmit_flags {
 	TPM_TRANSMIT_UNLOCKED	= BIT(0),
+	TPM_TRANSMIT_RAW	= BIT(1),
 };
 
 ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
@@ -533,6 +515,7 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
 			 const void *buf, size_t bufsiz,
 			 size_t min_rsp_body_length, unsigned int flags,
 			 const char *desc);
+int tpm_startup(struct tpm_chip *chip);
 ssize_t tpm_getcap(struct tpm_chip *chip, u32 subcap_id, cap_t *cap,
 		   const char *desc, size_t min_cap_length);
 int tpm_get_timeouts(struct tpm_chip *);

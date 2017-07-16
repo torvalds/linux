@@ -659,6 +659,7 @@ struct qeth_card_info {
 	int max_mtu;
 	int broadcast_capable;
 	int unique_id;
+	bool layer_enforced;
 	struct qeth_card_blkt blkt;
 	enum qeth_ipa_promisc_modes promisc_mode;
 	__u32 diagass_support;
@@ -696,6 +697,7 @@ struct qeth_osn_info {
 };
 
 enum qeth_discipline_id {
+	QETH_DISCIPLINE_UNDETERMINED = -1,
 	QETH_DISCIPLINE_LAYER3 = 0,
 	QETH_DISCIPLINE_LAYER2 = 1,
 };
@@ -984,6 +986,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 int qeth_set_features(struct net_device *, netdev_features_t);
 int qeth_recover_features(struct net_device *);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
+int qeth_vm_request_mac(struct qeth_card *card);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

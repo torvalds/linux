@@ -138,7 +138,7 @@ void br_manage_promisc(struct net_bridge *br)
 	/* If vlan filtering is disabled or bridge interface is placed
 	 * into promiscuous mode, place all ports in promiscuous mode.
 	 */
-	if ((br->dev->flags & IFF_PROMISC) || !br_vlan_enabled(br))
+	if ((br->dev->flags & IFF_PROMISC) || !br_vlan_enabled(br->dev))
 		set_all = true;
 
 	list_for_each_entry(p, &br->port_list, list) {

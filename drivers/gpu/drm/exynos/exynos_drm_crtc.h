@@ -19,7 +19,6 @@
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					struct drm_plane *plane,
-					int pipe,
 					enum exynos_drm_output_type type,
 					const struct exynos_drm_crtc_ops *ops,
 					void *context);

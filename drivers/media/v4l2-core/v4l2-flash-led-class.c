@@ -12,7 +12,7 @@
 #include <linux/led-class-flash.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <media/v4l2-flash-led-class.h>
@@ -612,7 +612,7 @@ static const struct v4l2_subdev_internal_ops v4l2_flash_subdev_internal_ops = {
 static const struct v4l2_subdev_ops v4l2_flash_subdev_ops;
 
 struct v4l2_flash *v4l2_flash_init(
-	struct device *dev, struct device_node *of_node,
+	struct device *dev, struct fwnode_handle *fwn,
 	struct led_classdev_flash *fled_cdev,
 	struct led_classdev_flash *iled_cdev,
 	const struct v4l2_flash_ops *ops,
@@ -638,7 +638,7 @@ struct v4l2_flash *v4l2_flash_init(
 	v4l2_flash->iled_cdev = iled_cdev;
 	v4l2_flash->ops = ops;
 	sd->dev = dev;
-	sd->of_node = of_node ? of_node : led_cdev->dev->of_node;
+	sd->fwnode = fwn ? fwn : dev_fwnode(led_cdev->dev);
 	v4l2_subdev_init(sd, &v4l2_flash_subdev_ops);
 	sd->internal_ops = &v4l2_flash_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -654,7 +654,7 @@ struct v4l2_flash *v4l2_flash_init(
 	if (ret < 0)
 		goto err_init_controls;
 
-	of_node_get(sd->of_node);
+	fwnode_handle_get(sd->fwnode);
 
 	ret = v4l2_async_register_subdev(sd);
 	if (ret < 0)
@@ -663,7 +663,7 @@ struct v4l2_flash *v4l2_flash_init(
 	return v4l2_flash;
 
 err_async_register_sd:
-	of_node_put(sd->of_node);
+	fwnode_handle_put(sd->fwnode);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 err_init_controls:
 	media_entity_cleanup(&sd->entity);
@@ -683,7 +683,7 @@ void v4l2_flash_release(struct v4l2_flash *v4l2_flash)
 
 	v4l2_async_unregister_subdev(sd);
 
-	of_node_put(sd->of_node);
+	fwnode_handle_put(sd->fwnode);
 
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	media_entity_cleanup(&sd->entity);

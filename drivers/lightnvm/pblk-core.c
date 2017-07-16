@@ -1670,13 +1670,10 @@ void pblk_line_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 	queue_work(wq, &line_ws->ws);
 }
 
-void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
-		  unsigned long *lun_bitmap)
+static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
+			     int nr_ppas, int pos)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	struct pblk_lun *rlun;
-	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
+	struct pblk_lun *rlun = &pblk->luns[pos];
 	int ret;
 
 	/*
@@ -1690,14 +1687,8 @@ void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
 		WARN_ON(ppa_list[0].g.lun != ppa_list[i].g.lun ||
 				ppa_list[0].g.ch != ppa_list[i].g.ch);
 #endif
-	/* If the LUN has been locked for this same request, do no attempt to
-	 * lock it again
-	 */
-	if (test_and_set_bit(pos, lun_bitmap))
-		return;
 
-	rlun = &pblk->luns[pos];
-	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(5000));
+	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(30000));
 	if (ret) {
 		switch (ret) {
 		case -ETIME:
@@ -1708,6 +1699,50 @@ void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
 			break;
 		}
 	}
+}
+
+void pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
+
+	__pblk_down_page(pblk, ppa_list, nr_ppas, pos);
+}
+
+void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
+		  unsigned long *lun_bitmap)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
+
+	/* If the LUN has been locked for this same request, do no attempt to
+	 * lock it again
+	 */
+	if (test_and_set_bit(pos, lun_bitmap))
+		return;
+
+	__pblk_down_page(pblk, ppa_list, nr_ppas, pos);
+}
+
+void pblk_up_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	struct pblk_lun *rlun;
+	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
+
+#ifdef CONFIG_NVM_DEBUG
+	int i;
+
+	for (i = 1; i < nr_ppas; i++)
+		WARN_ON(ppa_list[0].g.lun != ppa_list[i].g.lun ||
+				ppa_list[0].g.ch != ppa_list[i].g.ch);
+#endif
+
+	rlun = &pblk->luns[pos];
+	up(&rlun->wr_sem);
 }
 
 void pblk_up_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,

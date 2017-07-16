@@ -186,7 +186,7 @@ static void spear13xx_pcie_host_init(struct pcie_port *pp)
 	spear13xx_pcie_enable_interrupts(spear13xx_pcie);
 }
 
-static struct dw_pcie_host_ops spear13xx_pcie_host_ops = {
+static const struct dw_pcie_host_ops spear13xx_pcie_host_ops = {
 	.host_init = spear13xx_pcie_host_init,
 };
 

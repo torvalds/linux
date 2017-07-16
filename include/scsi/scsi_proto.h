@@ -125,9 +125,6 @@
 #define	SAI_READ_CAPACITY_16  0x10
 #define SAI_GET_LBA_STATUS    0x12
 #define SAI_REPORT_REFERRALS  0x13
-/* values for VARIABLE_LENGTH_CMD service action codes
- * see spc4r17 Section D.3.5, table D.7 and D.8 */
-#define VLC_SA_RECEIVE_CREDENTIAL 0x1800
 /* values for maintenance in */
 #define MI_REPORT_IDENTIFYING_INFORMATION 0x05
 #define MI_REPORT_TARGET_PGS  0x0a
@@ -161,7 +158,9 @@
 #define READ_32		      0x09
 #define VERIFY_32	      0x0a
 #define WRITE_32	      0x0b
+#define WRITE_VERIFY_32	      0x0c
 #define WRITE_SAME_32	      0x0d
+#define ATA_32		      0x1ff0
 
 /* Values for T10/04-262r7 */
 #define	ATA_16		      0x85	/* 16-byte pass-thru */

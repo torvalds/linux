@@ -1041,6 +1041,6 @@ void ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
 		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
 		   0,
 		   sock_i_ino(sp),
-		   atomic_read(&sp->sk_refcnt), sp,
+		   refcount_read(&sp->sk_refcnt), sp,
 		   atomic_read(&sp->sk_drops));
 }

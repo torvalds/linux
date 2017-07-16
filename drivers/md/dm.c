@@ -19,6 +19,7 @@
 #include <linux/dax.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
+#include <linux/uio.h>
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
@@ -57,6 +58,9 @@ static void do_deferred_remove(struct work_struct *w);
 static DECLARE_WORK(deferred_remove_work, do_deferred_remove);
 
 static struct workqueue_struct *deferred_remove_workqueue;
+
+atomic_t dm_global_event_nr = ATOMIC_INIT(0);
+DECLARE_WAIT_QUEUE_HEAD(dm_global_eventq);
 
 /*
  * One of these is allocated per bio.
@@ -969,6 +973,48 @@ static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 	return ret;
 }
 
+static size_t dm_dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	struct mapped_device *md = dax_get_private(dax_dev);
+	sector_t sector = pgoff * PAGE_SECTORS;
+	struct dm_target *ti;
+	long ret = 0;
+	int srcu_idx;
+
+	ti = dm_dax_get_live_target(md, sector, &srcu_idx);
+
+	if (!ti)
+		goto out;
+	if (!ti->type->dax_copy_from_iter) {
+		ret = copy_from_iter(addr, bytes, i);
+		goto out;
+	}
+	ret = ti->type->dax_copy_from_iter(ti, pgoff, addr, bytes, i);
+ out:
+	dm_put_live_table(md, srcu_idx);
+
+	return ret;
+}
+
+static void dm_dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
+		size_t size)
+{
+	struct mapped_device *md = dax_get_private(dax_dev);
+	sector_t sector = pgoff * PAGE_SECTORS;
+	struct dm_target *ti;
+	int srcu_idx;
+
+	ti = dm_dax_get_live_target(md, sector, &srcu_idx);
+
+	if (!ti)
+		goto out;
+	if (ti->type->dax_flush)
+		ti->type->dax_flush(ti, pgoff, addr, size);
+ out:
+	dm_put_live_table(md, srcu_idx);
+}
+
 /*
  * A target may call dm_accept_partial_bio only from the map routine.  It is
  * allowed for all bio types except REQ_PREFLUSH.
@@ -1008,6 +1054,85 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 	bio->bi_iter.bi_size = n_sectors << SECTOR_SHIFT;
 }
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
+
+/*
+ * The zone descriptors obtained with a zone report indicate
+ * zone positions within the target device. The zone descriptors
+ * must be remapped to match their position within the dm device.
+ * A target may call dm_remap_zone_report after completion of a
+ * REQ_OP_ZONE_REPORT bio to remap the zone descriptors obtained
+ * from the target device mapping to the dm device.
+ */
+void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
+{
+#ifdef CONFIG_BLK_DEV_ZONED
+	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
+	struct bio *report_bio = tio->io->bio;
+	struct blk_zone_report_hdr *hdr = NULL;
+	struct blk_zone *zone;
+	unsigned int nr_rep = 0;
+	unsigned int ofst;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+	void *addr;
+
+	if (bio->bi_status)
+		return;
+
+	/*
+	 * Remap the start sector of the reported zones. For sequential zones,
+	 * also remap the write pointer position.
+	 */
+	bio_for_each_segment(bvec, report_bio, iter) {
+		addr = kmap_atomic(bvec.bv_page);
+
+		/* Remember the report header in the first page */
+		if (!hdr) {
+			hdr = addr;
+			ofst = sizeof(struct blk_zone_report_hdr);
+		} else
+			ofst = 0;
+
+		/* Set zones start sector */
+		while (hdr->nr_zones && ofst < bvec.bv_len) {
+			zone = addr + ofst;
+			if (zone->start >= start + ti->len) {
+				hdr->nr_zones = 0;
+				break;
+			}
+			zone->start = zone->start + ti->begin - start;
+			if (zone->type != BLK_ZONE_TYPE_CONVENTIONAL) {
+				if (zone->cond == BLK_ZONE_COND_FULL)
+					zone->wp = zone->start + zone->len;
+				else if (zone->cond == BLK_ZONE_COND_EMPTY)
+					zone->wp = zone->start;
+				else
+					zone->wp = zone->wp + ti->begin - start;
+			}
+			ofst += sizeof(struct blk_zone);
+			hdr->nr_zones--;
+			nr_rep++;
+		}
+
+		if (addr != hdr)
+			kunmap_atomic(addr);
+
+		if (!hdr->nr_zones)
+			break;
+	}
+
+	if (hdr) {
+		hdr->nr_zones = nr_rep;
+		kunmap_atomic(hdr);
+	}
+
+	bio_advance(report_bio, report_bio->bi_iter.bi_size);
+
+#else /* !CONFIG_BLK_DEV_ZONED */
+	bio->bi_status = BLK_STS_NOTSUPP;
+#endif
+}
+EXPORT_SYMBOL_GPL(dm_remap_zone_report);
 
 /*
  * Flush current->bio_list when the target map method blocks.
@@ -1149,11 +1274,12 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 			return r;
 	}
 
-	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
+	if (bio_op(bio) != REQ_OP_ZONE_REPORT)
+		bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
 	clone->bi_iter.bi_size = to_bytes(len);
 
 	if (unlikely(bio_integrity(bio) != NULL))
-		bio_integrity_trim(clone, 0, len);
+		bio_integrity_trim(clone);
 
 	return 0;
 }
@@ -1338,7 +1464,11 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	if (!dm_target_is_valid(ti))
 		return -EIO;
 
-	len = min_t(sector_t, max_io_len(ci->sector, ti), ci->sector_count);
+	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
+		len = ci->sector_count;
+	else
+		len = min_t(sector_t, max_io_len(ci->sector, ti),
+			    ci->sector_count);
 
 	r = __clone_and_map_data_bio(ci, ti, ci->sector, &len);
 	if (r < 0)
@@ -1381,6 +1511,10 @@ static void __split_and_process_bio(struct mapped_device *md,
 		ci.sector_count = 0;
 		error = __send_empty_flush(&ci);
 		/* dec_pending submits any data associated with flush */
+	} else if (bio_op(bio) == REQ_OP_ZONE_RESET) {
+		ci.bio = bio;
+		ci.sector_count = 0;
+		error = __split_and_process_non_flush(&ci);
 	} else {
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
@@ -1759,7 +1893,9 @@ static void event_callback(void *context)
 	dm_send_uevents(&uevents, &disk_to_dev(md->disk)->kobj);
 
 	atomic_inc(&md->event_nr);
+	atomic_inc(&dm_global_event_nr);
 	wake_up(&md->eventq);
+	wake_up(&dm_global_eventq);
 }
 
 /*
@@ -2865,6 +3001,8 @@ static const struct block_device_operations dm_blk_dops = {
 
 static const struct dax_operations dm_dax_ops = {
 	.direct_access = dm_dax_direct_access,
+	.copy_from_iter = dm_dax_copy_from_iter,
+	.flush = dm_dax_flush,
 };
 
 /*

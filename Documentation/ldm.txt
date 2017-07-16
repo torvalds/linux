@@ -1,9 +1,9 @@
+==========================================
+LDM - Logical Disk Manager (Dynamic Disks)
+==========================================
 
-            LDM - Logical Disk Manager (Dynamic Disks)
-            ------------------------------------------
-
-Originally Written by FlatCap - Richard Russon <ldm@flatcap.org>.
-Last Updated by Anton Altaparmakov on 30 March 2007 for Windows Vista.
+:Author: Originally Written by FlatCap - Richard Russon <ldm@flatcap.org>.
+:Last Updated: Anton Altaparmakov on 30 March 2007 for Windows Vista.
 
 Overview
 --------
@@ -37,24 +37,36 @@ Example
 -------
 
 Below we have a 50MiB disk, divided into seven partitions.
-N.B.  The missing 1MiB at the end of the disk is where the LDM database is
-      stored.
 
-  Device | Offset Bytes  Sectors  MiB | Size   Bytes  Sectors  MiB
-  -------+----------------------------+---------------------------
-  hda    |            0        0    0 |     52428800   102400   50
-  hda1   |     51380224   100352   49 |      1048576     2048    1
-  hda2   |        16384       32    0 |      6979584    13632    6
-  hda3   |      6995968    13664    6 |     10485760    20480   10
-  hda4   |     17481728    34144   16 |      4194304     8192    4
-  hda5   |     21676032    42336   20 |      5242880    10240    5
-  hda6   |     26918912    52576   25 |     10485760    20480   10
-  hda7   |     37404672    73056   35 |     13959168    27264   13
+.. note::
+
+   The missing 1MiB at the end of the disk is where the LDM database is
+   stored.
+
++-------++--------------+---------+-----++--------------+---------+----+
+|Device || Offset Bytes | Sectors | MiB || Size   Bytes | Sectors | MiB|
++=======++==============+=========+=====++==============+=========+====+
+|hda    ||            0 |       0 |   0 ||     52428800 |  102400 |  50|
++-------++--------------+---------+-----++--------------+---------+----+
+|hda1   ||     51380224 |  100352 |  49 ||      1048576 |    2048 |   1|
++-------++--------------+---------+-----++--------------+---------+----+
+|hda2   ||        16384 |      32 |   0 ||      6979584 |   13632 |   6|
++-------++--------------+---------+-----++--------------+---------+----+
+|hda3   ||      6995968 |   13664 |   6 ||     10485760 |   20480 |  10|
++-------++--------------+---------+-----++--------------+---------+----+
+|hda4   ||     17481728 |   34144 |  16 ||      4194304 |    8192 |   4|
++-------++--------------+---------+-----++--------------+---------+----+
+|hda5   ||     21676032 |   42336 |  20 ||      5242880 |   10240 |   5|
++-------++--------------+---------+-----++--------------+---------+----+
+|hda6   ||     26918912 |   52576 |  25 ||     10485760 |   20480 |  10|
++-------++--------------+---------+-----++--------------+---------+----+
+|hda7   ||     37404672 |   73056 |  35 ||     13959168 |   27264 |  13|
++-------++--------------+---------+-----++--------------+---------+----+
 
 The LDM Database may not store the partitions in the order that they appear on
 disk, but the driver will sort them.
 
-When Linux boots, you will see something like:
+When Linux boots, you will see something like::
 
   hda: 102400 sectors w/32KiB Cache, CHS=50/64/32
   hda: [LDM] hda1 hda2 hda3 hda4 hda5 hda6 hda7
@@ -65,13 +77,13 @@ Compiling LDM Support
 
 To enable LDM, choose the following two options: 
 
-  "Advanced partition selection" CONFIG_PARTITION_ADVANCED
-  "Windows Logical Disk Manager (Dynamic Disk) support" CONFIG_LDM_PARTITION
+  - "Advanced partition selection" CONFIG_PARTITION_ADVANCED
+  - "Windows Logical Disk Manager (Dynamic Disk) support" CONFIG_LDM_PARTITION
 
 If you believe the driver isn't working as it should, you can enable the extra
 debugging code.  This will produce a LOT of output.  The option is:
 
-  "Windows LDM extra logging" CONFIG_LDM_DEBUG
+  - "Windows LDM extra logging" CONFIG_LDM_DEBUG
 
 N.B. The partition code cannot be compiled as a module.
 

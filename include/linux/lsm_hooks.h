@@ -8,6 +8,7 @@
  * Copyright (C) 2001 Silicon Graphics, Inc. (Trust Technology Group)
  * Copyright (C) 2015 Intel Corporation.
  * Copyright (C) 2015 Casey Schaufler <casey@schaufler-ca.com>
+ * Copyright (C) 2016 Mellanox Techonologies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -912,6 +913,26 @@
  *	associated with the TUN device's security structure.
  *	@security pointer to the TUN devices's security structure.
  *
+ * Security hooks for Infiniband
+ *
+ * @ib_pkey_access:
+ *	Check permission to access a pkey when modifing a QP.
+ *	@subnet_prefix the subnet prefix of the port being used.
+ *	@pkey the pkey to be accessed.
+ *	@sec pointer to a security structure.
+ * @ib_endport_manage_subnet:
+ *	Check permissions to send and receive SMPs on a end port.
+ *	@dev_name the IB device name (i.e. mlx4_0).
+ *	@port_num the port number.
+ *	@sec pointer to a security structure.
+ * @ib_alloc_security:
+ *	Allocate a security structure for Infiniband objects.
+ *	@sec pointer to a security structure pointer.
+ *	Returns 0 on success, non-zero on failure
+ * @ib_free_security:
+ *	Deallocate an Infiniband security structure.
+ *	@sec contains the security structure to be freed.
+ *
  * Security hooks for XFRM operations.
  *
  * @xfrm_policy_alloc_security:
@@ -1387,7 +1408,9 @@ union security_list_options {
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
 	int (*sb_clone_mnt_opts)(const struct super_block *oldsb,
-					struct super_block *newsb);
+					struct super_block *newsb,
+					unsigned long kern_flags,
+					unsigned long *set_kern_flags);
 	int (*sb_parse_opts_str)(char *options, struct security_mnt_opts *opts);
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
@@ -1618,6 +1641,14 @@ union security_list_options {
 	int (*tun_dev_attach)(struct sock *sk, void *security);
 	int (*tun_dev_open)(void *security);
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_SECURITY_INFINIBAND
+	int (*ib_pkey_access)(void *sec, u64 subnet_prefix, u16 pkey);
+	int (*ib_endport_manage_subnet)(void *sec, const char *dev_name,
+					u8 port_num);
+	int (*ib_alloc_security)(void **sec);
+	void (*ib_free_security)(void *sec);
+#endif	/* CONFIG_SECURITY_INFINIBAND */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	int (*xfrm_policy_alloc_security)(struct xfrm_sec_ctx **ctxp,
@@ -1850,6 +1881,12 @@ struct security_hook_heads {
 	struct list_head tun_dev_attach;
 	struct list_head tun_dev_open;
 #endif	/* CONFIG_SECURITY_NETWORK */
+#ifdef CONFIG_SECURITY_INFINIBAND
+	struct list_head ib_pkey_access;
+	struct list_head ib_endport_manage_subnet;
+	struct list_head ib_alloc_security;
+	struct list_head ib_free_security;
+#endif	/* CONFIG_SECURITY_INFINIBAND */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	struct list_head xfrm_policy_alloc_security;
 	struct list_head xfrm_policy_clone_security;

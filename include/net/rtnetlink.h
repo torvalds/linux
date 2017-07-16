@@ -63,15 +63,18 @@ struct rtnl_link_ops {
 	int			maxtype;
 	const struct nla_policy	*policy;
 	int			(*validate)(struct nlattr *tb[],
-					    struct nlattr *data[]);
+					    struct nlattr *data[],
+					    struct netlink_ext_ack *extack);
 
 	int			(*newlink)(struct net *src_net,
 					   struct net_device *dev,
 					   struct nlattr *tb[],
-					   struct nlattr *data[]);
+					   struct nlattr *data[],
+					   struct netlink_ext_ack *extack);
 	int			(*changelink)(struct net_device *dev,
 					      struct nlattr *tb[],
-					      struct nlattr *data[]);
+					      struct nlattr *data[],
+					      struct netlink_ext_ack *extack);
 	void			(*dellink)(struct net_device *dev,
 					   struct list_head *head);
 
@@ -88,11 +91,13 @@ struct rtnl_link_ops {
 	int			slave_maxtype;
 	const struct nla_policy	*slave_policy;
 	int			(*slave_validate)(struct nlattr *tb[],
-						  struct nlattr *data[]);
+						  struct nlattr *data[],
+						  struct netlink_ext_ack *extack);
 	int			(*slave_changelink)(struct net_device *dev,
 						    struct net_device *slave_dev,
 						    struct nlattr *tb[],
-						    struct nlattr *data[]);
+						    struct nlattr *data[],
+						    struct netlink_ext_ack *extack);
 	size_t			(*get_slave_size)(const struct net_device *dev,
 						  const struct net_device *slave_dev);
 	int			(*fill_slave_info)(struct sk_buff *skb,

@@ -540,7 +540,7 @@ static inline void scc_rxint(struct scc_channel *scc)
 		}
 		
 		scc->rx_buff = skb;
-		*(skb_put(skb, 1)) = 0;	/* KISS data */
+		skb_put_u8(skb, 0);	/* KISS data */
 	}
 	
 	if (skb->len >= scc->stat.bufsize)
@@ -555,7 +555,7 @@ static inline void scc_rxint(struct scc_channel *scc)
 		return;
 	}
 
-	*(skb_put(skb, 1)) = Inb(scc->data);
+	skb_put_u8(skb, Inb(scc->data));
 }
 
 

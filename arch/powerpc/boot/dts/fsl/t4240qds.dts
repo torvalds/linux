@@ -377,27 +377,27 @@
 					reg = <0>;
 
 					eeprom@51 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x51>;
 					};
 					eeprom@52 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x52>;
 					};
 					eeprom@53 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x53>;
 					};
 					eeprom@54 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x54>;
 					};
 					eeprom@55 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x55>;
 					};
 					eeprom@56 {
-						compatible = "at24,24c256";
+						compatible = "atmel,24c256";
 						reg = <0x56>;
 					};
 					rtc@68 {

@@ -1099,10 +1099,10 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 			       struct s5p_jpeg_ctx *ctx)
 {
 	int c, components = 0, notfound, n_dht = 0, n_dqt = 0;
-	unsigned int height, width, word, subsampling = 0, sos = 0, sof = 0,
-		     sof_len = 0;
-	unsigned int dht[S5P_JPEG_MAX_MARKER], dht_len[S5P_JPEG_MAX_MARKER],
-		     dqt[S5P_JPEG_MAX_MARKER], dqt_len[S5P_JPEG_MAX_MARKER];
+	unsigned int height = 0, width = 0, word, subsampling = 0;
+	unsigned int sos = 0, sof = 0, sof_len = 0;
+	unsigned int dht[S5P_JPEG_MAX_MARKER], dht_len[S5P_JPEG_MAX_MARKER];
+	unsigned int dqt[S5P_JPEG_MAX_MARKER], dqt_len[S5P_JPEG_MAX_MARKER];
 	long length;
 	struct s5p_jpeg_buffer jpeg_buffer;
 
@@ -2642,13 +2642,13 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload_size);
 	v4l2_m2m_buf_done(dst_buf, state);
-	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 
 	curr_ctx->subsampling = s5p_jpeg_get_subsampling_mode(jpeg->regs);
 	spin_unlock(&jpeg->slock);
 
 	s5p_jpeg_clear_int(jpeg->regs);
 
+	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 	return IRQ_HANDLED;
 }
 
@@ -2707,11 +2707,12 @@ static irqreturn_t exynos4_jpeg_irq(int irq, void *priv)
 		v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_ERROR);
 	}
 
-	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 	if (jpeg->variant->version == SJPEG_EXYNOS4)
 		curr_ctx->subsampling = exynos4_jpeg_get_frame_fmt(jpeg->regs);
 
 	spin_unlock(&jpeg->slock);
+
+	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 	return IRQ_HANDLED;
 }
 
@@ -2770,10 +2771,15 @@ static irqreturn_t exynos3250_jpeg_irq(int irq, void *dev_id)
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload_size);
 	v4l2_m2m_buf_done(dst_buf, state);
-	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 
 	curr_ctx->subsampling =
 			exynos3250_jpeg_get_subsampling_mode(jpeg->regs);
+
+	spin_unlock(&jpeg->slock);
+
+	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
+	return IRQ_HANDLED;
+
 exit_unlock:
 	spin_unlock(&jpeg->slock);
 	return IRQ_HANDLED;

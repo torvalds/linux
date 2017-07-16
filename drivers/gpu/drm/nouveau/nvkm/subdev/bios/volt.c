@@ -93,9 +93,9 @@ nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		info->step    = nvbios_rd16(bios, volt + 0x08);
 		info->vidmask = nvbios_rd08(bios, volt + 0x0b);
 		info->ranged  = true; /* XXX: find the flag byte */
-		/*XXX*/
-		info->min     = 0;
-		info->max     = info->base;
+		info->min     = min(info->base,
+				    info->base + info->step * info->vidmask);
+		info->max     = nvbios_rd32(bios, volt + 0x0e);
 		break;
 	case 0x50:
 		info->min     = nvbios_rd32(bios, volt + 0x0a);

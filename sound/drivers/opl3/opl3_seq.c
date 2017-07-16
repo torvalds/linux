@@ -252,7 +252,7 @@ static int snd_opl3_seq_probe(struct device *_dev)
 	spin_lock_init(&opl3->sys_timer_lock);
 	opl3->sys_timer_status = 0;
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	snd_opl3_init_seq_oss(opl3, name);
 #endif
 	return 0;
@@ -267,7 +267,7 @@ static int snd_opl3_seq_remove(struct device *_dev)
 	if (opl3 == NULL)
 		return -EINVAL;
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	snd_opl3_free_seq_oss(opl3);
 #endif
 	if (opl3->seq_client >= 0) {

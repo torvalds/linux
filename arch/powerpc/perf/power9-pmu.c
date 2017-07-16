@@ -107,6 +107,8 @@ extern struct attribute_group isa207_pmu_format_group;
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power9_event_alternatives[][MAX_ALT] = {
 	{ PM_INST_DISP,			PM_INST_DISP_ALT },
+	{ PM_RUN_CYC_ALT,		PM_RUN_CYC },
+	{ PM_RUN_INST_CMPL_ALT,		PM_RUN_INST_CMPL },
 };
 
 static int power9_get_alternatives(u64 event, unsigned int flags, u64 alt[])
@@ -231,7 +233,7 @@ static int power9_generic_events_dd1[] = {
 	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =	PM_ICT_NOSLOT_CYC,
 	[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =	PM_CMPLU_STALL,
 	[PERF_COUNT_HW_INSTRUCTIONS] =			PM_INST_DISP,
-	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BRU_CMPL,
+	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] =		PM_BR_CMPL_ALT,
 	[PERF_COUNT_HW_BRANCH_MISSES] =			PM_BR_MPRED_CMPL,
 	[PERF_COUNT_HW_CACHE_REFERENCES] =		PM_LD_REF_L1,
 	[PERF_COUNT_HW_CACHE_MISSES] =			PM_LD_MISS_L1_FIN,
@@ -453,6 +455,12 @@ static int __init init_power9_pmu(void)
 		 * sampling scenarios in power9 DD1, instead use PM_INST_DISP.
 		 */
 		EVENT_VAR(PM_INST_CMPL, _g).id = PM_INST_DISP;
+		/*
+		 * Power9 DD1 should use PM_BR_CMPL_ALT event code for
+		 * "branches" to provide correct counter value.
+		 */
+		EVENT_VAR(PM_BRU_CMPL, _g).id = PM_BR_CMPL_ALT;
+		EVENT_VAR(PM_BRU_CMPL, _c).id = PM_BR_CMPL_ALT;
 		rc = register_power_pmu(&power9_isa207_pmu);
 	} else {
 		rc = register_power_pmu(&power9_pmu);

@@ -43,6 +43,7 @@ struct hmm_bo_device bo_device;
 struct hmm_pool	dynamic_pool;
 struct hmm_pool	reserved_pool;
 static ia_css_ptr dummy_ptr;
+static bool hmm_initialized;
 struct _hmm_mem_stat hmm_mem_stat;
 
 /* p: private
@@ -186,6 +187,8 @@ int hmm_init(void)
 	if (ret)
 		dev_err(atomisp_dev, "hmm_bo_device_init failed.\n");
 
+	hmm_initialized = true;
+
 	/*
 	 * As hmm use NULL to indicate invalid ISP virtual address,
 	 * and ISP_VM_START is defined to 0 too, so we allocate
@@ -193,7 +196,7 @@ int hmm_init(void)
 	 * at the beginning, to avoid hmm_alloc return 0 in the
 	 * further allocation.
 	 */
-	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, 0, HMM_UNCACHED);
+	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, NULL, HMM_UNCACHED);
 
 	if (!ret) {
 		ret = sysfs_create_group(&atomisp_dev->kobj,
@@ -217,6 +220,7 @@ void hmm_cleanup(void)
 	dummy_ptr = 0;
 
 	hmm_bo_device_exit(&bo_device);
+	hmm_initialized = false;
 }
 
 ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
@@ -229,7 +233,7 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	/* Check if we are initialized. In the ideal world we wouldn't need
 	   this but we can tackle it once the driver is a lot cleaner */
 
-	if (!dummy_ptr)
+	if (!hmm_initialized)
 		hmm_init();
 	/*Get page number from size*/
 	pgnr = size_to_pgnr_ceil(bytes);

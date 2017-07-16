@@ -17,6 +17,8 @@ config DEVMEM
 
 config DEVKMEM
 	bool "/dev/kmem virtual device support"
+	# On arm64, VMALLOC_START < PAGE_OFFSET, which confuses kmem read/write
+	depends on !ARM64
 	help
 	  Say Y here if you want to support the /dev/kmem device. The
 	  /dev/kmem device is rarely used, but can be used for certain

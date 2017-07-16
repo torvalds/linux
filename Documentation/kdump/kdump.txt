@@ -112,8 +112,8 @@ There are two possible methods of using Kdump.
 2) Or use the system kernel binary itself as dump-capture kernel and there is
    no need to build a separate dump-capture kernel. This is possible
    only with the architectures which support a relocatable kernel. As
-   of today, i386, x86_64, ppc64, ia64 and arm architectures support relocatable
-   kernel.
+   of today, i386, x86_64, ppc64, ia64, arm and arm64 architectures support
+   relocatable kernel.
 
 Building a relocatable kernel is advantageous from the point of view that
 one does not have to build a second kernel for capturing the dump. But
@@ -339,7 +339,7 @@ For arm:
 For arm64:
 	- Use vmlinux or Image
 
-If you are using a uncompressed vmlinux image then use following command
+If you are using an uncompressed vmlinux image then use following command
 to load dump-capture kernel.
 
    kexec -p <dump-capture-kernel-vmlinux-image> \
@@ -361,6 +361,12 @@ to load dump-capture kernel.
    --dtb=<dtb-for-dump-capture-kernel> \
    --append="root=<root-dev> <arch-specific-options>"
 
+If you are using an uncompressed Image, then use following command
+to load dump-capture kernel.
+
+   kexec -p <dump-capture-kernel-Image> \
+   --initrd=<initrd-for-dump-capture-kernel> \
+   --append="root=<root-dev> <arch-specific-options>"
 
 Please note, that --args-linux does not need to be specified for ia64.
 It is planned to make this a no-op on that architecture, but for now

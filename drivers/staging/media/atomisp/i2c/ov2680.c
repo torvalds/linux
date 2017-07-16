@@ -885,11 +885,12 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (flag) {
 		ret = dev->platform_data->gpio0_ctrl(sd, 1);
 		usleep_range(10000, 15000);
-		ret |= dev->platform_data->gpio1_ctrl(sd, 1);
+		/* Ignore return from second gpio, it may not be there */
+		dev->platform_data->gpio1_ctrl(sd, 1);
 		usleep_range(10000, 15000);
 	} else {
-		ret = dev->platform_data->gpio1_ctrl(sd, 0);
-		ret |= dev->platform_data->gpio0_ctrl(sd, 0);
+		dev->platform_data->gpio1_ctrl(sd, 0);
+		ret = dev->platform_data->gpio0_ctrl(sd, 0);
 	}
 	return ret;
 }
@@ -1190,9 +1191,8 @@ static int ov2680_detect(struct i2c_client *client)
 					OV2680_SC_CMMN_SUB_ID, &high);
 	revision = (u8) high & 0x0f;
 
-	dev_err(&client->dev, "sensor_revision id  = 0x%x\n", id);
-	dev_err(&client->dev, "detect ov2680 success\n");
-	dev_err(&client->dev, "################5##########\n");
+	dev_info(&client->dev, "sensor_revision id = 0x%x\n", id);
+
 	return 0;
 }
 
@@ -1447,8 +1447,6 @@ static int ov2680_probe(struct i2c_client *client,
 	void *pdata;
 	unsigned int i;
 
-	printk("++++ov2680_probe++++\n");
-	dev_info(&client->dev, "++++ov2680_probe++++\n");
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&client->dev, "out of memory\n");
@@ -1521,6 +1519,7 @@ out_free:
 
 static struct acpi_device_id ov2680_acpi_match[] = {
 	{"XXOV2680"},
+	{"OVTI2680"},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, ov2680_acpi_match);

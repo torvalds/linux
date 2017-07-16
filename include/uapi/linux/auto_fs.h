@@ -26,7 +26,7 @@
 #define AUTOFS_MIN_PROTO_VERSION	AUTOFS_PROTO_VERSION
 
 /*
- * The wait_queue_entry_token (autofs_wqt_t) is part of a structure which is passed
+ * The wait_queue_token (autofs_wqt_t) is part of a structure which is passed
  * back to the kernel via ioctl from userspace. On architectures where 32- and
  * 64-bit userspace binaries can be executed it's important that the size of
  * autofs_wqt_t stays constant between 32- and 64-bit Linux kernels so that we
@@ -49,7 +49,7 @@ struct autofs_packet_hdr {
 
 struct autofs_packet_missing {
 	struct autofs_packet_hdr hdr;
-	autofs_wqt_t wait_queue_entry_token;
+	autofs_wqt_t wait_queue_token;
 	int len;
 	char name[NAME_MAX+1];
 };	

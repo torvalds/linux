@@ -161,12 +161,9 @@ static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 		return -ENOMEM;
 	skb_reserve(skb_out, NET_IP_ALIGN);
 
-	memcpy(skb_put(skb_out, mac_header_len), mac_header_data,
-	       mac_header_len);
-	memcpy(skb_put(skb_out, sizeof(struct arphdr)), arp_out,
-	       sizeof(struct arphdr));
-	memcpy(skb_put(skb_out, sizeof(struct arpdata)), arp_data_out,
-	       sizeof(struct arpdata));
+	skb_put_data(skb_out, mac_header_data, mac_header_len);
+	skb_put_data(skb_out, arp_out, sizeof(struct arphdr));
+	skb_put_data(skb_out, arp_data_out, sizeof(struct arpdata));
 
 	skb_out->protocol = ((struct ethhdr *)mac_header_data)->h_proto;
 	skb_out->dev = skb_in->dev;
@@ -322,14 +319,10 @@ static int gdm_lte_emulate_ndp(struct sk_buff *skb_in, u32 nic_type)
 		return -ENOMEM;
 	skb_reserve(skb_out, NET_IP_ALIGN);
 
-	memcpy(skb_put(skb_out, mac_header_len), mac_header_data,
-	       mac_header_len);
-	memcpy(skb_put(skb_out, sizeof(struct ipv6hdr)), &ipv6_out,
-	       sizeof(struct ipv6hdr));
-	memcpy(skb_put(skb_out, sizeof(struct icmp6hdr)), &icmp6_out,
-	       sizeof(struct icmp6hdr));
-	memcpy(skb_put(skb_out, sizeof(struct neighbour_advertisement)), &na,
-	       sizeof(struct neighbour_advertisement));
+	skb_put_data(skb_out, mac_header_data, mac_header_len);
+	skb_put_data(skb_out, &ipv6_out, sizeof(struct ipv6hdr));
+	skb_put_data(skb_out, &icmp6_out, sizeof(struct icmp6hdr));
+	skb_put_data(skb_out, &na, sizeof(struct neighbour_advertisement));
 
 	skb_out->protocol = ((struct ethhdr *)mac_header_data)->h_proto;
 	skb_out->dev = skb_in->dev;
@@ -669,8 +662,8 @@ static void gdm_lte_netif_rx(struct net_device *dev, char *buf,
 		return;
 	skb_reserve(skb, NET_IP_ALIGN);
 
-	memcpy(skb_put(skb, mac_header_len), mac_header_data, mac_header_len);
-	memcpy(skb_put(skb, len), buf, len);
+	skb_put_data(skb, mac_header_data, mac_header_len);
+	skb_put_data(skb, buf, len);
 
 	skb->protocol = ((struct ethhdr *)mac_header_data)->h_proto;
 	skb->dev = dev;

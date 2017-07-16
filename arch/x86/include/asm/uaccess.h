@@ -535,9 +535,6 @@ struct __large_struct { unsigned long buf[100]; };
 #define __put_user(x, ptr)						\
 	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-
 /*
  * {get|put}_user_try and catch
  *
@@ -565,7 +562,6 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n);
 extern __must_check long
 strncpy_from_user(char *dst, const char __user *src, long count);
 
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 unsigned long __must_check clear_user(void __user *mem, unsigned long len);

@@ -24,7 +24,7 @@
 
 #include <asm/msr.h>
 
-struct cpufreq_frequency_table *freq_table;
+static struct cpufreq_frequency_table *freq_table;
 static struct sfi_freq_table_entry *sfi_cpufreq_array;
 static int num_freq_table_entries;
 

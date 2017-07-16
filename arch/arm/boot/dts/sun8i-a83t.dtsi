@@ -40,15 +40,22 @@
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
-
  */
-
-#include "skeleton.dtsi"
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
+#include <dt-bindings/clock/sun8i-r-ccu.h>
+
 / {
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+	};
+
+	chosen {
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -121,6 +128,7 @@
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
+			clock-accuracy = <50000>;
 			clock-output-names = "osc24M";
 		};
 
@@ -146,25 +154,55 @@
 		};
 	};
 
+	memory {
+		reg = <0x40000000 0x80000000>;
+		device_type = "memory";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
-		pio: pinctrl@01c20800 {
+		syscon: syscon@1c00000 {
+			compatible = "allwinner,sun8i-a83t-system-controller",
+				"syscon";
+			reg = <0x01c00000 0x1000>;
+		};
+
+		dma: dma-controller@1c02000 {
+			compatible = "allwinner,sun8i-a83t-dma";
+			reg = <0x01c02000 0x1000>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu 21>;
+			resets = <&ccu 7>;
+			#dma-cells = <1>;
+		};
+
+		ccu: clock@1c20000 {
+			compatible = "allwinner,sun8i-a83t-ccu";
+			reg = <0x01c20000 0x400>;
+			clocks = <&osc24M>, <&osc16Md512>;
+			clock-names = "hosc", "losc";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
+		pio: pinctrl@1c20800 {
 			compatible = "allwinner,sun8i-a83t-pinctrl";
 			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x01c20800 0x400>;
-			clocks = <&osc24M>;
+			clocks = <&ccu 45>, <&osc24M>, <&osc16Md512>;
+			clock-names = "apb", "hosc", "losc";
 			gpio-controller;
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			mmc0_pins_a: mmc0@0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 				       "PF3", "PF4", "PF5";
 				function = "mmc0";
@@ -172,18 +210,23 @@
 				bias-pull-up;
 			};
 
-			uart0_pins_a: uart0@0 {
-				pins = "PF2", "PF4";
+			spdif_tx_pin: spdif-tx-pin {
+				pins = "PE18";
+				function = "spdif";
+			};
+
+			uart0_pb_pins: uart0-pb-pins {
+				pins = "PB9", "PB10";
 				function = "uart0";
 			};
 
-			uart0_pins_b: uart0@1 {
-				pins = "PB9", "PB10";
+			uart0_pf_pins: uart0-pf-pins {
+				pins = "PF2", "PF4";
 				function = "uart0";
 			};
 		};
 
-		timer@01c20c00 {
+		timer@1c20c00 {
 			compatible = "allwinner,sun4i-a10-timer";
 			reg = <0x01c20c00 0xa0>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
@@ -191,11 +234,27 @@
 			clocks = <&osc24M>;
 		};
 
-		watchdog@01c20ca0 {
+		watchdog@1c20ca0 {
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x01c20ca0 0x20>;
 			interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&osc24M>;
+		};
+
+		spdif: spdif@1c21000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun8i-a83t-spdif",
+				     "allwinner,sun8i-h3-spdif";
+			reg = <0x01c21000 0x400>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu 44>, <&ccu 76>;
+			resets = <&ccu 32>;
+			clock-names = "apb", "spdif";
+			dmas = <&dma 2>;
+			dma-names = "tx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spdif_tx_pin>;
+			status = "disabled";
 		};
 
 		uart0: serial@01c28000 {
@@ -204,11 +263,12 @@
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&osc24M>;
+			clocks = <&ccu 53>;
+			resets = <&ccu 40>;
 			status = "disabled";
 		};
 
-		gic: interrupt-controller@01c81000 {
+		gic: interrupt-controller@1c81000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
 			      <0x01c82000 0x2000>,
@@ -217,6 +277,29 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
+		};
+
+		r_ccu: clock@1f01400 {
+			compatible = "allwinner,sun8i-a83t-r-ccu";
+			reg = <0x01f01400 0x400>;
+			clocks = <&osc24M>, <&osc16Md512>, <&osc16M>,
+				 <&ccu 6>;
+			clock-names = "hosc", "losc", "iosc", "pll-periph";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
+		r_pio: pinctrl@1f02c00 {
+			compatible = "allwinner,sun8i-a83t-r-pinctrl";
+			reg = <0x01f02c00 0x400>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&r_ccu CLK_APB0_PIO>, <&osc24M>,
+				 <&osc16Md512>;
+			clock-names = "apb", "hosc", "losc";
+			gpio-controller;
+			#gpio-cells = <3>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
 		};
 	};
 };

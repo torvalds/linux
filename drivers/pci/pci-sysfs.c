@@ -154,6 +154,129 @@ static ssize_t resource_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(resource);
 
+static ssize_t max_link_speed_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	u32 linkcap;
+	int err;
+	const char *speed;
+
+	err = pcie_capability_read_dword(pci_dev, PCI_EXP_LNKCAP, &linkcap);
+	if (err)
+		return -EINVAL;
+
+	switch (linkcap & PCI_EXP_LNKCAP_SLS) {
+	case PCI_EXP_LNKCAP_SLS_8_0GB:
+		speed = "8 GT/s";
+		break;
+	case PCI_EXP_LNKCAP_SLS_5_0GB:
+		speed = "5 GT/s";
+		break;
+	case PCI_EXP_LNKCAP_SLS_2_5GB:
+		speed = "2.5 GT/s";
+		break;
+	default:
+		speed = "Unknown speed";
+	}
+
+	return sprintf(buf, "%s\n", speed);
+}
+static DEVICE_ATTR_RO(max_link_speed);
+
+static ssize_t max_link_width_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	u32 linkcap;
+	int err;
+
+	err = pcie_capability_read_dword(pci_dev, PCI_EXP_LNKCAP, &linkcap);
+	if (err)
+		return -EINVAL;
+
+	return sprintf(buf, "%u\n", (linkcap & PCI_EXP_LNKCAP_MLW) >> 4);
+}
+static DEVICE_ATTR_RO(max_link_width);
+
+static ssize_t current_link_speed_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	u16 linkstat;
+	int err;
+	const char *speed;
+
+	err = pcie_capability_read_word(pci_dev, PCI_EXP_LNKSTA, &linkstat);
+	if (err)
+		return -EINVAL;
+
+	switch (linkstat & PCI_EXP_LNKSTA_CLS) {
+	case PCI_EXP_LNKSTA_CLS_8_0GB:
+		speed = "8 GT/s";
+		break;
+	case PCI_EXP_LNKSTA_CLS_5_0GB:
+		speed = "5 GT/s";
+		break;
+	case PCI_EXP_LNKSTA_CLS_2_5GB:
+		speed = "2.5 GT/s";
+		break;
+	default:
+		speed = "Unknown speed";
+	}
+
+	return sprintf(buf, "%s\n", speed);
+}
+static DEVICE_ATTR_RO(current_link_speed);
+
+static ssize_t current_link_width_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	u16 linkstat;
+	int err;
+
+	err = pcie_capability_read_word(pci_dev, PCI_EXP_LNKSTA, &linkstat);
+	if (err)
+		return -EINVAL;
+
+	return sprintf(buf, "%u\n",
+		(linkstat & PCI_EXP_LNKSTA_NLW) >> PCI_EXP_LNKSTA_NLW_SHIFT);
+}
+static DEVICE_ATTR_RO(current_link_width);
+
+static ssize_t secondary_bus_number_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	u8 sec_bus;
+	int err;
+
+	err = pci_read_config_byte(pci_dev, PCI_SECONDARY_BUS, &sec_bus);
+	if (err)
+		return -EINVAL;
+
+	return sprintf(buf, "%u\n", sec_bus);
+}
+static DEVICE_ATTR_RO(secondary_bus_number);
+
+static ssize_t subordinate_bus_number_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	u8 sub_bus;
+	int err;
+
+	err = pci_read_config_byte(pci_dev, PCI_SUBORDINATE_BUS, &sub_bus);
+	if (err)
+		return -EINVAL;
+
+	return sprintf(buf, "%u\n", sub_bus);
+}
+static DEVICE_ATTR_RO(subordinate_bus_number);
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -472,7 +595,6 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pci_sriov *iov = pdev->sriov;
 	int ret;
 	u16 num_vfs;
 
@@ -483,7 +605,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 	if (num_vfs > pci_sriov_get_totalvfs(pdev))
 		return -ERANGE;
 
-	mutex_lock(&iov->dev->sriov->lock);
+	device_lock(&pdev->dev);
 
 	if (num_vfs == pdev->sriov->num_VFs)
 		goto exit;
@@ -518,7 +640,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 			 num_vfs, ret);
 
 exit:
-	mutex_unlock(&iov->dev->sriov->lock);
+	device_unlock(&pdev->dev);
 
 	if (ret < 0)
 		return ret;
@@ -629,12 +751,17 @@ static struct attribute *pci_dev_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group pci_dev_group = {
-	.attrs = pci_dev_attrs,
+static struct attribute *pci_bridge_attrs[] = {
+	&dev_attr_subordinate_bus_number.attr,
+	&dev_attr_secondary_bus_number.attr,
+	NULL,
 };
 
-const struct attribute_group *pci_dev_groups[] = {
-	&pci_dev_group,
+static struct attribute *pcie_dev_attrs[] = {
+	&dev_attr_current_link_speed.attr,
+	&dev_attr_current_link_width.attr,
+	&dev_attr_max_link_width.attr,
+	&dev_attr_max_link_speed.attr,
 	NULL,
 };
 
@@ -1557,6 +1684,57 @@ static umode_t pci_dev_hp_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
+static umode_t pci_bridge_attrs_are_visible(struct kobject *kobj,
+					    struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	if (pci_is_bridge(pdev))
+		return a->mode;
+
+	return 0;
+}
+
+static umode_t pcie_dev_attrs_are_visible(struct kobject *kobj,
+					  struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	if (pci_is_pcie(pdev))
+		return a->mode;
+
+	return 0;
+}
+
+static const struct attribute_group pci_dev_group = {
+	.attrs = pci_dev_attrs,
+};
+
+const struct attribute_group *pci_dev_groups[] = {
+	&pci_dev_group,
+	NULL,
+};
+
+static const struct attribute_group pci_bridge_group = {
+	.attrs = pci_bridge_attrs,
+};
+
+const struct attribute_group *pci_bridge_groups[] = {
+	&pci_bridge_group,
+	NULL,
+};
+
+static const struct attribute_group pcie_dev_group = {
+	.attrs = pcie_dev_attrs,
+};
+
+const struct attribute_group *pcie_dev_groups[] = {
+	&pcie_dev_group,
+	NULL,
+};
+
 static struct attribute_group pci_dev_hp_attr_group = {
 	.attrs = pci_dev_hp_attrs,
 	.is_visible = pci_dev_hp_attrs_are_visible,
@@ -1592,12 +1770,24 @@ static struct attribute_group pci_dev_attr_group = {
 	.is_visible = pci_dev_attrs_are_visible,
 };
 
+static struct attribute_group pci_bridge_attr_group = {
+	.attrs = pci_bridge_attrs,
+	.is_visible = pci_bridge_attrs_are_visible,
+};
+
+static struct attribute_group pcie_dev_attr_group = {
+	.attrs = pcie_dev_attrs,
+	.is_visible = pcie_dev_attrs_are_visible,
+};
+
 static const struct attribute_group *pci_dev_attr_groups[] = {
 	&pci_dev_attr_group,
 	&pci_dev_hp_attr_group,
 #ifdef CONFIG_PCI_IOV
 	&sriov_dev_attr_group,
 #endif
+	&pci_bridge_attr_group,
+	&pcie_dev_attr_group,
 	NULL,
 };
 

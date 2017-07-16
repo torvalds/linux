@@ -224,7 +224,7 @@ static int isdn_x25iface_connect_ind(struct concap_proto *cprot)
 
 	skb = dev_alloc_skb(1);
 	if (skb) {
-		*(skb_put(skb, 1)) = X25_IFACE_CONNECT;
+		skb_put_u8(skb, X25_IFACE_CONNECT);
 		skb->protocol = x25_type_trans(skb, cprot->net_dev);
 		netif_rx(skb);
 		return 0;
@@ -253,7 +253,7 @@ static int isdn_x25iface_disconn_ind(struct concap_proto *cprot)
 	*state_p = WAN_DISCONNECTED;
 	skb = dev_alloc_skb(1);
 	if (skb) {
-		*(skb_put(skb, 1)) = X25_IFACE_DISCONNECT;
+		skb_put_u8(skb, X25_IFACE_DISCONNECT);
 		skb->protocol = x25_type_trans(skb, cprot->net_dev);
 		netif_rx(skb);
 		return 0;

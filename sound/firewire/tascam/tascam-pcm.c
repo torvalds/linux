@@ -8,48 +8,20 @@
 
 #include "tascam.h"
 
-static void set_buffer_params(struct snd_pcm_hardware *hw)
-{
-	hw->period_bytes_min = 4 * hw->channels_min;
-	hw->period_bytes_max = hw->period_bytes_min * 2048;
-	hw->buffer_bytes_max = hw->period_bytes_max * 2;
-
-	hw->periods_min = 2;
-	hw->periods_max = UINT_MAX;
-}
-
 static int pcm_init_hw_params(struct snd_tscm *tscm,
 			      struct snd_pcm_substream *substream)
 {
-	static const struct snd_pcm_hardware hardware = {
-		.info = SNDRV_PCM_INFO_BATCH |
-			SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_JOINT_DUPLEX |
-			SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID,
-		.rates = SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000,
-		.rate_min = 44100,
-		.rate_max = 96000,
-		.channels_min = 10,
-		.channels_max = 18,
-	};
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct amdtp_stream *stream;
 	unsigned int pcm_channels;
-
-	runtime->hw = hardware;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32;
 		stream = &tscm->tx_stream;
 		pcm_channels = tscm->spec->pcm_capture_analog_channels;
 	} else {
-		runtime->hw.formats =
-				SNDRV_PCM_FMTBIT_S16 | SNDRV_PCM_FMTBIT_S32;
+		runtime->hw.formats = SNDRV_PCM_FMTBIT_S32;
 		stream = &tscm->rx_stream;
 		pcm_channels = tscm->spec->pcm_playback_analog_channels;
 	}
@@ -60,7 +32,11 @@ static int pcm_init_hw_params(struct snd_tscm *tscm,
 		pcm_channels += 2;
 	runtime->hw.channels_min = runtime->hw.channels_max = pcm_channels;
 
-	set_buffer_params(&runtime->hw);
+	hw->rates = SNDRV_PCM_RATE_44100 |
+		    SNDRV_PCM_RATE_48000 |
+		    SNDRV_PCM_RATE_88200 |
+		    SNDRV_PCM_RATE_96000;
+	snd_pcm_limit_hw_rates(runtime);
 
 	return amdtp_tscm_add_pcm_hw_constraints(stream, runtime);
 }
@@ -125,8 +101,6 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&tscm->mutex);
 	}
 
-	amdtp_tscm_set_pcm_format(&tscm->tx_stream, params_format(hw_params));
-
 	return 0;
 }
 
@@ -146,8 +120,6 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		tscm->substreams_counter++;
 		mutex_unlock(&tscm->mutex);
 	}
-
-	amdtp_tscm_set_pcm_format(&tscm->rx_stream, params_format(hw_params));
 
 	return 0;
 }
@@ -268,6 +240,20 @@ static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 	return amdtp_stream_pcm_pointer(&tscm->rx_stream);
 }
 
+static int pcm_capture_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_tscm *tscm = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&tscm->tx_stream);
+}
+
+static int pcm_playback_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_tscm *tscm = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&tscm->rx_stream);
+}
+
 int snd_tscm_create_pcm_devices(struct snd_tscm *tscm)
 {
 	static const struct snd_pcm_ops capture_ops = {
@@ -279,6 +265,7 @@ int snd_tscm_create_pcm_devices(struct snd_tscm *tscm)
 		.prepare	= pcm_capture_prepare,
 		.trigger	= pcm_capture_trigger,
 		.pointer	= pcm_capture_pointer,
+		.ack		= pcm_capture_ack,
 		.page		= snd_pcm_lib_get_vmalloc_page,
 	};
 	static const struct snd_pcm_ops playback_ops = {
@@ -290,6 +277,7 @@ int snd_tscm_create_pcm_devices(struct snd_tscm *tscm)
 		.prepare	= pcm_playback_prepare,
 		.trigger	= pcm_playback_trigger,
 		.pointer	= pcm_playback_pointer,
+		.ack		= pcm_playback_ack,
 		.page		= snd_pcm_lib_get_vmalloc_page,
 		.mmap		= snd_pcm_lib_mmap_vmalloc,
 	};
