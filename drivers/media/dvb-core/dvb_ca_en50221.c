@@ -1064,6 +1064,37 @@ static void dvb_ca_en50221_thread_update_delay(struct dvb_ca_private *ca)
 }
 
 /**
+ * Poll if the CAM is gone.
+ *
+ * @ca: CA instance.
+ * @slot: Slot to process.
+ * @return: 0 .. no change
+ *          1 .. CAM state changed
+ */
+
+static int dvb_ca_en50221_poll_cam_gone(struct dvb_ca_private *ca, int slot)
+{
+	int changed = 0;
+	int status;
+
+	/*
+	 * we need this extra check for annoying interfaces like the
+	 * budget-av
+	 */
+	if ((!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE)) &&
+	    (ca->pub->poll_slot_status)) {
+		status = ca->pub->poll_slot_status(ca->pub, slot, 0);
+		if (!(status &
+			DVB_CA_EN50221_POLL_CAM_PRESENT)) {
+			ca->slot_info[slot].slot_state = DVB_CA_SLOTSTATE_NONE;
+			dvb_ca_en50221_thread_update_delay(ca);
+			changed = 1;
+		}
+	}
+	return changed;
+}
+
+/**
  * Thread state machine for one CA slot to perform the data transfer.
  *
  * @ca: CA instance.
@@ -1074,7 +1105,6 @@ static void dvb_ca_en50221_thread_state_machine(struct dvb_ca_private *ca,
 {
 	struct dvb_ca_slot *sl = &ca->slot_info[slot];
 	int flags;
-	int status;
 	int pktcount;
 	void *rxbuf;
 
@@ -1124,21 +1154,8 @@ static void dvb_ca_en50221_thread_state_machine(struct dvb_ca_private *ca,
 
 	case DVB_CA_SLOTSTATE_VALIDATE:
 		if (dvb_ca_en50221_parse_attributes(ca, slot) != 0) {
-			/*
-			 * we need this extra check for annoying interfaces like
-			 * the budget-av
-			 */
-			if ((!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
-			    && (ca->pub->poll_slot_status)) {
-				status = ca->pub->poll_slot_status(ca->pub,
-								   slot, 0);
-				if (!(status &
-				      DVB_CA_EN50221_POLL_CAM_PRESENT)) {
-					sl->slot_state = DVB_CA_SLOTSTATE_NONE;
-					dvb_ca_en50221_thread_update_delay(ca);
-					break;
-				}
-			}
+			if (dvb_ca_en50221_poll_cam_gone(ca, slot))
+				break;
 
 			pr_err("dvb_ca adapter %d: Invalid PC card inserted :(\n",
 			       ca->dvbdev->adapter->num);
@@ -1187,21 +1204,8 @@ static void dvb_ca_en50221_thread_state_machine(struct dvb_ca_private *ca,
 
 	case DVB_CA_SLOTSTATE_LINKINIT:
 		if (dvb_ca_en50221_link_init(ca, slot) != 0) {
-			/*
-			 * we need this extra check for annoying interfaces like
-			 * the budget-av
-			 */
-			if ((!(ca->flags & DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE))
-			    && (ca->pub->poll_slot_status)) {
-				status = ca->pub->poll_slot_status(ca->pub,
-								   slot, 0);
-				if (!(status &
-					DVB_CA_EN50221_POLL_CAM_PRESENT)) {
-					sl->slot_state = DVB_CA_SLOTSTATE_NONE;
-					dvb_ca_en50221_thread_update_delay(ca);
-					break;
-				}
-			}
+			if (dvb_ca_en50221_poll_cam_gone(ca, slot))
+				break;
 
 			pr_err("dvb_ca adapter %d: DVB CAM link initialisation failed :(\n",
 			       ca->dvbdev->adapter->num);
