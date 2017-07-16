@@ -2835,7 +2835,7 @@ static struct iwl_trans_dump_data
 	spin_lock_bh(&cmdq->lock);
 	ptr = cmdq->write_ptr;
 	for (i = 0; i < cmdq->n_window; i++) {
-		u8 idx = get_cmd_index(cmdq, ptr);
+		u8 idx = iwl_pcie_get_cmd_index(cmdq, ptr);
 		u32 caplen, cmdlen;
 
 		cmdlen = iwl_trans_pcie_get_cmdlen(trans, cmdq->tfds +
