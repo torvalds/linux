@@ -142,13 +142,13 @@ struct qcom_pcie {
 
 static void qcom_ep_reset_assert(struct qcom_pcie *pcie)
 {
-	gpiod_set_value(pcie->reset, 1);
+	gpiod_set_value_cansleep(pcie->reset, 1);
 	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
 }
 
 static void qcom_ep_reset_deassert(struct qcom_pcie *pcie)
 {
-	gpiod_set_value(pcie->reset, 0);
+	gpiod_set_value_cansleep(pcie->reset, 0);
 	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
 }
 
