@@ -9,6 +9,8 @@
 #include "dax-private.h"
 #include "bus.h"
 
+static struct class *dax_class;
+
 static DEFINE_MUTEX(dax_bus_lock);
 
 #define DAX_NAME_LEN 30
@@ -310,8 +312,8 @@ static void unregister_dev_dax(void *dev)
 	put_device(dev);
 }
 
-struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
-		struct dev_pagemap *pgmap)
+struct dev_dax *__devm_create_dev_dax(struct dax_region *dax_region, int id,
+		struct dev_pagemap *pgmap, enum dev_dax_subsys subsys)
 {
 	struct device *parent = dax_region->dev;
 	struct dax_device *dax_dev;
@@ -350,7 +352,10 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
 
 	inode = dax_inode(dax_dev);
 	dev->devt = inode->i_rdev;
-	dev->bus = &dax_bus_type;
+	if (subsys == DEV_DAX_BUS)
+		dev->bus = &dax_bus_type;
+	else
+		dev->class = dax_class;
 	dev->parent = parent;
 	dev->groups = dax_attribute_groups;
 	dev->release = dev_dax_release;
@@ -374,7 +379,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
 
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_GPL(devm_create_dev_dax);
+EXPORT_SYMBOL_GPL(__devm_create_dev_dax);
 
 static int match_always_count;
 
@@ -407,6 +412,7 @@ EXPORT_SYMBOL_GPL(__dax_driver_register);
 
 void dax_driver_unregister(struct dax_device_driver *dax_drv)
 {
+	struct device_driver *drv = &dax_drv->drv;
 	struct dax_id *dax_id, *_id;
 
 	mutex_lock(&dax_bus_lock);
@@ -416,15 +422,28 @@ void dax_driver_unregister(struct dax_device_driver *dax_drv)
 		kfree(dax_id);
 	}
 	mutex_unlock(&dax_bus_lock);
+	driver_unregister(drv);
 }
 EXPORT_SYMBOL_GPL(dax_driver_unregister);
 
 int __init dax_bus_init(void)
 {
-	return bus_register(&dax_bus_type);
+	int rc;
+
+	if (IS_ENABLED(CONFIG_DEV_DAX_PMEM_COMPAT)) {
+		dax_class = class_create(THIS_MODULE, "dax");
+		if (IS_ERR(dax_class))
+			return PTR_ERR(dax_class);
+	}
+
+	rc = bus_register(&dax_bus_type);
+	if (rc)
+		class_destroy(dax_class);
+	return rc;
 }
 
 void __exit dax_bus_exit(void)
 {
 	bus_unregister(&dax_bus_type);
+	class_destroy(dax_class);
 }

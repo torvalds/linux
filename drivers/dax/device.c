@@ -445,7 +445,7 @@ static void dev_dax_kill(void *dev_dax)
 	kill_dev_dax(dev_dax);
 }
 
-static int dev_dax_probe(struct device *dev)
+int dev_dax_probe(struct device *dev)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct dax_device *dax_dev = dev_dax->dax_dev;
@@ -484,7 +484,11 @@ static int dev_dax_probe(struct device *dev)
 	inode = dax_inode(dax_dev);
 	cdev = inode->i_cdev;
 	cdev_init(cdev, &dax_fops);
-	cdev->owner = dev->driver->owner;
+	if (dev->class) {
+		/* for the CONFIG_DEV_DAX_PMEM_COMPAT case */
+		cdev->owner = dev->parent->driver->owner;
+	} else
+		cdev->owner = dev->driver->owner;
 	cdev_set_parent(cdev, &dev->kobj);
 	rc = cdev_add(cdev, dev->devt, 1);
 	if (rc)
@@ -497,6 +501,7 @@ static int dev_dax_probe(struct device *dev)
 	run_dax(dax_dev);
 	return devm_add_action_or_reset(dev, dev_dax_kill, dev_dax);
 }
+EXPORT_SYMBOL_GPL(dev_dax_probe);
 
 static int dev_dax_remove(struct device *dev)
 {
