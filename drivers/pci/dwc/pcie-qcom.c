@@ -124,6 +124,7 @@ struct qcom_pcie_ops {
 	int (*init)(struct qcom_pcie *pcie);
 	int (*post_init)(struct qcom_pcie *pcie);
 	void (*deinit)(struct qcom_pcie *pcie);
+	void (*post_deinit)(struct qcom_pcie *pcie);
 	void (*ltssm_enable)(struct qcom_pcie *pcie);
 };
 
@@ -517,11 +518,17 @@ static void qcom_pcie_deinit_v2(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
 
-	clk_disable_unprepare(res->pipe_clk);
 	clk_disable_unprepare(res->slave_clk);
 	clk_disable_unprepare(res->master_clk);
 	clk_disable_unprepare(res->cfg_clk);
 	clk_disable_unprepare(res->aux_clk);
+}
+
+static void qcom_pcie_post_deinit_v2(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v2 *res = &pcie->res.v2;
+
+	clk_disable_unprepare(res->pipe_clk);
 }
 
 static int qcom_pcie_init_v2(struct qcom_pcie *pcie)
@@ -907,8 +914,11 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	if (ret)
 		goto err_deinit;
 
-	if (pcie->ops->post_init)
-		pcie->ops->post_init(pcie);
+	if (pcie->ops->post_init) {
+		ret = pcie->ops->post_init(pcie);
+		if (ret)
+			goto err_disable_phy;
+	}
 
 	dw_pcie_setup_rc(pp);
 
@@ -924,6 +934,9 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	return 0;
 err:
 	qcom_ep_reset_assert(pcie);
+	if (pcie->ops->post_deinit)
+		pcie->ops->post_deinit(pcie);
+err_disable_phy:
 	phy_power_off(pcie->phy);
 err_deinit:
 	pcie->ops->deinit(pcie);
@@ -971,6 +984,7 @@ static const struct qcom_pcie_ops ops_v2 = {
 	.init = qcom_pcie_init_v2,
 	.post_init = qcom_pcie_post_init_v2,
 	.deinit = qcom_pcie_deinit_v2,
+	.post_deinit = qcom_pcie_post_deinit_v2,
 	.ltssm_enable = qcom_pcie_v2_ltssm_enable,
 };
 
