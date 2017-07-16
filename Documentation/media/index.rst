@@ -10,6 +10,7 @@ Contents:
    media_kapi
    dvb-drivers/index
    v4l-drivers/index
+   cec-drivers/index
 
 .. only::  subproject
 
