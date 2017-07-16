@@ -1304,7 +1304,7 @@ static void dvb_ca_en50221_thread_state_machine(struct dvb_ca_private *ca,
 			 */
 			if (dvb_ca_en50221_check_camstatus(ca, slot)) {
 				/*
-				 * we dont want to sleep on the next iteration
+				 * we don't want to sleep on the next iteration
 				 * so we can handle the cam change
 				 */
 				ca->wakeup = 1;
@@ -1314,7 +1314,7 @@ static void dvb_ca_en50221_thread_state_machine(struct dvb_ca_private *ca,
 			/* check if we've hit our limit this time */
 			if (++pktcount >= MAX_RX_PACKETS_PER_ITERATION) {
 				/*
-				 * dont sleep; there is likely to be more data
+				 * don't sleep; there is likely to be more data
 				 * to read
 				 */
 				ca->wakeup = 1;
