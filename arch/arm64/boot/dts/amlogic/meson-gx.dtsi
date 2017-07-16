@@ -437,9 +437,9 @@
 			mailbox: mailbox@404 {
 				compatible = "amlogic,meson-gx-mhu", "amlogic,meson-gxbb-mhu";
 				reg = <0 0x404 0 0x4c>;
-				interrupts = <0 208 IRQ_TYPE_EDGE_RISING>,
-					     <0 209 IRQ_TYPE_EDGE_RISING>,
-					     <0 210 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 208 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>,
+					     <GIC_SPI 210 IRQ_TYPE_EDGE_RISING>;
 				#mbox-cells = <1>;
 			};
 		};
@@ -448,7 +448,7 @@
 			compatible = "amlogic,meson-gx-dwmac", "amlogic,meson-gxbb-dwmac", "snps,dwmac";
 			reg = <0x0 0xc9410000 0x0 0x10000
 			       0x0 0xc8834540 0x0 0x4>;
-			interrupts = <0 8 1>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "macirq";
 			status = "disabled";
 		};
