@@ -164,6 +164,7 @@ alloc_buffer:
 	PU(nr_max_chunks);
 	PU(min_alloc_size);
 	PU(max_alloc_size);
+	P("empty_pop_pages", pcpu_nr_empty_pop_pages);
 	seq_putc(m, '\n');
 
 #undef PU

@@ -160,7 +160,7 @@ static LIST_HEAD(pcpu_map_extend_chunks);
  * The number of empty populated pages, protected by pcpu_lock.  The
  * reserved chunk doesn't contribute to the count.
  */
-static int pcpu_nr_empty_pop_pages;
+int pcpu_nr_empty_pop_pages;
 
 /*
  * Balance work is used to populate or destroy chunks asynchronously.  We
