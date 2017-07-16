@@ -937,6 +937,15 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
 
+		if (txq_id != trans_pcie->cmd_queue) {
+			int idx = get_cmd_index(txq, txq->read_ptr);
+			struct sk_buff *skb = txq->entries[idx].skb;
+
+			if (WARN_ON_ONCE(!skb))
+				continue;
+
+			iwl_pcie_free_tso_page(trans_pcie, skb);
+		}
 		iwl_pcie_gen2_free_tfd(trans, txq);
 		txq->read_ptr = iwl_queue_inc_wrap(txq->read_ptr);
 
