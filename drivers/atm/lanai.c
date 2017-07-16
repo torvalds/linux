@@ -2589,7 +2589,7 @@ static int lanai_init_one(struct pci_dev *pci,
 	return result;
 }
 
-static struct pci_device_id lanai_pci_tbl[] = {
+static const struct pci_device_id lanai_pci_tbl[] = {
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAI2) },
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAIHB) },
 	{ 0, }	/* terminal entry */

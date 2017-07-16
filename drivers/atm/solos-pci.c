@@ -1476,7 +1476,7 @@ static void fpga_remove(struct pci_dev *dev)
 	kfree(card);
 }
 
-static struct pci_device_id fpga_pci_tbl[] = {
+static const struct pci_device_id fpga_pci_tbl[] = {
 	{ 0x10ee, 0x0300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ 0, }
 };

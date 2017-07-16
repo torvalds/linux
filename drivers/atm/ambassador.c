@@ -2374,7 +2374,7 @@ MODULE_PARM_DESC(pci_lat, "PCI latency in bus cycles");
 
 /********** module entry **********/
 
-static struct pci_device_id amb_pci_tbl[] = {
+static const struct pci_device_id amb_pci_tbl[] = {
 	{ PCI_VDEVICE(MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR), 0 },
 	{ PCI_VDEVICE(MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR_BAD), 0 },
 	{ 0, }
