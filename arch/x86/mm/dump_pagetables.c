@@ -138,7 +138,7 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 {
 	pgprotval_t pr = pgprot_val(prot);
 	static const char * const level_name[] =
-		{ "cr3", "pgd", "pud", "pmd", "pte" };
+		{ "cr3", "pgd", "p4d", "pud", "pmd", "pte" };
 
 	if (!pgprot_val(prot)) {
 		/* Not present */
@@ -162,12 +162,12 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 			pt_dump_cont_printf(m, dmsg, "    ");
 
 		/* Bit 7 has a different meaning on level 3 vs 4 */
-		if (level <= 3 && pr & _PAGE_PSE)
+		if (level <= 4 && pr & _PAGE_PSE)
 			pt_dump_cont_printf(m, dmsg, "PSE ");
 		else
 			pt_dump_cont_printf(m, dmsg, "    ");
-		if ((level == 4 && pr & _PAGE_PAT) ||
-		    ((level == 3 || level == 2) && pr & _PAGE_PAT_LARGE))
+		if ((level == 5 && pr & _PAGE_PAT) ||
+		    ((level == 4 || level == 3) && pr & _PAGE_PAT_LARGE))
 			pt_dump_cont_printf(m, dmsg, "PAT ");
 		else
 			pt_dump_cont_printf(m, dmsg, "    ");
@@ -298,7 +298,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr, 
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		prot = pte_flags(*start);
 		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
-		note_page(m, st, __pgprot(prot), 4);
+		note_page(m, st, __pgprot(prot), 5);
 		start++;
 	}
 }
@@ -317,13 +317,13 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st, pud_t addr, 
 		if (!pmd_none(*start)) {
 			if (pmd_large(*start) || !pmd_present(*start)) {
 				prot = pmd_flags(*start);
-				note_page(m, st, __pgprot(prot), 3);
+				note_page(m, st, __pgprot(prot), 4);
 			} else {
 				walk_pte_level(m, st, *start,
 					       P + i * PMD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 3);
+			note_page(m, st, __pgprot(0), 4);
 		start++;
 	}
 }
@@ -362,13 +362,13 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr, 
 		    !pud_already_checked(prev_pud, start, st->check_wx)) {
 			if (pud_large(*start) || !pud_present(*start)) {
 				prot = pud_flags(*start);
-				note_page(m, st, __pgprot(prot), 2);
+				note_page(m, st, __pgprot(prot), 3);
 			} else {
 				walk_pmd_level(m, st, *start,
 					       P + i * PUD_LEVEL_MULT);
 			}
 		} else
-			note_page(m, st, __pgprot(0), 2);
+			note_page(m, st, __pgprot(0), 3);
 
 		prev_pud = start;
 		start++;
