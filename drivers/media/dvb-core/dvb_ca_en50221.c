@@ -263,7 +263,7 @@ static int dvb_ca_en50221_check_camstatus(struct dvb_ca_private *ca, int slot)
 	} else {
 		if ((sl->slot_state == DVB_CA_SLOTSTATE_WAITREADY) &&
 		    (slot_status & DVB_CA_EN50221_POLL_CAM_READY)) {
-			// move to validate state if reset is completed
+			/* move to validate state if reset is completed */
 			sl->slot_state = DVB_CA_SLOTSTATE_VALIDATE;
 		}
 	}
@@ -442,7 +442,7 @@ static int dvb_ca_en50221_read_tuple(struct dvb_ca_private *ca, int slot,
 	}
 	_address += (_tuple_length * 2);
 
-	// success
+	/* success */
 	*tuple_type = _tuple_type;
 	*tuple_length = _tuple_length;
 	*address = _address;
@@ -476,7 +476,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 	u16 devid = 0;
 
 
-	// CISTPL_DEVICE_0A
+	/* CISTPL_DEVICE_0A */
 	status = dvb_ca_en50221_read_tuple(ca, slot, &address, &tuple_type,
 					   &tuple_length, tuple);
 	if (status < 0)
@@ -486,7 +486,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 
 
 
-	// CISTPL_DEVICE_0C
+	/* CISTPL_DEVICE_0C */
 	status = dvb_ca_en50221_read_tuple(ca, slot, &address, &tuple_type,
 					   &tuple_length, tuple);
 	if (status < 0)
@@ -496,7 +496,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 
 
 
-	// CISTPL_VERS_1
+	/* CISTPL_VERS_1 */
 	status = dvb_ca_en50221_read_tuple(ca, slot, &address, &tuple_type,
 					   &tuple_length, tuple);
 	if (status < 0)
@@ -506,7 +506,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 
 
 
-	// CISTPL_MANFID
+	/* CISTPL_MANFID */
 	status = dvb_ca_en50221_read_tuple(ca, slot, &address, &tuple_type,
 					   &tuple_length, tuple);
 	if (status < 0)
@@ -520,7 +520,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 
 
 
-	// CISTPL_CONFIG
+	/* CISTPL_CONFIG */
 	status = dvb_ca_en50221_read_tuple(ca, slot, &address, &tuple_type,
 					   &tuple_length, tuple);
 	if (status < 0)
@@ -562,7 +562,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 		if (status < 0)
 			return status;
 		switch (tuple_type) {
-		case 0x1B:	// CISTPL_CFTABLE_ENTRY
+		case 0x1B:	/* CISTPL_CFTABLE_ENTRY */
 			if (tuple_length < (2 + 11 + 17))
 				break;
 
@@ -583,10 +583,10 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 			got_cftableentry = 1;
 			break;
 
-		case 0x14:	// CISTPL_NO_LINK
+		case 0x14:	/* CISTPL_NO_LINK */
 			break;
 
-		case 0xFF:	// CISTPL_END
+		case 0xFF:	/* CISTPL_END */
 			end_chain = 1;
 			break;
 
@@ -603,7 +603,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 	dprintk("Valid DVB CAM detected MANID:%x DEVID:%x CONFIGBASE:0x%x CONFIGOPTION:0x%x\n",
 		manfid, devid, sl->config_base, sl->config_option);
 
-	// success!
+	/* success! */
 	return 0;
 }
 
