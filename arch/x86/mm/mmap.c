@@ -42,9 +42,9 @@ unsigned long task_size_32bit(void)
 	return IA32_PAGE_OFFSET;
 }
 
-unsigned long task_size_64bit(void)
+unsigned long task_size_64bit(int full_addr_space)
 {
-	return TASK_SIZE_MAX;
+	return full_addr_space ? TASK_SIZE_MAX : DEFAULT_MAP_WINDOW;
 }
 
 static unsigned long stack_maxrandom_size(unsigned long task_size)
@@ -142,7 +142,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 
 	arch_pick_mmap_base(&mm->mmap_base, &mm->mmap_legacy_base,
-			arch_rnd(mmap64_rnd_bits), task_size_64bit());
+			arch_rnd(mmap64_rnd_bits), task_size_64bit(0));
 
 #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
 	/*
