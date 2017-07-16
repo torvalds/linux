@@ -76,8 +76,6 @@ MODULE_PARM_DESC(cam_debug, "enable verbose debug messages");
 #define STATUSREG_WE     2	/* write error */
 #define STATUSREG_FR  0x40	/* module free */
 #define STATUSREG_DA  0x80	/* data available */
-#define STATUSREG_TXERR (STATUSREG_RE|STATUSREG_WE)	/* general transfer error */
-
 
 #define DVB_CA_SLOTSTATE_NONE           0
 #define DVB_CA_SLOTSTATE_UNINITIALISED  1
