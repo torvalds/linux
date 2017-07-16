@@ -313,7 +313,7 @@ static int dvb_ca_en50221_wait_if_status(struct dvb_ca_private *ca, int slot,
 		}
 
 		/* wait for a bit */
-		msleep(1);
+		usleep_range(1000, 1100);
 	}
 
 	dprintk("%s failed timeout:%lu\n", __func__, jiffies - start);
@@ -1489,7 +1489,7 @@ static ssize_t dvb_ca_en50221_io_write(struct file *file,
 			if (status != -EAGAIN)
 				goto exit;
 
-			msleep(1);
+			usleep_range(1000, 1100);
 		}
 		if (!written) {
 			status = -EIO;
