@@ -809,6 +809,7 @@ static inline void spin_lock_prefetch(const void *x)
 #define IA32_PAGE_OFFSET	PAGE_OFFSET
 #define TASK_SIZE		PAGE_OFFSET
 #define TASK_SIZE_MAX		TASK_SIZE
+#define DEFAULT_MAP_WINDOW	TASK_SIZE
 #define STACK_TOP		TASK_SIZE
 #define STACK_TOP_MAX		STACK_TOP
 
@@ -849,6 +850,8 @@ static inline void spin_lock_prefetch(const void *x)
  * at the maximum canonical address.
  */
 #define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
+
+#define DEFAULT_MAP_WINDOW	TASK_SIZE_MAX
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
