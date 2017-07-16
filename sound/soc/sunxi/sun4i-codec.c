@@ -1171,9 +1171,8 @@ static int sun4i_codec_spk_event(struct snd_soc_dapm_widget *w,
 {
 	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(w->dapm->card);
 
-	if (scodec->gpio_pa)
-		gpiod_set_value_cansleep(scodec->gpio_pa,
-					 !!SND_SOC_DAPM_EVENT_ON(event));
+	gpiod_set_value_cansleep(scodec->gpio_pa,
+				 !!SND_SOC_DAPM_EVENT_ON(event));
 
 	return 0;
 }
