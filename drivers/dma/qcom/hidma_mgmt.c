@@ -227,7 +227,8 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (max_write_request) {
+	if (max_write_request &&
+			(max_write_request != mgmtdev->max_write_request)) {
 		dev_info(&pdev->dev, "overriding max-write-burst-bytes: %d\n",
 			max_write_request);
 		mgmtdev->max_write_request = max_write_request;
@@ -240,7 +241,8 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "max-read-burst-bytes missing\n");
 		goto out;
 	}
-	if (max_read_request) {
+	if (max_read_request &&
+			(max_read_request != mgmtdev->max_read_request)) {
 		dev_info(&pdev->dev, "overriding max-read-burst-bytes: %d\n",
 			max_read_request);
 		mgmtdev->max_read_request = max_read_request;
@@ -253,7 +255,8 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "max-write-transactions missing\n");
 		goto out;
 	}
-	if (max_wr_xactions) {
+	if (max_wr_xactions &&
+			(max_wr_xactions != mgmtdev->max_wr_xactions)) {
 		dev_info(&pdev->dev, "overriding max-write-transactions: %d\n",
 			max_wr_xactions);
 		mgmtdev->max_wr_xactions = max_wr_xactions;
@@ -266,7 +269,8 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "max-read-transactions missing\n");
 		goto out;
 	}
-	if (max_rd_xactions) {
+	if (max_rd_xactions &&
+			(max_rd_xactions != mgmtdev->max_rd_xactions)) {
 		dev_info(&pdev->dev, "overriding max-read-transactions: %d\n",
 			max_rd_xactions);
 		mgmtdev->max_rd_xactions = max_rd_xactions;
