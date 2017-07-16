@@ -1152,7 +1152,7 @@ static int pi433_probe(struct spi_device *spi)
 	device->tx_task_struct = kthread_run(pi433_tx_thread,
 					     device,
 					     "pi433_tx_task");
-	if (device->tx_task_struct < 0)
+	if (IS_ERR(device->tx_task_struct))
 	{
 		dev_dbg(device->dev, "start of send thread failed");
 		goto send_thread_failed;
