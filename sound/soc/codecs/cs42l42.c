@@ -1898,8 +1898,7 @@ static int cs42l42_i2c_remove(struct i2c_client *i2c_client)
 	snd_soc_unregister_codec(&i2c_client->dev);
 
 	/* Hold down reset */
-	if (cs42l42->reset_gpio)
-		gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
 
 	return 0;
 }
@@ -1913,8 +1912,7 @@ static int cs42l42_runtime_suspend(struct device *dev)
 	regcache_mark_dirty(cs42l42->regmap);
 
 	/* Hold down reset */
-	if (cs42l42->reset_gpio)
-		gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
 
 	/* remove power */
 	regulator_bulk_disable(ARRAY_SIZE(cs42l42->supplies),
@@ -1937,8 +1935,7 @@ static int cs42l42_runtime_resume(struct device *dev)
 		return ret;
 	}
 
-	if (cs42l42->reset_gpio)
-		gpiod_set_value_cansleep(cs42l42->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs42l42->reset_gpio, 1);
 
 	regcache_cache_only(cs42l42->regmap, false);
 	regcache_sync(cs42l42->regmap);
