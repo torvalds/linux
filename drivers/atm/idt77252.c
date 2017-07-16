@@ -3725,7 +3725,7 @@ err_out_disable_pdev:
 	return err;
 }
 
-static struct pci_device_id idt77252_pci_tbl[] =
+static const struct pci_device_id idt77252_pci_tbl[] =
 {
 	{ PCI_VDEVICE(IDT, PCI_DEVICE_ID_IDT_IDT77252), 0 },
 	{ 0, }
