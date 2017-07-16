@@ -1071,7 +1071,8 @@ static void dvb_ca_en50221_thread_update_delay(struct dvb_ca_private *ca)
 	int curdelay = 100000000;
 	int slot;
 
-	/* Beware of too high polling frequency, because one polling
+	/*
+	 * Beware of too high polling frequency, because one polling
 	 * call might take several hundred milliseconds until timeout!
 	 */
 	for (slot = 0; slot < ca->slot_count; slot++) {
