@@ -869,8 +869,7 @@ static int __maybe_unused cs35l33_runtime_resume(struct device *dev)
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	if (cs35l33->reset_gpio)
-		gpiod_set_value_cansleep(cs35l33->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l33->reset_gpio, 0);
 
 	ret = regulator_bulk_enable(cs35l33->num_core_supplies,
 		cs35l33->core_supplies);
@@ -881,8 +880,7 @@ static int __maybe_unused cs35l33_runtime_resume(struct device *dev)
 
 	regcache_cache_only(cs35l33->regmap, false);
 
-	if (cs35l33->reset_gpio)
-		gpiod_set_value_cansleep(cs35l33->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs35l33->reset_gpio, 1);
 
 	msleep(CS35L33_BOOT_DELAY);
 
@@ -1191,8 +1189,7 @@ static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	if (cs35l33->reset_gpio)
-		gpiod_set_value_cansleep(cs35l33->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs35l33->reset_gpio, 1);
 
 	msleep(CS35L33_BOOT_DELAY);
 	regcache_cache_only(cs35l33->regmap, false);
@@ -1262,8 +1259,7 @@ static int cs35l33_i2c_remove(struct i2c_client *client)
 
 	snd_soc_unregister_codec(&client->dev);
 
-	if (cs35l33->reset_gpio)
-		gpiod_set_value_cansleep(cs35l33->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l33->reset_gpio, 0);
 
 	pm_runtime_disable(&client->dev);
 	regulator_bulk_disable(cs35l33->num_core_supplies,
