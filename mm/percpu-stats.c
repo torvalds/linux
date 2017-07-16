@@ -18,7 +18,7 @@
 #include "percpu-internal.h"
 
 #define P(X, Y) \
-	seq_printf(m, "  %-24s: %8lld\n", X, (long long int)Y)
+	seq_printf(m, "  %-20s: %12lld\n", X, (long long int)Y)
 
 struct percpu_stats pcpu_stats;
 struct pcpu_alloc_info pcpu_stats_ai;
@@ -134,7 +134,7 @@ alloc_buffer:
 	}
 
 #define PL(X) \
-	seq_printf(m, "  %-24s: %8lld\n", #X, (long long int)pcpu_stats_ai.X)
+	seq_printf(m, "  %-20s: %12lld\n", #X, (long long int)pcpu_stats_ai.X)
 
 	seq_printf(m,
 			"Percpu Memory Statistics\n"
@@ -151,7 +151,7 @@ alloc_buffer:
 #undef PL
 
 #define PU(X) \
-	seq_printf(m, "  %-18s: %14llu\n", #X, (unsigned long long)pcpu_stats.X)
+	seq_printf(m, "  %-20s: %12llu\n", #X, (unsigned long long)pcpu_stats.X)
 
 	seq_printf(m,
 			"Global Stats:\n"
