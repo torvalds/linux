@@ -313,7 +313,7 @@ pi433_start_rx(struct pi433_device *dev)
 
 /*-------------------------------------------------------------------------*/
 
-int
+static int
 pi433_receive(void *data)
 {
 	struct pi433_device *dev = data;
@@ -463,7 +463,7 @@ abort:
 		return bytes_total;
 }
 
-int
+static int
 pi433_tx_thread(void *data)
 {
 	struct pi433_device *device = data;
