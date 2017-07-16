@@ -374,12 +374,12 @@ static void rds_conn_path_destroy(struct rds_conn_path *cp)
 	if (!cp->cp_transport_data)
 		return;
 
-	rds_conn_path_drop(cp);
-	flush_work(&cp->cp_down_w);
-
 	/* make sure lingering queued work won't try to ref the conn */
 	cancel_delayed_work_sync(&cp->cp_send_w);
 	cancel_delayed_work_sync(&cp->cp_recv_w);
+
+	rds_conn_path_drop(cp, true);
+	flush_work(&cp->cp_down_w);
 
 	/* tear down queued messages */
 	list_for_each_entry_safe(rm, rtmp,
@@ -664,9 +664,13 @@ void rds_conn_exit(void)
 /*
  * Force a disconnect
  */
-void rds_conn_path_drop(struct rds_conn_path *cp)
+void rds_conn_path_drop(struct rds_conn_path *cp, bool destroy)
 {
 	atomic_set(&cp->cp_state, RDS_CONN_ERROR);
+
+	if (!destroy && cp->cp_conn->c_destroy_in_prog)
+		return;
+
 	queue_work(rds_wq, &cp->cp_down_w);
 }
 EXPORT_SYMBOL_GPL(rds_conn_path_drop);
@@ -674,7 +678,7 @@ EXPORT_SYMBOL_GPL(rds_conn_path_drop);
 void rds_conn_drop(struct rds_connection *conn)
 {
 	WARN_ON(conn->c_trans->t_mp_capable);
-	rds_conn_path_drop(&conn->c_path[0]);
+	rds_conn_path_drop(&conn->c_path[0], false);
 }
 EXPORT_SYMBOL_GPL(rds_conn_drop);
 
@@ -706,5 +710,5 @@ __rds_conn_path_error(struct rds_conn_path *cp, const char *fmt, ...)
 	vprintk(fmt, ap);
 	va_end(ap);
 
-	rds_conn_path_drop(cp);
+	rds_conn_path_drop(cp, false);
 }
