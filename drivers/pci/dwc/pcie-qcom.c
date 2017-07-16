@@ -901,7 +901,7 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 
 	ret = pcie->ops->init(pcie);
 	if (ret)
-		goto err_deinit;
+		return ret;
 
 	ret = phy_power_on(pcie->phy);
 	if (ret)
