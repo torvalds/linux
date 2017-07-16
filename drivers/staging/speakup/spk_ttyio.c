@@ -300,7 +300,7 @@ void spk_ttyio_release(void)
 
 	tty_ldisc_flush(speakup_tty);
 	tty_unlock(speakup_tty);
-	tty_ldisc_release(speakup_tty);
+	tty_release_struct(speakup_tty, speakup_tty->index);
 }
 EXPORT_SYMBOL_GPL(spk_ttyio_release);
 
