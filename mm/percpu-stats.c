@@ -49,7 +49,7 @@ static int find_max_map_used(void)
  * the beginning of the chunk to the last allocation.
  */
 static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
-			    void *buffer)
+			    int *buffer)
 {
 	int i, s_index, last_alloc, alloc_sign, as_len;
 	int *alloc_sizes, *p;
@@ -113,7 +113,7 @@ static int percpu_stats_show(struct seq_file *m, void *v)
 {
 	struct pcpu_chunk *chunk;
 	int slot, max_map_used;
-	void *buffer;
+	int *buffer;
 
 alloc_buffer:
 	spin_lock_irq(&pcpu_lock);
