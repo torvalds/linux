@@ -102,7 +102,7 @@ static unsigned int ee_flsh_adapter;
 static unsigned int sysfs_nonidx_addr;
 static unsigned int sysfs_idx_addr;
 
-static struct pci_device_id nes_pci_table[] = {
+static const struct pci_device_id nes_pci_table[] = {
 	{ PCI_VDEVICE(NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020), },
 	{ PCI_VDEVICE(NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020_KR), },
 	{0}
