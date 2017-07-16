@@ -1849,7 +1849,6 @@ static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table *wait)
 
 	return mask;
 }
-EXPORT_SYMBOL(dvb_ca_en50221_init);
 
 
 static const struct file_operations dvb_ca_fops = {
@@ -1968,8 +1967,7 @@ exit:
 	pubca->private = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(dvb_ca_en50221_release);
-
+EXPORT_SYMBOL(dvb_ca_en50221_init);
 
 
 /**
@@ -1995,3 +1993,4 @@ void dvb_ca_en50221_release(struct dvb_ca_en50221 *pubca)
 	dvb_ca_private_put(ca);
 	pubca->private = NULL;
 }
+EXPORT_SYMBOL(dvb_ca_en50221_release);
