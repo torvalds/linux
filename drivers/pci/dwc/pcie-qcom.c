@@ -891,7 +891,7 @@ static int qcom_pcie_link_up(struct dw_pcie *pci)
 	return !!(val & PCI_EXP_LNKSTA_DLLLA);
 }
 
-static void qcom_pcie_host_init(struct pcie_port *pp)
+static int qcom_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct qcom_pcie *pcie = to_qcom_pcie(pci);
@@ -921,12 +921,14 @@ static void qcom_pcie_host_init(struct pcie_port *pp)
 	if (ret)
 		goto err;
 
-	return;
+	return 0;
 err:
 	qcom_ep_reset_assert(pcie);
 	phy_power_off(pcie->phy);
 err_deinit:
 	pcie->ops->deinit(pcie);
+
+	return ret;
 }
 
 static int qcom_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,

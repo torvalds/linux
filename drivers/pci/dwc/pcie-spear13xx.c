@@ -177,13 +177,15 @@ static int spear13xx_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static void spear13xx_pcie_host_init(struct pcie_port *pp)
+static int spear13xx_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pci);
 
 	spear13xx_pcie_establish_link(spear13xx_pcie);
 	spear13xx_pcie_enable_interrupts(spear13xx_pcie);
+
+	return 0;
 }
 
 static const struct dw_pcie_host_ops spear13xx_pcie_host_ops = {
