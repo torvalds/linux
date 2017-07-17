@@ -604,6 +604,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 struct syscall_arg_fmt {
 	size_t	   (*scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
 	void	   *parm;
+	bool	   show_zero;
 };
 
 static struct syscall_fmt {
@@ -1428,7 +1429,8 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
  			 */
 			if (val == 0 &&
 			    !(sc->arg_fmt &&
-			      (sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAY ||
+			      (sc->arg_fmt[arg.idx].show_zero ||
+			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAY ||
 			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAYS) &&
 			      sc->arg_fmt[arg.idx].parm))
 				continue;
