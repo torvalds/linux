@@ -1143,7 +1143,8 @@ sub __read_config {
 sub get_test_case {
 	print "What test case would you like to run?\n";
 	print " (build, install or boot)\n";
-	print " Other tests are available but require editing the config file\n";
+	print " Other tests are available but require editing ktest.conf\n";
+	print " (see tools/testing/ktest/sample.conf)\n";
 	my $ans = <STDIN>;
 	chomp $ans;
 	$default{"TEST_TYPE"} = $ans;
