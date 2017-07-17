@@ -24,6 +24,7 @@
 #include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/cache.h>
+#include <linux/cpu.h>
 #include <linux/audit.h>
 #include <net/dst.h>
 #include <net/flow.h>
@@ -44,6 +45,8 @@ struct xfrm_flo {
 	u8 flags;
 };
 
+static DEFINE_PER_CPU(struct xfrm_dst *, xfrm_last_dst);
+static struct work_struct *xfrm_pcpu_work __read_mostly;
 static DEFINE_SPINLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo const __rcu *xfrm_policy_afinfo[AF_INET6 + 1]
 						__read_mostly;
@@ -972,6 +975,8 @@ int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
 	}
 	if (!cnt)
 		err = -ESRCH;
+	else
+		xfrm_policy_cache_flush();
 out:
 	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
 	return err;
@@ -1700,6 +1705,102 @@ static int xfrm_expand_policies(const struct flowi *fl, u16 family,
 
 }
 
+static void xfrm_last_dst_update(struct xfrm_dst *xdst, struct xfrm_dst *old)
+{
+	this_cpu_write(xfrm_last_dst, xdst);
+	if (old)
+		dst_release(&old->u.dst);
+}
+
+static void __xfrm_pcpu_work_fn(void)
+{
+	struct xfrm_dst *old;
+
+	old = this_cpu_read(xfrm_last_dst);
+	if (old && !xfrm_bundle_ok(old))
+		xfrm_last_dst_update(NULL, old);
+}
+
+static void xfrm_pcpu_work_fn(struct work_struct *work)
+{
+	local_bh_disable();
+	rcu_read_lock();
+	__xfrm_pcpu_work_fn();
+	rcu_read_unlock();
+	local_bh_enable();
+}
+
+void xfrm_policy_cache_flush(void)
+{
+	struct xfrm_dst *old;
+	bool found = 0;
+	int cpu;
+
+	local_bh_disable();
+	rcu_read_lock();
+	for_each_possible_cpu(cpu) {
+		old = per_cpu(xfrm_last_dst, cpu);
+		if (old && !xfrm_bundle_ok(old)) {
+			if (smp_processor_id() == cpu) {
+				__xfrm_pcpu_work_fn();
+				continue;
+			}
+			found = true;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+	local_bh_enable();
+
+	if (!found)
+		return;
+
+	get_online_cpus();
+
+	for_each_possible_cpu(cpu) {
+		bool bundle_release;
+
+		rcu_read_lock();
+		old = per_cpu(xfrm_last_dst, cpu);
+		bundle_release = old && !xfrm_bundle_ok(old);
+		rcu_read_unlock();
+
+		if (!bundle_release)
+			continue;
+
+		if (cpu_online(cpu)) {
+			schedule_work_on(cpu, &xfrm_pcpu_work[cpu]);
+			continue;
+		}
+
+		rcu_read_lock();
+		old = per_cpu(xfrm_last_dst, cpu);
+		if (old && !xfrm_bundle_ok(old)) {
+			per_cpu(xfrm_last_dst, cpu) = NULL;
+			dst_release(&old->u.dst);
+		}
+		rcu_read_unlock();
+	}
+
+	put_online_cpus();
+}
+
+static bool xfrm_pol_dead(struct xfrm_dst *xdst)
+{
+	unsigned int num_pols = xdst->num_pols;
+	unsigned int pol_dead = 0, i;
+
+	for (i = 0; i < num_pols; i++)
+		pol_dead |= xdst->pols[i]->walk.dead;
+
+	/* Mark DST_OBSOLETE_DEAD to fail the next xfrm_dst_check() */
+	if (pol_dead)
+		xdst->u.dst.obsolete = DST_OBSOLETE_DEAD;
+
+	return pol_dead;
+}
+
 static struct xfrm_dst *
 xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 			       const struct flowi *fl, u16 family,
@@ -1707,10 +1808,22 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 {
 	struct net *net = xp_net(pols[0]);
 	struct xfrm_state *xfrm[XFRM_MAX_DEPTH];
+	struct xfrm_dst *xdst, *old;
 	struct dst_entry *dst;
-	struct xfrm_dst *xdst;
 	int err;
 
+	xdst = this_cpu_read(xfrm_last_dst);
+	if (xdst &&
+	    xdst->u.dst.dev == dst_orig->dev &&
+	    xdst->num_pols == num_pols &&
+	    !xfrm_pol_dead(xdst) &&
+	    memcmp(xdst->pols, pols,
+		   sizeof(struct xfrm_policy *) * num_pols) == 0) {
+		dst_hold(&xdst->u.dst);
+		return xdst;
+	}
+
+	old = xdst;
 	/* Try to instantiate a bundle */
 	err = xfrm_tmpl_resolve(pols, num_pols, fl, xfrm, family);
 	if (err <= 0) {
@@ -1730,6 +1843,9 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 	xdst->num_pols = num_pols;
 	memcpy(xdst->pols, pols, sizeof(struct xfrm_policy *) * num_pols);
 	xdst->policy_genid = atomic_read(&pols[0]->genid);
+
+	atomic_set(&xdst->u.dst.__refcnt, 2);
+	xfrm_last_dst_update(xdst, old);
 
 	return xdst;
 }
@@ -2843,6 +2959,15 @@ static struct pernet_operations __net_initdata xfrm_net_ops = {
 
 void __init xfrm_init(void)
 {
+	int i;
+
+	xfrm_pcpu_work = kmalloc_array(NR_CPUS, sizeof(*xfrm_pcpu_work),
+				       GFP_KERNEL);
+	BUG_ON(!xfrm_pcpu_work);
+
+	for (i = 0; i < NR_CPUS; i++)
+		INIT_WORK(&xfrm_pcpu_work[i], xfrm_pcpu_work_fn);
+
 	register_pernet_subsys(&xfrm_net_ops);
 	seqcount_init(&xfrm_policy_hash_generation);
 	xfrm_input_init();

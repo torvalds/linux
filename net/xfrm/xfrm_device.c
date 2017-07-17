@@ -153,6 +153,7 @@ static int xfrm_dev_register(struct net_device *dev)
 
 static int xfrm_dev_unregister(struct net_device *dev)
 {
+	xfrm_policy_cache_flush();
 	return NOTIFY_DONE;
 }
 
@@ -175,6 +176,7 @@ static int xfrm_dev_down(struct net_device *dev)
 	if (dev->features & NETIF_F_HW_ESP)
 		xfrm_dev_state_flush(dev_net(dev), dev, true);
 
+	xfrm_policy_cache_flush();
 	return NOTIFY_DONE;
 }
 
