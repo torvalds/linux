@@ -12,21 +12,12 @@
 
 #include <linux/serial_reg.h>
 
-/* OMAP2 serial ports */
-#define OMAP2_UART1_BASE	0x4806a000
-#define OMAP2_UART2_BASE	0x4806c000
-#define OMAP2_UART3_BASE	0x4806e000
-
 /* OMAP3 serial ports */
-#define OMAP3_UART1_BASE	OMAP2_UART1_BASE
-#define OMAP3_UART2_BASE	OMAP2_UART2_BASE
 #define OMAP3_UART3_BASE	0x49020000
 #define OMAP3_UART4_BASE	0x49042000	/* Only on 36xx */
 #define OMAP3_UART4_AM35XX_BASE	0x4809E000	/* Only on AM35xx */
 
 /* OMAP4 serial ports */
-#define OMAP4_UART1_BASE	OMAP2_UART1_BASE
-#define OMAP4_UART2_BASE	OMAP2_UART2_BASE
 #define OMAP4_UART3_BASE	0x48020000
 #define OMAP4_UART4_BASE	0x4806e000
 
@@ -42,8 +33,6 @@
 #define AM33XX_UART1_BASE	0x44E09000
 
 /* OMAP5 serial ports */
-#define OMAP5_UART1_BASE	OMAP2_UART1_BASE
-#define OMAP5_UART2_BASE	OMAP2_UART2_BASE
 #define OMAP5_UART3_BASE	OMAP4_UART3_BASE
 #define OMAP5_UART4_BASE	OMAP4_UART4_BASE
 #define OMAP5_UART5_BASE	0x48066000
@@ -79,18 +68,6 @@ omap_uart_lsr:	.word	0
 		bne	100f			@ already configured
 
 		/* Configure the UART offset from the phys/virt base */
-#ifdef CONFIG_DEBUG_OMAP2UART1
-		mov	\rp, #UART_OFFSET(OMAP2_UART1_BASE)	@ omap2/3/4
-		b	98f
-#endif
-#ifdef CONFIG_DEBUG_OMAP2UART2
-		mov	\rp, #UART_OFFSET(OMAP2_UART2_BASE)	@ omap2/3/4
-		b	98f
-#endif
-#ifdef CONFIG_DEBUG_OMAP2UART3
-		mov	\rp, #UART_OFFSET(OMAP2_UART3_BASE)
-		b	98f
-#endif
 #ifdef CONFIG_DEBUG_OMAP3UART3
 		mov	\rp, #UART_OFFSET(OMAP3_UART1_BASE)
 		add	\rp, \rp, #0x00fb0000
