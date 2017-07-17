@@ -45,10 +45,10 @@
 			     VISOR_CONTROLVM_CHANNEL_SIGNATURE))
 
 /* Defines for various channel queues */
-#define CONTROLVM_QUEUE_REQUEST	 0
-#define CONTROLVM_QUEUE_RESPONSE 1
-#define CONTROLVM_QUEUE_EVENT	 2
-#define CONTROLVM_QUEUE_ACK	 3
+#define CONTROLVM_QUEUE_REQUEST		0
+#define CONTROLVM_QUEUE_RESPONSE	1
+#define CONTROLVM_QUEUE_EVENT		2
+#define CONTROLVM_QUEUE_ACK		3
 
 /* Max num of messages stored during IOVM creation to be reused after crash */
 #define CONTROLVM_CRASHMSG_MAX 2
