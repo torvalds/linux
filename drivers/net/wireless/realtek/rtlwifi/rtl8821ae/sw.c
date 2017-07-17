@@ -423,7 +423,7 @@ static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.maps[RTL_RC_VHT_RATE_2SS_MCS9] = DESC_RATEVHT2SS_MCS9,
 };
 
-static struct pci_device_id rtl8821ae_pci_ids[] = {
+static const struct pci_device_id rtl8821ae_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8812, rtl8821ae_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8821, rtl8821ae_hal_cfg)},
 	{},
