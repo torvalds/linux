@@ -258,6 +258,7 @@ sub give_debian_hints()
 		"convert"		=> "imagemagick",
 		"Pod::Usage"		=> "perl-modules",
 		"xelatex"		=> "texlive-xetex",
+		"rsvg-convert"		=> "librsvg2-bin",
 	);
 
 	if ($pdf) {
@@ -283,6 +284,7 @@ sub give_redhat_hints()
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
 		"xelatex"		=> "texlive-xetex-bin",
+		"rsvg-convert"		=> "librsvg2-tools",
 	);
 
 	my @fedora26_opt_pkgs = (
@@ -321,6 +323,7 @@ sub give_opensuse_hints()
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
 		"xelatex"		=> "texlive-xetex-bin",
+		"rsvg-convert"		=> "rsvg-view",
 	);
 
 	my @suse_tex_pkgs = (
@@ -357,6 +360,7 @@ sub give_arch_linux_hints()
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
 		"xelatex"		=> "texlive-bin",
+		"rsvg-convert"		=> "extra/librsvg",
 	);
 
 	my @archlinux_tex_pkgs = (
@@ -380,6 +384,7 @@ sub give_gentoo_hints()
 		"dot"			=> "media-gfx/graphviz",
 		"convert"		=> "media-gfx/imagemagick",
 		"xelatex"		=> "dev-texlive/texlive-xetex media-fonts/dejavu",
+		"rsvg-convert"		=> "gnome-base/librsvg",
 	);
 
 	check_missing_file("/usr/share/fonts/dejavu/DejaVuSans.ttf",
@@ -458,6 +463,7 @@ sub check_needs()
 	check_program("xelatex", 1) if ($pdf);
 	check_program("dot", 1);
 	check_program("convert", 1);
+	check_program("rsvg-convert", 1) if ($pdf);
 
 	check_distros();
 
