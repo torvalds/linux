@@ -408,7 +408,7 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	 */
 	if (mode->clock > 340000 &&
 	    connector->display_info.max_tmds_clock < 340000 &&
-	    !(mode->flags & DRM_MODE_FLAG_420_MASK))
+	    !drm_mode_is_420(&connector->display_info, mode))
 		return MODE_BAD;
 
 	if (!encoder) {
@@ -427,7 +427,7 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 
 	hdmi = to_rockchip_hdmi(encoder);
 	if (hdmi->dev_type == RK3368_HDMI && mode->clock > 340000 &&
-	    !(mode->flags & DRM_MODE_FLAG_420_MASK))
+	    !drm_mode_is_420(&connector->display_info, mode))
 		return MODE_BAD;
 	/*
 	 * ensure all drm display mode can work, if someone want support more
@@ -525,24 +525,20 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct drm_display_info *info = &conn_state->connector->display_info;
 
-	if (hdmi->phy) {
-		if (drm_match_cea_mode(&crtc_state->mode) > 94 &&
-		    crtc_state->mode.crtc_clock > 340000 &&
-		    !(crtc_state->mode.flags & DRM_MODE_FLAG_420_MASK)) {
-			crtc_state->mode.flags |= DRM_MODE_FLAG_420;
-			phy_set_bus_width(hdmi->phy, 4);
-		} else {
-			phy_set_bus_width(hdmi->phy, 8);
-		}
-	}
-
-	if (crtc_state->mode.flags & DRM_MODE_FLAG_420_MASK) {
+	if (conn_state->connector->ycbcr_420_allowed &&
+	    crtc_state->mode.crtc_clock > 340000 &&
+	    drm_mode_is_420(info, &crtc_state->mode)) {
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
 		s->bus_format = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
+		if (hdmi->phy)
+			phy_set_bus_width(hdmi->phy, 4);
 	} else {
 		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		if (hdmi->phy)
+			phy_set_bus_width(hdmi->phy, 8);
 	}
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
 	s->tv_state = &conn_state->tv;
