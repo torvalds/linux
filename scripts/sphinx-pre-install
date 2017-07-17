@@ -13,6 +13,8 @@ use strict;
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+my $virtenv_dir = "sphinx_1.4";
+
 #
 # Static vars
 #
@@ -454,16 +456,22 @@ sub check_needs()
 		       which("sphinx-build-3");
 	}
 	if ($need_sphinx) {
-		my $virtualenv = findprog("virtualenv-3");
-		$virtualenv = findprog("virtualenv") if (!$virtualenv);
-		$virtualenv = "virtualenv" if (!$virtualenv);
+		my $activate = "$virtenv_dir/bin/activate";
+		if (-e "$ENV{'PWD'}/$activate") {
+			printf "\nNeed to activate virtualenv with:\n";
+			printf "\t. $activate\n";
+		} else {
+			my $virtualenv = findprog("virtualenv-3");
+			$virtualenv = findprog("virtualenv") if (!$virtualenv);
+			$virtualenv = "virtualenv" if (!$virtualenv);
 
-		printf "\t$virtualenv sphinx_1.4\n";
-		printf "\t. sphinx_1.4/bin/activate\n";
-		printf "\tpip install 'docutils==0.12'\n";
-		printf "\tpip install 'Sphinx==1.4.9'\n";
-		printf "\tpip install sphinx_rtd_theme\n";
-		$need++;
+			printf "\t$virtualenv $virtenv_dir\n";
+			printf "\t. $activate\n";
+			printf "\tpip install 'docutils==0.12'\n";
+			printf "\tpip install 'Sphinx==1.4.9'\n";
+			printf "\tpip install sphinx_rtd_theme\n";
+			$need++;
+		}
 	}
 	printf "\n";
 
