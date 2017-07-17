@@ -399,8 +399,7 @@ error:
 	}
 
 	/* Put PHYs in RESET to save power */
-	if (bus->reset_gpiod)
-		gpiod_set_value_cansleep(bus->reset_gpiod, 1);
+	gpiod_set_value_cansleep(bus->reset_gpiod, 1);
 
 	device_del(&bus->dev);
 	return err;
@@ -425,8 +424,7 @@ void mdiobus_unregister(struct mii_bus *bus)
 	}
 
 	/* Put PHYs in RESET to save power */
-	if (bus->reset_gpiod)
-		gpiod_set_value_cansleep(bus->reset_gpiod, 1);
+	gpiod_set_value_cansleep(bus->reset_gpiod, 1);
 
 	device_del(&bus->dev);
 }
