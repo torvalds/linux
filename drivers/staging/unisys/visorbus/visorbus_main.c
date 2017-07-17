@@ -23,7 +23,6 @@
 
 /* Display string that is guaranteed to be no longer the 99 characters */
 #define LINESIZE 99
-#define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
 #define POLLJIFFIES_NORMALCHANNEL 10
 
 /* stores whether bus_registration was successful */
