@@ -41,18 +41,6 @@
 #define VISOR_VHBA_CHANNEL_VERSIONID 2
 #define VISOR_VNIC_CHANNEL_VERSIONID 2
 
-#define VISOR_VHBA_CHANNEL_OK_CLIENT(ch) \
-	(visor_check_channel(ch, visor_vhba_channel_uuid, \
-			     "vhba", MIN_IO_CHANNEL_SIZE, \
-			     VISOR_VHBA_CHANNEL_VERSIONID, \
-			     VISOR_CHANNEL_SIGNATURE))
-
-#define VISOR_VNIC_CHANNEL_OK_CLIENT(ch) \
-	(visor_check_channel(ch, visor_vnic_channel_uuid, \
-			     "vnic", MIN_IO_CHANNEL_SIZE, \
-			     VISOR_VNIC_CHANNEL_VERSIONID, \
-			     VISOR_CHANNEL_SIGNATURE))
-
 /*
  * Everything necessary to handle SCSI & NIC traffic between Guest Partition and
  * IO Partition is defined below.
