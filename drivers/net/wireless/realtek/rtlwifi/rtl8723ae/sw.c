@@ -369,7 +369,7 @@ static const struct rtl_hal_cfg rtl8723e_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92C_RATEMCS15,
 };
 
-static struct pci_device_id rtl8723e_pci_ids[] = {
+static const struct pci_device_id rtl8723e_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8723, rtl8723e_hal_cfg)},
 	{},
 };
