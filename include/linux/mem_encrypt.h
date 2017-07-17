@@ -35,6 +35,14 @@ static inline unsigned long sme_get_me_mask(void)
 	return sme_me_mask;
 }
 
+/*
+ * The __sme_set() and __sme_clr() macros are useful for adding or removing
+ * the encryption mask from a value (e.g. when dealing with pagetable
+ * entries).
+ */
+#define __sme_set(x)		((unsigned long)(x) | sme_me_mask)
+#define __sme_clr(x)		((unsigned long)(x) & ~sme_me_mask)
+
 #endif	/* __ASSEMBLY__ */
 
 #endif	/* __MEM_ENCRYPT_H__ */

@@ -102,7 +102,7 @@ unsigned long __head __startup_64(unsigned long physaddr)
 
 	pud = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
 	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
-	pgtable_flags = _KERNPG_TABLE + sme_get_me_mask();
+	pgtable_flags = _KERNPG_TABLE_NOENC + sme_get_me_mask();
 
 	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
 		p4d = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
@@ -177,7 +177,7 @@ static void __init reset_early_page_tables(void)
 {
 	memset(early_top_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
 	next_early_pgt = 0;
-	write_cr3(__pa_nodebug(early_top_pgt));
+	write_cr3(__sme_pa_nodebug(early_top_pgt));
 }
 
 /* Create a new PMD entry */
@@ -309,6 +309,13 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 	clear_bss();
 
 	clear_page(init_top_pgt);
+
+	/*
+	 * SME support may update early_pmd_flags to include the memory
+	 * encryption mask, so it needs to be called before anything
+	 * that may generate a page fault.
+	 */
+	sme_early_init();
 
 	kasan_early_init();
 

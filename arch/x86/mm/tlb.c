@@ -115,7 +115,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			 */
 			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
 				       next_tlb_gen);
-			write_cr3(__pa(next->pgd));
+			write_cr3(__sme_pa(next->pgd));
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
 					TLB_FLUSH_ALL);
 		}
@@ -157,7 +157,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
 		this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, next_tlb_gen);
 		this_cpu_write(cpu_tlbstate.loaded_mm, next);
-		write_cr3(__pa(next->pgd));
+		write_cr3(__sme_pa(next->pgd));
 
 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 	}
