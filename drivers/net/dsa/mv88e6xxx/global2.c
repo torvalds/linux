@@ -40,6 +40,21 @@ static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 	return mv88e6xxx_wait(chip, MV88E6XXX_G2, reg, mask);
 }
 
+/* Offset 0x00: Interrupt Source Register */
+
+static int mv88e6xxx_g2_int_source(struct mv88e6xxx_chip *chip, u16 *src)
+{
+	/* Read (and clear most of) the Interrupt Source bits */
+	return mv88e6xxx_g2_read(chip, MV88E6XXX_G2_INT_SRC, src);
+}
+
+/* Offset 0x01: Interrupt Mask Register */
+
+static int mv88e6xxx_g2_int_mask(struct mv88e6xxx_chip *chip, u16 mask)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_INT_MASK, mask);
+}
+
 /* Offset 0x02: Management Enable 2x */
 /* Offset 0x03: Management Enable 0x */
 
@@ -933,7 +948,7 @@ static irqreturn_t mv88e6xxx_g2_irq_thread_fn(int irq, void *dev_id)
 	u16 reg;
 
 	mutex_lock(&chip->reg_lock);
-	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_INT_SOURCE, &reg);
+	err = mv88e6xxx_g2_int_source(chip, &reg);
 	mutex_unlock(&chip->reg_lock);
 	if (err)
 		goto out;
@@ -959,8 +974,11 @@ static void mv88e6xxx_g2_irq_bus_lock(struct irq_data *d)
 static void mv88e6xxx_g2_irq_bus_sync_unlock(struct irq_data *d)
 {
 	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
+	int err;
 
-	mv88e6xxx_g2_write(chip, MV88E6XXX_G2_INT_MASK, ~chip->g2_irq.masked);
+	err = mv88e6xxx_g2_int_mask(chip, ~chip->g2_irq.masked);
+	if (err)
+		dev_err(chip->dev, "failed to mask interrupts\n");
 
 	mutex_unlock(&chip->reg_lock);
 }

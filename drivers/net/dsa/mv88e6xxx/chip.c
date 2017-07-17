@@ -3207,6 +3207,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
@@ -3242,6 +3243,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3260,6 +3262,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3295,6 +3298,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.atu_move_port_mask = 0x1f,
+		.g2_irqs = 10,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
@@ -3312,6 +3316,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3330,6 +3335,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
@@ -3348,6 +3354,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3366,6 +3373,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3384,6 +3392,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3402,6 +3411,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3438,6 +3448,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.g2_irqs = 14,
 		.pvt = true,
 		.atu_move_port_mask = 0x1f,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
@@ -3455,6 +3466,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
@@ -3473,6 +3485,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
@@ -3491,6 +3504,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3509,6 +3523,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
@@ -3562,6 +3577,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.atu_move_port_mask = 0x1f,
+		.g2_irqs = 10,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
@@ -3579,6 +3595,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3597,6 +3614,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3615,6 +3633,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
+		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
@@ -3632,6 +3651,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
@@ -3649,6 +3669,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.global1_addr = 0x1b,
 		.age_time_coeff = 3750,
 		.g1_irqs = 9,
+		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
@@ -3970,7 +3991,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 		if (err)
 			goto out;
 
-		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT)) {
+		if (chip->info->g2_irqs > 0) {
 			err = mv88e6xxx_g2_irq_setup(chip);
 			if (err)
 				goto out_g1_irq;
@@ -3990,7 +4011,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 out_mdio:
 	mv88e6xxx_mdios_unregister(chip);
 out_g2_irq:
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT) && chip->irq > 0)
+	if (chip->info->g2_irqs > 0 && chip->irq > 0)
 		mv88e6xxx_g2_irq_free(chip);
 out_g1_irq:
 	if (chip->irq > 0) {
@@ -4012,7 +4033,7 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	mv88e6xxx_mdios_unregister(chip);
 
 	if (chip->irq > 0) {
-		if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_INT))
+		if (chip->info->g2_irqs > 0)
 			mv88e6xxx_g2_irq_free(chip);
 		mv88e6xxx_g1_irq_free(chip);
 	}
