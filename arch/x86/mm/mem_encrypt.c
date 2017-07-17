@@ -13,11 +13,14 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
+#include <linux/swiotlb.h>
 
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
 #include <asm/setup.h>
 #include <asm/bootparam.h>
+#include <asm/set_memory.h>
 
 /*
  * Since SME related variables are set early in the boot process they must
@@ -175,6 +178,25 @@ void __init sme_early_init(void)
 	/* Update the protection map with memory encryption mask */
 	for (i = 0; i < ARRAY_SIZE(protection_map); i++)
 		protection_map[i] = pgprot_encrypted(protection_map[i]);
+}
+
+/* Architecture __weak replacement functions */
+void __init mem_encrypt_init(void)
+{
+	if (!sme_me_mask)
+		return;
+
+	/* Call into SWIOTLB to update the SWIOTLB DMA buffers */
+	swiotlb_update_mem_attributes();
+}
+
+void swiotlb_set_mem_attributes(void *vaddr, unsigned long size)
+{
+	WARN(PAGE_ALIGN(size) != size,
+	     "size is not page-aligned (%#lx)\n", size);
+
+	/* Make the SWIOTLB buffer area decrypted */
+	set_memory_decrypted((unsigned long)vaddr, size >> PAGE_SHIFT);
 }
 
 void __init sme_encrypt_kernel(void)
