@@ -11,8 +11,8 @@
 #include <asm/e820/types.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/pgtable.h>
 
-extern pgd_t early_top_pgt[PTRS_PER_PGD];
 extern struct range pfn_mapped[E820_MAX_ENTRIES];
 
 static int __init map_range(struct range *range)

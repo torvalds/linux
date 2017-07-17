@@ -16,6 +16,8 @@
 
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
+#include <asm/setup.h>
+#include <asm/bootparam.h>
 
 /*
  * Since SME related variables are set early in the boot process they must
@@ -96,6 +98,67 @@ void __init sme_early_encrypt(resource_size_t paddr, unsigned long size)
 void __init sme_early_decrypt(resource_size_t paddr, unsigned long size)
 {
 	__sme_early_enc_dec(paddr, size, false);
+}
+
+static void __init __sme_early_map_unmap_mem(void *vaddr, unsigned long size,
+					     bool map)
+{
+	unsigned long paddr = (unsigned long)vaddr - __PAGE_OFFSET;
+	pmdval_t pmd_flags, pmd;
+
+	/* Use early_pmd_flags but remove the encryption mask */
+	pmd_flags = __sme_clr(early_pmd_flags);
+
+	do {
+		pmd = map ? (paddr & PMD_MASK) + pmd_flags : 0;
+		__early_make_pgtable((unsigned long)vaddr, pmd);
+
+		vaddr += PMD_SIZE;
+		paddr += PMD_SIZE;
+		size = (size <= PMD_SIZE) ? 0 : size - PMD_SIZE;
+	} while (size);
+
+	__native_flush_tlb();
+}
+
+void __init sme_unmap_bootdata(char *real_mode_data)
+{
+	struct boot_params *boot_data;
+	unsigned long cmdline_paddr;
+
+	if (!sme_active())
+		return;
+
+	/* Get the command line address before unmapping the real_mode_data */
+	boot_data = (struct boot_params *)real_mode_data;
+	cmdline_paddr = boot_data->hdr.cmd_line_ptr | ((u64)boot_data->ext_cmd_line_ptr << 32);
+
+	__sme_early_map_unmap_mem(real_mode_data, sizeof(boot_params), false);
+
+	if (!cmdline_paddr)
+		return;
+
+	__sme_early_map_unmap_mem(__va(cmdline_paddr), COMMAND_LINE_SIZE, false);
+}
+
+void __init sme_map_bootdata(char *real_mode_data)
+{
+	struct boot_params *boot_data;
+	unsigned long cmdline_paddr;
+
+	if (!sme_active())
+		return;
+
+	__sme_early_map_unmap_mem(real_mode_data, sizeof(boot_params), true);
+
+	/* Get the command line address after mapping the real_mode_data */
+	boot_data = (struct boot_params *)real_mode_data;
+	cmdline_paddr = boot_data->hdr.cmd_line_ptr | ((u64)boot_data->ext_cmd_line_ptr << 32);
+
+	if (!cmdline_paddr)
+		return;
+
+	__sme_early_map_unmap_mem(__va(cmdline_paddr), COMMAND_LINE_SIZE, true);
 }
 
 void __init sme_early_init(void)
