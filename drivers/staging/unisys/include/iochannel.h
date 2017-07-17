@@ -31,8 +31,6 @@
 #include <linux/dma-direction.h>
 #include "channel.h"
 
-#define VISOR_VSWITCH_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
-
 /*
  * Must increment these whenever you insert or delete fields within this channel
  * struct. Also increment whenever you change the meaning of fields within this
