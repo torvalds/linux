@@ -261,7 +261,6 @@ static void visorinput_close(struct input_dev *visorinput_dev)
 	 * interrupts should be disabled so when we resume we will
 	 * not re-enable them.
 	 */
-
 	mutex_lock(&devdata->lock_visor_dev);
 	devdata->interrupts_enabled = false;
 	if (devdata->paused)
@@ -283,9 +282,8 @@ setup_client_keyboard(void *devdata,  /* opaque on purpose */
 
 {
 	int i;
-	struct input_dev *visorinput_dev;
+	struct input_dev *visorinput_dev = input_allocate_device();
 
-	visorinput_dev = input_allocate_device();
 	if (!visorinput_dev)
 		return NULL;
 
@@ -324,11 +322,10 @@ setup_client_keyboard(void *devdata,  /* opaque on purpose */
 static struct input_dev *
 setup_client_mouse(void *devdata /* opaque on purpose */)
 {
-	struct input_dev *visorinput_dev = NULL;
 	int xres, yres;
 	struct fb_info *fb0;
+	struct input_dev *visorinput_dev = input_allocate_device();
 
-	visorinput_dev = input_allocate_device();
 	if (!visorinput_dev)
 		return NULL;
 
@@ -543,7 +540,7 @@ scancode_to_keycode(int scancode)
 	if (scancode > 0xff)
 		return visorkbd_ext_keycode[(scancode >> 8) & 0xff];
 
-	return  visorkbd_keycode[scancode];
+	return visorkbd_keycode[scancode];
 }
 
 static int
@@ -574,7 +571,6 @@ visorinput_channel_interrupt(struct visor_device *dev)
 	struct input_dev *visorinput_dev;
 	int xmotion, ymotion, button;
 	int i;
-
 	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
 
 	if (!devdata)
@@ -630,7 +626,6 @@ visorinput_channel_interrupt(struct visor_device *dev)
 			if (button < 0)
 				break;
 			input_report_key(visorinput_dev, button, 1);
-
 			input_sync(visorinput_dev);
 			input_report_key(visorinput_dev, button, 0);
 			input_sync(visorinput_dev);
@@ -685,7 +680,6 @@ visorinput_pause(struct visor_device *dev,
 	 * due to above, at this time no thread of execution will be
 	 * in visorinput_channel_interrupt()
 	 */
-
 	devdata->paused = true;
 	complete_func(dev, 0);
 	rc = 0;
