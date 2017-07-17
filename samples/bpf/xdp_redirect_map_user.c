@@ -10,6 +10,7 @@
  * General Public License for more details.
  */
 #include <linux/bpf.h>
+#include <linux/if_link.h>
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
@@ -17,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "bpf_load.h"
 #include "bpf_util.h"
@@ -25,9 +27,11 @@
 static int ifindex_in;
 static int ifindex_out;
 
+static __u32 xdp_flags;
+
 static void int_exit(int sig)
 {
-	set_link_xdp_fd(ifindex_in, -1, 0);
+	set_link_xdp_fd(ifindex_in, -1, xdp_flags);
 	exit(0);
 }
 
@@ -56,20 +60,47 @@ static void poll_stats(int interval, int ifindex)
 	}
 }
 
-int main(int ac, char **argv)
+static void usage(const char *prog)
 {
+	fprintf(stderr,
+		"usage: %s [OPTS] IFINDEX_IN IFINDEX_OUT\n\n"
+		"OPTS:\n"
+		"    -S    use skb-mode\n"
+		"    -N    enforce native mode\n",
+		prog);
+}
+
+
+int main(int argc, char **argv)
+{
+	const char *optstr = "SN";
 	char filename[256];
-	int ret, key = 0;
+	int ret, opt, key = 0;
 
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	while ((opt = getopt(argc, argv, optstr)) != -1) {
+		switch (opt) {
+		case 'S':
+			xdp_flags |= XDP_FLAGS_SKB_MODE;
+			break;
+		case 'N':
+			xdp_flags |= XDP_FLAGS_DRV_MODE;
+			break;
+		default:
+			usage(basename(argv[0]));
+			return 1;
+		}
+	}
 
-	if (ac != 3) {
+	if (optind == argc) {
 		printf("usage: %s IFINDEX_IN IFINDEX_OUT\n", argv[0]);
 		return 1;
 	}
 
-	ifindex_in = strtoul(argv[1], NULL, 0);
-	ifindex_out = strtoul(argv[2], NULL, 0);
+	ifindex_in = strtoul(argv[optind], NULL, 0);
+	ifindex_out = strtoul(argv[optind + 1], NULL, 0);
+	printf("input: %d output: %d\n", ifindex_in, ifindex_out);
+
+	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);
@@ -82,8 +113,9 @@ int main(int ac, char **argv)
 	}
 
 	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
-	if (set_link_xdp_fd(ifindex_in, prog_fd[0], 0) < 0) {
+	if (set_link_xdp_fd(ifindex_in, prog_fd[0], xdp_flags) < 0) {
 		printf("link set xdp fd failed\n");
 		return 1;
 	}
