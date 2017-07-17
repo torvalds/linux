@@ -124,7 +124,6 @@ static ssize_t toolaction_store(struct device *dev,
 				 offsetof(struct visor_controlvm_channel,
 					  tool_action),
 				 &tool_action, sizeof(u8));
-
 	if (err)
 		return err;
 	return count;
@@ -143,7 +142,6 @@ static ssize_t boottotool_show(struct device *dev,
 					 efi_visor_ind),
 				&efi_visor_indication,
 				sizeof(struct efi_visor_indication));
-
 	if (err)
 		return err;
 	return sprintf(buf, "%u\n", efi_visor_indication.boot_to_tool);
@@ -165,7 +163,6 @@ static ssize_t boottotool_store(struct device *dev,
 					  efi_visor_ind),
 				 &(efi_visor_indication),
 				 sizeof(struct efi_visor_indication));
-
 	if (err)
 		return err;
 	return count;
@@ -302,11 +299,12 @@ parser_string_get(struct parser_context *ctx)
 	int i;
 
 	pscan = ctx->curr;
+	if (!pscan)
+		return NULL;
 	nscan = ctx->bytes_remaining;
 	if (nscan == 0)
 		return NULL;
-	if (!pscan)
-		return NULL;
+
 	for (i = 0, value_length = -1; i < nscan; i++)
 		if (pscan[i] == '\0') {
 			value_length = i;
@@ -315,6 +313,7 @@ parser_string_get(struct parser_context *ctx)
 	/* '\0' was not included in the length */
 	if (value_length < 0)
 		value_length = nscan;
+
 	value = kmalloc(value_length + 1, GFP_KERNEL);
 	if (!value)
 		return NULL;
@@ -619,11 +618,11 @@ visorbus_create(struct controlvm_message *inmsg)
 					   cmd->create_bus.channel_bytes,
 					   GFP_KERNEL,
 					   cmd->create_bus.bus_data_type_uuid);
-
 	if (!visorchannel) {
 		err = -ENOMEM;
 		goto err_free_pending_msg;
 	}
+
 	bus_info->visorchannel = visorchannel;
 
 	/* Response will be handled by visorchipset_bus_create */
@@ -758,7 +757,6 @@ visorbus_device_create(struct controlvm_message *inmsg)
 		err = -ENODEV;
 		goto err_respond;
 	}
-
 	if (bus_info->state.created == 0) {
 		dev_err(&chipset_dev->acpi_device->dev,
 			"bus not created, id: %d\n", bus_no);
@@ -792,7 +790,6 @@ visorbus_device_create(struct controlvm_message *inmsg)
 					     cmd->create_device.channel_bytes,
 					     GFP_KERNEL,
 					     cmd->create_device.data_type_uuid);
-
 	if (!visorchannel) {
 		dev_err(&chipset_dev->acpi_device->dev,
 			"failed to create visorchannel: %d/%d\n",
@@ -919,7 +916,6 @@ visorbus_device_destroy(struct controlvm_message *inmsg)
 		err = -EINVAL;
 		goto err_respond;
 	}
-
 	if (dev_info->pending_msg_hdr) {
 		/* only non-NULL if dev is still waiting on a response */
 		err = -EIO;
@@ -955,8 +951,7 @@ err_respond:
  * disable the specified device. The udev script then writes to
  * /sys/devices/platform/visorchipset/parahotplug, which causes the
  * parahotplug store functions to get called, at which point the
- * appropriate CONTROLVM message is retrieved from the list and responded
- * to.
+ * appropriate CONTROLVM message is retrieved from the list and responded to.
  */
 
 #define PARAHOTPLUG_TIMEOUT_MS 2000
@@ -1203,7 +1198,6 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 	int err;
 
 	req = parahotplug_request_create(inmsg);
-
 	if (!req)
 		return -ENOMEM;
 
@@ -1297,10 +1291,9 @@ chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 static int
 chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 {
-	int res;
-
-	res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
+	int res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
 			     KOBJ_OFFLINE);
+
 	if (msg_hdr->flags.response_expected)
 		controlvm_respond(msg_hdr, res, NULL);
 
@@ -1323,7 +1316,6 @@ static int unisys_vmcall(unsigned long tuple, unsigned long param)
 
 	__asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
 		"a"(tuple), "b"(reg_ebx), "c"(reg_ecx));
-
 	if (result)
 		goto error;
 
@@ -1694,9 +1686,7 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 static int
 read_controlvm_event(struct controlvm_message *msg)
 {
-	int err;
-
-	err = visorchannel_signalremove(chipset_dev->controlvm_channel,
+	int err = visorchannel_signalremove(chipset_dev->controlvm_channel,
 					CONTROLVM_QUEUE_EVENT, msg);
 	if (err)
 		return err;
@@ -1831,12 +1821,10 @@ visorchipset_init(struct acpi_device *acpi_device)
 		goto error;
 
 	acpi_device->driver_data = chipset_dev;
-
 	chipset_dev->acpi_device = acpi_device;
 	chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 	controlvm_channel = visorchannel_create_with_lock(addr,
 							  0, GFP_KERNEL, uuid);
-
 	if (!controlvm_channel)
 		goto error_free_chipset_dev;
 
