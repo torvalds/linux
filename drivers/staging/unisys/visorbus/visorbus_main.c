@@ -73,6 +73,61 @@ static LIST_HEAD(list_all_bus_instances);
 /* list of visor_device structs, linked via .list_all */
 static LIST_HEAD(list_all_device_instances);
 
+/*
+ * Generic function useful for validating any type of channel when it is
+ * received by the client that will be accessing the channel.
+ * Note that <logCtx> is only needed for callers in the EFI environment, and
+ * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
+ */
+int visor_check_channel(struct channel_header *ch,
+			uuid_le expected_uuid,
+			char *chname,
+			u64 expected_min_bytes,
+			u32 expected_version,
+			u64 expected_signature)
+{
+	if (uuid_le_cmp(expected_uuid, NULL_UUID_LE) != 0) {
+		/* caller wants us to verify type GUID */
+		if (uuid_le_cmp(ch->chtype, expected_uuid) != 0) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=type expected=%pUL actual=%pUL\n",
+			       chname, &expected_uuid,
+			       &expected_uuid, &ch->chtype);
+			return 0;
+		}
+	}
+	/* verify channel size */
+	if (expected_min_bytes > 0) {
+		if (ch->size < expected_min_bytes) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
+			       chname, &expected_uuid,
+			       (unsigned long long)expected_min_bytes,
+			       ch->size);
+			return 0;
+		}
+	}
+	/* verify channel version */
+	if (expected_version > 0) {
+		if (ch->version_id != expected_version) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8x\n",
+			       chname, &expected_uuid,
+			       (unsigned long)expected_version,
+			       ch->version_id);
+			return 0;
+		}
+	}
+	/* verify channel signature */
+	if (expected_signature > 0) {
+		if (ch->signature != expected_signature) {
+			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
+			       chname, &expected_uuid,
+			       expected_signature, ch->signature);
+			return 0;
+		}
+	}
+	return 1;
+}
+EXPORT_SYMBOL_GPL(visor_check_channel);
+
 static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 {
 	struct visor_device *dev;

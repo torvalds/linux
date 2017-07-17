@@ -1835,8 +1835,12 @@ visorchipset_init(struct acpi_device *acpi_device)
 	if (err < 0)
 		goto error_destroy_channel;
 
-	if (!VISOR_CONTROLVM_CHANNEL_OK_CLIENT(
-				visorchannel_get_header(controlvm_channel)))
+	if (!visor_check_channel(visorchannel_get_header(controlvm_channel),
+				 VISOR_CONTROLVM_CHANNEL_UUID,
+				 "controlvm",
+				 sizeof(struct visor_controlvm_channel),
+				 VISOR_CONTROLVM_CHANNEL_VERSIONID,
+				 VISOR_CHANNEL_SIGNATURE))
 		goto error_delete_groups;
 
 	/* if booting in a crash kernel */
