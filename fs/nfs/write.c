@@ -1097,13 +1097,12 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 	unsigned int end;
 	int error;
 
-	if (!PagePrivate(page))
-		return NULL;
-
 	end = offset + bytes;
-	spin_lock(&inode->i_lock);
 
 	for (;;) {
+		if (!(PagePrivate(page) || PageSwapCache(page)))
+			return NULL;
+		spin_lock(&inode->i_lock);
 		req = nfs_page_find_head_request_locked(NFS_I(inode), page);
 		if (req == NULL)
 			goto out_unlock;
@@ -1132,7 +1131,6 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 		nfs_release_request(req);
 		if (error != 0)
 			goto out_err;
-		spin_lock(&inode->i_lock);
 	}
 
 	/* Okay, the request matches. Update the region */
