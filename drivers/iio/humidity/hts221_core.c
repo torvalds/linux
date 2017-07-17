@@ -305,11 +305,10 @@ int hts221_power_on(struct hts221_hw *hw)
 
 int hts221_power_off(struct hts221_hw *hw)
 {
-	__le16 data = 0;
 	int err;
 
-	err = hw->tf->write(hw->dev, HTS221_REG_CNTRL1_ADDR, sizeof(data),
-			    (u8 *)&data);
+	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
+				     HTS221_ENABLE_MASK, false);
 	if (err < 0)
 		return err;
 
@@ -692,11 +691,10 @@ static int __maybe_unused hts221_suspend(struct device *dev)
 {
 	struct iio_dev *iio_dev = dev_get_drvdata(dev);
 	struct hts221_hw *hw = iio_priv(iio_dev);
-	__le16 data = 0;
 	int err;
 
-	err = hw->tf->write(hw->dev, HTS221_REG_CNTRL1_ADDR, sizeof(data),
-			    (u8 *)&data);
+	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
+				     HTS221_ENABLE_MASK, false);
 
 	return err < 0 ? err : 0;
 }
