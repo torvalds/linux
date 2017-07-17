@@ -1045,13 +1045,15 @@ int ltdc_load(struct drm_device *ddev)
 
 	if (of_address_to_resource(np, 0, &res)) {
 		DRM_ERROR("Unable to get resource\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err;
 	}
 
 	ldev->regs = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(ldev->regs)) {
 		DRM_ERROR("Unable to get ltdc registers\n");
-		return PTR_ERR(ldev->regs);
+		ret = PTR_ERR(ldev->regs);
+		goto err;
 	}
 
 	for (i = 0; i < MAX_IRQ; i++) {
@@ -1064,7 +1066,7 @@ int ltdc_load(struct drm_device *ddev)
 						dev_name(dev), ddev);
 		if (ret) {
 			DRM_ERROR("Failed to register LTDC interrupt\n");
-			return ret;
+			goto err;
 		}
 	}
 
@@ -1079,7 +1081,7 @@ int ltdc_load(struct drm_device *ddev)
 	if (ret) {
 		DRM_ERROR("hardware identifier (0x%08x) not supported!\n",
 			  ldev->caps.hw_version);
-		return ret;
+		goto err;
 	}
 
 	DRM_INFO("ltdc hw version 0x%08x - ready\n", ldev->caps.hw_version);
