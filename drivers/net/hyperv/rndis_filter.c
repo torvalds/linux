@@ -31,6 +31,7 @@
 
 #include "hyperv_net.h"
 
+static void rndis_set_multicast(struct work_struct *w);
 
 #define RNDIS_EXT_LEN PAGE_SIZE
 struct rndis_request {
@@ -76,6 +77,7 @@ static struct rndis_device *get_rndis_device(void)
 	spin_lock_init(&device->request_lock);
 
 	INIT_LIST_HEAD(&device->req_list);
+	INIT_WORK(&device->mcast_work, rndis_set_multicast);
 
 	device->state = RNDIS_DEV_UNINITIALIZED;
 
@@ -815,7 +817,8 @@ static int rndis_filter_query_link_speed(struct rndis_device *dev)
 	return ret;
 }
 
-int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
+static int rndis_filter_set_packet_filter(struct rndis_device *dev,
+					  u32 new_filter)
 {
 	struct rndis_request *request;
 	struct rndis_set_request *set;
@@ -844,6 +847,28 @@ int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 	put_rndis_request(dev, request);
 
 	return ret;
+}
+
+static void rndis_set_multicast(struct work_struct *w)
+{
+	struct rndis_device *rdev
+		= container_of(w, struct rndis_device, mcast_work);
+
+	if (rdev->ndev->flags & IFF_PROMISC)
+		rndis_filter_set_packet_filter(rdev,
+					       NDIS_PACKET_TYPE_PROMISCUOUS);
+	else
+		rndis_filter_set_packet_filter(rdev,
+					       NDIS_PACKET_TYPE_BROADCAST |
+					       NDIS_PACKET_TYPE_ALL_MULTICAST |
+					       NDIS_PACKET_TYPE_DIRECTED);
+}
+
+void rndis_filter_update(struct netvsc_device *nvdev)
+{
+	struct rndis_device *rdev = nvdev->extension;
+
+	schedule_work(&rdev->mcast_work);
 }
 
 static int rndis_filter_init_device(struct rndis_device *dev)
@@ -972,6 +997,9 @@ static int rndis_filter_close_device(struct rndis_device *dev)
 
 	if (dev->state != RNDIS_DEV_DATAINITIALIZED)
 		return 0;
+
+	/* Make sure rndis_set_multicast doesn't re-enable filter! */
+	cancel_work_sync(&dev->mcast_work);
 
 	ret = rndis_filter_set_packet_filter(dev, 0);
 	if (ret == -ENODEV)
@@ -1157,11 +1185,9 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	rndis_filter_query_device_link_status(rndis_device);
 
-	device_info->link_state = rndis_device->link_state;
-
 	netdev_dbg(net, "Device MAC %pM link state %s\n",
 		   rndis_device->hw_mac_adr,
-		   device_info->link_state ? "down" : "up");
+		   rndis_device->link_state ? "down" : "up");
 
 	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_5)
 		return 0;

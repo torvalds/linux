@@ -334,7 +334,7 @@ static void ia64_mlogbuf_dump_from_init(void)
 	ia64_mlogbuf_dump();
 }
 
-static void inline
+static inline void
 ia64_mca_spin(const char *func)
 {
 	if (monarch_cpu == smp_processor_id())

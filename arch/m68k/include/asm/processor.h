@@ -130,8 +130,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
-
 unsigned long get_wchan(struct task_struct *p);
 
 #define	KSTK_EIP(tsk)	\

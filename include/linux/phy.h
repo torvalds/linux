@@ -58,13 +58,13 @@
 #define PHY_IGNORE_INTERRUPT	-2
 
 #define PHY_HAS_INTERRUPT	0x00000001
-#define PHY_HAS_MAGICANEG	0x00000002
-#define PHY_IS_INTERNAL		0x00000004
+#define PHY_IS_INTERNAL		0x00000002
 #define MDIO_DEVICE_IS_PHY	0x80000000
 
 /* Interface Mode definitions */
 typedef enum {
 	PHY_INTERFACE_MODE_NA,
+	PHY_INTERFACE_MODE_INTERNAL,
 	PHY_INTERFACE_MODE_MII,
 	PHY_INTERFACE_MODE_GMII,
 	PHY_INTERFACE_MODE_SGMII,
@@ -84,6 +84,9 @@ typedef enum {
 	PHY_INTERFACE_MODE_1000BASEX,
 	PHY_INTERFACE_MODE_2500BASEX,
 	PHY_INTERFACE_MODE_RXAUI,
+	PHY_INTERFACE_MODE_XAUI,
+	/* 10GBASE-KR, XFI, SFI - single lane 10G Serdes */
+	PHY_INTERFACE_MODE_10GKR,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -112,6 +115,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 	switch (interface) {
 	case PHY_INTERFACE_MODE_NA:
 		return "";
+	case PHY_INTERFACE_MODE_INTERNAL:
+		return "internal";
 	case PHY_INTERFACE_MODE_MII:
 		return "mii";
 	case PHY_INTERFACE_MODE_GMII:
@@ -150,6 +155,10 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "2500base-x";
 	case PHY_INTERFACE_MODE_RXAUI:
 		return "rxaui";
+	case PHY_INTERFACE_MODE_XAUI:
+		return "xaui";
+	case PHY_INTERFACE_MODE_10GKR:
+		return "10gbase-kr";
 	default:
 		return "unknown";
 	}
@@ -220,10 +229,8 @@ struct mii_bus {
 
 	/* GPIO reset pulse width in microseconds */
 	int reset_delay_us;
-	/* Number of reset GPIOs */
-	int num_reset_gpios;
-	/* Array of RESET GPIO descriptors */
-	struct gpio_desc **reset_gpiod;
+	/* RESET GPIO descriptor pointer */
+	struct gpio_desc *reset_gpiod;
 };
 #define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 
@@ -364,6 +371,8 @@ struct phy_c45_device_ids {
  * is_pseudo_fixed_link: Set to true if this phy is an Ethernet switch, etc.
  * has_fixups: Set to true if this phy has fixups/quirks.
  * suspended: Set to true if this phy has been suspended successfully.
+ * sysfs_links: Internal boolean tracking sysfs symbolic links setup/removal.
+ * loopback_enabled: Set true if this phy has been loopbacked successfully.
  * state: state of the PHY for management purposes
  * dev_flags: Device-specific flags used by the PHY driver.
  * link_timeout: The number of timer firings to wait before the
@@ -400,6 +409,8 @@ struct phy_device {
 	bool is_pseudo_fixed_link;
 	bool has_fixups;
 	bool suspended;
+	bool sysfs_links;
+	bool loopback_enabled;
 
 	enum phy_state state;
 
@@ -639,6 +650,7 @@ struct phy_driver {
 	int (*set_tunable)(struct phy_device *dev,
 			    struct ethtool_tunable *tuna,
 			    const void *data);
+	int (*set_loopback)(struct phy_device *dev, bool enable);
 };
 #define to_phy_driver(d) container_of(to_mdio_common_driver(d),		\
 				      struct phy_driver, mdiodrv)
@@ -717,14 +729,24 @@ static inline bool phy_is_internal(struct phy_device *phydev)
 }
 
 /**
+ * phy_interface_mode_is_rgmii - Convenience function for testing if a
+ * PHY interface mode is RGMII (all variants)
+ * @mode: the phy_interface_t enum
+ */
+static inline bool phy_interface_mode_is_rgmii(phy_interface_t mode)
+{
+	return mode >= PHY_INTERFACE_MODE_RGMII &&
+		mode <= PHY_INTERFACE_MODE_RGMII_TXID;
+};
+
+/**
  * phy_interface_is_rgmii - Convenience function for testing if a PHY interface
  * is RGMII (all variants)
  * @phydev: the phy_device struct
  */
 static inline bool phy_interface_is_rgmii(struct phy_device *phydev)
 {
-	return phydev->interface >= PHY_INTERFACE_MODE_RGMII &&
-		phydev->interface <= PHY_INTERFACE_MODE_RGMII_TXID;
+	return phy_interface_mode_is_rgmii(phydev->interface);
 };
 
 /*
@@ -774,6 +796,7 @@ void phy_device_remove(struct phy_device *phydev);
 int phy_init_hw(struct phy_device *phydev);
 int phy_suspend(struct phy_device *phydev);
 int phy_resume(struct phy_device *phydev);
+int phy_loopback(struct phy_device *phydev, bool enable);
 struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 			      phy_interface_t interface);
 struct phy_device *phy_find_first(struct mii_bus *bus);
@@ -793,6 +816,7 @@ int phy_start_aneg(struct phy_device *phydev);
 int phy_aneg_done(struct phy_device *phydev);
 
 int phy_stop_interrupts(struct phy_device *phydev);
+int phy_restart_aneg(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev)
 {
@@ -816,6 +840,8 @@ static inline const char *phydev_name(const struct phy_device *phydev)
 void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 	__printf(2, 3);
 void phy_attached_info(struct phy_device *phydev);
+
+/* Clause 22 PHY */
 int genphy_config_init(struct phy_device *phydev);
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
@@ -825,11 +851,22 @@ int genphy_update_link(struct phy_device *phydev);
 int genphy_read_status(struct phy_device *phydev);
 int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
+int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
 static inline int genphy_no_soft_reset(struct phy_device *phydev)
 {
 	return 0;
 }
+
+/* Clause 45 PHY */
+int genphy_c45_restart_aneg(struct phy_device *phydev);
+int genphy_c45_aneg_done(struct phy_device *phydev);
+int genphy_c45_read_link(struct phy_device *phydev, u32 mmd_mask);
+int genphy_c45_read_lpa(struct phy_device *phydev);
+int genphy_c45_read_pma(struct phy_device *phydev);
+int genphy_c45_pma_setup_forced(struct phy_device *phydev);
+int genphy_c45_an_disable_aneg(struct phy_device *phydev);
+
 void phy_driver_unregister(struct phy_driver *drv);
 void phy_drivers_unregister(struct phy_driver *drv, int n);
 int phy_driver_register(struct phy_driver *new_driver, struct module *owner);
@@ -843,9 +880,8 @@ void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
 void phy_trigger_machine(struct phy_device *phydev, bool sync);
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
-int phy_ethtool_gset(struct phy_device *phydev, struct ethtool_cmd *cmd);
-int phy_ethtool_ksettings_get(struct phy_device *phydev,
-			      struct ethtool_link_ksettings *cmd);
+void phy_ethtool_ksettings_get(struct phy_device *phydev,
+			       struct ethtool_link_ksettings *cmd);
 int phy_ethtool_ksettings_set(struct phy_device *phydev,
 			      const struct ethtool_link_ksettings *cmd);
 int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd);

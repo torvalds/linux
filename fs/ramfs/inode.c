@@ -38,6 +38,14 @@
 #include <linux/uaccess.h>
 #include "internal.h"
 
+struct ramfs_mount_opts {
+	umode_t mode;
+};
+
+struct ramfs_fs_info {
+	struct ramfs_mount_opts mount_opts;
+};
+
 #define RAMFS_DEFAULT_MODE	0755
 
 static const struct super_operations ramfs_ops;
@@ -149,14 +157,22 @@ static const struct inode_operations ramfs_dir_inode_operations = {
 	.rename		= simple_rename,
 };
 
+/*
+ * Display the mount options in /proc/mounts.
+ */
+static int ramfs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct ramfs_fs_info *fsi = root->d_sb->s_fs_info;
+
+	if (fsi->mount_opts.mode != RAMFS_DEFAULT_MODE)
+		seq_printf(m, ",mode=%o", fsi->mount_opts.mode);
+	return 0;
+}
+
 static const struct super_operations ramfs_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
-	.show_options	= generic_show_options,
-};
-
-struct ramfs_mount_opts {
-	umode_t mode;
+	.show_options	= ramfs_show_options,
 };
 
 enum {
@@ -167,10 +183,6 @@ enum {
 static const match_table_t tokens = {
 	{Opt_mode, "mode=%o"},
 	{Opt_err, NULL}
-};
-
-struct ramfs_fs_info {
-	struct ramfs_mount_opts mount_opts;
 };
 
 static int ramfs_parse_options(char *data, struct ramfs_mount_opts *opts)
@@ -210,8 +222,6 @@ int ramfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct ramfs_fs_info *fsi;
 	struct inode *inode;
 	int err;
-
-	save_mount_options(sb, data);
 
 	fsi = kzalloc(sizeof(struct ramfs_fs_info), GFP_KERNEL);
 	sb->s_fs_info = fsi;

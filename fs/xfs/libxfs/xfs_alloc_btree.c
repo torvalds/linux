@@ -253,7 +253,7 @@ xfs_allocbt_init_ptr_from_cur(
 	ptr->s = agf->agf_roots[cur->bc_btnum];
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_bnobt_key_diff(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*key)
@@ -261,42 +261,42 @@ xfs_bnobt_key_diff(
 	xfs_alloc_rec_incore_t	*rec = &cur->bc_rec.a;
 	xfs_alloc_key_t		*kp = &key->alloc;
 
-	return (__int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
+	return (int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_cntbt_key_diff(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*key)
 {
 	xfs_alloc_rec_incore_t	*rec = &cur->bc_rec.a;
 	xfs_alloc_key_t		*kp = &key->alloc;
-	__int64_t		diff;
+	int64_t			diff;
 
-	diff = (__int64_t)be32_to_cpu(kp->ar_blockcount) - rec->ar_blockcount;
+	diff = (int64_t)be32_to_cpu(kp->ar_blockcount) - rec->ar_blockcount;
 	if (diff)
 		return diff;
 
-	return (__int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
+	return (int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_bnobt_diff_two_keys(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*k1,
 	union xfs_btree_key	*k2)
 {
-	return (__int64_t)be32_to_cpu(k1->alloc.ar_startblock) -
+	return (int64_t)be32_to_cpu(k1->alloc.ar_startblock) -
 			  be32_to_cpu(k2->alloc.ar_startblock);
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_cntbt_diff_two_keys(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*k1,
 	union xfs_btree_key	*k2)
 {
-	__int64_t		diff;
+	int64_t			diff;
 
 	diff =  be32_to_cpu(k1->alloc.ar_blockcount) -
 		be32_to_cpu(k2->alloc.ar_blockcount);
@@ -395,7 +395,6 @@ const struct xfs_buf_ops xfs_allocbt_buf_ops = {
 };
 
 
-#if defined(DEBUG) || defined(XFS_WARN)
 STATIC int
 xfs_bnobt_keys_inorder(
 	struct xfs_btree_cur	*cur,
@@ -442,7 +441,6 @@ xfs_cntbt_recs_inorder(
 		 be32_to_cpu(r1->alloc.ar_startblock) <
 		 be32_to_cpu(r2->alloc.ar_startblock));
 }
-#endif /* DEBUG */
 
 static const struct xfs_btree_ops xfs_bnobt_ops = {
 	.rec_len		= sizeof(xfs_alloc_rec_t),
@@ -462,10 +460,8 @@ static const struct xfs_btree_ops xfs_bnobt_ops = {
 	.key_diff		= xfs_bnobt_key_diff,
 	.buf_ops		= &xfs_allocbt_buf_ops,
 	.diff_two_keys		= xfs_bnobt_diff_two_keys,
-#if defined(DEBUG) || defined(XFS_WARN)
 	.keys_inorder		= xfs_bnobt_keys_inorder,
 	.recs_inorder		= xfs_bnobt_recs_inorder,
-#endif
 };
 
 static const struct xfs_btree_ops xfs_cntbt_ops = {
@@ -486,10 +482,8 @@ static const struct xfs_btree_ops xfs_cntbt_ops = {
 	.key_diff		= xfs_cntbt_key_diff,
 	.buf_ops		= &xfs_allocbt_buf_ops,
 	.diff_two_keys		= xfs_cntbt_diff_two_keys,
-#if defined(DEBUG) || defined(XFS_WARN)
 	.keys_inorder		= xfs_cntbt_keys_inorder,
 	.recs_inorder		= xfs_cntbt_recs_inorder,
-#endif
 };
 
 /*

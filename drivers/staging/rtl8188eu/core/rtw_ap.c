@@ -735,9 +735,11 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 
-	/* check if there is wps ie, */
-	/* if there is wpsie in beacon, the hostapd will update beacon twice when stating hostapd, */
-	/* and at first time the security ie (RSN/WPA IE) will not include in beacon. */
+	/* check if there is wps ie,
+	 * if there is wpsie in beacon, the hostapd will update
+	 * beacon twice when stating hostapd, and at first time the
+	 * security ie (RSN/WPA IE) will not include in beacon.
+	 */
 	if (!rtw_get_wps_ie(pnetwork->IEs + _FIXED_IE_LENGTH_, pnetwork->IELength - _FIXED_IE_LENGTH_, NULL, NULL))
 		pmlmeext->bstart_bss = true;
 
@@ -751,8 +753,11 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 		update_hw_ht_param(padapter);
 	}
 
-	if (pmlmepriv->cur_network.join_res != true) { /* setting only at  first time */
-		/* WEP Key will be set before this function, do not clear CAM. */
+	/* setting only at  first time */
+	if (!(pmlmepriv->cur_network.join_res)) {
+		/* WEP Key will be set before this function, do not
+		 * clear CAM.
+		 */
 		if ((psecuritypriv->dot11PrivacyAlgrthm != _WEP40_) &&
 		    (psecuritypriv->dot11PrivacyAlgrthm != _WEP104_))
 			flush_all_cam_entry(padapter);	/* clear CAM */
@@ -809,7 +814,9 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 			}
 		}
 	}
-	/* TODO: need to judge the phy parameters on concurrent mode for single phy */
+	/* TODO: need to judge the phy parameters on concurrent
+	 * mode for single phy
+	 */
 	set_channel_bwmode(padapter, cur_channel, cur_ch_offset, cur_bwmode);
 
 	DBG_88E("CH =%d, BW =%d, offset =%d\n", cur_channel, cur_bwmode, cur_ch_offset);
@@ -991,7 +998,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 			}
 			break;
 		}
-		if ((p == NULL) || (ie_len == 0))
+		if ((!p) || (ie_len == 0))
 			break;
 	}
 
@@ -1005,9 +1012,12 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 			if ((p) && !memcmp(p + 2, WMM_PARA_IE, 6)) {
 				pmlmepriv->qospriv.qos_option = 1;
 
-				*(p + 8) |= BIT(7);/* QoS Info, support U-APSD */
+				/* QoS Info, support U-APSD */
+				*(p + 8) |= BIT(7);
 
-				/* disable all ACM bits since the WMM admission control is not supported */
+				/* disable all ACM bits since the WMM
+				 * admission control is not supported
+				 */
 				*(p + 10) &= ~BIT(4); /* BE */
 				*(p + 14) &= ~BIT(4); /* BK */
 				*(p + 18) &= ~BIT(4); /* VI */
@@ -1015,7 +1025,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 				break;
 			}
 
-			if ((p == NULL) || (ie_len == 0))
+			if ((!p) || (ie_len == 0))
 				break;
 		}
 	}
@@ -1097,7 +1107,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	psta = rtw_get_stainfo(&padapter->stapriv, pbss_network->MacAddress);
 	if (!psta) {
 		psta = rtw_alloc_stainfo(&padapter->stapriv, pbss_network->MacAddress);
-		if (psta == NULL)
+		if (!psta)
 			return _FAIL;
 	}
 
@@ -1268,12 +1278,12 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	DBG_88E("%s\n", __func__);
 
 	pwps_ie_src = pmlmepriv->wps_beacon_ie;
-	if (pwps_ie_src == NULL)
+	if (!pwps_ie_src)
 		return;
 
 	pwps_ie = rtw_get_wps_ie(ie+_FIXED_IE_LENGTH_, ielen-_FIXED_IE_LENGTH_, NULL, &wps_ielen);
 
-	if (pwps_ie == NULL || wps_ielen == 0)
+	if (!pwps_ie || wps_ielen == 0)
 		return;
 
 	wps_offset = (uint)(pwps_ie-ie);
@@ -1834,7 +1844,9 @@ void stop_ap_mode(struct adapter *padapter)
 	pmlmepriv->update_bcn = false;
 	pmlmeext->bstart_bss = false;
 
-	/* reset and init security priv , this can refine with rtw_reset_securitypriv */
+	/* reset and init security priv , this can refine with
+	 * rtw_reset_securitypriv
+	 */
 	memset((unsigned char *)&padapter->securitypriv, 0, sizeof(struct security_priv));
 	padapter->securitypriv.ndisauthtype = Ndis802_11AuthModeOpen;
 	padapter->securitypriv.ndisencryptstatus = Ndis802_11WEPDisabled;

@@ -338,7 +338,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 				  unsigned long output_len)
 {
 	const unsigned long kernel_total_size = VO__end - VO__text;
-	unsigned long virt_addr = (unsigned long)output;
+	unsigned long virt_addr = LOAD_PHYSICAL_ADDR;
 
 	/* Retain x86 boot parameters pointer passed from startup_32/64. */
 	boot_params = rmode;
@@ -390,6 +390,8 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 #ifdef CONFIG_X86_64
 	if (heap > 0x3fffffffffffUL)
 		error("Destination address too large");
+	if (virt_addr + max(output_len, kernel_total_size) > KERNEL_IMAGE_SIZE)
+		error("Destination virtual address is beyond the kernel mapping area");
 #else
 	if (heap > ((-__PAGE_OFFSET-(128<<20)-1) & 0x7fffffff))
 		error("Destination address too large");
@@ -397,7 +399,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 #ifndef CONFIG_RELOCATABLE
 	if ((unsigned long)output != LOAD_PHYSICAL_ADDR)
 		error("Destination address does not match LOAD_PHYSICAL_ADDR");
-	if ((unsigned long)output != virt_addr)
+	if (virt_addr != LOAD_PHYSICAL_ADDR)
 		error("Destination virtual address changed when not relocatable");
 #endif
 
@@ -408,4 +410,9 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	handle_relocations(output, output_len, virt_addr);
 	debug_putstr("done.\nBooting the kernel.\n");
 	return output;
+}
+
+void fortify_panic(const char *name)
+{
+	error("detected buffer overflow");
 }

@@ -254,7 +254,6 @@ static void ip6_dev_free(struct net_device *dev)
 	gro_cells_destroy(&t->gro_cells);
 	dst_cache_destroy(&t->dst_cache);
 	free_percpu(dev->tstats);
-	free_netdev(dev);
 }
 
 static int ip6_tnl_create2(struct net_device *dev)
@@ -322,7 +321,7 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct __ip6_tnl_parm *p)
 	return t;
 
 failed_free:
-	ip6_dev_free(dev);
+	free_netdev(dev);
 failed:
 	return ERR_PTR(err);
 }
@@ -859,6 +858,8 @@ static int __ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
 	return 0;
 
 drop:
+	if (tun_dst)
+		dst_release((struct dst_entry *)tun_dst);
 	kfree_skb(skb);
 	return 0;
 }
@@ -1095,6 +1096,9 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 
 	if (!dst) {
 route_lookup:
+		/* add dsfield to flowlabel for route lookup */
+		fl6->flowlabel = ip6_make_flowinfo(dsfield, fl6->flowlabel);
+
 		dst = ip6_route_output(net, NULL, fl6);
 
 		if (dst->error)
@@ -1244,7 +1248,7 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl6.flowi6_proto = IPPROTO_IPIP;
 		fl6.daddr = key->u.ipv6.dst;
 		fl6.flowlabel = key->label;
-		dsfield = ip6_tclass(key->label);
+		dsfield =  key->tos;
 	} else {
 		if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 			encap_limit = t->parms.encap_limit;
@@ -1315,7 +1319,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		fl6.flowi6_proto = IPPROTO_IPV6;
 		fl6.daddr = key->u.ipv6.dst;
 		fl6.flowlabel = key->label;
-		dsfield = ip6_tclass(key->label);
+		dsfield = key->tos;
 	} else {
 		offset = ip6_tnl_parse_tlv_enc_lim(skb, skb_network_header(skb));
 		/* ip6_tnl_parse_tlv_enc_lim() might have reallocated skb->head */
@@ -1774,7 +1778,8 @@ static const struct net_device_ops ip6_tnl_netdev_ops = {
 static void ip6_tnl_dev_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &ip6_tnl_netdev_ops;
-	dev->destructor = ip6_dev_free;
+	dev->needs_free_netdev = true;
+	dev->priv_destructor = ip6_dev_free;
 
 	dev->type = ARPHRD_TUNNEL6;
 	dev->flags |= IFF_NOARP;
@@ -1880,7 +1885,8 @@ static int __net_init ip6_fb_tnl_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static int ip6_tnl_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ip6_tnl_validate(struct nlattr *tb[], struct nlattr *data[],
+			    struct netlink_ext_ack *extack)
 {
 	u8 proto;
 
@@ -1969,7 +1975,8 @@ static bool ip6_tnl_netlink_encap_parms(struct nlattr *data[],
 }
 
 static int ip6_tnl_newlink(struct net *src_net, struct net_device *dev,
-			   struct nlattr *tb[], struct nlattr *data[])
+			   struct nlattr *tb[], struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	struct net *net = dev_net(dev);
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
@@ -2000,7 +2007,8 @@ static int ip6_tnl_newlink(struct net *src_net, struct net_device *dev,
 }
 
 static int ip6_tnl_changelink(struct net_device *dev, struct nlattr *tb[],
-			      struct nlattr *data[])
+			      struct nlattr *data[],
+			      struct netlink_ext_ack *extack)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct __ip6_tnl_parm p;
@@ -2221,7 +2229,7 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 	return 0;
 
 err_register:
-	ip6_dev_free(ip6n->fb_tnl_dev);
+	free_netdev(ip6n->fb_tnl_dev);
 err_alloc_dev:
 	return err;
 }

@@ -253,8 +253,47 @@ static int axp20x_pek_probe_input_device(struct axp20x_pek *axp20x_pek,
 		return error;
 	}
 
+	if (axp20x_pek->axp20x->variant == AXP288_ID)
+		enable_irq_wake(axp20x_pek->irq_dbr);
+
 	return 0;
 }
+
+#ifdef CONFIG_ACPI
+static bool axp20x_pek_should_register_input(struct axp20x_pek *axp20x_pek,
+					     struct platform_device *pdev)
+{
+	unsigned long long hrv = 0;
+	acpi_status status;
+
+	if (IS_ENABLED(CONFIG_INPUT_SOC_BUTTON_ARRAY) &&
+	    axp20x_pek->axp20x->variant == AXP288_ID) {
+		status = acpi_evaluate_integer(ACPI_HANDLE(pdev->dev.parent),
+					       "_HRV", NULL, &hrv);
+		if (ACPI_FAILURE(status))
+			dev_err(&pdev->dev, "Failed to get PMIC hardware revision\n");
+
+		/*
+		 * On Cherry Trail platforms (hrv == 3), do not register the
+		 * input device if there is an "INTCFD9" or "ACPI0011" gpio
+		 * button ACPI device, as that handles the power button too,
+		 * and otherwise we end up reporting all presses twice.
+		 */
+		if (hrv == 3 && (acpi_dev_present("INTCFD9", NULL, -1) ||
+				 acpi_dev_present("ACPI0011", NULL, -1)))
+			return false;
+
+	}
+
+	return true;
+}
+#else
+static bool axp20x_pek_should_register_input(struct axp20x_pek *axp20x_pek,
+					     struct platform_device *pdev)
+{
+	return true;
+}
+#endif
 
 static int axp20x_pek_probe(struct platform_device *pdev)
 {
@@ -268,13 +307,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 
 	axp20x_pek->axp20x = dev_get_drvdata(pdev->dev.parent);
 
-	/*
-	 * Do not register the input device if there is an "INTCFD9"
-	 * gpio button ACPI device, that handles the power button too,
-	 * and otherwise we end up reporting all presses twice.
-	 */
-	if (!acpi_dev_found("INTCFD9") ||
-	    !IS_ENABLED(CONFIG_INPUT_SOC_BUTTON_ARRAY)) {
+	if (axp20x_pek_should_register_input(axp20x_pek, pdev)) {
 		error = axp20x_pek_probe_input_device(axp20x_pek, pdev);
 		if (error)
 			return error;
@@ -301,10 +334,35 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused axp20x_pek_resume_noirq(struct device *dev)
+{
+	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
+
+	if (axp20x_pek->axp20x->variant != AXP288_ID)
+		return 0;
+
+	/*
+	 * Clear interrupts from button presses during suspend, to avoid
+	 * a wakeup power-button press getting reported to userspace.
+	 */
+	regmap_write(axp20x_pek->axp20x->regmap,
+		     AXP20X_IRQ1_STATE + AXP288_IRQ_POKN / 8,
+		     BIT(AXP288_IRQ_POKN % 8));
+
+	return 0;
+}
+
+static const struct dev_pm_ops axp20x_pek_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.resume_noirq = axp20x_pek_resume_noirq,
+#endif
+};
+
 static struct platform_driver axp20x_pek_driver = {
 	.probe		= axp20x_pek_probe,
 	.driver		= {
 		.name		= "axp20x-pek",
+		.pm		= &axp20x_pek_pm_ops,
 	},
 };
 module_platform_driver(axp20x_pek_driver);

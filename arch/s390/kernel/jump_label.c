@@ -93,7 +93,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 	args.entry = entry;
 	args.type = type;
 
-	stop_machine(__sm_arch_jump_label_transform, &args, NULL);
+	stop_machine_cpuslocked(__sm_arch_jump_label_transform, &args, NULL);
 }
 
 void arch_jump_label_transform_static(struct jump_entry *entry,

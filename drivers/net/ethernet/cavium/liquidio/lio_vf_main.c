@@ -879,8 +879,6 @@ liquidio_vf_probe(struct pci_dev *pdev,
  */
 static void octeon_pci_flr(struct octeon_device *oct)
 {
-	u16 status;
-
 	pci_save_state(oct->pci_dev);
 
 	pci_cfg_access_lock(oct->pci_dev);
@@ -889,20 +887,7 @@ static void octeon_pci_flr(struct octeon_device *oct)
 	pci_write_config_word(oct->pci_dev, PCI_COMMAND,
 			      PCI_COMMAND_INTX_DISABLE);
 
-	/* Wait for Transaction Pending bit clean */
-	msleep(100);
-	pcie_capability_read_word(oct->pci_dev, PCI_EXP_DEVSTA, &status);
-	if (status & PCI_EXP_DEVSTA_TRPND) {
-		dev_info(&oct->pci_dev->dev, "Function reset incomplete after 100ms, sleeping for 5 seconds\n");
-		ssleep(5);
-		pcie_capability_read_word(oct->pci_dev, PCI_EXP_DEVSTA,
-					  &status);
-		if (status & PCI_EXP_DEVSTA_TRPND)
-			dev_info(&oct->pci_dev->dev, "Function reset still incomplete after 5s, reset anyway\n");
-	}
-	pcie_capability_set_word(oct->pci_dev, PCI_EXP_DEVCTL,
-				 PCI_EXP_DEVCTL_BCR_FLR);
-	mdelay(100);
+	pcie_flr(oct->pci_dev);
 
 	pci_cfg_access_unlock(oct->pci_dev);
 
@@ -2100,6 +2085,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		conf.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -2732,7 +2718,7 @@ static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
 	int gmxport = 0;
 	int i;
 
-	if (recv_pkt->buffer_size[0] != sizeof(*ls)) {
+	if (recv_pkt->buffer_size[0] != (sizeof(*ls) + OCT_DROQ_INFO_SIZE)) {
 		dev_err(&oct->pci_dev->dev, "Malformed NIC_INFO, len=%d, ifidx=%d\n",
 			recv_pkt->buffer_size[0],
 			recv_pkt->rh.r_nic_info.gmxport);
@@ -2740,7 +2726,8 @@ static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
 	}
 
 	gmxport = recv_pkt->rh.r_nic_info.gmxport;
-	ls = (union oct_link_status *)get_rbd(recv_pkt->buffer_ptr[0]);
+	ls = (union oct_link_status *)(get_rbd(recv_pkt->buffer_ptr[0]) +
+		OCT_DROQ_INFO_SIZE);
 
 	octeon_swap_8B_data((u64 *)ls, (sizeof(union oct_link_status)) >> 3);
 
@@ -3011,10 +2998,6 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
 					     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
 
-		if ((debug != -1) && (debug & NETIF_MSG_HW))
-			liquidio_set_feature(netdev, OCTNET_CMD_VERBOSE_ENABLE,
-					     0);
-
 		if (setup_link_status_change_wq(netdev))
 			goto setup_nic_dev_fail;
 
@@ -3202,13 +3185,28 @@ static int octeon_device_init(struct octeon_device *oct)
 	if (octeon_setup_interrupt(oct))
 		return 1;
 
-	if (cn23xx_octeon_pfvf_handshake(oct))
-		return 1;
+	atomic_set(&oct->status, OCT_DEV_INTR_SET_DONE);
+
+	/* ***************************************************************
+	 * The interrupts need to be enabled for the PF<-->VF handshake.
+	 * They are [re]-enabled after the PF<-->VF handshake so that the
+	 * correct OQ tick value is used (i.e. the value retrieved from
+	 * the PF as part of the handshake).
+	 */
 
 	/* Enable Octeon device interrupts */
 	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
 
-	atomic_set(&oct->status, OCT_DEV_INTR_SET_DONE);
+	if (cn23xx_octeon_pfvf_handshake(oct))
+		return 1;
+
+	/* Here we [re]-enable the interrupts so that the correct OQ tick value
+	 * is used (i.e. the value that was retrieved during the handshake)
+	 */
+
+	/* Enable Octeon device interrupts */
+	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
+	/* *************************************************************** */
 
 	/* Enable the input and output queues for this Octeon device */
 	if (oct->fn_list.enable_io_queues(oct)) {

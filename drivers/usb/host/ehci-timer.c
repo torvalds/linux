@@ -424,7 +424,7 @@ static enum hrtimer_restart ehci_hrtimer_func(struct hrtimer *t)
 	 */
 	now = ktime_get();
 	for_each_set_bit(e, &events, EHCI_HRTIMER_NUM_EVENTS) {
-		if (now >= ehci->hr_timeouts[e])
+		if (ktime_compare(now, ehci->hr_timeouts[e]) >= 0)
 			event_handlers[e](ehci);
 		else
 			ehci_enable_event(ehci, e, false);

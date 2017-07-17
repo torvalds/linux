@@ -219,7 +219,7 @@
 		power-domains = <&pd_c4>;
 	};
 
-	pfc: pfc@e6050000 {
+	pfc: pin-controller@e6050000 {
 		compatible = "renesas,pfc-r8a73a4";
 		reg = <0 0xe6050000 0 0x9000>;
 		gpio-controller;

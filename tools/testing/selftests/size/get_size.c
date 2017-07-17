@@ -75,26 +75,31 @@ void _start(void)
 	int ccode;
 	struct sysinfo info;
 	unsigned long used;
+	static const char *test_name = " get runtime memory use\n";
 
-	print("Testing system size.\n");
-	print("1..1\n");
+	print("TAP version 13\n");
+	print("# Testing system size.\n");
 
 	ccode = sysinfo(&info);
 	if (ccode < 0) {
-		print("not ok 1 get runtime memory use\n");
-		print("# could not get sysinfo\n");
+		print("not ok 1");
+		print(test_name);
+		print(" ---\n reason: \"could not get sysinfo\"\n ...\n");
 		_exit(ccode);
 	}
+	print("ok 1");
+	print(test_name);
+
 	/* ignore cache complexities for now */
 	used = info.totalram - info.freeram - info.bufferram;
-	print_k_value("ok 1 get runtime memory use # size = ", used,
-		info.mem_unit);
-
 	print("# System runtime memory report (units in Kilobytes):\n");
-	print_k_value("#   Total:  ", info.totalram, info.mem_unit);
-	print_k_value("#   Free:   ", info.freeram, info.mem_unit);
-	print_k_value("#   Buffer: ", info.bufferram, info.mem_unit);
-	print_k_value("#   In use: ", used, info.mem_unit);
+	print(" ---\n");
+	print_k_value(" Total:  ", info.totalram, info.mem_unit);
+	print_k_value(" Free:   ", info.freeram, info.mem_unit);
+	print_k_value(" Buffer: ", info.bufferram, info.mem_unit);
+	print_k_value(" In use: ", used, info.mem_unit);
+	print(" ...\n");
+	print("1..1\n");
 
 	_exit(0);
 }

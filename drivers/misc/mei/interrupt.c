@@ -235,6 +235,17 @@ static inline bool hdr_is_fixed(struct mei_msg_hdr *mei_hdr)
 	return mei_hdr->host_addr == 0 && mei_hdr->me_addr != 0;
 }
 
+static inline int hdr_is_valid(u32 msg_hdr)
+{
+	struct mei_msg_hdr *mei_hdr;
+
+	mei_hdr = (struct mei_msg_hdr *)&msg_hdr;
+	if (!msg_hdr || mei_hdr->reserved)
+		return -EBADMSG;
+
+	return 0;
+}
+
 /**
  * mei_irq_read_handler - bottom half read routine after ISR to
  * handle the read processing.
@@ -256,16 +267,17 @@ int mei_irq_read_handler(struct mei_device *dev,
 		dev->rd_msg_hdr = mei_read_hdr(dev);
 		(*slots)--;
 		dev_dbg(dev->dev, "slots =%08x.\n", *slots);
-	}
-	mei_hdr = (struct mei_msg_hdr *) &dev->rd_msg_hdr;
-	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
-	if (mei_hdr->reserved || !dev->rd_msg_hdr) {
-		dev_err(dev->dev, "corrupted message header 0x%08X\n",
+		ret = hdr_is_valid(dev->rd_msg_hdr);
+		if (ret) {
+			dev_err(dev->dev, "corrupted message header 0x%08X\n",
 				dev->rd_msg_hdr);
-		ret = -EBADMSG;
-		goto end;
+			goto end;
+		}
 	}
+
+	mei_hdr = (struct mei_msg_hdr *)&dev->rd_msg_hdr;
+	dev_dbg(dev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
 	if (mei_slots2data(*slots) < mei_hdr->length) {
 		dev_err(dev->dev, "less data available than length=%08x.\n",

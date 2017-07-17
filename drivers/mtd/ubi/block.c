@@ -313,10 +313,10 @@ static void ubiblock_do_work(struct work_struct *work)
 	ret = ubiblock_read(pdu);
 	rq_flush_dcache_pages(req);
 
-	blk_mq_end_request(req, ret);
+	blk_mq_end_request(req, errno_to_blk_status(ret));
 }
 
-static int ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
 			     const struct blk_mq_queue_data *bd)
 {
 	struct request *req = bd->rq;
@@ -327,9 +327,9 @@ static int ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
 	case REQ_OP_READ:
 		ubi_sgl_init(&pdu->usgl);
 		queue_work(dev->wq, &pdu->work);
-		return BLK_MQ_RQ_QUEUE_OK;
+		return BLK_STS_OK;
 	default:
-		return BLK_MQ_RQ_QUEUE_ERROR;
+		return BLK_STS_IOERR;
 	}
 
 }

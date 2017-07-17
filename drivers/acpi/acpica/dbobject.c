@@ -448,7 +448,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 
 	if (display_locals) {
 		acpi_os_printf
-		    ("\nInitialized Local Variables for method [%4.4s]:\n",
+		    ("\nInitialized Local Variables for Method [%4.4s]:\n",
 		     acpi_ut_get_node_name(node));
 
 		for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++) {
@@ -461,7 +461,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 		}
 	} else {
 		acpi_os_printf
-		    ("No Local Variables are initialized for method [%4.4s]\n",
+		    ("No Local Variables are initialized for Method [%4.4s]\n",
 		     acpi_ut_get_node_name(node));
 	}
 }
@@ -515,7 +515,7 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 		acpi_os_printf("Initialized Arguments for Method [%4.4s]:  "
 			       "(%X arguments defined for method invocation)\n",
 			       acpi_ut_get_node_name(node),
-			       obj_desc->method.param_count);
+			       node->object->method.param_count);
 
 		for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++) {
 			obj_desc = walk_state->arguments[i].object;

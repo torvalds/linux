@@ -63,7 +63,6 @@ typedef enum {
 #define _XBF_KMEM	 (1 << 21)/* backed by heap memory */
 #define _XBF_DELWRI_Q	 (1 << 22)/* buffer on a delwri queue */
 #define _XBF_COMPOUND	 (1 << 23)/* compound buffer */
-#define _XBF_IN_FLIGHT	 (1 << 25) /* I/O in flight, for accounting purposes */
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -84,14 +83,14 @@ typedef unsigned int xfs_buf_flags_t;
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
-	{ _XBF_COMPOUND,	"COMPOUND" }, \
-	{ _XBF_IN_FLIGHT,	"IN_FLIGHT" }
+	{ _XBF_COMPOUND,	"COMPOUND" }
 
 
 /*
  * Internal state flags.
  */
 #define XFS_BSTATE_DISPOSE	 (1 << 0)	/* buffer being discarded */
+#define XFS_BSTATE_IN_FLIGHT	 (1 << 1)	/* I/O in flight */
 
 /*
  * The xfs_buftarg contains 2 notions of "sector size" -
@@ -333,6 +332,7 @@ extern void xfs_buf_delwri_cancel(struct list_head *);
 extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);
 extern int xfs_buf_delwri_submit(struct list_head *);
 extern int xfs_buf_delwri_submit_nowait(struct list_head *);
+extern int xfs_buf_delwri_pushbuf(struct xfs_buf *, struct list_head *);
 
 /* Buffer Daemon Setup Routines */
 extern int xfs_buf_init(void);

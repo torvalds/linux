@@ -71,6 +71,7 @@
 #define CSIO_MAX_CMD_PER_LUN	32
 #define CSIO_MAX_DDP_BUF_SIZE	(1024 * 1024)
 #define CSIO_MAX_SECTOR_SIZE	128
+#define CSIO_MIN_T6_FW		0x01102D00  /* FW 1.16.45.0 */
 
 /* Interrupts */
 #define CSIO_EXTRA_MSI_IQS	2	/* Extra iqs for INTX/MSI mode

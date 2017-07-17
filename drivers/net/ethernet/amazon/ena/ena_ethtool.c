@@ -80,7 +80,6 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(tx_poll),
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(prepare_ctx_err),
-	ENA_STAT_TX_ENTRY(missing_tx_comp),
 	ENA_STAT_TX_ENTRY(bad_req_id),
 };
 
@@ -94,6 +93,8 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
 	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(bad_req_id),
+	ENA_STAT_RX_ENTRY(empty_rx_ring),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -539,12 +540,8 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	}
 
 	rc = ena_com_get_hash_ctrl(ena_dev, proto, &hash_fields);
-	if (rc) {
-		/* If device don't have permission, return unsupported */
-		if (rc == -EPERM)
-			rc = -EOPNOTSUPP;
+	if (rc)
 		return rc;
-	}
 
 	cmd->data = ena_flow_hash_to_flow_type(hash_fields);
 
@@ -612,7 +609,7 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
@@ -638,7 +635,7 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static u32 ena_get_rxfh_indir_size(struct net_device *netdev)

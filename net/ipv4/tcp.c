@@ -320,17 +320,36 @@ struct tcp_splice_state {
  * All the __sk_mem_schedule() is of this nature: accounting
  * is strict, actions are advisory and have some latency.
  */
-int tcp_memory_pressure __read_mostly;
-EXPORT_SYMBOL(tcp_memory_pressure);
+unsigned long tcp_memory_pressure __read_mostly;
+EXPORT_SYMBOL_GPL(tcp_memory_pressure);
 
 void tcp_enter_memory_pressure(struct sock *sk)
 {
-	if (!tcp_memory_pressure) {
+	unsigned long val;
+
+	if (tcp_memory_pressure)
+		return;
+	val = jiffies;
+
+	if (!val)
+		val--;
+	if (!cmpxchg(&tcp_memory_pressure, 0, val))
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMEMORYPRESSURES);
-		tcp_memory_pressure = 1;
-	}
 }
-EXPORT_SYMBOL(tcp_enter_memory_pressure);
+EXPORT_SYMBOL_GPL(tcp_enter_memory_pressure);
+
+void tcp_leave_memory_pressure(struct sock *sk)
+{
+	unsigned long val;
+
+	if (!tcp_memory_pressure)
+		return;
+	val = xchg(&tcp_memory_pressure, 0);
+	if (val)
+		NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPMEMORYPRESSURESCHRONO,
+			      jiffies_to_msecs(jiffies - val));
+}
+EXPORT_SYMBOL_GPL(tcp_leave_memory_pressure);
 
 /* Convert seconds to retransmits based on initial and max timeout */
 static u8 secs_to_retrans(int seconds, int timeout, int rto_max)
@@ -386,7 +405,7 @@ void tcp_init_sock(struct sock *sk)
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
-	minmax_reset(&tp->rtt_min, tcp_time_stamp, ~0U);
+	minmax_reset(&tp->rtt_min, tcp_jiffies32, ~0U);
 
 	/* So many TCP implementations out there (incorrectly) count the
 	 * initial SYN frame in their delayed-ACK and congestion control
@@ -645,7 +664,7 @@ static bool tcp_should_autocork(struct sock *sk, struct sk_buff *skb,
 	return skb->len < size_goal &&
 	       sysctl_tcp_autocorking &&
 	       skb != tcp_write_queue_head(sk) &&
-	       atomic_read(&sk->sk_wmem_alloc) > skb->truesize;
+	       refcount_read(&sk->sk_wmem_alloc) > skb->truesize;
 }
 
 static void tcp_push(struct sock *sk, int flags, int mss_now,
@@ -673,7 +692,7 @@ static void tcp_push(struct sock *sk, int flags, int mss_now,
 		/* It is possible TX completion already happened
 		 * before we set TSQ_THROTTLED.
 		 */
-		if (atomic_read(&sk->sk_wmem_alloc) > skb->truesize)
+		if (refcount_read(&sk->sk_wmem_alloc) > skb->truesize)
 			return;
 	}
 
@@ -882,8 +901,8 @@ static int tcp_send_mss(struct sock *sk, int *size_goal, int flags)
 	return mss_now;
 }
 
-static ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
-				size_t size, int flags)
+ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
+			 size_t size, int flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int mss_now, size_goal;
@@ -1013,6 +1032,7 @@ out_err:
 	}
 	return sk_stream_error(sk, flags, err);
 }
+EXPORT_SYMBOL_GPL(do_tcp_sendpages);
 
 int tcp_sendpage(struct sock *sk, struct page *page, int offset,
 		 size_t size, int flags)
@@ -2186,7 +2206,7 @@ adjudge_to_death:
 
 
 	/* Now socket is owned by kernel and we acquire BH lock
-	   to finish close. No need to check for user refs.
+	 *  to finish close. No need to check for user refs.
 	 */
 	local_bh_disable();
 	bh_lock_sock(sk);
@@ -2330,6 +2350,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tcp_init_send_head(sk);
 	memset(&tp->rx_opt, 0, sizeof(tp->rx_opt));
 	__sk_dst_reset(sk);
+	dst_release(sk->sk_rx_dst);
+	sk->sk_rx_dst = NULL;
 	tcp_saved_syn_free(tp);
 
 	/* Clean up fastopen related fields */
@@ -2381,9 +2403,10 @@ static int tcp_repair_set_window(struct tcp_sock *tp, char __user *optbuf, int l
 	return 0;
 }
 
-static int tcp_repair_options_est(struct tcp_sock *tp,
+static int tcp_repair_options_est(struct sock *sk,
 		struct tcp_repair_opt __user *optbuf, unsigned int len)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_repair_opt opt;
 
 	while (len >= sizeof(opt)) {
@@ -2396,6 +2419,7 @@ static int tcp_repair_options_est(struct tcp_sock *tp,
 		switch (opt.opt_code) {
 		case TCPOPT_MSS:
 			tp->rx_opt.mss_clamp = opt.opt_val;
+			tcp_mtup_init(sk);
 			break;
 		case TCPOPT_WINDOW:
 			{
@@ -2457,7 +2481,25 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		name[val] = 0;
 
 		lock_sock(sk);
-		err = tcp_set_congestion_control(sk, name);
+		err = tcp_set_congestion_control(sk, name, true);
+		release_sock(sk);
+		return err;
+	}
+	case TCP_ULP: {
+		char name[TCP_ULP_NAME_MAX];
+
+		if (optlen < 1)
+			return -EINVAL;
+
+		val = strncpy_from_user(name, optval,
+					min_t(long, TCP_ULP_NAME_MAX - 1,
+					      optlen));
+		if (val < 0)
+			return -EFAULT;
+		name[val] = 0;
+
+		lock_sock(sk);
+		err = tcp_set_ulp(sk, name);
 		release_sock(sk);
 		return err;
 	}
@@ -2478,7 +2520,8 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_MAXSEG:
 		/* Values greater than interface MTU won't take effect. However
 		 * at the point when this call is done we typically don't yet
-		 * know which interface is going to be used */
+		 * know which interface is going to be used
+		 */
 		if (val && (val < TCP_MIN_MSS || val > MAX_TCP_WINDOW)) {
 			err = -EINVAL;
 			break;
@@ -2555,7 +2598,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		if (!tp->repair)
 			err = -EINVAL;
 		else if (sk->sk_state == TCP_ESTABLISHED)
-			err = tcp_repair_options_est(tp,
+			err = tcp_repair_options_est(sk,
 					(struct tcp_repair_opt __user *)optval,
 					optlen);
 		else
@@ -2673,8 +2716,9 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 
 #ifdef CONFIG_TCP_MD5SIG
 	case TCP_MD5SIG:
+	case TCP_MD5SIG_EXT:
 		/* Read the IP->Key mappings from userspace */
-		err = tp->af_specific->md5_parse(sk, optval, optlen);
+		err = tp->af_specific->md5_parse(sk, optname, optval, optlen);
 		break;
 #endif
 	case TCP_USER_TIMEOUT:
@@ -2713,7 +2757,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		if (!tp->repair)
 			err = -EPERM;
 		else
-			tp->tsoffset = val - tcp_time_stamp;
+			tp->tsoffset = val - tcp_time_stamp_raw();
 		break;
 	case TCP_REPAIR_WINDOW:
 		err = tcp_repair_set_window(tp, optval, optlen);
@@ -2764,7 +2808,7 @@ static void tcp_get_info_chrono_stats(const struct tcp_sock *tp,
 	for (i = TCP_CHRONO_BUSY; i < __TCP_CHRONO_MAX; ++i) {
 		stats[i] = tp->chrono_stat[i - 1];
 		if (i == tp->chrono_type)
-			stats[i] += tcp_time_stamp - tp->chrono_start;
+			stats[i] += tcp_jiffies32 - tp->chrono_start;
 		stats[i] *= USEC_PER_SEC / HZ;
 		total += stats[i];
 	}
@@ -2848,7 +2892,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_retrans = tp->retrans_out;
 	info->tcpi_fackets = tp->fackets_out;
 
-	now = tcp_time_stamp;
+	now = tcp_jiffies32;
 	info->tcpi_last_data_sent = jiffies_to_msecs(now - tp->lsndtime);
 	info->tcpi_last_data_recv = jiffies_to_msecs(now - icsk->icsk_ack.lrcvtime);
 	info->tcpi_last_ack_recv = jiffies_to_msecs(now - tp->rcv_tstamp);
@@ -3016,6 +3060,21 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 			return -EFAULT;
 		return 0;
 
+	case TCP_ULP:
+		if (get_user(len, optlen))
+			return -EFAULT;
+		len = min_t(unsigned int, len, TCP_ULP_NAME_MAX);
+		if (!icsk->icsk_ulp_ops) {
+			if (put_user(0, optlen))
+				return -EFAULT;
+			return 0;
+		}
+		if (put_user(len, optlen))
+			return -EFAULT;
+		if (copy_to_user(optval, icsk->icsk_ulp_ops->name, len))
+			return -EFAULT;
+		return 0;
+
 	case TCP_THIN_LINEAR_TIMEOUTS:
 		val = tp->thin_lto;
 		break;
@@ -3079,7 +3138,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		break;
 
 	case TCP_TIMESTAMP:
-		val = tcp_time_stamp + tp->tsoffset;
+		val = tcp_time_stamp_raw() + tp->tsoffset;
 		break;
 	case TCP_NOTSENT_LOWAT:
 		val = tp->notsent_lowat;

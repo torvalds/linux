@@ -1718,7 +1718,7 @@ static int gfar_restore(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops gfar_pm_ops = {
+static const struct dev_pm_ops gfar_pm_ops = {
 	.suspend = gfar_suspend,
 	.resume = gfar_resume,
 	.freeze = gfar_suspend,
@@ -2250,7 +2250,7 @@ static int gfar_enet_open(struct net_device *dev)
 
 static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 {
-	struct txfcb *fcb = (struct txfcb *)skb_push(skb, GMAC_FCB_LEN);
+	struct txfcb *fcb = skb_push(skb, GMAC_FCB_LEN);
 
 	memset(fcb, 0, GMAC_FCB_LEN);
 

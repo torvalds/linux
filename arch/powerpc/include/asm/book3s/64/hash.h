@@ -89,6 +89,9 @@ static inline int hash__pgd_bad(pgd_t pgd)
 {
 	return (pgd_val(pgd) == 0);
 }
+#ifdef CONFIG_STRICT_KERNEL_RWX
+extern void hash__mark_rodata_ro(void);
+#endif
 
 extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 			    pte_t *ptep, unsigned long pte, int huge);

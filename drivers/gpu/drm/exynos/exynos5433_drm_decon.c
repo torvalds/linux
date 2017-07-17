@@ -47,14 +47,6 @@ static const char * const decon_clks_name[] = {
 	"sclk_decon_eclk",
 };
 
-enum decon_flag_bits {
-	BIT_CLKS_ENABLED,
-	BIT_IRQS_ENABLED,
-	BIT_WIN_UPDATED,
-	BIT_SUSPENDED,
-	BIT_REQUEST_UPDATE
-};
-
 struct decon_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
@@ -64,8 +56,8 @@ struct decon_context {
 	void __iomem			*addr;
 	struct regmap			*sysreg;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
-	int				pipe;
-	unsigned long			flags;
+	unsigned int			irq;
+	unsigned int			te_irq;
 	unsigned long			out_type;
 	int				first_win;
 	spinlock_t			vblank_lock;
@@ -97,18 +89,17 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	struct decon_context *ctx = crtc->ctx;
 	u32 val;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return -EPERM;
+	val = VIDINTCON0_INTEN;
+	if (ctx->out_type & IFTYPE_I80)
+		val |= VIDINTCON0_FRAMEDONE;
+	else
+		val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
 
-	if (!test_and_set_bit(BIT_IRQS_ENABLED, &ctx->flags)) {
-		val = VIDINTCON0_INTEN;
-		if (ctx->out_type & IFTYPE_I80)
-			val |= VIDINTCON0_FRAMEDONE;
-		else
-			val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
+	writel(val, ctx->addr + DECON_VIDINTCON0);
 
-		writel(val, ctx->addr + DECON_VIDINTCON0);
-	}
+	enable_irq(ctx->irq);
+	if (!(ctx->out_type & I80_HW_TRG))
+		enable_irq(ctx->te_irq);
 
 	return 0;
 }
@@ -117,11 +108,11 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
+	if (!(ctx->out_type & I80_HW_TRG))
+		disable_irq_nosync(ctx->te_irq);
+	disable_irq_nosync(ctx->irq);
 
-	if (test_and_clear_bit(BIT_IRQS_ENABLED, &ctx->flags))
-		writel(0, ctx->addr + DECON_VIDINTCON0);
+	writel(0, ctx->addr + DECON_VIDINTCON0);
 }
 
 /* return number of starts/ends of frame transmissions since reset */
@@ -166,6 +157,13 @@ static u32 decon_get_frame_count(struct decon_context *ctx, bool end)
 	return frm;
 }
 
+static u32 decon_get_vblank_counter(struct exynos_drm_crtc *crtc)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	return decon_get_frame_count(ctx, false);
+}
+
 static void decon_setup_trigger(struct decon_context *ctx)
 {
 	if (!(ctx->out_type & (IFTYPE_I80 | I80_HW_TRG)))
@@ -192,9 +190,6 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 	struct drm_display_mode *m = &crtc->base.mode;
 	bool interlaced = false;
 	u32 val;
-
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
 
 	if (ctx->out_type & IFTYPE_HDMI) {
 		m->crtc_hsync_start = m->crtc_hdisplay + 10;
@@ -309,23 +304,17 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 	writel(val, ctx->addr + DECON_WINCONx(win));
 }
 
-static void decon_shadow_protect_win(struct decon_context *ctx, int win,
-					bool protect)
+static void decon_shadow_protect(struct decon_context *ctx, bool protect)
 {
-	decon_set_bits(ctx, DECON_SHADOWCON, SHADOWCON_Wx_PROTECT(win),
+	decon_set_bits(ctx, DECON_SHADOWCON, SHADOWCON_PROTECT_MASK,
 		       protect ? ~0 : 0);
 }
 
 static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
-	int i;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
-
-	for (i = ctx->first_win; i < WINDOWS_NR; i++)
-		decon_shadow_protect_win(ctx, i, true);
+	decon_shadow_protect(ctx, true);
 }
 
 #define BIT_VAL(x, e, s) (((x) & ((1 << ((e) - (s) + 1)) - 1)) << (s))
@@ -344,9 +333,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned int pitch = fb->pitches[0];
 	dma_addr_t dma_addr = exynos_drm_fb_dma_addr(fb, 0);
 	u32 val;
-
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
 
 	if (crtc->base.mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		val = COORDINATE_X(state->crtc.x) |
@@ -390,7 +376,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	/* window enable */
 	decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, ~0);
-	set_bit(BIT_REQUEST_UPDATE, &ctx->flags);
 }
 
 static void decon_disable_plane(struct exynos_drm_crtc *crtc,
@@ -399,32 +384,19 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	struct decon_context *ctx = crtc->ctx;
 	unsigned int win = plane->index;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
-
 	decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, 0);
-	set_bit(BIT_REQUEST_UPDATE, &ctx->flags);
 }
 
 static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	unsigned long flags;
-	int i;
-
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
 
 	spin_lock_irqsave(&ctx->vblank_lock, flags);
 
-	for (i = ctx->first_win; i < WINDOWS_NR; i++)
-		decon_shadow_protect_win(ctx, i, false);
+	decon_shadow_protect(ctx, false);
 
-	if (test_and_clear_bit(BIT_REQUEST_UPDATE, &ctx->flags))
-		decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
-
-	if (ctx->out_type & IFTYPE_I80)
-		set_bit(BIT_WIN_UPDATED, &ctx->flags);
+	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 
 	ctx->frame_id = decon_get_frame_count(ctx, true);
 
@@ -473,20 +445,11 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	if (!test_and_clear_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
-
 	pm_runtime_get_sync(ctx->dev);
 
 	exynos_drm_pipe_clk_enable(crtc, true);
 
-	set_bit(BIT_CLKS_ENABLED, &ctx->flags);
-
 	decon_swreset(ctx);
-
-	/* if vblank was enabled status, enable it again. */
-	if (test_and_clear_bit(BIT_IRQS_ENABLED, &ctx->flags))
-		decon_enable_vblank(ctx->crtc);
 
 	decon_commit(ctx->crtc);
 }
@@ -496,8 +459,9 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	struct decon_context *ctx = crtc->ctx;
 	int i;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
+	if (!(ctx->out_type & I80_HW_TRG))
+		synchronize_irq(ctx->te_irq);
+	synchronize_irq(ctx->irq);
 
 	/*
 	 * We need to make sure that all windows are disabled before we
@@ -509,25 +473,18 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 
 	decon_swreset(ctx);
 
-	clear_bit(BIT_CLKS_ENABLED, &ctx->flags);
-
 	exynos_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put_sync(ctx->dev);
-
-	set_bit(BIT_SUSPENDED, &ctx->flags);
 }
 
-static void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
+static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 {
-	struct decon_context *ctx = crtc->ctx;
+	struct decon_context *ctx = dev_id;
 
-	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags) ||
-	    (ctx->out_type & I80_HW_TRG))
-		return;
+	decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
 
-	if (test_and_clear_bit(BIT_WIN_UPDATED, &ctx->flags))
-		decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
+	return IRQ_HANDLED;
 }
 
 static void decon_clear_channels(struct exynos_drm_crtc *crtc)
@@ -543,11 +500,10 @@ static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 			goto err;
 	}
 
-	for (win = 0; win < WINDOWS_NR; win++) {
-		decon_shadow_protect_win(ctx, win, true);
+	decon_shadow_protect(ctx, true);
+	for (win = 0; win < WINDOWS_NR; win++)
 		decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, 0);
-		decon_shadow_protect_win(ctx, win, false);
-	}
+	decon_shadow_protect(ctx, false);
 
 	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 
@@ -564,25 +520,24 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.disable		= decon_disable,
 	.enable_vblank		= decon_enable_vblank,
 	.disable_vblank		= decon_disable_vblank,
+	.get_vblank_counter	= decon_get_vblank_counter,
 	.atomic_begin		= decon_atomic_begin,
 	.update_plane		= decon_update_plane,
 	.disable_plane		= decon_disable_plane,
 	.atomic_flush		= decon_atomic_flush,
-	.te_handler		= decon_te_irq_handler,
 };
 
 static int decon_bind(struct device *dev, struct device *master, void *data)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
 	enum exynos_drm_output_type out_type;
 	unsigned int win;
 	int ret;
 
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
+	drm_dev->max_vblank_count = 0xffffffff;
 
 	for (win = ctx->first_win; win < WINDOWS_NR; win++) {
 		int tmp = (win == ctx->first_win) ? 0 : win;
@@ -593,7 +548,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[win].type = decon_win_types[tmp];
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[win], win,
-					1 << ctx->pipe, &ctx->configs[win]);
+					&ctx->configs[win]);
 		if (ret)
 			return ret;
 	}
@@ -602,23 +557,13 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	out_type = (ctx->out_type & IFTYPE_HDMI) ? EXYNOS_DISPLAY_TYPE_HDMI
 						  : EXYNOS_DISPLAY_TYPE_LCD;
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					ctx->pipe, out_type,
-					&decon_crtc_ops, ctx);
-	if (IS_ERR(ctx->crtc)) {
-		ret = PTR_ERR(ctx->crtc);
-		goto err;
-	}
+			out_type, &decon_crtc_ops, ctx);
+	if (IS_ERR(ctx->crtc))
+		return PTR_ERR(ctx->crtc);
 
 	decon_clear_channels(ctx->crtc);
 
-	ret = drm_iommu_attach_device(drm_dev, dev);
-	if (ret)
-		goto err;
-
-	return ret;
-err:
-	priv->pipe--;
-	return ret;
+	return drm_iommu_attach_device(drm_dev, dev);
 }
 
 static void decon_unbind(struct device *dev, struct device *master, void *data)
@@ -659,9 +604,6 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 	struct decon_context *ctx = dev_id;
 	u32 val;
 
-	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags))
-		goto out;
-
 	val = readl(ctx->addr + DECON_VIDINTCON1);
 	val &= VIDINTCON1_INTFRMDONEPEND | VIDINTCON1_INTFRMPEND;
 
@@ -677,7 +619,6 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 		decon_handle_vblank(ctx);
 	}
 
-out:
 	return IRQ_HANDLED;
 }
 
@@ -732,6 +673,31 @@ static const struct of_device_id exynos5433_decon_driver_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, exynos5433_decon_driver_dt_match);
 
+static int decon_conf_irq(struct decon_context *ctx, const char *name,
+		irq_handler_t handler, unsigned long int flags, bool required)
+{
+	struct platform_device *pdev = to_platform_device(ctx->dev);
+	int ret, irq = platform_get_irq_byname(pdev, name);
+
+	if (irq < 0) {
+		if (irq == -EPROBE_DEFER)
+			return irq;
+		if (required)
+			dev_err(ctx->dev, "cannot get %s IRQ\n", name);
+		else
+			irq = 0;
+		return irq;
+	}
+	irq_set_status_flags(irq, IRQ_NOAUTOEN);
+	ret = devm_request_irq(ctx->dev, irq, handler, flags, "drm_decon", ctx);
+	if (ret < 0) {
+		dev_err(ctx->dev, "IRQ %s request failed\n", name);
+		return ret;
+	}
+
+	return irq;
+}
+
 static int exynos5433_decon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -744,7 +710,6 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	__set_bit(BIT_SUSPENDED, &ctx->flags);
 	ctx->dev = dev;
 	ctx->out_type = (unsigned long)of_device_get_match_data(dev);
 	spin_lock_init(&ctx->vblank_lock);
@@ -753,15 +718,6 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		ctx->first_win = 1;
 	} else if (of_get_child_by_name(dev->of_node, "i80-if-timings")) {
 		ctx->out_type |= IFTYPE_I80;
-	}
-
-	if (ctx->out_type & I80_HW_TRG) {
-		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
-							"samsung,disp-sysreg");
-		if (IS_ERR(ctx->sysreg)) {
-			dev_err(dev, "failed to get system register\n");
-			return PTR_ERR(ctx->sysreg);
-		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
@@ -786,18 +742,34 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->addr);
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-			(ctx->out_type & IFTYPE_I80) ? "lcd_sys" : "vsync");
-	if (!res) {
-		dev_err(dev, "cannot find IRQ resource\n");
-		return -ENXIO;
+	if (ctx->out_type & IFTYPE_I80) {
+		ret = decon_conf_irq(ctx, "lcd_sys", decon_irq_handler, 0, true);
+		if (ret < 0)
+			return ret;
+		ctx->irq = ret;
+
+		ret = decon_conf_irq(ctx, "te", decon_te_irq_handler,
+				     IRQF_TRIGGER_RISING, false);
+		if (ret < 0)
+			return ret;
+		if (ret) {
+			ctx->te_irq = ret;
+			ctx->out_type &= ~I80_HW_TRG;
+		}
+	} else {
+		ret = decon_conf_irq(ctx, "vsync", decon_irq_handler, 0, true);
+		if (ret < 0)
+			return ret;
+		ctx->irq = ret;
 	}
 
-	ret = devm_request_irq(dev, res->start, decon_irq_handler, 0,
-			       "drm_decon", ctx);
-	if (ret < 0) {
-		dev_err(dev, "lcd_sys irq request failed\n");
-		return ret;
+	if (ctx->out_type & I80_HW_TRG) {
+		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+							"samsung,disp-sysreg");
+		if (IS_ERR(ctx->sysreg)) {
+			dev_err(dev, "failed to get system register\n");
+			return PTR_ERR(ctx->sysreg);
+		}
 	}
 
 	platform_set_drvdata(pdev, ctx);

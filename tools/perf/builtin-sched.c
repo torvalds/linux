@@ -2066,7 +2066,7 @@ static void save_task_callchain(struct perf_sched *sched,
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
 				      NULL, NULL, sched->max_stack + 2) != 0) {
 		if (verbose > 0)
-			error("Failed to resolve callchain. Skipping\n");
+			pr_err("Failed to resolve callchain. Skipping\n");
 
 		return;
 	}

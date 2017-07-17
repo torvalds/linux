@@ -650,7 +650,7 @@ asmlinkage long sys_olduname(struct oldold_utsname __user *);
 
 asmlinkage long sys_getrlimit(unsigned int resource,
 				struct rlimit __user *rlim);
-#if defined(COMPAT_RLIM_OLD_INFINITY) || !(defined(CONFIG_IA64))
+#ifdef __ARCH_WANT_SYS_OLD_GETRLIMIT
 asmlinkage long sys_old_getrlimit(unsigned int resource, struct rlimit __user *rlim);
 #endif
 asmlinkage long sys_setrlimit(unsigned int resource,

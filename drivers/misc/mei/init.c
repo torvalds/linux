@@ -215,12 +215,6 @@ int mei_start(struct mei_device *dev)
 		}
 	} while (ret);
 
-	/* we cannot start the device w/o hbm start message completed */
-	if (dev->dev_state == MEI_DEV_DISABLED) {
-		dev_err(dev->dev, "reset failed");
-		goto err;
-	}
-
 	if (mei_hbm_start_wait(dev)) {
 		dev_err(dev->dev, "HBM haven't started");
 		goto err;

@@ -1945,6 +1945,7 @@ static int handle_goto(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		goto oops;
 	if (ch == 8) {
 		u16 wch;
+
 		if (num == 0)
 			return -1;
 		wch = goto_buf[--num];
@@ -2287,6 +2288,7 @@ static int vt_notifier_call(struct notifier_block *nb,
 			speakup_bs(vc);
 		} else {
 			u16 d = param->c;
+
 			speakup_con_write(vc, &d, 1);
 		}
 		break;

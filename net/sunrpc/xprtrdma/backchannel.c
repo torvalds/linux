@@ -119,11 +119,9 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 
 	for (i = 0; i < (reqs << 1); i++) {
 		rqst = kzalloc(sizeof(*rqst), GFP_KERNEL);
-		if (!rqst) {
-			pr_err("RPC:       %s: Failed to create bc rpc_rqst\n",
-			       __func__);
+		if (!rqst)
 			goto out_free;
-		}
+
 		dprintk("RPC:       %s: new rqst %p\n", __func__, rqst);
 
 		rqst->rq_xprt = &r_xprt->rx_xprt;

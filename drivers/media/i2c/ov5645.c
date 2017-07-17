@@ -39,7 +39,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 #define OV5645_VOLTAGE_ANALOG               2800000
@@ -87,7 +87,7 @@ struct ov5645 {
 	struct device *dev;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_of_endpoint ep;
+	struct v4l2_fwnode_endpoint ep;
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
 	struct clk *xclk;
@@ -1102,7 +1102,8 @@ static int ov5645_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	ret = v4l2_of_parse_endpoint(endpoint, &ov5645->ep);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+					 &ov5645->ep);
 	if (ret < 0) {
 		dev_err(dev, "parsing endpoint node failed\n");
 		return ret;

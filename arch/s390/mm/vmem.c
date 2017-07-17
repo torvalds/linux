@@ -38,6 +38,17 @@ static void __ref *vmem_alloc_pages(unsigned int order)
 	return (void *) memblock_alloc(size, size);
 }
 
+static inline p4d_t *vmem_p4d_alloc(void)
+{
+	p4d_t *p4d = NULL;
+
+	p4d = vmem_alloc_pages(2);
+	if (!p4d)
+		return NULL;
+	clear_table((unsigned long *) p4d, _REGION2_ENTRY_EMPTY, PAGE_SIZE * 4);
+	return p4d;
+}
+
 static inline pud_t *vmem_pud_alloc(void)
 {
 	pud_t *pud = NULL;
@@ -85,6 +96,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 	unsigned long end = start + size;
 	unsigned long address = start;
 	pgd_t *pg_dir;
+	p4d_t *p4_dir;
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
@@ -102,12 +114,19 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
+			p4_dir = vmem_p4d_alloc();
+			if (!p4_dir)
+				goto out;
+			pgd_populate(&init_mm, pg_dir, p4_dir);
+		}
+		p4_dir = p4d_offset(pg_dir, address);
+		if (p4d_none(*p4_dir)) {
 			pu_dir = vmem_pud_alloc();
 			if (!pu_dir)
 				goto out;
-			pgd_populate(&init_mm, pg_dir, pu_dir);
+			p4d_populate(&init_mm, p4_dir, pu_dir);
 		}
-		pu_dir = pud_offset(pg_dir, address);
+		pu_dir = pud_offset(p4_dir, address);
 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
 		     !debug_pagealloc_enabled()) {
@@ -161,6 +180,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 	unsigned long end = start + size;
 	unsigned long address = start;
 	pgd_t *pg_dir;
+	p4d_t *p4_dir;
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
@@ -172,7 +192,12 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 			address += PGDIR_SIZE;
 			continue;
 		}
-		pu_dir = pud_offset(pg_dir, address);
+		p4_dir = p4d_offset(pg_dir, address);
+		if (p4d_none(*p4_dir)) {
+			address += P4D_SIZE;
+			continue;
+		}
+		pu_dir = pud_offset(p4_dir, address);
 		if (pud_none(*pu_dir)) {
 			address += PUD_SIZE;
 			continue;
@@ -213,6 +238,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	unsigned long pgt_prot, sgt_prot;
 	unsigned long address = start;
 	pgd_t *pg_dir;
+	p4d_t *p4_dir;
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
@@ -227,13 +253,21 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	for (address = start; address < end;) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
+			p4_dir = vmem_p4d_alloc();
+			if (!p4_dir)
+				goto out;
+			pgd_populate(&init_mm, pg_dir, p4_dir);
+		}
+
+		p4_dir = p4d_offset(pg_dir, address);
+		if (p4d_none(*p4_dir)) {
 			pu_dir = vmem_pud_alloc();
 			if (!pu_dir)
 				goto out;
-			pgd_populate(&init_mm, pg_dir, pu_dir);
+			p4d_populate(&init_mm, p4_dir, pu_dir);
 		}
 
-		pu_dir = pud_offset(pg_dir, address);
+		pu_dir = pud_offset(p4_dir, address);
 		if (pud_none(*pu_dir)) {
 			pm_dir = vmem_pmd_alloc();
 			if (!pm_dir)

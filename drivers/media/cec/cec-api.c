@@ -202,7 +202,8 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		err = -EPERM;
 	else if (adap->is_configuring)
 		err = -ENONET;
-	else if (!adap->is_configured && msg.msg[0] != 0xf0)
+	else if (!adap->is_configured &&
+		 (adap->needs_hpd || msg.msg[0] != 0xf0))
 		err = -ENONET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;
@@ -271,16 +272,10 @@ static long cec_receive(struct cec_adapter *adap, struct cec_fh *fh,
 			bool block, struct cec_msg __user *parg)
 {
 	struct cec_msg msg = {};
-	long err = 0;
+	long err;
 
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
-	mutex_lock(&adap->lock);
-	if (!adap->is_configured && fh->mode_follower < CEC_MODE_MONITOR)
-		err = -ENONET;
-	mutex_unlock(&adap->lock);
-	if (err)
-		return err;
 
 	err = cec_receive_msg(fh, &msg, block);
 	if (err)
@@ -521,6 +516,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&devnode->lock);
 	if (list_empty(&devnode->fhs) &&
+	    !adap->needs_hpd &&
 	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		err = adap->ops->adap_enable(adap, true);
 		if (err) {
@@ -565,6 +561,7 @@ static int cec_release(struct inode *inode, struct file *filp)
 	mutex_lock(&devnode->lock);
 	list_del(&fh->list);
 	if (list_empty(&devnode->fhs) &&
+	    !adap->needs_hpd &&
 	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		WARN_ON(adap->ops->adap_enable(adap, false));
 	}

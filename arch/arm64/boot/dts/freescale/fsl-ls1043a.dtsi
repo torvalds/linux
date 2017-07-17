@@ -1,7 +1,7 @@
 /*
  * Device Tree Include file for Freescale Layerscape-1043A family SoC.
  *
- * Copyright 2014-2015, Freescale Semiconductor
+ * Copyright 2014-2015 Freescale Semiconductor, Inc.
  *
  * Mingkai Hu <Mingkai.hu@freescale.com>
  *
@@ -45,12 +45,24 @@
  */
 
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
 	compatible = "fsl,ls1043a";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
+
+	aliases {
+		fman0 = &fman0;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		ethernet4 = &enet4;
+		ethernet5 = &enet5;
+		ethernet6 = &enet6;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -106,6 +118,33 @@
 		      /* DRAM space 1, size: 2GiB DRAM */
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			compatible = "shared-dma-pool";
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+			no-map;
+		};
+
+		qman_fqd: qman-fqd {
+			compatible = "shared-dma-pool";
+			size = <0 0x400000>;
+			alignment = <0 0x400000>;
+			no-map;
+		};
+
+		qman_pfdr: qman-pfdr {
+			compatible = "shared-dma-pool";
+			size = <0 0x2000000>;
+			alignment = <0 0x2000000>;
+			no-map;
+		};
+	};
+
 	sysclk: sysclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -152,7 +191,7 @@
 		interrupts = <1 9 0xf08>;
 	};
 
-	soc {
+	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -223,6 +262,7 @@
 		ifc: ifc@1530000 {
 			compatible = "fsl,ifc", "simple-bus";
 			reg = <0x0 0x1530000 0x0 0x10000>;
+			big-endian;
 			interrupts = <0 43 0x4>;
 		};
 
@@ -331,6 +371,28 @@
 					};
 				};
 			};
+		};
+
+		qman: qman@1880000 {
+			compatible = "fsl,qman";
+			reg = <0x0 0x1880000 0x0 0x10000>;
+			interrupts = <0 45 0x4>;
+			memory-region = <&qman_fqd &qman_pfdr>;
+		};
+
+		bman: bman@1890000 {
+			compatible = "fsl,bman";
+			reg = <0x0 0x1890000 0x0 0x10000>;
+			interrupts = <0 45 0x4>;
+			memory-region = <&bman_fbpr>;
+		};
+
+		bportals: bman-portals@508000000 {
+			ranges = <0x0 0x5 0x08000000 0x8000000>;
+		};
+
+		qportals: qman-portals@500000000 {
+			ranges = <0x0 0x5 0x00000000 0x8000000>;
 		};
 
 		dspi0: dspi@2100000 {
@@ -688,3 +750,6 @@
 	};
 
 };
+
+#include "qoriq-qman-portals.dtsi"
+#include "qoriq-bman-portals.dtsi"

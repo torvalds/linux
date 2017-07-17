@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/dmi.h>
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -67,6 +68,20 @@ static LIST_HEAD(component_list);
 static int pmdown_time = 5000;
 module_param(pmdown_time, int, 0);
 MODULE_PARM_DESC(pmdown_time, "DAPM stream powerdown time (msecs)");
+
+/* If a DMI filed contain strings in this blacklist (e.g.
+ * "Type2 - Board Manufacturer" or  "Type1 - TBD by OEM"), it will be taken
+ * as invalid and dropped when setting the card long name from DMI info.
+ */
+static const char * const dmi_blacklist[] = {
+	"To be filled by OEM",
+	"TBD by OEM",
+	"Default String",
+	"Board Manufacturer",
+	"Board Vendor Name",
+	"Board Product Name",
+	NULL,	/* terminator */
+};
 
 /* returns the minimum number of bytes needed to represent
  * a particular given value */
@@ -1933,6 +1948,22 @@ static void cleanup_dmi_name(char *name)
 	name[j] = '\0';
 }
 
+/* Check if a DMI field is valid, i.e. not containing any string
+ * in the black list.
+ */
+static int is_dmi_valid(const char *field)
+{
+	int i = 0;
+
+	while (dmi_blacklist[i]) {
+		if (strstr(field, dmi_blacklist[i]))
+			return 0;
+		i++;
+	}
+
+	return 1;
+}
+
 /**
  * snd_soc_set_dmi_name() - Register DMI names to card
  * @card: The card to register DMI names
@@ -1975,17 +2006,18 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 
 	/* make up dmi long name as: vendor.product.version.board */
 	vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
-	if (!vendor) {
+	if (!vendor || !is_dmi_valid(vendor)) {
 		dev_warn(card->dev, "ASoC: no DMI vendor name!\n");
 		return 0;
 	}
+
 
 	snprintf(card->dmi_longname, sizeof(card->snd_card->longname),
 			 "%s", vendor);
 	cleanup_dmi_name(card->dmi_longname);
 
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (product) {
+	if (product && is_dmi_valid(product)) {
 		len = strlen(card->dmi_longname);
 		snprintf(card->dmi_longname + len,
 			 longname_buf_size - len,
@@ -1999,7 +2031,7 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 		 * name in the product version field
 		 */
 		product_version = dmi_get_system_info(DMI_PRODUCT_VERSION);
-		if (product_version) {
+		if (product_version && is_dmi_valid(product_version)) {
 			len = strlen(card->dmi_longname);
 			snprintf(card->dmi_longname + len,
 				 longname_buf_size - len,
@@ -2012,7 +2044,7 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 	}
 
 	board = dmi_get_system_info(DMI_BOARD_NAME);
-	if (board) {
+	if (board && is_dmi_valid(board)) {
 		len = strlen(card->dmi_longname);
 		snprintf(card->dmi_longname + len,
 			 longname_buf_size - len,
@@ -2286,6 +2318,9 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	list_for_each_entry(rtd, &card->rtd_list, list)
 		flush_delayed_work(&rtd->delayed_work);
 
+	/* free the ALSA card at first; this syncs with pending operations */
+	snd_card_free(card->snd_card);
+
 	/* remove and free each DAI */
 	soc_remove_dai_links(card);
 	soc_remove_pcm_runtimes(card);
@@ -2300,9 +2335,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	if (card->remove)
 		card->remove(card);
 
-	snd_card_free(card->snd_card);
 	return 0;
-
 }
 
 /* removes a socdev */
@@ -3960,11 +3993,15 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 		prefix = "";
 
 	/*
-	 * check "[prefix]format = xxx"
+	 * check "dai-format = xxx"
+	 * or    "[prefix]format = xxx"
 	 * SND_SOC_DAIFMT_FORMAT_MASK area
 	 */
-	snprintf(prop, sizeof(prop), "%sformat", prefix);
-	ret = of_property_read_string(np, prop, &str);
+	ret = of_property_read_string(np, "dai-format", &str);
+	if (ret < 0) {
+		snprintf(prop, sizeof(prop), "%sformat", prefix);
+		ret = of_property_read_string(np, prop, &str);
+	}
 	if (ret == 0) {
 		for (i = 0; i < ARRAY_SIZE(of_fmt_table); i++) {
 			if (strcmp(str, of_fmt_table[i].name) == 0) {
@@ -4043,6 +4080,42 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 	return format;
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_daifmt);
+
+int snd_soc_get_dai_id(struct device_node *ep)
+{
+	struct snd_soc_component *pos;
+	struct device_node *node;
+	int ret;
+
+	node = of_graph_get_port_parent(ep);
+
+	/*
+	 * For example HDMI case, HDMI has video/sound port,
+	 * but ALSA SoC needs sound port number only.
+	 * Thus counting HDMI DT port/endpoint doesn't work.
+	 * Then, it should have .of_xlate_dai_id
+	 */
+	ret = -ENOTSUPP;
+	mutex_lock(&client_mutex);
+	list_for_each_entry(pos, &component_list, list) {
+		struct device_node *component_of_node = pos->dev->of_node;
+
+		if (!component_of_node && pos->dev->parent)
+			component_of_node = pos->dev->parent->of_node;
+
+		if (component_of_node != node)
+			continue;
+
+		if (pos->driver->of_xlate_dai_id)
+			ret = pos->driver->of_xlate_dai_id(pos, ep);
+
+		break;
+	}
+	mutex_unlock(&client_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_dai_id);
 
 int snd_soc_get_dai_name(struct of_phandle_args *args,
 				const char **dai_name)

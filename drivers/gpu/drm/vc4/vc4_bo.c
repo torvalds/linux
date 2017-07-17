@@ -19,6 +19,8 @@
  * rendering can return quickly.
  */
 
+#include <linux/dma-buf.h>
+
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"
 
@@ -88,6 +90,9 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 
 	vc4->bo_stats.num_allocated--;
 	vc4->bo_stats.size_allocated -= obj->size;
+
+	reservation_object_fini(&bo->_resv);
+
 	drm_gem_cma_free_object(obj);
 }
 
@@ -206,6 +211,8 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	vc4->bo_stats.num_allocated++;
 	vc4->bo_stats.size_allocated += size;
 	mutex_unlock(&vc4->bo_lock);
+	bo->resv = &bo->_resv;
+	reservation_object_init(bo->resv);
 
 	return &bo->base.base;
 }
@@ -244,7 +251,6 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 			return ERR_PTR(-ENOMEM);
 		}
 	}
-
 	return to_vc4_bo(&cma_obj->base);
 }
 
@@ -337,6 +343,7 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 		bo->validated_shader = NULL;
 	}
 
+	bo->t_format = false;
 	bo->free_time = jiffies;
 	list_add(&bo->size_head, cache_list);
 	list_add(&bo->unref_head, &vc4->bo_cache.time_list);
@@ -367,6 +374,13 @@ static void vc4_bo_cache_time_timer(unsigned long data)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	schedule_work(&vc4->bo_cache.time_work);
+}
+
+struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj)
+{
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	return bo->resv;
 }
 
 struct dma_buf *
@@ -438,6 +452,24 @@ void *vc4_prime_vmap(struct drm_gem_object *obj)
 	}
 
 	return drm_gem_cma_prime_vmap(obj);
+}
+
+struct drm_gem_object *
+vc4_prime_import_sg_table(struct drm_device *dev,
+			  struct dma_buf_attachment *attach,
+			  struct sg_table *sgt)
+{
+	struct drm_gem_object *obj;
+	struct vc4_bo *bo;
+
+	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
+	if (IS_ERR(obj))
+		return obj;
+
+	bo = to_vc4_bo(obj);
+	bo->resv = attach->dmabuf->resv;
+
+	return obj;
 }
 
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
@@ -535,6 +567,88 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	drm_gem_object_unreference_unlocked(&bo->base.base);
 
 	return ret;
+}
+
+/**
+ * vc4_set_tiling_ioctl() - Sets the tiling modifier for a BO.
+ * @dev: DRM device
+ * @data: ioctl argument
+ * @file_priv: DRM file for this fd
+ *
+ * The tiling state of the BO decides the default modifier of an fb if
+ * no specific modifier was set by userspace, and the return value of
+ * vc4_get_tiling_ioctl() (so that userspace can treat a BO it
+ * received from dmabuf as the same tiling format as the producer
+ * used).
+ */
+int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	struct drm_vc4_set_tiling *args = data;
+	struct drm_gem_object *gem_obj;
+	struct vc4_bo *bo;
+	bool t_format;
+
+	if (args->flags != 0)
+		return -EINVAL;
+
+	switch (args->modifier) {
+	case DRM_FORMAT_MOD_NONE:
+		t_format = false;
+		break;
+	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED:
+		t_format = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!gem_obj) {
+		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		return -ENOENT;
+	}
+	bo = to_vc4_bo(gem_obj);
+	bo->t_format = t_format;
+
+	drm_gem_object_unreference_unlocked(gem_obj);
+
+	return 0;
+}
+
+/**
+ * vc4_get_tiling_ioctl() - Gets the tiling modifier for a BO.
+ * @dev: DRM device
+ * @data: ioctl argument
+ * @file_priv: DRM file for this fd
+ *
+ * Returns the tiling modifier for a BO as set by vc4_set_tiling_ioctl().
+ */
+int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	struct drm_vc4_get_tiling *args = data;
+	struct drm_gem_object *gem_obj;
+	struct vc4_bo *bo;
+
+	if (args->flags != 0 || args->modifier != 0)
+		return -EINVAL;
+
+	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!gem_obj) {
+		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		return -ENOENT;
+	}
+	bo = to_vc4_bo(gem_obj);
+
+	if (bo->t_format)
+		args->modifier = DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED;
+	else
+		args->modifier = DRM_FORMAT_MOD_NONE;
+
+	drm_gem_object_unreference_unlocked(gem_obj);
+
+	return 0;
 }
 
 void vc4_bo_cache_init(struct drm_device *dev)

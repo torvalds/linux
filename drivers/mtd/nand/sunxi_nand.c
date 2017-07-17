@@ -1301,7 +1301,6 @@ static int sunxi_nfc_hw_ecc_read_subpage(struct mtd_info *mtd,
 
 	sunxi_nfc_hw_ecc_enable(mtd);
 
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
 	for (i = data_offs / ecc->size;
 	     i < DIV_ROUND_UP(data_offs + readlen, ecc->size); i++) {
 		int data_off = i * ecc->size;
@@ -1592,9 +1591,8 @@ static int _sunxi_nand_lookup_timing(const s32 *lut, int lut_size, u32 duration,
 #define sunxi_nand_lookup_timing(l, p, c) \
 			_sunxi_nand_lookup_timing(l, ARRAY_SIZE(l), p, c)
 
-static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd,
-					const struct nand_data_interface *conf,
-					bool check_only)
+static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd, int csline,
+					const struct nand_data_interface *conf)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *chip = to_sunxi_nand(nand);
@@ -1707,7 +1705,7 @@ static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd,
 		return tRHW;
 	}
 
-	if (check_only)
+	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
 	/*
@@ -1922,7 +1920,6 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
 	ecc->write_subpage = sunxi_nfc_hw_ecc_write_subpage;
 	ecc->read_oob_raw = nand_read_oob_std;
 	ecc->write_oob_raw = nand_write_oob_std;
-	ecc->read_subpage = sunxi_nfc_hw_ecc_read_subpage;
 
 	return 0;
 }

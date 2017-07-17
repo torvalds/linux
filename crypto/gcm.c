@@ -152,10 +152,8 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 
 	err = crypto_skcipher_encrypt(&data->req);
 	if (err == -EINPROGRESS || err == -EBUSY) {
-		err = wait_for_completion_interruptible(
-			&data->result.completion);
-		if (!err)
-			err = data->result.err;
+		wait_for_completion(&data->result.completion);
+		err = data->result.err;
 	}
 
 	if (err)

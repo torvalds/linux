@@ -1695,8 +1695,7 @@ static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	if (xhci->quirks & XHCI_MTK_HOST) {
 		ret = xhci_mtk_add_ep_quirk(hcd, udev, ep);
 		if (ret < 0) {
-			xhci_free_or_cache_endpoint_ring(xhci,
-				virt_dev, ep_index);
+			xhci_free_endpoint_ring(xhci, virt_dev, ep_index);
 			return ret;
 		}
 	}
@@ -2720,23 +2719,23 @@ static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	for (i = 1; i < 31; i++) {
 		if ((le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1))) &&
 		    !(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1)))) {
-			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+			xhci_free_endpoint_ring(xhci, virt_dev, i);
 			xhci_check_bw_drop_ep_streams(xhci, virt_dev, i);
 		}
 	}
 	xhci_zero_in_ctx(xhci, virt_dev);
 	/*
 	 * Install any rings for completely new endpoints or changed endpoints,
-	 * and free or cache any old rings from changed endpoints.
+	 * and free any old rings from changed endpoints.
 	 */
 	for (i = 1; i < 31; i++) {
 		if (!virt_dev->eps[i].new_ring)
 			continue;
-		/* Only cache or free the old ring if it exists.
+		/* Only free the old ring if it exists.
 		 * It may not if this is the first add of an endpoint.
 		 */
 		if (virt_dev->eps[i].ring) {
-			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+			xhci_free_endpoint_ring(xhci, virt_dev, i);
 		}
 		xhci_check_bw_drop_ep_streams(xhci, virt_dev, i);
 		virt_dev->eps[i].ring = virt_dev->eps[i].new_ring;
@@ -2823,8 +2822,8 @@ static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 			added_ctxs, added_ctxs);
 }
 
-void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
-			unsigned int ep_index, struct xhci_td *td)
+void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci, unsigned int ep_index,
+			       unsigned int stream_id, struct xhci_td *td)
 {
 	struct xhci_dequeue_state deq_state;
 	struct xhci_virt_ep *ep;
@@ -2837,7 +2836,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	 * or it will attempt to resend it on the next doorbell ring.
 	 */
 	xhci_find_new_dequeue_state(xhci, udev->slot_id,
-			ep_index, ep->stopped_stream, td, &deq_state);
+			ep_index, stream_id, td, &deq_state);
 
 	if (!deq_state.new_deq_ptr || !deq_state.new_deq_seg)
 		return;
@@ -2849,7 +2848,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 		xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
 				"Queueing new dequeue state");
 		xhci_queue_new_dequeue_state(xhci, udev->slot_id,
-				ep_index, ep->stopped_stream, &deq_state);
+				ep_index, &deq_state);
 	} else {
 		/* Better hope no one uses the input context between now and the
 		 * reset endpoint completion!
@@ -3336,7 +3335,7 @@ void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
  *
  * Wait for the Reset Device command to finish.  Remove all structures
  * associated with the endpoints that were disabled.  Clear the input device
- * structure?  Cache the rings?  Reset the control endpoint 0 max packet size?
+ * structure? Reset the control endpoint 0 max packet size?
  *
  * If the virt_dev to be reset does not exist or does not match the udev,
  * it means the device is lost, possibly due to the xHC restore error and
@@ -3466,7 +3465,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 		spin_unlock_irqrestore(&xhci->lock, flags);
 	}
 
-	/* Everything but endpoint 0 is disabled, so free or cache the rings. */
+	/* Everything but endpoint 0 is disabled, so free the rings. */
 	last_freed_endpoint = 1;
 	for (i = 1; i < 31; i++) {
 		struct xhci_virt_ep *ep = &virt_dev->eps[i];
@@ -3480,7 +3479,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 		}
 
 		if (ep->ring) {
-			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
+			xhci_free_endpoint_ring(xhci, virt_dev, i);
 			last_freed_endpoint = i;
 		}
 		if (!list_empty(&virt_dev->eps[i].bw_endpoint_list))

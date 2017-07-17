@@ -7,6 +7,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
+ * Copyright 2017	Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -289,8 +290,6 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 {
 	int i;
 
-	cancel_work_sync(&sta->ampdu_mlme.work);
-
 	for (i = 0; i <  IEEE80211_NUM_TIDS; i++) {
 		__ieee80211_stop_tx_ba_session(sta, i, reason);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
@@ -298,6 +297,9 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 					       reason != AGG_STOP_DESTROY_STA &&
 					       reason != AGG_STOP_PEER_REQUEST);
 	}
+
+	/* stopping might queue the work again - so cancel only afterwards */
+	cancel_work_sync(&sta->ampdu_mlme.work);
 }
 
 void ieee80211_ba_session_work(struct work_struct *work)
@@ -329,6 +331,18 @@ void ieee80211_ba_session_work(struct work_struct *work)
 				sta, tid, WLAN_BACK_RECIPIENT,
 				WLAN_REASON_UNSPECIFIED, true);
 
+		if (test_and_clear_bit(tid,
+				       sta->ampdu_mlme.tid_rx_manage_offl))
+			__ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
+							IEEE80211_MAX_AMPDU_BUF,
+							false, true);
+
+		if (test_and_clear_bit(tid + IEEE80211_NUM_TIDS,
+				       sta->ampdu_mlme.tid_rx_manage_offl))
+			___ieee80211_stop_rx_ba_session(
+				sta, tid, WLAN_BACK_RECIPIENT,
+				0, false);
+
 		spin_lock_bh(&sta->lock);
 
 		tid_tx = sta->ampdu_mlme.tid_start_tx[tid];
@@ -352,10 +366,16 @@ void ieee80211_ba_session_work(struct work_struct *work)
 		spin_unlock_bh(&sta->lock);
 
 		tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
-		if (tid_tx && test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
-						 &tid_tx->state))
+		if (!tid_tx)
+			continue;
+
+		if (test_and_clear_bit(HT_AGG_STATE_START_CB, &tid_tx->state))
+			ieee80211_start_tx_ba_cb(sta, tid, tid_tx);
+		if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state))
 			___ieee80211_stop_tx_ba_session(sta, tid,
 							AGG_STOP_LOCAL_REQUEST);
+		if (test_and_clear_bit(HT_AGG_STATE_STOP_CB, &tid_tx->state))
+			ieee80211_stop_tx_ba_cb(sta, tid, tid_tx);
 	}
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
@@ -374,8 +394,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
-	memset(mgmt, 0, 24);
+	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -440,7 +459,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 		return -ENOMEM;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	action_frame = (void *)skb_put(skb, 27);
+	action_frame = skb_put(skb, 27);
 	memcpy(action_frame->da, da, ETH_ALEN);
 	memcpy(action_frame->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(action_frame->bssid, bssid, ETH_ALEN);

@@ -186,7 +186,7 @@ static inline void ipc_data_writel(u32 data, u32 offset)
 	writel(data, ipcdev.ipc_base + IPC_WRITE_BUFFER + offset);
 }
 
-static inline u8 ipc_data_readb(u32 offset)
+static inline u8 __maybe_unused ipc_data_readb(u32 offset)
 {
 	return readb(ipcdev.ipc_base + IPC_READ_BUFFER + offset);
 }

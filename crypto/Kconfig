@@ -130,6 +130,7 @@ config CRYPTO_DH
 config CRYPTO_ECDH
 	tristate "ECDH algorithm"
 	select CRYTPO_KPP
+	select CRYPTO_RNG_DEFAULT
 	help
 	  Generic implementation of the ECDH algorithm
 

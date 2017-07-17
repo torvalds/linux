@@ -56,7 +56,7 @@ void lov_dump_lmm_common(int level, void *lmmp)
 	struct ost_id	oi;
 
 	lmm_oi_le_to_cpu(&oi, &lmm->lmm_oi);
-	CDEBUG(level, "objid "DOSTID", magic 0x%08x, pattern %#x\n",
+	CDEBUG(level, "objid " DOSTID ", magic 0x%08x, pattern %#x\n",
 	       POSTID(&oi), le32_to_cpu(lmm->lmm_magic),
 	       le32_to_cpu(lmm->lmm_pattern));
 	CDEBUG(level, "stripe_size %u, stripe_count %u, layout_gen %u\n",
@@ -80,7 +80,7 @@ static void lov_dump_lmm_objects(int level, struct lov_ost_data *lod,
 		struct ost_id	oi;
 
 		ostid_le_to_cpu(&lod->l_ost_oi, &oi);
-		CDEBUG(level, "stripe %u idx %u subobj "DOSTID"\n", i,
+		CDEBUG(level, "stripe %u idx %u subobj " DOSTID "\n", i,
 		       le32_to_cpu(lod->l_ost_idx), POSTID(&oi));
 	}
 }
@@ -95,7 +95,7 @@ void lov_dump_lmm_v1(int level, struct lov_mds_md_v1 *lmm)
 void lov_dump_lmm_v3(int level, struct lov_mds_md_v3 *lmm)
 {
 	lov_dump_lmm_common(level, lmm);
-	CDEBUG(level, "pool_name "LOV_POOLNAMEF"\n", lmm->lmm_pool_name);
+	CDEBUG(level, "pool_name " LOV_POOLNAMEF "\n", lmm->lmm_pool_name);
 	lov_dump_lmm_objects(level, lmm->lmm_objects,
 			     le16_to_cpu(lmm->lmm_stripe_count));
 }
@@ -293,17 +293,9 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 	size_t lmmk_size;
 	size_t lum_size;
 	int rc;
-	mm_segment_t seg;
 
 	if (!lsm)
 		return -ENODATA;
-
-	/*
-	 * "Switch to kernel segment" to allow copying from kernel space by
-	 * copy_{to,from}_user().
-	 */
-	seg = get_fs();
-	set_fs(KERNEL_DS);
 
 	if (lsm->lsm_magic != LOV_MAGIC_V1 && lsm->lsm_magic != LOV_MAGIC_V3) {
 		CERROR("bad LSM MAGIC: 0x%08X != 0x%08X nor 0x%08X\n",
@@ -406,6 +398,5 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 out_free:
 	kvfree(lmmk);
 out:
-	set_fs(seg);
 	return rc;
 }

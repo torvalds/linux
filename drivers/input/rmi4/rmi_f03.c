@@ -146,7 +146,7 @@ static int rmi_f03_register_pt(struct f03_data *f03)
 	if (!serio)
 		return -ENOMEM;
 
-	serio->id.type = SERIO_8042;
+	serio->id.type = SERIO_PS_PSTHRU;
 	serio->write = rmi_f03_pt_write;
 	serio->port_data = f03;
 

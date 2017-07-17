@@ -269,7 +269,6 @@ static struct console *exclusive_console;
 #define MAX_CMDLINECONSOLES 8
 
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
-static int console_cmdline_cnt;
 
 static int preferred_console = -1;
 int console_set_on_cmdline;
@@ -1176,7 +1175,7 @@ static void boot_delay_msec(int level)
 	unsigned long long k;
 	unsigned long timeout;
 
-	if ((boot_delay == 0 || system_state != SYSTEM_BOOTING)
+	if ((boot_delay == 0 || system_state >= SYSTEM_RUNNING)
 		|| suppress_message_printing(level)) {
 		return;
 	}
@@ -1906,25 +1905,12 @@ static int __add_preferred_console(char *name, int idx, char *options,
 	 *	See if this tty is not yet registered, and
 	 *	if we have a slot free.
 	 */
-	for (i = 0, c = console_cmdline; i < console_cmdline_cnt; i++, c++) {
+	for (i = 0, c = console_cmdline;
+	     i < MAX_CMDLINECONSOLES && c->name[0];
+	     i++, c++) {
 		if (strcmp(c->name, name) == 0 && c->index == idx) {
-			if (brl_options)
-				return 0;
-
-			/*
-			 * Maintain an invariant that will help to find if
-			 * the matching console is preferred, see
-			 * register_console():
-			 *
-			 * The last non-braille console is always
-			 * the preferred one.
-			 */
-			if (i != console_cmdline_cnt - 1)
-				swap(console_cmdline[i],
-				     console_cmdline[console_cmdline_cnt - 1]);
-
-			preferred_console = console_cmdline_cnt - 1;
-
+			if (!brl_options)
+				preferred_console = i;
 			return 0;
 		}
 	}
@@ -1937,7 +1923,6 @@ static int __add_preferred_console(char *name, int idx, char *options,
 	braille_set_options(c, brl_options);
 
 	c->index = idx;
-	console_cmdline_cnt++;
 	return 0;
 }
 /*
@@ -2477,23 +2462,12 @@ void register_console(struct console *newcon)
 	}
 
 	/*
-	 * See if this console matches one we selected on the command line.
-	 *
-	 * There may be several entries in the console_cmdline array matching
-	 * with the same console, one with newcon->match(), another by
-	 * name/index:
-	 *
-	 *	pl011,mmio,0x87e024000000,115200 -- added from SPCR
-	 *	ttyAMA0 -- added from command line
-	 *
-	 * Traverse the console_cmdline array in reverse order to be
-	 * sure that if this console is preferred then it will be the first
-	 * matching entry.  We use the invariant that is maintained in
-	 * __add_preferred_console().
+	 *	See if this console matches one we selected on
+	 *	the command line.
 	 */
-	for (i = console_cmdline_cnt - 1; i >= 0; i--) {
-		c = console_cmdline + i;
-
+	for (i = 0, c = console_cmdline;
+	     i < MAX_CMDLINECONSOLES && c->name[0];
+	     i++, c++) {
 		if (!newcon->match ||
 		    newcon->match(newcon, c->name, c->index, c->options) != 0) {
 			/* default matching */
@@ -2746,19 +2720,28 @@ void wake_up_klogd(void)
 	preempt_enable();
 }
 
+int vprintk_deferred(const char *fmt, va_list args)
+{
+	int r;
+
+	r = vprintk_emit(0, LOGLEVEL_SCHED, NULL, 0, fmt, args);
+
+	preempt_disable();
+	__this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);
+	irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
+	preempt_enable();
+
+	return r;
+}
+
 int printk_deferred(const char *fmt, ...)
 {
 	va_list args;
 	int r;
 
-	preempt_disable();
 	va_start(args, fmt);
-	r = vprintk_emit(0, LOGLEVEL_SCHED, NULL, 0, fmt, args);
+	r = vprintk_deferred(fmt, args);
 	va_end(args);
-
-	__this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);
-	irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
-	preempt_enable();
 
 	return r;
 }

@@ -572,7 +572,7 @@ static void r5l_log_endio(struct bio *bio)
 	struct r5l_log *log = io->log;
 	unsigned long flags;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		md_error(log->rdev->mddev, log->rdev);
 
 	bio_put(bio);
@@ -1247,7 +1247,7 @@ static void r5l_log_flush_endio(struct bio *bio)
 	unsigned long flags;
 	struct r5l_io_unit *io;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		md_error(log->rdev->mddev, log->rdev);
 
 	spin_lock_irqsave(&log->io_list_lock, flags);
@@ -1782,7 +1782,7 @@ static int r5l_log_write_empty_meta_block(struct r5l_log *log, sector_t pos,
 	mb->checksum = cpu_to_le32(crc32c_le(log->uuid_checksum,
 					     mb, PAGE_SIZE));
 	if (!sync_page_io(log->rdev, pos, PAGE_SIZE, page, REQ_OP_WRITE,
-			  REQ_FUA, false)) {
+			  REQ_SYNC | REQ_FUA, false)) {
 		__free_page(page);
 		return -EIO;
 	}
@@ -2388,7 +2388,7 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 		mb->checksum = cpu_to_le32(crc32c_le(log->uuid_checksum,
 						     mb, PAGE_SIZE));
 		sync_page_io(log->rdev, ctx->pos, PAGE_SIZE, page,
-			     REQ_OP_WRITE, REQ_FUA, false);
+			     REQ_OP_WRITE, REQ_SYNC | REQ_FUA, false);
 		sh->log_start = ctx->pos;
 		list_add_tail(&sh->r5c, &log->stripe_in_journal_list);
 		atomic_inc(&log->stripe_in_journal_count);
@@ -3063,7 +3063,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	if (!log->io_pool)
 		goto io_pool;
 
-	log->bs = bioset_create(R5L_POOL_SIZE, 0);
+	log->bs = bioset_create(R5L_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 	if (!log->bs)
 		goto io_bs;
 

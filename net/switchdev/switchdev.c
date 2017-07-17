@@ -571,24 +571,17 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_dump);
 
-static RAW_NOTIFIER_HEAD(switchdev_notif_chain);
+static ATOMIC_NOTIFIER_HEAD(switchdev_notif_chain);
 
 /**
  *	register_switchdev_notifier - Register notifier
  *	@nb: notifier_block
  *
- *	Register switch device notifier. This should be used by code
- *	which needs to monitor events happening in particular device.
- *	Return values are same as for atomic_notifier_chain_register().
+ *	Register switch device notifier.
  */
 int register_switchdev_notifier(struct notifier_block *nb)
 {
-	int err;
-
-	rtnl_lock();
-	err = raw_notifier_chain_register(&switchdev_notif_chain, nb);
-	rtnl_unlock();
-	return err;
+	return atomic_notifier_chain_register(&switchdev_notif_chain, nb);
 }
 EXPORT_SYMBOL_GPL(register_switchdev_notifier);
 
@@ -597,16 +590,10 @@ EXPORT_SYMBOL_GPL(register_switchdev_notifier);
  *	@nb: notifier_block
  *
  *	Unregister switch device notifier.
- *	Return values are same as for atomic_notifier_chain_unregister().
  */
 int unregister_switchdev_notifier(struct notifier_block *nb)
 {
-	int err;
-
-	rtnl_lock();
-	err = raw_notifier_chain_unregister(&switchdev_notif_chain, nb);
-	rtnl_unlock();
-	return err;
+	return atomic_notifier_chain_unregister(&switchdev_notif_chain, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
 
@@ -616,18 +603,13 @@ EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
  *	@dev: port device
  *	@info: notifier information data
  *
- *	Call all network notifier blocks. This should be called by driver
- *	when it needs to propagate hardware event.
- *	Return values are same as for atomic_notifier_call_chain().
- *	rtnl_lock must be held.
+ *	Call all network notifier blocks.
  */
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 			     struct switchdev_notifier_info *info)
 {
-	ASSERT_RTNL();
-
 	info->dev = dev;
-	return raw_notifier_call_chain(&switchdev_notif_chain, val, info);
+	return atomic_notifier_call_chain(&switchdev_notif_chain, val, info);
 }
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
 

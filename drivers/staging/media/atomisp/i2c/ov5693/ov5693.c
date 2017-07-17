@@ -706,7 +706,7 @@ static int ov5693_read_otp_reg_array(struct i2c_client *client, u16 size,
 {
 	u16 index;
 	int ret;
-	u16 *pVal = 0;
+	u16 *pVal = NULL;
 
 	for (index = 0; index <= size; index++) {
 		pVal = (u16 *) (buf + index);

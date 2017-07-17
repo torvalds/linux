@@ -272,6 +272,8 @@ struct fsxattr {
 #define FS_ENCRYPTION_MODE_AES_256_GCM		2
 #define FS_ENCRYPTION_MODE_AES_256_CBC		3
 #define FS_ENCRYPTION_MODE_AES_256_CTS		4
+#define FS_ENCRYPTION_MODE_AES_128_CBC		5
+#define FS_ENCRYPTION_MODE_AES_128_CTS		6
 
 struct fscrypt_policy {
 	__u8 version;
@@ -360,5 +362,9 @@ struct fscrypt_key {
 #define RWF_HIPRI			0x00000001 /* high priority request, poll if possible */
 #define RWF_DSYNC			0x00000002 /* per-IO O_DSYNC */
 #define RWF_SYNC			0x00000004 /* per-IO O_SYNC */
+#define RWF_NOWAIT			0x00000008 /* per-IO, return -EAGAIN if operation would block */
+
+#define RWF_SUPPORTED			(RWF_HIPRI | RWF_DSYNC | RWF_SYNC |\
+					 RWF_NOWAIT)
 
 #endif /* _UAPI_LINUX_FS_H */

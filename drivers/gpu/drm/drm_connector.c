@@ -941,6 +941,10 @@ EXPORT_SYMBOL(drm_mode_create_tv_properties);
  *
  * Called by a driver the first time it's needed, must be attached to desired
  * connectors.
+ *
+ * Atomic drivers should use drm_connector_attach_scaling_mode_property()
+ * instead to correctly assign &drm_connector_state.picture_aspect_ratio
+ * in the atomic state.
  */
 int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 {
@@ -959,6 +963,66 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
+
+/**
+ * drm_connector_attach_scaling_mode_property - attach atomic scaling mode property
+ * @connector: connector to attach scaling mode property on.
+ * @scaling_mode_mask: or'ed mask of BIT(%DRM_MODE_SCALE_\*).
+ *
+ * This is used to add support for scaling mode to atomic drivers.
+ * The scaling mode will be set to &drm_connector_state.picture_aspect_ratio
+ * and can be used from &drm_connector_helper_funcs->atomic_check for validation.
+ *
+ * This is the atomic version of drm_mode_create_scaling_mode_property().
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_scaling_mode_property(struct drm_connector *connector,
+					       u32 scaling_mode_mask)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *scaling_mode_property;
+	int i, j = 0;
+	const unsigned valid_scaling_mode_mask =
+		(1U << ARRAY_SIZE(drm_scaling_mode_enum_list)) - 1;
+
+	if (WARN_ON(hweight32(scaling_mode_mask) < 2 ||
+		    scaling_mode_mask & ~valid_scaling_mode_mask))
+		return -EINVAL;
+
+	scaling_mode_property =
+		drm_property_create(dev, DRM_MODE_PROP_ENUM, "scaling mode",
+				    hweight32(scaling_mode_mask));
+
+	if (!scaling_mode_property)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(drm_scaling_mode_enum_list); i++) {
+		int ret;
+
+		if (!(BIT(i) & scaling_mode_mask))
+			continue;
+
+		ret = drm_property_add_enum(scaling_mode_property, j++,
+					    drm_scaling_mode_enum_list[i].type,
+					    drm_scaling_mode_enum_list[i].name);
+
+		if (ret) {
+			drm_property_destroy(dev, scaling_mode_property);
+
+			return ret;
+		}
+	}
+
+	drm_object_attach_property(&connector->base,
+				   scaling_mode_property, 0);
+
+	connector->scaling_mode_property = scaling_mode_property;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_scaling_mode_property);
 
 /**
  * drm_mode_create_aspect_ratio_property - create aspect ratio property
@@ -1229,21 +1293,6 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	if (!connector)
 		return -ENOENT;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	encoder = drm_connector_get_encoder(connector);
-	if (encoder)
-		out_resp->encoder_id = encoder->base.id;
-	else
-		out_resp->encoder_id = 0;
-
-	ret = drm_mode_object_get_properties(&connector->base, file_priv->atomic,
-			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
-			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
-			&out_resp->count_props);
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
-	if (ret)
-		goto out_unref;
-
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
 		if (connector->encoder_ids[i] != 0)
 			encoders_count++;
@@ -1256,7 +1305,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 				if (put_user(connector->encoder_ids[i],
 					     encoder_ptr + copied)) {
 					ret = -EFAULT;
-					goto out_unref;
+					goto out;
 				}
 				copied++;
 			}
@@ -1300,15 +1349,32 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 			if (copy_to_user(mode_ptr + copied,
 					 &u_mode, sizeof(u_mode))) {
 				ret = -EFAULT;
+				mutex_unlock(&dev->mode_config.mutex);
+
 				goto out;
 			}
 			copied++;
 		}
 	}
 	out_resp->count_modes = mode_count;
-out:
 	mutex_unlock(&dev->mode_config.mutex);
-out_unref:
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	encoder = drm_connector_get_encoder(connector);
+	if (encoder)
+		out_resp->encoder_id = encoder->base.id;
+	else
+		out_resp->encoder_id = 0;
+
+	/* Only grab properties after probing, to make sure EDID and other
+	 * properties reflect the latest status. */
+	ret = drm_mode_object_get_properties(&connector->base, file_priv->atomic,
+			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
+			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
+			&out_resp->count_props);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+out:
 	drm_connector_put(connector);
 
 	return ret;

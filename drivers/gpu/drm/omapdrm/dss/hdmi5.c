@@ -728,11 +728,9 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 	mutex_init(&hdmi.lock);
 	spin_lock_init(&hdmi.audio_playing_lock);
 
-	if (pdev->dev.of_node) {
-		r = hdmi_probe_of(pdev);
-		if (r)
-			return r;
-	}
+	r = hdmi_probe_of(pdev);
+	if (r)
+		return r;
 
 	r = hdmi_wp_init(pdev, &hdmi.wp);
 	if (r)

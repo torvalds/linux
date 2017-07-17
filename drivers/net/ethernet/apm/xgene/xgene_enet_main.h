@@ -42,6 +42,7 @@
 
 #define XGENE_DRV_VERSION	"v1.0"
 #define ETHER_MIN_PACKET	64
+#define ETHER_STD_PACKET	1518
 #define XGENE_ENET_STD_MTU	1536
 #define XGENE_ENET_MAX_MTU	9600
 #define SKB_BUFFER_SIZE		(XGENE_ENET_STD_MTU - NET_IP_ALIGN)
@@ -138,6 +139,8 @@ struct xgene_enet_desc_ring {
 	__le64 *exp_bufs;
 	u64 tx_packets;
 	u64 tx_bytes;
+	u64 tx_dropped;
+	u64 tx_errors;
 	u64 rx_packets;
 	u64 rx_bytes;
 	u64 rx_dropped;
@@ -155,6 +158,7 @@ struct xgene_mac_ops {
 	void (*rx_enable)(struct xgene_enet_pdata *pdata);
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
+	void (*get_drop_cnt)(struct xgene_enet_pdata *pdata, u32 *rx, u32 *tx);
 	void (*set_speed)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
 	void (*set_framesize)(struct xgene_enet_pdata *pdata, int framesize);
@@ -212,6 +216,7 @@ struct xgene_enet_pdata {
 	void __iomem *eth_diag_csr_addr;
 	void __iomem *mcx_mac_addr;
 	void __iomem *mcx_mac_csr_addr;
+	void __iomem *mcx_stats_addr;
 	void __iomem *base_addr;
 	void __iomem *pcs_addr;
 	void __iomem *ring_csr_addr;
@@ -219,8 +224,12 @@ struct xgene_enet_pdata {
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct xgene_enet_cle cle;
-	struct rtnl_link_stats64 stats;
+	u64 *extd_stats;
+	u64 false_rflr;
+	u64 vlan_rjbr;
+	spinlock_t stats_lock; /* statistics lock */
 	const struct xgene_mac_ops *mac_ops;
+	spinlock_t mac_lock; /* mac lock */
 	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
 	const struct xgene_cle_ops *cle_ops;
@@ -263,5 +272,6 @@ static inline u16 xgene_enet_dst_ring_num(struct xgene_enet_desc_ring *ring)
 }
 
 void xgene_enet_set_ethtool_ops(struct net_device *netdev);
+int xgene_extd_stats_init(struct xgene_enet_pdata *pdata);
 
 #endif /* __XGENE_ENET_MAIN_H__ */

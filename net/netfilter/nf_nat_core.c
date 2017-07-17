@@ -566,7 +566,7 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * Else, when the conntrack is destoyed, nf_nat_cleanup_conntrack()
 	 * will delete entry from already-freed table.
 	 */
-	ct->status &= ~IPS_NAT_DONE_MASK;
+	clear_bit(IPS_SRC_NAT_DONE_BIT, &ct->status);
 	rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
 			nf_nat_bysource_params);
 
@@ -582,12 +582,8 @@ static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
 		.l3proto = l3proto,
 		.l4proto = l4proto,
 	};
-	struct net *net;
 
-	rtnl_lock();
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
-	rtnl_unlock();
+	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
 }
 
 static void nf_nat_l3proto_clean(u8 l3proto)
@@ -595,13 +591,8 @@ static void nf_nat_l3proto_clean(u8 l3proto)
 	struct nf_nat_proto_clean clean = {
 		.l3proto = l3proto,
 	};
-	struct net *net;
 
-	rtnl_lock();
-
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
-	rtnl_unlock();
+	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
 }
 
 /* Protocol registration. */
@@ -822,17 +813,6 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 }
 #endif
 
-static void __net_exit nf_nat_net_exit(struct net *net)
-{
-	struct nf_nat_proto_clean clean = {};
-
-	nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean, 0, 0);
-}
-
-static struct pernet_operations nf_nat_net_ops = {
-	.exit = nf_nat_net_exit,
-};
-
 static struct nf_ct_helper_expectfn follow_master_nat = {
 	.name		= "nat-follow-master",
 	.expectfn	= nf_nat_follow_master,
@@ -853,10 +833,6 @@ static int __init nf_nat_init(void)
 		return ret;
 	}
 
-	ret = register_pernet_subsys(&nf_nat_net_ops);
-	if (ret < 0)
-		goto cleanup_extend;
-
 	nf_ct_helper_expectfn_register(&follow_master_nat);
 
 	BUG_ON(nfnetlink_parse_nat_setup_hook != NULL);
@@ -867,18 +843,15 @@ static int __init nf_nat_init(void)
 	RCU_INIT_POINTER(nf_nat_decode_session_hook, __nf_nat_decode_session);
 #endif
 	return 0;
-
- cleanup_extend:
-	rhltable_destroy(&nf_nat_bysource_table);
-	nf_ct_extend_unregister(&nat_extend);
-	return ret;
 }
 
 static void __exit nf_nat_cleanup(void)
 {
+	struct nf_nat_proto_clean clean = {};
 	unsigned int i;
 
-	unregister_pernet_subsys(&nf_nat_net_ops);
+	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
+
 	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook, NULL);

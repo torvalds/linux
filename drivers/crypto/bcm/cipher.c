@@ -36,6 +36,7 @@
 #include <crypto/internal/aead.h>
 #include <crypto/aes.h>
 #include <crypto/des.h>
+#include <crypto/hmac.h>
 #include <crypto/sha.h>
 #include <crypto/md5.h>
 #include <crypto/authenc.h>
@@ -2510,8 +2511,8 @@ static int ahash_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 		memcpy(ctx->opad, ctx->ipad, blocksize);
 
 		for (index = 0; index < blocksize; index++) {
-			ctx->ipad[index] ^= 0x36;
-			ctx->opad[index] ^= 0x5c;
+			ctx->ipad[index] ^= HMAC_IPAD_VALUE;
+			ctx->opad[index] ^= HMAC_OPAD_VALUE;
 		}
 
 		flow_dump("  ipad: ", ctx->ipad, blocksize);
@@ -2638,7 +2639,7 @@ static int aead_need_fallback(struct aead_request *req)
 	    (spu->spu_type == SPU_TYPE_SPUM) &&
 	    (ctx->digestsize != 8) && (ctx->digestsize != 12) &&
 	    (ctx->digestsize != 16)) {
-		flow_log("%s() AES CCM needs fallbck for digest size %d\n",
+		flow_log("%s() AES CCM needs fallback for digest size %d\n",
 			 __func__, ctx->digestsize);
 		return 1;
 	}

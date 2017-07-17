@@ -564,25 +564,20 @@ SYSCALL_DEFINE0(getdtablesize)
  */
 SYSCALL_DEFINE2(osf_getdomainname, char __user *, name, int, namelen)
 {
-	unsigned len;
-	int i;
+	int len, err = 0;
+	char *kname;
 
-	if (!access_ok(VERIFY_WRITE, name, namelen))
-		return -EFAULT;
-
-	len = namelen;
-	if (len > 32)
-		len = 32;
+	if (namelen > 32)
+		namelen = 32;
 
 	down_read(&uts_sem);
-	for (i = 0; i < len; ++i) {
-		__put_user(utsname()->domainname[i], name + i);
-		if (utsname()->domainname[i] == '\0')
-			break;
-	}
+	kname = utsname()->domainname;
+	len = strnlen(kname, namelen);
+	if (copy_to_user(name, kname, min(len + 1, namelen)))
+		err = -EFAULT;
 	up_read(&uts_sem);
 
-	return 0;
+	return err;
 }
 
 /*
@@ -718,9 +713,8 @@ SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
 
 	if (uoss) {
 		error = -EFAULT;
-		if (! access_ok(VERIFY_WRITE, uoss, sizeof(*uoss))
-		    || __put_user(oss_sp, &uoss->ss_sp)
-		    || __put_user(oss_os, &uoss->ss_onstack))
+		if (put_user(oss_sp, &uoss->ss_sp) ||
+		    put_user(oss_os, &uoss->ss_onstack))
 			goto out;
 	}
 
@@ -957,37 +951,45 @@ struct itimerval32
 static inline long
 get_tv32(struct timeval *o, struct timeval32 __user *i)
 {
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->tv_sec, &i->tv_sec) |
-		 __get_user(o->tv_usec, &i->tv_usec)));
+	struct timeval32 tv;
+	if (copy_from_user(&tv, i, sizeof(struct timeval32)))
+		return -EFAULT;
+	o->tv_sec = tv.tv_sec;
+	o->tv_usec = tv.tv_usec;
+	return 0;
 }
 
 static inline long
 put_tv32(struct timeval32 __user *o, struct timeval *i)
 {
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->tv_sec, &o->tv_sec) |
-		 __put_user(i->tv_usec, &o->tv_usec)));
+	return copy_to_user(o, &(struct timeval32){
+				.tv_sec = o->tv_sec,
+				.tv_usec = o->tv_usec},
+			    sizeof(struct timeval32));
 }
 
 static inline long
 get_it32(struct itimerval *o, struct itimerval32 __user *i)
 {
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->it_interval.tv_sec, &i->it_interval.tv_sec) |
-		 __get_user(o->it_interval.tv_usec, &i->it_interval.tv_usec) |
-		 __get_user(o->it_value.tv_sec, &i->it_value.tv_sec) |
-		 __get_user(o->it_value.tv_usec, &i->it_value.tv_usec)));
+	struct itimerval32 itv;
+	if (copy_from_user(&itv, i, sizeof(struct itimerval32)))
+		return -EFAULT;
+	o->it_interval.tv_sec = itv.it_interval.tv_sec;
+	o->it_interval.tv_usec = itv.it_interval.tv_usec;
+	o->it_value.tv_sec = itv.it_value.tv_sec;
+	o->it_value.tv_usec = itv.it_value.tv_usec;
+	return 0;
 }
 
 static inline long
 put_it32(struct itimerval32 __user *o, struct itimerval *i)
 {
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->it_interval.tv_sec, &o->it_interval.tv_sec) |
-		 __put_user(i->it_interval.tv_usec, &o->it_interval.tv_usec) |
-		 __put_user(i->it_value.tv_sec, &o->it_value.tv_sec) |
-		 __put_user(i->it_value.tv_usec, &o->it_value.tv_usec)));
+	return copy_to_user(o, &(struct itimerval32){
+				.it_interval.tv_sec = o->it_interval.tv_sec,
+				.it_interval.tv_usec = o->it_interval.tv_usec,
+				.it_value.tv_sec = o->it_value.tv_sec,
+				.it_value.tv_usec = o->it_value.tv_usec},
+			    sizeof(struct itimerval32));
 }
 
 static inline void
@@ -1106,20 +1108,17 @@ SYSCALL_DEFINE5(osf_select, int, n, fd_set __user *, inp, fd_set __user *, outp,
 {
 	struct timespec end_time, *to = NULL;
 	if (tvp) {
-		time_t sec, usec;
-
+		struct timeval tv;
 		to = &end_time;
 
-		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
-		    || __get_user(sec, &tvp->tv_sec)
-		    || __get_user(usec, &tvp->tv_usec)) {
+		if (get_tv32(&tv, tvp))
 		    	return -EFAULT;
-		}
 
-		if (sec < 0 || usec < 0)
+		if (tv.tv_sec < 0 || tv.tv_usec < 0)
 			return -EINVAL;
 
-		if (poll_select_set_timeout(to, sec, usec * NSEC_PER_USEC))
+		if (poll_select_set_timeout(to, tv.tv_sec,
+					    tv.tv_usec * NSEC_PER_USEC))
 			return -EINVAL;		
 
 	}
@@ -1183,48 +1182,23 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
 		struct rusage32 __user *, ur)
 {
-	struct rusage r;
-	long ret, err;
 	unsigned int status = 0;
-	mm_segment_t old_fs;
-
-	if (!ur)
-		return sys_wait4(pid, ustatus, options, NULL);
-
-	old_fs = get_fs();
-		
-	set_fs (KERNEL_DS);
-	ret = sys_wait4(pid, (unsigned int __user *) &status, options,
-			(struct rusage __user *) &r);
-	set_fs (old_fs);
-
-	if (!access_ok(VERIFY_WRITE, ur, sizeof(*ur)))
+	struct rusage r;
+	long err = kernel_wait4(pid, &status, options, &r);
+	if (err <= 0)
+		return err;
+	if (put_user(status, ustatus))
 		return -EFAULT;
-
-	err = put_user(status, ustatus);
-	if (ret < 0)
-		return err ? err : ret;
-
-	err |= __put_user(r.ru_utime.tv_sec, &ur->ru_utime.tv_sec);
-	err |= __put_user(r.ru_utime.tv_usec, &ur->ru_utime.tv_usec);
-	err |= __put_user(r.ru_stime.tv_sec, &ur->ru_stime.tv_sec);
-	err |= __put_user(r.ru_stime.tv_usec, &ur->ru_stime.tv_usec);
-	err |= __put_user(r.ru_maxrss, &ur->ru_maxrss);
-	err |= __put_user(r.ru_ixrss, &ur->ru_ixrss);
-	err |= __put_user(r.ru_idrss, &ur->ru_idrss);
-	err |= __put_user(r.ru_isrss, &ur->ru_isrss);
-	err |= __put_user(r.ru_minflt, &ur->ru_minflt);
-	err |= __put_user(r.ru_majflt, &ur->ru_majflt);
-	err |= __put_user(r.ru_nswap, &ur->ru_nswap);
-	err |= __put_user(r.ru_inblock, &ur->ru_inblock);
-	err |= __put_user(r.ru_oublock, &ur->ru_oublock);
-	err |= __put_user(r.ru_msgsnd, &ur->ru_msgsnd);
-	err |= __put_user(r.ru_msgrcv, &ur->ru_msgrcv);
-	err |= __put_user(r.ru_nsignals, &ur->ru_nsignals);
-	err |= __put_user(r.ru_nvcsw, &ur->ru_nvcsw);
-	err |= __put_user(r.ru_nivcsw, &ur->ru_nivcsw);
-
-	return err ? err : ret;
+	if (!ur)
+		return err;
+	if (put_tv32(&ur->ru_utime, &r.ru_utime))
+		return -EFAULT;
+	if (put_tv32(&ur->ru_stime, &r.ru_stime))
+		return -EFAULT;
+	if (copy_to_user(&ur->ru_maxrss, &r.ru_maxrss,
+	      sizeof(struct rusage32) - offsetof(struct rusage32, ru_maxrss)))
+		return -EFAULT;
+	return err;
 }
 
 /*

@@ -332,6 +332,8 @@ struct dquot_operations {
 	 * quota code only */
 	qsize_t *(*get_reserved_space) (struct inode *);
 	int (*get_projid) (struct inode *, kprojid_t *);/* Get project ID */
+	/* Get number of inodes that were charged for a given inode */
+	int (*get_inode_usage) (struct inode *, qsize_t *);
 	/* Get next ID with active quota structure */
 	int (*get_next_id) (struct super_block *sb, struct kqid *qid);
 };

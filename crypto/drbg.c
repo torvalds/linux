@@ -1691,6 +1691,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 		return PTR_ERR(sk_tfm);
 	}
 	drbg->ctr_handle = sk_tfm;
+	init_completion(&drbg->ctr_completion);
 
 	req = skcipher_request_alloc(sk_tfm, GFP_KERNEL);
 	if (!req) {
@@ -1767,9 +1768,8 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&drbg->ctr_completion);
-			if (!ret && !drbg->ctr_async_err) {
+			wait_for_completion(&drbg->ctr_completion);
+			if (!drbg->ctr_async_err) {
 				reinit_completion(&drbg->ctr_completion);
 				break;
 			}

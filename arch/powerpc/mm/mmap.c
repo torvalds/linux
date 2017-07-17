@@ -34,16 +34,9 @@
 /*
  * Top of mmap area (just below the process stack).
  *
- * Leave at least a ~128 MB hole on 32bit applications.
- *
- * On 64bit applications we randomise the stack by 1GB so we need to
- * space our mmap start address by a further 1GB, otherwise there is a
- * chance the mmap area will end up closer to the stack than our ulimit
- * requires.
+ * Leave at least a ~128 MB hole.
  */
-#define MIN_GAP32 (128*1024*1024)
-#define MIN_GAP64 ((128 + 1024)*1024*1024UL)
-#define MIN_GAP ((is_32bit_task()) ? MIN_GAP32 : MIN_GAP64)
+#define MIN_GAP (128*1024*1024)
 #define MAX_GAP (TASK_SIZE/6*5)
 
 static inline int mmap_is_legacy(void)
@@ -71,9 +64,26 @@ unsigned long arch_mmap_rnd(void)
 	return rnd << PAGE_SHIFT;
 }
 
+static inline unsigned long stack_maxrandom_size(void)
+{
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
+
+	/* 8MB for 32bit, 1GB for 64bit */
+	if (is_32bit_task())
+		return (1<<23);
+	else
+		return (1<<30);
+}
+
 static inline unsigned long mmap_base(unsigned long rnd)
 {
 	unsigned long gap = rlimit(RLIMIT_STACK);
+	unsigned long pad = stack_maxrandom_size() + stack_guard_gap;
+
+	/* Values close to RLIM_INFINITY can overflow. */
+	if (gap + pad > gap)
+		gap += pad;
 
 	if (gap < MIN_GAP)
 		gap = MIN_GAP;
@@ -112,7 +122,7 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (mm->task_size - len >= addr && addr >= mmap_min_addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
@@ -157,7 +167,7 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (mm->task_size - len >= addr && addr >= mmap_min_addr &&
-				(!vma || addr + len <= vma->vm_start))
+				(!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 

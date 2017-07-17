@@ -448,7 +448,7 @@ static void bluecard_receive(struct bluecard_info *info,
 
 		} else {
 
-			*skb_put(info->rx_skb, 1) = buf[i];
+			skb_put_u8(info->rx_skb, buf[i]);
 			info->rx_count--;
 
 			if (info->rx_count == 0) {
@@ -597,7 +597,7 @@ static int bluecard_hci_set_baud_rate(struct hci_dev *hdev, int baud)
 		break;
 	}
 
-	memcpy(skb_put(skb, sizeof(cmd)), cmd, sizeof(cmd));
+	skb_put_data(skb, cmd, sizeof(cmd));
 
 	skb_queue_tail(&(info->txq), skb);
 

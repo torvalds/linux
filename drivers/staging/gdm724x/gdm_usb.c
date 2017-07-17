@@ -738,11 +738,11 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	sdu->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_TX_SDU);
 	if (nic_type == NIC_TYPE_ARP) {
 		send_len = len + SDU_PARAM_LEN;
-	    memcpy(sdu->data, data, len);
+		memcpy(sdu->data, data, len);
 	} else {
-	    send_len = len - ETH_HLEN;
-	    send_len += SDU_PARAM_LEN;
-	    memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
+		send_len = len - ETH_HLEN;
+		send_len += SDU_PARAM_LEN;
+		memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
 	}
 
 	sdu->len = gdm_cpu_to_dev16(&udev->gdm_ed, send_len);

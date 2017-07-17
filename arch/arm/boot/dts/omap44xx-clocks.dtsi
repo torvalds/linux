@@ -357,6 +357,8 @@
 		compatible = "ti,omap4-dpll-clock";
 		clocks = <&sys_clkin_ck>, <&iva_hsd_byp_clk_mux_ck>;
 		reg = <0x01a0>, <0x01a4>, <0x01ac>, <0x01a8>;
+		assigned-clocks = <&dpll_iva_ck>;
+		assigned-clock-rates = <931200000>;
 	};
 
 	dpll_iva_x2_ck: dpll_iva_x2_ck {
@@ -374,6 +376,8 @@
 		reg = <0x01b8>;
 		ti,index-starts-at-one;
 		ti,invert-autoidle-bit;
+		assigned-clocks = <&dpll_iva_m4x2_ck>;
+		assigned-clock-rates = <465600000>;
 	};
 
 	dpll_iva_m5x2_ck: dpll_iva_m5x2_ck@1bc {
@@ -385,6 +389,8 @@
 		reg = <0x01bc>;
 		ti,index-starts-at-one;
 		ti,invert-autoidle-bit;
+		assigned-clocks = <&dpll_iva_m5x2_ck>;
+		assigned-clock-rates = <266100000>;
 	};
 
 	dpll_mpu_ck: dpll_mpu_ck@160 {
@@ -967,22 +973,6 @@
 		clocks = <&dpll_abe_m2_ck>;
 		reg = <0x0108>;
 		ti,max-div = <2>;
-	};
-
-	aes1_fck: aes1_fck@15a0 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&l3_div_ck>;
-		ti,bit-shift = <1>;
-		reg = <0x15a0>;
-	};
-
-	aes2_fck: aes2_fck@15a8 {
-		#clock-cells = <0>;
-		compatible = "ti,gate-clock";
-		clocks = <&l3_div_ck>;
-		ti,bit-shift = <1>;
-		reg = <0x15a8>;
 	};
 
 	dss_sys_clk: dss_sys_clk@1120 {

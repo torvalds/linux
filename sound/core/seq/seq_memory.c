@@ -118,7 +118,6 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 	}
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_seq_dump_var_event);
 
 
@@ -169,7 +168,6 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 				     &buf);
 	return err < 0 ? err : newlen;
 }
-
 EXPORT_SYMBOL(snd_seq_expand_var_event);
 
 /*
@@ -227,7 +225,7 @@ static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
 	struct snd_seq_event_cell *cell;
 	unsigned long flags;
 	int err = -EAGAIN;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 
 	if (pool == NULL)
 		return -EINVAL;

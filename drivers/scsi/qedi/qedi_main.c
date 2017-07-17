@@ -151,6 +151,11 @@ static int qedi_uio_close(struct uio_info *uinfo, struct inode *inode)
 
 static void __qedi_free_uio_rings(struct qedi_uio_dev *udev)
 {
+	if (udev->uctrl) {
+		free_page((unsigned long)udev->uctrl);
+		udev->uctrl = NULL;
+	}
+
 	if (udev->ll2_ring) {
 		free_page((unsigned long)udev->ll2_ring);
 		udev->ll2_ring = NULL;
@@ -169,7 +174,6 @@ static void __qedi_free_uio(struct qedi_uio_dev *udev)
 	__qedi_free_uio_rings(udev);
 
 	pci_dev_put(udev->pdev);
-	kfree(udev->uctrl);
 	kfree(udev);
 }
 
@@ -208,6 +212,11 @@ static int __qedi_alloc_uio_rings(struct qedi_uio_dev *udev)
 	if (udev->ll2_ring || udev->ll2_buf)
 		return rc;
 
+	/* Memory for control area.  */
+	udev->uctrl = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!udev->uctrl)
+		return -ENOMEM;
+
 	/* Allocating memory for LL2 ring  */
 	udev->ll2_ring_size = QEDI_PAGE_SIZE;
 	udev->ll2_ring = (void *)get_zeroed_page(GFP_KERNEL | __GFP_COMP);
@@ -237,7 +246,6 @@ exit_alloc_ring:
 static int qedi_alloc_uio_rings(struct qedi_ctx *qedi)
 {
 	struct qedi_uio_dev *udev = NULL;
-	struct qedi_uio_ctrl *uctrl = NULL;
 	int rc = 0;
 
 	list_for_each_entry(udev, &qedi_udev_list, list) {
@@ -258,21 +266,14 @@ static int qedi_alloc_uio_rings(struct qedi_ctx *qedi)
 		goto err_udev;
 	}
 
-	uctrl = kzalloc(sizeof(*uctrl), GFP_KERNEL);
-	if (!uctrl) {
-		rc = -ENOMEM;
-		goto err_uctrl;
-	}
-
 	udev->uio_dev = -1;
 
 	udev->qedi = qedi;
 	udev->pdev = qedi->pdev;
-	udev->uctrl = uctrl;
 
 	rc = __qedi_alloc_uio_rings(udev);
 	if (rc)
-		goto err_uio_rings;
+		goto err_uctrl;
 
 	list_add(&udev->list, &qedi_udev_list);
 
@@ -283,8 +284,6 @@ static int qedi_alloc_uio_rings(struct qedi_ctx *qedi)
 	udev->rx_pkt = udev->ll2_buf + LL2_SINGLE_BUF_SIZE;
 	return 0;
 
- err_uio_rings:
-	kfree(uctrl);
  err_uctrl:
 	kfree(udev);
  err_udev:
@@ -828,6 +827,8 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	qedi->pf_params.iscsi_pf_params.num_uhq_pages_in_ring = num_sq_pages;
 	qedi->pf_params.iscsi_pf_params.num_queues = qedi->num_queues;
 	qedi->pf_params.iscsi_pf_params.debug_mode = qedi_fw_debug;
+	qedi->pf_params.iscsi_pf_params.two_msl_timer = 4000;
+	qedi->pf_params.iscsi_pf_params.max_fin_rt = 2;
 
 	for (log_page_size = 0 ; log_page_size < 32 ; log_page_size++) {
 		if ((1 << log_page_size) == PAGE_SIZE)
@@ -1498,11 +1499,9 @@ err_idx:
 
 void qedi_clear_task_idx(struct qedi_ctx *qedi, int idx)
 {
-	if (!test_and_clear_bit(idx, qedi->task_idx_map)) {
+	if (!test_and_clear_bit(idx, qedi->task_idx_map))
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "FW task context, already cleared, tid=0x%x\n", idx);
-		WARN_ON(1);
-	}
 }
 
 void qedi_update_itt_map(struct qedi_ctx *qedi, u32 tid, u32 proto_itt,
@@ -1843,7 +1842,7 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		  qedi->mac);
 
 	sprintf(host_buf, "host_%d", qedi->shost->host_no);
-	qedi_ops->common->set_id(qedi->cdev, host_buf, QEDI_MODULE_VERSION);
+	qedi_ops->common->set_name(qedi->cdev, host_buf);
 
 	qedi_ops->register_ops(qedi->cdev, &qedi_cb_ops, qedi);
 

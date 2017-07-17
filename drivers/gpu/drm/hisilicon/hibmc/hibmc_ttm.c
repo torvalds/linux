@@ -17,7 +17,7 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <ttm/ttm_page_alloc.h>
+#include <drm/ttm/ttm_page_alloc.h>
 
 #include "hibmc_drm_drv.h"
 

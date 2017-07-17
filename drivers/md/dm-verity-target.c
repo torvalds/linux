@@ -166,7 +166,7 @@ static int verity_hash_init(struct dm_verity *v, struct ahash_request *req,
 		return r;
 	}
 
-	if (likely(v->version >= 1))
+	if (likely(v->salt_size && (v->version >= 1)))
 		r = verity_hash_update(v, req, v->salt, v->salt_size, res);
 
 	return r;
@@ -177,7 +177,7 @@ static int verity_hash_final(struct dm_verity *v, struct ahash_request *req,
 {
 	int r;
 
-	if (unlikely(!v->version)) {
+	if (unlikely(v->salt_size && (!v->version))) {
 		r = verity_hash_update(v, req, v->salt, v->salt_size, res);
 
 		if (r < 0) {
@@ -538,13 +538,13 @@ static int verity_verify_io(struct dm_verity_io *io)
 /*
  * End one "io" structure with a given error.
  */
-static void verity_finish_io(struct dm_verity_io *io, int error)
+static void verity_finish_io(struct dm_verity_io *io, blk_status_t status)
 {
 	struct dm_verity *v = io->v;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	bio->bi_end_io = io->orig_bi_end_io;
-	bio->bi_error = error;
+	bio->bi_status = status;
 
 	verity_fec_finish_io(io);
 
@@ -555,15 +555,15 @@ static void verity_work(struct work_struct *w)
 {
 	struct dm_verity_io *io = container_of(w, struct dm_verity_io, work);
 
-	verity_finish_io(io, verity_verify_io(io));
+	verity_finish_io(io, errno_to_blk_status(verity_verify_io(io)));
 }
 
 static void verity_end_io(struct bio *bio)
 {
 	struct dm_verity_io *io = bio->bi_private;
 
-	if (bio->bi_error && !verity_fec_is_enabled(io->v)) {
-		verity_finish_io(io, bio->bi_error);
+	if (bio->bi_status && !verity_fec_is_enabled(io->v)) {
+		verity_finish_io(io, bio->bi_status);
 		return;
 	}
 
@@ -643,17 +643,17 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	if (((unsigned)bio->bi_iter.bi_sector | bio_sectors(bio)) &
 	    ((1 << (v->data_dev_block_bits - SECTOR_SHIFT)) - 1)) {
 		DMERR_LIMIT("unaligned io");
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (bio_end_sector(bio) >>
 	    (v->data_dev_block_bits - SECTOR_SHIFT) > v->data_blocks) {
 		DMERR_LIMIT("io out of range");
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	if (bio_data_dir(bio) == WRITE)
-		return -EIO;
+		return DM_MAPIO_KILL;
 
 	io = dm_per_bio_data(bio, ti->per_io_data_size);
 	io->v = v;

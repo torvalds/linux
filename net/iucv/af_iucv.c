@@ -322,8 +322,7 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 	int err, confirm_recv = 0;
 
 	memset(skb->head, 0, ETH_HLEN);
-	phs_hdr = (struct af_iucv_trans_hdr *)skb_push(skb,
-					sizeof(struct af_iucv_trans_hdr));
+	phs_hdr = skb_push(skb, sizeof(struct af_iucv_trans_hdr));
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	skb_push(skb, ETH_HLEN);
@@ -363,7 +362,7 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 		else
 			skb_trim(skb, skb->dev->mtu);
 	}
-	skb->protocol = ETH_P_AF_IUCV;
+	skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
 	nskb = skb_clone(skb, GFP_ATOMIC);
 	if (!nskb)
 		return -ENOMEM;
@@ -403,7 +402,7 @@ static void iucv_sock_destruct(struct sock *sk)
 	}
 
 	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
-	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(refcount_read(&sk->sk_wmem_alloc));
 	WARN_ON(sk->sk_wmem_queued);
 	WARN_ON(sk->sk_forward_alloc);
 }
@@ -716,10 +715,8 @@ static int iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
 	char uid[9];
 
 	/* Verify the input sockaddr */
-	if (!addr || addr->sa_family != AF_IUCV)
-		return -EINVAL;
-
-	if (addr_len < sizeof(struct sockaddr_iucv))
+	if (addr_len < sizeof(struct sockaddr_iucv) ||
+	    addr->sa_family != AF_IUCV)
 		return -EINVAL;
 
 	lock_sock(sk);
@@ -863,7 +860,7 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	struct iucv_sock *iucv = iucv_sk(sk);
 	int err;
 
-	if (addr->sa_family != AF_IUCV || alen < sizeof(struct sockaddr_iucv))
+	if (alen < sizeof(struct sockaddr_iucv) || addr->sa_family != AF_IUCV)
 		return -EINVAL;
 
 	if (sk->sk_state != IUCV_OPEN && sk->sk_state != IUCV_BOUND)

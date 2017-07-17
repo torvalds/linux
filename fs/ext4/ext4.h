@@ -1114,6 +1114,7 @@ struct ext4_inode_info {
 /*
  * Mount flags set via mount options or defaults
  */
+#define EXT4_MOUNT_NO_MBCACHE		0x00001 /* Do not use mbcache */
 #define EXT4_MOUNT_GRPID		0x00004	/* Create files with directory's group */
 #define EXT4_MOUNT_DEBUG		0x00008	/* Some debugging messages */
 #define EXT4_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */
@@ -1444,6 +1445,8 @@ struct ext4_sb_info {
 	unsigned int *s_mb_maxs;
 	unsigned int s_group_info_size;
 	unsigned int s_mb_free_pending;
+	struct list_head s_freed_data_list;	/* List of blocks to be freed
+						   after commit completed */
 
 	/* tunables */
 	unsigned long s_stripe;
@@ -1516,7 +1519,8 @@ struct ext4_sb_info {
 	struct list_head s_es_list;	/* List of inodes with reclaimable extents */
 	long s_es_nr_inode;
 	struct ext4_es_stats s_es_stats;
-	struct mb_cache *s_mb_cache;
+	struct mb_cache *s_ea_block_cache;
+	struct mb_cache *s_ea_inode_cache;
 	spinlock_t s_es_lock ____cacheline_aligned_in_smp;
 
 	/* Ratelimit ext4 messages. */
@@ -1797,10 +1801,12 @@ EXT4_FEATURE_INCOMPAT_FUNCS(encrypt,		ENCRYPT)
 					 EXT4_FEATURE_INCOMPAT_EXTENTS| \
 					 EXT4_FEATURE_INCOMPAT_64BIT| \
 					 EXT4_FEATURE_INCOMPAT_FLEX_BG| \
+					 EXT4_FEATURE_INCOMPAT_EA_INODE| \
 					 EXT4_FEATURE_INCOMPAT_MMP | \
 					 EXT4_FEATURE_INCOMPAT_INLINE_DATA | \
 					 EXT4_FEATURE_INCOMPAT_ENCRYPT | \
-					 EXT4_FEATURE_INCOMPAT_CSUM_SEED)
+					 EXT4_FEATURE_INCOMPAT_CSUM_SEED | \
+					 EXT4_FEATURE_INCOMPAT_LARGEDIR)
 #define EXT4_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
 					 EXT4_FEATURE_RO_COMPAT_GDT_CSUM| \
@@ -2098,6 +2104,12 @@ static inline struct ext4_inode *ext4_raw_inode(struct ext4_iloc *iloc)
 	return (struct ext4_inode *) (iloc->bh->b_data + iloc->offset);
 }
 
+static inline bool ext4_is_quota_file(struct inode *inode)
+{
+	return IS_NOQUOTA(inode) &&
+	       !(EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL);
+}
+
 /*
  * This structure is stuffed into the struct file's private_data field
  * for directories.  It is where we put information so that we can do
@@ -2125,6 +2137,16 @@ ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
  * Special error return code only used by dx_probe() and its callers.
  */
 #define ERR_BAD_DX_DIR	(-(MAX_ERRNO - 1))
+
+/* htree levels for ext4 */
+#define	EXT4_HTREE_LEVEL_COMPAT	2
+#define	EXT4_HTREE_LEVEL	3
+
+static inline int ext4_dir_htree_level(struct super_block *sb)
+{
+	return ext4_has_feature_largedir(sb) ?
+		EXT4_HTREE_LEVEL : EXT4_HTREE_LEVEL_COMPAT;
+}
 
 /*
  * Timeout and state flag for lazy initialization inode thread.
@@ -2389,16 +2411,17 @@ extern int ext4fs_dirhash(const char *name, int len, struct
 /* ialloc.c */
 extern struct inode *__ext4_new_inode(handle_t *, struct inode *, umode_t,
 				      const struct qstr *qstr, __u32 goal,
-				      uid_t *owner, int handle_type,
-				      unsigned int line_no, int nblocks);
+				      uid_t *owner, __u32 i_flags,
+				      int handle_type, unsigned int line_no,
+				      int nblocks);
 
-#define ext4_new_inode(handle, dir, mode, qstr, goal, owner) \
+#define ext4_new_inode(handle, dir, mode, qstr, goal, owner, i_flags) \
 	__ext4_new_inode((handle), (dir), (mode), (qstr), (goal), (owner), \
-			 0, 0, 0)
+			 i_flags, 0, 0, 0)
 #define ext4_new_inode_start_handle(dir, mode, qstr, goal, owner, \
 				    type, nblocks)		    \
 	__ext4_new_inode(NULL, (dir), (mode), (qstr), (goal), (owner), \
-			 (type), __LINE__, (nblocks))
+			 0, (type), __LINE__, (nblocks))
 
 
 extern void ext4_free_inode(handle_t *, struct inode *);
@@ -2433,6 +2456,7 @@ extern int ext4_mb_add_groupinfo(struct super_block *sb,
 extern int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 				ext4_fsblk_t block, unsigned long count);
 extern int ext4_trim_fs(struct super_block *, struct fstrim_range *);
+extern void ext4_process_freed_data(struct super_block *sb, tid_t commit_tid);
 
 /* inode.c */
 int ext4_inode_is_fast_symlink(struct inode *inode);
@@ -2523,7 +2547,6 @@ extern int ext4_search_dir(struct buffer_head *bh,
 			   int buf_size,
 			   struct inode *dir,
 			   struct ext4_filename *fname,
-			   const struct qstr *d_name,
 			   unsigned int offset,
 			   struct ext4_dir_entry_2 **res_dir);
 extern int ext4_generic_delete_entry(handle_t *handle,
@@ -2705,19 +2728,20 @@ extern void ext4_group_desc_csum_set(struct super_block *sb, __u32 group,
 extern int ext4_register_li_request(struct super_block *sb,
 				    ext4_group_t first_not_zeroed);
 
-static inline int ext4_has_group_desc_csum(struct super_block *sb)
-{
-	return ext4_has_feature_gdt_csum(sb) ||
-	       EXT4_SB(sb)->s_chksum_driver != NULL;
-}
-
 static inline int ext4_has_metadata_csum(struct super_block *sb)
 {
 	WARN_ON_ONCE(ext4_has_feature_metadata_csum(sb) &&
 		     !EXT4_SB(sb)->s_chksum_driver);
 
-	return (EXT4_SB(sb)->s_chksum_driver != NULL);
+	return ext4_has_feature_metadata_csum(sb) &&
+	       (EXT4_SB(sb)->s_chksum_driver != NULL);
 }
+
+static inline int ext4_has_group_desc_csum(struct super_block *sb)
+{
+	return ext4_has_feature_gdt_csum(sb) || ext4_has_metadata_csum(sb);
+}
+
 static inline ext4_fsblk_t ext4_blocks_count(struct ext4_super_block *es)
 {
 	return ((ext4_fsblk_t)le32_to_cpu(es->s_blocks_count_hi) << 32) |
@@ -2757,13 +2781,15 @@ static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
 	es->s_r_blocks_count_hi = cpu_to_le32(blk >> 32);
 }
 
-static inline loff_t ext4_isize(struct ext4_inode *raw_inode)
+static inline loff_t ext4_isize(struct super_block *sb,
+				struct ext4_inode *raw_inode)
 {
-	if (S_ISREG(le16_to_cpu(raw_inode->i_mode)))
+	if (ext4_has_feature_largedir(sb) ||
+	    S_ISREG(le16_to_cpu(raw_inode->i_mode)))
 		return ((loff_t)le32_to_cpu(raw_inode->i_size_high) << 32) |
 			le32_to_cpu(raw_inode->i_size_lo);
-	else
-		return (loff_t) le32_to_cpu(raw_inode->i_size_lo);
+
+	return (loff_t) le32_to_cpu(raw_inode->i_size_lo);
 }
 
 static inline void ext4_isize_set(struct ext4_inode *raw_inode, loff_t i_size)
@@ -3007,7 +3033,6 @@ extern int htree_inlinedir_to_tree(struct file *dir_file,
 				   int *has_inline_data);
 extern struct buffer_head *ext4_find_inline_entry(struct inode *dir,
 					struct ext4_filename *fname,
-					const struct qstr *d_name,
 					struct ext4_dir_entry_2 **res_dir,
 					int *has_inline_data);
 extern int ext4_delete_inline_entry(handle_t *handle,

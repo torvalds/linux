@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/errno.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/hwmon.h>
@@ -145,13 +146,25 @@
 
 #define PWM_MAX 255
 
+#define BOTH_EDGES 0x02 /* 10b */
+
 #define M_PWM_DIV_H 0x00
 #define M_PWM_DIV_L 0x05
 #define M_PWM_PERIOD 0x5F
 #define M_TACH_CLK_DIV 0x00
-#define M_TACH_MODE 0x00
-#define M_TACH_UNIT 0x1000
+/*
+ * 5:4 Type N fan tach mode selection bit:
+ * 00: falling
+ * 01: rising
+ * 10: both
+ * 11: reserved.
+ */
+#define M_TACH_MODE 0x02 /* 10b */
+#define M_TACH_UNIT 0x00c0
 #define INIT_FAN_CTRL 0xFF
+
+/* How long we sleep in us while waiting for an RPM result. */
+#define ASPEED_RPM_STATUS_SLEEP_USEC	500
 
 struct aspeed_pwm_tacho_data {
 	struct regmap *regmap;
@@ -162,6 +175,7 @@ struct aspeed_pwm_tacho_data {
 	u8 type_pwm_clock_division_h[3];
 	u8 type_pwm_clock_division_l[3];
 	u8 type_fan_tach_clock_division[3];
+	u8 type_fan_tach_mode[3];
 	u16 type_fan_tach_unit[3];
 	u8 pwm_port_type[8];
 	u8 pwm_port_fan_ctrl[8];
@@ -494,11 +508,12 @@ static u32 aspeed_get_fan_tach_ch_measure_period(struct aspeed_pwm_tacho_data
 	return clk / (clk_unit * div_h * div_l * tacho_div * tacho_unit);
 }
 
-static u32 aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tacho_data *priv,
+static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tacho_data *priv,
 				      u8 fan_tach_ch)
 {
-	u32 raw_data, tach_div, clk_source, sec, val;
-	u8 fan_tach_ch_source, type;
+	u32 raw_data, tach_div, clk_source, msec, usec, val;
+	u8 fan_tach_ch_source, type, mode, both;
+	int ret;
 
 	regmap_write(priv->regmap, ASPEED_PTCR_TRIGGER, 0);
 	regmap_write(priv->regmap, ASPEED_PTCR_TRIGGER, 0x1 << fan_tach_ch);
@@ -506,13 +521,31 @@ static u32 aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tacho_data *priv,
 	fan_tach_ch_source = priv->fan_tach_ch_source[fan_tach_ch];
 	type = priv->pwm_port_type[fan_tach_ch_source];
 
-	sec = (1000 / aspeed_get_fan_tach_ch_measure_period(priv, type));
-	msleep(sec);
+	msec = (1000 / aspeed_get_fan_tach_ch_measure_period(priv, type));
+	usec = msec * 1000;
 
-	regmap_read(priv->regmap, ASPEED_PTCR_RESULT, &val);
+	ret = regmap_read_poll_timeout(
+		priv->regmap,
+		ASPEED_PTCR_RESULT,
+		val,
+		(val & RESULT_STATUS_MASK),
+		ASPEED_RPM_STATUS_SLEEP_USEC,
+		usec);
+
+	/* return -ETIMEDOUT if we didn't get an answer. */
+	if (ret)
+		return ret;
+
 	raw_data = val & RESULT_VALUE_MASK;
 	tach_div = priv->type_fan_tach_clock_division[type];
-	tach_div = 0x4 << (tach_div * 2);
+	/*
+	 * We need the mode to determine if the raw_data is double (from
+	 * counting both edges).
+	 */
+	mode = priv->type_fan_tach_mode[type];
+	both = (mode & BOTH_EDGES) ? 1 : 0;
+
+	tach_div = (0x4 << both) << (tach_div * 2);
 	clk_source = priv->clk_freq;
 
 	if (raw_data == 0)
@@ -561,12 +594,14 @@ static ssize_t show_rpm(struct device *dev, struct device_attribute *attr,
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int index = sensor_attr->index;
-	u32 rpm;
+	int rpm;
 	struct aspeed_pwm_tacho_data *priv = dev_get_drvdata(dev);
 
 	rpm = aspeed_get_fan_tach_ch_rpm(priv, index);
+	if (rpm < 0)
+		return rpm;
 
-	return sprintf(buf, "%u\n", rpm);
+	return sprintf(buf, "%d\n", rpm);
 }
 
 static umode_t pwm_is_visible(struct kobject *kobj,
@@ -591,24 +626,23 @@ static umode_t fan_dev_is_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static SENSOR_DEVICE_ATTR(pwm0, 0644,
-			show_pwm, set_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm1, 0644,
-			show_pwm, set_pwm, 1);
+			show_pwm, set_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm2, 0644,
-			show_pwm, set_pwm, 2);
+			show_pwm, set_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm3, 0644,
-			show_pwm, set_pwm, 3);
+			show_pwm, set_pwm, 2);
 static SENSOR_DEVICE_ATTR(pwm4, 0644,
-			show_pwm, set_pwm, 4);
+			show_pwm, set_pwm, 3);
 static SENSOR_DEVICE_ATTR(pwm5, 0644,
-			show_pwm, set_pwm, 5);
+			show_pwm, set_pwm, 4);
 static SENSOR_DEVICE_ATTR(pwm6, 0644,
-			show_pwm, set_pwm, 6);
+			show_pwm, set_pwm, 5);
 static SENSOR_DEVICE_ATTR(pwm7, 0644,
+			show_pwm, set_pwm, 6);
+static SENSOR_DEVICE_ATTR(pwm8, 0644,
 			show_pwm, set_pwm, 7);
 static struct attribute *pwm_dev_attrs[] = {
-	&sensor_dev_attr_pwm0.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm2.dev_attr.attr,
 	&sensor_dev_attr_pwm3.dev_attr.attr,
@@ -616,6 +650,7 @@ static struct attribute *pwm_dev_attrs[] = {
 	&sensor_dev_attr_pwm5.dev_attr.attr,
 	&sensor_dev_attr_pwm6.dev_attr.attr,
 	&sensor_dev_attr_pwm7.dev_attr.attr,
+	&sensor_dev_attr_pwm8.dev_attr.attr,
 	NULL,
 };
 
@@ -624,40 +659,39 @@ static const struct attribute_group pwm_dev_group = {
 	.is_visible = pwm_is_visible,
 };
 
-static SENSOR_DEVICE_ATTR(fan0_input, 0444,
-		show_rpm, NULL, 0);
 static SENSOR_DEVICE_ATTR(fan1_input, 0444,
-		show_rpm, NULL, 1);
+		show_rpm, NULL, 0);
 static SENSOR_DEVICE_ATTR(fan2_input, 0444,
-		show_rpm, NULL, 2);
+		show_rpm, NULL, 1);
 static SENSOR_DEVICE_ATTR(fan3_input, 0444,
-		show_rpm, NULL, 3);
+		show_rpm, NULL, 2);
 static SENSOR_DEVICE_ATTR(fan4_input, 0444,
-		show_rpm, NULL, 4);
+		show_rpm, NULL, 3);
 static SENSOR_DEVICE_ATTR(fan5_input, 0444,
-		show_rpm, NULL, 5);
+		show_rpm, NULL, 4);
 static SENSOR_DEVICE_ATTR(fan6_input, 0444,
-		show_rpm, NULL, 6);
+		show_rpm, NULL, 5);
 static SENSOR_DEVICE_ATTR(fan7_input, 0444,
-		show_rpm, NULL, 7);
+		show_rpm, NULL, 6);
 static SENSOR_DEVICE_ATTR(fan8_input, 0444,
-		show_rpm, NULL, 8);
+		show_rpm, NULL, 7);
 static SENSOR_DEVICE_ATTR(fan9_input, 0444,
-		show_rpm, NULL, 9);
+		show_rpm, NULL, 8);
 static SENSOR_DEVICE_ATTR(fan10_input, 0444,
-		show_rpm, NULL, 10);
+		show_rpm, NULL, 9);
 static SENSOR_DEVICE_ATTR(fan11_input, 0444,
-		show_rpm, NULL, 11);
+		show_rpm, NULL, 10);
 static SENSOR_DEVICE_ATTR(fan12_input, 0444,
-		show_rpm, NULL, 12);
+		show_rpm, NULL, 11);
 static SENSOR_DEVICE_ATTR(fan13_input, 0444,
-		show_rpm, NULL, 13);
+		show_rpm, NULL, 12);
 static SENSOR_DEVICE_ATTR(fan14_input, 0444,
-		show_rpm, NULL, 14);
+		show_rpm, NULL, 13);
 static SENSOR_DEVICE_ATTR(fan15_input, 0444,
+		show_rpm, NULL, 14);
+static SENSOR_DEVICE_ATTR(fan16_input, 0444,
 		show_rpm, NULL, 15);
 static struct attribute *fan_dev_attrs[] = {
-	&sensor_dev_attr_fan0_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
 	&sensor_dev_attr_fan3_input.dev_attr.attr,
@@ -673,6 +707,7 @@ static struct attribute *fan_dev_attrs[] = {
 	&sensor_dev_attr_fan13_input.dev_attr.attr,
 	&sensor_dev_attr_fan14_input.dev_attr.attr,
 	&sensor_dev_attr_fan15_input.dev_attr.attr,
+	&sensor_dev_attr_fan16_input.dev_attr.attr,
 	NULL
 };
 
@@ -696,6 +731,7 @@ static void aspeed_create_type(struct aspeed_pwm_tacho_data *priv)
 	aspeed_set_tacho_type_enable(priv->regmap, TYPEM, true);
 	priv->type_fan_tach_clock_division[TYPEM] = M_TACH_CLK_DIV;
 	priv->type_fan_tach_unit[TYPEM] = M_TACH_UNIT;
+	priv->type_fan_tach_mode[TYPEM] = M_TACH_MODE;
 	aspeed_set_tacho_type_values(priv->regmap, TYPEM, M_TACH_MODE,
 				     M_TACH_UNIT, M_TACH_CLK_DIV);
 }
@@ -802,7 +838,6 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
-	of_node_put(np);
 
 	priv->groups[0] = &pwm_dev_group;
 	priv->groups[1] = &fan_dev_group;

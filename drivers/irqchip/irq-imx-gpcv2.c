@@ -200,7 +200,7 @@ static int imx_gpcv2_domain_alloc(struct irq_domain *domain,
 					    &parent_fwspec);
 }
 
-static struct irq_domain_ops gpcv2_irqchip_data_domain_ops = {
+static const struct irq_domain_ops gpcv2_irqchip_data_domain_ops = {
 	.translate	= imx_gpcv2_domain_translate,
 	.alloc		= imx_gpcv2_domain_alloc,
 	.free		= irq_domain_free_irqs_common,

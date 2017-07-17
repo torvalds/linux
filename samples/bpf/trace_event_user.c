@@ -75,7 +75,10 @@ static void print_stack(struct key_t *key, __u64 count)
 		for (i = PERF_MAX_STACK_DEPTH - 1; i >= 0; i--)
 			print_addr(ip[i]);
 	}
-	printf("\n");
+	if (count < 6)
+		printf("\r");
+	else
+		printf("\n");
 
 	if (key->kernstack == -EEXIST && !warned) {
 		printf("stackmap collisions seen. Consider increasing size\n");
@@ -105,7 +108,7 @@ static void print_stacks(void)
 		bpf_map_delete_elem(fd, &next_key);
 		key = next_key;
 	}
-
+	printf("\n");
 	if (!sys_read_seen || !sys_write_seen) {
 		printf("BUG kernel stack doesn't contain sys_read() and sys_write()\n");
 		int_exit(0);
@@ -122,24 +125,29 @@ static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 {
 	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	int *pmu_fd = malloc(nr_cpus * sizeof(int));
-	int i;
+	int i, error = 0;
 
 	/* open perf_event on all cpus */
 	for (i = 0; i < nr_cpus; i++) {
 		pmu_fd[i] = sys_perf_event_open(attr, -1, i, -1, 0);
 		if (pmu_fd[i] < 0) {
 			printf("sys_perf_event_open failed\n");
+			error = 1;
 			goto all_cpu_err;
 		}
 		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
-		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE, 0) == 0);
+		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE) == 0);
 	}
-	system("dd if=/dev/zero of=/dev/null count=5000k");
+	system("dd if=/dev/zero of=/dev/null count=5000k status=none");
 	print_stacks();
 all_cpu_err:
-	for (i--; i >= 0; i--)
+	for (i--; i >= 0; i--) {
+		ioctl(pmu_fd[i], PERF_EVENT_IOC_DISABLE);
 		close(pmu_fd[i]);
+	}
 	free(pmu_fd);
+	if (error)
+		int_exit(0);
 }
 
 static void test_perf_event_task(struct perf_event_attr *attr)
@@ -150,12 +158,13 @@ static void test_perf_event_task(struct perf_event_attr *attr)
 	pmu_fd = sys_perf_event_open(attr, 0, -1, -1, 0);
 	if (pmu_fd < 0) {
 		printf("sys_perf_event_open failed\n");
-		return;
+		int_exit(0);
 	}
 	assert(ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
-	assert(ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0) == 0);
-	system("dd if=/dev/zero of=/dev/null count=5000k");
+	assert(ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE) == 0);
+	system("dd if=/dev/zero of=/dev/null count=5000k status=none");
 	print_stacks();
+	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
 	close(pmu_fd);
 }
 
@@ -175,11 +184,56 @@ static void test_bpf_perf_event(void)
 		.config = PERF_COUNT_SW_CPU_CLOCK,
 		.inherit = 1,
 	};
+	struct perf_event_attr attr_hw_cache_l1d = {
+		.sample_freq = SAMPLE_FREQ,
+		.freq = 1,
+		.type = PERF_TYPE_HW_CACHE,
+		.config =
+			PERF_COUNT_HW_CACHE_L1D |
+			(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+			(PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16),
+		.inherit = 1,
+	};
+	struct perf_event_attr attr_hw_cache_branch_miss = {
+		.sample_freq = SAMPLE_FREQ,
+		.freq = 1,
+		.type = PERF_TYPE_HW_CACHE,
+		.config =
+			PERF_COUNT_HW_CACHE_BPU |
+			(PERF_COUNT_HW_CACHE_OP_READ << 8) |
+			(PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+		.inherit = 1,
+	};
+	struct perf_event_attr attr_type_raw = {
+		.sample_freq = SAMPLE_FREQ,
+		.freq = 1,
+		.type = PERF_TYPE_RAW,
+		/* Intel Instruction Retired */
+		.config = 0xc0,
+		.inherit = 1,
+	};
 
+	printf("Test HW_CPU_CYCLES\n");
 	test_perf_event_all_cpu(&attr_type_hw);
 	test_perf_event_task(&attr_type_hw);
+
+	printf("Test SW_CPU_CLOCK\n");
 	test_perf_event_all_cpu(&attr_type_sw);
 	test_perf_event_task(&attr_type_sw);
+
+	printf("Test HW_CACHE_L1D\n");
+	test_perf_event_all_cpu(&attr_hw_cache_l1d);
+	test_perf_event_task(&attr_hw_cache_l1d);
+
+	printf("Test HW_CACHE_BPU\n");
+	test_perf_event_all_cpu(&attr_hw_cache_branch_miss);
+	test_perf_event_task(&attr_hw_cache_branch_miss);
+
+	printf("Test Instruction Retired\n");
+	test_perf_event_all_cpu(&attr_type_raw);
+	test_perf_event_task(&attr_type_raw);
+
+	printf("*** PASS ***\n");
 }
 
 
@@ -209,7 +263,6 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	test_bpf_perf_event();
-
 	int_exit(0);
 	return 0;
 }

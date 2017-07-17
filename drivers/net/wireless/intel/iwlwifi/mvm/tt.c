@@ -628,7 +628,8 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR)) {
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->cur_ucode != IWL_UCODE_REGULAR) {
 		ret = -EIO;
 		goto out;
 	}
@@ -678,7 +679,8 @@ static int iwl_mvm_tzone_set_trip_temp(struct thermal_zone_device *device,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR)) {
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->cur_ucode != IWL_UCODE_REGULAR) {
 		ret = -EIO;
 		goto out;
 	}
@@ -790,10 +792,13 @@ static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 	struct iwl_mvm *mvm = (struct iwl_mvm *)(cdev->devdata);
 	int ret;
 
-	if (!mvm->ucode_loaded || !(mvm->cur_ucode == IWL_UCODE_REGULAR))
-		return -EIO;
-
 	mutex_lock(&mvm->mutex);
+
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->cur_ucode != IWL_UCODE_REGULAR) {
+		ret = -EIO;
+		goto unlock;
+	}
 
 	if (new_state >= ARRAY_SIZE(iwl_mvm_cdev_budgets)) {
 		ret = -EINVAL;
@@ -882,10 +887,14 @@ void iwl_mvm_thermal_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 	iwl_mvm_cooling_device_register(mvm);
 	iwl_mvm_thermal_zone_register(mvm);
 #endif
+	mvm->init_status |= IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE;
 }
 
 void iwl_mvm_thermal_exit(struct iwl_mvm *mvm)
 {
+	if (!(mvm->init_status & IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE))
+		return;
+
 	cancel_delayed_work_sync(&mvm->thermal_throttle.ct_kill_exit);
 	IWL_DEBUG_TEMP(mvm, "Exit Thermal Throttling\n");
 
@@ -893,4 +902,5 @@ void iwl_mvm_thermal_exit(struct iwl_mvm *mvm)
 	iwl_mvm_cooling_device_unregister(mvm);
 	iwl_mvm_thermal_zone_unregister(mvm);
 #endif
+	mvm->init_status &= ~IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE;
 }

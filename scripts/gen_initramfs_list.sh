@@ -174,7 +174,7 @@ dir_filelist() {
 	${dep_list}header "$1"
 
 	srcdir=$(echo "$1" | sed -e 's://*:/:g')
-	dirlist=$(find "${srcdir}" -printf "%p %m %U %G\n")
+	dirlist=$(find "${srcdir}" -printf "%p %m %U %G\n" | sort)
 
 	# If $dirlist is only one line, then the directory is empty
 	if [  "$(echo "${dirlist}" | wc -l)" -gt 1 ]; then
@@ -271,10 +271,12 @@ while [ $# -gt 0 ]; do
 	case "$arg" in
 		"-u")	# map $1 to uid=0 (root)
 			root_uid="$1"
+			[ "$root_uid" = "-1" ] && root_uid=$(id -u || echo 0)
 			shift
 			;;
 		"-g")	# map $1 to gid=0 (root)
 			root_gid="$1"
+			[ "$root_gid" = "-1" ] && root_gid=$(id -g || echo 0)
 			shift
 			;;
 		"-d")	# display default initramfs list

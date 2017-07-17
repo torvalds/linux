@@ -146,7 +146,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	loff_t pos_src = args->src_pos;
 	loff_t pos_dst = args->dst_pos;
 	size_t count = args->count;
-	int status;
+	ssize_t status;
 
 	status = nfs4_set_rw_stateid(&args->src_stateid, src_lock->open_context,
 				     src_lock, FMODE_READ);
@@ -177,7 +177,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	if (status)
 		goto out;
 
-	if (!nfs_write_verifier_cmp(&res->write_res.verifier.verifier,
+	if (nfs_write_verifier_cmp(&res->write_res.verifier.verifier,
 				    &res->commit_res.verf->verifier)) {
 		status = -EAGAIN;
 		goto out;

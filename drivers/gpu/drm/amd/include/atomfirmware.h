@@ -1206,10 +1206,10 @@ struct  atom_asic_profiling_info_v4_1
   uint32_t  gb_vdroop_table_ckson_a1;
   uint32_t  gb_vdroop_table_ckson_a2;
   uint32_t  avfsgb_fuse_table_cksoff_m1;
-  uint16_t  avfsgb_fuse_table_cksoff_m2;
+  uint32_t  avfsgb_fuse_table_cksoff_m2;
   uint32_t  avfsgb_fuse_table_cksoff_b;
   uint32_t  avfsgb_fuse_table_ckson_m1;	
-  uint16_t  avfsgb_fuse_table_ckson_m2;
+  uint32_t  avfsgb_fuse_table_ckson_m2;
   uint32_t  avfsgb_fuse_table_ckson_b;
   uint16_t  max_voltage_0_25mv;
   uint8_t   enable_gb_vdroop_table_cksoff;
@@ -1220,16 +1220,16 @@ struct  atom_asic_profiling_info_v4_1
   uint8_t   enable_apply_avfs_cksoff_voltage;
   uint8_t   reserved;
   uint32_t  dispclk2gfxclk_a;
-  uint16_t  dispclk2gfxclk_b;
+  uint32_t  dispclk2gfxclk_b;
   uint32_t  dispclk2gfxclk_c;
   uint32_t  pixclk2gfxclk_a;
-  uint16_t  pixclk2gfxclk_b;
+  uint32_t  pixclk2gfxclk_b;
   uint32_t  pixclk2gfxclk_c;
   uint32_t  dcefclk2gfxclk_a;
-  uint16_t  dcefclk2gfxclk_b;
+  uint32_t  dcefclk2gfxclk_b;
   uint32_t  dcefclk2gfxclk_c;
   uint32_t  phyclk2gfxclk_a;
-  uint16_t  phyclk2gfxclk_b;
+  uint32_t  phyclk2gfxclk_b;
   uint32_t  phyclk2gfxclk_c;
 };
 

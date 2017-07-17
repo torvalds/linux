@@ -100,10 +100,12 @@ struct of_reconfig_data {
 
 /* initialize a node */
 extern struct kobj_type of_node_ktype;
+extern const struct fwnode_operations of_fwnode_ops;
 static inline void of_node_init(struct device_node *node)
 {
 	kobject_init(&node->kobj, &of_node_ktype);
 	node->fwnode.type = FWNODE_OF;
+	node->fwnode.ops = &of_fwnode_ops;
 }
 
 /* true when node is initialized */
@@ -148,18 +150,28 @@ extern raw_spinlock_t devtree_lock;
 #ifdef CONFIG_OF
 void of_core_init(void);
 
-static inline bool is_of_node(struct fwnode_handle *fwnode)
+static inline bool is_of_node(const struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_OF;
 }
 
-static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
-{
-	return is_of_node(fwnode) ?
-		container_of(fwnode, struct device_node, fwnode) : NULL;
-}
+#define to_of_node(__fwnode)						\
+	({								\
+		typeof(__fwnode) __to_of_node_fwnode = (__fwnode);	\
+									\
+		is_of_node(__to_of_node_fwnode) ?			\
+			container_of(__to_of_node_fwnode,		\
+				     struct device_node, fwnode) :	\
+			NULL;						\
+	})
 
-#define of_fwnode_handle(node) (&(node)->fwnode)
+#define of_fwnode_handle(node)						\
+	({								\
+		typeof(node) __of_fwnode_handle_node = (node);		\
+									\
+		__of_fwnode_handle_node ?				\
+			&__of_fwnode_handle_node->fwnode : NULL;	\
+	})
 
 static inline bool of_have_populated_dt(void)
 {
@@ -533,12 +545,12 @@ static inline void of_core_init(void)
 {
 }
 
-static inline bool is_of_node(struct fwnode_handle *fwnode)
+static inline bool is_of_node(const struct fwnode_handle *fwnode)
 {
 	return false;
 }
 
-static inline struct device_node *to_of_node(struct fwnode_handle *fwnode)
+static inline struct device_node *to_of_node(const struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
@@ -623,6 +635,12 @@ static inline struct device_node *of_get_child_by_name(
 
 static inline int of_device_is_compatible(const struct device_node *device,
 					  const char *name)
+{
+	return 0;
+}
+
+static inline  int of_device_compatible_match(struct device_node *device,
+					      const char *const *compat)
 {
 	return 0;
 }

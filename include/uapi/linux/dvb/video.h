@@ -134,7 +134,8 @@ struct video_event {
 #define VIDEO_EVENT_FRAME_RATE_CHANGED	2
 #define VIDEO_EVENT_DECODER_STOPPED 	3
 #define VIDEO_EVENT_VSYNC 		4
-	__kernel_time_t timestamp;
+	/* unused, make sure to use atomic time for y2038 if it ever gets used */
+	long timestamp;
 	union {
 		video_size_t size;
 		unsigned int frame_rate;	/* in frames per 1000sec */

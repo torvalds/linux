@@ -86,11 +86,9 @@ static void freeze_enter(void)
 
 	/* Push all the CPUs into the idle loop. */
 	wake_up_all_idle_cpus();
-	pr_debug("PM: suspend-to-idle\n");
 	/* Make the current CPU wait so it can enter the idle loop too. */
 	wait_event(suspend_freeze_wait_head,
 		   suspend_freeze_state == FREEZE_STATE_WAKE);
-	pr_debug("PM: resume from suspend-to-idle\n");
 
 	cpuidle_pause();
 	put_online_cpus();
@@ -106,6 +104,8 @@ static void freeze_enter(void)
 
 static void s2idle_loop(void)
 {
+	pr_debug("PM: suspend-to-idle\n");
+
 	do {
 		freeze_enter();
 
@@ -121,6 +121,8 @@ static void s2idle_loop(void)
 
 		pm_wakeup_clear(false);
 	} while (!dpm_suspend_noirq(PMSG_SUSPEND));
+
+	pr_debug("PM: resume from suspend-to-idle\n");
 }
 
 void freeze_wake(void)

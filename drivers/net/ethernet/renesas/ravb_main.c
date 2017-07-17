@@ -230,18 +230,6 @@ static void ravb_ring_free(struct net_device *ndev, int q)
 	int ring_size;
 	int i;
 
-	/* Free RX skb ringbuffer */
-	if (priv->rx_skb[q]) {
-		for (i = 0; i < priv->num_rx_ring[q]; i++)
-			dev_kfree_skb(priv->rx_skb[q][i]);
-	}
-	kfree(priv->rx_skb[q]);
-	priv->rx_skb[q] = NULL;
-
-	/* Free aligned TX buffers */
-	kfree(priv->tx_align[q]);
-	priv->tx_align[q] = NULL;
-
 	if (priv->rx_ring[q]) {
 		for (i = 0; i < priv->num_rx_ring[q]; i++) {
 			struct ravb_ex_rx_desc *desc = &priv->rx_ring[q][i];
@@ -269,6 +257,18 @@ static void ravb_ring_free(struct net_device *ndev, int q)
 				  priv->tx_desc_dma[q]);
 		priv->tx_ring[q] = NULL;
 	}
+
+	/* Free RX skb ringbuffer */
+	if (priv->rx_skb[q]) {
+		for (i = 0; i < priv->num_rx_ring[q]; i++)
+			dev_kfree_skb(priv->rx_skb[q][i]);
+	}
+	kfree(priv->rx_skb[q]);
+	priv->rx_skb[q] = NULL;
+
+	/* Free aligned TX buffers */
+	kfree(priv->tx_align[q]);
+	priv->tx_align[q] = NULL;
 
 	/* Free TX skb ringbuffer.
 	 * SKBs are freed by ravb_tx_free() call above.
@@ -1076,16 +1076,16 @@ static int ravb_get_link_ksettings(struct net_device *ndev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
-	int error = -ENODEV;
 	unsigned long flags;
 
-	if (ndev->phydev) {
-		spin_lock_irqsave(&priv->lock, flags);
-		error = phy_ethtool_ksettings_get(ndev->phydev, cmd);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
+	if (!ndev->phydev)
+		return -ENODEV;
 
-	return error;
+	spin_lock_irqsave(&priv->lock, flags);
+	phy_ethtool_ksettings_get(ndev->phydev, cmd);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int ravb_set_link_ksettings(struct net_device *ndev,

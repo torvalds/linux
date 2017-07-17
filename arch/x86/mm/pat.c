@@ -37,14 +37,14 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 
-static bool boot_cpu_done;
-
-static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
-static void init_cache_modes(void);
+static bool __read_mostly boot_cpu_done;
+static bool __read_mostly pat_disabled = !IS_ENABLED(CONFIG_X86_PAT);
+static bool __read_mostly pat_initialized;
+static bool __read_mostly init_cm_done;
 
 void pat_disable(const char *reason)
 {
-	if (!__pat_enabled)
+	if (pat_disabled)
 		return;
 
 	if (boot_cpu_done) {
@@ -52,10 +52,8 @@ void pat_disable(const char *reason)
 		return;
 	}
 
-	__pat_enabled = 0;
+	pat_disabled = true;
 	pr_info("x86/PAT: %s\n", reason);
-
-	init_cache_modes();
 }
 
 static int __init nopat(char *str)
@@ -65,11 +63,9 @@ static int __init nopat(char *str)
 }
 early_param("nopat", nopat);
 
-static bool __read_mostly __pat_initialized = false;
-
 bool pat_enabled(void)
 {
-	return __pat_initialized;
+	return pat_initialized;
 }
 EXPORT_SYMBOL_GPL(pat_enabled);
 
@@ -207,6 +203,8 @@ static void __init_cache_modes(u64 pat)
 		update_cache_mode_entry(i, cache);
 	}
 	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
+
+	init_cm_done = true;
 }
 
 #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
@@ -227,14 +225,14 @@ static void pat_bsp_init(u64 pat)
 	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
-	__pat_initialized = true;
+	pat_initialized = true;
 
 	__init_cache_modes(pat);
 }
 
 static void pat_ap_init(u64 pat)
 {
-	if (!this_cpu_has(X86_FEATURE_PAT)) {
+	if (!boot_cpu_has(X86_FEATURE_PAT)) {
 		/*
 		 * If this happens we are on a secondary CPU, but switched to
 		 * PAT on the boot CPU. We have no way to undo PAT.
@@ -245,10 +243,9 @@ static void pat_ap_init(u64 pat)
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 }
 
-static void init_cache_modes(void)
+void init_cache_modes(void)
 {
 	u64 pat = 0;
-	static int init_cm_done;
 
 	if (init_cm_done)
 		return;
@@ -290,8 +287,6 @@ static void init_cache_modes(void)
 	}
 
 	__init_cache_modes(pat);
-
-	init_cm_done = 1;
 }
 
 /**
@@ -309,10 +304,8 @@ void pat_init(void)
 	u64 pat;
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
-	if (!__pat_enabled) {
-		init_cache_modes();
+	if (pat_disabled)
 		return;
-	}
 
 	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
 	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||

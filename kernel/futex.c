@@ -225,7 +225,7 @@ struct futex_pi_state {
  * @requeue_pi_key:	the requeue_pi target futex key
  * @bitset:		bitset for the optional bitmasked wakeup
  *
- * We use this hashed waitqueue, instead of a normal wait_queue_t, so
+ * We use this hashed waitqueue, instead of a normal wait_queue_entry_t, so
  * we can wake only the relevant ones (hashed queues may be shared).
  *
  * A futex_q has a woken state, just like tasks have TASK_RUNNING.
@@ -488,7 +488,7 @@ static void drop_futex_key_refs(union futex_key *key)
  *
  * Return: a negative error code or 0
  *
- * The key words are stored in *key on success.
+ * The key words are stored in @key on success.
  *
  * For shared mappings, it's (page->index, file_inode(vma->vm_file),
  * offset_within_page).  For private mappings, it's (uaddr, current->mm).
@@ -1259,9 +1259,9 @@ static int lock_pi_update_atomic(u32 __user *uaddr, u32 uval, u32 newval)
  * @set_waiters:	force setting the FUTEX_WAITERS bit (1) or not (0)
  *
  * Return:
- *  0 - ready to wait;
- *  1 - acquired the lock;
- * <0 - error
+ *  -  0 - ready to wait;
+ *  -  1 - acquired the lock;
+ *  - <0 - error
  *
  * The hb->lock and futex_key refs shall be held by the caller.
  */
@@ -1717,9 +1717,9 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
  * hb1 and hb2 must be held by the caller.
  *
  * Return:
- *  0 - failed to acquire the lock atomically;
- * >0 - acquired the lock, return value is vpid of the top_waiter
- * <0 - error
+ *  -  0 - failed to acquire the lock atomically;
+ *  - >0 - acquired the lock, return value is vpid of the top_waiter
+ *  - <0 - error
  */
 static int futex_proxy_trylock_atomic(u32 __user *pifutex,
 				 struct futex_hash_bucket *hb1,
@@ -1785,8 +1785,8 @@ static int futex_proxy_trylock_atomic(u32 __user *pifutex,
  * uaddr2 atomically on behalf of the top waiter.
  *
  * Return:
- * >=0 - on success, the number of tasks requeued or woken;
- *  <0 - on error
+ *  - >=0 - on success, the number of tasks requeued or woken;
+ *  -  <0 - on error
  */
 static int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 			 u32 __user *uaddr2, int nr_wake, int nr_requeue,
@@ -2142,8 +2142,8 @@ static inline void queue_me(struct futex_q *q, struct futex_hash_bucket *hb)
  * be paired with exactly one earlier call to queue_me().
  *
  * Return:
- *   1 - if the futex_q was still queued (and we removed unqueued it);
- *   0 - if the futex_q was already removed by the waking thread
+ *  - 1 - if the futex_q was still queued (and we removed unqueued it);
+ *  - 0 - if the futex_q was already removed by the waking thread
  */
 static int unqueue_me(struct futex_q *q)
 {
@@ -2333,9 +2333,9 @@ static long futex_wait_restart(struct restart_block *restart);
  * acquire the lock. Must be called with the hb lock held.
  *
  * Return:
- *  1 - success, lock taken;
- *  0 - success, lock not taken;
- * <0 - on error (-EFAULT)
+ *  -  1 - success, lock taken;
+ *  -  0 - success, lock not taken;
+ *  - <0 - on error (-EFAULT)
  */
 static int fixup_owner(u32 __user *uaddr, struct futex_q *q, int locked)
 {
@@ -2422,8 +2422,8 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
  * with no q.key reference on failure.
  *
  * Return:
- *  0 - uaddr contains val and hb has been locked;
- * <1 - -EFAULT or -EWOULDBLOCK (uaddr does not contain val) and hb is unlocked
+ *  -  0 - uaddr contains val and hb has been locked;
+ *  - <1 - -EFAULT or -EWOULDBLOCK (uaddr does not contain val) and hb is unlocked
  */
 static int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
 			   struct futex_q *q, struct futex_hash_bucket **hb)
@@ -2895,8 +2895,8 @@ pi_faulted:
  * called with the hb lock held.
  *
  * Return:
- *  0 = no early wakeup detected;
- * <0 = -ETIMEDOUT or -ERESTARTNOINTR
+ *  -  0 = no early wakeup detected;
+ *  - <0 = -ETIMEDOUT or -ERESTARTNOINTR
  */
 static inline
 int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
@@ -2968,8 +2968,8 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
  * If 4 or 7, we cleanup and return with -ETIMEDOUT.
  *
  * Return:
- *  0 - On success;
- * <0 - On error
+ *  -  0 - On success;
+ *  - <0 - On error
  */
 static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 				 u32 val, ktime_t *abs_time, u32 bitset,

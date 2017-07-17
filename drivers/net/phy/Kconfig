@@ -127,6 +127,7 @@ config MDIO_THUNDER
 	tristate "ThunderX SOCs MDIO buses"
 	depends on 64BIT
 	depends on PCI
+	depends on !(MDIO_DEVICE=y && PHYLIB=m)
 	select MDIO_CAVIUM
 	help
 	  This driver supports the MDIO interfaces found on Cavium
@@ -234,6 +235,11 @@ config CICADA_PHY
 	---help---
 	  Currently supports the cis8204
 
+config CORTINA_PHY
+	tristate "Cortina EDC CDR 10G Ethernet PHY"
+	---help---
+	  Currently supports the CS4340 phy.
+
 config DAVICOM_PHY
 	tristate "Davicom PHYs"
 	---help---
@@ -286,6 +292,11 @@ config MARVELL_PHY
 	tristate "Marvell PHYs"
 	---help---
 	  Currently has a driver for the 88E1011S
+
+config MARVELL_10G_PHY
+	tristate "Marvell Alaska 10Gbit PHYs"
+	---help---
+	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
 
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"

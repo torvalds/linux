@@ -94,17 +94,18 @@ ssize_t beacon_timeout_ms_store(struct class *class,
 	beacon_timeout_ms = bt;
 	return size;
 }
+static CLASS_ATTR_RW(beacon_timeout_ms);
 
-static struct class_attribute uwb_class_attrs[] = {
-	__ATTR(beacon_timeout_ms, S_IWUSR | S_IRUGO,
-	       beacon_timeout_ms_show, beacon_timeout_ms_store),
-	__ATTR_NULL,
+static struct attribute *uwb_class_attrs[] = {
+	&class_attr_beacon_timeout_ms.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(uwb_class);
 
 /** Device model classes */
 struct class uwb_rc_class = {
 	.name        = "uwb_rc",
-	.class_attrs = uwb_class_attrs,
+	.class_groups = uwb_class_groups,
 };
 
 

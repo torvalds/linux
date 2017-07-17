@@ -54,9 +54,6 @@ struct memblock memblock __initdata_memblock = {
 };
 
 int memblock_debug __initdata_memblock;
-#ifdef CONFIG_MOVABLE_NODE
-bool movable_node_enabled __initdata_memblock = false;
-#endif
 static bool system_has_some_mirror __initdata_memblock = false;
 static int memblock_can_resize __initdata_memblock;
 static int memblock_memory_in_slab __initdata_memblock = 0;
@@ -1737,6 +1734,29 @@ static void __init_memblock memblock_dump(struct memblock_type *type)
 		pr_info(" %s[%#x]\t[%pa-%pa], %pa bytes%s flags: %#lx\n",
 			type->name, idx, &base, &end, &size, nid_buf, flags);
 	}
+}
+
+extern unsigned long __init_memblock
+memblock_reserved_memory_within(phys_addr_t start_addr, phys_addr_t end_addr)
+{
+	struct memblock_region *rgn;
+	unsigned long size = 0;
+	int idx;
+
+	for_each_memblock_type((&memblock.reserved), rgn) {
+		phys_addr_t start, end;
+
+		if (rgn->base + rgn->size < start_addr)
+			continue;
+		if (rgn->base > end_addr)
+			continue;
+
+		start = rgn->base;
+		end = start + rgn->size;
+		size += end - start;
+	}
+
+	return size;
 }
 
 void __init_memblock __memblock_dump_all(void)

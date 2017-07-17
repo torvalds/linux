@@ -104,6 +104,51 @@ static inline int wil_vring_avail_high(struct vring *vring)
 	return wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring);
 }
 
+/* returns true when all tx vrings are empty */
+bool wil_is_tx_idle(struct wil6210_priv *wil)
+{
+	int i;
+	unsigned long data_comp_to;
+
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		struct vring *vring = &wil->vring_tx[i];
+		int vring_index = vring - wil->vring_tx;
+		struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
+
+		spin_lock(&txdata->lock);
+
+		if (!vring->va || !txdata->enabled) {
+			spin_unlock(&txdata->lock);
+			continue;
+		}
+
+		data_comp_to = jiffies + msecs_to_jiffies(
+					WIL_DATA_COMPLETION_TO_MS);
+		if (test_bit(wil_status_napi_en, wil->status)) {
+			while (!wil_vring_is_empty(vring)) {
+				if (time_after(jiffies, data_comp_to)) {
+					wil_dbg_pm(wil,
+						   "TO waiting for idle tx\n");
+					spin_unlock(&txdata->lock);
+					return false;
+				}
+				wil_dbg_ratelimited(wil,
+						    "tx vring is not empty -> NAPI\n");
+				spin_unlock(&txdata->lock);
+				napi_synchronize(&wil->napi_tx);
+				msleep(20);
+				spin_lock(&txdata->lock);
+				if (!vring->va || !txdata->enabled)
+					break;
+			}
+		}
+
+		spin_unlock(&txdata->lock);
+	}
+
+	return true;
+}
+
 /* wil_val_in_range - check if value in [min,max) */
 static inline bool wil_val_in_range(int val, int min, int max)
 {
@@ -363,7 +408,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 		return;
 	}
 
-	rtap_vendor = (void *)skb_push(skb, rtap_len);
+	rtap_vendor = skb_push(skb, rtap_len);
 	memset(rtap_vendor, 0, rtap_len);
 
 	rtap_vendor->rtap.rthdr.it_version = PKTHDR_RADIOTAP_VERSION;
@@ -404,6 +449,18 @@ static inline int wil_is_back_req(u8 fc)
 {
 	return (fc & (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       (IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
+}
+
+bool wil_is_rx_idle(struct wil6210_priv *wil)
+{
+	struct vring_rx_desc *_d;
+	struct vring *vring = &wil->vring_rx;
+
+	_d = (struct vring_rx_desc *)&vring->va[vring->swhead].rx;
+	if (_d->dma.status & RX_DMA_STATUS_DU)
+		return false;
+
+	return true;
 }
 
 /**
@@ -1812,6 +1869,15 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	spin_lock(&txdata->lock);
 
+	if (test_bit(wil_status_suspending, wil->status) ||
+	    test_bit(wil_status_suspended, wil->status) ||
+	    test_bit(wil_status_resuming, wil->status)) {
+		wil_dbg_txrx(wil,
+			     "suspend/resume in progress. drop packet\n");
+		spin_unlock(&txdata->lock);
+		return -EINVAL;
+	}
+
 	rc = (skb_is_gso(skb) ? __wil_tx_vring_tso : __wil_tx_vring)
 	     (wil, vring, skb);
 
@@ -1863,6 +1929,11 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		}
 		return;
 	}
+
+	/* Do not wake the queues in suspend flow */
+	if (test_bit(wil_status_suspending, wil->status) ||
+	    test_bit(wil_status_suspended, wil->status))
+		return;
 
 	/* check wake */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {

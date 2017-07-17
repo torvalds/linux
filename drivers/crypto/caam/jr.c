@@ -536,7 +536,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id caam_jr_match[] = {
+static const struct of_device_id caam_jr_match[] = {
 	{
 		.compatible = "fsl,sec-v4.0-job-ring",
 	},

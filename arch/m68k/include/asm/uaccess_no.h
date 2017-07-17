@@ -141,8 +141,6 @@ static inline long strnlen_user(const char *src, long n)
 	return(strlen(src) + 1); /* DAVIDM make safer */
 }
 
-#define strlen_user(str) strnlen_user(str, 32767)
-
 /*
  * Zero Userspace
  */

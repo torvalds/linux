@@ -312,7 +312,7 @@ teiup_create(struct manager *mgr, u_int prim, int len, void *arg)
 	hh->prim = prim;
 	hh->id = (mgr->ch.nr << 16) | mgr->ch.addr;
 	if (len)
-		memcpy(skb_put(skb, len), arg, len);
+		skb_put_data(skb, arg, len);
 	err = mgr->up->send(mgr->up, skb);
 	if (err) {
 		printk(KERN_WARNING "%s: err=%d\n", __func__, err);

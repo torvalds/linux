@@ -34,6 +34,11 @@ module_param_named(redirect_dir, ovl_redirect_dir_def, bool, 0644);
 MODULE_PARM_DESC(ovl_redirect_dir_def,
 		 "Default to on or off for the redirect_dir feature");
 
+static bool ovl_index_def = IS_ENABLED(CONFIG_OVERLAY_FS_INDEX);
+module_param_named(index, ovl_index_def, bool, 0644);
+MODULE_PARM_DESC(ovl_index_def,
+		 "Default to on or off for the inodes index feature");
+
 static void ovl_dentry_release(struct dentry *dentry)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
@@ -41,8 +46,6 @@ static void ovl_dentry_release(struct dentry *dentry)
 	if (oe) {
 		unsigned int i;
 
-		dput(oe->__upperdentry);
-		kfree(oe->redirect);
 		for (i = 0; i < oe->numlower; i++)
 			dput(oe->lowerstack[i].dentry);
 		kfree_rcu(oe, rcu);
@@ -165,12 +168,52 @@ static const struct dentry_operations ovl_reval_dentry_operations = {
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
 };
 
+static struct kmem_cache *ovl_inode_cachep;
+
+static struct inode *ovl_alloc_inode(struct super_block *sb)
+{
+	struct ovl_inode *oi = kmem_cache_alloc(ovl_inode_cachep, GFP_KERNEL);
+
+	oi->cache = NULL;
+	oi->redirect = NULL;
+	oi->version = 0;
+	oi->flags = 0;
+	oi->__upperdentry = NULL;
+	oi->lower = NULL;
+	mutex_init(&oi->lock);
+
+	return &oi->vfs_inode;
+}
+
+static void ovl_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	kmem_cache_free(ovl_inode_cachep, OVL_I(inode));
+}
+
+static void ovl_destroy_inode(struct inode *inode)
+{
+	struct ovl_inode *oi = OVL_I(inode);
+
+	dput(oi->__upperdentry);
+	kfree(oi->redirect);
+	mutex_destroy(&oi->lock);
+
+	call_rcu(&inode->i_rcu, ovl_i_callback);
+}
+
 static void ovl_put_super(struct super_block *sb)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
 	unsigned i;
 
+	dput(ufs->indexdir);
 	dput(ufs->workdir);
+	ovl_inuse_unlock(ufs->workbasedir);
+	dput(ufs->workbasedir);
+	if (ufs->upper_mnt)
+		ovl_inuse_unlock(ufs->upper_mnt->mnt_root);
 	mntput(ufs->upper_mnt);
 	for (i = 0; i < ufs->numlower; i++)
 		mntput(ufs->lower_mnt[i]);
@@ -228,6 +271,12 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return err;
 }
 
+/* Will this overlay be forced to mount/remount ro? */
+static bool ovl_force_readonly(struct ovl_fs *ufs)
+{
+	return (!ufs->upper_mnt || !ufs->workdir);
+}
+
 /**
  * ovl_show_options
  *
@@ -249,6 +298,9 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	if (ufs->config.redirect_dir != ovl_redirect_dir_def)
 		seq_printf(m, ",redirect_dir=%s",
 			   ufs->config.redirect_dir ? "on" : "off");
+	if (ufs->config.index != ovl_index_def)
+		seq_printf(m, ",index=%s",
+			   ufs->config.index ? "on" : "off");
 	return 0;
 }
 
@@ -256,19 +308,21 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
 
-	if (!(*flags & MS_RDONLY) && (!ufs->upper_mnt || !ufs->workdir))
+	if (!(*flags & MS_RDONLY) && ovl_force_readonly(ufs))
 		return -EROFS;
 
 	return 0;
 }
 
 static const struct super_operations ovl_super_operations = {
+	.alloc_inode	= ovl_alloc_inode,
+	.destroy_inode	= ovl_destroy_inode,
+	.drop_inode	= generic_delete_inode,
 	.put_super	= ovl_put_super,
 	.sync_fs	= ovl_sync_fs,
 	.statfs		= ovl_statfs,
 	.show_options	= ovl_show_options,
 	.remount_fs	= ovl_remount,
-	.drop_inode	= generic_delete_inode,
 };
 
 enum {
@@ -278,6 +332,8 @@ enum {
 	OPT_DEFAULT_PERMISSIONS,
 	OPT_REDIRECT_DIR_ON,
 	OPT_REDIRECT_DIR_OFF,
+	OPT_INDEX_ON,
+	OPT_INDEX_OFF,
 	OPT_ERR,
 };
 
@@ -288,6 +344,8 @@ static const match_table_t ovl_tokens = {
 	{OPT_DEFAULT_PERMISSIONS,	"default_permissions"},
 	{OPT_REDIRECT_DIR_ON,		"redirect_dir=on"},
 	{OPT_REDIRECT_DIR_OFF,		"redirect_dir=off"},
+	{OPT_INDEX_ON,			"index=on"},
+	{OPT_INDEX_OFF,			"index=off"},
 	{OPT_ERR,			NULL}
 };
 
@@ -360,6 +418,14 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			config->redirect_dir = false;
 			break;
 
+		case OPT_INDEX_ON:
+			config->index = true;
+			break;
+
+		case OPT_INDEX_OFF:
+			config->index = false;
+			break;
+
 		default:
 			pr_err("overlayfs: unrecognized mount option \"%s\" or missing value\n", p);
 			return -EINVAL;
@@ -378,23 +444,29 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 }
 
 #define OVL_WORKDIR_NAME "work"
+#define OVL_INDEXDIR_NAME "index"
 
-static struct dentry *ovl_workdir_create(struct vfsmount *mnt,
-					 struct dentry *dentry)
+static struct dentry *ovl_workdir_create(struct super_block *sb,
+					 struct ovl_fs *ufs,
+					 struct dentry *dentry,
+					 const char *name, bool persist)
 {
 	struct inode *dir = dentry->d_inode;
+	struct vfsmount *mnt = ufs->upper_mnt;
 	struct dentry *work;
 	int err;
 	bool retried = false;
+	bool locked = false;
 
 	err = mnt_want_write(mnt);
 	if (err)
-		return ERR_PTR(err);
+		goto out_err;
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
+	locked = true;
+
 retry:
-	work = lookup_one_len(OVL_WORKDIR_NAME, dentry,
-			      strlen(OVL_WORKDIR_NAME));
+	work = lookup_one_len(name, dentry, strlen(name));
 
 	if (!IS_ERR(work)) {
 		struct iattr attr = {
@@ -406,6 +478,9 @@ retry:
 			err = -EEXIST;
 			if (retried)
 				goto out_dput;
+
+			if (persist)
+				goto out_unlock;
 
 			retried = true;
 			ovl_workdir_cleanup(dir, mnt, work, 0);
@@ -446,16 +521,24 @@ retry:
 		inode_unlock(work->d_inode);
 		if (err)
 			goto out_dput;
+	} else {
+		err = PTR_ERR(work);
+		goto out_err;
 	}
 out_unlock:
-	inode_unlock(dir);
 	mnt_drop_write(mnt);
+	if (locked)
+		inode_unlock(dir);
 
 	return work;
 
 out_dput:
 	dput(work);
-	work = ERR_PTR(err);
+out_err:
+	pr_warn("overlayfs: failed to create directory %s/%s (errno: %i); mounting read-only\n",
+		ufs->config.workdir, name, -err);
+	sb->s_flags |= MS_RDONLY;
+	work = NULL;
 	goto out_unlock;
 }
 
@@ -555,6 +638,15 @@ static int ovl_lower_dir(const char *name, struct path *path,
 	if (ovl_dentry_remote(path->dentry))
 		*remote = true;
 
+	/*
+	 * The inodes index feature needs to encode and decode file
+	 * handles, so it requires that all layers support them.
+	 */
+	if (ofs->config.index && !ovl_can_decode_fh(path->dentry->d_sb)) {
+		ofs->config.index = false;
+		pr_warn("overlayfs: fs on '%s' does not support file handles, falling back to index=off.\n", name);
+	}
+
 	return 0;
 
 out_put:
@@ -610,7 +702,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 			size_t size, int flags)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
-	struct inode *realinode = ovl_inode_real(inode, NULL);
+	struct inode *realinode = ovl_inode_real(inode);
 	struct posix_acl *acl = NULL;
 	int err;
 
@@ -652,7 +744,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 
 	err = ovl_xattr_set(dentry, handler->name, value, size, flags);
 	if (!err)
-		ovl_copyattr(ovl_inode_real(inode, NULL), inode);
+		ovl_copyattr(ovl_inode_real(inode), inode);
 
 	return err;
 
@@ -734,7 +826,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	struct path upperpath = { };
 	struct path workpath = { };
 	struct dentry *root_dentry;
-	struct inode *realinode;
 	struct ovl_entry *oe;
 	struct ovl_fs *ufs;
 	struct path *stack = NULL;
@@ -752,8 +843,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!ufs)
 		goto out;
 
-	init_waitqueue_head(&ufs->copyup_wq);
 	ufs->config.redirect_dir = ovl_redirect_dir_def;
+	ufs->config.index = ovl_index_def;
 	err = ovl_parse_opt((char *) data, &ufs->config);
 	if (err)
 		goto out_free_config;
@@ -788,9 +879,15 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (err)
 			goto out_put_upperpath;
 
+		err = -EBUSY;
+		if (!ovl_inuse_trylock(upperpath.dentry)) {
+			pr_err("overlayfs: upperdir is in-use by another mount\n");
+			goto out_put_upperpath;
+		}
+
 		err = ovl_mount_dir(ufs->config.workdir, &workpath);
 		if (err)
-			goto out_put_upperpath;
+			goto out_unlock_upperdentry;
 
 		err = -EINVAL;
 		if (upperpath.mnt != workpath.mnt) {
@@ -801,12 +898,20 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			pr_err("overlayfs: workdir and upperdir must be separate subtrees\n");
 			goto out_put_workpath;
 		}
+
+		err = -EBUSY;
+		if (!ovl_inuse_trylock(workpath.dentry)) {
+			pr_err("overlayfs: workdir is in-use by another mount\n");
+			goto out_put_workpath;
+		}
+
+		ufs->workbasedir = workpath.dentry;
 		sb->s_stack_depth = upperpath.mnt->mnt_sb->s_stack_depth;
 	}
 	err = -ENOMEM;
 	lowertmp = kstrdup(ufs->config.lowerdir, GFP_KERNEL);
 	if (!lowertmp)
-		goto out_put_workpath;
+		goto out_unlock_workdentry;
 
 	err = -EINVAL;
 	stacklen = ovl_split_lowerdirs(lowertmp);
@@ -849,20 +954,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			pr_err("overlayfs: failed to clone upperpath\n");
 			goto out_put_lowerpath;
 		}
+
 		/* Don't inherit atime flags */
 		ufs->upper_mnt->mnt_flags &= ~(MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME);
 
 		sb->s_time_gran = ufs->upper_mnt->mnt_sb->s_time_gran;
 
-		ufs->workdir = ovl_workdir_create(ufs->upper_mnt, workpath.dentry);
-		err = PTR_ERR(ufs->workdir);
-		if (IS_ERR(ufs->workdir)) {
-			pr_warn("overlayfs: failed to create directory %s/%s (errno: %i); mounting read-only\n",
-				ufs->config.workdir, OVL_WORKDIR_NAME, -err);
-			sb->s_flags |= MS_RDONLY;
-			ufs->workdir = NULL;
-		}
-
+		ufs->workdir = ovl_workdir_create(sb, ufs, workpath.dentry,
+						  OVL_WORKDIR_NAME, false);
 		/*
 		 * Upper should support d_type, else whiteouts are visible.
 		 * Given workdir and upper are on same fs, we can do
@@ -891,6 +990,26 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 				dput(temp);
 			else
 				pr_warn("overlayfs: upper fs does not support tmpfile.\n");
+
+			/*
+			 * Check if upper/work fs supports trusted.overlay.*
+			 * xattr
+			 */
+			err = ovl_do_setxattr(ufs->workdir, OVL_XATTR_OPAQUE,
+					      "0", 1, 0);
+			if (err) {
+				ufs->noxattr = true;
+				pr_warn("overlayfs: upper fs does not support xattr.\n");
+			} else {
+				vfs_removexattr(ufs->workdir, OVL_XATTR_OPAQUE);
+			}
+
+			/* Check if upper/work fs supports file handles */
+			if (ufs->config.index &&
+			    !ovl_can_decode_fh(ufs->workdir->d_sb)) {
+				ufs->config.index = false;
+				pr_warn("overlayfs: upper fs does not support file handles, falling back to index=off.\n");
+			}
 		}
 	}
 
@@ -928,6 +1047,44 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	else if (ufs->upper_mnt->mnt_sb != ufs->same_sb)
 		ufs->same_sb = NULL;
 
+	if (!(ovl_force_readonly(ufs)) && ufs->config.index) {
+		/* Verify lower root is upper root origin */
+		err = ovl_verify_origin(upperpath.dentry, ufs->lower_mnt[0],
+					stack[0].dentry, false, true);
+		if (err) {
+			pr_err("overlayfs: failed to verify upper root origin\n");
+			goto out_put_lower_mnt;
+		}
+
+		ufs->indexdir = ovl_workdir_create(sb, ufs, workpath.dentry,
+						   OVL_INDEXDIR_NAME, true);
+		err = PTR_ERR(ufs->indexdir);
+		if (IS_ERR(ufs->indexdir))
+			goto out_put_lower_mnt;
+
+		if (ufs->indexdir) {
+			/* Verify upper root is index dir origin */
+			err = ovl_verify_origin(ufs->indexdir, ufs->upper_mnt,
+						upperpath.dentry, true, true);
+			if (err)
+				pr_err("overlayfs: failed to verify index dir origin\n");
+
+			/* Cleanup bad/stale/orphan index entries */
+			if (!err)
+				err = ovl_indexdir_cleanup(ufs->indexdir,
+							   ufs->upper_mnt,
+							   stack, numlower);
+		}
+		if (err || !ufs->indexdir)
+			pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
+		if (err)
+			goto out_put_indexdir;
+	}
+
+	/* Show index=off/on in /proc/mounts for any of the reasons above */
+	if (!ufs->indexdir)
+		ufs->config.index = false;
+
 	if (remote)
 		sb->s_d_op = &ovl_reval_dentry_operations;
 	else
@@ -935,7 +1092,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	ufs->creator_cred = cred = prepare_creds();
 	if (!cred)
-		goto out_put_lower_mnt;
+		goto out_put_indexdir;
 
 	/* Never override disk quota limits or use reserved space */
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
@@ -958,10 +1115,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	mntput(upperpath.mnt);
 	for (i = 0; i < numlower; i++)
 		mntput(stack[i].mnt);
-	path_put(&workpath);
+	mntput(workpath.mnt);
 	kfree(lowertmp);
 
-	oe->__upperdentry = upperpath.dentry;
+	if (upperpath.dentry) {
+		oe->has_upper = true;
+		if (ovl_is_impuredir(upperpath.dentry))
+			ovl_set_flag(OVL_IMPURE, d_inode(root_dentry));
+	}
 	for (i = 0; i < numlower; i++) {
 		oe->lowerstack[i].dentry = stack[i].dentry;
 		oe->lowerstack[i].mnt = ufs->lower_mnt[i];
@@ -970,9 +1131,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry->d_fsdata = oe;
 
-	realinode = d_inode(ovl_dentry_real(root_dentry));
-	ovl_inode_init(d_inode(root_dentry), realinode, !!upperpath.dentry);
-	ovl_copyattr(realinode, d_inode(root_dentry));
+	ovl_inode_init(d_inode(root_dentry), upperpath.dentry,
+		       ovl_dentry_lower(root_dentry));
 
 	sb->s_root = root_dentry;
 
@@ -982,6 +1142,8 @@ out_free_oe:
 	kfree(oe);
 out_put_cred:
 	put_cred(ufs->creator_cred);
+out_put_indexdir:
+	dput(ufs->indexdir);
 out_put_lower_mnt:
 	for (i = 0; i < ufs->numlower; i++)
 		mntput(ufs->lower_mnt[i]);
@@ -995,8 +1157,12 @@ out_put_lowerpath:
 	kfree(stack);
 out_free_lowertmp:
 	kfree(lowertmp);
+out_unlock_workdentry:
+	ovl_inuse_unlock(workpath.dentry);
 out_put_workpath:
 	path_put(&workpath);
+out_unlock_upperdentry:
+	ovl_inuse_unlock(upperpath.dentry);
 out_put_upperpath:
 	path_put(&upperpath);
 out_free_config:
@@ -1022,14 +1188,43 @@ static struct file_system_type ovl_fs_type = {
 };
 MODULE_ALIAS_FS("overlay");
 
+static void ovl_inode_init_once(void *foo)
+{
+	struct ovl_inode *oi = foo;
+
+	inode_init_once(&oi->vfs_inode);
+}
+
 static int __init ovl_init(void)
 {
-	return register_filesystem(&ovl_fs_type);
+	int err;
+
+	ovl_inode_cachep = kmem_cache_create("ovl_inode",
+					     sizeof(struct ovl_inode), 0,
+					     (SLAB_RECLAIM_ACCOUNT|
+					      SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+					     ovl_inode_init_once);
+	if (ovl_inode_cachep == NULL)
+		return -ENOMEM;
+
+	err = register_filesystem(&ovl_fs_type);
+	if (err)
+		kmem_cache_destroy(ovl_inode_cachep);
+
+	return err;
 }
 
 static void __exit ovl_exit(void)
 {
 	unregister_filesystem(&ovl_fs_type);
+
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
+	kmem_cache_destroy(ovl_inode_cachep);
+
 }
 
 module_init(ovl_init);

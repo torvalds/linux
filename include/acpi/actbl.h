@@ -374,6 +374,20 @@ struct acpi_table_desc {
 	u16 validation_count;
 };
 
+/*
+ * Maximum value of the validation_count field in struct acpi_table_desc.
+ * When reached, validation_count cannot be changed any more and the table will
+ * be permanently regarded as validated.
+ *
+ * This is to prevent situations in which unbalanced table get/put operations
+ * may cause premature table unmapping in the OS to happen.
+ *
+ * The maximum validation count can be defined to any value, but should be
+ * greater than the maximum number of OS early stage mapping slots to avoid
+ * leaking early stage table mappings to the late stage.
+ */
+#define ACPI_MAX_TABLE_VALIDATIONS          ACPI_UINT16_MAX
+
 /* Masks for Flags field above */
 
 #define ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL  (0)	/* Virtual address, external maintained */

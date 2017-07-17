@@ -54,7 +54,7 @@ extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_MAJOR_VERSION               8
 #define QED_MINOR_VERSION               10
-#define QED_REVISION_VERSION            10
+#define QED_REVISION_VERSION            11
 #define QED_ENGINEERING_VERSION 21
 
 #define QED_VERSION						 \
@@ -92,7 +92,7 @@ enum qed_mcp_protocol_type;
 
 #define QED_MFW_SET_FIELD(name, field, value)				       \
 	do {								       \
-		(name)	&= ~((field ## _MASK) << (field ## _SHIFT));	       \
+		(name)	&= ~(field ## _MASK);	       \
 		(name)	|= (((value) << (field ## _SHIFT)) & (field ## _MASK));\
 	} while (0)
 
@@ -210,14 +210,16 @@ struct qed_tunn_update_params {
 
 /* The PCI personality is not quite synonymous to protocol ID:
  * 1. All personalities need CORE connections
- * 2. The Ethernet personality may support also the RoCE protocol
+ * 2. The Ethernet personality may support also the RoCE/iWARP protocol
  */
 enum qed_pci_personality {
 	QED_PCI_ETH,
 	QED_PCI_FCOE,
 	QED_PCI_ISCSI,
 	QED_PCI_ETH_ROCE,
-	QED_PCI_DEFAULT /* default in shmem */
+	QED_PCI_ETH_IWARP,
+	QED_PCI_ETH_RDMA,
+	QED_PCI_DEFAULT, /* default in shmem */
 };
 
 /* All VFs are symmetric, all counters are PF + all VFs */
@@ -277,6 +279,7 @@ enum qed_dev_cap {
 	QED_DEV_CAP_FCOE,
 	QED_DEV_CAP_ISCSI,
 	QED_DEV_CAP_ROCE,
+	QED_DEV_CAP_IWARP,
 };
 
 enum qed_wol_support {
@@ -286,7 +289,24 @@ enum qed_wol_support {
 
 struct qed_hw_info {
 	/* PCI personality */
-	enum qed_pci_personality	personality;
+	enum qed_pci_personality personality;
+#define QED_IS_RDMA_PERSONALITY(dev)			    \
+	((dev)->hw_info.personality == QED_PCI_ETH_ROCE ||  \
+	 (dev)->hw_info.personality == QED_PCI_ETH_IWARP || \
+	 (dev)->hw_info.personality == QED_PCI_ETH_RDMA)
+#define QED_IS_ROCE_PERSONALITY(dev)			   \
+	((dev)->hw_info.personality == QED_PCI_ETH_ROCE || \
+	 (dev)->hw_info.personality == QED_PCI_ETH_RDMA)
+#define QED_IS_IWARP_PERSONALITY(dev)			    \
+	((dev)->hw_info.personality == QED_PCI_ETH_IWARP || \
+	 (dev)->hw_info.personality == QED_PCI_ETH_RDMA)
+#define QED_IS_L2_PERSONALITY(dev)		      \
+	((dev)->hw_info.personality == QED_PCI_ETH || \
+	 QED_IS_RDMA_PERSONALITY(dev))
+#define QED_IS_FCOE_PERSONALITY(dev) \
+	((dev)->hw_info.personality == QED_PCI_FCOE)
+#define QED_IS_ISCSI_PERSONALITY(dev) \
+	((dev)->hw_info.personality == QED_PCI_ISCSI)
 
 	/* Resource Allocation scheme results */
 	u32				resc_start[QED_MAX_RESC];
@@ -412,6 +432,11 @@ struct qed_fw_data {
 	u32			init_ops_size;
 };
 
+enum BAR_ID {
+	BAR_ID_0,		/* used for GRC */
+	BAR_ID_1		/* Used for doorbells */
+};
+
 #define DRV_MODULE_VERSION		      \
 	__stringify(QED_MAJOR_VERSION) "."    \
 	__stringify(QED_MINOR_VERSION) "."    \
@@ -495,10 +520,6 @@ struct qed_hwfn {
 	bool b_rdma_enabled_in_prs;
 	u32 rdma_prs_search_reg;
 
-	/* Array of sb_info of all status blocks */
-	struct qed_sb_info		*sbs_info[MAX_SB_PER_PF_MIMD];
-	u16				num_sbs;
-
 	struct qed_cxt_mngr		*p_cxt_mngr;
 
 	/* Flag indicating whether interrupts are enabled or not*/
@@ -537,6 +558,9 @@ struct qed_hwfn {
 	u8 dcbx_no_edpm;
 	u8 db_bar_no_edpm;
 
+	/* L2-related */
+	struct qed_l2_info *p_l2_info;
+
 	struct qed_ptt *p_arfs_ptt;
 
 	struct qed_simd_fp_handler	simd_proto_handler[64];
@@ -548,7 +572,6 @@ struct qed_hwfn {
 #endif
 
 	struct z_stream_s		*stream;
-	struct qed_roce_ll2_info	*ll2;
 };
 
 struct pci_params {
@@ -598,15 +621,10 @@ struct qed_dev {
 	enum	qed_dev_type type;
 /* Translate type/revision combo into the proper conditions */
 #define QED_IS_BB(dev)  ((dev)->type == QED_DEV_TYPE_BB)
-#define QED_IS_BB_A0(dev)       (QED_IS_BB(dev) && \
-				 CHIP_REV_IS_A0(dev))
 #define QED_IS_BB_B0(dev)       (QED_IS_BB(dev) && \
 				 CHIP_REV_IS_B0(dev))
 #define QED_IS_AH(dev)  ((dev)->type == QED_DEV_TYPE_AH)
 #define QED_IS_K2(dev)  QED_IS_AH(dev)
-
-#define QED_GET_TYPE(dev)       (QED_IS_BB_A0(dev) ? CHIP_BB_A0 : \
-				 QED_IS_BB_B0(dev) ? CHIP_BB_B0 : CHIP_K2)
 
 	u16	vendor_id;
 	u16	device_id;
@@ -621,7 +639,6 @@ struct qed_dev {
 	u16	chip_rev;
 #define CHIP_REV_MASK                   0xf
 #define CHIP_REV_SHIFT                  12
-#define CHIP_REV_IS_A0(_cdev)   (!(_cdev)->chip_rev)
 #define CHIP_REV_IS_B0(_cdev)   ((_cdev)->chip_rev == 1)
 
 	u16				chip_metal;
@@ -633,7 +650,7 @@ struct qed_dev {
 #define CHIP_BOND_ID_SHIFT              0
 
 	u8				num_engines;
-	u8				num_ports_in_engines;
+	u8				num_ports_in_engine;
 	u8				num_funcs_in_port;
 
 	u8				path_id;
@@ -644,7 +661,6 @@ struct qed_dev {
 
 	int				pcie_width;
 	int				pcie_speed;
-	u8				ver_str[VER_SIZE];
 
 	/* Add MF related configuration */
 	u8				mcp_rev;
@@ -763,7 +779,7 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 }
 
 #define PURE_LB_TC 8
-#define OOO_LB_TC 9
+#define PKT_LB_TC 9
 
 int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
@@ -773,6 +789,8 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_device_num_engines(struct qed_dev *cdev);
 int qed_device_get_port_id(struct qed_dev *cdev);
+void qed_set_fw_mac_addr(__le16 *fw_msb,
+			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac);
 
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 

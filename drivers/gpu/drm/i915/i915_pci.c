@@ -208,7 +208,7 @@ static const struct intel_device_info intel_ironlake_d_info = {
 static const struct intel_device_info intel_ironlake_m_info = {
 	GEN5_FEATURES,
 	.platform = INTEL_IRONLAKE,
-	.is_mobile = 1,
+	.is_mobile = 1, .has_fbc = 1,
 };
 
 #define GEN6_FEATURES \
@@ -220,7 +220,6 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_gmbus_irq = 1, \
-	.has_hw_contexts = 1, \
 	.has_aliasing_ppgtt = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
@@ -245,7 +244,6 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_gmbus_irq = 1, \
-	.has_hw_contexts = 1, \
 	.has_aliasing_ppgtt = 1, \
 	.has_full_ppgtt = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -280,7 +278,6 @@ static const struct intel_device_info intel_valleyview_info = {
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_gmbus_irq = 1,
-	.has_hw_contexts = 1,
 	.has_gmch_display = 1,
 	.has_hotplug = 1,
 	.has_aliasing_ppgtt = 1,
@@ -315,16 +312,17 @@ static const struct intel_device_info intel_haswell_info = {
 	.has_full_48bit_ppgtt = 1, \
 	.has_64bit_reloc = 1
 
+#define BDW_PLATFORM \
+	BDW_FEATURES, \
+	.gen = 8, \
+	.platform = INTEL_BROADWELL
+
 static const struct intel_device_info intel_broadwell_info = {
-	BDW_FEATURES,
-	.gen = 8,
-	.platform = INTEL_BROADWELL,
+	BDW_PLATFORM,
 };
 
 static const struct intel_device_info intel_broadwell_gt3_info = {
-	BDW_FEATURES,
-	.gen = 8,
-	.platform = INTEL_BROADWELL,
+	BDW_PLATFORM,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
@@ -340,7 +338,6 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_resource_streamer = 1,
 	.has_rc6 = 1,
 	.has_gmbus_irq = 1,
-	.has_hw_contexts = 1,
 	.has_logical_ring_contexts = 1,
 	.has_gmch_display = 1,
 	.has_aliasing_ppgtt = 1,
@@ -351,22 +348,20 @@ static const struct intel_device_info intel_cherryview_info = {
 	CHV_COLORS,
 };
 
+#define SKL_PLATFORM \
+	BDW_FEATURES, \
+	.gen = 9, \
+	.platform = INTEL_SKYLAKE, \
+	.has_csr = 1, \
+	.has_guc = 1, \
+	.ddb_size = 896
+
 static const struct intel_device_info intel_skylake_info = {
-	BDW_FEATURES,
-	.platform = INTEL_SKYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	SKL_PLATFORM,
 };
 
 static const struct intel_device_info intel_skylake_gt3_info = {
-	BDW_FEATURES,
-	.platform = INTEL_SKYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	SKL_PLATFORM,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
@@ -387,10 +382,8 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	.has_rc6 = 1, \
 	.has_dp_mst = 1, \
 	.has_gmbus_irq = 1, \
-	.has_hw_contexts = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_guc = 1, \
-	.has_decoupled_mmio = 1, \
 	.has_aliasing_ppgtt = 1, \
 	.has_full_ppgtt = 1, \
 	.has_full_48bit_ppgtt = 1, \
@@ -407,28 +400,52 @@ static const struct intel_device_info intel_broxton_info = {
 static const struct intel_device_info intel_geminilake_info = {
 	GEN9_LP_FEATURES,
 	.platform = INTEL_GEMINILAKE,
-	.is_alpha_support = 1,
 	.ddb_size = 1024,
 	.color = { .degamma_lut_size = 0, .gamma_lut_size = 1024 }
 };
 
+#define KBL_PLATFORM \
+	BDW_FEATURES, \
+	.gen = 9, \
+	.platform = INTEL_KABYLAKE, \
+	.has_csr = 1, \
+	.has_guc = 1, \
+	.ddb_size = 896
+
 static const struct intel_device_info intel_kabylake_info = {
-	BDW_FEATURES,
-	.platform = INTEL_KABYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	KBL_PLATFORM,
 };
 
 static const struct intel_device_info intel_kabylake_gt3_info = {
-	BDW_FEATURES,
-	.platform = INTEL_KABYLAKE,
-	.gen = 9,
-	.has_csr = 1,
-	.has_guc = 1,
-	.ddb_size = 896,
+	KBL_PLATFORM,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+};
+
+#define CFL_PLATFORM \
+	.is_alpha_support = 1, \
+	BDW_FEATURES, \
+	.gen = 9, \
+	.platform = INTEL_COFFEELAKE, \
+	.has_csr = 1, \
+	.has_guc = 1, \
+	.ddb_size = 896
+
+static const struct intel_device_info intel_coffeelake_info = {
+	CFL_PLATFORM,
+};
+
+static const struct intel_device_info intel_coffeelake_gt3_info = {
+	CFL_PLATFORM,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+};
+
+static const struct intel_device_info intel_cannonlake_info = {
+	BDW_FEATURES,
+	.is_alpha_support = 1,
+	.platform = INTEL_CANNONLAKE,
+	.gen = 10,
+	.ddb_size = 1024,
+	.has_csr = 1,
 };
 
 /*
@@ -475,6 +492,10 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_KBL_GT2_IDS(&intel_kabylake_info),
 	INTEL_KBL_GT3_IDS(&intel_kabylake_gt3_info),
 	INTEL_KBL_GT4_IDS(&intel_kabylake_gt3_info),
+	INTEL_CFL_S_IDS(&intel_coffeelake_info),
+	INTEL_CFL_H_IDS(&intel_coffeelake_info),
+	INTEL_CFL_U_IDS(&intel_coffeelake_gt3_info),
+	INTEL_CNL_IDS(&intel_cannonlake_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

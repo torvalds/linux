@@ -116,7 +116,7 @@ struct nbd_cmd {
 	int index;
 	int cookie;
 	struct completion send_complete;
-	int status;
+	blk_status_t status;
 };
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -286,7 +286,7 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 	struct nbd_config *config;
 
 	if (!refcount_inc_not_zero(&nbd->config_refs)) {
-		cmd->status = -EIO;
+		cmd->status = BLK_STS_TIMEOUT;
 		return BLK_EH_HANDLED;
 	}
 
@@ -331,7 +331,7 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 				    "Connection timed out\n");
 	}
 	set_bit(NBD_TIMEDOUT, &config->runtime_flags);
-	cmd->status = -EIO;
+	cmd->status = BLK_STS_IOERR;
 	sock_shutdown(nbd);
 	nbd_config_put(nbd);
 
@@ -400,6 +400,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	unsigned long size = blk_rq_bytes(req);
 	struct bio *bio;
 	u32 type;
+	u32 nbd_cmd_flags = 0;
 	u32 tag = blk_mq_unique_tag(req);
 	int sent = nsock->sent, skip = 0;
 
@@ -429,6 +430,9 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 		return -EIO;
 	}
 
+	if (req->cmd_flags & REQ_FUA)
+		nbd_cmd_flags |= NBD_CMD_FLAG_FUA;
+
 	/* We did a partial send previously, and we at least sent the whole
 	 * request struct, so just go and send the rest of the pages in the
 	 * request.
@@ -442,7 +446,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	}
 	cmd->index = index;
 	cmd->cookie = nsock->cookie;
-	request.type = htonl(type);
+	request.type = htonl(type | nbd_cmd_flags);
 	if (type != NBD_CMD_FLUSH) {
 		request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
 		request.len = htonl(size);
@@ -465,7 +469,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 				nsock->pending = req;
 				nsock->sent = sent;
 			}
-			return BLK_MQ_RQ_QUEUE_BUSY;
+			return BLK_STS_RESOURCE;
 		}
 		dev_err_ratelimited(disk_to_dev(nbd->disk),
 			"Send control failed (result %d)\n", result);
@@ -506,7 +510,7 @@ send_pages:
 					 */
 					nsock->pending = req;
 					nsock->sent = sent;
-					return BLK_MQ_RQ_QUEUE_BUSY;
+					return BLK_STS_RESOURCE;
 				}
 				dev_err(disk_to_dev(nbd->disk),
 					"Send data failed (result %d)\n",
@@ -574,7 +578,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 	if (ntohl(reply.error)) {
 		dev_err(disk_to_dev(nbd->disk), "Other side returned error (%d)\n",
 			ntohl(reply.error));
-		cmd->status = -EIO;
+		cmd->status = BLK_STS_IOERR;
 		return cmd;
 	}
 
@@ -599,7 +603,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 				 */
 				if (nbd_disconnected(config) ||
 				    config->num_connections <= 1) {
-					cmd->status = -EIO;
+					cmd->status = BLK_STS_IOERR;
 					return cmd;
 				}
 				return ERR_PTR(-EIO);
@@ -651,15 +655,15 @@ static void nbd_clear_req(struct request *req, void *data, bool reserved)
 	if (!blk_mq_request_started(req))
 		return;
 	cmd = blk_mq_rq_to_pdu(req);
-	cmd->status = -EIO;
+	cmd->status = BLK_STS_IOERR;
 	blk_mq_complete_request(req);
 }
 
 static void nbd_clear_que(struct nbd_device *nbd)
 {
-	blk_mq_stop_hw_queues(nbd->disk->queue);
+	blk_mq_quiesce_queue(nbd->disk->queue);
 	blk_mq_tagset_busy_iter(&nbd->tag_set, nbd_clear_req, NULL);
-	blk_mq_start_hw_queues(nbd->disk->queue);
+	blk_mq_unquiesce_queue(nbd->disk->queue);
 	dev_dbg(disk_to_dev(nbd->disk), "queue cleared\n");
 }
 
@@ -740,7 +744,7 @@ static int nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 		nbd_config_put(nbd);
 		return -EINVAL;
 	}
-	cmd->status = 0;
+	cmd->status = BLK_STS_OK;
 again:
 	nsock = config->socks[index];
 	mutex_lock(&nsock->tx_lock);
@@ -794,7 +798,7 @@ out:
 	return ret;
 }
 
-static int nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 			const struct blk_mq_queue_data *bd)
 {
 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
@@ -818,13 +822,9 @@ static int nbd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * appropriate.
 	 */
 	ret = nbd_handle_cmd(cmd, hctx->queue_num);
-	if (ret < 0)
-		ret = BLK_MQ_RQ_QUEUE_ERROR;
-	if (!ret)
-		ret = BLK_MQ_RQ_QUEUE_OK;
 	complete(&cmd->send_complete);
 
-	return ret;
+	return ret < 0 ? BLK_STS_IOERR : BLK_STS_OK;
 }
 
 static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
@@ -910,6 +910,7 @@ static int nbd_reconnect_socket(struct nbd_device *nbd, unsigned long arg)
 			continue;
 		}
 		sk_set_memalloc(sock->sk);
+		sock->sk->sk_sndtimeo = nbd->tag_set.timeout;
 		atomic_inc(&config->recv_threads);
 		refcount_inc(&nbd->config_refs);
 		old = nsock->sock;
@@ -937,14 +938,6 @@ static int nbd_reconnect_socket(struct nbd_device *nbd, unsigned long arg)
 	return -ENOSPC;
 }
 
-/* Reset all properties of an NBD device */
-static void nbd_reset(struct nbd_device *nbd)
-{
-	nbd->config = NULL;
-	nbd->tag_set.timeout = 0;
-	queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
-}
-
 static void nbd_bdev_reset(struct block_device *bdev)
 {
 	if (bdev->bd_openers > 1)
@@ -965,8 +958,12 @@ static void nbd_parse_flags(struct nbd_device *nbd)
 		set_disk_ro(nbd->disk, false);
 	if (config->flags & NBD_FLAG_SEND_TRIM)
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
-	if (config->flags & NBD_FLAG_SEND_FLUSH)
-		blk_queue_write_cache(nbd->disk->queue, true, false);
+	if (config->flags & NBD_FLAG_SEND_FLUSH) {
+		if (config->flags & NBD_FLAG_SEND_FUA)
+			blk_queue_write_cache(nbd->disk->queue, true, true);
+		else
+			blk_queue_write_cache(nbd->disk->queue, true, false);
+	}
 	else
 		blk_queue_write_cache(nbd->disk->queue, false, false);
 }
@@ -1029,7 +1026,11 @@ static void nbd_config_put(struct nbd_device *nbd)
 			}
 			kfree(config->socks);
 		}
-		nbd_reset(nbd);
+		kfree(nbd->config);
+		nbd->config = NULL;
+
+		nbd->tag_set.timeout = 0;
+		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 
 		mutex_unlock(&nbd->config_lock);
 		nbd_put(nbd);
@@ -1075,6 +1076,7 @@ static int nbd_start_device(struct nbd_device *nbd)
 			return -ENOMEM;
 		}
 		sk_set_memalloc(config->socks[i]->sock->sk);
+		config->socks[i]->sock->sk->sk_sndtimeo = nbd->tag_set.timeout;
 		atomic_inc(&config->recv_threads);
 		refcount_inc(&nbd->config_refs);
 		INIT_WORK(&args->work, recv_work);
@@ -1309,6 +1311,8 @@ static int nbd_dbg_flags_show(struct seq_file *s, void *unused)
 		seq_puts(s, "NBD_FLAG_READ_ONLY\n");
 	if (flags & NBD_FLAG_SEND_FLUSH)
 		seq_puts(s, "NBD_FLAG_SEND_FLUSH\n");
+	if (flags & NBD_FLAG_SEND_FUA)
+		seq_puts(s, "NBD_FLAG_SEND_FUA\n");
 	if (flags & NBD_FLAG_SEND_TRIM)
 		seq_puts(s, "NBD_FLAG_SEND_TRIM\n");
 
@@ -1483,7 +1487,6 @@ static int nbd_dev_add(int index)
 	disk->fops = &nbd_fops;
 	disk->private_data = nbd;
 	sprintf(disk->disk_name, "nbd%d", index);
-	nbd_reset(nbd);
 	add_disk(disk);
 	nbd_total_devices++;
 	return index;

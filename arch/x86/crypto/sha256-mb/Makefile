@@ -2,6 +2,8 @@
 # Arch-specific CryptoAPI modules.
 #
 
+OBJECT_FILES_NON_STANDARD := y
+
 avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1\
                                 $(comma)4)$(comma)%ymm2,yes,no)
 ifeq ($(avx2_supported),yes)

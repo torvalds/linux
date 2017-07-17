@@ -1687,7 +1687,6 @@ struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 {
 	struct ceph_mds_request *req = kzalloc(sizeof(*req), GFP_NOFS);
-	struct timespec ts;
 
 	if (!req)
 		return ERR_PTR(-ENOMEM);
@@ -1706,8 +1705,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	init_completion(&req->r_safe_completion);
 	INIT_LIST_HEAD(&req->r_unsafe_item);
 
-	ktime_get_real_ts(&ts);
-	req->r_stamp = timespec_trunc(ts, mdsc->fsc->sb->s_time_gran);
+	req->r_stamp = timespec_trunc(current_kernel_time(), mdsc->fsc->sb->s_time_gran);
 
 	req->r_op = op;
 	req->r_direct_mode = mode;
@@ -3771,12 +3769,12 @@ static void ceph_mdsc_stop(struct ceph_mds_client *mdsc)
 void ceph_mdsc_destroy(struct ceph_fs_client *fsc)
 {
 	struct ceph_mds_client *mdsc = fsc->mdsc;
-
 	dout("mdsc_destroy %p\n", mdsc);
-	ceph_mdsc_stop(mdsc);
 
 	/* flush out any connection work with references to us */
 	ceph_msgr_flush();
+
+	ceph_mdsc_stop(mdsc);
 
 	fsc->mdsc = NULL;
 	kfree(mdsc);

@@ -82,14 +82,9 @@ err_file_priv_free:
 	return ret;
 }
 
-static void exynos_drm_preclose(struct drm_device *dev,
-					struct drm_file *file)
-{
-	exynos_drm_subdrv_close(dev, file);
-}
-
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	exynos_drm_subdrv_close(dev, file);
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
 }
@@ -145,7 +140,6 @@ static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,
-	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
 	.postclose		= exynos_drm_postclose,
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,
@@ -177,12 +171,13 @@ static int exynos_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
 	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
-	drm_modeset_lock_all(drm_dev);
-	drm_for_each_connector(connector, drm_dev) {
+	drm_connector_list_iter_begin(drm_dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		int old_dpms = connector->dpms;
 
 		if (connector->funcs->dpms)
@@ -191,7 +186,7 @@ static int exynos_drm_suspend(struct device *dev)
 		/* Set the old mode back to the connector for resume */
 		connector->dpms = old_dpms;
 	}
-	drm_modeset_unlock_all(drm_dev);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return 0;
 }
@@ -200,12 +195,13 @@ static int exynos_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
 	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
-	drm_modeset_lock_all(drm_dev);
-	drm_for_each_connector(connector, drm_dev) {
+	drm_connector_list_iter_begin(drm_dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->funcs->dpms) {
 			int dpms = connector->dpms;
 
@@ -213,7 +209,7 @@ static int exynos_drm_resume(struct device *dev)
 			connector->funcs->dpms(connector, dpms);
 		}
 	}
-	drm_modeset_unlock_all(drm_dev);
+	drm_connector_list_iter_end(&conn_iter);
 
 	return 0;
 }
@@ -382,7 +378,7 @@ static int exynos_drm_bind(struct device *dev)
 	/* Probe non kms sub drivers and virtual display driver. */
 	ret = exynos_drm_device_subdrv_probe(drm);
 	if (ret)
-		goto err_cleanup_vblank;
+		goto err_unbind_all;
 
 	drm_mode_config_reset(drm);
 
@@ -413,8 +409,6 @@ err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	exynos_drm_device_subdrv_remove(drm);
-err_cleanup_vblank:
-	drm_vblank_cleanup(drm);
 err_unbind_all:
 	component_unbind_all(drm->dev, drm);
 err_mode_config_cleanup:

@@ -175,7 +175,7 @@ static void release_tid(struct t3cdev *tdev, u32 hwtid, struct sk_buff *skb)
 	skb = get_skb(skb, sizeof *req, GFP_KERNEL);
 	if (!skb)
 		return;
-	req = (struct cpl_tid_release *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_TID_RELEASE, hwtid));
 	skb->priority = CPL_PRIORITY_SETUP;
@@ -190,7 +190,7 @@ int iwch_quiesce_tid(struct iwch_ep *ep)
 
 	if (!skb)
 		return -ENOMEM;
-	req = (struct cpl_set_tcb_field *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, ep->hwtid));
@@ -211,7 +211,7 @@ int iwch_resume_tid(struct iwch_ep *ep)
 
 	if (!skb)
 		return -ENOMEM;
-	req = (struct cpl_set_tcb_field *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, ep->hwtid));
@@ -398,7 +398,7 @@ static int send_halfclose(struct iwch_ep *ep, gfp_t gfp)
 	}
 	skb->priority = CPL_PRIORITY_DATA;
 	set_arp_failure_handler(skb, arp_failure_discard);
-	req = (struct cpl_close_con_req *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_CLOSE_CON));
 	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_CON_REQ, ep->hwtid));
@@ -417,8 +417,7 @@ static int send_abort(struct iwch_ep *ep, struct sk_buff *skb, gfp_t gfp)
 	}
 	skb->priority = CPL_PRIORITY_DATA;
 	set_arp_failure_handler(skb, abort_arp_failure);
-	req = (struct cpl_abort_req *) skb_put(skb, sizeof(*req));
-	memset(req, 0, sizeof(*req));
+	req = skb_put_zero(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_HOST_ABORT_CON_REQ));
 	req->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ABORT_REQ, ep->hwtid));
@@ -456,7 +455,7 @@ static int send_connect(struct iwch_ep *ep)
 	skb->priority = CPL_PRIORITY_SETUP;
 	set_arp_failure_handler(skb, act_open_req_arp_failure);
 
-	req = (struct cpl_act_open_req *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_ACT_OPEN_REQ, ep->atid));
 	req->local_port = ep->com.local_addr.sin_port;
@@ -514,7 +513,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	set_arp_failure_handler(skb, arp_failure_discard);
 	skb_reset_transport_header(skb);
 	len = skb->len;
-	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
+	req = skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA)|F_WR_COMPL);
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
 	req->len = htonl(len);
@@ -547,7 +546,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 		return -ENOMEM;
 	}
 	skb_reserve(skb, sizeof(*req));
-	mpa = (struct mpa_message *) skb_put(skb, mpalen);
+	mpa = skb_put(skb, mpalen);
 	memset(mpa, 0, sizeof(*mpa));
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
 	mpa->flags = MPA_REJECT;
@@ -565,7 +564,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	skb->priority = CPL_PRIORITY_DATA;
 	set_arp_failure_handler(skb, arp_failure_discard);
 	skb_reset_transport_header(skb);
-	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
+	req = skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA)|F_WR_COMPL);
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
 	req->len = htonl(mpalen);
@@ -597,7 +596,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	}
 	skb->priority = CPL_PRIORITY_DATA;
 	skb_reserve(skb, sizeof(*req));
-	mpa = (struct mpa_message *) skb_put(skb, mpalen);
+	mpa = skb_put(skb, mpalen);
 	memset(mpa, 0, sizeof(*mpa));
 	memcpy(mpa->key, MPA_KEY_REP, sizeof(mpa->key));
 	mpa->flags = (ep->mpa_attr.crc_enabled ? MPA_CRC : 0) |
@@ -616,7 +615,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	set_arp_failure_handler(skb, arp_failure_discard);
 	skb_reset_transport_header(skb);
 	len = skb->len;
-	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
+	req = skb_push(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA)|F_WR_COMPL);
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
 	req->len = htonl(len);
@@ -801,7 +800,7 @@ static int update_rx_credits(struct iwch_ep *ep, u32 credits)
 		return 0;
 	}
 
-	req = (struct cpl_rx_data_ack *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RX_DATA_ACK, ep->hwtid));
 	req->credit_dack = htonl(V_RX_CREDITS(credits) | V_RX_FORCE_ACK(1));
@@ -1206,7 +1205,7 @@ static int listen_start(struct iwch_listen_ep *ep)
 		return -ENOMEM;
 	}
 
-	req = (struct cpl_pass_open_req *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ, ep->stid));
 	req->local_port = ep->com.local_addr.sin_port;
@@ -1247,7 +1246,7 @@ static int listen_stop(struct iwch_listen_ep *ep)
 		pr_err("%s - failed to alloc skb\n", __func__);
 		return -ENOMEM;
 	}
-	req = (struct cpl_close_listserv_req *) skb_put(skb, sizeof(*req));
+	req = skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	req->cpu_idx = 0;
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_LISTSRV_REQ, ep->stid));
@@ -1615,7 +1614,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		goto out;
 	}
 	rpl_skb->priority = CPL_PRIORITY_DATA;
-	rpl = (struct cpl_abort_rpl *) skb_put(rpl_skb, sizeof(*rpl));
+	rpl = skb_put(rpl_skb, sizeof(*rpl));
 	rpl->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_HOST_ABORT_CON_RPL));
 	rpl->wr.wr_lo = htonl(V_WR_TID(ep->hwtid));
 	OPCODE_TID(rpl) = htonl(MK_OPCODE_TID(CPL_ABORT_RPL, ep->hwtid));

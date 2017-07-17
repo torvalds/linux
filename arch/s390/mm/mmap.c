@@ -101,7 +101,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			goto check_asce_limit;
 	}
 
@@ -120,7 +120,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 
 check_asce_limit:
 	if (addr + len > current->mm->context.asce_limit) {
-		rc = crst_table_upgrade(mm);
+		rc = crst_table_upgrade(mm, addr + len);
 		if (rc)
 			return (unsigned long) rc;
 	}
@@ -151,7 +151,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
 		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-				(!vma || addr + len <= vma->vm_start))
+				(!vma || addr + len <= vm_start_gap(vma)))
 			goto check_asce_limit;
 	}
 
@@ -184,7 +184,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 
 check_asce_limit:
 	if (addr + len > current->mm->context.asce_limit) {
-		rc = crst_table_upgrade(mm);
+		rc = crst_table_upgrade(mm, addr + len);
 		if (rc)
 			return (unsigned long) rc;
 	}

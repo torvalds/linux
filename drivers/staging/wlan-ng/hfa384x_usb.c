@@ -1840,15 +1840,15 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 	if (result)
 		return result;
 
-	hw->bufinfo.page = le16_to_cpu(hw->bufinfo.page);
-	hw->bufinfo.offset = le16_to_cpu(hw->bufinfo.offset);
-	hw->bufinfo.len = le16_to_cpu(hw->bufinfo.len);
+	le16_to_cpus(&hw->bufinfo.page);
+	le16_to_cpus(&hw->bufinfo.offset);
+	le16_to_cpus(&hw->bufinfo.len);
 	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
 					  &hw->dltimeout);
 	if (result)
 		return result;
 
-	hw->dltimeout = le16_to_cpu(hw->dltimeout);
+	le16_to_cpus(&hw->dltimeout);
 
 	pr_debug("flashdl_enable\n");
 
@@ -2644,8 +2644,7 @@ int hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 	    HFA384x_TX_MACPORT_SET(0) | HFA384x_TX_STRUCTYPE_SET(1) |
 	    HFA384x_TX_TXEX_SET(0) | HFA384x_TX_TXOK_SET(0);
 #endif
-	hw->txbuff.txfrm.desc.tx_control =
-	    cpu_to_le16(hw->txbuff.txfrm.desc.tx_control);
+	cpu_to_le16s(&hw->txbuff.txfrm.desc.tx_control);
 
 	/* copy the header over to the txdesc */
 	memcpy(&hw->txbuff.txfrm.desc.frame_control, p80211_hdr,
@@ -3380,8 +3379,8 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 	u16 fc;
 
 	/* Byte order convert once up front. */
-	usbin->rxfrm.desc.status = le16_to_cpu(usbin->rxfrm.desc.status);
-	usbin->rxfrm.desc.time = le32_to_cpu(usbin->rxfrm.desc.time);
+	le16_to_cpus(&usbin->rxfrm.desc.status);
+	le32_to_cpus(&usbin->rxfrm.desc.time);
 
 	/* Now handle frame based on port# */
 	switch (HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status)) {
@@ -3530,13 +3529,11 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 	/* Copy the 802.11 header to the skb
 	 * (ctl frames may be less than a full header)
 	 */
-	datap = skb_put(skb, hdrlen);
-	memcpy(datap, &rxdesc->frame_control, hdrlen);
+	skb_put_data(skb, &rxdesc->frame_control, hdrlen);
 
 	/* If any, copy the data from the card to the skb */
 	if (datalen > 0) {
-		datap = skb_put(skb, datalen);
-		memcpy(datap, rxfrm->data, datalen);
+		datap = skb_put_data(skb, rxfrm->data, datalen);
 
 		/* check for unencrypted stuff if WEP bit set. */
 		if (*(datap - hdrlen + 1) & 0x40)	/* wep set */
@@ -3576,8 +3573,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 static void hfa384x_usbin_info(struct wlandevice *wlandev,
 			       union hfa384x_usbin *usbin)
 {
-	usbin->infofrm.info.framelen =
-	    le16_to_cpu(usbin->infofrm.info.framelen);
+	le16_to_cpus(&usbin->infofrm.info.framelen);
 	prism2sta_ev_info(wlandev, &usbin->infofrm.info);
 }
 

@@ -98,6 +98,7 @@ MODULE_DEVICE_TABLE(i2c, st_lsm6dsx_i2c_id_table);
 static struct i2c_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_i2c",
+		.pm = &st_lsm6dsx_pm_ops,
 		.of_match_table = of_match_ptr(st_lsm6dsx_i2c_of_match),
 	},
 	.probe = st_lsm6dsx_i2c_probe,

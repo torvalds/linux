@@ -652,7 +652,8 @@ static int mlx5e_rep_get_phys_port_name(struct net_device *dev,
 }
 
 static int mlx5e_rep_ndo_setup_tc(struct net_device *dev, u32 handle,
-				  __be16 proto, struct tc_to_netdev *tc)
+				  u32 chain_index, __be16 proto,
+				  struct tc_to_netdev *tc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
@@ -664,8 +665,12 @@ static int mlx5e_rep_ndo_setup_tc(struct net_device *dev, u32 handle,
 		struct net_device *uplink_dev = mlx5_eswitch_get_uplink_netdev(esw);
 
 		return uplink_dev->netdev_ops->ndo_setup_tc(uplink_dev, handle,
+							    chain_index,
 							    proto, tc);
 	}
+
+	if (chain_index)
+		return -EOPNOTSUPP;
 
 	switch (tc->type) {
 	case TC_SETUP_CLSFLOWER:
@@ -791,6 +796,8 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 	params->tx_max_inline         = mlx5e_get_max_inline_cap(mdev);
 	params->num_tc                = 1;
 	params->lro_wqe_sz            = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
+
+	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 }
 
 static void mlx5e_build_rep_netdev(struct net_device *netdev)
@@ -828,6 +835,9 @@ static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 
 	priv->channels.params.num_channels = profile->max_nch(mdev);
+
+	priv->hard_mtu = MLX5E_ETH_HARD_MTU;
+
 	mlx5e_build_rep_params(mdev, &priv->channels.params);
 	mlx5e_build_rep_netdev(netdev);
 }
@@ -911,6 +921,7 @@ static struct mlx5e_profile mlx5e_rep_profile = {
 	.cleanup_tx		= mlx5e_cleanup_nic_tx,
 	.update_stats           = mlx5e_rep_update_stats,
 	.max_nch		= mlx5e_get_rep_max_num_channels,
+	.update_carrier		= NULL,
 	.rx_handlers.handle_rx_cqe       = mlx5e_handle_rx_cqe_rep,
 	.rx_handlers.handle_rx_cqe_mpwqe = NULL /* Not supported */,
 	.max_tc			= 1,
@@ -1014,7 +1025,6 @@ err_destroy_netdev:
 	mlx5e_destroy_netdev(netdev_priv(netdev));
 	kfree(rpriv);
 	return err;
-
 }
 
 static void

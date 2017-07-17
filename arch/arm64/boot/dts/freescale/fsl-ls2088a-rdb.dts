@@ -1,7 +1,8 @@
 /*
  * Device Tree file for Freescale LS2088A RDB Board.
  *
- * Copyright (C) 2016-17, Freescale Semiconductor
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Abhimanyu Saini <abhimanyu.saini@nxp.com>
  *

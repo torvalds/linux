@@ -1499,7 +1499,7 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 	 .type = V4L2_CTRL_TYPE_MENU,
 	 .min = 0,
 	 .max = 3,
-	 .step = 1,
+	 .step = 0,
 	 .def = 1,
 	 .flags = 0,
 	 },

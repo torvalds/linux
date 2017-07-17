@@ -140,7 +140,7 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 	}
 }
 
-static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
 	struct stackframe frame;
 	unsigned long irq_stack_ptr;
@@ -344,22 +344,24 @@ static int call_undef_hook(struct pt_regs *regs)
 
 	if (compat_thumb_mode(regs)) {
 		/* 16-bit Thumb instruction */
-		if (get_user(instr, (u16 __user *)pc))
+		__le16 instr_le;
+		if (get_user(instr_le, (__le16 __user *)pc))
 			goto exit;
-		instr = le16_to_cpu(instr);
+		instr = le16_to_cpu(instr_le);
 		if (aarch32_insn_is_wide(instr)) {
 			u32 instr2;
 
-			if (get_user(instr2, (u16 __user *)(pc + 2)))
+			if (get_user(instr_le, (__le16 __user *)(pc + 2)))
 				goto exit;
-			instr2 = le16_to_cpu(instr2);
+			instr2 = le16_to_cpu(instr_le);
 			instr = (instr << 16) | instr2;
 		}
 	} else {
 		/* 32-bit ARM instruction */
-		if (get_user(instr, (u32 __user *)pc))
+		__le32 instr_le;
+		if (get_user(instr_le, (__le32 __user *)pc))
 			goto exit;
-		instr = le32_to_cpu(instr);
+		instr = le32_to_cpu(instr_le);
 	}
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
@@ -728,8 +730,6 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
 		break;
 
 	case BUG_TRAP_TYPE_WARN:
-		/* Ideally, report_bug() should backtrace for us... but no. */
-		dump_backtrace(regs, NULL);
 		break;
 
 	default:

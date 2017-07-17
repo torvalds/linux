@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/usb.h>
@@ -163,6 +164,10 @@ static int ohci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node, "no-big-frame-no"))
 			ohci->flags |= OHCI_QUIRK_FRAME_NO;
 
+		if (of_property_read_bool(dev->dev.of_node,
+					  "remote-wakeup-connected"))
+			ohci->hc_control = OHCI_CTRL_RWC;
+
 		of_property_read_u32(dev->dev.of_node, "num-ports",
 				     &ohci->num_ports);
 
@@ -242,6 +247,8 @@ static int ohci_platform_probe(struct platform_device *dev)
 	}
 #endif
 
+	pm_runtime_set_active(&dev->dev);
+	pm_runtime_enable(&dev->dev);
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
 		if (err < 0)
@@ -271,6 +278,7 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
+	pm_runtime_disable(&dev->dev);
 	while (--rst >= 0)
 		reset_control_assert(priv->resets[rst]);
 err_put_clks:
@@ -292,6 +300,7 @@ static int ohci_platform_remove(struct platform_device *dev)
 	struct ohci_platform_priv *priv = hcd_to_ohci_priv(hcd);
 	int clk, rst;
 
+	pm_runtime_get_sync(&dev->dev);
 	usb_remove_hcd(hcd);
 
 	if (pdata->power_off)
@@ -304,6 +313,9 @@ static int ohci_platform_remove(struct platform_device *dev)
 		clk_put(priv->clks[clk]);
 
 	usb_put_hcd(hcd);
+
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 
 	if (pdata == &ohci_platform_defaults)
 		dev->dev.platform_data = NULL;
@@ -350,6 +362,7 @@ static int ohci_platform_resume(struct device *dev)
 static const struct of_device_id ohci_platform_ids[] = {
 	{ .compatible = "generic-ohci", },
 	{ .compatible = "cavium,octeon-6335-ohci", },
+	{ .compatible = "ti,ohci-omap3", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ohci_platform_ids);

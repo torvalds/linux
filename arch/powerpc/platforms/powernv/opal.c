@@ -59,6 +59,8 @@ static struct task_struct *kopald_tsk;
 
 void opal_configure_cores(void)
 {
+	u64 reinit_flags = 0;
+
 	/* Do the actual re-init, This will clobber all FPRs, VRs, etc...
 	 *
 	 * It will preserve non volatile GPRs and HSPRG0/1. It will
@@ -66,10 +68,23 @@ void opal_configure_cores(void)
 	 * but it might clobber a bunch.
 	 */
 #ifdef __BIG_ENDIAN__
-	opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_BE);
+	reinit_flags |= OPAL_REINIT_CPUS_HILE_BE;
 #else
-	opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_LE);
+	reinit_flags |= OPAL_REINIT_CPUS_HILE_LE;
 #endif
+
+	/*
+	 * POWER9 always support running hash:
+	 *  ie. Host hash  supports  hash guests
+	 *      Host radix supports  hash/radix guests
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		reinit_flags |= OPAL_REINIT_CPUS_MMU_HASH;
+		if (early_radix_enabled())
+			reinit_flags |= OPAL_REINIT_CPUS_MMU_RADIX;
+	}
+
+	opal_reinit_cpus(reinit_flags);
 
 	/* Restore some bits */
 	if (cur_cpu_spec->cpu_restore)

@@ -13,6 +13,9 @@ Required properties:
       "brcm,bcm5397"
       "brcm,bcm5398"
 
+  For the BCM11360 SoC, must be:
+      "brcm,bcm11360-srab" and the mandatory "brcm,cygnus-srab" string
+
   For the BCM5310x SoCs with an integrated switch, must be one of:
       "brcm,bcm53010-srab"
       "brcm,bcm53011-srab"
@@ -34,7 +37,7 @@ Required properties:
       "brcm,bcm6328-switch"
       "brcm,bcm6368-switch" and the mandatory "brcm,bcm63xx-switch"
 
-See Documentation/devicetree/bindings/dsa/dsa.txt for a list of additional
+See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
 required and optional properties.
 
 Examples:

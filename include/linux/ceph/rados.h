@@ -439,6 +439,12 @@ enum {
 
 const char *ceph_osd_watch_op_name(int o);
 
+enum {
+	CEPH_OSD_BACKOFF_OP_BLOCK = 1,
+	CEPH_OSD_BACKOFF_OP_ACK_BLOCK = 2,
+	CEPH_OSD_BACKOFF_OP_UNBLOCK = 3,
+};
+
 /*
  * an individual object operation.  each may be accompanied by some data
  * payload

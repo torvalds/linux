@@ -352,7 +352,7 @@ static int cw1200_spi_pm(struct hwbus_priv *self, bool suspend)
 	return irq_set_irq_wake(self->func->irq, suspend);
 }
 
-static struct hwbus_ops cw1200_spi_hwbus_ops = {
+static const struct hwbus_ops cw1200_spi_hwbus_ops = {
 	.hwbus_memcpy_fromio	= cw1200_spi_memcpy_fromio,
 	.hwbus_memcpy_toio	= cw1200_spi_memcpy_toio,
 	.lock			= cw1200_spi_lock,

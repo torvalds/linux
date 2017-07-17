@@ -88,13 +88,13 @@
 };
 
 &cpu0_opp_table {
-	opp@1104000000 {
+	opp-1104000000 {
 		opp-hz = /bits/ 64 <1104000000>;
 		opp-microvolt = <1320000>;
 		clock-latency-ns = <244144>; /* 8 32k periods */
 	};
 
-	opp@1200000000 {
+	opp-1200000000 {
 		opp-hz = /bits/ 64 <1200000000>;
 		opp-microvolt = <1320000>;
 		clock-latency-ns = <244144>; /* 8 32k periods */
@@ -193,6 +193,10 @@
 #include "axp223.dtsi"
 
 &ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
 	status = "okay";
 };
 

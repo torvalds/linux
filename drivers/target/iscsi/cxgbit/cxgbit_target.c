@@ -136,7 +136,7 @@ cxgbit_cpl_tx_data_iso(struct sk_buff *skb, struct cxgbit_iso_info *iso_info)
 	unsigned int fslice = !!(iso_info->flags & CXGBIT_ISO_FSLICE);
 	unsigned int lslice = !!(iso_info->flags & CXGBIT_ISO_LSLICE);
 
-	cpl = (struct cpl_tx_data_iso *)__skb_push(skb, sizeof(*cpl));
+	cpl = __skb_push(skb, sizeof(*cpl));
 
 	cpl->op_to_scsi = htonl(CPL_TX_DATA_ISO_OP_V(CPL_TX_DATA_ISO) |
 			CPL_TX_DATA_ISO_FIRST_V(fslice) |
@@ -183,8 +183,7 @@ cxgbit_tx_data_wr(struct cxgbit_sock *csk, struct sk_buff *skb, u32 dlen,
 	if (cxgbit_is_ofld_imm(skb))
 		immlen += dlen;
 
-	req = (struct fw_ofld_tx_data_wr *)__skb_push(skb,
-							hdr_size);
+	req = __skb_push(skb, hdr_size);
 	req->op_to_immdlen = cpu_to_be32(FW_WR_OP_V(opcode) |
 					FW_WR_COMPL_V(compl) |
 					FW_WR_IMMDLEN_V(immlen));

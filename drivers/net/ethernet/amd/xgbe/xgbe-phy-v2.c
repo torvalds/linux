@@ -711,22 +711,38 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
+	if (!phy_data->sfp_mod_absent && !phy_data->sfp_changed)
+		return;
+
+	pdata->phy.supported &= ~SUPPORTED_Autoneg;
+	pdata->phy.supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	pdata->phy.supported &= ~SUPPORTED_TP;
+	pdata->phy.supported &= ~SUPPORTED_FIBRE;
+	pdata->phy.supported &= ~SUPPORTED_100baseT_Full;
+	pdata->phy.supported &= ~SUPPORTED_1000baseT_Full;
+	pdata->phy.supported &= ~SUPPORTED_10000baseT_Full;
+
 	if (phy_data->sfp_mod_absent) {
 		pdata->phy.speed = SPEED_UNKNOWN;
 		pdata->phy.duplex = DUPLEX_UNKNOWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
+		pdata->phy.pause_autoneg = AUTONEG_ENABLE;
+
+		pdata->phy.supported |= SUPPORTED_Autoneg;
+		pdata->phy.supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+		pdata->phy.supported |= SUPPORTED_TP;
+		pdata->phy.supported |= SUPPORTED_FIBRE;
+		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_100)
+			pdata->phy.supported |= SUPPORTED_100baseT_Full;
+		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
+		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000)
+			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
+
 		pdata->phy.advertising = pdata->phy.supported;
 
 		return;
 	}
-
-	pdata->phy.advertising &= ~ADVERTISED_Autoneg;
-	pdata->phy.advertising &= ~ADVERTISED_TP;
-	pdata->phy.advertising &= ~ADVERTISED_FIBRE;
-	pdata->phy.advertising &= ~ADVERTISED_100baseT_Full;
-	pdata->phy.advertising &= ~ADVERTISED_1000baseT_Full;
-	pdata->phy.advertising &= ~ADVERTISED_10000baseT_Full;
-	pdata->phy.advertising &= ~ADVERTISED_10000baseR_FEC;
 
 	switch (phy_data->sfp_base) {
 	case XGBE_SFP_BASE_1000_T:
@@ -736,17 +752,25 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 		pdata->phy.speed = SPEED_UNKNOWN;
 		pdata->phy.duplex = DUPLEX_UNKNOWN;
 		pdata->phy.autoneg = AUTONEG_ENABLE;
-		pdata->phy.advertising |= ADVERTISED_Autoneg;
+		pdata->phy.pause_autoneg = AUTONEG_ENABLE;
+		pdata->phy.supported |= SUPPORTED_Autoneg;
+		pdata->phy.supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 		break;
 	case XGBE_SFP_BASE_10000_SR:
 	case XGBE_SFP_BASE_10000_LR:
 	case XGBE_SFP_BASE_10000_LRM:
 	case XGBE_SFP_BASE_10000_ER:
 	case XGBE_SFP_BASE_10000_CR:
-	default:
 		pdata->phy.speed = SPEED_10000;
 		pdata->phy.duplex = DUPLEX_FULL;
 		pdata->phy.autoneg = AUTONEG_DISABLE;
+		pdata->phy.pause_autoneg = AUTONEG_DISABLE;
+		break;
+	default:
+		pdata->phy.speed = SPEED_UNKNOWN;
+		pdata->phy.duplex = DUPLEX_UNKNOWN;
+		pdata->phy.autoneg = AUTONEG_DISABLE;
+		pdata->phy.pause_autoneg = AUTONEG_DISABLE;
 		break;
 	}
 
@@ -754,36 +778,38 @@ static void xgbe_phy_sfp_phy_settings(struct xgbe_prv_data *pdata)
 	case XGBE_SFP_BASE_1000_T:
 	case XGBE_SFP_BASE_1000_CX:
 	case XGBE_SFP_BASE_10000_CR:
-		pdata->phy.advertising |= ADVERTISED_TP;
+		pdata->phy.supported |= SUPPORTED_TP;
 		break;
 	default:
-		pdata->phy.advertising |= ADVERTISED_FIBRE;
+		pdata->phy.supported |= SUPPORTED_FIBRE;
 	}
 
 	switch (phy_data->sfp_speed) {
 	case XGBE_SFP_SPEED_100_1000:
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_100)
-			pdata->phy.advertising |= ADVERTISED_100baseT_Full;
+			pdata->phy.supported |= SUPPORTED_100baseT_Full;
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
-			pdata->phy.advertising |= ADVERTISED_1000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
 		break;
 	case XGBE_SFP_SPEED_1000:
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
-			pdata->phy.advertising |= ADVERTISED_1000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
 		break;
 	case XGBE_SFP_SPEED_10000:
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000)
-			pdata->phy.advertising |= ADVERTISED_10000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
 		break;
 	default:
 		/* Choose the fastest supported speed */
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000)
-			pdata->phy.advertising |= ADVERTISED_10000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
 		else if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000)
-			pdata->phy.advertising |= ADVERTISED_1000baseT_Full;
+			pdata->phy.supported |= SUPPORTED_1000baseT_Full;
 		else if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_100)
-			pdata->phy.advertising |= ADVERTISED_100baseT_Full;
+			pdata->phy.supported |= SUPPORTED_100baseT_Full;
 	}
+
+	pdata->phy.advertising = pdata->phy.supported;
 }
 
 static bool xgbe_phy_sfp_bit_rate(struct xgbe_sfp_eeprom *sfp_eeprom,
@@ -1095,7 +1121,8 @@ static int xgbe_phy_sfp_read_eeprom(struct xgbe_prv_data *pdata)
 
 	ret = xgbe_phy_sfp_get_mux(pdata);
 	if (ret) {
-		netdev_err(pdata->netdev, "I2C error setting SFP MUX\n");
+		dev_err_once(pdata->dev, "%s: I2C error setting SFP MUX\n",
+			     netdev_name(pdata->netdev));
 		return ret;
 	}
 
@@ -1105,7 +1132,8 @@ static int xgbe_phy_sfp_read_eeprom(struct xgbe_prv_data *pdata)
 				&eeprom_addr, sizeof(eeprom_addr),
 				&sfp_eeprom, sizeof(sfp_eeprom));
 	if (ret) {
-		netdev_err(pdata->netdev, "I2C error reading SFP EEPROM\n");
+		dev_err_once(pdata->dev, "%s: I2C error reading SFP EEPROM\n",
+			     netdev_name(pdata->netdev));
 		goto put;
 	}
 
@@ -1164,7 +1192,8 @@ static void xgbe_phy_sfp_signals(struct xgbe_prv_data *pdata)
 				&gpio_reg, sizeof(gpio_reg),
 				gpio_ports, sizeof(gpio_ports));
 	if (ret) {
-		netdev_err(pdata->netdev, "I2C error reading SFP GPIOs\n");
+		dev_err_once(pdata->dev, "%s: I2C error reading SFP GPIOs\n",
+			     netdev_name(pdata->netdev));
 		return;
 	}
 
@@ -1694,19 +1723,25 @@ static void xgbe_phy_set_redrv_mode(struct xgbe_prv_data *pdata)
 	xgbe_phy_put_comm_ownership(pdata);
 }
 
-static void xgbe_phy_start_ratechange(struct xgbe_prv_data *pdata)
+static void xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata,
+					unsigned int cmd, unsigned int sub_cmd)
 {
-	if (!XP_IOREAD_BITS(pdata, XP_DRIVER_INT_RO, STATUS))
-		return;
+	unsigned int s0 = 0;
+	unsigned int wait;
 
 	/* Log if a previous command did not complete */
-	netif_dbg(pdata, link, pdata->netdev,
-		  "firmware mailbox not ready for command\n");
-}
+	if (XP_IOREAD_BITS(pdata, XP_DRIVER_INT_RO, STATUS))
+		netif_dbg(pdata, link, pdata->netdev,
+			  "firmware mailbox not ready for command\n");
 
-static void xgbe_phy_complete_ratechange(struct xgbe_prv_data *pdata)
-{
-	unsigned int wait;
+	/* Construct the command */
+	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, cmd);
+	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, sub_cmd);
+
+	/* Issue the command */
+	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
+	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
+	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
 
 	/* Wait for command to complete */
 	wait = XGBE_RATECHANGE_COUNT;
@@ -1723,21 +1758,8 @@ static void xgbe_phy_complete_ratechange(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_rrc(struct xgbe_prv_data *pdata)
 {
-	unsigned int s0;
-
-	xgbe_phy_start_ratechange(pdata);
-
 	/* Receiver Reset Cycle */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 5);
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 0);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	xgbe_phy_perform_ratechange(pdata, 5, 0);
 
 	netif_dbg(pdata, link, pdata->netdev, "receiver reset complete\n");
 }
@@ -1746,14 +1768,8 @@ static void xgbe_phy_power_off(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
-	xgbe_phy_start_ratechange(pdata);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, 0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	/* Power off */
+	xgbe_phy_perform_ratechange(pdata, 0, 0);
 
 	phy_data->cur_mode = XGBE_MODE_UNKNOWN;
 
@@ -1763,32 +1779,20 @@ static void xgbe_phy_power_off(struct xgbe_prv_data *pdata)
 static void xgbe_phy_sfi_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int s0;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	xgbe_phy_start_ratechange(pdata);
-
 	/* 10G/SFI */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 3);
 	if (phy_data->sfp_cable != XGBE_SFP_CABLE_PASSIVE) {
-		XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 0);
+		xgbe_phy_perform_ratechange(pdata, 3, 0);
 	} else {
 		if (phy_data->sfp_cable_len <= 1)
-			XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 1);
+			xgbe_phy_perform_ratechange(pdata, 3, 1);
 		else if (phy_data->sfp_cable_len <= 3)
-			XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 2);
+			xgbe_phy_perform_ratechange(pdata, 3, 2);
 		else
-			XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 3);
+			xgbe_phy_perform_ratechange(pdata, 3, 3);
 	}
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
 
 	phy_data->cur_mode = XGBE_MODE_SFI;
 
@@ -1798,23 +1802,11 @@ static void xgbe_phy_sfi_mode(struct xgbe_prv_data *pdata)
 static void xgbe_phy_x_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int s0;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	xgbe_phy_start_ratechange(pdata);
-
 	/* 1G/X */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 1);
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 3);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	xgbe_phy_perform_ratechange(pdata, 1, 3);
 
 	phy_data->cur_mode = XGBE_MODE_X;
 
@@ -1824,23 +1816,11 @@ static void xgbe_phy_x_mode(struct xgbe_prv_data *pdata)
 static void xgbe_phy_sgmii_1000_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int s0;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	xgbe_phy_start_ratechange(pdata);
-
 	/* 1G/SGMII */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 1);
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 2);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	xgbe_phy_perform_ratechange(pdata, 1, 2);
 
 	phy_data->cur_mode = XGBE_MODE_SGMII_1000;
 
@@ -1850,23 +1830,11 @@ static void xgbe_phy_sgmii_1000_mode(struct xgbe_prv_data *pdata)
 static void xgbe_phy_sgmii_100_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int s0;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	xgbe_phy_start_ratechange(pdata);
-
-	/* 1G/SGMII */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 1);
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 1);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	/* 100M/SGMII */
+	xgbe_phy_perform_ratechange(pdata, 1, 1);
 
 	phy_data->cur_mode = XGBE_MODE_SGMII_100;
 
@@ -1876,23 +1844,11 @@ static void xgbe_phy_sgmii_100_mode(struct xgbe_prv_data *pdata)
 static void xgbe_phy_kr_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int s0;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	xgbe_phy_start_ratechange(pdata);
-
 	/* 10G/KR */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 4);
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 0);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	xgbe_phy_perform_ratechange(pdata, 4, 0);
 
 	phy_data->cur_mode = XGBE_MODE_KR;
 
@@ -1902,23 +1858,11 @@ static void xgbe_phy_kr_mode(struct xgbe_prv_data *pdata)
 static void xgbe_phy_kx_2500_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int s0;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	xgbe_phy_start_ratechange(pdata);
-
 	/* 2.5G/KX */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 2);
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 0);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	xgbe_phy_perform_ratechange(pdata, 2, 0);
 
 	phy_data->cur_mode = XGBE_MODE_KX_2500;
 
@@ -1928,23 +1872,11 @@ static void xgbe_phy_kx_2500_mode(struct xgbe_prv_data *pdata)
 static void xgbe_phy_kx_1000_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
-	unsigned int s0;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	xgbe_phy_start_ratechange(pdata);
-
 	/* 1G/KX */
-	s0 = 0;
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, 1);
-	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, SUB_COMMAND, 3);
-
-	/* Call FW to make the change */
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_0, s0);
-	XP_IOWRITE(pdata, XP_DRIVER_SCRATCH_1, 0);
-	XP_IOWRITE_BITS(pdata, XP_DRIVER_INT_REQ, REQUEST, 1);
-
-	xgbe_phy_complete_ratechange(pdata);
+	xgbe_phy_perform_ratechange(pdata, 1, 3);
 
 	phy_data->cur_mode = XGBE_MODE_KX_1000;
 
@@ -2037,6 +1969,8 @@ static enum xgbe_mode xgbe_phy_get_baset_mode(struct xgbe_phy_data *phy_data,
 		return XGBE_MODE_SGMII_100;
 	case SPEED_1000:
 		return XGBE_MODE_SGMII_1000;
+	case SPEED_2500:
+		return XGBE_MODE_KX_2500;
 	case SPEED_10000:
 		return XGBE_MODE_KR;
 	default:
@@ -2180,6 +2114,9 @@ static bool xgbe_phy_use_baset_mode(struct xgbe_prv_data *pdata,
 	case XGBE_MODE_SGMII_1000:
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_1000baseT_Full);
+	case XGBE_MODE_KX_2500:
+		return xgbe_phy_check_mode(pdata, mode,
+					   ADVERTISED_2500baseX_Full);
 	case XGBE_MODE_KR:
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_10000baseT_Full);
@@ -2210,6 +2147,8 @@ static bool xgbe_phy_use_sfp_mode(struct xgbe_prv_data *pdata,
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_1000baseT_Full);
 	case XGBE_MODE_SFI:
+		if (phy_data->sfp_mod_absent)
+			return true;
 		return xgbe_phy_check_mode(pdata, mode,
 					   ADVERTISED_10000baseT_Full);
 	default:
@@ -2287,6 +2226,8 @@ static bool xgbe_phy_valid_speed_baset_mode(struct xgbe_phy_data *phy_data,
 	case SPEED_100:
 	case SPEED_1000:
 		return true;
+	case SPEED_2500:
+		return (phy_data->port_mode == XGBE_PORT_MODE_NBASE_T);
 	case SPEED_10000:
 		return (phy_data->port_mode == XGBE_PORT_MODE_10GBASE_T);
 	default:
@@ -3013,9 +2954,6 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		if (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000) {
 			pdata->phy.supported |= SUPPORTED_10000baseT_Full;
 			phy_data->start_mode = XGBE_MODE_SFI;
-			if (pdata->fec_ability & MDIO_PMA_10GBR_FECABLE_ABLE)
-				pdata->phy.supported |=
-					SUPPORTED_10000baseR_FEC;
 		}
 
 		phy_data->phydev_mode = XGBE_MDIO_MODE_CL22;

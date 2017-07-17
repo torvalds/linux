@@ -652,7 +652,6 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 			spin_unlock(ptl);
 			free_page_and_swap_cache(src_page);
 		}
-		cond_resched();
 	}
 }
 
@@ -817,7 +816,8 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
 static bool hugepage_vma_check(struct vm_area_struct *vma)
 {
 	if ((!(vma->vm_flags & VM_HUGEPAGE) && !khugepaged_always()) ||
-	    (vma->vm_flags & VM_NOHUGEPAGE))
+	    (vma->vm_flags & VM_NOHUGEPAGE) ||
+	    test_bit(MMF_DISABLE_THP, &vma->vm_mm->flags))
 		return false;
 	if (shmem_file(vma->vm_file)) {
 		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))

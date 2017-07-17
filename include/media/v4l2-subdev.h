@@ -787,7 +787,8 @@ struct v4l2_subdev_platform_data {
  *	is attached.
  * @devnode: subdev device node
  * @dev: pointer to the physical device, if any
- * @of_node: The device_node of the subdev, usually the same as dev->of_node.
+ * @fwnode: The fwnode_handle of the subdev, usually the same as
+ *	    either dev->of_node->fwnode or dev->fwnode (whichever is non-NULL).
  * @async_list: Links this subdev to a global subdev_list or @notifier->done
  *	list.
  * @asd: Pointer to respective &struct v4l2_async_subdev.
@@ -818,15 +819,22 @@ struct v4l2_subdev {
 	void *host_priv;
 	struct video_device *devnode;
 	struct device *dev;
-	struct device_node *of_node;
+	struct fwnode_handle *fwnode;
 	struct list_head async_list;
 	struct v4l2_async_subdev *asd;
 	struct v4l2_async_notifier *notifier;
 	struct v4l2_subdev_platform_data *pdata;
 };
 
-#define media_entity_to_v4l2_subdev(ent) \
-	container_of(ent, struct v4l2_subdev, entity)
+#define media_entity_to_v4l2_subdev(ent)				\
+({									\
+	typeof(ent) __me_sd_ent = (ent);				\
+									\
+	__me_sd_ent ?							\
+		container_of(__me_sd_ent, struct v4l2_subdev, entity) :	\
+		NULL;							\
+})
+
 #define vdev_to_v4l2_subdev(vdev) \
 	((struct v4l2_subdev *)video_get_drvdata(vdev))
 

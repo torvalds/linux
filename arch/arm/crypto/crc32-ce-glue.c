@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpufeature.h>
 #include <linux/crc32.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -232,6 +233,11 @@ static void __exit crc32_pmull_mod_exit(void)
 	crypto_unregister_shashes(crc32_pmull_algs,
 				  ARRAY_SIZE(crc32_pmull_algs));
 }
+
+static const struct cpu_feature crc32_cpu_feature[] = {
+	{ cpu_feature(CRC32) }, { cpu_feature(PMULL) }, { }
+};
+MODULE_DEVICE_TABLE(cpu, crc32_cpu_feature);
 
 module_init(crc32_pmull_mod_init);
 module_exit(crc32_pmull_mod_exit);

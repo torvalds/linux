@@ -1009,7 +1009,7 @@ GrpTable: Grp15
 1: fxstor | RDGSBASE Ry (F3),(11B)
 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
-4: XSAVE
+4: XSAVE | ptwrite Ey (F3),(11B)
 5: XRSTOR | lfence (11B)
 6: XSAVEOPT | clwb (66) | mfence (11B)
 7: clflush | clflushopt (66) | sfence (11B)

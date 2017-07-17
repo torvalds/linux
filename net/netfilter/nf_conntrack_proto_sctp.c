@@ -190,7 +190,7 @@ static void sctp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 }
 
 #define for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count)	\
-for ((offset) = (dataoff) + sizeof(sctp_sctphdr_t), (count) = 0;	\
+for ((offset) = (dataoff) + sizeof(struct sctphdr), (count) = 0;	\
 	(offset) < (skb)->len &&					\
 	((sch) = skb_header_pointer((skb), (offset), sizeof(_sch), &(_sch)));	\
 	(offset) += (ntohs((sch)->length) + 3) & ~3, (count)++)
@@ -202,7 +202,7 @@ static int do_basic_checks(struct nf_conn *ct,
 			   unsigned long *map)
 {
 	u_int32_t offset, count;
-	sctp_chunkhdr_t _sch, *sch;
+	struct sctp_chunkhdr _sch, *sch;
 	int flag;
 
 	flag = 0;
@@ -395,9 +395,9 @@ static int sctp_packet(struct nf_conn *ct,
 		/* If it is an INIT or an INIT ACK note down the vtag */
 		if (sch->type == SCTP_CID_INIT ||
 		    sch->type == SCTP_CID_INIT_ACK) {
-			sctp_inithdr_t _inithdr, *ih;
+			struct sctp_inithdr _inithdr, *ih;
 
-			ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
+			ih = skb_header_pointer(skb, offset + sizeof(_sch),
 						sizeof(_inithdr), &_inithdr);
 			if (ih == NULL)
 				goto out_unlock;
@@ -471,23 +471,20 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 		/* Copy the vtag into the state info */
 		if (sch->type == SCTP_CID_INIT) {
-			if (sh->vtag == 0) {
-				sctp_inithdr_t _inithdr, *ih;
-
-				ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
-							sizeof(_inithdr), &_inithdr);
-				if (ih == NULL)
-					return false;
-
-				pr_debug("Setting vtag %x for new conn\n",
-					 ih->init_tag);
-
-				ct->proto.sctp.vtag[IP_CT_DIR_REPLY] =
-								ih->init_tag;
-			} else {
-				/* Sec 8.5.1 (A) */
+			struct sctp_inithdr _inithdr, *ih;
+			/* Sec 8.5.1 (A) */
+			if (sh->vtag)
 				return false;
-			}
+
+			ih = skb_header_pointer(skb, offset + sizeof(_sch),
+						sizeof(_inithdr), &_inithdr);
+			if (!ih)
+				return false;
+
+			pr_debug("Setting vtag %x for new conn\n",
+				 ih->init_tag);
+
+			ct->proto.sctp.vtag[IP_CT_DIR_REPLY] = ih->init_tag;
 		} else if (sch->type == SCTP_CID_HEARTBEAT) {
 			pr_debug("Setting vtag %x for secondary conntrack\n",
 				 sh->vtag);
@@ -512,16 +509,19 @@ static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
 		      u8 pf, unsigned int hooknum)
 {
 	const struct sctphdr *sh;
-	struct sctphdr _sctph;
 	const char *logmsg;
 
-	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
-	if (!sh) {
+	if (skb->len < dataoff + sizeof(struct sctphdr)) {
 		logmsg = "nf_ct_sctp: short packet ";
 		goto out_invalid;
 	}
 	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    skb->ip_summed == CHECKSUM_NONE) {
+		if (!skb_make_writable(skb, dataoff + sizeof(struct sctphdr))) {
+			logmsg = "nf_ct_sctp: failed to read header ";
+			goto out_invalid;
+		}
+		sh = (const struct sctphdr *)(skb->data + dataoff);
 		if (sh->checksum != sctp_compute_cksum(skb, dataoff)) {
 			logmsg = "nf_ct_sctp: bad CRC ";
 			goto out_invalid;
@@ -783,6 +783,11 @@ static int sctp_init_net(struct net *net, u_int16_t proto)
 	return sctp_kmemdup_sysctl_table(pn, sn);
 }
 
+static struct nf_proto_net *sctp_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.sctp.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_SCTP,
@@ -816,6 +821,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= sctp_init_net,
+	.get_net_proto		= sctp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp4);
 
@@ -852,5 +858,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #endif
 	.init_net		= sctp_init_net,
+	.get_net_proto		= sctp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp6);

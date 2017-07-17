@@ -33,6 +33,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   struct sockaddr_rxrpc *,
 					   struct key *,
 					   unsigned long,
+					   s64,
 					   gfp_t,
 					   rxrpc_notify_rx_t);
 int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
@@ -46,5 +47,6 @@ void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
 			   struct sockaddr_rxrpc *);
 int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
 			       rxrpc_user_attach_call_t, unsigned long, gfp_t);
+void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);
 
 #endif /* _NET_RXRPC_H */

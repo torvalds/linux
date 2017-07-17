@@ -30,7 +30,6 @@
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
 #include "mostcore.h"
-#include "networking.h"
 
 #define USB_MTU			512
 #define NO_ISOCHRONOUS_URB	0
@@ -126,6 +125,8 @@ struct most_dev {
 	struct mutex io_mutex;
 	struct timer_list link_stat_timer;
 	struct work_struct poll_work_obj;
+	void (*on_netinfo)(struct most_interface *, unsigned char,
+			   unsigned char *);
 };
 
 #define to_mdev(d) container_of(d, struct most_dev, iface)
@@ -719,12 +720,19 @@ exit:
  * polls for the NI state of the INIC every 2 seconds.
  *
  */
-static void hdm_request_netinfo(struct most_interface *iface, int channel)
+static void hdm_request_netinfo(struct most_interface *iface, int channel,
+				void (*on_netinfo)(struct most_interface *,
+						   unsigned char,
+						   unsigned char *))
 {
 	struct most_dev *mdev;
 
 	BUG_ON(!iface);
 	mdev = to_mdev(iface);
+	mdev->on_netinfo = on_netinfo;
+	if (!on_netinfo)
+		return;
+
 	mdev->link_stat_timer.expires = jiffies + HZ;
 	mod_timer(&mdev->link_stat_timer, mdev->link_stat_timer.expires);
 }
@@ -786,7 +794,8 @@ static void wq_netinfo(struct work_struct *wq_obj)
 	hw_addr[4] = lo >> 8;
 	hw_addr[5] = lo;
 
-	most_deliver_netinfo(&mdev->iface, link, hw_addr);
+	if (mdev->on_netinfo)
+		mdev->on_netinfo(&mdev->iface, link, hw_addr);
 }
 
 /**

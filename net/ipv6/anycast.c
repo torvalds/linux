@@ -203,12 +203,12 @@ void ipv6_sock_ac_close(struct sock *sk)
 
 static void aca_get(struct ifacaddr6 *aca)
 {
-	atomic_inc(&aca->aca_refcnt);
+	refcount_inc(&aca->aca_refcnt);
 }
 
 static void aca_put(struct ifacaddr6 *ac)
 {
-	if (atomic_dec_and_test(&ac->aca_refcnt)) {
+	if (refcount_dec_and_test(&ac->aca_refcnt)) {
 		in6_dev_put(ac->aca_idev);
 		dst_release(&ac->aca_rt->dst);
 		kfree(ac);
@@ -232,7 +232,7 @@ static struct ifacaddr6 *aca_alloc(struct rt6_info *rt,
 	aca->aca_users = 1;
 	/* aca_tstamp should be updated upon changes */
 	aca->aca_cstamp = aca->aca_tstamp = jiffies;
-	atomic_set(&aca->aca_refcnt, 1);
+	refcount_set(&aca->aca_refcnt, 1);
 
 	return aca;
 }

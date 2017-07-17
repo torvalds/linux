@@ -194,13 +194,6 @@ static inline long __must_check strnlen_user(const char __user *src, long n)
 	return strnlen((const char __force *)src, n) + 1;
 }
 
-static inline long __must_check strlen_user(const char __user *src)
-{
-	if (!access_ok(VERIFY_READ, src, 1))
-		return 0;
-	return strlen((const char __force *)src) + 1;
-}
-
 /*
  * Zero Userspace
  */

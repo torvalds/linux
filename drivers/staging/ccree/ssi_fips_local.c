@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /**************************************************************
-This file defines the driver FIPS internal function, used by the driver itself.
-***************************************************************/
+ * This file defines the driver FIPS internal function, used by the driver itself.
+ ***************************************************************/
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -25,7 +25,6 @@ This file defines the driver FIPS internal function, used by the driver itself.
 #include "ssi_config.h"
 #include "ssi_driver.h"
 #include "cc_hal.h"
-
 
 #define FIPS_POWER_UP_TEST_CIPHER	1
 #define FIPS_POWER_UP_TEST_CMAC		1
@@ -49,62 +48,57 @@ struct ssi_fips_handle {
 #endif
 };
 
-
-extern int ssi_fips_get_state(ssi_fips_state_t *p_state);
-extern int ssi_fips_get_error(ssi_fips_error_t *p_err);
-extern int ssi_fips_ext_set_state(ssi_fips_state_t state);
-extern int ssi_fips_ext_set_error(ssi_fips_error_t err);
+extern int ssi_fips_get_state(enum cc_fips_state_t *p_state);
+extern int ssi_fips_get_error(enum cc_fips_error *p_err);
+extern int ssi_fips_ext_set_state(enum cc_fips_state_t state);
+extern int ssi_fips_ext_set_error(enum cc_fips_error err);
 
 /* FIPS power-up tests */
-extern ssi_fips_error_t ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
-extern ssi_fips_error_t ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_cipher_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_cmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_hash_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_hmac_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_ccm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
+extern enum cc_fips_error ssi_gcm_fips_power_up_tests(struct ssi_drvdata *drvdata, void *cpu_addr_buffer, dma_addr_t dma_coherent_buffer);
 extern size_t ssi_fips_max_mem_alloc_size(void);
-
 
 /* The function called once at driver entry point to check whether TEE FIPS error occured.*/
 static enum ssi_fips_error ssi_fips_get_tee_error(struct ssi_drvdata *drvdata)
 {
-	uint32_t regVal;
+	u32 regVal;
 	void __iomem *cc_base = drvdata->cc_base;
 
 	regVal = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
-	if (regVal == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK)) {
+	if (regVal == (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
 		return CC_REE_FIPS_ERROR_OK;
-	} 
+
 	return CC_REE_FIPS_ERROR_FROM_TEE;
 }
 
-
-/* 
- This function should push the FIPS REE library status towards the TEE library.
- By writing the error state to HOST_GPR0 register. The function is called from  						.
- driver entry point so no need to protect by mutex.
-*/
-static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, ssi_fips_error_t err)
+/*
+ * This function should push the FIPS REE library status towards the TEE library.
+ * By writing the error state to HOST_GPR0 register. The function is called from
+ * driver entry point so no need to protect by mutex.
+ */
+static void ssi_fips_update_tee_upon_ree_status(struct ssi_drvdata *drvdata, enum cc_fips_error err)
 {
 	void __iomem *cc_base = drvdata->cc_base;
-	if (err == CC_REE_FIPS_ERROR_OK) {
-		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS|CC_FIPS_SYNC_MODULE_OK));
-	} else {
-		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS|CC_FIPS_SYNC_MODULE_ERROR));
-	}
+
+	if (err == CC_REE_FIPS_ERROR_OK)
+		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_OK));
+	else
+		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_GPR0), (CC_FIPS_SYNC_REE_STATUS | CC_FIPS_SYNC_MODULE_ERROR));
 }
-
-
 
 void ssi_fips_fini(struct ssi_drvdata *drvdata)
 {
 	struct ssi_fips_handle *fips_h = drvdata->fips_handle;
 
-	if (fips_h == NULL)
+	if (!fips_h)
 		return; /* Not allocated */
 
 #ifdef COMP_IN_WQ
-	if (fips_h->workq != NULL) {
+	if (fips_h->workq) {
 		flush_workqueue(fips_h->workq);
 		destroy_workqueue(fips_h->workq);
 	}
@@ -119,7 +113,7 @@ void ssi_fips_fini(struct ssi_drvdata *drvdata)
 
 void fips_handler(struct ssi_drvdata *drvdata)
 {
-	struct ssi_fips_handle *fips_handle_ptr = 
+	struct ssi_fips_handle *fips_handle_ptr =
 						drvdata->fips_handle;
 #ifdef COMP_IN_WQ
 	queue_delayed_work(fips_handle_ptr->workq, &fips_handle_ptr->fipswork, 0);
@@ -127,8 +121,6 @@ void fips_handler(struct ssi_drvdata *drvdata)
 	tasklet_schedule(&fips_handle_ptr->fipstask);
 #endif
 }
-
-
 
 #ifdef COMP_IN_WQ
 static void fips_wq_handler(struct work_struct *work)
@@ -145,29 +137,27 @@ static void fips_dsr(unsigned long devarg)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
 	void __iomem *cc_base = drvdata->cc_base;
-	uint32_t irq;
-	uint32_t teeFipsError = 0;
+	u32 irq;
+	u32 teeFipsError = 0;
 
 	irq = (drvdata->irq & (SSI_GPR0_IRQ_MASK));
 
 	if (irq & SSI_GPR0_IRQ_MASK) {
 		teeFipsError = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, GPR_HOST));
-		if (teeFipsError != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK)) {
+		if (teeFipsError != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
 			ssi_fips_set_error(drvdata, CC_REE_FIPS_ERROR_FROM_TEE);
-		} 
 	}
 
 	/* after verifing that there is nothing to do, Unmask AXI completion interrupt */
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), 
+	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR),
 		CC_HAL_READ_REGISTER(
 		CC_REG_OFFSET(HOST_RGF, HOST_IMR)) & ~irq);
 }
 
-
-ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
+enum cc_fips_error cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 {
-	ssi_fips_error_t fips_error = CC_REE_FIPS_ERROR_OK;
-	void * cpu_addr_buffer = NULL;
+	enum cc_fips_error fips_error = CC_REE_FIPS_ERROR_OK;
+	void *cpu_addr_buffer = NULL;
 	dma_addr_t dma_handle;
 	size_t alloc_buff_size = ssi_fips_max_mem_alloc_size();
 	struct device *dev = &drvdata->plat_dev->dev;
@@ -177,9 +167,9 @@ ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 	// the dma_handle is the returned phy address - use it in the HW descriptor
 	FIPS_DBG("dma_alloc_coherent \n");
 	cpu_addr_buffer = dma_alloc_coherent(dev, alloc_buff_size, &dma_handle, GFP_KERNEL);
-	if (cpu_addr_buffer == NULL) {
+	if (!cpu_addr_buffer)
 		return CC_REE_FIPS_ERROR_GENERAL;
-	}
+
 	FIPS_DBG("allocated coherent buffer - addr 0x%08X , size = %d \n", (size_t)cpu_addr_buffer, alloc_buff_size);
 
 #if FIPS_POWER_UP_TEST_CIPHER
@@ -229,13 +219,12 @@ ssi_fips_error_t cc_fips_run_power_up_tests(struct ssi_drvdata *drvdata)
 	return fips_error;
 }
 
-
-
-/* The function checks if FIPS supported and FIPS error exists.* 
-*  It should be used in every driver API.*/
+/* The function checks if FIPS supported and FIPS error exists.*
+ * It should be used in every driver API.
+ */
 int ssi_fips_check_fips_error(void)
 {
-	ssi_fips_state_t fips_state; 
+	enum cc_fips_state_t fips_state;
 
 	if (ssi_fips_get_state(&fips_state) != 0) {
 		FIPS_LOG("ssi_fips_get_state FAILED, returning.. \n");
@@ -248,62 +237,61 @@ int ssi_fips_check_fips_error(void)
 	return 0;
 }
 
-
-/* The function sets the REE FIPS state.* 
-*  It should be used while driver is being loaded .*/
-int ssi_fips_set_state(ssi_fips_state_t state)
+/* The function sets the REE FIPS state.*
+ * It should be used while driver is being loaded.
+ */
+int ssi_fips_set_state(enum cc_fips_state_t state)
 {
 	return ssi_fips_ext_set_state(state);
 }
 
-/* The function sets the REE FIPS error, and pushes the error to TEE library. * 
-*  It should be used when any of the KAT tests fails .*/
-int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, ssi_fips_error_t err)
+/* The function sets the REE FIPS error, and pushes the error to TEE library. *
+ * It should be used when any of the KAT tests fails.
+ */
+int ssi_fips_set_error(struct ssi_drvdata *p_drvdata, enum cc_fips_error err)
 {
 	int rc = 0;
-        ssi_fips_error_t current_err;
+	enum cc_fips_error current_err;
 
-        FIPS_LOG("ssi_fips_set_error - fips_error = %d \n", err);
+	FIPS_LOG("ssi_fips_set_error - fips_error = %d \n", err);
 
 	// setting no error is not allowed
-	if (err == CC_REE_FIPS_ERROR_OK) {
-                return -ENOEXEC;
-	} 
-        // If error exists, do not set new error
-        if (ssi_fips_get_error(&current_err) != 0) {
-                return -ENOEXEC;
-        }
-        if (current_err != CC_REE_FIPS_ERROR_OK) {
-                return -ENOEXEC;
-        }
-        // set REE internal error and state
-	rc = ssi_fips_ext_set_error(err);
-	if (rc != 0) {
-                return -ENOEXEC;
-	}
-	rc = ssi_fips_ext_set_state(CC_FIPS_STATE_ERROR);
-	if (rc != 0) {
-                return -ENOEXEC;
-	}
+	if (err == CC_REE_FIPS_ERROR_OK)
+		return -ENOEXEC;
 
-        // push error towards TEE libraray, if it's not TEE error
-	if (err != CC_REE_FIPS_ERROR_FROM_TEE) {
+	// If error exists, do not set new error
+	if (ssi_fips_get_error(&current_err) != 0)
+		return -ENOEXEC;
+
+	if (current_err != CC_REE_FIPS_ERROR_OK)
+		return -ENOEXEC;
+
+	// set REE internal error and state
+	rc = ssi_fips_ext_set_error(err);
+	if (rc != 0)
+		return -ENOEXEC;
+
+	rc = ssi_fips_ext_set_state(CC_FIPS_STATE_ERROR);
+	if (rc != 0)
+		return -ENOEXEC;
+
+	// push error towards TEE libraray, if it's not TEE error
+	if (err != CC_REE_FIPS_ERROR_FROM_TEE)
 		ssi_fips_update_tee_upon_ree_status(p_drvdata, err);
-	}
+
 	return rc;
 }
-
 
 /* The function called once at driver entry point .*/
 int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 {
-	ssi_fips_error_t rc = CC_REE_FIPS_ERROR_OK;
+	enum cc_fips_error rc = CC_REE_FIPS_ERROR_OK;
 	struct ssi_fips_handle *fips_h;
 
 	FIPS_DBG("CC FIPS code ..  (fips=%d) \n", ssi_fips_support);
 
-	fips_h = kzalloc(sizeof(struct ssi_fips_handle),GFP_KERNEL);
-	if (fips_h == NULL) {
+	fips_h = kzalloc(sizeof(struct ssi_fips_handle), GFP_KERNEL);
+	if (!fips_h) {
 		ssi_fips_set_error(p_drvdata, CC_REE_FIPS_ERROR_GENERAL);
 		return -ENOMEM;
 	}
@@ -313,7 +301,7 @@ int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 #ifdef COMP_IN_WQ
 	SSI_LOG_DEBUG("Initializing fips workqueue\n");
 	fips_h->workq = create_singlethread_workqueue("arm_cc7x_fips_wq");
-	if (unlikely(fips_h->workq == NULL)) {
+	if (unlikely(!fips_h->workq)) {
 		SSI_LOG_ERR("Failed creating fips work queue\n");
 		ssi_fips_set_error(p_drvdata, CC_REE_FIPS_ERROR_GENERAL);
 		rc = -ENOMEM;
@@ -326,7 +314,7 @@ int ssi_fips_init(struct ssi_drvdata *p_drvdata)
 #endif
 
 	/* init fips driver data */
-	rc = ssi_fips_set_state((ssi_fips_support == 0)? CC_FIPS_STATE_NOT_SUPPORTED : CC_FIPS_STATE_SUPPORTED);
+	rc = ssi_fips_set_state((ssi_fips_support == 0) ? CC_FIPS_STATE_NOT_SUPPORTED : CC_FIPS_STATE_SUPPORTED);
 	if (unlikely(rc != 0)) {
 		ssi_fips_set_error(p_drvdata, CC_REE_FIPS_ERROR_GENERAL);
 		rc = -EAGAIN;

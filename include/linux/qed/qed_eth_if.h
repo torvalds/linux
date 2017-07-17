@@ -47,8 +47,7 @@ struct qed_queue_start_common_params {
 	/* Relative, but relevant only for PFs */
 	u8 stats_id;
 
-	/* These are always absolute */
-	u16 sb;
+	struct qed_sb_info *p_sb;
 	u8 sb_idx;
 };
 
@@ -74,6 +73,9 @@ struct qed_dev_eth_info {
 
 	/* Legacy VF - this affects the datapath, so qede has to know */
 	bool is_legacy;
+
+	/* Might depend on available resources [in case of VF] */
+	bool xdp_supported;
 };
 
 struct qed_update_vport_rss_params {

@@ -681,7 +681,7 @@ static void push_pseudo_header(struct sk_buff *skb, const char *daddr)
 {
 	struct ipoib_pseudo_header *phdr;
 
-	phdr = (struct ipoib_pseudo_header *)skb_push(skb, sizeof(*phdr));
+	phdr = skb_push(skb, sizeof(*phdr));
 	memcpy(phdr->hwaddr, daddr, INFINIBAND_ALEN);
 }
 
@@ -1129,7 +1129,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 {
 	struct ipoib_header *header;
 
-	header = (struct ipoib_header *) skb_push(skb, sizeof *header);
+	header = skb_push(skb, sizeof *header);
 
 	header->proto = htons(type);
 	header->reserved = 0;

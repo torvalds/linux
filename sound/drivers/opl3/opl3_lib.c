@@ -528,7 +528,7 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 
 	opl3->hwdep = hw;
 	opl3->seq_dev_num = seq_device;
-#if IS_REACHABLE(CONFIG_SND_SEQUENCER)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	if (snd_seq_device_new(card, seq_device, SNDRV_SEQ_DEV_ID_OPL3,
 			       sizeof(struct snd_opl3 *), &opl3->seq_dev) >= 0) {
 		strcpy(opl3->seq_dev->name, hw->name);

@@ -85,12 +85,12 @@ vma_create(struct drm_i915_gem_object *obj,
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&vma->exec_list);
 	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
 		init_request_active(&vma->last_read[i], i915_vma_retire);
 	init_request_active(&vma->last_fence, NULL);
 	vma->vm = vm;
 	vma->obj = obj;
+	vma->resv = obj->resv;
 	vma->size = obj->base.size;
 	vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
@@ -464,7 +464,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 			  size, obj->base.size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  end);
-		return -E2BIG;
+		return -ENOSPC;
 	}
 
 	ret = i915_gem_object_pin_pages(obj);
@@ -577,7 +577,7 @@ err_unpin:
 	return ret;
 }
 
-void i915_vma_destroy(struct i915_vma *vma)
+static void i915_vma_destroy(struct i915_vma *vma)
 {
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(i915_vma_is_active(vma));
@@ -591,10 +591,32 @@ void i915_vma_destroy(struct i915_vma *vma)
 	kmem_cache_free(to_i915(vma->obj->base.dev)->vmas, vma);
 }
 
+void i915_vma_unlink_ctx(struct i915_vma *vma)
+{
+	struct i915_gem_context *ctx = vma->ctx;
+
+	if (ctx->vma_lut.ht_size & I915_CTX_RESIZE_IN_PROGRESS) {
+		cancel_work_sync(&ctx->vma_lut.resize);
+		ctx->vma_lut.ht_size &= ~I915_CTX_RESIZE_IN_PROGRESS;
+	}
+
+	__hlist_del(&vma->ctx_node);
+	ctx->vma_lut.ht_count--;
+
+	if (i915_vma_is_ggtt(vma))
+		vma->obj->vma_hashed = NULL;
+	vma->ctx = NULL;
+
+	i915_vma_put(vma);
+}
+
 void i915_vma_close(struct i915_vma *vma)
 {
 	GEM_BUG_ON(i915_vma_is_closed(vma));
 	vma->flags |= I915_VMA_CLOSED;
+
+	if (vma->ctx)
+		i915_vma_unlink_ctx(vma);
 
 	list_del(&vma->obj_link);
 	rb_erase(&vma->obj_node, &vma->obj->vma_tree);
@@ -648,6 +670,11 @@ int i915_vma_unbind(struct i915_vma *vma)
 						     &vma->vm->i915->drm.struct_mutex);
 			if (ret)
 				break;
+		}
+
+		if (!ret) {
+			ret = i915_gem_active_retire(&vma->last_fence,
+						     &vma->vm->i915->drm.struct_mutex);
 		}
 
 		__i915_vma_unpin(vma);

@@ -83,7 +83,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 event_inj;
 	u32 event_inj_err;
 	u64 nested_cr3;
-	u64 lbr_ctl;
+	u64 virt_ext;
 	u32 clean;
 	u32 reserved_5;
 	u64 next_rip;
@@ -118,6 +118,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 
 #define AVIC_ENABLE_SHIFT 31
 #define AVIC_ENABLE_MASK (1 << AVIC_ENABLE_SHIFT)
+
+#define LBR_CTL_ENABLE_MASK BIT_ULL(0)
+#define VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK BIT_ULL(1)
 
 #define SVM_INTERRUPT_SHADOW_MASK 1
 

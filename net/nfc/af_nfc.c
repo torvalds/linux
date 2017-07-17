@@ -48,7 +48,7 @@ static int nfc_sock_create(struct net *net, struct socket *sock, int proto,
 	return rc;
 }
 
-static struct net_proto_family nfc_sock_family_ops = {
+static const struct net_proto_family nfc_sock_family_ops = {
 	.owner  = THIS_MODULE,
 	.family = PF_NFC,
 	.create = nfc_sock_create,
