@@ -285,6 +285,10 @@ sub give_redhat_hints()
 		"xelatex"		=> "texlive-xetex-bin",
 	);
 
+	my @fedora26_opt_pkgs = (
+		"graphviz-gd",		# Fedora 26: needed for PDF support
+	);
+
 	my @fedora_tex_pkgs = (
 		"texlive-collection-fontsrecommended",
 		"texlive-collection-latex",
@@ -293,6 +297,11 @@ sub give_redhat_hints()
 		"dejavu-sans-mono-fonts",
 	);
 
+	my $release;
+
+	$release = $1 if ($system_release =~ /Fedora\s+release\s+(\d+)/);
+
+	check_rpm_missing(\@fedora26_opt_pkgs, 1) if ($pdf && $release >= 26);
 	check_rpm_missing(\@fedora_tex_pkgs, 1) if ($pdf);
 	check_missing_tex(1) if ($pdf);
 	check_missing(\%map);
