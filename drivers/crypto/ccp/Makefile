@@ -15,4 +15,5 @@ ccp-crypto-objs := ccp-crypto-main.o \
 		   ccp-crypto-aes-xts.o \
 		   ccp-crypto-aes-galois.o \
 		   ccp-crypto-des3.o \
+		   ccp-crypto-rsa.o \
 		   ccp-crypto-sha.o
