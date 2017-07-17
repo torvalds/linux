@@ -75,7 +75,7 @@ static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
 
 struct poll_table_entry {
 	struct file *filp;
-	unsigned long key;
+	__poll_t key;
 	wait_queue_entry_t wait;
 	wait_queue_head_t *wait_address;
 };
