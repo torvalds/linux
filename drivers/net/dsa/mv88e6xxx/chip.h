@@ -97,51 +97,6 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6390,  /* 6190 6190X 6191 6290 6390 6390X */
 };
 
-enum mv88e6xxx_cap {
-	/* Multi-chip Addressing Mode.
-	 * Some chips respond to only 2 registers of its own SMI device address
-	 * when it is non-zero, and use indirect access to internal registers.
-	 */
-	MV88E6XXX_CAP_SMI_CMD,		/* (0x00) SMI Command */
-	MV88E6XXX_CAP_SMI_DATA,		/* (0x01) SMI Data */
-};
-
-/* Bitmask of capabilities */
-#define MV88E6XXX_FLAG_SMI_CMD		BIT_ULL(MV88E6XXX_CAP_SMI_CMD)
-#define MV88E6XXX_FLAG_SMI_DATA		BIT_ULL(MV88E6XXX_CAP_SMI_DATA)
-
-/* Multi-chip Addressing Mode */
-#define MV88E6XXX_FLAGS_MULTI_CHIP	\
-	(MV88E6XXX_FLAG_SMI_CMD |	\
-	 MV88E6XXX_FLAG_SMI_DATA)
-
-#define MV88E6XXX_FLAGS_FAMILY_6095	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6097	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6165	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6185	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6320	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6341	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6351	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6352	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
-#define MV88E6XXX_FLAGS_FAMILY_6390	\
-	(MV88E6XXX_FLAGS_MULTI_CHIP)
-
 struct mv88e6xxx_ops;
 
 struct mv88e6xxx_info {
@@ -158,8 +113,13 @@ struct mv88e6xxx_info {
 	unsigned int g1_irqs;
 	unsigned int g2_irqs;
 	bool pvt;
+
+	/* Multi-chip Addressing Mode.
+	 * Some chips respond to only 2 registers of its own SMI device address
+	 * when it is non-zero, and use indirect access to internal registers.
+	 */
+	bool multi_chip;
 	enum dsa_tag_protocol tag_protocol;
-	unsigned long long flags;
 
 	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
 	 * operation. 0 means that the ATU Move operation is not supported.
@@ -409,12 +369,6 @@ struct mv88e6xxx_hw_stat {
 	int reg;
 	int type;
 };
-
-static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
-				 unsigned long flags)
-{
-	return (chip->info->flags & flags) == flags;
-}
 
 static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
 {

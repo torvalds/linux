@@ -3267,8 +3267,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6097,
 		.ops = &mv88e6085_ops,
 	},
 
@@ -3285,8 +3285,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
 		.atu_move_port_mask = 0xf,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6095,
 		.ops = &mv88e6095_ops,
 	},
 
@@ -3305,8 +3305,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6097,
 		.ops = &mv88e6097_ops,
 	},
 
@@ -3325,8 +3325,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
 		.ops = &mv88e6123_ops,
 	},
 
@@ -3343,8 +3343,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.age_time_coeff = 15000,
 		.g1_irqs = 9,
 		.atu_move_port_mask = 0xf,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
 		.ops = &mv88e6131_ops,
 	},
 
@@ -3362,8 +3362,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.atu_move_port_mask = 0x1f,
 		.g2_irqs = 10,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
 		.ops = &mv88e6141_ops,
 	},
 
@@ -3382,8 +3382,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
 		.ops = &mv88e6161_ops,
 	},
 
@@ -3402,8 +3402,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
 		.ops = &mv88e6165_ops,
 	},
 
@@ -3422,8 +3422,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6171_ops,
 	},
 
@@ -3442,8 +3442,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6172_ops,
 	},
 
@@ -3462,8 +3462,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6175_ops,
 	},
 
@@ -3482,8 +3482,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6176_ops,
 	},
 
@@ -3500,8 +3500,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
 		.atu_move_port_mask = 0xf,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
 		.ops = &mv88e6185_ops,
 	},
 
@@ -3520,8 +3520,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g1_irqs = 9,
 		.g2_irqs = 14,
 		.pvt = true,
+		.multi_chip = true,
 		.atu_move_port_mask = 0x1f,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6190_ops,
 	},
 
@@ -3540,8 +3540,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6190x_ops,
 	},
 
@@ -3560,8 +3560,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6191_ops,
 	},
 
@@ -3580,8 +3580,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6240_ops,
 	},
 
@@ -3600,8 +3600,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6290_ops,
 	},
 
@@ -3619,8 +3619,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g1_irqs = 8,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
 		.ops = &mv88e6320_ops,
 	},
 
@@ -3637,8 +3637,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.age_time_coeff = 15000,
 		.g1_irqs = 8,
 		.atu_move_port_mask = 0xf,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
 		.ops = &mv88e6321_ops,
 	},
 
@@ -3656,8 +3656,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.atu_move_port_mask = 0x1f,
 		.g2_irqs = 10,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6341,
 		.ops = &mv88e6341_ops,
 	},
 
@@ -3676,8 +3676,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6350_ops,
 	},
 
@@ -3696,8 +3696,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
 		.ops = &mv88e6351_ops,
 	},
 
@@ -3716,8 +3716,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 10,
 		.atu_move_port_mask = 0xf,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_EDSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
 		.ops = &mv88e6352_ops,
 	},
 	[MV88E6390] = {
@@ -3735,8 +3735,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6390_ops,
 	},
 	[MV88E6390X] = {
@@ -3754,8 +3754,8 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.g2_irqs = 14,
 		.atu_move_port_mask = 0x1f,
 		.pvt = true,
+		.multi_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
-		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
 		.ops = &mv88e6390x_ops,
 	},
 };
@@ -3825,7 +3825,7 @@ static int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 {
 	if (sw_addr == 0)
 		chip->smi_ops = &mv88e6xxx_smi_single_chip_ops;
-	else if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_MULTI_CHIP))
+	else if (chip->info->multi_chip)
 		chip->smi_ops = &mv88e6xxx_smi_multi_chip_ops;
 	else
 		return -EINVAL;
