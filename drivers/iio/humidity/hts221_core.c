@@ -208,11 +208,6 @@ static int hts221_update_odr(struct hts221_hw *hw, u8 odr)
 	if (err < 0)
 		return err;
 
-	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
-				     HTS221_ENABLE_MASK, 1);
-	if (err < 0)
-		return err;
-
 	hw->odr = odr;
 
 	return 0;
@@ -294,7 +289,8 @@ int hts221_power_on(struct hts221_hw *hw)
 {
 	int err;
 
-	err = hts221_update_odr(hw, hw->odr);
+	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
+				     HTS221_ENABLE_MASK, true);
 	if (err < 0)
 		return err;
 
@@ -627,8 +623,6 @@ int hts221_probe(struct iio_dev *iio_dev)
 	if (err < 0)
 		return err;
 
-	hw->odr = hts221_odr_table[0].hz;
-
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->dev.parent = hw->dev;
 	iio_dev->available_scan_masks = hts221_scan_masks;
@@ -640,6 +634,10 @@ int hts221_probe(struct iio_dev *iio_dev)
 	/* enable Block Data Update */
 	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
 				     HTS221_BDU_MASK, 1);
+	if (err < 0)
+		return err;
+
+	err = hts221_update_odr(hw, hts221_odr_table[0].hz);
 	if (err < 0)
 		return err;
 
@@ -706,7 +704,8 @@ static int __maybe_unused hts221_resume(struct device *dev)
 	int err = 0;
 
 	if (hw->enabled)
-		err = hts221_update_odr(hw, hw->odr);
+		err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
+					     HTS221_ENABLE_MASK, true);
 
 	return err;
 }
