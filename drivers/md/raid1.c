@@ -484,10 +484,6 @@ static void raid1_end_write_request(struct bio *bio)
 	}
 
 	if (behind) {
-		/* we release behind master bio when all write are done */
-		if (r1_bio->behind_master_bio == bio)
-			to_put = NULL;
-
 		if (test_bit(WriteMostly, &rdev->flags))
 			atomic_dec(&r1_bio->behind_remaining);
 
@@ -1080,7 +1076,7 @@ static void unfreeze_array(struct r1conf *conf)
 	wake_up(&conf->wait_barrier);
 }
 
-static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
+static void alloc_behind_master_bio(struct r1bio *r1_bio,
 					   struct bio *bio)
 {
 	int size = bio->bi_iter.bi_size;
@@ -1090,11 +1086,13 @@ static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
 
 	behind_bio = bio_alloc_mddev(GFP_NOIO, vcnt, r1_bio->mddev);
 	if (!behind_bio)
-		goto fail;
+		return;
 
 	/* discard op, we don't support writezero/writesame yet */
-	if (!bio_has_data(bio))
+	if (!bio_has_data(bio)) {
+		behind_bio->bi_iter.bi_size = size;
 		goto skip_copy;
+	}
 
 	while (i < vcnt && size) {
 		struct page *page;
@@ -1115,14 +1113,13 @@ skip_copy:
 	r1_bio->behind_master_bio = behind_bio;;
 	set_bit(R1BIO_BehindIO, &r1_bio->state);
 
-	return behind_bio;
+	return;
 
 free_pages:
 	pr_debug("%dB behind alloc failed, doing sync I/O\n",
 		 bio->bi_iter.bi_size);
 	bio_free_pages(behind_bio);
-fail:
-	return behind_bio;
+	bio_put(behind_bio);
 }
 
 struct raid1_plug_cb {
@@ -1475,7 +1472,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			    (atomic_read(&bitmap->behind_writes)
 			     < mddev->bitmap_info.max_write_behind) &&
 			    !waitqueue_active(&bitmap->behind_wait)) {
-				mbio = alloc_behind_master_bio(r1_bio, bio);
+				alloc_behind_master_bio(r1_bio, bio);
 			}
 
 			bitmap_startwrite(bitmap, r1_bio->sector,
@@ -1485,14 +1482,11 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			first_clone = 0;
 		}
 
-		if (!mbio) {
-			if (r1_bio->behind_master_bio)
-				mbio = bio_clone_fast(r1_bio->behind_master_bio,
-						      GFP_NOIO,
-						      mddev->bio_set);
-			else
-				mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
-		}
+		if (r1_bio->behind_master_bio)
+			mbio = bio_clone_fast(r1_bio->behind_master_bio,
+					      GFP_NOIO, mddev->bio_set);
+		else
+			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
 
 		if (r1_bio->behind_master_bio) {
 			if (test_bit(WriteMostly, &conf->mirrors[i].rdev->flags))
@@ -2346,8 +2340,6 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 			wbio = bio_clone_fast(r1_bio->behind_master_bio,
 					      GFP_NOIO,
 					      mddev->bio_set);
-			/* We really need a _all clone */
-			wbio->bi_iter = (struct bvec_iter){ 0 };
 		} else {
 			wbio = bio_clone_fast(r1_bio->master_bio, GFP_NOIO,
 					      mddev->bio_set);
