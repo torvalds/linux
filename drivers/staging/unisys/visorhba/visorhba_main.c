@@ -122,8 +122,8 @@ struct visorhba_devices_open {
  * Return: The task_struct * denoting the thread on success,
  *	   or NULL on failure
  */
-static struct task_struct *visor_thread_start
-(int (*threadfn)(void *), void *thrcontext, char *name)
+static struct task_struct *visor_thread_start(int (*threadfn)(void *),
+					      void *thrcontext, char *name)
 {
 	struct task_struct *task;
 
@@ -198,8 +198,7 @@ static int add_scsipending_entry(struct visorhba_devdata *devdata,
  *
  * Return: The scsipending entry pointed to on success, NULL on failure
  */
-static void *del_scsipending_ent(struct visorhba_devdata *devdata,
-				 int del)
+static void *del_scsipending_ent(struct visorhba_devdata *devdata, int del)
 {
 	unsigned long flags;
 	void *sent;
@@ -460,8 +459,7 @@ static int visorhba_bus_reset_handler(struct scsi_cmnd *scsicmd)
  *
  * Return: Not supported, return SUCCESS
  */
-static int
-visorhba_host_reset_handler(struct scsi_cmnd *scsicmd)
+static int visorhba_host_reset_handler(struct scsi_cmnd *scsicmd)
 {
 	/* issue TASK_MGMT_TARGET_RESET for each target on each bus for host */
 	return SUCCESS;
@@ -490,9 +488,9 @@ static const char *visorhba_get_info(struct Scsi_Host *shp)
  * Return: 0 if successfully queued to the Service Partition, otherwise
  *	   error code
  */
-static int
-visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
-			   void (*visorhba_cmnd_done)(struct scsi_cmnd *))
+static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
+				      void (*visorhba_cmnd_done)
+					   (struct scsi_cmnd *))
 {
 	struct uiscmdrsp *cmdrsp;
 	struct scsi_device *scsidev = scsicmd->device;
@@ -798,8 +796,8 @@ static int visorhba_serverdown(struct visorhba_devdata *devdata)
  *
  * Don't log errors for disk-not-present inquiries.
  */
-static void
-do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
+static void do_scsi_linuxstat(struct uiscmdrsp *cmdrsp,
+			      struct scsi_cmnd *scsicmd)
 {
 	struct visorhba_devdata *devdata;
 	struct visordisk_info *vdisk;
@@ -823,8 +821,8 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	}
 }
 
-static int set_no_disk_inquiry_result(unsigned char *buf,
-				      size_t len, bool is_lun0)
+static int set_no_disk_inquiry_result(unsigned char *buf, size_t len,
+				      bool is_lun0)
 {
 	if (len < NO_DISK_INQUIRY_RESULT_LEN)
 		return -EINVAL;
@@ -848,8 +846,8 @@ static int set_no_disk_inquiry_result(unsigned char *buf,
  *
  * Handle response when no linuxstat was returned.
  */
-static void
-do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
+static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
+				struct scsi_cmnd *scsicmd)
 {
 	struct scsi_device *scsidev;
 	unsigned char *buf;
@@ -915,8 +913,8 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
  * Response was returned by the Service Partition. Finish it and send
  * completion to the scsi midlayer.
  */
-static void
-complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
+static void complete_scsi_command(struct uiscmdrsp *cmdrsp,
+				  struct scsi_cmnd *scsicmd)
 {
 	/* take what we need out of cmdrsp and complete the scsicmd */
 	scsicmd->result = cmdrsp->scsi.linuxstat;
@@ -935,8 +933,8 @@ complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
  *
  * Pulls responses out of the iochannel and process the responses.
  */
-static void
-drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
+static void drain_queue(struct uiscmdrsp *cmdrsp,
+			struct visorhba_devdata *devdata)
 {
 	struct scsi_cmnd *scsicmd;
 
