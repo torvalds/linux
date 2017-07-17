@@ -29,8 +29,8 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include <linux/pci.h>
-#include "drmP.h"
-#include "drm/drm.h"
+#include <drm/drmP.h>
+#include <drm/drm.h>
 
 #include "virtgpu_drv.h"
 static struct drm_driver driver;

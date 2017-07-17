@@ -144,6 +144,8 @@ const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "lantiq,xrx200-usb", .data = dwc2_set_ltq_params },
 	{ .compatible = "snps,dwc2" },
 	{ .compatible = "samsung,s3c6400-hsotg" },
+	{ .compatible = "amlogic,meson8-usb",
+	  .data = dwc2_set_amlogic_params },
 	{ .compatible = "amlogic,meson8b-usb",
 	  .data = dwc2_set_amlogic_params },
 	{ .compatible = "amlogic,meson-gxbb-usb",

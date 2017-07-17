@@ -2878,7 +2878,7 @@ static const struct intel_ntb_reg skx_reg = {
 	.link_is_up		= xeon_link_is_up,
 	.db_ioread		= skx_db_ioread,
 	.db_iowrite		= skx_db_iowrite,
-	.db_size		= sizeof(u64),
+	.db_size		= sizeof(u32),
 	.ntb_ctl		= SKX_NTBCNTL_OFFSET,
 	.mw_bar			= {2, 4},
 };

@@ -111,8 +111,8 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 					    &handle);
 
 		if (ret) {
-			state->bo_count = i - 1;
-			goto err;
+			state->bo_count = i;
+			goto err_delete_handle;
 		}
 		bo_state[i].handle = handle;
 		bo_state[i].paddr = vc4_bo->base.paddr;
@@ -124,13 +124,16 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			 state->bo_count * sizeof(*bo_state)))
 		ret = -EFAULT;
 
-	kfree(bo_state);
+err_delete_handle:
+	if (ret) {
+		for (i = 0; i < state->bo_count; i++)
+			drm_gem_handle_delete(file_priv, bo_state[i].handle);
+	}
 
 err_free:
-
 	vc4_free_hang_state(dev, kernel_state);
+	kfree(bo_state);
 
-err:
 	return ret;
 }
 
@@ -463,6 +466,8 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 	for (i = 0; i < exec->bo_count; i++) {
 		bo = to_vc4_bo(&exec->bo[i]->base);
 		bo->seqno = seqno;
+
+		reservation_object_add_shared_fence(bo->resv, exec->fence);
 	}
 
 	list_for_each_entry(bo, &exec->unref_list, unref_head) {
@@ -472,7 +477,103 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 	for (i = 0; i < exec->rcl_write_bo_count; i++) {
 		bo = to_vc4_bo(&exec->rcl_write_bo[i]->base);
 		bo->write_seqno = seqno;
+
+		reservation_object_add_excl_fence(bo->resv, exec->fence);
 	}
+}
+
+static void
+vc4_unlock_bo_reservations(struct drm_device *dev,
+			   struct vc4_exec_info *exec,
+			   struct ww_acquire_ctx *acquire_ctx)
+{
+	int i;
+
+	for (i = 0; i < exec->bo_count; i++) {
+		struct vc4_bo *bo = to_vc4_bo(&exec->bo[i]->base);
+
+		ww_mutex_unlock(&bo->resv->lock);
+	}
+
+	ww_acquire_fini(acquire_ctx);
+}
+
+/* Takes the reservation lock on all the BOs being referenced, so that
+ * at queue submit time we can update the reservations.
+ *
+ * We don't lock the RCL the tile alloc/state BOs, or overflow memory
+ * (all of which are on exec->unref_list).  They're entirely private
+ * to vc4, so we don't attach dma-buf fences to them.
+ */
+static int
+vc4_lock_bo_reservations(struct drm_device *dev,
+			 struct vc4_exec_info *exec,
+			 struct ww_acquire_ctx *acquire_ctx)
+{
+	int contended_lock = -1;
+	int i, ret;
+	struct vc4_bo *bo;
+
+	ww_acquire_init(acquire_ctx, &reservation_ww_class);
+
+retry:
+	if (contended_lock != -1) {
+		bo = to_vc4_bo(&exec->bo[contended_lock]->base);
+		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
+						       acquire_ctx);
+		if (ret) {
+			ww_acquire_done(acquire_ctx);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < exec->bo_count; i++) {
+		if (i == contended_lock)
+			continue;
+
+		bo = to_vc4_bo(&exec->bo[i]->base);
+
+		ret = ww_mutex_lock_interruptible(&bo->resv->lock, acquire_ctx);
+		if (ret) {
+			int j;
+
+			for (j = 0; j < i; j++) {
+				bo = to_vc4_bo(&exec->bo[j]->base);
+				ww_mutex_unlock(&bo->resv->lock);
+			}
+
+			if (contended_lock != -1 && contended_lock >= i) {
+				bo = to_vc4_bo(&exec->bo[contended_lock]->base);
+
+				ww_mutex_unlock(&bo->resv->lock);
+			}
+
+			if (ret == -EDEADLK) {
+				contended_lock = i;
+				goto retry;
+			}
+
+			ww_acquire_done(acquire_ctx);
+			return ret;
+		}
+	}
+
+	ww_acquire_done(acquire_ctx);
+
+	/* Reserve space for our shared (read-only) fence references,
+	 * before we commit the CL to the hardware.
+	 */
+	for (i = 0; i < exec->bo_count; i++) {
+		bo = to_vc4_bo(&exec->bo[i]->base);
+
+		ret = reservation_object_reserve_shared(bo->resv);
+		if (ret) {
+			vc4_unlock_bo_reservations(dev, exec, acquire_ctx);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 /* Queues a struct vc4_exec_info for execution.  If no job is
@@ -484,18 +585,33 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
  * then bump the end address.  That's a change for a later date,
  * though.
  */
-static void
-vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec)
+static int
+vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
+		 struct ww_acquire_ctx *acquire_ctx)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint64_t seqno;
 	unsigned long irqflags;
+	struct vc4_fence *fence;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return -ENOMEM;
+	fence->dev = dev;
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 
 	seqno = ++vc4->emit_seqno;
 	exec->seqno = seqno;
+
+	dma_fence_init(&fence->base, &vc4_fence_ops, &vc4->job_lock,
+		       vc4->dma_fence_context, exec->seqno);
+	fence->seqno = exec->seqno;
+	exec->fence = &fence->base;
+
 	vc4_update_bo_seqnos(exec, seqno);
+
+	vc4_unlock_bo_reservations(dev, exec, acquire_ctx);
 
 	list_add_tail(&exec->head, &vc4->bin_job_list);
 
@@ -509,6 +625,8 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec)
 	}
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+	return 0;
 }
 
 /**
@@ -545,14 +663,15 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	exec->bo = drm_calloc_large(exec->bo_count,
-				    sizeof(struct drm_gem_cma_object *));
+	exec->bo = kvmalloc_array(exec->bo_count,
+				    sizeof(struct drm_gem_cma_object *),
+				    GFP_KERNEL | __GFP_ZERO);
 	if (!exec->bo) {
 		DRM_ERROR("Failed to allocate validated BO pointers\n");
 		return -ENOMEM;
 	}
 
-	handles = drm_malloc_ab(exec->bo_count, sizeof(uint32_t));
+	handles = kvmalloc_array(exec->bo_count, sizeof(uint32_t), GFP_KERNEL);
 	if (!handles) {
 		ret = -ENOMEM;
 		DRM_ERROR("Failed to allocate incoming GEM handles\n");
@@ -584,7 +703,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 	spin_unlock(&file_priv->table_lock);
 
 fail:
-	drm_free_large(handles);
+	kvfree(handles);
 	return ret;
 }
 
@@ -622,7 +741,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	 * read the contents back for validation, and I think the
 	 * bo->vaddr is uncached access.
 	 */
-	temp = drm_malloc_ab(temp_size, 1);
+	temp = kvmalloc_array(temp_size, 1, GFP_KERNEL);
 	if (!temp) {
 		DRM_ERROR("Failed to allocate storage for copying "
 			  "in bin/render CLs.\n");
@@ -697,7 +816,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	ret = vc4_wait_for_seqno(dev, exec->bin_dep_seqno, ~0ull, true);
 
 fail:
-	drm_free_large(temp);
+	kvfree(temp);
 	return ret;
 }
 
@@ -705,12 +824,19 @@ static void
 vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	unsigned long irqflags;
 	unsigned i;
+
+	/* If we got force-completed because of GPU reset rather than
+	 * through our IRQ handler, signal the fence now.
+	 */
+	if (exec->fence)
+		dma_fence_signal(exec->fence);
 
 	if (exec->bo) {
 		for (i = 0; i < exec->bo_count; i++)
 			drm_gem_object_unreference_unlocked(&exec->bo[i]->base);
-		drm_free_large(exec->bo);
+		kvfree(exec->bo);
 	}
 
 	while (!list_empty(&exec->unref_list)) {
@@ -719,6 +845,11 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 		list_del(&bo->unref_head);
 		drm_gem_object_unreference_unlocked(&bo->base.base);
 	}
+
+	/* Free up the allocation of any bin slots we used. */
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
+	vc4->bin_alloc_used &= ~exec->bin_slots;
+	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
 	mutex_lock(&vc4->power_lock);
 	if (--vc4->power_refcount == 0) {
@@ -874,6 +1005,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_submit_cl *args = data;
 	struct vc4_exec_info *exec;
+	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
 
 	if ((args->flags & ~VC4_SUBMIT_CL_USE_CLEAR_COLOR) != 0) {
@@ -888,13 +1020,16 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&vc4->power_lock);
-	if (vc4->power_refcount++ == 0)
+	if (vc4->power_refcount++ == 0) {
 		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-	mutex_unlock(&vc4->power_lock);
-	if (ret < 0) {
-		kfree(exec);
-		return ret;
+		if (ret < 0) {
+			mutex_unlock(&vc4->power_lock);
+			vc4->power_refcount--;
+			kfree(exec);
+			return ret;
+		}
 	}
+	mutex_unlock(&vc4->power_lock);
 
 	exec->args = args;
 	INIT_LIST_HEAD(&exec->unref_list);
@@ -916,12 +1051,18 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
+	ret = vc4_lock_bo_reservations(dev, exec, &acquire_ctx);
+	if (ret)
+		goto fail;
+
 	/* Clear this out of the struct we'll be putting in the queue,
 	 * since it's part of our stack.
 	 */
 	exec->args = NULL;
 
-	vc4_queue_submit(dev, exec);
+	ret = vc4_queue_submit(dev, exec, &acquire_ctx);
+	if (ret)
+		goto fail;
 
 	/* Return the seqno for our job. */
 	args->seqno = vc4->emit_seqno;
@@ -938,6 +1079,8 @@ void
 vc4_gem_init(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	vc4->dma_fence_context = dma_fence_context_alloc(1);
 
 	INIT_LIST_HEAD(&vc4->bin_job_list);
 	INIT_LIST_HEAD(&vc4->render_job_list);
@@ -968,9 +1111,9 @@ vc4_gem_destroy(struct drm_device *dev)
 	/* V3D should already have disabled its interrupt and cleared
 	 * the overflow allocation registers.  Now free the object.
 	 */
-	if (vc4->overflow_mem) {
-		drm_gem_object_unreference_unlocked(&vc4->overflow_mem->base.base);
-		vc4->overflow_mem = NULL;
+	if (vc4->bin_bo) {
+		drm_gem_object_put_unlocked(&vc4->bin_bo->base.base);
+		vc4->bin_bo = NULL;
 	}
 
 	if (vc4->hang_state)

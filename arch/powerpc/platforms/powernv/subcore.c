@@ -407,7 +407,13 @@ static DEVICE_ATTR(subcores_per_core, 0644,
 
 static int subcore_init(void)
 {
-	if (!cpu_has_feature(CPU_FTR_SUBCORE))
+	unsigned pvr_ver;
+
+	pvr_ver = PVR_VER(mfspr(SPRN_PVR));
+
+	if (pvr_ver != PVR_POWER8 &&
+	    pvr_ver != PVR_POWER8E &&
+	    pvr_ver != PVR_POWER8NVL)
 		return 0;
 
 	/*

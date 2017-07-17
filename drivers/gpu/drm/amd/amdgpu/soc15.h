@@ -25,6 +25,7 @@
 #define __SOC15_H__
 
 #include "nbio_v6_1.h"
+#include "nbio_v7_0.h"
 
 extern const struct amd_ip_funcs soc15_common_ip_funcs;
 

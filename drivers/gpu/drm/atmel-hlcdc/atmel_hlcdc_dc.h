@@ -422,8 +422,9 @@ static inline void atmel_hlcdc_layer_init(struct atmel_hlcdc_layer *layer,
 	layer->regmap = regmap;
 }
 
-int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
-			      struct drm_display_mode *mode);
+enum drm_mode_status
+atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
+			  const struct drm_display_mode *mode);
 
 int atmel_hlcdc_create_planes(struct drm_device *dev);
 void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane);

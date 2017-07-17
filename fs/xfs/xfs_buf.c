@@ -117,7 +117,7 @@ static inline void
 __xfs_buf_ioacct_dec(
 	struct xfs_buf	*bp)
 {
-	ASSERT(spin_is_locked(&bp->b_lock));
+	lockdep_assert_held(&bp->b_lock);
 
 	if (bp->b_state & XFS_BSTATE_IN_FLIGHT) {
 		bp->b_state &= ~XFS_BSTATE_IN_FLIGHT;

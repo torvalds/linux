@@ -468,7 +468,7 @@ int verify_dir_item(struct btrfs_fs_info *fs_info,
 
 	if (btrfs_dir_name_len(leaf, dir_item) > namelen) {
 		btrfs_crit(fs_info, "invalid dir item name len: %u",
-		       (unsigned)btrfs_dir_data_len(leaf, dir_item));
+		       (unsigned)btrfs_dir_name_len(leaf, dir_item));
 		return 1;
 	}
 

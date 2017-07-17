@@ -598,7 +598,7 @@ static void netdev_setup(struct net_device *dev)
 
 	dev->netdev_ops		= &netdev_ops;
 	dev->header_ops		= &header_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 static struct device_type bt_type = {

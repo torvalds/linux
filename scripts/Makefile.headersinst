@@ -14,7 +14,15 @@ __headers:
 include scripts/Kbuild.include
 
 srcdir        := $(srctree)/$(obj)
-subdirs       := $(patsubst $(srcdir)/%/.,%,$(wildcard $(srcdir)/*/.))
+
+# When make is run under a fakechroot environment, the function
+# $(wildcard $(srcdir)/*/.) doesn't only return directories, but also regular
+# files. So, we are using a combination of sort/dir/wildcard which works
+# with fakechroot.
+subdirs       := $(patsubst $(srcdir)/%/,%,\
+		 $(filter-out $(srcdir)/,\
+		 $(sort $(dir $(wildcard $(srcdir)/*/)))))
+
 # caller may set destination dir (when installing to asm/)
 _dst          := $(if $(dst),$(dst),$(obj))
 

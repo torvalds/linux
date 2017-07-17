@@ -391,6 +391,8 @@ struct request_queue {
 	int			nr_rqs[2];	/* # allocated [a]sync rqs */
 	int			nr_rqs_elvpriv;	/* # allocated rqs w/ elvpriv */
 
+	atomic_t		shared_hctx_restart;
+
 	struct blk_queue_stats	*stats;
 	struct rq_wb		*rq_wb;
 
@@ -586,6 +588,8 @@ struct request_queue {
 
 	size_t			cmd_size;
 	void			*rq_alloc_data;
+
+	struct work_struct	release_work;
 };
 
 #define QUEUE_FLAG_QUEUED	1	/* uses generic tag queueing */

@@ -106,8 +106,8 @@ struct drm_omap_gem_info {
 #define DRM_OMAP_GET_PARAM		0x00
 #define DRM_OMAP_SET_PARAM		0x01
 #define DRM_OMAP_GEM_NEW		0x03
-#define DRM_OMAP_GEM_CPU_PREP		0x04
-#define DRM_OMAP_GEM_CPU_FINI		0x05
+#define DRM_OMAP_GEM_CPU_PREP		0x04	/* Deprecated, to be removed */
+#define DRM_OMAP_GEM_CPU_FINI		0x05	/* Deprecated, to be removed */
 #define DRM_OMAP_GEM_INFO		0x06
 #define DRM_OMAP_NUM_IOCTLS		0x07
 

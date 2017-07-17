@@ -97,11 +97,9 @@
 	} \
 }
 
-#ifdef CONFIG_PM_SLEEP
 static u8 suspend_prep_ok;
 static u32 suspend_shlw_ctr_temp, suspend_deep_ctr_temp;
 static u64 suspend_shlw_res_temp, suspend_deep_res_temp;
-#endif
 
 struct telemetry_susp_stats {
 	u32 shlw_swake_ctr;
@@ -807,7 +805,6 @@ static const struct file_operations telem_ioss_trc_verb_ops = {
 	.release	= single_release,
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int pm_suspend_prep_cb(void)
 {
 	struct telemetry_evtlog evtlog[TELEM_MAX_OS_ALLOCATED_EVENTS];
@@ -937,7 +934,6 @@ static int pm_notification(struct notifier_block *this,
 static struct notifier_block pm_notifier = {
 	.notifier_call = pm_notification,
 };
-#endif /* CONFIG_PM_SLEEP */
 
 static int __init telemetry_debugfs_init(void)
 {
@@ -960,14 +956,13 @@ static int __init telemetry_debugfs_init(void)
 	if (err < 0)
 		return -EINVAL;
 
-
-#ifdef CONFIG_PM_SLEEP
 	register_pm_notifier(&pm_notifier);
-#endif /* CONFIG_PM_SLEEP */
 
 	debugfs_conf->telemetry_dbg_dir = debugfs_create_dir("telemetry", NULL);
-	if (!debugfs_conf->telemetry_dbg_dir)
-		return -ENOMEM;
+	if (!debugfs_conf->telemetry_dbg_dir) {
+		err = -ENOMEM;
+		goto out_pm;
+	}
 
 	f = debugfs_create_file("pss_info", S_IFREG | S_IRUGO,
 				debugfs_conf->telemetry_dbg_dir, NULL,
@@ -1014,6 +1009,8 @@ static int __init telemetry_debugfs_init(void)
 out:
 	debugfs_remove_recursive(debugfs_conf->telemetry_dbg_dir);
 	debugfs_conf->telemetry_dbg_dir = NULL;
+out_pm:
+	unregister_pm_notifier(&pm_notifier);
 
 	return err;
 }
@@ -1022,6 +1019,7 @@ static void __exit telemetry_debugfs_exit(void)
 {
 	debugfs_remove_recursive(debugfs_conf->telemetry_dbg_dir);
 	debugfs_conf->telemetry_dbg_dir = NULL;
+	unregister_pm_notifier(&pm_notifier);
 }
 
 late_initcall(telemetry_debugfs_init);

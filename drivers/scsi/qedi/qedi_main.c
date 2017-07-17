@@ -1499,11 +1499,9 @@ err_idx:
 
 void qedi_clear_task_idx(struct qedi_ctx *qedi, int idx)
 {
-	if (!test_and_clear_bit(idx, qedi->task_idx_map)) {
+	if (!test_and_clear_bit(idx, qedi->task_idx_map))
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "FW task context, already cleared, tid=0x%x\n", idx);
-		WARN_ON(1);
-	}
 }
 
 void qedi_update_itt_map(struct qedi_ctx *qedi, u32 tid, u32 proto_itt,

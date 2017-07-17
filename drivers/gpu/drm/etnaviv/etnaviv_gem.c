@@ -748,7 +748,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	uintptr_t ptr;
 	unsigned int flags = 0;
 
-	pvec = drm_malloc_ab(npages, sizeof(struct page *));
+	pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!pvec)
 		return ERR_PTR(-ENOMEM);
 
@@ -772,7 +772,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 
 	if (ret < 0) {
 		release_pages(pvec, pinned, 0);
-		drm_free_large(pvec);
+		kvfree(pvec);
 		return ERR_PTR(ret);
 	}
 
@@ -823,7 +823,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 	mm = get_task_mm(etnaviv_obj->userptr.task);
 	pinned = 0;
 	if (mm == current->mm) {
-		pvec = drm_malloc_ab(npages, sizeof(struct page *));
+		pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 		if (!pvec) {
 			mmput(mm);
 			return -ENOMEM;
@@ -832,7 +832,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 		pinned = __get_user_pages_fast(etnaviv_obj->userptr.ptr, npages,
 					       !etnaviv_obj->userptr.ro, pvec);
 		if (pinned < 0) {
-			drm_free_large(pvec);
+			kvfree(pvec);
 			mmput(mm);
 			return pinned;
 		}
@@ -845,7 +845,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 	}
 
 	release_pages(pvec, pinned, 0);
-	drm_free_large(pvec);
+	kvfree(pvec);
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
 	if (!work) {
@@ -879,7 +879,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
 		int npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 
 		release_pages(etnaviv_obj->pages, npages, 0);
-		drm_free_large(etnaviv_obj->pages);
+		kvfree(etnaviv_obj->pages);
 	}
 	put_task_struct(etnaviv_obj->userptr.task);
 }

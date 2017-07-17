@@ -593,8 +593,7 @@ c_show(struct seq_file *f, void *slot)
 		      (ccount_freq/10000) % 100,
 		      loops_per_jiffy/(500000/HZ),
 		      (loops_per_jiffy/(5000/HZ)) % 100);
-
-	seq_printf(f,"flags\t\t: "
+	seq_puts(f, "flags\t\t: "
 #if XCHAL_HAVE_NMI
 		     "nmi "
 #endif

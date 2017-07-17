@@ -1040,7 +1040,7 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 		struct iwl_mac_beacon_cmd_v6 beacon_cmd_v6;
 		struct iwl_mac_beacon_cmd_v7 beacon_cmd;
 	} u = {};
-	struct iwl_mac_beacon_cmd beacon_cmd;
+	struct iwl_mac_beacon_cmd beacon_cmd = {};
 	struct ieee80211_tx_info *info;
 	u32 beacon_skb_len;
 	u32 rate, tx_flags;

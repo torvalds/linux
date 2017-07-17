@@ -155,7 +155,6 @@ static int arcpgu_unload(struct drm_device *drm)
 		arcpgu->fbdev = NULL;
 	}
 	drm_kms_helper_poll_fini(drm);
-	drm_vblank_cleanup(drm);
 	drm_mode_config_cleanup(drm);
 
 	return 0;

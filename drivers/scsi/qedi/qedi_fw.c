@@ -870,7 +870,6 @@ static void qedi_process_cmd_cleanup_resp(struct qedi_ctx *qedi,
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "Delayed or untracked cleanup response, itt=0x%x, tid=0x%x, cid=0x%x, task=%p\n",
 			 protoitt, cqe->itid, qedi_conn->iscsi_conn_id, task);
-		WARN_ON(1);
 	}
 }
 

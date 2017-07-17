@@ -391,6 +391,9 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 	can_update_state_error_stats(dev, new_state);
 	priv->state = new_state;
 
+	if (!cf)
+		return;
+
 	if (unlikely(new_state == CAN_STATE_BUS_OFF)) {
 		cf->can_id |= CAN_ERR_BUSOFF;
 		return;

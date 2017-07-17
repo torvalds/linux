@@ -33,6 +33,7 @@
 #include "soc15_common.h"
 
 #include "nbio_v6_1.h"
+#include "nbio_v7_0.h"
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
 
@@ -215,7 +216,10 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 	unsigned i, j;
 
 	/* flush hdp cache */
-	nbio_v6_1_hdp_flush(adev);
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_hdp_flush(adev);
+	else
+		nbio_v6_1_hdp_flush(adev);
 
 	spin_lock(&adev->mc.invalidate_lock);
 
@@ -354,17 +358,19 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
-static u64 gmc_v9_0_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
+static u64 gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, u64 addr)
 {
-	return adev->vm_manager.vram_base_offset + mc_addr - adev->mc.vram_start;
+	addr = adev->vm_manager.vram_base_offset + addr - adev->mc.vram_start;
+	BUG_ON(addr & 0xFFFF00000000003FULL);
+	return addr;
 }
 
 static const struct amdgpu_gart_funcs gmc_v9_0_gart_funcs = {
 	.flush_gpu_tlb = gmc_v9_0_gart_flush_gpu_tlb,
 	.set_pte_pde = gmc_v9_0_gart_set_pte_pde,
-	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
-	.adjust_mc_addr = gmc_v9_0_adjust_mc_addr,
 	.get_invalidate_req = gmc_v9_0_get_invalidate_req,
+	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
+	.get_vm_pde = gmc_v9_0_get_vm_pde
 };
 
 static void gmc_v9_0_set_gart_funcs(struct amdgpu_device *adev)
@@ -415,6 +421,11 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 	amdgpu_vram_location(adev, &adev->mc, base);
 	adev->mc.gtt_base_align = 0;
 	amdgpu_gtt_location(adev, mc);
+	/* base offset of vram pages */
+	if (adev->flags & AMD_IS_APU)
+		adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
+	else
+		adev->vm_manager.vram_base_offset = 0;
 }
 
 /**
@@ -434,7 +445,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	/* hbm memory channel size */
 	chansize = 128;
 
-	tmp = RREG32(SOC15_REG_OFFSET(DF, 0, mmDF_CS_AON0_DramBaseAddress0));
+	tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
 	tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
 	tmp >>= DF_CS_AON0_DramBaseAddress0__IntLvNumChan__SHIFT;
 	switch (tmp) {
@@ -474,7 +485,8 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
 	/* size in MB on si */
 	adev->mc.mc_vram_size =
-		nbio_v6_1_get_memsize(adev) * 1024ULL * 1024ULL;
+		((adev->flags & AMD_IS_APU) ? nbio_v7_0_get_memsize(adev) :
+		 nbio_v6_1_get_memsize(adev)) * 1024ULL * 1024ULL;
 	adev->mc.real_vram_size = adev->mc.mc_vram_size;
 	adev->mc.visible_vram_size = adev->mc.aper_size;
 
@@ -514,63 +526,14 @@ static int gmc_v9_0_gart_init(struct amdgpu_device *adev)
 	return amdgpu_gart_table_vram_alloc(adev);
 }
 
-/*
- * vm
- * VMID 0 is the physical GPU addresses as used by the kernel.
- * VMIDs 1-15 are used for userspace clients and are handled
- * by the amdgpu vm/hsa code.
- */
-/**
- * gmc_v9_0_vm_init - vm init callback
- *
- * @adev: amdgpu_device pointer
- *
- * Inits vega10 specific vm parameters (number of VMs, base of vram for
- * VMIDs 1-15) (vega10).
- * Returns 0 for success.
- */
-static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
-{
-	/*
-	 * number of VMs
-	 * VMID 0 is reserved for System
-	 * amdgpu graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
-	 */
-	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
-
-	/* TODO: fix num_level for APU when updating vm size and block size */
-	if (adev->flags & AMD_IS_APU)
-		adev->vm_manager.num_level = 1;
-	else
-		adev->vm_manager.num_level = 3;
-	amdgpu_vm_manager_init(adev);
-
-	/* base offset of vram pages */
-	/*XXX This value is not zero for APU*/
-	adev->vm_manager.vram_base_offset = 0;
-
-	return 0;
-}
-
-/**
- * gmc_v9_0_vm_fini - vm fini callback
- *
- * @adev: amdgpu_device pointer
- *
- * Tear down any asic specific VM setup.
- */
-static void gmc_v9_0_vm_fini(struct amdgpu_device *adev)
-{
-	return;
-}
-
 static int gmc_v9_0_sw_init(void *handle)
 {
 	int r;
 	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	gfxhub_v1_0_init(adev);
+	mmhub_v1_0_init(adev);
 
 	spin_lock_init(&adev->mc.invalidate_lock);
 
@@ -609,6 +572,12 @@ static int gmc_v9_0_sw_init(void *handle)
 	 */
 	adev->mc.mc_mask = 0xffffffffffffULL; /* 48 bit MC */
 
+	/*
+	 * It needs to reserve 8M stolen memory for vega10
+	 * TODO: Figure out how to avoid that...
+	 */
+	adev->mc.stolen_size = 8 * 1024 * 1024;
+
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 44-bits.
 	 * IGP - can handle 44-bits
@@ -641,15 +610,23 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (!adev->vm_manager.enabled) {
-		r = gmc_v9_0_vm_init(adev);
-		if (r) {
-			dev_err(adev->dev, "vm manager initialization failed (%d).\n", r);
-			return r;
-		}
-		adev->vm_manager.enabled = true;
-	}
-	return r;
+	/*
+	 * number of VMs
+	 * VMID 0 is reserved for System
+	 * amdgpu graphics/compute will use VMIDs 1-7
+	 * amdkfd will use VMIDs 8-15
+	 */
+	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+
+	/* TODO: fix num_level for APU when updating vm size and block size */
+	if (adev->flags & AMD_IS_APU)
+		adev->vm_manager.num_level = 1;
+	else
+		adev->vm_manager.num_level = 3;
+	amdgpu_vm_manager_init(adev);
+
+	return 0;
 }
 
 /**
@@ -669,11 +646,7 @@ static int gmc_v9_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->vm_manager.enabled) {
-		amdgpu_vm_manager_fini(adev);
-		gmc_v9_0_vm_fini(adev);
-		adev->vm_manager.enabled = false;
-	}
+	amdgpu_vm_manager_fini(adev);
 	gmc_v9_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
@@ -685,6 +658,8 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+		break;
+	case CHIP_RAVEN:
 		break;
 	default:
 		break;
@@ -715,7 +690,10 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		return r;
 
 	/* After HDP is initialized, flush HDP.*/
-	nbio_v6_1_hdp_flush(adev);
+	if (adev->flags & AMD_IS_APU)
+		nbio_v7_0_hdp_flush(adev);
+	else
+		nbio_v6_1_hdp_flush(adev);
 
 	r = gfxhub_v1_0_gart_enable(adev);
 	if (r)
@@ -725,12 +703,12 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	tmp = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MISC_CNTL));
+	tmp = RREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL);
 	tmp |= HDP_MISC_CNTL__FLUSH_INVALIDATE_CACHE_MASK;
-	WREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MISC_CNTL), tmp);
+	WREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL, tmp);
 
-	tmp = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_HOST_PATH_CNTL));
-	WREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_HOST_PATH_CNTL), tmp);
+	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
+	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
 
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
@@ -780,6 +758,12 @@ static void gmc_v9_0_gart_disable(struct amdgpu_device *adev)
 static int gmc_v9_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev)) {
+		/* full access mode, so don't touch any GMC register */
+		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
+		return 0;
+	}
 
 	amdgpu_irq_put(adev, &adev->mc.vm_fault, 0);
 	gmc_v9_0_gart_disable(adev);
@@ -831,7 +815,16 @@ static int gmc_v9_0_soft_reset(void *handle)
 static int gmc_v9_0_set_clockgating_state(void *handle,
 					enum amd_clockgating_state state)
 {
-	return 0;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return mmhub_v1_0_set_clockgating(adev, state);
+}
+
+static void gmc_v9_0_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	mmhub_v1_0_get_clockgating(adev, flags);
 }
 
 static int gmc_v9_0_set_powergating_state(void *handle,
@@ -855,6 +848,7 @@ const struct amd_ip_funcs gmc_v9_0_ip_funcs = {
 	.soft_reset = gmc_v9_0_soft_reset,
 	.set_clockgating_state = gmc_v9_0_set_clockgating_state,
 	.set_powergating_state = gmc_v9_0_set_powergating_state,
+	.get_clockgating_state = gmc_v9_0_get_clockgating_state,
 };
 
 const struct amdgpu_ip_block_version gmc_v9_0_ip_block =

@@ -1209,9 +1209,9 @@ arch_timer_mem_frame_get_cntfrq(struct arch_timer_mem_frame *frame)
 		return 0;
 	}
 
-	rate = readl_relaxed(frame + CNTFRQ);
+	rate = readl_relaxed(base + CNTFRQ);
 
-	iounmap(frame);
+	iounmap(base);
 
 	return rate;
 }

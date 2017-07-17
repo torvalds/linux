@@ -26,7 +26,11 @@
  * implementation details and are not exported to drivers.
  */
 
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_modes.h>
 
 /* drm_fb_helper.c */
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -63,3 +67,11 @@ static inline void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
 {
 }
 #endif
+
+/* drm_probe_helper.c */
+enum drm_mode_status drm_crtc_mode_valid(struct drm_crtc *crtc,
+					 const struct drm_display_mode *mode);
+enum drm_mode_status drm_encoder_mode_valid(struct drm_encoder *encoder,
+					    const struct drm_display_mode *mode);
+enum drm_mode_status drm_connector_mode_valid(struct drm_connector *connector,
+					      struct drm_display_mode *mode);
