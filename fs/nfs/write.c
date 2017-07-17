@@ -523,20 +523,6 @@ try_again:
 	total_bytes = head->wb_bytes;
 	for (subreq = head->wb_this_page; subreq != head;
 			subreq = subreq->wb_this_page) {
-		/*
-		 * Subrequests are always contiguous, non overlapping
-		 * and in order - but may be repeated (mirrored writes).
-		 */
-		if (subreq->wb_offset == (head->wb_offset + total_bytes)) {
-			/* keep track of how many bytes this group covers */
-			total_bytes += subreq->wb_bytes;
-		} else if (WARN_ON_ONCE(subreq->wb_offset < head->wb_offset ||
-			    ((subreq->wb_offset + subreq->wb_bytes) >
-			     (head->wb_offset + total_bytes)))) {
-			nfs_unroll_locks_and_wait(inode, head, subreq);
-			return ERR_PTR(-EIO);
-		}
-
 		if (!nfs_lock_request(subreq)) {
 			/* releases page group bit lock and
 			 * inode spin lock and all references */
@@ -547,6 +533,20 @@ try_again:
 				goto try_again;
 
 			return ERR_PTR(ret);
+		}
+		/*
+		 * Subrequests are always contiguous, non overlapping
+		 * and in order - but may be repeated (mirrored writes).
+		 */
+		if (subreq->wb_offset == (head->wb_offset + total_bytes)) {
+			/* keep track of how many bytes this group covers */
+			total_bytes += subreq->wb_bytes;
+		} else if (WARN_ON_ONCE(subreq->wb_offset < head->wb_offset ||
+			    ((subreq->wb_offset + subreq->wb_bytes) >
+			     (head->wb_offset + total_bytes)))) {
+			nfs_unlock_request(subreq);
+			nfs_unroll_locks_and_wait(inode, head, subreq);
+			return ERR_PTR(-EIO);
 		}
 	}
 
