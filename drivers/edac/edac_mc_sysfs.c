@@ -287,7 +287,7 @@ static struct attribute *csrow_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group csrow_attr_grp = {
+static const struct attribute_group csrow_attr_grp = {
 	.attrs	= csrow_attrs,
 };
 
@@ -627,7 +627,7 @@ static struct attribute *dimm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dimm_attr_grp = {
+static const struct attribute_group dimm_attr_grp = {
 	.attrs	= dimm_attrs,
 };
 
@@ -902,7 +902,7 @@ static umode_t mci_attr_is_visible(struct kobject *kobj,
 	return mode;
 }
 
-static struct attribute_group mci_attr_grp = {
+static const struct attribute_group mci_attr_grp = {
 	.attrs	= mci_attrs,
 	.is_visible = mci_attr_is_visible,
 };

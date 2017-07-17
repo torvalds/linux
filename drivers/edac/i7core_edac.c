@@ -1079,7 +1079,7 @@ static struct attribute *i7core_addrmatch_attrs[] = {
 	NULL
 };
 
-static struct attribute_group addrmatch_grp = {
+static const struct attribute_group addrmatch_grp = {
 	.attrs	= i7core_addrmatch_attrs,
 };
 
@@ -1110,7 +1110,7 @@ static struct attribute *i7core_udimm_counters_attrs[] = {
 	NULL
 };
 
-static struct attribute_group all_channel_counts_grp = {
+static const struct attribute_group all_channel_counts_grp = {
 	.attrs	= i7core_udimm_counters_attrs,
 };
 
