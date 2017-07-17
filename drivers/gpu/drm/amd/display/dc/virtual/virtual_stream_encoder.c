@@ -53,6 +53,9 @@ static void virtual_stream_encoder_update_hdmi_info_packets(
 static void virtual_stream_encoder_stop_hdmi_info_packets(
 	struct stream_encoder *enc) {}
 
+static void virtual_stream_encoder_set_avmute(
+	struct stream_encoder *enc,
+	bool enable) {}
 static void virtual_stream_encoder_update_dp_info_packets(
 	struct stream_encoder *enc,
 	const struct encoder_info_frame *info_frame) {}
@@ -94,6 +97,7 @@ static const struct stream_encoder_funcs virtual_str_enc_funcs = {
 		virtual_stream_encoder_dp_unblank,
 
 	.audio_mute_control = virtual_audio_mute_control,
+	.set_avmute = virtual_stream_encoder_set_avmute,
 };
 
 bool virtual_stream_encoder_construct(

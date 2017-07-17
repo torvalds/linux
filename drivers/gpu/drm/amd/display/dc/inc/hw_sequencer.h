@@ -152,6 +152,8 @@ struct hw_sequencer_funcs {
 	void (*setup_stereo)(
 			struct pipe_ctx *pipe_ctx,
 			struct core_dc *dc);
+
+	void (*set_avmute)(struct pipe_ctx *pipe_ctx, bool enable);
 };
 
 void color_space_to_black_color(

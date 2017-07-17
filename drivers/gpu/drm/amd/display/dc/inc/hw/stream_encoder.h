@@ -123,6 +123,9 @@ struct stream_encoder_funcs {
 			struct stream_encoder *enc,
 			int tg_inst,
 			bool enable);
+
+	void (*set_avmute)(
+		struct stream_encoder *enc, bool enable);
 };
 
 #endif /* STREAM_ENCODER_H_ */

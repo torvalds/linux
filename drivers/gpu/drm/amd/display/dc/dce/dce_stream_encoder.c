@@ -1003,6 +1003,16 @@ static void dce110_stream_encoder_dp_unblank(
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 }
 
+static void dce110_stream_encoder_set_avmute(
+	struct stream_encoder *enc,
+	bool enable)
+{
+	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+	unsigned int value = enable ? 1 : 0;
+
+	REG_UPDATE(HDMI_GC, HDMI_GC_AVMUTE, value);
+}
+
 
 #define DP_SEC_AUD_N__DP_SEC_AUD_N__DEFAULT 0x8000
 #define DP_SEC_TIMESTAMP__DP_SEC_TIMESTAMP_MODE__AUTO_CALC 1
@@ -1582,7 +1592,6 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 		dce110_stream_encoder_dp_blank,
 	.dp_unblank =
 		dce110_stream_encoder_dp_unblank,
-
 	.audio_mute_control = dce110_se_audio_mute_control,
 
 	.dp_audio_setup = dce110_se_dp_audio_setup,
@@ -1592,6 +1601,8 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.hdmi_audio_setup = dce110_se_hdmi_audio_setup,
 	.hdmi_audio_disable = dce110_se_hdmi_audio_disable,
 	.setup_stereo_sync  = setup_stereo_sync,
+	.set_avmute = dce110_stream_encoder_set_avmute,
+
 };
 
 bool dce110_stream_encoder_construct(

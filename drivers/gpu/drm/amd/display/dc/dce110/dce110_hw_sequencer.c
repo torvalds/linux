@@ -801,6 +801,13 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	pipe_ctx->stream_enc->funcs->dp_unblank(pipe_ctx->stream_enc, &params);
 }
 
+
+void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
+{
+	if (pipe_ctx != NULL && pipe_ctx->stream_enc != NULL)
+		pipe_ctx->stream_enc->funcs->set_avmute(pipe_ctx->stream_enc, enable);
+}
+
 static enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
 {
 	switch (crtc_id) {
@@ -1095,10 +1102,11 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
 			true : false);
 
+	resource_build_info_frame(pipe_ctx);
+
 	if (!pipe_ctx_old->stream) {
 		core_link_enable_stream(pipe_ctx);
 
-	resource_build_info_frame(pipe_ctx);
 	dce110_update_info_frame(pipe_ctx);
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			dce110_unblank_stream(pipe_ctx,
@@ -2600,7 +2608,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_static_screen_control = set_static_screen_control,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
 	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,
-	.setup_stereo = NULL
+	.setup_stereo = NULL,
+	.set_avmute = dce110_set_avmute,
 };
 
 bool dce110_hw_sequencer_construct(struct core_dc *dc)

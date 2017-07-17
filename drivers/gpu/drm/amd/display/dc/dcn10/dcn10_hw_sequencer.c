@@ -1867,7 +1867,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_drr = set_drr,
 	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,
-	.setup_stereo = dcn10_setup_stereo
+	.setup_stereo = dcn10_setup_stereo,
+	.set_avmute = dce110_set_avmute,
 };
 
 

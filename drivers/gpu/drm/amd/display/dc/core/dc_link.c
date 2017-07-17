@@ -1911,3 +1911,13 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	disable_link(pipe_ctx->stream->sink->link, pipe_ctx->stream->signal);
 }
 
+void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
+{
+	struct core_dc *core_dc = DC_TO_CORE(pipe_ctx->stream->ctx->dc);
+
+	if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
+		return;
+
+	core_dc->hwss.set_avmute(pipe_ctx, enable);
+}
+

@@ -1607,6 +1607,8 @@ static void set_avi_info_frame(
 	uint8_t *check_sum = NULL;
 	uint8_t byte_index = 0;
 	union hdmi_info_packet *hdmi_info = &info_frame.avi_info_packet.info_packet_hdmi;
+	unsigned int vic = pipe_ctx->stream->public.timing.vic;
+	enum dc_timing_3d_format format;
 
 	color_space = pipe_ctx->stream->public.output_color_space;
 	if (color_space == COLOR_SPACE_UNKNOWN)
@@ -1661,8 +1663,7 @@ static void set_avi_info_frame(
 
 	/* C0, C1 : Colorimetry */
 	if (color_space == COLOR_SPACE_YCBCR709 ||
-			color_space == COLOR_SPACE_YCBCR709_LIMITED ||
-			color_space == COLOR_SPACE_2020_YCBCR)
+			color_space == COLOR_SPACE_YCBCR709_LIMITED)
 		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU709;
 	else if (color_space == COLOR_SPACE_YCBCR601 ||
 			color_space == COLOR_SPACE_YCBCR601_LIMITED)
@@ -1722,9 +1723,29 @@ static void set_avi_info_frame(
 		hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
 		hdmi_info->bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 	}
-
-	hdmi_info->bits.VIC0_VIC7 =
-					stream->public.timing.vic;
+	///VIC
+	format = stream->public.timing.timing_3d_format;
+	/*todo, add 3DStereo support*/
+	if (format != TIMING_3D_FORMAT_NONE) {
+		// Based on HDMI specs hdmi vic needs to be converted to cea vic when 3D is enabled
+		switch (pipe_ctx->stream->public.timing.hdmi_vic) {
+		case 1:
+			vic = 95;
+			break;
+		case 2:
+			vic = 94;
+			break;
+		case 3:
+			vic = 93;
+			break;
+		case 4:
+			vic = 98;
+			break;
+		default:
+			break;
+		}
+	}
+	hdmi_info->bits.VIC0_VIC7 = vic;
 
 	/* pixel repetition
 	 * PR0 - PR3 start from 0 whereas pHwPathMode->mode.timing.flags.pixel
@@ -1737,7 +1758,7 @@ static void set_avi_info_frame(
 	 * barLeft:   Pixel Number of End of Left Bar.
 	 * barRight:  Pixel Number of Start of Right Bar. */
 	hdmi_info->bits.bar_top = stream->public.timing.v_border_top;
-	hdmi_info->bits.bar_bottom = (stream->public.timing.v_border_top
+	hdmi_info->bits.bar_bottom = (stream->public.timing.v_total
 			- stream->public.timing.v_border_bottom + 1);
 	hdmi_info->bits.bar_left  = stream->public.timing.h_border_left;
 	hdmi_info->bits.bar_right = (stream->public.timing.h_total
@@ -1776,6 +1797,10 @@ static void set_vendor_info_packet(
 	uint8_t checksum = 0;
 	uint32_t i = 0;
 	enum dc_timing_3d_format format;
+	// Can be different depending on packet content /*todo*/
+	// unsigned int length = pPathMode->dolbyVision ? 24 : 5;
+
+	info_packet->valid = false;
 
 	format = stream->public.timing.timing_3d_format;
 	if (stream->public.view_format == VIEW_3D_FORMAT_NONE)
