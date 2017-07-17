@@ -264,6 +264,8 @@ void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip);
 int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
+int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip);
+
 extern const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops;
 extern const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops;
 
@@ -370,6 +372,11 @@ static inline int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 }
 
 static inline int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 {
 	return -EOPNOTSUPP;
 }

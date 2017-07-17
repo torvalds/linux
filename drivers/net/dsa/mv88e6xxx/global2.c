@@ -311,7 +311,7 @@ static int mv88e6xxx_g2_pot_write(struct mv88e6xxx_chip *chip, int pointer,
 	return mv88e6xxx_g2_update(chip, MV88E6XXX_G2_PRIO_OVERRIDE, val);
 }
 
-static int mv88e6xxx_g2_clear_pot(struct mv88e6xxx_chip *chip)
+int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 {
 	int i, err;
 
@@ -1130,13 +1130,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	err = mv88e6xxx_g2_clear_trunk(chip);
 	if (err)
 		return err;
-
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_POT)) {
-		/* Clear the priority override table. */
-		err = mv88e6xxx_g2_clear_pot(chip);
-		if (err)
-			return err;
-	}
 
 	return 0;
 }
