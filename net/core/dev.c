@@ -3902,6 +3902,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 		__skb_push(skb, -off);
 
 	switch (act) {
+	case XDP_REDIRECT:
 	case XDP_TX:
 		__skb_push(skb, mac_len);
 		/* fall through */
@@ -3956,14 +3957,27 @@ static int do_xdp_generic(struct sk_buff *skb)
 
 	if (xdp_prog) {
 		u32 act = netif_receive_generic_xdp(skb, xdp_prog);
+		int err;
 
 		if (act != XDP_PASS) {
-			if (act == XDP_TX)
+			switch (act) {
+			case XDP_REDIRECT:
+				err = xdp_do_generic_redirect(skb->dev, skb);
+				if (err)
+					goto out_redir;
+			/* fallthru to submit skb */
+			case XDP_TX:
 				generic_xdp_tx(skb, xdp_prog);
+				break;
+			}
 			return XDP_DROP;
 		}
 	}
 	return XDP_PASS;
+out_redir:
+	trace_xdp_exception(skb->dev, xdp_prog, XDP_REDIRECT);
+	kfree_skb(skb);
+	return XDP_DROP;
 }
 
 static int netif_rx_internal(struct sk_buff *skb)
@@ -3977,8 +3991,12 @@ static int netif_rx_internal(struct sk_buff *skb)
 	if (static_key_false(&generic_xdp_needed)) {
 		int ret = do_xdp_generic(skb);
 
+		/* Consider XDP consuming the packet a success from
+		 * the netdev point of view we do not want to count
+		 * this as an error.
+		 */
 		if (ret != XDP_PASS)
-			return NET_RX_DROP;
+			return NET_RX_SUCCESS;
 	}
 
 #ifdef CONFIG_RPS

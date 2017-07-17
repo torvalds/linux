@@ -2437,6 +2437,32 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp)
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
 
+int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	unsigned int len;
+
+	dev = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
+	ri->ifindex = 0;
+	if (unlikely(!dev)) {
+		bpf_warn_invalid_xdp_redirect(ri->ifindex);
+		goto err;
+	}
+
+	if (unlikely(!(dev->flags & IFF_UP)))
+		goto err;
+
+	len = dev->mtu + dev->hard_header_len + VLAN_HLEN;
+	if (skb->len > len)
+		goto err;
+
+	skb->dev = dev;
+	return 0;
+err:
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(xdp_do_generic_redirect);
+
 BPF_CALL_2(bpf_xdp_redirect, u32, ifindex, u64, flags)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
