@@ -17,8 +17,6 @@
 
 #include "chip.h"
 
-#define MV88E6XXX_G2	0x1c
-
 /* Offset 0x00: Interrupt Source Register */
 #define MV88E6XXX_G2_INT_SRC			0x00
 #define MV88E6XXX_G2_INT_SRC_WDOG		0x8000
@@ -273,7 +271,7 @@ extern const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops;
 
 static inline int mv88e6xxx_g2_require(struct mv88e6xxx_chip *chip)
 {
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_GLOBAL2)) {
+	if (chip->info->global2_addr) {
 		dev_err(chip->dev, "this chip requires CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 enabled\n");
 		return -EOPNOTSUPP;
 	}

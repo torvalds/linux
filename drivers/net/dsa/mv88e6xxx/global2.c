@@ -22,22 +22,22 @@
 
 static int mv88e6xxx_g2_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
 {
-	return mv88e6xxx_read(chip, MV88E6XXX_G2, reg, val);
+	return mv88e6xxx_read(chip, chip->info->global2_addr, reg, val);
 }
 
 static int mv88e6xxx_g2_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
 {
-	return mv88e6xxx_write(chip, MV88E6XXX_G2, reg, val);
+	return mv88e6xxx_write(chip, chip->info->global2_addr, reg, val);
 }
 
 static int mv88e6xxx_g2_update(struct mv88e6xxx_chip *chip, int reg, u16 update)
 {
-	return mv88e6xxx_update(chip, MV88E6XXX_G2, reg, update);
+	return mv88e6xxx_update(chip, chip->info->global2_addr, reg, update);
 }
 
 static int mv88e6xxx_g2_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 {
-	return mv88e6xxx_wait(chip, MV88E6XXX_G2, reg, mask);
+	return mv88e6xxx_wait(chip, chip->info->global2_addr, reg, mask);
 }
 
 /* Offset 0x00: Interrupt Source Register */
