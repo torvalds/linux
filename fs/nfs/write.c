@@ -243,9 +243,6 @@ nfs_page_group_search_locked(struct nfs_page *head, unsigned int page_offset)
 {
 	struct nfs_page *req;
 
-	WARN_ON_ONCE(head != head->wb_head);
-	WARN_ON_ONCE(!test_bit(PG_HEADLOCK, &head->wb_head->wb_flags));
-
 	req = head;
 	do {
 		if (page_offset >= req->wb_pgbase &&
@@ -273,18 +270,15 @@ static bool nfs_page_group_covers_page(struct nfs_page *req)
 
 	nfs_page_group_lock(req);
 
-	do {
+	for (;;) {
 		tmp = nfs_page_group_search_locked(req->wb_head, pos);
-		if (tmp) {
-			/* no way this should happen */
-			WARN_ON_ONCE(tmp->wb_pgbase != pos);
-			pos += tmp->wb_bytes - (pos - tmp->wb_pgbase);
-		}
-	} while (tmp && pos < len);
+		if (!tmp)
+			break;
+		pos = tmp->wb_pgbase + tmp->wb_bytes;
+	}
 
 	nfs_page_group_unlock(req);
-	WARN_ON_ONCE(pos > len);
-	return pos == len;
+	return pos >= len;
 }
 
 /* We can set the PG_uptodate flag if we see that a write request
