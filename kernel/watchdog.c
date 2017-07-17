@@ -9,7 +9,7 @@
  * to those contributors as well.
  */
 
-#define pr_fmt(fmt) "NMI watchdog: " fmt
+#define pr_fmt(fmt) "watchdog: " fmt
 
 #include <linux/mm.h>
 #include <linux/cpu.h>

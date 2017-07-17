@@ -418,6 +418,8 @@ static int ntb_netdev_probe(struct device *client_dev)
 	if (!ndev)
 		return -ENOMEM;
 
+	SET_NETDEV_DEV(ndev, client_dev);
+
 	dev = netdev_priv(ndev);
 	dev->ndev = ndev;
 	dev->pdev = pdev;

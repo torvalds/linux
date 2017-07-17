@@ -152,6 +152,7 @@ csum_failed:
 		 * we have verified the checksum already, set page
 		 * checked so the end_io handlers know about it
 		 */
+		ASSERT(!bio_flagged(bio, BIO_CLONED));
 		bio_for_each_segment_all(bvec, cb->orig_bio, i)
 			SetPageChecked(bvec->bv_page);
 

@@ -1360,20 +1360,19 @@ static ssize_t proc_fail_nth_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
 	struct task_struct *task;
-	int err, n;
+	int err;
+	unsigned int n;
+
+	err = kstrtouint_from_user(buf, count, 0, &n);
+	if (err)
+		return err;
 
 	task = get_proc_task(file_inode(file));
 	if (!task)
 		return -ESRCH;
+	WRITE_ONCE(task->fail_nth, n);
 	put_task_struct(task);
-	if (task != current)
-		return -EPERM;
-	err = kstrtoint_from_user(buf, count, 10, &n);
-	if (err)
-		return err;
-	if (n < 0 || n == INT_MAX)
-		return -EINVAL;
-	current->fail_nth = n + 1;
+
 	return count;
 }
 
@@ -1381,21 +1380,18 @@ static ssize_t proc_fail_nth_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *ppos)
 {
 	struct task_struct *task;
-	int err;
+	char numbuf[PROC_NUMBUF];
+	ssize_t len;
 
 	task = get_proc_task(file_inode(file));
 	if (!task)
 		return -ESRCH;
+	len = snprintf(numbuf, sizeof(numbuf), "%u\n",
+			READ_ONCE(task->fail_nth));
+	len = simple_read_from_buffer(buf, count, ppos, numbuf, len);
 	put_task_struct(task);
-	if (task != current)
-		return -EPERM;
-	if (count < 1)
-		return -EINVAL;
-	err = put_user((char)(current->fail_nth ? 'N' : 'Y'), buf);
-	if (err)
-		return err;
-	current->fail_nth = 0;
-	return 1;
+
+	return len;
 }
 
 static const struct file_operations proc_fail_nth_operations = {
@@ -2966,6 +2962,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
+	REG("fail-nth", 0644, proc_fail_nth_operations),
 #endif
 #ifdef CONFIG_ELF_CORE
 	REG("coredump_filter", S_IRUGO|S_IWUSR, proc_coredump_filter_operations),
@@ -3358,11 +3355,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, proc_fault_inject_operations),
-	/*
-	 * Operations on the file check that the task is current,
-	 * so we create it with 0666 to support testing under unprivileged user.
-	 */
-	REG("fail-nth", 0666, proc_fail_nth_operations),
+	REG("fail-nth", 0644, proc_fail_nth_operations),
 #endif
 #ifdef CONFIG_TASK_IO_ACCOUNTING
 	ONE("io",	S_IRUSR, proc_tid_io_accounting),

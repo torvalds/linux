@@ -107,9 +107,12 @@ static inline bool fail_stacktrace(struct fault_attr *attr)
 
 bool should_fail(struct fault_attr *attr, ssize_t size)
 {
-	if (in_task() && current->fail_nth) {
-		if (--current->fail_nth == 0)
+	if (in_task()) {
+		unsigned int fail_nth = READ_ONCE(current->fail_nth);
+
+		if (fail_nth && !WRITE_ONCE(current->fail_nth, fail_nth - 1))
 			goto fail;
+
 		return false;
 	}
 

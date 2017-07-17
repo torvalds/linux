@@ -106,14 +106,27 @@ static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint,
 	return 0;
 }
 
-static struct kvm_vcpu_hv_synic *synic_get(struct kvm *kvm, u32 vcpu_id)
+static struct kvm_vcpu *get_vcpu_by_vpidx(struct kvm *kvm, u32 vpidx)
+{
+	struct kvm_vcpu *vcpu = NULL;
+	int i;
+
+	if (vpidx < KVM_MAX_VCPUS)
+		vcpu = kvm_get_vcpu(kvm, vpidx);
+	if (vcpu && vcpu_to_hv_vcpu(vcpu)->vp_index == vpidx)
+		return vcpu;
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		if (vcpu_to_hv_vcpu(vcpu)->vp_index == vpidx)
+			return vcpu;
+	return NULL;
+}
+
+static struct kvm_vcpu_hv_synic *synic_get(struct kvm *kvm, u32 vpidx)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vcpu_hv_synic *synic;
 
-	if (vcpu_id >= atomic_read(&kvm->online_vcpus))
-		return NULL;
-	vcpu = kvm_get_vcpu(kvm, vcpu_id);
+	vcpu = get_vcpu_by_vpidx(kvm, vpidx);
 	if (!vcpu)
 		return NULL;
 	synic = vcpu_to_synic(vcpu);
@@ -221,7 +234,8 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 		synic->version = data;
 		break;
 	case HV_X64_MSR_SIEFP:
-		if (data & HV_SYNIC_SIEFP_ENABLE)
+		if ((data & HV_SYNIC_SIEFP_ENABLE) && !host &&
+		    !synic->dont_zero_synic_pages)
 			if (kvm_clear_guest(vcpu->kvm,
 					    data & PAGE_MASK, PAGE_SIZE)) {
 				ret = 1;
@@ -232,7 +246,8 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 			synic_exit(synic, msr);
 		break;
 	case HV_X64_MSR_SIMP:
-		if (data & HV_SYNIC_SIMP_ENABLE)
+		if ((data & HV_SYNIC_SIMP_ENABLE) && !host &&
+		    !synic->dont_zero_synic_pages)
 			if (kvm_clear_guest(vcpu->kvm,
 					    data & PAGE_MASK, PAGE_SIZE)) {
 				ret = 1;
@@ -318,11 +333,11 @@ static int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
 	return ret;
 }
 
-int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vcpu_id, u32 sint)
+int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vpidx, u32 sint)
 {
 	struct kvm_vcpu_hv_synic *synic;
 
-	synic = synic_get(kvm, vcpu_id);
+	synic = synic_get(kvm, vpidx);
 	if (!synic)
 		return -EINVAL;
 
@@ -341,11 +356,11 @@ void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 			kvm_hv_notify_acked_sint(vcpu, i);
 }
 
-static int kvm_hv_set_sint_gsi(struct kvm *kvm, u32 vcpu_id, u32 sint, int gsi)
+static int kvm_hv_set_sint_gsi(struct kvm *kvm, u32 vpidx, u32 sint, int gsi)
 {
 	struct kvm_vcpu_hv_synic *synic;
 
-	synic = synic_get(kvm, vcpu_id);
+	synic = synic_get(kvm, vpidx);
 	if (!synic)
 		return -EINVAL;
 
@@ -687,14 +702,24 @@ void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 		stimer_init(&hv_vcpu->stimer[i], i);
 }
 
-int kvm_hv_activate_synic(struct kvm_vcpu *vcpu)
+void kvm_hv_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+
+	hv_vcpu->vp_index = kvm_vcpu_get_idx(vcpu);
+}
+
+int kvm_hv_activate_synic(struct kvm_vcpu *vcpu, bool dont_zero_synic_pages)
+{
+	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
+
 	/*
 	 * Hyper-V SynIC auto EOI SINT's are
 	 * not compatible with APICV, so deactivate APICV
 	 */
 	kvm_vcpu_deactivate_apicv(vcpu);
-	vcpu_to_synic(vcpu)->active = true;
+	synic->active = true;
+	synic->dont_zero_synic_pages = dont_zero_synic_pages;
 	return 0;
 }
 
@@ -978,6 +1003,11 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
 
 	switch (msr) {
+	case HV_X64_MSR_VP_INDEX:
+		if (!host)
+			return 1;
+		hv->vp_index = (u32)data;
+		break;
 	case HV_X64_MSR_APIC_ASSIST_PAGE: {
 		u64 gfn;
 		unsigned long addr;
@@ -1089,18 +1119,9 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
 
 	switch (msr) {
-	case HV_X64_MSR_VP_INDEX: {
-		int r;
-		struct kvm_vcpu *v;
-
-		kvm_for_each_vcpu(r, v, vcpu->kvm) {
-			if (v == vcpu) {
-				data = r;
-				break;
-			}
-		}
+	case HV_X64_MSR_VP_INDEX:
+		data = hv->vp_index;
 		break;
-	}
 	case HV_X64_MSR_EOI:
 		return kvm_hv_vapic_msr_read(vcpu, APIC_EOI, pdata);
 	case HV_X64_MSR_ICR:

@@ -90,6 +90,11 @@ EXPORT_SYMBOL(rename_lock);
 
 static struct kmem_cache *dentry_cache __read_mostly;
 
+const struct qstr empty_name = QSTR_INIT("", 0);
+EXPORT_SYMBOL(empty_name);
+const struct qstr slash_name = QSTR_INIT("/", 1);
+EXPORT_SYMBOL(slash_name);
+
 /*
  * This is the single most critical data structure when it comes
  * to the dcache: the hashtable for lookups. Somebody should try
@@ -1606,8 +1611,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	 */
 	dentry->d_iname[DNAME_INLINE_LEN-1] = 0;
 	if (unlikely(!name)) {
-		static const struct qstr anon = QSTR_INIT("/", 1);
-		name = &anon;
+		name = &slash_name;
 		dname = dentry->d_iname;
 	} else if (name->len > DNAME_INLINE_LEN-1) {
 		size_t size = offsetof(struct external_name, name[1]);

@@ -1,5 +1,6 @@
+======================
 Lightweight PI-futexes
-----------------------
+======================
 
 We are calling them lightweight for 3 reasons:
 
@@ -25,8 +26,8 @@ determinism and well-bound latencies. Even in the worst-case, PI will
 improve the statistical distribution of locking related application
 delays.
 
-The longer reply:
------------------
+The longer reply
+----------------
 
 Firstly, sharing locks between multiple tasks is a common programming
 technique that often cannot be replaced with lockless algorithms. As we
@@ -71,8 +72,8 @@ deterministic execution of the high-prio task: any medium-priority task
 could preempt the low-prio task while it holds the shared lock and
 executes the critical section, and could delay it indefinitely.
 
-Implementation:
----------------
+Implementation
+--------------
 
 As mentioned before, the userspace fastpath of PI-enabled pthread
 mutexes involves no kernel work at all - they behave quite similarly to
@@ -83,8 +84,8 @@ entering the kernel.
 
 To handle the slowpath, we have added two new futex ops:
 
-  FUTEX_LOCK_PI
-  FUTEX_UNLOCK_PI
+  - FUTEX_LOCK_PI
+  - FUTEX_UNLOCK_PI
 
 If the lock-acquire fastpath fails, [i.e. an atomic transition from 0 to
 TID fails], then FUTEX_LOCK_PI is called. The kernel does all the

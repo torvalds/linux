@@ -134,8 +134,6 @@ module_param(lapic_timer_advance_ns, uint, S_IRUGO | S_IWUSR);
 static bool __read_mostly vector_hashing = true;
 module_param(vector_hashing, bool, S_IRUGO);
 
-static bool __read_mostly backwards_tsc_observed = false;
-
 #define KVM_NR_SHARED_MSRS 16
 
 struct kvm_shared_msrs_global {
@@ -452,7 +450,12 @@ EXPORT_SYMBOL_GPL(kvm_complete_insn_gp);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 {
 	++vcpu->stat.pf_guest;
-	vcpu->arch.cr2 = fault->address;
+	vcpu->arch.exception.nested_apf =
+		is_guest_mode(vcpu) && fault->async_page_fault;
+	if (vcpu->arch.exception.nested_apf)
+		vcpu->arch.apf.nested_apf_token = fault->address;
+	else
+		vcpu->arch.cr2 = fault->address;
 	kvm_queue_exception_e(vcpu, PF_VECTOR, fault->error_code);
 }
 EXPORT_SYMBOL_GPL(kvm_inject_page_fault);
@@ -1719,7 +1722,7 @@ static void pvclock_update_vm_gtod_copy(struct kvm *kvm)
 					&ka->master_cycle_now);
 
 	ka->use_master_clock = host_tsc_clocksource && vcpus_matched
-				&& !backwards_tsc_observed
+				&& !ka->backwards_tsc_observed
 				&& !ka->boot_vcpu_runs_old_kvmclock;
 
 	if (ka->use_master_clock)
@@ -2060,8 +2063,8 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
 {
 	gpa_t gpa = data & ~0x3f;
 
-	/* Bits 2:5 are reserved, Should be zero */
-	if (data & 0x3c)
+	/* Bits 3:5 are reserved, Should be zero */
+	if (data & 0x38)
 		return 1;
 
 	vcpu->arch.apf.msr_val = data;
@@ -2077,6 +2080,7 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
 		return 1;
 
 	vcpu->arch.apf.send_user_only = !(data & KVM_ASYNC_PF_SEND_ALWAYS);
+	vcpu->arch.apf.delivery_as_pf_vmexit = data & KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT;
 	kvm_async_pf_wakeup_all(vcpu);
 	return 0;
 }
@@ -2661,6 +2665,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_HYPERV_VAPIC:
 	case KVM_CAP_HYPERV_SPIN:
 	case KVM_CAP_HYPERV_SYNIC:
+	case KVM_CAP_HYPERV_SYNIC2:
+	case KVM_CAP_HYPERV_VP_INDEX:
 	case KVM_CAP_PCI_SEGMENT:
 	case KVM_CAP_DEBUGREGS:
 	case KVM_CAP_X86_ROBUST_SINGLESTEP:
@@ -3384,10 +3390,14 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	switch (cap->cap) {
+	case KVM_CAP_HYPERV_SYNIC2:
+		if (cap->args[0])
+			return -EINVAL;
 	case KVM_CAP_HYPERV_SYNIC:
 		if (!irqchip_in_kernel(vcpu->kvm))
 			return -EINVAL;
-		return kvm_hv_activate_synic(vcpu);
+		return kvm_hv_activate_synic(vcpu, cap->cap ==
+					     KVM_CAP_HYPERV_SYNIC2);
 	default:
 		return -EINVAL;
 	}
@@ -4188,9 +4198,15 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 
 		r = 0;
+		/*
+		 * TODO: userspace has to take care of races with VCPU_RUN, so
+		 * kvm_gen_update_masterclock() can be cut down to locked
+		 * pvclock_update_vm_gtod_copy().
+		 */
+		kvm_gen_update_masterclock(kvm);
 		now_ns = get_kvmclock_ns(kvm);
 		kvm->arch.kvmclock_offset += user_ns.clock - now_ns;
-		kvm_gen_update_masterclock(kvm);
+		kvm_make_all_cpus_request(kvm, KVM_REQ_CLOCK_UPDATE);
 		break;
 	}
 	case KVM_GET_CLOCK: {
@@ -6347,10 +6363,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 			kvm_update_dr7(vcpu);
 		}
 
-		kvm_x86_ops->queue_exception(vcpu, vcpu->arch.exception.nr,
-					  vcpu->arch.exception.has_error_code,
-					  vcpu->arch.exception.error_code,
-					  vcpu->arch.exception.reinject);
+		kvm_x86_ops->queue_exception(vcpu);
 		return 0;
 	}
 
@@ -7676,6 +7689,8 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 	struct msr_data msr;
 	struct kvm *kvm = vcpu->kvm;
 
+	kvm_hv_vcpu_postcreate(vcpu);
+
 	if (vcpu_load(vcpu))
 		return;
 	msr.data = 0x0;
@@ -7829,8 +7844,8 @@ int kvm_arch_hardware_enable(void)
 	 */
 	if (backwards_tsc) {
 		u64 delta_cyc = max_tsc - local_tsc;
-		backwards_tsc_observed = true;
 		list_for_each_entry(kvm, &vm_list, vm_list) {
+			kvm->arch.backwards_tsc_observed = true;
 			kvm_for_each_vcpu(i, vcpu, kvm) {
 				vcpu->arch.tsc_offset_adjustment += delta_cyc;
 				vcpu->arch.last_host_tsc = local_tsc;
@@ -8576,6 +8591,7 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 		fault.error_code = 0;
 		fault.nested_page_fault = false;
 		fault.address = work->arch.token;
+		fault.async_page_fault = true;
 		kvm_inject_page_fault(vcpu, &fault);
 	}
 }
@@ -8598,6 +8614,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 		fault.error_code = 0;
 		fault.nested_page_fault = false;
 		fault.address = work->arch.token;
+		fault.async_page_fault = true;
 		kvm_inject_page_fault(vcpu, &fault);
 	}
 	vcpu->arch.apf.halted = false;

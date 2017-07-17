@@ -1856,7 +1856,7 @@ out:
  */
 static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 			      const char *name, int name_len,
-			      u64 *who_ino, u64 *who_gen)
+			      u64 *who_ino, u64 *who_gen, u64 *who_mode)
 {
 	int ret = 0;
 	u64 gen;
@@ -1905,7 +1905,7 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 	if (other_inode > sctx->send_progress ||
 	    is_waiting_for_move(sctx, other_inode)) {
 		ret = get_inode_info(sctx->parent_root, other_inode, NULL,
-				who_gen, NULL, NULL, NULL, NULL);
+				who_gen, who_mode, NULL, NULL, NULL);
 		if (ret < 0)
 			goto out;
 
@@ -3683,6 +3683,36 @@ out:
 	return ret;
 }
 
+static int update_ref_path(struct send_ctx *sctx, struct recorded_ref *ref)
+{
+	int ret;
+	struct fs_path *new_path;
+
+	/*
+	 * Our reference's name member points to its full_path member string, so
+	 * we use here a new path.
+	 */
+	new_path = fs_path_alloc();
+	if (!new_path)
+		return -ENOMEM;
+
+	ret = get_cur_path(sctx, ref->dir, ref->dir_gen, new_path);
+	if (ret < 0) {
+		fs_path_free(new_path);
+		return ret;
+	}
+	ret = fs_path_add(new_path, ref->name, ref->name_len);
+	if (ret < 0) {
+		fs_path_free(new_path);
+		return ret;
+	}
+
+	fs_path_free(ref->full_path);
+	set_ref_path(ref, new_path);
+
+	return 0;
+}
+
 /*
  * This does all the move/link/unlink/rmdir magic.
  */
@@ -3696,10 +3726,12 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	struct fs_path *valid_path = NULL;
 	u64 ow_inode = 0;
 	u64 ow_gen;
+	u64 ow_mode;
 	int did_overwrite = 0;
 	int is_orphan = 0;
 	u64 last_dir_ino_rm = 0;
 	bool can_rename = true;
+	bool orphanized_dir = false;
 	bool orphanized_ancestor = false;
 
 	btrfs_debug(fs_info, "process_recorded_refs %llu", sctx->cur_ino);
@@ -3798,7 +3830,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 		 */
 		ret = will_overwrite_ref(sctx, cur->dir, cur->dir_gen,
 				cur->name, cur->name_len,
-				&ow_inode, &ow_gen);
+				&ow_inode, &ow_gen, &ow_mode);
 		if (ret < 0)
 			goto out;
 		if (ret) {
@@ -3815,6 +3847,8 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 						cur->full_path);
 				if (ret < 0)
 					goto out;
+				if (S_ISDIR(ow_mode))
+					orphanized_dir = true;
 
 				/*
 				 * If ow_inode has its rename operation delayed
@@ -3920,6 +3954,18 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				if (ret < 0)
 					goto out;
 			} else {
+				/*
+				 * We might have previously orphanized an inode
+				 * which is an ancestor of our current inode,
+				 * so our reference's full path, which was
+				 * computed before any such orphanizations, must
+				 * be updated.
+				 */
+				if (orphanized_dir) {
+					ret = update_ref_path(sctx, cur);
+					if (ret < 0)
+						goto out;
+				}
 				ret = send_link(sctx, cur->full_path,
 						valid_path);
 				if (ret < 0)
@@ -3990,34 +4036,9 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 				 * ancestor inode.
 				 */
 				if (orphanized_ancestor) {
-					struct fs_path *new_path;
-
-					/*
-					 * Our reference's name member points to
-					 * its full_path member string, so we
-					 * use here a new path.
-					 */
-					new_path = fs_path_alloc();
-					if (!new_path) {
-						ret = -ENOMEM;
+					ret = update_ref_path(sctx, cur);
+					if (ret < 0)
 						goto out;
-					}
-					ret = get_cur_path(sctx, cur->dir,
-							   cur->dir_gen,
-							   new_path);
-					if (ret < 0) {
-						fs_path_free(new_path);
-						goto out;
-					}
-					ret = fs_path_add(new_path,
-							  cur->name,
-							  cur->name_len);
-					if (ret < 0) {
-						fs_path_free(new_path);
-						goto out;
-					}
-					fs_path_free(cur->full_path);
-					set_ref_path(cur, new_path);
 				}
 				ret = send_unlink(sctx, cur->full_path);
 				if (ret < 0)
@@ -5249,15 +5270,12 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 			goto out;
 		}
 
-		right_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
 		if (right_type == BTRFS_FILE_EXTENT_INLINE) {
 			right_len = btrfs_file_extent_inline_len(eb, slot, ei);
 			right_len = PAGE_ALIGN(right_len);
 		} else {
 			right_len = btrfs_file_extent_num_bytes(eb, ei);
 		}
-		right_offset = btrfs_file_extent_offset(eb, ei);
-		right_gen = btrfs_file_extent_generation(eb, ei);
 
 		/*
 		 * Are we at extent 8? If yes, we know the extent is changed.
@@ -5281,6 +5299,10 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 			ret = 0;
 			goto out;
 		}
+
+		right_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
+		right_offset = btrfs_file_extent_offset(eb, ei);
+		right_gen = btrfs_file_extent_generation(eb, ei);
 
 		left_offset_fixed = left_offset;
 		if (key.offset < ekey->offset) {

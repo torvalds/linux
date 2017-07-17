@@ -19,7 +19,6 @@
  * User space memory access functions
  */
 #include <linux/mm.h>
-#include <asm-generic/uaccess-unaligned.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 

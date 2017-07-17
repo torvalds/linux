@@ -1225,12 +1225,6 @@ The underlying reason for the above rules is to make sure, that a
 mount can be accurately replicated (e.g. umounting and mounting again)
 based on the information found in /proc/mounts.
 
-A simple method of saving options at mount/remount time and showing
-them is provided with the save_mount_options() and
-generic_show_options() helper functions.  Please note, that using
-these may have drawbacks.  For more info see header comments for these
-functions in fs/namespace.c.
-
 Resources
 =========
 
