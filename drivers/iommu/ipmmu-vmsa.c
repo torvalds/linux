@@ -73,22 +73,9 @@ static struct ipmmu_vmsa_domain *to_vmsa_domain(struct iommu_domain *dom)
 	return container_of(dom, struct ipmmu_vmsa_domain, io_domain);
 }
 
-
 static struct ipmmu_vmsa_iommu_priv *to_priv(struct device *dev)
 {
-#if defined(CONFIG_ARM)
-	return dev->archdata.iommu;
-#else
-	return dev->iommu_fwspec->iommu_priv;
-#endif
-}
-static void set_priv(struct device *dev, struct ipmmu_vmsa_iommu_priv *p)
-{
-#if defined(CONFIG_ARM)
-	dev->archdata.iommu = p;
-#else
-	dev->iommu_fwspec->iommu_priv = p;
-#endif
+	return dev->iommu_fwspec ? dev->iommu_fwspec->iommu_priv : NULL;
 }
 
 #define TLB_LOOP_TIMEOUT		100	/* 100us */
@@ -726,7 +713,7 @@ static int ipmmu_init_platform_device(struct device *dev)
 	priv->utlbs = utlbs;
 	priv->num_utlbs = num_utlbs;
 	priv->dev = dev;
-	set_priv(dev, priv);
+	dev->iommu_fwspec->iommu_priv = priv;
 	return 0;
 
 error:
@@ -887,14 +874,12 @@ static void ipmmu_domain_free_dma(struct iommu_domain *io_domain)
 
 static int ipmmu_add_device_dma(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 	struct iommu_group *group;
 
 	/*
 	 * Only let through devices that have been verified in xlate()
-	 * We may get called with dev->iommu_fwspec set to NULL.
 	 */
-	if (!fwspec || !fwspec->iommu_priv)
+	if (!to_priv(dev))
 		return -ENODEV;
 
 	group = iommu_group_get_for_dev(dev);
