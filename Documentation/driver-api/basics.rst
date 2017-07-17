@@ -4,7 +4,7 @@ Driver Basics
 Driver Entry and Exit points
 ----------------------------
 
-.. kernel-doc:: include/linux/init.h
+.. kernel-doc:: include/linux/module.h
    :internal:
 
 Driver device table
