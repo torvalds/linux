@@ -40,7 +40,6 @@
  */
 #define VISOR_VHBA_CHANNEL_VERSIONID 2
 #define VISOR_VNIC_CHANNEL_VERSIONID 2
-#define VISOR_VSWITCH_CHANNEL_VERSIONID 1
 
 #define VISOR_VHBA_CHANNEL_OK_CLIENT(ch) \
 	(visor_check_channel(ch, visor_vhba_channel_uuid, \
