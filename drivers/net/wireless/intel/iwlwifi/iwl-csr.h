@@ -169,7 +169,7 @@
 
 /*
  * CSR Hardware Revision Workaround Register.  Indicates hardware rev;
- * "step" determines CCK backoff for txpower calculation.  Used for 4965 only.
+ * "step" determines CCK backoff for txpower calculation.
  * See also CSR_HW_REV register.
  * Bit fields:
  *  3-2:  0 = A, 1 = B, 2 = C, 3 = D step
