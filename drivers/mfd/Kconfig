@@ -133,6 +133,20 @@ config MFD_BCM590XX
 	help
 	  Support for the BCM590xx PMUs from Broadcom
 
+config MFD_BD9571MWV
+	tristate "ROHM BD9571MWV PMIC"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C
+	help
+	  Support for the ROHM BD9571MWV PMIC, which contains single
+	  voltage regulator, voltage sampling units, GPIO block and
+	  watchdog block.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd9571mwv.
+
 config MFD_AC100
 	tristate "X-Powers AC100"
 	select MFD_CORE

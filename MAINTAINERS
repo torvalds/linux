@@ -11280,6 +11280,17 @@ L:	linux-serial@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/tty/serial/rp2.*
 
+ROHM MULTIFUNCTION BD9571MWV-M PMIC DEVICE DRIVERS
+M:	Marek Vasut <marek.vasut+renesas@gmail.com>
+L:	linux-kernel@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+S:	Supported
+F:	drivers/mfd/bd9571mwv.c
+F:	drivers/regulator/bd9571mwv-regulator.c
+F:	drivers/gpio/gpio-bd9571mwv.c
+F:	include/linux/mfd/bd9571mwv.h
+F:	Documentation/devicetree/bindings/mfd/bd9571mwv.txt
+
 ROSE NETWORK LAYER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-hams@vger.kernel.org
