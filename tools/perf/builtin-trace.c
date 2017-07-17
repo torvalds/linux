@@ -652,7 +652,8 @@ static struct syscall_fmt {
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "fcntl",	    .errmsg = true,
 	  .arg = { [1] = { .scnprintf = SCA_FCNTL_CMD, /* cmd */
-			   .parm      = &strarrays__fcntl_cmds_arrays, /* cmd */ },
+			   .parm      = &strarrays__fcntl_cmds_arrays,
+			   .show_zero = true, },
 		   [2] = { .scnprintf =  SCA_FCNTL_ARG, /* arg */ }, }, },
 	{ .name	    = "fdatasync",  .errmsg = true, },
 	{ .name	    = "flock",	    .errmsg = true,
