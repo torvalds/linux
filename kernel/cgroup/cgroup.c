@@ -587,39 +587,44 @@ static bool css_set_populated(struct css_set *cset)
 }
 
 /**
- * cgroup_update_populated - updated populated count of a cgroup
+ * cgroup_update_populated - update the populated count of a cgroup
  * @cgrp: the target cgroup
  * @populated: inc or dec populated count
  *
  * One of the css_sets associated with @cgrp is either getting its first
- * task or losing the last.  Update @cgrp->populated_cnt accordingly.  The
- * count is propagated towards root so that a given cgroup's populated_cnt
- * is zero iff the cgroup and all its descendants don't contain any tasks.
+ * task or losing the last.  Update @cgrp->nr_populated_* accordingly.  The
+ * count is propagated towards root so that a given cgroup's
+ * nr_populated_children is zero iff none of its descendants contain any
+ * tasks.
  *
- * @cgrp's interface file "cgroup.populated" is zero if
- * @cgrp->populated_cnt is zero and 1 otherwise.  When @cgrp->populated_cnt
- * changes from or to zero, userland is notified that the content of the
- * interface file has changed.  This can be used to detect when @cgrp and
- * its descendants become populated or empty.
+ * @cgrp's interface file "cgroup.populated" is zero if both
+ * @cgrp->nr_populated_csets and @cgrp->nr_populated_children are zero and
+ * 1 otherwise.  When the sum changes from or to zero, userland is notified
+ * that the content of the interface file has changed.  This can be used to
+ * detect when @cgrp and its descendants become populated or empty.
  */
 static void cgroup_update_populated(struct cgroup *cgrp, bool populated)
 {
+	struct cgroup *child = NULL;
+	int adj = populated ? 1 : -1;
+
 	lockdep_assert_held(&css_set_lock);
 
 	do {
-		bool trigger;
+		bool was_populated = cgroup_is_populated(cgrp);
 
-		if (populated)
-			trigger = !cgrp->populated_cnt++;
+		if (!child)
+			cgrp->nr_populated_csets += adj;
 		else
-			trigger = !--cgrp->populated_cnt;
+			cgrp->nr_populated_children += adj;
 
-		if (!trigger)
+		if (was_populated == cgroup_is_populated(cgrp))
 			break;
 
 		cgroup1_check_for_release(cgrp);
 		cgroup_file_notify(&cgrp->events_file);
 
+		child = cgrp;
 		cgrp = cgroup_parent(cgrp);
 	} while (cgrp);
 }
@@ -630,7 +635,7 @@ static void cgroup_update_populated(struct cgroup *cgrp, bool populated)
  * @populated: whether @cset is populated or depopulated
  *
  * @cset is either getting the first task or losing the last.  Update the
- * ->populated_cnt of all associated cgroups accordingly.
+ * populated counters of all associated cgroups accordingly.
  */
 static void css_set_update_populated(struct css_set *cset, bool populated)
 {
@@ -653,7 +658,7 @@ static void css_set_update_populated(struct css_set *cset, bool populated)
  * css_set, @from_cset can be NULL.  If @task is being disassociated
  * instead of moved, @to_cset can be NULL.
  *
- * This function automatically handles populated_cnt updates and
+ * This function automatically handles populated counter updates and
  * css_task_iter adjustments but the caller is responsible for managing
  * @from_cset and @to_cset's reference counts.
  */

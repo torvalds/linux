@@ -263,11 +263,16 @@ struct cgroup {
 
 	/*
 	 * Each non-empty css_set associated with this cgroup contributes
-	 * one to populated_cnt.  All children with non-zero popuplated_cnt
-	 * of their own contribute one.  The count is zero iff there's no
-	 * task in this cgroup or its subtree.
+	 * one to nr_populated_csets.  The counter is zero iff this cgroup
+	 * doesn't have any tasks.
+	 *
+	 * All children which have non-zero nr_populated_csets and/or
+	 * nr_populated_children of their own contribute one to
+	 * nr_populated_children.  The counter is zero iff this cgroup's
+	 * subtree proper doesn't have any tasks.
 	 */
-	int populated_cnt;
+	int nr_populated_csets;
+	int nr_populated_children;
 
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct cgroup_file procs_file;	/* handle for "cgroup.procs" */
