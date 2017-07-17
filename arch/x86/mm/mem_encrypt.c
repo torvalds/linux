@@ -11,6 +11,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 /*
  * Since SME related variables are set early in the boot process they must
@@ -19,3 +20,11 @@
  */
 unsigned long sme_me_mask __section(.data) = 0;
 EXPORT_SYMBOL_GPL(sme_me_mask);
+
+void __init sme_encrypt_kernel(void)
+{
+}
+
+void __init sme_enable(void)
+{
+}

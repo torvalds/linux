@@ -30,6 +30,11 @@ static inline bool sme_active(void)
 	return !!sme_me_mask;
 }
 
+static inline unsigned long sme_get_me_mask(void)
+{
+	return sme_me_mask;
+}
+
 #endif	/* __ASSEMBLY__ */
 
 #endif	/* __MEM_ENCRYPT_H__ */
