@@ -327,10 +327,10 @@ struct sctp_chunks_param {
 };
 
 /* AUTH Section 3.3 HMAC Algorithm */
-typedef struct sctp_hmac_algo_param {
+struct sctp_hmac_algo_param {
 	struct sctp_paramhdr param_hdr;
 	__be16 hmac_ids[0];
-} sctp_hmac_algo_param_t;
+};
 
 /* RFC 2960.  Section 3.3.3 Initiation Acknowledgement (INIT ACK) (2):
  *   The INIT ACK chunk is used to acknowledge the initiation of an SCTP

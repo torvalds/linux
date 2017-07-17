@@ -1558,7 +1558,7 @@ struct sctp_association {
 		 */
 		struct sctp_random_param *peer_random;
 		struct sctp_chunks_param *peer_chunks;
-		sctp_hmac_algo_param_t *peer_hmacs;
+		struct sctp_hmac_algo_param *peer_hmacs;
 	} peer;
 
 	/* State       : A state variable indicating what state the
