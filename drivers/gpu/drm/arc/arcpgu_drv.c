@@ -48,29 +48,7 @@ static void arcpgu_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.funcs = &arcpgu_drm_modecfg_funcs;
 }
 
-static int arcpgu_gem_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int ret;
-
-	ret = drm_gem_mmap(filp, vma);
-	if (ret)
-		return ret;
-
-	vma->vm_page_prot = pgprot_noncached(vm_get_page_prot(vma->vm_flags));
-	return 0;
-}
-
-static const struct file_operations arcpgu_drm_ops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.compat_ioctl = drm_compat_ioctl,
-	.poll = drm_poll,
-	.read = drm_read,
-	.llseek = no_llseek,
-	.mmap = arcpgu_gem_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(arcpgu_drm_ops);
 
 static void arcpgu_lastclose(struct drm_device *drm)
 {
