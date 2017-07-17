@@ -24,7 +24,8 @@ struct ltdc_device {
 	struct drm_fbdev_cma *fbdev;
 	void __iomem *regs;
 	struct clk *pixel_clk;	/* lcd pixel clock */
-	struct drm_panel *panel;
+	struct drm_bridge *bridge;
+	bool is_panel_bridge;
 	struct mutex err_lock;	/* protecting error_status */
 	struct ltdc_caps caps;
 	u32 clut[256];		/* color look up table */
