@@ -393,7 +393,12 @@ sub give_gentoo_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo emerge --ask $install\n");
+
+	printf("You should run:\n\n");
+	printf("\tsudo su -c 'echo \"media-gfx/imagemagick svg png\" > /etc/portage/package.use/imagemagick'\n");
+	printf("\tsudo su -c 'echo \"media-gfx/graphviz cairo pdf\" > /etc/portage/package.use/graphviz'\n");
+	printf("\tsudo emerge --ask $install\n");
+
 }
 
 sub check_distros()
