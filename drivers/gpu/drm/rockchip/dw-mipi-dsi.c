@@ -937,6 +937,11 @@ static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 		return;
 	}
 
+	if (clk_prepare_enable(dsi->pllref_clk)) {
+		dev_err(dsi->dev, "Failed to enable pllref_clk\n");
+		return;
+	}
+
 	pm_runtime_get_sync(dsi->dev);
 
 	if (dsi->rst) {
@@ -986,6 +991,7 @@ static void rockchip_dsi_init(struct dw_mipi_dsi *dsi)
 static void rockchip_dsi_enable(struct dw_mipi_dsi *dsi)
 {
 	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
+	clk_disable_unprepare(dsi->pllref_clk);
 	clk_disable_unprepare(dsi->pclk);
 }
 
@@ -1169,19 +1175,6 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 	return 0;
 }
 
-static int rockchip_mipi_parse_dt(struct dw_mipi_dsi *dsi)
-{
-	struct device_node *np = dsi->dev->of_node;
-
-	dsi->grf_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR(dsi->grf_regmap)) {
-		dev_err(dsi->dev, "Unable to get rockchip,grf\n");
-		return PTR_ERR(dsi->grf_regmap);
-	}
-
-	return 0;
-}
-
 static struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_drv_data = {
 	.dsi0_en_bit = RK3288_DSI0_SEL_VOP_LIT,
 	.dsi1_en_bit = RK3288_DSI1_SEL_VOP_LIT,
@@ -1236,18 +1229,94 @@ MODULE_DEVICE_TABLE(of, dw_mipi_dsi_dt_ids);
 static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 			     void *data)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = data;
 	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
-	struct resource *res;
 	int ret;
 
 	if (!dsi->panel)
 		return -EPROBE_DEFER;
 
-	ret = rockchip_mipi_parse_dt(dsi);
-	if (ret)
+	ret = dw_mipi_dsi_register(drm, dsi);
+	if (ret) {
+		dev_err(dev, "Failed to register mipi_dsi: %d\n", ret);
 		return ret;
+	}
+
+	dev_set_drvdata(dev, dsi);
+
+	pm_runtime_enable(dev);
+
+	return ret;
+}
+
+static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
+	void *data)
+{
+	pm_runtime_disable(dev);
+}
+
+static const struct component_ops dw_mipi_dsi_ops = {
+	.bind	= dw_mipi_dsi_bind,
+	.unbind	= dw_mipi_dsi_unbind,
+};
+
+static int rockchip_dsi_get_reset_handle(struct dw_mipi_dsi *dsi)
+{
+	struct device *dev = dsi->dev;
+
+	dsi->rst = devm_reset_control_get_optional(dev, "apb");
+	if (IS_ERR(dsi->rst)) {
+		dev_info(dev, "no reset control specified\n");
+		dsi->rst = NULL;
+	}
+
+	return 0;
+}
+
+static int rockchip_dsi_grf_regmap(struct dw_mipi_dsi *dsi)
+{
+	struct device_node *np = dsi->dev->of_node;
+
+	dsi->grf_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(dsi->grf_regmap)) {
+		dev_err(dsi->dev, "Unable to get rockchip,grf\n");
+		return PTR_ERR(dsi->grf_regmap);
+	}
+
+	return 0;
+}
+
+static int rockchip_dsi_clk_get(struct dw_mipi_dsi *dsi)
+{
+	struct device *dev = dsi->dev;
+	int ret;
+
+	dsi->pclk = devm_clk_get(dev, "pclk");
+	if (IS_ERR(dsi->pclk)) {
+		ret = PTR_ERR(dsi->pclk);
+		dev_err(dev, "Unable to get pclk: %d\n", ret);
+		return ret;
+	}
+
+	dsi->pllref_clk = devm_clk_get(dev, "ref");
+	if (IS_ERR(dsi->pllref_clk)) {
+		dev_info(dev, "No PHY reference clock specified\n");
+		dsi->pllref_clk = NULL;
+	}
+
+	dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
+	if (IS_ERR(dsi->phy_cfg_clk)) {
+		dev_info(dev, "No PHY APB clock specified\n");
+		dsi->phy_cfg_clk = NULL;
+	}
+
+	return 0;
+}
+
+static int rockchip_dsi_dphy_parse(struct dw_mipi_dsi *dsi)
+{
+	struct device *dev = dsi->dev;
+	int ret;
 
 	dsi->phy = devm_phy_optional_get(dev, "mipi_dphy");
 	if (IS_ERR(dsi->phy)) {
@@ -1255,6 +1324,15 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		dev_err(dev, "failed to get mipi dphy: %d\n", ret);
 		return ret;
 	}
+
+	return 0;
+}
+
+static int rockchip_dsi_ioremap_resource(struct platform_device *pdev,
+					 struct dw_mipi_dsi *dsi)
+{
+	struct device *dev = &pdev->dev;
+	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -1264,69 +1342,8 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(dsi->base))
 		return PTR_ERR(dsi->base);
 
-	dsi->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(dsi->pclk)) {
-		ret = PTR_ERR(dsi->pclk);
-		dev_err(dev, "Unable to get pclk: %d\n", ret);
-		return ret;
-	}
-
-	/* optional */
-	dsi->pllref_clk = devm_clk_get(dev, "ref");
-	if (IS_ERR(dsi->pllref_clk)) {
-		dev_info(dev, "No PHY reference clock specified\n");
-		dsi->pllref_clk = NULL;
-	}
-
-	/* optional */
-	dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
-	if (IS_ERR(dsi->phy_cfg_clk)) {
-		dev_info(dev, "No PHY APB clock specified\n");
-		dsi->phy_cfg_clk = NULL;
-	}
-
-	ret = clk_prepare_enable(dsi->pllref_clk);
-	if (ret) {
-		dev_err(dev, "%s: Failed to enable pllref_clk\n", __func__);
-		return ret;
-	}
-
-	dsi->rst = devm_reset_control_get_optional(dev, "apb");
-	if (IS_ERR(dsi->rst)) {
-		dev_info(dev, "no reset control specified\n");
-		dsi->rst = NULL;
-	}
-
-	ret = dw_mipi_dsi_register(drm, dsi);
-	if (ret) {
-		dev_err(dev, "Failed to register mipi_dsi: %d\n", ret);
-		goto err_pllref;
-	}
-
-	dev_set_drvdata(dev, dsi);
-
-	pm_runtime_enable(dev);
-
 	return 0;
-
-err_pllref:
-	clk_disable_unprepare(dsi->pllref_clk);
-	return ret;
 }
-
-static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
-	void *data)
-{
-	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
-
-	pm_runtime_disable(dev);
-	clk_disable_unprepare(dsi->pllref_clk);
-}
-
-static const struct component_ops dw_mipi_dsi_ops = {
-	.bind	= dw_mipi_dsi_bind,
-	.unbind	= dw_mipi_dsi_unbind,
-};
 
 static int dw_mipi_dsi_probe(struct platform_device *pdev)
 {
@@ -1343,6 +1360,13 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 
 	dsi->dev = dev;
 	dsi->pdata = pdata;
+
+	rockchip_dsi_ioremap_resource(pdev, dsi);
+	rockchip_dsi_clk_get(dsi);
+	rockchip_dsi_dphy_parse(dsi);
+	rockchip_dsi_grf_regmap(dsi);
+	rockchip_dsi_get_reset_handle(dsi);
+
 	dsi->dsi_host.ops = &dw_mipi_dsi_host_ops;
 	dsi->dsi_host.dev = &pdev->dev;
 
