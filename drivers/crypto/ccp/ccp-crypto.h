@@ -255,6 +255,7 @@ struct ccp_rsa_req_ctx {
 };
 
 #define	CCP_RSA_MAXMOD	(4 * 1024 / 8)
+#define	CCP5_RSA_MAXMOD	(16 * 1024 / 8)
 
 /***** Common Context Structure *****/
 struct ccp_ctx {

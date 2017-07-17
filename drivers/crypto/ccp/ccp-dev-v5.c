@@ -1112,6 +1112,7 @@ const struct ccp_vdata ccpv5a = {
 	.setup = ccp5_config,
 	.perform = &ccp5_actions,
 	.offset = 0x0,
+	.rsamax = CCP5_RSA_MAX_WIDTH,
 };
 
 const struct ccp_vdata ccpv5b = {
@@ -1120,4 +1121,5 @@ const struct ccp_vdata ccpv5b = {
 	.setup = ccp5other_config,
 	.perform = &ccp5_actions,
 	.offset = 0x0,
+	.rsamax = CCP5_RSA_MAX_WIDTH,
 };

@@ -40,6 +40,7 @@ struct ccp_vdata {
 	void (*setup)(struct ccp_device *);
 	const struct ccp_actions *perform;
 	const unsigned int offset;
+	const unsigned int rsamax;
 };
 /* Structure to hold SP device data */
 struct sp_dev_vdata {

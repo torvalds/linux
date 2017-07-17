@@ -1736,7 +1736,8 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	unsigned int sb_count, i_len, o_len;
 	int ret;
 
-	if (rsa->key_size > CCP_RSA_MAX_WIDTH)
+	/* Check against the maximum allowable size, in bits */
+	if (rsa->key_size > cmd_q->ccp->vdata->rsamax)
 		return -EINVAL;
 
 	if (!rsa->exp || !rsa->mod || !rsa->src || !rsa->dst)
