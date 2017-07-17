@@ -156,10 +156,7 @@ visorbus_release_device(struct device *xdev)
 {
 	struct visor_device *dev = to_visor_device(xdev);
 
-	if (dev->visorchannel) {
-		visorchannel_destroy(dev->visorchannel);
-		dev->visorchannel = NULL;
-	}
+	visorchannel_destroy(dev->visorchannel);
 	kfree(dev);
 }
 
@@ -1058,10 +1055,7 @@ visorbus_remove_instance(struct visor_device *dev)
 	 * successfully been able to trace thru the code to see where/how
 	 * release() gets called.  But I know it does.
 	 */
-	if (dev->visorchannel) {
-		visorchannel_destroy(dev->visorchannel);
-		dev->visorchannel = NULL;
-	}
+	visorchannel_destroy(dev->visorchannel);
 	kfree(dev->vbus_hdr_info);
 	list_del(&dev->list_all);
 	device_unregister(&dev->device);
