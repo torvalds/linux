@@ -87,13 +87,6 @@
 #define  DRM_MODE_FLAG_PIC_AR_16_9 \
 			(DRM_MODE_PICTURE_ASPECT_16_9<<19)
 
-/*
- * HDMI 2.0
- */
-#define DRM_MODE_FLAG_420_MASK			(0x03<<23)
-#define  DRM_MODE_FLAG_420			(1<<23)
-#define  DRM_MODE_FLAG_420_ONLY			(1<<24)
-
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */
 #define DRM_MODE_DPMS_ON	0
