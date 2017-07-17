@@ -15,11 +15,6 @@
 /* OMAP3 serial ports */
 #define OMAP3_UART4_AM35XX_BASE	0x4809E000	/* Only on AM35xx */
 
-/* TI81XX serial ports */
-#define TI81XX_UART1_BASE	0x48020000
-#define TI81XX_UART2_BASE	0x48022000
-#define TI81XX_UART3_BASE	0x48024000
-
 /* AM3505/3517 UART4 */
 #define AM35XX_UART4_BASE	0x4809E000	/* Only on AM3505/3517 */
 
@@ -56,18 +51,6 @@ omap_uart_lsr:	.word	0
 		bne	100f			@ already configured
 
 		/* Configure the UART offset from the phys/virt base */
-#ifdef CONFIG_DEBUG_TI81XXUART1
-		mov	\rp, #UART_OFFSET(TI81XX_UART1_BASE)
-		b	98f
-#endif
-#ifdef CONFIG_DEBUG_TI81XXUART2
-		mov	\rp, #UART_OFFSET(TI81XX_UART2_BASE)
-		b	98f
-#endif
-#ifdef CONFIG_DEBUG_TI81XXUART3
-		mov	\rp, #UART_OFFSET(TI81XX_UART3_BASE)
-		b	98f
-#endif
 #ifdef CONFIG_DEBUG_AM33XXUART1
 		ldr	\rp, =AM33XX_UART1_BASE
 		and	\rp, \rp, #0x00ffffff
@@ -88,17 +71,6 @@ omap_uart_lsr:	.word	0
 		str	\rp, [\tmp, #0]		@ omap_uart_phys
 		sub	\rp, \rp, #0x44000000	@ phys base
 		add	\rp, \rp, #0xf9000000	@ virt base
-		str	\rp, [\tmp, #4]		@ omap_uart_virt
-		mov	\rp, #(UART_LSR << OMAP_PORT_SHIFT)
-		str	\rp, [\tmp, #8]		@ omap_uart_lsr
-
-		b	10b
-
-		/* Store both phys and virt address for the uart */
-98:		add	\rp, \rp, #0x48000000	@ phys base
-		str	\rp, [\tmp, #0]		@ omap_uart_phys
-		sub	\rp, \rp, #0x48000000	@ phys base
-		add	\rp, \rp, #0xfa000000	@ virt base
 		str	\rp, [\tmp, #4]		@ omap_uart_virt
 		mov	\rp, #(UART_LSR << OMAP_PORT_SHIFT)
 		str	\rp, [\tmp, #8]		@ omap_uart_lsr
