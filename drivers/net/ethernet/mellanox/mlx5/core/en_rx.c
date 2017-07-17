@@ -252,7 +252,7 @@ static inline bool mlx5e_page_reuse(struct mlx5e_rq *rq,
 		!mlx5e_page_is_reserved(wi->di.page);
 }
 
-int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
+static int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
 {
 	struct mlx5e_wqe_frag_info *wi = &rq->wqe.frag_info[ix];
 
@@ -417,17 +417,12 @@ void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
 	}
 }
 
-void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
+static void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
 {
 	struct mlx5_wq_ll *wq = &rq->wq;
 	struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(wq, wq->head);
 
 	rq->mpwqe.umr_in_progress = false;
-
-	if (unlikely(!MLX5E_TEST_BIT(rq->state, MLX5E_RQ_STATE_ENABLED))) {
-		mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
-		return;
-	}
 
 	mlx5_wq_ll_push(wq, be16_to_cpu(wqe->next.next_wqe_index));
 
@@ -437,19 +432,18 @@ void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
 	mlx5_wq_ll_update_db_record(wq);
 }
 
-int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
+static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
 	int err;
 
-	if (rq->mpwqe.umr_in_progress)
-		return -EBUSY;
-
 	err = mlx5e_alloc_rx_umr_mpwqe(rq, ix);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		rq->stats.buff_alloc_err++;
 		return err;
+	}
 	rq->mpwqe.umr_in_progress = true;
 	mlx5e_post_umr_wqe(rq, ix);
-	return -EBUSY;
+	return 0;
 }
 
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
@@ -473,9 +467,7 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	do {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(wq, wq->head);
 
-		err = rq->alloc_wqe(rq, wqe, wq->head);
-		if (err == -EBUSY)
-			return true;
+		err = mlx5e_alloc_rx_wqe(rq, wqe, wq->head);
 		if (unlikely(err)) {
 			rq->stats.buff_alloc_err++;
 			break;
@@ -490,6 +482,83 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	mlx5_wq_ll_update_db_record(wq);
 
 	return !!err;
+}
+
+static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
+					     struct mlx5e_icosq *sq,
+					     struct mlx5e_rq *rq,
+					     struct mlx5_cqe64 *cqe,
+					     u16 *sqcc)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 ci = be16_to_cpu(cqe->wqe_counter) & wq->sz_m1;
+	struct mlx5e_sq_wqe_info *icowi = &sq->db.ico_wqe[ci];
+
+	mlx5_cqwq_pop(&cq->wq);
+	*sqcc += icowi->num_wqebbs;
+
+	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
+		WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
+			  cqe->op_own);
+		return;
+	}
+
+	if (likely(icowi->opcode == MLX5_OPCODE_UMR)) {
+		mlx5e_post_rx_mpwqe(rq);
+		return;
+	}
+
+	if (unlikely(icowi->opcode != MLX5_OPCODE_NOP))
+		WARN_ONCE(true,
+			  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
+			  icowi->opcode);
+}
+
+static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
+{
+	struct mlx5e_icosq *sq = container_of(cq, struct mlx5e_icosq, cq);
+	struct mlx5_cqe64 *cqe;
+	u16 sqcc;
+
+	if (unlikely(!MLX5E_TEST_BIT(sq->state, MLX5E_SQ_STATE_ENABLED)))
+		return;
+
+	cqe = mlx5_cqwq_get_cqe(&cq->wq);
+	if (likely(!cqe))
+		return;
+
+	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
+	 * otherwise a cq overrun may occur
+	 */
+	sqcc = sq->cc;
+
+	/* by design, there's only a single cqe */
+	mlx5e_poll_ico_single_cqe(cq, sq, rq, cqe, &sqcc);
+
+	mlx5_cqwq_update_db_record(&cq->wq);
+
+	/* ensure cq space is freed before enabling more cqes */
+	wmb();
+
+	sq->cc = sqcc;
+}
+
+bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
+{
+	struct mlx5_wq_ll *wq = &rq->wq;
+
+	if (unlikely(!MLX5E_TEST_BIT(rq->state, MLX5E_RQ_STATE_ENABLED)))
+		return false;
+
+	mlx5e_poll_ico_cq(&rq->channel->icosq.cq, rq);
+
+	if (mlx5_wq_ll_is_full(wq))
+		return false;
+
+	if (!rq->mpwqe.umr_in_progress)
+		mlx5e_alloc_rx_mpwqe(rq, wq->head);
+
+	return true;
 }
 
 static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,

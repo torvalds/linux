@@ -32,66 +32,6 @@
 
 #include "en.h"
 
-static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
-					     struct mlx5e_icosq *sq,
-					     struct mlx5_cqe64 *cqe,
-					     u16 *sqcc)
-{
-	struct mlx5_wq_cyc *wq = &sq->wq;
-	u16 ci = be16_to_cpu(cqe->wqe_counter) & wq->sz_m1;
-	struct mlx5e_sq_wqe_info *icowi = &sq->db.ico_wqe[ci];
-	struct mlx5e_rq *rq = &sq->channel->rq;
-
-	prefetch(rq);
-	mlx5_cqwq_pop(&cq->wq);
-	*sqcc += icowi->num_wqebbs;
-
-	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
-		WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
-			  cqe->op_own);
-		return;
-	}
-
-	if (likely(icowi->opcode == MLX5_OPCODE_UMR)) {
-		mlx5e_post_rx_mpwqe(rq);
-		return;
-	}
-
-	if (unlikely(icowi->opcode != MLX5_OPCODE_NOP))
-		WARN_ONCE(true,
-			  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
-			  icowi->opcode);
-}
-
-static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
-{
-	struct mlx5e_icosq *sq = container_of(cq, struct mlx5e_icosq, cq);
-	struct mlx5_cqe64 *cqe;
-	u16 sqcc;
-
-	if (unlikely(!MLX5E_TEST_BIT(sq->state, MLX5E_SQ_STATE_ENABLED)))
-		return;
-
-	cqe = mlx5_cqwq_get_cqe(&cq->wq);
-	if (likely(!cqe))
-		return;
-
-	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
-	 * otherwise a cq overrun may occur
-	 */
-	sqcc = sq->cc;
-
-	/* by design, there's only a single cqe */
-	mlx5e_poll_ico_single_cqe(cq, sq, cqe, &sqcc);
-
-	mlx5_cqwq_update_db_record(&cq->wq);
-
-	/* ensure cq space is freed before enabling more cqes */
-	wmb();
-
-	sq->cc = sqcc;
-}
-
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
@@ -111,9 +51,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	work_done = mlx5e_poll_rx_cq(&c->rq.cq, budget);
 	busy |= work_done == budget;
 
-	mlx5e_poll_ico_cq(&c->icosq.cq);
-
-	busy |= mlx5e_post_rx_wqes(&c->rq);
+	busy |= c->rq.post_wqes(&c->rq);
 
 	if (busy)
 		return budget;
