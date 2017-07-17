@@ -71,7 +71,7 @@ Continuous Voltage With Enable GPIO Example:
 		 * Inverted PWM logic, and the duty cycle range is limited
 		 * to 30%-70%.
 		 */
-		pwm-dutycycle-range <700 300>; /* */
+		pwm-dutycycle-range = <700 300>; /* */
 	};
 
 Voltage Table Example:
