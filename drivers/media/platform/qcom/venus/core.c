@@ -270,8 +270,7 @@ static int venus_remove(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int venus_runtime_suspend(struct device *dev)
+static __maybe_unused int venus_runtime_suspend(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
 	int ret;
@@ -283,7 +282,7 @@ static int venus_runtime_suspend(struct device *dev)
 	return ret;
 }
 
-static int venus_runtime_resume(struct device *dev)
+static __maybe_unused int venus_runtime_resume(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
 	int ret;
@@ -302,7 +301,6 @@ err_clks_disable:
 	venus_clks_disable(core);
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops venus_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
