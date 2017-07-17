@@ -21,6 +21,12 @@
 
 extern unsigned long sme_me_mask;
 
+void sme_encrypt_execute(unsigned long encrypted_kernel_vaddr,
+			 unsigned long decrypted_kernel_vaddr,
+			 unsigned long kernel_len,
+			 unsigned long encryption_wa,
+			 unsigned long encryption_pgd);
+
 void __init sme_early_encrypt(resource_size_t paddr,
 			      unsigned long size);
 void __init sme_early_decrypt(resource_size_t paddr,
