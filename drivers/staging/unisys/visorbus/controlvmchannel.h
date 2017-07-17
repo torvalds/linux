@@ -24,7 +24,6 @@
 	UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
 		0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
-#define VISOR_CONTROLVM_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
 #define CONTROLVM_MESSAGE_MAX 64
 
 /*
@@ -42,7 +41,7 @@
 			     "controlvm", \
 			     sizeof(struct visor_controlvm_channel), \
 			     VISOR_CONTROLVM_CHANNEL_VERSIONID, \
-			     VISOR_CONTROLVM_CHANNEL_SIGNATURE))
+			     VISOR_CHANNEL_SIGNATURE))
 
 /* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST		0
