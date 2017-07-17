@@ -1,7 +1,27 @@
 #ifndef _PERF_TRACE_BEAUTY_H
 #define _PERF_TRACE_BEAUTY_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
+
+struct strarray {
+	int	    offset;
+	int	    nr_entries;
+	const char **entries;
+};
+
+#define DEFINE_STRARRAY(array) struct strarray strarray__##array = { \
+	.nr_entries = ARRAY_SIZE(array), \
+	.entries = array, \
+}
+
+#define DEFINE_STRARRAY_OFFSET(array, off) struct strarray strarray__##array = { \
+	.offset	    = off, \
+	.nr_entries = ARRAY_SIZE(array), \
+	.entries = array, \
+}
+
+size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val);
 
 struct trace;
 struct thread;

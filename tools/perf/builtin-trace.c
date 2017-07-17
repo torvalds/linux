@@ -283,34 +283,21 @@ out_delete:
 	({ struct syscall_tp *fields = evsel->priv; \
 	   fields->name.pointer(&fields->name, sample); })
 
-struct strarray {
-	int	    offset;
-	int	    nr_entries;
-	const char **entries;
-};
+size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val)
+{
+	int idx = val - sa->offset;
 
-#define DEFINE_STRARRAY(array) struct strarray strarray__##array = { \
-	.nr_entries = ARRAY_SIZE(array), \
-	.entries = array, \
-}
+	if (idx < 0 || idx >= sa->nr_entries)
+		return scnprintf(bf, size, intfmt, val);
 
-#define DEFINE_STRARRAY_OFFSET(array, off) struct strarray strarray__##array = { \
-	.offset	    = off, \
-	.nr_entries = ARRAY_SIZE(array), \
-	.entries = array, \
+	return scnprintf(bf, size, "%s", sa->entries[idx]);
 }
 
 static size_t __syscall_arg__scnprintf_strarray(char *bf, size_t size,
 						const char *intfmt,
 					        struct syscall_arg *arg)
 {
-	struct strarray *sa = arg->parm;
-	int idx = arg->val - sa->offset;
-
-	if (idx < 0 || idx >= sa->nr_entries)
-		return scnprintf(bf, size, intfmt, arg->val);
-
-	return scnprintf(bf, size, "%s", sa->entries[idx]);
+	return strarray__scnprintf(arg->parm, bf, size, intfmt, arg->val);
 }
 
 static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
