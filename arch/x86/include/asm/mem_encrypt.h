@@ -21,6 +21,11 @@
 
 extern unsigned long sme_me_mask;
 
+void __init sme_early_encrypt(resource_size_t paddr,
+			      unsigned long size);
+void __init sme_early_decrypt(resource_size_t paddr,
+			      unsigned long size);
+
 void __init sme_early_init(void);
 
 void __init sme_encrypt_kernel(void);
@@ -29,6 +34,11 @@ void __init sme_enable(void);
 #else	/* !CONFIG_AMD_MEM_ENCRYPT */
 
 #define sme_me_mask	0UL
+
+static inline void __init sme_early_encrypt(resource_size_t paddr,
+					    unsigned long size) { }
+static inline void __init sme_early_decrypt(resource_size_t paddr,
+					    unsigned long size) { }
 
 static inline void __init sme_early_init(void) { }
 
