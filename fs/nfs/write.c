@@ -383,7 +383,7 @@ nfs_unroll_locks_and_wait(struct inode *inode, struct nfs_page *head,
 	int ret;
 
 	/* relinquish all the locks successfully grabbed this run */
-	for (tmp = head ; tmp != req; tmp = tmp->wb_this_page)
+	for (tmp = head->wb_this_page ; tmp != req; tmp = tmp->wb_this_page)
 		nfs_unlock_request(tmp);
 
 	WARN_ON_ONCE(test_bit(PG_TEARDOWN, &req->wb_flags));
@@ -395,7 +395,7 @@ nfs_unroll_locks_and_wait(struct inode *inode, struct nfs_page *head,
 	spin_unlock(&inode->i_lock);
 
 	/* release ref from nfs_page_find_head_request_locked */
-	nfs_release_request(head);
+	nfs_unlock_and_release_request(head);
 
 	ret = nfs_wait_on_request(req);
 	nfs_release_request(req);
@@ -484,10 +484,6 @@ nfs_lock_and_join_requests(struct page *page)
 	int ret;
 
 try_again:
-	total_bytes = 0;
-
-	WARN_ON_ONCE(destroy_list);
-
 	spin_lock(&inode->i_lock);
 
 	/*
@@ -502,6 +498,16 @@ try_again:
 		return NULL;
 	}
 
+	/* lock the page head first in order to avoid an ABBA inefficiency */
+	if (!nfs_lock_request(head)) {
+		spin_unlock(&inode->i_lock);
+		ret = nfs_wait_on_request(head);
+		nfs_release_request(head);
+		if (ret < 0)
+			return ERR_PTR(ret);
+		goto try_again;
+	}
+
 	/* holding inode lock, so always make a non-blocking call to try the
 	 * page group lock */
 	ret = nfs_page_group_lock(head, true);
@@ -509,13 +515,14 @@ try_again:
 		spin_unlock(&inode->i_lock);
 
 		nfs_page_group_lock_wait(head);
-		nfs_release_request(head);
+		nfs_unlock_and_release_request(head);
 		goto try_again;
 	}
 
 	/* lock each request in the page group */
-	subreq = head;
-	do {
+	total_bytes = head->wb_bytes;
+	for (subreq = head->wb_this_page; subreq != head;
+			subreq = subreq->wb_this_page) {
 		/*
 		 * Subrequests are always contiguous, non overlapping
 		 * and in order - but may be repeated (mirrored writes).
@@ -541,9 +548,7 @@ try_again:
 
 			return ERR_PTR(ret);
 		}
-
-		subreq = subreq->wb_this_page;
-	} while (subreq != head);
+	}
 
 	/* Now that all requests are locked, make sure they aren't on any list.
 	 * Commit list removal accounting is done after locks are dropped */
