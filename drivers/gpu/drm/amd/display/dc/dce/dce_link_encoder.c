@@ -830,6 +830,12 @@ bool dce110_link_encoder_validate_dvi_output(
 	if (crtc_timing->pixel_encoding != PIXEL_ENCODING_RGB)
 		return false;
 
+	/*connect DVI via adpater's HDMI connector*/
+	if ((connector_signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
+		connector_signal == SIGNAL_TYPE_HDMI_TYPE_A) &&
+		signal != SIGNAL_TYPE_HDMI_TYPE_A &&
+		crtc_timing->pix_clk_khz > TMDS_MAX_PIXEL_CLOCK)
+		return false;
 	if (crtc_timing->pix_clk_khz < TMDS_MIN_PIXEL_CLOCK)
 		return false;
 
