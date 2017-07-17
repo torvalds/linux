@@ -933,6 +933,7 @@ visorbus_device_destroy(struct controlvm_message *inmsg)
 		dev_info->pending_msg_hdr = pmsg_hdr;
 	}
 
+	kfree(dev_info->name);
 	visorchipset_device_destroy(dev_info);
 	return 0;
 
