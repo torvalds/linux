@@ -182,6 +182,11 @@ struct btrfs_inode {
 	 * Cached values of inode properties
 	 */
 	unsigned prop_compress;		/* per-file compression algorithm */
+	/*
+	 * Force compression on the file using the defrag ioctl, could be
+	 * different from prop_compress and takes precedence if set
+	 */
+	unsigned defrag_compress;
 
 	struct btrfs_delayed_node *delayed_node;
 
