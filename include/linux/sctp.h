@@ -303,10 +303,10 @@ struct sctp_supported_addrs_param {
 };
 
 /* ADDIP Section 3.2.6 Adaptation Layer Indication */
-typedef struct sctp_adaptation_ind_param {
+struct sctp_adaptation_ind_param {
 	struct sctp_paramhdr param_hdr;
 	__be32 adaptation_ind;
-} sctp_adaptation_ind_param_t;
+};
 
 /* ADDIP Section 4.2.7 Supported Extensions Parameter */
 typedef struct sctp_supported_ext_param {

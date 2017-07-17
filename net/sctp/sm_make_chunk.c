@@ -225,7 +225,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	struct sctp_sock *sp;
 	struct sctp_supported_addrs_param sat;
 	__be16 types[2];
-	sctp_adaptation_ind_param_t aiparam;
+	struct sctp_adaptation_ind_param aiparam;
 	sctp_supported_ext_param_t ext_param;
 	int num_ext = 0;
 	__u8 extensions[3];
@@ -393,7 +393,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	sctp_cookie_param_t *cookie;
 	int cookie_len;
 	size_t chunksize;
-	sctp_adaptation_ind_param_t aiparam;
+	struct sctp_adaptation_ind_param aiparam;
 	sctp_supported_ext_param_t ext_param;
 	int num_ext = 0;
 	__u8 extensions[3];
