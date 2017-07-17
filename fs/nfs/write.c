@@ -372,15 +372,14 @@ nfs_page_group_clear_bits(struct nfs_page *req)
  * @head  - head request of page group, must be holding head lock
  * @req   - request that couldn't lock and needs to wait on the req bit lock
  *
- * NOTE: this must be called holding page_group bit lock and inode spin lock
- *       and BOTH will be released before returning.
+ * NOTE: this must be called holding page_group bit lock
+ *       which will be released before returning.
  *
  * returns 0 on success, < 0 on error.
  */
 static int
 nfs_unroll_locks_and_wait(struct inode *inode, struct nfs_page *head,
 			  struct nfs_page *req)
-	__releases(&inode->i_lock)
 {
 	struct nfs_page *tmp;
 	int ret;
@@ -395,7 +394,6 @@ nfs_unroll_locks_and_wait(struct inode *inode, struct nfs_page *head,
 	kref_get(&req->wb_kref);
 
 	nfs_page_group_unlock(head);
-	spin_unlock(&inode->i_lock);
 
 	/* release ref from nfs_page_find_head_request_locked */
 	nfs_unlock_and_release_request(head);
@@ -491,8 +489,9 @@ nfs_lock_and_join_requests(struct page *page)
 	int ret;
 
 try_again:
+	if (!(PagePrivate(page) || PageSwapCache(page)))
+		return NULL;
 	spin_lock(&inode->i_lock);
-
 	/*
 	 * A reference is taken only on the head request which acts as a
 	 * reference to the whole page group - the group will not be destroyed
@@ -514,16 +513,12 @@ try_again:
 			return ERR_PTR(ret);
 		goto try_again;
 	}
+	spin_unlock(&inode->i_lock);
 
-	/* holding inode lock, so always make a non-blocking call to try the
-	 * page group lock */
-	ret = nfs_page_group_lock(head, true);
+	ret = nfs_page_group_lock(head, false);
 	if (ret < 0) {
-		spin_unlock(&inode->i_lock);
-
-		nfs_page_group_lock_wait(head);
 		nfs_unlock_and_release_request(head);
-		goto try_again;
+		return ERR_PTR(ret);
 	}
 
 	/* lock each request in the page group */
@@ -531,8 +526,10 @@ try_again:
 	for (subreq = head->wb_this_page; subreq != head;
 			subreq = subreq->wb_this_page) {
 		if (!nfs_lock_request(subreq)) {
-			/* releases page group bit lock and
-			 * inode spin lock and all references */
+			/*
+			 * releases page group bit lock and
+			 * page locks and all references
+			 */
 			ret = nfs_unroll_locks_and_wait(inode, head,
 				subreq);
 
@@ -580,7 +577,9 @@ try_again:
 	if (test_and_clear_bit(PG_REMOVE, &head->wb_flags)) {
 		set_bit(PG_INODE_REF, &head->wb_flags);
 		kref_get(&head->wb_kref);
+		spin_lock(&inode->i_lock);
 		NFS_I(inode)->nrequests++;
+		spin_unlock(&inode->i_lock);
 	}
 
 	/*
@@ -590,10 +589,13 @@ try_again:
 
 	nfs_page_group_unlock(head);
 
-	/* drop lock to clean uprequests on destroy list */
-	spin_unlock(&inode->i_lock);
-
 	nfs_destroy_unlinked_subrequests(destroy_list, head, inode);
+
+	/* Did we lose a race with nfs_inode_remove_request()? */
+	if (!(PagePrivate(page) || PageSwapCache(page))) {
+		nfs_unlock_and_release_request(head);
+		return NULL;
+	}
 
 	/* still holds ref on head from nfs_page_find_head_request_locked
 	 * and still has lock on head from lock loop */
@@ -968,7 +970,7 @@ nfs_clear_page_commit(struct page *page)
 		    WB_RECLAIMABLE);
 }
 
-/* Called holding inode (/cinfo) lock */
+/* Called holding the request lock on @req */
 static void
 nfs_clear_request_commit(struct nfs_page *req)
 {
@@ -977,9 +979,11 @@ nfs_clear_request_commit(struct nfs_page *req)
 		struct nfs_commit_info cinfo;
 
 		nfs_init_cinfo_from_inode(&cinfo, inode);
+		spin_lock(&inode->i_lock);
 		if (!pnfs_clear_request_commit(req, &cinfo)) {
 			nfs_request_remove_commit_list(req, &cinfo);
 		}
+		spin_unlock(&inode->i_lock);
 		nfs_clear_page_commit(req->wb_page);
 	}
 }
