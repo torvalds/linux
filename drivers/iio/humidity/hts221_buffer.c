@@ -22,6 +22,8 @@
 
 #include "hts221.h"
 
+#define HTS221_REG_DRDY_HL_ADDR		0x22
+#define HTS221_REG_DRDY_HL_MASK		BIT(7)
 #define HTS221_REG_STATUS_ADDR		0x27
 #define HTS221_RH_DRDY_MASK		BIT(1)
 #define HTS221_TEMP_DRDY_MASK		BIT(0)
@@ -67,6 +69,7 @@ static irqreturn_t hts221_trigger_handler_thread(int irq, void *private)
 int hts221_allocate_trigger(struct hts221_hw *hw)
 {
 	struct iio_dev *iio_dev = iio_priv_to_dev(hw);
+	bool irq_active_low = false;
 	unsigned long irq_type;
 	int err;
 
@@ -76,6 +79,10 @@ int hts221_allocate_trigger(struct hts221_hw *hw)
 	case IRQF_TRIGGER_HIGH:
 	case IRQF_TRIGGER_RISING:
 		break;
+	case IRQF_TRIGGER_LOW:
+	case IRQF_TRIGGER_FALLING:
+		irq_active_low = true;
+		break;
 	default:
 		dev_info(hw->dev,
 			 "mode %lx unsupported, using IRQF_TRIGGER_RISING\n",
@@ -84,6 +91,10 @@ int hts221_allocate_trigger(struct hts221_hw *hw)
 		break;
 	}
 
+	err = hts221_write_with_mask(hw, HTS221_REG_DRDY_HL_ADDR,
+				     HTS221_REG_DRDY_HL_MASK, irq_active_low);
+	if (err < 0)
+		return err;
 	err = devm_request_threaded_irq(hw->dev, hw->irq, NULL,
 					hts221_trigger_handler_thread,
 					irq_type | IRQF_ONESHOT,

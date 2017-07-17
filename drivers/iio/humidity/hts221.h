@@ -61,6 +61,7 @@ struct hts221_hw {
 extern const struct dev_pm_ops hts221_pm_ops;
 
 int hts221_config_drdy(struct hts221_hw *hw, bool enable);
+int hts221_write_with_mask(struct hts221_hw *hw, u8 addr, u8 mask, u8 val);
 int hts221_probe(struct iio_dev *iio_dev);
 int hts221_set_enable(struct hts221_hw *hw, bool enable);
 int hts221_allocate_buffers(struct hts221_hw *hw);

@@ -135,8 +135,7 @@ static const struct iio_chan_spec hts221_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
-static int hts221_write_with_mask(struct hts221_hw *hw, u8 addr, u8 mask,
-				  u8 val)
+int hts221_write_with_mask(struct hts221_hw *hw, u8 addr, u8 mask, u8 val)
 {
 	u8 data;
 	int err;
