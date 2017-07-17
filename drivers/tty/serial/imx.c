@@ -186,11 +186,6 @@
 
 #define UART_NR 8
 
-/* RX DMA buffer periods */
-#define RX_DMA_PERIODS 4
-#define RX_BUF_SIZE	(PAGE_SIZE)
-
-
 /* i.MX21 type uart runs on all i.mx except i.MX1 and i.MX6q */
 enum imx_uart_type {
 	IMX1_UART,
@@ -226,7 +221,6 @@ struct imx_port {
 	struct dma_chan		*dma_chan_rx, *dma_chan_tx;
 	struct scatterlist	rx_sgl, tx_sgl[2];
 	void			*rx_buf;
-	unsigned int		rx_buf_size;
 	struct circ_buf		rx_ring;
 	unsigned int		rx_periods;
 	dma_cookie_t		rx_cookie;
@@ -967,6 +961,8 @@ static void imx_timeout(unsigned long data)
 	}
 }
 
+#define RX_BUF_SIZE	(PAGE_SIZE)
+
 /*
  * There are two kinds of RX DMA interrupts(such as in the MX6Q):
  *   [1] the RX DMA buffer is full.
@@ -1049,6 +1045,9 @@ static void dma_rx_callback(void *data)
 	}
 }
 
+/* RX DMA buffer periods */
+#define RX_DMA_PERIODS 4
+
 static int start_rx_dma(struct imx_port *sport)
 {
 	struct scatterlist *sgl = &sport->rx_sgl;
@@ -1059,8 +1058,9 @@ static int start_rx_dma(struct imx_port *sport)
 
 	sport->rx_ring.head = 0;
 	sport->rx_ring.tail = 0;
+	sport->rx_periods = RX_DMA_PERIODS;
 
-	sg_init_one(sgl, sport->rx_buf, sport->rx_buf_size);
+	sg_init_one(sgl, sport->rx_buf, RX_BUF_SIZE);
 	ret = dma_map_sg(dev, sgl, 1, DMA_FROM_DEVICE);
 	if (ret == 0) {
 		dev_err(dev, "DMA mapping error for RX.\n");
@@ -1171,7 +1171,7 @@ static int imx_uart_dma_init(struct imx_port *sport)
 		goto err;
 	}
 
-	sport->rx_buf = kzalloc(sport->rx_buf_size, GFP_KERNEL);
+	sport->rx_buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!sport->rx_buf) {
 		ret = -ENOMEM;
 		goto err;
@@ -2036,7 +2036,6 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 {
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
-	u32 dma_buf_size[2];
 
 	sport->devdata = of_device_get_match_data(&pdev->dev);
 	if (!sport->devdata)
@@ -2059,14 +2058,6 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 
 	if (of_get_property(np, "rts-gpios", NULL))
 		sport->have_rtsgpio = 1;
-
-	if (!of_property_read_u32_array(np, "fsl,dma-size", dma_buf_size, 2)) {
-		sport->rx_buf_size = dma_buf_size[0] * dma_buf_size[1];
-		sport->rx_periods = dma_buf_size[1];
-	} else {
-		sport->rx_buf_size = RX_BUF_SIZE;
-		sport->rx_periods = RX_DMA_PERIODS;
-	}
 
 	return 0;
 }
