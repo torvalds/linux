@@ -803,9 +803,9 @@ struct poll_list {
  * pwait poll_table will be used by the fd-provided poll handler for waiting,
  * if pwait->_qproc is non-NULL.
  */
-static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait,
+static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 				     bool *can_busy_poll,
-				     unsigned int busy_flag)
+				     __poll_t busy_flag)
 {
 	__poll_t mask;
 	int fd;
@@ -816,20 +816,24 @@ static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 		struct fd f = fdget(fd);
 		mask = POLLNVAL;
 		if (f.file) {
+			/* userland u16 ->events contains POLL... bitmap */
+			__poll_t filter = (__force __poll_t)pollfd->events |
+						POLLERR | POLLHUP;
 			mask = DEFAULT_POLLMASK;
 			if (f.file->f_op->poll) {
-				pwait->_key = pollfd->events|POLLERR|POLLHUP;
+				pwait->_key = filter;
 				pwait->_key |= busy_flag;
 				mask = f.file->f_op->poll(f.file, pwait);
 				if (mask & busy_flag)
 					*can_busy_poll = true;
 			}
 			/* Mask out unneeded events. */
-			mask &= pollfd->events | POLLERR | POLLHUP;
+			mask &= filter;
 			fdput(f);
 		}
 	}
-	pollfd->revents = mask;
+	/* ... and so does ->revents */
+	pollfd->revents = (__force u16)mask;
 
 	return mask;
 }
@@ -841,7 +845,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 	ktime_t expire, *to = NULL;
 	int timed_out = 0, count = 0;
 	u64 slack = 0;
-	unsigned int busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
+	__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
 	unsigned long busy_start = 0;
 
 	/* Optimise the no-wait case */
