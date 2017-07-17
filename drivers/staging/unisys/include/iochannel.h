@@ -587,7 +587,7 @@ struct visor_io_channel {
 } __packed;
 
 /* INLINE functions for initializing and accessing I/O data channels. */
-#define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
+#define SIZEOF_CMDRSP (64 * DIV_ROUND_UP(sizeof(struct uiscmdrsp), 64))
 
 /* Use 4K page sizes when passing page info between Guest and IOPartition. */
 #define PI_PAGE_SIZE 0x1000

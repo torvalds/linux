@@ -25,10 +25,6 @@
 #define SIGNATURE_32(A, B, C, D) \
 	(SIGNATURE_16(A, B) | (SIGNATURE_16(C, D) << 16))
 
-#ifndef COVER
-#define COVER(v, d) ((d) * DIV_ROUND_UP(v, d))
-#endif
-
 #define VISOR_CHANNEL_SIGNATURE SIGNATURE_32('E', 'C', 'N', 'L')
 
 /*
