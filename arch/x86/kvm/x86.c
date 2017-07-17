@@ -597,8 +597,8 @@ bool pdptrs_changed(struct kvm_vcpu *vcpu)
 		      (unsigned long *)&vcpu->arch.regs_avail))
 		return true;
 
-	gfn = (kvm_read_cr3(vcpu) & ~31u) >> PAGE_SHIFT;
-	offset = (kvm_read_cr3(vcpu) & ~31u) & (PAGE_SIZE - 1);
+	gfn = (kvm_read_cr3(vcpu) & ~31ul) >> PAGE_SHIFT;
+	offset = (kvm_read_cr3(vcpu) & ~31ul) & (PAGE_SIZE - 1);
 	r = kvm_read_nested_guest_page(vcpu, gfn, pdpte, offset, sizeof(pdpte),
 				       PFERR_USER_MASK | PFERR_WRITE_MASK);
 	if (r < 0)
