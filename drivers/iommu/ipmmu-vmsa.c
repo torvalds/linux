@@ -37,7 +37,6 @@ struct ipmmu_vmsa_device {
 	struct device *dev;
 	void __iomem *base;
 	struct iommu_device iommu;
-	struct list_head list;
 
 	unsigned int num_utlbs;
 	spinlock_t lock;			/* Protects ctx and domains[] */
@@ -63,9 +62,6 @@ struct ipmmu_vmsa_iommu_priv {
 	struct device *dev;
 	struct list_head list;
 };
-
-static DEFINE_SPINLOCK(ipmmu_devices_lock);
-static LIST_HEAD(ipmmu_devices);
 
 static struct ipmmu_vmsa_domain *to_vmsa_domain(struct iommu_domain *dom)
 {
@@ -970,10 +966,6 @@ static int ipmmu_probe(struct platform_device *pdev)
 	 * ipmmu_init() after the probe function returns.
 	 */
 
-	spin_lock(&ipmmu_devices_lock);
-	list_add(&mmu->list, &ipmmu_devices);
-	spin_unlock(&ipmmu_devices_lock);
-
 	platform_set_drvdata(pdev, mmu);
 
 	return 0;
@@ -982,10 +974,6 @@ static int ipmmu_probe(struct platform_device *pdev)
 static int ipmmu_remove(struct platform_device *pdev)
 {
 	struct ipmmu_vmsa_device *mmu = platform_get_drvdata(pdev);
-
-	spin_lock(&ipmmu_devices_lock);
-	list_del(&mmu->list);
-	spin_unlock(&ipmmu_devices_lock);
 
 	iommu_device_unregister(&mmu->iommu);
 
