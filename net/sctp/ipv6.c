@@ -497,7 +497,7 @@ static void sctp_v6_from_addr_param(union sctp_addr *addr,
 static int sctp_v6_to_addr_param(const union sctp_addr *addr,
 				 union sctp_addr_param *param)
 {
-	int length = sizeof(sctp_ipv6addr_param_t);
+	int length = sizeof(struct sctp_ipv6addr_param);
 
 	param->v6.param_hdr.type = SCTP_PARAM_IPV6_ADDRESS;
 	param->v6.param_hdr.length = htons(length);

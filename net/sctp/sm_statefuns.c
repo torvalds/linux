@@ -2336,13 +2336,12 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 						 void *arg,
 						 sctp_cmd_seq_t *commands)
 {
-	struct sctp_chunk *chunk = arg;
-	u32 stale;
-	sctp_cookie_preserve_param_t bht;
-	sctp_errhdr_t *err;
-	struct sctp_chunk *reply;
-	struct sctp_bind_addr *bp;
 	int attempts = asoc->init_err_counter + 1;
+	struct sctp_chunk *chunk = arg, *reply;
+	struct sctp_cookie_preserve_param bht;
+	struct sctp_bind_addr *bp;
+	sctp_errhdr_t *err;
+	u32 stale;
 
 	if (attempts > asoc->max_init_attempts) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
