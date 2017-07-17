@@ -103,9 +103,8 @@ visorbus_match(struct device *xdev, struct device_driver *xdrv)
 	struct visor_driver *drv;
 
 	dev = to_visor_device(xdev);
-	drv = to_visor_driver(xdrv);
 	channel_type = visorchannel_get_uuid(dev->visorchannel);
-
+	drv = to_visor_driver(xdrv);
 	if (!drv->channel_types)
 		return 0;
 
@@ -361,6 +360,7 @@ static const struct attribute_group *visorbus_groups[] = {
  *  define & implement display of debugfs attributes under
  *  /sys/kernel/debug/visorbus/visorbus<n>.
  */
+
 /*
  * vbuschannel_print_devinfo() - format a struct visor_vbus_deviceinfo
  *                               and write it to a seq_file
@@ -399,12 +399,11 @@ vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
 
 static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 {
-	struct visor_device *vdev = seq->private;
-	struct visorchannel *channel = vdev->visorchannel;
-
-	int i;
+	int i = 0;
 	unsigned long off;
 	struct visor_vbus_deviceinfo dev_info;
+	struct visor_device *vdev = seq->private;
+	struct visorchannel *channel = vdev->visorchannel;
 
 	if (!channel)
 		return 0;
@@ -413,6 +412,7 @@ static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 		   "Client device / client driver info for %s partition (vbus #%u):\n",
 		   ((vdev->name) ? (char *)(vdev->name) : ""),
 		   vdev->chipset_bus_no);
+
 	if (visorchannel_read(channel,
 			      offsetof(struct visor_vbus_channel, chp_info),
 			      &dev_info, sizeof(dev_info)) >= 0)
@@ -421,8 +421,8 @@ static int client_bus_info_debugfs_show(struct seq_file *seq, void *v)
 			      offsetof(struct visor_vbus_channel, bus_info),
 			      &dev_info, sizeof(dev_info)) >= 0)
 		vbuschannel_print_devinfo(&dev_info, seq, -1);
+
 	off = offsetof(struct visor_vbus_channel, dev_info);
-	i = 0;
 	while (off + sizeof(dev_info) <= visorchannel_get_nbytes(channel)) {
 		if (visorchannel_read(channel, off, &dev_info,
 				      sizeof(dev_info)) >= 0)
@@ -499,14 +499,16 @@ visordriver_remove_device(struct device *xdev)
 
 	dev = to_visor_device(xdev);
 	drv = to_visor_driver(xdev->driver);
+
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = true;
 	if (drv->remove)
 		drv->remove(dev);
 	mutex_unlock(&dev->visordriver_callback_lock);
-	dev_stop_periodic_work(dev);
 
+	dev_stop_periodic_work(dev);
 	put_device(&dev->device);
+
 	return 0;
 }
 
@@ -861,7 +863,6 @@ fix_vbus_dev_info(struct visor_device *visordev)
 
 	bus_device_info_init(&dev_info, chan_type_name, visordrv->name);
 	write_vbus_dev_info(bdev->visorchannel, hdr_info, &dev_info, dev_no);
-
 	write_vbus_chp_info(bdev->visorchannel, hdr_info, &chipset_driverinfo);
 	write_vbus_bus_info(bdev->visorchannel, hdr_info,
 			    &clientbus_driverinfo);
@@ -889,9 +890,8 @@ visordriver_probe_device(struct device *xdev)
 	struct visor_driver *drv;
 	struct visor_device *dev;
 
-	drv = to_visor_driver(xdev->driver);
 	dev = to_visor_device(xdev);
-
+	drv = to_visor_driver(xdev->driver);
 	if (!drv->probe)
 		return -ENODEV;
 
@@ -1089,7 +1089,6 @@ visorchipset_bus_create(struct visor_device *dev)
 	int err;
 
 	err = visorbus_create_instance(dev);
-
 	if (err < 0)
 		return err;
 
@@ -1123,7 +1122,6 @@ void
 visorchipset_device_destroy(struct visor_device *dev_info)
 {
 	remove_visor_device(dev_info);
-
 	visorbus_device_destroy_response(dev_info, 0);
 }
 
@@ -1143,7 +1141,6 @@ pause_state_change_complete(struct visor_device *dev, int status)
 		return;
 
 	dev->pausing = false;
-
 	visorbus_device_pause_response(dev, status);
 }
 
@@ -1233,7 +1230,6 @@ visorchipset_device_pause(struct visor_device *dev_info)
 	int err;
 
 	err = visorchipset_initiate_device_pause_resume(dev_info, true);
-
 	if (err < 0) {
 		dev_info->pausing = false;
 		return err;
@@ -1256,7 +1252,6 @@ visorchipset_device_resume(struct visor_device *dev_info)
 	int err;
 
 	err = visorchipset_initiate_device_pause_resume(dev_info, false);
-
 	if (err < 0) {
 		dev_info->resuming = false;
 		return err;
@@ -1281,7 +1276,6 @@ visorbus_init(void)
 		return err;
 
 	initialized = true;
-
 	bus_device_info_init(&chipset_driverinfo, "chipset", "visorchipset");
 
 	return 0;
