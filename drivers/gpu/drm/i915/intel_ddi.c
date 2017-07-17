@@ -1876,7 +1876,7 @@ cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv,
 	if (dev_priv->vbt.edp.low_vswing) {
 		if (voltage == VOLTAGE_INFO_0_85V) {
 			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_85V);
-			return cnl_ddi_translations_dp_0_85V;
+			return cnl_ddi_translations_edp_0_85V;
 		} else if (voltage == VOLTAGE_INFO_0_95V) {
 			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_95V);
 			return cnl_ddi_translations_edp_0_95V;
