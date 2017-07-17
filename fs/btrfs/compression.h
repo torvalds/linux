@@ -129,4 +129,6 @@ struct btrfs_compress_op {
 extern const struct btrfs_compress_op btrfs_zlib_compress;
 extern const struct btrfs_compress_op btrfs_lzo_compress;
 
+int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
+
 #endif
