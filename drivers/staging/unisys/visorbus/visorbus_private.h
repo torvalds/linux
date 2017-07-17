@@ -23,10 +23,6 @@
 #include "controlvmchannel.h"
 #include "vbuschannel.h"
 
-/* TARGET_HOSTNAME specified as -DTARGET_HOSTNAME=\"thename\" on the
- * command line
- */
-
 int visorchipset_bus_create(struct visor_device *bus_info);
 void visorchipset_bus_destroy(struct visor_device *bus_info);
 int visorchipset_device_create(struct visor_device *dev_info);
