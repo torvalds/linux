@@ -38,6 +38,8 @@ static int (*bpf_clone_redirect)(void *ctx, int ifindex, int flags) =
 	(void *) BPF_FUNC_clone_redirect;
 static int (*bpf_redirect)(int ifindex, int flags) =
 	(void *) BPF_FUNC_redirect;
+static int (*bpf_redirect_map)(void *map, int key, int flags) =
+	(void *) BPF_FUNC_redirect_map;
 static int (*bpf_perf_event_output)(void *ctx, void *map,
 				    unsigned long long flags, void *data,
 				    int size) =
