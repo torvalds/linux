@@ -23,7 +23,6 @@
 
 #define HTS221_REG_CNTRL1_ADDR		0x20
 #define HTS221_REG_CNTRL2_ADDR		0x21
-#define HTS221_REG_CNTRL3_ADDR		0x22
 
 #define HTS221_REG_AVG_ADDR		0x10
 #define HTS221_REG_H_OUT_L		0x28
@@ -35,9 +34,6 @@
 #define HTS221_ODR_MASK			0x03
 #define HTS221_BDU_MASK			BIT(2)
 #define HTS221_ENABLE_MASK		BIT(7)
-
-#define HTS221_DRDY_MASK		BIT(2)
-
 
 /* calibration registers */
 #define HTS221_REG_0RH_CAL_X_H		0x36
@@ -179,16 +175,6 @@ static int hts221_check_whoami(struct hts221_hw *hw)
 	}
 
 	return 0;
-}
-
-int hts221_config_drdy(struct hts221_hw *hw, bool enable)
-{
-	int err;
-
-	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL3_ADDR,
-				     HTS221_DRDY_MASK, enable);
-
-	return err < 0 ? err : 0;
 }
 
 static int hts221_update_odr(struct hts221_hw *hw, u8 odr)

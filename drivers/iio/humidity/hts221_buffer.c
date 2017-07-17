@@ -28,6 +28,8 @@
 #define HTS221_REG_DRDY_HL_MASK		BIT(7)
 #define HTS221_REG_DRDY_PP_OD_ADDR	0x22
 #define HTS221_REG_DRDY_PP_OD_MASK	BIT(6)
+#define HTS221_REG_DRDY_EN_ADDR		0x22
+#define HTS221_REG_DRDY_EN_MASK		BIT(2)
 #define HTS221_REG_STATUS_ADDR		0x27
 #define HTS221_RH_DRDY_MASK		BIT(1)
 #define HTS221_TEMP_DRDY_MASK		BIT(0)
@@ -36,8 +38,12 @@ static int hts221_trig_set_state(struct iio_trigger *trig, bool state)
 {
 	struct iio_dev *iio_dev = iio_trigger_get_drvdata(trig);
 	struct hts221_hw *hw = iio_priv(iio_dev);
+	int err;
 
-	return hts221_config_drdy(hw, state);
+	err = hts221_write_with_mask(hw, HTS221_REG_DRDY_EN_ADDR,
+				     HTS221_REG_DRDY_EN_MASK, state);
+
+	return err < 0 ? err : 0;
 }
 
 static const struct iio_trigger_ops hts221_trigger_ops = {
