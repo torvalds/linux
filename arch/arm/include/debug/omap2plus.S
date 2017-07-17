@@ -12,15 +12,6 @@
 
 #include <linux/serial_reg.h>
 
-/* OMAP3 serial ports */
-#define OMAP3_UART4_AM35XX_BASE	0x4809E000	/* Only on AM35xx */
-
-/* AM3505/3517 UART4 */
-#define AM35XX_UART4_BASE	0x4809E000	/* Only on AM3505/3517 */
-
-/* AM33XX serial port */
-#define AM33XX_UART1_BASE	0x44E09000
-
 /* External port on Zoom2/3 */
 #define ZOOM_UART_BASE		0x10000000
 #define ZOOM_UART_VIRT		0xfa400000
@@ -51,11 +42,6 @@ omap_uart_lsr:	.word	0
 		bne	100f			@ already configured
 
 		/* Configure the UART offset from the phys/virt base */
-#ifdef CONFIG_DEBUG_AM33XXUART1
-		ldr	\rp, =AM33XX_UART1_BASE
-		and	\rp, \rp, #0x00ffffff
-		b	97f
-#endif
 #ifdef CONFIG_DEBUG_ZOOM_UART
 		ldr	\rp, =ZOOM_UART_BASE
 		str	\rp, [\tmp, #0]		@ omap_uart_phys
@@ -64,17 +50,6 @@ omap_uart_lsr:	.word	0
 		mov	\rp, #(UART_LSR << ZOOM_PORT_SHIFT)
 		str	\rp, [\tmp, #8]		@ omap_uart_lsr
 #endif
-		b	10b
-
-		/* AM33XX: Store both phys and virt address for the uart */
-97:		add	\rp, \rp, #0x44000000	@ phys base
-		str	\rp, [\tmp, #0]		@ omap_uart_phys
-		sub	\rp, \rp, #0x44000000	@ phys base
-		add	\rp, \rp, #0xf9000000	@ virt base
-		str	\rp, [\tmp, #4]		@ omap_uart_virt
-		mov	\rp, #(UART_LSR << OMAP_PORT_SHIFT)
-		str	\rp, [\tmp, #8]		@ omap_uart_lsr
-
 		b	10b
 
 		.align
