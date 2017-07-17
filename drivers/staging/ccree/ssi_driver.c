@@ -81,7 +81,7 @@ void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
 	char line_buf[80];
 
 	if (!the_array) {
-		SSI_LOG_ERR("cannot dump_byte_array - NULL pointer\n");
+		SSI_LOG_ERR("cannot %s - NULL pointer\n", __func__);
 		return;
 	}
 
