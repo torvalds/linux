@@ -107,6 +107,9 @@ typedef struct siginfo {
 /*
  * SIGFPE si_codes
  */
+#ifdef __KERNEL__
+#define FPE_FIXME	(__SI_FAULT|0)	/* Broken dup of SI_USER */
+#endif /* __KERNEL__ */
 #define __FPE_DECOVF	(__SI_FAULT|9)	/* decimal overflow */
 #define __FPE_DECDIV	(__SI_FAULT|10)	/* decimal division by zero */
 #define __FPE_DECERR	(__SI_FAULT|11)	/* packed decimal error */
