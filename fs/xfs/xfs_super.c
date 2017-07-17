@@ -210,7 +210,7 @@ xfs_parseargs(
 	/*
 	 * Copy binary VFS mount flags we are interested in.
 	 */
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	if (sb->s_flags & MS_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;

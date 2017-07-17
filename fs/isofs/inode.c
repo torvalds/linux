@@ -733,7 +733,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 
 root_found:
 	/* We don't support read-write mounts */
-	if (!(s->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(s)) {
 		error = -EACCES;
 		goto out_freebh;
 	}

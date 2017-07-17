@@ -275,7 +275,7 @@ int __mnt_is_readonly(struct vfsmount *mnt)
 {
 	if (mnt->mnt_flags & MNT_READONLY)
 		return 1;
-	if (mnt->mnt_sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(mnt->mnt_sb))
 		return 1;
 	return 0;
 }
@@ -1534,7 +1534,7 @@ static int do_umount(struct mount *mnt, int flags)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		down_write(&sb->s_umount);
-		if (!(sb->s_flags & MS_RDONLY))
+		if (!sb_rdonly(sb))
 			retval = do_remount_sb(sb, MS_RDONLY, NULL, 0);
 		up_write(&sb->s_umount);
 		return retval;
@@ -3300,7 +3300,7 @@ static bool mnt_already_visible(struct mnt_namespace *ns, struct vfsmount *new,
 		mnt_flags = mnt->mnt.mnt_flags;
 
 		/* Don't miss readonly hidden in the superblock flags */
-		if (mnt->mnt.mnt_sb->s_flags & MS_RDONLY)
+		if (sb_rdonly(mnt->mnt.mnt_sb))
 			mnt_flags |= MNT_LOCK_READONLY;
 
 		/* Verify the mount flags are equal to or more permissive

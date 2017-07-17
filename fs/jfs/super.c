@@ -76,7 +76,7 @@ static void jfs_handle_error(struct super_block *sb)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	updateSuper(sb, FM_DIRTY);
@@ -468,7 +468,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		return -EINVAL;
 
 	if (newLVSize) {
-		if (sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(sb)) {
 			pr_err("JFS: resize requires volume to be mounted read-write\n");
 			return -EROFS;
 		}
@@ -477,7 +477,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 			return rc;
 	}
 
-	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
+	if (sb_rdonly(sb) && !(*flags & MS_RDONLY)) {
 		/*
 		 * Invalidate any previously read metadata.  fsck may have
 		 * changed the on-disk data since we mounted r/o
@@ -493,7 +493,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		dquot_resume(sb, -1);
 		return ret;
 	}
-	if ((!(sb->s_flags & MS_RDONLY)) && (*flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb) && (*flags & MS_RDONLY)) {
 		rc = dquot_suspend(sb, -1);
 		if (rc < 0)
 			return rc;
@@ -502,7 +502,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		return rc;
 	}
 	if ((JFS_SBI(sb)->flag & JFS_NOINTEGRITY) != (flag & JFS_NOINTEGRITY))
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			rc = jfs_umount_rw(sb);
 			if (rc)
 				return rc;
@@ -592,7 +592,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 			jfs_err("jfs_mount failed w/return code = %d", rc);
 		goto out_mount_failed;
 	}
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		sbi->log = NULL;
 	else {
 		rc = jfs_mount_rw(sb, 0);
@@ -658,7 +658,7 @@ static int jfs_freeze(struct super_block *sb)
 	struct jfs_log *log = sbi->log;
 	int rc = 0;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		txQuiesce(sb);
 		rc = lmLogShutdown(log);
 		if (rc) {
@@ -688,7 +688,7 @@ static int jfs_unfreeze(struct super_block *sb)
 	struct jfs_log *log = sbi->log;
 	int rc = 0;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		rc = updateSuper(sb, FM_MOUNT);
 		if (rc) {
 			jfs_error(sb, "updateSuper failed\n");

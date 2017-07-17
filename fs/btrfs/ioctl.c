@@ -4438,7 +4438,7 @@ static long btrfs_ioctl_dev_replace(struct btrfs_fs_info *fs_info,
 
 	switch (p->cmd) {
 	case BTRFS_IOCTL_DEV_REPLACE_CMD_START:
-		if (fs_info->sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(fs_info->sb)) {
 			ret = -EROFS;
 			goto out;
 		}

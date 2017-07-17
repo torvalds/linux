@@ -405,7 +405,7 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
 
 static void ext4_handle_error(struct super_block *sb)
 {
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	if (!test_opt(sb, ERRORS_CONT)) {
@@ -587,8 +587,7 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 	/* Special case: if the error is EROFS, and we're not already
 	 * inside a transaction, then there's really no point in logging
 	 * an error. */
-	if (errno == -EROFS && journal_current_handle() == NULL &&
-	    (sb->s_flags & MS_RDONLY))
+	if (errno == -EROFS && journal_current_handle() == NULL && sb_rdonly(sb))
 		return;
 
 	if (ext4_error_ratelimit(sb)) {
@@ -628,7 +627,7 @@ void __ext4_abort(struct super_block *sb, const char *function,
 	       sb->s_id, function, line, &vaf);
 	va_end(args);
 
-	if ((sb->s_flags & MS_RDONLY) == 0) {
+	if (sb_rdonly(sb) == 0) {
 		ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
 		EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
 		/*
@@ -889,11 +888,11 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 
-	if (!(sb->s_flags & MS_RDONLY) && !aborted) {
+	if (!sb_rdonly(sb) && !aborted) {
 		ext4_clear_feature_journal_needs_recovery(sb);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 	}
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		ext4_commit_super(sb, 1);
 
 	for (i = 0; i < sbi->s_gdb_count; i++)
@@ -2101,7 +2100,7 @@ int ext4_seq_options_show(struct seq_file *seq, void *offset)
 	struct super_block *sb = seq->private;
 	int rc;
 
-	seq_puts(seq, (sb->s_flags & MS_RDONLY) ? "ro" : "rw");
+	seq_puts(seq, sb_rdonly(sb) ? "ro" : "rw");
 	rc = _ext4_show_options(seq, sb, 1);
 	seq_puts(seq, "\n");
 	return rc;
@@ -2369,7 +2368,7 @@ static int ext4_check_descriptors(struct super_block *sb,
 				 "Checksum for group %u failed (%u!=%u)",
 				 i, le16_to_cpu(ext4_group_desc_csum(sb, i,
 				     gdp)), le16_to_cpu(gdp->bg_checksum));
-			if (!(sb->s_flags & MS_RDONLY)) {
+			if (!sb_rdonly(sb)) {
 				ext4_unlock_group(sb, i);
 				return 0;
 			}
@@ -3116,8 +3115,7 @@ int ext4_register_li_request(struct super_block *sb,
 		goto out;
 	}
 
-	if (first_not_zeroed == ngroups ||
-	    (sb->s_flags & MS_RDONLY) ||
+	if (first_not_zeroed == ngroups || sb_rdonly(sb) ||
 	    !test_opt(sb, INIT_INODE_TABLE))
 		goto out;
 
@@ -3661,7 +3659,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * previously didn't change the revision level when setting the flags,
 	 * so there is a chance incompat flags are set on a rev 0 filesystem.
 	 */
-	if (!ext4_feature_set_ok(sb, (sb->s_flags & MS_RDONLY)))
+	if (!ext4_feature_set_ok(sb, (sb_rdonly(sb))))
 		goto failed_mount;
 
 	blocksize = BLOCK_SIZE << le32_to_cpu(es->s_log_block_size);
@@ -3790,12 +3788,12 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			sbi->s_hash_unsigned = 3;
 		else if ((i & EXT2_FLAGS_SIGNED_HASH) == 0) {
 #ifdef __CHAR_UNSIGNED__
-			if (!(sb->s_flags & MS_RDONLY))
+			if (!sb_rdonly(sb))
 				es->s_flags |=
 					cpu_to_le32(EXT2_FLAGS_UNSIGNED_HASH);
 			sbi->s_hash_unsigned = 3;
 #else
-			if (!(sb->s_flags & MS_RDONLY))
+			if (!sb_rdonly(sb))
 				es->s_flags |=
 					cpu_to_le32(EXT2_FLAGS_SIGNED_HASH);
 #endif
@@ -3995,7 +3993,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	needs_recovery = (es->s_last_orphan != 0 ||
 			  ext4_has_feature_journal_needs_recovery(sb));
 
-	if (ext4_has_feature_mmp(sb) && !(sb->s_flags & MS_RDONLY))
+	if (ext4_has_feature_mmp(sb) && !sb_rdonly(sb))
 		if (ext4_multi_mount_protect(sb, le64_to_cpu(es->s_mmp_block)))
 			goto failed_mount3a;
 
@@ -4007,7 +4005,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		err = ext4_load_journal(sb, es, journal_devnum);
 		if (err)
 			goto failed_mount3a;
-	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
+	} else if (test_opt(sb, NOLOAD) && !sb_rdonly(sb) &&
 		   ext4_has_feature_journal_needs_recovery(sb)) {
 		ext4_msg(sb, KERN_ERR, "required journal recovery "
 		       "suppressed and not mounted read-only");
@@ -4121,7 +4119,7 @@ no_journal:
 		goto failed_mount_wq;
 	}
 
-	if (DUMMY_ENCRYPTION_ENABLED(sbi) && !(sb->s_flags & MS_RDONLY) &&
+	if (DUMMY_ENCRYPTION_ENABLED(sbi) && !sb_rdonly(sb) &&
 	    !ext4_has_feature_encrypt(sb)) {
 		ext4_set_feature_encrypt(sb);
 		ext4_commit_super(sb, 1);
@@ -4175,7 +4173,7 @@ no_journal:
 		goto failed_mount4;
 	}
 
-	if (ext4_setup_super(sb, es, sb->s_flags & MS_RDONLY))
+	if (ext4_setup_super(sb, es, sb_rdonly(sb)))
 		sb->s_flags |= MS_RDONLY;
 
 	/* determine the minimum size of new large inodes, if present */
@@ -4263,7 +4261,7 @@ no_journal:
 
 #ifdef CONFIG_QUOTA
 	/* Enable quota usage during mount. */
-	if (ext4_has_feature_quota(sb) && !(sb->s_flags & MS_RDONLY)) {
+	if (ext4_has_feature_quota(sb) && !sb_rdonly(sb)) {
 		err = ext4_enable_quotas(sb);
 		if (err)
 			goto failed_mount8;
@@ -4586,7 +4584,7 @@ static int ext4_load_journal(struct super_block *sb,
 	 * can get read-write access to the device.
 	 */
 	if (ext4_has_feature_journal_needs_recovery(sb)) {
-		if (sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(sb)) {
 			ext4_msg(sb, KERN_INFO, "INFO: recovery "
 					"required on readonly filesystem");
 			if (really_read_only) {
@@ -4741,8 +4739,7 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 	if (jbd2_journal_flush(journal) < 0)
 		goto out;
 
-	if (ext4_has_feature_journal_needs_recovery(sb) &&
-	    sb->s_flags & MS_RDONLY) {
+	if (ext4_has_feature_journal_needs_recovery(sb) && sb_rdonly(sb)) {
 		ext4_clear_feature_journal_needs_recovery(sb);
 		ext4_commit_super(sb, 1);
 	}
@@ -4798,7 +4795,7 @@ int ext4_force_commit(struct super_block *sb)
 {
 	journal_t *journal;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
@@ -4863,7 +4860,7 @@ static int ext4_freeze(struct super_block *sb)
 	int error = 0;
 	journal_t *journal;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
@@ -4898,7 +4895,7 @@ out:
  */
 static int ext4_unfreeze(struct super_block *sb)
 {
-	if ((sb->s_flags & MS_RDONLY) || ext4_forced_shutdown(EXT4_SB(sb)))
+	if (sb_rdonly(sb) || ext4_forced_shutdown(EXT4_SB(sb)))
 		return 0;
 
 	if (EXT4_SB(sb)->s_journal) {
@@ -5036,7 +5033,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	if (*flags & MS_LAZYTIME)
 		sb->s_flags |= MS_LAZYTIME;
 
-	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY)) {
+	if ((bool)(*flags & MS_RDONLY) != sb_rdonly(sb)) {
 		if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED) {
 			err = -EROFS;
 			goto restore_opts;
@@ -5131,7 +5128,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	 * Reinitialize lazy itable initialization thread based on
 	 * current settings
 	 */
-	if ((sb->s_flags & MS_RDONLY) || !test_opt(sb, INIT_INODE_TABLE))
+	if (sb_rdonly(sb) || !test_opt(sb, INIT_INODE_TABLE))
 		ext4_unregister_li_request(sb);
 	else {
 		ext4_group_t first_not_zeroed;
@@ -5703,7 +5700,7 @@ static inline int ext2_feature_set_ok(struct super_block *sb)
 {
 	if (ext4_has_unknown_ext2_incompat_features(sb))
 		return 0;
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 1;
 	if (ext4_has_unknown_ext2_ro_compat_features(sb))
 		return 0;
@@ -5734,7 +5731,7 @@ static inline int ext3_feature_set_ok(struct super_block *sb)
 		return 0;
 	if (!ext4_has_feature_journal(sb))
 		return 0;
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 1;
 	if (ext4_has_unknown_ext3_ro_compat_features(sb))
 		return 0;

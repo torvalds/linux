@@ -2478,7 +2478,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 		return ret;
 	}
 
-	if (fs_info->sb->s_flags & MS_RDONLY) {
+	if (sb_rdonly(fs_info->sb)) {
 		ret = btrfs_commit_super(fs_info);
 		if (ret)
 			return ret;
@@ -2874,7 +2874,7 @@ int open_ctree(struct super_block *sb,
 
 	features = btrfs_super_compat_ro_flags(disk_super) &
 		~BTRFS_FEATURE_COMPAT_RO_SUPP;
-	if (!(sb->s_flags & MS_RDONLY) && features) {
+	if (!sb_rdonly(sb) && features) {
 		btrfs_err(fs_info,
 	"cannot mount read-write because of unsupported optional features (%llx)",
 		       features);
@@ -3039,7 +3039,7 @@ retry_root_backup:
 		btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
 	if (fs_info->fs_devices->missing_devices >
 	     fs_info->num_tolerated_disk_barrier_failures &&
-	    !(sb->s_flags & MS_RDONLY)) {
+	    !sb_rdonly(sb)) {
 		btrfs_warn(fs_info,
 "missing devices (%llu) exceeds the limit (%d), writeable mount is not allowed",
 			fs_info->fs_devices->missing_devices,
@@ -3102,7 +3102,7 @@ retry_root_backup:
 	if (ret)
 		goto fail_qgroup;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		ret = btrfs_cleanup_fs_roots(fs_info);
 		if (ret)
 			goto fail_qgroup;
@@ -3128,7 +3128,7 @@ retry_root_backup:
 		goto fail_qgroup;
 	}
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	if (btrfs_test_opt(fs_info, CLEAR_CACHE) &&
@@ -3928,7 +3928,7 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 
 	cancel_work_sync(&fs_info->async_reclaim_work);
 
-	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(fs_info->sb)) {
 		/*
 		 * If the cleaner thread is stopped and there are
 		 * block groups queued for removal, the deletion will be

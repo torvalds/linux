@@ -362,7 +362,7 @@ static int chkSuper(struct super_block *sb)
 
 	/* validate fs state */
 	if (j_sb->s_state != cpu_to_le32(FM_CLEAN) &&
-	    !(sb->s_flags & MS_RDONLY)) {
+	    !sb_rdonly(sb)) {
 		jfs_err("jfs_mount: Mount Failure: File System Dirty.");
 		rc = -EINVAL;
 		goto out;

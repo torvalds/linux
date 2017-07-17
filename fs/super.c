@@ -820,7 +820,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		return -EACCES;
 #endif
 
-	remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+	remount_ro = (flags & MS_RDONLY) && !sb_rdonly(sb);
 
 	if (remount_ro) {
 		if (!hlist_empty(&sb->s_pins)) {
@@ -831,7 +831,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 				return 0;
 			if (sb->s_writers.frozen != SB_UNFROZEN)
 				return -EBUSY;
-			remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
+			remount_ro = (flags & MS_RDONLY) && !sb_rdonly(sb);
 		}
 	}
 	shrink_dcache_sb(sb);
@@ -893,7 +893,7 @@ static void do_emergency_remount(struct work_struct *work)
 		spin_unlock(&sb_lock);
 		down_write(&sb->s_umount);
 		if (sb->s_root && sb->s_bdev && (sb->s_flags & MS_BORN) &&
-		    !(sb->s_flags & MS_RDONLY)) {
+		    !sb_rdonly(sb)) {
 			/*
 			 * What lock protects sb->s_flags??
 			 */
@@ -1439,7 +1439,7 @@ int freeze_super(struct super_block *sb)
 		return 0;	/* sic - it's "nothing to do" */
 	}
 
-	if (sb->s_flags & MS_RDONLY) {
+	if (sb_rdonly(sb)) {
 		/* Nothing to do really... */
 		sb->s_writers.frozen = SB_FREEZE_COMPLETE;
 		up_write(&sb->s_umount);
@@ -1502,7 +1502,7 @@ int thaw_super(struct super_block *sb)
 		return -EINVAL;
 	}
 
-	if (sb->s_flags & MS_RDONLY) {
+	if (sb_rdonly(sb)) {
 		sb->s_writers.frozen = SB_UNFROZEN;
 		goto out;
 	}

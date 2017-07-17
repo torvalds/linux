@@ -675,7 +675,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	sbi->s_dmode = uopt.dmode;
 	write_unlock(&sbi->s_cred_lock);
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
 		goto out_unlock;
 
 	if (*flags & MS_RDONLY)
@@ -1019,7 +1019,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition,
 
 		fe = udf_iget_special(sb, &addr);
 		if (IS_ERR(fe)) {
-			if (sb->s_flags & MS_RDONLY)
+			if (sb_rdonly(sb))
 				udf_warn(sb, "bitmap inode efe not found but it's ok since the disc is mounted read-only\n");
 			else {
 				udf_err(sb, "bitmap inode efe not found and attempted read-write mount\n");
@@ -1343,7 +1343,7 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 		 * writing to it (we overwrite blocks instead of relocating
 		 * them).
 		 */
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			ret = -EACCES;
 			goto out_bh;
 		}
@@ -2207,7 +2207,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 			ret = -EINVAL;
 			goto error_out;
 		} else if (minUDFWriteRev > UDF_MAX_WRITE_VERSION &&
-			   !(sb->s_flags & MS_RDONLY)) {
+			   !sb_rdonly(sb)) {
 			ret = -EACCES;
 			goto error_out;
 		}
@@ -2228,7 +2228,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	if (sbi->s_partmaps[sbi->s_partition].s_partition_flags &
 			UDF_PART_FLAG_READ_ONLY &&
-	    !(sb->s_flags & MS_RDONLY)) {
+	    !sb_rdonly(sb)) {
 		ret = -EACCES;
 		goto error_out;
 	}
@@ -2247,7 +2247,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 			 le16_to_cpu(ts.year), ts.month, ts.day,
 			 ts.hour, ts.minute, le16_to_cpu(ts.typeAndTimezone));
 	}
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		udf_open_lvid(sb);
 		lvid_open = true;
 	}
@@ -2334,7 +2334,7 @@ static void udf_put_super(struct super_block *sb)
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		unload_nls(sbi->s_nls_map);
 #endif
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		udf_close_lvid(sb);
 	brelse(sbi->s_lvid_bh);
 	udf_sb_free_partitions(sb);
