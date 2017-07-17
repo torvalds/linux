@@ -271,7 +271,7 @@ static bool nfs_page_group_covers_page(struct nfs_page *req)
 	unsigned int pos = 0;
 	unsigned int len = nfs_page_length(req->wb_page);
 
-	nfs_page_group_lock(req, false);
+	nfs_page_group_lock(req);
 
 	do {
 		tmp = nfs_page_group_search_locked(req->wb_head, pos);
@@ -480,7 +480,7 @@ try_again:
 	}
 	spin_unlock(&inode->i_lock);
 
-	ret = nfs_page_group_lock(head, false);
+	ret = nfs_page_group_lock(head);
 	if (ret < 0) {
 		nfs_unlock_and_release_request(head);
 		return ERR_PTR(ret);
@@ -501,7 +501,7 @@ try_again:
 			nfs_page_group_unlock(head);
 			ret = nfs_wait_on_request(subreq);
 			if (!ret)
-				ret = nfs_page_group_lock(head, false);
+				ret = nfs_page_group_lock(head);
 			if (ret < 0) {
 				nfs_unroll_locks(inode, head, subreq);
 				nfs_release_request(subreq);
