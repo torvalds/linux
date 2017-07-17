@@ -159,6 +159,18 @@ static int dev_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	return 0;
 }
 
+struct net_device  *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
+{
+	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
+	struct bpf_dtab_netdev *dev;
+
+	if (key >= map->max_entries)
+		return NULL;
+
+	dev = READ_ONCE(dtab->netdev_map[key]);
+	return dev ? dev->dev : NULL;
+}
+
 /* rcu_read_lock (from syscall and BPF contexts) ensures that if a delete and/or
  * update happens in parallel here a dev_put wont happen until after reading the
  * ifindex.

@@ -1779,6 +1779,7 @@ static const struct bpf_func_proto bpf_clone_redirect_proto = {
 struct redirect_info {
 	u32 ifindex;
 	u32 flags;
+	struct bpf_map *map;
 };
 
 static DEFINE_PER_CPU(struct redirect_info, redirect_info);
@@ -1792,6 +1793,7 @@ BPF_CALL_2(bpf_redirect, u32, ifindex, u64, flags)
 
 	ri->ifindex = ifindex;
 	ri->flags = flags;
+	ri->map = NULL;
 
 	return TC_ACT_REDIRECT;
 }
@@ -1817,6 +1819,29 @@ static const struct bpf_func_proto bpf_redirect_proto = {
 	.ret_type       = RET_INTEGER,
 	.arg1_type      = ARG_ANYTHING,
 	.arg2_type      = ARG_ANYTHING,
+};
+
+BPF_CALL_3(bpf_redirect_map, struct bpf_map *, map, u32, ifindex, u64, flags)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+
+	if (unlikely(flags))
+		return XDP_ABORTED;
+
+	ri->ifindex = ifindex;
+	ri->flags = flags;
+	ri->map = map;
+
+	return XDP_REDIRECT;
+}
+
+static const struct bpf_func_proto bpf_redirect_map_proto = {
+	.func           = bpf_redirect_map,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_CONST_MAP_PTR,
+	.arg2_type      = ARG_ANYTHING,
+	.arg3_type      = ARG_ANYTHING,
 };
 
 BPF_CALL_1(bpf_get_cgroup_classid, const struct sk_buff *, skb)
@@ -2423,14 +2448,39 @@ static int __bpf_tx_xdp(struct net_device *dev, struct xdp_buff *xdp)
 	return -EOPNOTSUPP;
 }
 
+int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
+			struct bpf_prog *xdp_prog)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct bpf_map *map = ri->map;
+	struct net_device *fwd;
+	int err = -EINVAL;
+
+	ri->ifindex = 0;
+	ri->map = NULL;
+
+	fwd = __dev_map_lookup_elem(map, ri->ifindex);
+	if (!fwd)
+		goto out;
+
+	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT);
+	err = __bpf_tx_xdp(fwd, xdp);
+out:
+	return err;
+}
+
 int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 		    struct bpf_prog *xdp_prog)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
 	struct net_device *fwd;
 
+	if (ri->map)
+		return xdp_do_redirect_map(dev, xdp, xdp_prog);
+
 	fwd = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
 	ri->ifindex = 0;
+	ri->map = NULL;
 	if (unlikely(!fwd)) {
 		bpf_warn_invalid_xdp_redirect(ri->ifindex);
 		return -EINVAL;
@@ -3089,6 +3139,8 @@ xdp_func_proto(enum bpf_func_id func_id)
 		return &bpf_xdp_adjust_head_proto;
 	case BPF_FUNC_redirect:
 		return &bpf_xdp_redirect_proto;
+	case BPF_FUNC_redirect_map:
+		return &bpf_redirect_map_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
