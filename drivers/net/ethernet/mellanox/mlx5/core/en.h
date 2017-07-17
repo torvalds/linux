@@ -343,7 +343,6 @@ enum {
 
 struct mlx5e_sq_wqe_info {
 	u8  opcode;
-	u8  num_wqebbs;
 };
 
 struct mlx5e_txqsq {
@@ -419,13 +418,8 @@ struct mlx5e_xdpsq {
 struct mlx5e_icosq {
 	/* data path */
 
-	/* dirtied @completion */
-	u16                        cc;
-
 	/* dirtied @xmit */
 	u16                        pc ____cacheline_aligned_in_smp;
-	u32                        dma_fifo_pc;
-	u16                        prev_cc;
 
 	struct mlx5e_cq            cq;
 
@@ -439,7 +433,6 @@ struct mlx5e_icosq {
 	void __iomem              *uar_map;
 	u32                        sqn;
 	u16                        edge;
-	struct device             *pdev;
 	__be32                     mkey_be;
 	unsigned long              state;
 

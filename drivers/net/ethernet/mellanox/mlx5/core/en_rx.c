@@ -357,7 +357,6 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 	/* fill sq edge with nops to avoid wqe wrap around */
 	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
 		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
-		sq->db.ico_wqe[pi].num_wqebbs = 1;
 		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 	}
 
@@ -368,7 +367,6 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 			    MLX5_OPCODE_UMR);
 
 	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
-	sq->db.ico_wqe[pi].num_wqebbs = num_wqebbs;
 	sq->pc += num_wqebbs;
 	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &wqe->ctrl);
 }
@@ -487,15 +485,13 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
 					     struct mlx5e_icosq *sq,
 					     struct mlx5e_rq *rq,
-					     struct mlx5_cqe64 *cqe,
-					     u16 *sqcc)
+					     struct mlx5_cqe64 *cqe)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u16 ci = be16_to_cpu(cqe->wqe_counter) & wq->sz_m1;
 	struct mlx5e_sq_wqe_info *icowi = &sq->db.ico_wqe[ci];
 
 	mlx5_cqwq_pop(&cq->wq);
-	*sqcc += icowi->num_wqebbs;
 
 	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
 		WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
@@ -518,7 +514,6 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 {
 	struct mlx5e_icosq *sq = container_of(cq, struct mlx5e_icosq, cq);
 	struct mlx5_cqe64 *cqe;
-	u16 sqcc;
 
 	if (unlikely(!MLX5E_TEST_BIT(sq->state, MLX5E_SQ_STATE_ENABLED)))
 		return;
@@ -527,20 +522,10 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 	if (likely(!cqe))
 		return;
 
-	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
-	 * otherwise a cq overrun may occur
-	 */
-	sqcc = sq->cc;
-
 	/* by design, there's only a single cqe */
-	mlx5e_poll_ico_single_cqe(cq, sq, rq, cqe, &sqcc);
+	mlx5e_poll_ico_single_cqe(cq, sq, rq, cqe);
 
 	mlx5_cqwq_update_db_record(&cq->wq);
-
-	/* ensure cq space is freed before enabling more cqes */
-	wmb();
-
-	sq->cc = sqcc;
 }
 
 bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)

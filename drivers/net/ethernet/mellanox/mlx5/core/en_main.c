@@ -950,7 +950,6 @@ static void mlx5e_activate_rq(struct mlx5e_rq *rq)
 
 	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
 	sq->db.ico_wqe[pi].opcode     = MLX5_OPCODE_NOP;
-	sq->db.ico_wqe[pi].num_wqebbs = 1;
 	nopwqe = mlx5e_post_nop(&sq->wq, sq->sqn, &sq->pc);
 	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
 }
@@ -1052,7 +1051,6 @@ static int mlx5e_alloc_icosq(struct mlx5e_channel *c,
 	struct mlx5_core_dev *mdev = c->mdev;
 	int err;
 
-	sq->pdev      = c->pdev;
 	sq->mkey_be   = c->mkey_be;
 	sq->channel   = c;
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
