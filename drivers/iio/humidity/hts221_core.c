@@ -285,30 +285,16 @@ hts221_sysfs_temp_oversampling_avail(struct device *dev,
 	return len;
 }
 
-int hts221_power_on(struct hts221_hw *hw)
+int hts221_set_enable(struct hts221_hw *hw, bool enable)
 {
 	int err;
 
 	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
-				     HTS221_ENABLE_MASK, true);
+				     HTS221_ENABLE_MASK, enable);
 	if (err < 0)
 		return err;
 
-	hw->enabled = true;
-
-	return 0;
-}
-
-int hts221_power_off(struct hts221_hw *hw)
-{
-	int err;
-
-	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
-				     HTS221_ENABLE_MASK, false);
-	if (err < 0)
-		return err;
-
-	hw->enabled = false;
+	hw->enabled = enable;
 
 	return 0;
 }
@@ -463,7 +449,7 @@ static int hts221_read_oneshot(struct hts221_hw *hw, u8 addr, int *val)
 	u8 data[HTS221_DATA_SIZE];
 	int err;
 
-	err = hts221_power_on(hw);
+	err = hts221_set_enable(hw, true);
 	if (err < 0)
 		return err;
 
@@ -473,7 +459,7 @@ static int hts221_read_oneshot(struct hts221_hw *hw, u8 addr, int *val)
 	if (err < 0)
 		return err;
 
-	hts221_power_off(hw);
+	hts221_set_enable(hw, false);
 
 	*val = (s16)get_unaligned_le16(data);
 

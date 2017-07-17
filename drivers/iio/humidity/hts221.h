@@ -62,8 +62,7 @@ extern const struct dev_pm_ops hts221_pm_ops;
 
 int hts221_config_drdy(struct hts221_hw *hw, bool enable);
 int hts221_probe(struct iio_dev *iio_dev);
-int hts221_power_on(struct hts221_hw *hw);
-int hts221_power_off(struct hts221_hw *hw);
+int hts221_set_enable(struct hts221_hw *hw, bool enable);
 int hts221_allocate_buffers(struct hts221_hw *hw);
 int hts221_allocate_trigger(struct hts221_hw *hw);
 
