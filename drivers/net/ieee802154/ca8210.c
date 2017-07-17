@@ -66,6 +66,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>

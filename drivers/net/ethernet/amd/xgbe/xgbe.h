@@ -129,6 +129,7 @@
 #include <net/dcbnl.h>
 #include <linux/completion.h>
 #include <linux/cpumask.h>
+#include <linux/interrupt.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.3"
