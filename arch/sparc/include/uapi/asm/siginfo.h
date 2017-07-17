@@ -20,13 +20,13 @@
  * SIGFPE si_codes
  */
 #ifdef __KERNEL__
-#define FPE_FIXME	(__SI_FAULT|0)	/* Broken dup of SI_USER */
+#define FPE_FIXME	0	/* Broken dup of SI_USER */
 #endif /* __KERNEL__ */
 
 /*
  * SIGEMT si_codes
  */
-#define EMT_TAGOVF	(__SI_FAULT|1)	/* tag overflow */
+#define EMT_TAGOVF	1	/* tag overflow */
 #define NSIGEMT		1
 
 #endif /* _UAPI__SPARC_SIGINFO_H */

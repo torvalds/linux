@@ -21,6 +21,20 @@ static inline void copy_siginfo(struct siginfo *to, struct siginfo *from)
 
 int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
 
+enum siginfo_layout {
+	SIL_KILL,
+	SIL_TIMER,
+	SIL_POLL,
+	SIL_FAULT,
+	SIL_CHLD,
+	SIL_RT,
+#ifdef __ARCH_SIGSYS
+	SIL_SYS,
+#endif
+};
+
+enum siginfo_layout siginfo_layout(int sig, int si_code);
+
 /*
  * Define some primitives to manipulate sigset_t.
  */

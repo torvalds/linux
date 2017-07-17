@@ -10,14 +10,14 @@
  * SIGFPE si_codes
  */
 #ifdef __KERNEL__
-#define FPE_FIXME	(__SI_FAULT|0)	/* Broken dup of SI_USER */
+#define FPE_FIXME	0	/* Broken dup of SI_USER */
 #endif /* __KERNEL__ */
 
 /*
  * SIGTRAP si_codes
  */
 #ifdef __KERNEL__
-#define TRAP_FIXME	(__SI_FAULT|0)	/* Broken dup of SI_USER */
+#define TRAP_FIXME	0	/* Broken dup of SI_USER */
 #endif /* __KERNEL__ */
 
 #endif
