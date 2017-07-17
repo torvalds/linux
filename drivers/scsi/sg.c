@@ -1174,7 +1174,7 @@ sg_poll(struct file *filp, poll_table * wait)
 	} else if (count < SG_MAX_QUEUE)
 		res |= POLLOUT | POLLWRNORM;
 	SCSI_LOG_TIMEOUT(3, sg_printk(KERN_INFO, sdp,
-				      "sg_poll: res=0x%x\n", (int) res));
+				      "sg_poll: res=0x%x\n", (__force u32) res));
 	return res;
 }
 
