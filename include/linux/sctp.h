@@ -309,10 +309,10 @@ struct sctp_adaptation_ind_param {
 };
 
 /* ADDIP Section 4.2.7 Supported Extensions Parameter */
-typedef struct sctp_supported_ext_param {
+struct sctp_supported_ext_param {
 	struct sctp_paramhdr param_hdr;
 	__u8 chunks[0];
-} sctp_supported_ext_param_t;
+};
 
 /* AUTH Section 3.1 Random */
 typedef struct sctp_random_param {
