@@ -713,7 +713,9 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
 
 int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb);
-int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp);
+int xdp_do_redirect(struct net_device *dev,
+		    struct xdp_buff *xdp,
+		    struct bpf_prog *prog);
 
 void bpf_warn_invalid_xdp_action(u32 act);
 void bpf_warn_invalid_xdp_redirect(u32 ifindex);

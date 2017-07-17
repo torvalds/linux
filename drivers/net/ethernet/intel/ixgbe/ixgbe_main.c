@@ -2232,7 +2232,7 @@ static struct sk_buff *ixgbe_run_xdp(struct ixgbe_adapter *adapter,
 		result = ixgbe_xmit_xdp_ring(adapter, xdp);
 		break;
 	case XDP_REDIRECT:
-		err = xdp_do_redirect(adapter->netdev, xdp);
+		err = xdp_do_redirect(adapter->netdev, xdp, xdp_prog);
 		if (!err)
 			result = IXGBE_XDP_TX;
 		else

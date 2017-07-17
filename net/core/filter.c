@@ -55,6 +55,7 @@
 #include <net/sock_reuseport.h>
 #include <net/busy_poll.h>
 #include <net/tcp.h>
+#include <linux/bpf_trace.h>
 
 /**
  *	sk_filter_trim_cap - run a packet through a socket filter
@@ -2422,18 +2423,22 @@ static int __bpf_tx_xdp(struct net_device *dev, struct xdp_buff *xdp)
 	return -EOPNOTSUPP;
 }
 
-int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp)
+int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
+		    struct bpf_prog *xdp_prog)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct net_device *fwd;
 
-	dev = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
+	fwd = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
 	ri->ifindex = 0;
-	if (unlikely(!dev)) {
+	if (unlikely(!fwd)) {
 		bpf_warn_invalid_xdp_redirect(ri->ifindex);
 		return -EINVAL;
 	}
 
-	return __bpf_tx_xdp(dev, xdp);
+	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT);
+
+	return __bpf_tx_xdp(fwd, xdp);
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
 
