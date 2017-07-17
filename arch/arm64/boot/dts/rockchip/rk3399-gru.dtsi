@@ -595,6 +595,11 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&ppvar_gpu>;
+	status = "okay";
+};
+
 ap_i2c_mic: &i2c1 {
 	status = "okay";
 
