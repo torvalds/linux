@@ -276,9 +276,8 @@ out_unlock:
  * we can use to deliver keyboard inputs to Linux.  We of course do this when
  * we see keyboard inputs coming in on a keyboard channel.
  */
-static struct input_dev *
-setup_client_keyboard(void *devdata,  /* opaque on purpose */
-		      unsigned char *keycode_table)
+static struct input_dev *setup_client_keyboard(void *devdata,
+					       unsigned char *keycode_table)
 
 {
 	int i;
@@ -319,8 +318,7 @@ setup_client_keyboard(void *devdata,  /* opaque on purpose */
 	return visorinput_dev;
 }
 
-static struct input_dev *
-setup_client_mouse(void *devdata /* opaque on purpose */)
+static struct input_dev *setup_client_mouse(void *devdata)
 {
 	int xres, yres;
 	struct fb_info *fb0;
@@ -361,8 +359,9 @@ setup_client_mouse(void *devdata /* opaque on purpose */)
 	return visorinput_dev;
 }
 
-static struct visorinput_devdata *
-devdata_create(struct visor_device *dev, enum visorinput_device_type devtype)
+static struct visorinput_devdata *devdata_create(
+					struct visor_device *dev,
+					enum visorinput_device_type devtype)
 {
 	struct visorinput_devdata *devdata = NULL;
 	unsigned int extra_bytes = 0;
@@ -447,8 +446,7 @@ err_kfree_devdata:
 	return NULL;
 }
 
-static int
-visorinput_probe(struct visor_device *dev)
+static int visorinput_probe(struct visor_device *dev)
 {
 	uuid_le guid;
 	enum visorinput_device_type devtype;
@@ -466,15 +464,13 @@ visorinput_probe(struct visor_device *dev)
 	return 0;
 }
 
-static void
-unregister_client_input(struct input_dev *visorinput_dev)
+static void unregister_client_input(struct input_dev *visorinput_dev)
 {
 	if (visorinput_dev)
 		input_unregister_device(visorinput_dev);
 }
 
-static void
-visorinput_remove(struct visor_device *dev)
+static void visorinput_remove(struct visor_device *dev)
 {
 	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
 
@@ -500,9 +496,8 @@ visorinput_remove(struct visor_device *dev)
  * Make it so the current locking state of the locking key indicated by
  * <keycode> is as indicated by <desired_state> (1=locked, 0=unlocked).
  */
-static void
-handle_locking_key(struct input_dev *visorinput_dev,
-		   int keycode, int desired_state)
+static void handle_locking_key(struct input_dev *visorinput_dev, int keycode,
+			       int desired_state)
 {
 	int led;
 
@@ -534,8 +529,7 @@ handle_locking_key(struct input_dev *visorinput_dev,
  * with 0xE0 in the low byte and the extended scancode value in the next
  * higher byte.
  */
-static int
-scancode_to_keycode(int scancode)
+static int scancode_to_keycode(int scancode)
 {
 	if (scancode > 0xff)
 		return visorkbd_ext_keycode[(scancode >> 8) & 0xff];
@@ -543,8 +537,7 @@ scancode_to_keycode(int scancode)
 	return visorkbd_keycode[scancode];
 }
 
-static int
-calc_button(int x)
+static int calc_button(int x)
 {
 	switch (x) {
 	case 1:
@@ -563,8 +556,7 @@ calc_button(int x)
  * client guest partition.  It is called periodically so we can obtain inputs
  * from the channel, and deliver them to the guest OS.
  */
-static void
-visorinput_channel_interrupt(struct visor_device *dev)
+static void visorinput_channel_interrupt(struct visor_device *dev)
 {
 	struct visor_inputreport r;
 	int scancode, keycode;
@@ -656,9 +648,8 @@ visorinput_channel_interrupt(struct visor_device *dev)
 	}
 }
 
-static int
-visorinput_pause(struct visor_device *dev,
-		 visorbus_state_complete_func complete_func)
+static int visorinput_pause(struct visor_device *dev,
+			    visorbus_state_complete_func complete_func)
 {
 	int rc;
 	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
@@ -689,9 +680,8 @@ out:
 	return rc;
 }
 
-static int
-visorinput_resume(struct visor_device *dev,
-		  visorbus_state_complete_func complete_func)
+static int visorinput_resume(struct visor_device *dev,
+			     visorbus_state_complete_func complete_func)
 {
 	int rc;
 	struct visorinput_devdata *devdata = dev_get_drvdata(&dev->device);
@@ -741,14 +731,12 @@ static struct visor_driver visorinput_driver = {
 	.resume = visorinput_resume,
 };
 
-static int
-visorinput_init(void)
+static int visorinput_init(void)
 {
 	return visorbus_register_visor_driver(&visorinput_driver);
 }
 
-static void
-visorinput_cleanup(void)
+static void visorinput_cleanup(void)
 {
 	visorbus_unregister_visor_driver(&visorinput_driver);
 }
