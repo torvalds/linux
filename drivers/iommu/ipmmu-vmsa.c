@@ -35,6 +35,7 @@
 struct ipmmu_vmsa_device {
 	struct device *dev;
 	void __iomem *base;
+	struct iommu_device iommu;
 	struct list_head list;
 
 	unsigned int num_utlbs;
@@ -1054,6 +1055,13 @@ static int ipmmu_probe(struct platform_device *pdev)
 
 	ipmmu_device_reset(mmu);
 
+	iommu_device_set_ops(&mmu->iommu, &ipmmu_ops);
+	iommu_device_set_fwnode(&mmu->iommu, &pdev->dev.of_node->fwnode);
+
+	ret = iommu_device_register(&mmu->iommu);
+	if (ret)
+		return ret;
+
 	/*
 	 * We can't create the ARM mapping here as it requires the bus to have
 	 * an IOMMU, which only happens when bus_set_iommu() is called in
@@ -1076,6 +1084,8 @@ static int ipmmu_remove(struct platform_device *pdev)
 	spin_lock(&ipmmu_devices_lock);
 	list_del(&mmu->list);
 	spin_unlock(&ipmmu_devices_lock);
+
+	iommu_device_unregister(&mmu->iommu);
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
 	arm_iommu_release_mapping(mmu->mapping);
