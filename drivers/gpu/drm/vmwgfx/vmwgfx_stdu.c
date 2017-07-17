@@ -1640,8 +1640,8 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 		 * something arbitrarily large and we will reject any layout
 		 * that doesn't fit prim_bb_mem later
 		 */
-		dev->mode_config.max_width = 16384;
-		dev->mode_config.max_height = 16384;
+		dev->mode_config.max_width = 8192;
+		dev->mode_config.max_height = 8192;
 	}
 
 	vmw_kms_create_implicit_placement_property(dev_priv, false);
