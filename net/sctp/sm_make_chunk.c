@@ -223,7 +223,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	struct sctp_chunk *retval = NULL;
 	int num_types, addrs_len = 0;
 	struct sctp_sock *sp;
-	sctp_supported_addrs_param_t sat;
+	struct sctp_supported_addrs_param sat;
 	__be16 types[2];
 	sctp_adaptation_ind_param_t aiparam;
 	sctp_supported_ext_param_t ext_param;

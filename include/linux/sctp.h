@@ -297,10 +297,10 @@ struct sctp_hostname_param {
 };
 
 /* Section 3.3.2.1 Supported Address Types (12) */
-typedef struct sctp_supported_addrs_param {
+struct sctp_supported_addrs_param {
 	struct sctp_paramhdr param_hdr;
 	__be16 types[0];
-} sctp_supported_addrs_param_t;
+};
 
 /* Appendix A. ECN Capable (32768) */
 typedef struct sctp_ecn_capable_param {
