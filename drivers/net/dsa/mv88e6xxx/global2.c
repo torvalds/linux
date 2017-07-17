@@ -56,29 +56,65 @@ static int mv88e6xxx_g2_int_mask(struct mv88e6xxx_chip *chip, u16 mask)
 }
 
 /* Offset 0x02: Management Enable 2x */
+
+static int mv88e6xxx_g2_mgmt_enable_2x(struct mv88e6xxx_chip *chip, u16 en2x)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_2X, en2x);
+}
+
 /* Offset 0x03: Management Enable 0x */
 
-int mv88e6095_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_g2_mgmt_enable_0x(struct mv88e6xxx_chip *chip, u16 en0x)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_0X, en0x);
+}
+
+/* Offset 0x05: Switch Management Register */
+
+static int mv88e6xxx_g2_switch_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip,
+					     bool enable)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g2_read(chip, MV88E6XXX_G2_SWITCH_MGMT, &val);
+	if (err)
+		return err;
+
+	if (enable)
+		val |= MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU;
+	else
+		val &= ~MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU;
+
+	return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SWITCH_MGMT, val);
+}
+
+int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	/* Consider the frames with reserved multicast destination
+	 * addresses matching 01:80:c2:00:00:0x as MGMT.
+	 */
+	err = mv88e6xxx_g2_mgmt_enable_0x(chip, 0xffff);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_switch_mgmt_rsvd2cpu(chip, true);
+}
+
+int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 {
 	int err;
 
 	/* Consider the frames with reserved multicast destination
 	 * addresses matching 01:80:c2:00:00:2x as MGMT.
 	 */
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X)) {
-		err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_2X, 0xffff);
-		if (err)
-			return err;
-	}
+	err = mv88e6xxx_g2_mgmt_enable_2x(chip, 0xffff);
+	if (err)
+		return err;
 
-	/* Consider the frames with reserved multicast destination
-	 * addresses matching 01:80:c2:00:00:0x as MGMT.
-	 */
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X))
-		return mv88e6xxx_g2_write(chip, MV88E6XXX_G2_MGMT_EN_0X,
-					  0xffff);
-
-	return 0;
+	return mv88e6185_g2_mgmt_rsvd2cpu(chip);
 }
 
 /* Offset 0x06: Device Mapping Table register */
@@ -1081,9 +1117,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 	 * port at the highest priority.
 	 */
 	reg = MV88E6XXX_G2_SWITCH_MGMT_FORCE_FLOW_CTL_PRI | (0x7 << 4);
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_0X) ||
-	    mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_MGMT_EN_2X))
-		reg |= MV88E6XXX_G2_SWITCH_MGMT_RSVD2CPU | 0x7;
 	err = mv88e6xxx_g2_write(chip, MV88E6XXX_G2_SWITCH_MGMT, reg);
 	if (err)
 		return err;
