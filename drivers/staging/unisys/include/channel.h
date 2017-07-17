@@ -21,13 +21,9 @@
 #include <linux/io.h>
 #include <linux/uuid.h>
 
-#define __SUPERVISOR_CHANNEL_H__
-
 #define SIGNATURE_16(A, B) ((A) | ((B) << 8))
 #define SIGNATURE_32(A, B, C, D) \
 	(SIGNATURE_16(A, B) | (SIGNATURE_16(C, D) << 16))
-#define SIGNATURE_64(A, B, C, D, E, F, G, H) \
-	(SIGNATURE_32(A, B, C, D) | ((u64)(SIGNATURE_32(E, F, G, H)) << 32))
 
 #ifndef COVER
 #define COVER(v, d) ((d) * DIV_ROUND_UP(v, d))
