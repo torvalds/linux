@@ -14,6 +14,7 @@ use strict;
 # GNU General Public License for more details.
 
 my $virtenv_dir = "sphinx_1.4";
+my $requirement_file = "Documentation/sphinx/requirements.txt";
 
 #
 # Static vars
@@ -467,9 +468,7 @@ sub check_needs()
 
 			printf "\t$virtualenv $virtenv_dir\n";
 			printf "\t. $activate\n";
-			printf "\tpip install 'docutils==0.12'\n";
-			printf "\tpip install 'Sphinx==1.4.9'\n";
-			printf "\tpip install sphinx_rtd_theme\n";
+			printf "\tpip install -r $requirement_file\n";
 			$need++;
 		}
 	}
