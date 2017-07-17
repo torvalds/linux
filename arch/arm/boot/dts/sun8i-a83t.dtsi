@@ -54,12 +54,6 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	aliases {
-	};
-
-	chosen {
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
