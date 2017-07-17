@@ -1572,17 +1572,24 @@ static void dcn10_apply_ctx_for_surface(
 		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
 			struct mpcc_cfg mpcc_cfg;
+			int opp_id_cached = old_pipe_ctx->mpcc->opp_id;
 
 			if (!old_pipe_ctx->top_pipe) {
 				ASSERT(0);
 				continue;
 			}
 
-			mpcc_cfg.opp_id = old_pipe_ctx->mpcc->opp_id;
+			mpcc_cfg.opp_id = 0xf;
 			mpcc_cfg.top_dpp_id = 0xf;
 			mpcc_cfg.bot_mpcc_id = 0xf;
 			mpcc_cfg.top_of_tree = !old_pipe_ctx->top_pipe;
 			old_pipe_ctx->mpcc->funcs->set(old_pipe_ctx->mpcc, &mpcc_cfg);
+			/*
+			 * the mpcc is the only thing that keeps track of the mpcc
+			 * mapping for reset front end right now. Might need some
+			 * rework.
+			 */
+			old_pipe_ctx->mpcc->opp_id = opp_id_cached;
 
 			old_pipe_ctx->top_pipe = NULL;
 			old_pipe_ctx->bottom_pipe = NULL;
