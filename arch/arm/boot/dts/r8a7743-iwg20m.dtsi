@@ -45,11 +45,11 @@
 };
 
 &mmcif0 {
-		pinctrl-0 = <&mmcif0_pins>;
-		pinctrl-names = "default";
+	pinctrl-0 = <&mmcif0_pins>;
+	pinctrl-names = "default";
 
-		vmmc-supply = <&reg_3p3v>;
-		bus-width = <8>;
-		non-removable;
-		status = "okay";
+	vmmc-supply = <&reg_3p3v>;
+	bus-width = <8>;
+	non-removable;
+	status = "okay";
 };
