@@ -613,21 +613,23 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 		set_cpu_bug(c, X86_BUG_AMD_E400);
 
 	/*
-	 * BIOS support is required for SME. If BIOS has not enabled SME
-	 * then don't advertise the feature (set in scattered.c). Also,
-	 * since the SME support requires long mode, don't advertise the
-	 * feature under CONFIG_X86_32.
+	 * BIOS support is required for SME. If BIOS has enabled SME then
+	 * adjust x86_phys_bits by the SME physical address space reduction
+	 * value. If BIOS has not enabled SME then don't advertise the
+	 * feature (set in scattered.c). Also, since the SME support requires
+	 * long mode, don't advertise the feature under CONFIG_X86_32.
 	 */
 	if (cpu_has(c, X86_FEATURE_SME)) {
-		if (IS_ENABLED(CONFIG_X86_32)) {
-			clear_cpu_cap(c, X86_FEATURE_SME);
-		} else {
-			u64 msr;
+		u64 msr;
 
-			/* Check if SME is enabled */
-			rdmsrl(MSR_K8_SYSCFG, msr);
-			if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+		/* Check if SME is enabled */
+		rdmsrl(MSR_K8_SYSCFG, msr);
+		if (msr & MSR_K8_SYSCFG_MEM_ENCRYPT) {
+			c->x86_phys_bits -= (cpuid_ebx(0x8000001f) >> 6) & 0x3f;
+			if (IS_ENABLED(CONFIG_X86_32))
 				clear_cpu_cap(c, X86_FEATURE_SME);
+		} else {
+			clear_cpu_cap(c, X86_FEATURE_SME);
 		}
 	}
 }
