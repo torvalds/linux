@@ -463,39 +463,38 @@ enum {
 
 enum {
 	SKB_GSO_TCPV4 = 1 << 0,
-	SKB_GSO_UDP = 1 << 1,
 
 	/* This indicates the skb is from an untrusted source. */
-	SKB_GSO_DODGY = 1 << 2,
+	SKB_GSO_DODGY = 1 << 1,
 
 	/* This indicates the tcp segment has CWR set. */
-	SKB_GSO_TCP_ECN = 1 << 3,
+	SKB_GSO_TCP_ECN = 1 << 2,
 
-	SKB_GSO_TCP_FIXEDID = 1 << 4,
+	SKB_GSO_TCP_FIXEDID = 1 << 3,
 
-	SKB_GSO_TCPV6 = 1 << 5,
+	SKB_GSO_TCPV6 = 1 << 4,
 
-	SKB_GSO_FCOE = 1 << 6,
+	SKB_GSO_FCOE = 1 << 5,
 
-	SKB_GSO_GRE = 1 << 7,
+	SKB_GSO_GRE = 1 << 6,
 
-	SKB_GSO_GRE_CSUM = 1 << 8,
+	SKB_GSO_GRE_CSUM = 1 << 7,
 
-	SKB_GSO_IPXIP4 = 1 << 9,
+	SKB_GSO_IPXIP4 = 1 << 8,
 
-	SKB_GSO_IPXIP6 = 1 << 10,
+	SKB_GSO_IPXIP6 = 1 << 9,
 
-	SKB_GSO_UDP_TUNNEL = 1 << 11,
+	SKB_GSO_UDP_TUNNEL = 1 << 10,
 
-	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 12,
+	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 11,
 
-	SKB_GSO_PARTIAL = 1 << 13,
+	SKB_GSO_PARTIAL = 1 << 12,
 
-	SKB_GSO_TUNNEL_REMCSUM = 1 << 14,
+	SKB_GSO_TUNNEL_REMCSUM = 1 << 13,
 
-	SKB_GSO_SCTP = 1 << 15,
+	SKB_GSO_SCTP = 1 << 14,
 
-	SKB_GSO_ESP = 1 << 16,
+	SKB_GSO_ESP = 1 << 15,
 };
 
 #if BITS_PER_LONG > 32

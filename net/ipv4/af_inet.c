@@ -1219,10 +1219,9 @@ EXPORT_SYMBOL(inet_sk_rebuild_header);
 struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 				 netdev_features_t features)
 {
-	bool udpfrag = false, fixedid = false, gso_partial, encap;
+	bool fixedid = false, gso_partial, encap;
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	const struct net_offload *ops;
-	unsigned int offset = 0;
 	struct iphdr *iph;
 	int proto, tot_len;
 	int nhoff;
@@ -1257,7 +1256,6 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	segs = ERR_PTR(-EPROTONOSUPPORT);
 
 	if (!skb->encapsulation || encap) {
-		udpfrag = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 		fixedid = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TCP_FIXEDID);
 
 		/* fixed ID is invalid if DF bit is not set */
@@ -1277,13 +1275,7 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	skb = segs;
 	do {
 		iph = (struct iphdr *)(skb_mac_header(skb) + nhoff);
-		if (udpfrag) {
-			iph->frag_off = htons(offset >> 3);
-			if (skb->next)
-				iph->frag_off |= htons(IP_MF);
-			offset += skb->len - nhoff - ihl;
-			tot_len = skb->len - nhoff;
-		} else if (skb_is_gso(skb)) {
+		if (skb_is_gso(skb)) {
 			if (!fixedid) {
 				iph->id = htons(id);
 				id += skb_shinfo(skb)->gso_segs;
