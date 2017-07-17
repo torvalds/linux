@@ -273,10 +273,10 @@ struct sctp_init_chunk {
 
 
 /* Section 3.3.2.1. IPv4 Address Parameter (5) */
-typedef struct sctp_ipv4addr_param {
+struct sctp_ipv4addr_param {
 	struct sctp_paramhdr param_hdr;
-	struct in_addr  addr;
-} sctp_ipv4addr_param_t;
+	struct in_addr addr;
+};
 
 /* Section 3.3.2.1. IPv6 Address Parameter (6) */
 typedef struct sctp_ipv6addr_param {

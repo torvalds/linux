@@ -3153,7 +3153,7 @@ bool sctp_verify_asconf(const struct sctp_association *asoc,
 		case SCTP_PARAM_ERR_CAUSE:
 			break;
 		case SCTP_PARAM_IPV4_ADDRESS:
-			if (length != sizeof(sctp_ipv4addr_param_t))
+			if (length != sizeof(struct sctp_ipv4addr_param))
 				return false;
 			/* ensure there is only one addr param and it's in the
 			 * beginning of addip_hdr params, or we reject it.
