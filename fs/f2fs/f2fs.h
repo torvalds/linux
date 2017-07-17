@@ -2285,8 +2285,7 @@ int truncate_xattr_node(struct inode *inode, struct page *page);
 int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino);
 int remove_inode_page(struct inode *inode);
 struct page *new_inode_page(struct inode *inode);
-struct page *new_node_page(struct dnode_of_data *dn,
-			unsigned int ofs, struct page *ipage);
+struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs);
 void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid);
 struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid);
 struct page *get_node_page_ra(struct page *parent, int start);

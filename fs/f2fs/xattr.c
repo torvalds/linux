@@ -442,7 +442,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	} else {
 		struct dnode_of_data dn;
 		set_new_dnode(&dn, inode, NULL, NULL, new_nid);
-		xpage = new_node_page(&dn, XATTR_NODE_OFFSET, ipage);
+		xpage = new_node_page(&dn, XATTR_NODE_OFFSET);
 		if (IS_ERR(xpage)) {
 			alloc_nid_failed(sbi, new_nid);
 			return PTR_ERR(xpage);
