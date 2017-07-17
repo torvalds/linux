@@ -321,10 +321,10 @@ struct sctp_random_param {
 };
 
 /* AUTH Section 3.2 Chunk List */
-typedef struct sctp_chunks_param {
+struct sctp_chunks_param {
 	struct sctp_paramhdr param_hdr;
 	__u8 chunks[0];
-} sctp_chunks_param_t;
+};
 
 /* AUTH Section 3.3 HMAC Algorithm */
 typedef struct sctp_hmac_algo_param {

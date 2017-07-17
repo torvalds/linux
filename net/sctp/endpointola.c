@@ -78,8 +78,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 		if (!auth_hmacs)
 			goto nomem;
 
-		auth_chunks = kzalloc(sizeof(sctp_chunks_param_t) +
-					SCTP_NUM_CHUNK_TYPES, gfp);
+		auth_chunks = kzalloc(sizeof(*auth_chunks) +
+				      SCTP_NUM_CHUNK_TYPES, gfp);
 		if (!auth_chunks)
 			goto nomem;
 

@@ -1557,7 +1557,7 @@ struct sctp_association {
 		 * cookie and these are just pointers to those locations
 		 */
 		struct sctp_random_param *peer_random;
-		sctp_chunks_param_t *peer_chunks;
+		struct sctp_chunks_param *peer_chunks;
 		sctp_hmac_algo_param_t *peer_hmacs;
 	} peer;
 

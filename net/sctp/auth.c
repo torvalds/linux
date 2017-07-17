@@ -186,7 +186,7 @@ static int sctp_auth_compare_vectors(struct sctp_auth_bytes *vector1,
  */
 static struct sctp_auth_bytes *sctp_auth_make_key_vector(
 			struct sctp_random_param *random,
-			sctp_chunks_param_t *chunks,
+			struct sctp_chunks_param *chunks,
 			sctp_hmac_algo_param_t *hmacs,
 			gfp_t gfp)
 {
@@ -227,7 +227,7 @@ static struct sctp_auth_bytes *sctp_auth_make_local_vector(
 {
 	return sctp_auth_make_key_vector(
 			(struct sctp_random_param *)asoc->c.auth_random,
-			(sctp_chunks_param_t *)asoc->c.auth_chunks,
+			(struct sctp_chunks_param *)asoc->c.auth_chunks,
 			(sctp_hmac_algo_param_t *)asoc->c.auth_hmacs, gfp);
 }
 
