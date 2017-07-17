@@ -1371,7 +1371,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 
 		inode_lock(inode);
 		if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)
-			BTRFS_I(inode)->force_compress = compress_type;
+			BTRFS_I(inode)->prop_compress = compress_type;
 		ret = cluster_pages_for_defrag(inode, pages, i, cluster);
 		if (ret < 0) {
 			inode_unlock(inode);
@@ -1442,7 +1442,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 out_ra:
 	if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS) {
 		inode_lock(inode);
-		BTRFS_I(inode)->force_compress = BTRFS_COMPRESS_NONE;
+		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
 		inode_unlock(inode);
 	}
 	if (!file)

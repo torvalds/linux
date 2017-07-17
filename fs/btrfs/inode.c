@@ -404,7 +404,7 @@ static inline int inode_need_compress(struct inode *inode, u64 start, u64 end)
 		return 0;
 	if (btrfs_test_opt(fs_info, COMPRESS) ||
 	    BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS ||
-	    BTRFS_I(inode)->force_compress)
+	    BTRFS_I(inode)->prop_compress)
 		return btrfs_compress_heuristic(inode, start, end);
 	return 0;
 }
@@ -511,8 +511,8 @@ again:
 			goto cont;
 		}
 
-		if (BTRFS_I(inode)->force_compress)
-			compress_type = BTRFS_I(inode)->force_compress;
+		if (BTRFS_I(inode)->prop_compress)
+			compress_type = BTRFS_I(inode)->prop_compress;
 
 		/*
 		 * we need to call clear_page_dirty_for_io on each
@@ -645,7 +645,7 @@ cont:
 
 		/* flag the file so we don't compress in the future */
 		if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) &&
-		    !(BTRFS_I(inode)->force_compress)) {
+		    !(BTRFS_I(inode)->prop_compress)) {
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
 		}
 	}
@@ -9433,7 +9433,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->reserved_extents = 0;
 
 	ei->runtime_flags = 0;
-	ei->force_compress = BTRFS_COMPRESS_NONE;
+	ei->prop_compress = BTRFS_COMPRESS_NONE;
 
 	ei->delayed_node = NULL;
 
