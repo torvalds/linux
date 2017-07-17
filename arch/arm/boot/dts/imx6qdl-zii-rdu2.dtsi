@@ -61,7 +61,11 @@
 		         &gpio6 4 GPIO_ACTIVE_HIGH>;
 
 		phy: ethernet-phy@0 {
+			pinctrl-0 = <&pinctrl_rmii_phy_irq>;
+			pinctrl-names = "default";
 			reg = <0>;
+			interrupt-parent = <&gpio3>;
+			interrupts = <30 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 
