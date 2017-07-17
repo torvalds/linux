@@ -26,6 +26,21 @@ sun4v_cpu_mondo:
 	ldxa	[%g0] ASI_SCRATCHPAD, %g4
 	sub	%g4, TRAP_PER_CPU_FAULT_INFO, %g4
 
+	/* Get smp_processor_id() into %g3 */
+	sethi	%hi(trap_block), %g5
+	or	%g5, %lo(trap_block), %g5
+	sub	%g4, %g5, %g3
+	srlx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+
+	/* Increment cpu_mondo_counter[smp_processor_id()] */
+	sethi	%hi(cpu_mondo_counter), %g5
+	or	%g5, %lo(cpu_mondo_counter), %g5
+	sllx	%g3, 3, %g3
+	add	%g5, %g3, %g5
+	ldx	[%g5], %g3
+	add	%g3, 1, %g3
+	stx	%g3, [%g5]
+
 	/* Get CPU mondo queue base phys address into %g7.  */
 	ldx	[%g4 + TRAP_PER_CPU_CPU_MONDO_PA], %g7
 
