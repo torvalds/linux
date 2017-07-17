@@ -1030,8 +1030,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 
 	mutex_lock(&fp->f_fl_mutex);
 
-	gl = fl_gh->gh_gl;
-	if (gl) {
+	if (gfs2_holder_initialized(fl_gh)) {
 		if (fl_gh->gh_state == state)
 			goto out;
 		locks_lock_file_wait(file,
