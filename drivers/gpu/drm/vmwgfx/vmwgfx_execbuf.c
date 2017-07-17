@@ -2584,7 +2584,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 
 /**
  * vmw_cmd_dx_ia_set_vertex_buffers - Validate an
- * SVGA_3D_CMD_DX_IA_SET_VERTEX_BUFFERS command.
+ * SVGA_3D_CMD_DX_IA_SET_INDEX_BUFFER command.
  *
  * @dev_priv: Pointer to a device private struct.
  * @sw_context: The software context being used for this batch.
