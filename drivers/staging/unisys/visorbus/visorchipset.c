@@ -1508,10 +1508,11 @@ visorbus_device_resume_response(struct visor_device *dev_info, int response)
 }
 
 static struct parser_context *
-parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
+parser_init_byte_stream(u64 addr, u32 bytes, bool *retry)
 {
 	int allocbytes = sizeof(struct parser_context) + bytes;
 	struct parser_context *ctx;
+	void *mapping;
 
 	*retry = false;
 
@@ -1536,22 +1537,11 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 	ctx->curr = NULL;
 	ctx->bytes_remaining = 0;
 	ctx->byte_stream = false;
-	if (local) {
-		void *p;
-
-		if (addr > virt_to_phys(high_memory - 1))
-			goto err_finish_ctx;
-		p = __va((unsigned long)(addr));
-		memcpy(ctx->data, p, bytes);
-	} else {
-		void *mapping = memremap(addr, bytes, MEMREMAP_WB);
-
-		if (!mapping)
-			goto err_finish_ctx;
-		memcpy(ctx->data, mapping, bytes);
-		memunmap(mapping);
-	}
-
+	mapping = memremap(addr, bytes, MEMREMAP_WB);
+	if (!mapping)
+		goto err_finish_ctx;
+	memcpy(ctx->data, mapping, bytes);
+	memunmap(mapping);
 	ctx->byte_stream = true;
 	chipset_dev->controlvm_payload_bytes_buffered += ctx->param_bytes;
 
@@ -1582,12 +1572,10 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	u64 parm_addr;
 	u32 parm_bytes;
 	struct parser_context *parser_ctx = NULL;
-	bool local_addr;
 	struct controlvm_message ackmsg;
 	int err = 0;
 
 	/* create parsing context if necessary */
-	local_addr = (inmsg.hdr.flags.test_message == 1);
 	parm_addr = channel_addr + inmsg.hdr.payload_vm_offset;
 	parm_bytes = inmsg.hdr.payload_bytes;
 
@@ -1600,21 +1588,16 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		bool retry = false;
 
 		parser_ctx =
-		    parser_init_byte_stream(parm_addr, parm_bytes,
-					    local_addr, &retry);
+		    parser_init_byte_stream(parm_addr, parm_bytes, &retry);
 		if (!parser_ctx && retry)
 			return -EAGAIN;
 	}
+	controlvm_init_response(&ackmsg, &inmsg.hdr, CONTROLVM_RESP_SUCCESS);
+	err = visorchannel_signalinsert(chipset_dev->controlvm_channel,
+					CONTROLVM_QUEUE_ACK, &ackmsg);
+	if (err)
+		return err;
 
-	if (!local_addr) {
-		controlvm_init_response(&ackmsg, &inmsg.hdr,
-					CONTROLVM_RESP_SUCCESS);
-		err = visorchannel_signalinsert(chipset_dev->controlvm_channel,
-						CONTROLVM_QUEUE_ACK,
-						&ackmsg);
-		if (err)
-			return err;
-	}
 	switch (inmsg.hdr.id) {
 	case CONTROLVM_CHIPSET_INIT:
 		err = chipset_init(&inmsg);
