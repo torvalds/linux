@@ -3884,7 +3884,7 @@ static const struct ixgbe_mac_operations mac_ops_X550EM_x_fw = {
 	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550,
 };
 
-static struct ixgbe_mac_operations mac_ops_x550em_a = {
+static const struct ixgbe_mac_operations mac_ops_x550em_a = {
 	X550_COMMON_MAC
 	.led_on			= ixgbe_led_on_t_x550em,
 	.led_off		= ixgbe_led_off_t_x550em,
@@ -3905,7 +3905,7 @@ static struct ixgbe_mac_operations mac_ops_x550em_a = {
 	.write_iosf_sb_reg	= ixgbe_write_iosf_sb_reg_x550a,
 };
 
-static struct ixgbe_mac_operations mac_ops_x550em_a_fw = {
+static const struct ixgbe_mac_operations mac_ops_x550em_a_fw = {
 	X550_COMMON_MAC
 	.led_on			= ixgbe_led_on_generic,
 	.led_off		= ixgbe_led_off_generic,
