@@ -235,6 +235,13 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 					 f->mask);
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_TTL_,
 				       key->ttl, mask->ttl);
+
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_ECN,
+				       key->tos & 0x3, mask->tos & 0x3);
+
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_IP_DSCP,
+				       key->tos >> 6, mask->tos >> 6);
+
 	return 0;
 }
 
