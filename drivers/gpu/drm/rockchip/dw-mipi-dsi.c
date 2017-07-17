@@ -808,16 +808,16 @@ static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
 static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
 					   u32 hcomponent)
 {
-	u32 frac, lbcc;
+	u32 lbcc;
 
 	lbcc = hcomponent * dsi->lane_mbps * MSEC_PER_SEC / 8;
 
-	frac = lbcc % dsi->mode.clock;
-	lbcc = lbcc / dsi->mode.clock;
-	if (frac)
-		lbcc++;
+	if (dsi->mode.clock == 0) {
+		dev_err(dsi->dev, "dsi mode clock is 0!\n");
+		return 0;
+	}
 
-	return lbcc;
+	return DIV_ROUND_CLOSEST_ULL(lbcc, dsi->mode.clock);
 }
 
 static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi)
