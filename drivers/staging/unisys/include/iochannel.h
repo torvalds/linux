@@ -31,7 +31,6 @@
 #include <linux/dma-direction.h>
 #include "channel.h"
 
-#define VISOR_VNIC_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
 #define VISOR_VSWITCH_CHANNEL_SIGNATURE VISOR_CHANNEL_SIGNATURE
 
 /*
@@ -55,7 +54,7 @@
 	(visor_check_channel(ch, visor_vnic_channel_uuid, \
 			     "vnic", MIN_IO_CHANNEL_SIZE, \
 			     VISOR_VNIC_CHANNEL_VERSIONID, \
-			     VISOR_VNIC_CHANNEL_SIGNATURE))
+			     VISOR_CHANNEL_SIGNATURE))
 
 /*
  * Everything necessary to handle SCSI & NIC traffic between Guest Partition and
