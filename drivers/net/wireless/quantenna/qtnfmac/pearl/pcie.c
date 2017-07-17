@@ -1310,7 +1310,7 @@ static SIMPLE_DEV_PM_OPS(qtnf_pcie_pm_ops, qtnf_pcie_suspend,
 			 qtnf_pcie_resume);
 #endif
 
-static struct pci_device_id qtnf_pcie_devid_table[] = {
+static const struct pci_device_id qtnf_pcie_devid_table[] = {
 	{
 		PCIE_VENDOR_ID_QUANTENNA, PCIE_DEVICE_ID_QTN_PEARL,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
