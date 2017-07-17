@@ -188,6 +188,16 @@ static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 	return __irqd_to_state(d) & mask;
 }
 
+static inline void irq_state_set_disabled(struct irq_desc *desc)
+{
+	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
+}
+
+static inline void irq_state_set_masked(struct irq_desc *desc)
+{
+	irqd_set(&desc->irq_data, IRQD_IRQ_MASKED);
+}
+
 static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 {
 	__this_cpu_inc(*desc->kstat_irqs);
