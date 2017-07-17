@@ -71,6 +71,9 @@ size_t syscall_arg__scnprintf_fcntl_arg(char *bf, size_t size, struct syscall_ar
 {
 	int cmd = syscall_arg__val(arg, 1);
 
+	if (cmd == F_DUPFD)
+		return syscall_arg__scnprintf_fd(bf, size, arg);
+
 	if (cmd == F_SETFD)
 		return fcntl__scnprintf_getfd(arg->val, bf, size);
 
