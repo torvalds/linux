@@ -82,7 +82,7 @@ static unsigned int asm9260_wdt_gettimeleft(struct watchdog_device *wdd)
 
 	counter = ioread32(priv->iobase + HW_WDTV);
 
-	return DIV_ROUND_CLOSEST(counter, priv->wdt_freq);
+	return counter / priv->wdt_freq;
 }
 
 static int asm9260_wdt_updatetimeout(struct watchdog_device *wdd)
