@@ -1400,7 +1400,8 @@ sub do_not_reboot {
 
     return $test_type eq "build" || $no_reboot ||
 	($test_type eq "patchcheck" && $opt{"PATCHCHECK_TYPE[$i]"} eq "build") ||
-	($test_type eq "bisect" && $opt{"BISECT_TYPE[$i]"} eq "build");
+	($test_type eq "bisect" && $opt{"BISECT_TYPE[$i]"} eq "build") ||
+	($test_type eq "config_bisect" && $opt{"CONFIG_BISECT_TYPE[$i]"} eq "build");
 }
 
 sub dodie {
