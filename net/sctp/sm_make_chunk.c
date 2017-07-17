@@ -3163,7 +3163,7 @@ bool sctp_verify_asconf(const struct sctp_association *asoc,
 			addr_param_seen = true;
 			break;
 		case SCTP_PARAM_IPV6_ADDRESS:
-			if (length != sizeof(sctp_ipv6addr_param_t))
+			if (length != sizeof(struct sctp_ipv6addr_param))
 				return false;
 			if (param.v != addip->addip_hdr.params)
 				return false;

@@ -279,10 +279,10 @@ struct sctp_ipv4addr_param {
 };
 
 /* Section 3.3.2.1. IPv6 Address Parameter (6) */
-typedef struct sctp_ipv6addr_param {
+struct sctp_ipv6addr_param {
 	struct sctp_paramhdr param_hdr;
 	struct in6_addr addr;
-} sctp_ipv6addr_param_t;
+};
 
 /* Section 3.3.2.1 Cookie Preservative (9) */
 typedef struct sctp_cookie_preserve_param {
