@@ -734,6 +734,16 @@ error:
 	return ret;
 }
 
+static int ipmmu_of_xlate(struct device *dev,
+			  struct of_phandle_args *spec)
+{
+	/* Initialize once - xlate() will call multiple times */
+	if (to_priv(dev))
+		return 0;
+
+	return ipmmu_init_platform_device(dev);
+}
+
 #if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
 
 static struct iommu_domain *ipmmu_domain_alloc(unsigned type)
@@ -750,11 +760,11 @@ static int ipmmu_add_device(struct device *dev)
 	struct iommu_group *group;
 	int ret;
 
-	if (to_priv(dev)) {
-		dev_warn(dev, "IOMMU driver already assigned to device %s\n",
-			 dev_name(dev));
-		return -EINVAL;
-	}
+	/*
+	 * Only let through devices that have been verified in xlate()
+	 */
+	if (!to_priv(dev))
+		return -ENODEV;
 
 	/* Create a device group and add the device to it. */
 	group = iommu_group_alloc();
@@ -772,10 +782,6 @@ static int ipmmu_add_device(struct device *dev)
 		group = NULL;
 		goto error;
 	}
-
-	ret = ipmmu_init_platform_device(dev);
-	if (ret < 0)
-		goto error;
 
 	/*
 	 * Create the ARM mapping, used by the ARM DMA mapping core to allocate
@@ -817,24 +823,13 @@ error:
 	if (!IS_ERR_OR_NULL(group))
 		iommu_group_remove_device(dev);
 
-	kfree(to_priv(dev)->utlbs);
-	kfree(to_priv(dev));
-	set_priv(dev, NULL);
-
 	return ret;
 }
 
 static void ipmmu_remove_device(struct device *dev)
 {
-	struct ipmmu_vmsa_iommu_priv *priv = to_priv(dev);
-
 	arm_iommu_detach_device(dev);
 	iommu_group_remove_device(dev);
-
-	kfree(priv->utlbs);
-	kfree(priv);
-
-	set_priv(dev, NULL);
 }
 
 static const struct iommu_ops ipmmu_ops = {
@@ -849,6 +844,7 @@ static const struct iommu_ops ipmmu_ops = {
 	.add_device = ipmmu_add_device,
 	.remove_device = ipmmu_remove_device,
 	.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
+	.of_xlate = ipmmu_of_xlate,
 };
 
 #endif /* !CONFIG_ARM && CONFIG_IOMMU_DMA */
@@ -958,19 +954,6 @@ static struct iommu_group *ipmmu_find_group_dma(struct device *dev)
 	return group;
 }
 
-static int ipmmu_of_xlate_dma(struct device *dev,
-			      struct of_phandle_args *spec)
-{
-	/* If the IPMMU device is disabled in DT then return error
-	 * to make sure the of_iommu code does not install ops
-	 * even though the iommu device is disabled
-	 */
-	if (!of_device_is_available(spec->np))
-		return -ENODEV;
-
-	return ipmmu_init_platform_device(dev);
-}
-
 static const struct iommu_ops ipmmu_ops = {
 	.domain_alloc = ipmmu_domain_alloc_dma,
 	.domain_free = ipmmu_domain_free_dma,
@@ -984,7 +967,7 @@ static const struct iommu_ops ipmmu_ops = {
 	.remove_device = ipmmu_remove_device_dma,
 	.device_group = ipmmu_find_group_dma,
 	.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
-	.of_xlate = ipmmu_of_xlate_dma,
+	.of_xlate = ipmmu_of_xlate,
 };
 
 #endif /* CONFIG_IOMMU_DMA */
