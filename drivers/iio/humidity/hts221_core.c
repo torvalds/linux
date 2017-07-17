@@ -203,12 +203,6 @@ static int hts221_update_odr(struct hts221_hw *hw, u8 odr)
 	if (i == ARRAY_SIZE(hts221_odr_table))
 		return -EINVAL;
 
-	/* enable Block Data Update */
-	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
-				     HTS221_BDU_MASK, 1);
-	if (err < 0)
-		return err;
-
 	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
 				     HTS221_ODR_MASK, hts221_odr_table[i].val);
 	if (err < 0)
@@ -643,6 +637,12 @@ int hts221_probe(struct iio_dev *iio_dev)
 	iio_dev->num_channels = ARRAY_SIZE(hts221_channels);
 	iio_dev->name = HTS221_DEV_NAME;
 	iio_dev->info = &hts221_info;
+
+	/* enable Block Data Update */
+	err = hts221_write_with_mask(hw, HTS221_REG_CNTRL1_ADDR,
+				     HTS221_BDU_MASK, 1);
+	if (err < 0)
+		return err;
 
 	/* configure humidity sensor */
 	err = hts221_parse_rh_caldata(hw);
