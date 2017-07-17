@@ -1294,6 +1294,7 @@ config TPS6507X
 
 config MFD_TPS65086
 	tristate "TI TPS65086 Power Management Integrated Chips (PMICs)"
+	select MFD_CORE
 	select REGMAP
 	select REGMAP_IRQ
 	select REGMAP_I2C
