@@ -22,3 +22,9 @@ config DRM_DW_HDMI_I2S_AUDIO
 	help
 	  Support the I2S Audio interface which is part of the Synopsys
 	  Designware HDMI block.
+
+config DRM_DW_MIPI_DSI
+	tristate
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
