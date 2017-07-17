@@ -175,8 +175,6 @@ static int xfrm_dev_down(struct net_device *dev)
 	if (dev->features & NETIF_F_HW_ESP)
 		xfrm_dev_state_flush(dev_net(dev), dev, true);
 
-	xfrm_garbage_collect(dev_net(dev));
-
 	return NOTIFY_DONE;
 }
 
