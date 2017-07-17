@@ -104,7 +104,7 @@ static struct attribute *uuid_attrs[] = {
 	NULL
 };
 
-static struct attribute_group uuid_attribute_group = {
+static const struct attribute_group uuid_attribute_group = {
 	.attrs = uuid_attrs,
 	.name = "uuids"
 };
