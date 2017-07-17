@@ -95,16 +95,6 @@ endif # HAVE_SPHINX
 # The following targets are independent of HAVE_SPHINX, and the rules should
 # work or silently pass without Sphinx.
 
-# no-ops for the Sphinx toolchain
-sgmldocs:
-	@:
-psdocs:
-	@:
-mandocs:
-	@:
-installmandocs:
-	@:
-
 cleandocs:
 	$(Q)rm -rf $(BUILDDIR)
 	$(Q)$(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/media clean
