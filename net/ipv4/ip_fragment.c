@@ -312,7 +312,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	unsigned int sum_truesize = 0;
 
 	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
-		atomic_inc(&qp->q.refcnt);
+		refcount_inc(&qp->q.refcnt);
 		return -ETIMEDOUT;
 	}
 

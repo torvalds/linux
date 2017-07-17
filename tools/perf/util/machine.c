@@ -1209,10 +1209,12 @@ int machine__create_kernel_maps(struct machine *machine)
 	 */
 	map_groups__fixup_end(&machine->kmaps);
 
-	if (machine__get_running_kernel_start(machine, &name, &addr)) {
-	} else if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name, addr)) {
-		machine__destroy_kernel_maps(machine);
-		return -1;
+	if (!machine__get_running_kernel_start(machine, &name, &addr)) {
+		if (name &&
+		    maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name, addr)) {
+			machine__destroy_kernel_maps(machine);
+			return -1;
+		}
 	}
 
 	return 0;

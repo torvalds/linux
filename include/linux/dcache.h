@@ -55,6 +55,11 @@ struct qstr {
 
 #define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
 
+extern const char empty_string[];
+extern const struct qstr empty_name;
+extern const char slash_string[];
+extern const struct qstr slash_name;
+
 struct dentry_stat_t {
 	long nr_dentry;
 	long nr_unused;
@@ -591,5 +596,11 @@ static inline struct inode *d_real_inode(const struct dentry *dentry)
 	return d_backing_inode(d_real((struct dentry *) dentry, NULL, 0));
 }
 
+struct name_snapshot {
+	const unsigned char *name;
+	unsigned char inline_name[DNAME_INLINE_LEN];
+};
+void take_dentry_name_snapshot(struct name_snapshot *, struct dentry *);
+void release_dentry_name_snapshot(struct name_snapshot *);
 
 #endif	/* __LINUX_DCACHE_H */

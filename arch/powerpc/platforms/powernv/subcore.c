@@ -18,6 +18,7 @@
 #include <linux/stop_machine.h>
 
 #include <asm/cputhreads.h>
+#include <asm/cpuidle.h>
 #include <asm/kvm_ppc.h>
 #include <asm/machdep.h>
 #include <asm/opal.h>
@@ -182,7 +183,7 @@ static void unsplit_core(void)
 	cpu = smp_processor_id();
 	if (cpu_thread_in_core(cpu) != 0) {
 		while (mfspr(SPRN_HID0) & mask)
-			power7_nap(0);
+			power7_idle_insn(PNV_THREAD_NAP);
 
 		per_cpu(split_state, cpu).step = SYNC_STEP_UNSPLIT;
 		return;
@@ -348,7 +349,7 @@ static int set_subcores_per_core(int new_mode)
 		state->master = 0;
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	/* This cpu will update the globals before exiting stop machine */
 	this_cpu_ptr(&split_state)->master = 1;
@@ -356,9 +357,10 @@ static int set_subcores_per_core(int new_mode)
 	/* Ensure state is consistent before we call the other cpus */
 	mb();
 
-	stop_machine(cpu_update_split_mode, &new_mode, cpu_online_mask);
+	stop_machine_cpuslocked(cpu_update_split_mode, &new_mode,
+				cpu_online_mask);
 
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 }

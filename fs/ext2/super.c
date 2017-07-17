@@ -147,9 +147,9 @@ static void ext2_put_super (struct super_block * sb)
 
 	ext2_quota_off_umount(sb);
 
-	if (sbi->s_mb_cache) {
-		ext2_xattr_destroy_cache(sbi->s_mb_cache);
-		sbi->s_mb_cache = NULL;
+	if (sbi->s_ea_block_cache) {
+		ext2_xattr_destroy_cache(sbi->s_ea_block_cache);
+		sbi->s_ea_block_cache = NULL;
 	}
 	if (!(sb->s_flags & MS_RDONLY)) {
 		struct ext2_super_block *es = sbi->s_es;
@@ -1131,9 +1131,9 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 #ifdef CONFIG_EXT2_FS_XATTR
-	sbi->s_mb_cache = ext2_xattr_create_cache();
-	if (!sbi->s_mb_cache) {
-		ext2_msg(sb, KERN_ERR, "Failed to create an mb_cache");
+	sbi->s_ea_block_cache = ext2_xattr_create_cache();
+	if (!sbi->s_ea_block_cache) {
+		ext2_msg(sb, KERN_ERR, "Failed to create ea_block_cache");
 		goto failed_mount3;
 	}
 #endif
@@ -1182,8 +1182,8 @@ cantfind_ext2:
 			sb->s_id);
 	goto failed_mount;
 failed_mount3:
-	if (sbi->s_mb_cache)
-		ext2_xattr_destroy_cache(sbi->s_mb_cache);
+	if (sbi->s_ea_block_cache)
+		ext2_xattr_destroy_cache(sbi->s_ea_block_cache);
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);

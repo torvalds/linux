@@ -19,7 +19,6 @@
  * User space memory access functions
  */
 #include <linux/mm.h>
-#include <asm-generic/uaccess-unaligned.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 
@@ -327,7 +326,6 @@ extern unsigned long raw_copy_in_user(
 
 
 extern long strnlen_user(const char __user *str, long n);
-extern long strlen_user(const char __user *str);
 extern long strncpy_from_user(char *dst, const char __user *src, long);
 
 /**

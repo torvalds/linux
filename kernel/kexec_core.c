@@ -38,6 +38,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/compiler.h>
 #include <linux/hugetlb.h>
+#include <linux/frame.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -481,6 +482,40 @@ struct page *kimage_alloc_control_pages(struct kimage *image,
 	return pages;
 }
 
+int kimage_crash_copy_vmcoreinfo(struct kimage *image)
+{
+	struct page *vmcoreinfo_page;
+	void *safecopy;
+
+	if (image->type != KEXEC_TYPE_CRASH)
+		return 0;
+
+	/*
+	 * For kdump, allocate one vmcoreinfo safe copy from the
+	 * crash memory. as we have arch_kexec_protect_crashkres()
+	 * after kexec syscall, we naturally protect it from write
+	 * (even read) access under kernel direct mapping. But on
+	 * the other hand, we still need to operate it when crash
+	 * happens to generate vmcoreinfo note, hereby we rely on
+	 * vmap for this purpose.
+	 */
+	vmcoreinfo_page = kimage_alloc_control_pages(image, 0);
+	if (!vmcoreinfo_page) {
+		pr_warn("Could not allocate vmcoreinfo buffer\n");
+		return -ENOMEM;
+	}
+	safecopy = vmap(&vmcoreinfo_page, 1, VM_MAP, PAGE_KERNEL);
+	if (!safecopy) {
+		pr_warn("Could not vmap vmcoreinfo buffer\n");
+		return -ENOMEM;
+	}
+
+	image->vmcoreinfo_data_copy = safecopy;
+	crash_update_vmcoreinfo_safecopy(safecopy);
+
+	return 0;
+}
+
 static int kimage_add_entry(struct kimage *image, kimage_entry_t entry)
 {
 	if (*image->entry != 0)
@@ -567,6 +602,11 @@ void kimage_free(struct kimage *image)
 
 	if (!image)
 		return;
+
+	if (image->vmcoreinfo_data_copy) {
+		crash_update_vmcoreinfo_safecopy(NULL);
+		vunmap(image->vmcoreinfo_data_copy);
+	}
 
 	kimage_free_extra_pages(image);
 	for_each_kimage_entry(image, ptr, entry) {
@@ -874,7 +914,7 @@ int kexec_load_disabled;
  * only when panic_cpu holds the current CPU number; this is the only CPU
  * which processes crash_kexec routines.
  */
-void __crash_kexec(struct pt_regs *regs)
+void __noclone __crash_kexec(struct pt_regs *regs)
 {
 	/* Take the kexec_mutex here to prevent sys_kexec_load
 	 * running on one cpu from replacing the crash kernel
@@ -896,6 +936,7 @@ void __crash_kexec(struct pt_regs *regs)
 		mutex_unlock(&kexec_mutex);
 	}
 }
+STACK_FRAME_NON_STANDARD(__crash_kexec);
 
 void crash_kexec(struct pt_regs *regs)
 {

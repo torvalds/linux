@@ -114,6 +114,25 @@ xfs_inode_hasattr(
  * Overall external interface routines.
  *========================================================================*/
 
+/* Retrieve an extended attribute and its value.  Must have ilock. */
+int
+xfs_attr_get_ilocked(
+	struct xfs_inode	*ip,
+	struct xfs_da_args	*args)
+{
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+
+	if (!xfs_inode_hasattr(ip))
+		return -ENOATTR;
+	else if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
+		return xfs_attr_shortform_getvalue(args);
+	else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK))
+		return xfs_attr_leaf_get(args);
+	else
+		return xfs_attr_node_get(args);
+}
+
+/* Retrieve an extended attribute by name, and its value. */
 int
 xfs_attr_get(
 	struct xfs_inode	*ip,
@@ -141,14 +160,7 @@ xfs_attr_get(
 	args.op_flags = XFS_DA_OP_OKNOENT;
 
 	lock_mode = xfs_ilock_attr_map_shared(ip);
-	if (!xfs_inode_hasattr(ip))
-		error = -ENOATTR;
-	else if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
-		error = xfs_attr_shortform_getvalue(&args);
-	else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK))
-		error = xfs_attr_leaf_get(&args);
-	else
-		error = xfs_attr_node_get(&args);
+	error = xfs_attr_get_ilocked(ip, &args);
 	xfs_iunlock(ip, lock_mode);
 
 	*valuelenp = args.valuelen;

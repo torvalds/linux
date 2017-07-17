@@ -4,6 +4,36 @@
 
 #include "internals.h"
 
+/**
+ * irq_fixup_move_pending - Cleanup irq move pending from a dying CPU
+ * @desc:		Interrupt descpriptor to clean up
+ * @force_clear:	If set clear the move pending bit unconditionally.
+ *			If not set, clear it only when the dying CPU is the
+ *			last one in the pending mask.
+ *
+ * Returns true if the pending bit was set and the pending mask contains an
+ * online CPU other than the dying CPU.
+ */
+bool irq_fixup_move_pending(struct irq_desc *desc, bool force_clear)
+{
+	struct irq_data *data = irq_desc_get_irq_data(desc);
+
+	if (!irqd_is_setaffinity_pending(data))
+		return false;
+
+	/*
+	 * The outgoing CPU might be the last online target in a pending
+	 * interrupt move. If that's the case clear the pending move bit.
+	 */
+	if (cpumask_any_and(desc->pending_mask, cpu_online_mask) >= nr_cpu_ids) {
+		irqd_clr_move_pending(data);
+		return false;
+	}
+	if (force_clear)
+		irqd_clr_move_pending(data);
+	return true;
+}
+
 void irq_move_masked_irq(struct irq_data *idata)
 {
 	struct irq_desc *desc = irq_data_to_desc(idata);

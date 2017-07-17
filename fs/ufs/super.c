@@ -1210,6 +1210,15 @@ magic_found:
 
 	uspi->s_root_blocks = mul_u64_u32_div(uspi->s_dsize,
 					      uspi->s_minfree, 100);
+	if (uspi->s_minfree <= 5) {
+		uspi->s_time_to_space = ~0ULL;
+		uspi->s_space_to_time = 0;
+		usb1->fs_optim = cpu_to_fs32(sb, UFS_OPTSPACE);
+	} else {
+		uspi->s_time_to_space = (uspi->s_root_blocks / 2) + 1;
+		uspi->s_space_to_time = mul_u64_u32_div(uspi->s_dsize,
+					      uspi->s_minfree - 2, 100) - 1;
+	}
 
 	/*
 	 * Compute another frequently used values

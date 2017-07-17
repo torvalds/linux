@@ -59,7 +59,11 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 
 	ops = container_of(fops, struct klp_ops, fops);
 
-	rcu_read_lock();
+	/*
+	 * A variant of synchronize_sched() is used to allow patching functions
+	 * where RCU is not watching, see klp_synchronize_transition().
+	 */
+	preempt_disable_notrace();
 
 	func = list_first_or_null_rcu(&ops->func_stack, struct klp_func,
 				      stack_node);
@@ -115,7 +119,7 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 
 	klp_arch_set_pc(regs, (unsigned long)func->new_func);
 unlock:
-	rcu_read_unlock();
+	preempt_enable_notrace();
 }
 
 /*

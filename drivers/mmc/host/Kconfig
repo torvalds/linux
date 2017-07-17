@@ -408,11 +408,11 @@ config MMC_AU1X
 
 config MMC_ATMELMCI
 	tristate "Atmel SD/MMC Driver (Multimedia Card Interface)"
-	depends on AVR32 || ARCH_AT91
+	depends on ARCH_AT91
 	help
-	  This selects the Atmel Multimedia Card Interface driver. If
-	  you have an AT32 (AVR32) or AT91 platform with a Multimedia
-	  Card slot, say Y or M here.
+	  This selects the Atmel Multimedia Card Interface driver.
+	  If you have an AT91 platform with a Multimedia Card slot,
+	  say Y or M here.
 
 	  If unsure, say N.
 
@@ -571,13 +571,13 @@ config MMC_TMIO
 	  T7L66XB and also HTC ASIC3
 
 config MMC_SDHI
-	tristate "SH-Mobile SDHI SD/SDIO controller support"
+	tristate "Renesas SDHI SD/SDIO controller support"
 	depends on SUPERH || ARM || ARM64
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select MMC_TMIO_CORE
 	help
 	  This provides support for the SDHI SD/SDIO controller found in
-	  SuperH and ARM SH-Mobile SoCs
+	  Renesas SuperH, ARM and ARM64 based SoCs
 
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"

@@ -148,7 +148,7 @@ static unsigned int ttyport_set_baudrate(struct serdev_controller *ctrl, unsigne
 
 	/* tty_set_termios() return not checked as it is always 0 */
 	tty_set_termios(tty, &ktermios);
-	return speed;
+	return ktermios.c_ospeed;
 }
 
 static void ttyport_set_flow_control(struct serdev_controller *ctrl, bool enable)

@@ -89,4 +89,18 @@ config CORESIGHT_STM
 	  logging useful software events or data coming from various entities
 	  in the system, possibly running different OSs
 
+config CORESIGHT_CPU_DEBUG
+	tristate "CoreSight CPU Debug driver"
+	depends on ARM || ARM64
+	depends on DEBUG_FS
+	help
+	  This driver provides support for coresight debugging module. This
+	  is primarily used to dump sample-based profiling registers when
+	  system triggers panic, the driver will parse context registers so
+	  can quickly get to know program counter (PC), secure state,
+	  exception level, etc. Before use debugging functionality, platform
+	  needs to ensure the clock domain and power domain are enabled
+	  properly, please refer Documentation/trace/coresight-cpu-debug.txt
+	  for detailed description and the example for usage.
+
 endif

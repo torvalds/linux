@@ -63,8 +63,8 @@ static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)
 
 	skb_reserve(skb, NET_IP_ALIGN);
 
-	ethh = (struct ethhdr *)skb_put(skb, sizeof(struct ethhdr));
-	packet	= (unsigned char *)skb_put(skb, packet_size);
+	ethh = skb_put(skb, sizeof(struct ethhdr));
+	packet = skb_put(skb, packet_size);
 	memcpy(ethh->h_dest, priv->dev->dev_addr, ETH_ALEN);
 	eth_zero_addr(ethh->h_source);
 	ethh->h_proto = htons(ETH_P_ARP);

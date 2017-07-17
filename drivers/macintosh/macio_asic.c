@@ -133,7 +133,7 @@ static int macio_device_resume(struct device * dev)
 	return 0;
 }
 
-extern struct device_attribute macio_dev_attrs[];
+extern const struct attribute_group *macio_dev_groups[];
 
 struct bus_type macio_bus_type = {
        .name	= "macio",
@@ -144,7 +144,7 @@ struct bus_type macio_bus_type = {
        .shutdown = macio_device_shutdown,
        .suspend	= macio_device_suspend,
        .resume	= macio_device_resume,
-       .dev_attrs = macio_dev_attrs,
+       .dev_groups = macio_dev_groups,
 };
 
 static int __init macio_bus_driver_init(void)

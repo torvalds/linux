@@ -181,10 +181,6 @@ error:
 static int host1x_channel_init(struct host1x_channel *ch, struct host1x *dev,
 			       unsigned int index)
 {
-	ch->id = index;
-	mutex_init(&ch->reflock);
-	mutex_init(&ch->submitlock);
-
 	ch->regs = dev->regs + index * HOST1X_CHANNEL_SIZE;
 	return 0;
 }

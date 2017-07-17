@@ -42,7 +42,7 @@ void mtk_ecc_get_stats(struct mtk_ecc *, struct mtk_ecc_stats *, int);
 int mtk_ecc_wait_done(struct mtk_ecc *, enum mtk_ecc_operation);
 int mtk_ecc_enable(struct mtk_ecc *, struct mtk_ecc_config *);
 void mtk_ecc_disable(struct mtk_ecc *);
-void mtk_ecc_adjust_strength(u32 *);
+void mtk_ecc_adjust_strength(struct mtk_ecc *ecc, u32 *p);
 
 struct mtk_ecc *of_mtk_ecc_get(struct device_node *);
 void mtk_ecc_release(struct mtk_ecc *);

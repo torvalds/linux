@@ -54,12 +54,19 @@ static const struct mfd_cell ec_pd_cell = {
 static irqreturn_t ec_irq_thread(int irq, void *data)
 {
 	struct cros_ec_device *ec_dev = data;
+	bool wake_event = true;
 	int ret;
 
-	if (device_may_wakeup(ec_dev->dev))
+	ret = cros_ec_get_next_event(ec_dev, &wake_event);
+
+	/*
+	 * Signal only if wake host events or any interrupt if
+	 * cros_ec_get_next_event() returned an error (default value for
+	 * wake_event is true)
+	 */
+	if (wake_event && device_may_wakeup(ec_dev->dev))
 		pm_wakeup_event(ec_dev->dev, 0);
 
-	ret = cros_ec_get_next_event(ec_dev);
 	if (ret > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     0, ec_dev);
@@ -147,7 +154,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	}
 
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
-		err = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		err = devm_of_platform_populate(dev);
 		if (err) {
 			mfd_remove_devices(dev);
 			dev_err(dev, "Failed to register sub-devices\n");
@@ -182,6 +189,9 @@ int cros_ec_remove(struct cros_ec_device *ec_dev)
 	mfd_remove_devices(ec_dev->dev);
 
 	cros_ec_acpi_remove_gpe_handler();
+
+	if (ec_dev->irq)
+		free_irq(ec_dev->irq, ec_dev);
 
 	return 0;
 }
@@ -221,7 +231,7 @@ EXPORT_SYMBOL(cros_ec_suspend);
 
 static void cros_ec_drain_events(struct cros_ec_device *ec_dev)
 {
-	while (cros_ec_get_next_event(ec_dev) > 0)
+	while (cros_ec_get_next_event(ec_dev, NULL) > 0)
 		blocking_notifier_call_chain(&ec_dev->event_notifier,
 					     1, ec_dev);
 }

@@ -89,9 +89,9 @@ void opa_vnic_get_summary_counters(struct opa_vnic_adapter *adapter,
 	u64 *src;
 
 	memset(&vstats, 0, sizeof(vstats));
-	mutex_lock(&adapter->stats_lock);
+	spin_lock(&adapter->stats_lock);
 	adapter->rn_ops->ndo_get_stats64(adapter->netdev, &vstats.netstats);
-	mutex_unlock(&adapter->stats_lock);
+	spin_unlock(&adapter->stats_lock);
 
 	cntrs->vp_instance = cpu_to_be16(adapter->vport_num);
 	cntrs->vesw_id = cpu_to_be16(adapter->info.vesw.vesw_id);
@@ -128,9 +128,9 @@ void opa_vnic_get_error_counters(struct opa_vnic_adapter *adapter,
 	struct opa_vnic_stats vstats;
 
 	memset(&vstats, 0, sizeof(vstats));
-	mutex_lock(&adapter->stats_lock);
+	spin_lock(&adapter->stats_lock);
 	adapter->rn_ops->ndo_get_stats64(adapter->netdev, &vstats.netstats);
-	mutex_unlock(&adapter->stats_lock);
+	spin_unlock(&adapter->stats_lock);
 
 	cntrs->vp_instance = cpu_to_be16(adapter->vport_num);
 	cntrs->vesw_id = cpu_to_be16(adapter->info.vesw.vesw_id);

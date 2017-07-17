@@ -144,6 +144,15 @@ typedef struct _ATOM_Vega10_GFXCLK_Dependency_Record {
 	USHORT usAVFSOffset;                                        /* AVFS Voltage offset */
 } ATOM_Vega10_GFXCLK_Dependency_Record;
 
+typedef struct _ATOM_Vega10_GFXCLK_Dependency_Record_V2 {
+	ULONG  ulClk;
+	UCHAR  ucVddInd;
+	USHORT usCKSVOffsetandDisable;
+	USHORT usAVFSOffset;
+	UCHAR  ucACGEnable;
+	UCHAR  ucReserved[3];
+} ATOM_Vega10_GFXCLK_Dependency_Record_V2;
+
 typedef struct _ATOM_Vega10_MCLK_Dependency_Record {
 	ULONG  ulMemClk;                                            /* Clock Frequency */
 	UCHAR  ucVddInd;                                            /* SOC_VDD index */
@@ -354,6 +363,37 @@ typedef struct _ATOM_Vega10_PowerTune_Table_V2
 	UCHAR ucPlx_I2C_Line;
 	USHORT usTemperatureLimitTedge;
 } ATOM_Vega10_PowerTune_Table_V2;
+
+typedef struct _ATOM_Vega10_PowerTune_Table_V3
+{
+	UCHAR  ucRevId;
+	USHORT usSocketPowerLimit;
+	USHORT usBatteryPowerLimit;
+	USHORT usSmallPowerLimit;
+	USHORT usTdcLimit;
+	USHORT usEdcLimit;
+	USHORT usSoftwareShutdownTemp;
+	USHORT usTemperatureLimitHotSpot;
+	USHORT usTemperatureLimitLiquid1;
+	USHORT usTemperatureLimitLiquid2;
+	USHORT usTemperatureLimitHBM;
+	USHORT usTemperatureLimitVrSoc;
+	USHORT usTemperatureLimitVrMem;
+	USHORT usTemperatureLimitPlx;
+	USHORT usLoadLineResistance;
+	UCHAR  ucLiquid1_I2C_address;
+	UCHAR  ucLiquid2_I2C_address;
+	UCHAR  ucLiquid_I2C_Line;
+	UCHAR  ucVr_I2C_address;
+	UCHAR  ucVr_I2C_Line;
+	UCHAR  ucPlx_I2C_address;
+	UCHAR  ucPlx_I2C_Line;
+	USHORT usTemperatureLimitTedge;
+	USHORT usBoostStartTemperature;
+	USHORT usBoostStopTemperature;
+	ULONG  ulBoostClock;
+	ULONG  Reserved[2];
+} ATOM_Vega10_PowerTune_Table_V3;
 
 typedef struct _ATOM_Vega10_Hard_Limit_Record {
     ULONG  ulSOCCLKLimit;

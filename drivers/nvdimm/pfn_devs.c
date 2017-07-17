@@ -331,7 +331,7 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 	struct nd_pfn *nd_pfn;
 	struct device *dev;
 
-	if (!is_nd_pmem(&nd_region->dev))
+	if (!is_memory(&nd_region->dev))
 		return NULL;
 
 	nd_pfn = nd_pfn_alloc(nd_region);
@@ -354,7 +354,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	if (!pfn_sb || !ndns)
 		return -ENODEV;
 
-	if (!is_nd_pmem(nd_pfn->dev.parent))
+	if (!is_memory(nd_pfn->dev.parent))
 		return -ENODEV;
 
 	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0))
@@ -470,6 +470,14 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 
 	if (ndns->force_raw)
 		return -ENODEV;
+
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_PFN:
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	nvdimm_bus_lock(&ndns->dev);
 	nd_pfn = nd_pfn_alloc(nd_region);

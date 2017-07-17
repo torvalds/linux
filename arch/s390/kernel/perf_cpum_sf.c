@@ -995,11 +995,11 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	regs.int_parm = CPU_MF_INT_SF_PRA;
 	sde_regs = (struct perf_sf_sde_regs *) &regs.int_parm_long;
 
-	psw_bits(regs.psw).ia = sfr->basic.ia;
-	psw_bits(regs.psw).t  = sfr->basic.T;
-	psw_bits(regs.psw).w  = sfr->basic.W;
-	psw_bits(regs.psw).p  = sfr->basic.P;
-	psw_bits(regs.psw).as = sfr->basic.AS;
+	psw_bits(regs.psw).ia	= sfr->basic.ia;
+	psw_bits(regs.psw).dat	= sfr->basic.T;
+	psw_bits(regs.psw).wait = sfr->basic.W;
+	psw_bits(regs.psw).per	= sfr->basic.P;
+	psw_bits(regs.psw).as	= sfr->basic.AS;
 
 	/*
 	 * Use the hardware provided configuration level to decide if the

@@ -1229,9 +1229,9 @@ void one_flush_endio(struct bio *bio)
 	struct drbd_device *device = octx->device;
 	struct issue_flush_context *ctx = octx->ctx;
 
-	if (bio->bi_error) {
-		ctx->error = bio->bi_error;
-		drbd_info(device, "local disk FLUSH FAILED with status %d\n", bio->bi_error);
+	if (bio->bi_status) {
+		ctx->error = blk_status_to_errno(bio->bi_status);
+		drbd_info(device, "local disk FLUSH FAILED with status %d\n", bio->bi_status);
 	}
 	kfree(octx);
 	bio_put(bio);

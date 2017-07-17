@@ -74,18 +74,6 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore(&ff->lock, flags);
 }
 
-static struct snd_rawmidi_ops midi_capture_ops = {
-	.open		= midi_capture_open,
-	.close		= midi_capture_close,
-	.trigger	= midi_capture_trigger,
-};
-
-static struct snd_rawmidi_ops midi_playback_ops = {
-	.open		= midi_playback_open,
-	.close		= midi_playback_close,
-	.trigger	= midi_playback_trigger,
-};
-
 static void set_midi_substream_names(struct snd_rawmidi_str *stream,
 				     const char *const name)
 {
@@ -99,6 +87,16 @@ static void set_midi_substream_names(struct snd_rawmidi_str *stream,
 
 int snd_ff_create_midi_devices(struct snd_ff *ff)
 {
+	static const struct snd_rawmidi_ops midi_capture_ops = {
+		.open		= midi_capture_open,
+		.close		= midi_capture_close,
+		.trigger	= midi_capture_trigger,
+	};
+	static const struct snd_rawmidi_ops midi_playback_ops = {
+		.open		= midi_playback_open,
+		.close		= midi_playback_close,
+		.trigger	= midi_playback_trigger,
+	};
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *stream;
 	int err;

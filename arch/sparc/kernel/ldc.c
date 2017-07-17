@@ -34,7 +34,6 @@
 
 static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
-#define LDC_PACKET_SIZE		64
 
 /* Packet header layout for unreliable and reliable mode frames.
  * When in RAW mode, packets are simply straight 64-byte payloads
@@ -178,6 +177,8 @@ do {	if (lp->cfg.debug & LDC_DEBUG_##TYPE) \
 		printk(KERN_INFO PFX "ID[%lu] " f, lp->id, ## a); \
 } while (0)
 
+#define	LDC_ABORT(lp)	ldc_abort((lp), __func__)
+
 static const char *state_to_str(u8 state)
 {
 	switch (state) {
@@ -194,15 +195,6 @@ static const char *state_to_str(u8 state)
 	default:
 		return "<UNKNOWN>";
 	}
-}
-
-static void ldc_set_state(struct ldc_channel *lp, u8 state)
-{
-	ldcdbg(STATE, "STATE (%s) --> (%s)\n",
-	       state_to_str(lp->state),
-	       state_to_str(state));
-
-	lp->state = state;
 }
 
 static unsigned long __advance(unsigned long off, unsigned long num_entries)
@@ -516,11 +508,12 @@ static int send_data_nack(struct ldc_channel *lp, struct ldc_packet *data_pkt)
 	return err;
 }
 
-static int ldc_abort(struct ldc_channel *lp)
+static int ldc_abort(struct ldc_channel *lp, const char *msg)
 {
 	unsigned long hv_err;
 
-	ldcdbg(STATE, "ABORT\n");
+	ldcdbg(STATE, "ABORT[%s]\n", msg);
+	ldc_print(lp);
 
 	/* We report but do not act upon the hypervisor errors because
 	 * there really isn't much we can do if they fail at this point.
@@ -605,7 +598,7 @@ static int process_ver_info(struct ldc_channel *lp, struct ldc_version *vp)
 		}
 	}
 	if (err)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	return 0;
 }
@@ -618,13 +611,13 @@ static int process_ver_ack(struct ldc_channel *lp, struct ldc_version *vp)
 	if (lp->hs_state == LDC_HS_GOTVERS) {
 		if (lp->ver.major != vp->major ||
 		    lp->ver.minor != vp->minor)
-			return ldc_abort(lp);
+			return LDC_ABORT(lp);
 	} else {
 		lp->ver = *vp;
 		lp->hs_state = LDC_HS_GOTVERS;
 	}
 	if (send_rts(lp))
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 	return 0;
 }
 
@@ -635,17 +628,17 @@ static int process_ver_nack(struct ldc_channel *lp, struct ldc_version *vp)
 	unsigned long new_tail;
 
 	if (vp->major == 0 && vp->minor == 0)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	vap = find_by_major(vp->major);
 	if (!vap)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	p = handshake_compose_ctrl(lp, LDC_INFO, LDC_VERS,
 					   vap, sizeof(*vap),
 					   &new_tail);
 	if (!p)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	return send_tx_packet(lp, p, new_tail);
 }
@@ -668,7 +661,7 @@ static int process_version(struct ldc_channel *lp,
 		return process_ver_nack(lp, vp);
 
 	default:
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 	}
 }
 
@@ -681,13 +674,13 @@ static int process_rts(struct ldc_channel *lp,
 	if (p->stype     != LDC_INFO	   ||
 	    lp->hs_state != LDC_HS_GOTVERS ||
 	    p->env       != lp->cfg.mode)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	lp->snd_nxt = p->seqid;
 	lp->rcv_nxt = p->seqid;
 	lp->hs_state = LDC_HS_SENTRTR;
 	if (send_rtr(lp))
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	return 0;
 }
@@ -700,7 +693,7 @@ static int process_rtr(struct ldc_channel *lp,
 
 	if (p->stype     != LDC_INFO ||
 	    p->env       != lp->cfg.mode)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	lp->snd_nxt = p->seqid;
 	lp->hs_state = LDC_HS_COMPLETE;
@@ -723,7 +716,7 @@ static int process_rdx(struct ldc_channel *lp,
 
 	if (p->stype != LDC_INFO ||
 	    !(rx_seq_ok(lp, p->seqid)))
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	lp->rcv_nxt = p->seqid;
 
@@ -750,14 +743,14 @@ static int process_control_frame(struct ldc_channel *lp,
 		return process_rdx(lp, p);
 
 	default:
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 	}
 }
 
 static int process_error_frame(struct ldc_channel *lp,
 			       struct ldc_packet *p)
 {
-	return ldc_abort(lp);
+	return LDC_ABORT(lp);
 }
 
 static int process_data_ack(struct ldc_channel *lp,
@@ -776,7 +769,7 @@ static int process_data_ack(struct ldc_channel *lp,
 			return 0;
 		}
 		if (head == lp->tx_tail)
-			return ldc_abort(lp);
+			return LDC_ABORT(lp);
 	}
 
 	return 0;
@@ -820,16 +813,21 @@ static irqreturn_t ldc_rx(int irq, void *dev_id)
 		lp->hs_state = LDC_HS_COMPLETE;
 		ldc_set_state(lp, LDC_STATE_CONNECTED);
 
-		event_mask |= LDC_EVENT_UP;
-
-		orig_state = lp->chan_state;
+		/*
+		 * Generate an LDC_EVENT_UP event if the channel
+		 * was not already up.
+		 */
+		if (orig_state != LDC_CHANNEL_UP) {
+			event_mask |= LDC_EVENT_UP;
+			orig_state = lp->chan_state;
+		}
 	}
 
 	/* If we are in reset state, flush the RX queue and ignore
 	 * everything.
 	 */
 	if (lp->flags & LDC_FLAG_RESET) {
-		(void) __set_rx_head(lp, lp->rx_tail);
+		(void) ldc_rx_reset(lp);
 		goto out;
 	}
 
@@ -880,7 +878,7 @@ handshake_complete:
 			break;
 
 		default:
-			err = ldc_abort(lp);
+			err = LDC_ABORT(lp);
 			break;
 		}
 
@@ -895,7 +893,7 @@ handshake_complete:
 
 		err = __set_rx_head(lp, new);
 		if (err < 0) {
-			(void) ldc_abort(lp);
+			(void) LDC_ABORT(lp);
 			break;
 		}
 		if (lp->hs_state == LDC_HS_COMPLETE)
@@ -936,7 +934,14 @@ static irqreturn_t ldc_tx(int irq, void *dev_id)
 		lp->hs_state = LDC_HS_COMPLETE;
 		ldc_set_state(lp, LDC_STATE_CONNECTED);
 
-		event_mask |= LDC_EVENT_UP;
+		/*
+		 * Generate an LDC_EVENT_UP event if the channel
+		 * was not already up.
+		 */
+		if (orig_state != LDC_CHANNEL_UP) {
+			event_mask |= LDC_EVENT_UP;
+			orig_state = lp->chan_state;
+		}
 	}
 
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -1342,6 +1347,14 @@ int ldc_bind(struct ldc_channel *lp)
 	lp->hs_state = LDC_HS_OPEN;
 	ldc_set_state(lp, LDC_STATE_BOUND);
 
+	if (lp->cfg.mode == LDC_MODE_RAW) {
+		/*
+		 * There is no handshake in RAW mode, so handshake
+		 * is completed.
+		 */
+		lp->hs_state = LDC_HS_COMPLETE;
+	}
+
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	return 0;
@@ -1447,11 +1460,53 @@ int ldc_state(struct ldc_channel *lp)
 }
 EXPORT_SYMBOL(ldc_state);
 
+void ldc_set_state(struct ldc_channel *lp, u8 state)
+{
+	ldcdbg(STATE, "STATE (%s) --> (%s)\n",
+	       state_to_str(lp->state),
+	       state_to_str(state));
+
+	lp->state = state;
+}
+EXPORT_SYMBOL(ldc_set_state);
+
+int ldc_mode(struct ldc_channel *lp)
+{
+	return lp->cfg.mode;
+}
+EXPORT_SYMBOL(ldc_mode);
+
+int ldc_rx_reset(struct ldc_channel *lp)
+{
+	return __set_rx_head(lp, lp->rx_tail);
+}
+
+void __ldc_print(struct ldc_channel *lp, const char *caller)
+{
+	pr_info("%s: id=0x%lx flags=0x%x state=%s cstate=0x%lx hsstate=0x%x\n"
+		"\trx_h=0x%lx rx_t=0x%lx rx_n=%ld\n"
+		"\ttx_h=0x%lx tx_t=0x%lx tx_n=%ld\n"
+		"\trcv_nxt=%u snd_nxt=%u\n",
+		caller, lp->id, lp->flags, state_to_str(lp->state),
+		lp->chan_state, lp->hs_state,
+		lp->rx_head, lp->rx_tail, lp->rx_num_entries,
+		lp->tx_head, lp->tx_tail, lp->tx_num_entries,
+		lp->rcv_nxt, lp->snd_nxt);
+}
+
 static int write_raw(struct ldc_channel *lp, const void *buf, unsigned int size)
 {
 	struct ldc_packet *p;
-	unsigned long new_tail;
+	unsigned long new_tail, hv_err;
 	int err;
+
+	hv_err = sun4v_ldc_tx_get_state(lp->id, &lp->tx_head, &lp->tx_tail,
+					&lp->chan_state);
+	if (unlikely(hv_err))
+		return -EBUSY;
+
+	if (unlikely(lp->chan_state != LDC_CHANNEL_UP))
+		return LDC_ABORT(lp);
 
 	if (size > LDC_PACKET_SIZE)
 		return -EMSGSIZE;
@@ -1483,7 +1538,7 @@ static int read_raw(struct ldc_channel *lp, void *buf, unsigned int size)
 					&lp->rx_tail,
 					&lp->chan_state);
 	if (hv_err)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	if (lp->chan_state == LDC_CHANNEL_DOWN ||
 	    lp->chan_state == LDC_CHANNEL_RESETTING)
@@ -1526,7 +1581,7 @@ static int write_nonraw(struct ldc_channel *lp, const void *buf,
 		return -EBUSY;
 
 	if (unlikely(lp->chan_state != LDC_CHANNEL_UP))
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	if (!tx_has_space_for(lp, size))
 		return -EAGAIN;
@@ -1592,9 +1647,9 @@ static int rx_bad_seq(struct ldc_channel *lp, struct ldc_packet *p,
 	if (err)
 		return err;
 
-	err = __set_rx_head(lp, lp->rx_tail);
+	err = ldc_rx_reset(lp);
 	if (err < 0)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	return 0;
 }
@@ -1607,7 +1662,7 @@ static int data_ack_nack(struct ldc_channel *lp, struct ldc_packet *p)
 			return err;
 	}
 	if (p->stype & LDC_NACK)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	return 0;
 }
@@ -1627,7 +1682,7 @@ static int rx_data_wait(struct ldc_channel *lp, unsigned long cur_head)
 						&lp->rx_tail,
 						&lp->chan_state);
 		if (hv_err)
-			return ldc_abort(lp);
+			return LDC_ABORT(lp);
 
 		if (lp->chan_state == LDC_CHANNEL_DOWN ||
 		    lp->chan_state == LDC_CHANNEL_RESETTING)
@@ -1650,7 +1705,7 @@ static int rx_set_head(struct ldc_channel *lp, unsigned long head)
 	int err = __set_rx_head(lp, head);
 
 	if (err < 0)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	lp->rx_head = head;
 	return 0;
@@ -1689,7 +1744,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 					&lp->rx_tail,
 					&lp->chan_state);
 	if (hv_err)
-		return ldc_abort(lp);
+		return LDC_ABORT(lp);
 
 	if (lp->chan_state == LDC_CHANNEL_DOWN ||
 	    lp->chan_state == LDC_CHANNEL_RESETTING)
@@ -1733,9 +1788,14 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 
 		lp->rcv_nxt = p->seqid;
 
+		/*
+		 * If this is a control-only packet, there is nothing
+		 * else to do but advance the rx queue since the packet
+		 * was already processed above.
+		 */
 		if (!(p->type & LDC_DATA)) {
 			new = rx_advance(lp, new);
-			goto no_data;
+			break;
 		}
 		if (p->stype & (LDC_ACK | LDC_NACK)) {
 			err = data_ack_nack(lp, p);
@@ -1900,6 +1960,8 @@ int ldc_read(struct ldc_channel *lp, void *buf, unsigned int size)
 	unsigned long flags;
 	int err;
 
+	ldcdbg(RX, "%s: entered size=%d\n", __func__, size);
+
 	if (!buf)
 		return -EINVAL;
 
@@ -1914,6 +1976,9 @@ int ldc_read(struct ldc_channel *lp, void *buf, unsigned int size)
 		err = lp->mops->read(lp, buf, size);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
+
+	ldcdbg(RX, "%s: mode=%d, head=%lu, tail=%lu rv=%d\n", __func__,
+	       lp->cfg.mode, lp->rx_head, lp->rx_tail, err);
 
 	return err;
 }

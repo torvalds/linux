@@ -269,6 +269,7 @@ struct atmel_spi_caps {
 	bool	is_spi2;
 	bool	has_wdrbt;
 	bool	has_dma_support;
+	bool	has_pdc_support;
 };
 
 /*
@@ -1422,11 +1423,31 @@ static void atmel_get_caps(struct atmel_spi *as)
 	unsigned int version;
 
 	version = atmel_get_version(as);
-	dev_info(&as->pdev->dev, "version: 0x%x\n", version);
 
 	as->caps.is_spi2 = version > 0x121;
 	as->caps.has_wdrbt = version >= 0x210;
+#ifdef CONFIG_SOC_SAM_V4_V5
+	/*
+	 * Atmel SoCs based on ARM9 (SAM9x) cores should not use spi_map_buf()
+	 * since this later function tries to map buffers with dma_map_sg()
+	 * even if they have not been allocated inside DMA-safe areas.
+	 * On SoCs based on Cortex A5 (SAMA5Dx), it works anyway because for
+	 * those ARM cores, the data cache follows the PIPT model.
+	 * Also the L2 cache controller of SAMA5D2 uses the PIPT model too.
+	 * In case of PIPT caches, there cannot be cache aliases.
+	 * However on ARM9 cores, the data cache follows the VIVT model, hence
+	 * the cache aliases issue can occur when buffers are allocated from
+	 * DMA-unsafe areas, by vmalloc() for instance, where cache coherency is
+	 * not taken into account or at least not handled completely (cache
+	 * lines of aliases are not invalidated).
+	 * This is not a theorical issue: it was reproduced when trying to mount
+	 * a UBI file-system on a at91sam9g35ek board.
+	 */
+	as->caps.has_dma_support = false;
+#else
 	as->caps.has_dma_support = version >= 0x212;
+#endif
+	as->caps.has_pdc_support = version < 0x212;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1567,7 +1588,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		} else if (ret == -EPROBE_DEFER) {
 			return ret;
 		}
-	} else {
+	} else if (as->caps.has_pdc_support) {
 		as->use_pdc = true;
 	}
 
@@ -1609,8 +1630,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		goto out_free_dma;
 
 	/* go! */
-	dev_info(&pdev->dev, "Atmel SPI Controller at 0x%08lx (irq %d)\n",
-			(unsigned long)regs->start, irq);
+	dev_info(&pdev->dev, "Atmel SPI Controller version 0x%x at 0x%08lx (irq %d)\n",
+			atmel_get_version(as), (unsigned long)regs->start,
+			irq);
 
 	return 0;
 

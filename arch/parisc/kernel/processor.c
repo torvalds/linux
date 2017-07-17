@@ -94,7 +94,7 @@ static int processor_probe(struct parisc_device *dev)
 	unsigned long txn_addr;
 	unsigned long cpuid;
 	struct cpuinfo_parisc *p;
-	struct pdc_pat_cpu_num cpu_info __maybe_unused;
+	struct pdc_pat_cpu_num cpu_info = { };
 
 #ifdef CONFIG_SMP
 	if (num_online_cpus() >= nr_cpu_ids) {
@@ -113,6 +113,7 @@ static int processor_probe(struct parisc_device *dev)
 	 */
 	cpuid = boot_cpu_data.cpu_count;
 	txn_addr = dev->hpa.start;	/* for legacy PDC */
+	cpu_info.cpu_num = cpu_info.cpu_loc = cpuid;
 
 #ifdef CONFIG_64BIT
 	if (is_pdc_pat()) {
@@ -180,6 +181,8 @@ static int processor_probe(struct parisc_device *dev)
 	p->hpa = dev->hpa.start;	/* save CPU hpa */
 	p->cpuid = cpuid;	/* save CPU id */
 	p->txn_addr = txn_addr;	/* save CPU IRQ address */
+	p->cpu_num = cpu_info.cpu_num;
+	p->cpu_loc = cpu_info.cpu_loc;
 #ifdef CONFIG_SMP
 	/*
 	** FIXME: review if any other initialization is clobbered

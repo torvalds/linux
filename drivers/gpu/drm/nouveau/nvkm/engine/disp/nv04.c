@@ -22,25 +22,12 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "head.h"
 
 static const struct nvkm_disp_oclass *
 nv04_disp_root(struct nvkm_disp *disp)
 {
 	return &nv04_disp_root_oclass;
-}
-
-static void
-nv04_disp_vblank_init(struct nvkm_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->engine.subdev.device;
-	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000001);
-}
-
-static void
-nv04_disp_vblank_fini(struct nvkm_disp *disp, int head)
-{
-	struct nvkm_device *device = disp->engine.subdev.device;
-	nvkm_wr32(device, 0x600140 + (head * 0x2000) , 0x00000000);
 }
 
 static void
@@ -74,12 +61,22 @@ static const struct nvkm_disp_func
 nv04_disp = {
 	.intr = nv04_disp_intr,
 	.root = nv04_disp_root,
-	.head.vblank_init = nv04_disp_vblank_init,
-	.head.vblank_fini = nv04_disp_vblank_fini,
 };
 
 int
 nv04_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nvkm_disp_new_(&nv04_disp, device, index, 2, pdisp);
+	int ret, i;
+
+	ret = nvkm_disp_new_(&nv04_disp, device, index, pdisp);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < 2; i++) {
+		ret = nv04_head_new(*pdisp, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }

@@ -249,13 +249,8 @@ void udp_destruct_sock(struct sock *sk);
 void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);
 int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb);
 void udp_skb_destructor(struct sock *sk, struct sk_buff *skb);
-static inline struct sk_buff *
-__skb_recv_udp(struct sock *sk, unsigned int flags, int noblock, int *peeked,
-	       int *off, int *err)
-{
-	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				   udp_skb_destructor, peeked, off, err);
-}
+struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
+			       int noblock, int *peeked, int *off, int *err);
 static inline struct sk_buff *skb_recv_udp(struct sock *sk, unsigned int flags,
 					   int noblock, int *err)
 {
@@ -306,6 +301,67 @@ struct sock *__udp6_lib_lookup(struct net *net,
 			       struct sk_buff *skb);
 struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
 				 __be16 sport, __be16 dport);
+
+/* UDP uses skb->dev_scratch to cache as much information as possible and avoid
+ * possibly multiple cache miss on dequeue()
+ */
+#if BITS_PER_LONG == 64
+
+/* truesize, len and the bit needed to compute skb_csum_unnecessary will be on
+ * cold cache lines at recvmsg time.
+ * skb->len can be stored on 16 bits since the udp header has been already
+ * validated and pulled.
+ */
+struct udp_dev_scratch {
+	u32 truesize;
+	u16 len;
+	bool is_linear;
+	bool csum_unnecessary;
+};
+
+static inline unsigned int udp_skb_len(struct sk_buff *skb)
+{
+	return ((struct udp_dev_scratch *)&skb->dev_scratch)->len;
+}
+
+static inline bool udp_skb_csum_unnecessary(struct sk_buff *skb)
+{
+	return ((struct udp_dev_scratch *)&skb->dev_scratch)->csum_unnecessary;
+}
+
+static inline bool udp_skb_is_linear(struct sk_buff *skb)
+{
+	return ((struct udp_dev_scratch *)&skb->dev_scratch)->is_linear;
+}
+
+#else
+static inline unsigned int udp_skb_len(struct sk_buff *skb)
+{
+	return skb->len;
+}
+
+static inline bool udp_skb_csum_unnecessary(struct sk_buff *skb)
+{
+	return skb_csum_unnecessary(skb);
+}
+
+static inline bool udp_skb_is_linear(struct sk_buff *skb)
+{
+	return !skb_is_nonlinear(skb);
+}
+#endif
+
+static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
+				  struct iov_iter *to)
+{
+	int n, copy = len - off;
+
+	n = copy_to_iter(skb->data + off, copy, to);
+	if (n == copy)
+		return 0;
+
+	return -EFAULT;
+}
 
 /*
  * 	SNMP statistics for UDP and UDP-Lite

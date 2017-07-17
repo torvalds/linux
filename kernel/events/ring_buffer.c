@@ -580,7 +580,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 	int ret = -ENOMEM, max_order = 0;
 
 	if (!has_aux(event))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (event->pmu->capabilities & PERF_PMU_CAP_AUX_NO_SG) {
 		/*

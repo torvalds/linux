@@ -135,7 +135,6 @@ struct qed_tid_seg {
 
 struct qed_conn_type_cfg {
 	u32 cid_count;
-	u32 cid_start;
 	u32 cids_per_vf;
 	struct qed_tid_seg tid_seg[TASK_SEGMENTS];
 };
@@ -222,6 +221,9 @@ struct qed_cxt_mngr {
 	/* Acquired CIDs */
 	struct qed_cid_acquired_map	acquired[MAX_CONN_TYPES];
 
+	struct qed_cid_acquired_map
+	acquired_vf[MAX_CONN_TYPES][MAX_NUM_VFS];
+
 	/* ILT  shadow table */
 	struct qed_dma_mem		*ilt_shadow;
 	u32				pf_start_line;
@@ -244,14 +246,16 @@ struct qed_cxt_mngr {
 static bool src_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
-	       type == PROTOCOLID_FCOE;
+	       type == PROTOCOLID_FCOE ||
+	       type == PROTOCOLID_IWARP;
 }
 
 static bool tm_cid_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
 	       type == PROTOCOLID_FCOE ||
-	       type == PROTOCOLID_ROCE;
+	       type == PROTOCOLID_ROCE ||
+	       type == PROTOCOLID_IWARP;
 }
 
 static bool tm_tid_proto(enum protocol_type type)
@@ -851,7 +855,7 @@ u32 qed_cxt_cfg_ilt_compute_excess(struct qed_hwfn *p_hwfn, u32 used_lines)
 	if (!excess_lines)
 		return 0;
 
-	if (p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
+	if (!QED_IS_RDMA_PERSONALITY(p_hwfn))
 		return 0;
 
 	p_mngr = p_hwfn->p_cxt_mngr;
@@ -1031,7 +1035,7 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 	u32 lines, line, sz_left, lines_to_skip = 0;
 
 	/* Special handling for RoCE that supports dynamic allocation */
-	if ((p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) &&
+	if (QED_IS_RDMA_PERSONALITY(p_hwfn) &&
 	    ((ilt_client == ILT_CLI_CDUT) || ilt_client == ILT_CLI_TSDM))
 		return 0;
 
@@ -1121,45 +1125,76 @@ ilt_shadow_fail:
 static void qed_cid_map_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
-	u32 type;
+	u32 type, vf;
 
 	for (type = 0; type < MAX_CONN_TYPES; type++) {
 		kfree(p_mngr->acquired[type].cid_map);
 		p_mngr->acquired[type].max_count = 0;
 		p_mngr->acquired[type].start_cid = 0;
+
+		for (vf = 0; vf < MAX_NUM_VFS; vf++) {
+			kfree(p_mngr->acquired_vf[type][vf].cid_map);
+			p_mngr->acquired_vf[type][vf].max_count = 0;
+			p_mngr->acquired_vf[type][vf].start_cid = 0;
+		}
 	}
+}
+
+static int
+qed_cid_map_alloc_single(struct qed_hwfn *p_hwfn,
+			 u32 type,
+			 u32 cid_start,
+			 u32 cid_count, struct qed_cid_acquired_map *p_map)
+{
+	u32 size;
+
+	if (!cid_count)
+		return 0;
+
+	size = DIV_ROUND_UP(cid_count,
+			    sizeof(unsigned long) * BITS_PER_BYTE) *
+	       sizeof(unsigned long);
+	p_map->cid_map = kzalloc(size, GFP_KERNEL);
+	if (!p_map->cid_map)
+		return -ENOMEM;
+
+	p_map->max_count = cid_count;
+	p_map->start_cid = cid_start;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_CXT,
+		   "Type %08x start: %08x count %08x\n",
+		   type, p_map->start_cid, p_map->max_count);
+
+	return 0;
 }
 
 static int qed_cid_map_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
-	u32 start_cid = 0;
-	u32 type;
+	u32 start_cid = 0, vf_start_cid = 0;
+	u32 type, vf;
 
 	for (type = 0; type < MAX_CONN_TYPES; type++) {
-		u32 cid_cnt = p_hwfn->p_cxt_mngr->conn_cfg[type].cid_count;
-		u32 size;
+		struct qed_conn_type_cfg *p_cfg = &p_mngr->conn_cfg[type];
+		struct qed_cid_acquired_map *p_map;
 
-		if (cid_cnt == 0)
-			continue;
-
-		size = DIV_ROUND_UP(cid_cnt,
-				    sizeof(unsigned long) * BITS_PER_BYTE) *
-		       sizeof(unsigned long);
-		p_mngr->acquired[type].cid_map = kzalloc(size, GFP_KERNEL);
-		if (!p_mngr->acquired[type].cid_map)
+		/* Handle PF maps */
+		p_map = &p_mngr->acquired[type];
+		if (qed_cid_map_alloc_single(p_hwfn, type, start_cid,
+					     p_cfg->cid_count, p_map))
 			goto cid_map_fail;
 
-		p_mngr->acquired[type].max_count = cid_cnt;
-		p_mngr->acquired[type].start_cid = start_cid;
+		/* Handle VF maps */
+		for (vf = 0; vf < MAX_NUM_VFS; vf++) {
+			p_map = &p_mngr->acquired_vf[type][vf];
+			if (qed_cid_map_alloc_single(p_hwfn, type,
+						     vf_start_cid,
+						     p_cfg->cids_per_vf, p_map))
+				goto cid_map_fail;
+		}
 
-		p_hwfn->p_cxt_mngr->conn_cfg[type].cid_start = start_cid;
-
-		DP_VERBOSE(p_hwfn, QED_MSG_CXT,
-			   "Type %08x start: %08x count %08x\n",
-			   type, p_mngr->acquired[type].start_cid,
-			   p_mngr->acquired[type].max_count);
-		start_cid += cid_cnt;
+		start_cid += p_cfg->cid_count;
+		vf_start_cid += p_cfg->cids_per_vf;
 	}
 
 	return 0;
@@ -1265,19 +1300,36 @@ void qed_cxt_mngr_free(struct qed_hwfn *p_hwfn)
 void qed_cxt_mngr_setup(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
+	struct qed_cid_acquired_map *p_map;
+	struct qed_conn_type_cfg *p_cfg;
 	int type;
+	u32 len;
 
 	/* Reset acquired cids */
 	for (type = 0; type < MAX_CONN_TYPES; type++) {
-		u32 cid_cnt = p_hwfn->p_cxt_mngr->conn_cfg[type].cid_count;
+		u32 vf;
 
-		if (cid_cnt == 0)
+		p_cfg = &p_mngr->conn_cfg[type];
+		if (p_cfg->cid_count) {
+			p_map = &p_mngr->acquired[type];
+			len = DIV_ROUND_UP(p_map->max_count,
+					   sizeof(unsigned long) *
+					   BITS_PER_BYTE) *
+			      sizeof(unsigned long);
+			memset(p_map->cid_map, 0, len);
+		}
+
+		if (!p_cfg->cids_per_vf)
 			continue;
 
-		memset(p_mngr->acquired[type].cid_map, 0,
-		       DIV_ROUND_UP(cid_cnt,
-				    sizeof(unsigned long) * BITS_PER_BYTE) *
-		       sizeof(unsigned long));
+		for (vf = 0; vf < MAX_NUM_VFS; vf++) {
+			p_map = &p_mngr->acquired_vf[type][vf];
+			len = DIV_ROUND_UP(p_map->max_count,
+					   sizeof(unsigned long) *
+					   BITS_PER_BYTE) *
+			      sizeof(unsigned long);
+			memset(p_map->cid_map, 0, len);
+		}
 	}
 }
 
@@ -1783,7 +1835,7 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 		tm_offset += tm_iids.pf_tids[i];
 	}
 
-	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE)
+	if (QED_IS_RDMA_PERSONALITY(p_hwfn))
 		active_seg_mask = 0;
 
 	STORE_RT_REG(p_hwfn, TM_REG_PF_ENABLE_TASK_RT_OFFSET, active_seg_mask);
@@ -1841,91 +1893,145 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_prs_init_pf(p_hwfn);
 }
 
-int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
-			enum protocol_type type, u32 *p_cid)
+int _qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
+			 enum protocol_type type, u32 *p_cid, u8 vfid)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
+	struct qed_cid_acquired_map *p_map;
 	u32 rel_cid;
 
-	if (type >= MAX_CONN_TYPES || !p_mngr->acquired[type].cid_map) {
+	if (type >= MAX_CONN_TYPES) {
 		DP_NOTICE(p_hwfn, "Invalid protocol type %d", type);
 		return -EINVAL;
 	}
 
-	rel_cid = find_first_zero_bit(p_mngr->acquired[type].cid_map,
-				      p_mngr->acquired[type].max_count);
+	if (vfid >= MAX_NUM_VFS && vfid != QED_CXT_PF_CID) {
+		DP_NOTICE(p_hwfn, "VF [%02x] is out of range\n", vfid);
+		return -EINVAL;
+	}
 
-	if (rel_cid >= p_mngr->acquired[type].max_count) {
+	/* Determine the right map to take this CID from */
+	if (vfid == QED_CXT_PF_CID)
+		p_map = &p_mngr->acquired[type];
+	else
+		p_map = &p_mngr->acquired_vf[type][vfid];
+
+	if (!p_map->cid_map) {
+		DP_NOTICE(p_hwfn, "Invalid protocol type %d", type);
+		return -EINVAL;
+	}
+
+	rel_cid = find_first_zero_bit(p_map->cid_map, p_map->max_count);
+
+	if (rel_cid >= p_map->max_count) {
 		DP_NOTICE(p_hwfn, "no CID available for protocol %d\n", type);
 		return -EINVAL;
 	}
 
-	__set_bit(rel_cid, p_mngr->acquired[type].cid_map);
+	__set_bit(rel_cid, p_map->cid_map);
 
-	*p_cid = rel_cid + p_mngr->acquired[type].start_cid;
+	*p_cid = rel_cid + p_map->start_cid;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_CXT,
+		   "Acquired cid 0x%08x [rel. %08x] vfid %02x type %d\n",
+		   *p_cid, rel_cid, vfid, type);
 
 	return 0;
 }
 
+int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
+			enum protocol_type type, u32 *p_cid)
+{
+	return _qed_cxt_acquire_cid(p_hwfn, type, p_cid, QED_CXT_PF_CID);
+}
+
 static bool qed_cxt_test_cid_acquired(struct qed_hwfn *p_hwfn,
-				      u32 cid, enum protocol_type *p_type)
+				      u32 cid,
+				      u8 vfid,
+				      enum protocol_type *p_type,
+				      struct qed_cid_acquired_map **pp_map)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
-	struct qed_cid_acquired_map *p_map;
-	enum protocol_type p;
 	u32 rel_cid;
 
 	/* Iterate over protocols and find matching cid range */
-	for (p = 0; p < MAX_CONN_TYPES; p++) {
-		p_map = &p_mngr->acquired[p];
+	for (*p_type = 0; *p_type < MAX_CONN_TYPES; (*p_type)++) {
+		if (vfid == QED_CXT_PF_CID)
+			*pp_map = &p_mngr->acquired[*p_type];
+		else
+			*pp_map = &p_mngr->acquired_vf[*p_type][vfid];
 
-		if (!p_map->cid_map)
+		if (!((*pp_map)->cid_map))
 			continue;
-		if (cid >= p_map->start_cid &&
-		    cid < p_map->start_cid + p_map->max_count)
+		if (cid >= (*pp_map)->start_cid &&
+		    cid < (*pp_map)->start_cid + (*pp_map)->max_count)
 			break;
 	}
-	*p_type = p;
 
-	if (p == MAX_CONN_TYPES) {
-		DP_NOTICE(p_hwfn, "Invalid CID %d", cid);
-		return false;
+	if (*p_type == MAX_CONN_TYPES) {
+		DP_NOTICE(p_hwfn, "Invalid CID %d vfid %02x", cid, vfid);
+		goto fail;
 	}
 
-	rel_cid = cid - p_map->start_cid;
-	if (!test_bit(rel_cid, p_map->cid_map)) {
-		DP_NOTICE(p_hwfn, "CID %d not acquired", cid);
-		return false;
+	rel_cid = cid - (*pp_map)->start_cid;
+	if (!test_bit(rel_cid, (*pp_map)->cid_map)) {
+		DP_NOTICE(p_hwfn, "CID %d [vifd %02x] not acquired",
+			  cid, vfid);
+		goto fail;
 	}
+
 	return true;
+fail:
+	*p_type = MAX_CONN_TYPES;
+	*pp_map = NULL;
+	return false;
 }
 
-void qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid)
+void _qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid, u8 vfid)
 {
-	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
+	struct qed_cid_acquired_map *p_map = NULL;
 	enum protocol_type type;
 	bool b_acquired;
 	u32 rel_cid;
 
+	if (vfid != QED_CXT_PF_CID && vfid > MAX_NUM_VFS) {
+		DP_NOTICE(p_hwfn,
+			  "Trying to return incorrect CID belonging to VF %02x\n",
+			  vfid);
+		return;
+	}
+
 	/* Test acquired and find matching per-protocol map */
-	b_acquired = qed_cxt_test_cid_acquired(p_hwfn, cid, &type);
+	b_acquired = qed_cxt_test_cid_acquired(p_hwfn, cid, vfid,
+					       &type, &p_map);
 
 	if (!b_acquired)
 		return;
 
-	rel_cid = cid - p_mngr->acquired[type].start_cid;
-	__clear_bit(rel_cid, p_mngr->acquired[type].cid_map);
+	rel_cid = cid - p_map->start_cid;
+	clear_bit(rel_cid, p_map->cid_map);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_CXT,
+		   "Released CID 0x%08x [rel. %08x] vfid %02x type %d\n",
+		   cid, rel_cid, vfid, type);
+}
+
+void qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid)
+{
+	_qed_cxt_release_cid(p_hwfn, cid, QED_CXT_PF_CID);
 }
 
 int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn, struct qed_cxt_info *p_info)
 {
 	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
+	struct qed_cid_acquired_map *p_map = NULL;
 	u32 conn_cxt_size, hw_p_size, cxts_per_p, line;
 	enum protocol_type type;
 	bool b_acquired;
 
 	/* Test acquired and find matching per-protocol map */
-	b_acquired = qed_cxt_test_cid_acquired(p_hwfn, p_info->iid, &type);
+	b_acquired = qed_cxt_test_cid_acquired(p_hwfn, p_info->iid,
+					       QED_CXT_PF_CID, &type, &p_map);
 
 	if (!b_acquired)
 		return -EINVAL;
@@ -1964,6 +2070,11 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 	num_srqs = min_t(u32, 32 * 1024, p_params->num_srqs);
 
 	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_ETH_IWARP:
+		/* Each QP requires one connection */
+		num_cons = min_t(u32, IWARP_MAX_QPS, p_params->num_qps);
+		proto = PROTOCOLID_IWARP;
+		break;
 	case QED_PCI_ETH_ROCE:
 		num_qps = min_t(u32, ROCE_MAX_QPS, p_params->num_qps);
 		num_cons = num_qps * 2;	/* each QP requires two connections */
@@ -1999,6 +2110,8 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 	qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_CORE, core_cids, 0);
 
 	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_ETH_RDMA:
+	case QED_PCI_ETH_IWARP:
 	case QED_PCI_ETH_ROCE:
 	{
 			qed_rdma_set_pf_params(p_hwfn,
@@ -2012,8 +2125,12 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 		struct qed_eth_pf_params *p_params =
 		    &p_hwfn->pf_params.eth_pf_params;
 
-		qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
-					    p_params->num_cons, 1);
+			if (!p_params->num_vf_cons)
+				p_params->num_vf_cons =
+				    ETH_PF_PARAMS_VF_CONS_DEFAULT;
+			qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
+						    p_params->num_cons,
+						    p_params->num_vf_cons);
 		p_hwfn->p_cxt_mngr->arfs_count = p_params->num_arfs_filters;
 		break;
 	}
@@ -2236,7 +2353,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		       last_cid_allocated - 1);
 
 		if (!p_hwfn->b_rdma_enabled_in_prs) {
-			/* Enable RoCE search */
+			/* Enable RDMA search */
 			qed_wr(p_hwfn, p_ptt, p_hwfn->rdma_prs_search_reg, 1);
 			p_hwfn->b_rdma_enabled_in_prs = true;
 		}

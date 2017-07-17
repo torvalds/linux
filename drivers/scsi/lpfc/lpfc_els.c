@@ -2168,6 +2168,19 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				 ndlp->nlp_fc4_type, ndlp->nlp_DID);
 		return 1;
 	}
+
+	/* SLI3 ports don't support NVME.  If this rport is a strict NVME
+	 * FC4 type, implicitly LOGO.
+	 */
+	if (phba->sli_rev == LPFC_SLI_REV3 &&
+	    ndlp->nlp_fc4_type == NLP_FC4_NVME) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "3088 Rport fc4 type 0x%x not supported by SLI3 adapter\n",
+				 ndlp->nlp_type);
+		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
+		return 1;
+	}
+
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
 				     ndlp->nlp_DID, elscmd);
 	if (!elsiocb)
@@ -2268,7 +2281,8 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* The driver supports 2 FC4 types.  Make sure
 	 * a PRLI is issued for all types before exiting.
 	 */
-	if (local_nlp_type & (NLP_FC4_FCP | NLP_FC4_NVME))
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    local_nlp_type & (NLP_FC4_FCP | NLP_FC4_NVME))
 		goto send_next_prli;
 
 	return 0;
@@ -3332,6 +3346,19 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		switch (stat.un.b.lsRjtRsnCode) {
 		case LSRJT_UNABLE_TPC:
+			/* The driver has a VALID PLOGI but the rport has
+			 * rejected the PRLI - can't do it now.  Delay
+			 * for 1 second and try again - don't care about
+			 * the explanation.
+			 */
+			if (cmd == ELS_CMD_PRLI || cmd == ELS_CMD_NVMEPRLI) {
+				delay = 1000;
+				maxretry = lpfc_max_els_tries + 1;
+				retry = 1;
+				break;
+			}
+
+			/* Legacy bug fix code for targets with PLOGI delays. */
 			if (stat.un.b.lsRjtRsnCodeExp ==
 			    LSEXP_CMD_IN_PROGRESS) {
 				if (cmd == ELS_CMD_PLOGI) {
@@ -3350,9 +3377,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 				break;
 			}
-			if ((cmd == ELS_CMD_PLOGI) ||
-			    (cmd == ELS_CMD_PRLI) ||
-			    (cmd == ELS_CMD_NVMEPRLI)) {
+			if (cmd == ELS_CMD_PLOGI) {
 				delay = 1000;
 				maxretry = lpfc_max_els_tries + 1;
 				retry = 1;
@@ -5678,27 +5703,13 @@ lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}
-	if (beacon->lcb_frequency == 0) {
+	if (beacon->lcb_sub_command != LPFC_LCB_ON &&
+	    beacon->lcb_sub_command != LPFC_LCB_OFF) {
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}
-	if ((beacon->lcb_type != LPFC_LCB_GREEN) &&
-	    (beacon->lcb_type != LPFC_LCB_AMBER)) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
-	if ((beacon->lcb_sub_command != LPFC_LCB_ON) &&
-	    (beacon->lcb_sub_command != LPFC_LCB_OFF)) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
-	if ((beacon->lcb_sub_command == LPFC_LCB_ON) &&
-	    (beacon->lcb_type != LPFC_LCB_GREEN) &&
-	    (beacon->lcb_type != LPFC_LCB_AMBER)) {
-		rjt_err = LSRJT_CMD_UNSUPPORTED;
-		goto rjt;
-	}
-	if (be16_to_cpu(beacon->lcb_duration) != 0) {
+	if (beacon->lcb_sub_command == LPFC_LCB_ON &&
+	    be16_to_cpu(beacon->lcb_duration) != 0) {
 		rjt_err = LSRJT_CMD_UNSUPPORTED;
 		goto rjt;
 	}

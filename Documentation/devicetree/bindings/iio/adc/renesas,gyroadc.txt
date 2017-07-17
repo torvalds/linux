@@ -1,4 +1,4 @@
-* Renesas RCar GyroADC device driver
+* Renesas R-Car GyroADC device driver
 
 The GyroADC block is a reduced SPI block with up to 8 chipselect lines,
 which supports the SPI protocol of a selected few SPI ADCs. The SPI ADCs
@@ -16,8 +16,7 @@ Required properties:
 - clocks:	References to all the clocks specified in the clock-names
 		property as specified in
 		Documentation/devicetree/bindings/clock/clock-bindings.txt.
-- clock-names:	Shall contain "fck" and "if". The "fck" is the GyroADC block
-		clock, the "if" is the interface clock.
+- clock-names:	Shall contain "fck". The "fck" is the GyroADC block clock.
 - power-domains: Must contain a reference to the PM domain, if available.
 - #address-cells: Should be <1> (setting for the subnodes) for all ADCs
 		except for "fujitsu,mb88101a". Should be <0> (setting for
@@ -75,8 +74,8 @@ Example:
 	adc@e6e54000 {
 		compatible = "renesas,r8a7791-gyroadc", "renesas,rcar-gyroadc";
 		reg = <0 0xe6e54000 0 64>;
-		clocks = <&mstp9_clks R8A7791_CLK_GYROADC>, <&clk_65m>;
-		clock-names = "fck", "if";
+		clocks = <&mstp9_clks R8A7791_CLK_GYROADC>;
+		clock-names = "fck";
 		power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
 
 		pinctrl-0 = <&adc_pins>;

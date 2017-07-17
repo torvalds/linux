@@ -427,13 +427,13 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		goto out_lock_cn_cb;
 	}
 	if (!fid_is_sane(&sbi->ll_root_fid)) {
-		CERROR("%s: Invalid root fid "DFID" during mount\n",
+		CERROR("%s: Invalid root fid " DFID " during mount\n",
 		       sbi->ll_md_exp->exp_obd->obd_name,
 		       PFID(&sbi->ll_root_fid));
 		err = -EINVAL;
 		goto out_lock_cn_cb;
 	}
-	CDEBUG(D_SUPER, "rootfid "DFID"\n", PFID(&sbi->ll_root_fid));
+	CDEBUG(D_SUPER, "rootfid " DFID "\n", PFID(&sbi->ll_root_fid));
 
 	sb->s_op = &lustre_super_operations;
 	sb->s_xattr = ll_xattr_handlers;
@@ -1079,7 +1079,7 @@ static struct inode *ll_iget_anon_dir(struct super_block *sb,
 	ino = cl_fid_build_ino(fid, sbi->ll_flags & LL_SBI_32BIT_API);
 	inode = iget_locked(sb, ino);
 	if (!inode) {
-		CERROR("%s: failed get simple inode "DFID": rc = -ENOENT\n",
+		CERROR("%s: failed get simple inode " DFID ": rc = -ENOENT\n",
 		       ll_get_fsname(sb, NULL, 0), PFID(fid));
 		return ERR_PTR(-ENOENT);
 	}
@@ -1090,7 +1090,7 @@ static struct inode *ll_iget_anon_dir(struct super_block *sb,
 
 		inode->i_mode = (inode->i_mode & ~S_IFMT) |
 				(body->mbo_mode & S_IFMT);
-		LASSERTF(S_ISDIR(inode->i_mode), "Not slave inode "DFID"\n",
+		LASSERTF(S_ISDIR(inode->i_mode), "Not slave inode " DFID "\n",
 			 PFID(fid));
 
 		LTIME_S(inode->i_mtime) = 0;
@@ -1106,7 +1106,7 @@ static struct inode *ll_iget_anon_dir(struct super_block *sb,
 		LASSERT(lsm);
 		/* master object FID */
 		lli->lli_pfid = body->mbo_fid1;
-		CDEBUG(D_INODE, "lli %p slave "DFID" master "DFID"\n",
+		CDEBUG(D_INODE, "lli %p slave " DFID " master " DFID "\n",
 		       lli, PFID(fid), PFID(&lli->lli_pfid));
 		unlock_new_inode(inode);
 	}
@@ -1174,7 +1174,7 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 	int rc;
 
 	LASSERT(S_ISDIR(inode->i_mode));
-	CDEBUG(D_INODE, "update lsm %p of "DFID"\n", lli->lli_lsm_md,
+	CDEBUG(D_INODE, "update lsm %p of " DFID "\n", lli->lli_lsm_md,
 	       PFID(ll_inode2fid(inode)));
 
 	/* no striped information from request. */
@@ -1187,7 +1187,7 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 			 * migration is done, the temporay MIGRATE layout has
 			 * been removed
 			 */
-			CDEBUG(D_INODE, DFID" finish migration.\n",
+			CDEBUG(D_INODE, DFID " finish migration.\n",
 			       PFID(ll_inode2fid(inode)));
 			lmv_free_memmd(lli->lli_lsm_md);
 			lli->lli_lsm_md = NULL;
@@ -1241,7 +1241,7 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 
 		kfree(attr);
 
-		CDEBUG(D_INODE, "Set lsm %p magic %x to "DFID"\n", lsm,
+		CDEBUG(D_INODE, "Set lsm %p magic %x to " DFID "\n", lsm,
 		       lsm->lsm_md_magic, PFID(ll_inode2fid(inode)));
 		return 0;
 	}
@@ -1251,7 +1251,7 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 		struct lmv_stripe_md *old_lsm = lli->lli_lsm_md;
 		int idx;
 
-		CERROR("%s: inode "DFID"(%p)'s lmv layout mismatch (%p)/(%p) magic:0x%x/0x%x stripe count: %d/%d master_mdt: %d/%d hash_type:0x%x/0x%x layout: 0x%x/0x%x pool:%s/%s\n",
+		CERROR("%s: inode " DFID "(%p)'s lmv layout mismatch (%p)/(%p) magic:0x%x/0x%x stripe count: %d/%d master_mdt: %d/%d hash_type:0x%x/0x%x layout: 0x%x/0x%x pool:%s/%s\n",
 		       ll_get_fsname(inode->i_sb, NULL, 0), PFID(&lli->lli_fid),
 		       inode, lsm, old_lsm,
 		       lsm->lsm_md_magic, old_lsm->lsm_md_magic,
@@ -1266,13 +1266,13 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 		       old_lsm->lsm_md_pool_name);
 
 		for (idx = 0; idx < old_lsm->lsm_md_stripe_count; idx++) {
-			CERROR("%s: sub FIDs in old lsm idx %d, old: "DFID"\n",
+			CERROR("%s: sub FIDs in old lsm idx %d, old: " DFID "\n",
 			       ll_get_fsname(inode->i_sb, NULL, 0), idx,
 			       PFID(&old_lsm->lsm_md_oinfo[idx].lmo_fid));
 		}
 
 		for (idx = 0; idx < lsm->lsm_md_stripe_count; idx++) {
-			CERROR("%s: sub FIDs in new lsm idx %d, new: "DFID"\n",
+			CERROR("%s: sub FIDs in new lsm idx %d, new: " DFID "\n",
 			       ll_get_fsname(inode->i_sb, NULL, 0), idx,
 			       PFID(&lsm->lsm_md_oinfo[idx].lmo_fid));
 		}
@@ -1288,7 +1288,7 @@ void ll_clear_inode(struct inode *inode)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p)\n",
 	       PFID(ll_inode2fid(inode)), inode);
 
 	if (S_ISDIR(inode->i_mode)) {
@@ -1421,7 +1421,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	struct md_op_data *op_data = NULL;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "%s: setattr inode "DFID"(%p) from %llu to %llu, valid %x, hsm_import %d\n",
+	CDEBUG(D_VFSTRACE, "%s: setattr inode " DFID "(%p) from %llu to %llu, valid %x, hsm_import %d\n",
 	       ll_get_fsname(inode->i_sb, NULL, 0), PFID(&lli->lli_fid), inode,
 	       i_size_read(inode), attr->ia_size, attr->ia_valid, hsm_import);
 
@@ -1436,7 +1436,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 * needs another check in addition to the VFS check above.
 		 */
 		if (attr->ia_size > ll_file_maxbytes(inode)) {
-			CDEBUG(D_INODE, "file "DFID" too large %llu > %llu\n",
+			CDEBUG(D_INODE, "file " DFID " too large %llu > %llu\n",
 			       PFID(&lli->lli_fid), attr->ia_size,
 			       ll_file_maxbytes(inode));
 			return -EFBIG;
@@ -1785,7 +1785,7 @@ int ll_update_inode(struct inode *inode, struct lustre_md *md)
 		/* FID shouldn't be changed! */
 		if (fid_is_sane(&lli->lli_fid)) {
 			LASSERTF(lu_fid_eq(&lli->lli_fid, &body->mbo_fid1),
-				 "Trying to change FID "DFID" to the "DFID", inode "DFID"(%p)\n",
+				 "Trying to change FID " DFID " to the " DFID ", inode " DFID "(%p)\n",
 				 PFID(&lli->lli_fid), PFID(&body->mbo_fid1),
 				 PFID(ll_inode2fid(inode)), inode);
 		} else {
@@ -1820,7 +1820,7 @@ int ll_read_inode2(struct inode *inode, void *opaque)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p)\n",
 	       PFID(&lli->lli_fid), inode);
 
 	/* Core attributes from the MDS first.  This is a new inode, and
@@ -1902,7 +1902,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 		rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 		ll_finish_md_op_data(op_data);
 		if (rc) {
-			CERROR("%s: failure inode "DFID": rc = %d\n",
+			CERROR("%s: failure inode " DFID ": rc = %d\n",
 			       sbi->ll_md_exp->exp_obd->obd_name,
 			       PFID(ll_inode2fid(inode)), rc);
 			return -abs(rc);

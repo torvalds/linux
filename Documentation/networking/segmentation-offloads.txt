@@ -55,7 +55,7 @@ IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads
 In addition to the offloads described above it is possible for a frame to
 contain additional headers such as an outer tunnel.  In order to account
 for such instances an additional set of segmentation offload types were
-introduced including SKB_GSO_IPIP, SKB_GSO_SIT, SKB_GSO_GRE, and
+introduced including SKB_GSO_IPXIP4, SKB_GSO_IPXIP6, SKB_GSO_GRE, and
 SKB_GSO_UDP_TUNNEL.  These extra segmentation types are used to identify
 cases where there are more than just 1 set of headers.  For example in the
 case of IPIP and SIT we should have the network and transport headers moved

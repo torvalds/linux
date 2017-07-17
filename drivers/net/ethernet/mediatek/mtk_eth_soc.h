@@ -125,7 +125,14 @@
 #define MTK_PST_DRX_IDX_CFG(x)	(MTK_PST_DRX_IDX0 << (x))
 
 /* PDMA Delay Interrupt Register */
-#define MTK_PDMA_DELAY_INT	0xa0c
+#define MTK_PDMA_DELAY_INT		0xa0c
+#define MTK_PDMA_DELAY_RX_EN		BIT(15)
+#define MTK_PDMA_DELAY_RX_PINT		4
+#define MTK_PDMA_DELAY_RX_PINT_SHIFT	8
+#define MTK_PDMA_DELAY_RX_PTIME		4
+#define MTK_PDMA_DELAY_RX_DELAY		\
+	(MTK_PDMA_DELAY_RX_EN | MTK_PDMA_DELAY_RX_PTIME | \
+	(MTK_PDMA_DELAY_RX_PINT << MTK_PDMA_DELAY_RX_PINT_SHIFT))
 
 /* PDMA Interrupt Status Register */
 #define MTK_PDMA_INT_STATUS	0xa20
@@ -206,6 +213,7 @@
 
 /* QDMA Interrupt Status Register */
 #define MTK_QMTK_INT_STATUS	0x1A18
+#define MTK_RX_DONE_DLY		BIT(30)
 #define MTK_RX_DONE_INT3	BIT(19)
 #define MTK_RX_DONE_INT2	BIT(18)
 #define MTK_RX_DONE_INT1	BIT(17)
@@ -214,8 +222,7 @@
 #define MTK_TX_DONE_INT2	BIT(2)
 #define MTK_TX_DONE_INT1	BIT(1)
 #define MTK_TX_DONE_INT0	BIT(0)
-#define MTK_RX_DONE_INT		(MTK_RX_DONE_INT0 | MTK_RX_DONE_INT1 | \
-				 MTK_RX_DONE_INT2 | MTK_RX_DONE_INT3)
+#define MTK_RX_DONE_INT		MTK_RX_DONE_DLY
 #define MTK_TX_DONE_INT		(MTK_TX_DONE_INT0 | MTK_TX_DONE_INT1 | \
 				 MTK_TX_DONE_INT2 | MTK_TX_DONE_INT3)
 
@@ -512,6 +519,8 @@ struct mtk_rx_ring {
  * @dev:		The device pointer
  * @base:		The mapped register i/o base
  * @page_lock:		Make sure that register operations are atomic
+ * @tx_irq__lock:	Make sure that IRQ register operations are atomic
+ * @rx_irq__lock:	Make sure that IRQ register operations are atomic
  * @dummy_dev:		we run 2 netdevs on 1 physical DMA ring and need a
  *			dummy for NAPI to work
  * @netdev:		The netdev instances
@@ -540,7 +549,8 @@ struct mtk_eth {
 	struct device			*dev;
 	void __iomem			*base;
 	spinlock_t			page_lock;
-	spinlock_t			irq_lock;
+	spinlock_t			tx_irq_lock;
+	spinlock_t			rx_irq_lock;
 	struct net_device		dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];

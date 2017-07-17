@@ -277,7 +277,7 @@ static int echo_page_print(const struct lu_env *env,
 {
 	struct echo_page *ep = cl2echo_page(slice);
 
-	(*printer)(env, cookie, LUSTRE_ECHO_CLIENT_NAME"-page@%p %d vm@%p\n",
+	(*printer)(env, cookie, LUSTRE_ECHO_CLIENT_NAME "-page@%p %d vm@%p\n",
 		   ep, mutex_is_locked(&ep->ep_lock),
 		   slice->cpl_page->cp_vmpage);
 	return 0;
@@ -1121,7 +1121,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	}
 	cl_echo_object_put(eco);
 
-	CDEBUG(D_INFO, "oa oid "DOSTID"\n", POSTID(&oa->o_oi));
+	CDEBUG(D_INFO, "oa oid " DOSTID "\n", POSTID(&oa->o_oi));
 
  failed:
 	if (created && rc)
@@ -1646,9 +1646,8 @@ static int echo_client_connect(const struct lu_env *env,
 	struct lustre_handle conn = { 0 };
 
 	rc = class_connect(&conn, src, cluuid);
-	if (rc == 0) {
+	if (rc == 0)
 		*exp = class_conn2export(&conn);
-	}
 
 	return rc;
 }

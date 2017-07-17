@@ -24,6 +24,8 @@
 #define ATH9K_RNG_BUF_SIZE	320
 #define ATH9K_RNG_ENTROPY(x)	(((x) * 8 * 10) >> 5) /* quality: 10/32 */
 
+static DECLARE_WAIT_QUEUE_HEAD(rng_queue);
+
 static int ath9k_rng_data_read(struct ath_softc *sc, u32 *buf, u32 buf_size)
 {
 	int i, j;
@@ -85,7 +87,9 @@ static int ath9k_rng_kthread(void *data)
 						 ATH9K_RNG_BUF_SIZE);
 		if (unlikely(!bytes_read)) {
 			delay = ath9k_rng_delay_get(++fail_stats);
-			msleep_interruptible(delay);
+			wait_event_interruptible_timeout(rng_queue,
+							 kthread_should_stop(),
+							 msecs_to_jiffies(delay));
 			continue;
 		}
 
@@ -120,6 +124,8 @@ void ath9k_rng_start(struct ath_softc *sc)
 
 void ath9k_rng_stop(struct ath_softc *sc)
 {
-	if (sc->rng_task)
+	if (sc->rng_task) {
 		kthread_stop(sc->rng_task);
+		sc->rng_task = NULL;
+	}
 }

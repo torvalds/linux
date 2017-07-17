@@ -477,6 +477,7 @@ struct cxgbi_device {
 	unsigned int skb_rx_extra;	/* for msg coalesced mode */
 	unsigned int tx_max_size;
 	unsigned int rx_max_size;
+	unsigned int rxq_idx_cntr;
 	struct cxgbi_ports_map pmap;
 
 	void (*dev_ddp_cleanup)(struct cxgbi_device *);

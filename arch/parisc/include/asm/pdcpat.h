@@ -147,9 +147,9 @@
 #define PDC_PAT_MEM_CELL_CLEAR  	6L /* Clear PDT For Cell           */
 #define PDC_PAT_MEM_CELL_READ   	7L /* Read PDT entries For Cell    */
 #define PDC_PAT_MEM_CELL_RESET  	8L /* Reset clear bit For Cell     */
-#define PDC_PAT_MEM_SETGM	  	9L /* Set Golden Memory value      */
-#define PDC_PAT_MEM_ADD_PAGE    	10L /* ADDs a page to the cell      */
-#define PDC_PAT_MEM_ADDRESS     	11L /* Get Physical Location From   */
+#define PDC_PAT_MEM_SETGM		9L /* Set Good Memory value        */
+#define PDC_PAT_MEM_ADD_PAGE		10L /* ADDs a page to the cell      */
+#define PDC_PAT_MEM_ADDRESS		11L /* Get Physical Location From   */
                                     		 /* Memory Address               */
 #define PDC_PAT_MEM_GET_TXT_SIZE   	12L /* Get Formatted Text Size   */
 #define PDC_PAT_MEM_GET_PD_TXT     	13L /* Get PD Formatted Text     */
@@ -211,6 +211,23 @@ struct pdc_pat_cpu_num {
 	unsigned long cpu_num;
 	unsigned long cpu_loc;
 };
+
+struct pdc_pat_mem_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_PD_INFO (return info) */
+	unsigned int ke;	/* bit 0: memory inside good memory? */
+	unsigned int current_pdt_entries:16;
+	unsigned int max_pdt_entries:16;
+	unsigned long Cs_bitmap;
+	unsigned long Ic_bitmap;
+	unsigned long good_mem;
+	unsigned long first_dbe_loc; /* first location of double bit error */
+	unsigned long clear_time; /* last PDT clear time (since Jan 1970) */
+};
+
+struct pdc_pat_mem_read_pd_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_PD_READ */
+	unsigned long actual_count_bytes;
+	unsigned long pdt_entries;
+};
+
 
 struct pdc_pat_pd_addr_map_entry {
 	unsigned char entry_type;       /* 1 = Memory Descriptor Entry Type */
@@ -293,15 +310,15 @@ extern int pdc_pat_cpu_get_number(struct pdc_pat_cpu_num *cpu_info, unsigned lon
 
 extern int pdc_pat_pd_get_addr_map(unsigned long *actual_len, void *mem_addr, unsigned long count, unsigned long offset);
 
-
 extern int pdc_pat_io_pci_cfg_read(unsigned long pci_addr, int pci_size, u32 *val); 
 extern int pdc_pat_io_pci_cfg_write(unsigned long pci_addr, int pci_size, u32 val); 
 
-
-/* Flag to indicate this is a PAT box...don't use this unless you
-** really have to...it might go away some day.
-*/
-extern int pdc_pat;     /* arch/parisc/kernel/inventory.c */
+extern int pdc_pat_mem_pdt_info(struct pdc_pat_mem_retinfo *rinfo);
+extern int pdc_pat_mem_read_cell_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
+		unsigned long *pdt_entries_ptr, unsigned long max_entries);
+extern int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
+		unsigned long *pdt_entries_ptr, unsigned long count,
+		unsigned long offset);
 
 #endif /* __ASSEMBLY__ */
 

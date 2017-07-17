@@ -3659,14 +3659,14 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	status = cvmx_usb_initialize(dev, usb);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
-		kfree(hcd);
+		usb_put_hcd(hcd);
 		return -1;
 	}
 
 	status = usb_add_hcd(hcd, irq, 0);
 	if (status) {
 		dev_dbg(dev, "USB add HCD failed with %d\n", status);
-		kfree(hcd);
+		usb_put_hcd(hcd);
 		return -1;
 	}
 	device_wakeup_enable(hcd->self.controller);
@@ -3691,7 +3691,7 @@ static int octeon_usb_remove(struct platform_device *pdev)
 	if (status)
 		dev_dbg(dev, "USB shutdown failed with %d\n", status);
 
-	kfree(hcd);
+	usb_put_hcd(hcd);
 
 	return 0;
 }

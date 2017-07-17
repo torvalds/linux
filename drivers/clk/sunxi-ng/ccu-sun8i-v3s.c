@@ -132,6 +132,9 @@ static SUNXI_CCU_M(axi_clk, "axi", "cpu", 0x050, 0, 2, 0);
 
 static const char * const ahb1_parents[] = { "osc32k", "osc24M",
 					     "axi", "pll-periph0" };
+static const struct ccu_mux_var_prediv ahb1_predivs[] = {
+	{ .index = 3, .shift = 6, .width = 2 },
+};
 static struct ccu_div ahb1_clk = {
 	.div		= _SUNXI_CCU_DIV_FLAGS(4, 2, CLK_DIVIDER_POWER_OF_TWO),
 
@@ -139,11 +142,8 @@ static struct ccu_div ahb1_clk = {
 		.shift	= 12,
 		.width	= 2,
 
-		.variable_prediv	= {
-			.index	= 3,
-			.shift	= 6,
-			.width	= 2,
-		},
+		.var_predivs	= ahb1_predivs,
+		.n_var_predivs	= ARRAY_SIZE(ahb1_predivs),
 	},
 
 	.common		= {
@@ -537,7 +537,7 @@ static struct ccu_reset_map sun8i_v3s_ccu_resets[] = {
 	[RST_BUS_EMAC]		=  { 0x2c0, BIT(17) },
 	[RST_BUS_HSTIMER]	=  { 0x2c0, BIT(19) },
 	[RST_BUS_SPI0]		=  { 0x2c0, BIT(20) },
-	[RST_BUS_OTG]		=  { 0x2c0, BIT(23) },
+	[RST_BUS_OTG]		=  { 0x2c0, BIT(24) },
 	[RST_BUS_EHCI0]		=  { 0x2c0, BIT(26) },
 	[RST_BUS_OHCI0]		=  { 0x2c0, BIT(29) },
 

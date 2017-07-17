@@ -1311,8 +1311,10 @@ static int update_lookup_table(void *data)
 /*
  * Update the node maps and sysfs entries for each cpu whose home node
  * has changed. Returns 1 when the topology has changed, and 0 otherwise.
+ *
+ * cpus_locked says whether we already hold cpu_hotplug_lock.
  */
-int arch_update_cpu_topology(void)
+int numa_update_cpu_topology(bool cpus_locked)
 {
 	unsigned int cpu, sibling, changed = 0;
 	struct topology_update_data *updates, *ud;
@@ -1400,15 +1402,23 @@ int arch_update_cpu_topology(void)
 	if (!cpumask_weight(&updated_cpus))
 		goto out;
 
-	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
+	if (cpus_locked)
+		stop_machine_cpuslocked(update_cpu_topology, &updates[0],
+					&updated_cpus);
+	else
+		stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
 
 	/*
 	 * Update the numa-cpu lookup table with the new mappings, even for
 	 * offline CPUs. It is best to perform this update from the stop-
 	 * machine context.
 	 */
-	stop_machine(update_lookup_table, &updates[0],
+	if (cpus_locked)
+		stop_machine_cpuslocked(update_lookup_table, &updates[0],
 					cpumask_of(raw_smp_processor_id()));
+	else
+		stop_machine(update_lookup_table, &updates[0],
+			     cpumask_of(raw_smp_processor_id()));
 
 	for (ud = &updates[0]; ud; ud = ud->next) {
 		unregister_cpu_under_node(ud->cpu, ud->old_nid);
@@ -1424,6 +1434,12 @@ int arch_update_cpu_topology(void)
 out:
 	kfree(updates);
 	return changed;
+}
+
+int arch_update_cpu_topology(void)
+{
+	lockdep_assert_cpus_held();
+	return numa_update_cpu_topology(true);
 }
 
 static void topology_work_fn(struct work_struct *work)

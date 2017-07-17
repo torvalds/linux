@@ -105,8 +105,8 @@ enum wcove_typec_role {
 	WCOVE_ROLE_DEVICE,
 };
 
-static uuid_le uuid = UUID_LE(0x482383f0, 0x2876, 0x4e49,
-			      0x86, 0x85, 0xdb, 0x66, 0x21, 0x1a, 0xf0, 0x37);
+static guid_t guid = GUID_INIT(0x482383f0, 0x2876, 0x4e49,
+			       0x86, 0x85, 0xdb, 0x66, 0x21, 0x1a, 0xf0, 0x37);
 
 static int wcove_typec_func(struct wcove_typec *wcove,
 			    enum wcove_typec_func func, int param)
@@ -118,7 +118,7 @@ static int wcove_typec_func(struct wcove_typec *wcove,
 	tmp.type = ACPI_TYPE_INTEGER;
 	tmp.integer.value = param;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(wcove->dev), uuid.b, 1, func,
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(wcove->dev), &guid, 1, func,
 				&argv4);
 	if (!obj) {
 		dev_err(wcove->dev, "%s: failed to evaluate _DSM\n", __func__);
@@ -303,7 +303,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 	wcove->dev = &pdev->dev;
 	wcove->regmap = pmic->regmap;
 
-	ret = regmap_irq_get_virq(pmic->irq_chip_data_level2,
+	ret = regmap_irq_get_virq(pmic->irq_chip_data_chgr,
 				  platform_get_irq(pdev, 0));
 	if (ret < 0)
 		return ret;
@@ -314,7 +314,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (!acpi_check_dsm(ACPI_HANDLE(&pdev->dev), uuid.b, 0, 0x1f)) {
+	if (!acpi_check_dsm(ACPI_HANDLE(&pdev->dev), &guid, 0, 0x1f)) {
 		dev_err(&pdev->dev, "Missing _DSM functions\n");
 		return -ENODEV;
 	}

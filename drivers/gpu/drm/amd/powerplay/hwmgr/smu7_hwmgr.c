@@ -21,11 +21,11 @@
  *
  */
 #include "pp_debug.h"
+#include <linux/delay.h>
+#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fb.h>
 #include <asm/div64.h>
-#include "linux/delay.h"
 #include "pp_acpi.h"
 #include "ppatomctrl.h"
 #include "atombios.h"

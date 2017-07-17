@@ -942,7 +942,7 @@ static int ip6gre_header(struct sk_buff *skb, struct net_device *dev,
 			const void *daddr, const void *saddr, unsigned int len)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
-	struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb_push(skb, t->hlen);
+	struct ipv6hdr *ipv6h = skb_push(skb, t->hlen);
 	__be16 *p = (__be16 *)(ipv6h+1);
 
 	ip6_flow_hdr(ipv6h, 0,
@@ -1170,7 +1170,8 @@ static struct pernet_operations ip6gre_net_ops = {
 	.size = sizeof(struct ip6gre_net),
 };
 
-static int ip6gre_tunnel_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ip6gre_tunnel_validate(struct nlattr *tb[], struct nlattr *data[],
+				  struct netlink_ext_ack *extack)
 {
 	__be16 flags;
 
@@ -1188,7 +1189,8 @@ static int ip6gre_tunnel_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int ip6gre_tap_validate(struct nlattr *tb[], struct nlattr *data[])
+static int ip6gre_tap_validate(struct nlattr *tb[], struct nlattr *data[],
+			       struct netlink_ext_ack *extack)
 {
 	struct in6_addr daddr;
 
@@ -1209,7 +1211,7 @@ static int ip6gre_tap_validate(struct nlattr *tb[], struct nlattr *data[])
 	}
 
 out:
-	return ip6gre_tunnel_validate(tb, data);
+	return ip6gre_tunnel_validate(tb, data, extack);
 }
 
 
@@ -1342,7 +1344,8 @@ static bool ip6gre_netlink_encap_parms(struct nlattr *data[],
 }
 
 static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
-	struct nlattr *tb[], struct nlattr *data[])
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct ip6_tnl *nt;
 	struct net *net = dev_net(dev);
@@ -1403,7 +1406,8 @@ out:
 }
 
 static int ip6gre_changelink(struct net_device *dev, struct nlattr *tb[],
-			    struct nlattr *data[])
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
 {
 	struct ip6_tnl *t, *nt = netdev_priv(dev);
 	struct net *net = nt->net;

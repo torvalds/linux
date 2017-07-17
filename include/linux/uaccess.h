@@ -109,8 +109,11 @@ static inline unsigned long
 _copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	unsigned long res = n;
-	if (likely(access_ok(VERIFY_READ, from, n)))
+	might_fault();
+	if (likely(access_ok(VERIFY_READ, from, n))) {
+		kasan_check_write(to, n);
 		res = raw_copy_from_user(to, from, n);
+	}
 	if (unlikely(res))
 		memset(to + (n - res), 0, res);
 	return res;
@@ -124,8 +127,11 @@ _copy_from_user(void *, const void __user *, unsigned long);
 static inline unsigned long
 _copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
+	might_fault();
+	if (access_ok(VERIFY_WRITE, to, n)) {
+		kasan_check_read(from, n);
 		n = raw_copy_to_user(to, from, n);
+	}
 	return n;
 }
 #else
@@ -133,58 +139,22 @@ extern unsigned long
 _copy_to_user(void __user *, const void *, unsigned long);
 #endif
 
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
 static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	int sz = __compiletime_object_size(to);
-
-	might_fault();
-	kasan_check_write(to, n);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(to, n, false);
+	if (likely(check_copy_size(to, n, false)))
 		n = _copy_from_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
 	return n;
 }
 
 static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	int sz = __compiletime_object_size(from);
-
-	kasan_check_read(from, n);
-	might_fault();
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(from, n, true);
+	if (likely(check_copy_size(from, n, true)))
 		n = _copy_to_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
 	return n;
 }
 #ifdef CONFIG_COMPAT
-static __always_inline unsigned long __must_check
-__copy_in_user(void __user *to, const void *from, unsigned long n)
-{
-	might_fault();
-	return raw_copy_in_user(to, from, n);
-}
 static __always_inline unsigned long __must_check
 copy_in_user(void __user *to, const void *from, unsigned long n)
 {

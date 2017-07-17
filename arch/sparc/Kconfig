@@ -83,6 +83,8 @@ config SPARC64
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select HAVE_NMI
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
 
 config ARCH_DEFCONFIG
 	string
@@ -90,6 +92,9 @@ config ARCH_DEFCONFIG
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
 
 config ARCH_PROC_KCORE_TEXT
+	def_bool y
+
+config CPU_BIG_ENDIAN
 	def_bool y
 
 config ARCH_ATU

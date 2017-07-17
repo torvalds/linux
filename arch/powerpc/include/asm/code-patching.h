@@ -83,8 +83,16 @@ static inline unsigned long ppc_function_entry(void *func)
 	 * On PPC64 ABIv1 the function pointer actually points to the
 	 * function's descriptor. The first entry in the descriptor is the
 	 * address of the function text.
+	 *
+	 * However, we may also receive pointer to an assembly symbol. To
+	 * detect that, we first check if the function pointer we receive
+	 * already points to kernel/module text and we only dereference it
+	 * if it doesn't.
 	 */
-	return ((func_descr_t *)func)->entry;
+	if (kernel_text_address((unsigned long)func))
+		return (unsigned long)func;
+	else
+		return ((func_descr_t *)func)->entry;
 #else
 	return (unsigned long)func;
 #endif

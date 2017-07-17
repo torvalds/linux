@@ -24,7 +24,6 @@
  * the S390 page table tree.
  */
 #ifndef __ASSEMBLY__
-#include <asm-generic/5level-fixup.h>
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
@@ -87,12 +86,15 @@ extern unsigned long zero_page_mask;
  */
 #define PMD_SHIFT	20
 #define PUD_SHIFT	31
-#define PGDIR_SHIFT	42
+#define P4D_SHIFT	42
+#define PGDIR_SHIFT	53
 
 #define PMD_SIZE        (1UL << PMD_SHIFT)
 #define PMD_MASK        (~(PMD_SIZE-1))
 #define PUD_SIZE	(1UL << PUD_SHIFT)
 #define PUD_MASK	(~(PUD_SIZE-1))
+#define P4D_SIZE	(1UL << P4D_SHIFT)
+#define P4D_MASK	(~(P4D_SIZE-1))
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -105,6 +107,7 @@ extern unsigned long zero_page_mask;
 #define PTRS_PER_PTE	256
 #define PTRS_PER_PMD	2048
 #define PTRS_PER_PUD	2048
+#define PTRS_PER_P4D	2048
 #define PTRS_PER_PGD	2048
 
 #define FIRST_USER_ADDRESS  0UL
@@ -115,6 +118,8 @@ extern unsigned long zero_page_mask;
 	printk("%s:%d: bad pmd %p.\n", __FILE__, __LINE__, (void *) pmd_val(e))
 #define pud_ERROR(e) \
 	printk("%s:%d: bad pud %p.\n", __FILE__, __LINE__, (void *) pud_val(e))
+#define p4d_ERROR(e) \
+	printk("%s:%d: bad p4d %p.\n", __FILE__, __LINE__, (void *) p4d_val(e))
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %p.\n", __FILE__, __LINE__, (void *) pgd_val(e))
 
@@ -296,8 +301,6 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INVALID)
 
 #define _REGION3_ENTRY_ORIGIN_LARGE ~0x7fffffffUL /* large page address	     */
-#define _REGION3_ENTRY_ORIGIN  ~0x7ffUL/* region third table origin	     */
-
 #define _REGION3_ENTRY_DIRTY	0x2000	/* SW region dirty bit */
 #define _REGION3_ENTRY_YOUNG	0x1000	/* SW region young bit */
 #define _REGION3_ENTRY_LARGE	0x0400	/* RTTE-format control, large page  */
@@ -310,8 +313,8 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY_SOFT_DIRTY 0x0000 /* SW region soft dirty bit */
 #endif
 
-#define _REGION_ENTRY_BITS	 0xfffffffffffff227UL
-#define _REGION_ENTRY_BITS_LARGE 0xffffffff8000fe27UL
+#define _REGION_ENTRY_BITS	 0xfffffffffffff22fUL
+#define _REGION_ENTRY_BITS_LARGE 0xffffffff8000fe2fUL
 
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
@@ -560,18 +563,23 @@ static inline void crdte(unsigned long old, unsigned long new,
 }
 
 /*
- * pgd/pmd/pte query functions
+ * pgd/p4d/pud/pmd/pte query functions
  */
+static inline int pgd_folded(pgd_t pgd)
+{
+	return (pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R1;
+}
+
 static inline int pgd_present(pgd_t pgd)
 {
-	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2)
+	if (pgd_folded(pgd))
 		return 1;
 	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pgd_none(pgd_t pgd)
 {
-	if ((pgd_val(pgd) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2)
+	if (pgd_folded(pgd))
 		return 0;
 	return (pgd_val(pgd) & _REGION_ENTRY_INVALID) != 0UL;
 }
@@ -589,16 +597,48 @@ static inline int pgd_bad(pgd_t pgd)
 	return (pgd_val(pgd) & mask) != 0;
 }
 
+static inline int p4d_folded(p4d_t p4d)
+{
+	return (p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2;
+}
+
+static inline int p4d_present(p4d_t p4d)
+{
+	if (p4d_folded(p4d))
+		return 1;
+	return (p4d_val(p4d) & _REGION_ENTRY_ORIGIN) != 0UL;
+}
+
+static inline int p4d_none(p4d_t p4d)
+{
+	if (p4d_folded(p4d))
+		return 0;
+	return p4d_val(p4d) == _REGION2_ENTRY_EMPTY;
+}
+
+static inline unsigned long p4d_pfn(p4d_t p4d)
+{
+	unsigned long origin_mask;
+
+	origin_mask = _REGION_ENTRY_ORIGIN;
+	return (p4d_val(p4d) & origin_mask) >> PAGE_SHIFT;
+}
+
+static inline int pud_folded(pud_t pud)
+{
+	return (pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3;
+}
+
 static inline int pud_present(pud_t pud)
 {
-	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
+	if (pud_folded(pud))
 		return 1;
 	return (pud_val(pud) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pud_none(pud_t pud)
 {
-	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R3)
+	if (pud_folded(pud))
 		return 0;
 	return pud_val(pud) == _REGION3_ENTRY_EMPTY;
 }
@@ -614,7 +654,7 @@ static inline unsigned long pud_pfn(pud_t pud)
 {
 	unsigned long origin_mask;
 
-	origin_mask = _REGION3_ENTRY_ORIGIN;
+	origin_mask = _REGION_ENTRY_ORIGIN;
 	if (pud_large(pud))
 		origin_mask = _REGION3_ENTRY_ORIGIN_LARGE;
 	return (pud_val(pud) & origin_mask) >> PAGE_SHIFT;
@@ -639,6 +679,13 @@ static inline int pud_bad(pud_t pud)
 	if (pud_large(pud))
 		return (pud_val(pud) & ~_REGION_ENTRY_BITS_LARGE) != 0;
 	return (pud_val(pud) & ~_REGION_ENTRY_BITS) != 0;
+}
+
+static inline int p4d_bad(p4d_t p4d)
+{
+	if ((p4d_val(p4d) & _REGION_ENTRY_TYPE_MASK) < _REGION_ENTRY_TYPE_R2)
+		return pud_bad(__pud(p4d_val(p4d)));
+	return (p4d_val(p4d) & ~_REGION_ENTRY_BITS) != 0;
 }
 
 static inline int pmd_present(pmd_t pmd)
@@ -794,8 +841,14 @@ static inline int pte_unused(pte_t pte)
 
 static inline void pgd_clear(pgd_t *pgd)
 {
-	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
-		pgd_val(*pgd) = _REGION2_ENTRY_EMPTY;
+	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R1)
+		pgd_val(*pgd) = _REGION1_ENTRY_EMPTY;
+}
+
+static inline void p4d_clear(p4d_t *p4d)
+{
+	if ((p4d_val(*p4d) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
+		p4d_val(*p4d) = _REGION2_ENTRY_EMPTY;
 }
 
 static inline void pud_clear(pud_t *pud)
@@ -1089,6 +1142,7 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 }
 
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+#define p4d_index(address) (((address) >> P4D_SHIFT) & (PTRS_PER_P4D-1))
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 #define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
@@ -1098,19 +1152,31 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 
 #define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
 #define pud_deref(pud) (pud_val(pud) & _REGION_ENTRY_ORIGIN)
+#define p4d_deref(pud) (p4d_val(pud) & _REGION_ENTRY_ORIGIN)
 #define pgd_deref(pgd) (pgd_val(pgd) & _REGION_ENTRY_ORIGIN)
 
-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
+static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 {
-	pud_t *pud = (pud_t *) pgd;
-	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
-		pud = (pud_t *) pgd_deref(*pgd);
-	return pud  + pud_index(address);
+	p4d_t *p4d = (p4d_t *) pgd;
+
+	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R1)
+		p4d = (p4d_t *) pgd_deref(*pgd);
+	return p4d + p4d_index(address);
+}
+
+static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
+{
+	pud_t *pud = (pud_t *) p4d;
+
+	if ((p4d_val(*p4d) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
+		pud = (pud_t *) p4d_deref(*p4d);
+	return pud + pud_index(address);
 }
 
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 {
 	pmd_t *pmd = (pmd_t *) pud;
+
 	if ((pud_val(*pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
 		pmd = (pmd_t *) pud_deref(*pud);
 	return pmd + pmd_index(address);
@@ -1122,6 +1188,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 
 #define pmd_page(pmd) pfn_to_page(pmd_pfn(pmd))
 #define pud_page(pud) pfn_to_page(pud_pfn(pud))
+#define p4d_page(pud) pfn_to_page(p4d_pfn(p4d))
 
 /* Find an entry in the lowest level page table.. */
 #define pte_offset(pmd, addr) ((pte_t *) pmd_deref(*(pmd)) + pte_index(addr))

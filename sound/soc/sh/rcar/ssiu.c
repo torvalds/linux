@@ -123,6 +123,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
+	int hdmi = rsnd_ssi_hdmi_port(io);
 	int ret;
 
 	ret = rsnd_ssiu_init(mod, io, priv);
@@ -148,6 +149,42 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       rsnd_get_busif_shift(io, mod) | 1);
 		rsnd_mod_write(mod, SSI_BUSIF_DALIGN,
 			       rsnd_get_dalign(mod, io));
+	}
+
+	if (hdmi) {
+		enum rsnd_mod_type rsnd_ssi_array[] = {
+			RSND_MOD_SSIM1,
+			RSND_MOD_SSIM2,
+			RSND_MOD_SSIM3,
+		};
+		struct rsnd_mod *ssi_mod = rsnd_io_to_mod_ssi(io);
+		struct rsnd_mod *pos;
+		u32 val;
+		int i, shift;
+
+		i = rsnd_mod_id(ssi_mod);
+
+		/* output all same SSI as default */
+		val =	i << 16 |
+			i << 20 |
+			i << 24 |
+			i << 28 |
+			i;
+
+		for_each_rsnd_mod_array(i, pos, io, rsnd_ssi_array) {
+			shift	= (i * 4) + 16;
+			val	= (val & ~(0xF << shift)) |
+				rsnd_mod_id(pos) << shift;
+		}
+
+		switch (hdmi) {
+		case RSND_SSI_HDMI_PORT0:
+			rsnd_mod_write(mod, HDMI0_SEL, val);
+			break;
+		case RSND_SSI_HDMI_PORT1:
+			rsnd_mod_write(mod, HDMI1_SEL, val);
+			break;
+		}
 	}
 
 	return 0;

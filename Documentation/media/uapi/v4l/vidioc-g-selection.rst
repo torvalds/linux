@@ -121,8 +121,8 @@ Selection targets and flags are documented in
 
 .. _sel-const-adjust:
 
-.. figure::  constraints.*
-    :alt:    constraints.pdf / constraints.svg
+.. kernel-figure::  constraints.svg
+    :alt:    constraints.svg
     :align:  center
 
     Size adjustments with constraint flags.

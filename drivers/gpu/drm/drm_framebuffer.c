@@ -832,6 +832,7 @@ unlock:
 		drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}

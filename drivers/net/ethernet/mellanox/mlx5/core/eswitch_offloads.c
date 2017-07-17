@@ -311,9 +311,8 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 	struct mlx5_flow_spec *spec;
 	void *misc;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
 		flow_rule = ERR_PTR(-ENOMEM);
 		goto out;
 	}
@@ -401,9 +400,8 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		esw_warn(esw->dev, "FDB: Failed to alloc match parameters\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -488,7 +486,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	u32 *flow_group_in;
 
 	esw_debug(esw->dev, "Create offloads FDB Tables\n");
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -631,7 +629,7 @@ static int esw_create_vport_rx_group(struct mlx5_eswitch *esw)
 	int err = 0;
 	int nvports = priv->sriov.num_vfs + 2;
 
-	flow_group_in = mlx5_vzalloc(inlen);
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
 
@@ -675,9 +673,8 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 	struct mlx5_flow_spec *spec;
 	void *misc;
 
-	spec = mlx5_vzalloc(sizeof(*spec));
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
-		esw_warn(esw->dev, "Failed to alloc match parameters\n");
 		flow_rule = ERR_PTR(-ENOMEM);
 		goto out;
 	}
@@ -694,7 +691,7 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule = mlx5_add_flow_rules(esw->offloads.ft_offloads, spec,
-				       &flow_act, &dest, 1);
+					&flow_act, &dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev, "fs offloads: Failed to add vport rx rule err %ld\n", PTR_ERR(flow_rule));
 		goto out;
@@ -906,20 +903,33 @@ static int esw_inline_mode_to_devlink(u8 mlx5_mode, u8 *mode)
 	return 0;
 }
 
-int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
+static int mlx5_devlink_eswitch_check(struct devlink *devlink)
 {
-	struct mlx5_core_dev *dev;
-	u16 cur_mlx5_mode, mlx5_mode = 0;
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
-	dev = devlink_priv(devlink);
+	if (MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return -EOPNOTSUPP;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager))
 		return -EOPNOTSUPP;
 
-	cur_mlx5_mode = dev->priv.eswitch->mode;
-
-	if (cur_mlx5_mode == SRIOV_NONE)
+	if (dev->priv.eswitch->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	u16 cur_mlx5_mode, mlx5_mode = 0;
+	int err;
+
+	err = mlx5_devlink_eswitch_check(devlink);
+	if (err)
+		return err;
+
+	cur_mlx5_mode = dev->priv.eswitch->mode;
 
 	if (esw_mode_from_devlink(mode, &mlx5_mode))
 		return -EINVAL;
@@ -937,15 +947,12 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode)
 
 int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 {
-	struct mlx5_core_dev *dev;
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	int err;
 
-	dev = devlink_priv(devlink);
-
-	if (!MLX5_CAP_GEN(dev, vport_group_manager))
-		return -EOPNOTSUPP;
-
-	if (dev->priv.eswitch->mode == SRIOV_NONE)
-		return -EOPNOTSUPP;
+	err = mlx5_devlink_eswitch_check(devlink);
+	if (err)
+		return err;
 
 	return esw_mode_to_devlink(dev->priv.eswitch->mode, mode);
 }
@@ -954,15 +961,12 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
-	int num_vports = esw->enabled_vports;
 	int err, vport;
 	u8 mlx5_mode;
 
-	if (!MLX5_CAP_GEN(dev, vport_group_manager))
-		return -EOPNOTSUPP;
-
-	if (esw->mode == SRIOV_NONE)
-		return -EOPNOTSUPP;
+	err = mlx5_devlink_eswitch_check(devlink);
+	if (err)
+		return err;
 
 	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
 	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
@@ -985,7 +989,7 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
 	if (err)
 		goto out;
 
-	for (vport = 1; vport < num_vports; vport++) {
+	for (vport = 1; vport < esw->enabled_vports; vport++) {
 		err = mlx5_modify_nic_vport_min_inline(dev, vport, mlx5_mode);
 		if (err) {
 			esw_warn(dev, "Failed to set min inline on vport %d\n",
@@ -1010,12 +1014,11 @@ int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	int err;
 
-	if (!MLX5_CAP_GEN(dev, vport_group_manager))
-		return -EOPNOTSUPP;
-
-	if (esw->mode == SRIOV_NONE)
-		return -EOPNOTSUPP;
+	err = mlx5_devlink_eswitch_check(devlink);
+	if (err)
+		return err;
 
 	return esw_inline_mode_to_devlink(esw->offloads.inline_mode, mode);
 }
@@ -1062,11 +1065,9 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap)
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	int err;
 
-	if (!MLX5_CAP_GEN(dev, vport_group_manager))
-		return -EOPNOTSUPP;
-
-	if (esw->mode == SRIOV_NONE)
-		return -EOPNOTSUPP;
+	err = mlx5_devlink_eswitch_check(devlink);
+	if (err)
+		return err;
 
 	if (encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE &&
 	    (!MLX5_CAP_ESW_FLOWTABLE_FDB(dev, encap) ||
@@ -1096,7 +1097,7 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap)
 	if (err) {
 		esw_warn(esw->dev, "Failed re-creating fast FDB table, err %d\n", err);
 		esw->offloads.encap = !encap;
-		(void) esw_create_offloads_fast_fdb_table(esw);
+		(void)esw_create_offloads_fast_fdb_table(esw);
 	}
 	return err;
 }
@@ -1105,12 +1106,11 @@ int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink, u8 *encap)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	int err;
 
-	if (!MLX5_CAP_GEN(dev, vport_group_manager))
-		return -EOPNOTSUPP;
-
-	if (esw->mode == SRIOV_NONE)
-		return -EOPNOTSUPP;
+	err = mlx5_devlink_eswitch_check(devlink);
+	if (err)
+		return err;
 
 	*encap = esw->offloads.encap;
 	return 0;

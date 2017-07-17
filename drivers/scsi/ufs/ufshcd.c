@@ -314,7 +314,7 @@ static void ufshcd_print_clk_freqs(struct ufs_hba *hba)
 	struct ufs_clk_info *clki;
 	struct list_head *head = &hba->clk_list_head;
 
-	if (!head || list_empty(head))
+	if (list_empty(head))
 		return;
 
 	list_for_each_entry(clki, head, list) {
@@ -869,7 +869,7 @@ static int ufshcd_scale_clks(struct ufs_hba *hba, bool scale_up)
 	ktime_t start = ktime_get();
 	bool clk_state_changed = false;
 
-	if (!head || list_empty(head))
+	if (list_empty(head))
 		goto out;
 
 	ret = ufshcd_vops_clk_scale_notify(hba, scale_up, PRE_CHANGE);
@@ -943,7 +943,7 @@ static bool ufshcd_is_devfreq_scaling_required(struct ufs_hba *hba,
 	struct ufs_clk_info *clki;
 	struct list_head *head = &hba->clk_list_head;
 
-	if (!head || list_empty(head))
+	if (list_empty(head))
 		return false;
 
 	list_for_each_entry(clki, head, list) {
@@ -5809,7 +5809,8 @@ static int ufshcd_eh_host_reset_handler(struct scsi_cmnd *cmd)
 	do {
 		spin_lock_irqsave(hba->host->host_lock, flags);
 		if (!(work_pending(&hba->eh_work) ||
-				hba->ufshcd_state == UFSHCD_STATE_RESET))
+			    hba->ufshcd_state == UFSHCD_STATE_RESET ||
+			    hba->ufshcd_state == UFSHCD_STATE_EH_SCHEDULED))
 			break;
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
 		dev_dbg(hba->dev, "%s: reset in progress\n", __func__);
@@ -6752,7 +6753,7 @@ static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 	ktime_t start = ktime_get();
 	bool clk_state_changed = false;
 
-	if (!head || list_empty(head))
+	if (list_empty(head))
 		goto out;
 
 	ret = ufshcd_vops_setup_clocks(hba, on, PRE_CHANGE);
@@ -6818,7 +6819,7 @@ static int ufshcd_init_clocks(struct ufs_hba *hba)
 	struct device *dev = hba->dev;
 	struct list_head *head = &hba->clk_list_head;
 
-	if (!head || list_empty(head))
+	if (list_empty(head))
 		goto out;
 
 	list_for_each_entry(clki, head, list) {
@@ -7810,6 +7811,8 @@ int ufshcd_alloc_host(struct device *dev, struct ufs_hba **hba_handle)
 	hba->host = host;
 	hba->dev = dev;
 	*hba_handle = hba;
+
+	INIT_LIST_HEAD(&hba->clk_list_head);
 
 out_error:
 	return err;

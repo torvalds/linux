@@ -92,7 +92,7 @@ struct btrfs_inode;
 struct btrfs_io_bio;
 struct io_failure_record;
 
-typedef	int (extent_submit_bio_hook_t)(struct inode *inode, struct bio *bio,
+typedef	blk_status_t (extent_submit_bio_hook_t)(void *private_data, struct bio *bio,
 				       int mirror_num, unsigned long bio_flags,
 				       u64 bio_offset);
 struct extent_io_ops {
@@ -108,32 +108,36 @@ struct extent_io_ops {
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
+	struct btrfs_fs_info *(*tree_fs_info)(void *private_data);
+	void (*set_range_writeback)(void *private_data, u64 start, u64 end);
 
 	/*
 	 * Optional hooks, called if the pointer is not NULL
 	 */
-	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
+	int (*fill_delalloc)(void *private_data, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,
 			     unsigned long *nr_written);
 
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
-	void (*set_bit_hook)(struct inode *inode, struct extent_state *state,
+	void (*set_bit_hook)(void *private_data, struct extent_state *state,
 			     unsigned *bits);
-	void (*clear_bit_hook)(struct btrfs_inode *inode,
+	void (*clear_bit_hook)(void *private_data,
 			struct extent_state *state,
 			unsigned *bits);
-	void (*merge_extent_hook)(struct inode *inode,
+	void (*merge_extent_hook)(void *private_data,
 				  struct extent_state *new,
 				  struct extent_state *other);
-	void (*split_extent_hook)(struct inode *inode,
+	void (*split_extent_hook)(void *private_data,
 				  struct extent_state *orig, u64 split);
+	void (*check_extent_io_range)(void *private_data, const char *caller,
+				      u64 start, u64 end);
 };
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct address_space *mapping;
+	void *private_data;
 	u64 dirty_bytes;
 	int track_uptodate;
 	spinlock_t lock;
@@ -205,11 +209,45 @@ struct extent_buffer {
  */
 struct extent_changeset {
 	/* How many bytes are set/cleared in this operation */
-	u64 bytes_changed;
+	unsigned int bytes_changed;
 
 	/* Changed ranges */
 	struct ulist range_changed;
 };
+
+static inline void extent_changeset_init(struct extent_changeset *changeset)
+{
+	changeset->bytes_changed = 0;
+	ulist_init(&changeset->range_changed);
+}
+
+static inline struct extent_changeset *extent_changeset_alloc(void)
+{
+	struct extent_changeset *ret;
+
+	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
+	if (!ret)
+		return NULL;
+
+	extent_changeset_init(ret);
+	return ret;
+}
+
+static inline void extent_changeset_release(struct extent_changeset *changeset)
+{
+	if (!changeset)
+		return;
+	changeset->bytes_changed = 0;
+	ulist_release(&changeset->range_changed);
+}
+
+static inline void extent_changeset_free(struct extent_changeset *changeset)
+{
+	if (!changeset)
+		return;
+	extent_changeset_release(changeset);
+	kfree(changeset);
+}
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
 					    int compress_type)
@@ -230,8 +268,7 @@ typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
 					  u64 start, u64 len,
 					  int create);
 
-void extent_io_tree_init(struct extent_io_tree *tree,
-			 struct address_space *mapping);
+void extent_io_tree_init(struct extent_io_tree *tree, void *private_data);
 int try_release_extent_mapping(struct extent_map_tree *map,
 			       struct extent_io_tree *tree, struct page *page,
 			       gfp_t mask);
@@ -459,20 +496,21 @@ void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				 u64 delalloc_end, struct page *locked_page,
 				 unsigned bits_to_clear,
 				 unsigned long page_ops);
-struct bio *
-btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
-		gfp_t gfp_flags);
-struct bio *btrfs_io_bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs);
-struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask);
+struct bio *btrfs_bio_alloc(struct block_device *bdev, u64 first_byte);
+struct bio *btrfs_io_bio_alloc(unsigned int nr_iovecs);
+struct bio *btrfs_bio_clone(struct bio *bio);
+struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size);
 
 struct btrfs_fs_info;
 struct btrfs_inode;
 
-int repair_io_failure(struct btrfs_inode *inode, u64 start, u64 length,
-		u64 logical, struct page *page,
-		unsigned int pg_offset, int mirror_num);
-int clean_io_failure(struct btrfs_inode *inode, u64 start,
-		struct page *page, unsigned int pg_offset);
+int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
+		      u64 length, u64 logical, struct page *page,
+		      unsigned int pg_offset, int mirror_num);
+int clean_io_failure(struct btrfs_fs_info *fs_info,
+		     struct extent_io_tree *failure_tree,
+		     struct extent_io_tree *io_tree, u64 start,
+		     struct page *page, u64 ino, unsigned int pg_offset);
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_fs_info *fs_info,
 			 struct extent_buffer *eb, int mirror_num);
@@ -501,13 +539,15 @@ void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
 		u64 end);
 int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 				struct io_failure_record **failrec_ret);
-int btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
-			   struct io_failure_record *failrec, int fail_mirror);
+bool btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
+			    struct io_failure_record *failrec, int fail_mirror);
 struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 				    struct io_failure_record *failrec,
 				    struct page *page, int pg_offset, int icsum,
 				    bio_end_io_t *endio_func, void *data);
-int free_io_failure(struct btrfs_inode *inode, struct io_failure_record *rec);
+int free_io_failure(struct extent_io_tree *failure_tree,
+		    struct extent_io_tree *io_tree,
+		    struct io_failure_record *rec);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 noinline u64 find_lock_delalloc_range(struct inode *inode,
 				      struct extent_io_tree *tree,

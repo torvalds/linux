@@ -176,8 +176,9 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		 * keeping a extra list for uploaded keys.
 		 */
 
-		priv->used_rxkeys = kzalloc(BITS_TO_LONGS(
-			priv->rx_keycache_size), GFP_KERNEL);
+		priv->used_rxkeys = kcalloc(BITS_TO_LONGS(priv->rx_keycache_size),
+					    sizeof(long),
+					    GFP_KERNEL);
 
 		if (!priv->used_rxkeys)
 			return -ENOMEM;
@@ -205,7 +206,7 @@ static struct sk_buff *p54_alloc_skb(struct p54_common *priv, u16 hdr_flags,
 		return NULL;
 	skb_reserve(skb, priv->tx_hdr_len);
 
-	hdr = (struct p54_hdr *) skb_put(skb, sizeof(*hdr));
+	hdr = skb_put(skb, sizeof(*hdr));
 	hdr->flags = cpu_to_le16(hdr_flags);
 	hdr->len = cpu_to_le16(payload_len);
 	hdr->type = cpu_to_le16(type);
@@ -235,8 +236,7 @@ int p54_download_eeprom(struct p54_common *priv, void *buf,
 
 	mutex_lock(&priv->eeprom_mutex);
 	priv->eeprom = buf;
-	eeprom_hdr = (struct p54_eeprom_lm86 *) skb_put(skb,
-		eeprom_hdr_size + len);
+	eeprom_hdr = skb_put(skb, eeprom_hdr_size + len);
 
 	if (priv->fw_var < 0x509) {
 		eeprom_hdr->v1.offset = cpu_to_le16(offset);
@@ -272,7 +272,7 @@ int p54_update_beacon_tim(struct p54_common *priv, u16 aid, bool set)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	tim = (struct p54_tim *) skb_put(skb, sizeof(*tim));
+	tim = skb_put(skb, sizeof(*tim));
 	tim->count = 1;
 	tim->entry[0] = cpu_to_le16(set ? (aid | 0x8000) : aid);
 	p54_tx(priv, skb);
@@ -289,7 +289,7 @@ int p54_sta_unlock(struct p54_common *priv, u8 *addr)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	sta = (struct p54_sta_unlock *)skb_put(skb, sizeof(*sta));
+	sta = skb_put(skb, sizeof(*sta));
 	memcpy(sta->addr, addr, ETH_ALEN);
 	p54_tx(priv, skb);
 	return 0;
@@ -309,7 +309,7 @@ int p54_tx_cancel(struct p54_common *priv, __le32 req_id)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	cancel = (struct p54_txcancel *)skb_put(skb, sizeof(*cancel));
+	cancel = skb_put(skb, sizeof(*cancel));
 	cancel->req_id = req_id;
 	p54_tx(priv, skb);
 	return 0;
@@ -326,7 +326,7 @@ int p54_setup_mac(struct p54_common *priv)
 	if (!skb)
 		return -ENOMEM;
 
-	setup = (struct p54_setup_mac *) skb_put(skb, sizeof(*setup));
+	setup = skb_put(skb, sizeof(*setup));
 	if (!(priv->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		switch (priv->mode) {
 		case NL80211_IFTYPE_STATION:
@@ -412,18 +412,18 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	if (!skb)
 		return -ENOMEM;
 
-	head = (struct p54_scan_head *) skb_put(skb, sizeof(*head));
+	head = skb_put(skb, sizeof(*head));
 	memset(head->scan_params, 0, sizeof(head->scan_params));
 	head->mode = cpu_to_le16(mode);
 	head->dwell = cpu_to_le16(dwell);
 	head->freq = freq;
 
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
-		__le16 *pa_power_points = (__le16 *) skb_put(skb, 2);
+		__le16 *pa_power_points = skb_put(skb, 2);
 		*pa_power_points = cpu_to_le16(0x0c);
 	}
 
-	iq_autocal = (void *) skb_put(skb, sizeof(*iq_autocal));
+	iq_autocal = skb_put(skb, sizeof(*iq_autocal));
 	for (i = 0; i < priv->iq_autocal_len; i++) {
 		if (priv->iq_autocal[i].freq != freq)
 			continue;
@@ -436,9 +436,9 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 		goto err;
 
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW)
-		body = (void *) skb_put(skb, sizeof(body->longbow));
+		body = skb_put(skb, sizeof(body->longbow));
 	else
-		body = (void *) skb_put(skb, sizeof(body->normal));
+		body = skb_put(skb, sizeof(body->normal));
 
 	for (i = 0; i < priv->output_limit->entries; i++) {
 		__le16 *entry_freq = (void *) (priv->output_limit->data +
@@ -499,25 +499,25 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 		goto err;
 
 	if ((priv->fw_var >= 0x500) && (priv->fw_var < 0x509)) {
-		rate = (void *) skb_put(skb, sizeof(*rate));
+		rate = skb_put(skb, sizeof(*rate));
 		rate->basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		for (i = 0; i < sizeof(rate->rts_rates); i++)
 			rate->rts_rates[i] = i;
 	}
 
-	rssi = (struct pda_rssi_cal_entry *) skb_put(skb, sizeof(*rssi));
+	rssi = skb_put(skb, sizeof(*rssi));
 	rssi_data = p54_rssi_find(priv, le16_to_cpu(freq));
 	rssi->mul = cpu_to_le16(rssi_data->mul);
 	rssi->add = cpu_to_le16(rssi_data->add);
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_LONGBOW) {
 		/* Longbow frontend needs ever more */
-		rssi = (void *) skb_put(skb, sizeof(*rssi));
+		rssi = skb_put(skb, sizeof(*rssi));
 		rssi->mul = cpu_to_le16(rssi_data->longbow_unkn);
 		rssi->add = cpu_to_le16(rssi_data->longbow_unk2);
 	}
 
 	if (priv->fw_var >= 0x509) {
-		rate = (void *) skb_put(skb, sizeof(*rate));
+		rate = skb_put(skb, sizeof(*rate));
 		rate->basic_rate_mask = cpu_to_le32(priv->basic_rate_mask);
 		for (i = 0; i < sizeof(rate->rts_rates); i++)
 			rate->rts_rates[i] = i;
@@ -549,7 +549,7 @@ int p54_set_leds(struct p54_common *priv)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	led = (struct p54_led *) skb_put(skb, sizeof(*led));
+	led = skb_put(skb, sizeof(*led));
 	led->flags = cpu_to_le16(0x0003);
 	led->mask[0] = led->mask[1] = cpu_to_le16(priv->softled_state);
 	led->delay[0] = cpu_to_le16(1);
@@ -569,7 +569,7 @@ int p54_set_edcf(struct p54_common *priv)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	edcf = (struct p54_edcf *)skb_put(skb, sizeof(*edcf));
+	edcf = skb_put(skb, sizeof(*edcf));
 	if (priv->use_short_slot) {
 		edcf->slottime = 9;
 		edcf->sifs = 0x10;
@@ -614,7 +614,7 @@ int p54_set_ps(struct p54_common *priv)
 	if (!skb)
 		return -ENOMEM;
 
-	psm = (struct p54_psm *)skb_put(skb, sizeof(*psm));
+	psm = skb_put(skb, sizeof(*psm));
 	psm->mode = cpu_to_le16(mode);
 	psm->aid = cpu_to_le16(priv->aid);
 	for (i = 0; i < ARRAY_SIZE(psm->intervals); i++) {
@@ -643,7 +643,7 @@ int p54_init_xbow_synth(struct p54_common *priv)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	xbow = (struct p54_xbow_synth *)skb_put(skb, sizeof(*xbow));
+	xbow = skb_put(skb, sizeof(*xbow));
 	xbow->magic1 = cpu_to_le16(0x1);
 	xbow->magic2 = cpu_to_le16(0x2);
 	xbow->freq = cpu_to_le16(5390);
@@ -663,7 +663,7 @@ int p54_upload_key(struct p54_common *priv, u8 algo, int slot, u8 idx, u8 len,
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	rxkey = (struct p54_keycache *)skb_put(skb, sizeof(*rxkey));
+	rxkey = skb_put(skb, sizeof(*rxkey));
 	rxkey->entry = slot;
 	rxkey->key_id = idx;
 	rxkey->key_type = algo;
@@ -743,7 +743,7 @@ int p54_set_groupfilter(struct p54_common *priv)
 	if (!skb)
 		return -ENOMEM;
 
-	grp = (struct p54_group_address_table *)skb_put(skb, sizeof(*grp));
+	grp = skb_put(skb, sizeof(*grp));
 
 	on = !(priv->filter_flags & FIF_ALLMULTI) &&
 	     (priv->mc_maclist_num > 0 &&

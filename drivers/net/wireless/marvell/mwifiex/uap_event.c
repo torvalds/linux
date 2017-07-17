@@ -312,6 +312,17 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 					    adapter->event_skb->len -
 					    sizeof(eventcause));
 		break;
+
+	case EVENT_REMAIN_ON_CHAN_EXPIRED:
+		mwifiex_dbg(adapter, EVENT,
+			    "event: uap: Remain on channel expired\n");
+		cfg80211_remain_on_channel_expired(&priv->wdev,
+						   priv->roc_cfg.cookie,
+						   &priv->roc_cfg.chan,
+						   GFP_ATOMIC);
+		memset(&priv->roc_cfg, 0x00, sizeof(struct mwifiex_roc_cfg));
+		break;
+
 	default:
 		mwifiex_dbg(adapter, EVENT,
 			    "event: unknown event id: %#x\n", eventcause);

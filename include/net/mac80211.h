@@ -4205,6 +4205,22 @@ void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
 			    int max_rates);
 
 /**
+ * ieee80211_sta_set_expected_throughput - set the expected tpt for a station
+ *
+ * Call this function to notify mac80211 about a change in expected throughput
+ * to a station. A driver for a device that does rate control in firmware can
+ * call this function when the expected throughput estimate towards a station
+ * changes. The information is used to tune the CoDel AQM applied to traffic
+ * going towards that station (which can otherwise be too aggressive and cause
+ * slow stations to starve).
+ *
+ * @pubsta: the station to set throughput for.
+ * @thr: the current expected throughput in kbps.
+ */
+void ieee80211_sta_set_expected_throughput(struct ieee80211_sta *pubsta,
+					   u32 thr);
+
+/**
  * ieee80211_tx_status - transmit status callback
  *
  * Call this function for all transmitted frames after they have been
@@ -5436,6 +5452,9 @@ void ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *pubsta, u8 tid,
  */
 void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
 
+void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif, const u8 *addr,
+				 unsigned int bit);
+
 /**
  * ieee80211_start_rx_ba_session_offl - start a Rx BA session
  *
@@ -5450,8 +5469,13 @@ void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
  * @addr: station mac address
  * @tid: the rx tid
  */
-void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
-					const u8 *addr, u16 tid);
+static inline void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
+						      const u8 *addr, u16 tid)
+{
+	if (WARN_ON(tid >= IEEE80211_NUM_TIDS))
+		return;
+	ieee80211_manage_rx_ba_offl(vif, addr, tid);
+}
 
 /**
  * ieee80211_stop_rx_ba_session_offl - stop a Rx BA session
@@ -5467,8 +5491,13 @@ void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
  * @addr: station mac address
  * @tid: the rx tid
  */
-void ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif,
-				       const u8 *addr, u16 tid);
+static inline void ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif,
+						     const u8 *addr, u16 tid)
+{
+	if (WARN_ON(tid >= IEEE80211_NUM_TIDS))
+		return;
+	ieee80211_manage_rx_ba_offl(vif, addr, tid + IEEE80211_NUM_TIDS);
+}
 
 /* Rate control API */
 

@@ -27,6 +27,7 @@ Optional properties:
   of the device. On many systems this is wired high so the device goes
   out of reset at power-on, but if it is under program control, this
   optional GPIO can wake up in response to it.
+- vdd33a-supply, vddvario-supply : 3.3V analog and IO logic power supplies
 
 Examples:
 
