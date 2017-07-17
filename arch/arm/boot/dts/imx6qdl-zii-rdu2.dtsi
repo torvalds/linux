@@ -624,6 +624,56 @@
 	phy-reset-duration = <100>;
 	phy-supply = <&reg_3p3v>;
 	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		switch@0 {
+			compatible = "marvell,mv88e6085";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			dsa,member = <0 0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					label = "gigabit_proc";
+				};
+
+				port@1 {
+					reg = <1>;
+					label = "netaux";
+				};
+
+				port@2 {
+					reg = <2>;
+					label = "cpu";
+					ethernet = <&fec>;
+
+					fixed-link {
+						speed = <100>;
+						full-duplex;
+					};
+				};
+
+				port@3 {
+					reg = <3>;
+					label = "netright";
+				};
+
+				port@4 {
+					reg = <4>;
+					label = "netleft";
+				};
+			};
+		};
+	};
 };
 
 &usbh1 {
