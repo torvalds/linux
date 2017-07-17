@@ -15,11 +15,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/ctype.h>
-#include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/nls.h>
-#include <linux/netdevice.h>
 #include <linux/uuid.h>
 #include <linux/crash_dump.h>
 
