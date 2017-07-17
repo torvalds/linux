@@ -53,6 +53,10 @@
 	compatible = "marvell,armada8040-mcbin", "marvell,armada8040",
 			"marvell,armada-ap806-quad", "marvell,armada-ap806";
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory@00000000 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
