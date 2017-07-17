@@ -30,12 +30,6 @@ struct hts221_transfer_function {
 	int (*write)(struct device *dev, u8 addr, int len, u8 *data);
 };
 
-#define HTS221_AVG_DEPTH	8
-struct hts221_avg_avl {
-	u16 avg;
-	u8 val;
-};
-
 enum hts221_sensor_type {
 	HTS221_SENSOR_H,
 	HTS221_SENSOR_T,
