@@ -70,6 +70,7 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_dip[] = {
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_IP4, 0x00, 0, 32),
+	MLXSW_AFK_ELEMENT_INST_U32(IP_TTL_, 0x04, 24, 8),
 	MLXSW_AFK_ELEMENT_INST_U32(TCP_FLAGS, 0x08, 8, 9), /* TCP_CONTROL+TCP_ECN */
 };
 
