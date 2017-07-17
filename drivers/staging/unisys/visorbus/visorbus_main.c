@@ -73,8 +73,7 @@ static LIST_HEAD(list_all_bus_instances);
 /* list of visor_device structs, linked via .list_all */
 static LIST_HEAD(list_all_device_instances);
 
-static int
-visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
+static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 {
 	struct visor_device *dev;
 	uuid_le guid;
@@ -94,8 +93,7 @@ visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
  *
  * Return: 1 iff the provided driver can control the specified device
  */
-static int
-visorbus_match(struct device *xdev, struct device_driver *xdrv)
+static int visorbus_match(struct device *xdev, struct device_driver *xdrv)
 {
 	uuid_le channel_type;
 	int i;
@@ -136,8 +134,7 @@ struct bus_type visorbus_type = {
  *                                involved with destroying the dev are complete
  * @xdev: struct device for the bus being released
  */
-static void
-visorbus_release_busdevice(struct device *xdev)
+static void visorbus_release_busdevice(struct device *xdev)
 {
 	struct visor_device *dev = dev_get_drvdata(xdev);
 
@@ -151,8 +148,7 @@ visorbus_release_busdevice(struct device *xdev)
  *                             each child device instance
  * @xdev: struct device for the visor device being released
  */
-static void
-visorbus_release_device(struct device *xdev)
+static void visorbus_release_device(struct device *xdev)
 {
 	struct visor_device *dev = to_visor_device(xdev);
 
@@ -368,9 +364,8 @@ static const struct attribute_group *visorbus_groups[] = {
  *
  * Reads @devInfo, and writes it in human-readable notation to @seq.
  */
-static void
-vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
-			  struct seq_file *seq, int devix)
+static void vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
+				      struct seq_file *seq, int devix)
 {
 	/* uninitialized vbus device entry */
 	if (!isprint(devinfo->devtype[0]))
@@ -445,8 +440,7 @@ static const struct file_operations client_bus_info_debugfs_fops = {
 	.release = single_release,
 };
 
-static void
-dev_periodic_work(unsigned long __opaque)
+static void dev_periodic_work(unsigned long __opaque)
 {
 	struct visor_device *dev = (struct visor_device *)__opaque;
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
@@ -455,8 +449,7 @@ dev_periodic_work(unsigned long __opaque)
 	mod_timer(&dev->timer, jiffies + POLLJIFFIES_NORMALCHANNEL);
 }
 
-static int
-dev_start_periodic_work(struct visor_device *dev)
+static int dev_start_periodic_work(struct visor_device *dev)
 {
 	if (dev->being_removed || dev->timer_active)
 		return -EINVAL;
@@ -468,8 +461,7 @@ dev_start_periodic_work(struct visor_device *dev)
 	return 0;
 }
 
-static void
-dev_stop_periodic_work(struct visor_device *dev)
+static void dev_stop_periodic_work(struct visor_device *dev)
 {
 	if (!dev->timer_active)
 		return;
@@ -488,8 +480,7 @@ dev_stop_periodic_work(struct visor_device *dev)
  *
  * Return: 0 iff successful
  */
-static int
-visordriver_remove_device(struct device *xdev)
+static int visordriver_remove_device(struct device *xdev)
 {
 	struct visor_device *dev;
 	struct visor_driver *drv;
@@ -516,8 +507,7 @@ visordriver_remove_device(struct device *xdev)
  * A visor function driver calls this function to unregister the driver,
  * i.e., within its module_exit function.
  */
-void
-visorbus_unregister_visor_driver(struct visor_driver *drv)
+void visorbus_unregister_visor_driver(struct visor_driver *drv)
 {
 	driver_unregister(&drv->driver);
 }
@@ -536,9 +526,8 @@ EXPORT_SYMBOL_GPL(visorbus_unregister_visor_driver);
  *
  * Return: integer indicating success (zero) or failure (non-zero)
  */
-int
-visorbus_read_channel(struct visor_device *dev, unsigned long offset,
-		      void *dest, unsigned long nbytes)
+int visorbus_read_channel(struct visor_device *dev, unsigned long offset,
+			  void *dest, unsigned long nbytes)
 {
 	return visorchannel_read(dev->visorchannel, offset, dest, nbytes);
 }
@@ -557,9 +546,8 @@ EXPORT_SYMBOL_GPL(visorbus_read_channel);
  *
  * Return: integer indicating success (zero) or failure (non-zero)
  */
-int
-visorbus_write_channel(struct visor_device *dev, unsigned long offset,
-		       void *src, unsigned long nbytes)
+int visorbus_write_channel(struct visor_device *dev, unsigned long offset,
+			   void *src, unsigned long nbytes)
 {
 	return visorchannel_write(dev->visorchannel, offset, src, nbytes);
 }
@@ -573,8 +561,7 @@ EXPORT_SYMBOL_GPL(visorbus_write_channel);
  * Currently we don't yet have a real interrupt, so for now we just call the
  * interrupt function periodically via a timer.
  */
-int
-visorbus_enable_channel_interrupts(struct visor_device *dev)
+int visorbus_enable_channel_interrupts(struct visor_device *dev)
 {
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
@@ -592,8 +579,7 @@ EXPORT_SYMBOL_GPL(visorbus_enable_channel_interrupts);
  *                                         designated device
  * @dev: the device on which to disable interrupts
  */
-void
-visorbus_disable_channel_interrupts(struct visor_device *dev)
+void visorbus_disable_channel_interrupts(struct visor_device *dev)
 {
 	dev_stop_periodic_work(dev);
 }
@@ -622,8 +608,7 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
  * Return: 0 if successful, otherwise the negative value returned by
  *         device_add() indicating the reason for failure
  */
-static int
-create_visor_device(struct visor_device *dev)
+static int create_visor_device(struct visor_device *dev)
 {
 	int err;
 	u32 chipset_bus_no = dev->chipset_bus_no;
@@ -679,17 +664,15 @@ err_put:
 	return err;
 }
 
-static void
-remove_visor_device(struct visor_device *dev)
+static void remove_visor_device(struct visor_device *dev)
 {
 	list_del(&dev->list_all);
 	put_device(&dev->device);
 	device_unregister(&dev->device);
 }
 
-static int
-get_vbus_header_info(struct visorchannel *chan,
-		     struct visor_vbus_headerinfo *hdr_info)
+static int get_vbus_header_info(struct visorchannel *chan,
+				struct visor_vbus_headerinfo *hdr_info)
 {
 	int err;
 
@@ -729,10 +712,9 @@ get_vbus_header_info(struct visorchannel *chan,
  * Returns no value since this is debug information and not needed for
  * device functionality.
  */
-static void
-write_vbus_chp_info(struct visorchannel *chan,
-		    struct visor_vbus_headerinfo *hdr_info,
-		    struct visor_vbus_deviceinfo *info)
+static void write_vbus_chp_info(struct visorchannel *chan,
+				struct visor_vbus_headerinfo *hdr_info,
+				struct visor_vbus_deviceinfo *info)
 {
 	int off = sizeof(struct channel_header) + hdr_info->chp_info_offset;
 
@@ -755,10 +737,9 @@ write_vbus_chp_info(struct visorchannel *chan,
  * Returns no value since this is debug information and not needed for
  * device functionality.
  */
-static void
-write_vbus_bus_info(struct visorchannel *chan,
-		    struct visor_vbus_headerinfo *hdr_info,
-		    struct visor_vbus_deviceinfo *info)
+static void write_vbus_bus_info(struct visorchannel *chan,
+				struct visor_vbus_headerinfo *hdr_info,
+				struct visor_vbus_deviceinfo *info)
 {
 	int off = sizeof(struct channel_header) + hdr_info->bus_info_offset;
 
@@ -782,10 +763,10 @@ write_vbus_bus_info(struct visorchannel *chan,
  * Returns no value since this is debug information and not needed for
  * device functionality.
  */
-static void
-write_vbus_dev_info(struct visorchannel *chan,
-		    struct visor_vbus_headerinfo *hdr_info,
-		    struct visor_vbus_deviceinfo *info, unsigned int devix)
+static void write_vbus_dev_info(struct visorchannel *chan,
+				struct visor_vbus_headerinfo *hdr_info,
+				struct visor_vbus_deviceinfo *info,
+				unsigned int devix)
 {
 	int off =
 	    (sizeof(struct channel_header) + hdr_info->dev_info_offset) +
@@ -820,8 +801,7 @@ static void bus_device_info_init(
  *                       vbus channel of the bus instance
  * @visordev: struct visor_device for the desired device
  */
-static void
-fix_vbus_dev_info(struct visor_device *visordev)
+static void fix_vbus_dev_info(struct visor_device *visordev)
 {
 	int i;
 	struct visor_device *bdev;
@@ -880,8 +860,7 @@ fix_vbus_dev_info(struct visor_device *visordev)
  *         was successful with this device, otherwise a negative errno
  *         value indicating failure reason
  */
-static int
-visordriver_probe_device(struct device *xdev)
+static int visordriver_probe_device(struct device *xdev)
 {
 	int res;
 	struct visor_driver *drv;
@@ -991,8 +970,7 @@ EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
  * Return: 0 for success, otherwise negative errno value indicating reason for
  *         failure
  */
-static int
-visorbus_create_instance(struct visor_device *dev)
+static int visorbus_create_instance(struct visor_device *dev)
 {
 	int id = dev->chipset_bus_no;
 	int err;
@@ -1044,8 +1022,7 @@ err_debugfs_dir:
  * visorbus_remove_instance() - remove a device instance for the visorbus itself
  * @dev: struct visor_device indentifying the bus to remove
  */
-static void
-visorbus_remove_instance(struct visor_device *dev)
+static void visorbus_remove_instance(struct visor_device *dev)
 {
 	/*
 	 * Note that this will result in the release method for
@@ -1064,8 +1041,7 @@ visorbus_remove_instance(struct visor_device *dev)
 /*
  * remove_all_visor_devices() - remove all child visorbus device instances
  */
-static void
-remove_all_visor_devices(void)
+static void remove_all_visor_devices(void)
 {
 	struct list_head *listentry, *listtmp;
 
@@ -1077,8 +1053,7 @@ remove_all_visor_devices(void)
 	}
 }
 
-int
-visorchipset_bus_create(struct visor_device *dev)
+int visorchipset_bus_create(struct visor_device *dev)
 {
 	int err;
 
@@ -1091,15 +1066,13 @@ visorchipset_bus_create(struct visor_device *dev)
 	return 0;
 }
 
-void
-visorchipset_bus_destroy(struct visor_device *dev)
+void visorchipset_bus_destroy(struct visor_device *dev)
 {
 	visorbus_remove_instance(dev);
 	visorbus_destroy_response(dev, 0);
 }
 
-int
-visorchipset_device_create(struct visor_device *dev_info)
+int visorchipset_device_create(struct visor_device *dev_info)
 {
 	int err;
 
@@ -1112,8 +1085,7 @@ visorchipset_device_create(struct visor_device *dev_info)
 	return 0;
 }
 
-void
-visorchipset_device_destroy(struct visor_device *dev_info)
+void visorchipset_device_destroy(struct visor_device *dev_info)
 {
 	remove_visor_device(dev_info);
 	visorbus_device_destroy_response(dev_info, 0);
@@ -1128,8 +1100,7 @@ visorchipset_device_destroy(struct visor_device *dev_info)
  * @status: 0 iff the pause state change completed successfully, otherwise
  *          a negative errno value indicating the reason for failure
  */
-static void
-pause_state_change_complete(struct visor_device *dev, int status)
+static void pause_state_change_complete(struct visor_device *dev, int status)
 {
 	if (!dev->pausing)
 		return;
@@ -1147,8 +1118,7 @@ pause_state_change_complete(struct visor_device *dev, int status)
  * @status: 0 iff the resume state change completed successfully, otherwise
  *          a negative errno value indicating the reason for failure
  */
-static void
-resume_state_change_complete(struct visor_device *dev, int status)
+static void resume_state_change_complete(struct visor_device *dev, int status)
 {
 	if (!dev->resuming)
 		return;
@@ -1174,9 +1144,8 @@ resume_state_change_complete(struct visor_device *dev, int status)
  * via a callback function; see pause_state_change_complete() and
  * resume_state_change_complete().
  */
-static int
-visorchipset_initiate_device_pause_resume(struct visor_device *dev,
-					  bool is_pause)
+static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
+						     bool is_pause)
 {
 	int err;
 	struct visor_driver *drv = NULL;
@@ -1218,8 +1187,7 @@ visorchipset_initiate_device_pause_resume(struct visor_device *dev,
  * that device.  Success/failure result is returned asynchronously
  * via a callback function; see pause_state_change_complete().
  */
-int
-visorchipset_device_pause(struct visor_device *dev_info)
+int visorchipset_device_pause(struct visor_device *dev_info)
 {
 	int err;
 
@@ -1240,8 +1208,7 @@ visorchipset_device_pause(struct visor_device *dev_info)
  * that device.  Success/failure result is returned asynchronously
  * via a callback function; see resume_state_change_complete().
  */
-int
-visorchipset_device_resume(struct visor_device *dev_info)
+int visorchipset_device_resume(struct visor_device *dev_info)
 {
 	int err;
 
@@ -1254,8 +1221,7 @@ visorchipset_device_resume(struct visor_device *dev_info)
 	return 0;
 }
 
-int
-visorbus_init(void)
+int visorbus_init(void)
 {
 	int err;
 
@@ -1275,8 +1241,7 @@ visorbus_init(void)
 	return 0;
 }
 
-void
-visorbus_exit(void)
+void visorbus_exit(void)
 {
 	struct list_head *listentry, *listtmp;
 
