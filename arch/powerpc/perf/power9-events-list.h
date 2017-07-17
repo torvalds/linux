@@ -51,8 +51,12 @@ EVENT(PM_DTLB_MISS,				0x300fc)
 EVENT(PM_ITLB_MISS,				0x400fc)
 /* Run_Instructions */
 EVENT(PM_RUN_INST_CMPL,				0x500fa)
+/* Alternate event code for PM_RUN_INST_CMPL */
+EVENT(PM_RUN_INST_CMPL_ALT,			0x400fa)
 /* Run_cycles */
 EVENT(PM_RUN_CYC,				0x600f4)
+/* Alternate event code for Run_cycles */
+EVENT(PM_RUN_CYC_ALT,				0x200f4)
 /* Instruction Dispatched */
 EVENT(PM_INST_DISP,				0x200f2)
 EVENT(PM_INST_DISP_ALT,				0x300f2)

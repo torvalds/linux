@@ -1801,7 +1801,11 @@ static void __pci_pme_active(struct pci_dev *dev, bool enable)
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
 }
 
-static void pci_pme_restore(struct pci_dev *dev)
+/**
+ * pci_pme_restore - Restore PME configuration after config space restore.
+ * @dev: PCI device to update.
+ */
+void pci_pme_restore(struct pci_dev *dev)
 {
 	u16 pmcsr;
 
@@ -1811,6 +1815,7 @@ static void pci_pme_restore(struct pci_dev *dev)
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	if (dev->wakeup_prepared) {
 		pmcsr |= PCI_PM_CTRL_PME_ENABLE;
+		pmcsr &= ~PCI_PM_CTRL_PME_STATUS;
 	} else {
 		pmcsr &= ~PCI_PM_CTRL_PME_ENABLE;
 		pmcsr |= PCI_PM_CTRL_PME_STATUS;
@@ -1907,14 +1912,9 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 {
 	int ret = 0;
 
-	/*
-	 * Don't do the same thing twice in a row for one device, but restore
-	 * PME Enable in case it has been updated by config space restoration.
-	 */
-	if (!!enable == !!dev->wakeup_prepared) {
-		pci_pme_restore(dev);
+	/* Don't do the same thing twice in a row for one device. */
+	if (!!enable == !!dev->wakeup_prepared)
 		return 0;
-	}
 
 	/*
 	 * According to "PCI System Architecture" 4th ed. by Tom Shanley & Don

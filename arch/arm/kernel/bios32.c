@@ -480,7 +480,7 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 
 			ret = pcibios_init_resource(nr, sys, hw->io_optional);
 			if (ret)  {
-				kfree(sys);
+				pci_free_host_bridge(bridge);
 				break;
 			}
 
