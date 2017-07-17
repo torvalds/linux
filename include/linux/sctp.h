@@ -315,10 +315,10 @@ struct sctp_supported_ext_param {
 };
 
 /* AUTH Section 3.1 Random */
-typedef struct sctp_random_param {
+struct sctp_random_param {
 	struct sctp_paramhdr param_hdr;
 	__u8 random_val[0];
-} sctp_random_param_t;
+};
 
 /* AUTH Section 3.2 Chunk List */
 typedef struct sctp_chunks_param {

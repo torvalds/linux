@@ -185,7 +185,7 @@ static int sctp_auth_compare_vectors(struct sctp_auth_bytes *vector1,
  *    are called the two key vectors.
  */
 static struct sctp_auth_bytes *sctp_auth_make_key_vector(
-			sctp_random_param_t *random,
+			struct sctp_random_param *random,
 			sctp_chunks_param_t *chunks,
 			sctp_hmac_algo_param_t *hmacs,
 			gfp_t gfp)
@@ -226,10 +226,9 @@ static struct sctp_auth_bytes *sctp_auth_make_local_vector(
 				    gfp_t gfp)
 {
 	return sctp_auth_make_key_vector(
-				    (sctp_random_param_t *)asoc->c.auth_random,
-				    (sctp_chunks_param_t *)asoc->c.auth_chunks,
-				    (sctp_hmac_algo_param_t *)asoc->c.auth_hmacs,
-				    gfp);
+			(struct sctp_random_param *)asoc->c.auth_random,
+			(sctp_chunks_param_t *)asoc->c.auth_chunks,
+			(sctp_hmac_algo_param_t *)asoc->c.auth_hmacs, gfp);
 }
 
 /* Make a key vector based on peer's parameters */

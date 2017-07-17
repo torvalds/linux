@@ -1556,7 +1556,7 @@ struct sctp_association {
 		 * and authenticated chunk list.  All that is part of the
 		 * cookie and these are just pointers to those locations
 		 */
-		sctp_random_param_t *peer_random;
+		struct sctp_random_param *peer_random;
 		sctp_chunks_param_t *peer_chunks;
 		sctp_hmac_algo_param_t *peer_hmacs;
 	} peer;
