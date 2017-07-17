@@ -1107,39 +1107,19 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 
 	end = offset + bytes;
 
-	for (;;) {
-		if (!(PagePrivate(page) || PageSwapCache(page)))
-			return NULL;
-		spin_lock(&inode->i_lock);
-		req = nfs_page_find_head_request_locked(NFS_I(inode), page);
-		if (req == NULL)
-			goto out_unlock;
+	req = nfs_lock_and_join_requests(page);
+	if (IS_ERR_OR_NULL(req))
+		return req;
 
-		/* should be handled by nfs_flush_incompatible */
-		WARN_ON_ONCE(req->wb_head != req);
-		WARN_ON_ONCE(req->wb_this_page != req);
-
-		rqend = req->wb_offset + req->wb_bytes;
-		/*
-		 * Tell the caller to flush out the request if
-		 * the offsets are non-contiguous.
-		 * Note: nfs_flush_incompatible() will already
-		 * have flushed out requests having wrong owners.
-		 */
-		if (offset > rqend
-		    || end < req->wb_offset)
-			goto out_flushme;
-
-		if (nfs_lock_request(req))
-			break;
-
-		/* The request is locked, so wait and then retry */
-		spin_unlock(&inode->i_lock);
-		error = nfs_wait_on_request(req);
-		nfs_release_request(req);
-		if (error != 0)
-			goto out_err;
-	}
+	rqend = req->wb_offset + req->wb_bytes;
+	/*
+	 * Tell the caller to flush out the request if
+	 * the offsets are non-contiguous.
+	 * Note: nfs_flush_incompatible() will already
+	 * have flushed out requests having wrong owners.
+	 */
+	if (offset > rqend || end < req->wb_offset)
+		goto out_flushme;
 
 	/* Okay, the request matches. Update the region */
 	if (offset < req->wb_offset) {
@@ -1150,17 +1130,17 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 		req->wb_bytes = end - req->wb_offset;
 	else
 		req->wb_bytes = rqend - req->wb_offset;
-out_unlock:
-	if (req)
-		nfs_clear_request_commit(req);
-	spin_unlock(&inode->i_lock);
 	return req;
 out_flushme:
-	spin_unlock(&inode->i_lock);
-	nfs_release_request(req);
+	/*
+	 * Note: we mark the request dirty here because
+	 * nfs_lock_and_join_requests() cannot preserve
+	 * commit flags, so we have to replay the write.
+	 */
+	nfs_mark_request_dirty(req);
+	nfs_unlock_and_release_request(req);
 	error = nfs_wb_page(inode, page);
-out_err:
-	return ERR_PTR(error);
+	return (error < 0) ? ERR_PTR(error) : NULL;
 }
 
 /*
