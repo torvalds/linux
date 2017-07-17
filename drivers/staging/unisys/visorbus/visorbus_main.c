@@ -1039,7 +1039,7 @@ visorbus_create_instance(struct visor_device *dev)
 err_debugfs_dir:
 	debugfs_remove_recursive(dev->debugfs_dir);
 	kfree(hdr_info);
-	dev_err(&dev->device, "visorbus_create_instance failed: %d\n", err);
+	dev_err(&dev->device, "%s failed: %d\n", __func__, err);
 	return err;
 }
 
