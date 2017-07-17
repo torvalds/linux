@@ -630,13 +630,19 @@
 		#size-cells = <0>;
 		status = "okay";
 
-		switch@0 {
+		switch: switch@0 {
 			compatible = "marvell,mv88e6085";
+			pinctrl-0 = <&pinctrl_switch_irq>;
+			pinctrl-names = "default";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
 			dsa,member = <0 0>;
 			eeprom-length = <512>;
+			interrupt-parent = <&gpio6>;
+			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 
 			ports {
 				#address-cells = <1>;
@@ -645,11 +651,13 @@
 				port@0 {
 					reg = <0>;
 					label = "gigabit_proc";
+					phy-handle = <&switchphy0>;
 				};
 
 				port@1 {
 					reg = <1>;
 					label = "netaux";
+					phy-handle = <&switchphy1>;
 				};
 
 				port@2 {
@@ -666,11 +674,48 @@
 				port@3 {
 					reg = <3>;
 					label = "netright";
+					phy-handle = <&switchphy3>;
 				};
 
 				port@4 {
 					reg = <4>;
 					label = "netleft";
+					phy-handle = <&switchphy4>;
+				};
+			};
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				switchphy0: switchphy@0 {
+					reg = <0>;
+					interrupt-parent = <&switch>;
+					interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				switchphy1: switchphy@1 {
+					reg = <1>;
+					interrupt-parent = <&switch>;
+					interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				switchphy2: switchphy@2 {
+					reg = <2>;
+					interrupt-parent = <&switch>;
+					interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				switchphy3: switchphy@3 {
+					reg = <3>;
+					interrupt-parent = <&switch>;
+					interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+				};
+
+				switchphy4: switchphy@4 {
+					reg = <4>;
+					interrupt-parent = <&switch>;
+					interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
 				};
 			};
 		};
@@ -888,6 +933,12 @@
 	pinctrl_rmii_phy_irq: phygrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D30__GPIO3_IO30		0x40010000
+		>;
+	};
+
+	pinctrl_switch_irq: switchgrp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT17__GPIO6_IO03	0x4001b000
 		>;
 	};
 
