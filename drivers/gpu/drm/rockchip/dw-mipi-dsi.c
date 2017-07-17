@@ -537,30 +537,49 @@ phy_init_end:
 	return ret;
 }
 
-static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
+static int rockchip_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
 {
-	unsigned int i, pre;
-	unsigned long mpclk, pllref, tmp;
-	unsigned int m = 1, n = 1, target_mbps = 1000;
-	unsigned int max_mbps = dptdin_map[ARRAY_SIZE(dptdin_map) - 1].max_mbps;
 	int bpp;
+	unsigned long mpclk, tmp;
+	unsigned int target_mbps = 1000;
+	unsigned int value;
+	struct device_node *np = dsi->dev->of_node;
+	unsigned int max_mbps = dptdin_map[ARRAY_SIZE(dptdin_map) - 1].max_mbps;
+	int lanes;
+
+	/* optional override of the desired bandwidth */
+	if (!of_property_read_u32(np, "rockchip,lane-rate", &value))
+		return value;
 
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
 	if (bpp < 0) {
 		dev_err(dsi->dev, "failed to get bpp for pixel format %d\n",
 			dsi->format);
-		return bpp;
+		bpp = 24;
 	}
+
+	lanes = dsi->lanes;
 
 	mpclk = DIV_ROUND_UP(dsi->mode.clock, MSEC_PER_SEC);
 	if (mpclk) {
 		/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
-		tmp = mpclk * (bpp / dsi->lanes) * 10 / 9;
+		tmp = mpclk * (bpp / lanes) * 10 / 9;
 		if (tmp < max_mbps)
 			target_mbps = tmp;
 		else
 			dev_err(dsi->dev, "DPHY clock frequency is out of range\n");
 	}
+
+	return target_mbps;
+}
+
+static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
+{
+	unsigned int i, pre;
+	unsigned long pllref, tmp;
+	unsigned int m = 1, n = 1, target_mbps;
+
+	target_mbps = rockchip_dsi_calc_bandwidth(dsi);
 
 	pllref = DIV_ROUND_UP(clk_get_rate(dsi->pllref_clk), USEC_PER_SEC);
 	tmp = pllref;
