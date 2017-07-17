@@ -490,8 +490,7 @@ static int visordriver_remove_device(struct device *xdev)
 
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = true;
-	if (drv->remove)
-		drv->remove(dev);
+	drv->remove(dev);
 	mutex_unlock(&dev->visordriver_callback_lock);
 
 	dev_stop_periodic_work(dev);
@@ -868,8 +867,6 @@ static int visordriver_probe_device(struct device *xdev)
 
 	dev = to_visor_device(xdev);
 	drv = to_visor_driver(xdev->driver);
-	if (!drv->probe)
-		return -ENODEV;
 
 	mutex_lock(&dev->visordriver_callback_lock);
 	dev->being_removed = false;
@@ -938,6 +935,18 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 {
 	/* can't register on a nonexistent bus */
 	if (!initialized)
+		return -ENODEV;
+
+	if (!drv->probe)
+		return -ENODEV;
+
+	if (!drv->remove)
+		return -ENODEV;
+
+	if (!drv->pause)
+		return -ENODEV;
+
+	if (!drv->resume)
 		return -ENODEV;
 
 	drv->driver.name = drv->name;
@@ -1158,9 +1167,6 @@ static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 		return -EBUSY;
 
 	if (is_pause) {
-		if (!drv->pause)
-			return -EINVAL;
-
 		dev->pausing = true;
 		err = drv->pause(dev, pause_state_change_complete);
 	} else {
@@ -1169,8 +1175,6 @@ static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 		 * make sure it is valid.
 		 */
 		fix_vbus_dev_info(dev);
-		if (!drv->resume)
-			return -EINVAL;
 
 		dev->resuming = true;
 		err = drv->resume(dev, resume_state_change_complete);
