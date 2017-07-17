@@ -2,4 +2,5 @@
 include include/uapi/asm-generic/Kbuild.asm
 
 generic-y += kvm_para.h
+generic-y += poll.h
 generic-y += siginfo.h
