@@ -54,7 +54,7 @@ typedef u32 sysmmu_pte_t;
 #define lv2ent_small(pent) ((*(pent) & 2) == 2)
 #define lv2ent_large(pent) ((*(pent) & 3) == 1)
 
-#ifdef CONFIG_BIG_ENDIAN
+#ifdef CONFIG_CPU_BIG_ENDIAN
 #warning "revisit driver if we can enable big-endian ptes"
 #endif
 
