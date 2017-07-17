@@ -658,9 +658,6 @@ All cgroup core files are prefixed with "cgroup."
 	the PID to the cgroup.  The writer should match all of the
 	following conditions.
 
-	- Its euid is either root or must match either uid or suid of
-          the target process.
-
 	- It must have write access to the "cgroup.procs" file.
 
 	- It must have write access to the "cgroup.procs" file of the
