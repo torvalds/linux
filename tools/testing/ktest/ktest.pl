@@ -721,21 +721,13 @@ sub set_value {
 
     my $prvalue = process_variables($rvalue);
 
-    if ($buildonly && $lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $prvalue ne "build") {
+    if ($lvalue =~ /^(TEST|BISECT|CONFIG_BISECT)_TYPE(\[.*\])?$/ &&
+	$prvalue !~ /^(config_|)bisect$/ &&
+	$prvalue !~ /^build$/ &&
+	$buildonly) {
+
 	# Note if a test is something other than build, then we
 	# will need other mandatory options.
-	if ($prvalue ne "install") {
-	    # for bisect, we need to check BISECT_TYPE
-	    if ($prvalue ne "bisect") {
-		$buildonly = 0;
-	    }
-	} else {
-	    # install still limits some mandatory options.
-	    $buildonly = 2;
-	}
-    }
-
-    if ($buildonly && $lvalue =~ /^BISECT_TYPE(\[.*\])?$/ && $prvalue ne "build") {
 	if ($prvalue ne "install") {
 	    $buildonly = 0;
 	} else {
