@@ -526,8 +526,7 @@ try_again:
 		} else if (WARN_ON_ONCE(subreq->wb_offset < head->wb_offset ||
 			    ((subreq->wb_offset + subreq->wb_bytes) >
 			     (head->wb_offset + total_bytes)))) {
-			nfs_page_group_unlock(head);
-			spin_unlock(&inode->i_lock);
+			nfs_unroll_locks_and_wait(inode, head, subreq);
 			return ERR_PTR(-EIO);
 		}
 
