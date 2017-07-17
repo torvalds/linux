@@ -120,7 +120,7 @@ static int arcpgu_load(struct drm_device *drm)
 		return -ENODEV;
 	}
 
-	platform_set_drvdata(pdev, arcpgu);
+	platform_set_drvdata(pdev, drm);
 	return 0;
 }
 
