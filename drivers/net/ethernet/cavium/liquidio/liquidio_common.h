@@ -814,6 +814,7 @@ struct nic_tx_stats {
 	u64 fw_tso;		/* number of tso requests */
 	u64 fw_tso_fwd;		/* number of packets segmented in tso */
 	u64 fw_tx_vxlan;
+	u64 fw_err_pki;
 };
 
 struct oct_link_stats {

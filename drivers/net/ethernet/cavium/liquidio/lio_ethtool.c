@@ -105,6 +105,7 @@ static const char oct_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_total_sent",
 	"tx_total_fwd",
 	"tx_err_pko",
+	"tx_err_pki",
 	"tx_err_link",
 	"tx_err_drop",
 
@@ -826,6 +827,8 @@ lio_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_total_fwd);
 	/*per_core_stats[j].link_stats[i].fromhost.fw_err_pko */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_err_pko);
+	/*per_core_stats[j].link_stats[i].fromhost.fw_err_pki */
+	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_err_pki);
 	/*per_core_stats[j].link_stats[i].fromhost.fw_err_link */
 	data[i++] = CVM_CAST64(oct_dev->link_stats.fromhost.fw_err_link);
 	/*per_core_stats[cvmx_get_core_num()].link_stats[idx].fromhost.
@@ -1568,6 +1571,7 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		tstats->fw_total_sent = rsp_tstats->fw_total_sent;
 		tstats->fw_total_fwd = rsp_tstats->fw_total_fwd;
 		tstats->fw_err_pko = rsp_tstats->fw_err_pko;
+		tstats->fw_err_pki = rsp_tstats->fw_err_pki;
 		tstats->fw_err_link = rsp_tstats->fw_err_link;
 		tstats->fw_err_drop = rsp_tstats->fw_err_drop;
 		tstats->fw_tso = rsp_tstats->fw_tso;
