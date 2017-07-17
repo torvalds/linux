@@ -28,6 +28,9 @@ The ReST markups currently used by the Documentation/ files are meant to be
 built with ``Sphinx`` version 1.3 or upper. If you're desiring to build
 PDF outputs, it is recommended to use version 1.4.6 or upper.
 
+There's a script that checks for the Spinx requirements. Please see
+:ref:`sphinx-pre-install` for further details.
+
 Most distributions are shipped with Sphinx, but its toolchain is fragile,
 and it is not uncommon that upgrading it or some other Python packages
 on your machine would cause the documentation build to break.
@@ -47,13 +50,15 @@ or ``virtualenv``, depending on how your distribution packaged Python 3.
       on the Sphinx version, it should be installed  in separate,
       with ``pip install sphinx_rtd_theme``.
 
+   #) Some ReST pages contain math expressions. Due to the way Sphinx work,
+      those expressions are written using LaTeX notation. It needs texlive
+      installed with amdfonts and amsmath in order to evaluate them.
+
 In summary, if you want to install Sphinx version 1.4.9, you should do::
 
        $ virtualenv sphinx_1.4
        $ . sphinx_1.4/bin/activate
-       (sphinx_1.4) $ pip install 'docutils==0.12'
-       (sphinx_1.4) $ pip install 'Sphinx==1.4.9'
-       (sphinx_1.4) $ pip install sphinx_rtd_theme
+       (sphinx_1.4) $ pip install -r Documentation/sphinx/requirements.txt
 
 After running ``. sphinx_1.4/bin/activate``, the prompt will change,
 in order to indicate that you're using the new environment. If you
@@ -83,7 +88,42 @@ For PDF and LaTeX output, you'll also need ``XeLaTeX`` version 3.14159265.
 
 Depending on the distribution, you may also need to install a series of
 ``texlive`` packages that provide the minimal set of functionalities
-required for ``XeLaTex`` to work.
+required for ``XeLaTeX`` to work.
+
+.. _sphinx-pre-install:
+
+Checking for Sphinx dependencies
+--------------------------------
+
+There's a script that automatically check for Sphinx dependencies. If it can
+recognize your distribution, it will also give a hint about the install
+command line options for your distro::
+
+	$ ./scripts/sphinx-pre-install
+	Checking if the needed tools for Fedora release 26 (Twenty Six) are available
+	Warning: better to also install "texlive-luatex85".
+	You should run:
+
+		sudo dnf install -y texlive-luatex85
+		/usr/bin/virtualenv sphinx_1.4
+		. sphinx_1.4/bin/activate
+		pip install -r Documentation/sphinx/requirements.txt
+
+	Can't build as 1 mandatory dependency is missing at ./scripts/sphinx-pre-install line 468.
+
+By default, it checks all the requirements for both html and PDF, including
+the requirements for images, math expressions and LaTeX build, and assumes
+that a virtual Python environment will be used. The ones needed for html
+builds are assumed to be mandatory; the others to be optional.
+
+It supports two optional parameters:
+
+``--no-pdf``
+	Disable checks for PDF;
+
+``--no-virtualenv``
+	Use OS packaging for Sphinx instead of Python virtual environment.
+
 
 Sphinx Build
 ============
