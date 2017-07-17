@@ -2052,13 +2052,12 @@ free_dst:
 }
 
 static struct flow_cache_object *
-xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir,
-		   struct flow_cache_object *oldflo, void *ctx)
+xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir, struct xfrm_flo *xflo)
 {
-	struct xfrm_flo *xflo = (struct xfrm_flo *)ctx;
 	struct xfrm_policy *pols[XFRM_POLICY_TYPE_MAX];
 	struct xfrm_dst *xdst, *new_xdst;
 	int num_pols = 0, num_xfrms = 0, i, err, pol_dead;
+	struct flow_cache_object *oldflo = NULL;
 
 	/* Check if the policies from old bundle are usable */
 	xdst = NULL;
@@ -2128,8 +2127,6 @@ xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir,
 		dst_release_immediate(&xdst->u.dst);
 	}
 
-	/* We do need to return one reference for original caller */
-	dst_hold(&new_xdst->u.dst);
 	return &new_xdst->flo;
 
 make_dummy_bundle:
@@ -2242,8 +2239,7 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 		    !net->xfrm.policy_count[XFRM_POLICY_OUT])
 			goto nopol;
 
-		flo = flow_cache_lookup(net, fl, family, dir,
-					xfrm_bundle_lookup, &xflo);
+		flo = xfrm_bundle_lookup(net, fl, family, dir, &xflo);
 		if (flo == NULL)
 			goto nopol;
 		if (IS_ERR(flo)) {
@@ -2489,8 +2485,8 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	if (!pol) {
 		struct flow_cache_object *flo;
 
-		flo = flow_cache_lookup(net, &fl, family, fl_dir,
-					xfrm_policy_lookup, NULL);
+		flo = xfrm_policy_lookup(net, &fl, family, dir, NULL, NULL);
+
 		if (IS_ERR_OR_NULL(flo))
 			pol = ERR_CAST(flo);
 		else
