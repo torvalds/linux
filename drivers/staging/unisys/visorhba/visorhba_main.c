@@ -212,7 +212,6 @@ static void *del_scsipending_ent(struct visorhba_devdata *devdata,
 
 	spin_lock_irqsave(&devdata->privlock, flags);
 	sent = devdata->pending[del].sent;
-
 	devdata->pending[del].cmdtype = 0;
 	devdata->pending[del].sent = NULL;
 	spin_unlock_irqrestore(&devdata->privlock, flags);
@@ -514,12 +513,10 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 
 	insert_location = add_scsipending_entry(devdata, CMD_SCSI_TYPE,
 						(void *)scsicmd);
-
 	if (insert_location < 0)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	cmdrsp = get_scsipending_cmdrsp(devdata, insert_location);
-
 	cmdrsp->cmdtype = CMD_SCSI_TYPE;
 	/* save the pending insertion location. Deletion from pending
 	 * will return the scsicmd pointer for completion
@@ -535,7 +532,6 @@ visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	/* save datadir */
 	cmdrsp->scsi.data_dir = scsicmd->sc_data_direction;
 	memcpy(cmdrsp->scsi.cmnd, cdb, MAX_CMND_SIZE);
-
 	cmdrsp->scsi.bufflen = scsi_bufflen(scsicmd);
 
 	/* keep track of the max buffer length so far. */
@@ -716,7 +712,6 @@ static void complete_taskmgmt_command(struct idr *idrtable,
 		idr_find(idrtable, cmdrsp->scsitaskmgmt.notify_handle);
 	int *scsi_result_ptr =
 		idr_find(idrtable, cmdrsp->scsitaskmgmt.notifyresult_handle);
-
 	if (unlikely(!(wq && scsi_result_ptr))) {
 		pr_err("visorhba: no completion context; cmd will time out\n");
 		return;
@@ -954,7 +949,6 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 					      IOCHAN_FROM_IOPART,
 					      cmdrsp))
 			break;
-
 		if (cmdrsp->cmdtype == CMD_SCSI_TYPE) {
 			/* scsicmd location is returned by the
 			 * deletion
@@ -1057,7 +1051,6 @@ static int visorhba_resume(struct visor_device *dev,
 
 	devdata->thread = visor_thread_start(process_incoming_rsps, devdata,
 					     "vhba_incming");
-
 	devdata->serverdown = false;
 	devdata->serverchangingstate = false;
 
