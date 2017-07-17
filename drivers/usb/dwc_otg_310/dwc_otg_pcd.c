@@ -198,11 +198,8 @@ static int32_t dwc_otg_pcd_suspend_cb(void *p)
 {
 	dwc_otg_pcd_t *pcd = (dwc_otg_pcd_t *) p;
 
-	if (pcd->fops->suspend) {
-		DWC_SPINUNLOCK(pcd->lock);
+	if (pcd->fops->suspend)
 		pcd->fops->suspend(pcd);
-		DWC_SPINLOCK(pcd->lock);
-	}
 
 	return 1;
 }
