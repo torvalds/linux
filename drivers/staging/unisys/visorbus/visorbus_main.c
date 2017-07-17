@@ -849,13 +849,13 @@ static void bus_device_info_init(
 }
 
 /*
- * fix_vbus_dev_info() - for a child device just created on a client bus, fill
- *                       in information about the driver that is controlling
- *                       this device into the appropriate slot within the
- *                       vbus channel of the bus instance
+ * publish_vbus_dev_info() - for a child device just created on a client bus,
+ *			     fill in information about the driver that is
+ *			     controlling this device into the appropriate slot
+ *			     within the vbus channel of the bus instance
  * @visordev: struct visor_device for the desired device
  */
-static void fix_vbus_dev_info(struct visor_device *visordev)
+static void publish_vbus_dev_info(struct visor_device *visordev)
 {
 	int i;
 	struct visor_device *bdev;
@@ -930,7 +930,7 @@ static int visordriver_probe_device(struct device *xdev)
 	if (res >= 0) {
 		/* success: reference kept via unmatched get_device() */
 		get_device(&dev->device);
-		fix_vbus_dev_info(dev);
+		publish_vbus_dev_info(dev);
 	}
 
 	mutex_unlock(&dev->visordriver_callback_lock);
@@ -1229,8 +1229,7 @@ static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 		 * The vbus_dev_info structure in the channel was been cleared,
 		 * make sure it is valid.
 		 */
-		fix_vbus_dev_info(dev);
-
+		publish_vbus_dev_info(dev);
 		dev->resuming = true;
 		err = drv->resume(dev, resume_state_change_complete);
 	}
