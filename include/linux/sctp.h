@@ -302,11 +302,6 @@ struct sctp_supported_addrs_param {
 	__be16 types[0];
 };
 
-/* Appendix A. ECN Capable (32768) */
-typedef struct sctp_ecn_capable_param {
-	struct sctp_paramhdr param_hdr;
-} sctp_ecn_capable_param_t;
-
 /* ADDIP Section 3.2.6 Adaptation Layer Indication */
 typedef struct sctp_adaptation_ind_param {
 	struct sctp_paramhdr param_hdr;
