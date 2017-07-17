@@ -207,6 +207,14 @@ struct kexec_entry64_regs {
 	uint64_t r15;
 	uint64_t rip;
 };
+
+extern int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages,
+				       gfp_t gfp);
+#define arch_kexec_post_alloc_pages arch_kexec_post_alloc_pages
+
+extern void arch_kexec_pre_free_pages(void *vaddr, unsigned int pages);
+#define arch_kexec_pre_free_pages arch_kexec_pre_free_pages
+
 #endif
 
 typedef void crash_vmclear_fn(void);

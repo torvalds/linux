@@ -355,6 +355,7 @@ bool xen_set_default_idle(void)
 	return ret;
 }
 #endif
+
 void stop_this_cpu(void *dummy)
 {
 	local_irq_disable();
@@ -365,8 +366,20 @@ void stop_this_cpu(void *dummy)
 	disable_local_APIC();
 	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
 
-	for (;;)
-		halt();
+	for (;;) {
+		/*
+		 * Use wbinvd followed by hlt to stop the processor. This
+		 * provides support for kexec on a processor that supports
+		 * SME. With kexec, going from SME inactive to SME active
+		 * requires clearing cache entries so that addresses without
+		 * the encryption bit set don't corrupt the same physical
+		 * address that has the encryption bit set when caches are
+		 * flushed. To achieve this a wbinvd is performed followed by
+		 * a hlt. Even if the processor is not in the kexec/SME
+		 * scenario this only adds a wbinvd to a halting processor.
+		 */
+		asm volatile("wbinvd; hlt" : : : "memory");
+	}
 }
 
 /*
