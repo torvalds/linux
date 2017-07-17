@@ -2109,7 +2109,7 @@ static int fsi_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops fsi_pm_ops = {
+static const struct dev_pm_ops fsi_pm_ops = {
 	.suspend		= fsi_suspend,
 	.resume			= fsi_resume,
 };
