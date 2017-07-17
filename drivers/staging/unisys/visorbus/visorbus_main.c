@@ -221,7 +221,7 @@ static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
 	struct device_driver *xdrv = dev->driver;
 	struct visor_driver *drv = NULL;
 
-	if (!xbus || !xdrv)
+	if (!xdrv)
 		return 0;
 	i = xbus->match(dev, xdrv);
 	if (!i)
