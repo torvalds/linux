@@ -1270,6 +1270,33 @@ extern int send_sigurg(struct fown_struct *fown);
 struct mm_struct;
 
 /*
+ * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
+ * represented in both.
+ */
+#define SB_RDONLY	 1	/* Mount read-only */
+#define SB_NOSUID	 2	/* Ignore suid and sgid bits */
+#define SB_NODEV	 4	/* Disallow access to device special files */
+#define SB_NOEXEC	 8	/* Disallow program execution */
+#define SB_SYNCHRONOUS	16	/* Writes are synced at once */
+#define SB_MANDLOCK	64	/* Allow mandatory locks on an FS */
+#define SB_DIRSYNC	128	/* Directory modifications are synchronous */
+#define SB_NOATIME	1024	/* Do not update access times. */
+#define SB_NODIRATIME	2048	/* Do not update directory access times */
+#define SB_SILENT	32768
+#define SB_POSIXACL	(1<<16)	/* VFS does not apply the umask */
+#define SB_KERNMOUNT	(1<<22) /* this is a kern_mount call */
+#define SB_I_VERSION	(1<<23) /* Update inode I_version field */
+#define SB_LAZYTIME	(1<<25) /* Update the on-disk [acm]times lazily */
+
+/* These sb flags are internal to the kernel */
+#define SB_SUBMOUNT     (1<<26)
+#define SB_NOREMOTELOCK	(1<<27)
+#define SB_NOSEC	(1<<28)
+#define SB_BORN		(1<<29)
+#define SB_ACTIVE	(1<<30)
+#define SB_NOUSER	(1<<31)
+
+/*
  *	Umount options
  */
 
@@ -1835,7 +1862,7 @@ struct super_operations {
  * possible to override it selectively if you really wanted to with some
  * ioctl() that is not currently implemented.
  *
- * Exception: MS_RDONLY is always applied to the entire file system.
+ * Exception: SB_RDONLY is always applied to the entire file system.
  *
  * Unfortunately, it is possible to change a filesystems flags with it mounted
  * with files in use.  This means that all of the inodes will not have their
@@ -1846,18 +1873,18 @@ struct super_operations {
 
 static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags & MS_RDONLY; }
 #define IS_RDONLY(inode)	sb_rdonly((inode)->i_sb)
-#define IS_SYNC(inode)		(__IS_FLG(inode, MS_SYNCHRONOUS) || \
+#define IS_SYNC(inode)		(__IS_FLG(inode, SB_SYNCHRONOUS) || \
 					((inode)->i_flags & S_SYNC))
-#define IS_DIRSYNC(inode)	(__IS_FLG(inode, MS_SYNCHRONOUS|MS_DIRSYNC) || \
+#define IS_DIRSYNC(inode)	(__IS_FLG(inode, SB_SYNCHRONOUS|SB_DIRSYNC) || \
 					((inode)->i_flags & (S_SYNC|S_DIRSYNC)))
-#define IS_MANDLOCK(inode)	__IS_FLG(inode, MS_MANDLOCK)
-#define IS_NOATIME(inode)	__IS_FLG(inode, MS_RDONLY|MS_NOATIME)
-#define IS_I_VERSION(inode)	__IS_FLG(inode, MS_I_VERSION)
+#define IS_MANDLOCK(inode)	__IS_FLG(inode, SB_MANDLOCK)
+#define IS_NOATIME(inode)	__IS_FLG(inode, SB_RDONLY|SB_NOATIME)
+#define IS_I_VERSION(inode)	__IS_FLG(inode, SB_I_VERSION)
 
 #define IS_NOQUOTA(inode)	((inode)->i_flags & S_NOQUOTA)
 #define IS_APPEND(inode)	((inode)->i_flags & S_APPEND)
 #define IS_IMMUTABLE(inode)	((inode)->i_flags & S_IMMUTABLE)
-#define IS_POSIXACL(inode)	__IS_FLG(inode, MS_POSIXACL)
+#define IS_POSIXACL(inode)	__IS_FLG(inode, SB_POSIXACL)
 
 #define IS_DEADDIR(inode)	((inode)->i_flags & S_DEAD)
 #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
@@ -2178,7 +2205,7 @@ static inline int __mandatory_lock(struct inode *ino)
 }
 
 /*
- * ... and these candidates should be on MS_MANDLOCK mounted fs,
+ * ... and these candidates should be on SB_MANDLOCK mounted fs,
  * otherwise these will be advisory locks
  */
 
@@ -3274,7 +3301,7 @@ static inline int check_sticky(struct inode *dir, struct inode *inode)
 
 static inline void inode_has_no_xattr(struct inode *inode)
 {
-	if (!is_sxid(inode->i_mode) && (inode->i_sb->s_flags & MS_NOSEC))
+	if (!is_sxid(inode->i_mode) && (inode->i_sb->s_flags & SB_NOSEC))
 		inode->i_flags |= S_NOSEC;
 }
 

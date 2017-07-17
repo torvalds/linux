@@ -971,7 +971,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	if (!mnt)
 		return ERR_PTR(-ENOMEM);
 
-	if (flags & MS_KERNMOUNT)
+	if (flags & SB_KERNMOUNT)
 		mnt->mnt.mnt_flags = MNT_INTERNAL;
 
 	root = mount_fs(type, flags, name, data);
@@ -1003,7 +1003,7 @@ vfs_submount(const struct dentry *mountpoint, struct file_system_type *type,
 	if (mountpoint->d_sb->s_user_ns != &init_user_ns)
 		return ERR_PTR(-EPERM);
 
-	return vfs_kern_mount(type, MS_SUBMOUNT, name, data);
+	return vfs_kern_mount(type, SB_SUBMOUNT, name, data);
 }
 EXPORT_SYMBOL_GPL(vfs_submount);
 
@@ -1535,7 +1535,7 @@ static int do_umount(struct mount *mnt, int flags)
 			return -EPERM;
 		down_write(&sb->s_umount);
 		if (!sb_rdonly(sb))
-			retval = do_remount_sb(sb, MS_RDONLY, NULL, 0);
+			retval = do_remount_sb(sb, SB_RDONLY, NULL, 0);
 		up_write(&sb->s_umount);
 		return retval;
 	}
@@ -2059,7 +2059,7 @@ static void unlock_mount(struct mountpoint *where)
 
 static int graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
 {
-	if (mnt->mnt.mnt_sb->s_flags & MS_NOUSER)
+	if (mnt->mnt.mnt_sb->s_flags & SB_NOUSER)
 		return -EINVAL;
 
 	if (d_is_dir(mp->m_dentry) !=
@@ -2073,9 +2073,9 @@ static int graft_tree(struct mount *mnt, struct mount *p, struct mountpoint *mp)
  * Sanity check the flags to change_mnt_propagation.
  */
 
-static int flags_to_propagation_type(int flags)
+static int flags_to_propagation_type(int ms_flags)
 {
-	int type = flags & ~(MS_REC | MS_SILENT);
+	int type = ms_flags & ~(MS_REC | MS_SILENT);
 
 	/* Fail if any non-propagation flags are set */
 	if (type & ~(MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE))
@@ -2089,18 +2089,18 @@ static int flags_to_propagation_type(int flags)
 /*
  * recursively change the type of the mountpoint.
  */
-static int do_change_type(struct path *path, int flag)
+static int do_change_type(struct path *path, int ms_flags)
 {
 	struct mount *m;
 	struct mount *mnt = real_mount(path->mnt);
-	int recurse = flag & MS_REC;
+	int recurse = ms_flags & MS_REC;
 	int type;
 	int err = 0;
 
 	if (path->dentry != path->mnt->mnt_root)
 		return -EINVAL;
 
-	type = flags_to_propagation_type(flag);
+	type = flags_to_propagation_type(ms_flags);
 	if (!type)
 		return -EINVAL;
 
@@ -2222,8 +2222,8 @@ static int change_mount_flags(struct vfsmount *mnt, int ms_flags)
  * If you've mounted a non-root directory somewhere and want to do remount
  * on it - tough luck.
  */
-static int do_remount(struct path *path, int flags, int mnt_flags,
-		      void *data)
+static int do_remount(struct path *path, int ms_flags, int sb_flags,
+		      int mnt_flags, void *data)
 {
 	int err;
 	struct super_block *sb = path->mnt->mnt_sb;
@@ -2267,12 +2267,12 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		return err;
 
 	down_write(&sb->s_umount);
-	if (flags & MS_BIND)
-		err = change_mount_flags(path->mnt, flags);
+	if (ms_flags & MS_BIND)
+		err = change_mount_flags(path->mnt, ms_flags);
 	else if (!capable(CAP_SYS_ADMIN))
 		err = -EPERM;
 	else
-		err = do_remount_sb(sb, flags, data, 0);
+		err = do_remount_sb(sb, sb_flags, data, 0);
 	if (!err) {
 		lock_mount_hash();
 		mnt_flags |= mnt->mnt.mnt_flags & ~MNT_USER_SETTABLE_MASK;
@@ -2437,7 +2437,7 @@ static bool mount_too_revealing(struct vfsmount *mnt, int *new_mnt_flags);
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
  */
-static int do_new_mount(struct path *path, const char *fstype, int flags,
+static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 			int mnt_flags, const char *name, void *data)
 {
 	struct file_system_type *type;
@@ -2451,7 +2451,7 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 	if (!type)
 		return -ENODEV;
 
-	mnt = vfs_kern_mount(type, flags, name, data);
+	mnt = vfs_kern_mount(type, sb_flags, name, data);
 	if (!IS_ERR(mnt) && (type->fs_flags & FS_HAS_SUBTYPE) &&
 	    !mnt->mnt_sb->s_subtype)
 		mnt = fs_set_subtype(mnt, fstype);
@@ -2706,8 +2706,8 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 		const char *type_page, unsigned long flags, void *data_page)
 {
 	struct path path;
+	unsigned int mnt_flags = 0, sb_flags;
 	int retval = 0;
-	int mnt_flags = 0;
 
 	/* Discard magic */
 	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)
@@ -2716,6 +2716,9 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	/* Basic sanity checks */
 	if (data_page)
 		((char *)data_page)[PAGE_SIZE - 1] = 0;
+
+	if (flags & MS_NOUSER)
+		return -EINVAL;
 
 	/* ... and get the mountpoint */
 	retval = user_path(dir_name, &path);
@@ -2726,7 +2729,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 				   type_page, flags, data_page);
 	if (!retval && !may_mount())
 		retval = -EPERM;
-	if (!retval && (flags & MS_MANDLOCK) && !may_mandlock())
+	if (!retval && (flags & SB_MANDLOCK) && !may_mandlock())
 		retval = -EPERM;
 	if (retval)
 		goto dput_out;
@@ -2748,7 +2751,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 		mnt_flags |= MNT_NODIRATIME;
 	if (flags & MS_STRICTATIME)
 		mnt_flags &= ~(MNT_RELATIME | MNT_NOATIME);
-	if (flags & MS_RDONLY)
+	if (flags & SB_RDONLY)
 		mnt_flags |= MNT_READONLY;
 
 	/* The default atime for remount is preservation */
@@ -2759,12 +2762,15 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 		mnt_flags |= path.mnt->mnt_flags & MNT_ATIME_MASK;
 	}
 
-	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE | MS_BORN |
-		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME| MS_KERNMOUNT |
-		   MS_STRICTATIME | MS_NOREMOTELOCK | MS_SUBMOUNT);
+	sb_flags = flags & (SB_RDONLY |
+			    SB_SYNCHRONOUS |
+			    SB_MANDLOCK |
+			    SB_DIRSYNC |
+			    SB_SILENT |
+			    SB_POSIXACL);
 
 	if (flags & MS_REMOUNT)
-		retval = do_remount(&path, flags & ~MS_REMOUNT, mnt_flags,
+		retval = do_remount(&path, flags, sb_flags, mnt_flags,
 				    data_page);
 	else if (flags & MS_BIND)
 		retval = do_loopback(&path, dev_name, flags & MS_REC);
@@ -2773,7 +2779,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	else if (flags & MS_MOVE)
 		retval = do_move_mount(&path, dev_name);
 	else
-		retval = do_new_mount(&path, type_page, flags, mnt_flags,
+		retval = do_new_mount(&path, type_page, sb_flags, mnt_flags,
 				      dev_name, data_page);
 dput_out:
 	path_put(&path);
@@ -3223,7 +3229,7 @@ void put_mnt_ns(struct mnt_namespace *ns)
 struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
 {
 	struct vfsmount *mnt;
-	mnt = vfs_kern_mount(type, MS_KERNMOUNT, type->name, data);
+	mnt = vfs_kern_mount(type, SB_KERNMOUNT, type->name, data);
 	if (!IS_ERR(mnt)) {
 		/*
 		 * it is a longterm mount, don't release mnt until

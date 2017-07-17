@@ -420,8 +420,8 @@ retry:
 #endif
 		panic("VFS: Unable to mount root fs on %s", b);
 	}
-	if (!(flags & MS_RDONLY)) {
-		flags |= MS_RDONLY;
+	if (!(flags & SB_RDONLY)) {
+		flags |= SB_RDONLY;
 		goto retry;
 	}
 
