@@ -40,7 +40,7 @@ int venus_boot(struct device *parent, struct device *fw_dev, const char *fwname)
 	void *mem_va;
 	int ret;
 
-	if (!qcom_scm_is_available())
+	if (!IS_ENABLED(CONFIG_QCOM_MDT_LOADER) || !qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
 	fw_dev->parent = parent;
