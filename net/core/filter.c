@@ -55,6 +55,7 @@
 #include <net/sock_reuseport.h>
 #include <net/busy_poll.h>
 #include <net/tcp.h>
+#include <linux/bpf_trace.h>
 
 /**
  *	sk_filter_trim_cap - run a packet through a socket filter
@@ -1778,6 +1779,8 @@ static const struct bpf_func_proto bpf_clone_redirect_proto = {
 struct redirect_info {
 	u32 ifindex;
 	u32 flags;
+	struct bpf_map *map;
+	struct bpf_map *map_to_flush;
 };
 
 static DEFINE_PER_CPU(struct redirect_info, redirect_info);
@@ -1791,6 +1794,7 @@ BPF_CALL_2(bpf_redirect, u32, ifindex, u64, flags)
 
 	ri->ifindex = ifindex;
 	ri->flags = flags;
+	ri->map = NULL;
 
 	return TC_ACT_REDIRECT;
 }
@@ -1816,6 +1820,29 @@ static const struct bpf_func_proto bpf_redirect_proto = {
 	.ret_type       = RET_INTEGER,
 	.arg1_type      = ARG_ANYTHING,
 	.arg2_type      = ARG_ANYTHING,
+};
+
+BPF_CALL_3(bpf_redirect_map, struct bpf_map *, map, u32, ifindex, u64, flags)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+
+	if (unlikely(flags))
+		return XDP_ABORTED;
+
+	ri->ifindex = ifindex;
+	ri->flags = flags;
+	ri->map = map;
+
+	return XDP_REDIRECT;
+}
+
+static const struct bpf_func_proto bpf_redirect_map_proto = {
+	.func           = bpf_redirect_map,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_CONST_MAP_PTR,
+	.arg2_type      = ARG_ANYTHING,
+	.arg3_type      = ARG_ANYTHING,
 };
 
 BPF_CALL_1(bpf_get_cgroup_classid, const struct sk_buff *, skb)
@@ -2410,6 +2437,140 @@ static const struct bpf_func_proto bpf_xdp_adjust_head_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
+};
+
+static int __bpf_tx_xdp(struct net_device *dev,
+			struct bpf_map *map,
+			struct xdp_buff *xdp,
+			u32 index)
+{
+	int err;
+
+	if (!dev->netdev_ops->ndo_xdp_xmit) {
+		bpf_warn_invalid_xdp_redirect(dev->ifindex);
+		return -EOPNOTSUPP;
+	}
+
+	err = dev->netdev_ops->ndo_xdp_xmit(dev, xdp);
+	if (err)
+		return err;
+
+	if (map)
+		__dev_map_insert_ctx(map, index);
+	else
+		dev->netdev_ops->ndo_xdp_flush(dev);
+
+	return err;
+}
+
+void xdp_do_flush_map(void)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct bpf_map *map = ri->map_to_flush;
+
+	ri->map = NULL;
+	ri->map_to_flush = NULL;
+
+	if (map)
+		__dev_map_flush(map);
+}
+EXPORT_SYMBOL_GPL(xdp_do_flush_map);
+
+int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
+			struct bpf_prog *xdp_prog)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct bpf_map *map = ri->map;
+	u32 index = ri->ifindex;
+	struct net_device *fwd;
+	int err = -EINVAL;
+
+	ri->ifindex = 0;
+	ri->map = NULL;
+
+	fwd = __dev_map_lookup_elem(map, index);
+	if (!fwd)
+		goto out;
+
+	if (ri->map_to_flush && (ri->map_to_flush != map))
+		xdp_do_flush_map();
+
+	err = __bpf_tx_xdp(fwd, map, xdp, index);
+	if (likely(!err))
+		ri->map_to_flush = map;
+
+out:
+	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT);
+	return err;
+}
+
+int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
+		    struct bpf_prog *xdp_prog)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	struct net_device *fwd;
+
+	if (ri->map)
+		return xdp_do_redirect_map(dev, xdp, xdp_prog);
+
+	fwd = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
+	ri->ifindex = 0;
+	ri->map = NULL;
+	if (unlikely(!fwd)) {
+		bpf_warn_invalid_xdp_redirect(ri->ifindex);
+		return -EINVAL;
+	}
+
+	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT);
+
+	return __bpf_tx_xdp(fwd, NULL, xdp, 0);
+}
+EXPORT_SYMBOL_GPL(xdp_do_redirect);
+
+int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+	unsigned int len;
+
+	dev = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
+	ri->ifindex = 0;
+	if (unlikely(!dev)) {
+		bpf_warn_invalid_xdp_redirect(ri->ifindex);
+		goto err;
+	}
+
+	if (unlikely(!(dev->flags & IFF_UP)))
+		goto err;
+
+	len = dev->mtu + dev->hard_header_len + VLAN_HLEN;
+	if (skb->len > len)
+		goto err;
+
+	skb->dev = dev;
+	return 0;
+err:
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(xdp_do_generic_redirect);
+
+BPF_CALL_2(bpf_xdp_redirect, u32, ifindex, u64, flags)
+{
+	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
+
+	if (unlikely(flags))
+		return XDP_ABORTED;
+
+	ri->ifindex = ifindex;
+	ri->flags = flags;
+	return XDP_REDIRECT;
+}
+
+static const struct bpf_func_proto bpf_xdp_redirect_proto = {
+	.func           = bpf_xdp_redirect,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_ANYTHING,
+	.arg2_type      = ARG_ANYTHING,
 };
 
 bool bpf_helper_changes_pkt_data(void *func)
@@ -3011,6 +3172,10 @@ xdp_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_smp_processor_id_proto;
 	case BPF_FUNC_xdp_adjust_head:
 		return &bpf_xdp_adjust_head_proto;
+	case BPF_FUNC_redirect:
+		return &bpf_xdp_redirect_proto;
+	case BPF_FUNC_redirect_map:
+		return &bpf_redirect_map_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -3309,6 +3474,11 @@ void bpf_warn_invalid_xdp_action(u32 act)
 	WARN_ONCE(1, "Illegal XDP return value %u, expect packet loss\n", act);
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
+
+void bpf_warn_invalid_xdp_redirect(u32 ifindex)
+{
+	WARN_ONCE(1, "Illegal XDP redirect to unsupported device ifindex(%i)\n", ifindex);
+}
 
 static bool __is_valid_sock_ops_access(int off, int size)
 {

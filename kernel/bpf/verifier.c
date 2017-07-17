@@ -1276,6 +1276,14 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 		    func_id != BPF_FUNC_current_task_under_cgroup)
 			goto error;
 		break;
+	/* devmap returns a pointer to a live net_device ifindex that we cannot
+	 * allow to be modified from bpf side. So do not allow lookup elements
+	 * for now.
+	 */
+	case BPF_MAP_TYPE_DEVMAP:
+		if (func_id != BPF_FUNC_redirect_map)
+			goto error;
+		break;
 	case BPF_MAP_TYPE_ARRAY_OF_MAPS:
 	case BPF_MAP_TYPE_HASH_OF_MAPS:
 		if (func_id != BPF_FUNC_map_lookup_elem)
@@ -1302,6 +1310,10 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 	case BPF_FUNC_current_task_under_cgroup:
 	case BPF_FUNC_skb_under_cgroup:
 		if (map->map_type != BPF_MAP_TYPE_CGROUP_ARRAY)
+			goto error;
+		break;
+	case BPF_FUNC_redirect_map:
+		if (map->map_type != BPF_MAP_TYPE_DEVMAP)
 			goto error;
 		break;
 	default:

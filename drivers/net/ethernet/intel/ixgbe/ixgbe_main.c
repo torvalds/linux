@@ -2214,7 +2214,7 @@ static struct sk_buff *ixgbe_run_xdp(struct ixgbe_adapter *adapter,
 				     struct ixgbe_ring *rx_ring,
 				     struct xdp_buff *xdp)
 {
-	int result = IXGBE_XDP_PASS;
+	int err, result = IXGBE_XDP_PASS;
 	struct bpf_prog *xdp_prog;
 	u32 act;
 
@@ -2230,6 +2230,13 @@ static struct sk_buff *ixgbe_run_xdp(struct ixgbe_adapter *adapter,
 		break;
 	case XDP_TX:
 		result = ixgbe_xmit_xdp_ring(adapter, xdp);
+		break;
+	case XDP_REDIRECT:
+		err = xdp_do_redirect(adapter->netdev, xdp, xdp_prog);
+		if (!err)
+			result = IXGBE_XDP_TX;
+		else
+			result = IXGBE_XDP_CONSUMED;
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
@@ -2408,6 +2415,8 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		 */
 		wmb();
 		writel(ring->next_to_use, ring->tail);
+
+		xdp_do_flush_map();
 	}
 
 	u64_stats_update_begin(&rx_ring->syncp);
@@ -5810,6 +5819,9 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	usleep_range(10000, 20000);
 
+	/* synchronize_sched() needed for pending XDP buffers to drain */
+	if (adapter->xdp_ring[0])
+		synchronize_sched();
 	netif_tx_stop_all_queues(netdev);
 
 	/* call carrier off first to avoid false dev_watchdog timeouts */
@@ -9823,6 +9835,53 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_xdp *xdp)
 	}
 }
 
+static int ixgbe_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_ring *ring;
+	int err;
+
+	if (unlikely(test_bit(__IXGBE_DOWN, &adapter->state)))
+		return -EINVAL;
+
+	/* During program transitions its possible adapter->xdp_prog is assigned
+	 * but ring has not been configured yet. In this case simply abort xmit.
+	 */
+	ring = adapter->xdp_prog ? adapter->xdp_ring[smp_processor_id()] : NULL;
+	if (unlikely(!ring))
+		return -EINVAL;
+
+	err = ixgbe_xmit_xdp_ring(adapter, xdp);
+	if (err != IXGBE_XDP_TX)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void ixgbe_xdp_flush(struct net_device *dev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_ring *ring;
+
+	/* Its possible the device went down between xdp xmit and flush so
+	 * we need to ensure device is still up.
+	 */
+	if (unlikely(test_bit(__IXGBE_DOWN, &adapter->state)))
+		return;
+
+	ring = adapter->xdp_prog ? adapter->xdp_ring[smp_processor_id()] : NULL;
+	if (unlikely(!ring))
+		return;
+
+	/* Force memory writes to complete before letting h/w know there
+	 * are new descriptors to fetch.
+	 */
+	wmb();
+	writel(ring->next_to_use, ring->tail);
+
+	return;
+}
+
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
@@ -9869,6 +9928,8 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_udp_tunnel_del	= ixgbe_del_udp_tunnel_port,
 	.ndo_features_check	= ixgbe_features_check,
 	.ndo_xdp		= ixgbe_xdp,
+	.ndo_xdp_xmit		= ixgbe_xdp_xmit,
+	.ndo_xdp_flush		= ixgbe_xdp_flush,
 };
 
 /**

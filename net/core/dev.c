@@ -3865,6 +3865,121 @@ drop:
 	return NET_RX_DROP;
 }
 
+static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+				     struct bpf_prog *xdp_prog)
+{
+	struct xdp_buff xdp;
+	u32 act = XDP_DROP;
+	void *orig_data;
+	int hlen, off;
+	u32 mac_len;
+
+	/* Reinjected packets coming from act_mirred or similar should
+	 * not get XDP generic processing.
+	 */
+	if (skb_cloned(skb))
+		return XDP_PASS;
+
+	if (skb_linearize(skb))
+		goto do_drop;
+
+	/* The XDP program wants to see the packet starting at the MAC
+	 * header.
+	 */
+	mac_len = skb->data - skb_mac_header(skb);
+	hlen = skb_headlen(skb) + mac_len;
+	xdp.data = skb->data - mac_len;
+	xdp.data_end = xdp.data + hlen;
+	xdp.data_hard_start = skb->data - skb_headroom(skb);
+	orig_data = xdp.data;
+
+	act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+	off = xdp.data - orig_data;
+	if (off > 0)
+		__skb_pull(skb, off);
+	else if (off < 0)
+		__skb_push(skb, -off);
+
+	switch (act) {
+	case XDP_REDIRECT:
+	case XDP_TX:
+		__skb_push(skb, mac_len);
+		/* fall through */
+	case XDP_PASS:
+		break;
+
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		/* fall through */
+	case XDP_ABORTED:
+		trace_xdp_exception(skb->dev, xdp_prog, act);
+		/* fall through */
+	case XDP_DROP:
+	do_drop:
+		kfree_skb(skb);
+		break;
+	}
+
+	return act;
+}
+
+/* When doing generic XDP we have to bypass the qdisc layer and the
+ * network taps in order to match in-driver-XDP behavior.
+ */
+static void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog)
+{
+	struct net_device *dev = skb->dev;
+	struct netdev_queue *txq;
+	bool free_skb = true;
+	int cpu, rc;
+
+	txq = netdev_pick_tx(dev, skb, NULL);
+	cpu = smp_processor_id();
+	HARD_TX_LOCK(dev, txq, cpu);
+	if (!netif_xmit_stopped(txq)) {
+		rc = netdev_start_xmit(skb, dev, txq, 0);
+		if (dev_xmit_complete(rc))
+			free_skb = false;
+	}
+	HARD_TX_UNLOCK(dev, txq);
+	if (free_skb) {
+		trace_xdp_exception(dev, xdp_prog, XDP_TX);
+		kfree_skb(skb);
+	}
+}
+
+static struct static_key generic_xdp_needed __read_mostly;
+
+static int do_xdp_generic(struct sk_buff *skb)
+{
+	struct bpf_prog *xdp_prog = rcu_dereference(skb->dev->xdp_prog);
+
+	if (xdp_prog) {
+		u32 act = netif_receive_generic_xdp(skb, xdp_prog);
+		int err;
+
+		if (act != XDP_PASS) {
+			switch (act) {
+			case XDP_REDIRECT:
+				err = xdp_do_generic_redirect(skb->dev, skb);
+				if (err)
+					goto out_redir;
+			/* fallthru to submit skb */
+			case XDP_TX:
+				generic_xdp_tx(skb, xdp_prog);
+				break;
+			}
+			return XDP_DROP;
+		}
+	}
+	return XDP_PASS;
+out_redir:
+	trace_xdp_exception(skb->dev, xdp_prog, XDP_REDIRECT);
+	kfree_skb(skb);
+	return XDP_DROP;
+}
+
 static int netif_rx_internal(struct sk_buff *skb)
 {
 	int ret;
@@ -3872,6 +3987,18 @@ static int netif_rx_internal(struct sk_buff *skb)
 	net_timestamp_check(netdev_tstamp_prequeue, skb);
 
 	trace_netif_rx(skb);
+
+	if (static_key_false(&generic_xdp_needed)) {
+		int ret = do_xdp_generic(skb);
+
+		/* Consider XDP consuming the packet a success from
+		 * the netdev point of view we do not want to count
+		 * this as an error.
+		 */
+		if (ret != XDP_PASS)
+			return NET_RX_SUCCESS;
+	}
+
 #ifdef CONFIG_RPS
 	if (static_key_false(&rps_needed)) {
 		struct rps_dev_flow voidflow, *rflow = &voidflow;
@@ -4338,8 +4465,6 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	return ret;
 }
 
-static struct static_key generic_xdp_needed __read_mostly;
-
 static int generic_xdp_install(struct net_device *dev, struct netdev_xdp *xdp)
 {
 	struct bpf_prog *old = rtnl_dereference(dev->xdp_prog);
@@ -4373,89 +4498,6 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_xdp *xdp)
 	return ret;
 }
 
-static u32 netif_receive_generic_xdp(struct sk_buff *skb,
-				     struct bpf_prog *xdp_prog)
-{
-	struct xdp_buff xdp;
-	u32 act = XDP_DROP;
-	void *orig_data;
-	int hlen, off;
-	u32 mac_len;
-
-	/* Reinjected packets coming from act_mirred or similar should
-	 * not get XDP generic processing.
-	 */
-	if (skb_cloned(skb))
-		return XDP_PASS;
-
-	if (skb_linearize(skb))
-		goto do_drop;
-
-	/* The XDP program wants to see the packet starting at the MAC
-	 * header.
-	 */
-	mac_len = skb->data - skb_mac_header(skb);
-	hlen = skb_headlen(skb) + mac_len;
-	xdp.data = skb->data - mac_len;
-	xdp.data_end = xdp.data + hlen;
-	xdp.data_hard_start = skb->data - skb_headroom(skb);
-	orig_data = xdp.data;
-
-	act = bpf_prog_run_xdp(xdp_prog, &xdp);
-
-	off = xdp.data - orig_data;
-	if (off > 0)
-		__skb_pull(skb, off);
-	else if (off < 0)
-		__skb_push(skb, -off);
-
-	switch (act) {
-	case XDP_TX:
-		__skb_push(skb, mac_len);
-		/* fall through */
-	case XDP_PASS:
-		break;
-
-	default:
-		bpf_warn_invalid_xdp_action(act);
-		/* fall through */
-	case XDP_ABORTED:
-		trace_xdp_exception(skb->dev, xdp_prog, act);
-		/* fall through */
-	case XDP_DROP:
-	do_drop:
-		kfree_skb(skb);
-		break;
-	}
-
-	return act;
-}
-
-/* When doing generic XDP we have to bypass the qdisc layer and the
- * network taps in order to match in-driver-XDP behavior.
- */
-static void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog)
-{
-	struct net_device *dev = skb->dev;
-	struct netdev_queue *txq;
-	bool free_skb = true;
-	int cpu, rc;
-
-	txq = netdev_pick_tx(dev, skb, NULL);
-	cpu = smp_processor_id();
-	HARD_TX_LOCK(dev, txq, cpu);
-	if (!netif_xmit_stopped(txq)) {
-		rc = netdev_start_xmit(skb, dev, txq, 0);
-		if (dev_xmit_complete(rc))
-			free_skb = false;
-	}
-	HARD_TX_UNLOCK(dev, txq);
-	if (free_skb) {
-		trace_xdp_exception(dev, xdp_prog, XDP_TX);
-		kfree_skb(skb);
-	}
-}
-
 static int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	int ret;
@@ -4468,17 +4510,11 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 	rcu_read_lock();
 
 	if (static_key_false(&generic_xdp_needed)) {
-		struct bpf_prog *xdp_prog = rcu_dereference(skb->dev->xdp_prog);
+		int ret = do_xdp_generic(skb);
 
-		if (xdp_prog) {
-			u32 act = netif_receive_generic_xdp(skb, xdp_prog);
-
-			if (act != XDP_PASS) {
-				rcu_read_unlock();
-				if (act == XDP_TX)
-					generic_xdp_tx(skb, xdp_prog);
-				return NET_RX_DROP;
-			}
+		if (ret != XDP_PASS) {
+			rcu_read_unlock();
+			return NET_RX_DROP;
 		}
 	}
 
