@@ -35,6 +35,23 @@ int mv88e6xxx_port_write(struct mv88e6xxx_chip *chip, int port, int reg,
 	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
+/* Offset 0x00: Port Status Register */
+
+int mv88e6xxx_port_status_eee(struct mv88e6xxx_chip *chip, int port,
+			      struct ethtool_eee *eee)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &val);
+	if (err)
+		return err;
+
+	eee->eee_active = !!(val & MV88E6352_PORT_STS_EEE);
+
+	return 0;
+}
+
 /* Offset 0x01: MAC (or PCS or Physical) Control Register
  *
  * Link, Duplex and Flow Control have one force bit, one value bit.

@@ -17,6 +17,19 @@
 #define MV88E6XXX_PHY_PAGE		0x16
 #define MV88E6XXX_PHY_PAGE_COPPER	0x00
 
+/* Page 0, Register 16: Copper Specific Control Register 1 */
+#define MV88E6XXX_PHY_CSCTL1					16
+#define MV88E6352_PHY_CSCTL1_ENERGY_DETECT_MASK			0x0300
+#define MV88E6352_PHY_CSCTL1_ENERGY_DETECT_OFF_MASK		0x0100 /* 0x */
+#define MV88E6352_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV		0x0200
+#define MV88E6352_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP		0x0300
+#define MV88E6390_PHY_CSCTL1_ENERGY_DETECT_MASK			0x0380
+#define MV88E6390_PHY_CSCTL1_ENERGY_DETECT_OFF_MASK		0x0180 /* 0xx */
+#define MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV_AUTO	0x0200
+#define MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV_SW		0x0280
+#define MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP_AUTO	0x0300
+#define MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP_SW		0x0380
+
 /* PHY Registers accesses implementations */
 int mv88e6165_phy_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,
 		       int addr, int reg, u16 *val);
@@ -39,5 +52,14 @@ int mv88e6xxx_phy_page_write(struct mv88e6xxx_chip *chip, int phy,
 void mv88e6xxx_phy_init(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_phy_setup(struct mv88e6xxx_chip *chip);
+
+int mv88e6352_phy_energy_detect_read(struct mv88e6xxx_chip *chip, int phy,
+				     struct ethtool_eee *eee);
+int mv88e6352_phy_energy_detect_write(struct mv88e6xxx_chip *chip, int phy,
+				      struct ethtool_eee *eee);
+int mv88e6390_phy_energy_detect_read(struct mv88e6xxx_chip *chip, int phy,
+				     struct ethtool_eee *eee);
+int mv88e6390_phy_energy_detect_write(struct mv88e6xxx_chip *chip, int phy,
+				      struct ethtool_eee *eee);
 
 #endif /*_MV88E6XXX_PHY_H */

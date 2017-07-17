@@ -98,10 +98,6 @@ enum mv88e6xxx_family {
 };
 
 enum mv88e6xxx_cap {
-	/* Energy Efficient Ethernet.
-	 */
-	MV88E6XXX_CAP_EEE,
-
 	/* Multi-chip Addressing Mode.
 	 * Some chips respond to only 2 registers of its own SMI device address
 	 * when it is non-zero, and use indirect access to internal registers.
@@ -111,8 +107,6 @@ enum mv88e6xxx_cap {
 };
 
 /* Bitmask of capabilities */
-#define MV88E6XXX_FLAG_EEE		BIT_ULL(MV88E6XXX_CAP_EEE)
-
 #define MV88E6XXX_FLAG_SMI_CMD		BIT_ULL(MV88E6XXX_CAP_SMI_CMD)
 #define MV88E6XXX_FLAG_SMI_DATA		BIT_ULL(MV88E6XXX_CAP_SMI_DATA)
 
@@ -134,23 +128,19 @@ enum mv88e6xxx_cap {
 	(MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6320	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
+	(MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6341	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
+	(MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
 	(MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
+	(MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6390	\
-	(MV88E6XXX_FLAG_EEE |		\
-	 MV88E6XXX_FLAGS_MULTI_CHIP)
+	(MV88E6XXX_FLAGS_MULTI_CHIP)
 
 struct mv88e6xxx_ops;
 
@@ -288,6 +278,12 @@ struct mv88e6xxx_ops {
 	int (*phy_write)(struct mv88e6xxx_chip *chip,
 			 struct mii_bus *bus,
 			 int addr, int reg, u16 val);
+
+	/* Copper Energy Detect operations */
+	int (*phy_energy_detect_read)(struct mv88e6xxx_chip *chip, int phy,
+				      struct ethtool_eee *eee);
+	int (*phy_energy_detect_write)(struct mv88e6xxx_chip *chip, int phy,
+				       struct ethtool_eee *eee);
 
 	/* Priority Override Table operations */
 	int (*pot_clear)(struct mv88e6xxx_chip *chip);

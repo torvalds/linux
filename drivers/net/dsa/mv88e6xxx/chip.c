@@ -810,31 +810,40 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 	mutex_unlock(&chip->reg_lock);
 }
 
+static int mv88e6xxx_energy_detect_read(struct mv88e6xxx_chip *chip, int port,
+					struct ethtool_eee *eee)
+{
+	int err;
+
+	if (!chip->info->ops->phy_energy_detect_read)
+		return -EOPNOTSUPP;
+
+	/* assign eee->eee_enabled and eee->tx_lpi_enabled */
+	err = chip->info->ops->phy_energy_detect_read(chip, port, eee);
+	if (err)
+		return err;
+
+	/* assign eee->eee_active */
+	return mv88e6xxx_port_status_eee(chip, port, eee);
+}
+
+static int mv88e6xxx_energy_detect_write(struct mv88e6xxx_chip *chip, int port,
+					 struct ethtool_eee *eee)
+{
+	if (!chip->info->ops->phy_energy_detect_write)
+		return -EOPNOTSUPP;
+
+	return chip->info->ops->phy_energy_detect_write(chip, port, eee);
+}
+
 static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
 			     struct ethtool_eee *e)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	u16 reg;
 	int err;
 
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_EEE))
-		return -EOPNOTSUPP;
-
 	mutex_lock(&chip->reg_lock);
-
-	err = mv88e6xxx_phy_read(chip, port, 16, &reg);
-	if (err)
-		goto out;
-
-	e->eee_enabled = !!(reg & 0x0200);
-	e->tx_lpi_enabled = !!(reg & 0x0100);
-
-	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
-	if (err)
-		goto out;
-
-	e->eee_active = !!(reg & MV88E6352_PORT_STS_EEE);
-out:
+	err = mv88e6xxx_energy_detect_read(chip, port, e);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -844,26 +853,10 @@ static int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 			     struct phy_device *phydev, struct ethtool_eee *e)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	u16 reg;
 	int err;
 
-	if (!mv88e6xxx_has(chip, MV88E6XXX_FLAG_EEE))
-		return -EOPNOTSUPP;
-
 	mutex_lock(&chip->reg_lock);
-
-	err = mv88e6xxx_phy_read(chip, port, 16, &reg);
-	if (err)
-		goto out;
-
-	reg &= ~0x0300;
-	if (e->eee_enabled)
-		reg |= 0x0200;
-	if (e->tx_lpi_enabled)
-		reg |= 0x0100;
-
-	err = mv88e6xxx_phy_write(chip, port, 16, reg);
-out:
+	err = mv88e6xxx_energy_detect_write(chip, port, e);
 	mutex_unlock(&chip->reg_lock);
 
 	return err;
@@ -2528,6 +2521,8 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
@@ -2653,6 +2648,8 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
@@ -2722,6 +2719,8 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
@@ -2785,6 +2784,8 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6390_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6390_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
@@ -2820,6 +2821,8 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6390_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6390_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
@@ -2855,6 +2858,8 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6390_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6390_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
@@ -2890,6 +2895,8 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
@@ -2926,6 +2933,8 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6390_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6390_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
@@ -2962,6 +2971,8 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -2995,6 +3006,8 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_speed = mv88e6185_port_set_speed,
@@ -3026,6 +3039,8 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
@@ -3127,6 +3142,8 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6352_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6352_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
@@ -3163,6 +3180,8 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6390_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6390_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
@@ -3201,6 +3220,8 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
 	.phy_read = mv88e6xxx_g2_smi_phy_read,
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.phy_energy_detect_read = mv88e6390_phy_energy_detect_read,
+	.phy_energy_detect_write = mv88e6390_phy_energy_detect_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_set_duplex = mv88e6xxx_port_set_duplex,
 	.port_set_rgmii_delay = mv88e6390_port_set_rgmii_delay,
