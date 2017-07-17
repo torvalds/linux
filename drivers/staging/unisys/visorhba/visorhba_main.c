@@ -141,9 +141,6 @@ static struct task_struct *visor_thread_start
  */
 static void visor_thread_stop(struct task_struct *task)
 {
-	/* no thread running */
-	if (!task)
-		return;
 	kthread_stop(task);
 }
 
@@ -829,7 +826,7 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 static int set_no_disk_inquiry_result(unsigned char *buf,
 				      size_t len, bool is_lun0)
 {
-	if (!buf || len < NO_DISK_INQUIRY_RESULT_LEN)
+	if (len < NO_DISK_INQUIRY_RESULT_LEN)
 		return -EINVAL;
 	memset(buf, 0, NO_DISK_INQUIRY_RESULT_LEN);
 	buf[2] = SCSI_SPC2_VER;
