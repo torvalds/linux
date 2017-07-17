@@ -2959,7 +2959,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
-	/* MV88E6XXX_FAMILY_6321 */
+	/* MV88E6XXX_FAMILY_6320 */
 	.irl_init_all = mv88e6352_g2_irl_init_all,
 	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
 	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
