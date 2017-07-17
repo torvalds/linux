@@ -701,7 +701,7 @@ get_vbus_header_info(struct visorchannel *chan,
 				 "vbus",
 				 sizeof(struct visor_vbus_channel),
 				 VISOR_VBUS_CHANNEL_VERSIONID,
-				 VISOR_VBUS_CHANNEL_SIGNATURE))
+				 VISOR_CHANNEL_SIGNATURE))
 		return -EINVAL;
 
 	err = visorchannel_read(chan, sizeof(struct channel_header), hdr_info,
