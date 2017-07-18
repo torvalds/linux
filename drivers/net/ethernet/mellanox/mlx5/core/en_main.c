@@ -4071,10 +4071,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 
 	/* TX inline */
 	params->tx_max_inline = mlx5e_get_max_inline_cap(mdev);
-	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
-	if (params->tx_min_inline_mode == MLX5_INLINE_MODE_NONE &&
-	    !MLX5_CAP_ETH(mdev, wqe_vlan_insert))
-		params->tx_min_inline_mode = MLX5_INLINE_MODE_L2;
+	params->tx_min_inline_mode = mlx5e_params_calculate_tx_min_inline(mdev);
 
 	/* RSS */
 	params->rss_hfunc = ETH_RSS_HASH_XOR;
