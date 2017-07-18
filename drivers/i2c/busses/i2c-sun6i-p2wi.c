@@ -223,8 +223,8 @@ static int p2wi_probe(struct platform_device *pdev)
 	if (childnp) {
 		ret = of_property_read_u32(childnp, "reg", &slave_addr);
 		if (ret) {
-			dev_err(dev, "invalid slave address on node %s\n",
-				childnp->full_name);
+			dev_err(dev, "invalid slave address on node %pOF\n",
+				childnp);
 			return -EINVAL;
 		}
 
