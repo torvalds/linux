@@ -2810,19 +2810,20 @@ static void mlxsw_sp_router_fib4_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_fib_node_put(mlxsw_sp, fib_node);
 }
 
-static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
+static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
+					    enum mlxsw_reg_ralxx_protocol proto,
+					    u8 tree_id)
 {
 	char ralta_pl[MLXSW_REG_RALTA_LEN];
 	char ralst_pl[MLXSW_REG_RALST_LEN];
 	int i, err;
 
-	mlxsw_reg_ralta_pack(ralta_pl, true, MLXSW_REG_RALXX_PROTOCOL_IPV4,
-			     MLXSW_SP_LPM_TREE_MIN);
+	mlxsw_reg_ralta_pack(ralta_pl, true, proto, tree_id);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
 	if (err)
 		return err;
 
-	mlxsw_reg_ralst_pack(ralst_pl, 0xff, MLXSW_SP_LPM_TREE_MIN);
+	mlxsw_reg_ralst_pack(ralst_pl, 0xff, tree_id);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralst), ralst_pl);
 	if (err)
 		return err;
@@ -2835,17 +2836,14 @@ static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 		if (!mlxsw_sp_vr_is_used(vr))
 			continue;
 
-		mlxsw_reg_raltb_pack(raltb_pl, vr->id,
-				     MLXSW_REG_RALXX_PROTOCOL_IPV4,
-				     MLXSW_SP_LPM_TREE_MIN);
+		mlxsw_reg_raltb_pack(raltb_pl, vr->id, proto, tree_id);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb),
 				      raltb_pl);
 		if (err)
 			return err;
 
-		mlxsw_reg_ralue_pack4(ralue_pl, MLXSW_SP_L3_PROTO_IPV4,
-				      MLXSW_REG_RALUE_OP_WRITE_WRITE, vr->id, 0,
-				      0);
+		mlxsw_reg_ralue_pack(ralue_pl, proto,
+				     MLXSW_REG_RALUE_OP_WRITE_WRITE, vr->id, 0);
 		mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue),
 				      ralue_pl);
@@ -2854,6 +2852,21 @@ static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 	}
 
 	return 0;
+}
+
+static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
+{
+	enum mlxsw_reg_ralxx_protocol proto = MLXSW_REG_RALXX_PROTOCOL_IPV4;
+	int err;
+
+	err = __mlxsw_sp_router_set_abort_trap(mlxsw_sp, proto,
+					       MLXSW_SP_LPM_TREE_MIN);
+	if (err)
+		return err;
+
+	proto = MLXSW_REG_RALXX_PROTOCOL_IPV6;
+	return __mlxsw_sp_router_set_abort_trap(mlxsw_sp, proto,
+						MLXSW_SP_LPM_TREE_MIN + 1);
 }
 
 static void mlxsw_sp_fib4_node_flush(struct mlxsw_sp *mlxsw_sp,
@@ -2925,7 +2938,7 @@ static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 	}
 }
 
-static void mlxsw_sp_router_fib4_abort(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_router_fib_abort(struct mlxsw_sp *mlxsw_sp)
 {
 	int err;
 
@@ -2970,7 +2983,7 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 		err = mlxsw_sp_router_fib4_add(mlxsw_sp, &fib_work->fen_info,
 					       replace, append);
 		if (err)
-			mlxsw_sp_router_fib4_abort(mlxsw_sp);
+			mlxsw_sp_router_fib_abort(mlxsw_sp);
 		fib_info_put(fib_work->fen_info.fi);
 		break;
 	case FIB_EVENT_ENTRY_DEL:
@@ -2981,7 +2994,7 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 	case FIB_EVENT_RULE_DEL:
 		rule = fib_work->fr_info.rule;
 		if (!fib4_rule_default(rule) && !rule->l3mdev)
-			mlxsw_sp_router_fib4_abort(mlxsw_sp);
+			mlxsw_sp_router_fib_abort(mlxsw_sp);
 		fib_rule_put(rule);
 		break;
 	case FIB_EVENT_NH_ADD: /* fall through */
