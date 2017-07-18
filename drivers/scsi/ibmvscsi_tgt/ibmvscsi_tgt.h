@@ -262,6 +262,14 @@ struct scsi_info {
 #define DISCONNECT_SCHEDULED          0x00800
 	/* remove function is sleeping */
 #define CFG_SLEEPING                  0x01000
+	/* Register for Prepare for Suspend Transport Events */
+#define PREP_FOR_SUSPEND_ENABLED      0x02000
+	/* Prepare for Suspend event sent */
+#define PREP_FOR_SUSPEND_PENDING      0x04000
+	/* Resume from Suspend event sent */
+#define PREP_FOR_SUSPEND_ABORTED      0x08000
+	/* Prepare for Suspend event overwrote another CRQ entry */
+#define PREP_FOR_SUSPEND_OVERWRITE    0x10000
 	u32 flags;
 	/* adapter lock */
 	spinlock_t intr_lock;
@@ -272,6 +280,7 @@ struct scsi_info {
 	/* used in crq, to tag what iu the response is for */
 	u64  empty_iu_tag;
 	uint new_state;
+	uint resume_state;
 	/* control block for the response queue timer */
 	struct timer_cb rsp_q_timer;
 	/* keep last client to enable proper accounting */
@@ -324,8 +333,13 @@ struct scsi_info {
 #define TARGET_STOP(VSCSI) (long)(((VSCSI)->state & DONT_PROCESS_STATE) | \
 				  ((VSCSI)->flags & BLOCK))
 
+#define PREP_FOR_SUSPEND_FLAGS  (PREP_FOR_SUSPEND_ENABLED | \
+				 PREP_FOR_SUSPEND_PENDING | \
+				 PREP_FOR_SUSPEND_ABORTED | \
+				 PREP_FOR_SUSPEND_OVERWRITE)
+
 /* flag bit that are not reset during disconnect */
-#define PRESERVE_FLAG_FIELDS 0
+#define PRESERVE_FLAG_FIELDS (PREP_FOR_SUSPEND_FLAGS)
 
 #define vio_iu(IUE) ((union viosrp_iu *)((IUE)->sbuf->buf))
 
@@ -333,8 +347,15 @@ struct scsi_info {
 #define WRITE_CMD(cdb)	(((cdb)[0] & 0x1F) == 0xA)
 
 #ifndef H_GET_PARTNER_INFO
-#define H_GET_PARTNER_INFO      0x0000000000000008LL
+#define H_GET_PARTNER_INFO              0x0000000000000008LL
 #endif
+#ifndef H_ENABLE_PREPARE_FOR_SUSPEND
+#define H_ENABLE_PREPARE_FOR_SUSPEND    0x000000000000001DLL
+#endif
+#ifndef H_READY_FOR_SUSPEND
+#define H_READY_FOR_SUSPEND             0x000000000000001ELL
+#endif
+
 
 #define h_copy_rdma(l, sa, sb, da, db) \
 		plpar_hcall_norets(H_COPY_RDMA, l, sa, sb, da, db)

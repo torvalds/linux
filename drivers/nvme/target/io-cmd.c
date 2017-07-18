@@ -85,7 +85,7 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 			bio_set_op_attrs(bio, op, op_flags);
 
 			bio_chain(bio, prev);
-			cookie = submit_bio(prev);
+			submit_bio(prev);
 		}
 
 		sector += sg->length >> 9;

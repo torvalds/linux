@@ -512,7 +512,7 @@ void lu_object_header_print(const struct lu_env *env, void *cookie,
 			    lu_printer_t printer,
 			    const struct lu_object_header *hdr)
 {
-	(*printer)(env, cookie, "header@%p[%#lx, %d, "DFID"%s%s%s]",
+	(*printer)(env, cookie, "header@%p[%#lx, %d, " DFID "%s%s%s]",
 		   hdr, hdr->loh_flags, atomic_read(&hdr->loh_ref),
 		   PFID(&hdr->loh_fid),
 		   hlist_unhashed(&hdr->loh_hash) ? "" : " hash",
@@ -918,9 +918,8 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	cache_size = cache_size / 100 * lu_cache_percent *
 		(PAGE_SIZE / 1024);
 
-	for (bits = 1; (1 << bits) < cache_size; ++bits) {
+	for (bits = 1; (1 << bits) < cache_size; ++bits)
 		;
-	}
 	return clamp_t(typeof(bits), bits, LU_SITE_BITS_MIN, bits_max);
 }
 

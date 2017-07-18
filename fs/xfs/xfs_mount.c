@@ -173,7 +173,7 @@ xfs_free_perag(
 int
 xfs_sb_validate_fsb_count(
 	xfs_sb_t	*sbp,
-	__uint64_t	nblocks)
+	uint64_t	nblocks)
 {
 	ASSERT(PAGE_SHIFT >= sbp->sb_blocklog);
 	ASSERT(sbp->sb_blocklog >= BBSHIFT);
@@ -435,7 +435,7 @@ STATIC void
 xfs_set_maxicount(xfs_mount_t *mp)
 {
 	xfs_sb_t	*sbp = &(mp->m_sb);
-	__uint64_t	icount;
+	uint64_t	icount;
 
 	if (sbp->sb_imax_pct) {
 		/*
@@ -501,7 +501,7 @@ xfs_set_low_space_thresholds(
 	int i;
 
 	for (i = 0; i < XFS_LOWSP_MAX; i++) {
-		__uint64_t space = mp->m_sb.sb_dblocks;
+		uint64_t space = mp->m_sb.sb_dblocks;
 
 		do_div(space, 100);
 		mp->m_low_space[i] = space * (i + 1);
@@ -597,10 +597,10 @@ xfs_mount_reset_sbqflags(
 	return xfs_sync_sb(mp, false);
 }
 
-__uint64_t
+uint64_t
 xfs_default_resblks(xfs_mount_t *mp)
 {
-	__uint64_t resblks;
+	uint64_t resblks;
 
 	/*
 	 * We default to 5% or 8192 fsbs of space reserved, whichever is
@@ -611,7 +611,7 @@ xfs_default_resblks(xfs_mount_t *mp)
 	 */
 	resblks = mp->m_sb.sb_dblocks;
 	do_div(resblks, 20);
-	resblks = min_t(__uint64_t, resblks, 8192);
+	resblks = min_t(uint64_t, resblks, 8192);
 	return resblks;
 }
 
@@ -631,7 +631,7 @@ xfs_mountfs(
 {
 	struct xfs_sb		*sbp = &(mp->m_sb);
 	struct xfs_inode	*rip;
-	__uint64_t		resblks;
+	uint64_t		resblks;
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
 	int			error = 0;
@@ -719,10 +719,13 @@ xfs_mountfs(
 	if (error)
 		goto out_del_stats;
 
+	error = xfs_errortag_init(mp);
+	if (error)
+		goto out_remove_error_sysfs;
 
 	error = xfs_uuid_mount(mp);
 	if (error)
-		goto out_remove_error_sysfs;
+		goto out_remove_errortag;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -1044,6 +1047,8 @@ xfs_mountfs(
 	xfs_da_unmount(mp);
  out_remove_uuid:
 	xfs_uuid_unmount(mp);
+ out_remove_errortag:
+	xfs_errortag_del(mp);
  out_remove_error_sysfs:
 	xfs_error_sysfs_del(mp);
  out_del_stats:
@@ -1062,7 +1067,7 @@ void
 xfs_unmountfs(
 	struct xfs_mount	*mp)
 {
-	__uint64_t		resblks;
+	uint64_t		resblks;
 	int			error;
 
 	cancel_delayed_work_sync(&mp->m_eofblocks_work);
@@ -1147,10 +1152,11 @@ xfs_unmountfs(
 	xfs_uuid_unmount(mp);
 
 #if defined(DEBUG)
-	xfs_errortag_clearall(mp, 0);
+	xfs_errortag_clearall(mp);
 #endif
 	xfs_free_perag(mp);
 
+	xfs_errortag_del(mp);
 	xfs_error_sysfs_del(mp);
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
 	xfs_sysfs_del(&mp->m_kobj);
@@ -1211,7 +1217,7 @@ xfs_mod_icount(
 	struct xfs_mount	*mp,
 	int64_t			delta)
 {
-	__percpu_counter_add(&mp->m_icount, delta, XFS_ICOUNT_BATCH);
+	percpu_counter_add_batch(&mp->m_icount, delta, XFS_ICOUNT_BATCH);
 	if (__percpu_counter_compare(&mp->m_icount, 0, XFS_ICOUNT_BATCH) < 0) {
 		ASSERT(0);
 		percpu_counter_add(&mp->m_icount, -delta);
@@ -1290,7 +1296,7 @@ xfs_mod_fdblocks(
 	else
 		batch = XFS_FDBLOCKS_BATCH;
 
-	__percpu_counter_add(&mp->m_fdblocks, delta, batch);
+	percpu_counter_add_batch(&mp->m_fdblocks, delta, batch);
 	if (__percpu_counter_compare(&mp->m_fdblocks, mp->m_alloc_set_aside,
 				     XFS_FDBLOCKS_BATCH) >= 0) {
 		/* we had space! */

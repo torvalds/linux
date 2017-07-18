@@ -189,14 +189,22 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev);
 int hw_sm750_deWait(void);
 int hw_sm750le_deWait(void);
 
-int hw_sm750_output_setMode(struct lynxfb_output*, struct fb_var_screeninfo*,
-			    struct fb_fix_screeninfo*);
-int hw_sm750_crtc_checkMode(struct lynxfb_crtc*, struct fb_var_screeninfo*);
-int hw_sm750_crtc_setMode(struct lynxfb_crtc*, struct fb_var_screeninfo*,
-			  struct fb_fix_screeninfo*);
-int hw_sm750_setColReg(struct lynxfb_crtc*, ushort, ushort, ushort, ushort);
-int hw_sm750_setBLANK(struct lynxfb_output*, int);
-int hw_sm750le_setBLANK(struct lynxfb_output*, int);
+int hw_sm750_output_setMode(struct lynxfb_output *output,
+			    struct fb_var_screeninfo *var,
+			    struct fb_fix_screeninfo *fix);
+
+int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc,
+			    struct fb_var_screeninfo *var);
+
+int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
+			  struct fb_var_screeninfo *var,
+			  struct fb_fix_screeninfo *fix);
+
+int hw_sm750_setColReg(struct lynxfb_crtc *crtc, ushort index,
+		       ushort red, ushort green, ushort blue);
+
+int hw_sm750_setBLANK(struct lynxfb_output *output, int blank);
+int hw_sm750le_setBLANK(struct lynxfb_output *output, int blank);
 int hw_sm750_pan_display(struct lynxfb_crtc *crtc,
 			 const struct fb_var_screeninfo *var,
 			 const struct fb_info *info);

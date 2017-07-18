@@ -10,6 +10,9 @@ extern int rd_prompt;
 /* starting block # of image */
 extern int rd_image_start;
 
+/* size of a single RAM disk */
+extern unsigned long rd_size;
+
 /* 1 if it is not an error if initrd_start < memory_start */
 extern int initrd_below_start_ok;
 

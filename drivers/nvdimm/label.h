@@ -15,6 +15,7 @@
 
 #include <linux/ndctl.h>
 #include <linux/sizes.h>
+#include <linux/uuid.h>
 #include <linux/io.h>
 
 enum {
@@ -60,7 +61,8 @@ static const char NSINDEX_SIGNATURE[] = "NAMESPACE_INDEX\0";
  */
 struct nd_namespace_index {
 	u8 sig[NSINDEX_SIG_LEN];
-	__le32 flags;
+	u8 flags[3];
+	u8 labelsize;
 	__le32 seq;
 	__le64 myoff;
 	__le64 mysize;
@@ -98,8 +100,22 @@ struct nd_namespace_label {
 	__le64 dpa;
 	__le64 rawsize;
 	__le32 slot;
-	__le32 unused;
+	/*
+	 * Accessing fields past this point should be gated by a
+	 * namespace_label_has() check.
+	 */
+	u8 align;
+	u8 reserved[3];
+	guid_t type_guid;
+	guid_t abstraction_guid;
+	u8 reserved2[88];
+	__le64 checksum;
 };
+
+#define NVDIMM_BTT_GUID "8aed63a2-29a2-4c66-8b12-f05d15d3922a"
+#define NVDIMM_BTT2_GUID "18633bfc-1735-4217-8ac9-17239282d3f8"
+#define NVDIMM_PFN_GUID "266400ba-fb9f-4677-bcb0-968f11d0d225"
+#define NVDIMM_DAX_GUID "97a86d9c-3cdd-4eda-986f-5068b4f80088"
 
 /**
  * struct nd_label_id - identifier string for dpa allocation
@@ -131,6 +147,7 @@ struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n);
 u32 nd_label_alloc_slot(struct nvdimm_drvdata *ndd);
 bool nd_label_free_slot(struct nvdimm_drvdata *ndd, u32 slot);
 u32 nd_label_nfree(struct nvdimm_drvdata *ndd);
+enum nvdimm_claim_class to_nvdimm_cclass(guid_t *guid);
 struct nd_region;
 struct nd_namespace_pmem;
 struct nd_namespace_blk;

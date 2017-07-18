@@ -32,7 +32,7 @@
 #define COVER(v, d) ((d) * DIV_ROUND_UP(v, d))
 #endif
 
-#define ULTRA_CHANNEL_PROTOCOL_SIGNATURE SIGNATURE_32('E', 'C', 'N', 'L')
+#define VISOR_CHANNEL_SIGNATURE SIGNATURE_32('E', 'C', 'N', 'L')
 
 enum channel_serverstate {
 	CHANNELSRV_UNINITIALIZED = 0,	/* channel is in an undefined state */
@@ -59,10 +59,10 @@ enum channel_clientstate {
 				/* access channel anytime */
 };
 
-#define SPAR_CHANNEL_SERVER_READY(ch) \
+#define VISOR_CHANNEL_SERVER_READY(ch) \
 	(readl(&(ch)->srv_state) == CHANNELSRV_READY)
 
-#define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n) \
+#define VISOR_VALID_CHANNELCLI_TRANSITION(o, n) \
 	(((((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_DISABLED)) || \
 	  (((o) == CHANNELCLI_ATTACHING) && ((n) == CHANNELCLI_DISABLED)) || \
 	  (((o) == CHANNELCLI_ATTACHED) && ((n) == CHANNELCLI_DISABLED)) || \
@@ -80,33 +80,33 @@ enum channel_clientstate {
 	  (((o) == CHANNELCLI_BUSY) && ((n) == CHANNELCLI_OWNED)) || (0)) \
 	 ? (1) : (0))
 
-/* Values for ULTRA_CHANNEL_PROTOCOL.CliErrorBoot: */
+/* Values for VISORA_CHANNEL_PROTOCOL.CliErrorBoot: */
 /* throttling invalid boot channel statetransition error due to client
  * disabled
  */
-#define ULTRA_CLIERRORBOOT_THROTTLEMSG_DISABLED 0x01
+#define VISOR_CLIERRORBOOT_THROTTLEMSG_DISABLED 0x01
 
 /* throttling invalid boot channel statetransition error due to client
  * not attached
  */
-#define ULTRA_CLIERRORBOOT_THROTTLEMSG_NOTATTACHED 0x02
+#define VISOR_CLIERRORBOOT_THROTTLEMSG_NOTATTACHED 0x02
 
 /* throttling invalid boot channel statetransition error due to busy channel */
-#define ULTRA_CLIERRORBOOT_THROTTLEMSG_BUSY 0x04
+#define VISOR_CLIERRORBOOT_THROTTLEMSG_BUSY 0x04
 
-/* Values for ULTRA_CHANNEL_PROTOCOL.Features: This define exists so
+/* Values for VISOR_CHANNEL_PROTOCOL.Features: This define exists so
  * that windows guest can look at the FeatureFlags in the io channel,
  * and configure the windows driver to use interrupts or not based on
  * this setting.  This flag is set in uislib after the
- * ULTRA_VHBA_init_channel is called.  All feature bits for all
+ * VISOR_VHBA_init_channel is called.  All feature bits for all
  * channels should be defined here.  The io channel feature bits are
  * defined right here
  */
-#define ULTRA_IO_DRIVER_ENABLES_INTS (0x1ULL << 1)
-#define ULTRA_IO_CHANNEL_IS_POLLING (0x1ULL << 3)
-#define ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS (0x1ULL << 4)
-#define ULTRA_IO_DRIVER_DISABLES_INTS (0x1ULL << 5)
-#define ULTRA_IO_DRIVER_SUPPORTS_ENHANCED_RCVBUF_CHECKING (0x1ULL << 6)
+#define VISOR_DRIVER_ENABLES_INTS (0x1ULL << 1)
+#define VISOR_CHANNEL_IS_POLLING (0x1ULL << 3)
+#define VISOR_IOVM_OK_DRIVER_DISABLING_INTS (0x1ULL << 4)
+#define VISOR_DRIVER_DISABLES_INTS (0x1ULL << 5)
+#define VISOR_DRIVER_ENHANCED_RCVBUF_CHECKING (0x1ULL << 6)
 
 /* Common Channel Header */
 struct channel_header {
@@ -156,7 +156,7 @@ struct channel_header {
 	u8 recover_channel;
 } __packed;
 
-#define ULTRA_CHANNEL_ENABLE_INTS (0x1ULL << 0)
+#define VISOR_CHANNEL_ENABLE_INTS (0x1ULL << 0)
 
 /* Subheader for the Signal Type variation of the Common Channel */
 struct signal_queue_header {
@@ -204,12 +204,12 @@ struct signal_queue_header {
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 static inline int
-spar_check_channel(struct channel_header *ch,
-		   uuid_le expected_uuid,
-		   char *chname,
-		   u64 expected_min_bytes,
-		   u32 expected_version,
-		   u64 expected_signature)
+visor_check_channel(struct channel_header *ch,
+		    uuid_le expected_uuid,
+		    char *chname,
+		    u64 expected_min_bytes,
+		    u32 expected_version,
+		    u64 expected_signature)
 {
 	if (uuid_le_cmp(expected_uuid, NULL_UUID_LE) != 0) {
 		/* caller wants us to verify type GUID */
@@ -254,27 +254,25 @@ spar_check_channel(struct channel_header *ch,
  */
 
 /* {414815ed-c58c-11da-95a9-00e08161165f} */
-#define SPAR_VHBA_CHANNEL_PROTOCOL_UUID \
+#define VISOR_VHBA_CHANNEL_UUID \
 	UUID_LE(0x414815ed, 0xc58c, 0x11da, \
 		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
-static const uuid_le spar_vhba_channel_protocol_uuid =
-	SPAR_VHBA_CHANNEL_PROTOCOL_UUID;
-#define SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR \
+static const uuid_le visor_vhba_channel_uuid = VISOR_VHBA_CHANNEL_UUID;
+#define VISOR_VHBA_CHANNEL_UUID_STR \
 	"414815ed-c58c-11da-95a9-00e08161165f"
 
 /* {8cd5994d-c58e-11da-95a9-00e08161165f} */
-#define SPAR_VNIC_CHANNEL_PROTOCOL_UUID \
+#define VISOR_VNIC_CHANNEL_UUID \
 	UUID_LE(0x8cd5994d, 0xc58e, 0x11da, \
 		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
-static const uuid_le spar_vnic_channel_protocol_uuid =
-	SPAR_VNIC_CHANNEL_PROTOCOL_UUID;
-#define SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR \
+static const uuid_le visor_vnic_channel_uuid = VISOR_VNIC_CHANNEL_UUID;
+#define VISOR_VNIC_CHANNEL_UUID_STR \
 	"8cd5994d-c58e-11da-95a9-00e08161165f"
 
 /* {72120008-4AAB-11DC-8530-444553544200} */
-#define SPAR_SIOVM_UUID \
+#define VISOR_SIOVM_UUID \
 	UUID_LE(0x72120008, 0x4AAB, 0x11DC, \
 		0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
-static const uuid_le spar_siovm_uuid = SPAR_SIOVM_UUID;
+static const uuid_le visor_siovm_uuid = VISOR_SIOVM_UUID;
 
 #endif

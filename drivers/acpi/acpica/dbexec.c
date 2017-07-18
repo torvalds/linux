@@ -181,6 +181,18 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 	acpi_gbl_method_executing = FALSE;
 
 	if (ACPI_FAILURE(status)) {
+		if ((status == AE_ABORT_METHOD) || acpi_gbl_abort_method) {
+
+			/* Clear the abort and fall back to the debugger prompt */
+
+			ACPI_EXCEPTION((AE_INFO, status,
+					"Aborting top-level method"));
+
+			acpi_gbl_abort_method = FALSE;
+			status = AE_OK;
+			goto cleanup;
+		}
+
 		ACPI_EXCEPTION((AE_INFO, status,
 				"while executing %s from debugger",
 				info->pathname));

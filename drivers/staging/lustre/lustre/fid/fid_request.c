@@ -259,7 +259,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 			return rc;
 		}
 
-		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16Lx]\n",
+		CDEBUG(D_INFO, "%s: Switch to sequence [0x%16.16llx]\n",
 		       seq->lcs_name, seqnr);
 
 		seq->lcs_fid.f_oid = LUSTRE_FID_INIT_OID;
@@ -279,7 +279,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	*fid = seq->lcs_fid;
 	mutex_unlock(&seq->lcs_mutex);
 
-	CDEBUG(D_INFO, "%s: Allocated FID "DFID"\n", seq->lcs_name,  PFID(fid));
+	CDEBUG(D_INFO, "%s: Allocated FID " DFID "\n", seq->lcs_name,  PFID(fid));
 	return rc;
 }
 EXPORT_SYMBOL(seq_client_alloc_fid);

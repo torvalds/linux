@@ -352,11 +352,17 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
 	if (clp != *result)
 		return 0;
 
-	/* Purge state if the client id was established in a prior instance */
-	if (clp->cl_exchange_flags & EXCHGID4_FLAG_CONFIRMED_R)
-		set_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
-	else
-		set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	/*
+	 * Purge state if the client id was established in a prior
+	 * instance and the client id could not have arrived on the
+	 * server via Transparent State Migration.
+	 */
+	if (clp->cl_exchange_flags & EXCHGID4_FLAG_CONFIRMED_R) {
+		if (!test_bit(NFS_CS_TSM_POSSIBLE, &clp->cl_flags))
+			set_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
+		else
+			set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	}
 	nfs4_schedule_state_manager(clp);
 	status = nfs_wait_client_init_complete(clp);
 	if (status < 0)

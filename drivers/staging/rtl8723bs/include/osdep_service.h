@@ -169,10 +169,10 @@ __inline static u32 _RND8(u32 sz)
 }
 
 #ifndef MAC_FMT
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_FMT "%pM"
 #endif
 #ifndef MAC_ARG
-#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
+#define MAC_ARG(x) (x)
 #endif
 
 

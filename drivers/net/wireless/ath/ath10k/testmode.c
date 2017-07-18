@@ -137,6 +137,13 @@ static int ath10k_tm_cmd_get_version(struct ath10k *ar, struct nlattr *tb[])
 		return ret;
 	}
 
+	ret = nla_put_u32(skb, ATH10K_TM_ATTR_WMI_OP_VERSION,
+			  ar->normal_mode_fw.fw_file.wmi_op_version);
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
 	return cfg80211_testmode_reply(skb);
 }
 

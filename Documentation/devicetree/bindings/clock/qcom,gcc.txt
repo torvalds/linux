@@ -8,6 +8,7 @@ Required properties :
 			"qcom,gcc-apq8084"
 			"qcom,gcc-ipq8064"
 			"qcom,gcc-ipq4019"
+			"qcom,gcc-ipq8074"
 			"qcom,gcc-msm8660"
 			"qcom,gcc-msm8916"
 			"qcom,gcc-msm8960"

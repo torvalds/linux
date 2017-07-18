@@ -242,8 +242,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		return err;
 	info = IEEE80211_SKB_CB(skb);
 	skb_reserve(skb, local->tx_headroom);
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
-	memset(mgmt, 0, hdr_len);
+	mgmt = skb_put_zero(skb, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 	memcpy(mgmt->da, da, ETH_ALEN);
@@ -264,8 +263,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		band = sband->band;
 
 		/* capability info */
-		pos = skb_put(skb, 2);
-		memset(pos, 0, 2);
+		pos = skb_put_zero(skb, 2);
 		if (action == WLAN_SP_MESH_PEERING_CONFIRM) {
 			/* AID */
 			pos = skb_put(skb, 2);

@@ -2306,7 +2306,7 @@ static int kiblnd_dev_need_failover(struct kib_dev *dev)
 
 	memset(&srcaddr, 0, sizeof(srcaddr));
 	srcaddr.sin_family = AF_INET;
-	srcaddr.sin_addr.s_addr = (__force u32)htonl(dev->ibd_ifip);
+	srcaddr.sin_addr.s_addr = htonl(dev->ibd_ifip);
 
 	memset(&dstaddr, 0, sizeof(dstaddr));
 	dstaddr.sin_family = AF_INET;
@@ -2378,7 +2378,7 @@ int kiblnd_dev_failover(struct kib_dev *dev)
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family      = AF_INET;
-	addr.sin_addr.s_addr = (__force u32)htonl(dev->ibd_ifip);
+	addr.sin_addr.s_addr = htonl(dev->ibd_ifip);
 	addr.sin_port	= htons(*kiblnd_tunables.kib_service);
 
 	/* Bind to failover device or port */

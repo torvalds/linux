@@ -42,9 +42,11 @@
 #define KVM_HALT_POLL_NS_DEFAULT 80000
 
 /* s390-specific vcpu->requests bit members */
-#define KVM_REQ_ENABLE_IBS         8
-#define KVM_REQ_DISABLE_IBS        9
-#define KVM_REQ_ICPT_OPEREXC       10
+#define KVM_REQ_ENABLE_IBS	KVM_ARCH_REQ(0)
+#define KVM_REQ_DISABLE_IBS	KVM_ARCH_REQ(1)
+#define KVM_REQ_ICPT_OPEREXC	KVM_ARCH_REQ(2)
+#define KVM_REQ_START_MIGRATION KVM_ARCH_REQ(3)
+#define KVM_REQ_STOP_MIGRATION  KVM_ARCH_REQ(4)
 
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
@@ -56,7 +58,7 @@ union bsca_sigp_ctrl {
 		__u8 r : 1;
 		__u8 scn : 6;
 	};
-} __packed;
+};
 
 union esca_sigp_ctrl {
 	__u16 value;
@@ -65,14 +67,14 @@ union esca_sigp_ctrl {
 		__u8 reserved: 7;
 		__u8 scn;
 	};
-} __packed;
+};
 
 struct esca_entry {
 	union esca_sigp_ctrl sigp_ctrl;
 	__u16   reserved1[3];
 	__u64   sda;
 	__u64   reserved2[6];
-} __packed;
+};
 
 struct bsca_entry {
 	__u8	reserved0;
@@ -80,7 +82,7 @@ struct bsca_entry {
 	__u16	reserved[3];
 	__u64	sda;
 	__u64	reserved2[2];
-} __attribute__((packed));
+};
 
 union ipte_control {
 	unsigned long val;
@@ -97,7 +99,7 @@ struct bsca_block {
 	__u64	mcn;
 	__u64	reserved2;
 	struct bsca_entry cpu[KVM_S390_BSCA_CPU_SLOTS];
-} __attribute__((packed));
+};
 
 struct esca_block {
 	union ipte_control ipte_control;
@@ -105,7 +107,7 @@ struct esca_block {
 	__u64   mcn[4];
 	__u64   reserved2[20];
 	struct esca_entry cpu[KVM_S390_ESCA_CPU_SLOTS];
-} __packed;
+};
 
 /*
  * This struct is used to store some machine check info from lowcore
@@ -274,7 +276,7 @@ struct kvm_s390_sie_block {
 
 struct kvm_s390_itdb {
 	__u8	data[256];
-} __packed;
+};
 
 struct sie_page {
 	struct kvm_s390_sie_block sie_block;
@@ -282,7 +284,7 @@ struct sie_page {
 	__u8 reserved218[1000];		/* 0x0218 */
 	struct kvm_s390_itdb itdb;	/* 0x0600 */
 	__u8 reserved700[2304];		/* 0x0700 */
-} __packed;
+};
 
 struct kvm_vcpu_stat {
 	u64 exit_userspace;
@@ -695,7 +697,7 @@ struct sie_page2 {
 	__u64 fac_list[S390_ARCH_FAC_LIST_SIZE_U64];	/* 0x0000 */
 	struct kvm_s390_crypto_cb crycb;		/* 0x0800 */
 	u8 reserved900[0x1000 - 0x900];			/* 0x0900 */
-} __packed;
+};
 
 struct kvm_s390_vsie {
 	struct mutex mutex;
@@ -703,6 +705,12 @@ struct kvm_s390_vsie {
 	int page_count;
 	int next;
 	struct page *pages[KVM_MAX_VCPUS];
+};
+
+struct kvm_s390_migration_state {
+	unsigned long bitmap_size;	/* in bits (number of guest pages) */
+	atomic64_t dirty_pages;		/* number of dirty pages */
+	unsigned long *pgste_bitmap;
 };
 
 struct kvm_arch{
@@ -732,6 +740,7 @@ struct kvm_arch{
 	struct kvm_s390_crypto crypto;
 	struct kvm_s390_vsie vsie;
 	u64 epoch;
+	struct kvm_s390_migration_state *migration_state;
 	/* subset of available cpu features enabled by user space */
 	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
 };

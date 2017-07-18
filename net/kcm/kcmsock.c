@@ -1985,7 +1985,7 @@ static int kcm_create(struct net *net, struct socket *sock,
 	return 0;
 }
 
-static struct net_proto_family kcm_family_ops = {
+static const struct net_proto_family kcm_family_ops = {
 	.family = PF_KCM,
 	.create = kcm_create,
 	.owner  = THIS_MODULE,

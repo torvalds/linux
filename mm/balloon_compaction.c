@@ -24,7 +24,7 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
 {
 	unsigned long flags;
 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
-					__GFP_NOMEMALLOC | __GFP_NORETRY);
+				__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_ZERO);
 	if (!page)
 		return NULL;
 

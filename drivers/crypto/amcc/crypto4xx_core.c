@@ -1179,6 +1179,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	dev_set_drvdata(dev, core_dev);
 	core_dev->ofdev = ofdev;
 	core_dev->dev = kzalloc(sizeof(struct crypto4xx_device), GFP_KERNEL);
+	rc = -ENOMEM;
 	if (!core_dev->dev)
 		goto err_alloc_dev;
 

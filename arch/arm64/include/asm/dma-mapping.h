@@ -24,7 +24,6 @@
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
 
-#define DMA_ERROR_CODE	(~(dma_addr_t)0)
 extern const struct dma_map_ops dummy_dma_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
@@ -48,8 +47,6 @@ void arch_teardown_dma_ops(struct device *dev);
 /* do not use this function in a driver */
 static inline bool is_device_dma_coherent(struct device *dev)
 {
-	if (!dev)
-		return false;
 	return dev->archdata.dma_coherent;
 }
 

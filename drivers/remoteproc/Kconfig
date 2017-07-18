@@ -6,7 +6,6 @@ config REMOTEPROC
 	select CRC32
 	select FW_LOADER
 	select VIRTIO
-	select VIRTUALIZATION
 	help
 	  Support for remote processors (such as DSP coprocessors). These
 	  are mainly used on embedded systems.
@@ -18,7 +17,6 @@ config OMAP_REMOTEPROC
 	depends on HAS_DMA
 	depends on ARCH_OMAP4 || SOC_OMAP5
 	depends on OMAP_IOMMU
-	depends on REMOTEPROC
 	select MAILBOX
 	select OMAP2PLUS_MBOX
 	select RPMSG_VIRTIO
@@ -38,7 +36,6 @@ config OMAP_REMOTEPROC
 config WKUP_M3_RPROC
 	tristate "AMx3xx Wakeup M3 remoteproc support"
 	depends on SOC_AM33XX || SOC_AM43XX
-	depends on REMOTEPROC
 	help
 	  Say y here to support Wakeup M3 remote processor on TI AM33xx
 	  and AM43xx family of SoCs.
@@ -51,8 +48,7 @@ config WKUP_M3_RPROC
 config DA8XX_REMOTEPROC
 	tristate "DA8xx/OMAP-L13x remoteproc support"
 	depends on ARCH_DAVINCI_DA8XX
-	depends on REMOTEPROC
-	select CMA if MMU
+	depends on DMA_CMA
 	select RPMSG_VIRTIO
 	help
 	  Say y here to support DA8xx/OMAP-L13x remote processors via the
@@ -71,10 +67,20 @@ config DA8XX_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
 
+config KEYSTONE_REMOTEPROC
+	tristate "Keystone Remoteproc support"
+	depends on ARCH_KEYSTONE
+	select RPMSG_VIRTIO
+	help
+	  Say Y here here to support Keystone remote processors (DSP)
+	  via the remote processor framework.
+
+	  It's safe to say N here if you're not interested in the Keystone
+	  DSPs or just want to use a bare minimum kernel.
+
 config QCOM_ADSP_PIL
 	tristate "Qualcomm ADSP Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
-	depends on REMOTEPROC
 	depends on QCOM_SMEM
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	select MFD_SYSCON
@@ -92,7 +98,6 @@ config QCOM_Q6V5_PIL
 	tristate "Qualcomm Hexagon V5 Peripherial Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
-	depends on REMOTEPROC
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	select MFD_SYSCON
 	select QCOM_RPROC_COMMON
@@ -106,7 +111,6 @@ config QCOM_WCNSS_PIL
 	depends on OF && ARCH_QCOM
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	depends on QCOM_SMEM
-	depends on REMOTEPROC
 	select QCOM_MDT_LOADER
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
@@ -117,7 +121,6 @@ config QCOM_WCNSS_PIL
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"
 	depends on ARCH_STI
-	depends on REMOTEPROC
 	select MAILBOX
 	select STI_MBOX
 	select RPMSG_VIRTIO
@@ -128,7 +131,6 @@ config ST_REMOTEPROC
 
 config ST_SLIM_REMOTEPROC
 	tristate
-	depends on REMOTEPROC
 
 endif # REMOTEPROC
 

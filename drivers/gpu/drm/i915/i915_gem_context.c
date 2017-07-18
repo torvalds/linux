@@ -85,6 +85,7 @@
  *
  */
 
+#include <linux/log2.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -92,31 +93,69 @@
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
-static int get_context_size(struct drm_i915_private *dev_priv)
+/* Initial size (as log2) to preallocate the handle->object hashtable */
+#define VMA_HT_BITS 2u /* 4 x 2 pointers, 64 bytes minimum */
+
+static void resize_vma_ht(struct work_struct *work)
 {
-	int ret;
-	u32 reg;
+	struct i915_gem_context_vma_lut *lut =
+		container_of(work, typeof(*lut), resize);
+	unsigned int bits, new_bits, size, i;
+	struct hlist_head *new_ht;
 
-	switch (INTEL_GEN(dev_priv)) {
-	case 6:
-		reg = I915_READ(CXT_SIZE);
-		ret = GEN6_CXT_TOTAL_SIZE(reg) * 64;
-		break;
-	case 7:
-		reg = I915_READ(GEN7_CXT_SIZE);
-		if (IS_HASWELL(dev_priv))
-			ret = HSW_CXT_TOTAL_SIZE;
-		else
-			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
-		break;
-	case 8:
-		ret = GEN8_CXT_TOTAL_SIZE;
-		break;
-	default:
-		BUG();
+	GEM_BUG_ON(!(lut->ht_size & I915_CTX_RESIZE_IN_PROGRESS));
+
+	bits = 1 + ilog2(4*lut->ht_count/3 + 1);
+	new_bits = min_t(unsigned int,
+			 max(bits, VMA_HT_BITS),
+			 sizeof(unsigned int) * BITS_PER_BYTE - 1);
+	if (new_bits == lut->ht_bits)
+		goto out;
+
+	new_ht = kzalloc(sizeof(*new_ht)<<new_bits, GFP_KERNEL | __GFP_NOWARN);
+	if (!new_ht)
+		new_ht = vzalloc(sizeof(*new_ht)<<new_bits);
+	if (!new_ht)
+		/* Pretend resize succeeded and stop calling us for a bit! */
+		goto out;
+
+	size = BIT(lut->ht_bits);
+	for (i = 0; i < size; i++) {
+		struct i915_vma *vma;
+		struct hlist_node *tmp;
+
+		hlist_for_each_entry_safe(vma, tmp, &lut->ht[i], ctx_node)
+			hlist_add_head(&vma->ctx_node,
+				       &new_ht[hash_32(vma->ctx_handle,
+						       new_bits)]);
 	}
+	kvfree(lut->ht);
+	lut->ht = new_ht;
+	lut->ht_bits = new_bits;
+out:
+	smp_store_release(&lut->ht_size, BIT(bits));
+	GEM_BUG_ON(lut->ht_size & I915_CTX_RESIZE_IN_PROGRESS);
+}
 
-	return ret;
+static void vma_lut_free(struct i915_gem_context *ctx)
+{
+	struct i915_gem_context_vma_lut *lut = &ctx->vma_lut;
+	unsigned int i, size;
+
+	if (lut->ht_size & I915_CTX_RESIZE_IN_PROGRESS)
+		cancel_work_sync(&lut->resize);
+
+	size = BIT(lut->ht_bits);
+	for (i = 0; i < size; i++) {
+		struct i915_vma *vma;
+
+		hlist_for_each_entry(vma, &lut->ht[i], ctx_node) {
+			vma->obj->vma_hashed = NULL;
+			vma->ctx = NULL;
+			i915_vma_put(vma);
+		}
+	}
+	kvfree(lut->ht);
 }
 
 void i915_gem_context_free(struct kref *ctx_ref)
@@ -128,6 +167,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	trace_i915_context_free(ctx);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
+	vma_lut_free(ctx);
 	i915_ppgtt_put(ctx->ppgtt);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
@@ -145,49 +185,11 @@ void i915_gem_context_free(struct kref *ctx_ref)
 
 	kfree(ctx->name);
 	put_pid(ctx->pid);
+
 	list_del(&ctx->link);
 
 	ida_simple_remove(&ctx->i915->context_hw_ida, ctx->hw_id);
 	kfree(ctx);
-}
-
-static struct drm_i915_gem_object *
-alloc_context_obj(struct drm_i915_private *dev_priv, u64 size)
-{
-	struct drm_i915_gem_object *obj;
-	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	obj = i915_gem_object_create(dev_priv, size);
-	if (IS_ERR(obj))
-		return obj;
-
-	/*
-	 * Try to make the context utilize L3 as well as LLC.
-	 *
-	 * On VLV we don't have L3 controls in the PTEs so we
-	 * shouldn't touch the cache level, especially as that
-	 * would make the object snooped which might have a
-	 * negative performance impact.
-	 *
-	 * Snooping is required on non-llc platforms in execlist
-	 * mode, but since all GGTT accesses use PAT entry 0 we
-	 * get snooping anyway regardless of cache_level.
-	 *
-	 * This is only applicable for Ivy Bridge devices since
-	 * later platforms don't have L3 control bits in the PTE.
-	 */
-	if (IS_IVYBRIDGE(dev_priv)) {
-		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
-		/* Failure shouldn't ever happen this early */
-		if (WARN_ON(ret)) {
-			i915_gem_object_put(obj);
-			return ERR_PTR(ret);
-		}
-	}
-
-	return obj;
 }
 
 static void context_close(struct i915_gem_context *ctx)
@@ -265,26 +267,18 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 	ctx->i915 = dev_priv;
+	ctx->priority = I915_PRIORITY_NORMAL;
 
-	if (dev_priv->hw_context_size) {
-		struct drm_i915_gem_object *obj;
-		struct i915_vma *vma;
+	ctx->vma_lut.ht_bits = VMA_HT_BITS;
+	ctx->vma_lut.ht_size = BIT(VMA_HT_BITS);
+	BUILD_BUG_ON(BIT(VMA_HT_BITS) == I915_CTX_RESIZE_IN_PROGRESS);
+	ctx->vma_lut.ht = kcalloc(ctx->vma_lut.ht_size,
+				  sizeof(*ctx->vma_lut.ht),
+				  GFP_KERNEL);
+	if (!ctx->vma_lut.ht)
+		goto err_out;
 
-		obj = alloc_context_obj(dev_priv, dev_priv->hw_context_size);
-		if (IS_ERR(obj)) {
-			ret = PTR_ERR(obj);
-			goto err_out;
-		}
-
-		vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
-		if (IS_ERR(vma)) {
-			i915_gem_object_put(obj);
-			ret = PTR_ERR(vma);
-			goto err_out;
-		}
-
-		ctx->engine[RCS].state = vma;
-	}
+	INIT_WORK(&ctx->vma_lut.resize, resize_vma_ht);
 
 	/* Default context will never have a file_priv */
 	ret = DEFAULT_CONTEXT_HANDLE;
@@ -292,7 +286,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 		ret = idr_alloc(&file_priv->context_idr, ctx,
 				DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
 		if (ret < 0)
-			goto err_out;
+			goto err_lut;
 	}
 	ctx->user_handle = ret;
 
@@ -333,6 +327,8 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 err_pid:
 	put_pid(ctx->pid);
 	idr_remove(&file_priv->context_idr, ctx->user_handle);
+err_lut:
+	kvfree(ctx->vma_lut.ht);
 err_out:
 	context_close(ctx);
 	return ERR_PTR(ret);
@@ -443,21 +439,6 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
 	ida_init(&dev_priv->context_hw_ida);
 
-	if (i915.enable_execlists) {
-		/* NB: intentionally left blank. We will allocate our own
-		 * backing objects as we need them, thank you very much */
-		dev_priv->hw_context_size = 0;
-	} else if (HAS_HW_CONTEXTS(dev_priv)) {
-		dev_priv->hw_context_size =
-			round_up(get_context_size(dev_priv),
-				 I915_GTT_PAGE_SIZE);
-		if (dev_priv->hw_context_size > (1<<20)) {
-			DRM_DEBUG_DRIVER("Disabling HW Contexts; invalid size %d\n",
-					 dev_priv->hw_context_size);
-			dev_priv->hw_context_size = 0;
-		}
-	}
-
 	ctx = i915_gem_create_context(dev_priv, NULL);
 	if (IS_ERR(ctx)) {
 		DRM_ERROR("Failed to create default global context (error %ld)\n",
@@ -477,8 +458,8 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
-			i915.enable_execlists ? "LR" :
-			dev_priv->hw_context_size ? "HW" : "fake");
+			 dev_priv->engine[RCS]->context_size ? "logical" :
+			 "fake");
 	return 0;
 }
 
@@ -941,11 +922,6 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static bool contexts_enabled(struct drm_device *dev)
-{
-	return i915.enable_execlists || to_i915(dev)->hw_context_size;
-}
-
 static bool client_is_banned(struct drm_i915_file_private *file_priv)
 {
 	return file_priv->context_bans > I915_MAX_CLIENT_CONTEXT_BANS;
@@ -954,12 +930,13 @@ static bool client_is_banned(struct drm_i915_file_private *file_priv)
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_context_create *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_gem_context *ctx;
 	int ret;
 
-	if (!contexts_enabled(dev))
+	if (!dev_priv->engine[RCS]->context_size)
 		return -ENODEV;
 
 	if (args->pad != 0)
@@ -977,7 +954,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_create_context(to_i915(dev), file_priv);
+	ctx = i915_gem_create_context(dev_priv, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
@@ -1137,9 +1114,6 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 
 	if (args->flags || args->pad)
 		return -EINVAL;
-
-	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)

@@ -40,7 +40,6 @@ config CPU_S3C6410
 
 config S3C64XX_PL080
 	def_bool DMADEVICES
-	select ARM_AMBA
 	select AMBA_PL08X
 
 config S3C64XX_SETUP_SDHCI

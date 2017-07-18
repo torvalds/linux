@@ -1,13 +1,7 @@
 menu "Distributed Switch Architecture drivers"
 	depends on HAVE_NET_DSA
 
-config NET_DSA_MV88E6060
-	tristate "Marvell 88E6060 ethernet switch chip support"
-	depends on NET_DSA
-	select NET_DSA_TAG_TRAILER
-	---help---
-	  This enables support for the Marvell 88E6060 ethernet switch
-	  chip.
+source "drivers/net/dsa/b53/Kconfig"
 
 config NET_DSA_BCM_SF2
 	tristate "Broadcom Starfighter 2 Ethernet switch support"
@@ -19,19 +13,6 @@ config NET_DSA_BCM_SF2
 	select B53
 	---help---
 	  This enables support for the Broadcom Starfighter 2 Ethernet
-	  switch chips.
-
-source "drivers/net/dsa/b53/Kconfig"
-
-source "drivers/net/dsa/mv88e6xxx/Kconfig"
-
-config NET_DSA_QCA8K
-	tristate "Qualcomm Atheros QCA8K Ethernet switch family support"
-	depends on NET_DSA
-	select NET_DSA_TAG_QCA
-	select REGMAP
-	---help---
-	  This enables support for the Qualcomm Atheros QCA8K Ethernet
 	  switch chips.
 
 config NET_DSA_LOOP
@@ -49,6 +30,27 @@ config NET_DSA_MT7530
 	---help---
 	  This enables support for the Mediatek MT7530 Ethernet switch
 	  chip.
+
+config NET_DSA_MV88E6060
+	tristate "Marvell 88E6060 ethernet switch chip support"
+	depends on NET_DSA
+	select NET_DSA_TAG_TRAILER
+	---help---
+	  This enables support for the Marvell 88E6060 ethernet switch
+	  chip.
+
+source "drivers/net/dsa/microchip/Kconfig"
+
+source "drivers/net/dsa/mv88e6xxx/Kconfig"
+
+config NET_DSA_QCA8K
+	tristate "Qualcomm Atheros QCA8K Ethernet switch family support"
+	depends on NET_DSA
+	select NET_DSA_TAG_QCA
+	select REGMAP
+	---help---
+	  This enables support for the Qualcomm Atheros QCA8K Ethernet
+	  switch chips.
 
 config NET_DSA_SMSC_LAN9303
 	tristate

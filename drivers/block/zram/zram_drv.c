@@ -469,6 +469,7 @@ static bool zram_same_page_write(struct zram *zram, u32 index,
 		zram_slot_unlock(zram, index);
 
 		atomic64_inc(&zram->stats.same_pages);
+		atomic64_inc(&zram->stats.pages_stored);
 		return true;
 	}
 	kunmap_atomic(mem);
@@ -524,6 +525,7 @@ static void zram_free_page(struct zram *zram, size_t index)
 		zram_clear_flag(zram, index, ZRAM_SAME);
 		zram_set_element(zram, index, 0);
 		atomic64_dec(&zram->stats.same_pages);
+		atomic64_dec(&zram->stats.pages_stored);
 		return;
 	}
 
@@ -1122,7 +1124,7 @@ static struct attribute *zram_disk_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group zram_disk_attr_group = {
+static const struct attribute_group zram_disk_attr_group = {
 	.attrs = zram_disk_attrs,
 };
 
@@ -1272,6 +1274,13 @@ static int zram_remove(struct zram *zram)
 }
 
 /* zram-control sysfs attributes */
+
+/*
+ * NOTE: hot_add attribute is not the usual read-only sysfs attribute. In a
+ * sense that reading from this file does alter the state of your system -- it
+ * creates a new un-initialized zram device and returns back this device's
+ * device_id (or an error code if it fails to create a new device).
+ */
 static ssize_t hot_add_show(struct class *class,
 			struct class_attribute *attr,
 			char *buf)
@@ -1286,6 +1295,7 @@ static ssize_t hot_add_show(struct class *class,
 		return ret;
 	return scnprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
+static CLASS_ATTR_RO(hot_add);
 
 static ssize_t hot_remove_store(struct class *class,
 			struct class_attribute *attr,
@@ -1316,23 +1326,19 @@ static ssize_t hot_remove_store(struct class *class,
 	mutex_unlock(&zram_index_mutex);
 	return ret ? ret : count;
 }
+static CLASS_ATTR_WO(hot_remove);
 
-/*
- * NOTE: hot_add attribute is not the usual read-only sysfs attribute. In a
- * sense that reading from this file does alter the state of your system -- it
- * creates a new un-initialized zram device and returns back this device's
- * device_id (or an error code if it fails to create a new device).
- */
-static struct class_attribute zram_control_class_attrs[] = {
-	__ATTR(hot_add, 0400, hot_add_show, NULL),
-	__ATTR_WO(hot_remove),
-	__ATTR_NULL,
+static struct attribute *zram_control_class_attrs[] = {
+	&class_attr_hot_add.attr,
+	&class_attr_hot_remove.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(zram_control_class);
 
 static struct class zram_control_class = {
 	.name		= "zram-control",
 	.owner		= THIS_MODULE,
-	.class_attrs	= zram_control_class_attrs,
+	.class_groups	= zram_control_class_groups,
 };
 
 static int zram_remove_cb(int id, void *ptr, void *data)

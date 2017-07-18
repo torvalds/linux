@@ -242,6 +242,14 @@ static const struct soc_tplg_map dapm_map[] = {
 	{SND_SOC_TPLG_DAPM_DAI_IN, snd_soc_dapm_dai_in},
 	{SND_SOC_TPLG_DAPM_DAI_OUT, snd_soc_dapm_dai_out},
 	{SND_SOC_TPLG_DAPM_DAI_LINK, snd_soc_dapm_dai_link},
+	{SND_SOC_TPLG_DAPM_BUFFER, snd_soc_dapm_buffer},
+	{SND_SOC_TPLG_DAPM_SCHEDULER, snd_soc_dapm_scheduler},
+	{SND_SOC_TPLG_DAPM_EFFECT, snd_soc_dapm_effect},
+	{SND_SOC_TPLG_DAPM_SIGGEN, snd_soc_dapm_siggen},
+	{SND_SOC_TPLG_DAPM_SRC, snd_soc_dapm_src},
+	{SND_SOC_TPLG_DAPM_ASRC, snd_soc_dapm_asrc},
+	{SND_SOC_TPLG_DAPM_ENCODER, snd_soc_dapm_encoder},
+	{SND_SOC_TPLG_DAPM_DECODER, snd_soc_dapm_decoder},
 };
 
 static int tplc_chan_get_reg(struct soc_tplg *tplg,
@@ -340,6 +348,17 @@ static int soc_tplg_widget_load(struct soc_tplg *tplg,
 {
 	if (tplg->comp && tplg->ops && tplg->ops->widget_load)
 		return tplg->ops->widget_load(tplg->comp, w, tplg_w);
+
+	return 0;
+}
+
+/* optionally pass new dynamic widget to component driver. This is mainly for
+ * external widgets where we can assign private data/ops */
+static int soc_tplg_widget_ready(struct soc_tplg *tplg,
+	struct snd_soc_dapm_widget *w, struct snd_soc_tplg_dapm_widget *tplg_w)
+{
+	if (tplg->comp && tplg->ops && tplg->ops->widget_ready)
+		return tplg->ops->widget_ready(tplg->comp, w, tplg_w);
 
 	return 0;
 }
@@ -1152,7 +1171,8 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes\n", count);
+	dev_dbg(tplg->dev, "ASoC: adding %d DAPM routes for index %d\n", count,
+		hdr->index);
 
 	for (i = 0; i < count; i++) {
 		elem = (struct snd_soc_tplg_dapm_graph_elem *)tplg->pos;
@@ -1465,6 +1485,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	if (template.id < 0)
 		return template.id;
 
+	/* strings are allocated here, but used and freed by the widget */
 	template.name = kstrdup(w->name, GFP_KERNEL);
 	if (!template.name)
 		return -ENOMEM;
@@ -1577,11 +1598,17 @@ widget:
 	widget->dobj.widget.kcontrol_type = kcontrol_type;
 	widget->dobj.ops = tplg->ops;
 	widget->dobj.index = tplg->index;
-	kfree(template.sname);
-	kfree(template.name);
 	list_add(&widget->dobj.list, &tplg->comp->dobj_list);
+
+	ret = soc_tplg_widget_ready(tplg, widget, w);
+	if (ret < 0)
+		goto ready_err;
+
 	return 0;
 
+ready_err:
+	snd_soc_tplg_widget_remove(widget);
+	snd_soc_dapm_free_widget(widget);
 hdr_err:
 	kfree(template.sname);
 err:
@@ -1628,7 +1655,7 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	*/
 	if (!card || !card->instantiated) {
 		dev_warn(tplg->dev, "ASoC: Parent card not yet available,"
-				"Do not add new widgets now\n");
+			" widget card binding deferred\n");
 		return 0;
 	}
 
@@ -2363,7 +2390,7 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 
 	/* check for matching ID */
 	if (hdr->index != tplg->req_index &&
-		hdr->index != SND_SOC_TPLG_INDEX_ALL)
+		tplg->req_index != SND_SOC_TPLG_INDEX_ALL)
 		return 0;
 
 	tplg->index = hdr->index;

@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <netdb.h>
 #include <libudev.h>
+#include <dirent.h>
 #include "sysfs_utils.h"
 
 #undef  PROGNAME
@@ -35,17 +36,10 @@ err:
 	return NULL;
 }
 
-
-
 static int parse_status(const char *value)
 {
 	int ret = 0;
 	char *c;
-
-
-	for (int i = 0; i < vhci_driver->nports; i++)
-		memset(&vhci_driver->idev[i], 0, sizeof(vhci_driver->idev[i]));
-
 
 	/* skip a header line */
 	c = strchr(value, '\n');
@@ -57,9 +51,11 @@ static int parse_status(const char *value)
 		int port, status, speed, devid;
 		unsigned long socket;
 		char lbusid[SYSFS_BUS_ID_SIZE];
+		struct usbip_imported_device *idev;
+		char hub[3];
 
-		ret = sscanf(c, "%d %d %d %x %lx %31s\n",
-				&port, &status, &speed,
+		ret = sscanf(c, "%2s  %d %d %d %x %lx %31s\n",
+				hub, &port, &status, &speed,
 				&devid, &socket, lbusid);
 
 		if (ret < 5) {
@@ -67,33 +63,35 @@ static int parse_status(const char *value)
 			BUG();
 		}
 
-		dbg("port %d status %d speed %d devid %x",
-				port, status, speed, devid);
+		dbg("hub %s port %d status %d speed %d devid %x",
+				hub, port, status, speed, devid);
 		dbg("socket %lx lbusid %s", socket, lbusid);
 
-
 		/* if a device is connected, look at it */
-		{
-			struct usbip_imported_device *idev = &vhci_driver->idev[port];
+		idev = &vhci_driver->idev[port];
+		memset(idev, 0, sizeof(*idev));
 
-			idev->port	= port;
-			idev->status	= status;
+		if (strncmp("hs", hub, 2) == 0)
+			idev->hub = HUB_SPEED_HIGH;
+		else /* strncmp("ss", hub, 2) == 0 */
+			idev->hub = HUB_SPEED_SUPER;
 
-			idev->devid	= devid;
+		idev->port	= port;
+		idev->status	= status;
 
-			idev->busnum	= (devid >> 16);
-			idev->devnum	= (devid & 0x0000ffff);
+		idev->devid	= devid;
 
-			if (idev->status != VDEV_ST_NULL
-			    && idev->status != VDEV_ST_NOTASSIGNED) {
-				idev = imported_device_init(idev, lbusid);
-				if (!idev) {
-					dbg("imported_device_init failed");
-					return -1;
-				}
+		idev->busnum	= (devid >> 16);
+		idev->devnum	= (devid & 0x0000ffff);
+
+		if (idev->status != VDEV_ST_NULL
+		    && idev->status != VDEV_ST_NOTASSIGNED) {
+			idev = imported_device_init(idev, lbusid);
+			if (!idev) {
+				dbg("imported_device_init failed");
+				return -1;
 			}
 		}
-
 
 		/* go to the next line */
 		c = strchr(c, '\n');
@@ -107,18 +105,33 @@ static int parse_status(const char *value)
 	return 0;
 }
 
+#define MAX_STATUS_NAME 16
+
 static int refresh_imported_device_list(void)
 {
 	const char *attr_status;
+	char status[MAX_STATUS_NAME+1] = "status";
+	int i, ret;
 
-	attr_status = udev_device_get_sysattr_value(vhci_driver->hc_device,
-					       "status");
-	if (!attr_status) {
-		err("udev_device_get_sysattr_value failed");
-		return -1;
+	for (i = 0; i < vhci_driver->ncontrollers; i++) {
+		if (i > 0)
+			snprintf(status, sizeof(status), "status.%d", i);
+
+		attr_status = udev_device_get_sysattr_value(vhci_driver->hc_device,
+							    status);
+		if (!attr_status) {
+			err("udev_device_get_sysattr_value failed");
+			return -1;
+		}
+
+		dbg("controller %d", i);
+
+		ret = parse_status(attr_status);
+		if (ret != 0)
+			return ret;
 	}
 
-	return parse_status(attr_status);
+	return 0;
 }
 
 static int get_nports(void)
@@ -132,6 +145,33 @@ static int get_nports(void)
 	}
 
 	return (int)strtoul(attr_nports, NULL, 10);
+}
+
+static int vhci_hcd_filter(const struct dirent *dirent)
+{
+	return strcmp(dirent->d_name, "vhci_hcd") >= 0;
+}
+
+static int get_ncontrollers(void)
+{
+	struct dirent **namelist;
+	struct udev_device *platform;
+	int n;
+
+	platform = udev_device_get_parent(vhci_driver->hc_device);
+	if (platform == NULL)
+		return -1;
+
+	n = scandir(udev_device_get_syspath(platform), &namelist, vhci_hcd_filter, NULL);
+	if (n < 0)
+		err("scandir failed");
+	else {
+		for (int i = 0; i < n; i++)
+			free(namelist[i]);
+		free(namelist);
+	}
+
+	return n;
 }
 
 /*
@@ -213,15 +253,30 @@ int usbip_vhci_driver_open(void)
 	vhci_driver->hc_device =
 		udev_device_new_from_subsystem_sysname(udev_context,
 						       USBIP_VHCI_BUS_TYPE,
-						       USBIP_VHCI_DRV_NAME);
+						       USBIP_VHCI_DEVICE_NAME);
 	if (!vhci_driver->hc_device) {
 		err("udev_device_new_from_subsystem_sysname failed");
 		goto err;
 	}
 
 	vhci_driver->nports = get_nports();
-
 	dbg("available ports: %d", vhci_driver->nports);
+
+	if (vhci_driver->nports <= 0) {
+		err("no available ports");
+		goto err;
+	} else if (vhci_driver->nports > MAXNPORT) {
+		err("port number exceeds %d", MAXNPORT);
+		goto err;
+	}
+
+	vhci_driver->ncontrollers = get_ncontrollers();
+	dbg("available controllers: %d", vhci_driver->ncontrollers);
+
+	if (vhci_driver->ncontrollers <=0) {
+		err("no available usb controllers");
+		goto err;
+	}
 
 	if (refresh_imported_device_list())
 		goto err;
@@ -270,11 +325,15 @@ err:
 }
 
 
-int usbip_vhci_get_free_port(void)
+int usbip_vhci_get_free_port(uint32_t speed)
 {
 	for (int i = 0; i < vhci_driver->nports; i++) {
+		if (speed == USB_SPEED_SUPER &&
+		    vhci_driver->idev[i].hub != HUB_SPEED_SUPER)
+			continue;
+
 		if (vhci_driver->idev[i].status == VDEV_ST_NULL)
-			return i;
+			return vhci_driver->idev[i].port;
 	}
 
 	return -1;

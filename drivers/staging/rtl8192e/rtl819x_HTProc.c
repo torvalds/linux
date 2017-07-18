@@ -908,8 +908,8 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 		pHTInfo->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_NO_EXT;
 	}
 
-	pr_info("%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
-	       pHTInfo->bCurBW40MHz);
+	netdev_dbg(ieee->dev, "%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
+		   pHTInfo->bCurBW40MHz);
 
 	pHTInfo->bSwBwInProgress = true;
 

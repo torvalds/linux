@@ -53,6 +53,7 @@
 #include <asm/xive.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
+#include <asm/code-patching.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -837,7 +838,8 @@ static void insert_bpts(void)
 		store_inst(&bp->instr[0]);
 		if (bp->enabled & BP_CIABR)
 			continue;
-		if (mwrite(bp->address, &bpinstr, 4) != 4) {
+		if (patch_instruction((unsigned int *)bp->address,
+							bpinstr) != 0) {
 			printf("Couldn't write instruction at %lx, "
 			       "disabling breakpoint there\n", bp->address);
 			bp->enabled &= ~BP_TRAP;
@@ -874,7 +876,8 @@ static void remove_bpts(void)
 			continue;
 		if (mread(bp->address, &instr, 4) == 4
 		    && instr == bpinstr
-		    && mwrite(bp->address, &bp->instr, 4) != 4)
+		    && patch_instruction(
+			(unsigned int *)bp->address, bp->instr[0]) != 0)
 			printf("Couldn't remove breakpoint at %lx\n",
 			       bp->address);
 		else
@@ -1242,14 +1245,14 @@ bpt_cmds(void)
 {
 	int cmd;
 	unsigned long a;
-	int mode, i;
+	int i;
 	struct bpt *bp;
-	const char badaddr[] = "Only kernel addresses are permitted "
-		"for breakpoints\n";
 
 	cmd = inchar();
 	switch (cmd) {
-#ifndef CONFIG_8xx
+#ifndef CONFIG_PPC_8xx
+	static const char badaddr[] = "Only kernel addresses are permitted for breakpoints\n";
+	int mode;
 	case 'd':	/* bd - hardware data breakpoint */
 		mode = 7;
 		cmd = inchar();

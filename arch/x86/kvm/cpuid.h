@@ -144,6 +144,14 @@ static inline bool guest_cpuid_has_rtm(struct kvm_vcpu *vcpu)
 	return best && (best->ebx & bit(X86_FEATURE_RTM));
 }
 
+static inline bool guest_cpuid_has_mpx(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 7, 0);
+	return best && (best->ebx & bit(X86_FEATURE_MPX));
+}
+
 static inline bool guest_cpuid_has_rdtscp(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;

@@ -739,13 +739,11 @@ static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 		struct itimerspec __user *, setting)
 {
-	struct itimerspec64 cur_setting64;
+	struct itimerspec64 cur_setting;
 
-	int ret = do_timer_gettime(timer_id, &cur_setting64);
+	int ret = do_timer_gettime(timer_id, &cur_setting);
 	if (!ret) {
-		struct itimerspec cur_setting;
-		cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
-		if (copy_to_user(setting, &cur_setting, sizeof (cur_setting)))
+		if (put_itimerspec64(&cur_setting, setting))
 			ret = -EFAULT;
 	}
 	return ret;
@@ -755,13 +753,11 @@ SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 COMPAT_SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 		       struct compat_itimerspec __user *, setting)
 {
-	struct itimerspec64 cur_setting64;
+	struct itimerspec64 cur_setting;
 
-	int ret = do_timer_gettime(timer_id, &cur_setting64);
+	int ret = do_timer_gettime(timer_id, &cur_setting);
 	if (!ret) {
-		struct itimerspec cur_setting;
-		cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
-		if (put_compat_itimerspec(setting, &cur_setting))
+		if (put_compat_itimerspec64(&cur_setting, setting))
 			ret = -EFAULT;
 	}
 	return ret;
@@ -907,23 +903,19 @@ SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 		const struct itimerspec __user *, new_setting,
 		struct itimerspec __user *, old_setting)
 {
-	struct itimerspec64 new_spec64, old_spec64;
-	struct itimerspec64 *rtn = old_setting ? &old_spec64 : NULL;
-	struct itimerspec new_spec;
+	struct itimerspec64 new_spec, old_spec;
+	struct itimerspec64 *rtn = old_setting ? &old_spec : NULL;
 	int error = 0;
 
 	if (!new_setting)
 		return -EINVAL;
 
-	if (copy_from_user(&new_spec, new_setting, sizeof (new_spec)))
+	if (get_itimerspec64(&new_spec, new_setting))
 		return -EFAULT;
-	new_spec64 = itimerspec_to_itimerspec64(&new_spec);
 
-	error = do_timer_settime(timer_id, flags, &new_spec64, rtn);
+	error = do_timer_settime(timer_id, flags, &new_spec, rtn);
 	if (!error && old_setting) {
-		struct itimerspec old_spec;
-		old_spec = itimerspec64_to_itimerspec(&old_spec64);
-		if (copy_to_user(old_setting, &old_spec, sizeof (old_spec)))
+		if (put_itimerspec64(&old_spec, old_setting))
 			error = -EFAULT;
 	}
 	return error;
@@ -934,22 +926,18 @@ COMPAT_SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 		       struct compat_itimerspec __user *, new,
 		       struct compat_itimerspec __user *, old)
 {
-	struct itimerspec64 new_spec64, old_spec64;
-	struct itimerspec64 *rtn = old ? &old_spec64 : NULL;
-	struct itimerspec new_spec;
+	struct itimerspec64 new_spec, old_spec;
+	struct itimerspec64 *rtn = old ? &old_spec : NULL;
 	int error = 0;
 
 	if (!new)
 		return -EINVAL;
-	if (get_compat_itimerspec(&new_spec, new))
+	if (get_compat_itimerspec64(&new_spec, new))
 		return -EFAULT;
 
-	new_spec64 = itimerspec_to_itimerspec64(&new_spec);
-	error = do_timer_settime(timer_id, flags, &new_spec64, rtn);
+	error = do_timer_settime(timer_id, flags, &new_spec, rtn);
 	if (!error && old) {
-		struct itimerspec old_spec;
-		old_spec = itimerspec64_to_itimerspec(&old_spec64);
-		if (put_compat_itimerspec(old, &old_spec))
+		if (put_compat_itimerspec64(&old_spec, old))
 			error = -EFAULT;
 	}
 	return error;
@@ -1049,34 +1037,30 @@ SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		const struct timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 new_tp64;
-	struct timespec new_tp;
+	struct timespec64 new_tp;
 
 	if (!kc || !kc->clock_set)
 		return -EINVAL;
 
-	if (copy_from_user(&new_tp, tp, sizeof (*tp)))
+	if (get_timespec64(&new_tp, tp))
 		return -EFAULT;
-	new_tp64 = timespec_to_timespec64(new_tp);
 
-	return kc->clock_set(which_clock, &new_tp64);
+	return kc->clock_set(which_clock, &new_tp);
 }
 
 SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 		struct timespec __user *,tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 kernel_tp64;
-	struct timespec kernel_tp;
+	struct timespec64 kernel_tp;
 	int error;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_get(which_clock, &kernel_tp64);
-	kernel_tp = timespec64_to_timespec(kernel_tp64);
+	error = kc->clock_get(which_clock, &kernel_tp);
 
-	if (!error && copy_to_user(tp, &kernel_tp, sizeof (kernel_tp)))
+	if (!error && put_timespec64(&kernel_tp, tp))
 		error = -EFAULT;
 
 	return error;
@@ -1109,17 +1093,15 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock,
 		struct timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 rtn_tp64;
-	struct timespec rtn_tp;
+	struct timespec64 rtn_tp;
 	int error;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_getres(which_clock, &rtn_tp64);
-	rtn_tp = timespec64_to_timespec(rtn_tp64);
+	error = kc->clock_getres(which_clock, &rtn_tp);
 
-	if (!error && tp && copy_to_user(tp, &rtn_tp, sizeof (rtn_tp)))
+	if (!error && tp && put_timespec64(&rtn_tp, tp))
 		error = -EFAULT;
 
 	return error;
@@ -1131,38 +1113,33 @@ COMPAT_SYSCALL_DEFINE2(clock_settime, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 new_tp64;
-	struct timespec new_tp;
+	struct timespec64 ts;
 
 	if (!kc || !kc->clock_set)
 		return -EINVAL;
 
-	if (compat_get_timespec(&new_tp, tp))
+	if (compat_get_timespec64(&ts, tp))
 		return -EFAULT;
 
-	new_tp64 = timespec_to_timespec64(new_tp);
-
-	return kc->clock_set(which_clock, &new_tp64);
+	return kc->clock_set(which_clock, &ts);
 }
 
 COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 kernel_tp64;
-	struct timespec kernel_tp;
-	int error;
+	struct timespec64 ts;
+	int err;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_get(which_clock, &kernel_tp64);
-	kernel_tp = timespec64_to_timespec(kernel_tp64);
+	err = kc->clock_get(which_clock, &ts);
 
-	if (!error && compat_put_timespec(&kernel_tp, tp))
-		error = -EFAULT;
+	if (!err && compat_put_timespec64(&ts, tp))
+		err = -EFAULT;
 
-	return error;
+	return err;
 }
 
 COMPAT_SYSCALL_DEFINE2(clock_adjtime, clockid_t, which_clock,
@@ -1193,21 +1170,19 @@ COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 rtn_tp64;
-	struct timespec rtn_tp;
-	int error;
+	struct timespec64 ts;
+	int err;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_getres(which_clock, &rtn_tp64);
-	rtn_tp = timespec64_to_timespec(rtn_tp64);
+	err = kc->clock_getres(which_clock, &ts);
+	if (!err && tp && compat_put_timespec64(&ts, tp))
+		return -EFAULT;
 
-	if (!error && tp && compat_put_timespec(&rtn_tp, tp))
-		error = -EFAULT;
-
-	return error;
+	return err;
 }
+
 #endif
 
 /*
@@ -1226,26 +1201,24 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		struct timespec __user *, rmtp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 t64;
-	struct timespec t;
+	struct timespec64 t;
 
 	if (!kc)
 		return -EINVAL;
 	if (!kc->nsleep)
 		return -ENANOSLEEP_NOTSUP;
 
-	if (copy_from_user(&t, rqtp, sizeof (struct timespec)))
+	if (get_timespec64(&t, rqtp))
 		return -EFAULT;
 
-	t64 = timespec_to_timespec64(t);
-	if (!timespec64_valid(&t64))
+	if (!timespec64_valid(&t))
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
 	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
 	current->restart_block.nanosleep.rmtp = rmtp;
 
-	return kc->nsleep(which_clock, flags, &t64);
+	return kc->nsleep(which_clock, flags, &t);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1254,26 +1227,24 @@ COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
 		       struct compat_timespec __user *, rmtp)
 {
 	const struct k_clock *kc = clockid_to_kclock(which_clock);
-	struct timespec64 t64;
-	struct timespec t;
+	struct timespec64 t;
 
 	if (!kc)
 		return -EINVAL;
 	if (!kc->nsleep)
 		return -ENANOSLEEP_NOTSUP;
 
-	if (compat_get_timespec(&t, rqtp))
+	if (compat_get_timespec64(&t, rqtp))
 		return -EFAULT;
 
-	t64 = timespec_to_timespec64(t);
-	if (!timespec64_valid(&t64))
+	if (!timespec64_valid(&t))
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
 	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
 	current->restart_block.nanosleep.compat_rmtp = rmtp;
 
-	return kc->nsleep(which_clock, flags, &t64);
+	return kc->nsleep(which_clock, flags, &t);
 }
 #endif
 

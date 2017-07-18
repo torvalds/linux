@@ -178,6 +178,17 @@ config KEYBOARD_CLPS711X
 	  To compile this driver as a module, choose M here: the
 	  module will be called clps711x-keypad.
 
+config KEYBOARD_DLINK_DIR685
+	tristate "D-Link DIR-685 touchkeys support"
+	depends on I2C
+	default ARCH_GEMINI
+	help
+	  If you say yes here you get support for the D-Link DIR-685
+	  touchkeys.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dlink-dir685-touchkeys.
+
 config KEYBOARD_LKKBD
 	tristate "DECstation/VAXstation LK201/LK401 keyboard"
 	select SERIO

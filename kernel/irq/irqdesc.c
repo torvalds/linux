@@ -4,7 +4,7 @@
  *
  * This file contains the interrupt descriptor management code
  *
- * Detailed information is available in Documentation/DocBook/genericirq
+ * Detailed information is available in Documentation/core-api/genericirq.rst
  *
  */
 #include <linux/irq.h>
@@ -373,6 +373,7 @@ static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
 
 	raw_spin_lock_init(&desc->lock);
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
+	mutex_init(&desc->request_mutex);
 	init_rcu_head(&desc->rcu);
 
 	desc_set_defaults(irq, desc, node, affinity, owner);

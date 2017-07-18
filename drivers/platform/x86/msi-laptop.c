@@ -563,11 +563,11 @@ static struct attribute *msipf_old_attributes[] = {
 	NULL
 };
 
-static struct attribute_group msipf_attribute_group = {
+static const struct attribute_group msipf_attribute_group = {
 	.attrs = msipf_attributes
 };
 
-static struct attribute_group msipf_old_attribute_group = {
+static const struct attribute_group msipf_old_attribute_group = {
 	.attrs = msipf_old_attributes
 };
 

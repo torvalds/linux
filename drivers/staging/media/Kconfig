@@ -27,6 +27,8 @@ source "drivers/staging/media/cxd2099/Kconfig"
 
 source "drivers/staging/media/davinci_vpfe/Kconfig"
 
+source "drivers/staging/media/imx/Kconfig"
+
 source "drivers/staging/media/omap4iss/Kconfig"
 
 # Keep LIRC at the end, as it has sub-menus

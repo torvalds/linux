@@ -55,6 +55,7 @@ menu "Networking options"
 
 source "net/packet/Kconfig"
 source "net/unix/Kconfig"
+source "net/tls/Kconfig"
 source "net/xfrm/Kconfig"
 source "net/iucv/Kconfig"
 source "net/smc/Kconfig"

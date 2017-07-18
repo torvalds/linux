@@ -273,6 +273,7 @@ struct perf_evsel *perf_evsel__new_cycles(void)
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
 		.config	= PERF_COUNT_HW_CPU_CYCLES,
+		.exclude_kernel	= 1,
 	};
 	struct perf_evsel *evsel;
 

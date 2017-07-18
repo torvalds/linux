@@ -20,7 +20,7 @@
  * and wakeup interrupts can be hooked to.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -1183,27 +1183,29 @@ static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
 }
 
 static const struct of_device_id samsung_pinctrl_dt_match[] = {
-#ifdef CONFIG_PINCTRL_EXYNOS
+#ifdef CONFIG_PINCTRL_EXYNOS_ARM
 	{ .compatible = "samsung,exynos3250-pinctrl",
-		.data = (void *)exynos3250_pin_ctrl },
+		.data = exynos3250_pin_ctrl },
 	{ .compatible = "samsung,exynos4210-pinctrl",
-		.data = (void *)exynos4210_pin_ctrl },
+		.data = exynos4210_pin_ctrl },
 	{ .compatible = "samsung,exynos4x12-pinctrl",
-		.data = (void *)exynos4x12_pin_ctrl },
+		.data = exynos4x12_pin_ctrl },
 	{ .compatible = "samsung,exynos5250-pinctrl",
-		.data = (void *)exynos5250_pin_ctrl },
+		.data = exynos5250_pin_ctrl },
 	{ .compatible = "samsung,exynos5260-pinctrl",
-		.data = (void *)exynos5260_pin_ctrl },
+		.data = exynos5260_pin_ctrl },
 	{ .compatible = "samsung,exynos5410-pinctrl",
-		.data = (void *)exynos5410_pin_ctrl },
+		.data = exynos5410_pin_ctrl },
 	{ .compatible = "samsung,exynos5420-pinctrl",
-		.data = (void *)exynos5420_pin_ctrl },
-	{ .compatible = "samsung,exynos5433-pinctrl",
-		.data = (void *)exynos5433_pin_ctrl },
+		.data = exynos5420_pin_ctrl },
 	{ .compatible = "samsung,s5pv210-pinctrl",
-		.data = (void *)s5pv210_pin_ctrl },
+		.data = s5pv210_pin_ctrl },
+#endif
+#ifdef CONFIG_PINCTRL_EXYNOS_ARM64
+	{ .compatible = "samsung,exynos5433-pinctrl",
+		.data = exynos5433_pin_ctrl },
 	{ .compatible = "samsung,exynos7-pinctrl",
-		.data = (void *)exynos7_pin_ctrl },
+		.data = exynos7_pin_ctrl },
 #endif
 #ifdef CONFIG_PINCTRL_S3C64XX
 	{ .compatible = "samsung,s3c64xx-pinctrl",
@@ -1221,7 +1223,6 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 #endif
 	{},
 };
-MODULE_DEVICE_TABLE(of, samsung_pinctrl_dt_match);
 
 static const struct dev_pm_ops samsung_pinctrl_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(samsung_pinctrl_suspend,
@@ -1243,13 +1244,3 @@ static int __init samsung_pinctrl_drv_register(void)
 	return platform_driver_register(&samsung_pinctrl_driver);
 }
 postcore_initcall(samsung_pinctrl_drv_register);
-
-static void __exit samsung_pinctrl_drv_unregister(void)
-{
-	platform_driver_unregister(&samsung_pinctrl_driver);
-}
-module_exit(samsung_pinctrl_drv_unregister);
-
-MODULE_AUTHOR("Thomas Abraham <thomas.ab@samsung.com>");
-MODULE_DESCRIPTION("Samsung pinctrl driver");
-MODULE_LICENSE("GPL v2");

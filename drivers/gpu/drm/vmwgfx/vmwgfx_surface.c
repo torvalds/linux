@@ -25,11 +25,12 @@
  *
  **************************************************************************/
 
+#include <drm/ttm/ttm_placement.h>
+
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_so.h"
 #include "vmwgfx_binding.h"
-#include <ttm/ttm_placement.h>
 #include "device_include/svga3d_surfacedefs.h"
 
 

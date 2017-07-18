@@ -97,7 +97,7 @@ static int bcm47xx_wdt_restart(struct watchdog_device *wdd,
 	return 0;
 }
 
-static struct watchdog_ops bcm47xx_wdt_hard_ops = {
+static const struct watchdog_ops bcm47xx_wdt_hard_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm47xx_wdt_hard_start,
 	.stop		= bcm47xx_wdt_hard_stop,
@@ -168,7 +168,7 @@ static const struct watchdog_info bcm47xx_wdt_info = {
 				WDIOF_MAGICCLOSE,
 };
 
-static struct watchdog_ops bcm47xx_wdt_soft_ops = {
+static const struct watchdog_ops bcm47xx_wdt_soft_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm47xx_wdt_soft_start,
 	.stop		= bcm47xx_wdt_soft_stop,

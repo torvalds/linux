@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -971,44 +971,44 @@ static void si_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 }
 
 static struct amdgpu_allowed_register_entry si_allowed_read_registers[] = {
-	{GRBM_STATUS, false},
-	{GB_ADDR_CONFIG, false},
-	{MC_ARB_RAMCFG, false},
-	{GB_TILE_MODE0, false},
-	{GB_TILE_MODE1, false},
-	{GB_TILE_MODE2, false},
-	{GB_TILE_MODE3, false},
-	{GB_TILE_MODE4, false},
-	{GB_TILE_MODE5, false},
-	{GB_TILE_MODE6, false},
-	{GB_TILE_MODE7, false},
-	{GB_TILE_MODE8, false},
-	{GB_TILE_MODE9, false},
-	{GB_TILE_MODE10, false},
-	{GB_TILE_MODE11, false},
-	{GB_TILE_MODE12, false},
-	{GB_TILE_MODE13, false},
-	{GB_TILE_MODE14, false},
-	{GB_TILE_MODE15, false},
-	{GB_TILE_MODE16, false},
-	{GB_TILE_MODE17, false},
-	{GB_TILE_MODE18, false},
-	{GB_TILE_MODE19, false},
-	{GB_TILE_MODE20, false},
-	{GB_TILE_MODE21, false},
-	{GB_TILE_MODE22, false},
-	{GB_TILE_MODE23, false},
-	{GB_TILE_MODE24, false},
-	{GB_TILE_MODE25, false},
-	{GB_TILE_MODE26, false},
-	{GB_TILE_MODE27, false},
-	{GB_TILE_MODE28, false},
-	{GB_TILE_MODE29, false},
-	{GB_TILE_MODE30, false},
-	{GB_TILE_MODE31, false},
-	{CC_RB_BACKEND_DISABLE, false, true},
-	{GC_USER_RB_BACKEND_DISABLE, false, true},
-	{PA_SC_RASTER_CONFIG, false, true},
+	{GRBM_STATUS},
+	{GB_ADDR_CONFIG},
+	{MC_ARB_RAMCFG},
+	{GB_TILE_MODE0},
+	{GB_TILE_MODE1},
+	{GB_TILE_MODE2},
+	{GB_TILE_MODE3},
+	{GB_TILE_MODE4},
+	{GB_TILE_MODE5},
+	{GB_TILE_MODE6},
+	{GB_TILE_MODE7},
+	{GB_TILE_MODE8},
+	{GB_TILE_MODE9},
+	{GB_TILE_MODE10},
+	{GB_TILE_MODE11},
+	{GB_TILE_MODE12},
+	{GB_TILE_MODE13},
+	{GB_TILE_MODE14},
+	{GB_TILE_MODE15},
+	{GB_TILE_MODE16},
+	{GB_TILE_MODE17},
+	{GB_TILE_MODE18},
+	{GB_TILE_MODE19},
+	{GB_TILE_MODE20},
+	{GB_TILE_MODE21},
+	{GB_TILE_MODE22},
+	{GB_TILE_MODE23},
+	{GB_TILE_MODE24},
+	{GB_TILE_MODE25},
+	{GB_TILE_MODE26},
+	{GB_TILE_MODE27},
+	{GB_TILE_MODE28},
+	{GB_TILE_MODE29},
+	{GB_TILE_MODE30},
+	{GB_TILE_MODE31},
+	{CC_RB_BACKEND_DISABLE, true},
+	{GC_USER_RB_BACKEND_DISABLE, true},
+	{PA_SC_RASTER_CONFIG, true},
 };
 
 static uint32_t si_get_register_value(struct amdgpu_device *adev,
@@ -1093,13 +1093,13 @@ static int si_read_register(struct amdgpu_device *adev, u32 se_num,
 
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(si_allowed_read_registers); i++) {
+		bool indexed = si_allowed_read_registers[i].grbm_indexed;
+
 		if (reg_offset != si_allowed_read_registers[i].reg_offset)
 			continue;
 
-		if (!si_allowed_read_registers[i].untouched)
-			*value = si_get_register_value(adev,
-						si_allowed_read_registers[i].grbm_indexed,
-						se_num, sh_num, reg_offset);
+		*value = si_get_register_value(adev, indexed, se_num, sh_num,
+					       reg_offset);
 		return 0;
 	}
 	return -EINVAL;

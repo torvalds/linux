@@ -794,9 +794,6 @@ static struct dma_async_tx_descriptor *zynqmp_dma_prep_memcpy(
 
 	chan = to_chan(dchan);
 
-	if (len > ZYNQMP_DMA_MAX_TRANS_LEN)
-		return NULL;
-
 	desc_cnt = DIV_ROUND_UP(len, ZYNQMP_DMA_MAX_TRANS_LEN);
 
 	spin_lock_bh(&chan->lock);

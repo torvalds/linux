@@ -197,6 +197,12 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
 			(PORT_B << TRANS_DDI_PORT_SHIFT) |
 			TRANS_DDI_FUNC_ENABLE);
+		if (IS_BROADWELL(dev_priv)) {
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_B)) &=
+				~PORT_CLK_SEL_MASK;
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_B)) |=
+				PORT_CLK_SEL_LCPLL_810;
+		}
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) |= DDI_BUF_CTL_ENABLE;
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_B)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SDEISR) |= SDE_PORTB_HOTPLUG_CPT;
@@ -211,6 +217,12 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
 			(PORT_C << TRANS_DDI_PORT_SHIFT) |
 			TRANS_DDI_FUNC_ENABLE);
+		if (IS_BROADWELL(dev_priv)) {
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_C)) &=
+				~PORT_CLK_SEL_MASK;
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_C)) |=
+				PORT_CLK_SEL_LCPLL_810;
+		}
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) |= DDI_BUF_CTL_ENABLE;
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_C)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDIC_DETECTED;
@@ -225,6 +237,12 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 			(TRANS_DDI_BPC_8 | TRANS_DDI_MODE_SELECT_DP_SST |
 			(PORT_D << TRANS_DDI_PORT_SHIFT) |
 			TRANS_DDI_FUNC_ENABLE);
+		if (IS_BROADWELL(dev_priv)) {
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_D)) &=
+				~PORT_CLK_SEL_MASK;
+			vgpu_vreg(vgpu, PORT_CLK_SEL(PORT_D)) |=
+				PORT_CLK_SEL_LCPLL_810;
+		}
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) |= DDI_BUF_CTL_ENABLE;
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_D)) &= ~DDI_BUF_IS_IDLE;
 		vgpu_vreg(vgpu, SFUSE_STRAP) |= SFUSE_STRAP_DDID_DETECTED;
@@ -244,6 +262,10 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 
 		vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_A)) |= DDI_INIT_DISPLAY_DETECTED;
 	}
+
+	/* Clear host CRT status, so guest couldn't detect this host CRT. */
+	if (IS_BROADWELL(dev_priv))
+		vgpu_vreg(vgpu, PCH_ADPA) &= ~ADPA_CRT_HOTPLUG_MONITOR_MASK;
 }
 
 static void clean_virtual_dp_monitor(struct intel_vgpu *vgpu, int port_num)

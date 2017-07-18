@@ -94,9 +94,6 @@ static void (*init_pmu_registers)(void);
 
 static void cpufeatures_flush_tlb(void)
 {
-	unsigned long rb;
-	unsigned int i, num_sets;
-
 	/*
 	 * This is a temporary measure to keep equivalent TLB flush as the
 	 * cputable based setup code.
@@ -105,24 +102,15 @@ static void cpufeatures_flush_tlb(void)
 	case PVR_POWER8:
 	case PVR_POWER8E:
 	case PVR_POWER8NVL:
-		num_sets = POWER8_TLB_SETS;
+		__flush_tlb_power8(POWER8_TLB_SETS);
 		break;
 	case PVR_POWER9:
-		num_sets = POWER9_TLB_SETS_HASH;
+		__flush_tlb_power9(POWER9_TLB_SETS_HASH);
 		break;
 	default:
-		num_sets = 1;
 		pr_err("unknown CPU version for boot TLB flush\n");
 		break;
 	}
-
-	asm volatile("ptesync" : : : "memory");
-	rb = TLBIEL_INVAL_SET;
-	for (i = 0; i < num_sets; i++) {
-		asm volatile("tlbiel %0" : : "r" (rb));
-		rb += 1 << TLBIEL_INVAL_SET_SHIFT;
-	}
-	asm volatile("ptesync" : : : "memory");
 }
 
 static void __restore_cpu_cpufeatures(void)

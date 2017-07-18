@@ -151,8 +151,15 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "missing period\n");
 			return -EINVAL;
 		}
+
+		if (!of_property_read_u32(pdev->dev.of_node,
+						"quality", &i))
+			priv->rng_ops.quality = i;
+		else
+			priv->rng_ops.quality = 0;
 	} else {
 		period = pdata->period;
+		priv->rng_ops.quality = pdata->quality;
 	}
 
 	priv->period = ns_to_ktime(period * NSEC_PER_USEC);

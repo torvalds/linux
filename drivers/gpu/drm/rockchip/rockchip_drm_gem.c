@@ -29,12 +29,11 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	ssize_t ret;
 
 	mutex_lock(&private->mm_lock);
-
 	ret = drm_mm_insert_node_generic(&private->mm, &rk_obj->mm,
 					 rk_obj->base.size, PAGE_SIZE,
 					 0, 0);
-
 	mutex_unlock(&private->mm_lock);
+
 	if (ret < 0) {
 		DRM_ERROR("out of I/O virtual memory: %zd\n", ret);
 		return ret;
@@ -56,7 +55,9 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	return 0;
 
 err_remove_node:
+	mutex_lock(&private->mm_lock);
 	drm_mm_remove_node(&rk_obj->mm);
+	mutex_unlock(&private->mm_lock);
 
 	return ret;
 }

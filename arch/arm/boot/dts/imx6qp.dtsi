@@ -120,6 +120,10 @@
 		     <0 119 IRQ_TYPE_LEVEL_HIGH>;
 };
 
+&gpc {
+	compatible = "fsl,imx6qp-gpc", "fsl,imx6q-gpc";
+};
+
 &ipu1 {
 	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
 	fsl,prg = <&prg1>;

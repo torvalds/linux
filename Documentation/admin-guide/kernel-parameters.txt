@@ -649,6 +649,13 @@
 			/proc/<pid>/coredump_filter.
 			See also Documentation/filesystems/proc.txt.
 
+	coresight_cpu_debug.enable
+			[ARM,ARM64]
+			Format: <bool>
+			Enable/disable the CPU sampling based debugging.
+			0: default value, disable debugging
+			1: enable debugging at boot time
+
 	cpuidle.off=1	[CPU_IDLE]
 			disable the cpuidle sub-system
 
@@ -720,7 +727,8 @@
 			See also Documentation/input/joystick-parport.txt
 
 	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
-			time. See Documentation/dynamic-debug-howto.txt for
+			time. See
+			Documentation/admin-guide/dynamic-debug-howto.rst for
 			details.  Deprecated, see dyndbg.
 
 	debug		[KNL] Enable kernel debugging (events log level).
@@ -883,7 +891,8 @@
 	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
 	module.dyndbg[="val"]
 			Enable debug messages at boot time.  See
-			Documentation/dynamic-debug-howto.txt for details.
+			Documentation/admin-guide/dynamic-debug-howto.rst
+			for details.
 
 	nompx		[X86] Disables Intel Memory Protection Extensions.
 			See Documentation/x86/intel_mpx.txt for more
@@ -953,6 +962,12 @@
 			dm port at the specified address. The serial port
 			must already be setup and configured. Options are not
 			yet supported.
+
+		owl,<addr>
+			Start an early, polled-mode console on a serial port
+			of an Actions Semi SoC, such as S500 or S900, at the
+			specified address. The serial port must already be
+			setup and configured. Options are not yet supported.
 
 		smh	Use ARM semihosting calls for early console.
 
@@ -1486,12 +1501,21 @@
 			in crypto/hash_info.h.
 
 	ima_policy=	[IMA]
-			The builtin measurement policy to load during IMA
-			setup.  Specyfing "tcb" as the value, measures all
-			programs exec'd, files mmap'd for exec, and all files
-			opened with the read mode bit set by either the
-			effective uid (euid=0) or uid=0.
-			Format: "tcb"
+			The builtin policies to load during IMA setup.
+			Format: "tcb | appraise_tcb | secure_boot"
+
+			The "tcb" policy measures all programs exec'd, files
+			mmap'd for exec, and all files opened with the read
+			mode bit set by either the effective uid (euid=0) or
+			uid=0.
+
+			The "appraise_tcb" policy appraises the integrity of
+			all files owned by root. (This is the equivalent
+			of ima_appraise_tcb.)
+
+			The "secure_boot" policy appraises the integrity
+			of files (eg. kexec kernel image, kernel modules,
+			firmware, policy, etc) based on file signatures.
 
 	ima_tcb		[IMA] Deprecated.  Use ima_policy= instead.
 			Load a policy which meets the needs of the Trusted
@@ -1837,6 +1861,18 @@
 	kvm-amd.npt=	[KVM,AMD] Disable nested paging (virtualized MMU)
 			for all guests.
 			Default is 1 (enabled) if in 64-bit or 32-bit PAE mode.
+
+	kvm-arm.vgic_v3_group0_trap=
+			[KVM,ARM] Trap guest accesses to GICv3 group-0
+			system registers
+
+	kvm-arm.vgic_v3_group1_trap=
+			[KVM,ARM] Trap guest accesses to GICv3 group-1
+			system registers
+
+	kvm-arm.vgic_v3_common_trap=
+			[KVM,ARM] Trap guest accesses to GICv3 common
+			system registers
 
 	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
 			(virtualized MMU) support on capable Intel chips.
@@ -2279,8 +2315,11 @@
 			that the amount of memory usable for all allocations
 			is not too small.
 
-	movable_node	[KNL] Boot-time switch to enable the effects
-			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
+	movable_node	[KNL] Boot-time switch to make hotplugable memory
+			NUMA nodes to be movable. This means that the memory
+			of such nodes will be usable only for movable
+			allocations which rules out almost all kernel
+			allocations. Use with caution!
 
 	MTD_Partition=	[MTD]
 			Format: <name>,<region-number>,<size>,<offset>
@@ -3738,8 +3777,14 @@
 	slab_nomerge	[MM]
 			Disable merging of slabs with similar size. May be
 			necessary if there is some reason to distinguish
-			allocs to different slabs. Debug options disable
-			merging on their own.
+			allocs to different slabs, especially in hardened
+			environments where the risk of heap overflows and
+			layout control by attackers can usually be
+			frustrated by disabling merging. This will reduce
+			most of the exposure of a heap attack to a single
+			cache (risks via metadata attacks are mostly
+			unchanged). Debug options disable merging on their
+			own.
 			For more information see Documentation/vm/slub.txt.
 
 	slab_max_order=	[MM, SLAB]

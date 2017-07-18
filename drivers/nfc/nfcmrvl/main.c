@@ -68,7 +68,7 @@ static int nfcmrvl_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 		unsigned char *hdr;
 		unsigned char len = skb->len;
 
-		hdr = (char *) skb_push(skb, NFCMRVL_HCI_EVENT_HEADER_SIZE);
+		hdr = skb_push(skb, NFCMRVL_HCI_EVENT_HEADER_SIZE);
 		hdr[0] = NFCMRVL_HCI_COMMAND_CODE;
 		hdr[1] = NFCMRVL_HCI_OGF;
 		hdr[2] = NFCMRVL_HCI_OCF;
@@ -123,13 +123,14 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 
 	memcpy(&priv->config, pdata, sizeof(*pdata));
 
-	if (priv->config.reset_n_io) {
-		rc = devm_gpio_request_one(dev,
-					   priv->config.reset_n_io,
-					   GPIOF_OUT_INIT_LOW,
-					   "nfcmrvl_reset_n");
-		if (rc < 0)
+	if (gpio_is_valid(priv->config.reset_n_io)) {
+		rc = gpio_request_one(priv->config.reset_n_io,
+				      GPIOF_OUT_INIT_LOW,
+				      "nfcmrvl_reset_n");
+		if (rc < 0) {
+			priv->config.reset_n_io = -EINVAL;
 			nfc_err(dev, "failed to request reset_n io\n");
+		}
 	}
 
 	if (phy == NFCMRVL_PHY_SPI) {
@@ -154,19 +155,8 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 	if (!priv->ndev) {
 		nfc_err(dev, "nci_allocate_device failed\n");
 		rc = -ENOMEM;
-		goto error;
+		goto error_free_gpio;
 	}
-
-	nci_set_drvdata(priv->ndev, priv);
-
-	rc = nci_register_device(priv->ndev);
-	if (rc) {
-		nfc_err(dev, "nci_register_device failed %d\n", rc);
-		goto error_free_dev;
-	}
-
-	/* Ensure that controller is powered off */
-	nfcmrvl_chip_halt(priv);
 
 	rc = nfcmrvl_fw_dnld_init(priv);
 	if (rc) {
@@ -174,12 +164,27 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 		goto error_free_dev;
 	}
 
+	nci_set_drvdata(priv->ndev, priv);
+
+	rc = nci_register_device(priv->ndev);
+	if (rc) {
+		nfc_err(dev, "nci_register_device failed %d\n", rc);
+		goto error_fw_dnld_deinit;
+	}
+
+	/* Ensure that controller is powered off */
+	nfcmrvl_chip_halt(priv);
+
 	nfc_info(dev, "registered with nci successfully\n");
 	return priv;
 
+error_fw_dnld_deinit:
+	nfcmrvl_fw_dnld_deinit(priv);
 error_free_dev:
 	nci_free_device(priv->ndev);
-error:
+error_free_gpio:
+	if (gpio_is_valid(priv->config.reset_n_io))
+		gpio_free(priv->config.reset_n_io);
 	kfree(priv);
 	return ERR_PTR(rc);
 }
@@ -194,8 +199,8 @@ void nfcmrvl_nci_unregister_dev(struct nfcmrvl_private *priv)
 
 	nfcmrvl_fw_dnld_deinit(priv);
 
-	if (priv->config.reset_n_io)
-		devm_gpio_free(priv->dev, priv->config.reset_n_io);
+	if (gpio_is_valid(priv->config.reset_n_io))
+		gpio_free(priv->config.reset_n_io);
 
 	nci_unregister_device(ndev);
 	nci_free_device(ndev);
@@ -262,7 +267,6 @@ int nfcmrvl_parse_dt(struct device_node *node,
 	reset_n_io = of_get_named_gpio(node, "reset-n-io", 0);
 	if (reset_n_io < 0) {
 		pr_info("no reset-n-io config\n");
-		reset_n_io = 0;
 	} else if (!gpio_is_valid(reset_n_io)) {
 		pr_err("invalid reset-n-io GPIO\n");
 		return reset_n_io;

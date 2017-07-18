@@ -151,7 +151,15 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
 				int type, unsigned long len,
 				unsigned long flags, int pc);
 
-void tracing_record_cmdline(struct task_struct *tsk);
+#define TRACE_RECORD_CMDLINE	BIT(0)
+#define TRACE_RECORD_TGID	BIT(1)
+
+void tracing_record_taskinfo(struct task_struct *task, int flags);
+void tracing_record_taskinfo_sched_switch(struct task_struct *prev,
+					  struct task_struct *next, int flags);
+
+void tracing_record_cmdline(struct task_struct *task);
+void tracing_record_tgid(struct task_struct *task);
 
 int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
 
@@ -290,6 +298,7 @@ struct trace_subsystem_dir;
 enum {
 	EVENT_FILE_FL_ENABLED_BIT,
 	EVENT_FILE_FL_RECORDED_CMD_BIT,
+	EVENT_FILE_FL_RECORDED_TGID_BIT,
 	EVENT_FILE_FL_FILTERED_BIT,
 	EVENT_FILE_FL_NO_SET_FILTER_BIT,
 	EVENT_FILE_FL_SOFT_MODE_BIT,
@@ -303,6 +312,7 @@ enum {
  * Event file flags:
  *  ENABLED	  - The event is enabled
  *  RECORDED_CMD  - The comms should be recorded at sched_switch
+ *  RECORDED_TGID - The tgids should be recorded at sched_switch
  *  FILTERED	  - The event has a filter attached
  *  NO_SET_FILTER - Set when filter has error and is to be ignored
  *  SOFT_MODE     - The event is enabled/disabled by SOFT_DISABLED
@@ -315,6 +325,7 @@ enum {
 enum {
 	EVENT_FILE_FL_ENABLED		= (1 << EVENT_FILE_FL_ENABLED_BIT),
 	EVENT_FILE_FL_RECORDED_CMD	= (1 << EVENT_FILE_FL_RECORDED_CMD_BIT),
+	EVENT_FILE_FL_RECORDED_TGID	= (1 << EVENT_FILE_FL_RECORDED_TGID_BIT),
 	EVENT_FILE_FL_FILTERED		= (1 << EVENT_FILE_FL_FILTERED_BIT),
 	EVENT_FILE_FL_NO_SET_FILTER	= (1 << EVENT_FILE_FL_NO_SET_FILTER_BIT),
 	EVENT_FILE_FL_SOFT_MODE		= (1 << EVENT_FILE_FL_SOFT_MODE_BIT),

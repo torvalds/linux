@@ -37,11 +37,12 @@
  *    the executable file might be covered by the GNU General Public License.
  */
 
+#ifdef __powerpc64__
+#error "On PPC64, FPR save/restore functions are provided by the linker."
+#endif
+
 	.file	"crtsavres.S"
 	.section ".text"
-
-/* On PowerPC64 Linux, these functions are provided by the linker.  */
-#ifndef __powerpc64__
 
 #define _GLOBAL(name) \
 	.type name,@function; \
@@ -230,4 +231,3 @@ _GLOBAL(_rest32gpr_31_x)
 	mtlr	0
 	mr	1,11
 	blr
-#endif

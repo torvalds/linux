@@ -3,7 +3,7 @@
  *
  * Contains first level initialization routines which internally
  * generates timer device information and registers with linux
- * device model. It also has low level function to chnage the timer
+ * device model. It also has a low level function to change the timer
  * input clock source.
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
@@ -134,8 +134,6 @@ static int __init omap1_dm_timer_init(void)
 
 		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
-			dev_err(&pdev->dev, "%s: Failed to allocate pdata.\n",
-				__func__);
 			ret = -ENOMEM;
 			goto err_free_pdata;
 		}

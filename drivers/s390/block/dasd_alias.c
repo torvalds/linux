@@ -754,7 +754,6 @@ static void flush_all_alias_devices_on_lcu(struct alias_lcu *lcu)
 	struct alias_pav_group *pavgroup;
 	struct dasd_device *device, *temp;
 	struct dasd_eckd_private *private;
-	int rc;
 	unsigned long flags;
 	LIST_HEAD(active);
 
@@ -785,7 +784,7 @@ static void flush_all_alias_devices_on_lcu(struct alias_lcu *lcu)
 		device = list_first_entry(&active, struct dasd_device,
 					  alias_list);
 		spin_unlock_irqrestore(&lcu->lock, flags);
-		rc = dasd_flush_device_queue(device);
+		dasd_flush_device_queue(device);
 		spin_lock_irqsave(&lcu->lock, flags);
 		/*
 		 * only move device around if it wasn't moved away while we

@@ -20,11 +20,6 @@
 #include "drm.h"
 #include "gem.h"
 
-static inline struct tegra_bo *host1x_to_tegra_bo(struct host1x_bo *bo)
-{
-	return container_of(bo, struct tegra_bo, base);
-}
-
 static void tegra_bo_put(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);

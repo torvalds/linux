@@ -46,7 +46,7 @@
  */
 
 #include "armada-ap806-quad.dtsi"
-#include "armada-cp110-master.dtsi"
+#include "armada-70x0.dtsi"
 
 / {
 	model = "Marvell Armada 7040";

@@ -21,7 +21,7 @@
  *
  */
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "gmc_v6_0.h"
 #include "amdgpu_ucode.h"
@@ -395,6 +395,12 @@ static uint64_t gmc_v6_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
+static uint64_t gmc_v6_0_get_vm_pde(struct amdgpu_device *adev, uint64_t addr)
+{
+	BUG_ON(addr & 0xFFFFFF0000000FFFULL);
+	return addr;
+}
+
 static void gmc_v6_0_set_fault_enable_default(struct amdgpu_device *adev,
 					      bool value)
 {
@@ -614,33 +620,6 @@ static void gmc_v6_0_gart_fini(struct amdgpu_device *adev)
 	amdgpu_gart_fini(adev);
 }
 
-static int gmc_v6_0_vm_init(struct amdgpu_device *adev)
-{
-	/*
-	 * number of VMs
-	 * VMID 0 is reserved for System
-	 * amdgpu graphics/compute will use VMIDs 1-7
-	 * amdkfd will use VMIDs 8-15
-	 */
-	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.num_level = 1;
-	amdgpu_vm_manager_init(adev);
-
-	/* base offset of vram pages */
-	if (adev->flags & AMD_IS_APU) {
-		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
-		tmp <<= 22;
-		adev->vm_manager.vram_base_offset = tmp;
-	} else
-		adev->vm_manager.vram_base_offset = 0;
-
-	return 0;
-}
-
-static void gmc_v6_0_vm_fini(struct amdgpu_device *adev)
-{
-}
-
 static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
 				     u32 status, u32 addr, u32 mc_client)
 {
@@ -815,14 +794,6 @@ static int gmc_v6_0_early_init(void *handle)
 	gmc_v6_0_set_gart_funcs(adev);
 	gmc_v6_0_set_irq_funcs(adev);
 
-	if (adev->flags & AMD_IS_APU) {
-		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
-	} else {
-		u32 tmp = RREG32(mmMC_SEQ_MISC0);
-		tmp &= MC_SEQ_MISC0__MT__MASK;
-		adev->mc.vram_type = gmc_v6_0_convert_vram_type(tmp);
-	}
-
 	return 0;
 }
 
@@ -842,6 +813,14 @@ static int gmc_v6_0_sw_init(void *handle)
 	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (adev->flags & AMD_IS_APU) {
+		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
+	} else {
+		u32 tmp = RREG32(mmMC_SEQ_MISC0);
+		tmp &= MC_SEQ_MISC0__MT__MASK;
+		adev->mc.vram_type = gmc_v6_0_convert_vram_type(tmp);
+	}
+
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 146, &adev->mc.vm_fault);
 	if (r)
 		return r;
@@ -854,6 +833,8 @@ static int gmc_v6_0_sw_init(void *handle)
 	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	adev->mc.mc_mask = 0xffffffffffULL;
+
+	adev->mc.stolen_size = 256 * 1024;
 
 	adev->need_dma32 = false;
 	dma_bits = adev->need_dma32 ? 32 : 40;
@@ -887,26 +868,34 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	if (!adev->vm_manager.enabled) {
-		r = gmc_v6_0_vm_init(adev);
-		if (r) {
-			dev_err(adev->dev, "vm manager initialization failed (%d).\n", r);
-			return r;
-		}
-		adev->vm_manager.enabled = true;
+	/*
+	 * number of VMs
+	 * VMID 0 is reserved for System
+	 * amdgpu graphics/compute will use VMIDs 1-7
+	 * amdkfd will use VMIDs 8-15
+	 */
+	adev->vm_manager.id_mgr[0].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.num_level = 1;
+	amdgpu_vm_manager_init(adev);
+
+	/* base offset of vram pages */
+	if (adev->flags & AMD_IS_APU) {
+		u64 tmp = RREG32(mmMC_VM_FB_OFFSET);
+
+		tmp <<= 22;
+		adev->vm_manager.vram_base_offset = tmp;
+	} else {
+		adev->vm_manager.vram_base_offset = 0;
 	}
 
-	return r;
+	return 0;
 }
 
 static int gmc_v6_0_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->vm_manager.enabled) {
-		gmc_v6_0_vm_fini(adev);
-		adev->vm_manager.enabled = false;
-	}
+	amdgpu_vm_manager_fini(adev);
 	gmc_v6_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
 	amdgpu_bo_fini(adev);
@@ -984,16 +973,10 @@ static bool gmc_v6_0_is_idle(void *handle)
 static int gmc_v6_0_wait_for_idle(void *handle)
 {
 	unsigned i;
-	u32 tmp;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(mmSRBM_STATUS) & (SRBM_STATUS__MCB_BUSY_MASK |
-					       SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
-					       SRBM_STATUS__MCC_BUSY_MASK |
-					       SRBM_STATUS__MCD_BUSY_MASK |
-					       SRBM_STATUS__VMC_BUSY_MASK);
-		if (!tmp)
+		if (gmc_v6_0_is_idle(handle))
 			return 0;
 		udelay(1);
 	}
@@ -1146,6 +1129,7 @@ static const struct amdgpu_gart_funcs gmc_v6_0_gart_funcs = {
 	.flush_gpu_tlb = gmc_v6_0_gart_flush_gpu_tlb,
 	.set_pte_pde = gmc_v6_0_gart_set_pte_pde,
 	.set_prt = gmc_v6_0_set_prt,
+	.get_vm_pde = gmc_v6_0_get_vm_pde,
 	.get_vm_pte_flags = gmc_v6_0_get_vm_pte_flags
 };
 

@@ -538,6 +538,7 @@ static int bcm3510_set_frontend(struct dvb_frontend *fe)
 			cmd.ACQUIRE0.MODE = 0x9;
 			cmd.ACQUIRE1.SYM_RATE = 0x0;
 			cmd.ACQUIRE1.IF_FREQ = 0x0;
+			break;
 		default:
 			return -EINVAL;
 	}
@@ -772,7 +773,8 @@ static int bcm3510_init(struct dvb_frontend* fe)
 			deb_info("attempting to download firmware\n");
 			if ((ret = bcm3510_init_cold(st)) < 0)
 				return ret;
-		case JDEC_EEPROM_LOAD_WAIT: /* fall-through is wanted */
+			/* fall-through */
+		case JDEC_EEPROM_LOAD_WAIT:
 			deb_info("firmware is loaded\n");
 			bcm3510_check_firmware_version(st);
 			break;

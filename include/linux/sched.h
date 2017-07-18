@@ -223,6 +223,24 @@ struct task_cputime {
 #define prof_exp			stime
 #define sched_exp			sum_exec_runtime
 
+enum vtime_state {
+	/* Task is sleeping or running in a CPU with VTIME inactive: */
+	VTIME_INACTIVE = 0,
+	/* Task runs in userspace in a CPU with VTIME active: */
+	VTIME_USER,
+	/* Task runs in kernelspace in a CPU with VTIME active: */
+	VTIME_SYS,
+};
+
+struct vtime {
+	seqcount_t		seqcount;
+	unsigned long long	starttime;
+	enum vtime_state	state;
+	u64			utime;
+	u64			stime;
+	u64			gtime;
+};
+
 struct sched_info {
 #ifdef CONFIG_SCHED_INFO
 	/* Cumulative counters: */
@@ -688,16 +706,7 @@ struct task_struct {
 	u64				gtime;
 	struct prev_cputime		prev_cputime;
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-	seqcount_t			vtime_seqcount;
-	unsigned long long		vtime_snap;
-	enum {
-		/* Task is sleeping or running in a CPU with VTIME inactive: */
-		VTIME_INACTIVE = 0,
-		/* Task runs in userspace in a CPU with VTIME active: */
-		VTIME_USER,
-		/* Task runs in kernelspace in a CPU with VTIME active: */
-		VTIME_SYS,
-	} vtime_snap_whence;
+	struct vtime			vtime;
 #endif
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -904,7 +913,7 @@ struct task_struct {
 #ifdef CONFIG_NUMA
 	/* Protected by alloc_lock: */
 	struct mempolicy		*mempolicy;
-	short				il_next;
+	short				il_prev;
 	short				pref_node_fork;
 #endif
 #ifdef CONFIG_NUMA_BALANCING
@@ -965,6 +974,7 @@ struct task_struct {
 
 #ifdef CONFIG_FAULT_INJECTION
 	int				make_it_fail;
+	unsigned int			fail_nth;
 #endif
 	/*
 	 * When (nr_dirtied >= nr_dirtied_pause), it's time to call

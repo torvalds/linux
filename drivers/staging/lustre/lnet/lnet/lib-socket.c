@@ -89,7 +89,7 @@ lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask)
 	struct ifreq ifr;
 	int nob;
 	int rc;
-	__u32 val;
+	__be32 val;
 
 	nob = strnlen(name, IFNAMSIZ);
 	if (nob == IFNAMSIZ) {

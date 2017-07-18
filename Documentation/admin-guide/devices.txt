@@ -369,8 +369,10 @@
 		237 = /dev/loop-control Loopback control device
 		238 = /dev/vhost-net	Host kernel accelerator for virtio net
 		239 = /dev/uhid		User-space I/O driver support for HID subsystem
+		240 = /dev/userio	Serio driver testing device
+		241 = /dev/vhost-vsock	Host kernel driver for virtio vsock
 
-		240-254			Reserved for local use
+		242-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 
   11 char	Raw keyboard device	(Linux/SPARC only)

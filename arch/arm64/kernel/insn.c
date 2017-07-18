@@ -117,7 +117,7 @@ static void __kprobes patch_unmap(int fixmap)
 int __kprobes aarch64_insn_read(void *addr, u32 *insnp)
 {
 	int ret;
-	u32 val;
+	__le32 val;
 
 	ret = probe_kernel_read(&val, addr, AARCH64_INSN_SIZE);
 	if (!ret)
@@ -126,7 +126,7 @@ int __kprobes aarch64_insn_read(void *addr, u32 *insnp)
 	return ret;
 }
 
-static int __kprobes __aarch64_insn_write(void *addr, u32 insn)
+static int __kprobes __aarch64_insn_write(void *addr, __le32 insn)
 {
 	void *waddr = addr;
 	unsigned long flags = 0;
@@ -145,8 +145,7 @@ static int __kprobes __aarch64_insn_write(void *addr, u32 insn)
 
 int __kprobes aarch64_insn_write(void *addr, u32 insn)
 {
-	insn = cpu_to_le32(insn);
-	return __aarch64_insn_write(addr, insn);
+	return __aarch64_insn_write(addr, cpu_to_le32(insn));
 }
 
 static bool __kprobes __aarch64_insn_hotpatch_safe(u32 insn)

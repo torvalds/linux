@@ -96,7 +96,6 @@ static int dgnc_do_remap(struct dgnc_board *brd)
 	return 0;
 }
 
-
 /* A board has been found, initialize  it. */
 static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 {
@@ -286,7 +285,6 @@ static void dgnc_free_irq(struct dgnc_board *brd)
 	if (brd->irq)
 		free_irq(brd->irq, brd);
 }
-
 
  /*
   * As each timer expires, it determines (a) whether the "transmit"

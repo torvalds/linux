@@ -7,7 +7,7 @@
  * This file contains the core interrupt handling code, for irq-chip
  * based architectures.
  *
- * Detailed information is available in Documentation/DocBook/genericirq
+ * Detailed information is available in Documentation/core-api/genericirq.rst
  */
 
 #include <linux/irq.h>
@@ -234,7 +234,7 @@ __irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
 	return IRQ_STARTUP_MANAGED;
 }
 #else
-static int
+static __always_inline int
 __irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
 {
 	return IRQ_STARTUP_NORMAL;

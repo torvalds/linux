@@ -168,6 +168,7 @@ static int udc_pci_probe(
 	dev->phys_addr = resource;
 	dev->irq = pdev->irq;
 	dev->pdev = pdev;
+	dev->dev = &pdev->dev;
 
 	/* general probing */
 	if (udc_probe(dev)) {

@@ -153,8 +153,7 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 	subhdr = cl_object_header(stripe);
 
 	oinfo = lov->lo_lsm->lsm_oinfo[idx];
-	CDEBUG(D_INODE, DFID"@%p[%d] -> "DFID"@%p: ostid: "DOSTID
-	       " idx: %d gen: %d\n",
+	CDEBUG(D_INODE, DFID "@%p[%d] -> " DFID "@%p: ostid: " DOSTID " idx: %d gen: %d\n",
 	       PFID(&subhdr->coh_lu.loh_fid), subhdr, idx,
 	       PFID(&hdr->coh_lu.loh_fid), hdr, POSTID(&oinfo->loi_oi),
 	       oinfo->loi_ost_idx, oinfo->loi_ost_gen);
@@ -757,7 +756,7 @@ static int lov_layout_change(const struct lu_env *unused,
 
 	LASSERT(0 <= llt && llt < ARRAY_SIZE(lov_dispatch));
 
-	CDEBUG(D_INODE, DFID" from %s to %s\n",
+	CDEBUG(D_INODE, DFID " from %s to %s\n",
 	       PFID(lu_object_fid(lov2lu(lov))),
 	       llt2str(lov->lo_type), llt2str(llt));
 
@@ -904,7 +903,7 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 out:
 	lov_conf_unlock(lov);
 	lov_lsm_put(lsm);
-	CDEBUG(D_INODE, DFID" lo_layout_invalid=%d\n",
+	CDEBUG(D_INODE, DFID " lo_layout_invalid=%d\n",
 	       PFID(lu_object_fid(lov2lu(lov))), lov->lo_layout_invalid);
 	return result;
 }

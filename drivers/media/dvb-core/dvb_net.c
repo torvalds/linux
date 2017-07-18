@@ -828,8 +828,7 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 
 		/* Copy data into our current skb. */
 		h.how_much = min(h.priv->ule_sndu_remain, (int)h.ts_remain);
-		memcpy(skb_put(h.priv->ule_skb, h.how_much),
-		       h.from_where, h.how_much);
+		skb_put_data(h.priv->ule_skb, h.from_where, h.how_much);
 		h.priv->ule_sndu_remain -= h.how_much;
 		h.ts_remain -= h.how_much;
 		h.from_where += h.how_much;
@@ -964,7 +963,7 @@ static void dvb_net_sec(struct net_device *dev,
 	skb->dev = dev;
 
 	/* copy L3 payload */
-	eth = (u8 *) skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
+	eth = skb_put(skb, pkt_len - 12 - 4 + 14 - snap);
 	memcpy(eth + 14, pkt + 12 + snap, pkt_len - 12 - 4 - snap);
 
 	/* create ethernet header: */
