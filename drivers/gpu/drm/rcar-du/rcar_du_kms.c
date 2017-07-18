@@ -297,15 +297,15 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	 */
 	entity = of_graph_get_remote_port_parent(ep->local_node);
 	if (!entity) {
-		dev_dbg(rcdu->dev, "unconnected endpoint %s, skipping\n",
-			ep->local_node->full_name);
+		dev_dbg(rcdu->dev, "unconnected endpoint %pOF, skipping\n",
+			ep->local_node);
 		return -ENODEV;
 	}
 
 	if (!of_device_is_available(entity)) {
 		dev_dbg(rcdu->dev,
-			"connected entity %s is disabled, skipping\n",
-			entity->full_name);
+			"connected entity %pOF is disabled, skipping\n",
+			entity);
 		return -ENODEV;
 	}
 
@@ -325,8 +325,8 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 
 		if (!connector) {
 			dev_warn(rcdu->dev,
-				 "no connector for encoder %s, skipping\n",
-				 encoder->full_name);
+				 "no connector for encoder %pOF, skipping\n",
+				 encoder);
 			of_node_put(entity_ep_node);
 			of_node_put(encoder);
 			return -ENODEV;
@@ -348,8 +348,8 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	ret = rcar_du_encoder_init(rcdu, output, encoder, connector);
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
-			 "failed to initialize encoder %s on output %u (%d), skipping\n",
-			 of_node_full_name(encoder), output, ret);
+			 "failed to initialize encoder %pOF on output %u (%d), skipping\n",
+			 encoder, output, ret);
 
 	of_node_put(encoder);
 	of_node_put(connector);

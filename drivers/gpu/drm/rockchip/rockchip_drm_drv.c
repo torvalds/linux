@@ -368,8 +368,8 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 
 		iommu = of_parse_phandle(port->parent, "iommus", 0);
 		if (!iommu || !of_device_is_available(iommu->parent)) {
-			dev_dbg(dev, "no iommu attached for %s, using non-iommu buffers\n",
-				port->parent->full_name);
+			dev_dbg(dev, "no iommu attached for %pOF, using non-iommu buffers\n",
+				port->parent);
 			/*
 			 * if there is a crtc not support iommu, force set all
 			 * crtc use non-iommu buffer.

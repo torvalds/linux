@@ -160,8 +160,8 @@ int drm_of_component_probe(struct device *dev,
 				of_node_put(remote);
 				continue;
 			} else if (!of_device_is_available(remote->parent)) {
-				dev_warn(dev, "parent device of %s is not available\n",
-					 remote->full_name);
+				dev_warn(dev, "parent device of %pOF is not available\n",
+					 remote);
 				of_node_put(remote);
 				continue;
 			}

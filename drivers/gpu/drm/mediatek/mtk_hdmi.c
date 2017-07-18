@@ -1456,8 +1456,8 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi,
 
 	cec_pdev = of_find_device_by_node(cec_np);
 	if (!cec_pdev) {
-		dev_err(hdmi->dev, "Waiting for CEC device %s\n",
-			cec_np->full_name);
+		dev_err(hdmi->dev, "Waiting for CEC device %pOF\n",
+			cec_np);
 		return -EPROBE_DEFER;
 	}
 	hdmi->cec_dev = &cec_pdev->dev;
@@ -1501,8 +1501,8 @@ static int mtk_hdmi_dt_parse_pdata(struct mtk_hdmi *hdmi,
 
 	i2c_np = of_parse_phandle(remote, "ddc-i2c-bus", 0);
 	if (!i2c_np) {
-		dev_err(dev, "Failed to find ddc-i2c-bus node in %s\n",
-			remote->full_name);
+		dev_err(dev, "Failed to find ddc-i2c-bus node in %pOF\n",
+			remote);
 		of_node_put(remote);
 		return -EINVAL;
 	}

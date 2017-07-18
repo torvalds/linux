@@ -1050,8 +1050,8 @@ int tilcdc_crtc_create(struct drm_device *dev)
 	if (priv->is_componentized) {
 		crtc->port = of_graph_get_port_by_id(dev->dev->of_node, 0);
 		if (!crtc->port) { /* This should never happen */
-			dev_err(dev->dev, "Port node not found in %s\n",
-				dev->dev->of_node->full_name);
+			dev_err(dev->dev, "Port node not found in %pOF\n",
+				dev->dev->of_node);
 			ret = -EINVAL;
 			goto fail;
 		}

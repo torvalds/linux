@@ -1343,8 +1343,8 @@ static int vop_create_crtc(struct vop *vop)
 
 	port = of_get_child_by_name(dev->of_node, "port");
 	if (!port) {
-		DRM_DEV_ERROR(vop->dev, "no port node found in %s\n",
-			      dev->of_node->full_name);
+		DRM_DEV_ERROR(vop->dev, "no port node found in %pOF\n",
+			      dev->of_node);
 		ret = -ENOENT;
 		goto err_cleanup_crtc;
 	}

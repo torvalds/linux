@@ -1329,8 +1329,7 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 		port = of_get_child_by_name(parent, "port");
 		of_node_put(np);
 		if (!port) {
-			dev_err(dev, "no port node found in %s\n",
-				parent->full_name);
+			dev_err(dev, "no port node found in %pOF\n", parent);
 			return -ENXIO;
 		}
 
