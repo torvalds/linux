@@ -35,6 +35,7 @@
 #include "data.h"
 #include <api/fs/fs.h>
 #include "asm/bug.h"
+#include "tool.h"
 
 #include "sane_ctype.h"
 
@@ -2980,6 +2981,103 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 	free(ev);
 
 	return err;
+}
+
+int perf_event__synthesize_features(struct perf_tool *tool,
+				    struct perf_session *session,
+				    struct perf_evlist *evlist,
+				    perf_event__handler_t process)
+{
+	struct perf_header *header = &session->header;
+	struct feat_fd ff;
+	struct feature_event *fe;
+	size_t sz, sz_hdr;
+	int feat, ret;
+
+	sz_hdr = sizeof(fe->header);
+	sz = sizeof(union perf_event);
+	/* get a nice alignment */
+	sz = PERF_ALIGN(sz, page_size);
+
+	memset(&ff, 0, sizeof(ff));
+
+	ff.buf = malloc(sz);
+	if (!ff.buf)
+		return -ENOMEM;
+
+	ff.size = sz - sz_hdr;
+
+	for_each_set_bit(feat, header->adds_features, HEADER_FEAT_BITS) {
+		if (!feat_ops[feat].synthesize) {
+			pr_debug("No record header feature for header :%d\n", feat);
+			continue;
+		}
+
+		ff.offset = sizeof(*fe);
+
+		ret = feat_ops[feat].write(&ff, evlist);
+		if (ret || ff.offset <= (ssize_t)sizeof(*fe)) {
+			pr_debug("Error writing feature\n");
+			continue;
+		}
+		/* ff.buf may have changed due to realloc in do_write() */
+		fe = ff.buf;
+		memset(fe, 0, sizeof(*fe));
+
+		fe->feat_id = feat;
+		fe->header.type = PERF_RECORD_HEADER_FEATURE;
+		fe->header.size = ff.offset;
+
+		ret = process(tool, ff.buf, NULL, NULL);
+		if (ret) {
+			free(ff.buf);
+			return ret;
+		}
+	}
+	free(ff.buf);
+	return 0;
+}
+
+int perf_event__process_feature(struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_session *session __maybe_unused)
+{
+	struct feat_fd ff = { .fd = 0 };
+	struct feature_event *fe = (struct feature_event *)event;
+	int type = fe->header.type;
+	u64 feat = fe->feat_id;
+
+	if (type < 0 || type >= PERF_RECORD_HEADER_MAX) {
+		pr_warning("invalid record type %d in pipe-mode\n", type);
+		return 0;
+	}
+	if (feat == HEADER_RESERVED || feat > HEADER_LAST_FEATURE) {
+		pr_warning("invalid record type %d in pipe-mode\n", type);
+		return -1;
+	}
+
+	if (!feat_ops[feat].process)
+		return 0;
+
+	ff.buf  = (void *)fe->data;
+	ff.size = event->header.size - sizeof(event->header);
+	ff.ph = &session->header;
+
+	if (feat_ops[feat].process(&ff, NULL))
+		return -1;
+
+	if (!feat_ops[feat].print || !tool->show_feat_hdr)
+		return 0;
+
+	if (!feat_ops[feat].full_only ||
+	    tool->show_feat_hdr >= SHOW_FEAT_HEADER_FULL_INFO) {
+		feat_ops[feat].print(&ff, stdout);
+	} else {
+		fprintf(stdout, "# %s info available, use -I to display\n",
+			feat_ops[feat].name);
+	}
+
+	return 0;
 }
 
 static struct event_update_event *

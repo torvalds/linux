@@ -718,6 +718,7 @@ int cmd_report(int argc, const char **argv)
 			.id_index	 = perf_event__process_id_index,
 			.auxtrace_info	 = perf_event__process_auxtrace_info,
 			.auxtrace	 = perf_event__process_auxtrace,
+			.feature	 = perf_event__process_feature,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},

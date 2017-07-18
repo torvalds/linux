@@ -799,6 +799,13 @@ static int record__synthesize(struct record *rec, bool tail)
 		return 0;
 
 	if (file->is_pipe) {
+		err = perf_event__synthesize_features(
+			tool, session, rec->evlist, process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize features.\n");
+			return err;
+		}
+
 		err = perf_event__synthesize_attrs(tool, session,
 						   process_synthesized_event);
 		if (err < 0) {
