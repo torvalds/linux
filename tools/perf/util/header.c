@@ -797,11 +797,19 @@ static int write_pmu_mappings(struct feat_fd *ff,
 			      struct perf_evlist *evlist __maybe_unused)
 {
 	struct perf_pmu *pmu = NULL;
-	off_t offset = lseek(ff->fd, 0, SEEK_CUR);
-	__u32 pmu_num = 0;
+	u32 pmu_num = 0;
 	int ret;
 
-	/* write real pmu_num later */
+	/*
+	 * Do a first pass to count number of pmu to avoid lseek so this
+	 * works in pipe mode as well.
+	 */
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name)
+			continue;
+		pmu_num++;
+	}
+
 	ret = do_write(ff, &pmu_num, sizeof(pmu_num));
 	if (ret < 0)
 		return ret;
@@ -809,7 +817,6 @@ static int write_pmu_mappings(struct feat_fd *ff,
 	while ((pmu = perf_pmu__scan(pmu))) {
 		if (!pmu->name)
 			continue;
-		pmu_num++;
 
 		ret = do_write(ff, &pmu->type, sizeof(pmu->type));
 		if (ret < 0)
@@ -818,12 +825,6 @@ static int write_pmu_mappings(struct feat_fd *ff,
 		ret = do_write_string(ff, pmu->name);
 		if (ret < 0)
 			return ret;
-	}
-
-	if (pwrite(ff->fd, &pmu_num, sizeof(pmu_num), offset) != sizeof(pmu_num)) {
-		/* discard all */
-		lseek(ff->fd, offset, SEEK_SET);
-		return -1;
 	}
 
 	return 0;
