@@ -294,7 +294,7 @@ static struct attribute *channel_attrs[] = {
 	NULL
 };
 
-static struct attribute_group channel_attr_grp = {
+static const struct attribute_group channel_attr_grp = {
 	.name = "channel",
 	.attrs = channel_attrs,
 };
@@ -391,7 +391,7 @@ static struct attribute *dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group dev_attr_grp = {
+static const struct attribute_group dev_attr_grp = {
 	.attrs = dev_attrs,
 };
 

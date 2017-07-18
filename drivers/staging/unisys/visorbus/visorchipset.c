@@ -1138,7 +1138,7 @@ static struct attribute *visorchipset_parahotplug_attrs[] = {
 	NULL
 };
 
-static struct attribute_group visorchipset_parahotplug_group = {
+static const struct attribute_group visorchipset_parahotplug_group = {
 	.name = "parahotplug",
 	.attrs = visorchipset_parahotplug_attrs
 };
