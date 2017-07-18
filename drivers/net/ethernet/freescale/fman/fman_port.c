@@ -1720,8 +1720,8 @@ static int fman_port_probe(struct platform_device *of_dev)
 
 	err = of_property_read_u32(port_node, "cell-index", &val);
 	if (err) {
-		dev_err(port->dev, "%s: reading cell-index for %s failed\n",
-			__func__, port_node->full_name);
+		dev_err(port->dev, "%s: reading cell-index for %pOF failed\n",
+			__func__, port_node);
 		err = -EINVAL;
 		goto return_err;
 	}

@@ -2242,7 +2242,7 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 
 	if (np) {
 		bus->name = np->full_name;
-		snprintf(bus->id, MII_BUS_ID_SIZE, "%s", np->full_name);
+		snprintf(bus->id, MII_BUS_ID_SIZE, "%pOF", np);
 	} else {
 		bus->name = "mv88e6xxx SMI";
 		snprintf(bus->id, MII_BUS_ID_SIZE, "mv88e6xxx-%d", index++);

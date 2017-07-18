@@ -1925,8 +1925,8 @@ static int fman_reset(struct fman *fman)
 
 		guts_regs = of_iomap(guts_node, 0);
 		if (!guts_regs) {
-			dev_err(fman->dev, "%s: Couldn't map %s regs\n",
-				__func__, guts_node->full_name);
+			dev_err(fman->dev, "%s: Couldn't map %pOF regs\n",
+				__func__, guts_node);
 			goto guts_regs;
 		}
 #define FMAN1_ALL_MACS_MASK	0xFCC00000
@@ -2780,8 +2780,8 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 
 	err = of_property_read_u32(fm_node, "cell-index", &val);
 	if (err) {
-		dev_err(&of_dev->dev, "%s: failed to read cell-index for %s\n",
-			__func__, fm_node->full_name);
+		dev_err(&of_dev->dev, "%s: failed to read cell-index for %pOF\n",
+			__func__, fm_node);
 		goto fman_node_put;
 	}
 	fman->dts_params.id = (u8)val;
@@ -2834,8 +2834,8 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	err = of_property_read_u32_array(fm_node, "fsl,qman-channel-range",
 					 &range[0], 2);
 	if (err) {
-		dev_err(&of_dev->dev, "%s: failed to read fsl,qman-channel-range for %s\n",
-			__func__, fm_node->full_name);
+		dev_err(&of_dev->dev, "%s: failed to read fsl,qman-channel-range for %pOF\n",
+			__func__, fm_node);
 		goto fman_node_put;
 	}
 	fman->dts_params.qman_channel_base = range[0];

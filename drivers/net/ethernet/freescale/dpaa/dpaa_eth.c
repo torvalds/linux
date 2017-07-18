@@ -398,8 +398,8 @@ static struct mac_device *dpaa_mac_dev_get(struct platform_device *pdev)
 
 	of_dev = of_find_device_by_node(mac_node);
 	if (!of_dev) {
-		dev_err(dpaa_dev, "of_find_device_by_node(%s) failed\n",
-			mac_node->full_name);
+		dev_err(dpaa_dev, "of_find_device_by_node(%pOF) failed\n",
+			mac_node);
 		of_node_put(mac_node);
 		return ERR_PTR(-EINVAL);
 	}

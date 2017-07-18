@@ -138,16 +138,16 @@ int mdio_mux_init(struct device *dev,
 		r = of_property_read_u32(child_bus_node, "reg", &v);
 		if (r) {
 			dev_err(dev,
-				"Error: Failed to find reg for child %s\n",
-				of_node_full_name(child_bus_node));
+				"Error: Failed to find reg for child %pOF\n",
+				child_bus_node);
 			continue;
 		}
 
 		cb = devm_kzalloc(dev, sizeof(*cb), GFP_KERNEL);
 		if (cb == NULL) {
 			dev_err(dev,
-				"Error: Failed to allocate memory for child %s\n",
-				of_node_full_name(child_bus_node));
+				"Error: Failed to allocate memory for child %pOF\n",
+				child_bus_node);
 			ret_val = -ENOMEM;
 			continue;
 		}
@@ -157,8 +157,8 @@ int mdio_mux_init(struct device *dev,
 		cb->mii_bus = mdiobus_alloc();
 		if (!cb->mii_bus) {
 			dev_err(dev,
-				"Error: Failed to allocate MDIO bus for child %s\n",
-				of_node_full_name(child_bus_node));
+				"Error: Failed to allocate MDIO bus for child %pOF\n",
+				child_bus_node);
 			ret_val = -ENOMEM;
 			devm_kfree(dev, cb);
 			continue;
@@ -174,8 +174,8 @@ int mdio_mux_init(struct device *dev,
 		r = of_mdiobus_register(cb->mii_bus, child_bus_node);
 		if (r) {
 			dev_err(dev,
-				"Error: Failed to register MDIO bus for child %s\n",
-				of_node_full_name(child_bus_node));
+				"Error: Failed to register MDIO bus for child %pOF\n",
+				child_bus_node);
 			mdiobus_free(cb->mii_bus);
 			devm_kfree(dev, cb);
 		} else {
