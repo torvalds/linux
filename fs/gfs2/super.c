@@ -1547,6 +1547,7 @@ static void gfs2_evict_inode(struct inode *inode)
 	/* Must not read inode block until block type has been verified */
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
 	if (unlikely(error)) {
+		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
 		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 		goto out;
@@ -1595,6 +1596,11 @@ alloc_failed:
 			goto out_unlock;
 	}
 
+	/* We're about to clear the bitmap for the dinode, but as soon as we
+	   do, gfs2_create_inode can create another inode at the same block
+	   location and try to set gl_object again. We clear gl_object here so
+	   that subsequent inode creates don't see an old gl_object. */
+	glock_clear_object(ip->i_gl, ip);
 	error = gfs2_dinode_dealloc(ip);
 	goto out_unlock;
 
@@ -1623,14 +1629,17 @@ out_unlock:
 		gfs2_rs_deltree(&ip->i_res);
 
 	if (gfs2_holder_initialized(&ip->i_iopen_gh)) {
+		glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
 		if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
 			ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
 			gfs2_glock_dq(&ip->i_iopen_gh);
 		}
 		gfs2_holder_uninit(&ip->i_iopen_gh);
 	}
-	if (gfs2_holder_initialized(&gh))
+	if (gfs2_holder_initialized(&gh)) {
+		glock_clear_object(ip->i_gl, ip);
 		gfs2_glock_dq_uninit(&gh);
+	}
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
 		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
