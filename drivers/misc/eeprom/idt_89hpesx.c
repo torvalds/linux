@@ -1132,8 +1132,8 @@ static void idt_get_ofdata(struct idt_89hpesx_dev *pdev)
 		for_each_available_child_of_node(node, child) {
 			ee_id = idt_ee_match_id(child);
 			if (IS_ERR_OR_NULL(ee_id)) {
-				dev_warn(dev, "Skip unsupported child node %s",
-					child->full_name);
+				dev_warn(dev, "Skip unsupported child node %pOF",
+					child);
 				continue;
 			} else
 				break;
@@ -1151,8 +1151,8 @@ static void idt_get_ofdata(struct idt_89hpesx_dev *pdev)
 		/* Get custom EEPROM address from 'reg' attribute */
 		addr_be = of_get_property(child, "reg", &len);
 		if (!addr_be || (len < sizeof(*addr_be))) {
-			dev_warn(dev, "No reg on %s, use default address %d",
-				child->full_name, EEPROM_DEF_ADDR);
+			dev_warn(dev, "No reg on %pOF, use default address %d",
+				child, EEPROM_DEF_ADDR);
 			pdev->inieecmd = 0;
 			pdev->eeaddr = EEPROM_DEF_ADDR << 1;
 		} else {
