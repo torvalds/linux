@@ -108,6 +108,11 @@ static int imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
 		}
 	}
 
+	/* Function to register IMC pmu */
+	ret = init_imc_pmu(parent, pmu_ptr, pmu_index);
+	if (ret)
+		pr_err("IMC PMU %s Register failed\n", pmu_ptr->pmu.name);
+
 	return 0;
 
 free_pmu:
