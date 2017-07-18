@@ -2356,7 +2356,7 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 
 	/* SELinux context only depends on initial program or script and not
 	 * the script interpreter */
-	if (bprm->cred_prepared)
+	if (bprm->called_set_creds)
 		return 0;
 
 	old_tsec = current_security();
