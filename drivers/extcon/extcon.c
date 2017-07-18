@@ -1363,8 +1363,8 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 
 	node = of_parse_phandle(dev->of_node, "extcon", index);
 	if (!node) {
-		dev_dbg(dev, "failed to get phandle in %s node\n",
-			dev->of_node->full_name);
+		dev_dbg(dev, "failed to get phandle in %pOF node\n",
+			dev->of_node);
 		return ERR_PTR(-ENODEV);
 	}
 
