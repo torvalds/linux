@@ -619,8 +619,8 @@ static int handle_attach_device(struct fsl_dma_domain *dma_domain,
 	for (i = 0; i < num; i++) {
 		/* Ensure that LIODN value is valid */
 		if (liodn[i] >= PAACE_NUMBER_ENTRIES) {
-			pr_debug("Invalid liodn %d, attach device failed for %s\n",
-				 liodn[i], dev->of_node->full_name);
+			pr_debug("Invalid liodn %d, attach device failed for %pOF\n",
+				 liodn[i], dev->of_node);
 			ret = -EINVAL;
 			break;
 		}
@@ -684,8 +684,7 @@ static int fsl_pamu_attach_device(struct iommu_domain *domain,
 		liodn_cnt = len / sizeof(u32);
 		ret = handle_attach_device(dma_domain, dev, liodn, liodn_cnt);
 	} else {
-		pr_debug("missing fsl,liodn property at %s\n",
-			 dev->of_node->full_name);
+		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_node);
 		ret = -EINVAL;
 	}
 
@@ -720,8 +719,7 @@ static void fsl_pamu_detach_device(struct iommu_domain *domain,
 	if (prop)
 		detach_device(dev, dma_domain);
 	else
-		pr_debug("missing fsl,liodn property at %s\n",
-			 dev->of_node->full_name);
+		pr_debug("missing fsl,liodn property at %pOF\n", dev->of_node);
 }
 
 static  int configure_domain_geometry(struct iommu_domain *domain, void *data)

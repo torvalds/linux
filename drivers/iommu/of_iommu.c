@@ -245,8 +245,7 @@ static int __init of_iommu_init(void)
 		const of_iommu_init_fn init_fn = match->data;
 
 		if (init_fn && init_fn(np))
-			pr_err("Failed to initialise IOMMU %s\n",
-				of_node_full_name(np));
+			pr_err("Failed to initialise IOMMU %pOF\n", np);
 	}
 
 	return 0;

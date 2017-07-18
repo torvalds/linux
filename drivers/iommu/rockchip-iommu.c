@@ -1008,20 +1008,20 @@ static int rk_iommu_group_set_iommudata(struct iommu_group *group,
 	ret = of_parse_phandle_with_args(np, "iommus", "#iommu-cells", 0,
 					 &args);
 	if (ret) {
-		dev_err(dev, "of_parse_phandle_with_args(%s) => %d\n",
-			np->full_name, ret);
+		dev_err(dev, "of_parse_phandle_with_args(%pOF) => %d\n",
+			np, ret);
 		return ret;
 	}
 	if (args.args_count != 0) {
-		dev_err(dev, "incorrect number of iommu params found for %s (found %d, expected 0)\n",
-			args.np->full_name, args.args_count);
+		dev_err(dev, "incorrect number of iommu params found for %pOF (found %d, expected 0)\n",
+			args.np, args.args_count);
 		return -EINVAL;
 	}
 
 	pd = of_find_device_by_node(args.np);
 	of_node_put(args.np);
 	if (!pd) {
-		dev_err(dev, "iommu %s not found\n", args.np->full_name);
+		dev_err(dev, "iommu %pOF not found\n", args.np);
 		return -EPROBE_DEFER;
 	}
 
