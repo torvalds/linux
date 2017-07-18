@@ -302,8 +302,8 @@ struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 
 	node = of_parse_phandle(dev->of_node, phandle, index);
 	if (!node) {
-		dev_dbg(dev, "failed to get %s phandle in %s node\n", phandle,
-			dev->of_node->full_name);
+		dev_dbg(dev, "failed to get %s phandle in %pOF node\n", phandle,
+			dev->of_node);
 		return ERR_PTR(-ENODEV);
 	}
 	phy = devm_usb_get_phy_by_node(dev, node, NULL);

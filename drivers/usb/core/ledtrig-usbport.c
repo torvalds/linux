@@ -149,8 +149,8 @@ static bool usbport_trig_port_observed(struct usbport_trig_data *usbport_data,
 	count = of_count_phandle_with_args(led_np, "trigger-sources",
 					   "#trigger-source-cells");
 	if (count < 0) {
-		dev_warn(dev, "Failed to get trigger sources for %s\n",
-			 led_np->full_name);
+		dev_warn(dev, "Failed to get trigger sources for %pOF\n",
+			 led_np);
 		return false;
 	}
 

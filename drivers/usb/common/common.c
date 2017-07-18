@@ -227,8 +227,8 @@ int of_usb_update_otg_caps(struct device_node *np,
 				otg_caps->otg_rev = otg_rev;
 			break;
 		default:
-			pr_err("%s: unsupported otg-rev: 0x%x\n",
-						np->full_name, otg_rev);
+			pr_err("%pOF: unsupported otg-rev: 0x%x\n",
+						np, otg_rev);
 			return -EINVAL;
 		}
 	} else {
