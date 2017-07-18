@@ -556,9 +556,9 @@ static ssize_t devspec_show(struct device *dev,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct device_node *np = pci_device_to_OF_node(pdev);
 
-	if (np == NULL || np->full_name == NULL)
+	if (np == NULL)
 		return 0;
-	return sprintf(buf, "%s", np->full_name);
+	return sprintf(buf, "%pOF", np);
 }
 static DEVICE_ATTR_RO(devspec);
 #endif
