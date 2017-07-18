@@ -199,7 +199,8 @@ EXPORT_SYMBOL(fmc_driver_unregister);
  * When a device set is registered, all eeproms must be read
  * and all FRUs must be parsed
  */
-int fmc_device_register_n(struct fmc_device **devs, int n)
+int fmc_device_register_n_gw(struct fmc_device **devs, int n,
+			  struct fmc_gateware *gw)
 {
 	struct fmc_device *fmc, **devarray;
 	uint32_t device_id;
@@ -313,7 +314,19 @@ out:
 	return ret;
 
 }
+EXPORT_SYMBOL(fmc_device_register_n_gw);
+
+int fmc_device_register_n(struct fmc_device **devs, int n)
+{
+	return fmc_device_register_n_gw(devs, n, NULL);
+}
 EXPORT_SYMBOL(fmc_device_register_n);
+
+int fmc_device_register_gw(struct fmc_device *fmc, struct fmc_gateware *gw)
+{
+	return fmc_device_register_n_gw(&fmc, 1, gw);
+}
+EXPORT_SYMBOL(fmc_device_register_gw);
 
 int fmc_device_register(struct fmc_device *fmc)
 {
