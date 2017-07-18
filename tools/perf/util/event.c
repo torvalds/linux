@@ -416,7 +416,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 {
 	char filename[PATH_MAX];
 	DIR *tasks;
-	struct dirent dirent, *next;
+	struct dirent *dirent;
 	pid_t tgid, ppid;
 	int rc = 0;
 
@@ -445,11 +445,11 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		return 0;
 	}
 
-	while (!readdir_r(tasks, &dirent, &next) && next) {
+	while ((dirent = readdir(tasks)) != NULL) {
 		char *end;
 		pid_t _pid;
 
-		_pid = strtol(dirent.d_name, &end, 10);
+		_pid = strtol(dirent->d_name, &end, 10);
 		if (*end)
 			continue;
 
@@ -558,7 +558,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 {
 	DIR *proc;
 	char proc_path[PATH_MAX];
-	struct dirent dirent, *next;
+	struct dirent *dirent;
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	int err = -1;
 
@@ -583,9 +583,9 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (proc == NULL)
 		goto out_free_fork;
 
-	while (!readdir_r(proc, &dirent, &next) && next) {
+	while ((dirent = readdir(proc)) != NULL) {
 		char *end;
-		pid_t pid = strtol(dirent.d_name, &end, 10);
+		pid_t pid = strtol(dirent->d_name, &end, 10);
 
 		if (*end) /* only interested in proper numerical dirents */
 			continue;
