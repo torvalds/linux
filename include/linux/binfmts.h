@@ -31,9 +31,15 @@ struct linux_binprm {
 		 * binfmt_script/misc).
 		 */
 		called_set_creds:1,
-		cap_effective:1;/* true if has elevated effective capabilities,
+		cap_effective:1,/* true if has elevated effective capabilities,
 				 * false if not; except for init which inherits
 				 * its parent's caps anyway */
+		/*
+		 * Set by bprm_set_creds hook to indicate a privilege-gaining
+		 * exec has happened. Used to sanitize execution environment
+		 * and to set AT_SECURE auxv for glibc.
+		 */
+		secureexec:1;
 #ifdef __alpha__
 	unsigned int taso:1;
 #endif
