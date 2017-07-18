@@ -31,9 +31,6 @@ struct linux_binprm {
 		 * binfmt_script/misc).
 		 */
 		called_set_creds:1,
-		cap_effective:1,/* true if has elevated effective capabilities,
-				 * false if not; except for init which inherits
-				 * its parent's caps anyway */
 		/*
 		 * True if most recent call to the commoncaps bprm_set_creds
 		 * hook (due to multiple prepare_binprm() calls from the
