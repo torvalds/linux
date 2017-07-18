@@ -1787,7 +1787,7 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 	 * conflicting triggers. Tell the user, and reset to NONE.
 	 */
 	if (WARN(of_node && type != IRQ_TYPE_NONE,
-		 "%s: Ignoring %d default trigger\n", of_node->full_name, type))
+		 "%pOF: Ignoring %d default trigger\n", of_node, type))
 		type = IRQ_TYPE_NONE;
 	if (has_acpi_companion(gpiochip->parent) && type != IRQ_TYPE_NONE) {
 		acpi_handle_warn(ACPI_HANDLE(gpiochip->parent),
