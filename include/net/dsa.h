@@ -256,11 +256,6 @@ static inline bool dsa_is_normal_port(struct dsa_switch *ds, int p)
 	return !dsa_is_cpu_port(ds, p) && !dsa_is_dsa_port(ds, p);
 }
 
-static inline bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
-{
-	return ds->enabled_port_mask & (1 << p) && ds->ports[p].netdev;
-}
-
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;

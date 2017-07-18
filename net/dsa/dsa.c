@@ -220,6 +220,11 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 #ifdef CONFIG_PM_SLEEP
+static bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
+{
+	return ds->enabled_port_mask & (1 << p) && ds->ports[p].netdev;
+}
+
 int dsa_switch_suspend(struct dsa_switch *ds)
 {
 	int i, ret = 0;
