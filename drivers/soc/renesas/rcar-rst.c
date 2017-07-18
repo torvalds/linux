@@ -61,7 +61,7 @@ static int __init rcar_rst_init(void)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_warn("%s: Cannot map regs\n", np->full_name);
+		pr_warn("%pOF: Cannot map regs\n", np);
 		error = -ENOMEM;
 		goto out_put;
 	}
@@ -70,7 +70,7 @@ static int __init rcar_rst_init(void)
 	cfg = match->data;
 	saved_mode = ioread32(base + cfg->modemr);
 
-	pr_debug("%s: MODE = 0x%08x\n", np->full_name, saved_mode);
+	pr_debug("%pOF: MODE = 0x%08x\n", np, saved_mode);
 
 out_put:
 	of_node_put(np);

@@ -1233,8 +1233,8 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	ret = of_platform_populate(np, NULL, NULL, wrp->dev);
 	if (ret) {
-		dev_dbg(wrp->dev, "failed to create child devices at %s\n",
-				np->full_name);
+		dev_dbg(wrp->dev, "failed to create child devices at %pOF\n",
+				np);
 		goto err_out2;
 	}
 
