@@ -58,4 +58,8 @@ const char *perf_tip(const char *dirpath);
 int sched_getcpu(void);
 #endif
 
+#ifndef HAVE_SETNS_SUPPORT
+int setns(int fd, int nstype);
+#endif
+
 #endif /* GIT_COMPAT_UTIL_H */

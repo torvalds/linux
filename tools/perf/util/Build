@@ -104,6 +104,10 @@ ifndef CONFIG_LIBELF
 libperf-y += symbol-minimal.o
 endif
 
+ifndef CONFIG_SETNS
+libperf-y += setns.o
+endif
+
 libperf-$(CONFIG_DWARF) += probe-finder.o
 libperf-$(CONFIG_DWARF) += dwarf-aux.o
 libperf-$(CONFIG_DWARF) += dwarf-regs.o
