@@ -4374,7 +4374,9 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 
 	if (netdev->reg_state != NETREG_REGISTERED)
 		return;
-
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_dcbnl_init_app(priv);
+#endif
 	/* Device already registered: sync netdev system state */
 	if (mlx5e_vxlan_allowed(mdev)) {
 		rtnl_lock();
@@ -4394,6 +4396,11 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	if (priv->netdev->reg_state == NETREG_REGISTERED)
+		mlx5e_dcbnl_delete_app(priv);
+#endif
 
 	rtnl_lock();
 	if (netif_running(priv->netdev))
@@ -4615,6 +4622,9 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 		goto err_detach;
 	}
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_dcbnl_init_app(priv);
+#endif
 	return priv;
 
 err_detach:
@@ -4631,6 +4641,9 @@ static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 	struct mlx5e_priv *priv = vpriv;
 	void *ppriv = priv->ppriv;
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	mlx5e_dcbnl_delete_app(priv);
+#endif
 	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
 	mlx5e_destroy_netdev(priv);

@@ -57,6 +57,7 @@
 #define MLX5E_HW2SW_MTU(priv, hwmtu) ((hwmtu) - ((priv)->hard_mtu))
 #define MLX5E_SW2HW_MTU(priv, swmtu) ((swmtu) + ((priv)->hard_mtu))
 
+#define MLX5E_MAX_DSCP          64
 #define MLX5E_MAX_NUM_TC	8
 
 #define MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE                0x6
@@ -260,10 +261,16 @@ enum {
 struct mlx5e_dcbx {
 	enum mlx5_dcbx_oper_mode   mode;
 	struct mlx5e_cee_config    cee_cfg; /* pending configuration */
+	u8                         dscp_app_cnt;
 
 	/* The only setting that cannot be read from FW */
 	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
 	u8                         cap;
+};
+
+struct mlx5e_dcbx_dp {
+	u8                         dscp2prio[MLX5E_MAX_DSCP];
+	u8                         trust_state;
 };
 #endif
 
@@ -742,6 +749,9 @@ struct mlx5e_priv {
 	/* priv data path fields - start */
 	struct mlx5e_txqsq *txq2sq[MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC];
 	int channel_tc2txq[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	struct mlx5e_dcbx_dp       dcbx_dp;
+#endif
 	/* priv data path fields - end */
 
 	unsigned long              state;
@@ -800,6 +810,8 @@ struct mlx5e_profile {
 		mlx5e_fp_handle_rx_cqe handle_rx_cqe;
 		mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
 	} rx_handlers;
+	void	(*netdev_registered_init)(struct mlx5e_priv *priv);
+	void    (*netdev_registered_remove)(struct mlx5e_priv *priv);
 	int	max_tc;
 };
 
@@ -968,6 +980,8 @@ extern const struct ethtool_ops mlx5e_ethtool_ops;
 extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
 int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
 void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv);
+void mlx5e_dcbnl_init_app(struct mlx5e_priv *priv);
+void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv);
 #endif
 
 #ifndef CONFIG_RFS_ACCEL
@@ -1069,5 +1083,4 @@ void mlx5e_destroy_netdev(struct mlx5e_priv *priv);
 void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
 			    u16 max_channels);
-
 #endif /* __MLX5_EN_H__ */
