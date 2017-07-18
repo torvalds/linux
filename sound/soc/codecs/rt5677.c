@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/firmware.h>
+#include <linux/of_device.h>
 #include <linux/property.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -5019,25 +5020,21 @@ static const struct regmap_config rt5677_regmap = {
 };
 
 static const struct i2c_device_id rt5677_i2c_id[] = {
-	{ "rt5677", RT5677 },
-	{ "rt5676", RT5676 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
 
 static const struct of_device_id rt5677_of_match[] = {
-	{ .compatible = "realtek,rt5677", },
+	{ .compatible = "realtek,rt5677", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5677_of_match);
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5677_acpi_match[] = {
 	{ "RT5677CE", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5677_acpi_match);
-#endif
 
 static void rt5677_read_acpi_properties(struct rt5677_priv *rt5677,
 		struct device *dev)
@@ -5147,7 +5144,6 @@ static void rt5677_free_irq(struct i2c_client *i2c)
 static int rt5677_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
-	struct rt5677_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5677_priv *rt5677;
 	int ret;
 	unsigned int val;
@@ -5159,16 +5155,25 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, rt5677);
 
-	rt5677->type = id->driver_data;
+	if (i2c->dev.of_node) {
+		const struct of_device_id *match_id;
 
-	if (pdata)
-		rt5677->pdata = *pdata;
-	else if (i2c->dev.of_node)
+		match_id = of_match_device(rt5677_of_match, &i2c->dev);
+		if (match_id)
+			rt5677->type = (enum rt5677_type)match_id->data;
+
 		rt5677_read_device_properties(rt5677, &i2c->dev);
-	else if (ACPI_HANDLE(&i2c->dev))
+	} else if (ACPI_HANDLE(&i2c->dev)) {
+		const struct acpi_device_id *acpi_id;
+
+		acpi_id = acpi_match_device(rt5677_acpi_match, &i2c->dev);
+		if (acpi_id)
+			rt5677->type = (enum rt5677_type)acpi_id->driver_data;
+
 		rt5677_read_acpi_properties(rt5677, &i2c->dev);
-	else
+	} else {
 		return -EINVAL;
+	}
 
 	/* pow-ldo2 and reset are optional. The codec pins may be statically
 	 * connected on the board without gpios. If the gpio device property
