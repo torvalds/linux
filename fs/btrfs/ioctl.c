@@ -156,37 +156,6 @@ void btrfs_update_iflags(struct inode *inode)
 		      new_fl);
 }
 
-/*
- * Inherit flags from the parent inode.
- *
- * Currently only the compression flags and the cow flags are inherited.
- */
-void btrfs_inherit_iflags(struct inode *inode, struct inode *dir)
-{
-	unsigned int flags;
-
-	if (!dir)
-		return;
-
-	flags = BTRFS_I(dir)->flags;
-
-	if (flags & BTRFS_INODE_NOCOMPRESS) {
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
-		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
-	} else if (flags & BTRFS_INODE_COMPRESS) {
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
-		BTRFS_I(inode)->flags |= BTRFS_INODE_COMPRESS;
-	}
-
-	if (flags & BTRFS_INODE_NODATACOW) {
-		BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
-		if (S_ISREG(inode->i_mode))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
-	}
-
-	btrfs_update_iflags(inode);
-}
-
 static int btrfs_ioctl_getflags(struct file *file, void __user *arg)
 {
 	struct btrfs_inode *ip = BTRFS_I(file_inode(file));
