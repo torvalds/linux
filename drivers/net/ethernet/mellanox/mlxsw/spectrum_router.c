@@ -2314,8 +2314,8 @@ static void mlxsw_sp_fib4_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 }
 
 static struct mlxsw_sp_fib_node *
-mlxsw_sp_fib4_node_get(struct mlxsw_sp *mlxsw_sp,
-		       const struct fib_entry_notifier_info *fen_info);
+mlxsw_sp_fib_node_lookup(struct mlxsw_sp_fib *fib, const void *addr,
+			 size_t addr_len, unsigned char prefix_len);
 
 static struct mlxsw_sp_fib_entry *
 mlxsw_sp_fib4_entry_lookup(struct mlxsw_sp *mlxsw_sp,
@@ -2323,9 +2323,18 @@ mlxsw_sp_fib4_entry_lookup(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_fib_entry *fib_entry;
 	struct mlxsw_sp_fib_node *fib_node;
+	struct mlxsw_sp_fib *fib;
+	struct mlxsw_sp_vr *vr;
 
-	fib_node = mlxsw_sp_fib4_node_get(mlxsw_sp, fen_info);
-	if (IS_ERR(fib_node))
+	vr = mlxsw_sp_vr_find(mlxsw_sp, fen_info->tb_id);
+	if (!vr)
+		return NULL;
+	fib = mlxsw_sp_vr_fib(vr, MLXSW_SP_L3_PROTO_IPV4);
+
+	fib_node = mlxsw_sp_fib_node_lookup(fib, &fen_info->dst,
+					    sizeof(fen_info->dst),
+					    fen_info->dst_len);
+	if (!fib_node)
 		return NULL;
 
 	list_for_each_entry(fib_entry, &fib_node->entry_list, list) {
