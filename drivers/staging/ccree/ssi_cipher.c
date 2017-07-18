@@ -203,7 +203,8 @@ static int ssi_blkcipher_init(struct crypto_tfm *tfm)
 
 	/* Map key buffer */
 	ctx_p->user.key_dma_addr = dma_map_single(dev, (void *)ctx_p->user.key,
-					     max_key_buf_size, DMA_TO_DEVICE);
+						  max_key_buf_size,
+						  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, ctx_p->user.key_dma_addr)) {
 		SSI_LOG_ERR("Mapping Key %u B at va=%pK for DMA failed\n",
 			    max_key_buf_size, ctx_p->user.key);
