@@ -4625,35 +4625,27 @@ static int rt5677_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct regmap_irq_chip_data *data = rt5677->irq_data;
 	int irq;
 
-	if (offset >= RT5677_GPIO1 && offset <= RT5677_GPIO3) {
-		if ((rt5677->pdata.jd1_gpio == 1 && offset == RT5677_GPIO1) ||
-			(rt5677->pdata.jd1_gpio == 2 &&
-				offset == RT5677_GPIO2) ||
-			(rt5677->pdata.jd1_gpio == 3 &&
-				offset == RT5677_GPIO3)) {
-			irq = RT5677_IRQ_JD1;
-		} else {
-			return -ENXIO;
-		}
-	}
-
-	if (offset >= RT5677_GPIO4 && offset <= RT5677_GPIO6) {
-		if ((rt5677->pdata.jd2_gpio == 1 && offset == RT5677_GPIO4) ||
-			(rt5677->pdata.jd2_gpio == 2 &&
-				offset == RT5677_GPIO5) ||
-			(rt5677->pdata.jd2_gpio == 3 &&
-				offset == RT5677_GPIO6)) {
-			irq = RT5677_IRQ_JD2;
-		} else if ((rt5677->pdata.jd3_gpio == 1 &&
-				offset == RT5677_GPIO4) ||
-			(rt5677->pdata.jd3_gpio == 2 &&
-				offset == RT5677_GPIO5) ||
-			(rt5677->pdata.jd3_gpio == 3 &&
-				offset == RT5677_GPIO6)) {
-			irq = RT5677_IRQ_JD3;
-		} else {
-			return -ENXIO;
-		}
+	if ((rt5677->pdata.jd1_gpio == 1 && offset == RT5677_GPIO1) ||
+		(rt5677->pdata.jd1_gpio == 2 &&
+			offset == RT5677_GPIO2) ||
+		(rt5677->pdata.jd1_gpio == 3 &&
+			offset == RT5677_GPIO3)) {
+		irq = RT5677_IRQ_JD1;
+	} else if ((rt5677->pdata.jd2_gpio == 1 && offset == RT5677_GPIO4) ||
+		(rt5677->pdata.jd2_gpio == 2 &&
+			offset == RT5677_GPIO5) ||
+		(rt5677->pdata.jd2_gpio == 3 &&
+			offset == RT5677_GPIO6)) {
+		irq = RT5677_IRQ_JD2;
+	} else if ((rt5677->pdata.jd3_gpio == 1 &&
+			offset == RT5677_GPIO4) ||
+		(rt5677->pdata.jd3_gpio == 2 &&
+			offset == RT5677_GPIO5) ||
+		(rt5677->pdata.jd3_gpio == 3 &&
+			offset == RT5677_GPIO6)) {
+		irq = RT5677_IRQ_JD3;
+	} else {
+		return -ENXIO;
 	}
 
 	return regmap_irq_get_virq(data, irq);
