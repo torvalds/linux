@@ -1057,7 +1057,7 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 			if (WARN_ON(cpu == -1))
 				continue;
 
-			pr_cont("%s[%d] ", cpu_node->full_name, cpu);
+			pr_cont("%pOF[%d] ", cpu_node, cpu);
 
 			cpumask_set_cpu(cpu, &part->mask);
 		}
@@ -1125,15 +1125,13 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 
 	dist_base = of_iomap(node, 0);
 	if (!dist_base) {
-		pr_err("%s: unable to map gic dist registers\n",
-			node->full_name);
+		pr_err("%pOF: unable to map gic dist registers\n", node);
 		return -ENXIO;
 	}
 
 	err = gic_validate_dist_version(dist_base);
 	if (err) {
-		pr_err("%s: no distributor detected, giving up\n",
-			node->full_name);
+		pr_err("%pOF: no distributor detected, giving up\n", node);
 		goto out_unmap_dist;
 	}
 
@@ -1153,8 +1151,7 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 		ret = of_address_to_resource(node, 1 + i, &res);
 		rdist_regs[i].redist_base = of_iomap(node, 1 + i);
 		if (ret || !rdist_regs[i].redist_base) {
-			pr_err("%s: couldn't map region %d\n",
-			       node->full_name, i);
+			pr_err("%pOF: couldn't map region %d\n", node, i);
 			err = -ENODEV;
 			goto out_unmap_rdist;
 		}
