@@ -281,6 +281,7 @@ static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 	size_t left = n;
 
 	while (left) {
+		/* buf must be treated as const if !is_read. */
 		ssize_t ret = is_read ? read(fd, buf, left) :
 					write(fd, buf, left);
 
@@ -308,9 +309,10 @@ ssize_t readn(int fd, void *buf, size_t n)
 /*
  * Write exactly 'n' bytes or return an error.
  */
-ssize_t writen(int fd, void *buf, size_t n)
+ssize_t writen(int fd, const void *buf, size_t n)
 {
-	return ion(false, fd, buf, n);
+	/* ion does not modify buf. */
+	return ion(false, fd, (void *)buf, n);
 }
 
 size_t hex_width(u64 v)
