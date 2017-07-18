@@ -118,10 +118,9 @@ const int ib_rvt_state_ops[IB_QPS_ERR + 1] = {
 EXPORT_SYMBOL(ib_rvt_state_ops);
 
 static void get_map_page(struct rvt_qpn_table *qpt,
-			 struct rvt_qpn_map *map,
-			 gfp_t gfp)
+			 struct rvt_qpn_map *map)
 {
-	unsigned long page = get_zeroed_page(gfp);
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
 
 	/*
 	 * Free the page if someone raced with us installing it.
@@ -173,7 +172,7 @@ static int init_qpn_table(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt)
 		    rdi->dparms.qpn_res_start, rdi->dparms.qpn_res_end);
 	for (i = rdi->dparms.qpn_res_start; i <= rdi->dparms.qpn_res_end; i++) {
 		if (!map->page) {
-			get_map_page(qpt, map, GFP_KERNEL);
+			get_map_page(qpt, map);
 			if (!map->page) {
 				ret = -ENOMEM;
 				break;
@@ -342,14 +341,14 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
  * Return: The queue pair number
  */
 static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		     enum ib_qp_type type, u8 port_num, gfp_t gfp)
+		     enum ib_qp_type type, u8 port_num)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
 	u32 ret;
 
 	if (rdi->driver_f.alloc_qpn)
-		return rdi->driver_f.alloc_qpn(rdi, qpt, type, port_num, gfp);
+		return rdi->driver_f.alloc_qpn(rdi, qpt, type, port_num);
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
 		unsigned n;
@@ -374,7 +373,7 @@ static int alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
-			get_map_page(qpt, map, gfp);
+			get_map_page(qpt, map);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -672,7 +671,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ret = ERR_PTR(-ENOMEM);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibpd->device);
 	void *priv = NULL;
-	gfp_t gfp;
 	size_t sqsize;
 
 	if (!rdi)
@@ -680,17 +678,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 
 	if (init_attr->cap.max_send_sge > rdi->dparms.props.max_sge ||
 	    init_attr->cap.max_send_wr > rdi->dparms.props.max_qp_wr ||
-	    init_attr->create_flags & ~(IB_QP_CREATE_USE_GFP_NOIO))
+	    init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
-
-	/* GFP_NOIO is applicable to RC QP's only */
-
-	if (init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO &&
-	    init_attr->qp_type != IB_QPT_RC)
-		return ERR_PTR(-EINVAL);
-
-	gfp = init_attr->create_flags & IB_QP_CREATE_USE_GFP_NOIO ?
-						GFP_NOIO : GFP_KERNEL;
 
 	/* Check receive queue parameters if no SRQ is specified. */
 	if (!init_attr->srq) {
@@ -719,14 +708,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		sz = sizeof(struct rvt_sge) *
 			init_attr->cap.max_send_sge +
 			sizeof(struct rvt_swqe);
-		if (gfp == GFP_NOIO)
-			swq = __vmalloc(
-				sqsize * sz,
-				gfp | __GFP_ZERO, PAGE_KERNEL);
-		else
-			swq = vzalloc_node(
-				sqsize * sz,
-				rdi->dparms.node);
+		swq = vzalloc_node(sqsize * sz, rdi->dparms.node);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
 
@@ -741,7 +723,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		} else if (init_attr->cap.max_recv_sge > 1)
 			sg_list_sz = sizeof(*qp->r_sg_list) *
 				(init_attr->cap.max_recv_sge - 1);
-		qp = kzalloc_node(sz + sg_list_sz, gfp, rdi->dparms.node);
+		qp = kzalloc_node(sz + sg_list_sz, GFP_KERNEL,
+				  rdi->dparms.node);
 		if (!qp)
 			goto bail_swq;
 
@@ -751,7 +734,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				kzalloc_node(
 					sizeof(*qp->s_ack_queue) *
 					 rvt_max_atomic(rdi),
-					gfp,
+					GFP_KERNEL,
 					rdi->dparms.node);
 			if (!qp->s_ack_queue)
 				goto bail_qp;
@@ -766,7 +749,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		 * Driver needs to set up it's private QP structure and do any
 		 * initialization that is needed.
 		 */
-		priv = rdi->driver_f.qp_priv_alloc(rdi, qp, gfp);
+		priv = rdi->driver_f.qp_priv_alloc(rdi, qp);
 		if (IS_ERR(priv)) {
 			ret = priv;
 			goto bail_qp;
@@ -786,11 +769,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				qp->r_rq.wq = vmalloc_user(
 						sizeof(struct rvt_rwq) +
 						qp->r_rq.size * sz);
-			else if (gfp == GFP_NOIO)
-				qp->r_rq.wq = __vmalloc(
-						sizeof(struct rvt_rwq) +
-						qp->r_rq.size * sz,
-						gfp | __GFP_ZERO, PAGE_KERNEL);
 			else
 				qp->r_rq.wq = vzalloc_node(
 						sizeof(struct rvt_rwq) +
@@ -824,7 +802,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 
 		err = alloc_qpn(rdi, &rdi->qp_dev->qpn_table,
 				init_attr->qp_type,
-				init_attr->port_num, gfp);
+				init_attr->port_num);
 		if (err < 0) {
 			ret = ERR_PTR(err);
 			goto bail_rq_wq;
