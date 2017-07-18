@@ -492,7 +492,7 @@ DRM Sync Objects
    :doc: Overview
 
 .. kernel-doc:: include/drm/drm_syncobj.h
-   :export:
+   :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
    :export:
