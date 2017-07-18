@@ -150,12 +150,12 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 		}
 		capacity_scale = max(cpu_capacity, capacity_scale);
 		raw_capacity[cpu] = cpu_capacity;
-		pr_debug("cpu_capacity: %s cpu_capacity=%u (raw)\n",
-			cpu_node->full_name, raw_capacity[cpu]);
+		pr_debug("cpu_capacity: %pOF cpu_capacity=%u (raw)\n",
+			cpu_node, raw_capacity[cpu]);
 	} else {
 		if (raw_capacity) {
-			pr_err("cpu_capacity: missing %s raw capacity\n",
-				cpu_node->full_name);
+			pr_err("cpu_capacity: missing %pOF raw capacity\n",
+				cpu_node);
 			pr_err("cpu_capacity: partial information: fallback to 1024 for all CPUs\n");
 		}
 		cap_parsing_failed = true;
