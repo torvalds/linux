@@ -136,7 +136,9 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 
 	/* Allocate DMA word for "dummy" completion descriptor use */
 	req_mgr_h->dummy_comp_buff = dma_alloc_coherent(&drvdata->plat_dev->dev,
-		sizeof(u32), &req_mgr_h->dummy_comp_buff_dma, GFP_KERNEL);
+							sizeof(u32),
+							&req_mgr_h->dummy_comp_buff_dma,
+							GFP_KERNEL);
 	if (!req_mgr_h->dummy_comp_buff) {
 		SSI_LOG_ERR("Not enough memory to allocate DMA (%zu) dropped "
 			   "buffer\n", sizeof(u32));
