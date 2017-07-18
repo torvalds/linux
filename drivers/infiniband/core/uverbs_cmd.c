@@ -2005,28 +2005,13 @@ static int modify_qp(struct ib_uverbs_file *file,
 	rdma_ah_set_port_num(&attr->alt_ah_attr,
 			     cmd->base.alt_dest.port_num);
 
-	if (qp->real_qp == qp) {
-		if (cmd->base.attr_mask & IB_QP_AV) {
-			ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
-			if (ret)
-				goto release_qp;
-		}
-		ret = ib_security_modify_qp(qp,
-					    attr,
-					    modify_qp_mask(qp->qp_type,
-							   cmd->base.attr_mask),
-					    udata);
-	} else {
-		ret = ib_security_modify_qp(qp,
-					    attr,
-					    modify_qp_mask(qp->qp_type,
-							   cmd->base.attr_mask),
-					    NULL);
-	}
+	ret = ib_modify_qp_with_udata(qp, attr,
+				      modify_qp_mask(qp->qp_type,
+						     cmd->base.attr_mask),
+				      udata);
 
 release_qp:
 	uobj_put_obj_read(qp);
-
 out:
 	kfree(attr);
 

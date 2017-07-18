@@ -10868,6 +10868,14 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/qedf/
 
+QLOGIC QL4xxx RDMA DRIVER
+M:	Ram Amrani <Ram.Amrani@cavium.com>
+M:	Ariel Elior <Ariel.Elior@cavium.com>
+L:	linux-rdma@vger.kernel.org
+S:	Supported
+F:	drivers/infiniband/hw/qedr/
+F:	include/uapi/rdma/qedr-abi.h
+
 QNX4 FILESYSTEM
 M:	Anders Larsen <al@alarsen.net>
 W:	http://www.alarsen.net/linux/qnx4fs/
