@@ -33,32 +33,6 @@ enum {
 	LINK_TRAINING_MAX_CR_RETRY = 100
 };
 
-static const struct dc_link_settings link_training_fallback_table[] = {
-/* 4320 Mbytes/sec*/
-{ LANE_COUNT_FOUR, LINK_RATE_HIGH3, LINK_SPREAD_DISABLED },
-/* 2160 Mbytes/sec*/
-{ LANE_COUNT_FOUR, LINK_RATE_HIGH2, LINK_SPREAD_DISABLED },
-/* 1080 Mbytes/sec*/
-{ LANE_COUNT_FOUR, LINK_RATE_HIGH, LINK_SPREAD_DISABLED },
-/* 648 Mbytes/sec*/
-{ LANE_COUNT_FOUR, LINK_RATE_LOW, LINK_SPREAD_DISABLED },
-/* 2160 Mbytes/sec*/
-{ LANE_COUNT_TWO, LINK_RATE_HIGH3, LINK_SPREAD_DISABLED },
-/* 1080 Mbytes/sec*/
-{ LANE_COUNT_TWO, LINK_RATE_HIGH2, LINK_SPREAD_DISABLED },
-/* 540 Mbytes/sec*/
-{ LANE_COUNT_TWO, LINK_RATE_HIGH, LINK_SPREAD_DISABLED },
-/* 324 Mbytes/sec*/
-{ LANE_COUNT_TWO, LINK_RATE_LOW, LINK_SPREAD_DISABLED },
-/* 1080 Mbytes/sec*/
-{ LANE_COUNT_ONE, LINK_RATE_HIGH3, LINK_SPREAD_DISABLED },
-/* 540 Mbytes/sec*/
-{ LANE_COUNT_ONE, LINK_RATE_HIGH2, LINK_SPREAD_DISABLED },
-/* 270 Mbytes/sec*/
-{ LANE_COUNT_ONE, LINK_RATE_HIGH, LINK_SPREAD_DISABLED },
-/* 162 Mbytes/sec*/
-{ LANE_COUNT_ONE, LINK_RATE_LOW, LINK_SPREAD_DISABLED } };
-
 static void wait_for_training_aux_rd_interval(
 	struct core_link* link,
 	uint32_t default_wait_in_micro_secs)
@@ -1053,29 +1027,6 @@ bool perform_link_training_with_retries(
 	return false;
 }
 
-/*TODO add more check to see if link support request link configuration */
-static bool is_link_setting_supported(
-	const struct dc_link_settings *link_setting,
-	const struct dc_link_settings *max_link_setting)
-{
-	if (link_setting->lane_count > max_link_setting->lane_count ||
-		link_setting->link_rate > max_link_setting->link_rate)
-		return false;
-	return true;
-}
-
-static const uint32_t get_link_training_fallback_table_len(
-	struct core_link *link)
-{
-	return ARRAY_SIZE(link_training_fallback_table);
-}
-
-static const struct dc_link_settings *get_link_training_fallback_table(
-	struct core_link *link, uint32_t i)
-{
-	return &link_training_fallback_table[i];
-}
-
 static struct dc_link_settings get_max_link_cap(struct core_link *link)
 {
 	/* Set Default link settings */
@@ -1284,6 +1235,32 @@ enum dc_link_rate reduce_link_rate(enum dc_link_rate link_rate)
 	}
 }
 
+enum dc_lane_count increase_lane_count(enum dc_lane_count lane_count)
+{
+	switch (lane_count) {
+	case LANE_COUNT_ONE:
+		return LANE_COUNT_TWO;
+	case LANE_COUNT_TWO:
+		return LANE_COUNT_FOUR;
+	default:
+		return LANE_COUNT_UNKNOWN;
+	}
+}
+
+enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
+{
+	switch (link_rate) {
+	case LINK_RATE_LOW:
+		return LINK_RATE_HIGH;
+	case LINK_RATE_HIGH:
+		return LINK_RATE_HIGH2;
+	case LINK_RATE_HIGH2:
+		return LINK_RATE_HIGH3;
+	default:
+		return LINK_RATE_UNKNOWN;
+	}
+}
+
 /*
  * function: set link rate and lane count fallback based
  * on current link setting and last link training result
@@ -1463,57 +1440,60 @@ void decide_link_settings(struct core_stream *stream,
 	struct dc_link_settings *link_setting)
 {
 
-	const struct dc_link_settings *cur_ls;
+	struct dc_link_settings initial_link_setting = {
+		LANE_COUNT_ONE, LINK_RATE_LOW, LINK_SPREAD_DISABLED};
+	struct dc_link_settings current_link_setting =
+			initial_link_setting;
 	struct core_link* link;
 	uint32_t req_bw;
 	uint32_t link_bw;
-	uint32_t i;
 
 	req_bw = bandwidth_in_kbps_from_timing(
 			&stream->public.timing);
 
+	link = stream->sink->link;
+
 	/* if preferred is specified through AMDDP, use it, if it's enough
 	 * to drive the mode
 	 */
-	link = stream->sink->link;
-
-	if ((link->public.reported_link_cap.lane_count != LANE_COUNT_UNKNOWN) &&
-		(link->public.reported_link_cap.link_rate <=
-				link->public.verified_link_cap.link_rate)) {
-
-		link_bw = bandwidth_in_kbps_from_link_settings(
-				&link->public.reported_link_cap);
-
-		if (req_bw < link_bw) {
-			*link_setting = link->public.reported_link_cap;
-			return;
-		}
+	if (link->public.preferred_link_setting.lane_count !=
+			LANE_COUNT_UNKNOWN &&
+			link->public.preferred_link_setting.link_rate !=
+					LINK_RATE_UNKNOWN) {
+		*link_setting =  link->public.preferred_link_setting;
+		return;
 	}
 
-	/* search for first suitable setting for the requested
-	 * bandwidth
-	 */
-	for (i = 0; i < get_link_training_fallback_table_len(link); i++) {
+    /* search for the minimum link setting that:
+     * 1. is supported according to the link training result
+     * 2. could support the b/w requested by the timing
+     */
+	while (current_link_setting.link_rate <=
+			link->public.max_link_setting.link_rate) {
+		link_bw = bandwidth_in_kbps_from_link_settings(
+				&current_link_setting);
+		if (req_bw <= link_bw) {
+			*link_setting = current_link_setting;
+			return;
+		}
 
-		cur_ls = get_link_training_fallback_table(link, i);
-
-		link_bw =
-				bandwidth_in_kbps_from_link_settings(
-				cur_ls);
-
-		if (req_bw < link_bw) {
-			if (is_link_setting_supported(
-				cur_ls,
-				&link->public.max_link_setting)) {
-				*link_setting = *cur_ls;
-				return;
-			}
+		if (current_link_setting.lane_count <
+				link->public.max_link_setting.lane_count) {
+			current_link_setting.lane_count =
+					increase_lane_count(
+							current_link_setting.lane_count);
+		} else {
+			current_link_setting.link_rate =
+					increase_link_rate(
+							current_link_setting.link_rate);
+			current_link_setting.lane_count =
+					initial_link_setting.lane_count;
 		}
 	}
 
 	BREAK_TO_DEBUGGER();
 	ASSERT(link->public.verified_link_cap.lane_count !=
-		LANE_COUNT_UNKNOWN);
+			LANE_COUNT_UNKNOWN);
 
 	*link_setting = link->public.verified_link_cap;
 }

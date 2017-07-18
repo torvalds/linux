@@ -308,10 +308,8 @@ static void set_preferred_link_settings(struct dc *dc,
 {
 	struct core_link *core_link = DC_LINK_TO_CORE(link);
 
-	core_link->public.verified_link_cap.lane_count =
-				link_setting->lane_count;
-	core_link->public.verified_link_cap.link_rate =
-				link_setting->link_rate;
+	core_link->public.preferred_link_setting =
+				*link_setting;
 	dp_retrain_link_dp_test(core_link, link_setting, false);
 }
 
