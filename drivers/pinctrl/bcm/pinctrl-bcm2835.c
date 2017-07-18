@@ -692,8 +692,7 @@ static int bcm2835_pctl_dt_node_to_map_func(struct bcm2835_pinctrl *pc,
 	struct pinctrl_map *map = *maps;
 
 	if (fnum >= ARRAY_SIZE(bcm2835_functions)) {
-		dev_err(pc->dev, "%s: invalid brcm,function %d\n",
-			of_node_full_name(np), fnum);
+		dev_err(pc->dev, "%pOF: invalid brcm,function %d\n", np, fnum);
 		return -EINVAL;
 	}
 
@@ -713,8 +712,7 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 	unsigned long *configs;
 
 	if (pull > 2) {
-		dev_err(pc->dev, "%s: invalid brcm,pull %d\n",
-			of_node_full_name(np), pull);
+		dev_err(pc->dev, "%pOF: invalid brcm,pull %d\n", np, pull);
 		return -EINVAL;
 	}
 
@@ -745,8 +743,7 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	pins = of_find_property(np, "brcm,pins", NULL);
 	if (!pins) {
-		dev_err(pc->dev, "%s: missing brcm,pins property\n",
-				of_node_full_name(np));
+		dev_err(pc->dev, "%pOF: missing brcm,pins property\n", np);
 		return -EINVAL;
 	}
 
@@ -755,8 +752,8 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	if (!funcs && !pulls) {
 		dev_err(pc->dev,
-			"%s: neither brcm,function nor brcm,pull specified\n",
-			of_node_full_name(np));
+			"%pOF: neither brcm,function nor brcm,pull specified\n",
+			np);
 		return -EINVAL;
 	}
 
@@ -766,15 +763,15 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	if (num_funcs > 1 && num_funcs != num_pins) {
 		dev_err(pc->dev,
-			"%s: brcm,function must have 1 or %d entries\n",
-			of_node_full_name(np), num_pins);
+			"%pOF: brcm,function must have 1 or %d entries\n",
+			np, num_pins);
 		return -EINVAL;
 	}
 
 	if (num_pulls > 1 && num_pulls != num_pins) {
 		dev_err(pc->dev,
-			"%s: brcm,pull must have 1 or %d entries\n",
-			of_node_full_name(np), num_pins);
+			"%pOF: brcm,pull must have 1 or %d entries\n",
+			np, num_pins);
 		return -EINVAL;
 	}
 
@@ -793,8 +790,8 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		if (err)
 			goto out;
 		if (pin >= ARRAY_SIZE(bcm2835_gpio_pins)) {
-			dev_err(pc->dev, "%s: invalid brcm,pins value %d\n",
-				of_node_full_name(np), pin);
+			dev_err(pc->dev, "%pOF: invalid brcm,pins value %d\n",
+				np, pin);
 			err = -EINVAL;
 			goto out;
 		}

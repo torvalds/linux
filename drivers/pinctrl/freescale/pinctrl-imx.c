@@ -461,16 +461,14 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 		list = of_get_property(np, "pinmux", &size);
 		if (!list) {
 			dev_err(info->dev,
-				"no fsl,pins and pins property in node %s\n",
-				np->full_name);
+				"no fsl,pins and pins property in node %pOF\n", np);
 			return -EINVAL;
 		}
 	}
 
 	/* we do not check return since it's safe node passed down */
 	if (!size || size % pin_size) {
-		dev_err(info->dev, "Invalid fsl,pins or pins property in node %s\n",
-			np->full_name);
+		dev_err(info->dev, "Invalid fsl,pins or pins property in node %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -554,7 +552,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->num_group_names = of_get_child_count(np);
 	if (func->num_group_names == 0) {
-		dev_err(info->dev, "no groups defined in %s\n", np->full_name);
+		dev_err(info->dev, "no groups defined in %pOF\n", np);
 		return -EINVAL;
 	}
 	func->group_names = devm_kcalloc(info->dev, func->num_group_names,

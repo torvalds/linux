@@ -679,7 +679,7 @@ static int samsung_pinctrl_create_function(struct device *dev,
 
 	npins = of_property_count_strings(func_np, "samsung,pins");
 	if (npins < 1) {
-		dev_err(dev, "invalid pin list in %s node", func_np->name);
+		dev_err(dev, "invalid pin list in %pOFn node", func_np);
 		return -EINVAL;
 	}
 
@@ -696,8 +696,8 @@ static int samsung_pinctrl_create_function(struct device *dev,
 							i, &gname);
 		if (ret) {
 			dev_err(dev,
-				"failed to read pin name %d from %s node\n",
-				i, func_np->name);
+				"failed to read pin name %d from %pOFn node\n",
+				i, func_np);
 			return ret;
 		}
 

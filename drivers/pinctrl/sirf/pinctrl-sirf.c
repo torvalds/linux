@@ -810,7 +810,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	sgpio->chip.gc.set = sirfsoc_gpio_set_value;
 	sgpio->chip.gc.base = 0;
 	sgpio->chip.gc.ngpio = SIRFSOC_GPIO_BANK_SIZE * SIRFSOC_GPIO_NO_OF_BANKS;
-	sgpio->chip.gc.label = kstrdup(np->full_name, GFP_KERNEL);
+	sgpio->chip.gc.label = kasprintf(GFP_KERNEL, "%pOF", np);
 	sgpio->chip.gc.of_node = np;
 	sgpio->chip.gc.of_xlate = sirfsoc_gpio_of_xlate;
 	sgpio->chip.gc.of_gpio_n_cells = 2;
@@ -819,8 +819,8 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 
 	err = gpiochip_add_data(&sgpio->chip.gc, sgpio);
 	if (err) {
-		dev_err(&pdev->dev, "%s: error in probe function with status %d\n",
-			np->full_name, err);
+		dev_err(&pdev->dev, "%pOF: error in probe function with status %d\n",
+			np, err);
 		goto out;
 	}
 

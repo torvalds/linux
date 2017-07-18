@@ -290,7 +290,7 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (*num_maps)
 		return 0;
 
-	dev_err(dev, "no mapping found in node %s\n", np->full_name);
+	dev_err(dev, "no mapping found in node %pOF\n", np);
 	ret = -EINVAL;
 
 done:

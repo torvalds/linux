@@ -1537,7 +1537,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 			return err;
 		}
 	} else {
-		dev_info(dev, "No IRQ support for %s bank\n", np->full_name);
+		dev_info(dev, "No IRQ support for %pOF bank\n", np);
 	}
 
 	return 0;

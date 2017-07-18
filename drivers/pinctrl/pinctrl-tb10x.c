@@ -557,8 +557,8 @@ static int tb10x_dt_node_to_map(struct pinctrl_dev *pctl,
 	int ret = 0;
 
 	if (of_property_read_string(np_config, "abilis,function", &string)) {
-		pr_err("%s: No abilis,function property in device tree.\n",
-			np_config->full_name);
+		pr_err("%pOF: No abilis,function property in device tree.\n",
+			np_config);
 		return -EINVAL;
 	}
 
