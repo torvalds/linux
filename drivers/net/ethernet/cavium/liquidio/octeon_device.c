@@ -876,11 +876,11 @@ int octeon_setup_instr_queues(struct octeon_device *oct)
 
 	oct->num_iqs = 0;
 
-	oct->instr_queue[0] = vmalloc_node(sizeof(*oct->instr_queue[0]),
+	oct->instr_queue[0] = vzalloc_node(sizeof(*oct->instr_queue[0]),
 				numa_node);
 	if (!oct->instr_queue[0])
 		oct->instr_queue[0] =
-			vmalloc(sizeof(struct octeon_instr_queue));
+			vzalloc(sizeof(struct octeon_instr_queue));
 	if (!oct->instr_queue[0])
 		return 1;
 	memset(oct->instr_queue[0], 0, sizeof(struct octeon_instr_queue));
@@ -923,9 +923,9 @@ int octeon_setup_output_queues(struct octeon_device *oct)
 		desc_size = CFG_GET_DEF_RX_BUF_SIZE(CHIP_CONF(oct, cn23xx_vf));
 	}
 	oct->num_oqs = 0;
-	oct->droq[0] = vmalloc_node(sizeof(*oct->droq[0]), numa_node);
+	oct->droq[0] = vzalloc_node(sizeof(*oct->droq[0]), numa_node);
 	if (!oct->droq[0])
-		oct->droq[0] = vmalloc(sizeof(*oct->droq[0]));
+		oct->droq[0] = vzalloc(sizeof(*oct->droq[0]));
 	if (!oct->droq[0])
 		return 1;
 
