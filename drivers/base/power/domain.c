@@ -1775,7 +1775,7 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 	mutex_lock(&of_genpd_mutex);
 	list_add(&cp->link, &of_genpd_providers);
 	mutex_unlock(&of_genpd_mutex);
-	pr_debug("Added domain provider from %s\n", np->full_name);
+	pr_debug("Added domain provider from %pOF\n", np);
 
 	return 0;
 }
@@ -2181,16 +2181,16 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	err = of_property_read_u32(state_node, "entry-latency-us",
 						&entry_latency);
 	if (err) {
-		pr_debug(" * %s missing entry-latency-us property\n",
-						state_node->full_name);
+		pr_debug(" * %pOF missing entry-latency-us property\n",
+						state_node);
 		return -EINVAL;
 	}
 
 	err = of_property_read_u32(state_node, "exit-latency-us",
 						&exit_latency);
 	if (err) {
-		pr_debug(" * %s missing exit-latency-us property\n",
-						state_node->full_name);
+		pr_debug(" * %pOF missing exit-latency-us property\n",
+						state_node);
 		return -EINVAL;
 	}
 
@@ -2244,8 +2244,8 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 		ret = genpd_parse_state(&st[i++], np);
 		if (ret) {
 			pr_err
-			("Parsing idle state node %s failed with err %d\n",
-							np->full_name, ret);
+			("Parsing idle state node %pOF failed with err %d\n",
+							np, ret);
 			of_node_put(np);
 			kfree(st);
 			return ret;
