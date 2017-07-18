@@ -13,7 +13,6 @@
 
 #include <linux/mdio.h>
 #include <linux/module.h>
-#include <net/dsa.h>
 
 #include "chip.h"
 #include "phy.h"
@@ -246,4 +245,100 @@ void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip)
 int mv88e6xxx_phy_setup(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_phy_ppu_enable(chip);
+}
+
+/* Page 0, Register 16: Copper Specific Control Register 1 */
+
+int mv88e6352_phy_energy_detect_read(struct mv88e6xxx_chip *chip, int phy,
+				     struct ethtool_eee *eee)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_phy_read(chip, phy, MV88E6XXX_PHY_CSCTL1, &val);
+	if (err)
+		return err;
+
+	val &= MV88E6352_PHY_CSCTL1_ENERGY_DETECT_MASK;
+
+	eee->eee_enabled = false;
+	eee->tx_lpi_enabled = false;
+
+	switch (val) {
+	case MV88E6352_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP:
+		eee->tx_lpi_enabled = true;
+		/* fall through... */
+	case MV88E6352_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV:
+		eee->eee_enabled = true;
+	}
+
+	return 0;
+}
+
+int mv88e6352_phy_energy_detect_write(struct mv88e6xxx_chip *chip, int phy,
+				      struct ethtool_eee *eee)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_phy_read(chip, phy, MV88E6XXX_PHY_CSCTL1, &val);
+	if (err)
+		return err;
+
+	val &= ~MV88E6352_PHY_CSCTL1_ENERGY_DETECT_MASK;
+
+	if (eee->eee_enabled)
+		val |= MV88E6352_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV;
+	if (eee->tx_lpi_enabled)
+		val |= MV88E6352_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP;
+
+	return mv88e6xxx_phy_write(chip, phy, MV88E6XXX_PHY_CSCTL1, val);
+}
+
+int mv88e6390_phy_energy_detect_read(struct mv88e6xxx_chip *chip, int phy,
+				     struct ethtool_eee *eee)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_phy_read(chip, phy, MV88E6XXX_PHY_CSCTL1, &val);
+	if (err)
+		return err;
+
+	val &= MV88E6390_PHY_CSCTL1_ENERGY_DETECT_MASK;
+
+	eee->eee_enabled = false;
+	eee->tx_lpi_enabled = false;
+
+	switch (val) {
+	case MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP_AUTO:
+	case MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP_SW:
+		eee->tx_lpi_enabled = true;
+		/* fall through... */
+	case MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV_AUTO:
+	case MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV_SW:
+		eee->eee_enabled = true;
+	}
+
+	return 0;
+}
+
+int mv88e6390_phy_energy_detect_write(struct mv88e6xxx_chip *chip, int phy,
+				      struct ethtool_eee *eee)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_phy_read(chip, phy, MV88E6XXX_PHY_CSCTL1, &val);
+	if (err)
+		return err;
+
+	val &= ~MV88E6390_PHY_CSCTL1_ENERGY_DETECT_MASK;
+
+	if (eee->eee_enabled)
+		val |= MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_RCV_AUTO;
+	if (eee->tx_lpi_enabled)
+		val |= MV88E6390_PHY_CSCTL1_ENERGY_DETECT_SENSE_NLP_AUTO;
+
+	return mv88e6xxx_phy_write(chip, phy, MV88E6XXX_PHY_CSCTL1, val);
 }
