@@ -665,8 +665,8 @@ atmci_of_init(struct platform_device *pdev)
 
 	for_each_child_of_node(np, cnp) {
 		if (of_property_read_u32(cnp, "reg", &slot_id)) {
-			dev_warn(&pdev->dev, "reg property is missing for %s\n",
-				 cnp->full_name);
+			dev_warn(&pdev->dev, "reg property is missing for %pOF\n",
+				 cnp);
 			continue;
 		}
 

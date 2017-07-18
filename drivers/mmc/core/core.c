@@ -1134,11 +1134,11 @@ int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
 	voltage_ranges = of_get_property(np, "voltage-ranges", &num_ranges);
 	num_ranges = num_ranges / sizeof(*voltage_ranges) / 2;
 	if (!voltage_ranges) {
-		pr_debug("%s: voltage-ranges unspecified\n", np->full_name);
+		pr_debug("%pOF: voltage-ranges unspecified\n", np);
 		return 0;
 	}
 	if (!num_ranges) {
-		pr_err("%s: voltage-ranges empty\n", np->full_name);
+		pr_err("%pOF: voltage-ranges empty\n", np);
 		return -EINVAL;
 	}
 
@@ -1150,8 +1150,8 @@ int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
 				be32_to_cpu(voltage_ranges[j]),
 				be32_to_cpu(voltage_ranges[j + 1]));
 		if (!ocr_mask) {
-			pr_err("%s: voltage-range #%d is invalid\n",
-				np->full_name, i);
+			pr_err("%pOF: voltage-range #%d is invalid\n",
+				np, i);
 			return -EINVAL;
 		}
 		*mask |= ocr_mask;
