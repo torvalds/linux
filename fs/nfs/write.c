@@ -335,8 +335,11 @@ static void nfs_end_page_writeback(struct nfs_page *req)
 {
 	struct inode *inode = page_file_mapping(req->wb_page)->host;
 	struct nfs_server *nfss = NFS_SERVER(inode);
+	bool is_done;
 
-	if (!nfs_page_group_sync_on_bit(req, PG_WB_END))
+	is_done = nfs_page_group_sync_on_bit(req, PG_WB_END);
+	nfs_unlock_request(req);
+	if (!is_done)
 		return;
 
 	end_page_writeback(req->wb_page);
@@ -596,7 +599,6 @@ try_again:
 
 static void nfs_write_error_remove_page(struct nfs_page *req)
 {
-	nfs_unlock_request(req);
 	nfs_end_page_writeback(req);
 	generic_error_remove_page(page_file_mapping(req->wb_page),
 				  req->wb_page);
@@ -1019,7 +1021,6 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 remove_req:
 		nfs_inode_remove_request(req);
 next:
-		nfs_unlock_request(req);
 		nfs_end_page_writeback(req);
 		nfs_release_request(req);
 	}
@@ -1406,7 +1407,6 @@ static void nfs_redirty_request(struct nfs_page *req)
 {
 	nfs_mark_request_dirty(req);
 	set_bit(NFS_CONTEXT_RESEND_WRITES, &req->wb_context->flags);
-	nfs_unlock_request(req);
 	nfs_end_page_writeback(req);
 	nfs_release_request(req);
 }
