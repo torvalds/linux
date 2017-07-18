@@ -151,15 +151,10 @@ static int exynos_irq_set_type(struct irq_data *irqd, unsigned int type)
 
 static int exynos_irq_request_resources(struct irq_data *irqd)
 {
-	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
-	struct exynos_irq_chip *our_chip = to_exynos_irq_chip(chip);
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 	const struct samsung_pin_bank_type *bank_type = bank->type;
-	unsigned int shift = EXYNOS_EINT_CON_LEN * irqd->hwirq;
-	unsigned long reg_con = our_chip->eint_con + bank->eint_offset;
-	unsigned long flags;
-	unsigned int mask;
-	unsigned int con;
+	unsigned long reg_con, flags;
+	unsigned int shift, mask, con;
 	int ret;
 
 	ret = gpiochip_lock_as_irq(&bank->gpio_chip, irqd->hwirq);
@@ -188,15 +183,10 @@ static int exynos_irq_request_resources(struct irq_data *irqd)
 
 static void exynos_irq_release_resources(struct irq_data *irqd)
 {
-	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
-	struct exynos_irq_chip *our_chip = to_exynos_irq_chip(chip);
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 	const struct samsung_pin_bank_type *bank_type = bank->type;
-	unsigned int shift = EXYNOS_EINT_CON_LEN * irqd->hwirq;
-	unsigned long reg_con = our_chip->eint_con + bank->eint_offset;
-	unsigned long flags;
-	unsigned int mask;
-	unsigned int con;
+	unsigned long reg_con, flags;
+	unsigned int shift, mask, con;
 
 	reg_con = bank->pctl_offset + bank_type->reg_offset[PINCFG_TYPE_FUNC];
 	shift = irqd->hwirq * bank_type->fld_width[PINCFG_TYPE_FUNC];
