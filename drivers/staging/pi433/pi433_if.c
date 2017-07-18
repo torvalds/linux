@@ -618,7 +618,7 @@ pi433_tx_thread(void *data)
 		}
 
 		/* we are done. Wait for packet to get sent */
-		dev_dbg(device->dev, "thread: wiat for packet to get sent/fifo to be empty");
+		dev_dbg(device->dev, "thread: wait for packet to get sent/fifo to be empty");
 		wait_event_interruptible(device->fifo_wait_queue,
 					 device->free_in_fifo == FIFO_SIZE ||
 					 kthread_should_stop() );
@@ -1101,7 +1101,7 @@ static int pi433_probe(struct spi_device *spi)
 	switch(retval)
 	{
 		case 0x24:
-			dev_dbg(&spi->dev, "fonud pi433 (ver. 0x%x)", retval);
+			dev_dbg(&spi->dev, "found pi433 (ver. 0x%x)", retval);
 			break;
 		default:
 			dev_dbg(&spi->dev, "unknown chip version: 0x%x", retval);
