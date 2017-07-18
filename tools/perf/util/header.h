@@ -144,6 +144,8 @@ bool is_perf_magic(u64 magic);
 
 #define NAME_ALIGN 64
 
+int do_write(int fd, const void *buf, size_t size);
+
 int write_padded(int fd, const void *bf, size_t count, size_t count_aligned);
 
 /*

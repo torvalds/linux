@@ -75,17 +75,13 @@ bool perf_header__has_feat(const struct perf_header *header, int feat)
 }
 
 /* Return: 0 if succeded, -ERR if failed. */
-static int do_write(int fd, const void *buf, size_t size)
+int do_write(int fd, const void *buf, size_t size)
 {
-	while (size) {
-		int ret = write(fd, buf, size);
+	ssize_t ret;
 
-		if (ret < 0)
-			return -errno;
-
-		size -= ret;
-		buf += ret;
-	}
+	ret  = writen(fd, buf, size);
+	if (ret != (ssize_t)size)
+		return ret < 0 ? (int)ret : -1;
 
 	return 0;
 }

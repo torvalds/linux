@@ -304,7 +304,7 @@ static int write_buildid(const char *name, size_t name_len, u8 *build_id,
 	b.header.misc = misc;
 	b.header.size = sizeof(b) + len;
 
-	err = writen(fd, &b, sizeof(b));
+	err = do_write(fd, &b, sizeof(b));
 	if (err < 0)
 		return err;
 
