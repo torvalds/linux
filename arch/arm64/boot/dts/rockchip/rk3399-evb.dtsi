@@ -41,6 +41,7 @@
  */
 
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include "rk3399.dtsi"
 #include "rk3399-opp.dtsi"
 
@@ -292,14 +293,28 @@
 };
 
 &dfi {
-//	status = "okay";
+	status = "okay";
 };
 
 &dmc {
-//	status = "okay";
+	status = "okay";
 	center-supply = <&vdd_center>;
-	upthreshold = <60>;
-	downdifferential = <40>;
+	upthreshold = <50>;
+	downdifferential = <20>;
+	system-status-freq = <
+		/*system status		freq(KHz)*/
+		SYS_STATUS_NORMAL	800000
+		SYS_STATUS_REBOOT	528000
+		SYS_STATUS_SUSPEND	200000
+		SYS_STATUS_VIDEO_1080P	200000
+		SYS_STATUS_VIDEO_4K	528000
+		SYS_STATUS_PERFORMANCE	800000
+		SYS_STATUS_BOOST	400000
+		SYS_STATUS_DUALVIEW	600000
+		SYS_STATUS_ISP		600000
+	>;
+	auto-min-freq = <200000>;
+	auto-freq-en = <0>;
 };
 
 &sdhci {
