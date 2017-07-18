@@ -49,6 +49,7 @@
 #include <net/ip_fib.h>
 #include <net/fib_rules.h>
 #include <net/l3mdev.h>
+#include <net/addrconf.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -2941,17 +2942,30 @@ static void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_neigh_rif_gone_sync(mlxsw_sp, rif);
 }
 
-static bool mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif,
-				       const struct in_device *in_dev,
-				       unsigned long event)
+static bool
+mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif, struct net_device *dev,
+			   unsigned long event)
 {
+	struct inet6_dev *inet6_dev;
+	bool addr_list_empty = true;
+	struct in_device *idev;
+
 	switch (event) {
 	case NETDEV_UP:
 		if (!rif)
 			return true;
 		return false;
 	case NETDEV_DOWN:
-		if (rif && !in_dev->ifa_list &&
+		idev = __in_dev_get_rtnl(dev);
+		if (idev && idev->ifa_list)
+			addr_list_empty = false;
+
+		inet6_dev = __in6_dev_get(dev);
+		if (addr_list_empty && inet6_dev &&
+		    !list_empty(&inet6_dev->addr_list))
+			addr_list_empty = false;
+
+		if (rif && addr_list_empty &&
 		    !netif_is_l3_slave(rif->dev))
 			return true;
 		/* It is possible we already removed the RIF ourselves
@@ -3349,12 +3363,67 @@ int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 		goto out;
 
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (!mlxsw_sp_rif_should_config(rif, ifa->ifa_dev, event))
+	if (!mlxsw_sp_rif_should_config(rif, dev, event))
 		goto out;
 
 	err = __mlxsw_sp_inetaddr_event(dev, event);
 out:
 	return notifier_from_errno(err);
+}
+
+struct mlxsw_sp_inet6addr_event_work {
+	struct work_struct work;
+	struct net_device *dev;
+	unsigned long event;
+};
+
+static void mlxsw_sp_inet6addr_event_work(struct work_struct *work)
+{
+	struct mlxsw_sp_inet6addr_event_work *inet6addr_work =
+		container_of(work, struct mlxsw_sp_inet6addr_event_work, work);
+	struct net_device *dev = inet6addr_work->dev;
+	unsigned long event = inet6addr_work->event;
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif *rif;
+
+	rtnl_lock();
+	mlxsw_sp = mlxsw_sp_lower_get(dev);
+	if (!mlxsw_sp)
+		goto out;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!mlxsw_sp_rif_should_config(rif, dev, event))
+		goto out;
+
+	__mlxsw_sp_inetaddr_event(dev, event);
+out:
+	rtnl_unlock();
+	dev_put(dev);
+	kfree(inet6addr_work);
+}
+
+/* Called with rcu_read_lock() */
+int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
+			     unsigned long event, void *ptr)
+{
+	struct inet6_ifaddr *if6 = (struct inet6_ifaddr *) ptr;
+	struct mlxsw_sp_inet6addr_event_work *inet6addr_work;
+	struct net_device *dev = if6->idev->dev;
+
+	if (!mlxsw_sp_port_dev_lower_find_rcu(dev))
+		return NOTIFY_DONE;
+
+	inet6addr_work = kzalloc(sizeof(*inet6addr_work), GFP_ATOMIC);
+	if (!inet6addr_work)
+		return NOTIFY_BAD;
+
+	INIT_WORK(&inet6addr_work->work, mlxsw_sp_inet6addr_event_work);
+	inet6addr_work->dev = dev;
+	inet6addr_work->event = event;
+	dev_hold(dev);
+	mlxsw_core_schedule_work(&inet6addr_work->work);
+
+	return NOTIFY_DONE;
 }
 
 static int mlxsw_sp_rif_edit(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
