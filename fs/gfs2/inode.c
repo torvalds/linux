@@ -201,14 +201,14 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 fail_refresh:
 	ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-	glock_set_object(ip->i_iopen_gh.gh_gl, NULL);
+	glock_clear_object(ip->i_iopen_gh.gh_gl, ip);
 	gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 fail_put:
 	if (io_gl)
 		gfs2_glock_put(io_gl);
 	if (gfs2_holder_initialized(&i_gh))
 		gfs2_glock_dq_uninit(&i_gh);
-	glock_set_object(ip->i_gl, NULL);
+	glock_clear_object(ip->i_gl, ip);
 fail:
 	iget_failed(inode);
 	return ERR_PTR(error);
