@@ -1603,6 +1603,23 @@ out:
 	return err;
 }
 
+/* Macro for features that simply need to read and store a string. */
+#define FEAT_PROCESS_STR_FUN(__feat, __feat_env) \
+static int process_##__feat(struct perf_file_section *section __maybe_unused, \
+			    struct perf_header *ph, int fd,		      \
+			    void *data __maybe_unused) \
+{\
+	ph->env.__feat_env = do_read_string(fd, ph); \
+	return ph->env.__feat_env ? 0 : -ENOMEM; \
+}
+
+FEAT_PROCESS_STR_FUN(hostname, hostname);
+FEAT_PROCESS_STR_FUN(osrelease, os_release);
+FEAT_PROCESS_STR_FUN(version, version);
+FEAT_PROCESS_STR_FUN(arch, arch);
+FEAT_PROCESS_STR_FUN(cpudesc, cpu_desc);
+FEAT_PROCESS_STR_FUN(cpuid, cpuid);
+
 static int process_tracing_data(struct perf_file_section *section __maybe_unused,
 				struct perf_header *ph __maybe_unused,
 				int fd, void *data)
@@ -1618,38 +1635,6 @@ static int process_build_id(struct perf_file_section *section,
 	if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
 		pr_debug("Failed to read buildids, continuing...\n");
 	return 0;
-}
-
-static int process_hostname(struct perf_file_section *section __maybe_unused,
-			    struct perf_header *ph, int fd,
-			    void *data __maybe_unused)
-{
-	ph->env.hostname = do_read_string(fd, ph);
-	return ph->env.hostname ? 0 : -ENOMEM;
-}
-
-static int process_osrelease(struct perf_file_section *section __maybe_unused,
-			     struct perf_header *ph, int fd,
-			     void *data __maybe_unused)
-{
-	ph->env.os_release = do_read_string(fd, ph);
-	return ph->env.os_release ? 0 : -ENOMEM;
-}
-
-static int process_version(struct perf_file_section *section __maybe_unused,
-			   struct perf_header *ph, int fd,
-			   void *data __maybe_unused)
-{
-	ph->env.version = do_read_string(fd, ph);
-	return ph->env.version ? 0 : -ENOMEM;
-}
-
-static int process_arch(struct perf_file_section *section __maybe_unused,
-			struct perf_header *ph,	int fd,
-			void *data __maybe_unused)
-{
-	ph->env.arch = do_read_string(fd, ph);
-	return ph->env.arch ? 0 : -ENOMEM;
 }
 
 static int process_nrcpus(struct perf_file_section *section __maybe_unused,
@@ -1669,22 +1654,6 @@ static int process_nrcpus(struct perf_file_section *section __maybe_unused,
 	ph->env.nr_cpus_avail = (int)nr_cpus_avail;
 	ph->env.nr_cpus_online = (int)nr_cpus_online;
 	return 0;
-}
-
-static int process_cpudesc(struct perf_file_section *section __maybe_unused,
-			   struct perf_header *ph, int fd,
-			   void *data __maybe_unused)
-{
-	ph->env.cpu_desc = do_read_string(fd, ph);
-	return ph->env.cpu_desc ? 0 : -ENOMEM;
-}
-
-static int process_cpuid(struct perf_file_section *section __maybe_unused,
-			 struct perf_header *ph,  int fd,
-			 void *data __maybe_unused)
-{
-	ph->env.cpuid = do_read_string(fd, ph);
-	return ph->env.cpuid ? 0 : -ENOMEM;
 }
 
 static int process_total_mem(struct perf_file_section *section __maybe_unused,
