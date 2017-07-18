@@ -2530,6 +2530,60 @@ err:
 }
 
 /**
+ * i40e_vc_enable_vlan_stripping
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * Enable vlan header stripping for the VF
+ **/
+static int i40e_vc_enable_vlan_stripping(struct i40e_vf *vf, u8 *msg,
+					 u16 msglen)
+{
+	struct i40e_vsi *vsi = vf->pf->vsi[vf->lan_vsi_idx];
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	i40e_vlan_stripping_enable(vsi);
+
+	/* send the response to the VF */
+err:
+	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_ENABLE_VLAN_STRIPPING,
+				       aq_ret);
+}
+
+/**
+ * i40e_vc_disable_vlan_stripping
+ * @vf: pointer to the VF info
+ * @msg: pointer to the msg buffer
+ * @msglen: msg length
+ *
+ * Disable vlan header stripping for the VF
+ **/
+static int i40e_vc_disable_vlan_stripping(struct i40e_vf *vf, u8 *msg,
+					  u16 msglen)
+{
+	struct i40e_vsi *vsi = vf->pf->vsi[vf->lan_vsi_idx];
+	i40e_status aq_ret = 0;
+
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	i40e_vlan_stripping_disable(vsi);
+
+	/* send the response to the VF */
+err:
+	return i40e_vc_send_resp_to_vf(vf, VIRTCHNL_OP_DISABLE_VLAN_STRIPPING,
+				       aq_ret);
+}
+
+/**
  * i40e_vc_process_vf_msg
  * @pf: pointer to the PF structure
  * @vf_id: source VF id
@@ -2647,6 +2701,12 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_SET_RSS_HENA:
 		ret = i40e_vc_set_rss_hena(vf, msg, msglen);
+		break;
+	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
+		ret = i40e_vc_enable_vlan_stripping(vf, msg, msglen);
+		break;
+	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
+		ret = i40e_vc_disable_vlan_stripping(vf, msg, msglen);
 		break;
 
 	case VIRTCHNL_OP_UNKNOWN:

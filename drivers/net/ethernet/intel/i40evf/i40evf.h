@@ -261,6 +261,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_RELEASE_PROMISC		BIT(16)
 #define I40EVF_FLAG_AQ_REQUEST_ALLMULTI		BIT(17)
 #define I40EVF_FLAG_AQ_RELEASE_ALLMULTI		BIT(18)
+#define I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING	BIT(19)
+#define I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING	BIT(20)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -358,6 +360,8 @@ void i40evf_get_hena(struct i40evf_adapter *adapter);
 void i40evf_set_hena(struct i40evf_adapter *adapter);
 void i40evf_set_rss_key(struct i40evf_adapter *adapter);
 void i40evf_set_rss_lut(struct i40evf_adapter *adapter);
+void i40evf_enable_vlan_stripping(struct i40evf_adapter *adapter);
+void i40evf_disable_vlan_stripping(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
