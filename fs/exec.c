@@ -1259,6 +1259,12 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	perf_event_comm(tsk, exec);
 }
 
+/*
+ * Calling this is the point of no return. None of the failures will be
+ * seen by userspace since either the process is already taking a fatal
+ * signal (via de_thread() or coredump), or will have SEGV raised
+ * (after exec_mmap()) by search_binary_handlers (see below).
+ */
 int flush_old_exec(struct linux_binprm * bprm)
 {
 	int retval;
@@ -1286,7 +1292,13 @@ int flush_old_exec(struct linux_binprm * bprm)
 	if (retval)
 		goto out;
 
-	bprm->mm = NULL;		/* We're using it now */
+	/*
+	 * After clearing bprm->mm (to mark that current is using the
+	 * prepared mm now), we have nothing left of the original
+	 * process. If anything from here on returns an error, the check
+	 * in search_binary_handler() will SEGV current.
+	 */
+	bprm->mm = NULL;
 
 	set_fs(USER_DS);
 	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD |
@@ -1333,7 +1345,6 @@ void setup_new_exec(struct linux_binprm * bprm)
 {
 	arch_pick_mmap_layout(current->mm);
 
-	/* This is the point of no return */
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
 	if (uid_eq(current_euid(), current_uid()) && gid_eq(current_egid(), current_gid()))
@@ -1351,7 +1362,6 @@ void setup_new_exec(struct linux_binprm * bprm)
 	 */
 	current->mm->task_size = TASK_SIZE;
 
-	/* install the new credentials */
 	if (!uid_eq(bprm->cred->uid, current_euid()) ||
 	    !gid_eq(bprm->cred->gid, current_egid())) {
 		current->pdeath_signal = 0;
