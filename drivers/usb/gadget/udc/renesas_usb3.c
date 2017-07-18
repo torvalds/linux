@@ -1369,7 +1369,7 @@ static int renesas_usb3_dma_free_prd(struct renesas_usb3 *usb3,
 
 	usb3_for_each_dma(usb3, dma, i) {
 		if (dma->prd) {
-			dma_free_coherent(dev, USB3_DMA_MAX_XFER_SIZE,
+			dma_free_coherent(dev, USB3_DMA_PRD_SIZE,
 					  dma->prd, dma->prd_dma);
 			dma->prd = NULL;
 		}
