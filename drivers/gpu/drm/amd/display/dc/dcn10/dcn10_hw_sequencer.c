@@ -1577,6 +1577,14 @@ static void dcn10_apply_ctx_for_surface(
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_context->res_ctx.pipe_ctx[i];
+		/*
+		 * Powergate reused pipes that are not powergated
+		 * fairly hacky right now, using opp_id as indicator
+		 */
+		if (pipe_ctx->surface && !old_pipe_ctx->surface) {
+			if (pipe_ctx->mpcc->opp_id != 0xf)
+				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
+		}
 
 		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
@@ -1588,6 +1596,7 @@ static void dcn10_apply_ctx_for_surface(
 				continue;
 			}
 
+			/* reset mpc */
 			mpcc_cfg.opp_id = 0xf;
 			mpcc_cfg.top_dpp_id = 0xf;
 			mpcc_cfg.bot_mpcc_id = 0xf;
