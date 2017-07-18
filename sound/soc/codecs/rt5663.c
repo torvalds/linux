@@ -60,6 +60,7 @@ struct rt5663_priv {
 
 static const struct reg_sequence rt5663_patch_list[] = {
 	{ 0x002a, 0x8080 },
+	{ 0x0086, 0x0028 },
 };
 
 static const struct reg_default rt5663_v2_reg[] = {
@@ -509,7 +510,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0082, 0x0000 },
 	{ 0x0083, 0x0000 },
 	{ 0x0084, 0x0000 },
-	{ 0x0086, 0x0008 },
+	{ 0x0086, 0x0028 },
 	{ 0x0087, 0x0000 },
 	{ 0x008a, 0x0000 },
 	{ 0x008b, 0x0000 },
