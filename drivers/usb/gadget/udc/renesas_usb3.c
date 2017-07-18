@@ -1415,12 +1415,12 @@ static void usb3_start_pipen(struct renesas_usb3_ep *usb3_ep,
 	int ret = -EAGAIN;
 	u32 enable_bits = 0;
 
-	if (usb3_ep->halt || usb3_ep->started)
-		return;
-	if (usb3_req != usb3_req_first)
-		return;
-
 	spin_lock_irqsave(&usb3->lock, flags);
+	if (usb3_ep->halt || usb3_ep->started)
+		goto out;
+	if (usb3_req != usb3_req_first)
+		goto out;
+
 	if (usb3_pn_change(usb3, usb3_ep->num) < 0)
 		goto out;
 
