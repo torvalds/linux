@@ -79,8 +79,7 @@ int __init its_fsl_mc_msi_init(void)
 
 		parent = irq_find_matching_host(np, DOMAIN_BUS_NEXUS);
 		if (!parent || !msi_get_domain_info(parent)) {
-			pr_err("%s: unable to locate ITS domain\n",
-			       np->full_name);
+			pr_err("%pOF: unable to locate ITS domain\n", np);
 			continue;
 		}
 
@@ -89,15 +88,14 @@ int __init its_fsl_mc_msi_init(void)
 						 &its_fsl_mc_msi_domain_info,
 						 parent);
 		if (!mc_msi_domain) {
-			pr_err("%s: unable to create fsl-mc domain\n",
-			       np->full_name);
+			pr_err("%pOF: unable to create fsl-mc domain\n", np);
 			continue;
 		}
 
 		WARN_ON(mc_msi_domain->host_data !=
 			&its_fsl_mc_msi_domain_info);
 
-		pr_info("fsl-mc MSI: %s domain created\n", np->full_name);
+		pr_info("fsl-mc MSI: %pOF domain created\n", np);
 	}
 
 	return 0;

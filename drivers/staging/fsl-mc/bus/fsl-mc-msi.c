@@ -183,8 +183,8 @@ int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
 	msi_domain = of_msi_get_domain(mc_platform_dev, mc_of_node,
 				       DOMAIN_BUS_FSL_MC_MSI);
 	if (!msi_domain) {
-		pr_err("Unable to find fsl-mc MSI domain for %s\n",
-		       mc_of_node->full_name);
+		pr_err("Unable to find fsl-mc MSI domain for %pOF\n",
+		       mc_of_node);
 
 		return -ENOENT;
 	}
