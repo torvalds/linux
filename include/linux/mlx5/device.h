@@ -1000,6 +1000,14 @@ enum mlx5_mcam_feature_groups {
 	MLX5_MCAM_FEATURE_ENHANCED_FEATURES         = 0x0,
 };
 
+enum mlx5_qcam_reg_groups {
+	MLX5_QCAM_REGS_FIRST_128                    = 0x0,
+};
+
+enum mlx5_qcam_feature_groups {
+	MLX5_QCAM_FEATURE_ENHANCED_FEATURES         = 0x0,
+};
+
 /* GET Dev Caps macros */
 #define MLX5_CAP_GEN(mdev, cap) \
 	MLX5_GET(cmd_hca_cap, mdev->caps.hca_cur[MLX5_CAP_GENERAL], cap)
@@ -1107,6 +1115,12 @@ enum mlx5_mcam_feature_groups {
 
 #define MLX5_CAP_MCAM_FEATURE(mdev, fld) \
 	MLX5_GET(mcam_reg, (mdev)->caps.mcam, mng_feature_cap_mask.enhanced_features.fld)
+
+#define MLX5_CAP_QCAM_REG(mdev, fld) \
+	MLX5_GET(qcam_reg, (mdev)->caps.qcam, qos_access_reg_cap_mask.reg_cap.fld)
+
+#define MLX5_CAP_QCAM_FEATURE(mdev, fld) \
+	MLX5_GET(qcam_reg, (mdev)->caps.qcam, qos_feature_cap_mask.feature_cap.fld)
 
 #define MLX5_CAP_FPGA(mdev, cap) \
 	MLX5_GET(fpga_cap, (mdev)->caps.fpga, cap)
