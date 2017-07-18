@@ -213,14 +213,6 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	fl4->flowi4_tos = iph->tos;
 }
 
-static inline int xfrm4_garbage_collect(struct dst_ops *ops)
-{
-	struct net *net = container_of(ops, struct net, xfrm.xfrm4_dst_ops);
-
-	xfrm_garbage_collect_deferred(net);
-	return (dst_entries_get_slow(ops) > ops->gc_thresh * 2);
-}
-
 static void xfrm4_update_pmtu(struct dst_entry *dst, struct sock *sk,
 			      struct sk_buff *skb, u32 mtu)
 {
@@ -259,14 +251,13 @@ static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 
 static struct dst_ops xfrm4_dst_ops_template = {
 	.family =		AF_INET,
-	.gc =			xfrm4_garbage_collect,
 	.update_pmtu =		xfrm4_update_pmtu,
 	.redirect =		xfrm4_redirect,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm4_dst_destroy,
 	.ifdown =		xfrm4_dst_ifdown,
 	.local_out =		__ip_local_out,
-	.gc_thresh =		INT_MAX,
+	.gc_thresh =		32768,
 };
 
 static const struct xfrm_policy_afinfo xfrm4_policy_afinfo = {

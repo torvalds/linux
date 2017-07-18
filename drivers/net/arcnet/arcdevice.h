@@ -20,7 +20,7 @@
 #include <linux/if_arcnet.h>
 
 #ifdef __KERNEL__
-#include  <linux/irqreturn.h>
+#include <linux/interrupt.h>
 
 /*
  * RECON_THRESHOLD is the maximum number of RECON messages to receive

@@ -214,14 +214,6 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	}
 }
 
-static inline int xfrm6_garbage_collect(struct dst_ops *ops)
-{
-	struct net *net = container_of(ops, struct net, xfrm.xfrm6_dst_ops);
-
-	xfrm_garbage_collect_deferred(net);
-	return dst_entries_get_fast(ops) > ops->gc_thresh * 2;
-}
-
 static void xfrm6_update_pmtu(struct dst_entry *dst, struct sock *sk,
 			      struct sk_buff *skb, u32 mtu)
 {
@@ -279,14 +271,13 @@ static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 
 static struct dst_ops xfrm6_dst_ops_template = {
 	.family =		AF_INET6,
-	.gc =			xfrm6_garbage_collect,
 	.update_pmtu =		xfrm6_update_pmtu,
 	.redirect =		xfrm6_redirect,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		xfrm6_dst_destroy,
 	.ifdown =		xfrm6_dst_ifdown,
 	.local_out =		__ip6_local_out,
-	.gc_thresh =		INT_MAX,
+	.gc_thresh =		32768,
 };
 
 static const struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
