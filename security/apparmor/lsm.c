@@ -694,7 +694,6 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(bprm_set_creds, apparmor_bprm_set_creds),
 	LSM_HOOK_INIT(bprm_committing_creds, apparmor_bprm_committing_creds),
 	LSM_HOOK_INIT(bprm_committed_creds, apparmor_bprm_committed_creds),
-	LSM_HOOK_INIT(bprm_secureexec, apparmor_bprm_secureexec),
 
 	LSM_HOOK_INIT(task_setrlimit, apparmor_task_setrlimit),
 };
