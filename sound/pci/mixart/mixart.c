@@ -1313,9 +1313,6 @@ static int snd_mixart_probe(struct pci_dev *pci,
 	}
 	mgr->irq = pci->irq;
 
-	sprintf(mgr->shortname, "Digigram miXart");
-	sprintf(mgr->longname, "%s at 0x%lx & 0x%lx, irq %i", mgr->shortname, mgr->mem[0].phys, mgr->mem[1].phys, mgr->irq);
-
 	/* init mailbox  */
 	mgr->msg_fifo_readptr = 0;
 	mgr->msg_fifo_writeptr = 0;
@@ -1350,8 +1347,11 @@ static int snd_mixart_probe(struct pci_dev *pci,
 		}
 
 		strcpy(card->driver, CARD_NAME);
-		sprintf(card->shortname, "%s [PCM #%d]", mgr->shortname, i);
-		sprintf(card->longname, "%s [PCM #%d]", mgr->longname, i);
+		snprintf(card->shortname, sizeof(card->shortname),
+			 "Digigram miXart [PCM #%d]", i);
+		snprintf(card->longname, sizeof(card->longname),
+			"Digigram miXart at 0x%lx & 0x%lx, irq %i [PCM #%d]",
+			mgr->mem[0].phys, mgr->mem[1].phys, mgr->irq, i);
 
 		if ((err = snd_mixart_create(mgr, card, i)) < 0) {
 			snd_card_free(card);
