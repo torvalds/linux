@@ -234,4 +234,22 @@ extern void fmc_free_id_info(struct fmc_device *fmc);
 extern void fmc_dump_eeprom(const struct fmc_device *fmc);
 extern void fmc_dump_sdb(const struct fmc_device *fmc);
 
+/* helpers for FMC operations */
+extern int fmc_irq_request(struct fmc_device *fmc, irq_handler_t h,
+			   char *name, int flags);
+extern void fmc_irq_free(struct fmc_device *fmc);
+extern void fmc_irq_ack(struct fmc_device *fmc);
+extern int fmc_validate(struct fmc_device *fmc, struct fmc_driver *drv);
+extern int fmc_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
+			   int ngpio);
+extern int fmc_read_ee(struct fmc_device *fmc, int pos, void *d, int l);
+extern int fmc_write_ee(struct fmc_device *fmc, int pos, const void *d, int l);
+
+/* helpers for FMC operations */
+extern int fmc_irq_request(struct fmc_device *fmc, irq_handler_t h,
+			   char *name, int flags);
+extern void fmc_irq_free(struct fmc_device *fmc);
+extern void fmc_irq_ack(struct fmc_device *fmc);
+extern int fmc_validate(struct fmc_device *fmc, struct fmc_driver *drv);
+
 #endif /* __LINUX_FMC_H__ */

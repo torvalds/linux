@@ -118,6 +118,61 @@ static struct bin_attribute fmc_eeprom_attr = {
 	.write = fmc_write_eeprom,
 };
 
+int fmc_irq_request(struct fmc_device *fmc, irq_handler_t h,
+		    char *name, int flags)
+{
+	if (fmc->op->irq_request)
+		return fmc->op->irq_request(fmc, h, name, flags);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_irq_request);
+
+void fmc_irq_free(struct fmc_device *fmc)
+{
+	if (fmc->op->irq_free)
+		fmc->op->irq_free(fmc);
+}
+EXPORT_SYMBOL(fmc_irq_free);
+
+void fmc_irq_ack(struct fmc_device *fmc)
+{
+	if (likely(fmc->op->irq_ack))
+		fmc->op->irq_ack(fmc);
+}
+EXPORT_SYMBOL(fmc_irq_ack);
+
+int fmc_validate(struct fmc_device *fmc, struct fmc_driver *drv)
+{
+	if (fmc->op->validate)
+		return fmc->op->validate(fmc, drv);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_validate);
+
+int fmc_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio, int ngpio)
+{
+	if (fmc->op->gpio_config)
+		return fmc->op->gpio_config(fmc, gpio, ngpio);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_gpio_config);
+
+int fmc_read_ee(struct fmc_device *fmc, int pos, void *d, int l)
+{
+	if (fmc->op->read_ee)
+		return fmc->op->read_ee(fmc, pos, d, l);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_read_ee);
+
+int fmc_write_ee(struct fmc_device *fmc, int pos, const void *d, int l)
+{
+	if (fmc->op->write_ee)
+		return fmc->op->write_ee(fmc, pos, d, l);
+	return -EPERM;
+}
+EXPORT_SYMBOL(fmc_write_ee);
+
 /*
  * Functions for client modules follow
  */
