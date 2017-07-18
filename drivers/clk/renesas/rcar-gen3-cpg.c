@@ -135,7 +135,6 @@ static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
 	struct sd_clock *clock = to_sd_clock(hw);
-	unsigned long rate = parent_rate;
 	u32 val, sd_fc;
 	unsigned int i;
 
@@ -149,7 +148,7 @@ static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
 	if (i >= clock->div_num)
 		return -EINVAL;
 
-	return DIV_ROUND_CLOSEST(rate, clock->div_table[i].div);
+	return DIV_ROUND_CLOSEST(parent_rate, clock->div_table[i].div);
 }
 
 static unsigned int cpg_sd_clock_calc_div(struct sd_clock *clock,
