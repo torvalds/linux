@@ -34,7 +34,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -818,8 +817,6 @@ static int vf610_nfc_resume(struct device *dev)
 
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct vf610_nfc *nfc = mtd_to_nfc(mtd);
-
-	pinctrl_pm_select_default_state(dev);
 
 	err = clk_prepare_enable(nfc->clk);
 	if (err)
