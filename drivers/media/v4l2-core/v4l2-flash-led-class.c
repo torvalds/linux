@@ -197,7 +197,7 @@ static int v4l2_flash_s_ctrl(struct v4l2_ctrl *c)
 {
 	struct v4l2_flash *v4l2_flash = v4l2_ctrl_to_v4l2_flash(c);
 	struct led_classdev_flash *fled_cdev = v4l2_flash->fled_cdev;
-	struct led_classdev *led_cdev = &fled_cdev->led_cdev;
+	struct led_classdev *led_cdev = fled_cdev ? &fled_cdev->led_cdev : NULL;
 	struct v4l2_ctrl **ctrls = v4l2_flash->ctrls;
 	bool external_strobe;
 	int ret = 0;
@@ -299,9 +299,25 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 			  struct v4l2_flash_ctrl_data *ctrl_init_data)
 {
 	struct led_classdev_flash *fled_cdev = v4l2_flash->fled_cdev;
-	struct led_classdev *led_cdev = &fled_cdev->led_cdev;
+	struct led_classdev *led_cdev = fled_cdev ? &fled_cdev->led_cdev : NULL;
 	struct v4l2_ctrl_config *ctrl_cfg;
 	u32 mask;
+
+	/* Init INDICATOR_INTENSITY ctrl data */
+	if (v4l2_flash->iled_cdev) {
+		ctrl_init_data[INDICATOR_INTENSITY].cid =
+					V4L2_CID_FLASH_INDICATOR_INTENSITY;
+		ctrl_cfg = &ctrl_init_data[INDICATOR_INTENSITY].config;
+		__lfs_to_v4l2_ctrl_config(&flash_cfg->intensity,
+					  ctrl_cfg);
+		ctrl_cfg->id = V4L2_CID_FLASH_INDICATOR_INTENSITY;
+		ctrl_cfg->min = 0;
+		ctrl_cfg->flags = V4L2_CTRL_FLAG_VOLATILE |
+				  V4L2_CTRL_FLAG_EXECUTE_ON_WRITE;
+	}
+
+	if (!led_cdev || WARN_ON(!(led_cdev->flags & LED_DEV_CAP_FLASH)))
+		return;
 
 	/* Init FLASH_FAULT ctrl data */
 	if (flash_cfg->flash_faults) {
@@ -330,26 +346,10 @@ static void __fill_ctrl_init_data(struct v4l2_flash *v4l2_flash,
 	/* Init TORCH_INTENSITY ctrl data */
 	ctrl_init_data[TORCH_INTENSITY].cid = V4L2_CID_FLASH_TORCH_INTENSITY;
 	ctrl_cfg = &ctrl_init_data[TORCH_INTENSITY].config;
-	__lfs_to_v4l2_ctrl_config(&flash_cfg->torch_intensity, ctrl_cfg);
+	__lfs_to_v4l2_ctrl_config(&flash_cfg->intensity, ctrl_cfg);
 	ctrl_cfg->id = V4L2_CID_FLASH_TORCH_INTENSITY;
 	ctrl_cfg->flags = V4L2_CTRL_FLAG_VOLATILE |
 			  V4L2_CTRL_FLAG_EXECUTE_ON_WRITE;
-
-	/* Init INDICATOR_INTENSITY ctrl data */
-	if (v4l2_flash->iled_cdev) {
-		ctrl_init_data[INDICATOR_INTENSITY].cid =
-					V4L2_CID_FLASH_INDICATOR_INTENSITY;
-		ctrl_cfg = &ctrl_init_data[INDICATOR_INTENSITY].config;
-		__lfs_to_v4l2_ctrl_config(&flash_cfg->indicator_intensity,
-					  ctrl_cfg);
-		ctrl_cfg->id = V4L2_CID_FLASH_INDICATOR_INTENSITY;
-		ctrl_cfg->min = 0;
-		ctrl_cfg->flags = V4L2_CTRL_FLAG_VOLATILE |
-				  V4L2_CTRL_FLAG_EXECUTE_ON_WRITE;
-	}
-
-	if (!(led_cdev->flags & LED_DEV_CAP_FLASH))
-		return;
 
 	/* Init FLASH_STROBE ctrl data */
 	ctrl_init_data[FLASH_STROBE].cid = V4L2_CID_FLASH_STROBE;
@@ -485,7 +485,9 @@ static int __sync_device_with_v4l2_controls(struct v4l2_flash *v4l2_flash)
 	struct v4l2_ctrl **ctrls = v4l2_flash->ctrls;
 	int ret = 0;
 
-	v4l2_flash_set_led_brightness(v4l2_flash, ctrls[TORCH_INTENSITY]);
+	if (ctrls[TORCH_INTENSITY])
+		v4l2_flash_set_led_brightness(v4l2_flash,
+					      ctrls[TORCH_INTENSITY]);
 
 	if (ctrls[INDICATOR_INTENSITY])
 		v4l2_flash_set_led_brightness(v4l2_flash,
@@ -527,19 +529,21 @@ static int v4l2_flash_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_flash *v4l2_flash = v4l2_subdev_to_v4l2_flash(sd);
 	struct led_classdev_flash *fled_cdev = v4l2_flash->fled_cdev;
-	struct led_classdev *led_cdev = &fled_cdev->led_cdev;
+	struct led_classdev *led_cdev = fled_cdev ? &fled_cdev->led_cdev : NULL;
 	struct led_classdev *led_cdev_ind = v4l2_flash->iled_cdev;
 	int ret = 0;
 
 	if (!v4l2_fh_is_singular(&fh->vfh))
 		return 0;
 
-	mutex_lock(&led_cdev->led_access);
+	if (led_cdev) {
+		mutex_lock(&led_cdev->led_access);
 
-	led_sysfs_disable(led_cdev);
-	led_trigger_remove(led_cdev);
+		led_sysfs_disable(led_cdev);
+		led_trigger_remove(led_cdev);
 
-	mutex_unlock(&led_cdev->led_access);
+		mutex_unlock(&led_cdev->led_access);
+	}
 
 	if (led_cdev_ind) {
 		mutex_lock(&led_cdev_ind->led_access);
@@ -556,9 +560,11 @@ static int v4l2_flash_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	return 0;
 out_sync_device:
-	mutex_lock(&led_cdev->led_access);
-	led_sysfs_enable(led_cdev);
-	mutex_unlock(&led_cdev->led_access);
+	if (led_cdev) {
+		mutex_lock(&led_cdev->led_access);
+		led_sysfs_enable(led_cdev);
+		mutex_unlock(&led_cdev->led_access);
+	}
 
 	if (led_cdev_ind) {
 		mutex_lock(&led_cdev_ind->led_access);
@@ -573,21 +579,24 @@ static int v4l2_flash_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_flash *v4l2_flash = v4l2_subdev_to_v4l2_flash(sd);
 	struct led_classdev_flash *fled_cdev = v4l2_flash->fled_cdev;
-	struct led_classdev *led_cdev = &fled_cdev->led_cdev;
+	struct led_classdev *led_cdev = fled_cdev ? &fled_cdev->led_cdev : NULL;
 	struct led_classdev *led_cdev_ind = v4l2_flash->iled_cdev;
 	int ret = 0;
 
 	if (!v4l2_fh_is_singular(&fh->vfh))
 		return 0;
 
-	mutex_lock(&led_cdev->led_access);
+	if (led_cdev) {
+		mutex_lock(&led_cdev->led_access);
 
-	if (v4l2_flash->ctrls[STROBE_SOURCE])
-		ret = v4l2_ctrl_s_ctrl(v4l2_flash->ctrls[STROBE_SOURCE],
+		if (v4l2_flash->ctrls[STROBE_SOURCE])
+			ret = v4l2_ctrl_s_ctrl(
+				v4l2_flash->ctrls[STROBE_SOURCE],
 				V4L2_FLASH_STROBE_SOURCE_SOFTWARE);
-	led_sysfs_enable(led_cdev);
+		led_sysfs_enable(led_cdev);
 
-	mutex_unlock(&led_cdev->led_access);
+		mutex_unlock(&led_cdev->led_access);
+	}
 
 	if (led_cdev_ind) {
 		mutex_lock(&led_cdev_ind->led_access);
@@ -605,25 +614,19 @@ static const struct v4l2_subdev_internal_ops v4l2_flash_subdev_internal_ops = {
 
 static const struct v4l2_subdev_ops v4l2_flash_subdev_ops;
 
-struct v4l2_flash *v4l2_flash_init(
+static struct v4l2_flash *__v4l2_flash_init(
 	struct device *dev, struct fwnode_handle *fwn,
-	struct led_classdev_flash *fled_cdev,
-	struct led_classdev *iled_cdev,
-	const struct v4l2_flash_ops *ops,
-	struct v4l2_flash_config *config)
+	struct led_classdev_flash *fled_cdev, struct led_classdev *iled_cdev,
+	const struct v4l2_flash_ops *ops, struct v4l2_flash_config *config)
 {
 	struct v4l2_flash *v4l2_flash;
-	struct led_classdev *led_cdev;
 	struct v4l2_subdev *sd;
 	int ret;
 
-	if (!fled_cdev || !config)
+	if (!config)
 		return ERR_PTR(-EINVAL);
 
-	led_cdev = &fled_cdev->led_cdev;
-
-	v4l2_flash = devm_kzalloc(led_cdev->dev, sizeof(*v4l2_flash),
-					GFP_KERNEL);
+	v4l2_flash = devm_kzalloc(dev, sizeof(*v4l2_flash), GFP_KERNEL);
 	if (!v4l2_flash)
 		return ERR_PTR(-ENOMEM);
 
@@ -632,7 +635,7 @@ struct v4l2_flash *v4l2_flash_init(
 	v4l2_flash->iled_cdev = iled_cdev;
 	v4l2_flash->ops = ops;
 	sd->dev = dev;
-	sd->fwnode = fwn ? fwn : dev_fwnode(led_cdev->dev);
+	sd->fwnode = fwn ? fwn : dev_fwnode(dev);
 	v4l2_subdev_init(sd, &v4l2_flash_subdev_ops);
 	sd->internal_ops = &v4l2_flash_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -664,7 +667,25 @@ err_init_controls:
 
 	return ERR_PTR(ret);
 }
+
+struct v4l2_flash *v4l2_flash_init(
+	struct device *dev, struct fwnode_handle *fwn,
+	struct led_classdev_flash *fled_cdev,
+	const struct v4l2_flash_ops *ops,
+	struct v4l2_flash_config *config)
+{
+	return __v4l2_flash_init(dev, fwn, fled_cdev, NULL, ops, config);
+}
 EXPORT_SYMBOL_GPL(v4l2_flash_init);
+
+struct v4l2_flash *v4l2_flash_indicator_init(
+	struct device *dev, struct fwnode_handle *fwn,
+	struct led_classdev *iled_cdev,
+	struct v4l2_flash_config *config)
+{
+	return __v4l2_flash_init(dev, fwn, NULL, iled_cdev, NULL, config);
+}
+EXPORT_SYMBOL_GPL(v4l2_flash_indicator_init);
 
 void v4l2_flash_release(struct v4l2_flash *v4l2_flash)
 {

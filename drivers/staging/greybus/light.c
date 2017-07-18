@@ -58,6 +58,7 @@ struct gb_light {
 	bool			ready;
 #if IS_REACHABLE(CONFIG_V4L2_FLASH_LED_CLASS)
 	struct v4l2_flash	*v4l2_flash;
+	struct v4l2_flash	*v4l2_flash_ind;
 #endif
 };
 
@@ -534,7 +535,7 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 {
 	struct gb_connection *connection = get_conn_from_light(light);
 	struct device *dev = &connection->bundle->dev;
-	struct v4l2_flash_config sd_cfg = { {0} };
+	struct v4l2_flash_config sd_cfg = { {0} }, sd_cfg_ind = { {0} };
 	struct led_classdev_flash *fled;
 	struct led_classdev *iled = NULL;
 	struct gb_channel *channel_torch, *channel_ind, *channel_flash;
@@ -542,12 +543,12 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 	channel_torch = get_channel_from_mode(light, GB_CHANNEL_MODE_TORCH);
 	if (channel_torch)
 		__gb_lights_channel_v4l2_config(&channel_torch->intensity_uA,
-						&sd_cfg.torch_intensity);
+						&sd_cfg.intensity);
 
 	channel_ind = get_channel_from_mode(light, GB_CHANNEL_MODE_INDICATOR);
 	if (channel_ind) {
 		__gb_lights_channel_v4l2_config(&channel_ind->intensity_uA,
-						&sd_cfg.indicator_intensity);
+						&sd_cfg_ind.intensity);
 		iled = &channel_ind->fled.led_cdev;
 	}
 
@@ -557,6 +558,8 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 	fled = &channel_flash->fled;
 
 	snprintf(sd_cfg.dev_name, sizeof(sd_cfg.dev_name), "%s", light->name);
+	snprintf(sd_cfg_ind.dev_name, sizeof(sd_cfg_ind.dev_name),
+		 "%s indicator", light->name);
 
 	/* Set the possible values to faults, in our case all faults */
 	sd_cfg.flash_faults = LED_FAULT_OVER_VOLTAGE | LED_FAULT_TIMEOUT |
@@ -565,16 +568,26 @@ static int gb_lights_light_v4l2_register(struct gb_light *light)
 		LED_FAULT_UNDER_VOLTAGE | LED_FAULT_INPUT_VOLTAGE |
 		LED_FAULT_LED_OVER_TEMPERATURE;
 
-	light->v4l2_flash = v4l2_flash_init(dev, NULL, fled, iled,
-					    &v4l2_flash_ops, &sd_cfg);
+	light->v4l2_flash = v4l2_flash_init(dev, NULL, fled, &v4l2_flash_ops,
+					    &sd_cfg);
 	if (IS_ERR(light->v4l2_flash))
 		return PTR_ERR(light->v4l2_flash);
+
+	if (channel_ind) {
+		light->v4l2_flash_ind =
+			v4l2_flash_indicator_init(dev, NULL, iled, &sd_cfg_ind);
+		if (IS_ERR(light->v4l2_flash_ind)) {
+			v4l2_flash_release(light->v4l2_flash);
+			return PTR_ERR(light->v4l2_flash_ind);
+		}
+	}
 
 	return 0;
 }
 
 static void gb_lights_light_v4l2_unregister(struct gb_light *light)
 {
+	v4l2_flash_release(light->v4l2_flash_ind);
 	v4l2_flash_release(light->v4l2_flash);
 }
 #else
