@@ -418,7 +418,8 @@ nfs_unroll_locks_and_wait(struct inode *inode, struct nfs_page *head,
  */
 static void
 nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
-				 struct nfs_page *old_head)
+				 struct nfs_page *old_head,
+				 struct inode *inode)
 {
 	while (destroy_list) {
 		struct nfs_page *subreq = destroy_list;
@@ -443,9 +444,12 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
 			nfs_page_group_clear_bits(subreq);
 
 			/* release the PG_INODE_REF reference */
-			if (test_and_clear_bit(PG_INODE_REF, &subreq->wb_flags))
+			if (test_and_clear_bit(PG_INODE_REF, &subreq->wb_flags)) {
 				nfs_release_request(subreq);
-			else
+				spin_lock(&inode->i_lock);
+				NFS_I(inode)->nrequests--;
+				spin_unlock(&inode->i_lock);
+			} else
 				WARN_ON_ONCE(1);
 		} else {
 			WARN_ON_ONCE(test_bit(PG_CLEAN, &subreq->wb_flags));
@@ -572,25 +576,24 @@ try_again:
 		head->wb_bytes = total_bytes;
 	}
 
+	/* Postpone destruction of this request */
+	if (test_and_clear_bit(PG_REMOVE, &head->wb_flags)) {
+		set_bit(PG_INODE_REF, &head->wb_flags);
+		kref_get(&head->wb_kref);
+		NFS_I(inode)->nrequests++;
+	}
+
 	/*
 	 * prepare head request to be added to new pgio descriptor
 	 */
 	nfs_page_group_clear_bits(head);
-
-	/*
-	 * some part of the group was still on the inode list - otherwise
-	 * the group wouldn't be involved in async write.
-	 * grab a reference for the head request, iff it needs one.
-	 */
-	if (!test_and_set_bit(PG_INODE_REF, &head->wb_flags))
-		kref_get(&head->wb_kref);
 
 	nfs_page_group_unlock(head);
 
 	/* drop lock to clean uprequests on destroy list */
 	spin_unlock(&inode->i_lock);
 
-	nfs_destroy_unlinked_subrequests(destroy_list, head);
+	nfs_destroy_unlinked_subrequests(destroy_list, head, inode);
 
 	/* still holds ref on head from nfs_page_find_head_request_locked
 	 * and still has lock on head from lock loop */
