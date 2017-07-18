@@ -4324,7 +4324,7 @@ static struct attribute *ipw2100_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group ipw2100_attribute_group = {
+static const struct attribute_group ipw2100_attribute_group = {
 	.attrs = ipw2100_sysfs_entries,
 };
 
