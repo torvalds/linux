@@ -673,64 +673,67 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	lvds->drm_dev = drm_dev;
 
 	port = of_graph_get_port_by_id(dev->of_node, 1);
-	if (port) {
-		endpoint = of_get_child_by_name(port, "endpoint");
-		of_node_put(port);
-		if (!endpoint) {
-			dev_err(dev, "no output endpoint found\n");
-			return -EINVAL;
-		}
-		panel_node = of_graph_get_remote_port_parent(endpoint);
-		of_node_put(endpoint);
-		if (!panel_node) {
-			dev_err(dev, "no output node found\n");
-			return -EINVAL;
-		}
-		lvds->panel = of_drm_find_panel(panel_node);
-		if (!lvds->panel) {
-			DRM_ERROR("failed to find panel\n");
-			of_node_put(panel_node);
-			return -EPROBE_DEFER;
-		}
-
-		if (of_property_read_string(panel_node, "rockchip,output", &name))
-			/* default set it as output rgb */
-			lvds->output = DISPLAY_OUTPUT_RGB;
-		else
-			lvds->output = lvds_name_to_output(name);
-
-		if (lvds->output < 0) {
-			dev_err(dev, "invalid output type [%s]\n", name);
-			return lvds->output;
-		}
-
-		if (of_property_read_string(panel_node, "rockchip,data-mapping",
-					    &name))
-			/* default set it as format jeida */
-			lvds->format = LVDS_FORMAT_JEIDA;
-		else
-			lvds->format = lvds_name_to_format(name);
-
-		if (lvds->format < 0) {
-			dev_err(dev, "invalid data-mapping format [%s]\n", name);
-			return lvds->format;
-		}
-
-		if (of_property_read_u32(panel_node, "rockchip,data-width", &i)) {
-			lvds->format |= LVDS_24BIT;
-		} else {
-			if (i == 24) {
-				lvds->format |= LVDS_24BIT;
-			} else if (i == 18) {
-				lvds->format |= LVDS_18BIT;
-			} else {
-				dev_err(dev,
-					"rockchip-lvds unsupport data-width[%d]\n", i);
-				return -EINVAL;
-			}
-		}
-		of_node_put(panel_node);
+	if (!port) {
+		dev_err(dev, "can't found port point, please init lvds panel port!\n");
+		return -EINVAL;
 	}
+
+	endpoint = of_get_child_by_name(port, "endpoint");
+	of_node_put(port);
+	if (!endpoint) {
+		dev_err(dev, "no output endpoint found\n");
+		return -EINVAL;
+	}
+	panel_node = of_graph_get_remote_port_parent(endpoint);
+	of_node_put(endpoint);
+	if (!panel_node) {
+		dev_err(dev, "no output node found\n");
+		return -EINVAL;
+	}
+	lvds->panel = of_drm_find_panel(panel_node);
+	if (!lvds->panel) {
+		DRM_ERROR("failed to find panel\n");
+		of_node_put(panel_node);
+		return -EPROBE_DEFER;
+	}
+
+	if (of_property_read_string(panel_node, "rockchip,output", &name))
+		/* default set it as output rgb */
+		lvds->output = DISPLAY_OUTPUT_RGB;
+	else
+		lvds->output = lvds_name_to_output(name);
+
+	if (lvds->output < 0) {
+		dev_err(dev, "invalid output type [%s]\n", name);
+		return lvds->output;
+	}
+
+	if (of_property_read_string(panel_node, "rockchip,data-mapping",
+				    &name))
+		/* default set it as format jeida */
+		lvds->format = LVDS_FORMAT_JEIDA;
+	else
+		lvds->format = lvds_name_to_format(name);
+
+	if (lvds->format < 0) {
+		dev_err(dev, "invalid data-mapping format [%s]\n", name);
+		return lvds->format;
+	}
+
+	if (of_property_read_u32(panel_node, "rockchip,data-width", &i)) {
+		lvds->format |= LVDS_24BIT;
+	} else {
+		if (i == 24) {
+			lvds->format |= LVDS_24BIT;
+		} else if (i == 18) {
+			lvds->format |= LVDS_18BIT;
+		} else {
+			dev_err(dev,
+				"rockchip-lvds unsupport data-width[%d]\n", i);
+			return -EINVAL;
+		}
+	}
+	of_node_put(panel_node);
 
 	encoder = &lvds->encoder;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
