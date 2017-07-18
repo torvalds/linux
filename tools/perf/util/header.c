@@ -67,6 +67,7 @@ struct feat_fd {
 	void			*buf;	/* Either buf != NULL or fd >= 0 */
 	ssize_t			offset;
 	size_t			size;
+	struct perf_evsel	*events;
 };
 
 void perf_header__set_feat(struct perf_header *header, int feat)
@@ -1359,9 +1360,14 @@ static int __desc_attr__fprintf(FILE *fp, const char *name, const char *val,
 
 static void print_event_desc(struct feat_fd *ff, FILE *fp)
 {
-	struct perf_evsel *evsel, *events = read_event_desc(ff);
+	struct perf_evsel *evsel, *events;
 	u32 j;
 	u64 *id;
+
+	if (ff->events)
+		events = ff->events;
+	else
+		events = read_event_desc(ff);
 
 	if (!events) {
 		fprintf(fp, "# event desc: not available or unable to read\n");
@@ -1387,6 +1393,7 @@ static void print_event_desc(struct feat_fd *ff, FILE *fp)
 	}
 
 	free_event_desc(events);
+	ff->events = NULL;
 }
 
 static void print_total_mem(struct feat_fd *ff, FILE *fp)
@@ -1757,10 +1764,18 @@ process_event_desc(struct feat_fd *ff, void *data __maybe_unused)
 		return 0;
 
 	session = container_of(ff->ph, struct perf_session, header);
+
+	if (session->file->is_pipe) {
+		/* Save events for reading later by print_event_desc,
+		 * since they can't be read again in pipe mode. */
+		ff->events = events;
+	}
+
 	for (evsel = events; evsel->attr.size; evsel++)
 		perf_evlist__set_event_name(session->evlist, evsel);
 
-	free_event_desc(events);
+	if (!session->file->is_pipe)
+		free_event_desc(events);
 
 	return 0;
 }
