@@ -932,8 +932,11 @@ mlxsw_sp_neigh_entry_lookup(struct mlxsw_sp *mlxsw_sp, struct neighbour *n)
 static void
 mlxsw_sp_router_neighs_update_interval_init(struct mlxsw_sp *mlxsw_sp)
 {
-	unsigned long interval = NEIGH_VAR(&arp_tbl.parms, DELAY_PROBE_TIME);
+	unsigned long interval;
 
+	interval = min_t(unsigned long,
+			 NEIGH_VAR(&arp_tbl.parms, DELAY_PROBE_TIME),
+			 NEIGH_VAR(&nd_tbl.parms, DELAY_PROBE_TIME));
 	mlxsw_sp->router->neighs_update.interval = jiffies_to_msecs(interval);
 }
 
@@ -1321,7 +1324,7 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 		p = ptr;
 
 		/* We don't care about changes in the default table. */
-		if (!p->dev || p->tbl != &arp_tbl)
+		if (!p->dev || (p->tbl != &arp_tbl && p->tbl != &nd_tbl))
 			return NOTIFY_DONE;
 
 		/* We are in atomic context and can't take RTNL mutex,
