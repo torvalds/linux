@@ -389,7 +389,7 @@ static void ast_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	drm_gem_object_unreference_unlocked(ast_fb->obj);
 	drm_framebuffer_cleanup(fb);
-	kfree(fb);
+	kfree(ast_fb);
 }
 
 static const struct drm_framebuffer_funcs ast_fb_funcs = {
