@@ -2544,8 +2544,8 @@ static inline int setup_io_queues(struct octeon_device *octeon_dev,
 {
 	struct octeon_droq_ops droq_ops;
 	struct net_device *netdev;
-	static int cpu_id;
-	static int cpu_id_modulus;
+	int cpu_id;
+	int cpu_id_modulus;
 	struct octeon_droq *droq;
 	struct napi_struct *napi;
 	int q, q_no, retval = 0;
