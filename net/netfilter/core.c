@@ -344,7 +344,7 @@ EXPORT_SYMBOL(nf_nat_decode_session_hook);
 
 static int __net_init netfilter_net_init(struct net *net)
 {
-	int i, h, ret;
+	int i, h;
 
 	for (i = 0; i < ARRAY_SIZE(net->nf.hooks); i++) {
 		for (h = 0; h < NF_MAX_HOOKS; h++)
@@ -362,7 +362,7 @@ static int __net_init netfilter_net_init(struct net *net)
 	}
 #endif
 
-	return ret;
+	return 0;
 }
 
 static void __net_exit netfilter_net_exit(struct net *net)
