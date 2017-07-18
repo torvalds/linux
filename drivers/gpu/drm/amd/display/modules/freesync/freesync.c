@@ -43,6 +43,10 @@
 
 #define FREESYNC_REGISTRY_NAME "freesync_v1"
 
+#define FREESYNC_NO_STATIC_FOR_EXTERNAL_DP_REGKEY "DalFreeSyncNoStaticForExternalDp"
+
+#define FREESYNC_NO_STATIC_FOR_INTERNAL_REGKEY "DalFreeSyncNoStaticForInternal"
+
 struct gradual_static_ramp {
 	bool ramp_is_active;
 	bool ramp_direction_is_up;
@@ -114,7 +118,8 @@ struct freesync_entity {
 };
 
 struct freesync_registry_options {
-	unsigned int min_refresh_from_edid;
+	bool drr_external_supported;
+	bool drr_internal_supported;
 };
 
 struct core_freesync {
@@ -176,9 +181,19 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 			NULL, NULL, 0, &flag);
 	flag.save_per_edid = false;
 	flag.save_per_link = false;
+
 	if (dm_read_persistent_data(core_dc->ctx, NULL, NULL,
-			"DalDrrSupport", &data, sizeof(data), &flag)) {
-		core_freesync->opts.min_refresh_from_edid = data;
+			FREESYNC_NO_STATIC_FOR_INTERNAL_REGKEY,
+			&data, sizeof(data), &flag)) {
+		core_freesync->opts.drr_internal_supported =
+			(data & 1) ? false : true;
+	}
+
+	if (dm_read_persistent_data(core_dc->ctx, NULL, NULL,
+			FREESYNC_NO_STATIC_FOR_EXTERNAL_DP_REGKEY,
+			&data, sizeof(data), &flag)) {
+		core_freesync->opts.drr_external_supported =
+				(data & 1) ? false : true;
 	}
 
 	return &core_freesync->public;
@@ -236,7 +251,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 	struct core_freesync *core_freesync = NULL;
 	int persistent_freesync_enable = 0;
 	struct persistent_data_flag flag;
-	unsigned int nom_refresh_rate_micro_hz;
+	unsigned int nom_refresh_rate_uhz;
 	unsigned long long temp;
 
 	if (mod_freesync == NULL)
@@ -258,20 +273,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		temp = div_u64(temp, stream->timing.h_total);
 		temp = div_u64(temp, stream->timing.v_total);
 
-		nom_refresh_rate_micro_hz = (unsigned int) temp;
-
-		if (core_freesync->opts.min_refresh_from_edid != 0 &&
-				dc_is_embedded_signal(stream->sink->sink_signal)
-				&& (nom_refresh_rate_micro_hz -
-				core_freesync->opts.min_refresh_from_edid *
-				1000000) >= 10000000) {
-			caps->supported = true;
-			caps->min_refresh_in_micro_hz =
-				core_freesync->opts.min_refresh_from_edid *
-					1000000;
-			caps->max_refresh_in_micro_hz =
-					nom_refresh_rate_micro_hz;
-		}
+		nom_refresh_rate_uhz = (unsigned int) temp;
 
 		core_freesync->map[core_freesync->num_entities].stream = stream;
 		core_freesync->map[core_freesync->num_entities].caps = caps;
@@ -311,8 +313,8 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		}
 
 		if (caps->supported &&
-		    nom_refresh_rate_micro_hz >= caps->min_refresh_in_micro_hz &&
-		    nom_refresh_rate_micro_hz <= caps->max_refresh_in_micro_hz)
+			nom_refresh_rate_uhz >= caps->min_refresh_in_micro_hz &&
+			nom_refresh_rate_uhz <= caps->max_refresh_in_micro_hz)
 			core_stream->public.ignore_msa_timing_param = 1;
 
 		core_freesync->num_entities++;
@@ -865,6 +867,11 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 		unsigned int map_index = map_index_from_stream(core_freesync,
 				streams[stream_index]);
 
+		bool is_embedded = dc_is_embedded_signal(
+				streams[stream_index]->sink->sink_signal);
+
+		struct freesync_registry_options *opts = &core_freesync->opts;
+
 		state = &core_freesync->map[map_index].state;
 
 		switch (freesync_params->state){
@@ -875,25 +882,24 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 					freesync_params->windowed_fullscreen;
 			break;
 		case FREESYNC_STATE_STATIC_SCREEN:
-			/* Static screen ramp is only enabled for embedded
-			 * panels. Also change core variables only if there
-			 * is a change.
+			/* Static screen ramp is disabled by default, but can
+			 * be enabled through regkey.
 			 */
-			if ((dc_is_embedded_signal(
-				streams[stream_index]->sink->sink_signal) ||
-				core_freesync->map[map_index].caps->
-				no_static_for_external_dp == false) &&
-				state->static_screen !=
-				freesync_params->enable) {
+			if ((is_embedded && opts->drr_internal_supported) ||
+				(!is_embedded && opts->drr_external_supported))
 
-				/* Change the state flag */
-				state->static_screen = freesync_params->enable;
+				if (state->static_screen !=
+						freesync_params->enable) {
 
-				/* Change static screen ramp variables */
-				set_static_ramp_variables(core_freesync,
+					/* Change the state flag */
+					state->static_screen =
+							freesync_params->enable;
+
+					/* Update static screen ramp */
+					set_static_ramp_variables(core_freesync,
 						map_index,
 						freesync_params->enable);
-			}
+				}
 			/* We program the ramp starting next VUpdate */
 			break;
 		case FREESYNC_STATE_VIDEO:

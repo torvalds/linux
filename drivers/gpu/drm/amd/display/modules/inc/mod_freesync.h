@@ -88,7 +88,6 @@ struct mod_freesync_caps {
 	unsigned int max_refresh_in_micro_hz;
 
 	bool btr_supported;
-	bool no_static_for_external_dp;
 };
 
 struct mod_freesync_params {

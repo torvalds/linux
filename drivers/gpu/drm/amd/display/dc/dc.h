@@ -188,7 +188,6 @@ struct dc_debug {
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
-	bool no_static_for_external_dp;
 };
 
 struct dc {
