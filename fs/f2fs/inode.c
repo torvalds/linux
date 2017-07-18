@@ -87,9 +87,9 @@ static void __set_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
 
 static void __recover_inline_status(struct inode *inode, struct page *ipage)
 {
-	void *inline_data = inline_data_addr(ipage);
+	void *inline_data = inline_data_addr(inode, ipage);
 	__le32 *start = inline_data;
-	__le32 *end = start + MAX_INLINE_DATA / sizeof(__le32);
+	__le32 *end = start + MAX_INLINE_DATA(inode) / sizeof(__le32);
 
 	while (start < end) {
 		if (*start++) {

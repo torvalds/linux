@@ -446,6 +446,9 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 #endif
 	/* Will be used by directory only */
 	fi->i_dir_level = F2FS_SB(sb)->dir_level;
+
+	fi->i_inline_reserved = DEF_INLINE_RESERVED_SIZE;
+
 	return &fi->vfs_inode;
 }
 
