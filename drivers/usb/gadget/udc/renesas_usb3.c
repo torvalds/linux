@@ -89,6 +89,9 @@
 
 /* USB_COM_CON */
 #define USB_COM_CON_CONF		BIT(24)
+#define USB_COM_CON_PN_WDATAIF_NL	BIT(23)
+#define USB_COM_CON_PN_RDATAIF_NL	BIT(22)
+#define USB_COM_CON_PN_LSTTR_PP		BIT(21)
 #define USB_COM_CON_SPD_MODE		BIT(17)
 #define USB_COM_CON_EP0_EN		BIT(16)
 #define USB_COM_CON_DEV_ADDR_SHIFT	8
@@ -686,6 +689,9 @@ static void renesas_usb3_init_controller(struct renesas_usb3 *usb3)
 {
 	usb3_init_axi_bridge(usb3);
 	usb3_init_epc_registers(usb3);
+	usb3_set_bit(usb3, USB_COM_CON_PN_WDATAIF_NL |
+		     USB_COM_CON_PN_RDATAIF_NL | USB_COM_CON_PN_LSTTR_PP,
+		     USB3_USB_COM_CON);
 	usb3_write(usb3, USB_OTG_IDMON, USB3_USB_OTG_INT_STA);
 	usb3_write(usb3, USB_OTG_IDMON, USB3_USB_OTG_INT_ENA);
 
