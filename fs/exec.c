@@ -1369,8 +1369,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 	 */
 	current->mm->task_size = TASK_SIZE;
 
-	if (!uid_eq(bprm->cred->uid, current_euid()) ||
-	    !gid_eq(bprm->cred->gid, current_egid())) {
+	if (bprm->secureexec) {
 		current->pdeath_signal = 0;
 	} else {
 		if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)
