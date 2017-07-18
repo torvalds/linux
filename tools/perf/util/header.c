@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/stringify.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -2139,42 +2140,57 @@ struct feature_ops {
 	int (*process)(struct feat_fd *ff, void *data);
 	const char *name;
 	bool full_only;
+	bool synthesize;
 };
 
-#define FEAT_OPA(n, func) \
-	[n] = { .name = #n, .write = write_##func, .print = print_##func }
-#define FEAT_OPP(n, func) \
-	[n] = { .name = #n, .write = write_##func, .print = print_##func, \
-		.process = process_##func }
-#define FEAT_OPF(n, func) \
-	[n] = { .name = #n, .write = write_##func, .print = print_##func, \
-		.process = process_##func, .full_only = true }
+#define FEAT_OPR(n, func, __full_only) \
+	[HEADER_##n] = {					\
+		.name	    = __stringify(n),			\
+		.write	    = write_##func,			\
+		.print	    = print_##func,			\
+		.full_only  = __full_only,			\
+		.process    = process_##func,			\
+		.synthesize = true				\
+	}
+
+#define FEAT_OPN(n, func, __full_only) \
+	[HEADER_##n] = {					\
+		.name	    = __stringify(n),			\
+		.write	    = write_##func,			\
+		.print	    = print_##func,			\
+		.full_only  = __full_only,			\
+		.process    = process_##func			\
+	}
 
 /* feature_ops not implemented: */
 #define print_tracing_data	NULL
 #define print_build_id		NULL
 
+#define process_branch_stack	NULL
+#define process_stat		NULL
+
+
 static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
-	FEAT_OPP(HEADER_TRACING_DATA,	tracing_data),
-	FEAT_OPP(HEADER_BUILD_ID,	build_id),
-	FEAT_OPP(HEADER_HOSTNAME,	hostname),
-	FEAT_OPP(HEADER_OSRELEASE,	osrelease),
-	FEAT_OPP(HEADER_VERSION,	version),
-	FEAT_OPP(HEADER_ARCH,		arch),
-	FEAT_OPP(HEADER_NRCPUS,		nrcpus),
-	FEAT_OPP(HEADER_CPUDESC,	cpudesc),
-	FEAT_OPP(HEADER_CPUID,		cpuid),
-	FEAT_OPP(HEADER_TOTAL_MEM,	total_mem),
-	FEAT_OPP(HEADER_EVENT_DESC,	event_desc),
-	FEAT_OPP(HEADER_CMDLINE,	cmdline),
-	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
-	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
-	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
-	FEAT_OPP(HEADER_PMU_MAPPINGS,	pmu_mappings),
-	FEAT_OPP(HEADER_GROUP_DESC,	group_desc),
-	FEAT_OPP(HEADER_AUXTRACE,	auxtrace),
-	FEAT_OPA(HEADER_STAT,		stat),
-	FEAT_OPF(HEADER_CACHE,		cache),
+	FEAT_OPN(TRACING_DATA,	tracing_data,	false),
+	FEAT_OPN(BUILD_ID,	build_id,	false),
+	FEAT_OPR(HOSTNAME,	hostname,	false),
+	FEAT_OPR(OSRELEASE,	osrelease,	false),
+	FEAT_OPR(VERSION,	version,	false),
+	FEAT_OPR(ARCH,		arch,		false),
+	FEAT_OPR(NRCPUS,	nrcpus,		false),
+	FEAT_OPR(CPUDESC,	cpudesc,	false),
+	FEAT_OPR(CPUID,		cpuid,		false),
+	FEAT_OPR(TOTAL_MEM,	total_mem,	false),
+	FEAT_OPR(EVENT_DESC,	event_desc,	false),
+	FEAT_OPR(CMDLINE,	cmdline,	false),
+	FEAT_OPR(CPU_TOPOLOGY,	cpu_topology,	true),
+	FEAT_OPR(NUMA_TOPOLOGY,	numa_topology,	true),
+	FEAT_OPN(BRANCH_STACK,	branch_stack,	false),
+	FEAT_OPR(PMU_MAPPINGS,	pmu_mappings,	false),
+	FEAT_OPN(GROUP_DESC,	group_desc,	false),
+	FEAT_OPN(AUXTRACE,	auxtrace,	false),
+	FEAT_OPN(STAT,		stat,		false),
+	FEAT_OPN(CACHE,		cache,		true),
 };
 
 struct header_print_data {
