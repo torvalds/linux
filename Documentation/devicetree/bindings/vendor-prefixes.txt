@@ -127,7 +127,6 @@ lacie	LaCie
 lantiq	Lantiq Semiconductor
 lenovo	Lenovo Group Ltd.
 lg	LG Corporation
-licheepi	Lichee Pi
 linaro	Linaro Limited
 linux	Linux-specific binding
 lsi	LSI Corp. (LSI Logic)

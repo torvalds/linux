@@ -2865,7 +2865,7 @@ static int __qlt_send_term_imm_notif(struct scsi_qla_host *vha,
 
 	pkt->entry_type = NOTIFY_ACK_TYPE;
 	pkt->entry_count = 1;
-	pkt->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
+	pkt->handle = QLA_TGT_SKIP_HANDLE;
 
 	nack = (struct nack_to_isp *)pkt;
 	nack->ox_id = ntfy->ox_id;

@@ -1602,8 +1602,11 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	netdev->netdev_ops = &ibmveth_netdev_ops;
 	netdev->ethtool_ops = &netdev_ethtool_ops;
 	SET_NETDEV_DEV(netdev, &dev->dev);
-	netdev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
-		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	netdev->hw_features = NETIF_F_SG;
+	if (vio_get_attribute(dev, "ibm,illan-options", NULL) != NULL) {
+		netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+				       NETIF_F_RXCSUM;
+	}
 
 	netdev->features |= netdev->hw_features;
 

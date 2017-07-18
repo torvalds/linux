@@ -17,6 +17,7 @@
 #include <string.h>
 #include <endian.h>
 #include <byteswap.h>
+#include <linux/compiler.h>
 
 #include "intel-pt-pkt-decoder.h"
 
@@ -488,6 +489,7 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 	case INTEL_PT_FUP:
 		if (!(packet->count))
 			return snprintf(buf, buf_len, "%s no ip", name);
+		__fallthrough;
 	case INTEL_PT_CYC:
 	case INTEL_PT_VMCS:
 	case INTEL_PT_MTC:

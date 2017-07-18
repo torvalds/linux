@@ -2188,8 +2188,6 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 	if ((mask & ~cache.mask & (MAY_READ | MAY_EXEC)) == 0)
 		return 0;
 
-	/* even though OPEN succeeded, access is denied. Close the file */
-	nfs4_close_state(state, fmode);
 	return -EACCES;
 }
 
