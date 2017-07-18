@@ -13,6 +13,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/fmc.h>
+#include <linux/fmc-sdb.h>
+
+#include "fmc-private.h"
 
 static int fmc_check_version(unsigned long version, const char *name)
 {
@@ -289,7 +292,7 @@ int fmc_device_register_n(struct fmc_device **devs, int n)
 		}
 		/* This device went well, give information to the user */
 		fmc_dump_eeprom(fmc);
-		fmc_dump_sdb(fmc);
+		fmc_debug_init(fmc);
 	}
 	return 0;
 
@@ -301,6 +304,7 @@ out:
 
 	kfree(devarray);
 	for (i--; i >= 0; i--) {
+		fmc_debug_exit(devs[i]);
 		sysfs_remove_bin_file(&devs[i]->dev.kobj, &fmc_eeprom_attr);
 		device_del(&devs[i]->dev);
 		fmc_free_id_info(devs[i]);
@@ -328,6 +332,7 @@ void fmc_device_unregister_n(struct fmc_device **devs, int n)
 	kfree(devs[0]->devarray);
 
 	for (i = 0; i < n; i++) {
+		fmc_debug_exit(devs[i]);
 		sysfs_remove_bin_file(&devs[i]->dev.kobj, &fmc_eeprom_attr);
 		device_del(&devs[i]->dev);
 		fmc_free_id_info(devs[i]);

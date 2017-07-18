@@ -145,108 +145,15 @@ int fmc_reprogram(struct fmc_device *fmc, struct fmc_driver *d, char *gw,
 			sdb_entry);
 		return -ENODEV;
 	}
-	fmc_dump_sdb(fmc);
+
 	return 0;
 }
 EXPORT_SYMBOL(fmc_reprogram);
 
-static char *__strip_trailing_space(char *buf, char *str, int len)
-{
-	int i = len - 1;
-
-	memcpy(buf, str, len);
-	while(i >= 0 && buf[i] == ' ')
-		buf[i--] = '\0';
-	return buf;
-}
-
-#define __sdb_string(buf, field) ({			\
-	BUILD_BUG_ON(sizeof(buf) < sizeof(field));	\
-	__strip_trailing_space(buf, (void *)(field), sizeof(field));	\
-		})
-
-static void __fmc_show_sdb_tree(const struct fmc_device *fmc,
-				const struct sdb_array *arr)
-{
-	unsigned long base = arr->baseaddr;
-	int i, j, n = arr->len, level = arr->level;
-	char buf[64];
-
-	for (i = 0; i < n; i++) {
-		union  sdb_record *r;
-		struct sdb_product *p;
-		struct sdb_component *c;
-		r = &arr->record[i];
-		c = &r->dev.sdb_component;
-		p = &c->product;
-
-		dev_info(&fmc->dev, "SDB: ");
-
-		for (j = 0; j < level; j++)
-			printk(KERN_CONT "   ");
-		switch (r->empty.record_type) {
-		case sdb_type_interconnect:
-			printk(KERN_CONT "%08llx:%08x %.19s\n",
-			       __be64_to_cpu(p->vendor_id),
-			       __be32_to_cpu(p->device_id),
-			       p->name);
-			break;
-		case sdb_type_device:
-			printk(KERN_CONT "%08llx:%08x %.19s (%08llx-%08llx)\n",
-			       __be64_to_cpu(p->vendor_id),
-			       __be32_to_cpu(p->device_id),
-			       p->name,
-			       __be64_to_cpu(c->addr_first) + base,
-			       __be64_to_cpu(c->addr_last) + base);
-			break;
-		case sdb_type_bridge:
-			printk(KERN_CONT "%08llx:%08x %.19s (bridge: %08llx)\n",
-			       __be64_to_cpu(p->vendor_id),
-			       __be32_to_cpu(p->device_id),
-			       p->name,
-			       __be64_to_cpu(c->addr_first) + base);
-			if (IS_ERR(arr->subtree[i])) {
-				dev_info(&fmc->dev, "SDB: (bridge error %li)\n",
-					 PTR_ERR(arr->subtree[i]));
-				break;
-			}
-			__fmc_show_sdb_tree(fmc, arr->subtree[i]);
-			break;
-		case sdb_type_integration:
-			printk(KERN_CONT "integration\n");
-			break;
-		case sdb_type_repo_url:
-			printk(KERN_CONT "Synthesis repository: %s\n",
-			       __sdb_string(buf, r->repo_url.repo_url));
-			break;
-		case sdb_type_synthesis:
-			printk(KERN_CONT "Bitstream '%s' ",
-			       __sdb_string(buf, r->synthesis.syn_name));
-			printk(KERN_CONT "synthesized %08x by %s ",
-			       __be32_to_cpu(r->synthesis.date),
-			       __sdb_string(buf, r->synthesis.user_name));
-			printk(KERN_CONT "(%s version %x), ",
-			       __sdb_string(buf, r->synthesis.tool_name),
-			       __be32_to_cpu(r->synthesis.tool_version));
-			printk(KERN_CONT "commit %pm\n",
-			       r->synthesis.commit_id);
-			break;
-		case sdb_type_empty:
-			printk(KERN_CONT "empty\n");
-			break;
-		default:
-			printk(KERN_CONT "UNKNOWN TYPE 0x%02x\n",
-			       r->empty.record_type);
-			break;
-		}
-	}
-}
-
 void fmc_show_sdb_tree(const struct fmc_device *fmc)
 {
-	if (!fmc->sdb)
-		return;
-	__fmc_show_sdb_tree(fmc, fmc->sdb);
+	pr_err("%s: not supported anymore, use debugfs to dump SDB\n",
+		__func__);
 }
 EXPORT_SYMBOL(fmc_show_sdb_tree);
 

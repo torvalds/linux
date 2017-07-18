@@ -180,6 +180,9 @@ struct fmc_device {
 	uint32_t device_id;		/* Filled by the device */
 	char *mezzanine_name;		/* Defaults to ``fmc'' */
 	void *mezzanine_data;
+
+	struct dentry *dbg_dir;
+	struct dentry *dbg_sdb_dump;
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
 
@@ -232,7 +235,6 @@ extern int fmc_match(struct device *dev, struct device_driver *drv);
 extern int fmc_fill_id_info(struct fmc_device *fmc);
 extern void fmc_free_id_info(struct fmc_device *fmc);
 extern void fmc_dump_eeprom(const struct fmc_device *fmc);
-extern void fmc_dump_sdb(const struct fmc_device *fmc);
 
 /* helpers for FMC operations */
 extern int fmc_irq_request(struct fmc_device *fmc, irq_handler_t h,
