@@ -241,6 +241,11 @@ config ARM_STI_CPUFREQ
 	  this config option if you wish to add CPUFreq support for STi based
 	  SoCs.
 
+config ARM_TANGO_CPUFREQ
+	bool
+	depends on CPUFREQ_DT && ARCH_TANGO
+	default y
+
 config ARM_TEGRA20_CPUFREQ
 	bool "Tegra20 CPUFreq support"
 	depends on ARCH_TEGRA
