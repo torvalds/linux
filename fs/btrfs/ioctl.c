@@ -1569,8 +1569,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		goto out_free;
 	}
 
-	new_size = div_u64(new_size, fs_info->sectorsize);
-	new_size *= fs_info->sectorsize;
+	new_size = round_down(new_size, fs_info->sectorsize);
 
 	btrfs_info_in_rcu(fs_info, "new size for %s is %llu",
 			  rcu_str_deref(device->name), new_size);
