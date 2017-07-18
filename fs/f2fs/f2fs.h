@@ -357,6 +357,25 @@ struct f2fs_flush_device {
 	u32 segments;		/* # of segments to flush */
 };
 
+/* for inline stuff */
+#define DEF_INLINE_RESERVED_SIZE	1
+
+static inline int get_inline_reserved_size(struct inode *inode);
+#define MAX_INLINE_DATA(inode)	(sizeof(__le32) * (DEF_ADDRS_PER_INODE -\
+				get_inline_reserved_size(inode) -\
+				F2FS_INLINE_XATTR_ADDRS))
+
+/* for inline dir */
+#define NR_INLINE_DENTRY(inode)	(MAX_INLINE_DATA(inode) * BITS_PER_BYTE / \
+				((SIZE_OF_DIR_ENTRY + F2FS_SLOT_LEN) * \
+				BITS_PER_BYTE + 1))
+#define INLINE_DENTRY_BITMAP_SIZE(inode)	((NR_INLINE_DENTRY(inode) + \
+					BITS_PER_BYTE - 1) / BITS_PER_BYTE)
+#define INLINE_RESERVED_SIZE(inode)	(MAX_INLINE_DATA(inode) - \
+				((SIZE_OF_DIR_ENTRY + F2FS_SLOT_LEN) * \
+				NR_INLINE_DENTRY(inode) + \
+				INLINE_DENTRY_BITMAP_SIZE(inode)))
+
 /*
  * For INODE and NODE manager
  */
@@ -382,14 +401,19 @@ static inline void make_dentry_ptr_block(struct inode *inode,
 }
 
 static inline void make_dentry_ptr_inline(struct inode *inode,
-		struct f2fs_dentry_ptr *d, struct f2fs_inline_dentry *t)
+					struct f2fs_dentry_ptr *d, void *t)
 {
+	int entry_cnt = NR_INLINE_DENTRY(inode);
+	int bitmap_size = INLINE_DENTRY_BITMAP_SIZE(inode);
+	int reserved_size = INLINE_RESERVED_SIZE(inode);
+
 	d->inode = inode;
-	d->max = NR_INLINE_DENTRY;
-	d->nr_bitmap = INLINE_DENTRY_BITMAP_SIZE;
-	d->bitmap = &t->dentry_bitmap;
-	d->dentry = t->dentry;
-	d->filename = t->filename;
+	d->max = entry_cnt;
+	d->nr_bitmap = bitmap_size;
+	d->bitmap = t;
+	d->dentry = t + bitmap_size + reserved_size;
+	d->filename = t + bitmap_size + reserved_size +
+					SIZE_OF_DIR_ENTRY * entry_cnt;
 }
 
 /*
@@ -543,6 +567,8 @@ struct f2fs_inode_info {
 	struct extent_tree *extent_tree;	/* cached extent_tree entry */
 	struct rw_semaphore dio_rwsem[2];/* avoid racing between dio and gc */
 	struct rw_semaphore i_mmap_sem;
+
+	int i_inline_reserved;		/* reserved size in inline data */
 };
 
 static inline void get_extent_info(struct extent_info *ext,
@@ -2075,11 +2101,12 @@ static inline bool f2fs_is_drop_cache(struct inode *inode)
 	return is_inode_flag_set(inode, FI_DROP_CACHE);
 }
 
-static inline void *inline_data_addr(struct page *page)
+static inline void *inline_data_addr(struct inode *inode, struct page *page)
 {
 	struct f2fs_inode *ri = F2FS_INODE(page);
+	int reserved_size = get_inline_reserved_size(inode);
 
-	return (void *)&(ri->i_addr[1]);
+	return (void *)&(ri->i_addr[reserved_size]);
 }
 
 static inline int f2fs_has_inline_dentry(struct inode *inode)
@@ -2168,6 +2195,11 @@ static inline void *f2fs_kmalloc(struct f2fs_sb_info *sbi,
 	}
 #endif
 	return kmalloc(size, flags);
+}
+
+static inline int get_inline_reserved_size(struct inode *inode)
+{
+	return F2FS_I(inode)->i_inline_reserved;
 }
 
 #define get_inode_mode(i) \
