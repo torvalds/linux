@@ -156,8 +156,8 @@ static int atmel_ebi_xslate_smc_timings(struct atmel_ebi_dev *ebid,
 out:
 	if (ret) {
 		dev_err(ebid->ebi->dev,
-			"missing or invalid timings definition in %s",
-			np->full_name);
+			"missing or invalid timings definition in %pOF",
+			np);
 		return ret;
 	}
 
@@ -267,8 +267,8 @@ static int atmel_ebi_xslate_smc_config(struct atmel_ebi_dev *ebid,
 		return -EINVAL;
 
 	if ((ret > 0 && !required) || (!ret && required)) {
-		dev_err(ebid->ebi->dev, "missing atmel,smc- properties in %s",
-			np->full_name);
+		dev_err(ebid->ebi->dev, "missing atmel,smc- properties in %pOF",
+			np);
 		return -EINVAL;
 	}
 
@@ -311,8 +311,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 
 		if (cs >= AT91_MATRIX_EBI_NUM_CS ||
 		    !(ebi->caps->available_cs & BIT(cs))) {
-			dev_err(dev, "invalid reg property in %s\n",
-				np->full_name);
+			dev_err(dev, "invalid reg property in %pOF\n", np);
 			return -EINVAL;
 		}
 
@@ -321,7 +320,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 	}
 
 	if (!numcs) {
-		dev_err(dev, "invalid reg property in %s\n", np->full_name);
+		dev_err(dev, "invalid reg property in %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -569,8 +568,8 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 
 		ret = atmel_ebi_dev_setup(ebi, child, reg_cells);
 		if (ret) {
-			dev_err(dev, "failed to configure EBI bus for %s, disabling the device",
-				child->full_name);
+			dev_err(dev, "failed to configure EBI bus for %pOF, disabling the device",
+				child);
 
 			ret = atmel_ebi_dev_disable(ebi, child);
 			if (ret)
