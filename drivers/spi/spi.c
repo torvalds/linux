@@ -1583,8 +1583,8 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 
 	if (spi_controller_is_slave(ctlr)) {
 		if (strcmp(nc->name, "slave")) {
-			dev_err(&ctlr->dev, "%s is not called 'slave'\n",
-				nc->full_name);
+			dev_err(&ctlr->dev, "%pOF is not called 'slave'\n",
+				nc);
 			return -EINVAL;
 		}
 		return 0;
@@ -1593,8 +1593,8 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	/* Device address */
 	rc = of_property_read_u32(nc, "reg", &value);
 	if (rc) {
-		dev_err(&ctlr->dev, "%s has no valid 'reg' property (%d)\n",
-			nc->full_name, rc);
+		dev_err(&ctlr->dev, "%pOF has no valid 'reg' property (%d)\n",
+			nc, rc);
 		return rc;
 	}
 	spi->chip_select = value;
@@ -1603,8 +1603,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	rc = of_property_read_u32(nc, "spi-max-frequency", &value);
 	if (rc) {
 		dev_err(&ctlr->dev,
-			"%s has no valid 'spi-max-frequency' property (%d)\n",
-			nc->full_name, rc);
+			"%pOF has no valid 'spi-max-frequency' property (%d)\n", nc, rc);
 		return rc;
 	}
 	spi->max_speed_hz = value;
@@ -1621,8 +1620,7 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 	/* Alloc an spi_device */
 	spi = spi_alloc_device(ctlr);
 	if (!spi) {
-		dev_err(&ctlr->dev, "spi_device alloc error for %s\n",
-			nc->full_name);
+		dev_err(&ctlr->dev, "spi_device alloc error for %pOF\n", nc);
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -1631,8 +1629,7 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 	rc = of_modalias_node(nc, spi->modalias,
 				sizeof(spi->modalias));
 	if (rc < 0) {
-		dev_err(&ctlr->dev, "cannot find modalias for %s\n",
-			nc->full_name);
+		dev_err(&ctlr->dev, "cannot find modalias for %pOF\n", nc);
 		goto err_out;
 	}
 
@@ -1647,8 +1644,7 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 	/* Register the new device */
 	rc = spi_add_device(spi);
 	if (rc) {
-		dev_err(&ctlr->dev, "spi_device register error %s\n",
-			nc->full_name);
+		dev_err(&ctlr->dev, "spi_device register error %pOF\n", nc);
 		goto err_of_node_put;
 	}
 
@@ -1682,8 +1678,7 @@ static void of_register_spi_devices(struct spi_controller *ctlr)
 		spi = of_register_spi_device(ctlr, nc);
 		if (IS_ERR(spi)) {
 			dev_warn(&ctlr->dev,
-				 "Failed to create SPI device for %s\n",
-				 nc->full_name);
+				 "Failed to create SPI device for %pOF\n", nc);
 			of_node_clear_flag(nc, OF_POPULATED);
 		}
 	}
@@ -3311,8 +3306,8 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 		put_device(&ctlr->dev);
 
 		if (IS_ERR(spi)) {
-			pr_err("%s: failed to create for '%s'\n",
-					__func__, rd->dn->full_name);
+			pr_err("%s: failed to create for '%pOF'\n",
+					__func__, rd->dn);
 			of_node_clear_flag(rd->dn, OF_POPULATED);
 			return notifier_from_errno(PTR_ERR(spi));
 		}
