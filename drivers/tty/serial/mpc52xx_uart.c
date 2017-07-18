@@ -1634,8 +1634,8 @@ mpc52xx_console_setup(struct console *co, char *options)
 		return -EINVAL;
 	}
 
-	pr_debug("Console on ttyPSC%x is %s\n",
-		 co->index, mpc52xx_uart_nodes[co->index]->full_name);
+	pr_debug("Console on ttyPSC%x is %pOF\n",
+		 co->index, mpc52xx_uart_nodes[co->index]);
 
 	/* Fetch register locations */
 	ret = of_address_to_resource(np, 0, &res);
@@ -1755,8 +1755,8 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 			break;
 	if (idx >= MPC52xx_PSC_MAXNUM)
 		return -EINVAL;
-	pr_debug("Found %s assigned to ttyPSC%x\n",
-		 mpc52xx_uart_nodes[idx]->full_name, idx);
+	pr_debug("Found %pOF assigned to ttyPSC%x\n",
+		 mpc52xx_uart_nodes[idx], idx);
 
 	/* set the uart clock to the input clock of the psc, the different
 	 * prescalers are taken into account in the set_baudrate() methods
@@ -1881,8 +1881,8 @@ mpc52xx_uart_of_enumerate(void)
 
 	for (i = 0; i < MPC52xx_PSC_MAXNUM; i++) {
 		if (mpc52xx_uart_nodes[i])
-			pr_debug("%s assigned to ttyPSC%x\n",
-				 mpc52xx_uart_nodes[i]->full_name, i);
+			pr_debug("%pOF assigned to ttyPSC%x\n",
+				 mpc52xx_uart_nodes[i], i);
 	}
 }
 

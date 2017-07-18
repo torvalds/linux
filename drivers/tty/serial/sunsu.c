@@ -1212,8 +1212,8 @@ static int sunsu_kbd_ms_init(struct uart_sunsu_port *up)
 	if (up->port.type == PORT_UNKNOWN)
 		return -ENODEV;
 
-	printk("%s: %s port at %llx, irq %u\n",
-	       up->port.dev->of_node->full_name,
+	printk("%pOF: %s port at %llx, irq %u\n",
+	       up->port.dev->of_node,
 	       (up->su_type == SU_PORT_KBD) ? "Keyboard" : "Mouse",
 	       (unsigned long long) up->port.mapbase,
 	       up->port.irq);

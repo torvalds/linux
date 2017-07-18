@@ -363,7 +363,7 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 		if (!of_get_property(node, "compatible", NULL))
 			continue;
 
-		dev_dbg(&ctrl->dev, "adding child %s\n", node->full_name);
+		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);
 
 		serdev = serdev_device_alloc(ctrl);
 		if (!serdev)
