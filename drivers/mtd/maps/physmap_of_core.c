@@ -178,8 +178,8 @@ static int of_flash_probe(struct platform_device *dev)
 	 */
 	p = of_get_property(dp, "reg", &count);
 	if (!p || count % reg_tuple_size != 0) {
-		dev_err(&dev->dev, "Malformed reg property on %s\n",
-				dev->dev.of_node->full_name);
+		dev_err(&dev->dev, "Malformed reg property on %pOF\n",
+				dev->dev.of_node);
 		err = -EINVAL;
 		goto err_flash_remove;
 	}
