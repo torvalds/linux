@@ -618,7 +618,7 @@ static u32 cpc925_cpu_mask_disabled(void)
 		}
 
 		if (reg == NULL || *reg > 2) {
-			cpc925_printk(KERN_ERR, "Bad reg value at %s\n", cpunode->full_name);
+			cpc925_printk(KERN_ERR, "Bad reg value at %pOF\n", cpunode);
 			continue;
 		}
 
