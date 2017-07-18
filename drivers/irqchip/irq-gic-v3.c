@@ -353,6 +353,8 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 
 			if (static_key_true(&supports_deactivate))
 				gic_write_eoir(irqnr);
+			else
+				isb();
 
 			err = handle_domain_irq(gic_data.domain, irqnr, regs);
 			if (err) {
