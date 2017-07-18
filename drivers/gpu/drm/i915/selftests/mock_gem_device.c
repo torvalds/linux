@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 
 #include "mock_engine.h"
@@ -109,6 +110,23 @@ static void mock_idle_work_handler(struct work_struct *work)
 {
 }
 
+static int pm_domain_resume(struct device *dev)
+{
+	return pm_generic_runtime_resume(dev);
+}
+
+static int pm_domain_suspend(struct device *dev)
+{
+	return pm_generic_runtime_suspend(dev);
+}
+
+static struct dev_pm_domain pm_domain = {
+	.ops = {
+		.runtime_suspend = pm_domain_suspend,
+		.runtime_resume = pm_domain_resume,
+	},
+};
+
 struct drm_i915_private *mock_gem_device(void)
 {
 	struct drm_i915_private *i915;
@@ -127,8 +145,10 @@ struct drm_i915_private *mock_gem_device(void)
 	dev_set_name(&pdev->dev, "mock");
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
+	dev_pm_domain_set(&pdev->dev, &pm_domain);
+	pm_runtime_enable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
+	WARN_ON(pm_runtime_get_sync(&pdev->dev));
 
 	i915 = (struct drm_i915_private *)(pdev + 1);
 	pci_set_drvdata(pdev, i915);
