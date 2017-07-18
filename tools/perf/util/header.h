@@ -144,9 +144,12 @@ bool is_perf_magic(u64 magic);
 
 #define NAME_ALIGN 64
 
-int do_write(int fd, const void *buf, size_t size);
+struct feat_fd;
 
-int write_padded(int fd, const void *bf, size_t count, size_t count_aligned);
+int do_write(struct feat_fd *fd, const void *buf, size_t size);
+
+int write_padded(struct feat_fd *fd, const void *bf,
+		 size_t count, size_t count_aligned);
 
 /*
  * arch specific callback

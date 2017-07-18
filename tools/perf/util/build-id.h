@@ -10,6 +10,7 @@
 
 extern struct perf_tool build_id__mark_dso_hit_ops;
 struct dso;
+struct feat_fd;
 
 int build_id__sprintf(const u8 *build_id, int len, char *bf);
 int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id);
@@ -27,7 +28,8 @@ int build_id__mark_dso_hit(struct perf_tool *tool, union perf_event *event,
 int dsos__hit_all(struct perf_session *session);
 
 bool perf_session__read_build_ids(struct perf_session *session, bool with_hits);
-int perf_session__write_buildid_table(struct perf_session *session, int fd);
+int perf_session__write_buildid_table(struct perf_session *session,
+				      struct feat_fd *fd);
 int perf_session__cache_build_ids(struct perf_session *session);
 
 char *build_id_cache__origname(const char *sbuild_id);

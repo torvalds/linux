@@ -289,7 +289,7 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 		else
 
 static int write_buildid(const char *name, size_t name_len, u8 *build_id,
-			 pid_t pid, u16 misc, int fd)
+			 pid_t pid, u16 misc, struct feat_fd *fd)
 {
 	int err;
 	struct build_id_event b;
@@ -311,7 +311,8 @@ static int write_buildid(const char *name, size_t name_len, u8 *build_id,
 	return write_padded(fd, name, name_len + 1, len);
 }
 
-static int machine__write_buildid_table(struct machine *machine, int fd)
+static int machine__write_buildid_table(struct machine *machine,
+					struct feat_fd *fd)
 {
 	int err = 0;
 	char nm[PATH_MAX];
@@ -356,7 +357,8 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 	return err;
 }
 
-int perf_session__write_buildid_table(struct perf_session *session, int fd)
+int perf_session__write_buildid_table(struct perf_session *session,
+				      struct feat_fd *fd)
 {
 	struct rb_node *nd;
 	int err = machine__write_buildid_table(&session->machines.host, fd);
