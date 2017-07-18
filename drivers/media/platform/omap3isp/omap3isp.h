@@ -46,6 +46,7 @@ enum isp_interface_type {
  *		0 - Positive, 1 - Negative
  * @data_pol: Data polarity
  *		0 - Normal, 1 - One's complement
+ * @bt656: Data contain BT.656 embedded synchronization
  */
 struct isp_parallel_cfg {
 	unsigned int data_lane_shift:3;
@@ -54,6 +55,7 @@ struct isp_parallel_cfg {
 	unsigned int vs_pol:1;
 	unsigned int fld_pol:1;
 	unsigned int data_pol:1;
+	unsigned int bt656:1;
 };
 
 enum {

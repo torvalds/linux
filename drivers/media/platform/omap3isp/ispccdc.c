@@ -1139,15 +1139,9 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	pad = media_entity_remote_pad(&ccdc->pads[CCDC_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	if (ccdc->input == CCDC_INPUT_PARALLEL) {
-		struct v4l2_mbus_config cfg;
-		int ret;
-
-		ret = v4l2_subdev_call(sensor, video, g_mbus_config, &cfg);
-		if (!ret)
-			ccdc->bt656 = cfg.type == V4L2_MBUS_BT656;
-
 		parcfg = &((struct isp_bus_cfg *)sensor->host_priv)
 			->bus.parallel;
+		ccdc->bt656 = parcfg->bt656;
 	}
 
 	/* CCDC_PAD_SINK */
