@@ -347,64 +347,6 @@ mlx5e_copy_skb_header_mpwqe(struct device *pdev,
 	}
 }
 
-static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
-{
-	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
-	struct mlx5e_icosq *sq = &rq->channel->icosq;
-	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_umr_wqe *wqe;
-	u8 num_wqebbs = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_BB);
-	u16 pi;
-
-	/* fill sq edge with nops to avoid wqe wrap around */
-	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
-		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	}
-
-	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memcpy(wqe, &wi->umr.wqe, sizeof(*wqe));
-	wqe->ctrl.opmod_idx_opcode =
-		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
-			    MLX5_OPCODE_UMR);
-
-	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
-	sq->pc += num_wqebbs;
-	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &wqe->ctrl);
-}
-
-static int mlx5e_alloc_rx_umr_mpwqe(struct mlx5e_rq *rq,
-				    u16 ix)
-{
-	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
-	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
-	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
-	int err;
-	int i;
-
-	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
-		err = mlx5e_page_alloc_mapped(rq, dma_info);
-		if (unlikely(err))
-			goto err_unmap;
-		wi->umr.mtt[i] = cpu_to_be64(dma_info->addr | MLX5_EN_WR);
-		page_ref_add(dma_info->page, pg_strides);
-	}
-
-	memset(wi->skbs_frags, 0, sizeof(*wi->skbs_frags) * MLX5_MPWRQ_PAGES_PER_WQE);
-	wi->consumed_strides = 0;
-
-	return 0;
-
-err_unmap:
-	while (--i >= 0) {
-		dma_info--;
-		page_ref_sub(dma_info->page, pg_strides);
-		mlx5e_page_release(rq, dma_info, true);
-	}
-
-	return err;
-}
-
 void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
 {
 	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
@@ -434,16 +376,57 @@ static void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
 
 static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
+	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
+	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
+	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
+	struct mlx5e_icosq *sq = &rq->channel->icosq;
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	struct mlx5e_umr_wqe *wqe;
+	u8 num_wqebbs = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_BB);
 	int err;
+	u16 pi;
+	int i;
 
-	err = mlx5e_alloc_rx_umr_mpwqe(rq, ix);
-	if (unlikely(err)) {
-		rq->stats.buff_alloc_err++;
-		return err;
+	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
+		err = mlx5e_page_alloc_mapped(rq, dma_info);
+		if (unlikely(err))
+			goto err_unmap;
+		wi->umr.mtt[i] = cpu_to_be64(dma_info->addr | MLX5_EN_WR);
+		page_ref_add(dma_info->page, pg_strides);
 	}
+
+	memset(wi->skbs_frags, 0, sizeof(*wi->skbs_frags) * MLX5_MPWRQ_PAGES_PER_WQE);
+	wi->consumed_strides = 0;
+
 	rq->mpwqe.umr_in_progress = true;
-	mlx5e_post_umr_wqe(rq, ix);
+
+	/* fill sq edge with nops to avoid wqe wrap around */
+	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
+		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
+		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+	}
+
+	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
+	memcpy(wqe, &wi->umr.wqe, sizeof(*wqe));
+	wqe->ctrl.opmod_idx_opcode =
+		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
+			    MLX5_OPCODE_UMR);
+
+	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
+	sq->pc += num_wqebbs;
+	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &wqe->ctrl);
+
 	return 0;
+
+err_unmap:
+	while (--i >= 0) {
+		dma_info--;
+		page_ref_sub(dma_info->page, pg_strides);
+		mlx5e_page_release(rq, dma_info, true);
+	}
+	rq->stats.buff_alloc_err++;
+
+	return err;
 }
 
 void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
