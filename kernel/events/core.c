@@ -1452,6 +1452,13 @@ static enum event_type_t get_event_type(struct perf_event *event)
 
 	lockdep_assert_held(&ctx->lock);
 
+	/*
+	 * It's 'group type', really, because if our group leader is
+	 * pinned, so are we.
+	 */
+	if (event->group_leader != event)
+		event = event->group_leader;
+
 	event_type = event->attr.pinned ? EVENT_PINNED : EVENT_FLEXIBLE;
 	if (!ctx->task)
 		event_type |= EVENT_CPU;
