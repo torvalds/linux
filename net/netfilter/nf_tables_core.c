@@ -114,6 +114,22 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 	return true;
 }
 
+DEFINE_STATIC_KEY_FALSE(nft_counters_enabled);
+
+static noinline void nft_update_chain_stats(const struct nft_chain *chain,
+					    const struct nft_pktinfo *pkt)
+{
+	struct nft_stats *stats;
+
+	local_bh_disable();
+	stats = this_cpu_ptr(rcu_dereference(nft_base_chain(chain)->stats));
+	u64_stats_update_begin(&stats->syncp);
+	stats->pkts++;
+	stats->bytes += pkt->skb->len;
+	u64_stats_update_end(&stats->syncp);
+	local_bh_enable();
+}
+
 struct nft_jumpstack {
 	const struct nft_chain	*chain;
 	const struct nft_rule	*rule;
@@ -130,7 +146,6 @@ nft_do_chain(struct nft_pktinfo *pkt, void *priv)
 	struct nft_regs regs;
 	unsigned int stackptr = 0;
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
-	struct nft_stats *stats;
 	int rulenum;
 	unsigned int gencursor = nft_genmask_cur(net);
 	struct nft_traceinfo info;
@@ -220,13 +235,8 @@ next_rule:
 	nft_trace_packet(&info, basechain, NULL, -1,
 			 NFT_TRACETYPE_POLICY);
 
-	rcu_read_lock_bh();
-	stats = this_cpu_ptr(rcu_dereference(nft_base_chain(basechain)->stats));
-	u64_stats_update_begin(&stats->syncp);
-	stats->pkts++;
-	stats->bytes += pkt->skb->len;
-	u64_stats_update_end(&stats->syncp);
-	rcu_read_unlock_bh();
+	if (static_branch_unlikely(&nft_counters_enabled))
+		nft_update_chain_stats(basechain, pkt);
 
 	return nft_base_chain(basechain)->policy;
 }

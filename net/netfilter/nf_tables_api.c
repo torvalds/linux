@@ -1240,6 +1240,8 @@ static void nf_tables_chain_destroy(struct nft_chain *chain)
 
 		module_put(basechain->type->owner);
 		free_percpu(basechain->stats);
+		if (basechain->stats)
+			static_branch_dec(&nft_counters_enabled);
 		if (basechain->ops[0].dev != NULL)
 			dev_put(basechain->ops[0].dev);
 		kfree(basechain);
@@ -1504,14 +1506,7 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 				return PTR_ERR(stats);
 			}
 			basechain->stats = stats;
-		} else {
-			stats = netdev_alloc_pcpu_stats(struct nft_stats);
-			if (stats == NULL) {
-				nft_chain_release_hook(&hook);
-				kfree(basechain);
-				return -ENOMEM;
-			}
-			rcu_assign_pointer(basechain->stats, stats);
+			static_branch_inc(&nft_counters_enabled);
 		}
 
 		hookfn = hook.type->hooks[hook.num];
