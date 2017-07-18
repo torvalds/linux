@@ -2974,6 +2974,11 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	/* Unmask HPD, clear transitory interrupts, then unmute */
 	hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
 
+	if (hdmi->dev_type == RK3288_HDMI && hdmi->version > 0x200a)
+		hdmi->connector.ycbcr_420_allowed = false;
+	else
+		hdmi->connector.ycbcr_420_allowed = true;
+
 	ret = dw_hdmi_register(drm, hdmi);
 	if (ret)
 		goto err_iahb;
