@@ -5232,12 +5232,44 @@ MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv4_ent_rif, MLXSW_REG_RAUHTD_BASE_LEN, 0,
 MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv4_ent_dip, MLXSW_REG_RAUHTD_BASE_LEN, 0,
 		     32, MLXSW_REG_RAUHTD_IPV4_ENT_LEN, 0x04, false);
 
+#define MLXSW_REG_RAUHTD_IPV6_ENT_LEN 0x20
+
+/* reg_rauhtd_ipv6_ent_a
+ * Activity. Set for new entries. Set if a packet lookup has hit on the
+ * specific entry.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv6_ent_a, MLXSW_REG_RAUHTD_BASE_LEN, 16, 1,
+		     MLXSW_REG_RAUHTD_IPV6_ENT_LEN, 0x00, false);
+
+/* reg_rauhtd_ipv6_ent_rif
+ * Router interface.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, rauhtd, ipv6_ent_rif, MLXSW_REG_RAUHTD_BASE_LEN, 0,
+		     16, MLXSW_REG_RAUHTD_IPV6_ENT_LEN, 0x00, false);
+
+/* reg_rauhtd_ipv6_ent_dip
+ * Destination IPv6 address.
+ * Access: RO
+ */
+MLXSW_ITEM_BUF_INDEXED(reg, rauhtd, ipv6_ent_dip, MLXSW_REG_RAUHTD_BASE_LEN,
+		       16, MLXSW_REG_RAUHTD_IPV6_ENT_LEN, 0x10);
+
 static inline void mlxsw_reg_rauhtd_ent_ipv4_unpack(char *payload,
 						    int ent_index, u16 *p_rif,
 						    u32 *p_dip)
 {
 	*p_rif = mlxsw_reg_rauhtd_ipv4_ent_rif_get(payload, ent_index);
 	*p_dip = mlxsw_reg_rauhtd_ipv4_ent_dip_get(payload, ent_index);
+}
+
+static inline void mlxsw_reg_rauhtd_ent_ipv6_unpack(char *payload,
+						    int rec_index, u16 *p_rif,
+						    char *p_dip)
+{
+	*p_rif = mlxsw_reg_rauhtd_ipv6_ent_rif_get(payload, rec_index);
+	mlxsw_reg_rauhtd_ipv6_ent_dip_memcpy_from(payload, rec_index, p_dip);
 }
 
 /* MFCR - Management Fan Control Register
