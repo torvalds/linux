@@ -53,6 +53,11 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+	};
+
 	cpu: cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
