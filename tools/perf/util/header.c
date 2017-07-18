@@ -74,6 +74,7 @@ bool perf_header__has_feat(const struct perf_header *header, int feat)
 	return test_bit(feat, header->adds_features);
 }
 
+/* Return: 0 if succeded, -ERR if failed. */
 static int do_write(int fd, const void *buf, size_t size)
 {
 	while (size) {
@@ -89,6 +90,7 @@ static int do_write(int fd, const void *buf, size_t size)
 	return 0;
 }
 
+/* Return: 0 if succeded, -ERR if failed. */
 int write_padded(int fd, const void *bf, size_t count, size_t count_aligned)
 {
 	static const char zero_buf[NAME_ALIGN];
@@ -103,6 +105,7 @@ int write_padded(int fd, const void *bf, size_t count, size_t count_aligned)
 #define string_size(str)						\
 	(PERF_ALIGN((strlen(str) + 1), NAME_ALIGN) + sizeof(u32))
 
+/* Return: 0 if succeded, -ERR if failed. */
 static int do_write_string(int fd, const char *str)
 {
 	u32 len, olen;
@@ -3200,7 +3203,8 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 	 */
 	tracing_data_put(tdata);
 
-	write_padded(fd, NULL, 0, padding);
+	if (write_padded(fd, NULL, 0, padding))
+		return -1;
 
 	return aligned_size;
 }
