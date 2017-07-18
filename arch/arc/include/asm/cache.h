@@ -47,7 +47,8 @@
 	: "r"(data), "r"(ptr));		\
 })
 
-#define ARCH_DMA_MINALIGN      L1_CACHE_BYTES
+/* Largest line length for either L1 or L2 is 128 bytes */
+#define ARCH_DMA_MINALIGN      128
 
 extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
