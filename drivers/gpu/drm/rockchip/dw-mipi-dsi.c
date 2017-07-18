@@ -515,7 +515,6 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 	dsi_write(dsi, DSI_PHY_RSTZ, PHY_ENFORCEPLL | PHY_ENABLECLK |
 				     PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
 
-
 	ret = readx_poll_timeout(readl, dsi->base + DSI_PHY_STATUS,
 				 val, val & LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret < 0) {
@@ -646,10 +645,13 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 
 static void rockchip_set_transfer_mode(struct dw_mipi_dsi *dsi, int flags)
 {
-	if (flags & MIPI_DSI_MSG_USE_LPM)
+	if (flags & MIPI_DSI_MSG_USE_LPM) {
 		dsi_write(dsi, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
-	else
+		dsi_write(dsi, DSI_LPCLK_CTRL, 0);
+	} else {
 		dsi_write(dsi, DSI_CMD_MODE_CFG, 0);
+		dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
+	}
 }
 
 static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
@@ -752,7 +754,6 @@ static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 		  | PHY_RSTZ | PHY_SHUTDOWNZ);
 	dsi_write(dsi, DSI_CLKMGR_CFG, TO_CLK_DIVIDSION(10) |
 		  TX_ESC_CLK_DIVIDSION(7));
-	dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
 }
 
 static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
@@ -1009,6 +1010,7 @@ static void rockchip_dsi_init(struct dw_mipi_dsi *dsi)
 
 static void rockchip_dsi_enable(struct dw_mipi_dsi *dsi)
 {
+	dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
 	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
 	clk_disable_unprepare(dsi->pllref_clk);
 	clk_disable_unprepare(dsi->pclk);
