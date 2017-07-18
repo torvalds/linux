@@ -163,15 +163,6 @@
 
 			};
 
-			cps_sata0: sata@540000 {
-				compatible = "marvell,armada-8k-ahci",
-					     "generic-ahci";
-				reg = <0x540000 0x30000>;
-				interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cps_clk 1 15>;
-				status = "disabled";
-			};
-
 			cps_usb3_0: usb3@500000 {
 				compatible = "marvell,armada-8k-xhci",
 					     "generic-xhci";
@@ -189,6 +180,15 @@
 				dma-coherent;
 				interrupts = <ICU_GRP_NSR 105 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cps_clk 1 23>;
+				status = "disabled";
+			};
+
+			cps_sata0: sata@540000 {
+				compatible = "marvell,armada-8k-ahci",
+					     "generic-ahci";
+				reg = <0x540000 0x30000>;
+				interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cps_clk 1 15>;
 				status = "disabled";
 			};
 
