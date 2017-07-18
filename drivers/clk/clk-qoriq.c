@@ -1366,8 +1366,7 @@ static void __init clockgen_init(struct device_node *np)
 	}
 
 	if (i == ARRAY_SIZE(chipinfo)) {
-		pr_err("%s: unknown clockgen node %s\n", __func__,
-		       np->full_name);
+		pr_err("%s: unknown clockgen node %pOF\n", __func__, np);
 		goto err;
 	}
 	clockgen.info = chipinfo[i];
@@ -1380,8 +1379,8 @@ static void __init clockgen_init(struct device_node *np)
 		if (guts) {
 			clockgen.guts = of_iomap(guts, 0);
 			if (!clockgen.guts) {
-				pr_err("%s: Couldn't map %s regs\n", __func__,
-				       guts->full_name);
+				pr_err("%s: Couldn't map %pOF regs\n", __func__,
+				       guts);
 			}
 		}
 
