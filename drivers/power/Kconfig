@@ -455,6 +455,12 @@ config CHARGER_SMB347
 	  Say Y to include support for Summit Microelectronics SMB347
 	  Battery Charger.
 
+config CHARGER_SY6982C
+	tristate "SY6982C Charger driver"
+	depends on EXTCON
+	help
+	  Say Y to enable support for sy8963c charger.
+
 config CHARGER_TPS65090
 	tristate "TPS65090 battery charger driver"
 	depends on MFD_TPS65090

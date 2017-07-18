@@ -1,0 +1,14 @@
+Binding for sy6982c Charger
+
+Required properties:
+- compatible: Should contain one of the following:
+    * "sy6982c-charger"
+- extcon: extcon specifier for the Charger.
+
+Example:
+
+	sy6982c {
+		status = "okay";
+		compatible = "sy6982c-charger";
+		extcon = <&u2phy0>;
+	};
