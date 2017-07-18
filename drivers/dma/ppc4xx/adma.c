@@ -4040,9 +4040,9 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 		/* it is DMA0 or DMA1 */
 		idx = of_get_property(np, "cell-index", &len);
 		if (!idx || (len != sizeof(u32))) {
-			dev_err(&ofdev->dev, "Device node %s has missing "
+			dev_err(&ofdev->dev, "Device node %pOF has missing "
 				"or invalid cell-index property\n",
-				np->full_name);
+				np);
 			return -EINVAL;
 		}
 		id = *idx;
@@ -4448,8 +4448,7 @@ static int ppc440spe_configure_raid_devices(void)
 	dcr_base = dcr_resource_start(np, 0);
 	dcr_len = dcr_resource_len(np, 0);
 	if (!dcr_base && !dcr_len) {
-		pr_err("%s: can't get DCR registers base/len!\n",
-			np->full_name);
+		pr_err("%pOF: can't get DCR registers base/len!\n", np);
 		of_node_put(np);
 		iounmap(i2o_reg);
 		return -ENODEV;
@@ -4457,7 +4456,7 @@ static int ppc440spe_configure_raid_devices(void)
 
 	i2o_dcr_host = dcr_map(np, dcr_base, dcr_len);
 	if (!DCR_MAP_OK(i2o_dcr_host)) {
-		pr_err("%s: failed to map DCRs!\n", np->full_name);
+		pr_err("%pOF: failed to map DCRs!\n", np);
 		of_node_put(np);
 		iounmap(i2o_reg);
 		return -ENODEV;
@@ -4518,15 +4517,14 @@ static int ppc440spe_configure_raid_devices(void)
 	dcr_base = dcr_resource_start(np, 0);
 	dcr_len = dcr_resource_len(np, 0);
 	if (!dcr_base && !dcr_len) {
-		pr_err("%s: can't get DCR registers base/len!\n",
-			np->full_name);
+		pr_err("%pOF: can't get DCR registers base/len!\n", np);
 		ret = -ENODEV;
 		goto out_mq;
 	}
 
 	ppc440spe_mq_dcr_host = dcr_map(np, dcr_base, dcr_len);
 	if (!DCR_MAP_OK(ppc440spe_mq_dcr_host)) {
-		pr_err("%s: failed to map DCRs!\n", np->full_name);
+		pr_err("%pOF: failed to map DCRs!\n", np);
 		ret = -ENODEV;
 		goto out_mq;
 	}
