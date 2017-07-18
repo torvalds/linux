@@ -147,7 +147,7 @@ static __init const char *exynos_get_domain_name(struct device_node *node)
 	const char *name;
 
 	if (of_property_read_string(node, "label", &name) < 0)
-		name = strrchr(node->full_name, '/') + 1;
+		name = kbasename(node->full_name);
 	return kstrdup_const(name, GFP_KERNEL);
 }
 
