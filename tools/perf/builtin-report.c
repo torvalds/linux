@@ -38,6 +38,7 @@
 #include "util/time-utils.h"
 #include "util/auxtrace.h"
 #include "util/units.h"
+#include "util/branch.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -73,6 +74,7 @@ struct report {
 	u64			queue_size;
 	int			socket_filter;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+	struct branch_type_stat	brtype_stat;
 };
 
 static int report__config(const char *var, const char *value, void *cb)
@@ -150,6 +152,22 @@ out:
 	return err;
 }
 
+static int hist_iter__branch_callback(struct hist_entry_iter *iter,
+				      struct addr_location *al __maybe_unused,
+				      bool single __maybe_unused,
+				      void *arg)
+{
+	struct hist_entry *he = iter->he;
+	struct report *rep = arg;
+	struct branch_info *bi;
+
+	bi = he->branch_info;
+	branch_type_count(&rep->brtype_stat, &bi->flags,
+			  bi->from.addr, bi->to.addr);
+
+	return 0;
+}
+
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
@@ -188,6 +206,8 @@ static int process_sample_event(struct perf_tool *tool,
 		 */
 		if (!sample->branch_stack)
 			goto out_put;
+
+		iter.add_entry_cb = hist_iter__branch_callback;
 		iter.ops = &hist_iter_branch;
 	} else if (rep->mem_mode) {
 		iter.ops = &hist_iter_mem;
@@ -409,6 +429,9 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 					 style);
 		perf_read_values_destroy(&rep->show_threads_values);
 	}
+
+	if (sort__mode == SORT_MODE__BRANCH)
+		branch_type_stat_display(stdout, &rep->brtype_stat);
 
 	return 0;
 }
@@ -943,6 +966,8 @@ repeat:
 
 	if (has_br_stack && branch_call_mode)
 		symbol_conf.show_branchflag_count = true;
+
+	memset(&report.brtype_stat, 0, sizeof(struct branch_type_stat));
 
 	/*
 	 * Branch mode is a tristate:
