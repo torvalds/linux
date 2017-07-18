@@ -409,7 +409,6 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_connector *connector;
-	struct drm_crtc *crtc;
 
 	if (!suspend) {
 		if (drm_drv_uses_atomic_modeset(dev))
@@ -417,10 +416,6 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 		else
 			drm_crtc_force_disable_all(dev);
 	}
-
-	/* Make sure that drm and hw vblank irqs get properly disabled. */
-	drm_for_each_crtc(crtc, dev)
-		drm_crtc_vblank_off(crtc);
 
 	/* disable flip completion events */
 	nvif_notify_put(&drm->flip);
