@@ -57,7 +57,7 @@ static void mock_device_release(struct drm_device *dev)
 
 	cancel_delayed_work_sync(&i915->gt.retire_work);
 	cancel_delayed_work_sync(&i915->gt.idle_work);
-	flush_workqueue(i915->wq);
+	i915_gem_drain_workqueue(i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	for_each_engine(engine, i915, id)

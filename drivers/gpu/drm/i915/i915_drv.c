@@ -596,7 +596,8 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 static void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
-	flush_workqueue(dev_priv->wq);
+	/* Flush any outstanding unpin_work. */
+	i915_gem_drain_workqueue(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
@@ -1412,9 +1413,6 @@ void i915_driver_unload(struct drm_device *dev)
 	/* Free error state after interrupts are fully disabled. */
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	i915_reset_error_state(dev_priv);
-
-	/* Flush any outstanding unpin_work. */
-	drain_workqueue(dev_priv->wq);
 
 	i915_gem_fini(dev_priv);
 	intel_uc_fini_fw(dev_priv);
