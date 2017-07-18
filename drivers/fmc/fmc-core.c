@@ -280,6 +280,21 @@ int fmc_device_register_n_gw(struct fmc_device **devs, int n,
 		else
 			dev_set_name(&fmc->dev, "%s-%04x", fmc->mezzanine_name,
 				     device_id);
+
+		if (gw) {
+			/*
+			 * The carrier already know the bitstream to load
+			 * for this set of FMC mezzanines.
+			 */
+			ret = fmc->op->reprogram_raw(fmc, NULL,
+						     gw->bitstream, gw->len);
+			if (ret) {
+				dev_warn(fmc->hwdev,
+					 "Invalid gateware for FMC mezzanine\n");
+				goto out;
+			}
+		}
+
 		ret = device_add(&fmc->dev);
 		if (ret < 0) {
 			dev_err(fmc->hwdev, "Slot %i: Failed in registering "
@@ -300,9 +315,6 @@ int fmc_device_register_n_gw(struct fmc_device **devs, int n,
 out1:
 	device_del(&fmc->dev);
 out:
-	fmc_free_id_info(fmc);
-	put_device(&fmc->dev);
-
 	kfree(devarray);
 	for (i--; i >= 0; i--) {
 		fmc_debug_exit(devs[i]);

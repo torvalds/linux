@@ -132,6 +132,8 @@ struct fmc_operations {
 	uint32_t (*read32)(struct fmc_device *fmc, int offset);
 	void (*write32)(struct fmc_device *fmc, uint32_t value, int offset);
 	int (*validate)(struct fmc_device *fmc, struct fmc_driver *drv);
+	int (*reprogram_raw)(struct fmc_device *f, struct fmc_driver *d,
+			     void *gw, unsigned long len);
 	int (*reprogram)(struct fmc_device *f, struct fmc_driver *d, char *gw);
 	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
 			   char *name, int flags);
@@ -144,6 +146,8 @@ struct fmc_operations {
 };
 
 /* Prefer this helper rather than calling of fmc->reprogram directly */
+int fmc_reprogram_raw(struct fmc_device *fmc, struct fmc_driver *d,
+		      void *gw, unsigned long len, int sdb_entry);
 extern int fmc_reprogram(struct fmc_device *f, struct fmc_driver *d, char *gw,
 		     int sdb_entry);
 
