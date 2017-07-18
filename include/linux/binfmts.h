@@ -35,6 +35,13 @@ struct linux_binprm {
 				 * false if not; except for init which inherits
 				 * its parent's caps anyway */
 		/*
+		 * True if most recent call to the commoncaps bprm_set_creds
+		 * hook (due to multiple prepare_binprm() calls from the
+		 * binfmt_script/misc handlers) resulted in elevated
+		 * privileges.
+		 */
+		cap_elevated:1,
+		/*
 		 * Set by bprm_set_creds hook to indicate a privilege-gaining
 		 * exec has happened. Used to sanitize execution environment
 		 * and to set AT_SECURE auxv for glibc.

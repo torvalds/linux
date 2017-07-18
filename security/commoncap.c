@@ -481,6 +481,8 @@ out:
 	return rc;
 }
 
+static int is_secureexec(struct linux_binprm *bprm);
+
 /**
  * cap_bprm_set_creds - Set up the proposed credentials for execve().
  * @bprm: The execution parameters, including the proposed creds
@@ -614,11 +616,14 @@ skip:
 	if (WARN_ON(!cap_ambient_invariant_ok(new)))
 		return -EPERM;
 
+	/* Check for privilege-elevated exec. */
+	bprm->cap_elevated = is_secureexec(bprm);
+
 	return 0;
 }
 
 /**
- * cap_bprm_secureexec - Determine whether a secure execution is required
+ * is_secureexec - Determine whether a secure execution is required
  * @bprm: The execution parameters
  *
  * Determine whether a secure execution is required, return 1 if it is, and 0
@@ -627,9 +632,9 @@ skip:
  * The credentials have been committed by this point, and so are no longer
  * available through @bprm->cred.
  */
-int cap_bprm_secureexec(struct linux_binprm *bprm)
+static int is_secureexec(struct linux_binprm *bprm)
 {
-	const struct cred *cred = current_cred();
+	const struct cred *cred = bprm->cred;
 	kuid_t root_uid = make_kuid(cred->user_ns, 0);
 
 	if (!uid_eq(cred->uid, root_uid)) {
@@ -1079,7 +1084,6 @@ struct security_hook_list capability_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(capget, cap_capget),
 	LSM_HOOK_INIT(capset, cap_capset),
 	LSM_HOOK_INIT(bprm_set_creds, cap_bprm_set_creds),
-	LSM_HOOK_INIT(bprm_secureexec, cap_bprm_secureexec),
 	LSM_HOOK_INIT(inode_need_killpriv, cap_inode_need_killpriv),
 	LSM_HOOK_INIT(inode_killpriv, cap_inode_killpriv),
 	LSM_HOOK_INIT(mmap_addr, cap_mmap_addr),
