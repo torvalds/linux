@@ -433,7 +433,8 @@ int rf69_set_dc_cut_off_frequency_during_afc(struct spi_device *spi, enum dccPer
 	return rf69_set_dc_cut_off_frequency_intern(spi, REG_AFCBW, dccPercent);
 }
 
-int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg, enum mantisse mantisse, u8 exponent)
+static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
+				     enum mantisse mantisse, u8 exponent)
 {
 	u8 newValue;
 
