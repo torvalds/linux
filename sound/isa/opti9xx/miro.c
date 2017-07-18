@@ -1353,9 +1353,10 @@ static int snd_miro_probe(struct snd_card *card)
 	}
 
 	strcpy(card->driver, "miro");
-	sprintf(card->longname, "%s: OPTi%s, %s at 0x%lx, irq %d, dma %d&%d",
-		card->shortname, miro->name, codec->pcm->name,
-		miro->wss_base + 4, miro->irq, miro->dma1, miro->dma2);
+	snprintf(card->longname, sizeof(card->longname),
+		 "%s: OPTi%s, %s at 0x%lx, irq %d, dma %d&%d",
+		 card->shortname, miro->name, codec->pcm->name,
+		 miro->wss_base + 4, miro->irq, miro->dma1, miro->dma2);
 
 	if (mpu_port <= 0 || mpu_port == SNDRV_AUTO_PORT)
 		rmidi = NULL;

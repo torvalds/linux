@@ -2061,7 +2061,7 @@ static int snd_hdspm_create_midi(struct snd_card *card,
 				 struct hdspm *hdspm, int id)
 {
 	int err;
-	char buf[32];
+	char buf[64];
 
 	hdspm->midi[id].id = id;
 	hdspm->midi[id].hdspm = hdspm;
@@ -2120,19 +2120,23 @@ static int snd_hdspm_create_midi(struct snd_card *card,
 	if ((id < 2) || ((2 == id) && ((MADI == hdspm->io_type) ||
 					(MADIface == hdspm->io_type)))) {
 		if ((id == 0) && (MADIface == hdspm->io_type)) {
-			sprintf(buf, "%s MIDIoverMADI", card->shortname);
+			snprintf(buf, sizeof(buf), "%s MIDIoverMADI",
+				 card->shortname);
 		} else if ((id == 2) && (MADI == hdspm->io_type)) {
-			sprintf(buf, "%s MIDIoverMADI", card->shortname);
+			snprintf(buf, sizeof(buf), "%s MIDIoverMADI",
+				 card->shortname);
 		} else {
-			sprintf(buf, "%s MIDI %d", card->shortname, id+1);
+			snprintf(buf, sizeof(buf), "%s MIDI %d",
+				 card->shortname, id+1);
 		}
 		err = snd_rawmidi_new(card, buf, id, 1, 1,
 				&hdspm->midi[id].rmidi);
 		if (err < 0)
 			return err;
 
-		sprintf(hdspm->midi[id].rmidi->name, "%s MIDI %d",
-				card->id, id+1);
+		snprintf(hdspm->midi[id].rmidi->name,
+			 sizeof(hdspm->midi[id].rmidi->name),
+			 "%s MIDI %d", card->id, id+1);
 		hdspm->midi[id].rmidi->private_data = &hdspm->midi[id];
 
 		snd_rawmidi_set_ops(hdspm->midi[id].rmidi,
@@ -2148,14 +2152,16 @@ static int snd_hdspm_create_midi(struct snd_card *card,
 			SNDRV_RAWMIDI_INFO_DUPLEX;
 	} else {
 		/* TCO MTC, read only */
-		sprintf(buf, "%s MTC %d", card->shortname, id+1);
+		snprintf(buf, sizeof(buf), "%s MTC %d",
+			 card->shortname, id+1);
 		err = snd_rawmidi_new(card, buf, id, 1, 1,
 				&hdspm->midi[id].rmidi);
 		if (err < 0)
 			return err;
 
-		sprintf(hdspm->midi[id].rmidi->name,
-				"%s MTC %d", card->id, id+1);
+		snprintf(hdspm->midi[id].rmidi->name,
+			 sizeof(hdspm->midi[id].rmidi->name),
+			 "%s MTC %d", card->id, id+1);
 		hdspm->midi[id].rmidi->private_data = &hdspm->midi[id];
 
 		snd_rawmidi_set_ops(hdspm->midi[id].rmidi,
@@ -6869,7 +6875,8 @@ static int snd_hdspm_create(struct snd_card *card,
 		 * when running with multiple cards.
 		 */
 		if (NULL == id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
-			sprintf(card->id, "HDSPMx%06x", hdspm->serial);
+			snprintf(card->id, sizeof(card->id),
+				 "HDSPMx%06x", hdspm->serial);
 			snd_card_set_id(card, card->id);
 		}
 	}
@@ -6954,17 +6961,18 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 	}
 
 	if (hdspm->io_type != MADIface) {
-		sprintf(card->shortname, "%s_%x",
-			hdspm->card_name,
-			hdspm->serial);
-		sprintf(card->longname, "%s S/N 0x%x at 0x%lx, irq %d",
-			hdspm->card_name,
-			hdspm->serial,
-			hdspm->port, hdspm->irq);
+		snprintf(card->shortname, sizeof(card->shortname), "%s_%x",
+			hdspm->card_name, hdspm->serial);
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s S/N 0x%x at 0x%lx, irq %d",
+			 hdspm->card_name, hdspm->serial,
+			 hdspm->port, hdspm->irq);
 	} else {
-		sprintf(card->shortname, "%s", hdspm->card_name);
-		sprintf(card->longname, "%s at 0x%lx, irq %d",
-				hdspm->card_name, hdspm->port, hdspm->irq);
+		snprintf(card->shortname, sizeof(card->shortname), "%s",
+			 hdspm->card_name);
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s at 0x%lx, irq %d",
+			 hdspm->card_name, hdspm->port, hdspm->irq);
 	}
 
 	err = snd_card_register(card);
