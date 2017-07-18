@@ -50,6 +50,8 @@
 #include <net/fib_rules.h>
 #include <net/l3mdev.h>
 #include <net/addrconf.h>
+#include <net/ndisc.h>
+#include <net/ipv6.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -1148,6 +1150,32 @@ mlxsw_sp_router_neigh_entry_op4(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void
+mlxsw_sp_router_neigh_entry_op6(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_neigh_entry *neigh_entry,
+				enum mlxsw_reg_rauht_op op)
+{
+	struct neighbour *n = neigh_entry->key.n;
+	char rauht_pl[MLXSW_REG_RAUHT_LEN];
+	const char *dip = n->primary_key;
+
+	mlxsw_reg_rauht_pack6(rauht_pl, op, neigh_entry->rif, neigh_entry->ha,
+			      dip);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
+}
+
+static bool mlxsw_sp_neigh_ipv6_ignore(struct neighbour *n)
+{
+	/* Packets with a link-local destination address are trapped
+	 * after LPM lookup and never reach the neighbour table, so
+	 * there is no need to program such neighbours to the device.
+	 */
+	if (ipv6_addr_type((struct in6_addr *) &n->primary_key) &
+	    IPV6_ADDR_LINKLOCAL)
+		return true;
+	return false;
+}
+
+static void
 mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_neigh_entry *neigh_entry,
 			    bool adding)
@@ -1155,11 +1183,17 @@ mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
 	if (!adding && !neigh_entry->connected)
 		return;
 	neigh_entry->connected = adding;
-	if (neigh_entry->key.n->tbl == &arp_tbl)
+	if (neigh_entry->key.n->tbl == &arp_tbl) {
 		mlxsw_sp_router_neigh_entry_op4(mlxsw_sp, neigh_entry,
 						mlxsw_sp_rauht_op(adding));
-	else
+	} else if (neigh_entry->key.n->tbl == &nd_tbl) {
+		if (mlxsw_sp_neigh_ipv6_ignore(neigh_entry->key.n))
+			return;
+		mlxsw_sp_router_neigh_entry_op6(mlxsw_sp, neigh_entry,
+						mlxsw_sp_rauht_op(adding));
+	} else {
 		WARN_ON_ONCE(1);
+	}
 }
 
 struct mlxsw_sp_neigh_event_work {
@@ -1247,7 +1281,7 @@ int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 	case NETEVENT_NEIGH_UPDATE:
 		n = ptr;
 
-		if (n->tbl != &arp_tbl)
+		if (n->tbl != &arp_tbl && n->tbl != &nd_tbl)
 			return NOTIFY_DONE;
 
 		mlxsw_sp_port = mlxsw_sp_port_lower_dev_hold(n->dev);
