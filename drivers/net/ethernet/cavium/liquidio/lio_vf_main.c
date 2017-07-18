@@ -1663,10 +1663,10 @@ static int setup_io_queues(struct octeon_device *octeon_dev, int ifidx)
 {
 	struct octeon_droq_ops droq_ops;
 	struct net_device *netdev;
-	static int cpu_id_modulus;
+	int cpu_id_modulus;
 	struct octeon_droq *droq;
 	struct napi_struct *napi;
-	static int cpu_id;
+	int cpu_id;
 	int num_tx_descs;
 	struct lio *lio;
 	int retval = 0;
