@@ -988,6 +988,10 @@ repeat:
 	/* Force tty output for header output and per-thread stat. */
 	if (report.header || report.header_only || report.show_threads)
 		use_browser = 0;
+	if (report.header || report.header_only)
+		report.tool.show_feat_hdr = SHOW_FEAT_HEADER;
+	if (report.show_full_info)
+		report.tool.show_feat_hdr = SHOW_FEAT_HEADER_FULL_INFO;
 
 	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);
