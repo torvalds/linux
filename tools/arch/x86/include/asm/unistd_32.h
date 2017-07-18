@@ -10,3 +10,6 @@
 #ifndef __NR_getcpu
 # define __NR_getcpu 318
 #endif
+#ifndef __NR_setns
+# define __NR_setns 346
+#endif
