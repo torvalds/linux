@@ -62,6 +62,7 @@ struct perf_file_attr {
 struct feat_fd {
 	struct perf_header	*ph;
 	int			fd;
+	void			*buf;	/* Either buf != NULL or fd >= 0 */
 	ssize_t			offset;
 	size_t			size;
 };
@@ -81,16 +82,49 @@ bool perf_header__has_feat(const struct perf_header *header, int feat)
 	return test_bit(feat, header->adds_features);
 }
 
+static int __do_write_fd(struct feat_fd *ff, const void *buf, size_t size)
+{
+	ssize_t ret = writen(ff->fd, buf, size);
+
+	if (ret != (ssize_t)size)
+		return ret < 0 ? (int)ret : -1;
+	return 0;
+}
+
+static int __do_write_buf(struct feat_fd *ff,  const void *buf, size_t size)
+{
+	/* struct perf_event_header::size is u16 */
+	const size_t max_size = 0xffff - sizeof(struct perf_event_header);
+	size_t new_size = ff->size;
+	void *addr;
+
+	if (size + ff->offset > max_size)
+		return -E2BIG;
+
+	while (size > (new_size - ff->offset))
+		new_size <<= 1;
+	new_size = min(max_size, new_size);
+
+	if (ff->size < new_size) {
+		addr = realloc(ff->buf, new_size);
+		if (!addr)
+			return -ENOMEM;
+		ff->buf = addr;
+		ff->size = new_size;
+	}
+
+	memcpy(ff->buf + ff->offset, buf, size);
+	ff->offset += size;
+
+	return 0;
+}
+
 /* Return: 0 if succeded, -ERR if failed. */
 int do_write(struct feat_fd *ff, const void *buf, size_t size)
 {
-	ssize_t ret;
-
-	ret  = writen(ff->fd, buf, size);
-	if (ret != (ssize_t)size)
-		return ret < 0 ? (int)ret : -1;
-
-	return 0;
+	if (!ff->buf)
+		return __do_write_fd(ff, buf, size);
+	return __do_write_buf(ff, buf, size);
 }
 
 /* Return: 0 if succeded, -ERR if failed. */
@@ -126,13 +160,32 @@ static int do_write_string(struct feat_fd *ff, const char *str)
 	return write_padded(ff, str, olen, len);
 }
 
-static int __do_read(struct feat_fd *ff, void *addr, ssize_t size)
+static int __do_read_fd(struct feat_fd *ff, void *addr, ssize_t size)
 {
 	ssize_t ret = readn(ff->fd, addr, size);
 
 	if (ret != size)
 		return ret < 0 ? (int)ret : -1;
 	return 0;
+}
+
+static int __do_read_buf(struct feat_fd *ff, void *addr, ssize_t size)
+{
+	if (size > (ssize_t)ff->size - ff->offset)
+		return -1;
+
+	memcpy(addr, ff->buf + ff->offset, size);
+	ff->offset += size;
+
+	return 0;
+
+}
+
+static int __do_read(struct feat_fd *ff, void *addr, ssize_t size)
+{
+	if (!ff->buf)
+		return __do_read_fd(ff, addr, size);
+	return __do_read_buf(ff, addr, size);
 }
 
 static int do_read_u32(struct feat_fd *ff, u32 *addr)
@@ -189,6 +242,9 @@ static char *do_read_string(struct feat_fd *ff)
 static int write_tracing_data(struct feat_fd *ff,
 			      struct perf_evlist *evlist)
 {
+	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
+		return -1;
+
 	return read_tracing_data(ff->fd, &evlist->entries);
 }
 
@@ -201,6 +257,9 @@ static int write_build_id(struct feat_fd *ff,
 	session = container_of(ff->ph, struct perf_session, header);
 
 	if (!perf_session__read_build_ids(session, true))
+		return -1;
+
+	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
 		return -1;
 
 	err = perf_session__write_buildid_table(session, ff);
@@ -911,6 +970,9 @@ static int write_auxtrace(struct feat_fd *ff,
 {
 	struct perf_session *session;
 	int err;
+
+	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
+		return -1;
 
 	session = container_of(ff->ph, struct perf_session, header);
 
@@ -2195,6 +2257,9 @@ static int do_write_feat(struct feat_fd *ff, int type,
 
 	if (perf_header__has_feat(ff->ph, type)) {
 		if (!feat_ops[type].write)
+			return -1;
+
+		if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
 			return -1;
 
 		(*p)->offset = lseek(ff->fd, 0, SEEK_CUR);
