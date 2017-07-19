@@ -54,12 +54,15 @@ static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 	 */
 	__tlbiel_pid(pid, 0, ric);
 
-	if (ric == RIC_FLUSH_ALL)
-		/* For the remaining sets, just flush the TLB */
-		ric = RIC_FLUSH_TLB;
+	/* For PWC, only one flush is needed */
+	if (ric == RIC_FLUSH_PWC) {
+		asm volatile("ptesync": : :"memory");
+		return;
+	}
 
+	/* For the remaining sets, just flush the TLB */
 	for (set = 1; set < POWER9_TLB_SETS_RADIX ; set++)
-		__tlbiel_pid(pid, set, ric);
+		__tlbiel_pid(pid, set, RIC_FLUSH_TLB);
 
 	asm volatile("ptesync": : :"memory");
 	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
