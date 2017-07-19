@@ -180,6 +180,20 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 	return MM_FAULT_CONTINUE;
 }
 
+/* Is this a bad kernel fault ? */
+static bool bad_kernel_fault(bool is_exec, unsigned long error_code,
+			     unsigned long address)
+{
+	if (is_exec && (error_code & (DSISR_NOEXEC_OR_G | DSISR_KEYFAULT))) {
+		printk_ratelimited(KERN_CRIT "kernel tried to execute"
+				   " exec-protected page (%lx) -"
+				   "exploit attempt? (uid: %d)\n",
+				   address, from_kuid(&init_user_ns,
+						      current_uid()));
+	}
+	return is_exec || (address >= TASK_SIZE);
+}
+
 /*
  * Define the correct "is_write" bit in error_code based
  * on the processor family
@@ -252,7 +266,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * The kernel should never take an execute fault nor should it
 	 * take a page fault to a kernel address.
 	 */
-	if (!is_user && (is_exec || (address >= TASK_SIZE)))
+	if (unlikely(!is_user && bad_kernel_fault(is_exec, error_code, address)))
 		return SIGSEGV;
 
 	/* We restore the interrupt state now */
@@ -490,11 +504,6 @@ bad_area_nosemaphore:
 		_exception(SIGSEGV, regs, code, address);
 		return 0;
 	}
-
-	if (is_exec && (error_code & DSISR_PROTFAULT))
-		printk_ratelimited(KERN_CRIT "kernel tried to execute NX-protected"
-				   " page (%lx) - exploit attempt? (uid: %d)\n",
-				   address, from_kuid(&init_user_ns, current_uid()));
 
 	return SIGSEGV;
 }
