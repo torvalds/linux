@@ -67,7 +67,7 @@ static struct reset_control *rockchip_get_core_reset(int cpu)
 	else
 		np = of_get_cpu_node(cpu, NULL);
 
-	return of_reset_control_get(np, NULL);
+	return of_reset_control_get_exclusive(np, NULL);
 }
 
 static int pmu_set_power_domain(int pd, bool on)
