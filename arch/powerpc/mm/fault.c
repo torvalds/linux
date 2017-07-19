@@ -233,39 +233,36 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (error_code & ICSWX_DSI_UCT) {
 		rc = acop_handle_fault(regs, address, error_code);
 		if (rc)
-			goto bail;
+			return rc;
 	}
 #endif /* CONFIG_PPC_ICSWX */
 
 	if (notify_page_fault(regs))
-		goto bail;
+		return 0;
 
 	if (unlikely(page_fault_is_bad(error_code))) {
-		if (is_user)
+		if (is_user) {
 			_exception(SIGBUS, regs, BUS_OBJERR, address);
-		else
-			rc = SIGBUS;
-		goto bail;
+			return 0;
+		}
+		return SIGBUS;
 	}
 
 	/*
 	 * The kernel should never take an execute fault nor should it
 	 * take a page fault to a kernel address.
 	 */
-	if (!is_user && (is_exec || (address >= TASK_SIZE))) {
-		rc = SIGSEGV;
-		goto bail;
-	}
+	if (!is_user && (is_exec || (address >= TASK_SIZE)))
+		return SIGSEGV;
 
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
 	if (faulthandler_disabled() || mm == NULL) {
-		if (!is_user) {
-			rc = SIGSEGV;
-			goto bail;
-		}
+		if (!is_user)
+			return SIGSEGV;
+
 		/* faulthandler_disabled() in user mode is really bad,
 		   as is current->mm == NULL. */
 		printk(KERN_EMERG "Page fault in user mode with "
@@ -454,9 +451,8 @@ good_area:
 			goto bad_area_nosemaphore;
 		rc = mm_fault_error(regs, address, fault);
 		if (rc >= MM_FAULT_RETURN)
-			goto bail;
-		else
-			rc = 0;
+			return rc;
+		rc = 0;
 	}
 
 	/*
@@ -483,7 +479,7 @@ good_area:
 			      regs, address);
 	}
 
-	goto bail;
+	return rc;
 
 bad_area:
 	up_read(&mm->mmap_sem);
@@ -492,7 +488,7 @@ bad_area_nosemaphore:
 	/* User mode accesses cause a SIGSEGV */
 	if (is_user) {
 		_exception(SIGSEGV, regs, code, address);
-		goto bail;
+		return 0;
 	}
 
 	if (is_exec && (error_code & DSISR_PROTFAULT))
@@ -500,10 +496,7 @@ bad_area_nosemaphore:
 				   " page (%lx) - exploit attempt? (uid: %d)\n",
 				   address, from_kuid(&init_user_ns, current_uid()));
 
-	rc = SIGSEGV;
-
-bail:
-	return rc;
+	return SIGSEGV;
 }
 NOKPROBE_SYMBOL(__do_page_fault);
 
