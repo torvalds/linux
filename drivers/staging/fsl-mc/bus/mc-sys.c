@@ -126,12 +126,15 @@ static inline void mc_write_command(struct mc_command __iomem *portal,
 
 	/* copy command parameters into the portal */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		__raw_writeq(cmd->params[i], &portal->params[i]);
-	/* ensure command params are committed before submitting it */
-	wmb();
+		/*
+		 * Data is already in the expected LE byte-order. Do an
+		 * extra LE -> CPU conversion so that the CPU -> LE done in
+		 * the device io write api puts it back in the right order.
+		 */
+		writeq_relaxed(le64_to_cpu(cmd->params[i]), &portal->params[i]);
 
 	/* submit the command by writing the header */
-	__raw_writeq(cmd->header, &portal->header);
+	writeq(le64_to_cpu(cmd->header), &portal->header);
 }
 
 /**
@@ -151,14 +154,20 @@ static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
 	enum mc_cmd_status status;
 
 	/* Copy command response header from MC portal: */
-	resp->header = __raw_readq(&portal->header);
+	resp->header = cpu_to_le64(readq_relaxed(&portal->header));
 	status = mc_cmd_hdr_read_status(resp);
 	if (status != MC_CMD_STATUS_OK)
 		return status;
 
 	/* Copy command response data from MC portal: */
 	for (i = 0; i < MC_CMD_NUM_OF_PARAMS; i++)
-		resp->params[i] = __raw_readq(&portal->params[i]);
+		/*
+		 * Data is expected to be in LE byte-order. Do an
+		 * extra CPU -> LE to revert the LE -> CPU done in
+		 * the device io read api.
+		 */
+		resp->params[i] =
+			cpu_to_le64(readq_relaxed(&portal->params[i]));
 
 	return status;
 }
