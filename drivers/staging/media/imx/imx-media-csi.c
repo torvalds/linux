@@ -357,6 +357,8 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 		passthrough = (sensor_ep->bus_type != V4L2_MBUS_CSI2 &&
 			       sensor_ep->bus.parallel.bus_width >= 16);
 		passthrough_bits = 16;
+		/* Skip writing U and V components to odd rows */
+		ipu_cpmem_skip_odd_chroma_rows(priv->idmac_ch);
 		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
