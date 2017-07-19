@@ -213,23 +213,23 @@ static int qcom_pcie_get_resources_v0(struct qcom_pcie *pcie)
 	if (IS_ERR(res->phy_clk))
 		return PTR_ERR(res->phy_clk);
 
-	res->pci_reset = devm_reset_control_get(dev, "pci");
+	res->pci_reset = devm_reset_control_get_exclusive(dev, "pci");
 	if (IS_ERR(res->pci_reset))
 		return PTR_ERR(res->pci_reset);
 
-	res->axi_reset = devm_reset_control_get(dev, "axi");
+	res->axi_reset = devm_reset_control_get_exclusive(dev, "axi");
 	if (IS_ERR(res->axi_reset))
 		return PTR_ERR(res->axi_reset);
 
-	res->ahb_reset = devm_reset_control_get(dev, "ahb");
+	res->ahb_reset = devm_reset_control_get_exclusive(dev, "ahb");
 	if (IS_ERR(res->ahb_reset))
 		return PTR_ERR(res->ahb_reset);
 
-	res->por_reset = devm_reset_control_get(dev, "por");
+	res->por_reset = devm_reset_control_get_exclusive(dev, "por");
 	if (IS_ERR(res->por_reset))
 		return PTR_ERR(res->por_reset);
 
-	res->phy_reset = devm_reset_control_get(dev, "phy");
+	res->phy_reset = devm_reset_control_get_exclusive(dev, "phy");
 	return PTR_ERR_OR_ZERO(res->phy_reset);
 }
 
@@ -394,7 +394,7 @@ static int qcom_pcie_get_resources_v1(struct qcom_pcie *pcie)
 	if (IS_ERR(res->slave_bus))
 		return PTR_ERR(res->slave_bus);
 
-	res->core = devm_reset_control_get(dev, "core");
+	res->core = devm_reset_control_get_exclusive(dev, "core");
 	return PTR_ERR_OR_ZERO(res->core);
 }
 
@@ -630,51 +630,55 @@ static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 	if (IS_ERR(res->slave_clk))
 		return PTR_ERR(res->slave_clk);
 
-	res->axi_m_reset = devm_reset_control_get(dev, "axi_m");
+	res->axi_m_reset = devm_reset_control_get_exclusive(dev, "axi_m");
 	if (IS_ERR(res->axi_m_reset))
 		return PTR_ERR(res->axi_m_reset);
 
-	res->axi_s_reset = devm_reset_control_get(dev, "axi_s");
+	res->axi_s_reset = devm_reset_control_get_exclusive(dev, "axi_s");
 	if (IS_ERR(res->axi_s_reset))
 		return PTR_ERR(res->axi_s_reset);
 
-	res->pipe_reset = devm_reset_control_get(dev, "pipe");
+	res->pipe_reset = devm_reset_control_get_exclusive(dev, "pipe");
 	if (IS_ERR(res->pipe_reset))
 		return PTR_ERR(res->pipe_reset);
 
-	res->axi_m_vmid_reset = devm_reset_control_get(dev, "axi_m_vmid");
+	res->axi_m_vmid_reset = devm_reset_control_get_exclusive(dev,
+								 "axi_m_vmid");
 	if (IS_ERR(res->axi_m_vmid_reset))
 		return PTR_ERR(res->axi_m_vmid_reset);
 
-	res->axi_s_xpu_reset = devm_reset_control_get(dev, "axi_s_xpu");
+	res->axi_s_xpu_reset = devm_reset_control_get_exclusive(dev,
+								"axi_s_xpu");
 	if (IS_ERR(res->axi_s_xpu_reset))
 		return PTR_ERR(res->axi_s_xpu_reset);
 
-	res->parf_reset = devm_reset_control_get(dev, "parf");
+	res->parf_reset = devm_reset_control_get_exclusive(dev, "parf");
 	if (IS_ERR(res->parf_reset))
 		return PTR_ERR(res->parf_reset);
 
-	res->phy_reset = devm_reset_control_get(dev, "phy");
+	res->phy_reset = devm_reset_control_get_exclusive(dev, "phy");
 	if (IS_ERR(res->phy_reset))
 		return PTR_ERR(res->phy_reset);
 
-	res->axi_m_sticky_reset = devm_reset_control_get(dev, "axi_m_sticky");
+	res->axi_m_sticky_reset = devm_reset_control_get_exclusive(dev,
+								   "axi_m_sticky");
 	if (IS_ERR(res->axi_m_sticky_reset))
 		return PTR_ERR(res->axi_m_sticky_reset);
 
-	res->pipe_sticky_reset = devm_reset_control_get(dev, "pipe_sticky");
+	res->pipe_sticky_reset = devm_reset_control_get_exclusive(dev,
+								  "pipe_sticky");
 	if (IS_ERR(res->pipe_sticky_reset))
 		return PTR_ERR(res->pipe_sticky_reset);
 
-	res->pwr_reset = devm_reset_control_get(dev, "pwr");
+	res->pwr_reset = devm_reset_control_get_exclusive(dev, "pwr");
 	if (IS_ERR(res->pwr_reset))
 		return PTR_ERR(res->pwr_reset);
 
-	res->ahb_reset = devm_reset_control_get(dev, "ahb");
+	res->ahb_reset = devm_reset_control_get_exclusive(dev, "ahb");
 	if (IS_ERR(res->ahb_reset))
 		return PTR_ERR(res->ahb_reset);
 
-	res->phy_ahb_reset = devm_reset_control_get(dev, "phy_ahb");
+	res->phy_ahb_reset = devm_reset_control_get_exclusive(dev, "phy_ahb");
 	if (IS_ERR(res->phy_ahb_reset))
 		return PTR_ERR(res->phy_ahb_reset);
 
