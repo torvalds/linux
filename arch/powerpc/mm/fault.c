@@ -349,7 +349,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
  	int is_exec = TRAP(regs) == 0x400;
 	int is_user = user_mode(regs);
 	int is_write = page_fault_is_write(error_code);
-	int fault;
+	int fault, major = 0;
 	int store_update_sp = 0;
 
 #ifdef CONFIG_PPC_ICSWX
@@ -501,6 +501,7 @@ good_area:
 	 * the fault.
 	 */
 	fault = handle_mm_fault(vma, address, flags);
+	major |= fault & VM_FAULT_MAJOR;
 
 	/*
 	 * Handle the retry right now, the mmap_sem has been released in that
@@ -534,7 +535,7 @@ good_area:
 	/*
 	 * Major/minor page fault accounting.
 	 */
-	if (fault & VM_FAULT_MAJOR) {
+	if (major) {
 		current->maj_flt++;
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs, address);
 		cmo_account_page_fault();
