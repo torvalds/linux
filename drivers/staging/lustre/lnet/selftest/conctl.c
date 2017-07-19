@@ -69,8 +69,8 @@ lst_session_new_ioctl(struct lstio_session_new_args *args)
 	rc = lstcon_session_new(name,
 				args->lstio_ses_key,
 				args->lstio_ses_feats,
-				args->lstio_ses_force,
 				args->lstio_ses_timeout,
+				args->lstio_ses_force,
 				args->lstio_ses_idp);
 
 	LIBCFS_FREE(name, args->lstio_ses_nmlen + 1);
