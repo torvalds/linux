@@ -100,7 +100,7 @@ static void dax_region_unregister(void *region)
 }
 
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct resource *res, unsigned int align, void *addr,
+		struct resource *res, unsigned int align,
 		unsigned long pfn_flags)
 {
 	struct dax_region *dax_region;
@@ -130,7 +130,6 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	dax_region->id = region_id;
 	dax_region->align = align;
 	dax_region->dev = parent;
-	dax_region->base = addr;
 	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups)) {
 		kfree(dax_region);
 		return NULL;

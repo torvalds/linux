@@ -19,7 +19,6 @@
 /**
  * struct dax_region - mapping infrastructure for dax devices
  * @id: kernel-wide unique region for a memory range
- * @base: linear address corresponding to @res
  * @kref: to pin while other agents have a need to do lookups
  * @dev: parent device backing this region
  * @align: allocation and mapping alignment for child dax devices
@@ -28,7 +27,6 @@
  */
 struct dax_region {
 	int id;
-	void *base;
 	struct kref kref;
 	struct device *dev;
 	unsigned int align;
