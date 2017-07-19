@@ -2436,10 +2436,9 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
 
-#ifdef CONFIG_MMC_DEBUG
-	pr_info("%s: %s: trying to init card at %u Hz\n",
+	pr_debug("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);
-#endif
+
 	mmc_power_up(host, host->ocr_avail);
 
 	/*
@@ -2670,9 +2669,7 @@ int mmc_power_save_host(struct mmc_host *host)
 {
 	int ret = 0;
 
-#ifdef CONFIG_MMC_DEBUG
-	pr_info("%s: %s: powering down\n", mmc_hostname(host), __func__);
-#endif
+	pr_debug("%s: %s: powering down\n", mmc_hostname(host), __func__);
 
 	mmc_bus_get(host);
 
@@ -2696,9 +2693,7 @@ int mmc_power_restore_host(struct mmc_host *host)
 {
 	int ret;
 
-#ifdef CONFIG_MMC_DEBUG
-	pr_info("%s: %s: powering up\n", mmc_hostname(host), __func__);
-#endif
+	pr_debug("%s: %s: powering up\n", mmc_hostname(host), __func__);
 
 	mmc_bus_get(host);
 
