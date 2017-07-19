@@ -330,6 +330,13 @@ static bool drm_dp_sideband_msg_build(struct drm_dp_sideband_msg_rx *msg,
 			return false;
 		}
 
+		/*
+		 * ignore out-of-order messages or messages that are part of a
+		 * failed transaction
+		 */
+		if (!recv_hdr.somt && !msg->have_somt)
+			return false;
+
 		/* get length contained in this portion */
 		msg->curchunk_len = recv_hdr.msg_len;
 		msg->curchunk_hdrlen = hdrlen;
@@ -2163,7 +2170,7 @@ out_unlock:
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_resume);
 
-static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
+static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 {
 	int len;
 	u8 replyblock[32];
@@ -2178,12 +2185,12 @@ static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 			       replyblock, len);
 	if (ret != len) {
 		DRM_DEBUG_KMS("failed to read DPCD down rep %d %d\n", len, ret);
-		return;
+		return false;
 	}
 	ret = drm_dp_sideband_msg_build(msg, replyblock, len, true);
 	if (!ret) {
 		DRM_DEBUG_KMS("sideband msg build failed %d\n", replyblock[0]);
-		return;
+		return false;
 	}
 	replylen = msg->curchunk_len + msg->curchunk_hdrlen;
 
@@ -2197,25 +2204,30 @@ static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 		if (ret != len) {
 			DRM_DEBUG_KMS("failed to read a chunk (len %d, ret %d)\n",
 				      len, ret);
-			return;
+			return false;
 		}
 
 		ret = drm_dp_sideband_msg_build(msg, replyblock, len, false);
 		if (!ret) {
 			DRM_DEBUG_KMS("failed to build sideband msg\n");
-			return;
+			return false;
 		}
 
 		curreply += len;
 		replylen -= len;
 	}
+	return true;
 }
 
 static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 {
 	int ret = 0;
 
-	drm_dp_get_one_sb_msg(mgr, false);
+	if (!drm_dp_get_one_sb_msg(mgr, false)) {
+		memset(&mgr->down_rep_recv, 0,
+		       sizeof(struct drm_dp_sideband_msg_rx));
+		return 0;
+	}
 
 	if (mgr->down_rep_recv.have_eomt) {
 		struct drm_dp_sideband_msg_tx *txmsg;
@@ -2271,7 +2283,12 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 {
 	int ret = 0;
-	drm_dp_get_one_sb_msg(mgr, true);
+
+	if (!drm_dp_get_one_sb_msg(mgr, true)) {
+		memset(&mgr->up_req_recv, 0,
+		       sizeof(struct drm_dp_sideband_msg_rx));
+		return 0;
+	}
 
 	if (mgr->up_req_recv.have_eomt) {
 		struct drm_dp_sideband_msg_req_body msg;
