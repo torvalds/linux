@@ -454,6 +454,7 @@ struct bdc {
 	 * Func Wake packet every 2.5 secs. Refer to USB3 spec section 8.5.6.4
 	 */
 	struct delayed_work	func_wake_notify;
+	struct clk		*clk;
 };
 
 static inline u32 bdc_readl(void __iomem *base, u32 offset)

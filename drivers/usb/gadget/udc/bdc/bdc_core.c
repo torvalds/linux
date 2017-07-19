@@ -473,6 +473,8 @@ static int bdc_probe(struct platform_device *pdev)
 	if (!bdc)
 		return -ENOMEM;
 
+	bdc->clk = clk;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	bdc->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(bdc->regs)) {
@@ -529,9 +531,42 @@ static int bdc_remove(struct platform_device *pdev)
 	dev_dbg(bdc->dev, "%s ()\n", __func__);
 	bdc_udc_exit(bdc);
 	bdc_hw_exit(bdc);
+	clk_disable_unprepare(bdc->clk);
+	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int bdc_suspend(struct device *dev)
+{
+	struct bdc *bdc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(bdc->clk);
+	return 0;
+}
+
+static int bdc_resume(struct device *dev)
+{
+	struct bdc *bdc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(bdc->clk);
+	if (ret) {
+		dev_err(bdc->dev, "err enabling the clock\n");
+		return ret;
+	}
+	ret = bdc_reinit(bdc);
+	if (ret) {
+		dev_err(bdc->dev, "err in bdc reinit\n");
+		return ret;
+	}
 
 	return 0;
 }
+
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(bdc_pm_ops, bdc_suspend,
+		bdc_resume);
 
 static const struct of_device_id bdc_of_match[] = {
 	{ .compatible = "brcm,bdc-v0.16" },
@@ -543,6 +578,7 @@ static struct platform_driver bdc_driver = {
 	.driver		= {
 		.name	= BRCM_BDC_NAME,
 		.owner	= THIS_MODULE,
+		.pm = &bdc_pm_ops,
 		.of_match_table	= bdc_of_match,
 	},
 	.probe		= bdc_probe,
