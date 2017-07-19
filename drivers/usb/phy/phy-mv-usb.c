@@ -29,10 +29,8 @@
 #include "phy-mv-usb.h"
 
 #define	DRIVER_DESC	"Marvell USB OTG transceiver driver"
-#define	DRIVER_VERSION	"Jan 20, 2010"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
 static const char driver_name[] = "mv-otg";
