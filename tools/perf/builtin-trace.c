@@ -1336,18 +1336,13 @@ out:
  * variable to read it. Most notably this avoids extended load instructions
  * on unaligned addresses
  */
-static unsigned long __syscall_arg__val(unsigned char *args, u8 idx)
+unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx)
 {
 	unsigned long val;
-	unsigned char *p = args + sizeof(unsigned long) * idx;
+	unsigned char *p = arg->args + sizeof(unsigned long) * idx;
 
 	memcpy(&val, p, sizeof(val));
 	return val;
-}
-
-unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx)
-{
-	return __syscall_arg__val(arg->args, idx);
 }
 
 static size_t syscall__scnprintf_val(struct syscall *sc, char *bf, size_t size,
