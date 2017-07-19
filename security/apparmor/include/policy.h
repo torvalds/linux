@@ -235,9 +235,13 @@ static inline unsigned int PROFILE_MEDIATES_AF(struct aa_profile *profile,
 	unsigned int state = PROFILE_MEDIATES(profile, AA_CLASS_NET);
 	__be16 be_af = cpu_to_be16(AF);
 
-	if (!state)
-		return 0;
-	return aa_dfa_match_len(profile->policy.dfa, state, (char *) &be_af, 2);
+	if (!state) {
+		state = PROFILE_MEDIATES(profile, AA_CLASS_NET_COMPAT);
+		if (!state)
+			return 0;
+	}
+	state = aa_dfa_match_len(profile->policy.dfa, state, (char *) &be_af, 2);
+	return state;
 }
 
 /**

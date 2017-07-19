@@ -12,6 +12,7 @@
  * License.
  */
 
+#include "include/af_unix.h"
 #include "include/apparmor.h"
 #include "include/audit.h"
 #include "include/cred.h"
@@ -30,6 +31,7 @@ struct aa_sfs_entry aa_sfs_entry_network[] = {
 
 struct aa_sfs_entry aa_sfs_entry_network_compat[] = {
 	AA_SFS_FILE_STRING("af_mask",	AA_SFS_AF_MASK),
+	AA_SFS_FILE_BOOLEAN("af_unix",	1),
 	{ }
 };
 
@@ -75,6 +77,36 @@ static const char * const net_mask_names[] = {
 	"unknown",
 };
 
+static void audit_unix_addr(struct audit_buffer *ab, const char *str,
+			    struct sockaddr_un *addr, int addrlen)
+{
+	int len = unix_addr_len(addrlen);
+
+	if (!addr || len <= 0) {
+		audit_log_format(ab, " %s=none", str);
+	} else if (addr->sun_path[0]) {
+		audit_log_format(ab, " %s=", str);
+		audit_log_untrustedstring(ab, addr->sun_path);
+	} else {
+		audit_log_format(ab, " %s=\"@", str);
+		if (audit_string_contains_control(&addr->sun_path[1], len - 1))
+			audit_log_n_hex(ab, &addr->sun_path[1], len - 1);
+		else
+			audit_log_format(ab, "%.*s", len - 1,
+					 &addr->sun_path[1]);
+		audit_log_format(ab, "\"");
+	}
+}
+
+static void audit_unix_sk_addr(struct audit_buffer *ab, const char *str,
+			       struct sock *sk)
+{
+	struct unix_sock *u = unix_sk(sk);
+	if (u && u->addr)
+		audit_unix_addr(ab, str, u->addr->name, u->addr->len);
+	else
+		audit_unix_addr(ab, str, NULL, 0);
+}
 
 /* audit callback for net specific fields */
 void audit_net_cb(struct audit_buffer *ab, void *va)
@@ -102,6 +134,23 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 			audit_log_format(ab, " denied_mask=");
 			aa_audit_perm_mask(ab, aad(sa)->denied, NULL, 0,
 					   net_mask_names, NET_PERMS_MASK);
+		}
+	}
+	if (sa->u.net->family == AF_UNIX) {
+		if ((aad(sa)->request & ~NET_PEER_MASK) && aad(sa)->net.addr)
+			audit_unix_addr(ab, "addr",
+					unix_addr(aad(sa)->net.addr),
+					aad(sa)->net.addrlen);
+		else
+			audit_unix_sk_addr(ab, "addr", sa->u.net->sk);
+		if (aad(sa)->request & NET_PEER_MASK) {
+			if (aad(sa)->net.addr)
+				audit_unix_addr(ab, "peer_addr",
+						unix_addr(aad(sa)->net.addr),
+						aad(sa)->net.addrlen);
+			else
+				audit_unix_sk_addr(ab, "peer_addr",
+						   aad(sa)->net.peer_sk);
 		}
 	}
 	if (aad(sa)->peer) {
@@ -204,7 +253,9 @@ int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
 	AA_BUG(!sock);
 	AA_BUG(!sock->sk);
 
-	return aa_label_sk_perm(label, op, request, sock->sk);
+	return af_select(sock->sk->sk_family,
+			 file_perm(label, op, request, sock),
+			 aa_label_sk_perm(label, op, request, sock->sk));
 }
 
 #ifdef CONFIG_NETWORK_SECMARK
