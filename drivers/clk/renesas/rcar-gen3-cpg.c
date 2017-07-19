@@ -296,6 +296,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_PLL1:
 		mult = cpg_pll_config->pll1_mult;
+		div = cpg_pll_config->pll1_div;
 		break;
 
 	case CLK_TYPE_GEN3_PLL2:
@@ -313,6 +314,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	case CLK_TYPE_GEN3_PLL3:
 		mult = cpg_pll_config->pll3_mult;
+		div = cpg_pll_config->pll3_div;
 		break;
 
 	case CLK_TYPE_GEN3_PLL4:

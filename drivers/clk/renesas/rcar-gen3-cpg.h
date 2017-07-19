@@ -26,9 +26,11 @@ enum rcar_gen3_clk_types {
 	DEF_BASE(_name, _id, CLK_TYPE_GEN3_SD, _parent, .offset = _offset)
 
 struct rcar_gen3_cpg_pll_config {
-	unsigned int extal_div;
-	unsigned int pll1_mult;
-	unsigned int pll3_mult;
+	u8 extal_div;
+	u8 pll1_mult;
+	u8 pll1_div;
+	u8 pll3_mult;
+	u8 pll3_div;
 };
 
 #define CPG_RCKCR	0x240
