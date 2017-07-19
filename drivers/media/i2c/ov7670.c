@@ -1615,7 +1615,9 @@ static int ov7670_probe(struct i2c_client *client,
 	info->clk = devm_clk_get(&client->dev, "xclk");
 	if (IS_ERR(info->clk))
 		return PTR_ERR(info->clk);
-	clk_prepare_enable(info->clk);
+	ret = clk_prepare_enable(info->clk);
+	if (ret)
+		return ret;
 
 	ret = ov7670_init_gpio(client, info);
 	if (ret)
