@@ -1769,13 +1769,6 @@ void mmc_detach_bus(struct mmc_host *host)
 static void _mmc_detect_change(struct mmc_host *host, unsigned long delay,
 				bool cd_irq)
 {
-#ifdef CONFIG_MMC_DEBUG
-	unsigned long flags;
-	spin_lock_irqsave(&host->lock, flags);
-	WARN_ON(host->removed);
-	spin_unlock_irqrestore(&host->lock, flags);
-#endif
-
 	/*
 	 * If the device is configured as wakeup, we prevent a new sleep for
 	 * 5 s to give provision for user space to consume the event.
@@ -2646,12 +2639,6 @@ void mmc_start_host(struct mmc_host *host)
 
 void mmc_stop_host(struct mmc_host *host)
 {
-#ifdef CONFIG_MMC_DEBUG
-	unsigned long flags;
-	spin_lock_irqsave(&host->lock, flags);
-	host->removed = 1;
-	spin_unlock_irqrestore(&host->lock, flags);
-#endif
 	if (host->slot.cd_irq >= 0) {
 		if (host->slot.cd_wake_enabled)
 			disable_irq_wake(host->slot.cd_irq);
