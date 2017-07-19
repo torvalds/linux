@@ -123,12 +123,12 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	int			i;
 
+	of_platform_depopulate(dev);
+
 	for (i = 0; i < simple->num_clocks; i++) {
 		clk_disable_unprepare(simple->clks[i]);
 		clk_put(simple->clks[i]);
 	}
-
-	of_platform_depopulate(dev);
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
