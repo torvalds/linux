@@ -3305,7 +3305,6 @@ static int chunk_devid_filter(struct extent_buffer *leaf,
 /* [pstart, pend) */
 static int chunk_drange_filter(struct extent_buffer *leaf,
 			       struct btrfs_chunk *chunk,
-			       u64 chunk_offset,
 			       struct btrfs_balance_args *bargs)
 {
 	struct btrfs_stripe *stripe;
@@ -3432,7 +3431,7 @@ static int should_balance_chunk(struct btrfs_fs_info *fs_info,
 
 	/* drange filter, makes sense only with devid filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_DRANGE) &&
-	    chunk_drange_filter(leaf, chunk, chunk_offset, bargs)) {
+	    chunk_drange_filter(leaf, chunk, bargs)) {
 		return 0;
 	}
 
@@ -5128,7 +5127,6 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 }
 
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
-				    struct btrfs_mapping_tree *map_tree,
 				    u64 logical)
 {
 	struct extent_map *em;
@@ -5146,8 +5144,7 @@ unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 	return len;
 }
 
-int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
-			   u64 logical, u64 len, int mirror_num)
+int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 {
 	struct extent_map *em;
 	struct map_lookup *map;

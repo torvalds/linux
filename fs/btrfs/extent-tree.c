@@ -9944,9 +9944,7 @@ btrfs_create_block_group_cache(struct btrfs_fs_info *fs_info,
 	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 
 	cache->fs_info = fs_info;
-	cache->full_stripe_len = btrfs_full_stripe_len(fs_info,
-						       &fs_info->mapping_tree,
-						       start);
+	cache->full_stripe_len = btrfs_full_stripe_len(fs_info, start);
 	set_free_space_tree_thresholds(cache);
 
 	atomic_set(&cache->count, 1);
