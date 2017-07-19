@@ -1172,7 +1172,8 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 		}
 	}
 
-	host->reset = devm_reset_control_get_optional(&pdev->dev, "ahb");
+	host->reset = devm_reset_control_get_optional_exclusive(&pdev->dev,
+								"ahb");
 	if (PTR_ERR(host->reset) == -EPROBE_DEFER)
 		return PTR_ERR(host->reset);
 
