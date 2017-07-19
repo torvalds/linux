@@ -377,31 +377,17 @@ nfs_page_group_clear_bits(struct nfs_page *req)
  *
  * returns 0 on success, < 0 on error.
  */
-static int
-nfs_unroll_locks_and_wait(struct inode *inode, struct nfs_page *head,
+static void
+nfs_unroll_locks(struct inode *inode, struct nfs_page *head,
 			  struct nfs_page *req)
 {
 	struct nfs_page *tmp;
-	int ret;
 
 	/* relinquish all the locks successfully grabbed this run */
 	for (tmp = head->wb_this_page ; tmp != req; tmp = tmp->wb_this_page)
 		nfs_unlock_request(tmp);
 
 	WARN_ON_ONCE(test_bit(PG_TEARDOWN, &req->wb_flags));
-
-	/* grab a ref on the request that will be waited on */
-	kref_get(&req->wb_kref);
-
-	nfs_page_group_unlock(head);
-
-	/* release ref from nfs_page_find_head_request_locked */
-	nfs_unlock_and_release_request(head);
-
-	ret = nfs_wait_on_request(req);
-	nfs_release_request(req);
-
-	return ret;
 }
 
 /*
@@ -525,18 +511,21 @@ try_again:
 	total_bytes = head->wb_bytes;
 	for (subreq = head->wb_this_page; subreq != head;
 			subreq = subreq->wb_this_page) {
-		if (!nfs_lock_request(subreq)) {
+
+		while (!nfs_lock_request(subreq)) {
 			/*
-			 * releases page group bit lock and
-			 * page locks and all references
+			 * Unlock page to allow nfs_page_group_sync_on_bit()
+			 * to succeed
 			 */
-			ret = nfs_unroll_locks_and_wait(inode, head,
-				subreq);
-
-			if (ret == 0)
-				goto try_again;
-
-			return ERR_PTR(ret);
+			nfs_page_group_unlock(head);
+			ret = nfs_wait_on_request(subreq);
+			if (!ret)
+				ret = nfs_page_group_lock(head, false);
+			if (ret < 0) {
+				nfs_unroll_locks(inode, head, subreq);
+				nfs_unlock_and_release_request(head);
+				return ERR_PTR(ret);
+			}
 		}
 		/*
 		 * Subrequests are always contiguous, non overlapping
@@ -549,7 +538,9 @@ try_again:
 			    ((subreq->wb_offset + subreq->wb_bytes) >
 			     (head->wb_offset + total_bytes)))) {
 			nfs_unlock_request(subreq);
-			nfs_unroll_locks_and_wait(inode, head, subreq);
+			nfs_unroll_locks(inode, head, subreq);
+			nfs_page_group_unlock(head);
+			nfs_unlock_and_release_request(head);
 			return ERR_PTR(-EIO);
 		}
 	}
