@@ -487,7 +487,7 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			pad->is_enabled = false;
 			break;
 		case PIN_CONFIG_POWER_SOURCE:
-			if (arg > pad->num_sources)
+			if (arg >= pad->num_sources)
 				return -EINVAL;
 			pad->power_source = arg;
 			break;
