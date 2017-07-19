@@ -134,14 +134,14 @@ static int rwdt_probe(struct platform_device *pdev)
 
 	for (i = ARRAY_SIZE(clk_divs) - 1; i >= 0; i--) {
 		clks_per_sec = DIV_ROUND_UP(rate, clk_divs[i]);
-		if (clks_per_sec) {
+		if (clks_per_sec && clks_per_sec < 65536) {
 			priv->clks_per_sec = clks_per_sec;
 			priv->cks = i;
 			break;
 		}
 	}
 
-	if (!clks_per_sec) {
+	if (i < 0) {
 		dev_err(&pdev->dev, "Can't find suitable clock divider\n");
 		return -ERANGE;
 	}
