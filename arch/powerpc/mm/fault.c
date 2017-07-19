@@ -45,8 +45,6 @@
 #include <asm/siginfo.h>
 #include <asm/debug.h>
 
-#include "icswx.h"
-
 static inline bool notify_page_fault(struct pt_regs *regs)
 {
 	bool ret = false;
@@ -388,19 +386,6 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	int is_write = page_fault_is_write(error_code);
 	int fault, major = 0;
 	bool store_update_sp = false;
-
-#ifdef CONFIG_PPC_ICSWX
-	/*
-	 * we need to do this early because this "data storage
-	 * interrupt" does not update the DAR/DEAR so we don't want to
-	 * look at it
-	 */
-	if (error_code & ICSWX_DSI_UCT) {
-		int rc = acop_handle_fault(regs, address, error_code);
-		if (rc)
-			return rc;
-	}
-#endif /* CONFIG_PPC_ICSWX */
 
 	if (notify_page_fault(regs))
 		return 0;

@@ -22,8 +22,6 @@ ifeq ($(CONFIG_PPC_STD_MMU_64),y)
 obj-$(CONFIG_PPC_4K_PAGES)	+= hash64_4k.o
 obj-$(CONFIG_PPC_64K_PAGES)	+= hash64_64k.o
 endif
-obj-$(CONFIG_PPC_ICSWX)		+= icswx.o
-obj-$(CONFIG_PPC_ICSWX_PID)	+= icswx_pid.o
 obj-$(CONFIG_40x)		+= 40x_mmu.o
 obj-$(CONFIG_44x)		+= 44x_mmu.o
 obj-$(CONFIG_PPC_8xx)		+= 8xx_mmu.o
