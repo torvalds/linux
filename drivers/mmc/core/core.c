@@ -295,10 +295,8 @@ static void mmc_mrq_pr_debug(struct mmc_host *host, struct mmc_request *mrq)
 
 static int mmc_mrq_prep(struct mmc_host *host, struct mmc_request *mrq)
 {
-#ifdef CONFIG_MMC_DEBUG
-	unsigned int i, sz;
+	unsigned int i, sz = 0;
 	struct scatterlist *sg;
-#endif
 
 	if (mrq->cmd) {
 		mrq->cmd->error = 0;
@@ -314,13 +312,12 @@ static int mmc_mrq_prep(struct mmc_host *host, struct mmc_request *mrq)
 		    mrq->data->blocks > host->max_blk_count ||
 		    mrq->data->blocks * mrq->data->blksz > host->max_req_size)
 			return -EINVAL;
-#ifdef CONFIG_MMC_DEBUG
-		sz = 0;
+
 		for_each_sg(mrq->data->sg, sg, mrq->data->sg_len, i)
 			sz += sg->length;
 		if (sz != mrq->data->blocks * mrq->data->blksz)
 			return -EINVAL;
-#endif
+
 		mrq->data->error = 0;
 		mrq->data->mrq = mrq;
 		if (mrq->stop) {
