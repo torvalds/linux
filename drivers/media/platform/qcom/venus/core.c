@@ -76,7 +76,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 	hfi_core_deinit(core, true);
 	hfi_destroy(core);
 	mutex_lock(&core->lock);
-	venus_shutdown(&core->dev_fw);
+	venus_shutdown(core->dev);
 
 	pm_runtime_put_sync(core->dev);
 
@@ -84,7 +84,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 
 	pm_runtime_get_sync(core->dev);
 
-	ret |= venus_boot(core->dev, &core->dev_fw, core->res->fwname);
+	ret |= venus_boot(core->dev, core->res->fwname);
 
 	ret |= hfi_core_resume(core, true);
 
@@ -207,7 +207,7 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_runtime_disable;
 
-	ret = venus_boot(dev, &core->dev_fw, core->res->fwname);
+	ret = venus_boot(dev, core->res->fwname);
 	if (ret)
 		goto err_runtime_disable;
 
@@ -238,7 +238,7 @@ err_dev_unregister:
 err_core_deinit:
 	hfi_core_deinit(core, false);
 err_venus_shutdown:
-	venus_shutdown(&core->dev_fw);
+	venus_shutdown(dev);
 err_runtime_disable:
 	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);
@@ -259,7 +259,7 @@ static int venus_remove(struct platform_device *pdev)
 	WARN_ON(ret);
 
 	hfi_destroy(core);
-	venus_shutdown(&core->dev_fw);
+	venus_shutdown(dev);
 	of_platform_depopulate(dev);
 
 	pm_runtime_put_sync(dev);
