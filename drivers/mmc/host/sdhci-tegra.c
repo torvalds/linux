@@ -508,7 +508,8 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 	clk_prepare_enable(clk);
 	pltfm_host->clk = clk;
 
-	tegra_host->rst = devm_reset_control_get(&pdev->dev, "sdhci");
+	tegra_host->rst = devm_reset_control_get_exclusive(&pdev->dev,
+							   "sdhci");
 	if (IS_ERR(tegra_host->rst)) {
 		rc = PTR_ERR(tegra_host->rst);
 		dev_err(&pdev->dev, "failed to get reset control: %d\n", rc);
