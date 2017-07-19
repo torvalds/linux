@@ -689,7 +689,7 @@ pi433_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 	{
 		retval = copy_to_user(buf, device->rx_buffer, bytes_received);
 		if (retval)
-			return retval;
+			return -EFAULT;
 	}
 
 	return bytes_received;
