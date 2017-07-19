@@ -366,7 +366,7 @@ CEC pin transitions from low to high or vice versa.
 .. kernel-doc:: include/media/cec-pin.h
 
 CEC Notifier framework
------------------
+----------------------
 
 Most drm HDMI implementations have an integrated CEC implementation and no
 notifier support is needed. But some have independent CEC implementations
