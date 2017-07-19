@@ -222,6 +222,23 @@ static bool bad_kernel_fault(bool is_exec, unsigned long error_code,
 	return is_exec || (address >= TASK_SIZE);
 }
 
+#ifdef CONFIG_PPC_SMLPAR
+static inline void cmo_account_page_fault(void)
+{
+	if (firmware_has_feature(FW_FEATURE_CMO)) {
+		u32 page_ins;
+
+		preempt_disable();
+		page_ins = be32_to_cpu(get_lppaca()->page_ins);
+		page_ins += 1 << PAGE_FACTOR;
+		get_lppaca()->page_ins = cpu_to_be32(page_ins);
+		preempt_enable();
+	}
+}
+#else
+static inline void cmo_account_page_fault(void) { }
+#endif /* CONFIG_PPC_SMLPAR */
+
 /*
  * Define the correct "is_write" bit in error_code based
  * on the processor family
@@ -501,17 +518,7 @@ good_area:
 		current->maj_flt++;
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
 			      regs, address);
-#ifdef CONFIG_PPC_SMLPAR
-		if (firmware_has_feature(FW_FEATURE_CMO)) {
-			u32 page_ins;
-
-			preempt_disable();
-			page_ins = be32_to_cpu(get_lppaca()->page_ins);
-			page_ins += 1 << PAGE_FACTOR;
-			get_lppaca()->page_ins = cpu_to_be32(page_ins);
-			preempt_enable();
-		}
-#endif /* CONFIG_PPC_SMLPAR */
+		cmo_account_page_fault();
 	} else {
 		current->min_flt++;
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
