@@ -1704,7 +1704,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	if (ret)
 		return ret;
 
-	wait_for_completion(&done.event);
+	wait_for_completion_io(&done.event);
 	if (done.status)
 		return -EIO;
 
