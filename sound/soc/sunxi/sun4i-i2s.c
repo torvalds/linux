@@ -716,7 +716,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 	}
 
 	if (quirks->has_reset) {
-		i2s->rst = devm_reset_control_get(&pdev->dev, NULL);
+		i2s->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 		if (IS_ERR(i2s->rst)) {
 			dev_err(&pdev->dev, "Failed to get reset control\n");
 			return PTR_ERR(i2s->rst);

@@ -1573,7 +1573,8 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 	}
 
 	if (quirks->has_reset) {
-		scodec->rst = devm_reset_control_get(&pdev->dev, NULL);
+		scodec->rst = devm_reset_control_get_exclusive(&pdev->dev,
+							       NULL);
 		if (IS_ERR(scodec->rst)) {
 			dev_err(&pdev->dev, "Failed to get reset control\n");
 			return PTR_ERR(scodec->rst);
