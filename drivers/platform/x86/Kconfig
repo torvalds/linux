@@ -1027,4 +1027,21 @@ config INTEL_TELEMETRY
 	  used to get various SoC events and parameters
 	  directly via debugfs files. Various tools may use
 	  this interface for SoC state monitoring.
+
+config UPBOARD_LEGACY
+	bool "UP Board platform extras"
+	depends on ACPI && PINCTRL_CHERRYVIEW
+	select GPIOLIB_IRQCHIP
+	---help---
+	This driver initialises the platform devices on the UP board.
+	It supports UP Board with FPGA protocol V1. For UP2/UPCore or UP with
+	updated BIOS and FPGA firmware, please have a look at MFD_UPBOARD_FPGA
+	config option and the driver(s) behind.
+	It includes a Pin Control driver, which creates a "virtual" GPIO chip,
+	to transparently manage the buffers and mux switches between the SoC
+	GPIO pins and the external pin header.  The GPIOs presented by the
+	platform driver are numbered to emulate the Raspberry Pi 2 pin header
+	layout to aid application portability.
+
+
 endif # X86_PLATFORM_DEVICES
