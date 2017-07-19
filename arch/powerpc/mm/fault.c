@@ -183,6 +183,16 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 }
 
 /*
+ * Define the correct "is_write" bit in error_code based
+ * on the processor family
+ */
+#if (defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
+#define page_fault_is_write(__err)	((__err) & ESR_DST)
+#else
+#define page_fault_is_write(__err)	((__err) & DSISR_ISSTORE)
+#endif
+
+/*
  * For 600- and 800-family processors, the error_code parameter is DSISR
  * for a data fault, SRR1 for an instruction fault. For 400-family processors
  * the error_code parameter is ESR for a data fault, 0 for an instruction
@@ -202,17 +212,11 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	struct mm_struct *mm = current->mm;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	int code = SEGV_MAPERR;
-	int is_write = 0;
  	int is_exec = TRAP(regs) == 0x400;
 	int is_user = user_mode(regs);
+	int is_write = page_fault_is_write(error_code);
 	int fault;
 	int rc = 0, store_update_sp = 0;
-
-#if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
-	is_write = error_code & DSISR_ISSTORE;
-#else
-	is_write = error_code & ESR_DST;
-#endif /* CONFIG_4xx || CONFIG_BOOKE */
 
 #ifdef CONFIG_PPC_ICSWX
 	/*
