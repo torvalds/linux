@@ -303,7 +303,7 @@ static int mtk_pcie_parse_ports(struct mtk_pcie *pcie,
 	}
 
 	snprintf(name, sizeof(name), "pcie-rst%d", index);
-	port->reset = devm_reset_control_get_optional(dev, name);
+	port->reset = devm_reset_control_get_optional_exclusive(dev, name);
 	if (PTR_ERR(port->reset) == -EPROBE_DEFER)
 		return PTR_ERR(port->reset);
 
