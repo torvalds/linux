@@ -389,7 +389,6 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct dbs_data *dbs_data;
 	struct policy_dbs_info *policy_dbs;
-	unsigned int latency;
 	int ret = 0;
 
 	/* State should be equivalent to EXIT */
@@ -428,13 +427,7 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 	if (ret)
 		goto free_policy_dbs_info;
 
-	/* policy latency is in ns. Convert it to us first */
-	latency = policy->cpuinfo.transition_latency / 1000;
-	if (latency == 0)
-		latency = 1;
-
-	/* Bring kernel and HW constraints together */
-	dbs_data->sampling_rate = LATENCY_MULTIPLIER * latency;
+	dbs_data->sampling_rate = cpufreq_policy_transition_delay_us(policy);
 
 	if (!have_governor_per_policy())
 		gov->gdbs_data = dbs_data;
