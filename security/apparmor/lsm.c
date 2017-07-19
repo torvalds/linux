@@ -656,6 +656,26 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 	return error;
 }
 
+static int apparmor_task_kill(struct task_struct *target, struct siginfo *info,
+			      int sig, u32 secid)
+{
+	struct aa_label *cl, *tl;
+	int error;
+
+	if (secid)
+		/* TODO: after secid to label mapping is done.
+		 *  Dealing with USB IO specific behavior
+		 */
+		return 0;
+	cl = __begin_current_label_crit_section();
+	tl = aa_get_task_label(target);
+	error = aa_may_signal(cl, tl, sig);
+	aa_put_label(tl);
+	__end_current_label_crit_section(cl);
+
+	return error;
+}
+
 static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, apparmor_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, apparmor_ptrace_traceme),
@@ -697,6 +717,7 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(bprm_secureexec, apparmor_bprm_secureexec),
 
 	LSM_HOOK_INIT(task_setrlimit, apparmor_task_setrlimit),
+	LSM_HOOK_INIT(task_kill, apparmor_task_kill),
 };
 
 /*

@@ -86,6 +86,7 @@ enum audit_type {
 #define OP_SHUTDOWN "socket_shutdown"
 
 #define OP_PTRACE "ptrace"
+#define OP_SIGNAL "signal"
 
 #define OP_EXEC "exec"
 
@@ -126,6 +127,7 @@ struct apparmor_audit_data {
 			long pos;
 			const char *ns;
 		} iface;
+		int signal;
 		struct {
 			int rlim;
 			unsigned long max;

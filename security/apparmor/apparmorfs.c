@@ -32,6 +32,7 @@
 #include "include/audit.h"
 #include "include/context.h"
 #include "include/crypto.h"
+#include "include/ipc.h"
 #include "include/policy_ns.h"
 #include "include/label.h"
 #include "include/policy.h"
@@ -2129,6 +2130,11 @@ static struct aa_sfs_entry aa_sfs_entry_ptrace[] = {
 	{ }
 };
 
+static struct aa_sfs_entry aa_sfs_entry_signal[] = {
+	AA_SFS_FILE_STRING("mask", AA_SFS_SIG_MASK),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_domain[] = {
 	AA_SFS_FILE_BOOLEAN("change_hat",	1),
 	AA_SFS_FILE_BOOLEAN("change_hatv",	1),
@@ -2179,6 +2185,7 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_DIR("rlimit",			aa_sfs_entry_rlimit),
 	AA_SFS_DIR("caps",			aa_sfs_entry_caps),
 	AA_SFS_DIR("ptrace",			aa_sfs_entry_ptrace),
+	AA_SFS_DIR("signal",			aa_sfs_entry_signal),
 	AA_SFS_DIR("query",			aa_sfs_entry_query),
 	{ }
 };
