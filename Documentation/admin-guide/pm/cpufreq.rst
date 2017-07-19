@@ -471,14 +471,6 @@ This governor exposes the following tunables:
 
 	# echo `$(($(cat cpuinfo_transition_latency) * 750 / 1000)) > ondemand/sampling_rate
 
-
-``min_sampling_rate``
-	The minimum value of ``sampling_rate``.
-
-	Equal to 10000 (10 ms) if :c:macro:`CONFIG_NO_HZ_COMMON` and
-	:c:data:`tick_nohz_active` are both set or to 20 times the value of
-	:c:data:`jiffies` in microseconds otherwise.
-
 ``up_threshold``
 	If the estimated CPU load is above this value (in percent), the governor
 	will set the frequency to the maximum value allowed for the policy.

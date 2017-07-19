@@ -491,9 +491,7 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
  * For CPUs with transition latency > 10ms (mostly drivers with CPUFREQ_ETERNAL)
  * the ondemand governor will not work. All times here are in us (microseconds).
  */
-#define MIN_SAMPLING_RATE_RATIO		(2)
 #define LATENCY_MULTIPLIER		(1000)
-#define MIN_LATENCY_MULTIPLIER		(20)
 #define TRANSITION_LATENCY_LIMIT	(10 * 1000 * 1000)
 
 struct cpufreq_governor {

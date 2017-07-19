@@ -47,13 +47,10 @@ ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
 	struct policy_dbs_info *policy_dbs;
-	unsigned int rate;
 	int ret;
-	ret = sscanf(buf, "%u", &rate);
+	ret = sscanf(buf, "%u", &dbs_data->sampling_rate);
 	if (ret != 1)
 		return -EINVAL;
-
-	dbs_data->sampling_rate = max(rate, dbs_data->min_sampling_rate);
 
 	/*
 	 * We are operating under dbs_data->mutex and so the list and its
@@ -437,10 +434,7 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 		latency = 1;
 
 	/* Bring kernel and HW constraints together */
-	dbs_data->min_sampling_rate = max(dbs_data->min_sampling_rate,
-					  MIN_LATENCY_MULTIPLIER * latency);
-	dbs_data->sampling_rate = max(dbs_data->min_sampling_rate,
-				      LATENCY_MULTIPLIER * latency);
+	dbs_data->sampling_rate = LATENCY_MULTIPLIER * latency;
 
 	if (!have_governor_per_policy())
 		gov->gdbs_data = dbs_data;
