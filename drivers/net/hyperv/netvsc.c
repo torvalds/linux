@@ -105,7 +105,8 @@ static void netvsc_destroy_buf(struct hv_device *device)
 {
 	struct nvsp_message *revoke_packet;
 	struct net_device *ndev = hv_get_drvdata(device);
-	struct netvsc_device *net_device = net_device_to_netvsc_device(ndev);
+	struct net_device_context *ndc = netdev_priv(ndev);
+	struct netvsc_device *net_device = rtnl_dereference(ndc->nvdev);
 	int ret;
 
 	/*
@@ -829,7 +830,8 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 		struct hv_page_buffer **pb,
 		struct sk_buff *skb)
 {
-	struct netvsc_device *net_device = rcu_dereference(ndev_ctx->nvdev);
+	struct netvsc_device *net_device
+		= rcu_dereference_rtnl(ndev_ctx->nvdev);
 	struct hv_device *device = ndev_ctx->device_ctx;
 	int ret = 0;
 	struct netvsc_channel *nvchan;

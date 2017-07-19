@@ -787,12 +787,6 @@ struct netvsc_device {
 	struct rcu_head rcu;
 };
 
-static inline struct netvsc_device *
-net_device_to_netvsc_device(struct net_device *ndev)
-{
-	return ((struct net_device_context *)netdev_priv(ndev))->nvdev;
-}
-
 /* NdisInitialize message */
 struct rndis_initialize_request {
 	u32 req_id;
