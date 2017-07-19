@@ -5667,12 +5667,12 @@ static	struct	osst_support_data support_list[] = {
  * sysfs support for osst driver parameter information
  */
 
-static ssize_t osst_version_show(struct device_driver *ddd, char *buf)
+static ssize_t version_show(struct device_driver *ddd, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n", osst_version);
 }
 
-static DRIVER_ATTR(version, S_IRUGO, osst_version_show, NULL);
+static DRIVER_ATTR_RO(version);
 
 static int osst_create_sysfs_files(struct device_driver *sysfs)
 {
