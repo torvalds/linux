@@ -183,8 +183,8 @@ struct rndis_device {
 /* Interface */
 struct rndis_message;
 struct netvsc_device;
-int netvsc_device_add(struct hv_device *device,
-		      const struct netvsc_device_info *info);
+struct netvsc_device *netvsc_device_add(struct hv_device *device,
+					const struct netvsc_device_info *info);
 void netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
 		struct hv_netvsc_packet *packet,
@@ -203,8 +203,8 @@ int netvsc_poll(struct napi_struct *napi, int budget);
 bool rndis_filter_opened(const struct netvsc_device *nvdev);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
-int rndis_filter_device_add(struct hv_device *dev,
-			    struct netvsc_device_info *info);
+struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
+					      struct netvsc_device_info *info);
 void rndis_filter_update(struct netvsc_device *nvdev);
 void rndis_filter_device_remove(struct hv_device *dev,
 				struct netvsc_device *nvdev);
