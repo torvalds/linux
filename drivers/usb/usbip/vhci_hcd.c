@@ -1516,7 +1516,6 @@ static int __init vhci_hcd_init(void)
 		}
 	}
 
-	pr_info(DRIVER_DESC " v" USBIP_VERSION "\n");
 	return ret;
 
 err_add_hcd:
@@ -1542,4 +1541,3 @@ module_exit(vhci_hcd_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(USBIP_VERSION);
