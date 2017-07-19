@@ -533,9 +533,17 @@ static int bdc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id bdc_of_match[] = {
+	{ .compatible = "brcm,bdc-v0.16" },
+	{ .compatible = "brcm,bdc" },
+	{ /* sentinel */ }
+};
+
 static struct platform_driver bdc_driver = {
 	.driver		= {
 		.name	= BRCM_BDC_NAME,
+		.owner	= THIS_MODULE,
+		.of_match_table	= bdc_of_match,
 	},
 	.probe		= bdc_probe,
 	.remove		= bdc_remove,

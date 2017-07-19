@@ -27,8 +27,8 @@
 #include <linux/usb/gadget.h>
 #include <asm/unaligned.h>
 
-#define BRCM_BDC_NAME "bdc_usb3"
-#define BRCM_BDC_DESC "BDC device controller driver"
+#define BRCM_BDC_NAME "bdc"
+#define BRCM_BDC_DESC "Broadcom USB Device Controller driver"
 
 #define DMA_ADDR_INVALID        (~(dma_addr_t)0)
 
