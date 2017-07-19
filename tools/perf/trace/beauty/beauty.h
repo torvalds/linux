@@ -66,6 +66,9 @@ size_t syscall_arg__scnprintf_long(char *bf, size_t size, struct syscall_arg *ar
 size_t syscall_arg__scnprintf_pid(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PID syscall_arg__scnprintf_pid
 
+size_t syscall_arg__scnprintf_clone_flags(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_CLONE_FLAGS syscall_arg__scnprintf_clone_flags
+
 size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_FCNTL_CMD syscall_arg__scnprintf_fcntl_cmd
 
