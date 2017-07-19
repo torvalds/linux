@@ -1872,7 +1872,6 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	struct btrfs_fs_devices *cur_devices;
 	u64 num_devices;
 	int ret = 0;
-	bool clear_super = false;
 
 	mutex_lock(&uuid_mutex);
 
@@ -1908,7 +1907,6 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 		list_del_init(&device->dev_alloc_list);
 		device->fs_devices->rw_devices--;
 		mutex_unlock(&fs_info->chunk_mutex);
-		clear_super = true;
 	}
 
 	mutex_unlock(&uuid_mutex);
@@ -4110,7 +4108,6 @@ static int btrfs_uuid_scan_kthread(void *data)
 	struct btrfs_fs_info *fs_info = data;
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_key key;
-	struct btrfs_key max_key;
 	struct btrfs_path *path = NULL;
 	int ret = 0;
 	struct extent_buffer *eb;
@@ -4128,10 +4125,6 @@ static int btrfs_uuid_scan_kthread(void *data)
 	key.objectid = 0;
 	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = 0;
-
-	max_key.objectid = (u64)-1;
-	max_key.type = BTRFS_ROOT_ITEM_KEY;
-	max_key.offset = (u64)-1;
 
 	while (1) {
 		ret = btrfs_search_forward(root, &key, path, 0);
@@ -6415,7 +6408,6 @@ static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 	struct extent_map *em;
 	u64 logical;
 	u64 length;
-	u64 stripe_len;
 	u64 devid;
 	u8 uuid[BTRFS_UUID_SIZE];
 	int num_stripes;
@@ -6424,7 +6416,6 @@ static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 
 	logical = key->offset;
 	length = btrfs_chunk_length(leaf, chunk);
-	stripe_len = btrfs_chunk_stripe_len(leaf, chunk);
 	num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
 
 	ret = btrfs_check_chunk_valid(fs_info, leaf, chunk, logical);
