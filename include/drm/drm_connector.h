@@ -895,8 +895,7 @@ struct drm_connector {
 	 * This is protected by @drm_mode_config.connection_mutex. Note that
 	 * nonblocking atomic commits access the current connector state without
 	 * taking locks. Either by going through the &struct drm_atomic_state
-	 * pointers, see for_each_connector_in_state(),
-	 * for_each_oldnew_connector_in_state(),
+	 * pointers, see for_each_oldnew_connector_in_state(),
 	 * for_each_old_connector_in_state() and
 	 * for_each_new_connector_in_state(). Or through careful ordering of
 	 * atomic commit operations as implemented in the atomic helpers, see

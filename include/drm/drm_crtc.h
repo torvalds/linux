@@ -806,10 +806,10 @@ struct drm_crtc {
 	 * This is protected by @mutex. Note that nonblocking atomic commits
 	 * access the current CRTC state without taking locks. Either by going
 	 * through the &struct drm_atomic_state pointers, see
-	 * for_each_crtc_in_state(), for_each_oldnew_crtc_in_state(),
-	 * for_each_old_crtc_in_state() and for_each_new_crtc_in_state(). Or
-	 * through careful ordering of atomic commit operations as implemented
-	 * in the atomic helpers, see &struct drm_crtc_commit.
+	 * for_each_oldnew_crtc_in_state(), for_each_old_crtc_in_state() and
+	 * for_each_new_crtc_in_state(). Or through careful ordering of atomic
+	 * commit operations as implemented in the atomic helpers, see
+	 * &struct drm_crtc_commit.
 	 */
 	struct drm_crtc_state *state;
 
