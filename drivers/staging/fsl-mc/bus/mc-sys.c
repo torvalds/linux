@@ -37,6 +37,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 #include "../include/mc.h"
 
 #include "dpmcp.h"
