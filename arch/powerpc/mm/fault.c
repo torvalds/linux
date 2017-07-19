@@ -355,23 +355,22 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (unlikely(!is_user && bad_kernel_fault(is_exec, error_code, address)))
 		return SIGSEGV;
 
+	/*
+	 * If we're in an interrupt, have no user context or are running
+	 * in a region with pagefaults disabled then we must not take the fault
+	 */
+	if (unlikely(faulthandler_disabled() || !mm)) {
+		if (is_user)
+			printk_ratelimited(KERN_ERR "Page fault in user mode"
+					   " with faulthandler_disabled()=%d"
+					   " mm=%p\n",
+					   faulthandler_disabled(), mm);
+		return bad_area_nosemaphore(regs, address);
+	}
+
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
-
-	if (faulthandler_disabled() || mm == NULL) {
-		if (!is_user)
-			return SIGSEGV;
-
-		/* faulthandler_disabled() in user mode is really bad,
-		   as is current->mm == NULL. */
-		printk(KERN_EMERG "Page fault in user mode with "
-		       "faulthandler_disabled() = %d mm = %p\n",
-		       faulthandler_disabled(), mm);
-		printk(KERN_EMERG "NIP = %lx  MSR = %lx\n",
-		       regs->nip, regs->msr);
-		die("Weird page fault", regs, SIGSEGV);
-	}
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
