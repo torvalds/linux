@@ -26,7 +26,6 @@ chip-selects which (may) contain NAND flash chips. Their properties are as
 follows.
 
 Required properties:
-- compatible:		should contain "qcom,nandcs"
 - reg:			a single integer representing the chip-select
 			number (e.g., 0, 1, 2, etc.)
 - #address-cells:	see partition.txt
@@ -60,7 +59,6 @@ nand@1ac00000 {
 	#size-cells = <0>;
 
 	nandcs@0 {
-		compatible = "qcom,nandcs";
 		reg = <0>;
 
 		nand-ecc-strength = <4>;
