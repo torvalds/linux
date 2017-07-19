@@ -258,7 +258,7 @@ static int p2wi_probe(struct platform_device *pdev)
 
 	parent_clk_freq = clk_get_rate(p2wi->clk);
 
-	p2wi->rstc = devm_reset_control_get(dev, NULL);
+	p2wi->rstc = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(p2wi->rstc)) {
 		ret = PTR_ERR(p2wi->rstc);
 		dev_err(dev, "failed to retrieve reset controller: %d\n", ret);
