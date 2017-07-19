@@ -2138,7 +2138,6 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	if (ret)
 		return ret;
 
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	if (IS_ENABLED(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE))
 		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
 	else
