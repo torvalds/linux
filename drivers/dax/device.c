@@ -128,7 +128,6 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	dax_region->pfn_flags = pfn_flags;
 	kref_init(&dax_region->kref);
 	dax_region->id = region_id;
-	ida_init(&dax_region->ida);
 	dax_region->align = align;
 	dax_region->dev = parent;
 	dax_region->base = addr;
@@ -582,8 +581,6 @@ static void dev_dax_release(struct device *dev)
 	struct dax_region *dax_region = dev_dax->region;
 	struct dax_device *dax_dev = dev_dax->dax_dev;
 
-	if (dev_dax->id >= 0)
-		ida_simple_remove(&dax_region->ida, dev_dax->id);
 	dax_region_put(dax_region);
 	put_dax(dax_dev);
 	kfree(dev_dax);
@@ -642,19 +639,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	}
 
 	if (i < count)
-		goto err_id;
-
-	if (id < 0) {
-		id = ida_simple_get(&dax_region->ida, 0, 0, GFP_KERNEL);
-		dev_dax->id = id;
-		if (id < 0) {
-			rc = id;
-			goto err_id;
-		}
-	} else {
-		/* region provider owns @id lifetime */
-		dev_dax->id = -1;
-	}
+		goto err;
 
 	/*
 	 * No 'host' or dax_operations since there is no access to this
@@ -663,7 +648,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	dax_dev = alloc_dax(dev_dax, NULL, NULL);
 	if (!dax_dev) {
 		rc = -ENOMEM;
-		goto err_dax;
+		goto err;
 	}
 
 	/* from here on we're committed to teardown via dax_dev_release() */
@@ -700,10 +685,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 
 	return dev_dax;
 
- err_dax:
-	if (dev_dax->id >= 0)
-		ida_simple_remove(&dax_region->ida, dev_dax->id);
- err_id:
+ err:
 	kfree(dev_dax);
 
 	return ERR_PTR(rc);
