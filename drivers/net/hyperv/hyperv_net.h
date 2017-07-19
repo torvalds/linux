@@ -200,6 +200,7 @@ int netvsc_recv_callback(struct net_device *net,
 			 const struct ndis_pkt_8021q_info *vlan);
 void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
+bool rndis_filter_opened(const struct netvsc_device *nvdev);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,

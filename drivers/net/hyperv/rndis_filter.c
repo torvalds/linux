@@ -1302,3 +1302,8 @@ int rndis_filter_close(struct netvsc_device *nvdev)
 
 	return rndis_filter_close_device(nvdev->extension);
 }
+
+bool rndis_filter_opened(const struct netvsc_device *nvdev)
+{
+	return atomic_read(&nvdev->open_cnt) > 0;
+}
