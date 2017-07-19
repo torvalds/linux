@@ -47,27 +47,25 @@
 
 #include "icswx.h"
 
-#ifdef CONFIG_KPROBES
-static inline int notify_page_fault(struct pt_regs *regs)
+static inline bool notify_page_fault(struct pt_regs *regs)
 {
-	int ret = 0;
+	bool ret = false;
 
+#ifdef CONFIG_KPROBES
 	/* kprobe_running() needs smp_processor_id() */
 	if (!user_mode(regs)) {
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 11))
-			ret = 1;
+			ret = true;
 		preempt_enable();
 	}
+#endif /* CONFIG_KPROBES */
+
+	if (unlikely(debugger_fault_handler(regs)))
+		ret = true;
 
 	return ret;
 }
-#else
-static inline int notify_page_fault(struct pt_regs *regs)
-{
-	return 0;
-}
-#endif
 
 /*
  * Check whether the instruction at regs->nip is a store using
@@ -240,9 +238,6 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 #endif /* CONFIG_PPC_ICSWX */
 
 	if (notify_page_fault(regs))
-		goto bail;
-
-	if (unlikely(debugger_fault_handler(regs)))
 		goto bail;
 
 	if (unlikely(page_fault_is_bad(error_code))) {
