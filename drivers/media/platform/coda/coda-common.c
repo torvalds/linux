@@ -73,7 +73,7 @@ MODULE_PARM_DESC(disable_vdoa, "Disable Video Data Order Adapter tiled to raster
 
 static int enable_bwb = 0;
 module_param(enable_bwb, int, 0644);
-MODULE_PARM_DESC(enable_bwb, "Enable BWB unit, may crash on certain streams");
+MODULE_PARM_DESC(enable_bwb, "Enable BWB unit for decoding, may crash on certain streams");
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
@@ -1988,7 +1988,13 @@ static int coda_open(struct file *file)
 	ctx->idx = idx;
 	switch (dev->devtype->product) {
 	case CODA_960:
-		if (enable_bwb)
+		/*
+		 * Enabling the BWB when decoding can hang the firmware with
+		 * certain streams. The issue was tracked as ENGR00293425 by
+		 * Freescale. As a workaround, disable BWB for all decoders.
+		 * The enable_bwb module parameter allows to override this.
+		 */
+		if (enable_bwb || ctx->inst_type == CODA_INST_ENCODER)
 			ctx->frame_mem_ctrl = CODA9_FRAME_ENABLE_BWB;
 		/* fallthrough */
 	case CODA_7541:
@@ -2192,7 +2198,8 @@ static int coda_hw_init(struct coda_dev *dev)
 			   CODA_REG_BIT_STREAM_CTRL);
 	}
 	if (dev->devtype->product == CODA_960)
-		coda_write(dev, 1 << 12, CODA_REG_BIT_FRAME_MEM_CTRL);
+		coda_write(dev, CODA9_FRAME_ENABLE_BWB,
+				CODA_REG_BIT_FRAME_MEM_CTRL);
 	else
 		coda_write(dev, 0, CODA_REG_BIT_FRAME_MEM_CTRL);
 
