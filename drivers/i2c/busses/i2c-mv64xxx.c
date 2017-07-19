@@ -820,7 +820,7 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		goto out;
 	}
 
-	drv_data->rstc = devm_reset_control_get_optional(dev, NULL);
+	drv_data->rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(drv_data->rstc)) {
 		rc = PTR_ERR(drv_data->rstc);
 		goto out;
