@@ -130,7 +130,10 @@ static int of_overlay_apply_single_device_node(struct of_overlay *ov,
 		return -ENOMEM;
 
 	/* NOTE: Multiple mods of created nodes not supported */
-	tchild = of_get_child_by_name(target, cname);
+	for_each_child_of_node(target, tchild)
+		if (!of_node_cmp(cname, kbasename(tchild->full_name)))
+			break;
+
 	if (tchild != NULL) {
 		/* new overlay phandle value conflicts with existing value */
 		if (child->phandle)
