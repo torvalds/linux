@@ -68,17 +68,6 @@ static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
-static inline void tlbiel_pwc(unsigned long pid)
-{
-	asm volatile("ptesync": : :"memory");
-
-	/* For PWC flush, we don't look at set number */
-	__tlbiel_pid(pid, 0, RIC_FLUSH_PWC);
-
-	asm volatile("ptesync": : :"memory");
-	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
-}
-
 static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 {
 	unsigned long rb,rs,prs,r;
@@ -149,31 +138,23 @@ void radix__local_flush_tlb_mm(struct mm_struct *mm)
 	preempt_disable();
 	pid = mm->context.id;
 	if (pid != MMU_NO_CONTEXT)
-		_tlbiel_pid(pid, RIC_FLUSH_ALL);
+		_tlbiel_pid(pid, RIC_FLUSH_TLB);
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__local_flush_tlb_mm);
 
-void radix__local_flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
+#ifndef CONFIG_SMP
+static void radix__local_flush_all_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
-	struct mm_struct *mm = tlb->mm;
-	/*
-	 * If we are doing a full mm flush, we will do a tlb flush
-	 * with RIC_FLUSH_ALL later.
-	 */
-	if (tlb->fullmm)
-		return;
 
 	preempt_disable();
-
 	pid = mm->context.id;
 	if (pid != MMU_NO_CONTEXT)
-		tlbiel_pwc(pid);
-
+		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 	preempt_enable();
 }
-EXPORT_SYMBOL(radix__local_flush_tlb_pwc);
+#endif /* CONFIG_SMP */
 
 void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 				       int psize)
@@ -211,37 +192,34 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 		goto no_context;
 
 	if (!mm_is_thread_local(mm))
+		_tlbie_pid(pid, RIC_FLUSH_TLB);
+	else
+		_tlbiel_pid(pid, RIC_FLUSH_TLB);
+no_context:
+	preempt_enable();
+}
+EXPORT_SYMBOL(radix__flush_tlb_mm);
+
+static void radix__flush_all_mm(struct mm_struct *mm)
+{
+	unsigned long pid;
+
+	preempt_disable();
+	pid = mm->context.id;
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		goto no_context;
+
+	if (!mm_is_thread_local(mm))
 		_tlbie_pid(pid, RIC_FLUSH_ALL);
 	else
 		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 no_context:
 	preempt_enable();
 }
-EXPORT_SYMBOL(radix__flush_tlb_mm);
 
 void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
 {
-	unsigned long pid;
-	struct mm_struct *mm = tlb->mm;
-
-	/*
-	 * If we are doing a full mm flush, we will do a tlb flush
-	 * with RIC_FLUSH_ALL later.
-	 */
-	if (tlb->fullmm)
-		return;
-	preempt_disable();
-
-	pid = mm->context.id;
-	if (unlikely(pid == MMU_NO_CONTEXT))
-		goto no_context;
-
-	if (!mm_is_thread_local(mm))
-		_tlbie_pid(pid, RIC_FLUSH_PWC);
-	else
-		tlbiel_pwc(pid);
-no_context:
-	preempt_enable();
+	tlb->need_flush_all = 1;
 }
 EXPORT_SYMBOL(radix__flush_tlb_pwc);
 
@@ -274,6 +252,8 @@ void radix__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 }
 EXPORT_SYMBOL(radix__flush_tlb_page);
 
+#else /* CONFIG_SMP */
+#define radix__flush_all_mm radix__local_flush_all_mm
 #endif /* CONFIG_SMP */
 
 void radix__flush_tlb_kernel_range(unsigned long start, unsigned long end)
@@ -291,7 +271,12 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 {
 	struct mm_struct *mm = vma->vm_mm;
-	radix__flush_tlb_mm(mm);
+
+	/*
+	 * This is currently used when collapsing THPs so we need to
+	 * flush the PWC. We should fix this.
+	 */
+	radix__flush_all_mm(mm);
 }
 EXPORT_SYMBOL(radix__flush_tlb_range);
 
@@ -322,7 +307,10 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	 */
 	if (psize != -1 && !tlb->fullmm && !tlb->need_flush_all)
 		radix__flush_tlb_range_psize(mm, tlb->start, tlb->end, psize);
-	else
+	else if (tlb->need_flush_all) {
+		tlb->need_flush_all = 0;
+		radix__flush_all_mm(mm);
+	} else
 		radix__flush_tlb_mm(mm);
 }
 
