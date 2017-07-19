@@ -1350,12 +1350,32 @@ unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx)
 	return __syscall_arg__val(arg->args, idx);
 }
 
+static size_t syscall__scnprintf_val(struct syscall *sc, char *bf, size_t size,
+				     struct syscall_arg *arg, unsigned long val)
+{
+	if (sc->arg_fmt && sc->arg_fmt[arg->idx].scnprintf) {
+		arg->val = val;
+		if (sc->arg_fmt[arg->idx].parm)
+			arg->parm = sc->arg_fmt[arg->idx].parm;
+		return sc->arg_fmt[arg->idx].scnprintf(bf, size, arg);
+	}
+	return scnprintf(bf, size, "%ld", val);
+}
+
 static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 				      unsigned char *args, struct trace *trace,
 				      struct thread *thread)
 {
 	size_t printed = 0;
 	unsigned long val;
+	u8 bit = 1;
+	struct syscall_arg arg = {
+		.args	= args,
+		.idx	= 0,
+		.mask	= 0,
+		.trace  = trace,
+		.thread = thread,
+	};
 	struct thread_trace *ttrace = thread__priv(thread);
 
 	/*
@@ -1367,14 +1387,6 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 	if (sc->args != NULL) {
 		struct format_field *field;
-		u8 bit = 1;
-		struct syscall_arg arg = {
-			.args	= args,
-			.idx	= 0,
-			.mask	= 0,
-			.trace  = trace,
-			.thread = thread,
-		};
 
 		for (field = sc->args; field;
 		     field = field->next, ++arg.idx, bit <<= 1) {
@@ -1398,15 +1410,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 			printed += scnprintf(bf + printed, size - printed,
 					     "%s%s: ", printed ? ", " : "", field->name);
-			if (sc->arg_fmt && sc->arg_fmt[arg.idx].scnprintf) {
-				arg.val = val;
-				if (sc->arg_fmt[arg.idx].parm)
-					arg.parm = sc->arg_fmt[arg.idx].parm;
-				printed += sc->arg_fmt[arg.idx].scnprintf(bf + printed, size - printed, &arg);
-			} else {
-				printed += scnprintf(bf + printed, size - printed,
-						     "%ld", val);
-			}
+			printed += syscall__scnprintf_val(sc, bf + printed, size - printed, &arg, val);
 		}
 	} else if (IS_ERR(sc->tp_format)) {
 		/*
@@ -1414,14 +1418,16 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		 * may end up not having any args, like with gettid(), so only
 		 * print the raw args when we didn't manage to read it.
 		 */
-		int i = 0;
-
-		while (i < 6) {
-			val = __syscall_arg__val(args, i);
+		while (arg.idx < 6) {
+			if (arg.mask & bit)
+				goto next_arg;
+			val = syscall_arg__val(&arg, arg.idx);
 			printed += scnprintf(bf + printed, size - printed,
-					     "%sarg%d: %ld",
-					     printed ? ", " : "", i, val);
-			++i;
+					     "%sarg%d: ", printed ? ", " : "", arg.idx);
+			printed += syscall__scnprintf_val(sc, bf + printed, size - printed, &arg, val);
+next_arg:
+			++arg.idx;
+			bit <<= 1;
 		}
 	}
 
