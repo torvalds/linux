@@ -134,6 +134,12 @@ struct apparmor_audit_data {
 					int signal;
 					int unmappedsig;
 				};
+				struct {
+					int type, protocol;
+					struct sock *peer_sk;
+					void *addr;
+					int addrlen;
+				} net;
 			};
 		};
 		struct {

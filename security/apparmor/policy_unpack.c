@@ -37,7 +37,8 @@
 
 #define v5	5	/* base version */
 #define v6	6	/* per entry policydb mediation check */
-#define v7	7	/* full network masking */
+#define v7	7
+#define v8	8	/* full network masking */
 
 /*
  * The AppArmor interface treats data as a type byte followed by the

@@ -30,6 +30,7 @@
 #include "file.h"
 #include "lib.h"
 #include "label.h"
+#include "net.h"
 #include "perms.h"
 #include "resource.h"
 
@@ -222,6 +223,16 @@ static inline unsigned int PROFILE_MEDIATES_SAFE(struct aa_profile *profile,
 		return aa_dfa_match_len(profile->policy.dfa,
 					profile->policy.start[0], &class, 1);
 	return 0;
+}
+
+static inline unsigned int PROFILE_MEDIATES_AF(struct aa_profile *profile,
+					       u16 AF) {
+	unsigned int state = PROFILE_MEDIATES(profile, AA_CLASS_NET);
+	__be16 be_af = cpu_to_be16(AF);
+
+	if (!state)
+		return 0;
+	return aa_dfa_match_len(profile->policy.dfa, state, (char *) &be_af, 2);
 }
 
 /**
