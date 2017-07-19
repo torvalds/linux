@@ -133,7 +133,7 @@ static void paravirt_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-struct plat_smp_ops paravirt_smp_ops = {
+const struct plat_smp_ops paravirt_smp_ops = {
 	.send_ipi_single	= paravirt_send_ipi_single,
 	.send_ipi_mask		= paravirt_send_ipi_mask,
 	.init_secondary		= paravirt_init_secondary,

@@ -157,7 +157,7 @@ static void __init bcm1480_prepare_cpus(unsigned int max_cpus)
 {
 }
 
-struct plat_smp_ops bcm1480_smp_ops = {
+const struct plat_smp_ops bcm1480_smp_ops = {
 	.send_ipi_single	= bcm1480_send_ipi_single,
 	.send_ipi_mask		= bcm1480_send_ipi_mask,
 	.init_secondary		= bcm1480_init_secondary,

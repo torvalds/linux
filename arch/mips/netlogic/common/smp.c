@@ -272,7 +272,7 @@ int nlm_wakeup_secondary_cpus(void)
 	return 0;
 }
 
-struct plat_smp_ops nlm_smp_ops = {
+const struct plat_smp_ops nlm_smp_ops = {
 	.send_ipi_single	= nlm_send_ipi_single,
 	.send_ipi_mask		= nlm_send_ipi_mask,
 	.init_secondary		= nlm_init_secondary,

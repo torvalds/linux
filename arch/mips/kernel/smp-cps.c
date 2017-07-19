@@ -571,7 +571,7 @@ static void cps_cpu_die(unsigned int cpu)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static struct plat_smp_ops cps_smp_ops = {
+static const struct plat_smp_ops cps_smp_ops = {
 	.smp_setup		= cps_smp_setup,
 	.prepare_cpus		= cps_prepare_cpus,
 	.boot_secondary		= cps_boot_secondary,
@@ -587,7 +587,7 @@ static struct plat_smp_ops cps_smp_ops = {
 
 bool mips_cps_smp_in_use(void)
 {
-	extern struct plat_smp_ops *mp_ops;
+	extern const struct plat_smp_ops *mp_ops;
 	return mp_ops == &cps_smp_ops;
 }
 

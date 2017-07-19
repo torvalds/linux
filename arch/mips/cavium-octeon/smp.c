@@ -408,7 +408,7 @@ late_initcall(register_cavium_notifier);
 
 #endif	/* CONFIG_HOTPLUG_CPU */
 
-struct plat_smp_ops octeon_smp_ops = {
+const struct plat_smp_ops octeon_smp_ops = {
 	.send_ipi_single	= octeon_send_ipi_single,
 	.send_ipi_mask		= octeon_send_ipi_mask,
 	.init_secondary		= octeon_init_secondary,
@@ -485,7 +485,7 @@ static void octeon_78xx_send_ipi_mask(const struct cpumask *mask,
 		octeon_78xx_send_ipi_single(cpu, action);
 }
 
-static struct plat_smp_ops octeon_78xx_smp_ops = {
+static const struct plat_smp_ops octeon_78xx_smp_ops = {
 	.send_ipi_single	= octeon_78xx_send_ipi_single,
 	.send_ipi_mask		= octeon_78xx_send_ipi_mask,
 	.init_secondary		= octeon_init_secondary,
@@ -501,7 +501,7 @@ static struct plat_smp_ops octeon_78xx_smp_ops = {
 
 void __init octeon_setup_smp(void)
 {
-	struct plat_smp_ops *ops;
+	const struct plat_smp_ops *ops;
 
 	if (octeon_has_feature(OCTEON_FEATURE_CIU3))
 		ops = &octeon_78xx_smp_ops;

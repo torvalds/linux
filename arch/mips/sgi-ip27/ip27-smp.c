@@ -231,7 +231,7 @@ static void __init ip27_prepare_cpus(unsigned int max_cpus)
 	/* We already did everything necessary earlier */
 }
 
-struct plat_smp_ops ip27_smp_ops = {
+const struct plat_smp_ops ip27_smp_ops = {
 	.send_ipi_single	= ip27_send_ipi_single,
 	.send_ipi_mask		= ip27_send_ipi_mask,
 	.init_secondary		= ip27_init_secondary,

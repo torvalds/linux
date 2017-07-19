@@ -148,7 +148,7 @@ void __init cmp_prepare_cpus(unsigned int max_cpus)
 
 }
 
-struct plat_smp_ops cmp_smp_ops = {
+const struct plat_smp_ops cmp_smp_ops = {
 	.send_ipi_single	= mips_smp_send_ipi_single,
 	.send_ipi_mask		= mips_smp_send_ipi_mask,
 	.init_secondary		= cmp_init_secondary,

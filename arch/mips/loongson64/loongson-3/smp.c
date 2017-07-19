@@ -734,7 +734,7 @@ early_initcall(register_loongson3_notifier);
 
 #endif
 
-struct plat_smp_ops loongson3_smp_ops = {
+const struct plat_smp_ops loongson3_smp_ops = {
 	.send_ipi_single = loongson3_send_ipi_single,
 	.send_ipi_mask = loongson3_send_ipi_mask,
 	.init_secondary = loongson3_init_secondary,

@@ -146,10 +146,10 @@ void calculate_cpu_foreign_map(void)
 			       &temp_foreign_map, &cpu_sibling_map[i]);
 }
 
-struct plat_smp_ops *mp_ops;
+const struct plat_smp_ops *mp_ops;
 EXPORT_SYMBOL(mp_ops);
 
-void register_smp_ops(struct plat_smp_ops *ops)
+void register_smp_ops(const struct plat_smp_ops *ops)
 {
 	if (mp_ops)
 		printk(KERN_WARNING "Overriding previously set SMP ops\n");

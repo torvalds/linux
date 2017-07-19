@@ -146,7 +146,7 @@ static void __init sb1250_prepare_cpus(unsigned int max_cpus)
 {
 }
 
-struct plat_smp_ops sb_smp_ops = {
+const struct plat_smp_ops sb_smp_ops = {
 	.send_ipi_single	= sb1250_send_ipi_single,
 	.send_ipi_mask		= sb1250_send_ipi_mask,
 	.init_secondary		= sb1250_init_secondary,
