@@ -18,6 +18,7 @@
 
 enum path_flags {
 	PATH_IS_DIR = 0x1,		/* path is a directory */
+	PATH_SOCK_COND = 0x2,
 	PATH_CONNECT_PATH = 0x4,	/* connect disconnected paths to / */
 	PATH_CHROOT_REL = 0x8,		/* do path lookup relative to chroot */
 	PATH_CHROOT_NSCONNECT = 0x10,	/* connect paths that are at ns root */
