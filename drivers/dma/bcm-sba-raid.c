@@ -782,7 +782,7 @@ static void sba_fillup_xor_msg(struct sba_request *req,
 	msg->error = 0;
 }
 
-struct sba_request *
+static struct sba_request *
 sba_prep_dma_xor_req(struct sba_device *sba,
 		     dma_addr_t off, dma_addr_t dst, dma_addr_t *src,
 		     u32 src_cnt, size_t len, unsigned long flags)
@@ -991,7 +991,7 @@ static void sba_fillup_pq_msg(struct sba_request *req,
 	msg->error = 0;
 }
 
-struct sba_request *
+static struct sba_request *
 sba_prep_dma_pq_req(struct sba_device *sba, dma_addr_t off,
 		    dma_addr_t *dst_p, dma_addr_t *dst_q, dma_addr_t *src,
 		    u32 src_cnt, const u8 *scf, size_t len, unsigned long flags)
@@ -1243,7 +1243,7 @@ skip_q:
 	msg->error = 0;
 }
 
-struct sba_request *
+static struct sba_request *
 sba_prep_dma_pq_single_req(struct sba_device *sba, dma_addr_t off,
 			   dma_addr_t *dst_p, dma_addr_t *dst_q,
 			   dma_addr_t src, u8 scf, size_t len,
