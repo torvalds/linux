@@ -337,6 +337,9 @@ enum {
 	DEFAULT_I2C_SW_SPEED = 50,
 	DEFAULT_I2C_HW_SPEED = 50,
 
+	DEFAULT_I2C_SW_SPEED_100KHZ = 100,
+	DEFAULT_I2C_HW_SPEED_100KHZ = 100,
+
 	/* This is the timeout as defined in DP 1.2a,
 	 * 2.3.4 "Detailed uPacket TX AUX CH State Description". */
 	AUX_TIMEOUT_PERIOD = 400,
@@ -436,8 +439,13 @@ bool dal_i2caux_construct(
 	i2caux->aux_timeout_period =
 		SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD;
 
-	i2caux->default_i2c_sw_speed = DEFAULT_I2C_SW_SPEED;
-	i2caux->default_i2c_hw_speed = DEFAULT_I2C_HW_SPEED;
+	if (ctx->dce_version >= DCE_VERSION_11_2) {
+		i2caux->default_i2c_hw_speed = DEFAULT_I2C_HW_SPEED_100KHZ;
+		i2caux->default_i2c_sw_speed = DEFAULT_I2C_SW_SPEED_100KHZ;
+	} else {
+		i2caux->default_i2c_hw_speed = DEFAULT_I2C_HW_SPEED;
+		i2caux->default_i2c_sw_speed = DEFAULT_I2C_SW_SPEED;
+	}
 
 	return true;
 }
