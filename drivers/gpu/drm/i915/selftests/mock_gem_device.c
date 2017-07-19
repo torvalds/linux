@@ -228,7 +228,7 @@ struct drm_i915_private *mock_gem_device(void)
 	mkwrite_device_info(i915)->ring_mask = BIT(0);
 	i915->engine[RCS] = mock_engine(i915, "mock");
 	if (!i915->engine[RCS])
-		goto err_dependencies;
+		goto err_priorities;
 
 	i915->kernel_context = mock_context(i915, NULL);
 	if (!i915->kernel_context)
