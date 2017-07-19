@@ -272,7 +272,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	unsigned int div = 1;
 	u32 value;
 
-	parent = clks[core->parent];
+	parent = clks[core->parent & 0xffff];	/* CLK_TYPE_PE uses high bits */
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
@@ -353,6 +353,24 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 		/* Select parent clock of RCLK by MD28 */
 		if (cpg_mode & BIT(28))
 			parent = clks[cpg_clk_extalr];
+		break;
+
+	case CLK_TYPE_GEN3_PE:
+		/*
+		 * Peripheral clock with a fixed divider, selectable between
+		 * clean and spread spectrum parents using MD12
+		 */
+		if (cpg_mode & BIT(12)) {
+			/* Clean */
+			div = core->div & 0xffff;
+		} else {
+			/* SCCG */
+			parent = clks[core->parent >> 16];
+			if (IS_ERR(parent))
+				return ERR_CAST(parent);
+			div = core->div >> 16;
+		}
+		mult = 1;
 		break;
 
 	default:
