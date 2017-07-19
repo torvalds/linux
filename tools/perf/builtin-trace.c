@@ -1165,22 +1165,31 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	return err;
 }
 
+static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
+{
+	int idx;
+
+	sc->arg_fmt = calloc(nr_args, sizeof(*sc->arg_fmt));
+	if (sc->arg_fmt == NULL)
+		return -1;
+
+	for (idx = 0; idx < nr_args; ++idx) {
+		if (sc->fmt)
+			sc->arg_fmt[idx] = sc->fmt->arg[idx];
+	}
+
+	sc->nr_args = nr_args;
+	return 0;
+}
+
 static int syscall__set_arg_fmts(struct syscall *sc)
 {
 	struct format_field *field;
 	int idx = 0, len;
 
-	sc->arg_fmt = calloc(sc->nr_args, sizeof(*sc->arg_fmt));
-	if (sc->arg_fmt == NULL)
-		return -1;
-
 	for (field = sc->args; field; field = field->next, ++idx) {
-		if (sc->fmt) {
-			sc->arg_fmt[idx] = sc->fmt->arg[idx];
-
-			if (sc->fmt->arg[idx].scnprintf)
-				continue;
-		}
+		if (sc->fmt && sc->fmt->arg[idx].scnprintf)
+			continue;
 
 		if (strcmp(field->type, "const char *") == 0 &&
 			 (strcmp(field->name, "filename") == 0 ||
@@ -1251,11 +1260,13 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
+	if (syscall__alloc_arg_fmts(sc, IS_ERR(sc->tp_format) ? 6 : sc->tp_format->format.nr_fields))
+		return -1;
+
 	if (IS_ERR(sc->tp_format))
 		return -1;
 
 	sc->args = sc->tp_format->format.fields;
-	sc->nr_args = sc->tp_format->format.nr_fields;
 	/*
 	 * We need to check and discard the first variable '__syscall_nr'
 	 * or 'nr' that mean the syscall number. It is needless here.
