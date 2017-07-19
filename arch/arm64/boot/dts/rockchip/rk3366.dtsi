@@ -948,6 +948,11 @@
 				reg = <1>;
 				remote-endpoint = <&lvds_in_vopb>;
 			};
+
+			vopb_out_hdmi: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&hdmi_in_vopb>;
+			};
 		};
 	};
 
@@ -1020,6 +1025,36 @@
 			};
 		};
 
+	};
+
+	hdmi: hdmi@ff980000 {
+		compatible = "rockchip,rk3366-dw-hdmi";
+		reg = <0x0 0xff980000 0x0 0x20000>;
+		reg-io-width = <4>;
+		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_HDCP>,
+			 <&cru SCLK_HDMI_CEC>, <&cru DCLK_HDMIPHY>;
+		clock-names = "iahb", "isfr", "cec", "dclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmii2c_xfer &hdmi_cec>;
+		resets = <&cru SRST_HDMI>;
+		reset-names = "hdmi";
+		//power-domains = <&power RK3366_PD_VIO>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				hdmi_in_vopb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_hdmi>;
+				};
+			};
+		};
 	};
 
 	vpu: vpu_service@ff9a0000 {
