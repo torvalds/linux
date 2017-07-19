@@ -3674,15 +3674,24 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	if (dcbe->type == DCB_OUTPUT_DP) {
+		struct nv50_disp *disp = nv50_disp(encoder->dev);
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
 		if (aux) {
-			nv_encoder->i2c = &nv_connector->aux.ddc;
+			if (disp->disp->oclass < GF110_DISP) {
+				/* HW has no support for address-only
+				 * transactions, so we're required to
+				 * use custom I2C-over-AUX code.
+				 */
+				nv_encoder->i2c = &aux->i2c;
+			} else {
+				nv_encoder->i2c = &nv_connector->aux.ddc;
+			}
 			nv_encoder->aux = aux;
 		}
 
 		/*TODO: Use DP Info Table to check for support. */
-		if (nv50_disp(encoder->dev)->disp->oclass >= GF110_DISP) {
+		if (disp->disp->oclass >= GF110_DISP) {
 			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux, 16,
 					    nv_connector->base.base.id,
 					    &nv_encoder->dp.mstm);
