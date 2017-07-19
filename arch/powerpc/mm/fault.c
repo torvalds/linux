@@ -237,6 +237,26 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (unlikely(debugger_fault_handler(regs)))
 		goto bail;
 
+#if defined(CONFIG_6xx)
+	if (error_code & 0x95700000) {
+		/* an error such as lwarx to I/O controller space,
+		   address matching DABR, eciwx, etc. */
+		code = SEGV_ACCERR;
+		goto bad_area_nosemaphore;
+	}
+#endif /* CONFIG_6xx */
+#if defined(CONFIG_8xx)
+        /* The MPC8xx seems to always set 0x80000000, which is
+         * "undefined".  Of those that can be set, this is the only
+         * one which seems bad.
+         */
+	if (error_code & 0x10000000) {
+                /* Guarded storage error. */
+		code = SEGV_ACCERR;
+		goto bad_area_nosemaphore;
+	}
+#endif /* CONFIG_8xx */
+
 	/*
 	 * The kernel should never take an execute fault nor should it
 	 * take a page fault to a kernel address.
@@ -351,21 +371,6 @@ retry:
 
 good_area:
 	code = SEGV_ACCERR;
-#if defined(CONFIG_6xx)
-	if (error_code & 0x95700000)
-		/* an error such as lwarx to I/O controller space,
-		   address matching DABR, eciwx, etc. */
-		goto bad_area;
-#endif /* CONFIG_6xx */
-#if defined(CONFIG_8xx)
-        /* The MPC8xx seems to always set 0x80000000, which is
-         * "undefined".  Of those that can be set, this is the only
-         * one which seems bad.
-         */
-	if (error_code & 0x10000000)
-                /* Guarded storage error. */
-		goto bad_area;
-#endif /* CONFIG_8xx */
 
 	if (is_exec) {
 		/*
