@@ -2005,11 +2005,12 @@ static int cpufreq_init_governor(struct cpufreq_policy *policy)
 
 	/* Platform doesn't want dynamic frequency switching ? */
 	if (policy->governor->dynamic_switching &&
-	    policy->cpuinfo.transition_latency == CPUFREQ_ETERNAL) {
+	    (cpufreq_driver->flags & CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING ||
+	    policy->cpuinfo.transition_latency == CPUFREQ_ETERNAL)) {
 		struct cpufreq_governor *gov = cpufreq_fallback_governor();
 
 		if (gov) {
-			pr_warn("Transition latency set to CPUFREQ_ETERNAL, can't use %s governor. Fallback to %s governor\n",
+			pr_warn("Can't use %s governor as dynamic switching is disallowed. Fallback to %s governor\n",
 				policy->governor->name, gov->name);
 			policy->governor = gov;
 		} else {

@@ -370,6 +370,12 @@ struct cpufreq_driver {
  */
 #define CPUFREQ_NEED_INITIAL_FREQ_CHECK	(1 << 5)
 
+/*
+ * Set by drivers to disallow use of governors with "dynamic_switching" flag
+ * set.
+ */
+#define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING (1 << 6)
+
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 

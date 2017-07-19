@@ -357,7 +357,6 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 	/* cpuinfo and default policy values */
 	policy->min = policy->cpuinfo.min_freq = min_fsb * fid * 100;
 	policy->max = policy->cpuinfo.max_freq = max_fsb * fid * 100;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 
 	return 0;
 }
@@ -369,6 +368,7 @@ static int nforce2_cpu_exit(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver nforce2_driver = {
 	.name = "nforce2",
+	.flags = CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.verify = nforce2_verify,
 	.target = nforce2_target,
 	.get = nforce2_get,
