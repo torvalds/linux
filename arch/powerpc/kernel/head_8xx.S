@@ -569,8 +569,8 @@ _ENTRY(DTLBMiss_jmp)
 InstructionTLBError:
 	EXCEPTION_PROLOG
 	mr	r4,r12
-	andis.	r5,r9,0x4820		/* Filter relevant SRR1 bits */
-	andis.	r10,r9,0x4000
+	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
+	andis.	r10,r9,SRR1_ISI_NOPT@h
 	beq+	1f
 	tlbie	r4
 itlbie:
