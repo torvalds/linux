@@ -911,7 +911,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;
 
-	i2c_dev->rst = devm_reset_control_get(&pdev->dev, "i2c");
+	i2c_dev->rst = devm_reset_control_get_exclusive(&pdev->dev, "i2c");
 	if (IS_ERR(i2c_dev->rst)) {
 		dev_err(&pdev->dev, "missing controller reset\n");
 		return PTR_ERR(i2c_dev->rst);
