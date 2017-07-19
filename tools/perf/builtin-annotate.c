@@ -396,6 +396,7 @@ int cmd_annotate(int argc, const char **argv)
 			.namespaces = perf_event__process_namespaces,
 			.attr	= perf_event__process_attr,
 			.build_id = perf_event__process_build_id,
+			.tracing_data   = perf_event__process_tracing_data,
 			.feature	= perf_event__process_feature,
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
