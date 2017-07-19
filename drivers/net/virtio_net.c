@@ -57,6 +57,11 @@ DECLARE_EWMA(pkt_len, 0, 64)
 
 #define VIRTNET_DRIVER_VERSION "1.0.0"
 
+const unsigned long guest_offloads[] = { VIRTIO_NET_F_GUEST_TSO4,
+					 VIRTIO_NET_F_GUEST_TSO6,
+					 VIRTIO_NET_F_GUEST_ECN,
+					 VIRTIO_NET_F_GUEST_UFO };
+
 struct virtnet_stats {
 	struct u64_stats_sync tx_syncp;
 	struct u64_stats_sync rx_syncp;
@@ -164,10 +169,13 @@ struct virtnet_info {
 	u8 ctrl_promisc;
 	u8 ctrl_allmulti;
 	u16 ctrl_vid;
+	u64 ctrl_offloads;
 
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
+
+	unsigned long guest_offloads;
 };
 
 struct padded_vnet_hdr {
@@ -1897,6 +1905,47 @@ static int virtnet_restore_up(struct virtio_device *vdev)
 	return err;
 }
 
+static int virtnet_set_guest_offloads(struct virtnet_info *vi, u64 offloads)
+{
+	struct scatterlist sg;
+	vi->ctrl_offloads = cpu_to_virtio64(vi->vdev, offloads);
+
+	sg_init_one(&sg, &vi->ctrl_offloads, sizeof(vi->ctrl_offloads));
+
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_GUEST_OFFLOADS,
+				  VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET, &sg)) {
+		dev_warn(&vi->dev->dev, "Fail to set guest offload. \n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int virtnet_clear_guest_offloads(struct virtnet_info *vi)
+{
+	u64 offloads = 0;
+
+	if (!vi->guest_offloads)
+		return 0;
+
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_CSUM))
+		offloads = 1ULL << VIRTIO_NET_F_GUEST_CSUM;
+
+	return virtnet_set_guest_offloads(vi, offloads);
+}
+
+static int virtnet_restore_guest_offloads(struct virtnet_info *vi)
+{
+	u64 offloads = vi->guest_offloads;
+
+	if (!vi->guest_offloads)
+		return 0;
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_CSUM))
+		offloads |= 1ULL << VIRTIO_NET_F_GUEST_CSUM;
+
+	return virtnet_set_guest_offloads(vi, offloads);
+}
+
 static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			   struct netlink_ext_ack *extack)
 {
@@ -1906,10 +1955,11 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	u16 xdp_qp = 0, curr_qp;
 	int i, err;
 
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO4) ||
-	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO6) ||
-	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_ECN) ||
-	    virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_UFO)) {
+	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)
+	    && (virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO4) ||
+	        virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TSO6) ||
+	        virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_ECN) ||
+		virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_UFO))) {
 		NL_SET_ERR_MSG_MOD(extack, "Can't set XDP while host is implementing LRO, disable LRO first");
 		return -EOPNOTSUPP;
 	}
@@ -1956,6 +2006,12 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	for (i = 0; i < vi->max_queue_pairs; i++) {
 		old_prog = rtnl_dereference(vi->rq[i].xdp_prog);
 		rcu_assign_pointer(vi->rq[i].xdp_prog, prog);
+		if (i == 0) {
+			if (!old_prog)
+				virtnet_clear_guest_offloads(vi);
+			if (!prog)
+				virtnet_restore_guest_offloads(vi);
+		}
 		if (old_prog)
 			bpf_prog_put(old_prog);
 		virtnet_napi_enable(vi->rq[i].vq, &vi->rq[i].napi);
@@ -2591,6 +2647,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 		netif_carrier_on(dev);
 	}
 
+	for (i = 0; i < ARRAY_SIZE(guest_offloads); i++)
+		if (virtio_has_feature(vi->vdev, guest_offloads[i]))
+			set_bit(guest_offloads[i], &vi->guest_offloads);
+
 	pr_debug("virtnet: registered device %s with %d RX and TX vq's\n",
 		 dev->name, max_queue_pairs);
 
@@ -2687,7 +2747,7 @@ static struct virtio_device_id id_table[] = {
 	VIRTIO_NET_F_CTRL_RX, VIRTIO_NET_F_CTRL_VLAN, \
 	VIRTIO_NET_F_GUEST_ANNOUNCE, VIRTIO_NET_F_MQ, \
 	VIRTIO_NET_F_CTRL_MAC_ADDR, \
-	VIRTIO_NET_F_MTU
+	VIRTIO_NET_F_MTU, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS
 
 static unsigned int features[] = {
 	VIRTNET_FEATURES,
