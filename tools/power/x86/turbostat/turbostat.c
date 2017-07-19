@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -47,7 +48,8 @@
 char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
-struct timespec interval_ts = {5, 0};
+struct timeval interval_tv = {5, 0};
+struct timespec one_msec = {0, 1000000};
 unsigned int debug;
 unsigned int quiet;
 unsigned int shown;
@@ -478,7 +480,7 @@ void help(void)
 	"--cpu	cpu-set	limit output to summary plus cpu-set:\n"
 	"		{core | package | j,k,l..m,n-p }\n"
 	"--quiet	skip decoding system configuration header\n"
-	"--interval sec	Override default 5-second measurement interval\n"
+	"--interval sec.subsec	Override default 5-second measurement interval\n"
 	"--help		print this help message\n"
 	"--list		list column headers only\n"
 	"--out file	create or truncate \"file\" for all output\n"
@@ -2615,6 +2617,8 @@ static void signal_handler (int signal)
 			fprintf(stderr, "SIGUSR1\n");
 		break;
 	}
+	/* make sure this manually-invoked interval is at least 1ms long */
+	nanosleep(&one_msec, NULL);
 }
 
 void setup_signal_handler(void)
@@ -2629,6 +2633,33 @@ void setup_signal_handler(void)
 		err(1, "sigaction SIGINT");
 	if (sigaction(SIGUSR1, &sa, NULL) < 0)
 		err(1, "sigaction SIGUSR1");
+}
+
+int do_sleep(void)
+{
+	struct timeval select_timeout;
+	fd_set readfds;
+	int retval;
+
+	FD_ZERO(&readfds);
+	FD_SET(0, &readfds);
+
+	select_timeout = interval_tv;
+
+	retval = select(1, &readfds, NULL, NULL, &select_timeout);
+
+	if (retval == 1) {
+
+		switch (getc(stdin)) {
+		case 'q':
+			exit_requested = 1;
+			break;
+		}
+		/* make sure this manually-invoked interval is at least 1ms long */
+		nanosleep(&one_msec, NULL);
+	}
+
+	return retval;
 }
 void turbostat_loop()
 {
@@ -2659,7 +2690,7 @@ restart:
 			re_initialize();
 			goto restart;
 		}
-		nanosleep(&interval_ts, NULL);
+		do_sleep();
 		if (snapshot_proc_sysfs_files())
 			goto restart;
 		retval = for_all_cpus(get_counters, ODD_COUNTERS);
@@ -2680,7 +2711,7 @@ restart:
 		flush_output_stdout();
 		if (exit_requested)
 			break;
-		nanosleep(&interval_ts, NULL);
+		do_sleep();
 		if (snapshot_proc_sysfs_files())
 			goto restart;
 		retval = for_all_cpus(get_counters, EVEN_COUNTERS);
@@ -5103,8 +5134,8 @@ void cmdline(int argc, char **argv)
 					exit(2);
 				}
 
-				interval_ts.tv_sec = interval;
-				interval_ts.tv_nsec = (interval - interval_ts.tv_sec) * 1000000000;
+				interval_tv.tv_sec = interval;
+				interval_tv.tv_usec = (interval - interval_tv.tv_sec) * 1000000;
 			}
 			break;
 		case 'J':

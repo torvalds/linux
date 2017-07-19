@@ -267,6 +267,13 @@ CPU	  PRF_CTRL
 
 .fi
 
+.SH INPUT
+
+For interval-mode, turbostat will immediately end the current interval
+when it sees a newline on standard input.
+turbostat will then start the next interval.
+Control-C will be send a SIGINT to turbostat,
+which will immediately abort the program with no further processing.
 .SH SIGNALS
 
 SIGINT will interrupt interval-mode.
