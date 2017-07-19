@@ -59,7 +59,7 @@ struct rt5663_priv {
 };
 
 static const struct reg_sequence rt5663_patch_list[] = {
-	{ 0x002a, 0x8080 },
+	{ 0x002a, 0x8020 },
 	{ 0x0086, 0x0028 },
 };
 
@@ -482,7 +482,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0023, 0x0039 },
 	{ 0x0026, 0xc0c0 },
 	{ 0x0029, 0x8080 },
-	{ 0x002a, 0x8080 },
+	{ 0x002a, 0x8020 },
 	{ 0x002c, 0x000c },
 	{ 0x002d, 0x0000 },
 	{ 0x0040, 0x0808 },
@@ -1967,8 +1967,8 @@ static const struct snd_kcontrol_new rt5663_sto1_dac_l_mix[] = {
 };
 
 static const struct snd_kcontrol_new rt5663_sto1_dac_r_mix[] = {
-	SOC_DAPM_SINGLE("DAC L Switch", RT5663_STO_DAC_MIXER,
-			RT5663_M_DAC_L1_STO_R_SHIFT, 1, 1),
+	SOC_DAPM_SINGLE("DAC R Switch", RT5663_STO_DAC_MIXER,
+			RT5663_M_DAC_R1_STO_R_SHIFT, 1, 1),
 };
 
 /* Out Switch */
@@ -2358,11 +2358,9 @@ static const struct snd_soc_dapm_route rt5663_dapm_routes[] = {
 	{ "DAC R1", NULL, "ADDA MIXR" },
 
 	{ "STO1 DAC MIXL", "DAC L Switch", "DAC L1" },
-	{ "STO1 DAC MIXL", "DAC R Switch", "DAC R1" },
 	{ "STO1 DAC MIXL", NULL, "STO1 DAC L Power" },
 	{ "STO1 DAC MIXL", NULL, "STO1 DAC Filter" },
 	{ "STO1 DAC MIXR", "DAC R Switch", "DAC R1" },
-	{ "STO1 DAC MIXR", "DAC L Switch", "DAC L1" },
 	{ "STO1 DAC MIXR", NULL, "STO1 DAC R Power" },
 	{ "STO1 DAC MIXR", NULL, "STO1 DAC Filter" },
 
