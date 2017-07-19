@@ -1159,7 +1159,7 @@ static int rt274_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(rt274->regmap, 0x6f, 0x3000, 0x2000);
 	/* HP DC Calibration */
 	regmap_update_bits(rt274->regmap, 0x6f, 0xf, 0x0);
-	//Set NID=58h.Index 00h [15]= 1b;
+	/* Set NID=58h.Index 00h [15]= 1b; */
 	regmap_write(rt274->regmap, RT274_COEF58_INDEX, 0x00);
 	regmap_write(rt274->regmap, RT274_COEF58_COEF, 0xb888);
 	msleep(500);
