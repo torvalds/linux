@@ -606,12 +606,6 @@ static inline void intel_pmu_drain_pebs_buffer(void)
 	x86_pmu.drain_pebs(&regs);
 }
 
-void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
-{
-	if (!sched_in)
-		intel_pmu_drain_pebs_buffer();
-}
-
 /*
  * PEBS
  */
@@ -820,6 +814,14 @@ struct event_constraint *intel_pebs_constraints(struct perf_event *event)
 static inline bool pebs_needs_sched_cb(struct cpu_hw_events *cpuc)
 {
 	return cpuc->n_pebs && (cpuc->n_pebs == cpuc->n_large_pebs);
+}
+
+void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	if (!sched_in && pebs_needs_sched_cb(cpuc))
+		intel_pmu_drain_pebs_buffer();
 }
 
 static inline void pebs_update_threshold(struct cpu_hw_events *cpuc)
