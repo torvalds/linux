@@ -1209,7 +1209,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	if (!dcmi)
 		return -ENOMEM;
 
-	dcmi->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	dcmi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(dcmi->rstc)) {
 		dev_err(&pdev->dev, "Could not get reset control\n");
 		return -ENODEV;
