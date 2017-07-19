@@ -611,6 +611,7 @@ static struct syscall_fmt {
 	const char *name;
 	const char *alias;
 	struct syscall_arg_fmt arg[6];
+	u8	   nr_args;
 	bool	   errpid;
 	bool	   timeout;
 	bool	   hexret;
@@ -1169,6 +1170,9 @@ static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
 {
 	int idx;
 
+	if (nr_args == 6 && sc->fmt && sc->fmt->nr_args != 0)
+		nr_args = sc->fmt->nr_args;
+
 	sc->arg_fmt = calloc(nr_args, sizeof(*sc->arg_fmt));
 	if (sc->arg_fmt == NULL)
 		return -1;
@@ -1413,7 +1417,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		 * may end up not having any args, like with gettid(), so only
 		 * print the raw args when we didn't manage to read it.
 		 */
-		while (arg.idx < 6) {
+		while (arg.idx < sc->nr_args) {
 			if (arg.mask & bit)
 				goto next_arg;
 			val = syscall_arg__val(&arg, arg.idx);
