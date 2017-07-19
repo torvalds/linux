@@ -193,8 +193,10 @@ die_if_kernel(char * str, struct pt_regs *regs, long err, unsigned long *r9_15)
 static long dummy_emul(void) { return 0; }
 long (*alpha_fp_emul_imprecise)(struct pt_regs *regs, unsigned long writemask)
   = (void *)dummy_emul;
+EXPORT_SYMBOL_GPL(alpha_fp_emul_imprecise);
 long (*alpha_fp_emul) (unsigned long pc)
   = (void *)dummy_emul;
+EXPORT_SYMBOL_GPL(alpha_fp_emul);
 #else
 long alpha_fp_emul_imprecise(struct pt_regs *regs, unsigned long writemask);
 long alpha_fp_emul (unsigned long pc);
