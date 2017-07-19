@@ -38,7 +38,6 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		return 0;
 	}
 
-	rcu_read_lock();
 	if (likely(!ip_vs_iph_inverse(iph)))
 		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->daddr, ports[1]);
@@ -53,7 +52,6 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
 			 */
-			rcu_read_unlock();
 			*verdict = NF_DROP;
 			return 0;
 		}
@@ -67,11 +65,9 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
-			rcu_read_unlock();
 			return 0;
 		}
 	}
-	rcu_read_unlock();
 	/* NF_ACCEPT */
 	return 1;
 }
@@ -526,12 +522,10 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 	/* Lookup application incarnations and bind the right one */
 	hash = sctp_app_hashkey(cp->vport);
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(inc, &ipvs->sctp_apps[hash], p_list) {
 		if (inc->port == cp->vport) {
 			if (unlikely(!ip_vs_app_inc_get(inc)))
 				break;
-			rcu_read_unlock();
 
 			IP_VS_DBG_BUF(9, "%s: Binding conn %s:%u->"
 					"%s:%u to app %s on port %u\n",
@@ -544,11 +538,10 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 			cp->app = inc;
 			if (inc->init_conn)
 				result = inc->init_conn(inc, cp);
-			goto out;
+			break;
 		}
 	}
-	rcu_read_unlock();
-out:
+
 	return result;
 }
 

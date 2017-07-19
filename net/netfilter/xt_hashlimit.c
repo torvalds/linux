@@ -659,12 +659,12 @@ hashlimit_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
 		goto hotdrop;
 
-	rcu_read_lock_bh();
+	local_bh_disable();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
 		dh = dsthash_alloc_init(hinfo, &dst, &race);
 		if (dh == NULL) {
-			rcu_read_unlock_bh();
+			local_bh_enable();
 			goto hotdrop;
 		} else if (race) {
 			/* Already got an entry, update expiration timeout */
@@ -689,12 +689,12 @@ hashlimit_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		/* below the limit */
 		dh->rateinfo.credit -= cost;
 		spin_unlock(&dh->lock);
-		rcu_read_unlock_bh();
+		local_bh_enable();
 		return !(cfg->mode & XT_HASHLIMIT_INVERT);
 	}
 
 	spin_unlock(&dh->lock);
-	rcu_read_unlock_bh();
+	local_bh_enable();
 	/* default match is underlimit - so over the limit, we need to invert */
 	return cfg->mode & XT_HASHLIMIT_INVERT;
 

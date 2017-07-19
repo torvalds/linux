@@ -539,13 +539,11 @@ static inline size_t ctnetlink_proto_size(const struct nf_conn *ct)
 	struct nf_conntrack_l4proto *l4proto;
 	size_t len = 0;
 
-	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
 	len += l3proto->nla_size;
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	len += l4proto->nla_size;
-	rcu_read_unlock();
 
 	return len;
 }
@@ -664,7 +662,6 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	nfmsg->version	= NFNETLINK_V0;
 	nfmsg->res_id	= 0;
 
-	rcu_read_lock();
 	zone = nf_ct_zone(ct);
 
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG | NLA_F_NESTED);
@@ -736,8 +733,6 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	    && ctnetlink_dump_mark(skb, ct) < 0)
 		goto nla_put_failure;
 #endif
-	rcu_read_unlock();
-
 	nlmsg_end(skb, nlh);
 	err = nfnetlink_send(skb, net, item->portid, group, item->report,
 			     GFP_ATOMIC);
@@ -747,7 +742,6 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	return 0;
 
 nla_put_failure:
-	rcu_read_unlock();
 	nlmsg_cancel(skb, nlh);
 nlmsg_failure:
 	kfree_skb(skb);
@@ -2213,7 +2207,6 @@ static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 	const struct nf_conntrack_zone *zone;
 	struct nlattr *nest_parms;
 
-	rcu_read_lock();
 	zone = nf_ct_zone(ct);
 
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_ORIG | NLA_F_NESTED);
@@ -2272,11 +2265,9 @@ static int __ctnetlink_glue_build(struct sk_buff *skb, struct nf_conn *ct)
 #endif
 	if (ctnetlink_dump_labels(skb, ct) < 0)
 		goto nla_put_failure;
-	rcu_read_unlock();
 	return 0;
 
 nla_put_failure:
-	rcu_read_unlock();
 	return -ENOSPC;
 }
 
@@ -2661,17 +2652,14 @@ ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
 	nfmsg->version	    = NFNETLINK_V0;
 	nfmsg->res_id	    = 0;
 
-	rcu_read_lock();
 	if (ctnetlink_exp_dump_expect(skb, exp) < 0)
 		goto nla_put_failure;
-	rcu_read_unlock();
 
 	nlmsg_end(skb, nlh);
 	nfnetlink_send(skb, net, item->portid, group, item->report, GFP_ATOMIC);
 	return 0;
 
 nla_put_failure:
-	rcu_read_unlock();
 	nlmsg_cancel(skb, nlh);
 nlmsg_failure:
 	kfree_skb(skb);

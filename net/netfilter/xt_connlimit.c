@@ -144,7 +144,6 @@ static unsigned int check_hlist(struct net *net,
 	unsigned int length = 0;
 
 	*addit = true;
-	rcu_read_lock();
 
 	/* check the saved connections */
 	hlist_for_each_entry_safe(conn, n, head, node) {
@@ -178,8 +177,6 @@ static unsigned int check_hlist(struct net *net,
 		nf_ct_put(found_ct);
 		length++;
 	}
-
-	rcu_read_unlock();
 
 	return length;
 }

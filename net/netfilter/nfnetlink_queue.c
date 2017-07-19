@@ -928,7 +928,6 @@ static unsigned int nfqnl_nf_hook_drop(struct net *net)
 	unsigned int instances = 0;
 	int i;
 
-	rcu_read_lock();
 	for (i = 0; i < INSTANCE_BUCKETS; i++) {
 		struct nfqnl_instance *inst;
 		struct hlist_head *head = &q->instance_table[i];
@@ -938,7 +937,6 @@ static unsigned int nfqnl_nf_hook_drop(struct net *net)
 			instances++;
 		}
 	}
-	rcu_read_unlock();
 
 	return instances;
 }
