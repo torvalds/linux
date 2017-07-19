@@ -108,6 +108,45 @@ static int store_updates_sp(struct pt_regs *regs)
  * do_page_fault error handling helpers
  */
 
+static int
+__bad_area_nosemaphore(struct pt_regs *regs, unsigned long address, int si_code)
+{
+	/*
+	 * If we are in kernel mode, bail out with a SEGV, this will
+	 * be caught by the assembly which will restore the non-volatile
+	 * registers before calling bad_page_fault()
+	 */
+	if (!user_mode(regs))
+		return SIGSEGV;
+
+	_exception(SIGSEGV, regs, si_code, address);
+
+	return 0;
+}
+
+static noinline int bad_area_nosemaphore(struct pt_regs *regs, unsigned long address)
+{
+	return __bad_area_nosemaphore(regs, address, SEGV_MAPERR);
+}
+
+static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
+{
+	struct mm_struct *mm = current->mm;
+
+	/*
+	 * Something tried to access memory that isn't in our memory map..
+	 * Fix it, but check if it's kernel or user first..
+	 */
+	up_read(&mm->mmap_sem);
+
+	return __bad_area_nosemaphore(regs, address, si_code);
+}
+
+static noinline int bad_area(struct pt_regs *regs, unsigned long address)
+{
+	return __bad_area(regs, address, SEGV_MAPERR);
+}
+
 #define MM_FAULT_RETURN		0
 #define MM_FAULT_CONTINUE	-1
 #define MM_FAULT_ERR(sig)	(sig)
@@ -231,7 +270,6 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	struct vm_area_struct * vma;
 	struct mm_struct *mm = current->mm;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
-	int code = SEGV_MAPERR;
  	int is_exec = TRAP(regs) == 0x400;
 	int is_user = user_mode(regs);
 	int is_write = page_fault_is_write(error_code);
@@ -317,7 +355,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!is_user && !search_exception_tables(regs->nip))
-			goto bad_area_nosemaphore;
+			return bad_area_nosemaphore(regs, address);
 
 retry:
 		down_read(&mm->mmap_sem);
@@ -332,11 +370,11 @@ retry:
 
 	vma = find_vma(mm, address);
 	if (!vma)
-		goto bad_area;
+		return bad_area(regs, address);
 	if (vma->vm_start <= address)
 		goto good_area;
 	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
+		return bad_area(regs, address);
 
 	/*
 	 * N.B. The POWER/Open ABI allows programs to access up to
@@ -351,7 +389,7 @@ retry:
 		/* get user regs even if this fault is in kernel mode */
 		struct pt_regs *uregs = current->thread.regs;
 		if (uregs == NULL)
-			goto bad_area;
+			return bad_area(regs, address);
 
 		/*
 		 * A user-mode access to an address a long way below
@@ -366,14 +404,12 @@ retry:
 		 * expand the stack rather than segfaulting.
 		 */
 		if (address + 2048 < uregs->gpr[1] && !store_update_sp)
-			goto bad_area;
+			return bad_area(regs, address);
 	}
 	if (expand_stack(vma, address))
-		goto bad_area;
+		return bad_area(regs, address);
 
 good_area:
-	code = SEGV_ACCERR;
-
 	if (is_exec) {
 		/*
 		 * Allow execution from readable areas if the MMU does not
@@ -388,16 +424,16 @@ good_area:
 		if (!(vma->vm_flags & VM_EXEC) &&
 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
-			goto bad_area;
+			return bad_area(regs, address);
 	/* a write */
 	} else if (is_write) {
 		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
+			return bad_area(regs, address);
 		flags |= FAULT_FLAG_WRITE;
 	/* a read */
 	} else {
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-			goto bad_area;
+			return bad_area(regs, address);
 	}
 #ifdef CONFIG_PPC_STD_MMU
 	/*
@@ -462,11 +498,10 @@ good_area:
 
 	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
 		if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area_nosemaphore;
+			return bad_area_nosemaphore(regs, address);
 		rc = mm_fault_error(regs, address, fault);
 		if (rc >= MM_FAULT_RETURN)
 			return rc;
-		rc = 0;
 	}
 
 	/*
@@ -492,20 +527,7 @@ good_area:
 		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
 			      regs, address);
 	}
-
-	return rc;
-
-bad_area:
-	up_read(&mm->mmap_sem);
-
-bad_area_nosemaphore:
-	/* User mode accesses cause a SIGSEGV */
-	if (is_user) {
-		_exception(SIGSEGV, regs, code, address);
-		return 0;
-	}
-
-	return SIGSEGV;
+	return 0;
 }
 NOKPROBE_SYMBOL(__do_page_fault);
 
