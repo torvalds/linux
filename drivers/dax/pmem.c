@@ -58,13 +58,12 @@ static void dax_pmem_percpu_kill(void *data)
 
 static int dax_pmem_probe(struct device *dev)
 {
-	int rc;
 	void *addr;
 	struct resource res;
+	int rc, id, region_id;
 	struct nd_pfn_sb *pfn_sb;
 	struct dev_dax *dev_dax;
 	struct dax_pmem *dax_pmem;
-	struct nd_region *nd_region;
 	struct nd_namespace_io *nsio;
 	struct dax_region *dax_region;
 	struct nd_namespace_common *ndns;
@@ -123,14 +122,17 @@ static int dax_pmem_probe(struct device *dev)
 	/* adjust the dax_region resource to the start of data */
 	res.start += le64_to_cpu(pfn_sb->dataoff);
 
-	nd_region = to_nd_region(dev->parent);
-	dax_region = alloc_dax_region(dev, nd_region->id, &res,
+	rc = sscanf(dev_name(&ndns->dev), "namespace%d.%d", &region_id, &id);
+	if (rc != 2)
+		return -EINVAL;
+
+	dax_region = alloc_dax_region(dev, region_id, &res,
 			le32_to_cpu(pfn_sb->align), addr, PFN_DEV|PFN_MAP);
 	if (!dax_region)
 		return -ENOMEM;
 
 	/* TODO: support for subdividing a dax region... */
-	dev_dax = devm_create_dev_dax(dax_region, &res, 1);
+	dev_dax = devm_create_dev_dax(dax_region, id, &res, 1);
 
 	/* child dev_dax instances now own the lifetime of the dax_region */
 	dax_region_put(dax_region);
