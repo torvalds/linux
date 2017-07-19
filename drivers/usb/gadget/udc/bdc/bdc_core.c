@@ -488,28 +488,29 @@ static int bdc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bdc);
 	bdc->irq = irq;
 	bdc->dev = dev;
-	dev_dbg(bdc->dev, "bdc->regs: %p irq=%d\n", bdc->regs, bdc->irq);
+	dev_dbg(dev, "bdc->regs: %p irq=%d\n", bdc->regs, bdc->irq);
 
 	temp = bdc_readl(bdc->regs, BDC_BDCCAP1);
 	if ((temp & BDC_P64) &&
 			!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
-		dev_dbg(bdc->dev, "Using 64-bit address\n");
+		dev_dbg(dev, "Using 64-bit address\n");
 	} else {
-		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dev_err(bdc->dev, "No suitable DMA config available, abort\n");
+			dev_err(dev,
+				"No suitable DMA config available, abort\n");
 			return -ENOTSUPP;
 		}
-		dev_dbg(bdc->dev, "Using 32-bit address\n");
+		dev_dbg(dev, "Using 32-bit address\n");
 	}
 	ret = bdc_hw_init(bdc);
 	if (ret) {
-		dev_err(bdc->dev, "BDC init failure:%d\n", ret);
+		dev_err(dev, "BDC init failure:%d\n", ret);
 		return ret;
 	}
 	ret = bdc_udc_init(bdc);
 	if (ret) {
-		dev_err(bdc->dev, "BDC Gadget init failure:%d\n", ret);
+		dev_err(dev, "BDC Gadget init failure:%d\n", ret);
 		goto cleanup;
 	}
 	return 0;
