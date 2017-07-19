@@ -1924,7 +1924,7 @@ static void handle_automated_test(struct core_link *link)
 			sizeof(test_response));
 }
 
-bool dc_link_handle_hpd_rx_irq(const struct dc_link *dc_link)
+bool dc_link_handle_hpd_rx_irq(const struct dc_link *dc_link, union hpd_irq_data *out_hpd_irq_dpcd_data)
 {
 	struct core_link *link = DC_LINK_TO_LINK(dc_link);
 	union hpd_irq_data hpd_irq_dpcd_data = {{{{0}}}};
@@ -1939,12 +1939,15 @@ bool dc_link_handle_hpd_rx_irq(const struct dc_link *dc_link)
 		"%s: Got short pulse HPD on link %d\n",
 		__func__, link->public.link_index);
 
+
 	 /* All the "handle_hpd_irq_xxx()" methods
 		 * should be called only after
 		 * dal_dpsst_ls_read_hpd_irq_data
 		 * Order of calls is important too
 		 */
 	result = read_hpd_rx_irq_data(link, &hpd_irq_dpcd_data);
+	if (out_hpd_irq_dpcd_data)
+		*out_hpd_irq_dpcd_data = hpd_irq_dpcd_data;
 
 	if (result != DC_OK) {
 		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,

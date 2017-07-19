@@ -914,7 +914,7 @@ static void handle_hpd_rx_irq(void *param)
 	if (aconnector->dc_link->type != dc_connection_mst_branch)
 		mutex_lock(&aconnector->hpd_lock);
 
-	if (dc_link_handle_hpd_rx_irq(aconnector->dc_link) &&
+	if (dc_link_handle_hpd_rx_irq(aconnector->dc_link, NULL) &&
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (dc_link_detect(aconnector->dc_link, false)) {

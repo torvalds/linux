@@ -755,7 +755,8 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot);
  * detection.
  * false - no change in Downstream port status. No further action required
  * from DM. */
-bool dc_link_handle_hpd_rx_irq(const struct dc_link *dc_link);
+bool dc_link_handle_hpd_rx_irq(const struct dc_link *dc_link,
+		union hpd_irq_data *hpd_irq_dpcd_data);
 
 struct dc_sink_init_data;
 
