@@ -69,7 +69,7 @@ static void netvsc_set_multicast_list(struct net_device *net)
 static int netvsc_open(struct net_device *net)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(net);
-	struct netvsc_device *nvdev = ndev_ctx->nvdev;
+	struct netvsc_device *nvdev = rtnl_dereference(ndev_ctx->nvdev);
 	struct rndis_device *rdev;
 	int ret = 0;
 
@@ -1364,7 +1364,7 @@ static struct net_device *get_netvsc_byref(struct net_device *vf_netdev)
 			continue;	/* not a netvsc device */
 
 		net_device_ctx = netdev_priv(dev);
-		if (net_device_ctx->nvdev == NULL)
+		if (!rtnl_dereference(net_device_ctx->nvdev))
 			continue;	/* device is removed */
 
 		if (rtnl_dereference(net_device_ctx->vf_netdev) == vf_netdev)
@@ -1589,7 +1589,8 @@ static int netvsc_remove(struct hv_device *dev)
 	 * removed. Also blocks mtu and channel changes.
 	 */
 	rtnl_lock();
-	rndis_filter_device_remove(dev, ndev_ctx->nvdev);
+	rndis_filter_device_remove(dev,
+				   rtnl_dereference(ndev_ctx->nvdev));
 	rtnl_unlock();
 
 	unregister_netdev(net);
