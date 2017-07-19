@@ -404,7 +404,7 @@ void dce112_compressor_enable_fbc(
 		/* Keep track of enum controller_id FBC is attached to */
 		compressor->is_enabled = true;
 		compressor->attached_inst = params->inst;
-		cp110->offsets = reg_offsets[params->inst - 1];
+		cp110->offsets = reg_offsets[params->inst];
 
 		/*Toggle it as there is bug in HW */
 		set_reg_field_value(value, 0, FBC_CNTL, FBC_GRPH_COMP_EN);
@@ -797,6 +797,7 @@ bool dce112_compressor_construct(struct dce112_compressor *compressor,
 	struct dc_bios *bp = ctx->dc_bios;
 	struct embedded_panel_info panel_info;
 
+	compressor->base.options.raw = 0;
 	compressor->base.options.bits.FBC_SUPPORT = true;
 	compressor->base.options.bits.LPT_SUPPORT = true;
 	 /* For DCE 11 always use one DRAM channel for LPT */
@@ -817,7 +818,6 @@ bool dce112_compressor_construct(struct dce112_compressor *compressor,
 	compressor->base.allocated_size = 0;
 	compressor->base.preferred_requested_size = 0;
 	compressor->base.min_compress_ratio = FBC_COMPRESS_RATIO_INVALID;
-	compressor->base.options.raw = 0;
 	compressor->base.banks_num = 0;
 	compressor->base.raw_size = 0;
 	compressor->base.channel_interleave_size = 0;
