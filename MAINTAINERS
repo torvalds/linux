@@ -11662,6 +11662,13 @@ L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/dw_mmc*
 
+SYNOPSYS HSDK RESET CONTROLLER DRIVER
+M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+S:	Supported
+F:	drivers/reset/reset-hsdk-v1.c
+F:	include/dt-bindings/reset/snps,hsdk-v1-reset.h
+F:	Documentation/devicetree/bindings/reset/snps,hsdk-v1-reset.txt
+
 SYSTEM TRACE MODULE CLASS
 M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 S:	Maintained

@@ -41,6 +41,12 @@ config RESET_GEMINI
 	help
 	  This enables the reset controller driver for Cortina Systems Gemini.
 
+config RESET_HSDK_V1
+	bool "HSDK v1 Reset Driver"
+	default n
+	help
+	  This enables the reset controller driver for HSDK v1.
+
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
 	default SOC_IMX7D
