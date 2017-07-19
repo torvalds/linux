@@ -12,29 +12,27 @@
  *
  */
 
-#include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_reserved_mem.h>
-#include <linux/slab.h>
+#include <linux/of_address.h>
 #include <linux/qcom_scm.h>
+#include <linux/sizes.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
 #include "firmware.h"
 
 #define VENUS_PAS_ID			9
-#define VENUS_FW_MEM_SIZE		SZ_8M
+#define VENUS_FW_MEM_SIZE		(6 * SZ_1M)
 
-static void device_release_dummy(struct device *dev)
-{
-	of_reserved_mem_device_release(dev);
-}
-
-int venus_boot(struct device *parent, struct device *fw_dev, const char *fwname)
+int venus_boot(struct device *dev, const char *fwname)
 {
 	const struct firmware *mdt;
+	struct device_node *node;
 	phys_addr_t mem_phys;
+	struct resource r;
 	ssize_t fw_size;
 	size_t mem_size;
 	void *mem_va;
@@ -43,66 +41,58 @@ int venus_boot(struct device *parent, struct device *fw_dev, const char *fwname)
 	if (!IS_ENABLED(CONFIG_QCOM_MDT_LOADER) || !qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
-	fw_dev->parent = parent;
-	fw_dev->release = device_release_dummy;
-
-	ret = dev_set_name(fw_dev, "%s:%s", dev_name(parent), "firmware");
-	if (ret)
-		return ret;
-
-	ret = device_register(fw_dev);
-	if (ret < 0)
-		return ret;
-
-	ret = of_reserved_mem_device_init_by_idx(fw_dev, parent->of_node, 0);
-	if (ret)
-		goto err_unreg_device;
-
-	mem_size = VENUS_FW_MEM_SIZE;
-
-	mem_va = dmam_alloc_coherent(fw_dev, mem_size, &mem_phys, GFP_KERNEL);
-	if (!mem_va) {
-		ret = -ENOMEM;
-		goto err_unreg_device;
+	node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!node) {
+		dev_err(dev, "no memory-region specified\n");
+		return -EINVAL;
 	}
 
-	ret = request_firmware(&mdt, fwname, fw_dev);
+	ret = of_address_to_resource(node, 0, &r);
+	if (ret)
+		return ret;
+
+	mem_phys = r.start;
+	mem_size = resource_size(&r);
+
+	if (mem_size < VENUS_FW_MEM_SIZE)
+		return -EINVAL;
+
+	mem_va = memremap(r.start, mem_size, MEMREMAP_WC);
+	if (!mem_va) {
+		dev_err(dev, "unable to map memory region: %pa+%zx\n",
+			&r.start, mem_size);
+		return -ENOMEM;
+	}
+
+	ret = request_firmware(&mdt, fwname, dev);
 	if (ret < 0)
-		goto err_unreg_device;
+		goto err_unmap;
 
 	fw_size = qcom_mdt_get_size(mdt);
 	if (fw_size < 0) {
 		ret = fw_size;
 		release_firmware(mdt);
-		goto err_unreg_device;
+		goto err_unmap;
 	}
 
-	ret = qcom_mdt_load(fw_dev, mdt, fwname, VENUS_PAS_ID, mem_va, mem_phys,
+	ret = qcom_mdt_load(dev, mdt, fwname, VENUS_PAS_ID, mem_va, mem_phys,
 			    mem_size);
 
 	release_firmware(mdt);
 
 	if (ret)
-		goto err_unreg_device;
+		goto err_unmap;
 
 	ret = qcom_scm_pas_auth_and_reset(VENUS_PAS_ID);
 	if (ret)
-		goto err_unreg_device;
+		goto err_unmap;
 
-	return 0;
-
-err_unreg_device:
-	device_unregister(fw_dev);
+err_unmap:
+	memunmap(mem_va);
 	return ret;
 }
 
-int venus_shutdown(struct device *fw_dev)
+int venus_shutdown(struct device *dev)
 {
-	int ret;
-
-	ret = qcom_scm_pas_shutdown(VENUS_PAS_ID);
-	device_unregister(fw_dev);
-	memset(fw_dev, 0, sizeof(*fw_dev));
-
-	return ret;
+	return qcom_scm_pas_shutdown(VENUS_PAS_ID);
 }
