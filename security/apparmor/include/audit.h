@@ -127,9 +127,9 @@ struct apparmor_audit_data {
 			} fs;
 		};
 		struct {
-			const char *name;
-			long pos;
+			struct aa_profile *profile;
 			const char *ns;
+			long pos;
 		} iface;
 		int signal;
 		struct {
