@@ -11,7 +11,6 @@
 
 #include <linux/of_device.h>
 #include <linux/of_address.h>
-#include <linux/irqchip/arm-gic-v3.h>
 #include <linux/of_irq.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
