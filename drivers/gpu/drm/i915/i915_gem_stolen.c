@@ -254,9 +254,10 @@ static dma_addr_t i915_stolen_to_dma(struct drm_i915_private *dev_priv)
 		 * This is a BIOS w/a: Some BIOS wrap stolen in the root
 		 * PCI bus, but have an off-by-one error. Hence retry the
 		 * reservation starting from 1 instead of 0.
+		 * There's also BIOS with off-by-one on the other end.
 		 */
 		r = devm_request_mem_region(dev_priv->drm.dev, base + 1,
-					    ggtt->stolen_size - 1,
+					    ggtt->stolen_size - 2,
 					    "Graphics Stolen Memory");
 		/*
 		 * GEN3 firmware likes to smash pci bridges into the stolen
