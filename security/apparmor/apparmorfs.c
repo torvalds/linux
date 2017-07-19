@@ -2159,9 +2159,14 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	{ }
 };
 
+static struct aa_sfs_entry aa_sfs_entry_mount[] = {
+	AA_SFS_FILE_STRING("mask", "mount umount pivot_root"),
+	{ }
+};
+
 static struct aa_sfs_entry aa_sfs_entry_ns[] = {
 	AA_SFS_FILE_BOOLEAN("profile",		1),
-	AA_SFS_FILE_BOOLEAN("pivot_root",	1),
+	AA_SFS_FILE_BOOLEAN("pivot_root",	0),
 	{ }
 };
 
@@ -2180,6 +2185,7 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 	AA_SFS_DIR("policy",			aa_sfs_entry_policy),
 	AA_SFS_DIR("domain",			aa_sfs_entry_domain),
 	AA_SFS_DIR("file",			aa_sfs_entry_file),
+	AA_SFS_DIR("mount",			aa_sfs_entry_mount),
 	AA_SFS_DIR("namespaces",		aa_sfs_entry_ns),
 	AA_SFS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
 	AA_SFS_DIR("rlimit",			aa_sfs_entry_rlimit),
