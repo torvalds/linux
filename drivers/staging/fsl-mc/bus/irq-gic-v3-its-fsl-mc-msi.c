@@ -45,7 +45,9 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	 * NOTE: This device id corresponds to the IOMMU stream ID
 	 * associated with the DPRC object (ICID).
 	 */
+#ifdef GENERIC_MSI_DOMAIN_OPS
 	info->scratchpad[0].ul = mc_bus_dev->icid;
+#endif
 	msi_info = msi_get_domain_info(msi_domain->parent);
 	return msi_info->ops->msi_prepare(msi_domain->parent, dev, nvec, info);
 }

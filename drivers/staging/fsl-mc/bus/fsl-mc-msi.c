@@ -17,6 +17,7 @@
 #include <linux/msi.h>
 #include "fsl-mc-private.h"
 
+#ifdef GENERIC_MSI_DOMAIN_OPS
 /*
  * Generate a unique ID identifying the interrupt (only used within the MSI
  * irqdomain.  Combine the icid with the interrupt index.
@@ -38,6 +39,9 @@ static void fsl_mc_msi_set_desc(msi_alloc_info_t *arg,
 	arg->hwirq = fsl_mc_domain_calc_hwirq(to_fsl_mc_device(desc->dev),
 					      desc);
 }
+#else
+#define fsl_mc_msi_set_desc NULL
+#endif
 
 static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
 {
