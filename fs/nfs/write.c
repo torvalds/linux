@@ -347,22 +347,6 @@ static void nfs_end_page_writeback(struct nfs_page *req)
 		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
 }
 
-
-/* nfs_page_group_clear_bits
- *   @req - an nfs request
- * clears all page group related bits from @req
- */
-static void
-nfs_page_group_clear_bits(struct nfs_page *req)
-{
-	clear_bit(PG_TEARDOWN, &req->wb_flags);
-	clear_bit(PG_UNLOCKPAGE, &req->wb_flags);
-	clear_bit(PG_UPTODATE, &req->wb_flags);
-	clear_bit(PG_WB_END, &req->wb_flags);
-	clear_bit(PG_REMOVE, &req->wb_flags);
-}
-
-
 /*
  * nfs_unroll_locks_and_wait -  unlock all newly locked reqs and wait on @req
  *
@@ -417,13 +401,12 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
 		/* make sure old group is not used */
 		subreq->wb_this_page = subreq;
 
+		clear_bit(PG_REMOVE, &subreq->wb_flags);
+
 		/* Note: races with nfs_page_group_destroy() */
 		if (!kref_read(&subreq->wb_kref)) {
-			bool freeme = test_bit(PG_TEARDOWN, &subreq->wb_flags);
-
-			nfs_page_group_clear_bits(subreq);
 			/* Check if we raced with nfs_page_group_destroy() */
-			if (freeme)
+			if (test_and_clear_bit(PG_TEARDOWN, &subreq->wb_flags))
 				nfs_free_request(subreq);
 			continue;
 		}
@@ -437,7 +420,6 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
 			spin_unlock(&inode->i_lock);
 		}
 
-		nfs_page_group_clear_bits(subreq);
 		/* subreq is now totally disconnected from page group or any
 		 * write / commit lists. last chance to wake any waiters */
 		nfs_unlock_and_release_request(subreq);
@@ -572,11 +554,6 @@ try_again:
 		NFS_I(inode)->nrequests++;
 		spin_unlock(&inode->i_lock);
 	}
-
-	/*
-	 * prepare head request to be added to new pgio descriptor
-	 */
-	nfs_page_group_clear_bits(head);
 
 	nfs_page_group_unlock(head);
 
