@@ -409,7 +409,7 @@ InstructionAccess:
 	mr	r4,r12			/* SRR0 is fault address */
 	bl	hash_page
 1:	mr	r4,r12
-	mr	r5,r9
+	andis.	r5,r9,0x4820		/* Filter relevant SRR1 bits */
 	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* External interrupt */

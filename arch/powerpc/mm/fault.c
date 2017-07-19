@@ -203,23 +203,13 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	int code = SEGV_MAPERR;
 	int is_write = 0;
-	int trap = TRAP(regs);
- 	int is_exec = trap == 0x400;
+ 	int is_exec = TRAP(regs) == 0x400;
 	int is_user = user_mode(regs);
 	int fault;
 	int rc = 0, store_update_sp = 0;
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
-	/*
-	 * Fortunately the bit assignments in SRR1 for an instruction
-	 * fault and DSISR for a data fault are mostly the same for the
-	 * bits we are interested in.  But there are some bits which
-	 * indicate errors in DSISR but can validly be set in SRR1.
-	 */
-	if (is_exec)
-		error_code &= 0x48200000;
-	else
-		is_write = error_code & DSISR_ISSTORE;
+	is_write = error_code & DSISR_ISSTORE;
 #else
 	is_write = error_code & ESR_DST;
 #endif /* CONFIG_4xx || CONFIG_BOOKE */
