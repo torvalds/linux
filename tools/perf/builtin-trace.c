@@ -1660,7 +1660,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		if (ret < 0)
 			goto errno_print;
 signed_print:
-		fprintf(trace->output, ") %ld", ret);
+		fprintf(trace->output, ") = %ld", ret);
 	} else if (ret < 0) {
 errno_print: {
 		char bf[STRERR_BUFSIZE];
