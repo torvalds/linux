@@ -604,6 +604,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 struct syscall_arg_fmt {
 	size_t	   (*scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
 	void	   *parm;
+	const char *name;
 	bool	   show_zero;
 };
 
@@ -1349,6 +1350,15 @@ unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx)
 	return val;
 }
 
+static size_t syscall__scnprintf_name(struct syscall *sc, char *bf, size_t size,
+				      struct syscall_arg *arg)
+{
+	if (sc->arg_fmt && sc->arg_fmt[arg->idx].name)
+		return scnprintf(bf, size, "%s: ", sc->arg_fmt[arg->idx].name);
+
+	return scnprintf(bf, size, "arg%d: ", arg->idx);
+}
+
 static size_t syscall__scnprintf_val(struct syscall *sc, char *bf, size_t size,
 				     struct syscall_arg *arg, unsigned long val)
 {
@@ -1421,8 +1431,9 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			if (arg.mask & bit)
 				goto next_arg;
 			val = syscall_arg__val(&arg, arg.idx);
-			printed += scnprintf(bf + printed, size - printed,
-					     "%sarg%d: ", printed ? ", " : "", arg.idx);
+			if (printed)
+				printed += scnprintf(bf + printed, size - printed, ", ");
+			printed += syscall__scnprintf_name(sc, bf + printed, size - printed, &arg);
 			printed += syscall__scnprintf_val(sc, bf + printed, size - printed, &arg, val);
 next_arg:
 			++arg.idx;
