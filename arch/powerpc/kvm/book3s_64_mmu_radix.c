@@ -322,13 +322,13 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	gpa = vcpu->arch.fault_gpa & ~0xfffUL;
 	gpa &= ~0xF000000000000000ul;
 	gfn = gpa >> PAGE_SHIFT;
-	if (!(dsisr & DSISR_PGDIRFAULT))
+	if (!(dsisr & DSISR_PRTABLE_FAULT))
 		gpa |= ea & 0xfff;
 	memslot = gfn_to_memslot(kvm, gfn);
 
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID)) {
-		if (dsisr & (DSISR_PGDIRFAULT | DSISR_BADACCESS |
+		if (dsisr & (DSISR_PRTABLE_FAULT | DSISR_BADACCESS |
 			     DSISR_SET_RC)) {
 			/*
 			 * Bad address in guest page table tree, or other
