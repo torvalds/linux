@@ -113,7 +113,7 @@ static int sun6i_a31_r_pinctrl_probe(struct platform_device *pdev)
 	struct reset_control *rstc;
 	int ret;
 
-	rstc = devm_reset_control_get(&pdev->dev, NULL);
+	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(rstc)) {
 		dev_err(&pdev->dev, "Reset controller missing\n");
 		return PTR_ERR(rstc);
