@@ -2323,7 +2323,9 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 			DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n", msg.u.resource_stat.port_number, msg.u.resource_stat.available_pbn);
 		}
 
-		drm_dp_put_mst_branch_device(mstb);
+		if (mstb)
+			drm_dp_put_mst_branch_device(mstb);
+
 		memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 	}
 	return ret;
