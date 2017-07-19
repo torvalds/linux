@@ -27,6 +27,7 @@
 #include <linux/moduleparam.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/clk.h>
 
 #include "bdc.h"
 #include "bdc_dbg.h"
@@ -452,8 +453,22 @@ static int bdc_probe(struct platform_device *pdev)
 	int irq;
 	u32 temp;
 	struct device *dev = &pdev->dev;
+	struct clk *clk;
 
 	dev_dbg(dev, "%s()\n", __func__);
+
+	clk = devm_clk_get(dev, "sw_usbd");
+	if (IS_ERR(clk)) {
+		dev_info(dev, "Clock not found in Device Tree\n");
+		clk = NULL;
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		dev_err(dev, "could not enable clock\n");
+		return ret;
+	}
+
 	bdc = devm_kzalloc(dev, sizeof(*bdc), GFP_KERNEL);
 	if (!bdc)
 		return -ENOMEM;
