@@ -2057,14 +2057,67 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 		return ret;
 
 	ret = qcom_nand_host_setup(host);
-	if (ret)
-		return ret;
+
+	return ret;
+}
+
+static int qcom_nand_mtd_register(struct qcom_nand_controller *nandc,
+				  struct qcom_nand_host *host,
+				  struct device_node *dn)
+{
+	struct nand_chip *chip = &host->chip;
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	int ret;
 
 	ret = nand_scan_tail(mtd);
 	if (ret)
 		return ret;
 
-	return mtd_device_register(mtd, NULL, 0);
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret)
+		nand_cleanup(mtd_to_nand(mtd));
+
+	return ret;
+}
+
+static int qcom_probe_nand_devices(struct qcom_nand_controller *nandc)
+{
+	struct device *dev = nandc->dev;
+	struct device_node *dn = dev->of_node, *child;
+	struct qcom_nand_host *host, *tmp;
+	int ret;
+
+	for_each_available_child_of_node(dn, child) {
+		host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
+		if (!host) {
+			of_node_put(child);
+			return -ENOMEM;
+		}
+
+		ret = qcom_nand_host_init(nandc, host, child);
+		if (ret) {
+			devm_kfree(dev, host);
+			continue;
+		}
+
+		list_add_tail(&host->node, &nandc->host_list);
+	}
+
+	if (list_empty(&nandc->host_list))
+		return -ENODEV;
+
+	list_for_each_entry_safe(host, tmp, &nandc->host_list, node) {
+		ret = qcom_nand_mtd_register(nandc, host, child);
+		if (ret) {
+			list_del(&host->node);
+			devm_kfree(dev, host);
+		}
+	}
+
+	if (list_empty(&nandc->host_list))
+		return -ENODEV;
+
+	return 0;
 }
 
 /* parse custom DT properties here */
@@ -2092,10 +2145,8 @@ static int qcom_nandc_parse_dt(struct platform_device *pdev)
 static int qcom_nandc_probe(struct platform_device *pdev)
 {
 	struct qcom_nand_controller *nandc;
-	struct qcom_nand_host *host;
 	const void *dev_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node, *child;
 	struct resource *res;
 	int ret;
 
@@ -2149,33 +2200,12 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_setup;
 
-	for_each_available_child_of_node(dn, child) {
-		host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
-		if (!host) {
-			of_node_put(child);
-			ret = -ENOMEM;
-			goto err_cs_init;
-		}
-
-		ret = qcom_nand_host_init(nandc, host, child);
-		if (ret) {
-			devm_kfree(dev, host);
-			continue;
-		}
-
-		list_add_tail(&host->node, &nandc->host_list);
-	}
-
-	if (list_empty(&nandc->host_list)) {
-		ret = -ENODEV;
-		goto err_cs_init;
-	}
+	ret = qcom_probe_nand_devices(nandc);
+	if (ret)
+		goto err_setup;
 
 	return 0;
 
-err_cs_init:
-	list_for_each_entry(host, &nandc->host_list, node)
-		nand_release(nand_to_mtd(&host->chip));
 err_setup:
 	clk_disable_unprepare(nandc->aon_clk);
 err_aon_clk:
