@@ -93,8 +93,7 @@ static int usbatm_print_packet(struct usbatm_data *instance, const unsigned char
 #endif
 
 #define DRIVER_AUTHOR	"Johan Verrept, Duncan Sands <duncan.sands@free.fr>"
-#define DRIVER_VERSION	"1.10"
-#define DRIVER_DESC	"Generic USB ATM/DSL I/O, version " DRIVER_VERSION
+#define DRIVER_DESC	"Generic USB ATM/DSL I/O"
 
 static const char usbatm_driver_name[] = "usbatm";
 
@@ -1315,7 +1314,6 @@ module_exit(usbatm_usb_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION);
 
 /************
 **  debug  **
