@@ -25,7 +25,22 @@
 			#size-cells = <1>;
 			status = "ok";
 
-			ride@200 {
+			ride@100 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				track@30 {
+					incline-up = < 48 32 16 >;
+				};
+
+				track@40 {
+					incline-up = < 47 31 15 >;
+				};
+			};
+
+			ride_200: ride@200 {
+				#address-cells = <1>;
+				#size-cells = <1>;
 				compatible = "ot,ferris-wheel";
 				reg = < 0x00000200 0x100 >;
 				hvac-provider = < &hvac_2 >;
@@ -36,6 +51,14 @@
 				spin-rph = < 30 >;
 				gondolas = < 16 >;
 				gondola-capacity = < 6 >;
+
+				ride_200_left: track@10 {
+					reg = < 0x00000010 0x10 >;
+				};
+
+				ride_200_right: track@20 {
+					reg = < 0x00000020 0x10 >;
+				};
 			};
 		};
 	};
