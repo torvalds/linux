@@ -350,7 +350,7 @@ static struct attribute *qeth_l3_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_l3_device_attr_group = {
+static const struct attribute_group qeth_l3_device_attr_group = {
 	.attrs = qeth_l3_device_attrs,
 };
 
@@ -680,7 +680,7 @@ static struct attribute *qeth_ipato_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_ipato_group = {
+static const struct attribute_group qeth_device_ipato_group = {
 	.name = "ipa_takeover",
 	.attrs = qeth_ipato_device_attrs,
 };
@@ -843,7 +843,7 @@ static struct attribute *qeth_vipa_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_vipa_group = {
+static const struct attribute_group qeth_device_vipa_group = {
 	.name = "vipa",
 	.attrs = qeth_vipa_device_attrs,
 };
@@ -1006,7 +1006,7 @@ static struct attribute *qeth_rxip_device_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group qeth_device_rxip_group = {
+static const struct attribute_group qeth_device_rxip_group = {
 	.name = "rxip",
 	.attrs = qeth_rxip_device_attrs,
 };
