@@ -7951,12 +7951,10 @@ static void end_reshape(struct r5conf *conf)
 {
 
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
-		struct md_rdev *rdev;
 
 		spin_lock_irq(&conf->device_lock);
 		conf->previous_raid_disks = conf->raid_disks;
-		rdev_for_each(rdev, conf->mddev)
-			rdev->data_offset = rdev->new_data_offset;
+		md_finish_reshape(conf->mddev);
 		smp_wmb();
 		conf->reshape_progress = MaxSector;
 		conf->mddev->reshape_position = MaxSector;

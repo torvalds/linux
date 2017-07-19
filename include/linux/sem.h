@@ -41,7 +41,7 @@ struct sem_array {
 	unsigned int		use_global_lock;/* >0: global lock required */
 
 	struct sem		sems[];
-};
+} __randomize_layout;
 
 #ifdef CONFIG_SYSVIPC
 
