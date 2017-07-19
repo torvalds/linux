@@ -274,14 +274,14 @@ static int gemini_sata_bridge_init(struct sata_gemini *sg)
 		return ret;
 	}
 
-	sg->sata0_reset = devm_reset_control_get(dev, "sata0");
+	sg->sata0_reset = devm_reset_control_get_exclusive(dev, "sata0");
 	if (IS_ERR(sg->sata0_reset)) {
 		dev_err(dev, "no SATA0 reset controller\n");
 		clk_disable_unprepare(sg->sata1_pclk);
 		clk_disable_unprepare(sg->sata0_pclk);
 		return PTR_ERR(sg->sata0_reset);
 	}
-	sg->sata1_reset = devm_reset_control_get(dev, "sata1");
+	sg->sata1_reset = devm_reset_control_get_exclusive(dev, "sata1");
 	if (IS_ERR(sg->sata1_reset)) {
 		dev_err(dev, "no SATA1 reset controller\n");
 		clk_disable_unprepare(sg->sata1_pclk);
