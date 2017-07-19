@@ -400,7 +400,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
 	 */
-	if (!down_read_trylock(&mm->mmap_sem)) {
+	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if (!is_user && !search_exception_tables(regs->nip))
 			return bad_area_nosemaphore(regs, address);
 
@@ -416,11 +416,11 @@ retry:
 	}
 
 	vma = find_vma(mm, address);
-	if (!vma)
+	if (unlikely(!vma))
 		return bad_area(regs, address);
-	if (vma->vm_start <= address)
+	if (likely(vma->vm_start <= address))
 		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
+	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN)))
 		return bad_area(regs, address);
 
 	/*
@@ -453,7 +453,7 @@ retry:
 		if (address + 2048 < uregs->gpr[1] && !store_update_sp)
 			return bad_area(regs, address);
 	}
-	if (expand_stack(vma, address))
+	if (unlikely(expand_stack(vma, address)))
 		return bad_area(regs, address);
 
 good_area:
@@ -468,18 +468,18 @@ good_area:
 		 * below wouldn't be valid on those processors. This -may-
 		 * break programs compiled with a really old ABI though.
 		 */
-		if (!(vma->vm_flags & VM_EXEC) &&
-		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
-		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
+		if (unlikely(!(vma->vm_flags & VM_EXEC) &&
+			     (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
+			      !(vma->vm_flags & (VM_READ | VM_WRITE)))))
 			return bad_area(regs, address);
 	/* a write */
 	} else if (is_write) {
-		if (!(vma->vm_flags & VM_WRITE))
+		if (unlikely(!(vma->vm_flags & VM_WRITE)))
 			return bad_area(regs, address);
 		flags |= FAULT_FLAG_WRITE;
 	/* a read */
 	} else {
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
+		if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
 			return bad_area(regs, address);
 	}
 
