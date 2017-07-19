@@ -27,11 +27,9 @@
 #include <rte_ip.h>
 #include <rte_udp.h>
 
-#include "virtio.h"
-
 #include <lkl_host.h>
 
-static char * const ealargs[] = {
+static char *ealargs[] = {
 	"lkl_vif_dpdk",
 	"-c 1",
 	"-n 1",
@@ -52,7 +50,7 @@ static int portid;
 struct lkl_netdev_dpdk {
 	struct lkl_netdev dev;
 	int portid;
-	struct rte_mempool *rxpool, *txpool; /* rin buffer pool */
+	struct rte_mempool *rxpool, *txpool; /* ring buffer pool */
 	char txpoolname[16], rxpoolname[16];
 	/* burst receive context by rump dpdk code */
 	struct rte_mbuf *rms[MAX_PKT_BURST];
@@ -61,13 +59,12 @@ struct lkl_netdev_dpdk {
 	int close;
 };
 
-static int net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
+static int dpdk_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	void *pkt;
 	struct rte_mbuf *rm;
 	struct lkl_netdev_dpdk *nd_dpdk;
-	void *data = iov[0].iov_base;
-	int len = (int)iov[0].iov_len;
+	int i, len = 0;
 
 	nd_dpdk = (struct lkl_netdev_dpdk *) nd;
 
@@ -79,12 +76,20 @@ static int net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 	 * MEMPOOL_CACHE_SZ to 0.
 	 */
 	rm = rte_pktmbuf_alloc(nd_dpdk->txpool);
-	pkt = rte_pktmbuf_append(rm, len);
-	memcpy(pkt, data, len);
+
+	for (i = 0; i < cnt; i++) {
+		void *data = iov[i].iov_base;
+
+		len += (int)iov[i].iov_len;
+		pkt = rte_pktmbuf_append(rm, iov[i].iov_len);
+		if (pkt)
+			memcpy(pkt, data, iov[i].iov_len);
+	}
 
 	/* XXX: should be bulk-trasmitted !! */
 	rte_eth_tx_burst(nd_dpdk->portid, 0, &rm, 1);
 
+	rte_pktmbuf_free(rm);
 	return len;
 }
 
@@ -95,12 +100,12 @@ static int net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
  * refactor allows us to read in parallel, the buffer (nd_dpdk->rms) shall
  * be guarded.
  */
-static int net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
+static int dpdk_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 {
 	struct lkl_netdev_dpdk *nd_dpdk;
 	int i, nb_rx, read = 0;
-	void *data = iov[0].iov_base;
-	int len = (int)iov[0].iov_len;
+	void *data = iov[1].iov_base;
+	int len = (int)iov[1].iov_len;
 
 	nd_dpdk = (struct lkl_netdev_dpdk *) nd;
 
@@ -123,7 +128,6 @@ static int net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 		uint32_t r_size;
 
 		nd_dpdk->npkts--;
-		nd_dpdk->bufidx++;
 
 		for (rm = nd_dpdk->rms[nd_dpdk->bufidx]; rm; rm = rm->next) {
 			r_data = rte_pktmbuf_mtod(rm, void *);
@@ -131,7 +135,9 @@ static int net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 
 			len -= r_size;
 			if (len < 0) {
-				fprintf(stderr, "dpdk: buffer full. skip it\n");
+				fprintf(stderr,
+					"dpdk: buffer full(size=%d). skip it\n",
+					r_size);
 				goto end;
 			}
 
@@ -144,6 +150,7 @@ static int net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 			read += r_size;
 			data += r_size;
 		}
+		nd_dpdk->bufidx++;
 
 	}
 
@@ -154,7 +161,7 @@ end:
 	return read;
 }
 
-static int net_poll(struct lkl_netdev *nd)
+static int dpdk_net_poll(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
@@ -170,7 +177,7 @@ static int net_poll(struct lkl_netdev *nd)
 	return LKL_DEV_NET_POLL_RX | LKL_DEV_NET_POLL_TX;
 }
 
-static void net_poll_hup(struct lkl_netdev *nd)
+static void dpdk_net_poll_hup(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
@@ -178,7 +185,7 @@ static void net_poll_hup(struct lkl_netdev *nd)
 	nd_dpdk->close = 1;
 }
 
-static void net_free(struct lkl_netdev *nd)
+static void dpdk_net_free(struct lkl_netdev *nd)
 {
 	struct lkl_netdev_dpdk *nd_dpdk =
 		container_of(nd, struct lkl_netdev_dpdk, dev);
@@ -187,11 +194,11 @@ static void net_free(struct lkl_netdev *nd)
 }
 
 struct lkl_dev_net_ops dpdk_net_ops = {
-	.tx = net_tx,
-	.rx = net_rx,
-	.poll = net_poll,
-	.poll_hup = net_poll_hup,
-	.free = net_free,
+	.tx = dpdk_net_tx,
+	.rx = dpdk_net_rx,
+	.poll = dpdk_net_poll,
+	.poll_hup = dpdk_net_poll_hup,
+	.free = dpdk_net_free,
 };
 
 
@@ -207,7 +214,7 @@ struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifparams)
 
 	if (!dpdk_init) {
 		ret = rte_eal_init(sizeof(ealargs) / sizeof(ealargs[0]),
-				   (void *)(uintptr_t)ealargs);
+				   ealargs);
 		if (ret < 0)
 			fprintf(stderr, "dpdk: failed to initialize eal\n");
 
