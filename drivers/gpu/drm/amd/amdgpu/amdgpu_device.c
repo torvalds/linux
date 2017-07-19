@@ -51,6 +51,7 @@
 #endif
 #include "vi.h"
 #include "soc15.h"
+#include "nv.h"
 #include "bif/bif_4_1_d.h"
 #include <linux/pci.h>
 #include <linux/firmware.h>
@@ -1525,6 +1526,13 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 			adev->family = AMDGPU_FAMILY_AI;
 
 		r = soc15_set_ip_blocks(adev);
+		if (r)
+			return r;
+		break;
+	case  CHIP_NAVI10:
+		adev->family = AMDGPU_FAMILY_NV;
+
+		r = nv_set_ip_blocks(adev);
 		if (r)
 			return r;
 		break;
