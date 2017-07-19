@@ -410,7 +410,7 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	ksproc->reset = devm_reset_control_get(dev, NULL);
+	ksproc->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(ksproc->reset)) {
 		ret = PTR_ERR(ksproc->reset);
 		goto free_rproc;
