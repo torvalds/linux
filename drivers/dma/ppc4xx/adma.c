@@ -4307,7 +4307,7 @@ static int ppc440spe_adma_remove(struct platform_device *ofdev)
  * "poly" allows setting/checking used polynomial (for PPC440SPe only).
  */
 
-static ssize_t show_ppc440spe_devices(struct device_driver *dev, char *buf)
+static ssize_t devices_show(struct device_driver *dev, char *buf)
 {
 	ssize_t size = 0;
 	int i;
@@ -4321,16 +4321,17 @@ static ssize_t show_ppc440spe_devices(struct device_driver *dev, char *buf)
 	}
 	return size;
 }
+static DRIVER_ATTR_RO(devices);
 
-static ssize_t show_ppc440spe_r6enable(struct device_driver *dev, char *buf)
+static ssize_t enable_show(struct device_driver *dev, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE,
 			"PPC440SP(e) RAID-6 capabilities are %sABLED.\n",
 			ppc440spe_r6_enabled ? "EN" : "DIS");
 }
 
-static ssize_t store_ppc440spe_r6enable(struct device_driver *dev,
-					const char *buf, size_t count)
+static ssize_t enable_store(struct device_driver *dev, const char *buf,
+			    size_t count)
 {
 	unsigned long val;
 
@@ -4357,8 +4358,9 @@ static ssize_t store_ppc440spe_r6enable(struct device_driver *dev,
 	}
 	return count;
 }
+static DRIVER_ATTR_RW(enable);
 
-static ssize_t show_ppc440spe_r6poly(struct device_driver *dev, char *buf)
+static ssize_t poly_store(struct device_driver *dev, char *buf)
 {
 	ssize_t size = 0;
 	u32 reg;
@@ -4377,8 +4379,8 @@ static ssize_t show_ppc440spe_r6poly(struct device_driver *dev, char *buf)
 	return size;
 }
 
-static ssize_t store_ppc440spe_r6poly(struct device_driver *dev,
-				      const char *buf, size_t count)
+static ssize_t poly_store(struct device_driver *dev, const char *buf,
+			  size_t count)
 {
 	unsigned long reg, val;
 
@@ -4404,12 +4406,7 @@ static ssize_t store_ppc440spe_r6poly(struct device_driver *dev,
 
 	return count;
 }
-
-static DRIVER_ATTR(devices, S_IRUGO, show_ppc440spe_devices, NULL);
-static DRIVER_ATTR(enable, S_IRUGO | S_IWUSR, show_ppc440spe_r6enable,
-		   store_ppc440spe_r6enable);
-static DRIVER_ATTR(poly, S_IRUGO | S_IWUSR, show_ppc440spe_r6poly,
-		   store_ppc440spe_r6poly);
+static DRIVER_ATTR_RW(poly);
 
 /*
  * Common initialisation for RAID engines; allocate memory for
