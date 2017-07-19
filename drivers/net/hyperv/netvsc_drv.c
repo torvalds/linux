@@ -505,8 +505,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
-	ret = netvsc_send(net_device_ctx->device_ctx, packet,
-			  rndis_msg, &pb, skb);
+
+	ret = netvsc_send(net_device_ctx, packet, rndis_msg, &pb, skb);
 	if (likely(ret == 0))
 		return NETDEV_TX_OK;
 

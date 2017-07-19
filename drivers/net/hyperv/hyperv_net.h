@@ -183,10 +183,12 @@ struct rndis_device {
 /* Interface */
 struct rndis_message;
 struct netvsc_device;
+struct net_device_context;
+
 struct netvsc_device *netvsc_device_add(struct hv_device *device,
 					const struct netvsc_device_info *info);
 void netvsc_device_remove(struct hv_device *device);
-int netvsc_send(struct hv_device *device,
+int netvsc_send(struct net_device_context *ndc,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer **page_buffer,
@@ -788,12 +790,6 @@ static inline struct netvsc_device *
 net_device_to_netvsc_device(struct net_device *ndev)
 {
 	return ((struct net_device_context *)netdev_priv(ndev))->nvdev;
-}
-
-static inline struct netvsc_device *
-hv_device_to_netvsc_device(struct hv_device *device)
-{
-	return net_device_to_netvsc_device(hv_get_drvdata(device));
 }
 
 /* NdisInitialize message */

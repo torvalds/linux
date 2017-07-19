@@ -822,13 +822,15 @@ static inline void move_pkt_msd(struct hv_netvsc_packet **msd_send,
 	msdp->count = 0;
 }
 
-int netvsc_send(struct hv_device *device,
+/* RCU already held by caller */
+int netvsc_send(struct net_device_context *ndev_ctx,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer **pb,
 		struct sk_buff *skb)
 {
-	struct netvsc_device *net_device = hv_device_to_netvsc_device(device);
+	struct netvsc_device *net_device = rcu_dereference(ndev_ctx->nvdev);
+	struct hv_device *device = ndev_ctx->device_ctx;
 	int ret = 0;
 	struct netvsc_channel *nvchan;
 	u32 pktlen = packet->total_data_buflen, msd_len = 0;
@@ -840,7 +842,7 @@ int netvsc_send(struct hv_device *device,
 	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
 
 	/* If device is rescinded, return error and packet will get dropped. */
-	if (unlikely(net_device->destroy))
+	if (unlikely(!net_device || net_device->destroy))
 		return -ENODEV;
 
 	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
