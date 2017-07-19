@@ -127,8 +127,7 @@ struct tegra_powergate {
 	unsigned int id;
 	struct clk **clks;
 	unsigned int num_clks;
-	struct reset_control **resets;
-	unsigned int num_resets;
+	struct reset_control *reset;
 };
 
 struct tegra_io_pad_soc {
@@ -369,34 +368,6 @@ out:
 	return err;
 }
 
-static int tegra_powergate_reset_assert(struct tegra_powergate *pg)
-{
-	unsigned int i;
-	int err;
-
-	for (i = 0; i < pg->num_resets; i++) {
-		err = reset_control_assert(pg->resets[i]);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
-static int tegra_powergate_reset_deassert(struct tegra_powergate *pg)
-{
-	unsigned int i;
-	int err;
-
-	for (i = 0; i < pg->num_resets; i++) {
-		err = reset_control_deassert(pg->resets[i]);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 int __weak tegra210_clk_handle_mbist_war(unsigned int id)
 {
 	return 0;
@@ -407,7 +378,7 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 {
 	int err;
 
-	err = tegra_powergate_reset_assert(pg);
+	err = reset_control_assert(pg->reset);
 	if (err)
 		return err;
 
@@ -431,7 +402,7 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 
 	usleep_range(10, 20);
 
-	err = tegra_powergate_reset_deassert(pg);
+	err = reset_control_deassert(pg->reset);
 	if (err)
 		goto powergate_off;
 
@@ -467,7 +438,7 @@ static int tegra_powergate_power_down(struct tegra_powergate *pg)
 
 	usleep_range(10, 20);
 
-	err = tegra_powergate_reset_assert(pg);
+	err = reset_control_assert(pg->reset);
 	if (err)
 		goto disable_clks;
 
@@ -486,7 +457,7 @@ static int tegra_powergate_power_down(struct tegra_powergate *pg)
 assert_resets:
 	tegra_powergate_enable_clocks(pg);
 	usleep_range(10, 20);
-	tegra_powergate_reset_deassert(pg);
+	reset_control_deassert(pg->reset);
 	usleep_range(10, 20);
 
 disable_clks:
@@ -597,8 +568,7 @@ int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 	pg.id = id;
 	pg.clks = &clk;
 	pg.num_clks = 1;
-	pg.resets = &rst;
-	pg.num_resets = 1;
+	pg.reset = rst;
 	pg.pmc = pmc;
 
 	err = tegra_powergate_power_up(&pg, false);
@@ -787,45 +757,22 @@ err:
 static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
 					 struct device_node *np, bool off)
 {
-	struct reset_control *rst;
-	unsigned int i, count;
 	int err;
 
-	count = of_count_phandle_with_args(np, "resets", "#reset-cells");
-	if (count == 0)
-		return -ENODEV;
-
-	pg->resets = kcalloc(count, sizeof(rst), GFP_KERNEL);
-	if (!pg->resets)
-		return -ENOMEM;
-
-	for (i = 0; i < count; i++) {
-		pg->resets[i] = of_reset_control_get_by_index(np, i);
-		if (IS_ERR(pg->resets[i])) {
-			err = PTR_ERR(pg->resets[i]);
-			goto error;
-		}
-
-		if (off)
-			err = reset_control_assert(pg->resets[i]);
-		else
-			err = reset_control_deassert(pg->resets[i]);
-
-		if (err) {
-			reset_control_put(pg->resets[i]);
-			goto error;
-		}
+	pg->reset = of_reset_control_array_get_exclusive(np);
+	if (IS_ERR(pg->reset)) {
+		err = PTR_ERR(pg->reset);
+		pr_err("failed to get device resets: %d\n", err);
+		return err;
 	}
 
-	pg->num_resets = count;
+	if (off)
+		err = reset_control_assert(pg->reset);
+	else
+		err = reset_control_deassert(pg->reset);
 
-	return 0;
-
-error:
-	while (i--)
-		reset_control_put(pg->resets[i]);
-
-	kfree(pg->resets);
+	if (err)
+		reset_control_put(pg->reset);
 
 	return err;
 }
@@ -917,10 +864,7 @@ remove_genpd:
 	pm_genpd_remove(&pg->genpd);
 
 remove_resets:
-	while (pg->num_resets--)
-		reset_control_put(pg->resets[pg->num_resets]);
-
-	kfree(pg->resets);
+	reset_control_put(pg->reset);
 
 remove_clks:
 	while (pg->num_clks--)
