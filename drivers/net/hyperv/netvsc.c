@@ -1224,11 +1224,11 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 {
 	struct netvsc_channel *nvchan
 		= container_of(napi, struct netvsc_channel, napi);
+	struct netvsc_device *net_device = nvchan->net_device;
 	struct vmbus_channel *channel = nvchan->channel;
 	struct hv_device *device = netvsc_channel_to_device(channel);
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
 	struct net_device *ndev = hv_get_drvdata(device);
-	struct netvsc_device *net_device = net_device_to_netvsc_device(ndev);
 	int work_done = 0;
 
 	/* If starting a new interval */
@@ -1307,6 +1307,7 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		struct netvsc_channel *nvchan = &net_device->chan_table[i];
 
 		nvchan->channel = device->channel;
+		nvchan->net_device = net_device;
 	}
 
 	/* Enable NAPI handler before init callbacks */
