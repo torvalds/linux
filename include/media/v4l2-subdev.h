@@ -982,8 +982,16 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
  * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
-	(!(sd) ? -ENODEV : (((sd)->ops->o && (sd)->ops->o->f) ?	\
-		(sd)->ops->o->f((sd), ##args) : -ENOIOCTLCMD))
+	({								\
+		int __result;						\
+		if (!(sd))						\
+			__result = -ENODEV;				\
+		else if (!((sd)->ops->o && (sd)->ops->o->f))		\
+			__result = -ENOIOCTLCMD;			\
+		else							\
+			__result = (sd)->ops->o->f((sd), ##args);	\
+		__result;						\
+	})
 
 #define v4l2_subdev_has_op(sd, o, f) \
 	((sd)->ops->o && (sd)->ops->o->f)
