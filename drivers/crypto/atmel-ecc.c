@@ -492,7 +492,7 @@ free_work_data:
 	return ret;
 }
 
-struct i2c_client *atmel_ecc_i2c_client_alloc(void)
+static struct i2c_client *atmel_ecc_i2c_client_alloc(void)
 {
 	struct atmel_ecc_i2c_client_priv *i2c_priv, *min_i2c_priv = NULL;
 	struct i2c_client *client = ERR_PTR(-ENODEV);
@@ -527,7 +527,7 @@ struct i2c_client *atmel_ecc_i2c_client_alloc(void)
 	return client;
 }
 
-void atmel_ecc_i2c_client_free(struct i2c_client *client)
+static void atmel_ecc_i2c_client_free(struct i2c_client *client)
 {
 	struct atmel_ecc_i2c_client_priv *i2c_priv = i2c_get_clientdata(client);
 
