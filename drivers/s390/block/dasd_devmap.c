@@ -1634,7 +1634,7 @@ static struct attribute * dasd_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group dasd_attr_group = {
+static const struct attribute_group dasd_attr_group = {
 	.attrs = dasd_attrs,
 };
 
