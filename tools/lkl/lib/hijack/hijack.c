@@ -352,3 +352,10 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 		return (void *)host_mmap(addr, length, prot, flags, fd, offset);
 	return lkl_sys_mmap(addr, length, prot, flags, fd, offset);
 }
+
+HOST_CALL(__xstat64)
+int stat(const char *pathname, struct stat *buf)
+{
+	CHECK_HOST_CALL(__xstat64);
+	return host___xstat64(0, pathname, buf);
+}

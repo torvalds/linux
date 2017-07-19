@@ -181,7 +181,7 @@ int lkl_debug, lkl_running;
 static int nd_id = -1;
 static struct lkl_netdev *nd;
 
-void __attribute__((constructor(102)))
+void __attribute__((constructor))
 hijack_init(void)
 {
 	int ret, i, dev_null, nd_ifindex = -1;

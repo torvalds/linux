@@ -1,6 +1,6 @@
 #!/bin/sh
 
-dpdk_version="2.2.0"
+dpdk_version="17.02"
 
 git clone -b v${dpdk_version} git://dpdk.org/dpdk dpdk-${dpdk_version}
 
@@ -13,5 +13,5 @@ export EXTRA_CFLAGS="-fPIC -O0 -g3"
 set -e
 cd dpdk-${dpdk_version}
 make -j1 T=${RTE_TARGET} config
-make -j3 CONFIG_RTE_BUILD_COMBINE_LIBS=y \
+make -j3 \
   || (echo "dpdk build failed" && exit 1)
