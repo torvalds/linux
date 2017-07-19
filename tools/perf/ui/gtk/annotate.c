@@ -34,10 +34,10 @@ static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 		return 0;
 
 	symhist = annotation__histogram(symbol__annotation(sym), evidx);
-	if (!symbol_conf.event_group && !symhist->addr[dl->offset])
+	if (!symbol_conf.event_group && !symhist->addr[dl->offset].nr_samples)
 		return 0;
 
-	percent = 100.0 * symhist->addr[dl->offset] / symhist->sum;
+	percent = 100.0 * symhist->addr[dl->offset].nr_samples / symhist->sum;
 
 	markup = perf_gtk__get_percent_color(percent);
 	if (markup)

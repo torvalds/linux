@@ -74,16 +74,21 @@ static inline bool disasm_line__has_offset(const struct disasm_line *dl)
 	return dl->ops.target.offset_avail;
 }
 
+struct sym_hist_entry {
+	u64		nr_samples;
+	u64		period;
+};
+
 void disasm_line__free(struct disasm_line *dl);
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
-			    s64 end, const char **path, u64 *nr_samples);
+			    s64 end, const char **path, struct sym_hist_entry *sample);
 
 struct sym_hist {
 	u64		sum;
-	u64		addr[0];
+	struct sym_hist_entry addr[0];
 };
 
 struct cyc_hist {

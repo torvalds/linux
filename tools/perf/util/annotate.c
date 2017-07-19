@@ -610,10 +610,10 @@ int symbol__alloc_hist(struct symbol *sym)
 	size_t sizeof_sym_hist;
 
 	/* Check for overflow when calculating sizeof_sym_hist */
-	if (size > (SIZE_MAX - sizeof(struct sym_hist)) / sizeof(u64))
+	if (size > (SIZE_MAX - sizeof(struct sym_hist)) / sizeof(struct sym_hist_entry))
 		return -1;
 
-	sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(u64));
+	sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(struct sym_hist_entry));
 
 	/* Check for overflow in zalloc argument */
 	if (sizeof_sym_hist > (SIZE_MAX - sizeof(*notes->src))
@@ -714,11 +714,11 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	offset = addr - sym->start;
 	h = annotation__histogram(notes, evidx);
 	h->sum++;
-	h->addr[offset]++;
+	h->addr[offset].nr_samples++;
 
 	pr_debug3("%#" PRIx64 " %s: period++ [addr: %#" PRIx64 ", %#" PRIx64
 		  ", evidx=%d] => %" PRIu64 "\n", sym->start, sym->name,
-		  addr, addr - sym->start, evidx, h->addr[offset]);
+		  addr, addr - sym->start, evidx, h->addr[offset].nr_samples);
 	return 0;
 }
 
@@ -928,11 +928,12 @@ struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disa
 }
 
 double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
-			    s64 end, const char **path, u64 *nr_samples)
+			    s64 end, const char **path, struct sym_hist_entry *sample)
 {
 	struct source_line *src_line = notes->src->lines;
 	double percent = 0.0;
-	*nr_samples = 0;
+
+	sample->nr_samples = 0;
 
 	if (src_line) {
 		size_t sizeof_src_line = sizeof(*src_line) +
@@ -946,7 +947,7 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 				*path = src_line->path;
 
 			percent += src_line->samples[evidx].percent;
-			*nr_samples += src_line->samples[evidx].nr;
+			sample->nr_samples += src_line->samples[evidx].nr;
 			offset++;
 		}
 	} else {
@@ -954,10 +955,10 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 		unsigned int hits = 0;
 
 		while (offset < end)
-			hits += h->addr[offset++];
+			hits += h->addr[offset++].nr_samples;
 
 		if (h->sum) {
-			*nr_samples = hits;
+			sample->nr_samples = hits;
 			percent = 100.0 * hits / h->sum;
 		}
 	}
@@ -1057,10 +1058,10 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 	if (dl->offset != -1) {
 		const char *path = NULL;
-		u64 nr_samples;
 		double percent, max_percent = 0.0;
 		double *ppercents = &percent;
-		u64 *psamples = &nr_samples;
+		struct sym_hist_entry sample;
+		struct sym_hist_entry *psamples = &sample;
 		int i, nr_percent = 1;
 		const char *color;
 		struct annotation *notes = symbol__annotation(sym);
@@ -1074,7 +1075,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		if (perf_evsel__is_group_event(evsel)) {
 			nr_percent = evsel->nr_members;
 			ppercents = calloc(nr_percent, sizeof(double));
-			psamples = calloc(nr_percent, sizeof(u64));
+			psamples = calloc(nr_percent, sizeof(struct sym_hist_entry));
 			if (ppercents == NULL || psamples == NULL) {
 				return -1;
 			}
@@ -1085,10 +1086,10 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 					notes->src->lines ? i : evsel->idx + i,
 					offset,
 					next ? next->offset : (s64) len,
-					&path, &nr_samples);
+					&path, &sample);
 
 			ppercents[i] = percent;
-			psamples[i] = nr_samples;
+			psamples[i] = sample;
 			if (percent > max_percent)
 				max_percent = percent;
 		}
@@ -1126,12 +1127,12 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 		for (i = 0; i < nr_percent; i++) {
 			percent = ppercents[i];
-			nr_samples = psamples[i];
+			sample = psamples[i];
 			color = get_percent_color(percent);
 
 			if (symbol_conf.show_total_period)
 				color_fprintf(stdout, color, " %7" PRIu64,
-					      nr_samples);
+					      sample.nr_samples);
 			else
 				color_fprintf(stdout, color, " %7.2f", percent);
 		}
@@ -1147,7 +1148,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 		if (ppercents != &percent)
 			free(ppercents);
 
-		if (psamples != &nr_samples)
+		if (psamples != &sample)
 			free(psamples);
 
 	} else if (max_lines && printed >= max_lines)
@@ -1702,7 +1703,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			double percent = 0.0;
 
 			h = annotation__histogram(notes, evidx + k);
-			nr_samples = h->addr[i];
+			nr_samples = h->addr[i].nr_samples;
 			if (h->sum)
 				percent = 100.0 * nr_samples / h->sum;
 
@@ -1773,9 +1774,9 @@ static void symbol__annotate_hits(struct symbol *sym, struct perf_evsel *evsel)
 	u64 len = symbol__size(sym), offset;
 
 	for (offset = 0; offset < len; ++offset)
-		if (h->addr[offset] != 0)
+		if (h->addr[offset].nr_samples != 0)
 			printf("%*" PRIx64 ": %" PRIu64 "\n", BITS_PER_LONG / 2,
-			       sym->start + offset, h->addr[offset]);
+			       sym->start + offset, h->addr[offset].nr_samples);
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
@@ -1878,8 +1879,8 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 
 	h->sum = 0;
 	for (offset = 0; offset < len; ++offset) {
-		h->addr[offset] = h->addr[offset] * 7 / 8;
-		h->sum += h->addr[offset];
+		h->addr[offset].nr_samples = h->addr[offset].nr_samples * 7 / 8;
+		h->sum += h->addr[offset].nr_samples;
 	}
 }
 
