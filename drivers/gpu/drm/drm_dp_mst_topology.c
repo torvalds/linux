@@ -2195,11 +2195,17 @@ static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 		ret = drm_dp_dpcd_read(mgr->aux, basereg + curreply,
 				    replyblock, len);
 		if (ret != len) {
-			DRM_DEBUG_KMS("failed to read a chunk\n");
+			DRM_DEBUG_KMS("failed to read a chunk (len %d, ret %d)\n",
+				      len, ret);
+			return;
 		}
+
 		ret = drm_dp_sideband_msg_build(msg, replyblock, len, false);
-		if (ret == false)
+		if (!ret) {
 			DRM_DEBUG_KMS("failed to build sideband msg\n");
+			return;
+		}
+
 		curreply += len;
 		replylen -= len;
 	}
