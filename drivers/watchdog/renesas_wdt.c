@@ -23,21 +23,22 @@
 #define RWTCSRA_WOVF	BIT(4)
 #define RWTCSRA_WRFLG	BIT(5)
 #define RWTCSRA_TME	BIT(7)
+#define RWTCSRB		8
 
 #define RWDT_DEFAULT_TIMEOUT 60U
 
 /*
  * In probe, clk_rate is checked to be not more than 16 bit * biggest clock
- * divider (10 bits). d is only a factor to fully utilize the WDT counter and
+ * divider (12 bits). d is only a factor to fully utilize the WDT counter and
  * will not exceed its 16 bits. Thus, no overflow, we stay below 32 bits.
  */
 #define MUL_BY_CLKS_PER_SEC(p, d) \
 	DIV_ROUND_UP((d) * (p)->clk_rate, clk_divs[(p)->cks])
 
-/* d is 16 bit, clk_divs 10 bit -> no 32 bit overflow */
+/* d is 16 bit, clk_divs 12 bit -> no 32 bit overflow */
 #define DIV_BY_CLKS_PER_SEC(p, d) ((d) * clk_divs[(p)->cks] / (p)->clk_rate)
 
-static const unsigned int clk_divs[] = { 1, 4, 16, 32, 64, 128, 1024 };
+static const unsigned int clk_divs[] = { 1, 4, 16, 32, 64, 128, 1024, 4096 };
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -77,6 +78,7 @@ static int rwdt_start(struct watchdog_device *wdev)
 
 	clk_prepare_enable(priv->clk);
 
+	rwdt_write(priv, 0, RWTCSRB);
 	rwdt_write(priv, priv->cks, RWTCSRA);
 	rwdt_init_timeout(wdev);
 
