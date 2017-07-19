@@ -125,6 +125,13 @@ int is_fadump_boot_memory_area(u64 addr, ulong size)
 	return (addr + size) > RMA_START && addr <= fw_dump.boot_memory_size;
 }
 
+int should_fadump_crash(void)
+{
+	if (!fw_dump.dump_registered || !fw_dump.fadumphdr_addr)
+		return 0;
+	return 1;
+}
+
 int is_fadump_active(void)
 {
 	return fw_dump.dump_active;
@@ -518,7 +525,7 @@ void crash_fadump(struct pt_regs *regs, const char *str)
 	struct fadump_crash_info_header *fdh = NULL;
 	int old_cpu, this_cpu;
 
-	if (!fw_dump.dump_registered || !fw_dump.fadumphdr_addr)
+	if (!should_fadump_crash())
 		return;
 
 	/*

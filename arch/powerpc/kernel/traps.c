@@ -114,6 +114,28 @@ static void pmac_backlight_unblank(void)
 static inline void pmac_backlight_unblank(void) { }
 #endif
 
+/*
+ * If oops/die is expected to crash the machine, return true here.
+ *
+ * This should not be expected to be 100% accurate, there may be
+ * notifiers registered or other unexpected conditions that may bring
+ * down the kernel. Or if the current process in the kernel is holding
+ * locks or has other critical state, the kernel may become effectively
+ * unusable anyway.
+ */
+bool die_will_crash(void)
+{
+	if (should_fadump_crash())
+		return true;
+	if (kexec_should_crash(current))
+		return true;
+	if (in_interrupt() || panic_on_oops ||
+			!current->pid || is_global_init(current))
+		return true;
+
+	return false;
+}
+
 static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;
