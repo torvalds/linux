@@ -1823,6 +1823,9 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 {
 	unsigned i, j, n;
 	struct journal_completion comp;
+	struct blk_plug plug;
+
+	blk_start_plug(&plug);
 
 	comp.ic = ic;
 	comp.in_flight = (atomic_t)ATOMIC_INIT(1);
@@ -1946,6 +1949,8 @@ skip_io:
 	}
 
 	dm_bufio_write_dirty_buffers_async(ic->bufio);
+
+	blk_finish_plug(&plug);
 
 	complete_journal_op(&comp);
 	wait_for_completion_io(&comp.comp);
