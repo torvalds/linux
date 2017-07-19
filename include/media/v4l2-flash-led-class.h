@@ -112,6 +112,9 @@ static inline struct v4l2_flash *v4l2_ctrl_to_v4l2_flash(struct v4l2_ctrl *c)
  * @config:	initialization data for V4L2 Flash sub-device
  *
  * Create V4L2 Flash sub-device wrapping given LED subsystem device.
+ * The ops pointer is stored by the V4L2 flash framework. No
+ * references are held to config nor its contents once this function
+ * has returned.
  *
  * Returns: A valid pointer, or, when an error occurs, the return
  * value is encoded using ERR_PTR(). Use IS_ERR() to check and
@@ -130,6 +133,9 @@ struct v4l2_flash *v4l2_flash_init(
  * @config:	initialization data for V4L2 Flash sub-device
  *
  * Create V4L2 Flash sub-device wrapping given LED subsystem device.
+ * The ops pointer is stored by the V4L2 flash framework. No
+ * references are held to config nor its contents once this function
+ * has returned.
  *
  * Returns: A valid pointer, or, when an error occurs, the return
  * value is encoded using ERR_PTR(). Use IS_ERR() to check and
