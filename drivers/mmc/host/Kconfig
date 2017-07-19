@@ -4,6 +4,15 @@
 
 comment "MMC/SD/SDIO Host Controller Drivers"
 
+config MMC_DEBUG
+	bool "MMC host drivers debugginG"
+	depends on MMC != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here. This enables MMC host driver debugging. And further
+	  added host drivers please don't invent their private macro for
+	  debugging.
+
 config MMC_ARMMMCI
 	tristate "ARM AMBA Multimedia Card Interface support"
 	depends on ARM_AMBA
