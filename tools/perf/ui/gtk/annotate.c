@@ -37,7 +37,7 @@ static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 	if (!symbol_conf.event_group && !symhist->addr[dl->offset].nr_samples)
 		return 0;
 
-	percent = 100.0 * symhist->addr[dl->offset].nr_samples / symhist->sum;
+	percent = 100.0 * symhist->addr[dl->offset].nr_samples / symhist->nr_samples;
 
 	markup = perf_gtk__get_percent_color(percent);
 	if (markup)

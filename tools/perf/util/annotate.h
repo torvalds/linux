@@ -87,7 +87,7 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 			    s64 end, const char **path, struct sym_hist_entry *sample);
 
 struct sym_hist {
-	u64		sum;
+	u64		      nr_samples;
 	struct sym_hist_entry addr[0];
 };
 
