@@ -823,8 +823,6 @@ static void free_descs(struct qcom_nand_controller *nandc)
 static void clear_read_regs(struct qcom_nand_controller *nandc)
 {
 	nandc->reg_read_pos = 0;
-	memset(nandc->reg_read_buf, 0,
-	       MAX_REG_RD * sizeof(*nandc->reg_read_buf));
 }
 
 static void pre_command(struct qcom_nand_host *host, int command)
