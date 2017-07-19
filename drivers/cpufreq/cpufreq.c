@@ -2005,8 +2005,7 @@ static int cpufreq_init_governor(struct cpufreq_policy *policy)
 
 	/* Platform doesn't want dynamic frequency switching ? */
 	if (policy->governor->dynamic_switching &&
-	    (cpufreq_driver->flags & CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING ||
-	    policy->cpuinfo.transition_latency == CPUFREQ_ETERNAL)) {
+	    cpufreq_driver->flags & CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING) {
 		struct cpufreq_governor *gov = cpufreq_fallback_governor();
 
 		if (gov) {
