@@ -778,14 +778,15 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 		}
 		break;
 	case IMX7D:
-		imx6_pcie->pciephy_reset = devm_reset_control_get(dev,
-								  "pciephy");
+		imx6_pcie->pciephy_reset = devm_reset_control_get_exclusive(dev,
+									    "pciephy");
 		if (IS_ERR(imx6_pcie->pciephy_reset)) {
 			dev_err(dev, "Failed to get PCIEPHY reset control\n");
 			return PTR_ERR(imx6_pcie->pciephy_reset);
 		}
 
-		imx6_pcie->apps_reset = devm_reset_control_get(dev, "apps");
+		imx6_pcie->apps_reset = devm_reset_control_get_exclusive(dev,
+									 "apps");
 		if (IS_ERR(imx6_pcie->apps_reset)) {
 			dev_err(dev, "Failed to get PCIE APPS reset control\n");
 			return PTR_ERR(imx6_pcie->apps_reset);
