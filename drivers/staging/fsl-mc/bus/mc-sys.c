@@ -196,8 +196,8 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
 
 		if (time_after_eq(jiffies, jiffies_until_timeout)) {
 			dev_dbg(mc_io->dev,
-				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
-				 mc_io->portal_phys_addr,
+				"MC command timed out (portal: %pa, dprc handle: %#x, command: %#x)\n",
+				 &mc_io->portal_phys_addr,
 				 (unsigned int)mc_cmd_hdr_read_token(cmd),
 				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
@@ -236,8 +236,8 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 		timeout_usecs -= MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS;
 		if (timeout_usecs == 0) {
 			dev_dbg(mc_io->dev,
-				"MC command timed out (portal: %#llx, dprc handle: %#x, command: %#x)\n",
-				 mc_io->portal_phys_addr,
+				"MC command timed out (portal: %pa, dprc handle: %#x, command: %#x)\n",
+				 &mc_io->portal_phys_addr,
 				 (unsigned int)mc_cmd_hdr_read_token(cmd),
 				 (unsigned int)mc_cmd_hdr_read_cmdid(cmd));
 
@@ -290,8 +290,8 @@ int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
 
 	if (status != MC_CMD_STATUS_OK) {
 		dev_dbg(mc_io->dev,
-			"MC command failed: portal: %#llx, dprc handle: %#x, command: %#x, status: %s (%#x)\n",
-			 mc_io->portal_phys_addr,
+			"MC command failed: portal: %pa, dprc handle: %#x, command: %#x, status: %s (%#x)\n",
+			 &mc_io->portal_phys_addr,
 			 (unsigned int)mc_cmd_hdr_read_token(cmd),
 			 (unsigned int)mc_cmd_hdr_read_cmdid(cmd),
 			 mc_status_to_string(status),

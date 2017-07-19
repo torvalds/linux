@@ -129,8 +129,8 @@ int __must_check fsl_create_mc_io(struct device *dev,
 				      "mc_portal");
 	if (!res) {
 		dev_err(dev,
-			"devm_request_mem_region failed for MC portal %#llx\n",
-			mc_portal_phys_addr);
+			"devm_request_mem_region failed for MC portal %pa\n",
+			&mc_portal_phys_addr);
 		return -EBUSY;
 	}
 
@@ -139,8 +139,8 @@ int __must_check fsl_create_mc_io(struct device *dev,
 						   mc_portal_size);
 	if (!mc_portal_virt_addr) {
 		dev_err(dev,
-			"devm_ioremap_nocache failed for MC portal %#llx\n",
-			mc_portal_phys_addr);
+			"devm_ioremap_nocache failed for MC portal %pa\n",
+			&mc_portal_phys_addr);
 		return -ENXIO;
 	}
 
