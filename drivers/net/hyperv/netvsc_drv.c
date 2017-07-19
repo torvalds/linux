@@ -783,6 +783,7 @@ static int netvsc_set_channels(struct net_device *net,
 		ret = netvsc_open(net);
 
 	/* We may have missed link change notifications */
+	net_device_ctx->last_reconfig = 0;
 	schedule_delayed_work(&net_device_ctx->dwork, 0);
 
 	return ret;
