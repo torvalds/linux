@@ -804,9 +804,12 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 	 */
 	pmd = *pmdp;
 	pmd_clear(pmdp);
+
 	/*FIXME!!  Verify whether we need this kick below */
 	kick_all_cpus_sync();
-	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+
+	radix__flush_tlb_collapsed_pmd(vma->vm_mm, address);
+
 	return pmd;
 }
 

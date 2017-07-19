@@ -272,11 +272,7 @@ void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 {
 	struct mm_struct *mm = vma->vm_mm;
 
-	/*
-	 * This is currently used when collapsing THPs so we need to
-	 * flush the PWC. We should fix this.
-	 */
-	radix__flush_all_mm(mm);
+	radix__flush_tlb_mm(mm);
 }
 EXPORT_SYMBOL(radix__flush_tlb_range);
 
@@ -354,6 +350,43 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 err_out:
 	preempt_enable();
 }
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+void radix__flush_tlb_collapsed_pmd(struct mm_struct *mm, unsigned long addr)
+{
+	int local = mm_is_thread_local(mm);
+	unsigned long ap = mmu_get_ap(mmu_virtual_psize);
+	unsigned long pid, end;
+
+
+	pid = mm ? mm->context.id : 0;
+	if (unlikely(pid == MMU_NO_CONTEXT))
+		goto no_context;
+
+	/* 4k page size, just blow the world */
+	if (PAGE_SIZE == 0x1000) {
+		radix__flush_all_mm(mm);
+		return;
+	}
+
+	/* Otherwise first do the PWC */
+	if (local)
+		_tlbiel_pid(pid, RIC_FLUSH_PWC);
+	else
+		_tlbie_pid(pid, RIC_FLUSH_PWC);
+
+	/* Then iterate the pages */
+	end = addr + HPAGE_PMD_SIZE;
+	for (; addr < end; addr += PAGE_SIZE) {
+		if (local)
+			_tlbiel_va(addr, pid, ap, RIC_FLUSH_TLB);
+		else
+			_tlbie_va(addr, pid, ap, RIC_FLUSH_TLB);
+	}
+no_context:
+	preempt_enable();
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
 			      unsigned long page_size)
