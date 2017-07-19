@@ -101,7 +101,6 @@
 		mmc@0x15000 {
 			compatible = "altr,socfpga-dw-mshc";
 			reg = < 0x15000 0x400 >;
-			num-slots = < 1 >;
 			fifo-depth = < 16 >;
 			card-detect-delay = < 200 >;
 			clocks = <&apbclk>, <&mmcclk>;
