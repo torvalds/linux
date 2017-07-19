@@ -248,12 +248,11 @@ static const struct v4l2_ctrl_ops adv748x_csi2_ctrl_ops = {
 
 static int adv748x_csi2_init_controls(struct adv748x_csi2 *tx)
 {
-	struct v4l2_ctrl *ctrl;
 
 	v4l2_ctrl_handler_init(&tx->ctrl_hdl, 1);
 
-	ctrl = v4l2_ctrl_new_std(&tx->ctrl_hdl, &adv748x_csi2_ctrl_ops,
-				 V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
+	v4l2_ctrl_new_std(&tx->ctrl_hdl, &adv748x_csi2_ctrl_ops,
+			  V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
 
 	tx->sd.ctrl_handler = &tx->ctrl_hdl;
 	if (tx->ctrl_hdl.error) {
