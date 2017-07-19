@@ -3413,26 +3413,6 @@ static void intel_complete_page_flips(struct drm_i915_private *dev_priv)
 		intel_finish_page_flip_cs(dev_priv, crtc->pipe);
 }
 
-static void intel_update_primary_planes(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-
-	for_each_crtc(dev, crtc) {
-		struct intel_plane *plane = to_intel_plane(crtc->primary);
-		struct intel_plane_state *plane_state =
-			to_intel_plane_state(plane->base.state);
-
-		if (plane_state->base.visible) {
-			trace_intel_update_plane(&plane->base,
-						 to_intel_crtc(crtc));
-
-			plane->update_plane(plane,
-					    to_intel_crtc_state(crtc->state),
-					    plane_state);
-		}
-	}
-}
-
 static int
 __intel_display_resume(struct drm_device *dev,
 		       struct drm_atomic_state *state,
@@ -3485,6 +3465,12 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 	struct drm_atomic_state *state;
 	int ret;
 
+
+	/* reset doesn't touch the display */
+	if (!i915.force_reset_modeset_test &&
+	    !gpu_reset_clobbers_display(dev_priv))
+		return;
+
 	/*
 	 * Need mode_config.mutex so that we don't
 	 * trample ongoing ->detect() and whatnot.
@@ -3498,12 +3484,6 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 
 		drm_modeset_backoff(ctx);
 	}
-
-	/* reset doesn't touch the display, but flips might get nuked anyway, */
-	if (!i915.force_reset_modeset_test &&
-	    !gpu_reset_clobbers_display(dev_priv))
-		return;
-
 	/*
 	 * Disabling the crtcs gracefully seems nicer. Also the
 	 * g33 docs say we should at least disable all the planes.
@@ -3533,6 +3513,14 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	struct drm_atomic_state *state = dev_priv->modeset_restore_state;
 	int ret;
 
+	/* reset doesn't touch the display */
+	if (!i915.force_reset_modeset_test &&
+	    !gpu_reset_clobbers_display(dev_priv))
+		return;
+
+	if (!state)
+		goto unlock;
+
 	/*
 	 * Flips in the rings will be nuked by the reset,
 	 * so complete all pending flips so that user space
@@ -3544,22 +3532,10 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 
 	/* reset doesn't touch the display */
 	if (!gpu_reset_clobbers_display(dev_priv)) {
-		if (!state) {
-			/*
-			 * Flips in the rings have been nuked by the reset,
-			 * so update the base address of all primary
-			 * planes to the the last fb to make sure we're
-			 * showing the correct fb after a reset.
-			 *
-			 * FIXME: Atomic will make this obsolete since we won't schedule
-			 * CS-based flips (which might get lost in gpu resets) any more.
-			 */
-			intel_update_primary_planes(dev);
-		} else {
-			ret = __intel_display_resume(dev, state, ctx);
+		/* for testing only restore the display */
+		ret = __intel_display_resume(dev, state, ctx);
 			if (ret)
 				DRM_ERROR("Restoring old state failed with %i\n", ret);
-		}
 	} else {
 		/*
 		 * The display has been reset as well,
@@ -3583,8 +3559,8 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 		intel_hpd_init(dev_priv);
 	}
 
-	if (state)
-		drm_atomic_state_put(state);
+	drm_atomic_state_put(state);
+unlock:
 	drm_modeset_drop_locks(ctx);
 	drm_modeset_acquire_fini(ctx);
 	mutex_unlock(&dev->mode_config.mutex);
