@@ -173,7 +173,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	}
 
 	/* Reset (optional) */
-	ir->rst = devm_reset_control_get_optional(dev, NULL);
+	ir->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(ir->rst))
 		return PTR_ERR(ir->rst);
 	ret = reset_control_deassert(ir->rst);
