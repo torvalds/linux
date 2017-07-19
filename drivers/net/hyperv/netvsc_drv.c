@@ -724,17 +724,15 @@ static int netvsc_set_queues(struct net_device *net, struct hv_device *dev,
 	device_info.ring_size = ring_size;
 	device_info.max_num_vrss_chns = num_chn;
 
-	ret = rndis_filter_device_add(dev, &device_info);
-	if (ret)
-		return ret;
-
 	ret = netif_set_real_num_tx_queues(net, num_chn);
 	if (ret)
 		return ret;
 
 	ret = netif_set_real_num_rx_queues(net, num_chn);
+	if (ret)
+		return ret;
 
-	return ret;
+	return rndis_filter_device_add(dev, &device_info);
 }
 
 static int netvsc_set_channels(struct net_device *net,
