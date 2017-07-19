@@ -1,6 +1,6 @@
 config PI433
         tristate "Pi433 - a 433MHz radio module for Raspberry Pi"
-        default n
+        depends on SPI
         ---help---
           This option allows you to enable support for the radio module Pi433.
 
