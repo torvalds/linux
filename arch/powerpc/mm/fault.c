@@ -222,6 +222,37 @@ static bool bad_kernel_fault(bool is_exec, unsigned long error_code,
 	return is_exec || (address >= TASK_SIZE);
 }
 
+static bool access_error(bool is_write, bool is_exec,
+			 struct vm_area_struct *vma)
+{
+	/*
+	 * Allow execution from readable areas if the MMU does not
+	 * provide separate controls over reading and executing.
+	 *
+	 * Note: That code used to not be enabled for 4xx/BookE.
+	 * It is now as I/D cache coherency for these is done at
+	 * set_pte_at() time and I see no reason why the test
+	 * below wouldn't be valid on those processors. This -may-
+	 * break programs compiled with a really old ABI though.
+	 */
+	if (is_exec) {
+		return !(vma->vm_flags & VM_EXEC) &&
+			(cpu_has_feature(CPU_FTR_NOEXECUTE) ||
+			 !(vma->vm_flags & (VM_READ | VM_WRITE)));
+	}
+
+	if (is_write) {
+		if (unlikely(!(vma->vm_flags & VM_WRITE)))
+			return true;
+		return false;
+	}
+
+	if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
+		return true;
+
+	return false;
+}
+
 #ifdef CONFIG_PPC_SMLPAR
 static inline void cmo_account_page_fault(void)
 {
@@ -461,30 +492,8 @@ retry:
 		return bad_area(regs, address);
 
 good_area:
-	if (is_exec) {
-		/*
-		 * Allow execution from readable areas if the MMU does not
-		 * provide separate controls over reading and executing.
-		 *
-		 * Note: That code used to not be enabled for 4xx/BookE.
-		 * It is now as I/D cache coherency for these is done at
-		 * set_pte_at() time and I see no reason why the test
-		 * below wouldn't be valid on those processors. This -may-
-		 * break programs compiled with a really old ABI though.
-		 */
-		if (unlikely(!(vma->vm_flags & VM_EXEC) &&
-			     (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
-			      !(vma->vm_flags & (VM_READ | VM_WRITE)))))
-			return bad_area(regs, address);
-	/* a write */
-	} else if (is_write) {
-		if (unlikely(!(vma->vm_flags & VM_WRITE)))
-			return bad_area(regs, address);
-	/* a read */
-	} else {
-		if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
-			return bad_area(regs, address);
-	}
+	if (unlikely(access_error(is_write, is_exec, vma)))
+		return bad_area(regs, address);
 
 	/*
 	 * If for any reason at all we couldn't handle the fault,
