@@ -487,12 +487,8 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
  * polling frequency is 1000 times the transition latency of the processor. The
  * ondemand governor will work on any processor with transition latency <= 10ms,
  * using appropriate sampling rate.
- *
- * For CPUs with transition latency > 10ms (mostly drivers with CPUFREQ_ETERNAL)
- * the ondemand governor will not work. All times here are in us (microseconds).
  */
 #define LATENCY_MULTIPLIER		(1000)
-#define TRANSITION_LATENCY_LIMIT	(10 * 1000 * 1000)
 
 struct cpufreq_governor {
 	char	name[CPUFREQ_NAME_LEN];
@@ -505,9 +501,8 @@ struct cpufreq_governor {
 					 char *buf);
 	int	(*store_setspeed)	(struct cpufreq_policy *policy,
 					 unsigned int freq);
-	unsigned int max_transition_latency; /* HW must be able to switch to
-			next freq faster than this value in nano secs or we
-			will fallback to performance governor */
+	/* For governors which change frequency dynamically by themselves */
+	bool			dynamic_switching;
 	struct list_head	governor_list;
 	struct module		*owner;
 };

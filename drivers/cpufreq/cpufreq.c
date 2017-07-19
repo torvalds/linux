@@ -2003,13 +2003,13 @@ static int cpufreq_init_governor(struct cpufreq_policy *policy)
 	if (!policy->governor)
 		return -EINVAL;
 
-	if (policy->governor->max_transition_latency &&
-	    policy->cpuinfo.transition_latency >
-	    policy->governor->max_transition_latency) {
+	/* Platform doesn't want dynamic frequency switching ? */
+	if (policy->governor->dynamic_switching &&
+	    policy->cpuinfo.transition_latency == CPUFREQ_ETERNAL) {
 		struct cpufreq_governor *gov = cpufreq_fallback_governor();
 
 		if (gov) {
-			pr_warn("%s governor failed, too long transition latency of HW, fallback to %s governor\n",
+			pr_warn("Transition latency set to CPUFREQ_ETERNAL, can't use %s governor. Fallback to %s governor\n",
 				policy->governor->name, gov->name);
 			policy->governor = gov;
 		} else {
