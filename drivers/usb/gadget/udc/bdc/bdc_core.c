@@ -24,6 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/of.h>
+#include <linux/phy/phy.h>
 #include <linux/moduleparam.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -445,6 +446,43 @@ static int bdc_hw_init(struct bdc *bdc)
 	return 0;
 }
 
+static int bdc_phy_init(struct bdc *bdc)
+{
+	int phy_num;
+	int ret;
+
+	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
+		ret = phy_init(bdc->phys[phy_num]);
+		if (ret)
+			goto err_exit_phy;
+		ret = phy_power_on(bdc->phys[phy_num]);
+		if (ret) {
+			phy_exit(bdc->phys[phy_num]);
+			goto err_exit_phy;
+		}
+	}
+
+	return 0;
+
+err_exit_phy:
+	while (--phy_num >= 0) {
+		phy_power_off(bdc->phys[phy_num]);
+		phy_exit(bdc->phys[phy_num]);
+	}
+
+	return ret;
+}
+
+static void bdc_phy_exit(struct bdc *bdc)
+{
+	int phy_num;
+
+	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
+		phy_power_off(bdc->phys[phy_num]);
+		phy_exit(bdc->phys[phy_num]);
+	}
+}
+
 static int bdc_probe(struct platform_device *pdev)
 {
 	struct bdc *bdc;
@@ -454,6 +492,7 @@ static int bdc_probe(struct platform_device *pdev)
 	u32 temp;
 	struct device *dev = &pdev->dev;
 	struct clk *clk;
+	int phy_num;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -492,6 +531,35 @@ static int bdc_probe(struct platform_device *pdev)
 	bdc->dev = dev;
 	dev_dbg(dev, "bdc->regs: %p irq=%d\n", bdc->regs, bdc->irq);
 
+	bdc->num_phys = of_count_phandle_with_args(dev->of_node,
+						"phys", "#phy-cells");
+	if (bdc->num_phys > 0) {
+		bdc->phys = devm_kcalloc(dev, bdc->num_phys,
+					sizeof(struct phy *), GFP_KERNEL);
+		if (!bdc->phys)
+			return -ENOMEM;
+	} else {
+		bdc->num_phys = 0;
+	}
+	dev_info(dev, "Using %d phy(s)\n", bdc->num_phys);
+
+	for (phy_num = 0; phy_num < bdc->num_phys; phy_num++) {
+		bdc->phys[phy_num] = devm_of_phy_get_by_index(
+			dev, dev->of_node, phy_num);
+		if (IS_ERR(bdc->phys[phy_num])) {
+			ret = PTR_ERR(bdc->phys[phy_num]);
+			dev_err(bdc->dev,
+				"BDC phy specified but not found:%d\n", ret);
+			return ret;
+		}
+	}
+
+	ret = bdc_phy_init(bdc);
+	if (ret) {
+		dev_err(bdc->dev, "BDC phy init failure:%d\n", ret);
+		return ret;
+	}
+
 	temp = bdc_readl(bdc->regs, BDC_BDCCAP1);
 	if ((temp & BDC_P64) &&
 			!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
@@ -508,7 +576,7 @@ static int bdc_probe(struct platform_device *pdev)
 	ret = bdc_hw_init(bdc);
 	if (ret) {
 		dev_err(dev, "BDC init failure:%d\n", ret);
-		return ret;
+		goto phycleanup;
 	}
 	ret = bdc_udc_init(bdc);
 	if (ret) {
@@ -519,7 +587,8 @@ static int bdc_probe(struct platform_device *pdev)
 
 cleanup:
 	bdc_hw_exit(bdc);
-
+phycleanup:
+	bdc_phy_exit(bdc);
 	return ret;
 }
 
@@ -531,6 +600,7 @@ static int bdc_remove(struct platform_device *pdev)
 	dev_dbg(bdc->dev, "%s ()\n", __func__);
 	bdc_udc_exit(bdc);
 	bdc_hw_exit(bdc);
+	bdc_phy_exit(bdc);
 	clk_disable_unprepare(bdc->clk);
 	return 0;
 }

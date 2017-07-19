@@ -413,6 +413,9 @@ struct bdc {
 	/* device lock */
 	spinlock_t	lock;
 
+	/* generic phy */
+	struct phy      **phys;
+	int num_phys;
 	/* num of endpoints for a particular instantiation of IP */
 	unsigned int num_eps;
 	/*
