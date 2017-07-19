@@ -261,6 +261,7 @@
 				interrupt-names = "mem", "ring0", "ring1",
 						  "ring2", "ring3", "eip";
 				clocks = <&cps_clk 1 26>;
+				dma-coherent;
 				/*
 				 * The cryptographic engine found on the cp110
 				 * master is enabled by default at the SoC
