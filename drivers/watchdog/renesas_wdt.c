@@ -37,7 +37,7 @@ struct rwdt_priv {
 	void __iomem *base;
 	struct watchdog_device wdev;
 	struct clk *clk;
-	unsigned int clks_per_sec;
+	unsigned long clks_per_sec;
 	u8 cks;
 };
 
@@ -112,8 +112,7 @@ static int rwdt_probe(struct platform_device *pdev)
 {
 	struct rwdt_priv *priv;
 	struct resource *res;
-	unsigned long rate;
-	unsigned int clks_per_sec;
+	unsigned long rate, clks_per_sec;
 	int ret, i;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
