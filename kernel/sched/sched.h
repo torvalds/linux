@@ -43,6 +43,12 @@ extern void cpu_load_update_active(struct rq *this_rq);
 static inline void cpu_load_update_active(struct rq *this_rq) { }
 #endif
 
+#ifdef CONFIG_SCHED_SMT
+extern void update_idle_core(struct rq *rq);
+#else
+static inline void update_idle_core(struct rq *rq) { }
+#endif
+
 /*
  * Helpers for converting nanosecond timing to jiffy resolution
  */
@@ -730,23 +736,6 @@ static inline int cpu_of(struct rq *rq)
 	return 0;
 #endif
 }
-
-
-#ifdef CONFIG_SCHED_SMT
-
-extern struct static_key_false sched_smt_present;
-
-extern void __update_idle_core(struct rq *rq);
-
-static inline void update_idle_core(struct rq *rq)
-{
-	if (static_branch_unlikely(&sched_smt_present))
-		__update_idle_core(rq);
-}
-
-#else
-static inline void update_idle_core(struct rq *rq) { }
-#endif
 
 DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
