@@ -595,7 +595,7 @@ static void hns_nic_self_test(struct net_device *ndev,
 		set_bit(NIC_STATE_TESTING, &priv->state);
 
 		if (if_running)
-			(void)dev_close(ndev);
+			dev_close(ndev);
 
 		for (i = 0; i < SELF_TEST_TPYE_NUM; i++) {
 			if (!st_param[i][1])

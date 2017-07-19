@@ -1413,7 +1413,7 @@ int dev_open(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_open);
 
-static int __dev_close_many(struct list_head *head)
+static void __dev_close_many(struct list_head *head)
 {
 	struct net_device *dev;
 
@@ -1455,23 +1455,18 @@ static int __dev_close_many(struct list_head *head)
 		dev->flags &= ~IFF_UP;
 		netpoll_poll_enable(dev);
 	}
-
-	return 0;
 }
 
-static int __dev_close(struct net_device *dev)
+static void __dev_close(struct net_device *dev)
 {
-	int retval;
 	LIST_HEAD(single);
 
 	list_add(&dev->close_list, &single);
-	retval = __dev_close_many(&single);
+	__dev_close_many(&single);
 	list_del(&single);
-
-	return retval;
 }
 
-int dev_close_many(struct list_head *head, bool unlink)
+void dev_close_many(struct list_head *head, bool unlink)
 {
 	struct net_device *dev, *tmp;
 
@@ -1488,8 +1483,6 @@ int dev_close_many(struct list_head *head, bool unlink)
 		if (unlink)
 			list_del_init(&dev->close_list);
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL(dev_close_many);
 
@@ -1502,7 +1495,7 @@ EXPORT_SYMBOL(dev_close_many);
  *	is then deactivated and finally a %NETDEV_DOWN is sent to the notifier
  *	chain.
  */
-int dev_close(struct net_device *dev)
+void dev_close(struct net_device *dev)
 {
 	if (dev->flags & IFF_UP) {
 		LIST_HEAD(single);
@@ -1511,7 +1504,6 @@ int dev_close(struct net_device *dev)
 		dev_close_many(&single, true);
 		list_del(&single);
 	}
-	return 0;
 }
 EXPORT_SYMBOL(dev_close);
 
@@ -6725,8 +6717,12 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags)
 	 */
 
 	ret = 0;
-	if ((old_flags ^ flags) & IFF_UP)
-		ret = ((old_flags & IFF_UP) ? __dev_close : __dev_open)(dev);
+	if ((old_flags ^ flags) & IFF_UP) {
+		if (old_flags & IFF_UP)
+			__dev_close(dev);
+		else
+			ret = __dev_open(dev);
+	}
 
 	if ((flags ^ dev->gflags) & IFF_PROMISC) {
 		int inc = (flags & IFF_PROMISC) ? 1 : -1;
