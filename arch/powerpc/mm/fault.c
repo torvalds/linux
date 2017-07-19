@@ -384,6 +384,10 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 
 	if (is_user)
 		flags |= FAULT_FLAG_USER;
+	if (is_write)
+		flags |= FAULT_FLAG_WRITE;
+	if (is_exec)
+		flags |= FAULT_FLAG_INSTRUCTION;
 
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
@@ -476,7 +480,6 @@ good_area:
 	} else if (is_write) {
 		if (unlikely(!(vma->vm_flags & VM_WRITE)))
 			return bad_area(regs, address);
-		flags |= FAULT_FLAG_WRITE;
 	/* a read */
 	} else {
 		if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
