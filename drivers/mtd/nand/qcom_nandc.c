@@ -635,15 +635,24 @@ static void config_nand_single_cw_page_read(struct qcom_nand_controller *nandc)
 	config_nand_cw_read(nandc);
 }
 
-static void config_cw_write_pre(struct qcom_nand_controller *nandc)
+/*
+ * Helper to prepare DMA descriptors used to configure registers needed for
+ * before writing a NAND page.
+ */
+static void config_nand_page_write(struct qcom_nand_controller *nandc)
 {
-	write_reg_dma(nandc, NAND_FLASH_CMD, 3);
+	write_reg_dma(nandc, NAND_ADDR0, 2);
 	write_reg_dma(nandc, NAND_DEV0_CFG0, 3);
 	write_reg_dma(nandc, NAND_EBI2_ECC_BUF_CFG, 1);
 }
 
-static void config_cw_write_post(struct qcom_nand_controller *nandc)
+/*
+ * Helper to prepare DMA descriptors for configuring registers
+ * before writing each codeword in NAND page.
+ */
+static void config_nand_cw_write(struct qcom_nand_controller *nandc)
 {
+	write_reg_dma(nandc, NAND_FLASH_CMD, 1);
 	write_reg_dma(nandc, NAND_EXEC_CMD, 1);
 
 	read_reg_dma(nandc, NAND_FLASH_STATUS, 1);
@@ -1326,6 +1335,7 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	host->use_ecc = true;
 	update_rw_regs(host, ecc->steps, false);
+	config_nand_page_write(nandc);
 
 	for (i = 0; i < ecc->steps; i++) {
 		int data_size, oob_size;
@@ -1339,7 +1349,6 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 			oob_size = ecc->bytes;
 		}
 
-		config_cw_write_pre(nandc);
 
 		write_data_dma(nandc, FLASH_BUF_ACC, data_buf, data_size);
 
@@ -1357,7 +1366,7 @@ static int qcom_nandc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				       oob_buf, oob_size);
 		}
 
-		config_cw_write_post(nandc);
+		config_nand_cw_write(nandc);
 
 		data_buf += data_size;
 		oob_buf += oob_size;
@@ -1390,6 +1399,7 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 
 	host->use_ecc = false;
 	update_rw_regs(host, ecc->steps, false);
+	config_nand_page_write(nandc);
 
 	for (i = 0; i < ecc->steps; i++) {
 		int data_size1, data_size2, oob_size1, oob_size2;
@@ -1408,8 +1418,6 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 			oob_size2 = host->ecc_bytes_hw + host->spare_bytes;
 		}
 
-		config_cw_write_pre(nandc);
-
 		write_data_dma(nandc, reg_off, data_buf, data_size1);
 		reg_off += data_size1;
 		data_buf += data_size1;
@@ -1425,7 +1433,7 @@ static int qcom_nandc_write_page_raw(struct mtd_info *mtd,
 		write_data_dma(nandc, reg_off, oob_buf, oob_size2);
 		oob_buf += oob_size2;
 
-		config_cw_write_post(nandc);
+		config_nand_cw_write(nandc);
 	}
 
 	ret = submit_descs(nandc);
@@ -1475,10 +1483,10 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	set_address(host, host->cw_size * (ecc->steps - 1), page);
 	update_rw_regs(host, 1, false);
 
-	config_cw_write_pre(nandc);
+	config_nand_page_write(nandc);
 	write_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer,
 		       data_size + oob_size);
-	config_cw_write_post(nandc);
+	config_nand_cw_write(nandc);
 
 	ret = submit_descs(nandc);
 
@@ -1560,9 +1568,9 @@ static int qcom_nandc_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	set_address(host, host->cw_size * (ecc->steps - 1), page);
 	update_rw_regs(host, 1, false);
 
-	config_cw_write_pre(nandc);
+	config_nand_page_write(nandc);
 	write_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer, host->cw_size);
-	config_cw_write_post(nandc);
+	config_nand_cw_write(nandc);
 
 	ret = submit_descs(nandc);
 
