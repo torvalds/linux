@@ -814,7 +814,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 
 	fwnode_handle_put(child);
 
-	error = sysfs_create_group(&dev->kobj, &gpio_keys_attr_group);
+	error = devm_device_add_group(dev, &gpio_keys_attr_group);
 	if (error) {
 		dev_err(dev, "Unable to export keys/switches, error: %d\n",
 			error);
@@ -825,21 +825,10 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(dev, "Unable to register input device, error: %d\n",
 			error);
-		goto err_remove_group;
+		return error;
 	}
 
 	device_init_wakeup(dev, wakeup);
-
-	return 0;
-
-err_remove_group:
-	sysfs_remove_group(&dev->kobj, &gpio_keys_attr_group);
-	return error;
-}
-
-static int gpio_keys_remove(struct platform_device *pdev)
-{
-	sysfs_remove_group(&pdev->dev.kobj, &gpio_keys_attr_group);
 
 	return 0;
 }
@@ -897,7 +886,6 @@ static SIMPLE_DEV_PM_OPS(gpio_keys_pm_ops, gpio_keys_suspend, gpio_keys_resume);
 
 static struct platform_driver gpio_keys_device_driver = {
 	.probe		= gpio_keys_probe,
-	.remove		= gpio_keys_remove,
 	.driver		= {
 		.name	= "gpio-keys",
 		.pm	= &gpio_keys_pm_ops,
