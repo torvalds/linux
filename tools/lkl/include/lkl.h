@@ -390,8 +390,11 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname, int offload);
  *
  * @ifname - interface name for the DPDK device. The name for DPDK device is
  * only used for an internal use.
+ * @offload - offload bits for the device
+ * @mac - mac address pointer of dpdk-ed device
  */
-struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname);
+struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname, int offload,
+					unsigned char *mac);
 
 /**
  * lkl_netdev_vde_create - create VDE net_device for the virtio net backend
