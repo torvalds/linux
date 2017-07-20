@@ -39,6 +39,8 @@ SoCs:
     compatible = "renesas,r8a7795"
   - R-Car M3-W (R8A77960)
     compatible = "renesas,r8a7796"
+  - R-Car D3 (R8A77995)
+    compatible = "renesas,r8a77995"
 
 
 Boards:
