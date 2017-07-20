@@ -4134,21 +4134,22 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv)
 {
-	struct intel_crtc *crtc;
+	struct drm_crtc *crtc;
+	bool cleanup_done;
 
-	/* Note that we don't need to be called with mode_config.lock here
-	 * as our list of CRTC objects is static for the lifetime of the
-	 * device and so cannot disappear as we iterate. Similarly, we can
-	 * happily treat the predicates as racy, atomic checks as userspace
-	 * cannot claim and pin a new fb without at least acquring the
-	 * struct_mutex and so serialising with us.
-	 */
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		if (atomic_read(&crtc->unpin_work_count) == 0)
+	drm_for_each_crtc(crtc, &dev_priv->drm) {
+		struct drm_crtc_commit *commit;
+		spin_lock(&crtc->commit_lock);
+		commit = list_first_entry_or_null(&crtc->commit_list,
+						  struct drm_crtc_commit, commit_entry);
+		cleanup_done = commit ?
+			try_wait_for_completion(&commit->cleanup_done) : true;
+		spin_unlock(&crtc->commit_lock);
+
+		if (cleanup_done)
 			continue;
 
-		if (crtc->flip_work)
-			intel_wait_for_vblank(dev_priv, crtc->pipe);
+		drm_crtc_wait_one_vblank(crtc);
 
 		return true;
 	}
