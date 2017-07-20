@@ -2239,6 +2239,16 @@ out_enomem:
 	goto out;
 }
 
+static int trace__set_filter_loop_pids(struct trace *trace)
+{
+	int nr = 1;
+	pid_t pids[32] = {
+		getpid(),
+	};
+
+	return perf_evlist__set_filter_pids(trace->evlist, nr, pids);
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
@@ -2362,7 +2372,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->filter_pids.nr > 0)
 		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
 	else if (thread_map__pid(evlist->threads, 0) == -1)
-		err = perf_evlist__set_filter_pid(evlist, getpid());
+		err = trace__set_filter_loop_pids(trace);
 
 	if (err < 0)
 		goto out_error_mem;
