@@ -373,77 +373,10 @@ struct amdgpu_clock {
 };
 
 /*
- * BO.
+ * GEM.
  */
-struct amdgpu_bo_list_entry {
-	struct amdgpu_bo		*robj;
-	struct ttm_validate_buffer	tv;
-	struct amdgpu_bo_va		*bo_va;
-	uint32_t			priority;
-	struct page			**user_pages;
-	int				user_invalidated;
-};
-
-struct amdgpu_bo_va_mapping {
-	struct list_head		list;
-	struct rb_node			rb;
-	uint64_t			start;
-	uint64_t			last;
-	uint64_t			__subtree_last;
-	uint64_t			offset;
-	uint64_t			flags;
-};
-
-/* bo virtual addresses in a specific vm */
-struct amdgpu_bo_va {
-	/* protected by bo being reserved */
-	struct list_head		bo_list;
-	struct dma_fence	        *last_pt_update;
-	unsigned			ref_count;
-
-	/* protected by vm mutex and spinlock */
-	struct list_head		vm_status;
-
-	/* mappings for this bo_va */
-	struct list_head		invalids;
-	struct list_head		valids;
-
-	/* constant after initialization */
-	struct amdgpu_vm		*vm;
-	struct amdgpu_bo		*bo;
-};
 
 #define AMDGPU_GEM_DOMAIN_MAX		0x3
-
-struct amdgpu_bo {
-	/* Protected by tbo.reserved */
-	u32				prefered_domains;
-	u32				allowed_domains;
-	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
-	struct ttm_placement		placement;
-	struct ttm_buffer_object	tbo;
-	struct ttm_bo_kmap_obj		kmap;
-	u64				flags;
-	unsigned			pin_count;
-	u64				tiling_flags;
-	u64				metadata_flags;
-	void				*metadata;
-	u32				metadata_size;
-	unsigned			prime_shared_count;
-	/* list of all virtual address to which this bo
-	 * is associated to
-	 */
-	struct list_head		va;
-	/* Constant after initialization */
-	struct drm_gem_object		gem_base;
-	struct amdgpu_bo		*parent;
-	struct amdgpu_bo		*shadow;
-
-	struct ttm_bo_kmap_obj		dma_buf_vmap;
-	struct amdgpu_mn		*mn;
-	struct list_head		mn_list;
-	struct list_head		shadow_list;
-};
 #define gem_to_amdgpu_bo(gobj) container_of((gobj), struct amdgpu_bo, gem_base)
 
 void amdgpu_gem_object_free(struct drm_gem_object *obj);
@@ -824,6 +757,14 @@ struct amdgpu_fpriv {
 /*
  * residency list
  */
+struct amdgpu_bo_list_entry {
+	struct amdgpu_bo		*robj;
+	struct ttm_validate_buffer	tv;
+	struct amdgpu_bo_va		*bo_va;
+	uint32_t			priority;
+	struct page			**user_pages;
+	int				user_invalidated;
+};
 
 struct amdgpu_bo_list {
 	struct mutex lock;
