@@ -84,6 +84,14 @@ static struct rndis_device *get_rndis_device(void)
 	return device;
 }
 
+static struct netvsc_device *
+net_device_to_netvsc_device(struct net_device *ndev)
+{
+	struct net_device_context *net_device_ctx = netdev_priv(ndev);
+
+	return rtnl_dereference(net_device_ctx->nvdev);
+}
+
 static struct rndis_request *get_rndis_request(struct rndis_device *dev,
 					     u32 msg_type,
 					     u32 msg_len)
@@ -243,7 +251,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 			pb[0].len;
 	}
 
-	ret = netvsc_send(net_device_ctx->device_ctx, packet, NULL, &pb, NULL);
+	ret = netvsc_send(net_device_ctx, packet, NULL, &pb, NULL);
 	return ret;
 }
 
@@ -472,7 +480,7 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 
 	if (oid == OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES) {
 		struct net_device_context *ndevctx = netdev_priv(dev->ndev);
-		struct netvsc_device *nvdev = ndevctx->nvdev;
+		struct netvsc_device *nvdev = rtnl_dereference(ndevctx->nvdev);
 		struct ndis_offload *hwcaps;
 		u32 nvsp_version = nvdev->nvsp_version;
 		u8 ndis_rev;
@@ -658,9 +666,9 @@ cleanup:
 
 static int
 rndis_filter_set_offload_params(struct net_device *ndev,
+				struct netvsc_device *nvdev,
 				struct ndis_offload_params *req_offloads)
 {
-	struct netvsc_device *nvdev = net_device_to_netvsc_device(ndev);
 	struct rndis_device *rdev = nvdev->extension;
 	struct rndis_request *request;
 	struct rndis_set_request *set;
@@ -944,7 +952,7 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 	struct rndis_request *request;
 	struct rndis_halt_request *halt;
 	struct net_device_context *net_device_ctx = netdev_priv(dev->ndev);
-	struct netvsc_device *nvdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvdev = rtnl_dereference(net_device_ctx->nvdev);
 
 	/* Attempt to do a rndis device halt */
 	request = get_rndis_request(dev, RNDIS_MSG_HALT,
@@ -1052,8 +1060,8 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 		complete(&nvscdev->channel_init_wait);
 }
 
-int rndis_filter_device_add(struct hv_device *dev,
-			    struct netvsc_device_info *device_info)
+struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
+				      struct netvsc_device_info *device_info)
 {
 	struct net_device *net = hv_get_drvdata(dev);
 	struct net_device_context *net_device_ctx = netdev_priv(net);
@@ -1072,21 +1080,20 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	rndis_device = get_rndis_device();
 	if (!rndis_device)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	/*
 	 * Let the inner driver handle this first to create the netvsc channel
 	 * NOTE! Once the channel is created, we may get a receive callback
 	 * (RndisFilterOnReceive()) before this call is completed
 	 */
-	ret = netvsc_device_add(dev, device_info);
-	if (ret != 0) {
+	net_device = netvsc_device_add(dev, device_info);
+	if (IS_ERR(net_device)) {
 		kfree(rndis_device);
-		return ret;
+		return net_device;
 	}
 
 	/* Initialize the rndis device */
-	net_device = net_device_ctx->nvdev;
 	net_device->max_chn = 1;
 	net_device->num_chn = 1;
 
@@ -1097,10 +1104,8 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	/* Send the rndis initialization message */
 	ret = rndis_filter_init_device(rndis_device);
-	if (ret != 0) {
-		rndis_filter_device_remove(dev, net_device);
-		return ret;
-	}
+	if (ret != 0)
+		goto err_dev_remv;
 
 	/* Get the MTU from the host */
 	size = sizeof(u32);
@@ -1112,19 +1117,15 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	/* Get the mac address */
 	ret = rndis_filter_query_device_mac(rndis_device);
-	if (ret != 0) {
-		rndis_filter_device_remove(dev, net_device);
-		return ret;
-	}
+	if (ret != 0)
+		goto err_dev_remv;
 
 	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
 
 	/* Find HW offload capabilities */
 	ret = rndis_query_hwcaps(rndis_device, &hwcaps);
-	if (ret != 0) {
-		rndis_filter_device_remove(dev, net_device);
-		return ret;
-	}
+	if (ret != 0)
+		goto err_dev_remv;
 
 	/* A value of zero means "no change"; now turn on what we want. */
 	memset(&offloads, 0, sizeof(struct ndis_offload_params));
@@ -1179,7 +1180,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	netif_set_gso_max_size(net, gso_max_size);
 
-	ret = rndis_filter_set_offload_params(net, &offloads);
+	ret = rndis_filter_set_offload_params(net, net_device, &offloads);
 	if (ret)
 		goto err_dev_remv;
 
@@ -1190,7 +1191,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 		   rndis_device->link_state ? "down" : "up");
 
 	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_5)
-		return 0;
+		return net_device;
 
 	rndis_filter_query_link_speed(rndis_device);
 
@@ -1223,7 +1224,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	num_rss_qs = net_device->num_chn - 1;
 	if (num_rss_qs == 0)
-		return 0;
+		return net_device;
 
 	refcount_set(&net_device->sc_offered, num_rss_qs);
 	vmbus_set_sc_create_callback(dev->channel, netvsc_sc_open);
@@ -1260,11 +1261,11 @@ out:
 		net_device->num_chn = 1;
 	}
 
-	return 0; /* return 0 because primary channel can be used alone */
+	return net_device;
 
 err_dev_remv:
 	rndis_filter_device_remove(dev, net_device);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 void rndis_filter_device_remove(struct hv_device *dev,
@@ -1301,4 +1302,9 @@ int rndis_filter_close(struct netvsc_device *nvdev)
 		return 0;
 
 	return rndis_filter_close_device(nvdev->extension);
+}
+
+bool rndis_filter_opened(const struct netvsc_device *nvdev)
+{
+	return atomic_read(&nvdev->open_cnt) > 0;
 }
