@@ -6078,6 +6078,7 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 		bank = &a7gc->banks[idx];
 		/* Set ctrl registers' base of this bank */
 		bank->base = ATLAS7_GPIO_BASE(a7gc, idx);
+		bank->gpio_offset = idx * NGPIO_OF_BANK;
 
 		/* Get interrupt number from DTS */
 		ret = of_irq_get(np, idx);
