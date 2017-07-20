@@ -623,6 +623,13 @@ static int ads1015_probe(struct i2c_client *client,
 		dev_err(&client->dev, "iio triggered buffer setup failed\n");
 		return ret;
 	}
+
+	ret = regmap_update_bits(data->regmap, ADS1015_CFG_REG,
+				ADS1015_CFG_MOD_MASK,
+				ADS1015_CONTINUOUS << ADS1015_CFG_MOD_SHIFT);
+	if (ret)
+		return ret;
+
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret)
 		goto err_buffer_cleanup;
