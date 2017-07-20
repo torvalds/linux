@@ -153,7 +153,7 @@
 };
 
 &cif_isp0 {
-	rockchip,camera-modules-attached = <&camera0>;
+	rockchip,camera-modules-attached = <&camera0 &camera1>;
 	status = "okay";
 };
 
@@ -260,6 +260,34 @@
 		rockchip,camera-module-flash-support = <0>;
 		rockchip,camera-module-mipi-dphy-index = <0>;
 	};
+
+	camera1: camera-module@1 {
+		status = "okay";
+		compatible = "toshiba,tc358749xbg-v4l2-i2c-subdev";
+		reg = < 0x0f >;
+		device_type = "v4l2-i2c-subdev";
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "clk_cif_out";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_gpios>;
+
+		//rockchip,pwr-gpio = <&gpio2 6 GPIO_ACTIVE_HIGH>;
+		//rckchip,pwr-snd-gpio = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+		//rockchip,pwr-trd-gpio = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		//rockchip,rst-gpio = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio2 6 GPIO_ACTIVE_HIGH>;
+		power18-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+		power33-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		csi-ctl-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		stanby-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		int-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-mclk-name = "clk_cif_out";
+		rockchip,camera-module-mipi-dphy-index = <0>;
+	};
 };
 
 &i2s2 {
@@ -293,6 +321,18 @@
 	lcd-panel {
 		lcd_panel_reset: lcd-panel-reset {
 			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	hdmiin {
+		hdmiin_gpios: hdmiin-gpios {
+			rockchip,pins =
+				<2 5 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 8 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 9 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
