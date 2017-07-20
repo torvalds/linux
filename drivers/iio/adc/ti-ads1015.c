@@ -627,9 +627,9 @@ static int ads1015_probe(struct i2c_client *client,
 		return PTR_ERR(data->regmap);
 	}
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 ads1015_trigger_handler,
-					 &ads1015_buffer_setup_ops);
+	ret = devm_iio_triggered_buffer_setup(&client->dev, indio_dev, NULL,
+					      ads1015_trigger_handler,
+					      &ads1015_buffer_setup_ops);
 	if (ret < 0) {
 		dev_err(&client->dev, "iio triggered buffer setup failed\n");
 		return ret;
@@ -643,7 +643,7 @@ static int ads1015_probe(struct i2c_client *client,
 
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret)
-		goto err_buffer_cleanup;
+		return ret;
 	pm_runtime_set_autosuspend_delay(&client->dev, ADS1015_SLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_enable(&client->dev);
@@ -651,15 +651,10 @@ static int ads1015_probe(struct i2c_client *client,
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to register IIO device\n");
-		goto err_buffer_cleanup;
+		return ret;
 	}
 
 	return 0;
-
-err_buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return ret;
 }
 
 static int ads1015_remove(struct i2c_client *client)
@@ -672,8 +667,6 @@ static int ads1015_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
-
-	iio_triggered_buffer_cleanup(indio_dev);
 
 	/* power down single shot mode */
 	return ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);
