@@ -92,7 +92,6 @@ struct bcm2835_pinctrl {
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range gpio_range;
 
-	int irq_group[BCM2835_NUM_IRQS];
 	spinlock_t irq_lock[BCM2835_NUM_BANKS];
 };
 
@@ -400,7 +399,7 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
 
 	for (i = 0; i < ARRAY_SIZE(pc->irq); i++) {
 		if (pc->irq[i] == irq) {
-			group = pc->irq_group[i];
+			group = i;
 			break;
 		}
 	}
@@ -1044,7 +1043,6 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 
 	for (i = 0; i < BCM2835_NUM_IRQS; i++) {
 		pc->irq[i] = irq_of_parse_and_map(np, i);
-		pc->irq_group[i] = i;
 
 		if (pc->irq[i] == 0)
 			continue;
