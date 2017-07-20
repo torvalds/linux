@@ -123,6 +123,10 @@ void context_clock_trace(
 	dm_logger_write(dc_ctx->logger, LOG_ERROR, \
 		__VA_ARGS__);
 
+#define DTN_INFO(...) \
+	dm_logger_write(dc_ctx->logger, LOG_DTN, \
+		__VA_ARGS__)
+
 #define DC_SYNC_INFO(...) \
 	dm_logger_write(dc_ctx->logger, LOG_SYNC, \
 		__VA_ARGS__);

@@ -2035,3 +2035,10 @@ bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data)
 
 }
 
+void dc_log_hw_state(struct dc *dc)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+
+	if (core_dc->hwss.log_hw_state)
+		core_dc->hwss.log_hw_state(core_dc);
+}

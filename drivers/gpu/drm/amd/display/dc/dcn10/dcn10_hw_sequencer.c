@@ -1851,6 +1851,17 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 	return;
 }
 
+static void dcn10_log_hw_state(struct core_dc *dc)
+{
+	struct dc_context *dc_ctx = dc->ctx;
+
+	DTN_INFO("%s: Hello World", __func__);
+
+	/* todo: add meaningful register reads and print out HW state
+	 *
+	 */
+}
+
 static bool dcn10_dummy_display_power_gating(
 	struct core_dc *dc,
 	uint8_t controller_id,
@@ -1887,6 +1898,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_static_screen_control = set_static_screen_control,
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dce110_set_avmute,
+	.log_hw_state = dcn10_log_hw_state,
 };
 
 

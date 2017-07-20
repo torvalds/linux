@@ -236,6 +236,8 @@ void dc_destroy(struct dc **dc);
 
 bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data);
 
+void dc_log_hw_state(struct dc *dc);
+
 /*******************************************************************************
  * Surface Interfaces
  ******************************************************************************/

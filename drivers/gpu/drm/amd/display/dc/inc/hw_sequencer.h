@@ -154,6 +154,8 @@ struct hw_sequencer_funcs {
 			struct core_dc *dc);
 
 	void (*set_avmute)(struct pipe_ctx *pipe_ctx, bool enable);
+
+	void (*log_hw_state)(struct core_dc *dc);
 };
 
 void color_space_to_black_color(
