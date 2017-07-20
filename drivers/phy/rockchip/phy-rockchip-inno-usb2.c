@@ -881,21 +881,17 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		} else {
 			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
 			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
+			mutex_unlock(&rport->mutex);
+			rockchip_usb2phy_power_off(rport->phy);
+			mutex_lock(&rport->mutex);
 		}
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		if (!rport->vbus_attached) {
 			dev_dbg(&rport->phy->dev, "usb disconnect\n");
-			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
-			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
 			rport->state = OTG_STATE_B_IDLE;
 			rport->perip_connected = false;
-			delay = 0;
-			mutex_unlock(&rport->mutex);
-			rockchip_usb2phy_power_off(rport->phy);
-			mutex_lock(&rport->mutex);
-		} else {
-			sch_work = true;
+			delay = OTG_SCHEDULE_DELAY * 2;
 		}
 		sch_work = true;
 		break;
@@ -1249,6 +1245,7 @@ static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 
 	mutex_unlock(&rport->mutex);
 
+	cancel_delayed_work_sync(&rport->otg_sm_work);
 	rockchip_usb2phy_otg_sm_work(&rport->otg_sm_work.work);
 
 	return IRQ_HANDLED;
@@ -1334,6 +1331,7 @@ static int rockchip_otg_event(struct notifier_block *nb,
 	struct rockchip_usb2phy_port *rport =
 		container_of(nb, struct rockchip_usb2phy_port, event_nb);
 
+	cancel_delayed_work_sync(&rport->otg_sm_work);
 	schedule_delayed_work(&rport->otg_sm_work, OTG_SCHEDULE_DELAY);
 
 	return NOTIFY_DONE;
