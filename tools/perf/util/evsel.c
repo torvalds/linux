@@ -58,6 +58,8 @@ static int perf_evsel__no_extra_init(struct perf_evsel *evsel __maybe_unused)
 	return 0;
 }
 
+void __weak test_attr__ready(void) { }
+
 static void perf_evsel__no_extra_fini(struct perf_evsel *evsel __maybe_unused)
 {
 }
@@ -268,7 +270,7 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
-struct perf_evsel *perf_evsel__new_cycles(void)
+struct perf_evsel *perf_evsel__new_cycles(bool precise)
 {
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
@@ -278,6 +280,9 @@ struct perf_evsel *perf_evsel__new_cycles(void)
 	struct perf_evsel *evsel;
 
 	event_attr_init(&attr);
+
+	if (!precise)
+		goto new_event;
 	/*
 	 * Unnamed union member, not supported as struct member named
 	 * initializer in older compilers such as gcc 4.4.7
@@ -292,7 +297,7 @@ struct perf_evsel *perf_evsel__new_cycles(void)
 	 * to kick in when we return and before perf_evsel__open() is called.
 	 */
 	attr.sample_period = 0;
-
+new_event:
 	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
 		goto out;
@@ -1569,6 +1574,8 @@ retry_open:
 			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 				  pid, cpus->map[cpu], group_fd, flags);
 
+			test_attr__ready();
+
 			fd = sys_perf_event_open(&evsel->attr, pid, cpus->map[cpu],
 						 group_fd, flags);
 
@@ -2608,5 +2615,12 @@ char *perf_evsel__env_arch(struct perf_evsel *evsel)
 {
 	if (evsel && evsel->evlist && evsel->evlist->env)
 		return evsel->evlist->env->arch;
+	return NULL;
+}
+
+char *perf_evsel__env_cpuid(struct perf_evsel *evsel)
+{
+	if (evsel && evsel->evlist && evsel->evlist->env)
+		return evsel->evlist->env->cpuid;
 	return NULL;
 }

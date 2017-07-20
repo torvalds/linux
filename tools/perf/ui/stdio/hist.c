@@ -35,9 +35,6 @@ static size_t inline__fprintf(struct map *map, u64 ip, int left_margin,
 	if (dso == NULL)
 		return 0;
 
-	if (dso->kernel != DSO_TYPE_USER)
-		return 0;
-
 	node = dso__parse_addr_inlines(dso,
 				       map__rip_2objdump(map, ip));
 	if (node == NULL)

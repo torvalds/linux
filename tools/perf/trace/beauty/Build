@@ -1,1 +1,2 @@
+libperf-y += fcntl.o
 libperf-y += statx.o

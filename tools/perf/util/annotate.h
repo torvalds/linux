@@ -52,7 +52,9 @@ struct ins_ops {
 bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
 bool ins__is_ret(const struct ins *ins);
+bool ins__is_lock(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
+bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
 struct annotation;
 
@@ -160,7 +162,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__disassemble(struct symbol *sym, struct map *map,
 			const char *arch_name, size_t privsize,
-			struct arch **parch);
+			struct arch **parch, char *cpuid);
 
 enum symbol_disassemble_errno {
 	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,

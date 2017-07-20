@@ -19,3 +19,7 @@
 004d0000,1,power8.json,core
 004d0100,1,power8.json,core
 004d0200,1,power8.json,core
+004c0100,1,power8.json,core
+004e0100,1,power9.json,core
+004e0200,1,power9.json,core
+004e1200,1,power9.json,core

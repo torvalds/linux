@@ -47,7 +47,12 @@ struct arch {
 	bool		sorted_instructions;
 	bool		initialized;
 	void		*priv;
+	unsigned int	model;
+	unsigned int	family;
 	int		(*init)(struct arch *arch);
+	bool		(*ins_is_fused)(struct arch *arch, const char *ins1,
+					const char *ins2);
+	int		(*cpuid_parse)(struct arch *arch, char *cpuid);
 	struct		{
 		char comment_char;
 		char skip_functions_char;
@@ -129,6 +134,8 @@ static struct arch architectures[] = {
 		.name = "x86",
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
+		.ins_is_fused = x86__ins_is_fused,
+		.cpuid_parse = x86__cpuid_parse,
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -169,6 +176,14 @@ int ins__scnprintf(struct ins *ins, char *bf, size_t size,
 		return ins->ops->scnprintf(ins, bf, size, ops);
 
 	return ins__raw_scnprintf(ins, bf, size, ops);
+}
+
+bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2)
+{
+	if (!arch || !arch->ins_is_fused)
+		return false;
+
+	return arch->ins_is_fused(arch, ins1, ins2);
 }
 
 static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
@@ -500,6 +515,11 @@ static struct ins_ops ret_ops = {
 bool ins__is_ret(const struct ins *ins)
 {
 	return ins->ops == &ret_ops;
+}
+
+bool ins__is_lock(const struct ins *ins)
+{
+	return ins->ops == &lock_ops;
 }
 
 static int ins__key_cmp(const void *name, const void *insp)
@@ -1327,7 +1347,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 	    !dso__is_kcore(dso))
 		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
 
-	build_id_filename = dso__build_id_filename(dso, NULL, 0);
+	build_id_filename = dso__build_id_filename(dso, NULL, 0, false);
 	if (build_id_filename) {
 		__symbol__join_symfs(filename, filename_size, build_id_filename);
 		free(build_id_filename);
@@ -1381,7 +1401,7 @@ static const char *annotate__norm_arch(const char *arch_name)
 
 int symbol__disassemble(struct symbol *sym, struct map *map,
 			const char *arch_name, size_t privsize,
-			struct arch **parch)
+			struct arch **parch, char *cpuid)
 {
 	struct dso *dso = map->dso;
 	char command[PATH_MAX * 2];
@@ -1417,6 +1437,9 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 			return err;
 		}
 	}
+
+	if (arch->cpuid_parse && cpuid)
+		arch->cpuid_parse(arch, cpuid);
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),
@@ -1907,7 +1930,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	u64 len;
 
 	if (symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
-				0, NULL) < 0)
+				0, NULL, NULL) < 0)
 		return -1;
 
 	len = symbol__size(sym);

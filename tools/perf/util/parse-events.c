@@ -2124,7 +2124,7 @@ void print_sdt_events(const char *subsys_glob, const char *event_glob,
 		return;
 	}
 	strlist__for_each_entry(nd, bidlist) {
-		pcache = probe_cache__new(nd->s);
+		pcache = probe_cache__new(nd->s, NULL);
 		if (!pcache)
 			continue;
 		list_for_each_entry(ent, &pcache->entries, node) {
