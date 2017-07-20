@@ -591,7 +591,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 		seq_printf(m, "\t\tHW: %d.%d\n",
 			   (rev[0] & 0xf0) >> 4, rev[0] & 0xf);
 
-	len = drm_dp_dpcd_read(aux, DP_BRANCH_SW_REV, &rev, 2);
+	len = drm_dp_dpcd_read(aux, DP_BRANCH_SW_REV, rev, 2);
 	if (len > 0)
 		seq_printf(m, "\t\tSW: %d.%d\n", rev[0], rev[1]);
 
