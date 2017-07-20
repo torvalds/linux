@@ -2241,10 +2241,24 @@ out_enomem:
 
 static int trace__set_filter_loop_pids(struct trace *trace)
 {
-	int nr = 1;
+	unsigned int nr = 1;
 	pid_t pids[32] = {
 		getpid(),
 	};
+	struct thread *thread = machine__find_thread(trace->host, pids[0], pids[0]);
+
+	while (thread && nr < ARRAY_SIZE(pids)) {
+		struct thread *parent = machine__find_thread(trace->host, thread->ppid, thread->ppid);
+
+		if (parent == NULL)
+			break;
+
+		if (!strcmp(thread__comm_str(parent), "sshd")) {
+			pids[nr++] = parent->tid;
+			break;
+		}
+		thread = parent;
+	}
 
 	return perf_evlist__set_filter_pids(trace->evlist, nr, pids);
 }
