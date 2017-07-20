@@ -337,6 +337,7 @@ static struct firmware_buf *__fw_lookup_buf(const char *fw_name)
 	return NULL;
 }
 
+/* Returns 1 for batching firmware requests with the same name */
 static int fw_lookup_and_allocate_buf(const char *fw_name,
 				      struct firmware_cache *fwc,
 				      struct firmware_buf **buf, void *dbuf,
@@ -350,6 +351,7 @@ static int fw_lookup_and_allocate_buf(const char *fw_name,
 		kref_get(&tmp->ref);
 		spin_unlock(&fwc->lock);
 		*buf = tmp;
+		pr_debug("batched request - sharing the same struct firmware_buf and lookup for multiple requests\n");
 		return 1;
 	}
 	tmp = __allocate_fw_buf(fw_name, fwc, dbuf, size);
