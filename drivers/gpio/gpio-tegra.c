@@ -641,15 +641,15 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	for (i = 0; i < tgi->bank_count; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!res) {
-			dev_err(&pdev->dev, "Missing IRQ resource\n");
-			return -ENODEV;
+		ret = platform_get_irq(pdev, i);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Missing IRQ resource: %d\n", ret);
+			return ret;
 		}
 
 		bank = &tgi->bank_info[i];
 		bank->bank = i;
-		bank->irq = res->start;
+		bank->irq = ret;
 		bank->tgi = tgi;
 	}
 
