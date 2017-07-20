@@ -1205,6 +1205,22 @@ extern int __must_check device_add_groups(struct device *dev,
 extern void device_remove_groups(struct device *dev,
 				 const struct attribute_group **groups);
 
+static inline int __must_check device_add_group(struct device *dev,
+					const struct attribute_group *grp)
+{
+	const struct attribute_group *groups[] = { grp, NULL };
+
+	return device_add_groups(dev, groups);
+}
+
+static inline void device_remove_group(struct device *dev,
+				       const struct attribute_group *grp)
+{
+	const struct attribute_group *groups[] = { grp, NULL };
+
+	return device_remove_groups(dev, groups);
+}
+
 /*
  * Platform "fixup" functions - allow the platform to have their say
  * about devices and actions that the general device layer doesn't
