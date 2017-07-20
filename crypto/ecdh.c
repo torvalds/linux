@@ -20,8 +20,6 @@ struct ecdh_ctx {
 	unsigned int curve_id;
 	unsigned int ndigits;
 	u64 private_key[ECC_MAX_DIGITS];
-	u64 public_key[2 * ECC_MAX_DIGITS];
-	u64 shared_secret[ECC_MAX_DIGITS];
 };
 
 static inline struct ecdh_ctx *ecdh_get_ctx(struct crypto_kpp *tfm)
@@ -70,41 +68,58 @@ static int ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 
 static int ecdh_compute_value(struct kpp_request *req)
 {
-	int ret = 0;
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 	struct ecdh_ctx *ctx = ecdh_get_ctx(tfm);
-	size_t copied, nbytes;
+	u64 *public_key;
+	u64 *shared_secret = NULL;
 	void *buf;
+	size_t copied, nbytes, public_key_sz;
+	int ret = -ENOMEM;
 
 	nbytes = ctx->ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
+	/* Public part is a point thus it has both coordinates */
+	public_key_sz = 2 * nbytes;
+
+	public_key = kmalloc(public_key_sz, GFP_KERNEL);
+	if (!public_key)
+		return -ENOMEM;
 
 	if (req->src) {
-		copied = sg_copy_to_buffer(req->src, 1, ctx->public_key,
-					   2 * nbytes);
-		if (copied != 2 * nbytes)
-			return -EINVAL;
+		shared_secret = kmalloc(nbytes, GFP_KERNEL);
+		if (!shared_secret)
+			goto free_pubkey;
+
+		copied = sg_copy_to_buffer(req->src, 1, public_key,
+					   public_key_sz);
+		if (copied != public_key_sz) {
+			ret = -EINVAL;
+			goto free_all;
+		}
 
 		ret = crypto_ecdh_shared_secret(ctx->curve_id, ctx->ndigits,
-						ctx->private_key,
-						ctx->public_key,
-						ctx->shared_secret);
+						ctx->private_key, public_key,
+						shared_secret);
 
-		buf = ctx->shared_secret;
+		buf = shared_secret;
 	} else {
 		ret = ecc_make_pub_key(ctx->curve_id, ctx->ndigits,
-				       ctx->private_key, ctx->public_key);
-		buf = ctx->public_key;
-		/* Public part is a point thus it has both coordinates */
-		nbytes *= 2;
+				       ctx->private_key, public_key);
+		buf = public_key;
+		nbytes = public_key_sz;
 	}
 
 	if (ret < 0)
-		return ret;
+		goto free_all;
 
 	copied = sg_copy_from_buffer(req->dst, 1, buf, nbytes);
 	if (copied != nbytes)
-		return -EINVAL;
+		ret = -EINVAL;
 
+	/* fall through */
+free_all:
+	kzfree(shared_secret);
+free_pubkey:
+	kfree(public_key);
 	return ret;
 }
 
