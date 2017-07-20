@@ -252,9 +252,11 @@ int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
 
 	ret = regmap_update_bits_check(data->regmap, ADS1015_CFG_REG,
 				       ADS1015_CFG_MUX_MASK |
-				       ADS1015_CFG_PGA_MASK,
+				       ADS1015_CFG_PGA_MASK |
+				       ADS1015_CFG_DR_MASK,
 				       chan << ADS1015_CFG_MUX_SHIFT |
-				       pga << ADS1015_CFG_PGA_SHIFT,
+				       pga << ADS1015_CFG_PGA_SHIFT |
+				       dr << ADS1015_CFG_DR_SHIFT,
 				       &change);
 	if (ret < 0)
 		return ret;
@@ -325,25 +327,16 @@ static int ads1015_set_scale(struct ads1015_data *data, int chan,
 
 static int ads1015_set_data_rate(struct ads1015_data *data, int chan, int rate)
 {
-	int i, ret, rindex = -1;
+	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ads1015_data_rate); i++)
+	for (i = 0; i < ARRAY_SIZE(ads1015_data_rate); i++) {
 		if (data->data_rate[i] == rate) {
-			rindex = i;
-			break;
+			data->channel_data[chan].data_rate = i;
+			return 0;
 		}
-	if (rindex < 0)
-		return -EINVAL;
+	}
 
-	ret = regmap_update_bits(data->regmap, ADS1015_CFG_REG,
-				 ADS1015_CFG_DR_MASK,
-				 rindex << ADS1015_CFG_DR_SHIFT);
-	if (ret < 0)
-		return ret;
-
-	data->channel_data[chan].data_rate = rindex;
-
-	return 0;
+	return -EINVAL;
 }
 
 static int ads1015_read_raw(struct iio_dev *indio_dev,
