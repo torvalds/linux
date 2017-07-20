@@ -1381,6 +1381,16 @@ static void rt5665_jack_detect_handler(struct work_struct *work)
 	mutex_unlock(&rt5665->calibrate_mutex);
 }
 
+static const char * const rt5665_clk_sync[] = {
+	"I2S1_1", "I2S1_2", "I2S2", "I2S3", "IF2 Slave", "IF3 Slave"
+};
+
+static const struct soc_enum rt5665_enum[] = {
+	SOC_ENUM_SINGLE(RT5665_I2S1_SDP, 11, 5, rt5665_clk_sync),
+	SOC_ENUM_SINGLE(RT5665_I2S2_SDP, 11, 5, rt5665_clk_sync),
+	SOC_ENUM_SINGLE(RT5665_I2S3_SDP, 11, 5, rt5665_clk_sync),
+};
+
 static const struct snd_kcontrol_new rt5665_snd_controls[] = {
 	/* Headphone Output Volume */
 	SOC_DOUBLE_R_EXT_TLV("Headphone Playback Volume", RT5665_HPL_GAIN,
@@ -1446,6 +1456,11 @@ static const struct snd_kcontrol_new rt5665_snd_controls[] = {
 	SOC_DOUBLE_TLV("STO2 ADC Boost Gain Volume", RT5665_STO2_ADC_BOOST,
 		RT5665_STO2_ADC_L_BST_SFT, RT5665_STO2_ADC_R_BST_SFT,
 		3, 0, adc_bst_tlv),
+
+	/* I2S3 CLK Source */
+	SOC_ENUM("I2S1 Master Clk Sel", rt5665_enum[0]),
+	SOC_ENUM("I2S2 Master Clk Sel", rt5665_enum[1]),
+	SOC_ENUM("I2S3 Master Clk Sel", rt5665_enum[2]),
 };
 
 /**
