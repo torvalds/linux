@@ -281,45 +281,6 @@ void vpfe_unregister_ccdc_device(struct ccdc_hw_device *dev)
 EXPORT_SYMBOL(vpfe_unregister_ccdc_device);
 
 /*
- * vpfe_get_ccdc_image_format - Get image parameters based on CCDC settings
- */
-static int vpfe_get_ccdc_image_format(struct vpfe_device *vpfe_dev,
-				 struct v4l2_format *f)
-{
-	struct v4l2_rect image_win;
-	enum ccdc_buftype buf_type;
-	enum ccdc_frmfmt frm_fmt;
-
-	memset(f, 0, sizeof(*f));
-	f->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	ccdc_dev->hw_ops.get_image_window(&image_win);
-	f->fmt.pix.width = image_win.width;
-	f->fmt.pix.height = image_win.height;
-	f->fmt.pix.bytesperline = ccdc_dev->hw_ops.get_line_length();
-	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline *
-				f->fmt.pix.height;
-	buf_type = ccdc_dev->hw_ops.get_buftype();
-	f->fmt.pix.pixelformat = ccdc_dev->hw_ops.get_pixel_format();
-	frm_fmt = ccdc_dev->hw_ops.get_frame_format();
-	if (frm_fmt == CCDC_FRMFMT_PROGRESSIVE)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
-	else if (frm_fmt == CCDC_FRMFMT_INTERLACED) {
-		if (buf_type == CCDC_BUFTYPE_FLD_INTERLEAVED)
-			f->fmt.pix.field = V4L2_FIELD_INTERLACED;
-		else if (buf_type == CCDC_BUFTYPE_FLD_SEPARATED)
-			f->fmt.pix.field = V4L2_FIELD_SEQ_TB;
-		else {
-			v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buf_type\n");
-			return -EINVAL;
-		}
-	} else {
-		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid frm_fmt\n");
-		return -EINVAL;
-	}
-	return 0;
-}
-
-/*
  * vpfe_config_ccdc_image_format()
  * For a pix format, configure ccdc to setup the capture
  */
@@ -1697,41 +1658,6 @@ unlock_out:
 	return ret;
 }
 
-
-static long vpfe_param_handler(struct file *file, void *priv,
-		bool valid_prio, unsigned int cmd, void *param)
-{
-	struct vpfe_device *vpfe_dev = video_drvdata(file);
-	int ret;
-
-	v4l2_dbg(2, debug, &vpfe_dev->v4l2_dev, "vpfe_param_handler\n");
-
-	if (vpfe_dev->started) {
-		/* only allowed if streaming is not started */
-		v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
-			"device already started\n");
-		return -EBUSY;
-	}
-
-	ret = mutex_lock_interruptible(&vpfe_dev->lock);
-	if (ret)
-		return ret;
-
-	switch (cmd) {
-	case VPFE_CMD_S_CCDC_RAW_PARAMS:
-		ret = -EINVAL;
-		v4l2_warn(&vpfe_dev->v4l2_dev,
-			"VPFE_CMD_S_CCDC_RAW_PARAMS not supported\n");
-		break;
-	default:
-		ret = -ENOTTY;
-	}
-unlock_out:
-	mutex_unlock(&vpfe_dev->lock);
-	return ret;
-}
-
-
 /* vpfe capture ioctl operations */
 static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 	.vidioc_querycap	 = vpfe_querycap,
@@ -1754,7 +1680,6 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 	.vidioc_cropcap		 = vpfe_cropcap,
 	.vidioc_g_selection	 = vpfe_g_selection,
 	.vidioc_s_selection	 = vpfe_s_selection,
-	.vidioc_default		 = vpfe_param_handler,
 };
 
 static struct vpfe_device *vpfe_initialize(void)
