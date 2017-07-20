@@ -438,7 +438,7 @@ static int snd_bcm2835_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 }
 
 /* operators */
-static struct snd_pcm_ops snd_bcm2835_playback_ops = {
+static const struct snd_pcm_ops snd_bcm2835_playback_ops = {
 	.open = snd_bcm2835_playback_open,
 	.close = snd_bcm2835_playback_close,
 	.ioctl = snd_bcm2835_pcm_lib_ioctl,
@@ -450,7 +450,7 @@ static struct snd_pcm_ops snd_bcm2835_playback_ops = {
 	.ack = snd_bcm2835_pcm_ack,
 };
 
-static struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
+static const struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
 	.open = snd_bcm2835_playback_spdif_open,
 	.close = snd_bcm2835_playback_close,
 	.ioctl = snd_bcm2835_pcm_lib_ioctl,
