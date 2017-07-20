@@ -42,52 +42,52 @@
  * an extra offset specified with reg_ofs.
  */
 #define REG_OFS_NONE	0
-#define REG_OFS_4	4 /* Insertion of "Layer Configuration 2" reg */
+#define REG_OFS_4	4		/* Insertion of "Layer Conf. 2" reg */
 #define REG_OFS		(ldev->caps.reg_ofs)
-#define LAY_OFS		0x80	/* Register Offset between 2 layers */
+#define LAY_OFS		0x80		/* Register Offset between 2 layers */
 
 /* Global register offsets */
-#define LTDC_IDR	0x0000 /* IDentification */
-#define LTDC_LCR	0x0004 /* Layer Count */
-#define LTDC_SSCR	0x0008 /* Synchronization Size Configuration */
-#define LTDC_BPCR	0x000C /* Back Porch Configuration */
-#define LTDC_AWCR	0x0010 /* Active Width Configuration */
-#define LTDC_TWCR	0x0014 /* Total Width Configuration */
-#define LTDC_GCR	0x0018 /* Global Control */
-#define LTDC_GC1R	0x001C /* Global Configuration 1 */
-#define LTDC_GC2R	0x0020 /* Global Configuration 2 */
-#define LTDC_SRCR	0x0024 /* Shadow Reload Configuration */
-#define LTDC_GACR	0x0028 /* GAmma Correction */
-#define LTDC_BCCR	0x002C /* Background Color Configuration */
-#define LTDC_IER	0x0034 /* Interrupt Enable */
-#define LTDC_ISR	0x0038 /* Interrupt Status */
-#define LTDC_ICR	0x003C /* Interrupt Clear */
-#define LTDC_LIPCR	0x0040 /* Line Interrupt Position Configuration */
-#define LTDC_CPSR	0x0044 /* Current Position Status */
-#define LTDC_CDSR	0x0048 /* Current Display Status */
+#define LTDC_IDR	0x0000		/* IDentification */
+#define LTDC_LCR	0x0004		/* Layer Count */
+#define LTDC_SSCR	0x0008		/* Synchronization Size Configuration */
+#define LTDC_BPCR	0x000C		/* Back Porch Configuration */
+#define LTDC_AWCR	0x0010		/* Active Width Configuration */
+#define LTDC_TWCR	0x0014		/* Total Width Configuration */
+#define LTDC_GCR	0x0018		/* Global Control */
+#define LTDC_GC1R	0x001C		/* Global Configuration 1 */
+#define LTDC_GC2R	0x0020		/* Global Configuration 2 */
+#define LTDC_SRCR	0x0024		/* Shadow Reload Configuration */
+#define LTDC_GACR	0x0028		/* GAmma Correction */
+#define LTDC_BCCR	0x002C		/* Background Color Configuration */
+#define LTDC_IER	0x0034		/* Interrupt Enable */
+#define LTDC_ISR	0x0038		/* Interrupt Status */
+#define LTDC_ICR	0x003C		/* Interrupt Clear */
+#define LTDC_LIPCR	0x0040		/* Line Interrupt Position Conf. */
+#define LTDC_CPSR	0x0044		/* Current Position Status */
+#define LTDC_CDSR	0x0048		/* Current Display Status */
 
 /* Layer register offsets */
-#define LTDC_L1LC1R	(0x0080)	   /* L1 Layer Configuration 1 */
-#define LTDC_L1LC2R	(0x0084)	   /* L1 Layer Configuration 2 */
-#define LTDC_L1CR	(0x0084 + REG_OFS) /* L1 Control */
-#define LTDC_L1WHPCR	(0x0088 + REG_OFS) /* L1 Window Hor Position Config */
-#define LTDC_L1WVPCR	(0x008C + REG_OFS) /* L1 Window Vert Position Config */
-#define LTDC_L1CKCR	(0x0090 + REG_OFS) /* L1 Color Keying Configuration */
-#define LTDC_L1PFCR	(0x0094 + REG_OFS) /* L1 Pixel Format Configuration */
-#define LTDC_L1CACR	(0x0098 + REG_OFS) /* L1 Constant Alpha Config */
-#define LTDC_L1DCCR	(0x009C + REG_OFS) /* L1 Default Color Configuration */
-#define LTDC_L1BFCR	(0x00A0 + REG_OFS) /* L1 Blend Factors Configuration */
-#define LTDC_L1FBBCR	(0x00A4 + REG_OFS) /* L1 FrameBuffer Bus Control */
-#define LTDC_L1AFBCR	(0x00A8 + REG_OFS) /* L1 AuxFB Control */
-#define LTDC_L1CFBAR	(0x00AC + REG_OFS) /* L1 Color FrameBuffer Address */
-#define LTDC_L1CFBLR	(0x00B0 + REG_OFS) /* L1 Color FrameBuffer Length */
-#define LTDC_L1CFBLNR	(0x00B4 + REG_OFS) /* L1 Color FrameBuffer Line Nb */
-#define LTDC_L1AFBAR	(0x00B8 + REG_OFS) /* L1 AuxFB Address */
-#define LTDC_L1AFBLR	(0x00BC + REG_OFS) /* L1 AuxFB Length */
-#define LTDC_L1AFBLNR	(0x00C0 + REG_OFS) /* L1 AuxFB Line Number */
-#define LTDC_L1CLUTWR	(0x00C4 + REG_OFS) /* L1 CLUT Write */
-#define LTDC_L1YS1R	(0x00E0 + REG_OFS) /* L1 YCbCr Scale 1 */
-#define LTDC_L1YS2R	(0x00E4 + REG_OFS) /* L1 YCbCr Scale 2 */
+#define LTDC_L1LC1R	(0x80)		/* L1 Layer Configuration 1 */
+#define LTDC_L1LC2R	(0x84)		/* L1 Layer Configuration 2 */
+#define LTDC_L1CR	(0x84 + REG_OFS)/* L1 Control */
+#define LTDC_L1WHPCR	(0x88 + REG_OFS)/* L1 Window Hor Position Config */
+#define LTDC_L1WVPCR	(0x8C + REG_OFS)/* L1 Window Vert Position Config */
+#define LTDC_L1CKCR	(0x90 + REG_OFS)/* L1 Color Keying Configuration */
+#define LTDC_L1PFCR	(0x94 + REG_OFS)/* L1 Pixel Format Configuration */
+#define LTDC_L1CACR	(0x98 + REG_OFS)/* L1 Constant Alpha Config */
+#define LTDC_L1DCCR	(0x9C + REG_OFS)/* L1 Default Color Configuration */
+#define LTDC_L1BFCR	(0xA0 + REG_OFS)/* L1 Blend Factors Configuration */
+#define LTDC_L1FBBCR	(0xA4 + REG_OFS)/* L1 FrameBuffer Bus Control */
+#define LTDC_L1AFBCR	(0xA8 + REG_OFS)/* L1 AuxFB Control */
+#define LTDC_L1CFBAR	(0xAC + REG_OFS)/* L1 Color FrameBuffer Address */
+#define LTDC_L1CFBLR	(0xB0 + REG_OFS)/* L1 Color FrameBuffer Length */
+#define LTDC_L1CFBLNR	(0xB4 + REG_OFS)/* L1 Color FrameBuffer Line Nb */
+#define LTDC_L1AFBAR	(0xB8 + REG_OFS)/* L1 AuxFB Address */
+#define LTDC_L1AFBLR	(0xBC + REG_OFS)/* L1 AuxFB Length */
+#define LTDC_L1AFBLNR	(0xC0 + REG_OFS)/* L1 AuxFB Line Number */
+#define LTDC_L1CLUTWR	(0xC4 + REG_OFS)/* L1 CLUT Write */
+#define LTDC_L1YS1R	(0xE0 + REG_OFS)/* L1 YCbCr Scale 1 */
+#define LTDC_L1YS2R	(0xE4 + REG_OFS)/* L1 YCbCr Scale 2 */
 
 /* Bit definitions */
 #define SSCR_VSH	GENMASK(10, 0)	/* Vertical Synchronization Height */
@@ -172,52 +172,52 @@
 #define LXCFBLR_CFBLL	GENMASK(12, 0)	/* Color Frame Buffer Line Length */
 #define LXCFBLR_CFBP	GENMASK(28, 16)	/* Color Frame Buffer Pitch in bytes */
 
-#define LXCFBLNR_CFBLN	GENMASK(10, 0)	 /* Color Frame Buffer Line Number */
+#define LXCFBLNR_CFBLN	GENMASK(10, 0)	/* Color Frame Buffer Line Number */
 
-#define CONSTA_MAX 0xFF		/* CONSTant Alpha MAX= 1.0 */
-#define BF1_PAXCA  0x600	/* Pixel Alpha x Constant Alpha */
-#define BF1_CA     0x400	/* Constant Alpha */
-#define BF2_1PAXCA 0x007	/* 1 - (Pixel Alpha x Constant Alpha) */
-#define BF2_1CA	   0x005	/* 1 - Constant Alpha */
+#define CONSTA_MAX	0xFF		/* CONSTant Alpha MAX= 1.0 */
+#define BF1_PAXCA	0x600		/* Pixel Alpha x Constant Alpha */
+#define BF1_CA		0x400		/* Constant Alpha */
+#define BF2_1PAXCA	0x007		/* 1 - (Pixel Alpha x Constant Alpha) */
+#define BF2_1CA		0x005		/* 1 - Constant Alpha */
 
-#define NB_PF           8       /* Max nb of HW pixel format */
+#define NB_PF		8		/* Max nb of HW pixel format */
 
 enum ltdc_pix_fmt {
 	PF_NONE,
 	/* RGB formats */
-	PF_ARGB8888,    /* ARGB [32 bits] */
-	PF_RGBA8888,    /* RGBA [32 bits] */
-	PF_RGB888,      /* RGB [24 bits] */
-	PF_RGB565,      /* RGB [16 bits] */
-	PF_ARGB1555,    /* ARGB A:1 bit RGB:15 bits [16 bits] */
-	PF_ARGB4444,    /* ARGB A:4 bits R/G/B: 4 bits each [16 bits] */
+	PF_ARGB8888,		/* ARGB [32 bits] */
+	PF_RGBA8888,		/* RGBA [32 bits] */
+	PF_RGB888,		/* RGB [24 bits] */
+	PF_RGB565,		/* RGB [16 bits] */
+	PF_ARGB1555,		/* ARGB A:1 bit RGB:15 bits [16 bits] */
+	PF_ARGB4444,		/* ARGB A:4 bits R/G/B: 4 bits each [16 bits] */
 	/* Indexed formats */
-	PF_L8,          /* Indexed 8 bits [8 bits] */
-	PF_AL44,        /* Alpha:4 bits + indexed 4 bits [8 bits] */
-	PF_AL88         /* Alpha:8 bits + indexed 8 bits [16 bits] */
+	PF_L8,			/* Indexed 8 bits [8 bits] */
+	PF_AL44,		/* Alpha:4 bits + indexed 4 bits [8 bits] */
+	PF_AL88			/* Alpha:8 bits + indexed 8 bits [16 bits] */
 };
 
 /* The index gives the encoding of the pixel format for an HW version */
 static const enum ltdc_pix_fmt ltdc_pix_fmt_a0[NB_PF] = {
-	PF_ARGB8888,	/* 0x00 */
-	PF_RGB888,	/* 0x01 */
-	PF_RGB565,	/* 0x02 */
-	PF_ARGB1555,	/* 0x03 */
-	PF_ARGB4444,	/* 0x04 */
-	PF_L8,		/* 0x05 */
-	PF_AL44,	/* 0x06 */
-	PF_AL88		/* 0x07 */
+	PF_ARGB8888,		/* 0x00 */
+	PF_RGB888,		/* 0x01 */
+	PF_RGB565,		/* 0x02 */
+	PF_ARGB1555,		/* 0x03 */
+	PF_ARGB4444,		/* 0x04 */
+	PF_L8,			/* 0x05 */
+	PF_AL44,		/* 0x06 */
+	PF_AL88			/* 0x07 */
 };
 
 static const enum ltdc_pix_fmt ltdc_pix_fmt_a1[NB_PF] = {
-	PF_ARGB8888,	/* 0x00 */
-	PF_RGB888,	/* 0x01 */
-	PF_RGB565,	/* 0x02 */
-	PF_RGBA8888,	/* 0x03 */
-	PF_AL44,	/* 0x04 */
-	PF_L8,		/* 0x05 */
-	PF_ARGB1555,	/* 0x06 */
-	PF_ARGB4444	/* 0x07 */
+	PF_ARGB8888,		/* 0x00 */
+	PF_RGB888,		/* 0x01 */
+	PF_RGB565,		/* 0x02 */
+	PF_RGBA8888,		/* 0x03 */
+	PF_AL44,		/* 0x04 */
+	PF_L8,			/* 0x05 */
+	PF_ARGB1555,		/* 0x06 */
+	PF_ARGB4444		/* 0x07 */
 };
 
 static inline u32 reg_read(void __iomem *base, u32 reg)
@@ -294,7 +294,7 @@ static inline enum ltdc_pix_fmt to_ltdc_pixelformat(u32 drm_fmt)
 	default:
 		pf = PF_NONE;
 		break;
-	/* Note: There are no DRM_FORMAT for AL44 and AL88 */
+		/* Note: There are no DRM_FORMAT for AL44 and AL88 */
 	}
 
 	return pf;
@@ -317,8 +317,8 @@ static inline u32 to_drm_pixelformat(enum ltdc_pix_fmt pf)
 		return DRM_FORMAT_ARGB4444;
 	case PF_L8:
 		return DRM_FORMAT_C8;
-	case PF_AL44: /* No DRM support */
-	case PF_AL88: /* No DRM support */
+	case PF_AL44:		/* No DRM support */
+	case PF_AL88:		/* No DRM support */
 	case PF_NONE:
 	default:
 		return 0;
@@ -602,11 +602,11 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
 
-	DRM_DEBUG_DRIVER(
-		"plane:%d fb:%d (%dx%d)@(%d,%d) -> (%dx%d)@(%d,%d)\n",
-		plane->base.id, fb->base.id,
-		src_w, src_h, src_x, src_y,
-		state->crtc_w, state->crtc_h, state->crtc_x, state->crtc_y);
+	DRM_DEBUG_DRIVER("plane:%d fb:%d (%dx%d)@(%d,%d) -> (%dx%d)@(%d,%d)\n",
+			 plane->base.id, fb->base.id,
+			 src_w, src_h, src_x, src_y,
+			 state->crtc_w, state->crtc_h,
+			 state->crtc_x, state->crtc_y);
 
 	bpcr = reg_read(ldev->regs, LTDC_BPCR);
 	ahbp = (bpcr & BPCR_AHBP) >> 16;
@@ -631,7 +631,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	if (val == NB_PF) {
 		DRM_ERROR("Pixel format %.4s not supported\n",
 			  (char *)&fb->format->format);
-		val = 0; /* set by default ARGB 32 bits */
+		val = 0;	/* set by default ARGB 32 bits */
 	}
 	reg_update_bits(ldev->regs, LTDC_L1PFCR + lofs, LXPFCR_PF, val);
 
@@ -645,8 +645,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 
 	/* Specifies the constant alpha value */
 	val = CONSTA_MAX;
-	reg_update_bits(ldev->regs, LTDC_L1CACR + lofs,
-			LXCACR_CONSTA, val);
+	reg_update_bits(ldev->regs, LTDC_L1CACR + lofs, LXCACR_CONSTA, val);
 
 	/* Specifies the blending factors */
 	val = BF1_PAXCA | BF2_1PAXCA;
@@ -655,8 +654,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 
 	/* Configures the frame buffer line number */
 	val = y1 - y0 + 1;
-	reg_update_bits(ldev->regs, LTDC_L1CFBLNR + lofs,
-			LXCFBLNR_CFBLN, val);
+	reg_update_bits(ldev->regs, LTDC_L1CFBLNR + lofs, LXCFBLNR_CFBLN, val);
 
 	/* Sets the FB address */
 	paddr = (u32)drm_fb_cma_get_gem_addr(fb, state, 0);
@@ -817,7 +815,7 @@ static int ltdc_encoder_init(struct drm_device *ddev)
 		return -ENOMEM;
 
 	encoder->possible_crtcs = CRTC_MASK;
-	encoder->possible_clones = 0; /* No cloning support */
+	encoder->possible_clones = 0;	/* No cloning support */
 
 	drm_encoder_init(ddev, encoder, &ltdc_encoder_funcs,
 			 DRM_MODE_ENCODER_DPI, NULL);
