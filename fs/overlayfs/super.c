@@ -692,7 +692,7 @@ ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
 			struct dentry *dentry, struct inode *inode,
 			const char *name, void *buffer, size_t size)
 {
-	return ovl_xattr_get(dentry, handler->name, buffer, size);
+	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
 }
 
 static int __maybe_unused
@@ -742,7 +742,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 			return err;
 	}
 
-	err = ovl_xattr_set(dentry, handler->name, value, size, flags);
+	err = ovl_xattr_set(dentry, inode, handler->name, value, size, flags);
 	if (!err)
 		ovl_copyattr(ovl_inode_real(inode), inode);
 
@@ -772,7 +772,7 @@ static int ovl_other_xattr_get(const struct xattr_handler *handler,
 			       struct dentry *dentry, struct inode *inode,
 			       const char *name, void *buffer, size_t size)
 {
-	return ovl_xattr_get(dentry, name, buffer, size);
+	return ovl_xattr_get(dentry, inode, name, buffer, size);
 }
 
 static int ovl_other_xattr_set(const struct xattr_handler *handler,
@@ -780,7 +780,7 @@ static int ovl_other_xattr_set(const struct xattr_handler *handler,
 			       const char *name, const void *value,
 			       size_t size, int flags)
 {
-	return ovl_xattr_set(dentry, name, value, size, flags);
+	return ovl_xattr_set(dentry, inode, name, value, size, flags);
 }
 
 static const struct xattr_handler __maybe_unused
