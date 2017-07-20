@@ -365,20 +365,25 @@ static int inno_hdmi_phy_power_on(struct phy *phy)
 	struct inno_hdmi_phy *inno = phy_get_drvdata(phy);
 	const struct post_pll_config *cfg = post_pll_cfg_table;
 	const struct phy_config *phy_cfg = inno->plat_data->phy_cfg_table;
-	u32 tmdsclk = inno_hdmi_phy_get_tmdsclk(inno, inno->pixclock);
+	u32 tmdsclock = inno_hdmi_phy_get_tmdsclk(inno, inno->pixclock);
 	u32 chipversion = 1;
+
+	if (!tmdsclock) {
+		dev_err(inno->dev, "TMDS clock is zero!\n");
+		return -EINVAL;
+	}
 
 	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3328 &&
 	    rockchip_get_cpu_version())
 		chipversion = 2;
 
 	for (; cfg->tmdsclock != ~0UL; cfg++)
-		if (tmdsclk <= cfg->tmdsclock &&
+		if (tmdsclock <= cfg->tmdsclock &&
 		    cfg->version & chipversion)
 			break;
 
 	for (; phy_cfg->tmdsclock != ~0UL; phy_cfg++)
-		if (tmdsclk <= phy_cfg->tmdsclock)
+		if (tmdsclock <= phy_cfg->tmdsclock)
 			break;
 
 	if (cfg->tmdsclock == ~0UL || phy_cfg->tmdsclock == ~0UL)
@@ -444,7 +449,7 @@ static void inno_hdmi_phy_clk_unprepare(struct clk_hw *hw)
 		inno_update_bits(inno, 0xe0, PRE_PLL_POWER_MASK,
 				 PRE_PLL_POWER_DOWN);
 	else
-		inno_update_bits(inno, 0xa0, 1, 0);
+		inno_update_bits(inno, 0xa0, 1, 1);
 }
 
 static unsigned long inno_hdmi_phy_clk_recalc_rate(struct clk_hw *hw,
@@ -482,10 +487,13 @@ static int inno_hdmi_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct inno_hdmi_phy *inno = to_inno_hdmi_phy(hw);
 	const struct pre_pll_config *cfg = pre_pll_cfg_table;
-	u32 tmdsclk = inno_hdmi_phy_get_tmdsclk(inno, rate);
+	u32 tmdsclock = inno_hdmi_phy_get_tmdsclk(inno, rate);
+
+	dev_dbg(inno->dev, "%s rate %lu tmdsclk %u\n",
+		__func__, rate, tmdsclock);
 
 	for (; cfg->pixclock != ~0UL; cfg++)
-		if (cfg->pixclock == rate && cfg->tmdsclock == tmdsclk)
+		if (cfg->pixclock == rate && cfg->tmdsclock == tmdsclock)
 			break;
 
 	if (cfg->pixclock == ~0UL) {
@@ -900,6 +908,10 @@ inno_hdmi_3328_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
 		else
 			rate = vco / (nd * no_a * no_d * 2);
 	}
+
+	inno->pixclock = rate;
+
+	dev_dbg(inno->dev, "%s rate %lu\n", __func__, inno->pixclock);
 
 	return rate;
 }
