@@ -235,7 +235,7 @@ static int ads1015_set_power_state(struct ads1015_data *data, bool on)
 		ret = pm_runtime_put_autosuspend(dev);
 	}
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static
