@@ -242,27 +242,34 @@ static
 int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
 {
 	int ret, pga, dr, conv_time;
-	bool change;
+	unsigned int old, mask, cfg;
 
 	if (chan < 0 || chan >= ADS1015_CHANNELS)
 		return -EINVAL;
 
-	pga = data->channel_data[chan].pga;
-	dr = data->channel_data[chan].data_rate;
-
-	ret = regmap_update_bits_check(data->regmap, ADS1015_CFG_REG,
-				       ADS1015_CFG_MUX_MASK |
-				       ADS1015_CFG_PGA_MASK |
-				       ADS1015_CFG_DR_MASK,
-				       chan << ADS1015_CFG_MUX_SHIFT |
-				       pga << ADS1015_CFG_PGA_SHIFT |
-				       dr << ADS1015_CFG_DR_SHIFT,
-				       &change);
-	if (ret < 0)
+	ret = regmap_read(data->regmap, ADS1015_CFG_REG, &old);
+	if (ret)
 		return ret;
 
-	if (change || data->conv_invalid) {
-		conv_time = DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr]);
+	pga = data->channel_data[chan].pga;
+	dr = data->channel_data[chan].data_rate;
+	mask = ADS1015_CFG_MUX_MASK | ADS1015_CFG_PGA_MASK |
+		ADS1015_CFG_DR_MASK;
+	cfg = chan << ADS1015_CFG_MUX_SHIFT | pga << ADS1015_CFG_PGA_SHIFT |
+		dr << ADS1015_CFG_DR_SHIFT;
+
+	cfg = (old & ~mask) | (cfg & mask);
+
+	ret = regmap_write(data->regmap, ADS1015_CFG_REG, cfg);
+	if (ret)
+		return ret;
+
+	if (old != cfg || data->conv_invalid) {
+		int dr_old = (old & ADS1015_CFG_DR_MASK) >>
+				ADS1015_CFG_DR_SHIFT;
+
+		conv_time = DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr_old]);
+		conv_time += DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr]);
 		usleep_range(conv_time, conv_time + 1);
 		data->conv_invalid = false;
 	}
