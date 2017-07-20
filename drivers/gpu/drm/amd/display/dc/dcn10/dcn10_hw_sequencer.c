@@ -1669,29 +1669,45 @@ static void dcn10_apply_ctx_for_surface(
 		struct core_surface *surface,
 		struct validate_context *context)
 {
-	int i;
+	int i, be_idx;
 
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
+
+	if (!surface)
+		return;
+
+	for (be_idx = 0; be_idx < dc->res_pool->pipe_count; be_idx++)
+		if (surface == context->res_ctx.pipe_ctx[be_idx].surface)
+			break;
 
 	/* reset unused mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->surface && !old_pipe_ctx->surface)
+			continue;
+
 		/*
 		 * Powergate reused pipes that are not powergated
 		 * fairly hacky right now, using opp_id as indicator
 		 */
+
 		if (pipe_ctx->surface && !old_pipe_ctx->surface) {
-			if (pipe_ctx->mpcc->opp_id != 0xf)
+			if (pipe_ctx->mpcc->opp_id != 0xf && pipe_ctx->tg->inst == be_idx)
 				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
 		}
+
 
 		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
 			struct mpcc_cfg mpcc_cfg;
 			int opp_id_cached = old_pipe_ctx->mpcc->opp_id;
+
+			if (old_pipe_ctx->tg->inst != be_idx)
+				continue;
 
 			if (!old_pipe_ctx->top_pipe) {
 				ASSERT(0);
@@ -1724,9 +1740,6 @@ static void dcn10_apply_ctx_for_surface(
 					old_pipe_ctx->pipe_idx);
 		}
 	}
-
-	if (!surface)
-		return;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
