@@ -760,7 +760,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 	struct ltdc_device *ldev = ddev->dev_private;
 	struct drm_plane *primary, *overlay;
 	unsigned int i;
-	int res;
+	int ret;
 
 	primary = ltdc_plane_create(ddev, DRM_PLANE_TYPE_PRIMARY);
 	if (!primary) {
@@ -768,9 +768,9 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 		return -EINVAL;
 	}
 
-	res = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
+	ret = drm_crtc_init_with_planes(ddev, crtc, primary, NULL,
 					&ltdc_crtc_funcs, NULL);
-	if (res) {
+	if (ret) {
 		DRM_ERROR("Can not initialize CRTC\n");
 		goto cleanup;
 	}
@@ -783,7 +783,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 	for (i = 1; i < ldev->caps.nb_layers; i++) {
 		overlay = ltdc_plane_create(ddev, DRM_PLANE_TYPE_OVERLAY);
 		if (!overlay) {
-			res = -ENOMEM;
+			ret = -ENOMEM;
 			DRM_ERROR("Can not create overlay plane %d\n", i);
 			goto cleanup;
 		}
@@ -793,7 +793,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 
 cleanup:
 	ltdc_plane_destroy_all(ddev);
-	return res;
+	return ret;
 }
 
 /*
