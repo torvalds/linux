@@ -312,28 +312,18 @@ static int ads1015_set_scale(struct ads1015_data *data,
 			     struct iio_chan_spec const *chan,
 			     int scale, int uscale)
 {
-	int i, ret, rindex = -1;
+	int i;
 	int fullscale = div_s64((scale * 1000000LL + uscale) <<
 				(chan->scan_type.realbits - 1), 1000000);
 
 	for (i = 0; i < ARRAY_SIZE(ads1015_fullscale_range); i++) {
 		if (ads1015_fullscale_range[i] == fullscale) {
-			rindex = i;
-			break;
+			data->channel_data[chan->address].pga = i;
+			return 0;
 		}
 	}
-	if (rindex < 0)
-		return -EINVAL;
 
-	ret = regmap_update_bits(data->regmap, ADS1015_CFG_REG,
-				 ADS1015_CFG_PGA_MASK,
-				 rindex << ADS1015_CFG_PGA_SHIFT);
-	if (ret < 0)
-		return ret;
-
-	data->channel_data[chan->address].pga = rindex;
-
-	return 0;
+	return -EINVAL;
 }
 
 static int ads1015_set_data_rate(struct ads1015_data *data, int chan, int rate)
