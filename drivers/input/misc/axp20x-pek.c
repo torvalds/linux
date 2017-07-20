@@ -182,13 +182,6 @@ static irqreturn_t axp20x_pek_irq(int irq, void *pwr)
 	return IRQ_HANDLED;
 }
 
-static void axp20x_remove_sysfs_group(void *_data)
-{
-	struct device *dev = _data;
-
-	sysfs_remove_group(&dev->kobj, &axp20x_attribute_group);
-}
-
 static int axp20x_pek_probe_input_device(struct axp20x_pek *axp20x_pek,
 					 struct platform_device *pdev)
 {
@@ -310,18 +303,9 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 			return error;
 	}
 
-	error = sysfs_create_group(&pdev->dev.kobj, &axp20x_attribute_group);
+	error = devm_device_add_group(&pdev->dev, &axp20x_attribute_group);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to create sysfs attributes: %d\n",
-			error);
-		return error;
-	}
-
-	error = devm_add_action(&pdev->dev,
-				axp20x_remove_sysfs_group, &pdev->dev);
-	if (error) {
-		axp20x_remove_sysfs_group(&pdev->dev);
-		dev_err(&pdev->dev, "Failed to add sysfs cleanup action: %d\n",
 			error);
 		return error;
 	}
