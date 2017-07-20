@@ -1089,9 +1089,12 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		mutex_unlock(&fw_lock);
 	}
 
-	if (fw_state_is_aborted(&buf->fw_st))
-		retval = -EAGAIN;
-	else if (buf->is_paged_buf && !buf->data)
+	if (fw_state_is_aborted(&buf->fw_st)) {
+		if (retval == -ERESTARTSYS)
+			retval = -EINTR;
+		else
+			retval = -EAGAIN;
+	} else if (buf->is_paged_buf && !buf->data)
 		retval = -ENOMEM;
 
 	device_del(f_dev);
