@@ -3405,14 +3405,6 @@ static void skylake_disable_primary_plane(struct intel_plane *primary,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void intel_complete_page_flips(struct drm_i915_private *dev_priv)
-{
-	struct intel_crtc *crtc;
-
-	for_each_intel_crtc(&dev_priv->drm, crtc)
-		intel_finish_page_flip_cs(dev_priv, crtc->pipe);
-}
-
 static int
 __intel_display_resume(struct drm_device *dev,
 		       struct drm_atomic_state *state,
@@ -3520,13 +3512,6 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 
 	if (!state)
 		goto unlock;
-
-	/*
-	 * Flips in the rings will be nuked by the reset,
-	 * so complete all pending flips so that user space
-	 * will get its events and not get stuck.
-	 */
-	intel_complete_page_flips(dev_priv);
 
 	dev_priv->modeset_restore_state = NULL;
 
@@ -10121,140 +10106,6 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 	kfree(intel_crtc);
 }
 
-/* Is 'a' after or equal to 'b'? */
-static bool g4x_flip_count_after_eq(u32 a, u32 b)
-{
-	return !((a - b) & 0x80000000);
-}
-
-static bool __pageflip_finished_cs(struct intel_crtc *crtc,
-				   struct intel_flip_work *work)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (abort_flip_on_reset(crtc))
-		return true;
-
-	/*
-	 * The relevant registers doen't exist on pre-ctg.
-	 * As the flip done interrupt doesn't trigger for mmio
-	 * flips on gmch platforms, a flip count check isn't
-	 * really needed there. But since ctg has the registers,
-	 * include it in the check anyway.
-	 */
-	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
-		return true;
-
-	/*
-	 * BDW signals flip done immediately if the plane
-	 * is disabled, even if the plane enable is already
-	 * armed to occur at the next vblank :(
-	 */
-
-	/*
-	 * A DSPSURFLIVE check isn't enough in case the mmio and CS flips
-	 * used the same base address. In that case the mmio flip might
-	 * have completed, but the CS hasn't even executed the flip yet.
-	 *
-	 * A flip count check isn't enough as the CS might have updated
-	 * the base address just after start of vblank, but before we
-	 * managed to process the interrupt. This means we'd complete the
-	 * CS flip too soon.
-	 *
-	 * Combining both checks should get us a good enough result. It may
-	 * still happen that the CS flip has been executed, but has not
-	 * yet actually completed. But in case the base address is the same
-	 * anyway, we don't really care.
-	 */
-	return (I915_READ(DSPSURFLIVE(crtc->plane)) & ~0xfff) ==
-		crtc->flip_work->gtt_offset &&
-		g4x_flip_count_after_eq(I915_READ(PIPE_FLIPCOUNT_G4X(crtc->pipe)),
-				    crtc->flip_work->flip_count);
-}
-
-static bool
-__pageflip_finished_mmio(struct intel_crtc *crtc,
-			       struct intel_flip_work *work)
-{
-	/*
-	 * MMIO work completes when vblank is different from
-	 * flip_queued_vblank.
-	 *
-	 * Reset counter value doesn't matter, this is handled by
-	 * i915_wait_request finishing early, so no need to handle
-	 * reset here.
-	 */
-	return intel_crtc_get_vblank_counter(crtc) != work->flip_queued_vblank;
-}
-
-
-static bool pageflip_finished(struct intel_crtc *crtc,
-			      struct intel_flip_work *work)
-{
-	if (!atomic_read(&work->pending))
-		return false;
-
-	smp_rmb();
-
-	if (is_mmio_work(work))
-		return __pageflip_finished_mmio(crtc, work);
-	else
-		return __pageflip_finished_cs(crtc, work);
-}
-
-void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe)
-{
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	struct intel_flip_work *work;
-	unsigned long flags;
-
-	/* Ignore early vblank irqs */
-	if (!crtc)
-		return;
-
-	/*
-	 * This is called both by irq handlers and the reset code (to complete
-	 * lost pageflips) so needs the full irqsave spinlocks.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	work = crtc->flip_work;
-
-	if (work != NULL &&
-	    !is_mmio_work(work) &&
-	    pageflip_finished(crtc, work))
-		page_flip_completed(crtc);
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
-void intel_finish_page_flip_mmio(struct drm_i915_private *dev_priv, int pipe)
-{
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	struct intel_flip_work *work;
-	unsigned long flags;
-
-	/* Ignore early vblank irqs */
-	if (!crtc)
-		return;
-
-	/*
-	 * This is called both by irq handlers and the reset code (to complete
-	 * lost pageflips) so needs the full irqsave spinlocks.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	work = crtc->flip_work;
-
-	if (work != NULL &&
-	    is_mmio_work(work) &&
-	    pageflip_finished(crtc, work))
-		page_flip_completed(crtc);
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
 static inline void intel_mark_page_flip_active(struct intel_crtc *crtc,
 					       struct intel_flip_work *work)
 {
@@ -10263,72 +10114,6 @@ static inline void intel_mark_page_flip_active(struct intel_crtc *crtc,
 	/* Ensure that the work item is consistent when activating it ... */
 	smp_mb__before_atomic();
 	atomic_set(&work->pending, 1);
-}
-
-static bool __pageflip_stall_check_cs(struct drm_i915_private *dev_priv,
-				      struct intel_crtc *intel_crtc,
-				      struct intel_flip_work *work)
-{
-	u32 addr, vblank;
-
-	if (!atomic_read(&work->pending))
-		return false;
-
-	smp_rmb();
-
-	vblank = intel_crtc_get_vblank_counter(intel_crtc);
-	if (work->flip_ready_vblank == 0) {
-		if (work->flip_queued_req &&
-		    !i915_gem_request_completed(work->flip_queued_req))
-			return false;
-
-		work->flip_ready_vblank = vblank;
-	}
-
-	if (vblank - work->flip_ready_vblank < 3)
-		return false;
-
-	/* Potential stall - if we see that the flip has happened,
-	 * assume a missed interrupt. */
-	if (INTEL_GEN(dev_priv) >= 4)
-		addr = I915_HI_DISPBASE(I915_READ(DSPSURF(intel_crtc->plane)));
-	else
-		addr = I915_READ(DSPADDR(intel_crtc->plane));
-
-	/* There is a potential issue here with a false positive after a flip
-	 * to the same address. We could address this by checking for a
-	 * non-incrementing frame counter.
-	 */
-	return addr == work->gtt_offset;
-}
-
-void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe)
-{
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-	struct intel_flip_work *work;
-
-	WARN_ON(!in_interrupt());
-
-	if (crtc == NULL)
-		return;
-
-	spin_lock(&dev->event_lock);
-	work = crtc->flip_work;
-
-	if (work != NULL && !is_mmio_work(work) &&
-	    __pageflip_stall_check_cs(dev_priv, crtc, work)) {
-		WARN_ONCE(1,
-			  "Kicking stuck page flip: queued at %d, now %d\n",
-			work->flip_queued_vblank, intel_crtc_get_vblank_counter(crtc));
-		page_flip_completed(crtc);
-		work = NULL;
-	}
-
-	if (work != NULL && !is_mmio_work(work) &&
-	    intel_crtc_get_vblank_counter(crtc) - work->flip_queued_vblank > 1)
-		intel_queue_rps_boost_for_request(work->flip_queued_req);
-	spin_unlock(&dev->event_lock);
 }
 
 /**

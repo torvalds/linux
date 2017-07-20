@@ -1408,9 +1408,6 @@ void intel_unpin_fb_vma(struct i915_vma *vma);
 struct drm_framebuffer *
 intel_framebuffer_create(struct drm_i915_gem_object *obj,
 			 struct drm_mode_fb_cmd2 *mode_cmd);
-void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe);
-void intel_finish_page_flip_mmio(struct drm_i915_private *dev_priv, int pipe);
-void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe);
 int intel_prepare_plane_fb(struct drm_plane *plane,
 			   struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
