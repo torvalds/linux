@@ -3311,7 +3311,7 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	plane_ctl = PLANE_CTL_ENABLE;
 
-	if (!IS_GEMINILAKE(dev_priv)) {
+	if (!IS_GEMINILAKE(dev_priv) && !IS_CANNONLAKE(dev_priv)) {
 		plane_ctl |=
 			PLANE_CTL_PIPE_GAMMA_ENABLE |
 			PLANE_CTL_PIPE_CSC_ENABLE |
@@ -3367,7 +3367,7 @@ static void skylake_update_primary_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (IS_GEMINILAKE(dev_priv)) {
+	if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
 			      PLANE_COLOR_PIPE_GAMMA_ENABLE |
 			      PLANE_COLOR_PIPE_CSC_ENABLE |
@@ -4612,6 +4612,9 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		&crtc_state->scaler_state;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 	int need_scaling;
 
 	/*
@@ -4620,6 +4623,18 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 * GTT mapping), hence no need to account for rotation here.
 	 */
 	need_scaling = src_w != dst_w || src_h != dst_h;
+
+	/*
+	 * Scaling/fitting not supported in IF-ID mode in GEN9+
+	 * TODO: Interlace fetch mode doesn't support YUV420 planar formats.
+	 * Once NV12 is enabled, handle it here while allocating scaler
+	 * for NV12.
+	 */
+	if (INTEL_GEN(dev_priv) >= 9 && crtc_state->base.enable &&
+	    need_scaling && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		DRM_DEBUG_KMS("Pipe/Plane scaling not supported with IF-ID mode\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * if plane is being disabled or scaler is no more required or force detach
@@ -14765,6 +14780,17 @@ static void quirk_backlight_present(struct drm_device *dev)
 	DRM_INFO("applying backlight present quirk\n");
 }
 
+/* Toshiba Satellite P50-C-18C requires T12 delay to be min 800ms
+ * which is 300 ms greater than eDP spec T12 min.
+ */
+static void quirk_increase_t12_delay(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	dev_priv->quirks |= QUIRK_INCREASE_T12_DELAY;
+	DRM_INFO("Applying T12 delay quirk\n");
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
@@ -14848,6 +14874,9 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Dell Chromebook 11 (2015 version) */
 	{ 0x0a16, 0x1028, 0x0a35, quirk_backlight_present },
+
+	/* Toshiba Satellite P50-C-18C */
+	{ 0x191B, 0x1179, 0xF840, quirk_increase_t12_delay },
 };
 
 static void intel_init_quirks(struct drm_device *dev)

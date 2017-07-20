@@ -1091,18 +1091,6 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 	return events;
 }
 
-static bool any_waiters(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		if (intel_engine_has_waiter(engine))
-			return true;
-
-	return false;
-}
-
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -1114,7 +1102,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->rps.interrupts_enabled) {
 		pm_iir = fetch_and_zero(&dev_priv->rps.pm_iir);
-		client_boost = fetch_and_zero(&dev_priv->rps.client_boost);
+		client_boost = atomic_read(&dev_priv->rps.num_waiters);
 	}
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -1131,7 +1119,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	new_delay = dev_priv->rps.cur_freq;
 	min = dev_priv->rps.min_freq_softlimit;
 	max = dev_priv->rps.max_freq_softlimit;
-	if (client_boost || any_waiters(dev_priv))
+	if (client_boost)
 		max = dev_priv->rps.max_freq;
 	if (client_boost && new_delay < dev_priv->rps.boost_freq) {
 		new_delay = dev_priv->rps.boost_freq;
@@ -1144,7 +1132,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 		if (new_delay >= dev_priv->rps.max_freq_softlimit)
 			adj = 0;
-	} else if (client_boost || any_waiters(dev_priv)) {
+	} else if (client_boost) {
 		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
 		if (dev_priv->rps.cur_freq > dev_priv->rps.efficient_freq)
@@ -2599,60 +2587,93 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	return ret;
 }
 
+struct wedge_me {
+	struct delayed_work work;
+	struct drm_i915_private *i915;
+	const char *name;
+};
+
+static void wedge_me(struct work_struct *work)
+{
+	struct wedge_me *w = container_of(work, typeof(*w), work.work);
+
+	dev_err(w->i915->drm.dev,
+		"%s timed out, cancelling all in-flight rendering.\n",
+		w->name);
+	i915_gem_set_wedged(w->i915);
+}
+
+static void __init_wedge(struct wedge_me *w,
+			 struct drm_i915_private *i915,
+			 long timeout,
+			 const char *name)
+{
+	w->i915 = i915;
+	w->name = name;
+
+	INIT_DELAYED_WORK_ONSTACK(&w->work, wedge_me);
+	schedule_delayed_work(&w->work, timeout);
+}
+
+static void __fini_wedge(struct wedge_me *w)
+{
+	cancel_delayed_work_sync(&w->work);
+	destroy_delayed_work_on_stack(&w->work);
+	w->i915 = NULL;
+}
+
+#define i915_wedge_on_timeout(W, DEV, TIMEOUT)				\
+	for (__init_wedge((W), (DEV), (TIMEOUT), __func__);		\
+	     (W)->i915;							\
+	     __fini_wedge((W)))
+
 /**
- * i915_reset_and_wakeup - do process context error handling work
+ * i915_reset_device - do process context error handling work
  * @dev_priv: i915 device private
  *
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
  */
-static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
+static void i915_reset_device(struct drm_i915_private *dev_priv)
 {
 	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
+	struct wedge_me w;
 
 	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
 	DRM_DEBUG_DRIVER("resetting chip\n");
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
-	intel_prepare_reset(dev_priv);
+	/* Use a watchdog to ensure that our reset completes */
+	i915_wedge_on_timeout(&w, dev_priv, 5*HZ) {
+		intel_prepare_reset(dev_priv);
 
-	set_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags);
-	wake_up_all(&dev_priv->gpu_error.wait_queue);
+		/* Signal that locked waiters should reset the GPU */
+		set_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags);
+		wake_up_all(&dev_priv->gpu_error.wait_queue);
 
-	do {
-		/*
-		 * All state reset _must_ be completed before we update the
-		 * reset counter, for otherwise waiters might miss the reset
-		 * pending state and not properly drop locks, resulting in
-		 * deadlocks with the reset work.
+		/* Wait for anyone holding the lock to wakeup, without
+		 * blocking indefinitely on struct_mutex.
 		 */
-		if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
-			i915_reset(dev_priv);
-			mutex_unlock(&dev_priv->drm.struct_mutex);
-		}
+		do {
+			if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
+				i915_reset(dev_priv);
+				mutex_unlock(&dev_priv->drm.struct_mutex);
+			}
+		} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
+					     I915_RESET_HANDOFF,
+					     TASK_UNINTERRUPTIBLE,
+					     1));
 
-		/* We need to wait for anyone holding the lock to wakeup */
-	} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
-				     I915_RESET_HANDOFF,
-				     TASK_UNINTERRUPTIBLE,
-				     HZ));
-
-	intel_finish_reset(dev_priv);
+		intel_finish_reset(dev_priv);
+	}
 
 	if (!test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
 		kobject_uevent_env(kobj,
 				   KOBJ_CHANGE, reset_done_event);
-
-	/*
-	 * Note: The wake_up also serves as a memory barrier so that
-	 * waiters see the updated value of the dev_priv->gpu_error.
-	 */
-	clear_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags);
-	wake_up_all(&dev_priv->gpu_error.reset_queue);
 }
 
 static inline void
@@ -2722,6 +2743,8 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 		       u32 engine_mask,
 		       const char *fmt, ...)
 {
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
 	va_list args;
 	char error_msg[80];
 
@@ -2741,14 +2764,56 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	i915_capture_error_state(dev_priv, engine_mask, error_msg);
 	i915_clear_error_registers(dev_priv);
 
+	/*
+	 * Try engine reset when available. We fall back to full reset if
+	 * single reset fails.
+	 */
+	if (intel_has_reset_engine(dev_priv)) {
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+			BUILD_BUG_ON(I915_RESET_HANDOFF >= I915_RESET_ENGINE);
+			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
+					     &dev_priv->gpu_error.flags))
+				continue;
+
+			if (i915_reset_engine(engine) == 0)
+				engine_mask &= ~intel_engine_flag(engine);
+
+			clear_bit(I915_RESET_ENGINE + engine->id,
+				  &dev_priv->gpu_error.flags);
+			wake_up_bit(&dev_priv->gpu_error.flags,
+				    I915_RESET_ENGINE + engine->id);
+		}
+	}
+
 	if (!engine_mask)
 		goto out;
 
-	if (test_and_set_bit(I915_RESET_BACKOFF,
-			     &dev_priv->gpu_error.flags))
+	/* Full reset needs the mutex, stop any other user trying to do so. */
+	if (test_and_set_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags)) {
+		wait_event(dev_priv->gpu_error.reset_queue,
+			   !test_bit(I915_RESET_BACKOFF,
+				     &dev_priv->gpu_error.flags));
 		goto out;
+	}
 
-	i915_reset_and_wakeup(dev_priv);
+	/* Prevent any other reset-engine attempt. */
+	for_each_engine(engine, dev_priv, tmp) {
+		while (test_and_set_bit(I915_RESET_ENGINE + engine->id,
+					&dev_priv->gpu_error.flags))
+			wait_on_bit(&dev_priv->gpu_error.flags,
+				    I915_RESET_ENGINE + engine->id,
+				    TASK_UNINTERRUPTIBLE);
+	}
+
+	i915_reset_device(dev_priv);
+
+	for_each_engine(engine, dev_priv, tmp) {
+		clear_bit(I915_RESET_ENGINE + engine->id,
+			  &dev_priv->gpu_error.flags);
+	}
+
+	clear_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags);
+	wake_up_all(&dev_priv->gpu_error.reset_queue);
 
 out:
 	intel_runtime_pm_put(dev_priv);

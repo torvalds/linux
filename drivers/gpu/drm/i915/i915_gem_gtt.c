@@ -207,8 +207,7 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 	if (vma->obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
-	vma->vm->insert_entries(vma->vm, vma->pages, vma->node.start,
-				cache_level, pte_flags);
+	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 
 	return 0;
 }
@@ -907,37 +906,35 @@ gen8_ppgtt_insert_pte_entries(struct i915_hw_ppgtt *ppgtt,
 }
 
 static void gen8_ppgtt_insert_3lvl(struct i915_address_space *vm,
-				   struct sg_table *pages,
-				   u64 start,
+				   struct i915_vma *vma,
 				   enum i915_cache_level cache_level,
 				   u32 unused)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct sgt_dma iter = {
-		.sg = pages->sgl,
+		.sg = vma->pages->sgl,
 		.dma = sg_dma_address(iter.sg),
 		.max = iter.dma + iter.sg->length,
 	};
-	struct gen8_insert_pte idx = gen8_insert_pte(start);
+	struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
 	gen8_ppgtt_insert_pte_entries(ppgtt, &ppgtt->pdp, &iter, &idx,
 				      cache_level);
 }
 
 static void gen8_ppgtt_insert_4lvl(struct i915_address_space *vm,
-				   struct sg_table *pages,
-				   u64 start,
+				   struct i915_vma *vma,
 				   enum i915_cache_level cache_level,
 				   u32 unused)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct sgt_dma iter = {
-		.sg = pages->sgl,
+		.sg = vma->pages->sgl,
 		.dma = sg_dma_address(iter.sg),
 		.max = iter.dma + iter.sg->length,
 	};
 	struct i915_page_directory_pointer **pdps = ppgtt->pml4.pdps;
-	struct gen8_insert_pte idx = gen8_insert_pte(start);
+	struct gen8_insert_pte idx = gen8_insert_pte(vma->node.start);
 
 	while (gen8_ppgtt_insert_pte_entries(ppgtt, pdps[idx.pml4e++], &iter,
 					     &idx, cache_level))
@@ -1621,13 +1618,12 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 }
 
 static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
-				      struct sg_table *pages,
-				      u64 start,
+				      struct i915_vma *vma,
 				      enum i915_cache_level cache_level,
 				      u32 flags)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	unsigned first_entry = start >> PAGE_SHIFT;
+	unsigned first_entry = vma->node.start >> PAGE_SHIFT;
 	unsigned act_pt = first_entry / GEN6_PTES;
 	unsigned act_pte = first_entry % GEN6_PTES;
 	const u32 pte_encode = vm->pte_encode(0, cache_level, flags);
@@ -1635,7 +1631,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 	gen6_pte_t *vaddr;
 
 	vaddr = kmap_atomic_px(ppgtt->pd.page_table[act_pt]);
-	iter.sg = pages->sgl;
+	iter.sg = vma->pages->sgl;
 	iter.dma = sg_dma_address(iter.sg);
 	iter.max = iter.dma + iter.sg->length;
 	do {
@@ -2090,8 +2086,7 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 }
 
 static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
-				     struct sg_table *st,
-				     u64 start,
+				     struct i915_vma *vma,
 				     enum i915_cache_level level,
 				     u32 unused)
 {
@@ -2102,8 +2097,8 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	dma_addr_t addr;
 
 	gtt_entries = (gen8_pte_t __iomem *)ggtt->gsm;
-	gtt_entries += start >> PAGE_SHIFT;
-	for_each_sgt_dma(addr, sgt_iter, st)
+	gtt_entries += vma->node.start >> PAGE_SHIFT;
+	for_each_sgt_dma(addr, sgt_iter, vma->pages)
 		gen8_set_pte(gtt_entries++, pte_encode | addr);
 
 	wmb();
@@ -2137,17 +2132,16 @@ static void gen6_ggtt_insert_page(struct i915_address_space *vm,
  * mapped BAR (dev_priv->mm.gtt->gtt).
  */
 static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
-				     struct sg_table *st,
-				     u64 start,
+				     struct i915_vma *vma,
 				     enum i915_cache_level level,
 				     u32 flags)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 	gen6_pte_t __iomem *entries = (gen6_pte_t __iomem *)ggtt->gsm;
-	unsigned int i = start >> PAGE_SHIFT;
+	unsigned int i = vma->node.start >> PAGE_SHIFT;
 	struct sgt_iter iter;
 	dma_addr_t addr;
-	for_each_sgt_dma(addr, iter, st)
+	for_each_sgt_dma(addr, iter, vma->pages)
 		iowrite32(vm->pte_encode(addr, level, flags), &entries[i++]);
 	wmb();
 
@@ -2229,8 +2223,7 @@ static void bxt_vtd_ggtt_insert_page__BKL(struct i915_address_space *vm,
 
 struct insert_entries {
 	struct i915_address_space *vm;
-	struct sg_table *st;
-	u64 start;
+	struct i915_vma *vma;
 	enum i915_cache_level level;
 };
 
@@ -2238,19 +2231,18 @@ static int bxt_vtd_ggtt_insert_entries__cb(void *_arg)
 {
 	struct insert_entries *arg = _arg;
 
-	gen8_ggtt_insert_entries(arg->vm, arg->st, arg->start, arg->level, 0);
+	gen8_ggtt_insert_entries(arg->vm, arg->vma, arg->level, 0);
 	bxt_vtd_ggtt_wa(arg->vm);
 
 	return 0;
 }
 
 static void bxt_vtd_ggtt_insert_entries__BKL(struct i915_address_space *vm,
-					     struct sg_table *st,
-					     u64 start,
+					     struct i915_vma *vma,
 					     enum i915_cache_level level,
 					     u32 unused)
 {
-	struct insert_entries arg = { vm, st, start, level };
+	struct insert_entries arg = { vm, vma, level };
 
 	stop_machine(bxt_vtd_ggtt_insert_entries__cb, &arg, NULL);
 }
@@ -2316,15 +2308,15 @@ static void i915_ggtt_insert_page(struct i915_address_space *vm,
 }
 
 static void i915_ggtt_insert_entries(struct i915_address_space *vm,
-				     struct sg_table *pages,
-				     u64 start,
+				     struct i915_vma *vma,
 				     enum i915_cache_level cache_level,
 				     u32 unused)
 {
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
-	intel_gtt_insert_sg_entries(pages, start >> PAGE_SHIFT, flags);
+	intel_gtt_insert_sg_entries(vma->pages, vma->node.start >> PAGE_SHIFT,
+				    flags);
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
@@ -2353,8 +2345,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 		pte_flags |= PTE_READ_ONLY;
 
 	intel_runtime_pm_get(i915);
-	vma->vm->insert_entries(vma->vm, vma->pages, vma->node.start,
-				cache_level, pte_flags);
+	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 	intel_runtime_pm_put(i915);
 
 	/*
@@ -2407,16 +2398,13 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 				goto err_pages;
 		}
 
-		appgtt->base.insert_entries(&appgtt->base,
-					    vma->pages, vma->node.start,
-					    cache_level, pte_flags);
+		appgtt->base.insert_entries(&appgtt->base, vma, cache_level,
+					    pte_flags);
 	}
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
 		intel_runtime_pm_get(i915);
-		vma->vm->insert_entries(vma->vm,
-					vma->pages, vma->node.start,
-					cache_level, pte_flags);
+		vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
 		intel_runtime_pm_put(i915);
 	}
 

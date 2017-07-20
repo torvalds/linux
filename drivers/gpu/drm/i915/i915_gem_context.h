@@ -86,6 +86,7 @@ struct i915_gem_context {
 
 	/** link: place with &drm_i915_private.context_list */
 	struct list_head link;
+	struct llist_node free_link;
 
 	/**
 	 * @ref: reference count
@@ -97,6 +98,11 @@ struct i915_gem_context {
 	 * i915_gem_context_put() for access.
 	 */
 	struct kref ref;
+
+	/**
+	 * @rcu: rcu_head for deferred freeing.
+	 */
+	struct rcu_head rcu;
 
 	/**
 	 * @flags: small set of booleans
@@ -273,14 +279,18 @@ static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 }
 
 /* i915_gem_context.c */
-int __must_check i915_gem_context_init(struct drm_i915_private *dev_priv);
-void i915_gem_context_lost(struct drm_i915_private *dev_priv);
-void i915_gem_context_fini(struct drm_i915_private *dev_priv);
-int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
-void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
+int __must_check i915_gem_contexts_init(struct drm_i915_private *dev_priv);
+void i915_gem_contexts_lost(struct drm_i915_private *dev_priv);
+void i915_gem_contexts_fini(struct drm_i915_private *dev_priv);
+
+int i915_gem_context_open(struct drm_i915_private *i915,
+			  struct drm_file *file);
+void i915_gem_context_close(struct drm_file *file);
+
 int i915_switch_context(struct drm_i915_gem_request *req);
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv);
-void i915_gem_context_free(struct kref *ctx_ref);
+
+void i915_gem_context_release(struct kref *ctx_ref);
 struct i915_gem_context *
 i915_gem_context_create_gvt(struct drm_device *dev);
 
@@ -294,5 +304,17 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
+
+static inline struct i915_gem_context *
+i915_gem_context_get(struct i915_gem_context *ctx)
+{
+	kref_get(&ctx->ref);
+	return ctx;
+}
+
+static inline void i915_gem_context_put(struct i915_gem_context *ctx)
+{
+	kref_put(&ctx->ref, i915_gem_context_release);
+}
 
 #endif /* !__I915_GEM_CONTEXT_H__ */

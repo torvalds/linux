@@ -149,6 +149,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		switch (INTEL_GEN(dev_priv)) {
 		default:
 			MISSING_CASE(INTEL_GEN(dev_priv));
+		case 10:
 		case 9:
 			return GEN9_LR_CONTEXT_RENDER_SIZE;
 		case 8:
@@ -291,11 +292,9 @@ cleanup:
  */
 int intel_engines_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id, err_id;
-	unsigned int mask = 0;
-	int err = 0;
+	int err;
 
 	for_each_engine(engine, dev_priv, id) {
 		const struct engine_class_info *class_info =
@@ -306,40 +305,30 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 			init = class_info->init_execlists;
 		else
 			init = class_info->init_legacy;
-		if (!init) {
-			kfree(engine);
-			dev_priv->engine[id] = NULL;
-			continue;
-		}
+
+		err = -EINVAL;
+		err_id = id;
+
+		if (GEM_WARN_ON(!init))
+			goto cleanup;
 
 		err = init(engine);
-		if (err) {
-			err_id = id;
+		if (err)
 			goto cleanup;
-		}
 
 		GEM_BUG_ON(!engine->submit_request);
-		mask |= ENGINE_MASK(id);
 	}
-
-	/*
-	 * Catch failures to update intel_engines table when the new engines
-	 * are added to the driver by a warning and disabling the forgotten
-	 * engines.
-	 */
-	if (WARN_ON(mask != INTEL_INFO(dev_priv)->ring_mask))
-		device_info->ring_mask = mask;
-
-	device_info->num_rings = hweight32(mask);
 
 	return 0;
 
 cleanup:
 	for_each_engine(engine, dev_priv, id) {
-		if (id >= err_id)
+		if (id >= err_id) {
 			kfree(engine);
-		else
+			dev_priv->engine[id] = NULL;
+		} else {
 			dev_priv->gt.cleanup_engine(engine);
+		}
 	}
 	return err;
 }
@@ -1340,6 +1329,7 @@ void intel_engines_mark_idle(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id) {
 		intel_engine_disarm_breadcrumbs(engine);
 		i915_gem_batch_pool_fini(&engine->batch_pool);
+		tasklet_kill(&engine->irq_tasklet);
 		engine->no_priolist = false;
 	}
 }

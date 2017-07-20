@@ -3522,7 +3522,7 @@ enum skl_disp_power_wells {
 #define INTERVAL_1_28_US(us)	roundup(((us) * 100) >> 7, 25)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
 #define INTERVAL_0_833_US(us)	(((us) * 6) / 5)
-#define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
+#define GT_INTERVAL_FROM_US(dev_priv, us) (INTEL_GEN(dev_priv) >= 9 ? \
 				(IS_GEN9_LP(dev_priv) ? \
 				INTERVAL_0_833_US(us) : \
 				INTERVAL_1_33_US(us)) : \
@@ -3531,7 +3531,7 @@ enum skl_disp_power_wells {
 #define INTERVAL_1_28_TO_US(interval)  (((interval) << 7) / 100)
 #define INTERVAL_1_33_TO_US(interval)  (((interval) << 2) / 3)
 #define INTERVAL_0_833_TO_US(interval) (((interval) * 5)  / 6)
-#define GT_PM_INTERVAL_TO_US(dev_priv, interval) (IS_GEN9(dev_priv) ? \
+#define GT_PM_INTERVAL_TO_US(dev_priv, interval) (INTEL_GEN(dev_priv) >= 9 ? \
                            (IS_GEN9_LP(dev_priv) ? \
                            INTERVAL_0_833_TO_US(interval) : \
                            INTERVAL_1_33_TO_US(interval)) : \
@@ -8343,6 +8343,7 @@ enum {
 #define  DPLL_CFGCR0_LINK_RATE_3240	(6 << 25)
 #define  DPLL_CFGCR0_LINK_RATE_4050	(7 << 25)
 #define  DPLL_CFGCR0_DCO_FRACTION_MASK	(0x7fff << 10)
+#define  DPLL_CFGCR0_DCO_FRAC_SHIFT	(10)
 #define  DPLL_CFGCR0_DCO_FRACTION(x)	((x) << 10)
 #define  DPLL_CFGCR0_DCO_INTEGER_MASK	(0x3ff)
 #define CNL_DPLL_CFGCR0(pll)		_MMIO_PLL(pll, _CNL_DPLL0_CFGCR0, _CNL_DPLL1_CFGCR0)
@@ -8350,6 +8351,7 @@ enum {
 #define _CNL_DPLL0_CFGCR1		0x6C004
 #define _CNL_DPLL1_CFGCR1		0x6C084
 #define  DPLL_CFGCR1_QDIV_RATIO_MASK	(0xff << 10)
+#define  DPLL_CFGCR1_QDIV_RATIO_SHIFT	(10)
 #define  DPLL_CFGCR1_QDIV_RATIO(x)	((x) << 10)
 #define  DPLL_CFGCR1_QDIV_MODE(x)	((x) << 9)
 #define  DPLL_CFGCR1_KDIV_MASK		(7 << 6)

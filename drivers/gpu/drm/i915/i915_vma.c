@@ -579,10 +579,16 @@ err_unpin:
 
 static void i915_vma_destroy(struct i915_vma *vma)
 {
+	int i;
+
 	GEM_BUG_ON(vma->node.allocated);
 	GEM_BUG_ON(i915_vma_is_active(vma));
 	GEM_BUG_ON(!i915_vma_is_closed(vma));
 	GEM_BUG_ON(vma->fence);
+
+	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
+		GEM_BUG_ON(i915_gem_active_isset(&vma->last_read[i]));
+	GEM_BUG_ON(i915_gem_active_isset(&vma->last_fence));
 
 	list_del(&vma->vm_link);
 	if (!i915_vma_is_ggtt(vma))
@@ -680,9 +686,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 		__i915_vma_unpin(vma);
 		if (ret)
 			return ret;
-
-		GEM_BUG_ON(i915_vma_is_active(vma));
 	}
+	GEM_BUG_ON(i915_vma_is_active(vma));
 
 	if (i915_vma_is_pinned(vma))
 		return -EBUSY;

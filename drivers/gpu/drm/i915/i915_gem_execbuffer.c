@@ -675,16 +675,17 @@ static int eb_select_context(struct i915_execbuffer *eb)
 	struct i915_gem_context *ctx;
 
 	ctx = i915_gem_context_lookup(eb->file->driver_priv, eb->args->rsvd1);
-	if (unlikely(IS_ERR(ctx)))
-		return PTR_ERR(ctx);
+	if (unlikely(!ctx))
+		return -ENOENT;
 
 	if (unlikely(i915_gem_context_is_banned(ctx))) {
 		DRM_DEBUG("Context %u tried to submit while banned\n",
 			  ctx->user_handle);
+		i915_gem_context_put(ctx);
 		return -EIO;
 	}
 
-	eb->ctx = i915_gem_context_get(ctx);
+	eb->ctx = ctx;
 	eb->vm = ctx->ppgtt ? &ctx->ppgtt->base : &eb->i915->ggtt.base;
 
 	eb->context_flags = 0;
@@ -2134,7 +2135,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (DBG_FORCE_RELOC || !(args->flags & I915_EXEC_NO_RELOC))
 		args->flags |= __EXEC_HAS_RELOC;
 	eb.exec = exec;
-	eb.ctx = NULL;
 	eb.invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
 	if (USES_FULL_PPGTT(eb.i915))
 		eb.invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
@@ -2192,6 +2192,10 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	GEM_BUG_ON(!eb.lut_size);
 
+	err = eb_select_context(&eb);
+	if (unlikely(err))
+		goto err_destroy;
+
 	/*
 	 * Take a local wakeref for preparing to dispatch the execbuf as
 	 * we expect to access the hardware fairly frequently in the
@@ -2200,13 +2204,10 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	 * 100ms.
 	 */
 	intel_runtime_pm_get(eb.i915);
+
 	err = i915_mutex_lock_interruptible(dev);
 	if (err)
 		goto err_rpm;
-
-	err = eb_select_context(&eb);
-	if (unlikely(err))
-		goto err_unlock;
 
 	err = eb_relocate(&eb);
 	if (err)
@@ -2343,11 +2344,11 @@ err_batch_unpin:
 err_vma:
 	if (eb.exec)
 		eb_release_vmas(&eb);
-	i915_gem_context_put(eb.ctx);
-err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
 	intel_runtime_pm_put(eb.i915);
+	i915_gem_context_put(eb.ctx);
+err_destroy:
 	eb_destroy(&eb);
 err_out_fence:
 	if (out_fence_fd != -1)

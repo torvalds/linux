@@ -96,7 +96,7 @@ static struct attribute *rc6_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rc6_attr_group = {
+static const struct attribute_group rc6_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6_attrs
 };
@@ -107,7 +107,7 @@ static struct attribute *rc6p_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rc6p_attr_group = {
+static const struct attribute_group rc6p_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6p_attrs
 };
@@ -117,7 +117,7 @@ static struct attribute *media_rc6_attrs[] = {
 	NULL
 };
 
-static struct attribute_group media_rc6_attr_group = {
+static const struct attribute_group media_rc6_attr_group = {
 	.name = power_group_name,
 	.attrs =  media_rc6_attrs
 };
@@ -209,7 +209,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	memcpy(*remap_info + (offset/4), buf, count);
 
 	/* NB: We defer the remapping until we switch to the context */
-	list_for_each_entry(ctx, &dev_priv->context_list, link)
+	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
 		ctx->remap_slice |= (1<<slice);
 
 	ret = count;
@@ -253,7 +253,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
 		u32 rpstat = I915_READ(GEN6_RPSTAT1);
-		if (IS_GEN9(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 9)
 			ret = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
 		else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 			ret = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;

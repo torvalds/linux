@@ -132,9 +132,13 @@ static enum intel_pch intel_virt_detect_pch(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_KMS("Assuming Ibex Peak PCH\n");
 	} else if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
 		ret = PCH_CPT;
-		DRM_DEBUG_KMS("Assuming CouarPoint PCH\n");
+		DRM_DEBUG_KMS("Assuming CougarPoint PCH\n");
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		ret = PCH_LPT;
+		if (IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv))
+			dev_priv->pch_id = INTEL_PCH_LPT_LP_DEVICE_ID_TYPE;
+		else
+			dev_priv->pch_id = INTEL_PCH_LPT_DEVICE_ID_TYPE;
 		DRM_DEBUG_KMS("Assuming LynxPoint PCH\n");
 	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		ret = PCH_SPT;
@@ -173,29 +177,25 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 	while ((pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, pch))) {
 		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
 			unsigned short id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
-			unsigned short id_ext = pch->device &
-				INTEL_PCH_DEVICE_ID_MASK_EXT;
+
+			dev_priv->pch_id = id;
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_IBX;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
 				WARN_ON(!IS_GEN5(dev_priv));
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev_priv) ||
-					IS_IVYBRIDGE(dev_priv)));
+				WARN_ON(!IS_GEN6(dev_priv) &&
+					!IS_IVYBRIDGE(dev_priv));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found PantherPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev_priv) ||
-					IS_IVYBRIDGE(dev_priv)));
+				WARN_ON(!IS_GEN6(dev_priv) &&
+					!IS_IVYBRIDGE(dev_priv));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 				WARN_ON(!IS_HASWELL(dev_priv) &&
@@ -203,51 +203,60 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 				WARN_ON(IS_HSW_ULT(dev_priv) ||
 					IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev_priv) &&
 					!IS_BROADWELL(dev_priv));
 				WARN_ON(!IS_HSW_ULT(dev_priv) &&
 					!IS_BDW_ULT(dev_priv));
+			} else if (id == INTEL_PCH_WPT_DEVICE_ID_TYPE) {
+				/* WildcatPoint is LPT compatible */
+				dev_priv->pch_type = PCH_LPT;
+				DRM_DEBUG_KMS("Found WildcatPoint PCH\n");
+				WARN_ON(!IS_HASWELL(dev_priv) &&
+					!IS_BROADWELL(dev_priv));
+				WARN_ON(IS_HSW_ULT(dev_priv) ||
+					IS_BDW_ULT(dev_priv));
+			} else if (id == INTEL_PCH_WPT_LP_DEVICE_ID_TYPE) {
+				/* WildcatPoint is LPT compatible */
+				dev_priv->pch_type = PCH_LPT;
+				DRM_DEBUG_KMS("Found WildcatPoint LP PCH\n");
+				WARN_ON(!IS_HASWELL(dev_priv) &&
+					!IS_BROADWELL(dev_priv));
+				WARN_ON(!IS_HSW_ULT(dev_priv) &&
+					!IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
-			} else if (id_ext == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id_ext;
+			} else if (id == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_KBP_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_KBP;
 				DRM_DEBUG_KMS("Found KabyPoint PCH\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_CNP_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type = PCH_CNP;
 				DRM_DEBUG_KMS("Found CannonPoint PCH\n");
 				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
 					!IS_COFFEELAKE(dev_priv));
-			} else if (id_ext == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE) {
-				dev_priv->pch_id = id_ext;
+			} else if (id == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CNP;
 				DRM_DEBUG_KMS("Found CannonPoint LP PCH\n");
 				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
 					!IS_COFFEELAKE(dev_priv));
-			} else if ((id == INTEL_PCH_P2X_DEVICE_ID_TYPE) ||
-				   (id == INTEL_PCH_P3X_DEVICE_ID_TYPE) ||
-				   ((id == INTEL_PCH_QEMU_DEVICE_ID_TYPE) &&
+			} else if (id == INTEL_PCH_P2X_DEVICE_ID_TYPE ||
+				   id == INTEL_PCH_P3X_DEVICE_ID_TYPE ||
+				   (id == INTEL_PCH_QEMU_DEVICE_ID_TYPE &&
 				    pch->subsystem_vendor ==
 					    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
 				    pch->subsystem_device ==
 					    PCI_SUBDEVICE_ID_QEMU)) {
-				dev_priv->pch_id = id;
 				dev_priv->pch_type =
 					intel_virt_detect_pch(dev_priv);
 			} else
@@ -331,6 +340,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
 		value = i915.enable_hangcheck && intel_has_gpu_reset(dev_priv);
+		if (value && intel_has_reset_engine(dev_priv))
+			value = 2;
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
 		value = HAS_RESOURCE_STREAMER(dev_priv);
@@ -585,16 +596,18 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 static void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
+	flush_workqueue(dev_priv->wq);
+
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 	i915_gem_cleanup_engines(dev_priv);
-	i915_gem_context_fini(dev_priv);
+	i915_gem_contexts_fini(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	i915_gem_drain_freed_objects(dev_priv);
 
-	WARN_ON(!list_empty(&dev_priv->context_list));
+	WARN_ON(!list_empty(&dev_priv->contexts.list));
 }
 
 static int i915_load_modeset_init(struct drm_device *dev)
@@ -1427,9 +1440,10 @@ static void i915_driver_release(struct drm_device *dev)
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	int ret;
 
-	ret = i915_gem_open(dev, file);
+	ret = i915_gem_open(i915, file);
 	if (ret)
 		return ret;
 
@@ -1459,7 +1473,7 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_context_close(dev, file);
+	i915_gem_context_close(file);
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1911,7 +1925,70 @@ wakeup:
 
 error:
 	i915_gem_set_wedged(dev_priv);
+	i915_gem_retire_requests(dev_priv);
 	goto finish;
+}
+
+/**
+ * i915_reset_engine - reset GPU engine to recover from a hang
+ * @engine: engine to reset
+ *
+ * Reset a specific GPU engine. Useful if a hang is detected.
+ * Returns zero on successful reset or otherwise an error code.
+ *
+ * Procedure is:
+ *  - identifies the request that caused the hang and it is dropped
+ *  - reset engine (which will force the engine to idle)
+ *  - re-init/configure engine
+ */
+int i915_reset_engine(struct intel_engine_cs *engine)
+{
+	struct i915_gpu_error *error = &engine->i915->gpu_error;
+	struct drm_i915_gem_request *active_request;
+	int ret;
+
+	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &error->flags));
+
+	DRM_DEBUG_DRIVER("resetting %s\n", engine->name);
+
+	active_request = i915_gem_reset_prepare_engine(engine);
+	if (IS_ERR(active_request)) {
+		DRM_DEBUG_DRIVER("Previous reset failed, promote to full reset\n");
+		ret = PTR_ERR(active_request);
+		goto out;
+	}
+
+	/*
+	 * The request that caused the hang is stuck on elsp, we know the
+	 * active request and can drop it, adjust head to skip the offending
+	 * request to resume executing remaining requests in the queue.
+	 */
+	i915_gem_reset_engine(engine, active_request);
+
+	/* Finally, reset just this engine. */
+	ret = intel_gpu_reset(engine->i915, intel_engine_flag(engine));
+
+	i915_gem_reset_finish_engine(engine);
+
+	if (ret) {
+		/* If we fail here, we expect to fallback to a global reset */
+		DRM_DEBUG_DRIVER("Failed to reset %s, ret=%d\n",
+				 engine->name, ret);
+		goto out;
+	}
+
+	/*
+	 * The engine and its registers (and workarounds in case of render)
+	 * have been reset to their default values. Follow the init_ring
+	 * process to program RING_MODE, HWSP and re-enable submission.
+	 */
+	ret = engine->init_hw(engine);
+	if (ret)
+		goto out;
+
+	error->reset_engine_count[engine->id]++;
+out:
+	return ret;
 }
 
 static int i915_pm_suspend(struct device *kdev)

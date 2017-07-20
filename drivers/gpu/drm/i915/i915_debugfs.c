@@ -1159,7 +1159,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 		reqf = I915_READ(GEN6_RPNSWREQ);
-		if (IS_GEN9(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 9)
 			reqf >>= 23;
 		else {
 			reqf &= ~GEN6_TURBO_DISABLE;
@@ -1181,7 +1181,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
-		if (IS_GEN9(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 9)
 			cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
 		else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 			cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
@@ -1210,7 +1210,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   dev_priv->rps.pm_intrmsk_mbz);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "Render p-state ratio: %d\n",
-			   (gt_perf_status & (IS_GEN9(dev_priv) ? 0x1ff00 : 0xff00)) >> 8);
+			   (gt_perf_status & (INTEL_GEN(dev_priv) >= 9 ? 0x1ff00 : 0xff00)) >> 8);
 		seq_printf(m, "Render p-state VID: %d\n",
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
@@ -1241,18 +1241,21 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
-		max_freq *= (IS_GEN9_BC(dev_priv) ? GEN9_FREQ_SCALER : 1);
+		max_freq *= (IS_GEN9_BC(dev_priv) ||
+			     IS_CANNONLAKE(dev_priv) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
-		max_freq *= (IS_GEN9_BC(dev_priv) ? GEN9_FREQ_SCALER : 1);
+		max_freq *= (IS_GEN9_BC(dev_priv) ||
+			     IS_CANNONLAKE(dev_priv) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 16 :
 			    rp_state_cap >> 0) & 0xff;
-		max_freq *= (IS_GEN9_BC(dev_priv) ? GEN9_FREQ_SCALER : 1);
+		max_freq *= (IS_GEN9_BC(dev_priv) ||
+			     IS_CANNONLAKE(dev_priv) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
@@ -1402,6 +1405,23 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			i915_instdone_info(dev_priv, m,
 					   &engine->hangcheck.instdone);
 		}
+	}
+
+	return 0;
+}
+
+static int i915_reset_info(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	seq_printf(m, "full gpu reset = %u\n", i915_reset_count(error));
+
+	for_each_engine(engine, dev_priv, id) {
+		seq_printf(m, "%s = %u\n", engine->name,
+			   i915_reset_engine_count(error, engine));
 	}
 
 	return 0;
@@ -1838,7 +1858,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	if (ret)
 		goto out;
 
-	if (IS_GEN9_BC(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		/* Convert GT frequency to 50 HZ units */
 		min_gpu_freq =
 			dev_priv->rps.min_freq_softlimit / GEN9_FREQ_SCALER;
@@ -1858,7 +1878,8 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 				       &ia_freq);
 		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
 			   intel_gpu_freq(dev_priv, (gpu_freq *
-						     (IS_GEN9_BC(dev_priv) ?
+						     (IS_GEN9_BC(dev_priv) ||
+						      IS_CANNONLAKE(dev_priv) ?
 						      GEN9_FREQ_SCALER : 1))),
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
@@ -1914,7 +1935,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		return ret;
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
-	if (dev_priv->fbdev) {
+	if (dev_priv->fbdev && dev_priv->fbdev->helper.fb) {
 		fbdev_fb = to_intel_framebuffer(dev_priv->fbdev->helper.fb);
 
 		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
@@ -1970,7 +1991,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(ctx, &dev_priv->context_list, link) {
+	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
 		seq_printf(m, "HW context %u ", ctx->hw_id);
 		if (ctx->pid) {
 			struct task_struct *task;
@@ -2076,7 +2097,7 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(ctx, &dev_priv->context_list, link)
+	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
 		for_each_engine(engine, dev_priv, id)
 			i915_dump_lrc_obj(m, ctx, engine);
 
@@ -2310,6 +2331,8 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	seq_printf(m, "GPU busy? %s [%d requests]\n",
 		   yesno(dev_priv->gt.awake), dev_priv->gt.active_requests);
 	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
+	seq_printf(m, "Boosts outstanding? %d\n",
+		   atomic_read(&dev_priv->rps.num_waiters));
 	seq_printf(m, "Frequency requested %d\n",
 		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
 	seq_printf(m, "  min hard:%d, soft:%d; max soft:%d, hard:%d\n",
@@ -2323,22 +2346,20 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   intel_gpu_freq(dev_priv, dev_priv->rps.boost_freq));
 
 	mutex_lock(&dev->filelist_mutex);
-	spin_lock(&dev_priv->rps.client_lock);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
 		struct task_struct *task;
 
 		rcu_read_lock();
 		task = pid_task(file->pid, PIDTYPE_PID);
-		seq_printf(m, "%s [%d]: %d boosts%s\n",
+		seq_printf(m, "%s [%d]: %d boosts\n",
 			   task ? task->comm : "<unknown>",
 			   task ? task->pid : -1,
-			   file_priv->rps.boosts,
-			   list_empty(&file_priv->rps.link) ? "" : ", active");
+			   atomic_read(&file_priv->rps.boosts));
 		rcu_read_unlock();
 	}
-	seq_printf(m, "Kernel (anonymous) boosts: %d\n", dev_priv->rps.boosts);
-	spin_unlock(&dev_priv->rps.client_lock);
+	seq_printf(m, "Kernel (anonymous) boosts: %d\n",
+		   atomic_read(&dev_priv->rps.boosts));
 	mutex_unlock(&dev->filelist_mutex);
 
 	if (INTEL_GEN(dev_priv) >= 6 &&
@@ -3289,6 +3310,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 static int i915_engine_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
@@ -3312,6 +3334,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			   engine->hangcheck.seqno,
 			   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
 			   engine->timeline->inflight_seqnos);
+		seq_printf(m, "\tReset count: %d\n",
+			   i915_reset_engine_count(error, engine));
 
 		rcu_read_lock();
 
@@ -3758,13 +3782,18 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
+		struct intel_encoder *encoder;
+
 		if (connector->connector_type !=
 		    DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
 
-		if (connector->status == connector_status_connected &&
-		    connector->encoder != NULL) {
-			intel_dp = enc_to_intel_dp(connector->encoder);
+		encoder = to_intel_encoder(connector->encoder);
+		if (encoder && encoder->type == INTEL_OUTPUT_DP_MST)
+			continue;
+
+		if (encoder && connector->status == connector_status_connected) {
+			intel_dp = enc_to_intel_dp(&encoder->base);
 			status = kstrtoint(input_buffer, 10, &val);
 			if (status < 0)
 				break;
@@ -3796,13 +3825,18 @@ static int i915_displayport_test_active_show(struct seq_file *m, void *data)
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
+		struct intel_encoder *encoder;
+
 		if (connector->connector_type !=
 		    DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
 
-		if (connector->status == connector_status_connected &&
-		    connector->encoder != NULL) {
-			intel_dp = enc_to_intel_dp(connector->encoder);
+		encoder = to_intel_encoder(connector->encoder);
+		if (encoder && encoder->type == INTEL_OUTPUT_DP_MST)
+			continue;
+
+		if (encoder && connector->status == connector_status_connected) {
+			intel_dp = enc_to_intel_dp(&encoder->base);
 			if (intel_dp->compliance.test_active)
 				seq_puts(m, "1");
 			else
@@ -3842,13 +3876,18 @@ static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
+		struct intel_encoder *encoder;
+
 		if (connector->connector_type !=
 		    DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
 
-		if (connector->status == connector_status_connected &&
-		    connector->encoder != NULL) {
-			intel_dp = enc_to_intel_dp(connector->encoder);
+		encoder = to_intel_encoder(connector->encoder);
+		if (encoder && encoder->type == INTEL_OUTPUT_DP_MST)
+			continue;
+
+		if (encoder && connector->status == connector_status_connected) {
+			intel_dp = enc_to_intel_dp(&encoder->base);
 			if (intel_dp->compliance.test_type ==
 			    DP_TEST_LINK_EDID_READ)
 				seq_printf(m, "%lx",
@@ -3895,13 +3934,18 @@ static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
+		struct intel_encoder *encoder;
+
 		if (connector->connector_type !=
 		    DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
 
-		if (connector->status == connector_status_connected &&
-		    connector->encoder != NULL) {
-			intel_dp = enc_to_intel_dp(connector->encoder);
+		encoder = to_intel_encoder(connector->encoder);
+		if (encoder && encoder->type == INTEL_OUTPUT_DP_MST)
+			continue;
+
+		if (encoder && connector->status == connector_status_connected) {
+			intel_dp = enc_to_intel_dp(&encoder->base);
 			seq_printf(m, "%02lx", intel_dp->compliance.test_type);
 		} else
 			seq_puts(m, "0");
@@ -4824,6 +4868,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_huc_load_status", i915_huc_load_status_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_hangcheck_info", i915_hangcheck_info, 0},
+	{"i915_reset_info", i915_reset_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},

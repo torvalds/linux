@@ -4418,8 +4418,6 @@ static bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
 	u32 bit;
 
 	switch (port->port) {
-	case PORT_A:
-		return true;
 	case PORT_B:
 		bit = SDE_PORTB_HOTPLUG;
 		break;
@@ -4443,8 +4441,6 @@ static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
 	u32 bit;
 
 	switch (port->port) {
-	case PORT_A:
-		return true;
 	case PORT_B:
 		bit = SDE_PORTB_HOTPLUG_CPT;
 		break;
@@ -4454,12 +4450,28 @@ static bool cpt_digital_port_connected(struct drm_i915_private *dev_priv,
 	case PORT_D:
 		bit = SDE_PORTD_HOTPLUG_CPT;
 		break;
+	default:
+		MISSING_CASE(port->port);
+		return false;
+	}
+
+	return I915_READ(SDEISR) & bit;
+}
+
+static bool spt_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	u32 bit;
+
+	switch (port->port) {
+	case PORT_A:
+		bit = SDE_PORTA_HOTPLUG_SPT;
+		break;
 	case PORT_E:
 		bit = SDE_PORTE_HOTPLUG_SPT;
 		break;
 	default:
-		MISSING_CASE(port->port);
-		return false;
+		return cpt_digital_port_connected(dev_priv, port);
 	}
 
 	return I915_READ(SDEISR) & bit;
@@ -4511,6 +4523,42 @@ static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
+static bool ilk_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
+	else
+		return ibx_digital_port_connected(dev_priv, port);
+}
+
+static bool snb_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(DEISR) & DE_DP_A_HOTPLUG;
+	else
+		return cpt_digital_port_connected(dev_priv, port);
+}
+
+static bool ivb_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(DEISR) & DE_DP_A_HOTPLUG_IVB;
+	else
+		return cpt_digital_port_connected(dev_priv, port);
+}
+
+static bool bdw_digital_port_connected(struct drm_i915_private *dev_priv,
+				       struct intel_digital_port *port)
+{
+	if (port->port == PORT_A)
+		return I915_READ(GEN8_DE_PORT_ISR) & GEN8_PORT_DP_A_HOTPLUG;
+	else
+		return cpt_digital_port_connected(dev_priv, port);
+}
+
 static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 				       struct intel_digital_port *intel_dig_port)
 {
@@ -4547,16 +4595,25 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 				  struct intel_digital_port *port)
 {
-	if (HAS_PCH_IBX(dev_priv))
-		return ibx_digital_port_connected(dev_priv, port);
-	else if (HAS_PCH_SPLIT(dev_priv))
-		return cpt_digital_port_connected(dev_priv, port);
+	if (HAS_GMCH_DISPLAY(dev_priv)) {
+		if (IS_GM45(dev_priv))
+			return gm45_digital_port_connected(dev_priv, port);
+		else
+			return g4x_digital_port_connected(dev_priv, port);
+	}
+
+	if (IS_GEN5(dev_priv))
+		return ilk_digital_port_connected(dev_priv, port);
+	else if (IS_GEN6(dev_priv))
+		return snb_digital_port_connected(dev_priv, port);
+	else if (IS_GEN7(dev_priv))
+		return ivb_digital_port_connected(dev_priv, port);
+	else if (IS_GEN8(dev_priv))
+		return bdw_digital_port_connected(dev_priv, port);
 	else if (IS_GEN9_LP(dev_priv))
 		return bxt_digital_port_connected(dev_priv, port);
-	else if (IS_GM45(dev_priv))
-		return gm45_digital_port_connected(dev_priv, port);
 	else
-		return g4x_digital_port_connected(dev_priv, port);
+		return spt_digital_port_connected(dev_priv, port);
 }
 
 static struct edid *
@@ -5121,12 +5178,8 @@ intel_pps_readout_hw_state(struct drm_i915_private *dev_priv,
 		   PANEL_POWER_DOWN_DELAY_SHIFT;
 
 	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv)) {
-		u16 tmp = (pp_ctl & BXT_POWER_CYCLE_DELAY_MASK) >>
-			BXT_POWER_CYCLE_DELAY_SHIFT;
-		if (tmp > 0)
-			seq->t11_t12 = (tmp - 1) * 1000;
-		else
-			seq->t11_t12 = 0;
+		seq->t11_t12 = ((pp_ctl & BXT_POWER_CYCLE_DELAY_MASK) >>
+				BXT_POWER_CYCLE_DELAY_SHIFT) * 1000;
 	} else {
 		seq->t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
 		       PANEL_POWER_CYCLE_DELAY_SHIFT) * 1000;
@@ -5177,6 +5230,21 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 	intel_pps_dump_state("cur", &cur);
 
 	vbt = dev_priv->vbt.edp.pps;
+	/* On Toshiba Satellite P50-C-18C system the VBT T12 delay
+	 * of 500ms appears to be too short. Ocassionally the panel
+	 * just fails to power back on. Increasing the delay to 800ms
+	 * seems sufficient to avoid this problem.
+	 */
+	if (dev_priv->quirks & QUIRK_INCREASE_T12_DELAY) {
+		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 800 * 10);
+		DRM_DEBUG_KMS("Increasing T12 panel delay as per the quirk to %d\n",
+			      vbt.t11_t12);
+	}
+	/* T11_T12 delay is special and actually in units of 100ms, but zero
+	 * based in the hw (so we need to add 100 ms). But the sw vbt
+	 * table multiplies it with 1000 to make it in units of 100usec,
+	 * too. */
+	vbt.t11_t12 += 100 * 10;
 
 	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
 	 * our hw here, which are all in 100usec. */
@@ -5280,7 +5348,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv)) {
 		pp_div = I915_READ(regs.pp_ctrl);
 		pp_div &= ~BXT_POWER_CYCLE_DELAY_MASK;
-		pp_div |= (DIV_ROUND_UP((seq->t11_t12 + 1), 1000)
+		pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000)
 				<< BXT_POWER_CYCLE_DELAY_SHIFT);
 	} else {
 		pp_div = ((100 * div)/2 - 1) << PP_REFERENCE_DIVIDER_SHIFT;

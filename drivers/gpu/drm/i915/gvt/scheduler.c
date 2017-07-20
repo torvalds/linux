@@ -616,7 +616,7 @@ err:
 
 void intel_vgpu_clean_gvt_context(struct intel_vgpu *vgpu)
 {
-	i915_gem_context_put_unlocked(vgpu->shadow_ctx);
+	i915_gem_context_put(vgpu->shadow_ctx);
 }
 
 int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)

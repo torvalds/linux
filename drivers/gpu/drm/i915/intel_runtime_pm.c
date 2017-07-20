@@ -341,6 +341,59 @@ static void skl_power_well_pre_disable(struct drm_i915_private *dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 }
 
+static void gen9_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
+					    struct i915_power_well *power_well)
+{
+	int id = power_well->id;
+
+	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
+	WARN_ON(intel_wait_for_register(dev_priv,
+					HSW_PWR_WELL_DRIVER,
+					SKL_POWER_WELL_STATE(id),
+					SKL_POWER_WELL_STATE(id),
+					1));
+}
+
+static u32 gen9_power_well_requesters(struct drm_i915_private *dev_priv, int id)
+{
+	u32 req_mask = SKL_POWER_WELL_REQ(id);
+	u32 ret;
+
+	ret = I915_READ(HSW_PWR_WELL_BIOS) & req_mask ? 1 : 0;
+	ret |= I915_READ(HSW_PWR_WELL_DRIVER) & req_mask ? 2 : 0;
+	ret |= I915_READ(HSW_PWR_WELL_KVMR) & req_mask ? 4 : 0;
+	ret |= I915_READ(HSW_PWR_WELL_DEBUG) & req_mask ? 8 : 0;
+
+	return ret;
+}
+
+static void gen9_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
+					     struct i915_power_well *power_well)
+{
+	int id = power_well->id;
+	bool disabled;
+	u32 reqs;
+
+	/*
+	 * Bspec doesn't require waiting for PWs to get disabled, but still do
+	 * this for paranoia. The known cases where a PW will be forced on:
+	 * - a KVMR request on any power well via the KVMR request register
+	 * - a DMC request on PW1 and MISC_IO power wells via the BIOS and
+	 *   DEBUG request registers
+	 * Skip the wait in case any of the request bits are set and print a
+	 * diagnostic message.
+	 */
+	wait_for((disabled = !(I915_READ(HSW_PWR_WELL_DRIVER) &
+			       SKL_POWER_WELL_STATE(id))) ||
+		 (reqs = gen9_power_well_requesters(dev_priv, id)), 1);
+	if (disabled)
+		return;
+
+	DRM_DEBUG_KMS("%s forced on (bios:%d driver:%d kvmr:%d debug:%d)\n",
+		      power_well->name,
+		      !!(reqs & 1), !!(reqs & 2), !!(reqs & 4), !!(reqs & 8));
+}
+
 static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 			       struct i915_power_well *power_well, bool enable)
 {
@@ -549,7 +602,9 @@ static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 		  "DC9 already programmed to be enabled.\n");
 	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
 		  "DC5 still not disabled to enable DC9.\n");
-	WARN_ONCE(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on.\n");
+	WARN_ONCE(I915_READ(HSW_PWR_WELL_DRIVER) &
+		  SKL_POWER_WELL_REQ(SKL_DISP_PW_2),
+		  "Power well 2 on.\n");
 	WARN_ONCE(intel_irqs_enabled(dev_priv),
 		  "Interrupts not disabled yet.\n");
 
@@ -744,45 +799,6 @@ void skl_disable_dc6(struct drm_i915_private *dev_priv)
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
-static void
-gen9_sanitize_power_well_requests(struct drm_i915_private *dev_priv,
-				  struct i915_power_well *power_well)
-{
-	enum skl_disp_power_wells power_well_id = power_well->id;
-	u32 val;
-	u32 mask;
-
-	mask = SKL_POWER_WELL_REQ(power_well_id);
-
-	val = I915_READ(HSW_PWR_WELL_KVMR);
-	if (WARN_ONCE(val & mask, "Clearing unexpected KVMR request for %s\n",
-		      power_well->name))
-		I915_WRITE(HSW_PWR_WELL_KVMR, val & ~mask);
-
-	val = I915_READ(HSW_PWR_WELL_BIOS);
-	val |= I915_READ(HSW_PWR_WELL_DEBUG);
-
-	if (!(val & mask))
-		return;
-
-	/*
-	 * DMC is known to force on the request bits for power well 1 on SKL
-	 * and BXT and the misc IO power well on SKL but we don't expect any
-	 * other request bits to be set, so WARN for those.
-	 */
-	if (power_well_id == SKL_DISP_PW_1 ||
-	    (IS_GEN9_BC(dev_priv) &&
-	     power_well_id == SKL_DISP_PW_MISC_IO))
-		DRM_DEBUG_DRIVER("Clearing auxiliary requests for %s forced on "
-				 "by DMC\n", power_well->name);
-	else
-		WARN_ONCE(1, "Clearing unexpected auxiliary requests for %s\n",
-			  power_well->name);
-
-	I915_WRITE(HSW_PWR_WELL_BIOS, val & ~mask);
-	I915_WRITE(HSW_PWR_WELL_DEBUG, val & ~mask);
-}
-
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			       struct i915_power_well *power_well, bool enable)
 {
@@ -846,6 +862,8 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
 			check_fuse_status = true;
 		}
+
+		gen9_wait_for_power_well_enable(dev_priv, power_well);
 	} else {
 		if (enable_requested) {
 			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
@@ -853,13 +871,8 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
 		}
 
-		gen9_sanitize_power_well_requests(dev_priv, power_well);
+		gen9_wait_for_power_well_disable(dev_priv, power_well);
 	}
-
-	if (wait_for(!!(I915_READ(HSW_PWR_WELL_DRIVER) & state_mask) == enable,
-		     1))
-		DRM_ERROR("%s %s timeout\n",
-			  power_well->name, enable ? "enable" : "disable");
 
 	if (check_fuse_status) {
 		if (power_well->id == SKL_DISP_PW_1) {
@@ -2479,7 +2492,7 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (IS_GEN9_BC(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		max_dc = 2;
 		mask = 0;
 	} else if (IS_GEN9_LP(dev_priv)) {
@@ -2694,13 +2707,18 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&power_domains->lock);
 
-	well = lookup_power_well(dev_priv, SKL_DISP_PW_MISC_IO);
-	intel_power_well_disable(dev_priv, well);
-
+	/*
+	 * BSpec says to keep the MISC IO power well enabled here, only
+	 * remove our request for power well 1.
+	 * Note that even though the driver's request is removed power well 1
+	 * may stay enabled after this due to DMC's own request on it.
+	 */
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
 	intel_power_well_disable(dev_priv, well);
 
 	mutex_unlock(&power_domains->lock);
+
+	usleep_range(10, 30);		/* 10 us delay per Bspec */
 }
 
 void bxt_display_core_init(struct drm_i915_private *dev_priv,
@@ -2751,13 +2769,19 @@ void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	/* The spec doesn't call for removing the reset handshake flag */
 
-	/* Disable PG1 */
+	/*
+	 * Disable PW1 (PG1).
+	 * Note that even though the driver's request is removed power well 1
+	 * may stay enabled after this due to DMC's own request on it.
+	 */
 	mutex_lock(&power_domains->lock);
 
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
 	intel_power_well_disable(dev_priv, well);
 
 	mutex_unlock(&power_domains->lock);
+
+	usleep_range(10, 30);		/* 10 us delay per Bspec */
 }
 
 #define CNL_PROCMON_IDX(val) \
@@ -2821,7 +2845,10 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 	val |= CL_POWER_DOWN_ENABLE;
 	I915_WRITE(CNL_PORT_CL1CM_DW5, val);
 
-	/* 4. Enable Power Well 1 (PG1) and Aux IO Power */
+	/*
+	 * 4. Enable Power Well 1 (PG1).
+	 *    The AUX IO power wells will be enabled on demand.
+	 */
 	mutex_lock(&power_domains->lock);
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
 	intel_power_well_enable(dev_priv, well);
@@ -2853,11 +2880,17 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 	/* 3. Disable CD clock */
 	cnl_uninit_cdclk(dev_priv);
 
-	/* 4. Disable Power Well 1 (PG1) and Aux IO Power */
+	/*
+	 * 4. Disable Power Well 1 (PG1).
+	 *    The AUX IO power wells are toggled on demand, so they are already
+	 *    disabled at this point.
+	 */
 	mutex_lock(&power_domains->lock);
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
 	intel_power_well_disable(dev_priv, well);
 	mutex_unlock(&power_domains->lock);
+
+	usleep_range(10, 30);		/* 10 us delay per Bspec */
 
 	/* 5. Disable Comp */
 	val = I915_READ(CHICKEN_MISC_2);
