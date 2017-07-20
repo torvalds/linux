@@ -104,10 +104,10 @@
 
 #define GCR_LTDCEN	BIT(0)		/* LTDC ENable */
 #define GCR_DEN		BIT(16)		/* Dither ENable */
-#define GCR_PCPOL	BIT(28)		/* Pixel Clock POLarity */
-#define GCR_DEPOL	BIT(29)		/* Data Enable POLarity */
-#define GCR_VSPOL	BIT(30)		/* Vertical Synchro POLarity */
-#define GCR_HSPOL	BIT(31)		/* Horizontal Synchro POLarity */
+#define GCR_PCPOL	BIT(28)		/* Pixel Clock POLarity-Inverted */
+#define GCR_DEPOL	BIT(29)		/* Data Enable POLarity-High */
+#define GCR_VSPOL	BIT(30)		/* Vertical Synchro POLarity-High */
+#define GCR_HSPOL	BIT(31)		/* Horizontal Synchro POLarity-High */
 
 #define GC1R_WBCH	GENMASK(3, 0)	/* Width of Blue CHannel output */
 #define GC1R_WGCH	GENMASK(7, 4)	/* Width of Green Channel output */
@@ -174,14 +174,6 @@
 
 #define LXCFBLNR_CFBLN	GENMASK(10, 0)	 /* Color Frame Buffer Line Number */
 
-#define HSPOL_AL   0		/* Horizontal Sync POLarity Active Low */
-#define VSPOL_AL   0		/* Vertical Sync POLarity Active Low */
-#define DEPOL_AL   0		/* Data Enable POLarity Active Low */
-#define PCPOL_IPC  0		/* Input Pixel Clock */
-#define HSPOL_AH   GCR_HSPOL	/* Horizontal Sync POLarity Active High */
-#define VSPOL_AH   GCR_VSPOL	/* Vertical Sync POLarity Active High */
-#define DEPOL_AH   GCR_DEPOL	/* Data Enable POLarity Active High */
-#define PCPOL_IIPC GCR_PCPOL	/* Inverted Input Pixel Clock */
 #define CONSTA_MAX 0xFF		/* CONSTant Alpha MAX= 1.0 */
 #define BF1_PAXCA  0x600	/* Pixel Alpha x Constant Alpha */
 #define BF1_CA     0x400	/* Constant Alpha */
@@ -459,20 +451,20 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	clk_enable(ldev->pixel_clk);
 
-	/* Configures the HS, VS, DE and PC polarities. */
-	val = HSPOL_AL | VSPOL_AL | DEPOL_AL | PCPOL_IPC;
+	/* Configures the HS, VS, DE and PC polarities. Default Active Low */
+	val = 0;
 
 	if (vm.flags & DISPLAY_FLAGS_HSYNC_HIGH)
-		val |= HSPOL_AH;
+		val |= GCR_HSPOL;
 
 	if (vm.flags & DISPLAY_FLAGS_VSYNC_HIGH)
-		val |= VSPOL_AH;
+		val |= GCR_VSPOL;
 
 	if (vm.flags & DISPLAY_FLAGS_DE_HIGH)
-		val |= DEPOL_AH;
+		val |= GCR_DEPOL;
 
 	if (vm.flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
-		val |= PCPOL_IIPC;
+		val |= GCR_PCPOL;
 
 	reg_update_bits(ldev->regs, LTDC_GCR,
 			GCR_HSPOL | GCR_VSPOL | GCR_DEPOL | GCR_PCPOL, val);
