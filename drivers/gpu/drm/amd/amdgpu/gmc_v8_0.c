@@ -396,7 +396,10 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 static void gmc_v8_0_vram_gtt_location(struct amdgpu_device *adev,
 				       struct amdgpu_mc *mc)
 {
-	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
+	u64 base = 0;
+
+	if (!amdgpu_sriov_vf(adev))
+		base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
 	if (mc->mc_vram_size > 0xFFC0000000ULL) {
@@ -442,6 +445,17 @@ static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
 	       adev->mc.vram_end >> 12);
 	WREG32(mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR,
 	       adev->vram_scratch.gpu_addr >> 12);
+
+	if (amdgpu_sriov_vf(adev)) {
+		tmp = ((adev->mc.vram_end >> 24) & 0xFFFF) << 16;
+		tmp |= ((adev->mc.vram_start >> 24) & 0xFFFF);
+		WREG32(mmMC_VM_FB_LOCATION, tmp);
+		/* XXX double check these! */
+		WREG32(mmHDP_NONSURFACE_BASE, (adev->mc.vram_start >> 8));
+		WREG32(mmHDP_NONSURFACE_INFO, (2 << 7) | (1 << 30));
+		WREG32(mmHDP_NONSURFACE_SIZE, 0x3FFFFFFF);
+	}
+
 	WREG32(mmMC_VM_AGP_BASE, 0);
 	WREG32(mmMC_VM_AGP_TOP, 0x0FFFFFFF);
 	WREG32(mmMC_VM_AGP_BOT, 0x0FFFFFFF);
