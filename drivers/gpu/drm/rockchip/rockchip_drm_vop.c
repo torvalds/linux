@@ -2053,7 +2053,12 @@ static void vop_post_config(struct drm_crtc *crtc)
 	val = scl_cal_scale2(vdisplay, vsize) << 16;
 	val |= scl_cal_scale2(hdisplay, hsize);
 	VOP_CTRL_SET(vop, post_scl_factor, val);
-	VOP_CTRL_SET(vop, post_scl_ctrl, 0x3);
+
+#define POST_HORIZONTAL_SCALEDOWN_EN(x)		((x) << 0)
+#define POST_VERTICAL_SCALEDOWN_EN(x)		((x) << 1)
+	VOP_CTRL_SET(vop, post_scl_ctrl,
+		     POST_HORIZONTAL_SCALEDOWN_EN(hdisplay != hsize) ||
+		     POST_VERTICAL_SCALEDOWN_EN(vdisplay != vsize));
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		u16 vact_st_f1 = vtotal + vact_st + 1;
 		u16 vact_end_f1 = vact_st_f1 + vsize;
