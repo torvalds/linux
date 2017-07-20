@@ -347,34 +347,34 @@ static int ads1015_read_raw(struct iio_dev *indio_dev,
 	int ret, idx;
 	struct ads1015_data *data = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	mutex_lock(&data->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW: {
 		int shift = chan->scan_type.shift;
 
-		if (iio_buffer_enabled(indio_dev)) {
-			ret = -EBUSY;
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
 			break;
-		}
 
 		ret = ads1015_set_power_state(data, true);
 		if (ret < 0)
-			break;
+			goto release_direct;
 
 		ret = ads1015_get_adc_result(data, chan->address, val);
 		if (ret < 0) {
 			ads1015_set_power_state(data, false);
-			break;
+			goto release_direct;
 		}
 
 		*val = sign_extend32(*val >> shift, 15 - shift);
 
 		ret = ads1015_set_power_state(data, false);
 		if (ret < 0)
-			break;
+			goto release_direct;
 
 		ret = IIO_VAL_INT;
+release_direct:
+		iio_device_release_direct_mode(indio_dev);
 		break;
 	}
 	case IIO_CHAN_INFO_SCALE:
@@ -393,7 +393,6 @@ static int ads1015_read_raw(struct iio_dev *indio_dev,
 		break;
 	}
 	mutex_unlock(&data->lock);
-	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
 }
