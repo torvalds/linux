@@ -297,20 +297,14 @@ fail2:
 fail1:
 	 kfree(state->digest_buff);
 fail_digest_result_buff:
-	 if (state->digest_result_buff) {
-		 kfree(state->digest_result_buff);
-	     state->digest_result_buff = NULL;
-	 }
+	kfree(state->digest_result_buff);
+	state->digest_result_buff = NULL;
 fail_buff1:
-	 if (state->buff1) {
-		 kfree(state->buff1);
-	     state->buff1 = NULL;
-	 }
+	kfree(state->buff1);
+	state->buff1 = NULL;
 fail_buff0:
-	 if (state->buff0) {
-		 kfree(state->buff0);
-	     state->buff0 = NULL;
-	 }
+	kfree(state->buff0);
+	state->buff0 = NULL;
 fail0:
 	return rc;
 }
@@ -2326,11 +2320,8 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 	return 0;
 
 fail:
-
-	if (drvdata->hash_handle) {
-		kfree(drvdata->hash_handle);
-		drvdata->hash_handle = NULL;
-	}
+	kfree(drvdata->hash_handle);
+	drvdata->hash_handle = NULL;
 	return rc;
 }
 
