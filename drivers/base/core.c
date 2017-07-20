@@ -1026,12 +1026,14 @@ int device_add_groups(struct device *dev, const struct attribute_group **groups)
 {
 	return sysfs_create_groups(&dev->kobj, groups);
 }
+EXPORT_SYMBOL_GPL(device_add_groups);
 
 void device_remove_groups(struct device *dev,
 			  const struct attribute_group **groups)
 {
 	sysfs_remove_groups(&dev->kobj, groups);
 }
+EXPORT_SYMBOL_GPL(device_remove_groups);
 
 static int device_add_attrs(struct device *dev)
 {
