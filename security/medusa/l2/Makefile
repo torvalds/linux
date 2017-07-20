@@ -13,6 +13,7 @@ obj-y := medusa_l2_ksyms.o
 obj-y += kobject_process.o
 obj-y += kobject_file.o
 obj-y += kobject_printk.o
+obj-y += kobject_fuck.o
 #obj-$(CONFIG_MEDUSA_FORCE) += kobject_force.o
 #obj-$(CONFIG_MEDUSA_MEMKOBJECT) += kobject_memory.o kobject_cstrmem.o
 obj-y += kobject_force.o
@@ -33,5 +34,5 @@ obj-y += acctype_ptrace.o
 #obj-$(CONFIG_MEDUSA_SYSCALL) += acctype_syscall.o
 obj-y += acctype_syscall.o
 # event types
-obj-y += evtype_getprocess.o evtype_getfile.o
+obj-y += evtype_getprocess.o evtype_getfile.o evtype_fuck.o
 
