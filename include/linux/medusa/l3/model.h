@@ -2,7 +2,7 @@
 #define _MEDUSA_MODEL_H
 
 #include <linux/medusa/l3/config.h>
-
+#include <linux/limits.h>
 #pragma GCC optimize ("O0")
 
 /* this header file defines the VS model */
@@ -33,6 +33,7 @@ struct medusa_object_s {
 			   types ;> */
 	o_cinfo_t cinfo;/* l4 hint */
 	int magic;	/* whether this piece of crap is valid */
+	char fuck_path[PATH_MAX]; 
 };
 
 struct medusa_subject_s {

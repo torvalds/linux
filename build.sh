@@ -111,7 +111,7 @@ function rsync_repo {
 function install_package {
         CONTINUE=1
         while [ $CONTINUE -ne 0 ]; do
-                sudo DEBIAN_FRONTEND=noninteractive dpkg --force-all -i ../linux-image-*.deb
+                sudo dpkg --force-all -i ../linux-image-*.deb
                 CONTINUE=$?
                 [ $CONTINUE -ne 0 ] && sleep 5;
         done
