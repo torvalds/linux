@@ -108,13 +108,6 @@
 		clock-output-names = "clk26m";
 	};
 
-	clk32k: oscillator@1 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32000>;
-		clock-output-names = "clk32k";
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupt-parent = <&gic>;
