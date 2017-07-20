@@ -871,10 +871,37 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5514_priv *rt5514 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val = 0;
+	unsigned int val = 0, val2 = 0;
 
 	if (rx_mask || tx_mask)
 		val |= RT5514_TDM_MODE;
+
+	switch (tx_mask) {
+	case 0x3:
+		val2 |= RT5514_TDM_DOCKING_MODE | RT5514_TDM_DOCKING_VALID_CH2 |
+			RT5514_TDM_DOCKING_START_SLOT0;
+		break;
+
+	case 0x30:
+		val2 |= RT5514_TDM_DOCKING_MODE | RT5514_TDM_DOCKING_VALID_CH2 |
+			RT5514_TDM_DOCKING_START_SLOT4;
+		break;
+
+	case 0xf:
+		val2 |= RT5514_TDM_DOCKING_MODE | RT5514_TDM_DOCKING_VALID_CH4 |
+			RT5514_TDM_DOCKING_START_SLOT0;
+		break;
+
+	case 0xf0:
+		val2 |= RT5514_TDM_DOCKING_MODE | RT5514_TDM_DOCKING_VALID_CH4 |
+			RT5514_TDM_DOCKING_START_SLOT4;
+		break;
+
+	default:
+		break;
+	}
+
+
 
 	switch (slots) {
 	case 4:
@@ -920,6 +947,10 @@ static int rt5514_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		RT5514_TDMSLOT_SEL_RX_MASK | RT5514_TDMSLOT_SEL_TX_MASK |
 		RT5514_CH_LEN_RX_MASK | RT5514_CH_LEN_TX_MASK |
 		RT5514_TDM_MODE2, val);
+
+	regmap_update_bits(rt5514->regmap, RT5514_I2S_CTRL2,
+		RT5514_TDM_DOCKING_MODE | RT5514_TDM_DOCKING_VALID_CH_MASK |
+		RT5514_TDM_DOCKING_START_MASK, val2);
 
 	return 0;
 }
