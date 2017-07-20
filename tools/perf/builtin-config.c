@@ -13,6 +13,7 @@
 #include "util/util.h"
 #include "util/debug.h"
 #include "util/config.h"
+#include <linux/string.h>
 
 static bool use_system_config, use_user_config;
 
@@ -79,7 +80,7 @@ static int show_spec_config(struct perf_config_set *set, const char *var)
 		return -1;
 
 	perf_config_items__for_each_entry(&set->sections, section) {
-		if (prefixcmp(var, section->name) != 0)
+		if (!strstarts(var, section->name))
 			continue;
 
 		perf_config_items__for_each_entry(&section->items, item) {
