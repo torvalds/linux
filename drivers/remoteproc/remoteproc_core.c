@@ -1119,7 +1119,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
 }
 
 /**
- * __rproc_boot() - boot a remote processor
+ * rproc_boot() - boot a remote processor
  * @rproc: handle of a remote processor
  *
  * Boot a remote processor (i.e. load its firmware, power it on, ...).
@@ -1129,7 +1129,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
  *
  * Returns 0 on success, and an appropriate error value otherwise.
  */
-static int __rproc_boot(struct rproc *rproc)
+int rproc_boot(struct rproc *rproc)
 {
 	const struct firmware *firmware_p;
 	struct device *dev;
@@ -1179,15 +1179,6 @@ downref_rproc:
 unlock_mutex:
 	mutex_unlock(&rproc->lock);
 	return ret;
-}
-
-/**
- * rproc_boot() - boot a remote processor
- * @rproc: handle of a remote processor
- */
-int rproc_boot(struct rproc *rproc)
-{
-	return __rproc_boot(rproc);
 }
 EXPORT_SYMBOL(rproc_boot);
 
