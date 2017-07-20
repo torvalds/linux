@@ -2221,12 +2221,16 @@ static int __init uv_bau_init(void)
 	else if (is_uv1_hub())
 		ops = uv1_bau_ops;
 
+	nuvhubs = uv_num_possible_blades();
+	if (nuvhubs < 2) {
+		pr_crit("UV: BAU disabled - insufficient hub count\n");
+		goto err_bau_disable;
+	}
+
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);
 		zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cur_cpu));
 	}
-
-	nuvhubs = uv_num_possible_blades();
 
 	uv_base_pnode = 0x7fffffff;
 	for (uvhub = 0; uvhub < nuvhubs; uvhub++) {
@@ -2240,9 +2244,8 @@ static int __init uv_bau_init(void)
 		enable_timeouts();
 
 	if (init_per_cpu(nuvhubs, uv_base_pnode)) {
-		set_bau_off();
-		nobau_perm = 1;
-		return 0;
+		pr_crit("UV: BAU disabled - per CPU init failed\n");
+		goto err_bau_disable;
 	}
 
 	vector = UV_BAU_MESSAGE;
@@ -2268,6 +2271,16 @@ static int __init uv_bau_init(void)
 	}
 
 	return 0;
+
+err_bau_disable:
+
+	for_each_possible_cpu(cur_cpu)
+		free_cpumask_var(per_cpu(uv_flush_tlb_mask, cur_cpu));
+
+	set_bau_off();
+	nobau_perm = 1;
+
+	return -EINVAL;
 }
 core_initcall(uv_bau_init);
 fs_initcall(uv_ptc_init);
