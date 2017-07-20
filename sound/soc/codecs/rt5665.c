@@ -4186,6 +4186,15 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
+	if (rt5665->master[RT5665_AIF2_1] || rt5665->master[RT5665_AIF2_2]) {
+		snd_soc_update_bits(codec, RT5665_I2S_M_CLK_CTRL_1,
+			RT5665_I2S2_M_PD_MASK, pre_div << RT5665_I2S2_M_PD_SFT);
+	}
+	if (rt5665->master[RT5665_AIF3]) {
+		snd_soc_update_bits(codec, RT5665_I2S_M_CLK_CTRL_1,
+			RT5665_I2S3_M_PD_MASK, pre_div << RT5665_I2S3_M_PD_SFT);
+	}
+
 	return 0;
 }
 
@@ -4262,7 +4271,7 @@ static int rt5665_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
 				   int source, unsigned int freq, int dir)
 {
 	struct rt5665_priv *rt5665 = snd_soc_codec_get_drvdata(codec);
-	unsigned int reg_val = 0;
+	unsigned int reg_val = 0, src = 0;
 
 	if (freq == rt5665->sysclk && clk_id == rt5665->sysclk_src)
 		return 0;
@@ -4270,12 +4279,15 @@ static int rt5665_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
 	switch (clk_id) {
 	case RT5665_SCLK_S_MCLK:
 		reg_val |= RT5665_SCLK_SRC_MCLK;
+		src = RT5665_CLK_SRC_MCLK;
 		break;
 	case RT5665_SCLK_S_PLL1:
 		reg_val |= RT5665_SCLK_SRC_PLL1;
+		src = RT5665_CLK_SRC_PLL1;
 		break;
 	case RT5665_SCLK_S_RCCLK:
 		reg_val |= RT5665_SCLK_SRC_RCCLK;
+		src = RT5665_CLK_SRC_RCCLK;
 		break;
 	default:
 		dev_err(codec->dev, "Invalid clock id (%d)\n", clk_id);
@@ -4283,6 +4295,16 @@ static int rt5665_set_codec_sysclk(struct snd_soc_codec *codec, int clk_id,
 	}
 	snd_soc_update_bits(codec, RT5665_GLB_CLK,
 		RT5665_SCLK_SRC_MASK, reg_val);
+
+	if (rt5665->master[RT5665_AIF2_1] || rt5665->master[RT5665_AIF2_2]) {
+		snd_soc_update_bits(codec, RT5665_I2S_M_CLK_CTRL_1,
+			RT5665_I2S2_SRC_MASK, src << RT5665_I2S2_SRC_SFT);
+	}
+	if (rt5665->master[RT5665_AIF3]) {
+		snd_soc_update_bits(codec, RT5665_I2S_M_CLK_CTRL_1,
+			RT5665_I2S3_SRC_MASK, src << RT5665_I2S3_SRC_SFT);
+	}
+
 	rt5665->sysclk = freq;
 	rt5665->sysclk_src = clk_id;
 
