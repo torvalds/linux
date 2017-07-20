@@ -1290,23 +1290,13 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_flip_done);
  * @old_state: atomic state object with old state structures
  *
  * This is the default implementation for the
- * &drm_mode_config_helper_funcs.atomic_commit_tail hook.
+ * &drm_mode_config_helper_funcs.atomic_commit_tail hook, for drivers
+ * that do not support runtime_pm or do not need the CRTC to be
+ * enabled to perform a commit. Otherwise, see
+ * drm_atomic_helper_commit_tail_rpm().
  *
  * Note that the default ordering of how the various stages are called is to
- * match the legacy modeset helper library closest. One peculiarity of that is
- * that it doesn't mesh well with runtime PM at all.
- *
- * For drivers supporting runtime PM the recommended sequence is instead ::
- *
- *     drm_atomic_helper_commit_modeset_disables(dev, old_state);
- *
- *     drm_atomic_helper_commit_modeset_enables(dev, old_state);
- *
- *     drm_atomic_helper_commit_planes(dev, old_state,
- *                                     DRM_PLANE_COMMIT_ACTIVE_ONLY);
- *
- * for committing the atomic update to hardware.  See the kerneldoc entries for
- * these three functions for more details.
+ * match the legacy modeset helper library closest.
  */
 void drm_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 {
@@ -1325,6 +1315,35 @@ void drm_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_tail);
+
+/**
+ * drm_atomic_helper_commit_tail_rpm - commit atomic update to hardware
+ * @old_state: new modeset state to be committed
+ *
+ * This is an alternative implementation for the
+ * &drm_mode_config_helper_funcs.atomic_commit_tail hook, for drivers
+ * that support runtime_pm or need the CRTC to be enabled to perform a
+ * commit. Otherwise, one should use the default implementation
+ * drm_atomic_helper_commit_tail().
+ */
+void drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = old_state->dev;
+
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_commit_planes(dev, old_state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+
+	drm_atomic_helper_commit_hw_done(old_state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_commit_tail_rpm);
 
 static void commit_tail(struct drm_atomic_state *old_state)
 {
