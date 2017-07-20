@@ -429,8 +429,8 @@ int dma_fence_get_status(struct dma_fence *fence);
 static inline void dma_fence_set_error(struct dma_fence *fence,
 				       int error)
 {
-	BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
-	BUG_ON(error >= 0 || error < -MAX_ERRNO);
+	WARN_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
+	WARN_ON(error >= 0 || error < -MAX_ERRNO);
 
 	fence->error = error;
 }
