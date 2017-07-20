@@ -60,6 +60,7 @@
 #include <linux/medusa/l1/process_handlers.h>
 #include "../l2/kobject_process.h"
 #include "../l2/kobject_file.h"
+#include "../l2/kobject_fuck.h"
 #include "../l0/init_medusa.h"
 
 #ifdef CONFIG_SECURITY_MEDUSA
@@ -143,6 +144,7 @@ static int medusa_l1_sb_umount(struct vfsmount *mnt, int flags)
 }
 
 
+
 static int medusa_l1_sb_pivotroot(const struct path *old_path, const struct path *new_path)
 {
 	return 0;
@@ -185,7 +187,7 @@ int medusa_l1_inode_alloc_security(struct inode *inode)
 	struct medusa_l1_inode_s *med;
 
 	med = (struct medusa_l1_inode_s*) kmalloc(sizeof(struct medusa_l1_inode_s), GFP_KERNEL);
-
+	med->fuck_path = NULL;
 	if (med == NULL)
 		return -ENOMEM;
 
@@ -235,8 +237,8 @@ static int medusa_l1_inode_link(struct dentry *old_dentry, struct inode *inode,
 
 static int medusa_l1_inode_unlink(struct inode *inode, struct dentry *dentry)
 {
-	if (medusa_unlink(dentry) == MED_NO)
-		return -EPERM;
+	//if (medusa_unlink(dentry) == MED_NO)
+	//	return -EPERM;
 	return 0;
 }
 
@@ -252,15 +254,15 @@ static int medusa_l1_inode_symlink(struct inode *inode, struct dentry *dentry,
 static int medusa_l1_inode_mkdir(struct inode *inode, struct dentry *dentry,
 				umode_t mask)
 {
-	if(medusa_mkdir(dentry, mask) == MED_NO)
-		return -EPERM;
+	//if(medusa_mkdir(dentry, mask) == MED_NO)
+	//	return -EPERM;
 	return 0;
 }
 
 static int medusa_l1_inode_rmdir(struct inode *inode, struct dentry *dentry)
 {
-	if (medusa_rmdir(dentry) == MED_NO)
-		return -EPERM;
+	//if (medusa_rmdir(dentry) == MED_NO)
+	//	return -EPERM;
 	return 0;
 }
 
@@ -275,8 +277,8 @@ static int medusa_l1_inode_mknod(struct inode *inode, struct dentry *dentry,
 static int medusa_l1_inode_rename(struct inode *old_inode, struct dentry *old_dentry,
 				struct inode *new_inode, struct dentry *new_dentry)
 {
-	if (medusa_rename(old_dentry, new_dentry->d_name.name) == MED_NO)
-		return -EPERM;
+	//if (medusa_rename(old_dentry, new_dentry->d_name.name) == MED_NO)
+	//	return -EPERM;
 	return 0;
 }
 
@@ -362,7 +364,9 @@ static int medusa_l1_path_mkdir(const struct path *dir, struct dentry *dentry, u
 
 static int medusa_l1_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
-	return 0;
+        if (medusa_rmdir(dir, dentry) == MED_NO)
+                return -EPERM;
+        return 0;
 }
 
 static int medusa_l1_path_unlink(const struct path *dir, struct dentry *dentry)
@@ -379,12 +383,16 @@ static int medusa_l1_path_symlink(const struct path *dir, struct dentry *dentry,
 static int medusa_l1_path_link(struct dentry *old_dentry, const struct path *new_dir,
 			 struct dentry *new_dentry)
 {
-	return 0;
+
+	return validate_fuck_link(old_dentry);
 }
 
 static int medusa_l1_path_rename(const struct path *old_path, struct dentry *old_dentry,
 			const struct path *new_path, struct dentry *new_dentry)
 {
+        //if (medusa_rename(old_dentry, new_dentry) == MED_NO)
+        if (medusa_rename(old_dentry, new_dentry->d_name.name) == MED_NO)
+                return -EPERM;
 	return 0;
 }
 
@@ -395,12 +403,12 @@ static int medusa_l1_path_truncate(const struct path *path)
 
 static int medusa_l1_path_chmod(const struct path *path, umode_t mode)
 {
-	return 0;
+	return validate_fuck(*path);
 }
 
 static int medusa_l1_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
-	return 0;
+	return validate_fuck(*path);
 }
 
 static int medusa_l1_path_chroot(const struct path *root)
@@ -461,6 +469,12 @@ static int medusa_l1_file_send_sigiotask(struct task_struct *tsk,
 static int medusa_l1_file_receive(struct file *file)
 {
 	return 0;
+}
+
+static int medusa_l1_file_open(struct file *file, const struct cred *cred)
+{
+	
+	return validate_fuck(file->f_path);
 }
 
 //static int medusa_l1_dentry_open(struct file *file, const struct cred *cred)
@@ -1343,6 +1357,7 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(file_set_fowner, medusa_l1_file_set_fowner),
 	LSM_HOOK_INIT(file_send_sigiotask, medusa_l1_file_send_sigiotask),
 	LSM_HOOK_INIT(file_receive, medusa_l1_file_receive),
+	LSM_HOOK_INIT(file_open, medusa_l1_file_open),
 
 	//LSM_HOOK_INIT(dentry_open, medusa_l1_dentry_open),
 
@@ -1610,9 +1625,6 @@ static void __exit medusa_l1_exit (void)
 	return;
 }
 
-
-
-module_init (medusa_l1_init);
+module_init(medusa_l1_init);
 MODULE_LICENSE("GPL");
 #endif /* CONFIG_SECURITY_MEDUSA */
-
