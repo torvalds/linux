@@ -589,13 +589,12 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tgi->soc = config;
 	tgi->dev = &pdev->dev;
 
-	for (;;) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ,
-					    tgi->bank_count);
-		if (!res)
-			break;
-		tgi->bank_count++;
-	}
+	ret = platform_irq_count(pdev);
+	if (ret < 0)
+		return ret;
+
+	tgi->bank_count = ret;
+
 	if (!tgi->bank_count) {
 		dev_err(&pdev->dev, "Missing IRQ resource\n");
 		return -ENODEV;
