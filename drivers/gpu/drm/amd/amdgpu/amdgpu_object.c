@@ -609,16 +609,16 @@ err:
 
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 {
-	bool is_iomem;
+	void *kptr;
 	long r;
 
 	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 		return -EPERM;
 
-	if (bo->kptr) {
-		if (ptr) {
-			*ptr = bo->kptr;
-		}
+	kptr = amdgpu_bo_kptr(bo);
+	if (kptr) {
+		if (ptr)
+			*ptr = kptr;
 		return 0;
 	}
 
@@ -631,19 +631,23 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 	if (r)
 		return r;
 
-	bo->kptr = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
 	if (ptr)
-		*ptr = bo->kptr;
+		*ptr = amdgpu_bo_kptr(bo);
 
 	return 0;
 }
 
+void *amdgpu_bo_kptr(struct amdgpu_bo *bo)
+{
+	bool is_iomem;
+
+	return ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
+}
+
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo)
 {
-	if (bo->kptr == NULL)
-		return;
-	bo->kptr = NULL;
-	ttm_bo_kunmap(&bo->kmap);
+	if (bo->kmap.bo)
+		ttm_bo_kunmap(&bo->kmap);
 }
 
 struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo)

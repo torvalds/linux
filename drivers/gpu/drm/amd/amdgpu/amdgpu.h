@@ -425,7 +425,6 @@ struct amdgpu_bo {
 	struct ttm_bo_kmap_obj		kmap;
 	u64				flags;
 	unsigned			pin_count;
-	void				*kptr;
 	u64				tiling_flags;
 	u64				metadata_flags;
 	void				*metadata;
