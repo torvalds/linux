@@ -65,7 +65,6 @@ struct i915_params i915 __read_mostly = {
 	.inject_load_failure = 0,
 	.enable_dpcd_backlight = -1,
 	.enable_gvt = false,
-	.enable_dbc = true,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -255,7 +254,3 @@ MODULE_PARM_DESC(enable_dpcd_backlight,
 module_param_named(enable_gvt, i915.enable_gvt, bool, 0400);
 MODULE_PARM_DESC(enable_gvt,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
-
-module_param_named_unsafe(enable_dbc, i915.enable_dbc, bool, 0600);
-MODULE_PARM_DESC(enable_dbc,
-	"Enable support for dynamic backlight control (default:true)");

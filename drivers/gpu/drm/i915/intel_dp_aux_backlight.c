@@ -173,24 +173,6 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 	return true;
 }
 
-/*
-* Set minimum / maximum dynamic brightness percentage. This value is expressed
-* as the percentage of normal brightness in 5% increments.
-*/
-static bool
-intel_dp_aux_set_dynamic_backlight_percent(struct intel_dp *intel_dp,
-					   u32 min, u32 max)
-{
-	u8 dbc[] = { DIV_ROUND_CLOSEST(min, 5), DIV_ROUND_CLOSEST(max, 5) };
-
-	if (drm_dp_dpcd_write(&intel_dp->aux, DP_EDP_DBC_MINIMUM_BRIGHTNESS_SET,
-			  dbc, sizeof(dbc)) < 0) {
-		DRM_DEBUG_KMS("Failed to write aux DBC brightness level\n");
-		return false;
-	}
-	return true;
-}
-
 static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_state,
 					  const struct drm_connector_state *conn_state)
 {
@@ -225,14 +207,6 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 	if (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_FREQ_AUX_SET_CAP)
 		if (intel_dp_aux_set_pwm_freq(connector))
 			new_dpcd_buf |= DP_EDP_BACKLIGHT_FREQ_AUX_SET_ENABLE;
-
-	if (i915.enable_dbc &&
-	    (intel_dp->edp_dpcd[2] & DP_EDP_DYNAMIC_BACKLIGHT_CAP)) {
-		if(intel_dp_aux_set_dynamic_backlight_percent(intel_dp, 0, 100)) {
-			new_dpcd_buf |= DP_EDP_DYNAMIC_BACKLIGHT_ENABLE;
-			DRM_DEBUG_KMS("Enable dynamic brightness.\n");
-		}
-	}
 
 	if (new_dpcd_buf != dpcd_buf) {
 		if (drm_dp_dpcd_writeb(&intel_dp->aux,

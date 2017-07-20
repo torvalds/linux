@@ -67,8 +67,7 @@
 	func(bool, verbose_state_checks); \
 	func(bool, nuclear_pageflip); \
 	func(bool, enable_dp_mst); \
-	func(bool, enable_gvt); \
-	func(bool, enable_dbc)
+	func(bool, enable_gvt)
 
 #define MEMBER(T, member) T member
 struct i915_params {
