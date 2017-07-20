@@ -381,7 +381,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
 				amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 				AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				NULL, NULL, bo);
+				NULL, NULL, 0, bo);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
 		goto failed;
