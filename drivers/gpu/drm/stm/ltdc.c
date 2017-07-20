@@ -874,7 +874,7 @@ int ltdc_load(struct drm_device *ddev)
 	struct drm_panel *panel;
 	struct drm_crtc *crtc;
 	struct reset_control *rstc;
-	struct resource res;
+	struct resource *res;
 	int irq, ret, i;
 
 	DRM_DEBUG_DRIVER("\n");
@@ -883,7 +883,7 @@ int ltdc_load(struct drm_device *ddev)
 	if (ret)
 		return ret;
 
-	rstc = of_reset_control_get(np, NULL);
+	rstc = devm_reset_control_get_exclusive(dev, NULL);
 
 	mutex_init(&ldev->err_lock);
 
@@ -898,13 +898,14 @@ int ltdc_load(struct drm_device *ddev)
 		return -ENODEV;
 	}
 
-	if (of_address_to_resource(np, 0, &res)) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		DRM_ERROR("Unable to get resource\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
-	ldev->regs = devm_ioremap_resource(dev, &res);
+	ldev->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ldev->regs)) {
 		DRM_ERROR("Unable to get ltdc registers\n");
 		ret = PTR_ERR(ldev->regs);
