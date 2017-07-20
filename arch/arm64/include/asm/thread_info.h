@@ -30,7 +30,6 @@
 #endif
 
 #define THREAD_SIZE		16384
-#define THREAD_START_SP		(THREAD_SIZE - 16)
 
 #ifndef __ASSEMBLY__
 

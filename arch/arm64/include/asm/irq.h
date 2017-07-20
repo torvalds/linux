@@ -2,7 +2,6 @@
 #define __ASM_IRQ_H
 
 #define IRQ_STACK_SIZE			THREAD_SIZE
-#define IRQ_STACK_START_SP		THREAD_START_SP
 
 #ifndef __ASSEMBLER__
 
@@ -26,9 +25,9 @@ static inline int nr_legacy_irqs(void)
 static inline bool on_irq_stack(unsigned long sp)
 {
 	unsigned long low = (unsigned long)raw_cpu_ptr(irq_stack);
-	unsigned long high = low + IRQ_STACK_START_SP;
+	unsigned long high = low + IRQ_STACK_SIZE;
 
-	return (low <= sp && sp <= high);
+	return (low <= sp && sp < high);
 }
 
 static inline bool on_task_stack(struct task_struct *tsk, unsigned long sp)
