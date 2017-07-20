@@ -242,8 +242,7 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 		goto error_cleanup_resource;
 
 	mc_portal_phys_addr = dpmcp_dev->regions[0].start;
-	mc_portal_size = dpmcp_dev->regions[0].end -
-			 dpmcp_dev->regions[0].start + 1;
+	mc_portal_size = resource_size(dpmcp_dev->regions);
 
 	if (WARN_ON(mc_portal_size != mc_bus_dev->mc_io->portal_size))
 		goto error_cleanup_resource;
