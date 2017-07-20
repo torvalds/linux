@@ -183,7 +183,7 @@ static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd, struct msi_desc *d
 	int i, best = 1;
 	unsigned long flags;
 
-	if (!desc->msi_attrib.is_msix || vmd->msix_count == 1)
+	if (pci_is_bridge(msi_desc_to_pci_dev(desc)) || vmd->msix_count == 1)
 		return &vmd->irqs[0];
 
 	raw_spin_lock_irqsave(&list_lock, flags);
