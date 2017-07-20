@@ -237,7 +237,10 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		goto err;
 
 	platform_set_drvdata(pdev, chips);
-	davinci_gpio_irq_setup(pdev);
+	ret = davinci_gpio_irq_setup(pdev);
+	if (ret)
+		goto err;
+
 	return 0;
 
 err:
