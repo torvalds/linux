@@ -394,14 +394,33 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ww_mutex_unlock (&bo->resv->lock);
 }
 
+static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
+{
+	int r;
+
+	if (bo->resv == &bo->ttm_resv)
+		return 0;
+
+	reservation_object_init(&bo->ttm_resv);
+	BUG_ON(reservation_object_lock(&bo->ttm_resv, NULL));
+
+	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
+	if (r) {
+		reservation_object_unlock(&bo->ttm_resv);
+		reservation_object_fini(&bo->ttm_resv);
+	}
+
+	return r;
+}
+
 static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 {
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence;
 	int i;
 
-	fobj = reservation_object_get_list(bo->resv);
-	fence = reservation_object_get_excl(bo->resv);
+	fobj = reservation_object_get_list(&bo->ttm_resv);
+	fence = reservation_object_get_excl(&bo->ttm_resv);
 	if (fence && !fence->ops->signaled)
 		dma_fence_enable_sw_signaling(fence);
 
@@ -430,8 +449,19 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_cleanup_memtype_use(bo);
 
 			return;
-		} else
-			ttm_bo_flush_all_fences(bo);
+		}
+
+		ret = ttm_bo_individualize_resv(bo);
+		if (ret) {
+			/* Last resort, if we fail to allocate memory for the
+			 * fences block for the BO to become idle and free it.
+			 */
+			spin_unlock(&glob->lru_lock);
+			ttm_bo_wait(bo, true, true);
+			ttm_bo_cleanup_memtype_use(bo);
+			return;
+		}
+		ttm_bo_flush_all_fences(bo);
 
 		/*
 		 * Make NO_EVICT bos immediately available to
@@ -443,6 +473,8 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_add_to_lru(bo);
 		}
 
+		if (bo->resv != &bo->ttm_resv)
+			reservation_object_unlock(&bo->ttm_resv);
 		__ttm_bo_unreserve(bo);
 	}
 
@@ -471,17 +503,25 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 					  bool no_wait_gpu)
 {
 	struct ttm_bo_global *glob = bo->glob;
+	struct reservation_object *resv;
 	int ret;
 
-	ret = ttm_bo_wait(bo, false, true);
+	if (unlikely(list_empty(&bo->ddestroy)))
+		resv = bo->resv;
+	else
+		resv = &bo->ttm_resv;
+
+	if (reservation_object_test_signaled_rcu(resv, true))
+		ret = 0;
+	else
+		ret = -EBUSY;
 
 	if (ret && !no_wait_gpu) {
 		long lret;
 		ww_mutex_unlock(&bo->resv->lock);
 		spin_unlock(&glob->lru_lock);
 
-		lret = reservation_object_wait_timeout_rcu(bo->resv,
-							   true,
+		lret = reservation_object_wait_timeout_rcu(resv, true,
 							   interruptible,
 							   30 * HZ);
 
