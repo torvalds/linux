@@ -261,7 +261,7 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, struct drm_display_mode *mode,
 	return 0;
 }
 
-static struct dw_mipi_dsi_phy_ops dw_mipi_dsi_stm_phy_ops = {
+static const struct dw_mipi_dsi_phy_ops dw_mipi_dsi_stm_phy_ops = {
 	.init = dw_mipi_dsi_phy_init,
 	.get_lane_mbps = dw_mipi_dsi_get_lane_mbps,
 };
