@@ -12,6 +12,7 @@
 
 //#include <linux/config.h>
 #include <linux/types.h>
+#include <linux/limits.h>
 #include <linux/capability.h>
 #include <linux/medusa/l3/model.h>
 
@@ -25,6 +26,7 @@ struct medusa_l1_inode_s {
        /* for kobject_file.c - don't touch! */
        struct inode * next_live;
        int use_count;
+	   char *fuck_path;
 };
 
 #endif

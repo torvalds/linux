@@ -20,7 +20,7 @@ extern medusa_answer_t medusa_truncate(struct dentry *dentry, unsigned long leng
 extern medusa_answer_t medusa_mkdir(struct dentry *dentry, int mode);
 extern medusa_answer_t medusa_mknod(struct dentry *dentry, dev_t dev, int mode);
 extern medusa_answer_t medusa_permission(struct inode * inode, int mask);
-extern medusa_answer_t medusa_rmdir(struct dentry *dentry);
+extern medusa_answer_t medusa_rmdir(const struct path *dir, struct dentry *dentry);
 extern medusa_answer_t medusa_symlink(struct dentry *dentry,
 		const char * oldname);
 extern medusa_answer_t medusa_unlink(struct dentry *dentry);

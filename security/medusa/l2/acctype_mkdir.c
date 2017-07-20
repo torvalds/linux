@@ -46,9 +46,9 @@ medusa_answer_t medusa_mkdir(struct dentry *dentry, int mode)
 	ndcurrent.mnt = NULL;
 	medusa_get_upper_and_parent(&ndcurrent,&ndupper,&ndparent);
 
-	if (!MED_MAGIC_VALID(&inode_security(ndparent.dentry->d_inode)) &&
-			file_kobj_validate_dentry(ndparent.dentry,ndparent.mnt) <= 0) {
-		medusa_put_upper_and_parent(&ndupper, &ndparent);
+	if (!MED_MAGIC_VALID(&inode_security(parent->dentry->d_inode)) &&
+			file_kobj_validate_dentry(parent->dentry,parent->mnt) <= 0) {
+		// medusa_put_upper_and_parent(&ndupper, &ndparent);
 		return MED_OK;
 	}
 	if (!VS_INTERSECT(VSS(&task_security(current)),VS(&inode_security(ndparent.dentry->d_inode))) ||
