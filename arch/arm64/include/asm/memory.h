@@ -110,6 +110,8 @@
 
 #define THREAD_SIZE		(UL(1) << THREAD_SHIFT)
 
+#define IRQ_STACK_SIZE		THREAD_SIZE
+
 /*
  * Memory types available.
  */
