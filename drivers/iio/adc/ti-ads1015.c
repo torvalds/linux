@@ -177,6 +177,12 @@ struct ads1015_data {
 	struct ads1015_channel_data channel_data[ADS1015_CHANNELS];
 
 	unsigned int *data_rate;
+	/*
+	 * Set to true when the ADC is switched to the continuous-conversion
+	 * mode and exits from a power-down state.  This flag is used to avoid
+	 * getting the stale result from the conversion register.
+	 */
+	bool conv_invalid;
 };
 
 static bool ads1015_is_writeable_reg(struct device *dev, unsigned int reg)
@@ -255,9 +261,10 @@ int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
 	if (ret < 0)
 		return ret;
 
-	if (change) {
+	if (change || data->conv_invalid) {
 		conv_time = DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr]);
 		usleep_range(conv_time, conv_time + 1);
+		data->conv_invalid = false;
 	}
 
 	return regmap_read(data->regmap, ADS1015_CONV_REG, val);
@@ -630,6 +637,8 @@ static int ads1015_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	data->conv_invalid = true;
+
 	ret = pm_runtime_set_active(&client->dev);
 	if (ret)
 		goto err_buffer_cleanup;
@@ -685,10 +694,15 @@ static int ads1015_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct ads1015_data *data = iio_priv(indio_dev);
+	int ret;
 
-	return regmap_update_bits(data->regmap, ADS1015_CFG_REG,
+	ret = regmap_update_bits(data->regmap, ADS1015_CFG_REG,
 				  ADS1015_CFG_MOD_MASK,
 				  ADS1015_CONTINUOUS << ADS1015_CFG_MOD_SHIFT);
+	if (!ret)
+		data->conv_invalid = true;
+
+	return ret;
 }
 #endif
 
