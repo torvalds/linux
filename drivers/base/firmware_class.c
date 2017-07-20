@@ -30,7 +30,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/reboot.h>
 #include <linux/security.h>
-#include <linux/swait.h>
 
 #include <generated/utsrelease.h>
 
@@ -112,13 +111,13 @@ static inline long firmware_loading_timeout(void)
  * state of the firmware loading.
  */
 struct fw_state {
-	struct swait_queue_head wq;
+	struct completion completion;
 	enum fw_status status;
 };
 
 static void fw_state_init(struct fw_state *fw_st)
 {
-	init_swait_queue_head(&fw_st->wq);
+	init_completion(&fw_st->completion);
 	fw_st->status = FW_STATUS_UNKNOWN;
 }
 
@@ -131,9 +130,8 @@ static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 {
 	long ret;
 
-	ret = swait_event_interruptible_timeout(fw_st->wq,
-				__fw_state_is_done(READ_ONCE(fw_st->status)),
-				timeout);
+	ret = wait_for_completion_interruptible_timeout(&fw_st->completion,
+							timeout);
 	if (ret != 0 && fw_st->status == FW_STATUS_ABORTED)
 		return -ENOENT;
 	if (!ret)
@@ -148,7 +146,7 @@ static void __fw_state_set(struct fw_state *fw_st,
 	WRITE_ONCE(fw_st->status, status);
 
 	if (status == FW_STATUS_DONE || status == FW_STATUS_ABORTED)
-		swake_up(&fw_st->wq);
+		complete_all(&fw_st->completion);
 }
 
 #define fw_state_start(fw_st)					\
