@@ -99,7 +99,7 @@ struct atmel_ecdh_ctx {
  *        @work_data: data structure representing the work
  *        @areq     : optional pointer to an argument passed with the original
  *                    request.
- *        @status   : status returned from the device.
+ *        @status   : status returned from the i2c client device or i2c error.
  * @areq: optional pointer to a user argument for use at callback time.
  * @work: describes the task to be executed.
  * @cmd : structure used for communicating with the device.
@@ -107,7 +107,7 @@ struct atmel_ecdh_ctx {
 struct atmel_ecc_work_data {
 	struct atmel_ecdh_ctx *ctx;
 	void (*cbk)(struct atmel_ecc_work_data *work_data, void *areq,
-		    u8 status);
+		    int status);
 	void *areq;
 	struct work_struct work;
 	struct atmel_ecc_cmd cmd;
@@ -263,7 +263,7 @@ static int atmel_ecc_sleep(struct i2c_client *client)
 }
 
 static void atmel_ecdh_done(struct atmel_ecc_work_data *work_data, void *areq,
-			    u8 status)
+			    int status)
 {
 	struct kpp_request *req = areq;
 	struct atmel_ecdh_ctx *ctx = work_data->ctx;
@@ -344,7 +344,7 @@ static void atmel_ecc_work_handler(struct work_struct *work)
 			container_of(work, struct atmel_ecc_work_data, work);
 	struct atmel_ecc_cmd *cmd = &work_data->cmd;
 	struct i2c_client *client = work_data->ctx->client;
-	u8 status;
+	int status;
 
 	status = atmel_ecc_send_receive(client, cmd);
 	work_data->cbk(work_data, work_data->areq, status);
@@ -352,7 +352,7 @@ static void atmel_ecc_work_handler(struct work_struct *work)
 
 static void atmel_ecc_enqueue(struct atmel_ecc_work_data *work_data,
 			      void (*cbk)(struct atmel_ecc_work_data *work_data,
-					  void *areq, u8 status),
+					  void *areq, int status),
 			      void *areq)
 {
 	work_data->cbk = (void *)cbk;
