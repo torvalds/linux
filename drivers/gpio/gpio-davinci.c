@@ -166,7 +166,7 @@ of_err:
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
 	static int ctrl_num, bank_base;
-	int gpio, bank;
+	int gpio, bank, ret = 0;
 	unsigned ngpio, nbank;
 	struct davinci_gpio_controller *chips;
 	struct davinci_gpio_platform_data *pdata;
@@ -232,10 +232,20 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	for (gpio = 0, bank = 0; gpio < ngpio; gpio += 32, bank++)
 		chips->regs[bank] = gpio_base + offset_array[bank];
 
-	gpiochip_add_data(&chips->chip, chips);
+	ret = devm_gpiochip_add_data(dev, &chips->chip, chips);
+	if (ret)
+		goto err;
+
 	platform_set_drvdata(pdev, chips);
 	davinci_gpio_irq_setup(pdev);
 	return 0;
+
+err:
+	/* Revert the static variable increments */
+	ctrl_num--;
+	bank_base -= ngpio;
+
+	return ret;
 }
 
 /*--------------------------------------------------------------------------*/
