@@ -130,8 +130,7 @@ static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 {
 	long ret;
 
-	ret = wait_for_completion_interruptible_timeout(&fw_st->completion,
-							timeout);
+	ret = wait_for_completion_killable_timeout(&fw_st->completion, timeout);
 	if (ret != 0 && fw_st->status == FW_STATUS_ABORTED)
 		return -ENOENT;
 	if (!ret)
