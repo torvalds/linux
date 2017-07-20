@@ -78,6 +78,18 @@
 			 <RZA1_PINMUX(2, 10, 2)>,	/* ET_RXD2  */
 			 <RZA1_PINMUX(2, 11, 2)>;	/* ET_RXD3  */
 	};
+
+	/* SDHI ch1 on CN1 */
+	sdhi1_pins: sdhi1 {
+		pinmux = <RZA1_PINMUX(3, 8, 7)>,	/* SD_CD_1 */
+			 <RZA1_PINMUX(3, 9, 7)>,	/* SD_WP_1 */
+			 <RZA1_PINMUX(3, 10, 7)>,	/* SD_D1_1 */
+			 <RZA1_PINMUX(3, 11, 7)>,	/* SD_D0_1 */
+			 <RZA1_PINMUX(3, 12, 7)>,	/* SD_CLK_1 */
+			 <RZA1_PINMUX(3, 13, 7)>,	/* SD_CMD_1 */
+			 <RZA1_PINMUX(3, 14, 7)>,	/* SD_D3_1 */
+			 <RZA1_PINMUX(3, 15, 7)>;	/* SD_D2_1 */
+	};
 };
 
 &mtu2 {
@@ -96,6 +108,8 @@
 };
 
 &sdhi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhi1_pins>;
 	bus-width = <4>;
 	status = "okay";
 };
