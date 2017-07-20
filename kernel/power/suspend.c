@@ -584,6 +584,7 @@ int pm_suspend(suspend_state_t state)
 	if (state <= PM_SUSPEND_ON || state >= PM_SUSPEND_MAX)
 		return -EINVAL;
 
+	pr_info("PM: suspend entry (%s)\n", pm_states[state]);
 	error = enter_state(state);
 	if (error) {
 		suspend_stats.fail++;
@@ -591,6 +592,7 @@ int pm_suspend(suspend_state_t state)
 	} else {
 		suspend_stats.success++;
 	}
+	pr_info("PM: suspend exit\n");
 	return error;
 }
 EXPORT_SYMBOL(pm_suspend);
