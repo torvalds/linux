@@ -11,13 +11,9 @@ struct task_struct;
 /* for sysctl */
 extern int print_fatal_signals;
 
-static inline void copy_siginfo(struct siginfo *to, struct siginfo *from)
+static inline void copy_siginfo(struct siginfo *to, const struct siginfo *from)
 {
-	if (from->si_code < 0)
-		memcpy(to, from, sizeof(*to));
-	else
-		/* _sigchld is currently the largest know union member */
-		memcpy(to, from, __ARCH_SI_PREAMBLE_SIZE + sizeof(from->_sifields._sigchld));
+	memcpy(to, from, sizeof(*to));
 }
 
 int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
