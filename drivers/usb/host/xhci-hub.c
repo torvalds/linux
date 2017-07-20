@@ -610,12 +610,14 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 
 	/* Disable all Device Slots */
 	xhci_dbg(xhci, "Disable all slots\n");
+	spin_unlock_irqrestore(&xhci->lock, *flags);
 	for (i = 1; i <= HCS_MAX_SLOTS(xhci->hcs_params1); i++) {
 		retval = xhci_disable_slot(xhci, NULL, i);
 		if (retval)
 			xhci_err(xhci, "Failed to disable slot %d, %d. Enter test mode anyway\n",
 				 i, retval);
 	}
+	spin_lock_irqsave(&xhci->lock, *flags);
 	/* Put all ports to the Disable state by clear PP */
 	xhci_dbg(xhci, "Disable all port (PP = 0)\n");
 	/* Power off USB3 ports*/
